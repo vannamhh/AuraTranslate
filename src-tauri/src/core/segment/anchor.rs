@@ -95,9 +95,10 @@ pub fn compute_anchor(
     // nên cắt lát rồi ghép cho ĐÚNG kết quả mà việc ghép TOÀN Chương từng cho ở đoạn này.
     let prefix_raw = join_kept_blocks(&blocks[..image_index], &effective_kept[..image_index]);
 
-    let cleaned = crate::core::cleanup::apply(&prefix_raw, cleanup_rules).map_err(|e| AnchorError {
-        detail: format!("cleanup tren tien to that bai: {e}"),
-    })?;
+    let cleaned =
+        crate::core::cleanup::apply(&prefix_raw, cleanup_rules).map_err(|e| AnchorError {
+            detail: format!("cleanup tren tien to that bai: {e}"),
+        })?;
     let normalized = normalize::normalize(&cleaned.text, source_lang);
     let prefix = normalized.text;
 
@@ -164,9 +165,10 @@ pub fn compute_block_prefix_len(
     }
 
     let prefix_raw = join_kept_blocks(&blocks[..block_index], &effective_kept[..block_index]);
-    let cleaned = crate::core::cleanup::apply(&prefix_raw, cleanup_rules).map_err(|e| AnchorError {
-        detail: format!("cleanup tren tien to that bai: {e}"),
-    })?;
+    let cleaned =
+        crate::core::cleanup::apply(&prefix_raw, cleanup_rules).map_err(|e| AnchorError {
+            detail: format!("cleanup tren tien to that bai: {e}"),
+        })?;
     let normalized = normalize::normalize(&cleaned.text, source_lang);
     let prefix = normalized.text;
 
@@ -264,8 +266,8 @@ fn segment_count_within_prefix(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::webimport::BlockBody;
     use crate::core::segment::split::split_source_text;
+    use crate::core::webimport::BlockBody;
 
     fn text_block(text: &str, kept: bool) -> Block {
         text_block_with_gap(text, kept, "")
@@ -277,11 +279,24 @@ mod tests {
     /// khối chữ nào khác đứng giữa (chỉ ảnh, không tính), nếu không [`join_kept_blocks`] sẽ
     /// nối liền chúng KHÔNG dấu cách, đúng như trên trang thật nó sẽ KHÔNG làm.
     fn text_block_with_gap(text: &str, kept: bool, gap: &str) -> Block {
-        Block { body: BlockBody::Paragraph(text.to_owned()), machine_kept: kept, exact_gap_before: gap.to_owned(), is_list_item: false }
+        Block {
+            body: BlockBody::Paragraph(text.to_owned()),
+            machine_kept: kept,
+            exact_gap_before: gap.to_owned(),
+            is_list_item: false,
+        }
     }
 
     fn image_block() -> Block {
-        Block { body: BlockBody::Image { src: None, alt: None }, machine_kept: true, exact_gap_before: String::new(), is_list_item: false }
+        Block {
+            body: BlockBody::Image {
+                src: None,
+                alt: None,
+            },
+            machine_kept: true,
+            exact_gap_before: String::new(),
+            is_list_item: false,
+        }
     }
 
     #[test]
@@ -319,8 +334,15 @@ mod tests {
         // (a) Prefix TRỌN VẸN — mọi segment (kể cả hai segment trùng chữ) phải đếm đủ.
         let result_full = segment_count_within_prefix(&segments, full_text, full_text.len());
         match result_full {
-            Ok(n) => assert_eq!(n, segments.len(), "moi segment (ke ca hai segment TRUNG CHU) phai duoc dem du"),
-            Err(e) => panic!("khong duoc loi tren mot van ban HOP LE, chi co cau trung chu: {}", e.detail),
+            Ok(n) => assert_eq!(
+                n,
+                segments.len(),
+                "moi segment (ke ca hai segment TRUNG CHU) phai duoc dem du"
+            ),
+            Err(e) => panic!(
+                "khong duoc loi tren mot van ban HOP LE, chi co cau trung chu: {}",
+                e.detail
+            ),
         }
 
         // (b) Prefix DỪNG NGAY SAU lần lặp THỨ NHẤT — phải đếm ĐÚNG MỘT (không phải 0, không
@@ -336,7 +358,10 @@ mod tests {
                 "prefix dung NGAY SAU lan lap THU NHAT phai dem DUNG MOT segment, khong duoc \
                  nham sang lan thu hai (chung minh cursor tien dung)"
             ),
-            Err(e) => panic!("khong duoc loi khi prefix dung dung tai bien mot segment: {}", e.detail),
+            Err(e) => panic!(
+                "khong duoc loi khi prefix dung dung tai bien mot segment: {}",
+                e.detail
+            ),
         }
     }
 
@@ -347,11 +372,20 @@ mod tests {
     fn a_segment_with_empty_text_is_a_distinguishable_error_not_a_silent_overcount() {
         let full_text = "Cau mot that su.";
         let segments = vec![
-            SplitSegment { text: String::new(), is_paragraph_end: false },
-            SplitSegment { text: "Cau mot that su.".to_owned(), is_paragraph_end: false },
+            SplitSegment {
+                text: String::new(),
+                is_paragraph_end: false,
+            },
+            SplitSegment {
+                text: "Cau mot that su.".to_owned(),
+                is_paragraph_end: false,
+            },
         ];
         let result = segment_count_within_prefix(&segments, full_text, full_text.len());
-        assert!(result.is_err(), "mot segment RONG phai la Err, khong duoc dem thua");
+        assert!(
+            result.is_err(),
+            "mot segment RONG phai la Err, khong duoc dem thua"
+        );
     }
 
     /// B2 (vòng rà đối kháng 2, 3 lớp) — `image_index` vượt độ dài `blocks`/`effective_kept`
@@ -359,16 +393,23 @@ mod tests {
     /// panic ở đây giết cả tiến trình (`panic = "abort"`), khác hẳn một `Result::Err` mà
     /// chỗ gọi xử lý được.
     #[test]
-    fn an_image_index_past_the_end_of_blocks_or_effective_kept_is_a_distinguishable_error_not_a_panic() {
+    fn an_image_index_past_the_end_of_blocks_or_effective_kept_is_a_distinguishable_error_not_a_panic()
+     {
         let blocks = vec![text_block("Cau mot.", true)];
         let effective_kept = vec![true];
 
         let result = compute_anchor(&blocks, &effective_kept, 5, "Cau mot.", &[], &[], "en");
-        assert!(result.is_err(), "image_index vuot qua blocks.len() phai la Err, khong panic");
+        assert!(
+            result.is_err(),
+            "image_index vuot qua blocks.len() phai la Err, khong panic"
+        );
 
         let short_kept = vec![];
         let result2 = compute_anchor(&blocks, &short_kept, 1, "Cau mot.", &[], &[], "en");
-        assert!(result2.is_err(), "image_index vuot qua effective_kept.len() phai la Err, khong panic");
+        assert!(
+            result2.is_err(),
+            "image_index vuot qua effective_kept.len() phai la Err, khong panic"
+        );
     }
 
     #[test]
@@ -391,7 +432,8 @@ mod tests {
     }
 
     #[test]
-    fn a_prefix_that_does_not_actually_match_the_chapter_text_is_a_distinguishable_error_not_a_silent_zero() {
+    fn a_prefix_that_does_not_actually_match_the_chapter_text_is_a_distinguishable_error_not_a_silent_zero()
+     {
         let blocks = vec![text_block("Doan van bat ky.", true), image_block()];
         let effective_kept = vec![true, true];
         // `full_source_text` KHÔNG liên quan gì tới `blocks` -- mô phỏng đúng ca gia định
@@ -400,7 +442,15 @@ mod tests {
         let unrelated_full_text = "Van ban hoan toan khac, khong lien quan gi toi blocks o tren.";
         let segments = split_source_text(unrelated_full_text, "en");
 
-        let result = compute_anchor(&blocks, &effective_kept, 1, unrelated_full_text, &segments, &[], "en");
+        let result = compute_anchor(
+            &blocks,
+            &effective_kept,
+            1,
+            unrelated_full_text,
+            &segments,
+            &[],
+            "en",
+        );
         assert!(
             result.is_err(),
             "tien to khong khop phai tra loi PHAN BIET DUOC, khong duoc lam tron thanh Ok(0)"
@@ -411,10 +461,13 @@ mod tests {
     /// (vi phạm bất biến "segment là chuỗi con THẬT theo đúng thứ tự") phải trả lỗi PHÂN BIỆT
     /// ĐƯỢC, không được lặng lẽ dừng đếm sớm và trả về một `count` NHỎ HƠN sự thật.
     #[test]
-    fn a_segment_that_is_not_a_real_substring_of_the_full_text_is_a_distinguishable_error_not_a_silent_undercount() {
+    fn a_segment_that_is_not_a_real_substring_of_the_full_text_is_a_distinguishable_error_not_a_silent_undercount()
+     {
         let full_text = "Cau mot that su. Cau hai that su.";
-        let fake_segment =
-            SplitSegment { text: "Cau nay khong he ton tai trong full_text".to_owned(), is_paragraph_end: false };
+        let fake_segment = SplitSegment {
+            text: "Cau nay khong he ton tai trong full_text".to_owned(),
+            is_paragraph_end: false,
+        };
         let segments = vec![fake_segment];
 
         let result = segment_count_within_prefix(&segments, full_text, full_text.len());
@@ -469,7 +522,8 @@ mod tests {
         // Chuỗi bảy bước AD-39 THẬT: bước 3 (cleanup) rồi bước 4 (normalize) trên TOÀN văn
         // bản ghép — đúng những gì `create_work` làm cho `chapter.source_text`.
         let joined = join_kept_blocks(&blocks, &effective_kept);
-        let cleaned_full = crate::core::cleanup::apply(&joined, &rules).expect("cleanup toan van ban");
+        let cleaned_full =
+            crate::core::cleanup::apply(&joined, &rules).expect("cleanup toan van ban");
         let full_source_text = normalize::normalize(&cleaned_full.text, "en").text;
         assert!(
             !full_source_text.contains("xau"),
@@ -477,9 +531,20 @@ mod tests {
         );
 
         let segments = split_source_text(&full_source_text, "en");
-        let anchor = compute_anchor(&blocks, &effective_kept, 1, &full_source_text, &segments, &rules, "en")
-            .expect("neo phai tinh duoc khi luat lam sach BAT va khop THUAN TRONG tien to");
-        assert_eq!(anchor, 1, "dung mot cau dung TRUOC anh sau khi luat lam sach xoa \"xau \"");
+        let anchor = compute_anchor(
+            &blocks,
+            &effective_kept,
+            1,
+            &full_source_text,
+            &segments,
+            &rules,
+            "en",
+        )
+        .expect("neo phai tinh duoc khi luat lam sach BAT va khop THUAN TRONG tien to");
+        assert_eq!(
+            anchor, 1,
+            "dung mot cau dung TRUOC anh sau khi luat lam sach xoa \"xau \""
+        );
     }
 
     /// C1, vế ⚠️ (§Ask First spec 6.11) — một luật BẬT khớp một chuỗi VẮT QUA đúng ranh giới
@@ -489,7 +554,8 @@ mod tests {
     /// ĐO, không phải suy luận: [`compute_anchor`] phải trả lỗi PHÂN BIỆT ĐƯỢC (tự kiểm bắt
     /// đúng ca này), KHÔNG được âm thầm trả một neo sai.
     #[test]
-    fn a_cleanup_rule_matching_across_the_image_boundary_is_caught_by_the_self_check_not_silently_wrong() {
+    fn a_cleanup_rule_matching_across_the_image_boundary_is_caught_by_the_self_check_not_silently_wrong()
+     {
         let blocks = vec![
             text_block("Cau mot ket thuc.", true),
             image_block(),
@@ -506,11 +572,20 @@ mod tests {
             joined.contains("ket thuc.\n\nCau hai"),
             "fixture phai THAT SU noi lien hai khoi qua dung cho anh, khong thi ca nay khong kiem gi ca"
         );
-        let cleaned_full = crate::core::cleanup::apply(&joined, &rules).expect("cleanup toan van ban");
+        let cleaned_full =
+            crate::core::cleanup::apply(&joined, &rules).expect("cleanup toan van ban");
         let full_source_text = normalize::normalize(&cleaned_full.text, "en").text;
 
         let segments = split_source_text(&full_source_text, "en");
-        let result = compute_anchor(&blocks, &effective_kept, 1, &full_source_text, &segments, &rules, "en");
+        let result = compute_anchor(
+            &blocks,
+            &effective_kept,
+            1,
+            &full_source_text,
+            &segments,
+            &rules,
+            "en",
+        );
 
         // ĐO ĐƯỢC (không suy luận): kết quả THẬT của fixture này là gì?
         match &result {
@@ -518,7 +593,10 @@ mod tests {
                 // Đúng như §Ask First cảnh báo: giả định phân tách-theo-tiền-tố GÃY trên một
                 // luật vắt qua ranh giới, và tự kiểm BẮT ĐƯỢC nó -- an toàn, không phải một
                 // hồi quy. Ghi lại chi tiết lỗi để lần đọc sau không phải chạy lại mới biết.
-                eprintln!("C1 (vong ra doi khang 3 lop) - do that: tu kiem BAT duoc luat vat qua ranh gioi: {}", e.detail);
+                eprintln!(
+                    "C1 (vong ra doi khang 3 lop) - do that: tu kiem BAT duoc luat vat qua ranh gioi: {}",
+                    e.detail
+                );
             }
             Ok(n) => {
                 panic!(

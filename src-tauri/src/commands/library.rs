@@ -30,9 +30,8 @@ use std::path::Path;
 
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::library::indexer::{
-    DEFAULT_SEARCH_LIMIT, IndexError, Indexer, IndexedWork, SearchHit as CoreSearchHit,
-    SearchMode, SearchReport as CoreSearchReport, TextHarvestSkipped, WorkIdConflict, WorkQuery,
-    WorkSortKey,
+    DEFAULT_SEARCH_LIMIT, IndexError, IndexedWork, Indexer, SearchHit as CoreSearchHit, SearchMode,
+    SearchReport as CoreSearchReport, TextHarvestSkipped, WorkIdConflict, WorkQuery, WorkSortKey,
 };
 use crate::core::library::orphan_store::OrphanRecord;
 use crate::core::lifecycle::LifecycleStatus;
@@ -154,12 +153,22 @@ pub struct RescanReport {
 fn indexer_is_missing() -> IpcError {
     let mut params = BTreeMap::new();
     params.insert("store".to_owned(), "library_index".to_owned());
-    IpcError::new("library.indexer_missing", MessageKey::StoreOpenFailed, params, false)
+    IpcError::new(
+        "library.indexer_missing",
+        MessageKey::StoreOpenFailed,
+        params,
+        false,
+    )
 }
 
 /// Thư mục người dùng chọn qua hộp thoại không dùng được làm gốc Library.
 fn root_invalid() -> IpcError {
-    IpcError::new("library.root_invalid", MessageKey::LibraryRootInvalid, BTreeMap::new(), false)
+    IpcError::new(
+        "library.root_invalid",
+        MessageKey::LibraryRootInvalid,
+        BTreeMap::new(),
+        false,
+    )
 }
 
 /// **THÊM (2026-08-27, vòng rà bốn lớp P8)** — kho `global.db` vắng mặt ⇒ lỗi *mở kho*, cùng
@@ -204,11 +213,23 @@ pub fn rescan(
         root_missing: outcome.root_missing,
         indexed: outcome.indexed,
         // Phán quyết Ice #3 -- chở NGUYÊN dữ liệu xung đột, không nén thành `.len()`.
-        conflicts: outcome.conflicts.into_iter().map(ConflictEntry::from).collect(),
+        conflicts: outcome
+            .conflicts
+            .into_iter()
+            .map(ConflictEntry::from)
+            .collect(),
         skipped: outcome.skipped.len(),
-        orphans: outcome.current_orphans.into_iter().map(OrphanEntry::from).collect(),
+        orphans: outcome
+            .current_orphans
+            .into_iter()
+            .map(OrphanEntry::from)
+            .collect(),
         // 🔵 THÊM (retro Epic 5, AI-2/AI-3) -- thay vì vứt, chở NGUYÊN mã lý do + work_id.
-        text_skipped: outcome.text_skipped.into_iter().map(TextSkippedEntry::from).collect(),
+        text_skipped: outcome
+            .text_skipped
+            .into_iter()
+            .map(TextSkippedEntry::from)
+            .collect(),
     })
 }
 
@@ -218,7 +239,12 @@ fn not_orphaned(work_id: String, name: String) -> IpcError {
     let mut params = BTreeMap::new();
     params.insert("work_id".to_owned(), work_id);
     params.insert("name".to_owned(), name);
-    IpcError::new("library.not_orphaned", MessageKey::LibraryNotOrphaned, params, false)
+    IpcError::new(
+        "library.not_orphaned",
+        MessageKey::LibraryNotOrphaned,
+        params,
+        false,
+    )
 }
 
 /// **Hàm thuần** — gỡ đúng một hàng mồ côi, trả danh sách mồ côi CÒN LẠI (§I/O Matrix:
@@ -386,7 +412,12 @@ pub struct WorkListReport {
 fn unknown_sort(sort: &str) -> IpcError {
     let mut params = BTreeMap::new();
     params.insert("sort".to_owned(), sort.to_owned());
-    IpcError::new("library.unknown_sort", MessageKey::LibraryUnknownSort, params, false)
+    IpcError::new(
+        "library.unknown_sort",
+        MessageKey::LibraryUnknownSort,
+        params,
+        false,
+    )
 }
 
 /// Giá trị chế độ tìm kiếm ngoài danh mục hai giá trị đóng của
@@ -395,7 +426,12 @@ fn unknown_sort(sort: &str) -> IpcError {
 fn unknown_search_mode(mode: &str) -> IpcError {
     let mut params = BTreeMap::new();
     params.insert("mode".to_owned(), mode.to_owned());
-    IpcError::new("library.unknown_search_mode", MessageKey::LibraryUnknownSearchMode, params, false)
+    IpcError::new(
+        "library.unknown_search_mode",
+        MessageKey::LibraryUnknownSearchMode,
+        params,
+        false,
+    )
 }
 
 /// **Hàm thuần** — liệt kê + lọc + sắp Tác phẩm cho Library, Story 5.4 (bộ lọc trạng thái) +
@@ -621,8 +657,7 @@ pub mod wire {
     pub fn library_rescan(app: tauri::AppHandle) -> Result<RescanReport, IpcError> {
         let indexer = app.try_state::<Indexer>();
         let store = app.try_state::<Store>();
-        let root =
-            crate::commands::project::resolve_library_root(&app, store.as_deref())?;
+        let root = crate::commands::project::resolve_library_root(&app, store.as_deref())?;
         // Cùng `store` vừa dùng cho `resolve_library_root` -- `Indexer::rebuild` cần nó để
         // ghi/đọc `library_orphan` (phán quyết Ice #1). Một `try_state` DUY NHẤT cho cả hai.
         super::rescan(indexer.as_deref(), store.as_deref(), &root)

@@ -221,8 +221,10 @@ pub fn gather_glossary_context(
     }
 
     let lang = match_lang_for_source_lang(source_lang);
-    let GlossaryInjectionOutcome { injected, suppressed_by_pending_overlap } =
-        confirmed_terms_for_injection(resolver, global, work, sentence, lang)?;
+    let GlossaryInjectionOutcome {
+        injected,
+        suppressed_by_pending_overlap,
+    } = confirmed_terms_for_injection(resolver, global, work, sentence, lang)?;
 
     Ok(GlossaryInjectionStatus::Asked {
         injected: injected
@@ -251,8 +253,9 @@ pub fn gather_glossary_context(
 /// Most TM pairs one prompt carries.
 pub const TM_PAIR_CAP: usize = 3;
 
-// aura-allow-text: prompt text sent to the model, not UI text
-const TM_REFERENCE_LABEL: &str = "Văn phong tham khảo (bản dịch của người khác, không phải văn phong của người dùng):";
+const TM_REFERENCE_LABEL: &str =
+    // aura-allow-text: prompt text sent to the model, not UI text
+    "Văn phong tham khảo (bản dịch của người khác, không phải văn phong của người dùng):";
 
 /// Every TM row of both tiers plus the fuzzy threshold, read once so many sentences can be
 /// scored against one read.
@@ -271,8 +274,9 @@ pub fn load_tm_rows(
     if scan_markers(body).tm_similar_segments_missing {
         return Ok(None);
     }
-    let threshold =
-        crate::core::scope::load_global_config(global).map_err(TmStoreError::Store)?.tm_fuzzy_threshold();
+    let threshold = crate::core::scope::load_global_config(global)
+        .map_err(TmStoreError::Store)?
+        .tm_fuzzy_threshold();
     Ok(Some(TmRows {
         candidates: read_tier_rows(global, work)?,
         threshold: u8::try_from(threshold).unwrap_or(u8::MAX),
@@ -294,7 +298,8 @@ pub fn gather_tm_context(
         return Ok(Some(Vec::new()));
     }
     let lang = match_lang_for_source_lang(source_lang);
-    let pairs = fuzzy_pairs_in_candidates(resolver, &rows.candidates, sentence, lang, rows.threshold)?;
+    let pairs =
+        fuzzy_pairs_in_candidates(resolver, &rows.candidates, sentence, lang, rows.threshold)?;
     Ok(Some(
         pairs
             .into_iter()
@@ -344,8 +349,10 @@ fn render_glossary_pairs(injected: &[InjectedGlossaryTerm]) -> String {
 /// order `tm` came in); a pair identical to `sentence` is never picked; at most [`TM_PAIR_CAP`].
 fn select_tm_pairs(tm: &[SimilarSegment], sentence: &str) -> Vec<InjectedTmPair> {
     let side_sorted = |side: PairSide| {
-        let mut picked: Vec<&SimilarSegment> =
-            tm.iter().filter(|s| s.side == side && s.source_text != sentence).collect();
+        let mut picked: Vec<&SimilarSegment> = tm
+            .iter()
+            .filter(|s| s.side == side && s.source_text != sentence)
+            .collect();
         picked.sort_by(|a, b| b.percent.cmp(&a.percent));
         picked
     };
@@ -446,7 +453,10 @@ fn push_piece(out: &mut String, pieces: &mut Vec<PromptPiece>, kind: PromptPiece
             return;
         }
     }
-    pieces.push(PromptPiece { kind, text: s.to_owned() });
+    pieces.push(PromptPiece {
+        kind,
+        text: s.to_owned(),
+    });
 }
 
 /// Gỡ MỘT dấu xuống dòng cuối khỏi CẢ `out` lẫn mảnh cuối của `pieces` — dùng bởi lượt co dòng
@@ -510,14 +520,24 @@ fn expand_prompt_body(
 
     loop {
         let Some(open_rel) = body[cursor..].find("{{") else {
-            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..]);
+            push_piece(
+                &mut out,
+                &mut pieces,
+                PromptPieceKind::Authored,
+                &body[cursor..],
+            );
             break;
         };
         let open_at = cursor + open_rel;
         let after_open = open_at + 2;
 
         let Some(close_rel) = body[after_open..].find("}}") else {
-            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..]);
+            push_piece(
+                &mut out,
+                &mut pieces,
+                PromptPieceKind::Authored,
+                &body[cursor..],
+            );
             break;
         };
         let token_start = after_open;
@@ -528,7 +548,12 @@ fn expand_prompt_body(
         // no la van ban thuong, khong xu ly nhu mot marker; sao chep qua no roi quet lai TU
         // BEN TRONG token vua tim thay.
         if token.contains("{{") {
-            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..after_open]);
+            push_piece(
+                &mut out,
+                &mut pieces,
+                PromptPieceKind::Authored,
+                &body[cursor..after_open],
+            );
             cursor = after_open;
             continue;
         }
@@ -537,7 +562,12 @@ fn expand_prompt_body(
 
         let Some(var) = PromptVariable::from_token(token) else {
             // Token khong biet -- giu NGUYEN VAN toan bo marker (Quyet dinh #3, spec 4.4).
-            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..close_at]);
+            push_piece(
+                &mut out,
+                &mut pieces,
+                PromptPieceKind::Authored,
+                &body[cursor..close_at],
+            );
             cursor = close_at;
             continue;
         };
@@ -549,7 +579,10 @@ fn expand_prompt_body(
         let piece_kind = piece_kind_for(var);
 
         let line_start = body[..open_at].rfind('\n').map(|i| i + 1).unwrap_or(0);
-        let line_end = body[close_at..].find('\n').map(|i| close_at + i).unwrap_or(body.len());
+        let line_end = body[close_at..]
+            .find('\n')
+            .map(|i| close_at + i)
+            .unwrap_or(body.len());
         let before_on_line = &body[line_start..open_at];
         let after_on_line = &body[close_at..line_end];
         let alone_on_line = before_on_line.trim().is_empty() && after_on_line.trim().is_empty();
@@ -557,7 +590,12 @@ fn expand_prompt_body(
         if replacement.is_empty() && alone_on_line {
             // Quyet dinh 3 -- go CA DONG (ke ca dau xuong dong CUA CHINH no), khong chi go
             // van ban marker.
-            push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..line_start]);
+            push_piece(
+                &mut out,
+                &mut pieces,
+                PromptPieceKind::Authored,
+                &body[cursor..line_start],
+            );
 
             let mut next_cursor = line_end;
             if next_cursor < body.len() {
@@ -588,7 +626,12 @@ fn expand_prompt_body(
         }
 
         // Truong hop chung: van ban truoc marker giu nguyen, roi chen phan thay the.
-        push_piece(&mut out, &mut pieces, PromptPieceKind::Authored, &body[cursor..open_at]);
+        push_piece(
+            &mut out,
+            &mut pieces,
+            PromptPieceKind::Authored,
+            &body[cursor..open_at],
+        );
 
         let needs_isolation = replacement.contains('\n');
         if needs_isolation && !before_on_line.trim().is_empty() && !out.ends_with('\n') {
@@ -673,7 +716,8 @@ const PROOFREAD_INSTRUCTION_WITH_SOURCE: &str = "Find errors in the translations
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_FORMAT: &str = "Reply with only a JSON array of {\"segment\",\"kind\",\"quote\",\"explanation\",\"suggestion\"}. segment is the number after SEGMENT.";
 // aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_KIND_RULE: &str = "kind is \"spelling\" or \"grammar\". Reply [] when there is no error.";
+const PROOFREAD_KIND_RULE: &str =
+    "kind is \"spelling\" or \"grammar\". Reply [] when there is no error.";
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_KIND_RULE_WITH_SOURCE: &str = "kind is \"spelling\", \"grammar\", \"mistranslation\" (the translation says something different from the original), \"too_loose\" (it drifts too far from the original) or \"obscure\" (it is unclear even given the original); the last three only for a SEGMENT that has a SOURCE block. Reply [] when there is no error.";
 // aura-allow-text: prompt text sent to the model, not UI text
@@ -707,7 +751,10 @@ pub struct ProofreadBlock<'a> {
 pub fn assemble_proofread_batch_prompt(blocks: &[ProofreadBlock<'_>]) -> String {
     let any_source = blocks.iter().any(|b| !b.source_text.trim().is_empty());
     let (instruction, kind_rule) = if any_source {
-        (PROOFREAD_INSTRUCTION_WITH_SOURCE, PROOFREAD_KIND_RULE_WITH_SOURCE)
+        (
+            PROOFREAD_INSTRUCTION_WITH_SOURCE,
+            PROOFREAD_KIND_RULE_WITH_SOURCE,
+        )
     } else {
         (PROOFREAD_INSTRUCTION, PROOFREAD_KIND_RULE)
     };
@@ -735,7 +782,10 @@ mod proofread_prompt_tests {
     use super::{ProofreadBlock, assemble_proofread_batch_prompt};
 
     fn one(source_text: &str, target_text: &str) -> String {
-        assemble_proofread_batch_prompt(&[ProofreadBlock { source_text, target_text }])
+        assemble_proofread_batch_prompt(&[ProofreadBlock {
+            source_text,
+            target_text,
+        }])
     }
 
     #[test]
@@ -749,11 +799,24 @@ mod proofread_prompt_tests {
     #[test]
     fn each_block_is_numbered_from_one_and_keeps_its_own_source() {
         let prompt = assemble_proofread_batch_prompt(&[
-            ProofreadBlock { source_text: "S1", target_text: "T1" },
-            ProofreadBlock { source_text: "", target_text: "T2" },
-            ProofreadBlock { source_text: "S3", target_text: "T3" },
+            ProofreadBlock {
+                source_text: "S1",
+                target_text: "T1",
+            },
+            ProofreadBlock {
+                source_text: "",
+                target_text: "T2",
+            },
+            ProofreadBlock {
+                source_text: "S3",
+                target_text: "T3",
+            },
         ]);
-        assert!(prompt.contains("<<<SEGMENT 1\n<<<SOURCE\nS1\nSOURCE>>>\n<<<TEXT\nT1\nTEXT>>>\nSEGMENT>>>"));
+        assert!(
+            prompt.contains(
+                "<<<SEGMENT 1\n<<<SOURCE\nS1\nSOURCE>>>\n<<<TEXT\nT1\nTEXT>>>\nSEGMENT>>>"
+            )
+        );
         assert!(prompt.contains("<<<SEGMENT 2\n<<<TEXT\nT2\nTEXT>>>\nSEGMENT>>>"));
         assert!(prompt.contains("<<<SEGMENT 3\n<<<SOURCE\nS3\nSOURCE>>>"));
         assert!(prompt.contains("mistranslation"));

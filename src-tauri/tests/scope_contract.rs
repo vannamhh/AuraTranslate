@@ -34,8 +34,8 @@ use auratranslate_lib::commands::config::{bootstrap_config, delete_config, put_c
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::scope::kinds::{ScopeKind, Semantics};
 use auratranslate_lib::core::scope::{
-    DEFAULT_MODE, DEFAULT_THEME, ScopeError, ScopeResolver, Tier, delete_value,
-    load_global_config, save_value,
+    DEFAULT_MODE, DEFAULT_THEME, ScopeError, ScopeResolver, Tier, delete_value, load_global_config,
+    save_value,
 };
 // ⚠️ Qua `scope::store::`, KHÔNG qua `scope::` — `mod.rs` tái xuất `DEFAULT_MODE`/
 // `DEFAULT_THEME` nhưng KHÔNG tái xuất hằng này (đo 2026-08-26: `mod.rs:69-72`). Cùng đường
@@ -247,12 +247,20 @@ fn an_override_keeps_keys_that_only_exist_in_the_global_tier() {
         out.len()
     );
 
-    let a = out.get("a").expect("khoá `a` chỉ có ở Global phải còn trong kết quả");
+    let a = out
+        .get("a")
+        .expect("khoá `a` chỉ có ở Global phải còn trong kết quả");
     assert_eq!(a.value(), "ga");
     assert_eq!(a.tier(), Tier::Global);
-    assert_eq!(a.shadowed(), None, "Global là tầng dưới cùng — không có gì dưới nó để che");
+    assert_eq!(
+        a.shadowed(),
+        None,
+        "Global là tầng dưới cùng — không có gì dưới nó để che"
+    );
 
-    let c = out.get("c").expect("khoá `c` chỉ có ở Global phải còn trong kết quả");
+    let c = out
+        .get("c")
+        .expect("khoá `c` chỉ có ở Global phải còn trong kết quả");
     assert_eq!(c.value(), "gc");
     assert_eq!(c.tier(), Tier::Global);
 
@@ -309,7 +317,8 @@ fn an_override_without_a_work_tier_is_the_whole_global_tier() {
 
     assert_eq!(out.len(), 2);
     assert!(
-        out.values().all(|r| r.tier() == Tier::Global && r.shadowed().is_none()),
+        out.values()
+            .all(|r| r.tier() == Tier::Global && r.shadowed().is_none()),
         "chưa mở Tác phẩm nào ⇒ mọi mục mang `tier: Global` và không che gì"
     );
     assert!(
@@ -367,8 +376,14 @@ fn the_tier_is_always_the_secondary_sort_key() {
 
     // `.0` đóng vai XUẤT XỨ (khoá chính); `.1` chỉ để đọc kết quả. `core::scope` không
     // biết xuất xứ là gì — nó nhận bộ so sánh từ chỗ gọi (§Quyết định #4).
-    let global = vec![(1u8, "g-tu-nguoi-dung".to_owned()), (2u8, "g-may-dich".to_owned())];
-    let work = vec![(1u8, "w-tu-nguoi-dung".to_owned()), (2u8, "w-may-dich".to_owned())];
+    let global = vec![
+        (1u8, "g-tu-nguoi-dung".to_owned()),
+        (2u8, "g-may-dich".to_owned()),
+    ];
+    let work = vec![
+        (1u8, "w-tu-nguoi-dung".to_owned()),
+        (2u8, "w-may-dich".to_owned()),
+    ];
     let by_provenance = |a: &(u8, String), b: &(u8, String)| a.0.cmp(&b.0);
 
     let out = resolver
@@ -635,7 +650,11 @@ fn a_row_written_straight_into_global_db_resolves_back_through_the_scope_path() 
         .expect("ghi ba hàng cấu hình");
 
     let config = load_global_config(&store).expect("phân giải tầng Global");
-    assert_eq!(config.theme(), "dark", "theme phải đến TỪ ĐĨA, không từ mặc định");
+    assert_eq!(
+        config.theme(),
+        "dark",
+        "theme phải đến TỪ ĐĨA, không từ mặc định"
+    );
     assert_eq!(
         config.mode(),
         DEFAULT_MODE,
@@ -876,7 +895,9 @@ fn deleting_a_shortcut_key_leaves_no_row_while_writing_an_empty_value_leaves_one
 
     // ② TRẢ VỀ MẶC ĐỊNH — khoá VẮNG MẶT. Đường đọc rơi về hợp âm mặc định của sản phẩm.
     delete_config(Some(&store), "shortcut", "mode.library").expect("trả về mặc định");
-    let reset = bootstrap_config(Some(&store)).expect("bootstrap sau khi xoá").shortcuts;
+    let reset = bootstrap_config(Some(&store))
+        .expect("bootstrap sau khi xoá")
+        .shortcuts;
     assert!(
         !reset.contains_key("mode.library"),
         "sau lượt xoá, khoá phải VẮNG MẶT chứ không mang chuỗi rỗng — hai trạng thái đó là \
@@ -1019,7 +1040,8 @@ fn the_workspace_layout_survives_a_write_and_a_reopen() {
     // Một `SerializedDockview` rút gọn. ⚠️ Tầng Rust KHÔNG phân tích chuỗi này — nó chỉ
     // phải đi qua NGUYÊN VẸN. Dùng một JSON có dấu nháy kép lồng nhau chính vì vậy: nếu
     // đường ghi/đọc làm hỏng escaping ở đâu đó, chuỗi trả về sẽ khác.
-    let layout = r#"{"grid":{"root":{"type":"leaf","data":{"views":["panel.source"]}}},"panels":{}}"#;
+    let layout =
+        r#"{"grid":{"root":{"type":"leaf","data":{"views":["panel.source"]}}},"panels":{}}"#;
 
     {
         let store = open_store(&dir);
@@ -1176,11 +1198,16 @@ fn the_second_constructor_carries_a_work_tier_and_the_first_one_does_not() {
 
 #[test]
 fn the_tm_fuzzy_threshold_accepts_50_to_99_and_falls_back_to_65_otherwise() {
-    use auratranslate_lib::core::scope::store::{DEFAULT_TM_FUZZY_THRESHOLD, parse_tm_fuzzy_threshold};
+    use auratranslate_lib::core::scope::store::{
+        DEFAULT_TM_FUZZY_THRESHOLD, parse_tm_fuzzy_threshold,
+    };
     assert_eq!(DEFAULT_TM_FUZZY_THRESHOLD, 65);
     assert_eq!(parse_tm_fuzzy_threshold(None), 65);
     for ok in ["50", "80", "99"] {
-        assert_eq!(parse_tm_fuzzy_threshold(Some(ok)), ok.parse::<u32>().unwrap());
+        assert_eq!(
+            parse_tm_fuzzy_threshold(Some(ok)),
+            ok.parse::<u32>().unwrap()
+        );
     }
     for bad in ["49", "100", "0", "-3", "abc", "", "65.5"] {
         assert_eq!(parse_tm_fuzzy_threshold(Some(bad)), 65, "{bad:?}");

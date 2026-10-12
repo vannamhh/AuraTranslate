@@ -50,7 +50,7 @@
 //! phải luật này.
 
 use super::regroup::source_joiner;
-use super::split::{line_ends_a_sentence, LANG_CHINESE};
+use super::split::{LANG_CHINESE, line_ends_a_sentence};
 
 /// Kết quả một lượt chuẩn hoá — văn bản đã chuẩn hoá cộng HAI số đếm thiệt hại, để tầng xem
 /// trước đo được TRƯỚC khi xác nhận (§Always spec 6.4).
@@ -142,7 +142,11 @@ pub fn normalize(text: &str, source_lang: &str) -> Normalized {
     let output_blank_lines = paragraph_texts.len().saturating_sub(1);
     let blank_lines_removed = input_blank_lines.saturating_sub(output_blank_lines);
 
-    Normalized { text: paragraph_texts.join("\n\n"), joined_lines, blank_lines_removed }
+    Normalized {
+        text: paragraph_texts.join("\n\n"),
+        joined_lines,
+        blank_lines_removed,
+    }
 }
 
 /// Chuẩn hoá một CỬA SỔ — dùng bởi tầng xem trước bảng mã
@@ -165,7 +169,11 @@ pub fn normalize(text: &str, source_lang: &str) -> Normalized {
 pub fn normalize_window(text: &str, source_lang: &str, max_bytes: usize) -> Normalized {
     match window_safe_prefix(text, max_bytes) {
         Some(prefix) => normalize(&prefix, source_lang),
-        None => Normalized { text: String::new(), joined_lines: 0, blank_lines_removed: 0 },
+        None => Normalized {
+            text: String::new(),
+            joined_lines: 0,
+            blank_lines_removed: 0,
+        },
     }
 }
 
@@ -295,9 +303,18 @@ mod tests {
     fn normalizing_an_already_normalized_string_is_idempotent() {
         let once = normalize("A。\n\nB。 nguoi。\nhet cau.", LANG_CHINESE);
         let twice = normalize(&once.text, LANG_CHINESE);
-        assert_eq!(once.text, twice.text, "chuan hoa lan hai phai cho lai Y HET");
-        assert_eq!(twice.joined_lines, 0, "van ban da chuan hoa khong con gi de noi");
-        assert_eq!(twice.blank_lines_removed, 0, "van ban da chuan hoa khong con dong trong thua");
+        assert_eq!(
+            once.text, twice.text,
+            "chuan hoa lan hai phai cho lai Y HET"
+        );
+        assert_eq!(
+            twice.joined_lines, 0,
+            "van ban da chuan hoa khong con gi de noi"
+        );
+        assert_eq!(
+            twice.blank_lines_removed, 0,
+            "van ban da chuan hoa khong con dong trong thua"
+        );
     }
 
     // ── `normalize_window` ───────────────────────────────────────────────────────
@@ -318,7 +335,10 @@ mod tests {
         let text = "A。\nB。";
         let windowed = normalize_window(text, LANG_CHINESE, text.len());
         let plain = normalize(text, LANG_CHINESE);
-        assert_eq!(windowed, plain, "cua so KHONG ngan hon van ban that -- phai giong normalize() thuong");
+        assert_eq!(
+            windowed, plain,
+            "cua so KHONG ngan hon van ban that -- phai giong normalize() thuong"
+        );
     }
 
     #[test]

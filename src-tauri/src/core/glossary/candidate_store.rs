@@ -41,7 +41,9 @@ use crate::core::store::{
     WriteTicket,
 };
 
-use super::candidate::{CandidateOrigin, GlossaryCandidate, Resolution, ReviewHarvestDetail, ReviewHarvestProposal};
+use super::candidate::{
+    CandidateOrigin, GlossaryCandidate, Resolution, ReviewHarvestDetail, ReviewHarvestProposal,
+};
 use super::entry::Category;
 use super::store::insert_entry_row;
 
@@ -170,7 +172,11 @@ pub fn chapter_source_texts(store: &Store) -> Result<Vec<(i64, String)>, StoreEr
 }
 
 /// The matching half of [`candidate_chapter_span_counts`], over texts already read.
-pub fn chapter_span_counts_in(chapters: &[(i64, String)], terms: &[&str], lang: MatchLang) -> Vec<i64> {
+pub fn chapter_span_counts_in(
+    chapters: &[(i64, String)],
+    terms: &[&str],
+    lang: MatchLang,
+) -> Vec<i64> {
     if terms.is_empty() {
         return Vec::new();
     }
@@ -413,9 +419,18 @@ pub fn enqueue_review_harvest(
 ) -> Result<ReviewHarvestEnqueued, StoreError> {
     let proposals = proposals.to_vec();
     store.write(move |tx: &Transaction<'_>| {
-        let mut outcome = ReviewHarvestEnqueued { inserted: 0, updated: 0, skipped: 0, removed: 0 };
+        let mut outcome = ReviewHarvestEnqueued {
+            inserted: 0,
+            updated: 0,
+            skipped: 0,
+            removed: 0,
+        };
         let mut kept: Vec<i64> = Vec::new();
-        for ReviewHarvestProposal { source_term, detail } in &proposals {
+        for ReviewHarvestProposal {
+            source_term,
+            detail,
+        } in &proposals
+        {
             let existing: Option<(i64, Option<String>)> = tx
                 .query_row(
                     "SELECT id, resolution FROM glossary_candidate
@@ -453,7 +468,12 @@ pub fn enqueue_review_harvest(
                         "UPDATE glossary_candidate
                          SET replaced_translation = ?1, changed_count = ?2, seen_count = ?3
                          WHERE id = ?4",
-                        (&detail.replaced_translation, detail.changed_count, detail.seen_count, id),
+                        (
+                            &detail.replaced_translation,
+                            detail.changed_count,
+                            detail.seen_count,
+                            id,
+                        ),
                     )?;
                     kept.push(id);
                     outcome.updated += 1;
@@ -482,9 +502,17 @@ fn decode_review_harvest(row: &Row<'_>) -> SqlResult<Option<ReviewHarvestDetail>
     let changed: Option<i64> = row.get(9)?;
     let seen: Option<i64> = row.get(10)?;
     Ok(match (replaced, proposed, changed, seen) {
-        (Some(replaced_translation), Some(proposed_translation), Some(changed_count), Some(seen_count)) => {
-            Some(ReviewHarvestDetail { replaced_translation, proposed_translation, changed_count, seen_count })
-        }
+        (
+            Some(replaced_translation),
+            Some(proposed_translation),
+            Some(changed_count),
+            Some(seen_count),
+        ) => Some(ReviewHarvestDetail {
+            replaced_translation,
+            proposed_translation,
+            changed_count,
+            seen_count,
+        }),
         _ => None,
     })
 }

@@ -31,9 +31,12 @@ impl From<AttributionError> for IpcError {
     fn from(err: AttributionError) -> Self {
         match err {
             AttributionError::Store(e) => e.into(),
-            AttributionError::Scope(_) => {
-                IpcError::new("attribution.scope_error", MessageKey::AttributionScopeError, BTreeMap::new(), false)
-            }
+            AttributionError::Scope(_) => IpcError::new(
+                "attribution.scope_error",
+                MessageKey::AttributionScopeError,
+                BTreeMap::new(),
+                false,
+            ),
         }
     }
 }
@@ -50,7 +53,10 @@ fn load_rows(store: &Store) -> Result<BTreeMap<String, String>, StoreError> {
     })
 }
 
-pub fn resolve_translator_name(resolver: &ScopeResolver, global: &Store) -> Result<Option<String>, AttributionError> {
+pub fn resolve_translator_name(
+    resolver: &ScopeResolver,
+    global: &Store,
+) -> Result<Option<String>, AttributionError> {
     let rows = load_rows(global)?;
     let resolved = resolver.apply_override(TRANSLATOR_NAME_SCOPE_KIND, &rows, None)?;
     Ok(resolved
@@ -63,7 +69,10 @@ pub fn write_translator_name(global: &Store, name: &str) -> Result<(), StoreErro
     let name = name.trim().to_owned();
     global.write(move |tx: &Transaction<'_>| {
         if name.is_empty() {
-            tx.execute("DELETE FROM translator_name WHERE key = ?1", [TRANSLATOR_NAME_KEY])?;
+            tx.execute(
+                "DELETE FROM translator_name WHERE key = ?1",
+                [TRANSLATOR_NAME_KEY],
+            )?;
         } else {
             tx.execute(
                 "INSERT INTO translator_name (key, value, updated_at)

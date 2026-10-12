@@ -3,11 +3,11 @@ use super::block_paragraphs::target_pieces;
 use super::docx_table::ImageReference;
 use super::image_files::copied_name;
 use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
-use std::collections::BTreeMap;
 use super::table_rows::ExportImage;
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::reading::paragraphs_by_flag;
 use crate::core::store::{Store, StoreError};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -44,7 +44,10 @@ pub struct LoadedText {
 }
 
 pub(super) fn one_line(text: &str) -> String {
-    text.split(char::is_whitespace).filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" ")
+    text.split(char::is_whitespace)
+        .filter(|word| !word.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub(super) enum Emitted<I> {
@@ -61,11 +64,16 @@ pub(super) fn emit_items<I>(
     mut by_anchor: BTreeMap<i64, Vec<I>>,
     orphans: Vec<I>,
 ) -> Vec<(Emitted<I>, Vec<i64>)> {
-    let mut items: Vec<(Emitted<I>, Vec<i64>)> = head.into_iter().map(|i| (Emitted::Image(i), Vec::new())).collect();
+    let mut items: Vec<(Emitted<I>, Vec<i64>)> = head
+        .into_iter()
+        .map(|i| (Emitted::Image(i), Vec::new()))
+        .collect();
     for group in paragraphs_by_flag(segments, |s| s.is_target_paragraph_end) {
         let mut pieces: Vec<String> = Vec::new();
         let mut ids: Vec<i64> = Vec::new();
-        let flush = |pieces: &mut Vec<String>, ids: &mut Vec<i64>, items: &mut Vec<(Emitted<I>, Vec<i64>)>| {
+        let flush = |pieces: &mut Vec<String>,
+                     ids: &mut Vec<i64>,
+                     items: &mut Vec<(Emitted<I>, Vec<i64>)>| {
             if !pieces.is_empty() {
                 items.push((Emitted::Paragraph(pieces.join(" ")), std::mem::take(ids)));
                 pieces.clear();
@@ -114,8 +122,16 @@ pub fn load_chapter_text(
                 title_stmt.query_row([chapter_id], |row| Ok((row.get(0)?, row.get(1)?)))?;
             let segments = select_chapter_segments(conn, chapter_id)?;
             let assets = select_chapter_assets(conn, chapter_id)?;
-            let ImageSplit { head, by_anchor, orphans, skipped: chapter_skipped } =
-                split_by_anchor(&segments, chapter_images(&segments, &assets), image_mode, |image| TextImage {
+            let ImageSplit {
+                head,
+                by_anchor,
+                orphans,
+                skipped: chapter_skipped,
+            } = split_by_anchor(
+                &segments,
+                chapter_images(&segments, &assets),
+                image_mode,
+                |image| TextImage {
                     alt: one_line(image.alt_text.as_deref().unwrap_or("")),
                     caption: one_line(image.caption_text.as_deref().unwrap_or("")),
                     image: ExportImage {
@@ -125,7 +141,8 @@ pub fn load_chapter_text(
                         file_name: image.file_name,
                         source_url: image.source_url,
                     },
-                });
+                },
+            );
             skipped += chapter_skipped;
             let items: Vec<TextItem> = emit_items(&segments, head, by_anchor, orphans)
                 .into_iter()
@@ -135,9 +152,17 @@ pub fn load_chapter_text(
                 })
                 .collect();
             let attribution = lines_for(conn, chapter_id, attribution)?;
-            chapters.push(TextChapter { chapter_ord, title, attribution, items });
+            chapters.push(TextChapter {
+                chapter_ord,
+                title,
+                attribution,
+                items,
+            });
         }
-        Ok(LoadedText { chapters, images_skipped_missing_link: skipped })
+        Ok(LoadedText {
+            chapters,
+            images_skipped_missing_link: skipped,
+        })
     })
 }
 
@@ -189,10 +214,23 @@ fn markdown_heading(text: &str) -> String {
 }
 
 fn markdown_destination(dest: &str) -> String {
-    let flat: String = dest.chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
-    if flat.is_empty() || flat.contains(|c: char| c.is_whitespace() || matches!(c, '(' | ')' | '<' | '>' | '\\')) {
-        let inner: String =
-            flat.chars().flat_map(|c| if matches!(c, '<' | '>' | '\\') { vec!['\\', c] } else { vec![c] }).collect();
+    let flat: String = dest
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    if flat.is_empty()
+        || flat.contains(|c: char| c.is_whitespace() || matches!(c, '(' | ')' | '<' | '>' | '\\'))
+    {
+        let inner: String = flat
+            .chars()
+            .flat_map(|c| {
+                if matches!(c, '<' | '>' | '\\') {
+                    vec!['\\', c]
+                } else {
+                    vec![c]
+                }
+            })
+            .collect();
         format!("<{inner}>")
     } else {
         flat
@@ -213,7 +251,11 @@ fn markdown_block(item: &TextItem, reference: ImageReference<'_>) -> String {
         TextItem::Image(i) => {
             let dest = markdown_destination(&destination_of(&i.image, reference));
             let line = format!("![{}]({dest})", escape_inline(&i.alt));
-            if i.caption.is_empty() { line } else { format!("{line}\n*{}*", escape_inline(&i.caption)) }
+            if i.caption.is_empty() {
+                line
+            } else {
+                format!("{line}\n*{}*", escape_inline(&i.caption))
+            }
         }
     }
 }
@@ -224,7 +266,11 @@ fn plain_block(item: &TextItem, reference: ImageReference<'_>) -> String {
         TextItem::Image(i) => {
             // aura-allow-text: file content the publisher reads, fixed by the export format, not UI text
             let line = format!("[Ảnh: {}] {}", i.alt, destination_of(&i.image, reference));
-            if i.caption.is_empty() { line } else { format!("{line}\n{}", i.caption) }
+            if i.caption.is_empty() {
+                line
+            } else {
+                format!("{line}\n{}", i.caption)
+            }
         }
     }
 }
@@ -243,14 +289,20 @@ fn heading_of(chapter: &TextChapter) -> String {
 
 fn attribution_block(lines: &[String], format: TextFormat) -> String {
     match format {
-        TextFormat::Markdown => {
-            lines.iter().map(|line| markdown_text(line)).collect::<Vec<_>>().join("\\\n")
-        }
+        TextFormat::Markdown => lines
+            .iter()
+            .map(|line| markdown_text(line))
+            .collect::<Vec<_>>()
+            .join("\\\n"),
         TextFormat::Plain => lines.join("\n"),
     }
 }
 
-pub fn render_text(loaded: &LoadedText, format: TextFormat, reference: ImageReference<'_>) -> String {
+pub fn render_text(
+    loaded: &LoadedText,
+    format: TextFormat,
+    reference: ImageReference<'_>,
+) -> String {
     let mut sections = Vec::new();
     for chapter in loaded.chapters.iter().filter(|c| !c.items.is_empty()) {
         let heading = match format {
@@ -268,5 +320,9 @@ pub fn render_text(loaded: &LoadedText, format: TextFormat, reference: ImageRefe
         }));
         sections.push(blocks.join("\n\n"));
     }
-    if sections.is_empty() { String::new() } else { format!("{}\n", sections.join("\n\n")) }
+    if sections.is_empty() {
+        String::new()
+    } else {
+        format!("{}\n", sections.join("\n\n"))
+    }
 }

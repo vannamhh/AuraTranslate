@@ -14,7 +14,6 @@
 //!
 //! Sàn quần thể + kiểm chứng dương là bắt buộc, khuôn `segment_pipeline_boundary.rs`.
 
-
 use auratranslate_lib::core::segment::encoding::FR126_LABELS;
 
 #[path = "support/boundary_scan.rs"]
@@ -116,8 +115,10 @@ fn chardetng_is_named_in_exactly_one_product_file_inside_core_segment() {
     // `core/webimport/` không nêu tên `chardetng` — cách diễn đạt CŨ ("0 dòng mã") kiểm được
     // điều này chỉ vì nó kiểm NHIỀU HƠN mức cần (0 dòng mã nói riêng ⇒ 0 dòng gõ `chardetng`
     // nói chung), và phần "nhiều hơn" đó nay sai với thực tế đã ký (Story 6.7 §Intent).
-    let webimport_files: Vec<&(String, String)> =
-        files.iter().filter(|(rel, _)| is_inside(rel, WEBIMPORT_DIR)).collect();
+    let webimport_files: Vec<&(String, String)> = files
+        .iter()
+        .filter(|(rel, _)| is_inside(rel, WEBIMPORT_DIR))
+        .collect();
     assert!(
         !webimport_files.is_empty(),
         "`core/webimport/` phải có ÍT NHẤT MỘT tệp — 0 tệp làm phép quét ngay dưới xanh một \
@@ -227,7 +228,9 @@ fn create_work_has_exactly_five_named_product_call_sites_all_inside_commands_pro
 #[test]
 fn the_create_work_call_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code() {
     assert!(
-        line_calls_create_work("    let opened = create_work(&root, name, lang, genre, shape, enc)?;"),
+        line_calls_create_work(
+            "    let opened = create_work(&root, name, lang, genre, shape, enc)?;"
+        ),
         "ca DƯƠNG: một lời gọi `create_work(...)` phải bị vị từ bắt"
     );
     assert!(
@@ -239,11 +242,15 @@ fn the_create_work_call_check_would_actually_flag_a_seeded_violation_and_ignore_
         "ca ÂM #2: `create_work_from_file(` KHÔNG được tính là gọi `create_work(`"
     );
     assert!(
-        !line_calls_create_work("pub fn create_work(documents_root: &Path, name: &str) -> Result<OpenWork, IpcError> {"),
+        !line_calls_create_work(
+            "pub fn create_work(documents_root: &Path, name: &str) -> Result<OpenWork, IpcError> {"
+        ),
         "ca ÂM #3: chính khai báo `fn create_work(` KHÔNG được tính là một chỗ GỌI"
     );
     assert!(
-        line_calls_create_work("    create_work_with_progress(documents_root, name, &mut |_, _| {}, &|| false)"),
+        line_calls_create_work(
+            "    create_work_with_progress(documents_root, name, &mut |_, _| {}, &|| false)"
+        ),
         "ca DƯƠNG #2: một lời gọi `create_work_with_progress(...)` phải bị vị từ bắt"
     );
     assert!(

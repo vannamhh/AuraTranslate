@@ -118,7 +118,10 @@ pub enum BlockBody {
     /// `<img>` — thuộc tính bóc RIÊNG, không một byte HTML nào. `machine_kept` của khối này là
     /// một suy đoán (không có "chữ" để mà so khớp với `text_content`) — xem
     /// [`infer_image_kept_state`].
-    Image { src: Option<String>, alt: Option<String> },
+    Image {
+        src: Option<String>,
+        alt: Option<String>,
+    },
     /// `<figcaption>` — có CHỮ nên đi qua đúng lượt so khớp như `Paragraph`.
     Caption(String),
 }
@@ -153,20 +156,27 @@ pub fn extract(html: &str, url: &str) -> Result<Vec<Block>, ExtractError> {
     // định: `max_elements_to_parse = 0` (không trần — trần byte đã có ở `Fetcher`, một trần
     // SỐ PHẦN TỬ thứ hai ở đây không có phép đo nào chống lưng, đừng đúc thêm một hằng số
     // phù thuỷ).
-    let config = Config { text_mode: TextMode::Formatted, ..Config::default() };
+    let config = Config {
+        text_mode: TextMode::Formatted,
+        ..Config::default()
+    };
 
-    let mut readability = Readability::new(html.to_owned(), Some(url), Some(config))
-        .map_err(|e| ExtractError { detail: format!("readability_new: {e}") })?;
+    let mut readability =
+        Readability::new(html.to_owned(), Some(url), Some(config)).map_err(|e| ExtractError {
+            detail: format!("readability_new: {e}"),
+        })?;
 
-    let article = readability
-        .parse()
-        .map_err(|e| ExtractError { detail: format!("readability_parse: {e}") })?;
+    let article = readability.parse().map_err(|e| ExtractError {
+        detail: format!("readability_parse: {e}"),
+    })?;
 
     // `Article::content` (HTML) KHÔNG được đọc ở đây, cố ý — xem doc-comment đầu tệp.
     let text_content: String = article.text_content.to_string();
 
     if text_content.trim().is_empty() {
-        return Err(ExtractError { detail: "text_content rong sau khi trim".to_owned() });
+        return Err(ExtractError {
+            detail: "text_content rong sau khi trim".to_owned(),
+        });
     }
 
     Ok(build_blocks(html, &text_content))
@@ -174,8 +184,19 @@ pub fn extract(html: &str, url: &str) -> Result<Vec<Block>, ExtractError> {
 
 /// Tag nào được coi là "khối" — Readability giữ lại chữ ở các phần tử này (spec 6.9, đo
 /// 2026-09-07 trên bảy mẫu bàn đo 6.1). `div` xử RIÊNG (chỉ khi LÁ — xem [`build_blocks`]).
-const TEXT_BLOCK_TAGS: [&str; 11] =
-    ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote", "pre", "figcaption"];
+const TEXT_BLOCK_TAGS: [&str; 11] = [
+    "p",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "li",
+    "blockquote",
+    "pre",
+    "figcaption",
+];
 
 fn is_text_block_tag(name: &str) -> bool {
     TEXT_BLOCK_TAGS.contains(&name)
@@ -184,8 +205,7 @@ fn is_text_block_tag(name: &str) -> bool {
 /// Selector CSS gộp — dùng để duyệt CẢ ứng viên khối lẫn để hỏi "phần tử này có khối lồng bên
 /// trong không" (kiểm div lá). `img` có mặt để một `div` BỌC ảnh không bị coi là lá (ảnh phải
 /// tách thành khối RIÊNG của chính nó, không bị nuốt vào văn bản của `div` cha).
-const BLOCK_SELECTOR: &str =
-    "p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, figcaption, img, div";
+const BLOCK_SELECTOR: &str = "p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, figcaption, img, div";
 
 /// Duyệt HTML GỐC (lượt phân tích thứ hai, xem doc-comment đầu tệp) lấy dãy khối CẢ TRANG, rồi
 /// đối chiếu với `text_content` để đánh dấu `machine_kept` + chụp khoảng trắng gốc.
@@ -198,8 +218,15 @@ fn build_blocks(html: &str, text_content: &str) -> Vec<Block> {
     // đếm hai lần), và bỏ `div` không phải LÁ (chữ của nó sẽ do các con của nó tự mang).
     // ─────────────────────────────────────────────────────────────────────────
     enum Candidate {
-        Text { is_list_item: bool, is_caption: bool, raw_text: String },
-        Image { src: Option<String>, alt: Option<String> },
+        Text {
+            is_list_item: bool,
+            is_caption: bool,
+            raw_text: String,
+        },
+        Image {
+            src: Option<String>,
+            alt: Option<String>,
+        },
     }
 
     let mut accepted_ids: HashSet<NodeId> = HashSet::new();
@@ -225,8 +252,9 @@ fn build_blocks(html: &str, text_content: &str) -> Vec<Block> {
             continue;
         }
 
-        let has_accepted_ancestor =
-            node.ancestors_it(None).any(|a| accepted_ids.contains(&a.id));
+        let has_accepted_ancestor = node
+            .ancestors_it(None)
+            .any(|a| accepted_ids.contains(&a.id));
         if has_accepted_ancestor {
             continue;
         }
@@ -236,7 +264,10 @@ fn build_blocks(html: &str, text_content: &str) -> Vec<Block> {
             // lá bị bỏ qua HOÀN TOÀN (không nhận vào `accepted_ids`) — con của nó (kể cả một
             // `div` lá cháu, hay một `img`) vẫn còn cơ hội được duyệt riêng ở các lượt sau
             // của vòng lặp này.
-            let is_leaf = dom_query::Selection::from(*node).select(BLOCK_SELECTOR).nodes().is_empty();
+            let is_leaf = dom_query::Selection::from(*node)
+                .select(BLOCK_SELECTOR)
+                .nodes()
+                .is_empty();
             if !is_leaf {
                 // 🔴 **THÊM 2026-09-07 (vòng rà spec 6.9) — đo trên `a07.html` (bàn đo 6.1).**
                 // Một `div` KHÔNG lá vẫn có thể mang CHỮ TRỰC TIẾP xen giữa các phần tử con
@@ -275,7 +306,11 @@ fn build_blocks(html: &str, text_content: &str) -> Vec<Block> {
         // Matrix ĐÃ ĐÓNG BĂNG của spec ("Ảnh và caption... Mô hình chở đúng nhánh
         // `Image`/`Caption`") vì thế chưa từng đúng cho riêng nhánh `Caption`.
         let is_caption = name_str == "figcaption";
-        candidates.push(Candidate::Text { is_list_item, is_caption, raw_text });
+        candidates.push(Candidate::Text {
+            is_list_item,
+            is_caption,
+            raw_text,
+        });
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -313,10 +348,20 @@ fn build_blocks(html: &str, text_content: &str) -> Vec<Block> {
                     is_list_item: false,
                 });
             }
-            Candidate::Text { is_list_item, is_caption, .. } => {
-                let Some(norm_block) = &norm_blocks[i] else { continue };
+            Candidate::Text {
+                is_list_item,
+                is_caption,
+                ..
+            } => {
+                let Some(norm_block) = &norm_blocks[i] else {
+                    continue;
+                };
                 let make_body = |text: String| -> BlockBody {
-                    if is_caption { BlockBody::Caption(text) } else { BlockBody::Paragraph(text) }
+                    if is_caption {
+                        BlockBody::Caption(text)
+                    } else {
+                        BlockBody::Paragraph(text)
+                    }
                 };
                 match assignment.get(&i) {
                     Some(&(abs_start, abs_end)) => {
@@ -360,8 +405,9 @@ fn build_blocks(html: &str, text_content: &str) -> Vec<Block> {
     // `join_kept_blocks` (chỉ đọc `machine_kept == true`) trả `""`, và Chương được ghi RỖNG
     // TRONG IM LẶNG — đúng lớp lỗi AC của story này tuyên bố đóng. Điều kiện đúng phải hỏi có
     // khối ĐANG GIỮ hay không, không phải có khối TỒN TẠI hay không.
-    if !blocks.iter().any(|b| b.machine_kept && matches!(b.body, BlockBody::Paragraph(_) | BlockBody::Caption(_)))
-    {
+    if !blocks.iter().any(|b| {
+        b.machine_kept && matches!(b.body, BlockBody::Paragraph(_) | BlockBody::Caption(_))
+    }) {
         blocks.push(Block {
             body: BlockBody::Paragraph(text_content.to_owned()),
             machine_kept: true,
@@ -461,7 +507,9 @@ fn find_all_occurrences(haystack: &str, needle: &str) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
     let mut cursor = 0usize;
     while cursor <= haystack.len() {
-        let Some(rest) = haystack.get(cursor..) else { break };
+        let Some(rest) = haystack.get(cursor..) else {
+            break;
+        };
         let Some(rel) = rest.find(needle) else { break };
         let start = cursor + rel;
         let end = start + needle.len();
@@ -527,7 +575,9 @@ fn assign_matches_by_max_weight_order_preserving_dp(
     // của khối `block_idx` có thể nối vào đều thuộc về một khối có chỉ số NHỎ HƠN thật sự
     // (`nodes` chỉ được `push` sau khi khối trước đã xử lý xong toàn bộ occurrence của nó).
     for (block_idx, maybe_norm) in norm_blocks.iter().enumerate() {
-        let Some(norm_block) = maybe_norm else { continue };
+        let Some(norm_block) = maybe_norm else {
+            continue;
+        };
         let limit = nodes.len();
         for occ in find_all_occurrences(norm_tc, norm_block) {
             let (start, end) = occ;
@@ -596,8 +646,14 @@ mod tests {
         let long = "mot doan van that su dai de dam bao trong so cua no vuot han mot muc \
                      dieu huong ngan di truoc no trong thu tu tai lieu";
         let short = "da"; // xuất hiện BÊN TRONG `long` ("dai"/"dam"), không ở đầu `long`.
-        assert!(long.contains(short), "fixture phai chua occurrence cua khoi ngan BEN TRONG khoi dai");
-        assert!(!long.starts_with(short), "khoi ngan khong duoc trung voi DAU cua khoi dai");
+        assert!(
+            long.contains(short),
+            "fixture phai chua occurrence cua khoi ngan BEN TRONG khoi dai"
+        );
+        assert!(
+            !long.starts_with(short),
+            "khoi ngan khong duoc trung voi DAU cua khoi dai"
+        );
 
         let norm_tc = long.to_owned();
         let norm_blocks = vec![Some(short.to_owned()), Some(long.to_owned())];
@@ -630,8 +686,14 @@ mod tests {
         let han = "萧炎哮天"; // 4 ky tu, 12 byte (UTF-8, 3 byte/ky tu).
         assert_eq!(latin.chars().count(), 10);
         assert_eq!(han.chars().count(), 4);
-        assert!(han.len() > latin.len(), "tien de: khoi Han phai NANG HON ve BYTE");
-        assert!(latin.chars().count() > han.chars().count(), "tien de: khoi Latin phai NANG HON ve KY TU");
+        assert!(
+            han.len() > latin.len(),
+            "tien de: khoi Han phai NANG HON ve BYTE"
+        );
+        assert!(
+            latin.chars().count() > han.chars().count(),
+            "tien de: khoi Latin phai NANG HON ve KY TU"
+        );
 
         let norm_tc = format!("{latin} {han}");
         // Candidate 0 = khoi Han (dung o CHI SO tai lieu DAU, nhung vi tri THAT cua no trong
@@ -652,7 +714,10 @@ mod tests {
         let block_b = "world hello universe"; // 6..26 -- CHONG LAN voi block_a o "world".
 
         let start_b = norm_tc.find(block_b).expect("fixture phai chua block_b");
-        assert!(start_b < block_a.len(), "hai khoi phai THAT SU chong nhau de ca nay co y nghia");
+        assert!(
+            start_b < block_a.len(),
+            "hai khoi phai THAT SU chong nhau de ca nay co y nghia"
+        );
 
         let norm_blocks = vec![Some(block_a.to_owned()), Some(block_b.to_owned())];
         let assignment = assign_matches_by_max_weight_order_preserving_dp(&norm_tc, &norm_blocks);
@@ -664,7 +729,10 @@ mod tests {
             block_b.chars().count(),
             block_a.chars().count()
         );
-        assert_eq!(assignment.get(&1), Some(&(start_b, start_b + block_b.len())));
+        assert_eq!(
+            assignment.get(&1),
+            Some(&(start_b, start_b + block_b.len()))
+        );
     }
 
     #[test]
@@ -679,7 +747,10 @@ mod tests {
         }
         fn image_block() -> Block {
             Block {
-                body: BlockBody::Image { src: None, alt: None },
+                body: BlockBody::Image {
+                    src: None,
+                    alt: None,
+                },
                 // Giá trị TẠM trước khi `infer_image_kept_state` chạy -- cùng khuôn `build_blocks`.
                 machine_kept: false,
                 exact_gap_before: String::new(),
@@ -690,18 +761,27 @@ mod tests {
         // Ảnh THÂN BÀI — đứng giữa hai đoạn máy đã GIỮ ⇒ suy ra GIỮ.
         let mut body_case = vec![text_block(true), image_block(), text_block(true)];
         infer_image_kept_state(&mut body_case);
-        assert!(body_case[1].machine_kept, "anh giua hai doan GIU phai duoc suy la GIU");
+        assert!(
+            body_case[1].machine_kept,
+            "anh giua hai doan GIU phai duoc suy la GIU"
+        );
 
         // Ảnh khu vực ĐIỀU HƯỚNG — đứng giữa hai đoạn máy đã LOẠI ⇒ suy ra LOẠI (khớp trạng
         // thái của khối chữ LÂN CẬN, không phải "có lân cận là mặc định giữ").
         let mut nav_case = vec![text_block(false), image_block(), text_block(false)];
         infer_image_kept_state(&mut nav_case);
-        assert!(!nav_case[1].machine_kept, "anh giua hai doan bi LOAI phai duoc suy la LOAI");
+        assert!(
+            !nav_case[1].machine_kept,
+            "anh giua hai doan bi LOAI phai duoc suy la LOAI"
+        );
 
         // Không còn khối chữ nào cả (trang toàn ảnh) ⇒ mặc định GIỮ (thà hiện dư).
         let mut all_image = vec![image_block()];
         infer_image_kept_state(&mut all_image);
-        assert!(all_image[0].machine_kept, "khong con khoi chu nao de doi chieu -- mac dinh GIU");
+        assert!(
+            all_image[0].machine_kept,
+            "khong con khoi chu nao de doi chieu -- mac dinh GIU"
+        );
     }
 
     #[test]

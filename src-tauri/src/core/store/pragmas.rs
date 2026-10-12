@@ -66,7 +66,10 @@ pub(crate) fn open_connection(path: &Path, kind: StoreKind) -> Result<Connection
 /// `exists()` trước đó có trúng lúc đua hay không) luôn trả lỗi `CANTOPEN`, không bao giờ tạo
 /// tệp — và lỗi đó đi qua đúng nhánh "không đọc được ⇒ xoá-và-dựng-lại" mà P1 vá (xem
 /// [`super::delete_if_schema_version_differs`]), chứ không lặng lẽ bịa ra một phiên bản `0`.
-pub(crate) fn open_connection_for_peek(path: &Path, kind: StoreKind) -> Result<Connection, StoreError> {
+pub(crate) fn open_connection_for_peek(
+    path: &Path,
+    kind: StoreKind,
+) -> Result<Connection, StoreError> {
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
 
     Connection::open_with_flags(path, flags).map_err(|e| StoreError::OpenFailed {
@@ -119,9 +122,7 @@ fn read_pragma(conn: &Connection, name: &str, kind: StoreKind) -> Result<String,
             rusqlite::types::ValueRef::Integer(i) => i.to_string(),
             rusqlite::types::ValueRef::Real(f) => f.to_string(),
             rusqlite::types::ValueRef::Text(t) => String::from_utf8_lossy(t).into_owned(),
-            rusqlite::types::ValueRef::Blob(_) | rusqlite::types::ValueRef::Null => {
-                String::new()
-            }
+            rusqlite::types::ValueRef::Blob(_) | rusqlite::types::ValueRef::Null => String::new(),
         })
     })
     .map_err(|e| StoreError::OpenFailed {

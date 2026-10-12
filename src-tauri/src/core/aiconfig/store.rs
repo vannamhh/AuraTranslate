@@ -77,9 +77,16 @@ pub fn resolve_two_tiers(
             // khớp một giá trị đã khai); nó không bao giờ vượt ranh giới IPC với nội dung
             // riêng (`AiConfigStoreError::Scope` rơi về một khoá chung không tham số).
             let wire = r.tier().as_str();
-            let tier = AiConfigTier::from_wire(wire)
-                .ok_or_else(|| AiConfigStoreError::Scope(ScopeError::UnknownKind { wire: wire.to_owned() }))?;
-            let field = ResolvedField { value: r.value().clone(), tier, shadowed: r.shadowed().cloned() };
+            let tier = AiConfigTier::from_wire(wire).ok_or_else(|| {
+                AiConfigStoreError::Scope(ScopeError::UnknownKind {
+                    wire: wire.to_owned(),
+                })
+            })?;
+            let field = ResolvedField {
+                value: r.value().clone(),
+                tier,
+                shadowed: r.shadowed().cloned(),
+            };
             Ok((key, field))
         })
         .collect()
@@ -186,7 +193,12 @@ impl From<super::InvalidFieldValue> for IpcError {
     fn from(err: super::InvalidFieldValue) -> Self {
         let mut params = BTreeMap::new();
         params.insert("field".to_owned(), err.field.as_str().to_owned());
-        IpcError::new("ai_config.invalid_value", MessageKey::AiConfigInvalidValue, params, false)
+        IpcError::new(
+            "ai_config.invalid_value",
+            MessageKey::AiConfigInvalidValue,
+            params,
+            false,
+        )
     }
 }
 

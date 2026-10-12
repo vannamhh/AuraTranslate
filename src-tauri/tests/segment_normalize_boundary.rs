@@ -159,8 +159,14 @@ fn normalize_rs_actually_delegates_to_both_table_owners() {
         fs::read_to_string(src_root().join("core/segment/normalize.rs")).expect("đọc normalize.rs");
     let calls_split = code_lines(&text).any(|(_, code)| code.contains("line_ends_a_sentence("));
     let calls_regroup = code_lines(&text).any(|(_, code)| code.contains("source_joiner("));
-    assert!(calls_split, "normalize.rs phải GỌI split::line_ends_a_sentence, không tự đoán");
-    assert!(calls_regroup, "normalize.rs phải GỌI regroup::source_joiner, không tự đoán");
+    assert!(
+        calls_split,
+        "normalize.rs phải GỌI split::line_ends_a_sentence, không tự đoán"
+    );
+    assert!(
+        calls_regroup,
+        "normalize.rs phải GỌI regroup::source_joiner, không tự đoán"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -250,7 +256,9 @@ fn the_normalize_functions_have_exactly_eight_named_product_call_sites() {
 /// module (kể cả một dòng chỉ NHẮC TÊN module, ví dụ `use super::normalize;`).
 #[test]
 fn the_call_count_check_would_actually_flag_both_forms_and_ignore_a_bare_mention() {
-    assert!(line_calls_a_normalize_function("    normalize::normalize(&text, lang);"));
+    assert!(line_calls_a_normalize_function(
+        "    normalize::normalize(&text, lang);"
+    ));
     assert!(line_calls_a_normalize_function(
         "    normalize::normalize_window(&text, lang, 4096);"
     ));

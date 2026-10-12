@@ -62,8 +62,16 @@ fn parse_args_from<I: IntoIterator<Item = String>>(args: I) -> Result<Args, Stri
 
     while let Some(arg) = it.next() {
         match arg.as_str() {
-            "--raw" => set_once(&mut raw, "--raw", PathBuf::from(value_for("--raw", &mut it)?))?,
-            "--out-dir" => set_once(&mut out_dir, "--out-dir", PathBuf::from(value_for("--out-dir", &mut it)?))?,
+            "--raw" => set_once(
+                &mut raw,
+                "--raw",
+                PathBuf::from(value_for("--raw", &mut it)?),
+            )?,
+            "--out-dir" => set_once(
+                &mut out_dir,
+                "--out-dir",
+                PathBuf::from(value_for("--out-dir", &mut it)?),
+            )?,
             "--layer" => set_once(&mut layer_str, "--layer", value_for("--layer", &mut it)?)?,
             // 🔴 `--out` (tham số cũ, MỘT tệp) không còn được nhận — lỗi TƯỜNG MINH nêu
             // tên tham số thay thế. Không nhận âm thầm để "tương thích ngược": một
@@ -108,7 +116,12 @@ mod cli_tests {
 
     #[test]
     fn resolves_base_and_detachable_layers() {
-        assert!(matches!(parse(&["--raw", "r", "--out-dir", "o", "--layer", "base"]).unwrap().layer, Layer::Base));
+        assert!(matches!(
+            parse(&["--raw", "r", "--out-dir", "o", "--layer", "base"])
+                .unwrap()
+                .layer,
+            Layer::Base
+        ));
         assert!(matches!(
             parse(&["--raw", "r", "--out-dir", "o", "--layer", "vietphrase"]).unwrap().layer,
             Layer::Detachable(ref c) if c == "vietphrase"
@@ -119,7 +132,10 @@ mod cli_tests {
     #[test]
     fn the_removed_out_flag_names_its_replacement() {
         let err = parse(&["--raw", "r", "--out", "x.db"]).unwrap_err();
-        assert!(err.contains("--out-dir"), "lỗi phải nêu tên tham số thay thế: {err}");
+        assert!(
+            err.contains("--out-dir"),
+            "lỗi phải nêu tên tham số thay thế: {err}"
+        );
     }
 
     /// 🔴 `--out-dir --layer base`: nhận âm thầm cho ra một thư mục THẬT tên `--layer`
@@ -156,7 +172,10 @@ fn main() -> ExitCode {
     };
 
     if let Err(e) = std::fs::create_dir_all(&args.out_dir) {
-        eprintln!("dict-build: không tạo được --out-dir '{}': {e}", args.out_dir.display());
+        eprintln!(
+            "dict-build: không tạo được --out-dir '{}': {e}",
+            args.out_dir.display()
+        );
         return ExitCode::FAILURE;
     }
 
@@ -189,15 +208,17 @@ fn main() -> ExitCode {
                 }
             }
         }
-        Layer::Detachable(code) => match build::run_detachable_by_code(&args.raw, &args.out_dir, &code) {
-            Ok((_name, report)) => {
-                build::print_report(&report);
-                ExitCode::SUCCESS
+        Layer::Detachable(code) => {
+            match build::run_detachable_by_code(&args.raw, &args.out_dir, &code) {
+                Ok((_name, report)) => {
+                    build::print_report(&report);
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("dict-build: lỗi khi dựng: {e}");
+                    ExitCode::FAILURE
+                }
             }
-            Err(e) => {
-                eprintln!("dict-build: lỗi khi dựng: {e}");
-                ExitCode::FAILURE
-            }
-        },
+        }
     }
 }

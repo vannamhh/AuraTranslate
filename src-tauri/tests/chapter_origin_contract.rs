@@ -17,22 +17,30 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::chapter::update_chapter_origin;
 use auratranslate_lib::commands::project::{
-    ChapterOriginOverride, UrlImportItem, cancel_import_preview, chapters_shape_if_all_ok, create_work,
-    create_work_from_text, reset_chapter_origin_overrides, set_chapter_origin_override,
+    ChapterOriginOverride, UrlImportItem, cancel_import_preview, chapters_shape_if_all_ok,
+    create_work, create_work_from_text, reset_chapter_origin_overrides,
+    set_chapter_origin_override,
 };
 use auratranslate_lib::core::i18n::MessageKey;
-use auratranslate_lib::core::store::{Migration, PROJECT_MIGRATIONS, Store, StoreSpec, Transaction};
+use auratranslate_lib::core::store::{
+    Migration, PROJECT_MIGRATIONS, Store, StoreSpec, Transaction,
+};
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-origin-{}-{}-{}", std::process::id(), tag, n));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-origin-{}-{}-{}",
+        std::process::id(),
+        tag,
+        n
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -43,7 +51,11 @@ fn cleanup(dir: &Path) {
 }
 
 fn url_item(url: &str, html: &str) -> UrlImportItem {
-    UrlImportItem { url: url.to_owned(), raw: Some(html.as_bytes().to_vec()), error: None }
+    UrlImportItem {
+        url: url.to_owned(),
+        raw: Some(html.as_bytes().to_vec()),
+        error: None,
+    }
 }
 
 /// Trang khai ĐỦ cả ba trường HTML (`og:site_name`/`article:published_time`/`author`) — dùng
@@ -97,7 +109,12 @@ fn html_broken_json_ld_but_valid_meta() -> String {
 fn read_chapter_origin(
     store: &Store,
     chapter_id: i64,
-) -> (Option<String>, Option<String>, Option<String>, Option<String>) {
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+) {
     store
         .read(move |conn| {
             conn.query_row(
@@ -113,7 +130,11 @@ fn read_chapter_origin(
 fn read_chapter_updated_at(store: &Store, chapter_id: i64) -> String {
     store
         .read(move |conn| {
-            conn.query_row("SELECT updated_at FROM chapter WHERE id = ?1", [chapter_id], |r| r.get(0))
+            conn.query_row(
+                "SELECT updated_at FROM chapter WHERE id = ?1",
+                [chapter_id],
+                |r| r.get(0),
+            )
         })
         .expect("doc updated_at that bai")
 }
@@ -125,7 +146,10 @@ fn read_chapter_updated_at(store: &Store, chapter_id: i64) -> String {
 #[test]
 fn an_import_with_a_fully_declared_page_fills_all_four_columns_on_disk() {
     let root = temp_dir("full-origin");
-    let items = vec![url_item("https://example.test/bai-viet", &html_full_origin(""))];
+    let items = vec![url_item(
+        "https://example.test/bai-viet",
+        &html_full_origin(""),
+    )];
     let shape = chapters_shape_if_all_ok(&items).expect("shape phai dung duoc tu mot muc OK");
 
     let opened = create_work(
@@ -137,16 +161,26 @@ fn an_import_with_a_fully_declared_page_fills_all_four_columns_on_disk() {
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false,
+        Vec::new(),
+        0,
+        1,
+        false,
         &[],
         &Mutex::new(Vec::new()),
-        None, &[])
+        None,
+        &[],
+    )
     .expect("tao tac pham that bai");
 
-    let (author, site_name, url, published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
+    let (author, site_name, url, published_at) =
+        read_chapter_origin(&opened.store, opened.chapter_id);
     assert_eq!(author.as_deref(), Some("Nguyen Van A"));
     assert_eq!(site_name.as_deref(), Some("Bao Thi Du"));
-    assert_eq!(url.as_deref(), Some("https://example.test/bai-viet"), "URL bai goc = URL YEU CAU");
+    assert_eq!(
+        url.as_deref(),
+        Some("https://example.test/bai-viet"),
+        "URL bai goc = URL YEU CAU"
+    );
     assert_eq!(published_at.as_deref(), Some("2026-09-10"));
 
     let dir = opened.dir.clone();
@@ -162,7 +196,10 @@ fn an_import_with_a_fully_declared_page_fills_all_four_columns_on_disk() {
 #[test]
 fn a_page_missing_the_author_tag_leaves_only_that_column_null() {
     let root = temp_dir("missing-author");
-    let items = vec![url_item("https://example.test/thieu-tac-gia", &html_missing_author())];
+    let items = vec![url_item(
+        "https://example.test/thieu-tac-gia",
+        &html_missing_author(),
+    )];
     let shape = chapters_shape_if_all_ok(&items).expect("shape phai dung duoc");
 
     let opened = create_work(
@@ -174,14 +211,23 @@ fn a_page_missing_the_author_tag_leaves_only_that_column_null() {
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false,
+        Vec::new(),
+        0,
+        1,
+        false,
         &[],
         &Mutex::new(Vec::new()),
-        None, &[])
+        None,
+        &[],
+    )
     .expect("tao tac pham that bai");
 
-    let (author, site_name, url, published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
-    assert_eq!(author, None, "khong the tac gia nao ⇒ NULL, khong phai mot chuoi bia");
+    let (author, site_name, url, published_at) =
+        read_chapter_origin(&opened.store, opened.chapter_id);
+    assert_eq!(
+        author, None,
+        "khong the tac gia nao ⇒ NULL, khong phai mot chuoi bia"
+    );
     assert_eq!(site_name.as_deref(), Some("Bao Thi Du"));
     assert_eq!(url.as_deref(), Some("https://example.test/thieu-tac-gia"));
     assert_eq!(published_at.as_deref(), Some("2026-09-10"));
@@ -197,9 +243,13 @@ fn a_page_missing_the_author_tag_leaves_only_that_column_null() {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn a_syntactically_broken_json_ld_block_does_not_fail_the_import_and_the_next_signal_source_still_fills() {
+fn a_syntactically_broken_json_ld_block_does_not_fail_the_import_and_the_next_signal_source_still_fills()
+ {
     let root = temp_dir("broken-json-ld");
-    let items = vec![url_item("https://example.test/json-ld-hong", &html_broken_json_ld_but_valid_meta())];
+    let items = vec![url_item(
+        "https://example.test/json-ld-hong",
+        &html_broken_json_ld_but_valid_meta(),
+    )];
     let shape = chapters_shape_if_all_ok(&items).expect("shape phai dung duoc");
 
     let opened = create_work(
@@ -211,14 +261,24 @@ fn a_syntactically_broken_json_ld_block_does_not_fail_the_import_and_the_next_si
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false,
+        Vec::new(),
+        0,
+        1,
+        false,
         &[],
         &Mutex::new(Vec::new()),
-        None, &[])
+        None,
+        &[],
+    )
     .expect("mot khoi JSON-LD sai cu phap KHONG duoc lam trot ca luot nhap");
 
-    let (author, site_name, _url, _published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
-    assert_eq!(author.as_deref(), Some("Tac Gia That"), "nguon ke tiep (<meta author>) van phai dien duoc");
+    let (author, site_name, _url, _published_at) =
+        read_chapter_origin(&opened.store, opened.chapter_id);
+    assert_eq!(
+        author.as_deref(),
+        Some("Tac Gia That"),
+        "nguon ke tiep (<meta author>) van phai dien duoc"
+    );
     assert_eq!(site_name.as_deref(), Some("Bao That"));
 
     let dir = opened.dir.clone();
@@ -234,10 +294,17 @@ fn a_syntactically_broken_json_ld_block_does_not_fail_the_import_and_the_next_si
 #[test]
 fn importing_from_pasted_text_leaves_all_four_origin_columns_null_not_empty_string() {
     let root = temp_dir("paste-no-origin");
-    let opened = create_work_from_text(&root, "Dan Tay", "en", "", "Mot doan van ban dan tay.".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "Dan Tay",
+        "en",
+        "",
+        "Mot doan van ban dan tay.".to_owned(),
+    )
+    .expect("tao tac pham that bai");
 
-    let (author, site_name, url, published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
+    let (author, site_name, url, published_at) =
+        read_chapter_origin(&opened.store, opened.chapter_id);
     assert_eq!(author, None);
     assert_eq!(site_name, None);
     assert_eq!(url, None);
@@ -264,7 +331,9 @@ fn importing_from_pasted_text_leaves_all_four_origin_columns_null_not_empty_stri
 #[test]
 fn one_page_split_into_three_chapters_makes_every_chapter_carry_the_same_origin() {
     use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
-    use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
+    use auratranslate_lib::core::segment::pipeline::{
+        ChapterInput, PipelineInput, PipelineShape, run_import,
+    };
 
     let body_extra = "<h2>===Chuong 2===</h2><p>Noi dung Chuong hai, cung du dai de vuot qua \
                        nguong toi thieu can thiet cho lam sach.</p>\
@@ -286,15 +355,22 @@ fn one_page_split_into_three_chapters_makes_every_chapter_carry_the_same_origin(
     .with_chapter_pattern(Some(ChapterPattern::literal("===Chuong")));
 
     let outcome = run_import(input).expect("pipeline phai chay duoc");
-    assert!(outcome.chapters.len() >= 2, "mau phan tach phai khop it nhat mot lan de co N > 1 Chuong that");
+    assert!(
+        outcome.chapters.len() >= 2,
+        "mau phan tach phai khop it nhat mot lan de co N > 1 Chuong that"
+    );
 
-    let first_origin = outcome.chapters[0].chapter_origin.clone().expect("Chuong dau phai co xuat xu (Some)");
+    let first_origin = outcome.chapters[0]
+        .chapter_origin
+        .clone()
+        .expect("Chuong dau phai co xuat xu (Some)");
     assert_eq!(first_origin.author.as_deref(), Some("Nguyen Van A"));
     assert_eq!(first_origin.site_name.as_deref(), Some("Bao Thi Du"));
 
     for (i, chapter) in outcome.chapters.iter().enumerate() {
         assert_eq!(
-            chapter.chapter_origin, Some(first_origin.clone()),
+            chapter.chapter_origin,
+            Some(first_origin.clone()),
             "Chuong chi so {i}: phai mang DUNG bo bon truong cua trang, giong het Chuong dau"
         );
     }
@@ -308,7 +384,10 @@ fn one_page_split_into_three_chapters_makes_every_chapter_carry_the_same_origin(
 #[test]
 fn a_hand_typed_override_at_preview_time_wins_over_the_machine_extracted_value() {
     let root = temp_dir("override-wins");
-    let items = vec![url_item("https://example.test/bai-viet", &html_full_origin(""))];
+    let items = vec![url_item(
+        "https://example.test/bai-viet",
+        &html_full_origin(""),
+    )];
     let shape = chapters_shape_if_all_ok(&items).expect("shape phai dung duoc");
 
     let overrides = vec![Some(ChapterOriginOverride {
@@ -327,15 +406,29 @@ fn a_hand_typed_override_at_preview_time_wins_over_the_machine_extracted_value()
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false,
+        Vec::new(),
+        0,
+        1,
+        false,
         &overrides,
         &Mutex::new(Vec::new()),
-        None, &[])
+        None,
+        &[],
+    )
     .expect("tao tac pham that bai");
 
-    let (author, site_name, _url, _published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
-    assert_eq!(author.as_deref(), Some("Nguoi Dung Go Tay"), "gia tri NGUOI DUNG go phai thang gia tri may");
-    assert_eq!(site_name.as_deref(), Some("Bao Thi Du"), "truong KHONG bi cham van giu gia tri may");
+    let (author, site_name, _url, _published_at) =
+        read_chapter_origin(&opened.store, opened.chapter_id);
+    assert_eq!(
+        author.as_deref(),
+        Some("Nguoi Dung Go Tay"),
+        "gia tri NGUOI DUNG go phai thang gia tri may"
+    );
+    assert_eq!(
+        site_name.as_deref(),
+        Some("Bao Thi Du"),
+        "truong KHONG bi cham van giu gia tri may"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -358,11 +451,31 @@ fn an_override_cleared_to_whitespace_only_values_matches_the_io_matrix() {
         ("chuoi rong", "", None),
         ("chi dau cach ASCII", "   ", None),
         ("chi BOM -- seam do duoc 2026-09-07", "\u{FEFF}", None),
-        ("BOM cong chu that -- chi hai dau bi cat", "\u{FEFF}Tấn Giang", Some("Tấn Giang")),
-        ("BOM o giua la NOI DUNG, khong bi cat", "Tấn\u{FEFF}Giang", Some("Tấn\u{FEFF}Giang")),
-        ("khoang trang hon hop hai dau", "\t\u{00A0}x\u{2028} ", Some("x")),
-        ("chi NEL -- seam NGUOC, D1: giu verbatim, KHONG con NULL", "\u{0085}", Some("\u{0085}")),
-        ("NEL dau + chu that -- NEL la NOI DUNG duoi tap cua JS", "\u{0085}Tấn Giang", Some("\u{0085}Tấn Giang")),
+        (
+            "BOM cong chu that -- chi hai dau bi cat",
+            "\u{FEFF}Tấn Giang",
+            Some("Tấn Giang"),
+        ),
+        (
+            "BOM o giua la NOI DUNG, khong bi cat",
+            "Tấn\u{FEFF}Giang",
+            Some("Tấn\u{FEFF}Giang"),
+        ),
+        (
+            "khoang trang hon hop hai dau",
+            "\t\u{00A0}x\u{2028} ",
+            Some("x"),
+        ),
+        (
+            "chi NEL -- seam NGUOC, D1: giu verbatim, KHONG con NULL",
+            "\u{0085}",
+            Some("\u{0085}"),
+        ),
+        (
+            "NEL dau + chu that -- NEL la NOI DUNG duoi tap cua JS",
+            "\u{0085}Tấn Giang",
+            Some("\u{0085}Tấn Giang"),
+        ),
     ];
 
     // Gom MỌI hàng lệch rồi assert MỘT LẦN sau vòng lặp — một hàng đỏ không được che các
@@ -372,7 +485,10 @@ fn an_override_cleared_to_whitespace_only_values_matches_the_io_matrix() {
 
     for (label, input, expected) in cases {
         let root = temp_dir("override-matrix");
-        let items = vec![url_item("https://example.test/bai-viet", &html_full_origin(""))];
+        let items = vec![url_item(
+            "https://example.test/bai-viet",
+            &html_full_origin(""),
+        )];
         let shape = chapters_shape_if_all_ok(&items).expect("shape phai dung duoc");
 
         let overrides = vec![Some(ChapterOriginOverride {
@@ -391,15 +507,23 @@ fn an_override_cleared_to_whitespace_only_values_matches_the_io_matrix() {
             encoding_rs::UTF_8,
             Vec::new(),
             None,
-            Vec::new(), 0, 1, false,
+            Vec::new(),
+            0,
+            1,
+            false,
             &overrides,
             &Mutex::new(Vec::new()),
-            None, &[])
+            None,
+            &[],
+        )
         .expect("tao tac pham that bai");
 
-        let (author, _site_name, _url, _published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
+        let (author, _site_name, _url, _published_at) =
+            read_chapter_origin(&opened.store, opened.chapter_id);
         if author.as_deref() != *expected {
-            failures.push(format!("hang '{label}' (input {input:?}): duoc {author:?}, ky vong {expected:?}"));
+            failures.push(format!(
+                "hang '{label}' (input {input:?}): duoc {author:?}, ky vong {expected:?}"
+            ));
         }
 
         let dir = opened.dir.clone();
@@ -407,7 +531,11 @@ fn an_override_cleared_to_whitespace_only_values_matches_the_io_matrix() {
         cleanup(&dir);
     }
 
-    assert!(failures.is_empty(), "cac hang lech khoi I/O Matrix:\n{}", failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "cac hang lech khoi I/O Matrix:\n{}",
+        failures.join("\n")
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -420,7 +548,8 @@ fn cancelling_preview_after_typing_an_override_leaves_zero_atproj_and_clears_the
 
     let root = temp_dir("cancel-after-typed");
     let state: PendingImportSourceState = Mutex::new(None);
-    let overrides_state: auratranslate_lib::commands::project::ChapterOriginOverridesState = Mutex::new(Vec::new());
+    let overrides_state: auratranslate_lib::commands::project::ChapterOriginOverridesState =
+        Mutex::new(Vec::new());
 
     set_chapter_origin_override(
         &overrides_state,
@@ -436,10 +565,18 @@ fn cancelling_preview_after_typing_an_override_leaves_zero_atproj_and_clears_the
     reset_chapter_origin_overrides(&overrides_state);
 
     let entries_before = fs::read_dir(&root).map(|it| it.count()).unwrap_or(0);
-    assert_eq!(entries_before, 0, "huy truoc khi xac nhan khong duoc tao bat ky thu muc .atproj nao");
+    assert_eq!(
+        entries_before, 0,
+        "huy truoc khi xac nhan khong duoc tao bat ky thu muc .atproj nao"
+    );
 
-    let guard = overrides_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    assert!(guard.is_empty(), "state ghi de xuat xu phai duoc don sach sau mot lot huy");
+    let guard = overrides_state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert!(
+        guard.is_empty(),
+        "state ghi de xuat xu phai duoc don sach sau mot lot huy"
+    );
     drop(guard);
 
     cleanup(&root);
@@ -521,13 +658,19 @@ fn a_leftover_override_from_a_cancelled_url_preview_never_reaches_a_pasted_text_
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false,
+        Vec::new(),
+        0,
+        1,
+        false,
         &origin_overrides_at_confirm,
         &Mutex::new(Vec::new()),
-        None, &[])
+        None,
+        &[],
+    )
     .expect("tao tac pham that bai");
 
-    let (author, site_name, url, published_at) = read_chapter_origin(&opened.store, opened.chapter_id);
+    let (author, site_name, url, published_at) =
+        read_chapter_origin(&opened.store, opened.chapter_id);
     assert_eq!(
         author, None,
         "override CON TREO cua lot URL da huy khong duoc ro ri sang Chuong cua lot dan tay MOI"
@@ -547,10 +690,12 @@ fn a_leftover_override_from_a_cancelled_url_preview_never_reaches_a_pasted_text_
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn updating_chapter_origin_from_the_chapter_list_writes_exactly_the_four_columns_and_bumps_updated_at() {
+fn updating_chapter_origin_from_the_chapter_list_writes_exactly_the_four_columns_and_bumps_updated_at()
+ {
     let root = temp_dir("update-from-list");
-    let mut opened = create_work_from_text(&root, "Sua Tu Danh Sach", "en", "", "Noi dung.".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened =
+        create_work_from_text(&root, "Sua Tu Danh Sach", "en", "", "Noi dung.".to_owned())
+            .expect("tao tac pham that bai");
     let chapter_id = opened.chapter_id;
     let updated_at_before = read_chapter_updated_at(&opened.store, chapter_id);
 
@@ -566,14 +711,23 @@ fn updating_chapter_origin_from_the_chapter_list_writes_exactly_the_four_columns
         None,
     )
     .expect("cap nhat xuat xu that bai");
-    let row = rows.iter().find(|r| r.chapter_id == chapter_id).expect("phai co hang cho Chuong vua sua");
+    let row = rows
+        .iter()
+        .find(|r| r.chapter_id == chapter_id)
+        .expect("phai co hang cho Chuong vua sua");
     assert_eq!(row.origin_author.as_deref(), Some("Tac Gia Nhap Tay"));
     assert_eq!(row.origin_site_name.as_deref(), Some("Website Nhap Tay"));
-    assert_eq!(row.origin_url.as_deref(), Some("https://example.test/nhap-tay"));
+    assert_eq!(
+        row.origin_url.as_deref(),
+        Some("https://example.test/nhap-tay")
+    );
     assert_eq!(row.origin_published_at.as_deref(), Some("2026-01-01"));
 
     let updated_at_after = read_chapter_updated_at(&opened.store, chapter_id);
-    assert_ne!(updated_at_before, updated_at_after, "updated_at phai nhich sau lot sua xuat xu");
+    assert_ne!(
+        updated_at_before, updated_at_after,
+        "updated_at phai nhich sau lot sua xuat xu"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -594,7 +748,10 @@ fn updating_origin_with_an_unknown_chapter_id_reuses_the_named_error_and_touches
     assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
 
     let updated_at_after = read_chapter_updated_at(&opened.store, real_id);
-    assert_eq!(updated_at_before, updated_at_after, "0 hang bi cham khi chapter_id sai");
+    assert_eq!(
+        updated_at_before, updated_at_after,
+        "0 hang bi cham khi chapter_id sai"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -610,11 +767,31 @@ fn clearing_a_field_to_whitespace_only_values_from_the_chapter_list_matches_the_
         ("chuoi rong", "", None),
         ("chi dau cach ASCII", "   ", None),
         ("chi BOM -- seam do duoc 2026-09-07", "\u{FEFF}", None),
-        ("BOM cong chu that -- chi hai dau bi cat", "\u{FEFF}Tấn Giang", Some("Tấn Giang")),
-        ("BOM o giua la NOI DUNG, khong bi cat", "Tấn\u{FEFF}Giang", Some("Tấn\u{FEFF}Giang")),
-        ("khoang trang hon hop hai dau", "\t\u{00A0}x\u{2028} ", Some("x")),
-        ("chi NEL -- seam NGUOC, D1: giu verbatim, KHONG con NULL", "\u{0085}", Some("\u{0085}")),
-        ("NEL dau + chu that -- NEL la NOI DUNG duoi tap cua JS", "\u{0085}Tấn Giang", Some("\u{0085}Tấn Giang")),
+        (
+            "BOM cong chu that -- chi hai dau bi cat",
+            "\u{FEFF}Tấn Giang",
+            Some("Tấn Giang"),
+        ),
+        (
+            "BOM o giua la NOI DUNG, khong bi cat",
+            "Tấn\u{FEFF}Giang",
+            Some("Tấn\u{FEFF}Giang"),
+        ),
+        (
+            "khoang trang hon hop hai dau",
+            "\t\u{00A0}x\u{2028} ",
+            Some("x"),
+        ),
+        (
+            "chi NEL -- seam NGUOC, D1: giu verbatim, KHONG con NULL",
+            "\u{0085}",
+            Some("\u{0085}"),
+        ),
+        (
+            "NEL dau + chu that -- NEL la NOI DUNG duoi tap cua JS",
+            "\u{0085}Tấn Giang",
+            Some("\u{0085}Tấn Giang"),
+        ),
     ];
 
     // Gom MỌI hàng lệch rồi assert MỘT LẦN sau vòng lặp — cùng lý do với ca ma trận ở đường
@@ -624,8 +801,14 @@ fn clearing_a_field_to_whitespace_only_values_from_the_chapter_list_matches_the_
 
     for (label, input, expected) in cases {
         let root = temp_dir("clear-from-list-matrix");
-        let mut opened = create_work_from_text(&root, "Xoa Trang Danh Sach", "en", "", "Noi dung.".to_owned())
-            .expect("tao tac pham that bai");
+        let mut opened = create_work_from_text(
+            &root,
+            "Xoa Trang Danh Sach",
+            "en",
+            "",
+            "Noi dung.".to_owned(),
+        )
+        .expect("tao tac pham that bai");
         let chapter_id = opened.chapter_id;
 
         update_chapter_origin(Some(&mut opened), chapter_id, "Tac Gia", "", "", "", None)
@@ -645,7 +828,11 @@ fn clearing_a_field_to_whitespace_only_values_from_the_chapter_list_matches_the_
         cleanup(&dir);
     }
 
-    assert!(failures.is_empty(), "cac hang lech khoi I/O Matrix:\n{}", failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "cac hang lech khoi I/O Matrix:\n{}",
+        failures.join("\n")
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -658,7 +845,10 @@ fn editing_chapter_two_of_three_never_touches_chapter_one_or_three() {
     let items = vec![
         url_item("https://example.test/chuong-1", &html_full_origin("")),
         url_item("https://example.test/chuong-2", &html_missing_author()),
-        url_item("https://example.test/chuong-3", &html_broken_json_ld_but_valid_meta()),
+        url_item(
+            "https://example.test/chuong-3",
+            &html_broken_json_ld_but_valid_meta(),
+        ),
     ];
     let shape = chapters_shape_if_all_ok(&items).expect("shape phai dung duoc tu ba muc OK");
 
@@ -671,10 +861,15 @@ fn editing_chapter_two_of_three_never_touches_chapter_one_or_three() {
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false,
+        Vec::new(),
+        0,
+        1,
+        false,
         &[],
         &Mutex::new(Vec::new()),
-        None, &[])
+        None,
+        &[],
+    )
     .expect("tao tac pham that bai");
 
     let chapter_ids: Vec<i64> = opened
@@ -687,9 +882,14 @@ fn editing_chapter_two_of_three_never_touches_chapter_one_or_three() {
         .expect("doc danh sach chapter_id that bai");
     assert_eq!(chapter_ids.len(), 3, "ba muc URL OK phai dung ba Chuong");
 
-    let before: Vec<_> =
-        chapter_ids.iter().map(|&id| read_chapter_origin(&opened.store, id)).collect();
-    let updated_before: Vec<_> = chapter_ids.iter().map(|&id| read_chapter_updated_at(&opened.store, id)).collect();
+    let before: Vec<_> = chapter_ids
+        .iter()
+        .map(|&id| read_chapter_origin(&opened.store, id))
+        .collect();
+    let updated_before: Vec<_> = chapter_ids
+        .iter()
+        .map(|&id| read_chapter_updated_at(&opened.store, id))
+        .collect();
 
     std::thread::sleep(std::time::Duration::from_millis(5));
     update_chapter_origin(
@@ -703,16 +903,35 @@ fn editing_chapter_two_of_three_never_touches_chapter_one_or_three() {
     )
     .expect("sua Chuong 2 that bai");
 
-    let after: Vec<_> = chapter_ids.iter().map(|&id| read_chapter_origin(&opened.store, id)).collect();
-    let updated_after: Vec<_> = chapter_ids.iter().map(|&id| read_chapter_updated_at(&opened.store, id)).collect();
+    let after: Vec<_> = chapter_ids
+        .iter()
+        .map(|&id| read_chapter_origin(&opened.store, id))
+        .collect();
+    let updated_after: Vec<_> = chapter_ids
+        .iter()
+        .map(|&id| read_chapter_updated_at(&opened.store, id))
+        .collect();
 
     assert_eq!(after[0], before[0], "Chuong 1 khong duoc doi mot byte nao");
     assert_eq!(after[2], before[2], "Chuong 3 khong duoc doi mot byte nao");
-    assert_ne!(after[1].0.as_deref(), before[1].0.as_deref(), "Chuong 2 phai doi");
+    assert_ne!(
+        after[1].0.as_deref(),
+        before[1].0.as_deref(),
+        "Chuong 2 phai doi"
+    );
 
-    assert_eq!(updated_after[0], updated_before[0], "updated_at cua Chuong 1 khong duoc nhich");
-    assert_eq!(updated_after[2], updated_before[2], "updated_at cua Chuong 3 khong duoc nhich");
-    assert_ne!(updated_after[1], updated_before[1], "updated_at cua Chuong 2 phai nhich");
+    assert_eq!(
+        updated_after[0], updated_before[0],
+        "updated_at cua Chuong 1 khong duoc nhich"
+    );
+    assert_eq!(
+        updated_after[2], updated_before[2],
+        "updated_at cua Chuong 3 khong duoc nhich"
+    );
+    assert_ne!(
+        updated_after[1], updated_before[1],
+        "updated_at cua Chuong 2 phai nhich"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -722,7 +941,8 @@ fn editing_chapter_two_of_three_never_touches_chapter_one_or_three() {
 // Range-apply: the source Chapter's four origin fields applied across a contiguous ord range.
 
 #[test]
-fn range_applying_origin_across_contiguous_chapters_leaves_the_chapter_outside_the_range_untouched() {
+fn range_applying_origin_across_contiguous_chapters_leaves_the_chapter_outside_the_range_untouched()
+{
     let root = temp_dir("range-apply-five-chapters");
     let items = vec![
         url_item("https://example.test/chuong-1", &html_full_origin("")),
@@ -742,10 +962,15 @@ fn range_applying_origin_across_contiguous_chapters_leaves_the_chapter_outside_t
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false,
+        Vec::new(),
+        0,
+        1,
+        false,
         &[],
         &Mutex::new(Vec::new()),
-        None, &[])
+        None,
+        &[],
+    )
     .expect("tao tac pham that bai");
 
     let chapter_ids: Vec<i64> = opened
@@ -759,7 +984,12 @@ fn range_applying_origin_across_contiguous_chapters_leaves_the_chapter_outside_t
     assert_eq!(chapter_ids.len(), 5, "nam muc URL OK phai dung nam Chuong");
 
     let ord_of = |id: i64| -> i64 {
-        opened.store.read(|conn| conn.query_row("SELECT ord FROM chapter WHERE id = ?1", [id], |r| r.get(0))).expect("doc ord")
+        opened
+            .store
+            .read(|conn| {
+                conn.query_row("SELECT ord FROM chapter WHERE id = ?1", [id], |r| r.get(0))
+            })
+            .expect("doc ord")
     };
     let through_ord = ord_of(chapter_ids[3]);
     let before_first = read_chapter_origin(&opened.store, chapter_ids[0]);
@@ -778,16 +1008,26 @@ fn range_applying_origin_across_contiguous_chapters_leaves_the_chapter_outside_t
 
     for &id in &chapter_ids[1..=3] {
         let (author, site_name, url, published_at) = read_chapter_origin(&opened.store, id);
-        assert_eq!(author.as_deref(), Some("Tac Gia Dai Han"), "Chuong {id} phai nhan bon truong tu Chuong nguon");
+        assert_eq!(
+            author.as_deref(),
+            Some("Tac Gia Dai Han"),
+            "Chuong {id} phai nhan bon truong tu Chuong nguon"
+        );
         assert_eq!(site_name.as_deref(), Some("Website Dai Han"));
         assert_eq!(url.as_deref(), Some("https://example.test/goc-dai-han"));
         assert_eq!(published_at.as_deref(), Some("2026-02-02"));
     }
 
     let after_last = read_chapter_origin(&opened.store, chapter_ids[4]);
-    assert_eq!(after_last, before_last, "Chuong 5 (NGOAI dai [2,4]) khong duoc doi mot byte nao");
+    assert_eq!(
+        after_last, before_last,
+        "Chuong 5 (NGOAI dai [2,4]) khong duoc doi mot byte nao"
+    );
     let after_first = read_chapter_origin(&opened.store, chapter_ids[0]);
-    assert_eq!(after_first, before_first, "Chuong 1 (NGOAI dai [2,4]) khong duoc doi mot byte nao");
+    assert_eq!(
+        after_first, before_first,
+        "Chuong 1 (NGOAI dai [2,4]) khong duoc doi mot byte nao"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -802,13 +1042,24 @@ fn range_applying_origin_with_an_unknown_chapter_id_reuses_the_named_error_and_t
     let real_id = opened.chapter_id;
     let updated_at_before = read_chapter_updated_at(&opened.store, real_id);
 
-    let err = update_chapter_origin(Some(&mut opened), real_id + 999, "A", "B", "C", "D", Some(5))
-        .expect_err("chapter_id la phai la mot loi, ke ca voi apply_through_ord");
+    let err = update_chapter_origin(
+        Some(&mut opened),
+        real_id + 999,
+        "A",
+        "B",
+        "C",
+        "D",
+        Some(5),
+    )
+    .expect_err("chapter_id la phai la mot loi, ke ca voi apply_through_ord");
     assert_eq!(err.code(), "segment.chapter_not_found");
     assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
 
     let updated_at_after = read_chapter_updated_at(&opened.store, real_id);
-    assert_eq!(updated_at_before, updated_at_after, "0 hang bi cham khi chapter_id sai, ke ca voi apply_through_ord");
+    assert_eq!(
+        updated_at_before, updated_at_after,
+        "0 hang bi cham khi chapter_id sai, ke ca voi apply_through_ord"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -850,9 +1101,16 @@ fn a_version_21_project_database_migrates_to_22_with_all_origin_columns_null_and
     let root = temp_dir("migrate-21-to-22");
     let db = root.join("project.db");
 
-    let old = Store::open(StoreSpec { migrations: &OLD_STEPS, ..StoreSpec::project(db.clone()) })
-        .expect("dung fixture o phien ban 21");
-    assert_eq!(old.schema_version(), 21, "fixture phai dung o dung phien ban 21");
+    let old = Store::open(StoreSpec {
+        migrations: &OLD_STEPS,
+        ..StoreSpec::project(db.clone())
+    })
+    .expect("dung fixture o phien ban 21");
+    assert_eq!(
+        old.schema_version(),
+        21,
+        "fixture phai dung o dung phien ban 21"
+    );
 
     let chapter_id: i64 = old
         .write(|tx: &Transaction<'_>| {
@@ -881,17 +1139,25 @@ fn a_version_21_project_database_migrates_to_22_with_all_origin_columns_null_and
         .expect("ghi fixture v21 that bai");
     drop(old);
 
-    let migrated = Store::open(StoreSpec::project(db)).expect("mot project.db o phien ban 21 phai mo duoc");
+    let migrated =
+        Store::open(StoreSpec::project(db)).expect("mot project.db o phien ban 21 phai mo duoc");
     // 🔵 CAP NHAT 2026-09-16 (Story 4.2): dich moi nhat la 23 — buoc 23 (ai_config, FR68)
     // chay THEM sau buoc 22 (khong cham chapter), nen no khong anh huong menh de nay.
     // 🔵 CAP NHAT 2026-09-17 (Story 4.4): dich moi nhat la 24 — buoc 24 (prompt_set, FR69)
     // chay THEM sau buoc 23 (khong cham chapter), nen no khong anh huong menh de nay.
     // Target is now 25: step 25 (occurrence_count + zero-width triggers) runs after step 24
     // and never touches `chapter`, so this assertion still holds.
-    assert_eq!(migrated.schema_version(), 34, "di tru phai chay het toi dich moi nhat (qua ca buoc 22 chapter.origin_*)");
+    assert_eq!(
+        migrated.schema_version(),
+        34,
+        "di tru phai chay het toi dich moi nhat (qua ca buoc 22 chapter.origin_*)"
+    );
 
     let (author, site_name, url, published_at) = read_chapter_origin(&migrated, chapter_id);
-    assert_eq!(author, None, "KHONG backfill -- hang CU phai giu ca bon cot NULL");
+    assert_eq!(
+        author, None,
+        "KHONG backfill -- hang CU phai giu ca bon cot NULL"
+    );
     assert_eq!(site_name, None);
     assert_eq!(url, None);
     assert_eq!(published_at, None);
@@ -924,8 +1190,9 @@ fn a_version_21_project_database_migrates_to_22_with_all_origin_columns_null_and
 #[test]
 fn updating_chapter_origin_refreshes_the_cached_work_meta_updated_at() {
     let root = temp_dir("origin-lifecycle-meta");
-    let mut opened = create_work_from_text(&root, "Xuat Xu Lifecycle", "en", "", "Noi dung.".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened =
+        create_work_from_text(&root, "Xuat Xu Lifecycle", "en", "", "Noi dung.".to_owned())
+            .expect("tao tac pham that bai");
     let chapter_id = opened.chapter_id;
     let before = opened.meta.updated_at.clone();
 
@@ -933,8 +1200,16 @@ fn updating_chapter_origin_refreshes_the_cached_work_meta_updated_at() {
     // MOI thuc su khac dau thoi gian CU, khong phai mot ca dong khung tinh co trung nhau.
     std::thread::sleep(std::time::Duration::from_millis(5));
 
-    update_chapter_origin(Some(&mut opened), chapter_id, "Tac Gia Lifecycle", "", "", "", None)
-        .expect("cap nhat xuat xu that bai");
+    update_chapter_origin(
+        Some(&mut opened),
+        chapter_id,
+        "Tac Gia Lifecycle",
+        "",
+        "",
+        "",
+        None,
+    )
+    .expect("cap nhat xuat xu that bai");
 
     assert_ne!(
         opened.meta.updated_at, before,

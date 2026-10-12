@@ -300,8 +300,7 @@ mod tests {
     /// `dict-core.db` và các tệp lớp gỡ rời không lẫn nguồn của nhau.
     #[test]
     fn base_and_detachable_code_sets_are_disjoint() {
-        let base_codes: std::collections::HashSet<&str> =
-            BASE_ALL.iter().map(|s| s.code).collect();
+        let base_codes: std::collections::HashSet<&str> = BASE_ALL.iter().map(|s| s.code).collect();
         let detachable_codes: std::collections::HashSet<&str> =
             DETACHABLE_ALL.iter().map(|s| s.code).collect();
         assert!(
@@ -313,7 +312,11 @@ mod tests {
     #[test]
     fn every_source_declares_a_non_empty_license_text() {
         for s in BASE_ALL.iter().chain(DETACHABLE_ALL.iter()) {
-            assert!(!s.license_text().is_empty(), "{} has empty license_text", s.code);
+            assert!(
+                !s.license_text().is_empty(),
+                "{} has empty license_text",
+                s.code
+            );
         }
     }
 
@@ -394,7 +397,10 @@ mod tests {
     fn en_wiktionary_vi_reuses_the_cc_by_sa_and_gfdl_license_text() {
         assert_eq!(EN_WIKTIONARY_VI.license_kind, "open");
         assert_eq!(EN_WIKTIONARY_VI.license_id, Some("CC-BY-SA-4.0"));
-        assert_eq!(EN_WIKTIONARY_VI.license_text(), EN_WIKTIONARY.license_text());
+        assert_eq!(
+            EN_WIKTIONARY_VI.license_text(),
+            EN_WIKTIONARY.license_text()
+        );
     }
 
     /// AC3: `display_name` phải phân biệt được với `en-wiktionary` (mục tiếng Trung) —

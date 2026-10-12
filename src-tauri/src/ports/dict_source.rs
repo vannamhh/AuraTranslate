@@ -30,7 +30,9 @@
 //! [`crate::core::dict::DictLayer`], và đường mở tệp ở lại `core/store/**`
 //! (`store_boundary.rs::only_core_store_may_name_rusqlite`).
 
-use crate::core::dict::{HanVietHit, LookupResult, QueryBranch, QueryRoute, SenseRecord, SourceInfo};
+use crate::core::dict::{
+    HanVietHit, LookupResult, QueryBranch, QueryRoute, SenseRecord, SourceInfo,
+};
 use crate::core::store::StoreError;
 
 /// Một tệp `.db` từ điển, nhìn qua cổng.

@@ -65,7 +65,8 @@ fn scratch_documents_root() -> PathBuf {
     // (né một lượt copy cây thư mục 5.000 Chương) — cùng khuôn
     // `AURA_5_14_EXPORT_LIBRARY_ROOT` của `segment_contract.rs`. Hàng rào tên thư mục ngăn
     // một biến môi trường gõ nhầm ghi đè dữ liệu thật.
-    if let Some(export_root) = std::env::var_os("AURA_6_18_EXPORT_LIBRARY_ROOT").map(PathBuf::from) {
+    if let Some(export_root) = std::env::var_os("AURA_6_18_EXPORT_LIBRARY_ROOT").map(PathBuf::from)
+    {
         let raw = export_root.to_string_lossy();
         assert!(
             raw.contains(SCRATCH_MARKER),
@@ -73,7 +74,10 @@ fn scratch_documents_root() -> PathBuf {
         );
         if export_root.exists() {
             assert!(
-                fs::read_dir(&export_root).expect("đọc đích export").next().is_none(),
+                fs::read_dir(&export_root)
+                    .expect("đọc đích export")
+                    .next()
+                    .is_none(),
                 "đích export phải rỗng: {}",
                 export_root.display()
             );
@@ -82,10 +86,8 @@ fn scratch_documents_root() -> PathBuf {
         }
         return export_root;
     }
-    let dir = std::env::temp_dir().join(format!(
-        "{SCRATCH_MARKER}story-6-18-{}",
-        std::process::id()
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("{SCRATCH_MARKER}story-6-18-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tạo {}: {e}", dir.display()));
     dir
@@ -121,7 +123,11 @@ fn bilingual_csv_for_work(work_idx: usize) -> String {
     for c in 0..CHAPTERS_PER_WORK {
         let global_chapter = work_idx * CHAPTERS_PER_WORK + c;
         for s in 0..SEGMENTS_PER_CHAPTER {
-            let prefix = if s == 0 { format!("HOI {c} ") } else { String::new() };
+            let prefix = if s == 0 {
+                format!("HOI {c} ")
+            } else {
+                String::new()
+            };
             let source = format!(
                 "{prefix}天下大势{global_chapter}分久必合{s}, the quick brown fox number {global_chapter}-{s}"
             );
@@ -149,7 +155,11 @@ fn chapter_ids_in_order(store: &Store) -> Vec<i64> {
 /// viết tay ở đây (§Always spec 6.18).
 fn set_all_chapters(opened: &mut OpenWork, status: &str) {
     let ids = chapter_ids_in_order(&opened.store);
-    assert_eq!(ids.len(), CHAPTERS_PER_WORK, "Tác phẩm phải mang đúng {CHAPTERS_PER_WORK} Chương trước khi đổi trạng thái");
+    assert_eq!(
+        ids.len(),
+        CHAPTERS_PER_WORK,
+        "Tác phẩm phải mang đúng {CHAPTERS_PER_WORK} Chương trước khi đổi trạng thái"
+    );
     for chapter_id in ids {
         set_chapter_status(Some(opened), chapter_id, status).unwrap_or_else(|e| {
             panic!("set_chapter_status({chapter_id}, {status:?}) thất bại: {e:?}")
@@ -223,7 +233,9 @@ fn read_back_population(documents_root: &Path) -> Population {
 
 fn total_bytes(root: &Path) -> u64 {
     fn walk(dir: &Path, total: &mut u64) {
-        let Ok(entries) = fs::read_dir(dir) else { return };
+        let Ok(entries) = fs::read_dir(dir) else {
+            return;
+        };
         for entry in entries.filter_map(|e| e.ok()) {
             let path = entry.path();
             if path.is_dir() {
@@ -273,8 +285,10 @@ fn spawn_rss_sampler() -> (Arc<AtomicU64>, Arc<AtomicBool>, std::thread::JoinHan
 #[ignore = "ban do dung tay Story 6.18: dung thu vien 5.000 Chuong that, khong phai mot cong"]
 fn builds_the_6_18_library_through_product_import_and_lifecycle_code() {
     let documents_root = scratch_documents_root();
-    let global_store = Store::open(StoreSpec::global(documents_root.join("..").join("global.db")))
-        .unwrap_or_else(|e| panic!("mở global.db: {e}"));
+    let global_store = Store::open(StoreSpec::global(
+        documents_root.join("..").join("global.db"),
+    ))
+    .unwrap_or_else(|e| panic!("mở global.db: {e}"));
     let index_path = documents_root.join("..").join("library-index.db");
     let indexer = Indexer::open(index_path.clone()).expect("mở chỉ mục");
 
@@ -336,14 +350,28 @@ fn builds_the_6_18_library_through_product_import_and_lifecycle_code() {
     }
 
     println!("STORY_6_18_BUILD\tphase=rebuild_full");
-    indexer.rebuild(&documents_root, Some(&global_store)).expect("rebuild full");
+    indexer
+        .rebuild(&documents_root, Some(&global_store))
+        .expect("rebuild full");
 
     let full = read_back_population(&documents_root);
     assert_eq!(full.works, WORKS, "quần thể full: sai số Tác phẩm");
-    assert_eq!(full.chapters, TOTAL_CHAPTERS as i64, "quần thể full: sai số Chương");
-    assert_eq!(full.live_segments, TOTAL_SEGMENTS as i64, "quần thể full: sai số segment sống");
-    assert_eq!(full.done_chapters, TOTAL_CHAPTERS as i64, "quần thể full: không phải mọi Chương đều done");
-    assert_eq!(full.not_started_chapters, 0, "quần thể full: vẫn còn Chương not_started");
+    assert_eq!(
+        full.chapters, TOTAL_CHAPTERS as i64,
+        "quần thể full: sai số Chương"
+    );
+    assert_eq!(
+        full.live_segments, TOTAL_SEGMENTS as i64,
+        "quần thể full: sai số segment sống"
+    );
+    assert_eq!(
+        full.done_chapters, TOTAL_CHAPTERS as i64,
+        "quần thể full: không phải mọi Chương đều done"
+    );
+    assert_eq!(
+        full.not_started_chapters, 0,
+        "quần thể full: vẫn còn Chương not_started"
+    );
 
     let full_bytes = total_bytes(&documents_root);
     println!(
@@ -376,7 +404,9 @@ fn builds_the_6_18_library_through_product_import_and_lifecycle_code() {
     // `open_work` thuần (đúng đường `commands::project::wire::open_work` đi qua) đòi một
     // `IndexedWork` từ CHÍNH chỉ mục vừa rebuild — không một `OpenWork` tự ráp tay nào ở
     // đây, cùng kỷ luật "chỉ hàm sản phẩm" của toàn tệp này.
-    let indexed_before_frontier = indexer.list_works(WorkQuery::default()).expect("liệt kê trước frontier");
+    let indexed_before_frontier = indexer
+        .list_works(WorkQuery::default())
+        .expect("liệt kê trước frontier");
     let frontier_target = indexed_before_frontier
         .works
         .iter()
@@ -390,18 +420,28 @@ fn builds_the_6_18_library_through_product_import_and_lifecycle_code() {
     )
     .unwrap_or_else(|e| panic!("open_work({}) thất bại: {e:?}", frontier_target.work_id));
 
-    println!("STORY_6_18_BUILD\tphase=frontier_transition\twork={}", frontier_work_dir.display());
+    println!(
+        "STORY_6_18_BUILD\tphase=frontier_transition\twork={}",
+        frontier_work_dir.display()
+    );
     set_all_chapters(&mut frontier_open, "not_started");
     drop(frontier_open);
 
-    indexer.rebuild(&documents_root, Some(&global_store)).expect("rebuild frontier");
+    indexer
+        .rebuild(&documents_root, Some(&global_store))
+        .expect("rebuild frontier");
     let frontier = read_back_population(&documents_root);
     assert_eq!(frontier.works, WORKS, "quần thể frontier: sai số Tác phẩm");
-    assert_eq!(frontier.chapters, TOTAL_CHAPTERS as i64, "quần thể frontier: sai số Chương");
-    assert_eq!(frontier.live_segments, TOTAL_SEGMENTS as i64, "quần thể frontier: sai số segment sống");
     assert_eq!(
-        frontier.not_started_chapters,
-        CHAPTERS_PER_WORK as i64,
+        frontier.chapters, TOTAL_CHAPTERS as i64,
+        "quần thể frontier: sai số Chương"
+    );
+    assert_eq!(
+        frontier.live_segments, TOTAL_SEGMENTS as i64,
+        "quần thể frontier: sai số segment sống"
+    );
+    assert_eq!(
+        frontier.not_started_chapters, CHAPTERS_PER_WORK as i64,
         "quần thể frontier: phải đúng {CHAPTERS_PER_WORK} Chương not_started (một Tác phẩm)"
     );
     assert_eq!(
@@ -411,7 +451,11 @@ fn builds_the_6_18_library_through_product_import_and_lifecycle_code() {
     );
     println!(
         "STORY_6_18_POPULATION\tstate=frontier\tworks={}\tchapters={}\tsegments={}\tdone_chapters={}\tnot_started_chapters={}\tverdict=matches_declaration",
-        frontier.works, frontier.chapters, frontier.live_segments, frontier.done_chapters, frontier.not_started_chapters
+        frontier.works,
+        frontier.chapters,
+        frontier.live_segments,
+        frontier.done_chapters,
+        frontier.not_started_chapters
     );
 
     // Phục hồi — export cuối cùng trên đĩa là quần thể "full". Chỉ mục đã đổi (Chương vừa
@@ -424,19 +468,38 @@ fn builds_the_6_18_library_through_product_import_and_lifecycle_code() {
         &frontier_target.work_id,
         Some(&indexed_after_frontier),
     )
-    .unwrap_or_else(|e| panic!("open_work({}) thất bại lúc phục hồi: {e:?}", frontier_target.work_id));
+    .unwrap_or_else(|e| {
+        panic!(
+            "open_work({}) thất bại lúc phục hồi: {e:?}",
+            frontier_target.work_id
+        )
+    });
     set_all_chapters(&mut restore_open, "done");
     drop(restore_open);
-    indexer.rebuild(&documents_root, Some(&global_store)).expect("rebuild phục hồi full");
+    indexer
+        .rebuild(&documents_root, Some(&global_store))
+        .expect("rebuild phục hồi full");
 
     let restored = read_back_population(&documents_root);
-    assert_eq!(restored.done_chapters, TOTAL_CHAPTERS as i64, "phục hồi full thất bại");
-    assert_eq!(restored.not_started_chapters, 0, "phục hồi full thất bại: vẫn còn not_started");
+    assert_eq!(
+        restored.done_chapters, TOTAL_CHAPTERS as i64,
+        "phục hồi full thất bại"
+    );
+    assert_eq!(
+        restored.not_started_chapters, 0,
+        "phục hồi full thất bại: vẫn còn not_started"
+    );
 
     // Chỉ mục vừa dựng phải thấy ĐÚNG quần thể sống — bàn đo NFR3 (task 4) đọc THẲNG chỉ mục
     // này, không tự `rebuild` lại.
-    let indexed = indexer.list_works(WorkQuery::default()).expect("liệt kê Tác phẩm đã lập chỉ mục");
-    assert_eq!(indexed.works.len(), WORKS, "chỉ mục không thấy đủ {WORKS} Tác phẩm");
+    let indexed = indexer
+        .list_works(WorkQuery::default())
+        .expect("liệt kê Tác phẩm đã lập chỉ mục");
+    assert_eq!(
+        indexed.works.len(),
+        WORKS,
+        "chỉ mục không thấy đủ {WORKS} Tác phẩm"
+    );
 
     println!(
         "STORY_6_18_POPULATION\tstate=final_export\tworks={}\tchapters={}\tsegments={}\tdocuments_root={}\tindex_path={}",

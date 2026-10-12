@@ -21,7 +21,12 @@ const CHARS_PER_CHAPTER: usize = 4_000;
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-glossary-wire-{}-{}-{}", std::process::id(), tag, n));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-glossary-wire-{}-{}-{}",
+        std::process::id(),
+        tag,
+        n
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -36,7 +41,9 @@ impl Drop for DirGuard {
 }
 
 fn alphabet() -> Vec<char> {
-    (0..60u32).map(|i| char::from_u32(0x4E00 + i * 7).expect("ky tu CJK")).collect()
+    (0..60u32)
+        .map(|i| char::from_u32(0x4E00 + i * 7).expect("ky tu CJK"))
+        .collect()
 }
 
 fn seed(open: &auratranslate_lib::commands::project::OpenWork) {
@@ -49,7 +56,11 @@ fn seed(open: &auratranslate_lib::commands::project::OpenWork) {
         state
     };
     let chapters: Vec<String> = (0..CHAPTERS)
-        .map(|_| (0..CHARS_PER_CHAPTER).map(|_| alphabet[(next() % alphabet.len() as u64) as usize]).collect())
+        .map(|_| {
+            (0..CHARS_PER_CHAPTER)
+                .map(|_| alphabet[(next() % alphabet.len() as u64) as usize])
+                .collect()
+        })
         .collect();
     open.store
         .write(move |tx| {
@@ -72,7 +83,11 @@ fn seed(open: &auratranslate_lib::commands::project::OpenWork) {
         .expect("gieo Chuong");
     let terms: Vec<ScanCandidate> = (0..TERMS)
         .map(|i| ScanCandidate {
-            source_term: format!("{}{}", alphabet[i % alphabet.len()], alphabet[(i / alphabet.len() + i * 7 + 1) % alphabet.len()]),
+            source_term: format!(
+                "{}{}",
+                alphabet[i % alphabet.len()],
+                alphabet[(i / alphabet.len() + i * 7 + 1) % alphabet.len()]
+            ),
             occurrence_count: 1 + i as i64,
             context_example: String::new(),
         })
@@ -84,9 +99,12 @@ fn seed(open: &auratranslate_lib::commands::project::OpenWork) {
 fn the_pending_candidates_shell_releases_the_open_work_lock_while_it_scans() {
     let dir = temp_dir("pending-lock");
     let _guard = DirGuard(dir.clone());
-    let open = create_work_from_text(&dir, "pending-lock", "zh", "", "萧炎在城中。".to_owned()).expect("tao Tac pham");
+    let open = create_work_from_text(&dir, "pending-lock", "zh", "", "萧炎在城中。".to_owned())
+        .expect("tao Tac pham");
     seed(&open);
-    let app = mock_builder().build(mock_context(noop_assets())).expect("dung app MockRuntime");
+    let app = mock_builder()
+        .build(mock_context(noop_assets()))
+        .expect("dung app MockRuntime");
     app.manage(OpenWorkState::new(Some(open)));
 
     let handle = app.handle().clone();
@@ -98,7 +116,11 @@ fn the_pending_candidates_shell_releases_the_open_work_lock_while_it_scans() {
 
     std::thread::sleep(Duration::from_millis(20));
     let waited = Instant::now();
-    drop(app.state::<OpenWorkState>().lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+    drop(
+        app.state::<OpenWorkState>()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+    );
     let wait = waited.elapsed();
 
     let (rows, scan_time) = scan.join().expect("luong quet");

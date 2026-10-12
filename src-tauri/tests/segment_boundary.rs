@@ -382,12 +382,17 @@ fn the_target_write_path_never_takes_a_store_below_the_command_shell() {
         .into_iter()
         .filter(|(rel, _)| is_inside(rel, "commands/segment"))
         .collect();
-    assert!(!sources.is_empty(), "không đọc được tệp nào dưới `commands/segment/`");
+    assert!(
+        !sources.is_empty(),
+        "không đọc được tệp nào dưới `commands/segment/`"
+    );
 
     // Thân closure trao cho `Store::write` nhận `&Transaction` — đó là hình dạng ĐÚNG, và nó
     // phải còn đó. Mất nó nghĩa là đường ghi đã đổi hình dạng dưới chân AC12.
     assert!(
-        sources.iter().any(|(_, text)| text.contains("write(move |tx: &Transaction<'_>|")),
+        sources
+            .iter()
+            .any(|(_, text)| text.contains("write(move |tx: &Transaction<'_>|")),
         "không còn một closure `Store::write(move |tx: &Transaction<'_>| …)` nào dưới \
          `commands/segment/`. AC12 của Story 2.3 đứng trên hình dạng đó: một lô, một giao \
          dịch, và tầng dưới nhận `&Transaction` chứ không `&Store`."

@@ -359,8 +359,8 @@ mod nfr_bench {
     }
 
     fn bench_home() -> Result<PathBuf, String> {
-        let raw_home: OsString = std::env::var_os("HOME")
-            .ok_or_else(|| "nfr-bench HOME is absent".to_owned())?;
+        let raw_home: OsString =
+            std::env::var_os("HOME").ok_or_else(|| "nfr-bench HOME is absent".to_owned())?;
         let home = PathBuf::from(raw_home);
         let canonical_home = home
             .canonicalize()
@@ -387,7 +387,9 @@ mod nfr_bench {
         let metadata = std::fs::symlink_metadata(&path)
             .map_err(|err| format!("nfr-bench cannot inspect phase file: {err}"))?;
         if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
-            return Err("nfr-bench phase file must be one regular file under scratch HOME".to_owned());
+            return Err(
+                "nfr-bench phase file must be one regular file under scratch HOME".to_owned(),
+            );
         }
         Ok(path)
     }
@@ -400,16 +402,21 @@ mod nfr_bench {
             "library" | "reading-full" | "reading-frontier" | "back-library" | "discard" => {
                 Ok(phase.to_owned())
             }
-            _ => Err(format!("nfr-bench phase is outside the reviewed state machine: {phase:?}")),
+            _ => Err(format!(
+                "nfr-bench phase is outside the reviewed state machine: {phase:?}"
+            )),
         }
     }
 
     fn marker_key(marker: &str) -> Result<String, String> {
         match marker {
-            "usable" | "invalid" | "reading" | "back_library" | "e7_probe_done" | "e7_probe_error" | "e7_progress" => {
+            "usable" | "invalid" | "reading" | "back_library" | "e7_probe_done"
+            | "e7_probe_error" | "e7_progress" => {
                 Ok(format!("{MARKER_PREFIX}{marker}{MARKER_SUFFIX}"))
             }
-            _ => Err(format!("nfr-bench marker is outside the reviewed allowlist: {marker:?}")),
+            _ => Err(format!(
+                "nfr-bench marker is outside the reviewed allowlist: {marker:?}"
+            )),
         }
     }
 
@@ -565,7 +572,9 @@ mod nfr_bench {
                     "reading-frontier" => eval_reading(app, "frontier-only", 0)?,
                     "back-library" => eval_back_library(app)?,
                     "discard" => return Ok("discard".to_owned()),
-                    _ => return Err("nfr-bench phase escaped allowlist after validation".to_owned()),
+                    _ => {
+                        return Err("nfr-bench phase escaped allowlist after validation".to_owned());
+                    }
                 }
                 last_phase = phase;
             }
@@ -601,7 +610,9 @@ mod nfr_bench {
         match marker.as_str() {
             "usable" => {
                 if after != "library" || read_phase(&path)? != "library" {
-                    return Err("nfr-bench usable marker may start only from the library phase".to_owned());
+                    return Err(
+                        "nfr-bench usable marker may start only from the library phase".to_owned(),
+                    );
                 }
                 open_the_one_fixture_through_product_wire(&app)?;
                 // §Always spec 6.18: "invalid unless the probe reads a loaded-layer count > 0
@@ -631,19 +642,25 @@ mod nfr_bench {
             }
             "reading" => {
                 if after != "ack" {
-                    return Err("nfr-bench Reading marker may only acknowledge native DOM".to_owned());
+                    return Err(
+                        "nfr-bench Reading marker may only acknowledge native DOM".to_owned()
+                    );
                 }
                 put_marker(&app, &marker, &value)?;
                 Ok("ack".to_owned())
             }
             "back_library" => {
                 if after != "ack" {
-                    return Err("nfr-bench Library marker may only acknowledge native DOM".to_owned());
+                    return Err(
+                        "nfr-bench Library marker may only acknowledge native DOM".to_owned()
+                    );
                 }
                 put_marker(&app, &marker, &value)?;
                 Ok("ack".to_owned())
             }
-            _ => Err(format!("nfr-bench marker is outside the reviewed allowlist: {marker:?}")),
+            _ => Err(format!(
+                "nfr-bench marker is outside the reviewed allowlist: {marker:?}"
+            )),
         }
     }
 
@@ -677,7 +694,9 @@ mod nfr_bench {
         let mut last_poll = Instant::now();
         loop {
             let now = Instant::now();
-            report.max_gap_us = report.max_gap_us.max(now.duration_since(last_poll).as_micros() as u64);
+            report.max_gap_us = report
+                .max_gap_us
+                .max(now.duration_since(last_poll).as_micros() as u64);
             last_poll = now;
             match open_work_is_held(&app) {
                 None => report.state_missing = true,
@@ -686,14 +705,18 @@ mod nfr_bench {
                 }
                 Some(false) => {
                     if let Some(start) = window_start.take() {
-                        report.windows_us.push(now.duration_since(start).as_micros() as u64);
+                        report
+                            .windows_us
+                            .push(now.duration_since(start).as_micros() as u64);
                     }
                 }
             }
             if stop.load(Ordering::Acquire) {
                 if let Some(start) = window_start.take() {
                     report.open_at_stop = true;
-                    report.windows_us.push(Instant::now().duration_since(start).as_micros() as u64);
+                    report
+                        .windows_us
+                        .push(Instant::now().duration_since(start).as_micros() as u64);
                 }
                 return report;
             }
@@ -712,7 +735,10 @@ mod nfr_bench {
 
     fn finish_lock_watch(watch: LockWatch) -> Result<LockWatchReport, String> {
         watch.stop.store(true, Ordering::Release);
-        watch.join.join().map_err(|_| "nfr-bench lock watcher thread panicked".to_owned())
+        watch
+            .join
+            .join()
+            .map_err(|_| "nfr-bench lock watcher thread panicked".to_owned())
     }
 
     struct Round {
@@ -739,8 +765,16 @@ mod nfr_bench {
         }
     }
 
-    fn measure_round(app: &tauri::AppHandle, stage: &str, action: impl FnOnce() -> String) -> Result<Round, String> {
-        put_marker(app, "e7_progress", &serde_json::json!({ "stage": stage }).to_string())?;
+    fn measure_round(
+        app: &tauri::AppHandle,
+        stage: &str,
+        action: impl FnOnce() -> String,
+    ) -> Result<Round, String> {
+        put_marker(
+            app,
+            "e7_progress",
+            &serde_json::json!({ "stage": stage }).to_string(),
+        )?;
         let watch = spawn_lock_watch(app.clone());
         let started = Instant::now();
         let outcome = action();
@@ -775,7 +809,8 @@ mod nfr_bench {
     const E7_ROUNDS: usize = 20;
     const E7_BATCH_SIZE: usize = 100;
     const E7_PROMPT_SET: &str = "E7 R4 TM prompt";
-    const E7_PROMPT_BODY: &str = "Translate the sentence to Vietnamese.\n{{tm_similar_segments}}\n{{source_segment}}";
+    const E7_PROMPT_BODY: &str =
+        "Translate the sentence to Vietnamese.\n{{tm_similar_segments}}\n{{source_segment}}";
 
     /// Drives the six measured commands through their real wire shells on this thread, so a
     /// stalled webview cannot hold up the measurement.
@@ -793,8 +828,13 @@ mod nfr_bench {
             (AiConfigField::Temperature, "0.3"),
             (AiConfigField::MaxTokens, "256"),
         ] {
-            aiconfig::wire::ai_config_save_field(app.clone(), AiConfigTier::Global, field, value.to_owned())
-                .map_err(|e| ipc("ai_config_save_field", &e))?;
+            aiconfig::wire::ai_config_save_field(
+                app.clone(),
+                AiConfigTier::Global,
+                field,
+                value.to_owned(),
+            )
+            .map_err(|e| ipc("ai_config_save_field", &e))?;
         }
         promptset::wire::prompt_set_create(
             app.clone(),
@@ -803,14 +843,23 @@ mod nfr_bench {
             E7_PROMPT_BODY.to_owned(),
         )
         .map_err(|e| ipc("prompt_set_create", &e))?;
-        let chapters = chapter::wire::list_chapters(app.clone()).map_err(|e| ipc("list_chapters", &e))?;
+        let chapters =
+            chapter::wire::list_chapters(app.clone()).map_err(|e| ipc("list_chapters", &e))?;
         let [only_chapter] = chapters.as_slice() else {
-            return Err(format!("expected exactly one Chapter, got {}", chapters.len()));
+            return Err(format!(
+                "expected exactly one Chapter, got {}",
+                chapters.len()
+            ));
         };
-        chapter::wire::open_chapter(app.clone(), only_chapter.chapter_id).map_err(|e| ipc("open_chapter", &e))?;
+        chapter::wire::open_chapter(app.clone(), only_chapter.chapter_id)
+            .map_err(|e| ipc("open_chapter", &e))?;
         let loaded = segment::wire::read_open_chapter_segments(app.clone(), Some(false))
             .map_err(|e| ipc("read_open_chapter_segments", &e))?;
-        let live: Vec<_> = loaded.segments.iter().filter(|s| s.retired_at.is_none()).collect();
+        let live: Vec<_> = loaded
+            .segments
+            .iter()
+            .filter(|s| s.retired_at.is_none())
+            .collect();
         let ids: Vec<i64> = live.iter().map(|s| s.id).collect();
         let sources: Vec<String> = live.iter().map(|s| s.source_text.clone()).collect();
         let distinct: std::collections::BTreeSet<&String> = sources.iter().collect();
@@ -820,7 +869,10 @@ mod nfr_bench {
             "distinct_sources": distinct.len(),
         });
         if ids.len() < E7_BATCH_SIZE {
-            return Err(format!("Chapter holds {} segments, the batch needs {E7_BATCH_SIZE}", ids.len()));
+            return Err(format!(
+                "Chapter holds {} segments, the batch needs {E7_BATCH_SIZE}",
+                ids.len()
+            ));
         }
         let batch_ids: Vec<i64> = ids[..E7_BATCH_SIZE].to_vec();
 
@@ -851,44 +903,67 @@ mod nfr_bench {
                 let segment_id = ids[(round * 7) % ids.len()];
                 let measured = match label {
                     "tm_concordance" => {
-                        let query: String = sources[(round * 11) % sources.len()].chars().take(4).collect();
+                        let query: String = sources[(round * 11) % sources.len()]
+                            .chars()
+                            .take(4)
+                            .collect();
                         measure_round(app, &stage, || {
                             let result = segment::wire::tm_concordance(app.clone(), query);
                             if round == 0 {
                                 if let Ok(found) = &result {
-                                    details.insert("concordance_hits_round_1".to_owned(), found.hits.len().into());
+                                    details.insert(
+                                        "concordance_hits_round_1".to_owned(),
+                                        found.hits.len().into(),
+                                    );
                                 }
                             }
                             outcome_of(&result)
                         })?
                     }
                     "tm_list_pairs" => measure_round(app, &stage, || {
-                        let result =
-                            tm::wire::tm_list_pairs(app.clone(), "all".to_owned(), "both".to_owned(), String::new());
+                        let result = tm::wire::tm_list_pairs(
+                            app.clone(),
+                            "all".to_owned(),
+                            "both".to_owned(),
+                            String::new(),
+                        );
                         if round == 0 {
                             if let Ok(listed) = &result {
-                                details.insert("list_pairs_total_round_1".to_owned(), listed.total_pairs.into());
+                                details.insert(
+                                    "list_pairs_total_round_1".to_owned(),
+                                    listed.total_pairs.into(),
+                                );
                             }
                         }
                         outcome_of(&result)
                     })?,
                     "read_open_chapter_segments" => measure_round(app, &stage, || {
-                        let result = segment::wire::read_open_chapter_segments(app.clone(), Some(true));
+                        let result =
+                            segment::wire::read_open_chapter_segments(app.clone(), Some(true));
                         if round == 0 {
                             if let Ok(read) = &result {
-                                let filled = read.segments.iter().filter(|s| !s.target_text.is_empty()).count();
-                                details.insert("prefill_filled_after_round_1".to_owned(), filled.into());
+                                let filled = read
+                                    .segments
+                                    .iter()
+                                    .filter(|s| !s.target_text.is_empty())
+                                    .count();
+                                details.insert(
+                                    "prefill_filled_after_round_1".to_owned(),
+                                    filled.into(),
+                                );
                             }
                         }
                         outcome_of(&result)
                     })?,
                     "ai_translate_segment" => measure_round(app, &stage, || {
-                        let result = tauri::async_runtime::block_on(aitranslate::wire::ai_translate_segment(
-                            app.clone(),
-                            segment_id,
-                            Some(E7_PROMPT_SET.to_owned()),
-                            Channel::new(|_| Ok(())),
-                        ));
+                        let result = tauri::async_runtime::block_on(
+                            aitranslate::wire::ai_translate_segment(
+                                app.clone(),
+                                segment_id,
+                                Some(E7_PROMPT_SET.to_owned()),
+                                Channel::new(|_| Ok(())),
+                            ),
+                        );
                         outcome_of(&result)
                     })?,
                     "ai_prompt_assemble" => measure_round(app, &stage, || {
@@ -900,12 +975,13 @@ mod nfr_bench {
                         outcome_of(&result)
                     })?,
                     _ => measure_round(app, &stage, || {
-                        let result = tauri::async_runtime::block_on(aitranslate::wire::ai_translate_batch(
-                            app.clone(),
-                            batch_ids.clone(),
-                            Some(E7_PROMPT_SET.to_owned()),
-                            Channel::new(|_| Ok(())),
-                        ));
+                        let result =
+                            tauri::async_runtime::block_on(aitranslate::wire::ai_translate_batch(
+                                app.clone(),
+                                batch_ids.clone(),
+                                Some(E7_PROMPT_SET.to_owned()),
+                                Channel::new(|_| Ok(())),
+                            ));
                         outcome_of(&result)
                     })?,
                 };
@@ -940,7 +1016,11 @@ mod nfr_bench {
                 let _ = put_marker(&app, "e7_probe_done", &result.to_string());
             }
             Err(detail) => {
-                let _ = put_marker(&app, "e7_probe_error", &serde_json::json!({ "detail": detail }).to_string());
+                let _ = put_marker(
+                    &app,
+                    "e7_probe_error",
+                    &serde_json::json!({ "detail": detail }).to_string(),
+                );
             }
         });
         Ok(())
@@ -948,11 +1028,17 @@ mod nfr_bench {
 
     /// Lets the probe record its completion or failure in the marker table.
     #[tauri::command]
-    pub fn nfr_bench_e7_put_marker(app: tauri::AppHandle, marker: String, value: String) -> Result<(), String> {
+    pub fn nfr_bench_e7_put_marker(
+        app: tauri::AppHandle,
+        marker: String,
+        value: String,
+    ) -> Result<(), String> {
         bench_home()?;
         match marker.as_str() {
             "e7_probe_done" | "e7_probe_error" | "e7_progress" => put_marker(&app, &marker, &value),
-            _ => Err(format!("nfr-bench e7 marker is outside the reviewed allowlist: {marker:?}")),
+            _ => Err(format!(
+                "nfr-bench e7 marker is outside the reviewed allowlist: {marker:?}"
+            )),
         }
     }
 }
@@ -1422,10 +1508,7 @@ fn open_global_store(app: &tauri::App) {
     };
 
     if let Err(err) = std::fs::create_dir_all(&dir) {
-        eprintln!(
-            "store[global] cannot create {}: {err}",
-            dir.display()
-        );
+        eprintln!("store[global] cannot create {}: {err}", dir.display());
         return;
     }
 
@@ -1568,18 +1651,24 @@ fn open_work_slot(app: &tauri::App) {
     // xem close_open_work.
     app.manage(crate::commands::glossary::PendingImportState::new(None));
     app.manage(crate::commands::tm::PendingTmxImportState::new(None));
-    app.manage(crate::commands::export::PendingReviewerImportState::new(None));
+    app.manage(crate::commands::export::PendingReviewerImportState::new(
+        None,
+    ));
     // Story 4.5 (AD-48) -- lo nhap bo prompt dang TREO giua nhip mot va nhip hai. Quan ly
     // canh OpenWorkState cung ly do PendingImportState cua Glossary ngay tren -- nua Tac
     // pham cua lo (neu co) phai chet cung Tac pham dang mo no, xem close_open_work.
-    app.manage(crate::commands::promptset::PendingPromptImportState::new(None));
+    app.manage(crate::commands::promptset::PendingPromptImportState::new(
+        None,
+    ));
     // Story 4.7 (FR71, AD-14) -- ban ghi prompt DA LAP RAP DUY NHAT cua PHIEN, khong theo
     // Tac pham dang mo (Decision 2 + Boundaries spec 4.7: "no new table -- per-session
     // managed state only"). Cung hinh dang Mutex<Option<T>> tran voi OpenWorkState/
     // PendingPromptImportState ngay tren. Don o close_open_work khi doi Tac pham -- xem
     // doc-comment o do vi sao (segment_id/chapter_id la khoa hang cua MOT project.db, hai
     // Tac phan khac nhau co the trung so ngau nhien).
-    app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None));
+    app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(
+        None,
+    ));
     // Story 4.8, Phase 2 (AD-22) -- bo dem the he dung cho HUY giua chung mot luot dich AI
     // dang chay, dung hinh dang ImportScanGeneration o tren (Arc<AtomicU64>, `.manage` MOT
     // LAN cho ca PHIEN, khong theo Tac pham dang mo -- mot luot dich con dang chay khi nguoi
@@ -1589,7 +1678,9 @@ fn open_work_slot(app: &tauri::App) {
     // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong
     // rang buoc nao voi OpenWork (mot luot xem truoc chua tung tao Tac pham nao).
-    app.manage(crate::commands::project::PendingImportSourceState::new(None));
+    app.manage(crate::commands::project::PendingImportSourceState::new(
+        None,
+    ));
     // Story 6.7 (FR122) -- trang thai tung muc cua danh sach URL dang nhap, song CANH
     // PendingImportSourceState (Task list spec 6.7: "trang thai tung muc song canh
     // PendingImportSource trong bo nho"). Dong bo hai o nay la viec cua
@@ -1605,11 +1696,17 @@ fn open_work_slot(app: &tauri::App) {
     // UrlImportItemsState (chi co nghia khi mot lot xem truoc URL dang mo). Vec RONG la trang
     // thai "chua ai sua gi" -- khong can mot Option boc ngoai, xem doc-comment
     // Tier2BlockOverridesState.
-    app.manage(crate::commands::project::Tier2BlockOverridesState::new(Vec::new()));
+    app.manage(crate::commands::project::Tier2BlockOverridesState::new(
+        Vec::new(),
+    ));
     // Story 6.15 (FR128/AD-43) -- xuat xu NGUOI DUNG go de theo Chuong, song CANH
     // Tier2BlockOverridesState -- cung ly do Vec RONG la trang thai "chua ai sua gi".
-    app.manage(crate::commands::project::ChapterOriginOverridesState::new(Vec::new()));
-    app.manage(crate::commands::project::AppendInProgressState::new(std::collections::HashSet::new()));
+    app.manage(crate::commands::project::ChapterOriginOverridesState::new(
+        Vec::new(),
+    ));
+    app.manage(crate::commands::project::AppendInProgressState::new(
+        std::collections::HashSet::new(),
+    ));
 }
 
 /// Mở `$APPDATA/library-index.db` và đưa nó vào state — **Story 5.2**, cùng khuôn
@@ -1660,7 +1757,10 @@ fn open_library_index(app: &tauri::App) {
     };
 
     if let Err(err) = std::fs::create_dir_all(&dir) {
-        eprintln!("store[library-index] cannot create {}: {err}", dir.display());
+        eprintln!(
+            "store[library-index] cannot create {}: {err}",
+            dir.display()
+        );
         return;
     }
 
@@ -1671,8 +1771,7 @@ fn open_library_index(app: &tauri::App) {
             // nhìn sau đó. `open_global_store(app)` chạy TRƯỚC lời gọi này (`setup()` ở trên)
             // nên `Store` toàn cục đã (có thể) được `app.manage()` tại thời điểm này.
             let global = app.try_state::<crate::core::store::Store>();
-            match crate::commands::project::resolve_library_root(app.handle(), global.as_deref())
-            {
+            match crate::commands::project::resolve_library_root(app.handle(), global.as_deref()) {
                 // Phan quyet Ice #1 (2026-08-27) -- co mo coi song o `library_orphan`
                 // (global.db), nen `rebuild` can cung `global` vua fetch o tren.
                 Ok(root) => match indexer.rebuild(&root, global.as_deref()) {
@@ -1719,12 +1818,15 @@ fn close_open_work(handle: &tauri::AppHandle) {
     if let Some(pending) = handle.try_state::<crate::commands::tm::PendingTmxImportState>() {
         crate::commands::tm::clear_pending_tmx_import_for_work(&pending);
     }
-    if let Some(pending) = handle.try_state::<crate::commands::export::PendingReviewerImportState>() {
+    if let Some(pending) = handle.try_state::<crate::commands::export::PendingReviewerImportState>()
+    {
         crate::commands::export::reviewer_import_cancel(&pending);
     }
     // Story 4.5 -- cung ly do ngay tren, cho lo nhap bo prompt: chi ha `work_kind` ve `None`
     // (khong xoa TRON lo -- nua Toan cuc, neu co, van con dung duoc doc lap voi Tac pham).
-    if let Some(pending) = handle.try_state::<crate::commands::promptset::PendingPromptImportState>() {
+    if let Some(pending) =
+        handle.try_state::<crate::commands::promptset::PendingPromptImportState>()
+    {
         crate::commands::promptset::clear_pending_prompt_import_work_tier(&pending);
     }
     // Story 4.7 -- mot ban ghi da lap tu Tac pham DANG DONG mang segment_id/chapter_id la
@@ -1740,19 +1842,28 @@ fn close_open_work(handle: &tauri::AppHandle) {
     // (`ai_prompt_contract.rs::the_record_is_cleared_when_the_open_work_closes`), con ba dong
     // cu nam THANG trong `close_open_work` (khong `pub`) thi khong cach nao goi duoc tu
     // `src-tauri/tests/*.rs`.
-    if let Some(record) = handle.try_state::<crate::commands::aiprompt::LastAssembledPromptState>() {
+    if let Some(record) = handle.try_state::<crate::commands::aiprompt::LastAssembledPromptState>()
+    {
         crate::commands::aiprompt::clear_last_assembled_prompt_on_work_close(&record);
     }
 
     if let Some(state) = handle.try_state::<crate::commands::project::OpenWorkState>() {
-        let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(open) = guard.take() {
             // Runs only on RunEvent::Exit, so this forbid (which has no inverse) never meets
             // a reopen of the same Work; replace_open_work does not forbid on a switch.
             use tauri::Manager as _;
             let assets_dir = open.dir.join("assets");
-            if let Err(err) = handle.asset_protocol_scope().forbid_directory(&assets_dir, true) {
-                eprintln!("project[scope] khong thu hoi duoc asset_protocol_scope cho {}: {err}", assets_dir.display());
+            if let Err(err) = handle
+                .asset_protocol_scope()
+                .forbid_directory(&assets_dir, true)
+            {
+                eprintln!(
+                    "project[scope] khong thu hoi duoc asset_protocol_scope cho {}: {err}",
+                    assets_dir.display()
+                );
             }
             open.store.close();
         }
@@ -1891,10 +2002,7 @@ fn wire_exit_flush(app: &tauri::App) {
         // la cua so bien mat NGAY, trong khi lo ghi cua luot thu nhat con dang bay — dung
         // dieu ma ca duong nay ton tai de chan. Luong cho cua luot dau van la cho DUY NHAT
         // quyet dinh thoi diem dong, va no se `destroy()` khi webview tra loi hoac het tran.
-        if state
-            .armed
-            .swap(true, std::sync::atomic::Ordering::SeqCst)
-        {
+        if state.armed.swap(true, std::sync::atomic::Ordering::SeqCst) {
             api.prevent_close();
             return;
         }
@@ -2009,8 +2117,8 @@ fn confirm_exit_flush(app: tauri::AppHandle) {
 #[cfg(test)]
 mod exit_flush_tests {
     use super::ExitFlush;
-    use std::sync::atomic::Ordering;
     use std::sync::Arc;
+    use std::sync::atomic::Ordering;
     use std::time::{Duration, Instant};
 
     /// Webview trả lời **trước** khi ai kịp chờ ⇒ lượt chờ không được ngủ một mili-giây nào.
@@ -2077,7 +2185,10 @@ mod exit_flush_tests {
         let waited = began.elapsed();
         handle.join().expect("luong xac nhan panic");
 
-        assert!(confirmed, "`wait` khong thay luot `release()` tu luong khac");
+        assert!(
+            confirmed,
+            "`wait` khong thay luot `release()` tu luong khac"
+        );
         assert!(
             waited < Duration::from_secs(1),
             "`wait` ngoi het {:?} du da duoc danh thuc sau ~40 ms ⇒ `Condvar` khong danh thuc \

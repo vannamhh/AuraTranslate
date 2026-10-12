@@ -48,9 +48,9 @@ fn store_for_tier<'a>(
 ) -> Result<&'a Store, IpcError> {
     match tier {
         AiConfigTier::Global => global.ok_or_else(store_is_missing),
-        AiConfigTier::Work => {
-            open.map(|w| &w.store).ok_or_else(|| AiConfigStoreError::WorkTierUnavailable.into())
-        }
+        AiConfigTier::Work => open
+            .map(|w| &w.store)
+            .ok_or_else(|| AiConfigStoreError::WorkTierUnavailable.into()),
     }
 }
 
@@ -168,7 +168,9 @@ pub fn ai_config_get(
     open: Option<&OpenWork>,
 ) -> Result<AiConfigGetWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    let resolver = open.map(|w| w.scope.clone()).unwrap_or_else(ScopeResolver::global_only);
+    let resolver = open
+        .map(|w| w.scope.clone())
+        .unwrap_or_else(ScopeResolver::global_only);
     let work_store = open.map(|w| &w.store);
     let resolved = resolve_two_tiers(&resolver, global_store, work_store)?;
 
@@ -181,7 +183,11 @@ pub fn ai_config_get(
     // plaintext ben tren bien mat theo (xem khoi doc-comment SUA o tren).
     let key_configured = keychain::configured().ok();
 
-    Ok(AiConfigGetWire { work_tier_available: open.is_some(), fields, key_configured })
+    Ok(AiConfigGetWire {
+        work_tier_available: open.is_some(),
+        fields,
+        key_configured,
+    })
 }
 
 /// Ghi (hoặc thay) khoá API — **hàm thuần**. Chỉ tầng [`AiConfigTier::Global`] được chấp
@@ -244,7 +250,10 @@ pub fn ai_config_save_field(
 ///
 /// # Lỗi
 /// chưa có Tác phẩm nào đang mở ⇒ `ai_config.work_tier_unavailable`.
-pub fn ai_config_clear_override(open: Option<&OpenWork>, field: AiConfigField) -> Result<(), IpcError> {
+pub fn ai_config_clear_override(
+    open: Option<&OpenWork>,
+    field: AiConfigField,
+) -> Result<(), IpcError> {
     // `global: None` — tầng đích ở đây LUÔN là Work (xem doc-comment), nên nhánh Global của
     // `store_for_tier` không bao giờ chạy; gọi qua nó thay vì chép lại nhánh Work tại chỗ để
     // một lượt sửa luật định tuyến sau này chỉ phải sửa MỘT nơi.
@@ -279,7 +288,9 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::ai_config_get(global.as_deref(), None);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::ai_config_get(global.as_deref(), guard.as_ref())
     }
 
@@ -296,18 +307,25 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::ai_config_save_field(global.as_deref(), None, tier, field, &value);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::ai_config_save_field(global.as_deref(), guard.as_ref(), tier, field, &value)
     }
 
     #[tauri::command]
-    pub fn ai_config_clear_override(app: tauri::AppHandle, field: AiConfigField) -> Result<(), IpcError> {
+    pub fn ai_config_clear_override(
+        app: tauri::AppHandle,
+        field: AiConfigField,
+    ) -> Result<(), IpcError> {
         use tauri::Manager as _;
 
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::ai_config_clear_override(None, field);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::ai_config_clear_override(guard.as_ref(), field)
     }
 

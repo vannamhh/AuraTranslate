@@ -141,8 +141,7 @@ pub fn parse_line(
                                 .or_else(|| e.get("translation"))
                                 .and_then(Value::as_str)
                                 .map(String::from);
-                            let translation_lang =
-                                translation.as_ref().map(|_| "en".to_string());
+                            let translation_lang = translation.as_ref().map(|_| "en".to_string());
                             Some(RawExample {
                                 text,
                                 translation,
@@ -239,7 +238,10 @@ pub fn parse<R: BufRead>(
         }
     }
 
-    let entries = order.into_iter().filter_map(move |hw| by_headword.remove(&hw)).map(Ok);
+    let entries = order
+        .into_iter()
+        .filter_map(move |hw| by_headword.remove(&hw))
+        .map(Ok);
 
     issues.into_iter().map(Err).chain(entries)
 }
@@ -405,7 +407,10 @@ pub fn parse_readings<R: BufRead>(
         }
     }
 
-    let entries = order.into_iter().filter_map(move |hw| by_headword.remove(&hw)).map(Ok);
+    let entries = order
+        .into_iter()
+        .filter_map(move |hw| by_headword.remove(&hw))
+        .map(Ok);
 
     issues.into_iter().map(Err).chain(entries)
 }
@@ -437,7 +442,9 @@ mod tests {
         let json = r#"{"word":"詞典","pos":"noun","lang":"Chinese","lang_code":"zh",
           "senses":[{"glosses":["dictionary"],"examples":[{"text":"詞典很好用","english":"The dictionary is very useful"}]}],
           "sounds":[{"zh_pron":"cí diǎn","tags":["Mandarin","Pinyin"]}]}"#;
-        let entry = parse_line(1, json, "en", Some("zh"), "zh").unwrap().unwrap();
+        let entry = parse_line(1, json, "en", Some("zh"), "zh")
+            .unwrap()
+            .unwrap();
         assert_eq!(entry.headword, "詞典");
         assert_eq!(entry.reading.as_deref(), Some("cí diǎn"));
         assert_eq!(entry.senses.len(), 1);
@@ -454,35 +461,36 @@ mod tests {
     fn prefers_pos_title_when_present() {
         let json = r#"{"word":"ăn","pos":"verb","pos_title":"Động từ","lang_code":"zh",
           "senses":[{"glosses":["to eat"]}]}"#;
-        let entry = parse_line(1, json, "vi", Some("zh"), "zh").unwrap().unwrap();
+        let entry = parse_line(1, json, "vi", Some("zh"), "zh")
+            .unwrap()
+            .unwrap();
         assert_eq!(entry.senses[0].pos.as_deref(), Some("Động từ"));
     }
 
     #[test]
     fn non_matching_lang_code_is_filtered_not_an_entry() {
-        let json = r#"{"word":"ăn","pos":"verb","lang_code":"cmo","senses":[{"glosses":["cho."]}]}"#;
+        let json =
+            r#"{"word":"ăn","pos":"verb","lang_code":"cmo","senses":[{"glosses":["cho."]}]}"#;
         let result = parse_line(1, json, "vi", Some("zh"), "zh");
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .reason
-                .contains("filtered, expected")
-        );
+        assert!(result.unwrap_err().reason.contains("filtered, expected"));
     }
 
     #[test]
     fn a_sense_with_no_gloss_tag_is_skipped_not_the_whole_entry() {
         let json = r#"{"word":"词典","pos":"unknown","lang_code":"zh",
           "senses":[{"tags":["no-gloss"]},{"glosses":["dictionary"]}]}"#;
-        let entry = parse_line(1, json, "en", Some("zh"), "zh").unwrap().unwrap();
+        let entry = parse_line(1, json, "en", Some("zh"), "zh")
+            .unwrap()
+            .unwrap();
         assert_eq!(entry.senses.len(), 1);
         assert_eq!(entry.senses[0].gloss, "dictionary");
     }
 
     #[test]
     fn entry_with_zero_usable_senses_is_an_error() {
-        let json = r#"{"word":"词典","pos":"unknown","lang_code":"zh","senses":[{"tags":["no-gloss"]}]}"#;
+        let json =
+            r#"{"word":"词典","pos":"unknown","lang_code":"zh","senses":[{"tags":["no-gloss"]}]}"#;
         assert!(parse_line(1, json, "en", Some("zh"), "zh").is_err());
     }
 
@@ -514,7 +522,11 @@ mod tests {
         let entries: Vec<RawEntry> = parse(Cursor::new(text.as_bytes()), "en", Some("zh"), "zh")
             .collect::<Result<_, _>>()
             .unwrap();
-        assert_eq!(entries.len(), 1, "one headword across two JSONL lines must be one dict_entry");
+        assert_eq!(
+            entries.len(),
+            1,
+            "one headword across two JSONL lines must be one dict_entry"
+        );
         assert_eq!(entries[0].senses.len(), 2);
         assert_eq!(entries[0].senses[0].gloss, "horse (radical 187)");
         assert_eq!(entries[0].senses[1].gloss, "surname");
@@ -526,14 +538,18 @@ mod tests {
     /// `RawEntry.lang` — cho CẢ HAI giá trị, không chỉ giá trị mới.
     #[test]
     fn entry_lang_lands_verbatim_in_raw_entry_lang_for_both_values() {
-        let zh = r#"{"word":"字典","pos":"noun","lang_code":"zh","senses":[{"glosses":["từ điển"]}]}"#;
+        let zh =
+            r#"{"word":"字典","pos":"noun","lang_code":"zh","senses":[{"glosses":["từ điển"]}]}"#;
         let en = r#"{"word":"dictionary","pos":"noun","lang_code":"en","senses":[{"glosses":["từ điển"]}]}"#;
 
         let zh_entry = parse_line(1, zh, "vi", Some("zh"), "zh").unwrap().unwrap();
         assert_eq!(zh_entry.lang, "zh", "vai B phải giữ nguyên nhãn 'zh'");
 
         let en_entry = parse_line(1, en, "vi", Some("en"), "en").unwrap().unwrap();
-        assert_eq!(en_entry.lang, "en", "vai A phải mang nhãn 'en', không phải 'zh'");
+        assert_eq!(
+            en_entry.lang, "en",
+            "vai A phải mang nhãn 'en', không phải 'zh'"
+        );
     }
 
     /// `filter_lang_code` và `entry_lang` là HAI thứ khác nhau và KHÔNG suy ra được
@@ -542,8 +558,11 @@ mod tests {
     /// nhãn khác vẫn phải chạy, vì đó đúng là thứ hàm này được yêu cầu làm.
     #[test]
     fn filter_lang_code_and_entry_lang_are_independent_knobs() {
-        let json = r#"{"word":"馬","pos":"character","lang_code":"zh","senses":[{"glosses":["ngựa"]}]}"#;
-        let entry = parse_line(1, json, "vi", Some("zh"), "en").unwrap().unwrap();
+        let json =
+            r#"{"word":"馬","pos":"character","lang_code":"zh","senses":[{"glosses":["ngựa"]}]}"#;
+        let entry = parse_line(1, json, "vi", Some("zh"), "en")
+            .unwrap()
+            .unwrap();
         assert_eq!(entry.headword, "馬");
         assert_eq!(
             entry.lang, "en",
@@ -596,7 +615,10 @@ mod tests {
         assert_eq!(entry.headword, "北");
         assert_eq!(entry.han_viet.as_deref(), Some("bắc"));
         assert_eq!(entry.nom_reading.as_deref(), Some("bậc,bấc"));
-        assert!(entry.senses.is_empty(), "Quyết định #3a: không nạp dict_sense");
+        assert!(
+            entry.senses.is_empty(),
+            "Quyết định #3a: không nạp dict_sense"
+        );
     }
 
     /// AC3: nhiều âm CÙNG LOẠI trên một mục ⇒ nối bằng `,`, GIỮ NGUYÊN chuỗi, khử trùng
@@ -605,7 +627,11 @@ mod tests {
     fn multiple_han_viet_readings_on_one_character_are_comma_joined() {
         let json = r#"{"pos": "character", "word": "西", "lang_code": "vi", "senses": [{"related": [{"word": "tây", "tags": ["han-viet-reading"]}, {"word": "tê", "tags": ["han-viet-reading"]}, {"word": "tây", "tags": ["han-viet-reading"]}]}]}"#;
         let entry = parse_reading_line(1, json, Some("vi")).unwrap().unwrap();
-        assert_eq!(entry.han_viet.as_deref(), Some("tây,tê"), "trùng lặp 'tây' phải bị khử");
+        assert_eq!(
+            entry.han_viet.as_deref(),
+            Some("tây,tê"),
+            "trùng lặp 'tây' phải bị khử"
+        );
     }
 
     /// Bẫy 3 của story: một mục KHÔNG mang tag nào trong hai tập ⇒ BỎ (`Err`), không
@@ -615,7 +641,12 @@ mod tests {
         let json = r#"{"pos": "character", "word": "字", "lang_code": "vi", "senses": [{"related": [{"word": "chữ", "tags": ["letter"]}]}]}"#;
         let result = parse_reading_line(1, json, Some("vi"));
         assert!(result.is_err());
-        assert!(result.unwrap_err().reason.contains("no han-viet-reading/nom-reading"));
+        assert!(
+            result
+                .unwrap_err()
+                .reason
+                .contains("no han-viet-reading/nom-reading")
+        );
     }
 
     /// AC3: chỉ đọc mục `pos == "character"` — ba từ đa âm tiết thật (`夢想`, `公僕`,
@@ -635,7 +666,10 @@ mod tests {
     fn unrelated_tags_are_never_misread_as_han_viet_or_nom() {
         let json = r#"{"pos": "character", "word": "A", "lang_code": "vi", "senses": [{"related": [{"word": "a", "tags": ["Latin", "character"]}]}]}"#;
         let result = parse_reading_line(1, json, Some("vi"));
-        assert!(result.is_err(), "tag lạ không được biến thành han-viet-reading/nom-reading ngầm định");
+        assert!(
+            result.is_err(),
+            "tag lạ không được biến thành han-viet-reading/nom-reading ngầm định"
+        );
     }
 
     #[test]

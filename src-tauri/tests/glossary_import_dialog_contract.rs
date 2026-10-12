@@ -79,16 +79,21 @@ fn a_file_over_the_sixteen_mib_cap_is_refused_by_size_before_content_is_touched(
     let path = root.join("huge.csv");
     {
         use std::io::{Seek, SeekFrom, Write as _};
-        let mut file = fs::File::create(&path).unwrap_or_else(|e| panic!("tao {}: {e}", path.display()));
+        let mut file =
+            fs::File::create(&path).unwrap_or_else(|e| panic!("tao {}: {e}", path.display()));
         // 16 MiB + 1 byte -- sparse tren dia, khong cap phat trong bo nho cua TEST.
         file.seek(SeekFrom::Start(16 * 1024 * 1024 + 1)).unwrap();
         file.write_all(b"x").unwrap();
     }
 
-    let err = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
-        .expect_err("tep vuot tran phai bi tu choi");
+    let err =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+            .expect_err("tep vuot tran phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportTooLarge);
-    assert_eq!(err.params().get("limit").map(String::as_str), Some("16777216"));
+    assert_eq!(
+        err.params().get("limit").map(String::as_str),
+        Some("16777216")
+    );
     assert!(
         pending.lock().unwrap().is_none(),
         "0 lo nao duoc giu lai khi buoc doc trot -- khong lo nao ro ri tu mot lan doc that bai"
@@ -109,8 +114,9 @@ fn a_non_utf8_file_is_refused_explicitly_not_guessed() {
     let path = root.join("bad.csv");
     fs::write(&path, [0xff, 0xfe, 0x00, 0x01]).unwrap();
 
-    let err = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
-        .expect_err("byte khong phai UTF-8 phai bi tu choi");
+    let err =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+            .expect_err("byte khong phai UTF-8 phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportNotUtf8);
     assert!(pending.lock().unwrap().is_none());
 
@@ -135,7 +141,10 @@ fn exporting_writes_atomically_and_leaves_no_tmp_file_behind() {
     assert!(path.exists());
     let contents = fs::read_to_string(&path).unwrap();
     assert!(contents.starts_with("source_term,translation,note,category,term_origin,created_at\n"));
-    assert!(!root.join("out.csv.tmp").exists(), "khong tep tam nao duoc de lai sau mot luot ghi thanh cong");
+    assert!(
+        !root.join("out.csv.tmp").exists(),
+        "khong tep tam nao duoc de lai sau mot luot ghi thanh cong"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
@@ -187,8 +196,9 @@ fn confirming_with_a_decision_pointing_at_an_unknown_term_fails_and_keeps_the_ba
     let pending = PendingImportState::new(None);
 
     let path = write_file(&root, "in.csv", "source_term,translation\nmoc,Moc Dung\n");
-    let preview = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
-        .expect("mo va xem truoc phai thanh cong");
+    let preview =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+            .expect("mo va xem truoc phai thanh cong");
     assert_eq!(preview.new_count, 1);
 
     let mut decisions = BTreeMap::new();
@@ -196,8 +206,14 @@ fn confirming_with_a_decision_pointing_at_an_unknown_term_fails_and_keeps_the_ba
 
     let err = glossary_confirm_import(Some(&global), None, &pending, &decisions)
         .expect_err("mot khoa la trong ban do quyet dinh phai bi tu choi");
-    assert_eq!(err.message_key(), MessageKey::GlossaryImportDecisionUnknownTerm);
-    assert_eq!(err.params().get("value").map(String::as_str), Some("khong-co-trong-lo"));
+    assert_eq!(
+        err.message_key(),
+        MessageKey::GlossaryImportDecisionUnknownTerm
+    );
+    assert_eq!(
+        err.params().get("value").map(String::as_str),
+        Some("khong-co-trong-lo")
+    );
 
     assert!(
         pending.lock().unwrap().is_some(),
@@ -218,14 +234,24 @@ fn opening_a_second_batch_replaces_the_first_one_entirely() {
     let global = open_global(&global_dir);
     let pending = PendingImportState::new(None);
 
-    let first = write_file(&root, "first.csv", "source_term,translation\nmoc,Moc Dung\n");
-    let preview_one = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &first)
-        .expect("mo lo dau phai thanh cong");
+    let first = write_file(
+        &root,
+        "first.csv",
+        "source_term,translation\nmoc,Moc Dung\n",
+    );
+    let preview_one =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &first)
+            .expect("mo lo dau phai thanh cong");
     assert_eq!(preview_one.file_name, "first.csv");
 
-    let second = write_file(&root, "second.csv", "source_term,translation\nly,Ly\nvuong,Vuong\n");
-    let preview_two = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &second)
-        .expect("mo lo thu hai phai thanh cong");
+    let second = write_file(
+        &root,
+        "second.csv",
+        "source_term,translation\nly,Ly\nvuong,Vuong\n",
+    );
+    let preview_two =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &second)
+            .expect("mo lo thu hai phai thanh cong");
     assert_eq!(preview_two.file_name, "second.csv");
     assert_eq!(preview_two.new_count, 2);
 
@@ -233,7 +259,10 @@ fn opening_a_second_batch_replaces_the_first_one_entirely() {
     let summary = glossary_confirm_import(Some(&global), None, &pending, &BTreeMap::new())
         .expect("xac nhan lo thu hai phai thanh cong");
     assert_eq!(summary.inserted, 2);
-    assert!(pending.lock().unwrap().is_none(), "lo don sau khi xac nhan thanh cong");
+    assert!(
+        pending.lock().unwrap().is_none(),
+        "lo don sau khi xac nhan thanh cong"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
@@ -307,20 +336,35 @@ fn a_work_tier_pending_batch_is_cleared_when_the_work_closes_but_a_global_one_su
 
     let path = write_file(&root, "in.csv", "source_term,translation\nmoc,Moc Dung\n");
     let pending_work = PendingImportState::new(None);
-    glossary_open_import_preview(Some(&global), Some(&opened), &pending_work, GlossaryTier::Work, &path)
-        .expect("mo lo tang Work phai thanh cong");
+    glossary_open_import_preview(
+        Some(&global),
+        Some(&opened),
+        &pending_work,
+        GlossaryTier::Work,
+        &path,
+    )
+    .expect("mo lo tang Work phai thanh cong");
     assert!(pending_work.lock().unwrap().is_some());
 
     // Tac pham "dong" -- goi dung ham thuan ma lib.rs/commands::project goi o hai cho
     // OpenWorkState chuyen doi. Lo tang Work phai bi don.
     clear_pending_import_for_tier(&pending_work, GlossaryTier::Work);
-    assert!(pending_work.lock().unwrap().is_none(), "lo tang Work phai bi don khi Tac pham dong");
+    assert!(
+        pending_work.lock().unwrap().is_none(),
+        "lo tang Work phai bi don khi Tac pham dong"
+    );
 
     // Doi chung: mot lo tang GLOBAL khong bi cham toi boi cung mot loi goi.
     let pending_global = PendingImportState::new(None);
     let path2 = write_file(&root, "in2.csv", "source_term,translation\nly,Ly\n");
-    glossary_open_import_preview(Some(&global), None, &pending_global, GlossaryTier::Global, &path2)
-        .expect("mo lo tang Global phai thanh cong");
+    glossary_open_import_preview(
+        Some(&global),
+        None,
+        &pending_global,
+        GlossaryTier::Global,
+        &path2,
+    )
+    .expect("mo lo tang Global phai thanh cong");
     clear_pending_import_for_tier(&pending_global, GlossaryTier::Work);
     assert!(
         pending_global.lock().unwrap().is_some(),
@@ -361,7 +405,8 @@ fn the_delimiter_follows_the_real_extension_of_the_chosen_path_not_prior_ui_stat
     );
 
     let odd_path = root.join("c.glossary");
-    glossary_export_tier(Some(&global), None, GlossaryTier::Global, &odd_path).expect("xuat duoi la");
+    glossary_export_tier(Some(&global), None, GlossaryTier::Global, &odd_path)
+        .expect("xuat duoi la");
     assert_eq!(
         fs::read_to_string(&odd_path).unwrap().lines().next(),
         Some("source_term,translation,note,category,term_origin,created_at"),
@@ -386,11 +431,16 @@ fn opening_a_file_with_a_term_origin_column_flags_it_in_the_preview() {
         "in.csv",
         "source_term,translation,term_origin\nmoc,Moc Dung,manual\n",
     );
-    let preview = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
-        .expect("mo phai thanh cong");
+    let preview =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+            .expect("mo phai thanh cong");
 
     assert!(preview.term_origin_column_present);
-    assert_eq!(preview.ignored_columns, Vec::<String>::new(), "term_origin KHONG phai cot la");
+    assert_eq!(
+        preview.ignored_columns,
+        Vec::<String>::new(),
+        "term_origin KHONG phai cot la"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
@@ -399,19 +449,28 @@ fn opening_a_file_with_a_term_origin_column_flags_it_in_the_preview() {
 /// §I/O Matrix "Nhập, tệp có cột lạ" — liệt ở cột bỏ qua, không im lặng vứt; đếm cột nhận
 /// ra được KHÔNG tính cột lạ.
 #[test]
-fn opening_a_file_with_an_unknown_column_reports_it_as_ignored_and_excludes_it_from_the_recognized_count() {
+fn opening_a_file_with_an_unknown_column_reports_it_as_ignored_and_excludes_it_from_the_recognized_count()
+ {
     let root = temp_dir("unknown-column");
     let global_dir = temp_dir("unknown-column-global");
     let global = open_global(&global_dir);
     let pending = PendingImportState::new(None);
 
-    let path = write_file(&root, "in.csv", "source_term,translation,usage_count\nmoc,Moc Dung,7\n");
-    let preview = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
-        .expect("mo phai thanh cong");
+    let path = write_file(
+        &root,
+        "in.csv",
+        "source_term,translation,usage_count\nmoc,Moc Dung,7\n",
+    );
+    let preview =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+            .expect("mo phai thanh cong");
 
     assert_eq!(preview.ignored_columns, vec!["usage_count".to_owned()]);
     assert!(!preview.term_origin_column_present);
-    assert_eq!(preview.recognized_column_count, 2, "usage_count khong duoc tinh vao cot nhan ra duoc");
+    assert_eq!(
+        preview.recognized_column_count, 2,
+        "usage_count khong duoc tinh vao cot nhan ra duoc"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
@@ -431,11 +490,18 @@ fn opening_a_file_broken_at_one_line_surfaces_the_parse_error_and_keeps_no_batch
         "in.csv",
         "source_term,translation,note,category,term_origin,created_at\nmoc,Moc Dung\n",
     );
-    let err = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
-        .expect_err("hang thieu o phai bi tu choi");
+    let err =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+            .expect_err("hang thieu o phai bi tu choi");
 
-    assert_eq!(err.message_key(), MessageKey::GlossaryImportCellCountMismatch);
-    assert!(pending.lock().unwrap().is_none(), "0 lo nao duoc giu lai khi phan tich trot");
+    assert_eq!(
+        err.message_key(),
+        MessageKey::GlossaryImportCellCountMismatch
+    );
+    assert!(
+        pending.lock().unwrap().is_none(),
+        "0 lo nao duoc giu lai khi phan tich trot"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
@@ -451,14 +517,18 @@ fn opening_a_file_with_only_a_header_row_previews_as_zero_rows_with_no_error() {
     let pending = PendingImportState::new(None);
 
     let path = write_file(&root, "in.csv", "source_term,translation\n");
-    let preview = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
-        .expect("tep chi co hang tieu de khong phai loi");
+    let preview =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+            .expect("tep chi co hang tieu de khong phai loi");
 
     assert_eq!(preview.row_count, 0);
     assert_eq!(preview.new_count, 0);
     assert_eq!(preview.identical_count, 0);
     assert!(preview.conflicts.is_empty());
-    assert!(pending.lock().unwrap().is_some(), "lo van duoc giu (0 hang van la mot lo hop le)");
+    assert!(
+        pending.lock().unwrap().is_some(),
+        "lo van duoc giu (0 hang van la mot lo hop le)"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
@@ -488,7 +558,15 @@ fn exporting_the_work_tier_fails_if_the_work_closed_while_the_dialog_was_still_o
 
     // Kiem TRUOC dialog (mo phong bang wire): Tac pham dang mo, tier Work hop le va ghi
     // duoc that.
-    assert!(glossary_export_tier(Some(&global), Some(&opened), GlossaryTier::Work, &root.join("precheck.csv")).is_ok());
+    assert!(
+        glossary_export_tier(
+            Some(&global),
+            Some(&opened),
+            GlossaryTier::Work,
+            &root.join("precheck.csv")
+        )
+        .is_ok()
+    );
 
     // Tac pham "dong" trong luc hop thoai con mo -- lan khoa THU HAI cua wire doc duoc None.
     drop(opened);
@@ -505,7 +583,8 @@ fn exporting_the_work_tier_fails_if_the_work_closed_while_the_dialog_was_still_o
 
 /// Cùng cửa sổ đua, cho nhịp MỘT của lượt nhập (`glossary_open_import_preview`).
 #[test]
-fn opening_an_import_preview_for_the_work_tier_fails_if_the_work_closed_while_the_dialog_was_still_open() {
+fn opening_an_import_preview_for_the_work_tier_fails_if_the_work_closed_while_the_dialog_was_still_open()
+ {
     let root = temp_dir("import-work-closed-mid-dialog");
     let global_dir = temp_dir("import-work-closed-mid-dialog-global");
     let global = open_global(&global_dir);
@@ -518,10 +597,14 @@ fn opening_an_import_preview_for_the_work_tier_fails_if_the_work_closed_while_th
     // Tac pham "dong" TRUOC khi lan khoa THU HAI cua wire (sau dialog) chay.
     drop(opened);
 
-    let err = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Work, &path)
-        .expect_err("Tac pham da dong giua luc hop thoai mo phai bi tu choi");
+    let err =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Work, &path)
+            .expect_err("Tac pham da dong giua luc hop thoai mo phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::GlossaryWorkTierUnavailable);
-    assert!(pending.lock().unwrap().is_none(), "0 lo nao duoc giu lai khi tang Work da dong");
+    assert!(
+        pending.lock().unwrap().is_none(),
+        "0 lo nao duoc giu lai khi tang Work da dong"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
@@ -539,8 +622,16 @@ fn confirming_with_a_decision_pointing_at_a_new_row_instead_of_a_conflict_is_rej
     let pending = PendingImportState::new(None);
 
     // "ly" da co san trong kho -- hang cua no se phan loai Conflict. "moc" chua co -- New.
-    add_manual_term(&global, None, GlossaryTier::Global, "ly", Some("Ly cu"), "", Category::Other)
-        .expect("dung truoc mot muc de tao Conflict");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "ly",
+        Some("Ly cu"),
+        "",
+        Category::Other,
+    )
+    .expect("dung truoc mot muc de tao Conflict");
 
     let path = write_file(
         &root,
@@ -556,9 +647,15 @@ fn confirming_with_a_decision_pointing_at_a_new_row_instead_of_a_conflict_is_rej
 
     let err = glossary_confirm_import(Some(&global), None, &pending, &decisions)
         .expect_err("quyet dinh tro vao hang New phai bi tu choi, khong duoc lang le bo qua");
-    assert_eq!(err.message_key(), MessageKey::GlossaryImportDecisionUnknownTerm);
+    assert_eq!(
+        err.message_key(),
+        MessageKey::GlossaryImportDecisionUnknownTerm
+    );
     assert_eq!(err.params().get("value").map(String::as_str), Some("moc"));
-    assert!(pending.lock().unwrap().is_some(), "lo phai GIU LAI de thu lai");
+    assert!(
+        pending.lock().unwrap().is_some(),
+        "lo phai GIU LAI de thu lai"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
@@ -588,9 +685,8 @@ fn conflict_decision_serde_rename_decodes_the_exact_wire_strings_the_frontend_se
     });
     assert_eq!(decoded, ConflictDecision::KeepMine);
 
-    let decoded: ConflictDecision = serde_json::from_str("\"take_theirs\"").unwrap_or_else(|e| {
-        panic!("serde khong giai ma duoc \"take_theirs\". Loi serde: {e}")
-    });
+    let decoded: ConflictDecision = serde_json::from_str("\"take_theirs\"")
+        .unwrap_or_else(|e| panic!("serde khong giai ma duoc \"take_theirs\". Loi serde: {e}"));
     assert_eq!(decoded, ConflictDecision::TakeTheirs);
 
     // Doi chung AM -- mot chuoi KHONG khop (loi go, hoac ten bien the Rust tran chua rename)
@@ -662,15 +758,19 @@ fn import_read_failure_surfaces_io_read_failed_with_the_real_path_param() {
     let path = root.join("day-la-thu-muc");
     fs::create_dir_all(&path).unwrap();
 
-    let err = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
-        .expect_err("doc mot thu muc thay vi mot tep phai bi tu choi");
+    let err =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+            .expect_err("doc mot thu muc thay vi mot tep phai bi tu choi");
 
     assert_eq!(err.message_key(), MessageKey::IoReadFailed);
     assert_eq!(
         err.params().get("path").map(String::as_str),
         Some(path.display().to_string().as_str())
     );
-    assert!(pending.lock().unwrap().is_none(), "0 lo nao duoc giu lai khi doc trot");
+    assert!(
+        pending.lock().unwrap().is_none(),
+        "0 lo nao duoc giu lai khi doc trot"
+    );
 
     cleanup(&root);
     cleanup(&global_dir);
@@ -698,24 +798,46 @@ fn import_read_failure_surfaces_io_read_failed_with_the_real_path_param() {
 /// `params()["value"]` mang đúng `source_term`. Lô GIỮ LẠI (không bị dọn vì lỗi), cùng chữ
 /// của §I/O Matrix "Lỗi giữa chừng ⇒ rollback trọn, kế hoạch GIỮ LẠI để thử lại".
 #[test]
-fn confirming_take_theirs_after_a_concurrent_write_surfaces_import_stale_conflict_with_the_real_term() {
+fn confirming_take_theirs_after_a_concurrent_write_surfaces_import_stale_conflict_with_the_real_term()
+ {
     let root = temp_dir("confirm-stale-conflict");
     let global_dir = temp_dir("confirm-stale-conflict-global");
     let global = open_global(&global_dir);
     let pending = PendingImportState::new(None);
 
-    let id = add_manual_term(&global, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
-        .expect("chen truoc");
+    let id = add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "term",
+        Some("cu"),
+        "",
+        Category::Other,
+    )
+    .expect("chen truoc");
 
     let path = write_file(&root, "in.csv", "source_term,translation\nterm,tu tep\n");
-    let preview = glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
-        .expect("mo va xem truoc phai thanh cong");
-    assert_eq!(preview.conflicts.len(), 1, "'term' phai phan loai Conflict o nhip preview");
+    let preview =
+        glossary_open_import_preview(Some(&global), None, &pending, GlossaryTier::Global, &path)
+            .expect("mo va xem truoc phai thanh cong");
+    assert_eq!(
+        preview.conflicts.len(),
+        1,
+        "'term' phai phan loai Conflict o nhip preview"
+    );
 
     // GIUA hai nhip: mot luot ghi KHAC (khong lien quan gi toi luot nhap) doi translation
     // duoi chan nguoi dung -- dung cua so dua ma C1 mo ta.
-    update_manual_term(&global, None, GlossaryTier::Global, id, Some("da doi boi noi khac"), "", Category::Other)
-        .expect("mo phong mot luot ghi KHAC chen vao giua hai nhip");
+    update_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        id,
+        Some("da doi boi noi khac"),
+        "",
+        Category::Other,
+    )
+    .expect("mo phong mot luot ghi KHAC chen vao giua hai nhip");
 
     let mut decisions = BTreeMap::new();
     decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
@@ -746,9 +868,17 @@ fn confirming_take_theirs_after_a_concurrent_write_surfaces_import_stale_conflic
 /// nay, không đổi).
 #[test]
 fn first_issue_or_unknown_returns_the_error_of_the_first_issue_when_the_list_is_not_empty() {
-    let issues = vec![ParseIssue::DelimiterUnresolved, ParseIssue::MissingColumn { column: "source_term" }];
+    let issues = vec![
+        ParseIssue::DelimiterUnresolved,
+        ParseIssue::MissingColumn {
+            column: "source_term",
+        },
+    ];
     let err = first_issue_or_unknown(issues);
-    assert_eq!(err.message_key(), MessageKey::GlossaryImportDelimiterUnresolved);
+    assert_eq!(
+        err.message_key(),
+        MessageKey::GlossaryImportDelimiterUnresolved
+    );
 }
 
 /// §I/O Matrix ①b — `issues` RỖNG (bất biến *"`Err` chỉ đi kèm `issues` không rỗng"* đã

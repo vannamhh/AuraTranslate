@@ -156,15 +156,23 @@ fn contains_word(haystack: &str, needle: &str) -> bool {
 
 /// `code` mang một trong ba token cấm, như một TỪ trọn vẹn — vị từ THUẦN.
 fn line_names_a_forbidden_token(code: &str) -> bool {
-    FORBIDDEN_TOKENS.iter().any(|needle| contains_word(code, needle))
+    FORBIDDEN_TOKENS
+        .iter()
+        .any(|needle| contains_word(code, needle))
 }
 
 /// Đối chứng dương của [`contains_word`] chính nó — trước khi dùng nó để canh cả module,
 /// chứng minh nó phân biệt được "từ trọn vẹn" với "chuỗi con của một định danh khác".
 #[test]
 fn contains_word_matches_a_whole_word_but_not_a_substring_of_a_longer_identifier() {
-    assert!(contains_word("use crate::core::scope::Tier;", "Tier"), "ca DUONG: tu tron ven");
-    assert!(contains_word("let t: Tier = Tier::Global;", "Tier"), "ca DUONG: xuat hien hai lan");
+    assert!(
+        contains_word("use crate::core::scope::Tier;", "Tier"),
+        "ca DUONG: tu tron ven"
+    );
+    assert!(
+        contains_word("let t: Tier = Tier::Global;", "Tier"),
+        "ca DUONG: xuat hien hai lan"
+    );
     assert!(
         !contains_word("pub tier: CleanupRuleTier,", "Tier"),
         "ca AM: la chuoi con cua CleanupRuleTier, khong phai mot tu tron ven"
@@ -266,7 +274,8 @@ fn the_forbidden_token_check_would_actually_flag_a_seeded_violation_and_ignore_c
 // mỗi đơn vị). `KNOWN_CLEANUP_APPLY_CALL_SITES` KHÔNG đổi (cùng tên file), chỉ con số TỔNG SỐ
 // chỗ gọi đổi từ ba lên bốn — §Always spec 6.16: "Cleanup and normalize run per cell, both
 // columns, never across rows" là ĐÚNG chỗ chỗ gọi thứ tư này tồn tại để làm.
-const KNOWN_CLEANUP_APPLY_CALL_SITES: [&str; 2] = ["core/segment/pipeline.rs", "core/segment/anchor.rs"];
+const KNOWN_CLEANUP_APPLY_CALL_SITES: [&str; 2] =
+    ["core/segment/pipeline.rs", "core/segment/anchor.rs"];
 
 #[test]
 fn the_cleanup_apply_function_has_exactly_four_named_product_call_sites() {
@@ -306,7 +315,9 @@ fn the_cleanup_apply_function_has_exactly_four_named_product_call_sites() {
     );
     for site in &sites {
         assert!(
-            KNOWN_CLEANUP_APPLY_CALL_SITES.iter().any(|known| site.starts_with(known)),
+            KNOWN_CLEANUP_APPLY_CALL_SITES
+                .iter()
+                .any(|known| site.starts_with(known)),
             "chỗ gọi `{site}` không thuộc tập ĐÃ ĐẶT TÊN {KNOWN_CLEANUP_APPLY_CALL_SITES:?} — \
              một chỗ gọi sản phẩm THỨ BA không ai ký"
         );
@@ -327,7 +338,7 @@ fn the_cleanup_apply_function_has_exactly_four_named_product_call_sites() {
 /// có đúng một chỗ gọi thật.
 #[test]
 fn a_call_seeded_only_inside_another_files_test_block_is_not_counted_as_a_second_product_call_site()
- {
+{
     let seeded_file = "fn helper() {}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn seeded() {\n        let _ = crate::core::cleanup::apply(\"y\", &[]);\n    }\n}\n";
     let product_only = boundary_scan::without_test_modules(seeded_file);
     let found = code_lines(&product_only).any(|(_, code)| line_calls_cleanup_apply(&code));

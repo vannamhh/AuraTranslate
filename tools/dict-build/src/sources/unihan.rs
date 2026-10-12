@@ -137,20 +137,25 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
                     if entry.simplified_variant.is_some() {
                         issues.push(ParseIssue {
                             line: line_no,
-                            reason: format!("duplicate kSimplifiedVariant for {cp_field} (kept first)"),
+                            reason: format!(
+                                "duplicate kSimplifiedVariant for {cp_field} (kept first)"
+                            ),
                         });
                     } else {
                         match parse_codepoint(first) {
                             Some(c) => entry.simplified_variant = Some(c),
                             None => issues.push(ParseIssue {
                                 line: line_no,
-                                reason: format!("unparseable kSimplifiedVariant codepoint '{first}'"),
+                                reason: format!(
+                                    "unparseable kSimplifiedVariant codepoint '{first}'"
+                                ),
                             }),
                         }
                     }
                 }
             }
-            _ => { /* thuộc tính ngoài phạm vi story này — bỏ qua êm, không phải lỗi */ }
+            _ => { /* thuộc tính ngoài phạm vi story này — bỏ qua êm, không phải lỗi */
+            }
         }
     }
 
@@ -254,9 +259,19 @@ U+4E2D\tkVietnamese\ttrung
     fn unparseable_ksimplifiedvariant_codepoint_is_reported_not_silently_dropped() {
         let text = "U+4E2D\tkSimplifiedVariant\tNOTHEX\n";
         let results: Vec<_> = parse(Cursor::new(text.as_bytes())).collect();
-        assert_eq!(results.len(), 1, "must surface a ParseIssue, not vanish with zero trace");
+        assert_eq!(
+            results.len(),
+            1,
+            "must surface a ParseIssue, not vanish with zero trace"
+        );
         assert!(results[0].is_err());
-        assert!(results[0].as_ref().unwrap_err().reason.contains("kSimplifiedVariant"));
+        assert!(
+            results[0]
+                .as_ref()
+                .unwrap_err()
+                .reason
+                .contains("kSimplifiedVariant")
+        );
     }
 
     /// Một dòng `kDefinition` với giá trị rỗng (tab cuối không có gì theo sau) không
@@ -288,9 +303,22 @@ U+4E2D\tkDefinition\tsomething else entirely
         let results: Vec<_> = parse(Cursor::new(text.as_bytes())).collect();
         let issues: Vec<_> = results.iter().filter(|r| r.is_err()).collect();
         let entries: Vec<_> = results.iter().filter_map(|r| r.as_ref().ok()).collect();
-        assert_eq!(issues.len(), 1, "duplicate must be reported, not silently overwritten");
-        assert!(issues[0].as_ref().unwrap_err().reason.contains("duplicate kDefinition"));
+        assert_eq!(
+            issues.len(),
+            1,
+            "duplicate must be reported, not silently overwritten"
+        );
+        assert!(
+            issues[0]
+                .as_ref()
+                .unwrap_err()
+                .reason
+                .contains("duplicate kDefinition")
+        );
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].senses[0].gloss, "middle; center", "first value kept");
+        assert_eq!(
+            entries[0].senses[0].gloss, "middle; center",
+            "first value kept"
+        );
     }
 }

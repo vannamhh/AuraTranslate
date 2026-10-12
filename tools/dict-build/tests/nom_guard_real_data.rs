@@ -46,9 +46,13 @@ fn kvietnamese_reproduces_the_historical_92_percent_overlap_on_real_data() {
     let hv_rows: Vec<(String, String, String)> = unihan_entries
         .iter()
         .filter_map(|e| {
-            e.nom_reading
-                .as_ref()
-                .map(|v| (e.headword.clone(), "unihan-pre-1.10c-bug".to_string(), v.clone()))
+            e.nom_reading.as_ref().map(|v| {
+                (
+                    e.headword.clone(),
+                    "unihan-pre-1.10c-bug".to_string(),
+                    v.clone(),
+                )
+            })
         })
         .collect();
 
@@ -65,8 +69,10 @@ fn kvietnamese_reproduces_the_historical_92_percent_overlap_on_real_data() {
     let nom_rows: Vec<(String, String, String)> = vi_entries
         .iter()
         .filter_map(|e| {
-            let filtered =
-                dict_build::nom_guard::nom_only_readings(e.han_viet.as_deref(), e.nom_reading.as_deref())?;
+            let filtered = dict_build::nom_guard::nom_only_readings(
+                e.han_viet.as_deref(),
+                e.nom_reading.as_deref(),
+            )?;
             Some((e.headword.clone(), "en-wiktionary-vi".to_string(), filtered))
         })
         .collect();

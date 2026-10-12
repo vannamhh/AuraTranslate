@@ -86,10 +86,21 @@ pub fn review_accept_change(
     let (target_text, translation_origin, status, needs_confirmation) = match outcome {
         Accepted::Missing => return Err(segment_not_found(segment_id)),
         Accepted::Retired => return Err(segment_retired(segment_id)),
-        Accepted::GroupChanged => return Err(alignment_error(crate::core::export::AlignmentError::NotAcceptable)),
+        Accepted::GroupChanged => {
+            return Err(alignment_error(
+                crate::core::export::AlignmentError::NotAcceptable,
+            ));
+        }
         Accepted::TextChanged => return Err(change_text_changed(segment_id)),
         Accepted::Row(text, written_origin, status, ask) => (text, written_origin, status, ask),
     };
     let unsigned_draft = needs_confirmation.then(|| target_text.clone());
-    Ok(PromoteAiTranslationOutcome { segment_id, target_text, translation_origin, status, needs_confirmation, unsigned_draft })
+    Ok(PromoteAiTranslationOutcome {
+        segment_id,
+        target_text,
+        translation_origin,
+        status,
+        needs_confirmation,
+        unsigned_draft,
+    })
 }

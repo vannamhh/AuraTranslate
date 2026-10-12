@@ -271,7 +271,9 @@ fn ai_rag_names_named(joined: &str) -> Vec<String> {
             };
             let inner = &joined[i + 1..i + 1 + close_rel];
             for item in inner.split(',') {
-                let Some(raw_name) = item.split_whitespace().next() else { continue };
+                let Some(raw_name) = item.split_whitespace().next() else {
+                    continue;
+                };
                 let name: String = raw_name.chars().filter(|c| is_ident_char(*c)).collect();
                 if !name.is_empty() && name != "self" {
                     out.push(name);
@@ -288,7 +290,11 @@ fn ai_rag_names_named(joined: &str) -> Vec<String> {
             if !name.is_empty() && name != "self" {
                 out.push(name.to_owned());
             }
-            search_from = if j > after_anchor { j } else { after_anchor + 1 };
+            search_from = if j > after_anchor {
+                j
+            } else {
+                after_anchor + 1
+            };
         }
     }
 
@@ -304,7 +310,9 @@ fn ai_rag_names_named(joined: &str) -> Vec<String> {
 #[test]
 fn commands_aiprompt_rs_names_nothing_beyond_the_allowed_ai_rag_surface() {
     let files = all_rust_sources();
-    let Some((_, text)) = files.iter().find(|(rel, _)| is_the_approved_ai_prompt_command_file(rel))
+    let Some((_, text)) = files
+        .iter()
+        .find(|(rel, _)| is_the_approved_ai_prompt_command_file(rel))
     else {
         // Đúng khuôn Phase 1's honesty note: tệp có thể chưa tồn tại (Phase sớm hơn) -- không
         // gì để kiểm thì không phải một vi phạm, nhưng CŨNG không phải một PASS im lặng: seam
@@ -328,8 +336,10 @@ fn commands_aiprompt_rs_names_nothing_beyond_the_allowed_ai_rag_surface() {
          khong phai mot cay sach"
     );
 
-    let violations: Vec<&String> =
-        names.iter().filter(|name| !ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM.contains(&name.as_str())).collect();
+    let violations: Vec<&String> = names
+        .iter()
+        .filter(|name| !ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM.contains(&name.as_str()))
+        .collect();
     assert!(
         violations.is_empty(),
         "{} ten NGOAI {ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM:?} duoc goi tu `core::ai::rag` trong \
@@ -349,7 +359,11 @@ fn ai_rag_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_name
     let text = "use crate::core::ai::rag::{\n    assemble_prompt, gather_glossary_context,\n    InjectionLedger,\n};\n";
     assert_eq!(
         ai_rag_names_named(&joined_code(text)),
-        vec!["assemble_prompt", "gather_glossary_context", "InjectionLedger"],
+        vec![
+            "assemble_prompt",
+            "gather_glossary_context",
+            "InjectionLedger"
+        ],
         "phai thu duoc CA BA ten, du nhom `use` trai qua nhieu dong"
     );
 
@@ -357,7 +371,10 @@ fn ai_rag_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_name
     // với cây nguồn hôm nay có gì.
     let seeded = "use crate::core::ai::rag::{assemble_prompt, expand_prompt_body};\n";
     let names = ai_rag_names_named(&joined_code(seeded));
-    assert!(names.contains(&"expand_prompt_body".to_owned()), "phai gieo bat duoc mot ten LA");
+    assert!(
+        names.contains(&"expand_prompt_body".to_owned()),
+        "phai gieo bat duoc mot ten LA"
+    );
     assert!(
         !ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM.contains(&"expand_prompt_body"),
         "tien de: 'expand_prompt_body' khong duoc nam trong danh sach cho phep"
@@ -381,7 +398,8 @@ fn ai_rag_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_name
 /// lắp lại request, không thay biến, không một kiểu nội bộ khác của module đó (kể cả
 /// `build_request_body`/`ChatCompletionsRequestBody`/`split_sse_frames`, những tên chỉ
 /// `tests/ai_translate_contract.rs` — một crate KHÁC — mới cần gọi).
-const ALLOWED_AI_CLIENT_NAMES_IN_COMMAND_SEAM: [&str; 2] = ["OpenAiChatClient", "OpenAiClientError"];
+const ALLOWED_AI_CLIENT_NAMES_IN_COMMAND_SEAM: [&str; 2] =
+    ["OpenAiChatClient", "OpenAiClientError"];
 
 /// Trích mọi định danh xuất hiện ngay sau [`AI_TRANSLATE_SEAM_COMMAND_FILE_MARKER`] trong
 /// `joined` (đã nối toàn văn qua [`joined_code`]) — cùng khuôn [`ai_rag_names_named`], chỉ
@@ -412,7 +430,9 @@ fn ai_client_names_named(joined: &str) -> Vec<String> {
             };
             let inner = &joined[i + 1..i + 1 + close_rel];
             for item in inner.split(',') {
-                let Some(raw_name) = item.split_whitespace().next() else { continue };
+                let Some(raw_name) = item.split_whitespace().next() else {
+                    continue;
+                };
                 let name: String = raw_name.chars().filter(|c| is_ident_char(*c)).collect();
                 if !name.is_empty() && name != "self" {
                     out.push(name);
@@ -429,7 +449,11 @@ fn ai_client_names_named(joined: &str) -> Vec<String> {
             if !name.is_empty() && name != "self" {
                 out.push(name.to_owned());
             }
-            search_from = if j > after_anchor { j } else { after_anchor + 1 };
+            search_from = if j > after_anchor {
+                j
+            } else {
+                after_anchor + 1
+            };
         }
     }
 
@@ -444,8 +468,9 @@ fn ai_client_names_named(joined: &str) -> Vec<String> {
 #[test]
 fn commands_aitranslate_rs_names_nothing_beyond_the_allowed_ai_client_surface() {
     let files = all_rust_sources();
-    let Some((_, text)) =
-        files.iter().find(|(rel, _)| is_the_approved_ai_translate_command_file(rel))
+    let Some((_, text)) = files
+        .iter()
+        .find(|(rel, _)| is_the_approved_ai_translate_command_file(rel))
     else {
         panic!(
             "`{AI_TRANSLATE_SEAM_COMMAND_FILE}` khong ton tai trong cay quet -- ca nay khong con \
@@ -495,7 +520,10 @@ fn ai_client_names_named_collects_a_multiline_use_group_and_a_seeded_forbidden_n
     // với cây nguồn hôm nay có gì.
     let seeded = "use crate::core::ai::client::{OpenAiChatClient, split_sse_frames};\n";
     let names = ai_client_names_named(&joined_code(seeded));
-    assert!(names.contains(&"split_sse_frames".to_owned()), "phai gieo bat duoc mot ten LA");
+    assert!(
+        names.contains(&"split_sse_frames".to_owned()),
+        "phai gieo bat duoc mot ten LA"
+    );
     assert!(
         !ALLOWED_AI_CLIENT_NAMES_IN_COMMAND_SEAM.contains(&"split_sse_frames"),
         "tien de: 'split_sse_frames' khong duoc nam trong danh sach cho phep"
@@ -562,7 +590,9 @@ fn ai_proofread_paths_named(joined: &str) -> Vec<String> {
                 break;
             };
             for item in group[..close].split(',') {
-                let Some(raw) = item.split_whitespace().next() else { continue };
+                let Some(raw) = item.split_whitespace().next() else {
+                    continue;
+                };
                 let name: String = raw.chars().filter(|c| is_ident_char(*c)).collect();
                 if !name.is_empty() && name != "self" {
                     out.push(format!("{module}::{name}"));
@@ -572,10 +602,14 @@ fn ai_proofread_paths_named(joined: &str) -> Vec<String> {
         } else if rest_trimmed.starts_with('*') {
             out.push(format!("{module}::*"));
         } else {
-            let name_len =
-                rest_trimmed.find(|c: char| !is_ident_char(c)).unwrap_or(rest_trimmed.len());
+            let name_len = rest_trimmed
+                .find(|c: char| !is_ident_char(c))
+                .unwrap_or(rest_trimmed.len());
             let name = &rest_trimmed[..name_len];
-            out.push(format!("{module}::{}", if name.is_empty() { "*" } else { name }));
+            out.push(format!(
+                "{module}::{}",
+                if name.is_empty() { "*" } else { name }
+            ));
             search_from = offset + name_len;
         }
     }
@@ -586,8 +620,9 @@ fn ai_proofread_paths_named(joined: &str) -> Vec<String> {
 #[test]
 fn commands_proofread_rs_names_nothing_beyond_the_allowed_ai_surface() {
     let files = all_rust_sources();
-    let Some((_, text)) =
-        files.iter().find(|(rel, _)| is_the_approved_ai_proofread_command_file(rel))
+    let Some((_, text)) = files
+        .iter()
+        .find(|(rel, _)| is_the_approved_ai_proofread_command_file(rel))
     else {
         panic!("`{AI_PROOFREAD_SEAM_COMMAND_FILE}` is missing from the scanned tree");
     };
@@ -628,15 +663,24 @@ fn ai_proofread_paths_named_reads_groups_singles_and_a_seeded_forbidden_path() {
                   let _ = crate::core::ai::client::split_sse_frames(b\"\");\n\
                   use crate::core::ai::pricing::*;\n";
     let paths = ai_proofread_paths_named(&joined_code(seeded));
-    for forbidden in ["rag::assemble_prompt", "client::split_sse_frames", "pricing::*"] {
-        assert!(paths.contains(&forbidden.to_owned()), "seeded {forbidden} must be seen: {paths:?}");
+    for forbidden in [
+        "rag::assemble_prompt",
+        "client::split_sse_frames",
+        "pricing::*",
+    ] {
+        assert!(
+            paths.contains(&forbidden.to_owned()),
+            "seeded {forbidden} must be seen: {paths:?}"
+        );
         assert!(!ALLOWED_AI_PATHS_IN_PROOFREAD_SEAM.contains(&forbidden));
     }
 }
 
 #[test]
 fn the_fourth_approved_seam_is_matched_narrowly_and_neighbours_are_not() {
-    assert!(is_the_approved_ai_proofread_command_file(AI_PROOFREAD_SEAM_COMMAND_FILE));
+    assert!(is_the_approved_ai_proofread_command_file(
+        AI_PROOFREAD_SEAM_COMMAND_FILE
+    ));
     for neighbour in [
         "commands/proofread2.rs",
         "commands/proofread/mod.rs",
@@ -645,15 +689,24 @@ fn the_fourth_approved_seam_is_matched_narrowly_and_neighbours_are_not() {
         AI_TRANSLATE_SEAM_COMMAND_FILE,
         AI_PROMPT_SEAM_COMMAND_FILE,
     ] {
-        assert!(!is_the_approved_ai_proofread_command_file(neighbour), "{neighbour}");
+        assert!(
+            !is_the_approved_ai_proofread_command_file(neighbour),
+            "{neighbour}"
+        );
     }
     let import = "use crate::core::ai::client::OpenAiChatClient;";
     assert!(line_is_the_approved_ai_proofread_import_in_command_file(
         AI_PROOFREAD_SEAM_COMMAND_FILE,
         import
     ));
-    for other_file in ["commands/other.rs", AI_TRANSLATE_SEAM_COMMAND_FILE, "lib.rs"] {
-        assert!(!line_is_the_approved_ai_proofread_import_in_command_file(other_file, import));
+    for other_file in [
+        "commands/other.rs",
+        AI_TRANSLATE_SEAM_COMMAND_FILE,
+        "lib.rs",
+    ] {
+        assert!(!line_is_the_approved_ai_proofread_import_in_command_file(
+            other_file, import
+        ));
     }
     let seeded = format!("{import} let _ = super::ai::warm_up();");
     assert_eq!(
@@ -745,7 +798,10 @@ fn the_scanned_tree_and_the_ai_module_are_both_large_enough_to_be_real() {
         "tệp `.rs` dưới `src-tauri/src/**`",
     );
 
-    let ai_files = files.iter().filter(|(rel, _)| is_inside_ai_module(rel)).count();
+    let ai_files = files
+        .iter()
+        .filter(|(rel, _)| is_inside_ai_module(rel))
+        .count();
     boundary_scan::assert_population_floor(
         AI_FLOOR,
         ai_files,
@@ -919,7 +975,9 @@ fn the_bare_dependency_check_would_actually_flag_a_seeded_violation_and_ignore_c
                       // crate::core::ai::build_prompt() -- vi du trong comment, khong phai ma\n";
     let code_only: Vec<String> = code_lines(synthetic).map(|(_, code)| code).collect();
     assert!(
-        !code_only.iter().any(|code| line_names_a_forbidden_ai_dependency(code).is_some()),
+        !code_only
+            .iter()
+            .any(|code| line_names_a_forbidden_ai_dependency(code).is_some()),
         "hai dong CHU THICH nhac toi token bi cam khong duoc lot vao tap DONG MA -- \
          `code_lines` phai loai chung TRUOC khi vi tu quet chay, dung I/O Matrix cua spec"
     );
@@ -1060,9 +1118,20 @@ fn the_three_predicates_anchor_on_boundaries_and_do_not_fire_on_prefix_neighbour
     }
 
     // ── ② Miễn trừ thư mục: XANH GIẢ nếu khớp theo tiền tố chuỗi ──────────────────
-    assert!(is_inside_ai_module("core/ai"), "chính thư mục phải được miễn trừ");
-    assert!(is_inside_ai_module("core/ai/mod.rs"), "tệp trong `core/ai/` phải được miễn trừ");
-    for anh_em in ["core/aim/mod.rs", "core/ai_providers/foo.rs", "core/ai2/x.rs", "core/aix.rs"] {
+    assert!(
+        is_inside_ai_module("core/ai"),
+        "chính thư mục phải được miễn trừ"
+    );
+    assert!(
+        is_inside_ai_module("core/ai/mod.rs"),
+        "tệp trong `core/ai/` phải được miễn trừ"
+    );
+    for anh_em in [
+        "core/aim/mod.rs",
+        "core/ai_providers/foo.rs",
+        "core/ai2/x.rs",
+        "core/aix.rs",
+    ] {
         assert!(
             !is_inside_ai_module(anh_em),
             "XANH GIẢ: {anh_em:?} là một thư mục ANH EM, không nằm trong `core/ai/`. Miễn trừ \
@@ -1080,7 +1149,11 @@ fn the_three_predicates_anchor_on_boundaries_and_do_not_fire_on_prefix_neighbour
         statement_reexports_the_ai_module("pub use self::ai::Foo;"),
         "đường vòng qua `self::` cũng là re-export từ `ai`"
     );
-    for vo_can in ["pub use domain_ai::Config;", "pub use foo::Chai::Bar;", "pub use aiven::X;"] {
+    for vo_can in [
+        "pub use domain_ai::Config;",
+        "pub use foo::Chai::Bar;",
+        "pub use aiven::X;",
+    ] {
         assert_eq!(
             statement_reexports_the_ai_module(vo_can),
             false,
@@ -1192,7 +1265,9 @@ fn glossary_names_named(joined: &str) -> Vec<String> {
             };
             let inner = &joined[i + 1..i + 1 + close_rel];
             for item in inner.split(',') {
-                let Some(raw_name) = item.split_whitespace().next() else { continue };
+                let Some(raw_name) = item.split_whitespace().next() else {
+                    continue;
+                };
                 let name: String = raw_name.chars().filter(|c| is_ident_char(*c)).collect();
                 if !name.is_empty() && name != "self" {
                     out.push(name);
@@ -1209,7 +1284,11 @@ fn glossary_names_named(joined: &str) -> Vec<String> {
             if !name.is_empty() && name != "self" {
                 out.push(name.to_owned());
             }
-            search_from = if j > after_anchor { j } else { after_anchor + 1 };
+            search_from = if j > after_anchor {
+                j
+            } else {
+                after_anchor + 1
+            };
         }
     }
 
@@ -1240,7 +1319,10 @@ fn no_core_ai_file_names_a_core_glossary_identifier_outside_the_allowed_four() {
         }
     }
 
-    assert!(ai_files > 0, "không tệp nào khớp `{AI_DIR}` — đường dẫn miễn trừ đã lệch");
+    assert!(
+        ai_files > 0,
+        "không tệp nào khớp `{AI_DIR}` — đường dẫn miễn trừ đã lệch"
+    );
 
     // Đối chứng dương: phép quét phải THẬT SỰ thu được ít nhất một tên — cùng đối chứng mà
     // Pass 1 đòi ("assert the scan actually collected a non-zero number of names"). `rag.rs`
@@ -1282,7 +1364,10 @@ fn the_glossary_names_scan_actually_collects_a_genuine_multi_line_use_group() {
     let names = glossary_names_named(&joined);
     assert_eq!(
         names,
-        vec!["confirmed_terms_for_injection".to_owned(), "load_tier".to_owned()],
+        vec![
+            "confirmed_terms_for_injection".to_owned(),
+            "load_tier".to_owned()
+        ],
         "mot nhom `use` NHIEU DONG phai duoc quet HET -- day dung khuyet tat Pass 1: vi tu \
          dong cu khong bao gio thay het mot nhom nhu the nay"
     );
@@ -1388,7 +1473,10 @@ fn the_call_counter_counts_invocations_not_imports_and_would_flag_a_second_call_
     );
 
     let one_call = "let a = confirmed_terms_for_injection(r, g, w, s, l)?;\n";
-    assert_eq!(count_calls(&joined_code(one_call), "confirmed_terms_for_injection"), 1);
+    assert_eq!(
+        count_calls(&joined_code(one_call), "confirmed_terms_for_injection"),
+        1
+    );
 
     let two_calls = format!("{one_call}let b = confirmed_terms_for_injection(r, g, w, s, l)?;\n");
     assert_eq!(
@@ -1559,8 +1647,7 @@ fn a_line_carrying_the_approved_ai_translate_prefix_is_still_scanned_for_a_secon
     );
 
     // Ca DƯƠNG THẬT -- cùng dòng, CỘNG một token cấm KHÁC đứng kề, phải vẫn bị bắt.
-    let seeded =
-        "use crate::core::ai::client::TranslationClient; let _ = super::ai::warm_up();";
+    let seeded = "use crate::core::ai::client::TranslationClient; let _ = super::ai::warm_up();";
     assert_eq!(
         line_names_a_forbidden_ai_dependency(&line_with_marker_occurrences_removed(
             seeded,
@@ -1761,9 +1848,13 @@ fn the_lib_rs_stripper_removes_only_the_approved_seam_lines() {
     app.manage(crate::commands::promptset::PendingPromptImportState::new(None));
 ";
     let got = lib_rs_without_the_approved_ai_prompt_seam(text);
-    assert!(!got.contains("aiprompt"), "không còn dòng nào nhắc `aiprompt` sau khi xoá");
     assert!(
-        got.contains("promptset::wire::prompt_set_list") && got.contains("PendingPromptImportState"),
+        !got.contains("aiprompt"),
+        "không còn dòng nào nhắc `aiprompt` sau khi xoá"
+    );
+    assert!(
+        got.contains("promptset::wire::prompt_set_list")
+            && got.contains("PendingPromptImportState"),
         "hai dòng KHÔNG liên quan seam Decision 1 phải còn nguyên"
     );
 }
@@ -1782,9 +1873,13 @@ fn the_lib_rs_stripper_removes_only_the_approved_ai_translate_seam_lines() {
     app.manage(crate::commands::promptset::PendingPromptImportState::new(None));
 ";
     let got = lib_rs_without_the_approved_ai_translate_seam(text);
-    assert!(!got.contains("aitranslate"), "không còn dòng nào nhắc `aitranslate` sau khi xoá");
     assert!(
-        got.contains("aiprompt::wire::ai_prompt_assemble") && got.contains("PendingPromptImportState"),
+        !got.contains("aitranslate"),
+        "không còn dòng nào nhắc `aitranslate` sau khi xoá"
+    );
+    assert!(
+        got.contains("aiprompt::wire::ai_prompt_assemble")
+            && got.contains("PendingPromptImportState"),
         "hai dòng KHÔNG liên quan seam THỨ BA phải còn nguyên"
     );
 }
@@ -1812,7 +1907,10 @@ fn the_lib_rs_stripper_removes_the_whole_multi_line_block_a_marker_line_opens() 
 ";
     let got = lib_rs_without_the_approved_ai_prompt_seam(text);
 
-    assert!(!got.contains("aiprompt"), "không còn dòng nào nhắc `aiprompt` sau khi xoá");
+    assert!(
+        !got.contains("aiprompt"),
+        "không còn dòng nào nhắc `aiprompt` sau khi xoá"
+    );
     // Không `}` treo: số `{` và `}` còn lại phải bằng nhau -- nếu khuyết tật cũ tái phát (chỉ
     // xoá dòng đầu của khối), vế này đỏ vì thiếu một `{` đã bị xoá cùng dòng marker.
     assert_eq!(
@@ -1861,7 +1959,10 @@ fn the_project_mod_rs_stripper_removes_the_whole_multi_line_block_the_v1_clearin
 ";
     let got = project_mod_rs_without_the_ai_prompt_seam(text);
 
-    assert!(!got.contains("aiprompt"), "không còn dòng nào nhắc `aiprompt` sau khi xoá");
+    assert!(
+        !got.contains("aiprompt"),
+        "không còn dòng nào nhắc `aiprompt` sau khi xoá"
+    );
     assert_eq!(
         got.matches('{').count(),
         got.matches('}').count(),
@@ -1889,7 +1990,11 @@ fn the_project_mod_rs_stripper_removes_the_whole_multi_line_block_the_v1_clearin
 /// chứng dương TRƯỚC đây phụ thuộc và mỗi thứ mang một khuyết tật riêng (xem doc-comment
 /// [`deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_compiling`] về vì
 /// sao `git worktree` bị bỏ).
-fn copy_dir_recursive_skipping(src: &Path, dst: &Path, skip_dir_names: &[&str]) -> std::io::Result<()> {
+fn copy_dir_recursive_skipping(
+    src: &Path,
+    dst: &Path,
+    skip_dir_names: &[&str],
+) -> std::io::Result<()> {
     fs::create_dir_all(dst)?;
     for entry in fs::read_dir(src)? {
         let entry = entry?;
@@ -1897,7 +2002,10 @@ fn copy_dir_recursive_skipping(src: &Path, dst: &Path, skip_dir_names: &[&str]) 
         let name = entry.file_name();
         let dst_path = dst.join(&name);
         if file_type.is_dir() {
-            if skip_dir_names.iter().any(|skip| name.to_string_lossy() == *skip) {
+            if skip_dir_names
+                .iter()
+                .any(|skip| name.to_string_lossy() == *skip)
+            {
                 continue;
             }
             copy_dir_recursive_skipping(&entry.path(), &dst_path, skip_dir_names)?;
@@ -1966,7 +2074,9 @@ fn deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_com
             let _ = fs::remove_dir_all(&self.probe_dir);
         }
     }
-    let _guard = ProbeDirGuard { probe_dir: probe_dir.clone() };
+    let _guard = ProbeDirGuard {
+        probe_dir: probe_dir.clone(),
+    };
 
     let probe_src_tauri_dir = probe_dir.join("src-tauri");
     // `target/` bị BỎ QUA có chủ ý -- nặng (build artifacts), không liên quan câu hỏi đang
@@ -1974,7 +2084,13 @@ fn deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_com
     // của crate gốc để tái sử dụng mọi crate phụ thuộc đã biên dịch sẵn (xem chú thích ở lệnh
     // gọi `cargo check`).
     copy_dir_recursive_skipping(&src_tauri_dir, &probe_src_tauri_dir, &["target"]).unwrap_or_else(
-        |e| panic!("khong chep duoc {} sang {}: {e}", src_tauri_dir.display(), probe_src_tauri_dir.display()),
+        |e| {
+            panic!(
+                "khong chep duoc {} sang {}: {e}",
+                src_tauri_dir.display(),
+                probe_src_tauri_dir.display()
+            )
+        },
     );
 
     let probe_src = probe_src_tauri_dir.join("src");
@@ -1986,13 +2102,17 @@ fn deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_com
          con gi de xoa cho ca nay nghiem thu",
         ai_dir.display()
     );
-    fs::remove_dir_all(&ai_dir).unwrap_or_else(|e| panic!("khong xoa duoc {}: {e}", ai_dir.display()));
+    fs::remove_dir_all(&ai_dir)
+        .unwrap_or_else(|e| panic!("khong xoa duoc {}: {e}", ai_dir.display()));
 
     let core_mod_path = probe_src.join("core/mod.rs");
     let core_mod_text = fs::read_to_string(&core_mod_path)
         .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", core_mod_path.display()));
-    fs::write(&core_mod_path, core_mod_rs_without_the_ai_declaration(&core_mod_text))
-        .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", core_mod_path.display()));
+    fs::write(
+        &core_mod_path,
+        core_mod_rs_without_the_ai_declaration(&core_mod_text),
+    )
+    .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", core_mod_path.display()));
 
     // 🔴 Story 4.7, finding B8 (loop 1) — seam ① (`core/ai/`) ngay TRÊN đòi TỒN TẠI bằng một
     // `assert!` cứng; seam ② (đây) trước bản sửa chỉ xoá `if aiprompt_existed`, KHÔNG một
@@ -2021,14 +2141,20 @@ fn deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_com
     let commands_mod_path = probe_src.join("commands/mod.rs");
     let commands_mod_text = fs::read_to_string(&commands_mod_path)
         .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", commands_mod_path.display()));
-    fs::write(&commands_mod_path, mod_rs_without_declaration(&commands_mod_text, "aiprompt"))
-        .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", commands_mod_path.display()));
+    fs::write(
+        &commands_mod_path,
+        mod_rs_without_declaration(&commands_mod_text, "aiprompt"),
+    )
+    .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", commands_mod_path.display()));
 
     let lib_rs_path = probe_src.join(AI_PROMPT_SEAM_LIB_RS_FILE);
     let lib_rs_text = fs::read_to_string(&lib_rs_path)
         .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", lib_rs_path.display()));
-    fs::write(&lib_rs_path, lib_rs_without_the_approved_ai_prompt_seam(&lib_rs_text))
-        .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", lib_rs_path.display()));
+    fs::write(
+        &lib_rs_path,
+        lib_rs_without_the_approved_ai_prompt_seam(&lib_rs_text),
+    )
+    .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", lib_rs_path.display()));
 
     // 🔴 Story 4.7, finding V1 (loop 1) -- diem goi THAT thu HAI vao `commands::aiprompt`
     // (`replace_open_work` dep them ba dong dua qua nhieu Tac pham). Bo dong nay thi ca bien
@@ -2037,8 +2163,11 @@ fn deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_com
     let project_mod_rs_path = probe_src.join("commands/project/mod.rs");
     let project_mod_rs_text = fs::read_to_string(&project_mod_rs_path)
         .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", project_mod_rs_path.display()));
-    fs::write(&project_mod_rs_path, project_mod_rs_without_the_ai_prompt_seam(&project_mod_rs_text))
-        .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", project_mod_rs_path.display()));
+    fs::write(
+        &project_mod_rs_path,
+        project_mod_rs_without_the_ai_prompt_seam(&project_mod_rs_text),
+    )
+    .unwrap_or_else(|e| panic!("khong ghi duoc {}: {e}", project_mod_rs_path.display()));
 
     // 🔵 spec 4.8, Phase 2 (carried task) -- seam THU BA (`commands/aitranslate.rs`), cung
     // khuon finding B8 da ap cho seam ②: TON TAI la mot doi hoi CUNG truoc khi xoa, khong mot

@@ -66,10 +66,16 @@ impl std::fmt::Display for BilingualParseIssue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BilingualParseIssue::UnterminatedQuotedField { row } => {
-                write!(f, "bilingual import[row {row}]: quoted field opened but never closed")
+                write!(
+                    f,
+                    "bilingual import[row {row}]: quoted field opened but never closed"
+                )
             }
             BilingualParseIssue::TooFewColumns { found } => {
-                write!(f, "bilingual import: {found} column(s) found, need at least 2")
+                write!(
+                    f,
+                    "bilingual import: {found} column(s) found, need at least 2"
+                )
             }
             BilingualParseIssue::UnexpectedTokenizerIssue { detail } => {
                 write!(f, "bilingual import: unexpected tokenizer issue: {detail}")
@@ -90,7 +96,10 @@ impl std::error::Error for BilingualParseIssue {}
 /// [`commands::project`] makes with the *columns already parsed*, so toggling the header
 /// checkbox or swapping columns never re-reads the file (§I/O Matrix "Header checkbox
 /// on"/"Swap columns": the preview rebuilds in memory).
-pub fn parse_rows(text: &str, delimiter: Delimiter) -> Result<Vec<BilingualRow>, BilingualParseIssue> {
+pub fn parse_rows(
+    text: &str,
+    delimiter: Delimiter,
+) -> Result<Vec<BilingualRow>, BilingualParseIssue> {
     let d = delimiter.as_char();
     let lines = logical_lines(text, Some(d), 1).map_err(|issue| match issue {
         ParseIssue::UnterminatedQuotedField { line } => {
@@ -99,7 +108,9 @@ pub fn parse_rows(text: &str, delimiter: Delimiter) -> Result<Vec<BilingualRow>,
         // `logical_lines` only ever returns `UnterminatedQuotedField` today — every other
         // `ParseIssue` variant belongs to the Glossary's column-aware `parse`. Still typed, not
         // `unreachable!`: a future tokenizer change must surface as an error, not a panic.
-        other => BilingualParseIssue::UnexpectedTokenizerIssue { detail: other.to_string() },
+        other => BilingualParseIssue::UnexpectedTokenizerIssue {
+            detail: other.to_string(),
+        },
     })?;
 
     let mut rows = Vec::with_capacity(lines.len());
@@ -107,7 +118,10 @@ pub fn parse_rows(text: &str, delimiter: Delimiter) -> Result<Vec<BilingualRow>,
         if raw.trim().is_empty() {
             continue;
         }
-        rows.push(BilingualRow { row_number, cells: split_fields(raw, d) });
+        rows.push(BilingualRow {
+            row_number,
+            cells: split_fields(raw, d),
+        });
     }
     Ok(rows)
 }
@@ -218,7 +232,11 @@ pub fn derive_row(source_cell: &str, target_cell: &str, source_lang: &str) -> De
             .map(|s| s.text)
             .collect();
     let target_line = join_target_line(&target_sentences);
-    DerivedRow { source_sentences, target_sentences, target_line }
+    DerivedRow {
+        source_sentences,
+        target_sentences,
+        target_line,
+    }
 }
 
 /// Ranh giới MÁY của `target_line` — chỉ số ký tự nơi hai câu đích máy đã tách liền nhau
@@ -299,8 +317,11 @@ pub fn propose_cuts(source_sentences: &[String], target_sentences: &[String]) ->
     if target_len < 2 {
         return Vec::new();
     }
-    let total_source_len: usize =
-        source_sentences.iter().map(|s| s.chars().count()).sum::<usize>().max(1);
+    let total_source_len: usize = source_sentences
+        .iter()
+        .map(|s| s.chars().count())
+        .sum::<usize>()
+        .max(1);
 
     let mut candidates: Vec<usize> = machine_boundaries(target_sentences);
     for wb in word_boundaries(&target_line) {
@@ -356,7 +377,9 @@ pub fn apply_cuts(target_line: &str, cuts: &[usize]) -> Option<Vec<String>> {
 
     let mut out = Vec::with_capacity(bounds.len().saturating_sub(1));
     for w in bounds.windows(2) {
-        let (Some(&start), Some(&end)) = (w.first(), w.get(1)) else { return None };
+        let (Some(&start), Some(&end)) = (w.first(), w.get(1)) else {
+            return None;
+        };
         let piece: String = chars.get(start..end)?.iter().collect();
         let trimmed = piece.trim().to_owned();
         if trimmed.is_empty() {
@@ -426,7 +449,8 @@ pub fn resolve(
     regrouping: &BilingualRegrouping,
 ) -> Result<Option<RegroupResolution>, BilingualSkipNotAllowed> {
     let derived = derive_row(source_cell, target_cell, source_lang);
-    if derived.source_sentences != regrouping.source_sentences || derived.target_line != regrouping.target_line
+    if derived.source_sentences != regrouping.source_sentences
+        || derived.target_line != regrouping.target_line
     {
         return Ok(None); // ảnh chụp cũ — xem §I/O Matrix "Stale regrouping".
     }
@@ -439,10 +463,16 @@ pub fn resolve(
                 Ok(Some(RegroupResolution::Skipped))
             } else if !source_empty && target_empty {
                 Ok(Some(RegroupResolution::Paired(
-                    derived.source_sentences.into_iter().map(|s| (s, String::new())).collect(),
+                    derived
+                        .source_sentences
+                        .into_iter()
+                        .map(|s| (s, String::new()))
+                        .collect(),
                 )))
             } else {
-                Err(BilingualSkipNotAllowed { row_number: regrouping.row_number })
+                Err(BilingualSkipNotAllowed {
+                    row_number: regrouping.row_number,
+                })
             }
         }
         BilingualRegroupingAction::Cuts(cuts) => {
@@ -455,7 +485,9 @@ pub fn resolve(
             if pieces.len() != derived.source_sentences.len() {
                 return Ok(None);
             }
-            Ok(Some(RegroupResolution::Paired(derived.source_sentences.into_iter().zip(pieces).collect())))
+            Ok(Some(RegroupResolution::Paired(
+                derived.source_sentences.into_iter().zip(pieces).collect(),
+            )))
         }
     }
 }
@@ -510,7 +542,12 @@ mod tests {
     // Story 6.17 — quy nhóm câu đích
     // ═══════════════════════════════════════════════════════════════════════════
 
-    fn reg(row_number: usize, source: &[&str], target_line: &str, action: BilingualRegroupingAction) -> BilingualRegrouping {
+    fn reg(
+        row_number: usize,
+        source: &[&str],
+        target_line: &str,
+        action: BilingualRegroupingAction,
+    ) -> BilingualRegrouping {
         BilingualRegrouping {
             row_number,
             source_sentences: source.iter().map(|s| s.to_string()).collect(),
@@ -522,7 +559,12 @@ mod tests {
     #[test]
     fn split_target_resolves_a_2_vs_1_row_at_a_word_boundary() {
         // Source 2, target 1; one cut at a word boundary.
-        let r = reg(1, &["He left.", "She smiled."], "He left she smiled", BilingualRegroupingAction::Cuts(vec![8]));
+        let r = reg(
+            1,
+            &["He left.", "She smiled."],
+            "He left she smiled",
+            BilingualRegroupingAction::Cuts(vec![8]),
+        );
         let out = resolve("He left. She smiled.", "He left she smiled", "en", &r).unwrap();
         assert_eq!(
             out,
@@ -543,7 +585,12 @@ mod tests {
         let boundaries = machine_boundaries(&derived.target_sentences);
         assert_eq!(boundaries.len(), 2);
         // Chi giu chỗ cắt THỨ HAI (giữa "Hai." và "Ba.") -- gộp "Mot." + "Hai." thành mảnh đầu.
-        let r = reg(1, &["One.", "Two."], &derived.target_line, BilingualRegroupingAction::Cuts(vec![boundaries[1]]));
+        let r = reg(
+            1,
+            &["One.", "Two."],
+            &derived.target_line,
+            BilingualRegroupingAction::Cuts(vec![boundaries[1]]),
+        );
         let out = resolve(source_cell, target_cell, "en", &r).unwrap();
         assert_eq!(
             out,
@@ -558,7 +605,12 @@ mod tests {
     fn still_unequal_after_edits_stays_a_mismatch() {
         // Source 2, target pieces 3 after edits -> Ok(None), row still listed.
         let derived = derive_row("One. Two.", "Mot. Hai. Ba.", "en");
-        let r = reg(1, &["One.", "Two."], &derived.target_line, BilingualRegroupingAction::Cuts(vec![3, 8]));
+        let r = reg(
+            1,
+            &["One.", "Two."],
+            &derived.target_line,
+            BilingualRegroupingAction::Cuts(vec![3, 8]),
+        );
         let out = resolve("One. Two.", "Mot. Hai. Ba.", "en", &r).unwrap();
         assert_eq!(out, None);
     }
@@ -567,7 +619,12 @@ mod tests {
     fn a_bad_cut_on_the_wire_never_panics_and_leaves_the_row_unresolved() {
         let derived = derive_row("One. Two.", "Mot hai", "en");
         for bad in [vec![0usize], vec![100usize], vec![3, 3]] {
-            let r = reg(1, &["One.", "Two."], &derived.target_line, BilingualRegroupingAction::Cuts(bad));
+            let r = reg(
+                1,
+                &["One.", "Two."],
+                &derived.target_line,
+                BilingualRegroupingAction::Cuts(bad),
+            );
             assert_eq!(resolve("One. Two.", "Mot hai", "en", &r).unwrap(), None);
         }
     }
@@ -580,7 +637,12 @@ mod tests {
         // gom ky tu qua `chars()` truoc khi cat.
         let derived = derive_row("One. Two.", "你好嗎再見", "en");
         for cut in 0..=10usize {
-            let r = reg(1, &["One.", "Two."], &derived.target_line, BilingualRegroupingAction::Cuts(vec![cut]));
+            let r = reg(
+                1,
+                &["One.", "Two."],
+                &derived.target_line,
+                BilingualRegroupingAction::Cuts(vec![cut]),
+            );
             let _ = resolve("One. Two.", "你好嗎再見", "en", &r);
         }
     }
@@ -588,10 +650,18 @@ mod tests {
     #[test]
     fn a_stale_regrouping_after_a_column_swap_is_dropped_and_the_row_stays_listed() {
         let derived = derive_row("One. Two.", "Mot hai", "en");
-        let r = reg(1, &["One.", "Two."], &derived.target_line, BilingualRegroupingAction::Cuts(vec![3]));
+        let r = reg(
+            1,
+            &["One.", "Two."],
+            &derived.target_line,
+            BilingualRegroupingAction::Cuts(vec![3]),
+        );
         // Encoding/column change alters the row underneath the snapshot.
         let out = resolve("One. Two. Three.", "Mot hai ba", "en", &r).unwrap();
-        assert_eq!(out, None, "anh chup cu phai bi tha, khong ap oan len hang da doi");
+        assert_eq!(
+            out, None,
+            "anh chup cu phai bi tha, khong ap oan len hang da doi"
+        );
     }
 
     #[test]
@@ -600,19 +670,40 @@ mod tests {
         // cu (3) van cho dung 2 manh khong rong tren dong dich MOI. Moi hang rao khac -- so manh
         // != so cau nguon, manh rong, chi so tran -- deu IM LANG o day, nen neu phep so anh chup
         // bi go, ban dich cua nguoi dung se bi cat theo mot quyet dinh lam tren VAN BAN KHAC.
-        let r = reg(1, &["One.", "Two."], "Mot hai", BilingualRegroupingAction::Cuts(vec![3]));
+        let r = reg(
+            1,
+            &["One.", "Two."],
+            "Mot hai",
+            BilingualRegroupingAction::Cuts(vec![3]),
+        );
         let derived = derive_row("Aaa. Bbb.", "Xyz qwe", "en");
-        assert_eq!(derived.source_sentences.len(), 2, "hang MOI van co dung 2 cau nguon");
-        assert_eq!(apply_cuts(&derived.target_line, &[3]).map(|p| p.len()), Some(2), "cho cat cu van cho 2 manh");
+        assert_eq!(
+            derived.source_sentences.len(),
+            2,
+            "hang MOI van co dung 2 cau nguon"
+        );
+        assert_eq!(
+            apply_cuts(&derived.target_line, &[3]).map(|p| p.len()),
+            Some(2),
+            "cho cat cu van cho 2 manh"
+        );
 
         let out = resolve("Aaa. Bbb.", "Xyz qwe", "en", &r).unwrap();
-        assert_eq!(out, None, "van ban da doi thi quy nhom cu phai bi tha, du so manh van khop");
+        assert_eq!(
+            out, None,
+            "van ban da doi thi quy nhom cu phai bi tha, du so manh van khop"
+        );
     }
 
     #[test]
     fn an_unaffected_regrouping_still_resolves_after_an_unrelated_header_toggle() {
         let derived = derive_row("One. Two.", "Mot hai", "en");
-        let r = reg(1, &["One.", "Two."], &derived.target_line, BilingualRegroupingAction::Cuts(vec![3]));
+        let r = reg(
+            1,
+            &["One.", "Two."],
+            &derived.target_line,
+            BilingualRegroupingAction::Cuts(vec![3]),
+        );
         // Cung hai o dau vao -- mot header toggle o hang KHAC khong lam anh chup cu.
         let out = resolve("One. Two.", "Mot hai", "en", &r).unwrap();
         assert!(out.is_some());
@@ -622,10 +713,27 @@ mod tests {
     fn a_proposal_is_shown_for_a_2_vs_1_row_and_nothing_pairs_until_accepted() {
         let derived = derive_row("He left. She smiled.", "He left she smiled", "en");
         let proposal = propose_cuts(&derived.source_sentences, &derived.target_sentences);
-        assert_eq!(proposal.len(), 1, "source 2, target 1 -> dung 1 cho cat de xuat");
+        assert_eq!(
+            proposal.len(),
+            1,
+            "source 2, target 1 -> dung 1 cho cat de xuat"
+        );
         // Chinh no la mot regrouping HOP LE -- nhung chua duoc ap (khong goi resolve o day).
-        let r = reg(1, &derived.source_sentences.iter().map(String::as_str).collect::<Vec<_>>(), &derived.target_line, BilingualRegroupingAction::Cuts(proposal));
-        assert!(resolve("He left. She smiled.", "He left she smiled", "en", &r).unwrap().is_some());
+        let r = reg(
+            1,
+            &derived
+                .source_sentences
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            &derived.target_line,
+            BilingualRegroupingAction::Cuts(proposal),
+        );
+        assert!(
+            resolve("He left. She smiled.", "He left she smiled", "en", &r)
+                .unwrap()
+                .is_some()
+        );
     }
 
     #[test]
@@ -633,7 +741,13 @@ mod tests {
         // Heading row 1-vs-0, skipped.
         let r = reg(1, &["Chuong Mot"], "", BilingualRegroupingAction::Skip);
         let out = resolve("Chuong Mot", "", "en", &r).unwrap();
-        assert_eq!(out, Some(RegroupResolution::Paired(vec![("Chuong Mot".to_owned(), String::new())])));
+        assert_eq!(
+            out,
+            Some(RegroupResolution::Paired(vec![(
+                "Chuong Mot".to_owned(),
+                String::new()
+            )]))
+        );
     }
 
     // 🔴 THÊM (vòng rà đối kháng) — moi ca Skip blank-target khac trong tep nay chi dung MOT
@@ -657,14 +771,24 @@ mod tests {
     fn skip_blank_source_drops_the_translation_entirely() {
         // 0-vs-2 row, skipped -> 0 segments from the row.
         let derived = derive_row("", "Mot. Hai.", "en");
-        let r = reg(1, &[], &derived.target_line, BilingualRegroupingAction::Skip);
+        let r = reg(
+            1,
+            &[],
+            &derived.target_line,
+            BilingualRegroupingAction::Skip,
+        );
         let out = resolve("", "Mot. Hai.", "en", &r).unwrap();
         assert_eq!(out, Some(RegroupResolution::Skipped));
     }
 
     #[test]
     fn skip_is_refused_with_a_typed_error_when_both_sides_have_sentences() {
-        let r = reg(1, &["One.", "Two."], "Mot.", BilingualRegroupingAction::Skip);
+        let r = reg(
+            1,
+            &["One.", "Two."],
+            "Mot.",
+            BilingualRegroupingAction::Skip,
+        );
         let err = resolve("One. Two.", "Mot.", "en", &r).unwrap_err();
         assert_eq!(err, BilingualSkipNotAllowed { row_number: 1 });
     }
@@ -691,15 +815,23 @@ mod tests {
         let target_sentences = vec![format!("aa {long_b}")];
 
         let cuts = propose_cuts(&source_sentences, &target_sentences);
-        assert_eq!(cuts, vec![2], "cho cat phai la ranh gioi tu ngay sau \"aa\", khong phai trung diem dong");
+        assert_eq!(
+            cuts,
+            vec![2],
+            "cho cat phai la ranh gioi tu ngay sau \"aa\", khong phai trung diem dong"
+        );
 
-        let pieces = apply_cuts(&join_target_line(&target_sentences), &cuts).expect("cho cat de xuat phai hop le");
+        let pieces = apply_cuts(&join_target_line(&target_sentences), &cuts)
+            .expect("cho cat de xuat phai hop le");
         assert_eq!(pieces, vec!["aa".to_owned(), long_b]);
     }
 
     #[test]
     fn apply_cuts_with_no_cuts_yields_the_whole_trimmed_line_as_one_piece() {
-        assert_eq!(apply_cuts("  ca cau  ", &[]), Some(vec!["ca cau".to_owned()]));
+        assert_eq!(
+            apply_cuts("  ca cau  ", &[]),
+            Some(vec!["ca cau".to_owned()])
+        );
     }
 
     #[test]
@@ -707,6 +839,10 @@ mod tests {
         assert_eq!(apply_cuts("ab cd", &[0]), None);
         assert_eq!(apply_cuts("ab cd", &[5]), None);
         assert_eq!(apply_cuts("ab cd", &[2, 2]), None);
-        assert_eq!(apply_cuts("ab  cd", &[2, 3]), None, "manh giua hai cho cat lien nhau rong sau trim");
+        assert_eq!(
+            apply_cuts("ab  cd", &[2, 3]),
+            None,
+            "manh giua hai cho cat lien nhau rong sau trim"
+        );
     }
 }

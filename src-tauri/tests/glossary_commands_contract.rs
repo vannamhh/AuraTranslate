@@ -31,9 +31,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::glossary::{
     glossary_add_term, glossary_approve_candidate, glossary_confirm_pending_translation,
-    glossary_delete_term, glossary_list_entries, glossary_lookup_term,
-    glossary_pending_candidates, glossary_promote_term_to_global, glossary_reject_candidate,
-    glossary_update_term,
+    glossary_delete_term, glossary_list_entries, glossary_lookup_term, glossary_pending_candidates,
+    glossary_promote_term_to_global, glossary_reject_candidate, glossary_update_term,
 };
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::core::glossary::scan::ScanCandidate;
@@ -342,13 +341,19 @@ fn glossary_pending_candidates_keys_chapter_span_count_by_its_own_source_term() 
         .iter()
         .find(|r| r.source_term == "萧炎")
         .expect("萧炎 phai co mat");
-    assert_eq!(xiao_yan.chapter_span_count, 2, "萧炎 xuat hien o CA HAI Chuong vua them");
+    assert_eq!(
+        xiao_yan.chapter_span_count, 2,
+        "萧炎 xuat hien o CA HAI Chuong vua them"
+    );
 
     let qing_qiu = rows
         .iter()
         .find(|r| r.source_term == "青丘")
         .expect("青丘 phai co mat");
-    assert_eq!(qing_qiu.chapter_span_count, 1, "青丘 chi xuat hien o MOT Chuong");
+    assert_eq!(
+        qing_qiu.chapter_span_count, 1,
+        "青丘 chi xuat hien o MOT Chuong"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -360,7 +365,8 @@ fn glossary_pending_candidates_keys_chapter_span_count_by_its_own_source_term() 
 fn glossary_pending_candidates_is_empty_without_a_lie_when_no_work_is_open() {
     let layers = auratranslate_lib::core::dict::DictLayers::empty();
     let disabled = std::collections::BTreeSet::new();
-    let rows = glossary_pending_candidates(None, &layers, &disabled).expect("khong Tac pham nao van phai Ok");
+    let rows = glossary_pending_candidates(None, &layers, &disabled)
+        .expect("khong Tac pham nao van phai Ok");
     assert!(rows.is_empty());
 }
 
@@ -458,7 +464,8 @@ fn glossary_confirm_pending_translation_with_an_unknown_id_fails_readably() {
 /// IPC (`glossaryConfirmStripState.ts::confirmGlossaryConfirmStrip`) — đây là lớp phòng thủ
 /// THỨ HAI, và nó phải có ca canh vì doc đã hứa.
 #[test]
-fn glossary_confirm_pending_translation_with_a_blank_translation_fails_and_leaves_the_row_pending() {
+fn glossary_confirm_pending_translation_with_a_blank_translation_fails_and_leaves_the_row_pending()
+{
     let root = temp_dir("confirm-blank-translation");
     let global_dir = temp_dir("confirm-blank-translation-global");
     let global = open_global(&global_dir);
@@ -492,7 +499,10 @@ fn glossary_confirm_pending_translation_with_a_blank_translation_fails_and_leave
         .entry
         .expect("phai con tim thay muc cu");
     assert_eq!(found.id, id);
-    assert_eq!(found.translation, None, "muc phai VAN cho chot -- CHECK da chan luot ghi");
+    assert_eq!(
+        found.translation, None,
+        "muc phai VAN cho chot -- CHECK da chan luot ghi"
+    );
 
     drop(global);
     drop(opened);
@@ -537,7 +547,8 @@ fn glossary_approve_candidate_without_a_suggestion_creates_a_pending_entry() {
     assert!(entry_id > 0);
 
     // Hang ung vien da quyet -- khong con trong bang CHO DUYET.
-    let still_pending = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke lai");
+    let still_pending =
+        glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke lai");
     assert!(
         still_pending.iter().all(|c| c.id != candidate_id),
         "ung vien da duyet khong con trong bang cho DUYET"
@@ -549,7 +560,10 @@ fn glossary_approve_candidate_without_a_suggestion_creates_a_pending_entry() {
         .entry
         .expect("phai tim thay muc vua sinh");
     assert_eq!(found.id, entry_id);
-    assert_eq!(found.translation, None, "khong dua xuat -- muc phai CHO CHOT");
+    assert_eq!(
+        found.translation, None,
+        "khong dua xuat -- muc phai CHO CHOT"
+    );
     assert_eq!(found.term_origin, "import_scan");
 
     drop(global);
@@ -558,10 +572,7 @@ fn glossary_approve_candidate_without_a_suggestion_creates_a_pending_entry() {
     cleanup(&global_dir);
 }
 
-fn approve_a_candidate_stored_with_occurrence_count(
-    tag: &str,
-    stored_count: i64,
-) -> Option<i64> {
+fn approve_a_candidate_stored_with_occurrence_count(tag: &str, stored_count: i64) -> Option<i64> {
     let layers = auratranslate_lib::core::dict::DictLayers::empty();
     let disabled = std::collections::BTreeSet::new();
     let root = temp_dir(tag);
@@ -615,14 +626,20 @@ fn approve_a_candidate_stored_with_occurrence_count(
 /// mang NULL chứ không khai "0 lần xuất hiện".
 #[test]
 fn approving_a_legacy_candidate_stored_with_zero_occurrences_leaves_the_entry_count_unknown() {
-    assert_eq!(approve_a_candidate_stored_with_occurrence_count("approve-legacy-zero", 0), None);
+    assert_eq!(
+        approve_a_candidate_stored_with_occurrence_count("approve-legacy-zero", 0),
+        None
+    );
 }
 
 /// Đối xứng của ca trên: một số đếm thật vẫn được chép nguyên, để ca trên không xanh chỉ vì
 /// mọi ứng viên đều bị đổi thành NULL.
 #[test]
 fn approving_a_candidate_with_a_real_occurrence_count_keeps_that_count_on_the_entry() {
-    assert_eq!(approve_a_candidate_stored_with_occurrence_count("approve-real-count", 37), Some(37));
+    assert_eq!(
+        approve_a_candidate_stored_with_occurrence_count("approve-real-count", 37),
+        Some(37)
+    );
 }
 
 /// Story 3.7 — Nhận một ứng viên CÓ đề xuất (`translation = Some("Bac Luong")`, đúng chữ ký
@@ -656,13 +673,18 @@ fn glossary_approve_candidate_with_a_suggestion_creates_a_confirmed_entry() {
         .expect("phai tim thay ung vien vua chen")
         .id;
 
-    let entry_id =
-        glossary_approve_candidate(Some(&opened), candidate_id, Some("Bac Luong"), Category::Place)
-            .expect("nhan ung vien co de xuat qua commands::glossary");
+    let entry_id = glossary_approve_candidate(
+        Some(&opened),
+        candidate_id,
+        Some("Bac Luong"),
+        Category::Place,
+    )
+    .expect("nhan ung vien co de xuat qua commands::glossary");
     assert!(entry_id > 0);
 
     // Hang ung vien: resolution = 'approved', khong con trong bang CHO DUYET.
-    let still_pending = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke lai");
+    let still_pending =
+        glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke lai");
     assert!(
         still_pending.iter().all(|c| c.id != candidate_id),
         "ung vien da duyet (co de xuat) khong con trong bang cho DUYET"
@@ -759,8 +781,13 @@ fn glossary_approve_candidate_on_an_already_decided_candidate_changes_nothing() 
         .expect("phai tim thay ung vien vua chen")
         .id;
 
-    glossary_approve_candidate(Some(&opened), candidate_id, Some("Thanh Khau"), Category::Place)
-        .expect("duyet lan dau phai thanh cong");
+    glossary_approve_candidate(
+        Some(&opened),
+        candidate_id,
+        Some("Thanh Khau"),
+        Category::Place,
+    )
+    .expect("duyet lan dau phai thanh cong");
 
     // Doi chung SO LUONG muc Glossary TRUOC/SAU lan goi thu hai -- "0 muc moi" nghia la
     // dung MOT muc trong ca hai lan tra, khong phai suy tu Err.
@@ -769,9 +796,13 @@ fn glossary_approve_candidate_on_an_already_decided_candidate_changes_nothing() 
         .entry
         .expect("phai tim thay muc da duyet");
 
-    let err =
-        glossary_approve_candidate(Some(&opened), candidate_id, Some("Ban Dich Khac"), Category::Other)
-            .expect_err("ung vien da quyet khong duoc quyet lai");
+    let err = glossary_approve_candidate(
+        Some(&opened),
+        candidate_id,
+        Some("Ban Dich Khac"),
+        Category::Other,
+    )
+    .expect_err("ung vien da quyet khong duoc quyet lai");
     // Now `StoreConflict`, not `StoreWriteFailed`: a business-rule refusal, not I/O failure.
     assert_eq!(err.message_key(), MessageKey::StoreConflict);
 
@@ -839,9 +870,11 @@ fn glossary_reject_candidate_removes_the_row_from_the_pending_queue_and_writes_n
         .expect("phai tim thay ung vien vua chen")
         .id;
 
-    glossary_reject_candidate(Some(&opened), candidate_id).expect("bo ung vien qua commands::glossary");
+    glossary_reject_candidate(Some(&opened), candidate_id)
+        .expect("bo ung vien qua commands::glossary");
 
-    let still_pending = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke lai");
+    let still_pending =
+        glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("liet ke lai");
     assert!(
         still_pending.iter().all(|c| c.id != candidate_id),
         "ung vien da bo khong con trong bang cho DUYET"
@@ -1021,12 +1054,17 @@ fn glossary_pending_candidates_returns_the_same_order_across_two_consecutive_cal
     )
     .expect("chen hai ung vien dong hang");
 
-    let first = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("lan mo thu nhat");
-    let second = glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("lan mo thu hai");
+    let first =
+        glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("lan mo thu nhat");
+    let second =
+        glossary_pending_candidates(Some(&opened), &layers, &disabled).expect("lan mo thu hai");
 
     let first_ids: Vec<i64> = first.iter().map(|c| c.id).collect();
     let second_ids: Vec<i64> = second.iter().map(|c| c.id).collect();
-    assert_eq!(first_ids, second_ids, "hai lan mo lien tiep phai tra ve DUNG MOT thu tu");
+    assert_eq!(
+        first_ids, second_ids,
+        "hai lan mo lien tiep phai tra ve DUNG MOT thu tu"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -1067,9 +1105,13 @@ fn glossary_list_entries_lists_both_tiers_and_flags_the_shadowed_row() {
     )
     .expect("them muc trung ten o tang Tac pham");
 
-    let rows =
-        glossary_list_entries(Some(&global), Some(&opened)).expect("liet ke qua commands::glossary");
-    assert_eq!(rows.len(), 2, "dung hai hang cho cung mot source_term. Nhan: {rows:?}");
+    let rows = glossary_list_entries(Some(&global), Some(&opened))
+        .expect("liet ke qua commands::glossary");
+    assert_eq!(
+        rows.len(),
+        2,
+        "dung hai hang cho cung mot source_term. Nhan: {rows:?}"
+    );
 
     let winner = rows
         .iter()
@@ -1110,7 +1152,10 @@ fn glossary_list_entries_without_an_open_work_lists_only_the_global_tier() {
     let rows = glossary_list_entries(Some(&global), None).expect("liet ke khi chua mo Tac pham");
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].tier, "global");
-    assert!(!rows[0].is_shadowed, "mot tang duy nhat khong co gi de che no");
+    assert!(
+        !rows[0].is_shadowed,
+        "mot tang duy nhat khong co gi de che no"
+    );
 
     drop(global);
     cleanup(&global_dir);
@@ -1309,7 +1354,10 @@ fn glossary_promote_term_to_global_rejects_when_the_destination_already_has_the_
         .expect("tra qua ca hai tang")
         .entry
         .expect("muc phai con tim thay");
-    assert_eq!(work_entry.tier, "work", "AD-18: tang Work van thang, chua bi xoa");
+    assert_eq!(
+        work_entry.tier, "work",
+        "AD-18: tang Work van thang, chua bi xoa"
+    );
     assert_eq!(work_entry.translation.as_deref(), Some("Thanh Khâu Moi"));
 
     drop(global);

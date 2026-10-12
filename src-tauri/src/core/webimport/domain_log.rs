@@ -114,8 +114,19 @@ pub struct DomainLogEntry {
 }
 
 impl DomainLogEntry {
-    pub fn new(at_epoch_ms: u64, domain: String, kind: ResourceKind, decision: DomainLogDecision) -> Self {
-        DomainLogEntry { at_epoch_ms, domain, kind, decision, outcome: None }
+    pub fn new(
+        at_epoch_ms: u64,
+        domain: String,
+        kind: ResourceKind,
+        decision: DomainLogDecision,
+    ) -> Self {
+        DomainLogEntry {
+            at_epoch_ms,
+            domain,
+            kind,
+            decision,
+            outcome: None,
+        }
     }
 
     /// Builder — đính `outcome`. Tách khỏi [`Self::new`] (không thêm tham số thứ năm) để MỌI
@@ -133,7 +144,10 @@ impl DomainLogEntry {
 /// `fetcher.rs`/`webimport_contract.rs` đã là các phép kiểm HỢP ĐỒNG chạm mạng thật, không
 /// phải các phép kiểm tất định cấp mili-giây).
 pub fn now_epoch_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 /// Ô chứa — `.manage` MỘT lần trong `open_work_slot` (`lib.rs`), sống theo PHIÊN CHẠY ứng
@@ -148,7 +162,9 @@ pub fn append_domain_log_entries(state: &DomainLogState, entries: Vec<DomainLogE
     if entries.is_empty() {
         return;
     }
-    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     guard.extend(entries);
 }
 
@@ -157,7 +173,10 @@ pub fn append_domain_log_entries(state: &DomainLogState, entries: Vec<DomainLogE
 /// ký một phiên thực tế nhỏ (xem phép đo ở doc-comment đầu tệp), nên một lượt `clone()` mỗi
 /// lần đọc không phải một chi phí đáng lo.
 pub fn read_domain_log(state: &DomainLogState) -> Vec<DomainLogEntry> {
-    state.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
+    state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone()
 }
 
 /// Số DOMAIN PHÂN BIỆT trong nhật ký — con số chân màn xem trước cần (mockup: *"Đã gọi
@@ -165,7 +184,9 @@ pub fn read_domain_log(state: &DomainLogState) -> Vec<DomainLogEntry> {
 /// 6.8 hàng 2). **Hàm thuần**, tách riêng khỏi [`read_domain_log`] để chỗ gọi không phải tự
 /// dựng một `HashSet` mỗi nơi cần con số này.
 pub fn distinct_domain_count(state: &DomainLogState) -> usize {
-    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut seen: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
     for entry in guard.iter() {
         seen.insert(entry.domain.as_str());
@@ -200,18 +221,41 @@ mod tests {
         append_domain_log_entries(
             &state,
             vec![
-                DomainLogEntry::new(1, "a.example".to_owned(), ResourceKind::Page, DomainLogDecision::Allowed(Tier::One)),
-                DomainLogEntry::new(2, "b.example".to_owned(), ResourceKind::Page, DomainLogDecision::Denied),
-                DomainLogEntry::new(3, "a.example".to_owned(), ResourceKind::Page, DomainLogDecision::Allowed(Tier::One)),
+                DomainLogEntry::new(
+                    1,
+                    "a.example".to_owned(),
+                    ResourceKind::Page,
+                    DomainLogDecision::Allowed(Tier::One),
+                ),
+                DomainLogEntry::new(
+                    2,
+                    "b.example".to_owned(),
+                    ResourceKind::Page,
+                    DomainLogDecision::Denied,
+                ),
+                DomainLogEntry::new(
+                    3,
+                    "a.example".to_owned(),
+                    ResourceKind::Page,
+                    DomainLogDecision::Allowed(Tier::One),
+                ),
             ],
         );
 
         let read = read_domain_log(&state);
-        assert_eq!(read.len(), 3, "ghi THO -- ba ban ghi cho ba loi goi, khong gop");
+        assert_eq!(
+            read.len(),
+            3,
+            "ghi THO -- ba ban ghi cho ba loi goi, khong gop"
+        );
         assert_eq!(read[0].domain, "a.example");
         assert_eq!(read[1].domain, "b.example");
         assert_eq!(read[2].domain, "a.example");
-        assert_eq!(distinct_domain_count(&state), 2, "hai domain PHAN BIET tu ba ban ghi");
+        assert_eq!(
+            distinct_domain_count(&state),
+            2,
+            "hai domain PHAN BIET tu ba ban ghi"
+        );
     }
 
     #[test]

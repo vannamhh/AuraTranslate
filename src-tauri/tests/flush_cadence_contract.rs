@@ -55,8 +55,7 @@ fn read_editor_flush() -> String {
     // 🔴 Không đọc được là **lỗi hạ tầng**, không phải một phép kiểm đạt. Cùng luật với
     // `abort()` của các cổng `scripts/check-*.mjs`: đừng bao giờ báo một kết quả không có
     // thật. Tệp bị đổi chỗ ⇒ ca này chết ồn ào, và đó là hành vi đúng.
-    fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", path.display()))
+    fs::read_to_string(&path).unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", path.display()))
 }
 
 /// Bóc giá trị của `export const <name> = <số>` từ mã nguồn TypeScript.
@@ -84,9 +83,7 @@ fn declared_ms(source: &str, name: &str) -> Result<u64, String> {
             continue;
         }
         let Some(eq) = after.find('=') else {
-            return Err(format!(
-                "dong khai `{name}` khong co dau `=`: {trimmed:?}"
-            ));
+            return Err(format!("dong khai `{name}` khong co dau `=`: {trimmed:?}"));
         };
         let digits: String = after[eq + 1..]
             .trim_start()
@@ -129,8 +126,7 @@ fn invariant_holds(idle_before_passive: Duration, editor_idle_ms: u64) -> bool {
 #[test]
 fn the_checkpoint_idle_gate_stays_strictly_longer_than_the_editor_flush_cadence() {
     let source = read_editor_flush();
-    let editor_idle_ms =
-        declared_ms(&source, "EDITOR_IDLE_MS").unwrap_or_else(|e| panic!("{e}"));
+    let editor_idle_ms = declared_ms(&source, "EDITOR_IDLE_MS").unwrap_or_else(|e| panic!("{e}"));
     let idle_before_passive = Tuning::default().idle_before_passive;
 
     assert!(
@@ -166,7 +162,11 @@ fn the_parser_finds_exactly_one_declaration_in_the_real_file_despite_many_commen
     // hai, và nó sẽ bắt lượt hiệu chỉnh của Story 2.4 phải sửa HAI chỗ cho một con số.
     // Thứ ca này nghiệm thu là **bộ bóc chạy đúng trên tệp thật**: `Ok` chỉ trả về khi tìm
     // thấy ĐÚNG MỘT dòng khai báo.
-    for name in ["EDITOR_IDLE_MS", "EDITOR_HARD_CAP_MS", "EDITOR_RETRY_FLOOR_MS"] {
+    for name in [
+        "EDITOR_IDLE_MS",
+        "EDITOR_HARD_CAP_MS",
+        "EDITOR_RETRY_FLOOR_MS",
+    ] {
         assert!(
             declared_ms(&source, name).is_ok(),
             "khong boc duoc `{name}` tu tep that: {:?}",

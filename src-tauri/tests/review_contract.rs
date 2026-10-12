@@ -5,13 +5,18 @@
 //! ⚠️ Tệp riêng có chủ ý, đúng khuôn `cleanup_contract.rs`/`glossary_contract.rs` — một tệp,
 //! một mối quan tâm.
 
-use auratranslate_lib::commands::project::{cleanup_and_chapters_preview_for, ReviewCauseWire};
+use auratranslate_lib::commands::project::{ReviewCauseWire, cleanup_and_chapters_preview_for};
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineShape};
 
 fn chapters_of(texts: &[&str]) -> PipelineShape {
-    PipelineShape::Chapters(texts.iter().map(|t| ChapterInput::AlreadyText((*t).to_owned())).collect())
+    PipelineShape::Chapters(
+        texts
+            .iter()
+            .map(|t| ChapterInput::AlreadyText((*t).to_owned()))
+            .collect(),
+    )
 }
 
 /// Mười Chương THẬT (đường `Chapters`, mỗi Chương có `length` riêng của chính nó) — một
@@ -42,7 +47,10 @@ fn a_very_short_chapter_among_ten_real_ones_is_flagged_short_length() {
     );
 
     assert_eq!(chapters_wire.chapter_count, 10);
-    assert!(chapters_wire.any_signal_participated, "10 Chuong voi length tan rong phai co hang rao");
+    assert!(
+        chapters_wire.any_signal_participated,
+        "10 Chuong voi length tan rong phai co hang rao"
+    );
     let last = chapters_wire.chapters.last().expect("Chuong thu muoi");
     assert!(last.needs_review, "Chuong cuc ngan phai la CAN XEM");
     assert!(last.review_causes.contains(&ReviewCauseWire::ShortLength));
@@ -78,9 +86,15 @@ fn a_very_long_chapter_among_ten_real_ones_is_not_flagged_short_length() {
     );
 
     assert_eq!(chapters_wire.chapter_count, 10);
-    assert!(chapters_wire.any_signal_participated, "10 Chuong voi length tan rong phai co hang rao");
+    assert!(
+        chapters_wire.any_signal_participated,
+        "10 Chuong voi length tan rong phai co hang rao"
+    );
     let last = chapters_wire.chapters.last().expect("Chuong thu muoi");
-    assert!(!last.needs_review, "Chuong DAI bat thuong KHONG phai dau hieu loi nhap");
+    assert!(
+        !last.needs_review,
+        "Chuong DAI bat thuong KHONG phai dau hieu loi nhap"
+    );
     assert!(
         !last.review_causes.contains(&ReviewCauseWire::ShortLength),
         "length chi xet hang rao DUOI -- mot Chuong dai hon khong duoc gan co ShortLength"
@@ -97,7 +111,19 @@ fn fewer_than_four_chapters_makes_no_signal_participate_at_the_wire_level() {
     let shape = chapters_of(&["mot", "hai ba", "bon nam sau"]);
 
     let (_cleanup, chapters_wire, _blocks) = cleanup_and_chapters_preview_for(
-        shape, encoding_rs::UTF_8, None, "", "en", &[], false, false, &[], 0, 0, &[]);
+        shape,
+        encoding_rs::UTF_8,
+        None,
+        "",
+        "en",
+        &[],
+        false,
+        false,
+        &[],
+        0,
+        0,
+        &[],
+    );
 
     assert_eq!(chapters_wire.chapter_count, 3);
     assert!(
@@ -105,7 +131,10 @@ fn fewer_than_four_chapters_makes_no_signal_participate_at_the_wire_level() {
         "N = 3 phai bao 'chua du Chuong de so', khong tinh hieu nao duoc tham gia"
     );
     for chapter in &chapters_wire.chapters {
-        assert!(!chapter.needs_review, "khong tin hieu nao tham gia thi khong Chuong nao bi phan");
+        assert!(
+            !chapter.needs_review,
+            "khong tin hieu nao tham gia thi khong Chuong nao bi phan"
+        );
     }
 }
 
@@ -118,7 +147,16 @@ fn broken_item_count_is_added_by_rust_into_needs_review_never_into_clean() {
     let shape = chapters_of(&texts.iter().map(String::as_str).collect::<Vec<_>>());
 
     let (_cleanup, chapters_wire, _blocks) = cleanup_and_chapters_preview_for(
-        shape, encoding_rs::UTF_8, None, "", "en", &[], false, false, &[], 0,
+        shape,
+        encoding_rs::UTF_8,
+        None,
+        "",
+        "en",
+        &[],
+        false,
+        false,
+        &[],
+        0,
         3, // ba muc URL hong cua CA lot nhap.
         &[],
     );
@@ -186,25 +224,43 @@ fn a_blob_with_a_chapter_pattern_excludes_the_two_signals_that_only_the_first_ch
         false,
         &[],
         0,
-        0, &[]);
+        0,
+        &[],
+    );
 
     assert_eq!(chapters_wire.chapter_count, 10);
-    assert_eq!(chapters_wire.chapters[0].cleanup_match_count, Some(2), "tien de: ord=1 co bao cao THAT");
+    assert_eq!(
+        chapters_wire.chapters[0].cleanup_match_count,
+        Some(2),
+        "tien de: ord=1 co bao cao THAT"
+    );
     for (i, chapter) in chapters_wire.chapters.iter().enumerate() {
-        assert_eq!(chapter.joined_line_count_in_chapter, None, "Chuong {i}: joined_line luon None tren Blob");
+        assert_eq!(
+            chapter.joined_line_count_in_chapter, None,
+            "Chuong {i}: joined_line luon None tren Blob"
+        );
         if i != 0 {
-            assert_eq!(chapter.cleanup_match_count, None, "Chuong {i}: khong phai ord=1, khong co bao cao that");
+            assert_eq!(
+                chapter.cleanup_match_count, None,
+                "Chuong {i}: khong phai ord=1, khong co bao cao that"
+            );
         }
         assert!(
-            !chapter.review_causes.contains(&ReviewCauseWire::HighCleanupMatches),
+            !chapter
+                .review_causes
+                .contains(&ReviewCauseWire::HighCleanupMatches),
             "Chuong {i}: tin hieu cleanup KHONG DU DU LIEU (chi 1 gia tri do duoc), khong duoc gan co"
         );
         assert!(
-            !chapter.review_causes.contains(&ReviewCauseWire::HighJoinedLines),
+            !chapter
+                .review_causes
+                .contains(&ReviewCauseWire::HighJoinedLines),
             "Chuong {i}: tin hieu joined_line TOAN None, khong duoc gan co"
         );
         assert!(
-            !chapter.review_causes.contains(&ReviewCauseWire::NotMeasured),
+            !chapter
+                .review_causes
+                .contains(&ReviewCauseWire::NotMeasured),
             "Chuong {i}: NotMeasured chi xuat hien khi hang rao TON TAI -- ca hai tin hieu nay deu KHONG ton tai o day"
         );
     }

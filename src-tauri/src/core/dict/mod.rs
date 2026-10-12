@@ -415,7 +415,11 @@ pub(crate) fn lookup_with_branch(
         QueryBranch::NoBranchQueryTooShort => (Vec::new(), false),
     };
 
-    Ok(LookupResult { branch, hits, truncated })
+    Ok(LookupResult {
+        branch,
+        hits,
+        truncated,
+    })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -766,7 +770,10 @@ pub struct GroupedLookup {
 /// `derive(Serialize)`: bốn biến thể của `SkipReason` mang `detail: String` là lỗi thô
 /// SQLite, và đi qua dây nguyên vẹn là vi phạm AD-21 ở đúng chỗ không cổng nào nhìn thấy
 /// (`check-i18n.mjs` Kiểm A quét **chuỗi trong mã**, không quét **dữ liệu chạy qua dây**).
-fn serialize_skipped_as_wire_codes<S>(skipped: &[SkippedLayer], serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_skipped_as_wire_codes<S>(
+    skipped: &[SkippedLayer],
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {

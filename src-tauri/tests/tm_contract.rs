@@ -6,17 +6,22 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::{
-    OpenWork, OpenWorkState, confirm_bilingual_import, create_work_from_text, stash_pending_import_source,
+    OpenWork, OpenWorkState, confirm_bilingual_import, create_work_from_text,
+    stash_pending_import_source,
 };
 use auratranslate_lib::commands::segment::{
-    SegmentTargetEdit, TRANSLATION_ORIGIN_BILINGUAL_IMPORT, TRANSLATION_ORIGIN_OTHER, TRANSLATION_ORIGIN_SELF, confirm_segment, merge_segments, promote_ai_translation,
-    flush_segment_targets, load_open_chapter_segments, read_open_chapter_segments, split_segment, wire, TmPrefillStatus,
+    SegmentTargetEdit, TRANSLATION_ORIGIN_BILINGUAL_IMPORT, TRANSLATION_ORIGIN_OTHER,
+    TRANSLATION_ORIGIN_SELF, TmPrefillStatus, confirm_segment, flush_segment_targets,
+    load_open_chapter_segments, merge_segments, promote_ai_translation, read_open_chapter_segments,
+    split_segment, wire,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::scope::ScopeResolver;
-use auratranslate_lib::core::store::{GLOBAL_MIGRATIONS, Store, StoreSpec, Transaction};
-use auratranslate_lib::core::tm::{PairOrigin, PairSide, TmPair, TmStoreError, TmTier, pairs_for_source};
 use auratranslate_lib::core::segment::import::import_bilingual_file;
+use auratranslate_lib::core::store::{GLOBAL_MIGRATIONS, Store, StoreSpec, Transaction};
+use auratranslate_lib::core::tm::{
+    PairOrigin, PairSide, TmPair, TmStoreError, TmTier, pairs_for_source,
+};
 use tauri::Manager as _;
 use tauri::test::{MockRuntime, mock_builder, mock_context, noop_assets};
 
@@ -24,7 +29,12 @@ static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-tm-{}-{}-{}", std::process::id(), tag, n));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-tm-{}-{}-{}",
+        std::process::id(),
+        tag,
+        n
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -61,12 +71,19 @@ fn pairs(open: &OpenWork) -> Vec<(String, String)> {
 
 fn segment_ids(open: &OpenWork) -> (i64, Vec<i64>) {
     let chapter = read_open_chapter_segments(Some(open)).expect("nap chuong");
-    (chapter.chapter_id, chapter.segments.iter().map(|s| s.id).collect())
+    (
+        chapter.chapter_id,
+        chapter.segments.iter().map(|s| s.id).collect(),
+    )
 }
 
 fn source_of(open: &OpenWork, id: i64) -> String {
     open.store
-        .read(move |conn| conn.query_row("SELECT source_text FROM segment WHERE id = ?1", [id], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row("SELECT source_text FROM segment WHERE id = ?1", [id], |r| {
+                r.get(0)
+            })
+        })
         .expect("doc source_text")
 }
 
@@ -89,13 +106,22 @@ fn state_of(open: &OpenWork, id: i64) -> (String, String, i64) {
 }
 
 fn type_text(open: &OpenWork, chapter_id: i64, id: i64, text: &str) {
-    flush_segment_targets(Some(open), chapter_id, &[SegmentTargetEdit { id, target_text: text.to_owned() }])
-        .expect("ghi lo that bai");
+    flush_segment_targets(
+        Some(open),
+        chapter_id,
+        &[SegmentTargetEdit {
+            id,
+            target_text: text.to_owned(),
+        }],
+    )
+    .expect("ghi lo that bai");
 }
 
 fn set_role(open: &OpenWork, id: i64, role: &'static str) {
     open.store
-        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE segment SET role = ?1 WHERE id = ?2", (role, id)))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("UPDATE segment SET role = ?1 WHERE id = ?2", (role, id))
+        })
         .expect("dat role that bai");
 }
 
@@ -119,7 +145,11 @@ fn the_first_confirm_writes_one_pair_with_the_origin_written_to_the_segment() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].1, source_of(&open, id));
     assert_eq!(rows[0].2, "Ban dich B.");
-    assert_eq!(rows[0].3, state_of(&open, id).1, "origin cua cap la origin vua ghi vao segment");
+    assert_eq!(
+        rows[0].3,
+        state_of(&open, id).1,
+        "origin cua cap la origin vua ghi vao segment"
+    );
     assert!(!rows[0].3.is_empty());
     assert!(!rows[0].4.is_empty());
     drop(open);
@@ -154,13 +184,20 @@ fn editing_then_reconfirming_adds_a_pair_and_leaves_the_first_one_untouched() {
     let first = tm_rows(&open);
 
     type_text(&open, chapter_id, id, "C");
-    assert_eq!(state_of(&open, id).0, "draft", "sua mot segment da ky dua no ve nhap");
+    assert_eq!(
+        state_of(&open, id).0,
+        "draft",
+        "sua mot segment da ky dua no ve nhap"
+    );
     confirm_segment(Some(&open), id).expect("xac nhan C");
 
     let rows = tm_rows(&open);
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0], first[0], "hang dau khong bi sua");
-    assert_eq!((rows[1].1.as_str(), rows[1].2.as_str()), (source.as_str(), "C"));
+    assert_eq!(
+        (rows[1].1.as_str(), rows[1].2.as_str()),
+        (source.as_str(), "C")
+    );
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -178,7 +215,12 @@ fn the_same_pair_confirmed_twice_over_a_detour_is_stored_three_times() {
 
     let got = pairs(&open);
     assert_eq!(got.len(), 3);
-    assert_eq!(got.iter().filter(|p| **p == (source.clone(), "B".to_owned())).count(), 2);
+    assert_eq!(
+        got.iter()
+            .filter(|p| **p == (source.clone(), "B".to_owned()))
+            .count(),
+        2
+    );
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -226,11 +268,19 @@ fn merging_or_splitting_prose_after_confirm_leaves_every_pair_byte_identical() {
     assert_eq!(before.len(), 3);
 
     let merged = merge_segments(Some(&open), ids[1]).expect("gop");
-    assert_eq!(tm_rows(&open), before, "gop ve huu hang segment nhung khong cham cap");
+    assert_eq!(
+        tm_rows(&open),
+        before,
+        "gop ve huu hang segment nhung khong cham cap"
+    );
 
     let new_id = merged.new_segments[0].id;
     split_segment(Some(&open), new_id, vec![1]).expect("tach");
-    assert_eq!(tm_rows(&open), before, "tach ve huu hang segment nhung khong cham cap");
+    assert_eq!(
+        tm_rows(&open),
+        before,
+        "tach ve huu hang segment nhung khong cham cap"
+    );
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -262,7 +312,8 @@ fn merging_or_splitting_with_a_role_segment_is_refused_and_writes_nothing() {
     let rows_before = || -> Vec<(i64, Option<String>, bool)> {
         open.store
             .read(|conn| {
-                let mut stmt = conn.prepare("SELECT id, role, retired_at IS NOT NULL FROM segment ORDER BY id")?;
+                let mut stmt = conn
+                    .prepare("SELECT id, role, retired_at IS NOT NULL FROM segment ORDER BY id")?;
                 let rows = stmt
                     .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
                     .collect::<Result<Vec<_>, _>>()?;
@@ -274,7 +325,10 @@ fn merging_or_splitting_with_a_role_segment_is_refused_and_writes_nothing() {
 
     for (label, result) in [
         ("gop voi hang tren", merge_segments(Some(&open), ids[1])),
-        ("gop hang duoi vao hang vai", merge_segments(Some(&open), ids[2])),
+        (
+            "gop hang duoi vao hang vai",
+            merge_segments(Some(&open), ids[2]),
+        ),
         ("tach", split_segment(Some(&open), ids[1], vec![1])),
     ] {
         let err = result.expect_err(label);
@@ -302,7 +356,10 @@ fn promoting_onto_a_confirmed_segment_returns_it_to_draft_and_the_next_confirm_w
     assert_eq!(out.status, "draft");
     assert_eq!(out.translation_origin, TRANSLATION_ORIGIN_OTHER);
     let (status, pair_origin, _) = state_of(&open, id);
-    assert_eq!((status.as_str(), pair_origin.as_str()), ("draft", TRANSLATION_ORIGIN_OTHER));
+    assert_eq!(
+        (status.as_str(), pair_origin.as_str()),
+        ("draft", TRANSLATION_ORIGIN_OTHER)
+    );
     assert_eq!(tm_rows(&open).len(), 1, "nang cap khong ghi cap");
 
     confirm_segment(Some(&open), id).expect("xac nhan lai");
@@ -361,15 +418,33 @@ fn tm_unit_carries_no_reference_to_segment_chapter_or_position() {
     let cols: Vec<String> = open
         .store
         .read(|conn| {
-            let mut stmt = conn.prepare("SELECT name FROM pragma_table_info('tm_unit') ORDER BY cid")?;
-            let rows = stmt.query_map([], |r| r.get(0))?.collect::<Result<Vec<String>, _>>()?;
+            let mut stmt =
+                conn.prepare("SELECT name FROM pragma_table_info('tm_unit') ORDER BY cid")?;
+            let rows = stmt
+                .query_map([], |r| r.get(0))?
+                .collect::<Result<Vec<String>, _>>()?;
             Ok(rows)
         })
         .expect("doc cot");
-    assert_eq!(cols, ["id", "source_text", "target_text", "translation_origin", "created_at"]);
+    assert_eq!(
+        cols,
+        [
+            "id",
+            "source_text",
+            "target_text",
+            "translation_origin",
+            "created_at"
+        ]
+    );
     let fks: i64 = open
         .store
-        .read(|conn| conn.query_row("SELECT COUNT(*) FROM pragma_foreign_key_list('tm_unit')", [], |r| r.get(0)))
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM pragma_foreign_key_list('tm_unit')",
+                [],
+                |r| r.get(0),
+            )
+        })
         .expect("doc fk");
     assert_eq!(fks, 0);
     drop(open);
@@ -379,14 +454,19 @@ fn tm_unit_carries_no_reference_to_segment_chapter_or_position() {
 #[test]
 fn the_wire_confirm_writes_the_pair_through_the_command_shell() {
     let dir = temp_dir("wire");
-    let open = create_work_from_text(&dir, "wire", "en", "", "A dragon roared.".to_owned()).expect("tao tac pham");
-    let app: tauri::App<MockRuntime> = mock_builder().build(mock_context(noop_assets())).expect("dung app");
+    let open = create_work_from_text(&dir, "wire", "en", "", "A dragon roared.".to_owned())
+        .expect("tao tac pham");
+    let app: tauri::App<MockRuntime> = mock_builder()
+        .build(mock_context(noop_assets()))
+        .expect("dung app");
     app.manage(OpenWorkState::new(Some(open)));
     let _guard = DirGuard(dir);
 
     let id = {
         let state = app.state::<OpenWorkState>();
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let open = guard.as_ref().expect("dang mo");
         let (chapter_id, ids) = segment_ids(open);
         type_text(open, chapter_id, ids[0], "Rong gam.");
@@ -397,9 +477,14 @@ fn the_wire_confirm_writes_the_pair_through_the_command_shell() {
     assert!(outcome.version_created);
 
     let state = app.state::<OpenWorkState>();
-    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let rows = pairs(guard.as_ref().expect("dang mo"));
-    assert_eq!(rows, [("A dragon roared.".to_owned(), "Rong gam.".to_owned())]);
+    assert_eq!(
+        rows,
+        [("A dragon roared.".to_owned(), "Rong gam.".to_owned())]
+    );
 }
 
 fn bilingual_work(tag: &str, rows: usize) -> (PathBuf, OpenWork) {
@@ -446,10 +531,7 @@ fn a_typed_then_confirmed_pair_is_mine() {
 fn a_verbatim_bilingual_confirm_keeps_the_bilingual_import_origin() {
     let (root, open) = bilingual_work("bi-verbatim", 1);
     let (_, ids) = segment_ids(&open);
-    confirm_segment(
-        Some(&open),
-        ids[0])
-    .expect("xac nhan");
+    confirm_segment(Some(&open), ids[0]).expect("xac nhan");
     let rows = tm_rows(&open);
     assert_eq!(
         (rows[0].2.as_str(), rows[0].3.as_str()),
@@ -464,10 +546,7 @@ fn a_rewritten_bilingual_confirm_is_mine() {
     let (root, open) = bilingual_work("bi-rewrite", 1);
     let (chapter_id, ids) = segment_ids(&open);
     type_text(&open, chapter_id, ids[0], "C");
-    confirm_segment(
-        Some(&open),
-        ids[0])
-    .expect("xac nhan");
+    confirm_segment(Some(&open), ids[0]).expect("xac nhan");
     let rows = tm_rows(&open);
     assert_eq!(
         (rows[0].2.as_str(), rows[0].3.as_str()),
@@ -510,10 +589,7 @@ fn an_edited_bilingual_work_writes_one_pair_per_confirm_each_with_its_own_origin
         if i % 3 == 0 {
             type_text(&open, chapter_id, *id, &format!("Viet lai {i}."));
         }
-        confirm_segment(
-            Some(&open),
-            *id)
-        .expect("xac nhan");
+        confirm_segment(Some(&open), *id).expect("xac nhan");
     }
     let rows = tm_rows(&open);
     assert_eq!(rows.len(), 60, "khong cap nao bi bo");
@@ -566,7 +642,8 @@ fn indexed_of(open: &OpenWork) -> auratranslate_lib::core::library::indexer::Ind
 fn reopen(open: OpenWork) -> OpenWork {
     let indexed = indexed_of(&open);
     drop(open);
-    auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed)).expect("mo lai tac pham")
+    auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect("mo lai tac pham")
 }
 
 #[test]
@@ -585,7 +662,10 @@ fn an_out_of_set_baseline_origin_on_unchanged_text_is_refused_and_writes_nothing
     let before = state_of(&open, ids[0]);
     let err = confirm_segment(Some(&open), ids[0]).expect_err("phai tu choi");
     assert_eq!(err.code(), "segment.unknown_translation_origin");
-    assert!(tm_rows(&open).is_empty(), "khong cap nao voi origin ngoai tap");
+    assert!(
+        tm_rows(&open).is_empty(),
+        "khong cap nao voi origin ngoai tap"
+    );
     assert_eq!(state_of(&open, ids[0]), before);
     drop(open);
     let _ = fs::remove_dir_all(root);
@@ -604,7 +684,10 @@ fn a_rewrite_flushed_before_a_chapter_reload_and_an_app_restart_is_still_mine() 
     confirm_segment(Some(&open), ids[0]).expect("xac nhan");
     let rows = tm_rows(&open);
     assert_eq!(rows.len(), 1);
-    assert_eq!((rows[0].2.as_str(), rows[0].3.as_str()), ("C", TRANSLATION_ORIGIN_SELF));
+    assert_eq!(
+        (rows[0].2.as_str(), rows[0].3.as_str()),
+        ("C", TRANSLATION_ORIGIN_SELF)
+    );
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -641,7 +724,8 @@ fn merging_two_verbatim_bilingual_drafts_keeps_the_bilingual_import_origin() {
 }
 
 #[test]
-fn restoring_an_older_version_then_confirming_unchanged_is_others_even_when_the_baseline_was_mine() {
+fn restoring_an_older_version_then_confirming_unchanged_is_others_even_when_the_baseline_was_mine()
+{
     let (root, open) = work("restore-baseline", "一。二。");
     let (chapter_id, ids) = segment_ids(&open);
     let id = ids[0];
@@ -661,13 +745,21 @@ fn restoring_an_older_version_then_confirming_unchanged_is_others_even_when_the_
         })
         .expect("tim phien ban A");
 
-    auratranslate_lib::commands::segment::restore_segment_version(Some(&open), id, version_a, false)
-        .expect("khoi phuc");
+    auratranslate_lib::commands::segment::restore_segment_version(
+        Some(&open),
+        id,
+        version_a,
+        false,
+    )
+    .expect("khoi phuc");
     confirm_segment(Some(&open), id).expect("xac nhan sau khoi phuc");
 
     let rows = tm_rows(&open);
     assert_eq!(rows.len(), 3);
-    assert_eq!((rows[2].2.as_str(), rows[2].3.as_str()), ("A", TRANSLATION_ORIGIN_OTHER));
+    assert_eq!(
+        (rows[2].2.as_str(), rows[2].3.as_str()),
+        ("A", TRANSLATION_ORIGIN_OTHER)
+    );
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -690,11 +782,18 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 34, "mo lai phai chay buoc 28 den 34 that");
+    assert_eq!(
+        open.store.schema_version(),
+        34,
+        "mo lai phai chay buoc 28 den 34 that"
+    );
 
     confirm_segment(Some(&open), ids[0]).expect("xac nhan");
     let rows = tm_rows(&open);
-    assert_eq!((rows[0].2.as_str(), rows[0].3.as_str()), ("Viet truoc buoc 28.", TRANSLATION_ORIGIN_SELF));
+    assert_eq!(
+        (rows[0].2.as_str(), rows[0].3.as_str()),
+        ("Viet truoc buoc 28.", TRANSLATION_ORIGIN_SELF)
+    );
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -732,15 +831,25 @@ fn the_step_28_backfill_copies_target_and_origin_into_the_baseline_of_every_row_
                  baseline_translation_origin FROM segment ORDER BY id",
             )?;
             let rows = stmt
-                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?
+                .query_map([], |r| {
+                    Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+                })?
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(rows)
         })
         .expect("doc hang");
     assert_eq!(rows.len(), 2);
-    assert!(rows.iter().any(|r| r.0 == retired), "hang da nghi huu phai nam trong phep doc");
+    assert!(
+        rows.iter().any(|r| r.0 == retired),
+        "hang da nghi huu phai nam trong phep doc"
+    );
     for row in &rows {
-        assert_eq!((&row.3, &row.4), (&row.1, &row.2), "moc phai bang (target_text, translation_origin) o hang {}", row.0);
+        assert_eq!(
+            (&row.3, &row.4),
+            (&row.1, &row.2),
+            "moc phai bang (target_text, translation_origin) o hang {}",
+            row.0
+        );
     }
 
     confirm_segment(Some(&open), draft).expect("xac nhan");
@@ -783,8 +892,10 @@ fn open_global_db(dir: &Path) -> Store {
 }
 
 fn seed(store: &Store, rows: &[(&str, &str, &str)]) {
-    let rows: Vec<(String, String, String)> =
-        rows.iter().map(|(a, b, c)| ((*a).to_owned(), (*b).to_owned(), (*c).to_owned())).collect();
+    let rows: Vec<(String, String, String)> = rows
+        .iter()
+        .map(|(a, b, c)| ((*a).to_owned(), (*b).to_owned(), (*c).to_owned()))
+        .collect();
     store
         .write(move |tx: &Transaction<'_>| {
             for (source, target, pair_origin) in &rows {
@@ -799,13 +910,20 @@ fn seed(store: &Store, rows: &[(&str, &str, &str)]) {
         .expect("gieo tm_unit");
 }
 
-fn lookup(global: &Store, open: Option<&OpenWork>, source: &str) -> Result<Vec<TmPair>, TmStoreError> {
+fn lookup(
+    global: &Store,
+    open: Option<&OpenWork>,
+    source: &str,
+) -> Result<Vec<TmPair>, TmStoreError> {
     let resolver = open.map_or_else(ScopeResolver::global_only, |o| o.scope.clone());
     pairs_for_source(&resolver, global, open.map(|o| &o.store), source)
 }
 
 fn shape(pairs: &[TmPair]) -> Vec<(&str, TmTier)> {
-    pairs.iter().map(|p| (p.target_text.as_str(), p.tier)).collect()
+    pairs
+        .iter()
+        .map(|p| (p.target_text.as_str(), p.tier))
+        .collect()
 }
 
 #[test]
@@ -847,7 +965,14 @@ fn within_the_others_side_the_work_tier_comes_first() {
 fn seed_dated(store: &Store, rows: &[(&str, &str, &str, &str)]) {
     let rows: Vec<(String, String, String, String)> = rows
         .iter()
-        .map(|(a, b, c, d)| ((*a).to_owned(), (*b).to_owned(), (*c).to_owned(), (*d).to_owned()))
+        .map(|(a, b, c, d)| {
+            (
+                (*a).to_owned(),
+                (*b).to_owned(),
+                (*c).to_owned(),
+                (*d).to_owned(),
+            )
+        })
         .collect();
     store
         .write(move |tx: &Transaction<'_>| {
@@ -879,7 +1004,11 @@ fn same_side_and_tier_orders_newest_first_then_highest_id() {
     let got = lookup(&global, Some(&open), "S").expect("tra");
     assert_eq!(
         shape(&got),
-        [("tie-high-id", TmTier::Work), ("newest-low-id", TmTier::Work), ("oldest-high-id", TmTier::Work)]
+        [
+            ("tie-high-id", TmTier::Work),
+            ("newest-low-id", TmTier::Work),
+            ("oldest-high-id", TmTier::Work)
+        ]
     );
     assert_eq!(got[2].created_at, "2026-06-28T00:00:00.000Z");
     drop((open, global));
@@ -890,13 +1019,26 @@ fn same_side_and_tier_orders_newest_first_then_highest_id() {
 fn side_and_tier_beat_the_date() {
     let (root, open) = work("dual-date-side", "一。");
     let global = open_global_db(&root);
-    seed_dated(&global, &[("S", "global-mine-old", "self", "2026-01-01T00:00:00.000Z")]);
-    seed_dated(&open.store, &[("S", "work-other-new", "other", "2026-09-01T00:00:00.000Z")]);
-    seed_dated(&open.store, &[("S", "work-mine-old", "self", "2026-02-01T00:00:00.000Z")]);
+    seed_dated(
+        &global,
+        &[("S", "global-mine-old", "self", "2026-01-01T00:00:00.000Z")],
+    );
+    seed_dated(
+        &open.store,
+        &[("S", "work-other-new", "other", "2026-09-01T00:00:00.000Z")],
+    );
+    seed_dated(
+        &open.store,
+        &[("S", "work-mine-old", "self", "2026-02-01T00:00:00.000Z")],
+    );
     let got = lookup(&global, Some(&open), "S").expect("tra");
     assert_eq!(
         shape(&got),
-        [("work-mine-old", TmTier::Work), ("global-mine-old", TmTier::Global), ("work-other-new", TmTier::Work)]
+        [
+            ("work-mine-old", TmTier::Work),
+            ("global-mine-old", TmTier::Global),
+            ("work-other-new", TmTier::Work)
+        ]
     );
     drop((open, global));
     let _ = fs::remove_dir_all(root);
@@ -951,14 +1093,24 @@ fn an_unknown_stored_origin_in_either_tier_is_an_error_naming_the_value() {
     let global = open_global_db(&root);
     seed(&global, &[("S", "g", "x")]);
     let err = lookup(&global, Some(&open), "S").expect_err("nguon goc la");
-    assert_eq!(err, TmStoreError::UnknownPairOrigin { value: "x".to_owned() });
+    assert_eq!(
+        err,
+        TmStoreError::UnknownPairOrigin {
+            value: "x".to_owned()
+        }
+    );
     assert!(err.to_string().contains("\"x\""));
 
     let (root2, open2) = work("dual-unknown-work", "一。");
     let global2 = open_global_db(&root2);
     seed(&open2.store, &[("S", "w", "")]);
     let err = lookup(&global2, Some(&open2), "S").expect_err("nguon goc rong");
-    assert_eq!(err, TmStoreError::UnknownPairOrigin { value: String::new() });
+    assert_eq!(
+        err,
+        TmStoreError::UnknownPairOrigin {
+            value: String::new()
+        }
+    );
     drop((open, global, open2, global2));
     let _ = fs::remove_dir_all(root);
     let _ = fs::remove_dir_all(root2);
@@ -967,16 +1119,21 @@ fn an_unknown_stored_origin_in_either_tier_is_an_error_naming_the_value() {
 #[test]
 fn the_wire_confirm_writes_only_the_work_tier_with_both_stores_managed() {
     let dir = temp_dir("dual-wire");
-    let open = create_work_from_text(&dir, "dual-wire", "en", "", "A dragon roared.".to_owned()).expect("tao tac pham");
+    let open = create_work_from_text(&dir, "dual-wire", "en", "", "A dragon roared.".to_owned())
+        .expect("tao tac pham");
     let global = open_global_db(&dir);
-    let app: tauri::App<MockRuntime> = mock_builder().build(mock_context(noop_assets())).expect("dung app");
+    let app: tauri::App<MockRuntime> = mock_builder()
+        .build(mock_context(noop_assets()))
+        .expect("dung app");
     app.manage(OpenWorkState::new(Some(open)));
     app.manage(global);
     let _guard = DirGuard(dir);
 
     let id = {
         let state = app.state::<OpenWorkState>();
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let open = guard.as_ref().expect("dang mo");
         let (chapter_id, ids) = segment_ids(open);
         type_text(open, chapter_id, ids[0], "Rong gam.");
@@ -990,7 +1147,9 @@ fn the_wire_confirm_writes_only_the_work_tier_with_both_stores_managed() {
             .expect("dem tm_unit")
     };
     let state = app.state::<OpenWorkState>();
-    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     assert_eq!(count(&guard.as_ref().expect("dang mo").store), 1);
     assert_eq!(count(&app.state::<Store>()), 0);
 }
@@ -998,24 +1157,52 @@ fn the_wire_confirm_writes_only_the_work_tier_with_both_stores_managed() {
 #[test]
 fn a_fresh_and_an_upgraded_global_db_both_end_at_version_13_with_tm_unit_and_its_source_index() {
     let has_tm = |s: &Store| -> i64 {
-        s.read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit'", [], |r| r.get(0)))
-            .expect("doc master")
+        s.read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("doc master")
     };
     let has_index = |s: &Store| -> i64 {
-        s.read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit_source_text'", [], |r| r.get(0)))
-            .expect("doc master")
+        s.read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit_source_text'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("doc master")
     };
     let fresh_dir = temp_dir("dual-fresh");
     let fresh = open_global_db(&fresh_dir);
-    assert_eq!((fresh.schema_version(), has_tm(&fresh), has_index(&fresh)), (13, 1, 1));
+    assert_eq!(
+        (fresh.schema_version(), has_tm(&fresh), has_index(&fresh)),
+        (13, 1, 1)
+    );
 
     let old_dir = temp_dir("dual-upgrade");
-    let old = Store::open(StoreSpec { migrations: &GLOBAL_MIGRATIONS[..11], ..StoreSpec::global(old_dir.join("global.db")) })
-        .expect("mo o buoc 11");
-    assert_eq!((old.schema_version(), has_tm(&old), has_index(&old)), (11, 1, 0));
+    let old = Store::open(StoreSpec {
+        migrations: &GLOBAL_MIGRATIONS[..11],
+        ..StoreSpec::global(old_dir.join("global.db"))
+    })
+    .expect("mo o buoc 11");
+    assert_eq!(
+        (old.schema_version(), has_tm(&old), has_index(&old)),
+        (11, 1, 0)
+    );
     drop(old);
     let upgraded = open_global_db(&old_dir);
-    assert_eq!((upgraded.schema_version(), has_tm(&upgraded), has_index(&upgraded)), (13, 1, 1));
+    assert_eq!(
+        (
+            upgraded.schema_version(),
+            has_tm(&upgraded),
+            has_index(&upgraded)
+        ),
+        (13, 1, 1)
+    );
     drop((fresh, upgraded));
     let _ = fs::remove_dir_all(fresh_dir);
     let _ = fs::remove_dir_all(old_dir);
@@ -1032,7 +1219,13 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
     let open = reopen(open);
     let has_index: i64 = open
         .store
-        .read(|conn| conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit_source_text'", [], |r| r.get(0)))
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name = 'tm_unit_source_text'",
+                [],
+                |r| r.get(0),
+            )
+        })
         .expect("doc master");
     assert_eq!((open.store.schema_version(), has_index), (34, 1));
     drop(open);
@@ -1048,18 +1241,25 @@ fn wired(tag: &str, text: &str, manage_global: bool) -> Wired {
     let dir = temp_dir(tag);
     let open = create_work_from_text(&dir, tag, "en", "", text.to_owned()).expect("tao tac pham");
     let global = open_global_db(&dir);
-    let app: tauri::App<MockRuntime> = mock_builder().build(mock_context(noop_assets())).expect("dung app");
+    let app: tauri::App<MockRuntime> = mock_builder()
+        .build(mock_context(noop_assets()))
+        .expect("dung app");
     app.manage(OpenWorkState::new(Some(open)));
     if manage_global {
         app.manage(global);
     }
-    Wired { app, _guard: DirGuard(dir) }
+    Wired {
+        app,
+        _guard: DirGuard(dir),
+    }
 }
 
 impl Wired {
     fn with_open<R>(&self, f: impl FnOnce(&OpenWork) -> R) -> R {
         let state = self.app.state::<OpenWorkState>();
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         f(guard.as_ref().expect("dang mo"))
     }
 
@@ -1110,10 +1310,17 @@ fn an_exact_work_pair_prefills_an_empty_draft_with_its_origin_baseline_and_no_ve
 
     assert_eq!(chapter.tm_filled_segment_ids, [id]);
     assert_eq!(chapter.segments[0].target_text, "Rong gam.");
-    assert_eq!(w.with_open(|o| state_of(o, id)), ("draft".to_owned(), "self".to_owned(), 0));
+    assert_eq!(
+        w.with_open(|o| state_of(o, id)),
+        ("draft".to_owned(), "self".to_owned(), 0)
+    );
     assert_eq!(
         w.target_and_baseline(id),
-        ("Rong gam.".to_owned(), "Rong gam.".to_owned(), "self".to_owned())
+        (
+            "Rong gam.".to_owned(),
+            "Rong gam.".to_owned(),
+            "self".to_owned()
+        )
     );
 }
 
@@ -1139,7 +1346,10 @@ fn a_segment_with_no_pair_is_left_untouched() {
 
     assert!(chapter.tm_filled_segment_ids.is_empty());
     assert_eq!(chapter.segments[0].target_text, "");
-    assert_eq!(w.with_open(|o| state_of(o, chapter.segments[0].id)).0, "draft");
+    assert_eq!(
+        w.with_open(|o| state_of(o, chapter.segments[0].id)).0,
+        "draft"
+    );
 }
 
 #[test]
@@ -1170,11 +1380,15 @@ fn confirmed_omitted_and_retired_segments_are_left_untouched() {
         let (chapter_id, _) = segment_ids(open);
         type_text(open, chapter_id, ids[0], "Da ky.");
         confirm_segment(Some(open), ids[0]).expect("xac nhan");
-        auratranslate_lib::commands::segment::set_segment_omitted(Some(open), ids[1], true).expect("cat bo");
+        auratranslate_lib::commands::segment::set_segment_omitted(Some(open), ids[1], true)
+            .expect("cat bo");
         let retire = ids[2];
         open.store
             .write(move |tx: &Transaction<'_>| {
-                tx.execute("UPDATE segment SET retired_at = '2026-01-01T00:00:00.000Z' WHERE id = ?1", [retire])
+                tx.execute(
+                    "UPDATE segment SET retired_at = '2026-01-01T00:00:00.000Z' WHERE id = ?1",
+                    [retire],
+                )
             })
             .expect("ve huu");
     });
@@ -1190,7 +1404,11 @@ fn confirmed_omitted_and_retired_segments_are_left_untouched() {
 
 fn w_target(open: &OpenWork, id: i64) -> String {
     open.store
-        .read(move |conn| conn.query_row("SELECT target_text FROM segment WHERE id = ?1", [id], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row("SELECT target_text FROM segment WHERE id = ?1", [id], |r| {
+                r.get(0)
+            })
+        })
         .expect("doc target")
 }
 
@@ -1207,7 +1425,10 @@ fn confirming_a_filled_segment_unedited_keeps_the_pair_origin_in_the_tm_and_on_t
         assert_eq!(state_of(open, id).1, TRANSLATION_ORIGIN_BILINGUAL_IMPORT);
         let rows = tm_rows(open);
         let last = rows.last().expect("co cap moi");
-        assert_eq!((last.2.as_str(), last.3.as_str()), ("Rong gam.", TRANSLATION_ORIGIN_BILINGUAL_IMPORT));
+        assert_eq!(
+            (last.2.as_str(), last.3.as_str()),
+            ("Rong gam.", TRANSLATION_ORIGIN_BILINGUAL_IMPORT)
+        );
     });
 }
 
@@ -1249,7 +1470,12 @@ fn a_load_without_a_managed_global_store_returns_the_segments_and_skips_the_pref
 
     let chapter = w.load();
 
-    assert_eq!(chapter.tm_prefill, TmPrefillStatus::Skipped { code: "store.open_failed".to_owned() });
+    assert_eq!(
+        chapter.tm_prefill,
+        TmPrefillStatus::Skipped {
+            code: "store.open_failed".to_owned()
+        }
+    );
     assert!(chapter.tm_filled_segment_ids.is_empty());
     assert_eq!(chapter.segments.len(), 1);
     assert_eq!(w.with_open(|o| w_target(o, id)), "");
@@ -1263,7 +1489,12 @@ fn a_global_row_with_an_unknown_origin_skips_the_prefill_and_writes_nothing() {
 
     let chapter = w.load();
 
-    assert_eq!(chapter.tm_prefill, TmPrefillStatus::Skipped { code: "tm.lookup_failed".to_owned() });
+    assert_eq!(
+        chapter.tm_prefill,
+        TmPrefillStatus::Skipped {
+            code: "tm.lookup_failed".to_owned()
+        }
+    );
     assert!(chapter.tm_filled_segment_ids.is_empty());
     assert_eq!(chapter.segments.len(), 1);
     assert_eq!(w.with_open(|o| w_target(o, id)), "");
@@ -1277,7 +1508,12 @@ fn a_work_row_with_an_unknown_origin_skips_the_prefill_and_writes_nothing() {
 
     let chapter = w.load();
 
-    assert_eq!(chapter.tm_prefill, TmPrefillStatus::Skipped { code: "tm.lookup_failed".to_owned() });
+    assert_eq!(
+        chapter.tm_prefill,
+        TmPrefillStatus::Skipped {
+            code: "tm.lookup_failed".to_owned()
+        }
+    );
     assert!(chapter.tm_filled_segment_ids.is_empty());
     assert_eq!(w.with_open(|o| w_target(o, id)), "");
 }
@@ -1300,7 +1536,10 @@ fn a_failing_fill_write_rolls_back_and_still_returns_the_segments() {
 
     let chapter = w.load();
 
-    assert!(matches!(chapter.tm_prefill, TmPrefillStatus::Skipped { .. }));
+    assert!(matches!(
+        chapter.tm_prefill,
+        TmPrefillStatus::Skipped { .. }
+    ));
     assert!(chapter.tm_filled_segment_ids.is_empty());
     assert_eq!(chapter.segments.len(), 1);
     assert_eq!(w.with_open(|o| w_target(o, id)), "");
@@ -1312,7 +1551,8 @@ fn a_valid_load_reports_ran_and_an_unasked_load_reports_not_asked() {
     let id = w.first_id();
     w.seed_work(&w.source(id), "Rong gam.", "self");
 
-    let unasked = wire::read_open_chapter_segments(w.app.handle().clone(), Some(false)).expect("nap chuong");
+    let unasked =
+        wire::read_open_chapter_segments(w.app.handle().clone(), Some(false)).expect("nap chuong");
     assert_eq!(unasked.tm_prefill, TmPrefillStatus::NotAsked);
     assert!(unasked.tm_filled_segment_ids.is_empty());
     assert_eq!(w.with_open(|o| w_target(o, id)), "");
@@ -1349,7 +1589,12 @@ fn two_empty_drafts_with_the_same_source_are_both_filled_from_one_pair() {
     let chapter = w.load();
 
     assert_eq!(chapter.tm_filled_segment_ids, ids);
-    assert!(chapter.segments.iter().all(|s| s.target_text == "Dich chung."));
+    assert!(
+        chapter
+            .segments
+            .iter()
+            .all(|s| s.target_text == "Dich chung.")
+    );
 }
 
 #[test]
@@ -1384,13 +1629,23 @@ fn fuzzy(w: &Wired, id: i64) -> auratranslate_lib::commands::segment::TmFuzzyMat
     wire::tm_fuzzy_matches(w.app.handle().clone(), id).expect("quet khop mo")
 }
 
-fn fuzzy_shape(m: &auratranslate_lib::commands::segment::TmFuzzyMatches) -> Vec<(&str, &str, &str)> {
-    m.matches.iter().map(|x| (x.target_text.as_str(), x.tier, x.side)).collect()
+fn fuzzy_shape(
+    m: &auratranslate_lib::commands::segment::TmFuzzyMatches,
+) -> Vec<(&str, &str, &str)> {
+    m.matches
+        .iter()
+        .map(|x| (x.target_text.as_str(), x.tier, x.side))
+        .collect()
 }
 
 fn set_threshold(w: &Wired, value: &str) {
-    auratranslate_lib::commands::config::put_config(Some(&w.app.state::<Store>()), "app_config", "tm_fuzzy_threshold", value)
-        .expect("ghi nguong");
+    auratranslate_lib::commands::config::put_config(
+        Some(&w.app.state::<Store>()),
+        "app_config",
+        "tm_fuzzy_threshold",
+        value,
+    )
+    .expect("ghi nguong");
 }
 
 #[test]
@@ -1399,8 +1654,15 @@ fn a_near_pair_comes_back_with_percent_tier_side_and_pair_identity() {
     w.seed_work(FUZZY_NEAR, "near", "self");
     let id = w.first_id();
     let got = fuzzy(&w, id);
-    assert_eq!((got.segment_id, fuzzy_shape(&got)), (id, vec![("near", "work", "mine")]));
-    assert!((65..100).contains(&got.matches[0].percent), "percent {}", got.matches[0].percent);
+    assert_eq!(
+        (got.segment_id, fuzzy_shape(&got)),
+        (id, vec![("near", "work", "mine")])
+    );
+    assert!(
+        (65..100).contains(&got.matches[0].percent),
+        "percent {}",
+        got.matches[0].percent
+    );
     assert_eq!(got.matches[0].source_text, FUZZY_NEAR);
     assert!(got.matches[0].unit_id > 0);
 }
@@ -1408,7 +1670,11 @@ fn a_near_pair_comes_back_with_percent_tier_side_and_pair_identity() {
 #[test]
 fn a_pair_below_the_threshold_gives_no_match() {
     let w = wired("fz-low", FUZZY_CURRENT, true);
-    w.seed_work("Completely unrelated words appear in this other sentence.", "far", "self");
+    w.seed_work(
+        "Completely unrelated words appear in this other sentence.",
+        "far",
+        "self",
+    );
     assert!(fuzzy(&w, w.first_id()).matches.is_empty());
 }
 
@@ -1427,9 +1693,16 @@ fn the_threshold_setting_decides_and_an_out_of_range_value_keeps_65() {
     let id = w.first_id();
     let percent = fuzzy(&w, id).matches[0].percent;
     set_threshold(&w, &(u32::from(percent) + 1).to_string());
-    assert!(fuzzy(&w, id).matches.is_empty(), "nguong cao hon diem phai loai cap");
+    assert!(
+        fuzzy(&w, id).matches.is_empty(),
+        "nguong cao hon diem phai loai cap"
+    );
     set_threshold(&w, "30");
-    assert_eq!(fuzzy(&w, id).matches.len(), 1, "gia tri ngoai khoang phai ve 65");
+    assert_eq!(
+        fuzzy(&w, id).matches.len(),
+        1,
+        "gia tri ngoai khoang phai ve 65"
+    );
     set_threshold(&w, &percent.to_string());
     assert_eq!(fuzzy(&w, id).matches.len(), 1, "diem bang nguong van vao");
 }
@@ -1439,11 +1712,27 @@ const KEPT_TOP3: [&str; 3] = ["w-b", "g-a", "w-a"];
 #[test]
 fn only_the_best_three_come_back_ordered_by_score_then_ad_18() {
     let w = wired("fz-top3", FUZZY_CURRENT, true);
-    w.seed_work("The quick brown fox jumps over the lazy dog today.", "w-a", "other");
-    w.seed_work("The quick brown fox jumps over the lazy dogs.", "w-b", "other");
+    w.seed_work(
+        "The quick brown fox jumps over the lazy dog today.",
+        "w-a",
+        "other",
+    );
+    w.seed_work(
+        "The quick brown fox jumps over the lazy dogs.",
+        "w-b",
+        "other",
+    );
     w.seed_work("The quick brown fox jumps over a lazy cat.", "w-c", "other");
-    w.seed_global("The quick brown fox jumps over the lazy dog today.", "g-a", "self");
-    w.seed_global("The quick brown fox leaps over the lazy cat.", "g-d", "other");
+    w.seed_global(
+        "The quick brown fox jumps over the lazy dog today.",
+        "g-a",
+        "self",
+    );
+    w.seed_global(
+        "The quick brown fox leaps over the lazy cat.",
+        "g-d",
+        "other",
+    );
     let got = fuzzy(&w, w.first_id());
     assert_eq!(got.matches.len(), 3);
     let kept: Vec<&str> = got.matches.iter().map(|m| m.target_text.as_str()).collect();
@@ -1457,7 +1746,11 @@ fn only_the_best_three_come_back_ordered_by_score_then_ad_18() {
         .filter(|m| m.source_text.ends_with("lazy dog today."))
         .map(|m| m.target_text.as_str())
         .collect();
-    assert_eq!(equal_pair, ["g-a", "w-a"], "cung diem: cua toi truoc, roi Work truoc Global");
+    assert_eq!(
+        equal_pair,
+        ["g-a", "w-a"],
+        "cung diem: cua toi truoc, roi Work truoc Global"
+    );
 }
 
 #[test]
@@ -1484,21 +1777,45 @@ fn a_hit_carries_the_source_diff_from_the_pair_source_to_the_caret_source() {
     let got = fuzzy(&w, w.first_id());
     let diff = &got.matches[0].diff;
     let side = |keep: DiffKind| -> String {
-        diff.iter().filter(|s| s.kind == DiffKind::Equal || s.kind == keep).map(|s| s.text.as_str()).collect()
+        diff.iter()
+            .filter(|s| s.kind == DiffKind::Equal || s.kind == keep)
+            .map(|s| s.text.as_str())
+            .collect()
     };
     assert_eq!(side(DiffKind::Delete), FUZZY_NEAR);
     assert_eq!(side(DiffKind::Insert), FUZZY_CURRENT);
-    assert!(diff.iter().any(|s| s.kind == DiffKind::Delete && s.text == "cat."));
-    assert!(diff.iter().any(|s| s.kind == DiffKind::Insert && s.text == "dog."));
+    assert!(
+        diff.iter()
+            .any(|s| s.kind == DiffKind::Delete && s.text == "cat.")
+    );
+    assert!(
+        diff.iter()
+            .any(|s| s.kind == DiffKind::Insert && s.text == "dog.")
+    );
 }
 
-fn accept(w: &Wired, id: i64, m: &auratranslate_lib::commands::segment::TmFuzzyMatch, force: bool)
-    -> Result<auratranslate_lib::commands::segment::PromoteAiTranslationOutcome, auratranslate_lib::core::i18n::IpcError> {
-    wire::accept_tm_fuzzy(w.app.handle().clone(), id, m.tier.to_owned(), m.unit_id, m.target_text.clone(), force)
+fn accept(
+    w: &Wired,
+    id: i64,
+    m: &auratranslate_lib::commands::segment::TmFuzzyMatch,
+    force: bool,
+) -> Result<
+    auratranslate_lib::commands::segment::PromoteAiTranslationOutcome,
+    auratranslate_lib::core::i18n::IpcError,
+> {
+    wire::accept_tm_fuzzy(
+        w.app.handle().clone(),
+        id,
+        m.tier.to_owned(),
+        m.unit_id,
+        m.target_text.clone(),
+        force,
+    )
 }
 
 #[test]
-fn accepting_a_row_into_an_empty_draft_writes_its_target_as_an_unconfirmed_other_draft_with_no_version() {
+fn accepting_a_row_into_an_empty_draft_writes_its_target_as_an_unconfirmed_other_draft_with_no_version()
+ {
     let w = wired("fz-accept", FUZZY_CURRENT, true);
     w.seed_work(FUZZY_NEAR, "near", "self");
     let id = w.first_id();
@@ -1507,9 +1824,22 @@ fn accepting_a_row_into_an_empty_draft_writes_its_target_as_an_unconfirmed_other
     let out = accept(&w, id, &m, false).expect("nhan");
 
     assert!(!out.needs_confirmation);
-    assert_eq!((out.target_text.as_str(), out.status.as_str(), out.translation_origin.as_str()), ("near", "draft", "other"));
-    assert_eq!(w.with_open(|o| state_of(o, id)), ("draft".to_owned(), "other".to_owned(), 0));
-    assert_eq!(w.target_and_baseline(id), ("near".to_owned(), "near".to_owned(), "other".to_owned()));
+    assert_eq!(
+        (
+            out.target_text.as_str(),
+            out.status.as_str(),
+            out.translation_origin.as_str()
+        ),
+        ("near", "draft", "other")
+    );
+    assert_eq!(
+        w.with_open(|o| state_of(o, id)),
+        ("draft".to_owned(), "other".to_owned(), 0)
+    );
+    assert_eq!(
+        w.target_and_baseline(id),
+        ("near".to_owned(), "near".to_owned(), "other".to_owned())
+    );
 }
 
 #[test]
@@ -1568,11 +1898,15 @@ fn scoring_runs_on_rows_read_earlier_so_the_open_work_lock_is_not_needed() {
     let id = w.first_id();
     let prepared = {
         let global = w.app.state::<Store>();
-        w.with_open(|open| auratranslate_lib::commands::segment::prepare_tm_fuzzy(Some(&*global), Some(open), id))
-            .expect("chuan bi")
+        w.with_open(|open| {
+            auratranslate_lib::commands::segment::prepare_tm_fuzzy(Some(&*global), Some(open), id)
+        })
+        .expect("chuan bi")
     };
     let state = w.app.state::<OpenWorkState>();
-    let held = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let held = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let got = auratranslate_lib::commands::segment::score_tm_fuzzy(prepared).expect("cham diem");
     drop(held);
     assert_eq!(got.matches.len(), 1);
@@ -1595,8 +1929,14 @@ fn a_retired_segment_is_an_error_and_a_whitespace_only_source_gives_an_empty_lis
         let (retired, blank) = (ids[0], ids[1]);
         open.store
             .write(move |tx: &Transaction<'_>| {
-                tx.execute("UPDATE segment SET retired_at = '2026-08-12T00:00:00.000Z' WHERE id = ?1", [retired])?;
-                tx.execute("UPDATE segment SET source_text = '   ' WHERE id = ?1", [blank])
+                tx.execute(
+                    "UPDATE segment SET retired_at = '2026-08-12T00:00:00.000Z' WHERE id = ?1",
+                    [retired],
+                )?;
+                tx.execute(
+                    "UPDATE segment SET source_text = '   ' WHERE id = ?1",
+                    [blank],
+                )
             })
             .expect("dat trang thai");
     });
@@ -1609,22 +1949,46 @@ fn a_retired_segment_is_an_error_and_a_whitespace_only_source_gives_an_empty_lis
 fn the_same_unit_id_in_both_tiers_keeps_each_tiers_own_score() {
     let w = wired("fz-same-id", FUZZY_CURRENT, true);
     w.seed_work(FUZZY_NEAR, "w-near", "other");
-    w.seed_global("The quick brown fox leaps over the lazy cat.", "g-far", "other");
+    w.seed_global(
+        "The quick brown fox leaps over the lazy cat.",
+        "g-far",
+        "other",
+    );
     let got = fuzzy(&w, w.first_id());
     assert_eq!(got.matches.len(), 2);
     assert_eq!(got.matches[0].unit_id, got.matches[1].unit_id);
-    let by_tier: Vec<(&str, &str)> = got.matches.iter().map(|m| (m.tier, m.target_text.as_str())).collect();
+    let by_tier: Vec<(&str, &str)> = got
+        .matches
+        .iter()
+        .map(|m| (m.tier, m.target_text.as_str()))
+        .collect();
     assert_eq!(by_tier, [("work", "w-near"), ("global", "g-far")]);
-    assert!(got.matches[0].percent > got.matches[1].percent, "{:?}", got.matches.iter().map(|m| m.percent).collect::<Vec<_>>());
+    assert!(
+        got.matches[0].percent > got.matches[1].percent,
+        "{:?}",
+        got.matches.iter().map(|m| m.percent).collect::<Vec<_>>()
+    );
 }
 
 #[test]
 fn a_chinese_work_scores_by_character_ngrams() {
     let dir = temp_dir("fz-zh");
-    let open = create_work_from_text(&dir, "fz-zh", "zh", "", "他今天去了很远的地方看望老朋友。".to_owned()).expect("tao");
+    let open = create_work_from_text(
+        &dir,
+        "fz-zh",
+        "zh",
+        "",
+        "他今天去了很远的地方看望老朋友。".to_owned(),
+    )
+    .expect("tao");
     let global = open_global_db(&dir);
-    let app: tauri::App<MockRuntime> = mock_builder().build(mock_context(noop_assets())).expect("dung app");
-    seed(&open.store, &[("他昨天去了很远的地方看望老朋友。", "zh-near", "self")]);
+    let app: tauri::App<MockRuntime> = mock_builder()
+        .build(mock_context(noop_assets()))
+        .expect("dung app");
+    seed(
+        &open.store,
+        &[("他昨天去了很远的地方看望老朋友。", "zh-near", "self")],
+    );
     let id = segment_ids(&open).1[0];
     app.manage(OpenWorkState::new(Some(open)));
     app.manage(global);
@@ -1638,11 +2002,20 @@ fn a_chinese_work_scores_by_character_ngrams() {
 #[ignore = "latency measurement: cargo test --release --test tm_contract fuzzy_scan_latency -- --ignored --nocapture"]
 fn fuzzy_scan_latency_over_100k_pairs_per_tier() {
     let w = wired("fz-perf", FUZZY_CURRENT, true);
-    let words = ["alpha", "river", "stone", "quick", "garden", "silver", "window", "paper", "winter", "candle", "market", "bridge"];
+    let words = [
+        "alpha", "river", "stone", "quick", "garden", "silver", "window", "paper", "winter",
+        "candle", "market", "bridge",
+    ];
     let sentence = |i: usize| -> String {
-        (0..9).map(|k| words[(i / (k + 1) + k * 5) % words.len()]).collect::<Vec<_>>().join(" ") + &format!(" {i}.")
+        (0..9)
+            .map(|k| words[(i / (k + 1) + k * 5) % words.len()])
+            .collect::<Vec<_>>()
+            .join(" ")
+            + &format!(" {i}.")
     };
-    let rows: Vec<(String, String)> = (0..100_000).map(|i| (sentence(i), format!("t{i}"))).collect();
+    let rows: Vec<(String, String)> = (0..100_000)
+        .map(|i| (sentence(i), format!("t{i}")))
+        .collect();
     let fill = |store: &Store| {
         let rows = rows.clone();
         store
@@ -1662,16 +2035,31 @@ fn fuzzy_scan_latency_over_100k_pairs_per_tier() {
     let id = w.first_id();
     let started = std::time::Instant::now();
     let got = fuzzy(&w, id);
-    eprintln!("fuzzy scan 2 x 100000 pairs: {:?}, matches {}", started.elapsed(), got.matches.len());
+    eprintln!(
+        "fuzzy scan 2 x 100000 pairs: {:?}, matches {}",
+        started.elapsed(),
+        got.matches.len()
+    );
 }
 
 fn glossary_marks_term_in(term: &str, text: &str, other: &str, source_lang: &str) -> bool {
     use auratranslate_lib::core::dict::DictLayers;
-    use auratranslate_lib::core::glossary::{Category, GlossaryTier, add_manual_term, marks_for_source_text, match_lang_for_source_lang};
+    use auratranslate_lib::core::glossary::{
+        Category, GlossaryTier, add_manual_term, marks_for_source_text, match_lang_for_source_lang,
+    };
     let dir = temp_dir("parity-glossary");
     let _guard = DirGuard(dir.clone());
     let global = open_global_db(&dir);
-    add_manual_term(&global, None, GlossaryTier::Global, term, None, "", Category::Place).expect("them muc");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        term,
+        None,
+        "",
+        Category::Place,
+    )
+    .expect("them muc");
     let marks = marks_for_source_text(
         &ScopeResolver::global_only(),
         &global,
@@ -1682,7 +2070,9 @@ fn glossary_marks_term_in(term: &str, text: &str, other: &str, source_lang: &str
         &Default::default(),
     )
     .expect("danh dau");
-    let [mark] = marks.as_slice() else { return false };
+    let [mark] = marks.as_slice() else {
+        return false;
+    };
     let byte_start = text.find(other).expect("form in sentence");
     let start = text[..byte_start].chars().count();
     let end = start + other.chars().count();
@@ -1692,7 +2082,7 @@ fn glossary_marks_term_in(term: &str, text: &str, other: &str, source_lang: &str
 
 fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
     use auratranslate_lib::core::glossary::match_lang_for_source_lang;
-    use auratranslate_lib::core::tm::{read_tier_rows, rank_fuzzy_candidates};
+    use auratranslate_lib::core::tm::{rank_fuzzy_candidates, read_tier_rows};
     let dir = temp_dir("parity-tm");
     let _guard = DirGuard(dir.clone());
     let global = open_global_db(&dir);
@@ -1716,11 +2106,17 @@ fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
 #[test]
 fn a_source_differing_only_by_surrounding_whitespace_scores_99_and_no_other_pair_changes() {
     use auratranslate_lib::core::matching::{DiffKind, MatchLang, diff_spans};
-    use auratranslate_lib::core::tm::{read_tier_rows, rank_fuzzy_candidates};
+    use auratranslate_lib::core::tm::{rank_fuzzy_candidates, read_tier_rows};
     let dir = temp_dir("same-text");
     let _guard = DirGuard(dir.clone());
     let global = open_global_db(&dir);
-    seed(&global, &[(" \u{3000}\u{7b2c}\u{4e09}\u{7ae0}\n", "padded", "self"), ("\u{7b2c}\u{4e09}\u{7ae0}\u{3002}", "punct", "self")]);
+    seed(
+        &global,
+        &[
+            (" \u{3000}\u{7b2c}\u{4e09}\u{7ae0}\n", "padded", "self"),
+            ("\u{7b2c}\u{4e09}\u{7ae0}\u{3002}", "punct", "self"),
+        ],
+    );
 
     let ranked = rank_fuzzy_candidates(
         &ScopeResolver::global_only(),
@@ -1731,11 +2127,25 @@ fn a_source_differing_only_by_surrounding_whitespace_scores_99_and_no_other_pair
     )
     .expect("xep hang");
 
-    let percent = |target: &str| ranked.iter().find(|f| f.pair.target_text == target).map(|f| f.percent);
+    let percent = |target: &str| {
+        ranked
+            .iter()
+            .find(|f| f.pair.target_text == target)
+            .map(|f| f.percent)
+    };
     assert_eq!((percent("padded"), percent("punct")), (Some(99), Some(83)));
-    let padded = ranked.iter().find(|f| f.pair.target_text == "padded").expect("hang padded");
+    let padded = ranked
+        .iter()
+        .find(|f| f.pair.target_text == "padded")
+        .expect("hang padded");
     assert!(
-        diff_spans(&padded.pair.source_text, "\u{7b2c}\u{4e09}\u{7ae0}", MatchLang::Zh).iter().all(|s| s.kind == DiffKind::Equal)
+        diff_spans(
+            &padded.pair.source_text,
+            "\u{7b2c}\u{4e09}\u{7ae0}",
+            MatchLang::Zh
+        )
+        .iter()
+        .all(|s| s.kind == DiffKind::Equal)
     );
 }
 
@@ -1780,8 +2190,13 @@ fn concordance(w: &Wired, query: &str) -> auratranslate_lib::commands::segment::
     wire::tm_concordance(w.app.handle().clone(), query.to_owned()).expect("tra Concordance")
 }
 
-fn concordance_shape(c: &auratranslate_lib::commands::segment::TmConcordance) -> Vec<(&str, &str, &str)> {
-    c.hits.iter().map(|h| (h.target_text.as_str(), h.tier, h.side)).collect()
+fn concordance_shape(
+    c: &auratranslate_lib::commands::segment::TmConcordance,
+) -> Vec<(&str, &str, &str)> {
+    c.hits
+        .iter()
+        .map(|h| (h.target_text.as_str(), h.tier, h.side))
+        .collect()
 }
 
 #[test]
@@ -1794,7 +2209,10 @@ fn a_phrase_in_both_tiers_lists_global_mine_before_work_other_with_side_and_tier
     assert_eq!((got.tm_empty, got.total), (false, 2));
     assert_eq!(
         concordance_shape(&got),
-        vec![("global-mine", "global", "mine"), ("work-other", "work", "others")]
+        vec![
+            ("global-mine", "global", "mine"),
+            ("work-other", "work", "others")
+        ]
     );
     assert!(got.hits.iter().all(|h| h.unit_id > 0));
 }
@@ -1804,7 +2222,10 @@ fn a_phrase_only_in_the_work_tier_leaves_the_global_hit_out() {
     let w = wired("cc-work-only", "一。", true);
     w.seed_work("他叫师父来。", "w", "other");
     w.seed_global("没有这个词。", "g", "self");
-    assert_eq!(concordance_shape(&concordance(&w, "师父")), vec![("w", "work", "others")]);
+    assert_eq!(
+        concordance_shape(&concordance(&w, "师父")),
+        vec![("w", "work", "others")]
+    );
 }
 
 #[test]
@@ -1864,11 +2285,19 @@ fn with_no_work_open_the_global_tier_alone_answers() {
     let dir = temp_dir("cc-nowork");
     let global = open_global_db(&dir);
     seed(&global, &[("师父在这里。", "g", "self")]);
-    let app: tauri::App<MockRuntime> = mock_builder().build(mock_context(noop_assets())).expect("dung app");
+    let app: tauri::App<MockRuntime> = mock_builder()
+        .build(mock_context(noop_assets()))
+        .expect("dung app");
     app.manage(OpenWorkState::new(None));
     app.manage(global);
     let got = wire::tm_concordance(app.handle().clone(), "师父".to_owned()).expect("tra");
-    assert_eq!(got.hits.iter().map(|h| (h.target_text.as_str(), h.tier)).collect::<Vec<_>>(), vec![("g", "global")]);
+    assert_eq!(
+        got.hits
+            .iter()
+            .map(|h| (h.target_text.as_str(), h.tier))
+            .collect::<Vec<_>>(),
+        vec![("g", "global")]
+    );
     let _ = fs::remove_dir_all(dir);
 }
 
@@ -1880,11 +2309,16 @@ fn an_unmanaged_global_store_is_an_error_not_a_tm_empty_answer() {
 
 impl Wired {
     fn seed_work_dated(&self, source: &str, target: &str, pair_origin: &str, created_at: &str) {
-        self.with_open(|open| seed_dated(&open.store, &[(source, target, pair_origin, created_at)]));
+        self.with_open(|open| {
+            seed_dated(&open.store, &[(source, target, pair_origin, created_at)])
+        });
     }
 
     fn seed_global_dated(&self, source: &str, target: &str, pair_origin: &str, created_at: &str) {
-        seed_dated(&self.app.state::<Store>(), &[(source, target, pair_origin, created_at)]);
+        seed_dated(
+            &self.app.state::<Store>(),
+            &[(source, target, pair_origin, created_at)],
+        );
     }
 
     fn set_target_state(&self, id: i64, target: &str, baseline: &str) {
@@ -1903,13 +2337,41 @@ impl Wired {
     }
 }
 
-fn exact_shape(m: &auratranslate_lib::commands::segment::TmFuzzyMatches) -> Vec<(&str, &str, &str, &str)> {
-    m.exact.iter().map(|x| (x.target_text.as_str(), x.tier, x.side, x.created_at.as_str())).collect()
+fn exact_shape(
+    m: &auratranslate_lib::commands::segment::TmFuzzyMatches,
+) -> Vec<(&str, &str, &str, &str)> {
+    m.exact
+        .iter()
+        .map(|x| {
+            (
+                x.target_text.as_str(),
+                x.tier,
+                x.side,
+                x.created_at.as_str(),
+            )
+        })
+        .collect()
 }
 
-fn pick(w: &Wired, id: i64, tier: &str, unit_id: i64, expected: &str, force: bool)
-    -> Result<auratranslate_lib::commands::segment::PromoteAiTranslationOutcome, auratranslate_lib::core::i18n::IpcError> {
-    wire::accept_tm_exact(w.app.handle().clone(), id, tier.to_owned(), unit_id, expected.to_owned(), force)
+fn pick(
+    w: &Wired,
+    id: i64,
+    tier: &str,
+    unit_id: i64,
+    expected: &str,
+    force: bool,
+) -> Result<
+    auratranslate_lib::commands::segment::PromoteAiTranslationOutcome,
+    auratranslate_lib::core::i18n::IpcError,
+> {
+    wire::accept_tm_exact(
+        w.app.handle().clone(),
+        id,
+        tier.to_owned(),
+        unit_id,
+        expected.to_owned(),
+        force,
+    )
 }
 
 #[test]
@@ -1959,13 +2421,21 @@ fn a_duplicate_target_collapses_to_one_row() {
     let id = w.first_id();
     let source = w.source(id);
     for day in ["01", "02", "03"] {
-        w.seed_work_dated(&source, "A", "self", &format!("2026-05-{day}T00:00:00.000Z"));
+        w.seed_work_dated(
+            &source,
+            "A",
+            "self",
+            &format!("2026-05-{day}T00:00:00.000Z"),
+        );
     }
     w.seed_work_dated(&source, "B", "self", "2026-04-01T00:00:00.000Z");
 
     let got = fuzzy(&w, id);
 
-    assert_eq!(exact_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(), ["A", "B"]);
+    assert_eq!(
+        exact_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(),
+        ["A", "B"]
+    );
     assert_eq!(got.exact[0].created_at, "2026-05-03T00:00:00.000Z");
 }
 
@@ -1988,7 +2458,13 @@ fn no_exact_pair_leaves_the_exact_list_empty() {
     assert_eq!(got.matches.len(), 1);
 }
 
-fn two_targets(tag: &str) -> (Wired, i64, auratranslate_lib::commands::segment::TmFuzzyMatches) {
+fn two_targets(
+    tag: &str,
+) -> (
+    Wired,
+    i64,
+    auratranslate_lib::commands::segment::TmFuzzyMatches,
+) {
     let w = wired(tag, "A dragon roared.", true);
     let id = w.first_id();
     let source = w.source(id);
@@ -2001,20 +2477,44 @@ fn two_targets(tag: &str) -> (Wired, i64, auratranslate_lib::commands::segment::
 #[test]
 fn a_pick_writes_the_pairs_own_origin_with_baseline_and_no_version() {
     let (w, id, got) = two_targets("ex-pick");
-    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    let b = got
+        .exact
+        .iter()
+        .find(|x| x.target_text == "B")
+        .expect("hang B");
     assert_eq!((b.tier, b.side), ("global", "others"));
 
     let out = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect("chon");
 
     assert!(!out.needs_confirmation);
-    assert_eq!((out.target_text.as_str(), out.translation_origin.as_str(), out.status.as_str()), ("B", "other", "draft"));
-    assert_eq!(w.with_open(|o| state_of(o, id)), ("draft".to_owned(), "other".to_owned(), 0));
-    assert_eq!(w.target_and_baseline(id), ("B".to_owned(), "B".to_owned(), "other".to_owned()));
+    assert_eq!(
+        (
+            out.target_text.as_str(),
+            out.translation_origin.as_str(),
+            out.status.as_str()
+        ),
+        ("B", "other", "draft")
+    );
+    assert_eq!(
+        w.with_open(|o| state_of(o, id)),
+        ("draft".to_owned(), "other".to_owned(), 0)
+    );
+    assert_eq!(
+        w.target_and_baseline(id),
+        ("B".to_owned(), "B".to_owned(), "other".to_owned())
+    );
 
-    let a = got.exact.iter().find(|x| x.target_text == "A").expect("hang A");
+    let a = got
+        .exact
+        .iter()
+        .find(|x| x.target_text == "A")
+        .expect("hang A");
     pick(&w, id, a.tier, a.unit_id, &a.target_text, false).expect("chon lai");
     assert_eq!(w.with_open(|o| state_of(o, id)).1, "self");
-    assert_eq!(w.target_and_baseline(id), ("A".to_owned(), "A".to_owned(), "self".to_owned()));
+    assert_eq!(
+        w.target_and_baseline(id),
+        ("A".to_owned(), "A".to_owned(), "self".to_owned())
+    );
 }
 
 #[test]
@@ -2023,7 +2523,11 @@ fn a_pick_over_a_prefilled_text_never_asks() {
     w.load();
     let prefilled = w.with_open(|o| w_target(o, id));
     assert_eq!(prefilled, "A");
-    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    let b = got
+        .exact
+        .iter()
+        .find(|x| x.target_text == "B")
+        .expect("hang B");
 
     let out = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect("chon");
 
@@ -2039,7 +2543,11 @@ fn a_pick_over_typed_text_writes_nothing_until_forced() {
         let chapter_id = segment_ids(open).0;
         type_text(open, chapter_id, id, "Ban nhap dang go.");
     });
-    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    let b = got
+        .exact
+        .iter()
+        .find(|x| x.target_text == "B")
+        .expect("hang B");
 
     let held = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect("giu");
 
@@ -2055,7 +2563,11 @@ fn a_pick_over_typed_text_writes_nothing_until_forced() {
 fn a_pick_over_text_equal_to_the_baseline_never_asks_even_without_a_version() {
     let (w, id, got) = two_targets("ex-baseline");
     w.set_target_state(id, "Cu", "Cu");
-    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    let b = got
+        .exact
+        .iter()
+        .find(|x| x.target_text == "B")
+        .expect("hang B");
     let out = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect("chon");
     assert!(!out.needs_confirmation);
     assert_eq!(w.with_open(|o| w_target(o, id)), "B");
@@ -2064,7 +2576,11 @@ fn a_pick_over_text_equal_to_the_baseline_never_asks_even_without_a_version() {
 #[test]
 fn a_pick_whose_pair_is_gone_or_whose_source_differs_writes_nothing() {
     let (w, id, got) = two_targets("ex-stale");
-    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    let b = got
+        .exact
+        .iter()
+        .find(|x| x.target_text == "B")
+        .expect("hang B");
     let gone = pick(&w, id, b.tier, 9_999_999, &b.target_text, false).expect_err("cap da mat");
     assert_eq!(gone.code(), "tm.pair_not_found");
 
@@ -2072,7 +2588,11 @@ fn a_pick_whose_pair_is_gone_or_whose_source_differs_writes_nothing() {
     let other_id = w
         .app
         .state::<Store>()
-        .read(|conn| conn.query_row("SELECT id FROM tm_unit WHERE target_text = 'Z'", [], |r| r.get::<_, i64>(0)))
+        .read(|conn| {
+            conn.query_row("SELECT id FROM tm_unit WHERE target_text = 'Z'", [], |r| {
+                r.get::<_, i64>(0)
+            })
+        })
         .expect("doc id");
     let differs = pick(&w, id, "global", other_id, "Z", false).expect_err("nguon khac");
     assert_eq!(differs.code(), "tm.pair_not_found");
@@ -2087,7 +2607,9 @@ fn accepting_a_row_whose_pair_was_edited_after_it_was_shown_writes_nothing_and_e
     let m = fuzzy(&w, id).matches.remove(0);
     w.with_open(|o| {
         o.store
-            .write(|tx: &Transaction<'_>| tx.execute("UPDATE tm_unit SET target_text = 'edited'", []))
+            .write(|tx: &Transaction<'_>| {
+                tx.execute("UPDATE tm_unit SET target_text = 'edited'", [])
+            })
             .expect("sua cap")
     });
 
@@ -2100,10 +2622,19 @@ fn accepting_a_row_whose_pair_was_edited_after_it_was_shown_writes_nothing_and_e
 #[test]
 fn picking_a_target_edited_after_the_list_was_shown_writes_nothing_and_errors() {
     let (w, id, got) = two_targets("ex-edited");
-    let b = got.exact.iter().find(|x| x.target_text == "B").expect("hang B");
+    let b = got
+        .exact
+        .iter()
+        .find(|x| x.target_text == "B")
+        .expect("hang B");
     w.app
         .state::<Store>()
-        .write(|tx: &Transaction<'_>| tx.execute("UPDATE tm_unit SET target_text = 'B2' WHERE target_text = 'B'", []))
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE tm_unit SET target_text = 'B2' WHERE target_text = 'B'",
+                [],
+            )
+        })
         .expect("sua cap");
 
     let err = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect_err("cap da doi");
@@ -2123,11 +2654,24 @@ fn a_concordance_hit_carries_the_pair_date() {
 #[test]
 fn concordance_lists_the_newest_pair_first_even_when_it_has_the_higher_id() {
     let w = wired("cc-date-order", "一。", true);
-    w.seed_work_dated("师父在这里。", "older-low-id", "self", "2026-06-28T00:00:00.000Z");
-    w.seed_work_dated("他叫师父来。", "newer-high-id", "self", "2026-08-03T00:00:00.000Z");
+    w.seed_work_dated(
+        "师父在这里。",
+        "older-low-id",
+        "self",
+        "2026-06-28T00:00:00.000Z",
+    );
+    w.seed_work_dated(
+        "他叫师父来。",
+        "newer-high-id",
+        "self",
+        "2026-08-03T00:00:00.000Z",
+    );
     let got = concordance(&w, "师父");
     assert_eq!(
-        got.hits.iter().map(|h| h.target_text.as_str()).collect::<Vec<_>>(),
+        got.hits
+            .iter()
+            .map(|h| h.target_text.as_str())
+            .collect::<Vec<_>>(),
         ["newer-high-id", "older-low-id"]
     );
 }
@@ -2135,10 +2679,23 @@ fn concordance_lists_the_newest_pair_first_even_when_it_has_the_higher_id() {
 #[test]
 fn equal_percent_fuzzy_ties_list_the_newest_pair_first_even_when_it_has_the_higher_id() {
     let w = wired("fz-date-order", FUZZY_CURRENT, true);
-    w.seed_work_dated(FUZZY_NEAR, "older-low-id", "self", "2026-06-28T00:00:00.000Z");
-    w.seed_work_dated(FUZZY_NEAR, "newer-high-id", "self", "2026-08-03T00:00:00.000Z");
+    w.seed_work_dated(
+        FUZZY_NEAR,
+        "older-low-id",
+        "self",
+        "2026-06-28T00:00:00.000Z",
+    );
+    w.seed_work_dated(
+        FUZZY_NEAR,
+        "newer-high-id",
+        "self",
+        "2026-08-03T00:00:00.000Z",
+    );
     let got = fuzzy(&w, w.first_id());
-    assert_eq!(fuzzy_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(), ["newer-high-id", "older-low-id"]);
+    assert_eq!(
+        fuzzy_shape(&got).iter().map(|r| r.0).collect::<Vec<_>>(),
+        ["newer-high-id", "older-low-id"]
+    );
 }
 
 #[test]
@@ -2151,7 +2708,11 @@ fn a_pair_stored_three_times_takes_one_fuzzy_slot_shown_as_its_first_copy_in_ad1
     w.seed_global_dated(FUZZY_NEAR, "third", "self", "2026-08-01T00:00:00.000Z");
     assert_eq!(
         fuzzy_shape(&fuzzy(&w, w.first_id())),
-        [("dup", "global", "mine"), ("second", "global", "mine"), ("third", "global", "mine")]
+        [
+            ("dup", "global", "mine"),
+            ("second", "global", "mine"),
+            ("third", "global", "mine")
+        ]
     );
 }
 
@@ -2163,7 +2724,10 @@ fn a_pair_stored_twice_is_one_concordance_hit_and_counts_once_in_the_total() {
     w.seed_global_dated("师父在这里。", "single", "self", "2026-08-01T00:00:00.000Z");
     let got = concordance(&w, "师父");
     assert_eq!(got.total, 2);
-    assert_eq!(concordance_shape(&got), [("dup", "global", "mine"), ("single", "global", "mine")]);
+    assert_eq!(
+        concordance_shape(&got),
+        [("dup", "global", "mine"), ("single", "global", "mine")]
+    );
 }
 
 mod manage {
@@ -2171,19 +2735,36 @@ mod manage {
     use auratranslate_lib::commands::tm::{TmPairList, wire as tm_wire};
 
     fn list(w: &Wired, pair_origin: &str, tier: &str, search: &str) -> TmPairList {
-        tm_wire::tm_list_pairs(w.app.handle().clone(), pair_origin.to_owned(), tier.to_owned(), search.to_owned())
-            .expect("liet ke TM")
+        tm_wire::tm_list_pairs(
+            w.app.handle().clone(),
+            pair_origin.to_owned(),
+            tier.to_owned(),
+            search.to_owned(),
+        )
+        .expect("liet ke TM")
     }
 
     fn rows_of(l: &TmPairList) -> Vec<(String, String, &'static str, &'static str)> {
         l.groups
             .iter()
-            .flat_map(|g| g.rows.iter().map(|r| (g.source_text.clone(), r.target_text.clone(), r.tier, r.translation_origin)))
+            .flat_map(|g| {
+                g.rows.iter().map(|r| {
+                    (
+                        g.source_text.clone(),
+                        r.target_text.clone(),
+                        r.tier,
+                        r.translation_origin,
+                    )
+                })
+            })
             .collect()
     }
 
     fn health(l: &TmPairList) -> Vec<(&'static str, usize)> {
-        l.health.iter().map(|h| (h.translation_origin, h.count)).collect()
+        l.health
+            .iter()
+            .map(|h| (h.translation_origin, h.count))
+            .collect()
     }
 
     fn dated_work(w: &Wired, rows: &[(&str, &str, &str, &str)]) {
@@ -2219,14 +2800,24 @@ mod manage {
     #[test]
     fn the_others_filter_keeps_both_tiers_and_the_health_strip_ignores_it() {
         let w = wired("mg-filter", "一。", true);
-        dated_work(&w, &[("s1", "a", "self", D1), ("s2", "b", "self", D1), ("s3", "c", "other", D1)]);
+        dated_work(
+            &w,
+            &[
+                ("s1", "a", "self", D1),
+                ("s2", "b", "self", D1),
+                ("s3", "c", "other", D1),
+            ],
+        );
         dated_global(&w, &[("s4", "d", "bilingual_import", D1)]);
 
         let got = list(&w, "others", "both", "");
 
         assert_eq!(rows_of(&got).len(), 2);
         assert_eq!((got.total_pairs, got.total_groups), (2, 2));
-        assert_eq!(health(&got), vec![("self", 2), ("other", 1), ("bilingual_import", 1)]);
+        assert_eq!(
+            health(&got),
+            vec![("self", 2), ("other", 1), ("bilingual_import", 1)]
+        );
         assert!(rows_of(&got).iter().all(|r| r.3 != "self"));
     }
 
@@ -2249,15 +2840,31 @@ mod manage {
         dated_global(&w, &[("s2", "b", "other", D1), ("s3", "c", "other", D1)]);
 
         let work_only = list(&w, "all", "work", "");
-        assert_eq!(rows_of(&work_only).iter().map(|r| r.2).collect::<Vec<_>>(), vec!["work"]);
-        assert_eq!(health(&work_only), vec![("self", 1), ("other", 0), ("bilingual_import", 0)]);
+        assert_eq!(
+            rows_of(&work_only).iter().map(|r| r.2).collect::<Vec<_>>(),
+            vec!["work"]
+        );
+        assert_eq!(
+            health(&work_only),
+            vec![("self", 1), ("other", 0), ("bilingual_import", 0)]
+        );
         let global_only = list(&w, "all", "global", "");
         assert_eq!(global_only.total_pairs, 2);
-        assert_eq!(health(&global_only), vec![("self", 0), ("other", 2), ("bilingual_import", 0)]);
+        assert_eq!(
+            health(&global_only),
+            vec![("self", 0), ("other", 2), ("bilingual_import", 0)]
+        );
     }
 
     fn hidden_of(l: &TmPairList) -> Vec<(String, usize)> {
-        l.groups.iter().flat_map(|g| g.rows.iter().map(|r| (r.target_text.clone(), r.hidden_copies))).collect()
+        l.groups
+            .iter()
+            .flat_map(|g| {
+                g.rows
+                    .iter()
+                    .map(|r| (r.target_text.clone(), r.hidden_copies))
+            })
+            .collect()
     }
 
     #[test]
@@ -2268,13 +2875,20 @@ mod manage {
 
         let narrowed = list(&w, "all", "work", "");
         assert_eq!(hidden_of(&narrowed), vec![("X".to_owned(), 1)]);
-        let copies: Vec<(&str, i64)> = narrowed.groups[0].rows[0].copies.iter().map(|c| (c.tier, c.unit_id)).collect();
+        let copies: Vec<(&str, i64)> = narrowed.groups[0].rows[0]
+            .copies
+            .iter()
+            .map(|c| (c.tier, c.unit_id))
+            .collect();
         assert_eq!(copies.len(), 1);
 
         delete_row(&w, &copies, "S", "X").expect("xoa ban Work");
 
         let after = list(&w, "all", "both", "");
-        assert_eq!(rows_of(&after).iter().map(|r| r.2).collect::<Vec<_>>(), vec!["global"]);
+        assert_eq!(
+            rows_of(&after).iter().map(|r| r.2).collect::<Vec<_>>(),
+            vec!["global"]
+        );
         assert_eq!(hidden_of(&after), vec![("X".to_owned(), 0)]);
     }
 
@@ -2283,8 +2897,14 @@ mod manage {
         let w = wired("mg-hidden-origin", "一。", true);
         dated_work(&w, &[("S", "X", "self", D1), ("S", "X", "other", D2)]);
 
-        assert_eq!(hidden_of(&list(&w, "mine", "both", "")), vec![("X".to_owned(), 1)]);
-        assert_eq!(hidden_of(&list(&w, "other", "both", "")), vec![("X".to_owned(), 1)]);
+        assert_eq!(
+            hidden_of(&list(&w, "mine", "both", "")),
+            vec![("X".to_owned(), 1)]
+        );
+        assert_eq!(
+            hidden_of(&list(&w, "other", "both", "")),
+            vec![("X".to_owned(), 1)]
+        );
     }
 
     #[test]
@@ -2293,31 +2913,59 @@ mod manage {
         dated_work(&w, &[("S", "X", "self", D1), ("S", "Y", "other", D2)]);
         dated_global(&w, &[("S", "X", "self", D1)]);
 
-        assert_eq!(hidden_of(&list(&w, "all", "both", "")), vec![("X".to_owned(), 0), ("Y".to_owned(), 0)]);
-        assert_eq!(hidden_of(&list(&w, "all", "both", "X")), vec![("X".to_owned(), 0)]);
+        assert_eq!(
+            hidden_of(&list(&w, "all", "both", "")),
+            vec![("X".to_owned(), 0), ("Y".to_owned(), 0)]
+        );
+        assert_eq!(
+            hidden_of(&list(&w, "all", "both", "X")),
+            vec![("X".to_owned(), 0)]
+        );
     }
 
     #[test]
     fn two_hundred_and_fifty_sources_ship_two_hundred_groups_and_the_true_total() {
         let w = wired("mg-cap", "一。", true);
-        let rows: Vec<(String, String)> = (0..250).map(|i| (format!("source {i:03}"), format!("target {i}"))).collect();
-        let refs: Vec<(&str, &str, &str)> = rows.iter().map(|(s, t)| (s.as_str(), t.as_str(), "self")).collect();
+        let rows: Vec<(String, String)> = (0..250)
+            .map(|i| (format!("source {i:03}"), format!("target {i}")))
+            .collect();
+        let refs: Vec<(&str, &str, &str)> = rows
+            .iter()
+            .map(|(s, t)| (s.as_str(), t.as_str(), "self"))
+            .collect();
         w.with_open(|o| seed(&o.store, &refs));
 
         let got = list(&w, "all", "both", "");
 
-        assert_eq!((got.groups.len(), got.total_groups, got.total_pairs), (200, 250, 250));
+        assert_eq!(
+            (got.groups.len(), got.total_groups, got.total_pairs),
+            (200, 250, 250)
+        );
     }
 
     #[test]
     fn identical_pairs_in_one_source_collapse_into_one_row_and_stored_rows_stay() {
         let w = wired("mg-group", "一。", true);
-        dated_work(&w, &[("S", "A", "self", D1), ("S", "B", "self", D1), ("S", "A", "self", D1)]);
+        dated_work(
+            &w,
+            &[
+                ("S", "A", "self", D1),
+                ("S", "B", "self", D1),
+                ("S", "A", "self", D1),
+            ],
+        );
 
         let got = list(&w, "all", "both", "");
 
         assert_eq!(got.groups.len(), 1);
-        assert_eq!((got.groups[0].rows.len(), got.groups[0].distinct_targets, got.total_pairs), (2, 2, 3));
+        assert_eq!(
+            (
+                got.groups[0].rows.len(),
+                got.groups[0].distinct_targets,
+                got.total_pairs
+            ),
+            (2, 2, 3)
+        );
         assert_eq!(got.groups[0].rows[0].copies.len(), 2);
         assert_eq!(work_ids(&w).len(), 3);
     }
@@ -2325,14 +2973,27 @@ mod manage {
     #[test]
     fn groups_come_newest_row_first_and_rows_inside_follow_ad_18() {
         let w = wired("mg-order", "一。", true);
-        dated_work(&w, &[("old", "o", "self", D1), ("mix", "work-other", "other", D2)]);
+        dated_work(
+            &w,
+            &[("old", "o", "self", D1), ("mix", "work-other", "other", D2)],
+        );
         dated_global(&w, &[("mix", "global-mine", "self", D1)]);
 
         let got = list(&w, "all", "both", "");
 
-        assert_eq!(got.groups.iter().map(|g| g.source_text.as_str()).collect::<Vec<_>>(), vec!["mix", "old"]);
         assert_eq!(
-            got.groups[0].rows.iter().map(|r| r.target_text.as_str()).collect::<Vec<_>>(),
+            got.groups
+                .iter()
+                .map(|g| g.source_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["mix", "old"]
+        );
+        assert_eq!(
+            got.groups[0]
+                .rows
+                .iter()
+                .map(|r| r.target_text.as_str())
+                .collect::<Vec<_>>(),
             vec!["global-mine", "work-other"]
         );
     }
@@ -2340,7 +3001,13 @@ mod manage {
     #[test]
     fn search_matches_source_or_target_by_the_concordance_rule() {
         let w = wired("mg-search", "一。", true);
-        dated_work(&w, &[("He met Master Li.", "xx", "self", D1), ("other source", "Gặp SƯ PHỤ", "self", D1)]);
+        dated_work(
+            &w,
+            &[
+                ("He met Master Li.", "xx", "self", D1),
+                ("other source", "Gặp SƯ PHỤ", "self", D1),
+            ],
+        );
         dated_global(&w, &[("师父来了", "zz", "other", D1)]);
 
         assert_eq!(rows_of(&list(&w, "all", "both", "master li")).len(), 1);
@@ -2354,11 +3021,21 @@ mod manage {
     fn an_empty_tm_reports_tm_empty_and_an_unknown_filter_is_an_error() {
         let w = wired("mg-empty", "一。", true);
         assert!(list(&w, "all", "both", "").tm_empty);
-        let err = tm_wire::tm_list_pairs(w.app.handle().clone(), "bogus".to_owned(), "both".to_owned(), String::new())
-            .expect_err("origin la");
+        let err = tm_wire::tm_list_pairs(
+            w.app.handle().clone(),
+            "bogus".to_owned(),
+            "both".to_owned(),
+            String::new(),
+        )
+        .expect_err("origin la");
         assert_eq!(err.code(), "tm.invalid_filter");
-        let err = tm_wire::tm_list_pairs(w.app.handle().clone(), "all".to_owned(), "bogus".to_owned(), String::new())
-            .expect_err("tang la");
+        let err = tm_wire::tm_list_pairs(
+            w.app.handle().clone(),
+            "all".to_owned(),
+            "bogus".to_owned(),
+            String::new(),
+        )
+        .expect_err("tang la");
         assert_eq!(err.code(), "tm.invalid_filter");
     }
 
@@ -2368,21 +3045,32 @@ mod manage {
         dated_global(&w, &[("g", "t", "other", D1)]);
         {
             let state = w.app.state::<OpenWorkState>();
-            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+            *state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         }
 
         let got = list(&w, "all", "both", "");
 
         assert!(!got.work_open);
-        assert_eq!(rows_of(&got).iter().map(|r| r.2).collect::<Vec<_>>(), vec!["global"]);
+        assert_eq!(
+            rows_of(&got).iter().map(|r| r.2).collect::<Vec<_>>(),
+            vec!["global"]
+        );
         let err = push_row(&w, &[("work", 1)], "S", "A").expect_err("khong co tac pham");
         assert_eq!(err.code(), "work.none_open");
     }
 
-    type PairResult = Result<auratranslate_lib::commands::tm::TmPairWire, auratranslate_lib::core::i18n::IpcError>;
+    type PairResult = Result<
+        auratranslate_lib::commands::tm::TmPairWire,
+        auratranslate_lib::core::i18n::IpcError,
+    >;
 
     fn arg(tier: &str, id: i64) -> auratranslate_lib::commands::tm::TmCopyArg {
-        auratranslate_lib::commands::tm::TmCopyArg { tier: tier.to_owned(), unit_id: id }
+        auratranslate_lib::commands::tm::TmCopyArg {
+            tier: tier.to_owned(),
+            unit_id: id,
+        }
     }
 
     fn args(copies: &[(&str, i64)]) -> Vec<auratranslate_lib::commands::tm::TmCopyArg> {
@@ -2398,7 +3086,13 @@ mod manage {
         found.map_or_else(|| (String::new(), String::new()), |r| (r.1, r.2))
     }
 
-    fn update_row(w: &Wired, copies: &[(&str, i64)], source: &str, expected: &str, text: &str) -> PairResult {
+    fn update_row(
+        w: &Wired,
+        copies: &[(&str, i64)],
+        source: &str,
+        expected: &str,
+        text: &str,
+    ) -> PairResult {
         tm_wire::tm_update_pair_target(
             w.app.handle().clone(),
             args(copies),
@@ -2408,12 +3102,27 @@ mod manage {
         )
     }
 
-    fn delete_row(w: &Wired, copies: &[(&str, i64)], source: &str, expected: &str) -> Result<(), auratranslate_lib::core::i18n::IpcError> {
-        tm_wire::tm_delete_pair(w.app.handle().clone(), args(copies), source.to_owned(), expected.to_owned())
+    fn delete_row(
+        w: &Wired,
+        copies: &[(&str, i64)],
+        source: &str,
+        expected: &str,
+    ) -> Result<(), auratranslate_lib::core::i18n::IpcError> {
+        tm_wire::tm_delete_pair(
+            w.app.handle().clone(),
+            args(copies),
+            source.to_owned(),
+            expected.to_owned(),
+        )
     }
 
     fn push_row(w: &Wired, copies: &[(&str, i64)], source: &str, expected: &str) -> PairResult {
-        tm_wire::tm_push_pair_to_global(w.app.handle().clone(), args(copies), source.to_owned(), expected.to_owned())
+        tm_wire::tm_push_pair_to_global(
+            w.app.handle().clone(),
+            args(copies),
+            source.to_owned(),
+            expected.to_owned(),
+        )
     }
 
     fn update(w: &Wired, tier: &str, id: i64, text: &str) -> PairResult {
@@ -2421,12 +3130,18 @@ mod manage {
         update_row(w, &[(tier, id)], &source, &target, text)
     }
 
-    fn delete_one(w: &Wired, tier: &str, id: i64) -> Result<(), auratranslate_lib::core::i18n::IpcError> {
+    fn delete_one(
+        w: &Wired,
+        tier: &str,
+        id: i64,
+    ) -> Result<(), auratranslate_lib::core::i18n::IpcError> {
         let (source, target) = stored_pair(w, tier, id);
         delete_row(w, &[(tier, id)], &source, &target)
     }
 
-    fn edited_others_pair(tag: &str) -> (Wired, TmRow, auratranslate_lib::commands::tm::TmPairWire) {
+    fn edited_others_pair(
+        tag: &str,
+    ) -> (Wired, TmRow, auratranslate_lib::commands::tm::TmPairWire) {
         let w = wired(tag, FUZZY_CURRENT, true);
         dated_work(&w, &[(FUZZY_NEAR, "old text", "other", D1)]);
         let before = work_ids(&w).remove(0);
@@ -2438,10 +3153,25 @@ mod manage {
     fn editing_keeps_the_id_the_source_and_the_date_and_replaces_the_target() {
         let (w, before, edited) = edited_others_pair("mg-edit-keep");
 
-        assert_eq!((edited.unit_id, edited.target_text.as_str(), edited.created_at.as_str()), (before.0, "X", D1));
+        assert_eq!(
+            (
+                edited.unit_id,
+                edited.target_text.as_str(),
+                edited.created_at.as_str()
+            ),
+            (before.0, "X", D1)
+        );
         let after = work_ids(&w);
         assert_eq!(after.len(), 1);
-        assert_eq!((after[0].0, after[0].1.as_str(), after[0].2.as_str(), after[0].4.as_str()), (before.0, FUZZY_NEAR, "X", D1));
+        assert_eq!(
+            (
+                after[0].0,
+                after[0].1.as_str(),
+                after[0].2.as_str(),
+                after[0].4.as_str()
+            ),
+            (before.0, FUZZY_NEAR, "X", D1)
+        );
     }
 
     #[test]
@@ -2457,9 +3187,22 @@ mod manage {
         let (w, _, _) = edited_others_pair("mg-edit-lookup");
 
         let id = w.first_id();
-        assert_eq!(fuzzy(&w, id).matches.iter().map(|m| m.target_text.as_str()).collect::<Vec<_>>(), vec!["X"]);
+        assert_eq!(
+            fuzzy(&w, id)
+                .matches
+                .iter()
+                .map(|m| m.target_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["X"]
+        );
         let hits = concordance(&w, "quick brown");
-        assert_eq!(hits.hits.iter().map(|h| h.target_text.as_str()).collect::<Vec<_>>(), vec!["X"]);
+        assert_eq!(
+            hits.hits
+                .iter()
+                .map(|h| h.target_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["X"]
+        );
     }
 
     #[test]
@@ -2471,7 +3214,10 @@ mod manage {
         update(&w, "global", id, "t2").expect("sua global");
 
         let rows = global_rows(&w);
-        assert_eq!((rows[0].0, rows[0].2.as_str(), rows[0].4.as_str()), (id, "t2", D1));
+        assert_eq!(
+            (rows[0].0, rows[0].2.as_str(), rows[0].4.as_str()),
+            (id, "t2", D1)
+        );
     }
 
     #[test]
@@ -2482,7 +3228,10 @@ mod manage {
         let before = work_ids(&w);
 
         for blank in ["", "  ", " \u{3000}\n"] {
-            assert_eq!(update(&w, "work", id, blank).expect_err("trong").code(), "tm.target_empty");
+            assert_eq!(
+                update(&w, "work", id, blank).expect_err("trong").code(),
+                "tm.target_empty"
+            );
         }
 
         assert_eq!(work_ids(&w), before);
@@ -2495,16 +3244,32 @@ mod manage {
         dated_global(&w, &[("g", "keep", "other", D1)]);
         let before = (work_ids(&w), global_rows(&w));
 
-        assert_eq!(update(&w, "work", 9_999, "x").expect_err("da mat").code(), "tm.pair_not_found");
-        assert_eq!(update(&w, "global", 9_999, "x").expect_err("da mat").code(), "tm.pair_not_found");
-        assert_eq!(update(&w, "nowhere", 1, "x").expect_err("tang la").code(), "tm.pair_not_found");
-        assert_eq!(delete_one(&w, "work", 9_999).expect_err("da mat").code(), "tm.pair_not_found");
         assert_eq!(
-            push_row(&w, &[("work", 9_999)], "", "").expect_err("da mat").code(),
+            update(&w, "work", 9_999, "x").expect_err("da mat").code(),
             "tm.pair_not_found"
         );
         assert_eq!(
-            update_row(&w, &[], "s", "keep", "x").expect_err("khong ban sao").code(),
+            update(&w, "global", 9_999, "x").expect_err("da mat").code(),
+            "tm.pair_not_found"
+        );
+        assert_eq!(
+            update(&w, "nowhere", 1, "x").expect_err("tang la").code(),
+            "tm.pair_not_found"
+        );
+        assert_eq!(
+            delete_one(&w, "work", 9_999).expect_err("da mat").code(),
+            "tm.pair_not_found"
+        );
+        assert_eq!(
+            push_row(&w, &[("work", 9_999)], "", "")
+                .expect_err("da mat")
+                .code(),
+            "tm.pair_not_found"
+        );
+        assert_eq!(
+            update_row(&w, &[], "s", "keep", "x")
+                .expect_err("khong ban sao")
+                .code(),
             "tm.pair_not_found"
         );
 
@@ -2514,14 +3279,20 @@ mod manage {
     #[test]
     fn deleting_one_pair_removes_only_it_and_the_next_concordance_misses_it() {
         let w = wired("mg-delete", "一。", true);
-        dated_work(&w, &[("师父甲", "a", "self", D1), ("师父乙", "b", "self", D1)]);
+        dated_work(
+            &w,
+            &[("师父甲", "a", "self", D1), ("师父乙", "b", "self", D1)],
+        );
         let first = work_ids(&w)[0].0;
         assert_eq!(concordance(&w, "师父").total, 2);
 
         delete_one(&w, "work", first).expect("xoa");
 
         assert_eq!(work_ids(&w).len(), 1);
-        assert_eq!(concordance_shape(&concordance(&w, "师父")), vec![("b", "work", "mine")]);
+        assert_eq!(
+            concordance_shape(&concordance(&w, "师父")),
+            vec![("b", "work", "mine")]
+        );
     }
 
     #[test]
@@ -2537,7 +3308,10 @@ mod manage {
         assert_eq!(work_ids(&w).len(), 1);
     }
 
-    fn delete_others(w: &Wired, tier: &str) -> auratranslate_lib::commands::tm::TmDeleteOthersOutcome {
+    fn delete_others(
+        w: &Wired,
+        tier: &str,
+    ) -> auratranslate_lib::commands::tm::TmDeleteOthersOutcome {
         tm_wire::tm_delete_others(w.app.handle().clone(), tier.to_owned()).expect("xoa nguoi khac")
     }
 
@@ -2546,7 +3320,12 @@ mod manage {
         let w = wired("mg-bulk-work", "一。", true);
         dated_work(
             &w,
-            &[("a", "1", "other", D1), ("b", "2", "bilingual_import", D1), ("c", "3", "other", D2), ("d", "4", "self", D1)],
+            &[
+                ("a", "1", "other", D1),
+                ("b", "2", "bilingual_import", D1),
+                ("c", "3", "other", D2),
+                ("d", "4", "self", D1),
+            ],
         );
         dated_global(&w, &[("e", "5", "other", D1), ("f", "6", "self", D1)]);
         let global_before = global_rows(&w);
@@ -2554,7 +3333,13 @@ mod manage {
         let out = delete_others(&w, "work");
 
         assert_eq!((out.deleted_work, out.deleted_global), (3, 0));
-        assert_eq!(work_ids(&w).iter().map(|r| r.3.as_str()).collect::<Vec<_>>(), vec!["self"]);
+        assert_eq!(
+            work_ids(&w)
+                .iter()
+                .map(|r| r.3.as_str())
+                .collect::<Vec<_>>(),
+            vec!["self"]
+        );
         assert_eq!(global_rows(&w), global_before);
     }
 
@@ -2562,7 +3347,10 @@ mod manage {
     fn bulk_delete_over_both_tiers_removes_the_others_side_from_each() {
         let w = wired("mg-bulk-both", "一。", true);
         dated_work(&w, &[("a", "1", "other", D1), ("d", "4", "self", D1)]);
-        dated_global(&w, &[("e", "5", "bilingual_import", D1), ("f", "6", "self", D1)]);
+        dated_global(
+            &w,
+            &[("e", "5", "bilingual_import", D1), ("f", "6", "self", D1)],
+        );
 
         let out = delete_others(&w, "both");
 
@@ -2588,10 +3376,14 @@ mod manage {
         dated_global(&w, &[("e", "5", "other", D1)]);
         {
             let state = w.app.state::<OpenWorkState>();
-            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+            *state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         }
         assert_eq!(
-            tm_wire::tm_delete_others(w.app.handle().clone(), "work".to_owned()).expect_err("khong co tac pham").code(),
+            tm_wire::tm_delete_others(w.app.handle().clone(), "work".to_owned())
+                .expect_err("khong co tac pham")
+                .code(),
             "work.none_open"
         );
         assert_eq!(global_rows(&w).len(), 1);
@@ -2610,10 +3402,20 @@ mod manage {
 
         let moved = push(&w, id).expect("day len");
 
-        assert_eq!((moved.tier, moved.translation_origin, moved.created_at.as_str()), ("global", "other", D1));
+        assert_eq!(
+            (
+                moved.tier,
+                moved.translation_origin,
+                moved.created_at.as_str()
+            ),
+            ("global", "other", D1)
+        );
         let global = global_rows(&w);
         assert_eq!(
-            global.iter().map(|r| (r.1.as_str(), r.2.as_str(), r.3.as_str(), r.4.as_str())).collect::<Vec<_>>(),
+            global
+                .iter()
+                .map(|r| (r.1.as_str(), r.2.as_str(), r.3.as_str(), r.4.as_str()))
+                .collect::<Vec<_>>(),
             vec![("S", "A", "other", D1)]
         );
         assert_eq!(moved.unit_id, global[0].0);
@@ -2658,23 +3460,61 @@ mod manage {
             k.sort();
             k
         };
-        assert_eq!(keys(&json), ["groups", "health", "tm_empty", "total_groups", "total_pairs", "work_open"]);
-        assert_eq!(keys(&json["groups"][0]), ["distinct_targets", "rows", "source_text"]);
+        assert_eq!(
+            keys(&json),
+            [
+                "groups",
+                "health",
+                "tm_empty",
+                "total_groups",
+                "total_pairs",
+                "work_open"
+            ]
+        );
+        assert_eq!(
+            keys(&json["groups"][0]),
+            ["distinct_targets", "rows", "source_text"]
+        );
         assert_eq!(
             keys(&json["groups"][0]["rows"][0]),
-            ["copies", "created_at", "hidden_copies", "side", "target_text", "tier", "translation_origin", "unit_id"]
+            [
+                "copies",
+                "created_at",
+                "hidden_copies",
+                "side",
+                "target_text",
+                "tier",
+                "translation_origin",
+                "unit_id"
+            ]
         );
-        assert_eq!(keys(&json["groups"][0]["rows"][0]["copies"][0]), ["tier", "unit_id"]);
+        assert_eq!(
+            keys(&json["groups"][0]["rows"][0]["copies"][0]),
+            ["tier", "unit_id"]
+        );
         assert_eq!(keys(&json["health"][0]), ["count", "translation_origin"]);
-        let pair = serde_json::to_value(update(&w, "work", work_ids(&w)[0].0, "B").expect("sua")).expect("tuan tu hoa");
+        let pair = serde_json::to_value(update(&w, "work", work_ids(&w)[0].0, "B").expect("sua"))
+            .expect("tuan tu hoa");
         assert_eq!(
             keys(&pair),
-            ["created_at", "side", "source_text", "target_text", "tier", "translation_origin", "unit_id"]
+            [
+                "created_at",
+                "side",
+                "source_text",
+                "target_text",
+                "tier",
+                "translation_origin",
+                "unit_id"
+            ]
         );
     }
 
     fn copies_of_first_row(l: &TmPairList) -> Vec<(&'static str, i64)> {
-        l.groups[0].rows[0].copies.iter().map(|c| (c.tier, c.unit_id)).collect()
+        l.groups[0].rows[0]
+            .copies
+            .iter()
+            .map(|c| (c.tier, c.unit_id))
+            .collect()
     }
 
     #[test]
@@ -2685,18 +3525,33 @@ mod manage {
 
         let got = list(&w, "all", "both", "");
 
-        assert_eq!((got.groups.len(), got.groups[0].rows.len(), got.total_pairs), (1, 1, 2));
+        assert_eq!(
+            (got.groups.len(), got.groups[0].rows.len(), got.total_pairs),
+            (1, 1, 2)
+        );
         let row = &got.groups[0].rows[0];
-        assert_eq!((row.tier, row.translation_origin, row.side), ("global", "self", "mine"));
+        assert_eq!(
+            (row.tier, row.translation_origin, row.side),
+            ("global", "self", "mine")
+        );
         let copies = copies_of_first_row(&got);
-        assert_eq!(copies.iter().map(|c| c.0).collect::<Vec<_>>(), vec!["global", "work"]);
-        assert_eq!(health(&got), vec![("self", 1), ("other", 1), ("bilingual_import", 0)]);
+        assert_eq!(
+            copies.iter().map(|c| c.0).collect::<Vec<_>>(),
+            vec!["global", "work"]
+        );
+        assert_eq!(
+            health(&got),
+            vec![("self", 1), ("other", 1), ("bilingual_import", 0)]
+        );
     }
 
     #[test]
     fn editing_a_collapsed_row_rewrites_every_copy_and_labels_each_self() {
         let w = wired("mg-edit-copies", "一。", true);
-        dated_work(&w, &[("S", "A", "other", D2), ("S", "A", "bilingual_import", D1)]);
+        dated_work(
+            &w,
+            &[("S", "A", "other", D2), ("S", "A", "bilingual_import", D1)],
+        );
         dated_global(&w, &[("S", "A", "other", D1)]);
         let copies = copies_of_first_row(&list(&w, "all", "both", ""));
 
@@ -2719,22 +3574,49 @@ mod manage {
 
         delete_row(&w, &copies, "S", "A").expect("xoa ban con nguyen");
 
-        assert_eq!(work_ids(&w).iter().map(|r| r.2.as_str()).collect::<Vec<_>>(), vec!["changed"]);
-        assert_eq!(delete_row(&w, &copies, "S", "A").expect_err("het").code(), "tm.pair_not_found");
-        assert_eq!(update_row(&w, &copies, "S", "A", "x").expect_err("het").code(), "tm.pair_not_found");
+        assert_eq!(
+            work_ids(&w)
+                .iter()
+                .map(|r| r.2.as_str())
+                .collect::<Vec<_>>(),
+            vec!["changed"]
+        );
+        assert_eq!(
+            delete_row(&w, &copies, "S", "A").expect_err("het").code(),
+            "tm.pair_not_found"
+        );
+        assert_eq!(
+            update_row(&w, &copies, "S", "A", "x")
+                .expect_err("het")
+                .code(),
+            "tm.pair_not_found"
+        );
     }
 
     #[test]
     fn deleting_a_collapsed_row_removes_every_copy_in_both_tiers() {
         let w = wired("mg-delete-copies", "一。", true);
-        dated_work(&w, &[("S", "A", "self", D1), ("S", "A", "other", D2), ("S", "B", "self", D1)]);
+        dated_work(
+            &w,
+            &[
+                ("S", "A", "self", D1),
+                ("S", "A", "other", D2),
+                ("S", "B", "self", D1),
+            ],
+        );
         dated_global(&w, &[("S", "A", "self", D1)]);
         let copies = copies_of_first_row(&list(&w, "all", "both", "A"));
         assert_eq!(copies.len(), 3);
 
         delete_row(&w, &copies, "S", "A").expect("xoa ca hang");
 
-        assert_eq!(work_ids(&w).iter().map(|r| r.2.as_str()).collect::<Vec<_>>(), vec!["B"]);
+        assert_eq!(
+            work_ids(&w)
+                .iter()
+                .map(|r| r.2.as_str())
+                .collect::<Vec<_>>(),
+            vec!["B"]
+        );
         assert!(global_rows(&w).is_empty());
     }
 
@@ -2742,15 +3624,35 @@ mod manage {
     fn pushing_a_collapsed_row_keeps_the_first_ad18_copys_origin_and_date() {
         let w = wired("mg-push-copies", "一。", true);
         const D3: &str = "2026-03-03T00:00:00.000Z";
-        dated_work(&w, &[("S", "A", "self", D1), ("S", "A", "self", D2), ("S", "A", "other", D3)]);
+        dated_work(
+            &w,
+            &[
+                ("S", "A", "self", D1),
+                ("S", "A", "self", D2),
+                ("S", "A", "other", D3),
+            ],
+        );
         let copies = copies_of_first_row(&list(&w, "all", "both", ""));
         assert_eq!(copies.len(), 3);
 
         let moved = push_row(&w, &copies, "S", "A").expect("day ca hang");
 
-        assert_eq!((moved.tier, moved.translation_origin, moved.created_at.as_str()), ("global", "self", D2));
+        assert_eq!(
+            (
+                moved.tier,
+                moved.translation_origin,
+                moved.created_at.as_str()
+            ),
+            ("global", "self", D2)
+        );
         let global = global_rows(&w);
-        assert_eq!(global.iter().map(|r| (r.3.as_str(), r.4.as_str())).collect::<Vec<_>>(), vec![("self", D2)]);
+        assert_eq!(
+            global
+                .iter()
+                .map(|r| (r.3.as_str(), r.4.as_str()))
+                .collect::<Vec<_>>(),
+            vec![("self", D2)]
+        );
         assert!(work_ids(&w).is_empty());
     }
 
@@ -2778,8 +3680,20 @@ mod manage {
 
         push_row(&w, &copies, "S", "A").expect("day ban con nguyen");
 
-        assert_eq!(work_ids(&w).iter().map(|r| r.2.as_str()).collect::<Vec<_>>(), vec!["changed"]);
-        assert_eq!(global_rows(&w).iter().map(|r| r.2.as_str()).collect::<Vec<_>>(), vec!["A"]);
+        assert_eq!(
+            work_ids(&w)
+                .iter()
+                .map(|r| r.2.as_str())
+                .collect::<Vec<_>>(),
+            vec!["changed"]
+        );
+        assert_eq!(
+            global_rows(&w)
+                .iter()
+                .map(|r| r.2.as_str())
+                .collect::<Vec<_>>(),
+            vec!["A"]
+        );
     }
 
     #[test]
@@ -2812,7 +3726,10 @@ mod manage {
     #[test]
     fn a_search_changes_the_rows_but_not_the_health_strip() {
         let w = wired("mg-health-search", "一。", true);
-        dated_work(&w, &[("alpha", "x", "self", D1), ("beta", "y", "other", D1)]);
+        dated_work(
+            &w,
+            &[("alpha", "x", "self", D1), ("beta", "y", "other", D1)],
+        );
         dated_global(&w, &[("gamma", "z", "bilingual_import", D1)]);
 
         let all = list(&w, "all", "both", "");
@@ -2820,7 +3737,10 @@ mod manage {
 
         assert_eq!(searched.total_pairs, 1);
         assert_eq!(health(&searched), health(&all));
-        assert_eq!(health(&searched), vec![("self", 1), ("other", 1), ("bilingual_import", 1)]);
+        assert_eq!(
+            health(&searched),
+            vec![("self", 1), ("other", 1), ("bilingual_import", 1)]
+        );
     }
 
     #[test]
@@ -2830,7 +3750,13 @@ mod manage {
 
         let got = list(&w, "all", "both", "");
 
-        assert_eq!(got.groups.iter().map(|g| g.source_text.as_str()).collect::<Vec<_>>(), vec!["zzz", "aaa"]);
+        assert_eq!(
+            got.groups
+                .iter()
+                .map(|g| g.source_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["zzz", "aaa"]
+        );
     }
 
     #[test]
@@ -2840,17 +3766,26 @@ mod manage {
         dated_global(&w, &[("e", "5", "other", D1), ("f", "6", "self", D1)]);
         {
             let state = w.app.state::<OpenWorkState>();
-            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+            *state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         }
 
         let out = delete_others(&w, "both");
 
         assert_eq!((out.deleted_work, out.deleted_global), (0, 1));
-        assert_eq!(global_rows(&w).iter().map(|r| r.3.as_str()).collect::<Vec<_>>(), vec!["self"]);
+        assert_eq!(
+            global_rows(&w)
+                .iter()
+                .map(|r| r.3.as_str())
+                .collect::<Vec<_>>(),
+            vec!["self"]
+        );
     }
 
     #[test]
-    fn editing_or_deleting_a_row_with_a_work_copy_and_no_work_open_is_an_error_and_leaves_global_alone() {
+    fn editing_or_deleting_a_row_with_a_work_copy_and_no_work_open_is_an_error_and_leaves_global_alone()
+     {
         let w = wired("mg-copies-nowork", "一。", true);
         dated_work(&w, &[("s", "t", "self", D1)]);
         dated_global(&w, &[("s", "t", "self", D1)]);
@@ -2859,14 +3794,19 @@ mod manage {
         let before = global_rows(&w);
         {
             let state = w.app.state::<OpenWorkState>();
-            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+            *state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         }
         let copies = [("work", work_id), ("global", gid)];
 
         let edit = update_row(&w, &copies, "s", "t", "u").expect_err("khong co tac pham");
         let delete = delete_row(&w, &copies, "s", "t").expect_err("khong co tac pham");
 
-        assert_eq!((edit.code(), delete.code()), ("work.none_open", "work.none_open"));
+        assert_eq!(
+            (edit.code(), delete.code()),
+            ("work.none_open", "work.none_open")
+        );
         assert_eq!(global_rows(&w), before);
     }
 
@@ -2875,11 +3815,18 @@ mod manage {
         let w = wired("mg-list-work-nowork", "一。", true);
         {
             let state = w.app.state::<OpenWorkState>();
-            *state.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+            *state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         }
 
-        let err = tm_wire::tm_list_pairs(w.app.handle().clone(), "all".to_owned(), "work".to_owned(), String::new())
-            .expect_err("khong co tac pham");
+        let err = tm_wire::tm_list_pairs(
+            w.app.handle().clone(),
+            "all".to_owned(),
+            "work".to_owned(),
+            String::new(),
+        )
+        .expect_err("khong co tac pham");
 
         assert_eq!(err.code(), "work.none_open");
     }
@@ -2894,7 +3841,14 @@ mod manage {
         let pair_id = work_ids(&w)[0].0;
 
         update(&w, "work", pair_id, "X").expect("sua");
-        assert_eq!(fuzzy(&w, id).exact.iter().map(|m| m.target_text.as_str()).collect::<Vec<_>>(), vec!["X", "fixed"]);
+        assert_eq!(
+            fuzzy(&w, id)
+                .exact
+                .iter()
+                .map(|m| m.target_text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["X", "fixed"]
+        );
 
         delete_one(&w, "work", pair_id).expect("xoa");
         assert!(fuzzy(&w, id).exact.is_empty(), "one target left is no list");

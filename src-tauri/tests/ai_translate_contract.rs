@@ -55,8 +55,8 @@ use auratranslate_lib::commands::aiprompt::{
 };
 use auratranslate_lib::commands::aitranslate::{
     AiTranslateBatchEventWire, AiTranslateBatchOutcome, PrepareBatchOutcome, PrepareOutcome,
-    PreparedBatchItem, PreparedTranslateCall, batch_panicked_error, batch_stopped_error, prepare_batch_call,
-    prepare_translate_call, run_batch_call, run_translate_call,
+    PreparedBatchItem, PreparedTranslateCall, batch_panicked_error, batch_stopped_error,
+    prepare_batch_call, prepare_translate_call, run_batch_call, run_translate_call,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::promptset::prompt_set_create;
@@ -113,7 +113,10 @@ fn fresh_record() -> LastAssembledPromptState {
 }
 
 fn first_segment_id(open: &OpenWork) -> i64 {
-    read_open_chapter_segments(Some(open)).expect("nap chuong").segments[0].id
+    read_open_chapter_segments(Some(open))
+        .expect("nap chuong")
+        .segments[0]
+        .id
 }
 
 /// `PrepareOutcome` không (và không được) `derive(Debug)` -- nó mang [`PreparedTranslateCall`]
@@ -142,7 +145,11 @@ fn expect_prepare_batch_err(result: Result<PrepareBatchOutcome, IpcError>, msg: 
 fn read_origin(open: &OpenWork, id: i64) -> String {
     open.store
         .read(move |conn| {
-            conn.query_row("SELECT translation_origin FROM segment WHERE id = ?1", [id], |r| r.get(0))
+            conn.query_row(
+                "SELECT translation_origin FROM segment WHERE id = ?1",
+                [id],
+                |r| r.get(0),
+            )
         })
         .expect("doc xuat xu that bai")
 }
@@ -216,8 +223,14 @@ fn split_sse_frames_splits_two_complete_events_on_a_blank_line() {
 fn split_sse_frames_reassembles_a_frame_split_across_two_chunks() {
     let chunk1 = b"data: hel".to_vec();
     let (events1, remaining1) = split_sse_frames(&chunk1);
-    assert!(events1.is_empty(), "chua du mot su kien tron ven -- 0 su kien");
-    assert_eq!(remaining1, chunk1, "phan con lai phai la TOAN BO khoi dau, chua mat byte nao");
+    assert!(
+        events1.is_empty(),
+        "chua du mot su kien tron ven -- 0 su kien"
+    );
+    assert_eq!(
+        remaining1, chunk1,
+        "phan con lai phai la TOAN BO khoi dau, chua mat byte nao"
+    );
 
     let mut buf2 = remaining1;
     buf2.extend_from_slice(b"lo\n\n");
@@ -268,8 +281,14 @@ fn split_sse_frames_joins_multiple_data_lines_within_one_event_with_a_newline() 
 fn split_sse_frames_leaves_an_incomplete_trailing_event_as_remaining_bytes() {
     let buf = b"data: partial answer";
     let (events, remaining) = split_sse_frames(buf);
-    assert!(events.is_empty(), "chua co dau ngan cach dong trang -- 0 su kien TRON VEN");
-    assert_eq!(remaining, buf, "toan bo buffer o lai cho lan doc ke tiep -- khong byte nao mat");
+    assert!(
+        events.is_empty(),
+        "chua co dau ngan cach dong trang -- 0 su kien TRON VEN"
+    );
+    assert_eq!(
+        remaining, buf,
+        "toan bo buffer o lai cho lan doc ke tiep -- khong byte nao mat"
+    );
 }
 
 /// Đối chứng review — một payload `data:` RỖNG (nhịp giữ kết nối một số nhà cung cấp gửi giữa
@@ -282,7 +301,11 @@ fn split_sse_frames_leaves_an_incomplete_trailing_event_as_remaining_bytes() {
 fn an_empty_data_frame_is_ignored_rather_than_ending_the_stream() {
     for buf in [&b"data:\n\n"[..], &b"data: \n\n"[..]] {
         let (events, remaining) = split_sse_frames(buf);
-        assert_eq!(events, vec![String::new()], "mot data: rong van la MOT su kien, khong bi nuot");
+        assert_eq!(
+            events,
+            vec![String::new()],
+            "mot data: rong van la MOT su kien, khong bi nuot"
+        );
         assert!(remaining.is_empty());
 
         let outcome = interpret_sse_event(&events[0]).expect("payload rong khong duoc la mot Err");
@@ -301,7 +324,10 @@ fn an_empty_data_frame_is_ignored_rather_than_ending_the_stream() {
 fn a_comment_only_frame_produces_no_event_at_all() {
     let buf = b": ping\n\n";
     let (events, remaining) = split_sse_frames(buf);
-    assert!(events.is_empty(), "khung chi-chu-thich khong duoc tao mot su kien nao");
+    assert!(
+        events.is_empty(),
+        "khung chi-chu-thich khong duoc tao mot su kien nao"
+    );
     assert!(remaining.is_empty());
 }
 
@@ -311,11 +337,19 @@ fn a_comment_only_frame_produces_no_event_at_all() {
 #[test]
 fn a_buffer_that_never_sees_a_boundary_is_rejected_once_it_crosses_the_cap() {
     let just_under = vec![b'x'; 1024 * 1024];
-    assert!(enforce_sse_buffer_cap(&just_under).is_ok(), "dung tran -- chua duoc tu choi");
+    assert!(
+        enforce_sse_buffer_cap(&just_under).is_ok(),
+        "dung tran -- chua duoc tu choi"
+    );
 
     let just_over = vec![b'x'; 1024 * 1024 + 1];
     let err = enforce_sse_buffer_cap(&just_over).expect_err("vuot tran phai la mot Err");
-    assert_eq!(err, OpenAiClientError::BufferOverflow { size: just_over.len() });
+    assert_eq!(
+        err,
+        OpenAiClientError::BufferOverflow {
+            size: just_over.len()
+        }
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -340,7 +374,10 @@ fn the_request_body_always_asks_for_usage_via_stream_options() {
     };
     let json = serde_json::to_string(&build_request_body(&request)).expect("serialize");
     let value: serde_json::Value = serde_json::from_str(&json).expect("parse lai");
-    assert_eq!(value["stream_options"]["include_usage"], serde_json::json!(true));
+    assert_eq!(
+        value["stream_options"]["include_usage"],
+        serde_json::json!(true)
+    );
 }
 
 /// 🔴 Counter-check trực tiếp cho khuyết tật nêu ở §Code Map spec 4.11 — một khung `usage`
@@ -392,7 +429,11 @@ fn a_usage_frame_reporting_only_total_tokens_is_read_as_usage_with_the_other_two
     let outcome = interpret_sse_event(partial_usage_chunk).expect("khong duoc la Err");
     assert_eq!(
         outcome,
-        SseEventOutcome::Usage(ChunkUsage { prompt_tokens: None, completion_tokens: None, total_tokens: Some(412) }),
+        SseEventOutcome::Usage(ChunkUsage {
+            prompt_tokens: None,
+            completion_tokens: None,
+            total_tokens: Some(412)
+        }),
         "usage MOT PHAN van la Usage that -- total_tokens=412 co nghia, hai truong con lai None"
     );
 }
@@ -403,10 +444,18 @@ fn a_usage_frame_reporting_only_total_tokens_is_read_as_usage_with_the_other_two
 /// công thức giá cần CẢ HAI `prompt_tokens`/`completion_tokens`, và ở đây cả hai đều không
 /// biết, không phải bằng `0`).
 #[test]
-fn into_translate_usage_does_not_fabricate_a_cost_when_the_prompt_and_completion_split_is_unknown() {
-    let partial = ChunkUsage { prompt_tokens: None, completion_tokens: None, total_tokens: Some(412) };
+fn into_translate_usage_does_not_fabricate_a_cost_when_the_prompt_and_completion_split_is_unknown()
+{
+    let partial = ChunkUsage {
+        prompt_tokens: None,
+        completion_tokens: None,
+        total_tokens: Some(412),
+    };
     let usage = partial.into_translate_usage("claude-sonnet-5");
-    assert_eq!(usage.total_tokens, 412, "so token THAT phai len man hinh du thieu chi tiet vao/ra");
+    assert_eq!(
+        usage.total_tokens, 412,
+        "so token THAT phai len man hinh du thieu chi tiet vao/ra"
+    );
     assert_eq!(
         usage.cost_usd, None,
         "khong du CA HAI prompt_tokens/completion_tokens thi KHONG duoc tinh gia -- None, khong phai Some(0.0) gia"
@@ -417,11 +466,22 @@ fn into_translate_usage_does_not_fabricate_a_cost_when_the_prompt_and_completion
 /// mặt (dù `total_tokens` vắng mặt, một hình dạng hợp lệ khác), giá VẪN được tính, và
 /// `total_tokens` rơi về đúng tổng hai chiều đã biết.
 #[test]
-fn into_translate_usage_computes_a_cost_and_falls_back_to_the_sum_when_total_tokens_is_absent_but_both_parts_are_known() {
-    let usage = ChunkUsage { prompt_tokens: Some(100), completion_tokens: Some(312), total_tokens: None }
-        .into_translate_usage("claude-sonnet-5");
-    assert_eq!(usage.total_tokens, 412, "total_tokens vang mat -- roi ve dung tong hai chieu da biet");
-    assert!(usage.cost_usd.is_some(), "ca hai chieu deu biet -- gia PHAI duoc tinh");
+fn into_translate_usage_computes_a_cost_and_falls_back_to_the_sum_when_total_tokens_is_absent_but_both_parts_are_known()
+ {
+    let usage = ChunkUsage {
+        prompt_tokens: Some(100),
+        completion_tokens: Some(312),
+        total_tokens: None,
+    }
+    .into_translate_usage("claude-sonnet-5");
+    assert_eq!(
+        usage.total_tokens, 412,
+        "total_tokens vang mat -- roi ve dung tong hai chieu da biet"
+    );
+    assert!(
+        usage.cost_usd.is_some(),
+        "ca hai chieu deu biet -- gia PHAI duoc tinh"
+    );
 }
 
 /// 🔴 Rà soát coordinator — GHIM đúng lời doc-comment `SseEventOutcome::Usage` khẳng định:
@@ -434,7 +494,11 @@ fn a_frame_carrying_both_usage_and_delta_content_reads_as_usage_and_discards_the
     let outcome = interpret_sse_event(both).expect("khong duoc la Err");
     assert_eq!(
         outcome,
-        SseEventOutcome::Usage(ChunkUsage { prompt_tokens: None, completion_tokens: None, total_tokens: Some(412) }),
+        SseEventOutcome::Usage(ChunkUsage {
+            prompt_tokens: None,
+            completion_tokens: None,
+            total_tokens: Some(412)
+        }),
         "usage phai THANG khi mot khung mang ca hai -- dung nhu doc-comment SseEventOutcome::Usage khang dinh"
     );
 }
@@ -456,7 +520,10 @@ fn estimate_cost_usd_computes_a_price_for_a_seeded_model_id() {
     let cost = auratranslate_lib::core::ai::pricing::estimate_cost_usd("claude-sonnet-5", 100, 312)
         .expect("claude-sonnet-5 phai co hang trong bang gia");
     let expected = (100.0 / 1_000_000.0 * 2.0) + (312.0 / 1_000_000.0 * 10.0);
-    assert!((cost - expected).abs() < 1e-12, "cong thuc gia phai dung: got={cost}, expected={expected}");
+    assert!(
+        (cost - expected).abs() < 1e-12,
+        "cong thuc gia phai dung: got={cost}, expected={expected}"
+    );
 }
 
 /// I/O Matrix spec 4.11 "Model id collides with a table row" — TÀI LIỆU HOÁ một giới hạn ĐÃ
@@ -510,8 +577,14 @@ fn a_local_or_proxied_model_answering_to_a_seeded_cloud_id_is_priced_as_if_it_we
 /// `None`, đây LÀ quy tắc "mô hình cục bộ" (§Always spec 4.11), không một lỗi.
 #[test]
 fn estimate_cost_usd_returns_none_for_a_model_id_absent_from_the_table() {
-    assert_eq!(auratranslate_lib::core::ai::pricing::estimate_cost_usd("llama3", 100, 312), None);
-    assert_eq!(auratranslate_lib::core::ai::pricing::estimate_cost_usd("qwen2.5:14b", 100, 312), None);
+    assert_eq!(
+        auratranslate_lib::core::ai::pricing::estimate_cost_usd("llama3", 100, 312),
+        None
+    );
+    assert_eq!(
+        auratranslate_lib::core::ai::pricing::estimate_cost_usd("qwen2.5:14b", 100, 312),
+        None
+    );
 }
 
 /// AC: "every row states the date its prices were taken, so a stale row is visible rather
@@ -533,7 +606,9 @@ fn the_price_table_states_the_date_its_prices_were_taken() {
 /// AC1 — request mang ĐÚNG chuỗi 4.7's producer đã ghi, từng byte.
 #[test]
 fn translate_a_segment_sends_the_string_the_producer_recorded_byte_for_byte() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-ac1-test-key");
 
@@ -542,17 +617,33 @@ fn translate_a_segment_sends_the_string_the_producer_recorded_byte_for_byte() {
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "AC1", "en", "A dragon roared.");
 
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
     let segment_id = first_segment_id(&open);
     let record = fresh_record();
 
-    let outcome = prepare_translate_call(Some(&global), Some(&open), &record, Some("Plain"), segment_id)
-        .expect("prepare khong duoc loi");
+    let outcome = prepare_translate_call(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        segment_id,
+    )
+    .expect("prepare khong duoc loi");
     let prepared = match outcome {
         PrepareOutcome::Ready(p) => p,
         PrepareOutcome::NotConfigured => panic!("phai san sang, khong phai chua cau hinh"),
@@ -563,7 +654,10 @@ fn translate_a_segment_sends_the_string_the_producer_recorded_byte_for_byte() {
         prepared.prompt, recorded.prompt,
         "AC1: request phai mang DUNG chuoi 4.7's producer da ghi, tung byte -- khong lap lai"
     );
-    assert_eq!(prepared.endpoint, "https://api.example.invalid/v1/chat/completions");
+    assert_eq!(
+        prepared.endpoint,
+        "https://api.example.invalid/v1/chat/completions"
+    );
     assert_eq!(prepared.model, "gpt-test");
     assert_eq!(prepared.api_key, "sk-ac1-test-key");
 
@@ -587,8 +681,14 @@ fn provider_not_configured_when_endpoint_or_model_is_empty_runs_zero_network_cal
     let record = fresh_record();
 
     // Không trường nào được ghi -- `endpoint`/`model` đọc về rỗng ở CẢ HAI tầng.
-    let outcome = prepare_translate_call(Some(&global), Some(&open), &record, Some("Plain"), segment_id)
-        .expect("khong duoc la mot Err -- 'chua cau hinh' la mot TRANG THAI");
+    let outcome = prepare_translate_call(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        segment_id,
+    )
+    .expect("khong duoc la mot Err -- 'chua cau hinh' la mot TRANG THAI");
     assert!(matches!(outcome, PrepareOutcome::NotConfigured));
     assert!(
         read_last_assembled_prompt(&record).is_none(),
@@ -596,11 +696,24 @@ fn provider_not_configured_when_endpoint_or_model_is_empty_runs_zero_network_cal
     );
 
     // Nua ca thu hai -- endpoint co, model rong: cung mot trang thai, khong phai mot Err rieng.
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
-    let outcome2 = prepare_translate_call(Some(&global), Some(&open), &record, Some("Plain"), segment_id)
-        .expect("khong duoc la mot Err");
-    assert!(matches!(outcome2, PrepareOutcome::NotConfigured), "model van rong -- van chua cau hinh");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
+    let outcome2 = prepare_translate_call(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        segment_id,
+    )
+    .expect("khong duoc la mot Err");
+    assert!(
+        matches!(outcome2, PrepareOutcome::NotConfigured),
+        "model van rong -- van chua cau hinh"
+    );
 
     drop(open);
     drop(global);
@@ -613,21 +726,33 @@ fn provider_not_configured_when_endpoint_or_model_is_empty_runs_zero_network_cal
 /// nhánh lỗi riêng.
 #[test]
 fn provider_not_configured_when_no_key_is_saved() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
 
     let global_dir = temp_dir("not-configured-no-key-global");
     let work_dir = temp_dir("not-configured-no-key-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "NotConfiguredNoKey", "en", "A dragon roared.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
 
     let segment_id = first_segment_id(&open);
     let record = fresh_record();
-    let outcome = prepare_translate_call(Some(&global), Some(&open), &record, Some("Plain"), segment_id)
-        .expect("khong duoc la mot Err");
+    let outcome = prepare_translate_call(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        segment_id,
+    )
+    .expect("khong duoc la mot Err");
     assert!(matches!(outcome, PrepareOutcome::NotConfigured));
 
     drop(open);
@@ -640,15 +765,21 @@ fn provider_not_configured_when_no_key_is_saved() {
 /// `AiConfigKeychainUnavailable` của Story 4.3, không một khoá thứ hai cho cùng sự thật.
 #[test]
 fn keychain_refusing_to_answer_surfaces_the_existing_ai_config_keychain_unavailable_key() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
 
     let global_dir = temp_dir("keychain-unavailable-global");
     let work_dir = temp_dir("keychain-unavailable-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "KeychainUnavailable", "en", "A dragon roared.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
 
     inject_one_shot_keychain_error();
@@ -656,14 +787,25 @@ fn keychain_refusing_to_answer_surfaces_the_existing_ai_config_keychain_unavaila
     let segment_id = first_segment_id(&open);
     let record = fresh_record();
     let err = expect_prepare_err(
-        prepare_translate_call(Some(&global), Some(&open), &record, Some("Plain"), segment_id),
+        prepare_translate_call(
+            Some(&global),
+            Some(&open),
+            &record,
+            Some("Plain"),
+            segment_id,
+        ),
         "keychain tu choi tra loi phai la mot Err",
     );
 
     assert_eq!(err.message_key(), MessageKey::AiConfigKeychainUnavailable);
-    assert!(err.retryable(), "mot keychain bi khoa/tu choi quyen co the thanh cong o luot bam lai");
     assert!(
-        err.params().values().all(|v| v != "sk-decoy" && !v.contains("Bearer")),
+        err.retryable(),
+        "mot keychain bi khoa/tu choi quyen co the thanh cong o luot bam lai"
+    );
+    assert!(
+        err.params()
+            .values()
+            .all(|v| v != "sk-decoy" && !v.contains("Bearer")),
         "gia tri khoa KHONG BAO GIO duoc lot vao tham so loi"
     );
 
@@ -678,7 +820,9 @@ fn keychain_refusing_to_answer_surfaces_the_existing_ai_config_keychain_unavaila
 /// bằng phép ĐO: không bản ghi nào của 4.7's producer được tạo.
 #[test]
 fn segment_cut_from_translation_is_refused_before_the_request_is_built() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-omitted-test-key");
 
@@ -686,24 +830,43 @@ fn segment_cut_from_translation_is_refused_before_the_request_is_built() {
     let work_dir = temp_dir("omitted-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Omitted", "en", "A dragon roared.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
     let segment_id = first_segment_id(&open);
     set_segment_omitted(Some(&open), segment_id, true).expect("dat co cat bo that bai");
 
     let record = fresh_record();
     let err = expect_prepare_err(
-        prepare_translate_call(Some(&global), Some(&open), &record, Some("Plain"), segment_id),
+        prepare_translate_call(
+            Some(&global),
+            Some(&open),
+            &record,
+            Some("Plain"),
+            segment_id,
+        ),
         "segment is_omitted phai bi tu choi",
     );
 
     assert_eq!(err.code(), "ai_translate.segment_omitted");
     assert_eq!(err.message_key(), MessageKey::AiTranslateSegmentOmitted);
-    assert_eq!(err.params().get("segment_id"), Some(&segment_id.to_string()));
+    assert_eq!(
+        err.params().get("segment_id"),
+        Some(&segment_id.to_string())
+    );
     assert!(!err.retryable());
     assert!(
         read_last_assembled_prompt(&record).is_none(),
@@ -740,7 +903,9 @@ fn no_work_open_reuses_the_existing_work_none_open_key() {
 /// (cùng hàm `commands::aiprompt::segment_not_in_chapter` mà 4.7's producer tự dùng).
 #[test]
 fn segment_not_in_chapter_reuses_the_existing_ai_prompt_segment_not_in_chapter_key() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-not-in-chapter-test-key");
 
@@ -748,11 +913,21 @@ fn segment_not_in_chapter_reuses_the_existing_ai_prompt_segment_not_in_chapter_k
     let work_dir = temp_dir("not-in-chapter-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "NotInChapter", "en", "A dragon roared.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
     let real_id = first_segment_id(&open);
     let bogus_id = real_id + 999_999;
@@ -777,7 +952,9 @@ fn segment_not_in_chapter_reuses_the_existing_ai_prompt_segment_not_in_chapter_k
 /// cấu hình". Ma trận I/O nêu tên đúng `endpoint`/`model`/khoá cho hàng đó và không gì khác.
 #[test]
 fn a_blank_temperature_and_max_tokens_does_not_yield_not_configured() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-decision6-test-key");
 
@@ -785,21 +962,40 @@ fn a_blank_temperature_and_max_tokens_does_not_yield_not_configured() {
     let work_dir = temp_dir("decision6-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Decision6", "en", "A dragon roared.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
     // Temperature/MaxTokens CÓ Ý không ghi gì -- đúng trạng thái "chưa đặt" thật, cùng
     // `aiConfigState.ts:69`'s giá trị khởi tạo rỗng.
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
     let segment_id = first_segment_id(&open);
     let record = fresh_record();
-    let outcome = prepare_translate_call(Some(&global), Some(&open), &record, Some("Plain"), segment_id)
-        .expect("prepare khong duoc loi");
+    let outcome = prepare_translate_call(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        segment_id,
+    )
+    .expect("prepare khong duoc loi");
     match outcome {
         PrepareOutcome::Ready(p) => {
-            assert_eq!(p.temperature, None, "chua dat phai la None, khong mot so duc san thay ho");
+            assert_eq!(
+                p.temperature, None,
+                "chua dat phai la None, khong mot so duc san thay ho"
+            );
             assert_eq!(p.max_tokens, None);
         }
         PrepareOutcome::NotConfigured => panic!(
@@ -821,7 +1017,9 @@ fn a_blank_temperature_and_max_tokens_does_not_yield_not_configured() {
 
 #[test]
 fn assemble_only_and_translate_write_an_identical_record_differing_only_in_the_sent_facts() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-two-producer-test-key");
 
@@ -829,11 +1027,21 @@ fn assemble_only_and_translate_write_an_identical_record_differing_only_in_the_s
     let work_dir = temp_dir("two-producer-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "TwoProducer", "en", "A dragon roared.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
     let segment_id = first_segment_id(&open);
 
     // San pham 1 -- CHI lap rap ("Xem prompt", khong mang su that da GUI).
@@ -874,11 +1082,17 @@ fn assemble_only_and_translate_write_an_identical_record_differing_only_in_the_s
     let wire_translate = read_last_assembled_prompt(&record_translate).expect("phai co ban ghi");
 
     // Giống hệt -- CHỈ một hàm ghi record (Quyết định 2).
-    assert_eq!(prepared.prompt, wire_assemble_only.prompt, "ca hai duong phai lap DUNG mot prompt");
+    assert_eq!(
+        prepared.prompt, wire_assemble_only.prompt,
+        "ca hai duong phai lap DUNG mot prompt"
+    );
     assert_eq!(wire_translate.prompt, wire_assemble_only.prompt);
     assert_eq!(wire_translate.segment_id, wire_assemble_only.segment_id);
     assert_eq!(wire_translate.chapter_id, wire_assemble_only.chapter_id);
-    assert_eq!(wire_translate.prompt_set_name, wire_assemble_only.prompt_set_name);
+    assert_eq!(
+        wire_translate.prompt_set_name,
+        wire_assemble_only.prompt_set_name
+    );
     assert_eq!(
         serde_json::to_value(&wire_translate.ledger).expect("serialize ledger 1"),
         serde_json::to_value(&wire_assemble_only.ledger).expect("serialize ledger 2"),
@@ -886,9 +1100,15 @@ fn assemble_only_and_translate_write_an_identical_record_differing_only_in_the_s
     );
 
     // Khác biệt DUY NHẤT được phép: các sự thật ĐÃ GỬI.
-    assert_eq!(wire_assemble_only.sent_at, None, "assemble-only KHONG BAO GIO la mot luot gui");
+    assert_eq!(
+        wire_assemble_only.sent_at, None,
+        "assemble-only KHONG BAO GIO la mot luot gui"
+    );
     assert_eq!(wire_assemble_only.sent_model, None);
-    assert!(wire_translate.sent_at.is_some(), "duong dich, sau khi gui thanh cong, phai co sent_at");
+    assert!(
+        wire_translate.sent_at.is_some(),
+        "duong dich, sau khi gui thanh cong, phai co sent_at"
+    );
     assert_eq!(wire_translate.sent_model.as_deref(), Some("gpt-test"));
 
     drop(open);
@@ -905,7 +1125,9 @@ fn assemble_only_and_translate_write_an_identical_record_differing_only_in_the_s
 /// chưa từng gửi.
 #[test]
 fn a_record_replaced_mid_flight_by_a_newer_assemble_is_left_unstamped() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-mid-flight-test-key");
 
@@ -913,11 +1135,21 @@ fn a_record_replaced_mid_flight_by_a_newer_assemble_is_left_unstamped() {
     let work_dir = temp_dir("mid-flight-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "MidFlight", "en", "A dragon roared.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "First", "{{source_segment}}")
-        .expect("tao bo prompt thu nhat");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "First",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt thu nhat");
     prompt_set_create(
         Some(&global),
         Some(&open),
@@ -932,8 +1164,14 @@ fn a_record_replaced_mid_flight_by_a_newer_assemble_is_left_unstamped() {
 
     // Lượt 1 -- bấm dịch: `prepare_translate_call` ghi bản ghi bằng bộ "First" và giữ ĐÚNG
     // chuỗi sắp gửi trong `prepared.prompt`.
-    let prepared = match prepare_translate_call(Some(&global), Some(&open), &record, Some("First"), segment_id)
-        .expect("prepare khong duoc loi")
+    let prepared = match prepare_translate_call(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("First"),
+        segment_id,
+    )
+    .expect("prepare khong duoc loi")
     {
         PrepareOutcome::Ready(p) => p,
         PrepareOutcome::NotConfigured => panic!("phai san sang"),
@@ -942,14 +1180,28 @@ fn a_record_replaced_mid_flight_by_a_newer_assemble_is_left_unstamped() {
 
     // Lượt 2 -- TRONG LÚC lượt dịch (lượt 1) còn treo, người dùng lắp lại prompt cho CÙNG
     // segment với bộ "Second" -- `assemble_and_record_prompt` GHI ĐÈ đúng bản ghi đó.
-    let replaced =
-        assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("Second"), segment_id)
-            .expect("lap rap lai khong duoc loi");
-    assert_ne!(replaced.prompt, sent_prompt, "fixture phai tao ra hai prompt KHAC nhau");
+    let replaced = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Second"),
+        segment_id,
+    )
+    .expect("lap rap lai khong duoc loi");
+    assert_ne!(
+        replaced.prompt, sent_prompt,
+        "fixture phai tao ra hai prompt KHAC nhau"
+    );
 
     // Lượt 1 cuối cùng trả `Done` -- chỗ gọi thật (`wire::ai_translate_segment`) truyền đúng
     // chuỗi ĐÃ GỬI của lượt 1, không đọc lại `record` để lấy chuỗi "hiện có".
-    mark_prompt_as_sent(&record, segment_id, &sent_prompt, "gpt-test", "2026-09-21T00:00:00.000Z");
+    mark_prompt_as_sent(
+        &record,
+        segment_id,
+        &sent_prompt,
+        "gpt-test",
+        "2026-09-21T00:00:00.000Z",
+    );
 
     let wire = read_last_assembled_prompt(&record).expect("phai co ban ghi");
     assert_eq!(
@@ -1048,7 +1300,10 @@ fn collecting_channel() -> (tauri::ipc::Channel<String>, Arc<Mutex<Vec<String>>>
     let channel = tauri::ipc::Channel::new(move |body| {
         if let tauri::ipc::InvokeResponseBody::Json(json) = body {
             let text: String = serde_json::from_str(&json).unwrap_or_default();
-            received_in.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(text);
+            received_in
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(text);
         }
         Ok(())
     });
@@ -1059,18 +1314,32 @@ fn collecting_channel() -> (tauri::ipc::Channel<String>, Arc<Mutex<Vec<String>>>
 /// token tới ĐÚNG THỨ TỰ, mỗi token một lần gửi `Channel`, trạng thái kết thúc `Done`.
 #[test]
 fn tokens_arrive_on_the_channel_in_order_as_they_land_and_the_call_ends_done() {
-    let provider = FakeProvider { tokens: vec!["Xin ", "chào"], finish: FakeFinish::Done };
+    let provider = FakeProvider {
+        tokens: vec!["Xin ", "chào"],
+        finish: FakeFinish::Done,
+    };
     let prepared = dummy_prepared();
     let (channel, received) = collecting_channel();
     let should_cancel = || false;
 
-    let outcome =
-        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
-            .expect("khong duoc loi");
+    let outcome = tauri::async_runtime::block_on(run_translate_call(
+        &provider,
+        &prepared,
+        &channel,
+        &should_cancel,
+    ))
+    .expect("khong duoc loi");
 
     assert_eq!(outcome, TranslateOutcome::Done(None));
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
-    assert_eq!(got, vec!["Xin ".to_owned(), "chào".to_owned()], "token phai toi DUNG THU TU");
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert_eq!(
+        got,
+        vec!["Xin ".to_owned(), "chào".to_owned()],
+        "token phai toi DUNG THU TU"
+    );
 }
 
 /// I/O Matrix "Cancel mid-stream" — Đối chứng bằng phép ĐO, không bằng cờ: sau khi huỷ, KHÔNG
@@ -1078,19 +1347,29 @@ fn tokens_arrive_on_the_channel_in_order_as_they_land_and_the_call_ends_done() {
 /// arrives, not merely that the state changed").
 #[test]
 fn cancel_mid_stream_sends_no_further_channel_message_and_reports_cancelled() {
-    let provider = FakeProvider { tokens: vec!["one", "two", "three"], finish: FakeFinish::Done };
+    let provider = FakeProvider {
+        tokens: vec!["one", "two", "three"],
+        finish: FakeFinish::Done,
+    };
     let prepared = dummy_prepared();
     let (channel, received) = collecting_channel();
     let calls = AtomicUsize::new(0);
     // Huỷ đúng SAU khi đã nhận một token đầu tiên -- "two"/"three" không được phép tới.
     let should_cancel = || calls.fetch_add(1, Ordering::SeqCst) >= 1;
 
-    let outcome =
-        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
-            .expect("huy la Ok(Cancelled), khong phai mot Err");
+    let outcome = tauri::async_runtime::block_on(run_translate_call(
+        &provider,
+        &prepared,
+        &channel,
+        &should_cancel,
+    ))
+    .expect("huy la Ok(Cancelled), khong phai mot Err");
 
     assert_eq!(outcome, TranslateOutcome::Cancelled);
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     assert_eq!(
         got,
         vec!["one".to_owned()],
@@ -1111,12 +1390,19 @@ fn a_provider_error_after_partial_tokens_leaves_earlier_tokens_visible_and_propa
     let (channel, received) = collecting_channel();
     let should_cancel = || false;
 
-    let err =
-        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
-            .expect_err("mot loi provider phai truyen nguyen qua run_translate_call");
+    let err = tauri::async_runtime::block_on(run_translate_call(
+        &provider,
+        &prepared,
+        &channel,
+        &should_cancel,
+    ))
+    .expect_err("mot loi provider phai truyen nguyen qua run_translate_call");
 
     assert_eq!(err, FakeProviderError("dropped".to_owned()));
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     assert_eq!(
         got,
         vec!["partial ".to_owned()],
@@ -1140,13 +1426,26 @@ fn a_provider_error_with_zero_tokens_received_leaves_the_channel_empty_and_propa
     let (channel, received) = collecting_channel();
     let should_cancel = || false;
 
-    let err =
-        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
-            .expect_err("mot loi provider TRUOC token dau tien van phai la Err");
+    let err = tauri::async_runtime::block_on(run_translate_call(
+        &provider,
+        &prepared,
+        &channel,
+        &should_cancel,
+    ))
+    .expect_err("mot loi provider TRUOC token dau tien van phai la Err");
 
-    assert_eq!(err, FakeProviderError("dropped-before-first-token".to_owned()));
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
-    assert!(got.is_empty(), "khong token nao tung gui -- Channel phai RONG, khong mot khung nao");
+    assert_eq!(
+        err,
+        FakeProviderError("dropped-before-first-token".to_owned())
+    );
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert!(
+        got.is_empty(),
+        "khong token nao tung gui -- Channel phai RONG, khong mot khung nao"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1159,17 +1458,33 @@ fn a_provider_error_with_zero_tokens_received_leaves_the_channel_empty_and_propa
 /// `run_translate_call` phải mang NGUYÊN VẸN giá trị đó ra ngoài, không đánh rơi hay đúc lại.
 #[test]
 fn usage_reported_by_the_provider_is_carried_through_run_translate_call_unchanged() {
-    let usage = TranslateUsage { prompt_tokens: 100, completion_tokens: 312, total_tokens: 412, cost_usd: Some(0.00412) };
-    let provider = FakeProvider { tokens: vec!["Xin chào"], finish: FakeFinish::DoneWithUsage(usage) };
+    let usage = TranslateUsage {
+        prompt_tokens: 100,
+        completion_tokens: 312,
+        total_tokens: 412,
+        cost_usd: Some(0.00412),
+    };
+    let provider = FakeProvider {
+        tokens: vec!["Xin chào"],
+        finish: FakeFinish::DoneWithUsage(usage),
+    };
     let prepared = dummy_prepared();
     let (channel, _received) = collecting_channel();
     let should_cancel = || false;
 
-    let outcome =
-        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
-            .expect("khong duoc loi");
+    let outcome = tauri::async_runtime::block_on(run_translate_call(
+        &provider,
+        &prepared,
+        &channel,
+        &should_cancel,
+    ))
+    .expect("khong duoc loi");
 
-    assert_eq!(outcome, TranslateOutcome::Done(Some(usage)), "usage phai di qua NGUYEN VEN, khong doi mot truong nao");
+    assert_eq!(
+        outcome,
+        TranslateOutcome::Done(Some(usage)),
+        "usage phai di qua NGUYEN VEN, khong doi mot truong nao"
+    );
 }
 
 /// I/O Matrix "Provider sends no usage" -- stream kết thúc `Done` mà không một khung `usage`
@@ -1178,14 +1493,21 @@ fn usage_reported_by_the_provider_is_carried_through_run_translate_call_unchange
 /// currency").
 #[test]
 fn a_stream_that_ends_done_without_ever_seeing_a_usage_frame_carries_none() {
-    let provider = FakeProvider { tokens: vec!["Xin ", "chào"], finish: FakeFinish::Done };
+    let provider = FakeProvider {
+        tokens: vec!["Xin ", "chào"],
+        finish: FakeFinish::Done,
+    };
     let prepared = dummy_prepared();
     let (channel, _received) = collecting_channel();
     let should_cancel = || false;
 
-    let outcome =
-        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
-            .expect("khong duoc loi");
+    let outcome = tauri::async_runtime::block_on(run_translate_call(
+        &provider,
+        &prepared,
+        &channel,
+        &should_cancel,
+    ))
+    .expect("khong duoc loi");
 
     assert_eq!(outcome, TranslateOutcome::Done(None));
 }
@@ -1196,20 +1518,35 @@ fn a_stream_that_ends_done_without_ever_seeing_a_usage_frame_carries_none() {
 /// bảo đảm ở TẦNG KIỂU, không phải một giá trị có thể lỡ tay đúc sai).
 #[test]
 fn cancelling_before_the_usage_frame_arrives_reports_cancelled_with_no_usage_to_carry() {
-    let usage = TranslateUsage { prompt_tokens: 9, completion_tokens: 9, total_tokens: 18, cost_usd: None };
-    let provider = FakeProvider { tokens: vec!["partial"], finish: FakeFinish::DoneWithUsage(usage) };
+    let usage = TranslateUsage {
+        prompt_tokens: 9,
+        completion_tokens: 9,
+        total_tokens: 18,
+        cost_usd: None,
+    };
+    let provider = FakeProvider {
+        tokens: vec!["partial"],
+        finish: FakeFinish::DoneWithUsage(usage),
+    };
     let prepared = dummy_prepared();
     let (channel, received) = collecting_channel();
     let calls = AtomicUsize::new(0);
     // Huy NGAY sau token dau tien -- provider (gia) khong bao gio toi duoc nhanh tra usage.
     let should_cancel = || calls.fetch_add(1, Ordering::SeqCst) >= 1;
 
-    let outcome =
-        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &should_cancel))
-            .expect("huy la Ok(Cancelled), khong phai mot Err");
+    let outcome = tauri::async_runtime::block_on(run_translate_call(
+        &provider,
+        &prepared,
+        &channel,
+        &should_cancel,
+    ))
+    .expect("huy la Ok(Cancelled), khong phai mot Err");
 
     assert_eq!(outcome, TranslateOutcome::Cancelled);
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     assert_eq!(got, vec!["partial".to_owned()]);
 }
 
@@ -1217,14 +1554,24 @@ fn cancelling_before_the_usage_frame_arrives_reports_cancelled_with_no_usage_to_
 /// trường nào (kể cả `cost_usd: None`, ca "usage đã tới nhưng mô hình không có giá").
 #[test]
 fn ai_translate_usage_wire_from_translate_usage_copies_every_field_verbatim() {
-    let usage = TranslateUsage { prompt_tokens: 7, completion_tokens: 11, total_tokens: 18, cost_usd: None };
+    let usage = TranslateUsage {
+        prompt_tokens: 7,
+        completion_tokens: 11,
+        total_tokens: 18,
+        cost_usd: None,
+    };
     let wire = auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(usage);
     assert_eq!(wire.prompt_tokens, 7);
     assert_eq!(wire.completion_tokens, 11);
     assert_eq!(wire.total_tokens, 18);
     assert_eq!(wire.cost_usd, None);
 
-    let priced = TranslateUsage { prompt_tokens: 100, completion_tokens: 312, total_tokens: 412, cost_usd: Some(0.00412) };
+    let priced = TranslateUsage {
+        prompt_tokens: 100,
+        completion_tokens: 312,
+        total_tokens: 412,
+        cost_usd: Some(0.00412),
+    };
     let priced_wire = auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(priced);
     assert_eq!(priced_wire.cost_usd, Some(0.00412));
 }
@@ -1237,21 +1584,36 @@ fn ai_translate_usage_wire_from_translate_usage_copies_every_field_verbatim() {
 /// dễ mắc) vẫn qua sạch mọi gate/test khác. Ca này gọi THẲNG hàm ánh xạ, không đi vòng qua một
 /// webview giả.
 #[test]
-fn single_run_outcome_wire_carries_the_real_usage_through_for_done_and_carries_nothing_for_cancelled() {
-    use auratranslate_lib::commands::aitranslate::{AiTranslateOutcomeWire, single_run_outcome_wire};
+fn single_run_outcome_wire_carries_the_real_usage_through_for_done_and_carries_nothing_for_cancelled()
+ {
+    use auratranslate_lib::commands::aitranslate::{
+        AiTranslateOutcomeWire, single_run_outcome_wire,
+    };
 
-    let usage = TranslateUsage { prompt_tokens: 100, completion_tokens: 312, total_tokens: 412, cost_usd: Some(0.00412) };
+    let usage = TranslateUsage {
+        prompt_tokens: 100,
+        completion_tokens: 312,
+        total_tokens: 412,
+        cost_usd: Some(0.00412),
+    };
     match single_run_outcome_wire(TranslateOutcome::Done(Some(usage))) {
         AiTranslateOutcomeWire::Done { usage: Some(wire) } => {
-            assert_eq!(wire.total_tokens, 412, "usage THAT phai di ra day, khong duoc thay bang None");
+            assert_eq!(
+                wire.total_tokens, 412,
+                "usage THAT phai di ra day, khong duoc thay bang None"
+            );
             assert_eq!(wire.cost_usd, Some(0.00412));
         }
-        other => panic!("Done(Some(usage)) phai anh xa thanh Done{{ usage: Some(..) }}, nhan duoc {other:?}"),
+        other => panic!(
+            "Done(Some(usage)) phai anh xa thanh Done{{ usage: Some(..) }}, nhan duoc {other:?}"
+        ),
     }
 
     match single_run_outcome_wire(TranslateOutcome::Done(None)) {
         AiTranslateOutcomeWire::Done { usage: None } => {}
-        other => panic!("Done(None) (provider khong tra usage) phai anh xa thanh Done{{ usage: None }}, nhan duoc {other:?}"),
+        other => panic!(
+            "Done(None) (provider khong tra usage) phai anh xa thanh Done{{ usage: None }}, nhan duoc {other:?}"
+        ),
     }
 
     match single_run_outcome_wire(TranslateOutcome::Cancelled) {
@@ -1266,19 +1628,36 @@ fn single_run_outcome_wire_carries_the_real_usage_through_for_done_and_carries_n
 /// "toàn phần"/"một phần" là việc của `aiTranslateBatchState.ts`, canh ở
 /// `tests/frontend/aiTranslateBatch.test.ts`).
 #[test]
-fn a_batch_carries_usage_per_sentence_and_a_sentence_with_no_usage_does_not_affect_its_neighbours() {
+fn a_batch_carries_usage_per_sentence_and_a_sentence_with_no_usage_does_not_affect_its_neighbours()
+{
     let ids = [1_601_i64, 1_602, 1_603];
-    let items: Vec<PreparedBatchItem> =
-        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
-    let usage_1 = TranslateUsage { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30, cost_usd: Some(0.0002) };
-    let usage_3 = TranslateUsage { prompt_tokens: 5, completion_tokens: 5, total_tokens: 10, cost_usd: None };
+    let items: Vec<PreparedBatchItem> = ids
+        .iter()
+        .map(|id| dummy_batch_item(*id, &format!("Prompt for {id}")))
+        .collect();
+    let usage_1 = TranslateUsage {
+        prompt_tokens: 10,
+        completion_tokens: 20,
+        total_tokens: 30,
+        cost_usd: Some(0.0002),
+    };
+    let usage_3 = TranslateUsage {
+        prompt_tokens: 5,
+        completion_tokens: 5,
+        total_tokens: 10,
+        cost_usd: None,
+    };
     let recipes = vec![
         MultiItemRecipe {
             tokens: vec!["one"],
             finish: FakeFinish::DoneWithUsage(usage_1),
             trigger_cancel_after_token: None,
         },
-        MultiItemRecipe { tokens: vec!["two"], finish: FakeFinish::Done, trigger_cancel_after_token: None },
+        MultiItemRecipe {
+            tokens: vec!["two"],
+            finish: FakeFinish::Done,
+            trigger_cancel_after_token: None,
+        },
         MultiItemRecipe {
             tokens: vec!["three"],
             finish: FakeFinish::DoneWithUsage(usage_3),
@@ -1294,11 +1673,15 @@ fn a_batch_carries_usage_per_sentence_and_a_sentence_with_no_usage_does_not_affe
     let (channel, received) = collecting_batch_channel();
     let should_cancel = || false;
 
-    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
-        .expect("khong duoc loi");
+    let outcome =
+        tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+            .expect("khong duoc loi");
     assert_eq!(outcome, AiTranslateBatchOutcome::Done);
 
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     let usage_shape = |u: TranslateUsage| UsageShape {
         prompt_tokens: u.prompt_tokens,
         completion_tokens: u.completion_tokens,
@@ -1306,12 +1689,30 @@ fn a_batch_carries_usage_per_sentence_and_a_sentence_with_no_usage_does_not_affe
         cost_usd: u.cost_usd,
     };
     let expected = vec![
-        BatchEventShape::Token { segment_id: ids[0], text: "one".to_owned() },
-        BatchEventShape::Done { segment_id: ids[0], usage: Some(usage_shape(usage_1)) },
-        BatchEventShape::Token { segment_id: ids[1], text: "two".to_owned() },
-        BatchEventShape::Done { segment_id: ids[1], usage: None },
-        BatchEventShape::Token { segment_id: ids[2], text: "three".to_owned() },
-        BatchEventShape::Done { segment_id: ids[2], usage: Some(usage_shape(usage_3)) },
+        BatchEventShape::Token {
+            segment_id: ids[0],
+            text: "one".to_owned(),
+        },
+        BatchEventShape::Done {
+            segment_id: ids[0],
+            usage: Some(usage_shape(usage_1)),
+        },
+        BatchEventShape::Token {
+            segment_id: ids[1],
+            text: "two".to_owned(),
+        },
+        BatchEventShape::Done {
+            segment_id: ids[1],
+            usage: None,
+        },
+        BatchEventShape::Token {
+            segment_id: ids[2],
+            text: "three".to_owned(),
+        },
+        BatchEventShape::Done {
+            segment_id: ids[2],
+            usage: Some(usage_shape(usage_3)),
+        },
     ];
     assert_eq!(
         got, expected,
@@ -1324,9 +1725,12 @@ fn a_batch_carries_usage_per_sentence_and_a_sentence_with_no_usage_does_not_affe
 /// khuôn các gate quét-mã-nguồn khác của kho (`ai_boundary.rs`).
 #[test]
 fn the_command_file_carries_zero_emit_or_listen_calls_on_the_translate_path() {
-    let path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("aitranslate.rs");
-    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", path.display()));
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("aitranslate.rs");
+    let src = fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("khong doc duoc {}: {e}", path.display()));
     assert!(
         !src.contains(".emit("),
         "AC2: `commands/aitranslate.rs` khong duoc goi `.emit(` -- AD-22 doi streaming di qua \
@@ -1366,9 +1770,15 @@ fn provider_returns_a_non_2xx_maps_to_a_non_retryable_ipc_error_naming_the_statu
 fn stream_ended_without_done_maps_to_a_retryable_ipc_error() {
     let err: IpcError = OpenAiClientError::StreamEndedWithoutDone.into();
     assert_eq!(err.code(), "ai_translate.stream_ended_without_done");
-    assert_eq!(err.message_key(), MessageKey::AiTranslateStreamEndedWithoutDone);
+    assert_eq!(
+        err.message_key(),
+        MessageKey::AiTranslateStreamEndedWithoutDone
+    );
     assert!(err.params().is_empty());
-    assert!(err.retryable(), "rot ket noi GIUA CHUNG co the thu lai o luot bam lai");
+    assert!(
+        err.retryable(),
+        "rot ket noi GIUA CHUNG co the thu lai o luot bam lai"
+    );
 }
 
 /// Đối chứng ĐỦ TÁM biến thể (7 cũ + `ApiKeyHeaderInvalid` tách khỏi `RequestFailed` ở Task 1
@@ -1380,16 +1790,21 @@ fn stream_ended_without_done_maps_to_a_retryable_ipc_error() {
 /// cùng MỘT khoá gộp" sang "mọi biến thể ánh xạ khoá HỌ của chính nó" (Quyết định 2). Mảng giữ
 /// nguyên 7 phần tử cũ CỘNG một phần tử mới cho `ApiKeyHeaderInvalid` = 8.
 #[test]
-fn every_openai_client_error_variant_maps_to_its_own_family_key_with_the_documented_retryable_flag() {
+fn every_openai_client_error_variant_maps_to_its_own_family_key_with_the_documented_retryable_flag()
+{
     let cases: [(OpenAiClientError, &str, MessageKey, bool); 8] = [
         (
-            OpenAiClientError::ClientBuildFailed { detail: "x".to_owned() },
+            OpenAiClientError::ClientBuildFailed {
+                detail: "x".to_owned(),
+            },
             "ai_translate.client_build_failed",
             MessageKey::AiTranslateClientBuildFailed,
             false,
         ),
         (
-            OpenAiClientError::RequestFailed { detail: "x".to_owned() },
+            OpenAiClientError::RequestFailed {
+                detail: "x".to_owned(),
+            },
             "ai_translate.provider_unreachable",
             MessageKey::AiTranslateProviderUnreachable,
             true,
@@ -1401,7 +1816,9 @@ fn every_openai_client_error_variant_maps_to_its_own_family_key_with_the_documen
             false,
         ),
         (
-            OpenAiClientError::ReadFailed { detail: "x".to_owned() },
+            OpenAiClientError::ReadFailed {
+                detail: "x".to_owned(),
+            },
             "ai_translate.provider_unreachable",
             MessageKey::AiTranslateProviderUnreachable,
             true,
@@ -1413,19 +1830,25 @@ fn every_openai_client_error_variant_maps_to_its_own_family_key_with_the_documen
             true,
         ),
         (
-            OpenAiClientError::MalformedEvent { detail: "x".to_owned() },
+            OpenAiClientError::MalformedEvent {
+                detail: "x".to_owned(),
+            },
             "ai_translate.reply_unreadable",
             MessageKey::AiTranslateReplyUnreadable,
             false,
         ),
         (
-            OpenAiClientError::BufferOverflow { size: 2 * 1024 * 1024 },
+            OpenAiClientError::BufferOverflow {
+                size: 2 * 1024 * 1024,
+            },
             "ai_translate.reply_unreadable",
             MessageKey::AiTranslateReplyUnreadable,
             false,
         ),
         (
-            OpenAiClientError::ApiKeyHeaderInvalid { detail: "x".to_owned() },
+            OpenAiClientError::ApiKeyHeaderInvalid {
+                detail: "x".to_owned(),
+            },
             "ai_translate.api_key_header_invalid",
             MessageKey::AiTranslateApiKeyHeaderInvalid,
             false,
@@ -1434,9 +1857,17 @@ fn every_openai_client_error_variant_maps_to_its_own_family_key_with_the_documen
     for (variant, expected_code, expected_key, expected_retryable) in cases {
         let label = format!("{variant:?}");
         let err: IpcError = variant.into();
-        assert_eq!(err.code(), expected_code, "{label} phai mang code cua HO nguyen nhan");
+        assert_eq!(
+            err.code(),
+            expected_code,
+            "{label} phai mang code cua HO nguyen nhan"
+        );
         assert_eq!(err.message_key(), expected_key, "{label}");
-        assert_eq!(err.retryable(), expected_retryable, "{label} phai anh xa retryable={expected_retryable}");
+        assert_eq!(
+            err.retryable(),
+            expected_retryable,
+            "{label} phai anh xa retryable={expected_retryable}"
+        );
     }
 }
 
@@ -1459,7 +1890,10 @@ fn the_request_body_omits_temperature_and_max_tokens_when_unset() {
         !json.contains("temperature"),
         "Quyet dinh 6: truong nay phai VANG MAT (khong ca 'null') khi None: {json}"
     );
-    assert!(!json.contains("max_tokens"), "Quyet dinh 6: truong nay phai VANG MAT khi None: {json}");
+    assert!(
+        !json.contains("max_tokens"),
+        "Quyet dinh 6: truong nay phai VANG MAT khi None: {json}"
+    );
     assert!(json.contains("\"stream\":true"), "{json}");
 }
 
@@ -1510,7 +1944,10 @@ fn promote_writes_target_text_and_origin_other_in_one_operation_and_confirm_with
 
     let outcome = promote_ai_translation(Some(&open), segment_id, "Con rồng gầm.", false)
         .expect("promote khong duoc loi");
-    assert!(!outcome.needs_confirmation, "segment chua tung dich -- khong co gi de mat");
+    assert!(
+        !outcome.needs_confirmation,
+        "segment chua tung dich -- khong co gi de mat"
+    );
     assert_eq!(outcome.target_text, "Con rồng gầm.");
     assert_eq!(outcome.translation_origin, TRANSLATION_ORIGIN_OTHER);
     assert_eq!(
@@ -1523,8 +1960,7 @@ fn promote_writes_target_text_and_origin_other_in_one_operation_and_confirm_with
     // xác nhận KHÔNG sửa một chữ phải GIỮ NGUYÊN 'other', không rơi về 'self'. Đếm bằng cách
     // GỠ dòng ghi `translation_origin` khỏi `promote_ai_translation` sẽ làm chính ca này đỏ,
     // đúng counter-check AC4 đòi ("removing the origin write makes a named case go red").
-    confirm_segment(Some(&open), segment_id)
-        .expect("confirm khong duoc loi");
+    confirm_segment(Some(&open), segment_id).expect("confirm khong duoc loi");
     assert_eq!(
         read_origin(&open, segment_id),
         TRANSLATION_ORIGIN_OTHER,
@@ -1552,7 +1988,10 @@ fn promoting_over_an_unsigned_draft_holds_the_write_until_the_caller_confirms() 
 
     let first = promote_ai_translation(Some(&open), segment_id, "Ban nhap AI thu nhat.", false)
         .expect("promote thu nhat khong duoc loi");
-    assert!(!first.needs_confirmation, "segment chua tung dich -- khong co gi de mat");
+    assert!(
+        !first.needs_confirmation,
+        "segment chua tung dich -- khong co gi de mat"
+    );
 
     let held = promote_ai_translation(Some(&open), segment_id, "Ban nhap AI thu hai.", false)
         .expect("mot luot giu lai KHONG phai mot loi -- no la mot ket qua");
@@ -1660,12 +2099,21 @@ fn promoting_into_a_segment_outside_the_open_chapter_is_refused_and_writes_nothi
             .expect("promote vao segment ngoai Chuong dang mo phai la Err");
         assert_eq!(err.code(), "segment.not_in_open_chapter");
         assert_eq!(err.message_key(), MessageKey::SegmentNotInOpenChapter);
-        assert_eq!(err.params().get("segment_id"), Some(&segment_id.to_string()));
-        assert_eq!(err.params().get("chapter_id"), Some(&second_chapter.to_string()));
+        assert_eq!(
+            err.params().get("segment_id"),
+            Some(&segment_id.to_string())
+        );
+        assert_eq!(
+            err.params().get("chapter_id"),
+            Some(&second_chapter.to_string())
+        );
         assert!(!err.retryable());
     }
 
-    assert_eq!(read_text_and_origin(&open, segment_id), (text_before, origin_before));
+    assert_eq!(
+        read_text_and_origin(&open, segment_id),
+        (text_before, origin_before)
+    );
     assert_ne!(first_chapter, second_chapter);
 
     drop(open);
@@ -1691,7 +2139,10 @@ fn a_panicked_blocking_task_is_an_internal_failure_not_a_network_error() {
     let err = batch_panicked_error();
     assert_eq!(err.code(), "ai_translate.internal_failure");
     assert_eq!(err.message_key(), MessageKey::AiTranslateInternalFailure);
-    assert_ne!(err.message_key(), MessageKey::AiTranslateProviderUnreachable);
+    assert_ne!(
+        err.message_key(),
+        MessageKey::AiTranslateProviderUnreachable
+    );
     assert!(!err.retryable());
 }
 
@@ -1740,13 +2191,21 @@ struct UsageShape {
 #[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum BatchEventShape {
-    Token { segment_id: i64, text: String },
+    Token {
+        segment_id: i64,
+        text: String,
+    },
     // Story 4.11 -- `usage` them vao `AiTranslateBatchEventWire::Done` (commands/aitranslate.rs);
     // mirror THUAN rieng (khong tai dung `AiTranslateUsageWire` san pham: kieu do chi derive
     // `Serialize`, khong `Deserialize`, dung khuon doc-comment tren -- mot crate test KHAC
     // khong giai ma nguoc duoc no thang).
-    Done { segment_id: i64, usage: Option<UsageShape> },
-    Skipped { segment_id: i64 },
+    Done {
+        segment_id: i64,
+        usage: Option<UsageShape>,
+    },
+    Skipped {
+        segment_id: i64,
+    },
 }
 
 /// Dựng một `Channel<AiTranslateBatchEventWire>` THẬT, thu lại các sự kiện đã gửi qua
@@ -1755,7 +2214,10 @@ enum BatchEventShape {
 /// dưới đây cắm cờ huỷ vào.
 fn collecting_batch_channel_with_hook(
     hook: impl FnMut(&BatchEventShape) + Send + 'static,
-) -> (tauri::ipc::Channel<AiTranslateBatchEventWire>, Arc<Mutex<Vec<BatchEventShape>>>) {
+) -> (
+    tauri::ipc::Channel<AiTranslateBatchEventWire>,
+    Arc<Mutex<Vec<BatchEventShape>>>,
+) {
     let received = Arc::new(Mutex::new(Vec::new()));
     let received_in = Arc::clone(&received);
     // `Channel::new` doi `Fn + Send + Sync` -- boc `hook` (chi `FnMut`) trong mot `Mutex` de
@@ -1764,18 +2226,26 @@ fn collecting_batch_channel_with_hook(
     let hook = Mutex::new(hook);
     let channel = tauri::ipc::Channel::new(move |body| {
         if let tauri::ipc::InvokeResponseBody::Json(json) = body {
-            let event: BatchEventShape = serde_json::from_str(&json)
-                .unwrap_or_else(|e| panic!("giai ma AiTranslateBatchEventWire that bai: {e} -- json={json}"));
-            (hook.lock().unwrap_or_else(std::sync::PoisonError::into_inner))(&event);
-            received_in.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(event);
+            let event: BatchEventShape = serde_json::from_str(&json).unwrap_or_else(|e| {
+                panic!("giai ma AiTranslateBatchEventWire that bai: {e} -- json={json}")
+            });
+            (hook
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner))(&event);
+            received_in
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(event);
         }
         Ok(())
     });
     (channel, received)
 }
 
-fn collecting_batch_channel()
--> (tauri::ipc::Channel<AiTranslateBatchEventWire>, Arc<Mutex<Vec<BatchEventShape>>>) {
+fn collecting_batch_channel() -> (
+    tauri::ipc::Channel<AiTranslateBatchEventWire>,
+    Arc<Mutex<Vec<BatchEventShape>>>,
+) {
     collecting_batch_channel_with_hook(|_| {})
 }
 
@@ -1870,8 +2340,10 @@ impl TranslationProvider for MultiItemProvider {
 /// "the batch is exactly the user's selection, translated in document order").
 #[test]
 fn prepare_batch_call_returns_items_in_document_order_regardless_of_the_input_order_of_segment_ids()
- {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+{
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-batch-order-test-key");
 
@@ -1879,21 +2351,51 @@ fn prepare_batch_call_returns_items_in_document_order_regardless_of_the_input_or
     let work_dir = temp_dir("batch-order-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "BatchOrder", "en", FIVE_SENTENCE_TEXT);
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
-    let doc_order: Vec<i64> =
-        read_open_chapter_segments(Some(&open)).expect("nap chuong").segments.iter().map(|s| s.id).collect();
-    assert_eq!(doc_order.len(), 5, "fixture 5 cau phai tach thanh 5 segment");
+    let doc_order: Vec<i64> = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments
+        .iter()
+        .map(|s| s.id)
+        .collect();
+    assert_eq!(
+        doc_order.len(),
+        5,
+        "fixture 5 cau phai tach thanh 5 segment"
+    );
 
     // Gui LEN theo thu tu XAO TRON co y -- khac han thu tu tai lieu.
-    let shuffled = [doc_order[2], doc_order[0], doc_order[4], doc_order[1], doc_order[3]];
+    let shuffled = [
+        doc_order[2],
+        doc_order[0],
+        doc_order[4],
+        doc_order[1],
+        doc_order[3],
+    ];
     let record = fresh_record();
-    let outcome = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &shuffled)
-        .expect("prepare batch khong duoc loi");
+    let outcome = prepare_batch_call(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        &shuffled,
+    )
+    .expect("prepare batch khong duoc loi");
     let items = match outcome {
         PrepareBatchOutcome::Ready(items) => items,
         PrepareBatchOutcome::NotConfigured => panic!("phai san sang"),
@@ -1919,7 +2421,9 @@ fn prepare_batch_call_returns_items_in_document_order_regardless_of_the_input_or
 
 #[test]
 fn prepare_batch_call_gives_each_segment_its_own_similar_tm_pair_in_its_prompt() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-batch-tm-test-key");
 
@@ -1932,8 +2436,12 @@ fn prepare_batch_call_gives_each_segment_its_own_similar_tm_pair_in_its_prompt()
         "en",
         "The old dragon breathed fire at the quiet village. The brave knight crossed the frozen river at dawn.",
     );
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
     prompt_set_create(
         Some(&global),
@@ -1960,12 +2468,22 @@ fn prepare_batch_call_gives_each_segment_its_own_similar_tm_pair_in_its_prompt()
         })
         .expect("gieo tm_unit");
 
-    let ids: Vec<i64> =
-        read_open_chapter_segments(Some(&open)).expect("nap chuong").segments.iter().map(|s| s.id).collect();
+    let ids: Vec<i64> = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments
+        .iter()
+        .map(|s| s.id)
+        .collect();
     assert_eq!(ids.len(), 2, "fixture 2 cau phai tach thanh 2 segment");
 
-    let items = match prepare_batch_call(Some(&global), Some(&open), &fresh_record(), Some("TmBatch"), &ids)
-        .expect("prepare batch khong duoc loi")
+    let items = match prepare_batch_call(
+        Some(&global),
+        Some(&open),
+        &fresh_record(),
+        Some("TmBatch"),
+        &ids,
+    )
+    .expect("prepare batch khong duoc loi")
     {
         PrepareBatchOutcome::Ready(items) => items,
         PrepareBatchOutcome::NotConfigured => panic!("phai san sang"),
@@ -1978,8 +2496,16 @@ fn prepare_batch_call_gives_each_segment_its_own_similar_tm_pair_in_its_prompt()
         })
         .collect();
 
-    assert!(prompts[0].contains("PAIR-DRAGON") && !prompts[0].contains("PAIR-KNIGHT"), "{}", prompts[0]);
-    assert!(prompts[1].contains("PAIR-KNIGHT") && !prompts[1].contains("PAIR-DRAGON"), "{}", prompts[1]);
+    assert!(
+        prompts[0].contains("PAIR-DRAGON") && !prompts[0].contains("PAIR-KNIGHT"),
+        "{}",
+        prompts[0]
+    );
+    assert!(
+        prompts[1].contains("PAIR-KNIGHT") && !prompts[1].contains("PAIR-DRAGON"),
+        "{}",
+        prompts[1]
+    );
 
     drop(open);
     drop(global);
@@ -1992,7 +2518,9 @@ fn prepare_batch_call_gives_each_segment_its_own_similar_tm_pair_in_its_prompt()
 /// dạng khác.
 #[test]
 fn a_selection_of_exactly_one_segment_runs_through_the_batch_prepare_path_as_a_batch_of_one() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-batch-of-one-test-key");
 
@@ -2000,25 +2528,50 @@ fn a_selection_of_exactly_one_segment_runs_through_the_batch_prepare_path_as_a_b
     let work_dir = temp_dir("batch-of-one-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "BatchOfOne", "en", "A dragon roared.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
     let segment_id = first_segment_id(&open);
     let record = fresh_record();
-    let outcome = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &[segment_id])
-        .expect("prepare batch khong duoc loi");
+    let outcome = prepare_batch_call(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        &[segment_id],
+    )
+    .expect("prepare batch khong duoc loi");
     match outcome {
         PrepareBatchOutcome::Ready(items) => {
-            assert_eq!(items.len(), 1, "mot lua chon dung MOT segment phai tra ve DUNG mot phan tu");
+            assert_eq!(
+                items.len(),
+                1,
+                "mot lua chon dung MOT segment phai tra ve DUNG mot phan tu"
+            );
             match &items[0] {
-                PreparedBatchItem::ToTranslate { segment_id: got, prepared } => {
+                PreparedBatchItem::ToTranslate {
+                    segment_id: got,
+                    prepared,
+                } => {
                     assert_eq!(*got, segment_id);
                     assert!(!prepared.prompt.is_empty());
                 }
-                PreparedBatchItem::Omitted { .. } => panic!("segment nay khong bi cat, phai la ToTranslate"),
+                PreparedBatchItem::Omitted { .. } => {
+                    panic!("segment nay khong bi cat, phai la ToTranslate")
+                }
             }
         }
         PrepareBatchOutcome::NotConfigured => panic!("phai san sang"),
@@ -2039,7 +2592,9 @@ fn a_selection_of_exactly_one_segment_runs_through_the_batch_prepare_path_as_a_b
 /// biên dịch.
 #[test]
 fn an_omitted_segment_inside_the_selection_is_classified_as_omitted_not_to_translate() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-batch-omitted-test-key");
 
@@ -2047,14 +2602,28 @@ fn an_omitted_segment_inside_the_selection_is_classified_as_omitted_not_to_trans
     let work_dir = temp_dir("batch-omitted-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "BatchOmitted", "en", FIVE_SENTENCE_TEXT);
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
     let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
-    assert_eq!(chapter.segments.len(), 5, "fixture 5 cau phai tach thanh 5 segment");
+    assert_eq!(
+        chapter.segments.len(),
+        5,
+        "fixture 5 cau phai tach thanh 5 segment"
+    );
     let all_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
     let omitted_id = all_ids[2];
     set_segment_omitted(Some(&open), omitted_id, true).expect("dat co cat bo that bai");
@@ -2095,19 +2664,34 @@ fn an_omitted_segment_inside_the_selection_is_classified_as_omitted_not_to_trans
 /// "chưa có khoá" và rơi nhầm về `NotConfigured`.
 #[test]
 fn a_batch_of_only_omitted_segments_never_reads_the_keychain() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
 
     let global_dir = temp_dir("batch-all-omitted-global");
     let work_dir = temp_dir("batch-all-omitted-work");
     let global = open_global(&global_dir);
-    let open = open_work(&work_dir, "BatchAllOmitted", "en", "Sentence one. Sentence two.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    let open = open_work(
+        &work_dir,
+        "BatchAllOmitted",
+        "en",
+        "Sentence one. Sentence two.",
+    );
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
 
     let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
-    assert_eq!(chapter.segments.len(), 2, "fixture 2 cau phai tach thanh 2 segment");
+    assert_eq!(
+        chapter.segments.len(),
+        2,
+        "fixture 2 cau phai tach thanh 2 segment"
+    );
     let all_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
     for id in &all_ids {
         set_segment_omitted(Some(&open), *id, true).expect("dat co cat bo that bai");
@@ -2120,7 +2704,9 @@ fn a_batch_of_only_omitted_segments_never_reads_the_keychain() {
         PrepareBatchOutcome::Ready(items) => {
             assert_eq!(items.len(), 2);
             assert!(
-                items.iter().all(|i| matches!(i, PreparedBatchItem::Omitted { .. })),
+                items
+                    .iter()
+                    .all(|i| matches!(i, PreparedBatchItem::Omitted { .. })),
                 "ca hai hang deu bi cat -- ca hai phai la Omitted"
             );
         }
@@ -2141,15 +2727,26 @@ fn a_batch_of_only_omitted_segments_never_reads_the_keychain() {
 #[test]
 fn ai_not_configured_for_a_batch_reports_not_configured_before_any_provider_call_and_leaves_the_selection_untouched()
  {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
 
     let global_dir = temp_dir("batch-not-configured-global");
     let work_dir = temp_dir("batch-not-configured-work");
     let global = open_global(&global_dir);
-    let open = open_work(&work_dir, "BatchNotConfigured", "en", "Sentence one. Sentence two.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    let open = open_work(
+        &work_dir,
+        "BatchNotConfigured",
+        "en",
+        "Sentence one. Sentence two.",
+    );
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
     // KHONG luu khoa nao -- endpoint/model du nhung "key_configured == Some(false)".
 
@@ -2173,13 +2770,20 @@ fn ai_not_configured_for_a_batch_reports_not_configured_before_any_provider_call
 
 #[test]
 fn batch_reports_not_configured_when_endpoint_or_model_is_empty() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-batch-empty-config");
     let global_dir = temp_dir("batch-not-configured-empty-global");
     let work_dir = temp_dir("batch-not-configured-empty-work");
     let global = open_global(&global_dir);
-    let open = open_work(&work_dir, "BatchNotConfiguredEmpty", "en", "Sentence one. Sentence two.");
+    let open = open_work(
+        &work_dir,
+        "BatchNotConfiguredEmpty",
+        "en",
+        "Sentence one. Sentence two.",
+    );
     let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
     let all_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
     let record = fresh_record();
@@ -2188,11 +2792,18 @@ fn batch_reports_not_configured_when_endpoint_or_model_is_empty() {
         .expect("khong duoc la mot Err");
     assert!(matches!(outcome, PrepareBatchOutcome::NotConfigured));
 
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     let outcome2 = prepare_batch_call(Some(&global), Some(&open), &record, Some("Plain"), &all_ids)
         .expect("khong duoc la mot Err");
-    assert!(matches!(outcome2, PrepareBatchOutcome::NotConfigured), "model van rong");
+    assert!(
+        matches!(outcome2, PrepareBatchOutcome::NotConfigured),
+        "model van rong"
+    );
     assert!(read_last_assembled_prompt(&record).is_none());
 
     drop(open);
@@ -2235,22 +2846,43 @@ fn no_work_open_on_a_batch_reuses_the_existing_work_none_open_key() {
 /// với một id bịa TRỘN giữa hai id thật (không phải id bịa duy nhất trong lô).
 #[test]
 fn segment_not_in_chapter_on_a_batch_names_the_one_bogus_id_among_real_ones() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
     save_key("sk-batch-not-in-chapter-test-key");
 
     let global_dir = temp_dir("batch-not-in-chapter-global");
     let work_dir = temp_dir("batch-not-in-chapter-work");
     let global = open_global(&global_dir);
-    let open = open_work(&work_dir, "BatchNotInChapter", "en", "Sentence one. Sentence two.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    let open = open_work(
+        &work_dir,
+        "BatchNotInChapter",
+        "en",
+        "Sentence one. Sentence two.",
+    );
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Plain", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
     let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
-    assert_eq!(chapter.segments.len(), 2, "fixture 2 cau phai tach thanh 2 segment");
+    assert_eq!(
+        chapter.segments.len(),
+        2,
+        "fixture 2 cau phai tach thanh 2 segment"
+    );
     let real_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
     let bogus_id = real_ids.iter().copied().max().unwrap_or(0) + 999_999;
     // Id bia NAM GIUA hai id that -- doi chung "phan loai tung id", khong chi "danh sach dau
@@ -2288,19 +2920,34 @@ fn segment_not_in_chapter_on_a_batch_names_the_one_bogus_id_among_real_ones() {
 #[test]
 fn keychain_refusing_to_answer_on_a_batch_surfaces_the_existing_key_when_at_least_one_row_still_needs_translation()
  {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
 
     let global_dir = temp_dir("batch-keychain-unavailable-global");
     let work_dir = temp_dir("batch-keychain-unavailable-work");
     let global = open_global(&global_dir);
-    let open = open_work(&work_dir, "BatchKeychainUnavailable", "en", "Sentence one. Sentence two.");
-    write_field(&global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("ghi endpoint");
+    let open = open_work(
+        &work_dir,
+        "BatchKeychainUnavailable",
+        "en",
+        "Sentence one. Sentence two.",
+    );
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
     write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
 
     let chapter = read_open_chapter_segments(Some(&open)).expect("nap chuong");
-    assert_eq!(chapter.segments.len(), 2, "fixture 2 cau phai tach thanh 2 segment");
+    assert_eq!(
+        chapter.segments.len(),
+        2,
+        "fixture 2 cau phai tach thanh 2 segment"
+    );
     let all_ids: Vec<i64> = chapter.segments.iter().map(|s| s.id).collect();
     set_segment_omitted(Some(&open), all_ids[0], true).expect("dat co cat bo that bai");
 
@@ -2313,9 +2960,14 @@ fn keychain_refusing_to_answer_on_a_batch_surfaces_the_existing_key_when_at_leas
     );
 
     assert_eq!(err.message_key(), MessageKey::AiConfigKeychainUnavailable);
-    assert!(err.retryable(), "mot keychain bi khoa/tu choi quyen co the thanh cong o luot bam lai");
     assert!(
-        err.params().values().all(|v| v != "sk-decoy" && !v.contains("Bearer")),
+        err.retryable(),
+        "mot keychain bi khoa/tu choi quyen co the thanh cong o luot bam lai"
+    );
+    assert!(
+        err.params()
+            .values()
+            .all(|v| v != "sk-decoy" && !v.contains("Bearer")),
         "gia tri khoa KHONG BAO GIO duoc lot vao tham so loi"
     );
     assert!(
@@ -2338,8 +2990,10 @@ fn keychain_refusing_to_answer_on_a_batch_surfaces_the_existing_key_when_at_leas
 #[test]
 fn batch_over_a_selection_streams_each_sentence_in_document_order_and_finishes_done() {
     let ids = [601_i64, 602, 603, 604, 605];
-    let items: Vec<PreparedBatchItem> =
-        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
+    let items: Vec<PreparedBatchItem> = ids
+        .iter()
+        .map(|id| dummy_batch_item(*id, &format!("Prompt for {id}")))
+        .collect();
     let recipes = ids
         .iter()
         .map(|id| MultiItemRecipe {
@@ -2357,18 +3011,31 @@ fn batch_over_a_selection_streams_each_sentence_in_document_order_and_finishes_d
     let (channel, received) = collecting_batch_channel();
     let should_cancel = || false;
 
-    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
-        .expect("khong duoc loi");
+    let outcome =
+        tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+            .expect("khong duoc loi");
     assert_eq!(outcome, AiTranslateBatchOutcome::Done);
     assert_eq!(provider.call_count.load(Ordering::SeqCst), 5);
 
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     let mut expected = Vec::new();
     for id in ids {
-        expected.push(BatchEventShape::Token { segment_id: id, text: format!("token-{id}") });
-        expected.push(BatchEventShape::Done { segment_id: id, usage: None });
+        expected.push(BatchEventShape::Token {
+            segment_id: id,
+            text: format!("token-{id}"),
+        });
+        expected.push(BatchEventShape::Done {
+            segment_id: id,
+            usage: None,
+        });
     }
-    assert_eq!(got, expected, "moi su kien phai mang DUNG segment_id va toi DUNG THU TU tai lieu");
+    assert_eq!(
+        got, expected,
+        "moi su kien phai mang DUNG segment_id va toi DUNG THU TU tai lieu"
+    );
 }
 
 /// I/O Matrix "Cancel mid-batch" — batch 12, huỷ giữa lúc câu 6 đang chảy: phần dở của câu 6
@@ -2379,8 +3046,10 @@ fn batch_over_a_selection_streams_each_sentence_in_document_order_and_finishes_d
 fn cancel_while_sentence_six_of_twelve_streams_discards_its_partial_text_keeps_one_through_five_and_never_calls_seven_through_twelve()
  {
     let ids: Vec<i64> = (701..=712).collect();
-    let items: Vec<PreparedBatchItem> =
-        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
+    let items: Vec<PreparedBatchItem> = ids
+        .iter()
+        .map(|id| dummy_batch_item(*id, &format!("Prompt for {id}")))
+        .collect();
 
     let mut recipes: Vec<MultiItemRecipe> = (0..5)
         .map(|i| MultiItemRecipe {
@@ -2396,7 +3065,11 @@ fn cancel_while_sentence_six_of_twelve_streams_discards_its_partial_text_keeps_o
         finish: FakeFinish::Done,
         trigger_cancel_after_token: Some(0),
     });
-    assert_eq!(recipes.len(), 6, "chi cap cong thuc cho 6 cau DAU -- cau 7-12 khong duoc goi");
+    assert_eq!(
+        recipes.len(),
+        6,
+        "chi cap cong thuc cho 6 cau DAU -- cau 7-12 khong duoc goi"
+    );
 
     let provider = MultiItemProvider {
         recipes,
@@ -2408,8 +3081,9 @@ fn cancel_while_sentence_six_of_twelve_streams_discards_its_partial_text_keeps_o
     let should_cancel = move || cancel_flag.load(Ordering::SeqCst);
     let (channel, received) = collecting_batch_channel();
 
-    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
-        .expect("huy giua chung phai la Ok(Cancelled), khong phai mot Err");
+    let outcome =
+        tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+            .expect("huy giua chung phai la Ok(Cancelled), khong phai mot Err");
     assert_eq!(outcome, AiTranslateBatchOutcome::Cancelled);
     assert_eq!(
         provider.call_count.load(Ordering::SeqCst),
@@ -2417,13 +3091,25 @@ fn cancel_while_sentence_six_of_twelve_streams_discards_its_partial_text_keeps_o
         "provider chi duoc goi dung 6 lan -- cau 7-12 khong bao gio duoc goi"
     );
 
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     let mut expected = Vec::new();
     for i in 0..5 {
-        expected.push(BatchEventShape::Token { segment_id: ids[i], text: format!("token-{}", ids[i]) });
-        expected.push(BatchEventShape::Done { segment_id: ids[i], usage: None });
+        expected.push(BatchEventShape::Token {
+            segment_id: ids[i],
+            text: format!("token-{}", ids[i]),
+        });
+        expected.push(BatchEventShape::Done {
+            segment_id: ids[i],
+            usage: None,
+        });
     }
-    expected.push(BatchEventShape::Token { segment_id: ids[5], text: format!("partial-{}", ids[5]) });
+    expected.push(BatchEventShape::Token {
+        segment_id: ids[5],
+        text: format!("partial-{}", ids[5]),
+    });
     assert_eq!(
         got, expected,
         "cau 1-5 giu ket qua DA XONG (Token+Done); cau 6 chi co Token cua phan da nhan TRUOC \
@@ -2437,8 +3123,10 @@ fn cancel_while_sentence_six_of_twelve_streams_discards_its_partial_text_keeps_o
 fn provider_error_on_sentence_six_of_twelve_stops_the_batch_names_it_and_never_calls_seven_through_twelve()
  {
     let ids: Vec<i64> = (801..=812).collect();
-    let items: Vec<PreparedBatchItem> =
-        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
+    let items: Vec<PreparedBatchItem> = ids
+        .iter()
+        .map(|id| dummy_batch_item(*id, &format!("Prompt for {id}")))
+        .collect();
 
     let mut recipes: Vec<MultiItemRecipe> = (0..5)
         .map(|i| MultiItemRecipe {
@@ -2452,7 +3140,11 @@ fn provider_error_on_sentence_six_of_twelve_stops_the_batch_names_it_and_never_c
         finish: FakeFinish::Err(FakeProviderError("dropped".to_owned())),
         trigger_cancel_after_token: None,
     });
-    assert_eq!(recipes.len(), 6, "chi cap cong thuc cho 6 cau DAU -- cau 7-12 khong duoc goi");
+    assert_eq!(
+        recipes.len(),
+        6,
+        "chi cap cong thuc cho 6 cau DAU -- cau 7-12 khong duoc goi"
+    );
 
     let provider = MultiItemProvider {
         recipes,
@@ -2467,18 +3159,36 @@ fn provider_error_on_sentence_six_of_twelve_stops_the_batch_names_it_and_never_c
         tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
             .expect_err("mot loi provider phai truyen nguyen qua run_batch_call");
 
-    assert_eq!(failed_segment_id, ids[5], "loi phai dat DUNG TEN cau ma provider tra loi that bai");
+    assert_eq!(
+        failed_segment_id, ids[5],
+        "loi phai dat DUNG TEN cau ma provider tra loi that bai"
+    );
     assert_eq!(err, FakeProviderError("dropped".to_owned()));
     assert_eq!(provider.call_count.load(Ordering::SeqCst), 6);
 
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     let mut expected = Vec::new();
     for i in 0..5 {
-        expected.push(BatchEventShape::Token { segment_id: ids[i], text: format!("token-{}", ids[i]) });
-        expected.push(BatchEventShape::Done { segment_id: ids[i], usage: None });
+        expected.push(BatchEventShape::Token {
+            segment_id: ids[i],
+            text: format!("token-{}", ids[i]),
+        });
+        expected.push(BatchEventShape::Done {
+            segment_id: ids[i],
+            usage: None,
+        });
     }
-    expected.push(BatchEventShape::Token { segment_id: ids[5], text: "boom".to_owned() });
-    assert_eq!(got, expected, "cau 1-5 giu ket qua, cau 6 chi co Token cua phan da nhan, khong Done");
+    expected.push(BatchEventShape::Token {
+        segment_id: ids[5],
+        text: "boom".to_owned(),
+    });
+    assert_eq!(
+        got, expected,
+        "cau 1-5 giu ket qua, cau 6 chi co Token cua phan da nhan, khong Done"
+    );
 }
 
 /// I/O Matrix "Error with zero tokens received" (nhánh LÔ) — cùng lỗ §Coverage spec 4.10 nêu
@@ -2492,8 +3202,10 @@ fn provider_error_on_sentence_six_of_twelve_stops_the_batch_names_it_and_never_c
 fn provider_error_with_zero_tokens_received_on_a_batch_sentence_leaves_no_event_for_that_sentence_and_stops_the_batch()
  {
     let ids: Vec<i64> = (901..=912).collect();
-    let items: Vec<PreparedBatchItem> =
-        ids.iter().map(|id| dummy_batch_item(*id, &format!("Prompt for {id}"))).collect();
+    let items: Vec<PreparedBatchItem> = ids
+        .iter()
+        .map(|id| dummy_batch_item(*id, &format!("Prompt for {id}")))
+        .collect();
 
     let mut recipes: Vec<MultiItemRecipe> = (0..5)
         .map(|i| MultiItemRecipe {
@@ -2508,7 +3220,11 @@ fn provider_error_with_zero_tokens_received_on_a_batch_sentence_leaves_no_event_
         finish: FakeFinish::Err(FakeProviderError("dropped-before-first-token".to_owned())),
         trigger_cancel_after_token: None,
     });
-    assert_eq!(recipes.len(), 6, "chi cap cong thuc cho 6 cau DAU -- cau 7-12 khong duoc goi");
+    assert_eq!(
+        recipes.len(),
+        6,
+        "chi cap cong thuc cho 6 cau DAU -- cau 7-12 khong duoc goi"
+    );
 
     let provider = MultiItemProvider {
         recipes,
@@ -2523,15 +3239,30 @@ fn provider_error_with_zero_tokens_received_on_a_batch_sentence_leaves_no_event_
         tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
             .expect_err("mot loi provider TRUOC token dau tien van phai la Err");
 
-    assert_eq!(failed_segment_id, ids[5], "loi phai dat DUNG TEN cau ma provider tra loi that bai");
-    assert_eq!(err, FakeProviderError("dropped-before-first-token".to_owned()));
+    assert_eq!(
+        failed_segment_id, ids[5],
+        "loi phai dat DUNG TEN cau ma provider tra loi that bai"
+    );
+    assert_eq!(
+        err,
+        FakeProviderError("dropped-before-first-token".to_owned())
+    );
     assert_eq!(provider.call_count.load(Ordering::SeqCst), 6);
 
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     let mut expected = Vec::new();
     for i in 0..5 {
-        expected.push(BatchEventShape::Token { segment_id: ids[i], text: format!("token-{}", ids[i]) });
-        expected.push(BatchEventShape::Done { segment_id: ids[i], usage: None });
+        expected.push(BatchEventShape::Token {
+            segment_id: ids[i],
+            text: format!("token-{}", ids[i]),
+        });
+        expected.push(BatchEventShape::Done {
+            segment_id: ids[i],
+            usage: None,
+        });
     }
     // Cau 6: KHONG mot su kien nao -- khong Token (khong token nao tung gui), khong Done.
     assert_eq!(
@@ -2571,13 +3302,17 @@ fn batch_stopped_error_names_the_sentence_and_maps_the_documented_retryable_flag
     const SEGMENT_ID: i64 = 850;
     let cases: [(OpenAiClientError, &str, MessageKey, bool); 8] = [
         (
-            OpenAiClientError::ClientBuildFailed { detail: "x".to_owned() },
+            OpenAiClientError::ClientBuildFailed {
+                detail: "x".to_owned(),
+            },
             "ai_translate.client_build_failed",
             MessageKey::AiTranslateClientBuildFailed,
             false,
         ),
         (
-            OpenAiClientError::RequestFailed { detail: "x".to_owned() },
+            OpenAiClientError::RequestFailed {
+                detail: "x".to_owned(),
+            },
             "ai_translate.provider_unreachable",
             MessageKey::AiTranslateProviderUnreachable,
             true,
@@ -2589,7 +3324,9 @@ fn batch_stopped_error_names_the_sentence_and_maps_the_documented_retryable_flag
             false,
         ),
         (
-            OpenAiClientError::ReadFailed { detail: "x".to_owned() },
+            OpenAiClientError::ReadFailed {
+                detail: "x".to_owned(),
+            },
             "ai_translate.provider_unreachable",
             MessageKey::AiTranslateProviderUnreachable,
             true,
@@ -2601,19 +3338,25 @@ fn batch_stopped_error_names_the_sentence_and_maps_the_documented_retryable_flag
             true,
         ),
         (
-            OpenAiClientError::MalformedEvent { detail: "x".to_owned() },
+            OpenAiClientError::MalformedEvent {
+                detail: "x".to_owned(),
+            },
             "ai_translate.reply_unreadable",
             MessageKey::AiTranslateReplyUnreadable,
             false,
         ),
         (
-            OpenAiClientError::BufferOverflow { size: 2 * 1024 * 1024 },
+            OpenAiClientError::BufferOverflow {
+                size: 2 * 1024 * 1024,
+            },
             "ai_translate.reply_unreadable",
             MessageKey::AiTranslateReplyUnreadable,
             false,
         ),
         (
-            OpenAiClientError::ApiKeyHeaderInvalid { detail: "x".to_owned() },
+            OpenAiClientError::ApiKeyHeaderInvalid {
+                detail: "x".to_owned(),
+            },
             "ai_translate.api_key_header_invalid",
             MessageKey::AiTranslateApiKeyHeaderInvalid,
             false,
@@ -2631,7 +3374,11 @@ fn batch_stopped_error_names_the_sentence_and_maps_the_documented_retryable_flag
             "{label}: segment_id phai co mat o MOI bien the, khong chi hai bien the cu"
         );
         if is_non_2xx {
-            assert_eq!(err.params().get("status"), Some(&"500".to_owned()), "{label}: status khong con bi rot");
+            assert_eq!(
+                err.params().get("status"),
+                Some(&"500".to_owned()),
+                "{label}: status khong con bi rot"
+            );
         } else {
             assert!(
                 err.params().get("status").is_none(),
@@ -2676,8 +3423,9 @@ fn an_omitted_segment_sends_a_skipped_event_with_no_provider_call_and_the_batch_
     let should_cancel = || false;
     let (channel, received) = collecting_batch_channel();
 
-    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
-        .expect("khong duoc loi");
+    let outcome =
+        tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+            .expect("khong duoc loi");
     assert_eq!(outcome, AiTranslateBatchOutcome::Done);
     assert_eq!(
         provider.call_count.load(Ordering::SeqCst),
@@ -2685,19 +3433,49 @@ fn an_omitted_segment_sends_a_skipped_event_with_no_provider_call_and_the_batch_
         "segment bi cat KHONG duoc goi provider -- chi 4/5 cau that su goi provider"
     );
 
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     let expected = vec![
-        BatchEventShape::Token { segment_id: ids[0], text: format!("token-{}", ids[0]) },
-        BatchEventShape::Done { segment_id: ids[0], usage: None },
-        BatchEventShape::Token { segment_id: ids[1], text: format!("token-{}", ids[1]) },
-        BatchEventShape::Done { segment_id: ids[1], usage: None },
+        BatchEventShape::Token {
+            segment_id: ids[0],
+            text: format!("token-{}", ids[0]),
+        },
+        BatchEventShape::Done {
+            segment_id: ids[0],
+            usage: None,
+        },
+        BatchEventShape::Token {
+            segment_id: ids[1],
+            text: format!("token-{}", ids[1]),
+        },
+        BatchEventShape::Done {
+            segment_id: ids[1],
+            usage: None,
+        },
         BatchEventShape::Skipped { segment_id: ids[2] },
-        BatchEventShape::Token { segment_id: ids[3], text: format!("token-{}", ids[3]) },
-        BatchEventShape::Done { segment_id: ids[3], usage: None },
-        BatchEventShape::Token { segment_id: ids[4], text: format!("token-{}", ids[4]) },
-        BatchEventShape::Done { segment_id: ids[4], usage: None },
+        BatchEventShape::Token {
+            segment_id: ids[3],
+            text: format!("token-{}", ids[3]),
+        },
+        BatchEventShape::Done {
+            segment_id: ids[3],
+            usage: None,
+        },
+        BatchEventShape::Token {
+            segment_id: ids[4],
+            text: format!("token-{}", ids[4]),
+        },
+        BatchEventShape::Done {
+            segment_id: ids[4],
+            usage: None,
+        },
     ];
-    assert_eq!(got, expected, "Skipped phai toi DUNG vi tri, lo phai tiep tuc sang cau ke tiep");
+    assert_eq!(
+        got, expected,
+        "Skipped phai toi DUNG vi tri, lo phai tiep tuc sang cau ke tiep"
+    );
 }
 
 /// Counter-check bằng gỡ của "between-sentence `should_cancel()`" (`aitranslate.rs:548`,
@@ -2712,7 +3490,10 @@ fn an_omitted_segment_sends_a_skipped_event_with_no_provider_call_and_the_batch_
 #[test]
 fn cancelling_exactly_between_two_sentences_never_calls_the_provider_for_the_next_sentence() {
     let ids = [1001_i64, 1002, 1003];
-    let items: Vec<PreparedBatchItem> = ids.iter().map(|id| dummy_batch_item(*id, "Prompt")).collect();
+    let items: Vec<PreparedBatchItem> = ids
+        .iter()
+        .map(|id| dummy_batch_item(*id, "Prompt"))
+        .collect();
     // CHI cap 2 cong thuc -- cau thu 3 KHONG DUOC goi; neu bi goi, `MultiItemProvider` panic
     // vi vuot chi so thay vi lang le sinh su kien.
     let recipes = vec![
@@ -2739,13 +3520,19 @@ fn cancelling_exactly_between_two_sentences_never_calls_the_provider_for_the_nex
     let cancel_flag_for_hook = Arc::clone(&provider.cancel_flag);
     let second_id = ids[1];
     let (channel, received) = collecting_batch_channel_with_hook(move |event| {
-        if *event == (BatchEventShape::Done { segment_id: second_id, usage: None }) {
+        if *event
+            == (BatchEventShape::Done {
+                segment_id: second_id,
+                usage: None,
+            })
+        {
             cancel_flag_for_hook.store(true, Ordering::SeqCst);
         }
     });
 
-    let outcome = tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
-        .expect("huy giua hai cau phai la Ok(Cancelled)");
+    let outcome =
+        tauri::async_runtime::block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+            .expect("huy giua hai cau phai la Ok(Cancelled)");
     assert_eq!(
         outcome,
         AiTranslateBatchOutcome::Cancelled,
@@ -2757,12 +3544,30 @@ fn cancelling_exactly_between_two_sentences_never_calls_the_provider_for_the_nex
         "cau thu 3 KHONG DUOC goi provider -- huy da xay ra TRUOC no bat dau, giua cau 1 va cau 2"
     );
 
-    let got = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let got = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     let expected = vec![
-        BatchEventShape::Token { segment_id: ids[0], text: "token-1".to_owned() },
-        BatchEventShape::Done { segment_id: ids[0], usage: None },
-        BatchEventShape::Token { segment_id: ids[1], text: "token-2".to_owned() },
-        BatchEventShape::Done { segment_id: ids[1], usage: None },
+        BatchEventShape::Token {
+            segment_id: ids[0],
+            text: "token-1".to_owned(),
+        },
+        BatchEventShape::Done {
+            segment_id: ids[0],
+            usage: None,
+        },
+        BatchEventShape::Token {
+            segment_id: ids[1],
+            text: "token-2".to_owned(),
+        },
+        BatchEventShape::Done {
+            segment_id: ids[1],
+            usage: None,
+        },
     ];
-    assert_eq!(got, expected, "cau 1 va cau 2 hoan tat sach; khong su kien nao cho cau 3");
+    assert_eq!(
+        got, expected,
+        "cau 1 va cau 2 hoan tat sach; khong su kien nao cho cau 3"
+    );
 }

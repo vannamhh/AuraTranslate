@@ -24,7 +24,10 @@ fn a_sibling_directory_sharing_a_name_prefix_is_not_inside() {
 
 #[test]
 fn the_directory_itself_and_a_real_child_are_inside() {
-    assert!(boundary_scan::is_inside("core/scope", "core/scope"), "chính thư mục phải khớp");
+    assert!(
+        boundary_scan::is_inside("core/scope", "core/scope"),
+        "chính thư mục phải khớp"
+    );
     assert!(
         boundary_scan::is_inside("core/scope/mod.rs", "core/scope"),
         "một tệp thật trong thư mục phải khớp"
@@ -58,7 +61,10 @@ fn code_lines_reports_the_real_1_based_line_number_across_a_multiline_block_comm
     let got: Vec<(usize, String)> = boundary_scan::code_lines(text).collect();
     assert_eq!(
         got,
-        vec![(1, "fn a() {}".to_string()), (5, "fn b() { real_call(); }".to_string())],
+        vec![
+            (1, "fn a() {}".to_string()),
+            (5, "fn b() { real_call(); }".to_string())
+        ],
         "số dòng 1-based phải trỏ đúng vị trí THẬT trong `text`, kể cả dòng đứng SAU một khối \
          chú thích nhiều dòng: {got:?}"
     );
@@ -66,17 +72,25 @@ fn code_lines_reports_the_real_1_based_line_number_across_a_multiline_block_comm
 
 #[test]
 fn nested_block_comments_are_stripped_as_one_unit() {
-    let text = "fn a() {}\n/* ngoai /* trong forbidden_call() */ van ngoai */\nfn b() { real_call(); }\n";
+    let text =
+        "fn a() {}\n/* ngoai /* trong forbidden_call() */ van ngoai */\nfn b() { real_call(); }\n";
     let hits: Vec<String> = boundary_scan::code_lines(text)
         .filter(|(_, code)| code.contains("forbidden_call"))
         .map(|(_, code)| code)
         .collect();
-    assert!(hits.is_empty(), "chú thích khối LỒNG phải bị lột trọn, không dừng ở `*/` đầu tiên: {hits:?}");
+    assert!(
+        hits.is_empty(),
+        "chú thích khối LỒNG phải bị lột trọn, không dừng ở `*/` đầu tiên: {hits:?}"
+    );
     let real: Vec<String> = boundary_scan::code_lines(text)
         .filter(|(_, code)| code.contains("real_call"))
         .map(|(_, code)| code)
         .collect();
-    assert_eq!(real.len(), 1, "mã THẬT sau khối chú thích lồng vẫn phải được thấy");
+    assert_eq!(
+        real.len(),
+        1,
+        "mã THẬT sau khối chú thích lồng vẫn phải được thấy"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -173,7 +187,11 @@ fn a_dotfile_and_a_non_utf8_file_are_skipped_with_a_named_reason_not_a_panic() {
 
     let (sources, skipped) = boundary_scan::any_sources(&dir);
 
-    assert_eq!(sources.len(), 1, "chỉ đúng một tệp UTF-8 không-dotfile phải đọc được: {sources:?}");
+    assert_eq!(
+        sources.len(),
+        1,
+        "chỉ đúng một tệp UTF-8 không-dotfile phải đọc được: {sources:?}"
+    );
     assert_eq!(sources[0].0, "real.rs");
 
     let dotfile_skip = skipped.iter().find(|(rel, _)| rel == ".DS_Store");
@@ -203,7 +221,10 @@ fn code_after_the_closing_brace_of_a_cfg_test_module_is_still_scanned() {
         .filter(|(_, code)| code.contains("allowed_in_tests"))
         .map(|(_, code)| code)
         .collect();
-    assert!(inside_test.is_empty(), "thân của khối test phải bị xoá: {inside_test:?}");
+    assert!(
+        inside_test.is_empty(),
+        "thân của khối test phải bị xoá: {inside_test:?}"
+    );
 
     let after_module: Vec<String> = boundary_scan::code_lines(&cleaned)
         .filter(|(_, code)| code.contains("forbidden_call"))
@@ -257,7 +278,11 @@ fn a_cfg_test_module_declared_in_another_file_is_left_in_place() {
         .filter(|(_, code)| code.contains("forbidden_call"))
         .map(|(_, code)| code)
         .collect();
-    assert_eq!(hits.len(), 1, "mã sau `mod NAME;` phải vẫn được quét: {hits:?}");
+    assert_eq!(
+        hits.len(),
+        1,
+        "mã sau `mod NAME;` phải vẫn được quét: {hits:?}"
+    );
 }
 
 #[test]
@@ -323,8 +348,11 @@ fn a_drifted_floor_names_the_constant_and_ceil_0_85_times_live() {
 
 const BOUNDARY_FILE_FLOOR: usize = 17;
 const BOUNDARY_SCAN_DECLARATION: &str = "#[path = \"support/boundary_scan.rs\"]";
-const POPULATION_HELPER_CALLS: [&str; 3] =
-    ["boundary_scan::rust_sources(", "boundary_scan::any_sources(", "boundary_scan::paths_with_extensions("];
+const POPULATION_HELPER_CALLS: [&str; 3] = [
+    "boundary_scan::rust_sources(",
+    "boundary_scan::any_sources(",
+    "boundary_scan::paths_with_extensions(",
+];
 // A file listed here feeds its population floor from its own walker. The entry dies as soon
 // as the file calls a shared helper (`the_population_helper_exemptions_are_still_needed`).
 const POPULATION_HELPER_EXEMPT: [(&str, &str); 1] = [(
@@ -344,7 +372,9 @@ fn bare_constant_prefix_tests(text: &str) -> Vec<(usize, String)> {
                 let Some(close) = rest.find(')') else { break };
                 let arg = rest[..close].trim().trim_start_matches('&');
                 let is_constant = arg.starts_with(|c: char| c.is_ascii_uppercase())
-                    && arg.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
+                    && arg
+                        .chars()
+                        .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
                 if is_constant {
                     return true;
                 }
@@ -375,17 +405,35 @@ fn boundary_files() -> Vec<(String, String)> {
 fn scan_wiring_problems(name: &str, text: &str) -> Vec<String> {
     let code: Vec<(usize, String)> = boundary_scan::code_lines(text).collect();
     let mut problems = Vec::new();
-    if !code.iter().any(|(_, line)| line.contains(BOUNDARY_SCAN_DECLARATION)) {
-        problems.push(format!("{name}: khong khai bao module dung chung `support/boundary_scan.rs`"));
+    if !code
+        .iter()
+        .any(|(_, line)| line.contains(BOUNDARY_SCAN_DECLARATION))
+    {
+        problems.push(format!(
+            "{name}: khong khai bao module dung chung `support/boundary_scan.rs`"
+        ));
     }
-    let exempt = POPULATION_HELPER_EXEMPT.iter().any(|(file, _)| *file == name);
-    if !exempt && !code.iter().any(|(_, line)| POPULATION_HELPER_CALLS.iter().any(|call| line.contains(call))) {
+    let exempt = POPULATION_HELPER_EXEMPT
+        .iter()
+        .any(|(file, _)| *file == name);
+    if !exempt
+        && !code.iter().any(|(_, line)| {
+            POPULATION_HELPER_CALLS
+                .iter()
+                .any(|call| line.contains(call))
+        })
+    {
         problems.push(format!(
             "{name}: khong goi `boundary_scan::rust_sources|any_sources|paths_with_extensions`"
         ));
     }
-    if !code.iter().any(|(_, line)| line.contains("boundary_scan::assert_population_floor(")) {
-        problems.push(format!("{name}: khong goi `boundary_scan::assert_population_floor`"));
+    if !code
+        .iter()
+        .any(|(_, line)| line.contains("boundary_scan::assert_population_floor("))
+    {
+        problems.push(format!(
+            "{name}: khong goi `boundary_scan::assert_population_floor`"
+        ));
     }
     for (line_no, line) in bare_constant_prefix_tests(text) {
         problems.push(format!(
@@ -404,9 +452,15 @@ fn every_boundary_file_scans_through_the_shared_module() {
         "BOUNDARY_FILE_FLOOR",
         "tep `*_boundary.rs`",
     );
-    let problems: Vec<String> =
-        files.iter().flat_map(|(name, text)| scan_wiring_problems(name, text)).collect();
-    assert!(problems.is_empty(), "cac cong ranh gioi khong di qua module dung chung:\n{}", problems.join("\n"));
+    let problems: Vec<String> = files
+        .iter()
+        .flat_map(|(name, text)| scan_wiring_problems(name, text))
+        .collect();
+    assert!(
+        problems.is_empty(),
+        "cac cong ranh gioi khong di qua module dung chung:\n{}",
+        problems.join("\n")
+    );
 }
 
 #[test]
@@ -418,9 +472,15 @@ fn the_population_helper_exemptions_are_still_needed() {
             .iter()
             .find(|(name, _)| name == exempt)
             .unwrap_or_else(|| panic!("{exempt}: mien tru tro toi mot tep khong con"));
-        let calls_shared_helper = boundary_scan::code_lines(text)
-            .any(|(_, line)| POPULATION_HELPER_CALLS.iter().any(|call| line.contains(call)));
-        assert!(!calls_shared_helper, "{exempt}: da goi ham dung chung, go mien tru");
+        let calls_shared_helper = boundary_scan::code_lines(text).any(|(_, line)| {
+            POPULATION_HELPER_CALLS
+                .iter()
+                .any(|call| line.contains(call))
+        });
+        assert!(
+            !calls_shared_helper,
+            "{exempt}: da goi ham dung chung, go mien tru"
+        );
     }
 }
 
@@ -457,7 +517,11 @@ fn the_bare_prefix_predicate_flags_a_seeded_regression() {
 fn the_wiring_scan_flags_a_file_without_the_shared_module() {
     let bare = "fn only_a_local_scanner() {\n    let files = walk();\n}\n";
     let problems = scan_wiring_problems("seeded_boundary.rs", bare);
-    assert_eq!(problems.len(), 3, "thieu khai bao, ham quan the va san quan the: {problems:?}");
+    assert_eq!(
+        problems.len(),
+        3,
+        "thieu khai bao, ham quan the va san quan the: {problems:?}"
+    );
 
     let wired = format!(
         "{BOUNDARY_SCAN_DECLARATION}\nmod boundary_scan;\nfn t() {{\n    let s = boundary_scan::rust_sources(root);\n    boundary_scan::assert_population_floor(1, s.len(), \"F\", \"p\");\n}}\n"

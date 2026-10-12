@@ -48,16 +48,17 @@ fn toggles_the_frontier_work_between_full_and_frontier_through_product_lifecycle
     );
     let documents_root = PathBuf::from(&raw_root);
 
-    let target_status = std::env::var("AURA_6_18_BENCH_TARGET_STATUS").unwrap_or_else(|_| {
-        panic!("thiếu AURA_6_18_BENCH_TARGET_STATUS (done|not_started)")
-    });
+    let target_status = std::env::var("AURA_6_18_BENCH_TARGET_STATUS")
+        .unwrap_or_else(|_| panic!("thiếu AURA_6_18_BENCH_TARGET_STATUS (done|not_started)"));
     assert!(
         target_status == "done" || target_status == "not_started",
         "AURA_6_18_BENCH_TARGET_STATUS ngoài danh mục hai giá trị (done|not_started): {target_status}"
     );
 
-    let global_store = Store::open(StoreSpec::global(documents_root.join("..").join("global.db")))
-        .unwrap_or_else(|e| panic!("mở global.db: {e}"));
+    let global_store = Store::open(StoreSpec::global(
+        documents_root.join("..").join("global.db"),
+    ))
+    .unwrap_or_else(|e| panic!("mở global.db: {e}"));
     let index_path = documents_root.join("..").join("library-index.db");
     assert!(
         index_path.exists(),
@@ -66,12 +67,19 @@ fn toggles_the_frontier_work_between_full_and_frontier_through_product_lifecycle
     );
     let indexer = Indexer::open(index_path).expect("mở chỉ mục đã export");
 
-    let report = indexer.list_works(WorkQuery::default()).expect("liệt kê Tác phẩm đã lập chỉ mục");
+    let report = indexer
+        .list_works(WorkQuery::default())
+        .expect("liệt kê Tác phẩm đã lập chỉ mục");
     let target = report
         .works
         .iter()
         .min_by(|a, b| a.name.cmp(&b.name))
-        .unwrap_or_else(|| panic!("thư viện rỗng: 0 Tác phẩm trong chỉ mục {}", documents_root.display()))
+        .unwrap_or_else(|| {
+            panic!(
+                "thư viện rỗng: 0 Tác phẩm trong chỉ mục {}",
+                documents_root.display()
+            )
+        })
         .clone();
 
     let mut opened = open_work(&target.work_id, Some(&target))
@@ -85,7 +93,11 @@ fn toggles_the_frontier_work_between_full_and_frontier_through_product_lifecycle
             rows.collect::<SqlResult<Vec<_>>>()
         })
         .expect("đọc danh sách Chương của Tác phẩm đích");
-    assert!(!chapter_ids.is_empty(), "Tác phẩm {} không có Chương nào để chuyển trạng thái", target.name);
+    assert!(
+        !chapter_ids.is_empty(),
+        "Tác phẩm {} không có Chương nào để chuyển trạng thái",
+        target.name
+    );
 
     // Một lời gọi `set_chapter_status` MỘT Chương — không một câu `UPDATE` gộp viết tay
     // (§Always spec 6.18, cùng kỷ luật `story_6_18_library.rs::set_all_chapters`).
@@ -116,7 +128,11 @@ fn toggles_the_frontier_work_between_full_and_frontier_through_product_lifecycle
         })
         .expect("đếm lại Chương sau lượt chuyển trạng thái");
 
-    let verdict = if matched as usize == chapter_ids.len() { "matches_target" } else { "mismatch" };
+    let verdict = if matched as usize == chapter_ids.len() {
+        "matches_target"
+    } else {
+        "mismatch"
+    };
     println!(
         "STORY_6_18_TRANSITION\twork_id={}\twork_name={}\ttarget_status={}\tchapters={}\tchanged={}\tverdict={}",
         target.work_id,

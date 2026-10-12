@@ -218,7 +218,10 @@ pub fn parse(text: &str) -> Result<ParsedPromptSet, Vec<ParseIssue>> {
         return Err(issues);
     }
 
-    Ok(ParsedPromptSet { name: name.expect("khong con issue nao thi name da Some"), body: body.to_owned() })
+    Ok(ParsedPromptSet {
+        name: name.expect("khong con issue nao thi name da Some"),
+        body: body.to_owned(),
+    })
 }
 
 /// Quyết định của người dùng cho một va chạm tên — mặc định [`ConflictDecision::KeepMine`]
@@ -258,7 +261,10 @@ pub fn classify(name: &str, body: &str, existing: &BTreeMap<String, PromptSet>) 
     match existing.get(name) {
         None => PlanKind::New,
         Some(row) if row.body == body => PlanKind::Identical,
-        Some(row) => PlanKind::Conflict { existing_id: row.id, existing_body: row.body.clone() },
+        Some(row) => PlanKind::Conflict {
+            existing_id: row.id,
+            existing_body: row.body.clone(),
+        },
     }
 }
 
@@ -268,7 +274,8 @@ mod tests {
 
     #[test]
     fn render_then_parse_round_trips_name_and_body_byte_for_byte_including_markers() {
-        let body = "Dich: {{source_segment}}\nThuat ngu: {{glossary_terms}}\nLa: {{glosary_terms}}\n";
+        let body =
+            "Dich: {{source_segment}}\nThuat ngu: {{glossary_terms}}\nLa: {{glosary_terms}}\n";
         let file = render("Tien hiep", body);
         let parsed = parse(&file).expect("tep dung dinh dang phai phan tich duoc");
         assert_eq!(parsed.name, "Tien hiep");
@@ -286,7 +293,10 @@ mod tests {
     fn a_hand_edited_body_imports_with_the_edit_intact() {
         let file = "---\nname: X\n---\ndong 1\ndong 2\r\ndong 3 khong xuong dong cuoi";
         let parsed = parse(file).unwrap();
-        assert_eq!(parsed.body, "dong 1\ndong 2\r\ndong 3 khong xuong dong cuoi");
+        assert_eq!(
+            parsed.body,
+            "dong 1\ndong 2\r\ndong 3 khong xuong dong cuoi"
+        );
     }
 
     #[test]
@@ -342,7 +352,13 @@ mod tests {
     #[test]
     fn a_file_with_fewer_than_three_lines_reports_every_missing_line_instead_of_panicking() {
         let err = parse("---").unwrap_err();
-        assert_eq!(err, vec![ParseIssue::MissingNameField, ParseIssue::MissingClosingDelimiter]);
+        assert_eq!(
+            err,
+            vec![
+                ParseIssue::MissingNameField,
+                ParseIssue::MissingClosingDelimiter
+            ]
+        );
     }
 
     #[test]
@@ -354,17 +370,34 @@ mod tests {
     #[test]
     fn classify_reports_identical_when_name_and_body_both_match() {
         let mut existing = BTreeMap::new();
-        existing.insert("X".to_owned(), PromptSet { id: 1, name: "X".to_owned(), body: "body".to_owned() });
+        existing.insert(
+            "X".to_owned(),
+            PromptSet {
+                id: 1,
+                name: "X".to_owned(),
+                body: "body".to_owned(),
+            },
+        );
         assert_eq!(classify("X", "body", &existing), PlanKind::Identical);
     }
 
     #[test]
     fn classify_reports_conflict_with_the_existing_id_and_body_when_only_the_body_differs() {
         let mut existing = BTreeMap::new();
-        existing.insert("X".to_owned(), PromptSet { id: 7, name: "X".to_owned(), body: "old".to_owned() });
+        existing.insert(
+            "X".to_owned(),
+            PromptSet {
+                id: 7,
+                name: "X".to_owned(),
+                body: "old".to_owned(),
+            },
+        );
         assert_eq!(
             classify("X", "new", &existing),
-            PlanKind::Conflict { existing_id: 7, existing_body: "old".to_owned() }
+            PlanKind::Conflict {
+                existing_id: 7,
+                existing_body: "old".to_owned()
+            }
         );
     }
 }

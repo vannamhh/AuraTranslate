@@ -31,8 +31,8 @@ use crate::core::segment::encoding::{
     self, Confidence, EncodingCandidate, EncodingVerdict, NormalizedCandidate,
 };
 use crate::core::segment::import::{
-    ImportError, import_bilingual_file, import_file, import_files, import_text, select_bilingual_table,
-    web_import_item_failure_ipc_error,
+    ImportError, import_bilingual_file, import_file, import_files, import_text,
+    select_bilingual_table, web_import_item_failure_ipc_error,
 };
 use crate::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
 use crate::core::store::{Store, StoreSpec, Transaction};
@@ -159,7 +159,9 @@ pub struct OpenWork {
 /// module để tạo/tìm `.atproj`; mọi chỗ gọi SẢN PHẨM (`lib.rs::open_library_index`,
 /// `wire::create_work_from_text`/`_from_file`) phải đi qua [`resolve_library_root`], không
 /// gọi thẳng hàm này. Hàm này ở lại làm **hồi phòng cuối cùng** của bộ phân giải đó.
-pub fn default_library_root<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Result<PathBuf, IpcError> {
+pub fn default_library_root<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<PathBuf, IpcError> {
     use tauri::Manager as _;
 
     // Móc e2e đứng TRƯỚC `document_dir()` và chỉ tồn tại trong bản debug + feature `wdio`
@@ -173,11 +175,12 @@ pub fn default_library_root<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Res
         return Ok(root);
     }
 
-    let documents = app.path().document_dir().map_err(|e| {
-        crate::core::library::WorkError::CreateFailed {
-            detail: format!("resolve document_dir: {e}"),
-        }
-    })?;
+    let documents =
+        app.path()
+            .document_dir()
+            .map_err(|e| crate::core::library::WorkError::CreateFailed {
+                detail: format!("resolve document_dir: {e}"),
+            })?;
 
     Ok(documents.join(DOCUMENTS_SUBFOLDER))
 }
@@ -257,9 +260,7 @@ fn resolve_configured_library_root(store: Option<&Store>) -> Option<String> {
         // `check:i18n`), rồi vẫn rơi về mặc định như cũ -- vế "đi tiếp" không đổi, chỉ thêm
         // vế "nói ra".
         Err(err) => {
-            eprintln!(
-                "library[root] doc AppConfig::library_root that bai, roi ve mac dinh: {err}"
-            );
+            eprintln!("library[root] doc AppConfig::library_root that bai, roi ve mac dinh: {err}");
             None
         }
     }
@@ -305,10 +306,15 @@ pub fn resolve_chapter_pattern(
     let Some(wire) = wire else { return Ok(None) };
     if wire.kind == ChapterPatternKind::Regex {
         if let Err(err) = crate::core::segment::chapterpattern::compile(&wire.pattern) {
-            return Err(ImportError::InvalidChapterPattern { detail: err.to_string() });
+            return Err(ImportError::InvalidChapterPattern {
+                detail: err.to_string(),
+            });
         }
     }
-    Ok(Some(ChapterPattern { kind: wire.kind, pattern: wire.pattern }))
+    Ok(Some(ChapterPattern {
+        kind: wire.kind,
+        pattern: wire.pattern,
+    }))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -696,15 +702,7 @@ fn spawn_import_scan<R: tauri::Runtime>(
                     return;
                 }
                 run_one_chapter_import_scan(
-                    &app,
-                    &work_id,
-                    chapter_id,
-                    &global,
-                    &config,
-                    &disabled,
-                    layers,
-                    lang,
-                    &current,
+                    &app, &work_id, chapter_id, &global, &config, &disabled, layers, lang, &current,
                 );
             }
         })
@@ -731,7 +729,9 @@ fn run_one_chapter_import_scan<R: tauri::Runtime>(
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return;
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(store) = guarded_open_store(guard.as_ref(), work_id) else {
             return;
         };
@@ -749,8 +749,13 @@ fn run_one_chapter_import_scan<R: tauri::Runtime>(
     // `skipped` mang CẢ layer hỏng lúc mở lẫn lúc lookup. Một kết quả rỗng kèm
     // `skipped` là KHÔNG KẾT LUẬN, không phải “term không có”.
     let mut probe_dictionary = |term: &str| {
-        let result =
-            crate::core::dict::lookup_grouped(layers, term, crate::core::dict::LookupMode::Exact, 1, disabled);
+        let result = crate::core::dict::lookup_grouped(
+            layers,
+            term,
+            crate::core::dict::LookupMode::Exact,
+            1,
+            disabled,
+        );
         dictionary_probe_from_grouped(&result)
     };
     let mut is_cancelled = || !current();
@@ -766,9 +771,10 @@ fn run_one_chapter_import_scan<R: tauri::Runtime>(
         ImportScanNextStep::Enqueue(candidates) => candidates,
         ImportScanNextStep::Stop => return,
         ImportScanNextStep::EmitDictionaryInconclusive => {
-            if let Err(err) =
-                app.emit(GLOSSARY_IMPORT_SCAN_EVENT, dictionary_inconclusive_event(chapter_id))
-            {
+            if let Err(err) = app.emit(
+                GLOSSARY_IMPORT_SCAN_EVENT,
+                dictionary_inconclusive_event(chapter_id),
+            ) {
                 eprintln!("glossary[import_scan] phat su kien that bai: {err}");
             }
             return;
@@ -781,7 +787,13 @@ fn run_one_chapter_import_scan<R: tauri::Runtime>(
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return;
         };
-        match filter_and_enqueue_current_import_scan(&work_state, work_id, global, &mut candidates, current) {
+        match filter_and_enqueue_current_import_scan(
+            &work_state,
+            work_id,
+            global,
+            &mut candidates,
+            current,
+        ) {
             Ok(Some(ticket)) => ticket,
             Ok(None) => return,
             Err(err) => {
@@ -806,7 +818,12 @@ fn run_one_chapter_import_scan<R: tauri::Runtime>(
 
     if let Err(err) = app.emit(
         GLOSSARY_IMPORT_SCAN_EVENT,
-        GlossaryImportScanEvent { chapter_id, inserted, skipped, outcome: IMPORT_SCAN_COMPLETED },
+        GlossaryImportScanEvent {
+            chapter_id,
+            inserted,
+            skipped,
+            outcome: IMPORT_SCAN_COMPLETED,
+        },
     ) {
         eprintln!("glossary[import_scan] phat su kien that bai: {err}");
     }
@@ -1218,7 +1235,10 @@ fn build_chapter_split_preview_wire(
         .iter()
         .map(|c| crate::core::segment::review::ChapterMetrics {
             length: c.source_text.chars().count(),
-            cleanup_match_count: c.cleanup_report.as_ref().map(|r| r.per_rule_counts.values().sum()),
+            cleanup_match_count: c
+                .cleanup_report
+                .as_ref()
+                .map(|r| r.per_rule_counts.values().sum()),
             joined_line_count: c.joined_line_count,
         })
         .collect();
@@ -1236,7 +1256,11 @@ fn build_chapter_split_preview_wire(
             cleanup_match_count: m.cleanup_match_count,
             joined_line_count_in_chapter: m.joined_line_count,
             needs_review: verdict.needs_review,
-            review_causes: verdict.causes.iter().map(|&cause| ReviewCauseWire::from(cause)).collect(),
+            review_causes: verdict
+                .causes
+                .iter()
+                .map(|&cause| ReviewCauseWire::from(cause))
+                .collect(),
             chapter_origin: ChapterOriginWire::from_machine_and_override(
                 c.chapter_origin.as_ref(),
                 origin_overrides.get(i).and_then(Option::as_ref),
@@ -1276,18 +1300,26 @@ fn build_chapter_split_preview_wire(
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum BlockBodyWire {
-    Paragraph { text: String },
-    Image { src: Option<String>, alt: Option<String> },
-    Caption { text: String },
+    Paragraph {
+        text: String,
+    },
+    Image {
+        src: Option<String>,
+        alt: Option<String>,
+    },
+    Caption {
+        text: String,
+    },
 }
 
 impl From<&webimport::BlockBody> for BlockBodyWire {
     fn from(b: &webimport::BlockBody) -> Self {
         match b {
             webimport::BlockBody::Paragraph(t) => BlockBodyWire::Paragraph { text: t.clone() },
-            webimport::BlockBody::Image { src, alt } => {
-                BlockBodyWire::Image { src: src.clone(), alt: alt.clone() }
-            }
+            webimport::BlockBody::Image { src, alt } => BlockBodyWire::Image {
+                src: src.clone(),
+                alt: alt.clone(),
+            },
             webimport::BlockBody::Caption(t) => BlockBodyWire::Caption { text: t.clone() },
         }
     }
@@ -1346,7 +1378,9 @@ fn build_chapter_blocks_preview_wire(
             confirmed: block_overrides.get(i).is_some_and(|o| o.is_some()),
         })
         .collect();
-    Some(ChapterBlocksPreviewWire { blocks: wire_blocks })
+    Some(ChapterBlocksPreviewWire {
+        blocks: wire_blocks,
+    })
 }
 
 /// Khuôn `(start, end, machine_kept) -> Vec<Option<bool>>` — hàm THUẦN cạnh
@@ -1367,8 +1401,16 @@ fn build_chapter_blocks_preview_wire(
 /// định sai của máy, nên `Some(false)`; một khối máy ĐÃ loại (`machine_kept[i] == false`)
 /// không cần ép gì — giữ `None` (chưa ai xác nhận, đúng với sự thật) mới đúng, không phải vì
 /// tiện mà vì đó là "đủ ép trạng thái ĐÚNG với AC, không thừa một xác nhận không ai làm".
-pub fn block_overrides_for_range(start: usize, end: usize, machine_kept: &[bool]) -> Vec<Option<bool>> {
-    let (lo, hi) = if start <= end { (start, end) } else { (end, start) };
+pub fn block_overrides_for_range(
+    start: usize,
+    end: usize,
+    machine_kept: &[bool],
+) -> Vec<Option<bool>> {
+    let (lo, hi) = if start <= end {
+        (start, end)
+    } else {
+        (end, start)
+    };
     machine_kept
         .iter()
         .enumerate()
@@ -1559,10 +1601,24 @@ pub fn build_file_import_batch_wire(
 ) -> (FileImportBatchWire, bool) {
     let all_ok = outcome.items.iter().all(|it| it.error.is_none());
     let encoding_preview = all_ok.then(|| {
-        preview_import_encoding(&outcome.shape, source_lang, cleanup_rules, chapter_pattern, &[], 0, &[])
+        preview_import_encoding(
+            &outcome.shape,
+            source_lang,
+            cleanup_rules,
+            chapter_pattern,
+            &[],
+            0,
+            &[],
+        )
     });
     let items = outcome.items.iter().map(FileImportItemWire::from).collect();
-    (FileImportBatchWire { items, encoding_preview }, all_ok)
+    (
+        FileImportBatchWire {
+            items,
+            encoding_preview,
+        },
+        all_ok,
+    )
 }
 
 /// Chạy chuỗi pipeline thật trên `shape` — **TOÀN Chương, KHÔNG cắt cửa sổ** — để tính khối
@@ -1724,7 +1780,11 @@ pub fn cleanup_and_chapters_preview_for(
     // 🔴 THÊM 2026-09-10 (Story 6.15) — cùng khuôn `block_overrides` ngay trên, nhưng theo
     // CHỈ SỐ CHƯƠNG (không giới hạn Chương đầu) — xem `ChapterOriginOverridesState`.
     origin_overrides: &[Option<ChapterOriginOverride>],
-) -> (CleanupPreviewWire, ChapterSplitPreviewWire, Option<ChapterBlocksPreviewWire>) {
+) -> (
+    CleanupPreviewWire,
+    ChapterSplitPreviewWire,
+    Option<ChapterBlocksPreviewWire>,
+) {
     let input = PipelineInput::with_encoding(shape, encoding, source_lang)
         .with_cleanup_rules(cleanup_rules.to_vec())
         .with_chapter_pattern(chapter_pattern.cloned())
@@ -1739,7 +1799,8 @@ pub fn cleanup_and_chapters_preview_for(
         }
     };
 
-    let chapters_wire = build_chapter_split_preview_wire(&chapters, broken_item_count, origin_overrides);
+    let chapters_wire =
+        build_chapter_split_preview_wire(&chapters, broken_item_count, origin_overrides);
     let detail_chapter = chapters.get(detail_chapter_index);
     // 🔴 SỬA (vòng rà đối kháng bước 4, P1) — `block_overrides` CHỈ có nghĩa cho đơn vị 0 của
     // `shape` GỐC (`PipelineInput::block_overrides` doc-comment: "Chỉ `units[0]` đọc trường
@@ -1751,8 +1812,11 @@ pub fn cleanup_and_chapters_preview_for(
     // "override có áp được không" phải sống Ở ĐÂY (nơi biết `detail_chapter_index`), không
     // nhét thêm một tham số chỉ số vào `build_chapter_blocks_preview_wire` (hàm đó không cần
     // biết NGỮ CẢNH gọi, chỉ cần biết override nào được phép dùng).
-    let effective_block_overrides: &[Option<bool>] =
-        if detail_chapter_index == 0 { block_overrides } else { &[] };
+    let effective_block_overrides: &[Option<bool>] = if detail_chapter_index == 0 {
+        block_overrides
+    } else {
+        &[]
+    };
     let blocks_wire = build_chapter_blocks_preview_wire(detail_chapter, effective_block_overrides);
 
     // 🔵 SỬA (vòng rà đối kháng bước 4, P8) — đổi tên từ `chapter0_report`: biến này nay giữ
@@ -1812,8 +1876,11 @@ fn build_cleanup_preview_wire(
     // Chỉ luật ĐANG BẬT được phép xuất hiện trong `spans` — luật tắt vẫn đếm (§Always spec
     // 6.5), nhưng KHÔNG được đánh dấu gạch ngang trong văn bản (I/O Matrix: "Tắt một luật ⇒
     // chỗ vừa gạch ngang trở về nguyên trạng NGAY").
-    let enabled_keys: std::collections::BTreeSet<(CleanupRuleTier, i64)> =
-        cleanup_rules.iter().filter(|r| r.enabled).map(|r| (r.tier, r.id)).collect();
+    let enabled_keys: std::collections::BTreeSet<(CleanupRuleTier, i64)> = cleanup_rules
+        .iter()
+        .filter(|r| r.enabled)
+        .map(|r| (r.tier, r.id))
+        .collect();
 
     let (matches, counts) = match report {
         Some(r) => (r.matches, r.per_rule_counts),
@@ -1874,7 +1941,13 @@ fn build_cleanup_preview_wire(
         final_text_full
     };
 
-    CleanupPreviewWire { text: display_window.to_owned(), spans, rules, window_truncated, final_text }
+    CleanupPreviewWire {
+        text: display_window.to_owned(),
+        spans,
+        rules,
+        window_truncated,
+        final_text,
+    }
 }
 
 /// Dựng [`EncodingCandidateWire`] TRỌN VẸN (thay `impl From<EncodingCandidate>` cũ — khối
@@ -1944,7 +2017,11 @@ fn encoding_candidate_wire(
                     std::collections::BTreeMap::new(),
                     window_truncated,
                 )),
-                Some(build_chapter_split_preview_wire(&[], broken_item_count, &[])),
+                Some(build_chapter_split_preview_wire(
+                    &[],
+                    broken_item_count,
+                    &[],
+                )),
                 None,
             ),
         },
@@ -2009,8 +2086,8 @@ pub fn preview_import_encoding(
     // TRƯỚC khi chuẩn hoá, xem doc-comment hàm đó) — nhánh `extract_main_content == false`
     // không đọc tới, luôn truyền `""`.
     let verdict_and_candidates = |bytes: &[u8],
-                                   extract_main_content: bool,
-                                   url_label: &str|
+                                  extract_main_content: bool,
+                                  url_label: &str|
      -> (EncodingVerdict, Vec<EncodingCandidateWire>) {
         let verdict = encoding::detect(bytes);
         // 🔴 SỬA (vòng rà đối kháng 2, mục 7) — bản trước ép `candidates` RỖNG cho MỌI
@@ -2080,9 +2157,9 @@ pub fn preview_import_encoding(
         // (`preview_bilingual_import`), KHÔNG đi qua hàm này — cùng lý do `PipelineShape::Bilingual`
         // không xuất hiện trên đường sản phẩm gọi `preview_import_encoding`. Phòng thủ kiểu,
         // không phải một trạng thái người dùng gây ra được.
-        PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => {
-            (self_declared_utf8(), Vec::new())
-        }
+        PipelineShape::Bilingual { .. }
+        | PipelineShape::BilingualTables { .. }
+        | PipelineShape::BilingualRows { .. } => (self_declared_utf8(), Vec::new()),
         // **THÊM 2026-09-15 (Story 6.6b) — dò TRÊN TỪNG tệp, so sánh phán quyết.** §Decisions:
         // "One encoding for the whole batch, detected on EVERY file." Dải năm ô/bản dựng thật
         // vẫn dựng từ ĐÚNG MỘT tệp đại diện (tệp ĐẦU — cùng khuôn `Chapters` ngay trên: một
@@ -2103,7 +2180,9 @@ pub fn preview_import_encoding(
             // sự thật của CẢ batch, không phải của MỘT tệp lẻ loi.
             let representative_index = units
                 .iter()
-                .position(|u| matches!(u, ChapterInput::RawBytes { bytes, .. } if !bytes.is_empty()))
+                .position(
+                    |u| matches!(u, ChapterInput::RawBytes { bytes, .. } if !bytes.is_empty()),
+                )
                 .unwrap_or(0);
             let representative_bytes: &[u8] = match units.get(representative_index) {
                 Some(ChapterInput::RawBytes { bytes, .. }) => bytes,
@@ -2111,8 +2190,7 @@ pub fn preview_import_encoding(
                 // `Files`, luôn `RawBytes`) — phòng thủ kiểu cho `tests/**`.
                 Some(ChapterInput::AlreadyText(_)) | None => &[],
             };
-            let (mut verdict, candidates) =
-                verdict_and_candidates(representative_bytes, false, "");
+            let (mut verdict, candidates) = verdict_and_candidates(representative_bytes, false, "");
             // 🔴 SỬA 2026-09-16 (phản biện) — MỘT nguồn sự thật cho bảng mã của đơn vị đại
             // diện: `verdict.encoding` (từ `verdict_and_candidates` ngay trên, tức
             // `encoding::detect(representative_bytes)`) — không hỏi lại `encoding::detect`
@@ -2125,7 +2203,9 @@ pub fn preview_import_encoding(
                     return false;
                 }
                 match u {
-                    ChapterInput::RawBytes { bytes, .. } => encoding::detect(bytes).encoding != verdict.encoding,
+                    ChapterInput::RawBytes { bytes, .. } => {
+                        encoding::detect(bytes).encoding != verdict.encoding
+                    }
                     ChapterInput::AlreadyText(_) => false,
                 }
             });
@@ -2262,7 +2342,8 @@ fn display_window_for_chapter(
                 encoding::pipeline_window_for_known_encoding(bytes, encoding)
             }
             ChapterInput::AlreadyText(text) => {
-                let window_truncated = encoding::normalized_self_declared(text, source_lang).window_truncated;
+                let window_truncated =
+                    encoding::normalized_self_declared(text, source_lang).window_truncated;
                 encoding::pipeline_window_for_self_declared(text).map(|w| (w, window_truncated))
             }
         }
@@ -2292,7 +2373,9 @@ fn display_window_for_chapter(
         // *Chương đang chọn* của Story 6.10a (hàng/Chương của nó không có "cửa sổ hiển thị"
         // bảng mã theo nghĩa này) — phòng thủ kiểu, cùng lý do các nhánh `PipelineShape::Bilingual`
         // khác trong tệp này.
-        PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => None,
+        PipelineShape::Bilingual { .. }
+        | PipelineShape::BilingualTables { .. }
+        | PipelineShape::BilingualRows { .. } => None,
         // 🔵 **SỬA 2026-09-16 (Story 6.6b, phản biện) — không còn `None` VÔ ĐIỀU KIỆN.**
         //
         // ─────────────────────────────────────────────────────────────────────────────
@@ -2435,8 +2518,14 @@ pub fn stash_pending_import_source_for(
     docx_sidecar: Option<crate::core::segment::import::DocxSidecar>,
     destination_work_id: Option<String>,
 ) {
-    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    *guard = Some(PendingImportSource { shape, docx_sidecar, destination_work_id });
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = Some(PendingImportSource {
+        shape,
+        docx_sidecar,
+        destination_work_id,
+    });
 }
 
 /// **Hàm thuần** — đích ĐANG CẤT của lượt xem trước hiện tại (Story 6.7b), nếu có. `None` khi
@@ -2447,7 +2536,9 @@ pub fn stash_pending_import_source_for(
 /// riêng cho lượt xác nhận (xem doc-comment [`PendingImportSource::destination_work_id`] cho
 /// lý do đổi từ "tham số mỗi lượt gọi" sang "state của phiên").
 pub fn current_pending_destination(state: &PendingImportSourceState) -> Option<String> {
-    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     guard.as_ref().and_then(|p| p.destination_work_id.clone())
 }
 
@@ -2469,7 +2560,9 @@ pub fn current_pending_destination(state: &PendingImportSourceState) -> Option<S
 /// tường minh. [`tests`] gọi hàm này rồi khẳng định [`confirm_import_with_encoding`] từ chối
 /// và 0 thư mục `.atproj` được tạo.
 pub fn cancel_import_preview(state: &PendingImportSourceState) {
-    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = None;
 }
 
@@ -2515,7 +2608,9 @@ pub fn confirm_import_with_encoding_with_progress(
     should_cancel: &dyn Fn() -> bool,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
-        IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
+        IpcError::from(ImportError::UnrecognizedEncoding {
+            wire_id: encoding_wire_id.to_owned(),
+        })
     })?;
 
     // 🔴 SỬA (vòng rà đối kháng 2, mục 14) — GIỮ NGUYÊN một `MutexGuard` cho TRỌN vẹn phần
@@ -2534,8 +2629,13 @@ pub fn confirm_import_with_encoding_with_progress(
     // Không đổi hành vi CA THƯỜNG (một lượt xác nhận duy nhất, không chồng): `shape` vẫn chỉ
     // bị dọn khi và chỉ khi `create_work` thành công — GIỮ NGUYÊN trên đường lỗi, đúng doc-
     // comment ở trên (lượt xác nhận lại với một ứng viên khác không đòi đọc nguồn lần hai).
-    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let shape = guard
+        .as_ref()
+        .map(|p| p.shape.clone())
+        .ok_or_else(no_pending_import_source)?;
     // 🔴 **THÊM 2026-09-09 (Story 6.12)** — CÙNG khoá, CÙNG lượt đọc với `shape` ngay trên
     // (không một `MutexGuard` thứ hai) — `docx_sidecar` phải sống sót/biến mất ĐÚNG lúc
     // `shape` sống sót/biến mất, hai trường của CÙNG MỘT `PendingImportSource`.
@@ -2634,13 +2734,20 @@ pub fn confirm_append_import_with_encoding_with_progress(
     should_cancel: &dyn Fn() -> bool,
 ) -> Result<(), IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
-        IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
+        IpcError::from(ImportError::UnrecognizedEncoding {
+            wire_id: encoding_wire_id.to_owned(),
+        })
     })?;
 
     // Cùng lý lẽ khoá xuyên suốt của `confirm_import_with_encoding` ngay trên (vòng rà đối
     // kháng 2, mục 14) — giữ NGUYÊN một `MutexGuard` cho trọn phần đọc-rồi-ghi.
-    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let shape = guard
+        .as_ref()
+        .map(|p| p.shape.clone())
+        .ok_or_else(no_pending_import_source)?;
     let docx_sidecar = guard.as_ref().and_then(|p| p.docx_sidecar.clone());
 
     append_chapters_to_work_with_progress(
@@ -2800,8 +2907,6 @@ pub fn confirm_append_import_with_encoding_indexed_with_progress(
     )
 }
 
-
-
 /// **THÊM 2026-09-07 (Story 6.9)** — trạng thái giữ/loại người dùng đã ĐẶT BẰNG TAY cho khối
 /// của Chương đầu tiên, sống CẠNH [`UrlImportItemsState`] trong bộ nhớ. `overrides[i] ==
 /// Some(v)` ⇒ khối `i` giữ (`v`); `None`/ngoài phạm vi ⇒ dùng `machine_kept` — cùng ngữ nghĩa
@@ -2830,7 +2935,9 @@ pub type Tier2BlockOverridesState = std::sync::Mutex<Vec<Option<bool>>>;
 /// [`clear_url_import_items_after_successful_confirm`]. **Hàm thuần, `pub`** để
 /// `tests/project_contract.rs` gọi được không cần `tauri::AppHandle`.
 pub fn reset_block_overrides(state: &Tier2BlockOverridesState) {
-    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     guard.clear();
 }
 
@@ -2856,7 +2963,12 @@ pub struct ChapterOriginOverride {
 fn effective_origin_fields(
     machine: Option<&crate::core::webimport::ChapterOrigin>,
     over: Option<&ChapterOriginOverride>,
-) -> (Option<String>, Option<String>, Option<String>, Option<String>) {
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+) {
     // 🔴 SỬA (đo được, bàn đo `chapter_origin_contract.rs::a_hand_typed_override_at_preview_time_wins_over_the_machine_extracted_value`)
     // — bản đầu bọc `over.map(|o| &o.<field>)` dựng một `Option` LỒNG SAI: lớp NGOÀI chỉ nói
     // "có một BẢN GHI override cho Chương này", không nói "TRƯỜNG NÀY đã bị chạm" — nên MỘT
@@ -2871,9 +2983,18 @@ fn effective_origin_fields(
         }
     };
     (
-        pick(over.and_then(|o| o.author.clone()), machine.and_then(|m| m.author.as_ref())),
-        pick(over.and_then(|o| o.site_name.clone()), machine.and_then(|m| m.site_name.as_ref())),
-        pick(over.and_then(|o| o.url.clone()), machine.and_then(|m| m.url.as_ref())),
+        pick(
+            over.and_then(|o| o.author.clone()),
+            machine.and_then(|m| m.author.as_ref()),
+        ),
+        pick(
+            over.and_then(|o| o.site_name.clone()),
+            machine.and_then(|m| m.site_name.as_ref()),
+        ),
+        pick(
+            over.and_then(|o| o.url.clone()),
+            machine.and_then(|m| m.url.as_ref()),
+        ),
         pick(
             over.and_then(|o| o.published_at.clone()),
             machine.and_then(|m| m.published_at.as_ref()),
@@ -2902,7 +3023,9 @@ pub type ChapterOriginOverridesState = std::sync::Mutex<Vec<Option<ChapterOrigin
 /// Dọn sạch [`ChapterOriginOverridesState`] — cùng khuôn [`reset_block_overrides`]. **Hàm
 /// thuần, `pub`** để `tests/**` gọi được không cần `tauri::AppHandle`.
 pub fn reset_chapter_origin_overrides(state: &ChapterOriginOverridesState) {
-    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     guard.clear();
 }
 
@@ -2914,7 +3037,9 @@ pub fn set_chapter_origin_override(
     chapter_index: usize,
     over: ChapterOriginOverride,
 ) {
-    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if guard.len() <= chapter_index {
         guard.resize(chapter_index + 1, None);
     }
@@ -2931,7 +3056,6 @@ pub fn set_chapter_origin_override(
 pub fn mutated_index_invalidates_tier2_blocks(index: usize) -> bool {
     index == 0
 }
-
 
 /// `work_id` không có hàng trong `library-index.db` (`Indexer::find_work` trả `None`) —
 /// hàm dựng lỗi **tách riêng** để [`open_work`] và `wire::open_work` dùng chung MỘT nguồn
@@ -2957,9 +3081,7 @@ fn work_not_indexed(work_id: &str) -> IpcError {
 ///
 /// [`TRANSLATION_ORIGINS`]: crate::commands::segment::TRANSLATION_ORIGINS
 /// [`SEGMENT_DDL`]: crate::core::store::SEGMENT_DDL
-fn reject_unknown_translation_origin(
-    store: &Store,
-) -> Result<(), crate::core::store::StoreError> {
+fn reject_unknown_translation_origin(store: &Store) -> Result<(), crate::core::store::StoreError> {
     use crate::commands::segment::TRANSLATION_ORIGINS;
     use crate::core::store::{StoreError, StoreKind, params_from_iter};
 
@@ -2982,7 +3104,10 @@ fn reject_unknown_translation_origin(
     })?;
 
     match found {
-        Some(value) => Err(StoreError::UnknownTranslationOrigin { store: StoreKind::Project, value }),
+        Some(value) => Err(StoreError::UnknownTranslationOrigin {
+            store: StoreKind::Project,
+            value,
+        }),
         None => Ok(()),
     }
 }
@@ -3031,10 +3156,11 @@ pub fn open_work(
             return Err(crate::core::library::WorkError::MetaTooNew { found, supported }.into());
         }
         Err(crate::core::library::MetaError::Io { detail, .. }) => {
-            return Err(
-                crate::core::library::WorkError::OpenFailed { name: indexed.name.clone(), detail }
-                    .into(),
-            );
+            return Err(crate::core::library::WorkError::OpenFailed {
+                name: indexed.name.clone(),
+                detail,
+            }
+            .into());
         }
     };
 
@@ -3116,7 +3242,9 @@ pub fn open_work(
     // `commands/segment.rs::save_segment_targets` đã ghi cho ô CÓ KIỂU của nó.
     let found = match store.read(|conn| {
         let last_chapter_id: Option<i64> =
-            conn.query_row("SELECT last_chapter_id FROM work WHERE id = 1", [], |row| row.get(0))?;
+            conn.query_row("SELECT last_chapter_id FROM work WHERE id = 1", [], |row| {
+                row.get(0)
+            })?;
 
         if let Some(last_id) = last_chapter_id {
             let mut stmt = conn.prepare("SELECT id FROM chapter WHERE id = ?1")?;
@@ -3194,8 +3322,14 @@ pub fn open_destination_for_append(
 ) -> Result<OpenWork, IpcError> {
     open_work(work_id, indexed).map_err(|err| {
         if err.code() == "store.open_failed" {
-            let name = indexed.map(|w| w.name.clone()).unwrap_or_else(|| work_id.to_owned());
-            crate::core::library::WorkError::OpenFailed { name, detail: format!("{err:?}") }.into()
+            let name = indexed
+                .map(|w| w.name.clone())
+                .unwrap_or_else(|| work_id.to_owned());
+            crate::core::library::WorkError::OpenFailed {
+                name,
+                detail: format!("{err:?}"),
+            }
+            .into()
         } else {
             err
         }
@@ -3217,7 +3351,10 @@ pub type AppendInProgressState = std::sync::Mutex<std::collections::HashSet<Stri
 /// Pure decision over an ALREADY-LOCKED set — the caller holds the `AppendInProgressState`
 /// lock across both this check and whatever it gates, so the answer cannot go stale before
 /// the caller acts on it.
-pub fn should_skip_orphan_sweep(in_progress: &std::collections::HashSet<String>, work_id: &str) -> bool {
+pub fn should_skip_orphan_sweep(
+    in_progress: &std::collections::HashSet<String>,
+    work_id: &str,
+) -> bool {
     in_progress.contains(work_id)
 }
 
@@ -3274,22 +3411,34 @@ fn sweep_orphans_holding_the_append_lock(
 
 // A missing assets_dir (no images ever downloaded) returns 0, not an error. Only regular
 // files are removed; a failed removal is logged and skipped, not fatal to the sweep.
-fn sweep_orphaned_asset_files(assets_dir: &std::path::Path, referenced: &std::collections::BTreeSet<String>) -> usize {
-    let Ok(entries) = std::fs::read_dir(assets_dir) else { return 0 };
+fn sweep_orphaned_asset_files(
+    assets_dir: &std::path::Path,
+    referenced: &std::collections::BTreeSet<String>,
+) -> usize {
+    let Ok(entries) = std::fs::read_dir(assets_dir) else {
+        return 0;
+    };
     let mut removed = 0usize;
     for entry in entries.flatten() {
-        let Ok(file_type) = entry.file_type() else { continue };
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
         if !file_type.is_file() {
             continue;
         }
         let name = entry.file_name();
-        let Some(name_str) = name.to_str() else { continue };
+        let Some(name_str) = name.to_str() else {
+            continue;
+        };
         if referenced.contains(name_str) {
             continue;
         }
         match std::fs::remove_file(entry.path()) {
             Ok(()) => removed += 1,
-            Err(err) => eprintln!("project[orphan] khong xoa duoc {}: {err}", entry.path().display()),
+            Err(err) => eprintln!(
+                "project[orphan] khong xoa duoc {}: {err}",
+                entry.path().display()
+            ),
         }
     }
     removed
@@ -3348,7 +3497,10 @@ fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: Ope
     // webview ghep duong dan -- nen cap dung chung mot thu muc do la du, va hep hon thi khong
     // can xin them.
     let assets_dir = new_work.dir.join("assets");
-    if let Err(err) = app.asset_protocol_scope().allow_directory(&assets_dir, true) {
+    if let Err(err) = app
+        .asset_protocol_scope()
+        .allow_directory(&assets_dir, true)
+    {
         eprintln!(
             "project[scope] khong cap duoc asset_protocol_scope cho {}: {err}",
             assets_dir.display()
@@ -3360,8 +3512,11 @@ fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: Ope
     // 🔴 A failed read of the `asset` table skips the sweep entirely — sweeping with an
     // empty referenced set would delete every real asset file.
     let append_state = app.try_state::<AppendInProgressState>();
-    sweep_orphans_holding_the_append_lock(append_state.as_deref(), &new_work.meta.work_id, &assets_dir, || {
-        match new_work.store.read(|conn| {
+    sweep_orphans_holding_the_append_lock(
+        append_state.as_deref(),
+        &new_work.meta.work_id,
+        &assets_dir,
+        || match new_work.store.read(|conn| {
             let mut stmt = conn.prepare("SELECT file_name FROM asset")?;
             let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
             rows.collect::<crate::core::store::SqlResult<std::collections::BTreeSet<String>>>()
@@ -3375,8 +3530,8 @@ fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: Ope
                     assets_dir.display()
                 );
             }
-        }
-    });
+        },
+    );
 
     // Story 3.10b (AD-48) -- mo mot Tac pham KHAC lam `project.db` cua no doi hoan toan; mot
     // lo nhap Glossary dang TREO o tang Work (neu co) tro toi kho CU, va `RowPlanKind::

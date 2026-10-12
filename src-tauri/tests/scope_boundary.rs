@@ -99,8 +99,7 @@ fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
 
 /// Dòng **mã** của một tệp: `(số dòng 1-based, nội dung đã trim đầu)`.
 fn code_lines(file: &Path) -> Vec<(usize, String)> {
-    let text =
-        fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+    let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
     boundary_scan::code_lines(&text).collect()
 }
 

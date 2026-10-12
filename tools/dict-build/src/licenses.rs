@@ -20,8 +20,7 @@ pub const THIEU_CHUU_DECLARATION: &str = include_str!("../assets/licenses/thieu-
 pub const VIETPHRASE_DECLARATION: &str = include_str!("../assets/licenses/vietphrase.txt");
 /// Story 1.10c — tuyên bố xuất xứ soạn tay cho Trần Văn Chánh, nêu RÕ rủi ro pháp lý
 /// (AC8): CC0 của người số hoá không xoá bản quyền tác phẩm gốc của tác giả còn sống.
-pub const TRAN_VAN_CHANH_DECLARATION: &str =
-    include_str!("../assets/licenses/tran-van-chanh.txt");
+pub const TRAN_VAN_CHANH_DECLARATION: &str = include_str!("../assets/licenses/tran-van-chanh.txt");
 
 /// Wiktionary (cả hai ấn bản) song hành hai giấy phép — nội dung mới hơn CC BY-SA 4.0,
 /// nội dung cũ hơn có thể chỉ có GFDL. Ghi cả hai nguyên văn, nối bằng dòng phân cách rõ

@@ -28,7 +28,11 @@ fn all_seven_sources_produce_at_least_one_entry() {
     let (_dir, _out, report) = build_fixture_db();
     assert_eq!(report.per_source.len(), 7);
 
-    let codes: Vec<&str> = report.per_source.iter().map(|s| s.source_code.as_str()).collect();
+    let codes: Vec<&str> = report
+        .per_source
+        .iter()
+        .map(|s| s.source_code.as_str())
+        .collect();
     assert_eq!(
         codes,
         vec![
@@ -67,7 +71,9 @@ fn malformed_en_wiktionary_line_is_recorded_with_its_real_skip_reason() {
         .expect("en-wiktionary must be present");
     assert!(en.lines_skipped > 0, "expected at least one skipped line");
     assert!(
-        en.skip_reasons.keys().any(|r| r.contains("missing 'word' field")),
+        en.skip_reasons
+            .keys()
+            .any(|r| r.contains("missing 'word' field")),
         "expected a \"missing 'word' field\" skip reason, got {:?}",
         en.skip_reasons
     );
@@ -121,11 +127,15 @@ fn en_wiktionary_same_headword_ma_merges_into_one_entry_with_multiple_senses() {
 fn wal_check_survives_output_path_without_dot_db_extension() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("dict-core-fixture"); // KHÔNG có đuôi .db, cố ý
-    let report = build::run_base(&fixtures_raw_dir(), &out).expect("build must succeed regardless of extension");
+    let report = build::run_base(&fixtures_raw_dir(), &out)
+        .expect("build must succeed regardless of extension");
     assert_eq!(report.journal_mode.to_lowercase(), "delete");
     assert!(!dict_build::finalize::sibling_path(&out, "-wal").exists());
     assert!(!dict_build::finalize::sibling_path(&out, "-shm").exists());
-    assert!(out.exists(), "output file itself must exist at the exact requested path");
+    assert!(
+        out.exists(),
+        "output file itself must exist at the exact requested path"
+    );
 }
 
 /// Nghiệm thu lại kịch bản patch tệp-tạm-rồi-rename của Group A: một lượt build phải
@@ -136,10 +146,19 @@ fn rebuilding_over_a_stale_output_and_wal_artifacts_still_succeeds() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("dict-core-fixture.db");
     std::fs::write(&out, b"stale garbage from a previous run").unwrap();
-    std::fs::write(dict_build::finalize::sibling_path(&out, "-wal"), b"stale wal").unwrap();
-    std::fs::write(dict_build::finalize::sibling_path(&out, "-shm"), b"stale shm").unwrap();
+    std::fs::write(
+        dict_build::finalize::sibling_path(&out, "-wal"),
+        b"stale wal",
+    )
+    .unwrap();
+    std::fs::write(
+        dict_build::finalize::sibling_path(&out, "-shm"),
+        b"stale shm",
+    )
+    .unwrap();
 
-    let report = build::run_base(&fixtures_raw_dir(), &out).expect("build must succeed over stale artifacts");
+    let report = build::run_base(&fixtures_raw_dir(), &out)
+        .expect("build must succeed over stale artifacts");
     assert!(report.per_source.iter().all(|s| s.entries > 0));
     assert!(!dict_build::finalize::sibling_path(&out, "-wal").exists());
     assert!(!dict_build::finalize::sibling_path(&out, "-shm").exists());
@@ -152,7 +171,10 @@ fn rebuilding_over_a_stale_output_and_wal_artifacts_still_succeeds() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(table_count, 1, "rebuilt file must be a fresh, well-formed database, not the stale garbage");
+    assert_eq!(
+        table_count, 1,
+        "rebuilt file must be a fresh, well-formed database, not the stale garbage"
+    );
 }
 
 /// Đúng lỗi "rơi về `unknown` âm thầm" mà Group A vá (`version_or_warn`) — nếu tái phát,
@@ -176,7 +198,10 @@ fn all_sources_have_a_real_non_unknown_source_version() {
     assert_eq!(rows.len(), 7);
     for (code, version) in rows {
         assert!(!version.is_empty(), "{code} has an empty source_version");
-        assert_ne!(version, "unknown", "{code} silently fell back to 'unknown' source_version");
+        assert_ne!(
+            version, "unknown",
+            "{code} silently fell back to 'unknown' source_version"
+        );
     }
 }
 
@@ -327,7 +352,10 @@ fn viwiktionary_en_entries_are_all_tagged_lang_en() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(total, en, "100% hàng của viwiktionary-en phải mang lang='en'");
+    assert_eq!(
+        total, en,
+        "100% hàng của viwiktionary-en phải mang lang='en'"
+    );
 }
 
 /// 🔴 **AC3, đối chứng âm CHIỀU NGƯỢC — chống hồi quy cho vai B.** Tham số hoá `lang`
@@ -369,9 +397,11 @@ fn viwiktionary_and_viwiktionary_en_read_the_same_file_into_two_separate_sources
         )
         .unwrap();
     let id_b: i64 = conn
-        .query_row("SELECT id FROM dict_source WHERE code = 'viwiktionary'", [], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT id FROM dict_source WHERE code = 'viwiktionary'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_ne!(id_a, id_b, "hai vai phải là hai source_id khác nhau");
 
@@ -429,7 +459,11 @@ fn an_english_entry_carries_pos_label_and_vietnamese_gloss() {
         )
         .unwrap();
 
-    assert_eq!(pos.as_deref(), Some("Danh từ"), "FR34: phải có nhãn từ loại");
+    assert_eq!(
+        pos.as_deref(),
+        Some("Danh từ"),
+        "FR34: phải có nhãn từ loại"
+    );
     assert_eq!(
         pos_lang.as_deref(),
         Some("vi"),
@@ -470,7 +504,10 @@ fn english_headword_on_two_lines_becomes_one_entry() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(entries, 1, "ba dòng JSONL cùng headword phải thành MỘT dict_entry");
+    assert_eq!(
+        entries, 1,
+        "ba dòng JSONL cùng headword phải thành MỘT dict_entry"
+    );
 
     let distinct_pos: i64 = conn
         .query_row(
@@ -500,7 +537,10 @@ fn english_headword_on_two_lines_becomes_one_entry() {
             |r| r.get(0),
         )
         .unwrap();
-    assert!(examples > 0, "AC2 đối chiếu 27.396 ví dụ — đường ví dụ phải chạy");
+    assert!(
+        examples > 0,
+        "AC2 đối chiếu 27.396 ví dụ — đường ví dụ phải chạy"
+    );
 }
 
 /// **AC8 / AD-27 trên dữ liệu TIẾNG ANH** — khuôn từ
@@ -584,7 +624,10 @@ fn ad26_entry_trigram_and_char_idx_are_populated_and_queryable() {
             |r| r.get(0),
         )
         .unwrap();
-    assert!(trigram_hits > 0, "entry_fts trigram should find 屯溪區 (3+ chars)");
+    assert!(
+        trigram_hits > 0,
+        "entry_fts trigram should find 屯溪區 (3+ chars)"
+    );
 
     let char_idx_hits: i64 = conn
         .query_row("SELECT COUNT(*) FROM char_idx WHERE ch = '山'", [], |r| {
@@ -672,9 +715,15 @@ fn thieu_chuu_line_108_is_recorded_as_a_parse_issue_through_the_real_build_pipel
     assert_eq!(report.per_source.len(), 1);
     let stats = &report.per_source[0];
     assert_eq!(stats.source_code, "thieu-chuu");
-    assert!(stats.lines_skipped > 0, "expected at least one skipped line (real line 108)");
     assert!(
-        stats.skip_reasons.keys().any(|r| r.contains("3 tab-separated columns")),
+        stats.lines_skipped > 0,
+        "expected at least one skipped line (real line 108)"
+    );
+    assert!(
+        stats
+            .skip_reasons
+            .keys()
+            .any(|r| r.contains("3 tab-separated columns")),
         "expected a column-count ParseIssue reason for real line 108, got {:?}",
         stats.skip_reasons
     );
@@ -684,12 +733,16 @@ fn thieu_chuu_line_108_is_recorded_as_a_parse_issue_through_the_real_build_pipel
 /// — nghiệm thu TÍCH HỢP qua `build::run_detachable_by_code("vietphrase")` trên fixture
 /// thật chứa hai dòng rác đó.
 #[test]
-fn vietphrase_placeholder_gloss_lines_are_recorded_as_parse_issues_through_the_real_build_pipeline() {
+fn vietphrase_placeholder_gloss_lines_are_recorded_as_parse_issues_through_the_real_build_pipeline()
+{
     let (_dir, _out, report) = build_detachable_fixture_db("vietphrase");
     assert_eq!(report.per_source.len(), 1);
     let stats = &report.per_source[0];
     assert_eq!(stats.source_code, "vietphrase");
-    assert!(stats.lines_skipped >= 2, "expected at least the two real placeholder-gloss junk lines to be skipped");
+    assert!(
+        stats.lines_skipped >= 2,
+        "expected at least the two real placeholder-gloss junk lines to be skipped"
+    );
     assert!(
         stats.skip_reasons.keys().any(|r| r.contains("placeholder")),
         "expected a placeholder-gloss ParseIssue reason, got {:?}",
@@ -707,7 +760,10 @@ fn tran_van_chanh_builds_from_fixture_with_verbatim_multi_reading_kept() {
     assert_eq!(report.per_source.len(), 1);
     let stats = &report.per_source[0];
     assert_eq!(stats.source_code, "tran-van-chanh");
-    assert_eq!(stats.entries, 4, "fixture có 4 dòng thật, mỗi dòng một dict_entry (TVC không gộp theo headword)");
+    assert_eq!(
+        stats.entries, 4,
+        "fixture có 4 dòng thật, mỗi dòng một dict_entry (TVC không gộp theo headword)"
+    );
 
     let conn = Connection::open(&out).unwrap();
     let han_viet: String = conn
@@ -717,7 +773,10 @@ fn tran_van_chanh_builds_from_fixture_with_verbatim_multi_reading_kept() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(han_viet, "đáng, đương", "Task 5: nhiều âm giữ NGUYÊN chuỗi, không chuẩn hoá");
+    assert_eq!(
+        han_viet, "đáng, đương",
+        "Task 5: nhiều âm giữ NGUYÊN chuỗi, không chuẩn hoá"
+    );
 
     let tich_count: i64 = conn
         .query_row(
@@ -726,7 +785,10 @@ fn tran_van_chanh_builds_from_fixture_with_verbatim_multi_reading_kept() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(tich_count, 2, "'躄' xuất hiện ở 2 dòng thật của fixture — mỗi dòng một dict_entry riêng");
+    assert_eq!(
+        tich_count, 2,
+        "'躄' xuất hiện ở 2 dòng thật của fixture — mỗi dòng một dict_entry riêng"
+    );
 }
 
 /// AC3 vế cơ chế: SHA-256 và kích thước byte được in ra và khớp tệp thật.
@@ -734,7 +796,12 @@ fn tran_van_chanh_builds_from_fixture_with_verbatim_multi_reading_kept() {
 fn build_report_includes_a_real_sha256_and_matching_size() {
     let (_dir, out, report) = build_fixture_db();
     assert_eq!(report.sha256.len(), 64);
-    assert!(report.sha256.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+    assert!(
+        report
+            .sha256
+            .chars()
+            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+    );
     let real_size = std::fs::metadata(&out).unwrap().len();
     assert_eq!(report.size_bytes, real_size);
 
@@ -745,8 +812,15 @@ fn build_report_includes_a_real_sha256_and_matching_size() {
     let bytes = std::fs::read(&out).unwrap();
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
-    let real_hash: String = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
-    assert_eq!(report.sha256, real_hash, "reported SHA-256 must match the real file's actual content");
+    let real_hash: String = hasher
+        .finalize()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    assert_eq!(
+        report.sha256, real_hash,
+        "reported SHA-256 must match the real file's actual content"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════
@@ -762,13 +836,18 @@ fn build_report_includes_a_real_sha256_and_matching_size() {
 /// `unihan.rs` làm rơi hàng sẽ bị bắt ở đây.
 #[test]
 fn ac1_unihan_kvietnamese_row_count_matches_raw_source_before_and_after_role_swap() {
-    let readings_path = fixtures_raw_dir().join("unihan").join("Unihan_Readings.txt");
+    let readings_path = fixtures_raw_dir()
+        .join("unihan")
+        .join("Unihan_Readings.txt");
     let raw = std::fs::read_to_string(&readings_path).expect("đọc fixture Unihan_Readings.txt");
     let raw_kvietnamese_count = raw
         .lines()
         .filter(|l| l.split('\t').nth(1) == Some("kVietnamese"))
         .count();
-    assert!(raw_kvietnamese_count > 0, "fixture phải có ít nhất một dòng kVietnamese để test có ý nghĩa");
+    assert!(
+        raw_kvietnamese_count > 0,
+        "fixture phải có ít nhất một dòng kVietnamese để test có ý nghĩa"
+    );
 
     let (_dir, out, _report) = build_fixture_db();
     let conn = Connection::open(&out).unwrap();
@@ -793,7 +872,10 @@ fn ac1_unihan_kvietnamese_row_count_matches_raw_source_before_and_after_role_swa
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(han_viet_count, 0, "AC2: unihan không bao giờ ghi han_viet — kVietnamese không được rơi lại vai cũ");
+    assert_eq!(
+        han_viet_count, 0,
+        "AC2: unihan không bao giờ ghi han_viet — kVietnamese không được rơi lại vai cũ"
+    );
 }
 
 /// Review Findings — AC4 đòi `tran-van-chanh` phủ **≥ 12.081** đầu mục MỘT KÝ TỰ có
@@ -814,9 +896,13 @@ fn ac4_fr36_coverage_drop_is_measured_on_real_data() {
     let raw_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("raw");
     let tc_path = raw_dir.join("thieu_chuu").join("TudienThienChuu.txt");
     let vi_path = raw_dir.join("en_wiktionary_vi").join("kaikki-en-vi.jsonl");
-    let tvc_path = raw_dir.join("tran_van_chanh").join("Tu-dien-ThienChuu-TranVanChanh.tab");
+    let tvc_path = raw_dir
+        .join("tran_van_chanh")
+        .join("Tu-dien-ThienChuu-TranVanChanh.tab");
     if !tc_path.is_file() || !vi_path.is_file() || !tvc_path.is_file() {
-        eprintln!("bỏ qua: thiếu raw/thieu_chuu, raw/en_wiktionary_vi hoặc raw/tran_van_chanh thật cục bộ");
+        eprintln!(
+            "bỏ qua: thiếu raw/thieu_chuu, raw/en_wiktionary_vi hoặc raw/tran_van_chanh thật cục bộ"
+        );
         return;
     }
 
@@ -879,10 +965,15 @@ fn ac4_fr36_coverage_drop_is_measured_on_real_data() {
 #[test]
 fn tran_van_chanh_does_not_filter_multi_character_headwords_by_design() {
     let text = "一二三\t[tam] một cụm từ nhiều ký tự, KHÔNG phải một chữ Hán đơn.\n";
-    let entries: Vec<_> = dict_build::sources::tran_van_chanh::parse(std::io::Cursor::new(text.as_bytes()))
-        .collect::<Result<_, _>>()
-        .unwrap();
-    assert_eq!(entries.len(), 1, "headword nhiều ký tự vẫn được nạp — không bị lọc/từ chối");
+    let entries: Vec<_> =
+        dict_build::sources::tran_van_chanh::parse(std::io::Cursor::new(text.as_bytes()))
+            .collect::<Result<_, _>>()
+            .unwrap();
+    assert_eq!(
+        entries.len(),
+        1,
+        "headword nhiều ký tự vẫn được nạp — không bị lọc/từ chối"
+    );
     assert_eq!(entries[0].headword, "一二三");
     assert_eq!(entries[0].headword.chars().count(), 3);
 }
@@ -893,7 +984,8 @@ fn tran_van_chanh_does_not_filter_multi_character_headwords_by_design() {
 #[test]
 fn tran_van_chanh_rejects_a_nested_open_bracket_in_the_reading() {
     let text = "字\t[[tích] định nghĩa.\n";
-    let results: Vec<_> = dict_build::sources::tran_van_chanh::parse(std::io::Cursor::new(text.as_bytes())).collect();
+    let results: Vec<_> =
+        dict_build::sources::tran_van_chanh::parse(std::io::Cursor::new(text.as_bytes())).collect();
     assert_eq!(results.len(), 1);
     assert!(
         results[0].is_err(),

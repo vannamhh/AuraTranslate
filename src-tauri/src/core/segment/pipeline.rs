@@ -428,7 +428,12 @@ impl PipelineInput {
     /// khi `shape` là [`PipelineShape::Bilingual`]; mọi chỗ gọi khác giữ mặc định (0, 1,
     /// false) và không bao giờ đọc tới ba trường này.
     #[must_use]
-    pub fn with_bilingual_columns(mut self, source_column: usize, target_column: usize, has_header: bool) -> Self {
+    pub fn with_bilingual_columns(
+        mut self,
+        source_column: usize,
+        target_column: usize,
+        has_header: bool,
+    ) -> Self {
         self.bilingual_source_column = source_column;
         self.bilingual_target_column = target_column;
         self.bilingual_has_header = has_header;
@@ -747,11 +752,23 @@ pub fn run_import_with_order(
         }
         PipelineShape::Chapters(cs) => {
             let labels: Vec<String> = cs.iter().map(label_of).collect();
-            (cs.into_iter().map(Unit::from).collect(), labels, true, false, None)
+            (
+                cs.into_iter().map(Unit::from).collect(),
+                labels,
+                true,
+                false,
+                None,
+            )
         }
         PipelineShape::Bilingual { input, delimiter } => {
             let label = label_of(&input);
-            (vec![Unit::from(input)], vec![label], false, false, Some(BilingualSource::Delimited(delimiter)))
+            (
+                vec![Unit::from(input)],
+                vec![label],
+                false,
+                false,
+                Some(BilingualSource::Delimited(delimiter)),
+            )
         }
         PipelineShape::BilingualRows { label, rows } => (
             vec![Unit::Decoded(String::new())],
@@ -770,7 +787,13 @@ pub fn run_import_with_order(
         // ĐÚNG đơn vị đã sinh ra chúng (§Always spec 6.6b).
         PipelineShape::Files(cs) => {
             let labels: Vec<String> = cs.iter().map(label_of).collect();
-            (cs.into_iter().map(Unit::from).collect(), labels, false, true, None)
+            (
+                cs.into_iter().map(Unit::from).collect(),
+                labels,
+                false,
+                true,
+                None,
+            )
         }
     };
     let n = initial_units.len();
@@ -803,8 +826,23 @@ pub fn run_import_with_order(
     for &step in order {
         flow = match step {
             Step::DecodeEncoding => {
-                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows: _, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports: _, bilingual_row_joined_line_counts: _ } =
-                    flow;
+                let Flow {
+                    units: old_units,
+                    segments,
+                    already_chaptered,
+                    is_files,
+                    cleanup_reports,
+                    chapter_titles,
+                    labels,
+                    blocks,
+                    joined_line_counts,
+                    chapter_origins,
+                    bilingual_rows: _,
+                    bilingual_chapters,
+                    bilingual_mismatches,
+                    bilingual_row_cleanup_reports: _,
+                    bilingual_row_joined_line_counts: _,
+                } = flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 for u in old_units {
                     units.push(decode_unit(u, encoding)?);
@@ -819,7 +857,8 @@ pub fn run_import_with_order(
                             BilingualSource::Delimited(delimiter) => {
                                 let Some(Unit::Decoded(text)) = units.first() else {
                                     return Err(ImportError::InvalidPipelineOrder {
-                                        detail: "buoc bang phai chay sau khi giai ma xong".to_owned(),
+                                        detail: "buoc bang phai chay sau khi giai ma xong"
+                                            .to_owned(),
                                     });
                                 };
                                 super::bilingual::parse_rows(text, delimiter).map_err(|issue| match issue {
@@ -850,12 +889,29 @@ pub fn run_import_with_order(
                 // **THÊM (Story 6.16b)** — kích thước gán NGAY khi `bilingual_rows` ổn định
                 // (sau khi bỏ tiêu đề, nếu có) — hai bước sau (3, 4) chỉ GÁN vào các ô đã có
                 // sẵn, không đẩy thêm phần tử.
-                let (bilingual_row_cleanup_reports, bilingual_row_joined_line_counts) = match &bilingual_rows {
-                    Some(rows) => (vec![None; rows.len()], vec![None; rows.len()]),
-                    None => (Vec::new(), Vec::new()),
-                };
+                let (bilingual_row_cleanup_reports, bilingual_row_joined_line_counts) =
+                    match &bilingual_rows {
+                        Some(rows) => (vec![None; rows.len()], vec![None; rows.len()]),
+                        None => (Vec::new(), Vec::new()),
+                    };
                 trace.push(step);
-                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
+                Flow {
+                    units,
+                    segments,
+                    already_chaptered,
+                    is_files,
+                    cleanup_reports,
+                    chapter_titles,
+                    labels,
+                    blocks,
+                    joined_line_counts,
+                    chapter_origins,
+                    bilingual_rows,
+                    bilingual_chapters,
+                    bilingual_mismatches,
+                    bilingual_row_cleanup_reports,
+                    bilingual_row_joined_line_counts,
+                }
             }
             // 🔴 THÂN THẬT — Story 6.7 (bóc), Story 6.9 (mô hình khối + trạng thái sửa tay),
             // AD-39 bước 2. `extract_main_content == false` (đường tệp/dán tay — §Always spec
@@ -877,14 +933,30 @@ pub fn run_import_with_order(
                     trace.push(step);
                     flow
                 } else {
-                    let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks: _, joined_line_counts, chapter_origins: _, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts } =
-                        flow;
+                    let Flow {
+                        units: old_units,
+                        segments,
+                        already_chaptered,
+                        is_files,
+                        cleanup_reports,
+                        chapter_titles,
+                        labels,
+                        blocks: _,
+                        joined_line_counts,
+                        chapter_origins: _,
+                        bilingual_rows,
+                        bilingual_chapters,
+                        bilingual_mismatches,
+                        bilingual_row_cleanup_reports,
+                        bilingual_row_joined_line_counts,
+                    } = flow;
                     let mut units = Vec::with_capacity(old_units.len());
                     let mut blocks: Vec<Option<Vec<crate::core::webimport::Block>>> =
                         Vec::with_capacity(old_units.len());
                     let mut chapter_origins: Vec<Option<crate::core::webimport::ChapterOrigin>> =
                         Vec::with_capacity(old_units.len());
-                    for (index, (u, label)) in old_units.into_iter().zip(labels.iter()).enumerate() {
+                    for (index, (u, label)) in old_units.into_iter().zip(labels.iter()).enumerate()
+                    {
                         match u {
                             Unit::Decoded(html) => {
                                 let page_blocks = crate::core::webimport::extract(&html, label)
@@ -907,7 +979,9 @@ pub fn run_import_with_order(
                                 // dùng ĐÚNG `label` (URL yêu cầu) mà bước bóc nội dung vừa
                                 // dùng. `Extractor` không chạm mạng — xem doc-comment
                                 // `core::webimport::chapter_origin`.
-                                chapter_origins.push(Some(crate::core::webimport::extract_origin(&html, label)));
+                                chapter_origins.push(Some(crate::core::webimport::extract_origin(
+                                    &html, label,
+                                )));
                             }
                             // Bất khả trên mọi thứ tự HỢP LỆ (bước 1 luôn đứng trước bước 2)
                             // — giữ nguyên là phòng thủ cho một thứ tự SAI, cùng khuôn các
@@ -920,7 +994,23 @@ pub fn run_import_with_order(
                         }
                     }
                     trace.push(step);
-                    Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
+                    Flow {
+                        units,
+                        segments,
+                        already_chaptered,
+                        is_files,
+                        cleanup_reports,
+                        chapter_titles,
+                        labels,
+                        blocks,
+                        joined_line_counts,
+                        chapter_origins,
+                        bilingual_rows,
+                        bilingual_chapters,
+                        bilingual_mismatches,
+                        bilingual_row_cleanup_reports,
+                        bilingual_row_joined_line_counts,
+                    }
                 }
             }
             // 🔴 THÂN THẬT — Story 6.5, FR124, AD-39 bước 3. GỌI `core::cleanup::apply`,
@@ -995,9 +1085,11 @@ pub fn run_import_with_order(
                                         .map_err(|e| ImportError::InvalidCleanupPattern {
                                             detail: e.to_string(),
                                         })?;
-                                    let report = merged.get_or_insert_with(|| crate::core::cleanup::CleanupReport {
-                                        matches: Vec::new(),
-                                        per_rule_counts: std::collections::BTreeMap::new(),
+                                    let report = merged.get_or_insert_with(|| {
+                                        crate::core::cleanup::CleanupReport {
+                                            matches: Vec::new(),
+                                            per_rule_counts: std::collections::BTreeMap::new(),
+                                        }
                                     });
                                     for (key, count) in cleaned.per_rule_counts {
                                         *report.per_rule_counts.entry(key).or_insert(0) += count;
@@ -1005,14 +1097,31 @@ pub fn run_import_with_order(
                                     *cell = cleaned.text;
                                 }
                             }
-                            bilingual_row_cleanup_reports[i] = if both_present { merged } else { None };
+                            bilingual_row_cleanup_reports[i] =
+                                if both_present { merged } else { None };
                         }
                         Some(rows)
                     }
                     None => None,
                 };
                 trace.push(step);
-                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
+                Flow {
+                    units,
+                    segments,
+                    already_chaptered,
+                    is_files,
+                    cleanup_reports,
+                    chapter_titles,
+                    labels,
+                    blocks,
+                    joined_line_counts,
+                    chapter_origins,
+                    bilingual_rows,
+                    bilingual_chapters,
+                    bilingual_mismatches,
+                    bilingual_row_cleanup_reports,
+                    bilingual_row_joined_line_counts,
+                }
             }
             // 🔴 THÂN THẬT — Story 6.4, FR124/FR125, AD-39 bước 4. GỌI `normalize::normalize`,
             // không viết lại nội tuyến (Task list spec 6.4) — mọi luật (bảng kết câu, bảng
@@ -1027,8 +1136,23 @@ pub fn run_import_with_order(
             // cho lý do đây là con số THẬT trên [`PipelineShape::Chapters`] nhưng KHÔNG quy về
             // được Chương nào trên `Blob` (bị [`split_chapters_step`] reset về `None` ngay sau).
             Step::NormalizeParagraphsAndWhitespace => {
-                let Flow { units: old_units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts: _, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, mut bilingual_row_joined_line_counts } =
-                    flow;
+                let Flow {
+                    units: old_units,
+                    segments,
+                    already_chaptered,
+                    is_files,
+                    cleanup_reports,
+                    chapter_titles,
+                    labels,
+                    blocks,
+                    joined_line_counts: _,
+                    chapter_origins,
+                    bilingual_rows,
+                    bilingual_chapters,
+                    bilingual_mismatches,
+                    bilingual_row_cleanup_reports,
+                    mut bilingual_row_joined_line_counts,
+                } = flow;
                 let mut units = Vec::with_capacity(old_units.len());
                 let mut joined_line_counts = Vec::with_capacity(old_units.len());
                 for u in old_units {
@@ -1071,19 +1195,38 @@ pub fn run_import_with_order(
                             *cell = normalized.text;
                         }
                         if let Some(cell) = row.cells.get_mut(bilingual_target_column) {
-                            let normalized = normalize::normalize(cell, crate::core::dict::NATIVE_LANG);
+                            let normalized =
+                                normalize::normalize(cell, crate::core::dict::NATIVE_LANG);
                             total += normalized.joined_lines;
                             *cell = normalized.text;
                         }
-                        bilingual_row_joined_line_counts[i] = if both_present { Some(total) } else { None };
+                        bilingual_row_joined_line_counts[i] =
+                            if both_present { Some(total) } else { None };
                     }
                     rows
                 });
                 trace.push(step);
-                Flow { units, segments, already_chaptered, is_files, cleanup_reports, chapter_titles, labels, blocks, joined_line_counts, chapter_origins, bilingual_rows, bilingual_chapters, bilingual_mismatches, bilingual_row_cleanup_reports, bilingual_row_joined_line_counts }
+                Flow {
+                    units,
+                    segments,
+                    already_chaptered,
+                    is_files,
+                    cleanup_reports,
+                    chapter_titles,
+                    labels,
+                    blocks,
+                    joined_line_counts,
+                    chapter_origins,
+                    bilingual_rows,
+                    bilingual_chapters,
+                    bilingual_mismatches,
+                    bilingual_row_cleanup_reports,
+                    bilingual_row_joined_line_counts,
+                }
             }
             Step::SplitChapters => {
-                let next = split_chapters_step(flow, chapter_pattern.as_ref(), bilingual_source_column)?;
+                let next =
+                    split_chapters_step(flow, chapter_pattern.as_ref(), bilingual_source_column)?;
                 trace.push(step);
                 next
             }
@@ -1117,7 +1260,13 @@ pub fn run_import_with_order(
         let bilingual_row_count: usize = groups.iter().map(|g| g.rows.len()).sum();
         let bilingual_sample_rows: Vec<Vec<String>> = groups
             .first()
-            .map(|g| g.rows.iter().take(BILINGUAL_SAMPLE_ROW_CAP).map(|r| r.cells.clone()).collect())
+            .map(|g| {
+                g.rows
+                    .iter()
+                    .take(BILINGUAL_SAMPLE_ROW_CAP)
+                    .map(|r| r.cells.clone())
+                    .collect()
+            })
             .unwrap_or_default();
         let chapters: Vec<ImportedChapter> = groups
             .into_iter()
@@ -1125,7 +1274,12 @@ pub fn run_import_with_order(
                 let source_text = group
                     .rows
                     .iter()
-                    .map(|r| r.cells.get(bilingual_source_column).map(String::as_str).unwrap_or(""))
+                    .map(|r| {
+                        r.cells
+                            .get(bilingual_source_column)
+                            .map(String::as_str)
+                            .unwrap_or("")
+                    })
                     .collect::<Vec<&str>>()
                     .join("\n");
                 ImportedChapter {
@@ -1191,36 +1345,46 @@ pub fn run_import_with_order(
         // `Flow::already_chaptered` đã theo (rẽ theo hình dạng khai báo, không suy từ dữ liệu
         // quan sát được).
         .zip(flow.labels)
-        .map(|(((((((u, s), cleanup_report), title), blocks), joined_line_count), chapter_origin), label)| -> Result<ImportedChapter, ImportError> {
-            let source_text = match u {
-                Unit::Decoded(t) => t,
-                // 🔴 KHÔNG THỂ xảy ra sau `validate_order`: `DecodeEncoding` xuất hiện ĐÚNG
-                // một lần trong mọi thứ tự hợp lệ, và nó giải mã MỌI đơn vị đang có tại thời
-                // điểm nó chạy; không bước nào sau đó tạo lại một `Unit::Undecoded` từ một
-                // `Unit::Decoded`. Dù vậy, đây là chỗ DỰNG KẾT QUẢ cuối cùng — một byte thô
-                // lọt tới đây phải là một TỪ CHỐI tường minh (vòng rà đối kháng 2026-09-04:
-                // bản trước dùng `String::from_utf8_lossy`, ghi `U+FFFD` vào văn bản TRONG
-                // IM LẶNG — đúng lớp lỗi "rỗng/hỏng ngầm" mà AGENTS.md gọi tên là trung tâm
-                // của dự án), không phải một lượt thay ký tự.
-                Unit::Undecoded { label, .. } => {
-                    return Err(ImportError::UndecodableBytes {
-                        path: label,
-                        encoding: encoding.name().to_owned(),
-                    });
-                }
-            };
-            Ok(ImportedChapter {
-                source_text,
-                segments: s.unwrap_or_default(),
-                cleanup_report,
-                title,
-                blocks,
-                joined_line_count,
-                chapter_origin,
-                bilingual_segments: None,
-                source_file: if is_files && !label.is_empty() { Some(label) } else { None },
-            })
-        })
+        .map(
+            |(
+                ((((((u, s), cleanup_report), title), blocks), joined_line_count), chapter_origin),
+                label,
+            )|
+             -> Result<ImportedChapter, ImportError> {
+                let source_text = match u {
+                    Unit::Decoded(t) => t,
+                    // 🔴 KHÔNG THỂ xảy ra sau `validate_order`: `DecodeEncoding` xuất hiện ĐÚNG
+                    // một lần trong mọi thứ tự hợp lệ, và nó giải mã MỌI đơn vị đang có tại thời
+                    // điểm nó chạy; không bước nào sau đó tạo lại một `Unit::Undecoded` từ một
+                    // `Unit::Decoded`. Dù vậy, đây là chỗ DỰNG KẾT QUẢ cuối cùng — một byte thô
+                    // lọt tới đây phải là một TỪ CHỐI tường minh (vòng rà đối kháng 2026-09-04:
+                    // bản trước dùng `String::from_utf8_lossy`, ghi `U+FFFD` vào văn bản TRONG
+                    // IM LẶNG — đúng lớp lỗi "rỗng/hỏng ngầm" mà AGENTS.md gọi tên là trung tâm
+                    // của dự án), không phải một lượt thay ký tự.
+                    Unit::Undecoded { label, .. } => {
+                        return Err(ImportError::UndecodableBytes {
+                            path: label,
+                            encoding: encoding.name().to_owned(),
+                        });
+                    }
+                };
+                Ok(ImportedChapter {
+                    source_text,
+                    segments: s.unwrap_or_default(),
+                    cleanup_report,
+                    title,
+                    blocks,
+                    joined_line_count,
+                    chapter_origin,
+                    bilingual_segments: None,
+                    source_file: if is_files && !label.is_empty() {
+                        Some(label)
+                    } else {
+                        None
+                    },
+                })
+            },
+        )
         .collect::<Result<Vec<_>, ImportError>>()?;
 
     Ok(PipelineOutput {
@@ -1329,7 +1493,13 @@ pub fn effective_kept_for_blocks(blocks: &[Block], overrides: &[Option<bool>]) -
     blocks
         .iter()
         .enumerate()
-        .map(|(i, b)| overrides.get(i).copied().flatten().unwrap_or(b.machine_kept))
+        .map(|(i, b)| {
+            overrides
+                .get(i)
+                .copied()
+                .flatten()
+                .unwrap_or(b.machine_kept)
+        })
         .collect()
 }
 
@@ -1494,7 +1664,15 @@ fn split_chapters_step(
             super::chapterpattern::ChapterPatternKind::Literal => {
                 split_on_literal_bytes(&bytes, pattern.pattern.as_bytes())
                     .into_iter()
-                    .map(|b| (Unit::Undecoded { bytes: b.to_vec(), label: label.clone() }, None))
+                    .map(|b| {
+                        (
+                            Unit::Undecoded {
+                                bytes: b.to_vec(),
+                                label: label.clone(),
+                            },
+                            None,
+                        )
+                    })
                     .collect()
             }
             // Regex trên byte CHƯA giải mã luôn 0 khớp — không biên dịch/chạy gì cả, cùng
@@ -1593,7 +1771,10 @@ fn split_chapters_step(
 /// này) được TITLE bằng dòng đầu của nó qua [`title_line_of`] ([`split_unit_for_files`]) — khác
 /// hẳn `Blob`, nơi một khối chưa tách giữ `title = None` vĩnh viễn (§Decisions spec 6.6b "A
 /// whole-file Chapter is titled by its first line").
-fn split_chapters_step_files(mut flow: Flow, pattern: Option<&ChapterPattern>) -> Result<Flow, ImportError> {
+fn split_chapters_step_files(
+    mut flow: Flow,
+    pattern: Option<&ChapterPattern>,
+) -> Result<Flow, ImportError> {
     let old_units = std::mem::take(&mut flow.units);
     let old_labels = std::mem::take(&mut flow.labels);
     let old_cleanup_reports = std::mem::take(&mut flow.cleanup_reports);
@@ -1628,7 +1809,11 @@ fn split_chapters_step_files(mut flow: Flow, pattern: Option<&ChapterPattern>) -
             units.push(piece_unit);
             labels.push(label.clone());
             chapter_titles.push(title);
-            cleanup_reports.push(if piece_index == 0 { unit_report.clone() } else { None });
+            cleanup_reports.push(if piece_index == 0 {
+                unit_report.clone()
+            } else {
+                None
+            });
             joined_line_counts.push(if k == 1 { unit_joined } else { None });
             chapter_origins.push(unit_origin.clone());
         }
@@ -1654,11 +1839,16 @@ fn split_chapters_step_files(mut flow: Flow, pattern: Option<&ChapterPattern>) -
 /// `Files` title hoá bằng [`title_line_of`] áp lên TOÀN văn bản — §Decisions spec 6.6b "A
 /// whole-file Chapter is titled by its first line", cùng hàm `title_line_of` mà nhánh khớp
 /// dùng bên trong, "not a second rule".
-fn split_unit_for_files(text: &str, pattern: Option<&ChapterPattern>) -> Result<Vec<(Unit, Option<String>)>, ImportError> {
+fn split_unit_for_files(
+    text: &str,
+    pattern: Option<&ChapterPattern>,
+) -> Result<Vec<(Unit, Option<String>)>, ImportError> {
     if let Some(p) = pattern {
         let starts = p
             .match_starts(text)
-            .map_err(|e| ImportError::InvalidChapterPattern { detail: e.to_string() })?;
+            .map_err(|e| ImportError::InvalidChapterPattern {
+                detail: e.to_string(),
+            })?;
         // 🔴 SỬA 2026-09-16 (phản biện) — TÁI DÙNG `starts` đã tính ở trên, không gọi
         // `split_on_positions` (nó tự tính `match_starts` LẦN THỨ HAI trên CÙNG `text`+`pattern`).
         // `ChapterPattern::match_starts` biên dịch lại regex MỖI LƯỢT GỌI — hai lượt gọi nghĩa
@@ -1690,31 +1880,57 @@ fn split_bilingual_chapters(
             aggregate_row_signal(row_cleanup_reports.into_iter(), merge_cleanup_reports);
         let joined_line_count =
             aggregate_row_signal(row_joined_line_counts.into_iter(), |a, b| a + b);
-        return Ok(vec![BilingualChapterGroup { title: None, rows, segments: Vec::new(), cleanup_report, joined_line_count }]);
+        return Ok(vec![BilingualChapterGroup {
+            title: None,
+            rows,
+            segments: Vec::new(),
+            cleanup_report,
+            joined_line_count,
+        }]);
     };
 
     // Vec::zip silently stops at the shortest vector; a length mismatch here would silently
     // drop rows instead of panicking or erroring.
-    debug_assert_eq!(rows.len(), row_cleanup_reports.len(), "rows/row_cleanup_reports lech do dai");
-    debug_assert_eq!(rows.len(), row_joined_line_counts.len(), "rows/row_joined_line_counts lech do dai");
+    debug_assert_eq!(
+        rows.len(),
+        row_cleanup_reports.len(),
+        "rows/row_cleanup_reports lech do dai"
+    );
+    debug_assert_eq!(
+        rows.len(),
+        row_joined_line_counts.len(),
+        "rows/row_joined_line_counts lech do dai"
+    );
 
     let mut groups: Vec<BilingualChapterGroup> = Vec::new();
     let mut current: Option<BilingualChapterGroup> = None;
 
-    for ((row, cleanup_measured), joined_measured) in
-        rows.into_iter().zip(row_cleanup_reports).zip(row_joined_line_counts)
+    for ((row, cleanup_measured), joined_measured) in rows
+        .into_iter()
+        .zip(row_cleanup_reports)
+        .zip(row_joined_line_counts)
     {
-        let cell = row.cells.get(bilingual_source_column).map(String::as_str).unwrap_or("");
-        let starts = pattern
-            .match_starts(cell)
-            .map_err(|e| ImportError::InvalidChapterPattern { detail: e.to_string() })?;
+        let cell = row
+            .cells
+            .get(bilingual_source_column)
+            .map(String::as_str)
+            .unwrap_or("");
+        let starts =
+            pattern
+                .match_starts(cell)
+                .map_err(|e| ImportError::InvalidChapterPattern {
+                    detail: e.to_string(),
+                })?;
 
         if starts.is_empty() {
             match current.as_mut() {
                 Some(group) => {
                     group.rows.push(row);
-                    group.cleanup_report =
-                        merge_optional(group.cleanup_report.take(), cleanup_measured, merge_cleanup_reports);
+                    group.cleanup_report = merge_optional(
+                        group.cleanup_report.take(),
+                        cleanup_measured,
+                        merge_cleanup_reports,
+                    );
                     group.joined_line_count =
                         merge_optional(group.joined_line_count, joined_measured, |a, b| a + b);
                 }
@@ -1736,7 +1952,11 @@ fn split_bilingual_chapters(
             groups.push(group);
         }
         let trimmed = cell.trim();
-        let title = if trimmed.is_empty() { None } else { Some(trimmed.to_owned()) };
+        let title = if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_owned())
+        };
         current = Some(BilingualChapterGroup {
             title,
             rows: vec![row],
@@ -1831,10 +2051,15 @@ fn aggregate_row_signal<T>(
 /// (`tests/**` gọi thẳng, và `segment_pipeline_boundary.rs` tồn tại chính vì thế) — một lời
 /// gọi khác không đi qua `resolve_chapter_pattern` xứng đáng nhận lại đúng lỗi, không một
 /// Chương giả trông như bình thường.
-fn split_on_positions(text: &str, pattern: &ChapterPattern) -> Result<Vec<(Unit, Option<String>)>, ImportError> {
+fn split_on_positions(
+    text: &str,
+    pattern: &ChapterPattern,
+) -> Result<Vec<(Unit, Option<String>)>, ImportError> {
     let starts = pattern
         .match_starts(text)
-        .map_err(|e| ImportError::InvalidChapterPattern { detail: e.to_string() })?;
+        .map_err(|e| ImportError::InvalidChapterPattern {
+            detail: e.to_string(),
+        })?;
     if starts.is_empty() {
         return Ok(vec![(Unit::Decoded(text.to_owned()), None)]);
     }
@@ -1882,7 +2107,11 @@ fn title_line_of(piece: &str) -> Option<String> {
         return None;
     }
     let trimmed = first_line.trim();
-    if trimmed.is_empty() { None } else { Some(trimmed.to_owned()) }
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_owned())
+    }
 }
 
 /// So khớp trên byte thô — nhánh `Unit::Undecoded` với mẫu `Literal` của
@@ -1912,7 +2141,11 @@ fn split_on_literal_bytes<'a>(data: &'a [u8], pattern: &[u8]) -> Vec<&'a [u8]> {
     out.push(&data[start..]);
 
     let filtered: Vec<&[u8]> = out.into_iter().filter(|s| !s.is_empty()).collect();
-    if filtered.is_empty() { vec![data] } else { filtered }
+    if filtered.is_empty() {
+        vec![data]
+    } else {
+        filtered
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1955,8 +2188,16 @@ fn split_segments_step(
         let mut skipped_target_sentence_count = 0usize;
         for (chapter_index, group) in groups.iter_mut().enumerate() {
             for row in &group.rows {
-                let source_cell = row.cells.get(bilingual_source_column).map(String::as_str).unwrap_or("");
-                let target_cell = row.cells.get(bilingual_target_column).map(String::as_str).unwrap_or("");
+                let source_cell = row
+                    .cells
+                    .get(bilingual_source_column)
+                    .map(String::as_str)
+                    .unwrap_or("");
+                let target_cell = row
+                    .cells
+                    .get(bilingual_target_column)
+                    .map(String::as_str)
+                    .unwrap_or("");
                 let derived = super::bilingual::derive_row(source_cell, target_cell, source_lang);
 
                 // 🔴 AD-37/AD-46, §Always — "Line breaks inside a cell never set a flag": bỏ
@@ -1966,7 +2207,8 @@ fn split_segments_step(
                 // cuối của Chương, ghi đè lại `false` cho segment cuối Chương SAU vòng lặp
                 // (§Always: "last segment of a Chapter => both off"), cùng khuôn AC7 của
                 // `split_source_text`.
-                let push_pairs = |segments: &mut Vec<BilingualSegment>, pairs: Vec<(String, String)>| {
+                let push_pairs = |segments: &mut Vec<BilingualSegment>,
+                                  pairs: Vec<(String, String)>| {
                     let n = pairs.len();
                     for (i, (s, t)) in pairs.into_iter().enumerate() {
                         segments.push(BilingualSegment {
@@ -1980,7 +2222,11 @@ fn split_segments_step(
                 if derived.source_sentences.len() == derived.target_sentences.len() {
                     push_pairs(
                         &mut group.segments,
-                        derived.source_sentences.into_iter().zip(derived.target_sentences).collect(),
+                        derived
+                            .source_sentences
+                            .into_iter()
+                            .zip(derived.target_sentences)
+                            .collect(),
                     );
                     continue;
                 }
@@ -1988,9 +2234,16 @@ fn split_segments_step(
                 // Story 6.17 (FR116) — một hàng lệch cặp có quy nhóm ĐANG CHỜ ⇒ thử áp nó
                 // TRƯỚC khi coi hàng là mismatch. `resolve` tự làm lại phép tách (đo trước khi
                 // tin) và tự so khớp ảnh chụp (staleness) — module này không lặp lại luật đó.
-                let resolution = match bilingual_regroupings.iter().find(|r| r.row_number == row.row_number) {
-                    Some(regrouping) => super::bilingual::resolve(source_cell, target_cell, source_lang, regrouping)
-                        .map_err(|err| ImportError::BilingualSkipNotAllowed { row_number: err.row_number })?,
+                let resolution = match bilingual_regroupings
+                    .iter()
+                    .find(|r| r.row_number == row.row_number)
+                {
+                    Some(regrouping) => {
+                        super::bilingual::resolve(source_cell, target_cell, source_lang, regrouping)
+                            .map_err(|err| ImportError::BilingualSkipNotAllowed {
+                                row_number: err.row_number,
+                            })?
+                    }
                     None => None,
                 };
 
@@ -2002,11 +2255,16 @@ fn split_segments_step(
                         skipped_target_sentence_count += derived.target_sentences.len();
                     }
                     None => {
-                        let candidate_positions =
-                            super::bilingual::candidate_positions(&derived.target_sentences, &derived.target_line);
-                        let initial_cuts = super::bilingual::machine_boundaries(&derived.target_sentences);
-                        let proposed_cuts =
-                            super::bilingual::propose_cuts(&derived.source_sentences, &derived.target_sentences);
+                        let candidate_positions = super::bilingual::candidate_positions(
+                            &derived.target_sentences,
+                            &derived.target_line,
+                        );
+                        let initial_cuts =
+                            super::bilingual::machine_boundaries(&derived.target_sentences);
+                        let proposed_cuts = super::bilingual::propose_cuts(
+                            &derived.source_sentences,
+                            &derived.target_sentences,
+                        );
                         let target_sentence_count = derived.target_sentences.len();
                         mismatches.push(BilingualMismatch {
                             chapter_index,
@@ -2041,9 +2299,16 @@ fn split_segments_step(
             Some(blocks) => {
                 // Chỉ đơn vị ĐẦU TIÊN đọc `block_overrides` — cùng luật
                 // `Step::ExtractMainContent` (xem doc-comment `PipelineInput::block_overrides`).
-                let overrides_for_unit: &[Option<bool>] = if index == 0 { block_overrides } else { &[] };
+                let overrides_for_unit: &[Option<bool>] =
+                    if index == 0 { block_overrides } else { &[] };
                 let effective_kept = effective_kept_for_blocks(blocks, overrides_for_unit);
-                super::role::force_caption_segment_boundaries(text, blocks, &effective_kept, cleanup_rules, source_lang)
+                super::role::force_caption_segment_boundaries(
+                    text,
+                    blocks,
+                    &effective_kept,
+                    cleanup_rules,
+                    source_lang,
+                )
             }
             None => split_source_text(text, source_lang),
         };
@@ -2061,7 +2326,10 @@ mod bilingual_chapter_split_length_guard_tests {
     #[test]
     #[should_panic(expected = "lech do dai")]
     fn a_row_cleanup_reports_length_mismatch_panics_in_a_debug_build() {
-        let rows = vec![BilingualRow { row_number: 1, cells: vec!["a".to_owned()] }];
+        let rows = vec![BilingualRow {
+            row_number: 1,
+            cells: vec!["a".to_owned()],
+        }];
         let pattern = ChapterPattern::regex(r"^X");
         let _ = split_bilingual_chapters(rows, Vec::new(), vec![None], Some(&pattern), 0);
     }
@@ -2069,14 +2337,20 @@ mod bilingual_chapter_split_length_guard_tests {
     #[test]
     #[should_panic(expected = "lech do dai")]
     fn a_row_joined_line_counts_length_mismatch_panics_in_a_debug_build() {
-        let rows = vec![BilingualRow { row_number: 1, cells: vec!["a".to_owned()] }];
+        let rows = vec![BilingualRow {
+            row_number: 1,
+            cells: vec!["a".to_owned()],
+        }];
         let pattern = ChapterPattern::regex(r"^X");
         let _ = split_bilingual_chapters(rows, vec![None], Vec::new(), Some(&pattern), 0);
     }
 
     #[test]
     fn matching_vector_lengths_do_not_panic() {
-        let rows = vec![BilingualRow { row_number: 1, cells: vec!["a".to_owned()] }];
+        let rows = vec![BilingualRow {
+            row_number: 1,
+            cells: vec!["a".to_owned()],
+        }];
         let pattern = ChapterPattern::regex(r"^X");
         let result = split_bilingual_chapters(rows, vec![None], vec![None], Some(&pattern), 0);
         assert!(result.is_ok());

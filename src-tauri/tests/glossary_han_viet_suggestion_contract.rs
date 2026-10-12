@@ -114,7 +114,8 @@ fn build_layer(dir: &Path, file: &str, layer: &str, source_code: &str, entries: 
 
     conn.execute_batch(&format!("PRAGMA user_version = {USER_VERSION};"))
         .unwrap_or_else(|e| panic!("dat user_version {file}: {e}"));
-    conn.close().unwrap_or_else(|(_, e)| panic!("dong fixture {file}: {e}"));
+    conn.close()
+        .unwrap_or_else(|(_, e)| panic!("dong fixture {file}: {e}"));
 }
 
 /// Một lớp NỀN duy nhất, mang đủ dữ liệu cho mọi ca KHÔNG liên quan tới ưu tiên nhiều lớp.
@@ -211,7 +212,11 @@ fn a_chinese_term_missing_one_readings_is_no_reading_not_a_partial_suggestion() 
     let out = suggest_han_viet_batch(&layers, &Default::default(), &["慕容"]);
 
     assert_eq!(out[0], HanVietSuggestion::NoReading);
-    assert_eq!(out[0].suggestion_text(), None, "khong duoc de xuat MOT PHAN");
+    assert_eq!(
+        out[0].suggestion_text(),
+        None,
+        "khong duoc de xuat MOT PHAN"
+    );
 
     cleanup(&dir);
 }
@@ -252,7 +257,8 @@ fn zero_layers_loaded_is_dict_unavailable_not_no_reading() {
 
     assert_eq!(out[0], HanVietSuggestion::DictUnavailable);
     assert_ne!(
-        out[0], HanVietSuggestion::NoReading,
+        out[0],
+        HanVietSuggestion::NoReading,
         "\"chua tung tra duoc\" va \"da tra ma thieu am\" la HAI nhan RIENG"
     );
     assert_eq!(out[0].as_status_str(), "dict_unavailable");
@@ -279,14 +285,22 @@ fn zero_layers_loaded_is_dict_unavailable_not_no_reading() {
 fn disabling_the_winning_source_changes_the_reading_instead_of_dropping_it() {
     let dir = temp_dir("disabled-source");
     // Lớp NỀN ("zzz.db"/"base") -- âm KHÁC, để phân biệt được hai nhánh.
-    build_layer(&dir, "zzz.db", "base", "fx-base", &[("北", None, Some("bắc"))]);
+    build_layer(
+        &dir,
+        "zzz.db",
+        "base",
+        "fx-base",
+        &[("北", None, Some("bắc"))],
+    );
     // Lớp GỠ RỜI ("mmm.db") -- ưu tiên CAO HƠN lớp nền (`priority_order` đẩy `base` xuống
     // cuối), âm KHÁC lớp nền.
-    build_layer(&dir, "mmm.db", "detachable-fixture", "fx-detachable", &[(
-        "北",
-        None,
-        Some("bối"),
-    )]);
+    build_layer(
+        &dir,
+        "mmm.db",
+        "detachable-fixture",
+        "fx-detachable",
+        &[("北", None, Some("bối"))],
+    );
     let layers = DictLayers::open(&dir);
 
     let enabled = suggest_han_viet_batch(&layers, &Default::default(), &["北"]);
@@ -305,7 +319,8 @@ fn disabling_the_winning_source_changes_the_reading_instead_of_dropping_it() {
         "tat nguon thang -- chu phai DOI sang am cua lop NEN, khong bien mat"
     );
     assert_ne!(
-        after_disable[0], HanVietSuggestion::NoReading,
+        after_disable[0],
+        HanVietSuggestion::NoReading,
         "tat mot nguon KHONG duoc bien thanh \"thieu am\" khi con lop khac tra duoc"
     );
 
@@ -322,7 +337,11 @@ fn the_output_preserves_input_order_and_count_across_a_mixed_batch() {
     build_base_only(&dir);
     let layers = DictLayers::open(&dir);
 
-    let out = suggest_han_viet_batch(&layers, &Default::default(), &["dragon", "北涼", "西", "慕容"]);
+    let out = suggest_han_viet_batch(
+        &layers,
+        &Default::default(),
+        &["dragon", "北涼", "西", "慕容"],
+    );
 
     assert_eq!(out.len(), 4);
     assert_eq!(out[0], HanVietSuggestion::NotChinese);
@@ -355,7 +374,9 @@ fn open_global_store(dir: &Path) -> auratranslate_lib::core::store::Store {
 
 #[test]
 fn a_pending_chinese_mark_carries_the_suggestion_through_marks_for_source_text() {
-    use auratranslate_lib::core::glossary::{Category, GlossaryTier, add_manual_term, marks_for_source_text};
+    use auratranslate_lib::core::glossary::{
+        Category, GlossaryTier, add_manual_term, marks_for_source_text,
+    };
     use auratranslate_lib::core::matching::MatchLang;
     use auratranslate_lib::core::scope::ScopeResolver;
 
@@ -366,8 +387,16 @@ fn a_pending_chinese_mark_carries_the_suggestion_through_marks_for_source_text()
     let global_dir = temp_dir("wiring-pending-global");
     let global = open_global_store(&global_dir);
     // `translation = None` ⇒ muc CHO CHOT, dung nhanh ma dai chot cua Story 3.6 doc.
-    add_manual_term(&global, None, GlossaryTier::Global, "北涼", None, "", Category::Place)
-        .expect("them muc cho chot");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "北涼",
+        None,
+        "",
+        Category::Place,
+    )
+    .expect("them muc cho chot");
 
     let resolver = ScopeResolver::global_only();
     let marks = marks_for_source_text(
@@ -397,7 +426,9 @@ fn a_pending_chinese_mark_carries_the_suggestion_through_marks_for_source_text()
 
 #[test]
 fn a_confirmed_chinese_mark_is_not_requested_never_not_chinese() {
-    use auratranslate_lib::core::glossary::{Category, GlossaryTier, add_manual_term, marks_for_source_text};
+    use auratranslate_lib::core::glossary::{
+        Category, GlossaryTier, add_manual_term, marks_for_source_text,
+    };
     use auratranslate_lib::core::matching::MatchLang;
     use auratranslate_lib::core::scope::ScopeResolver;
 
@@ -433,7 +464,10 @@ fn a_confirmed_chinese_mark_is_not_requested_never_not_chinese() {
 
     assert_eq!(marks.len(), 1);
     assert!(marks[0].is_confirmed);
-    assert_eq!(marks[0].han_viet_suggestion, None, "muc da chot khong mang de xuat");
+    assert_eq!(
+        marks[0].han_viet_suggestion, None,
+        "muc da chot khong mang de xuat"
+    );
     // 🔴 Menh de trung tam cua nhanh thu nam: `北涼` VAN la chu Han va VAN tra duoc am
     // (ca ngay tren chung minh dieu do tren cung fixture). Nhan `"not_chinese"` o day
     // se la mot loi noi doi doc duoc, va `"no_reading"` cung vay.
@@ -456,8 +490,7 @@ fn a_corrupt_layer_is_skipped_and_the_remaining_layers_still_answer() {
     let dir = temp_dir("corrupt-layer");
     build_base_only(&dir);
     // Mot tep `.db` KHONG phai SQLite, dat canh lop nen that.
-    fs::write(dir.join("aaa-corrupt.db"), b"day khong phai mot tep SQLite")
-        .expect("ghi tep hong");
+    fs::write(dir.join("aaa-corrupt.db"), b"day khong phai mot tep SQLite").expect("ghi tep hong");
 
     let layers = DictLayers::open(&dir);
     let out = suggest_han_viet_batch(&layers, &Default::default(), &["北涼"]);
@@ -483,12 +516,20 @@ fn the_suggestion_path_names_no_network_client_so_it_cannot_depend_on_the_networ
     // do la thu duy nhat kiem duoc bang may o tang nay. Ve con lai (moi dau vao la mot
     // tep `.db` cuc bo) da duoc chinh cac ca tren chung minh: chung chay tren fixture
     // tren dia, khong mot lay byte nao tu ngoai.
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/core/glossary/han_viet_suggestion.rs");
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/core/glossary/han_viet_suggestion.rs");
     let src = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("day la loi ha tang, khong phai mot phep kiem do: {e}"));
 
-    for token in ["reqwest", "ureq", "hyper", "TcpStream", "tauri_plugin_http", "http://", "https://"] {
+    for token in [
+        "reqwest",
+        "ureq",
+        "hyper",
+        "TcpStream",
+        "tauri_plugin_http",
+        "http://",
+        "https://",
+    ] {
         assert!(
             !src.contains(token),
             "module de xuat khong duoc goi ten `{token}` -- FR113 chay hoan toan ngoai tuyen"
@@ -522,8 +563,14 @@ fn each_pending_candidate_row_carries_the_suggestion_of_its_own_source_term() {
     let layers = DictLayers::open(&dict_dir);
 
     let root = temp_dir("candidates-wiring-work");
-    let opened = create_work_from_text(&root, "Ung Vien Co De Xuat", "zh", "", "noi dung".to_owned())
-        .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+    let opened = create_work_from_text(
+        &root,
+        "Ung Vien Co De Xuat",
+        "zh",
+        "",
+        "noi dung".to_owned(),
+    )
+    .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
 
     // Ba hang, BA ket cuc KHAC NHAU -- de mot luot ghep bua khong the tinh co dung.
     insert_import_scan_candidates(
@@ -558,7 +605,10 @@ fn each_pending_candidate_row_carries_the_suggestion_of_its_own_source_term() {
     };
 
     // Tra du am ⇒ de xuat that.
-    assert_eq!(pick("北涼").han_viet_suggestion.as_deref(), Some("Bắc Lương"));
+    assert_eq!(
+        pick("北涼").han_viet_suggestion.as_deref(),
+        Some("Bắc Lương")
+    );
     assert_eq!(pick("北涼").han_viet_status, "ok");
     // Khong phai chu Han ⇒ khong de xuat, va LY DO doc duoc.
     assert_eq!(pick("dragon").han_viet_suggestion, None);

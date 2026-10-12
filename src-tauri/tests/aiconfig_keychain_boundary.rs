@@ -142,7 +142,10 @@ fn line_use_pulls_in_read_via_brace_or_glob(code: &str) -> Option<&'static str> 
         // (`use …keychain::read as get_secret;`, không ngoặc) đã bị bắt từ trước — nó chứa
         // nguyên vẹn chuỗi con `"keychain::read"` trước khoảng trắng của `as`, nên
         // `FORBIDDEN_RAW_VALUE_TOKENS`'s neo biên ĐUÔI đã khớp nó — lỗ THẬT chỉ ở dạng NGOẶC.
-        if inside.split(',').any(|item| item.trim().split_whitespace().next() == Some("read")) {
+        if inside
+            .split(',')
+            .any(|item| item.trim().split_whitespace().next() == Some("read"))
+        {
             return Some("keychain::{read}");
         }
     }
@@ -214,7 +217,10 @@ fn the_scanned_tree_and_the_aiconfig_module_are_both_large_enough_to_be_real() {
         "tệp `.rs` dưới `src-tauri/src/**`",
     );
 
-    let aiconfig_files = files.iter().filter(|(rel, _)| is_inside_aiconfig_module(rel)).count();
+    let aiconfig_files = files
+        .iter()
+        .filter(|(rel, _)| is_inside_aiconfig_module(rel))
+        .count();
     boundary_scan::assert_population_floor(
         AICONFIG_FLOOR,
         aiconfig_files,
@@ -326,7 +332,9 @@ fn the_raw_value_accessor_check_would_actually_flag_a_seeded_violation_and_ignor
                       // crate::core::aiconfig::keychain::read() -- vi du trong comment\n";
     let code_only: Vec<String> = code_lines(synthetic).map(|(_, code)| code).collect();
     assert!(
-        !code_only.iter().any(|code| line_names_a_forbidden_raw_value_access(code).is_some()),
+        !code_only
+            .iter()
+            .any(|code| line_names_a_forbidden_raw_value_access(code).is_some()),
         "hai dong CHU THICH nhac toi token bi cam khong duoc lot vao tap DONG MA"
     );
     assert!(
@@ -525,7 +533,10 @@ fn the_core_aiconfig_exemption_still_matches_when_the_path_arrives_windows_shape
     let windows_shaped = PathBuf::from("/repo/src-tauri/src").join("core\\aiconfig\\keychain.rs");
     let rel = rel_posix(root, &windows_shaped);
 
-    assert_eq!(rel, "core/aiconfig/keychain.rs", "rel_posix phải đổi `\\` thành `/`; nhận được {rel:?}");
+    assert_eq!(
+        rel, "core/aiconfig/keychain.rs",
+        "rel_posix phải đổi `\\` thành `/`; nhận được {rel:?}"
+    );
     assert!(
         is_inside_aiconfig_module(&rel),
         "đường dẫn hình dạng Windows {rel:?} phải khớp miễn trừ `{AICONFIG_DIR}`"
@@ -566,9 +577,19 @@ fn the_two_predicates_anchor_on_boundaries_and_do_not_fire_on_prefix_neighbours(
     );
 
     // ── ② Miễn trừ thư mục: không khớp một thư mục anh em cùng tiền tố ─────────────
-    assert!(is_inside_aiconfig_module("core/aiconfig"), "chinh thu muc phai duoc mien tru");
-    assert!(is_inside_aiconfig_module("core/aiconfig/keychain.rs"), "tep trong core/aiconfig/ phai duoc mien tru");
-    for anh_em in ["core/aiconfig2/x.rs", "core/aiconfig_legacy/y.rs", "core/aiconfigx.rs"] {
+    assert!(
+        is_inside_aiconfig_module("core/aiconfig"),
+        "chinh thu muc phai duoc mien tru"
+    );
+    assert!(
+        is_inside_aiconfig_module("core/aiconfig/keychain.rs"),
+        "tep trong core/aiconfig/ phai duoc mien tru"
+    );
+    for anh_em in [
+        "core/aiconfig2/x.rs",
+        "core/aiconfig_legacy/y.rs",
+        "core/aiconfigx.rs",
+    ] {
         assert!(
             !is_inside_aiconfig_module(anh_em),
             "XANH GIA: {anh_em:?} la mot thu muc ANH EM, khong nam trong core/aiconfig/. Mien \

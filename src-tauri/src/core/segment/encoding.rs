@@ -29,7 +29,7 @@
 //! (`chardetng-1.0.0/src/lib.rs`, `grep "UTF-16"` cho 0 dòng) — đường DUY NHẤT UTF-16 vào
 //! được là BOM ([`sniff_bom`]).
 
-use encoding_rs::{Encoding, GB18030, GBK, UTF_8, UTF_16BE, UTF_16LE, BIG5};
+use encoding_rs::{BIG5, Encoding, GB18030, GBK, UTF_8, UTF_16BE, UTF_16LE};
 
 /// Năm nhãn FR126 khai thành **DỮ LIỆU**, đúng thứ tự PRD `prd.md:355` — AC1 spec 6.3: cổng
 /// đỏ khi một nhãn bị đổi CHỖ, không chỉ khi một nhãn biến mất.
@@ -151,7 +151,8 @@ pub fn sniff_bom(bytes: &[u8]) -> Option<&'static Encoding> {
     // UTF-16LE (rồi giải mã ra rác). UTF-32 không có trong FR126 nên khi gặp BOM của nó, ta
     // không tự nhận là "đã khai báo" -- rơi xuống `None` để `detect()` đoán bằng chardetng
     // (chardetng sẽ không đoán ra UTF-32, nhưng ít nhất không giả vờ chắc chắn sai).
-    if bytes.starts_with(&[0xFF, 0xFE, 0x00, 0x00]) || bytes.starts_with(&[0x00, 0x00, 0xFE, 0xFF]) {
+    if bytes.starts_with(&[0xFF, 0xFE, 0x00, 0x00]) || bytes.starts_with(&[0x00, 0x00, 0xFE, 0xFF])
+    {
         return None;
     }
     if bytes.starts_with(&[0xFF, 0xFE]) {
@@ -173,10 +174,16 @@ pub fn sniff_bom(bytes: &[u8]) -> Option<&'static Encoding> {
 /// nhưng nhánh đó không gọi hàm này — xem `commands::project::preview_import_encoding`).
 pub fn detect(bytes: &[u8]) -> EncodingVerdict {
     if let Some(encoding) = sniff_bom(bytes) {
-        return EncodingVerdict { encoding, confidence: Confidence::SelfDeclared };
+        return EncodingVerdict {
+            encoding,
+            confidence: Confidence::SelfDeclared,
+        };
     }
     if bytes.is_empty() {
-        return EncodingVerdict { encoding: UTF_8, confidence: Confidence::SelfDeclared };
+        return EncodingVerdict {
+            encoding: UTF_8,
+            confidence: Confidence::SelfDeclared,
+        };
     }
 
     let window = evidence_window(bytes);
@@ -189,22 +196,29 @@ pub fn detect(bytes: &[u8]) -> EncodingVerdict {
     detector.feed(window, false);
     let guess = detector.guess(None, chardetng::Utf8Detection::Allow);
 
-    let guess_index = FR126_CANDIDATE_ENCODINGS[..4].iter().position(|&e| e == guess);
+    let guess_index = FR126_CANDIDATE_ENCODINGS[..4]
+        .iter()
+        .position(|&e| e == guess);
 
-    let decodable: Vec<usize> =
-        VOTING_CANDIDATE_INDICES.iter().copied().filter(|&i| five[i].is_some()).collect();
+    let decodable: Vec<usize> = VOTING_CANDIDATE_INDICES
+        .iter()
+        .copied()
+        .filter(|&i| five[i].is_some())
+        .collect();
     // 🔴 SỬA (vòng rà đối kháng 2026-09-04, defect #3) — `windows(2).all()` trên 0 hoặc 1
     // phần tử trả `true` một cách RỖNG. Gác `decodable.len() >= 2` TRƯỚC khi gọi `windows`
     // — một tệp mà KHÔNG bảng nào giải mã được (0 ứng viên) không còn rơi vào "cùng một
     // chuỗi" == true chỉ vì tập rỗng thoả mãn `all()` một cách vô nghĩa.
-    let all_same = decodable.len() >= 2
-        && decodable.windows(2).all(|w| five[w[0]] == five[w[1]]);
+    let all_same = decodable.len() >= 2 && decodable.windows(2).all(|w| five[w[0]] == five[w[1]]);
 
     // `all_same` đã tự gác `decodable.len() >= 2` bên trong nó (xem chú thích ngay trên) --
     // lặp lại điều kiện đó ở đây là một khoá THỪA, không đổi hành vi (vòng rà đối kháng 2,
     // mục 19).
-    let confidence =
-        if guess_index.is_some() && all_same { Confidence::HighGuess } else { Confidence::LowGuess };
+    let confidence = if guess_index.is_some() && all_same {
+        Confidence::HighGuess
+    } else {
+        Confidence::LowGuess
+    };
 
     let encoding = match guess_index {
         // Đoán rơi trong FR126 VÀ bảng đó giải mã được cửa sổ bằng chứng — chọn nó, DÙ tin
@@ -215,10 +229,16 @@ pub fn detect(bytes: &[u8]) -> EncodingVerdict {
         // cửa sổ bằng chứng ⇒ rơi về ứng viên GIẢI MÃ ĐƯỢC đầu tiên theo thứ tự FR126. Không
         // ứng viên nào giải mã được ⇒ UTF-8 (mọi bảng đều thất bại, không có gì hợp lý hơn
         // để chọn mặc định).
-        _ => decodable.first().map(|&i| FR126_CANDIDATE_ENCODINGS[i]).unwrap_or(UTF_8),
+        _ => decodable
+            .first()
+            .map(|&i| FR126_CANDIDATE_ENCODINGS[i])
+            .unwrap_or(UTF_8),
     };
 
-    EncodingVerdict { encoding, confidence }
+    EncodingVerdict {
+        encoding,
+        confidence,
+    }
 }
 
 /// Bản dựng đã CHUẨN HOÁ của TOÀN cửa sổ bằng chứng cho MỘT ứng viên bảng mã (Story 6.4,
@@ -399,7 +419,11 @@ fn normalized_candidate(
     window_truncated: bool,
 ) -> NormalizedCandidate {
     let normalized = if window_truncated {
-        super::normalize::normalize_window(full_text, source_lang, full_text.len().saturating_sub(1))
+        super::normalize::normalize_window(
+            full_text,
+            source_lang,
+            full_text.len().saturating_sub(1),
+        )
     } else {
         super::normalize::normalize(full_text, source_lang)
     };
@@ -499,7 +523,10 @@ const RECOGNIZED_ENCODINGS: [&Encoding; 6] = [UTF_8, GB18030, GBK, BIG5, UTF_16L
 /// [`RECOGNIZED_ENCODINGS`]) — không phải bất kỳ nhãn WHATWG hợp lệ nào.
 pub fn encoding_for_wire_id(id: &str) -> Option<&'static Encoding> {
     let candidate = Encoding::for_label(id.as_bytes())?;
-    RECOGNIZED_ENCODINGS.iter().copied().find(|&e| e == candidate)
+    RECOGNIZED_ENCODINGS
+        .iter()
+        .copied()
+        .find(|&e| e == candidate)
 }
 
 #[cfg(test)]
@@ -525,9 +552,15 @@ mod tests {
     #[test]
     fn sniff_bom_does_not_misread_a_utf32_bom_as_utf16() {
         // UTF-32LE: 'A' = 0x41 0x00 0x00 0x00 -- BOM rồi một ký tự.
-        assert_eq!(sniff_bom(&[0xFF, 0xFE, 0x00, 0x00, 0x41, 0x00, 0x00, 0x00]), None);
+        assert_eq!(
+            sniff_bom(&[0xFF, 0xFE, 0x00, 0x00, 0x41, 0x00, 0x00, 0x00]),
+            None
+        );
         // UTF-32BE: BOM rồi 'A'.
-        assert_eq!(sniff_bom(&[0x00, 0x00, 0xFE, 0xFF, 0x00, 0x00, 0x00, 0x41]), None);
+        assert_eq!(
+            sniff_bom(&[0x00, 0x00, 0xFE, 0xFF, 0x00, 0x00, 0x00, 0x41]),
+            None
+        );
     }
 
     // ═════════════════════════════════════════════════════════════════════════════════
@@ -555,14 +588,19 @@ mod tests {
     fn pure_ascii_is_high_confidence_because_every_candidate_agrees() {
         let bytes = b"Chapter One: a beast called Fire Dragon appeared at the gate.";
         let v = detect(bytes);
-        assert_eq!(v.confidence, Confidence::HighGuess, "ASCII la tap con cua ca 4 bang");
+        assert_eq!(
+            v.confidence,
+            Confidence::HighGuess,
+            "ASCII la tap con cua ca 4 bang"
+        );
     }
 
     #[test]
     fn a_gbk_file_with_a_short_ascii_header_still_reads_low_confidence() {
         // Ca hồi quy vòng rà đối kháng 2026-09-04, defect #2: "Chapter 01\r\n" la 12 ky tu
         // ASCII, roi mot doan chu Han ma GBK/Big5 giai ra HAI chuoi khac nhau.
-        let (gbk_bytes, _, _) = GBK.encode("Chapter 01\r\n萧炎在东临村口的一处石壁上练习着最基础的吐纳法门。");
+        let (gbk_bytes, _, _) =
+            GBK.encode("Chapter 01\r\n萧炎在东临村口的一处石壁上练习着最基础的吐纳法门。");
         let v = detect(&gbk_bytes);
         assert_eq!(
             v.confidence,
@@ -608,9 +646,8 @@ mod tests {
         // `decodable_in_fr126=["gb18030", "GBK"]`) — GB18030 đứng TRƯỚC GBK trong
         // `FR126_CANDIDATE_ENCODINGS`, nên ứng viên GIẢI MÃ ĐƯỢC ĐẦU TIÊN theo thứ tự đó là
         // GB18030.
-        let (bytes, _, had_errors) = encoding_rs::SHIFT_JIS.encode(
-            "これは日本語のテキストです。文字化けを避けるために十分な長さが必要です。",
-        );
+        let (bytes, _, had_errors) = encoding_rs::SHIFT_JIS
+            .encode("これは日本語のテキストです。文字化けを避けるために十分な長さが必要です。");
         assert!(!had_errors, "fixture phai ma hoa Shift_JIS sach");
 
         let v = detect(&bytes);
@@ -636,7 +673,10 @@ mod tests {
         // corrupted byte -- the `Some(i)` branch must not blindly trust the guess.
         let source_text = "萧炎登场".repeat(200);
         let (encoded, _, had_errors) = GB18030.encode(&source_text);
-        assert!(!had_errors, "fixture phai ma hoa GB18030 sach truoc khi bi lam hong");
+        assert!(
+            !had_errors,
+            "fixture phai ma hoa GB18030 sach truoc khi bi lam hong"
+        );
         let mut bytes = encoded.into_owned();
         let mid = bytes.len() / 2;
         bytes[mid] = 0xFF;
@@ -645,7 +685,9 @@ mod tests {
         let mut detector = chardetng::EncodingDetector::new(chardetng::Iso2022JpDetection::Deny);
         detector.feed(window, false);
         let guess = detector.guess(None, chardetng::Utf8Detection::Allow);
-        let guess_index = FR126_CANDIDATE_ENCODINGS[..4].iter().position(|&e| e == guess);
+        let guess_index = FR126_CANDIDATE_ENCODINGS[..4]
+            .iter()
+            .position(|&e| e == guess);
         // GBK va GB18030 dung chung mot decoder cho dai byte nay (xem
         // `gbk_and_gb18030_candidates_render_the_identical_string`), nen chardetng co the
         // doan mot trong hai -- ca hai deu la ung vien HOP LE cho fixture nay.
@@ -671,7 +713,10 @@ mod tests {
             .copied()
             .filter(|&i| decode_prefix_streaming(FR126_CANDIDATE_ENCODINGS[i], window).is_some())
             .collect();
-        let expected = decodable.first().map(|&i| FR126_CANDIDATE_ENCODINGS[i]).unwrap_or(UTF_8);
+        let expected = decodable
+            .first()
+            .map(|&i| FR126_CANDIDATE_ENCODINGS[i])
+            .unwrap_or(UTF_8);
 
         let v = detect(&bytes);
         assert_ne!(
@@ -748,7 +793,10 @@ mod tests {
         let candidates = render_candidates(b"   \n\t  ", "en", false, "");
         for label in ["UTF-8", "GB18030", "GBK", "Big5"] {
             let cell = candidates.iter().find(|c| c.label == label).unwrap();
-            assert_eq!(cell.preview, None, "o {label} phai la None cho input toan khoang trang");
+            assert_eq!(
+                cell.preview, None,
+                "o {label} phai la None cho input toan khoang trang"
+            );
         }
     }
 
@@ -783,7 +831,13 @@ mod tests {
     /// đối chứng cho đúng mệnh đề doc-comment tự khai ("nhãn KHÔNG NHẬN RA ⇒ IpcError").
     #[test]
     fn a_whatwg_valid_label_outside_fr126_is_rejected_not_silently_accepted() {
-        for label in ["Shift_JIS", "EUC-KR", "windows-1252", "x-user-defined", "replacement"] {
+        for label in [
+            "Shift_JIS",
+            "EUC-KR",
+            "windows-1252",
+            "x-user-defined",
+            "replacement",
+        ] {
             assert!(
                 Encoding::for_label(label.as_bytes()).is_some(),
                 "tien de: {label:?} phai la mot nhan WHATWG HOP LE (khac 'not-a-real-encoding')"

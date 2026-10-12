@@ -27,11 +27,11 @@ use docx_rs::{Docx, Paragraph, Pic, Run, Table, TableCell, TableRow};
 /// (thay vì byte rác) làm fixture trung thực hơn nếu một lượt sau đọc thử bằng một trình xem
 /// ảnh THẬT.
 const TINY_PNG: [u8; 69] = [
-    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
-    0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90,
-    0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0xD7, 0x63, 0xF8,
-    0xCF, 0xC0, 0x00, 0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D, 0xB0, 0x00, 0x00, 0x00,
-    0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+    0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+    0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D, 0xB0, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
+    0x44, 0xAE, 0x42, 0x60, 0x82,
 ];
 
 fn text_paragraph(text: &str) -> Paragraph {
@@ -41,7 +41,9 @@ fn text_paragraph(text: &str) -> Paragraph {
 /// Đóng gói `Docx` thành byte trong bộ nhớ — không tệp tạm nào trên đĩa.
 fn pack(docx: Docx) -> Vec<u8> {
     let mut buf = std::io::Cursor::new(Vec::new());
-    docx.build().pack(&mut buf).expect("dong goi .docx fixture that bai -- loi ha tang cua ban do, khong phai mot phep do");
+    docx.build().pack(&mut buf).expect(
+        "dong goi .docx fixture that bai -- loi ha tang cua ban do, khong phai mot phep do",
+    );
     buf.into_inner()
 }
 
@@ -57,9 +59,16 @@ pub fn plain() -> Vec<u8> {
 
 /// **`soft_break_in_body_paragraph`** — one body paragraph (no table) holding a soft line break.
 pub fn soft_break_in_body_paragraph() -> Vec<u8> {
-    pack(Docx::new().add_paragraph(Paragraph::new().add_run(
-        Run::new().add_text("Dong mot").add_break(docx_rs::BreakType::TextWrapping).add_text("dong hai"),
-    )))
+    pack(
+        Docx::new().add_paragraph(
+            Paragraph::new().add_run(
+                Run::new()
+                    .add_text("Dong mot")
+                    .add_break(docx_rs::BreakType::TextWrapping)
+                    .add_text("dong hai"),
+            ),
+        ),
+    )
 }
 
 /// **`table_two_columns`** — bảng 2 hàng × 2 cột. Ô `(0, 0)` mang HAI CÂU trong CÙNG một
@@ -67,8 +76,9 @@ pub fn soft_break_in_body_paragraph() -> Vec<u8> {
 /// câu đơn để phép đếm (rows=2, cells_per_row=[2,2], paragraphs_per_cell=[[1,1],[1,1]]) không
 /// lẫn với số câu.
 pub fn table_two_columns() -> Vec<u8> {
-    let cell_two_sentences = TableCell::new()
-        .add_paragraph(text_paragraph("Cau mot that day du trong o nay. Cau hai tiep tuc luon trong cung mot doan."));
+    let cell_two_sentences = TableCell::new().add_paragraph(text_paragraph(
+        "Cau mot that day du trong o nay. Cau hai tiep tuc luon trong cung mot doan.",
+    ));
     // ⚠️ BA ô còn lại KHÔNG kết bằng dấu kết câu, cố ý — một ô bảng thật (tên, số liệu, nhãn
     // ngắn) thường KHÔNG mang dấu chấm cuối. Nếu ranh giới ô # ranh giới đoạn (ví dụ nối các ô
     // bằng một khoảng trắng thay vì `"\n\n"`), bộ tách câu sẽ KHÔNG có dấu hiệu nào để dừng và
@@ -96,9 +106,13 @@ pub fn table_one_row_multi_paragraph() -> Vec<u8> {
     let cell_two_paragraphs = TableCell::new()
         .add_paragraph(text_paragraph("Doan mot cua o nhieu doan."))
         .add_paragraph(text_paragraph("Doan hai cua cung o do."));
-    let cell_one_paragraph = TableCell::new().add_paragraph(text_paragraph("O con lai chi mot doan."));
+    let cell_one_paragraph =
+        TableCell::new().add_paragraph(text_paragraph("O con lai chi mot doan."));
 
-    let table = Table::new(vec![TableRow::new(vec![cell_two_paragraphs, cell_one_paragraph])]);
+    let table = Table::new(vec![TableRow::new(vec![
+        cell_two_paragraphs,
+        cell_one_paragraph,
+    ])]);
 
     pack(Docx::new().add_table(table))
 }
@@ -188,12 +202,15 @@ fn pack_zip_entries(entries: &[(&str, &[u8])]) -> Vec<u8> {
         let mut zip = zip::ZipWriter::new(&mut buf);
         let options: zip::write::SimpleFileOptions = Default::default();
         for (name, bytes) in entries {
-            zip.start_file(*name, options)
-                .unwrap_or_else(|e| panic!("mo muc zip {name} that bai -- loi ha tang cua fixture: {e}"));
-            std::io::Write::write_all(&mut zip, bytes)
-                .unwrap_or_else(|e| panic!("ghi muc zip {name} that bai -- loi ha tang cua fixture: {e}"));
+            zip.start_file(*name, options).unwrap_or_else(|e| {
+                panic!("mo muc zip {name} that bai -- loi ha tang cua fixture: {e}")
+            });
+            std::io::Write::write_all(&mut zip, bytes).unwrap_or_else(|e| {
+                panic!("ghi muc zip {name} that bai -- loi ha tang cua fixture: {e}")
+            });
         }
-        zip.finish().expect("dong goi zip fixture that bai -- loi ha tang cua fixture");
+        zip.finish()
+            .expect("dong goi zip fixture that bai -- loi ha tang cua fixture");
     }
     buf.into_inner()
 }
@@ -317,7 +334,11 @@ pub fn table_with_nested_table_and_trailing_paragraph() -> Vec<u8> {
         .add_paragraph(text_paragraph("Doan sau bang long."));
     let outer_table = Table::new(vec![TableRow::new(vec![outer_cell])]);
 
-    pack(Docx::new().add_table(outer_table).add_paragraph(text_paragraph("Doan sau ca bang ngoai.")))
+    pack(
+        Docx::new()
+            .add_table(outer_table)
+            .add_paragraph(text_paragraph("Doan sau ca bang ngoai.")),
+    )
 }
 
 /// Hand-built (`docx-rs` can't generate `word/endnotes.xml`): a normal body paragraph plus

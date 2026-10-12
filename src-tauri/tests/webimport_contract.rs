@@ -20,19 +20,22 @@ use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::Duration;
 
 use auratranslate_lib::commands::project::{
-    MAX_URL_IMPORT_LINKS, UrlImportItem, chapters_shape_for_view, chapters_shape_if_all_ok, create_work,
-    fetch_url_import_items, fetch_url_import_items_with_progress, prepare_url_import_list, preview_import_encoding,
+    MAX_URL_IMPORT_LINKS, UrlImportItem, chapters_shape_for_view, chapters_shape_if_all_ok,
+    create_work, fetch_url_import_items, fetch_url_import_items_with_progress,
+    prepare_url_import_list, preview_import_encoding,
 };
 use auratranslate_lib::core::i18n::MessageKey;
-use auratranslate_lib::core::segment::import::{ImportError, web_import_item_failure_ipc_error};
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
-use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
+use auratranslate_lib::core::segment::import::{ImportError, web_import_item_failure_ipc_error};
+use auratranslate_lib::core::segment::pipeline::{
+    ChapterInput, PipelineInput, PipelineShape, run_import,
+};
 use auratranslate_lib::core::webimport::{
     Allowlist, BlockBody, DomainLogDecision, DomainLogOutcome, FetchError, ResourceKind,
     WebImportItemFailureReason, extract, fetch, looks_like_html,
@@ -94,7 +97,8 @@ fn ok_html_response(body: &str) -> String {
 static SERIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
-fn a_redirect_to_a_host_outside_the_allowlist_is_blocked_and_the_target_host_receives_zero_connections() {
+fn a_redirect_to_a_host_outside_the_allowlist_is_blocked_and_the_target_host_receives_zero_connections()
+ {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let reached_b = Arc::new(AtomicUsize::new(0));
     let reached_b_clone = Arc::clone(&reached_b);
@@ -198,7 +202,10 @@ fn a_response_advertising_far_more_than_the_cap_is_cut_off_mid_stream() {
     let url = format!("http://127.0.0.1:{port}/big");
     let allowlist = Allowlist::from_urls([url.as_str()]);
     let (result, _log) = fetch(&url, &allowlist, ResourceKind::Page);
-    assert!(matches!(result, Err(FetchError::TooLarge)), "kỳ vọng `TooLarge`, nhận: {result:?}");
+    assert!(
+        matches!(result, Err(FetchError::TooLarge)),
+        "kỳ vọng `TooLarge`, nhận: {result:?}"
+    );
 
     // Chờ luồng server ghi nốt vài khối cuối (đóng kết nối phía client không đồng bộ tức thì
     // với việc server nhận biết broken pipe) — đọc lại `sent_total` sau một khoảng ngắn.
@@ -212,7 +219,10 @@ fn a_response_advertising_far_more_than_the_cap_is_cut_off_mid_stream() {
     // Bất biến nghiệm thu là "dừng ngay sau trần", không một con số cụ thể (phụ thuộc cỡ gói
     // TCP/độ trễ loopback của máy đang chạy — xem `webimport_probe.rs::size_cap_case`). Biên
     // dưới rộng rãi: server không có lý do gì để dừng ở dưới một khối 256 KiB.
-    assert!(produced > 0, "server chưa kịp gửi byte nào — phép đo hạ tầng vô nghĩa");
+    assert!(
+        produced > 0,
+        "server chưa kịp gửi byte nào — phép đo hạ tầng vô nghĩa"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -268,13 +278,19 @@ fn extracted_text_never_contains_an_angle_bracket_from_the_source_markup() {
         </body></html>"
         .to_owned();
     let blocks = extract(&html, "https://example.com/bai-viet").expect("bóc thành công");
-    assert!(!blocks.is_empty(), "trang có nội dung thật phải cho ít nhất một khối");
+    assert!(
+        !blocks.is_empty(),
+        "trang có nội dung thật phải cho ít nhất một khối"
+    );
 
     let mut saw_kept_text = false;
     for block in &blocks {
         match &block.body {
             BlockBody::Paragraph(text) | BlockBody::Caption(text) => {
-                assert!(!text.contains('<'), "thân khối không được chứa `<` của thẻ HTML: {text:?}");
+                assert!(
+                    !text.contains('<'),
+                    "thân khối không được chứa `<` của thẻ HTML: {text:?}"
+                );
                 if block.machine_kept {
                     saw_kept_text = true;
                 }
@@ -289,7 +305,10 @@ fn extracted_text_never_contains_an_angle_bracket_from_the_source_markup() {
             }
         }
     }
-    assert!(saw_kept_text, "phải có ít nhất một khối `machine_kept` mang nội dung thật");
+    assert!(
+        saw_kept_text,
+        "phải có ít nhất một khối `machine_kept` mang nội dung thật"
+    );
     assert!(
         blocks.iter().any(|b| !b.machine_kept),
         "trang có `<nav>`/`<aside>` phải cho ít nhất một khối bị loại (ornament) — nếu không, \
@@ -317,19 +336,34 @@ fn a_page_with_no_extractable_content_fails_extraction_instead_of_falling_back_t
 
 #[test]
 fn pasting_over_the_cap_refuses_the_whole_list_with_a_reason_and_fetches_nothing() {
-    let urls: Vec<String> = (0..=MAX_URL_IMPORT_LINKS).map(|i| format!("https://example.test/{i}")).collect();
-    assert_eq!(urls.len(), MAX_URL_IMPORT_LINKS + 1, "fixture phai vuot tran dung 1 muc");
+    let urls: Vec<String> = (0..=MAX_URL_IMPORT_LINKS)
+        .map(|i| format!("https://example.test/{i}"))
+        .collect();
+    assert_eq!(
+        urls.len(),
+        MAX_URL_IMPORT_LINKS + 1,
+        "fixture phai vuot tran dung 1 muc"
+    );
 
-    let err = prepare_url_import_list(urls).expect_err("vuot tran phai bi tu choi NGUYEN danh sach");
+    let err =
+        prepare_url_import_list(urls).expect_err("vuot tran phai bi tu choi NGUYEN danh sach");
     assert_eq!(err.code(), "import.too_many_urls");
     assert_eq!(err.message_key(), MessageKey::ImportTooManyUrls);
-    assert_eq!(err.params().get("count").map(String::as_str), Some((MAX_URL_IMPORT_LINKS + 1).to_string()).as_deref());
-    assert_eq!(err.params().get("limit").map(String::as_str), Some(MAX_URL_IMPORT_LINKS.to_string()).as_deref());
+    assert_eq!(
+        err.params().get("count").map(String::as_str),
+        Some((MAX_URL_IMPORT_LINKS + 1).to_string()).as_deref()
+    );
+    assert_eq!(
+        err.params().get("limit").map(String::as_str),
+        Some(MAX_URL_IMPORT_LINKS.to_string()).as_deref()
+    );
 }
 
 #[test]
 fn exactly_the_cap_is_accepted_in_full() {
-    let urls: Vec<String> = (0..MAX_URL_IMPORT_LINKS).map(|i| format!("https://example.test/{i}")).collect();
+    let urls: Vec<String> = (0..MAX_URL_IMPORT_LINKS)
+        .map(|i| format!("https://example.test/{i}"))
+        .collect();
     let (prepared, dropped) = prepare_url_import_list(urls).expect("dung tran phai duoc chap nhan");
     assert_eq!(prepared.len(), MAX_URL_IMPORT_LINKS);
     assert_eq!(dropped, 0);
@@ -346,10 +380,16 @@ fn duplicate_urls_differing_only_by_fragment_or_host_case_are_dropped_keeping_th
     let (prepared, dropped) = prepare_url_import_list(urls).expect("duoi tran phai thanh cong");
     assert_eq!(
         prepared,
-        vec!["https://Example.TEST/bai-viet".to_owned(), "https://example.test/bai-khac".to_owned()],
+        vec![
+            "https://Example.TEST/bai-viet".to_owned(),
+            "https://example.test/bai-khac".to_owned()
+        ],
         "giu muc XUAT HIEN DAU TIEN cua moi khoa, dung thu tu da dan"
     );
-    assert_eq!(dropped, 2, "hai muc trung (khac fragment/hoa-thuong host) phai bi dem la trung");
+    assert_eq!(
+        dropped, 2,
+        "hai muc trung (khac fragment/hoa-thuong host) phai bi dem la trung"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -380,14 +420,23 @@ fn n_links_are_fetched_sequentially_and_a_broken_item_keeps_its_position() {
 
     assert_eq!(items.len(), 3, "phải giữ đúng N mục, không rơi rớt cái nào");
     for (i, item) in items.iter().enumerate() {
-        assert_eq!(item.url, urls[i], "URL ở vị trí {i} phải khớp đúng thứ tự đã dán");
+        assert_eq!(
+            item.url, urls[i],
+            "URL ở vị trí {i} phải khớp đúng thứ tự đã dán"
+        );
     }
-    assert!(items[0].error.is_none() && items[0].raw.is_some(), "mục 1 (tốt) phải thành công");
+    assert!(
+        items[0].error.is_none() && items[0].raw.is_some(),
+        "mục 1 (tốt) phải thành công"
+    );
     assert!(
         items[1].error.is_some() && items[1].raw.is_none(),
         "mục 2 (cổng chết) phải thất bại, GIỮ VỊ TRÍ thứ hai — không bị đẩy xuống cuối"
     );
-    assert!(items[2].error.is_none() && items[2].raw.is_some(), "mục 3 (tốt) phải thành công");
+    assert!(
+        items[2].error.is_none() && items[2].raw.is_some(),
+        "mục 3 (tốt) phải thành công"
+    );
 }
 
 #[test]
@@ -410,10 +459,16 @@ fn fetch_url_import_items_with_progress_calls_on_progress_once_per_link_in_order
         format!("http://127.0.0.1:{port_ok_2}/c"),
     ];
     let mut calls: Vec<(usize, usize)> = Vec::new();
-    let (items, _log) = fetch_url_import_items_with_progress(urls, &mut |completed, total| calls.push((completed, total)));
+    let (items, _log) = fetch_url_import_items_with_progress(urls, &mut |completed, total| {
+        calls.push((completed, total))
+    });
 
     assert_eq!(items.len(), 3);
-    assert_eq!(calls, vec![(1, 3), (2, 3), (3, 3)], "dung N loi goi, theo dung thu tu, ke ca muc hong");
+    assert_eq!(
+        calls,
+        vec![(1, 3), (2, 3), (3, 3)],
+        "dung N loi goi, theo dung thu tu, ke ca muc hong"
+    );
 }
 
 /// **THÊM (Story 6.10a)** — 5 link, link #3 (index 2) hỏng ⇒ màn xem trước vẫn DỰNG ĐƯỢC với
@@ -458,7 +513,10 @@ fn a_broken_item_at_position_three_still_lets_the_other_four_chapters_preview_wh
     assert_eq!(items.len(), 5, "phải giữ đúng 5 mục");
     assert!(items[2].error.is_some(), "mục #3 (cổng chết) phải hỏng");
     for i in [0usize, 1, 3, 4] {
-        assert!(items[i].error.is_none() && items[i].raw.is_some(), "mục {i} phải OK");
+        assert!(
+            items[i].error.is_none() && items[i].raw.is_some(),
+            "mục {i} phải OK"
+        );
     }
 
     // Vị từ GHI — KHÔNG đổi, vẫn khoá vì còn MỘT mục hỏng.
@@ -472,7 +530,10 @@ fn a_broken_item_at_position_three_still_lets_the_other_four_chapters_preview_wh
     let view_shape = chapters_shape_for_view(&items)
         .expect("chapters_shape_for_view (vị từ XEM) phải dựng được từ 4 mục OK còn lại");
     let preview = preview_import_encoding(&view_shape, "en", &[], None, &[], 0, &[]);
-    assert!(!preview.candidates.is_empty(), "còn byte OK để dò -- dải ứng viên không được rỗng");
+    assert!(
+        !preview.candidates.is_empty(),
+        "còn byte OK để dò -- dải ứng viên không được rỗng"
+    );
     let chapters_summary = preview.candidates[0]
         .chapters
         .as_ref()
@@ -488,8 +549,12 @@ fn a_broken_item_at_position_three_still_lets_the_other_four_chapters_preview_wh
 #[test]
 fn blank_and_empty_lines_are_dropped_before_counting_and_never_produce_an_item() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let (items, _log) = fetch_url_import_items(vec!["   ".to_owned(), "".to_owned(), "\t".to_owned()]);
-    assert!(items.is_empty(), "dòng rỗng/toàn khoảng trắng không được sinh ra một mục nào");
+    let (items, _log) =
+        fetch_url_import_items(vec!["   ".to_owned(), "".to_owned(), "\t".to_owned()]);
+    assert!(
+        items.is_empty(),
+        "dòng rỗng/toàn khoảng trắng không được sinh ra một mục nào"
+    );
 }
 
 /// Dòng RÁC (không rỗng, không phải URL hợp lệ) ⇒ MỘT mục hỏng, **0 lời gọi mạng** cho dòng
@@ -507,8 +572,16 @@ fn a_garbage_line_becomes_one_broken_item_with_zero_network_calls() {
     // R1 (vòng rà đối kháng 3, lớp 3) — 0 kết nối mạng KHÔNG được nghĩa là 0 hàng KIỂM TOÁN.
     // Trước khi vá, `fetch()` trả `log` RỖNG cho một URL không phân giải được — một lượt
     // trượt không để lại DẤU VẾT nào, phá đúng §Always "kể cả lượt trượt" (`domain_log.rs`).
-    assert_eq!(log.len(), 1, "mot URL khong phan giai duoc van phai de lai DUNG MOT hang kiem toan: {log:?}");
-    assert_eq!(log[0].decision, DomainLogDecision::Denied, "0 ket noi -- dung hinh dang Denied");
+    assert_eq!(
+        log.len(),
+        1,
+        "mot URL khong phan giai duoc van phai de lai DUNG MOT hang kiem toan: {log:?}"
+    );
+    assert_eq!(
+        log[0].decision,
+        DomainLogDecision::Denied,
+        "0 ket noi -- dung hinh dang Denied"
+    );
     assert_eq!(
         log[0].outcome,
         Some(DomainLogOutcome::Other),
@@ -536,7 +609,9 @@ fn perf_probe_twenty_links_end_to_end_fetch_plus_extract_plus_pipeline() {
 
     fn html_page(i: usize) -> String {
         let mut body = String::new();
-        body.push_str(&format!("<html><head><title>Bai {i}</title></head><body><article><h1>Tieu de {i}</h1>"));
+        body.push_str(&format!(
+            "<html><head><title>Bai {i}</title></head><body><article><h1>Tieu de {i}</h1>"
+        ));
         for p in 0..40 {
             body.push_str(&format!(
                 "<p>Doan thu {p} cua bai {i}, du dai de vuot qua nguong toi thieu can thiet cho \
@@ -566,12 +641,18 @@ fn perf_probe_twenty_links_end_to_end_fetch_plus_extract_plus_pipeline() {
     // che triệu chứng: bản chất phép đo này là THỜI GIAN của `fetch`+`pipeline`, không phải thời
     // gian dựng hạ tầng test.
     thread::sleep(Duration::from_millis(100));
-    let urls: Vec<String> = ports.iter().map(|p| format!("http://127.0.0.1:{p}/a")).collect();
+    let urls: Vec<String> = ports
+        .iter()
+        .map(|p| format!("http://127.0.0.1:{p}/a"))
+        .collect();
 
     let t0 = std::time::Instant::now();
     let (items, _log) = fetch_url_import_items(urls);
     let fetch_elapsed = t0.elapsed();
-    assert!(items.iter().all(|it| it.error.is_none()), "ca do khong duoc phep co muc hong: {items:?}");
+    assert!(
+        items.iter().all(|it| it.error.is_none()),
+        "ca do khong duoc phep co muc hong: {items:?}"
+    );
 
     let shape = chapters_shape_if_all_ok(&items).expect("toan bo OK phai cho Some(shape)");
     let t1 = std::time::Instant::now();
@@ -664,8 +745,15 @@ fn a_response_that_is_not_html_becomes_one_broken_item_carrying_the_not_html_rea
     let url = format!("http://127.0.0.1:{port}/tai-lieu.pdf");
     let (items, _log) = fetch_url_import_items(vec![url.clone()]);
 
-    assert_eq!(items.len(), 1, "mục hỏng vẫn phải GIỮ CHỖ — hai con số N link · N Chương bằng nhau");
-    assert!(items[0].raw.is_none(), "byte không phải HTML không được đi tiếp vào `Extractor`");
+    assert_eq!(
+        items.len(),
+        1,
+        "mục hỏng vẫn phải GIỮ CHỖ — hai con số N link · N Chương bằng nhau"
+    );
+    assert!(
+        items[0].raw.is_none(),
+        "byte không phải HTML không được đi tiếp vào `Extractor`"
+    );
     assert_eq!(
         items[0].error.as_ref().expect("phải có lý do"),
         &web_import_item_failure_ipc_error(&url, WebImportItemFailureReason::NotHtml, None),
@@ -696,7 +784,8 @@ fn a_404_becomes_one_broken_item_carrying_the_http_status_reason_and_the_numeric
     // A2 (vòng rà đối kháng 2, 3 lớp) — nhật ký domain cũng phải mang đúng outcome HttpStatus
     // cho chặng ĐÃ ĐƯỢC PHÉP này, không chỉ IpcError của tầng hiển thị.
     assert!(
-        log.iter().any(|e| e.outcome == Some(DomainLogOutcome::HttpStatus)),
+        log.iter()
+            .any(|e| e.outcome == Some(DomainLogOutcome::HttpStatus)),
         "nhat ky domain phai co it nhat mot ban ghi mang outcome HttpStatus cho lan 404 nay: {log:?}"
     );
 }
@@ -735,7 +824,10 @@ fn a_page_with_no_main_content_maps_to_the_extraction_empty_reason_inside_the_pi
                 WebImportItemFailureReason::ExtractionEmpty,
                 "phải là ExtractionEmpty — rơi về HTML thô là rỗng im lặng ĐỔI HÌNH DẠNG"
             );
-            assert_eq!(url, "http://127.0.0.1:1/barren", "lý do phải chỉ đúng mục nào hỏng");
+            assert_eq!(
+                url, "http://127.0.0.1:1/barren",
+                "lý do phải chỉ đúng mục nào hỏng"
+            );
         }
         other => panic!("phải là WebImportItemFailed, nhận: {other:?}"),
     }
@@ -921,16 +1013,25 @@ fn a_dead_port_reaches_the_user_as_a_network_reason_and_never_as_a_content_reaso
     let (items, log) = fetch_url_import_items(vec![url.clone()]);
     let got = items[0].error.as_ref().expect("phải có lý do");
 
-    let is_network = got
-        == &web_import_item_failure_ipc_error(&url, WebImportItemFailureReason::ConnectFailed, None)
-        || got
+    let is_network =
+        got == &web_import_item_failure_ipc_error(
+            &url,
+            WebImportItemFailureReason::ConnectFailed,
+            None,
+        ) || got
             == &web_import_item_failure_ipc_error(&url, WebImportItemFailureReason::Timeout, None);
-    assert!(is_network, "cổng chết phải cho một lý do MẠNG, nhận: {got:?}");
+    assert!(
+        is_network,
+        "cổng chết phải cho một lý do MẠNG, nhận: {got:?}"
+    );
 
     // A2 (vòng rà đối kháng 2, 3 lớp) — nhật ký domain phải mang ĐÚNG MỘT trong hai outcome
     // mạng tương ứng (ConnectFailed/Timeout), khớp đúng lý do người dùng đọc được ở trên.
     assert!(
-        log.iter().any(|e| matches!(e.outcome, Some(DomainLogOutcome::ConnectFailed) | Some(DomainLogOutcome::Timeout))),
+        log.iter().any(|e| matches!(
+            e.outcome,
+            Some(DomainLogOutcome::ConnectFailed) | Some(DomainLogOutcome::Timeout)
+        )),
         "nhat ky domain phai co it nhat mot ban ghi mang outcome ConnectFailed hoac Timeout: {log:?}"
     );
 
@@ -956,7 +1057,8 @@ fn a_dead_port_reaches_the_user_as_a_network_reason_and_never_as_a_content_reaso
 fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_screen_count() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     // ① Dòng CHỈ có BOM — JS đếm 0, Rust phải cũng cho 0 mục.
-    let (items, _log) = fetch_url_import_items(vec!["\u{FEFF}".to_owned(), "  \u{FEFF} ".to_owned()]);
+    let (items, _log) =
+        fetch_url_import_items(vec!["\u{FEFF}".to_owned(), "  \u{FEFF} ".to_owned()]);
     assert!(
         items.is_empty(),
         "một dòng chỉ có U+FEFF không được sinh ra mục nào — màn hình đếm 0, nếu Rust đếm 1 thì \
@@ -972,9 +1074,15 @@ fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_
     let bare = format!("http://127.0.0.1:{dead_port}/co-bom");
     let (items, _log) = fetch_url_import_items(vec![format!("\u{FEFF}{bare}")]);
     assert_eq!(items.len(), 1);
-    assert_eq!(items[0].url, bare, "BOM đầu dòng phải được cắt, URL còn lại nguyên vẹn");
+    assert_eq!(
+        items[0].url, bare,
+        "BOM đầu dòng phải được cắt, URL còn lại nguyên vẹn"
+    );
     assert_ne!(
-        items[0].error.as_ref().expect("cổng chết nên phải có lý do"),
+        items[0]
+            .error
+            .as_ref()
+            .expect("cổng chết nên phải có lý do"),
         &web_import_item_failure_ipc_error(&bare, WebImportItemFailureReason::InvalidUrl, None),
         "một URL hợp lệ mang BOM KHÔNG được báo là URL không hợp lệ — người dùng không nhìn \
          thấy được một ký tự vô hình"
@@ -988,7 +1096,8 @@ fn a_zero_width_no_break_space_never_makes_the_fetched_count_differ_from_the_on_
 /// thành rỗng và bị lọc bỏ — `N link` (JS) và `N Chương` (Rust) lệch nhau đúng MỘT, đối xứng
 /// ngược với ca BOM ngay trên.
 #[test]
-fn a_next_line_character_only_pasted_line_still_produces_exactly_one_item_matching_pasted_url_lines() {
+fn a_next_line_character_only_pasted_line_still_produces_exactly_one_item_matching_pasted_url_lines()
+ {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let (items, _log) = fetch_url_import_items(vec!["\u{0085}".to_owned()]);
     assert_eq!(
@@ -1048,13 +1157,19 @@ fn a_same_host_redirect_loop_is_capped_and_not_misreported_as_a_timeout() {
         "vòng lặp chuyển hướng CÙNG HOST không được báo sai là `Timeout` — trần số chặng phải \
          bắt được nó trước khi `REQUEST_TIMEOUT` (20s) kịp hết hạn: {result:?}"
     );
-    assert!(result.is_err(), "vòng lặp chuyển hướng phải là một lỗi, không phải `Ok`: {result:?}");
+    assert!(
+        result.is_err(),
+        "vòng lặp chuyển hướng phải là một lỗi, không phải `Ok`: {result:?}"
+    );
 
     // A2/D4 (vòng rà đối kháng 2, 3 lớp) — MỌI chặng đã thật sự theo (tất cả trừ chặng CUỐI)
     // phải mang outcome Redirected; và chặng CUỐI (nơi vòng lặp bị huỷ vì vượt trần) phải
     // mang `Other`, KHÔNG được giữ nguyên `Redirected` — nếu không, bản ghi cuối đọc lên y
     // hệt một chuyển hướng bình thường, không phân biệt được với một fetch còn giữa chừng.
-    assert!(log.len() >= 2, "vòng lặp phải sinh ra nhiều hơn một bản ghi domain: {log:?}");
+    assert!(
+        log.len() >= 2,
+        "vòng lặp phải sinh ra nhiều hơn một bản ghi domain: {log:?}"
+    );
     let (last, earlier) = log.split_last().expect("log khong rong");
     assert_eq!(
         last.outcome,
@@ -1063,7 +1178,9 @@ fn a_same_host_redirect_loop_is_capped_and_not_misreported_as_a_timeout() {
          nguyen Redirected: {log:?}"
     );
     assert!(
-        earlier.iter().all(|e| e.outcome == Some(DomainLogOutcome::Redirected)),
+        earlier
+            .iter()
+            .all(|e| e.outcome == Some(DomainLogOutcome::Redirected)),
         "moi ban ghi TRUOC ban ghi cuoi phai mang outcome Redirected (da that su theo chuyen \
          huong): {log:?}"
     );
@@ -1109,9 +1226,18 @@ fn a_benign_3xx_with_no_location_header_is_not_reported_as_a_blocked_redirect() 
 #[test]
 fn looks_like_html_matches_the_exact_mime_type_not_a_substring() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    assert!(looks_like_html(Some("text/html; charset=utf-8")), "kiểu HTML kèm charset phải khớp");
-    assert!(looks_like_html(Some("TEXT/HTML")), "so sánh không phân biệt hoa/thường");
-    assert!(looks_like_html(Some("application/xhtml+xml")), "xhtml cũng được coi là HTML");
+    assert!(
+        looks_like_html(Some("text/html; charset=utf-8")),
+        "kiểu HTML kèm charset phải khớp"
+    );
+    assert!(
+        looks_like_html(Some("TEXT/HTML")),
+        "so sánh không phân biệt hoa/thường"
+    );
+    assert!(
+        looks_like_html(Some("application/xhtml+xml")),
+        "xhtml cũng được coi là HTML"
+    );
 
     assert!(
         !looks_like_html(Some("text/htmlfoo")),
@@ -1125,7 +1251,10 @@ fn looks_like_html_matches_the_exact_mime_type_not_a_substring() {
         !looks_like_html(Some("multipart/form-data; boundary=text/html")),
         "chuỗi `text/html` xuất hiện trong MỘT THAM SỐ không được làm cả kiểu MIME khớp"
     );
-    assert!(!looks_like_html(None), "máy chủ không khai content-type phải bị coi là KHÔNG PHẢI HTML");
+    assert!(
+        !looks_like_html(None),
+        "máy chủ không khai content-type phải bị coi là KHÔNG PHẢI HTML"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1158,10 +1287,20 @@ fn ad41_case_1_a_host_outside_both_tiers_is_denied_before_any_connection_opens()
     let allowlist = Allowlist::default();
     let (result, log) = fetch(&url, &allowlist, ResourceKind::Page);
 
-    assert!(matches!(result, Err(FetchError::NotAllowlisted)), "ky vong NotAllowlisted, nhan: {result:?}");
-    assert_eq!(reached.load(Ordering::SeqCst), 0, "may chu dich phai nhan DUNG 0 ket noi");
+    assert!(
+        matches!(result, Err(FetchError::NotAllowlisted)),
+        "ky vong NotAllowlisted, nhan: {result:?}"
+    );
+    assert_eq!(
+        reached.load(Ordering::SeqCst),
+        0,
+        "may chu dich phai nhan DUNG 0 ket noi"
+    );
     assert_eq!(log.len(), 1, "mot ban ghi nhat ky cho lan bi tu choi nay");
-    assert!(matches!(log[0].decision, DomainLogDecision::Denied), "ban ghi phai la TU CHOI, khong phai cho phep");
+    assert!(
+        matches!(log[0].decision, DomainLogDecision::Denied),
+        "ban ghi phai la TU CHOI, khong phai cho phep"
+    );
 }
 
 /// AD-41, mệnh đề 3 — **"từ chối tài liệu ở tầng 2"**. Luật *"tầng 2 chỉ ảnh, không bao giờ
@@ -1180,7 +1319,11 @@ fn ad41_case_3_a_document_request_to_a_tier_2_only_host_is_denied() {
     });
 
     let url = format!("http://127.0.0.1:{port}/bai-viet");
-    let host = reqwest::Url::parse(&url).expect("URL hop le").host_str().expect("co host").to_owned();
+    let host = reqwest::Url::parse(&url)
+        .expect("URL hop le")
+        .host_str()
+        .expect("co host")
+        .to_owned();
     let allowlist = Allowlist::default().with_tier2_hosts([host]);
     let (result, _log) = fetch(&url, &allowlist, ResourceKind::Page);
 
@@ -1188,7 +1331,11 @@ fn ad41_case_3_a_document_request_to_a_tier_2_only_host_is_denied() {
         matches!(result, Err(FetchError::NotAllowlisted)),
         "tai lieu tu mot host CHI o tang 2 phai bi tu choi: {result:?}"
     );
-    assert_eq!(reached.load(Ordering::SeqCst), 0, "may chu dich phai nhan DUNG 0 ket noi");
+    assert_eq!(
+        reached.load(Ordering::SeqCst),
+        0,
+        "may chu dich phai nhan DUNG 0 ket noi"
+    );
 }
 
 /// Ca đối chứng cho mệnh đề 3 — CÙNG host tầng 2, xin `Image` thay vì `Document` ⇒ ĐƯỢC PHÉP
@@ -1203,7 +1350,11 @@ fn an_image_request_to_a_tier_2_only_host_is_allowed() {
     });
 
     let url = format!("http://127.0.0.1:{port}/anh.jpg");
-    let host = reqwest::Url::parse(&url).expect("URL hop le").host_str().expect("co host").to_owned();
+    let host = reqwest::Url::parse(&url)
+        .expect("URL hop le")
+        .host_str()
+        .expect("co host")
+        .to_owned();
     let allowlist = Allowlist::default().with_tier2_hosts([host]);
     let (result, _log) = fetch(&url, &allowlist, ResourceKind::Image);
 
@@ -1255,12 +1406,22 @@ fn fetch_url_import_items_returns_one_domain_log_entry_per_item() {
         let _ = s.write_all(ok_html_response(&html_page_with_paragraphs()).as_bytes());
     });
 
-    let urls = vec![format!("http://127.0.0.1:{port_a}/a"), format!("http://127.0.0.1:{port_b}/b")];
+    let urls = vec![
+        format!("http://127.0.0.1:{port_a}/a"),
+        format!("http://127.0.0.1:{port_b}/b"),
+    ];
     let (items, log) = fetch_url_import_items(urls);
 
     assert_eq!(items.len(), 2);
-    assert!(items.iter().all(|it| it.error.is_none()), "hai host deu trong allowlist tu chinh danh sach");
-    assert_eq!(log.len(), 2, "mot ban ghi nhat ky cho MOI muc, ca hai deu CHO PHEP");
+    assert!(
+        items.iter().all(|it| it.error.is_none()),
+        "hai host deu trong allowlist tu chinh danh sach"
+    );
+    assert_eq!(
+        log.len(),
+        2,
+        "mot ban ghi nhat ky cho MOI muc, ca hai deu CHO PHEP"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1348,7 +1509,8 @@ fn create_work_blocks_an_image_redirect_to_a_host_matching_no_src_anywhere_in_th
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
     let root = webimport_temp_dir("tier2-redirect-blocked");
-    let domain_log_state: auratranslate_lib::core::webimport::DomainLogState = std::sync::Mutex::new(Vec::new());
+    let domain_log_state: auratranslate_lib::core::webimport::DomainLogState =
+        std::sync::Mutex::new(Vec::new());
     let opened = create_work(
         &root,
         "Tier2 Redirect",
@@ -1358,20 +1520,34 @@ fn create_work_blocks_an_image_redirect_to_a_host_matching_no_src_anywhere_in_th
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false, &[],
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
         &domain_log_state,
-        None, &[])
+        None,
+        &[],
+    )
     .expect("mot anh bi chan KHONG duoc lam trot ca luot nhap");
 
-    assert_eq!(opened.images_saved, 0, "chuyen huong ra ngoai tang 2 phai bi chan, khong co tep nao duoc luu");
+    assert_eq!(
+        opened.images_saved, 0,
+        "chuyen huong ra ngoai tang 2 phai bi chan, khong co tep nao duoc luu"
+    );
     assert_eq!(opened.images_failed, 1);
-    assert_eq!(reached_b.load(Ordering::SeqCst), 0, "host DICH cua chuyen huong phai nhan DUNG 0 ket noi");
+    assert_eq!(
+        reached_b.load(Ordering::SeqCst),
+        0,
+        "host DICH cua chuyen huong phai nhan DUNG 0 ket noi"
+    );
 
     // §Always spec 6.11 — "mọi Vec<DomainLogEntry> mà fetch trả về phải nối vào DomainLogState
     // — kể cả lượt trượt": ca Denied của host b PHẢI có mặt trong nhật ký.
     let log = domain_log_state.lock().unwrap();
     assert!(
-        log.iter().any(|e| e.domain == "localhost" && matches!(e.decision, DomainLogDecision::Denied)),
+        log.iter()
+            .any(|e| e.domain == "localhost" && matches!(e.decision, DomainLogDecision::Denied)),
         "nhat ky domain phai co it nhat mot ban ghi TU CHOI cho lan chuyen huong nay: {:?}",
         *log
     );
@@ -1410,12 +1586,20 @@ fn chapter_origin_url_after_a_real_redirect_is_the_requested_url_not_the_redirec
     let start_url = format!("http://127.0.0.1:{port_a}/bai-viet");
     let (items, _log) = fetch_url_import_items(vec![start_url.clone()]);
     assert_eq!(items.len(), 1);
-    assert!(items[0].error.is_none(), "luot tai qua chuyen huong phai thanh cong: {:?}", items[0].error);
-    assert_eq!(items[0].url, start_url, "UrlImportItem::url phai la URL da dan, khong chang cuoi");
+    assert!(
+        items[0].error.is_none(),
+        "luot tai qua chuyen huong phai thanh cong: {:?}",
+        items[0].error
+    );
+    assert_eq!(
+        items[0].url, start_url,
+        "UrlImportItem::url phai la URL da dan, khong chang cuoi"
+    );
 
     let shape = chapters_shape_if_all_ok(&items).expect("mot muc OK phai dung duoc shape");
     let root = webimport_temp_dir("origin-url-redirect");
-    let domain_log_state: auratranslate_lib::core::webimport::DomainLogState = std::sync::Mutex::new(Vec::new());
+    let domain_log_state: auratranslate_lib::core::webimport::DomainLogState =
+        std::sync::Mutex::new(Vec::new());
     let opened = create_work(
         &root,
         "Bai Qua Chuyen Huong",
@@ -1425,16 +1609,26 @@ fn chapter_origin_url_after_a_real_redirect_is_the_requested_url_not_the_redirec
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false, &[],
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
         &domain_log_state,
-        None, &[])
+        None,
+        &[],
+    )
     .expect("tao tac pham qua chuyen huong that bai");
 
     let chapter_id = opened.chapter_id;
     let origin_url: Option<String> = opened
         .store
         .read(move |conn| {
-            conn.query_row("SELECT origin_url FROM chapter WHERE id = ?1", [chapter_id], |r| r.get(0))
+            conn.query_row(
+                "SELECT origin_url FROM chapter WHERE id = ?1",
+                [chapter_id],
+                |r| r.get(0),
+            )
         })
         .expect("doc origin_url that bai");
     assert_eq!(
@@ -1464,7 +1658,8 @@ fn fixture_html(name: &str) -> String {
         .join("fixtures")
         .join("html")
         .join(name);
-    fs::read_to_string(&path).unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", path.display()))
+    fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", path.display()))
 }
 
 /// Như trước — trả CHÍNH chuỗi `text_content` (cấu hình `TextMode::Formatted`, ĐÚNG khuôn
@@ -1472,7 +1667,10 @@ fn fixture_html(name: &str) -> String {
 /// **THÊM 2026-09-07 (vòng rà bước 4, mục 12)** để so BẰNG TỪNG KÝ TỰ với văn bản ghép từ
 /// khối, không chỉ so ĐỘ DÀI.
 fn fixture_text_content(html: &str, url: &str) -> String {
-    let config = dom_smoothie::Config { text_mode: dom_smoothie::TextMode::Formatted, ..Default::default() };
+    let config = dom_smoothie::Config {
+        text_mode: dom_smoothie::TextMode::Formatted,
+        ..Default::default()
+    };
     let mut readability = dom_smoothie::Readability::new(html.to_owned(), Some(url), Some(config))
         .expect("Readability::new");
     let article = readability.parse().expect("parse");
@@ -1499,7 +1697,8 @@ fn non_paragraph_block_candidate_texts_in_article(html: &str, text_content: &str
         .filter_map(|node| {
             let normalized = node.text().split_whitespace().collect::<Vec<_>>().join(" ");
             let survives_length_floor = normalized.chars().count() >= MIN_CHARS;
-            (survives_length_floor && text_content.contains(normalized.as_str())).then_some(normalized)
+            (survives_length_floor && text_content.contains(normalized.as_str()))
+                .then_some(normalized)
         })
         .collect()
 }
@@ -1522,15 +1721,22 @@ fn non_paragraph_block_candidate_texts_in_article(html: &str, text_content: &str
 #[ignore = "ban do can bay trang HTML THAT o 6-1-ban-do/fixtures/html (gitignore vi co ban quyen), khong co tren CI"]
 fn extract_covers_all_seven_bench_fixtures_without_losing_headings_or_list_items() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    for name in ["a01.html", "a02.html", "a03.html", "a04.html", "a05.html", "a06.html", "a07.html"] {
+    for name in [
+        "a01.html", "a02.html", "a03.html", "a04.html", "a05.html", "a06.html", "a07.html",
+    ] {
         let html = fixture_html(name);
         let url = format!("https://example.com/{name}");
-        let blocks = extract(&html, &url).unwrap_or_else(|e| panic!("{name}: extract that bai: {e:?}"));
+        let blocks =
+            extract(&html, &url).unwrap_or_else(|e| panic!("{name}: extract that bai: {e:?}"));
         assert!(!blocks.is_empty(), "{name}: phải cho ít nhất một khối");
 
         let effective_kept: Vec<bool> = blocks.iter().map(|b| b.machine_kept).collect();
-        let joined = auratranslate_lib::core::segment::pipeline::join_kept_blocks(&blocks, &effective_kept);
-        assert!(!joined.trim().is_empty(), "{name}: văn bản ghép từ khối đang giữ không được rỗng");
+        let joined =
+            auratranslate_lib::core::segment::pipeline::join_kept_blocks(&blocks, &effective_kept);
+        assert!(
+            !joined.trim().is_empty(),
+            "{name}: văn bản ghép từ khối đang giữ không được rỗng"
+        );
 
         let text_content = fixture_text_content(&html, &url);
         let non_p_in_article = non_paragraph_block_candidate_texts_in_article(&html, &text_content);
@@ -1650,7 +1856,10 @@ const HAND_WRITTEN_ZERO_PARAGRAPH_HOME_HTML: &str = r#"<!DOCTYPE html>
 fn extract_covers_headings_list_items_and_a_zero_paragraph_page_on_hand_written_fixtures() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     for tag in ["<h2", "<h3", "<li", "<blockquote", "<pre"] {
-        assert!(HAND_WRITTEN_ARTICLE_HTML.contains(tag), "fixture bai viet phai co {tag}");
+        assert!(
+            HAND_WRITTEN_ARTICLE_HTML.contains(tag),
+            "fixture bai viet phai co {tag}"
+        );
     }
     assert!(
         !HAND_WRITTEN_ZERO_PARAGRAPH_HOME_HTML.contains("<p"),
@@ -1659,7 +1868,8 @@ fn extract_covers_headings_list_items_and_a_zero_paragraph_page_on_hand_written_
 
     // ── Trang bài viết — trùng TỪNG KÝ TỰ với `text_content`, như a01-a06.
     let url = "https://example.com/bai-viet-tu-viet";
-    let blocks = extract(HAND_WRITTEN_ARTICLE_HTML, url).unwrap_or_else(|e| panic!("bai viet: extract that bai: {e:?}"));
+    let blocks = extract(HAND_WRITTEN_ARTICLE_HTML, url)
+        .unwrap_or_else(|e| panic!("bai viet: extract that bai: {e:?}"));
     assert!(!blocks.is_empty(), "bai viet: phai cho it nhat mot khoi");
 
     let text_content = fixture_text_content(HAND_WRITTEN_ARTICLE_HTML, url);
@@ -1678,7 +1888,8 @@ fn extract_covers_headings_list_items_and_a_zero_paragraph_page_on_hand_written_
     }
 
     let effective_kept: Vec<bool> = blocks.iter().map(|b| b.machine_kept).collect();
-    let joined = auratranslate_lib::core::segment::pipeline::join_kept_blocks(&blocks, &effective_kept);
+    let joined =
+        auratranslate_lib::core::segment::pipeline::join_kept_blocks(&blocks, &effective_kept);
     assert_eq!(
         joined, text_content,
         "bai viet: van ban ghep tu khoi (0 override) phai trung DUNG TUNG KY TU voi text_content"
@@ -1711,10 +1922,17 @@ fn extract_covers_headings_list_items_and_a_zero_paragraph_page_on_hand_written_
     let url = "https://example.com/trang-chu-tu-viet";
     let blocks = extract(HAND_WRITTEN_ZERO_PARAGRAPH_HOME_HTML, url)
         .unwrap_or_else(|e| panic!("trang chu: extract that bai: {e:?}"));
-    assert!(!blocks.is_empty(), "trang chu 0 <p>: phai cho it nhat mot khoi -- truoc ban va 6.9 no cho 0 khoi");
+    assert!(
+        !blocks.is_empty(),
+        "trang chu 0 <p>: phai cho it nhat mot khoi -- truoc ban va 6.9 no cho 0 khoi"
+    );
     let effective_kept: Vec<bool> = blocks.iter().map(|b| b.machine_kept).collect();
-    let joined = auratranslate_lib::core::segment::pipeline::join_kept_blocks(&blocks, &effective_kept);
-    assert!(!joined.trim().is_empty(), "trang chu 0 <p>: van ban ghep tu khoi dang giu khong duoc rong");
+    let joined =
+        auratranslate_lib::core::segment::pipeline::join_kept_blocks(&blocks, &effective_kept);
+    assert!(
+        !joined.trim().is_empty(),
+        "trang chu 0 <p>: van ban ghep tu khoi dang giu khong duoc rong"
+    );
 
     // 🔴 Hai assert trên cũng MÙ: khi không còn khối giữ nào, lưới an toàn của `build_blocks` đẩy
     // NGUYÊN `text_content` thành một khối — "không 0 khối" đúng sẵn. Hỏi thẳng: lưới đó KHÔNG
@@ -1748,7 +1966,8 @@ fn kept_text_bodies(blocks: &[auratranslate_lib::core::webimport::Block]) -> Vec
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn every_completed_allowed_domain_log_entry_carries_a_non_none_outcome_across_several_real_scenarios() {
+fn every_completed_allowed_domain_log_entry_carries_a_non_none_outcome_across_several_real_scenarios()
+ {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut all_entries: Vec<auratranslate_lib::core::webimport::DomainLogEntry> = Vec::new();
 
@@ -1792,7 +2011,10 @@ fn every_completed_allowed_domain_log_entry_carries_a_non_none_outcome_across_se
         );
     });
     let url_a = format!("http://127.0.0.1:{port_a}/dau");
-    let allowlist_ab = Allowlist::from_urls([url_a.as_str(), format!("http://localhost:{port_b}/final").as_str()]);
+    let allowlist_ab = Allowlist::from_urls([
+        url_a.as_str(),
+        format!("http://localhost:{port_b}/final").as_str(),
+    ]);
     let (_r, log_redirect) = fetch(&url_a, &allowlist_ab, ResourceKind::Page);
     all_entries.extend(log_redirect);
 
@@ -1813,7 +2035,9 @@ fn every_completed_allowed_domain_log_entry_carries_a_non_none_outcome_across_se
 
     // Ca ÂM đi kèm — một bản ghi Denied (0 kết nối) HỢP LỆ giữ outcome None, không bị vị từ
     // trên bắt oan.
-    let denied_present = all_entries.iter().any(|e| matches!(e.decision, DomainLogDecision::Denied));
+    let denied_present = all_entries
+        .iter()
+        .any(|e| matches!(e.decision, DomainLogDecision::Denied));
     if denied_present {
         assert!(
             all_entries
@@ -1839,8 +2063,16 @@ fn every_completed_allowed_domain_log_entry_carries_a_non_none_outcome_across_se
 fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw_bytes() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let items = vec![
-        UrlImportItem { url: "https://a.example/1".to_owned(), raw: Some(b"<html>a</html>".to_vec()), error: None },
-        UrlImportItem { url: "https://a.example/2".to_owned(), raw: Some(b"<html>b</html>".to_vec()), error: None },
+        UrlImportItem {
+            url: "https://a.example/1".to_owned(),
+            raw: Some(b"<html>a</html>".to_vec()),
+            error: None,
+        },
+        UrlImportItem {
+            url: "https://a.example/2".to_owned(),
+            raw: Some(b"<html>b</html>".to_vec()),
+            error: None,
+        },
         UrlImportItem {
             url: "https://a.example/3".to_owned(),
             raw: None,
@@ -1857,7 +2089,8 @@ fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw
             PipelineShape::Chapters(cs) => {
                 assert!(!cs.is_empty(), "danh sach khong duoc rong");
                 assert!(
-                    cs.iter().all(|c| matches!(c, ChapterInput::RawBytes { .. })),
+                    cs.iter()
+                        .all(|c| matches!(c, ChapterInput::RawBytes { .. })),
                     "MOI don vi phai la RawBytes -- mot danh sach TRON HINH DANG lam \
                      `extract_main_content` (doc `cs.first()`, commands/project/mod.rs) doc SAI \
                      cho cac muc sau: {cs:?}"
@@ -1867,7 +2100,9 @@ fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw
             // 🔵 THÊM 2026-09-11 (Story 6.16) — `PipelineShape` co them mot bien the moi
             // (`Bilingual`); hai ham dung nay chi con duoc goi voi `Chapters` hom nay va se
             // van vay sau story 6.16 (duong song ngu khong di qua `chapters_shape_*`).
-            PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => {
+            PipelineShape::Bilingual { .. }
+            | PipelineShape::BilingualTables { .. }
+            | PipelineShape::BilingualRows { .. } => {
                 panic!("hai ham dung nay phai cho Chapters, khong Bilingual")
             }
             // 🔵 THÊM 2026-09-15 (Story 6.6b) — `PipelineShape` co them mot bien the moi
@@ -1877,10 +2112,12 @@ fn the_two_real_chapters_shape_builders_always_produce_a_homogeneous_list_of_raw
         }
     }
 
-    let write_shape = chapters_shape_if_all_ok(&items[..2]).expect("hai muc OK phai dung duoc shape GHI");
+    let write_shape =
+        chapters_shape_if_all_ok(&items[..2]).expect("hai muc OK phai dung duoc shape GHI");
     assert_homogeneous_raw_bytes(&write_shape);
 
-    let view_shape = chapters_shape_for_view(&items).expect("vi tu XEM phai dung duoc voi muc hong xen giua");
+    let view_shape =
+        chapters_shape_for_view(&items).expect("vi tu XEM phai dung duoc voi muc hong xen giua");
     assert_homogeneous_raw_bytes(&view_shape);
 }
 
@@ -1914,7 +2151,10 @@ fn perf_probe_client_per_link_cost(n: usize) {
     // Cùng khoảng nghỉ đã đo cần thiết ở `perf_probe_twenty_links…` (luồng server đầu tiên
     // của một loạt `spawn_once` liên tiếp cần thời gian THẬT để hệ điều hành lên lịch).
     thread::sleep(Duration::from_millis(200));
-    let urls: Vec<String> = ports.iter().map(|p| format!("http://127.0.0.1:{p}/a")).collect();
+    let urls: Vec<String> = ports
+        .iter()
+        .map(|p| format!("http://127.0.0.1:{p}/a"))
+        .collect();
 
     let t0 = std::time::Instant::now();
     let (items, _log) = fetch_url_import_items(urls);
@@ -1931,8 +2171,14 @@ fn perf_probe_client_per_link_cost(n: usize) {
     // không đáng tin như một "tốc độ", chỉ đáng tin như bằng chứng CHIỀU TĂNG (n=100 so
     // n=1.000) của chi phí dựng-Client-mới-mỗi-link. Xem §Implementation Notes spec 6.18 cho
     // con số thật đo được và verdict.
-    assert_eq!(ok_count, n, "moi trong so {n} link phai tai OK -- mot muc hong lam do sai lech");
-    assert!(elapsed.as_secs_f64() < 300.0, "{n} link cuc bo mat qua 300s -- nghi treo that");
+    assert_eq!(
+        ok_count, n,
+        "moi trong so {n} link phai tai OK -- mot muc hong lam do sai lech"
+    );
+    assert!(
+        elapsed.as_secs_f64() < 300.0,
+        "{n} link cuc bo mat qua 300s -- nghi treo that"
+    );
 }
 
 #[test]
@@ -1976,7 +2222,8 @@ fn html_page_with_chrome_the_extractor_drops() -> String {
 /// ban va nay, `render_candidates` chi giai ma `window` 4 KiB tho, khong boc, nen hai ben lech
 /// nhau ca noi dung lan so dem.
 #[test]
-fn a_url_chapters_preview_normalized_text_equals_what_confirm_actually_writes_when_chrome_is_dropped() {
+fn a_url_chapters_preview_normalized_text_equals_what_confirm_actually_writes_when_chrome_is_dropped()
+ {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let html = html_page_with_chrome_the_extractor_drops();
     let label = "http://127.0.0.1:1/chuong-that";
@@ -2034,8 +2281,14 @@ fn counter_check_without_extraction_the_normalized_preview_leaks_page_chrome() {
         false,
         "",
     );
-    let utf8_candidate = candidates.iter().find(|c| c.label == "UTF-8").expect("UTF-8 phai co");
-    let normalized = utf8_candidate.normalized.as_ref().expect("UTF-8 phai giai ma duoc");
+    let utf8_candidate = candidates
+        .iter()
+        .find(|c| c.label == "UTF-8")
+        .expect("UTF-8 phai co");
+    let normalized = utf8_candidate
+        .normalized
+        .as_ref()
+        .expect("UTF-8 phai giai ma duoc");
 
     assert!(
         normalized.text.contains("Trang chu"),
@@ -2078,7 +2331,11 @@ fn perf_probe_extract_main_content_chapters(n: usize) {
     let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
     let elapsed = t0.elapsed();
 
-    let utf8_candidate = preview.candidates.iter().find(|c| c.label == "UTF-8").expect("UTF-8 phai co");
+    let utf8_candidate = preview
+        .candidates
+        .iter()
+        .find(|c| c.label == "UTF-8")
+        .expect("UTF-8 phai co");
     assert!(
         utf8_candidate.normalized.is_some(),
         "tien de: N trang hop le phai giai ma va boc noi dung chinh duoc"

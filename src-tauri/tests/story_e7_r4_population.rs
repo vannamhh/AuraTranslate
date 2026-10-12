@@ -37,9 +37,13 @@ fn cjk_sentence(seed: u64) -> String {
         out.push(char::from_u32(FIRST + (rest % SPAN) as u32).expect("ideograph"));
         rest /= SPAN;
     }
-    let mut state = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    let mut state = seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
     while out.chars().count() < total_chars - 1 {
-        state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         let offset = ((state >> 33) % 20_000) as u32;
         out.push(char::from_u32(FIRST + offset).expect("ideograph"));
     }
@@ -48,9 +52,14 @@ fn cjk_sentence(seed: u64) -> String {
 }
 
 fn bench_home() -> PathBuf {
-    let raw = std::env::var_os("AURA_E7_R4_HOME").expect("AURA_E7_R4_HOME must name the scratch bench HOME");
+    let raw = std::env::var_os("AURA_E7_R4_HOME")
+        .expect("AURA_E7_R4_HOME must name the scratch bench HOME");
     let home = PathBuf::from(raw);
-    assert!(home.is_absolute(), "AURA_E7_R4_HOME must be absolute: {}", home.display());
+    assert!(
+        home.is_absolute(),
+        "AURA_E7_R4_HOME must be absolute: {}",
+        home.display()
+    );
     assert!(
         home.to_string_lossy().contains(SCRATCH_MARKER),
         "AURA_E7_R4_HOME must contain {SCRATCH_MARKER}: {}",
@@ -103,13 +112,24 @@ fn count_tm_matching(store: &Store, sources: Vec<String>) -> usize {
 fn builds_the_e7_r4_population_in_the_scratch_bench_home() {
     let home = bench_home();
     let documents_root = home.join("Documents").join("AuraTranslate");
-    let appdata = home.join("Library").join("Application Support").join("com.auratranslate.desktop");
-    let work_name = std::env::var("AURA_E7_R4_WORK_NAME").unwrap_or_else(|_| "E7 R4 Work".to_owned());
+    let appdata = home
+        .join("Library")
+        .join("Application Support")
+        .join("com.auratranslate.desktop");
+    let work_name =
+        std::env::var("AURA_E7_R4_WORK_NAME").unwrap_or_else(|_| "E7 R4 Work".to_owned());
     let global_path = appdata.join("global.db");
-    assert!(!global_path.exists(), "global.db must not exist yet: {}", global_path.display());
+    assert!(
+        !global_path.exists(),
+        "global.db must not exist yet: {}",
+        global_path.display()
+    );
     if documents_root.exists() {
         assert!(
-            fs::read_dir(&documents_root).expect("read library root").next().is_none(),
+            fs::read_dir(&documents_root)
+                .expect("read library root")
+                .next()
+                .is_none(),
             "library root must be empty: {}",
             documents_root.display()
         );
@@ -117,13 +137,24 @@ fn builds_the_e7_r4_population_in_the_scratch_bench_home() {
     fs::create_dir_all(&documents_root).expect("create library root");
     fs::create_dir_all(&appdata).expect("create appdata");
 
-    let chapter_sources: Vec<String> =
-        (0..CHAPTER_SEGMENTS as u64).map(|i| cjk_sentence(CHAPTER_SEED_BASE + i)).collect();
+    let chapter_sources: Vec<String> = (0..CHAPTER_SEGMENTS as u64)
+        .map(|i| cjk_sentence(CHAPTER_SEED_BASE + i))
+        .collect();
     let distinct: BTreeSet<&String> = chapter_sources.iter().collect();
-    assert_eq!(distinct.len(), CHAPTER_SEGMENTS, "chapter sources must be distinct");
+    assert_eq!(
+        distinct.len(),
+        CHAPTER_SEGMENTS,
+        "chapter sources must be distinct"
+    );
 
-    let opened = create_work_from_text(&documents_root, &work_name, "zh", "", chapter_sources.concat())
-        .unwrap_or_else(|e| panic!("create_work_from_text failed: {e:?}"));
+    let opened = create_work_from_text(
+        &documents_root,
+        &work_name,
+        "zh",
+        "",
+        chapter_sources.concat(),
+    )
+    .unwrap_or_else(|e| panic!("create_work_from_text failed: {e:?}"));
 
     let (chapters, live, draft, empty_target): (i64, i64, i64, i64) = opened
         .store
@@ -145,13 +176,23 @@ fn builds_the_e7_r4_population_in_the_scratch_bench_home() {
         })
         .expect("read chapter shape");
     assert_eq!(chapters, 1, "Work must have exactly one Chapter");
-    assert_eq!(live, CHAPTER_SEGMENTS as i64, "Chapter must hold {CHAPTER_SEGMENTS} live segments");
-    assert_eq!(draft, CHAPTER_SEGMENTS as i64, "every segment must be draft");
-    assert_eq!(empty_target, CHAPTER_SEGMENTS as i64, "every target must start empty");
+    assert_eq!(
+        live, CHAPTER_SEGMENTS as i64,
+        "Chapter must hold {CHAPTER_SEGMENTS} live segments"
+    );
+    assert_eq!(
+        draft, CHAPTER_SEGMENTS as i64,
+        "every segment must be draft"
+    );
+    assert_eq!(
+        empty_target, CHAPTER_SEGMENTS as i64,
+        "every target must start empty"
+    );
     let stored_sources: BTreeSet<String> = opened
         .store
         .read(|conn| {
-            let mut stmt = conn.prepare("SELECT source_text FROM segment WHERE retired_at IS NULL")?;
+            let mut stmt =
+                conn.prepare("SELECT source_text FROM segment WHERE retired_at IS NULL")?;
             let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
             rows.collect::<auratranslate_lib::core::store::SqlResult<BTreeSet<_>>>()
         })
@@ -162,22 +203,42 @@ fn builds_the_e7_r4_population_in_the_scratch_bench_home() {
         "stored segment sources must equal the generated sentences"
     );
 
-    let work_hits: Vec<u64> = (0..CHAPTER_EXACT_HITS as u64 / 2).map(|i| CHAPTER_SEED_BASE + i).collect();
+    let work_hits: Vec<u64> = (0..CHAPTER_EXACT_HITS as u64 / 2)
+        .map(|i| CHAPTER_SEED_BASE + i)
+        .collect();
     let global_hits: Vec<u64> = (CHAPTER_EXACT_HITS as u64 / 2..CHAPTER_EXACT_HITS as u64)
         .map(|i| CHAPTER_SEED_BASE + i)
         .collect();
-    seed_tier(&opened.store, WORK_TIER_SEED_BASE, TM_PAIRS_PER_TIER - work_hits.len(), "work", work_hits);
+    seed_tier(
+        &opened.store,
+        WORK_TIER_SEED_BASE,
+        TM_PAIRS_PER_TIER - work_hits.len(),
+        "work",
+        work_hits,
+    );
     let global = Store::open(StoreSpec::global(global_path)).expect("open global.db");
-    seed_tier(&global, GLOBAL_TIER_SEED_BASE, TM_PAIRS_PER_TIER - global_hits.len(), "global", global_hits);
+    seed_tier(
+        &global,
+        GLOBAL_TIER_SEED_BASE,
+        TM_PAIRS_PER_TIER - global_hits.len(),
+        "global",
+        global_hits,
+    );
 
     let work_pairs = count_tm(&opened.store);
     let global_pairs = count_tm(&global);
     assert_eq!(work_pairs, TM_PAIRS_PER_TIER as i64, "Work tier population");
-    assert_eq!(global_pairs, TM_PAIRS_PER_TIER as i64, "Global tier population");
+    assert_eq!(
+        global_pairs, TM_PAIRS_PER_TIER as i64,
+        "Global tier population"
+    );
 
     let exact_hits = count_tm_matching(&opened.store, chapter_sources.clone())
         + count_tm_matching(&global, chapter_sources.clone());
-    assert_eq!(exact_hits, CHAPTER_EXACT_HITS, "chapter sources with an exact TM hit");
+    assert_eq!(
+        exact_hits, CHAPTER_EXACT_HITS,
+        "chapter sources with an exact TM hit"
+    );
 
     let all_tm_sources_in_range = opened
         .store
@@ -190,16 +251,23 @@ fn builds_the_e7_r4_population_in_the_scratch_bench_home() {
         })
         .expect("tm source lengths");
     assert!(
-        all_tm_sources_in_range.0 >= MIN_CHARS as i64 && all_tm_sources_in_range.1 <= MAX_CHARS as i64,
+        all_tm_sources_in_range.0 >= MIN_CHARS as i64
+            && all_tm_sources_in_range.1 <= MAX_CHARS as i64,
         "TM source lengths out of range: {all_tm_sources_in_range:?}"
     );
 
     let indexer = Indexer::open(appdata.join("library-index.db")).expect("open library index");
-    indexer.rebuild(&documents_root, Some(&global)).expect("rebuild library index");
+    indexer
+        .rebuild(&documents_root, Some(&global))
+        .expect("rebuild library index");
     let indexed = indexer
         .list_works(auratranslate_lib::core::library::indexer::WorkQuery::default())
         .expect("list indexed works");
-    assert_eq!(indexed.works.len(), 1, "library index must hold exactly one Work");
+    assert_eq!(
+        indexed.works.len(),
+        1,
+        "library index must hold exactly one Work"
+    );
 
     println!(
         "E7_R4_POPULATION\twork={work_name:?}\tchapters={chapters}\tsegments={live}\tdraft_segments={draft}\tdistinct_sources={}\twork_tm_pairs={work_pairs}\tglobal_tm_pairs={global_pairs}\tchapter_exact_hits={exact_hits}\ttm_source_chars={}..{}\tverdict=matches_declaration",

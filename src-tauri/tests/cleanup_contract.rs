@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::cleanup::{
-    CleanupRuleWire, cleanup_add_rule, cleanup_delete_rule, cleanup_edit_rule,
-    cleanup_list_rules, cleanup_set_enabled,
+    CleanupRuleWire, cleanup_add_rule, cleanup_delete_rule, cleanup_edit_rule, cleanup_list_rules,
+    cleanup_set_enabled,
 };
 use auratranslate_lib::commands::project::{
     BlockBodyWire, OpenWork, PendingImportSourceState, UrlImportItem, chapter_detail_for_index,
@@ -70,10 +70,16 @@ fn open_work_real(documents_root: &Path) -> OpenWork {
         PipelineShape::Blob(ChapterInput::AlreadyText("noi dung".to_owned())),
         encoding_rs::UTF_8,
         Vec::new(),
-    None,
-    Vec::new(), 0, 1, false, &[],
-&std::sync::Mutex::new(Vec::new()),
-None, &[])
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
     .expect("tao OpenWork that bai")
 }
 
@@ -102,13 +108,21 @@ fn zero_rules_leaves_source_text_byte_for_byte_unchanged() {
         "Khong Luat",
         "zh",
         "",
-        PipelineShape::Blob(ChapterInput::AlreadyText("một đoạn văn nguyên vẹn".to_owned())),
+        PipelineShape::Blob(ChapterInput::AlreadyText(
+            "một đoạn văn nguyên vẹn".to_owned(),
+        )),
         encoding_rs::UTF_8,
         Vec::new(),
-    None,
-    Vec::new(), 0, 1, false, &[],
-&std::sync::Mutex::new(Vec::new()),
-None, &[])
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
     .expect("tao tac pham that bai");
 
     assert_eq!(read_source_text(&opened), "một đoạn văn nguyên vẹn");
@@ -143,10 +157,16 @@ fn confirming_an_import_with_an_enabled_literal_rule_removes_every_match_from_th
         PipelineShape::Blob(ChapterInput::AlreadyText(text)),
         encoding_rs::UTF_8,
         vec![rule],
-    None,
-    Vec::new(), 0, 1, false, &[],
-&std::sync::Mutex::new(Vec::new()),
-None, &[])
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
     .expect("tao tac pham that bai");
 
     let source_text = read_source_text(&opened);
@@ -183,10 +203,16 @@ fn a_regex_rule_matches_per_line_across_a_multi_line_chapter() {
         PipelineShape::Blob(ChapterInput::AlreadyText(text)),
         encoding_rs::UTF_8,
         vec![rule],
-    None,
-    Vec::new(), 0, 1, false, &[],
-&std::sync::Mutex::new(Vec::new()),
-None, &[])
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
     .expect("tao tac pham that bai");
 
     let source_text = read_source_text(&opened);
@@ -194,8 +220,14 @@ None, &[])
         !source_text.contains("本章由"),
         "mau regex neo theo DONG phai khop dung dong giua, con lai: {source_text:?}"
     );
-    assert!(source_text.contains("dong dau"), "hai dong con lai phai giu nguyen");
-    assert!(source_text.contains("dong cuoi"), "hai dong con lai phai giu nguyen");
+    assert!(
+        source_text.contains("dong dau"),
+        "hai dong con lai phai giu nguyen"
+    );
+    assert!(
+        source_text.contains("dong cuoi"),
+        "hai dong con lai phai giu nguyen"
+    );
 
     drop(opened.store);
     cleanup_dir(&root);
@@ -221,7 +253,10 @@ fn saving_an_invalid_regex_pattern_is_refused_and_the_table_gains_no_row() {
     assert_eq!(err.message_key(), MessageKey::CleanupInvalidRegex);
 
     let rules = cleanup_list_rules(Some(&global), None).expect("liet ke sau lan tu choi");
-    assert!(rules.is_empty(), "khong hang nao duoc ghi khi mau regex hong bi tu choi");
+    assert!(
+        rules.is_empty(),
+        "khong hang nao duoc ghi khi mau regex hong bi tu choi"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -267,7 +302,10 @@ fn the_ddl_check_constraint_alone_refuses_a_whitespace_only_pattern() {
             ["\u{3000}  "],
         )
     });
-    assert!(result.is_err(), "CHECK cua DDL phai tu choi mau chi khoang trang o tang SQL");
+    assert!(
+        result.is_err(),
+        "CHECK cua DDL phai tu choi mau chi khoang trang o tang SQL"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -301,7 +339,10 @@ fn two_tiers_matching_the_same_spot_delete_it_once_but_both_rules_count_it_end_t
     .with_cleanup_rules(vec![global_rule, work_rule]);
 
     let outcome = run_import(input).expect("chuoi pipeline khong duoc loi");
-    assert_eq!(outcome.chapters[0].source_text, "ab", "cho khop chi bien mat MOT LAN");
+    assert_eq!(
+        outcome.chapters[0].source_text, "ab",
+        "cho khop chi bien mat MOT LAN"
+    );
 
     let report = outcome.chapters[0]
         .cleanup_report
@@ -342,26 +383,52 @@ fn a_global_rule_number_one_and_a_work_rule_number_one_coexist_and_toggle_indepe
     // Hai tầng đánh số ĐỘC LẬP — cả hai đều là hàng ĐẦU TIÊN của kho riêng chúng, nên cùng
     // mang `id = 1`. Đây CHÍNH LÀ mệnh đề "danh tính là cặp (tier, id)".
     assert_eq!(global_id, 1, "hang dau tien cua tang Global phai mang id 1");
-    assert_eq!(work_id, 1, "hang dau tien cua tang Work phai mang id 1, DOC LAP voi Global");
+    assert_eq!(
+        work_id, 1,
+        "hang dau tien cua tang Work phai mang id 1, DOC LAP voi Global"
+    );
 
     let all = cleanup_list_rules(Some(&global), Some(&open)).expect("liet ke hai tang");
-    assert_eq!(all.len(), 2, "hai luat rieng biet phai cung co mat, khong cai nao doi lot cai kia");
+    assert_eq!(
+        all.len(),
+        2,
+        "hai luat rieng biet phai cung co mat, khong cai nao doi lot cai kia"
+    );
 
     // Tắt luật Work — luật Global PHẢI giữ nguyên trạng thái bật.
-    cleanup_set_enabled(Some(&global), Some(&open), CleanupRuleTier::Work, work_id, false)
-        .expect("tat luat Work that bai");
+    cleanup_set_enabled(
+        Some(&global),
+        Some(&open),
+        CleanupRuleTier::Work,
+        work_id,
+        false,
+    )
+    .expect("tat luat Work that bai");
 
     let after: Vec<CleanupRuleWire> =
         cleanup_list_rules(Some(&global), Some(&open)).expect("liet ke sau khi tat");
     let global_row = after
         .iter()
-        .find(|r| matches!(r.tier, auratranslate_lib::commands::project::CleanupRuleTierWire::Global))
+        .find(|r| {
+            matches!(
+                r.tier,
+                auratranslate_lib::commands::project::CleanupRuleTierWire::Global
+            )
+        })
         .expect("hang Global phai con");
     let work_row = after
         .iter()
-        .find(|r| matches!(r.tier, auratranslate_lib::commands::project::CleanupRuleTierWire::Work))
+        .find(|r| {
+            matches!(
+                r.tier,
+                auratranslate_lib::commands::project::CleanupRuleTierWire::Work
+            )
+        })
         .expect("hang Work phai con");
-    assert!(global_row.enabled, "tat luat Work KHONG duoc lam tat theo luat Global");
+    assert!(
+        global_row.enabled,
+        "tat luat Work KHONG duoc lam tat theo luat Global"
+    );
     assert!(!work_row.enabled, "luat Work phai da tat");
 
     drop(open.store);
@@ -402,7 +469,11 @@ fn disabling_a_previously_matched_rule_removes_its_span_immediately_but_keeps_it
         .self_declared_cleanup
         .as_ref()
         .expect("nhanh tu khai phai co khoi lam sach");
-    assert_eq!(cleanup_on.spans.len(), 2, "luat dang BAT phai hien hai cho gach ngang");
+    assert_eq!(
+        cleanup_on.spans.len(),
+        2,
+        "luat dang BAT phai hien hai cho gach ngang"
+    );
     assert_eq!(cleanup_on.rules[0].count_in_chapter, 2);
 
     cleanup_set_enabled(Some(&global), None, CleanupRuleTier::Global, id, false)
@@ -441,8 +512,14 @@ fn disabling_a_previously_matched_rule_removes_its_span_immediately_but_keeps_it
 fn pasted_text_with_zero_encoding_candidates_still_gets_a_full_cleanup_block() {
     let root = temp_dir("pasted-text-self-declared-cleanup");
     let global = open_global(&root);
-    cleanup_add_rule(Some(&global), None, CleanupRuleTier::Global, "xoa", CleanupRuleKind::Literal)
-        .expect("them luat that bai");
+    cleanup_add_rule(
+        Some(&global),
+        None,
+        CleanupRuleTier::Global,
+        "xoa",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat that bai");
     let rules = auratranslate_lib::core::cleanup::resolve_two_tiers(
         &ScopeResolver::global_only(),
         &global,
@@ -453,7 +530,10 @@ fn pasted_text_with_zero_encoding_candidates_still_gets_a_full_cleanup_block() {
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("truoc xoa sau".to_owned()));
     let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0, &[]);
 
-    assert!(preview.candidates.is_empty(), "duong AlreadyText phai cho 0 ung vien bang ma");
+    assert!(
+        preview.candidates.is_empty(),
+        "duong AlreadyText phai cho 0 ung vien bang ma"
+    );
     let cleanup = preview
         .self_declared_cleanup
         .as_ref()
@@ -498,7 +578,10 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
         .self_declared_cleanup
         .as_ref()
         .expect("nhanh tu khai phai co khoi lam sach");
-    assert!(!cleanup.window_truncated, "tien de: van ban phai lot tron cua so");
+    assert!(
+        !cleanup.window_truncated,
+        "tien de: van ban phai lot tron cua so"
+    );
 
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
     stash_pending_import_source(&state, shape, None);
@@ -511,8 +594,10 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
         "UTF-8",
         rules,
         None,
-        Vec::new(), Vec::new(),
-    &std::sync::Mutex::new(Vec::new()))
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
     .expect("xac nhan that bai");
 
     let written = read_source_text(&opened);
@@ -541,7 +626,8 @@ fn preview_and_confirm_agree_byte_for_byte_on_the_same_input_and_the_same_rules(
 // đối chiếu văn bản TRÊN ĐĨA với `final_text` mà `preview_import_encoding` (CÙNG override) vừa
 // hiện — đúng cặp mà AC🔴 của spec 6.9 đòi.
 #[test]
-fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_non_empty_block_override() {
+fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_non_empty_block_override()
+ {
     let root = temp_dir("preview-confirm-agree-block-override");
 
     // Cùng fixture đã đo ở `webimport_contract.rs`
@@ -613,8 +699,14 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
         .blocks
         .as_ref()
         .expect("Some(blocks) khong doi giua hai luot");
-    assert!(blocks_with_override.blocks[3].kept, "override phai thang machine_kept");
-    assert!(blocks_with_override.blocks[3].confirmed, "override co mat o vi tri 3 => confirmed");
+    assert!(
+        blocks_with_override.blocks[3].kept,
+        "override phai thang machine_kept"
+    );
+    assert!(
+        blocks_with_override.blocks[3].confirmed,
+        "override co mat o vi tri 3 => confirmed"
+    );
     let final_text_with_override = candidate_with_override
         .cleanup
         .as_ref()
@@ -650,8 +742,10 @@ fn preview_and_confirm_agree_byte_for_byte_on_chapters_raw_bytes_shape_with_a_no
         "UTF-8",
         Vec::new(),
         None,
-        overrides, Vec::new(),
-    &std::sync::Mutex::new(Vec::new()))
+        overrides,
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
     .expect("xac nhan that bai");
 
     let written = read_source_text(&opened);
@@ -705,7 +799,11 @@ fn each_candidates_tier2_blocks_are_decoded_with_that_candidates_own_encoding_no
     }]);
 
     let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
-    let gbk_candidate = preview.candidates.iter().find(|c| c.label == "GBK").expect("phai co o GBK");
+    let gbk_candidate = preview
+        .candidates
+        .iter()
+        .find(|c| c.label == "GBK")
+        .expect("phai co o GBK");
     let gbk_blocks = gbk_candidate
         .blocks
         .as_ref()
@@ -767,10 +865,16 @@ fn a_rule_that_matches_the_entire_chapter_creates_a_chapter_with_empty_source_te
         PipelineShape::Blob(ChapterInput::AlreadyText("toan bo noi dung".to_owned())),
         encoding_rs::UTF_8,
         vec![rule],
-    None,
-    Vec::new(), 0, 1, false, &[],
-&std::sync::Mutex::new(Vec::new()),
-None, &[])
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
     .expect(
         "hanh vi THAT hom nay: create_work KHONG tu choi mot Chuong don co source_text rong \
          sau khi luat xoa sach no -- xem ghi chu tai cho khai bao ham test nay",
@@ -781,12 +885,17 @@ None, &[])
     let segment_count: i64 = opened
         .store
         .read(|conn| {
-            conn.query_row("SELECT COUNT(*) FROM segment WHERE chapter_id = ?1", [opened.chapter_id], |r| {
-                r.get(0)
-            })
+            conn.query_row(
+                "SELECT COUNT(*) FROM segment WHERE chapter_id = ?1",
+                [opened.chapter_id],
+                |r| r.get(0),
+            )
         })
         .expect("dem segment");
-    assert_eq!(segment_count, 0, "0 chu con lai thi phai la 0 segment, khong phai mot loi");
+    assert_eq!(
+        segment_count, 0,
+        "0 chu con lai thi phai la 0 segment, khong phai mot loi"
+    );
 
     drop(opened.store);
     cleanup_dir(&root);
@@ -800,8 +909,14 @@ None, &[])
 fn deleting_an_already_deleted_rule_is_harmless() {
     let root = temp_dir("delete-twice-harmless");
     let global = open_global(&root);
-    let id = cleanup_add_rule(Some(&global), None, CleanupRuleTier::Global, "x", CleanupRuleKind::Literal)
-        .expect("them luat that bai");
+    let id = cleanup_add_rule(
+        Some(&global),
+        None,
+        CleanupRuleTier::Global,
+        "x",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat that bai");
 
     cleanup_delete_rule(Some(&global), None, CleanupRuleTier::Global, id).expect("xoa lan mot");
     cleanup_delete_rule(Some(&global), None, CleanupRuleTier::Global, id)
@@ -815,8 +930,14 @@ fn deleting_an_already_deleted_rule_is_harmless() {
 fn editing_a_vanished_rule_is_rejected_and_toggling_a_vanished_rule_is_rejected() {
     let root = temp_dir("edit-toggle-vanished-rejected");
     let global = open_global(&root);
-    let id = cleanup_add_rule(Some(&global), None, CleanupRuleTier::Global, "x", CleanupRuleKind::Literal)
-        .expect("them luat that bai");
+    let id = cleanup_add_rule(
+        Some(&global),
+        None,
+        CleanupRuleTier::Global,
+        "x",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat that bai");
     cleanup_delete_rule(Some(&global), None, CleanupRuleTier::Global, id).expect("xoa that bai");
 
     let edit_err = cleanup_edit_rule(
@@ -907,7 +1028,9 @@ fn resolving_cleanup_rules_for_a_destination_applies_global_plus_the_destination
         .expect("phan giai luat cho dich W that bai");
 
     assert!(
-        rules.iter().any(|r| r.tier == CleanupRuleTier::Work && r.pattern == "CHI_TREN_W"),
+        rules
+            .iter()
+            .any(|r| r.tier == CleanupRuleTier::Work && r.pattern == "CHI_TREN_W"),
         "luat tang Work CUA DICH (W) phai co mat: {rules:?}"
     );
     assert!(
@@ -968,23 +1091,41 @@ fn resolving_cleanup_rules_when_the_destination_is_the_open_work_still_returns_i
 fn counts_cover_the_whole_chapter_even_when_the_rendered_window_is_truncated() {
     let root = temp_dir("counts-whole-chapter-window-cut");
     let global = open_global(&root);
-    cleanup_add_rule(Some(&global), None, CleanupRuleTier::Global, "QUANGCAO", CleanupRuleKind::Literal)
-        .expect("them luat that bai");
-    let rules =
-        auratranslate_lib::core::cleanup::resolve_two_tiers(&ScopeResolver::global_only(), &global, None)
-            .expect("phan giai hai tang");
+    cleanup_add_rule(
+        Some(&global),
+        None,
+        CleanupRuleTier::Global,
+        "QUANGCAO",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat that bai");
+    let rules = auratranslate_lib::core::cleanup::resolve_two_tiers(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+    )
+    .expect("phan giai hai tang");
 
     // Chỗ khớp THỨ NHẤT ở ngay đầu (trong cửa sổ), chỗ THỨ HAI sau hơn 4096 byte đệm.
     let filler = "dong dem khong mang y nghia.\n".repeat(300);
-    assert!(filler.len() > 4096, "dem phai vuot cua so bang chung that su: {} byte", filler.len());
+    assert!(
+        filler.len() > 4096,
+        "dem phai vuot cua so bang chung that su: {} byte",
+        filler.len()
+    );
     let text = format!("QUANGCAO dau chuong.\n{filler}QUANGCAO cuoi chuong.\n");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
     let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0, &[]);
-    let cleanup =
-        preview.self_declared_cleanup.as_ref().expect("nhanh tu khai phai co khoi lam sach");
+    let cleanup = preview
+        .self_declared_cleanup
+        .as_ref()
+        .expect("nhanh tu khai phai co khoi lam sach");
 
-    assert!(cleanup.window_truncated, "tien de: nguon phai dai hon cua so bang chung");
+    assert!(
+        cleanup.window_truncated,
+        "tien de: nguon phai dai hon cua so bang chung"
+    );
     assert!(
         cleanup.text.len() < text.len(),
         "tien de: ban dung hien thi phai NGAN hon toan Chuong"
@@ -1045,7 +1186,10 @@ fn a_match_straddling_the_window_boundary_is_clipped_to_it_not_dropped() {
         text.push_str(&plain_line());
         text.push('\n');
     }
-    assert!(text.len() > 4096 + 200, "phai vuot cua so bang chung nhieu du de chac chan bi cat");
+    assert!(
+        text.len() > 4096 + 200,
+        "phai vuot cua so bang chung nhieu du de chac chan bi cat"
+    );
 
     // Phep tinh bien (xem chu thich tren ham): 40 dong dau (99 ky tu + `\n` = 100 byte/dong)
     // dua `window_safe_prefix` ve dung 39 dong TRON VEN dau (dong 0..37 + dong 38 chua
@@ -1062,16 +1206,24 @@ fn a_match_straddling_the_window_boundary_is_clipped_to_it_not_dropped() {
         CleanupRuleKind::Literal,
     )
     .expect("them luat vat bien that bai");
-    let rules =
-        auratranslate_lib::core::cleanup::resolve_two_tiers(&ScopeResolver::global_only(), &global, None)
-            .expect("phan giai hai tang");
+    let rules = auratranslate_lib::core::cleanup::resolve_two_tiers(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+    )
+    .expect("phan giai hai tang");
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
     let preview = preview_import_encoding(&shape, "en", &rules, None, &[], 0, &[]);
-    let cleanup =
-        preview.self_declared_cleanup.as_ref().expect("nhanh tu khai phai co khoi lam sach");
+    let cleanup = preview
+        .self_declared_cleanup
+        .as_ref()
+        .expect("nhanh tu khai phai co khoi lam sach");
 
-    assert!(cleanup.window_truncated, "tien de: nguon phai dai hon cua so bang chung");
+    assert!(
+        cleanup.window_truncated,
+        "tien de: nguon phai dai hon cua so bang chung"
+    );
     let visible_chars = cleanup.text.chars().count();
     assert_eq!(
         visible_chars, EXPECTED_VISIBLE_CHARS,
@@ -1084,7 +1236,10 @@ fn a_match_straddling_the_window_boundary_is_clipped_to_it_not_dropped() {
         &cleanup.text[cleanup.text.len().saturating_sub(20)..]
     );
 
-    assert_eq!(cleanup.rules[0].count_in_chapter, 1, "cho khop van duoc DEM du");
+    assert_eq!(
+        cleanup.rules[0].count_in_chapter, 1,
+        "cho khop van duoc DEM du"
+    );
 
     assert_eq!(
         cleanup.spans.len(),
@@ -1098,7 +1253,10 @@ fn a_match_straddling_the_window_boundary_is_clipped_to_it_not_dropped() {
         "diem ket thuc phai CAT VE dung bien cua so hien thi (khong phai 3904, vi tri that \
          cua cho khop trong TOAN Chuong) -- gach ngang chi ve duoc phan dang hien"
     );
-    assert!(span.end < 3904, "phai la mot phep CAT that, khong phai tinh co giu nguyen 3904");
+    assert!(
+        span.end < 3904,
+        "phai la mot phep CAT that, khong phai tinh co giu nguyen 3904"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -1133,9 +1291,12 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
         cleanup_add_rule(Some(&global), None, CleanupRuleTier::Global, pattern, kind)
             .expect("them luat do that bai");
     }
-    let rules =
-        auratranslate_lib::core::cleanup::resolve_two_tiers(&ScopeResolver::global_only(), &global, None)
-            .expect("phan giai hai tang");
+    let rules = auratranslate_lib::core::cleanup::resolve_two_tiers(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+    )
+    .expect("phan giai hai tang");
 
     // Một "cau" tieng Trung lap lai nhieu lan cho toi mot Chuong THAT LON (~900 KB).
     const SENTENCE: &str = "萧炎缓缓睁开双眼，望向远方的天际，心中涌起一股莫名的波动。";
@@ -1149,17 +1310,28 @@ fn perf_probe_six_full_pipeline_runs_on_one_large_chapter() {
     // Đường TỰ KHAI (1 lượt `run_pipeline` trên TOÀN văn bản).
     let shape_self_declared = PipelineShape::Blob(ChapterInput::AlreadyText(text.clone()));
     let t0 = std::time::Instant::now();
-    let preview_self = preview_import_encoding(&shape_self_declared, "zh", &rules, None, &[], 0, &[]);
+    let preview_self =
+        preview_import_encoding(&shape_self_declared, "zh", &rules, None, &[], 0, &[]);
     let self_declared_elapsed = t0.elapsed();
-    assert!(preview_self.self_declared_cleanup.is_some(), "tien de: nhanh tu khai phai co khoi");
+    assert!(
+        preview_self.self_declared_cleanup.is_some(),
+        "tien de: nhanh tu khai phai co khoi"
+    );
 
     // Đường ỨNG VIÊN (5 lượt `run_pipeline` trên TOÀN văn bản, một cho mỗi ô FR126).
-    let shape_candidates =
-        PipelineShape::Blob(ChapterInput::RawBytes { bytes: text.into_bytes(), label: String::new() });
+    let shape_candidates = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes: text.into_bytes(),
+        label: String::new(),
+    });
     let t1 = std::time::Instant::now();
-    let preview_candidates = preview_import_encoding(&shape_candidates, "zh", &rules, None, &[], 0, &[]);
+    let preview_candidates =
+        preview_import_encoding(&shape_candidates, "zh", &rules, None, &[], 0, &[]);
     let candidates_elapsed = t1.elapsed();
-    assert_eq!(preview_candidates.candidates.len(), 5, "tien de: du nam o FR126");
+    assert_eq!(
+        preview_candidates.candidates.len(),
+        5,
+        "tien de: du nam o FR126"
+    );
 
     eprintln!(
         "[perf_probe_six_full_pipeline_runs_on_one_large_chapter] Chuong {chapter_bytes} byte, \
@@ -1229,7 +1401,11 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
     let input = PipelineInput::default_shaped(shape_for_pipeline_check, "en")
         .with_cleanup_rules(vec![rule.clone()]);
     let outcome = run_import(input).expect("chuoi voi PipelineShape::Chapters khong duoc loi");
-    assert_eq!(outcome.chapters.len(), 3, "tien de: dung ba Chuong, khong bi gop/tach lai");
+    assert_eq!(
+        outcome.chapters.len(),
+        3,
+        "tien de: dung ba Chuong, khong bi gop/tach lai"
+    );
     let key = (rule.tier, rule.id);
     let per_chapter_counts: Vec<usize> = outcome
         .chapters
@@ -1272,7 +1448,9 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         false,
         &[],
         0,
-        0, &[]);
+        0,
+        &[],
+    );
 
     assert_eq!(cleanup_wire.rules.len(), 1, "dung mot luat duoc gieo");
     let rule_wire = &cleanup_wire.rules[0];
@@ -1299,8 +1477,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
 /// `extract_main_content = false` có chủ ý: mệnh đề đang kiểm là phép CỘNG qua N đơn vị,
 /// không độ chính xác của bước trích nội dung chính (đã có `webimport_contract.rs` canh riêng).
 #[test]
-fn count_in_import_equals_the_hand_counted_sum_through_the_real_url_chapters_shape_product_path()
- {
+fn count_in_import_equals_the_hand_counted_sum_through_the_real_url_chapters_shape_product_path() {
     let rule = CleanupRule {
         tier: CleanupRuleTier::Global,
         id: 1,
@@ -1334,7 +1511,8 @@ fn count_in_import_equals_the_hand_counted_sum_through_the_real_url_chapters_sha
         .expect("ba muc deu OK -- shape phai dung duoc, dung DUONG SAN PHAM cua wire URL");
     match &shape {
         PipelineShape::Chapters(cs) => assert!(
-            cs.iter().all(|c| matches!(c, ChapterInput::RawBytes { .. })),
+            cs.iter()
+                .all(|c| matches!(c, ChapterInput::RawBytes { .. })),
             "shape phai mang ChapterInput::RawBytes -- dung dung don vi ma URL wire dua vao \
              pipeline, khong AlreadyText"
         ),
@@ -1352,9 +1530,14 @@ fn count_in_import_equals_the_hand_counted_sum_through_the_real_url_chapters_sha
         false,
         &[],
         0,
-        0, &[]);
+        0,
+        &[],
+    );
 
-    assert_eq!(chapters_wire.chapter_count, 3, "tien de: dung ba Chuong tu ba muc URL OK");
+    assert_eq!(
+        chapters_wire.chapter_count, 3,
+        "tien de: dung ba Chuong tu ba muc URL OK"
+    );
     assert_eq!(cleanup_wire.rules.len(), 1, "dung mot luat duoc gieo");
     let rule_wire = &cleanup_wire.rules[0];
     assert_eq!(
@@ -1382,7 +1565,8 @@ fn count_in_import_equals_the_hand_counted_sum_through_the_real_url_chapters_sha
 /// đây mang VĂN BẢN THẬT SỰ khác nhau, nên `final_text`/`text` của Chương 2 (chỉ số 2) không
 /// thể trùng với Chương 0 nếu con trỏ thật sự chảy xuống hàm sản phẩm.
 #[test]
-fn cleanup_and_chapters_preview_for_returns_the_summary_of_every_chapter_and_the_detail_of_the_chosen_one() {
+fn cleanup_and_chapters_preview_for_returns_the_summary_of_every_chapter_and_the_detail_of_the_chosen_one()
+ {
     let rule = CleanupRule {
         tier: CleanupRuleTier::Global,
         id: 1,
@@ -1445,7 +1629,9 @@ fn cleanup_and_chapters_preview_for_returns_the_summary_of_every_chapter_and_the
 /// cùng hình dạng mà `chapters.first() == None` vốn đã xử lý, không một nhánh lỗi mới.
 #[test]
 fn a_detail_chapter_index_past_the_new_chapter_count_falls_back_to_the_empty_detail_shape() {
-    let shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("chi mot Chuong o day".to_owned())]);
+    let shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
+        "chi mot Chuong o day".to_owned(),
+    )]);
     let (cleanup_wire, chapters_wire, blocks_wire) = cleanup_and_chapters_preview_for(
         shape,
         encoding_rs::UTF_8,
@@ -1502,10 +1688,14 @@ fn chapter_detail_for_index_rebuilds_the_detail_of_the_requested_chapter_with_a_
     )
     .expect("Chuong 1 ton tai, phai tra ve chi tiet");
     assert_eq!(cleanup.final_text, chapter_1);
-    assert!(blocks.is_none(), "extract_main_content == false -- khong co tang 2");
+    assert!(
+        blocks.is_none(),
+        "extract_main_content == false -- khong co tang 2"
+    );
 
     assert!(
-        chapter_detail_for_index(&shape, 9, encoding_rs::UTF_8, None, "en", &[], false, &[]).is_none(),
+        chapter_detail_for_index(&shape, 9, encoding_rs::UTF_8, None, "en", &[], false, &[])
+            .is_none(),
         "chi so ngoai pham vi phai tra None, khong doan mot Chuong khac"
     );
 }
@@ -1528,11 +1718,16 @@ fn block_overrides_of_chapter_zero_do_not_leak_into_the_blocks_of_a_different_ch
     };
     let shape = PipelineShape::Chapters(vec![
         ChapterInput::RawBytes {
-            bytes: html_for("Chuong 0", "noi dung chuong khong that su rieng biet cua no").into_bytes(),
+            bytes: html_for(
+                "Chuong 0",
+                "noi dung chuong khong that su rieng biet cua no",
+            )
+            .into_bytes(),
             label: "https://example.com/0".to_owned(),
         },
         ChapterInput::RawBytes {
-            bytes: html_for("Chuong 1", "noi dung chuong mot hoan toan khac chuong kia").into_bytes(),
+            bytes: html_for("Chuong 1", "noi dung chuong mot hoan toan khac chuong kia")
+                .into_bytes(),
             label: "https://example.com/1".to_owned(),
         },
     ]);
@@ -1543,8 +1738,14 @@ fn block_overrides_of_chapter_zero_do_not_leak_into_the_blocks_of_a_different_ch
         chapter_detail_for_index(&shape, 1, encoding_rs::UTF_8, None, "en", &[], true, &[])
             .expect("Chuong 1 ton tai, phai co chi tiet");
     let baseline = baseline_blocks.expect("extract_main_content == true phai cho Some(blocks)");
-    assert!(!baseline.blocks.is_empty(), "tien de: trang phai co it nhat mot khoi de ma so sanh");
-    assert!(baseline.blocks.iter().all(|b| !b.confirmed), "tien de: duong co so khong co override");
+    assert!(
+        !baseline.blocks.is_empty(),
+        "tien de: trang phai co it nhat mot khoi de ma so sanh"
+    );
+    assert!(
+        baseline.blocks.iter().all(|b| !b.confirmed),
+        "tien de: duong co so khong co override"
+    );
 
     // Gieo override — giả lập người dùng đã bấm `Space` trên khối 0 CỦA CHƯƠNG 0
     // (`Tier2BlockOverridesState` chỉ mang ý nghĩa cho đơn vị 0 của hình dạng gốc).
@@ -1585,29 +1786,64 @@ fn block_overrides_of_chapter_zero_do_not_leak_into_the_blocks_of_a_different_ch
 /// `display_window_for_chapter` — nếu phép vá bị gỡ, hàm sẽ lặng lẽ trả về cửa sổ bằng chứng
 /// của TOÀN blob (tức nội dung Chương 0) dưới nhãn Chương 1.
 #[test]
-fn chapter_detail_for_index_refuses_a_nonzero_index_on_a_blob_shape_even_when_a_pattern_would_yield_more_than_one_chapter() {
+fn chapter_detail_for_index_refuses_a_nonzero_index_on_a_blob_shape_even_when_a_pattern_would_yield_more_than_one_chapter()
+ {
     use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 
-    let text = "Chuong 1: Mo Dau\n\nnoi dung mot.\n\nChuong 2: Tiep Theo\n\nnoi dung hai.".to_owned();
+    let text =
+        "Chuong 1: Mo Dau\n\nnoi dung mot.\n\nChuong 2: Tiep Theo\n\nnoi dung hai.".to_owned();
     let pattern = ChapterPattern::regex(r"^Chuong \d+:.*$");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text));
 
     // Tiền đề — mẫu THẬT SỰ tách `shape` (một đơn vị `Blob`) ra hai Chương, nên phép so biên
     // ở tầng ngoài (`chapter_index >= chapters_wire.chapter_count`) KHÔNG chặn được `1`.
     let (_, chapters_wire, _) = cleanup_and_chapters_preview_for(
-        shape.clone(), encoding_rs::UTF_8, Some(&pattern), "", "en", &[], false, false, &[], 0, 0, &[]);
-    assert_eq!(chapters_wire.chapter_count, 2, "tien de: mau phai tach ra dung hai Chuong");
+        shape.clone(),
+        encoding_rs::UTF_8,
+        Some(&pattern),
+        "",
+        "en",
+        &[],
+        false,
+        false,
+        &[],
+        0,
+        0,
+        &[],
+    );
+    assert_eq!(
+        chapters_wire.chapter_count, 2,
+        "tien de: mau phai tach ra dung hai Chuong"
+    );
 
     assert!(
-        chapter_detail_for_index(&shape, 1, encoding_rs::UTF_8, Some(&pattern), "en", &[], false, &[])
-            .is_none(),
+        chapter_detail_for_index(
+            &shape,
+            1,
+            encoding_rs::UTF_8,
+            Some(&pattern),
+            "en",
+            &[],
+            false,
+            &[]
+        )
+        .is_none(),
         "Blob chi mang MOT don vi (chua qua buoc tach) -- chi so 1 phai tra None, khong doan \
          bang cua so bang chung cua don vi 0 (Chuong 1) duoi nhan Chuong 2"
     );
     // Chỉ số 0 vẫn hợp lệ — đối chứng ÂM để chắc chắn phép vá không chặn nhầm ca đúng.
     assert!(
-        chapter_detail_for_index(&shape, 0, encoding_rs::UTF_8, Some(&pattern), "en", &[], false, &[])
-            .is_some(),
+        chapter_detail_for_index(
+            &shape,
+            0,
+            encoding_rs::UTF_8,
+            Some(&pattern),
+            "en",
+            &[],
+            false,
+            &[]
+        )
+        .is_some(),
         "chi so 0 tren Blob van phai hop le -- day la doi chung AM cho phep va P5"
     );
 }
@@ -1650,7 +1886,11 @@ fn preview_and_confirm_agree_byte_for_byte_when_a_chapter_pattern_yields_n_chapt
             .with_chapter_pattern(Some(pattern.clone()));
         run_import(input).expect("chuoi doc lap khong duoc loi")
     };
-    assert_eq!(expected.chapters.len(), 2, "tien de: mau phai tach ra dung hai Chuong");
+    assert_eq!(
+        expected.chapters.len(),
+        2,
+        "tien de: mau phai tach ra dung hai Chuong"
+    );
 
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text));
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
@@ -1664,8 +1904,10 @@ fn preview_and_confirm_agree_byte_for_byte_when_a_chapter_pattern_yields_n_chapt
         "UTF-8",
         rules,
         Some(pattern),
-        Vec::new(), Vec::new(),
-    &std::sync::Mutex::new(Vec::new()))
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
     .expect("xac nhan that bai");
 
     let written: Vec<(i64, String)> = opened
@@ -1737,7 +1979,11 @@ fn preview_and_confirm_agree_byte_for_byte_when_n_chapters_come_from_n_files() {
         let input = PipelineInput::default_shaped(shape, "en").with_cleanup_rules(rules.clone());
         run_import(input).expect("chuoi doc lap khong duoc loi")
     };
-    assert_eq!(expected.chapters.len(), 3, "tien de: 3 tep phai cho ra dung 3 Chuong");
+    assert_eq!(
+        expected.chapters.len(),
+        3,
+        "tien de: 3 tep phai cho ra dung 3 Chuong"
+    );
 
     let shape = PipelineShape::Files(units);
     let state: PendingImportSourceState = std::sync::Mutex::new(None);
@@ -1806,8 +2052,14 @@ fn chapter_detail_for_index_on_a_files_batch_with_no_pattern_returns_that_units_
     let (cleanup_a, blocks_a) =
         chapter_detail_for_index(&shape, 0, encoding_rs::UTF_8, None, "en", &[], false, &[])
             .expect("Chuong 0 (don vi A) phai co chi tiet THAT, khong None");
-    assert_eq!(cleanup_a.final_text, unit_a, "Chuong 0 phai tra dung cua so cua DON VI A");
-    assert!(blocks_a.is_none(), "extract_main_content == false -- khong co tang 2");
+    assert_eq!(
+        cleanup_a.final_text, unit_a,
+        "Chuong 0 phai tra dung cua so cua DON VI A"
+    );
+    assert!(
+        blocks_a.is_none(),
+        "extract_main_content == false -- khong co tang 2"
+    );
 
     let (cleanup_b, _) =
         chapter_detail_for_index(&shape, 1, encoding_rs::UTF_8, None, "en", &[], false, &[])
@@ -1821,10 +2073,14 @@ fn chapter_detail_for_index_on_a_files_batch_with_no_pattern_returns_that_units_
     let (cleanup_c, _) =
         chapter_detail_for_index(&shape, 2, encoding_rs::UTF_8, None, "en", &[], false, &[])
             .expect("Chuong 2 (don vi C) phai co chi tiet THAT, khong None");
-    assert_eq!(cleanup_c.final_text, unit_c, "Chuong 2 phai tra dung cua so cua DON VI C");
+    assert_eq!(
+        cleanup_c.final_text, unit_c,
+        "Chuong 2 phai tra dung cua so cua DON VI C"
+    );
 
     assert!(
-        chapter_detail_for_index(&shape, 9, encoding_rs::UTF_8, None, "en", &[], false, &[]).is_none(),
+        chapter_detail_for_index(&shape, 9, encoding_rs::UTF_8, None, "en", &[], false, &[])
+            .is_none(),
         "chi so ngoai pham vi phai tra None, khong doan mot don vi khac"
     );
 }
@@ -1837,12 +2093,23 @@ fn chapter_detail_for_index_on_a_files_batch_with_no_pattern_returns_that_units_
 fn chapter_detail_for_index_on_a_files_batch_with_a_pattern_returns_none_not_a_guess() {
     use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 
-    let shape = PipelineShape::Files(vec![ChapterInput::AlreadyText("Tep A, mot dong.".to_owned())]);
+    let shape = PipelineShape::Files(vec![ChapterInput::AlreadyText(
+        "Tep A, mot dong.".to_owned(),
+    )]);
     let pattern = ChapterPattern::regex(r"^Chuong \d+:.*$");
 
     assert!(
-        chapter_detail_for_index(&shape, 0, encoding_rs::UTF_8, Some(&pattern), "en", &[], false, &[])
-            .is_none(),
+        chapter_detail_for_index(
+            &shape,
+            0,
+            encoding_rs::UTF_8,
+            Some(&pattern),
+            "en",
+            &[],
+            false,
+            &[]
+        )
+        .is_none(),
         "co mau: anh xa chapter_index <-> manh KHONG con la phep dong nhat -- phai tra None, \
          khong doan mot cua so co the sai"
     );
@@ -1863,29 +2130,41 @@ fn chapter_detail_for_index_on_a_files_batch_with_a_pattern_returns_none_not_a_g
 fn perf_probe_chapter_split_preview_on_two_thousand_chapters() {
     let root = temp_dir("perf-probe-2000-chapters");
     let global = open_global(&root);
-    cleanup_add_rule(Some(&global), None, CleanupRuleTier::Global, "QUANGCAO", CleanupRuleKind::Literal)
-        .expect("them luat do that bai");
-    let rules =
-        auratranslate_lib::core::cleanup::resolve_two_tiers(&ScopeResolver::global_only(), &global, None)
-            .expect("phan giai hai tang");
+    cleanup_add_rule(
+        Some(&global),
+        None,
+        CleanupRuleTier::Global,
+        "QUANGCAO",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat do that bai");
+    let rules = auratranslate_lib::core::cleanup::resolve_two_tiers(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+    )
+    .expect("phan giai hai tang");
 
     const CHAPTER_COUNT: usize = 2_000;
     let mut text = String::new();
     for i in 0..CHAPTER_COUNT {
-        text.push_str(&format!("Chuong {i}: Tieu De\n\nnoi dung ngan cua chuong nay. QUANGCAO.\n\n"));
+        text.push_str(&format!(
+            "Chuong {i}: Tieu De\n\nnoi dung ngan cua chuong nay. QUANGCAO.\n\n"
+        ));
     }
     let source_bytes = text.len();
 
-    let pattern = auratranslate_lib::core::segment::chapterpattern::ChapterPattern::regex(
-        r"^Chuong \d+:.*$",
-    );
+    let pattern =
+        auratranslate_lib::core::segment::chapterpattern::ChapterPattern::regex(r"^Chuong \d+:.*$");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text));
     let t0 = std::time::Instant::now();
     let preview = preview_import_encoding(&shape, "en", &rules, Some(&pattern), &[], 0, &[]);
     let elapsed = t0.elapsed();
 
-    let chapters =
-        preview.self_declared_chapters.as_ref().expect("nhanh tu khai phai co khoi tach Chuong");
+    let chapters = preview
+        .self_declared_chapters
+        .as_ref()
+        .expect("nhanh tu khai phai co khoi tach Chuong");
     assert_eq!(
         chapters.chapter_count, CHAPTER_COUNT,
         "tien de: mau phai khop dung {CHAPTER_COUNT} lan"
@@ -1912,23 +2191,33 @@ fn perf_probe_chapter_split_preview_on_two_thousand_chapters() {
 fn perf_probe_chapter_split_preview_on_five_candidates_with_two_thousand_chapters() {
     let root = temp_dir("perf-probe-2000-chapters-five-candidates");
     let global = open_global(&root);
-    cleanup_add_rule(Some(&global), None, CleanupRuleTier::Global, "QUANGCAO", CleanupRuleKind::Literal)
-        .expect("them luat do that bai");
-    let rules =
-        auratranslate_lib::core::cleanup::resolve_two_tiers(&ScopeResolver::global_only(), &global, None)
-            .expect("phan giai hai tang");
+    cleanup_add_rule(
+        Some(&global),
+        None,
+        CleanupRuleTier::Global,
+        "QUANGCAO",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat do that bai");
+    let rules = auratranslate_lib::core::cleanup::resolve_two_tiers(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+    )
+    .expect("phan giai hai tang");
 
     const CHAPTER_COUNT: usize = 2_000;
     let mut text = String::new();
     for i in 0..CHAPTER_COUNT {
-        text.push_str(&format!("Chuong {i}: Tieu De\n\nnoi dung ngan cua chuong nay. QUANGCAO.\n\n"));
+        text.push_str(&format!(
+            "Chuong {i}: Tieu De\n\nnoi dung ngan cua chuong nay. QUANGCAO.\n\n"
+        ));
     }
     let bytes = text.into_bytes();
     let source_bytes = bytes.len();
 
-    let pattern = auratranslate_lib::core::segment::chapterpattern::ChapterPattern::regex(
-        r"^Chuong \d+:.*$",
-    );
+    let pattern =
+        auratranslate_lib::core::segment::chapterpattern::ChapterPattern::regex(r"^Chuong \d+:.*$");
     // `RawBytes` (khác ca ngay trên dùng `AlreadyText`) là đường THẬT kích hoạt dò bảng mã
     // (`encoding::detect` + `render_candidates`) — luôn cho đủ NĂM ứng viên khi có byte để dò
     // (doc-comment `preview_import_encoding`), mỗi ứng viên đi qua `cleanup_and_chapters_preview_for`
@@ -1951,10 +2240,10 @@ fn perf_probe_chapter_split_preview_on_five_candidates_with_two_thousand_chapter
     // ÍT NHẤT MỘT (ứng viên giải mã ĐÚNG) tái lập đúng tiền đề của ca so sánh — cùng khối
     // lượng việc với `perf_probe_chapter_split_preview_on_two_thousand_chapters`.
     assert!(
-        preview
-            .candidates
-            .iter()
-            .any(|c| c.chapters.as_ref().is_some_and(|ch| ch.chapter_count == CHAPTER_COUNT)),
+        preview.candidates.iter().any(|c| c
+            .chapters
+            .as_ref()
+            .is_some_and(|ch| ch.chapter_count == CHAPTER_COUNT)),
         "it nhat MOT trong nam ung vien (ung vien giai ma DUNG) phai khop du {CHAPTER_COUNT} lan"
     );
 
@@ -1978,14 +2267,24 @@ fn perf_probe_chapter_split_preview_on_five_candidates_with_two_thousand_chapter
 // ("bàn đo 2.000 Chương hiện có đo đường EAGER").
 // ═════════════════════════════════════════════════════════════════════════════════
 #[test]
-fn perf_probe_chapter_detail_for_index_repeated_across_seven_cursor_moves_on_two_thousand_chapters() {
+fn perf_probe_chapter_detail_for_index_repeated_across_seven_cursor_moves_on_two_thousand_chapters()
+{
     let root = temp_dir("perf-probe-2000-chapters-cursor-moves");
     let global = open_global(&root);
-    cleanup_add_rule(Some(&global), None, CleanupRuleTier::Global, "QUANGCAO", CleanupRuleKind::Literal)
-        .expect("them luat do that bai");
-    let rules =
-        auratranslate_lib::core::cleanup::resolve_two_tiers(&ScopeResolver::global_only(), &global, None)
-            .expect("phan giai hai tang");
+    cleanup_add_rule(
+        Some(&global),
+        None,
+        CleanupRuleTier::Global,
+        "QUANGCAO",
+        CleanupRuleKind::Literal,
+    )
+    .expect("them luat do that bai");
+    let rules = auratranslate_lib::core::cleanup::resolve_two_tiers(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+    )
+    .expect("phan giai hai tang");
 
     // `display_window_for_chapter` chỉ chấp nhận `chapter_index != 0` cho biến thể
     // `PipelineShape::Chapters` (`Blob` mang ĐÚNG MỘT đơn vị, doc-comment tại chỗ) — đúng
@@ -1994,7 +2293,11 @@ fn perf_probe_chapter_detail_for_index_repeated_across_seven_cursor_moves_on_two
     // đo. KHÔNG một mẫu phân tách nào ở đây — mỗi Chương đã là một đơn vị riêng.
     const CHAPTER_COUNT: usize = 2_000;
     let units: Vec<ChapterInput> = (0..CHAPTER_COUNT)
-        .map(|i| ChapterInput::AlreadyText(format!("Chuong {i}: Tieu De\n\nnoi dung ngan cua chuong nay. QUANGCAO.")))
+        .map(|i| {
+            ChapterInput::AlreadyText(format!(
+                "Chuong {i}: Tieu De\n\nnoi dung ngan cua chuong nay. QUANGCAO."
+            ))
+        })
         .collect();
     let source_bytes: usize = units
         .iter()
@@ -2007,21 +2310,44 @@ fn perf_probe_chapter_detail_for_index_repeated_across_seven_cursor_moves_on_two
 
     // Một lượt dời con trỏ (một lượt gọi) — chi phí CÔ LẬP.
     let t0 = std::time::Instant::now();
-    let (one_call_detail, _blocks) =
-        chapter_detail_for_index(&shape, 0, encoding_rs::UTF_8, None, "en", &rules, false, &[])
-            .expect("Chuong 0 phai co chi tiet");
+    let (one_call_detail, _blocks) = chapter_detail_for_index(
+        &shape,
+        0,
+        encoding_rs::UTF_8,
+        None,
+        "en",
+        &rules,
+        false,
+        &[],
+    )
+    .expect("Chuong 0 phai co chi tiet");
     let one_call = t0.elapsed();
-    assert!(one_call_detail.final_text.contains("noi dung ngan cua chuong nay"));
-    assert!(!one_call_detail.final_text.contains("QUANGCAO"), "luat lam sach phai xoa QUANGCAO");
+    assert!(
+        one_call_detail
+            .final_text
+            .contains("noi dung ngan cua chuong nay")
+    );
+    assert!(
+        !one_call_detail.final_text.contains("QUANGCAO"),
+        "luat lam sach phai xoa QUANGCAO"
+    );
 
     // BẢY lượt dời con trỏ liên tiếp (`⌥→` × 7, chỉ số 0..7) — hình dạng thật của người dùng
     // đọc lướt qua các Chương của một lượt nhập lớn.
     const MOVES: usize = 7;
     let t1 = std::time::Instant::now();
     for i in 0..MOVES {
-        let (detail, _blocks) =
-            chapter_detail_for_index(&shape, i, encoding_rs::UTF_8, None, "en", &rules, false, &[])
-                .unwrap_or_else(|| panic!("Chuong {i} phai co chi tiet"));
+        let (detail, _blocks) = chapter_detail_for_index(
+            &shape,
+            i,
+            encoding_rs::UTF_8,
+            None,
+            "en",
+            &rules,
+            false,
+            &[],
+        )
+        .unwrap_or_else(|| panic!("Chuong {i} phai co chi tiet"));
         assert!(detail.final_text.contains("noi dung ngan cua chuong nay"));
     }
     let seven_moves = t1.elapsed();

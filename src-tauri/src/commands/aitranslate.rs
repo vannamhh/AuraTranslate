@@ -58,8 +58,8 @@ use crate::commands::aiprompt::{
     assemble_and_record_prompt_with_tm, segment_not_in_chapter,
 };
 use crate::commands::project::OpenWork;
-use crate::core::aiconfig::{AiConfigField, resolve_two_tiers};
 use crate::core::ai::client::{OpenAiChatClient, OpenAiClientError};
+use crate::core::aiconfig::{AiConfigField, resolve_two_tiers};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{ReadHandle, Store, StoreError, StoreKind};
 use crate::ports::translation_provider::{
@@ -110,24 +110,36 @@ fn keychain_unavailable() -> IpcError {
 /// còn nhánh nào "xếp chặt" — `retryable` dưới đây khớp NGUYÊN VĂN Quyết định 2.
 fn openai_client_error_family(err: &OpenAiClientError) -> (&'static str, MessageKey, bool) {
     match err {
-        OpenAiClientError::RequestFailed { .. } | OpenAiClientError::ReadFailed { .. } => {
-            ("ai_translate.provider_unreachable", MessageKey::AiTranslateProviderUnreachable, true)
-        }
-        OpenAiClientError::NonSuccessStatus { .. } => {
-            ("ai_translate.provider_refused", MessageKey::AiTranslateProviderRefused, false)
-        }
-        OpenAiClientError::StreamEndedWithoutDone => {
-            ("ai_translate.stream_ended_without_done", MessageKey::AiTranslateStreamEndedWithoutDone, true)
-        }
-        OpenAiClientError::MalformedEvent { .. } | OpenAiClientError::BufferOverflow { .. } => {
-            ("ai_translate.reply_unreadable", MessageKey::AiTranslateReplyUnreadable, false)
-        }
-        OpenAiClientError::ClientBuildFailed { .. } => {
-            ("ai_translate.client_build_failed", MessageKey::AiTranslateClientBuildFailed, false)
-        }
-        OpenAiClientError::ApiKeyHeaderInvalid { .. } => {
-            ("ai_translate.api_key_header_invalid", MessageKey::AiTranslateApiKeyHeaderInvalid, false)
-        }
+        OpenAiClientError::RequestFailed { .. } | OpenAiClientError::ReadFailed { .. } => (
+            "ai_translate.provider_unreachable",
+            MessageKey::AiTranslateProviderUnreachable,
+            true,
+        ),
+        OpenAiClientError::NonSuccessStatus { .. } => (
+            "ai_translate.provider_refused",
+            MessageKey::AiTranslateProviderRefused,
+            false,
+        ),
+        OpenAiClientError::StreamEndedWithoutDone => (
+            "ai_translate.stream_ended_without_done",
+            MessageKey::AiTranslateStreamEndedWithoutDone,
+            true,
+        ),
+        OpenAiClientError::MalformedEvent { .. } | OpenAiClientError::BufferOverflow { .. } => (
+            "ai_translate.reply_unreadable",
+            MessageKey::AiTranslateReplyUnreadable,
+            false,
+        ),
+        OpenAiClientError::ClientBuildFailed { .. } => (
+            "ai_translate.client_build_failed",
+            MessageKey::AiTranslateClientBuildFailed,
+            false,
+        ),
+        OpenAiClientError::ApiKeyHeaderInvalid { .. } => (
+            "ai_translate.api_key_header_invalid",
+            MessageKey::AiTranslateApiKeyHeaderInvalid,
+            false,
+        ),
     }
 }
 
@@ -214,7 +226,10 @@ fn resolved_field_value(
     resolved: &std::collections::BTreeMap<String, crate::core::aiconfig::ResolvedField>,
     field: AiConfigField,
 ) -> String {
-    resolved.get(field.as_str()).map(|f| f.value.clone()).unwrap_or_default()
+    resolved
+        .get(field.as_str())
+        .map(|f| f.value.clone())
+        .unwrap_or_default()
 }
 
 pub(crate) struct ResolvedCallConfig<'a> {
@@ -244,13 +259,17 @@ pub(crate) fn resolve_call_config<'a>(
         return Ok(None);
     }
 
-    let temperature: Option<f64> =
-        resolved_field_value(&resolved, AiConfigField::Temperature).trim().parse().ok();
-    let max_tokens: Option<u32> =
-        match resolved_field_value(&resolved, AiConfigField::MaxTokens).trim().parse() {
-            Ok(0) | Err(_) => None,
-            Ok(v) => Some(v),
-        };
+    let temperature: Option<f64> = resolved_field_value(&resolved, AiConfigField::Temperature)
+        .trim()
+        .parse()
+        .ok();
+    let max_tokens: Option<u32> = match resolved_field_value(&resolved, AiConfigField::MaxTokens)
+        .trim()
+        .parse()
+    {
+        Ok(0) | Err(_) => None,
+        Ok(v) => Some(v),
+    };
 
     Ok(Some(ResolvedCallConfig {
         global_store,
@@ -365,8 +384,13 @@ pub fn prepare_translate_call(
 /// tự tài liệu (§Always spec 4.9: "the batch is exactly the user's selection, translated in
 /// document order") — không phải thứ tự `segment_ids` được gửi lên.
 pub enum PreparedBatchItem {
-    Omitted { segment_id: i64 },
-    ToTranslate { segment_id: i64, prepared: PreparedTranslateCall },
+    Omitted {
+        segment_id: i64,
+    },
+    ToTranslate {
+        segment_id: i64,
+        prepared: PreparedTranslateCall,
+    },
 }
 
 /// Kết quả [`prepare_batch_call`] — cùng khuôn [`PrepareOutcome`], "chưa cấu hình" là một
@@ -496,7 +520,9 @@ pub struct AiTranslateGeneration(std::sync::Arc<std::sync::atomic::AtomicU64>);
 
 impl AiTranslateGeneration {
     fn next(&self) -> u64 {
-        self.0.fetch_add(1, std::sync::atomic::Ordering::AcqRel).wrapping_add(1)
+        self.0
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+            .wrapping_add(1)
     }
 
     fn is_current(&self, generation: u64) -> bool {
@@ -529,7 +555,9 @@ pub async fn run_translate_call<P: TranslationProvider>(
         // tren man hinh (§Always spec 4.8), khong co gi de lam voi mot loi gui THEM.
         let _ = channel.send(text.to_owned());
     };
-    provider.translate(request, &mut on_token, should_cancel).await
+    provider
+        .translate(request, &mut on_token, should_cancel)
+        .await
 }
 
 /// Số liệu sử dụng + ước tính chi phí, hình dạng WIRE — Story 4.11. Mirror trực tiếp
@@ -584,14 +612,22 @@ impl From<TranslateUsage> for AiTranslateUsageWire {
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AiTranslateBatchEventWire {
-    Token { segment_id: i64, text: String },
+    Token {
+        segment_id: i64,
+        text: String,
+    },
     /// `usage` — Story 4.11: số liệu CỦA RIÊNG câu này, `None` khi provider không trả về gì
     /// cho câu này (I/O Matrix spec 4.11 "Provider sends no usage"). Tổng của cả lô, và việc
     /// phân biệt "mọi câu đã báo số" khỏi "chỉ một phần đã báo số", là việc CỘNG DỒN của
     /// webview (`aiTranslateBatchState.ts`) trên những `usage` này — Rust không tự cộng, mỗi
     /// khung chỉ mang sự thật CỦA CHÍNH NÓ.
-    Done { segment_id: i64, usage: Option<AiTranslateUsageWire> },
-    Skipped { segment_id: i64 },
+    Done {
+        segment_id: i64,
+        usage: Option<AiTranslateUsageWire>,
+    },
+    Skipped {
+        segment_id: i64,
+    },
 }
 
 /// Kết quả CỦA VÒNG LẶP [`run_batch_call`] — chỉ hai giá trị, KHÔNG ba: `AiTranslateOutcomeWire`
@@ -664,10 +700,16 @@ pub async fn run_batch_call<P: TranslationProvider>(
             prompt: &prepared.prompt,
         };
         let mut on_token = |text: &str| {
-            let _ = channel.send(AiTranslateBatchEventWire::Token { segment_id, text: text.to_owned() });
+            let _ = channel.send(AiTranslateBatchEventWire::Token {
+                segment_id,
+                text: text.to_owned(),
+            });
         };
 
-        match provider.translate(request, &mut on_token, should_cancel).await {
+        match provider
+            .translate(request, &mut on_token, should_cancel)
+            .await
+        {
             Ok(TranslateOutcome::Done(usage)) => {
                 let _ = channel.send(AiTranslateBatchEventWire::Done {
                     segment_id,
@@ -721,7 +763,10 @@ async fn send_prepared_translate_call(
 /// ca đó, rơi về họ "provider không tới được", không mang `segment_id`: một panic không phải
 /// "provider trả lỗi trên câu N", nó là một sự cố hạ tầng của chính lượt gọi).
 enum BatchCallError {
-    Provider { segment_id: i64, err: OpenAiClientError },
+    Provider {
+        segment_id: i64,
+        err: OpenAiClientError,
+    },
     Panicked,
 }
 
@@ -744,7 +789,12 @@ async fn send_prepared_batch_call(
         let provider = OpenAiChatClient::new();
         let should_cancel = || !generation_state.is_current(generation);
 
-        tauri::async_runtime::handle().block_on(run_batch_call(&provider, &items, &channel, &should_cancel))
+        tauri::async_runtime::handle().block_on(run_batch_call(
+            &provider,
+            &items,
+            &channel,
+            &should_cancel,
+        ))
     });
 
     match join.await {
@@ -807,9 +857,9 @@ pub enum AiTranslateOutcomeWire {
 pub fn single_run_outcome_wire(outcome: TranslateOutcome) -> AiTranslateOutcomeWire {
     match outcome {
         TranslateOutcome::Cancelled => AiTranslateOutcomeWire::Cancelled,
-        TranslateOutcome::Done(usage) => {
-            AiTranslateOutcomeWire::Done { usage: usage.map(AiTranslateUsageWire::from) }
-        }
+        TranslateOutcome::Done(usage) => AiTranslateOutcomeWire::Done {
+            usage: usage.map(AiTranslateUsageWire::from),
+        },
     }
 }
 
@@ -818,10 +868,11 @@ pub fn single_run_outcome_wire(outcome: TranslateOutcome) -> AiTranslateOutcomeW
 /// đầu tệp).
 pub mod wire {
     use super::{
-        AiTranslateBatchEventWire, AiTranslateBatchOutcome, AiTranslateGeneration, AiTranslateOutcomeWire,
-        BatchCallError, PrepareBatchOutcome, PrepareOutcome, PreparedBatchItem, batch_panicked_error,
-        batch_stopped_error, prepare_batch_call, prepare_translate_call, send_prepared_batch_call,
-        send_prepared_translate_call, single_run_outcome_wire, state_missing,
+        AiTranslateBatchEventWire, AiTranslateBatchOutcome, AiTranslateGeneration,
+        AiTranslateOutcomeWire, BatchCallError, PrepareBatchOutcome, PrepareOutcome,
+        PreparedBatchItem, batch_panicked_error, batch_stopped_error, prepare_batch_call,
+        prepare_translate_call, send_prepared_batch_call, send_prepared_translate_call,
+        single_run_outcome_wire, state_missing,
     };
     use crate::commands::aiprompt::{LastAssembledPromptState, mark_prompt_as_sent};
     use crate::commands::project::OpenWorkState;
@@ -894,10 +945,13 @@ pub mod wire {
         // `mark_prompt_as_sent`), nen day la moc so DUY NHAT dung de quyet co stamp hay khong.
         let model_sent = prepared.model.clone();
         let prompt_sent = prepared.prompt.clone();
-        let outcome = send_prepared_translate_call(prepared, channel, generation_state, generation).await;
+        let outcome =
+            send_prepared_translate_call(prepared, channel, generation_state, generation).await;
 
         match outcome {
-            Ok(TranslateOutcome::Cancelled) => Ok(single_run_outcome_wire(TranslateOutcome::Cancelled)),
+            Ok(TranslateOutcome::Cancelled) => {
+                Ok(single_run_outcome_wire(TranslateOutcome::Cancelled))
+            }
             Ok(TranslateOutcome::Done(usage)) => {
                 if let Some(global) = app.try_state::<Store>() {
                     if let Some(sent_at) = super::now_utc_iso8601(&global) {
@@ -984,9 +1038,10 @@ pub mod wire {
         // trong lo, du dich xong, se la mot no-op AN TOAN, dung nhu khi nguoi dung doi segment
         // giua chung o lot dich MOT cau. Xem doc-comment `prepare_batch_call` cho ly le day du.
         let last_sent = items.iter().rev().find_map(|item| match item {
-            PreparedBatchItem::ToTranslate { segment_id, prepared } => {
-                Some((*segment_id, prepared.prompt.clone(), prepared.model.clone()))
-            }
+            PreparedBatchItem::ToTranslate {
+                segment_id,
+                prepared,
+            } => Some((*segment_id, prepared.prompt.clone(), prepared.model.clone())),
             PreparedBatchItem::Omitted { .. } => None,
         });
 
@@ -1014,7 +1069,9 @@ pub mod wire {
                 // tự cộng dồn từ những khung đó.
                 Ok(AiTranslateOutcomeWire::Done { usage: None })
             }
-            Err(BatchCallError::Provider { segment_id, err }) => Err(batch_stopped_error(segment_id, err)),
+            Err(BatchCallError::Provider { segment_id, err }) => {
+                Err(batch_stopped_error(segment_id, err))
+            }
             Err(BatchCallError::Panicked) => Err(batch_panicked_error()),
         }
     }

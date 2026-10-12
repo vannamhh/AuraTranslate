@@ -72,7 +72,10 @@ fn fts_without_rebuild_silently_returns_zero_rows_not_an_error() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(hits, 0, "without rebuild, external-content FTS must be empty, not error");
+    assert_eq!(
+        hits, 0,
+        "without rebuild, external-content FTS must be empty, not error"
+    );
 
     conn.execute_batch("INSERT INTO sense_fts(sense_fts) VALUES('rebuild');")
         .unwrap();
@@ -140,13 +143,19 @@ fn dict_example_and_dict_citation_sense_id_foreign_key_is_enforced_live() {
         "INSERT INTO dict_example (sense_id, text, ord) VALUES (999, 'x', 0)",
         [],
     );
-    assert!(example_result.is_err(), "dict_example.sense_id must reject a non-existent sense_id");
+    assert!(
+        example_result.is_err(),
+        "dict_example.sense_id must reject a non-existent sense_id"
+    );
 
     let citation_result = conn.execute(
         "INSERT INTO dict_citation (sense_id, text, ord) VALUES (999, 'x', 0)",
         [],
     );
-    assert!(citation_result.is_err(), "dict_citation.sense_id must reject a non-existent sense_id");
+    assert!(
+        citation_result.is_err(),
+        "dict_citation.sense_id must reject a non-existent sense_id"
+    );
 }
 
 /// AC5 mệnh đề 1/2: hai bảng trên `gloss`, tên trần = chính, hậu tố `_nd` = phụ.
@@ -191,5 +200,8 @@ fn char_idx_composite_primary_key_rejects_a_duplicate_pair_live() {
     conn.execute("INSERT INTO char_idx (ch, entry_id) VALUES ('山', 1)", [])
         .unwrap();
     let dup = conn.execute("INSERT INTO char_idx (ch, entry_id) VALUES ('山', 1)", []);
-    assert!(dup.is_err(), "a duplicate (ch, entry_id) pair must be rejected by the composite primary key");
+    assert!(
+        dup.is_err(),
+        "a duplicate (ch, entry_id) pair must be rejected by the composite primary key"
+    );
 }

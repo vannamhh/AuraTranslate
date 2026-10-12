@@ -185,7 +185,10 @@ where
 ///
 /// Đổi tên từ `run` (Story 1.9) → `run_base` (Story 1.10) khi thêm hai đường dựng lớp
 /// gỡ rời dùng chung phần đuôi (`finalize::finish`) — nội dung hàm này không đổi.
-pub fn run_base(raw_dir: &Path, out_path: &Path) -> Result<BuildReport, Box<dyn std::error::Error>> {
+pub fn run_base(
+    raw_dir: &Path,
+    out_path: &Path,
+) -> Result<BuildReport, Box<dyn std::error::Error>> {
     let tmp_path = finalize::prepare_fresh_output(out_path)?;
 
     let mut conn = Connection::open(&tmp_path)?;
@@ -432,8 +435,10 @@ fn load_en_wiktionary_vi_labeled_nom(raw_dir: &Path) -> Vec<(String, String)> {
             // CÙNG ký tự) khỏi vế "nhãn Nôm đã xác nhận", xem doc-comment
             // `nom_guard::nom_only_readings` — không siết vế này báo động giả 63,4% khi
             // đối chiếu với Thiều Chửu (nguồn Hán Việt chuẩn) trên dữ liệu thật.
-            let nom_only =
-                nom_guard::nom_only_readings(entry.han_viet.as_deref(), entry.nom_reading.as_deref())?;
+            let nom_only = nom_guard::nom_only_readings(
+                entry.han_viet.as_deref(),
+                entry.nom_reading.as_deref(),
+            )?;
             Some((entry.headword, nom_only))
         })
         .collect()
@@ -524,7 +529,10 @@ struct DetachableLayer {
     raw_relative_path: &'static [&'static str],
     source_version: &'static str,
     #[allow(clippy::type_complexity)]
-    parse: fn(BufReader<File>) -> Box<dyn Iterator<Item = Result<crate::model::RawEntry, crate::model::ParseIssue>>>,
+    parse: fn(
+        BufReader<File>,
+    )
+        -> Box<dyn Iterator<Item = Result<crate::model::RawEntry, crate::model::ParseIssue>>>,
 }
 
 const DETACHABLE_LAYERS: &[DetachableLayer] = &[
@@ -549,7 +557,9 @@ const DETACHABLE_LAYERS: &[DetachableLayer] = &[
 ];
 
 fn raw_path_for(raw_dir: &Path, relative: &[&str]) -> std::path::PathBuf {
-    relative.iter().fold(raw_dir.to_path_buf(), |acc, seg| acc.join(seg))
+    relative
+        .iter()
+        .fold(raw_dir.to_path_buf(), |acc, seg| acc.join(seg))
 }
 
 /// Tên tệp cố định trong Rust cho MỘT mã lớp — không tham số hoá (§Quyết định #3 của
@@ -626,7 +636,10 @@ fn require_all_raw_sources_present(raw_dir: &Path) -> Result<(), Box<dyn std::er
 
 /// `--layer all` (mặc định): dựng ĐÚNG base + hai lớp gỡ rời hôm nay — hỏng nếu BẤT KỲ
 /// lớp nào thiếu nguồn thô. Không có chế độ "bỏ qua lớp thiếu nguồn" (§Bẫy 7).
-pub fn run_all(raw_dir: &Path, out_dir: &Path) -> Result<AllLayersReport, Box<dyn std::error::Error>> {
+pub fn run_all(
+    raw_dir: &Path,
+    out_dir: &Path,
+) -> Result<AllLayersReport, Box<dyn std::error::Error>> {
     std::fs::create_dir_all(out_dir)?;
     require_all_raw_sources_present(raw_dir)?;
 
@@ -660,7 +673,10 @@ mod distribution_table_tests {
     #[test]
     fn distribution_table_matches_detachable_all_exactly() {
         let table: Vec<&str> = DETACHABLE_LAYERS.iter().map(|l| l.meta.code).collect();
-        let declared: Vec<&str> = sources_meta::DETACHABLE_ALL.iter().map(|s| s.code).collect();
+        let declared: Vec<&str> = sources_meta::DETACHABLE_ALL
+            .iter()
+            .map(|s| s.code)
+            .collect();
         assert_eq!(
             table, declared,
             "DETACHABLE_LAYERS (build.rs) phải khớp DETACHABLE_ALL (sources_meta.rs) từng mã, đúng thứ tự"
@@ -673,7 +689,11 @@ mod distribution_table_tests {
     fn distribution_table_has_no_duplicate_codes() {
         let codes: Vec<&str> = DETACHABLE_LAYERS.iter().map(|l| l.meta.code).collect();
         let distinct: std::collections::HashSet<&str> = codes.iter().copied().collect();
-        assert_eq!(codes.len(), distinct.len(), "DETACHABLE_LAYERS có mã lớp trùng: {codes:?}");
+        assert_eq!(
+            codes.len(),
+            distinct.len(),
+            "DETACHABLE_LAYERS có mã lớp trùng: {codes:?}"
+        );
     }
 
     /// Tên tệp đầu ra của MỌI lớp phải rời nhau — một lớp gỡ rời mang `code = "core"`
@@ -682,9 +702,17 @@ mod distribution_table_tests {
     #[test]
     fn every_layer_writes_to_a_distinct_output_file() {
         let mut names: Vec<String> = vec![output_file_name("base")];
-        names.extend(DETACHABLE_LAYERS.iter().map(|l| output_file_name(l.meta.code)));
+        names.extend(
+            DETACHABLE_LAYERS
+                .iter()
+                .map(|l| output_file_name(l.meta.code)),
+        );
         let distinct: std::collections::HashSet<&String> = names.iter().collect();
-        assert_eq!(names.len(), distinct.len(), "tên tệp đầu ra bị trùng: {names:?}");
+        assert_eq!(
+            names.len(),
+            distinct.len(),
+            "tên tệp đầu ra bị trùng: {names:?}"
+        );
     }
 }
 
@@ -731,7 +759,10 @@ mod require_nonempty_ratio_tests {
 
         let err = require_nonempty(&stats).expect_err("90% genuine skip ratio must fail the build");
         let msg = err.to_string();
-        assert!(msg.contains("fixture-source"), "lỗi phải nêu tên nguồn: {msg}");
+        assert!(
+            msg.contains("fixture-source"),
+            "lỗi phải nêu tên nguồn: {msg}"
+        );
         assert!(msg.contains("60"), "lỗi phải nêu ngưỡng: {msg}");
     }
 
@@ -740,7 +771,10 @@ mod require_nonempty_ratio_tests {
         let mut stats = SourceStats::new("fixture-source");
         record_ok(&mut stats);
         for _ in 0..9 {
-            record_bad(&mut stats, "lang_code != vi (filtered, expected — không phải lỗi đọc)");
+            record_bad(
+                &mut stats,
+                "lang_code != vi (filtered, expected — không phải lỗi đọc)",
+            );
         }
         assert_eq!(genuine_skip_ratio(&stats), 0.0);
         require_nonempty(&stats).expect("filtered-expected skips must not trip the ratio check");
@@ -860,7 +894,13 @@ pub fn print_report(report: &BuildReport) {
     for s in &report.per_source {
         println!(
             "{:14} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
-            s.source_code, s.lines_read, s.lines_skipped, s.entries, s.senses, s.examples, s.citations
+            s.source_code,
+            s.lines_read,
+            s.lines_skipped,
+            s.entries,
+            s.senses,
+            s.examples,
+            s.citations
         );
         for (reason, count) in &s.skip_reasons {
             println!("    [{count:>8}] {reason}");

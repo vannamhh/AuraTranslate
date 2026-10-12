@@ -30,7 +30,7 @@
 //!   [`super::paragraph::at_end_of_chapter`] sau khi biết vị trí — đúng như doc-comment của
 //!   hàm đó đã dặn trước cho Story 2.8.
 
-use super::paragraph::{merged, split_into, ParagraphFlags};
+use super::paragraph::{ParagraphFlags, merged, split_into};
 use super::split::LANG_CHINESE;
 
 /// Một **mảnh đi vào** một lượt gộp, hoặc segment nguồn của một lượt tách.
@@ -106,11 +106,7 @@ pub const ORIGIN_NONE: &str = "";
 /// là bảng nối duy nhất, không dựng bảng thứ hai.
 #[must_use]
 pub(crate) fn source_joiner(source_lang: &str) -> &'static str {
-    if source_lang == LANG_CHINESE {
-        ""
-    } else {
-        " "
-    }
+    if source_lang == LANG_CHINESE { "" } else { " " }
 }
 
 /// Nối các bản dịch của một lượt gộp.

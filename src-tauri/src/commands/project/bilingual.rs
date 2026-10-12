@@ -234,7 +234,10 @@ pub fn preview_bilingual_import(
     // by the webview's own column-swap guard: callers other than that UI can reach this
     // function directly.
     if bilingual_source_column == bilingual_target_column {
-        return Err(ImportError::BilingualSameColumn { column: bilingual_source_column }.into());
+        return Err(ImportError::BilingualSameColumn {
+            column: bilingual_source_column,
+        }
+        .into());
     }
     if let PipelineShape::BilingualTables { .. } = shape {
         let source_tables = bilingual_source_tables(shape);
@@ -253,14 +256,19 @@ pub fn preview_bilingual_import(
             PipelineInput::with_encoding(rows_shape, encoding_rs::UTF_8, source_lang)
                 .with_cleanup_rules(cleanup_rules.to_vec())
                 .with_chapter_pattern(chapter_pattern.cloned())
-                .with_bilingual_columns(bilingual_source_column, bilingual_target_column, bilingual_has_header)
+                .with_bilingual_columns(
+                    bilingual_source_column,
+                    bilingual_target_column,
+                    bilingual_has_header,
+                )
                 .with_bilingual_regroupings(regroupings.to_vec()),
         )
         .map_err(IpcError::from)?;
         let sample_rows = outcome.bilingual_sample_rows.clone();
         let row_count = outcome.bilingual_row_count;
         let column_count = sample_rows.iter().map(Vec::len).max().unwrap_or(0);
-        let candidate = bilingual_candidate_wire("docx", encoding_rs::UTF_8.name(), None, Some(&outcome));
+        let candidate =
+            bilingual_candidate_wire("docx", encoding_rs::UTF_8.name(), None, Some(&outcome));
         return Ok(BilingualImportEncodingPreview {
             candidates: vec![candidate],
             sample_rows,
@@ -329,7 +337,12 @@ pub fn preview_bilingual_import(
                     if let Some(o) = &outcome {
                         selected_sample_rows = o.bilingual_sample_rows.clone();
                         selected_row_count = o.bilingual_row_count;
-                        selected_column_count = o.bilingual_sample_rows.iter().map(Vec::len).max().unwrap_or(0);
+                        selected_column_count = o
+                            .bilingual_sample_rows
+                            .iter()
+                            .map(Vec::len)
+                            .max()
+                            .unwrap_or(0);
                     }
                 }
 
@@ -363,8 +376,12 @@ fn bilingual_candidate_wire(
 ) -> BilingualEncodingCandidateWire {
     match outcome {
         Some(o) => {
-            let pair_count: usize =
-                o.chapters.iter().filter_map(|c| c.bilingual_segments.as_ref()).map(|s| s.len()).sum();
+            let pair_count: usize = o
+                .chapters
+                .iter()
+                .filter_map(|c| c.bilingual_segments.as_ref())
+                .map(|s| s.len())
+                .sum();
             BilingualEncodingCandidateWire {
                 label: label.to_owned(),
                 encoding: encoding.to_owned(),
@@ -373,7 +390,11 @@ fn bilingual_candidate_wire(
                 chapter_count: o.chapters.len(),
                 pair_count,
                 skipped_target_sentence_count: o.bilingual_skipped_target_sentence_count,
-                mismatches: o.bilingual_mismatches.iter().map(BilingualMismatchWire::from).collect(),
+                mismatches: o
+                    .bilingual_mismatches
+                    .iter()
+                    .map(BilingualMismatchWire::from)
+                    .collect(),
                 chapters: Some(build_chapter_split_preview_wire(&o.chapters, 0, &[])),
             }
         }
@@ -420,11 +441,18 @@ pub fn confirm_bilingual_import(
     table_index: Option<usize>,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
-        IpcError::from(ImportError::UnrecognizedEncoding { wire_id: encoding_wire_id.to_owned() })
+        IpcError::from(ImportError::UnrecognizedEncoding {
+            wire_id: encoding_wire_id.to_owned(),
+        })
     })?;
 
-    let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let shape = guard.as_ref().map(|p| p.shape.clone()).ok_or_else(no_pending_import_source)?;
+    let mut guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let shape = guard
+        .as_ref()
+        .map(|p| p.shape.clone())
+        .ok_or_else(no_pending_import_source)?;
     let shape = select_bilingual_table(&shape, table_index)?;
 
     let opened = create_work(

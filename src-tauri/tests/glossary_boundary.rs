@@ -110,15 +110,21 @@ const FORBIDDEN_TABLES: [&str; 2] = ["glossary_entry", "glossary_candidate"];
 /// 🔵 **CẬP NHẬT 2026-08-24 (Story 3.8) — `reject_candidate` NAY CŨNG CÓ CHỖ GỌI SẢN PHẨM,
 /// chuyển sang `QUICK_ADD_SURFACE`.** `commands::glossary::glossary_reject_candidate` (lớp
 /// phủ duyệt hàng loạt) là chỗ gọi ĐẦU TIÊN — đóng nốt món nợ mà đoạn trên từng ghi tên nó.
-const GLOSSARY_ONLY_SURFACE: [&str; 4] =
-    ["insert_manual_entry", "confirm_translation", "load_tier", "insert_candidate"];
+const GLOSSARY_ONLY_SURFACE: [&str; 4] = [
+    "insert_manual_entry",
+    "confirm_translation",
+    "load_tier",
+    "insert_candidate",
+];
 
 /// 🔵 **THÊM 2026-08-20 (Story 3.3)** — vị từ THUẦN dùng bởi cổng thật
 /// ([`no_raw_glossary_surface_function_may_be_called_from_outside_glossary`]) **VÀ**
 /// đối chứng mới bên dưới, cùng lý do [`line_spells_a_non_manual_term_origin_token`]: hai
 /// bên không thể lệch nhau bằng cách trùng lặp logic so chuỗi ở hai chỗ khác nhau.
 fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static str> {
-    GLOSSARY_ONLY_SURFACE.into_iter().find(|needle| code.contains(needle))
+    GLOSSARY_ONLY_SURFACE
+        .into_iter()
+        .find(|needle| code.contains(needle))
 }
 
 /// Bốn hàm mà `commands::glossary` ĐƯỢC PHÉP gọi xuống `core::glossary` — bề mặt Story 3.3
@@ -240,8 +246,7 @@ fn all_rust_sources() -> (PathBuf, Vec<PathBuf>) {
 
 /// Dòng **mã** của một tệp: `(số dòng 1-based, nội dung đã trim đầu)`.
 fn code_lines(file: &Path) -> Vec<(usize, String)> {
-    let text =
-        fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+    let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
     boundary_scan::code_lines(&text).collect()
 }
 
@@ -509,16 +514,12 @@ fn the_non_manual_origin_token_check_catches_term_origin_but_not_candidate_origi
          ma cong nay dung ra de chan"
     );
     assert_eq!(
-        line_spells_a_non_manual_term_origin_token(
-            "let entry = TermOrigin::ReviewHarvest;"
-        ),
+        line_spells_a_non_manual_term_origin_token("let entry = TermOrigin::ReviewHarvest;"),
         Some("TermOrigin::ReviewHarvest"),
         "ca DUONG THAT thu hai: TermOrigin::ReviewHarvest phai bi bat"
     );
     assert_eq!(
-        line_spells_a_non_manual_term_origin_token(
-            "term_origin: TermOrigin::FileImport.as_str(),"
-        ),
+        line_spells_a_non_manual_term_origin_token("term_origin: TermOrigin::FileImport.as_str(),"),
         Some("TermOrigin::FileImport"),
         "ca DUONG THAT thu ba (Story 3.10): TermOrigin::FileImport phai bi bat"
     );
@@ -533,9 +534,7 @@ fn the_non_manual_origin_token_check_catches_term_origin_but_not_candidate_origi
          do OAN dung ca nay"
     );
     assert_eq!(
-        line_spells_a_non_manual_term_origin_token(
-            "let o = CandidateOrigin::ReviewHarvest;"
-        ),
+        line_spells_a_non_manual_term_origin_token("let o = CandidateOrigin::ReviewHarvest;"),
         None,
         "ca AM thu hai: CandidateOrigin::ReviewHarvest cung KHONG duoc bi bat, cung ly do \
          tren"

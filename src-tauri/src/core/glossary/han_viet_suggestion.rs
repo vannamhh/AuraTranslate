@@ -202,16 +202,28 @@ mod tests {
 
     #[test]
     fn as_status_str_spells_all_five_closed_variants() {
-        assert_eq!(HanVietSuggestion::Ready("Bac Luong".to_owned()).as_status_str(), "ok");
+        assert_eq!(
+            HanVietSuggestion::Ready("Bac Luong".to_owned()).as_status_str(),
+            "ok"
+        );
         assert_eq!(HanVietSuggestion::NotChinese.as_status_str(), "not_chinese");
         assert_eq!(HanVietSuggestion::NoReading.as_status_str(), "no_reading");
-        assert_eq!(HanVietSuggestion::DictUnavailable.as_status_str(), "dict_unavailable");
-        assert_eq!(HanVietSuggestion::NotRequested.as_status_str(), "not_requested");
+        assert_eq!(
+            HanVietSuggestion::DictUnavailable.as_status_str(),
+            "dict_unavailable"
+        );
+        assert_eq!(
+            HanVietSuggestion::NotRequested.as_status_str(),
+            "not_requested"
+        );
     }
 
     #[test]
     fn suggestion_text_is_some_only_for_ready() {
-        assert_eq!(HanVietSuggestion::Ready("x".to_owned()).suggestion_text(), Some("x"));
+        assert_eq!(
+            HanVietSuggestion::Ready("x".to_owned()).suggestion_text(),
+            Some("x")
+        );
         assert_eq!(HanVietSuggestion::NotChinese.suggestion_text(), None);
         assert_eq!(HanVietSuggestion::NoReading.suggestion_text(), None);
         assert_eq!(HanVietSuggestion::DictUnavailable.suggestion_text(), None);

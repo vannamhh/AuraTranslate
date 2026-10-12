@@ -318,7 +318,10 @@ impl std::fmt::Display for ImportError {
                 write!(f, "import: unsupported format {format:?}")
             }
             ImportError::UndecodableBytes { path, encoding } => {
-                write!(f, "import[{path}]: undecodable bytes for encoding {encoding}")
+                write!(
+                    f,
+                    "import[{path}]: undecodable bytes for encoding {encoding}"
+                )
             }
             ImportError::ReadFailed { path, detail } => {
                 write!(f, "import[{path}]: read failed: {detail}")
@@ -353,38 +356,66 @@ impl std::fmt::Display for ImportError {
             ImportError::InvalidChapterPattern { detail } => {
                 write!(f, "import: invalid chapter pattern: {detail}")
             }
-            ImportError::WebImportItemFailed { url, reason, detail } => {
+            ImportError::WebImportItemFailed {
+                url,
+                reason,
+                detail,
+            } => {
                 write!(f, "import[webimport {url}]: {reason:?}: {detail}")
             }
             ImportError::BilingualUnterminatedQuotedField { row } => {
-                write!(f, "import[bilingual row {row}]: quoted field opened but never closed")
+                write!(
+                    f,
+                    "import[bilingual row {row}]: quoted field opened but never closed"
+                )
             }
             ImportError::BilingualTooFewColumns { found } => {
-                write!(f, "import[bilingual]: {found} column(s) found, need at least 2")
+                write!(
+                    f,
+                    "import[bilingual]: {found} column(s) found, need at least 2"
+                )
             }
             ImportError::BilingualMismatchedRows { count } => {
-                write!(f, "import[bilingual]: {count} mismatched row(s), confirm refused")
+                write!(
+                    f,
+                    "import[bilingual]: {count} mismatched row(s), confirm refused"
+                )
             }
             ImportError::BilingualUnsupportedFormat { format } => {
                 write!(f, "import[bilingual]: unsupported format {format:?}")
             }
             ImportError::BilingualSkipNotAllowed { row_number } => {
-                write!(f, "import[bilingual row {row_number}]: skip not allowed, both sides have sentences")
+                write!(
+                    f,
+                    "import[bilingual row {row_number}]: skip not allowed, both sides have sentences"
+                )
             }
             ImportError::BilingualSameColumn { column } => {
-                write!(f, "import[bilingual]: source and target columns are both {column}")
+                write!(
+                    f,
+                    "import[bilingual]: source and target columns are both {column}"
+                )
             }
             ImportError::BilingualNoTwoColumnTable => {
-                write!(f, "import[bilingual]: no top-level table with at least 2 columns")
+                write!(
+                    f,
+                    "import[bilingual]: no top-level table with at least 2 columns"
+                )
             }
             ImportError::BilingualTableOutOfRange { index, count } => {
-                write!(f, "import[bilingual]: table index {index} out of range, {count} table(s)")
+                write!(
+                    f,
+                    "import[bilingual]: table index {index} out of range, {count} table(s)"
+                )
             }
             ImportError::BilingualTableNotChosen { count } => {
                 write!(f, "import[bilingual]: {count} tables, none chosen")
             }
             ImportError::UnsupportedSourceLang { source_lang } => {
-                write!(f, "import: unsupported source_lang {source_lang:?}, expected zh or en")
+                write!(
+                    f,
+                    "import: unsupported source_lang {source_lang:?}, expected zh or en"
+                )
             }
         }
     }
@@ -463,7 +494,12 @@ impl From<ImportError> for IpcError {
                 let mut params = BTreeMap::new();
                 // `params` mang DỮ LIỆU, không mang CÂU (AD-21).
                 params.insert("limit".to_owned(), limit.to_string());
-                IpcError::new("import.too_large", MessageKey::ImportTooLarge, params, false)
+                IpcError::new(
+                    "import.too_large",
+                    MessageKey::ImportTooLarge,
+                    params,
+                    false,
+                )
             }
             ImportError::DocxUnreadable { path, detail } => {
                 eprintln!("import[{path}] docx khong doc duoc: {detail}");
@@ -521,7 +557,11 @@ impl From<ImportError> for IpcError {
                     false,
                 )
             }
-            ImportError::WebImportItemFailed { url, reason, detail } => {
+            ImportError::WebImportItemFailed {
+                url,
+                reason,
+                detail,
+            } => {
                 eprintln!("import[webimport {url}]: {reason:?}: {detail}");
                 // `ExtractionEmpty` — nhánh DUY NHẤT `ImportError` mang, không có mã HTTP.
                 web_import_item_failure_ipc_error(&url, reason, None)
@@ -649,7 +689,10 @@ pub fn web_import_item_failure_ipc_error(
     let key = match reason {
         Reason::InvalidUrl => MessageKey::ImportWebInvalidUrl,
         Reason::HttpStatus => {
-            params.insert("status".to_owned(), http_status.map_or_else(|| "?".to_owned(), |s| s.to_string()));
+            params.insert(
+                "status".to_owned(),
+                http_status.map_or_else(|| "?".to_owned(), |s| s.to_string()),
+            );
             MessageKey::ImportWebHttpStatus
         }
         Reason::Timeout => MessageKey::ImportWebTimeout,
@@ -820,18 +863,31 @@ pub fn import_file(path: &Path) -> Result<(PipelineShape, Option<DocxSidecar>), 
     // `reject_unsupported_extension` ở trên đã xác nhận phần mở rộng nằm trong
     // `SUPPORTED_EXTENSIONS` — đọc lại một lần nữa ở đây (không tái dùng một biến đã tính)
     // vì nhánh `.docx` cần chính giá trị hạ chữ thường này.
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
 
     if ext == "docx" {
         let path_display = path.display().to_string();
         let parsed = crate::core::docx::read_docx(&bytes).map_err(|e| match e {
-            crate::core::docx::DocxError::EmptyText => {
-                ImportError::DocxEmptyText { path: path_display.clone() }
-            }
-            other => ImportError::DocxUnreadable { path: path_display.clone(), detail: other.to_string() },
+            crate::core::docx::DocxError::EmptyText => ImportError::DocxEmptyText {
+                path: path_display.clone(),
+            },
+            other => ImportError::DocxUnreadable {
+                path: path_display.clone(),
+                detail: other.to_string(),
+            },
         })?;
-        let sidecar = DocxSidecar { blocks: parsed.blocks, images: parsed.images };
-        return Ok((PipelineShape::Blob(ChapterInput::AlreadyText(parsed.text)), Some(sidecar)));
+        let sidecar = DocxSidecar {
+            blocks: parsed.blocks,
+            images: parsed.images,
+        };
+        return Ok((
+            PipelineShape::Blob(ChapterInput::AlreadyText(parsed.text)),
+            Some(sidecar),
+        ));
     }
 
     Ok((
@@ -893,7 +949,10 @@ pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError>
         return Ok(FilesImportOutcome {
             shape,
             docx_sidecar,
-            items: vec![FileImportItem { path: paths[0].clone(), error: None }],
+            items: vec![FileImportItem {
+                path: paths[0].clone(),
+                error: None,
+            }],
         });
     }
 
@@ -902,7 +961,10 @@ pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError>
     for p in paths {
         let path = Path::new(p);
         if let Err(e) = reject_batch_unsupported_extension(path) {
-            items.push(FileImportItem { path: p.clone(), error: Some(e) });
+            items.push(FileImportItem {
+                path: p.clone(),
+                error: Some(e),
+            });
             continue;
         }
         match import_file(path) {
@@ -912,18 +974,35 @@ pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError>
             // above), never a `DocxSidecar`.
             Ok((PipelineShape::Blob(input), _)) => {
                 inputs.push(input);
-                items.push(FileImportItem { path: p.clone(), error: None });
+                items.push(FileImportItem {
+                    path: p.clone(),
+                    error: None,
+                });
             }
-            Ok((PipelineShape::Chapters(_) | PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } | PipelineShape::Files(_), _)) => {
+            Ok((
+                PipelineShape::Chapters(_)
+                | PipelineShape::Bilingual { .. }
+                | PipelineShape::BilingualTables { .. }
+                | PipelineShape::BilingualRows { .. }
+                | PipelineShape::Files(_),
+                _,
+            )) => {
                 unreachable!("import_file only ever returns PipelineShape::Blob")
             }
             Err(e) => {
-                items.push(FileImportItem { path: p.clone(), error: Some(e) });
+                items.push(FileImportItem {
+                    path: p.clone(),
+                    error: Some(e),
+                });
             }
         }
     }
 
-    Ok(FilesImportOutcome { shape: PipelineShape::Files(inputs), docx_sidecar: None, items })
+    Ok(FilesImportOutcome {
+        shape: PipelineShape::Files(inputs),
+        docx_sidecar: None,
+        items,
+    })
 }
 
 /// Từ chối một phần mở rộng KHÔNG phải `.txt`/`.md` trên đường N > 1 tệp — RIÊNG với
@@ -936,7 +1015,9 @@ pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError>
 /// thứ hai cho cùng một sự thật).
 fn reject_batch_unsupported_extension(path: &Path) -> Result<(), ImportError> {
     let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
-        return Err(ImportError::MissingExtension { path: path.display().to_string() });
+        return Err(ImportError::MissingExtension {
+            path: path.display().to_string(),
+        });
     };
     let ext = ext.to_ascii_lowercase();
     if ext == "txt" || ext == "md" {
@@ -951,7 +1032,9 @@ const BILINGUAL_SUPPORTED_EXTENSIONS: [&str; 3] = ["csv", "tsv", "docx"];
 /// `.docx` returns `BilingualTables`, which `select_bilingual_table` must turn into `BilingualRows`.
 pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineShape, ImportError> {
     let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
-        return Err(ImportError::MissingExtension { path: path.display().to_string() });
+        return Err(ImportError::MissingExtension {
+            path: path.display().to_string(),
+        });
     };
     let ext = ext.to_ascii_lowercase();
 
@@ -971,7 +1054,10 @@ pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineSha
         })?
         .len();
     if size > MAX_IMPORT_BYTES {
-        return Err(ImportError::TooLarge { size, limit: MAX_IMPORT_BYTES });
+        return Err(ImportError::TooLarge {
+            size,
+            limit: MAX_IMPORT_BYTES,
+        });
     }
 
     let bytes = std::fs::read(path).map_err(|e| ImportError::ReadFailed {
@@ -980,24 +1066,40 @@ pub fn import_bilingual_file(path: &Path) -> Result<super::pipeline::PipelineSha
     })?;
 
     Ok(super::pipeline::PipelineShape::Bilingual {
-        input: ChapterInput::RawBytes { bytes, label: path.display().to_string() },
+        input: ChapterInput::RawBytes {
+            bytes,
+            label: path.display().to_string(),
+        },
         delimiter,
     })
 }
 
 fn import_bilingual_docx(path: &Path) -> Result<super::pipeline::PipelineShape, ImportError> {
     let size = std::fs::metadata(path)
-        .map_err(|e| ImportError::ReadFailed { path: path.display().to_string(), detail: e.to_string() })?
+        .map_err(|e| ImportError::ReadFailed {
+            path: path.display().to_string(),
+            detail: e.to_string(),
+        })?
         .len();
     if size > MAX_IMPORT_BYTES {
-        return Err(ImportError::TooLarge { size, limit: MAX_IMPORT_BYTES });
+        return Err(ImportError::TooLarge {
+            size,
+            limit: MAX_IMPORT_BYTES,
+        });
     }
-    let bytes = std::fs::read(path)
-        .map_err(|e| ImportError::ReadFailed { path: path.display().to_string(), detail: e.to_string() })?;
+    let bytes = std::fs::read(path).map_err(|e| ImportError::ReadFailed {
+        path: path.display().to_string(),
+        detail: e.to_string(),
+    })?;
     let path_display = path.display().to_string();
     let parsed = crate::core::docx::read_docx(&bytes).map_err(|e| match e {
-        crate::core::docx::DocxError::EmptyText => ImportError::DocxEmptyText { path: path_display.clone() },
-        other => ImportError::DocxUnreadable { path: path_display.clone(), detail: other.to_string() },
+        crate::core::docx::DocxError::EmptyText => ImportError::DocxEmptyText {
+            path: path_display.clone(),
+        },
+        other => ImportError::DocxUnreadable {
+            path: path_display.clone(),
+            detail: other.to_string(),
+        },
     })?;
     let tables: Vec<Vec<super::bilingual::BilingualRow>> = parsed
         .top_level_tables()
@@ -1008,14 +1110,20 @@ fn import_bilingual_docx(path: &Path) -> Result<super::pipeline::PipelineShape, 
     if tables.is_empty() {
         return Err(ImportError::BilingualNoTwoColumnTable);
     }
-    Ok(super::pipeline::PipelineShape::BilingualTables { label: path_display, tables })
+    Ok(super::pipeline::PipelineShape::BilingualTables {
+        label: path_display,
+        tables,
+    })
 }
 
 fn docx_table_rows(rows: &[Vec<String>]) -> Vec<super::bilingual::BilingualRow> {
     rows.iter()
         .enumerate()
         .filter(|(_, cells)| cells.iter().any(|c| !c.trim().is_empty()))
-        .map(|(i, cells)| super::bilingual::BilingualRow { row_number: i + 1, cells: cells.clone() })
+        .map(|(i, cells)| super::bilingual::BilingualRow {
+            row_number: i + 1,
+            cells: cells.clone(),
+        })
         .collect()
 }
 
@@ -1036,7 +1144,10 @@ pub fn select_bilingual_table(
     let Some(rows) = tables.get(index) else {
         return Err(ImportError::BilingualTableOutOfRange { index, count });
     };
-    Ok(PipelineShape::BilingualRows { label: label.clone(), rows: rows.clone() })
+    Ok(PipelineShape::BilingualRows {
+        label: label.clone(),
+        rows: rows.clone(),
+    })
 }
 
 /// Từ chối một phần mở rộng chưa được nhận — **trước** khi mở tệp, không đọc một byte.

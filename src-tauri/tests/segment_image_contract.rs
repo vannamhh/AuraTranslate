@@ -30,7 +30,12 @@ static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-image-{}-{}-{}", std::process::id(), tag, n));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-image-{}-{}-{}",
+        std::process::id(),
+        tag,
+        n
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -44,13 +49,22 @@ fn cleanup(dir: &Path) {
 /// theo đúng thứ tự tài liệu. Dùng chung cho mọi ca dưới đây cần một dãy segment "sạch".
 fn work_with_five_segments(tag: &str) -> (PathBuf, auratranslate_lib::commands::project::OpenWork) {
     let root = temp_dir(tag);
-    let opened = create_work_from_text(&root, "Anh 6.14", "zh", "", "一。二。三。四。五。".to_owned())
-        .unwrap_or_else(|e| panic!("tao tac pham that bai: {e:?}"));
+    let opened = create_work_from_text(
+        &root,
+        "Anh 6.14",
+        "zh",
+        "",
+        "一。二。三。四。五。".to_owned(),
+    )
+    .unwrap_or_else(|e| panic!("tao tac pham that bai: {e:?}"));
     (root, opened)
 }
 
 /// `id` của segment còn sống, theo `ord` (1-based) — đọc qua ĐÚNG lệnh sản phẩm.
-fn segment_id_at(opened: &auratranslate_lib::commands::project::OpenWork, ord_1based: usize) -> i64 {
+fn segment_id_at(
+    opened: &auratranslate_lib::commands::project::OpenWork,
+    ord_1based: usize,
+) -> i64 {
     let loaded: ChapterSegments =
         read_open_chapter_segments(Some(opened)).expect("nap segment that bai");
     loaded.segments[ord_1based - 1].id
@@ -85,7 +99,10 @@ fn set_role(opened: &auratranslate_lib::commands::project::OpenWork, segment_id:
     opened
         .store
         .write(move |tx: &Transaction<'_>| {
-            tx.execute("UPDATE segment SET role = ?1 WHERE id = ?2", rusqlite::params![role, segment_id])
+            tx.execute(
+                "UPDATE segment SET role = ?1 WHERE id = ?2",
+                rusqlite::params![role, segment_id],
+            )
         })
         .expect("dat role that bai");
 }
@@ -102,11 +119,21 @@ fn retire(opened: &auratranslate_lib::commands::project::OpenWork, segment_id: i
         .expect("ve huu that bai");
 }
 
-fn asset_of<'a>(loaded: &'a ChapterSegments, asset_id: i64) -> &'a auratranslate_lib::commands::segment::ChapterAsset {
-    loaded.assets.iter().find(|a| a.asset_id == asset_id).unwrap_or_else(|| panic!("khong thay asset {asset_id}"))
+fn asset_of<'a>(
+    loaded: &'a ChapterSegments,
+    asset_id: i64,
+) -> &'a auratranslate_lib::commands::segment::ChapterAsset {
+    loaded
+        .assets
+        .iter()
+        .find(|a| a.asset_id == asset_id)
+        .unwrap_or_else(|| panic!("khong thay asset {asset_id}"))
 }
 
-fn reading_image_of<'a>(run: &'a ReadingRun, asset_id: i64) -> &'a auratranslate_lib::commands::segment::ReadingImage {
+fn reading_image_of<'a>(
+    run: &'a ReadingRun,
+    asset_id: i64,
+) -> &'a auratranslate_lib::commands::segment::ReadingImage {
     run.chapters[0]
         .images
         .iter()
@@ -121,7 +148,10 @@ fn mark_chapter_done(opened: &auratranslate_lib::commands::project::OpenWork) {
     opened
         .store
         .write(move |tx: &Transaction<'_>| {
-            tx.execute("UPDATE chapter SET status = 'done' WHERE id = ?1", [chapter_id])
+            tx.execute(
+                "UPDATE chapter SET status = 'done' WHERE id = ?1",
+                [chapter_id],
+            )
         })
         .expect("dat done that bai");
 }
@@ -219,7 +249,8 @@ fn an_anchor_pointing_at_a_cut_sentence_stays_on_the_grid_but_moves_back_for_rea
 }
 
 #[test]
-fn an_anchor_pointing_at_a_retired_sentence_moves_back_to_the_nearest_surviving_one_on_both_surfaces() {
+fn an_anchor_pointing_at_a_retired_sentence_moves_back_to_the_nearest_surviving_one_on_both_surfaces()
+ {
     let (root, opened) = work_with_five_segments("ve-huu");
     mark_chapter_done(&opened);
     let seg2 = segment_id_at(&opened, 2);
@@ -250,7 +281,11 @@ fn an_anchor_with_nothing_surviving_before_it_falls_back_to_the_start_of_the_cha
     insert_asset(&opened, 904, "khong-doc-duoc.jpg", None, 1);
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
-    assert_eq!(asset_of(&loaded, 904).after_segment_id, None, "anchor khong doc duoc -- ve dau Chuong");
+    assert_eq!(
+        asset_of(&loaded, 904).after_segment_id,
+        None,
+        "anchor khong doc duoc -- ve dau Chuong"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -271,7 +306,12 @@ fn two_images_sharing_an_anchor_both_show_ordered_by_ascending_asset_id() {
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
     let ids: Vec<i64> = loaded.assets.iter().map(|a| a.asset_id).collect();
     assert_eq!(ids, vec![910, 950]);
-    assert!(loaded.assets.iter().all(|a| a.after_segment_id == Some(seg1)));
+    assert!(
+        loaded
+            .assets
+            .iter()
+            .all(|a| a.after_segment_id == Some(seg1))
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -310,7 +350,10 @@ fn an_image_without_an_alt_segment_yields_no_alt_text_and_the_frontend_treats_it
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
     let asset = asset_of(&loaded, 921);
-    assert_eq!(asset.alt_text, None, "khong segment alt -- Rust KHONG bia chu; alt=\"\" la viec cua webview");
+    assert_eq!(
+        asset.alt_text, None,
+        "khong segment alt -- Rust KHONG bia chu; alt=\"\" la viec cua webview"
+    );
     assert!(asset.caption_text.is_some());
 
     let dir = opened.dir.clone();
@@ -346,7 +389,10 @@ fn a_chapter_that_is_not_done_yet_contributes_zero_images_to_the_reading_run() {
     insert_asset(&opened, 930, "khong-hien.jpg", None, 1);
 
     let run = read_reading_run(Some(&opened)).expect("nap luot doc that bai");
-    assert!(run.chapters.is_empty(), "Chuong chua Done khong duoc vao dãy doc -- khong duong vong");
+    assert!(
+        run.chapters.is_empty(),
+        "Chuong chua Done khong duoc vao dãy doc -- khong duong vong"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -361,8 +407,16 @@ fn a_chapter_with_zero_assets_renders_identically_to_before_this_story_on_both_s
     // KHONG chen hang `asset` nao.
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
-    assert_eq!(loaded.assets, Vec::new(), "Chuong 0 anh -- mang assets phai RONG, khong None/loi");
-    assert_eq!(loaded.segments.len(), 5, "segment van nap binh thuong, khong bi anh huong");
+    assert_eq!(
+        loaded.assets,
+        Vec::new(),
+        "Chuong 0 anh -- mang assets phai RONG, khong None/loi"
+    );
+    assert_eq!(
+        loaded.segments.len(),
+        5,
+        "segment van nap binh thuong, khong bi anh huong"
+    );
 
     let run = read_reading_run(Some(&opened)).expect("nap luot doc that bai");
     assert_eq!(run.chapters[0].images, Vec::new());
@@ -432,8 +486,14 @@ fn a_role_bearing_segment_never_reaches_the_reading_page_as_prose() {
 #[test]
 fn an_asset_row_of_another_chapter_never_leaks_into_this_chapters_images() {
     let root = temp_dir("cach-ly-chuong");
-    let opened = create_work_from_text(&root, "Anh 6.14 hai chuong", "zh", "###", "Mot. Hai.\n###\nBa. Bon.".to_owned())
-        .unwrap_or_else(|e| panic!("tao tac pham that bai: {e:?}"));
+    let opened = create_work_from_text(
+        &root,
+        "Anh 6.14 hai chuong",
+        "zh",
+        "###",
+        "Mot. Hai.\n###\nBa. Bon.".to_owned(),
+    )
+    .unwrap_or_else(|e| panic!("tao tac pham that bai: {e:?}"));
 
     // Hang `asset` gan cho mot chapter_id KHAC hoan toan (999) -- khong Chuong nao cua Tac
     // pham nay mang id do.

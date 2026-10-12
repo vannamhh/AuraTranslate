@@ -436,7 +436,11 @@ impl SimilarityScorer {
         let units = self.units(text);
         let mut grams: Vec<u64> = Vec::with_capacity(units.len() * 2);
         grams.extend(units.iter().map(|u| u64::from(*u)));
-        grams.extend(units.windows(2).map(|w| ((u64::from(w[0]) + 1) << 32) | u64::from(w[1])));
+        grams.extend(
+            units
+                .windows(2)
+                .map(|w| ((u64::from(w[0]) + 1) << 32) | u64::from(w[1])),
+        );
         grams.sort_unstable();
         grams
     }
@@ -509,7 +513,8 @@ pub fn diff_spans(old: &str, new: &str, lang: MatchLang) -> Vec<DiffSpan> {
         }
     }
 
-    let changed = |run: Option<&(DiffKind, String)>| run.is_some_and(|(k, _)| *k != DiffKind::Equal);
+    let changed =
+        |run: Option<&(DiffKind, String)>| run.is_some_and(|(k, _)| *k != DiffKind::Equal);
     let absorb: Vec<bool> = (0..runs.len())
         .map(|i| {
             let (kind, text) = &runs[i];
@@ -526,10 +531,16 @@ pub fn diff_spans(old: &str, new: &str, lang: MatchLang) -> Vec<DiffSpan> {
     let mut inserted = String::new();
     let flush = |spans: &mut Vec<DiffSpan>, deleted: &mut String, inserted: &mut String| {
         if !deleted.is_empty() {
-            spans.push(DiffSpan { kind: DiffKind::Delete, text: std::mem::take(deleted) });
+            spans.push(DiffSpan {
+                kind: DiffKind::Delete,
+                text: std::mem::take(deleted),
+            });
         }
         if !inserted.is_empty() {
-            spans.push(DiffSpan { kind: DiffKind::Insert, text: std::mem::take(inserted) });
+            spans.push(DiffSpan {
+                kind: DiffKind::Insert,
+                text: std::mem::take(inserted),
+            });
         }
     };
     for (i, (kind, text)) in runs.into_iter().enumerate() {
@@ -563,7 +574,9 @@ pub fn similarity_percent(a: &str, b: &str, lang: MatchLang) -> u8 {
         MatchLang::En => TextDiff::from_words(a.as_str(), b.as_str()),
     };
     let ratio = f64::from(diff.ratio());
-    u8::try_from((ratio * 100.0 + 1e-4).floor() as i64).unwrap_or(100).min(100)
+    u8::try_from((ratio * 100.0 + 1e-4).floor() as i64)
+        .unwrap_or(100)
+        .min(100)
 }
 
 /// Index pairs `(i, j)` with `old[i] == new[j]` along a longest common subsequence, in order.
@@ -572,7 +585,12 @@ pub fn common_subsequence<T: Eq + std::hash::Hash>(old: &[T], new: &[T]) -> Vec<
 
     let mut pairs = Vec::new();
     for op in capture_diff_slices(Algorithm::Myers, old, new) {
-        if let DiffOp::Equal { old_index, new_index, len } = op {
+        if let DiffOp::Equal {
+            old_index,
+            new_index,
+            len,
+        } = op
+        {
             pairs.extend((0..len).map(|k| (old_index + k, new_index + k)));
         }
     }
@@ -586,11 +604,7 @@ pub fn common_subsequence<T: Eq + std::hash::Hash>(old: &[T], new: &[T]) -> Vec<
 /// True when the gap between `a` and `b` holds `.`, `!`, `?` or a newline.
 /// Precondition: `a` and `b` are adjacent tokens of `tokenize(text, En)`, `a` before `b`.
 /// Only the ASCII characters `.`, `!`, `?` and `\n` count.
-pub fn gap_crosses_sentence_boundary(
-    text: &str,
-    a: &MatchToken<'_>,
-    b: &MatchToken<'_>,
-) -> bool {
+pub fn gap_crosses_sentence_boundary(text: &str, a: &MatchToken<'_>, b: &MatchToken<'_>) -> bool {
     text[a.span.end..b.span.start].contains(['.', '!', '?', '\n'])
 }
 

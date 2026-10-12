@@ -103,8 +103,8 @@ fn only_core_store_may_name_rusqlite() {
             continue;
         }
 
-        let text = fs::read_to_string(file)
-            .unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+        let text =
+            fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
 
         for (index, code) in boundary_scan::code_lines(&text) {
             for needle in FORBIDDEN {
@@ -179,8 +179,8 @@ fn core_store_does_not_depend_on_tauri() {
         if !is_inside(&rel, STORE_DIR) {
             continue;
         }
-        let text = fs::read_to_string(file)
-            .unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+        let text =
+            fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
         for (index, code) in boundary_scan::code_lines(&text) {
             if code.contains("use tauri") || code.contains("tauri::") {
                 violations.push(format!("{rel}:{index}  {code}"));

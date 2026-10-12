@@ -22,17 +22,16 @@ use auratranslate_lib::commands::chapter::{
     ChapterDirection, ChapterSwitchOutcome, merge_chapter_into_previous, move_chapter,
     open_adjacent_chapter, read_open_chapter, rename_chapter, split_chapter_at_segment,
 };
+use auratranslate_lib::commands::lifecycle::set_work_status_override;
 use auratranslate_lib::commands::project::{
     ChapterPatternWire, OpenWork, PendingImportSourceState, Tier2BlockOverridesState,
     UrlImportItem, UrlImportItemsState, append_chapters_to_work, block_overrides_for_range,
     build_file_import_batch_wire, chapters_shape_if_all_ok,
     clear_url_import_items_after_successful_confirm, confirm_append_import_with_encoding,
     confirm_append_import_with_encoding_indexed, create_work, create_work_from_file,
-    create_work_from_text,
-    mutated_index_invalidates_tier2_blocks, reset_block_overrides, resolve_chapter_pattern,
-    set_block_override, stash_pending_import_source,
+    create_work_from_text, mutated_index_invalidates_tier2_blocks, reset_block_overrides,
+    resolve_chapter_pattern, set_block_override, stash_pending_import_source,
 };
-use auratranslate_lib::commands::lifecycle::set_work_status_override;
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::{ScopeResolver, Tier, WorkScope};
@@ -51,7 +50,12 @@ static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 /// Một thư mục tạm **của riêng ca này**. Xem luật 1 ở doc-comment đầu tệp.
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-project-{}-{}-{}", std::process::id(), tag, n));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-project-{}-{}-{}",
+        std::process::id(),
+        tag,
+        n
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -72,8 +76,14 @@ fn write_file(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
 fn creating_a_work_lays_down_exactly_three_things_on_disk() {
     let root = temp_dir("three-things");
 
-    let opened = create_work_from_text(&root, "Ba Thu", "zh", "tieu thuyet", "noi dung mau".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "Ba Thu",
+        "zh",
+        "tieu thuyet",
+        "noi dung mau".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let dir = opened.dir.clone();
     drop(opened); // đóng Store trước khi TRUNCATE có cơ hội chạy và trước khi liệt kê thư mục.
 
@@ -89,7 +99,11 @@ fn creating_a_work_lays_down_exactly_three_things_on_disk() {
 
     assert_eq!(
         names,
-        vec!["assets".to_owned(), "meta.json".to_owned(), "project.db".to_owned()],
+        vec![
+            "assets".to_owned(),
+            "meta.json".to_owned(),
+            "project.db".to_owned()
+        ],
         "thu muc .atproj phai chua dung ba thanh phan: meta.json, project.db, assets/"
     );
     assert!(dir.join("assets").is_dir(), "assets/ phai la mot thu muc");
@@ -112,7 +126,8 @@ fn meta_json_is_readable_without_ever_touching_the_database() {
     let _ = fs::remove_file(dir.join("project.db-wal"));
     let _ = fs::remove_file(dir.join("project.db-shm"));
 
-    let meta = WorkMeta::read(&dir).expect("doc meta.json phai thanh cong ke ca khi project.db da bi xoa");
+    let meta =
+        WorkMeta::read(&dir).expect("doc meta.json phai thanh cong ke ca khi project.db da bi xoa");
     assert_eq!(meta.name, "Doc Rieng");
 
     cleanup(&root);
@@ -126,7 +141,11 @@ fn the_work_id_is_a_v4_uuid_with_the_right_version_and_variant_bits() {
         .expect("tao tac pham that bai");
 
     let parsed = Uuid::parse_str(&opened.meta.work_id).expect("work_id phai la mot UUID hop le");
-    assert_eq!(parsed.get_version_num(), 4, "work_id phai la UUID phien ban 4");
+    assert_eq!(
+        parsed.get_version_num(),
+        4,
+        "work_id phai la UUID phien ban 4"
+    );
     assert_eq!(
         parsed.get_variant(),
         uuid::Variant::RFC4122,
@@ -169,7 +188,10 @@ fn a_retired_chapter_id_is_never_handed_out_again() {
         .expect("doc id chuong thu hai that bai");
 
     assert_ne!(second_id, 1, "id da ve huu (1) khong duoc phat lai");
-    assert_eq!(second_id, 2, "AUTOINCREMENT phai cap id tang dan nghiem ngat, khong tai dung rowid");
+    assert_eq!(
+        second_id, 2,
+        "AUTOINCREMENT phai cap id tang dan nghiem ngat, khong tai dung rowid"
+    );
 
     drop(store);
     cleanup(&root);
@@ -193,12 +215,17 @@ fn a_copied_project_folder_opens_at_a_different_path() {
     let reopened = Store::open(StoreSpec::project(new_dir.join("project.db")))
         .expect("mo lai project.db o thu muc da copy phai thanh cong");
     let reopened_work_id: String = reopened
-        .read(|conn| conn.query_row("SELECT work_id FROM work WHERE id = 1", [], |row| row.get(0)))
+        .read(|conn| {
+            conn.query_row("SELECT work_id FROM work WHERE id = 1", [], |row| {
+                row.get(0)
+            })
+        })
         .expect("doc work_id sau khi mo lai that bai");
     assert_eq!(reopened_work_id, original_work_id);
     drop(reopened);
 
-    let reread_meta = WorkMeta::read(&new_dir).expect("doc meta.json o thu muc da copy phai thanh cong");
+    let reread_meta =
+        WorkMeta::read(&new_dir).expect("doc meta.json o thu muc da copy phai thanh cong");
     assert_eq!(reread_meta.work_id, original_work_id);
 
     cleanup(&root);
@@ -213,7 +240,8 @@ fn copy_dir_recursive(from: &Path, to: &Path) {
         if entry.file_type().unwrap().is_dir() {
             copy_dir_recursive(&entry.path(), &target);
         } else {
-            fs::copy(entry.path(), &target).unwrap_or_else(|e| panic!("copy {}: {e}", entry.path().display()));
+            fs::copy(entry.path(), &target)
+                .unwrap_or_else(|e| panic!("copy {}: {e}", entry.path().display()));
         }
     }
 }
@@ -230,7 +258,8 @@ fn meta_json_can_be_rebuilt_from_the_database_alone() {
 
     fs::remove_file(dir.join("meta.json")).expect("xoa meta.json that bai");
 
-    let rebuilt = WorkMeta::rebuild_from_store(&store).expect("dung lai meta.json tu project.db that bai");
+    let rebuilt =
+        WorkMeta::rebuild_from_store(&store).expect("dung lai meta.json tu project.db that bai");
     assert_eq!(rebuilt.work_id, original_meta.work_id);
     assert_eq!(rebuilt.name, original_meta.name);
     assert_eq!(rebuilt.source_lang, original_meta.source_lang);
@@ -287,7 +316,10 @@ fn rebuild_counts_done_chapters_from_the_resolved_set_ignoring_a_corrupt_row() {
         .expect("dung fixture bon Chuong that bai");
 
     let rebuilt = WorkMeta::rebuild_from_store(&store).expect("dung lai meta.json that bai");
-    assert_eq!(rebuilt.chapter_count, 4, "sam ca hang HONG cung duoc DEM vao tong so Chuong");
+    assert_eq!(
+        rebuilt.chapter_count, 4,
+        "sam ca hang HONG cung duoc DEM vao tong so Chuong"
+    );
     assert_eq!(
         rebuilt.chapter_done_count,
         Some(2),
@@ -380,7 +412,9 @@ fn rebuild_derives_updated_at_from_chapter_updated_at_when_it_is_the_latest() {
 
     let later = "2099-01-01T00:00:00.000Z";
     store
-        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE chapter SET updated_at = ?1 WHERE ord = 1", [later]))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("UPDATE chapter SET updated_at = ?1 WHERE ord = 1", [later])
+        })
         .expect("day chapter.updated_at ve sau that bai");
 
     let rebuilt = WorkMeta::rebuild_from_store(&store).expect("dung lai meta.json that bai");
@@ -400,8 +434,14 @@ fn rebuild_derives_updated_at_from_chapter_updated_at_when_it_is_the_latest() {
 fn rebuild_derives_updated_at_from_segment_updated_at_when_it_is_the_latest() {
     let root = temp_dir("rebuild-updated-at-segment");
 
-    let opened = create_work_from_text(&root, "Cap Nhat Doan", "en", "", "cau mot. cau hai.".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "Cap Nhat Doan",
+        "en",
+        "",
+        "cau mot. cau hai.".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let store = opened.store;
 
     let later = "2099-06-01T00:00:00.000Z";
@@ -519,14 +559,23 @@ fn creating_a_work_over_an_existing_folder_never_touches_it() {
     drop(second);
 
     // ① Tác phẩm thứ nhất còn NGUYÊN — đây là mệnh đề sống chết của ca này.
-    assert!(first_dir.is_dir(), "thu muc cua Tac pham dau tien phai con nguyen");
+    assert!(
+        first_dir.is_dir(),
+        "thu muc cua Tac pham dau tien phai con nguyen"
+    );
     assert!(
         sentinel.is_file(),
         "tep trong assets/ cua Tac pham dau tien phai con nguyen — thu muc KHONG duoc dung lai"
     );
-    assert!(first_dir.join("project.db").is_file(), "project.db cu phai con nguyen");
+    assert!(
+        first_dir.join("project.db").is_file(),
+        "project.db cu phai con nguyen"
+    );
     let first_meta = WorkMeta::read(&first_dir).expect("meta.json cu phai con doc duoc");
-    assert_eq!(first_meta.work_id, first_id, "Tac pham dau tien phai giu nguyen work_id");
+    assert_eq!(
+        first_meta.work_id, first_id,
+        "Tac pham dau tien phai giu nguyen work_id"
+    );
 
     // ② Tác phẩm thứ hai đi vào một thư mục ĐƯỢC ĐÁNH SỐ (Ice chốt 2026-08-06).
     assert_eq!(
@@ -534,7 +583,10 @@ fn creating_a_work_over_an_existing_folder_never_touches_it() {
         root.join("Truyen Kieu (2).atproj"),
         "tac pham trung ten phai nhan hau to danh so"
     );
-    assert_ne!(first_id, second_id, "hai Tac pham phai la hai work_id khac nhau");
+    assert_ne!(
+        first_id, second_id,
+        "hai Tac pham phai la hai work_id khac nhau"
+    );
 
     // ③ ⚠️ Hệ quả đã biết, khoá lại bằng một assert để không ai đọc nhầm: `meta.name`
     //    giữ **nguyên tên người dùng gõ** ở CẢ HAI — hai Tác phẩm hiển thị giống hệt nhau,
@@ -562,7 +614,11 @@ fn repeated_names_keep_climbing_the_suffix_instead_of_colliding() {
     assert_eq!(dirs[1], root.join("Untitled (2).atproj"));
     assert_eq!(dirs[2], root.join("Untitled (3).atproj"));
     for dir in &dirs {
-        assert!(dir.join("project.db").is_file(), "{} phai con project.db", dir.display());
+        assert!(
+            dir.join("project.db").is_file(),
+            "{} phai con project.db",
+            dir.display()
+        );
     }
 
     cleanup(&root);
@@ -575,12 +631,17 @@ fn repeated_names_keep_climbing_the_suffix_instead_of_colliding() {
 // 🔵 SỬA 2026-09-09 (Story 6.12) — tên ca đổi mốc so sánh từ `.docx` sang `.pdf`, đúng ca
 // "định dạng chưa nhận" ngay phía trên đã đổi (`.docx` nay được nhận, không còn là ví dụ
 // "từ chối trước khi tạo .atproj").
-fn text_undecodable_under_the_declared_encoding_is_refused_the_same_way_an_unsupported_extension_is() {
+fn text_undecodable_under_the_declared_encoding_is_refused_the_same_way_an_unsupported_extension_is()
+ {
     let root = temp_dir("not-utf8");
     let source_dir = temp_dir("not-utf8-src");
 
     // 0x80 mot minh khong phai mot chuoi UTF-8 hop le o bat ky vi tri nao.
-    let bad_path = write_file(&source_dir, "bad.txt", &[0x66, 0x69, 0x6c, 0x65, 0x80, 0x81]);
+    let bad_path = write_file(
+        &source_dir,
+        "bad.txt",
+        &[0x66, 0x69, 0x6c, 0x65, 0x80, 0x81],
+    );
 
     let err = create_work_from_file(&root, "Khong Phai Utf8", "zh", "", &bad_path)
         .expect_err("noi dung khong phai UTF-8 phai bi tu choi");
@@ -629,8 +690,25 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
     ]);
     // 🔵 SỬA (2026-09-04, Story 6.3) — `create_work` thêm tham số `encoding`; ca này không
     // canh bảng mã, giữ UTF-8 để hành vi cũ không đổi.
-    let opened = create_work(&root, "Nhieu Chuong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham voi N > 1 Chuong that bai");
+    let opened = create_work(
+        &root,
+        "Nhieu Chuong",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham voi N > 1 Chuong that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened
         .store
@@ -651,7 +729,11 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
         })
         .expect("doc lai chapter that bai");
 
-    assert_eq!(rows.len(), 3, "phai co dung 3 hang chapter, N Chuong day du");
+    assert_eq!(
+        rows.len(),
+        3,
+        "phai co dung 3 hang chapter, N Chuong day du"
+    );
     assert_eq!(rows[0].1, 1, "Chuong dau tien phai mang ord = 1");
     assert_eq!(rows[1].1, 2, "Chuong thu hai phai mang ord = 2");
     assert_eq!(rows[2].1, 3, "Chuong thu ba phai mang ord = 3");
@@ -660,7 +742,10 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
     assert_eq!(rows[2].2, "Chuong ba ket thuc.");
     // 🔵 THÊM (Story 6.6) — "mọi hàng status = not_started" đúng cho N > 1, không chỉ N = 1.
     for (id, ord, _, status) in &rows {
-        assert_eq!(status, "not_started", "Chuong id={id} ord={ord} phai mang status not_started");
+        assert_eq!(
+            status, "not_started",
+            "Chuong id={id} ord={ord} phai mang status not_started"
+        );
     }
 
     // segment phai ton tai cho MOI Chuong, khong chi Chuong dau -- AC13 khong doi tren N > 1.
@@ -675,7 +760,10 @@ fn create_work_writes_every_chapter_and_its_segments_when_the_pipeline_yields_mo
                 )
             })
             .expect("dem segment that bai");
-        assert!(seg_count > 0, "Chuong ord={ord} (id={chapter_id}) phai co segment");
+        assert!(
+            seg_count > 0,
+            "Chuong ord={ord} (id={chapter_id}) phai co segment"
+        );
     }
 
     // OpenWork.chapter_id phai chot vao Chuong DAU TIEN (ord = 1), khong phai Chuong cuoi.
@@ -716,9 +804,15 @@ fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chap
         encoding_rs::UTF_8,
         Vec::new(),
         Some(pattern),
-        Vec::new(), 0, 1, false, &[],
-    &std::sync::Mutex::new(Vec::new()),
-    None, &[])
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
     .expect("tao Tac pham voi mau phan tach that bai");
 
     let rows: Vec<(i64, i64, Option<String>, String, String)> = opened
@@ -741,7 +835,11 @@ fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chap
         })
         .expect("doc lai chapter that bai");
 
-    assert_eq!(rows.len(), 3, "ba lan khop mau phai cho ra dung ba hang chapter");
+    assert_eq!(
+        rows.len(),
+        3,
+        "ba lan khop mau phai cho ra dung ba hang chapter"
+    );
     for (i, (_, ord, title, source_text, status)) in rows.iter().enumerate() {
         assert_eq!(*ord, i as i64 + 1, "ord phai lien tuc tu 1");
         assert_eq!(status, "not_started");
@@ -765,7 +863,10 @@ fn create_work_writes_titles_and_continuous_ord_when_n_chapters_come_from_a_chap
                 )
             })
             .expect("dem segment that bai");
-        assert!(seg_count > 0, "Chuong ord={ord} (id={chapter_id}) phai co segment");
+        assert!(
+            seg_count > 0,
+            "Chuong ord={ord} (id={chapter_id}) phai co segment"
+        );
     }
 
     drop(opened);
@@ -791,8 +892,22 @@ fn create_work_writes_a_two_hundred_file_batch_with_continuous_ord_and_every_row
     let shape = PipelineShape::Files(units);
 
     let opened = create_work(
-        &root, "Hai Tram Tep", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None,
-        Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[],
+        &root,
+        "Hai Tram Tep",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
     )
     .expect("tao Tac pham voi 200 tep that bai");
 
@@ -815,21 +930,45 @@ fn create_work_writes_a_two_hundred_file_batch_with_continuous_ord_and_every_row
         })
         .expect("doc lai chapter that bai");
 
-    assert_eq!(rows.len(), FILE_COUNT, "phai co dung {FILE_COUNT} hang chapter, mot cho moi tep");
+    assert_eq!(
+        rows.len(),
+        FILE_COUNT,
+        "phai co dung {FILE_COUNT} hang chapter, mot cho moi tep"
+    );
     for (i, (id, ord, source_text, status)) in rows.iter().enumerate() {
-        assert_eq!(*ord, i as i64 + 1, "chapter id={id} phai mang ord = {} (lien tuc tu 1)", i + 1);
-        assert_eq!(status, "not_started", "chapter id={id} ord={ord} phai mang status not_started");
-        assert_eq!(source_text, &format!("Noi dung tep so {}.", i + 1), "chapter id={id} phai giu dung noi dung cua CHINH tep thu {}", i + 1);
+        assert_eq!(
+            *ord,
+            i as i64 + 1,
+            "chapter id={id} phai mang ord = {} (lien tuc tu 1)",
+            i + 1
+        );
+        assert_eq!(
+            status, "not_started",
+            "chapter id={id} ord={ord} phai mang status not_started"
+        );
+        assert_eq!(
+            source_text,
+            &format!("Noi dung tep so {}.", i + 1),
+            "chapter id={id} phai giu dung noi dung cua CHINH tep thu {}",
+            i + 1
+        );
     }
 
     for (chapter_id, ord, _, _) in &rows {
         let seg_count: i64 = opened
             .store
             .read(move |conn| {
-                conn.query_row("SELECT COUNT(*) FROM segment WHERE chapter_id = ?1", [chapter_id], |row| row.get(0))
+                conn.query_row(
+                    "SELECT COUNT(*) FROM segment WHERE chapter_id = ?1",
+                    [chapter_id],
+                    |row| row.get(0),
+                )
             })
             .expect("dem segment that bai");
-        assert!(seg_count > 0, "Chuong ord={ord} (id={chapter_id}) phai co segment");
+        assert!(
+            seg_count > 0,
+            "Chuong ord={ord} (id={chapter_id}) phai co segment"
+        );
     }
 
     drop(opened);
@@ -848,13 +987,30 @@ fn a_files_batch_rolls_back_completely_when_one_unit_is_undecodable() {
     let bad_bytes: Vec<u8> = vec![0xC3, 0x28]; // khong hop le voi UTF-8
     let shape = PipelineShape::Files(vec![
         ChapterInput::AlreadyText("Tep dau tien, doc duoc.".to_owned()),
-        ChapterInput::RawBytes { bytes: bad_bytes, label: "tep-hong.txt".to_owned() },
+        ChapterInput::RawBytes {
+            bytes: bad_bytes,
+            label: "tep-hong.txt".to_owned(),
+        },
         ChapterInput::AlreadyText("Tep thu ba, doc duoc.".to_owned()),
     ]);
 
     let err = create_work(
-        &root, "Batch Hong", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None,
-        Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[],
+        &root,
+        "Batch Hong",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
     )
     .expect_err("mot don vi khong giai ma duoc phai lam ca luot xac nhan truot");
     assert_eq!(err.message_key(), MessageKey::ImportUndecodableBytes);
@@ -877,7 +1033,10 @@ fn a_files_batch_rolls_back_completely_when_one_unit_is_undecodable() {
 #[test]
 fn build_file_import_batch_wire_locks_confirm_on_one_failed_item_and_opens_it_when_all_ok() {
     let ok_err: Option<ImportError> = None;
-    let broken_err = Some(ImportError::ReadFailed { path: "b.txt".to_owned(), detail: "khong doc duoc".to_owned() });
+    let broken_err = Some(ImportError::ReadFailed {
+        path: "b.txt".to_owned(),
+        detail: "khong doc duoc".to_owned(),
+    });
 
     let outcome_with_broken = FilesImportOutcome {
         shape: PipelineShape::Files(vec![
@@ -886,17 +1045,36 @@ fn build_file_import_batch_wire_locks_confirm_on_one_failed_item_and_opens_it_wh
         ]),
         docx_sidecar: None,
         items: vec![
-            FileImportItem { path: "a.txt".to_owned(), error: ok_err.clone() },
-            FileImportItem { path: "b.txt".to_owned(), error: broken_err },
-            FileImportItem { path: "c.txt".to_owned(), error: ok_err.clone() },
+            FileImportItem {
+                path: "a.txt".to_owned(),
+                error: ok_err.clone(),
+            },
+            FileImportItem {
+                path: "b.txt".to_owned(),
+                error: broken_err,
+            },
+            FileImportItem {
+                path: "c.txt".to_owned(),
+                error: ok_err.clone(),
+            },
         ],
     };
     let (batch, all_ok) = build_file_import_batch_wire(&outcome_with_broken, "en", &[], None);
     assert!(!all_ok, "mot muc hong phai lam all_ok = false");
-    assert!(batch.encoding_preview.is_none(), "encoding_preview phai None khi con muc hong -- §Decisions");
-    assert_eq!(batch.items.len(), 3, "items phai giu du ca ba vi tri, ke ca muc hong");
+    assert!(
+        batch.encoding_preview.is_none(),
+        "encoding_preview phai None khi con muc hong -- §Decisions"
+    );
+    assert_eq!(
+        batch.items.len(),
+        3,
+        "items phai giu du ca ba vi tri, ke ca muc hong"
+    );
     assert!(!batch.items[1].ok, "muc hong (b.txt) phai mang ok = false");
-    assert!(batch.items[0].ok && batch.items[2].ok, "hai muc con lai phai mang ok = true");
+    assert!(
+        batch.items[0].ok && batch.items[2].ok,
+        "hai muc con lai phai mang ok = true"
+    );
 
     let outcome_all_ok = FilesImportOutcome {
         shape: PipelineShape::Files(vec![
@@ -905,13 +1083,22 @@ fn build_file_import_batch_wire_locks_confirm_on_one_failed_item_and_opens_it_wh
         ]),
         docx_sidecar: None,
         items: vec![
-            FileImportItem { path: "a.txt".to_owned(), error: ok_err.clone() },
-            FileImportItem { path: "c.txt".to_owned(), error: ok_err },
+            FileImportItem {
+                path: "a.txt".to_owned(),
+                error: ok_err.clone(),
+            },
+            FileImportItem {
+                path: "c.txt".to_owned(),
+                error: ok_err,
+            },
         ],
     };
     let (batch_ok, all_ok2) = build_file_import_batch_wire(&outcome_all_ok, "en", &[], None);
     assert!(all_ok2, "khong muc nao hong phai lam all_ok = true");
-    assert!(batch_ok.encoding_preview.is_some(), "encoding_preview phai Some khi moi muc OK");
+    assert!(
+        batch_ok.encoding_preview.is_some(),
+        "encoding_preview phai Some khi moi muc OK"
+    );
     assert_eq!(batch_ok.items.len(), 2);
     assert!(batch_ok.items.iter().all(|it| it.ok));
 }
@@ -963,8 +1150,25 @@ fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapte
     let shape = chapters_shape_if_all_ok(&items)
         .expect("toan bo muc OK phai cho ra Some(PipelineShape::Chapters)");
 
-    let opened = create_work(&root, "Tu URL", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham tu danh sach URL that bai");
+    let opened = create_work(
+        &root,
+        "Tu URL",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham tu danh sach URL that bai");
 
     let rows: Vec<(i64, i64, String, String)> = opened
         .store
@@ -988,15 +1192,27 @@ fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapte
     assert_eq!(rows.len(), 3, "phai co dung 3 Chuong, mot cho moi link");
     for (i, (id, ord, source_text, status)) in rows.iter().enumerate() {
         assert_eq!(*ord, i as i64 + 1, "ord phai lien tuc, dung THU TU da dan");
-        assert_eq!(status, "not_started", "Chuong id={id} phai mang status not_started");
+        assert_eq!(
+            status, "not_started",
+            "Chuong id={id} phai mang status not_started"
+        );
         assert!(
             !source_text.contains('<') && !source_text.contains('>'),
             "source_text cua Chuong id={id} phai KHONG chua chuoi danh dau HTML (AD-16): {source_text:?}"
         );
     }
-    assert!(rows[0].2.contains("MOT"), "Chuong 1 phai giu noi dung cua bai MOT");
-    assert!(rows[1].2.contains("HAI"), "Chuong 2 phai giu noi dung cua bai HAI");
-    assert!(rows[2].2.contains("BA"), "Chuong 3 phai giu noi dung cua bai BA");
+    assert!(
+        rows[0].2.contains("MOT"),
+        "Chuong 1 phai giu noi dung cua bai MOT"
+    );
+    assert!(
+        rows[1].2.contains("HAI"),
+        "Chuong 2 phai giu noi dung cua bai HAI"
+    );
+    assert!(
+        rows[2].2.contains("BA"),
+        "Chuong 3 phai giu noi dung cua bai BA"
+    );
 
     for (chapter_id, ord, _, _) in &rows {
         let seg_count: i64 = opened
@@ -1009,7 +1225,10 @@ fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapte
                 )
             })
             .expect("dem segment that bai");
-        assert!(seg_count > 0, "Chuong ord={ord} (id={chapter_id}) phai co segment");
+        assert!(
+            seg_count > 0,
+            "Chuong ord={ord} (id={chapter_id}) phai co segment"
+        );
     }
 
     drop(opened);
@@ -1021,7 +1240,8 @@ fn n_chapters_from_a_url_list_write_clean_text_ord_and_segments_for_every_chapte
 /// hàm này trả `Some`, một lượt `confirm_import_with_encoding` kế tiếp sẽ luôn trả
 /// `import.no_pending_source` — **0 hàng ghi xuống**, không có `create_work` nào từng chạy.
 #[test]
-fn a_single_broken_item_in_the_url_list_yields_no_shape_to_confirm_zero_rows_would_ever_be_written() {
+fn a_single_broken_item_in_the_url_list_yields_no_shape_to_confirm_zero_rows_would_ever_be_written()
+{
     let items = vec![
         UrlImportItem {
             url: "https://example.com/tot".to_owned(),
@@ -1067,7 +1287,11 @@ fn an_item_with_neither_raw_nor_error_set_yields_no_shape_instead_of_a_silent_em
             raw: Some(html_fixture_page("TOT").into_bytes()),
             error: None,
         },
-        UrlImportItem { url: "https://example.com/vo-bat-bien".to_owned(), raw: None, error: None },
+        UrlImportItem {
+            url: "https://example.com/vo-bat-bien".to_owned(),
+            raw: None,
+            error: None,
+        },
     ];
 
     assert!(
@@ -1107,28 +1331,44 @@ fn url_import_items_state_is_wiped_after_a_successful_confirm() {
 
 #[test]
 fn resolve_chapter_pattern_rejects_an_invalid_regex_before_touching_the_pipeline() {
-    let wire = ChapterPatternWire { pattern: "[unclosed".to_owned(), kind: ChapterPatternKind::Regex };
+    let wire = ChapterPatternWire {
+        pattern: "[unclosed".to_owned(),
+        kind: ChapterPatternKind::Regex,
+    };
     let err = resolve_chapter_pattern(Some(wire)).expect_err("mau regex hong phai bi tu choi");
     assert!(
-        matches!(err, auratranslate_lib::core::segment::import::ImportError::InvalidChapterPattern { .. }),
+        matches!(
+            err,
+            auratranslate_lib::core::segment::import::ImportError::InvalidChapterPattern { .. }
+        ),
         "loi phai la ImportError::InvalidChapterPattern, khong phai mot hang loi khac: {err:?}"
     );
 }
 
 #[test]
 fn resolve_chapter_pattern_accepts_a_valid_regex_and_a_valid_literal() {
-    let regex_wire = ChapterPatternWire { pattern: r"^Chuong \d+".to_owned(), kind: ChapterPatternKind::Regex };
-    let resolved = resolve_chapter_pattern(Some(regex_wire)).expect("mau regex hop le khong duoc loi");
+    let regex_wire = ChapterPatternWire {
+        pattern: r"^Chuong \d+".to_owned(),
+        kind: ChapterPatternKind::Regex,
+    };
+    let resolved =
+        resolve_chapter_pattern(Some(regex_wire)).expect("mau regex hop le khong duoc loi");
     assert_eq!(resolved, Some(ChapterPattern::regex(r"^Chuong \d+")));
 
-    let literal_wire = ChapterPatternWire { pattern: "Chuong".to_owned(), kind: ChapterPatternKind::Literal };
+    let literal_wire = ChapterPatternWire {
+        pattern: "Chuong".to_owned(),
+        kind: ChapterPatternKind::Literal,
+    };
     let resolved = resolve_chapter_pattern(Some(literal_wire)).expect("mau literal khong duoc loi");
     assert_eq!(resolved, Some(ChapterPattern::literal("Chuong")));
 }
 
 #[test]
 fn resolve_chapter_pattern_of_none_is_none() {
-    assert_eq!(resolve_chapter_pattern(None).expect("None khong duoc loi"), None);
+    assert_eq!(
+        resolve_chapter_pattern(None).expect("None khong duoc loi"),
+        None
+    );
 }
 
 /// 🔵 **SỬA 2026-09-04 (Story 6.2, AD-39)** — `import_text`/`import_file` không còn tự
@@ -1141,8 +1381,11 @@ fn pasted_text_and_a_read_file_travel_the_same_import_path() {
     let source_dir = temp_dir("same-path");
     let content = "mot doan van ban giong het nhau\nqua ca hai duong";
 
-    let from_paste = run_import(PipelineInput::default_shaped(import_text(content.to_owned()), "en"))
-        .expect("run_import (dan van ban) that bai");
+    let from_paste = run_import(PipelineInput::default_shaped(
+        import_text(content.to_owned()),
+        "en",
+    ))
+    .expect("run_import (dan van ban) that bai");
 
     let path = write_file(&source_dir, "sample.txt", content.as_bytes());
     let (file_shape, _docx_sidecar) = import_file(&path).expect("doc tep .txt hop le that bai");
@@ -1153,8 +1396,16 @@ fn pasted_text_and_a_read_file_travel_the_same_import_path() {
     // không khẳng định `len() == 1` trước: một kết quả RỖNG (ví dụ do một lượt refactor sau
     // này lỡ tay tách văn bản này) sẽ PANIC ở chỗ index, không phải một thông điệp trượt
     // (`assert_eq!`) đọc được. Khẳng định độ dài TRƯỚC khi vào so nội dung.
-    assert_eq!(from_paste.chapters.len(), 1, "dan van ban phai cho dung 1 Chuong");
-    assert_eq!(from_file.chapters.len(), 1, "doc tep phai cho dung 1 Chuong");
+    assert_eq!(
+        from_paste.chapters.len(),
+        1,
+        "dan van ban phai cho dung 1 Chuong"
+    );
+    assert_eq!(
+        from_file.chapters.len(),
+        1,
+        "doc tep phai cho dung 1 Chuong"
+    );
 
     assert_eq!(
         from_paste.chapters[0].source_text, from_file.chapters[0].source_text,
@@ -1188,7 +1439,10 @@ fn an_unsupported_extension_rejection_carries_the_dedicated_message_key() {
     let err = create_work_from_file(&root, "Khoa Loi", "zh", "", &fake_pdf)
         .expect_err(".pdf phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnsupportedFormat);
-    assert!(!err.retryable(), "tu choi dinh dang khong the sua bang cach bam lai");
+    assert!(
+        !err.retryable(),
+        "tu choi dinh dang khong the sua bang cach bam lai"
+    );
 
     cleanup(&root);
     cleanup(&source_dir);
@@ -1262,7 +1516,11 @@ fn a_utf8_bom_is_stripped_and_crlf_is_now_normalized_by_step_four() {
     let root = temp_dir("bom");
     let source_dir = temp_dir("bom-src");
 
-    let path = write_file(&source_dir, "notepad.txt", b"\xEF\xBB\xBFCHUONG MOT\r\nCau hai");
+    let path = write_file(
+        &source_dir,
+        "notepad.txt",
+        b"\xEF\xBB\xBFCHUONG MOT\r\nCau hai",
+    );
     let (shape, _docx_sidecar) = import_file(&path).expect("tep UTF-8 co BOM phai nhap duoc");
     let imported = run_import(PipelineInput::default_shaped(shape, "en"))
         .expect("run_import that bai")
@@ -1313,7 +1571,8 @@ fn a_file_past_the_size_ceiling_is_refused_before_a_single_byte_is_written() {
     // `set_len` khai kích thước mà không cấp phát khối nào.
     let path = source_dir.join("khong lo.txt");
     let file = fs::File::create(&path).expect("tao tep that bai");
-    file.set_len(100 * 1024 * 1024 + 1).expect("set_len that bai");
+    file.set_len(100 * 1024 * 1024 + 1)
+        .expect("set_len that bai");
     drop(file);
 
     let err = create_work_from_file(&root, "Khong Lo", "zh", "", &path)
@@ -1322,7 +1581,10 @@ fn a_file_past_the_size_ceiling_is_refused_before_a_single_byte_is_written() {
     assert!(!err.retryable(), "bam lai cung tep do cho cung ket qua do");
 
     let entries: Vec<_> = fs::read_dir(&root).expect("doc root that bai").collect();
-    assert!(entries.is_empty(), "khong thu muc .atproj nao duoc tao khi tep vuot tran");
+    assert!(
+        entries.is_empty(),
+        "khong thu muc .atproj nao duoc tao khi tep vuot tran"
+    );
 
     cleanup(&root);
     cleanup(&source_dir);
@@ -1355,8 +1617,14 @@ fn a_folder_name_survives_both_platforms_rules() {
     use auratranslate_lib::core::library::sanitize_name;
 
     // ① Tên thiết bị Windows **có đuôi** — bản trước chỉ so nguyên chuỗi nên `CON.txt` lọt.
-    assert!(sanitize_name("CON.txt").ends_with('_'), "CON.txt phai duoc them hau to");
-    assert!(sanitize_name("nul.md").ends_with('_'), "so sanh khong phan biet hoa thuong");
+    assert!(
+        sanitize_name("CON.txt").ends_with('_'),
+        "CON.txt phai duoc them hau to"
+    );
+    assert!(
+        sanitize_name("nul.md").ends_with('_'),
+        "so sanh khong phan biet hoa thuong"
+    );
     assert!(sanitize_name("COM1").ends_with('_'));
     // Không phải tên thiết bị thì không đụng.
     assert_eq!(sanitize_name("CONtent"), "CONtent");
@@ -1364,7 +1632,11 @@ fn a_folder_name_survives_both_platforms_rules() {
     // ② Trần theo BYTE, cắt ở biên ký tự — không panic giữa một ký tự nhiều byte.
     let long = "Đ".repeat(300); // 600 byte
     let cut = sanitize_name(&long);
-    assert!(cut.len() <= 180, "ten phai bi cat theo tran byte, dai that: {}", cut.len());
+    assert!(
+        cut.len() <= 180,
+        "ten phai bi cat theo tran byte, dai that: {}",
+        cut.len()
+    );
     assert!(cut.chars().all(|c| c == 'Đ'), "cat phai roi vao bien ky tu");
 
     // ③ Ký tự cấm và tên rỗng.
@@ -1386,7 +1658,10 @@ fn reading_the_open_chapter_without_a_work_open_is_a_named_error() {
 
     assert_eq!(err.code(), "work.none_open");
     assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
-    assert!(!err.retryable(), "khong Tac pham nao mo khong phai mot loi tam thoi");
+    assert!(
+        !err.retryable(),
+        "khong Tac pham nao mo khong phai mot loi tam thoi"
+    );
     assert!(
         err.params().is_empty(),
         "khoa nay khong doi tham so nao: {:?}",
@@ -1400,8 +1675,14 @@ fn reading_the_open_chapter_without_a_work_open_is_a_named_error() {
 fn reading_the_open_chapter_reflects_the_single_chapter_just_created() {
     let root = temp_dir("read-chapter");
 
-    let opened = create_work_from_text(&root, "Doc Chuong", "zh", "tieu thuyet", "noi dung mau 你好".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "Doc Chuong",
+        "zh",
+        "tieu thuyet",
+        "noi dung mau 你好".to_owned(),
+    )
+    .expect("tao tac pham that bai");
 
     let chapter = read_open_chapter(Some(&opened)).expect("doc Chuong dang mo that bai");
 
@@ -1420,8 +1701,9 @@ fn reading_the_open_chapter_reflects_the_single_chapter_just_created() {
 fn the_source_lang_is_read_from_the_work_never_guessed_from_the_text() {
     let root = temp_dir("read-chapter-lang");
 
-    let opened = create_work_from_text(&root, "Ngon Ngu That", "en", "", "a quote: 你好".to_owned())
-        .expect("tao tac pham that bai");
+    let opened =
+        create_work_from_text(&root, "Ngon Ngu That", "en", "", "a quote: 你好".to_owned())
+            .expect("tao tac pham that bai");
 
     let chapter = read_open_chapter(Some(&opened)).expect("doc Chuong dang mo that bai");
     assert_eq!(
@@ -1462,7 +1744,11 @@ fn the_source_lang_is_read_from_the_work_never_guessed_from_the_text() {
 /// ⚠️ `ord` là **tham số**, có chủ ý: hai ca dưới đây cần dựng một bảng `chapter` mà
 /// `ord` **trùng nhau** — thứ mà không đường sản phẩm nào sinh ra được hôm nay, nhưng
 /// lược đồ **cho phép** (`schema.rs:249` cố ý không `UNIQUE`).
-fn insert_chapter_directly(opened: &auratranslate_lib::commands::project::OpenWork, ord: i64, text: &str) -> i64 {
+fn insert_chapter_directly(
+    opened: &auratranslate_lib::commands::project::OpenWork,
+    ord: i64,
+    text: &str,
+) -> i64 {
     let text = text.to_owned();
     opened
         .store
@@ -1486,8 +1772,9 @@ fn insert_chapter_directly(opened: &auratranslate_lib::commands::project::OpenWo
 #[test]
 fn moving_to_the_next_chapter_opens_the_following_row_and_remembers_the_move() {
     let root = temp_dir("next-chapter");
-    let mut opened = create_work_from_text(&root, "Chuyen Chuong", "zh", "", "Chuong mot.".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened =
+        create_work_from_text(&root, "Chuyen Chuong", "zh", "", "Chuong mot.".to_owned())
+            .expect("tao tac pham that bai");
 
     let first = opened.chapter_id;
     let second = insert_chapter_directly(&opened, 2, "Chuong hai.");
@@ -1496,7 +1783,9 @@ fn moving_to_the_next_chapter_opens_the_following_row_and_remembers_the_move() {
     let moved = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
         .expect("chuyen sang Chuong sau that bai");
     assert_eq!(moved.outcome, ChapterSwitchOutcome::Moved);
-    let chapter = moved.chapter.expect("mot luot doi THAT SU phai mang Chuong moi");
+    let chapter = moved
+        .chapter
+        .expect("mot luot doi THAT SU phai mang Chuong moi");
     assert_eq!(chapter.chapter_id, second);
     assert_eq!(chapter.source_text, "Chuong hai.");
     assert_eq!(
@@ -1521,8 +1810,9 @@ fn moving_to_the_next_chapter_opens_the_following_row_and_remembers_the_move() {
 #[test]
 fn moving_to_the_previous_chapter_opens_the_row_immediately_before() {
     let root = temp_dir("prev-chapter");
-    let mut opened = create_work_from_text(&root, "Chuong Truoc", "zh", "", "Chuong mot.".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened =
+        create_work_from_text(&root, "Chuong Truoc", "zh", "", "Chuong mot.".to_owned())
+            .expect("tao tac pham that bai");
 
     let first = opened.chapter_id;
     let second = insert_chapter_directly(&opened, 2, "Chuong hai.");
@@ -1548,8 +1838,9 @@ fn moving_to_the_previous_chapter_opens_the_row_immediately_before() {
 #[test]
 fn the_last_chapter_reports_the_boundary_instead_of_wrapping_around() {
     let root = temp_dir("last-chapter");
-    let mut opened = create_work_from_text(&root, "Bien Cuoi", "zh", "", "Chuong duy nhat.".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened =
+        create_work_from_text(&root, "Bien Cuoi", "zh", "", "Chuong duy nhat.".to_owned())
+            .expect("tao tac pham that bai");
 
     let only = opened.chapter_id;
 
@@ -1575,8 +1866,9 @@ fn the_last_chapter_reports_the_boundary_instead_of_wrapping_around() {
 #[test]
 fn the_first_chapter_reports_the_boundary_instead_of_wrapping_around() {
     let root = temp_dir("first-chapter");
-    let mut opened = create_work_from_text(&root, "Bien Dau", "zh", "", "Chuong duy nhat.".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened =
+        create_work_from_text(&root, "Bien Dau", "zh", "", "Chuong duy nhat.".to_owned())
+            .expect("tao tac pham that bai");
 
     let only = opened.chapter_id;
 
@@ -1653,8 +1945,8 @@ fn adjacent_chapters_work_on_a_sparse_ord_sequence() {
         .expect("buoc hai that bai");
     assert_eq!(step_two.chapter.expect("phai co Chuong").chapter_id, far);
 
-    let step_three = open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next)
-        .expect("buoc ba that bai");
+    let step_three =
+        open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("buoc ba that bai");
     assert_eq!(step_three.outcome, ChapterSwitchOutcome::AtLast);
 
     let dir = opened.dir.clone();
@@ -1787,7 +2079,11 @@ const NON_ENTITY_DETAIL_TABLES: [&str; 20] = [
 /// `the_update_source_lang_check_would_actually_flag_a_seeded_violation` đã dùng cho vế
 /// `source_lang`.
 fn entity_tables(tables: &[String]) -> Vec<String> {
-    tables.iter().filter(|t| !NON_ENTITY_DETAIL_TABLES.contains(&t.as_str())).cloned().collect()
+    tables
+        .iter()
+        .filter(|t| !NON_ENTITY_DETAIL_TABLES.contains(&t.as_str()))
+        .cloned()
+        .collect()
 }
 
 /// 🔴 **Story 5.1** — `project.db` không mang một bảng THỰC THỂ nào giữa `work` và
@@ -1868,15 +2164,16 @@ fn the_entity_table_check_would_actually_flag_a_seeded_third_tier_table() {
 /// canh mệnh đề nào về `source_lang`; xem phân công ở đầu §Story 5.1 của tệp này) nên walk
 /// cây nguồn được viết lại cục bộ, tối giản, đúng khuôn mọi `*_boundary.rs` khác.
 fn walk_rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("doc thu muc {}: {e}", dir.display()));
+    let entries =
+        fs::read_dir(dir).unwrap_or_else(|e| panic!("doc thu muc {}: {e}", dir.display()));
     for entry in entries {
         // 🔵 VA (vong ra doi khang) — ban truoc `entries.flatten()` NUOT mot `DirEntry` loi va
         // BO QUA IM LANG ca tep do, lam phep quet hut ma khong co tin hieu nao. Mot phep kiem
         // "cay rong doc thanh sach" khong dong duoc gi neu tung ENTRY co the tu lang le bien mat.
         let entry = entry.unwrap_or_else(|e| panic!("doc mot muc trong {}: {e}", dir.display()));
         let path = entry.path();
-        let meta = fs::symlink_metadata(&path)
-            .unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
+        let meta =
+            fs::symlink_metadata(&path).unwrap_or_else(|e| panic!("lstat {}: {e}", path.display()));
         if meta.file_type().is_symlink() {
             continue;
         }
@@ -1940,8 +2237,9 @@ fn rust_string_literals(text: &str) -> Vec<String> {
                 }
                 if chars.get(k) == Some(&'"') {
                     let content_start = k + 1;
-                    let closing: Vec<char> =
-                        std::iter::once('"').chain(std::iter::repeat_n('#', hashes)).collect();
+                    let closing: Vec<char> = std::iter::once('"')
+                        .chain(std::iter::repeat_n('#', hashes))
+                        .collect();
                     let mut m = content_start;
                     while m < n && chars[m..(m + closing.len()).min(n)] != closing[..] {
                         m += 1;
@@ -2084,7 +2382,8 @@ fn no_update_statement_anywhere_touches_source_lang() {
 
     let mut violations: Vec<String> = Vec::new();
     for file in &files {
-        let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("doc {}: {e}", file.display()));
+        let text =
+            fs::read_to_string(file).unwrap_or_else(|e| panic!("doc {}: {e}", file.display()));
 
         // ⚠️ `rust_string_literals` NHẬN VĂN BẢN GỐC, không một bản đã tiền xử lý xoá dòng
         // `//` — chính hàm đó cắt comment CÓ TRẠNG THÁI (chỉ ngoài chuỗi). Tiền xử lý theo
@@ -2161,7 +2460,9 @@ fn the_update_source_lang_check_would_actually_flag_a_seeded_violation() {
 #[test]
 fn the_library_work_exemption_is_named_and_does_not_swallow_the_work_table() {
     let is_violation = |literal: &str| {
-        literal.contains("UPDATE") && literal.contains("source_lang") && !literal.contains("library_work")
+        literal.contains("UPDATE")
+            && literal.contains("source_lang")
+            && !literal.contains("library_work")
     };
 
     // Câu UPSERT thật của `Indexer::rebuild` (Story 5.3) -- MIỄN TRỪ, vì nó nhắm `library_work`,
@@ -2195,7 +2496,9 @@ fn rust_string_literals_handles_char_literals_raw_strings_and_wrapped_comment_sh
     let with_quote_char_literal = "const QUOTE: char = '\"';\ntx.execute(\"UPDATE work SET source_lang = ?1 WHERE id = 1\", (&lang,))?;";
     let literals_1 = rust_string_literals(with_quote_char_literal);
     assert!(
-        literals_1.iter().any(|l| l.contains("UPDATE") && l.contains("source_lang")),
+        literals_1
+            .iter()
+            .any(|l| l.contains("UPDATE") && l.contains("source_lang")),
         "ca DUONG THAT (1): ky tu chua dau nhay kep lam lech pha bo tach, nen UPDATE that sau \
          no bi mat. Nhan duoc: {literals_1:?}"
     );
@@ -2218,14 +2521,15 @@ fn rust_string_literals_handles_char_literals_raw_strings_and_wrapped_comment_sh
         "tx.execute(\n    \"UPDATE work SET \\\n     // source_lang = ?1\",\n    (),\n)?;";
     let literals_3 = rust_string_literals(wrapped);
     assert!(
-        literals_3.iter().any(|l| l.contains("UPDATE") && l.contains("source_lang")),
+        literals_3
+            .iter()
+            .any(|l| l.contains("UPDATE") && l.contains("source_lang")),
         "ca DUONG THAT (3): dong noi tiep mo dau bang `//` van la NOI DUNG CHUOI, khong phai \
          comment -- nhan duoc {literals_3:?}"
     );
 
     // Doi chung AM: mot comment `//` THAT (ngoai chuoi) mang ca hai tu khoa khong duoc bat oan.
-    let real_comment =
-        "// UPDATE work SET source_lang = ?1 -- vi du trong comment, khong phai ma";
+    let real_comment = "// UPDATE work SET source_lang = ?1 -- vi du trong comment, khong phai ma";
     let literals_4 = rust_string_literals(real_comment);
     assert!(
         literals_4.is_empty(),
@@ -2258,7 +2562,9 @@ fn a_trailing_line_comment_after_real_code_is_not_read_as_part_of_a_literal() {
 /// tầng Work phải mang đúng nhãn `Tier::Work` của chính nó (AD-19, không khử trùng lặp).
 #[test]
 fn glossary_and_translation_memory_both_resolve_at_the_work_tier() {
-    let resolver = ScopeResolver::with_work(WorkScope { work_id: "work-under-test".to_owned() });
+    let resolver = ScopeResolver::with_work(WorkScope {
+        work_id: "work-under-test".to_owned(),
+    });
 
     // Glossary — Semantics::Override (AD-18): khoa trung o ca hai tang phai thang ve Work.
     let global_glossary: BTreeMap<&str, &str> = BTreeMap::from([("hero", "global-nghia")]);
@@ -2284,12 +2590,16 @@ fn glossary_and_translation_memory_both_resolve_at_the_work_tier() {
         .apply_merge::<&str>("translation_memory", &global_tm, Some(&work_tm), None)
         .expect("TranslationMemory phai phan giai duoc voi mot tang Work khong rong");
     assert!(
-        merged.iter().any(|t| t.tier() == Tier::Work && *t.value() == "cap work"),
+        merged
+            .iter()
+            .any(|t| t.tier() == Tier::Work && *t.value() == "cap work"),
         "ket qua hop nhat cua TranslationMemory phai co it nhat mot muc mang nhan Tier::Work: \
          {merged:?}"
     );
     assert!(
-        merged.iter().any(|t| t.tier() == Tier::Global && *t.value() == "cap global"),
+        merged
+            .iter()
+            .any(|t| t.tier() == Tier::Global && *t.value() == "cap global"),
         "AD-19: giu nguyen bat dong -- muc Global khong bi khu trung lap hay bi tang Work che \
          mat: {merged:?}"
     );
@@ -2379,7 +2689,10 @@ fn opening_a_work_id_that_is_not_indexed_is_a_named_error() {
 
     assert_eq!(err.code(), "library.work_not_indexed");
     assert_eq!(err.message_key(), MessageKey::LibraryWorkNotIndexed);
-    assert_eq!(err.params().get("work_id").map(String::as_str), Some("khong-ton-tai"));
+    assert_eq!(
+        err.params().get("work_id").map(String::as_str),
+        Some("khong-ton-tai")
+    );
     assert!(!err.retryable());
 }
 
@@ -2400,7 +2713,10 @@ fn opening_a_work_whose_folder_has_vanished_is_a_named_open_failed_error() {
 
     assert_eq!(err.code(), "work.open_failed");
     assert_eq!(err.message_key(), MessageKey::WorkOpenFailed);
-    assert_eq!(err.params().get("name").map(String::as_str), Some("Bien Mat"));
+    assert_eq!(
+        err.params().get("name").map(String::as_str),
+        Some("Bien Mat")
+    );
 
     cleanup(&root);
 }
@@ -2418,7 +2734,9 @@ fn opening_a_work_with_a_newer_meta_schema_is_refused_without_touching_a_single_
 
     let mut future_meta = WorkMeta::read(&dir).expect("doc meta.json that bai");
     future_meta.meta_schema_version = META_SCHEMA_VERSION + 1;
-    future_meta.write_atomic(&dir).expect("ghi meta.json phien ban tuong lai that bai");
+    future_meta
+        .write_atomic(&dir)
+        .expect("ghi meta.json phien ban tuong lai that bai");
     let bytes_before = fs::read(dir.join("meta.json")).expect("doc meta.json that bai");
 
     let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
@@ -2484,8 +2802,9 @@ fn open_work_reopens_the_last_chapter_after_a_switch() {
     let second_chapter_id = opened.chapter_id;
     drop(opened);
 
-    let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
-        .expect("mo lai Tac pham that bai");
+    let reopened =
+        auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+            .expect("mo lai Tac pham that bai");
     assert_eq!(
         reopened.chapter_id, second_chapter_id,
         "mo lai phai tro dung Chuong da roi di, khong roi ve Chuong dau"
@@ -2511,9 +2830,11 @@ fn open_work_falls_back_to_the_first_chapter_when_the_last_chapter_was_merged_aw
     let second_chapter_id = opened.chapter_id;
     assert_ne!(first_chapter_id, second_chapter_id);
 
-    merge_chapter_into_previous(Some(&mut opened), second_chapter_id)
-        .expect("gop Chuong that bai");
-    assert_eq!(opened.chapter_id, first_chapter_id, "con tro trong bo nho phai doi theo lan gop");
+    merge_chapter_into_previous(Some(&mut opened), second_chapter_id).expect("gop Chuong that bai");
+    assert_eq!(
+        opened.chapter_id, first_chapter_id,
+        "con tro trong bo nho phai doi theo lan gop"
+    );
     // Gan tay `last_chapter_id` ve id da gop mat: lan gop tu ghi lai no, nen phai dung fixture
     // de nua RƠI VE van duoc canh.
     opened
@@ -2525,8 +2846,9 @@ fn open_work_falls_back_to_the_first_chapter_when_the_last_chapter_was_merged_aw
         .expect("dung fixture that bai");
     drop(opened);
 
-    let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
-        .expect("mo lai Tac pham that bai");
+    let reopened =
+        auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+            .expect("mo lai Tac pham that bai");
     assert_eq!(
         reopened.chapter_id, first_chapter_id,
         "last_chapter_id cu (da gop mat) phai roi ve Chuong dau, khong phai loi kho"
@@ -2566,9 +2888,13 @@ fn merging_the_open_chapter_into_the_previous_one_persists_the_receiving_chapter
     );
     drop(opened);
 
-    let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
-        .expect("mo lai Tac pham that bai");
-    assert_eq!(reopened.chapter_id, second_chapter_id, "mo lai phai vao Chuong 2, khong phai Chuong dau");
+    let reopened =
+        auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+            .expect("mo lai Tac pham that bai");
+    assert_eq!(
+        reopened.chapter_id, second_chapter_id,
+        "mo lai phai vao Chuong 2, khong phai Chuong dau"
+    );
     drop(reopened);
     cleanup(&dir);
 }
@@ -2615,15 +2941,22 @@ fn open_work_reopens_the_chapter_switched_to_via_open_chapter() {
     let chapters = auratranslate_lib::commands::chapter::list_chapters(Some(&opened))
         .expect("liet ke Chuong that bai");
     let target = chapters.get(2).expect("phai co Chuong thu ba").chapter_id;
-    assert_ne!(target, opened.chapter_id, "tien de: Chuong dich phai KHAC Chuong dang mo");
+    assert_ne!(
+        target, opened.chapter_id,
+        "tien de: Chuong dich phai KHAC Chuong dang mo"
+    );
 
     auratranslate_lib::commands::chapter::open_chapter(Some(&mut opened), target)
         .expect("open_chapter that bai");
-    assert_eq!(opened.chapter_id, target, "tien de: con tro trong bo nho phai doi ngay");
+    assert_eq!(
+        opened.chapter_id, target,
+        "tien de: con tro trong bo nho phai doi ngay"
+    );
     drop(opened);
 
-    let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
-        .expect("mo lai Tac pham that bai");
+    let reopened =
+        auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+            .expect("mo lai Tac pham that bai");
     assert_eq!(
         reopened.chapter_id, target,
         "mo lai phai tro dung Chuong da mo qua open_chapter, khong roi ve Chuong dau"
@@ -2875,13 +3208,22 @@ fn list_chapters_without_a_work_open_reuses_the_named_error() {
 #[test]
 fn list_chapters_carries_a_null_title_through_untouched() {
     let root = temp_dir("list-chapters-untitled");
-    let opened = create_work_from_text(&root, "Chuong Khong Ten", "zh", "", "Chuong mot.".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "Chuong Khong Ten",
+        "zh",
+        "",
+        "Chuong mot.".to_owned(),
+    )
+    .expect("tao tac pham that bai");
 
     let rows = auratranslate_lib::commands::chapter::list_chapters(Some(&opened))
         .expect("liet ke Chuong that bai");
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].title, None, "Chuong moi tao chua co tieu de, phai la None qua day");
+    assert_eq!(
+        rows[0].title, None,
+        "Chuong moi tao chua co tieu de, phai la None qua day"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -2892,14 +3234,23 @@ fn list_chapters_carries_a_null_title_through_untouched() {
 #[test]
 fn opening_a_named_chapter_moves_the_cursor_only_after_a_successful_lookup() {
     let root = temp_dir("open-chapter-named");
-    let mut opened = create_work_from_text(&root, "Mo Chuong Dich Danh", "zh", "", "Chuong mot.".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "Mo Chuong Dich Danh",
+        "zh",
+        "",
+        "Chuong mot.".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let second = insert_chapter_directly(&opened, 2, "Chuong hai.");
 
     let switched = auratranslate_lib::commands::chapter::open_chapter(Some(&mut opened), second)
         .expect("mo Chuong dich danh that bai");
     assert_eq!(switched.chapter_id, second);
-    assert_eq!(opened.chapter_id, second, "con tro Chuong phai doi sang dung Chuong vua mo");
+    assert_eq!(
+        opened.chapter_id, second,
+        "con tro Chuong phai doi sang dung Chuong vua mo"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -2948,9 +3299,19 @@ fn opening_a_chapter_without_a_work_open_reuses_the_named_error() {
 /// Chèn một hàng `segment` **thẳng bằng SQL**, mọi cột không liệt ở tham số mang giá trị mặc
 /// định vô hại (`target_text = ''`, `status = 'draft'`, `is_omitted = 0`,
 /// `translation_origin = ''`) — trả `segment.id` vừa sinh.
-fn insert_segment_directly(opened: &OpenWork, chapter_id: i64, ord: i64, source_text: &str, retired: bool) -> i64 {
+fn insert_segment_directly(
+    opened: &OpenWork,
+    chapter_id: i64,
+    ord: i64,
+    source_text: &str,
+    retired: bool,
+) -> i64 {
     let source_text = source_text.to_owned();
-    let retired_at: Option<&'static str> = if retired { Some("2026-08-29T00:00:00.000Z") } else { None };
+    let retired_at: Option<&'static str> = if retired {
+        Some("2026-08-29T00:00:00.000Z")
+    } else {
+        None
+    };
     opened
         .store
         .write(move |tx: &Transaction<'_>| {
@@ -2969,7 +3330,12 @@ fn insert_segment_directly(opened: &OpenWork, chapter_id: i64, ord: i64, source_
 
 /// Chèn một hàng `asset` **thẳng bằng SQL** — trả `id` vừa sinh. Story 6.11 (FR127), dùng
 /// cho các ca "duy trì hàng `asset` qua bốn đường tổ chức lại Chương" (Ice chốt 2026-09-09).
-fn insert_asset_directly(opened: &OpenWork, chapter_id: i64, anchor_after_segment_ord: i64, file_name: &str) -> i64 {
+fn insert_asset_directly(
+    opened: &OpenWork,
+    chapter_id: i64,
+    anchor_after_segment_ord: i64,
+    file_name: &str,
+) -> i64 {
     let file_name = file_name.to_owned();
     opened
         .store
@@ -2993,8 +3359,9 @@ fn snapshot_assets(opened: &OpenWork) -> Vec<AssetSnapshot> {
     opened
         .store
         .read(|conn| {
-            let mut stmt =
-                conn.prepare("SELECT id, chapter_id, anchor_after_segment_ord, file_name FROM asset ORDER BY id")?;
+            let mut stmt = conn.prepare(
+                "SELECT id, chapter_id, anchor_after_segment_ord, file_name FROM asset ORDER BY id",
+            )?;
             let rows = stmt.query_map([], |row| {
                 Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
             })?;
@@ -3023,7 +3390,12 @@ fn set_chapter_status_directly(opened: &OpenWork, chapter_id: i64, status: &str)
     let status = status.to_owned();
     opened
         .store
-        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE chapter SET status = ?1 WHERE id = ?2", (status, chapter_id)))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE chapter SET status = ?1 WHERE id = ?2",
+                (status, chapter_id),
+            )
+        })
         .expect("dat status Chuong bang SQL truc tiep that bai");
 }
 
@@ -3031,28 +3403,51 @@ fn set_chapter_source_text_directly(opened: &OpenWork, chapter_id: i64, text: &s
     let text = text.to_owned();
     opened
         .store
-        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE chapter SET source_text = ?1 WHERE id = ?2", (text, chapter_id)))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE chapter SET source_text = ?1 WHERE id = ?2",
+                (text, chapter_id),
+            )
+        })
         .expect("dat source_text Chuong bang SQL truc tiep that bai");
 }
 
 fn read_chapter_status(opened: &OpenWork, chapter_id: i64) -> String {
     opened
         .store
-        .read(move |conn| conn.query_row("SELECT status FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0)))
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT status FROM chapter WHERE id = ?1",
+                [chapter_id],
+                |row| row.get(0),
+            )
+        })
         .expect("doc status Chuong that bai")
 }
 
 fn read_chapter_source_text(opened: &OpenWork, chapter_id: i64) -> String {
     opened
         .store
-        .read(move |conn| conn.query_row("SELECT source_text FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0)))
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT source_text FROM chapter WHERE id = ?1",
+                [chapter_id],
+                |row| row.get(0),
+            )
+        })
         .expect("doc source_text Chuong that bai")
 }
 
 fn read_chapter_title(opened: &OpenWork, chapter_id: i64) -> Option<String> {
     opened
         .store
-        .read(move |conn| conn.query_row("SELECT title FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0)))
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT title FROM chapter WHERE id = ?1",
+                [chapter_id],
+                |row| row.get(0),
+            )
+        })
         .expect("doc title Chuong that bai")
 }
 
@@ -3064,7 +3459,8 @@ fn read_all_chapter_ord(opened: &OpenWork) -> Vec<(i64, i64)> {
         .store
         .read(|conn| {
             let mut stmt = conn.prepare("SELECT id, ord FROM chapter ORDER BY id")?;
-            let mapped = stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)))?;
+            let mapped =
+                stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)))?;
             mapped.collect::<SqlResult<Vec<(i64, i64)>>>()
         })
         .expect("doc (id, ord) cua moi Chuong that bai")
@@ -3133,8 +3529,9 @@ fn snapshot_segment_versions(opened: &OpenWork) -> Vec<SegmentVersionSnapshot> {
     opened
         .store
         .read(|conn| {
-            let mut stmt =
-                conn.prepare("SELECT id, segment_id, target_text, created_at FROM segment_version ORDER BY id")?;
+            let mut stmt = conn.prepare(
+                "SELECT id, segment_id, target_text, created_at FROM segment_version ORDER BY id",
+            )?;
             let mapped = stmt.query_map([], |row| {
                 Ok(SegmentVersionSnapshot {
                     id: row.get(0)?,
@@ -3180,7 +3577,10 @@ fn merging_two_chapters_changes_only_chapter_id_and_ord_on_every_segment_column(
     let after = snapshot_segments(&opened);
     let versions_after = snapshot_segment_versions(&opened);
 
-    assert_eq!(versions_before, versions_after, "khong hang segment_version nao duoc dung toi boi luot gop");
+    assert_eq!(
+        versions_before, versions_after,
+        "khong hang segment_version nao duoc dung toi boi luot gop"
+    );
     assert_eq!(after.len(), 5, "gop KHONG tao/huy mot hang segment nao");
 
     for (b, a) in before.iter().zip(after.iter()) {
@@ -3188,7 +3588,11 @@ fn merging_two_chapters_changes_only_chapter_id_and_ord_on_every_segment_column(
         assert_eq!(b.source_text, a.source_text, "id={}", a.id);
         assert_eq!(b.target_text, a.target_text, "id={}", a.id);
         assert_eq!(b.is_paragraph_end, a.is_paragraph_end, "id={}", a.id);
-        assert_eq!(b.is_target_paragraph_end, a.is_target_paragraph_end, "id={}", a.id);
+        assert_eq!(
+            b.is_target_paragraph_end, a.is_target_paragraph_end,
+            "id={}",
+            a.id
+        );
         assert_eq!(b.retired_at, a.retired_at, "id={}", a.id);
         assert_eq!(b.status, a.status, "id={}", a.id);
         assert_eq!(b.is_omitted, a.is_omitted, "id={}", a.id);
@@ -3204,8 +3608,16 @@ fn merging_two_chapters_changes_only_chapter_id_and_ord_on_every_segment_column(
     assert_eq!(by_id(a2).ord, 2);
     assert_eq!(by_id(a3).chapter_id, a_id);
     assert_eq!(by_id(a3).ord, 3);
-    assert_eq!(by_id(b1).chapter_id, a_id, "hang cua B phai doi chapter_id sang A");
-    assert_eq!(by_id(b1).ord, 4, "ord cua B tinh tien bang MAX(ord) cu cua A (3)");
+    assert_eq!(
+        by_id(b1).chapter_id,
+        a_id,
+        "hang cua B phai doi chapter_id sang A"
+    );
+    assert_eq!(
+        by_id(b1).ord,
+        4,
+        "ord cua B tinh tien bang MAX(ord) cu cua A (3)"
+    );
     assert_eq!(by_id(b2).chapter_id, a_id);
     assert_eq!(by_id(b2).ord, 5);
 
@@ -3240,7 +3652,10 @@ fn splitting_a_chapter_changes_only_chapter_id_and_ord_on_every_segment_column()
 
     let after = snapshot_segments(&opened);
     let versions_after = snapshot_segment_versions(&opened);
-    assert_eq!(versions_before, versions_after, "lich su phien ban cua cau ba song sot nguyen ven va van tra duoc");
+    assert_eq!(
+        versions_before, versions_after,
+        "lich su phien ban cua cau ba song sot nguyen ven va van tra duoc"
+    );
     assert_eq!(after.len(), 4, "tach KHONG tao/huy mot hang segment nao");
 
     for (b, a) in before.iter().zip(after.iter()) {
@@ -3248,8 +3663,16 @@ fn splitting_a_chapter_changes_only_chapter_id_and_ord_on_every_segment_column()
         assert_eq!(b.source_text, a.source_text, "id={}", a.id);
         assert_eq!(b.target_text, a.target_text, "id={}", a.id);
         assert_eq!(b.is_paragraph_end, a.is_paragraph_end, "id={}", a.id);
-        assert_eq!(b.is_target_paragraph_end, a.is_target_paragraph_end, "id={}", a.id);
-        assert_eq!(b.retired_at, a.retired_at, "khong cau nao duoc gan retired_at boi luot tach -- id={}", a.id);
+        assert_eq!(
+            b.is_target_paragraph_end, a.is_target_paragraph_end,
+            "id={}",
+            a.id
+        );
+        assert_eq!(
+            b.retired_at, a.retired_at,
+            "khong cau nao duoc gan retired_at boi luot tach -- id={}",
+            a.id
+        );
         assert_eq!(b.status, a.status, "id={}", a.id);
         assert_eq!(b.is_omitted, a.is_omitted, "id={}", a.id);
         assert_eq!(b.translation_origin, a.translation_origin, "id={}", a.id);
@@ -3260,19 +3683,41 @@ fn splitting_a_chapter_changes_only_chapter_id_and_ord_on_every_segment_column()
     let by_id = |id: i64| after.iter().find(|s| s.id == id).unwrap();
     assert_eq!(by_id(s1).chapter_id, a_id);
     assert_eq!(by_id(s1).ord, 1);
-    assert_eq!(by_id(s2).chapter_id, a_id, "cau da ve huu dung TRUOC diem cat -- o lai A");
+    assert_eq!(
+        by_id(s2).chapter_id,
+        a_id,
+        "cau da ve huu dung TRUOC diem cat -- o lai A"
+    );
     assert_eq!(by_id(s2).ord, 2);
 
     let b_id = by_id(s3).chapter_id;
     assert_ne!(b_id, a_id, "s3 la diem cat -- phai doi sang mot Chuong MOI");
-    assert_eq!(by_id(s3).ord, 1, "cung segment.id, ord danh lai tu 1 trong Chuong moi");
+    assert_eq!(
+        by_id(s3).ord,
+        1,
+        "cung segment.id, ord danh lai tu 1 trong Chuong moi"
+    );
     assert_eq!(by_id(s4).chapter_id, b_id);
     assert_eq!(by_id(s4).ord, 2);
 
-    assert_eq!(opened.chapter_id, a_id, "con tro Chuong dang mo giu nguyen A sau lot tach");
-    assert_eq!(opened.meta.chapter_count, 2, "mot Chuong moi da duoc chen -- chapter_count phai theo kip");
-    assert_eq!(read_chapter_status(&opened, b_id), "in_progress", "status cua B chep tu A");
-    assert_eq!(read_chapter_title(&opened, b_id), None, "title cua B luon NULL, khong chep tu A");
+    assert_eq!(
+        opened.chapter_id, a_id,
+        "con tro Chuong dang mo giu nguyen A sau lot tach"
+    );
+    assert_eq!(
+        opened.meta.chapter_count, 2,
+        "mot Chuong moi da duoc chen -- chapter_count phai theo kip"
+    );
+    assert_eq!(
+        read_chapter_status(&opened, b_id),
+        "in_progress",
+        "status cua B chep tu A"
+    );
+    assert_eq!(
+        read_chapter_title(&opened, b_id),
+        None,
+        "title cua B luon NULL, khong chep tu A"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -3286,7 +3731,13 @@ fn no_segment_is_ever_retired_by_a_chapter_reorganisation() {
     fn count_retired(opened: &OpenWork) -> i64 {
         opened
             .store
-            .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment WHERE retired_at IS NOT NULL", [], |row| row.get(0)))
+            .read(|conn| {
+                conn.query_row(
+                    "SELECT COUNT(*) FROM segment WHERE retired_at IS NOT NULL",
+                    [],
+                    |row| row.get(0),
+                )
+            })
             .expect("dem segment ve huu that bai")
     }
 
@@ -3301,10 +3752,18 @@ fn no_segment_is_ever_retired_by_a_chapter_reorganisation() {
 
     assert_eq!(count_retired(&opened), 0);
     merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
-    assert_eq!(count_retired(&opened), 0, "gop KHONG duoc cho segment nao ve huu");
+    assert_eq!(
+        count_retired(&opened),
+        0,
+        "gop KHONG duoc cho segment nao ve huu"
+    );
 
     split_chapter_at_segment(Some(&mut opened), s2).expect("tach that bai");
-    assert_eq!(count_retired(&opened), 0, "tach KHONG duoc cho segment nao ve huu");
+    assert_eq!(
+        count_retired(&opened),
+        0,
+        "tach KHONG duoc cho segment nao ve huu"
+    );
 
     let _ = s1;
     let dir = opened.dir.clone();
@@ -3321,7 +3780,8 @@ fn no_segment_is_ever_retired_by_a_chapter_reorganisation() {
 /// GỘP — hàng `asset` của Chương bị gộp (B) phải theo về Chương đích (A), với
 /// `anchor_after_segment_ord` dời ĐÚNG bằng `shift` (số segment A đã có TRƯỚC khi B nối vào).
 #[test]
-fn merging_a_chapter_moves_its_asset_rows_to_the_target_chapter_with_the_anchor_shifted_by_the_segment_count() {
+fn merging_a_chapter_moves_its_asset_rows_to_the_target_chapter_with_the_anchor_shifted_by_the_segment_count()
+ {
     let root = temp_dir("merge-asset-rows");
     let mut opened = create_work_from_text(&root, "Gop Anh", "zh", "", String::new())
         .expect("tao tac pham that bai");
@@ -3343,14 +3803,22 @@ fn merging_a_chapter_moves_its_asset_rows_to_the_target_chapter_with_the_anchor_
     merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
 
     let rows = snapshot_assets(&opened);
-    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+    let by_id = |id: i64| {
+        rows.iter()
+            .find(|r| r.0 == id)
+            .unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"))
+    };
 
     assert_eq!(by_id(asset_a).1, a_id, "anh cua A khong duoc doi Chuong");
     assert_eq!(by_id(asset_a).2, 1, "neo cua A khong duoc dich chuyen");
 
     // shift = MAX(ord) cu cua A = 3.
     assert_eq!(by_id(asset_b0).1, a_id, "anh cua B phai doi sang Chuong A");
-    assert_eq!(by_id(asset_b0).2, 0 + 3, "neo cua B (0) phai dich +3 (shift = so segment cu cua A)");
+    assert_eq!(
+        by_id(asset_b0).2,
+        0 + 3,
+        "neo cua B (0) phai dich +3 (shift = so segment cu cua A)"
+    );
     assert_eq!(by_id(asset_b2).1, a_id);
     assert_eq!(by_id(asset_b2).2, 2 + 3, "neo cua B (2) phai dich +3");
 
@@ -3394,17 +3862,29 @@ fn splitting_a_chapter_moves_each_asset_row_to_the_half_that_contains_its_anchor
         .expect("doc id Chuong moi that bai");
 
     let rows = snapshot_assets(&opened);
-    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+    let by_id = |id: i64| {
+        rows.iter()
+            .find(|r| r.0 == id)
+            .unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"))
+    };
 
     assert_eq!(by_id(a0).1, a_id, "neo 0 (truoc s1) phai o lai A");
     assert_eq!(by_id(a0).2, 0);
     assert_eq!(by_id(a1).1, a_id, "neo 1 (giua s1 va s2) phai o lai A");
     assert_eq!(by_id(a1).2, 1);
-    assert_eq!(by_id(a2).1, a_id, "neo 2 (dung ngay TRUOC s3, segment no dem van o A) phai o lai A");
+    assert_eq!(
+        by_id(a2).1,
+        a_id,
+        "neo 2 (dung ngay TRUOC s3, segment no dem van o A) phai o lai A"
+    );
     assert_eq!(by_id(a2).2, 2, "neo 2 khong duoc dich chuyen");
 
     // seg_ord cua s3 la 3 -- moi segment/anh mang neo >= 3 doi sang B, tru di (3 - 1) = 2.
-    assert_eq!(by_id(a3).1, b_id, "neo 3 (ngay SAU s3, s3 da doi sang B) phai doi sang B");
+    assert_eq!(
+        by_id(a3).1,
+        b_id,
+        "neo 3 (ngay SAU s3, s3 da doi sang B) phai doi sang B"
+    );
     assert_eq!(by_id(a3).2, 3 - 2, "neo 3 phai tru di (seg_ord - 1) = 2");
     assert_eq!(by_id(a4).1, b_id, "neo 4 (sau s4) phai doi sang B");
     assert_eq!(by_id(a4).2, 4 - 2, "neo 4 phai tru di 2");
@@ -3436,21 +3916,42 @@ fn merging_two_sentences_rebases_every_asset_anchor_in_the_chapter_by_the_same_r
 
     // Gop segment id=2 voi segment lien tren no (id=1) -- ord_dau_nhom=1, K=2 (retire id 1,2),
     // M=1 (mot hang moi).
-    auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2).expect("gop cau 2 voi cau lien tren");
+    auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2)
+        .expect("gop cau 2 voi cau lien tren");
 
     let rows = snapshot_assets(&opened);
-    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+    let by_id = |id: i64| {
+        rows.iter()
+            .find(|r| r.0 == id)
+            .unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"))
+    };
 
-    assert_eq!(by_id(a0).2, 0, "neo TRUOC nhom (0 < ord_dau_nhom=1) khong duoc doi");
+    assert_eq!(
+        by_id(a0).2,
+        0,
+        "neo TRUOC nhom (0 < ord_dau_nhom=1) khong duoc doi"
+    );
     // ord_dau_nhom=1, K=2, M=1 -- mien "TAI/TRONG nhom" la [1, 1+2) = [1, 3), snap ve
     // ord_dau_nhom + M - 1 = 1.
-    assert_eq!(by_id(a1).2, 1, "neo TAI DAU nhom (1) phai snap ve ngay-sau-nhom-moi (1)");
-    assert_eq!(by_id(a2).2, 1, "neo TAI BIEN nhom (2, ngay sau seg cuoi bi gop) cung phai snap ve 1");
+    assert_eq!(
+        by_id(a1).2,
+        1,
+        "neo TAI DAU nhom (1) phai snap ve ngay-sau-nhom-moi (1)"
+    );
+    assert_eq!(
+        by_id(a2).2,
+        1,
+        "neo TAI BIEN nhom (2, ngay sau seg cuoi bi gop) cung phai snap ve 1"
+    );
     // Neo SAU nhom (3 >= ord_dau_nhom+K=3): doi (M-K) = 1-2 = -1 -> 3-1=2.
     assert_eq!(by_id(a3).2, 2, "neo SAU nhom (3) phai doi dung M-K = -1");
 
     assert_eq!(rows.len(), 4, "khong hang asset nao bi mat hay sinh them");
-    assert_eq!(by_id(a0).1, chapter_id, "gom nhom khong doi Chuong, chi doi neo");
+    assert_eq!(
+        by_id(a0).1,
+        chapter_id,
+        "gom nhom khong doi Chuong, chi doi neo"
+    );
 
     // ⚠️ M7 (vòng rà đối kháng 2, lớp 3) — ở fixture này `M = 1`, nên gia trị snap
     // (`ord_dau_nhom + M - 1 = 1`) TRÙNG KHÍT `ord_dau_nhom` (1) — ca này KHÔNG phân biệt
@@ -3474,8 +3975,14 @@ fn merging_two_sentences_rebases_every_asset_anchor_in_the_chapter_by_the_same_r
 #[test]
 fn splitting_a_sentence_into_three_pieces_rebases_asset_anchors_across_all_three_case_regions() {
     let root = temp_dir("regroup-split-asset-m3-m5");
-    let opened = create_work_from_text(&root, "Tach Cau Ba Manh", "en", "", "AAAA. BBBB.".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "Tach Cau Ba Manh",
+        "en",
+        "",
+        "AAAA. BBBB.".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id = opened.chapter_id;
 
     // Bon anh, phu ca ba mien: truoc nhom (neo 0), TAI/TRONG nhom (neo 1 -- K=1 nen mien nay
@@ -3488,12 +3995,24 @@ fn splitting_a_sentence_into_three_pieces_rebases_asset_anchors_across_all_three
     // M=3.
     let out = auratranslate_lib::commands::segment::split_segment(Some(&opened), 1, vec![1, 2])
         .expect("tach segment thanh ba manh that bai");
-    assert_eq!(out.new_segments.len(), 3, "fixture phai that su sinh BA manh (M=3)");
+    assert_eq!(
+        out.new_segments.len(),
+        3,
+        "fixture phai that su sinh BA manh (M=3)"
+    );
 
     let rows = snapshot_assets(&opened);
-    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+    let by_id = |id: i64| {
+        rows.iter()
+            .find(|r| r.0 == id)
+            .unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"))
+    };
 
-    assert_eq!(by_id(a0).2, 0, "neo TRUOC nhom (0 < ord_dau_nhom=1) khong duoc doi");
+    assert_eq!(
+        by_id(a0).2,
+        0,
+        "neo TRUOC nhom (0 < ord_dau_nhom=1) khong duoc doi"
+    );
     // ord_dau_nhom=1, K=1, M=3 -- mien "TAI/TRONG nhom" la [1, 1+1) = {1}, snap ve
     // ord_dau_nhom + M - 1 = 1 + 3 - 1 = 3 -- TACH KHOI ord_dau_nhom (1), dung yeu cau M7.
     assert_eq!(
@@ -3506,7 +4025,11 @@ fn splitting_a_sentence_into_three_pieces_rebases_asset_anchors_across_all_three
     assert_eq!(by_id(a2).2, 4, "neo SAU nhom (2) phai doi dung M-K = +2");
 
     assert_eq!(rows.len(), 3, "khong hang asset nao bi mat hay sinh them");
-    assert_eq!(by_id(a0).1, chapter_id, "tach cau khong doi Chuong, chi doi neo");
+    assert_eq!(
+        by_id(a0).1,
+        chapter_id,
+        "tach cau khong doi Chuong, chi doi neo"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -3529,12 +4052,21 @@ fn no_reorganisation_ever_leaves_an_asset_row_pointing_at_a_nonexistent_chapter(
                 )
             })
             .expect("dem asset mo coi that bai");
-        assert_eq!(orphan_count, 0, "phat hien hang asset MO COI sau mot luot to chuc lai Chuong");
+        assert_eq!(
+            orphan_count, 0,
+            "phat hien hang asset MO COI sau mot luot to chuc lai Chuong"
+        );
     }
 
     let root = temp_dir("no-orphan-asset");
-    let mut opened = create_work_from_text(&root, "Khong Mo Coi", "zh", "", "一。二。三。四。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "Khong Mo Coi",
+        "zh",
+        "",
+        "一。二。三。四。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let a_id = opened.chapter_id;
 
     insert_asset_directly(&opened, a_id, 0, "x0.jpg");
@@ -3557,7 +4089,10 @@ fn no_reorganisation_ever_leaves_an_asset_row_pointing_at_a_nonexistent_chapter(
             rows.collect::<SqlResult<Vec<i64>>>()
         })
         .expect("doc segment con song that bai");
-    assert!(living_ids.len() >= 2, "can it nhat hai segment con song de tach: {living_ids:?}");
+    assert!(
+        living_ids.len() >= 2,
+        "can it nhat hai segment con song de tach: {living_ids:?}"
+    );
     let split_at = living_ids[1];
 
     split_chapter_at_segment(Some(&mut opened), split_at).expect("tach that bai");
@@ -3609,12 +4144,18 @@ fn splitting_one_chapter_never_touches_the_asset_rows_of_an_unrelated_chapter() 
     // làm ca này đỏ.
     let asset_c2 = insert_asset_directly(&opened, c2, 5, "c2.jpg");
 
-    let before_c2 = snapshot_assets(&opened).into_iter().find(|r| r.0 == asset_c2).expect("asset_c2 truoc");
+    let before_c2 = snapshot_assets(&opened)
+        .into_iter()
+        .find(|r| r.0 == asset_c2)
+        .expect("asset_c2 truoc");
 
     split_chapter_at_segment(Some(&mut opened), s3).expect("tach C1 that bai");
 
     let after = snapshot_assets(&opened);
-    let after_c2 = after.iter().find(|r| r.0 == asset_c2).expect("asset_c2 sau");
+    let after_c2 = after
+        .iter()
+        .find(|r| r.0 == asset_c2)
+        .expect("asset_c2 sau");
     assert_eq!(
         (after_c2.1, after_c2.2, after_c2.3.as_str()),
         (before_c2.1, before_c2.2, before_c2.3.as_str()),
@@ -3624,7 +4165,10 @@ fn splitting_one_chapter_never_touches_the_asset_rows_of_an_unrelated_chapter() 
     // Đối chứng dương đi kèm: ảnh của C1 (Chương THẬT SỰ bị tách) phải có ĐỔI (neo 4 >= seg_ord
     // 3 của s3 ⇒ dời sang Chương mới) — nếu nó CŨNG không đổi, ca này không đo được gì (một vị
     // từ mù ở cả hai phía).
-    let after_c1 = after.iter().find(|r| r.0 == asset_c1).expect("asset_c1 sau");
+    let after_c1 = after
+        .iter()
+        .find(|r| r.0 == asset_c1)
+        .expect("asset_c1 sau");
     assert_ne!(
         after_c1.1, c1,
         "doi chung DUONG: anh cua C1 (neo 4, sau seg_ord 3) PHAI doi Chuong -- neu khong, ca \
@@ -3642,8 +4186,14 @@ fn splitting_one_chapter_never_touches_the_asset_rows_of_an_unrelated_chapter() 
 #[test]
 fn regrouping_a_sentence_in_one_chapter_never_touches_the_asset_rows_of_an_unrelated_chapter() {
     let root = temp_dir("p0-regroup-isolation");
-    let opened = create_work_from_text(&root, "Cach Ly Gom Nhom", "zh", "", "一。二。三。".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "Cach Ly Gom Nhom",
+        "zh",
+        "",
+        "一。二。三。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let c1 = opened.chapter_id;
     let asset_c1 = insert_asset_directly(&opened, c1, 1, "c1.jpg");
 
@@ -3659,13 +4209,20 @@ fn regrouping_a_sentence_in_one_chapter_never_touches_the_asset_rows_of_an_unrel
     // khác 5) để phép gỡ `OR 1=1` PHẢI làm ca này đỏ.
     let asset_c2 = insert_asset_directly(&opened, c2, 5, "c2.jpg");
 
-    let before_c2 = snapshot_assets(&opened).into_iter().find(|r| r.0 == asset_c2).expect("asset_c2 truoc");
+    let before_c2 = snapshot_assets(&opened)
+        .into_iter()
+        .find(|r| r.0 == asset_c2)
+        .expect("asset_c2 truoc");
 
     // Gop segment id=2 voi id=1 trong C1 (ord_dau_nhom=1, K=2, M=1 -- CHỈ ở C1).
-    auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2).expect("gop cau trong C1 that bai");
+    auratranslate_lib::commands::segment::merge_segments(Some(&opened), 2)
+        .expect("gop cau trong C1 that bai");
 
     let after = snapshot_assets(&opened);
-    let after_c2 = after.iter().find(|r| r.0 == asset_c2).expect("asset_c2 sau");
+    let after_c2 = after
+        .iter()
+        .find(|r| r.0 == asset_c2)
+        .expect("asset_c2 sau");
     assert_eq!(
         (after_c2.1, after_c2.2, after_c2.3.as_str()),
         (before_c2.1, before_c2.2, before_c2.3.as_str()),
@@ -3676,8 +4233,14 @@ fn regrouping_a_sentence_in_one_chapter_never_touches_the_asset_rows_of_an_unrel
     // ord_dau_nhom + M - 1 = 1 -- tình cờ TRÙNG giá trị cũ ở fixture này, nên đo bằng cách
     // khác: xác nhận công thức CASE thật sự chạy bằng việc kiểm C2 CHƯA từng đổi, đã làm ở
     // trên; đối chứng dương ở đây xác nhận asset_c1 vẫn còn đúng 1 hàng và vẫn thuộc C1).
-    let after_c1 = after.iter().find(|r| r.0 == asset_c1).expect("asset_c1 sau");
-    assert_eq!(after_c1.1, c1, "anh cua C1 phai o lai C1 (gom nhom khong doi Chuong, chi doi neo)");
+    let after_c1 = after
+        .iter()
+        .find(|r| r.0 == asset_c1)
+        .expect("asset_c1 sau");
+    assert_eq!(
+        after_c1.1, c1,
+        "anh cua C1 phai o lai C1 (gom nhom khong doi Chuong, chi doi neo)"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -3703,13 +4266,19 @@ fn merging_two_chapters_never_touches_the_asset_rows_of_a_third_unrelated_chapte
     insert_segment_directly(&opened, c3, 2, "C3 cau hai.", false);
     let asset_c3 = insert_asset_directly(&opened, c3, 2, "c3.jpg");
 
-    let before_c3 = snapshot_assets(&opened).into_iter().find(|r| r.0 == asset_c3).expect("asset_c3 truoc");
+    let before_c3 = snapshot_assets(&opened)
+        .into_iter()
+        .find(|r| r.0 == asset_c3)
+        .expect("asset_c3 truoc");
 
     // Gop C2 vao C1 (khong dung toi C3).
     merge_chapter_into_previous(Some(&mut opened), c2).expect("gop C2 vao C1 that bai");
 
     let after = snapshot_assets(&opened);
-    let after_c3 = after.iter().find(|r| r.0 == asset_c3).expect("asset_c3 sau");
+    let after_c3 = after
+        .iter()
+        .find(|r| r.0 == asset_c3)
+        .expect("asset_c3 sau");
     assert_eq!(
         (after_c3.1, after_c3.2, after_c3.3.as_str()),
         (before_c3.1, before_c3.2, before_c3.3.as_str()),
@@ -3735,7 +4304,8 @@ fn merging_two_chapters_never_touches_the_asset_rows_of_a_third_unrelated_chapte
 /// TRỊ, không mơ hồ" ĐỨNG VỮNG** — không cần sửa, chỉ cần ca này làm bằng chứng thay lời
 /// suy luận.
 #[test]
-fn a_retired_segment_tied_at_the_split_boundary_does_not_confuse_which_side_an_asset_anchor_belongs_to() {
+fn a_retired_segment_tied_at_the_split_boundary_does_not_confuse_which_side_an_asset_anchor_belongs_to()
+ {
     let root = temp_dir("m1-retired-tie-at-split-boundary");
     let mut opened = create_work_from_text(&root, "M1 Tie Break", "zh", "", String::new())
         .expect("tao tac pham that bai");
@@ -3761,12 +4331,32 @@ fn a_retired_segment_tied_at_the_split_boundary_does_not_confuse_which_side_an_a
         .expect("doc id Chuong moi that bai");
 
     let rows = snapshot_assets(&opened);
-    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+    let by_id = |id: i64| {
+        rows.iter()
+            .find(|r| r.0 == id)
+            .unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"))
+    };
 
-    assert_eq!(by_id(asset_before).1, a_id, "neo TRUOC ranh gioi phai o lai A du co hang ve huu trung ord");
-    assert_eq!(by_id(asset_before).2, 2, "neo TRUOC ranh gioi khong duoc doi");
-    assert_eq!(by_id(asset_at).1, b_id, "neo TAI ranh gioi phai doi sang B du co hang ve huu trung ord");
-    assert_eq!(by_id(asset_at).2, 3 - 2, "neo TAI ranh gioi phai tru di (seg_ord - 1) = 2");
+    assert_eq!(
+        by_id(asset_before).1,
+        a_id,
+        "neo TRUOC ranh gioi phai o lai A du co hang ve huu trung ord"
+    );
+    assert_eq!(
+        by_id(asset_before).2,
+        2,
+        "neo TRUOC ranh gioi khong duoc doi"
+    );
+    assert_eq!(
+        by_id(asset_at).1,
+        b_id,
+        "neo TAI ranh gioi phai doi sang B du co hang ve huu trung ord"
+    );
+    assert_eq!(
+        by_id(asset_at).2,
+        3 - 2,
+        "neo TAI ranh gioi phai tru di (seg_ord - 1) = 2"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -3800,10 +4390,22 @@ fn merging_a_chapter_that_has_a_retired_segment_still_moves_its_asset_rows_corre
     merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
 
     let rows = snapshot_assets(&opened);
-    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+    let by_id = |id: i64| {
+        rows.iter()
+            .find(|r| r.0 == id)
+            .unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"))
+    };
     // shift = MAX(ord) cu cua A = 2 (A khong co hang ve huu nao).
-    assert_eq!(by_id(asset_b).1, a_id, "anh cua B phai doi sang A du B co mot hang ve huu");
-    assert_eq!(by_id(asset_b).2, 1 + 2, "neo cua B (1) phai dich +2 (shift = so segment cu cua A)");
+    assert_eq!(
+        by_id(asset_b).1,
+        a_id,
+        "anh cua B phai doi sang A du B co mot hang ve huu"
+    );
+    assert_eq!(
+        by_id(asset_b).2,
+        1 + 2,
+        "neo cua B (1) phai dich +2 (shift = so segment cu cua A)"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -3814,10 +4416,17 @@ fn merging_a_chapter_that_has_a_retired_segment_still_moves_its_asset_rows_corre
 /// gộp câu MỚI; hàng `asset` phải rebase đúng theo lượt MỚI, không bị ảnh hưởng bởi lịch sử
 /// VỀ HƯU đã có từ trước.
 #[test]
-fn regrouping_a_sentence_in_a_chapter_that_already_has_a_retired_segment_still_rebases_asset_anchors_correctly() {
+fn regrouping_a_sentence_in_a_chapter_that_already_has_a_retired_segment_still_rebases_asset_anchors_correctly()
+ {
     let root = temp_dir("m2-regroup-with-retired");
-    let opened = create_work_from_text(&root, "M2 Gom Nhom Co Ve Huu", "zh", "", "一。二。三。四。".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "M2 Gom Nhom Co Ve Huu",
+        "zh",
+        "",
+        "一。二。三。四。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id = opened.chapter_id;
 
     // Lượt gộp THỨ NHẤT (tạo lịch sử VỀ HƯU) -- gộp câu 1 với câu 2 (segment id=1, id=2).
@@ -3844,7 +4453,11 @@ fn regrouping_a_sentence_in_a_chapter_that_already_has_a_retired_segment_still_r
             rows.collect::<SqlResult<Vec<i64>>>()
         })
         .expect("doc segment con song that bai");
-    assert_eq!(living_ids.len(), 3, "sau lượt gộp thứ nhất phải còn ĐÚNG 3 segment sống: {living_ids:?}");
+    assert_eq!(
+        living_ids.len(),
+        3,
+        "sau lượt gộp thứ nhất phải còn ĐÚNG 3 segment sống: {living_ids:?}"
+    );
     let target = living_ids[2]; // segment ord=3 (sau lượt đầu) -- gộp với segment ord=2 lien truoc.
 
     auratranslate_lib::commands::segment::merge_segments(Some(&opened), target)
@@ -3852,12 +4465,24 @@ fn regrouping_a_sentence_in_a_chapter_that_already_has_a_retired_segment_still_r
 
     // Sau lượt gộp thứ hai: ord_dau_nhom=2, K=2, M=1 -- 3 segment sống → 2 segment sống.
     let rows = snapshot_assets(&opened);
-    let by_id = |id: i64| rows.iter().find(|r| r.0 == id).unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"));
+    let by_id = |id: i64| {
+        rows.iter()
+            .find(|r| r.0 == id)
+            .unwrap_or_else(|| panic!("mat hang asset id={id}: {rows:?}"))
+    };
     // neo=1 (< ord_dau_nhom=2): khong doi.
-    assert_eq!(by_id(asset1).2, 1, "neo TRUOC nhom thu hai khong duoc doi, bat ke lich su ve huu cu");
+    assert_eq!(
+        by_id(asset1).2,
+        1,
+        "neo TRUOC nhom thu hai khong duoc doi, bat ke lich su ve huu cu"
+    );
     // neo=3 (>= ord_dau_nhom+K=4? khong -- 3 nam trong [2,4) TAI/TRONG nhom) -> snap ve
     // ord_dau_nhom + M - 1 = 2+1-1=2.
-    assert_eq!(by_id(asset2).2, 2, "neo TAI/TRONG nhom thu hai phai snap dung, bat ke lich su ve huu cu");
+    assert_eq!(
+        by_id(asset2).2,
+        2,
+        "neo TAI/TRONG nhom thu hai phai snap dung, bat ke lich su ve huu cu"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -3871,7 +4496,8 @@ fn regrouping_a_sentence_in_a_chapter_that_already_has_a_retired_segment_still_r
 /// >= 0)` chỉ chặn nửa dưới) không gì bắt được trước ca này. Chạy qua CẢ BA cơ chế tổ chức
 /// lại nối tiếp nhau (khuôn ca mồ côi ở trên), kiểm bất biến SAU MỖI bước.
 #[test]
-fn every_asset_anchor_never_exceeds_the_living_segment_count_of_its_own_chapter_after_any_reorganisation() {
+fn every_asset_anchor_never_exceeds_the_living_segment_count_of_its_own_chapter_after_any_reorganisation()
+ {
     fn assert_anchor_within_bounds(opened: &OpenWork) {
         let offenders: Vec<(i64, i64, i64, i64)> = opened
             .store
@@ -3897,8 +4523,14 @@ fn every_asset_anchor_never_exceeds_the_living_segment_count_of_its_own_chapter_
     }
 
     let root = temp_dir("m4-anchor-within-bounds");
-    let mut opened = create_work_from_text(&root, "M4 Neo Trong Han", "zh", "", "一。二。三。四。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "M4 Neo Trong Han",
+        "zh",
+        "",
+        "一。二。三。四。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let a_id = opened.chapter_id;
 
     insert_asset_directly(&opened, a_id, 0, "x0.jpg");
@@ -3919,7 +4551,10 @@ fn every_asset_anchor_never_exceeds_the_living_segment_count_of_its_own_chapter_
             rows.collect::<SqlResult<Vec<i64>>>()
         })
         .expect("doc segment con song that bai");
-    assert!(living_ids.len() >= 2, "can it nhat hai segment con song de tach: {living_ids:?}");
+    assert!(
+        living_ids.len() >= 2,
+        "can it nhat hai segment con song de tach: {living_ids:?}"
+    );
     let split_at = living_ids[1];
 
     split_chapter_at_segment(Some(&mut opened), split_at).expect("tach that bai");
@@ -4000,8 +4635,9 @@ fn a_merged_chapter_never_claims_done_when_one_half_was_not_done() {
 
     // Ca 2 -- CA HAI done ⇒ giu done.
     let root2 = temp_dir("merge-status-both-done");
-    let mut opened2 = create_work_from_text(&root2, "Trang Thai Gop Ca Hai", "zh", "", String::new())
-        .expect("tao tac pham that bai");
+    let mut opened2 =
+        create_work_from_text(&root2, "Trang Thai Gop Ca Hai", "zh", "", String::new())
+            .expect("tao tac pham that bai");
     let a2_id = opened2.chapter_id;
     set_chapter_status_directly(&opened2, a2_id, "done");
     let b2_id = insert_chapter_directly(&opened2, 2, "");
@@ -4077,8 +4713,16 @@ fn merging_the_first_chapter_touches_no_row_and_is_a_named_error() {
     assert_eq!(err.code(), "chapter.at_first");
     assert_eq!(err.message_key(), MessageKey::ChapterAtFirst);
 
-    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "0 hang chapter bi cham");
-    assert_eq!(snapshot_segments(&opened), segments_before, "0 hang segment bi cham");
+    assert_eq!(
+        read_all_chapter_ord(&opened),
+        chapters_before,
+        "0 hang chapter bi cham"
+    );
+    assert_eq!(
+        snapshot_segments(&opened),
+        segments_before,
+        "0 hang segment bi cham"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -4103,8 +4747,16 @@ fn splitting_at_the_first_segment_is_refused_before_any_write() {
     assert_eq!(err.code(), "chapter.split_leaves_empty");
     assert_eq!(err.message_key(), MessageKey::ChapterSplitLeavesEmpty);
 
-    assert_eq!(snapshot_segments(&opened), segments_before, "0 hang segment bi cham");
-    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "0 hang chapter bi cham -- khong Chuong moi nao duoc chen");
+    assert_eq!(
+        snapshot_segments(&opened),
+        segments_before,
+        "0 hang segment bi cham"
+    );
+    assert_eq!(
+        read_all_chapter_ord(&opened),
+        chapters_before,
+        "0 hang chapter bi cham -- khong Chuong moi nao duoc chen"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -4121,8 +4773,14 @@ fn renaming_to_an_ideographic_space_stores_null_not_a_blank_title() {
     let a_id = opened.chapter_id;
 
     let rows = rename_chapter(Some(&mut opened), a_id, "\u{3000}").expect("doi ten that bai");
-    let row = rows.iter().find(|r| r.chapter_id == a_id).expect("phai co hang cho Chuong vua doi ten");
-    assert_eq!(row.title, None, "mot ten chi gom U+3000 phai luu thanh NULL, khong mot chuoi trong");
+    let row = rows
+        .iter()
+        .find(|r| r.chapter_id == a_id)
+        .expect("phai co hang cho Chuong vua doi ten");
+    assert_eq!(
+        row.title, None,
+        "mot ten chi gom U+3000 phai luu thanh NULL, khong mot chuoi trong"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -4144,11 +4802,22 @@ fn renaming_a_chapter_updates_only_its_own_row_and_leaves_every_segment_untouche
     let versions_before = snapshot_segment_versions(&opened);
 
     let rows = rename_chapter(Some(&mut opened), a_id, "Hoi 1").expect("doi ten that bai");
-    let row = rows.iter().find(|r| r.chapter_id == a_id).expect("phai co hang cho Chuong vua doi ten");
+    let row = rows
+        .iter()
+        .find(|r| r.chapter_id == a_id)
+        .expect("phai co hang cho Chuong vua doi ten");
     assert_eq!(row.title.as_deref(), Some("Hoi 1"));
 
-    assert_eq!(snapshot_segments(&opened), segments_before, "doi ten KHONG duoc cham mot hang segment nao");
-    assert_eq!(snapshot_segment_versions(&opened), versions_before, "doi ten KHONG duoc cham mot hang segment_version nao");
+    assert_eq!(
+        snapshot_segments(&opened),
+        segments_before,
+        "doi ten KHONG duoc cham mot hang segment nao"
+    );
+    assert_eq!(
+        snapshot_segment_versions(&opened),
+        versions_before,
+        "doi ten KHONG duoc cham mot hang segment_version nao"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -4191,7 +4860,9 @@ fn chapter_ord_stays_dense_from_one_after_a_move_on_a_sparse_ord_sequence() {
     // do chính story này chỉ ra: `(5, 5, 9)`.
     opened_bootstrap
         .store
-        .write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM chapter WHERE id = ?1", [default_id]))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("DELETE FROM chapter WHERE id = ?1", [default_id])
+        })
         .expect("xoa Chuong mac dinh that bai");
     let mut opened = opened_bootstrap;
 
@@ -4207,10 +4878,17 @@ fn chapter_ord_stays_dense_from_one_after_a_move_on_a_sparse_ord_sequence() {
     let rows = read_all_chapter_ord(&opened);
     let mut ords: Vec<i64> = rows.iter().map(|(_, ord)| *ord).collect();
     ords.sort_unstable();
-    assert_eq!(ords, vec![1, 2, 3], "ord phai lien tuc tu 1 sau chuan hoa, du dau vao thua/trung");
+    assert_eq!(
+        ords,
+        vec![1, 2, 3],
+        "ord phai lien tuc tu 1 sau chuan hoa, du dau vao thua/trung"
+    );
 
     let ord_of = |id: i64| rows.iter().find(|(rid, _)| *rid == id).unwrap().1;
-    assert!(ord_of(c2) < ord_of(c1), "doi LEN phai hoan vi c2 len truoc c1");
+    assert!(
+        ord_of(c2) < ord_of(c1),
+        "doi LEN phai hoan vi c2 len truoc c1"
+    );
     assert!(ord_of(c1) < ord_of(c3), "c3 khong bi dung toi");
 
     let dir = opened.dir.clone();
@@ -4243,11 +4921,26 @@ fn a_reorganisation_moves_retired_segments_with_their_living_neighbours() {
     assert_eq!(by_id(a1).ord, 1);
     assert_eq!(by_id(b1).chapter_id, a_id);
     assert_eq!(by_id(b1).ord, 2);
-    assert_eq!(by_id(b2_retired).chapter_id, a_id, "hang VE HUU cung phai doi chapter_id");
-    assert_eq!(by_id(b2_retired).ord, 3, "hang VE HUU giu dung vi tri TUONG DOI giua hai hang song ke no");
-    assert!(by_id(b2_retired).retired_at.is_some(), "van con VE HUU -- gop khong hoi sinh no");
+    assert_eq!(
+        by_id(b2_retired).chapter_id,
+        a_id,
+        "hang VE HUU cung phai doi chapter_id"
+    );
+    assert_eq!(
+        by_id(b2_retired).ord,
+        3,
+        "hang VE HUU giu dung vi tri TUONG DOI giua hai hang song ke no"
+    );
+    assert!(
+        by_id(b2_retired).retired_at.is_some(),
+        "van con VE HUU -- gop khong hoi sinh no"
+    );
     assert_eq!(by_id(b3).chapter_id, a_id);
-    assert_eq!(by_id(b3).ord, 4, "hang song SAU no van dung ke, khong bi phep tinh tien lam lech");
+    assert_eq!(
+        by_id(b3).ord,
+        4,
+        "hang song SAU no van dung ke, khong bi phep tinh tien lam lech"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -4267,9 +4960,13 @@ fn the_open_chapter_cursor_follows_the_surviving_chapter_after_a_merge() {
 
     merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
 
-    assert_eq!(opened.chapter_id, a_id, "B bi xoa -- con tro phai doi sang A SAU khi giao dich commit");
+    assert_eq!(
+        opened.chapter_id, a_id,
+        "B bi xoa -- con tro phai doi sang A SAU khi giao dich commit"
+    );
 
-    let reopened = read_open_chapter(Some(&opened)).expect("doc lai Chuong dang mo (A) sau gop phai thanh cong");
+    let reopened = read_open_chapter(Some(&opened))
+        .expect("doc lai Chuong dang mo (A) sau gop phai thanh cong");
     assert_eq!(reopened.chapter_id, a_id);
 
     let dir = opened.dir.clone();
@@ -4291,7 +4988,10 @@ fn merging_concatenates_raw_source_text_with_a_blank_line_between() {
 
     merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
 
-    assert_eq!(read_chapter_source_text(&opened, a_id), "Van ban A.\n\nVan ban B.");
+    assert_eq!(
+        read_chapter_source_text(&opened, a_id),
+        "Van ban A.\n\nVan ban B."
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -4312,9 +5012,17 @@ fn splitting_rebuilds_source_text_from_living_segments_joined_by_newline() {
 
     split_chapter_at_segment(Some(&mut opened), s3).expect("tach that bai");
 
-    assert_eq!(read_chapter_source_text(&opened, a_id), "Cau mot.", "A chi con cau SONG dung TRUOC diem cat");
+    assert_eq!(
+        read_chapter_source_text(&opened, a_id),
+        "Cau mot.",
+        "A chi con cau SONG dung TRUOC diem cat"
+    );
 
-    let b_id = snapshot_segments(&opened).iter().find(|s| s.id == s3).unwrap().chapter_id;
+    let b_id = snapshot_segments(&opened)
+        .iter()
+        .find(|s| s.id == s3)
+        .unwrap()
+        .chapter_id;
     assert_eq!(read_chapter_source_text(&opened, b_id), "Cau ba.");
 
     let dir = opened.dir.clone();
@@ -4331,9 +5039,11 @@ fn splitting_rebuilds_source_text_from_living_segments_joined_by_newline() {
 fn merging_two_chapters_leaves_the_smaller_chapter_count_in_the_library_index() {
     let root = temp_dir("merge-indexed-reaches-library");
     let side = temp_dir("merge-indexed-reaches-library-side");
-    let indexer = auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
-        .unwrap_or_else(|e| panic!("mo indexer: {e}"));
-    let global = Store::open(StoreSpec::global(side.join("global.db"))).unwrap_or_else(|e| panic!("mo global.db: {e}"));
+    let indexer =
+        auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
+            .unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let global = Store::open(StoreSpec::global(side.join("global.db")))
+        .unwrap_or_else(|e| panic!("mo global.db: {e}"));
 
     let mut opened = create_work_from_text(&root, "Gop Chi Muc", "zh", "", String::new())
         .expect("tao tac pham that bai");
@@ -4345,12 +5055,18 @@ fn merging_two_chapters_leaves_the_smaller_chapter_count_in_the_library_index() 
     // trên đĩa còn mang `chapter_count = 1` cũ. Dựng lại nó TRƯỚC lượt reindex đầu, đúng bước
     // 2+3 mà mọi lệnh sản phẩm tự chạy, để phép so sánh "trước/sau" dưới đây so đúng hai lượt
     // ĐÃ đồng bộ -- không so một chỗ chưa kịp ghi với một chỗ đã ghi.
-    let meta = WorkMeta::rebuild_from_store(&opened.store).unwrap_or_else(|e| panic!("rebuild_from_store: {e}"));
-    meta.write_atomic(&opened.dir).unwrap_or_else(|e| panic!("write_atomic: {e}"));
+    let meta = WorkMeta::rebuild_from_store(&opened.store)
+        .unwrap_or_else(|e| panic!("rebuild_from_store: {e}"));
+    meta.write_atomic(&opened.dir)
+        .unwrap_or_else(|e| panic!("write_atomic: {e}"));
     opened.meta = meta;
 
     // Trạng thái ban đầu phải có mặt trong chỉ mục TRƯỚC khi ca này chứng minh được gì.
-    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(Some(&indexer), Some(&global), &root);
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(
+        Some(&indexer),
+        Some(&global),
+        &root,
+    );
     let chapter_count_of = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
         indexer
             .list_works(auratranslate_lib::core::library::indexer::WorkQuery::default())
@@ -4360,7 +5076,11 @@ fn merging_two_chapters_leaves_the_smaller_chapter_count_in_the_library_index() 
             .find(|w| w.work_id == work_id)
             .map(|w| w.chapter_count)
     };
-    assert_eq!(chapter_count_of(&indexer), Some(2), "truoc luot gop, chi muc phai mang dung 2 Chuong");
+    assert_eq!(
+        chapter_count_of(&indexer),
+        Some(2),
+        "truoc luot gop, chi muc phai mang dung 2 Chuong"
+    );
 
     auratranslate_lib::commands::chapter::merge_chapter_into_previous_indexed(
         Some(&mut opened),
@@ -4422,9 +5142,19 @@ fn moving_a_chapter_changes_ord_only_and_leaves_titles_status_and_every_segment_
     assert_eq!(ord_of(a_id), 2, "A xuong sau");
 
     // ② MỌI THỨ KHÁC giữ nguyên -- day la ve ma hang ma tran doi.
-    assert_eq!(read_chapter_title(&opened, a_id).as_deref(), Some("Chuong A"));
-    assert_eq!(read_chapter_title(&opened, b_id).as_deref(), Some("Chuong B"));
-    assert_eq!(read_chapter_status(&opened, a_id), "done", "dat lai thu tu KHONG dung toi status");
+    assert_eq!(
+        read_chapter_title(&opened, a_id).as_deref(),
+        Some("Chuong A")
+    );
+    assert_eq!(
+        read_chapter_title(&opened, b_id).as_deref(),
+        Some("Chuong B")
+    );
+    assert_eq!(
+        read_chapter_status(&opened, a_id),
+        "done",
+        "dat lai thu tu KHONG dung toi status"
+    );
     assert_eq!(read_chapter_source_text(&opened, a_id), a_source_before);
     assert_eq!(read_chapter_source_text(&opened, b_id), b_source_before);
     assert_eq!(
@@ -4434,7 +5164,12 @@ fn moving_a_chapter_changes_ord_only_and_leaves_titles_status_and_every_segment_
     );
     assert_eq!(snapshot_segment_versions(&opened), versions_before);
     assert!(
-        snapshot_segments(&opened).iter().find(|s| s.id == b2_retired).unwrap().retired_at.is_some(),
+        snapshot_segments(&opened)
+            .iter()
+            .find(|s| s.id == b2_retired)
+            .unwrap()
+            .retired_at
+            .is_some(),
         "hang ve huu van ve huu"
     );
 
@@ -4469,15 +5204,27 @@ fn splitting_on_a_segment_of_another_chapter_is_refused_before_any_write() {
         .expect_err("tach tren mot cau cua Chuong KHAC phai la mot loi CO TEN");
     assert_eq!(err.code(), "segment.not_found");
 
-    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "0 hang chapter bi cham");
-    assert_eq!(snapshot_segments(&opened), segments_before, "0 hang segment bi cham");
+    assert_eq!(
+        read_all_chapter_ord(&opened),
+        chapters_before,
+        "0 hang chapter bi cham"
+    );
+    assert_eq!(
+        snapshot_segments(&opened),
+        segments_before,
+        "0 hang segment bi cham"
+    );
 
     // Đối chứng ÂM cho cùng khoá: một `segment_id` chưa từng tồn tại đi cùng đường.
     let khong_ton_tai = b1 + 9_999;
     let err2 = split_chapter_at_segment(Some(&mut opened), khong_ton_tai)
         .expect_err("tach tren mot id khong ton tai phai la mot loi CO TEN");
     assert_eq!(err2.code(), "segment.not_found");
-    assert_eq!(snapshot_segments(&opened), segments_before, "van 0 hang segment bi cham");
+    assert_eq!(
+        snapshot_segments(&opened),
+        segments_before,
+        "van 0 hang segment bi cham"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -4546,8 +5293,16 @@ fn moving_or_merging_an_unknown_chapter_id_reuses_the_named_error_not_a_store_er
         assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
     }
 
-    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "0 hang chapter bi cham");
-    assert_eq!(snapshot_segments(&opened), segments_before, "0 hang segment bi cham");
+    assert_eq!(
+        read_all_chapter_ord(&opened),
+        chapters_before,
+        "0 hang chapter bi cham"
+    );
+    assert_eq!(
+        snapshot_segments(&opened),
+        segments_before,
+        "0 hang segment bi cham"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -4574,7 +5329,10 @@ fn moving_or_merging_an_unknown_chapter_id_never_renumbers_a_sparse_ord_sequence
 
     let chapters_before = read_all_chapter_ord(&opened);
     assert_eq!(
-        chapters_before.iter().map(|&(_, ord)| ord).collect::<Vec<_>>(),
+        chapters_before
+            .iter()
+            .map(|&(_, ord)| ord)
+            .collect::<Vec<_>>(),
         vec![1, 5],
         "tien de cua ca nay: day `ord` phai THUA truoc lan goi -- xem doc-comment ve vi sao"
     );
@@ -4592,7 +5350,11 @@ fn moving_or_merging_an_unknown_chapter_id_never_renumbers_a_sparse_ord_sequence
 
     move_chapter(Some(&mut opened), khong_ton_tai, ChapterDirection::Prev)
         .expect_err("doi mot Chuong khong ton tai phai la mot loi CO TEN");
-    assert_eq!(read_all_chapter_ord(&opened), chapters_before, "L10067: huong Prev cung vay");
+    assert_eq!(
+        read_all_chapter_ord(&opened),
+        chapters_before,
+        "L10067: huong Prev cung vay"
+    );
 
     merge_chapter_into_previous(Some(&mut opened), khong_ton_tai)
         .expect_err("gop mot Chuong khong ton tai phai la mot loi CO TEN");
@@ -4620,7 +5382,9 @@ fn chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence_too()
     let default_id = opened_bootstrap.chapter_id;
     opened_bootstrap
         .store
-        .write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM chapter WHERE id = ?1", [default_id]))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("DELETE FROM chapter WHERE id = ?1", [default_id])
+        })
         .expect("xoa Chuong mac dinh that bai");
     let mut opened = opened_bootstrap;
 
@@ -4638,9 +5402,16 @@ fn chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence_too()
     let rows = read_all_chapter_ord(&opened);
     let mut ords: Vec<i64> = rows.iter().map(|(_, ord)| *ord).collect();
     ords.sort_unstable();
-    assert_eq!(ords, vec![1, 2], "hai Chuong con lai phai mang ord lien tuc 1, 2");
+    assert_eq!(
+        ords,
+        vec![1, 2],
+        "hai Chuong con lai phai mang ord lien tuc 1, 2"
+    );
     assert!(rows.iter().any(|(id, ord)| *id == c1 && *ord == 1));
-    assert!(rows.iter().any(|(id, ord)| *id == c3 && *ord == 2), "c3 tinh tien xuong 2, khong con 3");
+    assert!(
+        rows.iter().any(|(id, ord)| *id == c3 && *ord == 2),
+        "c3 tinh tien xuong 2, khong con 3"
+    );
 
     let after = snapshot_segments(&opened);
     let by_id = |id: i64| after.iter().find(|s| s.id == id).unwrap();
@@ -4699,7 +5470,10 @@ fn block_overrides_for_range_swaps_a_reversed_start_and_end_instead_of_panicking
 #[test]
 fn block_overrides_for_range_on_an_empty_page_returns_an_empty_patch() {
     let machine_kept: Vec<bool> = Vec::new();
-    assert_eq!(block_overrides_for_range(0, 0, &machine_kept), Vec::<Option<bool>>::new());
+    assert_eq!(
+        block_overrides_for_range(0, 0, &machine_kept),
+        Vec::<Option<bool>>::new()
+    );
 }
 
 #[test]
@@ -4711,7 +5485,10 @@ fn set_block_override_rejects_an_index_at_or_past_total_blocks() {
         "index 3 tren tong so 3 khoi (chi so hop le 0..=2) phai bi TU CHOI, khong duoc \
          lang le noi vector toi index + 1 nhu ban truoc vong ra buoc 4"
     );
-    assert!(overrides.is_empty(), "mot lan ghi bi tu choi khong duoc de lai dau vet nao");
+    assert!(
+        overrides.is_empty(),
+        "mot lan ghi bi tu choi khong duoc de lai dau vet nao"
+    );
 }
 
 #[test]
@@ -4727,7 +5504,8 @@ fn set_block_override_accepts_an_index_within_total_blocks_and_grows_the_vector_
 
 #[test]
 fn reset_block_overrides_clears_the_vector_back_to_empty() {
-    let state: Tier2BlockOverridesState = std::sync::Mutex::new(vec![Some(true), None, Some(false)]);
+    let state: Tier2BlockOverridesState =
+        std::sync::Mutex::new(vec![Some(true), None, Some(false)]);
     reset_block_overrides(&state);
     assert!(state.lock().unwrap().is_empty());
 }
@@ -4775,7 +5553,9 @@ fn created_work_images_saved_and_images_failed_stay_snake_case_on_the_wire() {
     };
 
     let json = serde_json::to_value(&created).expect("serialize `CreatedWork`");
-    let object = json.as_object().expect("`CreatedWork` phai serialize thanh object");
+    let object = json
+        .as_object()
+        .expect("`CreatedWork` phai serialize thanh object");
 
     assert_eq!(
         object.get("images_saved"),
@@ -4858,11 +5638,27 @@ fn snapshot_chapters(store: &Store) -> Vec<ChapterSnapshot> {
 /// dùng thật đã nhập, không phải một fixture rút gọn tay.
 fn create_destination_work(root: &Path, name: &str, m: usize) -> OpenWork {
     let shape = PipelineShape::Chapters(
-        (1..=m).map(|i| ChapterInput::AlreadyText(format!("Chuong cu so {i}. Cau hai."))).collect(),
+        (1..=m)
+            .map(|i| ChapterInput::AlreadyText(format!("Chuong cu so {i}. Cau hai.")))
+            .collect(),
     );
     create_work(
-        root, name, "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1,
-        false, &[], &std::sync::Mutex::new(Vec::new()), None, &[],
+        root,
+        name,
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
     )
     .expect("dung Tac pham dich that bai")
 }
@@ -4900,24 +5696,36 @@ fn append_writes_new_chapters_at_max_ord_plus_one_all_not_started_with_segments_
         .read(|conn| {
             let mut stmt =
                 conn.prepare("SELECT id, ord, source_text, status FROM chapter ORDER BY ord")?;
-            let mapped =
-                stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?;
+            let mapped = stmt.query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })?;
             mapped.collect::<SqlResult<Vec<(i64, i64, String, String)>>>()
         })
         .expect("doc lai chapter that bai");
 
-    assert_eq!(rows.len(), 5, "3 Chuong cu cong 2 Chuong moi phai la 5 hang");
+    assert_eq!(
+        rows.len(),
+        5,
+        "3 Chuong cu cong 2 Chuong moi phai la 5 hang"
+    );
     // 🔴 THÊM (Phase 4, coordinator) — `chapter` KHÔNG mang UNIQUE tren `ord` (`schema.rs:1029`,
     // co chu y), nen ord trung nhau la BIEU DIEN DUOC; day la phep kiem RE tien de "khong hai
     // Chuong nao cung ord sau mot luot append" ma khong doi hinh dang ca nay.
-    let distinct_ords: std::collections::HashSet<i64> = rows.iter().map(|(_, ord, _, _)| *ord).collect();
+    let distinct_ords: std::collections::HashSet<i64> =
+        rows.iter().map(|(_, ord, _, _)| *ord).collect();
     assert_eq!(
         distinct_ords.len(),
         rows.len(),
         "khong hai Chuong nao (cu lan moi) duoc phep cung mang mot ord sau mot luot append"
     );
-    assert_eq!(rows[3].1, 4, "Chuong moi dau tien phai mang ord = MAX(ord cu) + 1 = 4");
-    assert_eq!(rows[4].1, 5, "Chuong moi thu hai phai mang ord = 5, dung THU TU xem truoc");
+    assert_eq!(
+        rows[3].1, 4,
+        "Chuong moi dau tien phai mang ord = MAX(ord cu) + 1 = 4"
+    );
+    assert_eq!(
+        rows[4].1, 5,
+        "Chuong moi thu hai phai mang ord = 5, dung THU TU xem truoc"
+    );
     assert_eq!(rows[3].2, "Chuong moi bon. Cau mot.");
     assert_eq!(rows[4].2, "Chuong moi nam. Cau mot.");
     // `OpenWork::new_chapter_ids` phai mang DUNG hai id VUA THEM
@@ -4930,18 +5738,26 @@ fn append_writes_new_chapters_at_max_ord_plus_one_all_not_started_with_segments_
         "new_chapter_ids phai dung bang hai id Chuong VUA them, dung thu tu, khong lan CU"
     );
     for (id, ord, _, status) in rows.iter().skip(3) {
-        assert_eq!(status, "not_started", "Chuong moi id={id} ord={ord} phai mang status not_started");
+        assert_eq!(
+            status, "not_started",
+            "Chuong moi id={id} ord={ord} phai mang status not_started"
+        );
     }
     for (chapter_id, ord, _, _) in rows.iter().skip(3) {
         let seg_count: i64 = opened
             .store
             .read(move |conn| {
-                conn.query_row("SELECT COUNT(*) FROM segment WHERE chapter_id = ?1", [chapter_id], |row| {
-                    row.get(0)
-                })
+                conn.query_row(
+                    "SELECT COUNT(*) FROM segment WHERE chapter_id = ?1",
+                    [chapter_id],
+                    |row| row.get(0),
+                )
             })
             .expect("dem segment that bai");
-        assert!(seg_count > 0, "Chuong moi ord={ord} (id={chapter_id}) phai co segment");
+        assert!(
+            seg_count > 0,
+            "Chuong moi ord={ord} (id={chapter_id}) phai co segment"
+        );
     }
 
     drop(opened);
@@ -4961,9 +5777,13 @@ fn append_leaves_every_pre_existing_chapter_and_segment_row_byte_identical() {
     let before_chapters = snapshot_chapters(&opened.store);
     let before_segments = snapshot_segments(&opened);
     assert_eq!(before_chapters.len(), 2, "fixture phai co dung 2 Chuong cu");
-    assert!(!before_segments.is_empty(), "fixture phai co it nhat mot segment cu de ma doi chieu");
+    assert!(
+        !before_segments.is_empty(),
+        "fixture phai co it nhat mot segment cu de ma doi chieu"
+    );
 
-    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi ba.".to_owned())]);
+    let new_shape =
+        PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi ba.".to_owned())]);
     append_chapters_to_work(
         &mut opened,
         "en",
@@ -4983,8 +5803,10 @@ fn append_leaves_every_pre_existing_chapter_and_segment_row_byte_identical() {
 
     let before_chapter_ids: std::collections::HashSet<i64> =
         before_chapters.iter().map(|c| c.id).collect();
-    let after_old_chapters: Vec<ChapterSnapshot> =
-        after_chapters.into_iter().filter(|c| before_chapter_ids.contains(&c.id)).collect();
+    let after_old_chapters: Vec<ChapterSnapshot> = after_chapters
+        .into_iter()
+        .filter(|c| before_chapter_ids.contains(&c.id))
+        .collect();
     assert_eq!(
         before_chapters, after_old_chapters,
         "moi hang chapter DA CO TRUOC phai giu nguyen TUNG cot, ke ca ord va bon cot xuat xu, \
@@ -4993,8 +5815,10 @@ fn append_leaves_every_pre_existing_chapter_and_segment_row_byte_identical() {
 
     let before_segment_ids: std::collections::HashSet<i64> =
         before_segments.iter().map(|s| s.id).collect();
-    let after_old_segments: Vec<SegmentSnapshot> =
-        after_segments.into_iter().filter(|s| before_segment_ids.contains(&s.id)).collect();
+    let after_old_segments: Vec<SegmentSnapshot> = after_segments
+        .into_iter()
+        .filter(|s| before_segment_ids.contains(&s.id))
+        .collect();
     assert_eq!(
         before_segments, after_old_segments,
         "moi hang segment DA CO TRUOC phai giu nguyen TUNG cot sau mot luot append"
@@ -5034,7 +5858,11 @@ fn status_re_derives_to_in_progress_after_append_and_only_on_the_right_work() {
     let x_meta = WorkMeta::rebuild_from_store(&x.store).expect("rebuild_from_store X");
     x_meta.write_atomic(&x.dir).expect("write_atomic X");
     x.meta = x_meta;
-    assert_eq!(x.meta.status.as_deref(), Some("done"), "fixture X phai la Done TRUOC luot append");
+    assert_eq!(
+        x.meta.status.as_deref(),
+        Some("done"),
+        "fixture X phai la Done TRUOC luot append"
+    );
 
     let mut y = create_destination_work(&root, "Khong Lien Quan Y", 2);
     let y_chapter_ids: Vec<i64> = y
@@ -5051,10 +5879,15 @@ fn status_re_derives_to_in_progress_after_append_and_only_on_the_right_work() {
     let y_meta = WorkMeta::rebuild_from_store(&y.store).expect("rebuild_from_store Y");
     y_meta.write_atomic(&y.dir).expect("write_atomic Y");
     y.meta = y_meta;
-    assert_eq!(y.meta.status.as_deref(), Some("done"), "fixture Y (khong lien quan) cung phai la Done");
+    assert_eq!(
+        y.meta.status.as_deref(),
+        Some("done"),
+        "fixture Y (khong lien quan) cung phai la Done"
+    );
 
     let pending = PendingImportSourceState::new(None);
-    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi.".to_owned())]);
+    let new_shape =
+        PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi.".to_owned())]);
     stash_pending_import_source(&pending, new_shape, None);
     confirm_append_import_with_encoding(
         &mut x,
@@ -5097,12 +5930,14 @@ fn status_override_survives_an_append_that_would_otherwise_re_derive_status() {
     let root = temp_dir("append-status-override-survives");
     let mut opened = create_destination_work(&root, "Ghi De Trang Thai", 1);
 
-    set_work_status_override(Some(&mut opened), Some("paused")).expect("dat status_override that bai");
+    set_work_status_override(Some(&mut opened), Some("paused"))
+        .expect("dat status_override that bai");
     assert_eq!(opened.meta.status.as_deref(), Some("paused"));
     assert!(opened.meta.status_is_override);
 
     let pending = PendingImportSourceState::new(None);
-    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi.".to_owned())]);
+    let new_shape =
+        PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi.".to_owned())]);
     stash_pending_import_source(&pending, new_shape, None);
     confirm_append_import_with_encoding(
         &mut opened,
@@ -5122,7 +5957,10 @@ fn status_override_survives_an_append_that_would_otherwise_re_derive_status() {
         Some("paused"),
         "status_override phai THANG ngay ca sau mot luot append them Chuong NotStarted"
     );
-    assert!(opened.meta.status_is_override, "co ghi de van phai bao status_is_override = true");
+    assert!(
+        opened.meta.status_is_override,
+        "co ghi de van phai bao status_is_override = true"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -5149,7 +5987,8 @@ fn confirm_append_is_refused_and_writes_zero_rows_when_the_destination_project_d
 
     fs::remove_file(dir.join("project.db"))
         .expect("xoa project.db de mo phong 'khong doc duoc' that bai");
-    let meta_bytes_before = fs::read(dir.join("meta.json")).expect("doc meta.json truoc luot tu choi");
+    let meta_bytes_before =
+        fs::read(dir.join("meta.json")).expect("doc meta.json truoc luot tu choi");
 
     let err = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
         .expect_err("project.db vang mat phai bi tu choi, khong duoc mo duoc");
@@ -5194,14 +6033,19 @@ fn appending_into_the_work_already_held_in_open_work_state_reuses_its_store_and_
 
     // W là Tác phẩm ĐANG MỞ — `OpenWorkState` thật (chỉ một `Mutex` trần, không cần
     // `AppHandle` — xem doc-comment kiểu này ở `mod.rs`), giữ đúng MỘT `OpenWork`.
-    let state: auratranslate_lib::commands::project::OpenWorkState = std::sync::Mutex::new(Some(opened));
+    let state: auratranslate_lib::commands::project::OpenWorkState =
+        std::sync::Mutex::new(Some(opened));
 
     let pending = PendingImportSourceState::new(None);
-    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong moi mot.".to_owned())]);
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
+        "Chuong moi mot.".to_owned(),
+    )]);
     stash_pending_import_source(&pending, new_shape, None);
 
     {
-        let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let open = guard.as_mut().expect("OpenWorkState phai dang giu dung W");
         confirm_append_import_with_encoding(
             open,
@@ -5219,9 +6063,16 @@ fn appending_into_the_work_already_held_in_open_work_state_reuses_its_store_and_
 
     // Handle đang mở vẫn DÙNG ĐƯỢC sau lượt append — đọc lại qua CHÍNH `Store` đã nằm trong
     // `OpenWorkState` suốt từ đầu, không một `Store` thứ hai nào được mở.
-    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let open = guard.as_ref().expect("Tac pham phai con dang mo sau luot append");
-    assert_eq!(open.meta.work_id, work_id, "van dung W -- khong Tac pham nao khac duoc mo len");
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let open = guard
+        .as_ref()
+        .expect("Tac pham phai con dang mo sau luot append");
+    assert_eq!(
+        open.meta.work_id, work_id,
+        "van dung W -- khong Tac pham nao khac duoc mo len"
+    );
     assert_eq!(
         open.chapter_id, original_chapter_id,
         "Chuong dang mo trong trinh bien soan khong duoc doi boi mot luot append"
@@ -5230,7 +6081,10 @@ fn appending_into_the_work_already_held_in_open_work_state_reuses_its_store_and_
         .store
         .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter", [], |row| row.get(0)))
         .expect("dem chapter qua CHINH Store dang giu trong OpenWorkState that bai");
-    assert_eq!(chapter_count, 3, "2 Chuong cu cong 1 Chuong moi -- doc qua dung Store da tai dung");
+    assert_eq!(
+        chapter_count, 3,
+        "2 Chuong cu cong 1 Chuong moi -- doc qua dung Store da tai dung"
+    );
     drop(guard);
 
     let opened = state
@@ -5260,11 +6114,16 @@ fn an_unconfirmed_preview_leaves_the_destinations_stores_unchanged() {
     opened.store.close();
     drop(opened);
 
-    let indexer = auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
-        .unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let indexer =
+        auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
+            .unwrap_or_else(|e| panic!("mo indexer: {e}"));
     let global = Store::open(StoreSpec::global(side.join("global.db")))
         .unwrap_or_else(|e| panic!("mo global.db: {e}"));
-    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(Some(&indexer), Some(&global), &root);
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(
+        Some(&indexer),
+        Some(&global),
+        &root,
+    );
     indexer.close();
     global.close();
 
@@ -5279,21 +6138,22 @@ fn an_unconfirmed_preview_leaves_the_destinations_stores_unchanged() {
     // đúng khuôn `wire` làm khi đích KHÔNG phải Tác phẩm đang mở) — cả hai đều là ĐỌC, không
     // GHI. Người dùng ĐÓNG màn xem trước ở đây -- không bao giờ gọi một hàm `confirm_*` nào.
     let pending = PendingImportSourceState::new(None);
-    let new_shape = PipelineShape::Chapters(vec![
-        ChapterInput::AlreadyText("Chuong se KHONG bao gio duoc ghi.".to_owned()),
-    ]);
+    let new_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
+        "Chuong se KHONG bao gio duoc ghi.".to_owned(),
+    )]);
     stash_pending_import_source(&pending, new_shape, None);
 
     let reopened = auratranslate_lib::commands::project::open_work(&work_id, Some(&indexed))
         .expect("mo lai dich de doc luat xem truoc that bai");
     let global_for_read = Store::open(StoreSpec::global(side.join("global.db")))
         .unwrap_or_else(|e| panic!("mo lai global.db that bai: {e}"));
-    let _rules = auratranslate_lib::commands::project::resolve_work_tier_cleanup_rules_for_destination(
-        &reopened,
-        None,
-        &global_for_read,
-    )
-    .expect("doc luat tang Work cho man xem truoc that bai");
+    let _rules =
+        auratranslate_lib::commands::project::resolve_work_tier_cleanup_rules_for_destination(
+            &reopened,
+            None,
+            &global_for_read,
+        )
+        .expect("doc luat tang Work cho man xem truoc that bai");
     global_for_read.close();
     reopened.store.close();
     drop(reopened);
@@ -5361,15 +6221,23 @@ fn confirm_append_is_refused_with_a_named_message_key_when_the_destination_is_un
 
     let mut future_meta = WorkMeta::read(&dir_a).expect("doc meta.json that bai");
     future_meta.meta_schema_version = META_SCHEMA_VERSION + 1;
-    future_meta.write_atomic(&dir_a).expect("ghi meta.json phien ban tuong lai that bai");
+    future_meta
+        .write_atomic(&dir_a)
+        .expect("ghi meta.json phien ban tuong lai that bai");
 
     let err_a = auratranslate_lib::commands::project::open_destination_for_append(
         &indexed_a.work_id,
         Some(&indexed_a),
     )
-    .expect_err("meta.json phien ban moi hon phai bi tu choi ngay ca tren duong giai dich cua APPEND");
+    .expect_err(
+        "meta.json phien ban moi hon phai bi tu choi ngay ca tren duong giai dich cua APPEND",
+    );
     assert_eq!(err_a.code(), "work.meta_too_new");
-    assert_eq!(err_a.message_key(), MessageKey::WorkMetaTooNew, "loi tu choi phai mang mot MessageKey CO TEN");
+    assert_eq!(
+        err_a.message_key(),
+        MessageKey::WorkMetaTooNew,
+        "loi tu choi phai mang mot MessageKey CO TEN"
+    );
 
     let store_a = Store::open(StoreSpec::project(dir_a.join("project.db")))
         .expect("mo lai project.db (rieng, chi de doi chieu) that bai");
@@ -5391,7 +6259,8 @@ fn confirm_append_is_refused_with_a_named_message_key_when_the_destination_is_un
     drop(opened_b); // đóng Store TRƯỚC khi ghi đè tệp -- Windows từ chối ghi tệp đang mở.
 
     let db_path_b = dir_b.join("project.db");
-    let meta_before_b = fs::read(dir_b.join("meta.json")).expect("doc meta.json truoc luot tu choi");
+    let meta_before_b =
+        fs::read(dir_b.join("meta.json")).expect("doc meta.json truoc luot tu choi");
     fs::write(&db_path_b, b"khong phai mot tep SQLite hop le, chi la rac")
         .expect("ghi de project.db bang rac that bai");
 
@@ -5406,7 +6275,11 @@ fn confirm_append_is_refused_with_a_named_message_key_when_the_destination_is_un
         "tren duong APPEND, mot dich HONG phai noi len bang ten Tac pham (WorkError::OpenFailed), \
          khong bang ma tang-kho store.open_failed -- Ice chot 2026-09-16, xem open_destination_for_append"
     );
-    assert_eq!(err_b.message_key(), MessageKey::WorkOpenFailed, "loi tu choi phai mang mot MessageKey CO TEN");
+    assert_eq!(
+        err_b.message_key(),
+        MessageKey::WorkOpenFailed,
+        "loi tu choi phai mang mot MessageKey CO TEN"
+    );
     assert_eq!(
         err_b.params().get("name").map(String::as_str),
         Some("Kho Bi Hong"),
@@ -5452,12 +6325,17 @@ fn a_transaction_failure_mid_append_rolls_back_the_whole_batch_leaves_the_work_i
     let page_budget = current_pages + 3;
     opened
         .store
-        .write(move |tx: &Transaction<'_>| tx.execute_batch(&format!("PRAGMA max_page_count = {page_budget};")))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute_batch(&format!("PRAGMA max_page_count = {page_budget};"))
+        })
         .expect("dat max_page_count that bai");
 
     let big_chapter = |marker: &str| -> String {
-        std::iter::repeat_n(format!("Cau van rat dai de choan nhieu trang dia, {marker}. "), 300)
-            .collect::<String>()
+        std::iter::repeat_n(
+            format!("Cau van rat dai de choan nhieu trang dia, {marker}. "),
+            300,
+        )
+        .collect::<String>()
     };
     let new_shape = PipelineShape::Chapters(vec![
         ChapterInput::AlreadyText(big_chapter("mot")),
@@ -5503,9 +6381,18 @@ fn a_transaction_failure_mid_append_rolls_back_the_whole_batch_leaves_the_work_i
     );
 
     // 3) KHÔNG một lần xoá thư mục nào xảy ra (§Never spec 6.7b).
-    assert!(dir.exists(), "thu muc .atproj cua Tac pham dich khong duoc bi xoa boi mot loi append");
-    assert!(dir.join("project.db").exists(), "project.db cua dich khong duoc bi xoa boi mot loi append");
-    assert!(dir.join("meta.json").exists(), "meta.json cua dich khong duoc bi xoa boi mot loi append");
+    assert!(
+        dir.exists(),
+        "thu muc .atproj cua Tac pham dich khong duoc bi xoa boi mot loi append"
+    );
+    assert!(
+        dir.join("project.db").exists(),
+        "project.db cua dich khong duoc bi xoa boi mot loi append"
+    );
+    assert!(
+        dir.join("meta.json").exists(),
+        "meta.json cua dich khong duoc bi xoa boi mot loi append"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -5524,11 +6411,13 @@ fn a_transaction_failure_mid_append_rolls_back_the_whole_batch_leaves_the_work_i
 /// `Indexer::rebuild`/`reindex_after_lifecycle_write` rời sau đó: một ca tự reindex thì
 /// không canh gì (đúng bẫy mà correction Phase 1 đã gọi tên cho AC3, áp lại ở đây cho bước 4).
 #[test]
-fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter_count_and_full_text_search() {
+fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter_count_and_full_text_search()
+ {
     let root = temp_dir("append-reaches-library-index");
     let side = temp_dir("append-reaches-library-index-side");
-    let indexer = auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
-        .unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let indexer =
+        auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
+            .unwrap_or_else(|e| panic!("mo indexer: {e}"));
     let global = Store::open(StoreSpec::global(side.join("global.db")))
         .unwrap_or_else(|e| panic!("mo global.db: {e}"));
 
@@ -5544,7 +6433,11 @@ fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter
 
     // Trang thai TRUOC -- dua vao chi muc mot lan de co moc so sanh, dung khuon
     // `merging_two_chapters_leaves_the_smaller_chapter_count_in_the_library_index`.
-    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(Some(&indexer), Some(&global), &root);
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(
+        Some(&indexer),
+        Some(&global),
+        &root,
+    );
 
     let chapter_count_of = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
         indexer
@@ -5555,12 +6448,20 @@ fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter
             .find(|w| w.work_id == work_id)
             .map(|w| w.chapter_count)
     };
-    assert_eq!(chapter_count_of(&indexer), Some(1), "truoc luot append, chi muc phai mang dung 1 Chuong");
+    assert_eq!(
+        chapter_count_of(&indexer),
+        Some(1),
+        "truoc luot append, chi muc phai mang dung 1 Chuong"
+    );
 
     let marker = "unikatni_tu_khoa_chuong_moi_them_6_7b";
     let search_marker = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
         indexer
-            .search(marker, 20, auratranslate_lib::core::library::indexer::SearchMode::Exact)
+            .search(
+                marker,
+                20,
+                auratranslate_lib::core::library::indexer::SearchMode::Exact,
+            )
             .unwrap_or_else(|e| panic!("search: {e}"))
     };
     assert_eq!(
@@ -5628,15 +6529,26 @@ fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter
 fn skipping_step_four_after_an_append_leaves_the_library_index_stale_on_both_measures() {
     let root = temp_dir("append-skip-step-four-stale-index");
     let side = temp_dir("append-skip-step-four-stale-index-side");
-    let indexer = auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
-        .unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let indexer =
+        auratranslate_lib::core::library::indexer::Indexer::open(side.join("library-index.db"))
+            .unwrap_or_else(|e| panic!("mo indexer: {e}"));
     let global = Store::open(StoreSpec::global(side.join("global.db")))
         .unwrap_or_else(|e| panic!("mo global.db: {e}"));
 
-    let mut opened = create_work_from_text(&root, "Chi Muc Dung Yen", "en", "", "Chuong dau tien.".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "Chi Muc Dung Yen",
+        "en",
+        "",
+        "Chuong dau tien.".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let work_id = opened.meta.work_id.clone();
-    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(Some(&indexer), Some(&global), &root);
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(
+        Some(&indexer),
+        Some(&global),
+        &root,
+    );
 
     let marker = "tu_khoa_bi_bo_qua_khong_dua_vao_chi_muc";
     let pending = PendingImportSourceState::new(None);
@@ -5676,7 +6588,11 @@ fn skipping_step_four_after_an_append_leaves_the_library_index_stale_on_both_mea
     );
 
     let after = indexer
-        .search(marker, 20, auratranslate_lib::core::library::indexer::SearchMode::Exact)
+        .search(
+            marker,
+            20,
+            auratranslate_lib::core::library::indexer::SearchMode::Exact,
+        )
         .unwrap_or_else(|e| panic!("search: {e}"));
     assert_eq!(
         after.total, 0,
@@ -5714,7 +6630,12 @@ fn replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_sibl
 
     let start = src
         .find("fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>")
-        .unwrap_or_else(|| panic!("khong tim thay `fn replace_open_work` trong {}", path.display()));
+        .unwrap_or_else(|| {
+            panic!(
+                "khong tim thay `fn replace_open_work` trong {}",
+                path.display()
+            )
+        });
     // Neo diem ket THAT: doc-comment mo dau ham lang gieng ngay sau no trong tep that
     // (`swap_locked`) — on dinh hon dem ngoac tay, va da la mot chuoi DUY NHAT trong tep.
     let end_marker = "/// Thay giá trị bên trong `mutex`";
@@ -5735,7 +6656,8 @@ fn replace_open_work_clears_the_last_assembled_prompt_record_beside_its_two_sibl
     // TRONG đúng thân này — nếu không, phép cắt thân ở trên đang sai vị trí và assert phía
     // trên có thể đang khớp nhầm một chỗ khác trong tệp.
     assert!(
-        body.contains("clear_pending_import_for_tier") && body.contains("clear_pending_prompt_import_work_tier"),
+        body.contains("clear_pending_import_for_tier")
+            && body.contains("clear_pending_prompt_import_work_tier"),
         "phep cat than ham co the sai vi tri -- hai nguoi lang gieng da co (Story 3.10b/4.5) \
          phai nam trong CUNG than nay:\n{body}"
     );
@@ -5854,7 +6776,9 @@ fn create_work_flags_a_source_lang_mismatch_when_only_the_second_chapter_mismatc
     let root = temp_dir("mismatch-warn-create-second-chapter");
 
     let shape = PipelineShape::Chapters(vec![
-        ChapterInput::AlreadyText("萧炎登场，这是一段很长的中文文本，足够让脚本比例启发式得到真实的信号。".to_owned()),
+        ChapterInput::AlreadyText(
+            "萧炎登场，这是一段很长的中文文本，足够让脚本比例启发式得到真实的信号。".to_owned(),
+        ),
         ChapterInput::AlreadyText(
             "Day la mot doan van ban tieng Latin dai, khong mang mot chu Han nao, \
              du de heuristic ti le chu do duoc tin hieu that."
@@ -5862,8 +6786,22 @@ fn create_work_flags_a_source_lang_mismatch_when_only_the_second_chapter_mismatc
         ),
     ]);
     let opened = create_work(
-        &root, "Lech Chuong Hai", "zh", "", shape, encoding_rs::UTF_8, Vec::new(), None,
-        Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[],
+        &root,
+        "Lech Chuong Hai",
+        "zh",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
     )
     .expect("tao Tac pham hai Chuong that bai");
 
@@ -5891,7 +6829,8 @@ fn concurrent_create_work_from_text_and_create_work_from_file_into_the_same_root
             .unwrap_or_else(|e| panic!("mo indexer: {e}")),
     );
     let global = std::sync::Arc::new(
-        Store::open(StoreSpec::global(side.join("global.db"))).unwrap_or_else(|e| panic!("mo global.db: {e}")),
+        Store::open(StoreSpec::global(side.join("global.db")))
+            .unwrap_or_else(|e| panic!("mo global.db: {e}")),
     );
     let file_path = write_file(&root, "tu-tep.txt", "Chuong tu tep.".as_bytes());
 
@@ -5899,31 +6838,51 @@ fn concurrent_create_work_from_text_and_create_work_from_file_into_the_same_root
         let indexer_a = std::sync::Arc::clone(&indexer);
         let global_a = std::sync::Arc::clone(&global);
         let root_a = root.clone();
-        let h1 = scope.spawn(move || -> Result<String, auratranslate_lib::core::i18n::IpcError> {
-            let opened = create_work_from_text(&root_a, "Dua Van Ban", "en", "", "Chuong dan tay.".to_owned())?;
-            let work_id = opened.meta.work_id.clone();
-            drop(opened);
-            indexer_a.rebuild(&root_a, Some(&global_a)).unwrap_or_else(|e| panic!("rebuild luong 1: {e}"));
-            Ok(work_id)
-        });
+        let h1 = scope.spawn(
+            move || -> Result<String, auratranslate_lib::core::i18n::IpcError> {
+                let opened = create_work_from_text(
+                    &root_a,
+                    "Dua Van Ban",
+                    "en",
+                    "",
+                    "Chuong dan tay.".to_owned(),
+                )?;
+                let work_id = opened.meta.work_id.clone();
+                drop(opened);
+                indexer_a
+                    .rebuild(&root_a, Some(&global_a))
+                    .unwrap_or_else(|e| panic!("rebuild luong 1: {e}"));
+                Ok(work_id)
+            },
+        );
 
         let indexer_b = std::sync::Arc::clone(&indexer);
         let global_b = std::sync::Arc::clone(&global);
         let root_b = root.clone();
-        let h2 = scope.spawn(move || -> Result<String, auratranslate_lib::core::i18n::IpcError> {
-            let opened = create_work_from_file(&root_b, "Dua Tep", "en", "", &file_path)?;
-            let work_id = opened.meta.work_id.clone();
-            drop(opened);
-            indexer_b.rebuild(&root_b, Some(&global_b)).unwrap_or_else(|e| panic!("rebuild luong 2: {e}"));
-            Ok(work_id)
-        });
+        let h2 = scope.spawn(
+            move || -> Result<String, auratranslate_lib::core::i18n::IpcError> {
+                let opened = create_work_from_file(&root_b, "Dua Tep", "en", "", &file_path)?;
+                let work_id = opened.meta.work_id.clone();
+                drop(opened);
+                indexer_b
+                    .rebuild(&root_b, Some(&global_b))
+                    .unwrap_or_else(|e| panic!("rebuild luong 2: {e}"));
+                Ok(work_id)
+            },
+        );
 
-        (h1.join().expect("luong 1 panic"), h2.join().expect("luong 2 panic"))
+        (
+            h1.join().expect("luong 1 panic"),
+            h2.join().expect("luong 2 panic"),
+        )
     });
 
     let work_id_a = result_a.expect("tao Tac pham qua van ban that bai");
     let work_id_b = result_b.expect("tao Tac pham qua tep that bai");
-    assert_ne!(work_id_a, work_id_b, "hai Tac pham phai la HAI thuc the khac nhau");
+    assert_ne!(
+        work_id_a, work_id_b,
+        "hai Tac pham phai la HAI thuc the khac nhau"
+    );
 
     let works = indexer
         .list_works(auratranslate_lib::core::library::indexer::WorkQuery::default())
@@ -5937,7 +6896,11 @@ fn concurrent_create_work_from_text_and_create_work_from_file_into_the_same_root
         works.iter().any(|w| w.work_id == work_id_b),
         "Tac pham dua TEP phai co mat trong chi muc sau luot tai lap dong thoi"
     );
-    assert_eq!(works.len(), 2, "khong Tac pham nao bi mat, khong Tac pham nao bi trung");
+    assert_eq!(
+        works.len(),
+        2,
+        "khong Tac pham nao bi mat, khong Tac pham nao bi trung"
+    );
 
     drop(indexer);
     drop(global);
@@ -5987,7 +6950,9 @@ fn append_chapters_to_work_flags_a_source_lang_mismatch_when_only_the_second_new
     let mut opened = create_destination_work(&root, "Dich Lech Chuong Hai", 1);
 
     let new_shape = PipelineShape::Chapters(vec![
-        ChapterInput::AlreadyText("萧炎登场，这是一段很长的中文文本，足够让脚本比例启发式得到真实的信号。".to_owned()),
+        ChapterInput::AlreadyText(
+            "萧炎登场，这是一段很长的中文文本，足够让脚本比例启发式得到真实的信号。".to_owned(),
+        ),
         ChapterInput::AlreadyText(
             "Day la mot doan van ban tieng Latin dai, khong mang mot chu Han nao, \
              du de heuristic ti le chu do duoc tin hieu that."

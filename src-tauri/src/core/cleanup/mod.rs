@@ -197,7 +197,11 @@ pub struct CleanupError {
 impl fmt::Display for CleanupError {
     /// KHÔNG DẤU (NFR16).
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "cleanup[{}#{}] pattern does not compile as regex", self.tier, self.id)
+        write!(
+            f,
+            "cleanup[{}#{}] pattern does not compile as regex",
+            self.tier, self.id
+        )
     }
 }
 
@@ -243,12 +247,15 @@ fn byte_ranges_for(text: &str, rule: &CleanupRule) -> Result<Vec<(usize, usize)>
         return Ok(Vec::new());
     }
     match rule.kind {
-        CleanupRuleKind::Literal => {
-            Ok(text.match_indices(rule.pattern.as_str()).map(|(i, m)| (i, i + m.len())).collect())
-        }
+        CleanupRuleKind::Literal => Ok(text
+            .match_indices(rule.pattern.as_str())
+            .map(|(i, m)| (i, i + m.len()))
+            .collect()),
         CleanupRuleKind::Regex => {
-            let re = compile_cleanup_regex(&rule.pattern)
-                .map_err(|_| CleanupError { tier: rule.tier, id: rule.id })?;
+            let re = compile_cleanup_regex(&rule.pattern).map_err(|_| CleanupError {
+                tier: rule.tier,
+                id: rule.id,
+            })?;
             // 🔴 SỬA vòng rà (2026-09-06) — một mẫu như `x*` khớp được chuỗi RỖNG ở mọi vị
             // trí không có `x`; xoá 0 ký tự không xoá gì, nhưng vẫn được ĐẾM và vẫn sinh một
             // `CleanupMatch` — số đếm phồng lên (một Chương dài ra vài nghìn ký tự ra "khớp
@@ -332,7 +339,11 @@ pub fn apply(text: &str, rules: &[CleanupRule]) -> Result<Cleaned, CleanupError>
     }
     out.push_str(&text[cursor..]);
 
-    Ok(Cleaned { text: out, matches, per_rule_counts })
+    Ok(Cleaned {
+        text: out,
+        matches,
+        per_rule_counts,
+    })
 }
 
 #[cfg(test)]
@@ -340,11 +351,23 @@ mod tests {
     use super::*;
 
     fn literal(tier: CleanupRuleTier, id: i64, pattern: &str, enabled: bool) -> CleanupRule {
-        CleanupRule { tier, id, pattern: pattern.to_owned(), kind: CleanupRuleKind::Literal, enabled }
+        CleanupRule {
+            tier,
+            id,
+            pattern: pattern.to_owned(),
+            kind: CleanupRuleKind::Literal,
+            enabled,
+        }
     }
 
     fn regex_rule(tier: CleanupRuleTier, id: i64, pattern: &str, enabled: bool) -> CleanupRule {
-        CleanupRule { tier, id, pattern: pattern.to_owned(), kind: CleanupRuleKind::Regex, enabled }
+        CleanupRule {
+            tier,
+            id,
+            pattern: pattern.to_owned(),
+            kind: CleanupRuleKind::Regex,
+            enabled,
+        }
     }
 
     #[test]
@@ -371,8 +394,15 @@ mod tests {
     fn a_disabled_rule_is_counted_but_not_removed() {
         let rules = [literal(CleanupRuleTier::Global, 1, "rac", false)];
         let out = apply("rac o day rac o kia", &rules).expect("luat tat van hop le");
-        assert_eq!(out.text, "rac o day rac o kia", "luat tat khong duoc xoa gi");
-        assert_eq!(out.per_rule_counts[&(CleanupRuleTier::Global, 1)], 2, "van phai dem");
+        assert_eq!(
+            out.text, "rac o day rac o kia",
+            "luat tat khong duoc xoa gi"
+        );
+        assert_eq!(
+            out.per_rule_counts[&(CleanupRuleTier::Global, 1)],
+            2,
+            "van phai dem"
+        );
         assert_eq!(out.matches.len(), 2, "van phai bao cao cho khop");
     }
 
@@ -384,9 +414,21 @@ mod tests {
         ];
         let out = apply("aXb", &rules).expect("hai luat trung nhau van hop le");
         assert_eq!(out.text, "ab", "cho khop chi bien mat MOT LAN");
-        assert_eq!(out.per_rule_counts[&(CleanupRuleTier::Global, 1)], 1, "luat Global van dem");
-        assert_eq!(out.per_rule_counts[&(CleanupRuleTier::Work, 1)], 1, "luat Work van dem");
-        assert_eq!(out.matches.len(), 2, "ca hai luat deu bao cao cho khop, khong khu trung lap");
+        assert_eq!(
+            out.per_rule_counts[&(CleanupRuleTier::Global, 1)],
+            1,
+            "luat Global van dem"
+        );
+        assert_eq!(
+            out.per_rule_counts[&(CleanupRuleTier::Work, 1)],
+            1,
+            "luat Work van dem"
+        );
+        assert_eq!(
+            out.matches.len(),
+            2,
+            "ca hai luat deu bao cao cho khop, khong khu trung lap"
+        );
     }
 
     #[test]
@@ -412,7 +454,11 @@ mod tests {
         let out = apply("A萧B", &rules).expect("literal Han hop le");
         assert_eq!(out.matches.len(), 1);
         let m = out.matches[0];
-        assert_eq!((m.start, m.end), (1, 2), "span phai la DIEM MA, khong phai byte");
+        assert_eq!(
+            (m.start, m.end),
+            (1, 2),
+            "span phai la DIEM MA, khong phai byte"
+        );
     }
 
     #[test]
@@ -430,11 +476,16 @@ mod tests {
         let out = apply("abcd", &rules).expect("regex hop le");
         assert_eq!(out.text, "abcd", "khop do dai 0 khong xoa gi");
         assert_eq!(out.matches.len(), 0, "khop rong khong duoc sinh span");
-        assert_eq!(out.per_rule_counts[&(CleanupRuleTier::Global, 1)], 0, "khop rong khong duoc dem");
+        assert_eq!(
+            out.per_rule_counts[&(CleanupRuleTier::Global, 1)],
+            0,
+            "khop rong khong duoc dem"
+        );
     }
 
     #[test]
-    fn a_regex_alternation_still_counts_the_real_non_empty_matches_alongside_a_zero_length_pattern() {
+    fn a_regex_alternation_still_counts_the_real_non_empty_matches_alongside_a_zero_length_pattern()
+    {
         // Doi chung: mot mau vua khop RONG (o vi tri khong co "x") vua khop THAT (khi co
         // "x") tren CUNG mot luat -- chi cho khop THAT moi con lai.
         let rules = [regex_rule(CleanupRuleTier::Global, 1, "x*", true)];
@@ -442,6 +493,10 @@ mod tests {
         assert_eq!(out.text, "abc", "chi cho khop THAT (co do dai) bi xoa");
         // "x*" tren "axxbxc": cho khop THAT chi co "xx" (vi tri 1..3) va "x" (vi tri 4..5) --
         // moi cho khop RONG khac (truoc 'a', truoc 'b', truoc 'c', cuoi chuoi) bi loc.
-        assert_eq!(out.per_rule_counts[&(CleanupRuleTier::Global, 1)], 2, "hai cho khop THAT: xx, x");
+        assert_eq!(
+            out.per_rule_counts[&(CleanupRuleTier::Global, 1)],
+            2,
+            "hai cho khop THAT: xx, x"
+        );
     }
 }

@@ -166,19 +166,31 @@ pub struct CleanupRuleRow {
 
 impl From<RawRule> for CleanupRuleRow {
     fn from(r: RawRule) -> Self {
-        Self { id: r.id, pattern: r.pattern, kind: r.kind, enabled: r.enabled }
+        Self {
+            id: r.id,
+            pattern: r.pattern,
+            kind: r.kind,
+            enabled: r.enabled,
+        }
     }
 }
 
 /// Đọc một tầng (`&Store` đã chọn) — hàm THUẦN, `commands::cleanup` định tuyến `&Store`
 /// theo `CleanupRuleTier` mà `wire::` nhận được.
 pub fn list_tier(store: &Store) -> Result<Vec<CleanupRuleRow>, StoreError> {
-    Ok(load_cleanup_rule_rows(store)?.into_iter().map(CleanupRuleRow::from).collect())
+    Ok(load_cleanup_rule_rows(store)?
+        .into_iter()
+        .map(CleanupRuleRow::from)
+        .collect())
 }
 
 /// Thêm một luật mới — **hàm thuần**. Mẫu rỗng/chỉ khoảng trắng hoặc regex hỏng bị từ chối
 /// TRƯỚC khi mở giao dịch — bảng không đổi một hàng (§Always spec 6.5).
-pub fn add_rule(store: &Store, pattern: &str, kind: CleanupRuleKind) -> Result<i64, CleanupStoreError> {
+pub fn add_rule(
+    store: &Store,
+    pattern: &str,
+    kind: CleanupRuleKind,
+) -> Result<i64, CleanupStoreError> {
     let pattern = validate_pattern(kind, pattern)?;
     let kind_str = kind.as_str();
 
@@ -300,9 +312,12 @@ impl From<CleanupStoreError> for IpcError {
 
         match err {
             CleanupStoreError::Store(e) => e.into(),
-            CleanupStoreError::Scope(_) => {
-                IpcError::new("cleanup.scope_error", MessageKey::CleanupScopeError, BTreeMap::new(), false)
-            }
+            CleanupStoreError::Scope(_) => IpcError::new(
+                "cleanup.scope_error",
+                MessageKey::CleanupScopeError,
+                BTreeMap::new(),
+                false,
+            ),
             CleanupStoreError::EmptyPattern => IpcError::new(
                 "cleanup.empty_pattern",
                 MessageKey::CleanupEmptyPattern,

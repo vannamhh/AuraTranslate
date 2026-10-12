@@ -18,52 +18,49 @@ pub fn source_version(lines: &[String]) -> Option<String> {
 
 /// Cùng chữ ký với bốn parser còn lại: `parse(reader) -> impl Iterator<Item = Result<RawEntry>>`.
 pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, ParseIssue>> {
-    reader
-        .lines()
-        .enumerate()
-        .filter_map(|(idx, line)| {
-            let line_no = idx + 1;
-            let raw = match line {
-                Ok(l) => l,
-                Err(e) => {
-                    return Some(Err(ParseIssue {
-                        line: line_no,
-                        reason: format!("I/O error: {e}"),
-                    }));
-                }
-            };
-            match parse_line(line_no, &raw) {
-                Ok(None) => None,
-                Ok(Some(l)) => {
-                    let senses = l
-                        .glosses
-                        .into_iter()
-                        .map(|gloss| RawSense {
-                            pos: None,
-                            pos_lang: None,
-                            gloss,
-                            note: None,
-                            examples: Vec::new(),
-                            citations: Vec::new(),
-                        })
-                        .collect::<Vec<_>>();
-                    Some(Ok(RawEntry {
-                        lang: "zh".to_string(),
-                        headword: l.traditional,
-                        headword_simp: Some(l.simplified),
-                        reading: if l.pinyin.is_empty() {
-                            None
-                        } else {
-                            Some(l.pinyin)
-                        },
-                        han_viet: None,
-                        nom_reading: None,
-                        senses,
-                    }))
-                }
-                Err(issue) => Some(Err(issue)),
+    reader.lines().enumerate().filter_map(|(idx, line)| {
+        let line_no = idx + 1;
+        let raw = match line {
+            Ok(l) => l,
+            Err(e) => {
+                return Some(Err(ParseIssue {
+                    line: line_no,
+                    reason: format!("I/O error: {e}"),
+                }));
             }
-        })
+        };
+        match parse_line(line_no, &raw) {
+            Ok(None) => None,
+            Ok(Some(l)) => {
+                let senses = l
+                    .glosses
+                    .into_iter()
+                    .map(|gloss| RawSense {
+                        pos: None,
+                        pos_lang: None,
+                        gloss,
+                        note: None,
+                        examples: Vec::new(),
+                        citations: Vec::new(),
+                    })
+                    .collect::<Vec<_>>();
+                Some(Ok(RawEntry {
+                    lang: "zh".to_string(),
+                    headword: l.traditional,
+                    headword_simp: Some(l.simplified),
+                    reading: if l.pinyin.is_empty() {
+                        None
+                    } else {
+                        Some(l.pinyin)
+                    },
+                    han_viet: None,
+                    nom_reading: None,
+                    senses,
+                }))
+            }
+            Err(issue) => Some(Err(issue)),
+        }
+    })
 }
 
 #[cfg(test)]

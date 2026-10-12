@@ -13,15 +13,27 @@ fn proofread_error(code: &'static str, key: MessageKey, segment_id: i64) -> IpcE
 }
 
 fn text_changed(segment_id: i64) -> IpcError {
-    proofread_error("ai_proofread.text_changed", MessageKey::AiProofreadTextChanged, segment_id)
+    proofread_error(
+        "ai_proofread.text_changed",
+        MessageKey::AiProofreadTextChanged,
+        segment_id,
+    )
 }
 
 pub(crate) fn range_invalid(segment_id: i64) -> IpcError {
-    proofread_error("ai_proofread.range_invalid", MessageKey::AiProofreadRangeInvalid, segment_id)
+    proofread_error(
+        "ai_proofread.range_invalid",
+        MessageKey::AiProofreadRangeInvalid,
+        segment_id,
+    )
 }
 
 fn text_would_be_empty(segment_id: i64) -> IpcError {
-    proofread_error("ai_proofread.text_would_be_empty", MessageKey::AiProofreadTextWouldBeEmpty, segment_id)
+    proofread_error(
+        "ai_proofread.text_would_be_empty",
+        MessageKey::AiProofreadTextWouldBeEmpty,
+        segment_id,
+    )
 }
 
 /// The stored row a proofread range was checked against, with the range as byte offsets.
@@ -69,7 +81,10 @@ pub(crate) fn check_proofread_range(
         return Ok(Err(segment_retired(segment_id)));
     }
     if chapter_id != open_chapter_id {
-        return Ok(Err(segment_not_in_open_chapter(segment_id, open_chapter_id)));
+        return Ok(Err(segment_not_in_open_chapter(
+            segment_id,
+            open_chapter_id,
+        )));
     }
     if text != expected_text {
         return Ok(Err(text_changed(segment_id)));
@@ -83,7 +98,13 @@ pub(crate) fn check_proofread_range(
     if text[byte_start..byte_end] != *expected_phrase {
         return Ok(Err(text_changed(segment_id)));
     }
-    Ok(Ok(CheckedProofreadRange { text, baseline_text, baseline_origin, byte_start, byte_end }))
+    Ok(Ok(CheckedProofreadRange {
+        text,
+        baseline_text,
+        baseline_origin,
+        byte_start,
+        byte_end,
+    }))
 }
 
 /// Replaces `[start, end)` (UTF-16) of the segment's translation with `replacement`, verbatim,
@@ -104,15 +125,25 @@ pub fn replace_proofread_range(
 ) -> Result<PromoteAiTranslationOutcome, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
     let open_chapter_id = open.chapter_id;
-    let (expected_text, expected_phrase, replacement) =
-        (expected_text.to_owned(), expected_phrase.to_owned(), replacement.to_owned());
+    let (expected_text, expected_phrase, replacement) = (
+        expected_text.to_owned(),
+        expected_phrase.to_owned(),
+        replacement.to_owned(),
+    );
 
     let outcome = open.store.write(move |tx: &Transaction<'_>| {
-        let checked =
-            match check_proofread_range(tx, open_chapter_id, segment_id, &expected_text, start, end, &expected_phrase)? {
-                Ok(checked) => checked,
-                Err(err) => return Ok(Err(err)),
-            };
+        let checked = match check_proofread_range(
+            tx,
+            open_chapter_id,
+            segment_id,
+            &expected_text,
+            start,
+            end,
+            &expected_phrase,
+        )? {
+            Ok(checked) => checked,
+            Err(err) => return Ok(Err(err)),
+        };
         let mut new_text = String::with_capacity(checked.text.len() + replacement.len());
         new_text.push_str(&checked.text[..checked.byte_start]);
         new_text.push_str(&replacement);
@@ -123,7 +154,11 @@ pub fn replace_proofread_range(
         let declared_origin = match kind.acceptance_origin() {
             AcceptanceOrigin::OtherTranslated => TRANSLATION_ORIGIN_OTHER,
             AcceptanceOrigin::ArbitratedBeforeWrite => {
-                match arbitrate(&checked.text, &checked.baseline_text, &checked.baseline_origin) {
+                match arbitrate(
+                    &checked.text,
+                    &checked.baseline_text,
+                    &checked.baseline_origin,
+                ) {
                     Ok(Arbitrated::PairOrigin(pair_origin)) => pair_origin.as_str(),
                     Ok(Arbitrated::Unsigned) => return Ok(Err(text_changed(segment_id))),
                     Err(UnknownBaselineOrigin(value)) => {
@@ -132,7 +167,13 @@ pub fn replace_proofread_range(
                 }
             }
         };
-        write_non_user_target(tx, segment_id, &new_text, declared_origin, Some(declared_origin))?;
+        write_non_user_target(
+            tx,
+            segment_id,
+            &new_text,
+            declared_origin,
+            Some(declared_origin),
+        )?;
         Ok(Ok((new_text, declared_origin)))
     })?;
 

@@ -224,20 +224,19 @@ pub fn lookup(
     // trong git — `.gitignore: *.db`, AD-25) `groups` luôn rỗng, và một lượt tra thứ hai ở
     // đó chỉ tốn công để trả về đúng một tập rỗng thứ hai. Rỗng-vì-không-có-từ-điển không phải
     // rỗng-vì-không-khớp; AD-44 ④ phân biệt hai thứ đó, nên chỗ này cũng phải.
-    let grouped = if exact.layers_loaded
-        && exact.groups.is_empty()
-        && should_try_substring(&truncated_query)
-    {
-        lookup_grouped(
-            layers,
-            &truncated_query,
-            LookupMode::Substring,
-            LOOKUP_PAGE_LIMIT,
-            disabled,
-        )
-    } else {
-        exact
-    };
+    let grouped =
+        if exact.layers_loaded && exact.groups.is_empty() && should_try_substring(&truncated_query)
+        {
+            lookup_grouped(
+                layers,
+                &truncated_query,
+                LookupMode::Substring,
+                LOOKUP_PAGE_LIMIT,
+                disabled,
+            )
+        } else {
+            exact
+        };
 
     let mut entry_ids_by_layer: BTreeMap<&str, Vec<i64>> = BTreeMap::new();
     for group in &grouped.groups {
@@ -269,7 +268,12 @@ pub fn lookup(
         }
     }
 
-    LookupResponse { grouped, senses_by_layer, query_truncated, senses_failed }
+    LookupResponse {
+        grouped,
+        senses_by_layer,
+        query_truncated,
+        senses_failed,
+    }
 }
 
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**

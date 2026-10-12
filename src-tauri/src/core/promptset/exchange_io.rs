@@ -36,13 +36,18 @@ fn strip_bom(raw: &str) -> &str {
 pub fn read_import_file(path: &Path) -> Result<String, PromptSetError> {
     let path_str = path.display().to_string();
 
-    let file = std::fs::File::open(path)
-        .map_err(|e| PromptSetError::ImportReadFailed { path: path_str.clone(), detail: e.to_string() })?;
+    let file = std::fs::File::open(path).map_err(|e| PromptSetError::ImportReadFailed {
+        path: path_str.clone(),
+        detail: e.to_string(),
+    })?;
 
     let mut bytes = Vec::new();
     file.take(MAX_PROMPT_SET_IMPORT_BYTES + 1)
         .read_to_end(&mut bytes)
-        .map_err(|e| PromptSetError::ImportReadFailed { path: path_str.clone(), detail: e.to_string() })?;
+        .map_err(|e| PromptSetError::ImportReadFailed {
+            path: path_str.clone(),
+            detail: e.to_string(),
+        })?;
 
     if bytes.len() as u64 > MAX_PROMPT_SET_IMPORT_BYTES {
         return Err(PromptSetError::ImportFileTooLarge {
@@ -51,7 +56,8 @@ pub fn read_import_file(path: &Path) -> Result<String, PromptSetError> {
         });
     }
 
-    let text = String::from_utf8(bytes).map_err(|_| PromptSetError::ImportNotUtf8 { path: path_str })?;
+    let text =
+        String::from_utf8(bytes).map_err(|_| PromptSetError::ImportNotUtf8 { path: path_str })?;
 
     Ok(strip_bom(&text).to_owned())
 }
@@ -59,10 +65,20 @@ pub fn read_import_file(path: &Path) -> Result<String, PromptSetError> {
 pub fn export_file_name(name: &str) -> String {
     let cleaned: String = name
         .chars()
-        .map(|c| if c.is_control() || matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') { '_' } else { c })
+        .map(|c| {
+            if c.is_control() || matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+                '_'
+            } else {
+                c
+            }
+        })
         .collect();
     let trimmed = cleaned.trim_end_matches(['.', ' ']).trim_start();
-    let stem = if trimmed.is_empty() { "prompt-set" } else { trimmed };
+    let stem = if trimmed.is_empty() {
+        "prompt-set"
+    } else {
+        trimmed
+    };
     format!("{stem}.prompt.md")
 }
 
@@ -74,8 +90,11 @@ pub fn unique_export_path(
     let stem = file_name.strip_suffix(".prompt.md").unwrap_or(file_name);
     let mut n = 1u32;
     loop {
-        let candidate =
-            if n == 1 { format!("{stem}.prompt.md") } else { format!("{stem}-{n}.prompt.md") };
+        let candidate = if n == 1 {
+            format!("{stem}.prompt.md")
+        } else {
+            format!("{stem}-{n}.prompt.md")
+        };
         let path = dir.join(&candidate);
         let key = candidate.to_lowercase();
         if !taken.contains(&key) && std::fs::symlink_metadata(&path).is_err() {
@@ -95,7 +114,8 @@ pub fn write_export_file(path: &Path, contents: &str) -> Result<(), PromptSetErr
     let Some(file_name) = path.file_name() else {
         return Err(PromptSetError::ExportWriteFailed {
             path: path_str,
-            detail: "duong dan khong co thanh phan ten tep -- khong doan duoc ten tep tam".to_owned(),
+            detail: "duong dan khong co thanh phan ten tep -- khong doan duoc ten tep tam"
+                .to_owned(),
         });
     };
 
@@ -113,12 +133,18 @@ pub fn write_export_file(path: &Path, contents: &str) -> Result<(), PromptSetErr
 
     if let Err(e) = write_result {
         let _ = std::fs::remove_file(&tmp);
-        return Err(PromptSetError::ExportWriteFailed { path: path_str, detail: e.to_string() });
+        return Err(PromptSetError::ExportWriteFailed {
+            path: path_str,
+            detail: e.to_string(),
+        });
     }
 
     if let Err(e) = std::fs::rename(&tmp, path) {
         let _ = std::fs::remove_file(&tmp);
-        return Err(PromptSetError::ExportWriteFailed { path: path_str, detail: e.to_string() });
+        return Err(PromptSetError::ExportWriteFailed {
+            path: path_str,
+            detail: e.to_string(),
+        });
     }
 
     if let Some(dir) = path.parent() {
@@ -136,14 +162,18 @@ mod tests {
 
     #[test]
     fn read_import_file_rejects_a_file_over_the_cap_without_reading_its_bytes() {
-        let dir = std::env::temp_dir()
-            .join(format!("aura-promptset-io-test-{}-{}", std::process::id(), "over_cap"));
+        let dir = std::env::temp_dir().join(format!(
+            "aura-promptset-io-test-{}-{}",
+            std::process::id(),
+            "over_cap"
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("big.prompt.md");
         {
             use std::io::{Seek, SeekFrom, Write as _};
             let mut file = std::fs::File::create(&path).unwrap();
-            file.seek(SeekFrom::Start(MAX_PROMPT_SET_IMPORT_BYTES + 1)).unwrap();
+            file.seek(SeekFrom::Start(MAX_PROMPT_SET_IMPORT_BYTES + 1))
+                .unwrap();
             file.write_all(b"x").unwrap();
         }
 
@@ -161,8 +191,11 @@ mod tests {
 
     #[test]
     fn read_import_file_rejects_non_utf8_bytes_explicitly() {
-        let dir =
-            std::env::temp_dir().join(format!("aura-promptset-io-test-{}-{}", std::process::id(), "not_utf8"));
+        let dir = std::env::temp_dir().join(format!(
+            "aura-promptset-io-test-{}-{}",
+            std::process::id(),
+            "not_utf8"
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("bad.prompt.md");
         std::fs::write(&path, [0xff, 0xfe, 0x00]).unwrap();
@@ -175,7 +208,11 @@ mod tests {
 
     #[test]
     fn read_import_file_strips_a_leading_bom() {
-        let dir = std::env::temp_dir().join(format!("aura-promptset-io-test-{}-{}", std::process::id(), "bom"));
+        let dir = std::env::temp_dir().join(format!(
+            "aura-promptset-io-test-{}-{}",
+            std::process::id(),
+            "bom"
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("bom.prompt.md");
         let mut bytes = vec![0xEF, 0xBB, 0xBF];
@@ -191,27 +228,40 @@ mod tests {
 
     #[test]
     fn write_export_file_writes_atomically_and_leaves_no_tmp_file_behind() {
-        let dir = std::env::temp_dir().join(format!("aura-promptset-io-test-{}-{}", std::process::id(), "write_ok"));
+        let dir = std::env::temp_dir().join(format!(
+            "aura-promptset-io-test-{}-{}",
+            std::process::id(),
+            "write_ok"
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("out.prompt.md");
 
         write_export_file(&path, "---\nname: X\n---\nthan").unwrap();
 
-        assert_eq!(std::fs::read_to_string(&path).unwrap(), "---\nname: X\n---\nthan");
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "---\nname: X\n---\nthan"
+        );
         let leftover_tmp: Vec<_> = std::fs::read_dir(&dir)
             .unwrap()
             .filter_map(|e| e.ok())
             .filter(|e| e.file_name().to_string_lossy().contains(".tmp"))
             .collect();
-        assert!(leftover_tmp.is_empty(), "khong tep .tmp nao duoc de lai sau mot luot ghi thanh cong");
+        assert!(
+            leftover_tmp.is_empty(),
+            "khong tep .tmp nao duoc de lai sau mot luot ghi thanh cong"
+        );
 
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn write_export_file_cleans_up_the_tmp_file_when_the_directory_does_not_exist() {
-        let dir =
-            std::env::temp_dir().join(format!("aura-promptset-io-test-{}-{}", std::process::id(), "write_fail"));
+        let dir = std::env::temp_dir().join(format!(
+            "aura-promptset-io-test-{}-{}",
+            std::process::id(),
+            "write_fail"
+        ));
         let path = dir.join("out.prompt.md");
 
         let err = write_export_file(&path, "x").unwrap_err();

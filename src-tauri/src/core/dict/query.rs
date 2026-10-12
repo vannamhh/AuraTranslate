@@ -109,7 +109,9 @@ fn effective_limit(limit: usize) -> usize {
 ///
 /// Lấy `limit + 1` hàng để [`cap`] phân biệt được *"vừa đủ `limit`"* với *"còn nữa"*.
 fn fetch_rows(limit: usize) -> i64 {
-    i64::try_from(effective_limit(limit)).unwrap_or(i64::MAX).saturating_add(1)
+    i64::try_from(effective_limit(limit))
+        .unwrap_or(i64::MAX)
+        .saturating_add(1)
 }
 
 /// 🔴 **TRẦN AN TOÀN CHO TẬP ỨNG VIÊN** — Story 1.18, đóng `deferred-work.md §*Deferred from: 1-13-duong-tra-cuu-giu-nguyen-bat-dong-giua-cac-nguon (2026-08-05)*`.
@@ -147,7 +149,8 @@ fn candidate_ceiling(limit: usize) -> i64 {
 fn cap_verified(candidates: Vec<EntryHit>, query: &str, limit: usize) -> (Vec<EntryHit>, bool) {
     // `>=` chứ không `>`: SQL trả về **đúng** `ceiling` hàng nghĩa là nó đã dừng ở trần, và
     // không có cách phân biệt *"vừa đủ hết"* với *"còn nữa"* mà không tốn thêm một hàng.
-    let hit_ceiling = i64::try_from(candidates.len()).unwrap_or(i64::MAX) >= candidate_ceiling(limit);
+    let hit_ceiling =
+        i64::try_from(candidates.len()).unwrap_or(i64::MAX) >= candidate_ceiling(limit);
     let (hits, truncated) = cap(verify_substring(candidates, query), limit);
     (hits, truncated || hit_ceiling)
 }
@@ -197,7 +200,11 @@ fn verify_substring(hits: Vec<EntryHit>, query: &str) -> Vec<EntryHit> {
 /// có bước xác minh (không [`verify_substring`]) nên `LIMIT` ở SQL an toàn — đo được
 /// kế hoạch vẫn `MULTI-INDEX OR` + `USE TEMP B-TREE FOR ORDER BY` cho ca này, nhưng nhánh
 /// 1 luôn rất nhanh (< 1 ms mọi ca đo) nên `LIMIT` ở đây chủ yếu cắt băng thông IPC.
-pub(super) fn exact(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
+pub(super) fn exact(
+    db: ReadHandle<'_>,
+    query: &str,
+    limit: usize,
+) -> SqlResult<(Vec<EntryHit>, bool)> {
     let fetch = fetch_rows(limit);
     let hits = run(db, &exact_sql(), &[&query, &fetch])?;
     Ok(cap(hits, limit))
@@ -274,7 +281,11 @@ impl<'a> ShortQuery<'a> {
 /// tra cứu **tiếng Trung**; đường tra cứu tiếng Anh là [`exact_en`] và [`fts_trigram_en`]
 /// (Story 1.11b), **không** một nhánh thứ tư ở đây. Story 1.11 viết dòng này khi hai
 /// hàm đó chưa tồn tại; chúng không vẫn không tồn tại **trong nhánh này**, và đó là điểm.
-pub(super) fn char_idx(db: ReadHandle<'_>, query: ShortQuery<'_>, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
+pub(super) fn char_idx(
+    db: ReadHandle<'_>,
+    query: ShortQuery<'_>,
+    limit: usize,
+) -> SqlResult<(Vec<EntryHit>, bool)> {
     let query = query.as_str();
     let mut chars = query.chars();
     let Some(first) = chars.next() else {
@@ -311,7 +322,11 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: ShortQuery<'_>, limit: usize) 
     // biến kéo hàng chục nghìn hàng vào RAM"*. [`cap_verified`] giữ cờ `truncated` khỏi
     // nói dối khi trần chạm.
     let ceiling = candidate_ceiling(limit);
-    let candidates = run(db, &char_idx_two_sql(), &[&first.to_string(), &second.to_string(), &ceiling])?;
+    let candidates = run(
+        db,
+        &char_idx_two_sql(),
+        &[&first.to_string(), &second.to_string(), &ceiling],
+    )?;
     Ok(cap_verified(candidates, query, limit))
 }
 
@@ -329,7 +344,11 @@ pub(super) fn char_idx(db: ReadHandle<'_>, query: ShortQuery<'_>, limit: usize) 
 /// 🔴 Dấu `"` bên trong truy vấn được **nhân đôi** trước khi bọc — đó là cách thoát của
 /// FTS5. Không bỏ qua, không xoá ký tự: xoá là im lặng trả về kết quả của một truy
 /// vấn khác truy vấn người dùng gõ.
-pub(super) fn fts_trigram(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
+pub(super) fn fts_trigram(
+    db: ReadHandle<'_>,
+    query: &str,
+    limit: usize,
+) -> SqlResult<(Vec<EntryHit>, bool)> {
     let phrase = format!("\"{}\"", query.replace('"', "\"\""));
 
     // 🔴 Cùng Bẫy 11 của `char_idx` 2 ký tự: `verify_substring` phải chạy trên TOÀN BỘ ứng
@@ -386,7 +405,11 @@ pub(super) fn fts_trigram(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlR
 /// ⚠️ **Không** vế `headword_simp`: nó **luôn `NULL`** trên toàn bộ 119.039 mục tiếng
 /// Anh, nên một vế `OR e.headword_simp = ?` chỉ thêm một nhánh kế hoạch không bao giờ
 /// khớp.
-pub(super) fn exact_en(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
+pub(super) fn exact_en(
+    db: ReadHandle<'_>,
+    query: &str,
+    limit: usize,
+) -> SqlResult<(Vec<EntryHit>, bool)> {
     let lowered = query.to_lowercase();
 
     // Không bước xác minh (cùng lý do `exact`) ⇒ `LIMIT ?3` ở SQL an toàn.
@@ -415,7 +438,11 @@ pub(super) fn exact_en(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResu
 /// `None` với tiếng Anh — ĐỪNG bỏ hàm vì thế.** Nó là hàng rào chống **dương tính giả**
 /// của trigram, và hàng rào đó không phụ thuộc ngôn ngữ: FTS5 trả lời *"chứa các
 /// trigram này"*, không trả lời *"chứa chuỗi này"*.
-pub(super) fn fts_trigram_en(db: ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<(Vec<EntryHit>, bool)> {
+pub(super) fn fts_trigram_en(
+    db: ReadHandle<'_>,
+    query: &str,
+    limit: usize,
+) -> SqlResult<(Vec<EntryHit>, bool)> {
     let phrase = format!("\"{}\"", query.replace('"', "\"\""));
 
     // Cùng lý do `fts_trigram`: không `LIMIT limit` ở SQL, cắt ở Rust sau verify — cộng trần
@@ -454,7 +481,11 @@ fn tally(hits: &[EntryHit]) -> Vec<(String, i64)> {
 }
 
 /// Chạy một câu `COUNT(*) … GROUP BY s.code` và dựng danh sách đã sắp.
-fn run_counts(db: ReadHandle<'_>, sql: &str, params: &[&dyn ToSql]) -> SqlResult<Vec<(String, i64)>> {
+fn run_counts(
+    db: ReadHandle<'_>,
+    sql: &str,
+    params: &[&dyn ToSql],
+) -> SqlResult<Vec<(String, i64)>> {
     let mut stmt = db.prepare_cached(sql)?;
     let rows = stmt.query_map(params, |row| Ok((row.get(0)?, row.get(1)?)))?;
     rows.collect()
@@ -561,7 +592,13 @@ mod short_query_tests {
     /// Counts by character, not byte: a three-byte Han character must not slip past `len()`.
     #[test]
     fn the_measure_is_characters_not_bytes() {
-        assert!(ShortQuery::new("中國").is_some(), "two Han characters, six bytes — must pass");
-        assert!(ShortQuery::new("中國人").is_none(), "three Han characters — must be blocked");
+        assert!(
+            ShortQuery::new("中國").is_some(),
+            "two Han characters, six bytes — must pass"
+        );
+        assert!(
+            ShortQuery::new("中國人").is_none(),
+            "three Han characters — must be blocked"
+        );
     }
 }

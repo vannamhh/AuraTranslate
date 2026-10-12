@@ -45,7 +45,8 @@ pub const SOURCE_CODE: &str = "tran-van-chanh";
 
 /// `catusf/tudien` không gắn thẻ phiên bản cho tệp này — ghim **commit SHA** của
 /// `master` tại thời điểm tải (Task 1 của story: *"ghim commit SHA, không `master`"*).
-pub const SOURCE_VERSION: &str = "catusf/tudien@a7dd918ecc67de8c2d15034f885d919b9295eba4 (2025-12-19)";
+pub const SOURCE_VERSION: &str =
+    "catusf/tudien@a7dd918ecc67de8c2d15034f885d919b9295eba4 (2025-12-19)";
 
 /// Cùng chữ ký với các parser còn lại: `parse(reader) -> impl Iterator<Item = Result<RawEntry>>`.
 pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, ParseIssue>> {
@@ -70,7 +71,8 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
             _ => {
                 return Some(Err(ParseIssue {
                     line: line_no,
-                    reason: "expected 2 tab-separated columns (headword, '[reading] definition')".to_string(),
+                    reason: "expected 2 tab-separated columns (headword, '[reading] definition')"
+                        .to_string(),
                 }));
             }
         };
@@ -177,7 +179,13 @@ mod tests {
         let results: Vec<_> = parse(Cursor::new(text.as_bytes())).collect();
         assert_eq!(results.len(), 1);
         assert!(results[0].is_err());
-        assert!(results[0].as_ref().unwrap_err().reason.contains("[reading]"));
+        assert!(
+            results[0]
+                .as_ref()
+                .unwrap_err()
+                .reason
+                .contains("[reading]")
+        );
     }
 
     #[test]
@@ -186,7 +194,13 @@ mod tests {
         let results: Vec<_> = parse(Cursor::new(text.as_bytes())).collect();
         assert_eq!(results.len(), 1);
         assert!(results[0].is_err());
-        assert!(results[0].as_ref().unwrap_err().reason.contains("unterminated"));
+        assert!(
+            results[0]
+                .as_ref()
+                .unwrap_err()
+                .reason
+                .contains("unterminated")
+        );
     }
 
     #[test]
@@ -195,7 +209,13 @@ mod tests {
         let results: Vec<_> = parse(Cursor::new(text.as_bytes())).collect();
         assert_eq!(results.len(), 1);
         assert!(results[0].is_err());
-        assert!(results[0].as_ref().unwrap_err().reason.contains("empty definition"));
+        assert!(
+            results[0]
+                .as_ref()
+                .unwrap_err()
+                .reason
+                .contains("empty definition")
+        );
     }
 
     #[test]
@@ -215,8 +235,15 @@ mod tests {
         let entries: Vec<_> = parse(Cursor::new(text.as_bytes()))
             .collect::<Result<_, _>>()
             .unwrap();
-        assert_eq!(entries.len(), 2, "TVC không gộp theo headword, mỗi dòng nguồn = một dict_entry");
-        assert_eq!(entries[0].han_viet.as_deref(), Some("hành, hạnh, hàng, hạng"));
+        assert_eq!(
+            entries.len(),
+            2,
+            "TVC không gộp theo headword, mỗi dòng nguồn = một dict_entry"
+        );
+        assert_eq!(
+            entries[0].han_viet.as_deref(),
+            Some("hành, hạnh, hàng, hạng")
+        );
         assert_eq!(entries[1].han_viet.as_deref(), Some("hạnh"));
     }
 

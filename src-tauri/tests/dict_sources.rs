@@ -38,9 +38,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::dict::{
-    DictLayers, GroupedLookup, HAN_VIET_BATCH, HanVietHit, HanVietLookup, LookupMode, QueryBranch,
-    MINIMUM_SCHEMA_VERSION, QueryRoute, SENSE_BATCH, SUPPORTED_SCHEMA_VERSION, SenseRecord,
-    SkipReason, is_han,
+    DictLayers, GroupedLookup, HAN_VIET_BATCH, HanVietHit, HanVietLookup, LookupMode,
+    MINIMUM_SCHEMA_VERSION, QueryBranch, QueryRoute, SENSE_BATCH, SUPPORTED_SCHEMA_VERSION,
+    SenseRecord, SkipReason, is_han,
 };
 use auratranslate_lib::ports::DictionarySource;
 
@@ -784,7 +784,12 @@ fn layers_loaded_is_true_even_when_nothing_matches() {
     build_all_layers(&dir);
     let layers = DictLayers::open(&dir);
 
-    let result = lookup_grouped(&layers, "tu-khong-ton-tai-zzz", LookupMode::Exact, UNLIMITED);
+    let result = lookup_grouped(
+        &layers,
+        "tu-khong-ton-tai-zzz",
+        LookupMode::Exact,
+        UNLIMITED,
+    );
     assert!(result.groups.is_empty());
     assert!(
         result.layers_loaded,
@@ -1005,7 +1010,12 @@ fn skip_reason_detail_never_reaches_the_wire() {
     let layers = DictLayers::open(&dir);
     let result = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
 
-    assert_eq!(result.skipped.len(), 1, "chờ đúng một lớp bị bỏ qua: {:?}", result.skipped);
+    assert_eq!(
+        result.skipped.len(),
+        1,
+        "chờ đúng một lớp bị bỏ qua: {:?}",
+        result.skipped
+    );
     let raw_detail = match &result.skipped[0].reason {
         SkipReason::MetaUnreadable { detail } => detail.clone(),
         other => panic!("kỳ vọng MetaUnreadable, được {other:?}"),
@@ -1376,7 +1386,10 @@ fn a_file_level_limit_flags_truncation_instead_of_silently_dropping_a_source() {
 
     assert_eq!(
         groups_of(&result),
-        vec![("fx-limit-a".to_owned(), vec!["共".to_owned(), "共".to_owned(), "共".to_owned()])],
+        vec![(
+            "fx-limit-a".to_owned(),
+            vec!["共".to_owned(), "共".to_owned(), "共".to_owned()]
+        )],
         "trần 3 khớp ĐÚNG số đầu mục của fx-limit-a ⇒ fx-limit-b (id lớn hơn) văng khỏi trang"
     );
     assert_eq!(
@@ -1422,7 +1435,10 @@ fn an_untruncated_lookup_carries_no_source_counts_at_all() {
 
     let result = lookup_grouped(&layers, "共", LookupMode::Exact, UNLIMITED);
 
-    assert!(result.truncated_layers.is_empty(), "trần lớn ⇒ không lớp nào bị cắt");
+    assert!(
+        result.truncated_layers.is_empty(),
+        "trần lớn ⇒ không lớp nào bị cắt"
+    );
     assert!(
         result.hidden_sources.is_empty(),
         "không cắt ⇒ không nguồn nào bị giấu"
@@ -1550,7 +1566,10 @@ fn a_file_level_limit_on_the_char_idx_branch_also_flags_truncation() {
 
     assert_eq!(
         groups_of(&result),
-        vec![("fx-limit-a".to_owned(), vec!["共".to_owned(), "共".to_owned(), "共".to_owned()])],
+        vec![(
+            "fx-limit-a".to_owned(),
+            vec!["共".to_owned(), "共".to_owned(), "共".to_owned()]
+        )],
     );
     assert_eq!(result.truncated_layers, vec!["limit-fixture".to_owned()]);
 
@@ -1759,9 +1778,7 @@ fn an_entry_without_senses_is_an_empty_list_not_an_error() {
         "một đầu mục chỉ mang âm đọc là HỢP LỆ"
     );
     assert!(
-        base.senses(&[9_999])
-            .expect("id không tồn tại")
-            .is_empty(),
+        base.senses(&[9_999]).expect("id không tồn tại").is_empty(),
         "một `entry_id` lạ ⇒ rỗng, không lỗi"
     );
     assert!(
@@ -2436,7 +2453,9 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
     // 🔴 STORY 1.17 · TASK 8 — ĐO SAU `LIMIT`, qua ĐÚNG đường sản phẩm
     // `commands::dict::lookup()` (pha một + pha hai GỘP, cùng lượt IPC thật sẽ chạy).
     // ═════════════════════════════════════════════════════════════════════════════
-    println!("\n── SAU `LIMIT` (Quyết định #4) — `commands::dict::lookup()`, LOOKUP_PAGE_LIMIT = 20 ──");
+    println!(
+        "\n── SAU `LIMIT` (Quyết định #4) — `commands::dict::lookup()`, LOOKUP_PAGE_LIMIT = 20 ──"
+    );
     println!(
         "  {:<18} {:<10} {:>7} {:>7} {:>9} {:>9} {:>9}",
         "nhánh", "truy vấn", "nhóm", "hàng", "p50", "p95", "p99"
@@ -2465,7 +2484,12 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
         samples.sort_by(|a, b| a.partial_cmp(b).expect("không có NaN trong phép đo"));
 
         let response = command_lookup(Some(&layers), query);
-        let rows: usize = response.grouped.groups.iter().map(|g| g.entries.len()).sum();
+        let rows: usize = response
+            .grouped
+            .groups
+            .iter()
+            .map(|g| g.entries.len())
+            .sum();
         let (p50, p95, p99) = (
             pct(&samples, 50.0),
             pct(&samples, 95.0),
@@ -2512,7 +2536,10 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
             "char_idx-1(sub)", "-", p50, p95, p99
         );
         if p95 > after_worst.0 {
-            after_worst = (p95, format!("lookup_grouped(Substring, {query:?}, LIMIT={PAGE})"));
+            after_worst = (
+                p95,
+                format!("lookup_grouped(Substring, {query:?}, LIMIT={PAGE})"),
+            );
         }
     }
 
@@ -2520,9 +2547,15 @@ fn bench_the_grouped_path_on_the_real_dictionaries() {
         "\n  Chậm nhất SAU LIMIT: {} — p95 {:.3} ms (trần đầu-cuối NFR1: 100 ms; trần backend dẫn xuất: {CEILING_MS} ms) ⇒ {}",
         after_worst.1,
         after_worst.0,
-        if after_worst.0 < 100.0 { "NFR1 DAT (đầu-cuối < 100ms)" } else { "CHUA DAT — can khao sat them" }
+        if after_worst.0 < 100.0 {
+            "NFR1 DAT (đầu-cuối < 100ms)"
+        } else {
+            "CHUA DAT — can khao sat them"
+        }
     );
-    println!("  JSON LookupResponse lớn nhất đo được: {json_bytes_worst} byte (ước tính chi phí serialize/truyền IPC).");
+    println!(
+        "  JSON LookupResponse lớn nhất đo được: {json_bytes_worst} byte (ước tính chi phí serialize/truyền IPC)."
+    );
 
     layers.close();
 }
@@ -2621,7 +2654,8 @@ fn set_han_viet(dir: &Path, file: &str, entry_id: i64, han_viet: &str) {
         rusqlite::params![han_viet, entry_id],
     )
     .unwrap_or_else(|e| panic!("cập nhật han_viet cho id {entry_id} trong {file}: {e}"));
-    conn.close().unwrap_or_else(|(_, e)| panic!("đóng {file}: {e}"));
+    conn.close()
+        .unwrap_or_else(|(_, e)| panic!("đóng {file}: {e}"));
 }
 
 /// 🔴 **Quyết định #2** — đọc âm Hán Việt cho một ký tự, mang theo `source_code` của
@@ -2760,8 +2794,10 @@ fn han_viet_across_many_batches_never_duplicates_or_drops_a_row() {
     let base = layers.layer("base").expect("lớp nền");
 
     let mut straight = base.han_viet(&["山", "國", "国"]).expect("ba ký tự thật");
-    straight.sort_by(|a, b| (a.character.as_str(), a.source_code.as_str())
-        .cmp(&(b.character.as_str(), b.source_code.as_str())));
+    straight.sort_by(|a, b| {
+        (a.character.as_str(), a.source_code.as_str())
+            .cmp(&(b.character.as_str(), b.source_code.as_str()))
+    });
 
     // 200 ký tự giả (Khu vực dùng riêng, không đầu mục nào khớp) cộng ba ký tự thật
     // chen vào giữa — bốn lô, lô cuối đệm, và ba ký tự thật rơi vào NHIỀU lô khác nhau.
@@ -2788,8 +2824,10 @@ fn han_viet_across_many_batches_never_duplicates_or_drops_a_row() {
 
     let refs: Vec<&str> = many.iter().map(String::as_str).collect();
     let mut batched = base.han_viet(&refs).expect("nhiều lô");
-    batched.sort_by(|a, b| (a.character.as_str(), a.source_code.as_str())
-        .cmp(&(b.character.as_str(), b.source_code.as_str())));
+    batched.sort_by(|a, b| {
+        (a.character.as_str(), a.source_code.as_str())
+            .cmp(&(b.character.as_str(), b.source_code.as_str()))
+    });
 
     assert_eq!(
         batched, straight,
@@ -2924,7 +2962,10 @@ fn multiple_readings_split_on_the_comma_convention_too() {
     let layers = DictLayers::open(&dir);
 
     let no_space = lookup_han_viet(&layers, &["山"]);
-    let r1 = no_space.characters[0].reading.as_ref().expect("山 phải có âm");
+    let r1 = no_space.characters[0]
+        .reading
+        .as_ref()
+        .expect("山 phải có âm");
     assert_eq!(
         r1.primary, "tây",
         "`tây,tê` phải tách thành HAI âm — một luật áp cho MỌI tệp (Quyết định #3a)"
@@ -2932,7 +2973,10 @@ fn multiple_readings_split_on_the_comma_convention_too() {
     assert_eq!(r1.all, vec!["tây".to_owned(), "tê".to_owned()]);
 
     let with_space = lookup_han_viet(&layers, &["國"]);
-    let r2 = with_space.characters[0].reading.as_ref().expect("國 phải có âm");
+    let r2 = with_space.characters[0]
+        .reading
+        .as_ref()
+        .expect("國 phải có âm");
     assert_eq!(
         r2.primary, "chiêm",
         "KHÔNG được mang dấu phẩy đuôi — `str::trim` chỉ cắt khoảng trắng"
@@ -2967,7 +3011,10 @@ fn three_distinct_states_never_collapse_into_one() {
     let empty_dir = temp_dir("hanviet-states-empty");
     let empty_layers = DictLayers::open(&empty_dir);
     let empty_result = lookup_han_viet(&empty_layers, &["山"]);
-    assert!(!empty_result.layers_loaded, "ca (3): KHÔNG lớp nào đang gắn");
+    assert!(
+        !empty_result.layers_loaded,
+        "ca (3): KHÔNG lớp nào đang gắn"
+    );
     assert!(
         empty_result.characters[0].reading.is_none(),
         "0 lớp ⇒ không âm nào, nhưng lý do PHẢI phân biệt được qua `layers_loaded`"
@@ -3009,7 +3056,10 @@ fn removing_every_detachable_layer_still_serves_readings_from_the_base_layer() {
     );
 
     let after = lookup_han_viet(&layers_after, &["山"]);
-    assert!(after.layers_loaded, "lớp nền vẫn nạp được ⇒ không một đường nào hỏng");
+    assert!(
+        after.layers_loaded,
+        "lớp nền vẫn nạp được ⇒ không một đường nào hỏng"
+    );
     let reading = after.characters[0]
         .reading
         .as_ref()
@@ -3068,8 +3118,7 @@ fn read_han_viet_command_matches_the_grouping_layer_directly() {
     set_han_viet(&dir, "zzz.db", 1, "sơn");
 
     let layers = DictLayers::open(&dir);
-    let via_command =
-        command_read_han_viet(Some(&layers), &["山".to_owned(), "高".to_owned()]);
+    let via_command = command_read_han_viet(Some(&layers), &["山".to_owned(), "高".to_owned()]);
     let direct = lookup_han_viet(&layers, &["山", "高"]);
 
     assert_eq!(via_command, direct);
@@ -3114,7 +3163,11 @@ fn lookup_command_hydrates_senses_for_exactly_the_returned_entries() {
     let hydrated_layers: Vec<&String> = result.senses_by_layer.keys().collect();
     assert_eq!(
         hydrated_layers,
-        vec![&"base".to_owned(), &"hv-fixture".to_owned(), &"vp-fixture".to_owned()]
+        vec![
+            &"base".to_owned(),
+            &"hv-fixture".to_owned(),
+            &"vp-fixture".to_owned()
+        ]
     );
 
     // Nghĩa hydrate khớp ĐÚNG nội dung fixture — `BASE_SENSES_SHAN` có hai nghĩa
@@ -3286,7 +3339,10 @@ fn a_native_language_pos_label_is_not_marked_as_foreign() {
 fn the_foreign_language_predicate_reads_the_field_and_nothing_else() {
     use auratranslate_lib::core::dict::is_foreign_lang;
 
-    assert!(!is_foreign_lang(None), "không ghi ngôn ngữ ⇒ không có gì để đánh dấu (AC4)");
+    assert!(
+        !is_foreign_lang(None),
+        "không ghi ngôn ngữ ⇒ không có gì để đánh dấu (AC4)"
+    );
     assert!(!is_foreign_lang(Some("vi")), "bản ngữ");
     assert!(
         !is_foreign_lang(Some("VI")),
@@ -3734,7 +3790,11 @@ fn bench_the_auto_lookup_path_on_distinct_queries() {
         return;
     };
     let dir = PathBuf::from(&raw);
-    assert!(dir.is_dir(), "AURA_DICT_BENCH_DIR trỏ tới {} — không một thư mục", dir.display());
+    assert!(
+        dir.is_dir(),
+        "AURA_DICT_BENCH_DIR trỏ tới {} — không một thư mục",
+        dir.display()
+    );
 
     let layers = DictLayers::open(&dir);
     assert!(
@@ -3742,7 +3802,11 @@ fn bench_the_auto_lookup_path_on_distinct_queries() {
         "không lớp nào nạp được từ {} — mọi con số dưới đây sẽ là 0 và bảng *đạt* theo cách sai nhất",
         dir.display()
     );
-    println!("\n═══ {} lớp từ {} ═══", layers.layers().len(), dir.display());
+    println!(
+        "\n═══ {} lớp từ {} ═══",
+        layers.layers().len(),
+        dir.display()
+    );
 
     // ── Bộ truy vấn: cửa sổ trượt trên văn xuôi THẬT, đúng hình dạng một lượt bôi đen ──
     const PROSE: &str = "他打開了那扇門走進了黑暗之中山河大地日月星辰春夏秋冬東南西北\
@@ -3757,7 +3821,18 @@ fn bench_the_auto_lookup_path_on_distinct_queries() {
     // Đường tiếng Anh — AD-44 ⑥: *"NFR1 đo TRÊN đường tiếng Anh, không suy ra từ số đo tiếng
     // Trung"*. Ice chốt bật `Substring`, nên nhánh `fts_trigram_en` nay CÓ trên đường sản
     // phẩm và phải được đo riêng.
-    for w in ["running", "dictionary", "lock", "api", "dic", "ing", "the", "zzq", "ab", "xy"] {
+    for w in [
+        "running",
+        "dictionary",
+        "lock",
+        "api",
+        "dic",
+        "ing",
+        "the",
+        "zzq",
+        "ab",
+        "xy",
+    ] {
         queries.push(w.to_owned());
     }
     queries.sort();
@@ -4138,7 +4213,10 @@ fn a_license_kind_never_seen_before_travels_verbatim_and_never_panics() {
         "chuỗi MỞ — một enum ở tầng Rust sẽ nuốt giá trị này thành một biến thể sai"
     );
     assert_eq!(vp.license_id.as_deref(), Some("XYZZY-9.9"));
-    assert_eq!(vp.license_text_len, "van ban giay phep gia lap".len() as i64);
+    assert_eq!(
+        vp.license_text_len,
+        "van ban giay phep gia lap".len() as i64
+    );
 
     layers.close();
     cleanup(&dir);
@@ -4289,7 +4367,9 @@ fn the_filter_holds_at_the_limit_ceiling_and_never_shrinks_the_survivors() {
     // Trần 3 = đúng số đầu mục của `fx-limit-a` ⇒ `fx-limit-b` bị cắt SẠCH khỏi trang.
     let before = lookup_grouped(&layers, "共", LookupMode::Exact, 3);
     assert!(
-        before.truncated_layers.contains(&"limit-fixture".to_owned()),
+        before
+            .truncated_layers
+            .contains(&"limit-fixture".to_owned()),
         "đối chứng dương — ca này chỉ có nghĩa khi trần ĐANG chạm"
     );
     assert_eq!(
@@ -4459,7 +4539,10 @@ fn the_stored_shape_is_the_disabled_set_so_a_brand_new_source_defaults_to_on() {
     assert_eq!(parse_disabled_sources("   "), BTreeSet::new());
     assert_eq!(parse_disabled_sources(",,,"), BTreeSet::new());
     assert_eq!(parse_disabled_sources("a"), off(&["a"]));
-    assert_eq!(parse_disabled_sources(" a , b ,, c "), off(&["a", "b", "c"]));
+    assert_eq!(
+        parse_disabled_sources(" a , b ,, c "),
+        off(&["a", "b", "c"])
+    );
 
     // 🔴 Mệnh đề trung tâm: một nguồn xuất hiện ở bản sau (`d`) KHÔNG có trong tập đã lưu,
     // nên nó **bật**. Đây là đối chứng âm của lỗi *"rỗng im lặng"* mà AD-44 ④ cấm.
@@ -4494,8 +4577,7 @@ fn disabling_a_detachable_source_changes_the_reading_it_does_not_erase_it() {
     assert_eq!(reading.primary, "am-cua-lop-go-roi");
     assert_eq!(reading.source_code, "fx-hv");
 
-    let after =
-        auratranslate_lib::core::dict::lookup_han_viet(&layers, &["山"], &off(&["fx-hv"]));
+    let after = auratranslate_lib::core::dict::lookup_han_viet(&layers, &["山"], &off(&["fx-hv"]));
     let reading = after.characters[0]
         .reading
         .as_ref()
@@ -4650,7 +4732,18 @@ fn bench_the_source_filter_on_the_real_dictionaries() {
             queries.push(chars[start..start + width].iter().collect());
         }
     }
-    for w in ["running", "dictionary", "lock", "api", "dic", "ing", "the", "zzq", "ab", "xy"] {
+    for w in [
+        "running",
+        "dictionary",
+        "lock",
+        "api",
+        "dic",
+        "ing",
+        "the",
+        "zzq",
+        "ab",
+        "xy",
+    ] {
         queries.push(w.to_owned());
     }
     queries.sort();
@@ -4697,7 +4790,8 @@ fn bench_the_source_filter_on_the_real_dictionaries() {
             let mut groups_total = 0usize;
             for q in &queries {
                 let start = std::time::Instant::now();
-                let response = auratranslate_lib::commands::dict::lookup(Some(&layers), q, disabled);
+                let response =
+                    auratranslate_lib::commands::dict::lookup(Some(&layers), q, disabled);
                 samples.push(start.elapsed().as_secs_f64() * 1000.0);
                 if !response.grouped.truncated_layers.is_empty() {
                     truncated += 1;
@@ -4751,12 +4845,23 @@ fn bench_the_source_filter_on_the_real_dictionaries() {
 #[test]
 fn layers_loaded_is_true_when_every_layer_is_skipped_not_only_when_some_load() {
     let dir = temp_dir("all-skipped");
-    fs::write(dir.join("garbage.db"), b"day khong phai mot database SQLite")
-        .unwrap_or_else(|e| panic!("ghi garbage: {e}"));
+    fs::write(
+        dir.join("garbage.db"),
+        b"day khong phai mot database SQLite",
+    )
+    .unwrap_or_else(|e| panic!("ghi garbage: {e}"));
 
     let layers = DictLayers::open(&dir);
-    assert!(layers.layers().is_empty(), "khong lop nao nap duoc trong fixture nay");
-    assert_eq!(layers.skipped().len(), 1, "chờ đúng một tệp bị bỏ qua: {:?}", layers.skipped());
+    assert!(
+        layers.layers().is_empty(),
+        "khong lop nao nap duoc trong fixture nay"
+    );
+    assert_eq!(
+        layers.skipped().len(),
+        1,
+        "chờ đúng một tệp bị bỏ qua: {:?}",
+        layers.skipped()
+    );
 
     let grouped = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
     assert!(
@@ -4884,12 +4989,16 @@ fn a_missing_meta_row_names_which_key_is_absent() {
     };
     assert_eq!(
         reason_of("no-schema-version.db"),
-        SkipReason::MetaRowMissing { key: "schema_version".to_owned() },
+        SkipReason::MetaRowMissing {
+            key: "schema_version".to_owned()
+        },
         "thiếu hàng `schema_version` phải gọi TÊN đúng khoá vắng mặt"
     );
     assert_eq!(
         reason_of("no-layer.db"),
-        SkipReason::MetaRowMissing { key: "layer".to_owned() },
+        SkipReason::MetaRowMissing {
+            key: "layer".to_owned()
+        },
         "thiếu hàng `layer` phải gọi TÊN đúng khoá vắng mặt, KHÔNG lẫn với khoá kia"
     );
 
@@ -4920,9 +5029,17 @@ fn a_layer_whose_dict_source_table_is_gone_is_sources_unreadable() {
     }
 
     let layers = DictLayers::open(&dir);
-    assert_eq!(layers.skipped().len(), 1, "chờ đúng một tệp bị bỏ qua: {:?}", layers.skipped());
+    assert_eq!(
+        layers.skipped().len(),
+        1,
+        "chờ đúng một tệp bị bỏ qua: {:?}",
+        layers.skipped()
+    );
     assert!(
-        matches!(layers.skipped()[0].reason, SkipReason::SourcesUnreadable { .. }),
+        matches!(
+            layers.skipped()[0].reason,
+            SkipReason::SourcesUnreadable { .. }
+        ),
         "bảng `dict_source` mất phải bị từ chối bằng `SourcesUnreadable`: {:?}",
         layers.skipped()[0].reason
     );
@@ -4964,14 +5081,22 @@ fn two_files_declaring_the_same_layer_identity_is_a_duplicate_layer() {
         vec!["dup-layer".to_owned()],
         "chỉ MỘT lớp 'dup-layer' được nhận"
     );
-    assert_eq!(layers.skipped().len(), 1, "chờ đúng một tệp bị bỏ qua: {:?}", layers.skipped());
+    assert_eq!(
+        layers.skipped().len(),
+        1,
+        "chờ đúng một tệp bị bỏ qua: {:?}",
+        layers.skipped()
+    );
     assert!(
         matches!(&layers.skipped()[0].reason, SkipReason::DuplicateLayer { layer } if layer == "dup-layer"),
         "{:?}",
         layers.skipped()[0].reason
     );
     assert_eq!(
-        layers.skipped()[0].path.file_name().map(|n| n.to_string_lossy().into_owned()),
+        layers.skipped()[0]
+            .path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned()),
         Some("bbb-dup.db".to_owned()),
         "tệp thắng là tệp đến TRƯỚC theo đường dẫn đã sắp (aaa < bbb) — bbb phải là tệp bị bỏ"
     );
@@ -5002,7 +5127,10 @@ fn a_layer_whose_entry_table_is_gone_fails_lookup_without_taking_down_the_rest()
 
     let result = lookup_grouped(&layers, "山", LookupMode::Exact, UNLIMITED);
     assert_eq!(
-        groups_of(&result).into_iter().map(|(code, _)| code).collect::<Vec<_>>(),
+        groups_of(&result)
+            .into_iter()
+            .map(|(code, _)| code)
+            .collect::<Vec<_>>(),
         vec!["fx-hv".to_owned(), "fx-vp".to_owned()],
         "hai lớp lành vẫn trả lời bình thường dù lớp base hỏng lúc tra"
     );
@@ -5204,7 +5332,11 @@ fn verified_counts_survive_the_fts_trigram_branch_too() {
     let result = lookup_grouped(&layers, "中國人", LookupMode::Substring, 1);
     assert_eq!(result.branch, QueryBranch::FtsTrigram);
 
-    let total: i64 = result.groups.iter().filter_map(|g| g.total_entries).sum::<i64>()
+    let total: i64 = result
+        .groups
+        .iter()
+        .filter_map(|g| g.total_entries)
+        .sum::<i64>()
         + result.hidden_sources.iter().map(|(_, n)| n).sum::<i64>();
 
     let verified = lookup_grouped(&layers, "中國人", LookupMode::Substring, UNLIMITED)
@@ -5254,7 +5386,11 @@ fn build_query_plan_fixture(dir: &Path) -> PathBuf {
     const N: i64 = 300;
     for i in 1..=N {
         let headword = format!("w{i}");
-        let simp: Option<String> = if i % 4 == 0 { Some(format!("s{i}")) } else { None };
+        let simp: Option<String> = if i % 4 == 0 {
+            Some(format!("s{i}"))
+        } else {
+            None
+        };
         conn.execute(
             "INSERT INTO dict_entry (id, source_id, lang, headword, headword_simp) \
              VALUES (?1, 1, 'zh', ?2, ?3)",
@@ -5291,7 +5427,8 @@ fn build_query_plan_fixture(dir: &Path) -> PathBuf {
 
     conn.execute_batch("ANALYZE;")
         .unwrap_or_else(|e| panic!("ANALYZE: {e}"));
-    conn.close().unwrap_or_else(|(_, e)| panic!("dong fixture ke hoach truy van: {e}"));
+    conn.close()
+        .unwrap_or_else(|(_, e)| panic!("dong fixture ke hoach truy van: {e}"));
     path
 }
 
@@ -5314,25 +5451,28 @@ fn branch_one_and_two_never_scan_the_table() {
             .prepare(&plan_sql)
             .unwrap_or_else(|e| panic!("{label}: chuẩn bị EXPLAIN QUERY PLAN: {e}"));
         let rows: Vec<String> = stmt
-            .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get::<_, String>(3))
+            .query_map(rusqlite::params_from_iter(params.iter()), |row| {
+                row.get::<_, String>(3)
+            })
             .unwrap_or_else(|e| panic!("{label}: đọc EXPLAIN QUERY PLAN: {e}"))
             .collect::<Result<Vec<_>, _>>()
             .unwrap_or_else(|e| panic!("{label}: đọc EXPLAIN QUERY PLAN: {e}"));
         rows.join(" | ")
     };
     let text = |v: &str| rusqlite::types::Value::Text(v.to_owned());
-    let assert_indexed_never_scanned = |sql: &str, params: &[rusqlite::types::Value], label: &str| {
-        let plan = plan_of(sql, params, label);
-        assert!(
-            !plan.contains("SCAN dict_entry") && !plan.contains("SCAN e"),
-            "{label}: kế hoạch quét TOÀN BẢNG `dict_entry` — nhánh này phải luôn đi qua \
+    let assert_indexed_never_scanned =
+        |sql: &str, params: &[rusqlite::types::Value], label: &str| {
+            let plan = plan_of(sql, params, label);
+            assert!(
+                !plan.contains("SCAN dict_entry") && !plan.contains("SCAN e"),
+                "{label}: kế hoạch quét TOÀN BẢNG `dict_entry` — nhánh này phải luôn đi qua \
              một chỉ mục: {plan}"
-        );
-        assert!(
-            plan.contains("USING INDEX") || plan.contains("USING PRIMARY KEY"),
-            "{label}: kế hoạch không nhắc tên một chỉ mục nào: {plan}"
-        );
-    };
+            );
+            assert!(
+                plan.contains("USING INDEX") || plan.contains("USING PRIMARY KEY"),
+                "{label}: kế hoạch không nhắc tên một chỉ mục nào: {plan}"
+            );
+        };
 
     assert_indexed_never_scanned(
         &exact_sql(),
@@ -5350,7 +5490,8 @@ fn branch_one_and_two_never_scan_the_table() {
         "nhánh 2 (CharIdx, 2 ký tự)",
     );
 
-    conn.close().unwrap_or_else(|(_, e)| panic!("đóng kết nối: {e}"));
+    conn.close()
+        .unwrap_or_else(|(_, e)| panic!("đóng kết nối: {e}"));
     cleanup(&dir);
 }
 
@@ -5381,8 +5522,12 @@ fn a_layer_whose_hydrate_breaks_after_a_hit_is_named_failed_not_emptied() {
     let result = command_lookup(Some(&layers), "山");
 
     // Phase một vẫn khớp cả ba lớp — `dict_entry`/`char_idx` không bị chạm.
-    let layers_in_groups: Vec<&str> =
-        result.grouped.groups.iter().map(|g| g.layer.as_str()).collect();
+    let layers_in_groups: Vec<&str> = result
+        .grouped
+        .groups
+        .iter()
+        .map(|g| g.layer.as_str())
+        .collect();
     assert_eq!(
         layers_in_groups,
         vec!["base", "hv-fixture", "vp-fixture"],
@@ -5450,13 +5595,26 @@ fn a_layer_whose_attribution_columns_go_missing_after_open_is_named_in_skipped()
         attributions.skipped
     );
     assert!(
-        matches!(attributions.skipped[0].reason, SkipReason::SourcesUnreadable { .. }),
+        matches!(
+            attributions.skipped[0].reason,
+            SkipReason::SourcesUnreadable { .. }
+        ),
         "lý do phải là `SourcesUnreadable`: {:?}",
         attributions.skipped[0].reason
     );
 
-    assert!(attributions.sources.iter().any(|row| row.code == "fx-core-a"));
-    assert!(attributions.sources.iter().any(|row| row.code == "fx-core-b"));
+    assert!(
+        attributions
+            .sources
+            .iter()
+            .any(|row| row.code == "fx-core-a")
+    );
+    assert!(
+        attributions
+            .sources
+            .iter()
+            .any(|row| row.code == "fx-core-b")
+    );
     assert!(attributions.sources.iter().any(|row| row.code == "fx-vp"));
 
     layers.close();

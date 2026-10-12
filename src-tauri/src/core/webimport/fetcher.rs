@@ -244,9 +244,19 @@ pub fn fetch(
     let mut current = match reqwest::Url::parse(url) {
         Ok(p) => p,
         Err(e) => {
-            let entry = DomainLogEntry::new(now_epoch_ms(), url.to_owned(), kind, DomainLogDecision::Denied)
-                .with_outcome(DomainLogOutcome::Other);
-            return (Err(FetchError::InvalidUrl { detail: e.to_string() }), vec![entry]);
+            let entry = DomainLogEntry::new(
+                now_epoch_ms(),
+                url.to_owned(),
+                kind,
+                DomainLogDecision::Denied,
+            )
+            .with_outcome(DomainLogOutcome::Other);
+            return (
+                Err(FetchError::InvalidUrl {
+                    detail: e.to_string(),
+                }),
+                vec![entry],
+            );
         }
     };
 
@@ -259,7 +269,12 @@ pub fn fetch(
             let host = current.host_str().unwrap_or(url).to_owned();
             let entry = DomainLogEntry::new(now_epoch_ms(), host, kind, DomainLogDecision::Denied)
                 .with_outcome(DomainLogOutcome::Other);
-            return (Err(FetchError::Other { detail: detail.to_owned() }), vec![entry]);
+            return (
+                Err(FetchError::Other {
+                    detail: detail.to_owned(),
+                }),
+                vec![entry],
+            );
         }
     };
 
@@ -275,11 +290,18 @@ pub fn fetch(
             // lại một hàng kiểm toán, không được im lặng trả `log` (có thể RỖNG nếu đây là
             // chặng đầu tiên).
             log.push(
-                DomainLogEntry::new(now_epoch_ms(), current.to_string(), kind, DomainLogDecision::Denied)
-                    .with_outcome(DomainLogOutcome::Other),
+                DomainLogEntry::new(
+                    now_epoch_ms(),
+                    current.to_string(),
+                    kind,
+                    DomainLogDecision::Denied,
+                )
+                .with_outcome(DomainLogOutcome::Other),
             );
             return (
-                Err(FetchError::InvalidUrl { detail: "url khong co host".to_owned() }),
+                Err(FetchError::InvalidUrl {
+                    detail: "url khong co host".to_owned(),
+                }),
                 log,
             );
         };
@@ -289,7 +311,12 @@ pub fn fetch(
         // 0 kết nối TCP mở ra tới host đó — không có `send()` nào chạy cho nó.
         match allowlist.decide(&host, kind) {
             AllowlistDecision::Denied => {
-                log.push(DomainLogEntry::new(now_epoch_ms(), host, kind, DomainLogDecision::Denied));
+                log.push(DomainLogEntry::new(
+                    now_epoch_ms(),
+                    host,
+                    kind,
+                    DomainLogDecision::Denied,
+                ));
                 return (Err(FetchError::NotAllowlisted), log);
             }
             AllowlistDecision::Allowed(tier) => {
@@ -297,7 +324,12 @@ pub fn fetch(
                 // ghi của CHÍNH chặng này chưa có KẾT QUẢ lúc `push` (chưa `send()`); nó được
                 // điền vào bằng `mark_last_outcome` ở MỌI nhánh thoát bên dưới, kể cả lượt
                 // trượt — xem doc-comment `DomainLogEntry::outcome`.
-                log.push(DomainLogEntry::new(now_epoch_ms(), host, kind, DomainLogDecision::Allowed(tier)));
+                log.push(DomainLogEntry::new(
+                    now_epoch_ms(),
+                    host,
+                    kind,
+                    DomainLogDecision::Allowed(tier),
+                ));
             }
         }
 
@@ -317,13 +349,27 @@ pub fn fetch(
         // hợp lệ) là phản hồi CUỐI, không phải một chuyển hướng đang chờ theo — coi như một mã
         // lỗi HTTP, cùng khuôn 4xx/5xx bên dưới (P3 vòng rà đối kháng bước 4 của Story 6.7: một
         // 3xx LÀNH, ví dụ 304, không được báo sai thành `NotAllowlisted`).
-        let Some(location) = resp.headers().get(reqwest::header::LOCATION).and_then(|v| v.to_str().ok()) else {
+        let Some(location) = resp
+            .headers()
+            .get(reqwest::header::LOCATION)
+            .and_then(|v| v.to_str().ok())
+        else {
             mark_last_outcome(&mut log, DomainLogOutcome::HttpStatus);
-            return (Err(FetchError::HttpStatus { status: resp.status().as_u16() }), log);
+            return (
+                Err(FetchError::HttpStatus {
+                    status: resp.status().as_u16(),
+                }),
+                log,
+            );
         };
         let Ok(next) = current.join(location) else {
             mark_last_outcome(&mut log, DomainLogOutcome::HttpStatus);
-            return (Err(FetchError::HttpStatus { status: resp.status().as_u16() }), log);
+            return (
+                Err(FetchError::HttpStatus {
+                    status: resp.status().as_u16(),
+                }),
+                log,
+            );
         };
 
         // Chặng NÀY thật sự chuyển hướng đi — bản ghi của nó khép lại ở đây; chặng KẾ TIẾP
@@ -345,7 +391,9 @@ pub fn fetch(
             // biệt được với một `fetch` còn đang giữa chừng.
             mark_last_outcome(&mut log, DomainLogOutcome::Other);
             return (
-                Err(FetchError::Other { detail: "qua tran so chang chuyen huong (P2)".to_owned() }),
+                Err(FetchError::Other {
+                    detail: "qua tran so chang chuyen huong (P2)".to_owned(),
+                }),
                 log,
             );
         }
@@ -355,7 +403,9 @@ pub fn fetch(
         Ok(r) => r,
         Err(e) => {
             let err = match e.status() {
-                Some(status) => FetchError::HttpStatus { status: status.as_u16() },
+                Some(status) => FetchError::HttpStatus {
+                    status: status.as_u16(),
+                },
                 None => classify_send_error(e),
             };
             mark_last_outcome(&mut log, outcome_for_fetch_error(&err));
@@ -384,13 +434,24 @@ pub fn fetch(
             }
             Err(e) => {
                 mark_last_outcome(&mut log, DomainLogOutcome::Other);
-                return (Err(FetchError::Other { detail: e.to_string() }), log);
+                return (
+                    Err(FetchError::Other {
+                        detail: e.to_string(),
+                    }),
+                    log,
+                );
             }
         }
     }
 
     mark_last_outcome(&mut log, DomainLogOutcome::Fetched);
-    (Ok(FetchedPage { bytes: out, content_type }), log)
+    (
+        Ok(FetchedPage {
+            bytes: out,
+            content_type,
+        }),
+        log,
+    )
 }
 
 /// Điền `outcome` vào bản ghi CUỐI CÙNG của `log` — đây LUÔN là bản ghi của chặng đang xử lý
@@ -433,11 +494,17 @@ fn outcome_for_fetch_error(err: &FetchError) -> DomainLogOutcome {
 
 fn classify_send_error(e: reqwest::Error) -> FetchError {
     if e.is_timeout() {
-        FetchError::Timeout { detail: e.to_string() }
+        FetchError::Timeout {
+            detail: e.to_string(),
+        }
     } else if e.is_connect() {
-        FetchError::ConnectFailed { detail: e.to_string() }
+        FetchError::ConnectFailed {
+            detail: e.to_string(),
+        }
     } else {
-        FetchError::Other { detail: e.to_string() }
+        FetchError::Other {
+            detail: e.to_string(),
+        }
     }
 }
 
@@ -452,6 +519,12 @@ fn classify_send_error(e: reqwest::Error) -> FetchError {
 /// bằng chính xác với hai kiểu MIME HTML đã biết.
 pub fn looks_like_html(content_type: Option<&str>) -> bool {
     content_type
-        .map(|ct| ct.split(';').next().unwrap_or("").trim().to_ascii_lowercase())
+        .map(|ct| {
+            ct.split(';')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_ascii_lowercase()
+        })
         .is_some_and(|ct| ct == "text/html" || ct == "application/xhtml+xml")
 }

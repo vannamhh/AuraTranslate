@@ -18,7 +18,10 @@ use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 use auratranslate_lib::core::segment::normalize::normalize;
 
 fn temp_dir(tag: &str) -> std::path::PathBuf {
-    let dir = std::env::temp_dir().join(format!("auratranslate-6-18-debt-probes-{tag}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-6-18-debt-probes-{tag}-{}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -56,14 +59,21 @@ fn perf_probe_normalize_two_pass_replace_cost_on_a_ten_megabyte_crlf_free_chapte
     const TARGET_BYTES: usize = 10 * 1024 * 1024; // 10 MB -- đủ để đo, đủ nhanh cho cong mac dinh
     let text = build_crlf_free_text(TARGET_BYTES);
     let source_bytes = text.len();
-    assert!(!text.contains('\r'), "tien de: van ban khong duoc mang \\r nao");
+    assert!(
+        !text.contains('\r'),
+        "tien de: van ban khong duoc mang \\r nao"
+    );
 
     // Chi phi CÔ LẬP của hai lượt `.replace()` (đúng dòng `normalize.rs:86`, chép lại y
     // nguyên ở đây để đo RIÊNG bước đó, không lẫn với split/join của toàn `normalize`).
     let t0 = Instant::now();
     let unified = text.replace("\r\n", "\n").replace('\r', "\n");
     let two_pass_replace = t0.elapsed();
-    assert_eq!(unified.len(), text.len(), "0 khop thi do dai phai giu nguyen");
+    assert_eq!(
+        unified.len(),
+        text.len(),
+        "0 khop thi do dai phai giu nguyen"
+    );
     drop(unified);
 
     // Chi phi của MỘT lượt gác `contains('\r')` trước hai lượt `.replace()` (đề xuất của
@@ -79,7 +89,10 @@ fn perf_probe_normalize_two_pass_replace_cost_on_a_ten_megabyte_crlf_free_chapte
     let t2 = Instant::now();
     let result = normalize(&text, "vi");
     let whole_normalize = t2.elapsed();
-    assert_eq!(result.joined_lines, 0, "van ban moi dong da tron cau -- khong dong nao bi noi oan");
+    assert_eq!(
+        result.joined_lines, 0,
+        "van ban moi dong da tron cau -- khong dong nao bi noi oan"
+    );
 
     let ratio_pct = if whole_normalize.as_nanos() > 0 {
         100.0 * two_pass_replace.as_secs_f64() / whole_normalize.as_secs_f64()
@@ -98,7 +111,11 @@ fn perf_probe_normalize_two_pass_replace_cost_on_a_ten_megabyte_crlf_free_chapte
          whole_normalize={whole_normalize:?} replace_ti_trong_trong_normalize={ratio_pct:.1}% \
          guard_re_hon_bao_nhieu={guard_saves_pct:.1}% \
          verdict=guard_truoc_hai_lan_replace_{}",
-        if guard_check < two_pass_replace { "co_loi" } else { "khong_dang" }
+        if guard_check < two_pass_replace {
+            "co_loi"
+        } else {
+            "khong_dang"
+        }
     );
 }
 
@@ -113,7 +130,9 @@ fn perf_probe_match_starts_recompiles_the_regex_every_call() {
 
     let mut text = String::new();
     for i in 0..CHAPTER_COUNT {
-        text.push_str(&format!("Chuong {i}: Tieu De\n\nnoi dung ngan cua chuong nay.\n\n"));
+        text.push_str(&format!(
+            "Chuong {i}: Tieu De\n\nnoi dung ngan cua chuong nay.\n\n"
+        ));
     }
 
     let pattern = ChapterPattern::regex(r"^Chuong \d+:.*$");
@@ -157,7 +176,11 @@ fn perf_probe_match_starts_recompiles_the_regex_every_call() {
          mot_lan_goi={one_call:?} bay_lan_goi_that={seven_calls:?} bay_lan_QUET_neu_da_cache_regex={seven_scans_cached:?} \
          chi_phi_bien_dich_lai_uoc_tinh={recompile_overhead:?} ({recompile_pct:.1}% cua bay lan goi that) \
          verdict=chi_phi_bien_dich_lai_{}",
-        if recompile_pct > 10.0 { "dang_ke" } else { "nho" }
+        if recompile_pct > 10.0 {
+            "dang_ke"
+        } else {
+            "nho"
+        }
     );
 }
 
@@ -173,8 +196,8 @@ fn perf_probe_match_starts_recompiles_the_regex_every_call() {
 #[test]
 #[ignore = "nang: dung mot tep 100 MB that tren dia cong mot luot ghi SQLite that -- khong phai mot cong mac dinh"]
 fn peak_rss_of_the_whole_seven_step_import_chain_on_a_max_import_bytes_chapter() {
-    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
     // MAX_IMPORT_BYTES thật (100 MB) trừ một biên an toàn nhỏ -- vòng ghi theo dòng có thể
     // vượt quá đích một chút ở dòng CUỐI, và `import_file` từ chối NGHIÊM > MAX_IMPORT_BYTES.
@@ -194,14 +217,20 @@ fn peak_rss_of_the_whole_seven_step_import_chain_on_a_max_import_bytes_chapter()
             let line = format!(
                 "Đây là câu thứ {i} của Chương duy nhất, mang cả tiếng Việt lẫn 一些中文字符.\n"
             );
-            f.write_all(line.as_bytes()).unwrap_or_else(|e| panic!("ghi tep: {e}"));
+            f.write_all(line.as_bytes())
+                .unwrap_or_else(|e| panic!("ghi tep: {e}"));
             written += line.len() as u64;
             i += 1;
         }
         f.flush().unwrap_or_else(|e| panic!("flush: {e}"));
     }
-    let actual_size = std::fs::metadata(&source_path).expect("doc kich thuoc tep vua tao").len();
-    eprintln!("[peak_rss] tep nguon {actual_size} byte tai {}", source_path.display());
+    let actual_size = std::fs::metadata(&source_path)
+        .expect("doc kich thuoc tep vua tao")
+        .len();
+    eprintln!(
+        "[peak_rss] tep nguon {actual_size} byte tai {}",
+        source_path.display()
+    );
 
     // Lấy mẫu RSS NỀN (`ps -o rss=`, KB) mỗi 20 ms trong khi luồng chính chạy chuỗi nhập thật
     // -- cùng công cụ `ps` mà `5-14-ban-do/run.sh::measure_memory_session` đã dùng cho tập

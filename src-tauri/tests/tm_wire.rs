@@ -22,7 +22,12 @@ const FILE_PAIRS: usize = 40_000;
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-tm-wire-{}-{}-{}", std::process::id(), tag, n));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-tm-wire-{}-{}-{}",
+        std::process::id(),
+        tag,
+        n
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -69,7 +74,9 @@ fn tmx_file(path: &Path, pairs: usize) {
 fn app_with_work(dir: &Path, tag: &str) -> tauri::App<MockRuntime> {
     let global = Store::open(StoreSpec::global(dir.join("global.db"))).expect("mo global.db");
     let open = create_work_from_text(dir, tag, "zh", "", "一。".to_owned()).expect("tao Tac pham");
-    let app = mock_builder().build(mock_context(noop_assets())).expect("dung app MockRuntime");
+    let app = mock_builder()
+        .build(mock_context(noop_assets()))
+        .expect("dung app MockRuntime");
     app.manage(global);
     app.manage(OpenWorkState::new(Some(open)));
     app.manage(PendingTmxImportState::new(None));
@@ -84,7 +91,9 @@ fn finishes_while_open_work_is_held<T: Send + 'static>(
 ) -> T {
     let handle = app.handle().clone();
     let state = app.state::<OpenWorkState>();
-    let held = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let held = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let _ = tx.send(shell(handle));
@@ -160,7 +169,10 @@ fn lock_held_against_run<T: Send + 'static>(
         }
     };
     let (out, run_time) = run.join().expect("luong lenh");
-    assert!(!first, "tien de: sau 5 ms OpenWorkState phai dang bi giu de do");
+    assert!(
+        !first,
+        "tien de: sau 5 ms OpenWorkState phai dang bi giu de do"
+    );
     (out, held, run_time)
 }
 
@@ -173,7 +185,9 @@ fn a_global_confirm_preview_and_export_finish_while_open_work_state_is_held_else
     tmx_file(&file, 3);
 
     let preview_path = file.clone();
-    let preview = finishes_while_open_work_is_held(&app, move |h| wire::open_import_preview_from(&h, "global", &preview_path));
+    let preview = finishes_while_open_work_is_held(&app, move |h| {
+        wire::open_import_preview_from(&h, "global", &preview_path)
+    });
     assert_eq!(preview.expect("xem truoc Global").new_count, 3);
 
     let summary = finishes_while_open_work_is_held(&app, |h| wire::tm_confirm_import(h, false));
@@ -181,9 +195,15 @@ fn a_global_confirm_preview_and_export_finish_while_open_work_state_is_held_else
 
     let out = dir.join("out.tmx");
     let export_path = out.clone();
-    let exported = finishes_while_open_work_is_held(&app, move |h| wire::export_tier_to(&h, "global", &export_path));
+    let exported = finishes_while_open_work_is_held(&app, move |h| {
+        wire::export_tier_to(&h, "global", &export_path)
+    });
     assert!(exported.expect("xuat Global").is_some());
-    assert!(fs::read_to_string(&out).expect("doc tep xuat").contains("moi 0"));
+    assert!(
+        fs::read_to_string(&out)
+            .expect("doc tep xuat")
+            .contains("moi 0")
+    );
 }
 
 #[test]
@@ -194,20 +214,26 @@ fn a_work_plan_confirmed_through_the_shell_is_written_into_the_open_work() {
     let file = dir.join("in.tmx");
     tmx_file(&file, 3);
 
-    let preview = wire::open_import_preview_from(app.handle(), "work", &file).expect("xem truoc Work");
+    let preview =
+        wire::open_import_preview_from(app.handle(), "work", &file).expect("xem truoc Work");
     assert_eq!(preview.new_count, 3);
     let summary = wire::tm_confirm_import(app.handle().clone(), false).expect("ghi Work");
 
     assert_eq!(summary.inserted, 3);
     let state = app.state::<OpenWorkState>();
-    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let count: i64 = guard
         .as_ref()
         .expect("Tac pham")
         .store
         .read(|conn| conn.query_row("SELECT COUNT(*) FROM tm_unit", [], |r| r.get(0)))
         .expect("dem tm_unit");
-    assert_eq!(count, 3, "lo nhap Work phai nam trong kho cua Tac pham dang mo");
+    assert_eq!(
+        count, 3,
+        "lo nhap Work phai nam trong kho cua Tac pham dang mo"
+    );
 }
 
 #[test]
@@ -215,14 +241,30 @@ fn the_work_export_shell_holds_open_work_state_only_while_it_reads_the_store() {
     let dir = temp_dir("work-export");
     let _guard = DirGuard(dir.clone());
     let app = app_with_work(&dir, "work-export");
-    seed_tm(&app.state::<OpenWorkState>().lock().unwrap().as_ref().expect("Tac pham").store, SEEDED_PAIRS, SEEDED_TEXT_CHARS);
+    seed_tm(
+        &app.state::<OpenWorkState>()
+            .lock()
+            .unwrap()
+            .as_ref()
+            .expect("Tac pham")
+            .store,
+        SEEDED_PAIRS,
+        SEEDED_TEXT_CHARS,
+    );
     let out = dir.join("out.tmx");
 
-    let (result, held, run) = lock_held_against_run(&app, move |h| wire::export_tier_to(&h, "work", &out));
+    let (result, held, run) =
+        lock_held_against_run(&app, move |h| wire::export_tier_to(&h, "work", &out));
 
     result.expect("xuat Work");
-    assert!(run > Duration::from_millis(150), "tien de: luot xuat phai du lau de do ({run:?})");
-    assert!(held < run / 2, "OpenWorkState bi giu {held:?} trong khi luot xuat chay {run:?}: chi duoc giu luc doc kho");
+    assert!(
+        run > Duration::from_millis(150),
+        "tien de: luot xuat phai du lau de do ({run:?})"
+    );
+    assert!(
+        held < run / 2,
+        "OpenWorkState bi giu {held:?} trong khi luot xuat chay {run:?}: chi duoc giu luc doc kho"
+    );
 }
 
 #[test]
@@ -230,16 +272,33 @@ fn the_work_preview_shell_holds_open_work_state_only_while_it_reads_existing_pai
     let dir = temp_dir("work-preview");
     let _guard = DirGuard(dir.clone());
     let app = app_with_work(&dir, "work-preview");
-    seed_tm(&app.state::<OpenWorkState>().lock().unwrap().as_ref().expect("Tac pham").store, PREVIEW_SEEDED_PAIRS, 0);
+    seed_tm(
+        &app.state::<OpenWorkState>()
+            .lock()
+            .unwrap()
+            .as_ref()
+            .expect("Tac pham")
+            .store,
+        PREVIEW_SEEDED_PAIRS,
+        0,
+    );
     let file = dir.join("in.tmx");
     tmx_file(&file, FILE_PAIRS);
 
-    let (result, held, run) = lock_window_against_run(&app, move |h| wire::open_import_preview_from(&h, "work", &file));
+    let (result, held, run) = lock_window_against_run(&app, move |h| {
+        wire::open_import_preview_from(&h, "work", &file)
+    });
 
     assert_eq!(result.expect("xem truoc Work").new_count, FILE_PAIRS);
     let held = held.expect("tien de: phai thay OpenWorkState bi giu luc doc cap co san");
-    assert!(run > Duration::from_millis(150), "tien de: luot xem truoc phai du lau de do ({run:?})");
-    assert!(held < run / 8, "OpenWorkState bi giu {held:?} trong khi luot xem truoc chay {run:?}: chi duoc giu luc doc cap co san");
+    assert!(
+        run > Duration::from_millis(150),
+        "tien de: luot xem truoc phai du lau de do ({run:?})"
+    );
+    assert!(
+        held < run / 8,
+        "OpenWorkState bi giu {held:?} trong khi luot xem truoc chay {run:?}: chi duoc giu luc doc cap co san"
+    );
 }
 
 #[test]
@@ -265,7 +324,9 @@ fn closing_or_switching_work_does_not_wait_for_a_global_confirm_that_is_writing(
         }
         match pending.try_lock() {
             Err(std::sync::TryLockError::WouldBlock) => {
-                if busy_since.get_or_insert_with(Instant::now).elapsed() >= Duration::from_millis(20) {
+                if busy_since.get_or_insert_with(Instant::now).elapsed()
+                    >= Duration::from_millis(20)
+                {
                     break true;
                 }
             }
@@ -286,9 +347,15 @@ fn closing_or_switching_work_does_not_wait_for_a_global_confirm_that_is_writing(
 
     let (summary, run) = confirm.join().expect("luong ghi");
     assert_eq!(summary.expect("ghi Global").inserted, FILE_PAIRS);
-    assert!(busy && run > Duration::from_millis(150), "tien de: luot ghi Global phai du lau de do ({run:?})");
+    assert!(
+        busy && run > Duration::from_millis(150),
+        "tien de: luot ghi Global phai du lau de do ({run:?})"
+    );
     cleared.expect("dong hoac doi Tac pham khong duoc cho luot ghi Global");
-    assert!(!finished_meanwhile, "viec xoa phai tra ve khi luot ghi con chay");
+    assert!(
+        !finished_meanwhile,
+        "viec xoa phai tra ve khi luot ghi con chay"
+    );
 }
 
 fn self_labelled_tmx(path: &Path) {
@@ -305,7 +372,9 @@ fn origins_in(store: &Store) -> Vec<String> {
     store
         .read(|conn| {
             let mut stmt = conn.prepare("SELECT translation_origin FROM tm_unit")?;
-            let rows = stmt.query_map([], |r| r.get::<_, String>(0))?.collect::<Result<Vec<_>, _>>()?;
+            let rows = stmt
+                .query_map([], |r| r.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
             Ok(rows)
         })
         .expect("doc tm_unit")
@@ -337,6 +406,11 @@ fn the_shell_forwards_the_ownership_flag_on_a_work_plan() {
     wire::tm_confirm_import(app.handle().clone(), true).expect("ghi Work");
 
     let state = app.state::<OpenWorkState>();
-    let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    assert_eq!(origins_in(&guard.as_ref().expect("Tac pham").store), vec!["self"]);
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert_eq!(
+        origins_in(&guard.as_ref().expect("Tac pham").store),
+        vec!["self"]
+    );
 }

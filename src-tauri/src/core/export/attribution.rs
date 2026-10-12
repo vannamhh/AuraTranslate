@@ -29,7 +29,11 @@ pub(super) fn load_origin(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Ch
 }
 
 fn present(value: &Option<String>) -> Option<String> {
-    value.as_deref().map(str::trim).filter(|v| !v.is_empty()).map(str::to_owned)
+    value
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(str::to_owned)
 }
 
 pub(super) fn lines_for(
@@ -39,7 +43,10 @@ pub(super) fn lines_for(
 ) -> SqlResult<Vec<String>> {
     match attribution {
         None => Ok(Vec::new()),
-        Some(attribution) => Ok(attribution_lines(&load_origin(conn, chapter_id)?, attribution.translator.as_deref())),
+        Some(attribution) => Ok(attribution_lines(
+            &load_origin(conn, chapter_id)?,
+            attribution.translator.as_deref(),
+        )),
     }
 }
 
@@ -49,7 +56,13 @@ pub fn attribution_lines(chapter_origin: &ChapterOrigin, translator: Option<&str
         // aura-allow-text: label written into the exported file, not UI text
         lines.push(format!("Tác giả: {author}"));
     }
-    let source: Vec<String> = [present(&chapter_origin.site_name), present(&chapter_origin.url)].into_iter().flatten().collect();
+    let source: Vec<String> = [
+        present(&chapter_origin.site_name),
+        present(&chapter_origin.url),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
     if !source.is_empty() {
         // aura-allow-text: label written into the exported file, not UI text
         lines.push(format!("Nguồn: {}", source.join(" · ")));
@@ -68,5 +81,7 @@ pub fn attribution_lines(chapter_origin: &ChapterOrigin, translator: Option<&str
 /// Whether a line is one of the labelled lines [`attribution_lines`] writes.
 pub(super) fn is_attribution_line(line: &str) -> bool {
     // aura-allow-text: labels read back from the exported file, kept next to the writer above
-    ["Tác giả: ", "Nguồn: ", "Ngày đăng gốc: ", "Người dịch: "].iter().any(|label| line.starts_with(label))
+    ["Tác giả: ", "Nguồn: ", "Ngày đăng gốc: ", "Người dịch: "]
+        .iter()
+        .any(|label| line.starts_with(label))
 }

@@ -44,8 +44,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::aiprompt::{
     GlossaryTierWire, LastAssembledPromptState, PromptPieceKindWire, PromptPieceWire, TmRowsCache,
     assemble_and_record_prompt, assemble_and_record_prompt_with_tm,
-    clear_last_assembled_prompt_on_work_close,
-    read_last_assembled_prompt, read_record_or_report_unmanaged,
+    clear_last_assembled_prompt_on_work_close, read_last_assembled_prompt,
+    read_record_or_report_unmanaged,
 };
 use auratranslate_lib::commands::config::put_config;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
@@ -107,20 +107,46 @@ fn marker_absent_states_no_glossary_query_ran_and_never_claims_zero_injected() {
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Marker Absent", "en", "A dragon roared.");
 
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them thuat ngu (khong duoc dung toi vi khong marker glossary trong than)");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu (khong duoc dung toi vi khong marker glossary trong than)");
 
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "NoMarker", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "NoMarker",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
-    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
     let record = fresh_record();
 
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("NoMarker"), segment_id)
-        .expect("lap rap khong duoc loi");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("NoMarker"),
+        segment_id,
+    )
+    .expect("lap rap khong duoc loi");
 
     assert_eq!(wire.ledger.glossary.kind, "not_asked");
-    assert!(wire.ledger.glossary.injected.is_none(), "NotAsked khong duoc mang mot Some rong");
+    assert!(
+        wire.ledger.glossary.injected.is_none(),
+        "NotAsked khong duoc mang mot Some rong"
+    );
     assert!(wire.ledger.glossary.suppressed_by_pending_overlap.is_none());
 
     drop(open);
@@ -139,8 +165,16 @@ fn asked_but_nothing_matched_says_zero_injected_not_not_asked() {
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Asked Empty", "en", "Nothing here.");
 
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them thuat ngu -- khong khop cau nay, dung y");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu -- khong khop cau nay, dung y");
 
     prompt_set_create(
         Some(&global),
@@ -151,15 +185,31 @@ fn asked_but_nothing_matched_says_zero_injected_not_not_asked() {
     )
     .expect("tao bo prompt");
 
-    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
     let record = fresh_record();
 
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("AskedEmpty"), segment_id)
-        .expect("lap rap khong duoc loi");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("AskedEmpty"),
+        segment_id,
+    )
+    .expect("lap rap khong duoc loi");
 
     assert_eq!(wire.ledger.glossary.kind, "asked");
-    let injected = wire.ledger.glossary.injected.expect("Asked phai mang Some, du rong");
-    assert!(injected.is_empty(), "khong thuat ngu nao khop cau nay: {injected:?}");
+    let injected = wire
+        .ledger
+        .glossary
+        .injected
+        .expect("Asked phai mang Some, du rong");
+    assert!(
+        injected.is_empty(),
+        "khong thuat ngu nao khop cau nay: {injected:?}"
+    );
     let suppressed = wire
         .ledger
         .glossary
@@ -183,8 +233,10 @@ const REFERENCE_LABEL: &str =
     "Văn phong tham khảo (bản dịch của người khác, không phải văn phong của người dùng):";
 
 fn seed_tm(store: &Store, rows: &[(&str, &str, PairOrigin)]) {
-    let rows: Vec<(String, String, PairOrigin)> =
-        rows.iter().map(|(a, b, o)| ((*a).to_owned(), (*b).to_owned(), *o)).collect();
+    let rows: Vec<(String, String, PairOrigin)> = rows
+        .iter()
+        .map(|(a, b, o)| ((*a).to_owned(), (*b).to_owned(), *o))
+        .collect();
     store
         .write(move |tx| {
             for (source, target, pair_origin) in &rows {
@@ -200,9 +252,18 @@ fn tm_setup(tag: &str) -> (PathBuf, PathBuf, Store, OpenWork, i64) {
     let work_dir = temp_dir(&format!("{tag}-work"));
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, tag, "en", TM_SENTENCE);
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "TmProbe", TM_BODY)
-        .expect("tao bo prompt");
-    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "TmProbe",
+        TM_BODY,
+    )
+    .expect("tao bo prompt");
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
     (global_dir, work_dir, global, open, segment_id)
 }
 
@@ -212,17 +273,42 @@ fn a_body_without_the_tm_marker_reads_no_tm_and_reports_not_asked() {
     let work_dir = temp_dir("tm-no-marker-work");
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "TM No Marker", "en", TM_SENTENCE);
-    seed_tm(&open.store, &[("The old dragon breathed fire at the quiet town.", "Con rong", PairOrigin::SelfTranslated)]);
+    seed_tm(
+        &open.store,
+        &[(
+            "The old dragon breathed fire at the quiet town.",
+            "Con rong",
+            PairOrigin::SelfTranslated,
+        )],
+    );
 
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "TmProbe", "{{source_segment}}")
-        .expect("tao bo prompt");
-    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "TmProbe",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
 
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
-        .expect("lap rap");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &fresh_record(),
+        Some("TmProbe"),
+        segment_id,
+    )
+    .expect("lap rap");
 
     assert_eq!(wire.ledger.tm.kind, "not_asked");
-    assert!(wire.ledger.tm.similar_segments.is_none(), "not_asked khong duoc mang Some rong");
+    assert!(
+        wire.ledger.tm.similar_segments.is_none(),
+        "not_asked khong duoc mang Some rong"
+    );
 
     drop(open);
     drop(global);
@@ -233,13 +319,29 @@ fn a_body_without_the_tm_marker_reads_no_tm_and_reports_not_asked() {
 #[test]
 fn a_body_with_the_marker_and_no_similar_pair_is_searched_empty_and_the_line_is_removed() {
     let (global_dir, work_dir, global, open, segment_id) = tm_setup("tm-none-similar");
-    seed_tm(&open.store, &[("Completely unrelated words here.", "Khong lien quan", PairOrigin::SelfTranslated)]);
+    seed_tm(
+        &open.store,
+        &[(
+            "Completely unrelated words here.",
+            "Khong lien quan",
+            PairOrigin::SelfTranslated,
+        )],
+    );
 
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
-        .expect("lap rap");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &fresh_record(),
+        Some("TmProbe"),
+        segment_id,
+    )
+    .expect("lap rap");
 
     assert_eq!(wire.ledger.tm.kind, "searched");
-    assert_eq!(wire.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(0));
+    assert_eq!(
+        wire.ledger.tm.similar_segments.as_ref().map(Vec::len),
+        Some(0)
+    );
     assert_eq!(wire.prompt, format!("TM:\nSrc: {TM_SENTENCE}"));
 
     drop(open);
@@ -254,42 +356,84 @@ fn mixed_own_and_others_pairs_from_both_tiers_put_own_first_and_the_label_before
     seed_tm(
         &open.store,
         &[
-            ("The old dragon breathed fire at the quiet town.", "Own work", PairOrigin::SelfTranslated),
-            ("The old dragon breathed fire at the village.", "Other work", PairOrigin::Other),
-            (TM_SENTENCE, "Exact never inserted", PairOrigin::SelfTranslated),
+            (
+                "The old dragon breathed fire at the quiet town.",
+                "Own work",
+                PairOrigin::SelfTranslated,
+            ),
+            (
+                "The old dragon breathed fire at the village.",
+                "Other work",
+                PairOrigin::Other,
+            ),
+            (
+                TM_SENTENCE,
+                "Exact never inserted",
+                PairOrigin::SelfTranslated,
+            ),
         ],
     );
     seed_tm(
         &global,
         &[
-            ("The old dragon breathed fire on the quiet village.", "Other global", PairOrigin::BilingualImport),
-            ("Completely unrelated words here.", "Noise", PairOrigin::Other),
+            (
+                "The old dragon breathed fire on the quiet village.",
+                "Other global",
+                PairOrigin::BilingualImport,
+            ),
+            (
+                "Completely unrelated words here.",
+                "Noise",
+                PairOrigin::Other,
+            ),
         ],
     );
 
     let record = fresh_record();
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("TmProbe"), segment_id)
-        .expect("lap rap");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("TmProbe"),
+        segment_id,
+    )
+    .expect("lap rap");
 
     let pairs = wire.ledger.tm.similar_segments.as_ref().expect("searched");
     assert_eq!(pairs.len(), 3, "{pairs:?}");
     assert_eq!(pairs[0].target_text, "Own work");
-    assert_eq!((pairs[0].side, pairs[0].tier, pairs[0].reference), ("mine", "work", false));
+    assert_eq!(
+        (pairs[0].side, pairs[0].tier, pairs[0].reference),
+        ("mine", "work", false)
+    );
     assert!(pairs[1..].iter().all(|p| p.side == "others" && p.reference));
     assert!(pairs[1..].iter().any(|p| p.tier == "global"));
     assert!(pairs.iter().all(|p| p.percent >= 65 && p.percent <= 99));
-    assert!(pairs.iter().all(|p| p.target_text != "Exact never inserted"));
+    assert!(
+        pairs
+            .iter()
+            .all(|p| p.target_text != "Exact never inserted")
+    );
 
     let own_at = wire.prompt.find("Own work").expect("own line");
     let label_at = wire.prompt.find(REFERENCE_LABEL).expect("label");
     assert!(own_at < label_at, "{}", wire.prompt);
     assert_eq!(wire.prompt.matches(REFERENCE_LABEL).count(), 1);
-    assert!(wire.prompt[label_at..].contains("Other work") && wire.prompt[label_at..].contains("Other global"));
+    assert!(
+        wire.prompt[label_at..].contains("Other work")
+            && wire.prompt[label_at..].contains("Other global")
+    );
     assert!(!wire.prompt[..label_at].contains("Other"));
 
     let recorded = read_last_assembled_prompt(&record).expect("ban ghi");
     assert_eq!(recorded.prompt, wire.prompt);
-    assert!(recorded.ledger.pieces.iter().any(|p| p.kind == PromptPieceKindWire::Tm));
+    assert!(
+        recorded
+            .ledger
+            .pieces
+            .iter()
+            .any(|p| p.kind == PromptPieceKindWire::Tm)
+    );
 
     drop(open);
     drop(global);
@@ -300,21 +444,50 @@ fn mixed_own_and_others_pairs_from_both_tiers_put_own_first_and_the_label_before
 #[test]
 fn a_raised_tm_fuzzy_threshold_drops_a_pair_that_the_default_threshold_inserts() {
     let (global_dir, work_dir, global, open, segment_id) = tm_setup("tm-threshold");
-    seed_tm(&open.store, &[("The old dragon breathed fire at the quiet town.", "Mid score", PairOrigin::SelfTranslated)]);
+    seed_tm(
+        &open.store,
+        &[(
+            "The old dragon breathed fire at the quiet town.",
+            "Mid score",
+            PairOrigin::SelfTranslated,
+        )],
+    );
 
-    let default_wire =
-        assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
-            .expect("lap rap mac dinh");
-    let pairs = default_wire.ledger.tm.similar_segments.as_ref().expect("searched");
+    let default_wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &fresh_record(),
+        Some("TmProbe"),
+        segment_id,
+    )
+    .expect("lap rap mac dinh");
+    let pairs = default_wire
+        .ledger
+        .tm
+        .similar_segments
+        .as_ref()
+        .expect("searched");
     assert_eq!(pairs.len(), 1, "{pairs:?}");
-    assert!((65..90).contains(&pairs[0].percent), "ca nay can diem trong [65, 90): {}", pairs[0].percent);
+    assert!(
+        (65..90).contains(&pairs[0].percent),
+        "ca nay can diem trong [65, 90): {}",
+        pairs[0].percent
+    );
 
     put_config(Some(&global), "app_config", "tm_fuzzy_threshold", "90").expect("ghi nguong 90");
-    let raised =
-        assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
-            .expect("lap rap nguong 90");
+    let raised = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &fresh_record(),
+        Some("TmProbe"),
+        segment_id,
+    )
+    .expect("lap rap nguong 90");
     assert_eq!(raised.ledger.tm.kind, "searched");
-    assert_eq!(raised.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(0));
+    assert_eq!(
+        raised.ledger.tm.similar_segments.as_ref().map(Vec::len),
+        Some(0)
+    );
     assert_eq!(raised.prompt, format!("TM:\nSrc: {TM_SENTENCE}"));
 
     drop(open);
@@ -330,24 +503,52 @@ fn a_chinese_source_work_inserts_its_similar_chinese_pair() {
     let global = open_global(&global_dir);
     let sentence = "老龙在安静的村庄里向村民喷火。";
     let open = open_work(&work_dir, "TM Zh", "zh", sentence);
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "TmProbe", TM_BODY)
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "TmProbe",
+        TM_BODY,
+    )
+    .expect("tao bo prompt");
     seed_tm(
         &open.store,
         &[
-            ("老龙在安静的小镇里向村民喷火。", "Rong gia phun lua", PairOrigin::SelfTranslated),
-            ("今天天气很好我们去公园散步吧。", "Khong lien quan", PairOrigin::SelfTranslated),
+            (
+                "老龙在安静的小镇里向村民喷火。",
+                "Rong gia phun lua",
+                PairOrigin::SelfTranslated,
+            ),
+            (
+                "今天天气很好我们去公园散步吧。",
+                "Khong lien quan",
+                PairOrigin::SelfTranslated,
+            ),
         ],
     );
-    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
 
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &fresh_record(), Some("TmProbe"), segment_id)
-        .expect("lap rap");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &fresh_record(),
+        Some("TmProbe"),
+        segment_id,
+    )
+    .expect("lap rap");
 
     let pairs = wire.ledger.tm.similar_segments.as_ref().expect("searched");
     assert_eq!(pairs.len(), 1, "{pairs:?}");
     assert_eq!(pairs[0].target_text, "Rong gia phun lua");
-    assert!(wire.prompt.contains("老龙在安静的小镇里向村民喷火。 → Rong gia phun lua"), "{}", wire.prompt);
+    assert!(
+        wire.prompt
+            .contains("老龙在安静的小镇里向村民喷火。 → Rong gia phun lua"),
+        "{}",
+        wire.prompt
+    );
 
     drop(open);
     drop(global);
@@ -358,27 +559,67 @@ fn a_chinese_source_work_inserts_its_similar_chinese_pair() {
 #[test]
 fn a_shared_tm_cache_reads_the_rows_once_so_a_pair_added_afterwards_is_not_seen() {
     let (global_dir, work_dir, global, open, segment_id) = tm_setup("tm-cache");
-    seed_tm(&open.store, &[("The old dragon breathed fire at the quiet town.", "First", PairOrigin::SelfTranslated)]);
+    seed_tm(
+        &open.store,
+        &[(
+            "The old dragon breathed fire at the quiet town.",
+            "First",
+            PairOrigin::SelfTranslated,
+        )],
+    );
 
     let record = fresh_record();
     let mut cache = TmRowsCache::default();
     let first = assemble_and_record_prompt_with_tm(
-        Some(&global), Some(&open), &record, Some("TmProbe"), segment_id, &mut cache,
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("TmProbe"),
+        segment_id,
+        &mut cache,
     )
     .expect("lap rap 1");
-    assert_eq!(first.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(1));
+    assert_eq!(
+        first.ledger.tm.similar_segments.as_ref().map(Vec::len),
+        Some(1)
+    );
 
-    seed_tm(&open.store, &[("The old dragon breathed fire at the quiet hamlet.", "Second", PairOrigin::SelfTranslated)]);
+    seed_tm(
+        &open.store,
+        &[(
+            "The old dragon breathed fire at the quiet hamlet.",
+            "Second",
+            PairOrigin::SelfTranslated,
+        )],
+    );
 
     let reused = assemble_and_record_prompt_with_tm(
-        Some(&global), Some(&open), &record, Some("TmProbe"), segment_id, &mut cache,
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("TmProbe"),
+        segment_id,
+        &mut cache,
     )
     .expect("lap rap 2");
-    assert_eq!(reused.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(1), "cache dung lai lan doc dau");
+    assert_eq!(
+        reused.ledger.tm.similar_segments.as_ref().map(Vec::len),
+        Some(1),
+        "cache dung lai lan doc dau"
+    );
 
-    let fresh = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("TmProbe"), segment_id)
-        .expect("lap rap 3");
-    assert_eq!(fresh.ledger.tm.similar_segments.as_ref().map(Vec::len), Some(2));
+    let fresh = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("TmProbe"),
+        segment_id,
+    )
+    .expect("lap rap 3");
+    assert_eq!(
+        fresh.ledger.tm.similar_segments.as_ref().map(Vec::len),
+        Some(2)
+    );
 
     drop(open);
     drop(global);
@@ -397,7 +638,10 @@ fn a_shared_tm_cache_reads_the_rows_once_so_a_pair_added_afterwards_is_not_seen(
 fn nothing_recorded_yet_this_session_is_a_state_not_an_error() {
     let record = fresh_record();
     let read_back = read_last_assembled_prompt(&record);
-    assert!(read_back.is_none(), "chua lap lan nao trong phien nay phai doc thanh None");
+    assert!(
+        read_back.is_none(),
+        "chua lap lan nao trong phien nay phai doc thanh None"
+    );
 }
 
 /// Một `LastAssembledPromptState` chưa được quản lý đọc thành `None` NHƯNG phải báo qua `report`,
@@ -407,14 +651,21 @@ fn an_unmanaged_record_state_is_reported_while_a_managed_empty_one_is_silent() {
     let mut reported = Vec::new();
     let unmanaged = read_record_or_report_unmanaged(None, |m| reported.push(m.to_owned()));
     assert!(unmanaged.is_none());
-    assert_eq!(reported.len(), 1, "trang thai chua duoc quan ly phai bao dung mot lan");
+    assert_eq!(
+        reported.len(),
+        1,
+        "trang thai chua duoc quan ly phai bao dung mot lan"
+    );
     assert!(reported[0].contains("read_record"));
 
     let record = fresh_record();
     let mut silent = Vec::new();
     let managed = read_record_or_report_unmanaged(Some(&record), |m| silent.push(m.to_owned()));
     assert!(managed.is_none());
-    assert!(silent.is_empty(), "trang thai da quan ly, chua co ban ghi, khong duoc bao gi");
+    assert!(
+        silent.is_empty(),
+        "trang thai da quan ly, chua co ban ghi, khong duoc bao gi"
+    );
 }
 
 /// Hàng "Empty body" — bộ prompt hiệu lực có `body == ""` ⇒ lượt lắp ráp vẫn THÀNH CÔNG
@@ -427,22 +678,46 @@ fn an_empty_prompt_set_body_is_recorded_as_present_not_as_nothing_recorded() {
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Empty Body", "en", "A sentence that is ignored.");
 
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "EmptySet", "")
-        .expect("tao bo prompt voi than RONG");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "EmptySet",
+        "",
+    )
+    .expect("tao bo prompt voi than RONG");
 
-    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
     let record = fresh_record();
 
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("EmptySet"), segment_id)
-        .expect("than RONG khong duoc la mot loi -- day la mot TRANG THAI, khong phai mot vi pham");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("EmptySet"),
+        segment_id,
+    )
+    .expect("than RONG khong duoc la mot loi -- day la mot TRANG THAI, khong phai mot vi pham");
 
-    assert_eq!(wire.prompt, "", "prompt cua ban ghi phai RONG, dung theo than bo prompt");
+    assert_eq!(
+        wire.prompt, "",
+        "prompt cua ban ghi phai RONG, dung theo than bo prompt"
+    );
     // Cac phan khac cua ban ghi (dinh danh, ledger) van hien binh thuong -- khong bi "sup do"
     // theo `prompt` rong.
     assert_eq!(wire.segment_id, segment_id);
     assert_eq!(wire.prompt_set_name, "EmptySet");
-    assert_eq!(wire.ledger.glossary.kind, "not_asked", "than rong khong mang {{glossary_terms}}");
-    assert!(wire.ledger.source_segment_missing, "than rong khong mang {{source_segment}}");
+    assert_eq!(
+        wire.ledger.glossary.kind, "not_asked",
+        "than rong khong mang {{glossary_terms}}"
+    );
+    assert!(
+        wire.ledger.source_segment_missing,
+        "than rong khong mang {{source_segment}}"
+    );
 
     // Đọc lại qua `read_last_assembled_prompt` phải cho đúng CÙNG bản ghi -- `Some`, không
     // `None` -- phân biệt hẳn với ca "Nothing recorded yet" ở trên.
@@ -469,10 +744,26 @@ fn happy_path_records_two_confirmed_terms_with_their_translation_and_tier() {
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Happy Path", "en", "A dragon guards the castle.");
 
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them dragon");
-    add_manual_term(&global, None, GlossaryTier::Global, "castle", Some("lau dai"), "", Category::Other)
-        .expect("them castle");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them dragon");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "castle",
+        Some("lau dai"),
+        "",
+        Category::Other,
+    )
+    .expect("them castle");
 
     prompt_set_create(
         Some(&global),
@@ -483,18 +774,33 @@ fn happy_path_records_two_confirmed_terms_with_their_translation_and_tier() {
     )
     .expect("tao bo prompt");
 
-    let segments = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments;
+    let segments = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments;
     let segment_id = segments[0].id;
     let sentence = segments[0].source_text.clone();
-    assert_eq!(sentence, "A dragon guards the castle.", "tien de: van ban khong bi bien dang qua pipeline nhap");
+    assert_eq!(
+        sentence, "A dragon guards the castle.",
+        "tien de: van ban khong bi bien dang qua pipeline nhap"
+    );
 
     let record = fresh_record();
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("Happy"), segment_id)
-        .expect("lap rap khong duoc loi");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Happy"),
+        segment_id,
+    )
+    .expect("lap rap khong duoc loi");
 
-    let dragon_start = sentence.find("dragon").expect("tien de: 'dragon' co trong cau");
+    let dragon_start = sentence
+        .find("dragon")
+        .expect("tien de: 'dragon' co trong cau");
     let dragon_end = dragon_start + "dragon".len();
-    let castle_start = sentence.find("castle").expect("tien de: 'castle' co trong cau");
+    let castle_start = sentence
+        .find("castle")
+        .expect("tien de: 'castle' co trong cau");
     let castle_end = castle_start + "castle".len();
 
     assert_eq!(
@@ -523,7 +829,11 @@ fn happy_path_records_two_confirmed_terms_with_their_translation_and_tier() {
     assert_eq!(injected[1].end, castle_end);
     assert_eq!(injected[1].tier, GlossaryTierWire::Global);
 
-    let suppressed = wire.ledger.glossary.suppressed_by_pending_overlap.expect("Asked phai mang Some");
+    let suppressed = wire
+        .ledger
+        .glossary
+        .suppressed_by_pending_overlap
+        .expect("Asked phai mang Some");
     assert!(suppressed.is_empty());
 
     // 🔴 finding B1 (loop 1) -- guard THẬT của AC2/AC4: nối `.text` của TOÀN BỘ `pieces` theo
@@ -546,10 +856,16 @@ fn happy_path_records_two_confirmed_terms_with_their_translation_and_tier() {
     assert_eq!(wire.ledger.pieces[0].kind, PromptPieceKindWire::Authored);
     assert_eq!(wire.ledger.pieces[0].text, "Terms: ");
     assert_eq!(wire.ledger.pieces[1].kind, PromptPieceKindWire::Glossary);
-    assert_eq!(wire.ledger.pieces[1].text, "\ndragon → rong\ncastle → lau dai");
+    assert_eq!(
+        wire.ledger.pieces[1].text,
+        "\ndragon → rong\ncastle → lau dai"
+    );
     assert_eq!(wire.ledger.pieces[2].kind, PromptPieceKindWire::Authored);
     assert_eq!(wire.ledger.pieces[2].text, "\nSentence: ");
-    assert_eq!(wire.ledger.pieces[3].kind, PromptPieceKindWire::SourceSegment);
+    assert_eq!(
+        wire.ledger.pieces[3].kind,
+        PromptPieceKindWire::SourceSegment
+    );
     assert_eq!(wire.ledger.pieces[3].text, sentence);
 
     // Bản ghi đọc lại phải khớp CHÍNH bản ghi vừa ghi -- "screen reads the record", không lắp
@@ -577,12 +893,33 @@ fn a_pending_term_overlapping_a_confirmed_one_is_suppressed_not_injected() {
     let global_dir = temp_dir("pending-overlap-global");
     let work_dir = temp_dir("pending-overlap-work");
     let global = open_global(&global_dir);
-    let open = open_work(&work_dir, "Pending Overlap", "en", "The dog walker arrived.");
+    let open = open_work(
+        &work_dir,
+        "Pending Overlap",
+        "en",
+        "The dog walker arrived.",
+    );
 
-    add_manual_term(&global, None, GlossaryTier::Global, "dog", Some("cho"), "", Category::Other)
-        .expect("them dog da chot");
-    add_manual_term(&global, None, GlossaryTier::Global, "dog walker", None, "", Category::Other)
-        .expect("them dog walker cho chot");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dog",
+        Some("cho"),
+        "",
+        Category::Other,
+    )
+    .expect("them dog da chot");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dog walker",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them dog walker cho chot");
 
     prompt_set_create(
         Some(&global),
@@ -593,14 +930,22 @@ fn a_pending_term_overlapping_a_confirmed_one_is_suppressed_not_injected() {
     )
     .expect("tao bo prompt");
 
-    let segments = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments;
+    let segments = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments;
     let segment_id = segments[0].id;
     let sentence = segments[0].source_text.clone();
     assert_eq!(sentence, "The dog walker arrived.");
 
     let record = fresh_record();
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("Overlap"), segment_id)
-        .expect("lap rap khong duoc loi");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Overlap"),
+        segment_id,
+    )
+    .expect("lap rap khong duoc loi");
 
     let dog_start = sentence.find("dog").expect("tien de: 'dog' co trong cau");
     let dog_end = dog_start + "dog".len();
@@ -609,7 +954,11 @@ fn a_pending_term_overlapping_a_confirmed_one_is_suppressed_not_injected() {
     let injected = wire.ledger.glossary.injected.expect("Asked phai mang Some");
     assert!(injected.is_empty(), "khong ben nao duoc chen: {injected:?}");
 
-    let suppressed = wire.ledger.glossary.suppressed_by_pending_overlap.expect("Asked phai mang Some");
+    let suppressed = wire
+        .ledger
+        .glossary
+        .suppressed_by_pending_overlap
+        .expect("Asked phai mang Some");
     assert_eq!(suppressed.len(), 1, "{suppressed:?}");
     assert_eq!(suppressed[0].source_term, "dog");
     assert_eq!(suppressed[0].translation, "cho");
@@ -634,19 +983,42 @@ fn a_body_missing_the_source_segment_marker_still_assembles_and_the_ledger_flags
     let global_dir = temp_dir("no-sentence-global");
     let work_dir = temp_dir("no-sentence-work");
     let global = open_global(&global_dir);
-    let open = open_work(&work_dir, "No Sentence Marker", "en", "This sentence is never used.");
+    let open = open_work(
+        &work_dir,
+        "No Sentence Marker",
+        "en",
+        "This sentence is never used.",
+    );
 
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "NoSentence", "Static text only.")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "NoSentence",
+        "Static text only.",
+    )
+    .expect("tao bo prompt");
 
-    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
     let record = fresh_record();
 
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("NoSentence"), segment_id)
-        .expect("thieu {{source_segment}} khong duoc la mot loi");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("NoSentence"),
+        segment_id,
+    )
+    .expect("thieu {{source_segment}} khong duoc la mot loi");
 
     assert_eq!(wire.prompt, "Static text only.");
-    assert!(wire.ledger.source_segment_missing, "than khong mang {{source_segment}} phai duoc gan co");
+    assert!(
+        wire.ledger.source_segment_missing,
+        "than khong mang {{source_segment}} phai duoc gan co"
+    );
 
     drop(open);
     drop(global);
@@ -676,16 +1048,30 @@ fn an_unknown_marker_stands_verbatim_and_is_named_in_the_ledger() {
     )
     .expect("tao bo prompt");
 
-    let segments = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments;
+    let segments = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments;
     let segment_id = segments[0].id;
     let sentence = segments[0].source_text.clone();
 
     let record = fresh_record();
-    let wire = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("UnknownMarker"), segment_id)
-        .expect("marker la khong duoc la mot loi");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("UnknownMarker"),
+        segment_id,
+    )
+    .expect("marker la khong duoc la mot loi");
 
-    assert_eq!(wire.prompt, format!("{} {}", "{{chapter_context}}", sentence));
-    assert_eq!(wire.ledger.unknown_markers, vec!["{{chapter_context}}".to_owned()]);
+    assert_eq!(
+        wire.prompt,
+        format!("{} {}", "{{chapter_context}}", sentence)
+    );
+    assert_eq!(
+        wire.ledger.unknown_markers,
+        vec!["{{chapter_context}}".to_owned()]
+    );
 
     drop(open);
     drop(global);
@@ -756,8 +1142,14 @@ fn no_open_work_returns_work_none_open() {
     // ham thuc su voi `open: None`.
     let scratch_dir = temp_dir("no-work-scratch");
     let scratch = open_work(&scratch_dir, "Scratch", "en", "x");
-    prompt_set_create(Some(&global), Some(&scratch), PromptSetTier::Global, "ValidSet", "{{source_segment}}")
-        .expect("tao bo prompt Global (khong phu thuoc OpenWork nao)");
+    prompt_set_create(
+        Some(&global),
+        Some(&scratch),
+        PromptSetTier::Global,
+        "ValidSet",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt Global (khong phu thuoc OpenWork nao)");
     drop(scratch);
     cleanup(&scratch_dir);
 
@@ -782,19 +1174,36 @@ fn a_segment_id_absent_from_the_open_chapter_returns_its_own_key() {
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Bad Segment", "en", "Only one real sentence.");
 
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "ValidSet", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "ValidSet",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
-    let real_segments = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments;
+    let real_segments = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments;
     let bogus_id = real_segments.iter().map(|s| s.id).max().unwrap_or(0) + 999_000;
 
     let record = fresh_record();
-    let err = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("ValidSet"), bogus_id)
-        .expect_err("mot id la trong Chuong phai la mot loi");
+    let err = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("ValidSet"),
+        bogus_id,
+    )
+    .expect_err("mot id la trong Chuong phai la mot loi");
 
     assert_eq!(err.code(), "ai_prompt.segment_not_in_chapter");
     assert_eq!(err.message_key(), MessageKey::AiPromptSegmentNotInChapter);
-    assert_eq!(err.params().get("segment_id").map(String::as_str), Some(bogus_id.to_string().as_str()));
+    assert_eq!(
+        err.params().get("segment_id").map(String::as_str),
+        Some(bogus_id.to_string().as_str())
+    );
     assert_eq!(
         err.params().get("chapter_id").map(String::as_str),
         Some(open.chapter_id.to_string().as_str())
@@ -816,18 +1225,33 @@ fn no_work_open_and_segment_not_in_chapter_are_two_distinct_keys() {
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Distinct Keys", "en", "Only one real sentence.");
 
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "ValidSet", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "ValidSet",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
     let record_a = fresh_record();
-    let no_work_err = assemble_and_record_prompt(Some(&global), None, &record_a, Some("ValidSet"), 1)
-        .expect_err("khong Tac pham dang mo phai la mot loi");
+    let no_work_err =
+        assemble_and_record_prompt(Some(&global), None, &record_a, Some("ValidSet"), 1)
+            .expect_err("khong Tac pham dang mo phai la mot loi");
 
-    let real_segments = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments;
+    let real_segments = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments;
     let bogus_id = real_segments.iter().map(|s| s.id).max().unwrap_or(0) + 999_000;
     let record_b = fresh_record();
-    let bad_segment_err = assemble_and_record_prompt(Some(&global), Some(&open), &record_b, Some("ValidSet"), bogus_id)
-        .expect_err("mot id la phai la mot loi");
+    let bad_segment_err = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record_b,
+        Some("ValidSet"),
+        bogus_id,
+    )
+    .expect_err("mot id la phai la mot loi");
 
     assert_ne!(
         no_work_err.code(),
@@ -861,30 +1285,58 @@ fn the_record_carries_the_segment_identity_it_was_built_from() {
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Identity", "zh", "Cau mot。Cau hai。");
 
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "IdentitySet", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "IdentitySet",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
-    let segments = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments;
-    assert_eq!(segments.len(), 2, "tien de: hai cau phai cho ra hai segment rieng biet: {segments:?}");
+    let segments = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments;
+    assert_eq!(
+        segments.len(),
+        2,
+        "tien de: hai cau phai cho ra hai segment rieng biet: {segments:?}"
+    );
     let (id_a, id_b) = (segments[0].id, segments[1].id);
     assert_ne!(id_a, id_b, "hai segment phai mang hai id khac nhau");
 
     let record = fresh_record();
 
-    let wire_a = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("IdentitySet"), id_a)
-        .expect("lap rap cau A khong duoc loi");
+    let wire_a = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("IdentitySet"),
+        id_a,
+    )
+    .expect("lap rap cau A khong duoc loi");
     assert_eq!(wire_a.segment_id, id_a);
     assert_eq!(
-        read_last_assembled_prompt(&record).expect("phai co ban ghi").segment_id,
+        read_last_assembled_prompt(&record)
+            .expect("phai co ban ghi")
+            .segment_id,
         id_a,
         "doc lai ngay sau lap A phai mang dung danh tinh A"
     );
 
-    let wire_b = assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("IdentitySet"), id_b)
-        .expect("lap rap cau B khong duoc loi");
+    let wire_b = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("IdentitySet"),
+        id_b,
+    )
+    .expect("lap rap cau B khong duoc loi");
     assert_eq!(wire_b.segment_id, id_b);
     assert_eq!(
-        read_last_assembled_prompt(&record).expect("phai co ban ghi").segment_id,
+        read_last_assembled_prompt(&record)
+            .expect("phai co ban ghi")
+            .segment_id,
         id_b,
         "lap B phai DE len ban ghi cua A -- ban ghi PHIEN chi giu MOT ban gan nhat"
     );
@@ -920,14 +1372,29 @@ fn the_record_is_cleared_when_the_open_work_closes() {
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Clear On Close", "en", "A sentence to clear.");
 
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "ClearSet", "{{source_segment}}")
-        .expect("tao bo prompt");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "ClearSet",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
 
-    let segment_id = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments[0].id;
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
     let record = fresh_record();
 
-    assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("ClearSet"), segment_id)
-        .expect("lap rap khong duoc loi");
+    assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("ClearSet"),
+        segment_id,
+    )
+    .expect("lap rap khong duoc loi");
     assert!(
         read_last_assembled_prompt(&record).is_some(),
         "tien de: phai co ban ghi truoc khi goi ham xoa"
@@ -953,11 +1420,17 @@ fn the_record_is_cleared_when_the_open_work_closes() {
 #[test]
 fn clearing_an_already_empty_record_on_work_close_is_a_no_op() {
     let record: LastAssembledPromptState = fresh_record();
-    assert!(read_last_assembled_prompt(&record).is_none(), "tien de: chua lap lan nao");
+    assert!(
+        read_last_assembled_prompt(&record).is_none(),
+        "tien de: chua lap lan nao"
+    );
 
     clear_last_assembled_prompt_on_work_close(&record);
 
-    assert!(read_last_assembled_prompt(&record).is_none(), "van phai la None, khong panic");
+    assert!(
+        read_last_assembled_prompt(&record).is_none(),
+        "van phai la None, khong panic"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -981,8 +1454,16 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
     let global = open_global(&global_dir);
     let open = open_work(&work_dir, "Serde Pin", "en", "A dragon guards the castle.");
 
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them dragon");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them dragon");
 
     prompt_set_create(
         Some(&global),
@@ -993,18 +1474,29 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
     )
     .expect("tao bo prompt");
 
-    let segments = read_open_chapter_segments(Some(&open)).expect("nap chuong").segments;
+    let segments = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments;
     let segment_id = segments[0].id;
 
     let record = fresh_record();
-    let wire =
-        assemble_and_record_prompt(Some(&global), Some(&open), &record, Some("SerdePin"), segment_id)
-            .expect("lap rap khong duoc loi");
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("SerdePin"),
+        segment_id,
+    )
+    .expect("lap rap khong duoc loi");
 
     let json = serde_json::to_value(&wire).expect("AssembledPromptWire phai serialize duoc");
 
-    let top_keys: std::collections::BTreeSet<&str> =
-        json.as_object().expect("wire la mot object").keys().map(String::as_str).collect();
+    let top_keys: std::collections::BTreeSet<&str> = json
+        .as_object()
+        .expect("wire la mot object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     assert_eq!(
         top_keys,
         std::collections::BTreeSet::from([
@@ -1028,8 +1520,12 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
     assert_eq!(json["prompt_set_tier"], serde_json::json!("global"));
 
     let ledger = &json["ledger"];
-    let ledger_keys: std::collections::BTreeSet<&str> =
-        ledger.as_object().expect("ledger la mot object").keys().map(String::as_str).collect();
+    let ledger_keys: std::collections::BTreeSet<&str> = ledger
+        .as_object()
+        .expect("ledger la mot object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     assert_eq!(
         ledger_keys,
         std::collections::BTreeSet::from([
@@ -1042,23 +1538,39 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
     );
 
     assert_eq!(ledger["glossary"]["kind"], serde_json::json!("asked"));
-    let injected = ledger["glossary"]["injected"].as_array().expect("injected la mang");
+    let injected = ledger["glossary"]["injected"]
+        .as_array()
+        .expect("injected la mang");
     assert_eq!(injected.len(), 1);
-    let injected_keys: std::collections::BTreeSet<&str> =
-        injected[0].as_object().expect("phan tu injected la mot object").keys().map(String::as_str).collect();
+    let injected_keys: std::collections::BTreeSet<&str> = injected[0]
+        .as_object()
+        .expect("phan tu injected la mot object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     assert_eq!(
         injected_keys,
         std::collections::BTreeSet::from(["source_term", "translation", "start", "end", "tier"]),
     );
     assert_eq!(injected[0]["source_term"], serde_json::json!("dragon"));
-    assert_eq!(injected[0]["tier"], serde_json::json!("global"), "GlossaryTierWire::Global phai la chuoi \"global\", khong \"Global\"");
+    assert_eq!(
+        injected[0]["tier"],
+        serde_json::json!("global"),
+        "GlossaryTierWire::Global phai la chuoi \"global\", khong \"Global\""
+    );
 
     // Than khong mang `{{tm_similar_segments}}` -- pin TAG `not_asked` o tang JSON.
-    assert_eq!(ledger["tm"], serde_json::json!({ "kind": "not_asked", "similar_segments": null }));
+    assert_eq!(
+        ledger["tm"],
+        serde_json::json!({ "kind": "not_asked", "similar_segments": null })
+    );
 
     // `pieces` -- ĐÚNG BA nhãn đường gọi này sản xuất được, dưới dạng CHUỖI JSON snake_case.
     let pieces = ledger["pieces"].as_array().expect("pieces la mot mang");
-    let kinds: Vec<&str> = pieces.iter().map(|p| p["kind"].as_str().expect("kind la chuoi")).collect();
+    let kinds: Vec<&str> = pieces
+        .iter()
+        .map(|p| p["kind"].as_str().expect("kind la chuoi"))
+        .collect();
     assert_eq!(
         kinds,
         vec!["authored", "glossary", "authored", "source_segment"],
@@ -1066,9 +1578,16 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
          tro thanh \"Authored\"/\"Glossary\"/\"SourceSegment\" -- webview's isPromptPieceKindWire \
          se tu choi TOAN BO ban ghi, xem finding P3"
     );
-    let piece_keys: std::collections::BTreeSet<&str> =
-        pieces[0].as_object().expect("mot piece la mot object").keys().map(String::as_str).collect();
-    assert_eq!(piece_keys, std::collections::BTreeSet::from(["kind", "text"]));
+    let piece_keys: std::collections::BTreeSet<&str> = pieces[0]
+        .as_object()
+        .expect("mot piece la mot object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        piece_keys,
+        std::collections::BTreeSet::from(["kind", "text"])
+    );
 
     drop(open);
     drop(global);
@@ -1083,7 +1602,13 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
 /// khi đó tệp này phải đã pin đúng hình dạng trước khi có dữ liệu thật để pin nó.
 #[test]
 fn prompt_piece_kind_wire_tm_variant_serializes_to_the_literal_string_tm() {
-    let piece = PromptPieceWire { kind: PromptPieceKindWire::Tm, text: "khong toi tu prompt that".to_owned() };
+    let piece = PromptPieceWire {
+        kind: PromptPieceKindWire::Tm,
+        text: "khong toi tu prompt that".to_owned(),
+    };
     let json = serde_json::to_value(&piece).expect("PromptPieceWire phai serialize duoc");
-    assert_eq!(json, serde_json::json!({ "kind": "tm", "text": "khong toi tu prompt that" }));
+    assert_eq!(
+        json,
+        serde_json::json!({ "kind": "tm", "text": "khong toi tu prompt that" })
+    );
 }

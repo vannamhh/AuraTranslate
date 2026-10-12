@@ -282,7 +282,10 @@ mod tests {
             .unwrap();
         let cit = &entries[0].senses[0].citations[0];
         assert_eq!(cit.work.as_deref(), Some("Luận ngữ"));
-        assert_eq!(cit.author, None, "'Luận ngữ' là TÊN SÁCH, không phải tác giả");
+        assert_eq!(
+            cit.author, None,
+            "'Luận ngữ' là TÊN SÁCH, không phải tác giả"
+        );
     }
 
     /// 🔴 Ca THẬT `丐` (fixture dòng 11): hai nghĩa trong CÙNG một mảnh, không có

@@ -169,14 +169,22 @@ pub struct GlossaryInjectionStatusWire {
 impl From<GlossaryInjectionStatus> for GlossaryInjectionStatusWire {
     fn from(status: GlossaryInjectionStatus) -> Self {
         match status {
-            GlossaryInjectionStatus::NotAsked => {
-                Self { kind: "not_asked", injected: None, suppressed_by_pending_overlap: None }
-            }
-            GlossaryInjectionStatus::Asked { injected, suppressed_by_pending_overlap } => Self {
+            GlossaryInjectionStatus::NotAsked => Self {
+                kind: "not_asked",
+                injected: None,
+                suppressed_by_pending_overlap: None,
+            },
+            GlossaryInjectionStatus::Asked {
+                injected,
+                suppressed_by_pending_overlap,
+            } => Self {
                 kind: "asked",
                 injected: Some(injected.into_iter().map(Into::into).collect()),
                 suppressed_by_pending_overlap: Some(
-                    suppressed_by_pending_overlap.into_iter().map(Into::into).collect(),
+                    suppressed_by_pending_overlap
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
                 ),
             },
         }
@@ -226,7 +234,10 @@ pub struct TmInjectionStatusWire {
 impl From<TmInjectionStatus> for TmInjectionStatusWire {
     fn from(status: TmInjectionStatus) -> Self {
         match status {
-            TmInjectionStatus::NotAsked => Self { kind: "not_asked", similar_segments: None },
+            TmInjectionStatus::NotAsked => Self {
+                kind: "not_asked",
+                similar_segments: None,
+            },
             TmInjectionStatus::Searched(pairs) => Self {
                 kind: "searched",
                 similar_segments: Some(pairs.into_iter().map(Into::into).collect()),
@@ -272,7 +283,10 @@ pub struct PromptPieceWire {
 
 impl From<PromptPiece> for PromptPieceWire {
     fn from(p: PromptPiece) -> Self {
-        Self { kind: p.kind.into(), text: p.text }
+        Self {
+            kind: p.kind.into(),
+            text: p.text,
+        }
     }
 }
 
@@ -427,7 +441,9 @@ pub fn assemble_and_record_prompt_with_tm(
     tm_cache: &mut TmRowsCache,
 ) -> Result<AssembledPromptWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    let resolver = open.map(|w| w.scope.clone()).unwrap_or_else(ScopeResolver::global_only);
+    let resolver = open
+        .map(|w| w.scope.clone())
+        .unwrap_or_else(ScopeResolver::global_only);
     let work_store = open.map(|w| &w.store);
     let mut resolved = resolve_two_tiers(&resolver, global_store, work_store)?;
 
@@ -475,7 +491,9 @@ pub fn assemble_and_record_prompt_with_tm(
         sent_model: None,
     };
 
-    let mut guard = record.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = record
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = Some(record_value.clone());
     drop(guard);
 
@@ -489,8 +507,12 @@ pub fn assemble_and_record_prompt_with_tm(
 /// "Nothing recorded yet … this is a state, not an error" (§Always spec 4.7: "no record yet
 /// this session" tách hẳn khỏi "a record whose prompt is empty" — một bản ghi RỖNG vẫn là
 /// `Some`, mang `prompt: String::new()`, không phải `None`).
-pub fn read_last_assembled_prompt(record: &LastAssembledPromptState) -> Option<AssembledPromptWire> {
-    let guard = record.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+pub fn read_last_assembled_prompt(
+    record: &LastAssembledPromptState,
+) -> Option<AssembledPromptWire> {
+    let guard = record
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     guard.clone().map(AssembledPromptWire::from)
 }
 
@@ -499,7 +521,9 @@ pub fn read_record_or_report_unmanaged(
     report: impl FnOnce(&str),
 ) -> Option<AssembledPromptWire> {
     let Some(record) = record else {
-        report("ai_prompt[read_record] LastAssembledPromptState chua duoc quan ly -- loi cau hinh setup()");
+        report(
+            "ai_prompt[read_record] LastAssembledPromptState chua duoc quan ly -- loi cau hinh setup()",
+        );
         return None;
     };
     read_last_assembled_prompt(record)
@@ -536,7 +560,9 @@ pub fn mark_prompt_as_sent(
     model: &str,
     sent_at: &str,
 ) {
-    let mut guard = record.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = record
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(r) = guard.as_mut() {
         if r.segment_id == segment_id && r.prompt == sent_prompt {
             r.sent_at = Some(sent_at.to_owned());
@@ -560,7 +586,9 @@ pub fn mark_prompt_as_sent(
 /// [`the_record_is_cleared_when_the_open_work_closes`] (`ai_prompt_contract.rs`) canh được
 /// nó mà không cần dựng ứng dụng.
 pub fn clear_last_assembled_prompt_on_work_close(record: &LastAssembledPromptState) {
-    let mut guard = record.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = record
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = None;
 }
 
@@ -583,8 +611,9 @@ pub mod wire {
 
         let global = app.try_state::<Store>();
         let work_state = app.try_state::<OpenWorkState>();
-        let guard =
-            work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
 
         let Some(record_state) = app.try_state::<LastAssembledPromptState>() else {

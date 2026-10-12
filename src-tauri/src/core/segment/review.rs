@@ -160,7 +160,10 @@ fn median_of_sorted(sorted: &[f64]) -> f64 {
 /// [`classify`]). `None` ⇒ tín hiệu không tham gia — xem doc-comment đầu tệp, tầng ①.
 fn tukey_fence(measured: &[f64]) -> Option<Fence> {
     let mut sorted: Vec<f64> = measured.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).expect("gia tri do duoc khong bao gio la NaN"));
+    sorted.sort_by(|a, b| {
+        a.partial_cmp(b)
+            .expect("gia tri do duoc khong bao gio la NaN")
+    });
     let n = sorted.len();
     let half = n / 2; // = floor(N/2), loại phần tử giữa khi N lẻ — bản lề Tukey.
     // `MIN_MEASURED_VALUES / 2` KHÔNG phải một hằng số thứ hai tự đúc — nó LÀ điều kiện
@@ -192,11 +195,17 @@ fn tukey_fence(measured: &[f64]) -> Option<Fence> {
 #[must_use]
 pub fn classify(chapters: &[ChapterMetrics]) -> ReviewOutcome {
     let length_fence = tukey_fence(&chapters.iter().map(|c| c.length as f64).collect::<Vec<_>>());
-    let cleanup_measured: Vec<f64> =
-        chapters.iter().filter_map(|c| c.cleanup_match_count).map(|v| v as f64).collect();
+    let cleanup_measured: Vec<f64> = chapters
+        .iter()
+        .filter_map(|c| c.cleanup_match_count)
+        .map(|v| v as f64)
+        .collect();
     let cleanup_fence = tukey_fence(&cleanup_measured);
-    let joined_measured: Vec<f64> =
-        chapters.iter().filter_map(|c| c.joined_line_count).map(|v| v as f64).collect();
+    let joined_measured: Vec<f64> = chapters
+        .iter()
+        .filter_map(|c| c.joined_line_count)
+        .map(|v| v as f64)
+        .collect();
     let joined_fence = tukey_fence(&joined_measured);
 
     let participation = SignalParticipation {
@@ -227,7 +236,9 @@ pub fn classify(chapters: &[ChapterMetrics]) -> ReviewOutcome {
             if let Some(fence) = cleanup_fence {
                 match chapter.cleanup_match_count {
                     None => not_measured = true,
-                    Some(v) if (v as f64) > fence.upper() => causes.push(ReviewCause::HighCleanupMatches),
+                    Some(v) if (v as f64) > fence.upper() => {
+                        causes.push(ReviewCause::HighCleanupMatches)
+                    }
                     Some(_) => {}
                 }
             }
@@ -235,7 +246,9 @@ pub fn classify(chapters: &[ChapterMetrics]) -> ReviewOutcome {
             if let Some(fence) = joined_fence {
                 match chapter.joined_line_count {
                     None => not_measured = true,
-                    Some(v) if (v as f64) > fence.upper() => causes.push(ReviewCause::HighJoinedLines),
+                    Some(v) if (v as f64) > fence.upper() => {
+                        causes.push(ReviewCause::HighJoinedLines)
+                    }
                     Some(_) => {}
                 }
             }
@@ -244,11 +257,17 @@ pub fn classify(chapters: &[ChapterMetrics]) -> ReviewOutcome {
                 causes.push(ReviewCause::NotMeasured);
             }
 
-            ReviewVerdict { needs_review: !causes.is_empty(), causes }
+            ReviewVerdict {
+                needs_review: !causes.is_empty(),
+                causes,
+            }
         })
         .collect();
 
-    ReviewOutcome { verdicts, participation }
+    ReviewOutcome {
+        verdicts,
+        participation,
+    }
 }
 
 #[cfg(test)]
@@ -256,17 +275,31 @@ mod tests {
     use super::*;
 
     fn metrics(length: usize, cleanup: Option<usize>, joined: Option<usize>) -> ChapterMetrics {
-        ChapterMetrics { length, cleanup_match_count: cleanup, joined_line_count: joined }
+        ChapterMetrics {
+            length,
+            cleanup_match_count: cleanup,
+            joined_line_count: joined,
+        }
     }
 
     /// Dưới bốn giá trị đo được — KHÔNG tín hiệu nào tham gia, KHÔNG Chương nào bị phán oan.
     #[test]
     fn fewer_than_four_measured_values_makes_no_signal_participate() {
-        let chapters = vec![metrics(10, Some(1), Some(1)), metrics(500, Some(1), Some(1)), metrics(12, Some(1), Some(1))];
+        let chapters = vec![
+            metrics(10, Some(1), Some(1)),
+            metrics(500, Some(1), Some(1)),
+            metrics(12, Some(1), Some(1)),
+        ];
         let outcome = classify(&chapters);
-        assert!(!outcome.participation.any(), "N = 3 phai cho CA BA tin hieu khong tham gia");
+        assert!(
+            !outcome.participation.any(),
+            "N = 3 phai cho CA BA tin hieu khong tham gia"
+        );
         for verdict in &outcome.verdicts {
-            assert!(!verdict.needs_review, "khong tin hieu nao tham gia thi khong Chuong nao bi phan");
+            assert!(
+                !verdict.needs_review,
+                "khong tin hieu nao tham gia thi khong Chuong nao bi phan"
+            );
             assert!(verdict.causes.is_empty());
         }
     }
@@ -286,11 +319,23 @@ mod tests {
             .chain(std::iter::once(metrics(1000, Some(200), None)))
             .collect();
         let outcome = classify(&chapters);
-        assert!(!outcome.participation.length, "length bang nhau tuyet doi phai suy bien");
-        assert!(outcome.participation.cleanup_match_count, "cleanup_match_count phai tham gia");
-        assert!(!outcome.participation.joined_line_count, "joined_line_count toan None, khong tham gia");
+        assert!(
+            !outcome.participation.length,
+            "length bang nhau tuyet doi phai suy bien"
+        );
+        assert!(
+            outcome.participation.cleanup_match_count,
+            "cleanup_match_count phai tham gia"
+        );
+        assert!(
+            !outcome.participation.joined_line_count,
+            "joined_line_count toan None, khong tham gia"
+        );
         let last = outcome.verdicts.last().expect("con Chuong cuoi");
-        assert!(last.needs_review, "Chuong voi 200 cho khop phai bi gan co xoa qua nhieu");
+        assert!(
+            last.needs_review,
+            "Chuong voi 200 cho khop phai bi gan co xoa qua nhieu"
+        );
         assert_eq!(last.causes, vec![ReviewCause::HighCleanupMatches]);
     }
 
@@ -301,14 +346,22 @@ mod tests {
         // length VA joined_line_count BANG NHAU tuyet doi tren ca 10 Chuong (IQR = 0, khong
         // tham gia) -- chi cleanup_match_count tan rong that su (1..=10, tru mot gia tri
         // KHONG do duoc o Chuong thu 5, chi so 4) de day la tin hieu DUY NHAT co the phan.
-        let mut chapters: Vec<ChapterMetrics> = (0..10).map(|i| metrics(100, Some(i + 1), Some(1))).collect();
+        let mut chapters: Vec<ChapterMetrics> = (0..10)
+            .map(|i| metrics(100, Some(i + 1), Some(1)))
+            .collect();
         chapters[4].cleanup_match_count = None;
         let outcome = classify(&chapters);
         assert!(!outcome.participation.length);
         assert!(!outcome.participation.joined_line_count);
-        assert!(outcome.participation.cleanup_match_count, "du du lieu tan rong de hang rao ton tai");
+        assert!(
+            outcome.participation.cleanup_match_count,
+            "du du lieu tan rong de hang rao ton tai"
+        );
         let verdict = &outcome.verdicts[4];
-        assert!(verdict.needs_review, "gia tri null duoi mot hang rao TON TAI phai la CAN XEM");
+        assert!(
+            verdict.needs_review,
+            "gia tri null duoi mot hang rao TON TAI phai la CAN XEM"
+        );
         assert_eq!(verdict.causes, vec![ReviewCause::NotMeasured]);
         // Doi chung: DUNG `usize` voi `unwrap_or(0)` se cho `0`, nam GON trong hang rao (moi
         // Chuong khac deu tu 1 den 10, `0` khong vuot hang rao TREN nao ca), va se KHONG bi
@@ -316,7 +369,10 @@ mod tests {
         // tests/segment_contract.rs::* doi chung o tang day.
         for (i, v) in outcome.verdicts.iter().enumerate() {
             if i != 4 {
-                assert!(!v.needs_review, "chi Chuong khong do duoc (chi so 4) moi can xem o day");
+                assert!(
+                    !v.needs_review,
+                    "chi Chuong khong do duoc (chi so 4) moi can xem o day"
+                );
             }
         }
     }
@@ -329,15 +385,22 @@ mod tests {
         // length tan rong nhung khong Chuong nao vuot hang rao DUOI (xac minh o duoi); chi
         // Chuong 0 KHONG do duoc joined_line_count, nam gia tri con lai (1..=5) tan rong that
         // su de hang rao TON TAI.
-        let mut chapters: Vec<ChapterMetrics> =
-            (0..6).map(|i| metrics(100 + i * 5, Some(2), Some(i))).collect();
+        let mut chapters: Vec<ChapterMetrics> = (0..6)
+            .map(|i| metrics(100 + i * 5, Some(2), Some(i)))
+            .collect();
         chapters[0].joined_line_count = None;
         let outcome = classify(&chapters);
-        assert!(outcome.participation.joined_line_count, "du du lieu tan rong de hang rao ton tai");
+        assert!(
+            outcome.participation.joined_line_count,
+            "du du lieu tan rong de hang rao ton tai"
+        );
         let clean_count = outcome.verdicts.iter().filter(|v| !v.needs_review).count();
         let needs_review_count = outcome.verdicts.len() - clean_count;
         assert!(outcome.verdicts[0].needs_review);
-        assert_eq!(needs_review_count, 1, "dung MOT Chuong can xem -- Chuong khong do duoc");
+        assert_eq!(
+            needs_review_count, 1,
+            "dung MOT Chuong can xem -- Chuong khong do duoc"
+        );
         assert_eq!(clean_count, 5);
     }
 
@@ -358,7 +421,10 @@ mod tests {
         ];
         let outcome = classify(&chapters);
         let last = &outcome.verdicts[4];
-        assert!(!last.causes.contains(&ReviewCause::ShortLength), "dai bat thuong khong phai loi");
+        assert!(
+            !last.causes.contains(&ReviewCause::ShortLength),
+            "dai bat thuong khong phai loi"
+        );
         assert!(
             !last.causes.contains(&ReviewCause::HighCleanupMatches),
             "khop RAT IT khong phai loi -- cleanup chi xet hang rao TREN"
@@ -389,14 +455,21 @@ mod tests {
         // ShortLength khoi phep so. cleanup_match_count VA joined_line_count moi thu tan rong
         // THAT SU rieng, du du lieu de hang rao TON TAI cho CA HAI; Chuong chi so 3 thieu CA
         // HAI gia tri.
-        let mut chapters: Vec<ChapterMetrics> =
-            (0..10).map(|i| metrics(100, Some(i + 1), Some((i + 1) * 2))).collect();
+        let mut chapters: Vec<ChapterMetrics> = (0..10)
+            .map(|i| metrics(100, Some(i + 1), Some((i + 1) * 2)))
+            .collect();
         chapters[3].cleanup_match_count = None;
         chapters[3].joined_line_count = None;
 
         let outcome = classify(&chapters);
-        assert!(outcome.participation.cleanup_match_count, "du du lieu tan rong de hang rao ton tai");
-        assert!(outcome.participation.joined_line_count, "du du lieu tan rong de hang rao ton tai");
+        assert!(
+            outcome.participation.cleanup_match_count,
+            "du du lieu tan rong de hang rao ton tai"
+        );
+        assert!(
+            outcome.participation.joined_line_count,
+            "du du lieu tan rong de hang rao ton tai"
+        );
 
         let verdict = &outcome.verdicts[3];
         assert!(verdict.needs_review);

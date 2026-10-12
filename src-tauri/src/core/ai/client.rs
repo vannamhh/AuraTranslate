@@ -215,8 +215,13 @@ pub fn build_request_body<'a>(request: &TranslateRequest<'a>) -> ChatCompletions
         temperature: request.temperature,
         max_tokens: request.max_tokens,
         stream: true,
-        stream_options: StreamOptions { include_usage: true },
-        messages: [ChatMessage { role: "user", content: request.prompt }],
+        stream_options: StreamOptions {
+            include_usage: true,
+        },
+        messages: [ChatMessage {
+            role: "user",
+            content: request.prompt,
+        }],
     }
 }
 
@@ -287,7 +292,9 @@ impl ChunkUsage {
     /// đọc `false` ở đây như "không có khung usage nào tới", không như một `Usage` mang toàn
     /// số `0`.
     fn has_any_token_count(&self) -> bool {
-        self.prompt_tokens.is_some() || self.completion_tokens.is_some() || self.total_tokens.is_some()
+        self.prompt_tokens.is_some()
+            || self.completion_tokens.is_some()
+            || self.total_tokens.is_some()
     }
 
     /// Đúc [`TranslateUsage`] từ số liệu THÔ này — gọi ở `OpenAiChatClient::translate` khi
@@ -304,9 +311,9 @@ impl ChunkUsage {
     /// đúng khuyết tật rà soát coordinator nêu tên: một khung `{"total_tokens":412}` (thiếu
     /// hai trường kia) trước bản sửa này cho ra `~0,0000 USD` giả, không phải `cost_usd: None`.
     pub fn into_translate_usage(self, model_id: &str) -> TranslateUsage {
-        let total_tokens = self
-            .total_tokens
-            .unwrap_or_else(|| self.prompt_tokens.unwrap_or(0) + self.completion_tokens.unwrap_or(0));
+        let total_tokens = self.total_tokens.unwrap_or_else(|| {
+            self.prompt_tokens.unwrap_or(0) + self.completion_tokens.unwrap_or(0)
+        });
         let cost_usd = match (self.prompt_tokens, self.completion_tokens) {
             (Some(p), Some(c)) => crate::core::ai::pricing::estimate_cost_usd(model_id, p, c),
             _ => None,
@@ -332,14 +339,18 @@ impl TranslationProvider for OpenAiChatClient {
         let client = reqwest::Client::builder()
             .read_timeout(READ_TIMEOUT)
             .build()
-            .map_err(|e| OpenAiClientError::ClientBuildFailed { detail: e.to_string() })?;
+            .map_err(|e| OpenAiClientError::ClientBuildFailed {
+                detail: e.to_string(),
+            })?;
 
         let body = build_request_body(&request);
         // `serde_json::to_string` trên một kiểu dựng tay, đủ trường hợp lệ -- khong that bai
         // tren du lieu that; giu Result thay vi unwrap dung dung `AGENTS.md` (khong panic tren
         // duong nong), khong phai vi mong doi mot loi that.
-        let body_json = serde_json::to_string(&body)
-            .map_err(|e| OpenAiClientError::RequestFailed { detail: e.to_string() })?;
+        let body_json =
+            serde_json::to_string(&body).map_err(|e| OpenAiClientError::RequestFailed {
+                detail: e.to_string(),
+            })?;
 
         // 🔴 **SUA 2026-09-21 (Story 4.8, Phase 2) -- `HeaderValue::set_sensitive(true)`, khong
         // con mot chuoi `format!` tran.** Mot `HeaderValue` KHONG danh dau nhay cam in nguyen
@@ -351,8 +362,11 @@ impl TranslationProvider for OpenAiChatClient {
         // 🔵 SỬA 2026-09-22 (Story 4.10, Phase 1) -- biến thể riêng `ApiKeyHeaderInvalid`, không
         // còn dùng chung `RequestFailed`: thất bại ở đây là hình dạng khoá đã lưu, không phải
         // một sự cố mạng tạm thời -- xem doc-comment `OpenAiClientError::ApiKeyHeaderInvalid`.
-        let mut auth_value = reqwest::header::HeaderValue::from_str(&format!("Bearer {}", request.api_key))
-            .map_err(|e| OpenAiClientError::ApiKeyHeaderInvalid { detail: e.to_string() })?;
+        let mut auth_value =
+            reqwest::header::HeaderValue::from_str(&format!("Bearer {}", request.api_key))
+                .map_err(|e| OpenAiClientError::ApiKeyHeaderInvalid {
+                    detail: e.to_string(),
+                })?;
         auth_value.set_sensitive(true);
 
         let mut response = client
@@ -363,10 +377,14 @@ impl TranslationProvider for OpenAiChatClient {
             .body(body_json)
             .send()
             .await
-            .map_err(|e| OpenAiClientError::RequestFailed { detail: e.to_string() })?;
+            .map_err(|e| OpenAiClientError::RequestFailed {
+                detail: e.to_string(),
+            })?;
 
         if !response.status().is_success() {
-            return Err(OpenAiClientError::NonSuccessStatus { status: response.status().as_u16() });
+            return Err(OpenAiClientError::NonSuccessStatus {
+                status: response.status().as_u16(),
+            });
         }
 
         let mut buf: Vec<u8> = Vec::new();
@@ -385,7 +403,9 @@ impl TranslationProvider for OpenAiChatClient {
             let chunk = response
                 .chunk()
                 .await
-                .map_err(|e| OpenAiClientError::ReadFailed { detail: e.to_string() })?;
+                .map_err(|e| OpenAiClientError::ReadFailed {
+                    detail: e.to_string(),
+                })?;
 
             let Some(bytes) = chunk else {
                 // Ket noi dong lai -- khong `[DONE]` nao tung thay (neu da thay, vong lap da
@@ -466,8 +486,10 @@ pub fn interpret_sse_event(event: &str) -> Result<SseEventOutcome, OpenAiClientE
     if event.trim() == "[DONE]" {
         return Ok(SseEventOutcome::Done);
     }
-    let chunk: ChatCompletionsChunk = serde_json::from_str(event)
-        .map_err(|e| OpenAiClientError::MalformedEvent { detail: e.to_string() })?;
+    let chunk: ChatCompletionsChunk =
+        serde_json::from_str(event).map_err(|e| OpenAiClientError::MalformedEvent {
+            detail: e.to_string(),
+        })?;
     if let Some(usage) = chunk.usage {
         // `{"usage":{}}` (hoặc tương đương) -- trường `usage` có mặt nhưng không báo được một
         // số token nào -- KHÔNG được đọc như một `Usage` mang toàn số `0` giả (xem doc-comment
@@ -477,7 +499,12 @@ pub fn interpret_sse_event(event: &str) -> Result<SseEventOutcome, OpenAiClientE
             return Ok(SseEventOutcome::Usage(usage));
         }
     }
-    match chunk.choices.into_iter().next().and_then(|c| c.delta.content) {
+    match chunk
+        .choices
+        .into_iter()
+        .next()
+        .and_then(|c| c.delta.content)
+    {
         Some(text) if !text.is_empty() => Ok(SseEventOutcome::Token(text)),
         _ => Ok(SseEventOutcome::Ignore),
     }
@@ -541,5 +568,9 @@ fn extract_data_payload(frame: &[u8]) -> Option<String> {
             data_lines.push(value.strip_prefix(' ').unwrap_or(value));
         }
     }
-    if data_lines.is_empty() { None } else { Some(data_lines.join("\n")) }
+    if data_lines.is_empty() {
+        None
+    } else {
+        Some(data_lines.join("\n"))
+    }
 }

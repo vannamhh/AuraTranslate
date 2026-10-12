@@ -286,12 +286,18 @@ impl GlobalConfig {
     /// Không bao giờ `0`, không bao giờ hỏng: chỗ gọi nhận thẳng một số dùng được ngay.
     pub fn glossary_scan_threshold(&self) -> u32 {
         parse_glossary_scan_threshold(
-            self.app.get(KEY_GLOSSARY_SCAN_THRESHOLD).map(|r| r.value().as_str()),
+            self.app
+                .get(KEY_GLOSSARY_SCAN_THRESHOLD)
+                .map(|r| r.value().as_str()),
         )
     }
 
     pub fn tm_fuzzy_threshold(&self) -> u32 {
-        parse_tm_fuzzy_threshold(self.app.get(KEY_TM_FUZZY_THRESHOLD).map(|r| r.value().as_str()))
+        parse_tm_fuzzy_threshold(
+            self.app
+                .get(KEY_TM_FUZZY_THRESHOLD)
+                .map(|r| r.value().as_str()),
+        )
     }
 
     /// Thư mục gốc Library người dùng đã cấu hình, ĐÃ QUA [`resolve_library_root_value`] —

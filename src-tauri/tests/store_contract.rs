@@ -185,7 +185,10 @@ fn writes_are_serialized() {
                              VALUES (?1, ?2, ?3, ?4, 0)",
                             rusqlite::params![worker, open_before, depth_seen, thread_id],
                         )?;
-                        tx.execute("UPDATE probe SET exited = 1 WHERE id = last_insert_rowid()", [])?;
+                        tx.execute(
+                            "UPDATE probe SET exited = 1 WHERE id = last_insert_rowid()",
+                            [],
+                        )?;
                         Ok(())
                     })
                     .expect("job ghi phải thành công");
@@ -221,7 +224,10 @@ fn writes_are_serialized() {
         WORKERS * PER_WORKER,
         "mất bản ghi: hàng đợi ghi đánh rơi job, hoặc một giao dịch commit đè lên giao dịch khác"
     );
-    assert_eq!(dirty, 0, "một job commit mà không đánh dấu đã ra — giao dịch bị cắt giữa chừng");
+    assert_eq!(
+        dirty, 0,
+        "một job commit mà không đánh dấu đã ra — giao dịch bị cắt giữa chừng"
+    );
     assert_eq!(
         nested, 0,
         "một job nhìn thấy job khác đang dở dang ⇒ hai giao dịch ghi lồng nhau ⇒ AC1 trượt"
@@ -445,8 +451,14 @@ fn the_three_pragmas_read_back_on_every_connection() {
         .expect("đọc PRAGMA trên kết nối ghi");
 
     assert_eq!(mode.to_lowercase(), "wal", "kết nối ghi không ở WAL");
-    assert_eq!(autockpt, 0, "autocheckpoint của SQLite chưa tắt — AD-12 nói thời điểm checkpoint là quyết định của ỨNG DỤNG");
-    assert_eq!(busy, 4321, "busy_timeout trên kết nối ghi không khớp Tuning");
+    assert_eq!(
+        autockpt, 0,
+        "autocheckpoint của SQLite chưa tắt — AD-12 nói thời điểm checkpoint là quyết định của ỨNG DỤNG"
+    );
+    assert_eq!(
+        busy, 4321,
+        "busy_timeout trên kết nối ghi không khớp Tuning"
+    );
 
     let (mode, autockpt, busy, query_only) = store
         .read(|conn| {
@@ -459,9 +471,15 @@ fn the_three_pragmas_read_back_on_every_connection() {
         .expect("đọc PRAGMA trên kết nối đọc");
 
     assert_eq!(mode.to_lowercase(), "wal", "kết nối đọc không thấy WAL");
-    assert_eq!(autockpt, 0, "Bẫy 3: quên `wal_autocheckpoint` trên pool đọc");
+    assert_eq!(
+        autockpt, 0,
+        "Bẫy 3: quên `wal_autocheckpoint` trên pool đọc"
+    );
     assert_eq!(busy, 4321, "Bẫy 3: quên `busy_timeout` trên pool đọc");
-    assert_eq!(query_only, 1, "kết nối pool không đặt `query_only` — AC2 mất vế cưỡng chế");
+    assert_eq!(
+        query_only, 1,
+        "kết nối pool không đặt `query_only` — AC2 mất vế cưỡng chế"
+    );
 
     drop(store);
     cleanup(&dir);
@@ -593,7 +611,10 @@ fn settled_wal_len(store: &Store, wal: &Path, deadline: Duration) -> WalRead {
             stable_polls = 0;
         }
     }
-    WalRead { len: file_len(wal), settled: stable_polls >= 3 }
+    WalRead {
+        len: file_len(wal),
+        settled: stable_polls >= 3,
+    }
 }
 
 /// **Mệnh đề 2, tái hiệu chỉnh 2026-09-13 — tự hiệu chuẩn TRONG lượt chạy.**
@@ -728,7 +749,8 @@ fn an_idle_pause_triggers_one_passive_checkpoint() {
         "sau khi rảnh quá `idle_before_passive` mà không lượt PASSIVE nào chạy được: {stats:?}"
     );
     assert_eq!(
-        stats.passive_busy, 0,
+        stats.passive_busy,
+        0,
         "một lượt PASSIVE bị chặn (`busy != 0`) — không đó KHÔNG phải một lượt đã xong. \
          Chẩn đoán: {:?}",
         store.diagnostics()
@@ -1161,7 +1183,9 @@ fn a_fresh_database_migrates_up_to_target_and_logs_it() {
     let (rows, versions, app_version, applied_at) = store
         .read(|conn| {
             let rows: i64 =
-                conn.query_row("SELECT COUNT(*) FROM schema_migration_log", [], |r| r.get(0))?;
+                conn.query_row("SELECT COUNT(*) FROM schema_migration_log", [], |r| {
+                    r.get(0)
+                })?;
             let mut stmt =
                 conn.prepare("SELECT version FROM schema_migration_log ORDER BY version")?;
             let versions: Vec<i64> = stmt
@@ -1307,7 +1331,9 @@ fn one_step_runs_and_a_backup_is_written_first() {
     let (rows, versions) = store
         .read(|conn| {
             let rows: i64 =
-                conn.query_row("SELECT COUNT(*) FROM schema_migration_log", [], |r| r.get(0))?;
+                conn.query_row("SELECT COUNT(*) FROM schema_migration_log", [], |r| {
+                    r.get(0)
+                })?;
             let versions: i64 = conn.query_row(
                 "SELECT COUNT(*) FROM schema_migration_log WHERE version = 2",
                 [],
@@ -1367,7 +1393,9 @@ fn a_failing_migration_rolls_back_and_leaves_the_version_alone() {
     let (log_rows, half): (i64, i64) = store
         .read(|conn| {
             let log_rows: i64 =
-                conn.query_row("SELECT COUNT(*) FROM schema_migration_log", [], |r| r.get(0))?;
+                conn.query_row("SELECT COUNT(*) FROM schema_migration_log", [], |r| {
+                    r.get(0)
+                })?;
             let half: i64 = conn.query_row(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'half_applied'",
                 [],
@@ -1402,10 +1430,7 @@ fn a_failing_migration_rolls_back_and_leaves_the_version_alone() {
 fn a_newer_schema_is_refused_without_touching_a_single_byte() {
     let dir = temp_dir("schema-too-new");
     let db = db_path(&dir);
-    let target = GLOBAL_MIGRATIONS
-        .last()
-        .map(|m| m.to_version)
-        .unwrap_or(0);
+    let target = GLOBAL_MIGRATIONS.last().map(|m| m.to_version).unwrap_or(0);
 
     {
         let conn = rusqlite::Connection::open(&db).expect("dựng fixture");

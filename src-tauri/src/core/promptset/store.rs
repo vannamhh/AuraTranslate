@@ -133,13 +133,25 @@ pub fn resolve_two_tiers(
             // là đúng lớp lỗi "trông như đang chạy" mà dự án cấm.
             let wire = r.tier().as_str();
             let tier = PromptSetTier::from_wire(wire).ok_or_else(|| {
-                PromptSetError::Scope(ScopeError::UnknownKind { wire: wire.to_owned() })
+                PromptSetError::Scope(ScopeError::UnknownKind {
+                    wire: wire.to_owned(),
+                })
             })?;
             let shadowed_body = r.shadowed().map(|s| s.body.clone());
             let shadowed_id = r.shadowed().map(|s| s.id);
             let id = r.value().id;
             let body = r.value().body.clone();
-            Ok((name.clone(), ResolvedPromptSet { id, name, body, tier, shadowed_body, shadowed_id }))
+            Ok((
+                name.clone(),
+                ResolvedPromptSet {
+                    id,
+                    name,
+                    body,
+                    tier,
+                    shadowed_body,
+                    shadowed_id,
+                },
+            ))
         })
         .collect()
 }
@@ -203,7 +215,9 @@ pub fn create(
         ) {
             Ok(_) => Ok(tx.last_insert_rowid()),
             Err(e) if is_unique_constraint_violation(&e) => {
-                *collided_for_closure.lock().unwrap_or_else(|p| p.into_inner()) = true;
+                *collided_for_closure
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner()) = true;
                 Err(e)
             }
             Err(e) => Err(e),
@@ -249,10 +263,15 @@ pub fn rename(
     let name_for_write = new_name.clone();
 
     let result = store.write(move |tx: &Transaction<'_>| {
-        match tx.execute("UPDATE prompt_set SET name = ?1 WHERE id = ?2", (&name_for_write, id)) {
+        match tx.execute(
+            "UPDATE prompt_set SET name = ?1 WHERE id = ?2",
+            (&name_for_write, id),
+        ) {
             Ok(changed) => Ok(changed),
             Err(e) if is_unique_constraint_violation(&e) => {
-                *collided_for_closure.lock().unwrap_or_else(|p| p.into_inner()) = true;
+                *collided_for_closure
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner()) = true;
                 Err(e)
             }
             Err(e) => Err(e),
@@ -297,8 +316,9 @@ pub fn update_body(
     let body = body.to_owned();
     let warnings = scan_markers(&body);
 
-    let changed = store
-        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE prompt_set SET body = ?1 WHERE id = ?2", (&body, id)))?;
+    let changed = store.write(move |tx: &Transaction<'_>| {
+        tx.execute("UPDATE prompt_set SET body = ?1 WHERE id = ?2", (&body, id))
+    })?;
 
     if changed == 0 {
         return Err(PromptSetError::NotFound);
@@ -322,8 +342,9 @@ pub fn delete(
 ) -> Result<(), PromptSetError> {
     let store = store_for_tier(global, work, tier)?;
 
-    let changed =
-        store.write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM prompt_set WHERE id = ?1", [id]))?;
+    let changed = store.write(move |tx: &Transaction<'_>| {
+        tx.execute("DELETE FROM prompt_set WHERE id = ?1", [id])
+    })?;
 
     if changed == 0 {
         return Err(PromptSetError::NotFound);
@@ -343,9 +364,17 @@ pub fn load_one(store: &Store, id: i64) -> Result<PromptSet, PromptSetError> {
     // (`Err(SqlError::QueryReturnedNoRows) => Ok(None)`), vi `Store::read` khong tai xuat
     // `SqlError` o tang loi cua no.
     let row: Option<PromptSet> = store.read(|conn: ReadHandle<'_>| {
-        match conn.query_row("SELECT id, name, body FROM prompt_set WHERE id = ?1", [id], |row| {
-            Ok(PromptSet { id: row.get(0)?, name: row.get(1)?, body: row.get(2)? })
-        }) {
+        match conn.query_row(
+            "SELECT id, name, body FROM prompt_set WHERE id = ?1",
+            [id],
+            |row| {
+                Ok(PromptSet {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    body: row.get(2)?,
+                })
+            },
+        ) {
             Ok(v) => Ok(Some(v)),
             Err(SqlError::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e),
@@ -477,7 +506,9 @@ pub fn import_into_tier(
         Ok(outcome) => Ok(outcome),
         Err(e) => {
             if *stale.lock().unwrap_or_else(|p| p.into_inner()) {
-                return Err(PromptSetError::ImportStaleConflict { name: plan.name.clone() });
+                return Err(PromptSetError::ImportStaleConflict {
+                    name: plan.name.clone(),
+                });
             }
             if *missing.lock().unwrap_or_else(|p| p.into_inner()) {
                 return Err(PromptSetError::NotFound);
@@ -501,20 +532,33 @@ pub enum PromptSetError {
     /// Tên rỗng/toàn khoảng trắng — [`validate_name`] đã từ chối trước khi chạm SQL.
     InvalidName,
     /// `name` đã tồn tại ở tầng đang ghi — hàng đang có KHÔNG bị đụng tới.
-    NameTaken { name: String },
+    NameTaken {
+        name: String,
+    },
     /// `(tier, id)` không khớp hàng nào — mục đã bị xoá/đổi tầng ở nơi khác giữa chừng.
     NotFound,
 
     // ── Story 4.5 (FR79, NFR9, AD-48) — bảy biến thể MỚI, hộp thoại chọn tệp xuất/nhập ──
     /// Tệp nhập vượt trần [`super::exchange_io::MAX_PROMPT_SET_IMPORT_BYTES`] (1 MiB).
-    ImportFileTooLarge { size: u64, limit: u64 },
+    ImportFileTooLarge {
+        size: u64,
+        limit: u64,
+    },
     /// Nội dung tệp không giải mã được bằng UTF-8.
-    ImportNotUtf8 { path: String },
+    ImportNotUtf8 {
+        path: String,
+    },
     /// Mở/đọc tệp nhập thất bại vì lý do KHÁC kích thước và bảng mã.
-    ImportReadFailed { path: String, detail: String },
+    ImportReadFailed {
+        path: String,
+        detail: String,
+    },
     /// Ghi tệp xuất thất bại — `exchange_io::write_export_file` dọn `.tmp` ở CẢ HAI nhánh
     /// lỗi trước khi biến thể này được dựng, không tệp cụt nào bị để lại.
-    ExportWriteFailed { path: String, detail: String },
+    ExportWriteFailed {
+        path: String,
+        detail: String,
+    },
     /// `FilePath::into_path()` của `tauri-plugin-dialog` trả lỗi.
     DialogPathInvalid,
     /// Xác nhận lượt nhập (nhịp hai) khi chưa qua nhịp một, hoặc lô đã bị dọn (huỷ, một lô
@@ -523,7 +567,9 @@ pub enum PromptSetError {
     /// Thân của hàng đích đã đổi (hoặc chính hàng đã biến mất, hoặc — nhánh `New` — `name`
     /// vừa bị một lượt ghi KHÁC chiếm) giữa nhịp xem trước và nhịp xác nhận — `TakeTheirs` so
     /// lạc quan trượt. `name` là tên bộ đang nhập, dữ liệu không phải một câu.
-    ImportStaleConflict { name: String },
+    ImportStaleConflict {
+        name: String,
+    },
 }
 
 impl std::fmt::Display for PromptSetError {
@@ -537,14 +583,25 @@ impl std::fmt::Display for PromptSetError {
             PromptSetError::NameTaken { name } => write!(f, "promptset[name_taken] name={name}"),
             PromptSetError::NotFound => write!(f, "promptset[not_found]"),
             PromptSetError::ImportFileTooLarge { size, limit } => {
-                write!(f, "promptset[import_file_too_large] size={size} limit={limit}")
+                write!(
+                    f,
+                    "promptset[import_file_too_large] size={size} limit={limit}"
+                )
             }
-            PromptSetError::ImportNotUtf8 { path } => write!(f, "promptset[import_not_utf8] path={path}"),
+            PromptSetError::ImportNotUtf8 { path } => {
+                write!(f, "promptset[import_not_utf8] path={path}")
+            }
             PromptSetError::ImportReadFailed { path, detail } => {
-                write!(f, "promptset[import_read_failed] path={path} detail={detail}")
+                write!(
+                    f,
+                    "promptset[import_read_failed] path={path} detail={detail}"
+                )
             }
             PromptSetError::ExportWriteFailed { path, detail } => {
-                write!(f, "promptset[export_write_failed] path={path} detail={detail}")
+                write!(
+                    f,
+                    "promptset[export_write_failed] path={path} detail={detail}"
+                )
             }
             PromptSetError::DialogPathInvalid => write!(f, "promptset[dialog_path_invalid]"),
             PromptSetError::NoPendingImport => write!(f, "promptset[no_pending_import]"),
@@ -603,7 +660,12 @@ impl From<PromptSetError> for IpcError {
             PromptSetError::NameTaken { name } => {
                 let mut params = BTreeMap::new();
                 params.insert("name".to_owned(), name);
-                IpcError::new("prompt_set.name_taken", MessageKey::PromptSetNameTaken, params, false)
+                IpcError::new(
+                    "prompt_set.name_taken",
+                    MessageKey::PromptSetNameTaken,
+                    params,
+                    false,
+                )
             }
             PromptSetError::NotFound => IpcError::new(
                 "prompt_set.not_found",
@@ -618,17 +680,32 @@ impl From<PromptSetError> for IpcError {
             PromptSetError::ImportFileTooLarge { size: _, limit } => {
                 let mut params = BTreeMap::new();
                 params.insert("limit".to_owned(), limit.to_string());
-                IpcError::new("prompt_set.import_file_too_large", MessageKey::ImportTooLarge, params, false)
+                IpcError::new(
+                    "prompt_set.import_file_too_large",
+                    MessageKey::ImportTooLarge,
+                    params,
+                    false,
+                )
             }
             PromptSetError::ImportNotUtf8 { path } => {
                 let mut params = BTreeMap::new();
                 params.insert("path".to_owned(), path);
-                IpcError::new("prompt_set.import_not_utf8", MessageKey::ImportNotUtf8, params, false)
+                IpcError::new(
+                    "prompt_set.import_not_utf8",
+                    MessageKey::ImportNotUtf8,
+                    params,
+                    false,
+                )
             }
             PromptSetError::ImportReadFailed { path, .. } => {
                 let mut params = BTreeMap::new();
                 params.insert("path".to_owned(), path);
-                IpcError::new("prompt_set.import_read_failed", MessageKey::IoReadFailed, params, false)
+                IpcError::new(
+                    "prompt_set.import_read_failed",
+                    MessageKey::IoReadFailed,
+                    params,
+                    false,
+                )
             }
             PromptSetError::ExportWriteFailed { path, .. } => {
                 let mut params = BTreeMap::new();

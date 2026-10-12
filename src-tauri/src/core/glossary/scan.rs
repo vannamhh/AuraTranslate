@@ -163,8 +163,8 @@ pub fn scan_candidates_controlled(
                     .or_insert_with(|| truncated_context_example(segments[first_segment]))
                     .clone();
                 out.push(ScanCandidate {
-            source_term: term,
-            occurrence_count: count,
+                    source_term: term,
+                    occurrence_count: count,
                     context_example,
                 });
             }
@@ -251,12 +251,12 @@ fn count_zh_candidates(
     let dropped = zh_nested_padding(&freq);
 
     Some(
-    freq.into_iter()
-        .filter(|(term, _)| !dropped.contains(term))
-        .map(|(term, count)| {
+        freq.into_iter()
+            .filter(|(term, _)| !dropped.contains(term))
+            .map(|(term, count)| {
                 let segment_index = first_segment.remove(&term).unwrap_or_default();
                 (term, count, segment_index)
-        })
+            })
             .collect(),
     )
 }
@@ -379,10 +379,10 @@ fn count_en_candidates(
 
     Some(
         freq.into_iter()
-        .map(|(term, count)| {
+            .map(|(term, count)| {
                 let segment_index = first_segment.remove(&term).unwrap_or_default();
                 (term, count, segment_index)
-        })
+            })
             .collect(),
     )
 }

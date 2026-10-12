@@ -28,12 +28,23 @@ const HARVEST_PATH: [&str; 12] = [
 
 /// `commands/export.rs` also hosts the `review_diff` command, so only these functions are scanned.
 const EXPORT_COMMANDS: &str = "src-tauri/src/commands/export.rs";
-const HARVEST_FNS: [&str; 2] = ["fn harvest_reviewer_copies(", "pub fn reviewer_import_confirm("];
+const HARVEST_FNS: [&str; 2] = [
+    "fn harvest_reviewer_copies(",
+    "pub fn reviewer_import_confirm(",
+];
 
-const FORBIDDEN: [&str; 4] = ["review_diff", "diff_spans", "reviewModeState", "reviewScrollSync"];
+const FORBIDDEN: [&str; 4] = [
+    "review_diff",
+    "diff_spans",
+    "reviewModeState",
+    "reviewScrollSync",
+];
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").canonicalize().expect("repository root")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .canonicalize()
+        .expect("repository root")
 }
 
 fn is_ident(c: char) -> bool {
@@ -41,7 +52,11 @@ fn is_ident(c: char) -> bool {
 }
 
 fn hits_in(line: &str) -> Vec<String> {
-    let mut found: Vec<String> = FORBIDDEN.iter().filter(|t| line.contains(**t)).map(|t| t.to_string()).collect();
+    let mut found: Vec<String> = FORBIDDEN
+        .iter()
+        .filter(|t| line.contains(**t))
+        .map(|t| t.to_string())
+        .collect();
     if line.contains("reviewMode") || line.contains("ReviewMode") {
         found.push("reviewMode/ReviewMode identifier".to_string());
     }
@@ -50,7 +65,10 @@ fn hits_in(line: &str) -> Vec<String> {
         let tail = &rest[at..];
         let ident: String = tail.chars().take_while(|c| is_ident(*c)).collect();
         let starts_ident = rest[..at].chars().next_back().is_none_or(|c| !is_ident(c));
-        if starts_ident && (ident == "ReviewDock" || (ident.len() > "ReviewPanel".len() - 1 && ident.ends_with("Panel"))) {
+        if starts_ident
+            && (ident == "ReviewDock"
+                || (ident.len() > "ReviewPanel".len() - 1 && ident.ends_with("Panel")))
+        {
             found.push(ident.clone());
         }
         rest = &tail["Review".len()..];
@@ -71,17 +89,25 @@ fn violations(files: &[(String, String)]) -> Vec<String> {
 }
 
 fn read(rel: &str) -> String {
-    fs::read_to_string(repo_root().join(rel)).unwrap_or_else(|e| panic!("harvest path file `{rel}` unreadable: {e}"))
+    fs::read_to_string(repo_root().join(rel))
+        .unwrap_or_else(|e| panic!("harvest path file `{rel}` unreadable: {e}"))
 }
 
 /// The function starting at the first `signature`, padded with blank lines so reported line
 /// numbers stay those of the whole file.
 fn function_text(text: &str, signature: &str) -> String {
-    let start = text.find(signature).unwrap_or_else(|| panic!("`{signature}` not found in {EXPORT_COMMANDS}"));
+    let start = text
+        .find(signature)
+        .unwrap_or_else(|| panic!("`{signature}` not found in {EXPORT_COMMANDS}"));
     let chars: Vec<char> = text.chars().collect();
     let start_char = text[..start].chars().count();
-    let open = start_char + chars[start_char..].iter().position(|c| *c == '{').expect("function body");
-    let close = boundary_scan::matching_close_brace(&chars, open + 1).expect("balanced function body");
+    let open = start_char
+        + chars[start_char..]
+            .iter()
+            .position(|c| *c == '{')
+            .expect("function body");
+    let close =
+        boundary_scan::matching_close_brace(&chars, open + 1).expect("balanced function body");
     let padding = "\n".repeat(text[..start].matches('\n').count());
     padding + &chars[start_char..=close].iter().collect::<String>()
 }
@@ -104,7 +130,10 @@ fn load() -> Vec<(String, String)> {
         .collect();
     let commands = read(EXPORT_COMMANDS);
     for signature in HARVEST_FNS {
-        files.push((EXPORT_COMMANDS.to_string(), function_text(&commands, signature)));
+        files.push((
+            EXPORT_COMMANDS.to_string(),
+            function_text(&commands, signature),
+        ));
     }
     files
 }
@@ -115,16 +144,28 @@ fn the_harvest_functions_of_the_export_commands_are_cut_out_alone() {
     for signature in HARVEST_FNS {
         let body = function_text(&commands, signature);
         assert!(body.trim_start().starts_with(signature), "{signature}");
-        assert!(!body.contains("fn review_diff("), "{signature} swallowed `review_diff`");
+        assert!(
+            !body.contains("fn review_diff("),
+            "{signature} swallowed `review_diff`"
+        );
     }
 }
 
 #[test]
 fn the_harvest_path_names_no_review_mode_symbol() {
     let units = load();
-    boundary_scan::assert_population_floor(HARVEST_UNIT_FLOOR, units.len(), "HARVEST_UNIT_FLOOR", "harvest path files and functions");
+    boundary_scan::assert_population_floor(
+        HARVEST_UNIT_FLOOR,
+        units.len(),
+        "HARVEST_UNIT_FLOOR",
+        "harvest path files and functions",
+    );
     let found = violations(&units);
-    assert!(found.is_empty(), "harvest path references Review Mode:\n{}", found.join("\n"));
+    assert!(
+        found.is_empty(),
+        "harvest path references Review Mode:\n{}",
+        found.join("\n")
+    );
 }
 
 #[test]

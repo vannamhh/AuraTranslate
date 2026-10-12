@@ -26,31 +26,31 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::chapter::split_chapter_at_segment;
 use auratranslate_lib::commands::lifecycle::set_chapter_status;
 use auratranslate_lib::commands::project::{
-    cancel_import_preview, confirm_import_with_encoding, create_work, create_work_from_text,
-    preview_import_encoding, stash_pending_import_source, BlockBodyWire, BlockWire,
-    ChapterBlocksPreviewWire, ChapterSplitPreviewEntryWire, ChapterSplitPreviewWire, ConfidenceWire,
-    EncodingCandidateWire, ImportEncodingPreview, NormalizedPreviewWire, PendingImportSourceState,
-    ReviewCauseWire,
+    BlockBodyWire, BlockWire, ChapterBlocksPreviewWire, ChapterSplitPreviewEntryWire,
+    ChapterSplitPreviewWire, ConfidenceWire, EncodingCandidateWire, ImportEncodingPreview,
+    NormalizedPreviewWire, PendingImportSourceState, ReviewCauseWire, cancel_import_preview,
+    confirm_import_with_encoding, create_work, create_work_from_text, preview_import_encoding,
+    stash_pending_import_source,
 };
+use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
 use auratranslate_lib::commands::segment::{
+    ReadingFrontierKind, SEGMENT_STATUS_CONFIRMED, SegmentTargetEdit, SplitOutcome,
     confirm_segment, flush_segment_targets, list_reading_marks, mark_reading_segment,
     merge_segments, read_open_chapter_segments, read_reading_run, read_segment_history,
     restore_segment_version, save_chapter_position, save_segment_targets, set_segment_omitted,
     split_chapter_into_segments, split_segment, unconfirm_edited_segments,
-    ReadingFrontierKind, SegmentTargetEdit, SplitOutcome, SEGMENT_STATUS_CONFIRMED,
 };
-use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::library::meta::WorkMeta;
-use auratranslate_lib::core::segment::import::{ImportError, import_file, import_files};
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
+use auratranslate_lib::core::segment::import::{ImportError, import_file, import_files};
 use auratranslate_lib::core::segment::normalize;
 use auratranslate_lib::core::segment::pipeline::{
-    ChapterInput, PipelineInput, PipelineShape, Step, PIPELINE_ORDER, run_import,
+    ChapterInput, PIPELINE_ORDER, PipelineInput, PipelineShape, Step, run_import,
     run_import_with_order,
 };
 use auratranslate_lib::core::segment::split::{
-    split_source_text, EN_ABBREVIATIONS, LANG_CHINESE, SplitSegment,
+    EN_ABBREVIATIONS, LANG_CHINESE, SplitSegment, split_source_text,
 };
 use auratranslate_lib::core::store::{
     GLOBAL_MIGRATIONS, Migration, PINNED_ENTRY_DDL, PROJECT_MIGRATIONS, Store, StoreSpec,
@@ -94,7 +94,10 @@ fn marking_a_live_reading_segment_is_idempotent_and_the_same_reading_snapshot_re
     let first = mark_reading_segment(Some(&opened), id).expect("danh dau lan dau");
     let second = mark_reading_segment(Some(&opened), id).expect("danh dau lan hai");
     assert_eq!(first.segment_id, id);
-    assert_eq!(first.marked_at, second.marked_at, "bam M lan hai khong duoc tao/toggle marker");
+    assert_eq!(
+        first.marked_at, second.marked_at,
+        "bam M lan hai khong duoc tao/toggle marker"
+    );
     let rows: i64 = opened
         .store
         .read(|conn| conn.query_row("SELECT COUNT(*) FROM reading_mark", [], |r| r.get(0)))
@@ -115,17 +118,29 @@ fn marking_a_live_reading_segment_is_idempotent_and_the_same_reading_snapshot_re
 
 #[test]
 fn reading_marks_reject_no_work_and_unknown_ids_without_creating_rows() {
-    assert_eq!(mark_reading_segment(None, 1).unwrap_err().code(), "work.none_open");
-    assert_eq!(list_reading_marks(None).unwrap_err().code(), "work.none_open");
+    assert_eq!(
+        mark_reading_segment(None, 1).unwrap_err().code(),
+        "work.none_open"
+    );
+    assert_eq!(
+        list_reading_marks(None).unwrap_err().code(),
+        "work.none_open"
+    );
 
     let root = temp_dir("5-13-mark-unknown");
     let opened = create_work_from_text(&root, "5.13 la", "zh", "", "Mot cau。".to_owned())
         .expect("tao Tac pham");
     assert_eq!(
-        mark_reading_segment(Some(&opened), 999_999).unwrap_err().code(),
+        mark_reading_segment(Some(&opened), 999_999)
+            .unwrap_err()
+            .code(),
         "segment.not_found"
     );
-    assert!(list_reading_marks(Some(&opened)).expect("liet ke").is_empty());
+    assert!(
+        list_reading_marks(Some(&opened))
+            .expect("liet ke")
+            .is_empty()
+    );
     let dir = opened.dir.clone();
     drop(opened);
     cleanup(&dir);
@@ -136,7 +151,10 @@ fn a_dangling_reading_mark_anchor_is_an_error_instead_of_a_silently_short_list()
     let root = temp_dir("5-13-mark-dangling-anchor");
     let opened = create_work_from_text(&root, "5.13 neo hong", "zh", "", "Mot cau。".to_owned())
         .expect("tao Tac pham");
-    let segment_id = read_open_chapter_segments(Some(&opened)).expect("nap segment").segments[0].id;
+    let segment_id = read_open_chapter_segments(Some(&opened))
+        .expect("nap segment")
+        .segments[0]
+        .id;
     mark_reading_segment(Some(&opened), segment_id).expect("danh dau");
     opened
         .store
@@ -179,15 +197,24 @@ fn a_mark_keeps_its_original_identity_while_repeated_regroup_rebases_the_live_an
     let first_anchor = merged.new_segments[0].id;
     let after_merge = list_reading_marks(Some(&opened)).expect("liet ke sau gop");
     assert_eq!(after_merge.len(), 1);
-    assert_eq!(after_merge[0].segment_id, original, "danh tinh goc khong doi");
+    assert_eq!(
+        after_merge[0].segment_id, original,
+        "danh tinh goc khong doi"
+    );
     assert_eq!(after_merge[0].navigation_segment_id, first_anchor);
-    assert!(after_merge[0].is_retired, "ghi chu retired den tu segment goc");
+    assert!(
+        after_merge[0].is_retired,
+        "ghi chu retired den tu segment goc"
+    );
 
     let cut = merged.new_segments[0].source_text.chars().count() / 2;
     let split = split_segment(Some(&opened), first_anchor, vec![cut]).expect("tach lan hai");
     let after_split = list_reading_marks(Some(&opened)).expect("liet ke sau tach");
     assert_eq!(after_split[0].segment_id, original);
-    assert_eq!(after_split[0].navigation_segment_id, split.new_segments[0].id);
+    assert_eq!(
+        after_split[0].navigation_segment_id,
+        split.new_segments[0].id
+    );
     assert_ne!(after_split[0].navigation_segment_id, first_anchor);
 
     let dir = opened.dir.clone();
@@ -220,11 +247,25 @@ fn a_failed_marker_rebase_rolls_back_the_whole_regroup_transaction() {
         })
         .expect("tao trigger doi chung");
 
-    assert!(merge_segments(Some(&opened), original).is_err(), "trigger phai lam regroup truot");
+    assert!(
+        merge_segments(Some(&opened), original).is_err(),
+        "trigger phai lam regroup truot"
+    );
     let after = read_open_chapter_segments(Some(&opened)).expect("nap lai");
-    assert_eq!(after.segments.len(), 2, "retire + insert phai rollback cung marker rebase");
-    assert!(after.segments.iter().any(|s| s.id == original && s.retired_at.is_none()));
-    let mark = list_reading_marks(Some(&opened)).expect("liet ke").remove(0);
+    assert_eq!(
+        after.segments.len(),
+        2,
+        "retire + insert phai rollback cung marker rebase"
+    );
+    assert!(
+        after
+            .segments
+            .iter()
+            .any(|s| s.id == original && s.retired_at.is_none())
+    );
+    let mark = list_reading_marks(Some(&opened))
+        .expect("liet ke")
+        .remove(0);
     assert_eq!(mark.navigation_segment_id, original);
 
     let dir = opened.dir.clone();
@@ -244,8 +285,8 @@ fn a_mark_list_follows_the_live_anchor_to_its_new_chapter_and_never_crosses_work
         "Cau mot。Cau hai。Cau ba。".to_owned(),
     )
     .expect("tao A");
-    let b = create_work_from_text(&root_b, "5.13 B", "zh", "", "Cau khac。".to_owned())
-        .expect("tao B");
+    let b =
+        create_work_from_text(&root_b, "5.13 B", "zh", "", "Cau khac。".to_owned()).expect("tao B");
     let loaded = read_open_chapter_segments(Some(&a)).expect("nap A");
     let moving = loaded.segments[1].id;
     mark_reading_segment(Some(&a), moving).expect("danh dau A");
@@ -254,7 +295,10 @@ fn a_mark_list_follows_the_live_anchor_to_its_new_chapter_and_never_crosses_work
     let old_chapter = a.chapter_id;
     split_chapter_at_segment(Some(&mut a), moving).expect("tach Chuong tai marker");
     let mark = list_reading_marks(Some(&a)).expect("liet ke A").remove(0);
-    assert_ne!(mark.chapter_id, old_chapter, "Chuong phai lay tu neo song sau to chuc lai");
+    assert_ne!(
+        mark.chapter_id, old_chapter,
+        "Chuong phai lay tu neo song sau to chuc lai"
+    );
     let navigation_segment_id = mark.navigation_segment_id;
     let anchor_chapter: i64 = a
         .store
@@ -346,7 +390,11 @@ fn the_english_abbreviation_rules_match_decision_five_row_by_row() {
         ("See cf. Chapter Three for more.", 1, "cf."),
         ("Smith et al. Then we checked.", 1, "al."),
         // luat 2 — chu cai dau don
-        ("J. R. R. Tolkien wrote books. He died.", 2, "chu cai dau don"),
+        (
+            "J. R. R. Tolkien wrote books. He died.",
+            2,
+            "chu cai dau don",
+        ),
         // luat 3 — so thap phan
         ("It costs 3.50 dollars. That is fine.", 2, "so thap phan"),
         // luat 4 — dau ba cham
@@ -531,7 +579,10 @@ fn a_tail_without_a_terminator_is_still_a_segment() {
         texts(&split_source_text("He left. She stayed", "en")),
         vec!["He left.", "She stayed"]
     );
-    assert_eq!(texts(&split_source_text("khong dau cham nao", "en")), vec!["khong dau cham nao"]);
+    assert_eq!(
+        texts(&split_source_text("khong dau cham nao", "en")),
+        vec!["khong dau cham nao"]
+    );
 }
 
 /// Ca ③ — nhiều dấu kết câu liền nhau ⇒ **một** ranh giới, không segment rỗng.
@@ -584,7 +635,10 @@ fn no_segment_is_ever_empty_or_blank() {
 fn the_paragraph_flag_is_on_exactly_where_a_line_break_follows() {
     let got = split_source_text("他走了。她笑了。\n第二段。他还在。", LANG_CHINESE);
 
-    assert_eq!(texts(&got), vec!["他走了。", "她笑了。", "第二段。", "他还在。"]);
+    assert_eq!(
+        texts(&got),
+        vec!["他走了。", "她笑了。", "第二段。", "他还在。"]
+    );
     assert_eq!(
         flags(&got),
         vec![false, true, false, false],
@@ -604,7 +658,9 @@ fn the_last_segment_never_ends_a_paragraph() {
         "他走了。   \n   \n   ",
     ] {
         let got = split_source_text(input, LANG_CHINESE);
-        let last = got.last().unwrap_or_else(|| panic!("dau vao {input:?} phai cho >=1 segment"));
+        let last = got
+            .last()
+            .unwrap_or_else(|| panic!("dau vao {input:?} phai cho >=1 segment"));
         assert!(
             !last.is_paragraph_end,
             "segment cuoi cua {input:?} mang co ket doan -- AC7 cam tuyet doi"
@@ -779,9 +835,7 @@ fn the_migration_doc_headers_state_the_target_their_array_reaches() {
         let decl = text
             .find(anchor)
             .unwrap_or_else(|| panic!("khong tim thay khai bao `{name}` -- da doi ten?"));
-        let doc_start = text[..decl]
-            .rfind("\npub const ")
-            .map_or(0, |i| i + 1);
+        let doc_start = text[..decl].rfind("\npub const ").map_or(0, |i| i + 1);
         let doc = &text[doc_start..decl];
 
         let claim = format!("đích là phiên bản {target}");
@@ -1348,7 +1402,8 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
             let mut stmt = conn.prepare(
                 "SELECT ord, source_text, target_text, status FROM segment ORDER BY ord",
             )?;
-            let mapped = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?;
+            let mapped =
+                stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?;
             mapped.collect::<Result<Vec<_>, _>>()
         })
         .expect("doc lai ba hang segment sau di tru");
@@ -1356,9 +1411,24 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     assert_eq!(
         rows,
         vec![
-            (1, "cau 1".to_owned(), "ban dich 1".to_owned(), "draft".to_owned()),
-            (2, "cau 2".to_owned(), "ban dich 2".to_owned(), "draft".to_owned()),
-            (3, "cau 3".to_owned(), "ban dich 3".to_owned(), "draft".to_owned()),
+            (
+                1,
+                "cau 1".to_owned(),
+                "ban dich 1".to_owned(),
+                "draft".to_owned()
+            ),
+            (
+                2,
+                "cau 2".to_owned(),
+                "ban dich 2".to_owned(),
+                "draft".to_owned()
+            ),
+            (
+                3,
+                "cau 3".to_owned(),
+                "ban dich 3".to_owned(),
+                "draft".to_owned()
+            ),
         ],
         "buoc 7 phai la mot `ALTER TABLE` -- moi hang cu o lai nguyen ven, VA `status` cua \
          chung la `'draft'`. 🔴 Mot ban dich CU khong duoc tu dong thanh \"da xac nhan\": \
@@ -1730,12 +1800,7 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
                  is_paragraph_end, created_at, updated_at) \
                  VALUES (1, ?1, ?2, ?3, ?4, 0, '2026-08-15T00:00:00.000Z', \
                  '2026-08-15T00:00:00.000Z')",
-                (
-                    ord,
-                    format!("cau {ord}"),
-                    format!("ban dich {ord}"),
-                    status,
-                ),
+                (ord, format!("cau {ord}"), format!("ban dich {ord}"), status),
             )?;
         }
         Ok(())
@@ -2252,9 +2317,8 @@ fn a_retired_segment_id_is_never_handed_out_again() {
 fn creating_a_work_lays_down_its_segments_in_the_same_go() {
     let root = temp_dir("create-lays-segments");
 
-    let opened =
-        create_work_from_text(&root, "Bon Cau", "zh", "", "一。二。\n三。四。".to_owned())
-            .expect("tao tac pham that bai");
+    let opened = create_work_from_text(&root, "Bon Cau", "zh", "", "一。二。\n三。四。".to_owned())
+        .expect("tao tac pham that bai");
     let store = opened.store;
 
     let rows: Vec<(i64, i64, String, i64)> = store
@@ -2273,11 +2337,19 @@ fn creating_a_work_lays_down_its_segments_in_the_same_go() {
 
     // AC4 — `ord` danh so tu 1, lien tuc, khong lo. Story 2.10 dung tren gia dinh nay.
     let ords: Vec<i64> = rows.iter().map(|r| r.1).collect();
-    assert_eq!(ords, vec![1, 2, 3, 4], "`ord` phai danh so tu 1 va lien tuc");
+    assert_eq!(
+        ords,
+        vec![1, 2, 3, 4],
+        "`ord` phai danh so tu 1 va lien tuc"
+    );
 
     // Moi segment tro ve dung hang `chapter` vua sinh ra chung.
     let chapter_id: i64 = store
-        .read(|conn| conn.query_row("SELECT id FROM chapter ORDER BY ord LIMIT 1", [], |r| r.get(0)))
+        .read(|conn| {
+            conn.query_row("SELECT id FROM chapter ORDER BY ord LIMIT 1", [], |r| {
+                r.get(0)
+            })
+        })
         .expect("doc chapter_id that bai");
     assert!(
         rows.iter().all(|r| r.0 == chapter_id),
@@ -2336,7 +2408,10 @@ fn a_failure_midway_leaves_neither_a_chapter_nor_a_segment() {
         )?;
         Ok(())
     });
-    assert!(outcome.is_err(), "job phai truot -- `source_text` la NOT NULL");
+    assert!(
+        outcome.is_err(),
+        "job phai truot -- `source_text` la NOT NULL"
+    );
 
     let after: (i64, i64) = store
         .read(|conn| {
@@ -2401,7 +2476,10 @@ fn splitting_an_unknown_chapter_is_refused() {
         .expect_err("phai tu choi mot chapter_id khong ton tai");
     assert_eq!(err.code(), "segment.chapter_not_found");
     assert_eq!(err.message_key(), MessageKey::SegmentChapterNotFound);
-    assert_eq!(err.params().get("chapter_id").map(String::as_str), Some("999"));
+    assert_eq!(
+        err.params().get("chapter_id").map(String::as_str),
+        Some("999")
+    );
 
     drop(opened);
     cleanup(&root);
@@ -2457,8 +2535,8 @@ fn an_explicit_split_lays_down_segments_for_an_old_chapter() {
     let rows: Vec<(i64, String, i64)> = opened
         .store
         .read(|conn| {
-            let mut stmt =
-                conn.prepare("SELECT ord, source_text, is_paragraph_end FROM segment ORDER BY ord")?;
+            let mut stmt = conn
+                .prepare("SELECT ord, source_text, is_paragraph_end FROM segment ORDER BY ord")?;
             let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
             rows.collect::<Result<Vec<_>, _>>()
         })
@@ -2480,7 +2558,11 @@ fn an_explicit_split_lays_down_segments_for_an_old_chapter() {
             rows.collect::<Result<Vec<i64>, _>>()
         })
         .expect("doc id that bai");
-    assert_eq!(ids, vec![4, 5, 6], "id da ve huu (1..3) khong duoc phat lai");
+    assert_eq!(
+        ids,
+        vec![4, 5, 6],
+        "id da ve huu (1..3) khong duoc phat lai"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -2511,11 +2593,13 @@ fn a_non_utf8_assets_dir_fails_distinguishably_instead_of_degrading_to_u_fffd() 
     let bad_name = OsString::from_vec(vec![b'x', 0xFF, b'y']);
     opened.dir = std::env::temp_dir().join(bad_name);
 
-    let err = read_open_chapter_segments(Some(&opened)).expect_err("assets_dir khong UTF-8 phai bi tu choi");
+    let err = read_open_chapter_segments(Some(&opened))
+        .expect_err("assets_dir khong UTF-8 phai bi tu choi");
     assert_eq!(err.code(), "segment.assets_dir_not_utf8");
     assert_eq!(err.message_key(), MessageKey::SegmentAssetsDirNotUtf8);
 
-    let err2 = read_reading_run(Some(&opened)).expect_err("assets_dir khong UTF-8 phai bi tu choi (ReadingRun)");
+    let err2 = read_reading_run(Some(&opened))
+        .expect_err("assets_dir khong UTF-8 phai bi tu choi (ReadingRun)");
     assert_eq!(err2.code(), "segment.assets_dir_not_utf8");
     assert_eq!(err2.message_key(), MessageKey::SegmentAssetsDirNotUtf8);
 }
@@ -2568,7 +2652,11 @@ fn the_open_chapter_hands_back_every_segment_in_reading_order() {
 
     let chapter_id: i64 = opened
         .store
-        .read(|conn| conn.query_row("SELECT id FROM chapter ORDER BY ord LIMIT 1", [], |r| r.get(0)))
+        .read(|conn| {
+            conn.query_row("SELECT id FROM chapter ORDER BY ord LIMIT 1", [], |r| {
+                r.get(0)
+            })
+        })
         .expect("doc chapter_id that bai");
     assert_eq!(
         loaded.chapter_id, chapter_id,
@@ -2640,11 +2728,20 @@ fn a_chapter_with_real_translations_round_trips_through_the_load_command() {
     .expect("tao tac pham that bai");
 
     let translations = [
-        (1i64, "Hắn đẩy cánh cửa ấy ra, bước vào giữa bóng tối dày đặc của gian phòng đã bỏ hoang từ lâu lắm rồi."),
-        (2, "Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ gì đó ẩm ướt hơn thế."),
+        (
+            1i64,
+            "Hắn đẩy cánh cửa ấy ra, bước vào giữa bóng tối dày đặc của gian phòng đã bỏ hoang từ lâu lắm rồi.",
+        ),
+        (
+            2,
+            "Gió thổi tới từ cuối hành lang, mang theo mùi gỉ sắt và một thứ gì đó ẩm ướt hơn thế.",
+        ),
         (3, "Thiếu niên không quay đầu lại."),
         // ord 4 CO Y de rong -- no la nhanh *khong vach* (chua dich) cua AC3.
-        (5, "Câu này đã về hưu sau một lượt gộp — lịch sử của nó vẫn tra lại được."),
+        (
+            5,
+            "Câu này đã về hưu sau một lượt gộp — lịch sử của nó vẫn tra lại được.",
+        ),
     ];
 
     opened
@@ -2862,9 +2959,11 @@ fn the_raw_column_reader_sees_every_column_the_segment_table_actually_has() {
     let real: i64 = opened
         .store
         .read(|conn| {
-            conn.query_row("SELECT COUNT(*) FROM pragma_table_info('segment')", [], |r| {
-                r.get(0)
-            })
+            conn.query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('segment')",
+                [],
+                |r| r.get(0),
+            )
         })
         .expect("dem cot that bai");
 
@@ -2912,13 +3011,21 @@ fn one_flush_writes_every_changed_segment_in_a_single_call() {
     )
     .expect("lo ghi that bai");
 
-    assert_eq!(outcome.saved, 3, "ca ba hang phai duoc UPDATE trong MOT luot");
+    assert_eq!(
+        outcome.saved, 3,
+        "ca ba hang phai duoc UPDATE trong MOT luot"
+    );
     assert_eq!(outcome.chapter_id, before[0].1);
 
     let after = read_all_segment_rows(&opened);
     assert_eq!(
         after.iter().map(|r| r.8.as_str()).collect::<Vec<_>>(),
-        vec!["Cau mot da dich.", "Cau hai da dich.", "", "Cau bon da dich."],
+        vec![
+            "Cau mot da dich.",
+            "Cau hai da dich.",
+            "",
+            "Cau bon da dich."
+        ],
         "cau THU BA khong nam trong lo, nen ban dich cua no phai con RONG"
     );
 
@@ -2935,7 +3042,8 @@ fn an_empty_batch_is_a_valid_no_op_and_opens_no_transaction() {
         .expect("tao tac pham that bai");
     let before = read_all_segment_rows(&opened);
 
-    let outcome = save_segment_targets(Some(&opened), before[0].1, &[]).expect("lo rong bi tu choi");
+    let outcome =
+        save_segment_targets(Some(&opened), before[0].1, &[]).expect("lo rong bi tu choi");
 
     assert_eq!(outcome.saved, 0);
     assert_eq!(
@@ -2967,8 +3075,12 @@ fn a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else() {
         "truoc luot flush, `created_at` va `updated_at` phai bang nhau"
     );
 
-    save_segment_targets(Some(&opened), chapter_id, &[edit(before[0].0, "Ban dich moi.")])
-        .expect("lo ghi that bai");
+    save_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[edit(before[0].0, "Ban dich moi.")],
+    )
+    .expect("lo ghi that bai");
 
     let after = read_all_segment_rows(&opened);
     let (b, a) = (&before[0], &after[0]);
@@ -2986,9 +3098,15 @@ fn a_flush_touches_exactly_target_text_and_updated_at_and_nothing_else() {
     assert_eq!(a.1, b.1, "`chapter_id` doi");
     assert_eq!(a.2, b.2, "`ord` doi");
     assert_eq!(a.3, b.3, "`source_text` doi — AD-4 dong bang ranh gioi");
-    assert_eq!(a.4, b.4, "`is_paragraph_end` doi — AD-37 noi do la du lieu DA LUU");
+    assert_eq!(
+        a.4, b.4,
+        "`is_paragraph_end` doi — AD-37 noi do la du lieu DA LUU"
+    );
     assert_eq!(a.5, b.5, "`retired_at` doi");
-    assert_eq!(a.6, b.6, "`created_at` doi — no la moc TAO, khong phai moc sua");
+    assert_eq!(
+        a.6, b.6,
+        "`created_at` doi — no la moc TAO, khong phai moc sua"
+    );
     assert_eq!(
         a.9, b.9,
         "🔴 `status` doi — AD-31 HANG 1 noi auto-save de trang thai NGUYEN. Nhet `status` vao \
@@ -3061,7 +3179,9 @@ fn read_state(open: &auratranslate_lib::commands::project::OpenWork, id: i64) ->
     open.store
         .read(move |conn| {
             let status: String =
-                conn.query_row("SELECT status FROM segment WHERE id = ?1", [id], |r| r.get(0))?;
+                conn.query_row("SELECT status FROM segment WHERE id = ?1", [id], |r| {
+                    r.get(0)
+                })?;
             let versions: i64 = conn.query_row(
                 "SELECT COUNT(*) FROM segment_version WHERE segment_id = ?1",
                 [id],
@@ -3179,8 +3299,12 @@ fn a_cell_holding_only_newlines_is_still_refused_by_confirm() {
 
     // Doi chung: cung o do, them mot chu, thi ky duoc -- de ca nay khong xanh vi mot ly do
     // khac (vi du `confirm_segment` hong han).
-    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Dong mot.\nDong hai.")])
-        .expect("lo ghi that bai");
+    save_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[edit(id, "Dong mot.\nDong hai.")],
+    )
+    .expect("lo ghi that bai");
     confirm_segment(Some(&opened), id).expect("mot o CO chu va co `\\n` phai ky duoc");
     assert_eq!(read_state(&opened, id), ("confirmed".to_owned(), 1));
 
@@ -3435,7 +3559,9 @@ fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
 
     // ① Chua Tac pham nao mo.
     assert_eq!(
-        confirm_segment(None, id).expect_err("phai tu choi").message_key(),
+        confirm_segment(None, id)
+            .expect_err("phai tu choi")
+            .message_key(),
         MessageKey::WorkNoneOpen
     );
 
@@ -3482,7 +3608,10 @@ fn every_refusal_of_confirm_carries_its_own_message_key_and_writes_nothing() {
         .store
         .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment_version", [], |r| r.get(0)))
         .expect("dem phien ban");
-    assert_eq!(total, 0, "bon luot tu choi KHONG duoc sinh mot phien ban nao");
+    assert_eq!(
+        total, 0,
+        "bon luot tu choi KHONG duoc sinh mot phien ban nao"
+    );
     assert_eq!(read_state(&opened, id), ("draft".to_owned(), 0));
 
     // Va khong lot nao dung toi Chuong -- `chapter_id` chi de doc cho ro fixture.
@@ -3729,8 +3858,8 @@ fn a_freshly_imported_chapter_mirrors_the_source_flag_into_the_target_flag_row_b
     // Ba doan: hai cau doan mot, mot cau doan hai, hai cau doan ba -- de co ca hang BAT
     // lan hang TAT, va de hang CUOI roi vao ca bien cua AD-37.
     let source = "一。二。\n三。\n四。五。".to_owned();
-    let opened = create_work_from_text(&root, "Soi Guong", "zh", "", source)
-        .expect("tao tac pham that bai");
+    let opened =
+        create_work_from_text(&root, "Soi Guong", "zh", "", source).expect("tao tac pham that bai");
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
     assert!(
@@ -3825,12 +3954,8 @@ fn omitting_a_segment_touches_the_flag_and_nothing_else() {
             // tu van ban nao, va `updated_at` mang nghia "moc sua VAN BAN" (xem
             // `SEGMENT_DDL` va doc-comment cua `confirm_segment`).
             assert_eq!(
-                (
-                    a.0, a.1, a.2, &a.3, a.4, &a.5, &a.6, &a.7, &a.8, &a.9
-                ),
-                (
-                    b.0, b.1, b.2, &b.3, b.4, &b.5, &b.6, &b.7, &b.8, &b.9
-                ),
+                (a.0, a.1, a.2, &a.3, a.4, &a.5, &a.6, &a.7, &a.8, &a.9),
+                (b.0, b.1, b.2, &b.3, b.4, &b.5, &b.6, &b.7, &b.8, &b.9),
                 "cat bo la mot TRUC DOC LAP -- muoi cot kia phai y nguyen, ke ca `status` \
                  (`'confirmed'` o day), `target_text` va `updated_at`"
             );
@@ -3870,8 +3995,12 @@ fn restoring_a_segment_brings_back_the_exact_old_state_and_the_old_text() {
 
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
-    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Cau nay da duoc ky.")])
-        .expect("lo ghi that bai");
+    save_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[edit(id, "Cau nay da duoc ky.")],
+    )
+    .expect("lo ghi that bai");
     confirm_segment(Some(&opened), id).expect("xac nhan that bai");
 
     let before = read_all_segment_rows(&opened);
@@ -4078,8 +4207,12 @@ fn the_output_filter_looks_at_exactly_one_axis() {
     let (first, chapter_id) = (rows[0].0, rows[0].1);
 
     // Cau 1: da dich VA da ky. Cau 2 va 3: CHUA DICH (`target_text` rong, `status` 'draft').
-    save_segment_targets(Some(&opened), chapter_id, &[edit(first, "Da dich va da ky.")])
-        .expect("lo ghi that bai");
+    save_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[edit(first, "Da dich va da ky.")],
+    )
+    .expect("lo ghi that bai");
     confirm_segment(Some(&opened), first).expect("xac nhan that bai");
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
@@ -4115,7 +4248,7 @@ fn the_output_filter_looks_at_exactly_one_axis() {
 /// không hỏi cờ cũ, và cũng là ca duy nhất **đã có mã thi hành** ở đường nhập.
 #[test]
 fn the_last_segment_of_a_chapter_ends_no_paragraph_in_either_column() {
-    use auratranslate_lib::core::segment::paragraph::{at_end_of_chapter, ParagraphFlags};
+    use auratranslate_lib::core::segment::paragraph::{ParagraphFlags, at_end_of_chapter};
 
     for current in [
         ParagraphFlags::mirrored(false),
@@ -4148,7 +4281,7 @@ fn the_last_segment_of_a_chapter_ends_no_paragraph_in_either_column() {
 /// gộp mà mọi cặp đều soi gương sẽ xanh với **cả** một hàm chỉ chép cờ nguồn.
 #[test]
 fn merging_takes_both_flags_from_the_last_sentence_independently() {
-    use auratranslate_lib::core::segment::paragraph::{merged, ParagraphFlags};
+    use auratranslate_lib::core::segment::paragraph::{ParagraphFlags, merged};
 
     let group = [
         ParagraphFlags::mirrored(true),
@@ -4185,7 +4318,7 @@ fn merging_takes_both_flags_from_the_last_sentence_independently() {
 /// **Ca ③ — tách: mảnh cuối giữ cặp cờ, mọi mảnh trước tắt CẢ HAI cột.**
 #[test]
 fn splitting_keeps_both_flags_on_the_last_piece_and_clears_every_piece_before_it() {
-    use auratranslate_lib::core::segment::paragraph::{split_into, ParagraphFlags};
+    use auratranslate_lib::core::segment::paragraph::{ParagraphFlags, split_into};
 
     let current = ParagraphFlags {
         source: true,
@@ -4263,7 +4396,10 @@ fn setting_the_target_paragraph_flag_writes_one_column_and_leaves_the_source_fla
     // ── BAT co dich cho cau dau: nguoi dung muon ban dich xuong doan som hon ban goc ──
     let out = set_segment_paragraph_end(Some(&opened), first, true).expect("dat co that bai");
     assert_eq!(out.segment_id, first);
-    assert!(out.is_target_paragraph_end, "ket qua tra ve trang thai SAU luot goi");
+    assert!(
+        out.is_target_paragraph_end,
+        "ket qua tra ve trang thai SAU luot goi"
+    );
 
     let rows = read_all_segment_rows(&opened);
     let row = rows.iter().find(|r| r.0 == first).expect("khong thay hang");
@@ -4286,7 +4422,10 @@ fn setting_the_target_paragraph_flag_writes_one_column_and_leaves_the_source_fla
     set_segment_paragraph_end(Some(&opened), first, false).expect("bo co that bai");
     let rows = read_all_segment_rows(&opened);
     assert_eq!(
-        rows.iter().find(|r| r.0 == first).expect("khong thay hang").11,
+        rows.iter()
+            .find(|r| r.0 == first)
+            .expect("khong thay hang")
+            .11,
         0,
         "bo co phai dua cot ve 0"
     );
@@ -4444,7 +4583,11 @@ fn typed_text_round_trips_through_the_flush_and_the_load_command() {
     // Nap lai qua DUNG lenh cua san pham.
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
 
-    assert_eq!(loaded.segments.len(), 5, "so hang KHONG duoc doi — go khong phai mot luot tach");
+    assert_eq!(
+        loaded.segments.len(),
+        5,
+        "so hang KHONG duoc doi — go khong phai mot luot tach"
+    );
     assert_eq!(
         loaded.segments.iter().map(|s| s.id).collect::<Vec<_>>(),
         ids,
@@ -4546,7 +4689,11 @@ fn a_batch_with_one_unknown_segment_id_is_refused_whole_and_writes_nothing() {
     assert_eq!(err.code(), "segment.unknown_ids");
     assert_eq!(err.message_key(), MessageKey::SegmentUnknownIds);
     assert_eq!(err.params().get("count").map(String::as_str), Some("1"));
-    assert_eq!(err.retryable(), false, "mot id la khong sua duoc bang cach thu lai");
+    assert_eq!(
+        err.retryable(),
+        false,
+        "mot id la khong sua duoc bang cach thu lai"
+    );
 
     assert_eq!(
         read_all_segment_rows(&opened),
@@ -4598,8 +4745,12 @@ fn a_segment_id_from_another_chapter_is_refused_and_never_crosses_over() {
         .find(|r| r.1 != chapter_a)
         .expect("phai co mot segment thuoc Chuong khac");
 
-    let err = save_segment_targets(Some(&opened_a), chapter_a, &[edit(foreign.0, "Ghi lan Chuong.")])
-        .expect_err("mot id thuoc Chuong khac phai bi tu choi");
+    let err = save_segment_targets(
+        Some(&opened_a),
+        chapter_a,
+        &[edit(foreign.0, "Ghi lan Chuong.")],
+    )
+    .expect_err("mot id thuoc Chuong khac phai bi tu choi");
 
     assert_eq!(err.code(), "segment.unknown_ids");
     assert_eq!(
@@ -4631,16 +4782,26 @@ fn a_segment_id_from_another_chapter_is_refused_and_never_crosses_over() {
 #[test]
 fn the_flush_path_refuses_an_unknown_id_before_it_lowers_a_single_signature() {
     let root = temp_dir("flush-unknown-id-no-lower");
-    let opened = create_work_from_text(&root, "Ha truoc khi tu choi", "zh", "", "一。二。".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "Ha truoc khi tu choi",
+        "zh",
+        "",
+        "一。二。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
 
     let rows = read_all_segment_rows(&opened);
     let chapter_id = rows[0].1;
     let signed = rows[0].0;
 
     // Dung mot chu ky THAT, khong mot co gia: ghi van ban roi xac nhan.
-    save_segment_targets(Some(&opened), chapter_id, &[edit(signed, "Ban dich da ky.")])
-        .expect("ghi van ban that bai");
+    save_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[edit(signed, "Ban dich da ky.")],
+    )
+    .expect("ghi van ban that bai");
     confirm_segment(Some(&opened), signed).expect("xac nhan that bai");
 
     let before = read_all_segment_rows(&opened);
@@ -4665,7 +4826,11 @@ fn the_flush_path_refuses_an_unknown_id_before_it_lowers_a_single_signature() {
 
     assert_eq!(err.code(), "segment.unknown_ids");
     assert_eq!(err.message_key(), MessageKey::SegmentUnknownIds);
-    assert_eq!(err.retryable(), false, "mot id la khong sua duoc bang cach thu lai");
+    assert_eq!(
+        err.retryable(),
+        false,
+        "mot id la khong sua duoc bang cach thu lai"
+    );
 
     assert_eq!(
         read_state(&opened, signed),
@@ -5096,8 +5261,8 @@ fn restoring_rewrites_the_target_and_drops_the_status_without_growing_the_histor
     let oldest = before.last().expect("phai co mot phien ban cu nhat");
     assert_eq!(oldest.target_text, "Ban mot.");
 
-    let outcome = restore_segment_version(Some(&opened), id, oldest.id, false)
-        .expect("khoi phuc that bai");
+    let outcome =
+        restore_segment_version(Some(&opened), id, oldest.id, false).expect("khoi phuc that bai");
 
     assert!(outcome.restored, "luot nay PHAI ghi");
     assert!(
@@ -5178,10 +5343,18 @@ fn restoring_over_an_unsigned_draft_holds_the_write_until_the_caller_confirms() 
     let (id, chapter_id) = sign_repeatedly(&opened, &["Ban da ky."]);
 
     // Go them mot ban nhap va KHONG ky -- day la van ban khong co ban sao nao.
-    unconfirm_edited_segments(Some(&opened), chapter_id, &[edit(id, "Ban nhap chua ai ky.")])
-        .expect("ha trang thai that bai");
-    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban nhap chua ai ky.")])
-        .expect("lo ghi that bai");
+    unconfirm_edited_segments(
+        Some(&opened),
+        chapter_id,
+        &[edit(id, "Ban nhap chua ai ky.")],
+    )
+    .expect("ha trang thai that bai");
+    save_segment_targets(
+        Some(&opened),
+        chapter_id,
+        &[edit(id, "Ban nhap chua ai ky.")],
+    )
+    .expect("lo ghi that bai");
 
     let history = read_segment_history(Some(&opened), id).expect("doc lich su that bai");
     assert_eq!(history.len(), 1, "chi mot luot ky ⇒ mot phien ban");
@@ -5465,15 +5638,26 @@ fn restoring_a_row_born_from_merging_two_unsigned_empty_segments_finds_no_versio
         .expect("tao tac pham that bai");
 
     let rows_before = read_all_segment_rows(&opened);
-    assert_eq!(rows_before.len(), 2, "tien de: hai cau nguon, CHUA cau nao xac nhan");
+    assert_eq!(
+        rows_before.len(),
+        2,
+        "tien de: hai cau nguon, CHUA cau nao xac nhan"
+    );
     for row in &rows_before {
-        assert_eq!(row.8, "", "tien de: target_text rong -- chua ai dich cau nao");
+        assert_eq!(
+            row.8, "",
+            "tien de: target_text rong -- chua ai dich cau nao"
+        );
         assert_eq!(row.9, "draft", "tien de: chua cau nao xac nhan");
     }
     let second_id = rows_before[1].0;
 
     let out = merge_segments(Some(&opened), second_id).expect("gop hai cau chua ky that bai");
-    assert_eq!(out.new_segments.len(), 1, "mot luot gop sinh dung MOT hang moi");
+    assert_eq!(
+        out.new_segments.len(),
+        1,
+        "mot luot gop sinh dung MOT hang moi"
+    );
     let merged_id = out.new_segments[0].id;
     assert_eq!(
         out.new_segments[0].target_text, "",
@@ -5707,10 +5891,7 @@ fn reviewing_a_sentence_word_for_word_keeps_the_baseline_origin() {
         .expect("dung fixture that bai");
 
     // Khong mot lan `save_segment_targets` nao: nguoi dung KHONG go mot ky tu.
-    confirm_segment(
-        Some(&opened),
-        id)
-    .expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -5761,8 +5942,7 @@ fn typing_and_undoing_back_to_the_mark_counts_as_untouched() {
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban goc.")])
         .expect("luot flush thu hai that bai");
 
-    confirm_segment(Some(&opened), id)
-        .expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -5798,8 +5978,14 @@ fn a_stray_invisible_space_is_not_an_edit() {
     use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
 
     let root = temp_dir("origin-nbsp");
-    let opened = create_work_from_text(&root, "Khoang trang vo hinh", "zh", "", "一。二。".to_owned())
-        .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "Khoang trang vo hinh",
+        "zh",
+        "",
+        "一。二。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
 
     let rows = read_all_segment_rows(&opened);
     let (id, chapter_id) = (rows[0].0, rows[0].1);
@@ -5821,8 +6007,7 @@ fn a_stray_invisible_space_is_not_an_edit() {
         .expect("luot flush that bai");
 
     // Moc van la ban LUC NAP, khong mang ky tu vo hinh nao.
-    confirm_segment(Some(&opened), id)
-        .expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -5880,8 +6065,7 @@ fn text_that_differs_only_by_unicode_normalization_form_keeps_the_baseline_origi
             Ok(())
         })
         .expect("dung fixture that bai");
-    confirm_segment(Some(&opened), id)
-        .expect("xac nhan that bai");
+    confirm_segment(Some(&opened), id).expect("xac nhan that bai");
 
     assert_eq!(
         read_origin(&opened, id),
@@ -5922,15 +6106,13 @@ fn re_confirming_an_already_signed_segment_leaves_the_origin_alone() {
         })
         .expect("dung fixture that bai");
 
-    confirm_segment(Some(&opened), id)
-        .expect("luot ky dau that bai");
+    confirm_segment(Some(&opened), id).expect("luot ky dau that bai");
     assert_eq!(read_origin(&opened, id), TRANSLATION_ORIGIN_OTHER);
 
     // Luot thu hai, VA voi mot moc sai han. Nhanh ③ phai chan no truoc khi toi phep phan xu --
     // xuat xu lucnap cung sai han o day, va no PHAI vo hai vi luot nay khong toi duoc phep
     // phan xu.
-    let again = confirm_segment(Some(&opened), id)
-        .expect("xac nhan lai PHAI vo hai");
+    let again = confirm_segment(Some(&opened), id).expect("xac nhan lai PHAI vo hai");
     assert!(
         !again.version_created,
         "luot thu hai KHONG duoc la mot chuyen tiep"
@@ -5954,7 +6136,9 @@ fn re_confirming_an_already_signed_segment_leaves_the_origin_alone() {
 /// phải `self` mà lượt ký thứ hai vừa ghi xuống `translation_origin`.
 #[test]
 fn re_signing_after_an_edit_and_an_undo_uses_the_baseline_origin() {
-    use auratranslate_lib::commands::segment::{TRANSLATION_ORIGIN_BILINGUAL_IMPORT, TRANSLATION_ORIGIN_SELF};
+    use auratranslate_lib::commands::segment::{
+        TRANSLATION_ORIGIN_BILINGUAL_IMPORT, TRANSLATION_ORIGIN_SELF,
+    };
 
     let root = temp_dir("origin-wire-round-trip");
     let opened = create_work_from_text(&root, "Vong tron qua day", "zh", "", "一。二。".to_owned())
@@ -5982,7 +6166,10 @@ fn re_signing_after_an_edit_and_an_undo_uses_the_baseline_origin() {
 
     // Ký lần một — văn bản y hệt mốc, xuất xứ GIỮ NGUYÊN.
     confirm_segment(Some(&opened), id).expect("luot ky dau that bai");
-    assert_eq!(read_origin(&opened, id), TRANSLATION_ORIGIN_BILINGUAL_IMPORT);
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_BILINGUAL_IMPORT
+    );
 
     // Sửa. `flush_segment_targets` -- ĐÚNG đường sản phẩm (`unconfirm_edited_segments` rồi
     // `save_segment_targets`), không `save_segment_targets` trần: câu vừa ký cần hạ về
@@ -6166,8 +6353,8 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     drop(old);
 
     // Di tru len dich.
-    let migrated = Store::open(StoreSpec::project(db))
-        .expect("mot `project.db` o phien ban 10 phai mo duoc");
+    let migrated =
+        Store::open(StoreSpec::project(db)).expect("mot `project.db` o phien ban 10 phai mo duoc");
     // 🔵 CAP NHAT 2026-08-19 (Story 3.1): dich 11 → 12 — buoc 12 ra doi.
     // 🔵 CAP NHAT 2026-08-20 (Story 3.2): dich 12 → 13 — buoc 13 ra doi.
     // 🔵 CAP NHAT 2026-08-22 (Story 3.5): dich 13 → 14 — buoc 14 ra doi.
@@ -6189,9 +6376,8 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
 
     let after: Vec<(i64, String, String)> = migrated
         .read(|conn| {
-            let mut stmt = conn.prepare(
-                "SELECT id, status, translation_origin FROM segment ORDER BY ord",
-            )?;
+            let mut stmt =
+                conn.prepare("SELECT id, status, translation_origin FROM segment ORDER BY ord")?;
             let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
             rows.collect::<Result<Vec<_>, _>>()
         })
@@ -6200,10 +6386,18 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     assert_eq!(
         after,
         vec![
-            (1, "confirmed".to_owned(), TRANSLATION_ORIGIN_SELF.to_owned()),
+            (
+                1,
+                "confirmed".to_owned(),
+                TRANSLATION_ORIGIN_SELF.to_owned()
+            ),
             (2, "draft".to_owned(), String::new()),
             (3, "draft".to_owned(), String::new()),
-            (4, "confirmed".to_owned(), TRANSLATION_ORIGIN_SELF.to_owned()),
+            (
+                4,
+                "confirmed".to_owned(),
+                TRANSLATION_ORIGIN_SELF.to_owned()
+            ),
         ],
         "Quyet dinh #6(a): chi hang DA KY nhan `self`. Mot cau CHUA ky chua duoc ai duyet, \
          nen khai bat cu xuat xu nao cho no la mot loi khai ve mot thu chua xay ra. \
@@ -6232,7 +6426,7 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
 #[test]
 fn merging_joins_chinese_sources_without_a_space_and_every_other_language_with_one() {
     use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
-    use auratranslate_lib::core::segment::regroup::{merge, SegmentPart};
+    use auratranslate_lib::core::segment::regroup::{SegmentPart, merge};
 
     let parts = [
         SegmentPart {
@@ -6252,7 +6446,9 @@ fn merging_joins_chinese_sources_without_a_space_and_every_other_language_with_o
     ];
 
     assert_eq!(
-        merge(&parts, "zh").expect("nhom hai phan tu phai gop duoc").source_text,
+        merge(&parts, "zh")
+            .expect("nhom hai phan tu phai gop duoc")
+            .source_text,
         "他走了。她留下。",
         "hai cau tieng Trung noi nhau KHONG co khoang trang -- day la ve ma duong (a) lam sai"
     );
@@ -6293,7 +6489,7 @@ fn merging_joins_chinese_sources_without_a_space_and_every_other_language_with_o
 #[test]
 fn merging_never_manufactures_whitespace_the_user_never_typed() {
     use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
-    use auratranslate_lib::core::segment::regroup::{merge, SegmentPart};
+    use auratranslate_lib::core::segment::regroup::{SegmentPart, merge};
 
     let da_dich = SegmentPart {
         source_text: "他走了。",
@@ -6311,22 +6507,30 @@ fn merging_never_manufactures_whitespace_the_user_never_typed() {
     };
 
     assert_eq!(
-        merge(&[da_dich, chua_dich], "zh").expect("gop duoc").target_text,
+        merge(&[da_dich, chua_dich], "zh")
+            .expect("gop duoc")
+            .target_text,
         "Anh ta di roi.",
         "manh RONG bi bo qua -- khong mot khoang trang duoi duoc noi vao"
     );
     assert_eq!(
-        merge(&[chua_dich, da_dich], "zh").expect("gop duoc").target_text,
+        merge(&[chua_dich, da_dich], "zh")
+            .expect("gop duoc")
+            .target_text,
         "Anh ta di roi.",
         "va cung the o chieu nguoc lai -- khong mot khoang trang DAU nao"
     );
     assert_eq!(
-        merge(&[chua_dich, chua_dich], "zh").expect("gop duoc").target_text,
+        merge(&[chua_dich, chua_dich], "zh")
+            .expect("gop duoc")
+            .target_text,
         "",
         "hai cau CHUA DICH gop lai van la chua dich -- khong phai mot chuoi mot khoang trang"
     );
     assert_eq!(
-        merge(&[da_dich, da_dich], "zh").expect("gop duoc").target_text,
+        merge(&[da_dich, da_dich], "zh")
+            .expect("gop duoc")
+            .target_text,
         "Anh ta di roi. Anh ta di roi.",
         "hai ban dich THAT thi van noi bang dung mot khoang trang"
     );
@@ -6338,7 +6542,7 @@ fn merging_never_manufactures_whitespace_the_user_never_typed() {
 #[test]
 fn merging_carries_the_omitted_flag_from_any_piece_not_from_all_of_them() {
     use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
-    use auratranslate_lib::core::segment::regroup::{merge, SegmentPart};
+    use auratranslate_lib::core::segment::regroup::{SegmentPart, merge};
 
     let base = SegmentPart {
         source_text: "x",
@@ -6374,7 +6578,7 @@ fn merging_carries_the_omitted_flag_from_any_piece_not_from_all_of_them() {
 #[test]
 fn merging_keeps_a_unanimous_origin_and_falls_back_to_other_on_any_disagreement() {
     use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
-    use auratranslate_lib::core::segment::regroup::{merge, SegmentPart, ORIGIN_OTHER};
+    use auratranslate_lib::core::segment::regroup::{ORIGIN_OTHER, SegmentPart, merge};
 
     let part = |pair_origin: &'static str| SegmentPart {
         source_text: "x",
@@ -6385,12 +6589,16 @@ fn merging_keeps_a_unanimous_origin_and_falls_back_to_other_on_any_disagreement(
     };
 
     assert_eq!(
-        merge(&[part("self"), part("self")], "zh").expect("gop duoc").translation_origin,
+        merge(&[part("self"), part("self")], "zh")
+            .expect("gop duoc")
+            .translation_origin,
         "self",
         "moi manh cung mot gia tri ⇒ giu nguyen gia tri do (AD-47 ④, ve dong y)"
     );
     assert_eq!(
-        merge(&[part(""), part("")], "zh").expect("gop duoc").translation_origin,
+        merge(&[part(""), part("")], "zh")
+            .expect("gop duoc")
+            .translation_origin,
         "",
         "hai cau chua dich dong y voi nhau o gia tri rong -- va rong la mot GIA TRI, khong \
          phai mot cho trong de doan lai"
@@ -6403,7 +6611,9 @@ fn merging_keeps_a_unanimous_origin_and_falls_back_to_other_on_any_disagreement(
         "bat ky bat dong nao ⇒ `other` (AD-47 ④, ve bat dong)"
     );
     assert_eq!(
-        merge(&[part(""), part("self")], "zh").expect("gop duoc").translation_origin,
+        merge(&[part(""), part("self")], "zh")
+            .expect("gop duoc")
+            .translation_origin,
         ORIGIN_OTHER,
         "🔴 CAI MAT ma AD-47 ④ da ghi san bang chu: gop mot cau CHUA DICH voi mot cau `self` \
          cung roi vao nhanh bat dong. Day la LUAT, khong phai mot loi -- dung sua ca nay \
@@ -6431,7 +6641,7 @@ fn merging_an_empty_group_invents_nothing() {
 #[test]
 fn splitting_gives_the_tail_piece_no_translation_and_therefore_no_origin() {
     use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
-    use auratranslate_lib::core::segment::regroup::{split_at, SegmentPart, ORIGIN_NONE};
+    use auratranslate_lib::core::segment::regroup::{ORIGIN_NONE, SegmentPart, split_at};
 
     let part = SegmentPart {
         source_text: "Mr. Smith den.",
@@ -6500,7 +6710,7 @@ fn splitting_gives_the_tail_piece_no_translation_and_therefore_no_origin() {
 #[test]
 fn splitting_counts_characters_not_bytes_and_refuses_a_cut_that_leaves_an_empty_piece() {
     use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
-    use auratranslate_lib::core::segment::regroup::{split_at, SegmentPart};
+    use auratranslate_lib::core::segment::regroup::{SegmentPart, split_at};
 
     // "他走了。" = 4 ký tự, **12 byte**. Một chỉ số byte ở đây rơi giữa một ký tự.
     let part = SegmentPart {
@@ -6538,7 +6748,7 @@ fn splitting_counts_characters_not_bytes_and_refuses_a_cut_that_leaves_an_empty_
 #[test]
 fn splitting_at_many_cuts_makes_one_piece_more_than_the_cuts_in_a_single_pass() {
     use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
-    use auratranslate_lib::core::segment::regroup::{split_at, SegmentPart, ORIGIN_NONE};
+    use auratranslate_lib::core::segment::regroup::{ORIGIN_NONE, SegmentPart, split_at};
 
     // 12 ky tu: 他走了。她来了。我看见。
     let part = SegmentPart {
@@ -6580,7 +6790,10 @@ fn splitting_at_many_cuts_makes_one_piece_more_than_the_cuts_in_a_single_pass() 
         target: false,
     };
     assert_eq!(pieces[0].flags, tat, "manh dau tat ca hai cot");
-    assert_eq!(pieces[1].flags, tat, "manh GIUA cung tat -- ca nay chi ton tai tu n >= 3");
+    assert_eq!(
+        pieces[1].flags, tat,
+        "manh GIUA cung tat -- ca nay chi ton tai tu n >= 3"
+    );
     assert_eq!(
         pieces[2].flags,
         ParagraphFlags {
@@ -6610,7 +6823,7 @@ fn splitting_at_many_cuts_makes_one_piece_more_than_the_cuts_in_a_single_pass() 
 #[test]
 fn splitting_refuses_duplicate_cuts_and_an_empty_cut_list() {
     use auratranslate_lib::core::segment::paragraph::ParagraphFlags;
-    use auratranslate_lib::core::segment::regroup::{split_at, SegmentPart};
+    use auratranslate_lib::core::segment::regroup::{SegmentPart, split_at};
 
     let part = SegmentPart {
         source_text: "他走了。她来了。",
@@ -6714,7 +6927,9 @@ fn hang_tho(
 /// trước khi cho về hưu — và lượt chụp đó phá AC3 theo một cách đọc rất giống một tính năng.
 #[test]
 fn merging_retires_both_rows_and_creates_one_unconfirmed_row_with_an_empty_history() {
-    use auratranslate_lib::commands::segment::{confirm_segment, merge_segments, save_segment_targets, SegmentTargetEdit};
+    use auratranslate_lib::commands::segment::{
+        SegmentTargetEdit, confirm_segment, merge_segments, save_segment_targets,
+    };
 
     let root = temp_dir("2-8-merge");
     let opened = create_work_from_text(&root, "2.8 gop", "zh", "", "一。二。三。".to_owned())
@@ -6751,8 +6966,14 @@ fn merging_retires_both_rows_and_creates_one_unconfirmed_row_with_an_empty_histo
         moi.status, "draft",
         "AC3 -- segment moi bat dau CHUA XAC NHAN, du ca hai cau cu deu da xac nhan"
     );
-    assert_eq!(moi.source_text, "一。二。", "hai cau tieng Trung noi nhau KHONG khoang trang");
-    assert_eq!(moi.target_text, "Mot. Hai.", "hai ban dich noi bang dung mot khoang trang");
+    assert_eq!(
+        moi.source_text, "一。二。",
+        "hai cau tieng Trung noi nhau KHONG khoang trang"
+    );
+    assert_eq!(
+        moi.target_text, "Mot. Hai.",
+        "hai ban dich noi bang dung mot khoang trang"
+    );
     assert_eq!(moi.retired_at, None, "hang moi con song");
 
     // AC3, ve LICH SU RONG -- va no phai dung DU hai cau cu deu co `segment_version` that.
@@ -6765,7 +6986,11 @@ fn merging_retires_both_rows_and_creates_one_unconfirmed_row_with_an_empty_histo
 
     let tho = hang_tho(&opened);
     let ve_huu: Vec<i64> = tho.iter().filter(|r| r.8).map(|r| r.0).collect();
-    assert_eq!(ve_huu, vec![1, 2], "dung hai hang mang `retired_at` khac NULL");
+    assert_eq!(
+        ve_huu,
+        vec![1, 2],
+        "dung hai hang mang `retired_at` khac NULL"
+    );
 
     cleanup(&root);
 }
@@ -6778,7 +7003,9 @@ fn merging_retires_both_rows_and_creates_one_unconfirmed_row_with_an_empty_histo
 /// đóng được vế đó, và đây là ca đóng nó.
 #[test]
 fn the_history_of_a_genuinely_retired_segment_still_reads_back_after_a_real_merge() {
-    use auratranslate_lib::commands::segment::{confirm_segment, merge_segments, save_segment_targets, SegmentTargetEdit};
+    use auratranslate_lib::commands::segment::{
+        SegmentTargetEdit, confirm_segment, merge_segments, save_segment_targets,
+    };
 
     let root = temp_dir("2-8-ac4");
     let opened = create_work_from_text(&root, "2.8 AC4", "zh", "", "一。二。".to_owned())
@@ -6796,7 +7023,11 @@ fn the_history_of_a_genuinely_retired_segment_still_reads_back_after_a_real_merg
     confirm_segment(Some(&opened), 1).expect("xac nhan -- day la luot sinh ra hang lich su");
 
     let truoc = read_segment_history(Some(&opened), 1).expect("doc lich su truoc khi gop");
-    assert_eq!(truoc.len(), 1, "tien de: cau 1 co dung mot phien ban truoc luot gop");
+    assert_eq!(
+        truoc.len(),
+        1,
+        "tien de: cau 1 co dung mot phien ban truoc luot gop"
+    );
 
     merge_segments(Some(&opened), 2).expect("gop -- cau 1 ve huu THAT sau lenh nay");
 
@@ -6831,11 +7062,7 @@ fn merging_renumbers_the_living_rows_from_one_and_parks_the_retired_ones_at_the_
     let moi_id = out.new_segments[0].id;
 
     let tho = hang_tho(&opened);
-    let song: Vec<(i64, i64)> = tho
-        .iter()
-        .filter(|r| !r.8)
-        .map(|r| (r.0, r.1))
-        .collect();
+    let song: Vec<(i64, i64)> = tho.iter().filter(|r| !r.8).map(|r| (r.0, r.1)).collect();
     assert_eq!(
         song,
         vec![(1, 1), (moi_id, 2), (4, 3)],
@@ -6857,12 +7084,17 @@ fn merging_renumbers_the_living_rows_from_one_and_parks_the_retired_ones_at_the_
 /// kết đoạn theo **mảnh cuối** với mọi mảnh trước **tắt cả hai cột**.
 #[test]
 fn splitting_retires_the_source_row_and_creates_the_pieces_in_reading_order() {
-    use auratranslate_lib::commands::segment::{split_segment, set_segment_paragraph_end};
+    use auratranslate_lib::commands::segment::{set_segment_paragraph_end, split_segment};
 
     let root = temp_dir("2-8-split");
-    let opened =
-        create_work_from_text(&root, "2.8 tach", "en", "", "Mr. Smith came. He left.".to_owned())
-            .expect("tao tac pham");
+    let opened = create_work_from_text(
+        &root,
+        "2.8 tach",
+        "en",
+        "",
+        "Mr. Smith came. He left.".to_owned(),
+    )
+    .expect("tao tac pham");
 
     let truoc = hang_tho(&opened);
     // Bo tach cau tieng Anh cat o "Mr." -- dung ca ma AC ton tai de giai. Ta khong dua vao
@@ -6880,10 +7112,16 @@ fn splitting_retires_the_source_row_and_creates_the_pieces_in_reading_order() {
         vec![dau],
         "dung MOT hang cu ve huu"
     );
-    assert!(out.retired[0].retired_at.is_some(), "va no mang `retired_at` that");
+    assert!(
+        out.retired[0].retired_at.is_some(),
+        "va no mang `retired_at` that"
+    );
     assert_eq!(out.new_segments.len(), 2, "va HAI manh ra doi");
 
-    let noi_lai = format!("{}{}", out.new_segments[0].source_text, out.new_segments[1].source_text);
+    let noi_lai = format!(
+        "{}{}",
+        out.new_segments[0].source_text, out.new_segments[1].source_text
+    );
     assert_eq!(
         noi_lai, truoc[0].2,
         "hai manh noi lai phai bang DUNG van ban goc -- khong mot ky tu nao roi, khong mot \
@@ -6973,7 +7211,9 @@ fn every_refusal_of_merge_and_split_carries_its_own_message_key() {
         "segment.not_found"
     );
     assert_eq!(
-        split_segment(Some(&opened), 9_999, vec![1]).unwrap_err().code(),
+        split_segment(Some(&opened), 9_999, vec![1])
+            .unwrap_err()
+            .code(),
         "segment.not_found"
     );
 
@@ -6988,7 +7228,9 @@ fn every_refusal_of_merge_and_split_carries_its_own_message_key() {
     // ④ Cho cat de lai mot manh RONG.
     for cut in [0usize, 2, 50] {
         assert_eq!(
-            split_segment(Some(&opened), 1, vec![cut]).unwrap_err().code(),
+            split_segment(Some(&opened), 1, vec![cut])
+                .unwrap_err()
+                .code(),
             "segment.cut_leaves_empty_piece",
             "cho cat {cut} de lai mot manh rong ⇒ tu choi"
         );
@@ -7002,7 +7244,9 @@ fn every_refusal_of_merge_and_split_carries_its_own_message_key() {
             "segment.retired"
         );
         assert_eq!(
-            split_segment(Some(&opened), id, vec![1]).unwrap_err().code(),
+            split_segment(Some(&opened), id, vec![1])
+                .unwrap_err()
+                .code(),
             "segment.retired"
         );
     }
@@ -7014,7 +7258,9 @@ fn every_refusal_of_merge_and_split_carries_its_own_message_key() {
 /// phạm nó **không cổng nào đỏ**.
 #[test]
 fn neither_merge_nor_split_ever_writes_a_segment_version_row() {
-    use auratranslate_lib::commands::segment::{confirm_segment, merge_segments, save_segment_targets, split_segment, SegmentTargetEdit};
+    use auratranslate_lib::commands::segment::{
+        SegmentTargetEdit, confirm_segment, merge_segments, save_segment_targets, split_segment,
+    };
 
     let root = temp_dir("2-8-khong-version");
     let opened = create_work_from_text(&root, "2.8 version", "zh", "", "一。二。三。".to_owned())
@@ -7038,10 +7284,17 @@ fn neither_merge_nor_split_ever_writes_a_segment_version_row() {
             .expect("dem segment_version")
     };
     let truoc = dem(&opened);
-    assert_eq!(truoc, 1, "tien de: dung mot hang lich su ton tai truoc khi gop/tach");
+    assert_eq!(
+        truoc, 1,
+        "tien de: dung mot hang lich su ton tai truoc khi gop/tach"
+    );
 
     let out = merge_segments(Some(&opened), 2).expect("gop");
-    assert_eq!(dem(&opened), truoc, "mot luot GOP khong sinh them mot hang lich su nao");
+    assert_eq!(
+        dem(&opened),
+        truoc,
+        "mot luot GOP khong sinh them mot hang lich su nao"
+    );
 
     split_segment(Some(&opened), out.new_segments[0].id, vec![2]).expect("tach");
     assert_eq!(dem(&opened), truoc, "va mot luot TACH cung khong");
@@ -7073,7 +7326,13 @@ fn the_grid_stops_showing_a_row_the_moment_a_real_merge_or_split_retires_it() {
             .expect("dem hang tren dia")
     };
 
-    assert_eq!(read_open_chapter_segments(Some(&opened)).unwrap().segments.len(), 3);
+    assert_eq!(
+        read_open_chapter_segments(Some(&opened))
+            .unwrap()
+            .segments
+            .len(),
+        3
+    );
     assert_eq!(dem_tren_dia(), 3);
 
     // ── GOP: hai hang ve huu, mot hang moi ⇒ luoi 3 → 2, dia 3 → 4 ─────────────────
@@ -7176,8 +7435,8 @@ fn the_grid_stops_showing_a_row_the_moment_a_real_merge_or_split_retires_it() {
 #[test]
 fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
     use auratranslate_lib::commands::segment::{
-        confirm_segment, merge_segments, save_segment_targets, SegmentTargetEdit,
-        TRANSLATION_ORIGIN_SELF,
+        SegmentTargetEdit, TRANSLATION_ORIGIN_SELF, confirm_segment, merge_segments,
+        save_segment_targets,
     };
 
     let root = temp_dir("2-12-regroup-cot");
@@ -7208,7 +7467,11 @@ fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
     }
 
     let out = merge_segments(Some(&opened), 2).expect("gop cau 2 voi cau lien tren no");
-    assert_eq!(out.new_segments.len(), 1, "mot luot gop sinh dung MOT hang moi");
+    assert_eq!(
+        out.new_segments.len(),
+        1,
+        "mot luot gop sinh dung MOT hang moi"
+    );
     let moi_id = out.new_segments[0].id;
 
     let rows = read_all_segment_rows(&opened);
@@ -7226,24 +7489,24 @@ fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
     // rieng ngay duoi khang dinh chung khac `null` va bang nhau -- mot hang VUA sinh chua the
     // co hai moc lech nhau.
     let expected = SegmentRow(
-        moi.0,                          // id — autoincrement
-        1,                              // chapter_id — cung Chuong
-        1,                              // ord — nhom moi chiem `ord` cua cau DAU nhom
-        "一。二。".to_owned(),          // source_text — hai cau goc noi lai, AD-4
-        0,                              // is_paragraph_end — cau cuoi nhom khong ket doan
-        None,                           // retired_at — hang MOI, chua ve huu
-        moi.6.clone(),                  // created_at
-        moi.7.clone(),                  // updated_at
-        "Mot. Hai.".to_owned(),         // target_text — hai ban dich ghep lai
-        "draft".to_owned(),             // 🔴 status — AC3 cua 2.8: hang moi CHUA xac nhan,
-                                        // KE CA khi ca hai cau nguon DA xac nhan
-        0,                              // is_omitted — khong cat bo
-        0,                              // is_target_paragraph_end
+        moi.0,                  // id — autoincrement
+        1,                      // chapter_id — cung Chuong
+        1,                      // ord — nhom moi chiem `ord` cua cau DAU nhom
+        "一。二。".to_owned(),  // source_text — hai cau goc noi lai, AD-4
+        0,                      // is_paragraph_end — cau cuoi nhom khong ket doan
+        None,                   // retired_at — hang MOI, chua ve huu
+        moi.6.clone(),          // created_at
+        moi.7.clone(),          // updated_at
+        "Mot. Hai.".to_owned(), // target_text — hai ban dich ghep lai
+        "draft".to_owned(),     // 🔴 status — AC3 cua 2.8: hang moi CHUA xac nhan,
+        // KE CA khi ca hai cau nguon DA xac nhan
+        0,                                  // is_omitted — khong cat bo
+        0,                                  // is_target_paragraph_end
         TRANSLATION_ORIGIN_SELF.to_owned(), // 🔴 translation_origin — AD-47, KHONG roi ve DEFAULT
-        None,                           // 🔴 role — Story 6.13: vai KHONG nhan ban tren mot
-                                        // hang MOI (AD-5 ve huu + tao moi), du hang bi gop co
-                                        // mang vai hay khong
-        "Mot. Hai.".to_owned(),         // baseline_target_text — AD-50: bang `target_text` moi
+        None,                               // 🔴 role — Story 6.13: vai KHONG nhan ban tren mot
+        // hang MOI (AD-5 ve huu + tao moi), du hang bi gop co
+        // mang vai hay khong
+        "Mot. Hai.".to_owned(), // baseline_target_text — AD-50: bang `target_text` moi
         TRANSLATION_ORIGIN_SELF.to_owned(), // baseline_translation_origin — bang `translation_origin`
     );
     assert_eq!(
@@ -7255,7 +7518,10 @@ fn a_row_born_from_regroup_has_every_column_set_on_purpose_not_by_default() {
     );
 
     // Hai moc thoi gian: mot hang VUA sinh phai co ca hai, va chung phai bang nhau.
-    assert!(!moi.6.is_empty(), "`created_at` rong -- cau INSERT bo sot no");
+    assert!(
+        !moi.6.is_empty(),
+        "`created_at` rong -- cau INSERT bo sot no"
+    );
     assert_eq!(
         moi.6, moi.7,
         "mot hang vua sinh khong the co `created_at` khac `updated_at` -- hai `strftime` cua \
@@ -7287,7 +7553,10 @@ fn a_row_born_from_split_has_every_column_set_on_purpose_not_by_default() {
     save_segment_targets(
         Some(&opened),
         1,
-        &[SegmentTargetEdit { id, target_text: "Mot hai ba bon.".to_owned() }],
+        &[SegmentTargetEdit {
+            id,
+            target_text: "Mot hai ba bon.".to_owned(),
+        }],
     )
     .expect("ghi ban dich");
     confirm_segment(Some(&opened), id).expect("xac nhan -- day la cho xuat xu duoc dat");
@@ -7295,12 +7564,22 @@ fn a_row_born_from_split_has_every_column_set_on_purpose_not_by_default() {
     // Cat sau ky tu thu hai cua "一二三四。" (5 ky tu) -- mot lat bat ky nam GIUA nguon, khong
     // cham hai dau (`split_at` tu choi ca do).
     let out = split_segment(Some(&opened), id, vec![2]).expect("tach that bai");
-    assert_eq!(out.new_segments.len(), 2, "mot lat cat sinh dung HAI hang moi");
+    assert_eq!(
+        out.new_segments.len(),
+        2,
+        "mot lat cat sinh dung HAI hang moi"
+    );
     let (dau_id, sau_id) = (out.new_segments[0].id, out.new_segments[1].id);
 
     let rows = read_all_segment_rows(&opened);
-    let dau = rows.iter().find(|r| r.0 == dau_id).expect("manh dau phai doc lai duoc");
-    let sau = rows.iter().find(|r| r.0 == sau_id).expect("manh sau phai doc lai duoc");
+    let dau = rows
+        .iter()
+        .find(|r| r.0 == dau_id)
+        .expect("manh dau phai doc lai duoc");
+    let sau = rows
+        .iter()
+        .find(|r| r.0 == sau_id)
+        .expect("manh sau phai doc lai duoc");
 
     assert_eq!(
         (dau.8.as_str(), dau.12.as_str()),
@@ -7313,9 +7592,18 @@ fn a_row_born_from_split_has_every_column_set_on_purpose_not_by_default() {
         "manh SAU khong co ban dich -- xuat xu phai RONG, khong roi ve gia tri cua hang goc \
          (mot xuat xu KHONG rong tren mot `target_text` rong la mot hang TU MAU THUAN)"
     );
-    assert_eq!(dau.13, None, "vai KHONG nhan ban tren mot hang moi (Story 6.13)");
-    assert_eq!(sau.13, None, "vai KHONG nhan ban tren mot hang moi (Story 6.13)");
-    assert_eq!(dau.9, "draft", "AC3 cua 2.8: hang moi CHUA xac nhan, ke ca khi hang goc DA");
+    assert_eq!(
+        dau.13, None,
+        "vai KHONG nhan ban tren mot hang moi (Story 6.13)"
+    );
+    assert_eq!(
+        sau.13, None,
+        "vai KHONG nhan ban tren mot hang moi (Story 6.13)"
+    );
+    assert_eq!(
+        dau.9, "draft",
+        "AC3 cua 2.8: hang moi CHUA xac nhan, ke ca khi hang goc DA"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -7332,9 +7620,14 @@ fn a_row_born_from_split_has_every_column_set_on_purpose_not_by_default() {
 #[test]
 fn a_chapter_never_worked_on_reports_the_first_segment_as_caret_without_writing_a_position_row() {
     let root = temp_dir("5-7-position-never-worked");
-    let opened =
-        create_work_from_text(&root, "5.7 chua tung mo", "zh", "", "Cau mot。Cau hai。".to_owned())
-            .expect("tao tac pham that bai");
+    let opened = create_work_from_text(
+        &root,
+        "5.7 chua tung mo",
+        "zh",
+        "",
+        "Cau mot。Cau hai。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
     assert_eq!(
@@ -7345,9 +7638,16 @@ fn a_chapter_never_worked_on_reports_the_first_segment_as_caret_without_writing_
 
     let rows: i64 = opened
         .store
-        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| row.get(0)))
+        .read(|conn| {
+            conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| {
+                row.get(0)
+            })
+        })
         .expect("dem hang chapter_position that bai");
-    assert_eq!(rows, 0, "mot luot DOC khong duoc phep tu ghi mot hang chapter_position");
+    assert_eq!(
+        rows, 0,
+        "mot luot DOC khong duoc phep tu ghi mot hang chapter_position"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -7390,9 +7690,16 @@ fn a_saved_chapter_position_is_reported_back_as_caret_segment_id_and_a_second_sa
 
     let rows: i64 = opened
         .store
-        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| row.get(0)))
+        .read(|conn| {
+            conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| {
+                row.get(0)
+            })
+        })
         .expect("dem hang chapter_position that bai");
-    assert_eq!(rows, 1, "UPSERT phai giu DUNG MOT hang cho moi Chuong, khong cong don");
+    assert_eq!(
+        rows, 1,
+        "UPSERT phai giu DUNG MOT hang cho moi Chuong, khong cong don"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -7417,7 +7724,8 @@ fn a_position_pointing_at_a_retired_segment_falls_back_to_the_first_living_segme
 
     let loaded = read_open_chapter_segments(Some(&opened)).expect("nap segment that bai");
     let first_id = loaded.segments[0].id;
-    save_chapter_position(Some(&opened), loaded.chapter_id, first_id).expect("ghi vi tri vao cau dau");
+    save_chapter_position(Some(&opened), loaded.chapter_id, first_id)
+        .expect("ghi vi tri vao cau dau");
 
     // Tach cau DAU -- no VE HUU, hai manh moi ra doi o dau danh sach (ord nho nhat).
     let cut = loaded.segments[0].source_text.chars().count() / 2;
@@ -7428,7 +7736,11 @@ fn a_position_pointing_at_a_retired_segment_falls_back_to_the_first_living_segme
     );
 
     let after = read_open_chapter_segments(Some(&opened)).expect("nap lai sau khi tach");
-    let first_living = after.segments.first().expect("phai con it nhat mot segment song").id;
+    let first_living = after
+        .segments
+        .first()
+        .expect("phai con it nhat mot segment song")
+        .id;
     assert_eq!(
         after.caret_segment_id,
         Some(first_living),
@@ -7490,7 +7802,11 @@ fn saving_a_chapter_position_for_an_unknown_chapter_is_refused_and_writes_nothin
 
     let rows: i64 = opened
         .store
-        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| row.get(0)))
+        .read(|conn| {
+            conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| {
+                row.get(0)
+            })
+        })
         .expect("dem hang chapter_position that bai");
     assert_eq!(rows, 0, "khong hang nao duoc ghi khi chapter_id sai");
 
@@ -7503,8 +7819,7 @@ fn saving_a_chapter_position_for_an_unknown_chapter_is_refused_and_writes_nothin
 /// tái dùng với mọi lệnh Chương/segment khác.
 #[test]
 fn saving_a_chapter_position_without_an_open_work_reuses_the_named_error() {
-    let err =
-        save_chapter_position(None, 1, 1).expect_err("chua Tac pham nao mo phai la mot loi");
+    let err = save_chapter_position(None, 1, 1).expect_err("chua Tac pham nao mo phai la mot loi");
     assert_eq!(err.code(), "work.none_open");
     assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 }
@@ -7547,7 +7862,13 @@ fn saving_a_position_whose_segment_belongs_to_another_chapter_writes_nothing() {
 
     let segment_of_b: i64 = opened
         .store
-        .read(move |conn| conn.query_row("SELECT id FROM segment WHERE chapter_id = ?1", [chapter_b], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT id FROM segment WHERE chapter_id = ?1",
+                [chapter_b],
+                |r| r.get(0),
+            )
+        })
         .expect("doc segment cua Chuong B that bai");
 
     // `chapter_a` CÓ THẬT, `segment_of_b` CÓ THẬT -- nhưng chúng KHÔNG PHẢI một cặp: đúng
@@ -7559,9 +7880,16 @@ fn saving_a_position_whose_segment_belongs_to_another_chapter_writes_nothing() {
 
     let rows: i64 = opened
         .store
-        .read(|conn| conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| row.get(0)))
+        .read(|conn| {
+            conn.query_row("SELECT COUNT(*) FROM chapter_position", [], |row| {
+                row.get(0)
+            })
+        })
         .expect("dem hang chapter_position that bai");
-    assert_eq!(rows, 0, "khong hang nao duoc ghi khi cap (chapter_id, segment_id) lech nhau");
+    assert_eq!(
+        rows, 0,
+        "khong hang nao duoc ghi khi cap (chapter_id, segment_id) lech nhau"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -7595,15 +7923,33 @@ fn a_split_moves_the_remembered_position_row_to_the_new_chapter() {
     // Chương MỚI B nhận câu 3 (điểm cắt) -- đọc lại chapter_id thật của nó.
     let chapter_b: i64 = opened
         .store
-        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [third], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT chapter_id FROM segment WHERE id = ?1",
+                [third],
+                |r| r.get(0),
+            )
+        })
         .expect("doc lai chapter_id cua cau ba sau tach");
-    assert_ne!(chapter_b, chapter_a, "cau ba la diem cat -- phai doi sang Chuong moi");
+    assert_ne!(
+        chapter_b, chapter_a,
+        "cau ba la diem cat -- phai doi sang Chuong moi"
+    );
 
     let (position_chapter, position_segment): (i64, i64) = opened
         .store
-        .read(|conn| conn.query_row("SELECT chapter_id, segment_id FROM chapter_position", [], |row| Ok((row.get(0)?, row.get(1)?))))
+        .read(|conn| {
+            conn.query_row(
+                "SELECT chapter_id, segment_id FROM chapter_position",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+        })
         .expect("doc hang chapter_position that bai");
-    assert_eq!(position_chapter, chapter_b, "hang vi tri phai doi theo sang Chuong moi");
+    assert_eq!(
+        position_chapter, chapter_b,
+        "hang vi tri phai doi theo sang Chuong moi"
+    );
     assert_eq!(position_segment, third, "van cung mot cau");
 
     // Ghi lai tren CAP CU (A, cau ba) sau khi da tach phai bi TU CHOI -- cau ba khong con
@@ -7669,28 +8015,51 @@ fn make_done(open: &mut auratranslate_lib::commands::project::OpenWork, chapter_
 /// chối một giá trị như vậy ở tầng Rust (§Always), nên không đường sản phẩm nào ghi được nó
 /// — đúng cách bộ ca của Story 5.4 đã dựng ca tương tự ("Ca hợp đồng dựng trạng thái đó bằng
 /// SQL trực tiếp").
-fn set_chapter_status_raw(open: &auratranslate_lib::commands::project::OpenWork, chapter_id: i64, status: &str) {
+fn set_chapter_status_raw(
+    open: &auratranslate_lib::commands::project::OpenWork,
+    chapter_id: i64,
+    status: &str,
+) {
     let status = status.to_owned();
     open.store
-        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE chapter SET status = ?1 WHERE id = ?2", (status, chapter_id)))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE chapter SET status = ?1 WHERE id = ?2",
+                (status, chapter_id),
+            )
+        })
         .expect("dat status Chuong bang SQL truc tiep that bai");
 }
 
 /// **THÊM Story 5.12.** Đặt `segment.status` bằng SQL TRỰC TIẾP — chỉ dùng để dựng fixture
 /// "câu đã xác nhận"/"câu chưa xác nhận" mà không phải lo điều kiện `target_text` không rỗng
 /// của `confirm_segment` (AC13/AC14 của Story 2.7, không liên quan gì tới story này).
-fn set_segment_status_directly(open: &auratranslate_lib::commands::project::OpenWork, segment_id: i64, status: &str) {
+fn set_segment_status_directly(
+    open: &auratranslate_lib::commands::project::OpenWork,
+    segment_id: i64,
+    status: &str,
+) {
     let status = status.to_owned();
     open.store
-        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE segment SET status = ?1 WHERE id = ?2", (status, segment_id)))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET status = ?1 WHERE id = ?2",
+                (status, segment_id),
+            )
+        })
         .expect("dat status segment truc tiep that bai");
 }
 
 /// **THÊM Story 5.12.** Xoá hẳn một hàng `chapter` bằng SQL TRỰC TIẾP — dựng ca "hàng Chương
 /// biến mất" của §I/O Matrix; không đường sản phẩm nào xoá Chương hôm nay.
-fn delete_chapter_row_directly(open: &auratranslate_lib::commands::project::OpenWork, chapter_id: i64) {
+fn delete_chapter_row_directly(
+    open: &auratranslate_lib::commands::project::OpenWork,
+    chapter_id: i64,
+) {
     open.store
-        .write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM chapter WHERE id = ?1", [chapter_id]))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute("DELETE FROM chapter WHERE id = ?1", [chapter_id])
+        })
         .expect("xoa hang chapter truc tiep that bai");
 }
 
@@ -7707,7 +8076,12 @@ fn paragraph_shapes(
         .map(|p| {
             p.segments
                 .iter()
-                .map(|s| ids.iter().position(|&id| id == s.id).expect("id la thanh vien") + 1)
+                .map(|s| {
+                    ids.iter()
+                        .position(|&id| id == s.id)
+                        .expect("id la thanh vien")
+                        + 1
+                })
                 .collect()
         })
         .collect()
@@ -7717,8 +8091,14 @@ fn paragraph_shapes(
 #[test]
 fn a_chapter_with_no_omissions_groups_into_paragraphs_by_the_target_flag() {
     let root = temp_dir("5-11-basic-grouping");
-    let mut opened = create_work_from_text(&root, "5.11 Co ban", "zh", "", "一。二。\n三。四。\n五。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.11 Co ban",
+        "zh",
+        "",
+        "一。二。\n三。四。\n五。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id_to_mark_done = opened.chapter_id;
     make_done(&mut opened, chapter_id_to_mark_done);
 
@@ -7726,10 +8106,17 @@ fn a_chapter_with_no_omissions_groups_into_paragraphs_by_the_target_flag() {
     assert_eq!(ids.len(), 5, "fixture phai co dung nam cau");
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
-    assert_eq!(run.chapters.len(), 1, "mot Tac pham mot Chuong done ⇒ dung mot Chuong trong day");
+    assert_eq!(
+        run.chapters.len(),
+        1,
+        "mot Tac pham mot Chuong done ⇒ dung mot Chuong trong day"
+    );
     let chapter = &run.chapters[0];
     assert_eq!(chapter.chapter_id, opened.chapter_id);
-    assert_eq!(chapter.chapter_ord, 1, "Chuong duy nhat cua mot Tac pham moi tao mang ord = 1");
+    assert_eq!(
+        chapter.chapter_ord, 1,
+        "Chuong duy nhat cua mot Tac pham moi tao mang ord = 1"
+    );
     assert_eq!(
         paragraph_shapes(&ids, chapter),
         vec![vec![1, 2], vec![3, 4], vec![5]],
@@ -7750,8 +8137,14 @@ fn a_chapter_with_no_omissions_groups_into_paragraphs_by_the_target_flag() {
 #[test]
 fn an_omitted_sentence_leaves_no_trace_in_the_reading_paragraphs() {
     let root = temp_dir("5-11-omitted-leaves-no-trace");
-    let mut opened = create_work_from_text(&root, "5.11 Cat bo", "zh", "", "一。二。\n三。四。\n五。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.11 Cat bo",
+        "zh",
+        "",
+        "一。二。\n三。四。\n五。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id_to_mark_done = opened.chapter_id;
     make_done(&mut opened, chapter_id_to_mark_done);
 
@@ -7784,8 +8177,14 @@ fn an_omitted_sentence_leaves_no_trace_in_the_reading_paragraphs() {
 #[test]
 fn a_paragraph_end_flag_on_an_omitted_sentence_still_closes_the_paragraph() {
     let root = temp_dir("5-11-flag-transfers-on-omission");
-    let mut opened = create_work_from_text(&root, "5.11 Co chuyen", "zh", "", "一。二。\n三。四。\n五。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.11 Co chuyen",
+        "zh",
+        "",
+        "一。二。\n三。四。\n五。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id_to_mark_done = opened.chapter_id;
     make_done(&mut opened, chapter_id_to_mark_done);
 
@@ -7811,8 +8210,14 @@ fn a_paragraph_end_flag_on_an_omitted_sentence_still_closes_the_paragraph() {
 #[test]
 fn an_entirely_omitted_paragraph_produces_no_empty_paragraph() {
     let root = temp_dir("5-11-whole-paragraph-omitted");
-    let mut opened = create_work_from_text(&root, "5.11 Ca doan", "zh", "", "一。二。\n三。四。\n五。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.11 Ca doan",
+        "zh",
+        "",
+        "一。二。\n三。四。\n五。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id_to_mark_done = opened.chapter_id;
     make_done(&mut opened, chapter_id_to_mark_done);
 
@@ -7856,8 +8261,14 @@ fn reading_a_run_without_an_open_work_fails_with_work_none_open() {
 #[test]
 fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
     let root = temp_dir("5-11-untranslated-stays");
-    let mut opened = create_work_from_text(&root, "5.11 Chua dich", "zh", "", "一。二。\n三。四。\n五。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.11 Chua dich",
+        "zh",
+        "",
+        "一。二。\n三。四。\n五。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id_to_mark_done = opened.chapter_id;
     make_done(&mut opened, chapter_id_to_mark_done);
 
@@ -7866,7 +8277,11 @@ fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
     flush_segment_targets(
         Some(&opened),
         opened.chapter_id,
-        &[edit(ids[0], "Mot."), edit(ids[1], "Hai."), edit(ids[3], "Bon.")],
+        &[
+            edit(ids[0], "Mot."),
+            edit(ids[1], "Hai."),
+            edit(ids[3], "Bon."),
+        ],
     )
     .expect("ghi ban dich that bai");
 
@@ -7884,7 +8299,10 @@ fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
         .flat_map(|p| p.segments.iter())
         .find(|s| s.id == ids[2])
         .expect("cau 3 phai co mat tren day");
-    assert_eq!(third.target_text, "", "cau chua dich mang chuoi RONG, khong mot noi dung bia ra");
+    assert_eq!(
+        third.target_text, "",
+        "cau chua dich mang chuoi RONG, khong mot noi dung bia ra"
+    );
 
     let fourth = chapter
         .paragraphs
@@ -7892,7 +8310,10 @@ fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
         .flat_map(|p| p.segments.iter())
         .find(|s| s.id == ids[3])
         .expect("cau 4 phai co mat tren day");
-    assert_eq!(fourth.target_text, "Bon.", "cau da dich mang dung ban dich da ghi");
+    assert_eq!(
+        fourth.target_text, "Bon.",
+        "cau da dich mang dung ban dich da ghi"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -7916,12 +8337,22 @@ fn an_untranslated_sentence_stays_in_its_paragraph_with_an_empty_string() {
 #[test]
 fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
     let root = temp_dir("5-12-continuous-run-stops-at-not-done");
-    let mut opened = create_work_from_text(&root, "5.12 Lien tuc", "zh", "", "一。\n二。\n三。\n四。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.12 Lien tuc",
+        "zh",
+        "",
+        "一。\n二。\n三。\n四。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_a = opened.chapter_id;
 
     let ids = ordered_ids(&opened);
-    assert_eq!(ids.len(), 4, "fixture phai co dung bon cau, mot cau mot Chuong sau khi tach");
+    assert_eq!(
+        ids.len(),
+        4,
+        "fixture phai co dung bon cau, mot cau mot Chuong sau khi tach"
+    );
 
     let (id2, id3, id4) = (ids[1], ids[2], ids[3]);
 
@@ -7929,7 +8360,11 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
     split_chapter_at_segment(Some(&mut opened), id2).expect("tach lan 1 that bai");
     let chapter_b: i64 = opened
         .store
-        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id2], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id2], |r| {
+                r.get(0)
+            })
+        })
         .expect("doc chapter_id cua cau 2 sau tach lan 1");
     opened.chapter_id = chapter_b;
 
@@ -7937,7 +8372,11 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
     split_chapter_at_segment(Some(&mut opened), id3).expect("tach lan 2 that bai");
     let chapter_c: i64 = opened
         .store
-        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id3], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id3], |r| {
+                r.get(0)
+            })
+        })
         .expect("doc chapter_id cua cau 3 sau tach lan 2");
     opened.chapter_id = chapter_c;
 
@@ -7945,26 +8384,45 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
     split_chapter_at_segment(Some(&mut opened), id4).expect("tach lan 3 that bai");
     let chapter_d: i64 = opened
         .store
-        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id4], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [id4], |r| {
+                r.get(0)
+            })
+        })
         .expect("doc chapter_id cua cau 4 sau tach lan 3");
 
     make_done(&mut opened, chapter_a);
     make_done(&mut opened, chapter_b);
     make_done(&mut opened, chapter_c);
-    set_chapter_status(Some(&mut opened), chapter_d, "in_progress").expect("dat in_progress that bai");
+    set_chapter_status(Some(&mut opened), chapter_d, "in_progress")
+        .expect("dat in_progress that bai");
 
     opened.chapter_id = chapter_a;
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
 
-    assert_eq!(run.chapters.len(), 3, "dung ba Chuong done duoc dua vao day");
     assert_eq!(
-        run.chapters.iter().map(|c| c.chapter_id).collect::<Vec<_>>(),
+        run.chapters.len(),
+        3,
+        "dung ba Chuong done duoc dua vao day"
+    );
+    assert_eq!(
+        run.chapters
+            .iter()
+            .map(|c| c.chapter_id)
+            .collect::<Vec<_>>(),
         vec![chapter_a, chapter_b, chapter_c],
         "day phai theo dung thu tu (ord, id), bat dau TAI Chuong dang mo"
     );
     assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
-    let frontier_chapter = run.frontier.chapter.as_ref().expect("kind == NextNotDone ⇒ chapter phai Some");
-    assert_eq!(frontier_chapter.chapter_id, chapter_d, "moc bien phai neu dich danh Chuong thu tu");
+    let frontier_chapter = run
+        .frontier
+        .chapter
+        .as_ref()
+        .expect("kind == NextNotDone ⇒ chapter phai Some");
+    assert_eq!(
+        frontier_chapter.chapter_id, chapter_d,
+        "moc bien phai neu dich danh Chuong thu tu"
+    );
     assert_eq!(frontier_chapter.status, "in_progress");
 
     let dir = opened.dir.clone();
@@ -7977,16 +8435,28 @@ fn a_continuous_run_stops_before_a_chapter_that_is_not_yet_done() {
 #[test]
 fn opening_a_not_done_chapter_yields_an_empty_run_with_the_frontier_on_itself() {
     let root = temp_dir("5-12-frontier-on-self");
-    let mut opened = create_work_from_text(&root, "5.12 Cham bien", "zh", "", "一。二。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened =
+        create_work_from_text(&root, "5.12 Cham bien", "zh", "", "一。二。".to_owned())
+            .expect("tao tac pham that bai");
     let chapter_id = opened.chapter_id;
-    set_chapter_status(Some(&mut opened), chapter_id, "in_progress").expect("dat in_progress that bai");
+    set_chapter_status(Some(&mut opened), chapter_id, "in_progress")
+        .expect("dat in_progress that bai");
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
-    assert!(run.chapters.is_empty(), "Chuong dang mo chua done ⇒ khong Chuong nao vao day");
+    assert!(
+        run.chapters.is_empty(),
+        "Chuong dang mo chua done ⇒ khong Chuong nao vao day"
+    );
     assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
-    let frontier_chapter = run.frontier.chapter.as_ref().expect("kind == NextNotDone ⇒ chapter phai Some");
-    assert_eq!(frontier_chapter.chapter_id, chapter_id, "moc bien phai tro vao CHINH Chuong dang mo");
+    let frontier_chapter = run
+        .frontier
+        .chapter
+        .as_ref()
+        .expect("kind == NextNotDone ⇒ chapter phai Some");
+    assert_eq!(
+        frontier_chapter.chapter_id, chapter_id,
+        "moc bien phai tro vao CHINH Chuong dang mo"
+    );
     assert_eq!(frontier_chapter.status, "in_progress");
 
     let dir = opened.dir.clone();
@@ -7999,15 +8469,27 @@ fn opening_a_not_done_chapter_yields_an_empty_run_with_the_frontier_on_itself() 
 #[test]
 fn every_remaining_chapter_being_done_yields_an_end_of_work_frontier() {
     let root = temp_dir("5-12-end-of-work");
-    let mut opened = create_work_from_text(&root, "5.12 Het tac pham", "zh", "", "一。\n二。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.12 Het tac pham",
+        "zh",
+        "",
+        "一。\n二。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_a = opened.chapter_id;
 
     let ids = ordered_ids(&opened);
     split_chapter_at_segment(Some(&mut opened), ids[1]).expect("tach that bai");
     let chapter_b: i64 = opened
         .store
-        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [ids[1]], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT chapter_id FROM segment WHERE id = ?1",
+                [ids[1]],
+                |r| r.get(0),
+            )
+        })
         .expect("doc chapter_id cua cau 2 sau tach");
 
     make_done(&mut opened, chapter_a);
@@ -8017,7 +8499,10 @@ fn every_remaining_chapter_being_done_yields_an_end_of_work_frontier() {
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     assert_eq!(run.chapters.len(), 2, "ca hai Chuong done deu phai vao day");
     assert_eq!(run.frontier.kind, ReadingFrontierKind::EndOfWork);
-    assert!(run.frontier.chapter.is_none(), "kind == EndOfWork ⇒ chapter phai None");
+    assert!(
+        run.frontier.chapter.is_none(),
+        "kind == EndOfWork ⇒ chapter phai None"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -8030,8 +8515,14 @@ fn every_remaining_chapter_being_done_yields_an_end_of_work_frontier() {
 #[test]
 fn an_unknown_status_value_blocks_the_run_and_travels_verbatim_on_the_frontier() {
     let root = temp_dir("5-12-unknown-status");
-    let mut opened = create_work_from_text(&root, "5.12 Trang thai la", "zh", "", "一。\n二。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.12 Trang thai la",
+        "zh",
+        "",
+        "一。\n二。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_a = opened.chapter_id;
     make_done(&mut opened, chapter_a);
 
@@ -8039,7 +8530,13 @@ fn an_unknown_status_value_blocks_the_run_and_travels_verbatim_on_the_frontier()
     split_chapter_at_segment(Some(&mut opened), ids[1]).expect("tach that bai");
     let chapter_b: i64 = opened
         .store
-        .read(move |conn| conn.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [ids[1]], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT chapter_id FROM segment WHERE id = ?1",
+                [ids[1]],
+                |r| r.get(0),
+            )
+        })
         .expect("doc chapter_id cua cau 2 sau tach");
     // "finished" NGOAI bon gia tri cua LifecycleStatus -- set_chapter_status se tu choi no,
     // nen day la ca DUY NHAT trong khoi nay phai dat status bang SQL truc tiep.
@@ -8047,9 +8544,17 @@ fn an_unknown_status_value_blocks_the_run_and_travels_verbatim_on_the_frontier()
     opened.chapter_id = chapter_a;
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
-    assert_eq!(run.chapters.len(), 1, "day phai dung truoc Chuong mang gia tri la");
+    assert_eq!(
+        run.chapters.len(),
+        1,
+        "day phai dung truoc Chuong mang gia tri la"
+    );
     assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
-    let frontier_chapter = run.frontier.chapter.as_ref().expect("kind == NextNotDone ⇒ chapter phai Some");
+    let frontier_chapter = run
+        .frontier
+        .chapter
+        .as_ref()
+        .expect("kind == NextNotDone ⇒ chapter phai Some");
     assert_eq!(frontier_chapter.chapter_id, chapter_b);
     assert_eq!(
         frontier_chapter.status, "finished",
@@ -8067,8 +8572,14 @@ fn an_unknown_status_value_blocks_the_run_and_travels_verbatim_on_the_frontier()
 #[test]
 fn unconfirmed_sentences_in_a_done_chapter_carry_is_confirmed_false() {
     let root = temp_dir("5-12-unconfirmed-sentences");
-    let mut opened = create_work_from_text(&root, "5.12 Chua xac nhan", "zh", "", "一。二。三。四。五。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.12 Chua xac nhan",
+        "zh",
+        "",
+        "一。二。三。四。五。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id_to_mark_done = opened.chapter_id;
     make_done(&mut opened, chapter_id_to_mark_done);
 
@@ -8080,10 +8591,15 @@ fn unconfirmed_sentences_in_a_done_chapter_carry_is_confirmed_false() {
     set_segment_status_directly(&opened, ids[4], SEGMENT_STATUS_CONFIRMED);
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
-    let all_segments: Vec<_> = run.chapters[0].paragraphs.iter().flat_map(|p| p.segments.iter()).collect();
+    let all_segments: Vec<_> = run.chapters[0]
+        .paragraphs
+        .iter()
+        .flat_map(|p| p.segments.iter())
+        .collect();
     assert_eq!(all_segments.len(), 5);
     for segment in &all_segments {
-        let should_be_confirmed = segment.id == ids[0] || segment.id == ids[2] || segment.id == ids[4];
+        let should_be_confirmed =
+            segment.id == ids[0] || segment.id == ids[2] || segment.id == ids[4];
         assert_eq!(
             segment.is_confirmed, should_be_confirmed,
             "segment id={} phai mang is_confirmed={should_be_confirmed}",
@@ -8105,8 +8621,14 @@ fn unconfirmed_sentences_in_a_done_chapter_carry_is_confirmed_false() {
 #[test]
 fn omitted_and_unconfirmed_sentences_coexist_correctly_in_the_same_done_chapter() {
     let root = temp_dir("5-12-omitted-and-unconfirmed-mixed");
-    let mut opened = create_work_from_text(&root, "5.12 Tron", "zh", "", "一。二。三。四。五。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.12 Tron",
+        "zh",
+        "",
+        "一。二。三。四。五。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id_to_mark_done = opened.chapter_id;
     make_done(&mut opened, chapter_id_to_mark_done);
 
@@ -8118,9 +8640,16 @@ fn omitted_and_unconfirmed_sentences_coexist_correctly_in_the_same_done_chapter(
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
     let chapter = &run.chapters[0];
-    assert_eq!(chapter.segment_count, 5, "segment_count dem CA cau da cat bo");
+    assert_eq!(
+        chapter.segment_count, 5,
+        "segment_count dem CA cau da cat bo"
+    );
 
-    let all_segments: Vec<_> = chapter.paragraphs.iter().flat_map(|p| p.segments.iter()).collect();
+    let all_segments: Vec<_> = chapter
+        .paragraphs
+        .iter()
+        .flat_map(|p| p.segments.iter())
+        .collect();
     let surviving_ids: Vec<i64> = all_segments.iter().map(|s| s.id).collect();
     assert_eq!(
         surviving_ids,
@@ -8128,10 +8657,24 @@ fn omitted_and_unconfirmed_sentences_coexist_correctly_in_the_same_done_chapter(
         "cau da cat bo (2 va 4) phai VANG MAT HOAN TOAN, con lai dung ba cau theo dung thu tu"
     );
 
-    let by_id = |id: i64| all_segments.iter().find(|s| s.id == id).expect("segment con song phai co mat");
-    assert!(by_id(ids[0]).is_confirmed, "cau 1 da ky ⇒ is_confirmed = true");
-    assert!(!by_id(ids[2]).is_confirmed, "cau 3 van 'draft' ⇒ is_confirmed = false, DUNG CHO cua no");
-    assert!(!by_id(ids[4]).is_confirmed, "cau 5 van 'draft' ⇒ is_confirmed = false, DUNG CHO cua no");
+    let by_id = |id: i64| {
+        all_segments
+            .iter()
+            .find(|s| s.id == id)
+            .expect("segment con song phai co mat")
+    };
+    assert!(
+        by_id(ids[0]).is_confirmed,
+        "cau 1 da ky ⇒ is_confirmed = true"
+    );
+    assert!(
+        !by_id(ids[2]).is_confirmed,
+        "cau 3 van 'draft' ⇒ is_confirmed = false, DUNG CHO cua no"
+    );
+    assert!(
+        !by_id(ids[4]).is_confirmed,
+        "cau 5 van 'draft' ⇒ is_confirmed = false, DUNG CHO cua no"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -8144,19 +8687,37 @@ fn omitted_and_unconfirmed_sentences_coexist_correctly_in_the_same_done_chapter(
 #[test]
 fn manually_marking_a_chapter_done_behaves_identically_to_any_other_done_chapter() {
     let root = temp_dir("5-12-manual-done");
-    let mut opened = create_work_from_text(&root, "5.12 Xong bang tay", "zh", "", "一。二。三。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.12 Xong bang tay",
+        "zh",
+        "",
+        "一。二。三。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
 
     let ids = ordered_ids(&opened);
-    assert_eq!(ids.len(), 3, "fixture phai co dung ba cau, ca ba deu 'draft' mac dinh");
+    assert_eq!(
+        ids.len(),
+        3,
+        "fixture phai co dung ba cau, ca ba deu 'draft' mac dinh"
+    );
 
     // Dat done THU CONG trong khi ca ba cau van 'draft' -- khong xac nhan cau nao truoc.
     let chapter_id_to_mark_done = opened.chapter_id;
     make_done(&mut opened, chapter_id_to_mark_done);
 
     let run = read_reading_run(Some(&opened)).expect("doc luot doc that bai");
-    let all_segments: Vec<_> = run.chapters[0].paragraphs.iter().flat_map(|p| p.segments.iter()).collect();
-    assert_eq!(all_segments.len(), 3, "ca ba cau phai ra day -- 'done' khong xoa cau nao");
+    let all_segments: Vec<_> = run.chapters[0]
+        .paragraphs
+        .iter()
+        .flat_map(|p| p.segments.iter())
+        .collect();
+    assert_eq!(
+        all_segments.len(),
+        3,
+        "ca ba cau phai ra day -- 'done' khong xoa cau nao"
+    );
     assert!(
         all_segments.iter().all(|s| !s.is_confirmed),
         "ca ba cau van 'draft' ⇒ ca ba mang is_confirmed = false, dung khuon ca tren"
@@ -8183,7 +8744,10 @@ fn a_done_chapter_with_no_segments_reads_as_zero_paragraphs_and_zero_segment_cou
     let run = read_reading_run(Some(&opened)).expect("Chuong rong khong duoc la mot loi");
     let chapter = &run.chapters[0];
     assert_eq!(chapter.chapter_id, opened.chapter_id);
-    assert!(chapter.paragraphs.is_empty(), "Chuong rong ⇒ paragraphs rong");
+    assert!(
+        chapter.paragraphs.is_empty(),
+        "Chuong rong ⇒ paragraphs rong"
+    );
     assert_eq!(chapter.segment_count, 0, "Chuong rong ⇒ segment_count = 0");
 
     let dir = opened.dir.clone();
@@ -8197,8 +8761,14 @@ fn a_done_chapter_with_no_segments_reads_as_zero_paragraphs_and_zero_segment_cou
 #[test]
 fn a_chapter_where_every_sentence_is_omitted_reads_as_zero_paragraphs_but_positive_segment_count() {
     let root = temp_dir("5-12-all-omitted");
-    let mut opened = create_work_from_text(&root, "5.12 Het cat bo", "zh", "", "一。二。\n三。四。".to_owned())
-        .expect("tao tac pham that bai");
+    let mut opened = create_work_from_text(
+        &root,
+        "5.12 Het cat bo",
+        "zh",
+        "",
+        "一。二。\n三。四。".to_owned(),
+    )
+    .expect("tao tac pham that bai");
     let chapter_id_to_mark_done = opened.chapter_id;
     make_done(&mut opened, chapter_id_to_mark_done);
 
@@ -8212,7 +8782,10 @@ fn a_chapter_where_every_sentence_is_omitted_reads_as_zero_paragraphs_but_positi
         chapter.paragraphs.is_empty(),
         "moi cau da cat bo ⇒ paragraphs rong, dung khuon Chuong rong nhung tu MOT du kien khac"
     );
-    assert_eq!(chapter.segment_count, 4, "segment_count dem CA cau da cat bo -- day la dau hieu phan biet voi Chuong that su rong");
+    assert_eq!(
+        chapter.segment_count, 4,
+        "segment_count dem CA cau da cat bo -- day la dau hieu phan biet voi Chuong that su rong"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -8313,21 +8886,36 @@ fn bench_reading_run_over_five_thousand_chapters() {
             ))
         })
         .expect("đếm fixture frontier");
-    assert_eq!(chapter_count, CHAPTERS as i64, "frontier phải quét đúng 5.000 Chương");
-    assert_eq!(segment_count, 0, "frontier phải đứng trước lượt nạp segment để cô lập chi phí");
+    assert_eq!(
+        chapter_count, CHAPTERS as i64,
+        "frontier phải quét đúng 5.000 Chương"
+    );
+    assert_eq!(
+        segment_count, 0,
+        "frontier phải đứng trước lượt nạp segment để cô lập chi phí"
+    );
 
     for _ in 0..WARMUPS {
         let run = read_reading_run(Some(&opened)).expect("đọc warm-up frontier");
-        assert!(run.chapters.is_empty(), "Chương đầu chưa done ⇒ không nạp dãy segment");
+        assert!(
+            run.chapters.is_empty(),
+            "Chương đầu chưa done ⇒ không nạp dãy segment"
+        );
         assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
-        assert_eq!(run.frontier.chapter.as_ref().map(|c| c.chapter_id), Some(current_chapter_id));
+        assert_eq!(
+            run.frontier.chapter.as_ref().map(|c| c.chapter_id),
+            Some(current_chapter_id)
+        );
     }
     let mut frontier_samples = Vec::with_capacity(SAMPLES);
     for _ in 0..SAMPLES {
         let started = Instant::now();
         let run = read_reading_run(Some(&opened)).expect("đọc mẫu frontier");
         let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
-        assert!(run.chapters.is_empty(), "frontier không được lẫn output full-run");
+        assert!(
+            run.chapters.is_empty(),
+            "frontier không được lẫn output full-run"
+        );
         assert_eq!(run.frontier.kind, ReadingFrontierKind::NextNotDone);
         frontier_samples.push(elapsed_ms);
     }
@@ -8348,7 +8936,11 @@ fn bench_reading_run_over_five_thousand_chapters() {
                 stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)))?
                     .collect::<auratranslate_lib::core::store::SqlResult<Vec<_>>>()?
             };
-            assert_eq!(chapter_ids.len(), CHAPTERS, "danh sách nạp segment phải đủ 5.000 Chương");
+            assert_eq!(
+                chapter_ids.len(),
+                CHAPTERS,
+                "danh sách nạp segment phải đủ 5.000 Chương"
+            );
             for (chapter_id, chapter_ord) in chapter_ids {
                 for segment_ord in 1..=SEGMENTS_PER_CHAPTER {
                     let source = format!("天下大势 Chương {chapter_ord} câu {segment_ord}");
@@ -8360,7 +8952,13 @@ fn bench_reading_run_over_five_thousand_chapters() {
                           target_text, status, is_omitted, translation_origin) \
                          VALUES (?1, ?2, ?3, ?4, '2026-09-01T00:00:00.000Z', \
                                  '2026-09-01T00:00:00.000Z', ?5, 'confirmed', 0, 'self')",
-                        (chapter_id, segment_ord as i64, &source, paragraph_end, &target),
+                        (
+                            chapter_id,
+                            segment_ord as i64,
+                            &source,
+                            paragraph_end,
+                            &target,
+                        ),
                     )?;
                 }
             }
@@ -8372,16 +8970,33 @@ fn bench_reading_run_over_five_thousand_chapters() {
         .store
         .read(|conn| {
             Ok((
-                conn.query_row("SELECT COUNT(*) FROM chapter WHERE status = 'done'", [], |row| row.get(0))?,
-                conn.query_row("SELECT COUNT(*) FROM segment WHERE retired_at IS NULL", [], |row| row.get(0))?,
+                conn.query_row(
+                    "SELECT COUNT(*) FROM chapter WHERE status = 'done'",
+                    [],
+                    |row| row.get(0),
+                )?,
+                conn.query_row(
+                    "SELECT COUNT(*) FROM segment WHERE retired_at IS NULL",
+                    [],
+                    |row| row.get(0),
+                )?,
             ))
         })
         .expect("đếm fixture full-run");
-    assert_eq!(chapter_count, CHAPTERS as i64, "full-run phải có đúng 5.000 Chương done");
-    assert_eq!(segment_count, (CHAPTERS * SEGMENTS_PER_CHAPTER) as i64, "full-run phải có đúng 50.000 segment sống");
+    assert_eq!(
+        chapter_count, CHAPTERS as i64,
+        "full-run phải có đúng 5.000 Chương done"
+    );
+    assert_eq!(
+        segment_count,
+        (CHAPTERS * SEGMENTS_PER_CHAPTER) as i64,
+        "full-run phải có đúng 50.000 segment sống"
+    );
 
     let rebuilt_meta = WorkMeta::rebuild_from_store(&opened.store).expect("dựng lại meta fixture");
-    rebuilt_meta.write_atomic(&opened.dir).expect("ghi meta fixture");
+    rebuilt_meta
+        .write_atomic(&opened.dir)
+        .expect("ghi meta fixture");
 
     for _ in 0..WARMUPS {
         let run = read_reading_run(Some(&opened)).expect("đọc warm-up full-run");
@@ -8400,7 +9015,11 @@ fn bench_reading_run_over_five_thousand_chapters() {
             .map(|paragraph| paragraph.segments.len())
             .sum();
         assert_eq!(run.chapters.len(), CHAPTERS, "full-run phải trả đủ Chương");
-        assert_eq!(returned_segments, CHAPTERS * SEGMENTS_PER_CHAPTER, "full-run phải trả đủ segment");
+        assert_eq!(
+            returned_segments,
+            CHAPTERS * SEGMENTS_PER_CHAPTER,
+            "full-run phải trả đủ segment"
+        );
         assert_eq!(run.frontier.kind, ReadingFrontierKind::EndOfWork);
         full_samples.push(elapsed_ms);
     }
@@ -8416,7 +9035,8 @@ fn bench_reading_run_over_five_thousand_chapters() {
 
     // Harness release có thể xin giữ lại CHÍNH fixture vừa được assertions xác nhận. Hàng
     // rào tên thư mục + đích rỗng ngăn một biến môi trường gõ nhầm ghi đè dữ liệu thật.
-    if let Some(export_root) = std::env::var_os("AURA_5_14_EXPORT_LIBRARY_ROOT").map(PathBuf::from) {
+    if let Some(export_root) = std::env::var_os("AURA_5_14_EXPORT_LIBRARY_ROOT").map(PathBuf::from)
+    {
         let raw = export_root.to_string_lossy();
         assert!(
             raw.contains("auratranslate-nfr-bench-"),
@@ -8424,7 +9044,10 @@ fn bench_reading_run_over_five_thousand_chapters() {
         );
         if export_root.exists() {
             assert!(
-                fs::read_dir(&export_root).expect("đọc đích export").next().is_none(),
+                fs::read_dir(&export_root)
+                    .expect("đọc đích export")
+                    .next()
+                    .is_none(),
                 "đích export phải rỗng: {}",
                 export_root.display()
             );
@@ -8432,7 +9055,8 @@ fn bench_reading_run_over_five_thousand_chapters() {
             fs::create_dir_all(&export_root).expect("tạo đích export");
         }
         let folder_name = work_dir.file_name().expect("fixture có tên thư mục");
-        fs::rename(&work_dir, export_root.join(folder_name)).expect("chuyển fixture sang HOME nháp");
+        fs::rename(&work_dir, export_root.join(folder_name))
+            .expect("chuyển fixture sang HOME nháp");
         println!("READING_RUN_EXPORT\t{}", export_root.display());
     }
 
@@ -8462,7 +9086,10 @@ const AD_39_GBK_FIXTURE_TEXT: &str = "第一章 mot\n第一章 hai\n第一章 ba
 /// sẽ xanh mà chẳng chứng minh gì.
 fn ad_39_gbk_fixture_bytes() -> Vec<u8> {
     let (bytes, _, had_errors) = encoding_rs::GBK.encode(AD_39_GBK_FIXTURE_TEXT);
-    assert!(!had_errors, "fixture phải mã hoá GBK sạch — không có gì để giả lập lỗi");
+    assert!(
+        !had_errors,
+        "fixture phải mã hoá GBK sạch — không có gì để giả lập lỗi"
+    );
     bytes.into_owned()
 }
 
@@ -8710,7 +9337,10 @@ fn a_single_element_chapters_shape_is_not_split_even_though_its_length_matches_a
         "một `PipelineShape::Chapters` với ĐÚNG MỘT phần tử vẫn là hình dạng ĐÃ CHIA Chương \
          — không được đem đi tách thêm dù mẫu khớp được bên trong"
     );
-    assert_eq!(outcome.chapters[0].source_text, "Chuong A co mau Chuong ben trong");
+    assert_eq!(
+        outcome.chapters[0].source_text,
+        "Chuong A co mau Chuong ben trong"
+    );
 }
 
 /// 🔵 THÊM (vòng rà đối kháng 2026-09-04, item 20) — nhánh `pattern.is_empty()` của
@@ -8780,7 +9410,8 @@ fn an_empty_chapter_pattern_is_a_no_op_for_raw_bytes_too() {
 /// chúng lại (khác đối chứng AD-39 dùng chung một fixture không dòng trống).
 #[test]
 fn splitting_by_position_keeps_the_matched_title_line_at_the_front_of_each_new_chapter() {
-    let text = "Chuong 1: Mo Dau\n\nnoi dung chuong mot.\n\nChuong 2: Tiep Theo\n\nnoi dung chuong hai.";
+    let text =
+        "Chuong 1: Mo Dau\n\nnoi dung chuong mot.\n\nChuong 2: Tiep Theo\n\nnoi dung chuong hai.";
     let input = PipelineInput {
         shape: PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned())),
         encoding: encoding_rs::UTF_8,
@@ -8797,14 +9428,22 @@ fn splitting_by_position_keeps_the_matched_title_line_at_the_front_of_each_new_c
 
     let outcome = run_import(input).expect("mau regex hop le khong duoc loi");
 
-    assert_eq!(outcome.chapters.len(), 2, "hai lan khop mau phai cho ra hai Chuong");
+    assert_eq!(
+        outcome.chapters.len(),
+        2,
+        "hai lan khop mau phai cho ra hai Chuong"
+    );
     assert!(
-        outcome.chapters[0].source_text.starts_with("Chuong 1: Mo Dau"),
+        outcome.chapters[0]
+            .source_text
+            .starts_with("Chuong 1: Mo Dau"),
         "Chuong moi phai BAT DAU bang dong tieu de, khong bi str::split xoa mat: {:?}",
         outcome.chapters[0].source_text
     );
     assert!(
-        outcome.chapters[1].source_text.starts_with("Chuong 2: Tiep Theo"),
+        outcome.chapters[1]
+            .source_text
+            .starts_with("Chuong 2: Tiep Theo"),
         "Chuong thu hai cung phai giu dong tieu de o dau: {:?}",
         outcome.chapters[1].source_text
     );
@@ -8813,14 +9452,18 @@ fn splitting_by_position_keeps_the_matched_title_line_at_the_front_of_each_new_c
         Some("Chuong 1: Mo Dau"),
         "title phai doc dung tu CHINH dong khop, KHONG phai toan bo noi dung Chuong"
     );
-    assert_eq!(outcome.chapters[1].title.as_deref(), Some("Chuong 2: Tiep Theo"));
+    assert_eq!(
+        outcome.chapters[1].title.as_deref(),
+        Some("Chuong 2: Tiep Theo")
+    );
 }
 
 /// Hàng "Mẫu literal khớp N chỗ" của I/O Matrix spec 6.6 — mẫu LITERAL (không regex) khớp
 /// đúng ba lần, tiêu đề và thân TÁCH BIỆT rõ (khác đối chứng AD-39 nơi title trùng cả thân
 /// vì fixture không có dòng trống).
 #[test]
-fn a_literal_pattern_matching_three_times_yields_three_chapters_each_starting_with_its_title_line() {
+fn a_literal_pattern_matching_three_times_yields_three_chapters_each_starting_with_its_title_line()
+{
     let text = "第一章\n\nnoi dung mot.\n\n第一章\n\nnoi dung hai.\n\n第一章\n\nnoi dung ba.";
     let input = PipelineInput {
         shape: PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned())),
@@ -8838,7 +9481,11 @@ fn a_literal_pattern_matching_three_times_yields_three_chapters_each_starting_wi
 
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
 
-    assert_eq!(outcome.chapters.len(), 3, "ba lan khop mau literal phai cho ra dung ba Chuong");
+    assert_eq!(
+        outcome.chapters.len(),
+        3,
+        "ba lan khop mau literal phai cho ra dung ba Chuong"
+    );
     for (i, chapter) in outcome.chapters.iter().enumerate() {
         assert!(
             chapter.source_text.starts_with("第一章"),
@@ -8888,11 +9535,16 @@ fn text_before_the_first_match_becomes_its_own_untitled_chapter_instead_of_being
         "Chuong loi tua khong co dong khop nao de lam tieu de"
     );
     assert!(
-        outcome.chapters[0].source_text.contains("Loi tua cua tac gia"),
+        outcome.chapters[0]
+            .source_text
+            .contains("Loi tua cua tac gia"),
         "noi dung loi tua phai con NGUYEN VEN, khong bi vut: {:?}",
         outcome.chapters[0].source_text
     );
-    assert_eq!(outcome.chapters[1].title.as_deref(), Some("Chuong 1: Bat Dau"));
+    assert_eq!(
+        outcome.chapters[1].title.as_deref(),
+        Some("Chuong 1: Bat Dau")
+    );
 }
 
 /// Hàng "Regex khớp độ dài 0" của I/O Matrix spec 6.6 — `x*` khớp chuỗi RỖNG ở mọi vị trí
@@ -8973,7 +9625,11 @@ fn a_chapter_piece_collapsed_to_a_single_line_by_normalization_has_no_title() {
     };
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
 
-    assert_eq!(outcome.chapters.len(), 2, "hai lan khop mau literal phai cho ra dung hai Chuong");
+    assert_eq!(
+        outcome.chapters.len(),
+        2,
+        "hai lan khop mau literal phai cho ra dung hai Chuong"
+    );
     for (i, chapter) in outcome.chapters.iter().enumerate() {
         assert_eq!(
             chapter.title, None,
@@ -9164,8 +9820,11 @@ fn a_duplicated_step_in_the_order_is_rejected_before_any_step_runs() {
 
 #[test]
 fn a_missing_step_in_the_order_is_rejected_before_any_step_runs() {
-    let order: Vec<Step> =
-        PIPELINE_ORDER.iter().copied().filter(|s| *s != Step::DecodeEncoding).collect(); // 6 bước — DecodeEncoding vắng mặt
+    let order: Vec<Step> = PIPELINE_ORDER
+        .iter()
+        .copied()
+        .filter(|s| *s != Step::DecodeEncoding)
+        .collect(); // 6 bước — DecodeEncoding vắng mặt
     let err = run_import_with_order(&order, any_shaped_input())
         .expect_err("một bước THIẾU phải bị từ chối trước khi chạy bước nào");
     assert!(
@@ -9197,10 +9856,19 @@ fn fresh_pending_source() -> PendingImportSourceState {
     PendingImportSourceState::new(None)
 }
 
-fn read_chapter_source_text_6_3(opened: &auratranslate_lib::commands::project::OpenWork, chapter_id: i64) -> String {
+fn read_chapter_source_text_6_3(
+    opened: &auratranslate_lib::commands::project::OpenWork,
+    chapter_id: i64,
+) -> String {
     opened
         .store
-        .read(move |conn| conn.query_row("SELECT source_text FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0)))
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT source_text FROM chapter WHERE id = ?1",
+                [chapter_id],
+                |row| row.get(0),
+            )
+        })
         .expect("doc source_text Chuong that bai")
 }
 
@@ -9217,7 +9885,10 @@ fn read_chapter_source_text_6_3(opened: &auratranslate_lib::commands::project::O
 fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_candidates() {
     let mut bytes = vec![0xEF, 0xBB, 0xBF];
     bytes.extend_from_slice("Chương một".as_bytes());
-    let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "bom.txt".to_owned() });
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes,
+        label: "bom.txt".to_owned(),
+    });
 
     let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
 
@@ -9227,7 +9898,11 @@ fn preview_of_a_utf8_bom_file_is_self_declared_but_still_carries_all_five_real_c
         5,
         "BOM co byte THAT dang sau -- dai phai du NAM o, khong phai mot 'cau hoi gia'"
     );
-    let utf8_cell = preview.candidates.iter().find(|c| c.label == "UTF-8").unwrap();
+    let utf8_cell = preview
+        .candidates
+        .iter()
+        .find(|c| c.label == "UTF-8")
+        .unwrap();
     // ⚠️ `render_candidates` giải mã CẢ cửa sổ thô, kể cả ba byte BOM (`render_candidates`
     // không biết -- và không cần biết -- ca gọi nó là "tự khai" hay "đang đoán"): ba byte đó
     // giải mã UTF-8 ra ĐÚNG MỘT ký tự `U+FEFF` vô hình đứng trước chữ thật. `contains`,
@@ -9278,11 +9953,19 @@ fn preview_of_pure_ascii_bytes_is_high_confidence_with_five_identical_candidates
     // gì để chọn" — năm bản dựng LUÔN tồn tại (`ImportEncodingPreview::candidates`, xem
     // doc-comment); "dải không mở" là quyết định TẦNG HIỂN THỊ dựa trên `confidence`
     // (`src/importPreviewState.ts`), không phải Rust giấu dữ liệu.
-    assert_eq!(preview.candidates.len(), 5, "nam ban dung LUON co mat, bat ke tin cay");
+    assert_eq!(
+        preview.candidates.len(),
+        5,
+        "nam ban dung LUON co mat, bat ke tin cay"
+    );
     // Bốn ứng viên BYTE-ĐƠN-VỊ (UTF-8/GB18030/GBK/Big5) phải giải ra CÙNG một chuỗi trên
     // ASCII thuần — ô "UTF-16" cố ý bị LOẠI (cùng lý do các ca khác của tệp này): giải mã
     // ASCII bằng UTF-16LE cho ra chữ ĐÔI, khác hẳn bốn ô kia một cách TỰ NHIÊN.
-    let byte_candidates: Vec<_> = preview.candidates.iter().filter(|c| c.label != "UTF-16").collect();
+    let byte_candidates: Vec<_> = preview
+        .candidates
+        .iter()
+        .filter(|c| c.label != "UTF-16")
+        .collect();
     let first_preview = &byte_candidates[0].preview;
     for c in &byte_candidates {
         assert_eq!(
@@ -9315,12 +9998,27 @@ fn preview_of_a_gbk_file_with_a_short_ascii_header_opens_the_strip_with_five_cel
     );
     assert_eq!(preview.candidates.len(), 5);
     assert_eq!(
-        preview.candidates.iter().map(|c| c.label.as_str()).collect::<Vec<_>>(),
+        preview
+            .candidates
+            .iter()
+            .map(|c| c.label.as_str())
+            .collect::<Vec<_>>(),
         vec!["UTF-8", "GB18030", "GBK", "Big5", "UTF-16"]
     );
-    let gb18030 = preview.candidates.iter().find(|c| c.label == "GB18030").expect("o GB18030");
-    let gbk = preview.candidates.iter().find(|c| c.label == "GBK").expect("o GBK");
-    assert_eq!(gb18030.preview, gbk.preview, "GBK va GB18030 phai hien chu Y HET");
+    let gb18030 = preview
+        .candidates
+        .iter()
+        .find(|c| c.label == "GB18030")
+        .expect("o GB18030");
+    let gbk = preview
+        .candidates
+        .iter()
+        .find(|c| c.label == "GBK")
+        .expect("o GBK");
+    assert_eq!(
+        gb18030.preview, gbk.preview,
+        "GBK va GB18030 phai hien chu Y HET"
+    );
 }
 
 // ── I/O Matrix: một ứng viên không giải mã được ⇒ "không ra chữ", ô khác không đổi ──
@@ -9343,7 +10041,11 @@ fn preview_marks_an_undecodable_candidate_without_touching_the_others() {
     // loại khỏi phép biểu quyết "cùng một chuỗi" (xem doc-comment đầu tệp
     // `core/segment/encoding.rs`).
     for c in preview.candidates.iter().filter(|c| c.label != "UTF-16") {
-        assert!(c.preview.is_none(), "nhan {}: ky vong 'khong ra chu'", c.label);
+        assert!(
+            c.preview.is_none(),
+            "nhan {}: ky vong 'khong ra chu'",
+            c.label
+        );
     }
 }
 
@@ -9363,8 +10065,20 @@ fn confirming_with_gbk_chosen_writes_back_the_exact_source_chinese_text() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape, None);
 
-    let opened = confirm_import_with_encoding(&root, &pending, "GBK Confirm", "zh", "", "GBK", Vec::new(), None, Vec::new(), Vec::new(), &std::sync::Mutex::new(Vec::new()))
-        .unwrap_or_else(|e| panic!("xac nhan GBK that bai: {e:?}"));
+    let opened = confirm_import_with_encoding(
+        &root,
+        &pending,
+        "GBK Confirm",
+        "zh",
+        "",
+        "GBK",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .unwrap_or_else(|e| panic!("xac nhan GBK that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
     assert_eq!(source_text, TEXT, "van ban doc lai phai DUNG chu Han nguon");
@@ -9394,11 +10108,40 @@ fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_n
     stash_pending_import_source(&pending, shape, None);
 
     let results = std::thread::scope(|scope| {
-        let h1 =
-            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race A", "en", "", "UTF-8", Vec::new(), None, Vec::new(), Vec::new(), &std::sync::Mutex::new(Vec::new())));
-        let h2 =
-            scope.spawn(|| confirm_import_with_encoding(&root, &pending, "Race B", "en", "", "UTF-8", Vec::new(), None, Vec::new(), Vec::new(), &std::sync::Mutex::new(Vec::new())));
-        [h1.join().expect("luong 1 panic"), h2.join().expect("luong 2 panic")]
+        let h1 = scope.spawn(|| {
+            confirm_import_with_encoding(
+                &root,
+                &pending,
+                "Race A",
+                "en",
+                "",
+                "UTF-8",
+                Vec::new(),
+                None,
+                Vec::new(),
+                Vec::new(),
+                &std::sync::Mutex::new(Vec::new()),
+            )
+        });
+        let h2 = scope.spawn(|| {
+            confirm_import_with_encoding(
+                &root,
+                &pending,
+                "Race B",
+                "en",
+                "",
+                "UTF-8",
+                Vec::new(),
+                None,
+                Vec::new(),
+                Vec::new(),
+                &std::sync::Mutex::new(Vec::new()),
+            )
+        });
+        [
+            h1.join().expect("luong 1 panic"),
+            h2.join().expect("luong 2 panic"),
+        ]
     });
 
     let successes: Vec<_> = results.iter().filter(|r| r.is_ok()).collect();
@@ -9408,11 +10151,16 @@ fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_n
         1,
         "ky vong DUNG MOT lan xac nhan thanh cong tu MOT nguon dang cho, thay: {results:?}"
     );
-    assert_eq!(failures.len(), 1, "luot con lai phai bi tu choi (nguon dang cho da bi dọn)");
+    assert_eq!(
+        failures.len(),
+        1,
+        "luot con lai phai bi tu choi (nguon dang cho da bi dọn)"
+    );
     for err in &failures {
         let Err(e) = err else { unreachable!() };
         assert_eq!(
-            e.code(), "import.no_pending_source",
+            e.code(),
+            "import.no_pending_source",
             "luot thua phai bi tu choi vi HET nguon, khong phai vi mot ly do khac: {e:?}"
         );
     }
@@ -9430,8 +10178,7 @@ fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_n
 // một lượt quay vòng bảng mã → nhãn → bảng mã cứng LE sẽ làm chữ đảo byte.
 
 #[test]
-fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_order_corruption()
- {
+fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_order_corruption() {
     let root = temp_dir("6-3-utf16be");
     const TEXT: &str = "Chương một: một đoạn văn bản.";
     // ⚠️ `encoding_rs::UTF_16BE.encode(..)` KHÔNG mã hoá sang UTF-16BE — doc-comment của
@@ -9443,10 +10190,17 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
     for unit in TEXT.encode_utf16() {
         bytes.extend_from_slice(&unit.to_be_bytes());
     }
-    let shape = PipelineShape::Blob(ChapterInput::RawBytes { bytes, label: "utf16be.txt".to_owned() });
+    let shape = PipelineShape::Blob(ChapterInput::RawBytes {
+        bytes,
+        label: "utf16be.txt".to_owned(),
+    });
 
     let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
-    assert_eq!(preview.confidence, ConfidenceWire::SelfDeclared, "BOM -- nguon tu khai");
+    assert_eq!(
+        preview.confidence,
+        ConfidenceWire::SelfDeclared,
+        "BOM -- nguon tu khai"
+    );
     assert_eq!(
         preview.selected_encoding, "UTF-16BE",
         "wire_id phai giu DUNG thu tu byte -- khong roi ve LE"
@@ -9454,12 +10208,26 @@ fn a_utf16be_file_with_bom_round_trips_through_preview_and_confirm_without_byte_
 
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape, None);
-    let opened =
-        confirm_import_with_encoding(&root, &pending, "UTF-16BE", "en", "", &preview.selected_encoding, Vec::new(), None, Vec::new(), Vec::new(), &std::sync::Mutex::new(Vec::new()))
-            .unwrap_or_else(|e| panic!("xac nhan UTF-16BE that bai: {e:?}"));
+    let opened = confirm_import_with_encoding(
+        &root,
+        &pending,
+        "UTF-16BE",
+        "en",
+        "",
+        &preview.selected_encoding,
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .unwrap_or_else(|e| panic!("xac nhan UTF-16BE that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
-    assert_eq!(source_text, TEXT, "chu phai doc duoc, KHONG phai chu dao byte");
+    assert_eq!(
+        source_text, TEXT,
+        "chu phai doc duoc, KHONG phai chu dao byte"
+    );
 
     drop(opened.store);
     cleanup(&root);
@@ -9476,12 +10244,27 @@ fn cancelling_then_confirming_creates_zero_works() {
     stash_pending_import_source(&pending, shape, None);
     cancel_import_preview(&pending);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Huy Roi Xac Nhan", "en", "", "UTF-8", Vec::new(), None, Vec::new(), Vec::new(), &std::sync::Mutex::new(Vec::new()))
-        .expect_err("xac nhan sau khi huy phai bi tu choi");
+    let err = confirm_import_with_encoding(
+        &root,
+        &pending,
+        "Huy Roi Xac Nhan",
+        "en",
+        "",
+        "UTF-8",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .expect_err("xac nhan sau khi huy phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportNoPendingSource);
 
     let entries: Vec<_> = fs::read_dir(&root).unwrap().collect();
-    assert!(entries.is_empty(), "0 Tac pham nao duoc tao sau khi huy roi xac nhan");
+    assert!(
+        entries.is_empty(),
+        "0 Tac pham nao duoc tao sau khi huy roi xac nhan"
+    );
 
     cleanup(&root);
 }
@@ -9492,7 +10275,7 @@ fn cancelling_then_confirming_creates_zero_works() {
 
 #[test]
 fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_source_for_a_retry()
- {
+{
     let root = temp_dir("6-3-wrong-encoding-retry");
     const TEXT: &str = "萧炎登场";
     let (bytes, _, had_errors) = encoding_rs::GBK.encode(TEXT);
@@ -9507,18 +10290,45 @@ fn confirming_with_the_wrong_encoding_names_it_explicitly_and_keeps_the_pending_
 
     // 1) chọn NHẦM UTF-8 -- ngữ pháp byte UTF-8 chặt, byte GBK cua chu Han hau nhu chac
     // chan vi pham no.
-    let err = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "UTF-8", Vec::new(), None, Vec::new(), Vec::new(), &std::sync::Mutex::new(Vec::new()))
-        .expect_err("byte GBK phai TU CHOI duoi UTF-8");
+    let err = confirm_import_with_encoding(
+        &root,
+        &pending,
+        "Sai Bang Ma",
+        "zh",
+        "",
+        "UTF-8",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .expect_err("byte GBK phai TU CHOI duoi UTF-8");
     assert_eq!(err.message_key(), MessageKey::ImportUndecodableBytes);
-    assert_eq!(err.params().get("encoding").map(String::as_str), Some("UTF-8"));
+    assert_eq!(
+        err.params().get("encoding").map(String::as_str),
+        Some("UTF-8")
+    );
     assert!(
         fs::read_dir(&root).unwrap().next().is_none(),
         "lan xac nhan SAI khong duoc tao gi ca"
     );
 
     // 2) chọn LẠI đúng GBK -- KHÔNG cần đọc nguồn lần hai, ô đang chờ vẫn còn từ (1).
-    let opened = confirm_import_with_encoding(&root, &pending, "Sai Bang Ma", "zh", "", "GBK", Vec::new(), None, Vec::new(), Vec::new(), &std::sync::Mutex::new(Vec::new()))
-        .unwrap_or_else(|e| panic!("xac nhan lai voi GBK phai thanh cong: {e:?}"));
+    let opened = confirm_import_with_encoding(
+        &root,
+        &pending,
+        "Sai Bang Ma",
+        "zh",
+        "",
+        "GBK",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .unwrap_or_else(|e| panic!("xac nhan lai voi GBK phai thanh cong: {e:?}"));
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
     assert_eq!(source_text, TEXT);
 
@@ -9535,8 +10345,20 @@ fn confirming_with_an_unrecognized_encoding_wire_id_is_refused_explicitly() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape, None);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "not-a-real-encoding", Vec::new(), None, Vec::new(), Vec::new(), &std::sync::Mutex::new(Vec::new()))
-        .expect_err("nhan la khong nhan ra phai bi tu choi");
+    let err = confirm_import_with_encoding(
+        &root,
+        &pending,
+        "Lang",
+        "en",
+        "",
+        "not-a-real-encoding",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .expect_err("nhan la khong nhan ra phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
     assert!(fs::read_dir(&root).unwrap().next().is_none());
 
@@ -9553,8 +10375,20 @@ fn confirming_with_a_whatwg_valid_label_outside_fr126_is_refused_explicitly() {
     let pending = fresh_pending_source();
     stash_pending_import_source(&pending, shape, None);
 
-    let err = confirm_import_with_encoding(&root, &pending, "Lang", "en", "", "Shift_JIS", Vec::new(), None, Vec::new(), Vec::new(), &std::sync::Mutex::new(Vec::new()))
-        .expect_err("Shift_JIS la nhan WHATWG hop le nhung NGOAI FR126 -- phai bi tu choi");
+    let err = confirm_import_with_encoding(
+        &root,
+        &pending,
+        "Lang",
+        "en",
+        "",
+        "Shift_JIS",
+        Vec::new(),
+        None,
+        Vec::new(),
+        Vec::new(),
+        &std::sync::Mutex::new(Vec::new()),
+    )
+    .expect_err("Shift_JIS la nhan WHATWG hop le nhung NGOAI FR126 -- phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::ImportUnrecognizedEncoding);
     assert!(fs::read_dir(&root).unwrap().next().is_none());
 
@@ -9574,7 +10408,10 @@ fn preview_of_an_already_chaptered_shape_with_no_units_is_self_declared_not_a_pa
     assert!(preview.candidates.is_empty());
     // Không đơn vị nào ⇒ không văn bản nào để mà chuẩn hoá — RỖNG THẬT, nhưng trường vẫn
     // `Some(..)` (đồng bộ với mọi ca `candidates` rỗng khác), không `None`.
-    let normalized = preview.self_declared_normalized.as_ref().expect("van phai co truong nay");
+    let normalized = preview
+        .self_declared_normalized
+        .as_ref()
+        .expect("van phai co truong nay");
     assert_eq!(normalized.text, "");
 }
 
@@ -9588,8 +10425,25 @@ fn create_work_with_utf8_encoding_behaves_identically_to_the_pre_story_default()
     let root = temp_dir("6-3-create-work-utf8-unchanged");
     let shape = PipelineShape::Blob(ChapterInput::AlreadyText("khong doi hanh vi".to_owned()));
 
-    let opened = create_work(&root, "UTF8 Khong Doi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[])
-        .unwrap_or_else(|e| panic!("tao Tac pham UTF-8 that bai: {e:?}"));
+    let opened = create_work(
+        &root,
+        "UTF8 Khong Doi",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .unwrap_or_else(|e| panic!("tao Tac pham UTF-8 that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
     assert_eq!(source_text, "khong doi hanh vi");
@@ -9647,7 +10501,9 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
     };
 
     let json = serde_json::to_value(&preview).expect("serialize ImportEncodingPreview");
-    let object = json.as_object().expect("ImportEncodingPreview phai serialize thanh object");
+    let object = json
+        .as_object()
+        .expect("ImportEncodingPreview phai serialize thanh object");
 
     // Bon ten truong cap mot (Story 6.4 vong ra 1 them `self_declared_normalized`) --
     // `src/config/project.ts::ImportEncodingPreview` doc bon ten NGUYEN VAN nay.
@@ -9672,14 +10528,23 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
         Some(&serde_json::Value::Null),
         "self_declared_normalized=None (candidates khong rong) phai di ra `null` CO MAT"
     );
-    assert_eq!(object.get("selected_encoding"), Some(&serde_json::Value::String("GBK".to_owned())));
+    assert_eq!(
+        object.get("selected_encoding"),
+        Some(&serde_json::Value::String("GBK".to_owned()))
+    );
 
     // `Confidence::LowGuess` -> `ConfidenceWire::Low` -> tren day PHAI la chuoi "low" (khoa
     // `#[serde(rename_all = "snake_case")]` tren enum) -- frontend so sanh LITERAL voi
     // 'self_declared'/'high'/'low' (`src/config/project.ts::ImportConfidence`).
-    assert_eq!(object.get("confidence"), Some(&serde_json::Value::String("low".to_owned())));
+    assert_eq!(
+        object.get("confidence"),
+        Some(&serde_json::Value::String("low".to_owned()))
+    );
 
-    let candidates = object.get("candidates").and_then(|v| v.as_array()).expect("candidates la mang");
+    let candidates = object
+        .get("candidates")
+        .and_then(|v| v.as_array())
+        .expect("candidates la mang");
     assert_eq!(candidates.len(), 2);
 
     let first = candidates[0].as_object().expect("candidate[0] la object");
@@ -9726,13 +10591,26 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
     );
 
     let second = candidates[1].as_object().expect("candidate[1] la object");
-    assert_eq!(second.get("label"), Some(&serde_json::Value::String("GBK".to_owned())));
-    assert_eq!(second.get("encoding"), Some(&serde_json::Value::String("GBK".to_owned())));
-    assert_eq!(second.get("preview"), Some(&serde_json::Value::String("萧炎".to_owned())));
-    let second_normalized =
-        second.get("normalized").and_then(|v| v.as_object()).expect("normalized la object khi Some");
     assert_eq!(
-        second_normalized.keys().collect::<std::collections::BTreeSet<_>>(),
+        second.get("label"),
+        Some(&serde_json::Value::String("GBK".to_owned()))
+    );
+    assert_eq!(
+        second.get("encoding"),
+        Some(&serde_json::Value::String("GBK".to_owned()))
+    );
+    assert_eq!(
+        second.get("preview"),
+        Some(&serde_json::Value::String("萧炎".to_owned()))
+    );
+    let second_normalized = second
+        .get("normalized")
+        .and_then(|v| v.as_object())
+        .expect("normalized la object khi Some");
+    assert_eq!(
+        second_normalized
+            .keys()
+            .collect::<std::collections::BTreeSet<_>>(),
         std::collections::BTreeSet::from([
             &"text".to_owned(),
             &"joined_lines".to_owned(),
@@ -9741,7 +10619,10 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
         ]),
         "NormalizedPreviewWire phai serialize DUNG bon ten truong snake_case nay"
     );
-    assert_eq!(second_normalized.get("text"), Some(&serde_json::Value::String("萧炎".to_owned())));
+    assert_eq!(
+        second_normalized.get("text"),
+        Some(&serde_json::Value::String("萧炎".to_owned()))
+    );
 }
 
 /// **THÊM (Story 6.9)** — hình dạng dây của `ChapterBlocksPreviewWire`/`BlockWire`/
@@ -9754,24 +10635,31 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
 /// phải làm các `assert_eq!` khoá TÊN dưới đây đỏ ngay — không cần một ca riêng để "chứng
 /// minh nó đỏ được", phép so CHÍNH XÁC từng tên khoá literal đã tự làm việc đó.
 #[test]
-fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_three_visible_states() {
+fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_three_visible_states()
+{
     let wire = ChapterBlocksPreviewWire {
         blocks: vec![
             // Vạch "Đã loại" — máy loại, người dùng chưa chạm.
             BlockWire {
-                body: BlockBodyWire::Paragraph { text: "Khung điều hướng, không phải bài viết".to_owned() },
+                body: BlockBodyWire::Paragraph {
+                    text: "Khung điều hướng, không phải bài viết".to_owned(),
+                },
                 kept: false,
                 confirmed: false,
             },
             // Vạch "Giữ · máy đoán" — máy giữ, người dùng chưa chạm.
             BlockWire {
-                body: BlockBodyWire::Paragraph { text: "Đoạn thân bài thật, máy giữ đúng".to_owned() },
+                body: BlockBodyWire::Paragraph {
+                    text: "Đoạn thân bài thật, máy giữ đúng".to_owned(),
+                },
                 kept: true,
                 confirmed: false,
             },
             // Vạch "Giữ" (đã xác nhận) — người dùng vừa bấm `Space` trên một khối máy loại.
             BlockWire {
-                body: BlockBodyWire::Caption { text: "Chú thích ảnh, người dùng vừa xác nhận giữ".to_owned() },
+                body: BlockBodyWire::Caption {
+                    text: "Chú thích ảnh, người dùng vừa xác nhận giữ".to_owned(),
+                },
                 kept: true,
                 confirmed: true,
             },
@@ -9784,7 +10672,10 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
                 confirmed: false,
             },
             BlockWire {
-                body: BlockBodyWire::Image { src: None, alt: None },
+                body: BlockBodyWire::Image {
+                    src: None,
+                    alt: None,
+                },
                 kept: false,
                 confirmed: false,
             },
@@ -9792,21 +10683,30 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
     };
 
     let json = serde_json::to_value(&wire).expect("serialize ChapterBlocksPreviewWire");
-    let object = json.as_object().expect("ChapterBlocksPreviewWire phai serialize thanh object");
+    let object = json
+        .as_object()
+        .expect("ChapterBlocksPreviewWire phai serialize thanh object");
     assert_eq!(
         object.keys().collect::<std::collections::BTreeSet<_>>(),
         std::collections::BTreeSet::from([&"blocks".to_owned()]),
         "ChapterBlocksPreviewWire chi mang DUNG mot truong `blocks`"
     );
 
-    let blocks = object.get("blocks").and_then(|v| v.as_array()).expect("blocks la mang");
+    let blocks = object
+        .get("blocks")
+        .and_then(|v| v.as_array())
+        .expect("blocks la mang");
     assert_eq!(blocks.len(), 5);
 
     for block in blocks {
         let obj = block.as_object().expect("moi khoi la object");
         assert_eq!(
             obj.keys().collect::<std::collections::BTreeSet<_>>(),
-            std::collections::BTreeSet::from([&"body".to_owned(), &"kept".to_owned(), &"confirmed".to_owned()]),
+            std::collections::BTreeSet::from([
+                &"body".to_owned(),
+                &"kept".to_owned(),
+                &"confirmed".to_owned()
+            ]),
             "BlockWire phai serialize DUNG BA ten truong nay: body/kept/confirmed"
         );
     }
@@ -9821,7 +10721,10 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
         "BlockBodyWire::Paragraph phai serialize DUNG hai truong `kind`+`text` (the noi \
          internally-tagged cua serde, khong long duoi mot truong con)"
     );
-    assert_eq!(body0["kind"], serde_json::Value::String("paragraph".to_owned()));
+    assert_eq!(
+        body0["kind"],
+        serde_json::Value::String("paragraph".to_owned())
+    );
     assert_eq!(
         body0["text"],
         serde_json::Value::String("Khung điều hướng, không phải bài viết".to_owned())
@@ -9834,7 +10737,10 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
     // Khối 2 — "Giữ" đã xác nhận, thân `caption`.
     assert_eq!(blocks[2]["kept"], serde_json::Value::Bool(true));
     assert_eq!(blocks[2]["confirmed"], serde_json::Value::Bool(true));
-    assert_eq!(blocks[2]["body"]["kind"], serde_json::Value::String("caption".to_owned()));
+    assert_eq!(
+        blocks[2]["body"]["kind"],
+        serde_json::Value::String("caption".to_owned())
+    );
     assert_eq!(
         blocks[2]["body"]["text"],
         serde_json::Value::String("Chú thích ảnh, người dùng vừa xác nhận giữ".to_owned())
@@ -9844,12 +10750,22 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
     let body3 = blocks[3]["body"].as_object().expect("body la object");
     assert_eq!(
         body3.keys().collect::<std::collections::BTreeSet<_>>(),
-        std::collections::BTreeSet::from([&"kind".to_owned(), &"src".to_owned(), &"alt".to_owned()]),
+        std::collections::BTreeSet::from([
+            &"kind".to_owned(),
+            &"src".to_owned(),
+            &"alt".to_owned()
+        ]),
         "BlockBodyWire::Image phai serialize DUNG ba truong `kind`+`src`+`alt`"
     );
     assert_eq!(body3["kind"], serde_json::Value::String("image".to_owned()));
-    assert_eq!(body3["src"], serde_json::Value::String("https://example.com/anh.jpg".to_owned()));
-    assert_eq!(body3["alt"], serde_json::Value::String("Mô tả ảnh".to_owned()));
+    assert_eq!(
+        body3["src"],
+        serde_json::Value::String("https://example.com/anh.jpg".to_owned())
+    );
+    assert_eq!(
+        body3["alt"],
+        serde_json::Value::String("Mô tả ảnh".to_owned())
+    );
 
     // Khối 4 — `image` voi `src`/`alt` deu `None` -- phai la `null` CO MAT, khong bi bo qua.
     assert_eq!(blocks[4]["body"]["src"], serde_json::Value::Null);
@@ -9917,7 +10833,9 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
     };
 
     let json = serde_json::to_value(&wire).expect("serialize ChapterSplitPreviewWire");
-    let object = json.as_object().expect("ChapterSplitPreviewWire phai serialize thanh object");
+    let object = json
+        .as_object()
+        .expect("ChapterSplitPreviewWire phai serialize thanh object");
     assert_eq!(
         object.keys().collect::<std::collections::BTreeSet<_>>(),
         std::collections::BTreeSet::from([
@@ -9931,14 +10849,36 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
         "ChapterSplitPreviewWire phai serialize DUNG sau ten truong snake_case nay (Story 6.10 \
          them bon truong tom tat cap lot nhap)"
     );
-    assert_eq!(object.get("chapter_count"), Some(&serde_json::Value::Number(3.into())));
-    assert_eq!(object.get("clean_count"), Some(&serde_json::Value::Number(1.into())));
-    assert_eq!(object.get("needs_review_count"), Some(&serde_json::Value::Number(2.into())));
-    assert_eq!(object.get("broken_item_count"), Some(&serde_json::Value::Number(0.into())));
-    assert_eq!(object.get("any_signal_participated"), Some(&serde_json::Value::Bool(true)));
+    assert_eq!(
+        object.get("chapter_count"),
+        Some(&serde_json::Value::Number(3.into()))
+    );
+    assert_eq!(
+        object.get("clean_count"),
+        Some(&serde_json::Value::Number(1.into()))
+    );
+    assert_eq!(
+        object.get("needs_review_count"),
+        Some(&serde_json::Value::Number(2.into()))
+    );
+    assert_eq!(
+        object.get("broken_item_count"),
+        Some(&serde_json::Value::Number(0.into()))
+    );
+    assert_eq!(
+        object.get("any_signal_participated"),
+        Some(&serde_json::Value::Bool(true))
+    );
 
-    let chapters = object.get("chapters").and_then(|v| v.as_array()).expect("chapters la mang");
-    assert_eq!(chapters.len(), 3, "ca nay phai mang THAT SU nhieu Chuong, khong phai mot ca N=1");
+    let chapters = object
+        .get("chapters")
+        .and_then(|v| v.as_array())
+        .expect("chapters la mang");
+    assert_eq!(
+        chapters.len(),
+        3,
+        "ca nay phai mang THAT SU nhieu Chuong, khong phai mot ca N=1"
+    );
 
     let first = chapters[0].as_object().expect("chapters[0] la object");
     assert_eq!(
@@ -9964,13 +10904,27 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
          `origin`; Story 6.6b them `source_file`)"
     );
     assert_eq!(first.get("ord"), Some(&serde_json::Value::Number(1.into())));
-    assert_eq!(first.get("title"), Some(&serde_json::Value::String("Chương 1: Mở Đầu".to_owned())));
-    assert_eq!(first.get("length"), Some(&serde_json::Value::Number(120.into())));
-    assert_eq!(first.get("cleanup_match_count"), Some(&serde_json::Value::Number(2.into())));
-    assert_eq!(first.get("needs_review"), Some(&serde_json::Value::Bool(true)));
+    assert_eq!(
+        first.get("title"),
+        Some(&serde_json::Value::String("Chương 1: Mở Đầu".to_owned()))
+    );
+    assert_eq!(
+        first.get("length"),
+        Some(&serde_json::Value::Number(120.into()))
+    );
+    assert_eq!(
+        first.get("cleanup_match_count"),
+        Some(&serde_json::Value::Number(2.into()))
+    );
+    assert_eq!(
+        first.get("needs_review"),
+        Some(&serde_json::Value::Bool(true))
+    );
     assert_eq!(
         first.get("review_causes"),
-        Some(&serde_json::Value::Array(vec![serde_json::Value::String("high_cleanup_matches".to_owned())]))
+        Some(&serde_json::Value::Array(vec![serde_json::Value::String(
+            "high_cleanup_matches".to_owned()
+        )]))
     );
 
     // Chương giữa — `title: None` phải ra `null` CÓ MẶT; `cleanup_match_count: Some(0)` là
@@ -9978,22 +10932,42 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
     // (không đo được cho Chương này), và `null` không bị lẫn với `Some(0)`.
     let second = chapters[1].as_object().expect("chapters[1] la object");
     assert_eq!(second.get("title"), Some(&serde_json::Value::Null));
-    assert_eq!(second.get("cleanup_match_count"), Some(&serde_json::Value::Number(0.into())));
-    assert_eq!(second.get("joined_line_count_in_chapter"), Some(&serde_json::Value::Null));
-    assert_eq!(second.get("needs_review"), Some(&serde_json::Value::Bool(true)));
+    assert_eq!(
+        second.get("cleanup_match_count"),
+        Some(&serde_json::Value::Number(0.into()))
+    );
+    assert_eq!(
+        second.get("joined_line_count_in_chapter"),
+        Some(&serde_json::Value::Null)
+    );
+    assert_eq!(
+        second.get("needs_review"),
+        Some(&serde_json::Value::Bool(true))
+    );
     assert_eq!(
         second.get("review_causes"),
-        Some(&serde_json::Value::Array(vec![serde_json::Value::String("not_measured".to_owned())])),
+        Some(&serde_json::Value::Array(vec![serde_json::Value::String(
+            "not_measured".to_owned()
+        )])),
         "gia tri null duoi mot hang rao la CAN XEM voi nguyen nhan NotMeasured, khong bao gio sach"
     );
 
     // Ba Chương phải mang BA bộ số RIÊNG — không phải ba lần cùng một fixture chép lại.
     let third = chapters[2].as_object().expect("chapters[2] la object");
-    assert_eq!(third.get("needs_review"), Some(&serde_json::Value::Bool(false)));
-    assert_eq!(third.get("review_causes"), Some(&serde_json::Value::Array(vec![])));
+    assert_eq!(
+        third.get("needs_review"),
+        Some(&serde_json::Value::Bool(false))
+    );
+    assert_eq!(
+        third.get("review_causes"),
+        Some(&serde_json::Value::Array(vec![]))
+    );
     assert_ne!(first.get("length"), second.get("length"));
     assert_ne!(second.get("length"), third.get("length"));
-    assert_ne!(first.get("cleanup_match_count"), third.get("cleanup_match_count"));
+    assert_ne!(
+        first.get("cleanup_match_count"),
+        third.get("cleanup_match_count")
+    );
 }
 
 /// Ba giá trị `ConfidenceWire` — cả ba, không chỉ giá trị `Low` mà ca ngay trên đã canh.
@@ -10032,8 +11006,25 @@ fn a_crlf_source_written_through_create_work_has_zero_carriage_returns_when_read
         "Chuong mot.\r\nMot doan van thu hai.\r\n\r\nMot doan thu ba.\r\n".to_owned(),
     ));
 
-    let opened = create_work(&root, "CRLF Round Trip", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &std::sync::Mutex::new(Vec::new()), None, &[])
-        .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+    let opened = create_work(
+        &root,
+        "CRLF Round Trip",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
 
     let source_text = read_chapter_source_text_6_3(&opened, opened.chapter_id);
     assert!(
@@ -10081,7 +11072,10 @@ fn running_normalize_twice_on_the_same_text_yields_the_same_string() {
     let text = "Doan mot khong co dau cham\ncau tiep theo.\n\nDoan hai.";
     let once = normalize::normalize(text, "en");
     let twice = normalize::normalize(&once.text, "en");
-    assert_eq!(once.text, twice.text, "chuan hoa lan hai tren chinh ket qua lan dau phai cho lai Y HET");
+    assert_eq!(
+        once.text, twice.text,
+        "chuan hoa lan hai tren chinh ket qua lan dau phai cho lai Y HET"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -10106,7 +11100,11 @@ fn a_source_longer_than_the_evidence_window_marks_every_candidate_window_truncat
     for i in 0..500 {
         text.push_str(&format!("Cau so {i}.\n"));
     }
-    assert!(text.len() > 4096, "fixture phai vuot cua so bang chung that su: {} byte", text.len());
+    assert!(
+        text.len() > 4096,
+        "fixture phai vuot cua so bang chung that su: {} byte",
+        text.len()
+    );
 
     let shape = PipelineShape::Blob(ChapterInput::RawBytes {
         bytes: text.clone().into_bytes(),
@@ -10114,12 +11112,19 @@ fn a_source_longer_than_the_evidence_window_marks_every_candidate_window_truncat
     });
     let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
 
-    assert_eq!(preview.candidates.len(), 5, "nguon co byte de do -- du nam o");
+    assert_eq!(
+        preview.candidates.len(),
+        5,
+        "nguon co byte de do -- du nam o"
+    );
     for candidate in &preview.candidates {
         let Some(normalized) = &candidate.normalized else {
             // UTF-16 tren ASCII thuan gan nhu luon "khong ra chu" -- bo qua dung mot o do,
             // cung mien tru ma cac ca khac cua tep nay da dung (label != "UTF-16").
-            assert_eq!(candidate.label, "UTF-16", "chi UTF-16 duoc phep khong co .normalized o day");
+            assert_eq!(
+                candidate.label, "UTF-16",
+                "chi UTF-16 duoc phep khong co .normalized o day"
+            );
             continue;
         };
         assert!(
@@ -10138,10 +11143,12 @@ fn a_source_longer_than_the_evidence_window_marks_every_candidate_window_truncat
 #[test]
 fn the_same_mid_sentence_bytes_normalize_differently_by_source_lang_through_render_candidates() {
     let bytes = b"Line one without a period\nLine two.".to_vec();
-    let shape_for = || PipelineShape::Blob(ChapterInput::RawBytes {
-        bytes: bytes.clone(),
-        label: "mid-sentence.txt".to_owned(),
-    });
+    let shape_for = || {
+        PipelineShape::Blob(ChapterInput::RawBytes {
+            bytes: bytes.clone(),
+            label: "mid-sentence.txt".to_owned(),
+        })
+    };
 
     let preview_en = preview_import_encoding(&shape_for(), "en", &[], None, &[], 0, &[]);
     let preview_zh = preview_import_encoding(&shape_for(), "zh", &[], None, &[], 0, &[]);
@@ -10159,8 +11166,14 @@ fn the_same_mid_sentence_bytes_normalize_differently_by_source_lang_through_rend
         .and_then(|c| c.normalized.as_ref())
         .expect("UTF-8 phai ra chu va co .normalized");
 
-    assert_eq!(utf8_en.text, "Line one without a period Line two.", "en: noi bang MOT dau cach");
-    assert_eq!(utf8_zh.text, "Line one without a periodLine two.", "zh: noi bang chuoi RONG");
+    assert_eq!(
+        utf8_en.text, "Line one without a period Line two.",
+        "en: noi bang MOT dau cach"
+    );
+    assert_eq!(
+        utf8_zh.text, "Line one without a periodLine two.",
+        "zh: noi bang chuoi RONG"
+    );
     assert_ne!(
         utf8_en.text, utf8_zh.text,
         "hai nhanh ngon ngu phai cho ra hai chuoi KHAC NHAU -- day noi phai that su chay toi day"
@@ -10193,27 +11206,58 @@ fn cleanup_rule_matching(id: i64, pattern: &str) -> auratranslate_lib::core::cle
 #[test]
 fn n_files_with_no_pattern_yield_n_chapters_each_with_its_own_report_and_source_file() {
     let units = vec![
-        ChapterInput::RawBytes { bytes: b"noi dung tep mot, khong co gi de xoa.".to_vec(), label: "mot.txt".to_owned() },
-        ChapterInput::RawBytes { bytes: b"QC noi dung tep hai.".to_vec(), label: "hai.txt".to_owned() },
-        ChapterInput::RawBytes { bytes: b"noi dung tep ba, mot dong duy nhat.".to_vec(), label: "ba.txt".to_owned() },
+        ChapterInput::RawBytes {
+            bytes: b"noi dung tep mot, khong co gi de xoa.".to_vec(),
+            label: "mot.txt".to_owned(),
+        },
+        ChapterInput::RawBytes {
+            bytes: b"QC noi dung tep hai.".to_vec(),
+            label: "hai.txt".to_owned(),
+        },
+        ChapterInput::RawBytes {
+            bytes: b"noi dung tep ba, mot dong duy nhat.".to_vec(),
+            label: "ba.txt".to_owned(),
+        },
     ];
     let rules = vec![cleanup_rule_matching(1, "QC")];
-    let input = PipelineInput::default_shaped(PipelineShape::Files(units), "en").with_cleanup_rules(rules);
+    let input =
+        PipelineInput::default_shaped(PipelineShape::Files(units), "en").with_cleanup_rules(rules);
     let outcome = run_import(input).expect("3 tep hop le phai chay qua duoc chuoi bay buoc");
 
-    assert_eq!(outcome.chapters.len(), 3, "3 tep, khong mau phan tach, phai cho ra dung 3 Chuong");
+    assert_eq!(
+        outcome.chapters.len(),
+        3,
+        "3 tep, khong mau phan tach, phai cho ra dung 3 Chuong"
+    );
     for (i, c) in outcome.chapters.iter().enumerate() {
-        assert_eq!(c.cleanup_report.is_some(), true, "moi Chuong (k == 1) phai mang bao cao CUA CHINH no, khong None -- chuong {i}");
+        assert_eq!(
+            c.cleanup_report.is_some(),
+            true,
+            "moi Chuong (k == 1) phai mang bao cao CUA CHINH no, khong None -- chuong {i}"
+        );
     }
     let matches: Vec<usize> = outcome
         .chapters
         .iter()
-        .map(|c| c.cleanup_report.as_ref().map(|r| r.per_rule_counts.values().sum()).unwrap_or(0))
+        .map(|c| {
+            c.cleanup_report
+                .as_ref()
+                .map(|r| r.per_rule_counts.values().sum())
+                .unwrap_or(0)
+        })
         .collect();
-    assert_eq!(matches, vec![0, 1, 0], "so khop luat lam sach phai la so THAT cua TUNG tep -- chi tep hai co \"QC\"");
+    assert_eq!(
+        matches,
+        vec![0, 1, 0],
+        "so khop luat lam sach phai la so THAT cua TUNG tep -- chi tep hai co \"QC\""
+    );
 
     assert_eq!(
-        outcome.chapters.iter().map(|c| c.source_file.as_deref()).collect::<Vec<_>>(),
+        outcome
+            .chapters
+            .iter()
+            .map(|c| c.source_file.as_deref())
+            .collect::<Vec<_>>(),
         vec![Some("mot.txt"), Some("hai.txt"), Some("ba.txt")],
         "moi Chuong phai giu dung ten tep NGUON cua CHINH no, theo dung thu tu da nhap"
     );
@@ -10222,7 +11266,10 @@ fn n_files_with_no_pattern_yield_n_chapters_each_with_its_own_report_and_source_
     // day KHONG di qua split_on_positions (khong mau), ma di qua nhanh whole-file cua
     // split_unit_for_files: title = title_line_of(&text), va mot van ban MOT dong luon None.
     for c in &outcome.chapters {
-        assert_eq!(c.title, None, "khong mau phan tach: moi Chuong (k == 1) title = None (mot dong duy nhat)");
+        assert_eq!(
+            c.title, None,
+            "khong mau phan tach: moi Chuong (k == 1) title = None (mot dong duy nhat)"
+        );
     }
 }
 
@@ -10270,8 +11317,14 @@ fn n_files_with_a_chapter_pattern_split_further_keep_titles_and_reset_joined_cou
     let unit_a = "Tep A - Phan 1: Mo Dau\n\nQC noi dung mot A.\n\nTep A - Phan 2: Giua\n\nnoi dung hai A.\n\nTep A - Phan 3: Ket\n\nnoi dung ba A.";
     let unit_b = "Tep B - Phan 1: Mo Dau\n\nnoi dung mot B. QC. QC.\n\nTep B - Phan 2: Giua\n\nnoi dung hai B.\n\nTep B - Phan 3: Ket\n\nnoi dung ba B.";
     let units = vec![
-        ChapterInput::RawBytes { bytes: unit_a.as_bytes().to_vec(), label: "tep-a.txt".to_owned() },
-        ChapterInput::RawBytes { bytes: unit_b.as_bytes().to_vec(), label: "tep-b.txt".to_owned() },
+        ChapterInput::RawBytes {
+            bytes: unit_a.as_bytes().to_vec(),
+            label: "tep-a.txt".to_owned(),
+        },
+        ChapterInput::RawBytes {
+            bytes: unit_b.as_bytes().to_vec(),
+            label: "tep-b.txt".to_owned(),
+        },
     ];
     let rules = vec![cleanup_rule_matching(1, "QC")];
     let pattern = ChapterPattern::regex(r"^Tep [AB] - Phan \d+:.*$");
@@ -10282,7 +11335,11 @@ fn n_files_with_a_chapter_pattern_split_further_keep_titles_and_reset_joined_cou
 
     assert_eq!(outcome.chapters.len(), 6, "2 tep x 3 lan khop = 6 Chuong");
 
-    let titles: Vec<Option<&str>> = outcome.chapters.iter().map(|c| c.title.as_deref()).collect();
+    let titles: Vec<Option<&str>> = outcome
+        .chapters
+        .iter()
+        .map(|c| c.title.as_deref())
+        .collect();
     assert_eq!(
         titles,
         vec![
@@ -10298,7 +11355,10 @@ fn n_files_with_a_chapter_pattern_split_further_keep_titles_and_reset_joined_cou
 
     // joined_line_count: None cho CA 6 (k > 1 o CA hai don vi).
     for (i, c) in outcome.chapters.iter().enumerate() {
-        assert_eq!(c.joined_line_count, None, "k > 1 (mau tach them) phai cho joined_line_count = None -- chuong {i}");
+        assert_eq!(
+            c.joined_line_count, None,
+            "k > 1 (mau tach them) phai cho joined_line_count = None -- chuong {i}"
+        );
     }
 
     // cleanup_report: CHI mang o mang DAU cua MOI don vi (chuong 0 va chuong 3), None o bon
@@ -10306,7 +11366,11 @@ fn n_files_with_a_chapter_pattern_split_further_keep_titles_and_reset_joined_cou
     let report_counts: Vec<Option<usize>> = outcome
         .chapters
         .iter()
-        .map(|c| c.cleanup_report.as_ref().map(|r| r.per_rule_counts.values().sum::<usize>()))
+        .map(|c| {
+            c.cleanup_report
+                .as_ref()
+                .map(|r| r.per_rule_counts.values().sum::<usize>())
+        })
         .collect();
     assert_eq!(
         report_counts,
@@ -10317,12 +11381,20 @@ fn n_files_with_a_chapter_pattern_split_further_keep_titles_and_reset_joined_cou
 
     // source_file: moi manh cua CUNG mot tep phai giu DUNG ten tep do -- khong bi xoa ve rong
     // (khac `Blob`) va khong bi tron sang tep khac.
-    let source_files: Vec<Option<&str>> = outcome.chapters.iter().map(|c| c.source_file.as_deref()).collect();
+    let source_files: Vec<Option<&str>> = outcome
+        .chapters
+        .iter()
+        .map(|c| c.source_file.as_deref())
+        .collect();
     assert_eq!(
         source_files,
         vec![
-            Some("tep-a.txt"), Some("tep-a.txt"), Some("tep-a.txt"),
-            Some("tep-b.txt"), Some("tep-b.txt"), Some("tep-b.txt"),
+            Some("tep-a.txt"),
+            Some("tep-a.txt"),
+            Some("tep-a.txt"),
+            Some("tep-b.txt"),
+            Some("tep-b.txt"),
+            Some("tep-b.txt"),
         ],
         "ca ba manh cua tep-a.txt phai giu DUNG ten tep-a.txt, ca ba manh cua tep-b.txt phai giu DUNG ten tep-b.txt"
     );
@@ -10338,15 +11410,26 @@ fn n_files_with_a_chapter_pattern_split_further_keep_titles_and_reset_joined_cou
 fn import_files_with_exactly_one_path_builds_the_same_blob_as_import_file() {
     let root = temp_dir("import-files-n1");
     let path = root.join("mot-tep.txt");
-    fs::write(&path, "noi dung mot tep duy nhat.").unwrap_or_else(|e| panic!("ghi {}: {e}", path.display()));
+    fs::write(&path, "noi dung mot tep duy nhat.")
+        .unwrap_or_else(|e| panic!("ghi {}: {e}", path.display()));
 
     let direct = import_file(&path).expect("import_file phai thanh cong");
-    let via_files = import_files(&[path.display().to_string()]).expect("import_files N=1 phai thanh cong");
+    let via_files =
+        import_files(&[path.display().to_string()]).expect("import_files N=1 phai thanh cong");
 
-    assert_eq!(via_files.shape, direct.0, "N = 1 phai xay DUNG Blob giong HET import_file truc tiep");
-    assert_eq!(via_files.docx_sidecar, direct.1, "N = 1 phai giu DOCX sidecar giong HET import_file truc tiep");
+    assert_eq!(
+        via_files.shape, direct.0,
+        "N = 1 phai xay DUNG Blob giong HET import_file truc tiep"
+    );
+    assert_eq!(
+        via_files.docx_sidecar, direct.1,
+        "N = 1 phai giu DOCX sidecar giong HET import_file truc tiep"
+    );
     assert_eq!(via_files.items.len(), 1);
-    assert!(via_files.items[0].error.is_none(), "tep doc duoc phai la mot muc OK");
+    assert!(
+        via_files.items[0].error.is_none(),
+        "tep doc duoc phai la mot muc OK"
+    );
     assert_eq!(via_files.items[0].path, path.display().to_string());
 
     cleanup(&root);
@@ -10364,16 +11447,21 @@ fn import_files_with_exactly_one_path_builds_the_same_blob_as_import_file() {
 fn import_files_with_exactly_one_path_keeps_the_docx_sidecar_when_the_one_file_is_docx() {
     let root = temp_dir("import-files-n1-docx");
     let path = root.join("mot-tep.docx");
-    fs::write(&path, fixtures_docx::plain()).unwrap_or_else(|e| panic!("ghi {}: {e}", path.display()));
+    fs::write(&path, fixtures_docx::plain())
+        .unwrap_or_else(|e| panic!("ghi {}: {e}", path.display()));
 
     let direct = import_file(&path).expect("import_file phai thanh cong tren .docx hop le");
     assert!(
         matches!(direct.0, PipelineShape::Blob(ChapterInput::AlreadyText(_))),
         "tien de phep do: import_file phai xay AlreadyText cho .docx, khong RawBytes"
     );
-    assert!(direct.1.is_some(), "tien de phep do: .docx phai mang mot DocxSidecar THAT");
+    assert!(
+        direct.1.is_some(),
+        "tien de phep do: .docx phai mang mot DocxSidecar THAT"
+    );
 
-    let via_files = import_files(&[path.display().to_string()]).expect("import_files N=1 tren .docx phai thanh cong");
+    let via_files = import_files(&[path.display().to_string()])
+        .expect("import_files N=1 tren .docx phai thanh cong");
 
     assert_eq!(
         via_files.shape, direct.0,
@@ -10385,7 +11473,10 @@ fn import_files_with_exactly_one_path_keeps_the_docx_sidecar_when_the_one_file_i
          hanh vi ma §Always \"Single-file .docx ... untouched\" hua"
     );
     assert_eq!(via_files.items.len(), 1);
-    assert!(via_files.items[0].error.is_none(), "tep .docx doc duoc phai la mot muc OK");
+    assert!(
+        via_files.items[0].error.is_none(),
+        "tep .docx doc duoc phai la mot muc OK"
+    );
 
     cleanup(&root);
 }
@@ -10404,7 +11495,8 @@ fn import_files_refuses_an_empty_list_before_opening_any_file() {
 /// hai tệp `.txt` còn lại VẪN nằm trong hình dạng `Files` xây được -- một mục hỏng KHÔNG BAO
 /// GIỜ làm cả lượt trượt thành `Err` (khác N = 1).
 #[test]
-fn import_files_keeps_unreadable_and_batch_unsupported_items_in_place_without_failing_the_whole_batch() {
+fn import_files_keeps_unreadable_and_batch_unsupported_items_in_place_without_failing_the_whole_batch()
+ {
     let root = temp_dir("import-files-batch-errors");
     let ok_a = root.join("ok-a.txt");
     let ok_b = root.join("ok-b.md");
@@ -10414,7 +11506,8 @@ fn import_files_keeps_unreadable_and_batch_unsupported_items_in_place_without_fa
     fs::write(&ok_b, "noi dung b").unwrap_or_else(|e| panic!("ghi {}: {e}", ok_b.display()));
     // 0 byte hop le cua mot .docx that -- chi can ton tai tren dia de vuot qua buoc reject
     // theo DUOI truoc khi cham noi dung; batch tu choi no vi DUOI, khong doc no.
-    fs::write(&docx_path, b"khong quan trong noi dung").unwrap_or_else(|e| panic!("ghi {}: {e}", docx_path.display()));
+    fs::write(&docx_path, b"khong quan trong noi dung")
+        .unwrap_or_else(|e| panic!("ghi {}: {e}", docx_path.display()));
 
     let paths = vec![
         ok_a.display().to_string(),
@@ -10422,26 +11515,53 @@ fn import_files_keeps_unreadable_and_batch_unsupported_items_in_place_without_fa
         docx_path.display().to_string(),
         ok_b.display().to_string(),
     ];
-    let outcome = import_files(&paths).expect("mot muc hong khong duoc lam ca luot import_files tra Err");
+    let outcome =
+        import_files(&paths).expect("mot muc hong khong duoc lam ca luot import_files tra Err");
 
-    assert_eq!(outcome.items.len(), 4, "items phai giu DUNG vi tri cho CA BON duong dan da gui");
-    assert!(outcome.items[0].error.is_none(), "ok-a.txt phai la mot muc OK");
-    assert!(outcome.items[1].error.is_some(), "duong dan khong ton tai phai la mot muc LOI");
-    assert!(outcome.items[2].error.is_some(), "mot tep .docx trong batch N > 1 phai la mot muc LOI");
     assert_eq!(
-        outcome.items[2].error.as_ref().map(|e| matches!(e, ImportError::BatchUnsupportedFormat { .. })),
+        outcome.items.len(),
+        4,
+        "items phai giu DUNG vi tri cho CA BON duong dan da gui"
+    );
+    assert!(
+        outcome.items[0].error.is_none(),
+        "ok-a.txt phai la mot muc OK"
+    );
+    assert!(
+        outcome.items[1].error.is_some(),
+        "duong dan khong ton tai phai la mot muc LOI"
+    );
+    assert!(
+        outcome.items[2].error.is_some(),
+        "mot tep .docx trong batch N > 1 phai la mot muc LOI"
+    );
+    assert_eq!(
+        outcome.items[2]
+            .error
+            .as_ref()
+            .map(|e| matches!(e, ImportError::BatchUnsupportedFormat { .. })),
         Some(true),
         ".docx trong batch phai tu choi bang ImportError::BatchUnsupportedFormat, khong mot hang loi khac"
     );
-    assert!(outcome.items[3].error.is_none(), "ok-b.md phai la mot muc OK");
+    assert!(
+        outcome.items[3].error.is_none(),
+        "ok-b.md phai la mot muc OK"
+    );
 
     match outcome.shape {
         PipelineShape::Files(units) => {
-            assert_eq!(units.len(), 2, "chi hai muc OK (ok-a.txt, ok-b.md) duoc dua vao hinh dang Files");
+            assert_eq!(
+                units.len(),
+                2,
+                "chi hai muc OK (ok-a.txt, ok-b.md) duoc dua vao hinh dang Files"
+            );
         }
         other => panic!("N > 1 phai xay PipelineShape::Files, khong {other:?}"),
     }
-    assert_eq!(outcome.docx_sidecar, None, "batch N > 1 khong bao gio mang mot DocxSidecar (chi N = 1 moi co)");
+    assert_eq!(
+        outcome.docx_sidecar, None,
+        "batch N > 1 khong bao gio mang mot DocxSidecar (chi N = 1 moi co)"
+    );
 
     cleanup(&root);
 }
@@ -10483,7 +11603,10 @@ fn perf_probe_file_batch_preview_on_two_hundred_files() {
     unit_text.push_str("QC ghi chu quang cao o cuoi tep.\n");
 
     let units: Vec<ChapterInput> = (0..FILE_COUNT)
-        .map(|i| ChapterInput::RawBytes { bytes: unit_text.as_bytes().to_vec(), label: format!("tep-{i}.txt") })
+        .map(|i| ChapterInput::RawBytes {
+            bytes: unit_text.as_bytes().to_vec(),
+            label: format!("tep-{i}.txt"),
+        })
         .collect();
     let total_bytes: usize = units
         .iter()
@@ -10506,7 +11629,10 @@ fn perf_probe_file_batch_preview_on_two_hundred_files() {
         .and_then(|c| c.chapters.as_ref())
         .map(|c| c.chapter_count)
         .unwrap_or(0);
-    assert_eq!(chapter_count, FILE_COUNT, "tien de phep do: ca 200 Chuong phai xuat hien trong ung vien dau");
+    assert_eq!(
+        chapter_count, FILE_COUNT,
+        "tien de phep do: ca 200 Chuong phai xuat hien trong ung vien dau"
+    );
 
     eprintln!(
         "[perf-probe 2026-09-16] preview_import_encoding trên PipelineShape::Files, {FILE_COUNT} tệp \
@@ -10530,12 +11656,27 @@ fn a_files_batch_whose_units_detect_different_encodings_reports_low_confidence()
         "第一章 起源\n萧炎在东临村口的一处石壁上练习着最基础的吐纳法门，神情专注，气息悠长。",
     );
     assert!(!had_errors, "fixture phai ma hoa GBK sach");
-    let gbk_unit = ChapterInput::RawBytes { bytes: gbk_bytes.into_owned(), label: "gbk.txt".to_owned() };
+    let gbk_unit = ChapterInput::RawBytes {
+        bytes: gbk_bytes.into_owned(),
+        label: "gbk.txt".to_owned(),
+    };
 
     // Tien de: hai don vi phai THAT SU do ra hai bang ma khac nhau, khong thi ca nay khong
     // kiem duoc gi ca.
-    let ChapterInput::RawBytes { bytes: ascii_bytes_ref, .. } = &ascii_unit else { unreachable!() };
-    let ChapterInput::RawBytes { bytes: gbk_bytes_ref, .. } = &gbk_unit else { unreachable!() };
+    let ChapterInput::RawBytes {
+        bytes: ascii_bytes_ref,
+        ..
+    } = &ascii_unit
+    else {
+        unreachable!()
+    };
+    let ChapterInput::RawBytes {
+        bytes: gbk_bytes_ref,
+        ..
+    } = &gbk_unit
+    else {
+        unreachable!()
+    };
     let ascii_verdict = auratranslate_lib::core::segment::encoding::detect(ascii_bytes_ref);
     let gbk_verdict = auratranslate_lib::core::segment::encoding::detect(gbk_bytes_ref);
     assert_ne!(
@@ -10551,7 +11692,11 @@ fn a_files_batch_whose_units_detect_different_encodings_reports_low_confidence()
         ConfidenceWire::Low,
         "hai tep bat dong ve bang ma phai ep phan quyet CA BATCH ve Low, du tep dau tu no tin cay cao"
     );
-    assert_eq!(preview.candidates.len(), 5, "dai nam o van dung tu DUNG mot tep dai dien (tep dau)");
+    assert_eq!(
+        preview.candidates.len(),
+        5,
+        "dai nam o van dung tu DUNG mot tep dai dien (tep dau)"
+    );
 }
 
 /// **Vòng rà đối kháng 2026-09-16, mục 5** — tệp ĐẦU 0 byte không còn kéo cả preview vào
@@ -10562,7 +11707,10 @@ fn a_files_batch_whose_units_detect_different_encodings_reports_low_confidence()
 /// mỗi tệp, kể cả tệp #0 rỗng — không phải MỘT Chương như khi cả batch bị coi là tự khai.
 #[test]
 fn a_files_batch_whose_first_file_is_empty_still_detects_on_the_first_nonempty_file() {
-    let empty_unit = ChapterInput::RawBytes { bytes: Vec::new(), label: "empty.txt".to_owned() };
+    let empty_unit = ChapterInput::RawBytes {
+        bytes: Vec::new(),
+        label: "empty.txt".to_owned(),
+    };
     let ascii_unit_1 = ChapterInput::RawBytes {
         bytes: b"Chapter One. Plain ascii content, long enough to detect with confidence.".to_vec(),
         label: "one.txt".to_owned(),
@@ -10591,7 +11739,10 @@ fn a_files_batch_whose_first_file_is_empty_still_detects_on_the_first_nonempty_f
         .and_then(|c| c.chapters.as_ref())
         .map(|c| c.chapter_count)
         .unwrap_or(0);
-    assert_eq!(chapter_count, 3, "tang 4 phai dem du BA Chuong -- mot cho moi tep, ke ca tep #0 rong");
+    assert_eq!(
+        chapter_count, 3,
+        "tang 4 phai dem du BA Chuong -- mot cho moi tep, ke ca tep #0 rong"
+    );
 }
 
 /// **Vòng rà đối kháng 2026-09-16, mục 7** — vòng lặp bất đồng giờ chỉ hỏi `encoding::detect`
@@ -10602,8 +11753,7 @@ fn a_files_batch_whose_first_file_is_empty_still_detects_on_the_first_nonempty_f
 #[test]
 fn a_files_batch_whose_units_all_agree_on_encoding_keeps_its_real_confidence() {
     let unit_1 = ChapterInput::RawBytes {
-        bytes: b"Chapter One. Plain ascii content, long enough to detect with confidence."
-            .to_vec(),
+        bytes: b"Chapter One. Plain ascii content, long enough to detect with confidence.".to_vec(),
         label: "one.txt".to_owned(),
     };
     let unit_2 = ChapterInput::RawBytes {
@@ -10619,14 +11769,26 @@ fn a_files_batch_whose_units_all_agree_on_encoding_keeps_its_real_confidence() {
 
     // Tien de: ca ba tep phai THAT SU do ra CUNG mot bang ma, khong thi ca nay khong kiem
     // duoc gi ca.
-    let ChapterInput::RawBytes { bytes: b1, .. } = &unit_1 else { unreachable!() };
-    let ChapterInput::RawBytes { bytes: b2, .. } = &unit_2 else { unreachable!() };
-    let ChapterInput::RawBytes { bytes: b3, .. } = &unit_3 else { unreachable!() };
+    let ChapterInput::RawBytes { bytes: b1, .. } = &unit_1 else {
+        unreachable!()
+    };
+    let ChapterInput::RawBytes { bytes: b2, .. } = &unit_2 else {
+        unreachable!()
+    };
+    let ChapterInput::RawBytes { bytes: b3, .. } = &unit_3 else {
+        unreachable!()
+    };
     let v1 = auratranslate_lib::core::segment::encoding::detect(b1);
     let v2 = auratranslate_lib::core::segment::encoding::detect(b2);
     let v3 = auratranslate_lib::core::segment::encoding::detect(b3);
-    assert_eq!(v1.encoding, v2.encoding, "tien de phep do: ba tep phai dong thuan bang ma");
-    assert_eq!(v1.encoding, v3.encoding, "tien de phep do: ba tep phai dong thuan bang ma");
+    assert_eq!(
+        v1.encoding, v2.encoding,
+        "tien de phep do: ba tep phai dong thuan bang ma"
+    );
+    assert_eq!(
+        v1.encoding, v3.encoding,
+        "tien de phep do: ba tep phai dong thuan bang ma"
+    );
 
     let shape = PipelineShape::Files(vec![unit_1, unit_2, unit_3]);
     let preview = preview_import_encoding(&shape, "en", &[], None, &[], 0, &[]);
@@ -10636,7 +11798,11 @@ fn a_files_batch_whose_units_all_agree_on_encoding_keeps_its_real_confidence() {
         ConfidenceWire::High,
         "ba tep dong thuan bang ma khong duoc ep xuong Low boi mot phep so sanh voi CHINH tep dai dien"
     );
-    assert_eq!(preview.candidates.len(), 5, "dai nam o van dung tu tep dai dien");
+    assert_eq!(
+        preview.candidates.len(),
+        5,
+        "dai nam o van dung tu tep dai dien"
+    );
 }
 
 fn read_target_and_status(
@@ -10645,9 +11811,11 @@ fn read_target_and_status(
 ) -> (String, String) {
     open.store
         .read(move |conn| {
-            conn.query_row("SELECT target_text, status FROM segment WHERE id = ?1", [id], |r| {
-                Ok((r.get(0)?, r.get(1)?))
-            })
+            conn.query_row(
+                "SELECT target_text, status FROM segment WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
         })
         .expect("doc van ban va trang thai that bai")
 }
@@ -10686,7 +11854,8 @@ fn retire_segment(open: &auratranslate_lib::commands::project::OpenWork, id: i64
 /// mốc ngoài danh mục phải bị từ chối, không ghi gì, và việc mở lại Tác phẩm bị chặn đúng như
 /// với cột `translation_origin` (AD-50 rule 1).
 #[test]
-fn confirming_with_an_origin_outside_the_catalogue_on_the_keep_branch_is_refused_and_the_work_is_refused_at_open() {
+fn confirming_with_an_origin_outside_the_catalogue_on_the_keep_branch_is_refused_and_the_work_is_refused_at_open()
+ {
     let root = temp_dir("confirm-unknown-origin");
     let opened = create_work_from_text(&root, "Moc La", "zh", "", "一。二。".to_owned())
         .expect("tao tac pham that bai");
@@ -10711,9 +11880,16 @@ fn confirming_with_an_origin_outside_the_catalogue_on_the_keep_branch_is_refused
     let err = confirm_segment(Some(&opened), id)
         .expect_err("mot moc ngoai danh muc tren nhanh giu PHAI bi tu choi");
     assert_eq!(err.code(), "segment.unknown_translation_origin");
-    assert_eq!(err.message_key(), MessageKey::SegmentUnknownTranslationOrigin);
+    assert_eq!(
+        err.message_key(),
+        MessageKey::SegmentUnknownTranslationOrigin
+    );
 
-    assert_eq!(read_origin(&opened, id), TRANSLATION_ORIGIN_OTHER, "khong ghi gi xuong dia");
+    assert_eq!(
+        read_origin(&opened, id),
+        TRANSLATION_ORIGIN_OTHER,
+        "khong ghi gi xuong dia"
+    );
     assert_eq!(read_state(&opened, id), ("draft".to_owned(), 0));
 
     let indexed = auratranslate_lib::core::library::indexer::IndexedWork {
@@ -10731,8 +11907,11 @@ fn confirming_with_an_origin_outside_the_catalogue_on_the_keep_branch_is_refused
     };
     let dir = opened.dir.clone();
     drop(opened);
-    let reopened = auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
-        .expect_err("mot moc xuat xu ngoai danh muc tren dia chan viec mo Tac pham (AD-50 rule 1)");
+    let reopened =
+        auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+            .expect_err(
+                "mot moc xuat xu ngoai danh muc tren dia chan viec mo Tac pham (AD-50 rule 1)",
+            );
     assert_eq!(reopened.code(), "store.unknown_translation_origin");
 
     cleanup(&dir);
@@ -10762,13 +11941,24 @@ fn merging_a_source_whose_baseline_origin_is_outside_the_catalogue_is_refused_an
         .expect("dung fixture that bai");
     let before = read_all_segment_rows(&opened);
 
-    let err = merge_segments(Some(&opened), second).expect_err("mot moc ngoai danh muc PHAI bi tu choi");
+    let err =
+        merge_segments(Some(&opened), second).expect_err("mot moc ngoai danh muc PHAI bi tu choi");
     assert_eq!(err.code(), "segment.unknown_translation_origin");
 
-    assert_eq!(read_all_segment_rows(&opened), before, "khong hang nao bi retire hay tao moi");
+    assert_eq!(
+        read_all_segment_rows(&opened),
+        before,
+        "khong hang nao bi retire hay tao moi"
+    );
     let retired: i64 = opened
         .store
-        .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment WHERE retired_at IS NOT NULL", [], |r| r.get(0)))
+        .read(|conn| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM segment WHERE retired_at IS NOT NULL",
+                [],
+                |r| r.get(0),
+            )
+        })
         .expect("dem hang nghi huu");
     assert_eq!(retired, 0);
 
@@ -10800,12 +11990,22 @@ fn confirming_with_a_catalogue_origin_on_the_keep_branch_keeps_the_disk_origin()
 
 fn work_with_one_live_and_one_retired_segment(
     tag: &str,
-) -> (PathBuf, auratranslate_lib::commands::project::OpenWork, i64, i64, i64) {
+) -> (
+    PathBuf,
+    auratranslate_lib::commands::project::OpenWork,
+    i64,
+    i64,
+    i64,
+) {
     let root = temp_dir(tag);
     let opened = create_work_from_text(&root, "Lo Co Bia", "zh", "", "一。二。".to_owned())
         .expect("tao tac pham that bai");
     let rows = read_all_segment_rows(&opened);
-    assert!(rows.len() >= 2, "fixture can hai segment song, co {}", rows.len());
+    assert!(
+        rows.len() >= 2,
+        "fixture can hai segment song, co {}",
+        rows.len()
+    );
     let (live, retired, chapter_id) = (rows[0].0, rows[1].0, rows[0].1);
     retire_segment(&opened, retired);
     (root, opened, chapter_id, live, retired)
@@ -10828,7 +12028,11 @@ fn saving_a_batch_holding_a_retired_segment_is_rejected_whole_and_the_live_one_k
     assert_eq!(err.code(), "segment.unknown_ids");
     assert_eq!(err.message_key(), MessageKey::SegmentUnknownIds);
     assert_eq!(read_target_and_status(&opened, live).0, "Goc.");
-    assert_eq!(read_target_and_status(&opened, retired).0, "", "bia mo khong duoc ghi");
+    assert_eq!(
+        read_target_and_status(&opened, retired).0,
+        "",
+        "bia mo khong duoc ghi"
+    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -10845,7 +12049,10 @@ fn flushing_a_batch_holding_a_retired_segment_leaves_the_live_confirmed_segment_
         work_with_one_live_and_one_retired_segment("flush-retired");
     set_target_and_origin(&opened, live, "Goc.", TRANSLATION_ORIGIN_OTHER);
     confirm_segment(Some(&opened), live).expect("ky that bai");
-    assert_eq!(read_target_and_status(&opened, live), ("Goc.".to_owned(), "confirmed".to_owned()));
+    assert_eq!(
+        read_target_and_status(&opened, live),
+        ("Goc.".to_owned(), "confirmed".to_owned())
+    );
 
     let err = flush_segment_targets(
         Some(&opened),

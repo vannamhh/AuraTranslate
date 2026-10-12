@@ -113,8 +113,9 @@ pub(crate) fn chapter_not_found(chapter_id: i64) -> IpcError {
 /// [`open_adjacent_chapter`]/[`open_chapter`]: con trỏ chỉ đổi SAU một lượt xác nhận thành
 /// công, không trước.
 pub(crate) fn set_open_chapter(open: &mut OpenWork, chapter_id: i64) -> Result<(), IpcError> {
-    open.store
-        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE work SET last_chapter_id = ?1", [chapter_id]))?;
+    open.store.write(move |tx: &Transaction<'_>| {
+        tx.execute("UPDATE work SET last_chapter_id = ?1", [chapter_id])
+    })?;
     open.chapter_id = chapter_id;
     Ok(())
 }
@@ -417,10 +418,7 @@ fn fetch_chapter_rows(store: &Store) -> Result<Vec<ChapterRow>, IpcError> {
 /// - `chapter_id` không tồn tại ⇒ `segment.chapter_not_found` (tái dùng khoá đã có) — con
 ///   trỏ Chương **không đổi**;
 /// - đường đọc trượt ⇒ `store.read_failed`.
-pub fn open_chapter(
-    open: Option<&mut OpenWork>,
-    chapter_id: i64,
-) -> Result<OpenChapter, IpcError> {
+pub fn open_chapter(open: Option<&mut OpenWork>, chapter_id: i64) -> Result<OpenChapter, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
 
     let found = open.store.read(move |conn| {
@@ -467,7 +465,12 @@ fn chapter_at_first(chapter_id: i64) -> IpcError {
     // `MessageKey::LibraryRootInvalid` ("Khong tham so: duong dan cu the khong phai du lieu can
     // thiet cho cau nay"). Tham so giu o chu ky vi chuoi chan doan cua tang goi van dung no.
     let _ = chapter_id;
-    IpcError::new("chapter.at_first", MessageKey::ChapterAtFirst, std::collections::BTreeMap::new(), false)
+    IpcError::new(
+        "chapter.at_first",
+        MessageKey::ChapterAtFirst,
+        std::collections::BTreeMap::new(),
+        false,
+    )
 }
 
 /// Dời một Chương xuống đã ở Chương cuối — không có hàng liền sau theo `(ord, id)`.
@@ -480,7 +483,12 @@ fn chapter_at_last(chapter_id: i64) -> IpcError {
     // `MessageKey::LibraryRootInvalid` ("Khong tham so: duong dan cu the khong phai du lieu can
     // thiet cho cau nay"). Tham so giu o chu ky vi chuoi chan doan cua tang goi van dung no.
     let _ = chapter_id;
-    IpcError::new("chapter.at_last", MessageKey::ChapterAtLast, std::collections::BTreeMap::new(), false)
+    IpcError::new(
+        "chapter.at_last",
+        MessageKey::ChapterAtLast,
+        std::collections::BTreeMap::new(),
+        false,
+    )
 }
 
 /// Tách tại một câu để lại Chương đứng trước RỖNG — không hàng SỐNG nào còn đứng trước điểm
@@ -494,7 +502,12 @@ fn chapter_split_leaves_empty(chapter_id: i64) -> IpcError {
     // `MessageKey::LibraryRootInvalid` ("Khong tham so: duong dan cu the khong phai du lieu can
     // thiet cho cau nay"). Tham so giu o chu ky vi chuoi chan doan cua tang goi van dung no.
     let _ = chapter_id;
-    IpcError::new("chapter.split_leaves_empty", MessageKey::ChapterSplitLeavesEmpty, std::collections::BTreeMap::new(), false)
+    IpcError::new(
+        "chapter.split_leaves_empty",
+        MessageKey::ChapterSplitLeavesEmpty,
+        std::collections::BTreeMap::new(),
+        false,
+    )
 }
 
 /// **Chuẩn hoá `chapter.ord` về `1..N`** theo `(ord, id)`, chạy ĐẦU mọi giao dịch tổ chức —
@@ -555,7 +568,11 @@ pub fn rename_chapter(
     let open = open.ok_or_else(no_work_open)?;
 
     let trimmed = title.trim();
-    let title_value: Option<String> = if trimmed.is_empty() { None } else { Some(trimmed.to_owned()) };
+    let title_value: Option<String> = if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_owned())
+    };
 
     let touched: usize = open.store.write(move |tx: &Transaction<'_>| {
         tx.execute(
@@ -612,32 +629,47 @@ pub fn update_chapter_origin(
     let url_value = webimport::chapter_origin_trim_or_none(url);
     let published_at_value = webimport::chapter_origin_trim_or_none(published_at);
 
-    let touched: usize = open.store.write(move |tx: &Transaction<'_>| {
-        let Some(through_ord) = apply_through_ord else {
-            return tx.execute(
+    let touched: usize =
+        open.store.write(move |tx: &Transaction<'_>| {
+            let Some(through_ord) = apply_through_ord else {
+                return tx.execute(
                 "UPDATE chapter SET origin_author = ?1, origin_site_name = ?2, origin_url = ?3, \
                  origin_published_at = ?4, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') \
                  WHERE id = ?5",
                 (author_value, site_name_value, url_value, published_at_value, chapter_id),
             );
-        };
+            };
 
-        let start_ord = match tx.query_row("SELECT ord FROM chapter WHERE id = ?1", [chapter_id], |r| r.get::<_, i64>(0)) {
-            Ok(ord) => ord,
-            // A missing chapter maps to the same touched == 0 sentinel as a real
-            // 0-row UPDATE, so the caller's not-found check covers both branches.
-            Err(crate::core::store::SqlError::QueryReturnedNoRows) => return Ok(0),
-            Err(err) => return Err(err),
-        };
-        let (lo, hi) = if start_ord <= through_ord { (start_ord, through_ord) } else { (through_ord, start_ord) };
+            let start_ord =
+                match tx.query_row("SELECT ord FROM chapter WHERE id = ?1", [chapter_id], |r| {
+                    r.get::<_, i64>(0)
+                }) {
+                    Ok(ord) => ord,
+                    // A missing chapter maps to the same touched == 0 sentinel as a real
+                    // 0-row UPDATE, so the caller's not-found check covers both branches.
+                    Err(crate::core::store::SqlError::QueryReturnedNoRows) => return Ok(0),
+                    Err(err) => return Err(err),
+                };
+            let (lo, hi) = if start_ord <= through_ord {
+                (start_ord, through_ord)
+            } else {
+                (through_ord, start_ord)
+            };
 
-        tx.execute(
-            "UPDATE chapter SET origin_author = ?1, origin_site_name = ?2, origin_url = ?3, \
+            tx.execute(
+                "UPDATE chapter SET origin_author = ?1, origin_site_name = ?2, origin_url = ?3, \
              origin_published_at = ?4, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') \
              WHERE ord BETWEEN ?5 AND ?6",
-            (author_value, site_name_value, url_value, published_at_value, lo, hi),
-        )
-    })?;
+                (
+                    author_value,
+                    site_name_value,
+                    url_value,
+                    published_at_value,
+                    lo,
+                    hi,
+                ),
+            )
+        })?;
 
     if touched == 0 {
         return Err(chapter_not_found(chapter_id));
@@ -707,8 +739,11 @@ pub fn move_chapter(
         // doc-comment cua ham do: mot cau SAI VE LOAI, khong tep nao hong). Mot lop loi da co
         // ten ma lai lot lai o hai ham moi la ly do khoi nay mang chu ky nay thay vi mot dong
         // `?` im lang.
-        let ton_tai: i64 =
-            tx.query_row("SELECT COUNT(*) FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0))?;
+        let ton_tai: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM chapter WHERE id = ?1",
+            [chapter_id],
+            |row| row.get(0),
+        )?;
         if ton_tai == 0 {
             *khong_ton_tai_in
                 .lock()
@@ -718,8 +753,11 @@ pub fn move_chapter(
 
         normalize_chapter_ord(tx)?;
 
-        let current_ord: i64 =
-            tx.query_row("SELECT ord FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0))?;
+        let current_ord: i64 = tx.query_row(
+            "SELECT ord FROM chapter WHERE id = ?1",
+            [chapter_id],
+            |row| row.get(0),
+        )?;
 
         // Cùng câu SQL của `open_adjacent_chapter` -- Task 7 đòi đúng chữ.
         let sql = match direction {
@@ -751,16 +789,28 @@ pub fn move_chapter(
         };
 
         // 🔴 Chỉ cột `ord` đổi -- xem doc-comment cua ham nay.
-        tx.execute("UPDATE chapter SET ord = ?1 WHERE id = ?2", (neighbour_ord, chapter_id))?;
-        tx.execute("UPDATE chapter SET ord = ?1 WHERE id = ?2", (current_ord, neighbour_id))?;
+        tx.execute(
+            "UPDATE chapter SET ord = ?1 WHERE id = ?2",
+            (neighbour_ord, chapter_id),
+        )?;
+        tx.execute(
+            "UPDATE chapter SET ord = ?1 WHERE id = ?2",
+            (current_ord, neighbour_id),
+        )?;
         Ok(2)
     })?;
 
     if touched == 0 {
-        if *khong_ton_tai.lock().unwrap_or_else(std::sync::PoisonError::into_inner) {
+        if *khong_ton_tai
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        {
             return Err(chapter_not_found(chapter_id));
         }
-        if *at_boundary.lock().unwrap_or_else(std::sync::PoisonError::into_inner) {
+        if *at_boundary
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        {
             return Err(match direction {
                 ChapterDirection::Next => chapter_at_last(chapter_id),
                 ChapterDirection::Prev => chapter_at_first(chapter_id),
@@ -950,10 +1000,16 @@ pub fn merge_chapter_into_previous(
     })?;
 
     if touched == 0 {
-        if *khong_ton_tai.lock().unwrap_or_else(std::sync::PoisonError::into_inner) {
+        if *khong_ton_tai
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        {
             return Err(chapter_not_found(chapter_id));
         }
-        if *no_previous.lock().unwrap_or_else(std::sync::PoisonError::into_inner) {
+        if *no_previous
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        {
             return Err(chapter_at_first(chapter_id));
         }
     }
@@ -961,7 +1017,10 @@ pub fn merge_chapter_into_previous(
     // 🔴 Con trỏ đổi SAU khi giao dịch commit, không trước (luật đã ghi ở
     // `open_adjacent_chapter`). Chương B không còn tồn tại -- nếu B đang mở, con trỏ dời
     // sang A.
-    if let Some(a_id) = *merged_into.lock().unwrap_or_else(std::sync::PoisonError::into_inner) {
+    if let Some(a_id) = *merged_into
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+    {
         if open.chapter_id == chapter_id {
             set_open_chapter(open, a_id)?;
         }
@@ -1132,21 +1191,26 @@ pub fn split_chapter_at_segment(
     })?;
 
     if touched == 0 {
-        return Err(match *refusal.lock().unwrap_or_else(std::sync::PoisonError::into_inner) {
-            Some(SplitRefusal::SegmentNotFound) => {
-                crate::commands::segment::segment_not_found(segment_id)
-            }
-            Some(SplitRefusal::LeavesEmpty) => chapter_split_leaves_empty(chapter_a),
-            // Không đường nào tới đây: `touched == 0` LUÔN đi kèm một trong hai nhánh từ chối
-            // ở trên đã đặt `refusal`. Rơi về đây là một lỗi LẬP TRÌNH, không một ca nghiệp vụ
-            // -- `Unknown` đúng vai của nó (xem doc-comment `IpcError::new`).
-            None => IpcError::new(
-                "chapter.split_internal_error",
-                MessageKey::Unknown,
-                BTreeMap::new(),
-                false,
-            ),
-        });
+        return Err(
+            match *refusal
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+            {
+                Some(SplitRefusal::SegmentNotFound) => {
+                    crate::commands::segment::segment_not_found(segment_id)
+                }
+                Some(SplitRefusal::LeavesEmpty) => chapter_split_leaves_empty(chapter_a),
+                // Không đường nào tới đây: `touched == 0` LUÔN đi kèm một trong hai nhánh từ chối
+                // ở trên đã đặt `refusal`. Rơi về đây là một lỗi LẬP TRÌNH, không một ca nghiệp vụ
+                // -- `Unknown` đúng vai của nó (xem doc-comment `IpcError::new`).
+                None => IpcError::new(
+                    "chapter.split_internal_error",
+                    MessageKey::Unknown,
+                    BTreeMap::new(),
+                    false,
+                ),
+            },
+        );
     }
 
     // 🔴 `open.chapter_id` GIỮ NGUYÊN A -- Chương đang mở không đổi định danh sau một lượt
@@ -1332,7 +1396,9 @@ pub mod wire {
         // 🔴 Khoá `OpenWorkState` NHẢ trước bước 4 — cùng khuôn `commands::lifecycle::wire`:
         // giữ nó qua một lượt quét đĩa chặn mọi lệnh khác đọc Tác phẩm đang mở.
         let result = {
-            let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::rename_chapter(guard.as_mut(), chapter_id, &title)
         };
         finish_with_reindex(&app, result)
@@ -1368,7 +1434,9 @@ pub mod wire {
             );
         };
         let result = {
-            let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::update_chapter_origin(
                 guard.as_mut(),
                 chapter_id,
@@ -1397,7 +1465,9 @@ pub mod wire {
             return super::move_chapter(None, chapter_id, direction);
         };
         let result = {
-            let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::move_chapter(guard.as_mut(), chapter_id, direction)
         };
         finish_with_reindex(&app, result)
@@ -1417,7 +1487,9 @@ pub mod wire {
             return super::merge_chapter_into_previous(None, chapter_id);
         };
         let result = {
-            let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::merge_chapter_into_previous(guard.as_mut(), chapter_id)
         };
         finish_with_reindex(&app, result)
@@ -1438,7 +1510,9 @@ pub mod wire {
             return super::split_chapter_at_segment(None, segment_id);
         };
         let result = {
-            let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::split_chapter_at_segment(guard.as_mut(), segment_id)
         };
         finish_with_reindex(&app, result)
@@ -1464,6 +1538,11 @@ pub mod wire {
             }
         };
         let indexer = app.try_state::<Indexer>();
-        crate::commands::lifecycle::finish_lifecycle_write(result, indexer.as_deref(), store.as_deref(), &root)
+        crate::commands::lifecycle::finish_lifecycle_write(
+            result,
+            indexer.as_deref(),
+            store.as_deref(),
+            &root,
+        )
     }
 }

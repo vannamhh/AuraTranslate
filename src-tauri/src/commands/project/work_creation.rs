@@ -191,7 +191,9 @@ pub fn create_work_with_progress(
         // ngữ KHÔNG BAO GIỜ bóc nội dung chính (`extract_main_content` luôn `false` cho hình
         // dạng này — nó không phải `PipelineShape::Chapters`), nên `prepare_chapter_images`
         // không bao giờ đọc tới danh sách này; một phần tử rỗng không mất gì.
-        PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => {
+        PipelineShape::Bilingual { .. }
+        | PipelineShape::BilingualTables { .. }
+        | PipelineShape::BilingualRows { .. } => {
             vec![String::new()]
         }
         // 🔴 SỬA 2026-09-16 (vòng rà đối kháng 2, mục 10/G9) — bản trước map thật
@@ -223,7 +225,11 @@ pub fn create_work_with_progress(
             .with_chapter_pattern(chapter_pattern)
             .with_extract_main_content(extract_main_content)
             .with_block_overrides(block_overrides)
-            .with_bilingual_columns(bilingual_source_column, bilingual_target_column, bilingual_has_header)
+            .with_bilingual_columns(
+                bilingual_source_column,
+                bilingual_target_column,
+                bilingual_has_header,
+            )
             .with_bilingual_regroupings(regroupings.to_vec()),
     ) {
         Ok(outcome) => outcome,
@@ -241,7 +247,9 @@ pub fn create_work_with_progress(
         let count = outcome.bilingual_mismatches.len();
         store.close();
         remove_folder(&dir);
-        return Err(crate::core::segment::import::ImportError::BilingualMismatchedRows { count }.into());
+        return Err(
+            crate::core::segment::import::ImportError::BilingualMismatchedRows { count }.into(),
+        );
     }
     let mut chapters = outcome.chapters;
 
@@ -313,7 +321,10 @@ pub fn create_work_with_progress(
         store.close();
         remove_folder(&dir);
         return Err(crate::core::library::WorkError::CreateFailed {
-            detail: format!("so Chuong ({}) vuot i64 -- khong the ghi cot ord", chapters.len()),
+            detail: format!(
+                "so Chuong ({}) vuot i64 -- khong the ghi cot ord",
+                chapters.len()
+            ),
         }
         .into());
     }
@@ -350,7 +361,11 @@ pub fn create_work_with_progress(
     // còn lại ở lại đây để lắp vào `OpenWork` SAU khi giao dịch commit. `domain_log` KHÔNG
     // còn là một trường ở đây (mục B1) — mỗi lời gọi `fetch` đã PUSH THẲNG vào
     // `domain_log_state` ngay khi hoàn tất, nên nó sống sót cả trên đường trượt phía trên.
-    let ImagePrepOutcome { saved: mut saved_assets, images_saved, images_failed } = image_prep;
+    let ImagePrepOutcome {
+        saved: mut saved_assets,
+        images_saved,
+        images_failed,
+    } = image_prep;
 
     // 🔴 **THÊM 2026-09-09 (Story 6.13)** — dệt segment vai (Quyết định 1/2 spec 6.13) NGAY Ở
     // ĐÂY: `chapter.segments` đã ổn định (bước 7 AD-39, kể cả lượt ép ranh giới caption của
@@ -374,8 +389,11 @@ pub fn create_work_with_progress(
             Some(blocks) if weave_this_import => {
                 // Cùng luật `Step::ExtractMainContent`/`prepare_chapter_images` — chỉ Chương
                 // ĐẦU TIÊN đọc `block_overrides` (§Never spec 6.9, kế thừa nguyên vẹn).
-                let overrides_for_unit: &[Option<bool>] =
-                    if i == 0 { &block_overrides_for_images } else { &[] };
+                let overrides_for_unit: &[Option<bool>] = if i == 0 {
+                    &block_overrides_for_images
+                } else {
+                    &[]
+                };
                 let effective_kept = crate::core::segment::pipeline::effective_kept_for_blocks(
                     blocks,
                     overrides_for_unit,
@@ -462,7 +480,10 @@ pub fn create_work_with_progress(
             // `chapter.chapter_origin == None` VÀ `origin_overrides` rỗng ⇒ cả bốn cột `NULL`, KHÔNG
             // BACKFILL, đúng §Always.
             let (origin_author, origin_site_name, origin_url, origin_published_at) =
-                effective_origin_fields(chapter.chapter_origin.as_ref(), origin_overrides_owned.get(i).and_then(Option::as_ref));
+                effective_origin_fields(
+                    chapter.chapter_origin.as_ref(),
+                    origin_overrides_owned.get(i).and_then(Option::as_ref),
+                );
             // 🔴 **THÊM 2026-09-11 (Story 6.16, §Always)** — Chương của đường song ngữ khởi
             // tạo `InProgress`, không `NotStarted`: nó tới với bản dịch SẴN CÓ (dù chưa xác
             // nhận), khác một Chương văn xuôi vừa nhập chưa ai chạm tới.
@@ -715,7 +736,9 @@ pub fn append_chapters_to_work_with_progress(
     let chapter_urls: Vec<String> = match &shape {
         PipelineShape::Blob(c) => vec![chapter_input_page_url(c)],
         PipelineShape::Chapters(cs) => cs.iter().map(chapter_input_page_url).collect(),
-        PipelineShape::Bilingual { .. } | PipelineShape::BilingualTables { .. } | PipelineShape::BilingualRows { .. } => {
+        PipelineShape::Bilingual { .. }
+        | PipelineShape::BilingualTables { .. }
+        | PipelineShape::BilingualRows { .. } => {
             vec![String::new()]
         }
         PipelineShape::Files(_) => vec![String::new()],
@@ -767,7 +790,10 @@ pub fn append_chapters_to_work_with_progress(
     }
     if i64::try_from(chapters.len()).is_err() {
         return Err(crate::core::library::WorkError::CreateFailed {
-            detail: format!("so Chuong ({}) vuot i64 -- khong the ghi cot ord", chapters.len()),
+            detail: format!(
+                "so Chuong ({}) vuot i64 -- khong the ghi cot ord",
+                chapters.len()
+            ),
         }
         .into());
     }
@@ -784,7 +810,11 @@ pub fn append_chapters_to_work_with_progress(
         on_image_progress,
         should_cancel,
     )?;
-    let ImagePrepOutcome { saved: mut saved_assets, images_saved, images_failed } = image_prep;
+    let ImagePrepOutcome {
+        saved: mut saved_assets,
+        images_saved,
+        images_failed,
+    } = image_prep;
 
     // Det vai segment giong het `create_work` (`:630-696`) -- xem doc-comment o do cho ly le
     // day du (Story 6.13).
@@ -796,8 +826,11 @@ pub fn append_chapters_to_work_with_progress(
     for (i, chapter) in chapters.iter().enumerate() {
         match &chapter.blocks {
             Some(blocks) if weave_this_import => {
-                let overrides_for_unit: &[Option<bool>] =
-                    if i == 0 { &block_overrides_for_images } else { &[] };
+                let overrides_for_unit: &[Option<bool>] = if i == 0 {
+                    &block_overrides_for_images
+                } else {
+                    &[]
+                };
                 let effective_kept = crate::core::segment::pipeline::effective_kept_for_blocks(
                     blocks,
                     overrides_for_unit,
@@ -849,7 +882,9 @@ pub fn append_chapters_to_work_with_progress(
     // MAX(ord) + 1 upward"). KHÔNG `INSERT INTO work` — Tác phẩm đã có hàng đó từ lượt tạo.
     let write_result = open.store.write(move |tx: &Transaction<'_>| {
         let base_ord: i64 =
-            tx.query_row("SELECT COALESCE(MAX(ord), 0) FROM chapter", [], |row| row.get(0))?;
+            tx.query_row("SELECT COALESCE(MAX(ord), 0) FROM chapter", [], |row| {
+                row.get(0)
+            })?;
 
         let mut appended_chapter_ids: Vec<i64> = Vec::with_capacity(chapters.len());
         for (i, chapter) in chapters.iter().enumerate() {
@@ -1082,7 +1117,8 @@ fn distribute_docx_blocks_across_chapters(
         return Vec::new();
     }
     let mut per_chapter_blocks: Vec<Vec<webimport::Block>> = vec![Vec::new(); chapters.len()];
-    let mut remap: std::collections::HashMap<usize, (usize, usize)> = std::collections::HashMap::new();
+    let mut remap: std::collections::HashMap<usize, (usize, usize)> =
+        std::collections::HashMap::new();
     let mut current = 0usize;
     let mut consumed = 0usize;
     for (orig_idx, block) in sidecar.blocks.iter().enumerate() {
@@ -1095,7 +1131,9 @@ fn distribute_docx_blocks_across_chapters(
         // chapter boundary stays in the current chapter. The gap between chapters is
         // credited to the chapter before it, matching where Step::SplitChapters actually cut.
         if text_len > 0 {
-            while current + 1 < chapters.len() && consumed + original_gap_len >= chapters[current].source_text.len() {
+            while current + 1 < chapters.len()
+                && consumed + original_gap_len >= chapters[current].source_text.len()
+            {
                 current += 1;
                 consumed = 0;
             }
@@ -1121,12 +1159,14 @@ fn distribute_docx_blocks_across_chapters(
         .images
         .iter()
         .filter_map(|img| {
-            remap.get(&img.block_index).map(|&(chapter_index, local_block_index)| ChapterDocxImage {
-                chapter_index,
-                local_block_index,
-                bytes: img.bytes.clone(),
-                content_type: img.content_type.clone(),
-            })
+            remap
+                .get(&img.block_index)
+                .map(|&(chapter_index, local_block_index)| ChapterDocxImage {
+                    chapter_index,
+                    local_block_index,
+                    bytes: img.bytes.clone(),
+                    content_type: img.content_type.clone(),
+                })
         })
         .collect()
 }
@@ -1167,7 +1207,10 @@ enum PendingImageSource {
     Remote { resolved_url: String },
     /// Byte đã có sẵn trong bộ nhớ (ảnh nhúng `.docx`) — đi thẳng
     /// [`write_local_asset_bytes`], không dedup theo URL (không có URL để mà khoá).
-    Local { bytes: Vec<u8>, content_type: String },
+    Local {
+        bytes: Vec<u8>,
+        content_type: String,
+    },
 }
 
 fn prepare_chapter_images(
@@ -1210,7 +1253,9 @@ fn prepare_chapter_images(
     let mut images_failed: u32 = 0;
 
     for (i, chapter) in chapters.iter().enumerate() {
-        let Some(blocks) = &chapter.blocks else { continue };
+        let Some(blocks) = &chapter.blocks else {
+            continue;
+        };
         if blocks.is_empty() {
             continue;
         }
@@ -1221,14 +1266,18 @@ fn prepare_chapter_images(
         let page_url = chapter_urls.get(i).map(String::as_str).unwrap_or("");
 
         for (block_idx, block) in blocks.iter().enumerate() {
-            let BlockBody::Image { src, .. } = &block.body else { continue };
+            let BlockBody::Image { src, .. } = &block.body else {
+                continue;
+            };
             if !effective_kept[block_idx] {
                 continue;
             }
 
             // .docx images carry no URL (`src` is always `None` for that shape); their bytes
             // were already read at import_file time. Matched by (chapter_index, block_idx).
-            let local_image = docx_images.iter().find(|d| d.chapter_index == i && d.local_block_index == block_idx);
+            let local_image = docx_images
+                .iter()
+                .find(|d| d.chapter_index == i && d.local_block_index == block_idx);
 
             if src.is_none() && local_image.is_none() {
                 images_failed = images_failed.saturating_add(1);
@@ -1263,15 +1312,23 @@ fn prepare_chapter_images(
 
             let source = if let Some(img) = local_image {
                 // Ảnh `.docx` nhúng — 0 mạng, 0 `Allowlist` (§Always spec 6.12).
-                PendingImageSource::Local { bytes: img.bytes.clone(), content_type: img.content_type.clone() }
+                PendingImageSource::Local {
+                    bytes: img.bytes.clone(),
+                    content_type: img.content_type.clone(),
+                }
             } else if let Some(src) = src.as_deref().filter(|s| s.starts_with("data:")) {
                 // `data:` images decode locally, no network, no Allowlist; MIME is gated to
                 // the raster allowlist — SVG is still refused (AD-16).
                 match webimport::assets::decode_data_uri_image(src) {
-                    Ok((bytes, content_type)) => PendingImageSource::Local { bytes, content_type },
+                    Ok((bytes, content_type)) => PendingImageSource::Local {
+                        bytes,
+                        content_type,
+                    },
                     Err(_err) => {
                         images_failed = images_failed.saturating_add(1);
-                        eprintln!("asset[data] data: URI khong giai ma duoc hoac MIME khong phai raster (chuong {i}, khoi {block_idx})");
+                        eprintln!(
+                            "asset[data] data: URI khong giai ma duoc hoac MIME khong phai raster (chuong {i}, khoi {block_idx})"
+                        );
                         continue;
                     }
                 }
@@ -1284,7 +1341,9 @@ fn prepare_chapter_images(
                         // NGUYÊN VĂN `src` (URL người dùng đã dán/trang chứa) — KHÔNG in ra
                         // stderr, kể cả bản release. Vị trí (chương/khối) đủ để chẩn đoán cục
                         // bộ mà không lộ URL.
-                        eprintln!("asset[url] khong phan giai duoc src (chuong {i}, khoi {block_idx})");
+                        eprintln!(
+                            "asset[url] khong phan giai duoc src (chuong {i}, khoi {block_idx})"
+                        );
                         continue;
                     }
                 }
@@ -1301,12 +1360,21 @@ fn prepare_chapter_images(
                 continue;
             };
 
-            pending.push(PendingImage { chapter_index: i, block_index: block_idx, anchor_after_segment_ord, source });
+            pending.push(PendingImage {
+                chapter_index: i,
+                block_index: block_idx,
+                anchor_after_segment_ord,
+                source,
+            });
         }
     }
 
     if pending.is_empty() {
-        return Ok(ImagePrepOutcome { saved: Vec::new(), images_saved: 0, images_failed });
+        return Ok(ImagePrepOutcome {
+            saved: Vec::new(),
+            images_saved: 0,
+            images_failed,
+        });
     }
 
     // 🔴 Tầng 2 dựng từ ĐÚNG những host MẠNG của ảnh sẽ thử tải — không tầng 1 (pha này KHÔNG
@@ -1324,7 +1392,8 @@ fn prepare_chapter_images(
     let allowlist = webimport::Allowlist::default().with_tier2_hosts(tier2_hosts);
 
     let assets_dir = dir.join("assets");
-    let mut cache: std::collections::HashMap<String, Option<CachedFetch>> = std::collections::HashMap::new();
+    let mut cache: std::collections::HashMap<String, Option<CachedFetch>> =
+        std::collections::HashMap::new();
     let mut saved: Vec<SavedAsset> = Vec::new();
     let total_pending = pending.len();
 
@@ -1349,15 +1418,20 @@ fn prepare_chapter_images(
                     // bên trong nó (trước bước ghi tệp có thể trượt); `?` ở đây không còn
                     // vứt mất một Vec cục bộ nào — cái duy nhất `?` lan ra là `IpcError` của
                     // chính lượt ghi byte trượt, nhật ký thì đã AN TOÀN từ trước đó rồi.
-                    let outcome =
-                        fetch_and_write_one_asset(resolved_url, &allowlist, &assets_dir, domain_log_state)?;
+                    let outcome = fetch_and_write_one_asset(
+                        resolved_url,
+                        &allowlist,
+                        &assets_dir,
+                        domain_log_state,
+                    )?;
                     cache.insert(resolved_url.clone(), outcome.clone());
                     outcome
                 }
             }
-            PendingImageSource::Local { bytes, content_type } => {
-                write_local_asset_bytes(bytes, content_type, &assets_dir)?
-            }
+            PendingImageSource::Local {
+                bytes,
+                content_type,
+            } => write_local_asset_bytes(bytes, content_type, &assets_dir)?,
         };
 
         match cached {
@@ -1387,14 +1461,17 @@ fn prepare_chapter_images(
     // triết lý §Always "một ảnh trượt không được dừng cả lượt nhập" mà `images_failed` tồn
     // tại để giữ. Lọc Ở ĐÂY (ngoài giao dịch, có thể đếm/log an toàn) thay vì để SQLite từ
     // chối bên trong.
-    let (saved, newly_failed) = saved.into_iter().partition::<Vec<_>, _>(saved_asset_satisfies_asset_check_constraints);
+    let (saved, newly_failed) = saved
+        .into_iter()
+        .partition::<Vec<_>, _>(saved_asset_satisfies_asset_check_constraints);
     for offender in &newly_failed {
         eprintln!(
             "asset[check] hang asset vi pham CHECK cua ASSET_DDL, bo qua truoc giao dich (chuong {}, file_name={:?})",
             offender.chapter_index, offender.file_name
         );
     }
-    images_failed = images_failed.saturating_add(u32::try_from(newly_failed.len()).unwrap_or(u32::MAX));
+    images_failed =
+        images_failed.saturating_add(u32::try_from(newly_failed.len()).unwrap_or(u32::MAX));
 
     // 🔵 THÊM (vòng rà đối kháng 3, mục R6) — phép kiểm VÉT CẠN cho `chapter_index`, ĐO ĐƯỢC
     // là an toàn hôm nay (mỗi `chapter_index` chép THẲNG từ `i` của vòng lặp
@@ -1407,15 +1484,17 @@ fn prepare_chapter_images(
     // hàng đó — một tệp mồ côi VÀ một con số hiển thị sai, không lỗi nào báo. Lọc Ở ĐÂY
     // (cùng vị trí R2, ngoài giao dịch) thay vì phát hiện muộn sau khi đã ghi xong.
     let chapters_len = chapters.len();
-    let (saved, out_of_range) =
-        saved.into_iter().partition::<Vec<_>, _>(|s| saved_asset_chapter_index_is_in_range(s, chapters_len));
+    let (saved, out_of_range) = saved
+        .into_iter()
+        .partition::<Vec<_>, _>(|s| saved_asset_chapter_index_is_in_range(s, chapters_len));
     for offender in &out_of_range {
         eprintln!(
             "asset[chapter_index] chapter_index ({}) vuot qua so Chuong ({chapters_len}) -- bo qua truoc giao dich, file_name={:?}",
             offender.chapter_index, offender.file_name
         );
     }
-    images_failed = images_failed.saturating_add(u32::try_from(out_of_range.len()).unwrap_or(u32::MAX));
+    images_failed =
+        images_failed.saturating_add(u32::try_from(out_of_range.len()).unwrap_or(u32::MAX));
 
     // ⚠️ NÓI RA (vòng rà đối kháng 2, mục D7) — cùng lý lẽ hệt `byte_len` ở
     // `fetch_and_write_one_asset`: `unwrap_or(u32::MAX)` là một con số CHẨN ĐOÁN (số hàng
@@ -1424,7 +1503,11 @@ fn prepare_chapter_images(
     // hoà thay vì `Err`/panic ở một nhánh không ai từng chạm là lựa chọn có chủ, không phải
     // một lối tắt.
     let images_saved = u32::try_from(saved.len()).unwrap_or(u32::MAX);
-    Ok(ImagePrepOutcome { saved, images_saved, images_failed })
+    Ok(ImagePrepOutcome {
+        saved,
+        images_saved,
+        images_failed,
+    })
 }
 
 /// R2 (vòng rà đối kháng 3, lớp 3) — bản Rust CỦA CHÍNH các `CHECK` mà `ASSET_DDL` khai, đo
@@ -1451,7 +1534,10 @@ pub(crate) fn saved_asset_satisfies_asset_check_constraints(saved: &SavedAsset) 
 /// (`create_work`) chỉ ghi hàng có `chapter_index == i` cho `i` chạy trong `0..chapters_len`
 /// (đúng vòng lặp `chapters.iter().enumerate()`) — một hàng nằm NGOÀI dải đó không được lọc
 /// trúng ở BẤT KỲ `i` nào, để lại một tệp mồ côi trên đĩa và một `images_saved` đếm thừa.
-pub(crate) fn saved_asset_chapter_index_is_in_range(saved: &SavedAsset, chapters_len: usize) -> bool {
+pub(crate) fn saved_asset_chapter_index_is_in_range(
+    saved: &SavedAsset,
+    chapters_len: usize,
+) -> bool {
     saved.chapter_index < chapters_len
 }
 
@@ -1515,7 +1601,10 @@ fn fetch_asset_bytes_over_network(
     let Some(_ext) = webimport::assets::extension_for_mime(page.content_type.as_deref()) else {
         // E4 (vòng rà đối kháng 2, 3 lớp) — KHÔNG in URL người dùng ra stderr; `content_type`
         // (một chuỗi MIME, không phải dữ liệu định danh cá nhân) đủ để chẩn đoán cục bộ.
-        eprintln!("asset[mime] mime khong phai anh raster: {:?}", page.content_type);
+        eprintln!(
+            "asset[mime] mime khong phai anh raster: {:?}",
+            page.content_type
+        );
         // 🔵 Story 6.11, mục A (Ice ký 2026-09-08) — chặng này ĐÃ được `fetch()` gán
         // `Fetched` (mạng thành công); sửa lại thành `MimeRejected` TRƯỚC khi push, vì
         // `fetcher.rs` không biết gì về danh mục MIME ảnh (AD-40) — chỉ tầng gọi này biết.
@@ -1536,7 +1625,8 @@ fn fetch_asset_bytes_over_network(
     // `None` — bất biến chứng minh được bằng ĐỌC MÃ. Trả `Err` thay vì `unreachable!()` (xem
     // lý lẽ B1 gốc, giữ nguyên qua lượt tách): `panic = "abort"` giết NGUYÊN tiến trình nếu
     // một lượt sau tách rời hai bảng MIME mà quên đổi đồng bộ.
-    let Some(normalized_content_type) = webimport::normalized_mime(page.content_type.as_deref()) else {
+    let Some(normalized_content_type) = webimport::normalized_mime(page.content_type.as_deref())
+    else {
         eprintln!(
             "asset[mime] bat bien noi bo vo (extension_for_mime nhan {_ext} nhung normalized_mime tra None)"
         );
@@ -1593,7 +1683,10 @@ fn write_local_asset_bytes(
     // hàng `INSERT INTO asset` được COMMIT; một `fs::write` trượt giữa chừng khiến chỗ gọi
     // (`prepare_chapter_images` → `create_work`) `remove_folder(&dir)` xoá NGUYÊN `.atproj`.
     if let Err(e) = std::fs::write(&path, bytes) {
-        eprintln!("asset[ghi] ghi byte anh xuong dia that bai ({}): {e}", path.display());
+        eprintln!(
+            "asset[ghi] ghi byte anh xuong dia that bai ({}): {e}",
+            path.display()
+        );
         return Err(IpcError::new(
             "asset.write_failed",
             MessageKey::AssetWriteFailed,
@@ -1624,7 +1717,9 @@ fn fetch_and_write_one_asset(
     assets_dir: &Path,
     domain_log_state: &webimport::DomainLogState,
 ) -> Result<Option<CachedFetch>, IpcError> {
-    let Some((bytes, content_type)) = fetch_asset_bytes_over_network(url, allowlist, domain_log_state)? else {
+    let Some((bytes, content_type)) =
+        fetch_asset_bytes_over_network(url, allowlist, domain_log_state)?
+    else {
         return Ok(None);
     };
     write_local_asset_bytes(&bytes, &content_type, assets_dir)
@@ -1643,10 +1738,12 @@ fn validate_source_lang(source_lang: &str) -> Result<(), IpcError> {
     if matches!(source_lang, "zh" | "en") {
         Ok(())
     } else {
-        Err(crate::core::segment::import::ImportError::UnsupportedSourceLang {
-            source_lang: source_lang.to_owned(),
-        }
-        .into())
+        Err(
+            crate::core::segment::import::ImportError::UnsupportedSourceLang {
+                source_lang: source_lang.to_owned(),
+            }
+            .into(),
+        )
     }
 }
 
@@ -1671,7 +1768,11 @@ fn cjk_ratio_sample(text: &str) -> Option<f64> {
         }
     }
     let total = cjk + latin;
-    if total == 0 { None } else { Some(cjk as f64 / total as f64) }
+    if total == 0 {
+        None
+    } else {
+        Some(cjk as f64 / total as f64)
+    }
 }
 
 /// Heuristic tỉ lệ chữ cho cảnh báo KHÔNG CHẶN — `true` khi nội dung trông như KHÁC hẳn
@@ -1681,7 +1782,9 @@ fn cjk_ratio_sample(text: &str) -> Option<f64> {
 /// ngoài `zh`/`en` (giá trị lạ) không có gì để so — luôn `false`.
 fn source_lang_looks_mismatched(source_lang: &str, text: &str) -> bool {
     const CJK_MAJORITY: f64 = 0.5;
-    let Some(ratio) = cjk_ratio_sample(text) else { return false };
+    let Some(ratio) = cjk_ratio_sample(text) else {
+        return false;
+    };
     match source_lang {
         "zh" => ratio < CJK_MAJORITY,
         "en" => ratio > CJK_MAJORITY,
@@ -1734,7 +1837,6 @@ pub fn create_work_from_text(
     )
 }
 
-
 /// **Hàm thuần** — nhánh tệp của AC1 (kéo-thả **hoặc** ô nhập đường dẫn; cả hai đã
 /// resolve thành một `path` thật ở lớp gọi, xem AD-1/AD-16).
 ///
@@ -1782,7 +1884,6 @@ pub fn create_work_from_file(
     )
 }
 
-
 #[cfg(test)]
 mod distribute_docx_blocks_tests {
     use super::*;
@@ -1813,7 +1914,10 @@ mod distribute_docx_blocks_tests {
 
     fn image() -> webimport::Block {
         webimport::Block {
-            body: webimport::BlockBody::Image { src: None, alt: None },
+            body: webimport::BlockBody::Image {
+                src: None,
+                alt: None,
+            },
             machine_kept: true,
             exact_gap_before: String::new(),
             is_list_item: false,
@@ -1839,29 +1943,60 @@ mod distribute_docx_blocks_tests {
         let sidecar = crate::core::segment::import::DocxSidecar {
             blocks: blocks.clone(),
             images: vec![
-                crate::core::docx::DocxImage { block_index: 2, bytes: vec![1], content_type: "image/png".to_owned() },
-                crate::core::docx::DocxImage { block_index: 6, bytes: vec![2], content_type: "image/png".to_owned() },
+                crate::core::docx::DocxImage {
+                    block_index: 2,
+                    bytes: vec![1],
+                    content_type: "image/png".to_owned(),
+                },
+                crate::core::docx::DocxImage {
+                    block_index: 6,
+                    bytes: vec![2],
+                    content_type: "image/png".to_owned(),
+                },
             ],
         };
         let mut chapters = vec![
             // Matches Step::SplitChapters's real shape: the gap between chapters stays in
             // the earlier chapter's source_text.
             chapter("Chuong 1: Mo Dau\n\nAnh dau tien o day.\n\n"),
-            chapter("Chuong 2: Tiep Theo\n\nAnh thu hai o day.\n\nMot doan them truoc anh thu hai."),
+            chapter(
+                "Chuong 2: Tiep Theo\n\nAnh thu hai o day.\n\nMot doan them truoc anh thu hai.",
+            ),
         ];
 
         let images = distribute_docx_blocks_across_chapters(&sidecar, &mut chapters);
 
-        let c0 = chapters[0].blocks.as_ref().expect("chuong 0 phai co blocks");
-        let c1 = chapters[1].blocks.as_ref().expect("chuong 1 phai co blocks");
+        let c0 = chapters[0]
+            .blocks
+            .as_ref()
+            .expect("chuong 0 phai co blocks");
+        let c1 = chapters[1]
+            .blocks
+            .as_ref()
+            .expect("chuong 1 phai co blocks");
         assert_eq!(c0.len(), 3, "chuong 0: title + doan + anh");
         assert_eq!(c1.len(), 4, "chuong 1: title + doan + doan them + anh");
-        assert!(matches!(c0[2].body, webimport::BlockBody::Image { .. }), "anh 1 phai o cuoi chuong 0");
-        assert!(matches!(c1[3].body, webimport::BlockBody::Image { .. }), "anh 2 phai o cuoi chuong 1");
-        assert_eq!(c1[0].exact_gap_before, "", "khoi dau cua chuong 1 khong duoc mang gap ke thua tu vi tri toan tai lieu");
+        assert!(
+            matches!(c0[2].body, webimport::BlockBody::Image { .. }),
+            "anh 1 phai o cuoi chuong 0"
+        );
+        assert!(
+            matches!(c1[3].body, webimport::BlockBody::Image { .. }),
+            "anh 2 phai o cuoi chuong 1"
+        );
+        assert_eq!(
+            c1[0].exact_gap_before, "",
+            "khoi dau cua chuong 1 khong duoc mang gap ke thua tu vi tri toan tai lieu"
+        );
 
         assert_eq!(images.len(), 2);
-        assert_eq!((images[0].chapter_index, images[0].local_block_index), (0, 2));
-        assert_eq!((images[1].chapter_index, images[1].local_block_index), (1, 3));
+        assert_eq!(
+            (images[0].chapter_index, images[0].local_block_index),
+            (0, 2)
+        );
+        assert_eq!(
+            (images[1].chapter_index, images[1].local_block_index),
+            (1, 3)
+        );
     }
 }

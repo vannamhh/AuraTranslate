@@ -219,7 +219,10 @@ pub(super) fn already_split(chapter_id: i64, count: i64) -> IpcError {
 /// [`crate::core::store::Store::read`] — hàm này không tự mở lượt đọc riêng, đúng lý lẽ mọi
 /// lượt đọc của cùng một ảnh chụp phải chung một `Store::read` (xem doc-comment
 /// `read_reading_run`/`caret_segment_id` ngay dưới).
-pub(crate) fn select_chapter_segments(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Vec<ChapterSegment>> {
+pub(crate) fn select_chapter_segments(
+    conn: ReadHandle<'_>,
+    chapter_id: i64,
+) -> SqlResult<Vec<ChapterSegment>> {
     let mut stmt = conn.prepare(
         "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
          is_omitted, is_target_paragraph_end, role, translation_origin \
@@ -381,7 +384,10 @@ pub fn read_open_chapter_segments(open: Option<&OpenWork>) -> Result<ChapterSegm
     //
     // Checked for UTF-8 before entering the closure, so a non-UTF-8 assets_dir errors here.
     let assets_dir = open.dir.join("assets");
-    let assets_dir_str = assets_dir.to_str().ok_or_else(assets_dir_not_utf8)?.to_owned();
+    let assets_dir_str = assets_dir
+        .to_str()
+        .ok_or_else(assets_dir_not_utf8)?
+        .to_owned();
 
     let loaded = open.store.read(move |conn| {
         let segments = select_chapter_segments(conn, chapter_id)?;
@@ -459,7 +465,12 @@ pub(crate) fn tm_lookup_failed(err: &crate::core::tm::TmStoreError) -> IpcError 
         crate::core::tm::TmStoreError::Store(e) => IpcError::from(e.clone()),
         other => {
             eprintln!("tm lookup that bai: {other}");
-            IpcError::new("tm.lookup_failed", MessageKey::Unknown, BTreeMap::new(), true)
+            IpcError::new(
+                "tm.lookup_failed",
+                MessageKey::Unknown,
+                BTreeMap::new(),
+                true,
+            )
         }
     }
 }
@@ -528,8 +539,9 @@ fn fill_exact_tm_matches(
             continue;
         }
         if !by_source.contains_key(&source) {
-            let pairs = crate::core::tm::pairs_for_source(&open.scope, global, Some(&open.store), &source)
-                .map_err(|e| tm_lookup_failed(&e))?;
+            let pairs =
+                crate::core::tm::pairs_for_source(&open.scope, global, Some(&open.store), &source)
+                    .map_err(|e| tm_lookup_failed(&e))?;
             let first = pairs
                 .into_iter()
                 .next()

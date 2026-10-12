@@ -71,7 +71,10 @@ fn contains_word(haystack: &str, needle: &str) -> bool {
 /// hiện đã là "biên"); dùng `str::contains` trần cho đúng nhóm này.
 fn line_names_any_forbidden_token(code: &str, tokens: &[&str]) -> bool {
     tokens.iter().any(|needle| {
-        if needle.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        if needle
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
             contains_word(code, needle)
         } else {
             code.contains(needle)
@@ -168,7 +171,10 @@ fn extractor_carries_zero_lines_naming_a_network_client_or_a_literal_url_scheme(
 #[test]
 fn the_network_token_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code() {
     assert!(
-        line_names_any_forbidden_token("    let c = reqwest::blocking::Client::new();", &NETWORK_TOKENS),
+        line_names_any_forbidden_token(
+            "    let c = reqwest::blocking::Client::new();",
+            &NETWORK_TOKENS
+        ),
         "ca DƯƠNG: `reqwest` phải bị vị từ bắt"
     );
     assert!(
@@ -225,8 +231,14 @@ fn reqwest_is_named_only_inside_core_webimport_or_core_ai() {
 
 #[test]
 fn the_reqwest_allowlist_predicate_accepts_only_the_two_named_directories() {
-    assert!(path_is_allowed_for_reqwest("core/webimport/fetcher.rs"), "ca DƯƠNG: core/webimport/");
-    assert!(path_is_allowed_for_reqwest("core/ai/client.rs"), "ca DƯƠNG: core/ai/");
+    assert!(
+        path_is_allowed_for_reqwest("core/webimport/fetcher.rs"),
+        "ca DƯƠNG: core/webimport/"
+    );
+    assert!(
+        path_is_allowed_for_reqwest("core/ai/client.rs"),
+        "ca DƯƠNG: core/ai/"
+    );
     assert!(
         !path_is_allowed_for_reqwest("core/segment/pipeline.rs"),
         "ca ÂM: một module KHÁC không được cho qua"
@@ -305,7 +317,8 @@ fn allowlist_carries_zero_lines_naming_a_socket_or_an_http_client_type() {
 }
 
 #[test]
-fn the_allowlist_connection_token_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code() {
+fn the_allowlist_connection_token_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code()
+ {
     assert!(
         line_names_any_forbidden_token(
             "    let c = reqwest::blocking::Client::builder().build().unwrap();",
@@ -372,7 +385,8 @@ fn extractor_carries_at_least_one_line_of_real_code_that_reparses_the_original_d
 /// một chú thích NHẮC token đúng không được tính là "thân mã có thật".
 #[test]
 fn the_reparse_check_would_actually_flag_a_gutted_body_that_only_mentions_it_in_a_comment() {
-    let gutted = "//! dùng `dom_query::Document::from` để duyệt lại HTML gốc\npub fn extract() {}\n";
+    let gutted =
+        "//! dùng `dom_query::Document::from` để duyệt lại HTML gốc\npub fn extract() {}\n";
     let hits = code_lines(&without_test_modules(gutted))
         .filter(|(_, code)| line_parses_the_original_document_a_second_time(code))
         .count();
@@ -386,7 +400,10 @@ fn the_reparse_check_would_actually_flag_a_gutted_body_that_only_mentions_it_in_
     let hits_real = code_lines(&without_test_modules(real))
         .filter(|(_, code)| line_parses_the_original_document_a_second_time(code))
         .count();
-    assert_eq!(hits_real, 1, "ca DƯƠNG: một dòng mã THẬT gọi `Document::from` phải bị đếm");
+    assert_eq!(
+        hits_real, 1,
+        "ca DƯƠNG: một dòng mã THẬT gọi `Document::from` phải bị đếm"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

@@ -346,7 +346,9 @@ pub fn weave_chapter_segments(
         if !is_kept(blocks, effective_kept, idx) {
             continue;
         }
-        let BlockBody::Image { alt, .. } = &block.body else { continue };
+        let BlockBody::Image { alt, .. } = &block.body else {
+            continue;
+        };
         let Ok(a) = anchor::compute_anchor(
             blocks,
             effective_kept,
@@ -363,7 +365,11 @@ pub fn weave_chapter_segments(
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(str::to_owned);
-        images.push(ImageInfo { block_index: idx, anchor: a, alt });
+        images.push(ImageInfo {
+            block_index: idx,
+            anchor: a,
+            alt,
+        });
     }
 
     // (b) Khối `Caption` ĐƯỢC CHỌN của mỗi ảnh sở hữu -- CHUNG hàm với
@@ -449,11 +455,15 @@ pub fn weave_chapter_segments(
         // bằng `let ... else` trên CHÍNH `next()`: không còn `peek()` riêng, không còn nhánh
         // nào giả định "chắc chắn `Some`" mà không tự kiểm.
         loop {
-            let Some(&(pos, _)) = alt_iter.peek() else { break };
+            let Some(&(pos, _)) = alt_iter.peek() else {
+                break;
+            };
             if pos != i as i64 {
                 break;
             }
-            let Some((_, text)) = alt_iter.next() else { break };
+            let Some((_, text)) = alt_iter.next() else {
+                break;
+            };
             out.push(WovenSegment {
                 text,
                 is_paragraph_end: false,
@@ -484,16 +494,29 @@ mod tests {
     use crate::core::segment::pipeline::join_kept_blocks;
 
     fn text_block(text: &str) -> Block {
-        Block { body: BlockBody::Paragraph(text.to_owned()), machine_kept: true, exact_gap_before: String::new(), is_list_item: false }
+        Block {
+            body: BlockBody::Paragraph(text.to_owned()),
+            machine_kept: true,
+            exact_gap_before: String::new(),
+            is_list_item: false,
+        }
     }
 
     fn text_block_gap(text: &str, gap: &str) -> Block {
-        Block { body: BlockBody::Paragraph(text.to_owned()), machine_kept: true, exact_gap_before: gap.to_owned(), is_list_item: false }
+        Block {
+            body: BlockBody::Paragraph(text.to_owned()),
+            machine_kept: true,
+            exact_gap_before: gap.to_owned(),
+            is_list_item: false,
+        }
     }
 
     fn image_block(alt: Option<&str>) -> Block {
         Block {
-            body: BlockBody::Image { src: None, alt: alt.map(str::to_owned) },
+            body: BlockBody::Image {
+                src: None,
+                alt: alt.map(str::to_owned),
+            },
             machine_kept: true,
             exact_gap_before: String::new(),
             is_list_item: false,
@@ -501,7 +524,12 @@ mod tests {
     }
 
     fn caption_block_gap(text: &str, gap: &str) -> Block {
-        Block { body: BlockBody::Caption(text.to_owned()), machine_kept: true, exact_gap_before: gap.to_owned(), is_list_item: false }
+        Block {
+            body: BlockBody::Caption(text.to_owned()),
+            machine_kept: true,
+            exact_gap_before: gap.to_owned(),
+            is_list_item: false,
+        }
     }
 
     fn all_kept(n: usize) -> Vec<bool> {
@@ -525,14 +553,20 @@ mod tests {
 
         // Van xuoi ghep tu 3 khoi chu (mo dau, chu thich x2 cau, ket thuc) -- neu KHONG ep,
         // chu thich se tach thanh HAI segment (hai dau cham). Co ep: dung BA segment.
-        assert_eq!(segments.len(), 3, "phai dung ba segment (mo dau, chu thich MOT segment, ket thuc): {segments:?}");
+        assert_eq!(
+            segments.len(),
+            3,
+            "phai dung ba segment (mo dau, chu thich MOT segment, ket thuc): {segments:?}"
+        );
         assert_eq!(segments[1].text, "Cau chu thich mot. Cau chu thich hai.");
         // Segment cuoi CHUONG luon tat co ket doan (AC7).
         assert!(!segments.last().unwrap().is_paragraph_end);
         // Moi segment phai la CHUOI CON THAT cua full text, dung thu tu, khong mat byte.
         let mut cursor = 0usize;
         for seg in &segments {
-            let rel = full[cursor..].find(seg.text.as_str()).expect("segment phai la chuoi con that");
+            let rel = full[cursor..]
+                .find(seg.text.as_str())
+                .expect("segment phai la chuoi con that");
             cursor += rel + seg.text.len();
         }
     }
@@ -549,7 +583,11 @@ mod tests {
         let segments = force_caption_segment_boundaries(&full, &blocks, &kept, &[], "en");
 
         // Khong anh nao dung truoc -- khong ep, hai cau cua caption tach thanh HAI segment.
-        assert_eq!(segments.len(), 3, "caption khong co anh phai tach nhu van xuoi thuong: {segments:?}");
+        assert_eq!(
+            segments.len(),
+            3,
+            "caption khong co anh phai tach nhu van xuoi thuong: {segments:?}"
+        );
     }
 
     #[test]
@@ -565,7 +603,11 @@ mod tests {
 
     #[test]
     fn an_image_with_alt_gets_an_alt_segment_right_after_its_anchor() {
-        let blocks = vec![text_block("Cau mot."), image_block(Some("mo ta anh")), text_block_gap("Cau hai.", "\n\n")];
+        let blocks = vec![
+            text_block("Cau mot."),
+            image_block(Some("mo ta anh")),
+            text_block_gap("Cau hai.", "\n\n"),
+        ];
         let kept = all_kept(blocks.len());
         let full = join_kept_blocks(&blocks, &kept);
         let segments = split_source_text(&full, "en");
@@ -573,23 +615,40 @@ mod tests {
 
         let woven = weave_chapter_segments(&blocks, &kept, &segments, &full, &[], "en");
 
-        assert_eq!(woven.segments.len(), 3, "them dung mot segment alt: {:?}", woven.segments);
+        assert_eq!(
+            woven.segments.len(),
+            3,
+            "them dung mot segment alt: {:?}",
+            woven.segments
+        );
         assert_eq!(woven.segments[0].role, None);
         assert_eq!(woven.segments[1].text, "mo ta anh");
         assert_eq!(woven.segments[1].role, Some(SegmentRole::Alt));
         assert_eq!(woven.segments[2].role, None);
-        assert_eq!(woven.shifted_anchor_by_block.get(&1), Some(&1), "neo cua anh (block 1) khong doi vi khong co anh nao truoc no chen them segment");
+        assert_eq!(
+            woven.shifted_anchor_by_block.get(&1),
+            Some(&1),
+            "neo cua anh (block 1) khong doi vi khong co anh nao truoc no chen them segment"
+        );
     }
 
     #[test]
     fn an_image_without_alt_inserts_nothing() {
-        let blocks = vec![text_block("Cau mot."), image_block(None), text_block_gap("Cau hai.", "\n\n")];
+        let blocks = vec![
+            text_block("Cau mot."),
+            image_block(None),
+            text_block_gap("Cau hai.", "\n\n"),
+        ];
         let kept = all_kept(blocks.len());
         let full = join_kept_blocks(&blocks, &kept);
         let segments = split_source_text(&full, "en");
 
         let woven = weave_chapter_segments(&blocks, &kept, &segments, &full, &[], "en");
-        assert_eq!(woven.segments.len(), segments.len(), "khong alt -- khong segment nao them vao");
+        assert_eq!(
+            woven.segments.len(),
+            segments.len(),
+            "khong alt -- khong segment nao them vao"
+        );
         assert!(woven.segments.iter().all(|s| s.role.is_none()));
     }
 
@@ -608,9 +667,19 @@ mod tests {
 
         let woven = weave_chapter_segments(&blocks, &kept, &segments, &full, &[], "en");
 
-        let anchor_a = *woven.shifted_anchor_by_block.get(&1).expect("anh A phai co neo");
-        let anchor_b = *woven.shifted_anchor_by_block.get(&2).expect("anh B phai co neo");
-        assert_eq!(anchor_b, anchor_a + 1, "neo B phai cong them 1 vi alt cua A da chen truoc no");
+        let anchor_a = *woven
+            .shifted_anchor_by_block
+            .get(&1)
+            .expect("anh A phai co neo");
+        let anchor_b = *woven
+            .shifted_anchor_by_block
+            .get(&2)
+            .expect("anh B phai co neo");
+        assert_eq!(
+            anchor_b,
+            anchor_a + 1,
+            "neo B phai cong them 1 vi alt cua A da chen truoc no"
+        );
     }
 
     #[test]
@@ -630,7 +699,15 @@ mod tests {
         let roles: Vec<Option<SegmentRole>> = woven.segments.iter().map(|s| s.role).collect();
         let texts: Vec<&str> = woven.segments.iter().map(|s| s.text.as_str()).collect();
         assert_eq!(texts, vec!["Cau mot.", "mo ta", "Chu thich.", "Cau sau."]);
-        assert_eq!(roles, vec![None, Some(SegmentRole::Alt), Some(SegmentRole::Caption), None]);
+        assert_eq!(
+            roles,
+            vec![
+                None,
+                Some(SegmentRole::Alt),
+                Some(SegmentRole::Caption),
+                None
+            ]
+        );
     }
 
     /// 🔴 Vòng rà 2026-09-10 — AD-42 "nhiều nhất một segment mỗi vai" áp CHO CẢ khối `Caption`
@@ -651,8 +728,11 @@ mod tests {
 
         let woven = weave_chapter_segments(&blocks, &kept, &segments, &full, &[], "en");
 
-        let caption_rows: Vec<&WovenSegment> =
-            woven.segments.iter().filter(|s| s.role == Some(SegmentRole::Caption)).collect();
+        let caption_rows: Vec<&WovenSegment> = woven
+            .segments
+            .iter()
+            .filter(|s| s.role == Some(SegmentRole::Caption))
+            .collect();
         assert_eq!(
             caption_rows.len(),
             1,
@@ -660,9 +740,15 @@ mod tests {
              <figcaption> lien ke: {:?}",
             woven.segments
         );
-        assert_eq!(caption_rows[0].text, "Chu thich mot.", "khoi DAU TIEN moi duoc chon");
+        assert_eq!(
+            caption_rows[0].text, "Chu thich mot.",
+            "khoi DAU TIEN moi duoc chon"
+        );
         assert!(
-            woven.segments.iter().any(|s| s.text == "Chu thich hai." && s.role.is_none()),
+            woven
+                .segments
+                .iter()
+                .any(|s| s.text == "Chu thich hai." && s.role.is_none()),
             "khoi THU HAI phai di tiep NHU VAN XUOI (role=None), khong bi ep rieng: {:?}",
             woven.segments
         );
@@ -696,7 +782,10 @@ mod tests {
         // roi dung nguyen `full`; o day PHAI ap cleanup that vi do la dieu ca nay do).
         let cleaned = crate::core::cleanup::apply(&full, &rules).expect("cleanup toan van ban");
         let source_text = crate::core::segment::normalize::normalize(&cleaned.text, "en").text;
-        assert!(!source_text.contains("Chu thich se bi xoa"), "fixture phai THAT SU bi xoa trang");
+        assert!(
+            !source_text.contains("Chu thich se bi xoa"),
+            "fixture phai THAT SU bi xoa trang"
+        );
 
         let segments = force_caption_segment_boundaries(&source_text, &blocks, &kept, &rules, "en");
         assert!(
@@ -706,7 +795,10 @@ mod tests {
 
         let woven = weave_chapter_segments(&blocks, &kept, &segments, &source_text, &rules, "en");
         assert!(
-            woven.segments.iter().all(|s| s.role != Some(SegmentRole::Caption)),
+            woven
+                .segments
+                .iter()
+                .all(|s| s.role != Some(SegmentRole::Caption)),
             "khong hang nao duoc gan role='caption' -- caption that da bi cleanup xoa trang, \
              khong con segment nao la no: {:?}",
             woven.segments
@@ -726,13 +818,21 @@ mod tests {
 
     #[test]
     fn an_owned_caption_without_a_matching_image_alt_still_gets_tagged_with_no_alt_inserted() {
-        let blocks = vec![image_block(None), caption_block_gap("Chu thich rieng.", "\n\n")];
+        let blocks = vec![
+            image_block(None),
+            caption_block_gap("Chu thich rieng.", "\n\n"),
+        ];
         let kept = all_kept(blocks.len());
         let full = join_kept_blocks(&blocks, &kept);
         let segments = force_caption_segment_boundaries(&full, &blocks, &kept, &[], "en");
 
         let woven = weave_chapter_segments(&blocks, &kept, &segments, &full, &[], "en");
-        assert_eq!(woven.segments.len(), 1, "khong alt de chen, chi con segment caption: {:?}", woven.segments);
+        assert_eq!(
+            woven.segments.len(),
+            1,
+            "khong alt de chen, chi con segment caption: {:?}",
+            woven.segments
+        );
         assert_eq!(woven.segments[0].role, Some(SegmentRole::Caption));
     }
 }

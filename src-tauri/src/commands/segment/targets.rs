@@ -305,11 +305,12 @@ pub fn promote_ai_translation(
                 ))
             },
         );
-        let (current_text, current_origin, retired, current_status, segment_chapter_id) = match found {
-            Ok(value) => value,
-            Err(SqlError::QueryReturnedNoRows) => return Ok(Promoted::Missing),
-            Err(err) => return Err(err),
-        };
+        let (current_text, current_origin, retired, current_status, segment_chapter_id) =
+            match found {
+                Ok(value) => value,
+                Err(SqlError::QueryReturnedNoRows) => return Ok(Promoted::Missing),
+                Err(err) => return Err(err),
+            };
         if retired {
             return Ok(Promoted::Retired);
         }
@@ -329,7 +330,12 @@ pub fn promote_ai_translation(
             )?;
             if has_copy == 0 {
                 // KHONG ghi mot byte nao. Day KHONG phai mot loi -- xem `needs_confirmation`.
-                return Ok(Promoted::Row(current_text, current_origin, current_status, true));
+                return Ok(Promoted::Row(
+                    current_text,
+                    current_origin,
+                    current_status,
+                    true,
+                ));
             }
         }
 

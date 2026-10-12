@@ -15,7 +15,7 @@
 
 use crate::commands::project::{CleanupRuleTierWire, OpenWork};
 use crate::core::cleanup::{
-    CleanupRule, CleanupRuleKind, CleanupStoreError, CleanupRuleTier, add_rule, delete_rule,
+    CleanupRule, CleanupRuleKind, CleanupRuleTier, CleanupStoreError, add_rule, delete_rule,
     edit_rule, resolve_two_tiers, set_enabled,
 };
 use crate::core::i18n::IpcError;
@@ -40,9 +40,9 @@ fn store_for_tier<'a>(
 ) -> Result<&'a Store, IpcError> {
     match tier {
         CleanupRuleTier::Global => global.ok_or_else(store_is_missing),
-        CleanupRuleTier::Work => {
-            open.map(|w| &w.store).ok_or_else(|| CleanupStoreError::WorkTierUnavailable.into())
-        }
+        CleanupRuleTier::Work => open
+            .map(|w| &w.store)
+            .ok_or_else(|| CleanupStoreError::WorkTierUnavailable.into()),
     }
 }
 
@@ -80,7 +80,9 @@ pub fn cleanup_list_rules(
     open: Option<&OpenWork>,
 ) -> Result<Vec<CleanupRuleWire>, IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
-    let resolver = open.map(|w| w.scope.clone()).unwrap_or_else(ScopeResolver::global_only);
+    let resolver = open
+        .map(|w| w.scope.clone())
+        .unwrap_or_else(ScopeResolver::global_only);
     let work_store = open.map(|w| &w.store);
     let rules = resolve_two_tiers(&resolver, global, work_store)?;
     Ok(rules.into_iter().map(CleanupRuleWire::from).collect())
@@ -189,7 +191,9 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::cleanup_list_rules(global.as_deref(), None);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::cleanup_list_rules(global.as_deref(), guard.as_ref())
     }
 
@@ -206,7 +210,9 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::cleanup_add_rule(global.as_deref(), None, tier, &pattern, kind);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::cleanup_add_rule(global.as_deref(), guard.as_ref(), tier, &pattern, kind)
     }
 
@@ -224,7 +230,9 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::cleanup_edit_rule(global.as_deref(), None, tier, id, &pattern, kind);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::cleanup_edit_rule(global.as_deref(), guard.as_ref(), tier, id, &pattern, kind)
     }
 
@@ -240,7 +248,9 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::cleanup_delete_rule(global.as_deref(), None, tier, id);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::cleanup_delete_rule(global.as_deref(), guard.as_ref(), tier, id)
     }
 
@@ -257,7 +267,9 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::cleanup_set_enabled(global.as_deref(), None, tier, id, enabled);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::cleanup_set_enabled(global.as_deref(), guard.as_ref(), tier, id, enabled)
     }
 }

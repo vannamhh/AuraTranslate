@@ -267,7 +267,10 @@ where
 ///
 /// Tách khỏi [`resolve_override`] để phép cưỡng chế ngữ nghĩa và phép hợp nhất đọc được
 /// riêng — và để chỗ này không có đường nào trả về sớm với chỉ một tầng.
-fn merge_by_key<K, V>(global: &BTreeMap<K, V>, work: Option<&BTreeMap<K, V>>) -> BTreeMap<K, Resolved<V>>
+fn merge_by_key<K, V>(
+    global: &BTreeMap<K, V>,
+    work: Option<&BTreeMap<K, V>>,
+) -> BTreeMap<K, Resolved<V>>
 where
     K: Ord + Clone,
     V: Clone,

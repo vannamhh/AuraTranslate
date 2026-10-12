@@ -1,16 +1,20 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
-use crate::core::matching::{DiffSpan, MatchLang, common_subsequence, diff_spans, similarity_percent};
+use crate::core::matching::{
+    DiffSpan, MatchLang, common_subsequence, diff_spans, similarity_percent,
+};
 use crate::core::segment::omit::segments_in_translation;
 use crate::core::store::{ReadHandle, SqlError, SqlResult, Store, StoreError, Transaction};
 
 use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
 use super::review_decision::{
-    ReviewDecision, decisions_of_copy, delete_decisions_of_chapter, delete_decisions_of_copy, delete_decisions_of_group,
-    delete_decisions_of_rows,
+    ReviewDecision, decisions_of_copy, delete_decisions_of_chapter, delete_decisions_of_copy,
+    delete_decisions_of_group, delete_decisions_of_rows,
 };
-use super::reviewer_copy::{ReviewCopyError, ReviewFileKind, ReviewRow, ReviewRowKind, at_most_one, read_review_copy};
+use super::reviewer_copy::{
+    ReviewCopyError, ReviewFileKind, ReviewRow, ReviewRowKind, at_most_one, read_review_copy,
+};
 use super::text_export::{Emitted, emit_items, one_line};
 
 /// Lowest share of common words (percent) at which an unanchored pair is joined by the machine.
@@ -150,25 +154,52 @@ fn docx_units(segments: &[&ChapterSegment]) -> Vec<SegmentUnit> {
 
 /// `.md` units are the paragraphs and alt/caption lines the exporter writes, with the segments each
 /// was built from.
-fn markdown_units(conn: ReadHandle<'_>, chapter_id: i64, segments: &[ChapterSegment]) -> SqlResult<Vec<SegmentUnit>> {
+fn markdown_units(
+    conn: ReadHandle<'_>,
+    chapter_id: i64,
+    segments: &[ChapterSegment],
+) -> SqlResult<Vec<SegmentUnit>> {
     let assets = select_chapter_assets(conn, chapter_id)?;
-    let ImageSplit { head, by_anchor, orphans, .. } =
-        split_by_anchor(segments, chapter_images(segments, &assets), ImageMode::File, |image| image);
+    let ImageSplit {
+        head,
+        by_anchor,
+        orphans,
+        ..
+    } = split_by_anchor(
+        segments,
+        chapter_images(segments, &assets),
+        ImageMode::File,
+        |image| image,
+    );
     let mut units = Vec::new();
     for (item, segment_ids) in emit_items(segments, head, by_anchor, orphans) {
         match item {
             Emitted::Paragraph(text) => {
-                units.push(SegmentUnit { segment_ids, kind: ReviewRowKind::Text, key: text.clone(), target: text });
+                units.push(SegmentUnit {
+                    segment_ids,
+                    kind: ReviewRowKind::Text,
+                    key: text.clone(),
+                    target: text,
+                });
             }
             Emitted::Image(image) => {
                 let lines = [
                     (ReviewRowKind::Alt, image.alt_text, image.alt_segment_id),
-                    (ReviewRowKind::Caption, image.caption_text, image.caption_segment_id),
+                    (
+                        ReviewRowKind::Caption,
+                        image.caption_text,
+                        image.caption_segment_id,
+                    ),
                 ];
                 for (kind, text, segment_id) in lines {
                     let text = one_line(text.as_deref().unwrap_or(""));
                     if !text.is_empty() {
-                        units.push(SegmentUnit { segment_ids: segment_id.into_iter().collect(), kind, key: text.clone(), target: text });
+                        units.push(SegmentUnit {
+                            segment_ids: segment_id.into_iter().collect(),
+                            kind,
+                            key: text.clone(),
+                            target: text,
+                        });
                     }
                 }
             }
@@ -192,7 +223,9 @@ fn pair_gap(
     }
     for (s, r) in (segments.0..segments.1).zip(rows.0..rows.1) {
         let (seg, row) = (&segment_units[s], &row_units[r]);
-        if seg.kind == row.kind && similarity_percent(&seg.target, &row.target, MatchLang::En) >= min_similarity {
+        if seg.kind == row.kind
+            && similarity_percent(&seg.target, &row.target, MatchLang::En) >= min_similarity
+        {
             pairs.push((s, r));
         }
     }
@@ -203,14 +236,25 @@ fn pairs_of(
     row_units: &[RowUnit],
     min_similarity: u8,
 ) -> Vec<(usize, usize)> {
-    let old: Vec<(ReviewRowKind, &str)> = segment_units.iter().map(|u| (u.kind, u.key.as_str())).collect();
-    let new: Vec<(ReviewRowKind, &str)> = row_units.iter().map(|u| (u.kind, u.key.as_str())).collect();
+    let old: Vec<(ReviewRowKind, &str)> = segment_units
+        .iter()
+        .map(|u| (u.kind, u.key.as_str()))
+        .collect();
+    let new: Vec<(ReviewRowKind, &str)> =
+        row_units.iter().map(|u| (u.kind, u.key.as_str())).collect();
     let anchors = common_subsequence(&old, &new);
 
     let mut pairs = Vec::new();
     let (mut seg_from, mut row_from) = (0, 0);
     for (s, r) in anchors {
-        pair_gap(segment_units, row_units, (seg_from, s), (row_from, r), min_similarity, &mut pairs);
+        pair_gap(
+            segment_units,
+            row_units,
+            (seg_from, s),
+            (row_from, r),
+            min_similarity,
+            &mut pairs,
+        );
         pairs.push((s, r));
         seg_from = s + 1;
         row_from = r + 1;
@@ -241,14 +285,25 @@ fn machine_groups(
 ) -> Vec<MachineGroup> {
     let row_units: Vec<RowUnit> = rows
         .iter()
-        .map(|(id, row)| RowUnit { id: *id, kind: row.kind, key: exported_key(row, kind), target: row.target_text.clone() })
+        .map(|(id, row)| RowUnit {
+            id: *id,
+            kind: row.kind,
+            key: exported_key(row, kind),
+            target: row.target_text.clone(),
+        })
         .collect();
-    let paired: HashMap<usize, usize> = pairs_of(units, &row_units, MIN_PAIR_SIMILARITY).into_iter().collect();
+    let paired: HashMap<usize, usize> = pairs_of(units, &row_units, MIN_PAIR_SIMILARITY)
+        .into_iter()
+        .collect();
 
     let mut component_of: Vec<usize> = (0..units.len()).collect();
     for i in 0..units.len() {
         for j in 0..i {
-            if units[i].segment_ids.iter().any(|id| units[j].segment_ids.contains(id)) {
+            if units[i]
+                .segment_ids
+                .iter()
+                .any(|id| units[j].segment_ids.contains(id))
+            {
                 let (keep, drop) = (component_of[j], component_of[i]);
                 for c in &mut component_of {
                     if *c == drop {
@@ -265,7 +320,9 @@ fn machine_groups(
         if !seen.insert(component) {
             continue;
         }
-        let members: Vec<usize> = (first..units.len()).filter(|&u| component_of[u] == component).collect();
+        let members: Vec<usize> = (first..units.len())
+            .filter(|&u| component_of[u] == component)
+            .collect();
         if !members.iter().all(|u| paired.contains_key(u)) {
             continue;
         }
@@ -278,13 +335,25 @@ fn machine_groups(
             }
         }
         let row_ids = members.iter().map(|u| row_units[paired[u]].id).collect();
-        groups.push(MachineGroup { row_ids, segment_ids });
+        groups.push(MachineGroup {
+            row_ids,
+            segment_ids,
+        });
     }
 
-    let covered: HashSet<i64> = units.iter().flat_map(|u| u.segment_ids.iter().copied()).collect();
+    let covered: HashSet<i64> = units
+        .iter()
+        .flat_map(|u| u.segment_ids.iter().copied())
+        .collect();
     for segment in segments_in_translation(segments) {
-        if kind == ReviewFileKind::Markdown && segment.role.is_none() && !covered.contains(&segment.id) {
-            groups.push(MachineGroup { row_ids: Vec::new(), segment_ids: vec![segment.id] });
+        if kind == ReviewFileKind::Markdown
+            && segment.role.is_none()
+            && !covered.contains(&segment.id)
+        {
+            groups.push(MachineGroup {
+                row_ids: Vec::new(),
+                segment_ids: vec![segment.id],
+            });
         }
     }
     groups
@@ -296,14 +365,27 @@ fn load_rows(conn: ReadHandle<'_>, review_chapter_id: i64) -> SqlResult<Vec<(i64
     )?;
     let raw = stmt
         .query_map([review_chapter_id], |row| {
-            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, Option<String>>(2)?, row.get::<_, String>(3)?))
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+            ))
         })?
         .collect::<SqlResult<Vec<_>>>()?;
     Ok(raw
         .into_iter()
         .filter_map(|(id, kind, source_text, target_text)| {
-            ReviewRowKind::from_column(&kind)
-                .map(|kind| (id, ReviewRow { kind, source_text, target_text }))
+            ReviewRowKind::from_column(&kind).map(|kind| {
+                (
+                    id,
+                    ReviewRow {
+                        kind,
+                        source_text,
+                        target_text,
+                    },
+                )
+            })
         })
         .collect())
 }
@@ -332,7 +414,10 @@ pub fn align_chapter(tx: &Transaction<'_>, review_chapter_id: i64) -> SqlResult<
         "DELETE FROM alignment_member WHERE group_id IN (SELECT id FROM alignment_group WHERE review_chapter_id = ?1)",
         [review_chapter_id],
     )?;
-    tx.execute("DELETE FROM alignment_group WHERE review_chapter_id = ?1", [review_chapter_id])?;
+    tx.execute(
+        "DELETE FROM alignment_group WHERE review_chapter_id = ?1",
+        [review_chapter_id],
+    )?;
 
     let segments = select_chapter_segments(tx, chapter_id)?;
     let rows = load_rows(tx, review_chapter_id)?;
@@ -372,7 +457,11 @@ fn align_if_pending(tx: &Transaction<'_>, review_chapter_id: i64) -> SqlResult<(
         [review_chapter_id],
         |row| row.get(0),
     )?;
-    if pending { align_chapter(tx, review_chapter_id) } else { Ok(()) }
+    if pending {
+        align_chapter(tx, review_chapter_id)
+    } else {
+        Ok(())
+    }
 }
 
 /// Deletes every group of the reviewer copy of `chapter_id` (AD-52 rule 6). Call it before the
@@ -405,7 +494,11 @@ pub(super) fn user_group_count(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResu
 /// Segments retired by a merge or split hand their group membership to the segments that replace
 /// them. A group left without any segment after that stops being a pair, so it is dissolved and
 /// its rows return to the unprocessed list. Call it in the transaction that retires them.
-pub fn move_members_of_retired(tx: &Transaction<'_>, retired: &[i64], fresh: &[i64]) -> SqlResult<()> {
+pub fn move_members_of_retired(
+    tx: &Transaction<'_>,
+    retired: &[i64],
+    fresh: &[i64],
+) -> SqlResult<()> {
     let mut touched: Vec<i64> = Vec::new();
     for old in retired {
         let group: Option<i64> = at_most_one(tx.query_row(
@@ -433,7 +526,10 @@ pub fn move_members_of_retired(tx: &Transaction<'_>, retired: &[i64], fresh: &[i
             |row| row.get(0),
         )?;
         if segment_members == 0 {
-            tx.execute("DELETE FROM alignment_member WHERE group_id = ?1", [group_id])?;
+            tx.execute(
+                "DELETE FROM alignment_member WHERE group_id = ?1",
+                [group_id],
+            )?;
             tx.execute("DELETE FROM alignment_group WHERE id = ?1", [group_id])?;
         }
     }
@@ -465,21 +561,39 @@ pub fn read_alignment(store: &Store, chapter_id: i64) -> Result<ChapterAlignment
 
     let mut groups: Vec<AlignmentGroup> = Vec::new();
     for (group_id, decided_by, row_id, segment_id) in members {
-        let Some(decided_by) = DecidedBy::from_column(&decided_by) else { continue };
+        let Some(decided_by) = DecidedBy::from_column(&decided_by) else {
+            continue;
+        };
         if groups.last().is_none_or(|g| g.id != group_id) {
-            groups.push(AlignmentGroup { id: group_id, decided_by, row_ids: Vec::new(), segment_ids: Vec::new() });
+            groups.push(AlignmentGroup {
+                id: group_id,
+                decided_by,
+                row_ids: Vec::new(),
+                segment_ids: Vec::new(),
+            });
         }
         if let Some(group) = groups.last_mut() {
             group.row_ids.extend(row_id);
             group.segment_ids.extend(segment_id);
         }
     }
-    let grouped_rows: HashSet<i64> = groups.iter().flat_map(|g| g.row_ids.iter().copied()).collect();
-    let grouped_segments: HashSet<i64> = groups.iter().flat_map(|g| g.segment_ids.iter().copied()).collect();
+    let grouped_rows: HashSet<i64> = groups
+        .iter()
+        .flat_map(|g| g.row_ids.iter().copied())
+        .collect();
+    let grouped_segments: HashSet<i64> = groups
+        .iter()
+        .flat_map(|g| g.segment_ids.iter().copied())
+        .collect();
 
     let rows: Vec<AlignmentRow> = rows
         .into_iter()
-        .map(|(id, row)| AlignmentRow { id, kind: row.kind, source_text: row.source_text, target_text: row.target_text })
+        .map(|(id, row)| AlignmentRow {
+            id,
+            kind: row.kind,
+            source_text: row.source_text,
+            target_text: row.target_text,
+        })
         .collect();
     let segments: Vec<AlignmentSegment> = segments_in_translation(&segments)
         .into_iter()
@@ -491,9 +605,16 @@ pub fn read_alignment(store: &Store, chapter_id: i64) -> Result<ChapterAlignment
             target_text: s.target_text.clone(),
         })
         .collect();
-    let unmatched_row_ids: Vec<i64> = rows.iter().map(|r| r.id).filter(|id| !grouped_rows.contains(id)).collect();
-    let unmatched_segment_ids: Vec<i64> =
-        segments.iter().map(|s| s.id).filter(|id| !grouped_segments.contains(id)).collect();
+    let unmatched_row_ids: Vec<i64> = rows
+        .iter()
+        .map(|r| r.id)
+        .filter(|id| !grouped_rows.contains(id))
+        .collect();
+    let unmatched_segment_ids: Vec<i64> = segments
+        .iter()
+        .map(|s| s.id)
+        .filter(|id| !grouped_segments.contains(id))
+        .collect();
     let is_resolved = unmatched_row_ids.is_empty() && unmatched_segment_ids.is_empty();
     Ok(ChapterAlignment {
         chapter_id,
@@ -538,7 +659,10 @@ pub(super) struct GroupTexts {
 
 /// The alignment of `chapter_id` with both sides of every group joined into one string. Writes
 /// nothing but the machine grouping a copy still waits for.
-pub(super) fn group_texts(store: &Store, chapter_id: i64) -> Result<(ChapterAlignment, Vec<GroupTexts>), AlignmentError> {
+pub(super) fn group_texts(
+    store: &Store,
+    chapter_id: i64,
+) -> Result<(ChapterAlignment, Vec<GroupTexts>), AlignmentError> {
     let alignment = read_alignment(store, chapter_id)?;
     let kind = alignment.file_kind;
     let units = store.read(move |conn| {
@@ -548,7 +672,12 @@ pub(super) fn group_texts(store: &Store, chapter_id: i64) -> Result<(ChapterAlig
             ReviewFileKind::Markdown => markdown_units(conn, chapter_id, &segments),
         }
     })?;
-    let row_index: HashMap<i64, usize> = alignment.rows.iter().enumerate().map(|(i, r)| (r.id, i)).collect();
+    let row_index: HashMap<i64, usize> = alignment
+        .rows
+        .iter()
+        .enumerate()
+        .map(|(i, r)| (r.id, i))
+        .collect();
 
     let mut texts: Vec<GroupTexts> = alignment
         .groups
@@ -557,18 +686,33 @@ pub(super) fn group_texts(store: &Store, chapter_id: i64) -> Result<(ChapterAlig
             let mine: Vec<usize> = units
                 .iter()
                 .enumerate()
-                .filter(|(_, unit)| unit.segment_ids.iter().any(|id| group.segment_ids.contains(id)))
+                .filter(|(_, unit)| {
+                    unit.segment_ids
+                        .iter()
+                        .any(|id| group.segment_ids.contains(id))
+                })
                 .map(|(i, _)| i)
                 .collect();
-            let mine_text = mine.iter().map(|&i| units[i].target.as_str()).collect::<Vec<_>>().join(" ");
+            let mine_text = mine
+                .iter()
+                .map(|&i| units[i].target.as_str())
+                .collect::<Vec<_>>()
+                .join(" ");
             let mut row_ids = group.row_ids.clone();
             row_ids.sort_by_key(|id| row_index.get(id).copied());
             let theirs_text = row_ids
                 .iter()
-                .filter_map(|id| row_index.get(id).map(|&i| alignment.rows[i].target_text.as_str()))
+                .filter_map(|id| {
+                    row_index
+                        .get(id)
+                        .map(|&i| alignment.rows[i].target_text.as_str())
+                })
                 .collect::<Vec<_>>()
                 .join(" ");
-            let order = match (mine.first(), row_ids.first().and_then(|id| row_index.get(id))) {
+            let order = match (
+                mine.first(),
+                row_ids.first().and_then(|id| row_index.get(id)),
+            ) {
                 (Some(&unit), _) => (0, unit),
                 (None, row) => (1, row.copied().unwrap_or(usize::MAX)),
             };
@@ -621,7 +765,11 @@ pub struct AcceptableChange {
 /// A group that is not exactly one segment and one row, whose segment text is not the text shown,
 /// or whose two sides are already equal is [`AlignmentError::NotAcceptable`]. Writes nothing but
 /// the machine grouping a copy still waits for.
-pub fn acceptable_change(store: &Store, chapter_id: i64, group_id: i64) -> Result<AcceptableChange, AlignmentError> {
+pub fn acceptable_change(
+    store: &Store,
+    chapter_id: i64,
+    group_id: i64,
+) -> Result<AcceptableChange, AlignmentError> {
     let (alignment, texts) = group_texts(store, chapter_id)?;
     let Some(group) = texts.into_iter().find(|t| t.group_id == group_id) else {
         return Err(AlignmentError::InvalidSelection);
@@ -629,7 +777,11 @@ pub fn acceptable_change(store: &Store, chapter_id: i64, group_id: i64) -> Resul
     let ([segment_id], [row_id]) = (group.segment_ids.as_slice(), group.row_ids.as_slice()) else {
         return Err(AlignmentError::NotAcceptable);
     };
-    let shown = alignment.segments.iter().find(|s| s.id == *segment_id).map(|s| s.target_text.as_str());
+    let shown = alignment
+        .segments
+        .iter()
+        .find(|s| s.id == *segment_id)
+        .map(|s| s.target_text.as_str());
     if shown != Some(group.mine.as_str()) || group.mine == group.theirs {
         return Err(AlignmentError::NotAcceptable);
     }
@@ -652,9 +804,14 @@ fn members_of_group(
          WHERE g.id = ?1 AND g.review_chapter_id = ?2",
     )?;
     let members = stmt
-        .query_map((group_id, review_chapter_id), |row| Ok((row.get::<_, Option<i64>>(0)?, row.get::<_, Option<i64>>(1)?)))?
+        .query_map((group_id, review_chapter_id), |row| {
+            Ok((row.get::<_, Option<i64>>(0)?, row.get::<_, Option<i64>>(1)?))
+        })?
         .collect::<SqlResult<Vec<_>>>()?;
-    Ok((members.iter().filter_map(|m| m.0).collect(), members.iter().filter_map(|m| m.1).collect()))
+    Ok((
+        members.iter().filter_map(|m| m.0).collect(),
+        members.iter().filter_map(|m| m.1).collect(),
+    ))
 }
 
 /// In the caller's transaction: when `group_id` of the copy `review_chapter_id` is still exactly
@@ -670,7 +827,12 @@ pub fn mark_accepted(
     if rows != [row_id] || segments != [segment_id] {
         return Ok(false);
     }
-    super::review_decision::record_decision(tx, review_chapter_id, &rows, ReviewDecision::Accepted)?;
+    super::review_decision::record_decision(
+        tx,
+        review_chapter_id,
+        &rows,
+        ReviewDecision::Accepted,
+    )?;
     Ok(true)
 }
 
@@ -687,7 +849,12 @@ pub fn skip_change(store: &Store, chapter_id: i64, group_id: i64) -> Result<(), 
         if row_ids.is_empty() {
             return Ok(Err(AlignmentError::InvalidSelection));
         }
-        super::review_decision::record_decision(tx, review_chapter_id, &row_ids, ReviewDecision::Skipped)?;
+        super::review_decision::record_decision(
+            tx,
+            review_chapter_id,
+            &row_ids,
+            ReviewDecision::Skipped,
+        )?;
         Ok(Ok(()))
     })?;
     outcome
@@ -781,7 +948,12 @@ fn write_user_group(
 }
 
 /// Joins at least one segment and at least one reviewer row into a user group.
-pub fn join(store: &Store, chapter_id: i64, segment_ids: &[i64], row_ids: &[i64]) -> Result<i64, AlignmentError> {
+pub fn join(
+    store: &Store,
+    chapter_id: i64,
+    segment_ids: &[i64],
+    row_ids: &[i64],
+) -> Result<i64, AlignmentError> {
     if segment_ids.is_empty() || row_ids.is_empty() {
         return Err(AlignmentError::InvalidSelection);
     }

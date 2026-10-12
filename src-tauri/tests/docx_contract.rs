@@ -6,7 +6,9 @@
 #[path = "fixtures_docx.rs"]
 mod fixtures_docx;
 
-use auratranslate_lib::commands::project::{append_chapters_to_work, create_work, create_work_from_file};
+use auratranslate_lib::commands::project::{
+    append_chapters_to_work, create_work, create_work_from_file,
+};
 use auratranslate_lib::core::docx::{DocxError, read_docx};
 use auratranslate_lib::core::segment::chapterpattern::ChapterPattern;
 use auratranslate_lib::core::segment::import::{ImportError, import_file};
@@ -26,7 +28,9 @@ fn temp_dir(label: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "auratranslate-docx-contract-{label}-{}-{n}-{:?}",
         std::process::id(),
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default()
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
     ));
     std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -34,8 +38,10 @@ fn temp_dir(label: &str) -> PathBuf {
 
 fn write_docx(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
     let path = dir.join(name);
-    let mut f = std::fs::File::create(&path).unwrap_or_else(|e| panic!("tao {}: {e}", path.display()));
-    f.write_all(bytes).unwrap_or_else(|e| panic!("ghi {}: {e}", path.display()));
+    let mut f =
+        std::fs::File::create(&path).unwrap_or_else(|e| panic!("tao {}: {e}", path.display()));
+    f.write_all(bytes)
+        .unwrap_or_else(|e| panic!("ghi {}: {e}", path.display()));
     path
 }
 
@@ -46,7 +52,8 @@ fn write_docx(dir: &Path, name: &str, bytes: &[u8]) -> PathBuf {
 /// Ma trận I/O — "Văn bản thường".
 #[test]
 fn a_soft_break_in_a_body_paragraph_reads_as_a_space_not_a_newline() {
-    let parsed = read_docx(&fixtures_docx::soft_break_in_body_paragraph()).expect("doc fixture that bai");
+    let parsed =
+        read_docx(&fixtures_docx::soft_break_in_body_paragraph()).expect("doc fixture that bai");
 
     assert_eq!(parsed.text, "Dong mot dong hai");
 }
@@ -61,7 +68,10 @@ fn plain_docx_yields_the_expected_paragraph_text_and_zero_tables_or_images() {
     assert!(parsed.tables.is_empty(), "fixture plain khong co bang nao");
     assert!(parsed.images.is_empty(), "fixture plain khong co anh nao");
     assert!(
-        parsed.blocks.iter().all(|b| matches!(b.body, BlockBody::Paragraph(_))),
+        parsed
+            .blocks
+            .iter()
+            .all(|b| matches!(b.body, BlockBody::Paragraph(_))),
         "moi khoi cua fixture plain phai la Paragraph"
     );
 }
@@ -69,7 +79,8 @@ fn plain_docx_yields_the_expected_paragraph_text_and_zero_tables_or_images() {
 /// Ma trận I/O — "Có bảng": đếm được hàng · ô · đoạn trong từng ô; MỖI ô là một ĐOẠN RIÊNG
 /// trong văn bản ra.
 #[test]
-fn a_table_yields_exact_row_cell_and_paragraph_counts_and_each_cell_becomes_its_own_paragraph_block() {
+fn a_table_yields_exact_row_cell_and_paragraph_counts_and_each_cell_becomes_its_own_paragraph_block()
+ {
     let bytes = fixtures_docx::table_two_columns();
     let parsed = read_docx(&bytes).expect("doc fixture table_two_columns that bai");
 
@@ -92,7 +103,11 @@ fn a_table_yields_exact_row_cell_and_paragraph_counts_and_each_cell_becomes_its_
             _ => None,
         })
         .collect();
-    assert_eq!(paragraph_texts.len(), 4, "4 o = 4 khoi Paragraph, khong nhieu khong it hon");
+    assert_eq!(
+        paragraph_texts.len(),
+        4,
+        "4 o = 4 khoi Paragraph, khong nhieu khong it hon"
+    );
     assert!(paragraph_texts[0].contains("Cau mot that day du trong o nay."));
     assert!(paragraph_texts[0].contains("Cau hai tiep tuc luon trong cung mot doan."));
 }
@@ -129,8 +144,14 @@ fn an_embedded_image_is_read_as_a_real_block_with_real_bytes_at_the_right_positi
         .iter()
         .position(|b| matches!(b.body, BlockBody::Image { .. }))
         .expect("phai co dung mot khoi Image trong danh sach khoi");
-    assert_eq!(parsed.images[0].block_index, image_block_index, "block_index phai tro dung vi tri anh trong `blocks`");
-    assert!(!parsed.images[0].bytes.is_empty(), "byte anh phai la byte THAT, khong rong");
+    assert_eq!(
+        parsed.images[0].block_index, image_block_index,
+        "block_index phai tro dung vi tri anh trong `blocks`"
+    );
+    assert!(
+        !parsed.images[0].bytes.is_empty(),
+        "byte anh phai la byte THAT, khong rong"
+    );
     assert_eq!(parsed.images[0].content_type, "image/png");
 
     // Đoạn TRƯỚC và SAU ảnh phải có mặt, đúng thứ tự — đủ điều kiện cho `compute_anchor`.
@@ -144,9 +165,20 @@ fn an_embedded_image_is_read_as_a_real_block_with_real_bytes_at_the_right_positi
         .collect();
     assert_eq!(paragraph_texts, vec!["Doan truoc anh.", "Doan sau anh."]);
     // Ảnh phải nằm GIỮA hai đoạn theo chỉ số khối.
-    let before_idx = parsed.blocks.iter().position(|b| matches!(&b.body, BlockBody::Paragraph(t) if t == "Doan truoc anh.")).unwrap();
-    let after_idx = parsed.blocks.iter().position(|b| matches!(&b.body, BlockBody::Paragraph(t) if t == "Doan sau anh.")).unwrap();
-    assert!(before_idx < image_block_index && image_block_index < after_idx, "anh phai dung GIUA hai doan");
+    let before_idx = parsed
+        .blocks
+        .iter()
+        .position(|b| matches!(&b.body, BlockBody::Paragraph(t) if t == "Doan truoc anh."))
+        .unwrap();
+    let after_idx = parsed
+        .blocks
+        .iter()
+        .position(|b| matches!(&b.body, BlockBody::Paragraph(t) if t == "Doan sau anh."))
+        .unwrap();
+    assert!(
+        before_idx < image_block_index && image_block_index < after_idx,
+        "anh phai dung GIUA hai doan"
+    );
 }
 
 /// Ma trận I/O — "Rỗng": lỗi "không có văn bản".
@@ -154,18 +186,29 @@ fn an_embedded_image_is_read_as_a_real_block_with_real_bytes_at_the_right_positi
 fn an_empty_docx_is_rejected_as_having_no_text() {
     let bytes = fixtures_docx::empty();
     let err = read_docx(&bytes).expect_err("docx 0 doan co chu phai bi tu choi");
-    assert!(matches!(err, DocxError::EmptyText), "loi phai la EmptyText, khong phai mot loai khac: {err:?}");
+    assert!(
+        matches!(err, DocxError::EmptyText),
+        "loi phai la EmptyText, khong phai mot loai khac: {err:?}"
+    );
 }
 
 /// Ma trận I/O — "Tệp hỏng" (zip cắt cụt) và "Đuôi `.docx`, không phải zip": cùng một lỗi cho
 /// cả hai, nhận theo NỘI DUNG không theo tên (§Never spec 6.12).
 #[test]
 fn a_truncated_zip_and_a_non_zip_file_are_both_rejected_as_not_a_valid_zip() {
-    let truncated_err = read_docx(&fixtures_docx::truncated()).expect_err("zip cat cut phai bi tu choi");
-    assert!(matches!(truncated_err, DocxError::NotAZip { .. }), "phai la NotAZip: {truncated_err:?}");
+    let truncated_err =
+        read_docx(&fixtures_docx::truncated()).expect_err("zip cat cut phai bi tu choi");
+    assert!(
+        matches!(truncated_err, DocxError::NotAZip { .. }),
+        "phai la NotAZip: {truncated_err:?}"
+    );
 
-    let not_zip_err = read_docx(&fixtures_docx::not_a_zip()).expect_err("mot tep khong phai zip phai bi tu choi");
-    assert!(matches!(not_zip_err, DocxError::NotAZip { .. }), "phai la NotAZip: {not_zip_err:?}");
+    let not_zip_err =
+        read_docx(&fixtures_docx::not_a_zip()).expect_err("mot tep khong phai zip phai bi tu choi");
+    assert!(
+        matches!(not_zip_err, DocxError::NotAZip { .. }),
+        "phai la NotAZip: {not_zip_err:?}"
+    );
 }
 
 /// Đối chứng ÂM — một `.docx` HỢP LỆ (nguyên vẹn, không cắt) không bao giờ bị `read_docx` từ
@@ -175,11 +218,17 @@ fn every_well_formed_fixture_is_accepted_without_error() {
     for (label, bytes) in [
         ("plain", fixtures_docx::plain()),
         ("table_two_columns", fixtures_docx::table_two_columns()),
-        ("table_one_row_multi_paragraph", fixtures_docx::table_one_row_multi_paragraph()),
+        (
+            "table_one_row_multi_paragraph",
+            fixtures_docx::table_one_row_multi_paragraph(),
+        ),
         ("image_png", fixtures_docx::image_png()),
     ] {
         let result = read_docx(&bytes);
-        assert!(result.is_ok(), "fixture {label} HOP LE phai duoc chap nhan, khong duoc loi: {result:?}");
+        assert!(
+            result.is_ok(),
+            "fixture {label} HOP LE phai duoc chap nhan, khong duoc loi: {result:?}"
+        );
     }
 }
 
@@ -201,7 +250,10 @@ fn docx_files_enter_the_pipeline_as_already_text_not_raw_bytes() {
         }
         other => panic!("shape phai la Blob(AlreadyText), khong phai: {other:?}"),
     }
-    assert!(sidecar.is_some(), "mot .docx phai luon mang mot DocxSidecar (co the rong anh, khong bao gio None)");
+    assert!(
+        sidecar.is_some(),
+        "mot .docx phai luon mang mot DocxSidecar (co the rong anh, khong bao gio None)"
+    );
 }
 
 /// Đối chứng đỏ ① của §Verification spec 6.12 — GỠ `"docx"` khỏi danh sách chấp nhận phải
@@ -214,7 +266,10 @@ fn docx_extension_is_currently_accepted_the_red_side_of_verification_counterfact
     let dir = temp_dir("ac1");
     let path = write_docx(&dir, "mot.docx", &fixtures_docx::plain());
     let result = import_file(&path);
-    assert!(result.is_ok(), "docx phai duoc chap nhan hom nay -- neu do la mot loi UnsupportedFormat, doi chung 1 da dao nguoc");
+    assert!(
+        result.is_ok(),
+        "docx phai duoc chap nhan hom nay -- neu do la mot loi UnsupportedFormat, doi chung 1 da dao nguoc"
+    );
 }
 
 /// Ma trận I/O — "Quá cỡ": từ chối TRƯỚC khi đọc zip. Dùng `truncated`/`not_a_zip` cũng đủ
@@ -241,7 +296,10 @@ fn importing_an_empty_docx_file_fails_with_a_distinguishable_error() {
     let dir = temp_dir("empty");
     let path = write_docx(&dir, "rong.docx", &fixtures_docx::empty());
     let err = import_file(&path).expect_err("docx rong phai bi tu choi qua import_file");
-    assert!(matches!(err, ImportError::DocxEmptyText { .. }), "phai la DocxEmptyText: {err:?}");
+    assert!(
+        matches!(err, ImportError::DocxEmptyText { .. }),
+        "phai la DocxEmptyText: {err:?}"
+    );
 }
 
 /// Ma trận I/O — "Tệp hỏng"/"Đuôi `.docx`, không phải zip" qua `import_file` — cùng MỘT lỗi
@@ -252,11 +310,18 @@ fn importing_a_truncated_or_non_zip_docx_file_fails_with_the_same_distinguishabl
 
     let truncated_path = write_docx(&dir, "cat_cut.docx", &fixtures_docx::truncated());
     let truncated_err = import_file(&truncated_path).expect_err("docx cat cut phai bi tu choi");
-    assert!(matches!(truncated_err, ImportError::DocxUnreadable { .. }), "{truncated_err:?}");
+    assert!(
+        matches!(truncated_err, ImportError::DocxUnreadable { .. }),
+        "{truncated_err:?}"
+    );
 
     let disguised_path = write_docx(&dir, "gia_docx.docx", &fixtures_docx::not_a_zip());
-    let disguised_err = import_file(&disguised_path).expect_err("tep .txt doi duoi .docx phai bi tu choi");
-    assert!(matches!(disguised_err, ImportError::DocxUnreadable { .. }), "{disguised_err:?}");
+    let disguised_err =
+        import_file(&disguised_path).expect_err("tep .txt doi duoi .docx phai bi tu choi");
+    assert!(
+        matches!(disguised_err, ImportError::DocxUnreadable { .. }),
+        "{disguised_err:?}"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -289,7 +354,10 @@ fn read_asset_rows(store: &auratranslate_lib::core::store::Store) -> Vec<AssetRo
         .expect("doc bang asset that bai")
 }
 
-fn read_segment_texts(store: &auratranslate_lib::core::store::Store, chapter_id: i64) -> Vec<String> {
+fn read_segment_texts(
+    store: &auratranslate_lib::core::store::Store,
+    chapter_id: i64,
+) -> Vec<String> {
     store
         .read(|conn| {
             let mut stmt =
@@ -314,20 +382,29 @@ fn a_docx_with_an_embedded_image_writes_a_real_file_and_a_null_source_url_asset_
     let root = temp_dir("e2e-image-root");
     let path = write_docx(&source_dir, "co_anh.docx", &fixtures_docx::image_png());
 
-    let opened =
-        create_work_from_file(&root, "Docx Co Anh", "en", "", &path).expect("tao Tac pham tu .docx co anh that bai");
+    let opened = create_work_from_file(&root, "Docx Co Anh", "en", "", &path)
+        .expect("tao Tac pham tu .docx co anh that bai");
 
     assert_eq!(opened.images_saved, 1, "dung mot anh duoc luu");
-    assert_eq!(opened.images_failed, 0, "khong anh nao duoc mong doi that bai");
+    assert_eq!(
+        opened.images_failed, 0,
+        "khong anh nao duoc mong doi that bai"
+    );
 
     let rows = read_asset_rows(&opened.store);
     assert_eq!(rows.len(), 1, "dung mot hang asset");
     let (chapter_id, file_name, source_url, anchor, byte_len, content_type) = &rows[0];
     assert_eq!(*chapter_id, opened.chapter_id);
-    assert_eq!(source_url, &None, "anh .docx khong den tu mang -- source_url PHAI la NULL");
+    assert_eq!(
+        source_url, &None,
+        "anh .docx khong den tu mang -- source_url PHAI la NULL"
+    );
     assert_eq!(content_type, "image/png");
     assert!(*byte_len > 0, "byte_len phai duong");
-    assert_eq!(*anchor, 1, "dung mot doan (\"Doan truoc anh.\") dung TRUOC anh");
+    assert_eq!(
+        *anchor, 1,
+        "dung mot doan (\"Doan truoc anh.\") dung TRUOC anh"
+    );
 
     let asset_path = opened.dir.join("assets").join(file_name);
     let metadata = std::fs::metadata(&asset_path);
@@ -336,7 +413,10 @@ fn a_docx_with_an_embedded_image_writes_a_real_file_and_a_null_source_url_asset_
         "tep {} PHAI ton tai that su tren dia -- mot hang SQL khong kem tep la mot ca DO",
         asset_path.display()
     );
-    assert!(metadata.expect("da kiem o tren").len() > 0, "tep anh phai co byte, khong duoc rong");
+    assert!(
+        metadata.expect("da kiem o tren").len() > 0,
+        "tep anh phai co byte, khong duoc rong"
+    );
 }
 
 /// Ma trận I/O — "Ô nhiều câu": ranh giới ô = ranh giới đoạn ⇒ **0** segment vắt qua hai ô
@@ -346,22 +426,34 @@ fn a_docx_with_an_embedded_image_writes_a_real_file_and_a_null_source_url_asset_
 fn no_segment_crosses_a_table_cell_boundary_after_writing_the_whole_document() {
     let source_dir = temp_dir("e2e-table-src");
     let root = temp_dir("e2e-table-root");
-    let path = write_docx(&source_dir, "bang.docx", &fixtures_docx::table_two_columns());
+    let path = write_docx(
+        &source_dir,
+        "bang.docx",
+        &fixtures_docx::table_two_columns(),
+    );
 
-    let opened = create_work_from_file(&root, "Docx Bang", "en", "", &path).expect("tao Tac pham tu .docx bang that bai");
+    let opened = create_work_from_file(&root, "Docx Bang", "en", "", &path)
+        .expect("tao Tac pham tu .docx bang that bai");
 
     let segments = read_segment_texts(&opened.store, opened.chapter_id);
-    assert!(segments.len() >= 4, "it nhat bon cau rieng biet phai duoc tach (hai cau cua o dau + ba o don cau)");
+    assert!(
+        segments.len() >= 4,
+        "it nhat bon cau rieng biet phai duoc tach (hai cau cua o dau + ba o don cau)"
+    );
 
     // Hai câu của Ô (0,0) phải là HAI segment TÁCH BIỆT (bộ tách câu vẫn hoạt động ĐÚNG bên
     // trong một ô), nhưng KHÔNG segment nào được nối chữ CUỐI của ô này với chữ ĐẦU của ô kế
     // tiếp -- đúng bằng chứng đóng nợ `:2214`.
     assert!(
-        segments.iter().any(|s| s.contains("Cau mot that day du trong o nay.")),
+        segments
+            .iter()
+            .any(|s| s.contains("Cau mot that day du trong o nay.")),
         "cau dau cua o (0,0) phai la mot segment day du: {segments:?}"
     );
     assert!(
-        segments.iter().any(|s| s.contains("Cau hai tiep tuc luon trong cung mot doan.")),
+        segments
+            .iter()
+            .any(|s| s.contains("Cau hai tiep tuc luon trong cung mot doan.")),
         "cau hai cua o (0,0) phai la mot segment day du: {segments:?}"
     );
     for text in &segments {
@@ -382,10 +474,16 @@ fn a_broken_docx_import_leaves_zero_atproj_folders_behind() {
     let source_dir = temp_dir("no-leftover-src");
     let root = temp_dir("no-leftover-root");
 
-    for (label, bytes) in [("cat_cut", fixtures_docx::truncated()), ("gia_docx", fixtures_docx::not_a_zip())] {
+    for (label, bytes) in [
+        ("cat_cut", fixtures_docx::truncated()),
+        ("gia_docx", fixtures_docx::not_a_zip()),
+    ] {
         let path = write_docx(&source_dir, &format!("{label}.docx"), &bytes);
         let result = create_work_from_file(&root, &format!("Docx Hong {label}"), "en", "", &path);
-        assert!(result.is_err(), "mot .docx hong phai bi tu choi qua create_work_from_file");
+        assert!(
+            result.is_err(),
+            "mot .docx hong phai bi tu choi qua create_work_from_file"
+        );
     }
 
     let entries: Vec<_> = std::fs::read_dir(&root)
@@ -411,7 +509,10 @@ fn a_plain_text_file_import_is_completely_unaffected_by_the_docx_branch() {
     assert!(sidecar.is_none(), ".txt khong bao gio mang mot DocxSidecar");
     match shape {
         PipelineShape::Blob(ChapterInput::RawBytes { bytes, .. }) => {
-            assert_eq!(bytes, content, ".txt phai giu NGUYEN byte, chua giai ma (Step::DecodeEncoding moi giai ma)");
+            assert_eq!(
+                bytes, content,
+                ".txt phai giu NGUYEN byte, chua giai ma (Step::DecodeEncoding moi giai ma)"
+            );
         }
         other => panic!(".txt phai la Blob(RawBytes), khong phai: {other:?}"),
     }
@@ -429,28 +530,49 @@ fn a_plain_text_file_import_is_completely_unaffected_by_the_docx_branch() {
 /// thư mục `assets/` phải RỖNG và bảng `asset` phải 0 hàng, trong khi văn bản hai đoạn kẹp
 /// quanh ảnh vẫn vào đủ.
 #[test]
-fn an_embedded_image_with_a_mime_outside_the_closed_four_is_dropped_and_the_chapter_still_imports() {
+fn an_embedded_image_with_a_mime_outside_the_closed_four_is_dropped_and_the_chapter_still_imports()
+{
     let source_dir = temp_dir("e2e-bmp-src");
     let root = temp_dir("e2e-bmp-root");
-    let path = write_docx(&source_dir, "anh_bmp.docx", &fixtures_docx::image_unsupported_mime());
+    let path = write_docx(
+        &source_dir,
+        "anh_bmp.docx",
+        &fixtures_docx::image_unsupported_mime(),
+    );
 
     let opened = create_work_from_file(&root, "Docx Anh Bmp", "en", "", &path)
         .expect("mot anh MIME ngoai danh muc KHONG duoc lam truot ca luot nhap");
 
     assert_eq!(opened.images_saved, 0, "khong anh nao duoc luu");
-    assert_eq!(opened.images_failed, 1, "dung mot vi tri anh bi bo vi MIME ngoai danh muc");
+    assert_eq!(
+        opened.images_failed, 1,
+        "dung mot vi tri anh bi bo vi MIME ngoai danh muc"
+    );
 
-    assert_eq!(read_asset_rows(&opened.store).len(), 0, "bang asset phai 0 hang");
+    assert_eq!(
+        read_asset_rows(&opened.store).len(),
+        0,
+        "bang asset phai 0 hang"
+    );
 
     let assets_dir = opened.dir.join("assets");
     let entries = std::fs::read_dir(&assets_dir)
         .map(|it| it.count())
         .unwrap_or_else(|e| panic!("doc {}: {e}", assets_dir.display()));
-    assert_eq!(entries, 0, "thu muc assets/ phai RONG -- 0 tep duoc ghi cho mot MIME bi tu choi");
+    assert_eq!(
+        entries, 0,
+        "thu muc assets/ phai RONG -- 0 tep duoc ghi cho mot MIME bi tu choi"
+    );
 
     let texts = read_segment_texts(&opened.store, opened.chapter_id).join(" ");
-    assert!(texts.contains("Doan truoc anh bmp"), "doan TRUOC anh phai vao du: {texts:?}");
-    assert!(texts.contains("Doan sau anh bmp"), "doan SAU anh phai vao du: {texts:?}");
+    assert!(
+        texts.contains("Doan truoc anh bmp"),
+        "doan TRUOC anh phai vao du: {texts:?}"
+    );
+    assert!(
+        texts.contains("Doan sau anh bmp"),
+        "doan SAU anh phai vao du: {texts:?}"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -468,15 +590,25 @@ fn a_word_alternate_content_wrapper_around_one_image_yields_exactly_one_image_bl
     let bytes = fixtures_docx::image_wrapped_in_alternate_content();
     let parsed = read_docx(&bytes).expect("doc fixture AlternateContent that bai");
 
-    let image_blocks: Vec<_> =
-        parsed.blocks.iter().filter(|b| matches!(b.body, BlockBody::Image { .. })).collect();
+    let image_blocks: Vec<_> = parsed
+        .blocks
+        .iter()
+        .filter(|b| matches!(b.body, BlockBody::Image { .. }))
+        .collect();
     assert_eq!(
         image_blocks.len(),
         1,
         "mc:Choice/w:drawing va mc:Fallback/w:pict cung mot rId phai cho DUNG MOT khoi Image: {image_blocks:?}"
     );
-    assert_eq!(parsed.images.len(), 1, "dung mot anh duoc doc ra byte, khong hai");
-    assert!(!parsed.images[0].bytes.is_empty(), "byte anh phai la byte THAT, khong rong");
+    assert_eq!(
+        parsed.images.len(),
+        1,
+        "dung mot anh duoc doc ra byte, khong hai"
+    );
+    assert!(
+        !parsed.images[0].bytes.is_empty(),
+        "byte anh phai la byte THAT, khong rong"
+    );
 }
 
 /// Nhánh VML (`w:pict`/`v:imagedata`) của `find_image_rel_id` trước lượt sửa này KHÔNG có ca
@@ -488,13 +620,19 @@ fn a_vml_only_image_with_no_drawing_anywhere_still_resolves_its_rel_id_and_reads
     let parsed = read_docx(&bytes).expect("doc fixture VML-only that bai");
 
     assert_eq!(parsed.images.len(), 1, "dung mot anh VML duoc doc ra");
-    assert!(!parsed.images[0].bytes.is_empty(), "byte anh phai la byte THAT, khong rong");
+    assert!(
+        !parsed.images[0].bytes.is_empty(),
+        "byte anh phai la byte THAT, khong rong"
+    );
     let image_block_index = parsed
         .blocks
         .iter()
         .position(|b| matches!(b.body, BlockBody::Image { .. }))
         .expect("phai co dung mot khoi Image trong danh sach khoi");
-    assert_eq!(parsed.images[0].block_index, image_block_index, "block_index phai tro dung vi tri anh VML");
+    assert_eq!(
+        parsed.images[0].block_index, image_block_index,
+        "block_index phai tro dung vi tri anh VML"
+    );
 }
 
 #[test]
@@ -512,12 +650,17 @@ fn footnotes_and_endnotes_are_appended_at_the_end_header_footer_and_comments_sta
         .collect();
     assert_eq!(
         paragraph_texts,
-        vec!["Doan chinh van cua tai lieu.", "Chu thich chan trang that.", "Chu thich cuoi tai lieu that."],
+        vec![
+            "Doan chinh van cua tai lieu.",
+            "Chu thich chan trang that.",
+            "Chu thich cuoi tai lieu that."
+        ],
         "chu chan/cuoi trang THAT phai noi vao CUOI, theo dung thu tu footnote roi endnote; \
          type=\"separator\" phai bi loai, header/footer/comment khong duoc doc"
     );
     assert!(
-        parsed.text.contains("Chu thich chan trang that.") && parsed.text.contains("Chu thich cuoi tai lieu that."),
+        parsed.text.contains("Chu thich chan trang that.")
+            && parsed.text.contains("Chu thich cuoi tai lieu that."),
         "DocxParsed::text dung CHINH blocks nen cung phai mang chu chan/cuoi trang"
     );
 }
@@ -527,7 +670,11 @@ fn a_nested_table_becomes_its_own_sibling_table_shape_and_its_text_is_not_droppe
     let bytes = fixtures_docx::table_with_nested_table_and_trailing_paragraph();
     let parsed = read_docx(&bytes).expect("doc fixture bang long that bai");
 
-    assert_eq!(parsed.tables.len(), 2, "bang long phai duoc dem la mot TableShape SIBLING rieng, cong voi bang ngoai");
+    assert_eq!(
+        parsed.tables.len(),
+        2,
+        "bang long phai duoc dem la mot TableShape SIBLING rieng, cong voi bang ngoai"
+    );
     let outer = &parsed.tables[0];
     assert_eq!(outer.rows, 1);
     assert_eq!(outer.cells_per_row, vec![1]);
@@ -539,7 +686,11 @@ fn a_nested_table_becomes_its_own_sibling_table_shape_and_its_text_is_not_droppe
     let nested = &parsed.tables[1];
     assert_eq!(nested.rows, 1);
     assert_eq!(nested.cells_per_row, vec![1]);
-    assert_eq!(nested.paragraphs_per_cell, vec![vec![1]], "bang long mang dung mot doan cua chinh no");
+    assert_eq!(
+        nested.paragraphs_per_cell,
+        vec![vec![1]],
+        "bang long mang dung mot doan cua chinh no"
+    );
 
     let paragraph_texts: Vec<&str> = parsed
         .blocks
@@ -583,9 +734,15 @@ fn importing_a_docx_with_an_image_leaves_the_domain_log_empty() {
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false, &[],
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
         &domain_log_state,
-        docx_sidecar, &[])
+        docx_sidecar,
+        &[],
+    )
     .expect("tao Tac pham tu .docx co anh that bai");
 
     let log = domain_log_state.lock().unwrap_or_else(|e| e.into_inner());
@@ -618,12 +775,21 @@ fn each_docx_chapter_after_a_split_boundary_gets_its_own_image_anchored_in_its_o
         encoding_rs::UTF_8,
         Vec::new(),
         Some(pattern),
-        Vec::new(), 0, 1, false, &[],
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
         &domain_log_state,
-        docx_sidecar, &[])
+        docx_sidecar,
+        &[],
+    )
     .expect("tao Tac pham tu .docx hai chuong that bai");
 
-    assert_eq!(opened.images_saved, 2, "ca hai Chuong deu phai co anh duoc luu THAT, khong con gop het vao Chuong dau");
+    assert_eq!(
+        opened.images_saved, 2,
+        "ca hai Chuong deu phai co anh duoc luu THAT, khong con gop het vao Chuong dau"
+    );
     assert_eq!(opened.images_failed, 0);
 
     let chapter_ids: Vec<i64> = opened
@@ -634,11 +800,19 @@ fn each_docx_chapter_after_a_split_boundary_gets_its_own_image_anchored_in_its_o
             rows.collect::<auratranslate_lib::core::store::SqlResult<Vec<i64>>>()
         })
         .expect("doc danh sach Chuong that bai");
-    assert_eq!(chapter_ids.len(), 2, "phai co dung hai Chuong: {chapter_ids:?}");
+    assert_eq!(
+        chapter_ids.len(),
+        2,
+        "phai co dung hai Chuong: {chapter_ids:?}"
+    );
     let (chapter1, chapter2) = (chapter_ids[0], chapter_ids[1]);
 
     let rows = read_asset_rows(&opened.store);
-    assert_eq!(rows.len(), 2, "dung hai hang asset duoc ghi, mot cho moi Chuong: {rows:?}");
+    assert_eq!(
+        rows.len(),
+        2,
+        "dung hai hang asset duoc ghi, mot cho moi Chuong: {rows:?}"
+    );
     let chapters_with_assets: std::collections::BTreeSet<i64> = rows.iter().map(|r| r.0).collect();
     assert_eq!(
         chapters_with_assets,
@@ -649,22 +823,37 @@ fn each_docx_chapter_after_a_split_boundary_gets_its_own_image_anchored_in_its_o
     // dung byte_len theo TUNG Chuong moi thuc su canh duoc mot luot ghep sai (Chuong nay
     // vo tinh lay byte cua Chuong kia) ma so hang/tap Chuong-co-anh khong the phan biet duoc
     // (ca hai deu van la 2 hang, du ghep dung hay sai).
-    let byte_len_of = |chapter_id: i64| -> i64 { rows.iter().find(|r| r.0 == chapter_id).expect("phai co hang").4 };
-    assert_eq!(byte_len_of(chapter1), 69, "Chuong 1 phai mang dung anh cua no (69 byte)");
-    assert_eq!(byte_len_of(chapter2), 70, "Chuong 2 phai mang dung anh cua no (70 byte), khong phai anh cua Chuong 1");
+    let byte_len_of = |chapter_id: i64| -> i64 {
+        rows.iter()
+            .find(|r| r.0 == chapter_id)
+            .expect("phai co hang")
+            .4
+    };
+    assert_eq!(
+        byte_len_of(chapter1),
+        69,
+        "Chuong 1 phai mang dung anh cua no (69 byte)"
+    );
+    assert_eq!(
+        byte_len_of(chapter2),
+        70,
+        "Chuong 2 phai mang dung anh cua no (70 byte), khong phai anh cua Chuong 1"
+    );
 }
 
 /// APPEND counterpart of the CREATE test right above — same fixture, split into the same two
 /// Chương by the same pattern, but landed on an already-open Work via `append_chapters_to_work`
 /// instead of `create_work`. `distribute_docx_blocks_across_chapters` must run on this path too.
 #[test]
-fn append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_in_its_own_chapter() {
+fn append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_in_its_own_chapter()
+{
     let source_dir = temp_dir("append-split-boundary-src");
     let root = temp_dir("append-split-boundary-root");
     let domain_log_state: DomainLogState = std::sync::Mutex::new(Vec::new());
 
-    let base_shape =
-        PipelineShape::Chapters(vec![ChapterInput::AlreadyText("Chuong co san truoc khi append.".to_owned())]);
+    let base_shape = PipelineShape::Chapters(vec![ChapterInput::AlreadyText(
+        "Chuong co san truoc khi append.".to_owned(),
+    )]);
     let mut opened = create_work(
         &root,
         "Docx Append Hai Chuong",
@@ -674,9 +863,15 @@ fn append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_
         encoding_rs::UTF_8,
         Vec::new(),
         None,
-        Vec::new(), 0, 1, false, &[],
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
         &domain_log_state,
-        None, &[])
+        None,
+        &[],
+    )
     .expect("tao Tac pham nen that bai");
 
     let path = write_docx(
@@ -706,11 +901,20 @@ fn append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_
         "ca hai Chuong MOI (them qua APPEND) deu phai co anh duoc luu THAT, khong con gop het vao mot Chuong"
     );
     assert_eq!(opened.images_failed, 0);
-    assert_eq!(opened.new_chapter_ids.len(), 2, "phai co dung hai id Chuong vua them: {:?}", opened.new_chapter_ids);
+    assert_eq!(
+        opened.new_chapter_ids.len(),
+        2,
+        "phai co dung hai id Chuong vua them: {:?}",
+        opened.new_chapter_ids
+    );
     let (chapter1, chapter2) = (opened.new_chapter_ids[0], opened.new_chapter_ids[1]);
 
     let rows = read_asset_rows(&opened.store);
-    assert_eq!(rows.len(), 2, "dung hai hang asset duoc ghi, mot cho moi Chuong MOI: {rows:?}");
+    assert_eq!(
+        rows.len(),
+        2,
+        "dung hai hang asset duoc ghi, mot cho moi Chuong MOI: {rows:?}"
+    );
     let chapters_with_assets: std::collections::BTreeSet<i64> = rows.iter().map(|r| r.0).collect();
     assert_eq!(
         chapters_with_assets,
@@ -719,7 +923,20 @@ fn append_gives_each_docx_chapter_after_a_split_boundary_its_own_image_anchored_
     );
     // Cung khuon voi ban CREATE o tren -- byte_len KHAC nhau (69/70, xem fixture) canh dung
     // mot luot ghep sai giua hai Chuong MOI ma so hang/tap Chuong-co-anh khong phan biet duoc.
-    let byte_len_of = |chapter_id: i64| -> i64 { rows.iter().find(|r| r.0 == chapter_id).expect("phai co hang").4 };
-    assert_eq!(byte_len_of(chapter1), 69, "Chuong moi thu nhat phai mang dung anh cua no (69 byte)");
-    assert_eq!(byte_len_of(chapter2), 70, "Chuong moi thu hai phai mang dung anh cua no (70 byte)");
+    let byte_len_of = |chapter_id: i64| -> i64 {
+        rows.iter()
+            .find(|r| r.0 == chapter_id)
+            .expect("phai co hang")
+            .4
+    };
+    assert_eq!(
+        byte_len_of(chapter1),
+        69,
+        "Chuong moi thu nhat phai mang dung anh cua no (69 byte)"
+    );
+    assert_eq!(
+        byte_len_of(chapter2),
+        70,
+        "Chuong moi thu hai phai mang dung anh cua no (70 byte)"
+    );
 }

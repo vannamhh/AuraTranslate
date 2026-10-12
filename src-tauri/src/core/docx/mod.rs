@@ -83,7 +83,9 @@ impl std::fmt::Display for DocxError {
     /// KHÔNG DẤU — chẩn đoán cho log (NFR16).
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DocxError::NotAZip { detail } => write!(f, "docx: khong mo duoc nhu mot kho zip: {detail}"),
+            DocxError::NotAZip { detail } => {
+                write!(f, "docx: khong mo duoc nhu mot kho zip: {detail}")
+            }
             DocxError::MissingEntry { name } => write!(f, "docx: thieu muc bat buoc {name:?}"),
             DocxError::MalformedXml { detail } => write!(f, "docx: xml khong hop le: {detail}"),
             DocxError::EmptyText => write!(f, "docx: 0 doan co chu sau khi doc"),
@@ -153,7 +155,9 @@ impl DocxParsed {
             .iter()
             .enumerate()
             .filter_map(|(i, item)| match item {
-                DocxBodyItem::Table(rows) if !self.nested_table_body_indexes.contains(&i) => Some(rows),
+                DocxBodyItem::Table(rows) if !self.nested_table_body_indexes.contains(&i) => {
+                    Some(rows)
+                }
                 _ => None,
             })
             .collect()
@@ -165,39 +169,48 @@ impl DocxParsed {
 /// spec 6.12 dựa lên — xem `tests/docx_boundary.rs`).
 pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
     let cursor = Cursor::new(bytes);
-    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| DocxError::NotAZip { detail: e.to_string() })?;
+    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| DocxError::NotAZip {
+        detail: e.to_string(),
+    })?;
 
-    let document_xml_bytes = read_zip_entry(&mut archive, "word/document.xml")
-        .ok_or_else(|| DocxError::MissingEntry { name: "word/document.xml".to_owned() })?;
-    let document_xml = String::from_utf8(document_xml_bytes)
-        .map_err(|e| DocxError::MalformedXml { detail: format!("word/document.xml khong phai UTF-8: {e}") })?;
+    let document_xml_bytes =
+        read_zip_entry(&mut archive, "word/document.xml").ok_or_else(|| {
+            DocxError::MissingEntry {
+                name: "word/document.xml".to_owned(),
+            }
+        })?;
+    let document_xml =
+        String::from_utf8(document_xml_bytes).map_err(|e| DocxError::MalformedXml {
+            detail: format!("word/document.xml khong phai UTF-8: {e}"),
+        })?;
 
     // Rels là TUỲ CHỌN theo cơ chế đọc này — thiếu nó chỉ làm MỌI ảnh không phân giải được
     // (đếm vào `images_failed` ở tầng gọi), không làm cả lượt đọc trượt: một `.docx` không
     // ảnh vẫn hợp lệ mà không cần tệp rels này tồn tại đúng khuôn OOXML.
-    let rels_map: BTreeMap<String, String> = match read_zip_entry(&mut archive, "word/_rels/document.xml.rels") {
-        Some(raw) => match String::from_utf8(raw) {
-            Ok(text) => parse_rels(&text)?,
-            // 🔴 SỬA (bắt được sau code review) — bản trước `unwrap_or_default()` NUỐT IM
-            // LẶNG: một tệp rels không phải UTF-8 cho map RỖNG mà không một dòng nào nói vì
-            // sao, nên MỌI ảnh của tài liệu mất ánh xạ rId mà không ai biết lý do thật. Vẫn
-            // KHÔNG làm trượt cả lượt đọc (rels là tuỳ chọn, xem doc-comment ngay trên) —
-            // chỉ thêm một dòng chẩn đoán, đúng khuôn `eprintln!` đã dùng trong tệp này.
-            Err(e) => {
-                // ⚠️ KHÔNG viết tiền tố `"docx[rels] ..."` (khuôn `"asset[mime] ..."` của
-                // `commands::project`) — chuỗi đó khớp NHẦM vị từ chỉ số mảng trần của
-                // `docx_boundary.rs::line_indexes_a_slice_raw` (nó chỉ nhìn văn bản, không
-                // phân biệt được một chuỗi hiển thị khỏi mã thật) và báo đỏ oan cổng 0-điểm-
-                // panic. Viết bằng dấu hai chấm để không tạo hình dạng `<định danh>[...]`.
-                eprintln!(
-                    "docx rels khong phai UTF-8 (word/_rels/document.xml.rels), bo qua anh xa \
+    let rels_map: BTreeMap<String, String> =
+        match read_zip_entry(&mut archive, "word/_rels/document.xml.rels") {
+            Some(raw) => match String::from_utf8(raw) {
+                Ok(text) => parse_rels(&text)?,
+                // 🔴 SỬA (bắt được sau code review) — bản trước `unwrap_or_default()` NUỐT IM
+                // LẶNG: một tệp rels không phải UTF-8 cho map RỖNG mà không một dòng nào nói vì
+                // sao, nên MỌI ảnh của tài liệu mất ánh xạ rId mà không ai biết lý do thật. Vẫn
+                // KHÔNG làm trượt cả lượt đọc (rels là tuỳ chọn, xem doc-comment ngay trên) —
+                // chỉ thêm một dòng chẩn đoán, đúng khuôn `eprintln!` đã dùng trong tệp này.
+                Err(e) => {
+                    // ⚠️ KHÔNG viết tiền tố `"docx[rels] ..."` (khuôn `"asset[mime] ..."` của
+                    // `commands::project`) — chuỗi đó khớp NHẦM vị từ chỉ số mảng trần của
+                    // `docx_boundary.rs::line_indexes_a_slice_raw` (nó chỉ nhìn văn bản, không
+                    // phân biệt được một chuỗi hiển thị khỏi mã thật) và báo đỏ oan cổng 0-điểm-
+                    // panic. Viết bằng dấu hai chấm để không tạo hình dạng `<định danh>[...]`.
+                    eprintln!(
+                        "docx rels khong phai UTF-8 (word/_rels/document.xml.rels), bo qua anh xa \
                      anh: moi anh cua tai lieu se mat ri -- {e}"
-                );
-                BTreeMap::new()
-            }
-        },
-        None => BTreeMap::new(),
-    };
+                    );
+                    BTreeMap::new()
+                }
+            },
+            None => BTreeMap::new(),
+        };
 
     // Each table's own nested tables travel WITH it in `items` (see module doc item 6) so
     // they can be absorbed right after their parent, not deferred past a later top-level item.
@@ -214,23 +227,49 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
         match item {
             BodyItem::Para(p) => {
                 body.push(DocxBodyItem::Paragraph(paragraph_text_only(p)));
-                push_paragraph(p, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive);
+                push_paragraph(
+                    p,
+                    &mut blocks,
+                    &mut images,
+                    &mut first_text_seen,
+                    &rels_map,
+                    &mut archive,
+                );
             }
             BodyItem::Table(t, nested) => {
                 body.push(DocxBodyItem::Table(table_cell_texts(t)));
-                tables.push(absorb_table(t, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive));
+                tables.push(absorb_table(
+                    t,
+                    &mut blocks,
+                    &mut images,
+                    &mut first_text_seen,
+                    &rels_map,
+                    &mut archive,
+                ));
                 for n in nested {
                     nested_table_body_indexes.push(body.len());
                     body.push(DocxBodyItem::Table(table_cell_texts(n)));
-                    tables.push(absorb_table(n, &mut blocks, &mut images, &mut first_text_seen, &rels_map, &mut archive));
+                    tables.push(absorb_table(
+                        n,
+                        &mut blocks,
+                        &mut images,
+                        &mut first_text_seen,
+                        &rels_map,
+                        &mut archive,
+                    ));
                 }
             }
         }
     }
 
     // Footnotes/endnotes (module doc item 8) are appended to the end of `blocks`.
-    for (note_file, note_local) in [("word/footnotes.xml", "footnote"), ("word/endnotes.xml", "endnote")] {
-        let Some(raw) = read_zip_entry(&mut archive, note_file) else { continue };
+    for (note_file, note_local) in [
+        ("word/footnotes.xml", "footnote"),
+        ("word/endnotes.xml", "endnote"),
+    ] {
+        let Some(raw) = read_zip_entry(&mut archive, note_file) else {
+            continue;
+        };
         let text = match String::from_utf8(raw) {
             Ok(text) => text,
             Err(e) => {
@@ -265,14 +304,24 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
         return Err(DocxError::EmptyText);
     }
 
-    Ok(DocxParsed { text, blocks, tables, images, body, nested_table_body_indexes })
+    Ok(DocxParsed {
+        text,
+        blocks,
+        tables,
+        images,
+        body,
+        nested_table_body_indexes,
+    })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // Đọc zip — chịu được đường mang `\` (tệp nén trên Windows), xem doc-comment code map spec
 // ═════════════════════════════════════════════════════════════════════════════════
 
-fn read_zip_entry<R: Read + std::io::Seek>(archive: &mut zip::ZipArchive<R>, target: &str) -> Option<Vec<u8>> {
+fn read_zip_entry<R: Read + std::io::Seek>(
+    archive: &mut zip::ZipArchive<R>,
+    target: &str,
+) -> Option<Vec<u8>> {
     let normalized_target = target.replace('\\', "/");
     for i in 0..archive.len() {
         // 🔴 SỬA (bắt được sau code review) — bản trước dùng `.ok()?`, nên MỘT mục bất kỳ
@@ -280,7 +329,9 @@ fn read_zip_entry<R: Read + std::io::Seek>(archive: &mut zip::ZipArchive<R>, tar
         // một `word/document.xml` lành lặn bị báo `MissingEntry` chỉ vì một mục KHÁC (ví dụ
         // một `word/media/*` hỏng) không mở được. Bỏ qua ĐÚNG mục lỗi đó, quét tiếp — chỉ
         // mục `target` mới quyết định kết quả của hàm này.
-        let Ok(mut file) = archive.by_index(i) else { continue };
+        let Ok(mut file) = archive.by_index(i) else {
+            continue;
+        };
         let name = file.name().replace('\\', "/");
         if name == normalized_target {
             let mut buf = Vec::new();
@@ -295,7 +346,9 @@ fn read_zip_entry<R: Read + std::io::Seek>(archive: &mut zip::ZipArchive<R>, tar
 // ═════════════════════════════════════════════════════════════════════════════════
 
 fn xml_err(e: quick_xml::Error) -> DocxError {
-    DocxError::MalformedXml { detail: e.to_string() }
+    DocxError::MalformedXml {
+        detail: e.to_string(),
+    }
 }
 
 /// Trả về SỞ HỮU (không mượn) — `BytesStart::local_name()` trả một `LocalName<'_>` buộc vào
@@ -304,7 +357,9 @@ fn xml_err(e: quick_xml::Error) -> DocxError {
 /// là lối thoát đơn giản nhất, không đáng để đổi cả cây gọi sang kiểu mượn phức tạp hơn cho
 /// một tên thẻ (vài ký tự).
 fn local_name_of(e: &BytesStart) -> String {
-    std::str::from_utf8(e.local_name().as_ref()).unwrap_or("").to_owned()
+    std::str::from_utf8(e.local_name().as_ref())
+        .unwrap_or("")
+        .to_owned()
 }
 
 fn attr_value(e: &BytesStart, local_name: &str) -> Option<String> {
@@ -331,7 +386,9 @@ fn parse_rels(xml: &str) -> Result<BTreeMap<String, String>, DocxError> {
             Event::Eof => break,
             Event::Start(e) | Event::Empty(e) => {
                 if local_name_of(&e) == "Relationship" {
-                    if let (Some(id), Some(target)) = (attr_value(&e, "Id"), attr_value(&e, "Target")) {
+                    if let (Some(id), Some(target)) =
+                        (attr_value(&e, "Id"), attr_value(&e, "Target"))
+                    {
                         map.insert(id, target);
                     }
                 }
@@ -415,8 +472,9 @@ enum BodyItem {
 /// `mc:Fallback` phải OPAQUE — nếu không, phép duyệt phẳng thấy CẢ `w:drawing` (trong Choice)
 /// LẪN `w:pict` (trong Fallback) cho ĐÚNG một ảnh, sinh hai khối `Image`, hai tệp, hai hàng
 /// `asset` cho một ảnh duy nhất. Xem `docx_contract.rs::a_word_alternate_content_wrapper_around_one_image_yields_exactly_one_image_block`.
-const OPAQUE_LOCAL_NAMES: [&str; 9] =
-    ["rPr", "pPr", "tblPr", "tblGrid", "trPr", "tcPr", "sectPr", "tblPrEx", "Fallback"];
+const OPAQUE_LOCAL_NAMES: [&str; 9] = [
+    "rPr", "pPr", "tblPr", "tblGrid", "trPr", "tcPr", "sectPr", "tblPrEx", "Fallback",
+];
 
 fn is_opaque(local: &str) -> bool {
     OPAQUE_LOCAL_NAMES.contains(&local)
@@ -450,7 +508,10 @@ fn parse_body(xml: &str) -> Result<Vec<BodyItem>, DocxError> {
                 if local == "p" {
                     items.push(BodyItem::Para(ParaContent { pieces: Vec::new() }));
                 } else if local == "tbl" {
-                    items.push(BodyItem::Table(TableContent { rows: Vec::new() }, Vec::new()));
+                    items.push(BodyItem::Table(
+                        TableContent { rows: Vec::new() },
+                        Vec::new(),
+                    ));
                 }
             }
             _ => {}
@@ -467,7 +528,11 @@ fn parse_table(reader: &mut Reader<&[u8]>) -> Result<(TableContent, Vec<TableCon
     let mut nested = Vec::new();
     loop {
         match reader.read_event().map_err(xml_err)? {
-            Event::Eof => return Err(DocxError::MalformedXml { detail: "eof giua w:tbl".to_owned() }),
+            Event::Eof => {
+                return Err(DocxError::MalformedXml {
+                    detail: "eof giua w:tbl".to_owned(),
+                });
+            }
             Event::End(e) if local_name_of_end(&e) == "tbl" => break,
             Event::Start(e) => {
                 let local = local_name_of(&e);
@@ -477,18 +542,27 @@ fn parse_table(reader: &mut Reader<&[u8]>) -> Result<(TableContent, Vec<TableCon
                     reader.read_to_end(e.name()).map_err(xml_err)?;
                 }
             }
-            Event::Empty(e) if local_name_of(&e) == "tr" => rows.push(RowContent { cells: Vec::new() }),
+            Event::Empty(e) if local_name_of(&e) == "tr" => {
+                rows.push(RowContent { cells: Vec::new() })
+            }
             _ => {}
         }
     }
     Ok((TableContent { rows }, nested))
 }
 
-fn parse_row(reader: &mut Reader<&[u8]>, nested: &mut Vec<TableContent>) -> Result<RowContent, DocxError> {
+fn parse_row(
+    reader: &mut Reader<&[u8]>,
+    nested: &mut Vec<TableContent>,
+) -> Result<RowContent, DocxError> {
     let mut cells = Vec::new();
     loop {
         match reader.read_event().map_err(xml_err)? {
-            Event::Eof => return Err(DocxError::MalformedXml { detail: "eof giua w:tr".to_owned() }),
+            Event::Eof => {
+                return Err(DocxError::MalformedXml {
+                    detail: "eof giua w:tr".to_owned(),
+                });
+            }
             Event::End(e) if local_name_of_end(&e) == "tr" => break,
             Event::Start(e) => {
                 let local = local_name_of(&e);
@@ -498,18 +572,27 @@ fn parse_row(reader: &mut Reader<&[u8]>, nested: &mut Vec<TableContent>) -> Resu
                     reader.read_to_end(e.name()).map_err(xml_err)?;
                 }
             }
-            Event::Empty(e) if local_name_of(&e) == "tc" => cells.push(CellContent { paragraphs: Vec::new() }),
+            Event::Empty(e) if local_name_of(&e) == "tc" => cells.push(CellContent {
+                paragraphs: Vec::new(),
+            }),
             _ => {}
         }
     }
     Ok(RowContent { cells })
 }
 
-fn parse_cell(reader: &mut Reader<&[u8]>, nested: &mut Vec<TableContent>) -> Result<CellContent, DocxError> {
+fn parse_cell(
+    reader: &mut Reader<&[u8]>,
+    nested: &mut Vec<TableContent>,
+) -> Result<CellContent, DocxError> {
     let mut paragraphs = Vec::new();
     loop {
         match reader.read_event().map_err(xml_err)? {
-            Event::Eof => return Err(DocxError::MalformedXml { detail: "eof giua w:tc".to_owned() }),
+            Event::Eof => {
+                return Err(DocxError::MalformedXml {
+                    detail: "eof giua w:tc".to_owned(),
+                });
+            }
             Event::End(e) if local_name_of_end(&e) == "tc" => break,
             Event::Start(e) => {
                 let local = local_name_of(&e);
@@ -526,7 +609,9 @@ fn parse_cell(reader: &mut Reader<&[u8]>, nested: &mut Vec<TableContent>) -> Res
                     reader.read_to_end(e.name()).map_err(xml_err)?;
                 }
             }
-            Event::Empty(e) if local_name_of(&e) == "p" => paragraphs.push(ParaContent { pieces: Vec::new() }),
+            Event::Empty(e) if local_name_of(&e) == "p" => {
+                paragraphs.push(ParaContent { pieces: Vec::new() })
+            }
             _ => {}
         }
     }
@@ -583,7 +668,11 @@ fn parse_paragraph(reader: &mut Reader<&[u8]>, soft_break: char) -> Result<ParaC
     let mut current = String::new();
     loop {
         match reader.read_event().map_err(xml_err)? {
-            Event::Eof => return Err(DocxError::MalformedXml { detail: "eof giua w:p".to_owned() }),
+            Event::Eof => {
+                return Err(DocxError::MalformedXml {
+                    detail: "eof giua w:p".to_owned(),
+                });
+            }
             Event::End(e) if local_name_of_end(&e) == "p" => break,
             Event::Start(e) => {
                 let local = local_name_of(&e);
@@ -630,9 +719,15 @@ fn read_element_text(reader: &mut Reader<&[u8]>) -> Result<String, DocxError> {
     let mut depth = 0i32;
     loop {
         match reader.read_event().map_err(xml_err)? {
-            Event::Eof => return Err(DocxError::MalformedXml { detail: "eof giua w:t".to_owned() }),
+            Event::Eof => {
+                return Err(DocxError::MalformedXml {
+                    detail: "eof giua w:t".to_owned(),
+                });
+            }
             Event::Text(t) => {
-                let decoded = t.decode().map_err(|e| DocxError::MalformedXml { detail: e.to_string() })?;
+                let decoded = t.decode().map_err(|e| DocxError::MalformedXml {
+                    detail: e.to_string(),
+                })?;
                 out.push_str(&decoded);
             }
             Event::CData(t) => {
@@ -662,7 +757,11 @@ fn find_image_rel_id(reader: &mut Reader<&[u8]>) -> Result<Option<String>, DocxE
     let mut found: Option<String> = None;
     loop {
         match reader.read_event().map_err(xml_err)? {
-            Event::Eof => return Err(DocxError::MalformedXml { detail: "eof giua w:drawing/w:pict".to_owned() }),
+            Event::Eof => {
+                return Err(DocxError::MalformedXml {
+                    detail: "eof giua w:drawing/w:pict".to_owned(),
+                });
+            }
             Event::Start(e) => {
                 if found.is_none() {
                     let local = local_name_of(&e);
@@ -697,7 +796,9 @@ fn find_image_rel_id(reader: &mut Reader<&[u8]>) -> Result<Option<String>, DocxE
 }
 
 fn local_name_of_end(e: &quick_xml::events::BytesEnd) -> String {
-    std::str::from_utf8(e.local_name().as_ref()).unwrap_or("").to_owned()
+    std::str::from_utf8(e.local_name().as_ref())
+        .unwrap_or("")
+        .to_owned()
 }
 
 fn table_cell_texts(t: &TableContent) -> Vec<Vec<String>> {
@@ -706,7 +807,13 @@ fn table_cell_texts(t: &TableContent) -> Vec<Vec<String>> {
         .map(|row| {
             row.cells
                 .iter()
-                .map(|cell| cell.paragraphs.iter().map(paragraph_text_only).collect::<Vec<_>>().join("\n"))
+                .map(|cell| {
+                    cell.paragraphs
+                        .iter()
+                        .map(paragraph_text_only)
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                })
                 .collect()
         })
         .collect()
@@ -735,7 +842,11 @@ fn absorb_table<R: Read + std::io::Seek>(
         }
         paragraphs_per_cell.push(per_cell);
     }
-    TableShape { rows: t.rows.len(), cells_per_row, paragraphs_per_cell }
+    TableShape {
+        rows: t.rows.len(),
+        cells_per_row,
+        paragraphs_per_cell,
+    }
 }
 
 /// Đẩy một đoạn (đến từ thân tài liệu HOẶC một ô bảng — cùng khuôn) thành các [`Block`], gán
@@ -767,7 +878,10 @@ fn push_paragraph<R: Read + std::io::Seek>(
             ParaPiece::Image(rid) => {
                 let block_index = blocks.len();
                 blocks.push(Block {
-                    body: BlockBody::Image { src: None, alt: None },
+                    body: BlockBody::Image {
+                        src: None,
+                        alt: None,
+                    },
                     machine_kept: true,
                     exact_gap_before: String::new(),
                     is_list_item: false,

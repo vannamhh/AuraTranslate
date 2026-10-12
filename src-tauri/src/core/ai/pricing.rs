@@ -61,9 +61,14 @@ const PRICE_TABLE: &[PriceRow] = &[PriceRow {
 /// Không làm tròn ở đây — số `f64` trần đi ra, làm tròn/định dạng (dấu phẩy thập phân) là
 /// việc của webview (spec 4.11 §Code Map: "The decimal comma is produced as a param, by a
 /// pure function" ở phía `src/`, không ở đây).
-pub fn estimate_cost_usd(model_id: &str, prompt_tokens: u32, completion_tokens: u32) -> Option<f64> {
+pub fn estimate_cost_usd(
+    model_id: &str,
+    prompt_tokens: u32,
+    completion_tokens: u32,
+) -> Option<f64> {
     let row = PRICE_TABLE.iter().find(|r| r.model_id == model_id)?;
     let input_cost = f64::from(prompt_tokens) / 1_000_000.0 * row.input_usd_per_million_tokens;
-    let output_cost = f64::from(completion_tokens) / 1_000_000.0 * row.output_usd_per_million_tokens;
+    let output_cost =
+        f64::from(completion_tokens) / 1_000_000.0 * row.output_usd_per_million_tokens;
     Some(input_cost + output_cost)
 }

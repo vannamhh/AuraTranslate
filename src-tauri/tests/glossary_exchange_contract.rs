@@ -29,10 +29,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::glossary::{
-    Category, ConflictDecision, Delimiter, GlossaryEntry, GlossaryError, GlossaryTier,
-    ImportRow, ParseIssue, RowPlan, RowPlanKind, TermOrigin, add_manual_term, classify,
-    delete_manual_term, export_tier, import_into_tier, load_tier, parse, render_tier,
-    update_manual_term,
+    Category, ConflictDecision, Delimiter, GlossaryEntry, GlossaryError, GlossaryTier, ImportRow,
+    ParseIssue, RowPlan, RowPlanKind, TermOrigin, add_manual_term, classify, delete_manual_term,
+    export_tier, import_into_tier, load_tier, parse, render_tier, update_manual_term,
 };
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
 use auratranslate_lib::core::store::{Store, StoreSpec};
@@ -96,9 +95,15 @@ fn exporting_a_tier_produces_a_header_plus_six_columns_per_entry_without_an_id_c
         "hang tieu de phai dung SAU cot, KHONG DAU (dinh danh may doc), va KHONG cot id"
     );
     assert_eq!(lines.len(), 3, "mot hang tieu de + hai hang du lieu");
-    assert_eq!(lines[1], "apple,qua tao,,other,manual,2026-08-24T00:00:00.000Z");
+    assert_eq!(
+        lines[1],
+        "apple,qua tao,,other,manual,2026-08-24T00:00:00.000Z"
+    );
     assert_eq!(lines[2], "banana,,,other,manual,2026-08-24T00:00:00.000Z");
-    assert!(!text.contains(",1,") && !text.contains(",2,"), "id khong duoc xuat hien tren dong du lieu");
+    assert!(
+        !text.contains(",1,") && !text.contains(",2,"),
+        "id khong duoc xuat hien tren dong du lieu"
+    );
 }
 
 /// I/O Matrix "Xuất tầng rỗng" — CHỈ hàng tiêu đề, một tệp CÓ tiêu đề nói "rỗng", khác một
@@ -109,7 +114,10 @@ fn exporting_an_empty_tier_produces_only_the_header_row() {
     let text = render_tier(&tier, Delimiter::Tsv);
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 1, "chi mot hang -- hang tieu de");
-    assert_eq!(lines[0], "source_term\ttranslation\tnote\tcategory\tterm_origin\tcreated_at");
+    assert_eq!(
+        lines[0],
+        "source_term\ttranslation\tnote\tcategory\tterm_origin\tcreated_at"
+    );
 }
 
 /// I/O Matrix "Trường chứa dấu phân cách / nháy kép / xuống dòng" — bọc nháy kép, nháy kép
@@ -123,7 +131,10 @@ fn fields_needing_escaping_are_quoted_and_doubled_for_both_delimiters() {
         tier.insert("term".to_owned(), e);
 
         let text = render_tier(&tier, delimiter);
-        let data_line_start = text.find('\n').expect("phai co it nhat mot dong xuong hang") + 1;
+        let data_line_start = text
+            .find('\n')
+            .expect("phai co it nhat mot dong xuong hang")
+            + 1;
         let data = &text[data_line_start..];
 
         assert!(
@@ -257,7 +268,11 @@ fn round_trip_preserves_five_user_visible_fields_and_marks_origin_as_file_import
     for delimiter in [Delimiter::Csv, Delimiter::Tsv] {
         let text = render_tier(&tier, delimiter);
         let parsed = parse(&text).expect("tep vua xuat phai tu phan tich duoc");
-        assert_eq!(parsed.rows.len(), 2, "hai hang phai nhap lai duoc trong ({delimiter:?})");
+        assert_eq!(
+            parsed.rows.len(),
+            2,
+            "hai hang phai nhap lai duoc trong ({delimiter:?})"
+        );
 
         let empty_target: BTreeMap<String, GlossaryEntry> = BTreeMap::new();
         let plans = classify(&parsed.rows, &empty_target);
@@ -266,8 +281,15 @@ fn round_trip_preserves_five_user_visible_fields_and_marks_origin_as_file_import
             "nhap vao mot tang RONG -- ca hai hang phai phan loai MOI"
         );
 
-        let tricky = parsed.rows.iter().find(|r| r.source_term == "note,tricky").expect("hang tricky");
-        assert_eq!(tricky.translation.as_deref(), Some("ban dich \"trich dan\""));
+        let tricky = parsed
+            .rows
+            .iter()
+            .find(|r| r.source_term == "note,tricky")
+            .expect("hang tricky");
+        assert_eq!(
+            tricky.translation.as_deref(),
+            Some("ban dich \"trich dan\"")
+        );
         assert_eq!(tricky.note, "dong mot\ndong hai, co phay");
         assert_eq!(tricky.category, Category::Person);
         assert_eq!(
@@ -276,8 +298,15 @@ fn round_trip_preserves_five_user_visible_fields_and_marks_origin_as_file_import
             "created_at phai giu NGUYEN tu tep, khong bi ghi de bang thoi diem nhap"
         );
 
-        let plain = parsed.rows.iter().find(|r| r.source_term == "plain").expect("hang plain");
-        assert_eq!(plain.translation, None, "translation rong phai la CHO CHOT, khong phai chuoi rong");
+        let plain = parsed
+            .rows
+            .iter()
+            .find(|r| r.source_term == "plain")
+            .expect("hang plain");
+        assert_eq!(
+            plain.translation, None,
+            "translation rong phai la CHO CHOT, khong phai chuoi rong"
+        );
     }
 }
 
@@ -316,8 +345,9 @@ fn delimiter_cannot_be_resolved_when_the_header_has_both_or_neither() {
 #[test]
 fn a_quoted_comma_inside_a_tsv_header_cell_does_not_confuse_delimiter_detection() {
     let text = "source_term\t\"note, extra\"\ntam\tMo Dung\n";
-    let parsed = parse(text)
-        .expect("dau phay NAM TRONG mot o boc cua header TSV khong duoc bien thanh DelimiterUnresolved");
+    let parsed = parse(text).expect(
+        "dau phay NAM TRONG mot o boc cua header TSV khong duoc bien thanh DelimiterUnresolved",
+    );
     assert_eq!(parsed.rows.len(), 1);
     assert_eq!(parsed.rows[0].source_term, "tam");
     assert_eq!(
@@ -337,7 +367,9 @@ fn missing_the_required_source_term_column_is_refused_naming_the_column() {
     let text = "translation,note\na,b\n";
     assert_eq!(
         parse(text),
-        Err(vec![ParseIssue::MissingColumn { column: "source_term" }])
+        Err(vec![ParseIssue::MissingColumn {
+            column: "source_term"
+        }])
     );
 }
 
@@ -366,7 +398,9 @@ fn two_header_columns_sharing_a_known_name_are_refused_naming_the_duplicated_col
     let text = "source_term,translation,translation\na,x,y\n";
     assert_eq!(
         parse(text),
-        Err(vec![ParseIssue::DuplicateColumn { column: "translation".to_owned() }])
+        Err(vec![ParseIssue::DuplicateColumn {
+            column: "translation".to_owned()
+        }])
     );
 }
 
@@ -383,7 +417,10 @@ fn only_four_of_six_columns_present_still_imports_with_sensible_defaults() {
     assert_eq!(row.translation.as_deref(), Some("ban dich"));
     assert_eq!(row.category, Category::Person);
     assert_eq!(row.note, "ghi chu");
-    assert_eq!(row.created_at, None, "vang cot created_at -- chua tay ghi se dien hom nay");
+    assert_eq!(
+        row.created_at, None,
+        "vang cot created_at -- chua tay ghi se dien hom nay"
+    );
 }
 
 /// I/O Matrix "Số ô lệch hàng tiêu đề" — lỗi mang SỐ DÒNG và số ô đếm được.
@@ -394,7 +431,11 @@ fn a_row_with_the_wrong_cell_count_is_refused_naming_the_line_and_count() {
                 g,h\n";
     assert_eq!(
         parse(text),
-        Err(vec![ParseIssue::CellCountMismatch { line: 3, expected: 6, found: 2 }])
+        Err(vec![ParseIssue::CellCountMismatch {
+            line: 3,
+            expected: 6,
+            found: 2
+        }])
     );
 }
 
@@ -404,7 +445,10 @@ fn an_unknown_category_is_refused_naming_the_line_and_value() {
     let text = "source_term,category\na,weapon\n";
     assert_eq!(
         parse(text),
-        Err(vec![ParseIssue::UnknownCategory { line: 2, value: "weapon".to_owned() }])
+        Err(vec![ParseIssue::UnknownCategory {
+            line: 2,
+            value: "weapon".to_owned()
+        }])
     );
 }
 
@@ -413,10 +457,16 @@ fn an_unknown_category_is_refused_naming_the_line_and_value() {
 #[test]
 fn a_blank_or_whitespace_only_source_term_is_refused_naming_the_line() {
     let text = "source_term,translation\n\u{3000},x\n";
-    assert_eq!(parse(text), Err(vec![ParseIssue::BlankSourceTerm { line: 2 }]));
+    assert_eq!(
+        parse(text),
+        Err(vec![ParseIssue::BlankSourceTerm { line: 2 }])
+    );
 
     let text = "source_term,translation\n   ,x\n";
-    assert_eq!(parse(text), Err(vec![ParseIssue::BlankSourceTerm { line: 2 }]));
+    assert_eq!(
+        parse(text),
+        Err(vec![ParseIssue::BlankSourceTerm { line: 2 }])
+    );
 }
 
 /// I/O Matrix "⑥" — `source_term` chỉ gồm một ký tự ZERO-WIDTH (U+200B) phải bị bắt là
@@ -428,12 +478,18 @@ fn a_blank_or_whitespace_only_source_term_is_refused_naming_the_line() {
 #[test]
 fn a_source_term_containing_only_a_zero_width_character_is_refused_as_blank() {
     let text = "source_term,translation\n\u{200B},x\n";
-    assert_eq!(parse(text), Err(vec![ParseIssue::BlankSourceTerm { line: 2 }]));
+    assert_eq!(
+        parse(text),
+        Err(vec![ParseIssue::BlankSourceTerm { line: 2 }])
+    );
 
     // U+FEFF GIỮA tệp (không ở đầu tệp — `strip_bom` không chạm ca này) là ca minh hoạ mà
     // §Design Notes nêu đích danh: dán hai tệp xuất nối liền để lại một U+FEFF giữa văn bản.
     let text = "source_term,translation\n\u{FEFF},x\n";
-    assert_eq!(parse(text), Err(vec![ParseIssue::BlankSourceTerm { line: 2 }]));
+    assert_eq!(
+        parse(text),
+        Err(vec![ParseIssue::BlankSourceTerm { line: 2 }])
+    );
 }
 
 /// I/O Matrix "⑥b" — một `source_term` HỢP LỆ mang một ký tự zero-width kèm theo (ở đây, ở
@@ -456,7 +512,10 @@ fn a_blank_translation_cell_parses_as_pending_not_confirmed_with_an_empty_string
     let text = "source_term,translation\na,\nb,   \n";
     let parsed = parse(text).expect("ban dich rong khong phai mot loi");
     assert_eq!(parsed.rows[0].translation, None);
-    assert_eq!(parsed.rows[1].translation, None, "chi khoang trang cung phai thanh None");
+    assert_eq!(
+        parsed.rows[1].translation, None,
+        "chi khoang trang cung phai thanh None"
+    );
 }
 
 /// I/O Matrix "`source_term` trùng trong chính tệp" — lỗi mang CẢ HAI số dòng, không "dòng
@@ -466,7 +525,10 @@ fn a_source_term_duplicated_within_the_file_is_refused_naming_both_lines() {
     let text = "source_term,translation\na,x\nb,y\na,z\n";
     assert_eq!(
         parse(text),
-        Err(vec![ParseIssue::DuplicateSourceTerm { first_line: 2, second_line: 4 }])
+        Err(vec![ParseIssue::DuplicateSourceTerm {
+            first_line: 2,
+            second_line: 4
+        }])
     );
 }
 
@@ -484,8 +546,14 @@ fn a_duplicate_whose_first_occurrence_was_rejected_for_an_unrelated_reason_is_st
     assert_eq!(
         parse(text),
         Err(vec![
-            ParseIssue::UnknownCategory { line: 2, value: "weapon".to_owned() },
-            ParseIssue::DuplicateSourceTerm { first_line: 2, second_line: 4 },
+            ParseIssue::UnknownCategory {
+                line: 2,
+                value: "weapon".to_owned()
+            },
+            ParseIssue::DuplicateSourceTerm {
+                first_line: 2,
+                second_line: 4
+            },
         ]),
         "dong 2 (X, category la) VA loi trung (2,4) deu phai duoc bao -- khong duoc 'khong \
          thay trung' chi vi lan dau bi bac vi ly do khac"
@@ -536,8 +604,14 @@ fn a_row_that_is_both_a_duplicate_and_has_an_unknown_category_reports_both_issue
     assert_eq!(
         parse(text),
         Err(vec![
-            ParseIssue::UnknownCategory { line: 3, value: "weapon".to_owned() },
-            ParseIssue::DuplicateSourceTerm { first_line: 2, second_line: 3 },
+            ParseIssue::UnknownCategory {
+                line: 3,
+                value: "weapon".to_owned()
+            },
+            ParseIssue::DuplicateSourceTerm {
+                first_line: 2,
+                second_line: 3
+            },
         ])
     );
 }
@@ -575,7 +649,10 @@ fn mixed_crlf_and_lf_line_endings_both_parse_and_do_not_leak_cr_into_the_last_ce
     assert_eq!(parsed.rows[0].translation.as_deref(), Some("b"));
     assert_eq!(parsed.rows[1].translation.as_deref(), Some("d"));
     assert!(
-        !parsed.rows.iter().any(|r| r.translation.as_deref().unwrap_or("").contains('\r')),
+        !parsed
+            .rows
+            .iter()
+            .any(|r| r.translation.as_deref().unwrap_or("").contains('\r')),
         "ky tu \\r khong duoc lot vao gia tri o cuoi mot dong CRLF"
     );
 }
@@ -611,7 +688,10 @@ fn an_unterminated_quoted_field_is_a_named_error_carrying_the_opening_line_not_a
 #[test]
 fn an_unterminated_quoted_field_in_the_header_row_itself_is_also_a_named_error() {
     let text = "\"source_term,translation\na,b\n";
-    assert_eq!(parse(text), Err(vec![ParseIssue::UnterminatedQuotedField { line: 1 }]));
+    assert_eq!(
+        parse(text),
+        Err(vec![ParseIssue::UnterminatedQuotedField { line: 1 }])
+    );
 }
 
 /// I/O Matrix "③" — `\r` TRẦN bên trong một ô đã bọc là một RANH GIỚI DÒNG mà người dùng
@@ -629,7 +709,10 @@ fn a_bare_cr_inside_a_quoted_field_advances_the_line_number_for_rows_after_it() 
     let text = "source_term,translation,category\n\"a\rb\",x,other\nc,y,weapon\n";
     assert_eq!(
         parse(text),
-        Err(vec![ParseIssue::UnknownCategory { line: 4, value: "weapon".to_owned() }]),
+        Err(vec![ParseIssue::UnknownCategory {
+            line: 4,
+            value: "weapon".to_owned()
+        }]),
         "hang loi phai duoc danh so DUNG BANG so dong nguoi dung dem trong trinh soan thao \
          (header=1, o boc \\r=2..3, hang loi=4) -- khong phai 3 (neu chi dem \\n)"
     );
@@ -645,7 +728,8 @@ fn a_bare_cr_inside_a_quoted_field_advances_the_line_number_for_rows_after_it() 
 #[test]
 fn a_trailing_blank_logical_line_is_not_a_data_row_and_is_not_an_error() {
     let text = "source_term,translation\n慕容,Mộ Dung\n\n";
-    let parsed = parse(text).expect("dong trong cuoi tep khong phai loi -- day chinh la ca do duoc truoc va");
+    let parsed = parse(text)
+        .expect("dong trong cuoi tep khong phai loi -- day chinh la ca do duoc truoc va");
     assert_eq!(parsed.rows.len(), 1);
     assert_eq!(parsed.rows[0].source_term, "慕容");
 }
@@ -660,7 +744,11 @@ fn a_blank_logical_line_in_the_middle_of_the_file_is_also_skipped_by_the_same_ru
     let text = "source_term,translation\na,x\n\nc,y\n";
     let parsed = parse(text)
         .expect("dong trong o giua cung khong phai loi -- cung mot luat voi dong trong cuoi tep");
-    assert_eq!(parsed.rows.len(), 2, "dong trong o giua khong sinh ra mot hang thu ba nao");
+    assert_eq!(
+        parsed.rows.len(),
+        2,
+        "dong trong o giua khong sinh ra mot hang thu ba nao"
+    );
     assert_eq!(parsed.rows[0].source_term, "a");
     assert_eq!(parsed.rows[1].source_term, "c");
     assert_eq!(
@@ -680,7 +768,10 @@ fn an_invalid_created_at_format_is_refused_naming_the_line_and_value() {
     let text = "source_term,created_at\na,hom qua\n";
     assert_eq!(
         parse(text),
-        Err(vec![ParseIssue::InvalidCreatedAt { line: 2, value: "hom qua".to_owned() }])
+        Err(vec![ParseIssue::InvalidCreatedAt {
+            line: 2,
+            value: "hom qua".to_owned()
+        }])
     );
 }
 
@@ -689,7 +780,10 @@ fn an_invalid_created_at_format_is_refused_naming_the_line_and_value() {
 fn a_well_formed_created_at_is_accepted_and_kept_verbatim() {
     let text = "source_term,created_at\na,2026-08-01T12:00:00.000Z\n";
     let parsed = parse(text).expect("dinh dang dung phai duoc chap nhan");
-    assert_eq!(parsed.rows[0].created_at.as_deref(), Some("2026-08-01T12:00:00.000Z"));
+    assert_eq!(
+        parsed.rows[0].created_at.as_deref(),
+        Some("2026-08-01T12:00:00.000Z")
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -730,14 +824,31 @@ fn expected_message_key_for_parse_issue(issue: &ParseIssue) -> MessageKey {
 fn every_parse_issue_variant_maps_to_the_message_key_it_actually_produces() {
     let samples: Vec<ParseIssue> = vec![
         ParseIssue::DelimiterUnresolved,
-        ParseIssue::MissingColumn { column: "source_term" },
-        ParseIssue::CellCountMismatch { line: 3, expected: 6, found: 1 },
-        ParseIssue::UnknownCategory { line: 3, value: "weapon".to_owned() },
+        ParseIssue::MissingColumn {
+            column: "source_term",
+        },
+        ParseIssue::CellCountMismatch {
+            line: 3,
+            expected: 6,
+            found: 1,
+        },
+        ParseIssue::UnknownCategory {
+            line: 3,
+            value: "weapon".to_owned(),
+        },
         ParseIssue::BlankSourceTerm { line: 3 },
-        ParseIssue::DuplicateSourceTerm { first_line: 2, second_line: 5 },
-        ParseIssue::InvalidCreatedAt { line: 3, value: "hom qua".to_owned() },
+        ParseIssue::DuplicateSourceTerm {
+            first_line: 2,
+            second_line: 5,
+        },
+        ParseIssue::InvalidCreatedAt {
+            line: 3,
+            value: "hom qua".to_owned(),
+        },
         ParseIssue::UnterminatedQuotedField { line: 2 },
-        ParseIssue::DuplicateColumn { column: "translation".to_owned() },
+        ParseIssue::DuplicateColumn {
+            column: "translation".to_owned(),
+        },
     ];
 
     for issue in samples {
@@ -781,7 +892,10 @@ fn a_source_term_absent_from_the_target_tier_classifies_as_new() {
 #[test]
 fn matching_source_term_and_translation_classifies_as_identical() {
     let mut existing = BTreeMap::new();
-    existing.insert("term".to_owned(), entry(7, "term", Some("cung mot ban dich")));
+    existing.insert(
+        "term".to_owned(),
+        entry(7, "term", Some("cung mot ban dich")),
+    );
     let plans = classify(&[row("term", Some("cung mot ban dich"))], &existing);
     assert_eq!(plans[0].kind, RowPlanKind::Identical);
 }
@@ -793,13 +907,20 @@ fn differing_translations_for_the_same_source_term_classify_as_conflict_carrying
     existing.insert("term".to_owned(), entry(9, "term", Some("ban dich cu")));
     let plans = classify(&[row("term", Some("ban dich moi"))], &existing);
     match &plans[0].kind {
-        RowPlanKind::Conflict { existing_id, existing_translation } => {
+        RowPlanKind::Conflict {
+            existing_id,
+            existing_translation,
+        } => {
             assert_eq!(*existing_id, 9);
             assert_eq!(existing_translation.as_deref(), Some("ban dich cu"));
         }
         other => panic!("phai la Conflict, nhan: {other:?}"),
     }
-    assert_eq!(plans[0].translation.as_deref(), Some("ban dich moi"), "ban dich cua TEP van doc duoc tu RowPlan");
+    assert_eq!(
+        plans[0].translation.as_deref(),
+        Some("ban dich moi"),
+        "ban dich cua TEP van doc duoc tu RowPlan"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -831,8 +952,16 @@ fn import_into_tier_writes_new_rows_tagged_file_import() {
 fn import_into_tier_writes_nothing_for_identical_rows() {
     let dir = temp_dir("import-identical");
     let store = open_global(&dir);
-    add_manual_term(&store, None, GlossaryTier::Global, "term", Some("x"), "", Category::Other)
-        .expect("chen truoc");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "term",
+        Some("x"),
+        "",
+        Category::Other,
+    )
+    .expect("chen truoc");
 
     let existing = load_tier(&store).expect("nap tang");
     let plans = classify(&[row("term", Some("x"))], &existing);
@@ -845,7 +974,11 @@ fn import_into_tier_writes_nothing_for_identical_rows() {
     assert_eq!(summary.identical, 1);
 
     let tier = load_tier(&store).expect("nap lai");
-    assert_eq!(tier["term"].term_origin, TermOrigin::Manual, "muc CU khong bi doi xuat xu");
+    assert_eq!(
+        tier["term"].term_origin,
+        TermOrigin::Manual,
+        "muc CU khong bi doi xuat xu"
+    );
 
     drop(store);
     cleanup(&dir);
@@ -856,8 +989,16 @@ fn import_into_tier_writes_nothing_for_identical_rows() {
 fn import_into_tier_keeps_the_existing_translation_by_default_on_conflict() {
     let dir = temp_dir("import-keep-mine");
     let store = open_global(&dir);
-    add_manual_term(&store, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
-        .expect("chen truoc");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "term",
+        Some("cu"),
+        "",
+        Category::Other,
+    )
+    .expect("chen truoc");
 
     let existing = load_tier(&store).expect("nap tang");
     let plans = classify(&[row("term", Some("moi"))], &existing);
@@ -867,7 +1008,11 @@ fn import_into_tier_keeps_the_existing_translation_by_default_on_conflict() {
     assert_eq!(summary.updated, 0, "vang quyet dinh phai la KHONG ghi de");
 
     let tier = load_tier(&store).expect("nap lai");
-    assert_eq!(tier["term"].translation.as_deref(), Some("cu"), "ban dich CU phai con nguyen");
+    assert_eq!(
+        tier["term"].translation.as_deref(),
+        Some("cu"),
+        "ban dich CU phai con nguyen"
+    );
 
     drop(store);
     cleanup(&dir);
@@ -878,8 +1023,16 @@ fn import_into_tier_keeps_the_existing_translation_by_default_on_conflict() {
 fn import_into_tier_take_theirs_updates_the_existing_row() {
     let dir = temp_dir("import-take-theirs");
     let store = open_global(&dir);
-    add_manual_term(&store, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
-        .expect("chen truoc");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "term",
+        Some("cu"),
+        "",
+        Category::Other,
+    )
+    .expect("chen truoc");
 
     let existing = load_tier(&store).expect("nap tang");
     let plans = classify(&[row("term", Some("moi"))], &existing);
@@ -929,7 +1082,11 @@ fn take_theirs_updates_only_translation_and_never_touches_note_or_category() {
         .expect("TakeTheirs phai thanh cong");
 
     let tier = load_tier(&store).expect("nap lai");
-    assert_eq!(tier["term"].translation.as_deref(), Some("moi"), "translation PHAI doi");
+    assert_eq!(
+        tier["term"].translation.as_deref(),
+        Some("moi"),
+        "translation PHAI doi"
+    );
     assert_eq!(
         tier["term"].note, "ghi chu goc cua nguoi dung",
         "note KHONG duoc dung toi -- du RowPlan tu 'tep' mang \"\" (I/O Matrix: 'tep thieu \
@@ -991,7 +1148,11 @@ fn take_theirs_ignores_a_note_and_category_the_file_actually_provides() {
         "note cua TEP (mot gia tri THAT, khac han) van bi BO QUA -- duong nhap khong sua ghi \
          chu cua mot muc da co, du tep co noi gi ve no"
     );
-    assert_eq!(tier["term"].category, Category::Person, "category cua TEP cung bi BO QUA");
+    assert_eq!(
+        tier["term"].category,
+        Category::Person,
+        "category cua TEP cung bi BO QUA"
+    );
 
     drop(store);
     cleanup(&dir);
@@ -1003,14 +1164,25 @@ fn take_theirs_ignores_a_note_and_category_the_file_actually_provides() {
 fn take_theirs_regressing_a_confirmed_row_to_pending_is_refused_and_rolls_back_the_whole_batch() {
     let dir = temp_dir("import-trigger-rollback");
     let store = open_global(&dir);
-    add_manual_term(&store, None, GlossaryTier::Global, "confirmed", Some("da chot"), "", Category::Other)
-        .expect("hang da chot");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "confirmed",
+        Some("da chot"),
+        "",
+        Category::Other,
+    )
+    .expect("hang da chot");
 
     let existing = load_tier(&store).expect("nap tang");
     // Mot lo HAI hang: hang dau la New (se ghi neu duoc phep), hang sau la Conflict ma
     // TakeTheirs se lui ban dich ve rong (trigger AD-36 phai chan).
     let plans = classify(
-        &[row("hang-moi", Some("se khong duoc ghi")), row("confirmed", None)],
+        &[
+            row("hang-moi", Some("se khong duoc ghi")),
+            row("confirmed", None),
+        ],
         &existing,
     );
     let mut decisions = BTreeMap::new();
@@ -1023,7 +1195,10 @@ fn take_theirs_regressing_a_confirmed_row_to_pending_is_refused_and_rolls_back_t
     );
 
     let tier = load_tier(&store).expect("nap lai");
-    assert!(!tier.contains_key("hang-moi"), "CA LO phai rollback -- hang New cung khong duoc ghi");
+    assert!(
+        !tier.contains_key("hang-moi"),
+        "CA LO phai rollback -- hang New cung khong duoc ghi"
+    );
     assert_eq!(
         tier["confirmed"].translation.as_deref(),
         Some("da chot"),
@@ -1059,13 +1234,23 @@ fn import_into_tier_detects_a_unique_conflict_introduced_after_classification() 
     let plans = classify(&[row("term", Some("tu tep"))], &BTreeMap::new());
 
     // Mot lượt ghi KHAC chen "term" vao GIUA luc phan loai va luc nhap that su chay.
-    add_manual_term(&store, None, GlossaryTier::Global, "term", Some("da co tu noi khac"), "", Category::Other)
-        .expect("mo phong mot luot ghi dua vao");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "term",
+        Some("da co tu noi khac"),
+        "",
+        Category::Other,
+    )
+    .expect("mo phong mot luot ghi dua vao");
 
     let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &BTreeMap::new());
     assert_eq!(
         result,
-        Err(GlossaryError::ImportUniqueConflict { source_terms: vec!["term".to_owned()] }),
+        Err(GlossaryError::ImportUniqueConflict {
+            source_terms: vec!["term".to_owned()]
+        }),
         "loi phai noi DUNG source_term va ca lo phai bi tu choi"
     );
 
@@ -1089,15 +1274,27 @@ fn import_into_tier_collects_every_unique_conflict_in_one_pass_not_just_the_firs
     let store = open_global(&dir);
 
     let plans = classify(
-        &[row("alpha", Some("a")), row("beta", Some("b")), row("gamma", Some("c"))],
+        &[
+            row("alpha", Some("a")),
+            row("beta", Some("b")),
+            row("gamma", Some("c")),
+        ],
         &BTreeMap::new(),
     );
 
     // BA lượt ghi KHÁC (không liên quan nhau) chen cả ba source_term vào GIỮA lúc phân loại
     // và lúc nhập thật sự chạy.
     for term in ["alpha", "beta", "gamma"] {
-        add_manual_term(&store, None, GlossaryTier::Global, term, Some("da co tu noi khac"), "", Category::Other)
-            .expect("mo phong luot ghi dua vao");
+        add_manual_term(
+            &store,
+            None,
+            GlossaryTier::Global,
+            term,
+            Some("da co tu noi khac"),
+            "",
+            Category::Other,
+        )
+        .expect("mo phong luot ghi dua vao");
     }
 
     let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &BTreeMap::new());
@@ -1129,8 +1326,16 @@ fn a_batch_with_both_an_unrelated_pre_existing_term_and_a_trigger_violation_repo
     let dir = temp_dir("import-mixed-failure-reports-real-cause");
     let store = open_global(&dir);
 
-    add_manual_term(&store, None, GlossaryTier::Global, "confirmed", Some("da chot"), "", Category::Other)
-        .expect("hang da chot");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "confirmed",
+        Some("da chot"),
+        "",
+        Category::Other,
+    )
+    .expect("hang da chot");
 
     // "da-ton-tai" duoc chup anh la New luc classify (chua co trong tang luc do).
     let existing = load_tier(&store).expect("nap tang truoc classify");
@@ -1142,8 +1347,16 @@ fn a_batch_with_both_an_unrelated_pre_existing_term_and_a_trigger_violation_repo
     // Truoc khi import_into_tier THAT SU chay, mot luot ghi KHONG LIEN QUAN da chen
     // "da-ton-tai" vao -- day la thu duy nhat lam hang New nay va UNIQUE, nhung no KHONG
     // phai nguyen nhan khien lo nay that bai (trigger moi la nguyen nhan, xem duoi).
-    add_manual_term(&store, None, GlossaryTier::Global, "da-ton-tai", Some("da co tu noi khac"), "", Category::Other)
-        .expect("mo phong mot luot ghi KHONG lien quan chen vao giua");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "da-ton-tai",
+        Some("da co tu noi khac"),
+        "",
+        Category::Other,
+    )
+    .expect("mo phong mot luot ghi KHONG lien quan chen vao giua");
 
     let mut decisions = BTreeMap::new();
     decisions.insert("confirmed".to_owned(), ConflictDecision::TakeTheirs);
@@ -1185,7 +1398,13 @@ fn a_new_row_failing_for_a_reason_other_than_unique_reports_the_real_error() {
         kind: RowPlanKind::New,
     };
 
-    let result = import_into_tier(&store, None, GlossaryTier::Global, &[plan], &BTreeMap::new());
+    let result = import_into_tier(
+        &store,
+        None,
+        GlossaryTier::Global,
+        &[plan],
+        &BTreeMap::new(),
+    );
     assert!(
         matches!(result, Err(GlossaryError::Store(_))),
         "loi CHECK (khong phai UNIQUE) khong duoc gan nham nhan ImportUniqueConflict. \
@@ -1215,8 +1434,14 @@ fn import_into_tier_preserves_a_supplied_created_at_for_a_new_row() {
         kind: RowPlanKind::New,
     };
 
-    import_into_tier(&store, None, GlossaryTier::Global, &[plan], &BTreeMap::new())
-        .expect("nhap hang moi voi created_at co san");
+    import_into_tier(
+        &store,
+        None,
+        GlossaryTier::Global,
+        &[plan],
+        &BTreeMap::new(),
+    )
+    .expect("nhap hang moi voi created_at co san");
 
     let tier = load_tier(&store).expect("nap lai");
     assert_eq!(
@@ -1238,10 +1463,26 @@ fn export_tier_reads_exactly_one_tier_and_does_not_duplicate_a_shadowed_entry() 
     let global = open_global(&dir);
     let work = open_project(&dir);
 
-    add_manual_term(&global, None, GlossaryTier::Global, "che-nhau", Some("ban Global"), "", Category::Other)
-        .expect("chen Global");
-    add_manual_term(&global, Some(&work), GlossaryTier::Work, "che-nhau", Some("ban Work"), "", Category::Other)
-        .expect("chen Work");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "che-nhau",
+        Some("ban Global"),
+        "",
+        Category::Other,
+    )
+    .expect("chen Global");
+    add_manual_term(
+        &global,
+        Some(&work),
+        GlossaryTier::Work,
+        "che-nhau",
+        Some("ban Work"),
+        "",
+        Category::Other,
+    )
+    .expect("chen Work");
 
     let text = export_tier(&global, Delimiter::Csv).expect("xuat tang Global");
     let occurrences = text.matches("che-nhau").count();
@@ -1255,7 +1496,6 @@ fn export_tier_reads_exactly_one_tier_and_does_not_duplicate_a_shadowed_entry() 
     drop(work);
     cleanup(&dir);
 }
-
 
 /// I/O Matrix "⑥c" — vòng rà ba lớp, Ice ký nới phạm vi 2026-08-25.
 ///
@@ -1326,7 +1566,9 @@ fn three_boundary_cases_the_cluster_b_patches_left_uncovered() {
     let text = "source_term,translation,translation,translation\n萧炎,a,b,c\n";
     assert_eq!(
         parse(text),
-        Err(vec![ParseIssue::DuplicateColumn { column: "translation".to_owned() }]),
+        Err(vec![ParseIssue::DuplicateColumn {
+            column: "translation".to_owned()
+        }]),
         "mot cot lap BA lan cung phai bi bac, va chi bao MOT lan cho cot do"
     );
 
@@ -1357,14 +1599,25 @@ fn take_theirs_is_refused_when_the_translation_changed_under_the_users_feet_betw
  {
     let dir = temp_dir("import-c1-stale-conflict");
     let store = open_global(&dir);
-    let id = add_manual_term(&store, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
-        .expect("chen truoc");
+    let id = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "term",
+        Some("cu"),
+        "",
+        Category::Other,
+    )
+    .expect("chen truoc");
 
     // Nhip MOT (preview): nguoi dung thay "cu" ↔ "tu tep" va chon "lay cua file".
     let existing = load_tier(&store).expect("nap tang o nhip preview");
     let plans = classify(&[row("term", Some("tu tep"))], &existing);
     match &plans[0].kind {
-        RowPlanKind::Conflict { existing_translation, .. } => {
+        RowPlanKind::Conflict {
+            existing_translation,
+            ..
+        } => {
             assert_eq!(existing_translation.as_deref(), Some("cu"))
         }
         other => panic!("phai la Conflict, nhan: {other:?}"),
@@ -1372,8 +1625,16 @@ fn take_theirs_is_refused_when_the_translation_changed_under_the_users_feet_betw
 
     // GIUA hai nhip: mot luot ghi KHAC (sua tay, khong lien quan gi toi luot nhap) doi
     // translation duoi chan nguoi dung -- dung cua so dua ma spec C1 mo ta.
-    update_manual_term(&store, None, GlossaryTier::Global, id, Some("da doi boi noi khac"), "", Category::Other)
-        .expect("mo phong mot luot ghi KHAC chen vao giua hai nhip");
+    update_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        id,
+        Some("da doi boi noi khac"),
+        "",
+        Category::Other,
+    )
+    .expect("mo phong mot luot ghi KHAC chen vao giua hai nhip");
 
     let mut decisions = BTreeMap::new();
     decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
@@ -1381,7 +1642,9 @@ fn take_theirs_is_refused_when_the_translation_changed_under_the_users_feet_betw
     let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
     assert_eq!(
         result,
-        Err(GlossaryError::ImportStaleConflict { source_terms: vec!["term".to_owned()] }),
+        Err(GlossaryError::ImportStaleConflict {
+            source_terms: vec!["term".to_owned()]
+        }),
         "gia tri da doi duoi chan nguoi dung phai bi tu choi bang mot loi CO TEN RIENG, \
          khong duoc ghi de am tham. Nhan: {result:?}"
     );
@@ -1406,14 +1669,25 @@ fn take_theirs_is_refused_when_the_translation_changed_under_the_users_feet_betw
 fn take_theirs_matches_null_safely_on_a_pending_row_when_nothing_changed_since_preview() {
     let dir = temp_dir("import-c1-null-safe-pending");
     let store = open_global(&dir);
-    add_manual_term(&store, None, GlossaryTier::Global, "term", None, "", Category::Other)
-        .expect("chen truoc -- CHO CHOT, translation = None");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "term",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("chen truoc -- CHO CHOT, translation = None");
 
     let existing = load_tier(&store).expect("nap tang");
     assert_eq!(existing["term"].translation, None);
     let plans = classify(&[row("term", Some("chot lan dau"))], &existing);
     match &plans[0].kind {
-        RowPlanKind::Conflict { existing_translation, .. } => assert_eq!(*existing_translation, None),
+        RowPlanKind::Conflict {
+            existing_translation,
+            ..
+        } => assert_eq!(*existing_translation, None),
         other => panic!("phai la Conflict (cho chot khac 'chot lan dau'), nhan: {other:?}"),
     }
 
@@ -1441,13 +1715,24 @@ fn take_theirs_is_refused_when_a_pending_row_was_confirmed_by_someone_else_betwe
  {
     let dir = temp_dir("import-c1-pending-confirmed-elsewhere");
     let store = open_global(&dir);
-    let id = add_manual_term(&store, None, GlossaryTier::Global, "term", None, "", Category::Other)
-        .expect("chen truoc -- CHO CHOT");
+    let id = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "term",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("chen truoc -- CHO CHOT");
 
     let existing = load_tier(&store).expect("nap tang o nhip preview");
     let plans = classify(&[row("term", Some("tu tep"))], &existing);
     match &plans[0].kind {
-        RowPlanKind::Conflict { existing_translation, .. } => assert_eq!(*existing_translation, None),
+        RowPlanKind::Conflict {
+            existing_translation,
+            ..
+        } => assert_eq!(*existing_translation, None),
         other => panic!("phai la Conflict, nhan: {other:?}"),
     }
 
@@ -1469,7 +1754,9 @@ fn take_theirs_is_refused_when_a_pending_row_was_confirmed_by_someone_else_betwe
     let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
     assert_eq!(
         result,
-        Err(GlossaryError::ImportStaleConflict { source_terms: vec!["term".to_owned()] }),
+        Err(GlossaryError::ImportStaleConflict {
+            source_terms: vec!["term".to_owned()]
+        }),
         "mot muc CHO CHOT vua duoc CHOT o noi khac phai bi tu choi CUNG mot loi voi ca ① -- \
          khong phai mot nhanh rieng. Nhan: {result:?}"
     );
@@ -1494,15 +1781,24 @@ fn take_theirs_is_refused_when_a_pending_row_was_confirmed_by_someone_else_betwe
 fn take_theirs_keeps_the_pre_existing_row_missing_behavior_when_the_row_was_deleted_mid_flight() {
     let dir = temp_dir("import-c1-row-deleted-mid-flight");
     let store = open_global(&dir);
-    let id = add_manual_term(&store, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
-        .expect("chen truoc");
+    let id = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "term",
+        Some("cu"),
+        "",
+        Category::Other,
+    )
+    .expect("chen truoc");
 
     let existing = load_tier(&store).expect("nap tang o nhip preview");
     let plans = classify(&[row("term", Some("tu tep"))], &existing);
 
     // GIUA hai nhip: hang bi XOA boi mot luot khac -- KHAC han ca ① (hang con song, chi doi
     // gia tri).
-    delete_manual_term(&store, None, GlossaryTier::Global, id).expect("mo phong mot luot Xoa chen vao");
+    delete_manual_term(&store, None, GlossaryTier::Global, id)
+        .expect("mo phong mot luot Xoa chen vao");
 
     let mut decisions = BTreeMap::new();
     decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
@@ -1534,13 +1830,18 @@ fn import_into_tier_rejects_a_decision_pointing_at_a_term_absent_from_the_batch_
     let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
     assert_eq!(
         result,
-        Err(GlossaryError::ImportDecisionUnknownTerm { term: "khong-co-trong-lo".to_owned() }),
+        Err(GlossaryError::ImportDecisionUnknownTerm {
+            term: "khong-co-trong-lo".to_owned()
+        }),
         "mot khoa la trong ban do quyet dinh phai bi tu choi NGAY O LOI, truoc khi mo giao \
          dich -- nhan: {result:?}"
     );
 
     let tier = load_tier(&store).expect("nap lai");
-    assert!(tier.is_empty(), "0 luot ghi -- kiem TRUOC khi mo giao dich, hang New cung khong duoc chen");
+    assert!(
+        tier.is_empty(),
+        "0 luot ghi -- kiem TRUOC khi mo giao dich, hang New cung khong duoc chen"
+    );
 
     drop(store);
     cleanup(&dir);
@@ -1554,12 +1855,23 @@ fn import_into_tier_rejects_a_decision_pointing_at_a_term_absent_from_the_batch_
 fn import_into_tier_rejects_a_decision_pointing_at_a_new_row_instead_of_a_conflict() {
     let dir = temp_dir("import-c3-decision-on-new-row-core-level");
     let store = open_global(&dir);
-    add_manual_term(&store, None, GlossaryTier::Global, "ly", Some("Ly cu"), "", Category::Other)
-        .expect("dung truoc de tao Conflict");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "ly",
+        Some("Ly cu"),
+        "",
+        Category::Other,
+    )
+    .expect("dung truoc de tao Conflict");
 
     let existing = load_tier(&store).expect("nap tang");
     // "ly" phan loai Conflict; "moc" phan loai New.
-    let plans = classify(&[row("ly", Some("Ly moi")), row("moc", Some("Moc Dung"))], &existing);
+    let plans = classify(
+        &[row("ly", Some("Ly moi")), row("moc", Some("Moc Dung"))],
+        &existing,
+    );
     assert!(matches!(plans[0].kind, RowPlanKind::Conflict { .. }));
     assert_eq!(plans[1].kind, RowPlanKind::New);
 
@@ -1569,12 +1881,17 @@ fn import_into_tier_rejects_a_decision_pointing_at_a_new_row_instead_of_a_confli
     let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
     assert_eq!(
         result,
-        Err(GlossaryError::ImportDecisionUnknownTerm { term: "moc".to_owned() }),
+        Err(GlossaryError::ImportDecisionUnknownTerm {
+            term: "moc".to_owned()
+        }),
         "quyet dinh tro vao hang New phai bi tu choi, khong duoc lang le bo qua. Nhan: {result:?}"
     );
 
     let tier = load_tier(&store).expect("nap lai");
-    assert!(!tier.contains_key("moc"), "0 luot ghi -- hang New cung khong duoc chen");
+    assert!(
+        !tier.contains_key("moc"),
+        "0 luot ghi -- hang New cung khong duoc chen"
+    );
 
     drop(store);
     cleanup(&dir);
@@ -1589,20 +1906,50 @@ fn a_batch_with_both_a_unique_conflict_and_a_stale_optimistic_conflict_reports_t
  {
     let dir = temp_dir("import-c1-c3-mixed-unique-and-stale");
     let store = open_global(&dir);
-    let id = add_manual_term(&store, None, GlossaryTier::Global, "term", Some("cu"), "", Category::Other)
-        .expect("hang se thanh va lac quan");
+    let id = add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "term",
+        Some("cu"),
+        "",
+        Category::Other,
+    )
+    .expect("hang se thanh va lac quan");
 
     let existing = load_tier(&store).expect("nap tang o nhip preview");
     // "da-ton-tai" duoc chup anh la New luc classify (chua co trong tang luc do).
     // "term" duoc chup anh la Conflict, existing_translation = Some("cu").
-    let plans = classify(&[row("da-ton-tai", Some("tu tep")), row("term", Some("tu tep khac"))], &existing);
+    let plans = classify(
+        &[
+            row("da-ton-tai", Some("tu tep")),
+            row("term", Some("tu tep khac")),
+        ],
+        &existing,
+    );
 
     // GIUA hai nhip: HAI luot ghi khac chen vao -- mot lam "da-ton-tai" va UNIQUE, mot doi
     // "term" duoi chan nguoi dung.
-    add_manual_term(&store, None, GlossaryTier::Global, "da-ton-tai", Some("da co tu noi khac"), "", Category::Other)
-        .expect("mo phong luot ghi lam va UNIQUE");
-    update_manual_term(&store, None, GlossaryTier::Global, id, Some("da doi boi noi khac"), "", Category::Other)
-        .expect("mo phong luot ghi lam va lac quan");
+    add_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        "da-ton-tai",
+        Some("da co tu noi khac"),
+        "",
+        Category::Other,
+    )
+    .expect("mo phong luot ghi lam va UNIQUE");
+    update_manual_term(
+        &store,
+        None,
+        GlossaryTier::Global,
+        id,
+        Some("da doi boi noi khac"),
+        "",
+        Category::Other,
+    )
+    .expect("mo phong luot ghi lam va lac quan");
 
     let mut decisions = BTreeMap::new();
     decisions.insert("term".to_owned(), ConflictDecision::TakeTheirs);
@@ -1610,15 +1957,25 @@ fn a_batch_with_both_a_unique_conflict_and_a_stale_optimistic_conflict_reports_t
     let result = import_into_tier(&store, None, GlossaryTier::Global, &plans, &decisions);
     assert_eq!(
         result,
-        Err(GlossaryError::ImportUniqueConflict { source_terms: vec!["da-ton-tai".to_owned()] }),
+        Err(GlossaryError::ImportUniqueConflict {
+            source_terms: vec!["da-ton-tai".to_owned()]
+        }),
         "khi CA HAI danh sach cung khong rong, ImportUniqueConflict phai duoc bao TRUOC -- \
          thu tu TAT DINH, khong ngau nhien. Nhan: {result:?}"
     );
 
     // 0 luot ghi -- ca lo rollback, kem "term" cua vong va lac quan.
     let tier = load_tier(&store).expect("nap lai");
-    assert_eq!(tier["term"].translation.as_deref(), Some("da doi boi noi khac"), "0 luot ghi");
-    assert_eq!(tier["da-ton-tai"].translation.as_deref(), Some("da co tu noi khac"), "0 luot ghi");
+    assert_eq!(
+        tier["term"].translation.as_deref(),
+        Some("da doi boi noi khac"),
+        "0 luot ghi"
+    );
+    assert_eq!(
+        tier["da-ton-tai"].translation.as_deref(),
+        Some("da co tu noi khac"),
+        "0 luot ghi"
+    );
 
     drop(store);
     cleanup(&dir);

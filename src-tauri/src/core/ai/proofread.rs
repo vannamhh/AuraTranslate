@@ -22,7 +22,9 @@ pub fn plan_batches(char_counts: &[usize]) -> Vec<std::ops::Range<usize>> {
     let mut used = 0usize;
     for (i, &size) in char_counts.iter().enumerate() {
         let count = i - start;
-        if count > 0 && (count >= PROOFREAD_BATCH_MAX_SEGMENTS || used + size > PROOFREAD_BATCH_CHAR_BUDGET) {
+        if count > 0
+            && (count >= PROOFREAD_BATCH_MAX_SEGMENTS || used + size > PROOFREAD_BATCH_CHAR_BUDGET)
+        {
             batches.push(start..i);
             start = i;
             used = 0;
@@ -112,8 +114,14 @@ pub fn locate_batch_findings(
         .map_err(|_| ProofreadReplyError::Malformed)?;
 
     let mut claimed: Vec<Vec<(usize, usize)>> = vec![Vec::new(); segments.len()];
-    let mut out: Vec<LocatedFindings> =
-        segments.iter().map(|_| LocatedFindings { findings: Vec::new(), unlocated: 0, ambiguous: 0 }).collect();
+    let mut out: Vec<LocatedFindings> = segments
+        .iter()
+        .map(|_| LocatedFindings {
+            findings: Vec::new(),
+            unlocated: 0,
+            ambiguous: 0,
+        })
+        .collect();
 
     for finding in raw {
         let Some(position) = finding.batch_position(segments.len()) else {
@@ -123,7 +131,8 @@ pub fn locate_batch_findings(
             continue;
         };
         let (scanned_text, has_source) = segments[position];
-        let kind = ProofreadKind::from_wire(&finding.kind).filter(|k| has_source || !k.needs_source());
+        let kind =
+            ProofreadKind::from_wire(&finding.kind).filter(|k| has_source || !k.needs_source());
         let occurrences: Vec<(usize, usize)> = if kind.is_none() || finding.quote.is_empty() {
             Vec::new()
         } else {
@@ -140,7 +149,9 @@ pub fn locate_batch_findings(
             continue;
         }
         let found = occurrences.into_iter().find(|&(start, end)| {
-            !claimed[position].iter().any(|&(c_start, c_end)| start < c_end && c_start < end)
+            !claimed[position]
+                .iter()
+                .any(|&(c_start, c_end)| start < c_end && c_start < end)
         });
         let (Some(kind), Some((start, end))) = (kind, found) else {
             out[position].unlocated += 1;
@@ -191,12 +202,27 @@ pub fn signature_of(
         return None;
     }
     if kind.signature_scope() == SignatureScope::Phrase {
-        return Some(ProofreadSignature { kind, phrase, before: String::new(), after: String::new() });
+        return Some(ProofreadSignature {
+            kind,
+            phrase,
+            before: String::new(),
+            after: String::new(),
+        });
     }
     let before: Vec<char> = text[..byte_start].nfc().collect();
-    let after: String = text[byte_end..].nfc().take(PROOFREAD_CONTEXT_CHARS).collect();
-    let before: String = before[before.len().saturating_sub(PROOFREAD_CONTEXT_CHARS)..].iter().collect();
-    Some(ProofreadSignature { kind, phrase, before, after })
+    let after: String = text[byte_end..]
+        .nfc()
+        .take(PROOFREAD_CONTEXT_CHARS)
+        .collect();
+    let before: String = before[before.len().saturating_sub(PROOFREAD_CONTEXT_CHARS)..]
+        .iter()
+        .collect();
+    Some(ProofreadSignature {
+        kind,
+        phrase,
+        before,
+        after,
+    })
 }
 
 /// Whether a stored signature silences `current`. A stored side that is empty only matches an
@@ -237,7 +263,8 @@ pub fn filter_remembered(
             let current = utf16_to_byte(scanned_text, finding.start)
                 .zip(utf16_to_byte(scanned_text, finding.end))
                 .and_then(|(start, end)| signature_of(finding.kind, scanned_text, start, end));
-            let silenced = current.is_some_and(|current| remembered.iter().any(|s| signature_matches(s, &current)));
+            let silenced = current
+                .is_some_and(|current| remembered.iter().any(|s| signature_matches(s, &current)));
             filtered += u32::from(silenced);
             !silenced
         })
@@ -264,13 +291,17 @@ mod tests {
     #[test]
     fn a_phrase_is_placed_with_utf16_offsets_after_astral_and_combining_text() {
         let text = "😀 cafe\u{301} wrogn";
-        let r = reply(r#"{"kind":"spelling","quote":"wrogn","explanation":"e","suggestion":"wrong"}"#);
+        let r =
+            reply(r#"{"kind":"spelling","quote":"wrogn","explanation":"e","suggestion":"wrong"}"#);
         let got = locate_findings(&r, text, true).expect("valid reply");
         assert_eq!(got.unlocated, 0);
         let f = &got.findings[0];
         let units: Vec<u16> = text.encode_utf16().collect();
         let quote_units: Vec<u16> = "wrogn".encode_utf16().collect();
-        assert_eq!(&units[f.start as usize..f.end as usize], quote_units.as_slice());
+        assert_eq!(
+            &units[f.start as usize..f.end as usize],
+            quote_units.as_slice()
+        );
         assert_eq!(f.kind, ProofreadKind::Spelling);
         assert_eq!(f.suggestion, "wrong");
     }
@@ -295,7 +326,10 @@ mod tests {
                {"kind":"obscure","quote":"cc","explanation":"","suggestion":""}"#,
         );
         let got = locate_findings(&r, "aa bb aa bb cc", true).expect("valid reply");
-        assert_eq!((got.findings.len(), got.unlocated, got.ambiguous), (1, 0, 2));
+        assert_eq!(
+            (got.findings.len(), got.unlocated, got.ambiguous),
+            (1, 0, 2)
+        );
         assert_eq!(got.findings[0].kind, ProofreadKind::Obscure);
     }
 
@@ -342,7 +376,11 @@ mod tests {
             r#"[{"kind":"spelling","explanation":"","suggestion":""}]"#,
             "",
         ] {
-            assert_eq!(locate_findings(bad, "a", true), Err(ProofreadReplyError::Malformed), "{bad}");
+            assert_eq!(
+                locate_findings(bad, "a", true),
+                Err(ProofreadReplyError::Malformed),
+                "{bad}"
+            );
         }
     }
 
@@ -372,7 +410,10 @@ mod tests {
     #[test]
     fn a_missing_quote_is_malformed_even_with_an_unknown_label() {
         let bad = r#"[{"kind":"style","explanation":"","suggestion":""}]"#;
-        assert_eq!(locate_findings(bad, "a", true), Err(ProofreadReplyError::Malformed));
+        assert_eq!(
+            locate_findings(bad, "a", true),
+            Err(ProofreadReplyError::Malformed)
+        );
     }
 
     #[test]
@@ -380,7 +421,10 @@ mod tests {
         assert_eq!(plan_batches(&[]), Vec::<std::ops::Range<usize>>::new());
         assert_eq!(plan_batches(&[1_500, 1_500, 1_000, 1]), vec![0..3, 3..4]);
         assert_eq!(plan_batches(&[10, 5_000, 10, 10]), vec![0..1, 1..2, 2..4]);
-        assert_eq!(plan_batches(&[PROOFREAD_BATCH_CHAR_BUDGET, 1]), vec![0..1, 1..2]);
+        assert_eq!(
+            plan_batches(&[PROOFREAD_BATCH_CHAR_BUDGET, 1]),
+            vec![0..1, 1..2]
+        );
     }
 
     #[test]
@@ -454,24 +498,48 @@ mod tests {
     #[test]
     fn a_stored_side_matches_when_it_is_the_tail_or_head_of_the_current_side() {
         let stored = signature(ProofreadKind::Grammar, "aa bb cc", "bb");
-        assert!(signature_matches(&stored, &signature(ProofreadKind::Grammar, "zz aa bb cc dd", "bb")));
-        assert!(!signature_matches(&stored, &signature(ProofreadKind::Grammar, "zz aa bb ce dd", "bb")));
-        assert!(!signature_matches(&stored, &signature(ProofreadKind::Grammar, "bb cc", "bb")));
-        assert!(!signature_matches(&stored, &signature(ProofreadKind::Mistranslation, "aa bb cc", "bb")));
+        assert!(signature_matches(
+            &stored,
+            &signature(ProofreadKind::Grammar, "zz aa bb cc dd", "bb")
+        ));
+        assert!(!signature_matches(
+            &stored,
+            &signature(ProofreadKind::Grammar, "zz aa bb ce dd", "bb")
+        ));
+        assert!(!signature_matches(
+            &stored,
+            &signature(ProofreadKind::Grammar, "bb cc", "bb")
+        ));
+        assert!(!signature_matches(
+            &stored,
+            &signature(ProofreadKind::Mistranslation, "aa bb cc", "bb")
+        ));
     }
 
     #[test]
     fn an_empty_stored_side_only_matches_an_empty_current_side() {
         let at_edge = signature(ProofreadKind::Grammar, "bb cc", "bb");
-        assert!(signature_matches(&at_edge, &signature(ProofreadKind::Grammar, "bb cc", "bb")));
-        assert!(!signature_matches(&at_edge, &signature(ProofreadKind::Grammar, "aa bb cc", "bb")));
+        assert!(signature_matches(
+            &at_edge,
+            &signature(ProofreadKind::Grammar, "bb cc", "bb")
+        ));
+        assert!(!signature_matches(
+            &at_edge,
+            &signature(ProofreadKind::Grammar, "aa bb cc", "bb")
+        ));
     }
 
     #[test]
     fn a_spelling_signature_matches_whatever_surrounds_the_phrase() {
         let stored = signature(ProofreadKind::Spelling, "aa wrogn bb", "wrogn");
-        assert!(signature_matches(&stored, &signature(ProofreadKind::Spelling, "zzz wrogn", "wrogn")));
-        assert!(!signature_matches(&stored, &signature(ProofreadKind::Spelling, "zzz wrong", "wrong")));
+        assert!(signature_matches(
+            &stored,
+            &signature(ProofreadKind::Spelling, "zzz wrogn", "wrogn")
+        ));
+        assert!(!signature_matches(
+            &stored,
+            &signature(ProofreadKind::Spelling, "zzz wrong", "wrong")
+        ));
     }
 
     #[test]
@@ -484,9 +552,13 @@ mod tests {
             explanation: String::new(),
             suggestion: String::new(),
         };
-        let grammar = ProofreadFinding { kind: ProofreadKind::Grammar, ..at(3) };
+        let grammar = ProofreadFinding {
+            kind: ProofreadKind::Grammar,
+            ..at(3)
+        };
         let remembered = [signature(ProofreadKind::Spelling, text, "wrogn")];
-        let (kept, filtered) = filter_remembered(text, vec![at(3), grammar.clone(), at(12)], &remembered);
+        let (kept, filtered) =
+            filter_remembered(text, vec![at(3), grammar.clone(), at(12)], &remembered);
         assert_eq!((kept, filtered), (vec![grammar], 2));
         let (all, none) = filter_remembered(text, vec![at(3)], &[]);
         assert_eq!((all.len(), none), (1, 0));

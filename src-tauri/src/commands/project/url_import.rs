@@ -56,7 +56,9 @@ pub type UrlImportItemsState = std::sync::Mutex<Option<Vec<UrlImportItem>>>;
 /// còn đó nếu người dùng mở lại màn nhập URL. **Hàm thuần, `pub`**.
 /// `tests/project_contract.rs` calls it directly; no case drives it through the wire.
 pub fn clear_url_import_items_after_successful_confirm(items_state: &UrlImportItemsState) {
-    let mut guard = items_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = items_state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = None;
 }
 
@@ -72,7 +74,11 @@ pub struct UrlImportItemWire {
 
 impl From<&UrlImportItem> for UrlImportItemWire {
     fn from(item: &UrlImportItem) -> Self {
-        UrlImportItemWire { url: item.url.clone(), ok: item.error.is_none(), error: item.error.clone() }
+        UrlImportItemWire {
+            url: item.url.clone(),
+            ok: item.error.is_none(),
+            error: item.error.clone(),
+        }
     }
 }
 
@@ -171,17 +177,28 @@ impl From<&webimport::DomainLogEntry> for DomainLogEntryWire {
 /// không bao giờ một ảnh. `ResourceKind::Image` chỉ có mặt trong kiểu để bốn mệnh đề bắt
 /// buộc của AD-41 phát biểu được (xem doc-comment đầu `core::webimport::allowlist`) — Story
 /// 6.11 sẽ là chỗ gọi sản phẩm ĐẦU TIÊN của nó.
-pub(crate) fn fetch_url_import_item(url: &str, allowlist: &webimport::Allowlist) -> (UrlImportItem, Vec<webimport::DomainLogEntry>) {
+pub(crate) fn fetch_url_import_item(
+    url: &str,
+    allowlist: &webimport::Allowlist,
+) -> (UrlImportItem, Vec<webimport::DomainLogEntry>) {
     let (result, log) = webimport::fetch(url, allowlist, webimport::ResourceKind::Page);
     let item = match result {
         Ok(page) => {
             if webimport::looks_like_html(page.content_type.as_deref()) {
-                UrlImportItem { url: url.to_owned(), raw: Some(page.bytes), error: None }
+                UrlImportItem {
+                    url: url.to_owned(),
+                    raw: Some(page.bytes),
+                    error: None,
+                }
             } else {
                 UrlImportItem {
                     url: url.to_owned(),
                     raw: None,
-                    error: Some(web_import_item_failure_ipc_error(url, WebImportItemFailureReason::NotHtml, None)),
+                    error: Some(web_import_item_failure_ipc_error(
+                        url,
+                        WebImportItemFailureReason::NotHtml,
+                        None,
+                    )),
                 }
             }
         }
@@ -238,7 +255,10 @@ fn trim_like_the_paste_box(line: &str) -> &str {
 }
 
 fn trim_and_filter_urls(urls: Vec<String>) -> Vec<String> {
-    urls.into_iter().map(|s| trim_like_the_paste_box(&s).to_owned()).filter(|s| !s.is_empty()).collect()
+    urls.into_iter()
+        .map(|s| trim_like_the_paste_box(&s).to_owned())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
 /// Maximum links accepted per paste; more are refused outright, never silently truncated.
@@ -280,7 +300,9 @@ pub fn prepare_url_import_list(urls: Vec<String>) -> Result<(Vec<String>, usize)
         .into_iter()
         .filter(|u| {
             let key = webimport::assets::normalize_url_for_dedup(u).unwrap_or_else(|| u.clone());
-            if seen.insert(key) { true } else {
+            if seen.insert(key) {
+                true
+            } else {
                 duplicates_dropped += 1;
                 false
             }
@@ -297,7 +319,9 @@ pub fn prepare_url_import_list(urls: Vec<String>) -> Result<(Vec<String>, usize)
 ///
 /// Thin wrapper over [`fetch_url_import_items_with_progress`] with a no-op progress
 /// callback.
-pub fn fetch_url_import_items(urls: Vec<String>) -> (Vec<UrlImportItem>, Vec<webimport::DomainLogEntry>) {
+pub fn fetch_url_import_items(
+    urls: Vec<String>,
+) -> (Vec<UrlImportItem>, Vec<webimport::DomainLogEntry>) {
     fetch_url_import_items_with_progress(urls, &mut |_, _| {})
 }
 
@@ -349,7 +373,10 @@ pub fn chapters_shape_if_all_ok(items: &[UrlImportItem]) -> Option<PipelineShape
     let mut chapters = Vec::with_capacity(items.len());
     for it in items {
         let bytes = it.raw.clone()?;
-        chapters.push(ChapterInput::RawBytes { bytes, label: it.url.clone() });
+        chapters.push(ChapterInput::RawBytes {
+            bytes,
+            label: it.url.clone(),
+        });
     }
     Some(PipelineShape::Chapters(chapters))
 }
@@ -378,9 +405,18 @@ pub fn chapters_shape_if_all_ok(items: &[UrlImportItem]) -> Option<PipelineShape
 pub fn chapters_shape_for_view(items: &[UrlImportItem]) -> Option<PipelineShape> {
     let chapters: Vec<ChapterInput> = items
         .iter()
-        .filter_map(|it| it.raw.clone().map(|bytes| ChapterInput::RawBytes { bytes, label: it.url.clone() }))
+        .filter_map(|it| {
+            it.raw.clone().map(|bytes| ChapterInput::RawBytes {
+                bytes,
+                label: it.url.clone(),
+            })
+        })
         .collect();
-    if chapters.is_empty() { None } else { Some(PipelineShape::Chapters(chapters)) }
+    if chapters.is_empty() {
+        None
+    } else {
+        Some(PipelineShape::Chapters(chapters))
+    }
 }
 
 /// Đồng bộ [`PendingImportSourceState`] với `items` HIỆN TẠI — gọi lại sau MỌI thao tác đổi

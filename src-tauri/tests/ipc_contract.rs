@@ -218,10 +218,11 @@ fn ipc_error_wire_shape() {
     // Cyrillic trong `params` sẽ bị tuyên là "văn bản hiển thị" và test đỏ vì một lý
     // do không có thật. Cùng bộ 134 ký tự mà `scripts/check-i18n.mjs` dùng.
     let wire = serde_json::to_string(&err).expect("IpcError phải serialize được");
-    const VI_DIACRITICS: &str = "àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ";
-    let vietnamese_diacritic = wire
-        .chars()
-        .any(|c| VI_DIACRITICS.contains(c) || VI_DIACRITICS.contains(c.to_lowercase().next().unwrap_or(c)));
+    const VI_DIACRITICS: &str =
+        "àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ";
+    let vietnamese_diacritic = wire.chars().any(|c| {
+        VI_DIACRITICS.contains(c) || VI_DIACRITICS.contains(c.to_lowercase().next().unwrap_or(c))
+    });
     assert!(
         !vietnamese_diacritic,
         "payload lỗi mang ký tự có dấu tiếng Việt ⇒ có văn bản hiển thị trên dây. \
@@ -232,15 +233,23 @@ fn ipc_error_wire_shape() {
 /// Wire shape only; the hydrate-failure behavior itself is covered by `dict_sources.rs`.
 #[test]
 fn lookup_response_wire_shape_carries_senses_failed() {
-    let response = auratranslate_lib::commands::dict::lookup(None, "khong quan trong", &BTreeSet::new());
+    let response =
+        auratranslate_lib::commands::dict::lookup(None, "khong quan trong", &BTreeSet::new());
 
     let value = serde_json::to_value(&response).expect("LookupResponse phải serialize được");
-    let object = value.as_object().expect("LookupResponse phải serialize thành một JSON object");
+    let object = value
+        .as_object()
+        .expect("LookupResponse phải serialize thành một JSON object");
     let mut keys: Vec<&str> = object.keys().map(String::as_str).collect();
     keys.sort_unstable();
     assert_eq!(
         keys,
-        vec!["grouped", "query_truncated", "senses_by_layer", "senses_failed"],
+        vec![
+            "grouped",
+            "query_truncated",
+            "senses_by_layer",
+            "senses_failed"
+        ],
         "khoá trên dây là snake_case, bốn trường ĐÚNG tên. Nhận được: {keys:?}. Nghi phạm \
          số một: `#[serde(rename_all = \"camelCase\")]` biến `senses_failed` thành \
          `sensesFailed`."
@@ -261,12 +270,16 @@ fn source_attributions_wire_shape_hides_skip_detail_and_path() {
         sources: Vec::new(),
         skipped: vec![SkippedLayer {
             path: PathBuf::from("/Users/vi-du/rieng-tu/dict-core.db"),
-            reason: SkipReason::OpenFailed { detail: raw_detail.to_owned() },
+            reason: SkipReason::OpenFailed {
+                detail: raw_detail.to_owned(),
+            },
         }],
     })
     .expect("SourceAttributions phải serialize được");
 
-    let object = value.as_object().expect("phải serialize thành một JSON object");
+    let object = value
+        .as_object()
+        .expect("phải serialize thành một JSON object");
     let mut keys: Vec<&str> = object.keys().map(String::as_str).collect();
     keys.sort_unstable();
     assert_eq!(
@@ -286,7 +299,9 @@ fn source_attributions_wire_shape_hides_skip_detail_and_path() {
     );
     assert_eq!(
         object.get("skipped"),
-        Some(&serde_json::Value::Array(vec![serde_json::Value::String("open_failed".to_owned())])),
+        Some(&serde_json::Value::Array(vec![serde_json::Value::String(
+            "open_failed".to_owned()
+        )])),
         "`skipped` phải ra một MẢNG MÃ MÁY, cùng khuôn `GroupedLookup::skipped`"
     );
 }
@@ -418,7 +433,11 @@ fn every_message_key_declares_the_params_its_string_needs() {
         in_string.sort_unstable();
         in_string.dedup();
 
-        let mut declared: Vec<String> = key.required_params().iter().map(|s| (*s).to_owned()).collect();
+        let mut declared: Vec<String> = key
+            .required_params()
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
         declared.sort_unstable();
         declared.dedup();
 
@@ -499,7 +518,15 @@ fn library_wire_structs_keep_snake_case_field_names() {
     top_keys.sort_unstable();
     assert_eq!(
         top_keys,
-        vec!["conflicts", "indexed", "orphans", "root", "root_missing", "skipped", "text_skipped"],
+        vec![
+            "conflicts",
+            "indexed",
+            "orphans",
+            "root",
+            "root_missing",
+            "skipped",
+            "text_skipped"
+        ],
         "khoá trên dây của RescanReport là snake_case. Nhận được: {top_keys:?}."
     );
 
@@ -587,8 +614,12 @@ fn library_work_list_wire_structs_keep_snake_case_field_names() {
         source_langs: vec!["zh".to_owned()],
     };
     let value = serde_json::to_value(&report).expect("WorkListReport phải serialize được");
-    let mut top_keys: Vec<&str> =
-        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    let mut top_keys: Vec<&str> = value
+        .as_object()
+        .expect("phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     top_keys.sort_unstable();
     assert_eq!(
         top_keys,
@@ -659,8 +690,12 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
         works_with_text: 12,
     };
     let value = serde_json::to_value(&report).expect("SearchReport phải serialize được");
-    let mut top_keys: Vec<&str> =
-        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    let mut top_keys: Vec<&str> = value
+        .as_object()
+        .expect("phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     top_keys.sort_unstable();
     assert_eq!(
         top_keys,
@@ -684,8 +719,12 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
         .and_then(|v| v.as_array())
         .and_then(|a| a.first())
         .expect("hits phải mang ít nhất một mục cho ca test này");
-    let mut hit_keys: Vec<&str> =
-        hit_value.as_object().expect("một mục hits phải serialize thành object").keys().map(String::as_str).collect();
+    let mut hit_keys: Vec<&str> = hit_value
+        .as_object()
+        .expect("một mục hits phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     hit_keys.sort_unstable();
     assert_eq!(
         hit_keys,
@@ -715,8 +754,12 @@ fn lifecycle_wire_struct_keeps_snake_case_field_names() {
         status_is_override: true,
     };
     let value = serde_json::to_value(&lifecycle).expect("WorkLifecycle phải serialize được");
-    let mut keys: Vec<&str> =
-        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    let mut keys: Vec<&str> = value
+        .as_object()
+        .expect("phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     keys.sort_unstable();
     assert_eq!(
         keys,
@@ -742,8 +785,12 @@ fn chapter_row_wire_struct_keeps_snake_case_field_names() {
         origin_published_at: None,
     };
     let value = serde_json::to_value(&row).expect("ChapterRow phải serialize được");
-    let mut keys: Vec<&str> =
-        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    let mut keys: Vec<&str> = value
+        .as_object()
+        .expect("phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     keys.sort_unstable();
     assert_eq!(
         keys,
@@ -780,10 +827,18 @@ fn opened_work_wire_struct_keeps_snake_case_field_names() {
         status_is_override: false,
         chapter_done_count: Some(0),
     };
-    let opened = auratranslate_lib::commands::project::wire::OpenedWork { meta, folder: "/tmp/x.atproj".to_owned(), chapter_id: 7 };
+    let opened = auratranslate_lib::commands::project::wire::OpenedWork {
+        meta,
+        folder: "/tmp/x.atproj".to_owned(),
+        chapter_id: 7,
+    };
     let value = serde_json::to_value(&opened).expect("OpenedWork phải serialize được");
-    let mut keys: Vec<&str> =
-        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    let mut keys: Vec<&str> = value
+        .as_object()
+        .expect("phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     keys.sort_unstable();
     assert_eq!(
         keys,
@@ -810,11 +865,20 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
     };
     let value = serde_json::to_value(&loaded).expect("ChapterSegments phải serialize được");
     let object = value.as_object().expect("phải serialize thành object");
-    assert_eq!(object.get("tm_prefill"), Some(&serde_json::json!({ "kind": "not_asked" })));
-    use auratranslate_lib::commands::segment::TmPrefillStatus;
-    assert_eq!(serde_json::to_value(TmPrefillStatus::Ran).unwrap(), serde_json::json!({ "kind": "ran" }));
     assert_eq!(
-        serde_json::to_value(TmPrefillStatus::Skipped { code: "store.open_failed".into() }).unwrap(),
+        object.get("tm_prefill"),
+        Some(&serde_json::json!({ "kind": "not_asked" }))
+    );
+    use auratranslate_lib::commands::segment::TmPrefillStatus;
+    assert_eq!(
+        serde_json::to_value(TmPrefillStatus::Ran).unwrap(),
+        serde_json::json!({ "kind": "ran" })
+    );
+    assert_eq!(
+        serde_json::to_value(TmPrefillStatus::Skipped {
+            code: "store.open_failed".into()
+        })
+        .unwrap(),
         serde_json::json!({ "kind": "skipped", "code": "store.open_failed" })
     );
     assert!(
@@ -865,7 +929,9 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
 /// chỉ lớp đó.
 #[test]
 fn the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -906,7 +972,9 @@ fn the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names
 /// trên.
 #[test]
 fn update_chapter_origin_wire_is_registered_and_keeps_its_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -946,7 +1014,9 @@ fn update_chapter_origin_wire_is_registered_and_keeps_its_parameter_names() {
 /// [`update_chapter_origin_wire_is_registered_and_keeps_its_parameter_names`] ngay trên.
 #[test]
 fn set_chapter_origin_override_wire_is_registered_and_keeps_its_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1015,7 +1085,7 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
             .unwrap_or_else(|| panic!("khong tim thay vo `{wire}` trong commands/project/wire.rs"));
         // Than vo = tu chu ky toi chu ky `pub fn` KE TIEP (hoac het tep).
         let rest = &src[start + signature.len()..];
-        let end = rest.find("\n    pub fn ").unwrap_or(rest.len());
+        let end = rest.find("\npub fn ").unwrap_or(rest.len());
         let body = &rest[..end];
 
         // 🔴 Dem tren DONG MA, khong tren van ban tho: mot dong bi CHU THICH van con nguyen
@@ -1026,7 +1096,9 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
         let code_has = |needle: &str| {
             body.lines()
                 .map(str::trim_start)
-                .filter(|line| !line.starts_with("//") && !line.starts_with("* ") && !line.starts_with("/*"))
+                .filter(|line| {
+                    !line.starts_with("//") && !line.starts_with("* ") && !line.starts_with("/*")
+                })
                 .any(|line| line.contains(needle))
         };
 
@@ -1043,7 +1115,6 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
     }
 }
 
-
 /// 🔴 **Story 6.16 — ba vo song ngu: dang ky theo TEN, doc luat lam sach, va vo DUNG LAI khong
 /// doc lai tep.** Them o buoc nghiem thu 2026-09-11.
 ///
@@ -1056,8 +1127,11 @@ fn both_preview_wires_reset_the_chapter_origin_overrides_before_building_a_previ
 /// ③ vo dung lai goi `import_bilingual_file` ⇒ moi lan doi cot DOC LAI TEP — trai Quyet dinh
 ///    Ice "toggling rebuilds the preview in memory", cung la trang thai ban dau cua story nay.
 #[test]
-fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuild_never_reads_the_file() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuild_never_reads_the_file()
+ {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
     let wires = [
@@ -1068,7 +1142,11 @@ fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuil
     for wire in wires {
         let registered = format!("crate::commands::project::wire::{wire}");
         assert!(
-            lib_src.lines().map(str::trim_start).filter(|l| !l.starts_with("//")).any(|l| l.contains(&registered)),
+            lib_src
+                .lines()
+                .map(str::trim_start)
+                .filter(|l| !l.starts_with("//"))
+                .any(|l| l.contains(&registered)),
             "`{registered}` phai co mat (khong bi chu thich) trong generate_handler! cua lib.rs"
         );
     }
@@ -1090,18 +1168,22 @@ fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuil
             .find(&signature)
             .unwrap_or_else(|| panic!("khong tim thay vo `{wire}` trong `mod wire`"));
         let rest = &wire_src[start + signature.len()..];
-        let end = rest.find("\n    pub fn ").unwrap_or(rest.len());
+        let end = rest.find("\npub fn ").unwrap_or(rest.len());
         rest[..end]
             .lines()
             .map(str::trim_start)
-            .filter(|line| !line.starts_with("//") && !line.starts_with("* ") && !line.starts_with("/*"))
+            .filter(|line| {
+                !line.starts_with("//") && !line.starts_with("* ") && !line.starts_with("/*")
+            })
             .map(str::to_owned)
             .collect()
     };
 
     for wire in wires {
         assert!(
-            code_lines_of(wire).iter().any(|l| l.contains("resolve_cleanup_rules(&app)")),
+            code_lines_of(wire)
+                .iter()
+                .any(|l| l.contains("resolve_cleanup_rules(&app)")),
             "than vo `{wire}` phai phan giai luat lam sach hai tang (`resolve_cleanup_rules(&app)`) — \
              thieu no thi luat nguoi dung da bat khong bao gio toi duong song ngu"
         );
@@ -1112,7 +1194,11 @@ fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuil
         rebuild.iter().any(|l| l.contains("p.shape.clone()")),
         "vo dung lai phai clone `shape` tu `PendingImportSourceState` — neo cho hai khang dinh duoi"
     );
-    for forbidden in ["import_bilingual_file", "stash_pending_import_source", "std::fs"] {
+    for forbidden in [
+        "import_bilingual_file",
+        "stash_pending_import_source",
+        "std::fs",
+    ] {
         assert!(
             !rebuild.iter().any(|l| l.contains(forbidden)),
             "vo `rebuild_bilingual_import_preview` KHONG duoc goi `{forbidden}` — dung lai la tren \
@@ -1129,7 +1215,9 @@ fn the_three_bilingual_import_wires_are_registered_read_cleanup_rules_and_rebuil
 /// "command not found" chỉ khi người dùng bấm nút).
 #[test]
 fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1152,7 +1240,8 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
     // mà cụm assert `generate_handler!` ngay trên tồn tại để chặn, mở rộng sang dòng đăng ký
     // trạng thái.
     assert!(
-        lib_src.contains("app.manage(crate::commands::project::PendingImportSourceState::new(None));"),
+        lib_src
+            .contains("app.manage(crate::commands::project::PendingImportSourceState::new(\n        None,\n    ));"),
         "thieu `app.manage(crate::commands::project::PendingImportSourceState::new(None))` trong          `lib.rs` -- hai vo xem truoc roi vao nhanh state-chua-quan-ly, va (sau vong ra doi khang          2) tra loi tuong minh thay vi `eprintln!` roi van `Ok`."
     );
 
@@ -1221,7 +1310,9 @@ fn the_three_import_encoding_preview_wires_are_registered_and_keep_their_paramet
 /// ngay trên.
 #[test]
 fn the_three_url_import_wires_are_registered_and_keep_their_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1286,7 +1377,9 @@ fn the_three_url_import_wires_are_registered_and_keep_their_parameter_names() {
 #[test]
 fn the_domain_log_wire_and_the_two_tier2_block_wires_are_registered_and_keep_their_parameter_names()
 {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1303,7 +1396,7 @@ fn the_domain_log_wire_and_the_two_tier2_block_wires_are_registered_and_keep_the
 
     for managed in [
         "app.manage(crate::core::webimport::DomainLogState::new(Vec::new()));",
-        "app.manage(crate::commands::project::Tier2BlockOverridesState::new(Vec::new()));",
+        "app.manage(crate::commands::project::Tier2BlockOverridesState::new(\n        Vec::new(),\n    ));",
     ] {
         assert!(
             lib_src.contains(managed),
@@ -1344,7 +1437,9 @@ fn the_domain_log_wire_and_the_two_tier2_block_wires_are_registered_and_keep_the
 /// vào `generate_handler!` VÀ có một ca test mang tên nó", đúng khuôn hai ca ngay trên.
 #[test]
 fn the_preview_chapter_detail_wire_is_registered_and_keeps_its_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1422,15 +1517,19 @@ fn fn_param_list_would_actually_bind_to_the_right_function_block() {
     assert_eq!(fn_param_list(src, "bar"), "c: u8");
 
     // Ca bẫy — hai khối CÙNG TÊN, tham số KHÁC nhau. Không thu hẹp phạm vi ⇒ khớp nhầm.
-    let duped =
-        "pub fn same(x: u8) -> u8 { x }\nmod inner {\n  pub fn same(y: String, z: bool) -> bool { z }\n}";
+    let duped = "pub fn same(x: u8) -> u8 { x }\nmod inner {\n  pub fn same(y: String, z: bool) -> bool { z }\n}";
     assert_eq!(
         fn_param_list(duped, "same"),
         "x: u8",
         "khong thu hep pham vi -- PHAI khop khoi DAU TIEN, dung boi canh cua bay nay"
     );
-    let inner_start = duped.find("mod inner {").expect("fixture phai co `mod inner {`");
-    assert_eq!(fn_param_list(&duped[inner_start..], "same"), "y: String, z: bool");
+    let inner_start = duped
+        .find("mod inner {")
+        .expect("fixture phai co `mod inner {`");
+    assert_eq!(
+        fn_param_list(&duped[inner_start..], "same"),
+        "y: String, z: bool"
+    );
 }
 
 /// **THÊM Story 5.9.** `library_search` phải CÓ MẶT trong `generate_handler![…]`, và tham số
@@ -1439,7 +1538,9 @@ fn fn_param_list_would_actually_bind_to_the_right_function_block() {
 /// ngay trên (khoảng trống đo được, không một lo xa).
 #[test]
 fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1449,14 +1550,20 @@ fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
          cua lib.rs. Thieu no thi invoke() tra \"command not found\" va KHONG cong nao do."
     );
 
-    let library_rs =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("library.rs");
+    let library_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("library.rs");
     let library_src = fs::read_to_string(&library_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", library_rs.display()));
 
     // Ten tham so tren day. `invoke()` gui `query`/`limit`/`mode` (mot tu don, hai chieu trung
     // nhau o day) -- `src/config/library.ts` la cho duy nhat go ca ba. `mode` THEM o Story 5.10.
-    for param in ["query: String", "limit: Option<u32>", "mode: Option<String>"] {
+    for param in [
+        "query: String",
+        "limit: Option<u32>",
+        "mode: Option<String>",
+    ] {
         assert!(
             library_src.contains(param),
             "vo IPC `library_search` (commands/library.rs) phai khai `{param}` -- doi ten tham \
@@ -1501,19 +1608,25 @@ fn reading_wire_structs_keep_snake_case_field_names() {
         }],
         frontier: auratranslate_lib::commands::segment::ReadingFrontier {
             kind: auratranslate_lib::commands::segment::ReadingFrontierKind::NextNotDone,
-            chapter: Some(auratranslate_lib::commands::segment::ReadingFrontierChapter {
-                chapter_id: 2,
-                chapter_ord: 2,
-                chapter_title: None,
-                status: "in_progress".to_owned(),
-            }),
+            chapter: Some(
+                auratranslate_lib::commands::segment::ReadingFrontierChapter {
+                    chapter_id: 2,
+                    chapter_ord: 2,
+                    chapter_title: None,
+                    status: "in_progress".to_owned(),
+                },
+            ),
         },
         // **THÊM Story 6.14**.
         assets_dir: "/tmp/x.atproj/assets".to_owned(),
     };
     let value = serde_json::to_value(&run).expect("ReadingRun phải serialize được");
-    let mut top_keys: Vec<&str> =
-        value.as_object().expect("phải serialize thành object").keys().map(String::as_str).collect();
+    let mut top_keys: Vec<&str> = value
+        .as_object()
+        .expect("phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     top_keys.sort_unstable();
     assert_eq!(
         top_keys,
@@ -1535,7 +1648,14 @@ fn reading_wire_structs_keep_snake_case_field_names() {
     chapter_keys.sort_unstable();
     assert_eq!(
         chapter_keys,
-        vec!["chapter_id", "chapter_ord", "chapter_title", "images", "paragraphs", "segment_count"],
+        vec![
+            "chapter_id",
+            "chapter_ord",
+            "chapter_title",
+            "images",
+            "paragraphs",
+            "segment_count"
+        ],
         "khoá trên dây của ReadingChapter là snake_case. Nhận được: {chapter_keys:?}. Nghi phạm \
          số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
     );
@@ -1555,7 +1675,14 @@ fn reading_wire_structs_keep_snake_case_field_names() {
     image_keys.sort_unstable();
     assert_eq!(
         image_keys,
-        vec!["after_segment_id", "alt_text", "asset_id", "caption_text", "file_name", "source_url"],
+        vec![
+            "after_segment_id",
+            "alt_text",
+            "asset_id",
+            "caption_text",
+            "file_name",
+            "source_url"
+        ],
         "khoá trên dây của ReadingImage là snake_case. Nhận được: {image_keys:?}."
     );
 
@@ -1591,12 +1718,20 @@ fn reading_wire_structs_keep_snake_case_field_names() {
     segment_keys.sort_unstable();
     assert_eq!(
         segment_keys,
-        vec!["id", "is_confirmed", "is_marked", "source_text", "target_text"],
+        vec![
+            "id",
+            "is_confirmed",
+            "is_marked",
+            "source_text",
+            "target_text"
+        ],
         "khoá trên dây của ReadingSegment là snake_case. Nhận được: {segment_keys:?}. Nghi phạm \
          số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
     );
 
-    let frontier_value = value.get("frontier").expect("frontier phải có mặt trên dây");
+    let frontier_value = value
+        .get("frontier")
+        .expect("frontier phải có mặt trên dây");
     let mut frontier_keys: Vec<&str> = frontier_value
         .as_object()
         .expect("frontier phải serialize thành object")
@@ -1616,8 +1751,9 @@ fn reading_wire_structs_keep_snake_case_field_names() {
          VĂN — webview khớp đúng chuỗi này, không một biến thể nào khác."
     );
 
-    let frontier_chapter_value =
-        frontier_value.get("chapter").expect("chapter phải có mặt khi kind == NextNotDone");
+    let frontier_chapter_value = frontier_value
+        .get("chapter")
+        .expect("chapter phải có mặt khi kind == NextNotDone");
     let mut frontier_chapter_keys: Vec<&str> = frontier_chapter_value
         .as_object()
         .expect("frontier.chapter phải serialize thành object")
@@ -1638,7 +1774,8 @@ fn reading_wire_structs_keep_snake_case_field_names() {
         kind: auratranslate_lib::commands::segment::ReadingFrontierKind::EndOfWork,
         chapter: None,
     };
-    let end_value = serde_json::to_value(&end_of_work).expect("ReadingFrontier phải serialize được");
+    let end_value =
+        serde_json::to_value(&end_of_work).expect("ReadingFrontier phải serialize được");
     assert_eq!(
         end_value.get("kind").and_then(|v| v.as_str()),
         Some("end-of-work"),
@@ -1659,7 +1796,9 @@ fn reading_wire_structs_keep_snake_case_field_names() {
 /// có vế "giữ nguyên tên tham số" để nghiệm thu ở đây.
 #[test]
 fn the_read_reading_run_wire_is_registered() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1681,12 +1820,17 @@ fn the_read_reading_run_wire_is_registered() {
             "wire marker `{wire}` phai co mat trong generate_handler!"
         );
     }
-    let segment_rs =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment").join("wire.rs");
+    let segment_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("segment")
+        .join("wire.rs");
     let segment_src = fs::read_to_string(&segment_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", segment_rs.display()));
     assert!(
-        segment_src.contains("pub fn mark_reading_segment(\n        app: tauri::AppHandle,\n        segment_id: i64,"),
+        segment_src.contains(
+            "pub fn mark_reading_segment(\n    app: tauri::AppHandle,\n    segment_id: i64,"
+        ),
         "wire mark_reading_segment phai giu tham so `segment_id` (webview gui `segmentId`)"
     );
 }
@@ -1705,7 +1849,12 @@ fn reading_mark_wire_fields_stay_snake_case() {
         marked_at: "2026-08-31T00:00:00.000Z".to_owned(),
     };
     let value = serde_json::to_value(mark).expect("ReadingMark serialize");
-    let mut keys: Vec<&str> = value.as_object().expect("object").keys().map(String::as_str).collect();
+    let mut keys: Vec<&str> = value
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect();
     keys.sort_unstable();
     assert_eq!(
         keys,
@@ -1754,7 +1903,9 @@ fn code_lines(text: &str) -> impl Iterator<Item = &str> {
 /// chuỗi vẫn CÓ MẶT trong văn bản — đúng cái bẫy "gỡ giả" mà `AGENTS.md:68` gọi tên, và một
 /// `str::contains`/`grep` trần sẽ bị nó lừa.
 fn count_reindex_library_calls(text: &str) -> usize {
-    code_lines(text).filter(|&code| code == REINDEX_LIBRARY_CALL_LINE).count()
+    code_lines(text)
+        .filter(|&code| code == REINDEX_LIBRARY_CALL_LINE)
+        .count()
 }
 
 /// Cắt thân MỘT `pub fn` trong `mod wire` — từ đúng chữ ký `pub fn {fn_name}(` tới NGAY TRƯỚC
@@ -1771,7 +1922,7 @@ fn wire_fn_body<'a>(wire_src: &'a str, fn_name: &str) -> &'a str {
     };
     let rest = &wire_src[start..];
     let end = rest[signature.len()..]
-        .find("\n    pub fn ")
+        .find("\npub fn ")
         .map(|offset| offset + signature.len())
         .unwrap_or(rest.len());
     &rest[..end]
@@ -1783,7 +1934,8 @@ fn read_wire_rs() -> String {
         .join("commands")
         .join("project")
         .join("wire.rs");
-    fs::read_to_string(&wire_rs).unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()))
+    fs::read_to_string(&wire_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()))
 }
 
 /// **THÊM 2026-09-16 (Story 6.7b, coordinator review)** — cả NĂM chỗ gọi bước 4
@@ -1825,8 +1977,16 @@ fn all_five_reindex_library_call_sites_in_wire_rs_are_present() {
     for (seam, body, expected) in [
         ("create_work_from_text (:499)", create_from_text, 1),
         ("create_work_from_file (:545)", create_from_file, 1),
-        ("confirm_import_with_encoding, nhanh Tac pham MOI (:837)", new_work_branch, 1),
-        ("confirm_import_with_encoding, nhanh APPEND (:905)", append_branch, 1),
+        (
+            "confirm_import_with_encoding, nhanh Tac pham MOI (:837)",
+            new_work_branch,
+            1,
+        ),
+        (
+            "confirm_import_with_encoding, nhanh APPEND (:905)",
+            append_branch,
+            1,
+        ),
         ("confirm_bilingual_import (:1102)", bilingual, 1),
     ] {
         let found = count_reindex_library_calls(body);
@@ -1855,7 +2015,11 @@ fn all_five_reindex_library_call_sites_in_wire_rs_are_present() {
 #[test]
 fn count_reindex_library_calls_is_not_fooled_by_a_commented_out_line() {
     let clean = "fn confirm() {\n    reindex_library(&app, &root);\n    Ok(())\n}\n";
-    assert_eq!(count_reindex_library_calls(clean), 1, "ca DUONG -- mot dong MA THAT phai duoc dem");
+    assert_eq!(
+        count_reindex_library_calls(clean),
+        1,
+        "ca DUONG -- mot dong MA THAT phai duoc dem"
+    );
 
     let commented = "fn confirm() {\n    // reindex_library(&app, &root);\n    Ok(())\n}\n";
     assert_eq!(
@@ -1872,7 +2036,8 @@ fn count_reindex_library_calls_is_not_fooled_by_a_commented_out_line() {
         "ca AM thu hai -- chu thich TAI LIEU (`///`) cung khong duoc dem"
     );
 
-    let unrelated = "fn other() {\n    do_something_else();\n    reindex_library(&app, &different_root);\n}\n";
+    let unrelated =
+        "fn other() {\n    do_something_else();\n    reindex_library(&app, &different_root);\n}\n";
     assert_eq!(
         count_reindex_library_calls(unrelated),
         0,
@@ -1885,14 +2050,25 @@ fn count_reindex_library_calls_is_not_fooled_by_a_commented_out_line() {
 /// kế tiếp, cùng khuôn `fn_param_list_would_actually_bind_to_the_right_function_block`.
 #[test]
 fn wire_fn_body_stops_before_the_next_pub_fn_and_does_not_bleed_into_it() {
-    let src = "    pub fn foo(a: i32) {\n        reindex_library(&app, &root);\n    }\n\n    pub fn bar(b: i32) {\n        reindex_library(&app, &root);\n    }\n";
+    let src = "pub fn foo(a: i32) {\n    reindex_library(&app, &root);\n}\n\npub fn bar(b: i32) {\n    reindex_library(&app, &root);\n}\n";
 
     let foo = wire_fn_body(src, "foo");
-    assert_eq!(count_reindex_library_calls(foo), 1, "than `foo` phai mang DUNG 1 loi goi cua CHINH no");
-    assert!(!foo.contains("fn bar"), "than `foo` khong duoc lan sang `bar`");
+    assert_eq!(
+        count_reindex_library_calls(foo),
+        1,
+        "than `foo` phai mang DUNG 1 loi goi cua CHINH no"
+    );
+    assert!(
+        !foo.contains("fn bar"),
+        "than `foo` khong duoc lan sang `bar`"
+    );
 
     let bar = wire_fn_body(src, "bar");
-    assert_eq!(count_reindex_library_calls(bar), 1, "than `bar` phai mang DUNG 1 loi goi cua CHINH no");
+    assert_eq!(
+        count_reindex_library_calls(bar),
+        1,
+        "than `bar` phai mang DUNG 1 loi goi cua CHINH no"
+    );
 }
 
 /// **THÊM Story 4.3.** `ai_config_save_key`/`ai_config_delete_key` phải CÓ MẶT trong
@@ -1907,7 +2083,9 @@ fn wire_fn_body_stops_before_the_next_pub_fn_and_does_not_bleed_into_it() {
 /// đây.
 #[test]
 fn the_aiconfig_key_wires_are_registered() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1937,7 +2115,9 @@ fn the_aiconfig_key_wires_are_registered() {
 /// then a Rust case goes red").
 #[test]
 fn the_prompt_set_wires_are_registered() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1979,7 +2159,9 @@ fn the_prompt_set_wires_are_registered() {
 /// doc-comment `commands/aiprompt.rs::wire`).
 #[test]
 fn the_ai_prompt_wires_are_registered_and_keep_their_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -1995,7 +2177,9 @@ fn the_ai_prompt_wires_are_registered_and_keep_their_parameter_names() {
     }
 
     assert!(
-        lib_src.contains("app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None));"),
+        lib_src.contains(
+            "app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(\n        None,\n    ));"
+        ),
         "thieu `app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(None))` \
          trong `lib.rs` -- ca hai vo tren roi vao nhanh state-chua-quan-ly."
     );
@@ -2008,7 +2192,10 @@ fn the_ai_prompt_wires_are_registered_and_keep_their_parameter_names() {
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", aiprompt_rs.display()));
 
     for (fn_name, expected_params) in [
-        ("ai_prompt_assemble", "app: tauri::AppHandle, prompt_set_name: Option<String>, segment_id: i64,"),
+        (
+            "ai_prompt_assemble",
+            "app: tauri::AppHandle, prompt_set_name: Option<String>, segment_id: i64,",
+        ),
         ("ai_prompt_read_record", "app: tauri::AppHandle"),
     ] {
         let params = fn_param_list(&aiprompt_src, fn_name);
@@ -2038,7 +2225,9 @@ fn the_ai_prompt_wires_are_registered_and_keep_their_parameter_names() {
 /// một `lib_src.contains(...)` trên cả tệp sẽ xanh dù lời gọi dọn nằm ở một hàm khác hẳn.
 #[test]
 fn close_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblings() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -2087,10 +2276,17 @@ fn close_open_work_clears_the_last_assembled_prompt_record_beside_its_two_siblin
 #[test]
 fn replace_open_work_clears_a_pending_tmx_plan_beside_the_glossary_sibling() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/commands/project/mod.rs");
-    let src = fs::read_to_string(&path).unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", path.display()));
-    let start_marker = "fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: OpenWork) {";
-    let start = src.find(start_marker).unwrap_or_else(|| panic!("khong tim thay `{start_marker}`"));
-    let end = src[start..].find("\n}\n").map(|rel| start + rel).expect("het than ham");
+    let src = fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", path.display()));
+    let start_marker =
+        "fn replace_open_work<R: tauri::Runtime>(app: &tauri::AppHandle<R>, new_work: OpenWork) {";
+    let start = src
+        .find(start_marker)
+        .unwrap_or_else(|| panic!("khong tim thay `{start_marker}`"));
+    let end = src[start..]
+        .find("\n}\n")
+        .map(|rel| start + rel)
+        .expect("het than ham");
     let body = &src[start..end];
 
     assert!(
@@ -2143,7 +2339,9 @@ fn fn_param_list_async(src: &str, fn_name: &str) -> String {
 /// vỡ trên một bản dựng thật ("command not found").
 #[test]
 fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -2161,7 +2359,9 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     }
 
     assert!(
-        lib_src.contains("app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());"),
+        lib_src.contains(
+            "app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());"
+        ),
         "thieu `app.manage(crate::commands::aitranslate::AiTranslateGeneration::default())` \
          trong `lib.rs` -- huy giua chung khong con gi de bom the he len, va vo se panic tren \
          nhanh `try_state` chua duoc quan ly."
@@ -2211,8 +2411,11 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     // `promote_ai_translation` mang HAI khối `pub fn` cùng tên: hàm thuần ở
     // `commands/segment/targets.rs` và vỏ ở `commands/segment/wire.rs`. `fn_param_list` khớp
     // khối ĐẦU TIÊN trong `src` truyền vào (xem doc-comment của nó), nên chỉ đọc `wire.rs`.
-    let segment_rs =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment").join("wire.rs");
+    let segment_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("segment")
+        .join("wire.rs");
     let segment_src = fs::read_to_string(&segment_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", segment_rs.display()));
     let segment_wire_src = segment_src.as_str();
@@ -2231,7 +2434,9 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
 
 #[test]
 fn the_ai_proofread_wires_are_registered_and_keep_their_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
@@ -2251,7 +2456,10 @@ fn the_ai_proofread_wires_are_registered_and_keep_their_parameter_names() {
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", proofread_rs.display()));
 
     assert_eq!(
-        normalize_param_list(&fn_param_list_async(&proofread_src, "ai_proofread_segments")),
+        normalize_param_list(&fn_param_list_async(
+            &proofread_src,
+            "ai_proofread_segments"
+        )),
         normalize_param_list(
             "app: tauri::AppHandle<R>, segment_ids: Vec<i64>, channel: tauri::ipc::Channel<AiProofreadEventWire>,"
         ),
@@ -2266,10 +2474,15 @@ fn the_ai_proofread_wires_are_registered_and_keep_their_parameter_names() {
 
 #[test]
 fn the_proofread_memory_wires_are_registered_and_keep_their_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
-    let proofread_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("proofread.rs");
+    let proofread_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("proofread.rs");
     let proofread_src = fs::read_to_string(&proofread_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", proofread_rs.display()));
 
@@ -2280,15 +2493,21 @@ fn the_proofread_memory_wires_are_registered_and_keep_their_parameter_names() {
              expected_phrase: String, kind: ProofreadKind,",
         ),
         ("ai_proofread_ignore_list", "app: tauri::AppHandle<R>,"),
-        ("ai_proofread_ignore_remove", "app: tauri::AppHandle<R>, id: i64,"),
-        ("ai_proofread_ignore_clear", "app: tauri::AppHandle<R>"),
+        (
+            "ai_proofread_ignore_remove",
+            "app: tauri::AppHandle<R>, id: i64,",
+        ),
+        ("ai_proofread_ignore_clear", "app: tauri::AppHandle<R>,"),
         (
             "ai_proofread_scan_record",
             "app: tauri::AppHandle<R>, work_id: String, scope: String, reported: i64, filtered: i64,",
         ),
     ] {
         let registered = format!("crate::commands::proofread::wire::{name}");
-        assert!(lib_src.contains(&registered), "`{registered}` phai co mat trong lib.rs");
+        assert!(
+            lib_src.contains(&registered),
+            "`{registered}` phai co mat trong lib.rs"
+        );
         assert_eq!(
             normalize_param_list(&fn_param_list(&proofread_src, name)),
             normalize_param_list(params),
@@ -2300,17 +2519,25 @@ fn the_proofread_memory_wires_are_registered_and_keep_their_parameter_names() {
 
 #[test]
 fn the_proofread_write_wires_are_registered_and_keep_their_parameter_names() {
-    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
-    let wire_rs =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment").join("wire.rs");
+    let wire_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("segment")
+        .join("wire.rs");
     let wire_src = fs::read_to_string(&wire_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
     for name in ["ai_proofread_accept", "ai_proofread_revert"] {
         let registered = format!("crate::commands::segment::wire::{name}");
-        assert!(lib_src.contains(&registered), "`{registered}` phai co mat trong lib.rs");
+        assert!(
+            lib_src.contains(&registered),
+            "`{registered}` phai co mat trong lib.rs"
+        );
         assert_eq!(
             normalize_param_list(&fn_param_list(&wire_src, name)),
             normalize_param_list(
@@ -2327,8 +2554,11 @@ fn the_proofread_write_wires_are_registered_and_keep_their_parameter_names() {
 /// webview không khai mốc nào, và DTO của segment không mang khoá `baseline_*` nào ra ngoài.
 #[test]
 fn the_confirm_segment_wire_takes_only_the_segment_id_and_the_segment_dto_carries_no_baseline() {
-    let segment_rs =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("segment").join("wire.rs");
+    let segment_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("commands")
+        .join("segment")
+        .join("wire.rs");
     let segment_src = fs::read_to_string(&segment_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", segment_rs.display()));
     let segment_wire_src = segment_src.as_str();
@@ -2336,9 +2566,7 @@ fn the_confirm_segment_wire_takes_only_the_segment_id_and_the_segment_dto_carrie
     let confirm_params = fn_param_list(segment_wire_src, "confirm_segment");
     assert_eq!(
         normalize_param_list(&confirm_params),
-        normalize_param_list(
-            "app: tauri::AppHandle<R>, segment_id: i64,"
-        ),
+        normalize_param_list("app: tauri::AppHandle<R>, segment_id: i64,"),
         "vo `confirm_segment` trong `commands/segment/wire.rs` khong con dung danh \
          sach tham so mong doi -- doi ten/thu tu tham so la doi DAY."
     );
@@ -2363,15 +2591,18 @@ fn the_confirm_segment_wire_takes_only_the_segment_id_and_the_segment_dto_carrie
         .keys()
         .filter(|key| key.starts_with("baseline"))
         .collect();
-    assert!(leaked.is_empty(), "DTO segment khong duoc mang moc so ra day: {leaked:?}");
+    assert!(
+        leaked.is_empty(),
+        "DTO segment khong duoc mang moc so ra day: {leaked:?}"
+    );
 }
 
 /// The TM management wire structs keep snake_case keys and `copies` on every row.
 #[test]
 fn tm_manage_wire_structs_keep_their_snake_case_keys() {
     use auratranslate_lib::commands::tm::{
-        TmCopyArg, TmCopyWire, TmDeleteOthersOutcome, TmGroupRowWire, TmOriginCountWire, TmPairList, TmPairWire,
-        TmSourceGroupWire,
+        TmCopyArg, TmCopyWire, TmDeleteOthersOutcome, TmGroupRowWire, TmOriginCountWire,
+        TmPairList, TmPairWire, TmSourceGroupWire,
     };
     let keys = |v: &serde_json::Value| -> Vec<String> {
         let mut k: Vec<String> = v.as_object().expect("object").keys().cloned().collect();
@@ -2381,7 +2612,10 @@ fn tm_manage_wire_structs_keep_their_snake_case_keys() {
     let list = TmPairList {
         work_open: true,
         tm_empty: false,
-        health: vec![TmOriginCountWire { translation_origin: "self", count: 1 }],
+        health: vec![TmOriginCountWire {
+            translation_origin: "self",
+            count: 1,
+        }],
         total_pairs: 1,
         total_groups: 1,
         groups: vec![TmSourceGroupWire {
@@ -2390,7 +2624,10 @@ fn tm_manage_wire_structs_keep_their_snake_case_keys() {
             rows: vec![TmGroupRowWire {
                 tier: "work",
                 unit_id: 1,
-                copies: vec![TmCopyWire { tier: "work", unit_id: 1 }],
+                copies: vec![TmCopyWire {
+                    tier: "work",
+                    unit_id: 1,
+                }],
                 target_text: "t".to_owned(),
                 translation_origin: "self",
                 side: "mine",
@@ -2400,13 +2637,38 @@ fn tm_manage_wire_structs_keep_their_snake_case_keys() {
         }],
     };
     let json = serde_json::to_value(&list).expect("serialize");
-    assert_eq!(keys(&json), ["groups", "health", "tm_empty", "total_groups", "total_pairs", "work_open"]);
-    assert_eq!(keys(&json["groups"][0]), ["distinct_targets", "rows", "source_text"]);
+    assert_eq!(
+        keys(&json),
+        [
+            "groups",
+            "health",
+            "tm_empty",
+            "total_groups",
+            "total_pairs",
+            "work_open"
+        ]
+    );
+    assert_eq!(
+        keys(&json["groups"][0]),
+        ["distinct_targets", "rows", "source_text"]
+    );
     assert_eq!(
         keys(&json["groups"][0]["rows"][0]),
-        ["copies", "created_at", "hidden_copies", "side", "target_text", "tier", "translation_origin", "unit_id"]
+        [
+            "copies",
+            "created_at",
+            "hidden_copies",
+            "side",
+            "target_text",
+            "tier",
+            "translation_origin",
+            "unit_id"
+        ]
     );
-    assert_eq!(keys(&json["groups"][0]["rows"][0]["copies"][0]), ["tier", "unit_id"]);
+    assert_eq!(
+        keys(&json["groups"][0]["rows"][0]["copies"][0]),
+        ["tier", "unit_id"]
+    );
     assert_eq!(keys(&json["health"][0]), ["count", "translation_origin"]);
     let pair = serde_json::to_value(TmPairWire {
         tier: "global",
@@ -2420,11 +2682,24 @@ fn tm_manage_wire_structs_keep_their_snake_case_keys() {
     .expect("serialize");
     assert_eq!(
         keys(&pair),
-        ["created_at", "side", "source_text", "target_text", "tier", "translation_origin", "unit_id"]
+        [
+            "created_at",
+            "side",
+            "source_text",
+            "target_text",
+            "tier",
+            "translation_origin",
+            "unit_id"
+        ]
     );
-    let outcome = serde_json::to_value(TmDeleteOthersOutcome { deleted_work: 1, deleted_global: 2 }).expect("serialize");
+    let outcome = serde_json::to_value(TmDeleteOthersOutcome {
+        deleted_work: 1,
+        deleted_global: 2,
+    })
+    .expect("serialize");
     assert_eq!(keys(&outcome), ["deleted_global", "deleted_work"]);
-    let arg: TmCopyArg = serde_json::from_value(serde_json::json!({ "tier": "work", "unit_id": 5 })).expect("parse");
+    let arg: TmCopyArg =
+        serde_json::from_value(serde_json::json!({ "tier": "work", "unit_id": 5 })).expect("parse");
     assert_eq!((arg.tier.as_str(), arg.unit_id), ("work", 5));
 }
 
@@ -2446,7 +2721,25 @@ fn tmx_exchange_wire_structs_keep_their_snake_case_keys() {
         skipped_count: 1,
     })
     .expect("serialize");
-    assert_eq!(keys(&preview), ["already_count", "file_name", "new_count", "skipped_count", "tier", "unit_count"]);
-    let summary = serde_json::to_value(TmxImportSummaryWire { inserted: 1, already_count: 0, future_dated_count: 0 }).expect("serialize");
-    assert_eq!(keys(&summary), ["already_count", "future_dated_count", "inserted"]);
+    assert_eq!(
+        keys(&preview),
+        [
+            "already_count",
+            "file_name",
+            "new_count",
+            "skipped_count",
+            "tier",
+            "unit_count"
+        ]
+    );
+    let summary = serde_json::to_value(TmxImportSummaryWire {
+        inserted: 1,
+        already_count: 0,
+        future_dated_count: 0,
+    })
+    .expect("serialize");
+    assert_eq!(
+        keys(&summary),
+        ["already_count", "future_dated_count", "inserted"]
+    );
 }

@@ -107,10 +107,16 @@ pub fn derive_work_status(chapters: &[LifecycleStatus]) -> LifecycleStatus {
     if chapters.is_empty() {
         return LifecycleStatus::NotStarted;
     }
-    if chapters.iter().all(|status| *status == LifecycleStatus::Done) {
+    if chapters
+        .iter()
+        .all(|status| *status == LifecycleStatus::Done)
+    {
         return LifecycleStatus::Done;
     }
-    if chapters.iter().all(|status| *status == LifecycleStatus::NotStarted) {
+    if chapters
+        .iter()
+        .all(|status| *status == LifecycleStatus::NotStarted)
+    {
         return LifecycleStatus::NotStarted;
     }
     LifecycleStatus::InProgress
@@ -130,7 +136,11 @@ mod tests {
     /// Mọi Chương `Done` ⇒ `Done`.
     #[test]
     fn every_chapter_done_derives_done() {
-        let chapters = [LifecycleStatus::Done, LifecycleStatus::Done, LifecycleStatus::Done];
+        let chapters = [
+            LifecycleStatus::Done,
+            LifecycleStatus::Done,
+            LifecycleStatus::Done,
+        ];
         assert_eq!(derive_work_status(&chapters), LifecycleStatus::Done);
     }
 
@@ -140,7 +150,11 @@ mod tests {
     #[test]
     fn no_combination_of_chapters_ever_derives_paused() {
         let combos: [&[LifecycleStatus]; 4] = [
-            &[LifecycleStatus::Done, LifecycleStatus::NotStarted, LifecycleStatus::Paused],
+            &[
+                LifecycleStatus::Done,
+                LifecycleStatus::NotStarted,
+                LifecycleStatus::Paused,
+            ],
             &[LifecycleStatus::Paused],
             &[LifecycleStatus::Paused, LifecycleStatus::Paused],
             &[LifecycleStatus::Done, LifecycleStatus::Paused],

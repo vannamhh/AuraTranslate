@@ -24,7 +24,6 @@
 //! tra cứu lấy **~0 recall**. Đó là NFR1 bị tiêu ngân sách mà không test hành
 //! vi nào đỏ.
 
-
 #[path = "support/boundary_scan.rs"]
 #[allow(dead_code)] // shared module: not every helper is used in this file
 mod boundary_scan;
@@ -372,7 +371,11 @@ fn io_violations(rel: &str, text: &str) -> Vec<String> {
             .find(|word| STD_IO_MODULES.contains(word));
         if let Some(word) = hit {
             let at = from + rel_pos;
-            let line_no = starts.iter().rev().find(|(pos, _)| *pos <= at).map_or(0, |s| s.1);
+            let line_no = starts
+                .iter()
+                .rev()
+                .find(|(pos, _)| *pos <= at)
+                .map_or(0, |s| s.1);
             violations.push(format!("{rel}:{line_no}  std::{{{word}}}  |  {group}"));
         }
         from = open;
@@ -416,7 +419,13 @@ fn the_io_guard_flags_a_code_call_and_ignores_a_comment_mention() {
     for source in grouped {
         assert!(!io_violations("m.rs", source).is_empty(), "{source}");
     }
-    assert!(io_violations("m.rs", "// use std::{fs};\nuse std::{collections::HashSet};\n").is_empty());
+    assert!(
+        io_violations(
+            "m.rs",
+            "// use std::{fs};\nuse std::{collections::HashSet};\n"
+        )
+        .is_empty()
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -683,11 +692,17 @@ fn the_warm_jieba_check_would_actually_flag_a_removed_call() {
         crate::core::glossary::warm_jieba_for_source_lang(&open.meta.source_lang);\n    \
         Ok(ChapterSwitch {})\n}\n";
     assert!(
-        !fn_body_calls_warm(top_level_fn_body(call_only_in_second_fn, "read_open_chapter")),
+        !fn_body_calls_warm(top_level_fn_body(
+            call_only_in_second_fn,
+            "read_open_chapter"
+        )),
         "lat than cua read_open_chapter khong duoc tran sang open_adjacent_chapter"
     );
     assert!(
-        fn_body_calls_warm(top_level_fn_body(call_only_in_second_fn, "open_adjacent_chapter")),
+        fn_body_calls_warm(top_level_fn_body(
+            call_only_in_second_fn,
+            "open_adjacent_chapter"
+        )),
         "loi goi trong open_adjacent_chapter phai duoc chinh ham do nhan ra"
     );
 }

@@ -2,7 +2,9 @@ use std::collections::{BTreeMap, HashSet};
 
 use unicode_normalization::UnicodeNormalization;
 
-use crate::core::glossary::{GlossaryError, WorkContext, confirmed_term_translations, match_lang_for_source_lang};
+use crate::core::glossary::{
+    GlossaryError, WorkContext, confirmed_term_translations, match_lang_for_source_lang,
+};
 use crate::core::matching::find_terms;
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError};
@@ -37,14 +39,19 @@ type Phrase = Vec<String>;
 /// a token of punctuation only becomes an empty word, which no phrase can contain.
 fn words(text: &str) -> Vec<String> {
     let text: String = text.nfc().collect();
-    text.split_whitespace().map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_owned()).collect()
+    text.split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_owned())
+        .collect()
 }
 
 fn count_phrase(tokens: &[String], phrase: &[String]) -> usize {
     if phrase.is_empty() || tokens.len() < phrase.len() {
         return 0;
     }
-    tokens.windows(phrase.len()).filter(|w| *w == phrase).count()
+    tokens
+        .windows(phrase.len())
+        .filter(|w| *w == phrase)
+        .count()
 }
 
 fn phrases(tokens: &[String], max_len: usize) -> HashSet<Phrase> {
@@ -109,14 +116,23 @@ pub fn harvest_work(
         return Ok(Vec::new());
     }
     let lang = match_lang_for_source_lang(source_lang);
-    let terms: Vec<&str> = confirmed.iter().map(|(source, _)| source.as_str()).collect();
-    let replaced: Vec<Phrase> = confirmed.iter().map(|(_, translation)| words(translation)).collect();
+    let terms: Vec<&str> = confirmed
+        .iter()
+        .map(|(source, _)| source.as_str())
+        .collect();
+    let replaced: Vec<Phrase> = confirmed
+        .iter()
+        .map(|(_, translation)| words(translation))
+        .collect();
     let max_len = replaced.iter().map(Vec::len).max().unwrap_or(1) + 2;
 
     let chapter_ids = work
         .read(|conn| {
-            let mut stmt = conn.prepare("SELECT chapter_id FROM review_chapter WHERE stale_at IS NULL ORDER BY chapter_id")?;
-            stmt.query_map([], |row| row.get::<_, i64>(0))?.collect::<Result<Vec<_>, _>>()
+            let mut stmt = conn.prepare(
+                "SELECT chapter_id FROM review_chapter WHERE stale_at IS NULL ORDER BY chapter_id",
+            )?;
+            stmt.query_map([], |row| row.get::<_, i64>(0))?
+                .collect::<Result<Vec<_>, _>>()
         })
         .map_err(HarvestError::Store)?;
 
@@ -124,10 +140,15 @@ pub fn harvest_work(
     for chapter_id in chapter_ids {
         let (alignment, groups) = match group_texts(work, chapter_id) {
             Ok(found) => found,
-            Err(AlignmentError::Copy(ReviewCopyError::Stale | ReviewCopyError::NotImported)) => continue,
+            Err(AlignmentError::Copy(ReviewCopyError::Stale | ReviewCopyError::NotImported)) => {
+                continue;
+            }
             Err(error) => return Err(HarvestError::Alignment(error)),
         };
-        for group in groups.iter().filter(|g| !g.segment_ids.is_empty() && !g.row_ids.is_empty()) {
+        for group in groups
+            .iter()
+            .filter(|g| !g.segment_ids.is_empty() && !g.row_ids.is_empty())
+        {
             let source = alignment
                 .segments
                 .iter()
@@ -135,7 +156,10 @@ pub fn harvest_work(
                 .map(|s| s.source_text.as_str())
                 .collect::<Vec<_>>()
                 .join(" ");
-            let in_source: HashSet<usize> = find_terms(&source, &terms, lang).into_iter().map(|m| m.term_index).collect();
+            let in_source: HashSet<usize> = find_terms(&source, &terms, lang)
+                .into_iter()
+                .map(|m| m.term_index)
+                .collect();
             if in_source.is_empty() {
                 continue;
             }
@@ -154,7 +178,10 @@ pub fn harvest_work(
                     tally.changed += i64::try_from(mine_count - theirs_count).unwrap_or(i64::MAX);
                     let new_phrases = new_phrases.get_or_insert_with(|| {
                         let mine_phrases = phrases(&mine, max_len);
-                        phrases(&theirs, max_len).into_iter().filter(|p| !mine_phrases.contains(p)).collect()
+                        phrases(&theirs, max_len)
+                            .into_iter()
+                            .filter(|p| !mine_phrases.contains(p))
+                            .collect()
                     });
                     tally.changed_groups.push(new_phrases.clone());
                 }
@@ -178,6 +205,8 @@ pub fn harvest_work(
             seen_count: tally.seen,
         });
     }
-    findings.sort_by(|a, b| (&a.source_term, &a.proposed_translation).cmp(&(&b.source_term, &b.proposed_translation)));
+    findings.sort_by(|a, b| {
+        (&a.source_term, &a.proposed_translation).cmp(&(&b.source_term, &b.proposed_translation))
+    });
     Ok(findings)
 }

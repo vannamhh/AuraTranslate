@@ -464,10 +464,11 @@ pub fn merge_segments(
             }
         };
 
-        let chapter_id: i64 =
-            tx.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [segment_id], |row| {
-                row.get(0)
-            })?;
+        let chapter_id: i64 = tx.query_row(
+            "SELECT chapter_id FROM segment WHERE id = ?1",
+            [segment_id],
+            |row| row.get(0),
+        )?;
 
         // ② Tim cau LIEN TREN. `ORDER BY ord DESC, id DESC LIMIT 1` chu khong `ord - 1`:
         //    `ord` lien tuc la mot bat bien ma buoc ③ cua `write_regroup` GIU, khong mot
@@ -500,7 +501,11 @@ pub fn merge_segments(
             }
         };
 
-        if let Some(id) = [&tren, &duoi].iter().find(|row| row.role.is_some()).map(|row| row.id) {
+        if let Some(id) = [&tren, &duoi]
+            .iter()
+            .find(|row| row.role.is_some())
+            .map(|row| row.id)
+        {
             set_reject(RegroupReject::RoleSegment(id));
             return Err(SqlError::QueryReturnedNoRows);
         }
@@ -574,10 +579,11 @@ pub fn split_segment(
             }
         };
 
-        let chapter_id: i64 =
-            tx.query_row("SELECT chapter_id FROM segment WHERE id = ?1", [segment_id], |row| {
-                row.get(0)
-            })?;
+        let chapter_id: i64 = tx.query_row(
+            "SELECT chapter_id FROM segment WHERE id = ?1",
+            [segment_id],
+            |row| row.get(0),
+        )?;
 
         if goc.role.is_some() {
             set_reject(RegroupReject::RoleSegment(goc.id));

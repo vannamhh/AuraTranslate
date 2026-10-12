@@ -3,10 +3,10 @@ use std::collections::HashSet;
 use crate::core::store::{ReadHandle, SqlError, SqlResult, Store, StoreError, Transaction};
 
 use super::alignment::{align_chapter, delete_alignment_of_chapter, user_group_count};
-use super::review_decision::accepted_group_count;
 use super::attribution::is_attribution_line;
 use super::image_files::{IMAGE_DIR_SUFFIX, copied_name};
 use super::reimport_gate::ReviewerDocx;
+use super::review_decision::accepted_group_count;
 use super::table_rows::ExportImage;
 use super::text_export::{heading_text, one_line};
 use crate::core::docx::DocxBodyItem;
@@ -109,7 +109,10 @@ impl From<SqlError> for ReviewCopyError {
     }
 }
 
-pub fn read_docx_copy(docx: &ReviewerDocx, file_name: &str) -> Result<ReviewerCopy, ReviewCopyError> {
+pub fn read_docx_copy(
+    docx: &ReviewerDocx,
+    file_name: &str,
+) -> Result<ReviewerCopy, ReviewCopyError> {
     let mut sections = Vec::new();
     let mut last_paragraph: Option<&str> = None;
     for item in &docx.parsed().body {
@@ -127,14 +130,21 @@ pub fn read_docx_copy(docx: &ReviewerDocx, file_name: &str) -> Result<ReviewerCo
                         target_text: target.clone(),
                     });
                 }
-                sections.push(ReviewSection { heading: last_paragraph.take().unwrap_or("").to_owned(), rows });
+                sections.push(ReviewSection {
+                    heading: last_paragraph.take().unwrap_or("").to_owned(),
+                    rows,
+                });
             }
         }
     }
     if sections.is_empty() {
         return Err(ReviewCopyError::Unreadable);
     }
-    Ok(ReviewerCopy { file_name: file_name.to_owned(), kind: ReviewFileKind::Docx, sections })
+    Ok(ReviewerCopy {
+        file_name: file_name.to_owned(),
+        kind: ReviewFileKind::Docx,
+        sections,
+    })
 }
 
 fn unescape_markdown(text: &str) -> String {
@@ -152,7 +162,10 @@ fn unescape_markdown(text: &str) -> String {
     out
 }
 
-fn take_until_unescaped(chars: &mut std::iter::Peekable<std::str::Chars<'_>>, close: char) -> Option<String> {
+fn take_until_unescaped(
+    chars: &mut std::iter::Peekable<std::str::Chars<'_>>,
+    close: char,
+) -> Option<String> {
     let mut raw = String::new();
     while let Some(c) = chars.next() {
         if c == '\\' {
@@ -201,14 +214,20 @@ enum MarkdownBlock {
 fn is_attribution_block(lines: &[String]) -> bool {
     let last = lines.len().saturating_sub(1);
     !lines.is_empty()
-        && lines.iter().enumerate().all(|(i, line)| is_attribution_line(line) && (i == last || line.ends_with('\\')))
+        && lines
+            .iter()
+            .enumerate()
+            .all(|(i, line)| is_attribution_line(line) && (i == last || line.ends_with('\\')))
 }
 
 fn markdown_blocks(text: &str) -> Vec<MarkdownBlock> {
     let normalized = text.replace("\r\n", "\n");
     let mut blocks: Vec<MarkdownBlock> = Vec::new();
     let mut current: Vec<String> = Vec::new();
-    let mut lines = normalized.split('\n').map(str::to_owned).collect::<Vec<_>>();
+    let mut lines = normalized
+        .split('\n')
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
     lines.push(String::new());
     for line in lines {
         if line.trim().is_empty() {
@@ -226,10 +245,13 @@ fn markdown_blocks(text: &str) -> Vec<MarkdownBlock> {
                 let heading = lines.first().and_then(|first| first.strip_prefix("## "));
                 match heading {
                     Some(heading) => {
-                        if matches!(out.last(), Some(MarkdownBlock::Paragraph(prev)) if is_attribution_block(prev)) {
+                        if matches!(out.last(), Some(MarkdownBlock::Paragraph(prev)) if is_attribution_block(prev))
+                        {
                             out.pop();
                         }
-                        out.push(MarkdownBlock::Heading(unescape_markdown(heading.trim_end())));
+                        out.push(MarkdownBlock::Heading(unescape_markdown(
+                            heading.trim_end(),
+                        )));
                         let rest: Vec<String> = lines.iter().skip(1).cloned().collect();
                         if !rest.is_empty() {
                             out.push(MarkdownBlock::Paragraph(rest));
@@ -248,22 +270,39 @@ pub fn read_markdown_copy(text: &str, file_name: &str) -> Result<ReviewerCopy, R
     let mut sections: Vec<ReviewSection> = Vec::new();
     for block in markdown_blocks(text) {
         match block {
-            MarkdownBlock::Heading(heading) => sections.push(ReviewSection { heading, rows: Vec::new() }),
+            MarkdownBlock::Heading(heading) => sections.push(ReviewSection {
+                heading,
+                rows: Vec::new(),
+            }),
             MarkdownBlock::Paragraph(lines) => {
-                let Some(section) = sections.last_mut() else { continue };
-                let target_row = |kind: ReviewRowKind, target_text: String| ReviewRow { kind, source_text: None, target_text };
+                let Some(section) = sections.last_mut() else {
+                    continue;
+                };
+                let target_row = |kind: ReviewRowKind, target_text: String| ReviewRow {
+                    kind,
+                    source_text: None,
+                    target_text,
+                };
                 match lines.first().and_then(|first| image_alt_of(first)) {
                     Some(alt) => {
                         if !alt.is_empty() {
                             section.rows.push(target_row(ReviewRowKind::Alt, alt));
                         }
                         if let Some(caption) = lines.get(1).and_then(|line| caption_of(line)) {
-                            section.rows.push(target_row(ReviewRowKind::Caption, caption));
+                            section
+                                .rows
+                                .push(target_row(ReviewRowKind::Caption, caption));
                         }
                     }
                     None => {
-                        let paragraph = lines.iter().map(|line| unescape_markdown(line)).collect::<Vec<_>>().join("\n");
-                        section.rows.push(target_row(ReviewRowKind::Text, paragraph));
+                        let paragraph = lines
+                            .iter()
+                            .map(|line| unescape_markdown(line))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        section
+                            .rows
+                            .push(target_row(ReviewRowKind::Text, paragraph));
                     }
                 }
             }
@@ -272,7 +311,11 @@ pub fn read_markdown_copy(text: &str, file_name: &str) -> Result<ReviewerCopy, R
     if sections.is_empty() {
         return Err(ReviewCopyError::Unreadable);
     }
-    Ok(ReviewerCopy { file_name: file_name.to_owned(), kind: ReviewFileKind::Markdown, sections })
+    Ok(ReviewerCopy {
+        file_name: file_name.to_owned(),
+        kind: ReviewFileKind::Markdown,
+        sections,
+    })
 }
 
 struct ChapterContext {
@@ -287,12 +330,19 @@ fn load_context(conn: ReadHandle<'_>) -> SqlResult<Vec<ChapterContext>> {
     let mut chapters = Vec::new();
     let mut stmt = conn.prepare("SELECT id, ord, title FROM chapter ORDER BY ord, id")?;
     let heads = stmt
-        .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, Option<String>>(2)?)))?
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })?
         .collect::<SqlResult<Vec<_>>>()?;
     let mut sources_stmt = conn.prepare(
         "SELECT source_text FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL AND is_omitted = 0",
     )?;
-    let mut assets_stmt = conn.prepare("SELECT id, file_name, source_url FROM asset WHERE chapter_id = ?1 ORDER BY id")?;
+    let mut assets_stmt = conn
+        .prepare("SELECT id, file_name, source_url FROM asset WHERE chapter_id = ?1 ORDER BY id")?;
     for (id, ord, title) in heads {
         let sources = sources_stmt
             .query_map([id], |row| row.get::<_, String>(0))?
@@ -308,7 +358,13 @@ fn load_context(conn: ReadHandle<'_>) -> SqlResult<Vec<ChapterContext>> {
                 })
             })?
             .collect::<SqlResult<Vec<_>>>()?;
-        chapters.push(ChapterContext { id, ord, title, sources, images });
+        chapters.push(ChapterContext {
+            id,
+            ord,
+            title,
+            sources,
+            images,
+        });
     }
     Ok(chapters)
 }
@@ -325,7 +381,11 @@ fn docx_score(section: &ReviewSection, chapter: &ChapterContext) -> usize {
     section
         .rows
         .iter()
-        .filter(|row| row.source_text.as_deref().is_some_and(|s| !s.is_empty() && chapter.sources.contains(s)))
+        .filter(|row| {
+            row.source_text
+                .as_deref()
+                .is_some_and(|s| !s.is_empty() && chapter.sources.contains(s))
+        })
         .count()
 }
 
@@ -334,13 +394,28 @@ fn same_title(heading: &str, chapter: &ChapterContext) -> bool {
 }
 
 fn match_docx_section(section: &ReviewSection, chapters: &[ChapterContext]) -> Option<usize> {
-    let scores: Vec<usize> = chapters.iter().map(|chapter| docx_score(section, chapter)).collect();
+    let scores: Vec<usize> = chapters
+        .iter()
+        .map(|chapter| docx_score(section, chapter))
+        .collect();
     let best = scores.iter().copied().max().filter(|&score| score > 0)?;
-    let tied: Vec<usize> = scores.iter().enumerate().filter(|&(_, &s)| s == best).map(|(i, _)| i).collect();
+    let tied: Vec<usize> = scores
+        .iter()
+        .enumerate()
+        .filter(|&(_, &s)| s == best)
+        .map(|(i, _)| i)
+        .collect();
     match tied.as_slice() {
         [only] => Some(*only),
         _ => {
-            let titled: Vec<usize> = tied.into_iter().filter(|&i| chapters.get(i).is_some_and(|c| same_title(&section.heading, c))).collect();
+            let titled: Vec<usize> = tied
+                .into_iter()
+                .filter(|&i| {
+                    chapters
+                        .get(i)
+                        .is_some_and(|c| same_title(&section.heading, c))
+                })
+                .collect();
             match titled.as_slice() {
                 [only] => Some(*only),
                 _ => None,
@@ -412,7 +487,9 @@ fn existing_copy(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Option<Repl
         [chapter_id],
         |row| Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?)),
     ))?;
-    let Some((file_name, stale)) = found else { return Ok(None) };
+    let Some((file_name, stale)) = found else {
+        return Ok(None);
+    };
     Ok(Some(ReplacedCopy {
         file_name,
         stale,
@@ -421,7 +498,10 @@ fn existing_copy(conn: ReadHandle<'_>, chapter_id: i64) -> SqlResult<Option<Repl
     }))
 }
 
-pub fn plan_import(conn: ReadHandle<'_>, copy: &ReviewerCopy) -> Result<ReviewerImportPlan, ReviewCopyError> {
+pub fn plan_import(
+    conn: ReadHandle<'_>,
+    copy: &ReviewerCopy,
+) -> Result<ReviewerImportPlan, ReviewCopyError> {
     let chapters = load_context(conn)?;
     let mut targets: Vec<Option<usize>> = copy
         .sections
@@ -433,7 +513,12 @@ pub fn plan_import(conn: ReadHandle<'_>, copy: &ReviewerCopy) -> Result<Reviewer
         .collect();
     let snapshot = targets.clone();
     for (i, target) in targets.iter_mut().enumerate() {
-        if target.is_some() && snapshot.iter().enumerate().any(|(j, other)| j != i && *other == *target) {
+        if target.is_some()
+            && snapshot
+                .iter()
+                .enumerate()
+                .any(|(j, other)| j != i && *other == *target)
+        {
             *target = None;
         }
     }
@@ -443,7 +528,10 @@ pub fn plan_import(conn: ReadHandle<'_>, copy: &ReviewerCopy) -> Result<Reviewer
     let mut image_rows_ignored = 0;
     for (section_index, (section, target)) in copy.sections.iter().zip(&targets).enumerate() {
         let Some(chapter) = target.and_then(|i| chapters.get(i)) else {
-            skipped.push(SkippedSection { heading: section.heading.clone(), row_count: section.rows.len() });
+            skipped.push(SkippedSection {
+                heading: section.heading.clone(),
+                row_count: section.rows.len(),
+            });
             continue;
         };
         let rows: Vec<ReviewRow> = section
@@ -461,7 +549,10 @@ pub fn plan_import(conn: ReadHandle<'_>, copy: &ReviewerCopy) -> Result<Reviewer
             .cloned()
             .collect();
         if rows.is_empty() {
-            skipped.push(SkippedSection { heading: section.heading.clone(), row_count: 0 });
+            skipped.push(SkippedSection {
+                heading: section.heading.clone(),
+                row_count: 0,
+            });
             continue;
         }
         planned.push(PlannedChapter {
@@ -476,7 +567,12 @@ pub fn plan_import(conn: ReadHandle<'_>, copy: &ReviewerCopy) -> Result<Reviewer
     if planned.is_empty() {
         return Err(ReviewCopyError::NoMatch);
     }
-    Ok(ReviewerImportPlan { copy: copy.clone(), chapters: planned, skipped, image_rows_ignored })
+    Ok(ReviewerImportPlan {
+        copy: copy.clone(),
+        chapters: planned,
+        skipped,
+        image_rows_ignored,
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -502,7 +598,10 @@ impl From<SqlError> for ConfirmError {
 /// The only writer of `review_chapter` / `review_row` (AD-52 rule 3). Call it inside the write
 /// transaction: the match is redone there, and a replaced copy is deleted then inserted, never
 /// `REPLACE`d, so the new copy gets a fresh id.
-pub fn confirm_import(tx: &Transaction<'_>, previewed: &ReviewerImportPlan) -> Result<ImportSummary, ConfirmError> {
+pub fn confirm_import(
+    tx: &Transaction<'_>,
+    previewed: &ReviewerImportPlan,
+) -> Result<ImportSummary, ConfirmError> {
     let current = match plan_import(tx, &previewed.copy) {
         Ok(plan) => plan,
         Err(ReviewCopyError::NoMatch) => return Err(ConfirmError::Stale),
@@ -510,7 +609,10 @@ pub fn confirm_import(tx: &Transaction<'_>, previewed: &ReviewerImportPlan) -> R
         Err(_) => return Err(ConfirmError::Stale),
     };
     let written = |plan: &ReviewerImportPlan| -> Vec<(usize, i64, Vec<ReviewRow>)> {
-        plan.chapters.iter().map(|c| (c.section_index, c.chapter_id, c.rows.clone())).collect()
+        plan.chapters
+            .iter()
+            .map(|c| (c.section_index, c.chapter_id, c.rows.clone()))
+            .collect()
     };
     if written(&current) != written(previewed) {
         return Err(ConfirmError::Stale);
@@ -527,11 +629,18 @@ pub fn confirm_import(tx: &Transaction<'_>, previewed: &ReviewerImportPlan) -> R
         if chapter.replaces.is_some() {
             replaced_count += 1;
         }
-        tx.execute("DELETE FROM review_chapter WHERE chapter_id = ?1", [chapter.chapter_id])?;
+        tx.execute(
+            "DELETE FROM review_chapter WHERE chapter_id = ?1",
+            [chapter.chapter_id],
+        )?;
         tx.execute(
             "INSERT INTO review_chapter (chapter_id, file_name, file_kind, imported_at, stale_at) \
              VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%fZ','now'), NULL)",
-            (chapter.chapter_id, &current.copy.file_name, current.copy.kind.as_str()),
+            (
+                chapter.chapter_id,
+                &current.copy.file_name,
+                current.copy.kind.as_str(),
+            ),
         )?;
         let review_chapter_id = tx.last_insert_rowid();
         let mut insert = tx.prepare(
@@ -550,7 +659,11 @@ pub fn confirm_import(tx: &Transaction<'_>, previewed: &ReviewerImportPlan) -> R
         drop(insert);
         align_chapter(tx, review_chapter_id)?;
     }
-    Ok(ImportSummary { chapter_count: current.chapters.len(), row_count, replaced_count })
+    Ok(ImportSummary {
+        chapter_count: current.chapters.len(),
+        row_count,
+        replaced_count,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -596,9 +709,21 @@ pub fn read_review_copy(store: &Store, chapter_id: i64) -> Result<ReviewCopy, Re
     let rows = rows
         .into_iter()
         .map(|(kind, source_text, target_text, _)| {
-            ReviewRowKind::from_column(&kind).map(|kind| ReviewRow { kind, source_text, target_text })
+            ReviewRowKind::from_column(&kind).map(|kind| ReviewRow {
+                kind,
+                source_text,
+                target_text,
+            })
         })
         .collect::<Option<Vec<_>>>()
         .ok_or(ReviewCopyError::Unreadable)?;
-    Ok(ReviewCopy { id, chapter_id, file_name, file_kind, imported_at, rows, row_ids })
+    Ok(ReviewCopy {
+        id,
+        chapter_id,
+        file_name,
+        file_kind,
+        imported_at,
+        rows,
+        row_ids,
+    })
 }

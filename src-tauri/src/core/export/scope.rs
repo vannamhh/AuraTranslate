@@ -59,34 +59,39 @@ pub fn resolve_chapter_ids(store: &Store, scope: &ExportScope) -> Result<Vec<i64
             if let Some(missing) = wanted.iter().find(|id| !existing.contains(id)) {
                 return Err(ScopeError::ChapterNotFound(*missing));
             }
-            Ok(existing.into_iter().filter(|id| wanted.contains(id)).collect())
+            Ok(existing
+                .into_iter()
+                .filter(|id| wanted.contains(id))
+                .collect())
         }
     }
 }
 
 pub fn count_scope(store: &Store, scope: &ExportScope) -> Result<ScopeCounts, ScopeError> {
     let chapter_ids = resolve_chapter_ids(store, scope)?;
-    let (segment_count, unconfirmed_count, unconfirmed_translated_count, untranslated_count) = store.read(|conn| {
-        let mut stmt = conn.prepare(&format!(
-            "SELECT COUNT(*), COALESCE(SUM(status <> 'confirmed'), 0), \
+    let (segment_count, unconfirmed_count, unconfirmed_translated_count, untranslated_count) =
+        store.read(|conn| {
+            let mut stmt = conn.prepare(&format!(
+                "SELECT COUNT(*), COALESCE(SUM(status <> 'confirmed'), 0), \
              COALESCE(SUM(status <> 'confirmed' AND NOT ({UNTRANSLATED_SQL})), 0), \
              COALESCE(SUM({UNTRANSLATED_SQL}), 0) FROM segment \
              WHERE chapter_id = ?1 AND retired_at IS NULL AND {IN_TRANSLATION_SQL}"
-        ))?;
-        let mut total = 0_i64;
-        let mut unconfirmed = 0_i64;
-        let mut unconfirmed_translated = 0_i64;
-        let mut untranslated = 0_i64;
-        for id in &chapter_ids {
-            let (n, u, ut, un): (i64, i64, i64, i64) =
-                stmt.query_row([id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?;
-            total += n;
-            unconfirmed += u;
-            unconfirmed_translated += ut;
-            untranslated += un;
-        }
-        Ok((total, unconfirmed, unconfirmed_translated, untranslated))
-    })?;
+            ))?;
+            let mut total = 0_i64;
+            let mut unconfirmed = 0_i64;
+            let mut unconfirmed_translated = 0_i64;
+            let mut untranslated = 0_i64;
+            for id in &chapter_ids {
+                let (n, u, ut, un): (i64, i64, i64, i64) = stmt.query_row([id], |row| {
+                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+                })?;
+                total += n;
+                unconfirmed += u;
+                unconfirmed_translated += ut;
+                untranslated += un;
+            }
+            Ok((total, unconfirmed, unconfirmed_translated, untranslated))
+        })?;
     Ok(ScopeCounts {
         chapter_count: i64::try_from(chapter_ids.len()).unwrap_or(i64::MAX),
         segment_count,

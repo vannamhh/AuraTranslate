@@ -35,7 +35,8 @@ fn fixtures_dir() -> PathBuf {
 
 /// Thư mục bàn giao của story — khuôn `6-1-ban-do/`.
 fn ban_do_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../_bmad-output/implementation-artifacts/6-12-ban-do")
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../_bmad-output/implementation-artifacts/6-12-ban-do")
 }
 
 fn tsv_escape(s: &str) -> String {
@@ -65,14 +66,19 @@ fn write_tsv(name: &str, header: &str, rows: &[String]) {
 #[test]
 #[ignore = "ban do can tep .docx THAT cua Ice trong tests/fixtures/docx/, khong phai mot cong"]
 fn read_docx_records_the_real_table_and_image_shape_of_every_real_word_file_or_fails_loudly_on_zero_samples()
-{
+ {
     let dir = fixtures_dir();
     let mut files: Vec<PathBuf> = fs::read_dir(&dir)
         .into_iter()
         .flatten()
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .filter(|p| p.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("docx")).unwrap_or(false))
+        .filter(|p| {
+            p.extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.eq_ignore_ascii_case("docx"))
+                .unwrap_or(false)
+        })
         .collect();
     files.sort();
 
@@ -90,7 +96,11 @@ fn read_docx_records_the_real_table_and_image_shape_of_every_real_word_file_or_f
     let mut err_count = 0usize;
 
     for path in &files {
-        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_owned();
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_owned();
         let bytes = match fs::read(path) {
             Ok(b) => b,
             Err(e) => {
@@ -104,13 +114,20 @@ fn read_docx_records_the_real_table_and_image_shape_of_every_real_word_file_or_f
             Ok(parsed) => {
                 ok_count += 1;
                 let rows_total: usize = parsed.tables.iter().map(|t| t.rows).sum();
-                let cells_total: usize = parsed.tables.iter().flat_map(|t| t.cells_per_row.iter()).sum();
+                let cells_total: usize = parsed
+                    .tables
+                    .iter()
+                    .flat_map(|t| t.cells_per_row.iter())
+                    .sum();
                 let paragraphs_per_cell_flat: String = parsed
                     .tables
                     .iter()
                     .flat_map(|t| t.paragraphs_per_cell.iter())
                     .map(|row| {
-                        row.iter().map(usize::to_string).collect::<Vec<_>>().join(",")
+                        row.iter()
+                            .map(usize::to_string)
+                            .collect::<Vec<_>>()
+                            .join(",")
                     })
                     .collect::<Vec<_>>()
                     .join(";");
@@ -123,7 +140,10 @@ fn read_docx_records_the_real_table_and_image_shape_of_every_real_word_file_or_f
             }
             Err(e) => {
                 err_count += 1;
-                rows.push(format!("{file_name}\t\t\t\t\t\t{}", tsv_escape(&e.to_string())));
+                rows.push(format!(
+                    "{file_name}\t\t\t\t\t\t{}",
+                    tsv_escape(&e.to_string())
+                ));
             }
         }
     }
@@ -133,7 +153,14 @@ fn read_docx_records_the_real_table_and_image_shape_of_every_real_word_file_or_f
         "file_name\ttable_count\trows_total\tcells_total\tparagraphs_per_cell\timage_count\terror",
         &rows,
     );
-    println!("DOCX_SUMMARY\tsamples={}\tok={ok_count}\terr={err_count}", files.len());
+    println!(
+        "DOCX_SUMMARY\tsamples={}\tok={ok_count}\terr={err_count}",
+        files.len()
+    );
 
-    assert_eq!(rows.len(), files.len(), "phải ghi đúng một hàng cho mỗi tệp, không bỏ sót");
+    assert_eq!(
+        rows.len(),
+        files.len(),
+        "phải ghi đúng một hàng cho mỗi tệp, không bỏ sót"
+    );
 }

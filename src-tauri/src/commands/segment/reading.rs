@@ -40,7 +40,8 @@ pub struct ReadingMark {
 }
 
 fn select_reading_marks(conn: ReadHandle<'_>) -> SqlResult<Vec<ReadingMark>> {
-    let stored_count: i64 = conn.query_row("SELECT COUNT(*) FROM reading_mark", [], |row| row.get(0))?;
+    let stored_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM reading_mark", [], |row| row.get(0))?;
     let mut stmt = conn.prepare(
         "SELECT m.segment_id, m.navigation_segment_id, a.chapter_id, c.ord, c.title, \
                 original.source_text, original.target_text, original.retired_at IS NOT NULL, \
@@ -51,20 +52,21 @@ fn select_reading_marks(conn: ReadHandle<'_>) -> SqlResult<Vec<ReadingMark>> {
          JOIN chapter c ON c.id = a.chapter_id \
          ORDER BY c.ord, a.ord, m.segment_id",
     )?;
-    let marks = stmt.query_map([], |row| {
-        Ok(ReadingMark {
-            segment_id: row.get(0)?,
-            navigation_segment_id: row.get(1)?,
-            chapter_id: row.get(2)?,
-            chapter_ord: row.get(3)?,
-            chapter_title: row.get(4)?,
-            source_text: row.get(5)?,
-            target_text: row.get(6)?,
-            is_retired: row.get(7)?,
-            marked_at: row.get(8)?,
-        })
-    })?
-    .collect::<SqlResult<Vec<_>>>()?;
+    let marks = stmt
+        .query_map([], |row| {
+            Ok(ReadingMark {
+                segment_id: row.get(0)?,
+                navigation_segment_id: row.get(1)?,
+                chapter_id: row.get(2)?,
+                chapter_ord: row.get(3)?,
+                chapter_title: row.get(4)?,
+                source_text: row.get(5)?,
+                target_text: row.get(6)?,
+                is_retired: row.get(7)?,
+                marked_at: row.get(8)?,
+            })
+        })?
+        .collect::<SqlResult<Vec<_>>>()?;
 
     // `reading_mark` cố ý không có FK vì kho tắt `PRAGMA foreign_keys`. Do đó INNER JOIN
     // một mình nó có thể biến một neo thiếu/retired thành danh sách ngắn hơn mà không lỗi —
@@ -92,7 +94,9 @@ pub fn mark_reading_segment(
             |row| row.get(0),
         )?;
         if live == 0 {
-            *missing_in.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = true;
+            *missing_in
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
             return Err(SqlError::QueryReturnedNoRows);
         }
         tx.execute(
@@ -100,13 +104,18 @@ pub fn mark_reading_segment(
              VALUES (?1, ?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
             [segment_id],
         )?;
-        select_reading_marks(tx)?.into_iter().find(|m| m.segment_id == segment_id).ok_or(
-            SqlError::QueryReturnedNoRows,
-        )
+        select_reading_marks(tx)?
+            .into_iter()
+            .find(|m| m.segment_id == segment_id)
+            .ok_or(SqlError::QueryReturnedNoRows)
     });
     match result {
         Ok(mark) => Ok(mark),
-        Err(_err) if *missing.lock().unwrap_or_else(std::sync::PoisonError::into_inner) => {
+        Err(_err)
+            if *missing
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =>
+        {
             Err(segment_not_found(segment_id))
         }
         Err(err) => Err(err.into()),
@@ -276,10 +285,14 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
     // **THÊM Story 6.14** — cùng lý do `read_open_chapter_segments`: cấu tạo NGOÀI closure,
     // `move` mang giá trị đã sẵn sàng vào trong. Same UTF-8 check as there, before the closure.
     let assets_dir = open.dir.join("assets");
-    let assets_dir_str = assets_dir.to_str().ok_or_else(assets_dir_not_utf8)?.to_owned();
+    let assets_dir_str = assets_dir
+        .to_str()
+        .ok_or_else(assets_dir_not_utf8)?
+        .to_owned();
 
     let found = open.store.read(move |conn| {
-        let mut stmt = conn.prepare("SELECT id, ord, title, status FROM chapter ORDER BY ord, id")?;
+        let mut stmt =
+            conn.prepare("SELECT id, ord, title, status FROM chapter ORDER BY ord, id")?;
         let rows = stmt
             .query_map([], |row| {
                 Ok((
@@ -302,7 +315,8 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
         // `Done`, dãy dừng ngay tại đó (§I/O Matrix "Trạng thái lạ").
         let mut prefix_end = start;
         while prefix_end < rows.len() {
-            let is_done = LifecycleStatus::from_wire(&rows[prefix_end].3) == Some(LifecycleStatus::Done);
+            let is_done =
+                LifecycleStatus::from_wire(&rows[prefix_end].3) == Some(LifecycleStatus::Done);
             if !is_done {
                 break;
             }
@@ -321,7 +335,8 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
                  LEFT JOIN reading_mark m ON m.segment_id = s.id \
                  WHERE m.segment_id IS NOT NULL",
             )?;
-            stmt.query_map([], |row| row.get(0))?.collect::<SqlResult<BTreeSet<i64>>>()?
+            stmt.query_map([], |row| row.get(0))?
+                .collect::<SqlResult<BTreeSet<i64>>>()?
         };
 
         let mut chapters = Vec::with_capacity(prefix_end - start);
@@ -387,7 +402,10 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
                 }),
             }
         } else {
-            ReadingFrontier { kind: ReadingFrontierKind::EndOfWork, chapter: None }
+            ReadingFrontier {
+                kind: ReadingFrontierKind::EndOfWork,
+                chapter: None,
+            }
         };
 
         Ok(Some(ReadingRun {
@@ -467,7 +485,8 @@ pub fn save_chapter_position(
         if chapter_rows == 0 {
             *reject_in
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(PositionReject::ChapterMissing);
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                Some(PositionReject::ChapterMissing);
             return Err(SqlError::QueryReturnedNoRows);
         }
 
@@ -480,7 +499,8 @@ pub fn save_chapter_position(
         if segment_rows == 0 {
             *reject_in
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(PositionReject::SegmentMismatch);
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                Some(PositionReject::SegmentMismatch);
             return Err(SqlError::QueryReturnedNoRows);
         }
 
@@ -497,7 +517,9 @@ pub fn save_chapter_position(
     match result {
         Ok(()) => Ok(()),
         Err(err) => {
-            let taken = *reject.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let taken = *reject
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             match taken {
                 Some(PositionReject::ChapterMissing) => Err(chapter_not_found(chapter_id)),
                 Some(PositionReject::SegmentMismatch) => Err(segment_not_found(segment_id)),

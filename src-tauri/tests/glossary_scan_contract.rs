@@ -219,7 +219,9 @@ fn a_head_anchored_ngram_matching_only_its_drop_first_child_is_dropped_as_paddin
     let drop_last_sibling = out
         .iter()
         .find(|c| c.source_term == "在萧")
-        .unwrap_or_else(|| panic!("khong thay `在萧` -- fixture khong dung nhu chu thich: {out:?}"));
+        .unwrap_or_else(|| {
+            panic!("khong thay `在萧` -- fixture khong dung nhu chu thich: {out:?}")
+        });
     assert_eq!(
         drop_last_sibling.occurrence_count, 47,
         "`在萧` phai LECH khoi 40 de ve `drop_last` KHONG khop -- day la dieu kien duy nhat \
@@ -390,7 +392,9 @@ fn a_new_traditional_surname_alias_below_threshold_by_one_is_kept() {
     let hit = out
         .iter()
         .find(|c| c.source_term == "陳風")
-        .unwrap_or_else(|| panic!("`陳風` (ho phon the + 1 ky tu, 4 lan, nguong 5-1=4) phai co mat: {out:?}"));
+        .unwrap_or_else(|| {
+            panic!("`陳風` (ho phon the + 1 ky tu, 4 lan, nguong 5-1=4) phai co mat: {out:?}")
+        });
     assert_eq!(hit.occurrence_count, 4);
 }
 
@@ -484,7 +488,8 @@ fn a_capitalized_run_split_by_a_full_stop_never_joins_into_one_candidate() {
         "`Fire` phai la mot ung vien rieng: {out:?}"
     );
     assert!(
-        !out.iter().any(|c| c.source_term.contains("Fire") && c.source_term.contains("Dragon")),
+        !out.iter()
+            .any(|c| c.source_term.contains("Fire") && c.source_term.contains("Dragon")),
         "cum hoa khong duoc noi xuyen dau cham: {out:?}"
     );
 }

@@ -104,7 +104,9 @@ pub(crate) fn insert_segments(
     for (index, segment) in segments.iter().enumerate() {
         let ord = i64::try_from(index).unwrap_or(i64::MAX).saturating_add(1);
         let paragraph_end = i64::from(segment.is_paragraph_end);
-        let role: Option<&str> = segment.role.map(crate::core::segment::role::SegmentRole::as_str);
+        let role: Option<&str> = segment
+            .role
+            .map(crate::core::segment::role::SegmentRole::as_str);
         stmt.execute((
             chapter_id,
             ord,
@@ -156,8 +158,11 @@ pub(crate) fn insert_bilingual_segments(
         // AD-46 — cờ đích MIRROR cờ nguồn tại lúc nhập, cùng giá trị ghi vào CẢ hai cột
         // (đúng khuôn `insert_segments`, không một nguồn sự thật thứ hai).
         let paragraph_end = i64::from(segment.is_paragraph_end);
-        let pair_origin =
-            if segment.target_text.is_empty() { TRANSLATION_ORIGIN_NONE } else { TRANSLATION_ORIGIN_BILINGUAL_IMPORT };
+        let pair_origin = if segment.target_text.is_empty() {
+            TRANSLATION_ORIGIN_NONE
+        } else {
+            TRANSLATION_ORIGIN_BILINGUAL_IMPORT
+        };
         stmt.execute((
             chapter_id,
             ord,

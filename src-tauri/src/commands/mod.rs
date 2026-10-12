@@ -39,8 +39,8 @@
 
 pub mod aiconfig;
 pub mod aiprompt;
-pub mod attribution;
 pub mod aitranslate;
+pub mod attribution;
 pub mod chapter;
 pub mod cleanup;
 pub mod config;
@@ -51,7 +51,7 @@ pub mod library;
 pub mod lifecycle;
 pub mod pinned;
 pub mod project;
-pub mod proofread;
 pub mod promptset;
+pub mod proofread;
 pub mod segment;
 pub mod tm;

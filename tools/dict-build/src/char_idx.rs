@@ -37,9 +37,8 @@ pub fn insert_for_entry(
     headword: &str,
     headword_simp: Option<&str>,
 ) -> rusqlite::Result<usize> {
-    let mut stmt = conn.prepare_cached(
-        "INSERT OR IGNORE INTO char_idx (ch, entry_id) VALUES (?1, ?2)",
-    )?;
+    let mut stmt =
+        conn.prepare_cached("INSERT OR IGNORE INTO char_idx (ch, entry_id) VALUES (?1, ?2)")?;
     let mut count = 0usize;
     let mut seen = std::collections::HashSet::new();
     for c in headword.chars().chain(headword_simp.unwrap_or("").chars()) {

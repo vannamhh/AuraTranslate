@@ -23,7 +23,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::pinned::{PinnedEntry, list_pinned_entries, pin_entry, unpin_entry};
+use auratranslate_lib::commands::pinned::{
+    PinnedEntry, list_pinned_entries, pin_entry, unpin_entry,
+};
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::store::{
@@ -186,8 +188,9 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
 #[test]
 fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     let root = temp_dir("scope-of-the-table");
-    let opened = create_work_from_text(&root, "Pham Vi", "zh", "tieu thuyet", "noi dung".to_owned())
-        .expect("tao tac pham");
+    let opened =
+        create_work_from_text(&root, "Pham Vi", "zh", "tieu thuyet", "noi dung".to_owned())
+            .expect("tao tac pham");
 
     // ⚠️ Cap nhat Story 2.2: `PROJECT_MIGRATIONS` nhan them buoc `SEGMENT_TARGET_TEXT_DDL`,
     // danh so **6** (so 4 la mot so DA CHAY — vet seo cua chinh lượt doi pham vi nay). Nam
@@ -302,10 +305,22 @@ fn pinning_the_same_entry_twice_leaves_exactly_one_row() {
     let dir = temp_dir("pin-twice");
     let store = open_global(&dir);
 
-    pin_entry(Some(&store), "cvdict", 41, "聽潮閣", Some("Thinh Trieu Cac"))
-        .expect("luot ghim thu nhat");
-    let after = pin_entry(Some(&store), "cvdict", 41, "聽潮閣", Some("Thinh Trieu Cac"))
-        .expect("luot ghim thu hai phai VO HAI, khong mot loi");
+    pin_entry(
+        Some(&store),
+        "cvdict",
+        41,
+        "聽潮閣",
+        Some("Thinh Trieu Cac"),
+    )
+    .expect("luot ghim thu nhat");
+    let after = pin_entry(
+        Some(&store),
+        "cvdict",
+        41,
+        "聽潮閣",
+        Some("Thinh Trieu Cac"),
+    )
+    .expect("luot ghim thu hai phai VO HAI, khong mot loi");
 
     assert_eq!(after.len(), 1, "ghim hai lan sinh ra hai hang");
     assert_eq!(after[0].source_code, "cvdict");
@@ -342,7 +357,11 @@ fn unpinning_then_pinning_again_restores_the_same_entry() {
 
     // Bo ghim mot muc chua tung ghim la thao tac VO HAI, khong mot loi.
     let noop = unpin_entry(Some(&store), "thieuchuu", 999).expect("bo ghim mot muc la");
-    assert_eq!(noop.len(), 1, "mot luot bo ghim khong khop khong duoc xoa gi");
+    assert_eq!(
+        noop.len(),
+        1,
+        "mot luot bo ghim khong khop khong duoc xoa gi"
+    );
 
     drop(store);
     cleanup(&dir);
@@ -359,13 +378,24 @@ fn pins_survive_closing_and_reopening_the_store() {
     let dir = temp_dir("survive-reopen");
 
     let first = open_global(&dir);
-    pin_entry(Some(&first), "cvdict", 41, "聽潮閣", Some("Thinh Trieu Cac")).expect("ghim");
+    pin_entry(
+        Some(&first),
+        "cvdict",
+        41,
+        "聽潮閣",
+        Some("Thinh Trieu Cac"),
+    )
+    .expect("ghim");
     first.close();
     drop(first);
 
     let second = open_global(&dir);
     let pinned = list_pinned_entries(Some(&second)).expect("doc lai sau khi mo lai");
-    assert_eq!(pinned.len(), 1, "muc ghim phai song sot qua mot luot mo lai");
+    assert_eq!(
+        pinned.len(),
+        1,
+        "muc ghim phai song sot qua mot luot mo lai"
+    );
     assert_eq!(pinned[0].headword, "聽潮閣");
     assert_eq!(pinned[0].gloss.as_deref(), Some("Thinh Trieu Cac"));
 
@@ -463,7 +493,9 @@ fn the_pinned_wire_shape_matches_what_the_frontend_reads() {
     };
 
     let json = serde_json::to_value(&entry).expect("serialize `PinnedEntry`");
-    let object = json.as_object().expect("`PinnedEntry` phai serialize thanh object");
+    let object = json
+        .as_object()
+        .expect("`PinnedEntry` phai serialize thanh object");
 
     // `gloss = None` đi ra là `null` CÓ MẶT, không một trường bị bỏ đi: `config/pinned.ts`
     // khai `gloss: string | null`, và một trường vắng mặt đọc ra `undefined` — một giá trị

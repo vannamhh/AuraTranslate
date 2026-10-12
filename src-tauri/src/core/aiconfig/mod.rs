@@ -185,8 +185,9 @@ fn validate_endpoint(raw: &str) -> Result<String, ()> {
         return Err(());
     }
 
-    let after_scheme =
-        trimmed.strip_prefix("https://").or_else(|| trimmed.strip_prefix("http://"));
+    let after_scheme = trimmed
+        .strip_prefix("https://")
+        .or_else(|| trimmed.strip_prefix("http://"));
     let Some(rest) = after_scheme else {
         return Err(());
     };

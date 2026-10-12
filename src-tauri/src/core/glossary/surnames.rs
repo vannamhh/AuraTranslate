@@ -99,5 +99,11 @@ pub const COMMON_SURNAMES: &[char] = &[
 /// cặp mơ hồ (`於→于`) sẽ vi phạm — cùng khuôn [`COMMON_SURNAMES`] đã `pub` sẵn cho đúng lý
 /// do đó. Bản thân bảng vẫn KHÔNG được trộn vào `COMMON_SURNAMES` (xem đoạn đầu doc-comment
 /// này) — mở phạm vi chỉ đổi ai ĐỌC được nó, không đổi việc nó có được TRA hay không.
-pub const TRADITIONAL_SURNAME_ALIASES: &[(char, char)] =
-    &[('蕭', '萧'), ('陳', '陈'), ('張', '张'), ('劉', '刘'), ('楊', '杨'), ('黃', '黄')];
+pub const TRADITIONAL_SURNAME_ALIASES: &[(char, char)] = &[
+    ('蕭', '萧'),
+    ('陳', '陈'),
+    ('張', '张'),
+    ('劉', '刘'),
+    ('楊', '杨'),
+    ('黃', '黄'),
+];

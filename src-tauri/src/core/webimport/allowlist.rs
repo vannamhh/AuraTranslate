@@ -99,7 +99,10 @@ impl Allowlist {
     /// 1" — chỉ đơn giản là URL đó không đóng góp một host nào cho tập.
     pub fn from_urls<'a>(urls: impl IntoIterator<Item = &'a str>) -> Self {
         let tier1: BTreeSet<String> = urls.into_iter().filter_map(host_of).collect();
-        Allowlist { tier1, tier2: BTreeSet::new() }
+        Allowlist {
+            tier1,
+            tier2: BTreeSet::new(),
+        }
     }
 
     /// Thêm host tầng 2 — xem "TẦNG 2 CHƯA CÓ CHỖ GỌI SẢN PHẨM NÀO" ở doc-comment đầu tệp.
@@ -137,5 +140,7 @@ impl Allowlist {
 }
 
 fn host_of(url: &str) -> Option<String> {
-    reqwest::Url::parse(url).ok().and_then(|u| u.host_str().map(str::to_owned))
+    reqwest::Url::parse(url)
+        .ok()
+        .and_then(|u| u.host_str().map(str::to_owned))
 }

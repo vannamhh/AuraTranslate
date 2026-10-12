@@ -103,7 +103,14 @@ pub(super) fn insert_entry_row(
                 (source_term, translation, note, category, term_origin, created_at,
                  occurrence_count)
              VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), ?6)",
-            (&source_term, &translation, &note, &category, &term_origin, &occurrence_count),
+            (
+                &source_term,
+                &translation,
+                &note,
+                &category,
+                &term_origin,
+                &occurrence_count,
+            ),
         )?,
         Some(created_at) => tx.execute(
             "INSERT INTO glossary_entry
@@ -576,22 +583,37 @@ impl std::fmt::Display for GlossaryError {
             GlossaryError::WorkTierUnavailable => write!(f, "glossary[work_tier_unavailable]"),
             GlossaryError::GlobalTermExists => write!(f, "glossary[global_term_exists]"),
             GlossaryError::ImportUniqueConflict { source_terms } => {
-                write!(f, "glossary[import_unique_conflict] source_terms={source_terms:?}")
+                write!(
+                    f,
+                    "glossary[import_unique_conflict] source_terms={source_terms:?}"
+                )
             }
             GlossaryError::ImportStaleConflict { source_terms } => {
-                write!(f, "glossary[import_stale_conflict] source_terms={source_terms:?}")
+                write!(
+                    f,
+                    "glossary[import_stale_conflict] source_terms={source_terms:?}"
+                )
             }
             GlossaryError::ImportFileTooLarge { size, limit } => {
-                write!(f, "glossary[import_file_too_large] size={size} limit={limit}")
+                write!(
+                    f,
+                    "glossary[import_file_too_large] size={size} limit={limit}"
+                )
             }
             GlossaryError::ImportNotUtf8 { path } => {
                 write!(f, "glossary[import_not_utf8] path={path}")
             }
             GlossaryError::ImportReadFailed { path, detail } => {
-                write!(f, "glossary[import_read_failed] path={path} detail={detail}")
+                write!(
+                    f,
+                    "glossary[import_read_failed] path={path} detail={detail}"
+                )
             }
             GlossaryError::ExportWriteFailed { path, detail } => {
-                write!(f, "glossary[export_write_failed] path={path} detail={detail}")
+                write!(
+                    f,
+                    "glossary[export_write_failed] path={path} detail={detail}"
+                )
             }
             GlossaryError::DialogPathInvalid => write!(f, "glossary[dialog_path_invalid]"),
             GlossaryError::ImportDecisionUnknownTerm { term } => {
@@ -700,12 +722,22 @@ impl From<GlossaryError> for IpcError {
             GlossaryError::ImportNotUtf8 { path } => {
                 let mut params = BTreeMap::new();
                 params.insert("path".to_owned(), path);
-                IpcError::new("glossary.import_not_utf8", MessageKey::ImportNotUtf8, params, false)
+                IpcError::new(
+                    "glossary.import_not_utf8",
+                    MessageKey::ImportNotUtf8,
+                    params,
+                    false,
+                )
             }
             GlossaryError::ImportReadFailed { path, .. } => {
                 let mut params = BTreeMap::new();
                 params.insert("path".to_owned(), path);
-                IpcError::new("glossary.import_read_failed", MessageKey::IoReadFailed, params, false)
+                IpcError::new(
+                    "glossary.import_read_failed",
+                    MessageKey::IoReadFailed,
+                    params,
+                    false,
+                )
             }
             GlossaryError::ExportWriteFailed { path, .. } => {
                 let mut params = BTreeMap::new();
@@ -867,11 +899,17 @@ pub fn confirmed_term_translations(
     let global_tier = load_tier(global)?;
     let work_tier = scope.work().map(load_tier).transpose()?;
     let resolved =
-        scope.resolver().apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
+        scope
+            .resolver()
+            .apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
     Ok(resolved
         .into_iter()
         .filter_map(|(source_term, resolved_entry)| {
-            resolved_entry.value().translation.clone().map(|translation| (source_term, translation))
+            resolved_entry
+                .value()
+                .translation
+                .clone()
+                .map(|translation| (source_term, translation))
         })
         .collect())
 }
@@ -1098,8 +1136,9 @@ pub fn delete_manual_term(
         GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
     };
 
-    let changed = store
-        .write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM glossary_entry WHERE id = ?1", [id]))?;
+    let changed = store.write(move |tx: &Transaction<'_>| {
+        tx.execute("DELETE FROM glossary_entry WHERE id = ?1", [id])
+    })?;
 
     if changed == 0 {
         return Err(GlossaryError::EntryMissing);
@@ -1215,7 +1254,9 @@ pub fn promote_to_global(global: &Store, work: &Store, id: i64) -> Result<(), Gl
     // ⇒ Trạng thái đích đã đạt thì trả `Ok`. Không cuộn lại lượt `INSERT`: cuộn lại cho ra
     // *"thuật ngữ không còn ở đâu cả"*, tức đổi một trạng thái DƯ lấy một trạng thái THIẾU —
     // ngược đúng nguyên tắc chọn thứ tự hai kho đã ghi ở §Always của spec.
-    work.write(move |tx: &Transaction<'_>| tx.execute("DELETE FROM glossary_entry WHERE id = ?1", [id]))?;
+    work.write(move |tx: &Transaction<'_>| {
+        tx.execute("DELETE FROM glossary_entry WHERE id = ?1", [id])
+    })?;
     Ok(())
 }
 
@@ -1686,18 +1727,20 @@ pub fn confirmed_terms_for_injection(
             continue;
         }
 
-        let loses_to_a_pending_winner = selected
-            .iter()
-            .any(|winner| {
-                let overlaps = winner.span.start < candidate.span.end
-                    && candidate.span.start < winner.span.end;
-                overlaps && !payload[winner.term_index].1.is_confirmed()
-            });
+        let loses_to_a_pending_winner = selected.iter().any(|winner| {
+            let overlaps =
+                winner.span.start < candidate.span.end && candidate.span.start < winner.span.end;
+            overlaps && !payload[winner.term_index].1.is_confirmed()
+        });
         if !loses_to_a_pending_winner {
             continue;
         }
 
-        let key = (candidate.term_index, candidate.span.start, candidate.span.end);
+        let key = (
+            candidate.term_index,
+            candidate.span.start,
+            candidate.span.end,
+        );
         if reported.insert(key) {
             suppressed.push(SuppressedByPendingOverlap {
                 source_term: entry.source_term.clone(),
@@ -1709,7 +1752,10 @@ pub fn confirmed_terms_for_injection(
         }
     }
 
-    Ok(GlossaryInjectionOutcome { injected, suppressed_by_pending_overlap: suppressed })
+    Ok(GlossaryInjectionOutcome {
+        injected,
+        suppressed_by_pending_overlap: suppressed,
+    })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1893,8 +1939,13 @@ pub fn import_into_tier(
         .filter(|p| matches!(p.kind, RowPlanKind::Conflict { .. }))
         .map(|p| p.source_term.as_str())
         .collect();
-    if let Some(unknown) = decisions.keys().find(|k| !known_conflict_terms.contains(k.as_str())) {
-        return Err(GlossaryError::ImportDecisionUnknownTerm { term: unknown.clone() });
+    if let Some(unknown) = decisions
+        .keys()
+        .find(|k| !known_conflict_terms.contains(k.as_str()))
+    {
+        return Err(GlossaryError::ImportDecisionUnknownTerm {
+            term: unknown.clone(),
+        });
     }
 
     let plans_owned: Vec<RowPlan> = plans.to_vec();
@@ -1944,7 +1995,10 @@ pub fn import_into_tier(
                 RowPlanKind::Identical => {
                     summary.identical += 1;
                 }
-                RowPlanKind::Conflict { existing_id, existing_translation } => {
+                RowPlanKind::Conflict {
+                    existing_id,
+                    existing_translation,
+                } => {
                     let decision = decisions_owned
                         .get(&plan.source_term)
                         .copied()
@@ -1995,7 +2049,11 @@ pub fn import_into_tier(
                             };
                             match still_present {
                                 None => {
-                                    return Err(row_missing_error(0, "glossary_entry", *existing_id));
+                                    return Err(row_missing_error(
+                                        0,
+                                        "glossary_entry",
+                                        *existing_id,
+                                    ));
                                 }
                                 Some(_current_translation_now_different) => {
                                     local_stale_conflicts.push(plan.source_term.clone());
@@ -2015,12 +2073,15 @@ pub fn import_into_tier(
         // ở đây TỪ P6, trước khi C1 tồn tại -- thứ tự này suy ra được từ mã hiện có, không
         // phải một lựa chọn tuỳ ý áp thêm.
         if !local_conflicts.is_empty() {
-            *conflicts_for_closure.lock().unwrap_or_else(|p| p.into_inner()) = local_conflicts;
+            *conflicts_for_closure
+                .lock()
+                .unwrap_or_else(|p| p.into_inner()) = local_conflicts;
             return Err(unique_conflict_marker_error());
         }
         if !local_stale_conflicts.is_empty() {
-            *stale_conflicts_for_closure.lock().unwrap_or_else(|p| p.into_inner()) =
-                local_stale_conflicts;
+            *stale_conflicts_for_closure
+                .lock()
+                .unwrap_or_else(|p| p.into_inner()) = local_stale_conflicts;
             return Err(stale_conflict_marker_error());
         }
 
@@ -2032,11 +2093,18 @@ pub fn import_into_tier(
         Err(e) => {
             let collected = conflicts.lock().unwrap_or_else(|p| p.into_inner()).clone();
             if !collected.is_empty() {
-                return Err(GlossaryError::ImportUniqueConflict { source_terms: collected });
+                return Err(GlossaryError::ImportUniqueConflict {
+                    source_terms: collected,
+                });
             }
-            let stale = stale_conflicts.lock().unwrap_or_else(|p| p.into_inner()).clone();
+            let stale = stale_conflicts
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .clone();
             if !stale.is_empty() {
-                return Err(GlossaryError::ImportStaleConflict { source_terms: stale });
+                return Err(GlossaryError::ImportStaleConflict {
+                    source_terms: stale,
+                });
             }
             Err(GlossaryError::from(e))
         }

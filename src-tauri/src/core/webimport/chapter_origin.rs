@@ -99,7 +99,11 @@ pub(crate) fn chapter_origin_trim(value: &str) -> &str {
 /// [`is_chapter_origin_trim_char`].
 pub(crate) fn chapter_origin_trim_or_none(value: &str) -> Option<String> {
     let trimmed = chapter_origin_trim(value);
-    if trimmed.is_empty() { None } else { Some(trimmed.to_owned()) }
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_owned())
+    }
 }
 
 /// Đọc `content` của thẻ `<meta>` khớp CẢ HAI: tên thuộc tính (`"name"` hoặc `"property"`) VÀ
@@ -122,9 +126,14 @@ fn meta_content(document: &HtmlDocument, attr: &str, value: &str) -> Option<Stri
 /// lồng bên trong được TRẢI PHẲNG thành từng đối tượng (JSON-LD cho phép cả hai hình dạng).
 fn json_ld_objects(document: &HtmlDocument) -> Vec<serde_json::Value> {
     let mut out = Vec::new();
-    for node in document.select("script[type='application/ld+json']").nodes() {
+    for node in document
+        .select("script[type='application/ld+json']")
+        .nodes()
+    {
         let text = node.text();
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(text.trim()) else { continue };
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(text.trim()) else {
+            continue;
+        };
         push_flattened(&mut out, value);
     }
     out
@@ -160,9 +169,10 @@ fn json_ld_string_field(obj: &serde_json::Value, key: &str) -> Option<String> {
 fn json_ld_string_or_named(value: &serde_json::Value) -> Option<String> {
     match value {
         serde_json::Value::String(s) => chapter_origin_trim_or_none(s),
-        serde_json::Value::Object(map) => {
-            map.get("name").and_then(|n| n.as_str()).and_then(chapter_origin_trim_or_none)
-        }
+        serde_json::Value::Object(map) => map
+            .get("name")
+            .and_then(|n| n.as_str())
+            .and_then(chapter_origin_trim_or_none),
         serde_json::Value::Array(items) => items.iter().find_map(json_ld_string_or_named),
         _ => None,
     }
@@ -208,14 +218,25 @@ pub fn extract_origin(html: &str, url: &str) -> ChapterOrigin {
 
     let author = meta_content(&document, "name", "author")
         .or_else(|| meta_content(&document, "property", "article:author"))
-        .or_else(|| json_ld.iter().find_map(|o| json_ld_string_field(o, "author")));
+        .or_else(|| {
+            json_ld
+                .iter()
+                .find_map(|o| json_ld_string_field(o, "author"))
+        });
 
-    let site_name = meta_content(&document, "property", "og:site_name")
-        .or_else(|| json_ld.iter().find_map(|o| json_ld_string_field(o, "publisher")));
+    let site_name = meta_content(&document, "property", "og:site_name").or_else(|| {
+        json_ld
+            .iter()
+            .find_map(|o| json_ld_string_field(o, "publisher"))
+    });
 
     let published_at = meta_content(&document, "property", "article:published_time")
         .or_else(|| meta_content(&document, "name", "date"))
-        .or_else(|| json_ld.iter().find_map(|o| json_ld_string_field(o, "datePublished")))
+        .or_else(|| {
+            json_ld
+                .iter()
+                .find_map(|o| json_ld_string_field(o, "datePublished"))
+        })
         .or_else(|| {
             document
                 .select("time")
@@ -226,7 +247,12 @@ pub fn extract_origin(html: &str, url: &str) -> ChapterOrigin {
         })
         .map(|v| truncate_iso_date(&v));
 
-    ChapterOrigin { author, site_name, url: chapter_origin_trim_or_none(url), published_at }
+    ChapterOrigin {
+        author,
+        site_name,
+        url: chapter_origin_trim_or_none(url),
+        published_at,
+    }
 }
 
 #[cfg(test)]
@@ -244,7 +270,10 @@ mod tests {
         assert_eq!(chapter_origin.author, Some("Nguyen Van A".to_owned()));
         assert_eq!(chapter_origin.site_name, Some("Bao Thi Du".to_owned()));
         assert_eq!(chapter_origin.published_at, Some("2026-09-10".to_owned()));
-        assert_eq!(chapter_origin.url, Some("https://example.test/bai-viet".to_owned()));
+        assert_eq!(
+            chapter_origin.url,
+            Some("https://example.test/bai-viet".to_owned())
+        );
     }
 
     #[test]
@@ -306,7 +335,10 @@ mod tests {
     fn a_meta_tag_holding_only_a_byte_order_mark_is_read_as_absent() {
         let html = "<html><head><meta name=\"author\" content=\"\u{FEFF}\"></head></html>";
         let chapter_origin = extract_origin(html, "");
-        assert_eq!(chapter_origin.author, None, "meta_content phai coi BOM la vang, dung luat cat cua JS .trim()");
+        assert_eq!(
+            chapter_origin.author, None,
+            "meta_content phai coi BOM la vang, dung luat cat cua JS .trim()"
+        );
     }
 
     /// AI-7, D1 (chiều ngược) — một `<meta>` chỉ mang `U+0085` (NEL) phải GIỮ VERBATIM, vì cả
@@ -332,8 +364,14 @@ mod tests {
              {\"author\":\"\u{FEFF}\",\"publisher\":{\"name\":\"\u{FEFF}\"}}\
              </script></head></html>";
         let chapter_origin = extract_origin(html, "");
-        assert_eq!(chapter_origin.author, None, "nhanh Value::String phai coi BOM la vang");
-        assert_eq!(chapter_origin.site_name, None, "nhanh Value::Object (qua .name) phai coi BOM la vang");
+        assert_eq!(
+            chapter_origin.author, None,
+            "nhanh Value::String phai coi BOM la vang"
+        );
+        assert_eq!(
+            chapter_origin.site_name, None,
+            "nhanh Value::Object (qua .name) phai coi BOM la vang"
+        );
     }
 
     /// AI-7, D1 (chiều ngược) — cùng seam NEL, qua ĐÚNG hai nhánh của `json_ld_string_or_named`
@@ -358,13 +396,15 @@ mod tests {
 
     #[test]
     fn no_signal_anywhere_yields_an_empty_origin_not_a_panic() {
-        let chapter_origin = extract_origin("<html><body><p>khong the tag nao</p></body></html>", "");
+        let chapter_origin =
+            extract_origin("<html><body><p>khong the tag nao</p></body></html>", "");
         assert!(chapter_origin.is_empty());
     }
 
     #[test]
     fn time_tag_datetime_attribute_is_the_last_resort_signal_for_published_at() {
-        let html = r#"<html><body><time datetime="2026-08-01T00:00:00Z">1 thang 8</time></body></html>"#;
+        let html =
+            r#"<html><body><time datetime="2026-08-01T00:00:00Z">1 thang 8</time></body></html>"#;
         let chapter_origin = extract_origin(html, "");
         assert_eq!(chapter_origin.published_at, Some("2026-08-01".to_owned()));
     }

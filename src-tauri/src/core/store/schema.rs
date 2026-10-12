@@ -1842,8 +1842,7 @@ pub const SEGMENT_TARGET_PARAGRAPH_END_DDL: &str = concat!(
 /// ⚠️ **Thuần DDL, một câu.** Khác bước 9, ở đây **không** có vế backfill: index là một cấu
 /// trúc dẫn xuất, SQLite dựng nó từ dữ liệu đã có ngay trong câu `CREATE`. Không hàng
 /// `segment_version` nào đổi một byte.
-pub const SEGMENT_VERSION_INDEX_DDL: &str =
-    "CREATE INDEX idx_segment_version_segment_created ON segment_version (segment_id, created_at DESC);";
+pub const SEGMENT_VERSION_INDEX_DDL: &str = "CREATE INDEX idx_segment_version_segment_created ON segment_version (segment_id, created_at DESC);";
 
 /// Xuất xứ bản dịch ở cấp segment (FR117/AD-47) — **bước 11 của `project.db`**, Story 2.7,
 /// AC1 · AC3 · AC6 · Quyết định #3 đường (b′) và #6 đường (a) (Ice ký 2026-08-16).
@@ -2798,10 +2797,11 @@ pub(crate) fn migrate(
             detail: format!("begin transaction for migration {}: {e}", m.to_version),
         })?;
 
-        tx.execute_batch(m.sql).map_err(|e| StoreError::OpenFailed {
-            store: kind,
-            detail: format!("migration {} failed: {e}", m.to_version),
-        })?;
+        tx.execute_batch(m.sql)
+            .map_err(|e| StoreError::OpenFailed {
+                store: kind,
+                detail: format!("migration {} failed: {e}", m.to_version),
+            })?;
 
         // ⚠️ `strftime` của SQLite, không phải đồng hồ của Rust: ISO-8601 UTC theo
         // Consistency Conventions mà không phải kéo `chrono`/`time` về cho một dòng.

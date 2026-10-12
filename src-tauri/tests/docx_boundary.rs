@@ -50,7 +50,10 @@ fn contains_word(haystack: &str, needle: &str) -> bool {
 
 fn line_names_any_forbidden_token(code: &str, tokens: &[&str]) -> bool {
     tokens.iter().any(|needle| {
-        if needle.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        if needle
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
             contains_word(code, needle)
         } else {
             code.contains(needle)
@@ -86,10 +89,15 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
 /// (bài học `naming_boundary.rs:95-96`, nhắc lại ở doc-comment đầu tệp spec 6.12).
 #[test]
 fn pointing_the_scan_root_at_an_empty_directory_yields_zero_files_not_a_silent_green() {
-    let empty = std::env::temp_dir().join(format!("docx_boundary_empty_probe_{}", std::process::id()));
+    let empty =
+        std::env::temp_dir().join(format!("docx_boundary_empty_probe_{}", std::process::id()));
     fs::create_dir_all(&empty).unwrap_or_else(|e| panic!("tạo {}: {e}", empty.display()));
     let files = boundary_scan::rust_sources(&empty);
-    assert_eq!(files.len(), 0, "thư mục vừa tạo phải rỗng — nếu không, phép đo bên dưới vô nghĩa");
+    assert_eq!(
+        files.len(),
+        0,
+        "thư mục vừa tạo phải rỗng — nếu không, phép đo bên dưới vô nghĩa"
+    );
     let _ = fs::remove_dir_all(&empty);
 }
 
@@ -117,11 +125,17 @@ fn docx_module_carries_zero_lines_naming_a_network_client_or_a_literal_url_schem
 #[test]
 fn the_network_token_check_would_actually_flag_a_seeded_violation_and_ignore_clean_code() {
     assert!(
-        line_names_any_forbidden_token("    let c = reqwest::blocking::Client::new();", &NETWORK_TOKENS),
+        line_names_any_forbidden_token(
+            "    let c = reqwest::blocking::Client::new();",
+            &NETWORK_TOKENS
+        ),
         "ca DƯƠNG: `reqwest` phải bị vị từ bắt"
     );
     assert!(
-        line_names_any_forbidden_token("    let u = \"https://example.com/x.docx\";", &NETWORK_TOKENS),
+        line_names_any_forbidden_token(
+            "    let u = \"https://example.com/x.docx\";",
+            &NETWORK_TOKENS
+        ),
         "ca DƯƠNG: literal `https://` phải bị vị từ bắt"
     );
     assert!(
@@ -196,20 +210,34 @@ fn docx_module_carries_zero_panic_points_in_product_code() {
 
 #[test]
 fn the_panic_point_check_would_actually_flag_seeded_violations_and_ignore_clean_code() {
-    assert!(line_has_a_panic_point("    let v = data.unwrap();"), "ca DƯƠNG: `.unwrap()` phải bị bắt");
+    assert!(
+        line_has_a_panic_point("    let v = data.unwrap();"),
+        "ca DƯƠNG: `.unwrap()` phải bị bắt"
+    );
     assert!(
         line_has_a_panic_point("    let v = data.expect(\"khong the xay ra\");"),
         "ca DƯƠNG: `.expect(` phải bị bắt"
     );
-    assert!(line_has_a_panic_point("    unreachable!()"), "ca DƯƠNG: `unreachable!` phải bị bắt");
-    assert!(line_has_a_panic_point("    panic!(\"x\")"), "ca DƯƠNG: `panic!` phải bị bắt");
-    assert!(line_has_a_panic_point("    let b = blocks[i];"), "ca DƯƠNG: chỉ số mảng trần `blocks[i]` phải bị bắt");
+    assert!(
+        line_has_a_panic_point("    unreachable!()"),
+        "ca DƯƠNG: `unreachable!` phải bị bắt"
+    );
+    assert!(
+        line_has_a_panic_point("    panic!(\"x\")"),
+        "ca DƯƠNG: `panic!` phải bị bắt"
+    );
+    assert!(
+        line_has_a_panic_point("    let b = blocks[i];"),
+        "ca DƯƠNG: chỉ số mảng trần `blocks[i]` phải bị bắt"
+    );
     assert!(
         !line_has_a_panic_point("    let b = blocks.get(i);"),
         "ca ÂM: `.get(i)` (không panic trên chỉ số ngoài phạm vi) không được bị bắt oan"
     );
     assert!(
-        !line_has_a_panic_point("    fn f(bytes: &[u8]) -> Result<String, DocxError> { Ok(String::new()) }"),
+        !line_has_a_panic_point(
+            "    fn f(bytes: &[u8]) -> Result<String, DocxError> { Ok(String::new()) }"
+        ),
         "ca ÂM: một khai báo KIỂU slice (`&[u8]`) không phải một phép chỉ số, không được bị bắt oan"
     );
     assert!(
@@ -234,7 +262,9 @@ fn a_forbidden_token_seeded_only_inside_a_cfg_test_block_is_not_counted_against_
     );
     let product = "fn read() { let v = data[0]; }\n";
     assert_eq!(
-        code_lines(&boundary_scan::without_test_modules(product)).filter(|(_, code)| line_has_a_panic_point(code)).count(),
+        code_lines(&boundary_scan::without_test_modules(product))
+            .filter(|(_, code)| line_has_a_panic_point(code))
+            .count(),
         1,
         "cùng token đó ở mã SẢN PHẨM phải bị bắt — phép cắt không được nuốt luôn thứ cần canh"
     );

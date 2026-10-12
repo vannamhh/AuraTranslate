@@ -25,7 +25,10 @@ pub struct ExportImage {
 /// Một segment thuộc bản dịch, hoặc một ảnh: đúng một hàng.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExportRow {
-    Text { source: ExportCell, target: ExportCell },
+    Text {
+        source: ExportCell,
+        target: ExportCell,
+    },
     Image(ExportImage),
 }
 
@@ -109,19 +112,39 @@ pub fn load_chapter_tables(
                 }
             }
             let mut rows = Vec::new();
-            let (head, mut rest): (Vec<_>, Vec<_>) = pending.into_iter().partition(|i| i.after_segment_id.is_none());
-            rows.extend(head.into_iter().map(|image| image_row(chapter_id, chapter_ord, image)));
+            let (head, mut rest): (Vec<_>, Vec<_>) = pending
+                .into_iter()
+                .partition(|i| i.after_segment_id.is_none());
+            rows.extend(
+                head.into_iter()
+                    .map(|image| image_row(chapter_id, chapter_ord, image)),
+            );
             for segment in segments_in_translation(&segments) {
                 rows.push(row_of(segment));
-                let (here, later): (Vec<_>, Vec<_>) =
-                    rest.into_iter().partition(|i| i.after_segment_id == Some(segment.id));
+                let (here, later): (Vec<_>, Vec<_>) = rest
+                    .into_iter()
+                    .partition(|i| i.after_segment_id == Some(segment.id));
                 rest = later;
-                rows.extend(here.into_iter().map(|image| image_row(chapter_id, chapter_ord, image)));
+                rows.extend(
+                    here.into_iter()
+                        .map(|image| image_row(chapter_id, chapter_ord, image)),
+                );
             }
-            rows.extend(rest.into_iter().map(|image| image_row(chapter_id, chapter_ord, image)));
+            rows.extend(
+                rest.into_iter()
+                    .map(|image| image_row(chapter_id, chapter_ord, image)),
+            );
             let attribution = lines_for(conn, chapter_id, attribution)?;
-            tables.push(ChapterTable { chapter_id, title, attribution, rows });
+            tables.push(ChapterTable {
+                chapter_id,
+                title,
+                attribution,
+                rows,
+            });
         }
-        Ok(LoadedTables { tables, images_skipped_missing_link: skipped })
+        Ok(LoadedTables {
+            tables,
+            images_skipped_missing_link: skipped,
+        })
     })
 }

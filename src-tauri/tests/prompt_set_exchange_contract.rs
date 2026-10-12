@@ -12,14 +12,15 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::{OpenWork, create_work};
 use auratranslate_lib::commands::promptset::{
-    PendingPromptImportState, PromptImportOutcomeWire, PromptSetTierWire, prompt_set_cancel_import,
-    PromptSetExportRef, prompt_set_confirm_import, prompt_set_create, prompt_set_export,
-    prompt_set_export_many, prompt_set_list,
-    prompt_set_open_import_preview, prompt_set_rename,
+    PendingPromptImportState, PromptImportOutcomeWire, PromptSetExportRef, PromptSetTierWire,
+    prompt_set_cancel_import, prompt_set_confirm_import, prompt_set_create, prompt_set_export,
+    prompt_set_export_many, prompt_set_list, prompt_set_open_import_preview, prompt_set_rename,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::promptset::exchange::ConflictDecision;
-use auratranslate_lib::core::promptset::exchange_io::{MAX_PROMPT_SET_IMPORT_BYTES, export_file_name};
+use auratranslate_lib::core::promptset::exchange_io::{
+    MAX_PROMPT_SET_IMPORT_BYTES, export_file_name,
+};
 use auratranslate_lib::core::promptset::{PromptSetTier, update_body};
 use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineShape};
 use auratranslate_lib::core::store::{Store, StoreSpec};
@@ -82,9 +83,14 @@ fn pending() -> PendingPromptImportState {
 fn export_writes_the_whole_file_and_names_the_path() {
     let root = temp_dir("export-ok");
     let global = open_global(&root);
-    let created =
-        prompt_set_create(Some(&global), None, PromptSetTier::Global, "Xianxia", "than mau")
-            .expect("tao bo that bai");
+    let created = prompt_set_create(
+        Some(&global),
+        None,
+        PromptSetTier::Global,
+        "Xianxia",
+        "than mau",
+    )
+    .expect("tao bo that bai");
 
     let out = root.join("out.prompt.md");
     prompt_set_export(Some(&global), None, PromptSetTier::Global, created.id, &out)
@@ -121,24 +127,53 @@ fn export_a_shadowed_global_set_is_reachable_and_exports_as_itself() {
     let global = open_global(&root);
     let open = open_work_real(&root);
 
-    let global_created =
-        prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Xianxia", "than toan cuc")
-            .expect("tao bo Global");
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Work, "Xianxia", "than tac pham")
-        .expect("tao bo Work cung ten");
+    let global_created = prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Xianxia",
+        "than toan cuc",
+    )
+    .expect("tao bo Global");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Work,
+        "Xianxia",
+        "than tac pham",
+    )
+    .expect("tao bo Work cung ten");
 
     let list = prompt_set_list(Some(&global), Some(&open)).expect("liet ke");
-    let winning = list.sets.iter().find(|s| s.name == "Xianxia").expect("hang Xianxia");
-    assert_eq!(winning.tier, PromptSetTierWire::Work, "bo Work phai thang theo Quyet dinh #1");
-    let shadowed_id =
-        winning.shadowed_id.expect("hang Global bi che phai mang shadowed_id (Quyet dinh #3)");
+    let winning = list
+        .sets
+        .iter()
+        .find(|s| s.name == "Xianxia")
+        .expect("hang Xianxia");
+    assert_eq!(
+        winning.tier,
+        PromptSetTierWire::Work,
+        "bo Work phai thang theo Quyet dinh #1"
+    );
+    let shadowed_id = winning
+        .shadowed_id
+        .expect("hang Global bi che phai mang shadowed_id (Quyet dinh #3)");
     assert_eq!(shadowed_id, global_created.id);
 
     let out = root.join("shadowed.prompt.md");
-    prompt_set_export(Some(&global), Some(&open), PromptSetTier::Global, shadowed_id, &out)
-        .expect("xuat hang Global bi che phai thanh cong");
+    prompt_set_export(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        shadowed_id,
+        &out,
+    )
+    .expect("xuat hang Global bi che phai thanh cong");
     let contents = fs::read_to_string(&out).unwrap();
-    assert_eq!(contents, "---\nname: Xianxia\n---\nthan toan cuc", "phai xuat DUNG than Global, khong phai than Work dang thang");
+    assert_eq!(
+        contents, "---\nname: Xianxia\n---\nthan toan cuc",
+        "phai xuat DUNG than Global, khong phai than Work dang thang"
+    );
 
     drop(open.store);
     drop(global);
@@ -150,14 +185,21 @@ fn export_a_shadowed_global_set_is_reachable_and_exports_as_itself() {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn export_then_import_into_an_empty_tier_round_trips_the_body_byte_for_byte_with_an_unratified_marker() {
+fn export_then_import_into_an_empty_tier_round_trips_the_body_byte_for_byte_with_an_unratified_marker()
+ {
     let root = temp_dir("round-trip");
     let global = open_global(&root);
     let open = open_work_real(&root);
 
     let body = "Dich: {{source_segment}}\nThuat: {{glossary_terms}}\nLa: {{glosary_terms}}\n";
-    prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Xianxia", body)
-        .expect("tao bo goc");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Xianxia",
+        body,
+    )
+    .expect("tao bo goc");
 
     let out = root.join("x.prompt.md");
     let created_id = prompt_set_list(Some(&global), Some(&open))
@@ -167,14 +209,28 @@ fn export_then_import_into_an_empty_tier_round_trips_the_body_byte_for_byte_with
         .find(|s| s.name == "Xianxia")
         .unwrap()
         .id;
-    prompt_set_export(Some(&global), Some(&open), PromptSetTier::Global, created_id, &out).unwrap();
+    prompt_set_export(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        created_id,
+        &out,
+    )
+    .unwrap();
 
     let pend = pending();
     let preview = prompt_set_open_import_preview(Some(&global), Some(&open), &pend, &out)
         .expect("xem truoc that bai");
     assert_eq!(preview.name, "Xianxia");
-    assert_eq!(preview.body, body, "than phai byte-for-byte, ke ca marker chua ratify");
-    assert_eq!(preview.work.as_ref().map(|t| t.kind), Some("new"), "tang Tac pham dang RONG");
+    assert_eq!(
+        preview.body, body,
+        "than phai byte-for-byte, ke ca marker chua ratify"
+    );
+    assert_eq!(
+        preview.work.as_ref().map(|t| t.kind),
+        Some("new"),
+        "tang Tac pham dang RONG"
+    );
 
     let outcome =
         prompt_set_confirm_import(Some(&global), Some(&open), &pend, PromptSetTier::Work, None)
@@ -182,8 +238,15 @@ fn export_then_import_into_an_empty_tier_round_trips_the_body_byte_for_byte_with
     assert_eq!(outcome, PromptImportOutcomeWire::Inserted);
 
     let list = prompt_set_list(Some(&global), Some(&open)).unwrap();
-    let work_row = list.sets.iter().find(|s| s.tier == PromptSetTierWire::Work).unwrap();
-    assert_eq!(work_row.body, body, "vong tron xuat->nhap phai giu nguyen tung byte cua than");
+    let work_row = list
+        .sets
+        .iter()
+        .find(|s| s.tier == PromptSetTierWire::Work)
+        .unwrap();
+    assert_eq!(
+        work_row.body, body,
+        "vong tron xuat->nhap phai giu nguyen tung byte cua than"
+    );
 
     drop(open.store);
     drop(global);
@@ -206,14 +269,21 @@ fn re_importing_a_just_exported_file_into_the_tier_it_came_from_is_identical_and
 
     let pend = pending();
     let preview = prompt_set_open_import_preview(Some(&global), None, &pend, &out).unwrap();
-    assert_eq!(preview.global.kind, "identical", "cung name, cung than -- phai la Identical, khong phai conflict");
+    assert_eq!(
+        preview.global.kind, "identical",
+        "cung name, cung than -- phai la Identical, khong phai conflict"
+    );
 
     let outcome =
         prompt_set_confirm_import(Some(&global), None, &pend, PromptSetTier::Global, None).unwrap();
     assert_eq!(outcome, PromptImportOutcomeWire::Skipped);
 
     let list = prompt_set_list(Some(&global), None).unwrap();
-    assert_eq!(list.sets.len(), 1, "khong hang nao duoc them -- van dung MOT hang nhu truoc");
+    assert_eq!(
+        list.sets.len(),
+        1,
+        "khong hang nao duoc them -- van dung MOT hang nhu truoc"
+    );
     assert_eq!(list.sets[0].id, created.id, "hang goc giu nguyen id");
     assert_eq!(list.sets[0].body, body, "hang goc giu nguyen than");
 
@@ -242,8 +312,16 @@ fn confirm_with_tier_work_lands_the_row_in_exactly_the_work_tier() {
     assert_eq!(outcome, PromptImportOutcomeWire::Inserted);
 
     let list = prompt_set_list(Some(&global), Some(&open)).unwrap();
-    let row = list.sets.iter().find(|s| s.name == "MoiToanCuc").expect("hang phai co mat");
-    assert_eq!(row.tier, PromptSetTierWire::Work, "phai nam DUNG tang da chon, khong phai Global");
+    let row = list
+        .sets
+        .iter()
+        .find(|s| s.name == "MoiToanCuc")
+        .expect("hang phai co mat");
+    assert_eq!(
+        row.tier,
+        PromptSetTierWire::Work,
+        "phai nam DUNG tang da chon, khong phai Global"
+    );
 
     drop(open.store);
     drop(global);
@@ -260,14 +338,20 @@ fn import_to_work_when_no_work_is_open_is_refused_before_any_write() {
 
     let pend = pending();
     let preview = prompt_set_open_import_preview(Some(&global), None, &pend, &file).unwrap();
-    assert!(preview.work.is_none(), "khong Tac pham nao mo -- tuy chon Work phai VANG MAT");
+    assert!(
+        preview.work.is_none(),
+        "khong Tac pham nao mo -- tuy chon Work phai VANG MAT"
+    );
 
     let err = prompt_set_confirm_import(Some(&global), None, &pend, PromptSetTier::Work, None)
         .expect_err("phai tu choi truoc khi ghi");
     assert_eq!(err.message_key(), MessageKey::PromptSetWorkTierUnavailable);
 
     let list = prompt_set_list(Some(&global), None).unwrap();
-    assert!(list.sets.is_empty(), "0 luot ghi -- khong hang nao duoc tao o bat ky tang nao");
+    assert!(
+        list.sets.is_empty(),
+        "0 luot ghi -- khong hang nao duoc tao o bat ky tang nao"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -292,7 +376,11 @@ fn a_name_collision_is_shown_in_preview_and_writes_nothing_until_confirmed() {
     assert_eq!(preview.global.existing_body.as_deref(), Some("than cu"));
 
     let list = prompt_set_list(Some(&global), None).unwrap();
-    assert_eq!(list.sets.iter().find(|s| s.name == "X").unwrap().body, "than cu", "chua xac nhan -- 0 gi doi");
+    assert_eq!(
+        list.sets.iter().find(|s| s.name == "X").unwrap().body,
+        "than cu",
+        "chua xac nhan -- 0 gi doi"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -320,7 +408,10 @@ fn collision_keep_mine_leaves_the_existing_row_untouched_and_counts_as_skipped()
     assert_eq!(outcome, PromptImportOutcomeWire::Skipped);
 
     let list = prompt_set_list(Some(&global), None).unwrap();
-    assert_eq!(list.sets.iter().find(|s| s.name == "X").unwrap().body, "than cu");
+    assert_eq!(
+        list.sets.iter().find(|s| s.name == "X").unwrap().body,
+        "than cu"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -348,7 +439,10 @@ fn collision_take_theirs_replaces_the_existing_body_when_unchanged_since_preview
     assert_eq!(outcome, PromptImportOutcomeWire::Updated);
 
     let list = prompt_set_list(Some(&global), None).unwrap();
-    assert_eq!(list.sets.iter().find(|s| s.name == "X").unwrap().body, "than moi");
+    assert_eq!(
+        list.sets.iter().find(|s| s.name == "X").unwrap().body,
+        "than moi"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -359,7 +453,8 @@ fn collision_take_theirs_is_refused_with_a_stale_conflict_when_the_row_changed_s
  {
     let root = temp_dir("collision-stale");
     let global = open_global(&root);
-    let created = prompt_set_create(Some(&global), None, PromptSetTier::Global, "X", "than cu").unwrap();
+    let created =
+        prompt_set_create(Some(&global), None, PromptSetTier::Global, "X", "than cu").unwrap();
 
     let file = root.join("x.prompt.md");
     fs::write(&file, "---\nname: X\n---\nthan moi").unwrap();
@@ -368,7 +463,14 @@ fn collision_take_theirs_is_refused_with_a_stale_conflict_when_the_row_changed_s
     prompt_set_open_import_preview(Some(&global), None, &pend, &file).unwrap();
 
     // Mot luot ghi KHAC chen vao giua nhip xem truoc va nhip xac nhan.
-    update_body(&global, None, PromptSetTier::Global, created.id, "than da bi doi duoi chan").unwrap();
+    update_body(
+        &global,
+        None,
+        PromptSetTier::Global,
+        created.id,
+        "than da bi doi duoi chan",
+    )
+    .unwrap();
 
     let err = prompt_set_confirm_import(
         Some(&global),
@@ -389,10 +491,16 @@ fn collision_take_theirs_is_refused_with_a_stale_conflict_when_the_row_changed_s
         Some(ConflictDecision::TakeTheirs),
     )
     .expect_err("lo phai con o do de thu lai");
-    assert_eq!(err_again.message_key(), MessageKey::PromptSetImportStaleConflict);
+    assert_eq!(
+        err_again.message_key(),
+        MessageKey::PromptSetImportStaleConflict
+    );
 
     let list = prompt_set_list(Some(&global), None).unwrap();
-    assert_eq!(list.sets.iter().find(|s| s.name == "X").unwrap().body, "than da bi doi duoi chan");
+    assert_eq!(
+        list.sets.iter().find(|s| s.name == "X").unwrap().body,
+        "than da bi doi duoi chan"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -409,7 +517,8 @@ fn collision_take_theirs_is_refused_with_a_stale_conflict_when_the_row_was_renam
     // triggered by a rename instead of a body edit.
     let root = temp_dir("collision-stale-renamed");
     let global = open_global(&root);
-    let created = prompt_set_create(Some(&global), None, PromptSetTier::Global, "X", "than cu").unwrap();
+    let created =
+        prompt_set_create(Some(&global), None, PromptSetTier::Global, "X", "than cu").unwrap();
 
     let file = root.join("x.prompt.md");
     fs::write(&file, "---\nname: X\n---\nthan moi").unwrap();
@@ -432,9 +541,19 @@ fn collision_take_theirs_is_refused_with_a_stale_conflict_when_the_row_was_renam
     assert_eq!(err.message_key(), MessageKey::PromptSetImportStaleConflict);
 
     let list = prompt_set_list(Some(&global), None).unwrap();
-    let row = list.sets.iter().find(|s| s.id == created.id).expect("hang van con, chi doi ten");
-    assert_eq!(row.name, "Y", "ten moi phai con nguyen -- luot nhap KHONG duoc dung lai lan doi ten");
-    assert_eq!(row.body, "than cu", "than phai con NGUYEN VAN -- luot nhap bi tu choi truoc khi ghi");
+    let row = list
+        .sets
+        .iter()
+        .find(|s| s.id == created.id)
+        .expect("hang van con, chi doi ten");
+    assert_eq!(
+        row.name, "Y",
+        "ten moi phai con nguyen -- luot nhap KHONG duoc dung lai lan doi ten"
+    );
+    assert_eq!(
+        row.body, "than cu",
+        "than phai con NGUYEN VAN -- luot nhap bi tu choi truoc khi ghi"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -450,7 +569,11 @@ fn a_malformed_metadata_block_reports_every_problem_and_writes_zero_rows() {
     let global = open_global(&root);
 
     let file = root.join("broken.prompt.md");
-    fs::write(&file, "khong phai mo dau\nkhong phai name\nkhong phai dong dong").unwrap();
+    fs::write(
+        &file,
+        "khong phai mo dau\nkhong phai name\nkhong phai dong dong",
+    )
+    .unwrap();
 
     let pend = pending();
     let err = prompt_set_open_import_preview(Some(&global), None, &pend, &file)
@@ -458,15 +581,25 @@ fn a_malformed_metadata_block_reports_every_problem_and_writes_zero_rows() {
     // AC4: "every problem is reported with its line number" -- ca ba dong dau deu hong, nen
     // ca ba phai co mat trong `lines`, khong chi dong dau tien tim duoc.
     assert_eq!(err.message_key(), MessageKey::PromptSetImportMalformed);
-    assert_eq!(err.params().get("lines").map(String::as_str), Some("1, 2, 3"));
+    assert_eq!(
+        err.params().get("lines").map(String::as_str),
+        Some("1, 2, 3")
+    );
 
     // 0 lo nao duoc giu lai -- xac nhan phai bao NoPendingImport.
-    let confirm_err = prompt_set_confirm_import(Some(&global), None, &pend, PromptSetTier::Global, None)
-        .expect_err("khong lo nao de xac nhan");
-    assert_eq!(confirm_err.message_key(), MessageKey::PromptSetNoPendingImport);
+    let confirm_err =
+        prompt_set_confirm_import(Some(&global), None, &pend, PromptSetTier::Global, None)
+            .expect_err("khong lo nao de xac nhan");
+    assert_eq!(
+        confirm_err.message_key(),
+        MessageKey::PromptSetNoPendingImport
+    );
 
     let list = prompt_set_list(Some(&global), None).unwrap();
-    assert!(list.sets.is_empty(), "tang dich phai con dung so hang no da co truoc (khong)");
+    assert!(
+        list.sets.is_empty(),
+        "tang dich phai con dung so hang no da co truoc (khong)"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -485,7 +618,11 @@ fn two_broken_lines_out_of_three_are_both_named_not_just_the_first() {
     let err = prompt_set_open_import_preview(Some(&global), None, &pend, &file)
         .expect_err("tep hong hai trong ba dong phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::PromptSetImportMalformed);
-    assert_eq!(err.params().get("lines").map(String::as_str), Some("1, 3"), "dong 2 dung nen KHONG co mat trong danh sach");
+    assert_eq!(
+        err.params().get("lines").map(String::as_str),
+        Some("1, 3"),
+        "dong 2 dung nen KHONG co mat trong danh sach"
+    );
 
     let list = prompt_set_list(Some(&global), None).unwrap();
     assert!(list.sets.is_empty());
@@ -507,7 +644,8 @@ fn an_oversized_file_is_refused_before_any_parsing() {
     {
         use std::io::{Seek, SeekFrom, Write as _};
         let mut f = fs::File::create(&file).unwrap();
-        f.seek(SeekFrom::Start(MAX_PROMPT_SET_IMPORT_BYTES + 1)).unwrap();
+        f.seek(SeekFrom::Start(MAX_PROMPT_SET_IMPORT_BYTES + 1))
+            .unwrap();
         f.write_all(b"x").unwrap();
     }
 
@@ -534,7 +672,10 @@ fn an_unknown_marker_in_an_imported_body_is_stored_verbatim_and_named_in_a_warni
 
     let pend = pending();
     let preview = prompt_set_open_import_preview(Some(&global), None, &pend, &file).unwrap();
-    assert_eq!(preview.warnings.unknown_markers, vec!["{{glosary_terms}}".to_owned()]);
+    assert_eq!(
+        preview.warnings.unknown_markers,
+        vec!["{{glosary_terms}}".to_owned()]
+    );
 
     prompt_set_confirm_import(Some(&global), None, &pend, PromptSetTier::Global, None).unwrap();
     let list = prompt_set_list(Some(&global), None).unwrap();
@@ -590,15 +731,25 @@ fn a_file_valid_up_to_its_last_structural_line_and_broken_there_writes_nothing()
     // Dong 1 va dong 2 DUNG dinh dang; DUNG dong 3 (dong DAY LA "hang cuoi" cua khoi metadata)
     // moi hong.
     let file = root.join("x.prompt.md");
-    fs::write(&file, "---\nname: X\nkhong phai dong dong\nthan van con day").unwrap();
+    fs::write(
+        &file,
+        "---\nname: X\nkhong phai dong dong\nthan van con day",
+    )
+    .unwrap();
 
     let pend = pending();
     let err = prompt_set_open_import_preview(Some(&global), None, &pend, &file)
         .expect_err("dong dong sai phai bi tu choi");
-    assert_eq!(err.message_key(), MessageKey::PromptSetImportMissingClosingDelimiter);
+    assert_eq!(
+        err.message_key(),
+        MessageKey::PromptSetImportMissingClosingDelimiter
+    );
 
     let list = prompt_set_list(Some(&global), None).unwrap();
-    assert!(list.sets.is_empty(), "mot loi o dong CUOI cua khoi metadata van phai la 0 luot ghi, khong mot ban ghi PARTIAL");
+    assert!(
+        list.sets.is_empty(),
+        "mot loi o dong CUOI cua khoi metadata van phai la 0 luot ghi, khong mot ban ghi PARTIAL"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -626,35 +777,85 @@ fn exporting_three_sets_never_overwrites_renames_collisions_and_makes_unsafe_nam
     fs::create_dir_all(&dest).expect("tao thu muc dich");
     fs::write(dest.join("Tiên hiệp.prompt.md"), "TEP CO SAN").expect("tao tep co san");
 
-    let a = prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "Tiên hiệp", "than G")
-        .expect("tao bo Global");
-    let b = prompt_set_create(Some(&global), Some(&open), PromptSetTier::Work, "Tiên hiệp", "than W")
-        .expect("tao bo Work");
-    let c = prompt_set_create(Some(&global), Some(&open), PromptSetTier::Global, "a/b", "than C")
-        .expect("tao bo a/b");
+    let a = prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Tiên hiệp",
+        "than G",
+    )
+    .expect("tao bo Global");
+    let b = prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Work,
+        "Tiên hiệp",
+        "than W",
+    )
+    .expect("tao bo Work");
+    let c = prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "a/b",
+        "than C",
+    )
+    .expect("tao bo a/b");
 
     let refs = [
-        PromptSetExportRef { tier: PromptSetTier::Global, id: a.id },
-        PromptSetExportRef { tier: PromptSetTier::Work, id: b.id },
-        PromptSetExportRef { tier: PromptSetTier::Global, id: c.id },
+        PromptSetExportRef {
+            tier: PromptSetTier::Global,
+            id: a.id,
+        },
+        PromptSetExportRef {
+            tier: PromptSetTier::Work,
+            id: b.id,
+        },
+        PromptSetExportRef {
+            tier: PromptSetTier::Global,
+            id: c.id,
+        },
     ];
-    let results = prompt_set_export_many(Some(&global), Some(&open), &refs, &dest).expect("xuat nhieu");
+    let results =
+        prompt_set_export_many(Some(&global), Some(&open), &refs, &dest).expect("xuat nhieu");
 
-    assert!(results.iter().all(|r| r.error.is_none()), "khong ca nao duoc loi: {results:?}");
-    let names: Vec<_> = results.iter().map(|r| r.file_name.clone().expect("ten tep")).collect();
-    assert_eq!(names, ["Tiên hiệp-2.prompt.md", "Tiên hiệp-3.prompt.md", "a_b.prompt.md"]);
+    assert!(
+        results.iter().all(|r| r.error.is_none()),
+        "khong ca nao duoc loi: {results:?}"
+    );
+    let names: Vec<_> = results
+        .iter()
+        .map(|r| r.file_name.clone().expect("ten tep"))
+        .collect();
+    assert_eq!(
+        names,
+        [
+            "Tiên hiệp-2.prompt.md",
+            "Tiên hiệp-3.prompt.md",
+            "a_b.prompt.md"
+        ]
+    );
     assert_eq!(
         fs::read_to_string(dest.join("Tiên hiệp.prompt.md")).expect("doc tep co san"),
         "TEP CO SAN",
         "tep co san khong duoc bi ghi de"
     );
     assert!(
-        fs::read_to_string(dest.join("Tiên hiệp-2.prompt.md")).expect("doc -2").contains("than G")
+        fs::read_to_string(dest.join("Tiên hiệp-2.prompt.md"))
+            .expect("doc -2")
+            .contains("than G")
     );
     assert!(
-        fs::read_to_string(dest.join("Tiên hiệp-3.prompt.md")).expect("doc -3").contains("than W")
+        fs::read_to_string(dest.join("Tiên hiệp-3.prompt.md"))
+            .expect("doc -3")
+            .contains("than W")
     );
-    assert_eq!(file_names_in(&dest).len(), 4, "khong tep tam nao con lai: {:?}", file_names_in(&dest));
+    assert_eq!(
+        file_names_in(&dest).len(),
+        4,
+        "khong tep tam nao con lai: {:?}",
+        file_names_in(&dest)
+    );
 
     drop(open);
     drop(global);
@@ -668,23 +869,37 @@ fn a_failure_on_the_third_file_keeps_the_first_two_and_reports_each_file() {
     let dest = root.join("dest");
     fs::create_dir_all(&dest).expect("tao thu muc dich");
 
-    let one = prompt_set_create(Some(&global), None, PromptSetTier::Global, "Mot", "1").expect("tao 1");
-    let two = prompt_set_create(Some(&global), None, PromptSetTier::Global, "Hai", "2").expect("tao 2");
+    let one =
+        prompt_set_create(Some(&global), None, PromptSetTier::Global, "Mot", "1").expect("tao 1");
+    let two =
+        prompt_set_create(Some(&global), None, PromptSetTier::Global, "Hai", "2").expect("tao 2");
     let long_name = "x".repeat(300);
-    let three =
-        prompt_set_create(Some(&global), None, PromptSetTier::Global, &long_name, "3").expect("tao 3");
+    let three = prompt_set_create(Some(&global), None, PromptSetTier::Global, &long_name, "3")
+        .expect("tao 3");
 
     let refs = [
-        PromptSetExportRef { tier: PromptSetTier::Global, id: one.id },
-        PromptSetExportRef { tier: PromptSetTier::Global, id: two.id },
-        PromptSetExportRef { tier: PromptSetTier::Global, id: three.id },
+        PromptSetExportRef {
+            tier: PromptSetTier::Global,
+            id: one.id,
+        },
+        PromptSetExportRef {
+            tier: PromptSetTier::Global,
+            id: two.id,
+        },
+        PromptSetExportRef {
+            tier: PromptSetTier::Global,
+            id: three.id,
+        },
     ];
     let results = prompt_set_export_many(Some(&global), None, &refs, &dest).expect("xuat nhieu");
 
     assert_eq!(results.len(), 3);
     assert!(results[0].error.is_none() && results[1].error.is_none());
     let failure = results[2].error.as_ref().expect("tep thu ba phai loi");
-    assert_eq!(failure.message_key(), MessageKey::PromptSetExportWriteFailed);
+    assert_eq!(
+        failure.message_key(),
+        MessageKey::PromptSetExportWriteFailed
+    );
     assert!(results[2].path.is_none());
     assert_eq!(file_names_in(&dest), ["Hai.prompt.md", "Mot.prompt.md"]);
 
@@ -698,11 +913,18 @@ fn a_work_tier_set_with_no_work_open_fails_alone_and_the_other_files_are_written
     let global = open_global(&root);
     let dest = root.join("dest");
     fs::create_dir_all(&dest).expect("tao thu muc dich");
-    let one = prompt_set_create(Some(&global), None, PromptSetTier::Global, "Mot", "1").expect("tao");
+    let one =
+        prompt_set_create(Some(&global), None, PromptSetTier::Global, "Mot", "1").expect("tao");
 
     let refs = [
-        PromptSetExportRef { tier: PromptSetTier::Work, id: 1 },
-        PromptSetExportRef { tier: PromptSetTier::Global, id: one.id },
+        PromptSetExportRef {
+            tier: PromptSetTier::Work,
+            id: 1,
+        },
+        PromptSetExportRef {
+            tier: PromptSetTier::Global,
+            id: one.id,
+        },
     ];
     let results = prompt_set_export_many(Some(&global), None, &refs, &dest).expect("xuat nhieu");
     assert!(results[0].error.is_some());

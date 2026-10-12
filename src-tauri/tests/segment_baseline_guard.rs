@@ -23,8 +23,14 @@ fn target_writes(text: &str) -> Vec<(usize, String)> {
             .map(|(_, content)| content.as_str())
             .collect::<Vec<_>>()
             .join(" ");
-        for opener in ["UPDATE segment", "INSERT INTO segment", "REPLACE INTO segment"] {
-            let Some(at) = joined.find(opener) else { continue };
+        for opener in [
+            "UPDATE segment",
+            "INSERT INTO segment",
+            "REPLACE INTO segment",
+        ] {
+            let Some(at) = joined.find(opener) else {
+                continue;
+            };
             if !code[index].1.contains(opener) {
                 continue;
             }
@@ -36,7 +42,10 @@ fn target_writes(text: &str) -> Vec<(usize, String)> {
             let statement = statement.split(" WHERE ").next().unwrap_or(statement);
             let collapsed = format!("{opener}{statement}").replace('\\', " ");
             let collapsed = collapsed.split_whitespace().collect::<Vec<_>>().join(" ");
-            if collapsed.replace("baseline_target_text", "").contains("target_text") {
+            if collapsed
+                .replace("baseline_target_text", "")
+                .contains("target_text")
+            {
                 found.push((*line, collapsed));
             }
         }
@@ -45,7 +54,8 @@ fn target_writes(text: &str) -> Vec<(usize, String)> {
 }
 
 fn lacks_baseline(statement: &str) -> bool {
-    !(statement.contains("baseline_target_text") && statement.contains("baseline_translation_origin"))
+    !(statement.contains("baseline_target_text")
+        && statement.contains("baseline_translation_origin"))
 }
 
 fn is_flush(rel: &str, statement: &str) -> bool {
@@ -97,7 +107,10 @@ fn the_guard_sees_the_known_writers_and_exactly_one_flush_exemption() {
             }
         }
     }
-    assert_eq!(flushes, 1, "the typing-buffer flush is the single named exemption");
+    assert_eq!(
+        flushes, 1,
+        "the typing-buffer flush is the single named exemption"
+    );
     assert!(
         with_baseline >= 3,
         "write_non_user_target, insert_bilingual_segments and write_regroup must all be seen, found {with_baseline}"
@@ -106,7 +119,8 @@ fn the_guard_sees_the_known_writers_and_exactly_one_flush_exemption() {
 
 #[test]
 fn the_predicate_catches_a_write_without_the_baseline_and_ignores_comments() {
-    let bad = "fn a() {\n    tx.execute(\"UPDATE segment SET target_text = ?1 WHERE id = ?2\", ());\n}\n";
+    let bad =
+        "fn a() {\n    tx.execute(\"UPDATE segment SET target_text = ?1 WHERE id = ?2\", ());\n}\n";
     let hits = target_writes(bad);
     assert_eq!(hits.len(), 1);
     assert!(lacks_baseline(&hits[0].1));
@@ -119,7 +133,10 @@ fn the_predicate_catches_a_write_without_the_baseline_and_ignores_comments() {
     let half = "fn a() {\n    tx.execute(\"UPDATE segment SET target_text = ?1, baseline_target_text = ?1 WHERE id = ?2\", ());\n}\n";
     let hits = target_writes(half);
     assert_eq!(hits.len(), 1);
-    assert!(lacks_baseline(&hits[0].1), "baseline text without baseline origin is a violation");
+    assert!(
+        lacks_baseline(&hits[0].1),
+        "baseline text without baseline origin is a violation"
+    );
 
     let commented = "// \"UPDATE segment SET target_text = ?1\"\nfn a() {}\n";
     assert!(target_writes(commented).is_empty());

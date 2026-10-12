@@ -23,9 +23,9 @@ use crate::commands::project::OpenWork;
 use crate::core::i18n::IpcError;
 use crate::core::promptset::exchange::{ConflictDecision, ParsedPromptSet, PlanKind};
 use crate::core::promptset::{
-    ImportOutcome, MarkerWarnings, PromptSetError, PromptSetTier, PromptVariable, ResolvedPromptSet,
-    create, delete, exchange, exchange_io, import_into_tier, load_one, load_prompt_set_tier, rename,
-    resolve_two_tiers, update_body,
+    ImportOutcome, MarkerWarnings, PromptSetError, PromptSetTier, PromptVariable,
+    ResolvedPromptSet, create, delete, exchange, exchange_io, import_into_tier, load_one,
+    load_prompt_set_tier, rename, resolve_two_tiers, update_body,
 };
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
@@ -81,7 +81,10 @@ pub struct PromptSetWarningsWire {
 
 impl From<MarkerWarnings> for PromptSetWarningsWire {
     fn from(w: MarkerWarnings) -> Self {
-        Self { unknown_markers: w.unknown_markers, glossary_terms_missing: w.glossary_terms_missing }
+        Self {
+            unknown_markers: w.unknown_markers,
+            glossary_terms_missing: w.glossary_terms_missing,
+        }
     }
 }
 
@@ -162,13 +165,22 @@ pub fn prompt_set_list(
     open: Option<&OpenWork>,
 ) -> Result<PromptSetListWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    let resolver = open.map(|w| w.scope.clone()).unwrap_or_else(ScopeResolver::global_only);
+    let resolver = open
+        .map(|w| w.scope.clone())
+        .unwrap_or_else(ScopeResolver::global_only);
     let work_store = open.map(|w| &w.store);
     let resolved = resolve_two_tiers(&resolver, global_store, work_store)?;
 
     let sets = resolved.into_values().map(PromptSetWire::from).collect();
-    let variables = PromptVariable::ALL.iter().map(|v| v.as_str().to_owned()).collect();
-    Ok(PromptSetListWire { work_tier_available: open.is_some(), sets, variables })
+    let variables = PromptVariable::ALL
+        .iter()
+        .map(|v| v.as_str().to_owned())
+        .collect();
+    Ok(PromptSetListWire {
+        work_tier_available: open.is_some(),
+        sets,
+        variables,
+    })
 }
 
 /// Phong bì trả lời của [`prompt_set_create`] — `id` của hàng mới CỘNG cảnh báo dấu ngoặc
@@ -195,7 +207,10 @@ pub fn prompt_set_create(
 ) -> Result<PromptSetCreateWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
     let (id, warnings) = create(global_store, open.map(|w| &w.store), tier, name, body)?;
-    Ok(PromptSetCreateWire { id, warnings: warnings.into() })
+    Ok(PromptSetCreateWire {
+        id,
+        warnings: warnings.into(),
+    })
 }
 
 /// Đổi TÊN của bộ `(tier, id)` — **hàm thuần, đây là thứ test gọi**.
@@ -306,8 +321,10 @@ pub fn prompt_set_export_many(
                 let file_name = exchange_io::export_file_name(&row.name);
                 let path = exchange_io::unique_export_path(dir, &file_name, &mut taken);
                 exchange_io::write_export_file(&path, &exchange::render(&row.name, &row.body))?;
-                let written_name =
-                    path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or(file_name);
+                let written_name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or(file_name);
                 Ok((written_name, path))
             })();
             match written {
@@ -348,7 +365,8 @@ pub fn prompt_set_export(
     path: &Path,
 ) -> Result<(), IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
-    let store = crate::core::promptset::store::store_for_tier(global_store, open.map(|w| &w.store), tier)?;
+    let store =
+        crate::core::promptset::store::store_for_tier(global_store, open.map(|w| &w.store), tier)?;
     let row = load_one(store, id)?;
     let contents = exchange::render(&row.name, &row.body);
     exchange_io::write_export_file(path, &contents)?;
@@ -383,7 +401,9 @@ pub type PendingPromptImportState = std::sync::Mutex<Option<PendingPromptImport>
 /// thay vì xoá TRỌN lô: nửa Toàn cục của lô (nếu người dùng định nhập vào đó) vẫn còn dùng
 /// được, không phụ thuộc Tác phẩm nào.
 pub fn clear_pending_prompt_import_work_tier(pending: &PendingPromptImportState) {
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(batch) = guard.as_mut() {
         batch.work_kind = None;
     }
@@ -402,11 +422,18 @@ pub struct PromptImportTierPreviewWire {
 impl From<&PlanKind> for PromptImportTierPreviewWire {
     fn from(kind: &PlanKind) -> Self {
         match kind {
-            PlanKind::New => Self { kind: "new", existing_body: None },
-            PlanKind::Identical => Self { kind: "identical", existing_body: None },
-            PlanKind::Conflict { existing_body, .. } => {
-                Self { kind: "conflict", existing_body: Some(existing_body.clone()) }
-            }
+            PlanKind::New => Self {
+                kind: "new",
+                existing_body: None,
+            },
+            PlanKind::Identical => Self {
+                kind: "identical",
+                existing_body: None,
+            },
+            PlanKind::Conflict { existing_body, .. } => Self {
+                kind: "conflict",
+                existing_body: Some(existing_body.clone()),
+            },
         }
     }
 }
@@ -459,11 +486,18 @@ pub fn prompt_set_open_import_preview(
         None => None,
         Some(w) => {
             let work_existing = load_prompt_set_tier(&w.store)?;
-            Some(exchange::classify(&parsed.name, &parsed.body, &work_existing))
+            Some(exchange::classify(
+                &parsed.name,
+                &parsed.body,
+                &work_existing,
+            ))
         }
     };
 
-    let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let file_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let preview = PromptImportPreviewWire {
         file_name,
         name: parsed.name.clone(),
@@ -473,8 +507,15 @@ pub fn prompt_set_open_import_preview(
         work: work_kind.as_ref().map(PromptImportTierPreviewWire::from),
     };
 
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    *guard = Some(PendingPromptImport { path: path.to_owned(), parsed, global_kind, work_kind });
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = Some(PendingPromptImport {
+        path: path.to_owned(),
+        parsed,
+        global_kind,
+        work_kind,
+    });
 
     Ok(preview)
 }
@@ -506,7 +547,10 @@ pub fn issues_to_ipc_error(issues: Vec<exchange::ParseIssue>) -> IpcError {
     }
 
     if issues.len() == 1 {
-        let only = issues.into_iter().next().expect("kiem len() == 1 ngay tren");
+        let only = issues
+            .into_iter()
+            .next()
+            .expect("kiem len() == 1 ngay tren");
         eprintln!("prompt_set[import_preview] 1 loi phan tich: {only}");
         return IpcError::from(only);
     }
@@ -571,7 +615,9 @@ pub fn prompt_set_confirm_import(
 ) -> Result<PromptImportOutcomeWire, IpcError> {
     let global_store = global.ok_or_else(store_is_missing)?;
 
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let Some(batch) = guard.as_ref() else {
         return Err(IpcError::from(PromptSetError::NoPendingImport));
     };
@@ -584,7 +630,14 @@ pub fn prompt_set_confirm_import(
         },
     };
 
-    match import_into_tier(global_store, open.map(|w| &w.store), tier, &batch.parsed, kind, decision) {
+    match import_into_tier(
+        global_store,
+        open.map(|w| &w.store),
+        tier,
+        &batch.parsed,
+        kind,
+        decision,
+    ) {
         Ok(outcome) => {
             *guard = None; // Chi don LO khi giao dich THANH CONG.
             Ok(outcome.into())
@@ -595,7 +648,9 @@ pub fn prompt_set_confirm_import(
 
 /// Huỷ lô đang treo — **0** lượt ghi, không lỗi kể cả khi không có lô nào.
 pub fn prompt_set_cancel_import(pending: &PendingPromptImportState) {
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = None;
 }
 
@@ -605,9 +660,9 @@ pub fn prompt_set_cancel_import(pending: &PendingPromptImportState) {
 /// không hậu tố. Chỗ gọi xuống dùng `super::tên_hàm(...)` đủ điều kiện.
 pub mod wire {
     use super::{
-        ConflictDecision, PendingPromptImportState, PromptImportOutcomeWire, PromptImportPreviewWire,
-        PromptSetCreateWire, PromptSetError, PromptSetListWire, PromptSetTier, PromptSetWarningsWire,
-        default_export_file_name,
+        ConflictDecision, PendingPromptImportState, PromptImportOutcomeWire,
+        PromptImportPreviewWire, PromptSetCreateWire, PromptSetError, PromptSetListWire,
+        PromptSetTier, PromptSetWarningsWire, default_export_file_name,
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
@@ -624,7 +679,9 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::prompt_set_list(global.as_deref(), None);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::prompt_set_list(global.as_deref(), guard.as_ref())
     }
 
@@ -641,7 +698,9 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::prompt_set_create(global.as_deref(), None, tier, &name, &body);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::prompt_set_create(global.as_deref(), guard.as_ref(), tier, &name, &body)
     }
 
@@ -658,7 +717,9 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::prompt_set_rename(global.as_deref(), None, tier, id, &new_name);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::prompt_set_rename(global.as_deref(), guard.as_ref(), tier, id, &new_name)
     }
 
@@ -675,19 +736,27 @@ pub mod wire {
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::prompt_set_update_body(global.as_deref(), None, tier, id, &body);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::prompt_set_update_body(global.as_deref(), guard.as_ref(), tier, id, &body)
     }
 
     #[tauri::command]
-    pub fn prompt_set_delete(app: tauri::AppHandle, tier: PromptSetTier, id: i64) -> Result<(), IpcError> {
+    pub fn prompt_set_delete(
+        app: tauri::AppHandle,
+        tier: PromptSetTier,
+        id: i64,
+    ) -> Result<(), IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
             return super::prompt_set_delete(global.as_deref(), None, tier, id);
         };
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::prompt_set_delete(global.as_deref(), guard.as_ref(), tier, id)
     }
 
@@ -698,14 +767,20 @@ pub mod wire {
     fn work_tier_is_open(app: &tauri::AppHandle) -> bool {
         use tauri::Manager as _;
         app.try_state::<OpenWorkState>()
-            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some())
+            .map(|s| {
+                s.lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .is_some()
+            })
             .unwrap_or(false)
     }
 
     /// Tên hiện tại của bộ `(Global, id)` — chỉ để gợi ý tên tệp mặc định của hộp thoại LƯU.
     /// Không đòi `OpenWorkState`, không `.lock()` nào ở đây.
     fn global_row_name(global: Option<&Store>, id: i64) -> Option<String> {
-        crate::core::promptset::load_one(global?, id).ok().map(|p| p.name)
+        crate::core::promptset::load_one(global?, id)
+            .ok()
+            .map(|p| p.name)
     }
 
     /// Cùng vai `global_row_name`, tầng Tác phẩm — hàm TỰ CHỨA (`.lock()` của nó không sống
@@ -716,9 +791,13 @@ pub mod wire {
     fn work_row_name(app: &tauri::AppHandle, id: i64) -> Option<String> {
         use tauri::Manager as _;
         let work_state = app.try_state::<OpenWorkState>()?;
-        let guard = work_state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let open = guard.as_ref()?;
-        crate::core::promptset::load_one(&open.store, id).ok().map(|p| p.name)
+        crate::core::promptset::load_one(&open.store, id)
+            .ok()
+            .map(|p| p.name)
     }
 
     /// Vỏ IPC của [`super::prompt_set_export`] — mở hộp thoại LƯU rồi gọi hàm thuần.
@@ -764,11 +843,14 @@ pub mod wire {
         else {
             return Ok(None);
         };
-        let path = picked.into_path().map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
+        let path = picked
+            .into_path()
+            .map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
 
         let work_state = app.try_state::<OpenWorkState>();
-        let guard =
-            work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
 
         super::prompt_set_export(global.as_deref(), open, tier, id, &path)?;
@@ -791,11 +873,14 @@ pub mod wire {
         let Some(picked) = app.dialog().file().blocking_pick_folder() else {
             return Ok(None);
         };
-        let dir = picked.into_path().map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
+        let dir = picked
+            .into_path()
+            .map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
 
         let work_state = app.try_state::<OpenWorkState>();
-        let guard =
-            work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
 
         super::prompt_set_export_many(global.as_deref(), open, &sets, &dir).map(Some)
@@ -824,21 +909,30 @@ pub mod wire {
             return Err(IpcError::from(PromptSetError::NoPendingImport));
         }
 
-        let Some(picked) = app.dialog().file().add_filter("Prompt", &["md"]).blocking_pick_file() else {
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .add_filter("Prompt", &["md"])
+            .blocking_pick_file()
+        else {
             return Ok(None);
         };
-        let path = picked.into_path().map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
+        let path = picked
+            .into_path()
+            .map_err(|_| IpcError::from(PromptSetError::DialogPathInvalid))?;
 
         let work_state = app.try_state::<OpenWorkState>();
-        let guard =
-            work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
 
         let Some(pending) = app.try_state::<PendingPromptImportState>() else {
             return Err(IpcError::from(PromptSetError::NoPendingImport));
         };
 
-        let preview = super::prompt_set_open_import_preview(global.as_deref(), open, pending.inner(), &path)?;
+        let preview =
+            super::prompt_set_open_import_preview(global.as_deref(), open, pending.inner(), &path)?;
         Ok(Some(preview))
     }
 
@@ -855,8 +949,9 @@ pub mod wire {
 
         let global = app.try_state::<Store>();
         let work_state = app.try_state::<OpenWorkState>();
-        let guard =
-            work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
 
         let Some(pending) = app.try_state::<PendingPromptImportState>() else {

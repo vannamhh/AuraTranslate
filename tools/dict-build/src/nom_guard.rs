@@ -120,9 +120,11 @@ pub fn count_suspicious<'a>(
     let mut han_viet_by_char_source: HashMap<(&str, &str), std::collections::HashSet<&str>> =
         HashMap::new();
     for (ch, source_code, raw) in han_viet_rows {
-        // dict-build:allow .entry( — GỘP (dedupe) readings của cùng (ký tự, nguồn), không
-        // không hợp nhất xuyên nguồn (AD-19) — khoá map vẫn giữ NGUYÊN `source_code`.
-        let readings = han_viet_by_char_source.entry((ch, source_code)).or_default();
+        let readings = han_viet_by_char_source
+            // dict-build:allow .entry( — GỘP (dedupe) readings của cùng (ký tự, nguồn), không
+            // không hợp nhất xuyên nguồn (AD-19) — khoá map vẫn giữ NGUYÊN `source_code`.
+            .entry((ch, source_code))
+            .or_default();
         readings.extend(split_readings(raw));
     }
 
@@ -152,7 +154,10 @@ pub fn count_suspicious<'a>(
             suspicious += 1;
         }
     }
-    SuspiciousHanViet { suspicious, total_checked }
+    SuspiciousHanViet {
+        suspicious,
+        total_checked,
+    }
 }
 
 /// 🔴 Nguồn DUY NHẤT mà `nom_reading` của nó là một NHÃN TƯỜNG MINH (`tags:
@@ -219,11 +224,13 @@ pub fn count_suspicious_in_db(
             Some((headword, source_code, filtered))
         })
         .collect();
-    nom_rows.extend(
-        external_labeled_nom
-            .iter()
-            .map(|(headword, reading)| (headword.clone(), LABELED_NOM_SOURCE.to_string(), reading.clone())),
-    );
+    nom_rows.extend(external_labeled_nom.iter().map(|(headword, reading)| {
+        (
+            headword.clone(),
+            LABELED_NOM_SOURCE.to_string(),
+            reading.clone(),
+        )
+    }));
 
     let hv_refs: Vec<(&str, &str, &str)> = hv_rows
         .iter()
@@ -299,7 +306,10 @@ mod tests {
         let result = count_suspicious(hv, nom);
         assert_eq!(result.total_checked, 4);
         assert_eq!(result.suspicious, 4);
-        assert!(result.exceeds_threshold(), "4/4 = 100% phải vượt ngưỡng 50%");
+        assert!(
+            result.exceeds_threshold(),
+            "4/4 = 100% phải vượt ngưỡng 50%"
+        );
     }
 
     /// Đối chứng âm: ký tự KHÔNG có dữ liệu Nôm nào từ một nguồn khác ⇒ KHÔNG đối chiếu
@@ -311,12 +321,18 @@ mod tests {
         let nom: Vec<(&str, &str, &str)> = vec![];
         let result = count_suspicious(hv, nom);
         assert_eq!(result.suspicious, 0);
-        assert_eq!(result.total_checked, 0, "không có dữ liệu Nôm để so ⇒ không đối chiếu được, không phải 'sạch'");
+        assert_eq!(
+            result.total_checked, 0,
+            "không có dữ liệu Nôm để so ⇒ không đối chiếu được, không phải 'sạch'"
+        );
     }
 
     #[test]
     fn zero_total_checked_has_a_zero_ratio_not_a_division_panic() {
-        let result = SuspiciousHanViet { suspicious: 0, total_checked: 0 };
+        let result = SuspiciousHanViet {
+            suspicious: 0,
+            total_checked: 0,
+        };
         assert_eq!(result.ratio(), 0.0);
         assert!(!result.exceeds_threshold());
     }
@@ -345,10 +361,18 @@ mod tests {
             .unwrap();
         }
         let unihan_id: i64 = conn
-            .query_row("SELECT id FROM dict_source WHERE code = 'unihan'", [], |r| r.get(0))
+            .query_row(
+                "SELECT id FROM dict_source WHERE code = 'unihan'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         let vi_id: i64 = conn
-            .query_row("SELECT id FROM dict_source WHERE code = 'en-wiktionary-vi'", [], |r| r.get(0))
+            .query_row(
+                "SELECT id FROM dict_source WHERE code = 'en-wiktionary-vi'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
 
         conn.execute(
@@ -386,7 +410,11 @@ mod tests {
         )
         .unwrap();
         let thieu_chuu_id: i64 = conn
-            .query_row("SELECT id FROM dict_source WHERE code = 'thieu-chuu'", [], |r| r.get(0))
+            .query_row(
+                "SELECT id FROM dict_source WHERE code = 'thieu-chuu'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         conn.execute(
             "INSERT INTO dict_entry (source_id, lang, headword, han_viet) VALUES (?1, 'zh', '繭', 'kén')",
@@ -403,6 +431,9 @@ mod tests {
         let external = vec![("繭".to_string(), "kén".to_string())];
         let with_external = count_suspicious_in_db(&conn, &external).unwrap();
         assert_eq!(with_external.total_checked, 1);
-        assert_eq!(with_external.suspicious, 1, "'kén' trùng nhãn Nôm ngoài ⇒ đáng ngờ");
+        assert_eq!(
+            with_external.suspicious, 1,
+            "'kén' trùng nhãn Nôm ngoài ⇒ đáng ngờ"
+        );
     }
 }

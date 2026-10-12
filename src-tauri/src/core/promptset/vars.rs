@@ -70,7 +70,10 @@ impl PromptVariable {
     /// `PromptVariable::ALL.iter().copied().find(...)` — một bản chép tay THỨ HAI, đúng thứ
     /// doc-comment của [`PromptVariable::ALL`] cam kết không tồn tại trong kho.
     pub(crate) fn from_token(token: &str) -> Option<Self> {
-        PromptVariable::ALL.iter().copied().find(|v| v.as_str() == token)
+        PromptVariable::ALL
+            .iter()
+            .copied()
+            .find(|v| v.as_str() == token)
     }
 }
 
@@ -169,7 +172,8 @@ mod tests {
 
     #[test]
     fn a_clean_body_carrying_all_three_has_no_warnings() {
-        let body = "Dich: {{source_segment}}\nThuat ngu: {{glossary_terms}}\nTM: {{tm_similar_segments}}";
+        let body =
+            "Dich: {{source_segment}}\nThuat ngu: {{glossary_terms}}\nTM: {{tm_similar_segments}}";
         let warnings = scan_markers(body);
         assert!(warnings.is_clean());
         assert!(warnings.unknown_markers.is_empty());
@@ -179,7 +183,10 @@ mod tests {
     #[test]
     fn an_unknown_marker_is_named_verbatim_and_not_rejected() {
         let warnings = scan_markers("Dung {{glosary_terms}} thay vi ten dung.");
-        assert_eq!(warnings.unknown_markers, vec!["{{glosary_terms}}".to_owned()]);
+        assert_eq!(
+            warnings.unknown_markers,
+            vec!["{{glosary_terms}}".to_owned()]
+        );
         // Ten go sai khong duoc tinh la co mat -- glossary_terms van thieu.
         assert!(warnings.glossary_terms_missing);
     }
@@ -187,7 +194,10 @@ mod tests {
     #[test]
     fn chapter_context_is_excluded_from_the_ratified_vocabulary_and_reads_as_unknown() {
         let warnings = scan_markers("{{chapter_context}} chua dung.");
-        assert_eq!(warnings.unknown_markers, vec!["{{chapter_context}}".to_owned()]);
+        assert_eq!(
+            warnings.unknown_markers,
+            vec!["{{chapter_context}}".to_owned()]
+        );
     }
 
     #[test]

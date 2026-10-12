@@ -145,7 +145,10 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].headword, "太一,正一,纯一");
         assert_eq!(entries[0].senses.len(), 1);
-        assert_eq!(entries[0].senses[0].gloss, "thái nhất,chính nhất,thuần nhất");
+        assert_eq!(
+            entries[0].senses[0].gloss,
+            "thái nhất,chính nhất,thuần nhất"
+        );
     }
 
     /// Đầu mục là cả câu — dữ liệu ĐÚNG, không lọc theo độ dài.

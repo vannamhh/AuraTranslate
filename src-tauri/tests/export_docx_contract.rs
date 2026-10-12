@@ -16,7 +16,12 @@ static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-docx-{}-{}-{}", std::process::id(), tag, n));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-docx-{}-{}-{}",
+        std::process::id(),
+        tag,
+        n
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -32,7 +37,14 @@ struct Seg {
 }
 
 fn seg(source: &'static str, target: &'static str) -> Seg {
-    Seg { source, target, source_end: true, target_end: true, omitted: false, retired: false }
+    Seg {
+        source,
+        target,
+        source_end: true,
+        target_end: true,
+        omitted: false,
+        retired: false,
+    }
 }
 
 fn insert_chapter(open: &OpenWork, ord: i64, title: Option<&str>) -> i64 {
@@ -84,20 +96,35 @@ struct Fixture {
 fn fixture(tag: &str, first_title: Option<&str>, segs: Vec<Seg>) -> Fixture {
     let root = temp_dir(tag);
     let out = temp_dir(&format!("{tag}-out"));
-    let open = create_work_from_text(&root, "Tac Pham", "zh", "", "Chuong mot.".to_owned()).expect("tao tac pham");
-    open.store.write(|tx: &Transaction<'_>| tx.execute("DELETE FROM segment", [])).expect("xoa segment");
+    let open = create_work_from_text(&root, "Tac Pham", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham");
+    open.store
+        .write(|tx: &Transaction<'_>| tx.execute("DELETE FROM segment", []))
+        .expect("xoa segment");
     let first = open.chapter_id;
     let title = first_title.map(str::to_owned);
     open.store
-        .write(move |tx: &Transaction<'_>| tx.execute("UPDATE chapter SET title = ?1 WHERE id = ?2", (title, first)))
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE chapter SET title = ?1 WHERE id = ?2",
+                (title, first),
+            )
+        })
         .expect("dat tieu de");
     insert_segments(&open, first, segs);
-    Fixture { open, first, root, out }
+    Fixture {
+        open,
+        first,
+        root,
+        out,
+    }
 }
 
 impl Fixture {
     fn export(&self, scope: &ExportScope) -> PathBuf {
-        let file = export_docx_two_column(Some(&self.open), scope, ImageMode::File, None, &self.out).expect("xuat that bai");
+        let file =
+            export_docx_two_column(Some(&self.open), scope, ImageMode::File, None, &self.out)
+                .expect("xuat that bai");
         PathBuf::from(file.path)
     }
 
@@ -118,7 +145,11 @@ fn document_xml(path: &Path) -> String {
     let file = fs::File::open(path).expect("mo tep");
     let mut archive = zip::ZipArchive::new(file).expect("zip");
     let mut xml = String::new();
-    archive.by_name("word/document.xml").expect("document.xml").read_to_string(&mut xml).expect("doc xml");
+    archive
+        .by_name("word/document.xml")
+        .expect("document.xml")
+        .read_to_string(&mut xml)
+        .expect("doc xml");
     xml
 }
 
@@ -144,29 +175,50 @@ fn one_chapter_becomes_one_two_column_table_with_one_row_per_in_translation_segm
     let f = fixture(
         "rows",
         Some("Tieu de"),
-        vec![seg("cau mot", "dich mot"), omitted, retired, seg("cau hai", "dich hai")],
+        vec![
+            seg("cau mot", "dich mot"),
+            omitted,
+            retired,
+            seg("cau hai", "dich hai"),
+        ],
     );
-    let path = f.export(&ExportScope::Chapters { chapter_ids: vec![f.first] });
+    let path = f.export(&ExportScope::Chapters {
+        chapter_ids: vec![f.first],
+    });
     let doc = parsed(&path);
 
     assert_eq!(doc.tables.len(), 1);
     assert_eq!(doc.tables[0].rows, 2, "chi cau thuoc ban dich co hang");
     assert_eq!(doc.tables[0].cells_per_row, vec![2, 2], "hai cot moi hang");
     let texts: Vec<String> = doc.text.split("\n\n").map(str::to_owned).collect();
-    assert_eq!(texts, vec!["Tieu de", "cau mot", "dich mot", "cau hai", "dich hai"]);
+    assert_eq!(
+        texts,
+        vec!["Tieu de", "cau mot", "dich mot", "cau hai", "dich hai"]
+    );
     let xml = document_xml(&path);
-    assert!(!xml.contains("khong duoc xuat") && !xml.contains("cung khong"), "cau bi cat bo/ve huu khong vao tep");
+    assert!(
+        !xml.contains("khong duoc xuat") && !xml.contains("cung khong"),
+        "cau bi cat bo/ve huu khong vao tep"
+    );
     f.finish();
 }
 
 #[test]
 fn an_untranslated_segment_keeps_its_row_with_an_empty_right_cell() {
-    let f = fixture("empty-cell", None, vec![seg("cau mot", ""), seg("cau hai", "dich hai")]);
+    let f = fixture(
+        "empty-cell",
+        None,
+        vec![seg("cau mot", ""), seg("cau hai", "dich hai")],
+    );
     let path = f.export(&ExportScope::Work);
     let doc = parsed(&path);
 
     assert_eq!(doc.tables[0].rows, 2);
-    assert_eq!(doc.tables[0].paragraphs_per_cell, vec![vec![1, 1], vec![1, 1]], "o phai rong van la mot doan");
+    assert_eq!(
+        doc.tables[0].paragraphs_per_cell,
+        vec![vec![1, 1], vec![1, 1]],
+        "o phai rong van la mot doan"
+    );
     assert!(doc.text.contains("cau mot") && doc.text.contains("dich hai"));
     f.finish();
 }
@@ -176,25 +228,51 @@ fn a_newline_inside_a_segment_is_a_line_break_in_one_paragraph_and_survives_the_
     let f = fixture(
         "newline",
         Some("Tieu de"),
-        vec![seg("nguon mot\nnguon hai", "doan mot\ndoan hai\ndoan ba"), seg("cau sau", "dich sau")],
+        vec![
+            seg("nguon mot\nnguon hai", "doan mot\ndoan hai\ndoan ba"),
+            seg("cau sau", "dich sau"),
+        ],
     );
     let path = f.export(&ExportScope::Work);
     let doc = parsed(&path);
 
-    assert_eq!(doc.tables[0].paragraphs_per_cell, vec![vec![1, 1], vec![1, 1]]);
+    assert_eq!(
+        doc.tables[0].paragraphs_per_cell,
+        vec![vec![1, 1], vec![1, 1]]
+    );
     let texts: Vec<&str> = doc.text.split("\n\n").collect();
-    assert_eq!(texts, vec!["Tieu de", "nguon mot\nnguon hai", "doan mot\ndoan hai\ndoan ba", "cau sau", "dich sau"]);
-    assert!(document_xml(&path).contains("<w:br"), "dau xuong dong la w:br");
+    assert_eq!(
+        texts,
+        vec![
+            "Tieu de",
+            "nguon mot\nnguon hai",
+            "doan mot\ndoan hai\ndoan ba",
+            "cau sau",
+            "dich sau"
+        ]
+    );
+    assert!(
+        document_xml(&path).contains("<w:br"),
+        "dau xuong dong la w:br"
+    );
     f.finish();
 }
 
 #[test]
 fn a_one_segment_chapter_with_a_newline_is_a_one_row_table_of_single_paragraph_cells() {
-    let f = fixture("one-row", None, vec![seg("mot cau nguon", "doan mot\ndoan hai")]);
+    let f = fixture(
+        "one-row",
+        None,
+        vec![seg("mot cau nguon", "doan mot\ndoan hai")],
+    );
     let doc = parsed(&f.export(&ExportScope::Work));
 
     assert_eq!(doc.tables[0].rows, 1);
-    assert_eq!(doc.tables[0].paragraphs_per_cell, vec![vec![1, 1]], "hinh dang ma AD-38 tu choi la mot hang, mot o nhieu doan");
+    assert_eq!(
+        doc.tables[0].paragraphs_per_cell,
+        vec![vec![1, 1]],
+        "hinh dang ma AD-38 tu choi la mot hang, mot o nhieu doan"
+    );
     f.finish();
 }
 
@@ -210,7 +288,11 @@ fn each_column_takes_its_gap_from_its_own_paragraph_end_flag() {
     let path = f.export(&ExportScope::Work);
 
     let gaps = last_paragraph_gaps(&document_xml(&path));
-    assert_eq!(gaps, vec!["240", "0", "0", "240"], "trai theo co nguon, phai theo co dich");
+    assert_eq!(
+        gaps,
+        vec!["240", "0", "0", "240"],
+        "trai theo co nguon, phai theo co dich"
+    );
     f.finish();
 }
 
@@ -223,9 +305,15 @@ fn several_chapters_each_get_a_heading_and_a_table_in_chapter_order() {
     let doc = parsed(&path);
 
     assert_eq!(doc.tables.len(), 2);
-    assert_eq!(doc.tables.iter().map(|t| t.rows).collect::<Vec<_>>(), vec![1, 2]);
+    assert_eq!(
+        doc.tables.iter().map(|t| t.rows).collect::<Vec<_>>(),
+        vec![1, 2]
+    );
     let texts: Vec<&str> = doc.text.split("\n\n").collect();
-    assert_eq!(texts, vec!["Chuong A", "a1", "A1", "Chuong B", "b1", "B1", "b2", "B2"]);
+    assert_eq!(
+        texts,
+        vec!["Chuong A", "a1", "A1", "Chuong B", "b1", "B1", "b2", "B2"]
+    );
     f.finish();
 }
 
@@ -239,7 +327,11 @@ fn a_chapter_whose_segments_are_all_omitted_writes_its_heading_and_no_table() {
     let path = f.export(&ExportScope::Work);
     let doc = parsed(&path);
 
-    assert_eq!(doc.tables.len(), 1, "Chuong het cau thuoc ban dich khong co bang");
+    assert_eq!(
+        doc.tables.len(),
+        1,
+        "Chuong het cau thuoc ban dich khong co bang"
+    );
     assert!(doc.text.contains("Chuong A") && doc.text.contains("Chuong B"));
     f.finish();
 }
@@ -271,7 +363,14 @@ fn the_written_name_is_safe_and_ends_in_docx() {
 fn a_folder_that_does_not_exist_is_a_named_error_and_writes_nothing() {
     let f = fixture("nofolder", None, vec![seg("a", "b")]);
     let missing = f.out.join("khong-co");
-    let err = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, None, &missing).expect_err("thu muc la phai la loi");
+    let err = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Work,
+        ImageMode::File,
+        None,
+        &missing,
+    )
+    .expect_err("thu muc la phai la loi");
     assert_eq!(err.code(), "export.folder_invalid");
     assert!(!missing.exists());
     f.finish();
@@ -280,16 +379,36 @@ fn a_folder_that_does_not_exist_is_a_named_error_and_writes_nothing() {
 #[test]
 fn scope_errors_and_a_closed_work_stay_the_named_errors_of_the_scope_screen() {
     let f = fixture("errors", None, vec![seg("a", "b")]);
-    let empty = export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![] }, ImageMode::File, None, &f.out)
-        .expect_err("pham vi rong");
+    let empty = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Chapters {
+            chapter_ids: vec![],
+        },
+        ImageMode::File,
+        None,
+        &f.out,
+    )
+    .expect_err("pham vi rong");
     assert_eq!(empty.code(), "export.scope_empty");
-    let unknown =
-        export_docx_two_column(Some(&f.open), &ExportScope::Chapters { chapter_ids: vec![9_999] }, ImageMode::File, None, &f.out)
-            .expect_err("Chuong la");
+    let unknown = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Chapters {
+            chapter_ids: vec![9_999],
+        },
+        ImageMode::File,
+        None,
+        &f.out,
+    )
+    .expect_err("Chuong la");
     assert_eq!(unknown.code(), "segment.chapter_not_found");
-    let none = export_docx_two_column(None, &ExportScope::Work, ImageMode::File, None, &f.out).expect_err("chua mo Tac pham");
+    let none = export_docx_two_column(None, &ExportScope::Work, ImageMode::File, None, &f.out)
+        .expect_err("chua mo Tac pham");
     assert_eq!(none.code(), "work.none_open");
-    assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 0, "loi khong de lai tep");
+    assert_eq!(
+        fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0),
+        0,
+        "loi khong de lai tep"
+    );
     f.finish();
 }
 
@@ -298,13 +417,26 @@ fn the_returned_counts_match_the_rows_written() {
     let mut cut = seg("bi cat", "bi cat");
     cut.omitted = true;
     let f = fixture("counts", None, vec![seg("a", "b"), cut, seg("c", "d")]);
-    let file = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, None, &f.out).expect("xuat");
+    let file = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Work,
+        ImageMode::File,
+        None,
+        &f.out,
+    )
+    .expect("xuat");
     assert_eq!((file.chapter_count, file.segment_count), (1, 2));
     assert_eq!(parsed(Path::new(&file.path)).tables[0].rows, 2);
     f.finish();
 }
 
-fn insert_asset(open: &OpenWork, chapter_id: i64, file_name: &str, source_url: Option<&str>, anchor: i64) -> i64 {
+fn insert_asset(
+    open: &OpenWork,
+    chapter_id: i64,
+    file_name: &str,
+    source_url: Option<&str>,
+    anchor: i64,
+) -> i64 {
     let (file_name, source_url) = (file_name.to_owned(), source_url.map(str::to_owned));
     open.store
         .write(move |tx: &Transaction<'_>| {
@@ -325,7 +457,8 @@ fn put_asset_file(open: &OpenWork, file_name: &str, bytes: &[u8]) {
 }
 
 fn export_with(f: &Fixture, mode: ImageMode) -> auratranslate_lib::commands::export::ExportedFile {
-    export_docx_two_column(Some(&f.open), &ExportScope::Work, mode, None, &f.out).expect("xuat that bai")
+    export_docx_two_column(Some(&f.open), &ExportScope::Work, mode, None, &f.out)
+        .expect("xuat that bai")
 }
 
 fn three() -> Vec<Seg> {
@@ -335,12 +468,31 @@ fn three() -> Vec<Seg> {
 #[test]
 fn link_mode_writes_a_hyperlink_row_at_each_anchor_and_reports_the_images_it_left_out() {
     let f = fixture("img-link", None, three());
-    insert_asset(&f.open, f.first, "head.jpg", Some("https://x.test/head.jpg"), 0);
-    insert_asset(&f.open, f.first, "mid.jpg", Some("https://x.test/mid.jpg"), 1);
+    insert_asset(
+        &f.open,
+        f.first,
+        "head.jpg",
+        Some("https://x.test/head.jpg"),
+        0,
+    );
+    insert_asset(
+        &f.open,
+        f.first,
+        "mid.jpg",
+        Some("https://x.test/mid.jpg"),
+        1,
+    );
     insert_asset(&f.open, f.first, "nolink.jpg", None, 1);
     let file = export_with(&f, ImageMode::Link);
 
-    assert_eq!((file.image_count, file.images_skipped_missing_link, file.images_dir.clone()), (2, 1, None));
+    assert_eq!(
+        (
+            file.image_count,
+            file.images_skipped_missing_link,
+            file.images_dir.clone()
+        ),
+        (2, 1, None)
+    );
     let doc = parsed(Path::new(&file.path));
     assert_eq!(doc.tables[0].rows, 5);
     assert_eq!(doc.tables[0].cells_per_row, vec![2, 2, 2, 2, 2]);
@@ -348,14 +500,26 @@ fn link_mode_writes_a_hyperlink_row_at_each_anchor_and_reports_the_images_it_lef
     assert_eq!(
         texts,
         vec![
-            "https://x.test/head.jpg", "https://x.test/head.jpg", "s0", "t0", "s1", "t1",
-            "https://x.test/mid.jpg", "https://x.test/mid.jpg", "s2", "t2"
+            "https://x.test/head.jpg",
+            "https://x.test/head.jpg",
+            "s0",
+            "t0",
+            "s1",
+            "t1",
+            "https://x.test/mid.jpg",
+            "https://x.test/mid.jpg",
+            "s2",
+            "t2"
         ]
     );
     let xml = document_xml(Path::new(&file.path));
     assert!(xml.contains("<w:hyperlink"), "hang anh la Hyperlink");
     assert!(!xml.contains("nolink"), "anh thieu link vang mat");
-    assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 1, "che do link khong tao thu muc anh");
+    assert_eq!(
+        fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0),
+        1,
+        "che do link khong tao thu muc anh"
+    );
     f.finish();
 }
 
@@ -369,15 +533,35 @@ fn file_mode_copies_every_image_beside_the_docx_and_each_row_names_its_own_file(
     let file = export_with(&f, ImageMode::File);
 
     let docx = PathBuf::from(&file.path);
-    let stem = docx.file_stem().and_then(|n| n.to_str()).expect("stem").to_owned();
+    let stem = docx
+        .file_stem()
+        .and_then(|n| n.to_str())
+        .expect("stem")
+        .to_owned();
     let dir = f.out.join(format!("{stem}-anh"));
     assert_eq!(file.images_dir.as_deref(), dir.to_str());
     assert_eq!((file.image_count, file.images_skipped_missing_link), (2, 0));
-    assert_eq!(fs::read(dir.join(format!("{a}-a.jpg"))).expect("anh a"), b"AAA");
-    assert_eq!(fs::read(dir.join(format!("{b}-b.png"))).expect("anh b"), b"BBBB");
-    let texts: Vec<String> = parsed(&docx).text.split("\n\n").map(str::to_owned).collect();
-    let (ra, rb) = (format!("{stem}-anh/{a}-a.jpg"), format!("{stem}-anh/{b}-b.png"));
-    assert_eq!(texts, vec!["s0", "t0", "s1", "t1", &ra, &ra, "s2", "t2", &rb, &rb]);
+    assert_eq!(
+        fs::read(dir.join(format!("{a}-a.jpg"))).expect("anh a"),
+        b"AAA"
+    );
+    assert_eq!(
+        fs::read(dir.join(format!("{b}-b.png"))).expect("anh b"),
+        b"BBBB"
+    );
+    let texts: Vec<String> = parsed(&docx)
+        .text
+        .split("\n\n")
+        .map(str::to_owned)
+        .collect();
+    let (ra, rb) = (
+        format!("{stem}-anh/{a}-a.jpg"),
+        format!("{stem}-anh/{b}-b.png"),
+    );
+    assert_eq!(
+        texts,
+        vec!["s0", "t0", "s1", "t1", &ra, &ra, "s2", "t2", &rb, &rb]
+    );
     f.finish();
 }
 
@@ -387,8 +571,14 @@ fn file_mode_with_a_missing_image_file_is_a_named_error_and_leaves_nothing_behin
     insert_asset(&f.open, f.first, "here.jpg", None, 1);
     insert_asset(&f.open, f.first, "gone.jpg", None, 2);
     put_asset_file(&f.open, "here.jpg", b"x");
-    let err = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, None, &f.out)
-        .expect_err("thieu tep anh phai la loi");
+    let err = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Work,
+        ImageMode::File,
+        None,
+        &f.out,
+    )
+    .expect_err("thieu tep anh phai la loi");
     assert_eq!(err.code(), "export.image_file_missing");
     assert!(format!("{err:?}").contains("gone.jpg") && format!("{err:?}").contains("chapter_ord"));
     assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 0);
@@ -405,7 +595,11 @@ fn an_existing_image_folder_pushes_both_names_to_the_next_free_stem_and_is_never
     fs::write(taken.join("keep.txt"), b"keep").expect("tep co san");
     let file = export_with(&f, ImageMode::File);
 
-    assert!(file.path.ends_with("Tac Pham-hai-cot (2).docx"), "{}", file.path);
+    assert!(
+        file.path.ends_with("Tac Pham-hai-cot (2).docx"),
+        "{}",
+        file.path
+    );
     assert!(f.out.join("Tac Pham-hai-cot (2)-anh").is_dir());
     assert_eq!(fs::read_dir(&taken).map(Iterator::count).unwrap_or(0), 1);
     assert!(!f.out.join("Tac Pham-hai-cot.docx").exists());
@@ -418,13 +612,33 @@ fn an_image_anchored_on_an_omitted_or_retired_segment_moves_to_the_row_before_it
     cut.omitted = true;
     let mut gone = seg("huu", "huu");
     gone.retired = true;
-    let f = fixture("img-anchor", None, vec![seg("s0", "t0"), cut, gone, seg("s3", "t3")]);
+    let f = fixture(
+        "img-anchor",
+        None,
+        vec![seg("s0", "t0"), cut, gone, seg("s3", "t3")],
+    );
     insert_asset(&f.open, f.first, "a.jpg", Some("https://x.test/a"), 1);
     insert_asset(&f.open, f.first, "b.jpg", Some("https://x.test/b"), 2);
     let file = export_with(&f, ImageMode::Link);
 
-    let texts: Vec<String> = parsed(Path::new(&file.path)).text.split("\n\n").map(str::to_owned).collect();
-    assert_eq!(texts, vec!["s0", "t0", "https://x.test/a", "https://x.test/a", "https://x.test/b", "https://x.test/b", "s3", "t3"]);
+    let texts: Vec<String> = parsed(Path::new(&file.path))
+        .text
+        .split("\n\n")
+        .map(str::to_owned)
+        .collect();
+    assert_eq!(
+        texts,
+        vec![
+            "s0",
+            "t0",
+            "https://x.test/a",
+            "https://x.test/a",
+            "https://x.test/b",
+            "https://x.test/b",
+            "s3",
+            "t3"
+        ]
+    );
     f.finish();
 }
 

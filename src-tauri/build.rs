@@ -62,7 +62,8 @@ fn embed_manifest_for_tests() {
         return;
     }
 
-    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("windows-app-manifest.xml");
+    let manifest =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("windows-app-manifest.xml");
     println!("cargo:rerun-if-changed=windows-app-manifest.xml");
     println!("cargo:rustc-link-arg-tests=/MANIFEST:EMBED");
     println!(

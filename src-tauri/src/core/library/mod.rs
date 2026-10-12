@@ -87,7 +87,10 @@ impl std::fmt::Display for WorkError {
                 write!(f, "work create failed: {detail}")
             }
             WorkError::MetaTooNew { found, supported } => {
-                write!(f, "work meta schema {found} is newer than supported {supported}")
+                write!(
+                    f,
+                    "work meta schema {found} is newer than supported {supported}"
+                )
             }
             WorkError::OpenFailed { name, detail } => {
                 write!(f, "work open failed for {name}: {detail}")
@@ -107,7 +110,9 @@ impl From<MetaError> for WorkError {
             // phân biệt nó với các lỗi tạo mới khác. Nay `open_work` CẦN phân biệt (AC8: câu
             // báo phải "nói đúng loại lỗi", có `found`/`supported`) ⇒ ánh xạ sang biến thể
             // riêng thay vì gộp.
-            MetaError::SchemaTooNew { found, supported } => WorkError::MetaTooNew { found, supported },
+            MetaError::SchemaTooNew { found, supported } => {
+                WorkError::MetaTooNew { found, supported }
+            }
         }
     }
 }
@@ -119,19 +124,32 @@ impl From<WorkError> for IpcError {
         use std::collections::BTreeMap;
 
         match err {
-            WorkError::CreateFailed { .. } => {
-                IpcError::new("work.create_failed", MessageKey::WorkCreateFailed, BTreeMap::new(), false)
-            }
+            WorkError::CreateFailed { .. } => IpcError::new(
+                "work.create_failed",
+                MessageKey::WorkCreateFailed,
+                BTreeMap::new(),
+                false,
+            ),
             WorkError::MetaTooNew { found, supported } => {
                 let mut params = BTreeMap::new();
                 params.insert("found".to_owned(), found.to_string());
                 params.insert("supported".to_owned(), supported.to_string());
-                IpcError::new("work.meta_too_new", MessageKey::WorkMetaTooNew, params, false)
+                IpcError::new(
+                    "work.meta_too_new",
+                    MessageKey::WorkMetaTooNew,
+                    params,
+                    false,
+                )
             }
             WorkError::OpenFailed { name, .. } => {
                 let mut params = BTreeMap::new();
                 params.insert("name".to_owned(), name);
-                IpcError::new("work.open_failed", MessageKey::WorkOpenFailed, params, false)
+                IpcError::new(
+                    "work.open_failed",
+                    MessageKey::WorkOpenFailed,
+                    params,
+                    false,
+                )
             }
         }
     }

@@ -11,9 +11,12 @@ pub enum ReimportShapeError {
 impl From<ReimportShapeError> for IpcError {
     fn from(error: ReimportShapeError) -> Self {
         match error {
-            ReimportShapeError::PublishCopy => {
-                IpcError::new("export.publish_copy_not_reimportable", MessageKey::ExportPublishCopyNotReimportable, BTreeMap::new(), false)
-            }
+            ReimportShapeError::PublishCopy => IpcError::new(
+                "export.publish_copy_not_reimportable",
+                MessageKey::ExportPublishCopyNotReimportable,
+                BTreeMap::new(),
+                false,
+            ),
         }
     }
 }
@@ -27,11 +30,19 @@ pub struct ReviewerDocx {
 
 impl ReviewerDocx {
     pub fn admit(parsed: DocxParsed) -> Result<Self, ReimportShapeError> {
-        let is_publish_copy = parsed
-            .tables
-            .iter()
-            .any(|table| table.rows == 1 && table.paragraphs_per_cell.iter().flatten().any(|&paragraphs| paragraphs > 1));
-        if is_publish_copy { Err(ReimportShapeError::PublishCopy) } else { Ok(Self { parsed }) }
+        let is_publish_copy = parsed.tables.iter().any(|table| {
+            table.rows == 1
+                && table
+                    .paragraphs_per_cell
+                    .iter()
+                    .flatten()
+                    .any(|&paragraphs| paragraphs > 1)
+        });
+        if is_publish_copy {
+            Err(ReimportShapeError::PublishCopy)
+        } else {
+            Ok(Self { parsed })
+        }
     }
 
     pub fn parsed(&self) -> &DocxParsed {

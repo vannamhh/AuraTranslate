@@ -169,8 +169,19 @@ fn dom_smoothie_records_one_tsv_row_of_extraction_measurements_per_real_fetched_
                 let text: &str = &article.text_content;
                 let chars: Vec<char> = text.chars().collect();
                 let head: String = chars.iter().take(80).collect();
-                let tail: String = chars.iter().rev().take(80).collect::<Vec<_>>().into_iter().rev().collect();
-                let note = if is_readable { cache_note } else { format!("{cache_note}khong_giong_bai_viet") };
+                let tail: String = chars
+                    .iter()
+                    .rev()
+                    .take(80)
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .collect();
+                let note = if is_readable {
+                    cache_note
+                } else {
+                    format!("{cache_note}khong_giong_bai_viet")
+                };
                 rows.push(format!(
                     "{id}\t{url}\t{is_readable}\t{char_count}\t{paragraph_count}\t{}\t{}\t{}\t{note}",
                     tsv_escape(&article.title),
@@ -197,7 +208,11 @@ fn dom_smoothie_records_one_tsv_row_of_extraction_measurements_per_real_fetched_
         urls.len()
     );
 
-    assert_eq!(rows.len(), urls.len(), "phải ghi đúng một hàng cho mỗi URL, không bỏ sót");
+    assert_eq!(
+        rows.len(),
+        urls.len(),
+        "phải ghi đúng một hàng cho mỗi URL, không bỏ sót"
+    );
 }
 
 /// Trả HTML của `url`: đọc cache nếu có VÀ đọc được; cache vắng mặt hoặc HỎNG (quyền, mã
@@ -257,8 +272,8 @@ fn tsv_escape(s: &str) -> String {
 // hạ tầng của TOÀN bộ đo, chỉ của MỘT mẫu, nên nó ghi một hàng lỗi rồi qua mẫu kế tiếp.
 #[test]
 #[ignore = "ban do can fixture that cua Ice trong fixtures/encoding/, khong phai mot cong"]
-fn chardetng_records_the_true_and_guessed_label_of_every_encoding_fixture_or_fails_loudly_on_zero_samples(
-) {
+fn chardetng_records_the_true_and_guessed_label_of_every_encoding_fixture_or_fails_loudly_on_zero_samples()
+ {
     let dir = ban_do_dir().join("fixtures/encoding");
     let mut files: Vec<PathBuf> = fs::read_dir(&dir)
         .into_iter()
@@ -312,8 +327,8 @@ fn chardetng_records_the_true_and_guessed_label_of_every_encoding_fixture_or_fai
 
         let norm_true = normalize_label(true_label);
         let norm_guess = normalize_label(guess.name());
-        let is_match = norm_true == norm_guess
-            || (norm_true == "UTF16" && norm_guess.starts_with("UTF16"));
+        let is_match =
+            norm_true == norm_guess || (norm_true == "UTF16" && norm_guess.starts_with("UTF16"));
         if is_match {
             matched += 1;
         }
@@ -366,7 +381,10 @@ fn reqwest_blocks_a_cross_host_redirect_caps_a_streamed_body_and_reports_a_dead_
     let mut rows = Vec::new();
     let mut failed: Vec<&str> = Vec::new();
     for (name, (ok, detail)) in &cases {
-        rows.push(format!("{name}\t{}\t{detail}", if *ok { "OK" } else { "FAIL" }));
+        rows.push(format!(
+            "{name}\t{}\t{detail}",
+            if *ok { "OK" } else { "FAIL" }
+        ));
         if !*ok {
             failed.push(name);
         }
@@ -404,7 +422,10 @@ fn redirect_case() -> (bool, String) {
     // "Allowlist" của phép đo: chỉ port của chính server A được đi tiếp — bất kỳ port
     // nào khác (đứng cho domain khác) bị `stop()`, đúng hành vi AD-41 cần từ `Fetcher`.
     let policy = reqwest::redirect::Policy::custom(move |attempt| {
-        chain_clone.lock().unwrap_or_else(|e| e.into_inner()).push(attempt.url().to_string());
+        chain_clone
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(attempt.url().to_string());
         if attempt.url().port() == Some(port_a) {
             attempt.follow()
         } else {
@@ -421,7 +442,10 @@ fn redirect_case() -> (bool, String) {
         Err(e) => return (false, format!("dựng client reqwest thất bại: {e}")),
     };
 
-    let resp = match client.get(format!("http://127.0.0.1:{port_a}/start")).send() {
+    let resp = match client
+        .get(format!("http://127.0.0.1:{port_a}/start"))
+        .send()
+    {
         Ok(r) => r,
         Err(e) => return (false, format!("gửi yêu cầu ban đầu thất bại: {e}")),
     };
@@ -433,7 +457,9 @@ fn redirect_case() -> (bool, String) {
 
     let mut violations = Vec::new();
     if !status.is_redirection() {
-        violations.push(format!("status={status} không phải 3xx — đã ĐI TIẾP thay vì chặn"));
+        violations.push(format!(
+            "status={status} không phải 3xx — đã ĐI TIẾP thay vì chặn"
+        ));
     }
     if !has_location {
         violations.push("thiếu header Location trên response đã chặn".to_string());
@@ -444,14 +470,19 @@ fn redirect_case() -> (bool, String) {
         ));
     }
     if b_reached != 0 {
-        violations.push(format!("server bị chặn NHẬN kết nối {b_reached} lần (kỳ vọng 0)"));
+        violations.push(format!(
+            "server bị chặn NHẬN kết nối {b_reached} lần (kỳ vọng 0)"
+        ));
     }
 
     let detail = format!("status={status}; chain={chain_recorded:?}; server_b_reached={b_reached}");
     if violations.is_empty() {
         (true, detail)
     } else {
-        (false, format!("{detail}; VI PHẠM: {}", violations.join(" | ")))
+        (
+            false,
+            format!("{detail}; VI PHẠM: {}", violations.join(" | ")),
+        )
     }
 }
 
@@ -532,10 +563,14 @@ fn size_cap_case() -> (bool, String) {
         violations.push(v);
     }
     if read_total >= ADVERTISED_LEN {
-        violations.push(format!("đọc hết {read_total} byte — không hề dừng trước {ADVERTISED_LEN}"));
+        violations.push(format!(
+            "đọc hết {read_total} byte — không hề dừng trước {ADVERTISED_LEN}"
+        ));
     }
     if read_total < CAP {
-        violations.push(format!("chỉ đọc được {read_total} byte — chưa chạm trần {CAP}"));
+        violations.push(format!(
+            "chỉ đọc được {read_total} byte — chưa chạm trần {CAP}"
+        ));
     }
 
     // ⚠️ `actually_read` PHỤ THUỘC LƯỢT CHẠY — nó dừng ở biên `read()` bất kỳ vượt qua
@@ -546,7 +581,10 @@ fn size_cap_case() -> (bool, String) {
     if violations.is_empty() {
         (true, detail)
     } else {
-        (false, format!("{detail}; VI PHẠM: {}", violations.join(" | ")))
+        (
+            false,
+            format!("{detail}; VI PHẠM: {}", violations.join(" | ")),
+        )
     }
 }
 
@@ -575,7 +613,10 @@ fn network_failure_case() -> (bool, String) {
 
         match client.get(format!("http://127.0.0.1:{port}/nope")).send() {
             Err(e) if e.is_connect() || e.is_timeout() => {
-                return (true, format!("port={port}; attempt={attempt}/{MAX_ATTEMPTS}; {e}"));
+                return (
+                    true,
+                    format!("port={port}; attempt={attempt}/{MAX_ATTEMPTS}; {e}"),
+                );
             }
             Err(e) => {
                 return (

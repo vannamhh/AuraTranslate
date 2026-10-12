@@ -92,7 +92,11 @@ pub fn prepare_tm_fuzzy(
         return Err(segment_retired(segment_id));
     }
     let empty = || {
-        TmFuzzyPrepared::Empty(TmFuzzyMatches { segment_id, matches: Vec::new(), exact: Vec::new() })
+        TmFuzzyPrepared::Empty(TmFuzzyMatches {
+            segment_id,
+            matches: Vec::new(),
+            exact: Vec::new(),
+        })
     };
     if source.trim().is_empty() {
         return Ok(empty());
@@ -168,7 +172,11 @@ pub fn score_tm_fuzzy(prepared: TmFuzzyPrepared) -> Result<TmFuzzyMatches, IpcEr
             },
         })
         .collect();
-    Ok(TmFuzzyMatches { segment_id: scan.segment_id, matches, exact: Vec::new() })
+    Ok(TmFuzzyMatches {
+        segment_id: scan.segment_id,
+        matches,
+        exact: Vec::new(),
+    })
 }
 
 /// Fuzzy TM matches for a segment's source (FR59): both tiers scored by `core::matching`,
@@ -226,7 +234,11 @@ pub fn prepare_tm_concordance(
     };
     let candidates = crate::core::tm::read_tier_rows(global, open.map(|o| &o.store))
         .map_err(|e| tm_lookup_failed(&e))?;
-    Ok(TmConcordanceScan { query: query.to_owned(), resolver, candidates })
+    Ok(TmConcordanceScan {
+        query: query.to_owned(),
+        resolver,
+        candidates,
+    })
 }
 
 pub fn score_tm_concordance(scan: TmConcordanceScan) -> Result<TmConcordance, IpcError> {
@@ -244,7 +256,12 @@ pub fn score_tm_concordance(scan: TmConcordanceScan) -> Result<TmConcordance, Ip
             created_at: pair.created_at,
         })
         .collect();
-    Ok(TmConcordance { query: scan.query, tm_empty: found.tm_empty, total: found.total, hits })
+    Ok(TmConcordance {
+        query: scan.query,
+        tm_empty: found.tm_empty,
+        total: found.total,
+        hits,
+    })
 }
 
 /// Concordance (FR60): every pair of both tiers whose source contains `query`.
@@ -260,7 +277,10 @@ pub fn tm_pair_not_found(tier: &str, unit_id: i64) -> IpcError {
     IpcError::new(
         "tm.pair_not_found",
         MessageKey::Unknown,
-        BTreeMap::from([("tier".to_owned(), tier.to_owned()), ("unit_id".to_owned(), unit_id.to_string())]),
+        BTreeMap::from([
+            ("tier".to_owned(), tier.to_owned()),
+            ("unit_id".to_owned(), unit_id.to_string()),
+        ]),
         false,
     )
 }
@@ -345,7 +365,8 @@ pub fn accept_tm_exact(
                 ))
             },
         );
-        let (source, current_text, baseline, current_origin, retired, current_status) = match found {
+        let (source, current_text, baseline, current_origin, retired, current_status) = match found
+        {
             Ok(value) => value,
             Err(SqlError::QueryReturnedNoRows) => return Ok(Picked::Missing),
             Err(err) => return Err(err),
@@ -364,11 +385,21 @@ pub fn accept_tm_exact(
                 |row| row.get(0),
             )?;
             if has_copy == 0 {
-                return Ok(Picked::Row(current_text, current_origin, current_status, true));
+                return Ok(Picked::Row(
+                    current_text,
+                    current_origin,
+                    current_status,
+                    true,
+                ));
             }
         }
         write_non_user_target(tx, segment_id, &target, pair_origin, Some(pair_origin))?;
-        Ok(Picked::Row(target, pair_origin.to_owned(), SEGMENT_STATUS_DRAFT.to_owned(), false))
+        Ok(Picked::Row(
+            target,
+            pair_origin.to_owned(),
+            SEGMENT_STATUS_DRAFT.to_owned(),
+            false,
+        ))
     })?;
 
     let (target_text, translation_origin, status, needs_confirmation) = match outcome {

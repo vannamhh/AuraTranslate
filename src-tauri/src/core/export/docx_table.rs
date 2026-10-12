@@ -1,8 +1,8 @@
 use std::io::Cursor;
 
 use docx_rs::{
-    BreakType, Docx, Hyperlink, HyperlinkType, LineSpacing, Paragraph, Run, Table, TableCell, TableLayoutType, TableRow,
-    WidthType,
+    BreakType, Docx, Hyperlink, HyperlinkType, LineSpacing, Paragraph, Run, Table, TableCell,
+    TableLayoutType, TableRow, WidthType,
 };
 
 use super::image_files::copied_name;
@@ -31,18 +31,23 @@ pub(super) fn paragraph_of(text: &str, gap_after: bool) -> Paragraph {
         run = run.add_text(line);
     }
     let gap = if gap_after { PARAGRAPH_GAP_DXA } else { 0 };
-    Paragraph::new().add_run(run).line_spacing(LineSpacing::new().after(gap))
+    Paragraph::new()
+        .add_run(run)
+        .line_spacing(LineSpacing::new().after(gap))
 }
 
 fn cell_of(cell: &ExportCell) -> TableCell {
-    TableCell::new().width(COLUMN_WIDTH_DXA, WidthType::Dxa).add_paragraph(paragraph_of(&cell.text, cell.ends_paragraph))
+    TableCell::new()
+        .width(COLUMN_WIDTH_DXA, WidthType::Dxa)
+        .add_paragraph(paragraph_of(&cell.text, cell.ends_paragraph))
 }
 
 pub(super) fn image_paragraph(image: &ExportImage, reference: ImageReference<'_>) -> Paragraph {
     let paragraph = Paragraph::new().line_spacing(LineSpacing::new().after(PARAGRAPH_GAP_DXA));
     match (reference, image.source_url.as_deref()) {
-        (ImageReference::Link, Some(url)) => paragraph
-            .add_hyperlink(Hyperlink::new(url, HyperlinkType::External).add_run(Run::new().add_text(url))),
+        (ImageReference::Link, Some(url)) => paragraph.add_hyperlink(
+            Hyperlink::new(url, HyperlinkType::External).add_run(Run::new().add_text(url)),
+        ),
         (ImageReference::Dir(dir), _) => {
             paragraph.add_run(Run::new().add_text(format!("{dir}/{}", copied_name(image))))
         }
@@ -51,20 +56,28 @@ pub(super) fn image_paragraph(image: &ExportImage, reference: ImageReference<'_>
 }
 
 fn image_cell(image: &ExportImage, reference: ImageReference<'_>) -> TableCell {
-    TableCell::new().width(COLUMN_WIDTH_DXA, WidthType::Dxa).add_paragraph(image_paragraph(image, reference))
+    TableCell::new()
+        .width(COLUMN_WIDTH_DXA, WidthType::Dxa)
+        .add_paragraph(image_paragraph(image, reference))
 }
 
 fn row_of(row: &ExportRow, reference: ImageReference<'_>) -> TableRow {
     match row {
         ExportRow::Text { source, target } => TableRow::new(vec![cell_of(source), cell_of(target)]),
-        ExportRow::Image(image) => TableRow::new(vec![image_cell(image, reference), image_cell(image, reference)]),
+        ExportRow::Image(image) => TableRow::new(vec![
+            image_cell(image, reference),
+            image_cell(image, reference),
+        ]),
     }
     .cant_split()
 }
 
 /// Mỗi Chương: một đoạn tiêu đề rồi một bảng hai cột, mỗi segment một hàng, không hàng đầu bảng.
 /// Chương không có hàng nào chỉ có đoạn tiêu đề (bảng không hàng làm Word từ chối tệp).
-pub fn write_two_column_docx(tables: &[ChapterTable], reference: ImageReference<'_>) -> Result<Vec<u8>, DocxWriteError> {
+pub fn write_two_column_docx(
+    tables: &[ChapterTable],
+    reference: ImageReference<'_>,
+) -> Result<Vec<u8>, DocxWriteError> {
     let mut docx = Docx::new();
     for chapter in tables {
         if !chapter.attribution.is_empty() {
@@ -74,12 +87,20 @@ pub fn write_two_column_docx(tables: &[ChapterTable], reference: ImageReference<
         if chapter.rows.is_empty() {
             continue;
         }
-        let rows = chapter.rows.iter().map(|row| row_of(row, reference)).collect();
+        let rows = chapter
+            .rows
+            .iter()
+            .map(|row| row_of(row, reference))
+            .collect();
         docx = docx.add_table(
-            Table::new(rows).set_grid(vec![COLUMN_WIDTH_DXA, COLUMN_WIDTH_DXA]).layout(TableLayoutType::Fixed),
+            Table::new(rows)
+                .set_grid(vec![COLUMN_WIDTH_DXA, COLUMN_WIDTH_DXA])
+                .layout(TableLayoutType::Fixed),
         );
     }
     let mut buffer = Cursor::new(Vec::new());
-    docx.build().pack(&mut buffer).map_err(|e| DocxWriteError(e.to_string()))?;
+    docx.build()
+        .pack(&mut buffer)
+        .map_err(|e| DocxWriteError(e.to_string()))?;
     Ok(buffer.into_inner())
 }

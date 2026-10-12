@@ -53,8 +53,14 @@ impl Delimiter {
 /// Sáu cột của tệp xuất — thứ tự CỐ ĐỊNH, dùng cho CẢ hàng tiêu đề lẫn việc dò cột lúc
 /// nhập. Định danh máy đọc, KHÔNG DẤU (§Boundaries — Kiểm A của `check:i18n`, cùng luật đã
 /// đặt cho `Category::as_str()`, AD-21/NFR16).
-const COLUMNS: [&str; 6] =
-    ["source_term", "translation", "note", "category", "term_origin", "created_at"];
+const COLUMNS: [&str; 6] = [
+    "source_term",
+    "translation",
+    "note",
+    "category",
+    "term_origin",
+    "created_at",
+];
 
 /// Dấu thứ tự byte UTF-8 (`EF BB BF`) — cùng khuôn `core::segment::pipeline::strip_bom`.
 /// 🔵 **SỬA 2026-09-04 (Story 6.2)** — con trỏ đổi vì hàm gốc dời từ `core::segment::import`
@@ -122,7 +128,10 @@ const FORMULA_GUARD_PREFIX: char = '\'';
 /// [`needs_formula_guard`] ở chiều NHẬP ([`strip_formula_guard`]) — một vị từ chung là thứ
 /// giữ hai chiều ĐỐI XỨNG nhau; hai vị từ viết tay riêng rẽ là đúng cách bản trước bị lệch.
 fn char_after_leading_quotes(field: &str) -> Option<char> {
-    field.trim_start_matches(FORMULA_GUARD_PREFIX).chars().next()
+    field
+        .trim_start_matches(FORMULA_GUARD_PREFIX)
+        .chars()
+        .next()
 }
 
 fn needs_formula_guard(field: &str) -> bool {
@@ -303,34 +312,62 @@ impl std::fmt::Display for ParseIssue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ParseIssue::DelimiterUnresolved => {
-                write!(f, "glossary import: header has both or neither of ',' and TAB")
+                write!(
+                    f,
+                    "glossary import: header has both or neither of ',' and TAB"
+                )
             }
             ParseIssue::MissingColumn { column } => {
-                write!(f, "glossary import: header missing required column {column:?}")
+                write!(
+                    f,
+                    "glossary import: header missing required column {column:?}"
+                )
             }
-            ParseIssue::CellCountMismatch { line, expected, found } => {
-                write!(f, "glossary import[line {line}]: {found} cells, header has {expected}")
+            ParseIssue::CellCountMismatch {
+                line,
+                expected,
+                found,
+            } => {
+                write!(
+                    f,
+                    "glossary import[line {line}]: {found} cells, header has {expected}"
+                )
             }
             ParseIssue::UnknownCategory { line, value } => {
-                write!(f, "glossary import[line {line}]: unknown category {value:?}")
+                write!(
+                    f,
+                    "glossary import[line {line}]: unknown category {value:?}"
+                )
             }
             ParseIssue::BlankSourceTerm { line } => {
                 write!(f, "glossary import[line {line}]: source_term is blank")
             }
-            ParseIssue::DuplicateSourceTerm { first_line, second_line } => {
+            ParseIssue::DuplicateSourceTerm {
+                first_line,
+                second_line,
+            } => {
                 write!(
                     f,
                     "glossary import: source_term duplicated at lines {first_line} and {second_line}"
                 )
             }
             ParseIssue::InvalidCreatedAt { line, value } => {
-                write!(f, "glossary import[line {line}]: created_at not iso-8601 utc {value:?}")
+                write!(
+                    f,
+                    "glossary import[line {line}]: created_at not iso-8601 utc {value:?}"
+                )
             }
             ParseIssue::UnterminatedQuotedField { line } => {
-                write!(f, "glossary import[line {line}]: quoted field opened but never closed")
+                write!(
+                    f,
+                    "glossary import[line {line}]: quoted field opened but never closed"
+                )
             }
             ParseIssue::DuplicateColumn { column } => {
-                write!(f, "glossary import: header column {column:?} appears more than once")
+                write!(
+                    f,
+                    "glossary import: header column {column:?} appears more than once"
+                )
             }
         }
     }
@@ -359,7 +396,11 @@ impl From<ParseIssue> for IpcError {
                     false,
                 )
             }
-            ParseIssue::CellCountMismatch { line, expected, found } => {
+            ParseIssue::CellCountMismatch {
+                line,
+                expected,
+                found,
+            } => {
                 let mut params = BTreeMap::new();
                 params.insert("line".to_owned(), line.to_string());
                 params.insert("expected".to_owned(), expected.to_string());
@@ -392,7 +433,10 @@ impl From<ParseIssue> for IpcError {
                     false,
                 )
             }
-            ParseIssue::DuplicateSourceTerm { first_line, second_line } => {
+            ParseIssue::DuplicateSourceTerm {
+                first_line,
+                second_line,
+            } => {
                 let mut params = BTreeMap::new();
                 params.insert("first_line".to_owned(), first_line.to_string());
                 params.insert("second_line".to_owned(), second_line.to_string());
@@ -511,7 +555,9 @@ const ZERO_WIDTH_CHARS: [char; 5] = ['\u{200B}', '\u{200C}', '\u{200D}', '\u{206
 /// unchanged; a twin migration adds triggers instead, since an already-migrated store never
 /// reruns old DDL.
 pub(crate) fn strip_zero_width(s: &str) -> String {
-    s.chars().filter(|c| !ZERO_WIDTH_CHARS.contains(c)).collect()
+    s.chars()
+        .filter(|c| !ZERO_WIDTH_CHARS.contains(c))
+        .collect()
 }
 
 /// `s` khớp hình dạng `YYYY-MM-DDTHH:MM:SS.mmmZ` — đúng thứ SQLite
@@ -825,7 +871,10 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
     };
     let d = delimiter.as_char();
 
-    let header: Vec<String> = split_fields(header_text, d).iter().map(|s| s.trim().to_owned()).collect();
+    let header: Vec<String> = split_fields(header_text, d)
+        .iter()
+        .map(|s| s.trim().to_owned())
+        .collect();
     let expected = header.len();
 
     let known: std::collections::BTreeSet<&str> = COLUMNS.iter().copied().collect();
@@ -845,7 +894,9 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
     let duplicate_column_issues: Vec<ParseIssue> = known_column_counts
         .into_iter()
         .filter(|&(_, count)| count > 1)
-        .map(|(column, _)| ParseIssue::DuplicateColumn { column: column.to_owned() })
+        .map(|(column, _)| ParseIssue::DuplicateColumn {
+            column: column.to_owned(),
+        })
         .collect();
     if !duplicate_column_issues.is_empty() {
         return Err(duplicate_column_issues);
@@ -853,7 +904,9 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
 
     let source_term_idx = header.iter().position(|c| c == "source_term");
     let Some(source_term_idx) = source_term_idx else {
-        return Err(vec![ParseIssue::MissingColumn { column: "source_term" }]);
+        return Err(vec![ParseIssue::MissingColumn {
+            column: "source_term",
+        }]);
     };
     let translation_idx = header.iter().position(|c| c == "translation");
     let note_idx = header.iter().position(|c| c == "note");
@@ -862,8 +915,11 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
     // `term_origin` -- vị trí của nó ở header không được đọc: đường nhập luôn tự đặt
     // `file_import` (§Boundaries: xuất xứ tự đặt, KHÔNG nhận qua tệp) — cột này chỉ mang
     // thông tin cho người ĐỌC tệp, không có tác dụng trên đường ghi.
-    let ignored_columns: Vec<String> =
-        header.iter().filter(|c| !known.contains(c.as_str())).cloned().collect();
+    let ignored_columns: Vec<String> = header
+        .iter()
+        .filter(|c| !known.contains(c.as_str()))
+        .cloned()
+        .collect();
 
     // 🔵 SỬA 2026-08-25 (mục ②) — `logical_lines` nay trả `Result`; một ô mở ngoặc kép
     // không bao giờ đóng ở phần THÂN tệp dừng phân tích NGAY (không phải một `CellCountMismatch`
@@ -902,7 +958,11 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
 
         let cells = split_fields(raw, d);
         if cells.len() != expected {
-            issues.push(ParseIssue::CellCountMismatch { line, expected, found: cells.len() });
+            issues.push(ParseIssue::CellCountMismatch {
+                line,
+                expected,
+                found: cells.len(),
+            });
             continue;
         }
 
@@ -962,7 +1022,10 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
             Some(s) if s.is_empty() => None,
             Some(s) if looks_like_iso8601_utc(s) => Some(s.to_owned()),
             Some(s) => {
-                issues.push(ParseIssue::InvalidCreatedAt { line, value: s.to_owned() });
+                issues.push(ParseIssue::InvalidCreatedAt {
+                    line,
+                    value: s.to_owned(),
+                });
                 row_ok = false;
                 None
             }
@@ -976,7 +1039,10 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
         // line` ⇒ đây là lần đầu, không phải trùng.
         let first_seen = *seen.entry(source_term.to_owned()).or_insert(line);
         if first_seen != line {
-            issues.push(ParseIssue::DuplicateSourceTerm { first_line: first_seen, second_line: line });
+            issues.push(ParseIssue::DuplicateSourceTerm {
+                first_line: first_seen,
+                second_line: line,
+            });
             row_ok = false;
         }
 
@@ -1029,7 +1095,11 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
         return Err(issues);
     }
 
-    Ok(ParsedImport { rows, ignored_columns, header_columns: header })
+    Ok(ParsedImport {
+        rows,
+        ignored_columns,
+        header_columns: header,
+    })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

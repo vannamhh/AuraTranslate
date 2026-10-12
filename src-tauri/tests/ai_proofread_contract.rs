@@ -30,7 +30,10 @@ static KEYCHAIN_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-ai-proofread-{}-{tag}-{n}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-ai-proofread-{}-{tag}-{n}",
+        std::process::id()
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).expect("create temp dir");
     dir
@@ -52,8 +55,12 @@ fn set_key(value: Option<&str>) {
 }
 
 fn configure(global: &Store) {
-    write_field(global, AiConfigField::Endpoint, "https://api.example.invalid/v1/chat/completions")
-        .expect("endpoint");
+    write_field(
+        global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("endpoint");
     write_field(global, AiConfigField::Model, "gpt-test").expect("model");
 }
 
@@ -62,7 +69,9 @@ fn open_work(root: &std::path::Path, text: &str) -> OpenWork {
 }
 
 fn segments(open: &OpenWork) -> Vec<ChapterSegment> {
-    read_open_chapter_segments(Some(open)).expect("load chapter").segments
+    read_open_chapter_segments(Some(open))
+        .expect("load chapter")
+        .segments
 }
 
 fn expect_err(result: Result<ProofreadPrepareOutcome, IpcError>) -> IpcError {
@@ -96,7 +105,12 @@ struct ScriptedProvider {
 
 impl ScriptedProvider {
     fn new(steps: Vec<Step>) -> Self {
-        Self { steps, calls: AtomicUsize::new(0), cancel_flag: Arc::new(AtomicBool::new(false)), raise_flag_after_call: None }
+        Self {
+            steps,
+            calls: AtomicUsize::new(0),
+            cancel_flag: Arc::new(AtomicBool::new(false)),
+            raise_flag_after_call: None,
+        }
     }
 
     fn raising_the_cancel_flag_after_call(mut self, n: usize) -> Self {
@@ -124,7 +138,13 @@ impl TranslationProvider for ScriptedProvider {
         _should_cancel: &dyn Fn() -> bool,
     ) -> Result<TranslateOutcome, FakeError> {
         let idx = self.calls.fetch_add(1, Ordering::SeqCst);
-        let step = self.steps.get(idx).unwrap_or_else(|| panic!("provider called {} times, scripted {}", idx + 1, self.steps.len()));
+        let step = self.steps.get(idx).unwrap_or_else(|| {
+            panic!(
+                "provider called {} times, scripted {}",
+                idx + 1,
+                self.steps.len()
+            )
+        });
         match step {
             Step::Fail => Err(FakeError),
             Step::CancelInside => Ok(TranslateOutcome::Cancelled),
@@ -140,11 +160,17 @@ impl TranslationProvider for ScriptedProvider {
 }
 
 fn usage(total: u32) -> Option<TranslateUsage> {
-    Some(TranslateUsage { prompt_tokens: total, completion_tokens: 0, total_tokens: total, cost_usd: None })
+    Some(TranslateUsage {
+        prompt_tokens: total,
+        completion_tokens: 0,
+        total_tokens: total,
+        cost_usd: None,
+    })
 }
 
 const NO_FINDINGS: &str = "[]";
-const ONE_SPELLING: &str = r#"[{"segment":1,"kind":"spelling","quote":"nguời","explanation":"e","suggestion":"người"}]"#;
+const ONE_SPELLING: &str =
+    r#"[{"segment":1,"kind":"spelling","quote":"nguời","explanation":"e","suggestion":"người"}]"#;
 
 fn run_of(batch_sizes: &[usize]) -> PreparedProofreadRun {
     let mut next_id = 100i64;
@@ -184,7 +210,9 @@ fn collecting_channel() -> (tauri::ipc::Channel<AiProofreadEventWire>, Events) {
     let channel = tauri::ipc::Channel::new(move |body| {
         if let tauri::ipc::InvokeResponseBody::Json(json) = body {
             let value: serde_json::Value = serde_json::from_str(&json).expect("event json");
-            sink.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(value);
+            sink.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(value);
         }
         Ok(())
     });
@@ -193,11 +221,22 @@ fn collecting_channel() -> (tauri::ipc::Channel<AiProofreadEventWire>, Events) {
 
 type RunResult = Result<AiProofreadOutcomeWire, ProofreadRunError<FakeError>>;
 
-fn run(provider: &ScriptedProvider, prepared: &PreparedProofreadRun) -> (RunResult, Vec<serde_json::Value>) {
+fn run(
+    provider: &ScriptedProvider,
+    prepared: &PreparedProofreadRun,
+) -> (RunResult, Vec<serde_json::Value>) {
     let (channel, received) = collecting_channel();
     let should_cancel = provider.should_cancel();
-    let out = tauri::async_runtime::block_on(run_proofread_call(provider, prepared, &channel, &should_cancel));
-    let events = received.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let out = tauri::async_runtime::block_on(run_proofread_call(
+        provider,
+        prepared,
+        &channel,
+        &should_cancel,
+    ));
+    let events = received
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     (out, events)
 }
 
@@ -215,8 +254,17 @@ fn a_clean_reply_places_findings_on_the_segment_it_names_and_carries_the_batch_u
     let prepared = run_of(&[2]);
     let (out, events) = run(&provider, &prepared);
 
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
-    assert_eq!(events[0], serde_json::json!({"kind":"planned","segments":2,"batches":1}));
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Done {
+            not_scanned: 0,
+            filtered: 0
+        })
+    );
+    assert_eq!(
+        events[0],
+        serde_json::json!({"kind":"planned","segments":2,"batches":1})
+    );
     let batch = &events[1];
     assert_eq!(batch["kind"], "batch");
     assert_eq!(batch["usage"]["total_tokens"], 7);
@@ -226,7 +274,13 @@ fn a_clean_reply_places_findings_on_the_segment_it_names_and_carries_the_batch_u
     assert_eq!(segs[0]["findings"][0]["kind"], "grammar");
     assert_eq!(segs[1]["segment_id"], 102);
     assert_eq!(segs[1]["findings"][0]["kind"], "spelling");
-    assert_eq!((segs[1]["findings"][0]["start"].as_u64(), segs[1]["findings"][0]["end"].as_u64()), (Some(4), Some(9)));
+    assert_eq!(
+        (
+            segs[1]["findings"][0]["start"].as_u64(),
+            segs[1]["findings"][0]["end"].as_u64()
+        ),
+        (Some(4), Some(9))
+    );
     assert_eq!(segs[0]["unlocated"], 0);
 }
 
@@ -246,8 +300,14 @@ fn a_foreign_segment_index_is_counted_unlocated_and_never_lands_on_a_wrong_segme
         None,
     )]);
     let (_, events) = run(&provider, &run_of(&[2]));
-    let segs = batch_events(&events)[0]["segments"].as_array().expect("segments").clone();
-    let findings: usize = segs.iter().map(|s| s["findings"].as_array().map_or(0, Vec::len)).sum();
+    let segs = batch_events(&events)[0]["segments"]
+        .as_array()
+        .expect("segments")
+        .clone();
+    let findings: usize = segs
+        .iter()
+        .map(|s| s["findings"].as_array().map_or(0, Vec::len))
+        .sum();
     let unlocated: u64 = segs.iter().filter_map(|s| s["unlocated"].as_u64()).sum();
     assert_eq!((findings, unlocated), (0, 1));
 }
@@ -262,8 +322,15 @@ fn cancel_after_batch_two_of_four_calls_the_provider_exactly_twice() {
     let (out, events) = run(&provider, &run_of(&[2, 3, 4, 5]));
 
     assert_eq!(provider.call_count(), 2);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Cancelled { not_scanned: 9 }));
-    assert_eq!(batch_events(&events).len(), 2, "findings that already arrived are kept");
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Cancelled { not_scanned: 9 })
+    );
+    assert_eq!(
+        batch_events(&events).len(),
+        2,
+        "findings that already arrived are kept"
+    );
 }
 
 #[test]
@@ -275,7 +342,10 @@ fn a_provider_cancelled_inside_batch_three_counts_that_batch_as_not_scanned() {
     ]);
     let (out, events) = run(&provider, &run_of(&[2, 2, 3, 4]));
     assert_eq!(provider.call_count(), 3);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Cancelled { not_scanned: 7 }));
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Cancelled { not_scanned: 7 })
+    );
     assert_eq!(batch_events(&events).len(), 2);
 }
 
@@ -285,7 +355,10 @@ fn a_cancel_already_raised_calls_no_provider_at_all() {
     provider.cancel_flag.store(true, Ordering::SeqCst);
     let (out, events) = run(&provider, &run_of(&[2, 3]));
     assert_eq!(provider.call_count(), 0);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Cancelled { not_scanned: 5 }));
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Cancelled { not_scanned: 5 })
+    );
     assert!(batch_events(&events).is_empty());
 }
 
@@ -298,26 +371,58 @@ fn a_malformed_reply_loses_only_its_own_batch() {
     ]);
     let (out, events) = run(&provider, &run_of(&[2, 3, 4]));
     assert_eq!(provider.call_count(), 3);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 3, filtered: 0 }));
-    assert_eq!(batch_events(&events).len(), 3, "the malformed batch still reports its usage");
-    assert_eq!(batch_events(&events)[1]["segments"].as_array().map(Vec::len), Some(0));
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Done {
+            not_scanned: 3,
+            filtered: 0
+        })
+    );
+    assert_eq!(
+        batch_events(&events).len(),
+        3,
+        "the malformed batch still reports its usage"
+    );
+    assert_eq!(
+        batch_events(&events)[1]["segments"]
+            .as_array()
+            .map(Vec::len),
+        Some(0)
+    );
     assert_eq!(batch_events(&events)[1]["usage"]["total_tokens"], 9);
     let ids: Vec<u64> = batch_events(&events)
         .iter()
-        .flat_map(|b| b["segments"].as_array().expect("segments").iter().filter_map(|s| s["segment_id"].as_u64()))
+        .flat_map(|b| {
+            b["segments"]
+                .as_array()
+                .expect("segments")
+                .iter()
+                .filter_map(|s| s["segment_id"].as_u64())
+        })
         .collect();
     assert_eq!(ids.len(), 6);
-    assert!(!ids.contains(&103), "the segments of the malformed batch draw nothing");
+    assert!(
+        !ids.contains(&103),
+        "the segments of the malformed batch draw nothing"
+    );
 }
 
 #[test]
 fn a_single_malformed_reply_is_the_reply_malformed_error_not_a_silent_done() {
     let provider = ScriptedProvider::new(vec![Step::Reply("not json", usage(2))]);
     let (out, events) = run(&provider, &run_of(&[1]));
-    let Err(ProofreadRunError::ReplyMalformed { not_scanned }) = out else { panic!("reply malformed") };
+    let Err(ProofreadRunError::ReplyMalformed { not_scanned }) = out else {
+        panic!("reply malformed")
+    };
     assert_eq!(not_scanned, 1);
     let batches = batch_events(&events);
-    assert_eq!((batches.len(), batches[0]["segments"].as_array().map(Vec::len)), (1, Some(0)));
+    assert_eq!(
+        (
+            batches.len(),
+            batches[0]["segments"].as_array().map(Vec::len)
+        ),
+        (1, Some(0))
+    );
     assert_eq!(batches[0]["usage"]["total_tokens"], 2);
     let err = auratranslate_lib::commands::proofread::reply_malformed_error();
     assert_eq!(err.code(), "ai_proofread.reply_malformed");
@@ -329,7 +434,9 @@ fn a_provider_failure_stops_the_run_keeps_batch_one_and_counts_the_rest_not_scan
     let provider = ScriptedProvider::new(vec![Step::Reply(ONE_SPELLING, None), Step::Fail]);
     let (out, events) = run(&provider, &run_of(&[2, 3, 4]));
     assert_eq!(provider.call_count(), 2);
-    let Err(ProofreadRunError::Provider { not_scanned, .. }) = out else { panic!("provider error") };
+    let Err(ProofreadRunError::Provider { not_scanned, .. }) = out else {
+        panic!("provider error")
+    };
     assert_eq!(not_scanned, 7);
     assert_eq!(batch_events(&events).len(), 1);
 }
@@ -339,15 +446,31 @@ fn nothing_to_scan_calls_no_provider_and_is_done() {
     let provider = ScriptedProvider::new(vec![]);
     let (out, events) = run(&provider, &run_of(&[]));
     assert_eq!(provider.call_count(), 0);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
-    assert_eq!(events, vec![serde_json::json!({"kind":"planned","segments":0,"batches":0})]);
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Done {
+            not_scanned: 0,
+            filtered: 0
+        })
+    );
+    assert_eq!(
+        events,
+        vec![serde_json::json!({"kind":"planned","segments":0,"batches":0})]
+    );
 }
 
 #[test]
 fn the_outcome_wire_keeps_its_state_tags_and_counts() {
-    assert_eq!(serde_json::to_value(AiProofreadOutcomeWire::NotConfigured).unwrap(), serde_json::json!({"state":"not_configured"}));
     assert_eq!(
-        serde_json::to_value(AiProofreadOutcomeWire::Done { not_scanned: 2, filtered: 0 }).unwrap(),
+        serde_json::to_value(AiProofreadOutcomeWire::NotConfigured).unwrap(),
+        serde_json::json!({"state":"not_configured"})
+    );
+    assert_eq!(
+        serde_json::to_value(AiProofreadOutcomeWire::Done {
+            not_scanned: 2,
+            filtered: 0
+        })
+        .unwrap(),
         serde_json::json!({"state":"done","not_scanned":2,"filtered":0})
     );
     assert_eq!(
@@ -357,9 +480,16 @@ fn the_outcome_wire_keeps_its_state_tags_and_counts() {
 }
 
 fn chapter_of(count: usize, work: &PathBuf) -> OpenWork {
-    let text = (0..count).map(|i| format!("Sentence {i}.")).collect::<Vec<_>>().join("\n\n");
+    let text = (0..count)
+        .map(|i| format!("Sentence {i}."))
+        .collect::<Vec<_>>()
+        .join("\n\n");
     let open = open_work(work, &text);
-    assert_eq!(segments(&open).len(), count, "fixture: one segment per paragraph");
+    assert_eq!(
+        segments(&open).len(),
+        count,
+        "fixture: one segment per paragraph"
+    );
     open
 }
 
@@ -371,19 +501,25 @@ fn ready(out: Result<ProofreadPrepareOutcome, IpcError>) -> PreparedProofreadRun
 }
 
 fn scanned_ids(run: &PreparedProofreadRun) -> Vec<i64> {
-    run.batches.iter().flat_map(|b| b.segments.iter().map(|s| s.segment_id)).collect()
+    run.batches
+        .iter()
+        .flat_map(|b| b.segments.iter().map(|s| s.segment_id))
+        .collect()
 }
 
 #[test]
 fn a_whole_chapter_scans_every_filled_segment_in_document_order_and_skips_empty_and_omitted() {
-    let _g = KEYCHAIN_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _g = KEYCHAIN_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     set_key(Some("sk-proofread"));
     let global = Store::open(StoreSpec::global(temp_dir("g5").join("global.db"))).expect("global");
     configure(&global);
     let open = chapter_of(30, &temp_dir("w5"));
     let rows = segments(&open);
     for (i, row) in rows.iter().enumerate().skip(3) {
-        promote_ai_translation(Some(&open), row.id, &format!("Mọi nguời đã đi {i}"), false).expect("promote");
+        promote_ai_translation(Some(&open), row.id, &format!("Mọi nguời đã đi {i}"), false)
+            .expect("promote");
     }
     set_segment_omitted(Some(&open), rows[3].id, true).expect("omit");
 
@@ -391,26 +527,56 @@ fn a_whole_chapter_scans_every_filled_segment_in_document_order_and_skips_empty_
     ids.reverse();
     let prepared = ready(prepare_proofread_call(Some(&global), Some(&open), &ids));
     let expected: Vec<i64> = rows.iter().skip(4).map(|r| r.id).collect();
-    assert_eq!(scanned_ids(&prepared), expected, "26 segments, document order");
-    assert_eq!(prepared.batches.iter().map(|b| b.segments.len()).collect::<Vec<_>>(), vec![20, 6]);
+    assert_eq!(
+        scanned_ids(&prepared),
+        expected,
+        "26 segments, document order"
+    );
+    assert_eq!(
+        prepared
+            .batches
+            .iter()
+            .map(|b| b.segments.len())
+            .collect::<Vec<_>>(),
+        vec![20, 6]
+    );
     for batch in &prepared.batches {
         for (n, segment) in batch.segments.iter().enumerate() {
-            assert!(batch.call.prompt.contains(&format!("<<<SEGMENT {}\n", n + 1)));
+            assert!(
+                batch
+                    .call
+                    .prompt
+                    .contains(&format!("<<<SEGMENT {}\n", n + 1))
+            );
             assert!(batch.call.prompt.contains(&segment.scanned_text));
         }
         assert_eq!(batch.call.api_key, "sk-proofread");
     }
 
-    let provider = ScriptedProvider::new(vec![Step::Reply(NO_FINDINGS, usage(1)), Step::Reply(NO_FINDINGS, usage(1))]);
+    let provider = ScriptedProvider::new(vec![
+        Step::Reply(NO_FINDINGS, usage(1)),
+        Step::Reply(NO_FINDINGS, usage(1)),
+    ]);
     let (out, events) = run(&provider, &prepared);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
-    assert_eq!(events[0], serde_json::json!({"kind":"planned","segments":26,"batches":2}));
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Done {
+            not_scanned: 0,
+            filtered: 0
+        })
+    );
+    assert_eq!(
+        events[0],
+        serde_json::json!({"kind":"planned","segments":26,"batches":2})
+    );
     assert_eq!(provider.call_count(), 2);
 }
 
 #[test]
 fn a_selection_scans_exactly_its_segments_and_a_foreign_id_is_rejected() {
-    let _g = KEYCHAIN_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _g = KEYCHAIN_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     set_key(Some("sk-proofread"));
     let global = Store::open(StoreSpec::global(temp_dir("g6").join("global.db"))).expect("global");
     configure(&global);
@@ -421,15 +587,24 @@ fn a_selection_scans_exactly_its_segments_and_a_foreign_id_is_rejected() {
     }
     let picked = [rows[6].id, rows[2].id, rows[4].id, rows[3].id, rows[5].id];
     let run = ready(prepare_proofread_call(Some(&global), Some(&open), &picked));
-    assert_eq!(scanned_ids(&run), vec![rows[2].id, rows[3].id, rows[4].id, rows[5].id, rows[6].id]);
+    assert_eq!(
+        scanned_ids(&run),
+        vec![rows[2].id, rows[3].id, rows[4].id, rows[5].id, rows[6].id]
+    );
 
-    let err = expect_err(prepare_proofread_call(Some(&global), Some(&open), &[rows[0].id, i64::MAX]));
+    let err = expect_err(prepare_proofread_call(
+        Some(&global),
+        Some(&open),
+        &[rows[0].id, i64::MAX],
+    ));
     assert_eq!(err.code(), "ai_prompt.segment_not_in_chapter");
 }
 
 #[test]
 fn only_empty_or_omitted_segments_prepare_an_empty_run_without_reading_the_key() {
-    let _g = KEYCHAIN_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _g = KEYCHAIN_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     set_key(None);
     let global = Store::open(StoreSpec::global(temp_dir("g7").join("global.db"))).expect("global");
     configure(&global);
@@ -449,7 +624,9 @@ fn no_open_work_is_work_none_open() {
 
 #[test]
 fn unconfigured_ai_is_not_configured_before_any_call() {
-    let _g = KEYCHAIN_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _g = KEYCHAIN_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     set_key(None);
     let global = Store::open(StoreSpec::global(temp_dir("g2").join("global.db"))).expect("global");
     let open = open_work(&temp_dir("w2"), "One.");
@@ -460,10 +637,16 @@ fn unconfigured_ai_is_not_configured_before_any_call() {
     configure(&global);
     promote_ai_translation(Some(&open), id, "Một câu.", false).expect("promote");
     let out = prepare_proofread_call(Some(&global), Some(&open), &[id]).expect("not an error");
-    assert!(matches!(out, ProofreadPrepareOutcome::NotConfigured), "no key saved");
+    assert!(
+        matches!(out, ProofreadPrepareOutcome::NotConfigured),
+        "no key saved"
+    );
 }
 
-type Snapshot = (Vec<(i64, String, String, String, String, String, i64)>, Vec<(String, Vec<String>)>);
+type Snapshot = (
+    Vec<(i64, String, String, String, String, String, i64)>,
+    Vec<(String, Vec<String>)>,
+);
 
 fn every_table_dump(open: &OpenWork) -> Vec<(String, Vec<String>)> {
     open.store
@@ -509,21 +692,33 @@ fn full_snapshot(open: &OpenWork) -> Snapshot {
 
 #[test]
 fn a_whole_chapter_scan_with_findings_changes_no_text_status_origin_baseline_or_version() {
-    let _g = KEYCHAIN_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _g = KEYCHAIN_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     set_key(Some("sk-proofread"));
     let global = Store::open(StoreSpec::global(temp_dir("g4").join("global.db"))).expect("global");
     configure(&global);
     let open = chapter_of(5, &temp_dir("w4"));
     let rows = segments(&open);
     for (i, row) in rows.iter().enumerate() {
-        promote_ai_translation(Some(&open), row.id, &format!("Mọi nguời đã đi {i}"), false).expect("promote");
+        promote_ai_translation(Some(&open), row.id, &format!("Mọi nguời đã đi {i}"), false)
+            .expect("promote");
     }
     confirm_segment(Some(&open), rows[0].id).expect("confirm one");
 
     let before = full_snapshot(&open);
-    assert!(before.0.iter().any(|r| r.3 != before.0[4].3), "mixed confirmation states");
-    assert!(before.0.iter().all(|r| !r.4.is_empty() || !r.5.is_empty()), "baselines are populated");
-    assert!(before.1.iter().any(|(t, _)| t == "proof_ignore") && before.1.iter().any(|(t, _)| t == "proof_scan"));
+    assert!(
+        before.0.iter().any(|r| r.3 != before.0[4].3),
+        "mixed confirmation states"
+    );
+    assert!(
+        before.0.iter().all(|r| !r.4.is_empty() || !r.5.is_empty()),
+        "baselines are populated"
+    );
+    assert!(
+        before.1.iter().any(|(t, _)| t == "proof_ignore")
+            && before.1.iter().any(|(t, _)| t == "proof_scan")
+    );
 
     let ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
     let prepared = ready(prepare_proofread_call(Some(&global), Some(&open), &ids));
@@ -533,13 +728,22 @@ fn a_whole_chapter_scan_with_findings_changes_no_text_status_origin_baseline_or_
         usage(3),
     )]);
     let (out, events) = run(&provider, &prepared);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Done {
+            not_scanned: 0,
+            filtered: 0
+        })
+    );
     let findings: usize = batch_events(&events)
         .iter()
         .flat_map(|b| b["segments"].as_array().expect("segments").iter())
         .map(|s| s["findings"].as_array().map_or(0, Vec::len))
         .sum();
-    assert_eq!(findings, 2, "the scan must have findings for this guard to mean anything");
+    assert_eq!(
+        findings, 2,
+        "the scan must have findings for this guard to mean anything"
+    );
 
     assert_eq!(full_snapshot(&open), before);
 }
@@ -573,7 +777,13 @@ fn a_blank_source_counts_a_meaning_finding_unlocated_and_keeps_the_spelling_one(
     )]);
     let (_, events) = run(&provider, &prepared);
     let seg = &batch_events(&events)[0]["segments"][0];
-    assert_eq!((seg["findings"].as_array().map(Vec::len), seg["unlocated"].as_u64()), (Some(1), Some(1)));
+    assert_eq!(
+        (
+            seg["findings"].as_array().map(Vec::len),
+            seg["unlocated"].as_u64()
+        ),
+        (Some(1), Some(1))
+    );
     assert_eq!(seg["findings"][0]["kind"], "spelling");
 }
 
@@ -590,7 +800,18 @@ fn a_repeated_context_phrase_reaches_the_wire_as_ambiguous_and_never_as_a_findin
     let seg = &batch_events(&events)[0]["segments"][0];
     assert_eq!(seg["ambiguous"], 1);
     assert_eq!(seg["unlocated"], 0);
-    let kinds: Vec<&str> = seg["findings"].as_array().expect("findings").iter().filter_map(|f| f["kind"].as_str()).collect();
+    let kinds: Vec<&str> = seg["findings"]
+        .as_array()
+        .expect("findings")
+        .iter()
+        .filter_map(|f| f["kind"].as_str())
+        .collect();
     assert_eq!(kinds, ["spelling"]);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Done {
+            not_scanned: 0,
+            filtered: 0
+        })
+    );
 }

@@ -219,7 +219,11 @@ impl Indexer {
     /// phải `Err` (§Boundaries: *"một `.atproj` thiếu/hỏng `meta.json` cũng phải phân biệt
     /// được với 'không có Tác phẩm nào', không rơi im lặng"*). [`IndexError::Store`] nếu một
     /// trong hai lượt ghi trượt — bao gồm `global` vắng mặt (`store: StoreKind::Global`).
-    pub fn rebuild(&self, root: &Path, global: Option<&Store>) -> Result<RebuildOutcome, IndexError> {
+    pub fn rebuild(
+        &self,
+        root: &Path,
+        global: Option<&Store>,
+    ) -> Result<RebuildOutcome, IndexError> {
         // Khoá TOÀN BỘ scan+ghi (CẢ HAI kho) ngay từ đây — xem doc-comment của
         // `rebuild_lock`. Giữ khoá xuyên suốt cả hàm (biến `_guard` sống tới cuối scope) là
         // điểm mấu chốt: nó không chỉ khoá lượt ghi (đã nối tiếp qua `store::Writer` của mỗi
@@ -514,7 +518,10 @@ impl Indexer {
     /// Chỉ mục nói về THƯ VIỆN (thư mục gốc đang cấu hình), không nói về đĩa nói chung: các
     /// `.atproj` của một gốc CŨ vẫn có thể còn nguyên trên đĩa (ca "đổi thư mục gốc"), nhưng
     /// chúng không còn nằm trong thư viện đang quét.
-    fn mark_all_orphaned_for_missing_root(&self, global: &Store) -> Result<RebuildOutcome, IndexError> {
+    fn mark_all_orphaned_for_missing_root(
+        &self,
+        global: &Store,
+    ) -> Result<RebuildOutcome, IndexError> {
         let existing: Vec<(String, String, String)> = self.store.read(|conn: ReadHandle<'_>| {
             let mut stmt = conn.prepare("SELECT work_id, atproj_path, name FROM library_work")?;
             stmt.query_map([], |row| {
@@ -557,10 +564,22 @@ impl Indexer {
         // tìm kiếm dù `library_work` đã trống từ trước.
         self.store.write(move |tx: &Transaction<'_>| {
             tx.execute("DELETE FROM library_segment", [])?;
-            tx.execute("INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')", [])?;
-            tx.execute("INSERT INTO library_target_fts_nd(library_target_fts_nd) VALUES('rebuild')", [])?;
-            tx.execute("INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')", [])?;
-            tx.execute("INSERT INTO library_source_fts_nd(library_source_fts_nd) VALUES('rebuild')", [])?;
+            tx.execute(
+                "INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO library_target_fts_nd(library_target_fts_nd) VALUES('rebuild')",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO library_source_fts_nd(library_source_fts_nd) VALUES('rebuild')",
+                [],
+            )?;
             Ok(())
         })?;
 
@@ -629,7 +648,12 @@ impl Indexer {
             // tính, đúng lời hứa "cùng một lượt đọc" cho MỌI nhánh, kể cả nhánh rỗng.
             if let Some(ref statuses) = query.status {
                 if statuses.is_empty() {
-                    return Ok(WorksReport { total, works: Vec::new(), genres, source_langs });
+                    return Ok(WorksReport {
+                        total,
+                        works: Vec::new(),
+                        genres,
+                        source_langs,
+                    });
                 }
             }
 
@@ -640,8 +664,10 @@ impl Indexer {
             let mut clauses: Vec<String> = Vec::new();
             let mut params: Vec<&str> = Vec::new();
 
-            let status_values: Option<Vec<&str>> =
-                query.status.as_ref().map(|v| v.iter().map(|s| s.as_str()).collect());
+            let status_values: Option<Vec<&str>> = query
+                .status
+                .as_ref()
+                .map(|v| v.iter().map(|s| s.as_str()).collect());
             if let Some(ref statuses) = status_values {
                 let placeholders = statuses.iter().map(|_| "?").collect::<Vec<_>>().join(",");
                 clauses.push(format!("status IN ({placeholders})"));
@@ -656,8 +682,11 @@ impl Indexer {
                 params.push(source_lang.as_str());
             }
 
-            let where_clause =
-                if clauses.is_empty() { String::new() } else { format!("WHERE {}", clauses.join(" AND ")) };
+            let where_clause = if clauses.is_empty() {
+                String::new()
+            } else {
+                format!("WHERE {}", clauses.join(" AND "))
+            };
             // Khoá phụ `, work_id` LUÔN có mặt -- §I/O Matrix "Hai Tác phẩm cùng updated_at":
             // thứ tự phải ỔN ĐỊNH giữa hai lượt tải khi khoá sắp chính trùng nhau. `work_id` là
             // UUID v4 (AD-28) -- ổn định vì nó KHÔNG đổi theo thời gian, không vì nó "đẹp".
@@ -672,7 +701,12 @@ impl Indexer {
             let rows = stmt.query_map(params_from_iter(params.iter()), map_indexed_work_row)?;
             let works: Vec<IndexedWork> = rows.collect::<SqlResult<Vec<_>>>()?;
 
-            Ok(WorksReport { total, works, genres, source_langs })
+            Ok(WorksReport {
+                total,
+                works,
+                genres,
+                source_langs,
+            })
         })
     }
 
@@ -686,19 +720,21 @@ impl Indexer {
     /// ánh xạ `None` sang `library.work_not_indexed`, KHÔNG một biến thể lỗi riêng ở đây: đây
     /// là một truy vấn hợp lệ trả 0 hàng, không phải một điều kiện lỗi của tầng chỉ mục.
     pub fn find_work(&self, work_id: &str) -> Result<Option<IndexedWork>, StoreError> {
-        self.store.read(move |conn: ReadHandle<'_>| -> SqlResult<Option<IndexedWork>> {
-            // ⚠️ `OptionalExtension::optional()` khong duoc `core::store` tai xuat (xem
-            // `commands/segment.rs:306`) -- bat `QueryReturnedNoRows` bang tay.
-            match conn.query_row(
-                &format!("SELECT {INDEXED_WORK_COLUMNS} FROM library_work WHERE work_id = ?1"),
-                [work_id],
-                map_indexed_work_row,
-            ) {
-                Ok(work) => Ok(Some(work)),
-                Err(SqlError::QueryReturnedNoRows) => Ok(None),
-                Err(err) => Err(err),
-            }
-        })
+        self.store.read(
+            move |conn: ReadHandle<'_>| -> SqlResult<Option<IndexedWork>> {
+                // ⚠️ `OptionalExtension::optional()` khong duoc `core::store` tai xuat (xem
+                // `commands/segment.rs:306`) -- bat `QueryReturnedNoRows` bang tay.
+                match conn.query_row(
+                    &format!("SELECT {INDEXED_WORK_COLUMNS} FROM library_work WHERE work_id = ?1"),
+                    [work_id],
+                    map_indexed_work_row,
+                ) {
+                    Ok(work) => Ok(Some(work)),
+                    Err(SqlError::QueryReturnedNoRows) => Ok(None),
+                    Err(err) => Err(err),
+                }
+            },
+        )
     }
 
     /// **THÊM Story 5.3.** Đường ĐỌC — mọi hàng MỒ CÔI, cho màn hình tối thiểu của story
@@ -731,7 +767,11 @@ impl Indexer {
     /// một `work_id` không có"): một hàng ĐANG SỐNG không nằm trong bảng này nữa (nó chỉ có
     /// trong `library_work`), nên cả hai ca đều là "không tìm thấy trong `library_orphan`" —
     /// không im lặng thành công và không mập mờ giữa hai lý do.
-    pub fn forget_orphan(&self, work_id: &str, global: Option<&Store>) -> Result<Vec<OrphanRecord>, IndexError> {
+    pub fn forget_orphan(
+        &self,
+        work_id: &str,
+        global: Option<&Store>,
+    ) -> Result<Vec<OrphanRecord>, IndexError> {
         // 🔵 THÊM (2026-08-27, vòng rà THỨ HAI P3) — cùng khoá với `rebuild`, xem lý do ở
         // khối 🔴 ngay trên.
         let _guard = self
@@ -802,141 +842,147 @@ impl Indexer {
     /// rowid rỗng và mọi hit `_nd` là `Lenient` theo cấu tạo — không cần một phép so thứ hai.
     /// Nửa nguyên văn vẫn tôn trọng sàn [`MIN_SUBSTRING_QUERY_CHARS`] của `trigram` ở CẢ hai chỉ
     /// mục của nó (chính xác lẫn `_nd`) — một truy vấn ngắn không chạy nhánh nguyên văn nào.
-    pub fn search(&self, query: &str, limit: usize, mode: SearchMode) -> Result<SearchReport, StoreError> {
+    pub fn search(
+        &self,
+        query: &str,
+        limit: usize,
+        mode: SearchMode,
+    ) -> Result<SearchReport, StoreError> {
         let limit = limit.clamp(1, MAX_SEARCH_LIMIT);
         let trimmed = query.trim().to_owned();
         let short_query = trimmed.chars().count() < MIN_SUBSTRING_QUERY_CHARS;
 
-        self.store.read(move |conn: ReadHandle<'_>| -> SqlResult<SearchReport> {
-            // Quần thể THẬT, KHÔNG phụ thuộc truy vấn — đây là con số phân biệt "chỉ mục
-            // chưa có dòng nào" với "có dòng mà không khớp" (§I/O Matrix, §Always).
-            let indexed_segments: i64 =
-                conn.query_row("SELECT COUNT(*) FROM library_segment", [], |row| row.get(0))?;
-            let indexed_segments = indexed_segments.max(0) as usize;
+        self.store
+            .read(move |conn: ReadHandle<'_>| -> SqlResult<SearchReport> {
+                // Quần thể THẬT, KHÔNG phụ thuộc truy vấn — đây là con số phân biệt "chỉ mục
+                // chưa có dòng nào" với "có dòng mà không khớp" (§I/O Matrix, §Always).
+                let indexed_segments: i64 =
+                    conn.query_row("SELECT COUNT(*) FROM library_segment", [], |row| row.get(0))?;
+                let indexed_segments = indexed_segments.max(0) as usize;
 
-            // **THÊM (retro Epic 5, AI-3).** Độ phủ cấp TÁC PHẨM, đo TẠI LÚC TRUY VẤN trong
-            // CÙNG closure — KHÔNG đọc `RebuildOutcome::text_skipped` (§Design Notes của spec
-            // retro AI-2/AI-3: con số đó chỉ sống trong bộ nhớ của lượt `rebuild` gần nhất
-            // trong tiến trình này và biến mất sau khi khởi động lại; hai `COUNT` này luôn nói
-            // đúng trạng thái trên đĩa).
-            let works_total: i64 =
-                conn.query_row("SELECT COUNT(*) FROM library_work", [], |row| row.get(0))?;
-            let works_total = works_total.max(0) as usize;
-            let works_with_text: i64 = conn.query_row(
-                "SELECT COUNT(DISTINCT work_id) FROM library_segment",
-                [],
-                |row| row.get(0),
-            )?;
-            let works_with_text = works_with_text.max(0) as usize;
+                // **THÊM (retro Epic 5, AI-3).** Độ phủ cấp TÁC PHẨM, đo TẠI LÚC TRUY VẤN trong
+                // CÙNG closure — KHÔNG đọc `RebuildOutcome::text_skipped` (§Design Notes của spec
+                // retro AI-2/AI-3: con số đó chỉ sống trong bộ nhớ của lượt `rebuild` gần nhất
+                // trong tiến trình này và biến mất sau khi khởi động lại; hai `COUNT` này luôn nói
+                // đúng trạng thái trên đĩa).
+                let works_total: i64 =
+                    conn.query_row("SELECT COUNT(*) FROM library_work", [], |row| row.get(0))?;
+                let works_total = works_total.max(0) as usize;
+                let works_with_text: i64 = conn.query_row(
+                    "SELECT COUNT(DISTINCT work_id) FROM library_segment",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let works_with_text = works_with_text.max(0) as usize;
 
-            if trimmed.is_empty() {
-                // Chỗ gọi (`commands::library::search_library`) không nên gửi một truy vấn
-                // rỗng xuống đây (§I/O Matrix: "0 lượt IPC" ở tầng frontend) — nhưng đây vẫn
-                // là ranh giới AN TOÀN cuối cùng: một cụm rỗng bọc ngoặc kép (`""`) là một
-                // truy vấn FTS5 HỢP LỆ khớp MỌI hàng, đúng thứ không ai muốn ở đây.
-                return Ok(SearchReport {
-                    hits: Vec::new(),
-                    total: 0,
-                    indexed_segments,
-                    short_query: true,
-                    truncated: false,
-                    mode,
-                    effective_mode: mode,
-                    widened: false,
-                    works_total,
-                    works_with_text,
-                });
-            }
+                if trimmed.is_empty() {
+                    // Chỗ gọi (`commands::library::search_library`) không nên gửi một truy vấn
+                    // rỗng xuống đây (§I/O Matrix: "0 lượt IPC" ở tầng frontend) — nhưng đây vẫn
+                    // là ranh giới AN TOÀN cuối cùng: một cụm rỗng bọc ngoặc kép (`""`) là một
+                    // truy vấn FTS5 HỢP LỆ khớp MỌI hàng, đúng thứ không ai muốn ở đây.
+                    return Ok(SearchReport {
+                        hits: Vec::new(),
+                        total: 0,
+                        indexed_segments,
+                        short_query: true,
+                        truncated: false,
+                        mode,
+                        effective_mode: mode,
+                        widened: false,
+                        works_total,
+                        works_with_text,
+                    });
+                }
 
-            // ── Lượt CHÍNH XÁC — LUÔN chạy TRƯỚC, mỗi lượt, không ngoại lệ (AD-27 · AC1). ──
-            // Lấy `limit + 1` ở MỖI nhánh: hàng thứ `limit + 1` không bao giờ hiển thị, nó chỉ
-            // là BẰNG CHỨNG rằng còn nữa. Xem [`SearchReport::truncated`].
-            let mut target = search_target_text(&conn, &trimmed, limit + 1)?;
-            let target_truncated = target.len() > limit;
-            target.truncate(limit);
+                // ── Lượt CHÍNH XÁC — LUÔN chạy TRƯỚC, mỗi lượt, không ngoại lệ (AD-27 · AC1). ──
+                // Lấy `limit + 1` ở MỖI nhánh: hàng thứ `limit + 1` không bao giờ hiển thị, nó chỉ
+                // là BẰNG CHỨNG rằng còn nữa. Xem [`SearchReport::truncated`].
+                let mut target = search_target_text(&conn, &trimmed, limit + 1)?;
+                let target_truncated = target.len() > limit;
+                target.truncate(limit);
 
-            let mut source = Vec::new();
-            let mut source_truncated = false;
-            if !short_query {
-                source = search_source_text(&conn, &trimmed, limit + 1)?;
-                source_truncated = source.len() > limit;
-                source.truncate(limit);
-            }
+                let mut source = Vec::new();
+                let mut source_truncated = false;
+                if !short_query {
+                    source = search_source_text(&conn, &trimmed, limit + 1)?;
+                    source_truncated = source.len() > limit;
+                    source.truncate(limit);
+                }
 
-            let exact_is_empty = target.is_empty() && source.is_empty();
-            let widened = mode == SearchMode::Exact && exact_is_empty && indexed_segments > 0;
-            let effective_mode = if mode == SearchMode::Lenient || widened {
-                SearchMode::Lenient
-            } else {
-                SearchMode::Exact
-            };
-
-            if effective_mode == SearchMode::Exact {
-                let mut hits = target;
-                hits.extend(source);
-                let total = hits.len();
-                return Ok(SearchReport {
-                    hits,
-                    total,
-                    indexed_segments,
-                    short_query,
-                    truncated: target_truncated || source_truncated,
-                    mode,
-                    effective_mode,
-                    widened,
-                    works_total,
-                    works_with_text,
-                });
-            }
-
-            // ── Lượt KHOAN DUNG — CẢ HAI nửa đổi nguồn sang `_nd` của mình. Xem khối
-            // doc-comment ở trên cho lý lẽ dán nhãn theo tập rowid.
-            let exact_target_rowids: std::collections::HashSet<i64> =
-                target.iter().map(|hit| hit.rowid).collect();
-            let mut nd_target = search_target_text_nd(&conn, &trimmed, limit + 1)?;
-            let nd_target_truncated = nd_target.len() > limit;
-            nd_target.truncate(limit);
-            for hit in &mut nd_target {
-                hit.match_kind = if exact_target_rowids.contains(&hit.rowid) {
-                    MatchKind::Exact
+                let exact_is_empty = target.is_empty() && source.is_empty();
+                let widened = mode == SearchMode::Exact && exact_is_empty && indexed_segments > 0;
+                let effective_mode = if mode == SearchMode::Lenient || widened {
+                    SearchMode::Lenient
                 } else {
-                    MatchKind::Lenient
+                    SearchMode::Exact
                 };
-            }
 
-            let exact_source_rowids: std::collections::HashSet<i64> =
-                source.iter().map(|hit| hit.rowid).collect();
-            let mut nd_source = Vec::new();
-            let mut nd_source_truncated = false;
-            if !short_query {
-                nd_source = search_source_text_nd(&conn, &trimmed, limit + 1)?;
-                nd_source_truncated = nd_source.len() > limit;
-                nd_source.truncate(limit);
-                for hit in &mut nd_source {
-                    hit.match_kind = if exact_source_rowids.contains(&hit.rowid) {
+                if effective_mode == SearchMode::Exact {
+                    let mut hits = target;
+                    hits.extend(source);
+                    let total = hits.len();
+                    return Ok(SearchReport {
+                        hits,
+                        total,
+                        indexed_segments,
+                        short_query,
+                        truncated: target_truncated || source_truncated,
+                        mode,
+                        effective_mode,
+                        widened,
+                        works_total,
+                        works_with_text,
+                    });
+                }
+
+                // ── Lượt KHOAN DUNG — CẢ HAI nửa đổi nguồn sang `_nd` của mình. Xem khối
+                // doc-comment ở trên cho lý lẽ dán nhãn theo tập rowid.
+                let exact_target_rowids: std::collections::HashSet<i64> =
+                    target.iter().map(|hit| hit.rowid).collect();
+                let mut nd_target = search_target_text_nd(&conn, &trimmed, limit + 1)?;
+                let nd_target_truncated = nd_target.len() > limit;
+                nd_target.truncate(limit);
+                for hit in &mut nd_target {
+                    hit.match_kind = if exact_target_rowids.contains(&hit.rowid) {
                         MatchKind::Exact
                     } else {
                         MatchKind::Lenient
                     };
                 }
-            }
 
-            let mut hits = nd_target;
-            hits.extend(nd_source);
-            let total = hits.len();
-            Ok(SearchReport {
-                hits,
-                total,
-                indexed_segments,
-                short_query,
-                truncated: nd_target_truncated || nd_source_truncated,
-                mode,
-                effective_mode,
-                widened,
-                works_total,
-                works_with_text,
+                let exact_source_rowids: std::collections::HashSet<i64> =
+                    source.iter().map(|hit| hit.rowid).collect();
+                let mut nd_source = Vec::new();
+                let mut nd_source_truncated = false;
+                if !short_query {
+                    nd_source = search_source_text_nd(&conn, &trimmed, limit + 1)?;
+                    nd_source_truncated = nd_source.len() > limit;
+                    nd_source.truncate(limit);
+                    for hit in &mut nd_source {
+                        hit.match_kind = if exact_source_rowids.contains(&hit.rowid) {
+                            MatchKind::Exact
+                        } else {
+                            MatchKind::Lenient
+                        };
+                    }
+                }
+
+                let mut hits = nd_target;
+                hits.extend(nd_source);
+                let total = hits.len();
+                Ok(SearchReport {
+                    hits,
+                    total,
+                    indexed_segments,
+                    short_query,
+                    truncated: nd_target_truncated || nd_source_truncated,
+                    mode,
+                    effective_mode,
+                    widened,
+                    works_total,
+                    works_with_text,
+                })
             })
-        })
     }
 }
 
@@ -948,8 +994,9 @@ impl Indexer {
 /// từ mã nguồn, không từ dây IPC — không mở lỗ tiêm SQL, cùng lý lẽ đã ghi cho `COLUMNS`/
 /// `placeholders` ở `list_works`.
 fn distinct_column(conn: &ReadHandle<'_>, column: &str) -> SqlResult<Vec<String>> {
-    let mut stmt =
-        conn.prepare(&format!("SELECT DISTINCT {column} FROM library_work ORDER BY {column} COLLATE NOCASE"))?;
+    let mut stmt = conn.prepare(&format!(
+        "SELECT DISTINCT {column} FROM library_work ORDER BY {column} COLLATE NOCASE"
+    ))?;
     let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
     rows.collect::<SqlResult<Vec<_>>>()
 }
@@ -1019,7 +1066,10 @@ fn fold_dd_letter(input: &str) -> String {
 /// biệt-hoa-thường KHÔNG cần tham số nào (xem [`search_source_text`]) — phép gấp này không
 /// phải chỗ để lo chuyện đó.
 fn fold_diacritics_case_preserving(input: &str) -> String {
-    fold_dd_letter(input).chars().map(fold_one_char_case_preserving).collect()
+    fold_dd_letter(input)
+        .chars()
+        .map(fold_one_char_case_preserving)
+        .collect()
 }
 
 /// Gấp ĐÚNG MỘT ký tự -- luôn trả về ĐÚNG MỘT ký tự, giữ bất biến một-ký-tự-một-ký-tự mà
@@ -1034,7 +1084,9 @@ fn fold_diacritics_case_preserving(input: &str) -> String {
 fn fold_one_char_case_preserving(c: char) -> char {
     let mut parts: Vec<char> = Vec::new();
     decompose_canonical(c, |part| parts.push(part));
-    let Some((&base, marks)) = parts.split_first() else { return c };
+    let Some((&base, marks)) = parts.split_first() else {
+        return c;
+    };
     if marks.iter().all(|m| ('\u{0300}'..='\u{036f}').contains(m)) {
         base
     } else {
@@ -1327,7 +1379,11 @@ pub struct SearchReport {
 /// **Nhánh bản dịch** — `library_target_fts` (`unicode61 remove_diacritics 0`), khớp TRỌN TỪ,
 /// PHÂN BIỆT dấu. Không bước xác minh: `unicode61` là tokenizer theo TỪ, một kết quả MATCH đã
 /// là một khớp thật (khác `trigram`, nơi MATCH chỉ nói "chứa các trigram này").
-fn search_target_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<Vec<SearchHit>> {
+fn search_target_text(
+    conn: &ReadHandle<'_>,
+    query: &str,
+    limit: usize,
+) -> SqlResult<Vec<SearchHit>> {
     let phrase = fts_phrase(query);
     let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
     let sql = "\
@@ -1368,7 +1424,11 @@ fn search_target_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
 ///
 /// Đọc THÊM `s.target_text` (cột chưa gấp) và gọi `highlight()` thay
 /// `snippet()`; đoạn trích dựng bằng [`original_text_snippet`], xem doc-comment hàm đó.
-fn search_target_text_nd(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<Vec<SearchHit>> {
+fn search_target_text_nd(
+    conn: &ReadHandle<'_>,
+    query: &str,
+    limit: usize,
+) -> SqlResult<Vec<SearchHit>> {
     let phrase = fts_phrase(&fold_dd_letter(query));
     let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
     let sql = "\
@@ -1429,7 +1489,11 @@ fn search_target_text_nd(conn: &ReadHandle<'_>, query: &str, limit: usize) -> Sq
 ///
 /// ⇒ AC của story đòi kết quả kèm **đoạn văn bản khớp**; một đoạn chỉ chứa đúng từ khoá không
 /// phải một đoạn văn bản. Hai nhánh vì thế mang HAI con số, và đừng "đồng bộ" chúng.
-fn search_source_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<Vec<SearchHit>> {
+fn search_source_text(
+    conn: &ReadHandle<'_>,
+    query: &str,
+    limit: usize,
+) -> SqlResult<Vec<SearchHit>> {
     let phrase = fts_phrase(query);
     let ceiling = search_candidate_ceiling(limit);
     let sql = "\
@@ -1492,7 +1556,11 @@ fn search_source_text(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlRe
 /// [`original_text_snippet`] trên CHÍNH `s.source_text` đã đọc cho bước xác minh ngay dưới
 /// (không cần đọc cột nào thêm — khác `search_target_text_nd`, hàm này vốn đã chọn cột chưa
 /// gấp).
-fn search_source_text_nd(conn: &ReadHandle<'_>, query: &str, limit: usize) -> SqlResult<Vec<SearchHit>> {
+fn search_source_text_nd(
+    conn: &ReadHandle<'_>,
+    query: &str,
+    limit: usize,
+) -> SqlResult<Vec<SearchHit>> {
     let phrase = fts_phrase(&fold_diacritics_case_preserving(query));
     let ceiling = search_candidate_ceiling(limit);
     let sql = "\
@@ -1687,10 +1755,15 @@ struct HarvestedRow {
 fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, HarvestSkipReason> {
     let project_db_path = dir.join(PROJECT_DB_FILE);
 
-    let found = match crate::core::store::peek_schema_version(&project_db_path, StoreKind::Project) {
+    let found = match crate::core::store::peek_schema_version(&project_db_path, StoreKind::Project)
+    {
         Ok(None) => return Err(HarvestSkipReason::DbMissing),
         Ok(Some(found)) => found,
-        Err(err) => return Err(HarvestSkipReason::VersionUnreadable { detail: err.to_string() }),
+        Err(err) => {
+            return Err(HarvestSkipReason::VersionUnreadable {
+                detail: err.to_string(),
+            });
+        }
     };
     let target = crate::core::store::schema::target_version(PROJECT_MIGRATIONS);
     if found > target {
@@ -1703,14 +1776,19 @@ fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, HarvestSkipReason>
         });
     }
 
-    let db = ReadOnlyDb::open(project_db_path, StoreKind::Project)
-        .map_err(|err| HarvestSkipReason::OpenFailed { detail: err.to_string() })?;
+    let db = ReadOnlyDb::open(project_db_path, StoreKind::Project).map_err(|err| {
+        HarvestSkipReason::OpenFailed {
+            detail: err.to_string(),
+        }
+    })?;
 
     let result = db.read(|conn: ReadHandle<'_>| -> SqlResult<Vec<HarvestedRow>> {
         let mut chapters_stmt =
             conn.prepare("SELECT id, ord, title, source_text FROM chapter ORDER BY ord")?;
         let chapters: Vec<(i64, i64, Option<String>, String)> = chapters_stmt
-            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?
+            .query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })?
             .collect::<SqlResult<Vec<_>>>()?;
         drop(chapters_stmt);
 
@@ -1772,7 +1850,9 @@ fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, HarvestSkipReason>
     });
 
     db.close();
-    result.map_err(|err| HarvestSkipReason::ReadFailed { detail: err.to_string() })
+    result.map_err(|err| HarvestSkipReason::ReadFailed {
+        detail: err.to_string(),
+    })
 }
 
 /// Mọi thư mục con của `root` mang đuôi `.atproj`, **sắp xếp** — thứ tự quét phải tất định để
@@ -1887,7 +1967,11 @@ mod tests {
             vec![a, b],
             "CA HAI entry doc duoc (truoc VA sau entry loi) phai con nguyen trong ket qua"
         );
-        assert_eq!(errs.len(), 1, "dung MOT loi duoc gom lai, khong bi nuot va khong bi nhan doi");
+        assert_eq!(
+            errs.len(),
+            1,
+            "dung MOT loi duoc gom lai, khong bi nuot va khong bi nhan doi"
+        );
         assert!(errs[0].contains("entry hong gia lap"));
     }
 
@@ -2208,7 +2292,10 @@ impl std::fmt::Display for IndexError {
             }
             IndexError::Store(err) => write!(f, "index[store] {err}"),
             IndexError::NotOrphaned { work_id } => {
-                write!(f, "index[forget_orphan] work_id={work_id} is not an orphaned row")
+                write!(
+                    f,
+                    "index[forget_orphan] work_id={work_id} is not an orphaned row"
+                )
             }
         }
     }
@@ -2235,7 +2322,12 @@ impl From<IndexError> for IpcError {
                 let mut params = BTreeMap::new();
                 params.insert("path".to_owned(), path.display().to_string());
                 let _ = detail; // Chẩn đoán thô -- không đi vào `params` (AD-21: params mang dữ liệu, không mang câu).
-                IpcError::new("library.io_read_failed", MessageKey::IoReadFailed, params, false)
+                IpcError::new(
+                    "library.io_read_failed",
+                    MessageKey::IoReadFailed,
+                    params,
+                    false,
+                )
             }
             IndexError::Store(err) => err.into(),
             IndexError::NotOrphaned { work_id } => {

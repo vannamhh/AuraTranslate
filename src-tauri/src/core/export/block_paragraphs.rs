@@ -11,7 +11,8 @@ use crate::core::store::{Store, StoreError};
 const BLANK_CHARS: [char; 6] = [' ', '\t', '\n', '\r', '\u{b}', '\u{c}'];
 
 /// Must share one whitespace set with `is_untranslated`, including `\n`.
-pub const UNTRANSLATED_SQL: &str = "trim(target_text, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)) = ''";
+pub const UNTRANSLATED_SQL: &str =
+    "trim(target_text, ' ' || char(9) || char(10) || char(11) || char(12) || char(13)) = ''";
 
 /// Must share one whitespace set with `UNTRANSLATED_SQL`, including `\n`.
 pub fn is_untranslated(target_text: &str) -> bool {
@@ -70,7 +71,11 @@ struct ColumnBuilder {
 
 impl ColumnBuilder {
     fn new(joiner: &'static str) -> Self {
-        Self { joiner, paragraphs: Vec::new(), pieces: Vec::new() }
+        Self {
+            joiner,
+            paragraphs: Vec::new(),
+            pieces: Vec::new(),
+        }
     }
 
     fn flush(&mut self) {
@@ -83,16 +88,24 @@ impl ColumnBuilder {
 
     fn push_images(&mut self, images: &[ExportImage]) {
         self.flush();
-        self.paragraphs.extend(images.iter().cloned().map(BlockParagraph::Image));
+        self.paragraphs
+            .extend(images.iter().cloned().map(BlockParagraph::Image));
     }
 }
 
 pub(super) fn target_pieces(text: &str) -> Vec<&str> {
-    text.split('\n').map(|piece| piece.trim_matches(BLANK_CHARS)).filter(|piece| !is_blank(piece)).collect()
+    text.split('\n')
+        .map(|piece| piece.trim_matches(BLANK_CHARS))
+        .filter(|piece| !is_blank(piece))
+        .collect()
 }
 
 fn source_pieces(text: &str) -> Vec<&str> {
-    if is_blank(text) { Vec::new() } else { vec![text] }
+    if is_blank(text) {
+        Vec::new()
+    } else {
+        vec![text]
+    }
 }
 
 fn build_column<'a>(
@@ -132,7 +145,12 @@ fn build_chapter_block(
     images: ImageSplit<ExportImage>,
     source_lang: &str,
 ) -> ChapterBlock {
-    let ImageSplit { head, by_anchor, orphans, .. } = images;
+    let ImageSplit {
+        head,
+        by_anchor,
+        orphans,
+        ..
+    } = images;
     let source = build_column(
         segments,
         |s| s.is_paragraph_end,
@@ -151,7 +169,13 @@ fn build_chapter_block(
         &by_anchor,
         &orphans,
     );
-    ChapterBlock { chapter_id, title, attribution, source, target }
+    ChapterBlock {
+        chapter_id,
+        title,
+        attribution,
+        source,
+        target,
+    }
 }
 
 pub fn load_chapter_blocks(
@@ -170,17 +194,32 @@ pub fn load_chapter_blocks(
                 title_stmt.query_row([chapter_id], |row| Ok((row.get(0)?, row.get(1)?)))?;
             let segments = select_chapter_segments(conn, chapter_id)?;
             let assets = select_chapter_assets(conn, chapter_id)?;
-            let split = split_by_anchor(&segments, chapter_images(&segments, &assets), image_mode, |image| ExportImage {
-                chapter_id,
-                chapter_ord,
-                asset_id: image.asset_id,
-                file_name: image.file_name,
-                source_url: image.source_url,
-            });
+            let split = split_by_anchor(
+                &segments,
+                chapter_images(&segments, &assets),
+                image_mode,
+                |image| ExportImage {
+                    chapter_id,
+                    chapter_ord,
+                    asset_id: image.asset_id,
+                    file_name: image.file_name,
+                    source_url: image.source_url,
+                },
+            );
             skipped += split.skipped;
             let lines = lines_for(conn, chapter_id, attribution)?;
-            blocks.push(build_chapter_block(chapter_id, title, lines, &segments, split, source_lang));
+            blocks.push(build_chapter_block(
+                chapter_id,
+                title,
+                lines,
+                &segments,
+                split,
+                source_lang,
+            ));
         }
-        Ok(LoadedBlocks { blocks, images_skipped_missing_link: skipped })
+        Ok(LoadedBlocks {
+            blocks,
+            images_skipped_missing_link: skipped,
+        })
     })
 }

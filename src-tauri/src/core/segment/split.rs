@@ -502,9 +502,9 @@ fn en_run_is_boundary(text: &str, run_start: usize, run_end: usize, closed_end: 
         }
 
         // Luật 1 — bảng viết tắt. "Từ" là đoạn từ sau khoảng trắng gần nhất tới hết dấu chấm.
-        let word_start = text[..run_end]
-            .rfind(char::is_whitespace)
-            .map_or(0, |i| i + text[i..].chars().next().map_or(1, char::len_utf8));
+        let word_start = text[..run_end].rfind(char::is_whitespace).map_or(0, |i| {
+            i + text[i..].chars().next().map_or(1, char::len_utf8)
+        });
         let word = &text[word_start..run_end];
         if EN_ABBREVIATIONS.binary_search(&word).is_ok() {
             return false;
@@ -535,7 +535,10 @@ mod tests {
 
     #[test]
     fn a_bare_terminator_ends_a_sentence_in_both_language_branches() {
-        assert!(line_ends_a_sentence("Cau da xong.", false), "en: dau cham tran");
+        assert!(
+            line_ends_a_sentence("Cau da xong.", false),
+            "en: dau cham tran"
+        );
         assert!(line_ends_a_sentence("他走了。", true), "zh: dau cham tran");
     }
 

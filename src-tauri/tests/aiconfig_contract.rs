@@ -220,7 +220,12 @@ fn field_wire<'a>(
     fields
         .iter()
         .find(|f| f.field == field.as_str())
-        .unwrap_or_else(|| panic!("thieu truong {} trong ket qua ai_config_get", field.as_str()))
+        .unwrap_or_else(|| {
+            panic!(
+                "thieu truong {} trong ket qua ai_config_get",
+                field.as_str()
+            )
+        })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -229,17 +234,34 @@ fn field_wire<'a>(
 
 #[test]
 fn no_configuration_anywhere_renders_every_field_empty_from_global() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("no-config");
     let global = open_global(&root);
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
-    assert_eq!(fields.len(), AiConfigField::ALL.len(), "phai tra du nam truong, ke ca truong chua cau hinh");
+    let fields = ai_config_get(Some(&global), None)
+        .expect("doc ai_config that bai")
+        .fields;
+    assert_eq!(
+        fields.len(),
+        AiConfigField::ALL.len(),
+        "phai tra du nam truong, ke ca truong chua cau hinh"
+    );
 
     for field in AiConfigField::ALL {
         let wire = field_wire(&fields, *field);
-        assert_eq!(wire.value, "", "truong {} phai rong khi chua ai cau hinh", field.as_str());
-        assert_eq!(wire.tier, AiConfigTierWire::Global, "truong chua cau hinh phai bao tier Global (trang thai nghi)");
+        assert_eq!(
+            wire.value,
+            "",
+            "truong {} phai rong khi chua ai cau hinh",
+            field.as_str()
+        );
+        assert_eq!(
+            wire.tier,
+            AiConfigTierWire::Global,
+            "truong chua cau hinh phai bao tier Global (trang thai nghi)"
+        );
         assert_eq!(wire.shadowed, None);
     }
 
@@ -253,7 +275,9 @@ fn no_configuration_anywhere_renders_every_field_empty_from_global() {
 
 #[test]
 fn global_only_every_field_resolves_from_global() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("global-only");
     let global = open_global(&root);
 
@@ -269,12 +293,26 @@ fn global_only_every_field_resolves_from_global() {
             .unwrap_or_else(|e| panic!("luu {} that bai: {e:?}", field.as_str()));
     }
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
+    let fields = ai_config_get(Some(&global), None)
+        .expect("doc ai_config that bai")
+        .fields;
     for field in AiConfigField::ALL {
         let wire = field_wire(&fields, *field);
-        assert_eq!(wire.tier, AiConfigTierWire::Global, "moi truong phai tu Global khi khong Tac pham nao mo");
-        assert_eq!(wire.shadowed, None, "Global la tang duoi cung, khong the che gi ca");
-        assert_ne!(wire.value, "", "truong {} da duoc luu, khong duoc rong", field.as_str());
+        assert_eq!(
+            wire.tier,
+            AiConfigTierWire::Global,
+            "moi truong phai tu Global khi khong Tac pham nao mo"
+        );
+        assert_eq!(
+            wire.shadowed, None,
+            "Global la tang duoi cung, khong the che gi ca"
+        );
+        assert_ne!(
+            wire.value,
+            "",
+            "truong {} da duoc luu, khong duoc rong",
+            field.as_str()
+        );
     }
 
     drop(global);
@@ -290,21 +328,53 @@ fn global_only_every_field_resolves_from_global() {
 /// bắt đúng lỗi đó: bốn trường còn lại PHẢI vẫn đọc được nguyên vẹn từ Global.
 #[test]
 fn work_overriding_only_endpoint_leaves_every_other_field_resolving_from_global() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("one-field-override");
     let global = open_global(&root);
     let opened = open_work_real(&root);
 
-    ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::Provider, "anthropic")
-        .expect("luu provider global that bai");
-    ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::Endpoint, "https://api.anthropic.com")
-        .expect("luu endpoint global that bai");
-    ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::Model, "claude")
-        .expect("luu model global that bai");
-    ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::Temperature, "0.5")
-        .expect("luu temperature global that bai");
-    ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::MaxTokens, "1024")
-        .expect("luu max_tokens global that bai");
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Provider,
+        "anthropic",
+    )
+    .expect("luu provider global that bai");
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Endpoint,
+        "https://api.anthropic.com",
+    )
+    .expect("luu endpoint global that bai");
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Model,
+        "claude",
+    )
+    .expect("luu model global that bai");
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Temperature,
+        "0.5",
+    )
+    .expect("luu temperature global that bai");
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::MaxTokens,
+        "1024",
+    )
+    .expect("luu max_tokens global that bai");
 
     ai_config_save_field(
         Some(&global),
@@ -315,10 +385,16 @@ fn work_overriding_only_endpoint_leaves_every_other_field_resolving_from_global(
     )
     .expect("luu endpoint work that bai");
 
-    let fields = ai_config_get(Some(&global), Some(&opened)).expect("doc ai_config that bai").fields;
+    let fields = ai_config_get(Some(&global), Some(&opened))
+        .expect("doc ai_config that bai")
+        .fields;
 
     let endpoint = field_wire(&fields, AiConfigField::Endpoint);
-    assert_eq!(endpoint.tier, AiConfigTierWire::Work, "endpoint phai den tu Work");
+    assert_eq!(
+        endpoint.tier,
+        AiConfigTierWire::Work,
+        "endpoint phai den tu Work"
+    );
     assert_eq!(endpoint.value, "https://api.self-hosted.example.com");
     assert_eq!(
         endpoint.shadowed.as_deref(),
@@ -326,7 +402,12 @@ fn work_overriding_only_endpoint_leaves_every_other_field_resolving_from_global(
         "gia tri Global bi che phai con nguyen o shadowed"
     );
 
-    for field in [AiConfigField::Provider, AiConfigField::Model, AiConfigField::Temperature, AiConfigField::MaxTokens] {
+    for field in [
+        AiConfigField::Provider,
+        AiConfigField::Model,
+        AiConfigField::Temperature,
+        AiConfigField::MaxTokens,
+    ] {
         let wire = field_wire(&fields, field);
         assert_eq!(
             wire.tier,
@@ -335,7 +416,12 @@ fn work_overriding_only_endpoint_leaves_every_other_field_resolving_from_global(
              mot cai dat CA STRUCT se lam sai",
             field.as_str()
         );
-        assert_ne!(wire.value, "", "truong {} phai van doc duoc tu Global", field.as_str());
+        assert_ne!(
+            wire.value,
+            "",
+            "truong {} phai van doc duoc tu Global",
+            field.as_str()
+        );
     }
 
     drop(opened.store);
@@ -349,17 +435,31 @@ fn work_overriding_only_endpoint_leaves_every_other_field_resolving_from_global(
 
 #[test]
 fn saving_a_work_override_with_no_work_open_is_refused_and_writes_nothing() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("no-work-open");
     let global = open_global(&root);
 
-    let err = ai_config_save_field(Some(&global), None, AiConfigTier::Work, AiConfigField::Endpoint, "https://x.example.com")
-        .err()
-        .expect("phai bi tu choi khi khong Tac pham nao dang mo");
+    let err = ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Work,
+        AiConfigField::Endpoint,
+        "https://x.example.com",
+    )
+    .err()
+    .expect("phai bi tu choi khi khong Tac pham nao dang mo");
     assert_eq!(err.message_key(), MessageKey::AiConfigWorkTierUnavailable);
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
-    assert_eq!(field_wire(&fields, AiConfigField::Endpoint).value, "", "0 luot ghi duoc phep xay ra");
+    let fields = ai_config_get(Some(&global), None)
+        .expect("doc ai_config that bai")
+        .fields;
+    assert_eq!(
+        field_wire(&fields, AiConfigField::Endpoint).value,
+        "",
+        "0 luot ghi duoc phep xay ra"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -371,19 +471,33 @@ fn saving_a_work_override_with_no_work_open_is_refused_and_writes_nothing() {
 
 #[test]
 fn temperature_out_of_range_is_rejected_before_any_write() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("bad-temperature");
     let global = open_global(&root);
 
     for bad in ["-1", "3", "abc"] {
-        let err = ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::Temperature, bad)
-            .err()
-            .unwrap_or_else(|| panic!("gia tri {bad:?} phai bi tu choi"));
+        let err = ai_config_save_field(
+            Some(&global),
+            None,
+            AiConfigTier::Global,
+            AiConfigField::Temperature,
+            bad,
+        )
+        .err()
+        .unwrap_or_else(|| panic!("gia tri {bad:?} phai bi tu choi"));
         assert_eq!(err.message_key(), MessageKey::AiConfigInvalidValue);
     }
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
-    assert_eq!(field_wire(&fields, AiConfigField::Temperature).value, "", "khong gia tri nao duoc ghi");
+    let fields = ai_config_get(Some(&global), None)
+        .expect("doc ai_config that bai")
+        .fields;
+    assert_eq!(
+        field_wire(&fields, AiConfigField::Temperature).value,
+        "",
+        "khong gia tri nao duoc ghi"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -391,19 +505,33 @@ fn temperature_out_of_range_is_rejected_before_any_write() {
 
 #[test]
 fn max_tokens_not_a_positive_integer_is_rejected_before_any_write() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("bad-max-tokens");
     let global = open_global(&root);
 
     for bad in ["0", "-5", "1.5", "abc"] {
-        let err = ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::MaxTokens, bad)
-            .err()
-            .unwrap_or_else(|| panic!("gia tri {bad:?} phai bi tu choi"));
+        let err = ai_config_save_field(
+            Some(&global),
+            None,
+            AiConfigTier::Global,
+            AiConfigField::MaxTokens,
+            bad,
+        )
+        .err()
+        .unwrap_or_else(|| panic!("gia tri {bad:?} phai bi tu choi"));
         assert_eq!(err.message_key(), MessageKey::AiConfigInvalidValue);
     }
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
-    assert_eq!(field_wire(&fields, AiConfigField::MaxTokens).value, "", "khong gia tri nao duoc ghi");
+    let fields = ai_config_get(Some(&global), None)
+        .expect("doc ai_config that bai")
+        .fields;
+    assert_eq!(
+        field_wire(&fields, AiConfigField::MaxTokens).value,
+        "",
+        "khong gia tri nao duoc ghi"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -411,19 +539,33 @@ fn max_tokens_not_a_positive_integer_is_rejected_before_any_write() {
 
 #[test]
 fn endpoint_not_an_absolute_url_is_rejected_before_any_write() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("bad-endpoint");
     let global = open_global(&root);
 
     for bad in ["localhost:11434", ""] {
-        let err = ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::Endpoint, bad)
-            .err()
-            .unwrap_or_else(|| panic!("gia tri {bad:?} phai bi tu choi"));
+        let err = ai_config_save_field(
+            Some(&global),
+            None,
+            AiConfigTier::Global,
+            AiConfigField::Endpoint,
+            bad,
+        )
+        .err()
+        .unwrap_or_else(|| panic!("gia tri {bad:?} phai bi tu choi"));
         assert_eq!(err.message_key(), MessageKey::AiConfigInvalidValue);
     }
 
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
-    assert_eq!(field_wire(&fields, AiConfigField::Endpoint).value, "", "khong gia tri nao duoc ghi");
+    let fields = ai_config_get(Some(&global), None)
+        .expect("doc ai_config that bai")
+        .fields;
+    assert_eq!(
+        field_wire(&fields, AiConfigField::Endpoint).value,
+        "",
+        "khong gia tri nao duoc ghi"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -434,27 +576,40 @@ fn endpoint_not_an_absolute_url_is_rejected_before_any_write() {
 /// một bên đỏ.
 #[test]
 fn every_row_of_the_shared_validity_table_gets_the_same_verdict_from_the_rust_rules() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../tests/frontend/support/ai-config-validity.json");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../tests/frontend/support/ai-config-validity.json");
     let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("doc {}: {e}", path.display()));
-    let table: serde_json::Value = serde_json::from_str(&text).expect("bang luat phai la JSON hop le");
-    let rows = table["rows"].as_array().expect("bang luat phai co mang `rows`");
-    assert!(rows.len() >= 30, "bang luat bi cat cut: chi con {} hang", rows.len());
+    let table: serde_json::Value =
+        serde_json::from_str(&text).expect("bang luat phai la JSON hop le");
+    let rows = table["rows"]
+        .as_array()
+        .expect("bang luat phai co mang `rows`");
+    assert!(
+        rows.len() >= 30,
+        "bang luat bi cat cut: chi con {} hang",
+        rows.len()
+    );
 
     let mut checked_max_tokens_overflow = false;
     for row in rows {
         let field_name = row["field"].as_str().expect("hang thieu `field`");
         let input = row["input"].as_str().expect("hang thieu `input`");
         let expected = row["valid"].as_bool().expect("hang thieu `valid`");
-        let field: AiConfigField = serde_json::from_value(serde_json::Value::String(field_name.to_owned()))
-            .unwrap_or_else(|e| panic!("truong {field_name:?} khong phai AiConfigField: {e}"));
+        let field: AiConfigField =
+            serde_json::from_value(serde_json::Value::String(field_name.to_owned()))
+                .unwrap_or_else(|e| panic!("truong {field_name:?} khong phai AiConfigField: {e}"));
         assert_eq!(
             validate_field(field, input).is_ok(),
             expected,
             "truong {field_name} voi dau vao {input:?}: bang luat noi valid={expected}"
         );
-        checked_max_tokens_overflow |= field_name == "max_tokens" && input == "4294967296" && !expected;
+        checked_max_tokens_overflow |=
+            field_name == "max_tokens" && input == "4294967296" && !expected;
     }
-    assert!(checked_max_tokens_overflow, "hang tran u32 cua max_tokens phai nam trong bang luat");
+    assert!(
+        checked_max_tokens_overflow,
+        "hang tran u32 cua max_tokens phai nam trong bang luat"
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -463,24 +618,49 @@ fn every_row_of_the_shared_validity_table_gets_the_same_verdict_from_the_rust_ru
 
 #[test]
 fn clearing_a_work_override_returns_the_field_to_inherited() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("clear-override");
     let global = open_global(&root);
     let opened = open_work_real(&root);
 
-    ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::Endpoint, "https://api.anthropic.com")
-        .expect("luu endpoint global that bai");
-    ai_config_save_field(Some(&global), Some(&opened), AiConfigTier::Work, AiConfigField::Endpoint, "https://local.example.com")
-        .expect("luu endpoint work that bai");
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Endpoint,
+        "https://api.anthropic.com",
+    )
+    .expect("luu endpoint global that bai");
+    ai_config_save_field(
+        Some(&global),
+        Some(&opened),
+        AiConfigTier::Work,
+        AiConfigField::Endpoint,
+        "https://local.example.com",
+    )
+    .expect("luu endpoint work that bai");
 
-    let before = ai_config_get(Some(&global), Some(&opened)).expect("doc truoc khi xoa").fields;
-    assert_eq!(field_wire(&before, AiConfigField::Endpoint).tier, AiConfigTierWire::Work);
+    let before = ai_config_get(Some(&global), Some(&opened))
+        .expect("doc truoc khi xoa")
+        .fields;
+    assert_eq!(
+        field_wire(&before, AiConfigField::Endpoint).tier,
+        AiConfigTierWire::Work
+    );
 
     ai_config_clear_override(Some(&opened), AiConfigField::Endpoint).expect("xoa ghi de that bai");
 
-    let after = ai_config_get(Some(&global), Some(&opened)).expect("doc sau khi xoa").fields;
+    let after = ai_config_get(Some(&global), Some(&opened))
+        .expect("doc sau khi xoa")
+        .fields;
     let endpoint = field_wire(&after, AiConfigField::Endpoint);
-    assert_eq!(endpoint.tier, AiConfigTierWire::Global, "sau khi xoa, truong phai phan giai lai tu Global");
+    assert_eq!(
+        endpoint.tier,
+        AiConfigTierWire::Global,
+        "sau khi xoa, truong phai phan giai lai tu Global"
+    );
     assert_eq!(endpoint.value, "https://api.anthropic.com");
     assert_eq!(endpoint.shadowed, None, "Global khong con gi de che nua");
 
@@ -495,15 +675,23 @@ fn clearing_a_work_override_returns_the_field_to_inherited() {
 
 #[test]
 fn reopening_a_saved_atproj_resolves_the_work_tier_in_a_new_session() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("reopen");
     let global = open_global(&root);
     let opened = open_work_real(&root);
     let work_id = opened.meta.work_id.clone();
     let project_db = opened.dir.join("project.db");
 
-    ai_config_save_field(Some(&global), Some(&opened), AiConfigTier::Work, AiConfigField::Model, "llama3")
-        .expect("luu model work that bai");
+    ai_config_save_field(
+        Some(&global),
+        Some(&opened),
+        AiConfigTier::Work,
+        AiConfigField::Model,
+        "llama3",
+    )
+    .expect("luu model work that bai");
 
     // Dong phien hien tai -- gia lap dong ung dung.
     drop(opened.store);
@@ -527,9 +715,15 @@ fn reopening_a_saved_atproj_resolves_the_work_tier_in_a_new_session() {
         new_chapter_ids: Vec::new(),
     };
 
-    let fields = ai_config_get(Some(&global), Some(&reopened)).expect("doc sau khi mo lai").fields;
+    let fields = ai_config_get(Some(&global), Some(&reopened))
+        .expect("doc sau khi mo lai")
+        .fields;
     let model = field_wire(&fields, AiConfigField::Model);
-    assert_eq!(model.tier, AiConfigTierWire::Work, "tang Tac pham phai phan giai duoc o phien MOI");
+    assert_eq!(
+        model.tier,
+        AiConfigTierWire::Work,
+        "tang Tac pham phai phan giai duoc o phien MOI"
+    );
     assert_eq!(model.value, "llama3");
 
     drop(reopened.store);
@@ -551,16 +745,24 @@ fn reopening_a_saved_atproj_resolves_the_work_tier_in_a_new_session() {
 /// đóng.
 #[test]
 fn work_tier_available_tracks_open_work_state_not_a_ui_proxy() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("work-tier-available");
     let global = open_global(&root);
 
     let closed = ai_config_get(Some(&global), None).expect("doc khi chua mo Tac pham nao");
-    assert!(!closed.work_tier_available, "chua mo Tac pham nao ⇒ work_tier_available phai false");
+    assert!(
+        !closed.work_tier_available,
+        "chua mo Tac pham nao ⇒ work_tier_available phai false"
+    );
 
     let opened = open_work_real(&root);
     let with_work = ai_config_get(Some(&global), Some(&opened)).expect("doc khi da mo Tac pham");
-    assert!(with_work.work_tier_available, "co Tac pham dang mo ⇒ work_tier_available phai true");
+    assert!(
+        with_work.work_tier_available,
+        "co Tac pham dang mo ⇒ work_tier_available phai true"
+    );
 
     drop(opened.store);
     drop(global);
@@ -574,14 +776,24 @@ fn work_tier_available_tracks_open_work_state_not_a_ui_proxy() {
 // Hàng 1 — không có entry nào trong keychain
 #[test]
 fn no_key_anywhere_reads_as_not_configured() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-none");
     let global = open_global(&root);
     reset_key_to_not_configured();
 
     let result = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
-    assert_eq!(result.key_configured, Some(false), "chua ai cau hinh khoa nao phai bao Some(false)");
-    assert_eq!(result.fields.len(), AiConfigField::ALL.len(), "nam truong plaintext van phai du");
+    assert_eq!(
+        result.key_configured,
+        Some(false),
+        "chua ai cau hinh khoa nao phai bao Some(false)"
+    );
+    assert_eq!(
+        result.fields.len(),
+        AiConfigField::ALL.len(),
+        "nam truong plaintext van phai du"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -590,7 +802,9 @@ fn no_key_anywhere_reads_as_not_configured() {
 // Hàng 2 — lưu một khoá
 #[test]
 fn saving_a_key_flips_status_to_configured_and_never_returns_the_value() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-save");
     let global = open_global(&root);
     reset_key_to_not_configured();
@@ -598,7 +812,11 @@ fn saving_a_key_flips_status_to_configured_and_never_returns_the_value() {
     ai_config_save_key(AiConfigTier::Global, "sk-vua-luu-mot-khoa").expect("luu khoa that bai");
 
     let result = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
-    assert_eq!(result.key_configured, Some(true), "sau khi luu, trang thai phai la da cau hinh");
+    assert_eq!(
+        result.key_configured,
+        Some(true),
+        "sau khi luu, trang thai phai la da cau hinh"
+    );
     // Kiểu `AiConfigGetWire` cấu trúc không có trường nào mang giá trị khoá (§Always spec
     // 4.3), nên đây là một đối chứng THÊM chứ không phải phép kiểm DUY NHẤT của mệnh đề.
     assert!(
@@ -613,7 +831,9 @@ fn saving_a_key_flips_status_to_configured_and_never_returns_the_value() {
 // Hàng 3 — lưu một khoá rỗng hoặc chỉ khoảng trắng
 #[test]
 fn saving_an_empty_or_whitespace_key_is_rejected_before_any_keychain_call() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-invalid");
     let global = open_global(&root);
     reset_key_to_not_configured();
@@ -644,7 +864,11 @@ fn saving_an_empty_or_whitespace_key_is_rejected_before_any_keychain_call() {
     let _ = ai_config_get(Some(&global), None);
 
     let result = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
-    assert_eq!(result.key_configured, Some(false), "khong gia tri nao duoc ghi");
+    assert_eq!(
+        result.key_configured,
+        Some(false),
+        "khong gia tri nao duoc ghi"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -653,7 +877,9 @@ fn saving_an_empty_or_whitespace_key_is_rejected_before_any_keychain_call() {
 // Hàng 4 — ghi đè một khoá đã có
 #[test]
 fn overwriting_an_existing_key_replaces_the_value_in_place_with_a_single_entry() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-overwrite");
     let global = open_global(&root);
     reset_key_to_not_configured();
@@ -662,13 +888,21 @@ fn overwriting_an_existing_key_replaces_the_value_in_place_with_a_single_entry()
     ai_config_save_key(AiConfigTier::Global, "sk-sau").expect("ghi de that bai");
 
     let result = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
-    assert_eq!(result.key_configured, Some(true), "trang thai phai giu nguyen da cau hinh");
+    assert_eq!(
+        result.key_configured,
+        Some(true),
+        "trang thai phai giu nguyen da cau hinh"
+    );
     assert_eq!(
         read_raw_mock_key_value().expect("doc raw gia tri mock that bai"),
         "sk-sau",
         "gia tri phai duoc THAY tai cho, khong con gia tri cu"
     );
-    assert_eq!(count_mock_key_entries(), 1, "ghi de khong duoc tao entry thu hai");
+    assert_eq!(
+        count_mock_key_entries(),
+        1,
+        "ghi de khong duoc tao entry thu hai"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -677,7 +911,9 @@ fn overwriting_an_existing_key_replaces_the_value_in_place_with_a_single_entry()
 // Hàng 5 — xoá khoá đang có
 #[test]
 fn deleting_the_key_returns_status_to_not_configured() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-delete");
     let global = open_global(&root);
     reset_key_to_not_configured();
@@ -686,7 +922,11 @@ fn deleting_the_key_returns_status_to_not_configured() {
     ai_config_delete_key(AiConfigTier::Global).expect("xoa khoa that bai");
 
     let result = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
-    assert_eq!(result.key_configured, Some(false), "sau khi xoa phai tro ve chua cau hinh");
+    assert_eq!(
+        result.key_configured,
+        Some(false),
+        "sau khi xoa phai tro ve chua cau hinh"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -695,13 +935,16 @@ fn deleting_the_key_returns_status_to_not_configured() {
 // Hàng 6 — xoá khi không có entry nào
 #[test]
 fn deleting_a_key_that_does_not_exist_is_treated_as_success() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-delete-none");
     let global = open_global(&root);
     reset_key_to_not_configured();
 
-    ai_config_delete_key(AiConfigTier::Global)
-        .expect("xoa mot khoa khong ton tai phai la THANH CONG (hau trang thai la trang thai yeu cau)");
+    ai_config_delete_key(AiConfigTier::Global).expect(
+        "xoa mot khoa khong ton tai phai la THANH CONG (hau trang thai la trang thai yeu cau)",
+    );
 
     let result = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
     assert_eq!(result.key_configured, Some(false));
@@ -713,7 +956,9 @@ fn deleting_a_key_that_does_not_exist_is_treated_as_success() {
 // Hàng 7 — lưu khoá khi một Tác phẩm đang mở: vẫn Global, khác năm trường kia
 #[test]
 fn saving_the_key_while_a_work_is_open_still_writes_only_the_global_entry() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-work-open");
     let global = open_global(&root);
     let opened = open_work_real(&root);
@@ -721,10 +966,17 @@ fn saving_the_key_while_a_work_is_open_still_writes_only_the_global_entry() {
 
     // Đối chứng: MỘT trường thường (`provider`) ghi tầng Work khi Tac pham dang mo --
     // day la hanh vi Story 4.2, dung de lam noi bat cai KHAC cua khoa API ngay ben duoi.
-    ai_config_save_field(Some(&global), Some(&opened), AiConfigTier::Work, AiConfigField::Provider, "anthropic-work")
-        .expect("luu provider tang Work that bai");
+    ai_config_save_field(
+        Some(&global),
+        Some(&opened),
+        AiConfigTier::Work,
+        AiConfigField::Provider,
+        "anthropic-work",
+    )
+    .expect("luu provider tang Work that bai");
 
-    ai_config_save_key(AiConfigTier::Global, "sk-mot-khoa-cho-moi-tac-pham").expect("luu khoa that bai");
+    ai_config_save_key(AiConfigTier::Global, "sk-mot-khoa-cho-moi-tac-pham")
+        .expect("luu khoa that bai");
 
     let with_work = ai_config_get(Some(&global), Some(&opened)).expect("doc khi Tac pham dang mo");
     assert_eq!(
@@ -744,7 +996,11 @@ fn saving_the_key_while_a_work_is_open_still_writes_only_the_global_entry() {
         Some(true),
         "khoa la Global-only: dong Tac pham khong duoc lam mat trang thai da cau hinh"
     );
-    assert_eq!(count_mock_key_entries(), 1, "van dung MOT entry keychain, bat ke Tac pham nao dang mo");
+    assert_eq!(
+        count_mock_key_entries(),
+        1,
+        "van dung MOT entry keychain, bat ke Tac pham nao dang mo"
+    );
 
     drop(opened.store);
     drop(global);
@@ -754,7 +1010,9 @@ fn saving_the_key_while_a_work_is_open_still_writes_only_the_global_entry() {
 // Hàng 8 — một yêu cầu khoá ở tầng Tác phẩm bị chặn TẠI TẦNG LỆNH, 0 lượt chạm keychain
 #[test]
 fn a_work_tier_key_request_is_refused_at_the_command_layer_with_zero_keychain_interaction() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     reset_key_to_not_configured();
 
     // Bơm lỗi TRƯỚC mỗi lượt gọi: nếu tầng lệnh lỡ chạm keychain trước khi tu choi tang,
@@ -784,7 +1042,10 @@ fn a_work_tier_key_request_is_refused_at_the_command_layer_with_zero_keychain_in
     let err_real_touch = ai_config_save_key(AiConfigTier::Global, "sk-se-that-bai")
         .err()
         .expect("lan cham that dau tien phai that bai vi loi da bom");
-    assert_eq!(err_real_touch.message_key(), MessageKey::AiConfigKeychainUnavailable);
+    assert_eq!(
+        err_real_touch.message_key(),
+        MessageKey::AiConfigKeychainUnavailable
+    );
 
     reset_key_to_not_configured();
 }
@@ -792,7 +1053,9 @@ fn a_work_tier_key_request_is_refused_at_the_command_layer_with_zero_keychain_in
 // Hàng 9 — keychain từ chối trả lời (lượt ghi/xoá): hành động thất bại, màn hình vẫn dùng được
 #[test]
 fn keychain_refusing_to_answer_fails_the_action_but_keeps_the_section_usable() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-unavailable");
     let global = open_global(&root);
     reset_key_to_not_configured();
@@ -802,14 +1065,31 @@ fn keychain_refusing_to_answer_fails_the_action_but_keeps_the_section_usable() {
         .err()
         .expect("keychain tu choi tra loi phai lam hanh dong that bai");
     assert_eq!(err.message_key(), MessageKey::AiConfigKeychainUnavailable);
-    assert!(err.retryable(), "mot keychain bi khoa/tu choi quyen co the thanh cong o luot bam lai");
-    assert!(err.params().is_empty(), "khong tham so nao duoc phep mang gia tri khoa hay mot phan cua no");
+    assert!(
+        err.retryable(),
+        "mot keychain bi khoa/tu choi quyen co the thanh cong o luot bam lai"
+    );
+    assert!(
+        err.params().is_empty(),
+        "khong tham so nao duoc phep mang gia tri khoa hay mot phan cua no"
+    );
 
     // Man hinh van dung duoc: nam truong plaintext van luu/doc binh thuong dung luc nay.
-    ai_config_save_field(Some(&global), None, AiConfigTier::Global, AiConfigField::Provider, "anthropic")
-        .expect("cai dat khac van phai luu duoc du khoa API vua that bai");
-    let fields = ai_config_get(Some(&global), None).expect("doc ai_config that bai").fields;
-    assert_eq!(field_wire(&fields, AiConfigField::Provider).value, "anthropic");
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Provider,
+        "anthropic",
+    )
+    .expect("cai dat khac van phai luu duoc du khoa API vua that bai");
+    let fields = ai_config_get(Some(&global), None)
+        .expect("doc ai_config that bai")
+        .fields;
+    assert_eq!(
+        field_wire(&fields, AiConfigField::Provider).value,
+        "anthropic"
+    );
 
     drop(global);
     cleanup_dir(&root);
@@ -819,7 +1099,9 @@ fn keychain_refusing_to_answer_fails_the_action_but_keeps_the_section_usable() {
 // trường plaintext vẫn phải tải được — đối chứng trực tiếp cho bản sửa 2026-09-17 của Phase 2.
 #[test]
 fn keychain_probe_failure_on_get_surfaces_as_none_not_a_false_configured_state() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-probe-fails");
     let global = open_global(&root);
     reset_key_to_not_configured();
@@ -833,9 +1115,17 @@ fn keychain_probe_failure_on_get_surfaces_as_none_not_a_false_configured_state()
          hinh'), day la hai trang thai KHAC nhau (AGENTS.md: mot gia tri co the UNKNOWN nhan \
          Option/NULL, khong bao gio mot 0/false)"
     );
-    assert_eq!(result.fields.len(), AiConfigField::ALL.len(), "nam truong plaintext van phai tai duoc du");
+    assert_eq!(
+        result.fields.len(),
+        AiConfigField::ALL.len(),
+        "nam truong plaintext van phai tai duoc du"
+    );
     for field in AiConfigField::ALL {
-        assert_eq!(field_wire(&result.fields, *field).value, "", "chua ai cau hinh field nay trong ca nay");
+        assert_eq!(
+            field_wire(&result.fields, *field).value,
+            "",
+            "chua ai cau hinh field nay trong ca nay"
+        );
     }
 
     drop(global);
@@ -845,7 +1135,9 @@ fn keychain_probe_failure_on_get_surfaces_as_none_not_a_false_configured_state()
 // Hàng 10 — một lỗi xảy ra trong khi keychain đang giữ một khoá không được cõng theo nó
 #[test]
 fn errors_around_a_configured_key_never_carry_the_key_value_or_a_prefix_of_it() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-error-redaction");
     let global = open_global(&root);
     reset_key_to_not_configured();
@@ -854,13 +1146,24 @@ fn errors_around_a_configured_key_never_carry_the_key_value_or_a_prefix_of_it() 
     ai_config_save_key(AiConfigTier::Global, SECRET).expect("luu khoa that bai");
 
     inject_one_shot_keychain_error();
-    let err = ai_config_delete_key(AiConfigTier::Global).err().expect("phai that bai vi loi da bom");
+    let err = ai_config_delete_key(AiConfigTier::Global)
+        .err()
+        .expect("phai that bai vi loi da bom");
     assert_eq!(err.message_key(), MessageKey::AiConfigKeychainUnavailable);
 
     let err_debug = format!("{err:?}");
-    assert!(!err_debug.contains(SECRET), "Debug cua IpcError khong duoc mang khoa");
-    assert!(!err_debug.contains(&SECRET[..8]), "Debug cua IpcError khong duoc mang mot TIEN TO cua khoa");
-    assert!(err.params().values().all(|v| !v.contains(SECRET)), "khong tham so nao duoc mang khoa");
+    assert!(
+        !err_debug.contains(SECRET),
+        "Debug cua IpcError khong duoc mang khoa"
+    );
+    assert!(
+        !err_debug.contains(&SECRET[..8]),
+        "Debug cua IpcError khong duoc mang mot TIEN TO cua khoa"
+    );
+    assert!(
+        err.params().values().all(|v| !v.contains(SECRET)),
+        "khong tham so nao duoc mang khoa"
+    );
 
     let get_result = ai_config_get(Some(&global), None).expect("doc ai_config that bai");
     assert!(
@@ -875,7 +1178,9 @@ fn errors_around_a_configured_key_never_carry_the_key_value_or_a_prefix_of_it() 
 // AC riêng của spec 4.3 — khoá không bao giờ chạm `global.db`/`project.db` trên đĩa
 #[test]
 fn saving_a_key_leaves_no_trace_on_disk_in_global_db_or_project_db() {
-    let _guard = KEYCHAIN_KEY_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let root = temp_dir("key-disk-leak");
     let global = open_global(&root);
     let opened = open_work_real(&root);

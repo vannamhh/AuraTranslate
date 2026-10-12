@@ -44,11 +44,11 @@ use std::path::{Path, PathBuf};
 use crate::commands::project::OpenWork;
 use crate::core::dict::DictLayers;
 use crate::core::glossary::{
-    Category, ConflictDecision, Delimiter, GlossaryCandidate, GlossaryEntry, GlossaryError, GlossaryMark,
-    GlossaryTier, HanVietSuggestion, ImportSummary, RowPlan, RowPlanKind, WorkContext,
-    add_manual_term, approve_candidate, chapter_source_texts, chapter_span_counts_in, classify_import_rows,
-    confirm_pending_translation, delete_manual_term, export_tier, import_into_tier,
-    list_all_entries, match_lang_for_source_lang, marks_for_source_text,
+    Category, ConflictDecision, Delimiter, GlossaryCandidate, GlossaryEntry, GlossaryError,
+    GlossaryMark, GlossaryTier, HanVietSuggestion, ImportSummary, RowPlan, RowPlanKind,
+    WorkContext, add_manual_term, approve_candidate, chapter_source_texts, chapter_span_counts_in,
+    classify_import_rows, confirm_pending_translation, delete_manual_term, export_tier,
+    import_into_tier, list_all_entries, marks_for_source_text, match_lang_for_source_lang,
     parse as parse_glossary_import, pending_candidates, promote_to_global, read_import_file,
     reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch, update_manual_term,
     write_export_file,
@@ -172,7 +172,15 @@ pub fn glossary_add_term(
     let global = global.ok_or_else(store_is_missing)?;
     let work_store = work_context(open)?.work();
 
-    let id = add_manual_term(global, work_store, tier, source_term, translation, note, category)?;
+    let id = add_manual_term(
+        global,
+        work_store,
+        tier,
+        source_term,
+        translation,
+        note,
+        category,
+    )?;
     Ok(id)
 }
 
@@ -394,9 +402,17 @@ pub fn read_pending_snapshot(open: Option<&OpenWork>) -> Result<Option<PendingSn
         return Ok(None);
     };
     let rows = pending_candidates(&open.store)?;
-    let chapters = if rows.is_empty() { Vec::new() } else { chapter_source_texts(&open.store)? };
+    let chapters = if rows.is_empty() {
+        Vec::new()
+    } else {
+        chapter_source_texts(&open.store)?
+    };
     let lang = match_lang_for_source_lang(&open.meta.source_lang);
-    Ok(Some(PendingSnapshot { rows, chapters, lang }))
+    Ok(Some(PendingSnapshot {
+        rows,
+        chapters,
+        lang,
+    }))
 }
 
 /// The half of [`glossary_pending_candidates`] that needs no Work and no lock.
@@ -405,7 +421,11 @@ pub fn build_pending_candidates(
     layers: &DictLayers,
     disabled: &BTreeSet<String>,
 ) -> Vec<GlossaryCandidateWire> {
-    let PendingSnapshot { rows, chapters, lang } = snapshot;
+    let PendingSnapshot {
+        rows,
+        chapters,
+        lang,
+    } = snapshot;
     let terms: Vec<&str> = rows.iter().map(|c| c.source_term.as_str()).collect();
     let suggestions = suggest_han_viet_batch(layers, disabled, &terms);
     debug_assert_eq!(
@@ -452,22 +472,30 @@ pub fn build_pending_candidates(
                 .unwrap_or(0);
             (c, suggestion, chapter_span_count)
         })
-        .map(|(c, suggestion, chapter_span_count)| GlossaryCandidateWire {
-            id: c.id,
-            source_term: c.source_term.clone(),
-            candidate_origin: c.candidate_origin.as_str().to_owned(),
-            resolution: c.resolution.map(|r| r.as_str().to_owned()),
-            created_at: c.created_at.clone(),
-            occurrence_count: c.occurrence_count,
-            chapter_span_count,
-            context_example: c.context_example.clone(),
-            han_viet_suggestion: suggestion.suggestion_text().map(str::to_owned),
-            han_viet_status: suggestion.as_status_str().to_owned(),
-            replaced_translation: c.review_harvest.as_ref().map(|h| h.replaced_translation.clone()),
-            proposed_translation: c.review_harvest.as_ref().map(|h| h.proposed_translation.clone()),
-            changed_count: c.review_harvest.as_ref().map(|h| h.changed_count),
-            seen_count: c.review_harvest.as_ref().map(|h| h.seen_count),
-        })
+        .map(
+            |(c, suggestion, chapter_span_count)| GlossaryCandidateWire {
+                id: c.id,
+                source_term: c.source_term.clone(),
+                candidate_origin: c.candidate_origin.as_str().to_owned(),
+                resolution: c.resolution.map(|r| r.as_str().to_owned()),
+                created_at: c.created_at.clone(),
+                occurrence_count: c.occurrence_count,
+                chapter_span_count,
+                context_example: c.context_example.clone(),
+                han_viet_suggestion: suggestion.suggestion_text().map(str::to_owned),
+                han_viet_status: suggestion.as_status_str().to_owned(),
+                replaced_translation: c
+                    .review_harvest
+                    .as_ref()
+                    .map(|h| h.replaced_translation.clone()),
+                proposed_translation: c
+                    .review_harvest
+                    .as_ref()
+                    .map(|h| h.proposed_translation.clone()),
+                changed_count: c.review_harvest.as_ref().map(|h| h.changed_count),
+                seen_count: c.review_harvest.as_ref().map(|h| h.seen_count),
+            },
+        )
         .collect()
 }
 
@@ -812,9 +840,7 @@ pub fn first_issue_or_unknown(issues: Vec<crate::core::glossary::ParseIssue>) ->
     let issue_count = issues.len();
     match issues.into_iter().next() {
         Some(first) => {
-            eprintln!(
-                "glossary[import_preview] {issue_count} loi phan tich, dau tien: {first}"
-            );
+            eprintln!("glossary[import_preview] {issue_count} loi phan tich, dau tien: {first}");
             IpcError::from(first)
         }
         None => {
@@ -869,12 +895,21 @@ pub fn glossary_open_import_preview(
 
     let plans = classify_import_rows(global_store, work_store, tier, &parsed.rows)?;
 
-    let new_count = plans.iter().filter(|p| matches!(p.kind, RowPlanKind::New)).count();
-    let identical_count = plans.iter().filter(|p| matches!(p.kind, RowPlanKind::Identical)).count();
+    let new_count = plans
+        .iter()
+        .filter(|p| matches!(p.kind, RowPlanKind::New))
+        .count();
+    let identical_count = plans
+        .iter()
+        .filter(|p| matches!(p.kind, RowPlanKind::Identical))
+        .count();
     let conflicts: Vec<ImportPreviewConflictWire> = plans
         .iter()
         .filter_map(|p| match &p.kind {
-            RowPlanKind::Conflict { existing_translation, .. } => Some(ImportPreviewConflictWire {
+            RowPlanKind::Conflict {
+                existing_translation,
+                ..
+            } => Some(ImportPreviewConflictWire {
                 source_term: p.source_term.clone(),
                 existing_translation: existing_translation.clone(),
                 file_translation: p.translation.clone(),
@@ -883,10 +918,15 @@ pub fn glossary_open_import_preview(
         })
         .collect();
 
-    let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let recognized_column_count = parsed.header_columns.len().saturating_sub(parsed.ignored_columns.len());
-    let term_origin_column_present =
-        parsed.header_columns.iter().any(|c| c == "term_origin");
+    let file_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let recognized_column_count = parsed
+        .header_columns
+        .len()
+        .saturating_sub(parsed.ignored_columns.len());
+    let term_origin_column_present = parsed.header_columns.iter().any(|c| c == "term_origin");
 
     let preview = ImportPreviewWire {
         file_name,
@@ -900,8 +940,14 @@ pub fn glossary_open_import_preview(
         conflicts,
     };
 
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    *guard = Some(PendingImport { path: path.to_owned(), tier, plans });
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    *guard = Some(PendingImport {
+        path: path.to_owned(),
+        tier,
+        plans,
+    });
 
     Ok(preview)
 }
@@ -916,7 +962,11 @@ pub struct ImportSummaryWire {
 
 impl From<ImportSummary> for ImportSummaryWire {
     fn from(s: ImportSummary) -> Self {
-        Self { inserted: s.inserted, updated: s.updated, identical: s.identical }
+        Self {
+            inserted: s.inserted,
+            updated: s.updated,
+            identical: s.identical,
+        }
     }
 }
 
@@ -944,7 +994,9 @@ pub fn glossary_confirm_import(
     let global = global.ok_or_else(store_is_missing)?;
     let work_store = work_context(open)?.work();
 
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let Some(batch) = guard.as_ref() else {
         return Err(IpcError::from(GlossaryError::NoPendingImport));
     };
@@ -970,7 +1022,9 @@ pub fn glossary_confirm_import(
 /// Huỷ lô đang treo — **0** lượt ghi, không lỗi kể cả khi không có lô nào (huỷ hai lần là
 /// vô hại, cùng khuôn `closeGlossaryQueue`/`closeGlossaryManage` phía frontend).
 pub fn glossary_cancel_import(pending: &PendingImportState) {
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = None;
 }
 
@@ -981,7 +1035,9 @@ pub fn glossary_cancel_import(pending: &PendingImportState) {
 /// còn trỏ đúng hàng nào ở kho MỚI. §I/O Matrix: "Đóng Tác phẩm khi còn lô nhập treo ⇒ Lô
 /// bị dọn; nhịp hai sau đó trả `NoPendingImport`".
 pub fn clear_pending_import_for_tier(pending: &PendingImportState, tier: GlossaryTier) {
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if guard.as_ref().is_some_and(|batch| batch.tier == tier) {
         *guard = None;
     }
@@ -1140,8 +1196,8 @@ pub mod wire {
         // khong phep kiem nao chay qua. Ket qua cuoi van la `&empty_layers` khi chua quan
         // ly (giu hanh vi cu, duong nay khong dung luot doc), nhung nay CO chan doan neu
         // dich danh be mat goi qua tham so `"marks_for_chapter"`.
-        let layers = guarded_dict_layers(layers.as_deref(), "marks_for_chapter")
-            .unwrap_or(&empty_layers);
+        let layers =
+            guarded_dict_layers(layers.as_deref(), "marks_for_chapter").unwrap_or(&empty_layers);
         let disabled = crate::commands::dict::disabled_sources(global.as_deref());
 
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
@@ -1191,8 +1247,8 @@ pub mod wire {
         // 🔵 SUA 2026-08-26 (vong ra 1) -- cung khuon `glossary_marks_for_chapter` ngay
         // tren: qua `guarded_dict_layers` DUNG CHUNG roi `.unwrap_or(&empty_layers)`, khong
         // mot khoi `match` viet tay (cung ly do: vo nay khong co ca test nao chay qua).
-        let layers = guarded_dict_layers(layers.as_deref(), "pending_candidates")
-            .unwrap_or(&empty_layers);
+        let layers =
+            guarded_dict_layers(layers.as_deref(), "pending_candidates").unwrap_or(&empty_layers);
         let disabled = crate::commands::dict::disabled_sources(global.as_deref());
 
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
@@ -1204,7 +1260,9 @@ pub mod wire {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::read_pending_snapshot(guard.as_ref())?
         };
-        Ok(snapshot.map_or_else(Vec::new, |s| super::build_pending_candidates(s, layers, &disabled)))
+        Ok(snapshot.map_or_else(Vec::new, |s| {
+            super::build_pending_candidates(s, layers, &disabled)
+        }))
     }
 
     /// Vỏ IPC của [`super::glossary_confirm_pending_translation`]. Story 3.6.
@@ -1279,7 +1337,9 @@ pub mod wire {
     /// lượt bỏ sót với [`glossary_lookup_term`], cùng một lý do. Cổng canh:
     /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
     #[tauri::command(async)]
-    pub fn glossary_list_entries(app: tauri::AppHandle) -> Result<Vec<GlossaryEntryWire>, IpcError> {
+    pub fn glossary_list_entries(
+        app: tauri::AppHandle,
+    ) -> Result<Vec<GlossaryEntryWire>, IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();
@@ -1294,7 +1354,11 @@ pub mod wire {
 
     /// Vỏ IPC của [`super::glossary_delete_term`]. Story 3.9.
     #[tauri::command]
-    pub fn glossary_delete_term(app: tauri::AppHandle, tier: GlossaryTier, id: i64) -> Result<(), IpcError> {
+    pub fn glossary_delete_term(
+        app: tauri::AppHandle,
+        tier: GlossaryTier,
+        id: i64,
+    ) -> Result<(), IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();
@@ -1337,7 +1401,11 @@ pub mod wire {
     fn work_tier_is_open(app: &tauri::AppHandle) -> bool {
         use tauri::Manager as _;
         app.try_state::<OpenWorkState>()
-            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some())
+            .map(|s| {
+                s.lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .is_some()
+            })
             .unwrap_or(false)
     }
 
@@ -1376,7 +1444,10 @@ pub mod wire {
     /// ca này đổi tên từ `the_dialog_wires_...`: vòng rà Epic 3 tìm ra ba vỏ CHẶN nữa cùng
     /// lớp lỗi, nên danh sách mở từ hai lên năm và tên nói đúng mệnh đề nó canh).
     #[tauri::command(async)]
-    pub fn glossary_export_tier(app: tauri::AppHandle, tier: GlossaryTier) -> Result<Option<String>, IpcError> {
+    pub fn glossary_export_tier(
+        app: tauri::AppHandle,
+        tier: GlossaryTier,
+    ) -> Result<Option<String>, IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();
@@ -1387,7 +1458,11 @@ pub mod wire {
             return Err(IpcError::from(GlossaryError::WorkTierUnavailable));
         }
 
-        let extension = if tier == GlossaryTier::Global { "glossary_global" } else { "glossary_work" };
+        let extension = if tier == GlossaryTier::Global {
+            "glossary_global"
+        } else {
+            "glossary_work"
+        };
         // 🔴 P4 (vòng rà ba lớp 2026-08-25) — CHỈ MỘT bộ lọc, khớp tên mặc định.
         // `set_file_name` không có móc phản ứng khi người dùng đổi bộ lọc trong hộp thoại
         // (API `blocking_save_file` của `rfd` không phát sự kiện đó ra ngoài), nên trước
@@ -1478,11 +1553,17 @@ pub mod wire {
             return Err(IpcError::from(GlossaryError::NoPendingImport));
         }
 
-        let Some(picked) = app.dialog().file().add_filter("CSV/TSV", &["csv", "tsv"]).blocking_pick_file()
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .add_filter("CSV/TSV", &["csv", "tsv"])
+            .blocking_pick_file()
         else {
             return Ok(None);
         };
-        let path = picked.into_path().map_err(|_| IpcError::from(GlossaryError::DialogPathInvalid))?;
+        let path = picked
+            .into_path()
+            .map_err(|_| IpcError::from(GlossaryError::DialogPathInvalid))?;
 
         // Khoá MỚI, sau khi hộp thoại đã đóng — không tái dùng bất kỳ giá trị nào đọc
         // trước dialog (P1).
@@ -1498,8 +1579,13 @@ pub mod wire {
             return Err(IpcError::from(GlossaryError::NoPendingImport));
         };
 
-        let preview =
-            super::glossary_open_import_preview(global.as_deref(), open, pending.inner(), tier, &path)?;
+        let preview = super::glossary_open_import_preview(
+            global.as_deref(),
+            open,
+            pending.inner(),
+            tier,
+            &path,
+        )?;
         Ok(Some(preview))
     }
 

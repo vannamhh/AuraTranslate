@@ -19,8 +19,8 @@ use auratranslate_lib::commands::lifecycle::{
     read_work_lifecycle, set_chapter_status, set_work_status_override,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
-use auratranslate_lib::core::lifecycle::LifecycleStatus;
 use auratranslate_lib::core::library::meta::WorkMeta;
+use auratranslate_lib::core::lifecycle::LifecycleStatus;
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
@@ -53,15 +53,17 @@ fn open_work(root: &Path, tag: &str) -> OpenWork {
 fn add_chapter(open: &OpenWork, ord: i64, status: &str) -> i64 {
     let status_owned = status.to_owned();
     open.store
-        .write(move |tx: &auratranslate_lib::core::store::Transaction<'_>| {
-            tx.execute(
-                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+        .write(
+            move |tx: &auratranslate_lib::core::store::Transaction<'_>| {
+                tx.execute(
+                    "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
                  VALUES (?1, NULL, 'x', ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'), \
                  strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
-                (ord, &status_owned),
-            )?;
-            Ok(tx.last_insert_rowid())
-        })
+                    (ord, &status_owned),
+                )?;
+                Ok(tx.last_insert_rowid())
+            },
+        )
         .unwrap_or_else(|e| panic!("chen Chuong thu hai: {e}"))
 }
 
@@ -128,7 +130,11 @@ fn a_mixed_set_of_chapter_statuses_derives_in_progress_never_paused() {
     // Chương thứ nhất (đã tồn tại từ `create_work_from_text`) thành `done`.
     let lifecycle = set_chapter_status(Some(&mut opened), chapter_id, "done")
         .unwrap_or_else(|e| panic!("set_chapter_status done: {e:?}"));
-    assert_eq!(lifecycle.status.as_deref(), Some("done"), "mot Chuong DUY NHAT da Done -> Done");
+    assert_eq!(
+        lifecycle.status.as_deref(),
+        Some("done"),
+        "mot Chuong DUY NHAT da Done -> Done"
+    );
 
     // Thêm Chương thứ hai (`not_started`) và thứ ba (`paused`) trực tiếp qua SQL — không có
     // lệnh sản phẩm nào tạo Chương mới hôm nay (Epic 6).
@@ -145,7 +151,11 @@ fn a_mixed_set_of_chapter_statuses_derives_in_progress_never_paused() {
         Some("in_progress"),
         "done + not_started + paused phai suy ra in_progress"
     );
-    assert_ne!(lifecycle.status.as_deref(), Some("paused"), "KHONG BAO GIO suy ra paused");
+    assert_ne!(
+        lifecycle.status.as_deref(),
+        Some("paused"),
+        "KHONG BAO GIO suy ra paused"
+    );
     assert!(!lifecycle.status_is_override);
 
     drop(opened);
@@ -169,7 +179,10 @@ fn setting_an_unknown_chapter_status_writes_nothing_and_names_the_bad_value() {
     assert_eq!(json["params"]["status"], "finished");
 
     let after = read_meta_from_disk(&opened.dir);
-    assert_eq!(before, after, "khong mot luot ghi nao duoc chay -- meta.json phai giu nguyen");
+    assert_eq!(
+        before, after,
+        "khong mot luot ghi nao duoc chay -- meta.json phai giu nguyen"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -390,7 +403,9 @@ fn every_lifecycle_status_label_key_exists_in_vi_json() {
         .unwrap_or_else(|e| panic!("doc {}: {e}", vi_json_path.display()));
     let catalog: serde_json::Value =
         serde_json::from_str(&raw).unwrap_or_else(|e| panic!("parse vi.json: {e}"));
-    let object = catalog.as_object().unwrap_or_else(|| panic!("vi.json phai la mot object"));
+    let object = catalog
+        .as_object()
+        .unwrap_or_else(|| panic!("vi.json phai la mot object"));
 
     let missing: Vec<&str> = LifecycleStatus::ALL
         .iter()
@@ -422,12 +437,14 @@ fn no_combination_of_two_chapters_ever_derives_a_paused_work_through_the_command
             let second_status = second.as_str().to_owned();
             opened
                 .store
-                .write(move |tx: &auratranslate_lib::core::store::Transaction<'_>| {
-                    tx.execute(
-                        "UPDATE chapter SET status = ?1 WHERE id = ?2",
-                        (&second_status, second_chapter_id),
-                    )
-                })
+                .write(
+                    move |tx: &auratranslate_lib::core::store::Transaction<'_>| {
+                        tx.execute(
+                            "UPDATE chapter SET status = ?1 WHERE id = ?2",
+                            (&second_status, second_chapter_id),
+                        )
+                    },
+                )
                 .unwrap_or_else(|e| panic!("cap nhat Chuong thu hai {second:?}: {e}"));
 
             // Một lượt ghi Chương THỨ NHẤT dựng lại `meta.json` từ TOÀN BỘ tập Chương hiện

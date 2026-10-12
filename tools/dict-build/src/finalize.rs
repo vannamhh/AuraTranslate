@@ -155,7 +155,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("dict-build-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("empty.bin");
-        std::fs::File::create(&path).unwrap().write_all(b"").unwrap();
+        std::fs::File::create(&path)
+            .unwrap()
+            .write_all(b"")
+            .unwrap();
         let (hex, size) = sha256_and_size(&path).unwrap();
         // SHA-256 của chuỗi rỗng — vector chuẩn NIST, không phải số tự bịa.
         assert_eq!(

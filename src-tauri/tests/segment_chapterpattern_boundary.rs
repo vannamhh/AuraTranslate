@@ -78,7 +78,8 @@ fn the_pipeline_module_actually_calls_the_chapterpattern_module() {
     let text = fs::read_to_string(src_root().join("core/segment/pipeline.rs"))
         .expect("đọc core/segment/pipeline.rs");
     let product_only = boundary_scan::without_test_modules(&text);
-    let has_call = code_lines(&product_only).any(|(_, code)| line_calls_chapterpattern_match_starts(&code));
+    let has_call =
+        code_lines(&product_only).any(|(_, code)| line_calls_chapterpattern_match_starts(&code));
     assert!(
         has_call,
         "`core/segment/pipeline.rs` không còn gọi `ChapterPattern::match_starts` (ngoài chú \
@@ -93,7 +94,8 @@ fn the_pipeline_module_actually_calls_the_chapterpattern_module() {
 fn a_call_living_only_inside_the_pipeline_files_own_test_block_does_not_count_as_the_real_call() {
     let seeded_file = "fn step() {\n    // than that da bi go, khong con goi match_starts nua\n}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn seeded() {\n        let _ = super::chapterpattern::ChapterPattern::literal(\"x\").match_starts(\"y\");\n    }\n}\n";
     let product_only = boundary_scan::without_test_modules(seeded_file);
-    let has_call = code_lines(&product_only).any(|(_, code)| line_calls_chapterpattern_match_starts(&code));
+    let has_call =
+        code_lines(&product_only).any(|(_, code)| line_calls_chapterpattern_match_starts(&code));
     assert!(
         !has_call,
         "một lời gọi CHỈ sống trong khối `#[cfg(test)]` không được tính là 'pipeline.rs gọi \
@@ -116,7 +118,9 @@ fn the_chapterpattern_call_check_would_actually_flag_a_seeded_violation_and_igno
          duoc bi bat oan -- day dung ly do vi tu doi tu chuoi con long leo sang loi goi that"
     );
     assert!(
-        !line_calls_chapterpattern_match_starts("    let n = normalize::normalize(&text, &source_lang);"),
+        !line_calls_chapterpattern_match_starts(
+            "    let n = normalize::normalize(&text, &source_lang);"
+        ),
         "ca AM: mot dong KHONG goi match_starts khong duoc bi bat oan"
     );
 }
@@ -155,13 +159,18 @@ fn contains_word(haystack: &str, needle: &str) -> bool {
 
 /// `code` mang một trong hai token cấm, như một TỪ trọn vẹn — vị từ THUẦN.
 fn line_names_a_forbidden_token(code: &str) -> bool {
-    FORBIDDEN_TOKENS.iter().any(|needle| contains_word(code, needle))
+    FORBIDDEN_TOKENS
+        .iter()
+        .any(|needle| contains_word(code, needle))
 }
 
 /// Đối chứng dương của [`contains_word`] chính nó.
 #[test]
 fn contains_word_matches_a_whole_word_but_not_a_substring_of_a_longer_identifier() {
-    assert!(contains_word("use crate::core::store::Store;", "Store"), "ca DUONG: tu tron ven");
+    assert!(
+        contains_word("use crate::core::store::Store;", "Store"),
+        "ca DUONG: tu tron ven"
+    );
     assert!(
         !contains_word("let s: StoreSpec = StoreSpec::global(p);", "Store"),
         "ca AM: la chuoi con cua StoreSpec, khong phai mot tu tron ven"
@@ -270,7 +279,7 @@ fn the_chapterpattern_compile_function_has_exactly_one_named_product_call_site()
 /// "chỗ gọi sản phẩm thứ hai".
 #[test]
 fn a_call_seeded_only_inside_another_files_test_block_is_not_counted_as_a_second_product_call_site()
- {
+{
     let seeded_file = "fn helper() {}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn seeded() {\n        let _ = crate::core::segment::chapterpattern::compile(\"x\");\n    }\n}\n";
     let product_only = boundary_scan::without_test_modules(seeded_file);
     let found = code_lines(&product_only).any(|(_, code)| line_calls_chapterpattern_compile(&code));
@@ -293,7 +302,9 @@ fn the_chapterpattern_compile_call_check_would_actually_flag_a_seeded_violation_
         "ca DƯƠNG: một dòng gọi `chapterpattern::compile` phải bị vị từ bắt"
     );
     assert!(
-        !line_calls_chapterpattern_compile("    let n = normalize::normalize(&text, &source_lang);"),
+        !line_calls_chapterpattern_compile(
+            "    let n = normalize::normalize(&text, &source_lang);"
+        ),
         "ca ÂM: một dòng KHÔNG gọi `chapterpattern::compile` không được bị bắt oan"
     );
 }

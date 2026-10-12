@@ -5,14 +5,16 @@ use std::collections::BTreeMap;
 
 use crate::commands::chapter::{chapter_not_found, no_work_open};
 use crate::commands::project::OpenWork;
+use crate::core::attribution::resolve_translator_name;
 use crate::core::export::{
-    AlignmentError, AlignmentItem, ChapterAlignment, ConfirmError, ReviewCopyError, harvest_work, ReviewFileKind, ReviewerDocx, ReviewerImportPlan, confirm_import, plan_import, read_docx_copy,
-    read_markdown_copy,
-    Attribution, ExportScope, DocxWriteError, ExportImage, ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ScopeError, count_scope,
-    load_chapter_blocks, load_chapter_tables, load_chapter_text, render_text, TextFormat, resolve_chapter_ids, safe_stem, scan_images, write_file_with_images, write_new_file,
+    AlignmentError, AlignmentItem, Attribution, ChapterAlignment, ConfirmError, DocxWriteError,
+    ExportImage, ExportScope, ImageFilesError, ImageMode, ImageReference, MissingLinkImage,
+    ReviewCopyError, ReviewFileKind, ReviewerDocx, ReviewerImportPlan, ScopeError, TextFormat,
+    confirm_import, count_scope, harvest_work, load_chapter_blocks, load_chapter_tables,
+    load_chapter_text, plan_import, read_docx_copy, read_markdown_copy, render_text,
+    resolve_chapter_ids, safe_stem, scan_images, write_file_with_images, write_new_file,
     write_one_block_docx, write_two_column_docx,
 };
-use crate::core::attribution::resolve_translator_name;
 use crate::core::glossary::{ReviewHarvestDetail, ReviewHarvestProposal, enqueue_review_harvest};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::scope::ScopeResolver;
@@ -32,9 +34,12 @@ pub struct ExportScopeSummary {
 
 fn scope_error(err: ScopeError) -> IpcError {
     match err {
-        ScopeError::Empty => {
-            IpcError::new("export.scope_empty", MessageKey::ExportScopeEmpty, BTreeMap::new(), false)
-        }
+        ScopeError::Empty => IpcError::new(
+            "export.scope_empty",
+            MessageKey::ExportScopeEmpty,
+            BTreeMap::new(),
+            false,
+        ),
         ScopeError::ChapterNotFound(id) => chapter_not_found(id),
         ScopeError::Read(e) => IpcError::from(e),
     }
@@ -66,24 +71,38 @@ pub fn export_scope_summary(
     })
 }
 
-pub fn attribution_of(attribution: bool, global: Option<&Store>) -> Result<Option<Attribution>, IpcError> {
+pub fn attribution_of(
+    attribution: bool,
+    global: Option<&Store>,
+) -> Result<Option<Attribution>, IpcError> {
     if !attribution {
         return Ok(None);
     }
     let global = global.ok_or_else(crate::commands::attribution::store_is_missing)?;
-    let translator = resolve_translator_name(&ScopeResolver::global_only(), global).map_err(IpcError::from)?;
+    let translator =
+        resolve_translator_name(&ScopeResolver::global_only(), global).map_err(IpcError::from)?;
     Ok(Some(Attribution { translator }))
 }
 
 fn export_folder_invalid() -> IpcError {
-    IpcError::new("export.folder_invalid", MessageKey::ExportFolderInvalid, BTreeMap::new(), false)
+    IpcError::new(
+        "export.folder_invalid",
+        MessageKey::ExportFolderInvalid,
+        BTreeMap::new(),
+        false,
+    )
 }
 
 /// Đổi kết quả hộp thoại chọn thư mục thành chuỗi đường dẫn. Huỷ hộp thoại là `Ok(None)`.
-pub fn export_folder_from_dialog(picked: Option<&std::path::Path>) -> Result<Option<String>, IpcError> {
+pub fn export_folder_from_dialog(
+    picked: Option<&std::path::Path>,
+) -> Result<Option<String>, IpcError> {
     match picked {
         None => Ok(None),
-        Some(path) => path.to_str().map(|s| Some(s.to_owned())).ok_or_else(export_folder_invalid),
+        Some(path) => path
+            .to_str()
+            .map(|s| Some(s.to_owned()))
+            .ok_or_else(export_folder_invalid),
     }
 }
 
@@ -102,14 +121,22 @@ fn image_file_missing(chapter_ord: i64, file_name: &str) -> IpcError {
     IpcError::new(
         "export.image_file_missing",
         MessageKey::ExportImageFileMissing,
-        BTreeMap::from([("chapter_ord".to_owned(), chapter_ord.to_string()), ("file_name".to_owned(), file_name.to_owned())]),
+        BTreeMap::from([
+            ("chapter_ord".to_owned(), chapter_ord.to_string()),
+            ("file_name".to_owned(), file_name.to_owned()),
+        ]),
         false,
     )
 }
 
 fn export_write_failed(detail: &str) -> IpcError {
     eprintln!("xuat tep that bai: {detail}");
-    IpcError::new("export.write_failed", MessageKey::ExportWriteFailed, BTreeMap::new(), true)
+    IpcError::new(
+        "export.write_failed",
+        MessageKey::ExportWriteFailed,
+        BTreeMap::new(),
+        true,
+    )
 }
 
 /// Ghi `.docx` bảng hai cột (FR87) của phạm vi vào `folder`, không ghi đè tệp có sẵn. Ảnh có
@@ -132,13 +159,25 @@ pub fn export_docx_two_column(
         return Err(export_folder_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
-    let loaded = load_chapter_tables(&open.store, &chapter_ids, image_mode, attribution).map_err(IpcError::from)?;
+    let loaded = load_chapter_tables(&open.store, &chapter_ids, image_mode, attribution)
+        .map_err(IpcError::from)?;
     let images = loaded.images();
     let stem = format!("{}-hai-cot", safe_stem(&open.meta.name, "export"));
-    let (path, images_dir) = write_export_file(open, folder, &stem, "docx", image_mode, &images, |reference| {
-        write_two_column_docx(&loaded.tables, reference)
-    })?;
-    exported_file(&counts, &loaded_summary(&images, loaded.images_skipped_missing_link), path, images_dir)
+    let (path, images_dir) = write_export_file(
+        open,
+        folder,
+        &stem,
+        "docx",
+        image_mode,
+        &images,
+        |reference| write_two_column_docx(&loaded.tables, reference),
+    )?;
+    exported_file(
+        &counts,
+        &loaded_summary(&images, loaded.images_skipped_missing_link),
+        path,
+        images_dir,
+    )
 }
 
 struct ImageSummary {
@@ -147,7 +186,10 @@ struct ImageSummary {
 }
 
 fn loaded_summary(images: &[&ExportImage], images_skipped_missing_link: i64) -> ImageSummary {
-    ImageSummary { image_count: i64::try_from(images.len()).unwrap_or(i64::MAX), images_skipped_missing_link }
+    ImageSummary {
+        image_count: i64::try_from(images.len()).unwrap_or(i64::MAX),
+        images_skipped_missing_link,
+    }
 }
 
 fn write_export_file(
@@ -160,18 +202,29 @@ fn write_export_file(
     build: impl Fn(ImageReference<'_>) -> Result<Vec<u8>, DocxWriteError>,
 ) -> Result<(std::path::PathBuf, Option<std::path::PathBuf>), IpcError> {
     if image_mode == ImageMode::File && !images.is_empty() {
-        let written = write_file_with_images(folder, stem, extension, &open.dir.join("assets"), images, |final_stem| {
-            let dir_name = format!("{final_stem}{}", crate::core::export::IMAGE_DIR_SUFFIX);
-            build(ImageReference::Dir(&dir_name)).map_err(|e| e.0)
-        })
+        let written = write_file_with_images(
+            folder,
+            stem,
+            extension,
+            &open.dir.join("assets"),
+            images,
+            |final_stem| {
+                let dir_name = format!("{final_stem}{}", crate::core::export::IMAGE_DIR_SUFFIX);
+                build(ImageReference::Dir(&dir_name)).map_err(|e| e.0)
+            },
+        )
         .map_err(|err| match err {
-            ImageFilesError::SourceMissing { chapter_ord, file_name } => image_file_missing(chapter_ord, &file_name),
+            ImageFilesError::SourceMissing {
+                chapter_ord,
+                file_name,
+            } => image_file_missing(chapter_ord, &file_name),
             ImageFilesError::Write(detail) => export_write_failed(&detail),
         })?;
         Ok((written.file_path, Some(written.images_dir)))
     } else {
         let bytes = build(ImageReference::Link).map_err(|e| export_write_failed(&e.0))?;
-        let path = write_new_file(folder, stem, extension, &bytes).map_err(|e| export_write_failed(&e.to_string()))?;
+        let path = write_new_file(folder, stem, extension, &bytes)
+            .map_err(|e| export_write_failed(&e.to_string()))?;
         Ok((path, None))
     }
 }
@@ -183,7 +236,13 @@ fn exported_file(
     images_dir: Option<std::path::PathBuf>,
 ) -> Result<ExportedFile, IpcError> {
     let path = path.to_str().ok_or_else(export_folder_invalid)?.to_owned();
-    let images_dir = images_dir.map(|dir| dir.to_str().map(str::to_owned).ok_or_else(export_folder_invalid)).transpose()?;
+    let images_dir = images_dir
+        .map(|dir| {
+            dir.to_str()
+                .map(str::to_owned)
+                .ok_or_else(export_folder_invalid)
+        })
+        .transpose()?;
     Ok(ExportedFile {
         path,
         chapter_count: counts.chapter_count,
@@ -208,14 +267,31 @@ pub fn export_docx_one_block(
         return Err(export_folder_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
-    let loaded =
-        load_chapter_blocks(&open.store, &chapter_ids, image_mode, &open.meta.source_lang, attribution).map_err(IpcError::from)?;
+    let loaded = load_chapter_blocks(
+        &open.store,
+        &chapter_ids,
+        image_mode,
+        &open.meta.source_lang,
+        attribution,
+    )
+    .map_err(IpcError::from)?;
     let images = loaded.images();
     let stem = format!("{}-mot-khoi", safe_stem(&open.meta.name, "export"));
-    let (path, images_dir) = write_export_file(open, folder, &stem, "docx", image_mode, &images, |reference| {
-        write_one_block_docx(&loaded.blocks, reference)
-    })?;
-    exported_file(&counts, &loaded_summary(&images, loaded.images_skipped_missing_link), path, images_dir)
+    let (path, images_dir) = write_export_file(
+        open,
+        folder,
+        &stem,
+        "docx",
+        image_mode,
+        &images,
+        |reference| write_one_block_docx(&loaded.blocks, reference),
+    )?;
+    exported_file(
+        &counts,
+        &loaded_summary(&images, loaded.images_skipped_missing_link),
+        path,
+        images_dir,
+    )
 }
 
 /// Writes `<Work name>.md` or `<Work name>.txt`; never overwrites an existing file.
@@ -233,17 +309,29 @@ pub fn export_text(
         return Err(export_folder_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
-    let loaded = load_chapter_text(&open.store, &chapter_ids, image_mode, attribution).map_err(IpcError::from)?;
+    let loaded = load_chapter_text(&open.store, &chapter_ids, image_mode, attribution)
+        .map_err(IpcError::from)?;
     let images = loaded.images();
     let stem = safe_stem(&open.meta.name, "export");
     let extension = match format {
         TextFormat::Markdown => "md",
         TextFormat::Plain => "txt",
     };
-    let (path, images_dir) = write_export_file(open, folder, &stem, extension, image_mode, &images, |reference| {
-        Ok(render_text(&loaded, format, reference).into_bytes())
-    })?;
-    exported_file(&counts, &loaded_summary(&images, loaded.images_skipped_missing_link), path, images_dir)
+    let (path, images_dir) = write_export_file(
+        open,
+        folder,
+        &stem,
+        extension,
+        image_mode,
+        &images,
+        |reference| Ok(render_text(&loaded, format, reference).into_bytes()),
+    )?;
+    exported_file(
+        &counts,
+        &loaded_summary(&images, loaded.images_skipped_missing_link),
+        path,
+        images_dir,
+    )
 }
 
 const MAX_REVIEWER_DOCX_BYTES: u64 = 64 * 1024 * 1024;
@@ -307,20 +395,40 @@ fn count_wire(n: usize) -> i64 {
 
 fn reviewer_unreadable(detail: &str) -> IpcError {
     eprintln!("nhap lai tep reviewer that bai: {detail}");
-    IpcError::new("export.reviewer_import_unreadable", MessageKey::ExportReviewerUnreadable, BTreeMap::new(), false)
+    IpcError::new(
+        "export.reviewer_import_unreadable",
+        MessageKey::ExportReviewerUnreadable,
+        BTreeMap::new(),
+        false,
+    )
 }
 
 fn reviewer_preview_stale() -> IpcError {
-    IpcError::new("export.reviewer_import_preview_stale", MessageKey::ExportReviewerPreviewStale, BTreeMap::new(), false)
+    IpcError::new(
+        "export.reviewer_import_preview_stale",
+        MessageKey::ExportReviewerPreviewStale,
+        BTreeMap::new(),
+        false,
+    )
 }
 
 fn harvest_failed(detail: &str) -> IpcError {
     eprintln!("thu hoach thuat ngu tu ban reviewer that bai: {detail}");
-    IpcError::new("export.harvest_failed", MessageKey::ExportHarvestFailed, BTreeMap::new(), false)
+    IpcError::new(
+        "export.harvest_failed",
+        MessageKey::ExportHarvestFailed,
+        BTreeMap::new(),
+        false,
+    )
 }
 
 fn reviewer_no_pending() -> IpcError {
-    IpcError::new("export.reviewer_import_no_pending", MessageKey::ExportReviewerNoPending, BTreeMap::new(), false)
+    IpcError::new(
+        "export.reviewer_import_no_pending",
+        MessageKey::ExportReviewerNoPending,
+        BTreeMap::new(),
+        false,
+    )
 }
 
 fn reviewer_wrong_work(work_name: &str) -> IpcError {
@@ -332,22 +440,33 @@ fn reviewer_wrong_work(work_name: &str) -> IpcError {
     )
 }
 
-fn read_reviewer_file(path: &std::path::Path) -> Result<crate::core::export::ReviewerCopy, IpcError> {
-    let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let extension = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+fn read_reviewer_file(
+    path: &std::path::Path,
+) -> Result<crate::core::export::ReviewerCopy, IpcError> {
+    let file_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let extension = path
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
     let (kind, limit) = match extension.as_str() {
         "docx" => (ReviewFileKind::Docx, MAX_REVIEWER_DOCX_BYTES),
         "md" => (ReviewFileKind::Markdown, MAX_REVIEWER_MD_BYTES),
         _ => return Err(reviewer_unreadable("extension")),
     };
-    let size = std::fs::metadata(path).map_err(|e| reviewer_unreadable(&e.to_string()))?.len();
+    let size = std::fs::metadata(path)
+        .map_err(|e| reviewer_unreadable(&e.to_string()))?
+        .len();
     if size > limit {
         return Err(reviewer_unreadable("too large"));
     }
     let bytes = std::fs::read(path).map_err(|e| reviewer_unreadable(&e.to_string()))?;
     let copy = match kind {
         ReviewFileKind::Docx => {
-            let parsed = crate::core::docx::read_docx(&bytes).map_err(|e| reviewer_unreadable(&format!("{e:?}")))?;
+            let parsed = crate::core::docx::read_docx(&bytes)
+                .map_err(|e| reviewer_unreadable(&format!("{e:?}")))?;
             let docx = ReviewerDocx::admit(parsed).map_err(IpcError::from)?;
             read_docx_copy(&docx, &file_name)
         }
@@ -382,7 +501,10 @@ fn reviewer_preview_wire(plan: &ReviewerImportPlan) -> ReviewerImportPreviewWire
         skipped: plan
             .skipped
             .iter()
-            .map(|s| ReviewerImportSkippedWire { heading: s.heading.clone(), row_count: count_wire(s.row_count) })
+            .map(|s| ReviewerImportSkippedWire {
+                heading: s.heading.clone(),
+                row_count: count_wire(s.row_count),
+            })
             .collect(),
         image_rows_ignored: count_wire(plan.image_rows_ignored),
     }
@@ -390,7 +512,9 @@ fn reviewer_preview_wire(plan: &ReviewerImportPlan) -> ReviewerImportPreviewWire
 
 /// Drops any previewed reviewer file; used when a new preview opens, on cancel, and when the Work closes.
 pub fn reviewer_import_cancel(pending: &PendingReviewerImportState) {
-    *pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    *pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 }
 
 /// First beat of the reviewer re-import (FR90): parse `path`, match it to the open Work and keep the
@@ -422,7 +546,9 @@ pub fn reviewer_import_preview(
             other => reviewer_unreadable(&format!("{other:?}")),
         })?;
     let wire = reviewer_preview_wire(&plan);
-    *pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(PendingReviewerImport { plan });
+    *pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(PendingReviewerImport { plan });
     Ok(wire)
 }
 
@@ -444,7 +570,8 @@ fn harvest_reviewer_copies(open: &OpenWork, global: Option<&Store>) -> Result<i6
             },
         })
         .collect();
-    let queued = enqueue_review_harvest(&open.store, &proposals).map_err(|e| harvest_failed(&format!("{e:?}")))?;
+    let queued = enqueue_review_harvest(&open.store, &proposals)
+        .map_err(|e| harvest_failed(&format!("{e:?}")))?;
     Ok(queued.inserted + queued.updated)
 }
 
@@ -465,7 +592,9 @@ pub fn reviewer_import_confirm(
     pending: &PendingReviewerImportState,
 ) -> Result<ReviewerImportSummaryWire, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let Some(previewed) = guard.as_ref().map(|p| p.plan.clone()) else {
         return Err(reviewer_no_pending());
     };
@@ -480,10 +609,11 @@ pub fn reviewer_import_confirm(
     match outcome {
         Some(summary) => {
             *guard = None;
-            let (harvest_candidate_count, harvest_error) = match harvest_reviewer_copies(open, global) {
-                Ok(count) => (Some(count), None),
-                Err(error) => (None, Some(error)),
-            };
+            let (harvest_candidate_count, harvest_error) =
+                match harvest_reviewer_copies(open, global) {
+                    Ok(count) => (Some(count), None),
+                    Err(error) => (None, Some(error)),
+                };
             Ok(ReviewerImportSummaryWire {
                 chapter_count: count_wire(summary.chapter_count),
                 row_count: count_wire(summary.row_count),
@@ -581,29 +711,47 @@ fn alignment_wire(alignment: ChapterAlignment) -> ChapterAlignmentWire {
 
 pub(crate) fn alignment_error(error: AlignmentError) -> IpcError {
     match error {
-        AlignmentError::Copy(ReviewCopyError::NotImported) => {
-            IpcError::new("export.alignment_not_imported", MessageKey::ExportAlignmentNotImported, BTreeMap::new(), false)
-        }
-        AlignmentError::Copy(ReviewCopyError::Stale) => {
-            IpcError::new("export.alignment_stale", MessageKey::ExportAlignmentStale, BTreeMap::new(), false)
-        }
+        AlignmentError::Copy(ReviewCopyError::NotImported) => IpcError::new(
+            "export.alignment_not_imported",
+            MessageKey::ExportAlignmentNotImported,
+            BTreeMap::new(),
+            false,
+        ),
+        AlignmentError::Copy(ReviewCopyError::Stale) => IpcError::new(
+            "export.alignment_stale",
+            MessageKey::ExportAlignmentStale,
+            BTreeMap::new(),
+            false,
+        ),
         AlignmentError::InvalidSelection => IpcError::new(
             "export.alignment_invalid_selection",
             MessageKey::ExportAlignmentInvalidSelection,
             BTreeMap::new(),
             false,
         ),
-        AlignmentError::NotAcceptable => {
-            IpcError::new("review.change_not_acceptable", MessageKey::ReviewChangeNotAcceptable, BTreeMap::new(), false)
+        AlignmentError::NotAcceptable => IpcError::new(
+            "review.change_not_acceptable",
+            MessageKey::ReviewChangeNotAcceptable,
+            BTreeMap::new(),
+            false,
+        ),
+        AlignmentError::Copy(ReviewCopyError::Store(e)) | AlignmentError::Store(e) => {
+            IpcError::from(e)
         }
-        AlignmentError::Copy(ReviewCopyError::Store(e)) | AlignmentError::Store(e) => IpcError::from(e),
-        AlignmentError::Copy(ReviewCopyError::Sql(e)) | AlignmentError::Sql(e) => IpcError::from(StoreError::ReadFailed { store: StoreKind::Project, detail: format!("{e:?}") }),
+        AlignmentError::Copy(ReviewCopyError::Sql(e)) | AlignmentError::Sql(e) => {
+            IpcError::from(StoreError::ReadFailed {
+                store: StoreKind::Project,
+                detail: format!("{e:?}"),
+            })
+        }
         AlignmentError::Copy(other) => reviewer_unreadable(&format!("{other:?}")),
     }
 }
 
 fn read_alignment_wire(open: &OpenWork, chapter_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
-    crate::core::export::read_alignment(&open.store, chapter_id).map(alignment_wire).map_err(alignment_error)
+    crate::core::export::read_alignment(&open.store, chapter_id)
+        .map(alignment_wire)
+        .map_err(alignment_error)
 }
 
 /// Both sides of the reviewer copy of `chapter_id` and how they are grouped. A copy imported before
@@ -613,7 +761,10 @@ fn read_alignment_wire(open: &OpenWork, chapter_id: i64) -> Result<ChapterAlignm
 /// - no Work open => `work.none_open`;
 /// - no copy for the Chapter => `export.alignment_not_imported`;
 /// - the Chapter was merged or split after the import => `export.alignment_stale`.
-pub fn alignment_open(open: Option<&OpenWork>, chapter_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
+pub fn alignment_open(
+    open: Option<&OpenWork>,
+    chapter_id: i64,
+) -> Result<ChapterAlignmentWire, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
     read_alignment_wire(open, chapter_id)
 }
@@ -661,7 +812,11 @@ pub fn review_diff(open: Option<&OpenWork>, chapter_id: i64) -> Result<ReviewDif
 /// # Errors
 /// As [`alignment_open`], and `export.alignment_invalid_selection` (nothing written) for a group
 /// that is unknown or holds no reviewer row.
-pub fn review_skip_change(open: Option<&OpenWork>, chapter_id: i64, group_id: i64) -> Result<(), IpcError> {
+pub fn review_skip_change(
+    open: Option<&OpenWork>,
+    chapter_id: i64,
+    group_id: i64,
+) -> Result<(), IpcError> {
     let open = open.ok_or_else(no_work_open)?;
     crate::core::export::skip_change(&open.store, chapter_id, group_id).map_err(alignment_error)
 }
@@ -678,7 +833,8 @@ pub fn alignment_join(
     row_ids: &[i64],
 ) -> Result<ChapterAlignmentWire, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
-    crate::core::export::join(&open.store, chapter_id, segment_ids, row_ids).map_err(alignment_error)?;
+    crate::core::export::join(&open.store, chapter_id, segment_ids, row_ids)
+        .map_err(alignment_error)?;
     read_alignment_wire(open, chapter_id)
 }
 
@@ -706,7 +862,11 @@ pub fn alignment_skip(
 ///
 /// # Errors
 /// As [`alignment_join`]; a group of another Chapter is an invalid selection.
-pub fn alignment_unjoin(open: Option<&OpenWork>, chapter_id: i64, group_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
+pub fn alignment_unjoin(
+    open: Option<&OpenWork>,
+    chapter_id: i64,
+    group_id: i64,
+) -> Result<ChapterAlignmentWire, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
     crate::core::export::unjoin(&open.store, chapter_id, group_id).map_err(alignment_error)?;
     read_alignment_wire(open, chapter_id)
@@ -715,8 +875,9 @@ pub fn alignment_unjoin(open: Option<&OpenWork>, chapter_id: i64, group_id: i64)
 /// Một vỏ `#[tauri::command]`. Không một quy tắc nào sống ở đây.
 pub mod wire {
     use super::{
-        ChapterAlignmentWire, ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError, PendingReviewerImportState,
-        ReviewerImportPreviewWire, ReviewerImportSummaryWire, TextFormat,
+        ChapterAlignmentWire, ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError,
+        PendingReviewerImportState, ReviewerImportPreviewWire, ReviewerImportSummaryWire,
+        TextFormat,
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::store::Store;
@@ -732,7 +893,9 @@ pub mod wire {
         let Some(state) = app.try_state::<OpenWorkState>() else {
             return super::export_scope_summary(None, &scope);
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::export_scope_summary(guard.as_ref(), &scope)
     }
 
@@ -743,7 +906,11 @@ pub mod wire {
         use tauri_plugin_dialog::DialogExt as _;
 
         let path = match app.dialog().file().blocking_pick_folder() {
-            Some(picked) => Some(picked.into_path().map_err(|_| super::export_folder_invalid())?),
+            Some(picked) => Some(
+                picked
+                    .into_path()
+                    .map_err(|_| super::export_folder_invalid())?,
+            ),
             None => None,
         };
         super::export_folder_from_dialog(path.as_deref())
@@ -765,10 +932,24 @@ pub mod wire {
         let global = app.try_state::<Store>();
         let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::export_docx_two_column(None, &scope, image_mode, attribution.as_ref(), &folder);
+            return super::export_docx_two_column(
+                None,
+                &scope,
+                image_mode,
+                attribution.as_ref(),
+                &folder,
+            );
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::export_docx_two_column(guard.as_ref(), &scope, image_mode, attribution.as_ref(), &folder)
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::export_docx_two_column(
+            guard.as_ref(),
+            &scope,
+            image_mode,
+            attribution.as_ref(),
+            &folder,
+        )
     }
 
     /// `(async)`: serialises every Chapter's text and writes the file, work the main thread
@@ -787,10 +968,24 @@ pub mod wire {
         let global = app.try_state::<Store>();
         let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::export_docx_one_block(None, &scope, image_mode, attribution.as_ref(), &folder);
+            return super::export_docx_one_block(
+                None,
+                &scope,
+                image_mode,
+                attribution.as_ref(),
+                &folder,
+            );
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::export_docx_one_block(guard.as_ref(), &scope, image_mode, attribution.as_ref(), &folder)
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::export_docx_one_block(
+            guard.as_ref(),
+            &scope,
+            image_mode,
+            attribution.as_ref(),
+            &folder,
+        )
     }
 
     /// `(async)`: serialises every Chapter's text and writes the file, work the main thread
@@ -810,15 +1005,33 @@ pub mod wire {
         let global = app.try_state::<Store>();
         let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::export_text(None, &scope, image_mode, format, attribution.as_ref(), &folder);
+            return super::export_text(
+                None,
+                &scope,
+                image_mode,
+                format,
+                attribution.as_ref(),
+                &folder,
+            );
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::export_text(guard.as_ref(), &scope, image_mode, format, attribution.as_ref(), &folder)
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::export_text(
+            guard.as_ref(),
+            &scope,
+            image_mode,
+            format,
+            attribution.as_ref(),
+            &folder,
+        )
     }
     /// `(async)`: `blocking_pick_file()` on the main thread deadlocks the event loop the dialog
     /// waits on. `OpenWorkState` is locked only after the dialog closes.
     #[tauri::command(async)]
-    pub fn reviewer_import_open_preview(app: tauri::AppHandle) -> Result<Option<ReviewerImportPreviewWire>, IpcError> {
+    pub fn reviewer_import_open_preview(
+        app: tauri::AppHandle,
+    ) -> Result<Option<ReviewerImportPreviewWire>, IpcError> {
         use tauri::Manager as _;
         use tauri_plugin_dialog::DialogExt as _;
 
@@ -826,28 +1039,39 @@ pub mod wire {
             return Err(super::reviewer_no_pending());
         };
         super::reviewer_import_cancel(pending.inner());
-        let Some(picked) =
-            app.dialog().file().add_filter("Reviewer", &["docx", "md"]).blocking_pick_file()
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .add_filter("Reviewer", &["docx", "md"])
+            .blocking_pick_file()
         else {
             return Ok(None);
         };
-        let path = picked.into_path().map_err(|_| super::reviewer_unreadable("dialog path"))?;
+        let path = picked
+            .into_path()
+            .map_err(|_| super::reviewer_unreadable("dialog path"))?;
         let work_state = app.try_state::<OpenWorkState>();
-        let guard = work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
         super::reviewer_import_preview(open, pending.inner(), &path).map(Some)
     }
 
     /// `(async)`: holds `PendingReviewerImportState` for the whole write.
     #[tauri::command(async)]
-    pub fn reviewer_import_confirm(app: tauri::AppHandle) -> Result<ReviewerImportSummaryWire, IpcError> {
+    pub fn reviewer_import_confirm(
+        app: tauri::AppHandle,
+    ) -> Result<ReviewerImportSummaryWire, IpcError> {
         use tauri::Manager as _;
 
         let Some(pending) = app.try_state::<PendingReviewerImportState>() else {
             return Err(super::reviewer_no_pending());
         };
         let work_state = app.try_state::<OpenWorkState>();
-        let guard = work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         let open = guard.as_ref().and_then(|g| g.as_ref());
         let global = app.try_state::<Store>();
         super::reviewer_import_confirm(open, global.as_deref(), pending.inner())
@@ -873,26 +1097,40 @@ pub mod wire {
         let Some(state) = app.try_state::<OpenWorkState>() else {
             return job(None);
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         job(guard.as_ref())
     }
 
     /// Vỏ IPC của [`super::alignment_open`].
     #[tauri::command]
-    pub fn alignment_open(app: tauri::AppHandle, chapter_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
+    pub fn alignment_open(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+    ) -> Result<ChapterAlignmentWire, IpcError> {
         with_open(&app, |open| super::alignment_open(open, chapter_id))
     }
 
     /// Vỏ IPC của [`super::review_diff`].
     #[tauri::command]
-    pub fn review_diff(app: tauri::AppHandle, chapter_id: i64) -> Result<super::ReviewDiffWire, IpcError> {
+    pub fn review_diff(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+    ) -> Result<super::ReviewDiffWire, IpcError> {
         with_open(&app, |open| super::review_diff(open, chapter_id))
     }
 
     /// Vỏ IPC của [`super::review_skip_change`].
     #[tauri::command]
-    pub fn review_skip_change(app: tauri::AppHandle, chapter_id: i64, group_id: i64) -> Result<(), IpcError> {
-        with_open(&app, |open| super::review_skip_change(open, chapter_id, group_id))
+    pub fn review_skip_change(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+        group_id: i64,
+    ) -> Result<(), IpcError> {
+        with_open(&app, |open| {
+            super::review_skip_change(open, chapter_id, group_id)
+        })
     }
 
     /// Vỏ IPC của [`super::alignment_join`].
@@ -903,7 +1141,9 @@ pub mod wire {
         segment_ids: Vec<i64>,
         row_ids: Vec<i64>,
     ) -> Result<ChapterAlignmentWire, IpcError> {
-        with_open(&app, |open| super::alignment_join(open, chapter_id, &segment_ids, &row_ids))
+        with_open(&app, |open| {
+            super::alignment_join(open, chapter_id, &segment_ids, &row_ids)
+        })
     }
 
     /// Vỏ IPC của [`super::alignment_skip`].
@@ -914,12 +1154,20 @@ pub mod wire {
         segment_id: Option<i64>,
         row_id: Option<i64>,
     ) -> Result<ChapterAlignmentWire, IpcError> {
-        with_open(&app, |open| super::alignment_skip(open, chapter_id, segment_id, row_id))
+        with_open(&app, |open| {
+            super::alignment_skip(open, chapter_id, segment_id, row_id)
+        })
     }
 
     /// Vỏ IPC của [`super::alignment_unjoin`].
     #[tauri::command]
-    pub fn alignment_unjoin(app: tauri::AppHandle, chapter_id: i64, group_id: i64) -> Result<ChapterAlignmentWire, IpcError> {
-        with_open(&app, |open| super::alignment_unjoin(open, chapter_id, group_id))
+    pub fn alignment_unjoin(
+        app: tauri::AppHandle,
+        chapter_id: i64,
+        group_id: i64,
+    ) -> Result<ChapterAlignmentWire, IpcError> {
+        with_open(&app, |open| {
+            super::alignment_unjoin(open, chapter_id, group_id)
+        })
     }
 }

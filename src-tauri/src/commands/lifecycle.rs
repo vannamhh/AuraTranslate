@@ -48,7 +48,10 @@ pub struct WorkLifecycle {
 
 impl From<&WorkMeta> for WorkLifecycle {
     fn from(meta: &WorkMeta) -> Self {
-        Self { status: meta.status.clone(), status_is_override: meta.status_is_override }
+        Self {
+            status: meta.status.clone(),
+            status_is_override: meta.status_is_override,
+        }
     }
 }
 
@@ -63,7 +66,12 @@ impl From<&WorkMeta> for WorkLifecycle {
 pub(crate) fn unknown_status(status: &str) -> IpcError {
     let mut params = BTreeMap::new();
     params.insert("status".to_owned(), status.to_owned());
-    IpcError::new("lifecycle.unknown_status", MessageKey::LifecycleUnknownStatus, params, false)
+    IpcError::new(
+        "lifecycle.unknown_status",
+        MessageKey::LifecycleUnknownStatus,
+        params,
+        false,
+    )
 }
 
 /// Bước 2 + bước 3 của khuôn bốn bước — DÙNG CHUNG bởi [`set_chapter_status`] và
@@ -185,7 +193,11 @@ pub fn set_work_status_override(
     // Cưỡng chế TRƯỚC khi chạm SQL (§Always) -- một giá trị lạ dừng ở đây, `open.store.write`
     // không bao giờ chạy.
     let validated: Option<&'static str> = match status {
-        Some(raw) => Some(LifecycleStatus::from_wire(raw).ok_or_else(|| unknown_status(raw))?.as_str()),
+        Some(raw) => Some(
+            LifecycleStatus::from_wire(raw)
+                .ok_or_else(|| unknown_status(raw))?
+                .as_str(),
+        ),
         None => None,
     };
 
@@ -193,7 +205,10 @@ pub fn set_work_status_override(
     // `Option<&str>` sang NULL/TEXT) -- đúng §Always "NULL-hoặc-giá-trị, không một cờ boolean
     // riêng".
     open.store.write(move |tx: &Transaction<'_>| {
-        tx.execute("UPDATE work SET status_override = ?1 WHERE id = 1", (validated,))
+        tx.execute(
+            "UPDATE work SET status_override = ?1 WHERE id = 1",
+            (validated,),
+        )
     })?;
 
     write_lifecycle_after_change(open)
@@ -222,7 +237,11 @@ pub fn set_work_status_override(
 /// trạng thái **đã thành công trên đĩa** thành lỗi IPC — `.atproj` mới là dữ liệu người dùng,
 /// chỉ mục là dẫn xuất (AD-8). Mọi đường trượt đi ra chẩn đoán, cùng khuôn
 /// [`crate::commands::project::wire::reindex_library`].
-pub fn reindex_after_lifecycle_write(indexer: Option<&Indexer>, global: Option<&Store>, root: &Path) {
+pub fn reindex_after_lifecycle_write(
+    indexer: Option<&Indexer>,
+    global: Option<&Store>,
+    root: &Path,
+) {
     let Some(indexer) = indexer else {
         eprintln!("lifecycle[reindex] Indexer chua duoc quan ly -- bo qua luot dua vao chi muc");
         return;
@@ -275,7 +294,12 @@ pub fn set_chapter_status_indexed(
     chapter_id: i64,
     status: &str,
 ) -> Result<WorkLifecycle, IpcError> {
-    finish_lifecycle_write(set_chapter_status(open, chapter_id, status), indexer, global, root)
+    finish_lifecycle_write(
+        set_chapter_status(open, chapter_id, status),
+        indexer,
+        global,
+        root,
+    )
 }
 
 /// [`set_work_status_override`] **cộng bước 4** — cùng lý lẽ [`set_chapter_status_indexed`].
@@ -286,7 +310,12 @@ pub fn set_work_status_override_indexed(
     root: &Path,
     status: Option<&str>,
 ) -> Result<WorkLifecycle, IpcError> {
-    finish_lifecycle_write(set_work_status_override(open, status), indexer, global, root)
+    finish_lifecycle_write(
+        set_work_status_override(open, status),
+        indexer,
+        global,
+        root,
+    )
 }
 
 /// Ba vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
@@ -305,7 +334,9 @@ pub mod wire {
         let Some(state) = app.try_state::<OpenWorkState>() else {
             return super::read_work_lifecycle(None);
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::read_work_lifecycle(guard.as_ref())
     }
 
@@ -332,7 +363,9 @@ pub mod wire {
         // [`super::finish_lifecycle_write`] -- vị từ "chỉ reindex khi ghi thành công" khai
         // ĐÚNG MỘT CHỖ, dùng chung với `super::set_chapter_status_indexed` mà hợp đồng canh.
         let result = {
-            let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::set_chapter_status(guard.as_mut(), chapter_id, &status)
         };
         finish_with_reindex(&app, result)
@@ -353,7 +386,9 @@ pub mod wire {
             return super::set_work_status_override(None, status.as_deref());
         };
         let result = {
-            let mut guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::set_work_status_override(guard.as_mut(), status.as_deref())
         };
         finish_with_reindex(&app, result)
@@ -391,7 +426,7 @@ pub mod wire {
 
 #[cfg(test)]
 mod tests {
-    use super::{unknown_status, WorkLifecycle};
+    use super::{WorkLifecycle, unknown_status};
     use crate::core::library::meta::WorkMeta;
     use crate::core::lifecycle::LifecycleStatus;
 
@@ -414,7 +449,10 @@ mod tests {
             chapter_done_count: Some(0),
         };
         let lifecycle = WorkLifecycle::from(&meta);
-        assert_eq!(lifecycle.status.as_deref(), Some(LifecycleStatus::Paused.as_str()));
+        assert_eq!(
+            lifecycle.status.as_deref(),
+            Some(LifecycleStatus::Paused.as_str())
+        );
         assert!(lifecycle.status_is_override);
     }
 

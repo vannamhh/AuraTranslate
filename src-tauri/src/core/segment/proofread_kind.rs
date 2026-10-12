@@ -29,8 +29,13 @@ pub enum ProofreadKind {
 }
 
 impl ProofreadKind {
-    pub const ALL: [Self; 5] =
-        [Self::Spelling, Self::Grammar, Self::Mistranslation, Self::TooLoose, Self::Obscure];
+    pub const ALL: [Self; 5] = [
+        Self::Spelling,
+        Self::Grammar,
+        Self::Mistranslation,
+        Self::TooLoose,
+        Self::Obscure,
+    ];
 
     #[must_use]
     pub fn as_str(self) -> &'static str {
@@ -68,7 +73,9 @@ impl ProofreadKind {
     pub fn acceptance_origin(self) -> AcceptanceOrigin {
         match self {
             Self::Spelling | Self::Grammar => AcceptanceOrigin::ArbitratedBeforeWrite,
-            Self::Mistranslation | Self::TooLoose | Self::Obscure => AcceptanceOrigin::OtherTranslated,
+            Self::Mistranslation | Self::TooLoose | Self::Obscure => {
+                AcceptanceOrigin::OtherTranslated
+            }
         }
     }
 }
@@ -81,7 +88,10 @@ mod tests {
     fn every_kind_round_trips_through_its_wire_string() {
         for kind in ProofreadKind::ALL {
             assert_eq!(ProofreadKind::from_wire(kind.as_str()), Some(kind));
-            assert_eq!(serde_json::to_string(&kind).unwrap(), format!("\"{}\"", kind.as_str()));
+            assert_eq!(
+                serde_json::to_string(&kind).unwrap(),
+                format!("\"{}\"", kind.as_str())
+            );
         }
         assert_eq!(ProofreadKind::from_wire("style"), None);
         assert_eq!(ProofreadKind::from_wire("Spelling"), None);

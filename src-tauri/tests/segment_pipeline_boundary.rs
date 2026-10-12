@@ -46,8 +46,6 @@ fn all_rust_sources() -> Vec<(String, String)> {
     boundary_scan::rust_sources(&src_root())
 }
 
-
-
 /// `code` gọi `run_import(...)` — vị từ THUẦN, dùng bởi CẢ cổng thật lẫn ca gieo vi phạm
 /// tổng hợp. Neo bằng `run_import(` (có dấu mở ngoặc) để KHÔNG khớp `run_import_with_order(`
 /// — xem [`line_calls_run_import_with_order`] ngay dưới cho vế THỨ HAI, cấm RIÊNG.
@@ -269,7 +267,8 @@ fn the_webimport_extract_call_check_would_actually_flag_a_seeded_violation_and_i
 /// không được tính là "pipeline.rs gọi webimport::extract" (cùng bẫy mà `cleanup_boundary.rs`
 /// đã bắt cho bước 3).
 #[test]
-fn a_call_living_only_inside_the_pipeline_files_own_test_block_does_not_count_as_the_webimport_call() {
+fn a_call_living_only_inside_the_pipeline_files_own_test_block_does_not_count_as_the_webimport_call()
+ {
     let seeded_file = "fn step() {\n    // than that da bi go, khong con goi webimport::extract nua\n}\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn seeded() {\n        let _ = crate::core::webimport::extract(\"x\", \"y\");\n    }\n}\n";
     let product_only = boundary_scan::without_test_modules(seeded_file);
     let has_call = code_lines(&product_only).any(|(_, code)| line_calls_webimport_extract(&code));

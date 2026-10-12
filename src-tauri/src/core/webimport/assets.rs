@@ -51,17 +51,22 @@ pub struct ResolveUrlError {
 ///   rồi bị `host_of` trả `None` một cách khó hiểu.
 pub fn resolve_absolute_url(src: &str, page_url: &str) -> Result<String, ResolveUrlError> {
     if src.trim().is_empty() {
-        return Err(ResolveUrlError { detail: "src rong hoac chi khoang trang".to_owned() });
+        return Err(ResolveUrlError {
+            detail: "src rong hoac chi khoang trang".to_owned(),
+        });
     }
     if src.trim().starts_with('#') {
-        return Err(ResolveUrlError { detail: format!("src chi mang fragment, khong phai mot nguon anh: {src}") });
+        return Err(ResolveUrlError {
+            detail: format!("src chi mang fragment, khong phai mot nguon anh: {src}"),
+        });
     }
 
-    let base = reqwest::Url::parse(page_url)
-        .map_err(|e| ResolveUrlError { detail: format!("url trang khong hop le ({page_url}): {e}") })?;
-    let joined = base
-        .join(src)
-        .map_err(|e| ResolveUrlError { detail: format!("src khong phan giai duoc ({src}): {e}") })?;
+    let base = reqwest::Url::parse(page_url).map_err(|e| ResolveUrlError {
+        detail: format!("url trang khong hop le ({page_url}): {e}"),
+    })?;
+    let joined = base.join(src).map_err(|e| ResolveUrlError {
+        detail: format!("src khong phan giai duoc ({src}): {e}"),
+    })?;
 
     if joined.scheme() != "http" && joined.scheme() != "https" {
         return Err(ResolveUrlError {
@@ -83,12 +88,16 @@ pub fn resolve_absolute_url(src: &str, page_url: &str) -> Result<String, Resolve
     // dưới danh nghĩa ảnh.
     if joined.path() == base.path() {
         return Err(ResolveUrlError {
-            detail: format!("src ({src}) phan giai ve CHINH trang (cung path, khac query o co) -- khong phai mot anh"),
+            detail: format!(
+                "src ({src}) phan giai ve CHINH trang (cung path, khac query o co) -- khong phai mot anh"
+            ),
         });
     }
     if joined.path().ends_with('/') {
         return Err(ResolveUrlError {
-            detail: format!("src ({src}) phan giai ve mot THU MUC (path ket thuc bang '/'), khong phai mot tep anh"),
+            detail: format!(
+                "src ({src}) phan giai ve mot THU MUC (path ket thuc bang '/'), khong phai mot tep anh"
+            ),
         });
     }
 
@@ -117,7 +126,13 @@ const RASTER_IMAGE_MIMES: [&str; 4] = ["image/jpeg", "image/png", "image/gif", "
 /// Hàm này (đã có sẵn, dùng nội bộ) mở `pub` để tầng gọi lấy THẲNG chuỗi MIME đã CHUẨN HOÁ từ
 /// chính phản hồi, không dựng lại từ đuôi.
 pub fn normalized_mime(content_type: Option<&str>) -> Option<String> {
-    content_type.map(|ct| ct.split(';').next().unwrap_or("").trim().to_ascii_lowercase())
+    content_type.map(|ct| {
+        ct.split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase()
+    })
 }
 
 /// `content-type` có phải một MIME ảnh raster đã CHẤP NHẬN hay không. `None` (máy chủ không
@@ -165,25 +180,42 @@ pub struct DataUriError {
 /// [`is_raster_image_mime`] predicate `fetch_and_write_one_asset` uses, so SVG is refused
 /// through the same gate (AD-16).
 pub fn decode_data_uri_image(src: &str) -> Result<(Vec<u8>, String), DataUriError> {
-    let rest = src
-        .strip_prefix("data:")
-        .ok_or_else(|| DataUriError { detail: "khong phai mot data: URI".to_owned() })?;
-    let (header, payload) = rest
-        .split_once(',')
-        .ok_or_else(|| DataUriError { detail: "data: URI thieu dau phay phan cach header/payload".to_owned() })?;
-    if !header.split(';').any(|part| part.trim().eq_ignore_ascii_case("base64")) {
-        return Err(DataUriError { detail: "data: URI khong mang tham so base64".to_owned() });
+    let rest = src.strip_prefix("data:").ok_or_else(|| DataUriError {
+        detail: "khong phai mot data: URI".to_owned(),
+    })?;
+    let (header, payload) = rest.split_once(',').ok_or_else(|| DataUriError {
+        detail: "data: URI thieu dau phay phan cach header/payload".to_owned(),
+    })?;
+    if !header
+        .split(';')
+        .any(|part| part.trim().eq_ignore_ascii_case("base64"))
+    {
+        return Err(DataUriError {
+            detail: "data: URI khong mang tham so base64".to_owned(),
+        });
     }
-    let mime = header.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+    let mime = header
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     if !is_raster_image_mime(Some(&mime)) {
-        return Err(DataUriError { detail: format!("MIME '{mime}' khong thuoc danh muc anh raster (data: URI)") });
+        return Err(DataUriError {
+            detail: format!("MIME '{mime}' khong thuoc danh muc anh raster (data: URI)"),
+        });
     }
-    let cleaned: String = payload.chars().filter(|c| !c.is_ascii_whitespace()).collect();
+    let cleaned: String = payload
+        .chars()
+        .filter(|c| !c.is_ascii_whitespace())
+        .collect();
     let bytes = {
         use base64::Engine as _;
         base64::engine::general_purpose::STANDARD
             .decode(cleaned)
-            .map_err(|e| DataUriError { detail: format!("giai ma base64 that bai: {e}") })?
+            .map_err(|e| DataUriError {
+                detail: format!("giai ma base64 that bai: {e}"),
+            })?
     };
     Ok((bytes, mime))
 }
@@ -196,7 +228,9 @@ pub fn decode_data_uri_image(src: &str) -> Result<(Vec<u8>, String), DataUriErro
 /// một lời gọi `reqwest::Url::parse` rải ở `commands/project/`. Cùng khuôn
 /// `allowlist::host_of` (RIÊNG TƯ, module đó không cần lộ nó ra ngoài).
 pub fn host_of(url: &str) -> Option<String> {
-    reqwest::Url::parse(url).ok().and_then(|u| u.host_str().map(str::to_owned))
+    reqwest::Url::parse(url)
+        .ok()
+        .and_then(|u| u.host_str().map(str::to_owned))
 }
 
 /// Dedup key for a pasted URL-import link: strips `#fragment`, lowercases the host. `None`
@@ -246,7 +280,10 @@ mod tests {
 
     #[test]
     fn resolve_absolute_url_rejects_an_unparsable_page_url_or_src() {
-        assert!(resolve_absolute_url("/a.jpg", "khong-phai-url").is_err(), "URL trang hong phai bi tu choi");
+        assert!(
+            resolve_absolute_url("/a.jpg", "khong-phai-url").is_err(),
+            "URL trang hong phai bi tu choi"
+        );
         assert!(
             resolve_absolute_url("http://[::1", "https://example.test/").is_err(),
             "src hong (IPv6 khong dong ngoac) phai bi tu choi"
@@ -261,7 +298,10 @@ mod tests {
         let page = "https://example.test/bai-viet.html";
         for bad in ["", "   ", "#top", "  #muc-luc"] {
             let result = resolve_absolute_url(bad, page);
-            assert!(result.is_err(), "src {bad:?} phai bi TU CHOI, khong duoc phan giai thanh page_url");
+            assert!(
+                result.is_err(),
+                "src {bad:?} phai bi TU CHOI, khong duoc phan giai thanh page_url"
+            );
         }
     }
 
@@ -298,9 +338,18 @@ mod tests {
             resolve_absolute_url("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=", page).is_err(),
             "data: phai bi TU CHOI -- khong phai mot cuoc tai qua mang"
         );
-        assert!(resolve_absolute_url("javascript:alert(1)", page).is_err(), "javascript: phai bi TU CHOI");
-        assert!(resolve_absolute_url("file:///etc/passwd", page).is_err(), "file: phai bi TU CHOI");
-        assert!(resolve_absolute_url("https://cdn.example/x.jpg", page).is_ok(), "https: phai duoc chap nhan");
+        assert!(
+            resolve_absolute_url("javascript:alert(1)", page).is_err(),
+            "javascript: phai bi TU CHOI"
+        );
+        assert!(
+            resolve_absolute_url("file:///etc/passwd", page).is_err(),
+            "file: phai bi TU CHOI"
+        );
+        assert!(
+            resolve_absolute_url("https://cdn.example/x.jpg", page).is_ok(),
+            "https: phai duoc chap nhan"
+        );
         assert!(
             resolve_absolute_url("http://cdn.example/x.jpg", page).is_ok(),
             "http: (khong TLS) van phai duoc chap nhan"
@@ -310,21 +359,33 @@ mod tests {
     #[test]
     fn is_raster_image_mime_accepts_exactly_the_closed_set_and_rejects_svg() {
         for good in ["image/jpeg", "image/png", "image/gif", "image/webp"] {
-            assert!(is_raster_image_mime(Some(good)), "{good} phai duoc chap nhan");
+            assert!(
+                is_raster_image_mime(Some(good)),
+                "{good} phai duoc chap nhan"
+            );
             assert!(
                 is_raster_image_mime(Some(&format!("{good}; charset=binary"))),
                 "{good} kem tham so van phai duoc chap nhan (cat tai dau ';')"
             );
             let upper = good.to_ascii_uppercase();
-            assert!(is_raster_image_mime(Some(&upper)), "{upper} (hoa) phai duoc chap nhan");
+            assert!(
+                is_raster_image_mime(Some(&upper)),
+                "{upper} (hoa) phai duoc chap nhan"
+            );
         }
 
         assert!(
             !is_raster_image_mime(Some("image/svg+xml")),
             "SVG la danh dau, khong phai anh raster -- phai bi TU CHOI (Never clause spec 6.11)"
         );
-        assert!(!is_raster_image_mime(Some("text/html")), "mot trang HTML khong phai anh");
-        assert!(!is_raster_image_mime(None), "may chu khong khai content-type phai bi coi la KHONG PHAI anh");
+        assert!(
+            !is_raster_image_mime(Some("text/html")),
+            "mot trang HTML khong phai anh"
+        );
+        assert!(
+            !is_raster_image_mime(None),
+            "may chu khong khai content-type phai bi coi la KHONG PHAI anh"
+        );
         assert!(
             !is_raster_image_mime(Some("image/jpegfoo")),
             "so BANG, khong `contains` -- mot MIME gan giong khong duoc khop nham"
@@ -334,7 +395,10 @@ mod tests {
     #[test]
     fn extension_for_mime_maps_the_closed_set_and_rejects_everything_else() {
         assert_eq!(extension_for_mime(Some("image/jpeg")), Some("jpg"));
-        assert_eq!(extension_for_mime(Some("image/png; charset=binary")), Some("png"));
+        assert_eq!(
+            extension_for_mime(Some("image/png; charset=binary")),
+            Some("png")
+        );
         assert_eq!(extension_for_mime(Some("image/gif")), Some("gif"));
         assert_eq!(extension_for_mime(Some("IMAGE/WEBP")), Some("webp"));
         assert_eq!(extension_for_mime(Some("image/svg+xml")), None);
@@ -345,8 +409,8 @@ mod tests {
     fn decode_data_uri_image_decodes_a_raster_mime_and_rejects_svg() {
         // A 1x1 PNG, base64-encoded.
         let png_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-        let (bytes, mime) =
-            decode_data_uri_image(&format!("data:image/png;base64,{png_b64}")).expect("PNG data: URI phai giai ma duoc");
+        let (bytes, mime) = decode_data_uri_image(&format!("data:image/png;base64,{png_b64}"))
+            .expect("PNG data: URI phai giai ma duoc");
         assert_eq!(mime, "image/png");
         assert!(!bytes.is_empty());
 
@@ -366,7 +430,10 @@ mod tests {
     #[test]
     fn decode_data_uri_image_rejects_non_data_scheme_missing_base64_and_bad_payload() {
         assert!(decode_data_uri_image("https://cdn.example/x.png").is_err());
-        assert!(decode_data_uri_image("data:image/png,not-base64-encoded").is_err(), "thieu tham so base64 phai bi tu choi");
+        assert!(
+            decode_data_uri_image("data:image/png,not-base64-encoded").is_err(),
+            "thieu tham so base64 phai bi tu choi"
+        );
         assert!(
             decode_data_uri_image("data:image/png;base64,!!!not-valid-base64!!!").is_err(),
             "payload khong phai base64 hop le phai bi tu choi"

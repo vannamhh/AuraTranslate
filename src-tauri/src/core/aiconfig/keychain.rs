@@ -130,7 +130,10 @@ fn keyring_error_variant_name(err: &keyring::Error) -> &'static str {
 /// lượt từ chối cấp quyền. Tên biến thể vẫn là thứ đáng log; ý nghĩa CHÍNH XÁC của từng tên thì
 /// đọc ở `keyring`, đừng đọc ở đây. Chưa lượt nào đo trên máy thật.
 fn log_keyring_error(context: &str, err: &keyring::Error) {
-    eprintln!("aiconfig[keychain] {context} keyring_error_variant={}", keyring_error_variant_name(err));
+    eprintln!(
+        "aiconfig[keychain] {context} keyring_error_variant={}",
+        keyring_error_variant_name(err)
+    );
 }
 
 /// Mở entry keychain của ứng dụng. Lỗi ở đây gồm cả `NoDefaultStore` — nền tảng không khởi
@@ -186,7 +189,9 @@ pub(crate) fn configured() -> Result<bool, KeychainUnavailable> {
 /// Fixed dummy key so a bench build reaches prompt assembly without the OS keychain.
 #[cfg(feature = "nfr-bench")]
 pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {
-    Ok(Some(ApiKeySecret::new("nfr-bench-dummy-api-key".to_owned())))
+    Ok(Some(ApiKeySecret::new(
+        "nfr-bench-dummy-api-key".to_owned(),
+    )))
 }
 
 /// Đọc giá trị thô, bọc trong [`ApiKeySecret`] — Story 4.8 (`TranslationProvider`, AD-2).

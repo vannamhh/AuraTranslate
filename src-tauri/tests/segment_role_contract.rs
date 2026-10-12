@@ -18,8 +18,8 @@ use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -27,17 +27,24 @@ use auratranslate_lib::commands::project::{
     UrlImportItem, chapters_shape_if_all_ok, create_work, create_work_from_text,
 };
 use auratranslate_lib::commands::segment::{
-    confirm_segment, merge_segments, read_open_chapter_segments, save_segment_targets, split_segment,
-    SegmentTargetEdit,
+    SegmentTargetEdit, confirm_segment, merge_segments, read_open_chapter_segments,
+    save_segment_targets, split_segment,
 };
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
-use auratranslate_lib::core::store::{Migration, PROJECT_MIGRATIONS, Store, StoreSpec, Transaction};
+use auratranslate_lib::core::store::{
+    Migration, PROJECT_MIGRATIONS, Store, StoreSpec, Transaction,
+};
 
 static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-role-{}-{}-{}", std::process::id(), tag, n));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-role-{}-{}-{}",
+        std::process::id(),
+        tag,
+        n
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -48,7 +55,11 @@ fn cleanup(dir: &Path) {
 }
 
 fn url_item(url: &str, html: String) -> UrlImportItem {
-    UrlImportItem { url: url.to_owned(), raw: Some(html.into_bytes()), error: None }
+    UrlImportItem {
+        url: url.to_owned(),
+        raw: Some(html.into_bytes()),
+        error: None,
+    }
 }
 
 /// Một cổng KHÔNG AI LẮNG NGHE — mô phỏng tất định "kết nối bị từ chối", KHÔNG cần một máy
@@ -66,7 +77,9 @@ fn spawn_image_server(max_connections: usize, body: &'static [u8]) -> u16 {
     let port = listener.local_addr().expect("local_addr").port();
     thread::spawn(move || {
         for _ in 0..max_connections {
-            let Ok((mut stream, _)) = listener.accept() else { break };
+            let Ok((mut stream, _)) = listener.accept() else {
+                break;
+            };
             let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
             let mut discard = [0u8; 4096];
             let _ = stream.read(&mut discard);
@@ -100,7 +113,12 @@ fn html_with_image_and_tail(img_src: &str, alt: Option<&str>, tail_after_image: 
     )
 }
 
-fn html_two_adjacent_images(img_a: &str, alt_a: Option<&str>, img_b: &str, alt_b: Option<&str>) -> String {
+fn html_two_adjacent_images(
+    img_a: &str,
+    alt_a: Option<&str>,
+    img_b: &str,
+    alt_b: Option<&str>,
+) -> String {
     let alt_attr_a = alt_a.map(|a| format!(" alt=\"{a}\"")).unwrap_or_default();
     let alt_attr_b = alt_b.map(|a| format!(" alt=\"{a}\"")).unwrap_or_default();
     format!(
@@ -119,7 +137,10 @@ fn html_two_adjacent_images(img_a: &str, alt_a: Option<&str>, img_b: &str, alt_b
 
 /// Đọc `(ord, role, source_text)` của mọi segment SỐNG của Chương, theo `ord` — hình dạng THÔ
 /// đủ cho mọi ca ở tệp này.
-fn read_role_rows(store: &auratranslate_lib::core::store::Store, chapter_id: i64) -> Vec<(i64, Option<String>, String)> {
+fn read_role_rows(
+    store: &auratranslate_lib::core::store::Store,
+    chapter_id: i64,
+) -> Vec<(i64, Option<String>, String)> {
     store
         .read(move |conn| {
             let mut stmt = conn.prepare(
@@ -139,8 +160,9 @@ fn read_role_rows(store: &auratranslate_lib::core::store::Store, chapter_id: i64
 fn read_asset_anchors_sorted(store: &auratranslate_lib::core::store::Store) -> Vec<i64> {
     store
         .read(|conn| {
-            let mut stmt =
-                conn.prepare("SELECT anchor_after_segment_ord FROM asset ORDER BY anchor_after_segment_ord, id")?;
+            let mut stmt = conn.prepare(
+                "SELECT anchor_after_segment_ord FROM asset ORDER BY anchor_after_segment_ord, id",
+            )?;
             let rows = stmt.query_map([], |r| r.get::<_, i64>(0))?;
             rows.collect::<Result<Vec<_>, _>>()
         })
@@ -169,20 +191,58 @@ fn an_image_with_alt_and_a_following_caption_get_role_segments_right_after_the_a
     let items = vec![url_item("https://example.test/bai-1", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "AC1", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "AC1",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
     // h1, doan1, doan2 (neo=3) -- ROLE:alt -- ROLE:caption -- doan3.
-    assert_eq!(rows.len(), 6, "phai co dung 6 hang (3 van xuoi truoc + alt + caption + 1 van xuoi sau): {rows:?}");
-    assert_eq!(rows[3].1.as_deref(), Some("alt"), "hang thu 4 phai mang role='alt': {rows:?}");
+    assert_eq!(
+        rows.len(),
+        6,
+        "phai co dung 6 hang (3 van xuoi truoc + alt + caption + 1 van xuoi sau): {rows:?}"
+    );
+    assert_eq!(
+        rows[3].1.as_deref(),
+        Some("alt"),
+        "hang thu 4 phai mang role='alt': {rows:?}"
+    );
     assert_eq!(rows[3].2, "mo ta anh minh hoa");
-    assert_eq!(rows[4].1.as_deref(), Some("caption"), "hang thu 5 phai mang role='caption': {rows:?}");
+    assert_eq!(
+        rows[4].1.as_deref(),
+        Some("caption"),
+        "hang thu 5 phai mang role='caption': {rows:?}"
+    );
     assert_eq!(rows[4].2, "Chu thich cho anh nay.");
-    assert!(rows[0].1.is_none() && rows[1].1.is_none() && rows[2].1.is_none() && rows[5].1.is_none(), "sau hang van xuoi khong mang vai nao: {rows:?}");
+    assert!(
+        rows[0].1.is_none() && rows[1].1.is_none() && rows[2].1.is_none() && rows[5].1.is_none(),
+        "sau hang van xuoi khong mang vai nao: {rows:?}"
+    );
 
-    let alt_count = rows.iter().filter(|(_, r, _)| r.as_deref() == Some("alt")).count();
-    let caption_count = rows.iter().filter(|(_, r, _)| r.as_deref() == Some("caption")).count();
+    let alt_count = rows
+        .iter()
+        .filter(|(_, r, _)| r.as_deref() == Some("alt"))
+        .count();
+    let caption_count = rows
+        .iter()
+        .filter(|(_, r, _)| r.as_deref() == Some("caption"))
+        .count();
     assert_eq!(alt_count, 1, "dung MOT hang role='alt'");
     assert_eq!(caption_count, 1, "dung MOT hang role='caption'");
 
@@ -192,8 +252,18 @@ fn an_image_with_alt_and_a_following_caption_get_role_segments_right_after_the_a
     // chua tung duoc do voi mot gia tri KHAC NULL.
     let wire = read_open_chapter_segments(Some(&opened)).expect("doc segment qua day IPC");
     assert_eq!(wire.segments.len(), 6);
-    assert_eq!(wire.segments[3].role.as_deref(), Some("alt"), "DTO qua day phai mang dung role='alt': {:?}", wire.segments[3]);
-    assert_eq!(wire.segments[4].role.as_deref(), Some("caption"), "DTO qua day phai mang dung role='caption': {:?}", wire.segments[4]);
+    assert_eq!(
+        wire.segments[3].role.as_deref(),
+        Some("alt"),
+        "DTO qua day phai mang dung role='alt': {:?}",
+        wire.segments[3]
+    );
+    assert_eq!(
+        wire.segments[4].role.as_deref(),
+        Some("caption"),
+        "DTO qua day phai mang dung role='caption': {:?}",
+        wire.segments[4]
+    );
     assert!(
         wire.segments[0].role.is_none()
             && wire.segments[1].role.is_none()
@@ -208,9 +278,16 @@ fn an_image_with_alt_and_a_following_caption_get_role_segments_right_after_the_a
     // content_type, created_at), khong `alt`/`caption` nao ca.
     let asset_columns: i64 = opened
         .store
-        .read(|conn| conn.query_row("SELECT COUNT(*) FROM pragma_table_info('asset')", [], |r| r.get(0)))
+        .read(|conn| {
+            conn.query_row("SELECT COUNT(*) FROM pragma_table_info('asset')", [], |r| {
+                r.get(0)
+            })
+        })
         .expect("dem cot asset");
-    assert_eq!(asset_columns, 8, "bang `asset` phai giu dung tam cot cua ASSET_DDL, khong them cot text nao");
+    assert_eq!(
+        asset_columns, 8,
+        "bang `asset` phai giu dung tam cot cua ASSET_DDL, khong them cot text nao"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -235,8 +312,25 @@ fn two_adjacent_kept_images_the_second_anchor_shifts_by_the_first_alt() {
     let items = vec![url_item("https://example.test/bai-2", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Doi chung do 1", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Doi chung do 1",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     assert_eq!(opened.images_saved, 2, "ca hai anh phai tai duoc");
 
@@ -253,8 +347,15 @@ fn two_adjacent_kept_images_the_second_anchor_shifts_by_the_first_alt() {
     );
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
-    let alt_rows: Vec<_> = rows.iter().filter(|(_, r, _)| r.as_deref() == Some("alt")).collect();
-    assert_eq!(alt_rows.len(), 1, "chi anh A co alt -- dung MOT hang role='alt': {rows:?}");
+    let alt_rows: Vec<_> = rows
+        .iter()
+        .filter(|(_, r, _)| r.as_deref() == Some("alt"))
+        .collect();
+    assert_eq!(
+        alt_rows.len(),
+        1,
+        "chi anh A co alt -- dung MOT hang role='alt': {rows:?}"
+    );
     assert_eq!(alt_rows[0].2, "mo ta A");
 
     drop(opened);
@@ -274,14 +375,37 @@ fn an_image_whose_asset_fetch_fails_still_gets_its_alt_segment() {
     let items = vec![url_item("https://example.test/bai-3", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Quyet dinh 2", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Quyet dinh 2",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
-    assert_eq!(opened.images_saved, 0, "cong khong ai nghe -- 0 anh tai duoc");
+    assert_eq!(
+        opened.images_saved, 0,
+        "cong khong ai nghe -- 0 anh tai duoc"
+    );
     assert_eq!(opened.images_failed, 1);
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
-    let alt_rows: Vec<_> = rows.iter().filter(|(_, r, _)| r.as_deref() == Some("alt")).collect();
+    let alt_rows: Vec<_> = rows
+        .iter()
+        .filter(|(_, r, _)| r.as_deref() == Some("alt"))
+        .collect();
     assert_eq!(
         alt_rows.len(),
         1,
@@ -307,12 +431,36 @@ fn a_whitespace_only_alt_generates_no_role_segment() {
     let items = vec![url_item("https://example.test/bai-4", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Alt trang", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Alt trang",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
-    assert!(rows.iter().all(|(_, r, _)| r.is_none()), "alt chi khoang trang -- 0 segment vai nao: {rows:?}");
-    assert_eq!(rows.len(), 4, "van dung 4 segment van xuoi (h1 + 3 doan), khong hut them hang nao");
+    assert!(
+        rows.iter().all(|(_, r, _)| r.is_none()),
+        "alt chi khoang trang -- 0 segment vai nao: {rows:?}"
+    );
+    assert_eq!(
+        rows.len(),
+        4,
+        "van dung 4 segment van xuoi (h1 + 3 doan), khong hut them hang nao"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -327,8 +475,25 @@ fn an_image_with_no_alt_attribute_generates_no_role_segment_and_does_not_shift_a
     let items = vec![url_item("https://example.test/bai-5", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Khong alt", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Khong alt",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
     assert!(rows.iter().all(|(_, r, _)| r.is_none()));
@@ -355,11 +520,31 @@ fn a_three_sentence_figcaption_with_an_owning_image_becomes_exactly_one_caption_
     let items = vec![url_item("https://example.test/bai-6", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Caption ba cau", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Caption ba cau",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
-    let caption_rows: Vec<_> = rows.iter().filter(|(_, r, _)| r.as_deref() == Some("caption")).collect();
+    let caption_rows: Vec<_> = rows
+        .iter()
+        .filter(|(_, r, _)| r.as_deref() == Some("caption"))
+        .collect();
     assert_eq!(
         caption_rows.len(),
         1,
@@ -367,7 +552,10 @@ fn a_three_sentence_figcaption_with_an_owning_image_becomes_exactly_one_caption_
          doi chung do cho phep ep ranh gioi (Quyet dinh 1): go no thi ca nay do vi caption \
          se tach thanh BA hang khong hang nao mang vai: {rows:?}"
     );
-    assert_eq!(caption_rows[0].2, "Cau mot cua chu thich. Cau hai cua chu thich. Cau ba cua chu thich.");
+    assert_eq!(
+        caption_rows[0].2,
+        "Cau mot cua chu thich. Cau hai cua chu thich. Cau ba cua chu thich."
+    );
 
     drop(opened);
     cleanup(&root);
@@ -392,11 +580,31 @@ fn a_caption_with_no_preceding_kept_image_gets_no_role_and_the_chapter_still_imp
     let items = vec![url_item("https://example.test/bai-7", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Caption mo coi", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("Chuong van phai nhap duoc du caption khong co anh so huu");
+    let opened = create_work(
+        &root,
+        "Caption mo coi",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("Chuong van phai nhap duoc du caption khong co anh so huu");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
-    assert!(rows.iter().all(|(_, r, _)| r.is_none()), "khong anh nao truoc no -- 0 hang mang vai: {rows:?}");
+    assert!(
+        rows.iter().all(|(_, r, _)| r.is_none()),
+        "khong anh nao truoc no -- 0 hang mang vai: {rows:?}"
+    );
     assert!(
         rows.iter().any(|(_, _, t)| t.contains("Chu thich mo dau")),
         "noi dung caption van phai con trong Chuong, di tiep nhu van xuoi: {rows:?}"
@@ -419,7 +627,10 @@ fn a_plain_text_import_with_no_images_leaves_every_role_null() {
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
     assert_eq!(rows.len(), 3);
-    assert!(rows.iter().all(|(_, r, _)| r.is_none()), "duong .txt/dan tay: moi hang role = NULL: {rows:?}");
+    assert!(
+        rows.iter().all(|(_, r, _)| r.is_none()),
+        "duong .txt/dan tay: moi hang role = NULL: {rows:?}"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -435,12 +646,33 @@ fn confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment(
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = temp_dir("confirm-caption-segment");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
-    let html = html_with_image_and_tail(&img_url, None, "<figcaption>Chu thich can dich.</figcaption>");
+    let html = html_with_image_and_tail(
+        &img_url,
+        None,
+        "<figcaption>Chu thich can dich.</figcaption>",
+    );
     let items = vec![url_item("https://example.test/bai-8", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Xac nhan caption", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Xac nhan caption",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     let (caption_id, prose_id): (i64, i64) = opened
         .store
@@ -464,14 +696,22 @@ fn confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment(
         Some(&opened),
         chapter_id,
         &[
-            SegmentTargetEdit { id: caption_id, target_text: "Ban dich chu thich.".to_owned() },
-            SegmentTargetEdit { id: prose_id, target_text: "Ban dich van xuoi.".to_owned() },
+            SegmentTargetEdit {
+                id: caption_id,
+                target_text: "Ban dich chu thich.".to_owned(),
+            },
+            SegmentTargetEdit {
+                id: prose_id,
+                target_text: "Ban dich van xuoi.".to_owned(),
+            },
         ],
     )
     .expect("ghi ban dich that bai");
 
-    let caption_outcome = confirm_segment(Some(&opened), caption_id).expect("xac nhan caption that bai");
-    let prose_outcome = confirm_segment(Some(&opened), prose_id).expect("xac nhan van xuoi that bai");
+    let caption_outcome =
+        confirm_segment(Some(&opened), caption_id).expect("xac nhan caption that bai");
+    let prose_outcome =
+        confirm_segment(Some(&opened), prose_id).expect("xac nhan van xuoi that bai");
 
     assert_eq!(caption_outcome.status, "confirmed");
     assert!(caption_outcome.version_created);
@@ -481,27 +721,43 @@ fn confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment(
     let (caption_status, caption_versions, caption_role): (String, i64, Option<String>) = opened
         .store
         .read(move |conn| {
-            let status: String =
-                conn.query_row("SELECT status FROM segment WHERE id = ?1", [caption_id], |r| r.get(0))?;
+            let status: String = conn.query_row(
+                "SELECT status FROM segment WHERE id = ?1",
+                [caption_id],
+                |r| r.get(0),
+            )?;
             let versions: i64 = conn.query_row(
                 "SELECT COUNT(*) FROM segment_version WHERE segment_id = ?1",
                 [caption_id],
                 |r| r.get(0),
             )?;
-            let role: Option<String> =
-                conn.query_row("SELECT role FROM segment WHERE id = ?1", [caption_id], |r| r.get(0))?;
+            let role: Option<String> = conn.query_row(
+                "SELECT role FROM segment WHERE id = ?1",
+                [caption_id],
+                |r| r.get(0),
+            )?;
             Ok((status, versions, role))
         })
         .expect("doc trang thai caption that bai");
     assert_eq!(caption_status, "confirmed");
-    assert_eq!(caption_versions, 1, "dung MOT segment_version, y het mot segment van xuoi");
-    assert_eq!(caption_role.as_deref(), Some("caption"), "xac nhan KHONG duoc lam mat vai da gan");
+    assert_eq!(
+        caption_versions, 1,
+        "dung MOT segment_version, y het mot segment van xuoi"
+    );
+    assert_eq!(
+        caption_role.as_deref(),
+        Some("caption"),
+        "xac nhan KHONG duoc lam mat vai da gan"
+    );
 
     let (prose_status, prose_versions): (String, i64) = opened
         .store
         .read(move |conn| {
-            let status: String =
-                conn.query_row("SELECT status FROM segment WHERE id = ?1", [prose_id], |r| r.get(0))?;
+            let status: String = conn.query_row(
+                "SELECT status FROM segment WHERE id = ?1",
+                [prose_id],
+                |r| r.get(0),
+            )?;
             let versions: i64 = conn.query_row(
                 "SELECT COUNT(*) FROM segment_version WHERE segment_id = ?1",
                 [prose_id],
@@ -510,8 +766,14 @@ fn confirming_a_caption_segment_behaves_exactly_like_confirming_a_prose_segment(
             Ok((status, versions))
         })
         .expect("doc trang thai van xuoi that bai");
-    assert_eq!(prose_status, caption_status, "hai duong phai hoi tu ve cung mot trang thai");
-    assert_eq!(prose_versions, caption_versions, "hai duong phai sinh cung so segment_version");
+    assert_eq!(
+        prose_status, caption_status,
+        "hai duong phai hoi tu ve cung mot trang thai"
+    );
+    assert_eq!(
+        prose_versions, caption_versions,
+        "hai duong phai sinh cung so segment_version"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -553,9 +815,16 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
     let root = temp_dir("migrate-20-to-21");
     let db = root.join("project.db");
 
-    let old = Store::open(StoreSpec { migrations: &OLD_STEPS, ..StoreSpec::project(db.clone()) })
-        .expect("dung fixture o phien ban 20");
-    assert_eq!(old.schema_version(), 20, "fixture phai dung o dung phien ban 20 -- khong thi ca nay khong kiem gi ca");
+    let old = Store::open(StoreSpec {
+        migrations: &OLD_STEPS,
+        ..StoreSpec::project(db.clone())
+    })
+    .expect("dung fixture o phien ban 20");
+    assert_eq!(
+        old.schema_version(),
+        20,
+        "fixture phai dung o dung phien ban 20 -- khong thi ca nay khong kiem gi ca"
+    );
 
     // Mot hang segment THAT, ghi truoc khi cot `role` ton tai -- dung DDL cua chinh phien ban
     // 20 (khong the nhac cot `role`, no chua sinh ra).
@@ -588,19 +857,33 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
 
     // Day la dong menh de THAT: mo lai bang bo di tru DAY DU (dich 22 -- Story 6.15 them buoc
     // 22 sau story nay, `Store::open` luon di tru toi dich MOI NHAT cua PROJECT_MIGRATIONS).
-    let migrated = Store::open(StoreSpec::project(db)).expect("mot project.db o phien ban 20 phai mo duoc");
+    let migrated =
+        Store::open(StoreSpec::project(db)).expect("mot project.db o phien ban 20 phai mo duoc");
     // 🔵 CAP NHAT 2026-09-16 (Story 4.2): dich moi nhat la 23 — buoc 23 (ai_config, FR68)
     // chay THEM sau buoc 22, khong anh huong menh de nay.
     // 🔵 CAP NHAT 2026-09-17 (Story 4.4): dich moi nhat la 24 — buoc 24 (prompt_set, FR69)
     // chay THEM sau buoc 23, khong anh huong menh de nay.
     // Target is now 25: step 25 (occurrence_count + zero-width triggers) runs after step 24
     // and doesn't affect this assertion.
-    assert_eq!(migrated.schema_version(), 34, "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)");
+    assert_eq!(
+        migrated.schema_version(),
+        34,
+        "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)"
+    );
 
     let role: Option<String> = migrated
-        .read(move |conn| conn.query_row("SELECT role FROM segment WHERE chapter_id = ?1", [chapter_id], |r| r.get(0)))
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT role FROM segment WHERE chapter_id = ?1",
+                [chapter_id],
+                |r| r.get(0),
+            )
+        })
         .expect("doc role that bai");
-    assert_eq!(role, None, "hang cu tao truoc story nay phai mang role = NULL sau di tru -- khong hang nao bi viet lai noi dung");
+    assert_eq!(
+        role, None,
+        "hang cu tao truoc story nay phai mang role = NULL sau di tru -- khong hang nao bi viet lai noi dung"
+    );
 
     drop(migrated);
     cleanup(&root);
@@ -623,8 +906,25 @@ fn merging_a_role_bearing_segment_is_refused_and_writes_nothing() {
     let items = vec![url_item("https://example.test/bai-gop-vai", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Gop segment vai", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Gop segment vai",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     // ── Tien de cua ca nay, khang dinh TRUOC khi gop ────────────────────────────────
     // Khong co dong nay, mot thay doi tuong lai lam caption thoi mang vai se bien ca nay
@@ -637,7 +937,10 @@ fn merging_a_role_bearing_segment_is_refused_and_writes_nothing() {
         .find(|(_, r, _)| r.as_deref() == Some("caption"))
         .cloned()
         .expect("phai co mot hang role='caption' TRUOC khi gop -- day la tien de cua ca nay");
-    assert!(cap_ord > 1, "hang caption phai co mot cau dung TREN no de ma gop vao");
+    assert!(
+        cap_ord > 1,
+        "hang caption phai co mot cau dung TREN no de ma gop vao"
+    );
 
     // `merge_segments` nhan `segment_id`, khong phai `ord` -- doc id that cua hang caption.
     let cap_id: i64 = opened
@@ -651,14 +954,24 @@ fn merging_a_role_bearing_segment_is_refused_and_writes_nothing() {
         })
         .expect("doc id cua hang caption that bai");
 
-    let err = merge_segments(Some(&opened), cap_id).expect_err("gop mot hang mang vai phai bi tu choi");
+    let err =
+        merge_segments(Some(&opened), cap_id).expect_err("gop mot hang mang vai phai bi tu choi");
     assert_eq!(err.code(), "segment.has_role");
-    assert_eq!(err.message_key(), auratranslate_lib::core::i18n::MessageKey::SegmentHasRole);
+    assert_eq!(
+        err.message_key(),
+        auratranslate_lib::core::i18n::MessageKey::SegmentHasRole
+    );
     assert!(!err.retryable());
-    assert!(err.params().contains_key("segment_id"), "loi phai bao id hang mang vai: {err:?}");
+    assert!(
+        err.params().contains_key("segment_id"),
+        "loi phai bao id hang mang vai: {err:?}"
+    );
 
     let sau = read_role_rows(&opened.store, chapter_id);
-    assert_eq!(sau, truoc, "bi tu choi thi khong ghi gi va khong ve huu hang nao");
+    assert_eq!(
+        sau, truoc,
+        "bi tu choi thi khong ghi gi va khong ve huu hang nao"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -683,20 +996,44 @@ fn two_adjacent_figcaptions_for_one_image_produce_exactly_one_caption_role_row()
     let items = vec![url_item("https://example.test/bai-hai-figcaption", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Hai figcaption mot anh", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Hai figcaption mot anh",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
-    let caption_rows: Vec<_> = rows.iter().filter(|(_, r, _)| r.as_deref() == Some("caption")).collect();
+    let caption_rows: Vec<_> = rows
+        .iter()
+        .filter(|(_, r, _)| r.as_deref() == Some("caption"))
+        .collect();
     assert_eq!(
         caption_rows.len(),
         1,
         "AD-42: nhieu nhat MOT segment role='caption' cho MOT anh, du trang co HAI \
          <figcaption> lien tiep: {rows:?}"
     );
-    assert_eq!(caption_rows[0].2, "Chu thich thu nhat.", "khoi DAU TIEN moi duoc chon mang vai");
+    assert_eq!(
+        caption_rows[0].2, "Chu thich thu nhat.",
+        "khoi DAU TIEN moi duoc chon mang vai"
+    );
     assert!(
-        rows.iter().any(|(_, r, t)| t == "Chu thich thu hai." && r.is_none()),
+        rows.iter()
+            .any(|(_, r, t)| t == "Chu thich thu hai." && r.is_none()),
         "khoi THU HAI phai di tiep NHU VAN XUOI (role = NULL), khong bi gan vai rieng: {rows:?}"
     );
 
@@ -720,7 +1057,10 @@ fn a_cleanup_rule_erasing_the_caption_text_tags_no_row_and_leaves_the_next_prose
         None,
         &format!("<figcaption>{caption_text}</figcaption>"),
     );
-    let items = vec![url_item("https://example.test/bai-cleanup-xoa-caption", html)];
+    let items = vec![url_item(
+        "https://example.test/bai-cleanup-xoa-caption",
+        html,
+    )];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
     let rules = vec![CleanupRule {
@@ -731,8 +1071,25 @@ fn a_cleanup_rule_erasing_the_caption_text_tags_no_row_and_leaves_the_next_prose
         enabled: true,
     }];
 
-    let opened = create_work(&root, "Cleanup xoa caption", "en", "", shape, encoding_rs::UTF_8, rules, None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Cleanup xoa caption",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        rules,
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     let rows = read_role_rows(&opened.store, opened.chapter_id);
     assert!(
@@ -741,7 +1098,9 @@ fn a_cleanup_rule_erasing_the_caption_text_tags_no_row_and_leaves_the_next_prose
          no: {rows:?}"
     );
     assert_eq!(
-        rows.iter().filter(|(_, r, _)| r.as_deref() == Some("caption")).count(),
+        rows.iter()
+            .filter(|(_, r, _)| r.as_deref() == Some("caption"))
+            .count(),
         0,
         "caption da bi xoa trang -- 0 hang role='caption': {rows:?}"
     );
@@ -769,12 +1128,33 @@ fn splitting_a_role_bearing_segment_is_refused_and_writes_nothing() {
     let root = temp_dir("split-vai-khong-nhan-ban");
     let img_url = format!("http://127.0.0.1:{}/anh.jpg", unreachable_port());
     let caption_text = "Chu thich se bi tach lam doi.";
-    let html = html_with_image_and_tail(&img_url, None, &format!("<figcaption>{caption_text}</figcaption>"));
+    let html = html_with_image_and_tail(
+        &img_url,
+        None,
+        &format!("<figcaption>{caption_text}</figcaption>"),
+    );
     let items = vec![url_item("https://example.test/bai-tach-vai", html)];
     let shape = chapters_shape_if_all_ok(&items).expect("danh sach toan muc OK");
 
-    let opened = create_work(&root, "Tach segment vai", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, Vec::new(), 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Tach segment vai",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     let chapter_id = opened.chapter_id;
     let cap_id: i64 = opened
@@ -790,13 +1170,17 @@ fn splitting_a_role_bearing_segment_is_refused_and_writes_nothing() {
 
     let cut = caption_text.chars().count() / 2;
     let truoc = read_role_rows(&opened.store, chapter_id);
-    let err = split_segment(Some(&opened), cap_id, vec![cut]).expect_err("tach hang mang vai phai bi tu choi");
+    let err = split_segment(Some(&opened), cap_id, vec![cut])
+        .expect_err("tach hang mang vai phai bi tu choi");
     assert_eq!(err.code(), "segment.has_role");
     assert_eq!(err.params().get("segment_id"), Some(&cap_id.to_string()));
     assert!(!err.retryable());
 
     let rows = read_role_rows(&opened.store, chapter_id);
-    assert_eq!(rows, truoc, "bi tu choi thi khong ghi gi va khong ve huu hang nao");
+    assert_eq!(
+        rows, truoc,
+        "bi tu choi thi khong ghi gi va khong ve huu hang nao"
+    );
 
     drop(opened);
     cleanup(&root);
@@ -827,8 +1211,25 @@ fn block_overrides_only_apply_to_chapter_zero_on_the_weave_path() {
     // Chuong, chi ap dung cho don vi DAU TIEN theo dung luat da co tu Story 6.9).
     let overrides = vec![None, None, None, Some(false)];
 
-    let opened = create_work(&root, "Nhieu chuong block_overrides", "en", "", shape, encoding_rs::UTF_8, Vec::new(), None, overrides, 0, 1, false, &[], &Mutex::new(Vec::new()), None, &[])
-        .expect("tao Tac pham that bai");
+    let opened = create_work(
+        &root,
+        "Nhieu chuong block_overrides",
+        "en",
+        "",
+        shape,
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        overrides,
+        0,
+        1,
+        false,
+        &[],
+        &Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham that bai");
 
     let chapter_a_id = opened.chapter_id;
     let chapter_b_id: i64 = opened
@@ -843,7 +1244,10 @@ fn block_overrides_only_apply_to_chapter_zero_on_the_weave_path() {
     );
 
     let rows_b = read_role_rows(&opened.store, chapter_b_id);
-    let alt_rows_b: Vec<_> = rows_b.iter().filter(|(_, r, _)| r.as_deref() == Some("alt")).collect();
+    let alt_rows_b: Vec<_> = rows_b
+        .iter()
+        .filter(|(_, r, _)| r.as_deref() == Some("alt"))
+        .collect();
     assert_eq!(
         alt_rows_b.len(),
         1,

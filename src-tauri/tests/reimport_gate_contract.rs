@@ -15,7 +15,12 @@ static NEXT_DIR: AtomicU64 = AtomicU64::new(0);
 
 fn temp_dir(tag: &str) -> PathBuf {
     let n = NEXT_DIR.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("auratranslate-gate-{}-{}-{}", std::process::id(), tag, n));
+    let dir = std::env::temp_dir().join(format!(
+        "auratranslate-gate-{}-{}-{}",
+        std::process::id(),
+        tag,
+        n
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
@@ -63,10 +68,17 @@ fn fixture(tag: &str, segments_per_chapter: &[usize]) -> Fixture {
 fn fixture_with(tag: &str, segments_per_chapter: &[usize], one_paragraph: bool) -> Fixture {
     let root = temp_dir(tag);
     let out = temp_dir(&format!("{tag}-out"));
-    let open = create_work_from_text(&root, "Tac Pham", "zh", "", "Chuong mot.".to_owned()).expect("tao tac pham");
-    open.store.write(|tx: &Transaction<'_>| tx.execute("DELETE FROM segment", [])).expect("xoa segment");
+    let open = create_work_from_text(&root, "Tac Pham", "zh", "", "Chuong mot.".to_owned())
+        .expect("tao tac pham");
+    open.store
+        .write(|tx: &Transaction<'_>| tx.execute("DELETE FROM segment", []))
+        .expect("xoa segment");
     for (i, &count) in segments_per_chapter.iter().enumerate() {
-        let chapter = if i == 0 { open.chapter_id } else { insert_chapter(&open, i64::try_from(i).unwrap_or(0) + 1) };
+        let chapter = if i == 0 {
+            open.chapter_id
+        } else {
+            insert_chapter(&open, i64::try_from(i).unwrap_or(0) + 1)
+        };
         insert_segments(&open, chapter, count, one_paragraph);
     }
     Fixture { open, root, out }
@@ -74,12 +86,26 @@ fn fixture_with(tag: &str, segments_per_chapter: &[usize], one_paragraph: bool) 
 
 impl Fixture {
     fn one_block(&self) -> DocxParsed {
-        let file = export_docx_one_block(Some(&self.open), &ExportScope::Work, ImageMode::File, None, &self.out).expect("xuat");
+        let file = export_docx_one_block(
+            Some(&self.open),
+            &ExportScope::Work,
+            ImageMode::File,
+            None,
+            &self.out,
+        )
+        .expect("xuat");
         read_docx(&fs::read(file.path).expect("doc tep")).expect("doc docx")
     }
 
     fn two_column(&self) -> DocxParsed {
-        let file = export_docx_two_column(Some(&self.open), &ExportScope::Work, ImageMode::File, None, &self.out).expect("xuat");
+        let file = export_docx_two_column(
+            Some(&self.open),
+            &ExportScope::Work,
+            ImageMode::File,
+            None,
+            &self.out,
+        )
+        .expect("xuat");
         read_docx(&fs::read(file.path).expect("doc tep")).expect("doc docx")
     }
 
@@ -100,22 +126,39 @@ fn parsed_with(tables: Vec<TableShape>) -> DocxParsed {
 
 fn empty_docx() -> Vec<u8> {
     let f = fixture("empty", &[1]);
-    let file = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::File, None, &f.out).expect("xuat");
+    let file = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Work,
+        ImageMode::File,
+        None,
+        &f.out,
+    )
+    .expect("xuat");
     let bytes = fs::read(file.path).expect("doc tep");
     f.finish();
     bytes
 }
 
 fn shape(cells: Vec<Vec<usize>>) -> TableShape {
-    TableShape { rows: cells.len(), cells_per_row: cells.iter().map(Vec::len).collect(), paragraphs_per_cell: cells }
+    TableShape {
+        rows: cells.len(),
+        cells_per_row: cells.iter().map(Vec::len).collect(),
+        paragraphs_per_cell: cells,
+    }
 }
 
 fn assert_publish_copy(result: Result<ReviewerDocx, ReimportShapeError>) {
     let error = result.expect_err("phai tu choi");
     assert_eq!(error, ReimportShapeError::PublishCopy);
     let ipc = IpcError::from(error);
-    assert_eq!(ipc.message_key(), MessageKey::ExportPublishCopyNotReimportable);
-    assert_eq!(ipc.message_key().as_str(), "err.export.publish_copy_not_reimportable");
+    assert_eq!(
+        ipc.message_key(),
+        MessageKey::ExportPublishCopyNotReimportable
+    );
+    assert_eq!(
+        ipc.message_key().as_str(),
+        "err.export.publish_copy_not_reimportable"
+    );
 }
 
 #[test]
@@ -162,7 +205,14 @@ fn a_real_two_column_export_with_image_rows_passes() {
     let f = fixture("columns-images", &[3]);
     insert_linked_image(&f.open, 0);
     insert_linked_image(&f.open, 1);
-    let file = export_docx_two_column(Some(&f.open), &ExportScope::Work, ImageMode::Link, None, &f.out).expect("xuat");
+    let file = export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Work,
+        ImageMode::Link,
+        None,
+        &f.out,
+    )
+    .expect("xuat");
     assert_eq!(file.image_count, 2);
     let parsed = read_docx(&fs::read(file.path).expect("doc tep")).expect("doc docx");
     assert_eq!(parsed.tables[0].rows, 5);
@@ -191,13 +241,38 @@ fn a_real_one_block_export_of_single_sentence_chapters_passes() {
 fn shapes_built_directly() {
     let pass = |tables: Vec<TableShape>| ReviewerDocx::admit(parsed_with(tables)).is_ok();
     assert!(pass(vec![shape(vec![vec![1, 1]])]), "hai cot mot cau");
-    assert!(pass(vec![shape(vec![vec![1, 1], vec![1, 1], vec![1, 1]])]), "hai cot nhieu hang");
+    assert!(
+        pass(vec![shape(vec![vec![1, 1], vec![1, 1], vec![1, 1]])]),
+        "hai cot nhieu hang"
+    );
     assert!(pass(vec![]), "khong co bang");
-    assert!(pass(vec![TableShape { rows: 0, cells_per_row: vec![], paragraphs_per_cell: vec![] }]), "bang 0 hang");
-    assert!(!pass(vec![shape(vec![vec![2, 1]])]), "mot hang, o trai 2 doan");
-    assert!(!pass(vec![shape(vec![vec![1, 5]])]), "mot hang, o phai 5 doan");
-    assert!(!pass(vec![shape(vec![vec![1, 1], vec![1, 1]]), shape(vec![vec![1, 3]])]), "mot bang khop la du tu choi");
-    assert!(pass(vec![shape(vec![vec![3, 1], vec![1, 1]])]), "nhieu hang khong thuoc dang mot khoi");
+    assert!(
+        pass(vec![TableShape {
+            rows: 0,
+            cells_per_row: vec![],
+            paragraphs_per_cell: vec![]
+        }]),
+        "bang 0 hang"
+    );
+    assert!(
+        !pass(vec![shape(vec![vec![2, 1]])]),
+        "mot hang, o trai 2 doan"
+    );
+    assert!(
+        !pass(vec![shape(vec![vec![1, 5]])]),
+        "mot hang, o phai 5 doan"
+    );
+    assert!(
+        !pass(vec![
+            shape(vec![vec![1, 1], vec![1, 1]]),
+            shape(vec![vec![1, 3]])
+        ]),
+        "mot bang khop la du tu choi"
+    );
+    assert!(
+        pass(vec![shape(vec![vec![3, 1], vec![1, 1]])]),
+        "nhieu hang khong thuoc dang mot khoi"
+    );
 }
 
 #[test]

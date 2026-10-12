@@ -67,8 +67,17 @@ pub(super) fn split_by_anchor<T>(
     image_mode: ImageMode,
     mut make: impl FnMut(ScopeImage) -> T,
 ) -> ImageSplit<T> {
-    let survivors: BTreeSet<i64> = segments.iter().filter(|s| !s.is_omitted).map(|s| s.id).collect();
-    let mut split = ImageSplit { head: Vec::new(), by_anchor: BTreeMap::new(), orphans: Vec::new(), skipped: 0 };
+    let survivors: BTreeSet<i64> = segments
+        .iter()
+        .filter(|s| !s.is_omitted)
+        .map(|s| s.id)
+        .collect();
+    let mut split = ImageSplit {
+        head: Vec::new(),
+        by_anchor: BTreeMap::new(),
+        orphans: Vec::new(),
+        skipped: 0,
+    };
     for image in images {
         if image_mode == ImageMode::Link && image.source_url.is_none() {
             split.skipped += 1;
@@ -76,7 +85,9 @@ pub(super) fn split_by_anchor<T>(
         }
         match image.after_segment_id {
             None => split.head.push(make(image)),
-            Some(id) if survivors.contains(&id) => split.by_anchor.entry(id).or_default().push(make(image)),
+            Some(id) if survivors.contains(&id) => {
+                split.by_anchor.entry(id).or_default().push(make(image))
+            }
             Some(_) => split.orphans.push(make(image)),
         }
     }
@@ -113,7 +124,10 @@ pub fn scan_images(store: &Store, chapter_ids: &[i64]) -> Result<ImageScan, Stor
             let segments = select_chapter_segments(conn, chapter_id)?;
             let images = chapter_images(&segments, &assets);
             image_count += i64::try_from(images.len()).unwrap_or(i64::MAX);
-            let mut missing = images.into_iter().filter(|image| image.source_url.is_none()).peekable();
+            let mut missing = images
+                .into_iter()
+                .filter(|image| image.source_url.is_none())
+                .peekable();
             if missing.peek().is_none() {
                 continue;
             }
@@ -129,6 +143,9 @@ pub fn scan_images(store: &Store, chapter_ids: &[i64]) -> Result<ImageScan, Stor
                 });
             }
         }
-        Ok(ImageScan { image_count, missing_link_images })
+        Ok(ImageScan {
+            image_count,
+            missing_link_images,
+        })
     })
 }

@@ -216,7 +216,10 @@ fn rust_sources() -> Vec<ScannedFile> {
                 })
                 .collect::<Vec<_>>()
                 .join("\n");
-            ScannedFile { display: format!("src-tauri/src/{rel}"), scan_text }
+            ScannedFile {
+                display: format!("src-tauri/src/{rel}"),
+                scan_text,
+            }
         })
         .collect()
 }
@@ -306,7 +309,10 @@ fn frontend_sources() -> Vec<ScannedFile> {
             let text =
                 fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
             let scan_text = strip_ts_comments(&text);
-            ScannedFile { display: format!("src/{rel}"), scan_text }
+            ScannedFile {
+                display: format!("src/{rel}"),
+                scan_text,
+            }
         })
         .collect()
 }
@@ -328,7 +334,9 @@ fn mask_store_exemptions(line: &str) -> String {
     for exempt in STORE_EXEMPT {
         let mut start = 0usize;
         while start <= line.len() {
-            let Some(rel) = line.get(start..).and_then(|s| s.find(exempt)) else { break };
+            let Some(rel) = line.get(start..).and_then(|s| s.find(exempt)) else {
+                break;
+            };
             let at = start + rel;
             let end = at + exempt.len();
             let before_ok = at == 0 || !is_word_byte(bytes_ref[at - 1]);
@@ -409,7 +417,9 @@ fn line_names_a_forbidden_entity(code: &str) -> Option<&'static str> {
     for word in FORBIDDEN_WORDS {
         let mut start = 0usize;
         while start <= masked.len() {
-            let Some(rel) = masked.get(start..).and_then(|s| s.find(word)) else { break };
+            let Some(rel) = masked.get(start..).and_then(|s| s.find(word)) else {
+                break;
+            };
             let at = start + rel;
             let before_ok = at == 0 || !is_word_byte(bytes[at - 1]);
 
@@ -452,7 +462,9 @@ fn ipc_error_code_names_a_forbidden_entity(code_string: &str) -> Option<&'static
     for word in FORBIDDEN_WORDS_LOWER {
         let mut start = 0usize;
         while start <= masked.len() {
-            let Some(rel) = masked.get(start..).and_then(|s| s.find(word)) else { break };
+            let Some(rel) = masked.get(start..).and_then(|s| s.find(word)) else {
+                break;
+            };
             let at = start + rel;
             let before_ok = at == 0 || !is_word_byte(bytes[at - 1]);
             if before_ok {
@@ -505,7 +517,10 @@ fn ipc_error_code_violations_in_file(file: &ScannedFile) -> Vec<String> {
         .into_iter()
         .filter_map(|(line_no, code_string)| {
             let word = ipc_error_code_names_a_forbidden_entity(&code_string)?;
-            Some(format!("{}:{}  {word}  |  IpcError::new({code_string:?}, …)", file.display, line_no))
+            Some(format!(
+                "{}:{}  {word}  |  IpcError::new({code_string:?}, …)",
+                file.display, line_no
+            ))
         })
         .collect()
 }
@@ -696,7 +711,10 @@ fn the_platform_document_exemption_accepts_any_amount_of_space_around_the_colon(
 #[test]
 fn remaining_forbidden_words_are_all_caught() {
     assert_eq!(line_names_a_forbidden_entity("struct Book {"), Some("Book"));
-    assert_eq!(line_names_a_forbidden_entity("  novel: NovelMeta,"), Some("Novel"));
+    assert_eq!(
+        line_names_a_forbidden_entity("  novel: NovelMeta,"),
+        Some("Novel")
+    );
     assert_eq!(
         line_names_a_forbidden_entity("pub struct DocumentStore {"),
         Some("Document")
@@ -724,7 +742,11 @@ fn the_ipc_error_code_check_would_actually_flag_a_seeded_violation() {
                   BTreeMap::new(),\n    false,\n)";
 
     let args = ipc_error_new_code_arguments(seeded);
-    assert_eq!(args.len(), 1, "phai trich duoc dung MOT chuoi code tu loi goi gieo tay: {args:?}");
+    assert_eq!(
+        args.len(),
+        1,
+        "phai trich duoc dung MOT chuoi code tu loi goi gieo tay: {args:?}"
+    );
     assert_eq!(
         ipc_error_code_names_a_forbidden_entity(&args[0].1),
         Some("project"),
@@ -798,7 +820,11 @@ fn violations_in_file(file: &ScannedFile) -> Vec<String> {
             let is_store_kind_project_declaration =
                 word == "Project" && inside_store_kind_enum && trimmed == "Project,";
             if !is_store_kind_project_declaration {
-                violations.push(format!("{}:{}  {word}  |  {trimmed}", file.display, line_no + 1));
+                violations.push(format!(
+                    "{}:{}  {word}  |  {trimmed}",
+                    file.display,
+                    line_no + 1
+                ));
             }
         }
 
@@ -815,8 +841,10 @@ fn scan_all_violations() -> Vec<String> {
 
     // `ipc_error_code_violations_in_file` chỉ áp cho cây Rust — `IpcError::new(` là một hình
     // dạng Rust, `src/**` không bao giờ mang chuỗi đó.
-    let ipc_code_violations: Vec<String> =
-        rust.iter().flat_map(ipc_error_code_violations_in_file).collect();
+    let ipc_code_violations: Vec<String> = rust
+        .iter()
+        .flat_map(ipc_error_code_violations_in_file)
+        .collect();
 
     rust.iter()
         .flat_map(violations_in_file)
@@ -851,8 +879,9 @@ fn the_real_source_tree_has_zero_naming_violations() {
 fn the_store_kind_enum_declaration_site_of_project_is_recognized_as_the_same_named_exemption() {
     let file = ScannedFile {
         display: "src-tauri/src/core/store/mod.rs".to_owned(),
-        scan_text: "pub enum StoreKind {\n    Global,\n    Project,\n    LibraryIndex,\n    Dict,\n}"
-            .to_owned(),
+        scan_text:
+            "pub enum StoreKind {\n    Global,\n    Project,\n    LibraryIndex,\n    Dict,\n}"
+                .to_owned(),
     };
 
     assert!(
@@ -923,18 +952,26 @@ fn an_enum_whose_name_merely_contains_store_kind_as_a_prefix_does_not_borrow_its
 /// một miễn trừ ĐƯỜNG DẪN, khác bằng chứng cho một miễn trừ CHUỖI xuất hiện trong mã.
 #[test]
 fn every_store_exemption_still_matches_something_real_in_the_repo() {
-    let file_path_exemptions: [&str; 3] =
-        ["commands/project/mod.rs", "ports/project_store.rs", "tests/project_contract.rs"];
-    let string_exemptions: [&str; 5] =
-        [".atproj", "project.db", "StoreKind::Project", "ProjectStore", "PROJECT_MIGRATIONS"];
+    let file_path_exemptions: [&str; 3] = [
+        "commands/project/mod.rs",
+        "ports/project_store.rs",
+        "tests/project_contract.rs",
+    ];
+    let string_exemptions: [&str; 5] = [
+        ".atproj",
+        "project.db",
+        "StoreKind::Project",
+        "ProjectStore",
+        "PROJECT_MIGRATIONS",
+    ];
 
     for rel in file_path_exemptions {
-        let candidate = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(if rel.starts_with("tests/")
-        {
-            rel.to_owned()
-        } else {
-            format!("src/{rel}")
-        });
+        let candidate =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(if rel.starts_with("tests/") {
+                rel.to_owned()
+            } else {
+                format!("src/{rel}")
+            });
         assert!(
             candidate.is_file(),
             "miễn trừ đường dẫn {rel:?} không còn khớp một tệp thật ({}). Nó đã lệch khỏi \
@@ -946,7 +983,11 @@ fn every_store_exemption_still_matches_something_real_in_the_repo() {
 
     let mut files = Vec::new();
     walk(&rust_root(), &["rs"], &mut files);
-    walk(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests"), &["rs"], &mut files);
+    walk(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests"),
+        &["rs"],
+        &mut files,
+    );
     walk(&frontend_root(), &["ts", "vue"], &mut files);
 
     let all_text: String = files
@@ -973,7 +1014,11 @@ const EXEMPTION_CLAUSE_MARKER: &str = "Exactly eight exemptions";
 /// [`the_exemption_clause_parser_would_actually_flag_a_seeded_ninth_item`] gọi được trên một
 /// chuỗi dựng tay, độc lập với nội dung thật của `AGENTS.md` hôm nay.
 fn quoted_items(clause: &str) -> Vec<&str> {
-    clause.split('`').enumerate().filter_map(|(i, seg)| (i % 2 == 1).then_some(seg)).collect()
+    clause
+        .split('`')
+        .enumerate()
+        .filter_map(|(i, seg)| (i % 2 == 1).then_some(seg))
+        .collect()
 }
 
 /// Cắt `rule_line` xuống đúng MỆNH ĐỀ liệt kê miễn trừ — từ [`EXEMPTION_CLAUSE_MARKER`] tới
@@ -1059,7 +1104,11 @@ fn the_exemption_clause_parser_would_actually_flag_a_seeded_ninth_item() {
 
     let quoted = exemption_items_named_in_rule_line(seeded_nine);
 
-    assert_eq!(quoted.len(), 9, "ca DUONG THAT: phai trich duoc du CHIN muc, nhan {quoted:?}");
+    assert_eq!(
+        quoted.len(),
+        9,
+        "ca DUONG THAT: phai trich duoc du CHIN muc, nhan {quoted:?}"
+    );
     assert!(
         quoted.contains(&"một-mục-thứ-chín-gieo-tay"),
         "ca DUONG THAT: muc gieo tay phai co mat trong danh sach trich ra: {quoted:?}"
@@ -1085,8 +1134,11 @@ fn the_exemption_clause_parser_would_actually_flag_a_seeded_ninth_item() {
 }
 
 /// (file, snippet, reason). Each snippet must occur exactly once in its file.
-const BARE_ORIGIN_EXEMPT: [(&str, &str, &str); 1] =
-    [("src/layout/dockController.ts", "event.origin", "dockview panel-activation event field (third-party API)")];
+const BARE_ORIGIN_EXEMPT: [(&str, &str, &str); 1] = [(
+    "src/layout/dockController.ts",
+    "event.origin",
+    "dockview panel-activation event field (third-party API)",
+)];
 
 fn blank_run(out: &mut String, chars: &[char]) {
     out.extend(chars.iter().map(|&c| if c == '\n' { '\n' } else { ' ' }));
@@ -1211,7 +1263,11 @@ fn has_bare_origin(line: &str) -> bool {
 
 fn bare_origin_violations(display: &str, text: &str, typescript: bool) -> Vec<String> {
     let mut violations = Vec::new();
-    for (index, (code, raw)) in code_only(text, typescript).lines().zip(text.lines()).enumerate() {
+    for (index, (code, raw)) in code_only(text, typescript)
+        .lines()
+        .zip(text.lines())
+        .enumerate()
+    {
         let mut masked = code.to_owned();
         for (file, snippet, _) in BARE_ORIGIN_EXEMPT {
             if display == file {
@@ -1219,7 +1275,11 @@ fn bare_origin_violations(display: &str, text: &str, typescript: bool) -> Vec<St
             }
         }
         if has_bare_origin(&masked) {
-            violations.push(format!("{display}:{}  origin  |  {}", index + 1, raw.trim()));
+            violations.push(format!(
+                "{display}:{}  origin  |  {}",
+                index + 1,
+                raw.trim()
+            ));
         }
     }
     violations
@@ -1235,8 +1295,8 @@ fn scan_bare_origin_violations() -> Vec<String> {
         walk(&root, exts, &mut files);
         files.sort();
         for file in files {
-            let text = fs::read_to_string(&file)
-                .unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+            let text =
+                fs::read_to_string(&file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
             let display = format!("{prefix}/{}", rel_posix(&root, &file));
             violations.extend(bare_origin_violations(&display, &text, typescript));
         }
@@ -1291,11 +1351,19 @@ fn the_bare_origin_exemption_is_scoped_to_its_file_and_still_matches_something_r
     assert!(bare_origin_violations("src/layout/dockController.ts", line, true).is_empty());
     assert_eq!(bare_origin_violations("src/other.vue", line, true).len(), 1);
     let mixed = "return event.origin === 'user' || origin\n";
-    assert_eq!(bare_origin_violations("src/layout/dockController.ts", mixed, true).len(), 1);
+    assert_eq!(
+        bare_origin_violations("src/layout/dockController.ts", mixed, true).len(),
+        1
+    );
 
     for (file, snippet, reason) in BARE_ORIGIN_EXEMPT {
-        assert!(!reason.is_empty(), "exemption {snippet:?} in {file} carries no reason");
-        let rel = file.strip_prefix("src/").expect("exemption is a frontend path");
+        assert!(
+            !reason.is_empty(),
+            "exemption {snippet:?} in {file} carries no reason"
+        );
+        let rel = file
+            .strip_prefix("src/")
+            .expect("exemption is a frontend path");
         let text = fs::read_to_string(frontend_root().join(rel))
             .unwrap_or_else(|e| panic!("exempt file {file}: {e}"));
         assert_eq!(

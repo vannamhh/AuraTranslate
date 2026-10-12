@@ -10,7 +10,10 @@ pub const IMAGE_DIR_SUFFIX: &str = "-anh";
 #[derive(Debug)]
 pub enum ImageFilesError {
     /// Hàng `asset` có nhưng tệp trong `assets/` không còn (hoặc tên tệp không phải tên trần).
-    SourceMissing { chapter_ord: i64, file_name: String },
+    SourceMissing {
+        chapter_ord: i64,
+        file_name: String,
+    },
     Write(String),
 }
 
@@ -26,16 +29,29 @@ pub struct WrittenWithImages {
 }
 
 fn source_of(assets_dir: &Path, image: &ExportImage) -> Result<PathBuf, ImageFilesError> {
-    let missing = || ImageFilesError::SourceMissing { chapter_ord: image.chapter_ord, file_name: image.file_name.clone() };
-    let plain = Path::new(&image.file_name).file_name().and_then(|n| n.to_str()) == Some(image.file_name.as_str());
+    let missing = || ImageFilesError::SourceMissing {
+        chapter_ord: image.chapter_ord,
+        file_name: image.file_name.clone(),
+    };
+    let plain = Path::new(&image.file_name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        == Some(image.file_name.as_str());
     let path = assets_dir.join(&image.file_name);
-    if plain && path.is_file() { Ok(path) } else { Err(missing()) }
+    if plain && path.is_file() {
+        Ok(path)
+    } else {
+        Err(missing())
+    }
 }
 
 fn copy_all(sources: &[(PathBuf, String)], dir: &Path) -> std::io::Result<()> {
     for (source, name) in sources {
         let mut from = File::open(source)?;
-        let mut to = OpenOptions::new().write(true).create_new(true).open(dir.join(name))?;
+        let mut to = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(dir.join(name))?;
         std::io::copy(&mut from, &mut to)?;
         to.sync_all()?;
     }
@@ -75,7 +91,12 @@ pub fn write_file_with_images(
             .and_then(|()| build(&final_stem).map_err(ImageFilesError::Write))
             .and_then(|bytes| create_and_write(&file_path, &bytes).map_err(io));
         match outcome {
-            Ok(()) => return Ok(WrittenWithImages { file_path, images_dir }),
+            Ok(()) => {
+                return Ok(WrittenWithImages {
+                    file_path,
+                    images_dir,
+                });
+            }
             Err(ImageFilesError::Write(_)) if file_path.exists() => {
                 let _ = fs::remove_dir_all(&images_dir);
             }

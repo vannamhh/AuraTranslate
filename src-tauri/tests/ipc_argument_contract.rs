@@ -15,7 +15,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 fn frontend_src_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("src")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("src")
 }
 
 // Rust side — registered command names + parameter signatures
@@ -36,7 +38,10 @@ fn registered_command_names(lib_rs_text: &str) -> Vec<String> {
     loop {
         i += 1;
         let (line_no, line) = lines.get(i).unwrap_or_else(|| {
-            panic!("het tep lib.rs truoc khi gap `])` dong `generate_handler!` bat dau o dong {}", lines[start].0)
+            panic!(
+                "het tep lib.rs truoc khi gap `])` dong `generate_handler!` bat dau o dong {}",
+                lines[start].0
+            )
         });
         let trimmed = line.trim();
         if trimmed.starts_with("])") {
@@ -56,7 +61,9 @@ fn registered_command_names(lib_rs_text: &str) -> Vec<String> {
             continue;
         }
         if name.is_empty() {
-            panic!("dong {line_no} trong khoi generate_handler! khong doc duoc ten lenh: {entry:?}");
+            panic!(
+                "dong {line_no} trong khoi generate_handler! khong doc duoc ten lenh: {entry:?}"
+            );
         }
         names.push(name);
     }
@@ -64,7 +71,10 @@ fn registered_command_names(lib_rs_text: &str) -> Vec<String> {
 }
 
 fn is_injected_param_type(ty: &str) -> bool {
-    ty.contains("AppHandle") || ty.contains("Window") || ty.contains("State<") || ty.contains("State ")
+    ty.contains("AppHandle")
+        || ty.contains("Window")
+        || ty.contains("State<")
+        || ty.contains("State ")
 }
 
 fn to_camel_case(snake: &str) -> String {
@@ -150,7 +160,10 @@ fn split_name_type(part: &str) -> (String, String) {
 /// Hai dạng chữ ký một lệnh có thể mang: thường, và generic trên `tauri::Runtime` (vỏ `wire`
 /// chạy được trên `MockRuntime`).
 fn signature_markers(fn_name: &str) -> [String; 2] {
-    [format!("fn {fn_name}("), format!("fn {fn_name}<R: tauri::Runtime>(")]
+    [
+        format!("fn {fn_name}("),
+        format!("fn {fn_name}<R: tauri::Runtime>("),
+    ]
 }
 
 /// Toàn bộ nội dung tham số (không kể ngoặc bao) của `fn {fn_name}(` bắt đầu ở
@@ -204,7 +217,10 @@ fn extract_param_list_text(lines: &[(usize, String)], start_idx: usize, fn_name:
 /// _across_the_wire`) — gọi lại `code_lines` (một lượt quét từng ký tự trên TOÀN VĂN BẢN của
 /// mọi tệp Rust) một lần cho MỖI lệnh là nguyên nhân đo được của phép quét này chạy 68s một
 /// mình: no ~98 lệnh × kích cỡ cả cây nguồn, thay vì đúng một lượt.
-fn rust_required_params(files_lines: &[(String, Vec<(usize, String)>)], fn_name: &str) -> BTreeSet<String> {
+fn rust_required_params(
+    files_lines: &[(String, Vec<(usize, String)>)],
+    fn_name: &str,
+) -> BTreeSet<String> {
     let mut matches: Vec<(String, BTreeSet<String>)> = Vec::new();
     let markers = signature_markers(fn_name);
 
@@ -431,20 +447,32 @@ fn extract_command_constants(text: &str) -> BTreeMap<String, String> {
     while let Some(rel) = text[search_from..].find("const CMD_") {
         let pos = search_from + rel + "const ".len();
         let rest = &text[pos..];
-        let ident_end = rest.find(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).unwrap_or(rest.len());
+        let ident_end = rest
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+            .unwrap_or(rest.len());
         let ident = &rest[..ident_end];
         search_from = pos + ident_end;
         let after_ident = rest[ident_end..].trim_start();
-        let Some(after_eq) = after_ident.strip_prefix('=') else { continue };
+        let Some(after_eq) = after_ident.strip_prefix('=') else {
+            continue;
+        };
         let after_eq = after_eq.trim_start();
-        let Some(quote) = after_eq.chars().next() else { continue };
+        let Some(quote) = after_eq.chars().next() else {
+            continue;
+        };
         if quote != '\'' && quote != '"' {
             continue;
         }
         let value_rest = &after_eq[1..];
-        let Some(end) = value_rest.find(quote) else { continue };
+        let Some(end) = value_rest.find(quote) else {
+            continue;
+        };
         let value = &value_rest[..end];
-        if !value.is_empty() && value.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_') {
+        if !value.is_empty()
+            && value
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+        {
             map.insert(ident.to_string(), value.to_string());
         }
     }
@@ -562,7 +590,8 @@ fn every_registered_commands_business_parameters_match_camel_case_across_the_wir
     let ts_files: Vec<(PathBuf, String, Vec<char>)> = ts_paths
         .into_iter()
         .map(|p| {
-            let raw = std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("doc {}: {e}", p.display()));
+            let raw =
+                std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("doc {}: {e}", p.display()));
             let stripped = ts_strip_comments(&raw);
             let chars: Vec<char> = stripped.chars().collect();
             (p, stripped, chars)
@@ -581,7 +610,9 @@ fn every_registered_commands_business_parameters_match_camel_case_across_the_wir
         let constants = extract_command_constants(stripped);
         for (const_name, command_name) in &constants {
             let key_sets = call_site_key_sets(chars, const_name);
-            let entry = observed.entry(command_name.clone()).or_insert((false, BTreeSet::new()));
+            let entry = observed
+                .entry(command_name.clone())
+                .or_insert((false, BTreeSet::new()));
             for keys in key_sets {
                 entry.0 = true;
                 for k in keys {
@@ -596,7 +627,11 @@ fn every_registered_commands_business_parameters_match_camel_case_across_the_wir
     // (`src/config/project.ts` gần `CMD_CLEANUP_ADD_RULE`) và hai vỏ `create_work_from_*`
     // (`src/config/project.ts` gần `CMD_PREVIEW_FROM_TEXT`) chỉ còn sống làm hạ tầng fixture
     // của `e2e/specs/**` (`internals.invoke` trực tiếp, ngoài `src/**`).
-    const NO_FRONTEND_CALLER: [&str; 3] = ["cleanup_list_rules", "create_work_from_text", "create_work_from_file"];
+    const NO_FRONTEND_CALLER: [&str; 3] = [
+        "cleanup_list_rules",
+        "create_work_from_text",
+        "create_work_from_file",
+    ];
 
     let mut missing_commands = Vec::new();
     let mut mismatches = Vec::new();

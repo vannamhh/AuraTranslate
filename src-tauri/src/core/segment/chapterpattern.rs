@@ -56,11 +56,17 @@ impl ChapterPattern {
     /// Khuôn dựng tiện cho `tests/**` và nội bộ — cùng lý do
     /// `core::cleanup::mod::tests::literal`/`regex_rule`.
     pub fn literal(pattern: impl Into<String>) -> Self {
-        ChapterPattern { kind: ChapterPatternKind::Literal, pattern: pattern.into() }
+        ChapterPattern {
+            kind: ChapterPatternKind::Literal,
+            pattern: pattern.into(),
+        }
     }
 
     pub fn regex(pattern: impl Into<String>) -> Self {
-        ChapterPattern { kind: ChapterPatternKind::Regex, pattern: pattern.into() }
+        ChapterPattern {
+            kind: ChapterPatternKind::Regex,
+            pattern: pattern.into(),
+        }
     }
 
     /// Vị trí BYTE bắt đầu của MỌI khớp KHÔNG-RỖNG trên `text`, theo thứ tự tăng dần — luôn
@@ -76,12 +82,17 @@ impl ChapterPattern {
             return Ok(Vec::new());
         }
         match self.kind {
-            ChapterPatternKind::Literal => {
-                Ok(text.match_indices(self.pattern.as_str()).map(|(i, _)| i).collect())
-            }
+            ChapterPatternKind::Literal => Ok(text
+                .match_indices(self.pattern.as_str())
+                .map(|(i, _)| i)
+                .collect()),
             ChapterPatternKind::Regex => {
                 let re = compile(&self.pattern)?;
-                Ok(re.find_iter(text).filter(|m| !m.range().is_empty()).map(|m| m.start()).collect())
+                Ok(re
+                    .find_iter(text)
+                    .filter(|m| !m.range().is_empty())
+                    .map(|m| m.start())
+                    .collect())
             }
         }
     }
@@ -102,7 +113,10 @@ mod tests {
     #[test]
     fn empty_pattern_matches_nothing() {
         let p = ChapterPattern::literal("");
-        assert_eq!(p.match_starts("bat ky van ban nao").unwrap(), Vec::<usize>::new());
+        assert_eq!(
+            p.match_starts("bat ky van ban nao").unwrap(),
+            Vec::<usize>::new()
+        );
     }
 
     #[test]
@@ -115,8 +129,14 @@ mod tests {
     #[test]
     fn regex_pattern_is_multi_line_and_matches_per_line() {
         let p = ChapterPattern::regex(r"^Chuong\s+\d+.*$");
-        let starts = p.match_starts("Chuong 1 Mo Dau\nnoi dung\nChuong 2 Tiep Theo").unwrap();
-        assert_eq!(starts.len(), 2, "^/$ phai neo theo TUNG DONG, khong theo toan van ban");
+        let starts = p
+            .match_starts("Chuong 1 Mo Dau\nnoi dung\nChuong 2 Tiep Theo")
+            .unwrap();
+        assert_eq!(
+            starts.len(),
+            2,
+            "^/$ phai neo theo TUNG DONG, khong theo toan van ban"
+        );
     }
 
     #[test]

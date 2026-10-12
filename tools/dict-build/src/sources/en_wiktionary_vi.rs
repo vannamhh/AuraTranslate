@@ -50,7 +50,10 @@ mod tests {
         assert_eq!(entries[0].headword, "北");
         assert_eq!(entries[0].han_viet.as_deref(), Some("bắc"));
         assert_eq!(entries[0].nom_reading.as_deref(), Some("bậc"));
-        assert!(entries[0].senses.is_empty(), "Quyết định #3a: không nạp dict_sense");
+        assert!(
+            entries[0].senses.is_empty(),
+            "Quyết định #3a: không nạp dict_sense"
+        );
     }
 
     /// `SOURCE_CODE` không được trôi khỏi `sources_meta::EN_WIKTIONARY_VI.code`.

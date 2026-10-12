@@ -68,9 +68,12 @@ pub fn read_import_file(path: &Path) -> Result<String, GlossaryError> {
     })?;
 
     let mut bytes = Vec::new();
-    file.take(MAX_GLOSSARY_IMPORT_BYTES + 1).read_to_end(&mut bytes).map_err(|e| {
-        GlossaryError::ImportReadFailed { path: path_str.clone(), detail: e.to_string() }
-    })?;
+    file.take(MAX_GLOSSARY_IMPORT_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| GlossaryError::ImportReadFailed {
+            path: path_str.clone(),
+            detail: e.to_string(),
+        })?;
 
     if bytes.len() as u64 > MAX_GLOSSARY_IMPORT_BYTES {
         return Err(GlossaryError::ImportFileTooLarge {
@@ -147,14 +150,20 @@ pub fn write_export_file(path: &Path, contents: &str) -> Result<(), GlossaryErro
 
     if let Err(e) = write_result {
         let _ = std::fs::remove_file(&tmp);
-        return Err(GlossaryError::ExportWriteFailed { path: path_str, detail: e.to_string() });
+        return Err(GlossaryError::ExportWriteFailed {
+            path: path_str,
+            detail: e.to_string(),
+        });
     }
 
     if let Err(e) = std::fs::rename(&tmp, path) {
         // ⚠️ Dọn tệp tạm ở CẢ nhánh này — không có nó, một `rename` trượt để lại
         // `<tên>.tmp` nằm cạnh một đích vắng mặt, và lần sau lại thêm một cái nữa.
         let _ = std::fs::remove_file(&tmp);
-        return Err(GlossaryError::ExportWriteFailed { path: path_str, detail: e.to_string() });
+        return Err(GlossaryError::ExportWriteFailed {
+            path: path_str,
+            detail: e.to_string(),
+        });
     }
 
     // fsync THƯ MỤC CHA — không thừa: `file.sync_all()` làm bền NỘI DUNG tệp tạm,
@@ -189,7 +198,8 @@ mod tests {
         {
             use std::io::{Seek, SeekFrom, Write as _};
             let mut file = std::fs::File::create(&path).unwrap();
-            file.seek(SeekFrom::Start(MAX_GLOSSARY_IMPORT_BYTES + 1)).unwrap();
+            file.seek(SeekFrom::Start(MAX_GLOSSARY_IMPORT_BYTES + 1))
+                .unwrap();
             file.write_all(b"x").unwrap();
         }
 
@@ -263,7 +273,8 @@ mod tests {
         {
             use std::io::{Seek, SeekFrom, Write as _};
             let mut file = std::fs::File::create(&path).unwrap();
-            file.seek(SeekFrom::Start(MAX_GLOSSARY_IMPORT_BYTES * 8)).unwrap();
+            file.seek(SeekFrom::Start(MAX_GLOSSARY_IMPORT_BYTES * 8))
+                .unwrap();
             file.write_all(b"x").unwrap();
         }
 
@@ -297,7 +308,10 @@ mod tests {
 
         write_export_file(&path, "source_term,translation\na,b\n").unwrap();
 
-        assert_eq!(std::fs::read_to_string(&path).unwrap(), "source_term,translation\na,b\n");
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "source_term,translation\na,b\n"
+        );
         // 🔵 SỬA 2026-08-25 (mục ⑨) — tên tạm nay mang hậu tố pid+uuid KHÔNG đoán trước
         // được, nên phép kiểm "không tệp tạm nào sót lại" phải QUÉT thư mục thay vì đoán
         // đúng MỘT cái tên `out.csv.tmp` -- kiểm mạnh hơn bản trước: bắt được BẤT KỲ tệp
@@ -327,7 +341,10 @@ mod tests {
 
         let err = write_export_file(&path, "x").unwrap_err();
         assert!(matches!(err, GlossaryError::ExportWriteFailed { .. }));
-        assert!(!dir.exists(), "thu muc dich khong ton tai thi khong co gi duoc tao ra ca");
+        assert!(
+            !dir.exists(),
+            "thu muc dich khong ton tai thi khong co gi duoc tao ra ca"
+        );
     }
 
     /// P8 (vòng rà ba lớp 2026-08-25) — một đường dẫn KHÔNG có thành phần tên tệp (gốc
@@ -405,20 +422,28 @@ mod tests {
 
         let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
 
-        let (path_a, content_a_move, barrier_a) = (path.clone(), content_a.clone(), barrier.clone());
+        let (path_a, content_a_move, barrier_a) =
+            (path.clone(), content_a.clone(), barrier.clone());
         let thread_a = std::thread::spawn(move || {
             barrier_a.wait();
             write_export_file(&path_a, &content_a_move)
         });
 
-        let (path_b, content_b_move, barrier_b) = (path.clone(), content_b.clone(), barrier.clone());
+        let (path_b, content_b_move, barrier_b) =
+            (path.clone(), content_b.clone(), barrier.clone());
         let thread_b = std::thread::spawn(move || {
             barrier_b.wait();
             write_export_file(&path_b, &content_b_move)
         });
 
-        thread_a.join().expect("luong A khong panic").expect("luot ghi A phai thanh cong");
-        thread_b.join().expect("luong B khong panic").expect("luot ghi B phai thanh cong");
+        thread_a
+            .join()
+            .expect("luong A khong panic")
+            .expect("luot ghi A phai thanh cong");
+        thread_b
+            .join()
+            .expect("luong B khong panic")
+            .expect("luot ghi B phai thanh cong");
 
         let final_content = std::fs::read_to_string(&path).unwrap();
         assert!(

@@ -19,14 +19,25 @@ const INLINE_ELEMENTS: [&str; 6] = ["bpt", "ept", "ph", "it", "ut", "sub"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TmxError {
-    Malformed { line: usize, detail: String },
+    Malformed {
+        line: usize,
+        detail: String,
+    },
     NoBody,
     NotUtf8,
-    TooLarge { limit: u64 },
+    TooLarge {
+        limit: u64,
+    },
     /// `source_lang` is the Work's language when the Work tier was asked for.
-    NoUsablePair { source_lang: Option<String> },
-    ReadFailed { detail: String },
-    WriteFailed { detail: String },
+    NoUsablePair {
+        source_lang: Option<String>,
+    },
+    ReadFailed {
+        detail: String,
+    },
+    WriteFailed {
+        detail: String,
+    },
 }
 
 impl std::fmt::Display for TmxError {
@@ -57,7 +68,10 @@ fn has_han(text: &str) -> bool {
 }
 
 fn xml_representable(text: &str) -> bool {
-    text.chars().all(|c| matches!(c, '\t' | '\n' | '\r') || ((c as u32) >= 0x20 && !matches!(c as u32, 0xFFFE | 0xFFFF)))
+    text.chars().all(|c| {
+        matches!(c, '\t' | '\n' | '\r')
+            || ((c as u32) >= 0x20 && !matches!(c as u32, 0xFFFE | 0xFFFF))
+    })
 }
 
 fn escape_into(out: &mut String, text: &str) {
@@ -93,7 +107,14 @@ fn in_range(s: &str, lo: u32, hi: u32) -> bool {
     s.parse::<u32>().is_ok_and(|v| (lo..=hi).contains(&v))
 }
 
-fn date_parts_valid(year: &str, month: &str, day: &str, hour: &str, minute: &str, second: &str) -> bool {
+fn date_parts_valid(
+    year: &str,
+    month: &str,
+    day: &str,
+    hour: &str,
+    minute: &str,
+    second: &str,
+) -> bool {
     year.bytes().all(|b| b.is_ascii_digit())
         && in_range(month, 1, 12)
         && in_range(day, 1, 31)
@@ -108,10 +129,25 @@ pub fn parse_iso_millis(value: &str) -> Option<&str> {
     if b.len() != 24 || !value.is_ascii() {
         return None;
     }
-    let shape = b[4] == b'-' && b[7] == b'-' && b[10] == b'T' && b[13] == b':' && b[16] == b':' && b[19] == b'.' && b[23] == b'Z';
+    let shape = b[4] == b'-'
+        && b[7] == b'-'
+        && b[10] == b'T'
+        && b[13] == b':'
+        && b[16] == b':'
+        && b[19] == b'.'
+        && b[23] == b'Z';
     let millis = b[20..23].iter().all(u8::is_ascii_digit);
-    (shape && millis && date_parts_valid(&value[0..4], &value[5..7], &value[8..10], &value[11..13], &value[14..16], &value[17..19]))
-        .then_some(value)
+    (shape
+        && millis
+        && date_parts_valid(
+            &value[0..4],
+            &value[5..7],
+            &value[8..10],
+            &value[11..13],
+            &value[14..16],
+            &value[17..19],
+        ))
+    .then_some(value)
 }
 
 /// `20261004T123456Z` as `2026-10-04T12:34:56.000Z`.
@@ -120,7 +156,14 @@ fn iso_from_tmx_date(value: &str) -> Option<String> {
     if b.len() != 16 || !value.is_ascii() || b[8] != b'T' || b[15] != b'Z' {
         return None;
     }
-    let (y, mo, d, h, mi, s) = (&value[0..4], &value[4..6], &value[6..8], &value[9..11], &value[11..13], &value[13..15]);
+    let (y, mo, d, h, mi, s) = (
+        &value[0..4],
+        &value[4..6],
+        &value[6..8],
+        &value[9..11],
+        &value[11..13],
+        &value[13..15],
+    );
     date_parts_valid(y, mo, d, h, mi, s).then(|| format!("{y}-{mo}-{d}T{h}:{mi}:{s}.000Z"))
 }
 
@@ -147,7 +190,10 @@ pub fn render_tmx(pairs: &[TmPair], tier: TmxTier<'_>) -> RenderedTmx {
     out.push_str("\" datatype=\"plaintext\"/>\n  <body>\n");
     let mut left_out = 0;
     for pair in pairs {
-        if ![&pair.source_text, &pair.target_text, &pair.created_at].into_iter().all(|t| xml_representable(t)) {
+        if ![&pair.source_text, &pair.target_text, &pair.created_at]
+            .into_iter()
+            .all(|t| xml_representable(t))
+        {
             left_out += 1;
             continue;
         }
@@ -181,13 +227,18 @@ pub fn render_tmx(pairs: &[TmPair], tier: TmxTier<'_>) -> RenderedTmx {
         out.push_str("</seg></tuv>\n    </tu>\n");
     }
     out.push_str("  </body>\n</tmx>\n");
-    RenderedTmx { text: out, left_out }
+    RenderedTmx {
+        text: out,
+        left_out,
+    }
 }
 
 /// UTF-8 (BOM allowed) or UTF-16 with BOM to text; anything else is `NotUtf8`.
 pub fn decode_tmx_bytes(bytes: &[u8]) -> Result<String, TmxError> {
     if bytes.len() as u64 > MAX_TMX_BYTES {
-        return Err(TmxError::TooLarge { limit: MAX_TMX_BYTES });
+        return Err(TmxError::TooLarge {
+            limit: MAX_TMX_BYTES,
+        });
     }
     let utf16 = |rest: &[u8], le: bool| -> Result<String, TmxError> {
         if rest.len() % 2 != 0 {
@@ -195,14 +246,22 @@ pub fn decode_tmx_bytes(bytes: &[u8]) -> Result<String, TmxError> {
         }
         let units: Vec<u16> = rest
             .chunks_exact(2)
-            .map(|p| if le { u16::from_le_bytes([p[0], p[1]]) } else { u16::from_be_bytes([p[0], p[1]]) })
+            .map(|p| {
+                if le {
+                    u16::from_le_bytes([p[0], p[1]])
+                } else {
+                    u16::from_be_bytes([p[0], p[1]])
+                }
+            })
             .collect();
         String::from_utf16(&units).map_err(|_| TmxError::NotUtf8)
     };
     match bytes {
         [0xFF, 0xFE, rest @ ..] => utf16(rest, true),
         [0xFE, 0xFF, rest @ ..] => utf16(rest, false),
-        [0xEF, 0xBB, 0xBF, rest @ ..] => String::from_utf8(rest.to_vec()).map_err(|_| TmxError::NotUtf8),
+        [0xEF, 0xBB, 0xBF, rest @ ..] => {
+            String::from_utf8(rest.to_vec()).map_err(|_| TmxError::NotUtf8)
+        }
         _ => String::from_utf8(bytes.to_vec()).map_err(|_| TmxError::NotUtf8),
     }
 }
@@ -231,12 +290,21 @@ fn attribute(start: &BytesStart<'_>, local: &str) -> Option<String> {
         .attributes()
         .flatten()
         .find(|a| a.key.local_name().as_ref() == local.as_bytes())
-        .and_then(|a| a.normalized_value(quick_xml::XmlVersion::Implicit1_0).ok().map(|v| v.into_owned()))
+        .and_then(|a| {
+            a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                .ok()
+                .map(|v| v.into_owned())
+        })
 }
 
 fn line_at(text: &str, position: u64) -> usize {
-    let end = usize::try_from(position).unwrap_or(usize::MAX).min(text.len());
-    1 + text.as_bytes()[..end].iter().filter(|&&b| b == b'\n').count()
+    let end = usize::try_from(position)
+        .unwrap_or(usize::MAX)
+        .min(text.len());
+    1 + text.as_bytes()[..end]
+        .iter()
+        .filter(|&&b| b == b'\n')
+        .count()
 }
 
 fn predefined_entity(name: &str) -> Option<char> {
@@ -272,9 +340,14 @@ impl Walk {
             "body" if self.stack.len() == 1 => self.seen_body = true,
             "header" if self.stack.len() == 1 => self.parsed.srclang = attribute(e, "srclang"),
             "tu" if self.in_body() => {
-                self.unit = Some(TmxUnit { creationdate: attribute(e, "creationdate"), ..TmxUnit::default() });
+                self.unit = Some(TmxUnit {
+                    creationdate: attribute(e, "creationdate"),
+                    ..TmxUnit::default()
+                });
             }
-            "tuv" if self.unit.is_some() => self.lang = Some(attribute(e, "lang").unwrap_or_default()),
+            "tuv" if self.unit.is_some() => {
+                self.lang = Some(attribute(e, "lang").unwrap_or_default())
+            }
             "seg" if self.lang.is_some() => self.seg = Some(String::new()),
             "prop" if self.unit.is_some() && self.lang.is_none() => {
                 self.prop_type = attribute(e, "type");
@@ -300,7 +373,9 @@ impl Walk {
             }
             "tuv" if self.lang.is_some() && self.seg.is_none() => self.lang = None,
             "seg" if self.seg.is_some() && self.inline_depth == 0 => {
-                if let (Some(unit), Some(lang), Some(seg)) = (self.unit.as_mut(), self.lang.take(), self.seg.take()) {
+                if let (Some(unit), Some(lang), Some(seg)) =
+                    (self.unit.as_mut(), self.lang.take(), self.seg.take())
+                {
                     unit.variants.push((lang, seg));
                 }
             }
@@ -376,7 +451,10 @@ pub fn parse_tmx(text: &str) -> Result<ParsedTmx, TmxError> {
         }
     }
     if !walk.stack.is_empty() {
-        return Err(malformed(&reader, format!("unclosed element {}", walk.stack.join("/"))));
+        return Err(malformed(
+            &reader,
+            format!("unclosed element {}", walk.stack.join("/")),
+        ));
     }
     if !walk.seen_tmx || !walk.seen_body {
         return Err(TmxError::NoBody);
@@ -408,7 +486,10 @@ pub struct ImportPlan {
 }
 
 fn primary_subtag(lang: &str) -> String {
-    lang.split(['-', '_']).next().unwrap_or("").to_ascii_lowercase()
+    lang.split(['-', '_'])
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase()
 }
 
 fn created_at_for(unit: &TmxUnit) -> Option<String> {
@@ -440,11 +521,20 @@ pub fn plan_import(parsed: &ParsedTmx, tier: TmxTier<'_>) -> Result<ImportPlan, 
             .map(primary_subtag)
             .filter(|s| !s.is_empty() && s != ALL_LANGS),
     };
-    let mut plan = ImportPlan { unit_count: parsed.units.len(), skipped_count: 0, duplicate_in_file_count: 0, pairs: Vec::new() };
+    let mut plan = ImportPlan {
+        unit_count: parsed.units.len(),
+        skipped_count: 0,
+        duplicate_in_file_count: 0,
+        pairs: Vec::new(),
+    };
     let mut seen: HashSet<(String, String)> = HashSet::new();
     for unit in &parsed.units {
         let source = source_variant(unit, wanted.as_deref());
-        let target = unit.variants.iter().find(|(lang, _)| primary_subtag(lang) == TARGET_LANG).map(|(_, t)| t.as_str());
+        let target = unit
+            .variants
+            .iter()
+            .find(|(lang, _)| primary_subtag(lang) == TARGET_LANG)
+            .map(|(_, t)| t.as_str());
         let (Some(source), Some(target)) = (source, target) else {
             plan.skipped_count += 1;
             continue;
@@ -460,7 +550,10 @@ pub fn plan_import(parsed: &ParsedTmx, tier: TmxTier<'_>) -> Result<ImportPlan, 
         plan.pairs.push(PlannedPair {
             source_text: source.to_owned(),
             target_text: target.to_owned(),
-            translation_origin: unit.pair_origin.as_deref().and_then(PairOrigin::from_stored),
+            translation_origin: unit
+                .pair_origin
+                .as_deref()
+                .and_then(PairOrigin::from_stored),
             created_at: created_at_for(unit),
         });
     }
@@ -475,7 +568,9 @@ pub fn plan_import(parsed: &ParsedTmx, tier: TmxTier<'_>) -> Result<ImportPlan, 
 }
 
 /// Pairs of a tier as stored, for the "already there" check.
-pub fn existing_pair_keys(store: &crate::core::store::Store) -> Result<HashSet<(String, String)>, super::TmStoreError> {
+pub fn existing_pair_keys(
+    store: &crate::core::store::Store,
+) -> Result<HashSet<(String, String)>, super::TmStoreError> {
     let keys = store.read(|conn| {
         let mut stmt = conn.prepare("SELECT source_text, target_text FROM tm_unit")?;
         let rows = stmt
@@ -520,45 +615,56 @@ pub fn write_planned_pairs(
     pairs: Vec<PlannedPair>,
     file_is_mine: bool,
 ) -> Result<WriteOutcome, super::TmStoreError> {
-    let outcome = store.write(move |tx| {
-        let now: String = tx.query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')", [], |r| r.get(0))?;
-        let mut inserted = 0;
-        let mut already_there = 0;
-        let mut future_dated = 0;
-        for pair in &pairs {
-            let exists: i64 = tx.query_row(
+    let outcome =
+        store.write(move |tx| {
+            let now: String =
+                tx.query_row("SELECT strftime('%Y-%m-%dT%H:%M:%fZ','now')", [], |r| {
+                    r.get(0)
+                })?;
+            let mut inserted = 0;
+            let mut already_there = 0;
+            let mut future_dated = 0;
+            for pair in &pairs {
+                let exists: i64 = tx.query_row(
                 "SELECT EXISTS(SELECT 1 FROM tm_unit WHERE source_text = ?1 AND target_text = ?2)",
                 (&pair.source_text, &pair.target_text),
                 |r| r.get(0),
             )?;
-            if exists != 0 {
-                already_there += 1;
-                continue;
-            }
-            let created_at = match &pair.created_at {
-                Some(at) if *at > now => {
-                    future_dated += 1;
-                    &now
+                if exists != 0 {
+                    already_there += 1;
+                    continue;
                 }
-                Some(at) => at,
-                None => &now,
-            };
-            let pair_origin = pair_origin_for(pair.translation_origin, file_is_mine);
-            tx.execute(
+                let created_at = match &pair.created_at {
+                    Some(at) if *at > now => {
+                        future_dated += 1;
+                        &now
+                    }
+                    Some(at) => at,
+                    None => &now,
+                };
+                let pair_origin = pair_origin_for(pair.translation_origin, file_is_mine);
+                tx.execute(
                 "INSERT INTO tm_unit (source_text, target_text, translation_origin, created_at) \
                  VALUES (?1, ?2, ?3, ?4)",
                 (&pair.source_text, &pair.target_text, pair_origin.as_str(), created_at),
             )?;
-            inserted += 1;
-        }
-        Ok(WriteOutcome { inserted, already_there, future_dated })
-    })?;
+                inserted += 1;
+            }
+            Ok(WriteOutcome {
+                inserted,
+                already_there,
+                future_dated,
+            })
+        })?;
     Ok(outcome)
 }
 
 /// One `<tu>` per distinct (source, target) of a tier, carrying its first copy in AD-18 order
 /// (mine first, newest, highest id); output in the id order of those copies.
-pub fn distinct_tier_pairs(store: &crate::core::store::Store, tier: super::TmTier) -> Result<Vec<TmPair>, super::TmStoreError> {
+pub fn distinct_tier_pairs(
+    store: &crate::core::store::Store,
+    tier: super::TmTier,
+) -> Result<Vec<TmPair>, super::TmStoreError> {
     let rows = super::load_all_pair_rows(store)?;
     let resolver = crate::core::scope::ScopeResolver::global_only();
     let ordered = match tier {

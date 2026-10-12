@@ -373,7 +373,13 @@ pub fn restore_segment_version(
         // ⑥ Ghi. HAI cot, MOT giao dich: van ban va trang thai (AC2).
         //    ⚠️ `updated_at` CO doi o day, khac `confirm_segment`: mot luot khoi phuc SUA van
         //    ban that su, nen no dung nghia "moc sua van ban" ma `SEGMENT_DDL` khai cho cot do.
-        write_non_user_target(tx, segment_id, &version_text, TRANSLATION_ORIGIN_OTHER, None)?;
+        write_non_user_target(
+            tx,
+            segment_id,
+            &version_text,
+            TRANSLATION_ORIGIN_OTHER,
+            None,
+        )?;
 
         Ok((true, false, SEGMENT_STATUS_DRAFT.to_owned()))
     });

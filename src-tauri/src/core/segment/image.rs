@@ -94,7 +94,9 @@ fn after_segment_id(
     segments
         .iter()
         .filter(|s| {
-            s.ord <= anchor && (include_omitted || !s.is_omitted) && (!exclude_roles || s.role.is_none())
+            s.ord <= anchor
+                && (include_omitted || !s.is_omitted)
+                && (!exclude_roles || s.role.is_none())
         })
         .max_by_key(|s| (s.ord, s.id))
         .map(|s| s.id)
@@ -127,7 +129,9 @@ fn attached_role_text(segments: &[ChapterSegment], after: Option<i64>) -> Attach
     let mut caption_text = None;
     for seg in &segments[start..] {
         match seg.role.as_deref().and_then(SegmentRole::from_str) {
-            Some(SegmentRole::Alt) if alt_text.is_none() => alt_text = Some((seg.target_text.clone(), seg.id)),
+            Some(SegmentRole::Alt) if alt_text.is_none() => {
+                alt_text = Some((seg.target_text.clone(), seg.id))
+            }
             Some(SegmentRole::Caption) if caption_text.is_none() => {
                 caption_text = Some((seg.target_text.clone(), seg.id));
             }
@@ -140,7 +144,10 @@ fn attached_role_text(segments: &[ChapterSegment], after: Option<i64>) -> Attach
             None => break, // vet ket thuc.
         }
     }
-    AttachedRoles { alt: alt_text, caption: caption_text }
+    AttachedRoles {
+        alt: alt_text,
+        caption: caption_text,
+    }
 }
 
 /// Phân giải MỌI ảnh của một Chương — hàm THUẦN, 0 điểm panic, không chạm đĩa.
@@ -171,8 +178,12 @@ pub fn resolve_chapter_images(
             // Xem doc-comment đầu module cho vì sao đây KHÔNG phải `display_after`.
             let canonical_after =
                 after_segment_id(segments, asset.anchor_after_segment_ord, true, false);
-            let display_after =
-                after_segment_id(segments, asset.anchor_after_segment_ord, include_omitted, exclude_roles);
+            let display_after = after_segment_id(
+                segments,
+                asset.anchor_after_segment_ord,
+                include_omitted,
+                exclude_roles,
+            );
             let AttachedRoles { alt, caption } = attached_role_text(segments, canonical_after);
             ResolvedImage {
                 asset_id: asset.id,
@@ -209,7 +220,12 @@ pub fn strip_role_segments<'a>(
 ) -> Vec<Vec<&'a ChapterSegment>> {
     paragraphs
         .into_iter()
-        .map(|group| group.into_iter().filter(|s| s.role.is_none()).collect::<Vec<_>>())
+        .map(|group| {
+            group
+                .into_iter()
+                .filter(|s| s.role.is_none())
+                .collect::<Vec<_>>()
+        })
         .filter(|group: &Vec<&ChapterSegment>| !group.is_empty())
         .collect()
 }
@@ -218,7 +234,13 @@ pub fn strip_role_segments<'a>(
 mod tests {
     use super::*;
 
-    fn seg(id: i64, ord: i64, role: Option<&str>, is_omitted: bool, is_target_paragraph_end: bool) -> ChapterSegment {
+    fn seg(
+        id: i64,
+        ord: i64,
+        role: Option<&str>,
+        is_omitted: bool,
+        is_target_paragraph_end: bool,
+    ) -> ChapterSegment {
         ChapterSegment {
             id,
             ord,
@@ -235,7 +257,12 @@ mod tests {
     }
 
     fn asset(id: i64, anchor: i64) -> RawAsset {
-        RawAsset { id, file_name: format!("{id}.jpg"), source_url: None, anchor_after_segment_ord: anchor }
+        RawAsset {
+            id,
+            file_name: format!("{id}.jpg"),
+            source_url: None,
+            anchor_after_segment_ord: anchor,
+        }
     }
 
     // ── §I/O Matrix, hàng theo hàng ──────────────────────────────────────────────────
@@ -275,7 +302,11 @@ mod tests {
         assert_eq!(grid[0].after_segment_id, Some(2), "luoi khong loc cat bo");
 
         let reading = resolve_chapter_images(&segments, &assets, false, true);
-        assert_eq!(reading[0].after_segment_id, Some(1), "doc doi ve cau con song lien truoc");
+        assert_eq!(
+            reading[0].after_segment_id,
+            Some(1),
+            "doc doi ve cau con song lien truoc"
+        );
     }
 
     #[test]
@@ -285,7 +316,11 @@ mod tests {
         let assets = vec![asset(100, 2)];
 
         let grid = resolve_chapter_images(&segments, &assets, true, false);
-        assert_eq!(grid[0].after_segment_id, Some(1), "khong con ord=2 -- doi ve ord=1");
+        assert_eq!(
+            grid[0].after_segment_id,
+            Some(1),
+            "khong con ord=2 -- doi ve ord=1"
+        );
     }
 
     #[test]
@@ -294,7 +329,10 @@ mod tests {
         let assets = vec![asset(100, 2)];
 
         let resolved = resolve_chapter_images(&segments, &assets, true, false);
-        assert_eq!(resolved[0].after_segment_id, None, "khong segment nao <= anchor -- ve dau Chuong");
+        assert_eq!(
+            resolved[0].after_segment_id, None,
+            "khong segment nao <= anchor -- ve dau Chuong"
+        );
     }
 
     #[test]
@@ -303,13 +341,19 @@ mod tests {
         let assets = vec![asset(200, 1), asset(100, 1)]; // co y dao thu tu id trong input.
 
         let resolved = resolve_chapter_images(&segments, &assets, true, false);
-        assert_eq!(resolved.iter().map(|r| r.asset_id).collect::<Vec<_>>(), vec![100, 200]);
+        assert_eq!(
+            resolved.iter().map(|r| r.asset_id).collect::<Vec<_>>(),
+            vec![100, 200]
+        );
         assert!(resolved.iter().all(|r| r.after_segment_id == Some(1)));
     }
 
     #[test]
     fn an_image_without_a_caption_segment_gets_no_caption_block() {
-        let segments = vec![seg(1, 1, None, false, false), seg(2, 2, Some("alt"), false, false)];
+        let segments = vec![
+            seg(1, 1, None, false, false),
+            seg(2, 2, Some("alt"), false, false),
+        ];
         let assets = vec![asset(100, 1)];
 
         let resolved = resolve_chapter_images(&segments, &assets, true, false);
@@ -319,7 +363,10 @@ mod tests {
 
     #[test]
     fn an_image_without_an_alt_segment_yields_no_alt_text() {
-        let segments = vec![seg(1, 1, None, false, false), seg(2, 2, Some("caption"), false, false)];
+        let segments = vec![
+            seg(1, 1, None, false, false),
+            seg(2, 2, Some("caption"), false, false),
+        ];
         let assets = vec![asset(100, 1)];
 
         let resolved = resolve_chapter_images(&segments, &assets, true, false);
@@ -344,8 +391,16 @@ mod tests {
 
         let resolved = resolve_chapter_images(&segments, &assets, true, false);
         let by_id = |id: i64| resolved.iter().find(|r| r.asset_id == id).unwrap();
-        assert_eq!(by_id(10).alt_text.as_deref(), Some("tgt 2"), "anh A giu dung alt cua no");
-        assert_eq!(by_id(20).alt_text.as_deref(), Some("tgt 3"), "anh B giu dung alt cua no, khong lay lai cua A");
+        assert_eq!(
+            by_id(10).alt_text.as_deref(),
+            Some("tgt 2"),
+            "anh A giu dung alt cua no"
+        );
+        assert_eq!(
+            by_id(20).alt_text.as_deref(),
+            Some("tgt 3"),
+            "anh B giu dung alt cua no, khong lay lai cua A"
+        );
     }
 
     #[test]
@@ -404,7 +459,10 @@ mod tests {
 
         let stripped = strip_role_segments(paragraphs);
         assert_eq!(stripped.len(), 1);
-        assert_eq!(stripped[0].iter().map(|s| s.id).collect::<Vec<_>>(), vec![1, 3]);
+        assert_eq!(
+            stripped[0].iter().map(|s| s.id).collect::<Vec<_>>(),
+            vec![1, 3]
+        );
     }
 
     #[test]
@@ -415,7 +473,11 @@ mod tests {
         let paragraphs = vec![vec![&alt, &caption], vec![&prose]];
 
         let stripped = strip_role_segments(paragraphs);
-        assert_eq!(stripped.len(), 1, "doan toan vai phai bien mat, khong lot ra rong: {stripped:?}");
+        assert_eq!(
+            stripped.len(),
+            1,
+            "doan toan vai phai bien mat, khong lot ra rong: {stripped:?}"
+        );
         assert_eq!(stripped[0][0].id, 3);
     }
 }

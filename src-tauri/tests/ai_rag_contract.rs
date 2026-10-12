@@ -20,9 +20,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use auratranslate_lib::core::ai::rag::{
-    GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair, InjectionLedger, PromptPieceKind,
-    SuppressedGlossaryTerm,
-    TmInjectionStatus, assemble_prompt, gather_glossary_context,
+    GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair, InjectionLedger,
+    PromptPieceKind, SuppressedGlossaryTerm, TmInjectionStatus, assemble_prompt,
+    gather_glossary_context,
 };
 use auratranslate_lib::core::glossary::{
     Category, GlossaryError, GlossaryInjectionTerm, GlossaryTier, add_manual_term,
@@ -70,8 +70,16 @@ const GLOSSARY_BODY: &str = "Terms: {{glossary_terms}}\nSentence: {{source_segme
 fn a_confirmed_global_term_is_injected_and_listed_in_the_ledger() {
     let dir = temp_dir("confirmed-global");
     let global = open_global(&dir);
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them thuat ngu");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu");
 
     let resolver = ScopeResolver::global_only();
     let sentence = "A dragon roared.";
@@ -82,7 +90,10 @@ fn a_confirmed_global_term_is_injected_and_listed_in_the_ledger() {
 
     assert_eq!(prompt, "Terms: dragon → rong\nSentence: A dragon roared.");
     match &ledger.glossary {
-        GlossaryInjectionStatus::Asked { injected, suppressed_by_pending_overlap } => {
+        GlossaryInjectionStatus::Asked {
+            injected,
+            suppressed_by_pending_overlap,
+        } => {
             // "A dragon roared." -- "dragon" chiem diem ma 2..8.
             assert_eq!(
                 injected,
@@ -112,10 +123,26 @@ fn a_confirmed_global_term_is_injected_and_listed_in_the_ledger() {
 fn ledger_injected_terms_are_at_the_same_span_as_the_grids_confirmed_marks() {
     let dir = temp_dir("ac2-span-cross-check");
     let global = open_global(&dir);
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them dragon");
-    add_manual_term(&global, None, GlossaryTier::Global, "castle", Some("lau dai"), "", Category::Other)
-        .expect("them castle");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them dragon");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "castle",
+        Some("lau dai"),
+        "",
+        Category::Other,
+    )
+    .expect("them castle");
 
     let resolver = ScopeResolver::global_only();
     let sentence = "A dragon guards the castle.";
@@ -124,9 +151,16 @@ fn ledger_injected_terms_are_at_the_same_span_as_the_grids_confirmed_marks() {
         .expect("gather khong loi");
     let layers = auratranslate_lib::core::dict::DictLayers::empty();
     let disabled = std::collections::BTreeSet::new();
-    let marks =
-        marks_for_source_text(&resolver, &global, None, sentence, MatchLang::En, &layers, &disabled)
-            .expect("marks khong loi");
+    let marks = marks_for_source_text(
+        &resolver,
+        &global,
+        None,
+        sentence,
+        MatchLang::En,
+        &layers,
+        &disabled,
+    )
+    .expect("marks khong loi");
 
     let GlossaryInjectionStatus::Asked { injected, .. } = &status else {
         panic!("mong Asked, nhan {status:?}");
@@ -137,15 +171,28 @@ fn ledger_injected_terms_are_at_the_same_span_as_the_grids_confirmed_marks() {
         let mark = marks
             .iter()
             .find(|m| m.source_term == term.source_term)
-            .unwrap_or_else(|| panic!("khong tim thay dau luoi cho '{}': {marks:?}", term.source_term));
-        assert!(mark.is_confirmed, "dau luoi cho '{}' phai DA CHOT", term.source_term);
+            .unwrap_or_else(|| {
+                panic!(
+                    "khong tim thay dau luoi cho '{}': {marks:?}",
+                    term.source_term
+                )
+            });
+        assert!(
+            mark.is_confirmed,
+            "dau luoi cho '{}' phai DA CHOT",
+            term.source_term
+        );
         assert_eq!(
             (term.start, term.end),
             (mark.start, mark.end),
             "ledger va luoi phai khop DUNG SPAN cho '{}'",
             term.source_term
         );
-        assert_eq!(term.tier, mark.tier, "ledger va luoi phai khop DUNG TANG cho '{}'", term.source_term);
+        assert_eq!(
+            term.tier, mark.tier,
+            "ledger va luoi phai khop DUNG TANG cho '{}'",
+            term.source_term
+        );
     }
 
     drop(global);
@@ -163,8 +210,16 @@ fn work_tier_overrides_global_for_the_same_term() {
     let global = open_global(&global_dir);
     let work = open_project(&work_dir);
 
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong toan cuc"), "", Category::Other)
-        .expect("them global");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong toan cuc"),
+        "",
+        Category::Other,
+    )
+    .expect("them global");
     add_manual_term(
         &global,
         Some(&work),
@@ -179,8 +234,14 @@ fn work_tier_overrides_global_for_the_same_term() {
     let resolver = ScopeResolver::with_work(auratranslate_lib::core::scope::WorkScope {
         work_id: "w1".to_owned(),
     });
-    let outcome = confirmed_terms_for_injection(&resolver, &global, Some(&work), "A dragon roared.", MatchLang::En)
-        .expect("cua khong loi");
+    let outcome = confirmed_terms_for_injection(
+        &resolver,
+        &global,
+        Some(&work),
+        "A dragon roared.",
+        MatchLang::En,
+    )
+    .expect("cua khong loi");
 
     assert_eq!(outcome.injected.len(), 1);
     assert_eq!(outcome.injected[0].translation, "rong tac pham");
@@ -200,12 +261,21 @@ fn work_tier_overrides_global_for_the_same_term() {
 fn a_pending_entry_is_not_injected_and_not_listed() {
     let dir = temp_dir("pending");
     let global = open_global(&dir);
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", None, "", Category::Other)
-        .expect("them muc cho chot");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them muc cho chot");
 
     let resolver = ScopeResolver::global_only();
-    let outcome = confirmed_terms_for_injection(&resolver, &global, None, "A dragon roared.", MatchLang::En)
-        .expect("cua khong loi");
+    let outcome =
+        confirmed_terms_for_injection(&resolver, &global, None, "A dragon roared.", MatchLang::En)
+            .expect("cua khong loi");
 
     assert!(outcome.injected.is_empty());
     assert!(outcome.suppressed_by_pending_overlap.is_empty());
@@ -225,18 +295,43 @@ fn pending_work_shadowing_confirmed_global_injects_neither() {
     let global = open_global(&global_dir);
     let work = open_project(&work_dir);
 
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them global da chot");
-    add_manual_term(&global, Some(&work), GlossaryTier::Work, "dragon", None, "", Category::Other)
-        .expect("them work cho chot");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them global da chot");
+    add_manual_term(
+        &global,
+        Some(&work),
+        GlossaryTier::Work,
+        "dragon",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them work cho chot");
 
     let resolver = ScopeResolver::with_work(auratranslate_lib::core::scope::WorkScope {
         work_id: "w1".to_owned(),
     });
-    let outcome = confirmed_terms_for_injection(&resolver, &global, Some(&work), "A dragon roared.", MatchLang::En)
-        .expect("cua khong loi");
+    let outcome = confirmed_terms_for_injection(
+        &resolver,
+        &global,
+        Some(&work),
+        "A dragon roared.",
+        MatchLang::En,
+    )
+    .expect("cua khong loi");
 
-    assert!(outcome.injected.is_empty(), "muc Work cho chot che muc Global da chot -- khong ben nao duoc chen");
+    assert!(
+        outcome.injected.is_empty(),
+        "muc Work cho chot che muc Global da chot -- khong ben nao duoc chen"
+    );
     assert!(
         outcome.suppressed_by_pending_overlap.is_empty(),
         "day la muc CHE THEO TANG (AD-18), khong phai muc CHE THEO CHONG SPAN (Decision 4) -- \
@@ -257,16 +352,43 @@ fn pending_work_shadowing_confirmed_global_injects_neither() {
 fn overlapping_confirmed_terms_the_longer_span_wins() {
     let dir = temp_dir("overlap-confirmed");
     let global = open_global(&dir);
-    add_manual_term(&global, None, GlossaryTier::Global, "fire dragon", Some("hoa long"), "", Category::Other)
-        .expect("them cum dai");
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them cum ngan");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "fire dragon",
+        Some("hoa long"),
+        "",
+        Category::Other,
+    )
+    .expect("them cum dai");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them cum ngan");
 
     let resolver = ScopeResolver::global_only();
-    let outcome = confirmed_terms_for_injection(&resolver, &global, None, "A fire dragon roars.", MatchLang::En)
-        .expect("cua khong loi");
+    let outcome = confirmed_terms_for_injection(
+        &resolver,
+        &global,
+        None,
+        "A fire dragon roars.",
+        MatchLang::En,
+    )
+    .expect("cua khong loi");
 
-    assert_eq!(outcome.injected.len(), 1, "chi mot cap duoc chen: {:?}", outcome.injected);
+    assert_eq!(
+        outcome.injected.len(),
+        1,
+        "chi mot cap duoc chen: {:?}",
+        outcome.injected
+    );
     assert_eq!(outcome.injected[0].source_term, "fire dragon");
     assert_eq!(outcome.injected[0].translation, "hoa long");
 
@@ -282,10 +404,26 @@ fn overlapping_confirmed_terms_the_longer_span_wins() {
 fn confirmed_terms_for_injection_returns_two_pairs_in_sentence_order() {
     let dir = temp_dir("door-two-pairs");
     let global = open_global(&dir);
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them dragon");
-    add_manual_term(&global, None, GlossaryTier::Global, "castle", Some("lau dai"), "", Category::Other)
-        .expect("them castle");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them dragon");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "castle",
+        Some("lau dai"),
+        "",
+        Category::Other,
+    )
+    .expect("them castle");
 
     let resolver = ScopeResolver::global_only();
     let sentence = "A dragon guards the castle.";
@@ -331,10 +469,26 @@ fn confirmed_terms_for_injection_returns_two_pairs_in_sentence_order() {
 fn a_pending_term_overlapping_a_confirmed_term_suppresses_both_and_the_ledger_names_it() {
     let dir = temp_dir("pending-overlap");
     let global = open_global(&dir);
-    add_manual_term(&global, None, GlossaryTier::Global, "dog", Some("cho"), "", Category::Other)
-        .expect("them dog da chot");
-    add_manual_term(&global, None, GlossaryTier::Global, "dog walker", None, "", Category::Other)
-        .expect("them dog walker cho chot");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dog",
+        Some("cho"),
+        "",
+        Category::Other,
+    )
+    .expect("them dog da chot");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dog walker",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them dog walker cho chot");
 
     let resolver = ScopeResolver::global_only();
     let sentence = "The dog walker arrived.";
@@ -345,7 +499,10 @@ fn a_pending_term_overlapping_a_confirmed_term_suppresses_both_and_the_ledger_na
         .expect("gather khong loi");
 
     match &status {
-        GlossaryInjectionStatus::Asked { injected, suppressed_by_pending_overlap } => {
+        GlossaryInjectionStatus::Asked {
+            injected,
+            suppressed_by_pending_overlap,
+        } => {
             assert!(injected.is_empty(), "khong ben nao duoc chen: {injected:?}");
             assert_eq!(
                 suppressed_by_pending_overlap,
@@ -366,9 +523,16 @@ fn a_pending_term_overlapping_a_confirmed_term_suppresses_both_and_the_ledger_na
     // che, KHÔNG đánh dấu "dog" — cùng kết luận mà ledger vừa nêu, đọc từ phía LƯỚI.
     let layers = auratranslate_lib::core::dict::DictLayers::empty();
     let disabled = std::collections::BTreeSet::new();
-    let marks =
-        marks_for_source_text(&resolver, &global, None, sentence, MatchLang::En, &layers, &disabled)
-            .expect("marks khong loi");
+    let marks = marks_for_source_text(
+        &resolver,
+        &global,
+        None,
+        sentence,
+        MatchLang::En,
+        &layers,
+        &disabled,
+    )
+    .expect("marks khong loi");
     assert_eq!(marks.len(), 1, "grid: {marks:?}");
     assert_eq!(marks[0].source_term, "dog walker");
     assert!(!marks[0].is_confirmed);
@@ -389,8 +553,16 @@ fn a_pending_term_overlapping_a_confirmed_term_suppresses_both_and_the_ledger_na
 fn no_term_matches_removes_the_marker_line_and_ledger_records_asked_empty() {
     let dir = temp_dir("no-match");
     let global = open_global(&dir);
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them thuat ngu khong khop cau nay");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu khong khop cau nay");
 
     let resolver = ScopeResolver::global_only();
     let body = "Terms: {{glossary_terms}}\n{{source_segment}}";
@@ -399,7 +571,10 @@ fn no_term_matches_removes_the_marker_line_and_ledger_records_asked_empty() {
 
     let (prompt, ledger) = assemble_prompt(body, "Nothing here.", status, None);
 
-    assert_eq!(prompt, "Terms: \nNothing here.", "marker mat nhung dong con lai vi Terms: khong rong");
+    assert_eq!(
+        prompt, "Terms: \nNothing here.",
+        "marker mat nhung dong con lai vi Terms: khong rong"
+    );
     match &ledger.glossary {
         GlossaryInjectionStatus::Asked { injected, .. } => assert!(injected.is_empty()),
         other => panic!("mong Asked (rong), nhan {other:?}"),
@@ -449,7 +624,10 @@ fn an_unknown_marker_is_left_verbatim_and_reported() {
     let (prompt, ledger) = assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
 
     assert_eq!(prompt, "{{chapter_context}} Hello.");
-    assert_eq!(ledger.unknown_markers, vec!["{{chapter_context}}".to_owned()]);
+    assert_eq!(
+        ledger.unknown_markers,
+        vec!["{{chapter_context}}".to_owned()]
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -471,7 +649,12 @@ fn seg(source: &str, target: &str, side: PairSide, percent: u8) -> SimilarSegmen
 }
 
 fn tm_prompt(segments: &[SimilarSegment]) -> (String, InjectionLedger) {
-    assemble_prompt(TM_BODY, "Hello.", GlossaryInjectionStatus::NotAsked, Some(segments))
+    assemble_prompt(
+        TM_BODY,
+        "Hello.",
+        GlossaryInjectionStatus::NotAsked,
+        Some(segments),
+    )
 }
 
 fn injected(ledger: &InjectionLedger) -> &[InjectedTmPair] {
@@ -511,7 +694,11 @@ fn enough_own_pairs_fill_the_cap_and_no_reference_label_appears_even_when_others
 
     assert_eq!(prompt, "TM:\nM4 → t-m4\nM1 → t-m1\nM3 → t-m3\nHello.");
     assert!(!prompt.contains(REFERENCE_LABEL));
-    assert!(injected(&ledger).iter().all(|p| !p.reference && p.side == PairSide::Mine));
+    assert!(
+        injected(&ledger)
+            .iter()
+            .all(|p| !p.reference && p.side == PairSide::Mine)
+    );
 }
 
 #[test]
@@ -531,17 +718,25 @@ fn mixed_pairs_put_own_first_then_others_under_the_label() {
     );
     let pairs = injected(&ledger);
     assert_eq!(pairs.len(), 3);
-    assert_eq!(pairs.iter().map(|p| p.reference).collect::<Vec<_>>(), [false, true, true]);
+    assert_eq!(
+        pairs.iter().map(|p| p.reference).collect::<Vec<_>>(),
+        [false, true, true]
+    );
     assert_eq!(pairs[1].percent, 99);
 }
 
 #[test]
 fn only_others_pairs_sit_under_the_label() {
-    let segments =
-        vec![seg("O1", "t-o1", PairSide::Others, 90), seg("O2", "t-o2", PairSide::Others, 90)];
+    let segments = vec![
+        seg("O1", "t-o1", PairSide::Others, 90),
+        seg("O2", "t-o2", PairSide::Others, 90),
+    ];
     let (prompt, ledger) = tm_prompt(&segments);
 
-    assert_eq!(prompt, format!("TM:\n{REFERENCE_LABEL}\nO1 → t-o1\nO2 → t-o2\nHello."));
+    assert_eq!(
+        prompt,
+        format!("TM:\n{REFERENCE_LABEL}\nO1 → t-o1\nO2 → t-o2\nHello.")
+    );
     assert!(injected(&ledger).iter().all(|p| p.reference));
 }
 
@@ -569,7 +764,10 @@ fn an_identical_source_and_target_pair_is_inserted_once_and_the_own_copy_wins() 
     ];
     let (prompt, ledger) = tm_prompt(&segments);
 
-    assert_eq!(prompt, format!("TM:\nM1 → t-m1\n{REFERENCE_LABEL}\nO2 → t-o2\nO3 → t-o3\nHello."));
+    assert_eq!(
+        prompt,
+        format!("TM:\nM1 → t-m1\n{REFERENCE_LABEL}\nO2 → t-o2\nO3 → t-o3\nHello.")
+    );
     let pairs = injected(&ledger);
     assert_eq!(pairs.len(), 3);
     assert_eq!(pairs[0].side, PairSide::Mine);
@@ -577,8 +775,10 @@ fn an_identical_source_and_target_pair_is_inserted_once_and_the_own_copy_wins() 
 
 #[test]
 fn a_pair_whose_source_equals_the_sentence_is_never_inserted() {
-    let segments =
-        vec![seg("Hello.", "t-exact", PairSide::Mine, 99), seg("M1", "t-m1", PairSide::Mine, 50)];
+    let segments = vec![
+        seg("Hello.", "t-exact", PairSide::Mine, 99),
+        seg("M1", "t-m1", PairSide::Mine, 50),
+    ];
     let (prompt, ledger) = tm_prompt(&segments);
 
     assert_eq!(prompt, "TM:\nM1 → t-m1\nHello.");
@@ -587,14 +787,24 @@ fn a_pair_whose_source_equals_the_sentence_is_never_inserted() {
 
 #[test]
 fn the_tm_block_is_one_tm_piece_and_pieces_concatenate_to_the_prompt() {
-    let segments = vec![seg("M1", "t-m1", PairSide::Mine, 60), seg("O1", "t-o1", PairSide::Others, 90)];
+    let segments = vec![
+        seg("M1", "t-m1", PairSide::Mine, 60),
+        seg("O1", "t-o1", PairSide::Others, 90),
+    ];
     let (prompt, ledger) = tm_prompt(&segments);
 
     let concatenated: String = ledger.pieces.iter().map(|p| p.text.as_str()).collect();
     assert_eq!(concatenated, prompt);
-    let tm_pieces: Vec<_> = ledger.pieces.iter().filter(|p| p.kind == PromptPieceKind::Tm).collect();
+    let tm_pieces: Vec<_> = ledger
+        .pieces
+        .iter()
+        .filter(|p| p.kind == PromptPieceKind::Tm)
+        .collect();
     assert_eq!(tm_pieces.len(), 1, "{:?}", ledger.pieces);
-    assert_eq!(tm_pieces[0].text, format!("M1 → t-m1\n{REFERENCE_LABEL}\nO1 → t-o1"));
+    assert_eq!(
+        tm_pieces[0].text,
+        format!("M1 → t-m1\n{REFERENCE_LABEL}\nO1 → t-o1")
+    );
 }
 
 /// Story 4.7 loop 2, finding P7 -- câu nguồn mang nhãn RIÊNG `PromptPieceKind::SourceSegment`,
@@ -605,7 +815,10 @@ fn pieces_tag_the_source_sentence_with_its_own_kind_separate_from_authored() {
 
     assert_eq!(prompt, "TM:\nHello.");
     let concatenated: String = ledger.pieces.iter().map(|p| p.text.as_str()).collect();
-    assert_eq!(concatenated, prompt, "noi lai pieces phai cho dung prompt TUNG BYTE");
+    assert_eq!(
+        concatenated, prompt,
+        "noi lai pieces phai cho dung prompt TUNG BYTE"
+    );
 
     assert_eq!(ledger.pieces.len(), 2, "{:?}", ledger.pieces);
     assert_eq!(ledger.pieces[0].kind, PromptPieceKind::Authored);
@@ -622,7 +835,8 @@ fn pieces_tag_the_source_sentence_with_its_own_kind_separate_from_authored() {
 #[test]
 fn a_marker_sharing_its_line_with_nothing_to_inject_removes_only_the_marker_text() {
     let body = "Terms: {{glossary_terms}} end.";
-    let (prompt, _ledger) = assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
+    let (prompt, _ledger) =
+        assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
     assert_eq!(prompt, "Terms:  end.");
 }
 
@@ -669,8 +883,7 @@ fn a_marker_sharing_its_line_with_two_or_more_pairs_never_splices_mid_line() {
 #[test]
 fn a_repeated_marker_expands_every_occurrence() {
     let body = "{{source_segment}} -- {{source_segment}}";
-    let (prompt, _ledger) =
-        assemble_prompt(body, "Hi.", GlossaryInjectionStatus::NotAsked, None);
+    let (prompt, _ledger) = assemble_prompt(body, "Hi.", GlossaryInjectionStatus::NotAsked, None);
     assert_eq!(prompt, "Hi. -- Hi.");
 }
 
@@ -689,8 +902,12 @@ fn a_body_omitting_source_segment_is_assembled_and_the_ledger_flags_it() {
 
 #[test]
 fn a_body_carrying_source_segment_is_not_flagged_missing() {
-    let (_prompt, ledger) =
-        assemble_prompt("{{source_segment}}", "Hello.", GlossaryInjectionStatus::NotAsked, None);
+    let (_prompt, ledger) = assemble_prompt(
+        "{{source_segment}}",
+        "Hello.",
+        GlossaryInjectionStatus::NotAsked,
+        None,
+    );
     assert!(!ledger.source_segment_missing);
 }
 
@@ -703,7 +920,10 @@ fn a_body_carrying_source_segment_is_not_flagged_missing() {
 fn a_triple_open_brace_before_source_segment_is_not_mistaken_for_the_real_marker() {
     let body = "{{{source_segment}}";
     let (prompt, ledger) = assemble_prompt(body, "Hi.", GlossaryInjectionStatus::NotAsked, None);
-    assert_eq!(prompt, body, "khong token nao duoc cong nhan -- than giu NGUYEN VAN");
+    assert_eq!(
+        prompt, body,
+        "khong token nao duoc cong nhan -- than giu NGUYEN VAN"
+    );
     assert!(
         ledger.source_segment_missing,
         "mot hinh dang GIONG marker (khop chuoi con nhung khong khop token that) khong duoc \
@@ -808,12 +1028,21 @@ fn render_glossary_pairs_dedupes_by_source_term_but_the_ledger_keeps_every_occur
 fn work_tier_closed_matches_the_global_tier_only_with_no_error() {
     let dir = temp_dir("work-closed");
     let global = open_global(&dir);
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them global");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them global");
 
     let resolver = ScopeResolver::global_only();
-    let outcome = confirmed_terms_for_injection(&resolver, &global, None, "A dragon roared.", MatchLang::En)
-        .expect("khong tang Work van phai khong loi");
+    let outcome =
+        confirmed_terms_for_injection(&resolver, &global, None, "A dragon roared.", MatchLang::En)
+            .expect("khong tang Work van phai khong loi");
 
     assert_eq!(outcome.injected.len(), 1);
     assert_eq!(outcome.injected[0].tier, GlossaryTier::Global);
@@ -868,7 +1097,10 @@ fn chapter_context_is_still_outside_the_ratified_vocabulary() {
     let body = "{{chapter_context}}";
     let (prompt, ledger) = assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
     assert_eq!(prompt, "{{chapter_context}}");
-    assert_eq!(ledger.unknown_markers, vec!["{{chapter_context}}".to_owned()]);
+    assert_eq!(
+        ledger.unknown_markers,
+        vec!["{{chapter_context}}".to_owned()]
+    );
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -939,8 +1171,7 @@ fn blank_lines_untouched_by_any_removal_survive_verbatim() {
 #[test]
 fn removing_a_marker_alone_on_its_line_over_crlf_leaves_no_orphan_carriage_return() {
     let body = "Before.\r\n\r\n{{tm_similar_segments}}\r\n\r\nAfter.";
-    let (prompt, ledger) =
-        assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
+    let (prompt, ledger) = assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
     assert_eq!(
         prompt, "Before.\r\n\r\nAfter.",
         "go dong marker CRLF dua hai dong trang lai gan nhau -- phai con DUNG MOT dong trang, \
@@ -969,8 +1200,7 @@ fn removing_a_marker_alone_on_its_line_over_crlf_leaves_no_orphan_carriage_retur
 #[test]
 fn two_adjacent_marker_only_lines_over_crlf_collapse_without_orphan_carriage_return() {
     let body = "A\r\n\r\n{{glossary_terms}}\r\n{{tm_similar_segments}}\r\n\r\nB";
-    let (prompt, ledger) =
-        assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
+    let (prompt, ledger) = assemble_prompt(body, "Hello.", GlossaryInjectionStatus::NotAsked, None);
     assert_eq!(
         prompt, "A\r\n\r\nB",
         "hai dong CHI CO marker CRLF lien tiep phai co lai thanh DUNG MOT dong trang, khong \
@@ -1048,8 +1278,16 @@ fn perf_probe_gather_glossary_context_whole_per_sentence_path_on_a_matching_sent
         .expect("them thuat ngu gieo");
     }
     // Thuật ngữ THẬT SỰ nằm trong câu sẽ dịch -- khác loop 0 (đo nửa không khớp gì).
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them thuat ngu khop that");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu khop that");
 
     let resolver = ScopeResolver::global_only();
     const CALLS: usize = 200;
@@ -1073,8 +1311,7 @@ fn perf_probe_gather_glossary_context_whole_per_sentence_path_on_a_matching_sent
     let elapsed = t0.elapsed();
 
     assert_eq!(
-        injected_count,
-        CALLS,
+        injected_count, CALLS,
         "moi lot goi phai khop dung MOT thuat ngu that (dragon) -- con so nay chung minh \
          probe do tren mot cau THAT SU khop, khong phai mot cau trong"
     );
@@ -1083,7 +1320,11 @@ fn perf_probe_gather_glossary_context_whole_per_sentence_path_on_a_matching_sent
     eprintln!(
         "[perf_probe_gather_glossary_context] rows={ROW_COUNT} (Global-only, work=None) \
          calls={CALLS} total={elapsed:?} per_call={per_call:?} build={} injected_per_call=1",
-        if cfg!(debug_assertions) { "debug" } else { "release" }
+        if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        }
     );
 
     drop(global);
@@ -1157,8 +1398,16 @@ fn perf_probe_confirmed_terms_for_injection_one_tier_vs_two_tier_short_vs_long_s
         )
         .expect("them thuat ngu Global");
     }
-    add_manual_term(&global, None, GlossaryTier::Global, "dragon", Some("rong"), "", Category::Other)
-        .expect("them thuat ngu khop that");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu khop that");
 
     const WORK_ROWS: usize = 500;
     for i in 0..WORK_ROWS {
@@ -1206,16 +1455,24 @@ fn perf_probe_confirmed_terms_for_injection_one_tier_vs_two_tier_short_vs_long_s
         let t0 = Instant::now();
         let mut injected_count = 0usize;
         for _ in 0..calls {
-            let outcome = confirmed_terms_for_injection(resolver, global, work, sentence, MatchLang::En)
-                .expect("confirmed_terms_for_injection khong loi");
+            let outcome =
+                confirmed_terms_for_injection(resolver, global, work, sentence, MatchLang::En)
+                    .expect("confirmed_terms_for_injection khong loi");
             injected_count = outcome.injected.len();
         }
         let elapsed = t0.elapsed();
-        assert_eq!(injected_count, 1, "{label}: phai khop DUNG MOT thuat ngu that (dragon)");
+        assert_eq!(
+            injected_count, 1,
+            "{label}: phai khop DUNG MOT thuat ngu that (dragon)"
+        );
         eprintln!(
             "[perf_probe_confirmed_terms_for_injection] label={label} build={} calls={calls} \
              sentence_len={} total={elapsed:?} per_call={:?}",
-            if cfg!(debug_assertions) { "debug" } else { "release" },
+            if cfg!(debug_assertions) {
+                "debug"
+            } else {
+                "release"
+            },
             sentence.len(),
             elapsed / calls as u32
         );
@@ -1223,14 +1480,37 @@ fn perf_probe_confirmed_terms_for_injection_one_tier_vs_two_tier_short_vs_long_s
     }
 
     let resolver_one_tier = ScopeResolver::global_only();
-    let resolver_two_tier = ScopeResolver::with_work(WorkScope { work_id: "perf-probe-work".to_owned() });
+    let resolver_two_tier = ScopeResolver::with_work(WorkScope {
+        work_id: "perf-probe-work".to_owned(),
+    });
 
     // Trục BẢNG (một tầng vs hai tầng), câu giữ NGẮN cả hai lượt.
-    run("one_tier_short", &resolver_one_tier, &global, None, SHORT_SENTENCE, CALLS);
-    run("two_tier_short", &resolver_two_tier, &global, Some(&work), SHORT_SENTENCE, CALLS);
+    run(
+        "one_tier_short",
+        &resolver_one_tier,
+        &global,
+        None,
+        SHORT_SENTENCE,
+        CALLS,
+    );
+    run(
+        "two_tier_short",
+        &resolver_two_tier,
+        &global,
+        Some(&work),
+        SHORT_SENTENCE,
+        CALLS,
+    );
     // Trục CÂU (ngắn vs dài), bảng giữ HAI TẦNG cả hai lượt -- đây là nhánh ngưỡng cache
     // spec 4.9 Phase 4 đòi kiểm, nên nó là nhánh cần đo ở CẢ hai đầu của trục câu.
-    run("two_tier_long", &resolver_two_tier, &global, Some(&work), LONG_SENTENCE, CALLS);
+    run(
+        "two_tier_long",
+        &resolver_two_tier,
+        &global,
+        Some(&work),
+        LONG_SENTENCE,
+        CALLS,
+    );
 
     drop(global);
     drop(work);
@@ -1238,16 +1518,20 @@ fn perf_probe_confirmed_terms_for_injection_one_tier_vs_two_tier_short_vs_long_s
 }
 
 #[test]
-fn confirmed_terms_for_injection_fails_loudly_when_a_store_is_given_without_a_work_tier_resolver()
-{
+fn confirmed_terms_for_injection_fails_loudly_when_a_store_is_given_without_a_work_tier_resolver() {
     let dir = temp_dir("confirmed-terms-mismatch");
     let global_dir = temp_dir("confirmed-terms-mismatch-global");
     let global = open_global(&global_dir);
     let work = open_project(&dir);
     let resolver = ScopeResolver::global_only();
 
-    let result =
-        confirmed_terms_for_injection(&resolver, &global, Some(&work), "A dragon roared.", MatchLang::En);
+    let result = confirmed_terms_for_injection(
+        &resolver,
+        &global,
+        Some(&work),
+        "A dragon roared.",
+        MatchLang::En,
+    );
     assert!(
         matches!(result, Err(GlossaryError::WorkContextMismatch)),
         "mot &Store di kem resolver global_only() phai bi tu choi"
@@ -1264,9 +1548,12 @@ fn confirmed_terms_for_injection_fails_loudly_when_the_resolver_reports_work_but
 {
     let global_dir = temp_dir("confirmed-terms-mismatch-resolver-only-global");
     let global = open_global(&global_dir);
-    let resolver = ScopeResolver::with_work(WorkScope { work_id: "mismatch-resolver-only".to_owned() });
+    let resolver = ScopeResolver::with_work(WorkScope {
+        work_id: "mismatch-resolver-only".to_owned(),
+    });
 
-    let result = confirmed_terms_for_injection(&resolver, &global, None, "A dragon roared.", MatchLang::En);
+    let result =
+        confirmed_terms_for_injection(&resolver, &global, None, "A dragon roared.", MatchLang::En);
     assert!(
         matches!(result, Err(GlossaryError::WorkContextMismatch)),
         "resolver bao co tang Tac pham nhung khong co &Store nao di kem phai bi tu choi"

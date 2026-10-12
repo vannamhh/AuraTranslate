@@ -7,12 +7,14 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use crate::commands::project::OpenWork;
-use crate::commands::segment::{global_store_missing, side_wire, tier_wire, tm_lookup_failed, tm_pair_not_found};
+use crate::commands::segment::{
+    global_store_missing, side_wire, tier_wire, tm_lookup_failed, tm_pair_not_found,
+};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::Store;
 use crate::core::tm::tmx::{
-    ImportPlan, PlannedPair, RenderedTmx, TmxError, TmxTier, distinct_tier_pairs, existing_pair_keys, pairs_not_in, parse_tmx,
-    plan_import, render_tmx, write_planned_pairs,
+    ImportPlan, PlannedPair, RenderedTmx, TmxError, TmxTier, distinct_tier_pairs,
+    existing_pair_keys, pairs_not_in, parse_tmx, plan_import, render_tmx, write_planned_pairs,
 };
 use crate::core::tm::tmx_io::{read_tmx_file, write_tmx_file};
 use crate::core::tm::{CopyRef, PairOriginFilter, PushOutcome, TierFilter, TmPair, TmTier};
@@ -112,22 +114,39 @@ fn invalid_filter(name: &str, value: &str) -> IpcError {
     IpcError::new(
         "tm.invalid_filter",
         MessageKey::Unknown,
-        BTreeMap::from([("filter".to_owned(), name.to_owned()), ("value".to_owned(), value.to_owned())]),
+        BTreeMap::from([
+            ("filter".to_owned(), name.to_owned()),
+            ("value".to_owned(), value.to_owned()),
+        ]),
         false,
     )
 }
 
 fn target_empty() -> IpcError {
-    IpcError::new("tm.target_empty", MessageKey::Unknown, BTreeMap::new(), false)
+    IpcError::new(
+        "tm.target_empty",
+        MessageKey::Unknown,
+        BTreeMap::new(),
+        false,
+    )
 }
 
 fn global_pair_exists() -> IpcError {
-    IpcError::new("tm.global_pair_exists", MessageKey::Unknown, BTreeMap::new(), false)
+    IpcError::new(
+        "tm.global_pair_exists",
+        MessageKey::Unknown,
+        BTreeMap::new(),
+        false,
+    )
 }
 
-fn parse_filters(tier: &str, pair_origin: &str) -> Result<(TierFilter, PairOriginFilter), IpcError> {
+fn parse_filters(
+    tier: &str,
+    pair_origin: &str,
+) -> Result<(TierFilter, PairOriginFilter), IpcError> {
     let tier = TierFilter::from_wire(tier).ok_or_else(|| invalid_filter("tier", tier))?;
-    let pair_origin = PairOriginFilter::from_wire(pair_origin).ok_or_else(|| invalid_filter("pair_origin", pair_origin))?;
+    let pair_origin = PairOriginFilter::from_wire(pair_origin)
+        .ok_or_else(|| invalid_filter("pair_origin", pair_origin))?;
     Ok((tier, pair_origin))
 }
 
@@ -138,8 +157,14 @@ fn copy_refs(copies: &[TmCopyArg]) -> Result<Vec<CopyRef>, IpcError> {
     copies
         .iter()
         .map(|c| match c.tier.as_str() {
-            "work" => Ok(CopyRef { tier: TmTier::Work, id: c.unit_id }),
-            "global" => Ok(CopyRef { tier: TmTier::Global, id: c.unit_id }),
+            "work" => Ok(CopyRef {
+                tier: TmTier::Work,
+                id: c.unit_id,
+            }),
+            "global" => Ok(CopyRef {
+                tier: TmTier::Global,
+                id: c.unit_id,
+            }),
             _ => Err(tm_pair_not_found(&c.tier, c.unit_id)),
         })
         .collect()
@@ -150,7 +175,10 @@ fn first_copy_gone(copies: &[TmCopyArg]) -> IpcError {
 }
 
 /// A Work copy needs an open Work, as `tm_delete_others` does for tier `work`.
-fn work_store_for<'a>(open: Option<&'a OpenWork>, copies: &[CopyRef]) -> Result<Option<&'a Store>, IpcError> {
+fn work_store_for<'a>(
+    open: Option<&'a OpenWork>,
+    copies: &[CopyRef],
+) -> Result<Option<&'a Store>, IpcError> {
     if open.is_none() && copies.iter().any(|c| c.tier == TmTier::Work) {
         return Err(crate::commands::chapter::no_work_open());
     }
@@ -186,12 +214,25 @@ pub fn prepare_tm_list(
     };
     let snapshot = crate::core::tm::read_tier_rows(global, open.map(|o| &o.store))
         .map_err(|e| tm_lookup_failed(&e))?;
-    Ok(TmListScan { work_open: open.is_some(), tier, pair_origin, search: search.to_owned(), resolver, snapshot })
+    Ok(TmListScan {
+        work_open: open.is_some(),
+        tier,
+        pair_origin,
+        search: search.to_owned(),
+        resolver,
+        snapshot,
+    })
 }
 
 pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
-    let listing = crate::core::tm::rank_manage_listing(&scan.resolver, scan.snapshot, scan.tier, scan.pair_origin, &scan.search)
-        .map_err(|e| tm_lookup_failed(&e))?;
+    let listing = crate::core::tm::rank_manage_listing(
+        &scan.resolver,
+        scan.snapshot,
+        scan.tier,
+        scan.pair_origin,
+        &scan.search,
+    )
+    .map_err(|e| tm_lookup_failed(&e))?;
     let groups = listing
         .groups
         .into_iter()
@@ -207,7 +248,10 @@ pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
                     copies: row
                         .copies
                         .iter()
-                        .map(|c| TmCopyWire { tier: tier_wire(c.tier), unit_id: c.id })
+                        .map(|c| TmCopyWire {
+                            tier: tier_wire(c.tier),
+                            unit_id: c.id,
+                        })
                         .collect(),
                     target_text: row.pair.target_text,
                     translation_origin: row.pair.translation_origin.as_str(),
@@ -224,7 +268,10 @@ pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
         health: listing
             .health
             .into_iter()
-            .map(|(pair_origin, count)| TmOriginCountWire { translation_origin: pair_origin.as_str(), count })
+            .map(|(pair_origin, count)| TmOriginCountWire {
+                translation_origin: pair_origin.as_str(),
+                count,
+            })
             .collect(),
         total_pairs: listing.total_pairs,
         total_groups: listing.total_groups,
@@ -262,10 +309,20 @@ pub fn tm_update_pair_target(
     if target_text.trim().is_empty() {
         return Err(target_empty());
     }
-    let stored =
-        crate::core::tm::update_copies_target(global, work, &refs, source_text, expected_target, target_text)
-            .map_err(|e| tm_lookup_failed(&e))?;
-    stored.into_iter().next().map(pair_wire).ok_or_else(|| first_copy_gone(copies))
+    let stored = crate::core::tm::update_copies_target(
+        global,
+        work,
+        &refs,
+        source_text,
+        expected_target,
+        target_text,
+    )
+    .map_err(|e| tm_lookup_failed(&e))?;
+    stored
+        .into_iter()
+        .next()
+        .map(pair_wire)
+        .ok_or_else(|| first_copy_gone(copies))
 }
 
 /// Deletes every live copy of a row; `tm.pair_not_found` when none is left.
@@ -281,7 +338,11 @@ pub fn tm_delete_pair(
     let work = work_store_for(open, &refs)?;
     let deleted = crate::core::tm::delete_copies(global, work, &refs, source_text, expected_target)
         .map_err(|e| tm_lookup_failed(&e))?;
-    if deleted > 0 { Ok(()) } else { Err(first_copy_gone(copies)) }
+    if deleted > 0 {
+        Ok(())
+    } else {
+        Err(first_copy_gone(copies))
+    }
 }
 
 /// Deletes every pair on the others side (`other`, `bilingual_import`) in the tiers `tier`
@@ -296,12 +357,17 @@ pub fn tm_delete_others(
     if tier == TierFilter::Work && open.is_none() {
         return Err(crate::commands::chapter::no_work_open());
     }
-    let mut outcome = TmDeleteOthersOutcome { deleted_work: 0, deleted_global: 0 };
+    let mut outcome = TmDeleteOthersOutcome {
+        deleted_work: 0,
+        deleted_global: 0,
+    };
     if let (true, Some(open)) = (tier != TierFilter::Global, open) {
-        outcome.deleted_work = crate::core::tm::delete_others_side(&open.store).map_err(|e| tm_lookup_failed(&e))?;
+        outcome.deleted_work =
+            crate::core::tm::delete_others_side(&open.store).map_err(|e| tm_lookup_failed(&e))?;
     }
     if tier != TierFilter::Work {
-        outcome.deleted_global = crate::core::tm::delete_others_side(global).map_err(|e| tm_lookup_failed(&e))?;
+        outcome.deleted_global =
+            crate::core::tm::delete_others_side(global).map_err(|e| tm_lookup_failed(&e))?;
     }
     Ok(outcome)
 }
@@ -373,15 +439,20 @@ pub struct TmxImportSummaryWire {
 
 fn tmx_error(err: TmxError) -> IpcError {
     let (code, params, retryable) = match &err {
-        TmxError::Malformed { line, .. } => {
-            ("tm.tmx_malformed", BTreeMap::from([("line".to_owned(), line.to_string())]), false)
-        }
+        TmxError::Malformed { line, .. } => (
+            "tm.tmx_malformed",
+            BTreeMap::from([("line".to_owned(), line.to_string())]),
+            false,
+        ),
         TmxError::NoBody => ("tm.tmx_no_body", BTreeMap::new(), false),
         TmxError::NotUtf8 => ("tm.tmx_not_utf8", BTreeMap::new(), false),
         TmxError::TooLarge { .. } => ("tm.tmx_too_large", BTreeMap::new(), false),
         TmxError::NoUsablePair { source_lang } => (
             "tm.tmx_no_usable_pair",
-            source_lang.iter().map(|l| ("source_lang".to_owned(), l.clone())).collect(),
+            source_lang
+                .iter()
+                .map(|l| ("source_lang".to_owned(), l.clone()))
+                .collect(),
             false,
         ),
         TmxError::ReadFailed { .. } => ("tm.tmx_read_failed", BTreeMap::new(), true),
@@ -392,7 +463,12 @@ fn tmx_error(err: TmxError) -> IpcError {
 }
 
 fn no_pending_tmx_import() -> IpcError {
-    IpcError::new("tm.no_pending_import", MessageKey::Unknown, BTreeMap::new(), false)
+    IpcError::new(
+        "tm.no_pending_import",
+        MessageKey::Unknown,
+        BTreeMap::new(),
+        false,
+    )
 }
 
 fn tmx_tier_from_wire(tier: &str) -> Result<TmTier, IpcError> {
@@ -404,10 +480,16 @@ fn tmx_tier_from_wire(tier: &str) -> Result<TmTier, IpcError> {
 }
 
 /// The store of `tier`; the Work tier needs an open Work.
-fn tmx_tier_store<'a>(global: &'a Store, open: Option<&'a OpenWork>, tier: TmTier) -> Result<&'a Store, IpcError> {
+fn tmx_tier_store<'a>(
+    global: &'a Store,
+    open: Option<&'a OpenWork>,
+    tier: TmTier,
+) -> Result<&'a Store, IpcError> {
     match tier {
         TmTier::Global => Ok(global),
-        TmTier::Work => open.map(|o| &o.store).ok_or_else(crate::commands::chapter::no_work_open),
+        TmTier::Work => open
+            .map(|o| &o.store)
+            .ok_or_else(crate::commands::chapter::no_work_open),
     }
 }
 
@@ -428,12 +510,20 @@ fn owned_work_label(open: Option<&OpenWork>, tier: TmTier) -> Option<String> {
 }
 
 /// Reads the distinct pairs of one tier. `tier = work` with no Work open is `work.none_open`.
-pub fn tm_read_tier_pairs(global: Option<&Store>, open: Option<&OpenWork>, tier: &str) -> Result<TierPairs, IpcError> {
+pub fn tm_read_tier_pairs(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: &str,
+) -> Result<TierPairs, IpcError> {
     let tier = tmx_tier_from_wire(tier)?;
     let global = global.ok_or_else(global_store_missing)?;
     let store = tmx_tier_store(global, open, tier)?;
     let pairs = distinct_tier_pairs(store, tier).map_err(|e| tm_lookup_failed(&e))?;
-    Ok(TierPairs { tier, source_lang: owned_work_label(open, tier), pairs })
+    Ok(TierPairs {
+        tier,
+        source_lang: owned_work_label(open, tier),
+        pairs,
+    })
 }
 
 /// Renders pairs read by [`tm_read_tier_pairs`] as TMX 1.4b: one `<tu>` per distinct (source, target).
@@ -446,8 +536,14 @@ pub fn tm_render_tier_pairs(read: &TierPairs) -> RenderedTmx {
 }
 
 /// Renders one tier as TMX 1.4b. Reads the store only; the file is written by [`tm_write_export`].
-pub fn tm_render_tier(global: Option<&Store>, open: Option<&OpenWork>, tier: &str) -> Result<RenderedTmx, IpcError> {
-    Ok(tm_render_tier_pairs(&tm_read_tier_pairs(global, open, tier)?))
+pub fn tm_render_tier(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: &str,
+) -> Result<RenderedTmx, IpcError> {
+    Ok(tm_render_tier_pairs(&tm_read_tier_pairs(
+        global, open, tier,
+    )?))
 }
 
 /// Writes rendered TMX to `path` atomically.
@@ -465,7 +561,10 @@ pub struct TmxExported {
 /// Writes the rendered `rendered` to `path` and reports it as an export result.
 pub fn tm_write_rendered(path: &Path, rendered: &RenderedTmx) -> Result<TmxExported, IpcError> {
     tm_write_export(path, &rendered.text)?;
-    Ok(TmxExported { path: path.display().to_string(), left_out_count: rendered.left_out })
+    Ok(TmxExported {
+        path: path.display().to_string(),
+        left_out_count: rendered.left_out,
+    })
 }
 
 pub fn tm_export_tier(
@@ -484,11 +583,18 @@ pub fn tm_export_tier_after_dialog(
     tier: &str,
     picked_path: Option<PathBuf>,
 ) -> Result<Option<TmxExported>, IpcError> {
-    let Some(path) = picked_path else { return Ok(None) };
+    let Some(path) = picked_path else {
+        return Ok(None);
+    };
     tm_export_tier(global, open, tier, &path).map(Some)
 }
 
-fn counts(plan: &ImportPlan, new_count: usize, file_name: String, tier: TmTier) -> TmxImportPreviewWire {
+fn counts(
+    plan: &ImportPlan,
+    new_count: usize,
+    file_name: String,
+    tier: TmTier,
+) -> TmxImportPreviewWire {
     TmxImportPreviewWire {
         file_name,
         tier: tier_wire(tier),
@@ -507,7 +613,9 @@ pub fn tm_read_import_file(path: &Path) -> Result<crate::core::tm::tmx::ParsedTm
 
 /// Drops any waiting plan: a new preview starts from none, so cancel and failure leave none.
 pub fn tm_discard_pending_import(pending: &PendingTmxImportState) {
-    *pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+    *pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 }
 
 /// What the tier already holds, read under the store access so planning can run without it.
@@ -528,8 +636,15 @@ pub fn tm_read_existing_pairs(
     let global = global.ok_or_else(global_store_missing)?;
     let store = tmx_tier_store(global, open, tier)?;
     let keys = existing_pair_keys(store).map_err(|e| tm_lookup_failed(&e))?;
-    let work_id = open.filter(|_| tier == TmTier::Work).map(|o| o.meta.work_id.clone());
-    Ok(ExistingPairs { tier, source_lang: owned_work_label(open, tier), work_id, keys })
+    let work_id = open
+        .filter(|_| tier == TmTier::Work)
+        .map(|o| o.meta.work_id.clone());
+    Ok(ExistingPairs {
+        tier,
+        source_lang: owned_work_label(open, tier),
+        work_id,
+        keys,
+    })
 }
 
 /// Plans a parsed file against `existing` and keeps the pairs the tier lacks in `pending`.
@@ -547,7 +662,9 @@ pub fn tm_plan_preview(
     let new_pairs = pairs_not_in(&plan, &existing.keys);
 
     let preview = counts(&plan, new_pairs.len(), file_name, existing.tier);
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     *guard = Some(PendingTmxImport {
         tier: existing.tier,
         pairs: new_pairs,
@@ -571,7 +688,9 @@ pub fn tm_preview_parsed(
 }
 
 fn file_name_of(path: &Path) -> String {
-    path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+    path.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 /// Drops any earlier plan, then reads and plans a TMX file for `tier`. Every failure leaves no plan.
@@ -599,15 +718,22 @@ pub fn tm_confirm_import(
     file_is_mine: bool,
 ) -> Result<TmxImportSummaryWire, IpcError> {
     let global = global.ok_or_else(global_store_missing)?;
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let Some(batch) = guard.as_ref() else { return Err(no_pending_tmx_import()) };
-    if batch.tier == TmTier::Work && open.is_none_or(|o| batch.work_id.as_deref() != Some(o.meta.work_id.as_str())) {
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(batch) = guard.as_ref() else {
+        return Err(no_pending_tmx_import());
+    };
+    if batch.tier == TmTier::Work
+        && open.is_none_or(|o| batch.work_id.as_deref() != Some(o.meta.work_id.as_str()))
+    {
         *guard = None;
         return Err(no_pending_tmx_import());
     }
     let batch_already = batch.already_count;
     let store = tmx_tier_store(global, open, batch.tier)?;
-    let outcome = write_planned_pairs(store, batch.pairs.clone(), file_is_mine).map_err(|e| tm_lookup_failed(&e))?;
+    let outcome = write_planned_pairs(store, batch.pairs.clone(), file_is_mine)
+        .map_err(|e| tm_lookup_failed(&e))?;
     *guard = None;
     Ok(TmxImportSummaryWire {
         inserted: outcome.inserted,
@@ -618,7 +744,11 @@ pub fn tm_confirm_import(
 
 /// The tier of the waiting plan, so a wire shell knows whether it needs `OpenWorkState`.
 pub fn tm_pending_import_tier(pending: &PendingTmxImportState) -> Option<TmTier> {
-    pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner).as_ref().map(|batch| batch.tier)
+    pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_ref()
+        .map(|batch| batch.tier)
 }
 
 /// Confirms a Global plan without any Work store. `Ok(None)` when the waiting plan is not Global
@@ -629,13 +759,18 @@ pub fn tm_confirm_global_import(
     file_is_mine: bool,
 ) -> Result<Option<TmxImportSummaryWire>, IpcError> {
     let global = global.ok_or_else(global_store_missing)?;
-    let mut guard = pending.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-    let Some(batch) = guard.as_ref() else { return Err(no_pending_tmx_import()) };
+    let mut guard = pending
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(batch) = guard.as_ref() else {
+        return Err(no_pending_tmx_import());
+    };
     if batch.tier != TmTier::Global {
         return Ok(None);
     }
     let batch_already = batch.already_count;
-    let outcome = write_planned_pairs(global, batch.pairs.clone(), file_is_mine).map_err(|e| tm_lookup_failed(&e))?;
+    let outcome = write_planned_pairs(global, batch.pairs.clone(), file_is_mine)
+        .map_err(|e| tm_lookup_failed(&e))?;
     *guard = None;
     Ok(Some(TmxImportSummaryWire {
         inserted: outcome.inserted,
@@ -656,15 +791,18 @@ pub fn clear_pending_tmx_import_for_work(pending: &PendingTmxImportState) {
         Err(std::sync::TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
         Err(std::sync::TryLockError::WouldBlock) => return,
     };
-    if guard.as_ref().is_some_and(|batch| batch.tier == TmTier::Work) {
+    if guard
+        .as_ref()
+        .is_some_and(|batch| batch.tier == TmTier::Work)
+    {
         *guard = None;
     }
 }
 
 pub mod wire {
     use super::{
-        PendingTmxImportState, TmCopyArg, TmDeleteOthersOutcome, TmPairList, TmPairWire, TmxImportPreviewWire,
-        TmxImportSummaryWire,
+        PendingTmxImportState, TmCopyArg, TmDeleteOthersOutcome, TmPairList, TmPairWire,
+        TmxImportPreviewWire, TmxImportSummaryWire,
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
@@ -684,8 +822,16 @@ pub mod wire {
         let scan = match app.try_state::<OpenWorkState>() {
             None => super::prepare_tm_list(global.as_deref(), None, &pair_origin, &tier, &search)?,
             Some(state) => {
-                let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-                super::prepare_tm_list(global.as_deref(), guard.as_ref(), &pair_origin, &tier, &search)?
+                let guard = state
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                super::prepare_tm_list(
+                    global.as_deref(),
+                    guard.as_ref(),
+                    &pair_origin,
+                    &tier,
+                    &search,
+                )?
             }
         };
         super::score_tm_list(scan)
@@ -705,10 +851,26 @@ pub mod wire {
 
         let global = app.try_state::<crate::core::store::Store>();
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::tm_update_pair_target(global.as_deref(), None, &copies, &source_text, &expected_target, &target_text);
+            return super::tm_update_pair_target(
+                global.as_deref(),
+                None,
+                &copies,
+                &source_text,
+                &expected_target,
+                &target_text,
+            );
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::tm_update_pair_target(global.as_deref(), guard.as_ref(), &copies, &source_text, &expected_target, &target_text)
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::tm_update_pair_target(
+            global.as_deref(),
+            guard.as_ref(),
+            &copies,
+            &source_text,
+            &expected_target,
+            &target_text,
+        )
     }
 
     /// Wire shell of [`super::tm_delete_pair`]; `copies`, `sourceText`, `expectedTarget` on the wire.
@@ -723,10 +885,24 @@ pub mod wire {
 
         let global = app.try_state::<crate::core::store::Store>();
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::tm_delete_pair(global.as_deref(), None, &copies, &source_text, &expected_target);
+            return super::tm_delete_pair(
+                global.as_deref(),
+                None,
+                &copies,
+                &source_text,
+                &expected_target,
+            );
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::tm_delete_pair(global.as_deref(), guard.as_ref(), &copies, &source_text, &expected_target)
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::tm_delete_pair(
+            global.as_deref(),
+            guard.as_ref(),
+            &copies,
+            &source_text,
+            &expected_target,
+        )
     }
 
     /// Wire shell of [`super::tm_delete_others`]; `tier` on the wire. Async: it can delete every
@@ -742,7 +918,9 @@ pub mod wire {
         let Some(state) = app.try_state::<OpenWorkState>() else {
             return super::tm_delete_others(global.as_deref(), None, &tier);
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::tm_delete_others(global.as_deref(), guard.as_ref(), &tier)
     }
 
@@ -759,21 +937,40 @@ pub mod wire {
 
         let global = app.try_state::<crate::core::store::Store>();
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::tm_push_pair_to_global(global.as_deref(), None, &copies, &source_text, &expected_target);
+            return super::tm_push_pair_to_global(
+                global.as_deref(),
+                None,
+                &copies,
+                &source_text,
+                &expected_target,
+            );
         };
-        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::tm_push_pair_to_global(global.as_deref(), guard.as_ref(), &copies, &source_text, &expected_target)
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::tm_push_pair_to_global(
+            global.as_deref(),
+            guard.as_ref(),
+            &copies,
+            &source_text,
+            &expected_target,
+        )
     }
-    fn tier_is_ready<R: tauri::Runtime>(app: &tauri::AppHandle<R>, tier: &str) -> Result<(), IpcError> {
+    fn tier_is_ready<R: tauri::Runtime>(
+        app: &tauri::AppHandle<R>,
+        tier: &str,
+    ) -> Result<(), IpcError> {
         use tauri::Manager as _;
 
         if app.try_state::<crate::core::store::Store>().is_none() {
             return Err(crate::commands::segment::global_store_missing());
         }
         if super::tmx_tier_from_wire(tier)? == crate::core::tm::TmTier::Work {
-            let open = app
-                .try_state::<OpenWorkState>()
-                .is_some_and(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner).is_some());
+            let open = app.try_state::<OpenWorkState>().is_some_and(|s| {
+                s.lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .is_some()
+            });
             if !open {
                 return Err(crate::commands::chapter::no_work_open());
             }
@@ -781,9 +978,16 @@ pub mod wire {
         Ok(())
     }
 
-    fn picked_to_path(picked: tauri_plugin_dialog::FilePath) -> Result<std::path::PathBuf, IpcError> {
+    fn picked_to_path(
+        picked: tauri_plugin_dialog::FilePath,
+    ) -> Result<std::path::PathBuf, IpcError> {
         picked.into_path().map_err(|_| {
-            IpcError::new("tm.dialog_path_invalid", crate::core::i18n::MessageKey::Unknown, Default::default(), false)
+            IpcError::new(
+                "tm.dialog_path_invalid",
+                crate::core::i18n::MessageKey::Unknown,
+                Default::default(),
+                false,
+            )
         })
     }
 
@@ -792,7 +996,10 @@ pub mod wire {
     fn with_tier_store<R: tauri::Runtime, T>(
         app: &tauri::AppHandle<R>,
         tier: &str,
-        f: impl FnOnce(Option<&crate::core::store::Store>, Option<&crate::commands::project::OpenWork>) -> T,
+        f: impl FnOnce(
+            Option<&crate::core::store::Store>,
+            Option<&crate::commands::project::OpenWork>,
+        ) -> T,
     ) -> T {
         use tauri::Manager as _;
 
@@ -801,7 +1008,9 @@ pub mod wire {
             return f(global.as_deref(), None);
         }
         let work_state = app.try_state::<OpenWorkState>();
-        let guard = work_state.as_ref().map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
         f(global.as_deref(), guard.as_ref().and_then(|g| g.as_ref()))
     }
 
@@ -812,7 +1021,9 @@ pub mod wire {
         tier: &str,
         path: &std::path::Path,
     ) -> Result<Option<super::TmxExported>, IpcError> {
-        let read = with_tier_store(app, tier, |global, open| super::tm_read_tier_pairs(global, open, tier))?;
+        let read = with_tier_store(app, tier, |global, open| {
+            super::tm_read_tier_pairs(global, open, tier)
+        })?;
         super::tm_write_rendered(path, &super::tm_render_tier_pairs(&read)).map(Some)
     }
 
@@ -827,8 +1038,18 @@ pub mod wire {
         use tauri_plugin_dialog::DialogExt as _;
 
         tier_is_ready(&app, &tier)?;
-        let default_name = if tier == "global" { "tm_global.tmx" } else { "tm_work.tmx" };
-        let picked_path = match app.dialog().file().add_filter("TMX", &["tmx"]).set_file_name(default_name).blocking_save_file() {
+        let default_name = if tier == "global" {
+            "tm_global.tmx"
+        } else {
+            "tm_work.tmx"
+        };
+        let picked_path = match app
+            .dialog()
+            .file()
+            .add_filter("TMX", &["tmx"])
+            .set_file_name(default_name)
+            .blocking_save_file()
+        {
             None => return Ok(None),
             Some(picked) => picked_to_path(picked)?,
         };
@@ -848,8 +1069,15 @@ pub mod wire {
             return Err(super::no_pending_tmx_import());
         };
         let parsed = super::tm_read_import_file(path)?;
-        let existing = with_tier_store(app, tier, |global, open| super::tm_read_existing_pairs(global, open, tier))?;
-        super::tm_plan_preview(pending.inner(), &existing, &parsed, super::file_name_of(path))
+        let existing = with_tier_store(app, tier, |global, open| {
+            super::tm_read_existing_pairs(global, open, tier)
+        })?;
+        super::tm_plan_preview(
+            pending.inner(),
+            &existing,
+            &parsed,
+            super::file_name_of(path),
+        )
     }
 
     /// Wire shell of [`super::tm_open_import_preview`]; `tier` on the wire. Async for the same
@@ -868,7 +1096,12 @@ pub mod wire {
             return Err(super::no_pending_tmx_import());
         };
         super::tm_discard_pending_import(pending.inner());
-        let Some(picked) = app.dialog().file().add_filter("TMX", &["tmx", "xml"]).blocking_pick_file() else {
+        let Some(picked) = app
+            .dialog()
+            .file()
+            .add_filter("TMX", &["tmx", "xml"])
+            .blocking_pick_file()
+        else {
             return Ok(None);
         };
         let path = picked_to_path(picked)?;
@@ -892,21 +1125,25 @@ pub mod wire {
         match super::tm_pending_import_tier(pending.inner()) {
             None => return Err(super::no_pending_tmx_import()),
             Some(crate::core::tm::TmTier::Global) => {
-                if let Some(summary) = super::tm_confirm_global_import(global.as_deref(), pending.inner(), file_is_mine)? {
+                if let Some(summary) = super::tm_confirm_global_import(
+                    global.as_deref(),
+                    pending.inner(),
+                    file_is_mine,
+                )? {
                     return Ok(summary);
                 }
             }
             Some(crate::core::tm::TmTier::Work) => {}
         }
-        with_tier_store(&app, "work", |global, open| super::tm_confirm_import(global, open, pending.inner(), file_is_mine))
+        with_tier_store(&app, "work", |global, open| {
+            super::tm_confirm_import(global, open, pending.inner(), file_is_mine)
+        })
     }
 
     /// Wire shell of [`super::tm_cancel_import`]. Async: it locks `PendingTmxImportState`, which
     /// `tm_confirm_import` holds for its whole write.
     #[tauri::command(async)]
-    pub fn tm_cancel_import<R: tauri::Runtime>(
-        app: tauri::AppHandle<R>,
-    ) -> Result<(), IpcError> {
+    pub fn tm_cancel_import<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), IpcError> {
         use tauri::Manager as _;
 
         if let Some(pending) = app.try_state::<PendingTmxImportState>() {

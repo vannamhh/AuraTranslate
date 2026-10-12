@@ -36,7 +36,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::library::{
     apply_chosen_root, forget_orphan, list_works, rescan, search_library,
 };
-use auratranslate_lib::core::library::indexer::{Indexer, MINIMUM_HARVEST_SCHEMA_VERSION, WorkQuery};
+use auratranslate_lib::core::library::indexer::{
+    Indexer, MINIMUM_HARVEST_SCHEMA_VERSION, WorkQuery,
+};
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::load_global_config;
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
@@ -120,7 +122,8 @@ fn write_atproj_with_one_real_segment(
     let dir = write_atproj(root, folder, work_id, name);
 
     let db_path = dir.join("project.db");
-    fs::remove_file(&db_path).unwrap_or_else(|e| panic!("xoa project.db rac o {}: {e}", db_path.display()));
+    fs::remove_file(&db_path)
+        .unwrap_or_else(|e| panic!("xoa project.db rac o {}: {e}", db_path.display()));
     let store = Store::open(StoreSpec::project(db_path.clone()))
         .unwrap_or_else(|e| panic!("mo project.db that o {}: {e}", db_path.display()));
 
@@ -177,7 +180,10 @@ fn a_brand_new_atproj_copied_into_the_root_appears_after_one_rescan() {
     write_atproj(&root, "Second", "id-second", "Tac pham hai");
 
     let after = rescan(Some(&indexer), Some(&global), &root).expect("lượt quét sau khi copy");
-    assert_eq!(after.indexed, 2, "Tác phẩm vừa copy vào phải có mặt sau ĐÚNG một lượt quét");
+    assert_eq!(
+        after.indexed, 2,
+        "Tác phẩm vừa copy vào phải có mặt sau ĐÚNG một lượt quét"
+    );
     assert!(after.conflicts.is_empty());
     assert_eq!(after.skipped, 0);
     assert!(
@@ -185,11 +191,21 @@ fn a_brand_new_atproj_copied_into_the_root_appears_after_one_rescan() {
         "thêm một Tác phẩm KHÔNG được biến Tác phẩm cũ thành mồ côi"
     );
 
-    let works = indexer.list_works(WorkQuery::default()).expect("list_works").works;
+    let works = indexer
+        .list_works(WorkQuery::default())
+        .expect("list_works")
+        .works;
     let ids: Vec<&str> = works.iter().map(|w| w.work_id.as_str()).collect();
-    assert!(ids.contains(&"id-first") && ids.contains(&"id-second"), "cả hai phải còn: {ids:?}");
+    assert!(
+        ids.contains(&"id-first") && ids.contains(&"id-second"),
+        "cả hai phải còn: {ids:?}"
+    );
 
-    assert_eq!(after.root, root.display().to_string(), "báo cáo phải nêu đúng gốc vừa quét");
+    assert_eq!(
+        after.root,
+        root.display().to_string(),
+        "báo cáo phải nêu đúng gốc vừa quét"
+    );
 
     drop(indexer);
     drop(global);
@@ -221,13 +237,24 @@ fn cancelling_the_folder_dialog_writes_no_config_and_leaves_the_index_alone() {
     write_atproj(&root, "Never-Scanned", "id-unscanned", "Chua quet");
 
     let out = apply_chosen_root(Some(&global), Some(&indexer), None).expect("huỷ không phải lỗi");
-    assert!(out.is_none(), "huỷ hộp thoại phải là `Ok(None)`, không một biến thể lỗi");
+    assert!(
+        out.is_none(),
+        "huỷ hộp thoại phải là `Ok(None)`, không một biến thể lỗi"
+    );
 
     let cfg = load_global_config(&global).expect("đọc cấu hình");
-    assert_eq!(cfg.library_root(), None, "huỷ KHÔNG được ghi `library_root` xuống đĩa");
+    assert_eq!(
+        cfg.library_root(),
+        None,
+        "huỷ KHÔNG được ghi `library_root` xuống đĩa"
+    );
 
     assert!(
-        indexer.list_works(WorkQuery::default()).expect("list_works").works.is_empty(),
+        indexer
+            .list_works(WorkQuery::default())
+            .expect("list_works")
+            .works
+            .is_empty(),
         "huỷ KHÔNG được kéo theo một lượt quét"
     );
 
@@ -284,7 +311,11 @@ fn a_chosen_path_that_is_not_a_directory_is_refused_before_any_config_write() {
     assert_eq!(err.code(), "library.root_invalid");
 
     let cfg = load_global_config(&global).expect("đọc cấu hình");
-    assert_eq!(cfg.library_root(), None, "từ chối rồi thì KHÔNG được để lại gì trên đĩa");
+    assert_eq!(
+        cfg.library_root(),
+        None,
+        "từ chối rồi thì KHÔNG được để lại gì trên đĩa"
+    );
 
     drop(indexer);
     drop(global);
@@ -305,7 +336,8 @@ fn every_library_command_reports_a_missing_indexer_instead_of_panicking() {
     fs::create_dir_all(&root).expect("tạo gốc");
     let global = open_global(&dir);
 
-    let rescan_err = rescan(None, Some(&global), &root).expect_err("không có Indexer thì không quét được");
+    let rescan_err =
+        rescan(None, Some(&global), &root).expect_err("không có Indexer thì không quét được");
     assert_eq!(rescan_err.code(), "library.indexer_missing");
 
     let forget_err = forget_orphan(None, Some(&global), "id-bat-ky", "Ten bat ky")
@@ -345,9 +377,13 @@ fn rescan_on_a_root_that_does_not_exist_reports_root_missing_true() {
     let root = library_root(&dir); // chưa từng tạo
 
     let indexer = open_indexer(&dir);
-    let report = rescan(Some(&indexer), Some(&global), &root).expect("rescan trên gốc vắng không phải lỗi");
+    let report =
+        rescan(Some(&indexer), Some(&global), &root).expect("rescan trên gốc vắng không phải lỗi");
 
-    assert!(report.root_missing, "gốc chưa từng tồn tại phải báo root_missing = true");
+    assert!(
+        report.root_missing,
+        "gốc chưa từng tồn tại phải báo root_missing = true"
+    );
     assert_eq!(report.indexed, 0);
     assert!(report.orphans.is_empty());
 
@@ -366,7 +402,8 @@ fn rescan_on_a_root_that_exists_but_is_truly_empty_reports_root_missing_false() 
     fs::create_dir_all(&root).expect("tạo gốc rỗng thật");
 
     let indexer = open_indexer(&dir);
-    let report = rescan(Some(&indexer), Some(&global), &root).expect("rescan trên gốc rỗng không phải lỗi");
+    let report =
+        rescan(Some(&indexer), Some(&global), &root).expect("rescan trên gốc rỗng không phải lỗi");
 
     assert!(
         !report.root_missing,
@@ -402,7 +439,10 @@ fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_f
     let err = forget_orphan(Some(&indexer), Some(&global), "id-alive", "Alive")
         .expect_err("hàng đang sống phải bị từ chối");
     assert_eq!(err.code(), "library.not_orphaned");
-    assert_eq!(err.params().get("work_id").map(String::as_str), Some("id-alive"));
+    assert_eq!(
+        err.params().get("work_id").map(String::as_str),
+        Some("id-alive")
+    );
     // P9 (vòng rà THỨ HAI) -- `name` do CHỖ GỌI truyền vào phải có mặt trong `params`, không
     // chỉ `work_id` (một UUID trần không phải thứ người dùng nhận ra).
     assert_eq!(err.params().get("name").map(String::as_str), Some("Alive"));
@@ -424,10 +464,18 @@ fn forget_orphan_at_the_command_layer_carries_the_right_code_and_work_id_param_f
     let indexer = open_indexer(&dir);
     rescan(Some(&indexer), Some(&global), &root).expect("rescan");
 
-    let err = forget_orphan(Some(&indexer), Some(&global), "id-la-mot-cai-ten-la", "Ten hien thi luc bam nut")
-        .expect_err("work_id lạ phải bị từ chối");
+    let err = forget_orphan(
+        Some(&indexer),
+        Some(&global),
+        "id-la-mot-cai-ten-la",
+        "Ten hien thi luc bam nut",
+    )
+    .expect_err("work_id lạ phải bị từ chối");
     assert_eq!(err.code(), "library.not_orphaned");
-    assert_eq!(err.params().get("work_id").map(String::as_str), Some("id-la-mot-cai-ten-la"));
+    assert_eq!(
+        err.params().get("work_id").map(String::as_str),
+        Some("id-la-mot-cai-ten-la")
+    );
     assert_eq!(
         err.params().get("name").map(String::as_str),
         Some("Ten hien thi luc bam nut"),
@@ -460,14 +508,22 @@ fn list_orphans_reads_an_existing_orphan_without_rescanning_and_even_after_the_r
 
     fs::remove_dir_all(&work_dir).expect("xoa .atproj");
     let outcome = rescan(Some(&indexer), Some(&global), &root).expect("rescan sau khi xoa");
-    assert_eq!(outcome.orphans.len(), 1, "lan quet nay phai tao ra dung mot hang mo coi");
+    assert_eq!(
+        outcome.orphans.len(),
+        1,
+        "lan quet nay phai tao ra dung mot hang mo coi"
+    );
 
     // Xoa het GOC thu vien -- neu `list_orphans` lo tu quet lai, no se trot o day.
     fs::remove_dir_all(&root).expect("xoa goc thu vien");
 
     let orphans = auratranslate_lib::commands::library::list_orphans(Some(&indexer), Some(&global))
         .expect("list_orphans phai doc duoc du goc da mat");
-    assert_eq!(orphans.len(), 1, "phai thay dung hang mo coi da tao, khong can bam Rescan");
+    assert_eq!(
+        orphans.len(),
+        1,
+        "phai thay dung hang mo coi da tao, khong can bam Rescan"
+    );
     assert_eq!(orphans[0].work_id, "id-mo-coi");
 
     drop(indexer);
@@ -498,7 +554,8 @@ fn list_orphans_without_an_indexer_reports_the_named_indexer_missing_error() {
 /// qua bước ghi cấu hình. Đường dẫn được chọn hợp lệ (một thư mục có thật) để ca này chỉ đo
 /// đúng MỘT biến — sự vắng mặt của `Store` — không lẫn với ca "đường dẫn không phải thư mục".
 #[test]
-fn choosing_a_root_with_no_global_store_reports_a_store_error_instead_of_silently_skipping_the_write() {
+fn choosing_a_root_with_no_global_store_reports_a_store_error_instead_of_silently_skipping_the_write()
+ {
     let dir = temp_dir("choose-root-no-store");
     let chosen = dir.join("chosen-root");
     fs::create_dir_all(&chosen).expect("tạo gốc mới");
@@ -551,8 +608,14 @@ fn an_unknown_filter_value_at_the_command_layer_is_refused_not_silently_dropped(
 
     // Đối chứng: cùng lời gọi với một giá trị HỢP LỆ vẫn đi qua bình thường — chứng minh ca
     // trên đỏ vì giá trị lạ, không vì đường lọc hỏng sẵn.
-    let ok = list_works(Some(&indexer), Some(&vec!["not_started".to_owned()]), None, None, None)
-        .expect("gia tri hop le phai di qua");
+    let ok = list_works(
+        Some(&indexer),
+        Some(&vec!["not_started".to_owned()]),
+        None,
+        None,
+        None,
+    )
+    .expect("gia tri hop le phai di qua");
     assert_eq!(ok.matched, 1);
 
     indexer.close();
@@ -575,7 +638,14 @@ fn the_command_layer_reports_matched_separately_from_total() {
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
     // Cả ba `.atproj` đều `not_started` (xem `write_atproj`), nên lọc `done` quét sạch.
-    let swept = list_works(Some(&indexer), Some(&vec!["done".to_owned()]), None, None, None).expect("lọc done");
+    let swept = list_works(
+        Some(&indexer),
+        Some(&vec!["done".to_owned()]),
+        None,
+        None,
+        None,
+    )
+    .expect("lọc done");
     assert_eq!(swept.matched, 0, "khong hang nao khop");
     assert_eq!(
         swept.total, 3,
@@ -604,7 +674,12 @@ fn the_command_layer_reports_matched_separately_from_total() {
 /// Khác `write_v1_atproj_missing_lifecycle_fields` của `library_index_contract.rs`: ca đó mô
 /// phỏng một `meta.json` TRƯỚC CẢ Story 5.4; ca này mô phỏng đúng lát cắt của §I/O Matrix
 /// story 5.5 — "`meta.json` v2 (trước story này)".
-fn write_v2_atproj_missing_chapter_done_count(root: &Path, folder: &str, work_id: &str, name: &str) -> PathBuf {
+fn write_v2_atproj_missing_chapter_done_count(
+    root: &Path,
+    folder: &str,
+    work_id: &str,
+    name: &str,
+) -> PathBuf {
     let dir = root.join(format!("{folder}.atproj"));
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tạo {}: {e}", dir.display()));
 
@@ -640,7 +715,10 @@ fn a_v2_meta_json_missing_chapter_done_count_reaches_the_work_row_as_none() {
         "Old Work",
     );
     let outcome = indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
-    assert_eq!(outcome.indexed, 1, "meta.json v2 phai doc duoc va vao chi muc, khong bi skip");
+    assert_eq!(
+        outcome.indexed, 1,
+        "meta.json v2 phai doc duoc va vao chi muc, khong bi skip"
+    );
 
     let report = list_works(Some(&indexer), None, None, None, None).expect("list_works");
     assert_eq!(report.works.len(), 1);
@@ -754,8 +832,12 @@ fn no_search_mode_defaults_to_exact() {
     write_atproj(&root, "Mot", "11111111-1111-4111-8111-111111111111", "Mot");
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
-    let report = search_library(Some(&indexer), "bat ky truy van nao", None, None).expect("search mac dinh");
-    assert_eq!(report.mode, "exact", "mode=None phai duoc doc la exact, khong doan mo");
+    let report =
+        search_library(Some(&indexer), "bat ky truy van nao", None, None).expect("search mac dinh");
+    assert_eq!(
+        report.mode, "exact",
+        "mode=None phai duoc doc la exact, khong doan mo"
+    );
     assert_eq!(report.effective_mode, "exact");
     assert!(!report.widened);
 
@@ -783,10 +865,18 @@ fn search_library_carries_a_lenient_match_kind_through_to_the_wire_struct() {
     fs::create_dir_all(&root).expect("tạo thư mục gốc");
     let indexer = open_indexer(&dir);
     let global = open_global(&dir);
-    write_atproj_with_one_real_segment(&root, "Solo", "id-solo", "Solo", "irrelevant", "khoáng sản");
+    write_atproj_with_one_real_segment(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        "irrelevant",
+        "khoáng sản",
+    );
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
-    let report = search_library(Some(&indexer), "khoang", None, Some("lenient")).expect("search lenient");
+    let report =
+        search_library(Some(&indexer), "khoang", None, Some("lenient")).expect("search lenient");
     assert_eq!(report.hits.len(), 1, "hit: {:?}", report.hits);
     assert_eq!(
         report.hits[0].match_kind, "lenient",
@@ -850,15 +940,22 @@ fn rescan_and_search_library_report_the_two_new_wire_fields_through_the_real_con
     {
         let db_path = old_dir.join("project.db");
         let conn = rusqlite::Connection::open(&db_path).expect("mo lai de ha phien ban");
-        conn.pragma_update(None, "user_version", i64::from(MINIMUM_HARVEST_SCHEMA_VERSION - 1))
-            .expect("ha user_version xuong ngay duoi san");
+        conn.pragma_update(
+            None,
+            "user_version",
+            i64::from(MINIMUM_HARVEST_SCHEMA_VERSION - 1),
+        )
+        .expect("ha user_version xuong ngay duoi san");
         conn.execute("ALTER TABLE segment DROP COLUMN is_omitted", [])
             .expect("go cot is_omitted -- dung hinh dang mot project.db THAT ngay duoi san");
     }
 
     // ── Lời khẳng định 1: `rescan()` THẬT, không hàm thuần nội bộ nào của `Indexer` ──
     let report = rescan(Some(&indexer), Some(&global), &root).expect("rescan");
-    assert_eq!(report.indexed, 2, "metadata cua CA HAI Tac pham van UPSERT binh thuong");
+    assert_eq!(
+        report.indexed, 2,
+        "metadata cua CA HAI Tac pham van UPSERT binh thuong"
+    );
     assert_eq!(
         report.text_skipped.len(),
         1,
@@ -870,8 +967,7 @@ fn rescan_and_search_library_report_the_two_new_wire_fields_through_the_real_con
     // tay struct này. Nếu `From` đọc `.diagnostic()` thay vì `.code()`, chuỗi ở đây sẽ là một
     // câu chẩn đoán dài mang cả số phiên bản, không phải mã ổn định `"schema_too_old"`.
     assert_eq!(
-        report.text_skipped[0].reason,
-        "schema_too_old",
+        report.text_skipped[0].reason, "schema_too_old",
         "reason tren day PHAI la ma on dinh tu HarvestSkipReason::code(), khong phai \
          HarvestSkipReason::diagnostic() (mot chuoi tho, dai, mang so phien ban)"
     );
@@ -879,12 +975,20 @@ fn rescan_and_search_library_report_the_two_new_wire_fields_through_the_real_con
     // ── Lời khẳng định 2: `search_library()` THẬT, cùng chỉ mục vừa `rescan()` dựng ──
     let search = search_library(Some(&indexer), "uniquefreshtargettext", None, None)
         .expect("search_library");
-    assert_eq!(search.hits.len(), 1, "chi Tac pham harvest duoc moi co van ban de khop: {:?}", search.hits);
+    assert_eq!(
+        search.hits.len(),
+        1,
+        "chi Tac pham harvest duoc moi co van ban de khop: {:?}",
+        search.hits
+    );
     // 🔴 Hai khẳng định RIÊNG BIỆT, giá trị KHÁC NHAU (2 ≠ 1) — một phép đảo `works_total`/
     // `works_with_text` trong `From<CoreSearchReport>` sẽ làm ĐÚNG MỘT trong hai dòng dưới
     // đây đỏ (không phải cả hai cùng lúc đổi bù cho nhau, vì `assert_eq!` so một hằng cụ thể
     // cho từng vế, không so lẫn nhau).
-    assert_eq!(search.works_total, 2, "works_total phai dem CA HAI hang library_work");
+    assert_eq!(
+        search.works_total, 2,
+        "works_total phai dem CA HAI hang library_work"
+    );
     assert_eq!(
         search.works_with_text, 1,
         "works_with_text chi dem Tac pham THAT SU co van ban trong chi muc"

@@ -1047,7 +1047,12 @@ impl IpcError {
             .collect();
 
         if missing.is_empty() {
-            return Self { code: code.into(), message_key, params, retryable };
+            return Self {
+                code: code.into(),
+                message_key,
+                params,
+                retryable,
+            };
         }
 
         // ⚠️ Thông báo viết KHÔNG DẤU, và đó không phải một lựa chọn thẩm mỹ: `src/**` nằm

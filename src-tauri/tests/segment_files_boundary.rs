@@ -32,7 +32,9 @@
 use std::fs;
 
 use auratranslate_lib::core::cleanup::{CleanupRule, CleanupRuleKind, CleanupRuleTier};
-use auratranslate_lib::core::segment::pipeline::{ChapterInput, PipelineInput, PipelineShape, run_import};
+use auratranslate_lib::core::segment::pipeline::{
+    ChapterInput, PipelineInput, PipelineShape, run_import,
+};
 
 #[path = "support/boundary_scan.rs"]
 #[allow(dead_code)] // shared module: not every helper is used in this file
@@ -67,11 +69,17 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
 
 #[test]
 fn pointing_the_scan_root_at_an_empty_directory_yields_zero_files_not_a_silent_green() {
-    let empty =
-        std::env::temp_dir().join(format!("segment_files_boundary_empty_probe_{}", std::process::id()));
+    let empty = std::env::temp_dir().join(format!(
+        "segment_files_boundary_empty_probe_{}",
+        std::process::id()
+    ));
     fs::create_dir_all(&empty).unwrap_or_else(|e| panic!("tạo {}: {e}", empty.display()));
     let files = boundary_scan::rust_sources(&empty);
-    assert_eq!(files.len(), 0, "thư mục vừa tạo phải rỗng — nếu không, phép đo bên dưới vô nghĩa");
+    assert_eq!(
+        files.len(),
+        0,
+        "thư mục vừa tạo phải rỗng — nếu không, phép đo bên dưới vô nghĩa"
+    );
     let _ = fs::remove_dir_all(&empty);
 }
 
@@ -87,13 +95,18 @@ fn pointing_the_scan_root_at_an_empty_directory_yields_zero_files_not_a_silent_g
 /// không bao giờ mang `=>` trên dòng của nó. Vị từ vì thế là: dòng chứa
 /// `PipelineShape::Files(` VÀ KHÔNG chứa `=>` ở bất kỳ đâu trên CHÍNH dòng đó.
 fn line_constructs_files_shape(code: &str) -> bool {
-    code.contains("PipelineShape::Files(") && !code.contains("=>")
+    code.contains("PipelineShape::Files(")
+        && !code.contains("=>")
+        && !code.trim_start().starts_with('|')
 }
 
 #[test]
-fn the_files_shape_construction_predicate_would_actually_flag_a_construction_and_ignore_a_match_arm() {
+fn the_files_shape_construction_predicate_would_actually_flag_a_construction_and_ignore_a_match_arm()
+ {
     assert!(
-        line_constructs_files_shape("    Ok(FilesImportOutcome { shape: PipelineShape::Files(inputs), docx_sidecar: None, items })"),
+        line_constructs_files_shape(
+            "    Ok(FilesImportOutcome { shape: PipelineShape::Files(inputs), docx_sidecar: None, items })"
+        ),
         "ca DƯƠNG: một lượt XÂY (gán vào trường) phải bị vị từ bắt"
     );
     assert!(
@@ -101,12 +114,18 @@ fn the_files_shape_construction_predicate_would_actually_flag_a_construction_and
         "ca DƯƠNG: một lượt XÂY gán thẳng vào biến phải bị vị từ bắt"
     );
     assert!(
-        !line_constructs_files_shape("        PipelineShape::Files(units) => cs.iter().map(chapter_input_page_url).collect(),"),
+        !line_constructs_files_shape(
+            "        PipelineShape::Files(units) => cs.iter().map(chapter_input_page_url).collect(),"
+        ),
         "ca ÂM: một PATTERN khớp mẫu trong `match` (mang `=>` trên dòng) không được bị bắt oan"
     );
     assert!(
         !line_constructs_files_shape("        PipelineShape::Files(_) => None,"),
         "ca ÂM: một PATTERN bỏ qua nội dung (`_`) cũng không được bị bắt oan"
+    );
+    assert!(
+        !line_constructs_files_shape("                | PipelineShape::Files(_),"),
+        "ca ÂM: một nhánh or-pattern rustfmt tách xuống dòng riêng (không `=>`) không được bị bắt oan"
     );
     assert!(
         !line_constructs_files_shape("    let x = 1;"),
@@ -151,8 +170,14 @@ fn pipeline_shape_files_is_constructed_at_exactly_one_product_call_site() {
 // Mệnh đề 2 — `core/segment/**` mang 0 dòng gõ từ vựng store/scope (AD-1)
 // ═════════════════════════════════════════════════════════════════════════════════
 
-const STORE_SCOPE_TOKENS: [&str; 6] =
-    ["rusqlite", "core::store", "core::scope", "ScopeResolver", "StoreKind", "scope_kinds!"];
+const STORE_SCOPE_TOKENS: [&str; 6] = [
+    "rusqlite",
+    "core::store",
+    "core::scope",
+    "ScopeResolver",
+    "StoreKind",
+    "scope_kinds!",
+];
 
 /// `haystack` mang `needle` như một TỪ trọn vẹn, hoặc như một chuỗi con khi `needle` không
 /// phải một định danh (`::` chẳng hạn) — cùng khuôn `docx_boundary.rs::contains_word`/
@@ -177,7 +202,10 @@ fn contains_word(haystack: &str, needle: &str) -> bool {
 
 fn line_names_a_store_or_scope_token(code: &str) -> bool {
     STORE_SCOPE_TOKENS.iter().any(|needle| {
-        if needle.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '!') {
+        if needle
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '!')
+        {
             contains_word(code, needle)
         } else {
             code.contains(needle)
@@ -188,7 +216,9 @@ fn line_names_a_store_or_scope_token(code: &str) -> bool {
 #[test]
 fn the_store_scope_token_predicate_would_actually_flag_a_seeded_violation_and_ignore_clean_code() {
     assert!(
-        line_names_a_store_or_scope_token("    let conn = rusqlite::Connection::open(\":memory:\")?;"),
+        line_names_a_store_or_scope_token(
+            "    let conn = rusqlite::Connection::open(\":memory:\")?;"
+        ),
         "ca DƯƠNG: `rusqlite` phải bị vị từ bắt"
     );
     assert!(
@@ -293,15 +323,25 @@ fn a_files_units_cleanup_and_joined_line_numbers_never_come_from_another_unit() 
         .with_cleanup_rules(rules);
     let outcome = run_import(input).expect("hai don vi hop le phai chay qua duoc chuoi bay buoc");
 
-    assert_eq!(outcome.chapters.len(), 2, "N = 2 tep phai cho ra 2 Chuong khi khong co mau phan tach");
+    assert_eq!(
+        outcome.chapters.len(),
+        2,
+        "N = 2 tep phai cho ra 2 Chuong khi khong co mau phan tach"
+    );
 
     let ch1 = &outcome.chapters[0];
     let ch2 = &outcome.chapters[1];
 
-    let ch1_matches: usize =
-        ch1.cleanup_report.as_ref().map(|r| r.per_rule_counts.values().sum()).unwrap_or(0);
-    let ch2_matches: usize =
-        ch2.cleanup_report.as_ref().map(|r| r.per_rule_counts.values().sum()).unwrap_or(0);
+    let ch1_matches: usize = ch1
+        .cleanup_report
+        .as_ref()
+        .map(|r| r.per_rule_counts.values().sum())
+        .unwrap_or(0);
+    let ch2_matches: usize = ch2
+        .cleanup_report
+        .as_ref()
+        .map(|r| r.per_rule_counts.values().sum())
+        .unwrap_or(0);
     assert_eq!(
         ch1_matches, 1,
         "Chuong 1 phai mang DUNG bao cao lam sach cua don vi 1 (1 lan khop \"ZZZ\") -- {ch1:?}"

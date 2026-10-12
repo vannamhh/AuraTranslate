@@ -214,14 +214,15 @@ pub fn confirm_segment(
             },
         );
 
-        let (target_text, status, retired_at, baseline_text, baseline_origin, source_text) = match found {
-            Ok(value) => value,
-            Err(SqlError::QueryReturnedNoRows) => {
-                set_reject(ConfirmReject::NotFound);
-                return Err(SqlError::QueryReturnedNoRows);
-            }
-            Err(err) => return Err(err),
-        };
+        let (target_text, status, retired_at, baseline_text, baseline_origin, source_text) =
+            match found {
+                Ok(value) => value,
+                Err(SqlError::QueryReturnedNoRows) => {
+                    set_reject(ConfirmReject::NotFound);
+                    return Err(SqlError::QueryReturnedNoRows);
+                }
+                Err(err) => return Err(err),
+            };
 
         // ② Phan xu, theo dung thu tu cua AC14 — moi loi tu choi PHAN BIET DUOC.
         if retired_at.is_some() {
@@ -254,7 +255,9 @@ pub fn confirm_segment(
             &baseline_text,
             &baseline_origin,
         ) {
-            Ok(crate::core::segment::translation_origin::Arbitrated::PairOrigin(pair_origin)) => pair_origin,
+            Ok(crate::core::segment::translation_origin::Arbitrated::PairOrigin(pair_origin)) => {
+                pair_origin
+            }
             Ok(crate::core::segment::translation_origin::Arbitrated::Unsigned) => {
                 set_reject(ConfirmReject::NothingToConfirm);
                 return Err(SqlError::QueryReturnedNoRows);
@@ -266,7 +269,11 @@ pub fn confirm_segment(
         };
         tx.execute(
             "UPDATE segment SET status = ?1, translation_origin = ?2 WHERE id = ?3",
-            (SEGMENT_STATUS_CONFIRMED, confirmed_origin.as_str(), segment_id),
+            (
+                SEGMENT_STATUS_CONFIRMED,
+                confirmed_origin.as_str(),
+                segment_id,
+            ),
         )?;
         tx.execute(
             "INSERT INTO segment_version (segment_id, target_text, created_at) \
@@ -292,7 +299,9 @@ pub fn confirm_segment(
             match taken {
                 Some(ConfirmReject::NotFound) => Err(segment_not_found(segment_id)),
                 Some(ConfirmReject::Retired) => Err(segment_retired(segment_id)),
-                Some(ConfirmReject::NothingToConfirm) => Err(segment_nothing_to_confirm(segment_id)),
+                Some(ConfirmReject::NothingToConfirm) => {
+                    Err(segment_nothing_to_confirm(segment_id))
+                }
                 Some(ConfirmReject::UnknownOrigin(value)) => {
                     Err(segment_unknown_translation_origin(segment_id, &value))
                 }

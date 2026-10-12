@@ -129,10 +129,7 @@ mod tests {
 
     #[test]
     fn date_header_is_found_within_first_lines() {
-        let lines: Vec<String> = vec![
-            "# CC-CEDICT".to_string(),
-            "#! date=2026-01-15".to_string(),
-        ];
+        let lines: Vec<String> = vec!["# CC-CEDICT".to_string(), "#! date=2026-01-15".to_string()];
         assert_eq!(find_date_header(&lines).as_deref(), Some("2026-01-15"));
     }
 

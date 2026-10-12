@@ -153,9 +153,12 @@ fn violations_outside<'a>(
         if exempt.contains(&rel.as_str()) {
             continue;
         }
-        let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
+        let text =
+            fs::read_to_string(file).unwrap_or_else(|e| panic!("đọc {}: {e}", file.display()));
         for (index, line) in text.lines().enumerate() {
-            let Some(code) = code_position_of(line) else { continue };
+            let Some(code) = code_position_of(line) else {
+                continue;
+            };
             if let Some(needle) = line_names_one_of(code, needles) {
                 violations.push(format!("{rel}:{}  {needle}  |  {code}", index + 1));
             }
@@ -193,8 +196,11 @@ fn the_scanned_tree_is_large_enough_to_be_real() {
 
 /// Ba tệp DUY NHẤT được phép nhắc `write_atomic(` — nơi hàm được khai, cộng hai chỗ gọi sản
 /// phẩm mà §Code Map của story đã liệt kê là "danh mục đóng".
-const WRITE_ATOMIC_EXEMPT: [&str; 3] =
-    ["core/library/meta.rs", "commands/project/work_creation.rs", "commands/lifecycle.rs"];
+const WRITE_ATOMIC_EXEMPT: [&str; 3] = [
+    "core/library/meta.rs",
+    "commands/project/work_creation.rs",
+    "commands/lifecycle.rs",
+];
 
 /// Cố ý KHÔNG kèm dấu `.` phía trước: needle khớp CẢ chữ ký hàm
 /// (`pub fn write_atomic(&self, ...)`, chỗ hàm được KHAI) LẪN mọi lời gọi
@@ -205,7 +211,8 @@ const WRITE_ATOMIC_NEEDLE: &str = "write_atomic(";
 #[test]
 fn only_the_three_closed_sites_may_name_write_atomic() {
     let (root, files) = all_rust_sources();
-    let violations = violations_outside(&root, &files, &WRITE_ATOMIC_EXEMPT, &[WRITE_ATOMIC_NEEDLE]);
+    let violations =
+        violations_outside(&root, &files, &WRITE_ATOMIC_EXEMPT, &[WRITE_ATOMIC_NEEDLE]);
     assert!(
         violations.is_empty(),
         "{} chỗ ngoài danh mục đóng {:?} nhắc `write_atomic(`:\n{}\n\n\
@@ -300,15 +307,22 @@ fn every_meta_file_exemption_matches_a_real_file() {
 // 🔵 SUA (2026-08-29, Story 5.7) — tu HAI len BA phan tu. `commands/project/mod.rs::open_work`
 // la cho doc `meta.json` THU BA, va no la mot chu MOI cua mon no ma Story 5.5 da ghi bang
 // chu ("story nay khong dung mot duong mo lai .atproj"). Xem khoi doc-comment dau tep.
-const WORK_META_READ_EXEMPT: [&str; 3] =
-    ["core/library/meta.rs", "core/library/indexer.rs", "commands/project/mod.rs"];
+const WORK_META_READ_EXEMPT: [&str; 3] = [
+    "core/library/meta.rs",
+    "core/library/indexer.rs",
+    "commands/project/mod.rs",
+];
 const WORK_META_READ_NEEDLE: &str = "WorkMeta::read";
 
 #[test]
 fn only_meta_rs_indexer_rs_and_project_rs_may_call_work_meta_read() {
     let (root, files) = all_rust_sources();
-    let violations =
-        violations_outside(&root, &files, &WORK_META_READ_EXEMPT, &[WORK_META_READ_NEEDLE]);
+    let violations = violations_outside(
+        &root,
+        &files,
+        &WORK_META_READ_EXEMPT,
+        &[WORK_META_READ_NEEDLE],
+    );
     assert!(
         violations.is_empty(),
         "{} chỗ ngoài danh mục đóng {:?} nhắc `WorkMeta::read`:\n{}\n\n\
@@ -390,7 +404,10 @@ fn a_hand_built_line_matching_each_shape_is_caught() {
         "ca DUONG THAT: nhac hang META_FILE phai bi bat"
     );
     assert_eq!(
-        line_names_one_of("fs::write(dir.join(\"meta.json\"), bytes)?;", &META_FILE_NEEDLES),
+        line_names_one_of(
+            "fs::write(dir.join(\"meta.json\"), bytes)?;",
+            &META_FILE_NEEDLES
+        ),
         Some("meta.json"),
         "ca DUONG THAT: chuoi \"meta.json\" viet thang phai bi bat"
     );
@@ -419,7 +436,10 @@ fn a_hand_built_line_naming_something_else_is_not_caught() {
         "ca AM: \"project.db\" la ten tep KHAC, khong duoc bat oan"
     );
     assert_eq!(
-        line_names_needle("let meta = WorkMeta::rebuild_from_store(&store)?;", WORK_META_READ_NEEDLE),
+        line_names_needle(
+            "let meta = WorkMeta::rebuild_from_store(&store)?;",
+            WORK_META_READ_NEEDLE
+        ),
         None,
         "ca AM: WorkMeta::rebuild_from_store la HAM KHAC WorkMeta::read, khong duoc bat oan"
     );

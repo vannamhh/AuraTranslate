@@ -318,7 +318,11 @@ fn asset_protocol_scope_has_exactly_the_one_readonly_resource_area() {
     let conf = read_json("tauri.conf.json");
     let ap = &conf["app"]["security"]["assetProtocol"];
 
-    assert_eq!(ap["enable"], serde_json::json!(true), "`assetProtocol` phải bật");
+    assert_eq!(
+        ap["enable"],
+        serde_json::json!(true),
+        "`assetProtocol` phải bật"
+    );
 
     let scope: Vec<&str> = ap["scope"]
         .as_array()
@@ -414,8 +418,7 @@ fn capabilities_directory_holds_exactly_the_one_reviewed_file() {
 /// Liệt kê mọi tệp dưới `dir`, đường dẫn tương đối so với `base`, dùng `/` trên mọi
 /// nền tảng để thông báo lỗi đọc giống nhau ở macOS và Windows (NFR14).
 fn collect_files_recursively(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<String>) {
-    let entries =
-        fs::read_dir(dir).unwrap_or_else(|e| panic!("read {}: {e}", dir.display()));
+    let entries = fs::read_dir(dir).unwrap_or_else(|e| panic!("read {}: {e}", dir.display()));
     for entry in entries {
         let path = entry.expect("đọc mục trong capabilities/").path();
         if path.is_dir() {
@@ -507,9 +510,7 @@ fn nofonts_overlay_drops_resources_with_an_explicit_null() {
          nghĩa. Thấy: {keys:?}"
     );
 
-    let bundle = root["bundle"]
-        .as_object()
-        .expect("`bundle` phải là object");
+    let bundle = root["bundle"].as_object().expect("`bundle` phải là object");
     let bundle_keys: Vec<&str> = bundle.keys().map(String::as_str).collect();
     assert_eq!(
         bundle_keys,
@@ -773,7 +774,11 @@ fn the_bench_probe_commands_are_cfg_gated_and_live_inside_the_bench_module() {
         .position(|line| line.trim() == "mod nfr_bench {")
         .expect("`mod nfr_bench {` not found in src/lib.rs");
     assert_eq!(
-        lines[..module_start].iter().rev().map(|l| l.trim()).find(|t| !t.is_empty() && !t.starts_with("//")),
+        lines[..module_start]
+            .iter()
+            .rev()
+            .map(|l| l.trim())
+            .find(|t| !t.is_empty() && !t.starts_with("//")),
         Some(GUARD),
         "`mod nfr_bench` lost its cfg guard"
     );
@@ -789,12 +794,20 @@ fn the_bench_probe_commands_are_cfg_gated_and_live_inside_the_bench_module() {
         "fn nfr_bench_e7_start",
         "OpenWorkState",
     ] {
-        let inside = lines[module_start..module_end].iter().any(|l| l.contains(name));
-        assert!(inside, "`{name}` is not inside `mod nfr_bench` of src/lib.rs");
-        let outside = lines[..module_start].iter().chain(lines[module_end..].iter()).any(|l| {
-            let t = l.trim();
-            !t.starts_with("//") && t.contains(name) && !t.contains("nfr_bench::")
-        });
+        let inside = lines[module_start..module_end]
+            .iter()
+            .any(|l| l.contains(name));
+        assert!(
+            inside,
+            "`{name}` is not inside `mod nfr_bench` of src/lib.rs"
+        );
+        let outside = lines[..module_start]
+            .iter()
+            .chain(lines[module_end..].iter())
+            .any(|l| {
+                let t = l.trim();
+                !t.starts_with("//") && t.contains(name) && !t.contains("nfr_bench::")
+            });
         assert!(
             name == "OpenWorkState" || !outside,
             "`{name}` also appears outside `mod nfr_bench` of src/lib.rs"
@@ -809,22 +822,61 @@ fn the_dummy_api_key_stub_is_cfg_gated_and_the_default_read_is_the_real_keychain
     let path = manifest_dir().join("src/core/aiconfig/keychain.rs");
     let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let lines: Vec<&str> = src.lines().collect();
-    const SIGNATURE: &str = "pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {";
-    let defs: Vec<usize> = lines.iter().enumerate().filter(|(_, l)| l.trim() == SIGNATURE).map(|(i, _)| i).collect();
-    assert_eq!(defs.len(), 2, "`keychain::read` must have exactly two cfg-selected definitions");
+    const SIGNATURE: &str =
+        "pub(crate) fn read() -> Result<Option<ApiKeySecret>, KeychainUnavailable> {";
+    let defs: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, l)| l.trim() == SIGNATURE)
+        .map(|(i, _)| i)
+        .collect();
+    assert_eq!(
+        defs.len(),
+        2,
+        "`keychain::read` must have exactly two cfg-selected definitions"
+    );
     let guard_of = |at: usize| -> &str {
-        lines[..at].iter().rev().map(|l| l.trim()).find(|t| !t.is_empty() && !t.starts_with("///") && !t.starts_with("//")).unwrap_or("")
+        lines[..at]
+            .iter()
+            .rev()
+            .map(|l| l.trim())
+            .find(|t| !t.is_empty() && !t.starts_with("///") && !t.starts_with("//"))
+            .unwrap_or("")
     };
-    assert_eq!(guard_of(defs[0]), r#"#[cfg(feature = "nfr-bench")]"#, "stub definition lost its guard");
-    assert_eq!(guard_of(defs[1]), r#"#[cfg(not(feature = "nfr-bench"))]"#, "real definition lost its negated guard");
+    assert_eq!(
+        guard_of(defs[0]),
+        r#"#[cfg(feature = "nfr-bench")]"#,
+        "stub definition lost its guard"
+    );
+    assert_eq!(
+        guard_of(defs[1]),
+        r#"#[cfg(not(feature = "nfr-bench"))]"#,
+        "real definition lost its negated guard"
+    );
 
     let stub_body: String = lines[defs[0]..defs[1]].join("\n");
-    assert!(stub_body.contains("ApiKeySecret::new("), "stub must return a dummy key");
-    assert!(!stub_body.contains("entry()"), "stub must never touch the OS keychain");
+    assert!(
+        stub_body.contains("ApiKeySecret::new("),
+        "stub must return a dummy key"
+    );
+    assert!(
+        !stub_body.contains("entry()"),
+        "stub must never touch the OS keychain"
+    );
     let real_body: String = lines[defs[1]..].join("\n");
-    assert!(real_body.contains("entry()?"), "default `read` must call the real keychain");
-    assert!(!real_body.contains("dummy"), "default `read` must not carry the dummy key");
-    assert_eq!(src.matches("dummy-api-key").count(), 1, "the dummy key literal must appear exactly once");
+    assert!(
+        real_body.contains("entry()?"),
+        "default `read` must call the real keychain"
+    );
+    assert!(
+        !real_body.contains("dummy"),
+        "default `read` must not carry the dummy key"
+    );
+    assert_eq!(
+        src.matches("dummy-api-key").count(),
+        1,
+        "the dummy key literal must appear exactly once"
+    );
 }
 
 /// Bộ lái e2e và mã Rust phải khai **cùng một** tên biến.
@@ -841,10 +893,7 @@ fn the_e2e_runner_and_the_rust_side_name_the_same_variables() {
         "AURATRANSLATE_E2E_LIBRARY_ROOT",
     ];
 
-    let path = manifest_dir()
-        .join("..")
-        .join("e2e")
-        .join("wdio.conf.mjs");
+    let path = manifest_dir().join("..").join("e2e").join("wdio.conf.mjs");
     let conf = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
     for name in ENV_NAMES {
@@ -895,7 +944,8 @@ fn the_dialog_plugin_is_registered_and_the_fs_plugin_is_never_initialized() {
     let mut fs_init_sites: Vec<String> = Vec::new();
 
     for file in &files {
-        let text = fs::read_to_string(file).unwrap_or_else(|e| panic!("doc {}: {e}", file.display()));
+        let text =
+            fs::read_to_string(file).unwrap_or_else(|e| panic!("doc {}: {e}", file.display()));
         for (i, raw_line) in text.lines().enumerate() {
             let line = raw_line.trim_start();
             if line.starts_with("//") {
@@ -949,7 +999,7 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
     let cases: [(&str, &str, &str); 2] = [
         (
             "glossary_export_tier",
-            "pub fn glossary_export_tier(app: tauri::AppHandle, tier: GlossaryTier) -> Result<Option<String>, IpcError> {",
+            "pub fn glossary_export_tier(\n        app: tauri::AppHandle,",
             ".blocking_save_file()",
         ),
         (
@@ -970,7 +1020,9 @@ fn the_open_work_mutex_guard_in_the_dialog_wires_is_acquired_after_the_blocking_
         // #[tauri::command] lien tiep trong `pub mod wire`, nen cat toi dau dong trong
         // `#[tauri::command]` KE TIEP sau diem bat dau la du de chua tron than ham nay.
         let after_start = &text[fn_start + fn_start_marker.len()..];
-        let fn_end_rel = after_start.find("#[tauri::command").unwrap_or(after_start.len());
+        let fn_end_rel = after_start
+            .find("#[tauri::command")
+            .unwrap_or(after_start.len());
         let body = &after_start[..fn_end_rel];
 
         let dialog_idx = body.find(dialog_call).unwrap_or_else(|| {
@@ -1033,7 +1085,9 @@ fn the_open_work_mutex_guard_in_the_promptset_dialog_wires_is_acquired_after_the
             )
         });
         let after_start = &text[fn_start + fn_start_marker.len()..];
-        let fn_end_rel = after_start.find("#[tauri::command").unwrap_or(after_start.len());
+        let fn_end_rel = after_start
+            .find("#[tauri::command")
+            .unwrap_or(after_start.len());
         let body = &after_start[..fn_end_rel];
 
         let dialog_idx = body.find(dialog_call).unwrap_or_else(|| {
@@ -1084,7 +1138,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
     &[
         (
             "src/commands/glossary.rs",
-            "pub fn glossary_export_tier(app: tauri::AppHandle",
+            "pub fn glossary_export_tier(\n        app: tauri::AppHandle,",
             "mo hop thoai luu -- `blocking_save_file()` chan vong lap su kien",
         ),
         (
@@ -1114,17 +1168,17 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/glossary.rs",
-            "pub fn glossary_list_entries(app: tauri::AppHandle",
+            "pub fn glossary_list_entries(\n        app: tauri::AppHandle",
             "nap TRON bang glossary_entry ca hai tang (`load_tier`) roi dung mot Vec co toan bo Glossary",
         ),
         (
             "src/commands/segment/wire.rs",
-            "pub fn tm_fuzzy_matches<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "pub fn tm_fuzzy_matches<R: tauri::Runtime>(\n    app: tauri::AppHandle<R>",
             "quet TOAN BO cap TM ca hai tang (Dice tren n-gram), chi phi scale theo kich thuoc TM",
         ),
         (
             "src/commands/segment/wire.rs",
-            "pub fn tm_concordance<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "pub fn tm_concordance<R: tauri::Runtime>(\n    app: tauri::AppHandle<R>",
             "doc TOAN BO cap TM ca hai tang roi loc chuoi con, chi phi scale theo kich thuoc TM",
         ),
         (
@@ -1154,7 +1208,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/tm.rs",
-            "pub fn tm_cancel_import<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "pub fn tm_cancel_import<R: tauri::Runtime>(app: tauri::AppHandle<R>",
             "khoa `PendingTmxImportState`, mutex ma `tm_confirm_import` giu suot luot ghi",
         ),
         (
@@ -1185,12 +1239,12 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/export.rs",
-            "pub fn reviewer_import_open_preview(app: tauri::AppHandle",
+            "pub fn reviewer_import_open_preview(\n        app: tauri::AppHandle",
             "mo hop thoai chon tep -- `blocking_pick_file()` chan vong lap su kien, roi doc va phan tich ca tep",
         ),
         (
             "src/commands/export.rs",
-            "pub fn reviewer_import_confirm(app: tauri::AppHandle",
+            "pub fn reviewer_import_confirm(\n        app: tauri::AppHandle",
             "ghi mot giao dich cho moi Chuong cua tep, giu PendingReviewerImportState suot luot ghi",
         ),
         (
@@ -1255,7 +1309,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn create_work_from_text(\n        app: tauri::AppHandle",
+            "pub fn create_work_from_text(\n    app: tauri::AppHandle",
             "quet TOAN BO goc Library: `reindex_library` -> `Indexer::rebuild(root)` duyet het \
              thu muc goc sau moi luot tao. KHONG phai mang -- hinh Blob de `blocks` rong nen \
              luot tai anh khong voi toi duoc (buoc rot `blocks` chi chay tren duong HTML/URL, \
@@ -1264,19 +1318,19 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn create_work_from_file(\n        app: tauri::AppHandle",
+            "pub fn create_work_from_file(\n    app: tauri::AppHandle",
             "doc TRON tep toi 100 MB (`MAX_IMPORT_BYTES`, `core/segment/import.rs:82`, kiem o \
              `:684`) cong giai nen `.docx`, roi tron pipeline va `reindex_library`",
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn preview_import_encoding_from_file(\n        app: tauri::AppHandle",
+            "pub fn preview_import_encoding_from_file(\n    app: tauri::AppHandle",
             "cung tran 100 MB qua `import_file` -- doc TRON tep cong giai nen `.docx` ngay o \
              luot XEM TRUOC, truoc khi nguoi dung xac nhan bat cu dieu gi",
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn confirm_import_with_encoding<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "pub fn confirm_import_with_encoding<R: tauri::Runtime>(\n    app: tauri::AppHandle<R>",
             "MANG, TUAN TU: `create_work` -> `prepare_chapter_images:975` -> \
              `fetch_and_write_one_asset:1402` -> `webimport::fetch:1282`, moi anh cho toi \
              `REQUEST_TIMEOUT` 20 giay (`core/webimport/fetcher.rs:85`) ⇒ N anh tren mot host \
@@ -1284,13 +1338,13 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn preview_bilingual_import_from_file(\n        app: tauri::AppHandle",
+            "pub fn preview_bilingual_import_from_file(\n    app: tauri::AppHandle",
             "doc TRON tep toi 100 MB qua `import_bilingual_file` (`core/segment/import.rs:737` \
              -> `std::fs::read` o `:763`), cung tran `MAX_IMPORT_BYTES`",
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn confirm_bilingual_import(\n        app: tauri::AppHandle",
+            "pub fn confirm_bilingual_import(\n    app: tauri::AppHandle",
             "tron pipeline cong mot lo chen `segment` cong cac luot ghi dia, roi \
              `reindex_library`. KHONG phai mang: nhanh song ngu dat `blocks: None` \
              (`core/segment/pipeline.rs:1011`) va `prepare_chapter_images` bo qua dung nhung \
@@ -1298,7 +1352,7 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn preview_import_encoding_from_text(\n        app: tauri::AppHandle",
+            "pub fn preview_import_encoding_from_text(\n    app: tauri::AppHandle",
             "`.lock()` PendingImportSourceState tren luong chinh; \
              confirm_import_with_encoding/confirm_bilingual_import (`(async)`) giu khoa do XUYEN \
              SUOT toi N x 20 giay khi dang tai anh (REQUEST_TIMEOUT), nen mot vo dong bo goi \
@@ -1306,14 +1360,14 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn rebuild_bilingual_import_preview(\n        app: tauri::AppHandle",
+            "pub fn rebuild_bilingual_import_preview(\n    app: tauri::AppHandle",
             "cung ly do preview_import_encoding_from_text ngay tren -- `.lock()` \
              PendingImportSourceState tren luong chinh, cung mutex ma confirm_import_with_encoding/ \
              confirm_bilingual_import co the giu toi N x 20 giay",
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn remove_url_import_item(\n        app: tauri::AppHandle",
+            "pub fn remove_url_import_item(\n    app: tauri::AppHandle",
             "cung ly do preview_import_encoding_from_text ngay tren -- doc \
              PendingImportSourceState qua current_pending_destination tren luong chinh, cung mutex \
              ma mot luot xac nhan (async) co the giu toi N x 20 giay; 0 loi goi mang CUA CHINH \
@@ -1356,22 +1410,22 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn open_work<R: tauri::Runtime>(app: tauri::AppHandle<R>",
+            "pub fn open_work<R: tauri::Runtime>(\n    app: tauri::AppHandle<R>",
             "mo `.atproj` that: `Store::open` (di tru kem sao luu ca tep, luong checkpoint, pool doc) -- Story 11.7 lo B",
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn tier2_block_set_kept(\n        app: tauri::AppHandle",
+            "pub fn tier2_block_set_kept(\n    app: tauri::AppHandle",
             "`pending_destination` khoa `PendingImportSourceState`, cung mutex ma mot luot xac nhan `(async)` giu toi N x 20 giay -- Story 11.7 lo B",
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn tier2_block_confirm_range(\n        app: tauri::AppHandle",
+            "pub fn tier2_block_confirm_range(\n    app: tauri::AppHandle",
             "cung ly do `tier2_block_set_kept` ngay tren -- `pending_destination`",
         ),
         (
             "src/commands/project/wire.rs",
-            "pub fn preview_chapter_detail(\n        app: tauri::AppHandle",
+            "pub fn preview_chapter_detail(\n    app: tauri::AppHandle",
             "cung ly do `tier2_block_set_kept` ngay tren -- `pending_destination`",
         ),
         (
@@ -1475,7 +1529,8 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
 fn the_blocking_wires_run_off_the_main_thread() {
     for &(rel, sig, why) in blocking_wire_cases() {
         let path = manifest_dir().join(rel);
-        let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let text =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
 
         let idx = text.find(sig).unwrap_or_else(|| {
             panic!(
@@ -1519,8 +1574,10 @@ fn the_blocking_wires_run_off_the_main_thread() {
     // `count_command_attrs`, nen mot cach viet thuoc tinh la se PANIC -- nhung vong nay chi
     // doc NAM tep co hang trong `cases`, nen mot cach viet la o `cleanup.rs`/`config.rs`/
     // `dict.rs`/`pinned.rs`/`segment.rs`/`lib.rs` chi panic o ca census, khong o day.
-    let case_files: std::collections::BTreeSet<&str> =
-        blocking_wire_cases().iter().map(|&(rel, _, _)| rel).collect();
+    let case_files: std::collections::BTreeSet<&str> = blocking_wire_cases()
+        .iter()
+        .map(|&(rel, _, _)| rel)
+        .collect();
     for rel in case_files {
         let (_, measured_async) = count_command_attrs(rel);
         let declared = census_row(rel).unwrap_or_else(|| {
@@ -1558,8 +1615,10 @@ fn the_blocking_wires_run_off_the_main_thread() {
 /// thay: bảng đó biết `project.rs` có 8 vỏ `(async)`, nó không biết vỏ NÀO.
 #[test]
 fn the_blocking_wires_gate_reads_more_than_one_file() {
-    let distinct_files: std::collections::BTreeSet<&str> =
-        blocking_wire_cases().iter().map(|&(rel, _, _)| rel).collect();
+    let distinct_files: std::collections::BTreeSet<&str> = blocking_wire_cases()
+        .iter()
+        .map(|&(rel, _, _)| rel)
+        .collect();
     assert!(
         distinct_files.len() > 1,
         "cong the_blocking_wires_run_off_the_main_thread phai doc NHIEU HON MOT tep -- nhan {} \
@@ -1617,7 +1676,10 @@ fn count_command_attrs_in(rel: &str, text: &str) -> (usize, usize) {
             // f() {}` la Rust HOP LE voi thuoc tinh QUEN, chi khac o cho no khong dung mot
             // minh tren dong; thong diep cu gui nguoi doc di tim mot dang thuoc tinh Tauri
             // khong ton tai. Tach hai ca ra, vi cach sua cua chung khac nhau.
-            other if other.starts_with("#[tauri::command]") || other.starts_with("#[tauri::command(async)]") => {
+            other
+                if other.starts_with("#[tauri::command]")
+                    || other.starts_with("#[tauri::command(async)]") =>
+            {
                 panic!(
                     "`{rel}:{}` co thuoc tinh lenh KHONG dung mot minh tren dong: {other:?}\n\n\
                      Cach viet thuoc tinh thi QUEN -- phan duoi dong moi la van de. \
@@ -1811,7 +1873,13 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
         0,
         "CHUA DO -- chu: Dev. Ba vo ghim muc tra cuu.",
     ),
-    ("src/commands/project/wire.rs", 3, 15, 13, "cancel_image_download them plain -- chi bom mot AtomicU64, khong doc/ghi Store, cung lop voi ai_translate_cancel."),
+    (
+        "src/commands/project/wire.rs",
+        3,
+        15,
+        13,
+        "cancel_image_download them plain -- chi bom mot AtomicU64, khong doc/ghi Store, cung lop voi ai_translate_cancel.",
+    ),
     (
         "src/commands/promptset.rs",
         7,
@@ -1886,8 +1954,10 @@ fn census_row(rel: &str) -> Option<&'static CommandFileCensusRow> {
 /// qua nó không một dòng đỏ — cùng giới hạn đã ghi ở doc-comment cổng kia.
 #[test]
 fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
-    let mut rows_per_file: std::collections::BTreeMap<&str, usize> =
-        COMMAND_FILE_CENSUS.iter().map(|row| (row.0, 0usize)).collect();
+    let mut rows_per_file: std::collections::BTreeMap<&str, usize> = COMMAND_FILE_CENSUS
+        .iter()
+        .map(|row| (row.0, 0usize))
+        .collect();
     for &(rel, _, _) in blocking_wire_cases() {
         *rows_per_file.entry(rel).or_insert(0) += 1;
     }
@@ -1908,7 +1978,11 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
                  va day la nguoi nhan trach nhiem do) -- tru `src/commands/segment/wire.rs`, co y \
                  de TRONG vi chinh tep do mang chu thich 🔴 mau thuan voi mot loi khai \"nhe\". \
                  Hang nay dang {}.",
-                if why.is_empty() { "TRONG" } else { "co ghi chu" }
+                if why.is_empty() {
+                    "TRONG"
+                } else {
+                    "co ghi chu"
+                }
             );
         }
         let (plain, asyncs) = count_command_attrs(rel);
@@ -1962,7 +2036,8 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
             .to_string_lossy()
             // Windows tra `\`; bang tren viet `/`. Khong chuan hoa thi CI Windows do oan.
             .replace('\\', "/");
-        let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let text =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
         let (plain, asyncs) = count_command_attrs_in(&rel, &text);
         tree_plain += plain;
         tree_async += asyncs;
@@ -2002,16 +2077,21 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
 fn resolve_library_root_body() -> String {
     let path = manifest_dir().join("src/commands/project/mod.rs");
     let text = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    let start = text.find("pub fn resolve_library_root<R: tauri::Runtime>(").unwrap_or_else(|| {
-        panic!("khong tim thay `pub fn resolve_library_root<R: tauri::Runtime>(` trong {}", path.display())
-    });
+    let start = text
+        .find("pub fn resolve_library_root<R: tauri::Runtime>(")
+        .unwrap_or_else(|| {
+            panic!(
+                "khong tim thay `pub fn resolve_library_root<R: tauri::Runtime>(` trong {}",
+                path.display()
+            )
+        });
     let after_start = &text[start..];
     // Hàm này ở mức thụt lề 0 (module-level) -- dấu đóng hàm là một dòng chỉ chứa `}`,
     // khác dấu đóng một khối `if`/`match` bên trong (chúng đều thụt lề).
     let close_needle = "\n}\n";
-    let end = after_start.find(close_needle).unwrap_or_else(|| {
-        panic!("khong tim thay dau dong ham cua `resolve_library_root`")
-    });
+    let end = after_start
+        .find(close_needle)
+        .unwrap_or_else(|| panic!("khong tim thay dau dong ham cua `resolve_library_root`"));
     after_start[..end].to_owned()
 }
 /// Vị từ THUẦN: `Ok(())` khi mọi `needle` xuất hiện trong `body` theo ĐÚNG thứ tự đã cho
@@ -2155,8 +2235,8 @@ fn the_write_tickets_are_must_use_and_the_lint_that_gives_it_teeth_is_denied() {
 
     for (rel, needle, why) in cases {
         let path = manifest_dir().join(rel);
-        let text = fs::read_to_string(&path)
-            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let text =
+            fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
         assert!(
             text.contains(needle),
             "`{rel}` khong con mang `{needle}` -- {why}. Kho KHONG co cong `cargo fmt` (da \
@@ -2337,7 +2417,9 @@ fn the_guarded_dict_layers_surface_literal_names_the_wire_it_actually_sits_in() 
             )
         });
         let after_start = &text[fn_start + fn_start_marker.len()..];
-        let fn_end_rel = after_start.find("#[tauri::command").unwrap_or(after_start.len());
+        let fn_end_rel = after_start
+            .find("#[tauri::command")
+            .unwrap_or(after_start.len());
         let body = &after_start[..fn_end_rel];
 
         assert!(

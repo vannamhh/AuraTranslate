@@ -17,7 +17,8 @@ fn fixtures_raw_dir() -> PathBuf {
 fn build_all_fixture_dbs() -> (tempfile::TempDir, PathBuf, build::AllLayersReport) {
     let dir = tempfile::tempdir().unwrap();
     let out_dir = dir.path().join("out");
-    let report = build::run_all(&fixtures_raw_dir(), &out_dir).expect("all-layers fixture build should succeed");
+    let report = build::run_all(&fixtures_raw_dir(), &out_dir)
+        .expect("all-layers fixture build should succeed");
     (dir, out_dir, report)
 }
 
@@ -30,7 +31,10 @@ fn sqlite_master_signature(conn: &Connection) -> Vec<String> {
         let name: String = r.get(1)?;
         let tbl_name: String = r.get(2)?;
         let sql: Option<String> = r.get(3)?;
-        Ok(format!("{ty}|{name}|{tbl_name}|{}", sql.unwrap_or_default()))
+        Ok(format!(
+            "{ty}|{name}|{tbl_name}|{}",
+            sql.unwrap_or_default()
+        ))
     })
     .unwrap()
     .collect::<Result<_, _>>()
@@ -38,7 +42,8 @@ fn sqlite_master_signature(conn: &Connection) -> Vec<String> {
 }
 
 fn user_version(conn: &Connection) -> i64 {
-    conn.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap()
+    conn.query_row("PRAGMA user_version", [], |r| r.get(0))
+        .unwrap()
 }
 
 /// 🔴 AC4 — vì đường tra cứu chưa tồn tại (1.11/1.13), AC này nghiệm thu ở TẦNG CẤU
@@ -52,7 +57,11 @@ fn sqlite_master_is_byte_identical_across_all_outputs() {
     let base_sig = sqlite_master_signature(&base_conn);
     let base_uv = user_version(&base_conn);
 
-    assert_eq!(report.detachable.len(), 3, "expected exactly three detachable layers built");
+    assert_eq!(
+        report.detachable.len(),
+        3,
+        "expected exactly three detachable layers built"
+    );
     for (name, _) in &report.detachable {
         let conn = Connection::open(out_dir.join(name)).unwrap();
         assert_eq!(
@@ -87,7 +96,11 @@ fn each_detachable_file_holds_exactly_one_dict_source_row_with_its_own_code() {
             .unwrap()
             .collect::<Result<_, _>>()
             .unwrap();
-        assert_eq!(codes, vec![expected_code.to_string()], "{name} must hold exactly one dict_source row with its own code");
+        assert_eq!(
+            codes,
+            vec![expected_code.to_string()],
+            "{name} must hold exactly one dict_source row with its own code"
+        );
     }
 }
 
@@ -104,7 +117,10 @@ fn dict_core_holds_zero_rows_for_any_detachable_code() {
             |r| r.get(0),
         )
         .unwrap();
-    assert_eq!(count, 0, "dict-core.db must hold zero dict_source rows for any detachable code");
+    assert_eq!(
+        count, 0,
+        "dict-core.db must hold zero dict_source rows for any detachable code"
+    );
 }
 
 /// AC1 đối chứng âm (chiều còn lại): một tệp lớp gỡ rời không được chứa hàng của LỚP GỠ
@@ -118,13 +134,21 @@ fn detachable_files_do_not_contain_each_others_rows() {
 
     let tc_conn = Connection::open(&thieu_chuu_path).unwrap();
     let has_vietphrase: i64 = tc_conn
-        .query_row("SELECT COUNT(*) FROM dict_source WHERE code = 'vietphrase'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM dict_source WHERE code = 'vietphrase'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(has_vietphrase, 0);
 
     let vp_conn = Connection::open(&vietphrase_path).unwrap();
     let has_thieu_chuu: i64 = vp_conn
-        .query_row("SELECT COUNT(*) FROM dict_source WHERE code = 'thieu-chuu'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM dict_source WHERE code = 'thieu-chuu'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(has_thieu_chuu, 0);
 
@@ -139,14 +163,25 @@ fn detachable_files_do_not_contain_each_others_rows() {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(has, 0, "dict-tran-van-chanh.db must not contain {code}'s rows");
+        assert_eq!(
+            has, 0,
+            "dict-tran-van-chanh.db must not contain {code}'s rows"
+        );
     }
     let has_tvc_in_tc: i64 = tc_conn
-        .query_row("SELECT COUNT(*) FROM dict_source WHERE code = 'tran-van-chanh'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM dict_source WHERE code = 'tran-van-chanh'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(has_tvc_in_tc, 0);
     let has_tvc_in_vp: i64 = vp_conn
-        .query_row("SELECT COUNT(*) FROM dict_source WHERE code = 'tran-van-chanh'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM dict_source WHERE code = 'tran-van-chanh'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert_eq!(has_tvc_in_vp, 0);
 }
@@ -158,7 +193,12 @@ fn each_detachable_source_declares_non_empty_license_text_and_attribution() {
     let (_dir, out_dir, report) = build_all_fixture_dbs();
     for (name, _) in &report.detachable {
         let conn = Connection::open(out_dir.join(name)).unwrap();
-        let (license_kind, license_text, attribution, source_url): (String, String, String, String) = conn
+        let (license_kind, license_text, attribution, source_url): (
+            String,
+            String,
+            String,
+            String,
+        ) = conn
             .query_row(
                 "SELECT license_kind, license_text, attribution, source_url FROM dict_source",
                 [],
@@ -166,7 +206,11 @@ fn each_detachable_source_declares_non_empty_license_text_and_attribution() {
             )
             .unwrap();
         assert!(!license_kind.is_empty(), "{name}: license_kind is empty");
-        assert!(license_text.len() > 200, "{name}: license_text too short to be real legal/declaration text ({} chars)", license_text.len());
+        assert!(
+            license_text.len() > 200,
+            "{name}: license_text too short to be real legal/declaration text ({} chars)",
+            license_text.len()
+        );
         assert!(!attribution.is_empty(), "{name}: attribution is empty");
         assert!(!source_url.is_empty(), "{name}: source_url is empty");
     }
@@ -181,7 +225,11 @@ fn thieu_chuu_attribution_names_the_author_in_the_built_file() {
     assert!(report.detachable.iter().any(|(n, _)| n == &name));
     let conn = Connection::open(out_dir.join(&name)).unwrap();
     let attribution: String = conn
-        .query_row("SELECT attribution FROM dict_source WHERE code = 'thieu-chuu'", [], |r| r.get(0))
+        .query_row(
+            "SELECT attribution FROM dict_source WHERE code = 'thieu-chuu'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     assert!(attribution.contains("Thiều Chửu"));
     assert!(attribution.contains("Nguyễn Hữu Kha"));
@@ -206,7 +254,10 @@ fn vietphrase_is_unknown_not_public_domain_in_the_built_file() {
     assert_ne!(license_kind, "public-domain");
     // 🔴 AC3 chốt cứng `NULL`, không phải chuỗi rỗng. Mệnh đề `||` cũ chấp nhận cả
     // hai, tức nó xanh cho đúng giá trị mà AC cấm (Review Findings 1.10).
-    assert_eq!(license_id, None, "AC3: license_id của vietphrase phải là NULL");
+    assert_eq!(
+        license_id, None,
+        "AC3: license_id của vietphrase phải là NULL"
+    );
 }
 
 /// AC3 — trường `license_kind` PHẢI giữ nguyên kiểu TEXT (chuỗi mở): chèn thẳng một hàng
@@ -222,7 +273,10 @@ fn license_kind_column_accepts_a_value_outside_the_open_license_set() {
          VALUES ('hvtdtd-test', 'HVTĐTD (test)', 'author-grant', NULL, 'placeholder', 'test', 'test', 'https://example.invalid')",
         [],
     );
-    assert!(result.is_ok(), "license_kind must accept a value outside the open-license enum: {result:?}");
+    assert!(
+        result.is_ok(),
+        "license_kind must accept a value outside the open-license enum: {result:?}"
+    );
 }
 
 /// §Bẫy 2: một trong hai đường dựng lớp gỡ rời bỏ sót `journal_mode = DELETE` — chạy cho
@@ -238,9 +292,19 @@ fn every_layer_uses_delete_journal_mode_with_no_wal_artifacts() {
 
     for (name, r) in &report.detachable {
         let path = out_dir.join(name);
-        assert_eq!(r.journal_mode.to_lowercase(), "delete", "{name}: journal_mode must be DELETE");
-        assert!(!dict_build::finalize::sibling_path(&path, "-wal").exists(), "{name}: leftover -wal file");
-        assert!(!dict_build::finalize::sibling_path(&path, "-shm").exists(), "{name}: leftover -shm file");
+        assert_eq!(
+            r.journal_mode.to_lowercase(),
+            "delete",
+            "{name}: journal_mode must be DELETE"
+        );
+        assert!(
+            !dict_build::finalize::sibling_path(&path, "-wal").exists(),
+            "{name}: leftover -wal file"
+        );
+        assert!(
+            !dict_build::finalize::sibling_path(&path, "-shm").exists(),
+            "{name}: leftover -shm file"
+        );
     }
 }
 
@@ -255,15 +319,29 @@ fn a_headword_shared_with_base_still_gets_its_own_row_in_the_detachable_file() {
     // LẪN fixture Thiều Chửu (dòng 1790 thật của TudienThienChuu.txt).
     let base_conn = Connection::open(out_dir.join(&report.base.0)).unwrap();
     let base_count: i64 = base_conn
-        .query_row("SELECT COUNT(*) FROM dict_entry WHERE headword = '山'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM dict_entry WHERE headword = '山'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
-    assert!(base_count > 0, "fixture setup assumption: '山' must exist in the base fixture");
+    assert!(
+        base_count > 0,
+        "fixture setup assumption: '山' must exist in the base fixture"
+    );
 
     let tc_conn = Connection::open(out_dir.join(build::output_file_name("thieu-chuu"))).unwrap();
     let tc_count: i64 = tc_conn
-        .query_row("SELECT COUNT(*) FROM dict_entry WHERE headword = '山'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM dict_entry WHERE headword = '山'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
-    assert!(tc_count > 0, "'山' must have its own row in dict-thieu-chuu.db, not be filtered out by a base lookup");
+    assert!(
+        tc_count > 0,
+        "'山' must have its own row in dict-thieu-chuu.db, not be filtered out by a base lookup"
+    );
 }
 
 /// 🔴 §Bẫy 7 — `--layer all` hỏng khi BẤT KỲ lớp nào thiếu nguồn thô. Không có chế độ
@@ -279,7 +357,10 @@ fn run_all_fails_when_any_layer_is_missing_its_raw_source() {
     let err = build::run_all(&raw_dir, &dir.path().join("out"))
         .expect_err("--layer all phải HỎNG khi thiếu nguồn thô của một lớp");
     let msg = err.to_string();
-    assert!(msg.contains("vietphrase"), "thông điệp lỗi phải nêu đích danh lớp thiếu: {msg}");
+    assert!(
+        msg.contains("vietphrase"),
+        "thông điệp lỗi phải nêu đích danh lớp thiếu: {msg}"
+    );
 }
 
 /// 🔴 Một lượt `--layer all` hỏng giữa chừng KHÔNG được đụng tới tệp `.db` của lượt
@@ -295,7 +376,9 @@ fn a_failed_run_all_leaves_the_previous_output_untouched() {
 
     let first = build::run_all(&raw_dir, &out_dir).expect("lượt dựng đầu phải thành công");
     let mut before: Vec<(String, u64)> = Vec::new();
-    for name in std::iter::once(first.base.0.clone()).chain(first.detachable.iter().map(|(n, _)| n.clone())) {
+    for name in
+        std::iter::once(first.base.0.clone()).chain(first.detachable.iter().map(|(n, _)| n.clone()))
+    {
         let len = std::fs::metadata(out_dir.join(&name)).unwrap().len();
         before.push((name, len));
     }
@@ -307,10 +390,16 @@ fn a_failed_run_all_leaves_the_previous_output_untouched() {
     for (name, len) in &before {
         let path = out_dir.join(name);
         assert!(path.exists(), "'{name}' bị XOÁ bởi một lượt build hỏng");
-        assert_eq!(&std::fs::metadata(&path).unwrap().len(), len, "'{name}' bị ghi đè bởi một lượt build hỏng");
+        assert_eq!(
+            &std::fs::metadata(&path).unwrap().len(),
+            len,
+            "'{name}' bị ghi đè bởi một lượt build hỏng"
+        );
     }
     assert!(
-        !out_dir.join(format!("{}.tmp", build::output_file_name("vietphrase"))).exists(),
+        !out_dir
+            .join(format!("{}.tmp", build::output_file_name("vietphrase")))
+            .exists(),
         "một lượt hỏng không được để lại tệp .tmp mồ côi"
     );
 }
@@ -328,7 +417,10 @@ fn two_builds_from_the_same_raw_tree_produce_identical_checksums() {
     let a = build::run_all(&raw, &dir_a.path().join("out")).unwrap();
     let b = build::run_all(&raw, &dir_b.path().join("out")).unwrap();
 
-    assert_eq!(a.base.1.sha256, b.base.1.sha256, "dict-core.db phải tái lập được");
+    assert_eq!(
+        a.base.1.sha256, b.base.1.sha256,
+        "dict-core.db phải tái lập được"
+    );
     assert_eq!(a.detachable.len(), b.detachable.len());
     for ((name_a, ra), (name_b, rb)) in a.detachable.iter().zip(b.detachable.iter()) {
         assert_eq!(name_a, name_b);

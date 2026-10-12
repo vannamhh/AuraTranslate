@@ -55,7 +55,8 @@ fn extract_brace_block(lines: &[(usize, String)], marker: &str) -> String {
 }
 
 #[test]
-fn the_usable_marker_arm_hands_the_phase_controller_to_its_own_thread_instead_of_blocking_the_command_thread() {
+fn the_usable_marker_arm_hands_the_phase_controller_to_its_own_thread_instead_of_blocking_the_command_thread()
+ {
     let src_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let rust_files = boundary_scan::rust_sources(&src_root);
     let (_, lib_rs_text) = rust_files
@@ -65,7 +66,10 @@ fn the_usable_marker_arm_hands_the_phase_controller_to_its_own_thread_instead_of
 
     let lines: Vec<(usize, String)> = boundary_scan::code_lines(lib_rs_text).collect();
 
-    let marker_count = lines.iter().filter(|(_, l)| l.contains("\"usable\" => {")).count();
+    let marker_count = lines
+        .iter()
+        .filter(|(_, l)| l.contains("\"usable\" => {"))
+        .count();
     assert_eq!(
         marker_count, 1,
         "ky vong DUNG MOT nhanh `\"usable\" => {{` trong lib.rs (tim thay {marker_count}) -- \

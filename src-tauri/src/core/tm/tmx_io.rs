@@ -9,10 +9,14 @@ use super::tmx::{MAX_TMX_BYTES, TmxError, decode_tmx_bytes};
 
 /// Reads at most `MAX_TMX_BYTES + 1` bytes, so an oversized file is refused without loading it.
 pub fn read_tmx_file(path: &Path) -> Result<String, TmxError> {
-    let read_failed = |e: std::io::Error| TmxError::ReadFailed { detail: format!("{}: {e}", path.display()) };
+    let read_failed = |e: std::io::Error| TmxError::ReadFailed {
+        detail: format!("{}: {e}", path.display()),
+    };
     let file = std::fs::File::open(path).map_err(read_failed)?;
     let mut bytes = Vec::new();
-    file.take(MAX_TMX_BYTES + 1).read_to_end(&mut bytes).map_err(read_failed)?;
+    file.take(MAX_TMX_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(read_failed)?;
     decode_tmx_bytes(&bytes)
 }
 
@@ -20,9 +24,13 @@ pub fn read_tmx_file(path: &Path) -> Result<String, TmxError> {
 /// the importer would refuse (`MAX_TMX_BYTES`) are refused before any file is created.
 pub fn write_tmx_file(path: &Path, contents: &str) -> Result<(), TmxError> {
     if contents.len() as u64 > MAX_TMX_BYTES {
-        return Err(TmxError::TooLarge { limit: MAX_TMX_BYTES });
+        return Err(TmxError::TooLarge {
+            limit: MAX_TMX_BYTES,
+        });
     }
-    let failed = |detail: String| TmxError::WriteFailed { detail: format!("{}: {detail}", path.display()) };
+    let failed = |detail: String| TmxError::WriteFailed {
+        detail: format!("{}: {detail}", path.display()),
+    };
     let Some(file_name) = path.file_name() else {
         return Err(failed("no file name".to_owned()));
     };

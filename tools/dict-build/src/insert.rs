@@ -114,7 +114,13 @@ pub fn insert_entry(conn: &Connection, source_id: i64, entry: &RawEntry) -> rusq
             conn.execute(
                 "INSERT INTO dict_example (sense_id, text, translation, translation_lang, ord)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![sense_id, ex.text, ex.translation, ex.translation_lang, ex_ord as i64],
+                params![
+                    sense_id,
+                    ex.text,
+                    ex.translation,
+                    ex.translation_lang,
+                    ex_ord as i64
+                ],
             )?;
         }
 
