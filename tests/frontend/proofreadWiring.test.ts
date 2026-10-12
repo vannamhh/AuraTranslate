@@ -25,7 +25,7 @@ async function fresh() {
   vi.resetModules()
   invokeMock.mockReset()
   invokeMock.mockImplementation((cmd: string) =>
-    Promise.resolve(cmd.startsWith('ai_translate_') ? { state: 'done', usage: null } : { state: 'done', not_scanned: 0 }),
+    Promise.resolve(cmd.startsWith('ai_translate_') ? { state: 'done', usage: null } : { state: 'done', not_scanned: 0, filtered: 0 }),
   )
   const caret = ref<number | null>(4)
   const segments = ref<ChapterSegment[]>([seg(3), seg(4), seg(5, { target_text: '' }), seg(6, { is_omitted: true }), seg(7)])

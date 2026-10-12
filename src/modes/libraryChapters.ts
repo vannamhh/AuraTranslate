@@ -75,6 +75,7 @@ import { resetProofread } from '../proofreadState'
 import { resetSegmentSelection } from '../panels/segmentSelectionState'
 import { resetReviewMode } from '../reviewModeState'
 import type { IpcError } from '../i18n'
+import { setOpenWorkId } from '../openWorkIdentity'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State module-level — singleton của cả tiến trình, cùng khuôn `libraryWorks.ts`. Mỗi khai
@@ -295,6 +296,7 @@ export async function openWorkById(workId: string): Promise<void> {
   // ⇒ Hai vế, và cần **cả hai**: ① `openWorkBusy` giữ tới khi mọi lượt nạp xong (nút tắt suốt
   // cửa sổ ấy); ② danh sách Chương CŨ bị vứt **ngay** ở đây, nên kể cả khi một đường khác mở
   // được nút, `currentLibraryChapter` là `null` chứ không phải một hàng của Tác phẩm cũ.
+  setOpenWorkId(opened.meta.work_id)
   chapters.value = []
   chaptersHaveLoaded.value = false
   chapterCursor.value = 0

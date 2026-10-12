@@ -865,6 +865,7 @@ message_keys! {
     AiProofreadTextChanged => "err.ai_proofread.text_changed" ["segment_id"],
     AiProofreadRangeInvalid => "err.ai_proofread.range_invalid" ["segment_id"],
     AiProofreadTextWouldBeEmpty => "err.ai_proofread.text_would_be_empty" ["segment_id"],
+    AiProofreadScanRecordRejected => "err.ai_proofread.scan_record_rejected" [],
 
     // ── Story 4.11 (FR, Quyết định Ice 2026-09-22) — dòng token + ước tính chi phí ──
     //

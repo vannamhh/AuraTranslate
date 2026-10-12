@@ -172,6 +172,7 @@ fn run_of(batch_sizes: &[usize]) -> PreparedProofreadRun {
                     .collect(),
             })
             .collect(),
+        remembered: Vec::new(),
     }
 }
 
@@ -214,7 +215,7 @@ fn a_clean_reply_places_findings_on_the_segment_it_names_and_carries_the_batch_u
     let prepared = run_of(&[2]);
     let (out, events) = run(&provider, &prepared);
 
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0 }));
+    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
     assert_eq!(events[0], serde_json::json!({"kind":"planned","segments":2,"batches":1}));
     let batch = &events[1];
     assert_eq!(batch["kind"], "batch");
@@ -297,7 +298,7 @@ fn a_malformed_reply_loses_only_its_own_batch() {
     ]);
     let (out, events) = run(&provider, &run_of(&[2, 3, 4]));
     assert_eq!(provider.call_count(), 3);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 3 }));
+    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 3, filtered: 0 }));
     assert_eq!(batch_events(&events).len(), 3, "the malformed batch still reports its usage");
     assert_eq!(batch_events(&events)[1]["segments"].as_array().map(Vec::len), Some(0));
     assert_eq!(batch_events(&events)[1]["usage"]["total_tokens"], 9);
@@ -338,7 +339,7 @@ fn nothing_to_scan_calls_no_provider_and_is_done() {
     let provider = ScriptedProvider::new(vec![]);
     let (out, events) = run(&provider, &run_of(&[]));
     assert_eq!(provider.call_count(), 0);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0 }));
+    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
     assert_eq!(events, vec![serde_json::json!({"kind":"planned","segments":0,"batches":0})]);
 }
 
@@ -346,8 +347,8 @@ fn nothing_to_scan_calls_no_provider_and_is_done() {
 fn the_outcome_wire_keeps_its_state_tags_and_counts() {
     assert_eq!(serde_json::to_value(AiProofreadOutcomeWire::NotConfigured).unwrap(), serde_json::json!({"state":"not_configured"}));
     assert_eq!(
-        serde_json::to_value(AiProofreadOutcomeWire::Done { not_scanned: 2 }).unwrap(),
-        serde_json::json!({"state":"done","not_scanned":2})
+        serde_json::to_value(AiProofreadOutcomeWire::Done { not_scanned: 2, filtered: 0 }).unwrap(),
+        serde_json::json!({"state":"done","not_scanned":2,"filtered":0})
     );
     assert_eq!(
         serde_json::to_value(AiProofreadOutcomeWire::Cancelled { not_scanned: 4 }).unwrap(),
@@ -402,7 +403,7 @@ fn a_whole_chapter_scans_every_filled_segment_in_document_order_and_skips_empty_
 
     let provider = ScriptedProvider::new(vec![Step::Reply(NO_FINDINGS, usage(1)), Step::Reply(NO_FINDINGS, usage(1))]);
     let (out, events) = run(&provider, &prepared);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0 }));
+    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
     assert_eq!(events[0], serde_json::json!({"kind":"planned","segments":26,"batches":2}));
     assert_eq!(provider.call_count(), 2);
 }
@@ -462,10 +463,35 @@ fn unconfigured_ai_is_not_configured_before_any_call() {
     assert!(matches!(out, ProofreadPrepareOutcome::NotConfigured), "no key saved");
 }
 
-type Snapshot = Vec<(i64, String, String, String, String, String, i64)>;
+type Snapshot = (Vec<(i64, String, String, String, String, String, i64)>, Vec<(String, Vec<String>)>);
+
+fn every_table_dump(open: &OpenWork) -> Vec<(String, Vec<String>)> {
+    open.store
+        .read(|conn| {
+            let tables: Vec<String> = conn
+                .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")?
+                .query_map([], |r| r.get(0))?
+                .collect::<Result<_, _>>()?;
+            let mut out = Vec::new();
+            for table in tables {
+                let mut stmt = conn.prepare(&format!("SELECT * FROM \"{table}\""))?;
+                let width = stmt.column_count();
+                let rows = stmt
+                    .query_map([], |r| {
+                        let cells: Vec<String> =
+                            (0..width).map(|i| format!("{:?}", r.get_ref(i).expect("cell"))).collect();
+                        Ok(cells.join("|"))
+                    })?
+                    .collect::<Result<Vec<_>, _>>()?;
+                out.push((table, rows));
+            }
+            Ok(out)
+        })
+        .expect("dump")
+}
 
 fn full_snapshot(open: &OpenWork) -> Snapshot {
-    open.store
+    let segments = open.store
         .read(|conn| {
             let mut stmt = conn.prepare(
                 "SELECT s.id, s.target_text, s.translation_origin, s.status, s.baseline_target_text, \
@@ -477,7 +503,8 @@ fn full_snapshot(open: &OpenWork) -> Snapshot {
             })?;
             rows.collect::<Result<Vec<_>, _>>()
         })
-        .expect("snapshot")
+        .expect("snapshot");
+    (segments, every_table_dump(open))
 }
 
 #[test]
@@ -494,8 +521,9 @@ fn a_whole_chapter_scan_with_findings_changes_no_text_status_origin_baseline_or_
     confirm_segment(Some(&open), rows[0].id).expect("confirm one");
 
     let before = full_snapshot(&open);
-    assert!(before.iter().any(|r| r.3 != before[4].3), "mixed confirmation states");
-    assert!(before.iter().all(|r| !r.4.is_empty() || !r.5.is_empty()), "baselines are populated");
+    assert!(before.0.iter().any(|r| r.3 != before.0[4].3), "mixed confirmation states");
+    assert!(before.0.iter().all(|r| !r.4.is_empty() || !r.5.is_empty()), "baselines are populated");
+    assert!(before.1.iter().any(|(t, _)| t == "proof_ignore") && before.1.iter().any(|(t, _)| t == "proof_scan"));
 
     let ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
     let prepared = ready(prepare_proofread_call(Some(&global), Some(&open), &ids));
@@ -505,7 +533,7 @@ fn a_whole_chapter_scan_with_findings_changes_no_text_status_origin_baseline_or_
         usage(3),
     )]);
     let (out, events) = run(&provider, &prepared);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0 }));
+    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
     let findings: usize = batch_events(&events)
         .iter()
         .flat_map(|b| b["segments"].as_array().expect("segments").iter())
@@ -564,5 +592,5 @@ fn a_repeated_context_phrase_reaches_the_wire_as_ambiguous_and_never_as_a_findin
     assert_eq!(seg["unlocated"], 0);
     let kinds: Vec<&str> = seg["findings"].as_array().expect("findings").iter().filter_map(|f| f["kind"].as_str()).collect();
     assert_eq!(kinds, ["spelling"]);
-    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0 }));
+    assert_eq!(out.ok(), Some(AiProofreadOutcomeWire::Done { not_scanned: 0, filtered: 0 }));
 }

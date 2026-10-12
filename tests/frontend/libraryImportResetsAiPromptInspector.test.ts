@@ -31,7 +31,7 @@ import { readFixture } from './support/segmentFixture'
 
 /** Tác phẩm mà lượt nhập giả lập trả về — chỉ cần khác `null` để `finishImportSubmission` đi
  * vào nhánh dọn. */
-const TAC_PHAM_MOI = { work_id: 'w-moi', name: 'Tac pham B', chapter_count: 1 }
+const TAC_PHAM_MOI = { meta: { work_id: 'w-moi', name: 'Tac pham B', chapter_count: 1 } }
 
 /** Bản ghi prompt giả lập của Tác phẩm CŨ — chỉ cần đúng hình dạng `AssembledPromptWire` để
  * `isAssembledPromptWire` (tầng adapter) chấp nhận nó. */

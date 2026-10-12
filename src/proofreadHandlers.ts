@@ -1,5 +1,11 @@
 import { aiTranslateBatchStateValue } from './aiTranslateBatchState'
 import { aiTranslateStateValue } from './aiTranslateState'
+import {
+  clearProofreadMemory,
+  closeProofreadMemory,
+  forgetProofreadMemoryRow,
+  openProofreadMemory,
+} from './proofreadMemoryState'
 import { proofreadScopeIds } from './proofreadScope'
 import type { ProofreadScopeKind } from './proofreadScope'
 import {
@@ -7,6 +13,7 @@ import {
   cancelProofread,
   closeProofreadScope,
   dismissProofreadFinding,
+  ignoreProofreadFinding,
   nextProofreadFinding,
   openProofreadScope,
   prevProofreadFinding,
@@ -20,7 +27,7 @@ function scan(kind: ProofreadScopeKind): void {
     console.warn('[proofread] not scanning: a translation is running')
     return
   }
-  void runProofread(proofreadScopeIds.value[kind])
+  void runProofread(proofreadScopeIds.value[kind], kind)
 }
 
 export const proofreadHandlers = {
@@ -54,6 +61,26 @@ export const proofreadHandlers = {
 
   dismissAiProofread: (): void => {
     dismissProofreadFinding()
+  },
+
+  ignoreAiProofread: (): void => {
+    void ignoreProofreadFinding()
+  },
+
+  openAiProofreadMemory: (): void => {
+    void openProofreadMemory()
+  },
+
+  closeAiProofreadMemory: (): void => {
+    closeProofreadMemory()
+  },
+
+  forgetAiProofreadMemory: (): void => {
+    void forgetProofreadMemoryRow()
+  },
+
+  clearAiProofreadMemory: (): void => {
+    void clearProofreadMemory()
   },
 
   nextAiProofread: (): void => {

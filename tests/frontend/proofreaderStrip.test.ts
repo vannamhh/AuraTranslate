@@ -49,7 +49,7 @@ describe('ProofreaderStrip', () => {
       onEvent({ kind: 'planned', segments: 3, batches: 2 })
       onEvent({ kind: 'batch', usage: usage(100, 0.01), segments: [result(1), result(2)] })
       onEvent({ kind: 'batch', usage: usage(50, 0.005), segments: [result(3)] })
-      return Promise.resolve({ value: { state: 'done', not_scanned: 0 }, error: null })
+      return Promise.resolve({ value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
     })
     const wrapper = mount(ProofreaderStrip, { attachTo: document.body })
     await runProofread([1, 2, 3])
@@ -99,7 +99,7 @@ describe('ProofreaderStrip', () => {
     setEditorCaret(1)
     runMock.mockImplementation((_ids: number[], onEvent: (e: unknown) => void) => {
       onEvent({ kind: 'planned', segments: 0, batches: 0 })
-      return Promise.resolve({ value: { state: 'done', not_scanned: 0 }, error: null })
+      return Promise.resolve({ value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
     })
     const wrapper = mount(ProofreaderStrip, { attachTo: document.body })
     await runProofread([1])

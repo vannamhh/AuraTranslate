@@ -40,12 +40,21 @@ export type ProofreadEventWire =
 export type ProofreadOutcomeWire =
   | { state: 'not_configured' }
   | { state: 'cancelled'; not_scanned: number }
-  | { state: 'done'; not_scanned: number }
+  | { state: 'done'; not_scanned: number; filtered: number }
 
 const CMD_PROOFREAD = 'ai_proofread_segments'
 const CMD_PROOFREAD_CANCEL = 'ai_proofread_cancel'
 const CMD_PROOFREAD_ACCEPT = 'ai_proofread_accept'
 const CMD_PROOFREAD_REVERT = 'ai_proofread_revert'
+const CMD_IGNORE_ADD = 'ai_proofread_ignore_add'
+const CMD_IGNORE_LIST = 'ai_proofread_ignore_list'
+const CMD_IGNORE_REMOVE = 'ai_proofread_ignore_remove'
+const CMD_IGNORE_CLEAR = 'ai_proofread_ignore_clear'
+const CMD_SCAN_RECORD = 'ai_proofread_scan_record'
+
+function isCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
 
 function isFindingWire(value: unknown): value is ProofreadFindingWire {
   if (typeof value !== 'object' || value === null) return false
@@ -87,9 +96,10 @@ export function isProofreadEventWire(value: unknown): value is ProofreadEventWir
 
 export function isProofreadOutcomeWire(value: unknown): value is ProofreadOutcomeWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { state?: unknown; not_scanned?: unknown }
+  const v = value as { state?: unknown; not_scanned?: unknown; filtered?: unknown }
   if (v.state === 'not_configured') return true
-  return (v.state === 'done' || v.state === 'cancelled') && typeof v.not_scanned === 'number'
+  if (v.state === 'done') return typeof v.not_scanned === 'number' && isCount(v.filtered)
+  return v.state === 'cancelled' && typeof v.not_scanned === 'number'
 }
 
 /** Never throws; `onEvent` receives only well-shaped events and may run zero times. */
@@ -216,5 +226,117 @@ export async function revertProofreadSuggestion(args: ProofreadRangeWrite): Prom
     return checkedOutcome('revert', wire)
   } catch (err) {
     return writeFailure('revert', err)
+  }
+}
+
+/** One remembered "not an error" signature of the open Work; spelling rows carry empty contexts. */
+export type ProofreadIgnoreRowWire = {
+  id: number
+  kind: ProofreadFindingKind
+  phrase: string
+  context_before: string
+  context_after: string
+  created_at: string
+}
+
+export type ProofreadScanScope = 'segment' | 'selection' | 'chapter'
+
+export type ProofreadIgnoreAdd = Omit<ProofreadRangeWrite, 'replacement'>
+
+function isIgnoreRowWire(value: unknown): value is ProofreadIgnoreRowWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ProofreadIgnoreRowWire, unknown>>
+  return (
+    typeof v.id === 'number' &&
+    typeof v.kind === 'string' &&
+    (PROOFREAD_FINDING_KINDS as readonly string[]).includes(v.kind) &&
+    typeof v.phrase === 'string' &&
+    typeof v.context_before === 'string' &&
+    typeof v.context_after === 'string' &&
+    typeof v.created_at === 'string'
+  )
+}
+
+function memoryFailure(label: string, err: unknown): IpcError | null {
+  if (isIpcError(err)) return err
+  if (hasIpcBridge()) {
+    console.error(`[proofread] \`ai_proofread_${label}\` failed with a non-IpcError: ${String(err)}`)
+    return UNKNOWN_IPC_ERROR
+  }
+  console.info(`[proofread] cannot call \`ai_proofread_${label}\` outside Tauri: ${String(err)}`)
+  return null
+}
+
+/** Remembers "not a mistake" for the phrase at `[start, end)`. `ok` is false on any failure. Never throws. */
+export async function addProofreadIgnore(args: ProofreadIgnoreAdd): Promise<{ ok: boolean; error: IpcError | null }> {
+  try {
+    await invoke<unknown>(CMD_IGNORE_ADD, {
+      segmentId: args.segmentId,
+      expectedText: args.expectedText,
+      start: args.start,
+      end: args.end,
+      expectedPhrase: args.expectedPhrase,
+      kind: args.kind,
+    })
+    return { ok: true, error: null }
+  } catch (err) {
+    return { ok: false, error: memoryFailure('ignore_add', err) }
+  }
+}
+
+/** Newest first. `rows` is null on failure. Never throws. */
+export async function listProofreadIgnores(): Promise<{ rows: ProofreadIgnoreRowWire[] | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_IGNORE_LIST)
+    if (!Array.isArray(wire) || !wire.every(isIgnoreRowWire)) {
+      console.error(`[proofread] \`${CMD_IGNORE_LIST}\` returned a shape that is not a list of ProofreadIgnoreRowWire`)
+      return { rows: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { rows: wire, error: null }
+  } catch (err) {
+    return { rows: null, error: memoryFailure('ignore_list', err) }
+  }
+}
+
+/** `removed` is false when the row was already gone. Never throws. */
+export async function removeProofreadIgnore(id: number): Promise<{ removed: boolean | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_IGNORE_REMOVE, { id })
+    if (typeof wire !== 'boolean') {
+      console.error(`[proofread] \`${CMD_IGNORE_REMOVE}\` returned a shape that is not a boolean`)
+      return { removed: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { removed: wire, error: null }
+  } catch (err) {
+    return { removed: null, error: memoryFailure('ignore_remove', err) }
+  }
+}
+
+/** Rust clears without asking; the two-click guard lives in the caller. Never throws. */
+export async function clearProofreadIgnores(): Promise<{ cleared: number | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_IGNORE_CLEAR)
+    if (!isCount(wire)) {
+      console.error(`[proofread] \`${CMD_IGNORE_CLEAR}\` returned a shape that is not a row count`)
+      return { cleared: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { cleared: wire, error: null }
+  } catch (err) {
+    return { cleared: null, error: memoryFailure('ignore_clear', err) }
+  }
+}
+
+/** One row per finished scan; Rust rejects a Work that is no longer open. Never throws. */
+export async function recordProofreadScan(
+  workId: string,
+  scope: ProofreadScanScope,
+  reported: number,
+  filtered: number,
+): Promise<{ ok: boolean; error: IpcError | null }> {
+  try {
+    await invoke<unknown>(CMD_SCAN_RECORD, { workId, scope, reported, filtered })
+    return { ok: true, error: null }
+  } catch (err) {
+    return { ok: false, error: memoryFailure('scan_record', err) }
   }
 }

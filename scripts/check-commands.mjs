@@ -227,7 +227,7 @@ const tsFiles = keep(tsAll)
  * bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const VUE_FLOOR = 36
+const VUE_FLOOR = 40
 const TS_FLOOR = 97
 
 /**
@@ -2327,6 +2327,8 @@ const HANDLER_TABLE = {
   'src/App.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
   'src/ProofreadScopeOverlay.vue::onEscape': { ids: ['ai.proofread.scope.close'] },
   'src/ProofreadScopeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ProofreadMemoryOverlay.vue::onEscape': { ids: ['ai.proofread.memory.close'] },
+  'src/ProofreadMemoryOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/AttributionOverlay.vue::closeAttribution': { nonCommand: R_CLOSE_IMPORTED },
   'src/AttributionOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/BilingualImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.bilingual_cancel'] },

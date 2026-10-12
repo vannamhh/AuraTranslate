@@ -115,7 +115,7 @@ vi.mock('../../src/config/chapter', async (importOriginal) => {
 /** Tác phẩm mà `openWorkById('w-moi')` mở — cùng hằng số `segmentSelection.test.ts`. */
 const TAC_PHAM_MOI = { meta: { work_id: 'w-moi' }, folder: '/tmp/w-moi.atproj', chapter_id: 1 }
 /** Tác phẩm mà lượt NHẬP giả lập tạo ra — cùng hằng số `segmentSelection.test.ts`. */
-const TAC_PHAM_MOI_NHAP = { work_id: 'w-moi-nhap', name: 'Tac pham nhap moi', chapter_count: 1 }
+const TAC_PHAM_MOI_NHAP = { meta: { work_id: 'w-moi-nhap', name: 'Tac pham nhap moi', chapter_count: 1 } }
 
 vi.mock('../../src/config/library', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/library')>()

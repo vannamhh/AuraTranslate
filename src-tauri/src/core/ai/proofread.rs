@@ -4,8 +4,10 @@
 //! phrase is assigned to and computes the UTF-16 offsets a JS `Range` needs (AD-1).
 
 use serde::{Deserialize, Serialize};
+use unicode_normalization::UnicodeNormalization as _;
 
 use crate::core::segment::proofread_kind::{ProofreadKind, SignatureScope};
+use crate::core::segment::utf16::utf16_to_byte;
 
 /// A batch closes before the source plus target characters of its segments would pass this.
 pub const PROOFREAD_BATCH_CHAR_BUDGET: usize = 4_000;
@@ -162,6 +164,85 @@ pub fn locate_batch_findings(
 
 fn utf16_len(text: &str) -> u32 {
     u32::try_from(text.encode_utf16().count()).unwrap_or(u32::MAX)
+}
+
+/// Unicode characters of context kept on each side of a context-scoped phrase (AD-53 rule 7).
+pub const PROOFREAD_CONTEXT_CHARS: usize = 32;
+
+/// What "not an error" memory stores and matches on (AD-53 rule 7). `before` and `after` are
+/// empty for a phrase-scoped kind and are not consulted when matching it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProofreadSignature {
+    pub kind: ProofreadKind,
+    pub phrase: String,
+    pub before: String,
+    pub after: String,
+}
+
+/// The signature of `text[byte_start..byte_end]`; `None` when the phrase is empty after `trim`.
+pub fn signature_of(
+    kind: ProofreadKind,
+    text: &str,
+    byte_start: usize,
+    byte_end: usize,
+) -> Option<ProofreadSignature> {
+    let phrase: String = text.get(byte_start..byte_end)?.trim().nfc().collect();
+    if phrase.is_empty() {
+        return None;
+    }
+    if kind.signature_scope() == SignatureScope::Phrase {
+        return Some(ProofreadSignature { kind, phrase, before: String::new(), after: String::new() });
+    }
+    let before: Vec<char> = text[..byte_start].nfc().collect();
+    let after: String = text[byte_end..].nfc().take(PROOFREAD_CONTEXT_CHARS).collect();
+    let before: String = before[before.len().saturating_sub(PROOFREAD_CONTEXT_CHARS)..].iter().collect();
+    Some(ProofreadSignature { kind, phrase, before, after })
+}
+
+/// Whether a stored signature silences `current`. A stored side that is empty only matches an
+/// empty current side; a non-empty one matches when it is the tail (before) or head (after) of
+/// the current side, so merging segments, which only lengthens context, keeps the memory.
+pub fn signature_matches(stored: &ProofreadSignature, current: &ProofreadSignature) -> bool {
+    if stored.kind != current.kind || stored.phrase != current.phrase {
+        return false;
+    }
+    if stored.kind.signature_scope() == SignatureScope::Phrase {
+        return true;
+    }
+    let side = |stored: &str, current: &str, ends: bool| {
+        if stored.is_empty() {
+            current.is_empty()
+        } else if ends {
+            current.ends_with(stored)
+        } else {
+            current.starts_with(stored)
+        }
+    };
+    side(&stored.before, &current.before, true) && side(&stored.after, &current.after, false)
+}
+
+/// Drops the findings `remembered` silences and returns how many it dropped.
+pub fn filter_remembered(
+    scanned_text: &str,
+    findings: Vec<ProofreadFinding>,
+    remembered: &[ProofreadSignature],
+) -> (Vec<ProofreadFinding>, u32) {
+    if remembered.is_empty() {
+        return (findings, 0);
+    }
+    let mut filtered = 0u32;
+    let kept = findings
+        .into_iter()
+        .filter(|finding| {
+            let current = utf16_to_byte(scanned_text, finding.start)
+                .zip(utf16_to_byte(scanned_text, finding.end))
+                .and_then(|(start, end)| signature_of(finding.kind, scanned_text, start, end));
+            let silenced = current.is_some_and(|current| remembered.iter().any(|s| signature_matches(s, &current)));
+            filtered += u32::from(silenced);
+            !silenced
+        })
+        .collect();
+    (kept, filtered)
 }
 
 #[cfg(test)]
@@ -343,5 +424,71 @@ mod tests {
         let got = locate_batch_findings(&r, &[("aa", false), ("bb", true)]).expect("valid reply");
         assert_eq!((got[0].findings.len(), got[0].unlocated), (0, 1));
         assert_eq!((got[1].findings.len(), got[1].unlocated), (1, 0));
+    }
+
+    fn signature(kind: ProofreadKind, text: &str, phrase: &str) -> ProofreadSignature {
+        let start = text.find(phrase).expect("phrase in text");
+        signature_of(kind, text, start, start + phrase.len()).expect("signature")
+    }
+
+    #[test]
+    fn a_signature_trims_and_normalises_the_phrase() {
+        let text = "ab  cafe\u{301}  cd";
+        let start = text.find("  cafe").unwrap();
+        let end = text.find("  cd").unwrap() + 2;
+        let sig = signature_of(ProofreadKind::Spelling, text, start, end).expect("signature");
+        assert_eq!(sig.phrase, "caf\u{e9}");
+        assert_eq!((sig.before.as_str(), sig.after.as_str()), ("", ""));
+        assert_eq!(signature_of(ProofreadKind::Spelling, "a   b", 1, 4), None);
+    }
+
+    #[test]
+    fn a_context_signature_keeps_at_most_n_characters_each_side() {
+        let long = "x".repeat(PROOFREAD_CONTEXT_CHARS + 10);
+        let text = format!("{long}[mid]{long}");
+        let sig = signature(ProofreadKind::Grammar, &text, "[mid]");
+        assert_eq!(sig.before, "x".repeat(PROOFREAD_CONTEXT_CHARS));
+        assert_eq!(sig.after, "x".repeat(PROOFREAD_CONTEXT_CHARS));
+    }
+
+    #[test]
+    fn a_stored_side_matches_when_it_is_the_tail_or_head_of_the_current_side() {
+        let stored = signature(ProofreadKind::Grammar, "aa bb cc", "bb");
+        assert!(signature_matches(&stored, &signature(ProofreadKind::Grammar, "zz aa bb cc dd", "bb")));
+        assert!(!signature_matches(&stored, &signature(ProofreadKind::Grammar, "zz aa bb ce dd", "bb")));
+        assert!(!signature_matches(&stored, &signature(ProofreadKind::Grammar, "bb cc", "bb")));
+        assert!(!signature_matches(&stored, &signature(ProofreadKind::Mistranslation, "aa bb cc", "bb")));
+    }
+
+    #[test]
+    fn an_empty_stored_side_only_matches_an_empty_current_side() {
+        let at_edge = signature(ProofreadKind::Grammar, "bb cc", "bb");
+        assert!(signature_matches(&at_edge, &signature(ProofreadKind::Grammar, "bb cc", "bb")));
+        assert!(!signature_matches(&at_edge, &signature(ProofreadKind::Grammar, "aa bb cc", "bb")));
+    }
+
+    #[test]
+    fn a_spelling_signature_matches_whatever_surrounds_the_phrase() {
+        let stored = signature(ProofreadKind::Spelling, "aa wrogn bb", "wrogn");
+        assert!(signature_matches(&stored, &signature(ProofreadKind::Spelling, "zzz wrogn", "wrogn")));
+        assert!(!signature_matches(&stored, &signature(ProofreadKind::Spelling, "zzz wrong", "wrong")));
+    }
+
+    #[test]
+    fn filtering_drops_only_remembered_findings_and_counts_them() {
+        let text = "aa wrogn bb wrogn";
+        let at = |start: u32| ProofreadFinding {
+            kind: ProofreadKind::Spelling,
+            start,
+            end: start + 5,
+            explanation: String::new(),
+            suggestion: String::new(),
+        };
+        let grammar = ProofreadFinding { kind: ProofreadKind::Grammar, ..at(3) };
+        let remembered = [signature(ProofreadKind::Spelling, text, "wrogn")];
+        let (kept, filtered) = filter_remembered(text, vec![at(3), grammar.clone(), at(12)], &remembered);
+        assert_eq!((kept, filtered), (vec![grammar], 2));
+        let (all, none) = filter_remembered(text, vec![at(3)], &[]);
+        assert_eq!((all.len(), none), (1, 0));
     }
 }

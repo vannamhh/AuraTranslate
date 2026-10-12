@@ -1764,10 +1764,10 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
     ),
     (
         "src/commands/proofread.rs",
-        2,
+        7,
         0,
         0,
-        "CHUA DO -- chu: Dev. `ai_proofread_segment` la `async fn` literal chay cung co che spawn_blocking cua `ai_translate_segment` (khong giu `OpenWorkState` xuyen luot goi mang); `ai_proofread_cancel` chi bom mot `AtomicU64`.",
+        "CHUA DO -- chu: Dev. `ai_proofread_segment` la `async fn` literal chay cung co che spawn_blocking cua `ai_translate_segment` (khong giu `OpenWorkState` xuyen luot goi mang); `ai_proofread_cancel` chi bom mot `AtomicU64`. Nam vo ghi nho \"khong phai loi\" la plain: moi vo mot cau INSERT/DELETE/SELECT tren bang nho `proof_ignore`/`proof_scan`, tuc thoi.",
     ),
     ("src/commands/chapter.rs", 4, 5, 5, ""),
     (
@@ -1980,9 +1980,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (82, 56),
+        (87, 56),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         82/56.\n\n\
+         87/56.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

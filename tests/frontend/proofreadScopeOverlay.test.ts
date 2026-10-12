@@ -13,7 +13,7 @@ function seg(id: number, patch: Partial<ChapterSegment> = {}): ChapterSegment {
 async function fresh() {
   vi.resetModules()
   invokeMock.mockReset()
-  invokeMock.mockResolvedValue({ state: 'done', not_scanned: 0 })
+  invokeMock.mockResolvedValue({ state: 'done', not_scanned: 0, filtered: 0 })
   const caret = ref<number | null>(3)
   const lastCaret = ref<number | null>(3)
   const segments = ref<ChapterSegment[]>(

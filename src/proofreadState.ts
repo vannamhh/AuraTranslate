@@ -2,16 +2,21 @@ import { computed, readonly, ref, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import {
   acceptProofreadSuggestion,
+  addProofreadIgnore,
   cancelProofreadCall,
+  recordProofreadScan,
   revertProofreadSuggestion,
   runProofreadSegments,
 } from './config/proofread'
 import type {
   ProofreadEventWire,
   ProofreadFindingWire,
+  ProofreadScanScope,
   ProofreadSegmentResultWire,
   ProofreadWriteResult,
 } from './config/proofread'
+import { openWorkId } from './openWorkIdentity'
+import { resetProofreadMemory } from './proofreadMemoryState'
 import type { AiUsageSummary } from './aiUsageLine'
 import type { IpcError } from './i18n'
 import {
@@ -48,6 +53,8 @@ const results = shallowRef<ReadonlyMap<number, ProofreadSegmentResult>>(new Map(
 const planned = ref(0)
 const arrived = ref(0)
 const notScanned = ref(0)
+const filteredCount = ref(0)
+const reportedFindings = ref(0)
 const tokenCount = ref(0)
 const reportedCount = ref(0)
 const costUsdSum = ref(0)
@@ -68,6 +75,8 @@ export const proofreadRunSegmentIds: Readonly<Ref<readonly number[]>> = runSegme
 export const proofreadResults: Readonly<Ref<ReadonlyMap<number, ProofreadSegmentResult>>> = results
 export const proofreadError: DeepReadonly<Ref<IpcError | null>> = readonly(error)
 export const proofreadNotScanned: DeepReadonly<Ref<number>> = readonly(notScanned)
+/** Findings Rust silenced from the remembered "not a mistake" list; zero while a scan runs. */
+export const proofreadFiltered: DeepReadonly<Ref<number>> = readonly(filteredCount)
 export const proofreadScopeIsOpen: DeepReadonly<Ref<boolean>> = readonly(scopeOpen)
 
 export const proofreadProgress: ComputedRef<{ done: number; total: number }> = computed(() => ({
@@ -106,6 +115,8 @@ function clearResult(): void {
   planned.value = 0
   arrived.value = 0
   notScanned.value = 0
+  filteredCount.value = 0
+  reportedFindings.value = 0
   tokenCount.value = 0
   reportedCount.value = 0
   costUsdSum.value = 0
@@ -123,6 +134,7 @@ function applyEvent(event: ProofreadEventWire): void {
   const next = new Map(results.value)
   for (const segment of event.segments as readonly ProofreadSegmentResultWire[]) {
     arrived.value += 1
+    reportedFindings.value += segment.findings.length
     if (editedWhileScanning.has(segment.segment_id)) continue
     next.set(segment.segment_id, {
       scannedText: segment.scanned_text,
@@ -146,7 +158,7 @@ function notScannedFromError(err: IpcError): number {
 }
 
 /** Flushes the Editor first so the scan reads the same `target_text` the user sees. */
-export async function runProofread(segmentIds: readonly number[]): Promise<void> {
+export async function runProofread(segmentIds: readonly number[], scope: ProofreadScanScope | null = null): Promise<void> {
   if (state.value === 'scanning') {
     console.warn('[proofread] not scanning: a scan is already running')
     return
@@ -193,7 +205,21 @@ export async function runProofread(segmentIds: readonly number[]): Promise<void>
     return
   }
   if (result.value.state !== 'not_configured') notScanned.value = result.value.not_scanned
+  if (result.value.state === 'done') {
+    filteredCount.value = result.value.filtered
+    if (scope !== null) void recordFinishedScan(scope, reportedFindings.value, result.value.filtered)
+  }
   state.value = result.value.state
+}
+
+async function recordFinishedScan(scope: ProofreadScanScope, reported: number, filtered: number): Promise<void> {
+  const workId = openWorkId.value
+  if (workId === null) {
+    console.warn('[proofread] scan not recorded: no open Work id known')
+    return
+  }
+  const result = await recordProofreadScan(workId, scope, reported, filtered)
+  if (!result.ok) console.warn(`[proofread] scan not recorded: ${result.error?.code ?? 'no IPC bridge'}`)
 }
 
 export function cancelProofread(): void {
@@ -251,6 +277,7 @@ export function resetProofread(): void {
   focus.value = { segmentId: -1, index: 0 }
   acting.value = false
   clearResult()
+  resetProofreadMemory()
 }
 
 function dropReverts(segmentId: number): void {
@@ -473,15 +500,59 @@ export async function revertProofreadFinding(): Promise<void> {
   }
 }
 
-/** Closes the finding at the caret in memory only: no IPC, nothing remembered. */
-export function dismissProofreadFinding(): void {
-  const current = proofreadCurrent.value
-  if (current === null) return
+function removeFinding(current: ProofreadCurrent): void {
   const entry = results.value.get(current.segmentId)
   if (entry === undefined) return
   actionFailure.value = null
   focus.value = { segmentId: current.segmentId, index: current.index }
   setEntry(current.segmentId, { ...entry, findings: entry.findings.filter((f) => f !== current.finding) })
+}
+
+/** Closes the finding at the caret in memory only: no IPC, nothing remembered. */
+export function dismissProofreadFinding(): void {
+  const current = proofreadCurrent.value
+  if (current === null) return
+  removeFinding(current)
+}
+
+/** "Not a mistake": Rust remembers the signature for the open Work, then the finding leaves the strip. */
+export async function ignoreProofreadFinding(): Promise<void> {
+  if (acting.value) return
+  const current = proofreadCurrent.value
+  if (current === null) return
+  const mine = sequence
+  const { segmentId, finding, scannedText } = current
+  acting.value = true
+  actionFailure.value = null
+  try {
+    const flushed = await flushEditorBeforeDiscreteWrite()
+    if (flushed !== 'clean') {
+      actionFailure.value = { segmentId, error: flushFailure(flushed) }
+      return
+    }
+    if (mine !== sequence || !(results.value.get(segmentId)?.findings.includes(finding) ?? false)) return
+    const result = await addProofreadIgnore({
+      segmentId,
+      expectedText: scannedText,
+      start: finding.start,
+      end: finding.end,
+      expectedPhrase: scannedText.slice(finding.start, finding.end),
+      kind: finding.kind,
+    })
+    if (!result.ok) {
+      if (result.error !== null) actionFailure.value = { segmentId, error: result.error }
+      return
+    }
+    if (mine !== sequence) return
+    const live = proofreadCurrent.value
+    if (live !== null && live.finding === finding) removeFinding(live)
+    else {
+      const entry = results.value.get(segmentId)
+      if (entry !== undefined) setEntry(segmentId, { ...entry, findings: entry.findings.filter((f) => f !== finding) })
+    }
+  } finally {
+    acting.value = false
+  }
 }
 
 type Position = { segmentId: number; index: number }

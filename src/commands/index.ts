@@ -1086,6 +1086,15 @@ export type CommandDeps = {
   cancelAiProofread?: () => void
   acceptAiProofread?: () => void
   dismissAiProofread?: () => void
+  /** Ghi nhớ "không phải lỗi" cho phát hiện đang xem. Handler của `ai.proofread.ignore`. */
+  ignoreAiProofread?: () => void
+  /** Mở danh sách ghi nhớ của Tác phẩm. Handler của `ai.proofread.memory.open`. */
+  openAiProofreadMemory?: () => void
+  closeAiProofreadMemory?: () => void
+  /** Bỏ ghi nhớ dòng đang chọn. Handler của `ai.proofread.memory.forget`. */
+  forgetAiProofreadMemory?: () => void
+  /** Xoá toàn bộ ghi nhớ, hai lần bấm. Handler của `ai.proofread.memory.clear`. */
+  clearAiProofreadMemory?: () => void
   nextAiProofread?: () => void
   prevAiProofread?: () => void
   revertAiProofread?: () => void
@@ -4246,6 +4255,61 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.proofread.dismiss', 'dismissAiProofread')
       }
       deps.dismissAiProofread()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.ignore',
+    labelKey: 'command.ai.proofread.ignore',
+    keys: undefined,
+    run: () => {
+      if (deps.ignoreAiProofread === undefined) {
+        return portMissing('ai.proofread.ignore', 'ignoreAiProofread')
+      }
+      deps.ignoreAiProofread()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.memory.open',
+    labelKey: 'command.ai.proofread.memory.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openAiProofreadMemory === undefined) {
+        return portMissing('ai.proofread.memory.open', 'openAiProofreadMemory')
+      }
+      deps.openAiProofreadMemory()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.memory.close',
+    labelKey: 'command.ai.proofread.memory.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeAiProofreadMemory === undefined) {
+        return portMissing('ai.proofread.memory.close', 'closeAiProofreadMemory')
+      }
+      deps.closeAiProofreadMemory()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.memory.forget',
+    labelKey: 'command.ai.proofread.memory.forget',
+    keys: undefined,
+    run: () => {
+      if (deps.forgetAiProofreadMemory === undefined) {
+        return portMissing('ai.proofread.memory.forget', 'forgetAiProofreadMemory')
+      }
+      deps.forgetAiProofreadMemory()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.memory.clear',
+    labelKey: 'command.ai.proofread.memory.clear',
+    keys: undefined,
+    run: () => {
+      if (deps.clearAiProofreadMemory === undefined) {
+        return portMissing('ai.proofread.memory.clear', 'clearAiProofreadMemory')
+      }
+      deps.clearAiProofreadMemory()
     },
   })
   target.register({

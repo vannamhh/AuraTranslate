@@ -13064,3 +13064,7 @@ chính nó.
   summary: Vẽ lại gạch chân sau `keydown` bằng `setTimeout(0)` dựa vào `beforeinput`/`input` của phím thật chạy cùng task; nếu không, span bọc lại trước khi chữ vào và ⌘Z làm hỏng văn bản như review 1 của 9.5.
   evidence: chưa kiểm (maybe-false, medium nếu đúng); e2e chỉ có `keydown` giả + `execCommand`, cần gõ phím thật rồi ⌘Z trên ô có gạch chân.
   Chủ: Epic 9.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-bo-qua-co-ghi-nho-plan.md`
+  summary: Chưa ai thử trong ứng dụng thật trên một Chương: "Không phải lỗi", quét lại (phát hiện không hiện, dải ghi số bị lọc), gộp hai câu rồi quét lại, mở "Chỗ đã bỏ qua", bỏ một mục, "Xoá toàn bộ" (lần bấm đầu không xoá), và hàng `proof_scan` sau mỗi lượt quét xong.
+  evidence: e2e không giả được provider AI; vitest giả `invoke`, cargo test không qua webview. Id Tác phẩm cho `scan_record` đến từ `openWorkIdentity.ts` (đặt ở hai điểm tạo/mở Tác phẩm), chưa thử trên đường tạo từ nhập ghép Chương.
+  Chủ: Epic 9.

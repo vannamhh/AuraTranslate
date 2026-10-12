@@ -1,6 +1,7 @@
 use super::*;
 use crate::core::segment::proofread_kind::{AcceptanceOrigin, ProofreadKind};
 use crate::core::segment::translation_origin::{Arbitrated, UnknownBaselineOrigin, arbitrate};
+use crate::core::segment::utf16::utf16_to_byte;
 
 fn proofread_error(code: &'static str, key: MessageKey, segment_id: i64) -> IpcError {
     IpcError::new(
@@ -15,7 +16,7 @@ fn text_changed(segment_id: i64) -> IpcError {
     proofread_error("ai_proofread.text_changed", MessageKey::AiProofreadTextChanged, segment_id)
 }
 
-fn range_invalid(segment_id: i64) -> IpcError {
+pub(crate) fn range_invalid(segment_id: i64) -> IpcError {
     proofread_error("ai_proofread.range_invalid", MessageKey::AiProofreadRangeInvalid, segment_id)
 }
 
@@ -30,20 +31,6 @@ pub(crate) struct CheckedProofreadRange {
     pub baseline_origin: String,
     pub byte_start: usize,
     pub byte_end: usize,
-}
-
-fn utf16_to_byte(text: &str, target: u32) -> Option<usize> {
-    let mut units = 0u32;
-    for (byte, ch) in text.char_indices() {
-        if units == target {
-            return Some(byte);
-        }
-        if units > target {
-            return None;
-        }
-        units += u32::try_from(ch.len_utf16()).unwrap_or(2);
-    }
-    (units == target).then_some(text.len())
 }
 
 /// The one check every proofreader write shares (AD-53 rule 4), run inside the write

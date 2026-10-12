@@ -294,7 +294,7 @@ fn no_work_open_is_refused() {
 }
 
 const SRC_RS_FLOOR: usize = 118;
-const WEBVIEW_PROOFREAD_FILE_FLOOR: usize = 6;
+const WEBVIEW_PROOFREAD_FILE_FLOOR: usize = 8;
 const WRITE_CALL: &str = "write_non_user_target(";
 const ACCEPT_FILE: &str = "commands/segment/proofread_accept.rs";
 const WEBVIEW_FORBIDDEN: [&str; 2] = ["save_segment_targets", "saveSegmentTargets"];

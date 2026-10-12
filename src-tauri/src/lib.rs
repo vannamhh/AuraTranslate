@@ -1295,6 +1295,11 @@ pub fn run() {
             crate::commands::aitranslate::wire::ai_translate_batch,
             crate::commands::proofread::wire::ai_proofread_segments,
             crate::commands::proofread::wire::ai_proofread_cancel,
+            crate::commands::proofread::wire::ai_proofread_ignore_add,
+            crate::commands::proofread::wire::ai_proofread_ignore_list,
+            crate::commands::proofread::wire::ai_proofread_ignore_remove,
+            crate::commands::proofread::wire::ai_proofread_ignore_clear,
+            crate::commands::proofread::wire::ai_proofread_scan_record,
             // Story 4.8, Phase 2 -- luot PROMOTE mot ket qua AI vao Editor qua `⌘⇧↵` (AD-47①/③).
             // Ghi RIENG cua duong nay, khong tai dung `save_segment_targets`: no di qua
             // `write_non_user_target`, dat `target_text`, hai cot moc va

@@ -2265,6 +2265,40 @@ fn the_ai_proofread_wires_are_registered_and_keep_their_parameter_names() {
 }
 
 #[test]
+fn the_proofread_memory_wires_are_registered_and_keep_their_parameter_names() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+    let proofread_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("commands").join("proofread.rs");
+    let proofread_src = fs::read_to_string(&proofread_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", proofread_rs.display()));
+
+    for (name, params) in [
+        (
+            "ai_proofread_ignore_add",
+            "app: tauri::AppHandle<R>, segment_id: i64, expected_text: String, start: u32, end: u32, \
+             expected_phrase: String, kind: ProofreadKind,",
+        ),
+        ("ai_proofread_ignore_list", "app: tauri::AppHandle<R>,"),
+        ("ai_proofread_ignore_remove", "app: tauri::AppHandle<R>, id: i64,"),
+        ("ai_proofread_ignore_clear", "app: tauri::AppHandle<R>"),
+        (
+            "ai_proofread_scan_record",
+            "app: tauri::AppHandle<R>, work_id: String, scope: String, reported: i64, filtered: i64,",
+        ),
+    ] {
+        let registered = format!("crate::commands::proofread::wire::{name}");
+        assert!(lib_src.contains(&registered), "`{registered}` phai co mat trong lib.rs");
+        assert_eq!(
+            normalize_param_list(&fn_param_list(&proofread_src, name)),
+            normalize_param_list(params),
+            "vo `{name}` khong con dung danh sach tham so mong doi -- `src/config/proofread.ts` la cho \
+             duy nhat go lai theo dung ten/thu tu do."
+        );
+    }
+}
+
+#[test]
 fn the_proofread_write_wires_are_registered_and_keep_their_parameter_names() {
     let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("lib.rs");
     let lib_src = fs::read_to_string(&lib_rs)

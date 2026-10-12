@@ -51,7 +51,7 @@ const FINDING: ProofreadFindingWire = { kind: 'spelling', start: 0, end: 2, expl
 const usage = { prompt_tokens: 10, completion_tokens: 0, total_tokens: 10, cost_usd: 0.001 }
 const seg = (findings: ProofreadFindingWire[]) => ({ segment_id: 1, scanned_text: TEXT, findings, unlocated: 0, ambiguous: 0 })
 
-function scanResult(findings: ProofreadFindingWire[], outcome: unknown = { state: 'done', not_scanned: 0 }): void {
+function scanResult(findings: ProofreadFindingWire[], outcome: unknown = { state: 'done', not_scanned: 0, filtered: 0 }): void {
   runMock.mockImplementation((_ids: number[], onEvent: (e: unknown) => void) => {
     onEvent({ kind: 'planned', segments: 1, batches: 1 })
     onEvent({ kind: 'batch', usage, segments: [seg(findings)] })
@@ -237,7 +237,7 @@ describe('slot: job strip keeps its place ahead of TM', () => {
   it('a scan of zero sentences', async () => {
     runMock.mockImplementation((_ids: number[], onEvent: (e: unknown) => void) => {
       onEvent({ kind: 'planned', segments: 0, batches: 0 })
-      return Promise.resolve({ value: { state: 'done', not_scanned: 0 }, error: null })
+      return Promise.resolve({ value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
     })
     tmEligible.value = true
     await runProofread([1])

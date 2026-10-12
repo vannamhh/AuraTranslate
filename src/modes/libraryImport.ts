@@ -69,6 +69,7 @@ import { resetProofread } from '../proofreadState'
 // khuyết tật và cùng bản sửa ngay trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
 import { resetSegmentSelection } from '../panels/segmentSelectionState'
 import { resetReviewMode } from '../reviewModeState'
+import { setOpenWorkId } from '../openWorkIdentity'
 import type { CreatedWork } from '../config/project'
 import { listLibraryWorks } from '../config/library'
 import type { WorkRow } from '../config/library'
@@ -421,6 +422,7 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
   // đều đi qua (xem `resetSourcePanel`/`resetLookupPanel`) — Story 1.17 CÙNG LƯỢT, không
   // một lời gọi thứ hai rải ra.
   if (created !== null) {
+    setOpenWorkId(created.meta.work_id)
     resetSourcePanel()
     resetLookupPanel()
     // 🔴 Story 2.2 — Panel Editor mang **cùng** lớp cache module-level, nên nó phải đi cùng

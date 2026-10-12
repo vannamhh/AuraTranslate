@@ -86,7 +86,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
 // ── Chỉ cần cho HAI ca cụm reset dưới cùng — mock chung một lượt cho cả tệp, cùng khuôn
 // `libraryChaptersResetsAiPromptInspector.test.ts`/`libraryImportResetsAiPromptInspector.test.ts`.
 const TAC_PHAM_MOI_CHUONG = { meta: { work_id: 'w-moi' }, folder: '/tmp/w-moi.atproj', chapter_id: 1 }
-const TAC_PHAM_MOI_NHAP = { work_id: 'w-moi-nhap', name: 'Tac pham nhap moi', chapter_count: 1 }
+const TAC_PHAM_MOI_NHAP = { meta: { work_id: 'w-moi-nhap', name: 'Tac pham nhap moi', chapter_count: 1 } }
 
 vi.mock('../../src/config/library', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/library')>()

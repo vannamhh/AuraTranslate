@@ -981,6 +981,32 @@ CREATE TABLE review_decision (
 );
 CREATE INDEX review_decision_review_chapter ON review_decision(review_chapter_id);";
 
+/// Step 34 (FR84, AD-53 rule 7): "not an error" memory of the proofreader, keyed by finding
+/// signature and not by `segment.id`, so it survives merging and splitting. One `project.db`
+/// holds one Work, so the scope is the store itself. Phrase-scoped kinds store empty context.
+/// `proof_scan` is one row per finished scan, the denominator for the false-alarm rate.
+pub const PROOFREAD_MEMORY_DDL: &str = "\
+CREATE TABLE proof_ignore (
+  id             INTEGER PRIMARY KEY,
+  kind           TEXT NOT NULL,
+  phrase         TEXT NOT NULL,
+  context_before TEXT NOT NULL,
+  context_after  TEXT NOT NULL,
+  created_at     TEXT NOT NULL,
+  UNIQUE (kind, phrase, context_before, context_after),
+  CHECK (kind IN ('spelling', 'grammar', 'mistranslation', 'too_loose', 'obscure')),
+  CHECK (phrase <> '')
+);
+CREATE TABLE proof_scan (
+  id         INTEGER PRIMARY KEY,
+  scope      TEXT    NOT NULL,
+  scanned_at TEXT    NOT NULL,
+  reported   INTEGER NOT NULL,
+  filtered   INTEGER NOT NULL,
+  CHECK (scope IN ('segment', 'selection', 'chapter')),
+  CHECK (reported >= 0 AND filtered >= 0)
+);";
+
 /// Step 32 (AD-20, AD-52 rule 7): a `glossary_candidate` of origin `review_harvest` carries the
 /// replaced and the proposed translation and how often the reviewer made the change. The four
 /// columns are filled exactly for that origin, and the one-per-`source_term` index becomes two
@@ -1978,7 +2004,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Ba mươi hai bước, và đích là phiên bản 33.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Ba mươi ba bước, và đích là phiên bản 34.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2338,6 +2364,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 33,
         sql: REVIEW_DECISION_DDL,
+    },
+    Migration {
+        to_version: 34,
+        sql: PROOFREAD_MEMORY_DDL,
     },
 ];
 

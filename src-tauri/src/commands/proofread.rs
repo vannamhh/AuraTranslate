@@ -1,6 +1,8 @@
 //! Batched proofread scan over a list of segments (FR80, FR82, FR83, AD-22).
 //!
-//! Read-only: nothing here writes `project.db` or touches confirmation state. Segments are
+//! The scan is read-only: it writes neither `project.db` nor confirmation state. The commands in
+//! [`wire`] after it write only the "not an error" memory and the scan count (AD-53 rule 7), never
+//! `target_text`. Segments are
 //! grouped into batches, one provider call per batch, run one after another; each batch that
 //! lands is sent over the Channel with every quoted phrase already placed in Rust.
 //! A pure layer takes `Option<&Store>`/`Option<&OpenWork>`; [`wire`] holds the thin commands.
@@ -13,10 +15,12 @@ use crate::commands::aitranslate::{
 use crate::commands::project::OpenWork;
 use crate::core::ai::client::OpenAiChatClient;
 use crate::core::ai::proofread::{
-    ProofreadFinding, ProofreadReplyError, locate_batch_findings, plan_batches,
+    ProofreadFinding, ProofreadReplyError, ProofreadSignature, filter_remembered, locate_batch_findings,
+    plan_batches, signature_of,
 };
 use crate::core::ai::rag::{ProofreadBlock, assemble_proofread_batch_prompt};
 use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::segment::proofread_kind::ProofreadKind;
 use crate::core::store::Store;
 use crate::ports::translation_provider::{TranslateOutcome, TranslateRequest, TranslationProvider};
 
@@ -50,6 +54,7 @@ pub struct PreparedProofreadBatch {
 
 pub struct PreparedProofreadRun {
     pub batches: Vec<PreparedProofreadBatch>,
+    pub remembered: Vec<ProofreadSignature>,
 }
 
 pub enum ProofreadPrepareOutcome {
@@ -81,8 +86,9 @@ pub enum AiProofreadEventWire {
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum AiProofreadOutcomeWire {
     NotConfigured,
-    /// `not_scanned`: segments of batches whose reply was unusable.
-    Done { not_scanned: u32 },
+    /// `not_scanned`: segments of batches whose reply was unusable. `filtered`: findings the
+    /// "not an error" memory silenced before they left Rust.
+    Done { not_scanned: u32, filtered: u32 },
     /// `not_scanned`: segments of the batch cut short and of every batch after it.
     Cancelled { not_scanned: u32 },
 }
@@ -130,13 +136,17 @@ pub fn prepare_proofread_call(
         .filter(|s| requested.contains(&s.id) && !s.is_omitted && !s.target_text.trim().is_empty())
         .collect();
     if rows.is_empty() {
-        return Ok(ProofreadPrepareOutcome::Ready(PreparedProofreadRun { batches: Vec::new() }));
+        return Ok(ProofreadPrepareOutcome::Ready(PreparedProofreadRun {
+            batches: Vec::new(),
+            remembered: Vec::new(),
+        }));
     }
 
     let Some(api_key) = read_api_key()? else {
         return Ok(ProofreadPrepareOutcome::NotConfigured);
     };
 
+    let remembered = read_remembered(open_work)?;
     let sizes: Vec<usize> =
         rows.iter().map(|r| r.source_text.chars().count() + r.target_text.chars().count()).collect();
     let batches = plan_batches(&sizes)
@@ -168,7 +178,25 @@ pub fn prepare_proofread_call(
         })
         .collect();
 
-    Ok(ProofreadPrepareOutcome::Ready(PreparedProofreadRun { batches }))
+    Ok(ProofreadPrepareOutcome::Ready(PreparedProofreadRun { batches, remembered }))
+}
+
+fn read_remembered(open: &OpenWork) -> Result<Vec<ProofreadSignature>, IpcError> {
+    Ok(open.store.read(|conn| {
+        let mut stmt =
+            conn.prepare("SELECT kind, phrase, context_before, context_after FROM proof_ignore ORDER BY id")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, String>(3)?))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (kind, phrase, before, after) = row?;
+            if let Some(kind) = ProofreadKind::from_wire(&kind) {
+                out.push(ProofreadSignature { kind, phrase, before, after });
+            }
+        }
+        Ok(out)
+    })?)
 }
 
 /// The seam tests substitute a fake `TranslationProvider` at. `should_cancel` is asked before
@@ -187,6 +215,7 @@ pub async fn run_proofread_call<P: TranslationProvider>(
     });
 
     let mut not_scanned = 0usize;
+    let mut filtered = 0u32;
     let mut parsed_batches = 0usize;
     for (index, batch) in run.batches.iter().enumerate() {
         let remaining = || run.batches[index..].iter().map(|b| b.segments.len()).sum::<usize>();
@@ -238,12 +267,17 @@ pub async fn run_proofread_call<P: TranslationProvider>(
                     .segments
                     .iter()
                     .zip(located)
-                    .map(|(segment, located)| AiProofreadSegmentWire {
-                        segment_id: segment.segment_id,
-                        scanned_text: segment.scanned_text.clone(),
-                        findings: located.findings,
-                        unlocated: located.unlocated,
-                        ambiguous: located.ambiguous,
+                    .map(|(segment, located)| {
+                        let (findings, dropped) =
+                            filter_remembered(&segment.scanned_text, located.findings, &run.remembered);
+                        filtered = filtered.saturating_add(dropped);
+                        AiProofreadSegmentWire {
+                            segment_id: segment.segment_id,
+                            scanned_text: segment.scanned_text.clone(),
+                            findings,
+                            unlocated: located.unlocated,
+                            ambiguous: located.ambiguous,
+                        }
                     })
                     .collect();
                 let _ = channel.send(AiProofreadEventWire::Batch {
@@ -258,7 +292,138 @@ pub async fn run_proofread_call<P: TranslationProvider>(
     if parsed_batches == 0 && not_scanned > 0 {
         return Err(ProofreadRunError::ReplyMalformed { not_scanned });
     }
-    Ok(AiProofreadOutcomeWire::Done { not_scanned })
+    Ok(AiProofreadOutcomeWire::Done { not_scanned, filtered })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ProofreadIgnoreEntryWire {
+    pub id: i64,
+    pub kind: ProofreadKind,
+    pub phrase: String,
+    pub context_before: String,
+    pub context_after: String,
+    pub created_at: String,
+}
+
+fn scan_record_rejected() -> IpcError {
+    IpcError::new(
+        "ai_proofread.scan_record_rejected",
+        MessageKey::AiProofreadScanRecordRejected,
+        std::collections::BTreeMap::new(),
+        false,
+    )
+}
+
+/// Remembers the finding at `[start, end)` (UTF-16) of the segment as "not an error" for the
+/// whole Work. The range is checked by [`crate::commands::segment::check_proofread_range`] and
+/// the signature comes from [`signature_of`]; remembering twice is one row.
+pub fn proofread_ignore_add(
+    open: Option<&OpenWork>,
+    segment_id: i64,
+    expected_text: &str,
+    start: u32,
+    end: u32,
+    expected_phrase: &str,
+    kind: ProofreadKind,
+) -> Result<(), IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    let open_chapter_id = open.chapter_id;
+    let (expected_text, expected_phrase) = (expected_text.to_owned(), expected_phrase.to_owned());
+    let outcome = open.store.write(move |tx| {
+        let checked = match crate::commands::segment::check_proofread_range(
+            tx,
+            open_chapter_id,
+            segment_id,
+            &expected_text,
+            start,
+            end,
+            &expected_phrase,
+        )? {
+            Ok(checked) => checked,
+            Err(err) => return Ok(Err(err)),
+        };
+        let Some(signature) = signature_of(kind, &checked.text, checked.byte_start, checked.byte_end) else {
+            return Ok(Err(crate::commands::segment::range_invalid(segment_id)));
+        };
+        tx.execute(
+            "INSERT OR IGNORE INTO proof_ignore (kind, phrase, context_before, context_after, created_at) \
+             VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+            (signature.kind.as_str(), &signature.phrase, &signature.before, &signature.after),
+        )?;
+        Ok(Ok(()))
+    })?;
+    outcome
+}
+
+/// Every remembered finding of the open Work, newest first.
+pub fn proofread_ignore_list(open: Option<&OpenWork>) -> Result<Vec<ProofreadIgnoreEntryWire>, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    Ok(open.store.read(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT id, kind, phrase, context_before, context_after, created_at FROM proof_ignore \
+             ORDER BY created_at DESC, id DESC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, String>(5)?,
+            ))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (id, kind, phrase, context_before, context_after, created_at) = row?;
+            if let Some(kind) = ProofreadKind::from_wire(&kind) {
+                out.push(ProofreadIgnoreEntryWire { id, kind, phrase, context_before, context_after, created_at });
+            }
+        }
+        Ok(out)
+    })?)
+}
+
+/// Forgets one remembered finding; `false` when no such row.
+pub fn proofread_ignore_remove(open: Option<&OpenWork>, id: i64) -> Result<bool, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    Ok(open.store.write(move |tx| Ok(tx.execute("DELETE FROM proof_ignore WHERE id = ?1", [id])? > 0))?)
+}
+
+/// Forgets every remembered finding of the open Work and returns how many rows went.
+pub fn proofread_ignore_clear(open: Option<&OpenWork>) -> Result<u32, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    let removed = open.store.write(|tx| tx.execute("DELETE FROM proof_ignore", []))?;
+    Ok(u32::try_from(removed).unwrap_or(u32::MAX))
+}
+
+/// Records one finished scan. The counts come from the webview, so Rust checks only what it can:
+/// `work_id` is the open Work, `scope` is one of the closed set, the counts are not negative.
+pub fn proofread_scan_record(
+    open: Option<&OpenWork>,
+    work_id: &str,
+    scope: &str,
+    reported: i64,
+    filtered: i64,
+) -> Result<(), IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    if open.meta.work_id != work_id
+        || !matches!(scope, "segment" | "selection" | "chapter")
+        || reported < 0
+        || filtered < 0
+    {
+        return Err(scan_record_rejected());
+    }
+    let scope = scope.to_owned();
+    open.store.write(move |tx| {
+        tx.execute(
+            "INSERT INTO proof_scan (scope, scanned_at, reported, filtered) \
+             VALUES (?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?2, ?3)",
+            (&scope, reported, filtered),
+        )?;
+        Ok(())
+    })?;
+    Ok(())
 }
 
 fn with_not_scanned(base: IpcError, not_scanned: u32) -> IpcError {
@@ -300,9 +465,10 @@ async fn send_prepared_proofread_call(
 
 pub mod wire {
     use super::{
-        AiProofreadEventWire, AiProofreadOutcomeWire, ProofreadGeneration, ProofreadPrepareOutcome,
-        prepare_proofread_call, send_prepared_proofread_call,
+        AiProofreadEventWire, AiProofreadOutcomeWire, ProofreadGeneration, ProofreadIgnoreEntryWire,
+        ProofreadPrepareOutcome, prepare_proofread_call, send_prepared_proofread_call,
     };
+    use crate::core::segment::proofread_kind::ProofreadKind;
     use crate::commands::aitranslate::state_missing;
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
@@ -344,6 +510,65 @@ pub mod wire {
         };
 
         send_prepared_proofread_call(prepared, channel, generation_state, generation).await
+    }
+
+    fn with_open<T>(
+        app: &tauri::AppHandle<impl tauri::Runtime>,
+        job: impl FnOnce(Option<&crate::commands::project::OpenWork>) -> Result<T, IpcError>,
+    ) -> Result<T, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return job(None);
+        };
+        let guard = state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        job(guard.as_ref())
+    }
+
+    #[tauri::command]
+    pub fn ai_proofread_ignore_add<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        segment_id: i64,
+        expected_text: String,
+        start: u32,
+        end: u32,
+        expected_phrase: String,
+        kind: ProofreadKind,
+    ) -> Result<(), IpcError> {
+        with_open(&app, |open| {
+            super::proofread_ignore_add(open, segment_id, &expected_text, start, end, &expected_phrase, kind)
+        })
+    }
+
+    #[tauri::command]
+    pub fn ai_proofread_ignore_list<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<Vec<ProofreadIgnoreEntryWire>, IpcError> {
+        with_open(&app, super::proofread_ignore_list)
+    }
+
+    #[tauri::command]
+    pub fn ai_proofread_ignore_remove<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        id: i64,
+    ) -> Result<bool, IpcError> {
+        with_open(&app, |open| super::proofread_ignore_remove(open, id))
+    }
+
+    #[tauri::command]
+    pub fn ai_proofread_ignore_clear<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<u32, IpcError> {
+        with_open(&app, super::proofread_ignore_clear)
+    }
+
+    #[tauri::command]
+    pub fn ai_proofread_scan_record<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        work_id: String,
+        scope: String,
+        reported: i64,
+        filtered: i64,
+    ) -> Result<(), IpcError> {
+        with_open(&app, |open| super::proofread_scan_record(open, &work_id, &scope, reported, filtered))
     }
 
     #[tauri::command]

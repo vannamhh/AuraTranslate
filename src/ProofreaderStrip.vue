@@ -12,6 +12,7 @@ import {
   proofreadBusy,
   proofreadCurrent,
   proofreadError,
+  proofreadFiltered,
   proofreadFindingCount,
   proofreadNotScanned,
   proofreadProgress,
@@ -118,6 +119,12 @@ const notScannedText = computed<string | null>(() =>
     : null,
 )
 
+const filteredText = computed<string | null>(() =>
+  proofreadStateValue.value !== 'scanning' && proofreadFiltered.value > 0
+    ? t('proofread.strip.filtered', { filtered_count: String(proofreadFiltered.value) })
+    : null,
+)
+
 const usageText = computed<string | null>(() => {
   const state = proofreadStateValue.value
   if (state !== 'done' && state !== 'cancelled' && state !== 'error') return null
@@ -170,6 +177,9 @@ const usageText = computed<string | null>(() => {
         <button type="button" class="pfs-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.dismiss')">
           {{ t('command.ai.proofread.dismiss') }}
         </button>
+        <button type="button" class="pfs-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.ignore')">
+          {{ t('command.ai.proofread.ignore') }}
+        </button>
         <template v-if="card.many">
           <button type="button" class="pfs-btn" @click="dispatch('ai.proofread.prev')">
             {{ t('command.ai.proofread.prev') }}
@@ -209,6 +219,10 @@ const usageText = computed<string | null>(() => {
     <p v-if="ambiguousText !== null" class="pfs-status" role="status">
       <!-- aura-allow-text: result of t() computed in the script. -->
       {{ ambiguousText }}
+    </p>
+    <p v-if="filteredText !== null" class="pfs-status" role="status">
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      {{ filteredText }}
     </p>
     <p v-if="unlocatedText !== null" class="pfs-status" role="status">
       <!-- aura-allow-text: result of t() computed in the script. -->

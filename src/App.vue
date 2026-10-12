@@ -47,6 +47,7 @@ import StatusBar from './StatusBar.vue'
 import GlossaryQuickAdd from './GlossaryQuickAdd.vue'
 import ProofreaderStrip from './ProofreaderStrip.vue'
 import ProofreadScopeOverlay from './ProofreadScopeOverlay.vue'
+import ProofreadMemoryOverlay from './ProofreadMemoryOverlay.vue'
 // Story 3.6 — dải "Chờ chốt lần đầu gặp" (FR114), cùng slot, mọc DƯỚI `<GlossaryQuickAdd
 // />` — thứ tự DOM là thứ tự thị giác (§Tasks của spec), dù `topmostStrip` đã đảm bảo
 // không bao giờ cả hai cùng hiện.
@@ -276,6 +277,16 @@ function focusOnPointerDown(event: MouseEvent) {
       <button
         type="button"
         class="titlebar-act"
+        data-proofread-memory-open
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('ai.proofread.memory.open')"
+      >
+        {{ t('command.ai.proofread.memory.open') }}
+      </button>
+
+      <button
+        type="button"
+        class="titlebar-act"
         data-glossary-queue-open
         @mousedown="focusOnPointerDown($event)"
         @click="dispatch('glossary.queue.open')"
@@ -464,6 +475,7 @@ function focusOnPointerDown(event: MouseEvent) {
     <!-- Story 4.7 · FR71/AD-14 — cùng khuôn: lớp phủ tự quản `v-if` qua `aiPromptInspectorIsOpen`. -->
     <AiPromptInspectorOverlay />
     <ProofreadScopeOverlay />
+    <ProofreadMemoryOverlay />
 
     <!-- Story 4.12, Phase 3a · Decision 2 — tự quản `v-if` qua `lookupDrawerIsOpen`, mở từ
          điểm vào ở `<StatusBar />`. Ngăn kéo, không lớp phủ căn giữa — xem import ở trên. -->

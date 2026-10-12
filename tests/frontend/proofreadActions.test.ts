@@ -10,7 +10,7 @@ const invokeMock = vi.fn()
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => invokeMock(...args), Channel: class {} }))
 vi.mock('../../src/config/proofread', () => ({
-  runProofreadSegments: () => Promise.resolve({ value: { state: 'done', not_scanned: 0 }, error: null }),
+  runProofreadSegments: () => Promise.resolve({ value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null }),
   cancelProofreadCall: () => Promise.resolve(),
   acceptProofreadSuggestion: (...args: unknown[]) => acceptMock(...args),
   revertProofreadSuggestion: (...args: unknown[]) => revertMock(...args),
@@ -65,7 +65,7 @@ async function runWith(id: number, text: string, findings: ProofreadFindingWire[
       usage: null,
       segments: [{ segment_id: id, scanned_text: text, findings, unlocated: 0, ambiguous: 0 }],
     })
-    return Promise.resolve({ value: { state: 'done', not_scanned: 0 }, error: null })
+    return Promise.resolve({ value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
   }) as never)
   await state.runProofread([id, ...more])
   spy.mockRestore()
@@ -310,7 +310,7 @@ describe('next / previous', () => {
           { segment_id: 2, scanned_text: TEXT, findings: [spelling(10, 13, 'D')], unlocated: 0, ambiguous: 0 },
         ],
       })
-      return Promise.resolve({ value: { state: 'done', not_scanned: 0 }, error: null })
+      return Promise.resolve({ value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
     }) as never)
     await state.runProofread([1, 2])
     spy.mockRestore()
