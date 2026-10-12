@@ -733,7 +733,7 @@ fn all_rust_sources() -> Vec<(String, String)> {
 /// `super::aisle` bị báo ĐỎ OAN (chuỗi `crate::core::ai` là tiền tố thật của
 /// `crate::core::aiven`). Đây đúng lớp lỗi mà `matching_boundary.rs::contains_forbidden_token`
 /// + `is_word_byte` tồn tại để chống, và Code Map của story đã trỏ vào đó — bản đầu chỉ mượn
-/// bài học "quét BARE token" mà bỏ quên bài học "neo biên" nằm ngay cạnh.
+///   bài học "quét BARE token" mà bỏ quên bài học "neo biên" nằm ngay cạnh.
 ///
 /// Ký tự ngay sau token phải KHÔNG phải ký tự định danh (`[A-Za-z0-9_]`). Hết dòng cũng là
 /// một biên hợp lệ (`use crate::core::ai;` → ký tự kế là `;`).
@@ -1154,9 +1154,8 @@ fn the_three_predicates_anchor_on_boundaries_and_do_not_fire_on_prefix_neighbour
         "pub use foo::Chai::Bar;",
         "pub use aiven::X;",
     ] {
-        assert_eq!(
-            statement_reexports_the_ai_module(vo_can),
-            false,
+        assert!(
+            !statement_reexports_the_ai_module(vo_can),
             "ĐỎ OAN: {vo_can:?} không re-export gì từ module `ai`; chuỗi `ai` chỉ nằm LỌT \
              trong một định danh dài hơn."
         );

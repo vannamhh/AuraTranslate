@@ -24,9 +24,9 @@ use auratranslate_lib::commands::chapter::{
 };
 use auratranslate_lib::commands::lifecycle::set_work_status_override;
 use auratranslate_lib::commands::project::{
-    ChapterPatternWire, OpenWork, PendingImportSourceState, Tier2BlockOverridesState,
-    UrlImportItem, UrlImportItemsState, append_chapters_to_work, block_overrides_for_range,
-    build_file_import_batch_wire, chapters_shape_if_all_ok,
+    BlockIndexOutOfRange, ChapterPatternWire, OpenWork, PendingImportSourceState,
+    Tier2BlockOverridesState, UrlImportItem, UrlImportItemsState, append_chapters_to_work,
+    block_overrides_for_range, build_file_import_batch_wire, chapters_shape_if_all_ok,
     clear_url_import_items_after_successful_confirm, confirm_append_import_with_encoding,
     confirm_append_import_with_encoding_indexed, create_work, create_work_from_file,
     create_work_from_text, mutated_index_invalidates_tier2_blocks, reset_block_overrides,
@@ -3816,7 +3816,7 @@ fn merging_a_chapter_moves_its_asset_rows_to_the_target_chapter_with_the_anchor_
     assert_eq!(by_id(asset_b0).1, a_id, "anh cua B phai doi sang Chuong A");
     assert_eq!(
         by_id(asset_b0).2,
-        0 + 3,
+        3,
         "neo cua B (0) phai dich +3 (shift = so segment cu cua A)"
     );
     assert_eq!(by_id(asset_b2).1, a_id);
@@ -4494,7 +4494,7 @@ fn regrouping_a_sentence_in_a_chapter_that_already_has_a_retired_segment_still_r
 /// `no_reorganisation_ever_leaves_an_asset_row_pointing_at_a_nonexistent_chapter` chỉ kiểm
 /// `chapter_id` phân giải được — một neo trỏ QUÁ CUỐI Chương (`CHECK (anchor_after_segment_ord
 /// >= 0)` chỉ chặn nửa dưới) không gì bắt được trước ca này. Chạy qua CẢ BA cơ chế tổ chức
-/// lại nối tiếp nhau (khuôn ca mồ côi ở trên), kiểm bất biến SAU MỖI bước.
+/// > lại nối tiếp nhau (khuôn ca mồ côi ở trên), kiểm bất biến SAU MỖI bước.
 #[test]
 fn every_asset_anchor_never_exceeds_the_living_segment_count_of_its_own_chapter_after_any_reorganisation()
  {
@@ -5481,7 +5481,7 @@ fn set_block_override_rejects_an_index_at_or_past_total_blocks() {
     let mut overrides: Vec<Option<bool>> = Vec::new();
     assert_eq!(
         set_block_override(&mut overrides, 3, true, 3),
-        Err(()),
+        Err(BlockIndexOutOfRange),
         "index 3 tren tong so 3 khoi (chi so hop le 0..=2) phai bi TU CHOI, khong duoc \
          lang le noi vector toi index + 1 nhu ban truoc vong ra buoc 4"
     );

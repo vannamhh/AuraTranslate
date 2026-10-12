@@ -381,7 +381,8 @@ pub fn proofread_ignore_add(
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
     let open_chapter_id = open.chapter_id;
     let (expected_text, expected_phrase) = (expected_text.to_owned(), expected_phrase.to_owned());
-    let outcome = open.store.write(move |tx| {
+
+    open.store.write(move |tx| {
         let checked = match crate::commands::segment::check_proofread_range(
             tx,
             open_chapter_id,
@@ -403,8 +404,7 @@ pub fn proofread_ignore_add(
             (signature.kind.as_str(), &signature.phrase, &signature.before, &signature.after),
         )?;
         Ok(Ok(()))
-    })?;
-    outcome
+    })?
 }
 
 /// Every remembered finding of the open Work, newest first.

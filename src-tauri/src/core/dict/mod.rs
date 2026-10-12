@@ -911,27 +911,27 @@ pub fn lookup_grouped(
         // §hệ quả ③ đã cân nhắc rồi loại. Một `COUNT` hỏng không được làm hỏng cả lượt tra:
         // không có số đếm thì `total_entries` ở lại `None` và thanh nhịp đọc như cận dưới,
         // không phải panic hay một lượt tra rỗng.
-        if result.truncated {
-            if let Ok(counts) = layer.count_by_source(query, route, branch) {
-                for (code, total) in &counts {
-                    // 🔴 Story 1.19 · Bẫy 2 — `count_by_source` là đường THỨ HAI, và nó chỉ
-                    // chạy khi trần đã cắt, tức **phần lớn lượt tra không đi qua đây**. Một
-                    // bản quên lọc ở chỗ này chạy đúng trong mọi test nhỏ và sai đúng trên
-                    // truy vấn đông kết quả: thanh nhịp đọc *"7 nguồn"* trong khi màn hình
-                    // hiện 4. AC12 của Story 1.17 cấm đích danh con số đó.
-                    if disabled.contains(code) {
-                        continue;
-                    }
-                    if let Some(group) = in_layer.iter_mut().find(|g| g.source.code == *code) {
-                        group.total_entries = Some(*total);
-                        continue;
-                    }
-                    // Nguồn có đầu mục khớp mà trần đã cắt SẠCH khỏi trang này — đúng ca
-                    // FR31 mà AC12 dựng ra. Tên hiển thị lấy từ CHÍNH tệp (AC2), không một
-                    // bảng tra dựng lại ở tầng gom.
-                    if let Some(source) = layer.source(code) {
-                        hidden_sources.push((source.display_name.clone(), *total));
-                    }
+        if result.truncated
+            && let Ok(counts) = layer.count_by_source(query, route, branch)
+        {
+            for (code, total) in &counts {
+                // 🔴 Story 1.19 · Bẫy 2 — `count_by_source` là đường THỨ HAI, và nó chỉ
+                // chạy khi trần đã cắt, tức **phần lớn lượt tra không đi qua đây**. Một
+                // bản quên lọc ở chỗ này chạy đúng trong mọi test nhỏ và sai đúng trên
+                // truy vấn đông kết quả: thanh nhịp đọc *"7 nguồn"* trong khi màn hình
+                // hiện 4. AC12 của Story 1.17 cấm đích danh con số đó.
+                if disabled.contains(code) {
+                    continue;
+                }
+                if let Some(group) = in_layer.iter_mut().find(|g| g.source.code == *code) {
+                    group.total_entries = Some(*total);
+                    continue;
+                }
+                // Nguồn có đầu mục khớp mà trần đã cắt SẠCH khỏi trang này — đúng ca
+                // FR31 mà AC12 dựng ra. Tên hiển thị lấy từ CHÍNH tệp (AC2), không một
+                // bảng tra dựng lại ở tầng gom.
+                if let Some(source) = layer.source(code) {
+                    hidden_sources.push((source.display_name.clone(), *total));
                 }
             }
         }

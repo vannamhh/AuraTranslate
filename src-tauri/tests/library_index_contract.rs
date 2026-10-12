@@ -2776,6 +2776,10 @@ fn write_atproj_with_real_project_db(
     let store = Store::open(StoreSpec::project(db_path.clone()))
         .unwrap_or_else(|e| panic!("mo project.db that o {}: {e}", db_path.display()));
 
+    #[expect(
+        clippy::type_complexity,
+        reason = "fixture shape local to this test file"
+    )]
     let owned: Vec<(Option<String>, String, Vec<(String, String)>)> = chapters
         .into_iter()
         .map(|(title, source, segments)| {
@@ -5522,7 +5526,7 @@ fn true_matches_piling_up_at_an_early_work_id_starve_a_later_work_ids_real_match
     // `search_source_text` nhận `limit + 1` (Bẫy 11 guard), rồi tính
     // `search_candidate_ceiling(limit + 1) = (limit + 1) * 50`. Dựng NHIỀU HƠN con số đó ở
     // work_id sắp TRƯỚC để `LIMIT <ceiling>` của SQL ăn hết trước khi đọc tới work_id sau.
-    let ceiling = ((LIMIT + 1) * 50) as usize;
+    let ceiling = (LIMIT + 1) * 50;
     let early_matches = ceiling + 50; // biên an toàn phía trên trần.
     let needle = "zzqqfindme";
 

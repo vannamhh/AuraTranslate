@@ -113,7 +113,7 @@ pub fn list_pinned_entries(store: Option<&Store>) -> Result<Vec<PinnedEntry>, Ip
     let rows = store.read(|conn| {
         let mut stmt = conn.prepare(SELECT_PINNED)?;
         let found = stmt
-            .query_map([], |row| row_to_entry(row))?
+            .query_map([], row_to_entry)?
             .collect::<SqlResult<Vec<PinnedEntry>>>()?;
         Ok(found)
     })?;
@@ -161,7 +161,7 @@ pub fn pin_entry(
 
         let mut stmt = tx.prepare(SELECT_PINNED)?;
         let found = stmt
-            .query_map([], |row| row_to_entry(row))?
+            .query_map([], row_to_entry)?
             .collect::<SqlResult<Vec<PinnedEntry>>>()?;
         Ok(found)
     })?;
@@ -194,7 +194,7 @@ pub fn unpin_entry(
 
         let mut stmt = tx.prepare(SELECT_PINNED)?;
         let found = stmt
-            .query_map([], |row| row_to_entry(row))?
+            .query_map([], row_to_entry)?
             .collect::<SqlResult<Vec<PinnedEntry>>>()?;
         Ok(found)
     })?;

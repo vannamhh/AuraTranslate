@@ -148,13 +148,13 @@ impl<T> WriteTicket<T> {
             Ok(Ok(value)) => Ok(value),
             Ok(Err(err)) => {
                 let store = self.kind;
-                if let rusqlite::Error::FromSqlConversionFailure(_, _, boxed) = &err {
-                    if let Some(conflict) = boxed.downcast_ref::<BusinessRuleConflict>() {
-                        return Err(StoreError::Conflict {
-                            store,
-                            detail: conflict.0.clone(),
-                        });
-                    }
+                if let rusqlite::Error::FromSqlConversionFailure(_, _, boxed) = &err
+                    && let Some(conflict) = boxed.downcast_ref::<BusinessRuleConflict>()
+                {
+                    return Err(StoreError::Conflict {
+                        store,
+                        detail: conflict.0.clone(),
+                    });
                 }
                 Err(StoreError::WriteFailed {
                     store,

@@ -146,10 +146,10 @@ fn needs_formula_guard(field: &str) -> bool {
 /// thành `''=x` (thêm một `'`), và nhập lại phải trả về ĐÚNG `'=x` (bỏ một `'`), không phải
 /// `=x` (bỏ cả hai).
 fn strip_formula_guard(field: &str) -> &str {
-    if needs_formula_guard(field) {
-        if let Some(rest) = field.strip_prefix(FORMULA_GUARD_PREFIX) {
-            return rest;
-        }
+    if needs_formula_guard(field)
+        && let Some(rest) = field.strip_prefix(FORMULA_GUARD_PREFIX)
+    {
+        return rest;
     }
     field
 }
@@ -1019,7 +1019,7 @@ pub fn parse(text: &str) -> Result<ParsedImport, Vec<ParseIssue>> {
         // HÌNH DẠNG mới sinh lỗi.
         let created_at = match created_at_idx.map(|idx| cells[idx].trim()) {
             None => None,
-            Some(s) if s.is_empty() => None,
+            Some("") => None,
             Some(s) if looks_like_iso8601_utc(s) => Some(s.to_owned()),
             Some(s) => {
                 issues.push(ParseIssue::InvalidCreatedAt {

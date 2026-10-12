@@ -1020,10 +1020,9 @@ pub fn merge_chapter_into_previous(
     if let Some(a_id) = *merged_into
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
+        && open.chapter_id == chapter_id
     {
-        if open.chapter_id == chapter_id {
-            set_open_chapter(open, a_id)?;
-        }
+        set_open_chapter(open, a_id)?;
     }
 
     crate::commands::lifecycle::write_lifecycle_after_change(open)?;

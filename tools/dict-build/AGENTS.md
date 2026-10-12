@@ -3,7 +3,7 @@
 
 ## tools/dict-build/ — the dictionary builder
 
-An independent Rust workspace (not a member of `src-tauri`). `rust-version 1.97.1`, deliberately different from `src-tauri` — don't sync. Raw input in `docs/dics/`.
+An independent Rust workspace (not a member of `src-tauri`). `rust-version 1.97.1`, the toolchain `ci.yml` pins; `src-tauri` declares the same. Raw input in `docs/dics/`.
 
 ## Conventions
 

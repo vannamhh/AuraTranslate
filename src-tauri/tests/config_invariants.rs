@@ -2104,12 +2104,12 @@ fn needles_appear_in_order(body: &str, needles: &[&str]) -> Result<(), String> {
         let Some(pos) = body.find(needle) else {
             return Err(format!("khong tim thay `{needle}`"));
         };
-        if let Some(last) = last_pos {
-            if pos <= last {
-                return Err(format!(
-                    "`{needle}` (vi tri byte {pos}) khong dung SAU `{last_needle}` (vi tri byte {last})"
-                ));
-            }
+        if let Some(last) = last_pos
+            && pos <= last
+        {
+            return Err(format!(
+                "`{needle}` (vi tri byte {pos}) khong dung SAU `{last_needle}` (vi tri byte {last})"
+            ));
         }
         last_pos = Some(pos);
         last_needle = needle;

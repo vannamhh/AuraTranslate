@@ -90,7 +90,7 @@ fn row_to_raw(row: &crate::core::store::Row<'_>) -> SqlResult<RawRule> {
 fn load_cleanup_rule_rows(store: &Store) -> Result<Vec<RawRule>, StoreError> {
     store.read(|conn: ReadHandle<'_>| {
         let mut stmt = conn.prepare(SELECT_RULES)?;
-        let rows = stmt.query_map([], |row| row_to_raw(row))?;
+        let rows = stmt.query_map([], row_to_raw)?;
         rows.collect::<SqlResult<Vec<RawRule>>>()
     })
 }

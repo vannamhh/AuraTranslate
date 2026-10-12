@@ -2776,7 +2776,7 @@ mod manage {
     }
 
     fn work_ids(w: &Wired) -> Vec<(i64, String, String, String, String)> {
-        w.with_open(|o| tm_rows(o))
+        w.with_open(tm_rows)
     }
 
     fn global_rows(w: &Wired) -> Vec<TmRow> {
@@ -3079,7 +3079,7 @@ mod manage {
 
     fn stored_pair(w: &Wired, tier: &str, id: i64) -> (String, String) {
         let found = if tier == "work" {
-            w.with_open(|o| tm_rows(o)).into_iter().find(|r| r.0 == id)
+            w.with_open(tm_rows).into_iter().find(|r| r.0 == id)
         } else {
             global_rows(w).into_iter().find(|r| r.0 == id)
         };

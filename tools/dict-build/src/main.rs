@@ -98,67 +98,6 @@ fn parse_args_from<I: IntoIterator<Item = String>>(args: I) -> Result<Args, Stri
     })
 }
 
-#[cfg(test)]
-mod cli_tests {
-    use super::*;
-
-    fn parse(args: &[&str]) -> Result<Args, String> {
-        parse_args_from(args.iter().map(|s| s.to_string()))
-    }
-
-    #[test]
-    fn defaults_to_layer_all() {
-        let a = parse(&["--raw", "raw", "--out-dir", "out"]).unwrap();
-        assert!(matches!(a.layer, Layer::All));
-        assert_eq!(a.raw, PathBuf::from("raw"));
-        assert_eq!(a.out_dir, PathBuf::from("out"));
-    }
-
-    #[test]
-    fn resolves_base_and_detachable_layers() {
-        assert!(matches!(
-            parse(&["--raw", "r", "--out-dir", "o", "--layer", "base"])
-                .unwrap()
-                .layer,
-            Layer::Base
-        ));
-        assert!(matches!(
-            parse(&["--raw", "r", "--out-dir", "o", "--layer", "vietphrase"]).unwrap().layer,
-            Layer::Detachable(ref c) if c == "vietphrase"
-        ));
-    }
-
-    /// Lời hứa ở README và ở nhánh `--out`: lỗi TƯỜNG MINH nêu tên tham số thay thế.
-    #[test]
-    fn the_removed_out_flag_names_its_replacement() {
-        let err = parse(&["--raw", "r", "--out", "x.db"]).unwrap_err();
-        assert!(
-            err.contains("--out-dir"),
-            "lỗi phải nêu tên tham số thay thế: {err}"
-        );
-    }
-
-    /// 🔴 `--out-dir --layer base`: nhận âm thầm cho ra một thư mục THẬT tên `--layer`
-    /// chứa đủ ba tệp `.db`, với ExitCode::SUCCESS.
-    #[test]
-    fn a_flag_shaped_value_is_rejected_not_used_as_a_path() {
-        let err = parse(&["--raw", "r", "--out-dir", "--layer", "base"]).unwrap_err();
-        assert!(err.contains("--out-dir"), "{err}");
-    }
-
-    #[test]
-    fn a_repeated_flag_is_an_error_not_last_one_wins() {
-        let err = parse(&["--raw", "a", "--raw", "b", "--out-dir", "o"]).unwrap_err();
-        assert!(err.contains("--raw"), "{err}");
-    }
-
-    #[test]
-    fn missing_required_flags_are_reported() {
-        assert!(parse(&["--out-dir", "o"]).unwrap_err().contains("--raw"));
-        assert!(parse(&["--raw", "r"]).unwrap_err().contains("--out-dir"));
-    }
-}
-
 fn main() -> ExitCode {
     let args = match parse_args() {
         Ok(a) => a,
@@ -220,5 +159,66 @@ fn main() -> ExitCode {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+
+    fn parse(args: &[&str]) -> Result<Args, String> {
+        parse_args_from(args.iter().map(|s| s.to_string()))
+    }
+
+    #[test]
+    fn defaults_to_layer_all() {
+        let a = parse(&["--raw", "raw", "--out-dir", "out"]).unwrap();
+        assert!(matches!(a.layer, Layer::All));
+        assert_eq!(a.raw, PathBuf::from("raw"));
+        assert_eq!(a.out_dir, PathBuf::from("out"));
+    }
+
+    #[test]
+    fn resolves_base_and_detachable_layers() {
+        assert!(matches!(
+            parse(&["--raw", "r", "--out-dir", "o", "--layer", "base"])
+                .unwrap()
+                .layer,
+            Layer::Base
+        ));
+        assert!(matches!(
+            parse(&["--raw", "r", "--out-dir", "o", "--layer", "vietphrase"]).unwrap().layer,
+            Layer::Detachable(ref c) if c == "vietphrase"
+        ));
+    }
+
+    /// Lời hứa ở README và ở nhánh `--out`: lỗi TƯỜNG MINH nêu tên tham số thay thế.
+    #[test]
+    fn the_removed_out_flag_names_its_replacement() {
+        let err = parse(&["--raw", "r", "--out", "x.db"]).unwrap_err();
+        assert!(
+            err.contains("--out-dir"),
+            "lỗi phải nêu tên tham số thay thế: {err}"
+        );
+    }
+
+    /// 🔴 `--out-dir --layer base`: nhận âm thầm cho ra một thư mục THẬT tên `--layer`
+    /// chứa đủ ba tệp `.db`, với ExitCode::SUCCESS.
+    #[test]
+    fn a_flag_shaped_value_is_rejected_not_used_as_a_path() {
+        let err = parse(&["--raw", "r", "--out-dir", "--layer", "base"]).unwrap_err();
+        assert!(err.contains("--out-dir"), "{err}");
+    }
+
+    #[test]
+    fn a_repeated_flag_is_an_error_not_last_one_wins() {
+        let err = parse(&["--raw", "a", "--raw", "b", "--out-dir", "o"]).unwrap_err();
+        assert!(err.contains("--raw"), "{err}");
+    }
+
+    #[test]
+    fn missing_required_flags_are_reported() {
+        assert!(parse(&["--out-dir", "o"]).unwrap_err().contains("--raw"));
+        assert!(parse(&["--raw", "r"]).unwrap_err().contains("--out-dir"));
     }
 }

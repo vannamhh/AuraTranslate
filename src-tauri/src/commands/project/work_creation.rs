@@ -72,6 +72,10 @@ use super::*;
 /// `on_image_progress`/`should_cancel` are called from inside
 /// [`prepare_chapter_images`]'s fetch/write loop; see its doc comment. [`create_work`] is a
 /// thin wrapper over this with both no-op, for callers that don't need either.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn create_work_with_progress(
     documents_root: &Path,
     name: &str,
@@ -709,6 +713,10 @@ pub fn create_work(
 /// # Lỗi
 /// Y hệt [`create_work`] (bilingual mismatch/0 Chương/N vượt `i64`/pha ảnh/SQL) — chỉ khác ở
 /// việc dọn dẹp: **không** `remove_folder` ở bất kỳ nhánh nào.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn append_chapters_to_work_with_progress(
     open: &mut OpenWork,
     source_lang: &str,
@@ -1213,6 +1221,10 @@ enum PendingImageSource {
     },
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 fn prepare_chapter_images(
     dir: &Path,
     chapters: &[crate::core::segment::import::ImportedChapter],

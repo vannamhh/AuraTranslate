@@ -362,7 +362,7 @@ pub fn rank_fuzzy_candidates(
         fuzzy_pairs_in_candidates(resolver, &candidates, source_text, lang, threshold)?,
         |f| &f.pair,
     );
-    merged.sort_by(|a, b| b.percent.cmp(&a.percent));
+    merged.sort_by_key(|m| std::cmp::Reverse(m.percent));
     merged.truncate(FUZZY_MATCH_LIMIT);
     Ok(merged)
 }

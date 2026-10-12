@@ -222,8 +222,7 @@ fn duplicate_name_in_the_same_tier_is_rejected_and_the_existing_row_is_untouched
         "Xianxia",
         "ban gia",
     )
-    .err()
-    .expect("ten trung phai bi tu choi");
+    .expect_err("ten trung phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::PromptSetNameTaken);
     assert_eq!(
         err.params().get("name").map(String::as_str),
@@ -257,8 +256,7 @@ fn renaming_to_an_existing_name_in_the_same_tier_is_rejected_and_both_rows_are_u
         .expect("tao B that bai");
 
     let err = prompt_set_rename(Some(&global), None, PromptSetTier::Global, b.id, "A")
-        .err()
-        .expect("doi ten trung phai bi tu choi");
+        .expect_err("doi ten trung phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::PromptSetNameTaken);
     assert_eq!(err.params().get("name").map(String::as_str), Some("A"));
 
@@ -480,9 +478,7 @@ fn switching_between_two_resolvable_sets_needs_no_settings_reopen() {
 
 #[test]
 fn resolving_when_the_global_store_is_missing_is_reported_as_unavailable_not_as_no_sets() {
-    let err = prompt_set_list(None, None)
-        .err()
-        .expect("global.db vang mat phai bi tu choi");
+    let err = prompt_set_list(None, None).expect_err("global.db vang mat phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::StoreOpenFailed);
 }
 
@@ -499,8 +495,7 @@ fn every_prompt_set_write_including_a_work_tier_one_requires_global_db_to_be_man
     let opened = open_work_real(&root);
 
     let err = prompt_set_create(None, Some(&opened), PromptSetTier::Work, "Xianxia", "than")
-        .err()
-        .expect("global.db vang mat phai chan TRUOC ca mot yeu cau tang Work");
+        .expect_err("global.db vang mat phai chan TRUOC ca mot yeu cau tang Work");
     assert_eq!(
         err.message_key(),
         MessageKey::StoreOpenFailed,
@@ -528,8 +523,7 @@ fn creating_at_the_work_tier_without_an_open_work_fails_with_work_tier_unavailab
     let global = open_global(&root);
 
     let err = prompt_set_create(Some(&global), None, PromptSetTier::Work, "Xianxia", "than")
-        .err()
-        .expect("global.db co mat nhung khong Tac pham nao mo -- tier Work phai bi tu choi");
+        .expect_err("global.db co mat nhung khong Tac pham nao mo -- tier Work phai bi tu choi");
     assert_eq!(err.message_key(), MessageKey::PromptSetWorkTierUnavailable);
 
     drop(global);
@@ -632,8 +626,7 @@ fn deleting_an_id_that_already_vanished_returns_not_found_not_a_silent_success()
         .expect("xoa lan dau phai thanh cong");
 
     let err = prompt_set_delete(Some(&global), None, PromptSetTier::Global, created.id)
-        .err()
-        .expect("xoa lan hai (id da bien mat) phai that bai, khong phai thanh cong im lang");
+        .expect_err("xoa lan hai (id da bien mat) phai that bai, khong phai thanh cong im lang");
     assert_eq!(err.message_key(), MessageKey::PromptSetNotFound);
 
     drop(global);

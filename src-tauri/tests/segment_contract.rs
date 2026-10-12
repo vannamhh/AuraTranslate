@@ -2241,7 +2241,7 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
-    let err = refused.err().expect(
+    let err = refused.expect_err(
         "mot `project.db` o phien ban 35 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
@@ -4460,14 +4460,12 @@ fn every_refusal_of_the_target_paragraph_command_carries_its_own_message_key() {
 
     // ① Chua Tac pham nao mo.
     let err = set_segment_paragraph_end(None, 1, true)
-        .err()
-        .expect("khong co Tac pham nao mo PHAI bi tu choi");
+        .expect_err("khong co Tac pham nao mo PHAI bi tu choi");
     assert_eq!(err.message_key(), MessageKey::WorkNoneOpen);
 
     // ② Segment khong ton tai.
     let err = set_segment_paragraph_end(Some(&opened), 9_999_999, true)
-        .err()
-        .expect("mot segment la PHAI bi tu choi");
+        .expect_err("mot segment la PHAI bi tu choi");
     assert_eq!(err.message_key(), MessageKey::SegmentNotFound);
 
     // ③ Segment da ve huu (AD-5).
@@ -4486,8 +4484,7 @@ fn every_refusal_of_the_target_paragraph_command_carries_its_own_message_key() {
 
     let before = read_all_segment_rows(&opened);
     let err = set_segment_paragraph_end(Some(&opened), retired_id, true)
-        .err()
-        .expect("mot segment DA VE HUU PHAI bi tu choi");
+        .expect_err("mot segment DA VE HUU PHAI bi tu choi");
     assert_eq!(err.message_key(), MessageKey::SegmentRetired);
     assert_eq!(
         read_all_segment_rows(&opened),
@@ -4503,8 +4500,7 @@ fn every_refusal_of_the_target_paragraph_command_carries_its_own_message_key() {
     let last_id = rows[rows.len() - 1].0;
     let before = read_all_segment_rows(&opened);
     let err = set_segment_paragraph_end(Some(&opened), last_id, true)
-        .err()
-        .expect("cau CUOI Chuong PHAI bi tu choi khi xin BAT co");
+        .expect_err("cau CUOI Chuong PHAI bi tu choi khi xin BAT co");
     assert_eq!(err.message_key(), MessageKey::SegmentEndsChapter);
     assert_eq!(
         read_all_segment_rows(&opened),
@@ -4689,9 +4685,8 @@ fn a_batch_with_one_unknown_segment_id_is_refused_whole_and_writes_nothing() {
     assert_eq!(err.code(), "segment.unknown_ids");
     assert_eq!(err.message_key(), MessageKey::SegmentUnknownIds);
     assert_eq!(err.params().get("count").map(String::as_str), Some("1"));
-    assert_eq!(
-        err.retryable(),
-        false,
+    assert!(
+        !err.retryable(),
         "mot id la khong sua duoc bang cach thu lai"
     );
 
@@ -4826,9 +4821,8 @@ fn the_flush_path_refuses_an_unknown_id_before_it_lowers_a_single_signature() {
 
     assert_eq!(err.code(), "segment.unknown_ids");
     assert_eq!(err.message_key(), MessageKey::SegmentUnknownIds);
-    assert_eq!(
-        err.retryable(),
-        false,
+    assert!(
+        !err.retryable(),
         "mot id la khong sua duoc bang cach thu lai"
     );
 
@@ -5012,7 +5006,7 @@ fn a_segment_never_confirmed_returns_an_empty_history_not_an_error_and_not_a_mis
 
     // ③ Segment KHONG ton tai ⇒ mot loi PHAN BIET DUOC, khong mot danh sach rong.
     let missing = read_segment_history(Some(&opened), 999_999);
-    let err = missing.err().expect(
+    let err = missing.expect_err(
         "mot `segment_id` khong ton tai PHAI la mot loi -- neu no cung cho danh sach rong thi \
          mot id go sai va mot cau chua ai ky khong phan biet duoc, va do la RONG IM LANG",
     );
@@ -5075,8 +5069,7 @@ fn a_retired_segment_still_hands_back_its_full_history_because_reading_is_not_wr
     let write_refused = confirm_segment(Some(&opened), first);
     assert_eq!(
         write_refused
-            .err()
-            .expect("mot lenh GHI phai tu choi mot segment da ve huu")
+            .expect_err("mot lenh GHI phai tu choi mot segment da ve huu")
             .message_key(),
         MessageKey::SegmentRetired,
         "duong GHI phai tu choi -- neu ca nay do thi doi chung ben duoi khong con nghia gi"
@@ -5537,7 +5530,7 @@ fn a_version_belonging_to_another_segment_is_refused_and_never_crosses_over() {
     let b_version = b_history[0].id;
 
     let refused = restore_segment_version(Some(&opened), first, b_version, false);
-    let err = refused.err().expect(
+    let err = refused.expect_err(
         "mot `version_id` thuoc segment KHAC phai bi tu choi -- neu no di lot, luot khoi phuc \
          ghi van ban cua cau khac vao cau nay va khong ai lan ra duoc",
     );
@@ -5605,8 +5598,7 @@ fn restoring_onto_a_retired_segment_is_refused_because_writing_is_not_reading() 
     let refused = restore_segment_version(Some(&opened), id, oldest, false);
     assert_eq!(
         refused
-            .err()
-            .expect("khoi phuc len mot tombstone phai bi tu choi")
+            .expect_err("khoi phuc len mot tombstone phai bi tu choi")
             .message_key(),
         MessageKey::SegmentRetired,
         "duong KHOI PHUC GHI, nen no tu choi mot segment da ve huu (AD-5). Duong DOC thi \
@@ -5687,8 +5679,7 @@ fn restoring_a_row_born_from_merging_two_unsigned_empty_segments_finds_no_versio
     let refused = restore_segment_version(Some(&opened), merged_id, 999_999, false);
     assert_eq!(
         refused
-            .err()
-            .expect("khoi phuc len mot version khong ton tai phai bi tu choi")
+            .expect_err("khoi phuc len mot version khong ton tai phai bi tu choi")
             .code(),
         "segment.not_found",
         "khong mot phien ban nao THUOC hang gop rong nay -- moi `version_id` deu la mot phien \
@@ -6886,6 +6877,10 @@ fn the_two_origin_constants_of_the_pure_layer_match_the_command_layer_verbatim()
 ///
 /// 🔴 Đọc **thô** có chủ ý: `read_open_chapter_segments` là một **đường đọc**, và một ca
 /// canh đĩa mà đi qua nó sẽ xanh y nguyên vào ngày đường đọc đó bắt đầu lọc.
+#[expect(
+    clippy::type_complexity,
+    reason = "fixture shape local to this test file"
+)]
 fn hang_tho(
     opened: &auratranslate_lib::commands::project::OpenWork,
 ) -> Vec<(i64, i64, String, String, bool, bool, bool, String, bool)> {
@@ -10165,10 +10160,8 @@ fn two_concurrent_confirms_on_the_same_pending_source_produce_exactly_one_work_n
         );
     }
 
-    for r in results {
-        if let Ok(opened) = r {
-            drop(opened.store);
-        }
+    for opened in results.into_iter().flatten() {
+        drop(opened.store);
     }
     cleanup(&root);
 }
@@ -11230,9 +11223,8 @@ fn n_files_with_no_pattern_yield_n_chapters_each_with_its_own_report_and_source_
         "3 tep, khong mau phan tach, phai cho ra dung 3 Chuong"
     );
     for (i, c) in outcome.chapters.iter().enumerate() {
-        assert_eq!(
+        assert!(
             c.cleanup_report.is_some(),
-            true,
             "moi Chuong (k == 1) phai mang bao cao CUA CHINH no, khong None -- chuong {i}"
         );
     }

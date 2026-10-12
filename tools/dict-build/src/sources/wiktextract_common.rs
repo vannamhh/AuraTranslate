@@ -70,13 +70,13 @@ pub fn parse_line(
     })?;
 
     let lang_code = v.get("lang_code").and_then(Value::as_str);
-    if let Some(want) = filter_lang_code {
-        if lang_code != Some(want) {
-            return Err(ParseIssue {
-                line: line_no,
-                reason: format!("lang_code != {want} (filtered, expected — không phải lỗi đọc)"),
-            });
-        }
+    if let Some(want) = filter_lang_code
+        && lang_code != Some(want)
+    {
+        return Err(ParseIssue {
+            line: line_no,
+            reason: format!("lang_code != {want} (filtered, expected — không phải lỗi đọc)"),
+        });
     }
 
     let word = v
@@ -295,13 +295,13 @@ pub fn parse_reading_line(
     })?;
 
     let lang_code = v.get("lang_code").and_then(Value::as_str);
-    if let Some(want) = filter_lang_code {
-        if lang_code != Some(want) {
-            return Err(ParseIssue {
-                line: line_no,
-                reason: format!("lang_code != {want} (filtered, expected — không phải lỗi đọc)"),
-            });
-        }
+    if let Some(want) = filter_lang_code
+        && lang_code != Some(want)
+    {
+        return Err(ParseIssue {
+            line: line_no,
+            reason: format!("lang_code != {want} (filtered, expected — không phải lỗi đọc)"),
+        });
     }
 
     let pos = v.get("pos").and_then(Value::as_str);

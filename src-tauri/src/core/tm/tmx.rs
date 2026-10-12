@@ -241,7 +241,7 @@ pub fn decode_tmx_bytes(bytes: &[u8]) -> Result<String, TmxError> {
         });
     }
     let utf16 = |rest: &[u8], le: bool| -> Result<String, TmxError> {
-        if rest.len() % 2 != 0 {
+        if !rest.len().is_multiple_of(2) {
             return Err(TmxError::NotUtf8);
         }
         let units: Vec<u16> = rest

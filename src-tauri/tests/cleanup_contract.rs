@@ -1389,7 +1389,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
     let chapter_1 = "QUANGCAO dau. noi dung. QUANGCAO cuoi.".to_owned();
     let chapter_2 = "QUANGCAO mot. QUANGCAO hai. QUANGCAO ba.".to_owned();
     let chapter_3 = "khong co gi de xoa o day ca.".to_owned();
-    let hand_counted_total = 2 + 3 + 0;
+    let hand_counted_total = 2 + 3;
 
     // Đối chứng độc lập ở tầng PIPELINE — chứng minh MỖI Chương thật sự mang báo cáo RIÊNG,
     // số khớp khác nhau thật (điều kiện để phép cộng ở tầng dây có gì đó THẬT để mà cộng).
@@ -1443,7 +1443,7 @@ fn count_in_import_equals_the_hand_counted_sum_of_count_in_chapter_across_n_chap
         None,
         &chapter_1,
         "en",
-        &[rule.clone()],
+        std::slice::from_ref(&rule),
         false,
         false,
         &[],
@@ -1488,7 +1488,7 @@ fn count_in_import_equals_the_hand_counted_sum_through_the_real_url_chapters_sha
     let chapter_1 = "QUANGCAO dau. noi dung. QUANGCAO cuoi.".to_owned();
     let chapter_2 = "QUANGCAO mot. QUANGCAO hai. QUANGCAO ba. QUANGCAO bon.".to_owned();
     let chapter_3 = "khong co gi de xoa o day ca.".to_owned();
-    let hand_counted_total = 2 + 4 + 0;
+    let hand_counted_total = 2 + 4;
 
     let items = vec![
         UrlImportItem {
@@ -1525,7 +1525,7 @@ fn count_in_import_equals_the_hand_counted_sum_through_the_real_url_chapters_sha
         None,
         &chapter_1,
         "en",
-        &[rule.clone()],
+        std::slice::from_ref(&rule),
         false,
         false,
         &[],
@@ -1589,7 +1589,7 @@ fn cleanup_and_chapters_preview_for_returns_the_summary_of_every_chapter_and_the
         None,
         &chapter_2,
         "en",
-        &[rule.clone()],
+        std::slice::from_ref(&rule),
         false,
         false,
         &[],

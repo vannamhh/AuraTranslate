@@ -720,7 +720,7 @@ mod tests {
         );
 
         let norm_blocks = vec![Some(block_a.to_owned()), Some(block_b.to_owned())];
-        let assignment = assign_matches_by_max_weight_order_preserving_dp(&norm_tc, &norm_blocks);
+        let assignment = assign_matches_by_max_weight_order_preserving_dp(norm_tc, &norm_blocks);
 
         assert!(
             !assignment.contains_key(&0),

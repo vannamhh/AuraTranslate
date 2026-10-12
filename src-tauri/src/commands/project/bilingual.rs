@@ -215,6 +215,10 @@ fn empty_bilingual_preview() -> BilingualImportEncodingPreview {
 /// - any other `Err` from the SELECTED candidate (the detected encoding, `verdict.encoding`)
 ///   is surfaced as-is; errors on the other candidates only leave that candidate empty,
 ///   same tolerance as [`preview_import_encoding`].
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn preview_bilingual_import(
     shape: &PipelineShape,
     source_lang: &str,
@@ -423,6 +427,10 @@ fn bilingual_candidate_wire(
 /// - còn hàng lệch cặp ⇒ `import.bilingual_mismatched_rows` — [`create_work`] tự kiểm lại
 ///   (Rust-side, §Boundaries), nên đây LUÔN đúng dù webview có quên gọi
 ///   [`preview_bilingual_import`] lại sau lượt sửa cuối hay không.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn confirm_bilingual_import(
     documents_root: &Path,
     state: &PendingImportSourceState,

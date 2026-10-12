@@ -210,7 +210,7 @@ pub enum FetchError {
 ///
 /// 🔵 **Story 6.8 — `Fetcher` là chỗ DUY NHẤT cưỡng chế AD-41 (§Always spec 6.8).** `allowlist`
 /// + `kind` đi vào TỪ THAM SỐ, không phải một trạng thái toàn cục — mỗi lời gọi tự mang theo
-/// đủ dữ kiện để quyết định, đúng "allowlist sống đúng một lần nhập" (§Design Notes spec 6.8).
+///   đủ dữ kiện để quyết định, đúng "allowlist sống đúng một lần nhập" (§Design Notes spec 6.8).
 ///
 /// Thứ tự: phân giải URL tuyệt đối → vòng lặp thủ công tối đa [`MAX_REDIRECTS`] `+ 1` chặng,
 /// MỖI chặng (kể cả chặng ĐẦU, trước khi có bất kỳ kết nối nào) hỏi `allowlist` TRƯỚC khi gửi

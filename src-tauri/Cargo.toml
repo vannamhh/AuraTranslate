@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "AuraTranslate — dictionary lookup and translation workspace, fully offline"
 authors = ["AuraTranslate"]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.97.1"
 license = "GPL-3.0-or-later"
 
 # Bố cục `lib.rs` (crate root, giữ `pub fn run()`) + `main.rs` (chỉ gọi `run()`) là

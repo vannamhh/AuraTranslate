@@ -3,7 +3,7 @@
 
 ## src-tauri/ — Rust + Tauri v2
 
-The application core; every business rule lives here (AD-1). `rust-version 1.85`, deliberately different from `tools/dict-build` — don't sync them. Read `SECURITY-NOTES.md` before touching `tauri.conf.json` or `capabilities/`.
+The application core; every business rule lives here (AD-1). `rust-version 1.97.1`, the toolchain `ci.yml` pins; `tools/dict-build` declares the same. Read `SECURITY-NOTES.md` before touching `tauri.conf.json` or `capabilities/`.
 
 ## Conventions
 

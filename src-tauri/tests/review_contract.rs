@@ -179,17 +179,17 @@ fn broken_item_count_is_added_by_rust_into_needs_review_never_into_clean() {
 
 /// I/O Matrix spec 6.10, hàng *"Tệp một khối + mẫu phân tách, 10 Chương"* — trên đường `Blob`
 /// + `chapter_pattern`, CHỈ Chương `ord = 1` có báo cáo làm sạch THẬT (bước 3 chạy TRƯỚC bước
-/// 5 trên MỘT đơn vị); `joined_line_count` là `None` cho CẢ MƯỜI (kể cả `ord = 1` — bước 4
-/// cũng chạy trên toàn blob, xem `core::segment::pipeline::Flow::joined_line_counts`). Hai
-/// tín hiệu ấy KHÔNG ĐỦ DỮ LIỆU (dưới bốn giá trị đo được — chỉ MỘT Chương có `cleanup`, KHÔNG
-/// Chương nào có `joined_line`) ⇒ KHÔNG THAM GIA — không Chương nào bị hai tín hiệu này gán cờ
-/// (`HighCleanupMatches`/`HighJoinedLines`/`NotMeasured` không xuất hiện ở BẤT KỲ Chương nào).
-/// Đây chính là đối chứng đỏ ① của §Verification spec 6.10 ở tầng DÂY: nếu `cleanup_match_count`
-/// bị mặc định hoá `None → Some(0)` (`.unwrap_or(0)` trên `usize` trần) TRƯỚC khi vào
-/// `core::segment::review::classify`, chín Chương còn lại (giá trị giả `0`) sẽ đủ bốn để hàng
-/// rào tồn tại — và một luật THẬT SỰ có khớp trên `ord = 1` (số dương) làm `IQR > 0` — khiến
-/// chín Chương CHƯA AI ĐO bị đếm là "đo được và sạch" trong `clean_count`, đúng lỗi mà AC
-/// 2026-09-08 tồn tại để chặn.
+///   5 trên MỘT đơn vị); `joined_line_count` là `None` cho CẢ MƯỜI (kể cả `ord = 1` — bước 4
+///   cũng chạy trên toàn blob, xem `core::segment::pipeline::Flow::joined_line_counts`). Hai
+///   tín hiệu ấy KHÔNG ĐỦ DỮ LIỆU (dưới bốn giá trị đo được — chỉ MỘT Chương có `cleanup`, KHÔNG
+///   Chương nào có `joined_line`) ⇒ KHÔNG THAM GIA — không Chương nào bị hai tín hiệu này gán cờ
+///   (`HighCleanupMatches`/`HighJoinedLines`/`NotMeasured` không xuất hiện ở BẤT KỲ Chương nào).
+///   Đây chính là đối chứng đỏ ① của §Verification spec 6.10 ở tầng DÂY: nếu `cleanup_match_count`
+///   bị mặc định hoá `None → Some(0)` (`.unwrap_or(0)` trên `usize` trần) TRƯỚC khi vào
+///   `core::segment::review::classify`, chín Chương còn lại (giá trị giả `0`) sẽ đủ bốn để hàng
+///   rào tồn tại — và một luật THẬT SỰ có khớp trên `ord = 1` (số dương) làm `IQR > 0` — khiến
+///   chín Chương CHƯA AI ĐO bị đếm là "đo được và sạch" trong `clean_count`, đúng lỗi mà AC
+///   2026-09-08 tồn tại để chặn.
 #[test]
 fn a_blob_with_a_chapter_pattern_excludes_the_two_signals_that_only_the_first_chapter_measures() {
     let rule = CleanupRule {

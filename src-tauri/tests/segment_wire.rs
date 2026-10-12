@@ -149,8 +149,7 @@ fn the_promote_shell_refuses_a_retired_segment_and_writes_nothing() {
     for force in [false, true] {
         let err = h
             .promote(id, "Con rong gam.", force)
-            .err()
-            .expect("phai la Err");
+            .expect_err("phai la Err");
         assert_eq!(err.code(), "segment.retired");
     }
 
@@ -187,8 +186,7 @@ fn the_promote_shell_without_an_open_work_state_reports_no_work_open_instead_of_
 
     let err = h
         .promote(1, "Con rong gam.", false)
-        .err()
-        .expect("phai la Err");
+        .expect_err("phai la Err");
 
     assert_eq!(err.code(), "work.none_open");
 }

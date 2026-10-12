@@ -563,11 +563,12 @@ pub fn mark_prompt_as_sent(
     let mut guard = record
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if let Some(r) = guard.as_mut() {
-        if r.segment_id == segment_id && r.prompt == sent_prompt {
-            r.sent_at = Some(sent_at.to_owned());
-            r.sent_model = Some(model.to_owned());
-        }
+    if let Some(r) = guard.as_mut()
+        && r.segment_id == segment_id
+        && r.prompt == sent_prompt
+    {
+        r.sent_at = Some(sent_at.to_owned());
+        r.sent_model = Some(model.to_owned());
     }
 }
 

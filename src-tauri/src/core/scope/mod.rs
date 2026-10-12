@@ -327,6 +327,10 @@ impl ScopeResolver {
     /// # Lỗi
     /// - [`ScopeError::UnknownKind`] nếu `kind` không khớp một [`ScopeKind`] nào đã khai;
     /// - [`ScopeError::WrongSemantics`] nếu `kind` không khai [`Semantics::Merge`].
+    #[expect(
+        clippy::type_complexity,
+        reason = "callback-typed generic signature is the public contract of the merge"
+    )]
     pub fn apply_merge<V>(
         &self,
         kind: &str,

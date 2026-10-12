@@ -211,10 +211,9 @@ pub fn window_safe_prefix(text: &str, max_bytes: usize) -> Option<String> {
     }
     let truncated = &text[..boundary];
 
-    let cut_at_last_break = match truncated.rfind(['\n', '\r']) {
-        Some(idx) => &truncated[..idx],
-        // Cửa sổ không chứa nổi MỘT ranh giới dòng nào — không dòng nào TRỌN VẸN để hiện.
-        None => return None,
+    let cut_at_last_break = {
+        let idx = truncated.rfind(['\n', '\r'])?;
+        &truncated[..idx]
     };
 
     // `cut_at_last_break` giờ chỉ mang các dòng TRỌN VẸN (mỗi dòng được bao bởi `\n`/`\r`

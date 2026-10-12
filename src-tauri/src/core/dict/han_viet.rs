@@ -129,14 +129,15 @@ pub(super) fn read_han_viet(db: ReadHandle<'_>, chars: &[&str]) -> SqlResult<Vec
                 });
             }
 
-            if let Some(simp) = headword_simp.as_deref() {
-                if simp != headword.as_str() && query_set.contains(simp) {
-                    out.push(HanVietHit {
-                        character: simp.to_owned(),
-                        reading: han_viet.clone(),
-                        source_code: source_code.clone(),
-                    });
-                }
+            if let Some(simp) = headword_simp.as_deref()
+                && simp != headword.as_str()
+                && query_set.contains(simp)
+            {
+                out.push(HanVietHit {
+                    character: simp.to_owned(),
+                    reading: han_viet.clone(),
+                    source_code: source_code.clone(),
+                });
             }
         }
     }

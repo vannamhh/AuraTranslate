@@ -100,6 +100,10 @@ pub enum Skip {
 /// Every regular file under `root` (no extension filter), skipping symlinks and dotfiles,
 /// read as UTF-8. Returns `(readable files, skipped files with a reason)` — never panics on
 /// a dotfile or a non-UTF-8 file.
+#[expect(
+    clippy::type_complexity,
+    reason = "fixture shape local to this test file"
+)]
 pub fn any_sources(root: &Path) -> (Vec<(String, String)>, Vec<(String, Skip)>) {
     let mut files = Vec::new();
     walk(root, None, &mut files);

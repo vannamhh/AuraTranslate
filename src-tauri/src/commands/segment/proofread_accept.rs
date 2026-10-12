@@ -113,6 +113,10 @@ pub(crate) fn check_proofread_range(
 /// phrases swapped. The write is the non-user write: text, both baseline columns and
 /// `translation_origin` set together by the kind's origin rule, `status` back to `draft`, no
 /// `segment_version` row.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn replace_proofread_range(
     open: Option<&OpenWork>,
     segment_id: i64,

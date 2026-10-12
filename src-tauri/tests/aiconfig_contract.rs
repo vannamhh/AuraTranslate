@@ -213,10 +213,10 @@ fn open_work_real(documents_root: &Path) -> OpenWork {
     .expect("tao OpenWork that bai")
 }
 
-fn field_wire<'a>(
-    fields: &'a [auratranslate_lib::commands::aiconfig::AiConfigFieldWire],
+fn field_wire(
+    fields: &[auratranslate_lib::commands::aiconfig::AiConfigFieldWire],
     field: AiConfigField,
-) -> &'a auratranslate_lib::commands::aiconfig::AiConfigFieldWire {
+) -> &auratranslate_lib::commands::aiconfig::AiConfigFieldWire {
     fields
         .iter()
         .find(|f| f.field == field.as_str())
@@ -448,8 +448,7 @@ fn saving_a_work_override_with_no_work_open_is_refused_and_writes_nothing() {
         AiConfigField::Endpoint,
         "https://x.example.com",
     )
-    .err()
-    .expect("phai bi tu choi khi khong Tac pham nao dang mo");
+    .expect_err("phai bi tu choi khi khong Tac pham nao dang mo");
     assert_eq!(err.message_key(), MessageKey::AiConfigWorkTierUnavailable);
 
     let fields = ai_config_get(Some(&global), None)
@@ -1021,8 +1020,7 @@ fn a_work_tier_key_request_is_refused_at_the_command_layer_with_zero_keychain_in
     // nhi phan, xem doc-comment KEYCHAIN_KEY_TEST_LOCK).
     inject_one_shot_keychain_error();
     let err_save = ai_config_save_key(AiConfigTier::Work, "sk-khong-duoc-ghi")
-        .err()
-        .expect("yeu cau tang Work phai bi tu choi");
+        .expect_err("yeu cau tang Work phai bi tu choi");
     assert_eq!(
         err_save.message_key(),
         MessageKey::AiConfigKeyIsGlobal,
@@ -1032,16 +1030,14 @@ fn a_work_tier_key_request_is_refused_at_the_command_layer_with_zero_keychain_in
 
     inject_one_shot_keychain_error();
     let err_delete = ai_config_delete_key(AiConfigTier::Work)
-        .err()
-        .expect("yeu cau xoa tang Work phai bi tu choi");
+        .expect_err("yeu cau xoa tang Work phai bi tu choi");
     assert_eq!(err_delete.message_key(), MessageKey::AiConfigKeyIsGlobal);
 
     // Xac nhan loi bom van con nguyen (chua bi tieu thu boi hai loi tu choi tren) -- lan
     // cham THAT dau tien (tang Global) phai nhan dung loi keychain_unavailable, chung minh
     // co che bom loi hoat dong dung nhu mo ta, khong phai mot phep do vo hieu.
     let err_real_touch = ai_config_save_key(AiConfigTier::Global, "sk-se-that-bai")
-        .err()
-        .expect("lan cham that dau tien phai that bai vi loi da bom");
+        .expect_err("lan cham that dau tien phai that bai vi loi da bom");
     assert_eq!(
         err_real_touch.message_key(),
         MessageKey::AiConfigKeychainUnavailable
@@ -1062,8 +1058,7 @@ fn keychain_refusing_to_answer_fails_the_action_but_keeps_the_section_usable() {
 
     inject_one_shot_keychain_error();
     let err = ai_config_save_key(AiConfigTier::Global, "sk-that-bai")
-        .err()
-        .expect("keychain tu choi tra loi phai lam hanh dong that bai");
+        .expect_err("keychain tu choi tra loi phai lam hanh dong that bai");
     assert_eq!(err.message_key(), MessageKey::AiConfigKeychainUnavailable);
     assert!(
         err.retryable(),
@@ -1146,9 +1141,7 @@ fn errors_around_a_configured_key_never_carry_the_key_value_or_a_prefix_of_it() 
     ai_config_save_key(AiConfigTier::Global, SECRET).expect("luu khoa that bai");
 
     inject_one_shot_keychain_error();
-    let err = ai_config_delete_key(AiConfigTier::Global)
-        .err()
-        .expect("phai that bai vi loi da bom");
+    let err = ai_config_delete_key(AiConfigTier::Global).expect_err("phai that bai vi loi da bom");
     assert_eq!(err.message_key(), MessageKey::AiConfigKeychainUnavailable);
 
     let err_debug = format!("{err:?}");

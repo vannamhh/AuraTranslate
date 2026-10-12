@@ -112,10 +112,10 @@ pub(crate) fn chapter_origin_trim_or_none(value: &str) -> Option<String> {
 fn meta_content(document: &HtmlDocument, attr: &str, value: &str) -> Option<String> {
     let selector = format!("meta[{attr}='{value}']");
     for node in document.select(&selector).nodes() {
-        if let Some(content) = node.attr("content") {
-            if let Some(v) = chapter_origin_trim_or_none(&content) {
-                return Some(v);
-            }
+        if let Some(content) = node.attr("content")
+            && let Some(v) = chapter_origin_trim_or_none(&content)
+        {
+            return Some(v);
         }
     }
     None

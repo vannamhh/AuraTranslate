@@ -65,7 +65,7 @@ fn row_to_record(row: &Row<'_>) -> SqlResult<OrphanRecord> {
 pub fn list(store: &Store) -> Result<Vec<OrphanRecord>, StoreError> {
     store.read(|conn| {
         let mut stmt = conn.prepare(SELECT_ORPHANS)?;
-        stmt.query_map([], |row| row_to_record(row))?
+        stmt.query_map([], row_to_record)?
             .collect::<SqlResult<Vec<_>>>()
     })
 }

@@ -147,10 +147,10 @@ pub fn write_export_file(path: &Path, contents: &str) -> Result<(), PromptSetErr
         });
     }
 
-    if let Some(dir) = path.parent() {
-        if let Ok(dir_handle) = std::fs::File::open(dir) {
-            let _ = dir_handle.sync_all();
-        }
+    if let Some(dir) = path.parent()
+        && let Ok(dir_handle) = std::fs::File::open(dir)
+    {
+        let _ = dir_handle.sync_all();
     }
 
     Ok(())

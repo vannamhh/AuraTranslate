@@ -90,6 +90,10 @@ fn build(tag: &str, chapters: &[Chap]) -> Work {
     )
 }
 
+#[expect(
+    clippy::type_complexity,
+    reason = "fixture shape local to this test file"
+)]
 fn build_with_roles(
     tag: &str,
     chapters: &[(
@@ -1169,10 +1173,10 @@ fn function_bodies(text: &str) -> Vec<(String, String)> {
             .iter()
             .position(|&c| c == '{' || c == ';')
             .map(|p| p + i);
-        if let Some(open) = open.filter(|&p| chars[p] == '{' && !name.is_empty()) {
-            if let Some(close) = matching_close_brace(&chars, open + 1) {
-                out.push((name, chars[open + 1..close].iter().collect()));
-            }
+        if let Some(open) = open.filter(|&p| chars[p] == '{' && !name.is_empty())
+            && let Some(close) = matching_close_brace(&chars, open + 1)
+        {
+            out.push((name, chars[open + 1..close].iter().collect()));
         }
         i += 3;
     }

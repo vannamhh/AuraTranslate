@@ -144,7 +144,7 @@ fn line_use_pulls_in_read_via_brace_or_glob(code: &str) -> Option<&'static str> 
         // `FORBIDDEN_RAW_VALUE_TOKENS`'s neo biên ĐUÔI đã khớp nó — lỗ THẬT chỉ ở dạng NGOẶC.
         if inside
             .split(',')
-            .any(|item| item.trim().split_whitespace().next() == Some("read"))
+            .any(|item| item.split_whitespace().next() == Some("read"))
         {
             return Some("keychain::{read}");
         }

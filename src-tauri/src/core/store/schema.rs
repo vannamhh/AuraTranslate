@@ -2454,16 +2454,16 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   lượt này" của `5-6-luoi-tac-pham-loc-va-sap-xep.md`. Món nợ chuyển sang chủ MỚI: story
 ///   ĐẦU TIÊN mở đường cho người dùng ĐẶT một ảnh bìa — story đó chưa tồn tại trong
 ///   `epics.md`, nên người quyết định kế tiếp là **Ice**, không một tên story giả cho có.
-/// 🔵 **SỬA (2026-08-27, phán quyết Ice #1, LẬT quyết định 5.3) — cột `orphaned` đã BỊ GỠ,
-/// `to_version` 2 → 3.** Story 5.3 từng thêm cột này ngay tại đây (`to_version` 1 → 2) vì lúc
-/// đó cờ mồ côi được coi là một mẩu trạng thái của CHÍNH chỉ mục dẫn xuất. Ice chốt lại
-/// 2026-08-27: cờ mồ côi là **dữ liệu người dùng** ("người dùng CHỌN giữ lại một lời nhắc",
-/// không phải một sự thật suy ra được từ đĩa) — nó KHÔNG thuộc về một kho tự xưng là "xoá đi
-/// dựng lại vô hại" (AD-8). Cờ mồ côi nay sống ở bảng `library_orphan` của `global.db` (xem
-/// [`LIBRARY_ORPHAN_DDL`]), và `library_work` quay lại ĐÚNG nghĩa cũ: "những gì đang có mặt
-/// trên đĩa ngay bây giờ" — dẫn xuất TRỌN VẸN, không hàng nào sống sót một lượt xoá-dựng-lại.
-/// Xem §Spec Change Log + §Design Notes của `5-3-quet-lai-thu-muc.md` cho lý lẽ đầy đủ và
-/// phương án đã cân.
+///   🔵 **SỬA (2026-08-27, phán quyết Ice #1, LẬT quyết định 5.3) — cột `orphaned` đã BỊ GỠ,
+///   `to_version` 2 → 3.** Story 5.3 từng thêm cột này ngay tại đây (`to_version` 1 → 2) vì lúc
+///   đó cờ mồ côi được coi là một mẩu trạng thái của CHÍNH chỉ mục dẫn xuất. Ice chốt lại
+///   2026-08-27: cờ mồ côi là **dữ liệu người dùng** ("người dùng CHỌN giữ lại một lời nhắc",
+///   không phải một sự thật suy ra được từ đĩa) — nó KHÔNG thuộc về một kho tự xưng là "xoá đi
+///   dựng lại vô hại" (AD-8). Cờ mồ côi nay sống ở bảng `library_orphan` của `global.db` (xem
+///   [`LIBRARY_ORPHAN_DDL`]), và `library_work` quay lại ĐÚNG nghĩa cũ: "những gì đang có mặt
+///   trên đĩa ngay bây giờ" — dẫn xuất TRỌN VẸN, không hàng nào sống sót một lượt xoá-dựng-lại.
+///   Xem §Spec Change Log + §Design Notes của `5-3-quet-lai-thu-muc.md` cho lý lẽ đầy đủ và
+///   phương án đã cân.
 ///
 /// 🔵 **SỬA (2026-08-27, Story 5.4) — dòng ngay trên "không cột trạng thái vòng đời (chủ
 /// Story 5.4)" đã HẾT ĐÚNG: đây CHÍNH LÀ story đó, và hai cột dưới đây là bề mặt của nó.**
@@ -2485,7 +2485,7 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
 ///   `status` đã bị GIẢN LƯỢC về một chuỗi duy nhất, không còn phân biệt được "suy ra" với
 ///   "ghi đè" nếu không có nó — Library phải lọc/hiện dấu phân biệt mà KHÔNG mở SQLite của
 ///   từng Tác phẩm).
-/// 🔵 **NÂNG (2026-08-28, Story 5.5) — `to_version` 4 → 5.** Cột mới:
+///   🔵 **NÂNG (2026-08-28, Story 5.5) — `to_version` 4 → 5.** Cột mới:
 /// - `chapter_done_count INTEGER` — cho phép `NULL`, đúng khuôn `status`/`status_is_override`
 ///   ngay trên. `NULL` **không** nghĩa là `0`; nó nghĩa là **CHƯA BIẾT** — một `meta.json`
 ///   v1/v2 (viết trước khi story này tồn tại) không mang trường `chapter_done_count`, và

@@ -2037,10 +2037,8 @@ fn two_concurrent_bilingual_confirms_on_the_same_pending_source_produce_exactly_
         );
     }
 
-    for r in results {
-        if let Ok(opened) = r {
-            drop(opened.store);
-        }
+    for opened in results.into_iter().flatten() {
+        drop(opened.store);
     }
     cleanup(&root);
 }
@@ -2603,8 +2601,7 @@ mod docx_source {
         stash_pending_import_source(&state, shape, None);
         let before = entry_count(&root);
         let err = confirm(&root, &state, "Chua Chon", false, None)
-            .err()
-            .expect("chua chon phai bi tu choi");
+            .expect_err("chua chon phai bi tu choi");
         assert_eq!(err.message_key(), MessageKey::ImportBilingualTableNotChosen);
         assert_eq!(err.params().get("count").map(String::as_str), Some("2"));
         assert_eq!(entry_count(&root), before, "0 Work");
@@ -2656,8 +2653,7 @@ mod docx_source {
         let shape = import_bilingual_file(&path).expect("doc");
 
         let err = preview_bilingual_import(&shape, "en", &[], None, 0, 1, false, &[], Some(2))
-            .err()
-            .expect("chi so ngoai khoang phai bi tu choi o man xem truoc");
+            .expect_err("chi so ngoai khoang phai bi tu choi o man xem truoc");
         assert_eq!(
             err.message_key(),
             MessageKey::ImportBilingualTableOutOfRange
@@ -2669,8 +2665,7 @@ mod docx_source {
         stash_pending_import_source(&state, shape, None);
         let before = entry_count(&root);
         let err = confirm(&root, &state, "Ngoai Khoang", false, Some(7))
-            .err()
-            .expect("xac nhan cung bi tu choi");
+            .expect_err("xac nhan cung bi tu choi");
         assert_eq!(
             err.message_key(),
             MessageKey::ImportBilingualTableOutOfRange
@@ -2682,8 +2677,7 @@ mod docx_source {
             import_bilingual_file(&write_file(&root, "mot.docx", &single)).expect("doc");
         let err =
             preview_bilingual_import(&single_shape, "en", &[], None, 0, 1, false, &[], Some(1))
-                .err()
-                .expect("mot bang: chi so 1 van ngoai khoang");
+                .expect_err("mot bang: chi so 1 van ngoai khoang");
         assert_eq!(
             err.message_key(),
             MessageKey::ImportBilingualTableOutOfRange
@@ -2695,9 +2689,7 @@ mod docx_source {
     fn no_table_refusal(bytes: Vec<u8>, name: &str) {
         let root = temp_dir(name);
         let path = write_file(&root, &format!("{name}.docx"), &bytes);
-        let err = import_bilingual_file(&path)
-            .err()
-            .expect("khong co bang hai cot phai bi tu choi");
+        let err = import_bilingual_file(&path).expect_err("khong co bang hai cot phai bi tu choi");
         assert_eq!(
             auratranslate_lib::core::i18n::IpcError::from(err).message_key(),
             MessageKey::ImportBilingualNoTable
@@ -2817,9 +2809,7 @@ mod docx_source {
 
         let state = pending_state();
         stash_pending_import_source(&state, shape, None);
-        let err = confirm(&root, &state, "Lech", false, None)
-            .err()
-            .expect("lech cap khoa xac nhan");
+        let err = confirm(&root, &state, "Lech", false, None).expect_err("lech cap khoa xac nhan");
         assert_eq!(err.message_key(), MessageKey::ImportBilingualMismatchedRows);
 
         cleanup(&root);

@@ -5,12 +5,14 @@
 //! ─────────────────────────────────────────────────────────────────────────────
 //! `#[ignore]` LÀ MỘT QUYẾT ĐỊNH, KHÔNG PHẢI MỘT LƯỢT QUÊN
 //! ─────────────────────────────────────────────────────────────────────────────
-//! Dựng 50 Tác phẩm × 100 Chương × 10 segment qua `confirm_bilingual_import` (bộ dựng bảng
-//! + tách Chương + tách câu THẬT của sản phẩm) tốn nhiều giây hơn một ca thường — không phải
+//! Dựng 50 Tác phẩm × 100 Chương × 10 segment qua `confirm_bilingual_import` (bộ dựng bảng,
+//! tách Chương và tách câu THẬT của sản phẩm) tốn nhiều giây hơn một ca thường — không phải
 //! một cổng `cargo test --locked` mặc định chạy. Chạy tay:
 //!
-//!     cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml \
-//!       --test story_6_18_library -- --ignored --nocapture
+//! ```text
+//! cargo test --profile bench-release --locked --manifest-path src-tauri/Cargo.toml \
+//!   --test story_6_18_library -- --ignored --nocapture
+//! ```
 //!
 //! ─────────────────────────────────────────────────────────────────────────────
 //! CHỈ đường sản phẩm — không một câu SQL ghi nào trong tệp này
@@ -267,12 +269,10 @@ fn spawn_rss_sampler() -> (Arc<AtomicU64>, Arc<AtomicBool>, std::thread::JoinHan
                 if let Ok(out) = std::process::Command::new("ps")
                     .args(["-o", "rss=", "-p", &pid.to_string()])
                     .output()
+                    && let Ok(text) = String::from_utf8(out.stdout)
+                    && let Ok(kb) = text.trim().parse::<u64>()
                 {
-                    if let Ok(text) = String::from_utf8(out.stdout) {
-                        if let Ok(kb) = text.trim().parse::<u64>() {
-                            peak_kb.fetch_max(kb, Ordering::Relaxed);
-                        }
-                    }
+                    peak_kb.fetch_max(kb, Ordering::Relaxed);
                 }
                 std::thread::sleep(std::time::Duration::from_millis(20));
             }

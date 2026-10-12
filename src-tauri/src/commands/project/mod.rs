@@ -304,12 +304,12 @@ pub fn resolve_chapter_pattern(
     wire: Option<ChapterPatternWire>,
 ) -> Result<Option<ChapterPattern>, ImportError> {
     let Some(wire) = wire else { return Ok(None) };
-    if wire.kind == ChapterPatternKind::Regex {
-        if let Err(err) = crate::core::segment::chapterpattern::compile(&wire.pattern) {
-            return Err(ImportError::InvalidChapterPattern {
-                detail: err.to_string(),
-            });
-        }
+    if wire.kind == ChapterPatternKind::Regex
+        && let Err(err) = crate::core::segment::chapterpattern::compile(&wire.pattern)
+    {
+        return Err(ImportError::InvalidChapterPattern {
+            detail: err.to_string(),
+        });
     }
     Ok(Some(ChapterPattern {
         kind: wire.kind,
@@ -712,6 +712,10 @@ fn spawn_import_scan<R: tauri::Runtime>(
 /// Thân của MỘT Chương trong vòng lặp [`spawn_import_scan`] — tách ra để hàm cha chỉ còn việc
 /// nạp một lần những gì KHÔNG đổi giữa các Chương (`config`/`disabled`/`layers`/`lang`) rồi lặp.
 /// Nhận `&tauri::AppHandle` (không `move` sở hữu) vì được gọi LẶP LẠI trong cùng một luồng.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 fn run_one_chapter_import_scan<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     work_id: &str,
@@ -1429,6 +1433,9 @@ pub fn block_overrides_for_range(
         .collect()
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct BlockIndexOutOfRange;
+
 /// Đặt/gỡ override của MỘT khối theo chỉ số — hàm THUẦN cạnh `wire::tier2_block_set_kept`.
 /// Vector NGẮN HƠN `total_blocks` được nới bằng `None` (chưa ai sửa khối đó) trước khi ghi.
 ///
@@ -1438,16 +1445,16 @@ pub fn block_overrides_for_range(
 /// vẫn được ghi lặng lẽ, tạo một override "ma" không khối nào trên trang MỚI trỏ tới, hoặc
 /// ngược lại đọc-nhầm sang một khối KHÁC nếu tổng số khối co lại rồi phình ra trùng chỉ số.
 /// Chỗ gọi (`wire::tier2_block_set_kept`) giờ PHẢI tự đo `total_blocks` THẬT (qua
-/// [`current_tier2_machine_kept`]) trước khi gọi hàm này, và `Err(())` nghĩa là `index` không
+/// [`current_tier2_machine_kept`]) trước khi gọi hàm này, và `Err(BlockIndexOutOfRange)` nghĩa là `index` không
 /// còn khớp trang hiện hành — chỗ gọi từ chối ghi thay vì đoán.
 pub fn set_block_override(
     overrides: &mut Vec<Option<bool>>,
     index: usize,
     kept: bool,
     total_blocks: usize,
-) -> Result<(), ()> {
+) -> Result<(), BlockIndexOutOfRange> {
     if index >= total_blocks {
-        return Err(());
+        return Err(BlockIndexOutOfRange);
     }
     if overrides.len() < total_blocks {
         overrides.resize(total_blocks, None);
@@ -1765,6 +1772,10 @@ pub fn build_file_import_batch_wire(
 /// lượt nhập — chỉ có nghĩa cho đường URL; mọi chỗ gọi khác (đường tệp/dán tay, chi tiết LAZY
 /// của `chapter_detail_for_index`) truyền `0` (§Always spec 6.10: "đường tệp/dán tay truyền
 /// 0"). Đi thẳng vào [`build_chapter_split_preview_wire`] — hàm này không cộng/trừ gì lên nó.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn cleanup_and_chapters_preview_for(
     shape: PipelineShape,
     encoding: &'static encoding_rs::Encoding,
@@ -1967,6 +1978,10 @@ fn build_cleanup_preview_wire(
 /// 🔴 **THÊM tham số `broken_item_count` 2026-09-08 (Story 6.10)** — cùng lý do tham số cùng
 /// tên ở [`cleanup_and_chapters_preview_for`]; chỗ gọi (`preview_import_encoding`) truyền
 /// tường minh, không suy từ `shape`.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 fn encoding_candidate_wire(
     c: EncodingCandidate,
     shape: &PipelineShape,
@@ -2423,6 +2438,10 @@ fn display_window_for_chapter(
 /// `None` khi `chapter_index` không còn khớp số Chương thật của lượt chạy MỚI (mẫu phân tách
 /// vừa đổi làm N đổi), hoặc bảng mã đã chọn "không ra chữ" cho Chương này — chỗ gọi coi đó là
 /// trạng thái CŨ/không hợp lệ, từ chối thay vì đoán.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn chapter_detail_for_index(
     shape: &PipelineShape,
     chapter_index: usize,
@@ -2578,17 +2597,21 @@ pub fn cancel_import_preview(state: &PendingImportSourceState) {
 /// - [`create_work`] trượt (ví dụ byte không giải mã được với CHÍNH bảng mã đã chọn) ⇒ lỗi
 ///   của nó, đi thẳng — ô đang chờ GIỮ NGUYÊN (không dọn trên đường lỗi), để một lượt xác
 ///   nhận KẾ TIẾP với một ứng viên khác không đòi đọc nguồn lần hai.
-/// 🔵 **THÊM 2026-09-05 (Story 6.5) — tham số `cleanup_rules`.** CÙNG tập luật (ĐÃ PHÂN
-/// GIẢI ở `mod wire`, nạp NGAY LÚC XÁC NHẬN chứ không phải bộ đã dùng lúc xem trước — luật
-/// có thể đã đổi giữa hai nhịp qua một lượt bật/tắt/soạn khác) mà [`preview_import_encoding`]
-/// vừa dùng để hiện — đây là chỗ đóng nợ `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*` cho NỬA GHI: `create_work`
-/// nhận đúng luật đó, không một bộ luật thứ hai.
-/// 🔴 **THÊM 2026-09-07 (Story 6.9) — tham số `block_overrides`, đúng cái vòng rà 1 đã hụt.**
-/// `wire::confirm_import_with_encoding` đọc `Tier2BlockOverridesState` NGAY LÚC XÁC NHẬN
-/// (cùng kỷ luật "đọc lại lúc xác nhận, không tái dùng bộ lúc xem trước" mà `cleanup_rules`
-/// đã theo) rồi truyền vào đây; state đó chỉ được RESET ở lớp vỏ SAU KHI hàm này trả `Ok`.
-/// 🔴 **THÊM 2026-09-08 (Story 6.11, mục B1) — tham số `domain_log_state`.** Đọc doc-comment
-/// `create_work` — thread thẳng xuống đó, không tự tích luỹ gì ở tầng này.
+///   🔵 **THÊM 2026-09-05 (Story 6.5) — tham số `cleanup_rules`.** CÙNG tập luật (ĐÃ PHÂN
+///   GIẢI ở `mod wire`, nạp NGAY LÚC XÁC NHẬN chứ không phải bộ đã dùng lúc xem trước — luật
+///   có thể đã đổi giữa hai nhịp qua một lượt bật/tắt/soạn khác) mà [`preview_import_encoding`]
+///   vừa dùng để hiện — đây là chỗ đóng nợ `deferred-work.md §*Deferred from: 6-2-pipeline-nhap-mot-chuoi-thu-tu-co-dinh-dung-chung-moi-nguon (2026-09-04)*` cho NỬA GHI: `create_work`
+///   nhận đúng luật đó, không một bộ luật thứ hai.
+///   🔴 **THÊM 2026-09-07 (Story 6.9) — tham số `block_overrides`, đúng cái vòng rà 1 đã hụt.**
+///   `wire::confirm_import_with_encoding` đọc `Tier2BlockOverridesState` NGAY LÚC XÁC NHẬN
+///   (cùng kỷ luật "đọc lại lúc xác nhận, không tái dùng bộ lúc xem trước" mà `cleanup_rules`
+///   đã theo) rồi truyền vào đây; state đó chỉ được RESET ở lớp vỏ SAU KHI hàm này trả `Ok`.
+///   🔴 **THÊM 2026-09-08 (Story 6.11, mục B1) — tham số `domain_log_state`.** Đọc doc-comment
+///   `create_work` — thread thẳng xuống đó, không tự tích luỹ gì ở tầng này.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn confirm_import_with_encoding_with_progress(
     documents_root: &Path,
     state: &PendingImportSourceState,
@@ -2673,6 +2696,10 @@ pub fn confirm_import_with_encoding_with_progress(
 
 /// Thin wrapper over [`confirm_import_with_encoding_with_progress`] with a no-op
 /// progress/cancel pair, for callers that don't need either.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn confirm_import_with_encoding(
     documents_root: &Path,
     state: &PendingImportSourceState,
@@ -2720,6 +2747,10 @@ pub fn confirm_import_with_encoding(
 /// Y hệt [`confirm_import_with_encoding`] cộng lỗi của [`append_chapters_to_work`]/
 /// `write_lifecycle_after_change`; KHÔNG một nhánh nào xoá `open` (§Never spec 6.7b) — một
 /// lỗi để `open` NGUYÊN VẸN, ô đang chờ GIỮ NGUYÊN để thử lại với một ứng viên bảng mã khác.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn confirm_append_import_with_encoding_with_progress(
     open: &mut OpenWork,
     state: &PendingImportSourceState,
@@ -2776,6 +2807,10 @@ pub fn confirm_append_import_with_encoding_with_progress(
 
 /// Thin wrapper over [`confirm_append_import_with_encoding_with_progress`] with a no-op
 /// progress/cancel pair.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn confirm_append_import_with_encoding(
     open: &mut OpenWork,
     state: &PendingImportSourceState,
@@ -2835,6 +2870,10 @@ pub fn confirm_append_import_with_encoding(
 /// "bước 4 của đường append CÓ TỒN TẠI và THẬT SỰ cập nhật chỉ mục" — seam mà trước Phase 4
 /// KHÔNG tồn tại ở BẤT KỲ hình dạng nào cho đường append (khác hẳn
 /// `set_chapter_status`/`merge_chapter_into_previous`, cả hai đã có `*_indexed` từ trước).
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 pub fn confirm_append_import_with_encoding_indexed(
     open: &mut OpenWork,
     state: &PendingImportSourceState,

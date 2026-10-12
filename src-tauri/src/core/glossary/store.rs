@@ -87,6 +87,10 @@ const GLOSSARY_SCOPE_KIND: &str = "glossary";
 /// chỗ gọi vì mỗi chỗ gọi cắt đầu vào của chính nó theo quy tắc riêng.
 /// `occurrence_count` is `None` for every caller except [`approve_candidate`], which
 /// passes the candidate's own count once, at approval time.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one parameter per glossary_entry column"
+)]
 pub(super) fn insert_entry_row(
     tx: &Transaction<'_>,
     source_term: &str,
@@ -800,10 +804,10 @@ impl<'a> WorkContext<'a> {
     /// [`GlossaryError::WorkContextMismatch`] instead of silently building a mismatched
     /// context.
     pub fn new(pair: Option<(&'a ScopeResolver, &'a Store)>) -> Result<Self, GlossaryError> {
-        if let Some((resolver, _)) = pair {
-            if !resolver.has_work_tier() {
-                return Err(GlossaryError::WorkContextMismatch);
-            }
+        if let Some((resolver, _)) = pair
+            && !resolver.has_work_tier()
+        {
+            return Err(GlossaryError::WorkContextMismatch);
         }
         Ok(Self { pair })
     }
@@ -1437,6 +1441,10 @@ fn resolve_overlaps(mut matches: Vec<TermMatch>) -> Vec<TermMatch> {
 /// mở được — I/O Matrix *"`Store` đóng giữa chừng ⇒ lỗi mang `message_key`, KHÔNG
 /// `Ok(vec![])`"*); [`GlossaryError::Scope`] nếu `ScopeResolver::apply_override` từ chối
 /// (lỗi lập trình, không nên xảy ra trên đường gọi đúng).
+#[expect(
+    clippy::type_complexity,
+    reason = "one-off return shape of this function, named at no other site"
+)]
 fn resolve_and_match(
     scope: &WorkContext<'_>,
     global: &Store,

@@ -2,7 +2,7 @@
 //! read-only guarantee over the whole Chapter.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Once};
 
@@ -479,7 +479,7 @@ fn the_outcome_wire_keeps_its_state_tags_and_counts() {
     );
 }
 
-fn chapter_of(count: usize, work: &PathBuf) -> OpenWork {
+fn chapter_of(count: usize, work: &Path) -> OpenWork {
     let text = (0..count)
         .map(|i| format!("Sentence {i}."))
         .collect::<Vec<_>>()

@@ -128,7 +128,7 @@ fn attached_role_text(segments: &[ChapterSegment], after: Option<i64>) -> Attach
     let mut alt_text = None;
     let mut caption_text = None;
     for seg in &segments[start..] {
-        match seg.role.as_deref().and_then(SegmentRole::from_str) {
+        match seg.role.as_deref().and_then(SegmentRole::parse) {
             Some(SegmentRole::Alt) if alt_text.is_none() => {
                 alt_text = Some((seg.target_text.clone(), seg.id))
             }
@@ -215,9 +215,7 @@ pub fn resolve_chapter_images(
 /// Một đoạn mà MỌI segment đều mang vai (vd: `alt` rồi `caption` liền nhau tình cờ tạo thành
 /// "một đoạn" theo `is_target_paragraph_end`) trở thành RỖNG sau khi bớt — nó KHÔNG lọt ra
 /// ngoài, cùng luật "không bịa" mà `paragraphs_in_translation` đã giữ cho đoạn cắt bỏ hết.
-pub fn strip_role_segments<'a>(
-    paragraphs: Vec<Vec<&'a ChapterSegment>>,
-) -> Vec<Vec<&'a ChapterSegment>> {
+pub fn strip_role_segments(paragraphs: Vec<Vec<&ChapterSegment>>) -> Vec<Vec<&ChapterSegment>> {
     paragraphs
         .into_iter()
         .map(|group| {

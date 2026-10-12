@@ -461,7 +461,7 @@ pub fn list_works(
 
     let parsed_filter: Option<Vec<LifecycleStatus>> = match filter {
         None => None,
-        Some(raw) if raw.is_empty() => None,
+        Some([]) => None,
         Some(raw) => {
             let mut statuses = Vec::with_capacity(raw.len());
             for value in raw {
@@ -708,10 +708,10 @@ pub mod wire {
         if app.try_state::<Store>().is_none() {
             return Err(store_is_missing());
         }
-        let Some(indexer) = app.try_state::<Indexer>() else {
+        // Chỉ kiểm SỰ CÓ MẶT trước dialog (P1) -- khoá LẠI sau khi đóng.
+        if app.try_state::<Indexer>().is_none() {
             return Err(indexer_is_missing());
-        };
-        drop(indexer); // Chỉ kiểm SỰ CÓ MẶT trước dialog (P1) -- khoá LẠI sau khi đóng.
+        }
 
         let picked = app.dialog().file().blocking_pick_folder();
         // Huy hop thoai di qua CUNG mot ham thuan voi nhanh chon that -- vo nay khong tu

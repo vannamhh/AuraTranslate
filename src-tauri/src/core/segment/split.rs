@@ -491,13 +491,13 @@ fn en_run_is_boundary(text: &str, run_start: usize, run_end: usize, closed_end: 
         // ranh giới dựng thừa thì đã cắt mất một câu làm đôi. Đường siết đã cân và **không**
         // chọn: đòi thêm một chữ HOA đơn nữa theo sau — nó vá `"an A. Great"` nhưng vẫn hỏng
         // ở `"Tolkien, J. R. R. Wrote this."`, tức đổi một ca sai lấy một ca sai khác.
-        if let Some(b) = before {
-            if b.is_uppercase() {
-                let head = &text[..run_start - b.len_utf8()];
-                let before_initial = head.chars().next_back();
-                if before_initial.is_none_or(|c| !c.is_alphanumeric()) {
-                    return false;
-                }
+        if let Some(b) = before
+            && b.is_uppercase()
+        {
+            let head = &text[..run_start - b.len_utf8()];
+            let before_initial = head.chars().next_back();
+            if before_initial.is_none_or(|c| !c.is_alphanumeric()) {
+                return false;
             }
         }
 

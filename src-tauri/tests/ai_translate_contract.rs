@@ -2053,8 +2053,7 @@ fn promoting_into_a_retired_segment_is_refused_and_leaves_the_tombstone_untouche
 
     for force in [false, true] {
         let err = promote_ai_translation(Some(&open), segment_id, "Con rồng gầm.", force)
-            .err()
-            .expect("promote vao segment da ve huu phai la Err");
+            .expect_err("promote vao segment da ve huu phai la Err");
         assert_eq!(err.message_key(), MessageKey::SegmentRetired);
         assert_eq!(err.code(), "segment.retired");
         assert!(!err.retryable());
@@ -2095,8 +2094,7 @@ fn promoting_into_a_segment_outside_the_open_chapter_is_refused_and_writes_nothi
 
     for force in [false, true] {
         let err = promote_ai_translation(Some(&open), segment_id, "Con rồng gầm.", force)
-            .err()
-            .expect("promote vao segment ngoai Chuong dang mo phai la Err");
+            .expect_err("promote vao segment ngoai Chuong dang mo phai la Err");
         assert_eq!(err.code(), "segment.not_in_open_chapter");
         assert_eq!(err.message_key(), MessageKey::SegmentNotInOpenChapter);
         assert_eq!(
@@ -3096,13 +3094,13 @@ fn cancel_while_sentence_six_of_twelve_streams_discards_its_partial_text_keeps_o
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone();
     let mut expected = Vec::new();
-    for i in 0..5 {
+    for &id in ids.iter().take(5) {
         expected.push(BatchEventShape::Token {
-            segment_id: ids[i],
-            text: format!("token-{}", ids[i]),
+            segment_id: id,
+            text: format!("token-{}", id),
         });
         expected.push(BatchEventShape::Done {
-            segment_id: ids[i],
+            segment_id: id,
             usage: None,
         });
     }
@@ -3171,13 +3169,13 @@ fn provider_error_on_sentence_six_of_twelve_stops_the_batch_names_it_and_never_c
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone();
     let mut expected = Vec::new();
-    for i in 0..5 {
+    for &id in ids.iter().take(5) {
         expected.push(BatchEventShape::Token {
-            segment_id: ids[i],
-            text: format!("token-{}", ids[i]),
+            segment_id: id,
+            text: format!("token-{}", id),
         });
         expected.push(BatchEventShape::Done {
-            segment_id: ids[i],
+            segment_id: id,
             usage: None,
         });
     }
@@ -3254,13 +3252,13 @@ fn provider_error_with_zero_tokens_received_on_a_batch_sentence_leaves_no_event_
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone();
     let mut expected = Vec::new();
-    for i in 0..5 {
+    for &id in ids.iter().take(5) {
         expected.push(BatchEventShape::Token {
-            segment_id: ids[i],
-            text: format!("token-{}", ids[i]),
+            segment_id: id,
+            text: format!("token-{}", id),
         });
         expected.push(BatchEventShape::Done {
-            segment_id: ids[i],
+            segment_id: id,
             usage: None,
         });
     }

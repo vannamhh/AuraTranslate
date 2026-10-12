@@ -646,15 +646,15 @@ impl Indexer {
             // `Some(vec![])` (§I/O Matrix, ⚠️ ngay trên) ⇒ khớp 0 hàng theo nghĩa đen -- ngắn
             // mạch TRƯỚC khi dựng `WHERE`, nhưng SAU khi `total`/`genres`/`source_langs` đã
             // tính, đúng lời hứa "cùng một lượt đọc" cho MỌI nhánh, kể cả nhánh rỗng.
-            if let Some(ref statuses) = query.status {
-                if statuses.is_empty() {
-                    return Ok(WorksReport {
-                        total,
-                        works: Vec::new(),
-                        genres,
-                        source_langs,
-                    });
-                }
+            if let Some(ref statuses) = query.status
+                && statuses.is_empty()
+            {
+                return Ok(WorksReport {
+                    total,
+                    works: Vec::new(),
+                    genres,
+                    source_langs,
+                });
             }
 
             // Dựng `WHERE ... AND ...` từ ba bộ lọc ĐỘC LẬP -- §I/O Matrix "Ba bộ lọc chồng":
@@ -1372,7 +1372,7 @@ pub struct SearchReport {
     /// số Tác phẩm CÓ ÍT NHẤT một dòng văn bản trong chỉ mục, đo TẠI LÚC TRUY VẤN. `works_total
     /// - works_with_text` là số Tác phẩm chưa vào chỉ mục tìm kiếm — bề mặt ĐỘC LẬP với số kết
     /// quả (`total`/`hits`): một lượt trả kết quả vẫn phải hiện dòng này nếu chỉ mục THỦNG
-    /// (§Always: "phải hiện cả khi có kết quả").
+    ///   (§Always: "phải hiện cả khi có kết quả").
     pub works_with_text: usize,
 }
 

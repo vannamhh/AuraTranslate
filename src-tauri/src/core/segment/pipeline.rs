@@ -1535,24 +1535,23 @@ pub fn join_kept_blocks(blocks: &[Block], effective_kept: &[bool]) -> String {
         };
         let is_kept = effective_kept.get(i).copied().unwrap_or(b.machine_kept);
 
-        if is_kept {
-            if let Some(t) = text {
-                if !t.is_empty() {
-                    if let Some(prev) = last_emitted_idx {
-                        let exact_pair_is_original_neighbors =
-                            b.machine_kept && last_machine_kept_idx == Some(prev);
-                        if exact_pair_is_original_neighbors {
-                            out.push_str(&b.exact_gap_before);
-                        } else if blocks[prev].is_list_item {
-                            out.push('\n');
-                        } else {
-                            out.push_str("\n\n");
-                        }
-                    }
-                    out.push_str(t);
-                    last_emitted_idx = Some(i);
+        if is_kept
+            && let Some(t) = text
+            && !t.is_empty()
+        {
+            if let Some(prev) = last_emitted_idx {
+                let exact_pair_is_original_neighbors =
+                    b.machine_kept && last_machine_kept_idx == Some(prev);
+                if exact_pair_is_original_neighbors {
+                    out.push_str(&b.exact_gap_before);
+                } else if blocks[prev].is_list_item {
+                    out.push('\n');
+                } else {
+                    out.push_str("\n\n");
                 }
             }
+            out.push_str(t);
+            last_emitted_idx = Some(i);
         }
 
         if b.machine_kept && text.is_some() {
@@ -2102,10 +2101,7 @@ fn pieces_from_match_starts(text: &str, starts: &[usize]) -> Vec<(Unit, Option<S
 fn title_line_of(piece: &str) -> Option<String> {
     let mut lines = piece.lines();
     let first_line = lines.next()?;
-    if lines.next().is_none() {
-        // Đúng một dòng — không có gì để tách "tiêu đề" ra khỏi "thân" (xem doc-comment).
-        return None;
-    }
+    lines.next()?;
     let trimmed = first_line.trim();
     if trimmed.is_empty() {
         None

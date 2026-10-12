@@ -441,7 +441,6 @@ pub struct BilingualSkipNotAllowed {
 ///   Matrix "Stale regrouping"), hoặc `Cuts` không hợp lệ (chỗ cắt tồi, hay không ra đúng số
 ///   mảnh cần — §I/O Matrix "Bad cut on wire"/"Still unequal").
 /// - `Err(BilingualSkipNotAllowed)` — `Skip` được gửi cho một hàng mà CẢ HAI phía đều có câu.
-#[must_use]
 pub fn resolve(
     source_cell: &str,
     target_cell: &str,

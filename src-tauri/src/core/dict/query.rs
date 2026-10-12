@@ -252,7 +252,7 @@ pub(super) struct ShortQuery<'a>(&'a str);
 impl<'a> ShortQuery<'a> {
     /// `None` when `query` is longer than two characters.
     pub(super) fn new(query: &'a str) -> Option<Self> {
-        (query.chars().count() <= 2).then(|| ShortQuery(query))
+        (query.chars().count() <= 2).then_some(ShortQuery(query))
     }
 
     fn as_str(&self) -> &'a str {

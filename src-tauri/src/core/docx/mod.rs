@@ -385,12 +385,11 @@ fn parse_rels(xml: &str) -> Result<BTreeMap<String, String>, DocxError> {
         match reader.read_event().map_err(xml_err)? {
             Event::Eof => break,
             Event::Start(e) | Event::Empty(e) => {
-                if local_name_of(&e) == "Relationship" {
-                    if let (Some(id), Some(target)) =
+                if local_name_of(&e) == "Relationship"
+                    && let (Some(id), Some(target)) =
                         (attr_value(&e, "Id"), attr_value(&e, "Target"))
-                    {
-                        map.insert(id, target);
-                    }
+                {
+                    map.insert(id, target);
                 }
             }
             _ => {}

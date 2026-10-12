@@ -33,8 +33,8 @@
 //! 2. đối chứng dương — needle THẬT SỰ xuất hiện ở (ít nhất) chỗ gọi sản phẩm đã biết, không
 //!    phải một tập miễn trừ đang canh một tập RỖNG;
 //! 3. tự kiểm mỗi `EXEMPT_FILES` khớp một tệp có thật trên đĩa.
-//! Sàn quần thể `.rs` (Phần 0) và hai ca tự kiểm vị từ (bắt được/không bắt oan, cuối tệp) chạy
-//! CHUNG cho cả ba mệnh đề.
+//!    Sàn quần thể `.rs` (Phần 0) và hai ca tự kiểm vị từ (bắt được/không bắt oan, cuối tệp) chạy
+//!    CHUNG cho cả ba mệnh đề.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -115,12 +115,11 @@ fn code_without_trailing_comment(code: &str) -> &str {
             in_string = true;
             continue;
         }
-        if ch == '/' {
-            if let Some(&(_, next_ch)) = chars.peek() {
-                if next_ch == '/' {
-                    return code[..idx].trim_end();
-                }
-            }
+        if ch == '/'
+            && let Some(&(_, next_ch)) = chars.peek()
+            && next_ch == '/'
+        {
+            return code[..idx].trim_end();
         }
     }
     code
@@ -141,11 +140,11 @@ fn code_position_of(line: &str) -> Option<&str> {
 
 /// Mọi VI PHẠM: tệp NGOÀI `exempt` mà mang MỘT TRONG `needles` Ở VỊ TRÍ MÃ (không tính dòng
 /// `//`), gộp theo `tệp:dòng  needle  |  mã`, đúng khuôn Phần 2 của `library_index_boundary.rs`.
-fn violations_outside<'a>(
+fn violations_outside(
     root: &Path,
     files: &[PathBuf],
     exempt: &[&str],
-    needles: &[&'a str],
+    needles: &[&str],
 ) -> Vec<String> {
     let mut violations = Vec::new();
     for file in files {

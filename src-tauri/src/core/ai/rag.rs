@@ -353,7 +353,7 @@ fn select_tm_pairs(tm: &[SimilarSegment], sentence: &str) -> Vec<InjectedTmPair>
             .iter()
             .filter(|s| s.side == side && s.source_text != sentence)
             .collect();
-        picked.sort_by(|a, b| b.percent.cmp(&a.percent));
+        picked.sort_by_key(|s| std::cmp::Reverse(s.percent));
         picked
     };
     let mut seen: std::collections::HashSet<(&str, &str)> = std::collections::HashSet::new();
@@ -447,11 +447,11 @@ fn push_piece(out: &mut String, pieces: &mut Vec<PromptPiece>, kind: PromptPiece
     if s.is_empty() {
         return;
     }
-    if let Some(last) = pieces.last_mut() {
-        if last.kind == kind {
-            last.text.push_str(s);
-            return;
-        }
+    if let Some(last) = pieces.last_mut()
+        && last.kind == kind
+    {
+        last.text.push_str(s);
+        return;
     }
     pieces.push(PromptPiece {
         kind,

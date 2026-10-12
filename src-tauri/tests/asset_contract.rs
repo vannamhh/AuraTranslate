@@ -1231,13 +1231,12 @@ fn a_later_image_write_failure_does_not_erase_the_domain_log_entry_of_an_earlier
                     let p = entry.path();
                     if p.extension().and_then(|e| e.to_str()) == Some("atproj") {
                         let assets = p.join("assets");
-                        if let Ok(assets_entries) = fs::read_dir(&assets) {
-                            if assets_entries.count() >= 1 {
-                                let _ =
-                                    fs::set_permissions(&assets, fs::Permissions::from_mode(0o500));
-                                *locked_path_clone.lock().unwrap() = Some(assets);
-                                return;
-                            }
+                        if let Ok(assets_entries) = fs::read_dir(&assets)
+                            && assets_entries.count() >= 1
+                        {
+                            let _ = fs::set_permissions(&assets, fs::Permissions::from_mode(0o500));
+                            *locked_path_clone.lock().unwrap() = Some(assets);
+                            return;
                         }
                     }
                 }

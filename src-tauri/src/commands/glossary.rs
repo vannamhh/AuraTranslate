@@ -1452,7 +1452,7 @@ pub mod wire {
 
         let global = app.try_state::<Store>();
         if global.is_none() {
-            return Err(IpcError::from(super::store_is_missing()));
+            return Err(super::store_is_missing());
         }
         if tier == GlossaryTier::Work && !work_tier_is_open(&app) {
             return Err(IpcError::from(GlossaryError::WorkTierUnavailable));
@@ -1541,7 +1541,7 @@ pub mod wire {
 
         let global = app.try_state::<Store>();
         if global.is_none() {
-            return Err(IpcError::from(super::store_is_missing()));
+            return Err(super::store_is_missing());
         }
         if tier == GlossaryTier::Work && !work_tier_is_open(&app) {
             return Err(IpcError::from(GlossaryError::WorkTierUnavailable));

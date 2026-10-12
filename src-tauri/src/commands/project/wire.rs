@@ -110,17 +110,13 @@ fn resolve_cleanup_rules_for_destination<R: tauri::Runtime>(
         .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
     let open_ref: Option<&OpenWork> = guard.as_ref().and_then(|g| g.as_ref());
 
-    if let Some(open) = open_ref {
-        if open.meta.work_id == work_id {
-            return super::resolve_work_tier_cleanup_rules_for_destination(
-                open,
-                Some(open),
-                global,
-            )
+    if let Some(open) = open_ref
+        && open.meta.work_id == work_id
+    {
+        return super::resolve_work_tier_cleanup_rules_for_destination(open, Some(open), global)
             .unwrap_or_else(|err| {
                 report_err(format_args!("phan giai that bai, roi ve 0 luat: {err}"))
             });
-        }
     }
 
     let Some(indexer) = app.try_state::<Indexer>() else {
@@ -1035,7 +1031,6 @@ pub fn confirm_import_with_encoding<R: tauri::Runtime>(
         (created, new_chapter_ids)
     };
     drop(append_in_progress_guard);
-    drop(append_in_progress_state);
 
     reset_tier2_block_overrides(&app);
     reset_chapter_origin_overrides(&app);
@@ -1091,6 +1086,10 @@ pub fn confirm_import_with_encoding<R: tauri::Runtime>(
 /// `MAX_IMPORT_BYTES` = 100 MB. Chỉ lượt MỞ đi qua đây; các lượt đổi cột/vai/tiêu đề sau
 /// đó đi qua `rebuild_bilingual_import_preview` và KHÔNG đọc lại đĩa, nên đây là điểm
 /// duy nhất của đường song ngữ trả giá đọc tệp.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "IPC command parameters mirror the wire contract field for field"
+)]
 #[tauri::command(async)]
 pub fn preview_bilingual_import_from_file(
     app: tauri::AppHandle,
@@ -1158,6 +1157,10 @@ pub fn preview_bilingual_import_from_file(
 /// TRỰC TIẾP ngay dưới, cùng lý do doc-comment `preview_import_encoding_from_text` (đọc ở
 /// đó cho chuỗi dẫn chứng đầy đủ) — một lượt xác nhận `(async)` đang tải ảnh có thể giữ khoá
 /// đó tới N × 20 giây.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "IPC command parameters mirror the wire contract field for field"
+)]
 #[tauri::command(async)]
 pub fn rebuild_bilingual_import_preview(
     app: tauri::AppHandle,
@@ -1225,6 +1228,10 @@ pub fn rebuild_bilingual_import_preview(
 /// `let Some(blocks) = &chapter.blocks else { continue }` — KHÔNG phải `:636-637`, chỗ đó
 /// là vòng dệt của `create_work`, có thêm điều kiện `weave_this_import`)
 /// ⇒ `webimport::fetch` không với tới được từ đây.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "IPC command parameters mirror the wire contract field for field"
+)]
 #[tauri::command(async)]
 pub fn confirm_bilingual_import(
     app: tauri::AppHandle,

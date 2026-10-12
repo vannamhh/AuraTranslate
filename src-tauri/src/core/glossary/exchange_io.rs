@@ -171,10 +171,10 @@ pub fn write_export_file(path: &Path, contents: &str) -> Result<(), GlossaryErro
     // thư mục được fsync. Im lặng khi trượt có chủ ý (khuôn `meta.rs`) — một khác biệt
     // nền tảng (vd. `File::open` một thư mục thất bại trên Windows) không biến thành
     // một lỗi cho người dùng khi bản ghi chính đã thành công.
-    if let Some(dir) = path.parent() {
-        if let Ok(dir_handle) = std::fs::File::open(dir) {
-            let _ = dir_handle.sync_all();
-        }
+    if let Some(dir) = path.parent()
+        && let Ok(dir_handle) = std::fs::File::open(dir)
+    {
+        let _ = dir_handle.sync_all();
     }
 
     Ok(())

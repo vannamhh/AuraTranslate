@@ -839,7 +839,7 @@ pub fn mark_accepted(
 /// Skips the group: remembers that its reviewer rows were looked at and left alone. Any group with
 /// at least one reviewer row can be skipped.
 pub fn skip_change(store: &Store, chapter_id: i64, group_id: i64) -> Result<(), AlignmentError> {
-    let outcome = store.write(move |tx| {
+    store.write(move |tx| {
         let review_chapter_id = match live_copy(tx, chapter_id)? {
             Ok(id) => id,
             Err(error) => return Ok(Err(AlignmentError::Copy(error))),
@@ -856,8 +856,7 @@ pub fn skip_change(store: &Store, chapter_id: i64, group_id: i64) -> Result<(), 
             ReviewDecision::Skipped,
         )?;
         Ok(Ok(()))
-    })?;
-    outcome
+    })?
 }
 
 /// Id of the live copy of `chapter_id`, or the typed reason there is none.
@@ -908,7 +907,8 @@ fn write_user_group(
     }
     let segment_ids = segment_ids.to_vec();
     let row_ids = row_ids.to_vec();
-    let outcome = store.write(move |tx| {
+
+    store.write(move |tx| {
         let review_chapter_id = match live_copy(tx, chapter_id)? {
             Ok(id) => id,
             Err(error) => return Ok(Err(AlignmentError::Copy(error))),
@@ -943,8 +943,7 @@ fn write_user_group(
             )?;
         }
         Ok(Ok(group_id))
-    })?;
-    outcome
+    })?
 }
 
 /// Joins at least one segment and at least one reviewer row into a user group.
@@ -970,7 +969,7 @@ pub fn skip(store: &Store, chapter_id: i64, item: AlignmentItem) -> Result<i64, 
 
 /// Dissolves a group; its members return to the unprocessed list.
 pub fn unjoin(store: &Store, chapter_id: i64, group_id: i64) -> Result<(), AlignmentError> {
-    let outcome = store.write(move |tx| {
+    store.write(move |tx| {
         let review_chapter_id = match live_copy(tx, chapter_id)? {
             Ok(id) => id,
             Err(error) => return Ok(Err(AlignmentError::Copy(error))),
@@ -987,6 +986,5 @@ pub fn unjoin(store: &Store, chapter_id: i64, group_id: i64) -> Result<(), Align
         tx.execute("DELETE FROM alignment_member WHERE group_id = ?1", [group_id])?;
         tx.execute("DELETE FROM alignment_group WHERE id = ?1", [group_id])?;
         Ok(Ok(()))
-    })?;
-    outcome
+    })?
 }

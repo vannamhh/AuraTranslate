@@ -77,7 +77,7 @@ impl SegmentRole {
     /// `segment.role` sau khi ghi (mọi chỗ trước đó chỉ GHI). `None` cho chuỗi không khớp,
     /// KHÔNG panic và KHÔNG đoán — cùng luật "so chuỗi qua kiểu đóng, không rải `==` tay"
     /// mà module này đã giữ cho chiều ghi.
-    pub fn from_str(s: &str) -> Option<SegmentRole> {
+    pub fn parse(s: &str) -> Option<SegmentRole> {
         match s {
             Self::ALT_STR => Some(SegmentRole::Alt),
             Self::CAPTION_STR => Some(SegmentRole::Caption),
@@ -93,15 +93,15 @@ mod role_str_tests {
     #[test]
     fn as_str_and_from_str_round_trip_for_every_variant() {
         for role in [SegmentRole::Alt, SegmentRole::Caption] {
-            assert_eq!(SegmentRole::from_str(role.as_str()), Some(role));
+            assert_eq!(SegmentRole::parse(role.as_str()), Some(role));
         }
     }
 
     #[test]
     fn from_str_rejects_an_unknown_string() {
-        assert_eq!(SegmentRole::from_str(""), None);
-        assert_eq!(SegmentRole::from_str("Alt"), None);
-        assert_eq!(SegmentRole::from_str("captio"), None);
+        assert_eq!(SegmentRole::parse(""), None);
+        assert_eq!(SegmentRole::parse("Alt"), None);
+        assert_eq!(SegmentRole::parse("captio"), None);
     }
 }
 
@@ -258,10 +258,10 @@ pub fn force_caption_segment_boundaries(
         // Lỗi tính tiền tố (hiếm, xem `AnchorError`) hoặc `end <= start` (không thể xảy ra
         // trên dữ liệu hợp lệ -- phòng thủ) ⇒ bỏ qua, khối đó đi tiếp NHƯ VĂN XUÔI thay vì làm
         // gãy cả Chương vì một khối caption không ép được.
-        if let (Ok(start), Ok(end)) = (start, end) {
-            if end > start {
-                spans.push((start, end));
-            }
+        if let (Ok(start), Ok(end)) = (start, end)
+            && end > start
+        {
+            spans.push((start, end));
         }
     }
 
@@ -421,10 +421,10 @@ pub fn weave_chapter_segments(
             // duong da qua (1), phong thu) -- khong co segment CAPTION THAT nao o day de gan vai.
             continue;
         }
-        if let Ok(idx) = usize::try_from(count_before) {
-            if idx < segments.len() {
-                caption_segment_indices.insert(idx);
-            }
+        if let Ok(idx) = usize::try_from(count_before)
+            && idx < segments.len()
+        {
+            caption_segment_indices.insert(idx);
         }
     }
 
@@ -454,10 +454,7 @@ pub fn weave_chapter_segments(
         // một lượt tách rời logic tương lai làm hai lời gọi đó không còn đồng bộ. Viết lại
         // bằng `let ... else` trên CHÍNH `next()`: không còn `peek()` riêng, không còn nhánh
         // nào giả định "chắc chắn `Some`" mà không tự kiểm.
-        loop {
-            let Some(&(pos, _)) = alt_iter.peek() else {
-                break;
-            };
+        while let Some(&(pos, _)) = alt_iter.peek() {
             if pos != i as i64 {
                 break;
             }

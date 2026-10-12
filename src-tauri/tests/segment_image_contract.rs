@@ -119,10 +119,10 @@ fn retire(opened: &auratranslate_lib::commands::project::OpenWork, segment_id: i
         .expect("ve huu that bai");
 }
 
-fn asset_of<'a>(
-    loaded: &'a ChapterSegments,
+fn asset_of(
+    loaded: &ChapterSegments,
     asset_id: i64,
-) -> &'a auratranslate_lib::commands::segment::ChapterAsset {
+) -> &auratranslate_lib::commands::segment::ChapterAsset {
     loaded
         .assets
         .iter()
@@ -130,10 +130,10 @@ fn asset_of<'a>(
         .unwrap_or_else(|| panic!("khong thay asset {asset_id}"))
 }
 
-fn reading_image_of<'a>(
-    run: &'a ReadingRun,
+fn reading_image_of(
+    run: &ReadingRun,
     asset_id: i64,
-) -> &'a auratranslate_lib::commands::segment::ReadingImage {
+) -> &auratranslate_lib::commands::segment::ReadingImage {
     run.chapters[0]
         .images
         .iter()

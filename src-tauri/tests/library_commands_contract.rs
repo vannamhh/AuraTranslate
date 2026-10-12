@@ -610,7 +610,7 @@ fn an_unknown_filter_value_at_the_command_layer_is_refused_not_silently_dropped(
     // trên đỏ vì giá trị lạ, không vì đường lọc hỏng sẵn.
     let ok = list_works(
         Some(&indexer),
-        Some(&vec!["not_started".to_owned()]),
+        Some(&["not_started".to_owned()]),
         None,
         None,
         None,
@@ -638,14 +638,8 @@ fn the_command_layer_reports_matched_separately_from_total() {
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
     // Cả ba `.atproj` đều `not_started` (xem `write_atproj`), nên lọc `done` quét sạch.
-    let swept = list_works(
-        Some(&indexer),
-        Some(&vec!["done".to_owned()]),
-        None,
-        None,
-        None,
-    )
-    .expect("lọc done");
+    let swept =
+        list_works(Some(&indexer), Some(&["done".to_owned()]), None, None, None).expect("lọc done");
     assert_eq!(swept.matched, 0, "khong hang nao khop");
     assert_eq!(
         swept.total, 3,

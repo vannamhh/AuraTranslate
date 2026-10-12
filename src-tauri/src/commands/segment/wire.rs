@@ -463,6 +463,10 @@ pub fn review_accept_change<R: tauri::Runtime>(
 
 /// Wire shell of [`super::replace_proofread_range`] for accepting a suggestion: `expectedPhrase`
 /// is the flagged phrase, `replacement` the suggestion.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "IPC command parameters mirror the wire contract field for field"
+)]
 #[tauri::command]
 pub fn ai_proofread_accept<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
@@ -505,6 +509,10 @@ pub fn ai_proofread_accept<R: tauri::Runtime>(
 
 /// Wire shell of [`super::replace_proofread_range`] for reverting an accepted suggestion:
 /// `expectedPhrase` is the suggestion now in the text, `replacement` the original phrase.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "IPC command parameters mirror the wire contract field for field"
+)]
 #[tauri::command]
 pub fn ai_proofread_revert<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,

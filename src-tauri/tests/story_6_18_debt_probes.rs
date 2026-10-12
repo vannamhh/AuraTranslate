@@ -43,7 +43,7 @@ fn build_crlf_free_text(target_bytes: usize) -> String {
              một Chương thật.\n"
         ));
         i += 1;
-        if i % 8 == 0 {
+        if i.is_multiple_of(8) {
             out.push('\n'); // ranh giới đoạn
         }
     }
@@ -246,12 +246,10 @@ fn peak_rss_of_the_whole_seven_step_import_chain_on_a_max_import_bytes_chapter()
                 if let Ok(out) = std::process::Command::new("ps")
                     .args(["-o", "rss=", "-p", &pid.to_string()])
                     .output()
+                    && let Ok(text) = String::from_utf8(out.stdout)
+                    && let Ok(kb) = text.trim().parse::<u64>()
                 {
-                    if let Ok(text) = String::from_utf8(out.stdout) {
-                        if let Ok(kb) = text.trim().parse::<u64>() {
-                            peak_kb.fetch_max(kb, Ordering::Relaxed);
-                        }
-                    }
+                    peak_kb.fetch_max(kb, Ordering::Relaxed);
                 }
                 std::thread::sleep(Duration::from_millis(20));
             }

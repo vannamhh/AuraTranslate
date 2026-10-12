@@ -191,6 +191,10 @@ where
 ///
 /// # Lỗi
 /// [`ScopeError::WrongSemantics`] nếu `kind` không khai [`Semantics::Merge`].
+#[expect(
+    clippy::type_complexity,
+    reason = "callback-typed generic signature is the public contract of the merge"
+)]
 pub(crate) fn resolve_merge<V>(
     kind: ScopeKind,
     global: &[V],

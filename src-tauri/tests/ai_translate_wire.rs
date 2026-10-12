@@ -64,12 +64,6 @@ fn save_key(value: &str) {
     ai_config_save_key(AiConfigTier::Global, value).expect("luu khoa API that bai");
 }
 
-/// Loopback server answering every POST with one streamed token then `[DONE]`; returns the
-/// endpoint URL. The thread ends when the listener is dropped with the process.
-fn spawn_sse_server(connections: usize) -> String {
-    spawn_counted_sse_server(connections).0
-}
-
 fn spawn_counted_sse_server(connections: usize) -> (String, Arc<AtomicUsize>) {
     let accepted = Arc::new(AtomicUsize::new(0));
     let counter = Arc::clone(&accepted);

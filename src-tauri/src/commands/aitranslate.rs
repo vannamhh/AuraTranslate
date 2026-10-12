@@ -953,20 +953,20 @@ pub mod wire {
                 Ok(single_run_outcome_wire(TranslateOutcome::Cancelled))
             }
             Ok(TranslateOutcome::Done(usage)) => {
-                if let Some(global) = app.try_state::<Store>() {
-                    if let Some(sent_at) = super::now_utc_iso8601(&global) {
-                        mark_prompt_as_sent(
-                            record_state.inner(),
-                            segment_id,
-                            &prompt_sent,
-                            &model_sent,
-                            &sent_at,
-                        );
-                    }
+                if let Some(global) = app.try_state::<Store>()
+                    && let Some(sent_at) = super::now_utc_iso8601(&global)
+                {
+                    mark_prompt_as_sent(
+                        record_state.inner(),
+                        segment_id,
+                        &prompt_sent,
+                        &model_sent,
+                        &sent_at,
+                    );
                 }
                 Ok(single_run_outcome_wire(TranslateOutcome::Done(usage)))
             }
-            Err(err) => Err(err.into()),
+            Err(err) => Err(err),
         }
     }
 
@@ -1050,18 +1050,17 @@ pub mod wire {
         match outcome {
             Ok(AiTranslateBatchOutcome::Cancelled) => Ok(AiTranslateOutcomeWire::Cancelled),
             Ok(AiTranslateBatchOutcome::Done) => {
-                if let Some((seg_id, prompt_sent, model_sent)) = last_sent {
-                    if let Some(global) = app.try_state::<Store>() {
-                        if let Some(sent_at) = super::now_utc_iso8601(&global) {
-                            mark_prompt_as_sent(
-                                record_state.inner(),
-                                seg_id,
-                                &prompt_sent,
-                                &model_sent,
-                                &sent_at,
-                            );
-                        }
-                    }
+                if let Some((seg_id, prompt_sent, model_sent)) = last_sent
+                    && let Some(global) = app.try_state::<Store>()
+                    && let Some(sent_at) = super::now_utc_iso8601(&global)
+                {
+                    mark_prompt_as_sent(
+                        record_state.inner(),
+                        seg_id,
+                        &prompt_sent,
+                        &model_sent,
+                        &sent_at,
+                    );
                 }
                 // Story 4.11 -- lô KHÔNG mang một số tổng ở giá trị cuối dùng chung này (xem
                 // doc-comment `AiTranslateOutcomeWire::Done`): tổng của lô đã đi qua từng
