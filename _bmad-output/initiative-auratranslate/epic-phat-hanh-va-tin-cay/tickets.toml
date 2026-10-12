@@ -78,7 +78,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với một phiên bản, khi phát hành thì có bản cài cho macOS và bản cài cho Windows"
 covers = ["FR105"]
-after = []
+after = [1]
 hitl = false
 risk = "low"
 v6_key = "10-2-phát-hành-cho-macos-và-windows"
