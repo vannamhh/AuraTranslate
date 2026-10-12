@@ -74,7 +74,8 @@ on:
 
 concurrency:
   # Đòn bẩy rẻ nhất cho AC7 và cho §Ngân sách CI: push liên tiếp thì huỷ lượt cũ.
-  group: ci-${{ github.head_ref || github.ref_name }}
+  # Khoá có kho nguồn: PR từ fork có nhánh tên `master` không được huỷ lượt `master` thật.
+  group: ci-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
