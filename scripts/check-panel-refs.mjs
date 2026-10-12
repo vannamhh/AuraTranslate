@@ -68,6 +68,7 @@ import { judgeFloor } from './lib/floor-judge.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC_ROOT = join(REPO_ROOT, 'src')
+/** @param {string} p */
 const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
 
 let failures = 0
@@ -76,6 +77,7 @@ let failures = 0
  * 🔴 Lỗi HẠ TẦNG — **KHÔNG** một phép kiểm đỏ. *"Đừng bao giờ báo một kết quả không có thật."*
  * Thoát khác 0, và nói thẳng rằng đây không phải một lượt đạt.
  */
+/** @param {string} what @param {unknown} err @returns {never} */
 function abort(what, err) {
   console.error(`\n  LOI HA TANG — day KHONG phai mot ket qua dat.`)
   console.error(`  Khong doc duoc: ${what}`)
@@ -83,11 +85,13 @@ function abort(what, err) {
   process.exit(2)
 }
 
+/** @param {string} msg */
 function fail(msg) {
   failures += 1
   console.error(`  FAIL  ${msg}`)
 }
 
+/** @param {string} dir @param {string[]} [out] @param {Set<string>} [seen] @returns {string[]} */
 function walk(dir, out = [], seen = new Set()) {
   // 🔵 **CODE REVIEW BA TẦNG 2026-08-19** — bản đầu dùng `statSync` *(THEO liên kết)* và không
   // mang `seen`. Một symlink trỏ ngược vào một thư mục tổ tiên trong `src/**` cho **đệ quy vô
@@ -436,12 +440,15 @@ const RE_EMPTY_BOX = /^const\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*(?:\[\s*\]|\{
  * @param {string} src
  * @returns {string} cùng độ dài, cùng số dòng, chỉ còn MÃ
  */
+/** @param {string} src */
 function stripNonCode(src) {
   const out = src.split('')
+  /** @param {number} from @param {number} to */
   const blank = (from, to) => {
     for (let k = from; k < to && k < out.length; k += 1) if (out[k] !== '\n') out[k] = ' '
   }
   // Ký tự có nghĩa gần nhất trước `i` — dùng để phân biệt `/` mở regex với `/` chia.
+  /** @param {number} i */
   const prevCode = (i) => {
     for (let k = i - 1; k >= 0; k -= 1) if (!/\s/.test(out[k])) return out[k]
     return null
@@ -502,9 +509,11 @@ function stripNonCode(src) {
  * ⚠️ Sâu **một tầng** — xem §Giới hạn thật, mục 3, và mục 4 cho ranh giới TỆP.
  * 🔵 2026-08-19: chạy trên [`stripNonCode`], không trên văn bản thô — xem doc-comment ở đó.
  */
+/** @param {string} rawSource */
 function resetScope(rawSource) {
   const source = stripNonCode(rawSource)
   const bodies = []
+  /** @param {number} startIdx */
   const bodyOf = (startIdx) => {
     // 🔴 **KHÔNG lấy dấu `{` đầu tiên** — bẫy đã cắn thật ở lượt dựng cổng này, 2026-08-18:
     // `function datThongBao(o: { confirm?: …; regroup?: …; nav?: … })` mở một `{` **trong
@@ -578,6 +587,7 @@ function resetScope(rawSource) {
  *   `x = …` · `x.value = …` · `x.length = 0` · `x.clear()`
  * Toán tử gán kép (`+=`, `??=`, `||=`) tính; so sánh (`===`, `==`, `!=`) **không** tính.
  */
+/** @param {string} name @param {string} scope */
 function isAssignedIn(name, scope) {
   const n = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return (
@@ -696,8 +706,9 @@ for (const key of EXEMPT.keys()) {
  */
 function selfCheck() {
   const problems = []
+  /** @param {string} src */
   const slotsOf = (src) => {
-    const out = []
+    const out = /** @type {string[]} */ ([])
     for (const line of src.split('\n')) {
       const m = RE_REACTIVE.exec(line) ?? RE_LET.exec(line) ?? RE_EMPTY_BOX.exec(line)
       if (m !== null) out.push(m[1])

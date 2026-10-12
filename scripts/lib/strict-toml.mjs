@@ -6,6 +6,11 @@
  */
 
 export class TomlSyntaxError extends Error {
+  /**
+   * @param {number} lineNo
+   * @param {string} line
+   * @param {string} why
+   */
   constructor(lineNo, line, why) {
     super(`dòng ${lineNo}: ${why}\n       > ${line}`)
   }
@@ -17,6 +22,11 @@ const KV_RE = /^([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*"((?:\\.|[^"\\])*)"$/
 
 const SUPPORTED_ESCAPES = new Set(['\\', '"', 'n'])
 
+/**
+ * @param {string} s
+ * @param {number} lineNo
+ * @param {string} rawLine
+ */
 function unescape(s, lineNo, rawLine) {
   return s.replace(/\\(.)/g, (whole, c) => {
     if (!SUPPORTED_ESCAPES.has(c)) {
@@ -37,11 +47,15 @@ function unescape(s, lineNo, rawLine) {
  * tự xuất hiện. `forms` tồn tại vì `[base]` và `[[base]]` xuất hiện ĐÚNG MỘT LẦN không
  * thể phân biệt chỉ bằng độ dài mảng — dạng ngoặc SAI (mảng bảng cho một bảng đơn, hay
  * ngược lại) phải bị bắt riêng (Review Findings Group C).
+ * @param {string} text
  */
 export function parseStrictToml(text) {
+  /** @type {Map<string, Record<string, string>[]>} */
   const tables = new Map()
+  /** @type {Map<string, 'single' | 'array'>} */
   const forms = new Map()
-  let current = null // { path, obj }
+  /** @type {Record<string, string> | null} */
+  let current = null
   const lines = text.split(/\r\n|\n/)
 
   for (let i = 0; i < lines.length; i++) {
@@ -61,9 +75,10 @@ export function parseStrictToml(text) {
         )
       }
       forms.set(name, 'array')
+      /** @type {Record<string, string>} */
       const obj = {}
       if (!tables.has(name)) tables.set(name, [])
-      tables.get(name).push(obj)
+      tables.get(name)?.push(obj)
       current = obj
       continue
     }
@@ -71,6 +86,7 @@ export function parseStrictToml(text) {
     const section = line.match(SECTION_RE)
     if (section) {
       const name = section[1]
+      /** @type {Record<string, string>} */
       const obj = {}
       if (tables.has(name)) {
         const why =

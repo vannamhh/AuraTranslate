@@ -147,18 +147,23 @@ if (argvTop.includes('--file') && !READ_ONLY_FLAGS.some((f) => argvTop.includes(
 const DEBT_PATH = READ_ONLY_FLAGS.some((f) => argvTop.includes(f)) ? REPORT_PATH : REAL_DEBT_PATH
 
 let failures = 0
-const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
-const fail = (m) => {
+const pass = (/** @type {string} */ m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+const fail = (/** @type {string} */ m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
 }
-const detail = (m) => console.log(`       ${m}`)
+const detail = (/** @type {string} */ m) => console.log(`       ${m}`)
 
-/** Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật. */
+/**
+ * Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật.
+ * @param {string} what
+ * @param {unknown} err
+ * @returns {never}
+ */
 function abort(what, err) {
   console.error(`\n\x1b[31mKhông đọc được ${what} — phép kiểm KHÔNG chạy được.\x1b[0m`)
   console.error('Đây là lỗi hạ tầng, không phải "đạt". Đọc lỗi dưới đây rồi chạy lại.\n')
-  console.error(String(err?.message || err).trim())
+  console.error(String(/** @type {Error | undefined} */ (err)?.message || err).trim())
   process.exit(1)
 }
 
@@ -180,8 +185,10 @@ const CONCRETE_OWNER_RE =
   /^(?:(?:Ice|Winston|Sally|John|Amelia|Murat|Mary)\b|[Ss]tory\s+\d+\.\d+|[Ee]pic\s+\d+|[A-Z]\d+\b|\d+-\d+[a-z]?-)/u
 
 /** Mọi `Chủ:` (kể cả bọc `**`) trong văn bản một mục, theo thứ tự đọc: 60 ký tự sau nhãn. */
+/** @param {string} text */
 function ownerMentions(text) {
   const re = /chủ:\**\s*/giu
+  /** @type {string[]} */
   const out = []
   let m
   while ((m = re.exec(text))) {
@@ -191,15 +198,18 @@ function ownerMentions(text) {
 }
 
 /** Trả về có ít nhất MỘT chủ THẬT. */
+/** @param {string} text */
 function detectOwner(text) {
   const mentions = ownerMentions(text)
-  return { any: mentions.length > 0, positive: mentions.some((a) => CONCRETE_OWNER_RE.test(a)) }
+  return { any: mentions.length > 0, positive: mentions.some((/** @type {string} */ a) => CONCRETE_OWNER_RE.test(a)) }
 }
 
 const STORY_OWNER_RE = /^(?:[Ss]tory\s+(\d+)\.(\d+[a-z]?)\b|(\d+-\d+[a-z]?)-|[Ee]pic\s+(\d+)\b)/u
 
 // A later `Chủ:` replaces an earlier one; a vague later owner does not hide a dead concrete one.
+/** @param {string} text */
 function latestOwnerKey(text) {
+  /** @type {string | null} */
   let key = null
   for (const after of ownerMentions(text)) {
     if (!CONCRETE_OWNER_RE.test(after)) continue
@@ -209,6 +219,10 @@ function latestOwnerKey(text) {
   return key
 }
 
+/**
+ * @param {Item[]} items
+ * @param {Map<string, string | null>} ticketStatus
+ */
 function staleOwnerItems(items, ticketStatus) {
   return items.filter(
     (i) =>
@@ -225,6 +239,7 @@ const STILL_OPEN_RE = /vẫn (?:còn )?mở|còn mở/i
 
 /** Emoji dẫn đầu của chính dòng bullet (sau khi gỡ `- ` và bọc `**`/`*`/`🔴`/`⚠️`/`🔵` mở đầu
  *  không mang nghĩa trạng thái — chỉ ✅/🟡 dẫn đầu MỚI là trạng thái tự khai của mục). */
+/** @param {string} firstLine */
 function leadingStatus(firstLine) {
   // 🔵 **LƯỢT RÀ 2026-08-19 (tầng Edge Case) — CHÚ THÍCH TRÊN HỨA GỠ 🔴/⚠️/🔵, MÃ THÌ KHÔNG.**
   // Bản đầu chỉ gỡ `**`. Nên `- 🔴 ✅ ĐÃ ĐÓNG …` đọc ra `open`: một mục **tự khai đã đóng** bị
@@ -252,7 +267,7 @@ function leadingStatus(firstLine) {
  *   - `→ ⚠️ …một nửa|một phần…`        ⇒ half    (⚠️ dùng cho nhiều việc khác, nên chỉ đếm khi
  *                                        văn bản tự nói nửa/phần)
  *   - `→ KHÔNG LÀM <ngày> (`           ⇒ decided */
-function continuationStatus(line) {
+function continuationStatus(/** @type {string} */ line) {
   const m = /^\s*→\s*(.*)$/.exec(line)
   if (!m) return null
   const rest = m[1]
@@ -265,9 +280,22 @@ function continuationStatus(line) {
 }
 
 /** Phân tích toàn bộ tệp thành danh sách mục `{ line, status, owner, text }`. */
+/**
+ * @typedef {{
+ *   line: number, text: string, status: string,
+ *   hasOwnerMention: boolean, hasOwner: boolean, latestOwnerKey: string | null,
+ * }} Item
+ */
+
+/**
+ * @param {string} fileText
+ * @returns {Item[]}
+ */
 function parseItems(fileText) {
   const lines = fileText.split('\n')
+  /** @type {Item[]} */
   const items = []
+  /** @type {Item | null} */
   let cur = null
   const flush = () => {
     if (cur) items.push(cur)
@@ -295,7 +323,7 @@ function parseItems(fileText) {
     }
     if (ITEM_START_RE.test(line)) {
       flush()
-      cur = { line: i + 1, text: line, status: leadingStatus(line) ?? 'open' }
+      cur = /** @type {Item} */ ({ line: i + 1, text: line, status: leadingStatus(line) ?? 'open' })
       continue
     }
     if (cur) {
@@ -315,6 +343,7 @@ function parseItems(fileText) {
 }
 
 /** Bốn con số AC5 đòi. */
+/** @param {Item[]} items */
 function summarize(items) {
   const open = items.filter((i) => i.status === 'open')
   const half = items.filter((i) => i.status === 'half')
@@ -335,6 +364,7 @@ function summarize(items) {
 // Kiểm B — TỰ KIỂM: chứng minh Kiểm A đỏ được, và không đỏ oan
 // ═════════════════════════════════════════════════════════════════════════════════
 /** [tên ca, mảnh văn bản MÔ PHỎNG MỘT MỤC (bắt đầu bằng `- `), mong: mồ côi hay không] */
+/** @type {[string, string, boolean][]} */
 const SELFTEST_CASES = [
   ['mục mở, không Chủ: nào — MỒ CÔI thật', '- Một việc chưa xong, không ai nhận.', true],
   ['mục mở, có Chủ: thật', '- Một việc chưa xong. **Chủ: Story 3.1.**', false],
@@ -415,6 +445,7 @@ const SELFTEST_CASES = [
 /**
  * [tên ca, mảnh văn bản mô phỏng MỘT MỤC, trạng thái `status` mong đợi].
  */
+/** @type {[string, string, string][]} */
 const HALF_PHRASE_SELFTEST_CASES = [
   [
     'bullet đầu tự khai ✅ NHƯNG tự nói "ĐÓNG MỘT NỬA" ⇒ half, không closed',
@@ -468,6 +499,7 @@ const STALE_SELFTEST_STATUS = new Map([
   ['epic-8', null],
 ])
 /** [tên ca, mảnh văn bản một mục, mong: treo hay không] */
+/** @type {[string, string, boolean][]} */
 const STALE_SELFTEST_CASES = [
   ['chủ duy nhất là story đã done ⇒ TREO', '- Việc A. **(Chủ: Story 3.8.)**', true],
   ['chủ story done + chủ Ice nối sau ⇒ không treo', '- Việc B. **(Chủ: Story 3.8.)**\n  → vẫn đúng. **Chủ: Ice.**', false],
@@ -612,7 +644,7 @@ function runSelftest() {
         bad += 1
       }
     } catch (err) {
-      fail(`tự kiểm C — bộ đọc cây vé ném trên cây giả hợp lệ: ${err.message}`)
+      fail(`tự kiểm C — bộ đọc cây vé ném trên cây giả hợp lệ: ${/** @type {Error} */ (err).message}`)
       bad += 1
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -633,6 +665,7 @@ function runSelftest() {
   const R = join('/repo')
   const C = join('/cwd')
   const MAC_DINH = join(R, ...INITIATIVE_DIR, 'deferred-work.md')
+  /** @type {[string, string[], string][]} */
   const caDuong = [
     ['--file tương đối ⇒ ghép với cwd', ['--file', 'tmp/cu.md', '--report'], join(C, 'tmp/cu.md')],
     // `isAbsolute('/x/cu.md')` đúng trên CẢ HAI nền tảng (Windows coi đường gốc-tương-đối là tuyệt
@@ -665,6 +698,7 @@ function runSelftest() {
 // Bề mặt — phân loại các mục mồ côi (Quyết định #5, "bộ phân loại phải dựng lại và ghi vào
 // kho cùng bộ đếm" — Ice ký 2026-08-19). Đây LÀ lượt dựng lại đó.
 // ═════════════════════════════════════════════════════════════════════════════════
+/** @type {[string, RegExp][]} */
 const SURFACES = [
   ['check-*.mjs', /\bscripts\/check-[\w.-]+\.mjs\b|`check:[\w-]+`/],
   ['test Rust/vitest', /\.rs::|tests\/[\w./-]+\.rs\b|\.test\.ts\b|vitest|cargo test/i],
@@ -676,7 +710,9 @@ const SURFACES = [
   ['nghiệm thu tay/bàn đo', /nghiệm thu tay|bàn đo|chạy tay|đo bằng mắt|Ice chạy tay/i],
 ]
 
+/** @param {string} text */
 function classifySurface(text) {
+  /** @type {string[]} */
   const hit = []
   for (const [name, re] of SURFACES) if (re.test(text)) hit.push(name)
   return hit.length ? hit : ['(không bám bề mặt nào)']
@@ -815,7 +851,8 @@ if (stale.length === 0) {
 } else {
   fail(`${stale.length} mục mở/🟡 có chủ cuối cùng là story/epic đã done hoặc không tồn tại`)
   for (const it of stale.slice(0, 20)) {
-    detail(`deferred-work.md:${it.line}  (${it.latestOwnerKey}: ${ticketStatus.has(it.latestOwnerKey) ? ticketStatus.get(it.latestOwnerKey) : 'không có trong cây vé'})`)
+    const ownerKey = it.latestOwnerKey ?? ''
+    detail(`deferred-work.md:${it.line}  (${ownerKey}: ${ticketStatus.has(ownerKey) ? ticketStatus.get(ownerKey) : 'không có trong cây vé'})`)
   }
   if (stale.length > 20) detail(`… và ${stale.length - 20} mục khác.`)
   detail('Nối một dòng `→ …` vào mục: đóng nó, hoặc ghi `Chủ:` mới còn sống. Đừng sửa chủ cũ.')

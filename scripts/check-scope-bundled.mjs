@@ -7,7 +7,7 @@
  * chạm tới — đó là mục `deferred-work.md §*Deferred from: code review of 1-1-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep (2026-08-03)*` mà story này nhận về. Script này đóng nó.
  *
  * ⚠️ **Vì sao `tauri build --debug` chứ không phải bản release.** Móc self-check phía
- * Rust là `#[cfg(debug_assertions)]` (`src-tauri/src/lib.rs:31,37,55`) nên **không tồn
+ * Rust là `#[cfg(debug_assertions)]` (`src-tauri/src/lib.rs`) nên **không tồn
  * tại trong bản release**. Profile `dev` giữ `debug_assertions` bật ⇒ móc còn đó; nhưng
  * webview vẫn nạp HTML từ `frontendDist` qua asset protocol ⇒ Tauri **có** chèn CSP.
  * Đó đúng là tổ hợp mà `tauri dev` không bao giờ chạm tới.
@@ -17,7 +17,7 @@
  * nhị phân profile **release**. Hai đường không được nhập làm một —
  *   đừng bật `debug-assertions = true` trong `[profile.release]` để "làm cho đúng
  *      hơn": profile đó đang được cố ý đóng băng để số đo NFR6 của Story 1.1 còn so
- *      sánh được (`Cargo.toml:56-61`), và đổi nó là làm hỏng chính AC6 của story này;
+ *      sánh được (`[profile.release]` của `Cargo.toml`), và đổi nó là làm hỏng chính AC6 của story này;
  *   đừng gỡ `#[cfg(debug_assertions)]` khỏi móc self-check — Story 1.2 đặt nó ở đó
  *      có lý do đã ghi thành chữ: *"một móc như vậy không có việc gì trong bản phát hành"*.
  *
@@ -36,6 +36,10 @@ import { copyFileSync, mkdirSync, readdirSync, readFileSync, existsSync } from '
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const IS_WIN = process.platform === 'win32'
 
+/**
+ * @param {string} msg
+ * @returns {never}
+ */
 const die = (msg) => {
   console.error(`\n\x1b[31m${msg}\x1b[0m`)
   process.exit(1)
@@ -48,6 +52,7 @@ const die = (msg) => {
  * `setTimeout` ép về ~1 ms ⇒ script luôn exit 1 với chẩn đoán *"webview không mở được"*,
  * sai vĩnh viễn.
  */
+/** @param {string | undefined | null} raw */
 function readTimeoutMs(raw, fallback = 300_000) {
   if (raw === undefined || raw === null || String(raw).trim() === '') return fallback
   const n = Number(raw)
@@ -76,7 +81,12 @@ const TIMEOUT_MS = readTimeoutMs(process.env.AURA_SCOPE_TIMEOUT_MS)
 // lượt biên dịch debug trên runner (macOS ×10).
 const cargoToml = readFileSync(join(REPO_ROOT, 'src-tauri', 'Cargo.toml'), 'utf8')
 
-/** Đọc một khoá chuỗi trong đúng một section `[header]` của TOML. */
+/**
+ * Đọc một khoá chuỗi trong đúng một section `[header]` của TOML.
+ * @param {string} toml
+ * @param {string} section
+ * @param {string} key
+ */
 function tomlSectionValue(toml, section, key) {
   const lines = toml.split(/\r?\n/)
   let inSection = false
@@ -158,6 +168,7 @@ const child = spawn(binPath, [], {
 let log = ''
 let timedOut = false
 
+/** @param {import('node:stream').Readable} stream */
 const capture = (stream) => {
   stream.setEncoding('utf8')
   stream.on('data', (chunk) => {

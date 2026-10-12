@@ -63,22 +63,33 @@ const IS_WIN = process.platform === 'win32'
 const RUST_TREE_FLOOR = 306
 const NPM_TREE_FLOOR = 444
 
+/** @typedef {{ version?: string, dependencies?: Record<string, NpmNode> }} NpmNode */
+
 let failures = 0
+/** @param {string} m */
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+/** @param {string} m */
 const fail = (m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
 }
 
-/** Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật. */
+/**
+ * Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật.
+ * @param {string} what
+ * @param {unknown} err
+ * @returns {never}
+ */
 function abort(what, err) {
   console.error(`\n\x1b[31mKhông đọc được ${what} — phép kiểm KHÔNG chạy được.\x1b[0m`)
   console.error('Đây là lỗi hạ tầng, không phải "đạt". Đọc lỗi dưới đây rồi chạy lại.\n')
-  console.error(String(err?.stderr || err?.message || err).trim())
+  const e = /** @type {{ stderr?: string, message?: string } | null | undefined} */ (err)
+  console.error(String(e?.stderr || e?.message || err).trim())
   process.exit(1)
 }
 
 // ── Đọc cây Rust MỘT LẦN ─────────────────────────────────────────────────────────
+/** @type {string[]} */
 let rustCrates = []
 try {
   // ⚠️ `--locked` KHÔNG phải trang trí. `cargo tree` được phép giải lại cây và GHI LẠI
@@ -118,7 +129,7 @@ try {
       shell: IS_WIN, // xem chú thích ở khai báo IS_WIN — thiếu cờ này là ENOENT trên Windows
     })
   } catch (err) {
-    raw = err.stdout
+    raw = /** @type {{ stdout?: string }} */ (err).stdout
     if (!raw) throw err
   }
   /**
@@ -128,11 +139,19 @@ try {
    * chưa cài, và một phụ thuộc `missing`, đi vào cùng chỗ đó dưới dạng node **rỗng** — tức
    * một LỜI KHAI về thứ lẽ ra có, không phải một thứ trên đĩa.
    */
+  // Chặn vòng bằng chuỗi tổ tiên, không bằng tập toàn cục: cùng `name@version` ở hai nhánh
+  // có thể giải phụ thuộc khác nhau, bỏ lần thứ hai làm mất tên gói thật (đo: 444 -> 305).
+  const ancestors = new Set()
+  /** @param {NpmNode | undefined} node */
   const walk = (node) => {
     for (const [name, child] of Object.entries(node?.dependencies ?? {})) {
       if (typeof child?.version === 'string') npmNames.add(name)
       else npmDeclaredOnly.add(name)
+      const key = `${name}@${child?.version}`
+      if (ancestors.has(key)) continue
+      ancestors.add(key)
       walk(child)
+      ancestors.delete(key)
     }
   }
   walk(JSON.parse(raw))
@@ -218,6 +237,21 @@ for (const [crate, why] of DEV_ONLY_CRATES) {
   } else {
     pass(`crate \`${crate}\` vắng mặt khỏi bộ feature mặc định`)
   }
+}
+
+// Kiểm 1c — danh sách CHO PHÉP: mọi plugin Tauri trong cây phải nằm trong tập đã duyệt.
+// Danh sách cấm ở trên chỉ chặn tên đã biết; một plugin mới (`tauri-plugin-shell`...) đi
+// qua nó. Thêm plugin = sửa tập này cùng bảng Stack của spine.
+const ALLOWED_TAURI_CRATES = new Set(['tauri-plugin', 'tauri-plugin-dialog', 'tauri-plugin-fs'])
+const ALLOWED_TAURI_NPM = [/^@tauri-apps\/api$/, /^@tauri-apps\/cli$/, /^@tauri-apps\/cli-[a-z0-9-]+$/]
+
+{
+  const strayCrates = [...rustNames].filter((n) => n.startsWith('tauri-plugin') && !ALLOWED_TAURI_CRATES.has(n))
+  if (strayCrates.length) strayCrates.forEach((n) => fail(`crate \`${n}\` là plugin Tauri chưa được duyệt`))
+  else pass('mọi plugin Tauri phía Rust nằm trong danh sách cho phép')
+  const strayNpm = [...npmNames].filter((n) => n.startsWith('@tauri-apps/') && !ALLOWED_TAURI_NPM.some((re) => re.test(n)))
+  if (strayNpm.length) strayNpm.forEach((n) => fail(`gói npm \`${n}\` thuộc @tauri-apps chưa được duyệt`))
+  else pass('mọi gói @tauri-apps nằm trong danh sách cho phép')
 }
 
 // Quét trên TÊN GÓI của cả cây, không chỉ `node_modules` tầng đỉnh: một gói bị cài

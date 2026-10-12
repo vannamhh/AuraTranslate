@@ -12,19 +12,26 @@ import {
 
 const repo = dirname(fileURLToPath(import.meta.url))
 
+/**
+ * @param {string} message
+ * @returns {never}
+ */
 function fail(message) {
   process.stderr.write(`${message}\n`)
   process.exit(2)
 }
 
+/** @param {string[]} argv */
 function parseArgs(argv) {
+  /** @type {{ path: string | null, chapter: number | null, scan: number | null }} */
   const out = { path: null, chapter: null, scan: null }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--chapter' || a === '--scan') {
       const v = argv[++i]
       if (v === undefined || !/^\d+$/.test(v)) fail(`${a} cần một số nguyên không âm`)
-      out[a.slice(2)] = Number(v)
+      if (a === '--chapter') out.chapter = Number(v)
+      else out.scan = Number(v)
     } else if (a.startsWith('--')) {
       fail(`cờ không biết: ${a}`)
     } else if (out.path === null) {
@@ -38,6 +45,7 @@ function parseArgs(argv) {
   return out
 }
 
+/** @param {string[]} args */
 function git(args) {
   try {
     return execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim()
@@ -46,16 +54,20 @@ function git(args) {
   }
 }
 
+/** @param {number} x */
 function pct(x) {
   return `${(x * 100).toFixed(1).replace('.', ',')}%`
 }
 
 const args = parseArgs(process.argv.slice(2))
+/** @param {unknown} e */
+const messageOf = (e) => (e instanceof Error ? e.message : String(e))
+
 let db
 try {
-  db = openReadOnly(args.path)
+  db = openReadOnly(/** @type {string} */ (args.path))
 } catch (e) {
-  fail(`không mở được ${args.path}: ${e.message}`)
+  fail(`không mở được ${args.path}: ${messageOf(e)}`)
 }
 
 let scans, chapter, work
@@ -64,7 +76,7 @@ try {
   chapter = db.prepare('SELECT id, ord, title FROM chapter WHERE id = ?').get(args.chapter)
   work = db.prepare('SELECT name FROM work WHERE id = 1').get()
 } catch (e) {
-  fail(`không đọc được lược đồ proofreader: ${e.message}`)
+  fail(`không đọc được lược đồ proofreader: ${messageOf(e)}`)
 }
 if (!chapter) fail(`Chương ${args.chapter} không có trong DB`)
 if (scans.length === 0) fail('proof_scan rỗng: chưa có lượt quét nào, không có tỷ lệ')
@@ -88,7 +100,7 @@ const judged = judgeRate({
   beforeScan: win.beforeScan,
   scope: scan.scope,
 })
-if (judged.error) fail(judged.error)
+if (judged.error !== undefined) fail(judged.error)
 
 const head = git(['rev-parse', 'HEAD'])
 const dirty = git(['status', '--porcelain'])

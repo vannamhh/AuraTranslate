@@ -4,11 +4,16 @@ export const MIN_SAMPLE = 30
 export const PASS_RATE = 0.2
 const Z = 1.96
 
+/** @typedef {{ prepare(sql: string): { all(...params: (string | null)[]): unknown[], get(...params: (string | null)[]): unknown } }} Db */
+/** @typedef {{ id: number, scope: string, scanned_at: string, reported: number, filtered: number }} Scan */
+
+/** @param {string} path */
 export function openReadOnly(path) {
   const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite')
   return new DatabaseSync(path, { readOnly: true })
 }
 
+/** @param {number} k @param {number} n */
 export function wilson(k, n) {
   const p = k / n
   const z2 = Z * Z
@@ -18,29 +23,35 @@ export function wilson(k, n) {
   return { low: Math.max(0, centre - half), high: Math.min(1, centre + half) }
 }
 
+/** @param {Db} db @returns {Scan[]} */
 export function listScans(db) {
-  return db
-    .prepare('SELECT id, scope, scanned_at, reported, filtered FROM proof_scan ORDER BY scanned_at, id')
-    .all()
+  return /** @type {Scan[]} */ (
+    db.prepare('SELECT id, scope, scanned_at, reported, filtered FROM proof_scan ORDER BY scanned_at, id').all()
+  )
 }
 
 /**
  * `ignored` counts rows created at or after this scan's `scanned_at` and strictly before the next
  * scan's. `beforeScan` counts rows created at or after the previous scan's `scanned_at` and strictly
  * before this one's: marks made while the scan was still running.
+ *
+ * @param {Db} db
+ * @param {Scan[]} scans
+ * @param {Scan} scan
  */
 export function ignoreWindow(db, scans, scan) {
   const at = scans.findIndex((s) => s.id === scan.id)
   const prev = at > 0 ? scans[at - 1] : null
   const next = at < scans.length - 1 ? scans[at + 1] : null
+  /** @param {string | null} from @param {string | null} to */
   const count = (from, to) => {
-    const rows = db
+    const rows = /** @type {{ kind: string, n: number }[]} */ (db
       .prepare(
         `SELECT kind, COUNT(*) AS n FROM proof_ignore
          WHERE (?1 IS NULL OR created_at >= ?1) AND (?2 IS NULL OR created_at < ?2)
          GROUP BY kind`,
       )
-      .all(from, to)
+      .all(from, to))
     const byKind = Object.fromEntries(rows.map((r) => [r.kind, Number(r.n)]))
     return { byKind, total: rows.reduce((a, r) => a + Number(r.n), 0) }
   }
@@ -49,16 +60,18 @@ export function ignoreWindow(db, scans, scan) {
   return { ignored: inside.total, byKind: inside.byKind, beforeScan: before.total }
 }
 
+/** @param {Db} db */
 export function crossKindPairs(db) {
-  return Number(
+  const row = /** @type {{ n: number }} */ (
     db
       .prepare(
         `SELECT COUNT(*) AS n FROM (
            SELECT 1 FROM proof_ignore GROUP BY phrase, context_before, context_after
            HAVING COUNT(DISTINCT kind) > 1)`,
       )
-      .get().n,
+      .get()
   )
+  return Number(row.n)
 }
 
 export const SUGGESTIONS = [
@@ -67,6 +80,7 @@ export const SUGGESTIONS = [
   'tách riêng hai loại phát hiện (chính tả/ngữ pháp và nghi về nghĩa) để đo và chỉnh từng loại',
 ]
 
+/** @param {{ reported: number, filtered: number, ignored: number, beforeScan: number, scope: string }} counts */
 export function judgeRate({ reported, filtered, ignored, beforeScan, scope }) {
   if (ignored > reported) {
     return { error: `số hàng ignore trong cửa sổ (${ignored}) lớn hơn reported (${reported}); không tính tỷ lệ` }
@@ -76,7 +90,7 @@ export function judgeRate({ reported, filtered, ignored, beforeScan, scope }) {
   }
   const rate = ignored / reported
   const interval = wilson(ignored, reported)
-  const warnings = []
+  const warnings = /** @type {string[]} */ ([])
   if (scope !== 'chapter') warnings.push(`lượt quét có scope = ${scope}, không phải chapter`)
   if (beforeScan > 0) {
     warnings.push(`${beforeScan} hàng ignore tạo trước scanned_at của lượt này (bấm giữa lượt quét), không nằm trong tử số`)

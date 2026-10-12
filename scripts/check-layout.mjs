@@ -41,18 +41,23 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SRC_ROOT = join(REPO_ROOT, 'src')
 
 let failures = 0
-const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
-const fail = (m) => {
+const pass = (/** @type {string} */ m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+const fail = (/** @type {string} */ m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
 }
-const detail = (m) => console.log(`       ${m}`)
+const detail = (/** @type {string} */ m) => console.log(`       ${m}`)
 
-/** Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật. */
+/**
+ * Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật.
+ * @param {string} what
+ * @param {unknown} err
+ * @returns {never}
+ */
 function abort(what, err) {
   console.error(`\n\x1b[31mKhông đọc được ${what} — phép kiểm KHÔNG chạy được.\x1b[0m`)
   console.error('Đây là lỗi hạ tầng, không phải "đạt". Đọc lỗi dưới đây rồi chạy lại.\n')
-  console.error(String(err?.message || err).trim())
+  console.error(String(/** @type {Error | undefined} */ (err)?.message || err).trim())
   process.exit(1)
 }
 
@@ -65,9 +70,16 @@ function abort(what, err) {
 // ═════════════════════════════════════════════════════════════════════════════════
 const SCAN_EXT = ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.vue']
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'target', '.git'])
+/** @type {string[]} */
 const skippedLinks = []
-const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
+const posix = (/** @type {string} */ p) => relative(REPO_ROOT, p).split(sep).join('/')
 
+/**
+ * @param {string} dir
+ * @param {string[]} [out]
+ * @param {Set<string>} [seen]
+ * @returns {string[]}
+ */
 function walk(dir, out = [], seen = new Set()) {
   let key
   try {
@@ -130,10 +142,11 @@ try {
 // khi mọi chỉ số nạp vào nó là UTF-16 — một emoji trong comment (tệp này có nhiều) làm
 // lệch toàn bộ offset từ đó trở đi.
 // ═════════════════════════════════════════════════════════════════════════════════
-const blank = (chars, s, e) => {
+const blank = (/** @type {string[]} */ chars, /** @type {number} */ s, /** @type {number} */ e) => {
   for (let i = s; i < e && i < chars.length; i += 1) if (chars[i] !== '\n') chars[i] = ' '
 }
 
+/** @param {string} text */
 function maskComments(text) {
   const chars = text.split('')
   let i = 0
@@ -190,7 +203,7 @@ function maskComments(text) {
   return chars.join('')
 }
 
-const lineOf = (text, index) => text.slice(0, index).split('\n').length
+const lineOf = (/** @type {string} */ text, /** @type {number} */ index) => text.slice(0, index).split('\n').length
 
 const sources = files.map((file) => {
   let text
@@ -228,7 +241,7 @@ const { PANEL_IDS, SACRIFICE_ORDER, NEVER_SACRIFICED, nextToSacrifice, nextToRes
 // (bốn → ba). Phép kiểm thì **không đổi một dòng**: nó luôn so với `PANEL_IDS` thật, nên
 // nó là một trong số ít chỗ của lượt lật này KHÔNG phải sửa logic.
 {
-  const overlap = SACRIFICE_ORDER.filter((id) => NEVER_SACRIFICED.includes(id))
+  const overlap = SACRIFICE_ORDER.filter((/** @type {string} */ id) => NEVER_SACRIFICED.includes(id))
   const union = [...new Set([...SACRIFICE_ORDER, ...NEVER_SACRIFICED])].sort()
   const all = [...PANEL_IDS].sort()
   if (overlap.length > 0) {
@@ -250,7 +263,7 @@ const { PANEL_IDS, SACRIFICE_ORDER, NEVER_SACRIFICED, nextToSacrifice, nextToRes
   const bad = []
   const n = PANEL_IDS.length
   for (let mask = 0; mask < 1 << n; mask += 1) {
-    const visible = PANEL_IDS.filter((_, i) => (mask >> i) & 1)
+    const visible = PANEL_IDS.filter((/** @type {unknown} */ _, /** @type {number} */ i) => (mask >> i) & 1)
     const out = nextToSacrifice(visible)
     if (out !== null && NEVER_SACRIFICED.includes(out)) bad.push(`[${visible.join(', ')}] ⇒ ${out}`)
   }
@@ -580,7 +593,7 @@ console.log('\nKiểm D — TỰ KIỂM: chứng minh Kiểm C đỏ được, v
 // lượt chạy tay được chép vào §Debug Log References rồi thôi đúng trong im lặng.
 
 /** Chạy lại đúng logic quét của Kiểm C trên một mẩu mã, trả về số vi phạm. */
-function scanFragment(text) {
+function scanFragment(/** @type {string} */ text) {
   const masked = maskComments(text)
   let hits = 0
   let m
@@ -599,6 +612,7 @@ function scanFragment(text) {
 }
 
 /** [tên ca, mã, có phải vi phạm không] */
+/** @type {[string, string, boolean][]} */
 const CASES = [
   ['popout của dockview', 'api.addPopoutGroup({ position: {} })', true],
   ['cửa sổ thứ hai bằng tay', 'window.open("/x")', true],
@@ -689,7 +703,7 @@ for (const id of PRESET_IDS) {
         try {
           out = layoutTierFor({ width, height }, id)
         } catch (err) {
-          fail(`toàn phần (hữu hạn) — (${width}×${height}, ${id}) NÉM LỖI: ${err?.message || err}`)
+          fail(`toàn phần (hữu hạn) — (${width}×${height}, ${id}) NÉM LỖI: ${/** @type {Error | undefined} */ (err)?.message || err}`)
           bad += 1
           continue
         }
@@ -719,7 +733,7 @@ for (const id of PRESET_IDS) {
         try {
           out = layoutTierFor(workArea, id)
         } catch (err) {
-          fail(`toàn phần (không hữu hạn) — ${label}=\`${String(bad_)}\` (${id}) NÉM LỖI: ${err?.message || err}`)
+          fail(`toàn phần (không hữu hạn) — ${label}=\`${String(bad_)}\` (${id}) NÉM LỖI: ${/** @type {Error | undefined} */ (err)?.message || err}`)
           bad += 1
           continue
         }
@@ -758,12 +772,19 @@ for (const id of PRESET_IDS) {
 // hoặc số biên (khớp) hoặc số kém-1 (lệch) sẽ lệch tầng mong đợi, ở CẢ HAI HƯỚNG dời,
 // và chỉ ở preset đó.
 {
+  /** @type {Record<string, { minFullWidth: number, minFullHeight: number, minShortHeight: number, minSupportedWidth: number }>} */
   const EXPECTED = {
     'layout.preset_grid': { minFullWidth: 1100, minFullHeight: 820, minShortHeight: 700, minSupportedWidth: 860 },
     'layout.preset_columns': { minFullWidth: 1100, minFullHeight: 820, minShortHeight: 700, minSupportedWidth: 860 },
   }
   let bad = 0
-  const expect = (label, id, width, height, wantTier) => {
+  const expect = (
+    /** @type {string} */ label,
+    /** @type {string} */ id,
+    /** @type {number} */ width,
+    /** @type {number} */ height,
+    /** @type {string} */ wantTier,
+  ) => {
     const got = layoutTierFor({ width, height }, id)
     if (got !== wantTier) {
       fail(`biên — ${label} (${id}, ${width}×${height}) mong \`${wantTier}\`, được \`${got}\``)
@@ -794,7 +815,13 @@ for (const id of PRESET_IDS) {
 // Mệnh đề 3 — ƯU TIÊN TRÊN-XUỐNG: khi hai điều kiện cùng khớp, cái đứng TRƯỚC thắng.
 {
   let bad = 0
-  const expect = (label, id, width, height, wantTier) => {
+  const expect = (
+    /** @type {string} */ label,
+    /** @type {string} */ id,
+    /** @type {number} */ width,
+    /** @type {number} */ height,
+    /** @type {string} */ wantTier,
+  ) => {
     const got = layoutTierFor({ width, height }, id)
     if (got !== wantTier) {
       fail(`ưu tiên — ${label} (${id}, ${width}×${height}) mong \`${wantTier}\`, được \`${got}\``)
@@ -832,7 +859,7 @@ for (const id of PRESET_IDS) {
     detail('Task 1/2 của Story 4.12 không được đụng vào tập này — spec §Always.')
     bad += 1
   }
-  const overlap = LAYOUT_TIERS.filter((t) => PANEL_IDS.includes(t))
+  const overlap = LAYOUT_TIERS.filter((/** @type {string} */ t) => PANEL_IDS.includes(t))
   if (overlap.length > 0) {
     fail(`tên tầng trùng với \`PanelId\`: ${overlap.join(', ')}`)
     detail('Hai từ vựng phải RỜI NHAU — nhầm lẫn "tầng" với "panel" là chỗ nối dễ hỏng nhất.')
@@ -909,6 +936,7 @@ function scanPersistViaSchedule(masked) {
 }
 
 // Tự kiểm F.1 — mã tổng hợp, không phải `WorkspaceDock.vue` thật.
+/** @type {[string, string, boolean][]} */
 const F1_CASES = [
   [
     'đúng: emit trong flush, có canh schedule',
@@ -989,6 +1017,7 @@ if (layoutMod.PANEL_COMPONENTS === undefined) {
 }
 
 // Tự kiểm F.2 — mã tổng hợp, không phải các tệp thật.
+/** @type {[string, string[], string, boolean][]} */
 const F2_CASES = [
   ['đúng: mọi giá trị đều là khoá', ['grid', 'lookup'], 'const components = { grid: GridPanel, lookup: LookupPanel }', true],
   [
@@ -1007,7 +1036,7 @@ const F2_CASES = [
 let f2Bad = 0
 for (const [name, values, code, shouldPass] of F2_CASES) {
   const keys = componentKeysOf(maskComments(code))
-  const ok = keys !== null && values.every((v) => keys.includes(v))
+  const ok = keys !== null && values.every((/** @type {string} */ v) => keys.includes(v))
   if (ok !== shouldPass) {
     fail(`tự kiểm F.2 — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${ok ? 'XANH' : 'ĐỎ'}`)
     f2Bad += 1
@@ -1044,6 +1073,7 @@ function hostKeepsIsolation(masked, selectorHead) {
 }
 
 // Tự kiểm F.3 — mã tổng hợp, không phải App.vue thật.
+/** @type {[string, string, boolean][]} */
 const F3_CASES = [
   ['đúng: còn isolation: isolate', '.modeport {\n  flex: 1;\n  isolation: isolate;\n}', true],
   ['sai: isolation bị gỡ', '.modeport {\n  flex: 1;\n}', false],

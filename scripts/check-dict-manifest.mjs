@@ -28,7 +28,9 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const MANIFEST_PATH = join(REPO_ROOT, 'dict-manifest.toml')
 
 let failures = 0
+/** @param {string} m */
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+/** @param {string} m */
 const fail = (m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
@@ -42,7 +44,7 @@ try {
   text = readFileSync(MANIFEST_PATH, 'utf8')
 } catch (err) {
   console.error(`\n\x1b[31mKhông đọc được ${MANIFEST_PATH}.\x1b[0m`)
-  console.error(String(err?.message || err).trim())
+  console.error(String((/** @type {Error | undefined} */ (err))?.message || err).trim())
   process.exit(1)
 }
 
@@ -72,6 +74,11 @@ const SHA256_RE = /^[0-9a-f]{64}$/
 // §Trạng thái repo hiện tại của story (`git remote origin`) — Review Findings Group C.
 const URL_RE = /^https:\/\/github\.com\/vannamhh\/AuraTranslate\/releases\/download\/dict-v/
 
+/**
+ * @param {string} label
+ * @param {Record<string, string>} obj
+ * @param {boolean} requireName
+ */
 function validateEntry(label, obj, requireName) {
   if (requireName) {
     if (typeof obj.name !== 'string' || obj.name === '') {

@@ -8,11 +8,22 @@ const KEY_RE = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/
 const ID_RE = /^(?:(\d+[a-z]?)|"(\d+[a-z]?)")$/
 const SLUG_RE = /^"([a-z0-9][a-z0-9-]*)"$/
 
-/** Strict subset reader: any shape other than `[[kind]]` tables of one-line pairs throws. */
+/** @typedef {{ id: string | null, slug: string | null }} TicketRow */
+
+/**
+ * Strict subset reader: any shape other than `[[kind]]` tables of one-line pairs throws.
+ * @param {string} text
+ * @param {string} kind
+ * @param {string} where
+ * @returns {TicketRow[]}
+ */
 export function parseTicketsToml(text, kind, where) {
+  /** @type {TicketRow[]} */
   const rows = []
+  /** @type {TicketRow | null} */
   let cur = null
   const lines = text.split('\n')
+  /** @type {string | null} */
   let inBlock = null
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].replace(/\r$/, '').trim()
@@ -45,6 +56,7 @@ export function parseTicketsToml(text, kind, where) {
     }
   }
   if (inBlock !== null) throw new Error(`${where}: chuoi nhieu dong khong dong`)
+  /** @type {Set<string>} */
   const seen = new Set()
   for (const r of rows) {
     if (r.id === null) throw new Error(`${where}: co \`[[${kind}]]\` khong co \`id\``)
@@ -55,6 +67,11 @@ export function parseTicketsToml(text, kind, where) {
   return rows
 }
 
+/**
+ * @param {string} text
+ * @param {string} key
+ * @returns {string | null}
+ */
 function frontmatterValue(text, key) {
   const lines = text.split('\n')
   if (lines[0].replace(/\r$/, '') !== '---') return null
@@ -72,15 +89,23 @@ function frontmatterValue(text, key) {
   return null
 }
 
-/** Throws on a missing, malformed or empty tree; a story's status is null when its entry has no plan or the plan has no status. */
+/**
+ * Throws on a missing, malformed or empty tree; a story's status is null when its entry has no plan or the plan has no status.
+ * @param {string} root
+ */
 export function readTicketTree(root) {
   const base = join(root, ...INITIATIVE_DIR)
   const epicRows = parseTicketsToml(readFileSync(join(base, 'tickets.toml'), 'utf8'), 'epic', 'tickets.toml')
+  /** @type {Map<string, string | null>} */
   const stories = new Map()
+  /** @type {Map<string, string | null>} */
   const epics = new Map()
+  /** @type {Map<string, string>} */
   const planPaths = new Map()
+  /** @type {string[]} */
   const searched = []
   for (const ep of epicRows) {
+    if (ep.slug === null || ep.id === null) throw new Error('tickets.toml: epic thieu id hoac slug')
     const dir = join(base, ep.slug)
     searched.push(dir)
     const entries = parseTicketsToml(
@@ -108,6 +133,7 @@ export function readTicketTree(root) {
     stories,
     epics,
     searched,
+    /** @param {string} ref */
     planFor(ref) {
       const m = /^(\d+)[.-](\d+[a-z]?)$/.exec(ref)
       return m ? (planPaths.get(`${m[1]}-${m[2]}`) ?? null) : null

@@ -20,20 +20,25 @@ import { fileURLToPath } from 'node:url'
 import { judgeFloor } from './lib/floor-judge.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+/** @param {string} p */
 const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
 
 let failures = 0
+/** @param {string} m */
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+/** @param {string} m */
 const fail = (m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
 }
+/** @param {string} m */
 const detail = (m) => console.log(`       ${m}`)
 
 /** Lỗi hạ tầng — KHÔNG phải một phép kiểm đỏ. */
+/** @param {string} what @param {unknown} err @returns {never} */
 function abort(what, err) {
   console.error(`\n\x1b[31mKhông đọc được ${what} — phép kiểm KHÔNG chạy được.\x1b[0m`)
-  console.error(String(err?.message || err).trim())
+  console.error(String(/** @type {{ message?: unknown } | null | undefined} */ (err)?.message || err).trim())
   process.exit(1)
 }
 
@@ -41,15 +46,15 @@ const SKIP_DIRS = new Set(['target', 'node_modules', 'dist', '.git'])
 const SCAN_EXT = ['.rs', '.ts', '.tsx', '.vue', '.mjs', '.cjs', '.js', '.md']
 const ROOTS = ['src', 'src-tauri/src', 'src-tauri/tests', 'scripts', 'tests', 'e2e']
 
-/**
- * @param {string} dir
- * @param {string[]} out
- * @param {Set<string>} seen
- * @returns {string[]}
- */
 /** @type {string[]} */
 const skippedLinks = []
 
+/**
+ * @param {string} dir
+ * @param {string[]} [out]
+ * @param {Set<string>} [seen]
+ * @returns {string[]}
+ */
 function walk(dir, out = [], seen = new Set()) {
   let key
   try {
@@ -103,6 +108,7 @@ function lineOf(text, index) {
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('\nCổng doc-refs — cấm tham chiếu epics.md kèm số dòng trong mã nguồn')
 
+/** @type {string[]} */
 let files = []
 for (const root of ROOTS) {
   const abs = join(REPO_ROOT, root)

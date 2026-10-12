@@ -44,6 +44,7 @@ const IS_WIN = process.platform === 'win32'
  * nhiều khả năng webview không mở được"*. Một chẩn đoán sai vĩnh viễn, và không ai nghĩ
  * tới biến môi trường.
  */
+/** @param {string | undefined | null} raw */
 function readTimeoutMs(raw, fallback = 300_000) {
   if (raw === undefined || raw === null || String(raw).trim() === '') return fallback
   const n = Number(raw)
@@ -96,6 +97,7 @@ function killTree() {
   }
   // `detached: true` làm `child` thành trưởng nhóm tiến trình; PID âm giết cả nhóm.
   try {
+    if (child.pid === undefined) throw new Error('no pid')
     process.kill(-child.pid, 'SIGKILL')
   } catch {
     // Nhóm đã chết rồi, hoặc chưa kịp lập — thử tiến trình đơn cho chắc.
@@ -110,6 +112,7 @@ function killTree() {
 let log = ''
 let timedOut = false
 
+/** @param {import('node:stream').Readable} stream */
 const capture = (stream) => {
   stream.setEncoding('utf8')
   stream.on('data', (chunk) => {

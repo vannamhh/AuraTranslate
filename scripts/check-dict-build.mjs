@@ -33,20 +33,30 @@ const CRATE_ROOT = join(REPO_ROOT, 'tools', 'dict-build')
 const SRC_ROOT = join(CRATE_ROOT, 'src')
 
 let failures = 0
+/** @param {string} m */
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+/** @param {string} m */
 const fail = (m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
 }
+/** @param {string} m */
 const detail = (m) => console.log(`       ${m}`)
 
+/**
+ * @param {string} what
+ * @param {unknown} err
+ * @returns {never}
+ */
 function abort(what, err) {
   console.error(`\n\x1b[31mKhông đọc được ${what} — phép kiểm KHÔNG chạy được.\x1b[0m`)
   console.error('Đây là lỗi hạ tầng, không phải "đạt". Đọc lỗi dưới đây rồi chạy lại.\n')
-  console.error(String(err?.message || err).trim())
+  const e = /** @type {{ message?: string } | null | undefined} */ (err)
+  console.error(String(e?.message || err).trim())
   process.exit(1)
 }
 
+/** @param {string} p */
 const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -56,6 +66,11 @@ const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
 /** Sàn phải SÁT số thật — `ceil(0.85 × live)`, qua `judgeFloor`. */
 const RS_FILE_FLOOR = 21
 
+/**
+ * @param {string} dir
+ * @param {string[]} [out]
+ * @returns {string[]}
+ */
 function walkRs(dir, out = []) {
   let entries
   try {

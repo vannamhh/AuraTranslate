@@ -68,18 +68,22 @@ const CI_PATH = join(REPO_ROOT, '.github', 'workflows', 'ci.yml')
 const PREPUSH_PATH = join(REPO_ROOT, '.githooks', 'pre-push')
 
 let failures = 0
+/** @param {string} m */
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+/** @param {string} m */
 const fail = (m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
 }
+/** @param {string} m */
 const detail = (m) => console.log(`       ${m}`)
 
 /** Lỗi hạ tầng KHÔNG phải một phép kiểm đỏ. Dừng ngay, đừng báo một kết quả không có thật. */
+/** @param {string} what @param {unknown} err @returns {never} */
 function abort(what, err) {
   console.error(`\n\x1b[31mKhông đọc được ${what} — phép kiểm KHÔNG chạy được.\x1b[0m`)
   console.error('Đây là lỗi hạ tầng, không phải "đạt". Đọc lỗi dưới đây rồi chạy lại.\n')
-  console.error(String(err?.message || err).trim())
+  console.error(String(/** @type {{ message?: unknown } | null | undefined} */ (err)?.message || err).trim())
   process.exit(1)
 }
 
@@ -172,8 +176,10 @@ const CONST_DECL_RUST_RE = /\bconst\s+([A-Z][A-Z0-9_]*)\s*:\s*usize\s*=/g
 const isFloorConst = (name) => /_FLOORS?(_|$)/.test(name)
 
 /** `judgeFloor(NAME, …)` gọi `NAME` làm đối số ĐẦU — đúng khuôn mọi chỗ gọi thật dùng. */
+/** @param {string} text @param {string} name */
 const reachesJsFloorHelper = (text, name) => new RegExp(String.raw`judgeFloor\(\s*${name}\b`).test(text)
 /** `assert_population_floor(NAME, …)`, cùng khuôn phía Rust (`boundary_scan.rs`). */
+/** @param {string} text @param {string} name */
 const reachesRustFloorHelper = (text, name) =>
   new RegExp(String.raw`assert_population_floor\(\s*${name}\b`).test(text)
 
@@ -182,6 +188,7 @@ const reachesRustFloorHelper = (text, name) =>
  * trong `scripts/`) — Kiểm G không cần theo chúng, chỉ cần không panic trên một đường
  * dẫn vòng.
  */
+/** @param {string} dir @param {string} ext @param {string[]} [out] @returns {string[]} */
 function walkExt(dir, ext, out = []) {
   let names
   try {
@@ -236,8 +243,9 @@ const checkScripts = Object.keys(scripts).filter((name) => name.startsWith('chec
  * ⚠️ Lớp ký tự PHẢI chứa `:` — `check:scope:bundled` và `check:scope` là HAI script khác
  * nhau, và một regex dừng ở dấu hai chấm đầu tiên sẽ trộn chúng làm một rồi báo đạt oan.
  */
+/** @param {string} text */
 const npmRunNames = (text) => {
-  const found = new Set()
+  const found = /** @type {Set<string>} */ (new Set())
   for (const m of text.matchAll(/npm run ([A-Za-z0-9:._-]+)/g)) found.add(m[1])
   return found
 }
@@ -261,6 +269,7 @@ const npmRunNames = (text) => {
  * chép lại bảng ánh xạ đặc biệt của npm (`npm test` → script `test`, `npm start` → `start`), và
  * đó là một nguồn sự thật thứ hai cho một thứ npm sở hữu. Ba danh sách viết `npm run test`.
  */
+/** @param {string} text @param {string} name */
 const runsScript = (text, name) =>
   new RegExp(String.raw`npm run (?:--silent )?${name}(?![\w:-])`).test(text)
 
@@ -275,6 +284,7 @@ const called = npmRunNames(ciText)
  * lỗi "rỗng im lặng" mà AD-26 và AD-44 ④ tồn tại để cấm. `null` buộc chỗ gọi phải
  * `abort`, tức một lỗi hạ tầng tường minh thay vì một phán quyết đạt không có thật.
  */
+/** @param {string} text @returns {Set<string> | null} */
 const prepushGateNames = (text) => {
   const m = text.match(/^for\s+gate\s+in\s+([^;]+);/m)
   return m ? new Set(m[1].trim().split(/\s+/).map((g) => `check:${g}`)) : null

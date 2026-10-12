@@ -3,7 +3,9 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2023"],
+    "lib": [
+      "ES2023"
+    ],
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "strict": true,
@@ -13,10 +15,6 @@
   },
   "include": [
     "vite.config.ts",
-    "scripts/check-commands.mjs",
-    "scripts/lib/commands-scan.mjs",
-    "scripts/check-tokens.mjs",
-    "scripts/lib/tokens-scan.mjs",
-    "scripts/ci-previous-verdict.mjs"
+    "scripts/**/*.mjs"
   ]
 }

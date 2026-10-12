@@ -82,7 +82,14 @@ const frontTests = readdirSync(FRONT_TEST_DIR)
 
 // ── tham số ──────────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
+/** @param {string} n */
 const flag = (n) => argv.includes(`--${n}`);
+/**
+ * @template {string | null} D
+ * @param {string} n
+ * @param {D} dflt
+ * @returns {string | D}
+ */
 const flagVal = (n, dflt) => {
   const i = argv.indexOf(`--${n}`);
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : dflt;
@@ -96,11 +103,13 @@ const strict = flag('strict');
 const diffRef = flagVal('diff', 'HEAD');
 
 // ── ① lời khai của spec ──────────────────────────────────────────────────────────
+/** @param {string} ref */
 function findSpec(ref) {
   const tree = readTicketTree(ROOT);
   return { path: tree.planFor(ref), searched: tree.searched };
 }
 
+/** @param {string} specPath */
 function declaredFrom(specPath) {
   const text = readFileSync(specPath, 'utf8');
   const rust = new Set();
@@ -118,6 +127,7 @@ function declaredFrom(specPath) {
 }
 
 // ── ② đối chứng: diff thật sự chạm tệp test nào ──────────────────────────────────
+/** @param {string} ref */
 function touchedFrom(ref) {
   let out = '';
   try {
@@ -150,7 +160,7 @@ if (storyArg) {
   try {
     found = findSpec(storyArg);
   } catch (err) {
-    console.error(`Cây vé không đọc được: ${err.message}`);
+    console.error(`Cây vé không đọc được: ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
   specPath = found.path;

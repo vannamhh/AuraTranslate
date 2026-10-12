@@ -77,6 +77,7 @@ const RESOLVE_TS_PATH = join(REPO_ROOT, 'src', 'i18n', 'resolve.ts')
  */
 const VI_LOWER = 'àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ'
 const VI_CHARS = new Set([...VI_LOWER, ...VI_LOWER.toUpperCase()])
+/** @param {string} ch */
 const isViChar = (ch) => VI_CHARS.has(ch)
 
 /**
@@ -92,27 +93,34 @@ const isViChar = (ch) => VI_CHARS.has(ch)
  * gộp lại làm ngắn đi một ký tự). Dòng thì không lệch, và trích đoạn in kèm là thứ người
  * sửa thật sự đọc. Đổi lại là không còn một đường im lặng nào.
  */
+/** @param {string} s */
 const nfc = (s) => s.normalize('NFC')
 
 /** Biên "tiếng" cho Kiểm D — chữ Latin, chữ Việt có dấu, chữ số, gạch dưới. */
 const WORD_CHAR = new RegExp(`[0-9A-Za-z_${VI_LOWER}${VI_LOWER.toUpperCase()}]`)
 
 let failures = 0
+/** @param {string} m */
 const pass = (m) => console.log(`  \x1b[32mOK\x1b[0m   ${m}`)
+/** @param {string} m */
 const fail = (m) => {
   console.log(`  \x1b[31mFAIL\x1b[0m ${m}`)
   failures += 1
 }
+/** @param {string} m */
 const detail = (m) => console.log(`       ${m}`)
 
 /**
  * Lỗi hạ tầng ≠ phép kiểm đỏ. Dừng ngay, đừng báo cáo một kết quả không có thật.
  * (`check-deps.mjs:60-66`)
+ * @param {string} what
+ * @param {unknown} err
+ * @returns {never}
  */
 function abort(what, err) {
   console.error(`\n\x1b[31mKhông đọc được ${what} — phép kiểm KHÔNG chạy được.\x1b[0m`)
   console.error('Đây là lỗi hạ tầng, không phải "đạt". Đọc lỗi dưới đây rồi chạy lại.\n')
-  console.error(String(err?.message || err).trim())
+  console.error(String(/** @type {Error | undefined} */ (err)?.message || err).trim())
   process.exit(1)
 }
 
@@ -148,13 +156,20 @@ const EXEMPT = [
   ],
 ]
 
-/** `a/b/**` khớp mọi thứ dưới `a/b/`. Không hỗ trợ `*` giữa đường — không cần. */
+/**
+ * `a/b/**` khớp mọi thứ dưới `a/b/`. Không hỗ trợ `*` giữa đường — không cần.
+ * @param {string} pattern
+ */
 function globToRe(pattern) {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&')
   return new RegExp(`^${escaped.replace(/\*\*/g, '.*').replace(/(?<!\.)\*/g, '[^/]*')}$`)
 }
-const EXEMPT_RES = EXEMPT.map(([pattern, why]) => [globToRe(pattern), pattern, why])
+const EXEMPT_RES = /** @type {[RegExp, string, string][]} */ (
+  EXEMPT.map(([pattern, why]) => [globToRe(pattern), pattern, why])
+)
+/** @param {string} p */
 const posix = (p) => relative(REPO_ROOT, p).split(sep).join('/')
+/** @param {string} file */
 const exemptionFor = (file) => EXEMPT_RES.find(([re]) => re.test(posix(file)))
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -167,9 +182,17 @@ const exemptionFor = (file) => EXEMPT_RES.find(([re]) => re.test(posix(file)))
  * kết gãy ném `ENOENT` bị `abort()` báo thành "cây nguồn không đọc được". Symlink bị
  * BỎ QUA và ghi tên ra, để việc bỏ qua không im lặng.
  */
+/** @type {string[]} */
 const skippedLinks = []
 const SKIP_DIRS = new Set(['target', 'node_modules', 'dist', '.git'])
 
+/**
+ * @param {string} dir
+ * @param {string} ext
+ * @param {string[]} [out]
+ * @param {Set<string>} [seen]
+ * @returns {string[]}
+ */
 function walk(dir, ext, out = [], seen = new Set()) {
   let key
   try {
@@ -193,7 +216,9 @@ function walk(dir, ext, out = [], seen = new Set()) {
   return out
 }
 
+/** @type {string[]} */
 let rsAll = []
+/** @type {string[]} */
 let vueAll = []
 try {
   // ⚠️ Quét CẢ `src-tauri/` chứ không chỉ `src-tauri/src/`. AC2 nói `.rs`, không nói
@@ -211,7 +236,9 @@ try {
   abort('cây nguồn (`src-tauri/**`, `tools/**` và `src/**`)', err)
 }
 
+/** @type {[string, string][]} */
 const exemptedFiles = []
+/** @param {string[]} files */
 const keep = (files) =>
   files.filter((f) => {
     const hit = exemptionFor(f)
@@ -279,7 +306,12 @@ const IDENT_CHAR = /[A-Za-z0-9_]/
 /** `'x'` · `'\n'` · `'\''` · `'\u{1F600}'`. Cờ `u` để một ký tự astral tính là MỘT. */
 const CHAR_LIT_RE = /^'(?:\\u\{[0-9a-fA-F]{1,6}\}|\\.|[^'\\])'/u
 
+/**
+ * @param {string} text
+ * @returns {number[]}
+ */
 function scanRust(text) {
+  /** @type {number[]} */
   const hits = []
   let i = 0
   let depth = 0
@@ -398,8 +430,11 @@ function scanRust(text) {
  * phát hiện oan (`deferred-work.md` L7070). Cùng kỹ thuật với [`scanTemplate`]: `<!--`
  * chỉ đóng khi có `-->`, và bị bỏ qua HOÀN TOÀN trước khi thử khớp thẻ mở — quét từng vị
  * trí bằng regex DÍNH (`y`) thay vì để regex toàn cục tự tìm khớp kế tiếp ở bất kỳ đâu.
+ * @param {string} text
+ * @returns {{ kind: string, start: number, end: number }[]}
  */
 function vueRegions(text) {
+  /** @type {{ kind: string, start: number, end: number }[]} */
   const regions = []
   const open = /<(script|style)\b[^>]*>/iy
   let i = 0
@@ -415,7 +450,7 @@ function vueRegions(text) {
       i += 1
       continue
     }
-    const kind = m[1].toLowerCase()
+    const kind = (m[1] ?? '').toLowerCase()
     const start = i + m[0].length
     // ⚠️ Khớp thẻ đóng KHÔNG phân biệt hoa thường và cho phép khoảng trắng — cùng bài
     // học với `check-tokens.mjs`: `indexOf('</style>')` làm `</STYLE>` kéo vùng tới hết
@@ -445,6 +480,11 @@ const REGEX_KEYWORDS = new Set([
   'yield', 'await', 'new', 'delete', 'void', 'throw',
 ])
 
+/**
+ * @param {string} lastSig
+ * @param {string} text
+ * @param {number} at
+ */
 function regexAllowed(lastSig, text, at) {
   if (lastSig === '') return true
   if (REGEX_PRECEDERS.has(lastSig)) return true
@@ -465,6 +505,10 @@ function regexAllowed(lastSig, text, at) {
  * `const _re = /^https?:\/\//; const _nhan = 'Đã lưu'` cho exit 0 trước khi có trạng
  * thái này. Header của tệp lập luận `//` trong string không đánh lừa được máy — đúng,
  * nhưng regex literal mở lại đúng cái lỗ đó bằng một cửa khác.
+ * @param {string} text
+ * @param {number} from
+ * @param {number} to
+ * @param {number[]} hits
  */
 function scanScript(text, from, to, hits) {
   let i = from
@@ -602,7 +646,12 @@ function scanScript(text, from, to, hits) {
   }
 }
 
-/** Vùng `<style>` — CSS. ⚠️ `//` KHÔNG phải comment: `url(//host/x.png)` là một URL. */
+/** Vùng `<style>` — CSS. ⚠️ `//` KHÔNG phải comment: `url(//host/x.png)` là một URL.
+ * @param {string} text
+ * @param {number} from
+ * @param {number} to
+ * @param {number[]} hits
+ */
 function scanStyle(text, from, to, hits) {
   let i = from
   let state = 'code'
@@ -672,6 +721,10 @@ function scanStyle(text, from, to, hits) {
  * `<script>` phía sau cũng nuốt được text node. Ba trạng thái đóng cả hai đường:
  * `text` (quét) · `tag` (quét, `"`/`'` mở giá trị attribute) · `comment` (che, bị chặn
  * bởi `to`). Giá trị attribute VẪN bị quét: `title="Đã lưu"` là vi phạm AC2 y hệt.
+ * @param {string} text
+ * @param {number} from
+ * @param {number} to
+ * @param {number[]} hits
  */
 function scanTemplate(text, from, to, hits) {
   let i = from
@@ -733,12 +786,17 @@ function scanTemplate(text, from, to, hits) {
  *
  * Giá trị attribute KHÔNG được thu: `title="Đã lưu"` đã là vi phạm của **Kiểm A**
  * (chuỗi có dấu ở vị trí mã). Thu nó lần nữa ở đây là báo một lỗi hai lần.
+ * @param {string} text
+ * @param {number} from
+ * @param {number} to
+ * @param {{ start: number, raw: string }[]} out
  */
 function collectTextNodes(text, from, to, out) {
   let i = from
   let state = 'text'
   let quote = ''
   let runStart = from
+  /** @param {number} end */
   const flush = (end) => {
     if (end > runStart) out.push({ start: runStart, raw: text.slice(runStart, end) })
   }
@@ -783,7 +841,12 @@ function collectTextNodes(text, from, to, out) {
   if (state === 'text') flush(to)
 }
 
+/**
+ * @param {string} text
+ * @returns {{ start: number, raw: string }[]}
+ */
 function textNodesOf(text) {
+  /** @type {{ start: number, raw: string }[]} */
   const out = []
   const regions = vueRegions(text)
   let cursor = 0
@@ -795,7 +858,12 @@ function textNodesOf(text) {
   return out
 }
 
+/**
+ * @param {string} text
+ * @returns {number[]}
+ */
 function scanVue(text) {
+  /** @type {number[]} */
   const hits = []
   const regions = vueRegions(text)
   let cursor = 0
@@ -866,6 +934,10 @@ function scanVue(text) {
 console.log('\nKiểm A — không chuỗi tiếng Việt ở vị trí mã trong `.rs` và `.vue` (AC2)')
 // ═════════════════════════════════════════════════════════════════════════════════
 
+/**
+ * @param {string} text
+ * @param {number} index
+ */
 const positionOf = (text, index) => {
   const before = text.slice(0, index)
   const line = before.split('\n').length
@@ -874,6 +946,10 @@ const positionOf = (text, index) => {
 }
 
 /** Trích 60 ký tự quanh chỗ vi phạm, một dòng, để chẩn đoán đọc được ngay ở log CI. */
+/**
+ * @param {string} text
+ * @param {number} index
+ */
 const excerpt = (text, index) => {
   const start = Math.max(0, index - 30)
   return text
@@ -884,6 +960,10 @@ const excerpt = (text, index) => {
 
 // `.rs` exemption: the line directly above the hit is a `//` comment with a real reason.
 const RS_ALLOW_RE = /^\s*\/\/.*aura-allow-text\s*:\s*\S/
+/**
+ * @param {string[]} lines
+ * @param {number} line
+ */
 const rsLineExempt = (lines, line) => line > 1 && RS_ALLOW_RE.test(lines[line - 2] ?? '')
 {
   const ok = rsLineExempt(['// aura-allow-text: prompt text', 'x'], 2)
@@ -899,10 +979,12 @@ const rsLineExempt = (lines, line) => line > 1 && RS_ALLOW_RE.test(lines[line - 
 let rsExempted = 0
 
 let aBad = 0
-for (const [files, scan, label] of [
+/** @type {[string[], (text: string) => number[], string][]} */
+const A_SCANS = [
   [rsFiles, scanRust, '.rs'],
   [vueFiles, scanVue, '.vue'],
-]) {
+]
+for (const [files, scan, label] of A_SCANS) {
   for (const file of files) {
     let text
     try {
@@ -1010,8 +1092,9 @@ for (const file of vueFiles) {
   }
   for (const node of textNodesOf(text)) {
     // Gỡ các khối `{{ … }}` và giữ lại biểu thức để soi riêng.
+    /** @type {string[]} */
     const exprs = []
-    const rest = node.raw.replace(new RegExp(INTERPOLATION_RE.source, 'g'), (_, e) => {
+    const rest = node.raw.replace(new RegExp(INTERPOLATION_RE.source, 'g'), (/** @type {string} */ _, /** @type {string} */ e) => {
       exprs.push(e)
       return ' '
     })
@@ -1116,6 +1199,7 @@ let bBad = 0
  * Bóc khoá bằng một lượt quét có trạng thái chuỗi (escape `\"` không được đọc thành
  * dấu đóng), chỉ lấy ở độ sâu 1 — cùng lý lẽ với Kiểm A: một `replace` trần trên văn
  * bản có chuỗi bên trong là sai từ đầu.
+ * @param {string} raw
  */
 function topLevelKeys(raw) {
   const keys = []
@@ -1290,6 +1374,7 @@ console.log('\nKiểm D — giọng văn UX-DR47, phần máy chấm được (A
 const BANNED_WORDS = ['chúng tôi', 'bạn']
 
 /** Ngoại lệ khai tường minh, mỗi mục một dòng lý do. Mặc định RỖNG. */
+/** @type {[string, string][]} */
 const VOICE_EXCEPTIONS = []
 
 /**
@@ -1299,10 +1384,12 @@ const VOICE_EXCEPTIONS = []
  * xảy ra khi một câu được gói lại hay dán vào từ nơi khác.
  * Chuẩn hoá NFC cùng lý do như Kiểm A: `'bạn'` dạng NFD không khớp bộ dựng sẵn.
  */
-const BANNED_RES = BANNED_WORDS.map((w) => [
-  w,
-  new RegExp(w.split(/\s+/).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'), 'g'),
-])
+const BANNED_RES = /** @type {[string, RegExp][]} */ (
+  BANNED_WORDS.map((w) => [
+    w,
+    new RegExp(w.split(/\s+/).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'), 'g'),
+  ])
+)
 
 let dBad = 0
 for (const [key, value] of entries) {
@@ -1316,6 +1403,7 @@ for (const [key, value] of entries) {
       const at = m.index
       const before = at > 0 ? low[at - 1] : ''
       const after = at + m[0].length < low.length ? low[at + m[0].length] : ''
+      /** @param {string} c */
       const isWord = (c) => c !== '' && WORD_CHAR.test(c)
       if (!isWord(before) && !isWord(after)) {
         fail(`\`${key}\` xưng hô: "${word}" — UX-DR47 đòi câu VÔ NHÂN XƯNG`)
@@ -1359,7 +1447,7 @@ try {
   abort(
     `\`${posix(RESOLVE_TS_PATH)}\` — Kiểm E KHÔNG chạy được`,
     new Error(
-      `${err?.message || err}\n\n` +
+      `${/** @type {Error} */ (err)?.message || err}\n\n` +
         `Node đang chạy: ${process.version}. Kiểm E cần Node ≥ 22.18 (bóc kiểu TypeScript ` +
         'mặc định), và `resolve.ts` phải là cú pháp "erasable-only": không `enum`, ' +
         'không `namespace`, không parameter property, KHÔNG một dòng `import` nào.',
@@ -1393,16 +1481,25 @@ let eBad = 0
  *
  * Ném ⇒ FAIL có tên, rồi đi tiếp để các mệnh đề còn lại vẫn được chấm.
  */
+/**
+ * @param {string} what
+ * @param {() => unknown} fn
+ */
 const call = (what, fn) => {
   try {
     return { ok: true, value: fn() }
   } catch (err) {
-    fail(`${what} làm \`t()\` NÉM — AC4 nói "không sập": ${err?.message || err}`)
+    fail(`${what} làm \`t()\` NÉM — AC4 nói "không sập": ${/** @type {Error} */ (err)?.message || err}`)
     eBad += 1
     return { ok: false, value: undefined }
   }
 }
 
+/**
+ * @param {string} what
+ * @param {unknown} got
+ * @param {unknown} want
+ */
 const expect = (what, got, want) => {
   if (got === want) return
   fail(`${what} — nhận \`${String(got)}\`, phải là \`${String(want)}\``)
