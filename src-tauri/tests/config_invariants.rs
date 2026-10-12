@@ -2814,7 +2814,7 @@ fn release_command_pins_notes_file_verify_tag_and_latest_without_clobber() {
     );
     let line = creates[0];
     for flag in [
-        "--notes-file .github/release-notes.md",
+        "--notes-file \"$RUNNER_TEMP/release/release-body.md\"",
         "--verify-tag",
         "--latest",
     ] {
@@ -2832,6 +2832,31 @@ fn release_command_pins_notes_file_verify_tag_and_latest_without_clobber() {
     assert!(
         !code_lines(&raw).iter().any(|l| l.contains("--clobber")),
         "release.yml không được dùng `--clobber`"
+    );
+}
+
+#[test]
+fn publish_computes_checksums_before_creating_the_release_and_attaches_them() {
+    let publish = release_job_lines(&release_workflow_text(), "publish");
+    let position = |needle: &str| publish.iter().position(|l| l.contains(needle));
+    let sums = position("node scripts/release-checksums.mjs --notes .github/release-notes.md")
+        .expect("`publish` phải chạy `scripts/release-checksums.mjs` với ghi chú tĩnh");
+    let create = position("gh release create").expect("`publish` tạo release");
+    for installer in [r#""${DMGS[0]}""#, r#""${MSIS[0]}""#] {
+        assert!(
+            publish[sums].contains(installer),
+            "lệnh tính checksum thiếu {installer}: `{}`",
+            publish[sums]
+        );
+    }
+    assert!(
+        sums < create,
+        "tính checksum phải đứng trước `gh release create`"
+    );
+    assert!(
+        publish[create].contains("SHA256SUMS.txt"),
+        "lệnh tạo release phải đính `SHA256SUMS.txt`: `{}`",
+        publish[create]
     );
 }
 

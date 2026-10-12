@@ -37,7 +37,7 @@ export function manifestEntries(text) {
 }
 
 /** @param {string} path */
-async function sha256OfFile(path) {
+export async function sha256OfFile(path) {
   const hash = createHash('sha256')
   for await (const chunk of createReadStream(path)) hash.update(chunk)
   return hash.digest('hex')

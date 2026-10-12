@@ -1,6 +1,7 @@
 # Public release build (FR107, AD-25): a `v*` tag builds the universal macOS .dmg and the
 # Windows .msi with the four dictionary files from dict-manifest.toml inside, then the
-# `publish` job creates the GitHub Release (Latest) once ci.yml is green on the same commit.
+# `publish` job creates the GitHub Release (Latest) once ci.yml is green on the same commit,
+# with the SHA-256 of both installers in the release body and as SHA256SUMS.txt.
 # A workflow_dispatch run only builds and inspects. Dictionary tags (`dict-v*`) never match
 # `v*`, so they start no run.
 #
@@ -148,6 +149,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
       - name: ci.yml is green on this commit
         run: |
           set -euo pipefail
@@ -174,4 +179,5 @@ jobs:
             ls -l release-files >&2
             exit 1
           fi
-          gh release create "$GITHUB_REF_NAME" --verify-tag --latest --title "$GITHUB_REF_NAME" --notes-file .github/release-notes.md "${DMGS[0]}" "${MSIS[0]}"
+          node scripts/release-checksums.mjs --notes .github/release-notes.md --out-dir "$RUNNER_TEMP/release" "${DMGS[0]}" "${MSIS[0]}"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --latest --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release/release-body.md" "${DMGS[0]}" "${MSIS[0]}" "$RUNNER_TEMP/release/SHA256SUMS.txt"
