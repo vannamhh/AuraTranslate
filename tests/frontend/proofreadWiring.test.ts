@@ -171,13 +171,27 @@ describe('proofread wiring in source', () => {
     expect(codeLines(path).some((l) => l.trim() === 'resetProofread()')).toBe(true)
   })
 
-  it('GridPanel clears one cell on a typed edit and paints every scanned cell in one call', () => {
+  it('GridPanel clears one cell on a typed edit and redraws every scanned cell by wrapping spans', () => {
     const grid = codeLines('src/panels/GridPanel.vue').join('\n')
     expect(grid).toMatch(/noteEditorEdit\(id, cell\.textContent\)\s+clearProofreadFor\(id\)/)
-    expect(grid).toContain('for (const [id, entry] of proofreadResults.value)')
-    expect(grid).toContain('rangesForScan(cell, entry.scannedText, entry.findings.filter((f) => !isMeaningKind(f.kind)))')
-    expect(grid).toContain('rangesForScan(cell, entry.scannedText, entry.findings.filter((f) => isMeaningKind(f.kind)))')
-    expect(grid).toContain('paintProofreadRanges(errorRanges, meaningRanges)')
+    expect(grid).toContain('repaintProofreadHost(host, proofreadResults.value, isMeaningKind)')
+    expect(grid).not.toContain('CSS.highlights')
+  })
+
+  it('GridPanel strips the spans (and merges text) at keydown and on history input, without touching a composition', () => {
+    const grid = codeLines('src/panels/GridPanel.vue').join('\n')
+    expect(grid).toMatch(/if \(event\.isComposing\) return\s+if \(!composing\) \{[^}]*unwrapProofread\(typed, true\)\s+scheduleRepaintProofread\(\)/)
+    expect(grid).toMatch(/if \(!composing && !event\.isComposing\) \{\s+unwrapProofread\(cell, event\.inputType === 'historyUndo' \|\| event\.inputType === 'historyRedo'\)/)
+    expect(grid).toContain('@compositionstart="onCompositionStart"')
+    expect(grid).toContain('@compositionend="onCompositionEnd"')
+  })
+
+  it('GridPanel redraws after a beforeinput that is cancelled without writing', () => {
+    const grid = codeLines('src/panels/GridPanel.vue').join('\n')
+    expect(grid).toMatch(/if \(flat === ''\) \{\s+scheduleRepaintProofread\(\)\s+return/)
+    expect(grid).toMatch(/no readable selection'\)\s+scheduleRepaintProofread\(\)\s+return/)
+    expect(grid).toMatch(/paste again`,\s+\)\s+scheduleRepaintProofread\(\)\s+return/)
+    expect(grid).toMatch(/the newline was dropped'\)\s+scheduleRepaintProofread\(\)/)
   })
 
   it('App.vue mounts the chooser behind a titlebar button that dispatches the open command', () => {

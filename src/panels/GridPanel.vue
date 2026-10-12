@@ -69,7 +69,7 @@
 // vạch của **segment** (UX-DR19) mà tệp này dựng.
 import { computed, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
 import { isMeaningKind } from '../config/proofread'
-import { paintProofreadRanges, rangesForScan } from './proofreadHighlight'
+import { repaintProofreadHost, unwrapAllProofread, unwrapProofread } from './proofreadHighlight'
 import { clearProofreadFor, proofreadResults } from '../proofreadState'
 import PanelFrame from './PanelFrame.vue'
 import SourceHanViet from './SourceHanViet.vue'
@@ -1084,29 +1084,37 @@ function restoreEditedText(): void {
 
 watch([() => editorSegments.value, colTgt], restoreEditedText, { flush: 'post' })
 
-/** Underlines live in `CSS.highlights`, outside Vue's DOM; drawn only while the cell still holds the scanned text. */
+/** Underlines are inline spans inside the cell; drawn only while the cell still holds the scanned text. */
 function repaintProofread(): void {
   const host = colTgt.value
-  if (host === null || proofreadResults.value.size === 0) {
-    paintProofreadRanges(null)
-    return
-  }
-  const errorRanges: Range[] = []
-  const meaningRanges: Range[] = []
-  for (const [id, entry] of proofreadResults.value) {
-    const cell = host.querySelector<HTMLElement>(`[data-segment-id="${String(id)}"]`)
-    if (cell === null) continue
-    const errors = rangesForScan(cell, entry.scannedText, entry.findings.filter((f) => !isMeaningKind(f.kind)))
-    const meanings = rangesForScan(cell, entry.scannedText, entry.findings.filter((f) => isMeaningKind(f.kind)))
-    if (errors !== null) errorRanges.push(...errors)
-    if (meanings !== null) meaningRanges.push(...meanings)
-  }
-  paintProofreadRanges(errorRanges, meaningRanges)
+  if (host === null || composing) return
+  repaintProofreadHost(host, proofreadResults.value, isMeaningKind)
+}
+
+let composing = false
+let repaintTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleRepaintProofread(): void {
+  if (repaintTimer !== null) clearTimeout(repaintTimer)
+  repaintTimer = setTimeout(() => {
+    repaintTimer = null
+    repaintProofread()
+  }, 0)
+}
+
+function onCompositionStart(): void {
+  composing = true
+}
+
+function onCompositionEnd(): void {
+  composing = false
+  scheduleRepaintProofread()
 }
 
 watch([proofreadResults, () => editorSegments.value, colTgt], repaintProofread, { flush: 'post' })
 onBeforeUnmount(() => {
-  paintProofreadRanges(null)
+  if (repaintTimer !== null) clearTimeout(repaintTimer)
+  if (colTgt.value !== null) unwrapAllProofread(colTgt.value)
 })
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1329,6 +1337,9 @@ watch(
 function onBeforeInput(event: InputEvent): void {
   const cell = targetCellOf(event.target instanceof Node ? event.target : null)
   if (cell === null) return
+  if (!composing && !event.isComposing) {
+    unwrapProofread(cell, event.inputType === 'historyUndo' || event.inputType === 'historyRedo')
+  }
 
   // ① Cấu trúc đoạn — AD-37 giữ cờ nguồn; AD-46 mở quyền xuống dòng ở ô bản dịch.
   //
@@ -1375,6 +1386,7 @@ function onBeforeInput(event: InputEvent): void {
       // ⚠️ Chẩn đoán viết bằng tiếng Anh, KHÔNG tiếng Việt: Kiểm A của `check-i18n.mjs` cấm
       // chuỗi tiếng Việt ở vị trí mã trong `.vue` và `.rs`.
       console.warn('[grid] insertLineBreak refused by the engine — the newline was dropped')
+      scheduleRepaintProofread()
     }
     // `preventDefault()` đã cắt lượt `input` của engine cho sự kiện GỐC, nhưng lượt
     // `insertLineBreak` ở trên phát `input` của chính nó và `onEditInput` bắt được — nên
@@ -1415,13 +1427,17 @@ function onBeforeInput(event: InputEvent): void {
   // ⚠️ Vẫn là `=== ''`, KHÔNG `.trim() === ''`: lượt vá 2026-08-16 chỉ được Ice ký cho vế
   // *"dán giữ `\n`"*. Đổi cửa thoát này thành `trim()` là lặng lẽ thêm một quyết định thứ
   // hai — một lượt dán đúng một `\n` sẽ biến mất thay vì chèn một lần xuống dòng.
-  if (flat === '') return
+  if (flat === '') {
+    scheduleRepaintProofread()
+    return
+  }
 
   const selection = window.getSelection()
   // ⚠️ Chẩn đoán viết bằng tiếng Anh, KHÔNG tiếng Việt: Kiểm A của `check-i18n.mjs` cấm chuỗi
   // tiếng Việt ở vị trí mã trong `.vue` và `.rs`.
   if (selection === null || selection.rangeCount === 0) {
     console.warn('[grid] insert skipped: no readable selection')
+    scheduleRepaintProofread()
     return
   }
   const range = selection.getRangeAt(0)
@@ -1430,6 +1446,7 @@ function onBeforeInput(event: InputEvent): void {
       '[grid] insert skipped: selection starts outside the edited cell ' +
         `(inputType=${event.inputType}) — reselect within one cell and paste again`,
     )
+    scheduleRepaintProofread()
     return
   }
 
@@ -1497,6 +1514,13 @@ function onEditKeydown(event: KeyboardEvent): void {
   // nào sau nó: một hàm rỗng ở đây là một chỗ mà lượt sửa kế tiếp sẽ viết vào, và người viết
   // sẽ không biết về chốt này.
   if (event.isComposing) return
+  if (!composing) {
+    const typed = targetCellOf(event.target instanceof Node ? event.target : null)
+    if (typed !== null) {
+      unwrapProofread(typed, true)
+      scheduleRepaintProofread()
+    }
+  }
   // 🔵 2026-08-16 (Story 2.5d, AC6): lượt `preventDefault()` cho `Enter` **đã gỡ** — xem
   // doc-comment ngay trên. Vế *"`Enter` trần không ký câu nào"* nay do `keys.ts` giữ, và cụ
   // thể là do phép so **mods** (`Enter` trần không khớp `Mod+Enter`), KHÔNG do `isTypingZone`
@@ -1897,6 +1921,8 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
           @mousedown="onCellMouseDown"
           @mouseup="onCellMouseUp"
           @beforeinput="onBeforeInput"
+          @compositionstart="onCompositionStart"
+          @compositionend="onCompositionEnd"
           @input="onEditInput"
           @keydown="onEditKeydown"
         >
@@ -2417,18 +2443,20 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
   white-space: pre-line;
 }
 
-.cell-tgt::highlight(proofread-error) {
-  /* WKWebView ignores the `text-decoration` shorthand inside ::highlight(), and also
-     text-underline-offset/-position and text-decoration-thickness; only these longhands apply. */
+.cell-tgt :deep(.proofread-error),
+.cell-tgt :deep(.proofread-meaning) {
   text-decoration-line: underline;
   text-decoration-style: wavy;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.cell-tgt :deep(.proofread-error) {
   text-decoration-color: var(--color-error);
 }
 
-.cell-tgt::highlight(proofread-meaning) {
-  text-decoration-line: underline;
-  text-decoration-style: wavy;
-  text-decoration-color: var(--color-tm-rule);
+.cell-tgt :deep(.proofread-meaning) {
+  text-decoration-color: var(--color-tm-text);
 }
 
 .cell-tgt.empty {

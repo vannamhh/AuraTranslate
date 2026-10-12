@@ -13027,6 +13027,7 @@ chính nó.
   summary: Gạch chân lượn sóng của proofreader chạm dấu nằm dưới của `ạ` `ộ` `ợ`: trong `::highlight()` WKWebView bỏ qua `text-underline-offset`, `text-underline-position` và `text-decoration-thickness`, nên mức lùi 4px của EXPERIENCE.md không đạt được.
   evidence: e2e 9.1 đo trên "họcc" (dpr 2): offset 0/4/8px, `under`, thickness 1px cho ảnh byte-giống nhau, sóng ở hàng thiết bị 288-292, chấm dưới `ọ` nằm trên đỉnh sóng; Ice chọn giữ Highlight API cho tracer ngày 2026-10-10. Lối khác đã nêu: lớp phủ đặt theo `Range.getClientRects()`, cần miễn trừ "không lớp nổi" của `src/AGENTS.md`.
   Chủ: Story 9.5.
+  → ✅ ĐÃ ĐÓNG 2026-10-12 (Story 9.5) — gạch chân nay là `<span>` inline trong ô nên `text-underline-offset: 4px` có hiệu lực; e2e `proofread-underline` đo khoảng hở giữa mực của "ạ ộ ợ" và sóng ở cả hai theme.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
   summary: Chưa ai chạy ⌘P quét một segment có lỗi cố ý với AI thật trong ứng dụng thật: gạch chân hiện dưới đúng cụm, dải trạng thái (đang quét, Huỷ, số phát hiện, token, chi phí, mời cấu hình), gõ sửa thì gạch chân mất.
   evidence: e2e chỉ dựng Range và vẽ bằng hàm thật trên ô thật; không chạy lệnh vì `__TAURI_INTERNALS__.invoke` bị đóng băng và quét thật cần ghi khoá API vào keychain của Ice; đường lệnh và watcher chỉ có vitest.
@@ -13050,4 +13051,16 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-xu-ly-tung-phat-hien-dai-goi-y-chap-nhan-bo-qua-phat-hien-ke-plan.md`
   summary: Chưa ai chấp nhận, hoàn lại và duyệt F8 trên Chương thật trong ứng dụng thật (dải ở khe StatusBar, văn bản đổi đúng khoảng, gạch chân dời đúng, hoàn lại LIFO, xuất xứ sau chấp nhận).
   evidence: 9-4 chỉ có test Rust với cơ sở dữ liệu thật, vitest và e2e underline; e2e không giả provider nên không có phát hiện thật để bấm; F8 không chạy trong ô gõ vì `keys.ts` bỏ phím trần.
+  Chủ: Epic 9.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-gach-chan-luon-song-hoan-chinh-cho-ca-hai-loai-plan.md`
+  summary: Chưa ai gõ phím thật, Telex và autocorrect trong ô có gạch chân span rồi ⌘Z/⇧⌘Z trong ứng dụng thật: undo có ra đúng văn bản, gạch chân có vẽ lại sau mũi tên và sau dán bị chặn, IME không mất chữ.
+  evidence: e2e chỉ giả `keydown`/`CompositionEvent` (sự kiện không tin cậy) và `execCommand('undo')`; `browser.keys` không gõ được vào ô.
+  Chủ: Epic 9.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-gach-chan-luon-song-hoan-chinh-cho-ca-hai-loai-plan.md`
+  summary: Cờ `composing` của `GridPanel.vue` chỉ xoá ở `compositionend`; ô bị dựng lại hay mất focus giữa composition mà không có `compositionend` thì mọi lượt vẽ gạch chân proofreader sau đó bị bỏ im lặng.
+  evidence: chưa kiểm (maybe-false, medium nếu đúng); cần Telex thật, đổi segment hoặc Chương giữa lúc đang gõ dấu rồi quét lại.
+  Chủ: Epic 9.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-gach-chan-luon-song-hoan-chinh-cho-ca-hai-loai-plan.md`
+  summary: Vẽ lại gạch chân sau `keydown` bằng `setTimeout(0)` dựa vào `beforeinput`/`input` của phím thật chạy cùng task; nếu không, span bọc lại trước khi chữ vào và ⌘Z làm hỏng văn bản như review 1 của 9.5.
+  evidence: chưa kiểm (maybe-false, medium nếu đúng); e2e chỉ có `keydown` giả + `execCommand`, cần gõ phím thật rồi ⌘Z trên ô có gạch chân.
   Chủ: Epic 9.
