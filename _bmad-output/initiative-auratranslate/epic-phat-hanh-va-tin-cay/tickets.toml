@@ -38,7 +38,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 verify = "Với một bản phát hành, khi build thì build công khai qua GitHub Actions, log xem được"
 covers = ["FR107"]
 after = []
-hitl = false
+hitl = true
 risk = "low"
 v6_key = "10-1-build-công-khai-qua-github-actions"
 
