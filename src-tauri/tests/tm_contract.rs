@@ -12,8 +12,7 @@ use auratranslate_lib::commands::project::{
 use auratranslate_lib::commands::segment::{
     SegmentTargetEdit, TRANSLATION_ORIGIN_BILINGUAL_IMPORT, TRANSLATION_ORIGIN_OTHER,
     TRANSLATION_ORIGIN_SELF, TmPrefillStatus, confirm_segment, flush_segment_targets,
-    load_open_chapter_segments, merge_segments, promote_ai_translation, read_open_chapter_segments,
-    split_segment, wire,
+    merge_segments, promote_ai_translation, read_open_chapter_segments, split_segment, wire,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::scope::ScopeResolver;
@@ -1565,6 +1564,7 @@ fn a_valid_load_reports_ran_and_an_unasked_load_reports_not_asked() {
 #[test]
 #[cfg(unix)]
 fn a_failing_segment_read_still_fails_the_load_whether_the_prefill_ran_or_was_skipped() {
+    use auratranslate_lib::commands::segment::load_open_chapter_segments;
     use std::ffi::OsString;
     use std::os::unix::ffi::OsStringExt;
 

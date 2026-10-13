@@ -1701,14 +1701,13 @@ fn core_mod_rs_without_the_ai_declaration(text: &str) -> String {
     mod_rs_without_declaration(text, "ai")
 }
 
-/// Số dư dấu ngoặc nhọn của MỘT dòng — `{` đếm dương, `}` đếm âm. Đếm KÝ TỰ thô, không phân
-/// tích cú pháp thật (không phân biệt trong chuỗi/comment) — chấp nhận được ở đây vì đầu vào
-/// là `lib.rs` của CHÍNH kho này, một văn bản đã biết hình dạng, không phải văn bản người
-/// dùng gõ tuỳ ý.
-fn brace_delta(line: &str) -> i32 {
-    let opens = i32::try_from(line.matches('{').count()).unwrap_or(i32::MAX);
-    let closes = i32::try_from(line.matches('}').count()).unwrap_or(i32::MAX);
-    opens - closes
+/// Số dư ngoặc nhọn và ngoặc tròn của MỘT dòng — `{` `(` đếm dương, `}` `)` đếm âm. Đếm KÝ TỰ
+/// thô, không phân tích cú pháp thật (không phân biệt trong chuỗi/comment) — chấp nhận được ở
+/// đây vì đầu vào là `lib.rs` của CHÍNH kho này, một văn bản đã biết hình dạng, không phải văn
+/// bản người dùng gõ tuỳ ý.
+fn delimiter_delta(line: &str) -> i32 {
+    let count = |c: char| i32::try_from(line.matches(c).count()).unwrap_or(i32::MAX);
+    count('{') + count('(') - count('}') - count(')')
 }
 
 /// Xoá mọi dòng của một văn bản mang `marker` (một chuỗi tiền tố module, ví dụ
@@ -1746,20 +1745,20 @@ fn brace_delta(line: &str) -> i32 {
 /// dạng ba dòng. Xoá chỉ đúng dòng khớp để lại một `}` treo không còn `{` ghép cặp ⇒ văn bản
 /// kết quả không còn hợp lệ cú pháp Rust — bắt được bằng chính ca biên dịch thật ở
 /// [`deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_compiling`],
-/// KHÔNG phải một đoán trước. Khi dòng khớp marker cũng MỞ một khối ([`brace_delta`] dương),
+/// KHÔNG phải một đoán trước. Khi dòng khớp marker cũng MỞ một khối ([`delimiter_delta`] dương),
 /// tiếp tục bỏ các dòng sau cho tới khi số dư ngoặc trở lại `<= 0` — bỏ CẢ KHỐI, không chỉ
 /// dòng đầu. Hai hình dạng một-dòng cũ (`generate_handler!`'s mục, `app.manage(...)`) có
-/// `brace_delta == 0` nên hành vi của chúng không đổi.
+/// `delimiter_delta == 0` nên hành vi của chúng không đổi.
 fn text_without_lines_matching_the_ai_prompt_seam_marker(text: &str, marker: &str) -> String {
     let mut out = String::new();
     let mut skipping_block_depth: i32 = 0;
     for line in text.lines() {
         if skipping_block_depth > 0 {
-            skipping_block_depth += brace_delta(line);
+            skipping_block_depth += delimiter_delta(line);
             continue;
         }
         if line.contains(marker) {
-            let delta = brace_delta(line);
+            let delta = delimiter_delta(line);
             if delta > 0 {
                 skipping_block_depth = delta;
             }
@@ -1810,7 +1809,7 @@ fn project_mod_rs_without_the_ai_prompt_seam(text: &str) -> String {
 const AI_TRANSLATE_SEAM_LIB_RS_MARKER: &str = "crate::commands::aitranslate::";
 
 /// Vỏ mỏng cho `lib.rs`, seam THỨ BA — cùng khuôn [`lib_rs_without_the_approved_ai_prompt_seam`],
-/// chỉ khác chuỗi neo. Cả ba dòng seam THỨ BA mang trong `lib.rs` hôm nay (`brace_delta == 0`
+/// chỉ khác chuỗi neo. Cả ba dòng seam THỨ BA mang trong `lib.rs` hôm nay (`delimiter_delta == 0`
 /// từng dòng — không dòng nào mở một khối nhiều dòng, khác `close_open_work`'s nhánh
 /// `if let Some(record) = … { … }` của seam ①) nên không cần đối chứng "khối nhiều dòng" riêng.
 fn lib_rs_without_the_approved_ai_translate_seam(text: &str) -> String {
@@ -1889,6 +1888,25 @@ fn the_lib_rs_stripper_removes_only_the_approved_ai_translate_seam_lines() {
 /// `}` treo — văn bản kết quả không hợp lệ cú pháp. Ca này khẳng định CẢ KHỐI biến mất, và
 /// một khối KHÔNG liên quan seam (cũng mang `if let … {` ba dòng, hình dạng giống nhưng không
 /// khớp marker) phải còn nguyên — đối chứng dương lẫn âm trên đúng một bề mặt.
+/// `cargo fmt` bẻ `app.manage(…::new(None))` thành ba dòng; chỉ dòng đầu mang marker.
+#[test]
+fn the_lib_rs_stripper_removes_the_whole_call_a_marker_line_opens() {
+    let text = "\
+    app.manage(crate::commands::aiprompt::LastAssembledPromptState::new(
+        None,
+    ));
+    app.manage(crate::commands::promptset::PendingPromptImportState::new(
+        None,
+    ));
+";
+    let got = lib_rs_without_the_approved_ai_prompt_seam(text);
+    assert_eq!(
+        got,
+        "    app.manage(crate::commands::promptset::PendingPromptImportState::new(\n        None,\n    ));\n",
+        "lời gọi nhiều dòng của seam phải biến mất trọn, lời gọi láng giềng còn nguyên"
+    );
+}
+
 #[test]
 fn the_lib_rs_stripper_removes_the_whole_multi_line_block_a_marker_line_opens() {
     let text = "\
