@@ -76,7 +76,11 @@ watch(tmManageOverlayIsOpen, (open) => {
   }
   const back = returnFocusTo
   returnFocusTo = null
-  if (back !== null && back.isConnected) back.focus()
+  if (back !== null && back.isConnected) {
+    back.focus()
+    return
+  }
+  document.querySelector<HTMLElement>('[data-tm-manage-open]')?.focus()
 })
 
 function focusIsStray(): boolean {

@@ -70,6 +70,8 @@ import { applyPreset, panelRing, togglePanel } from './layout/dockController'
 // ⚠️ Cùng lý do và cùng cửa với ba cổng bố cục ngay trên: `lookupDrawerState.ts` dùng `ref`
 // của Vue — import nó ở `src/commands/index.ts` giết Kiểm C/D/E cùng lúc.
 import { closeLookupDrawer, openLookupDrawer } from './layout/lookupDrawerState'
+import { openLibraryImportForm } from './modes/libraryImportFocus'
+import { toggleToolsMenu } from './titlebarToolsState'
 // ── Story 1.15 — form nhập Tác phẩm ở Library ───────────────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với ba cổng bố cục ở trên: `libraryImport.ts` là một module
@@ -538,6 +540,10 @@ async function boot(): Promise<void> {
       submitFilePath,
       submitPastedUrls,
       submitBilingualFilePath,
+      openLibraryImportForm: () => {
+        void openLibraryImportForm()
+      },
+      toggleToolsMenu,
       // Story 6.3 — màn xem trước bảng mã (FR126). `confirmImportPreview` KHÔNG bỏ qua kết
       // quả (khác `submitPastedText`): thành công hay trượt đều phải đóng vòng nộp form
       // qua `finishImportSubmission` — reset panel/nạp lại Chương chỉ chạy SAU khi Rust đã

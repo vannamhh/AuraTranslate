@@ -34,6 +34,7 @@ import { createDockview } from 'dockview-core'
 import WorkspaceDock from '../../src/layout/WorkspaceDock.vue'
 import WorkspaceMode from '../../src/modes/WorkspaceMode.vue'
 import { applyPreset, panelRing, togglePanel } from '../../src/layout/dockController'
+import { activeLayoutPreset } from '../../src/layout/layoutPresetState'
 import { t } from '../../src/i18n'
 import type { GridNode, SerializedGrid } from '../../src/layout/dockTree'
 
@@ -198,6 +199,31 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
   // sang tắt cờ qua `queueMicrotask` (FIFO, chạy sau microtask của `onDidLayoutChange`) — cờ
   // giờ còn `true` đúng lúc lượt "active view" trễ đó bắn, nên nó bị chặn. Case này giờ
   // khẳng định KHÔNG rò, không còn là một FINDING đang chờ sửa.
+  it('a layout restored from a saved JSON marks no preset; applyPreset marks one again', async () => {
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    const first = mount(WorkspaceDock, { props: { savedLayout: '' } })
+    await settle()
+    expect(activeLayoutPreset.value).toBe('layout.preset_grid')
+    expect(togglePanel('panel.ai_translation')).toBe(true)
+    await settle()
+    window.dispatchEvent(new Event('beforeunload'))
+    await settle()
+    const saved = first.emitted('persist')?.at(-1)?.[0]
+    first.unmount()
+    expect(typeof saved).toBe('string')
+
+    const second = mount(WorkspaceDock, { props: { savedLayout: saved as string } })
+    try {
+      await settle()
+      expect(activeLayoutPreset.value).toBeNull()
+      expect(applyPreset('layout.preset_columns')).toBe(true)
+      expect(activeLayoutPreset.value).toBe('layout.preset_columns')
+    } finally {
+      second.unmount()
+    }
+  })
+
   it('A2 — full → short không tự bắn persist, kể cả sau khi đợi hết idle 500ms + trần cứng 5000ms', async () => {
     setChromeTokens()
     setWindowSize(SIZE_FULL.width, SIZE_FULL.height)

@@ -20,6 +20,7 @@ import { realClick } from '../support/pointer.mjs'
 
 /** Selector là các mối nối `data-`, không tên lớp CSS — xem chú thích ở `App.vue`. */
 const OPENER = '[data-settings-open]'
+const SETTINGS_ITEM = '[data-tools-item="settings.open"]'
 const PANEL = '.set-panel'
 
 /** Node đang giữ tiêu điểm, đọc TRONG webview thật. */
@@ -54,6 +55,7 @@ describe('Story 1.21 · hàng 17 — UX-DR17: tiêu điểm quay về nút đã 
     // Chú thích nói một đằng, mã đi một nẻo — và một bàn đo như vậy tự làm hỏng lý do
     // nó tồn tại. Nay đi qua `realClick()`; lý do đầy đủ ở `e2e/support/pointer.mjs`.
     await realClick(opener)
+    await realClick(await $(SETTINGS_ITEM))
 
     const panel = await $(PANEL)
     await panel.waitForDisplayed({ timeout: 10_000 })

@@ -222,6 +222,10 @@ export type CommandDeps = {
    * FR115) — mở màn xem trước RIÊNG (`bilingualImportPreviewState.ts`), không
    * `importPreviewState.ts`. */
   submitBilingualFilePath?: () => void
+  /** Moves to Library and focuses the import form. Handler of `library.import.open`. */
+  openLibraryImportForm?: () => void
+  /** Opens or closes the title-bar `Công cụ ▾` list. Handler of `titlebar.tools.toggle`. */
+  toggleToolsMenu?: () => void
 
   // ── Story 6.3 — màn xem trước bảng mã (FR126) ───────────────────────────────────
   //
@@ -1432,6 +1436,25 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.import_bilingual', 'submitBilingualFilePath')
       }
       deps.submitBilingualFilePath()
+    },
+  })
+
+  target.register({
+    id: 'library.import.open',
+    labelKey: 'command.library.import.open',
+    keys: ['Mod+N'],
+    run: () => {
+      if (deps.openLibraryImportForm === undefined) return portMissing('library.import.open', 'openLibraryImportForm')
+      deps.openLibraryImportForm()
+    },
+  })
+  target.register({
+    id: 'titlebar.tools.toggle',
+    labelKey: 'command.titlebar.tools.toggle',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleToolsMenu === undefined) return portMissing('titlebar.tools.toggle', 'toggleToolsMenu')
+      deps.toggleToolsMenu()
     },
   })
 
@@ -3566,11 +3589,11 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     },
   })
 
-  // TM management: the title-bar button dispatches `tm.manage.open`; no default chord. The rest back the overlay's buttons.
+  // TM management: `tm.manage.open` is reached from the title-bar `Công cụ ▾` list and by chord. The rest back the overlay's buttons.
   target.register({
     id: 'tm.manage.open',
     labelKey: 'command.tm.manage.open',
-    keys: undefined,
+    keys: ['Mod+Alt+B'],
     run: () => {
       if (deps.openTmManage === undefined) return portMissing('tm.manage.open', 'openTmManage')
       deps.openTmManage()

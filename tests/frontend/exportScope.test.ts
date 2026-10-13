@@ -220,11 +220,11 @@ describe('destination folder', () => {
 })
 
 describe('keyboard', () => {
-  it('the title-bar opener dispatches export.open; Escape closes the screen and returns focus to the opener', async () => {
+  it('the Công cụ ▾ opener carries the hook and its list dispatches export.open; Escape closes the screen and returns focus to the opener', async () => {
     const { state, commands, Overlay } = await fresh()
-    const appSource = readFileSync(resolve(__dirname, '../../src/App.vue'), 'utf8')
-    const button = /<button[^>]*data-export-open[^>]*>/.exec(appSource)?.[0] ?? ''
-    expect(button).toContain('@click="dispatch(\'export.open\')"')
+    const menuSource = readFileSync(resolve(__dirname, '../../src/TitlebarToolsMenu.vue'), 'utf8')
+    expect(/<button[^>]*data-export-open[^>]*>/.test(menuSource)).toBe(true)
+    expect(menuSource).toMatch(/role="menuitem"[^>]*@click="dispatch\('export\.open'\)"/)
 
     const opener = document.createElement('button')
     opener.setAttribute('data-export-open', '')

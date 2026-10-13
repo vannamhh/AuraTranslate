@@ -13104,3 +13104,7 @@ chính nó.
   summary: Chưa có số đo tỷ lệ báo động giả thật (FR81): Ice quét một Chương, xử lý hết, chạy `scripts/measure-proofread-false-alarm.mjs`, ghi khối vào `measurements-bao-dong-gia.md`.
   evidence: công cụ và test đã dựng; số chỉ có từ lượt dùng thật, agent không tạo được.
   Chủ: Epic 9.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-khung-app-thanh-tieu-e-ba-tab-va-cong-cu-plan.md`
+  summary: Chưa ai thử trong ứng dụng thật trên macOS: mở `Công cụ ▾` bằng bàn phím (Enter, mũi tên, Enter, Escape) rồi đóng lớp phủ và xem tiêu điểm về `Công cụ ▾`; thử `⌘N` từ Workspace và Chế độ đọc; xem trạng thái "Chương N · đã quét M câu" sau một lượt quét thật.
+  evidence: e2e không tự kích hoạt nút bằng phím trên WKWebView; không giả được provider AI để quét một Chương.
+  Chủ: Epic 12.

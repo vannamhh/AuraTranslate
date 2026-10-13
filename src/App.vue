@@ -99,6 +99,10 @@ import AiPromptInspectorOverlay from './AiPromptInspectorOverlay.vue'
 // của mười hai lớp phủ trên, chỉ khác Ở HÌNH DẠNG: trượt vào từ cạnh phải, không căn giữa
 // (UX-DR16 cấm hộp thoại cho thao tác thường xuyên, và tra cứu là thao tác thường xuyên nhất).
 import LookupDrawer from './layout/LookupDrawer.vue'
+import TitlebarToolsMenu from './TitlebarToolsMenu.vue'
+import { proofreadStatusText } from './titlebarProofreadStatus'
+import { activeLayoutPreset } from './layout/layoutPresetState'
+import { reviewModeIsOpen } from './reviewModeState'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -163,35 +167,6 @@ onMounted(async () => {
   }
 })
 
-/**
- * Ép tiêu điểm lên chính nút vừa bị bấm — điều kiện để UX-DR17 đúng trên WKWebView.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 MỘT PHÉP ĐO, KHÔNG MỘT LƯỢT PHÒNG XA — bắt được 2026-08-11, Story 1.22 C2
- * ─────────────────────────────────────────────────────────────────────────────
- * WKWebView **không** đặt tiêu điểm cho `<button>` khi bấm chuột. Đường lui của UX-DR17
- * ở `SettingsOverlay.vue` lưu `document.activeElement` **lúc mở** rồi trả về đúng node
- * đó; không có dòng này, node ấy là thứ đang giữ tiêu điểm từ trước — điểm vào focus của
- * chế độ — chứ không phải nút mở. Đo được trên webview thật: sau `Escape`, tiêu điểm rơi
- * vào `section.mode`, không về nút.
- *
- * ⚠️ Nhánh dự phòng `querySelector('[data-settings-open]')` của lớp phủ **không cứu
- * được** ca này, và đó là chỗ dễ đọc sai nhất: nó chỉ chạy khi node đã lưu **rời DOM**,
- * mà `section.mode` thì vẫn ở nguyên đó. Một đường lui không bao giờ chạy tới không phải
- * một đường lui.
- *
- * ⚠️ Vì sao bàn đo cũ vẫn XANH suốt thời gian đó: nó bấm bằng `element.click()` của
- * driver, và lệnh ấy **có** đặt tiêu điểm — tức nó xanh vì một hành vi mà chuột thật
- * không có. Story 1.22 AC3 đổi sang Actions API và ca đỏ ngay lượt đầu.
- *
- * `@mousedown` chứ không `@focus`: mousedown chạy **trước** `@click` phát command, nên
- * lúc lớp phủ mở ra thì `activeElement` đã đúng. Cùng khuôn `@mousedown` mà
- * `config/shortcutsState.ts` đã dùng cho đúng khuyết tật engine này.
- */
-function focusOnPointerDown(event: MouseEvent) {
-  const target = event.currentTarget
-  if (target instanceof HTMLElement) target.focus()
-}
 </script>
 
 <template>
@@ -260,117 +235,42 @@ function focusOnPointerDown(event: MouseEvent) {
         </button>
       </nav>
 
-      <!--
-        Story 3.8 — ĐƯỜNG VÀO lớp phủ duyệt hàng loạt. Cùng khuôn hai nút ngay trên:
-        `data-glossary-queue-open` là đường lui của tiêu điểm (UX-DR17).
-      -->
-      <button
-        type="button"
-        class="titlebar-act"
-        data-proofread-scope-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('ai.proofread.scope.open')"
-      >
-        {{ t('command.ai.proofread.scope.open') }}
-      </button>
+      <div class="titlebar-right">
+        <!-- aura-allow-text: `proofreadStatusText` is the output of t() with the chapter label and sentence count. -->
+        <span v-if="proofreadStatusText !== null" class="titlebar-status" role="status">{{ proofreadStatusText }}</span>
 
-      <button
-        type="button"
-        class="titlebar-act"
-        data-proofread-memory-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('ai.proofread.memory.open')"
-      >
-        {{ t('command.ai.proofread.memory.open') }}
-      </button>
+        <div
+          v-if="currentMode === 'workspace'"
+          class="layout-switch"
+          role="group"
+          :aria-label="t('titlebar.layout.group')"
+        >
+          <button
+            type="button"
+            class="layout-switch-btn"
+            :class="{ on: activeLayoutPreset === 'layout.preset_grid' }"
+            :aria-pressed="activeLayoutPreset === 'layout.preset_grid'"
+            :disabled="reviewModeIsOpen"
+            :title="t('command.layout.preset_grid')"
+            @click="dispatch('layout.preset_grid')"
+          >
+            {{ t('titlebar.layout.b2') }}
+          </button>
+          <button
+            type="button"
+            class="layout-switch-btn"
+            :class="{ on: activeLayoutPreset === 'layout.preset_columns' }"
+            :aria-pressed="activeLayoutPreset === 'layout.preset_columns'"
+            :disabled="reviewModeIsOpen"
+            :title="t('command.layout.preset_columns')"
+            @click="dispatch('layout.preset_columns')"
+          >
+            {{ t('titlebar.layout.b1') }}
+          </button>
+        </div>
 
-      <button
-        type="button"
-        class="titlebar-act"
-        data-glossary-queue-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('glossary.queue.open')"
-      >
-        {{ t('command.glossary.queue.open') }}
-      </button>
-
-      <!--
-        Story 3.9 — ĐƯỜNG VÀO lớp phủ Quản lý Glossary. Cùng khuôn ba nút ngay trên:
-        `data-glossary-manage-open` là đường lui của tiêu điểm (UX-DR17).
-      -->
-      <button
-        type="button"
-        class="titlebar-act"
-        data-glossary-manage-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('glossary.manage.open')"
-      >
-        {{ t('command.glossary.manage.open') }}
-      </button>
-
-      <button
-        type="button"
-        class="titlebar-act"
-        data-tm-manage-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('tm.manage.open')"
-      >
-        {{ t('command.tm.manage.open') }}
-      </button>
-
-      <button
-        type="button"
-        class="titlebar-act"
-        data-export-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('export.open')"
-      >
-        {{ t('command.export.open') }}
-      </button>
-
-      <button
-        type="button"
-        class="titlebar-act"
-        data-reviewer-import-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('export.reviewer_import.open')"
-      >
-        {{ t('command.export.reviewer_import.open') }}
-      </button>
-
-      <button
-        type="button"
-        class="titlebar-act"
-        data-review-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('review.open')"
-      >
-        {{ t('command.review.open') }}
-      </button>
-
-      <button
-        type="button"
-        class="titlebar-act"
-        data-alignment-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('export.alignment.open')"
-      >
-        {{ t('command.export.alignment.open') }}
-      </button>
-
-      <!--
-        Story 6.8 — ĐƯỜNG VÀO lớp phủ Cài đặt. Cùng khuôn các nút ngay trên:
-        `data-settings-open` là đường lui của tiêu điểm (UX-DR17).
-      -->
-      <button
-        type="button"
-        class="titlebar-act"
-        data-settings-open
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('settings.open')"
-      >
-        {{ t('command.settings.open') }}
-      </button>
+        <TitlebarToolsMenu />
+      </div>
     </header>
 
     <!--
@@ -552,18 +452,45 @@ function focusOnPointerDown(event: MouseEvent) {
   gap: calc(var(--space-unit) * 4);
 }
 
-/* Story 1.21 — đường vào màn hình phím tắt, đẩy về mép phải của thanh tiêu đề. */
-.titlebar-act {
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 4);
   margin-left: auto;
+}
+
+.titlebar-status {
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface-variant);
+}
+
+.layout-switch {
+  display: flex;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.layout-switch-btn {
   padding: 0;
   background: none;
   border: none;
-  border-bottom: 1px solid var(--color-outline);
+  border-bottom: 2px solid transparent;
   cursor: pointer;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.layout-switch-btn.on {
+  color: var(--color-on-surface);
+  font-weight: var(--weight-ui-md-strong);
+  border-bottom-color: var(--color-primary);
+}
+
+.layout-switch-btn:disabled {
+  cursor: default;
 }
 
 /*

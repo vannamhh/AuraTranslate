@@ -741,12 +741,15 @@ describe('overlay, keyboard only', () => {
     wrapper.unmount()
   })
 
-  it('the open command has no default chord and is reachable by id', async () => {
+  it('the open command has the default chord Mod+Alt+B, not Mod+M, and is reachable by id', async () => {
     const { state, keymap, commands } = await freshOverlay()
     listMock.mockResolvedValue(loaded(listing()))
     const spec = commands.commandRegistry.list().find((c) => c.id === 'tm.manage.open')
     expect(spec).toBeDefined()
-    expect(keymap.bindings().filter((b) => b.id.startsWith('tm.manage.'))).toEqual([])
+    expect(keymap.bindings().filter((b) => b.id.startsWith('tm.manage.')).map((b) => [b.id, b.chord])).toEqual([
+      ['tm.manage.open', 'Mod+Alt+B'],
+    ])
+    expect(keymap.bindings().filter((b) => b.chord === 'Mod+M').map((b) => b.id)).not.toContain('tm.manage.open')
     commands.dispatch('tm.manage.open')
     await vi.waitFor(() => expect(state.tmManageOverlayIsOpen.value).toBe(true))
   })
@@ -982,11 +985,11 @@ describe('focus and the edit form', () => {
     return { ...ctx, wrapper }
   }
 
-  it('the title-bar opener in App.vue dispatches tm.manage.open; opening from it puts focus on the list and closing returns it there', async () => {
-    const appSource = (await import('../../src/App.vue?raw')).default
-    const button = /<button[^>]*data-tm-manage-open[^>]*>/.exec(appSource)?.[0] ?? ''
-    expect(button).toContain('@click="dispatch(\'tm.manage.open\')"')
+  it('the Công cụ ▾ list dispatches tm.manage.open and its trigger carries the opener hook; opening from it puts focus on the list and closing returns it there', async () => {
+    const menuSource = (await import('../../src/TitlebarToolsMenu.vue?raw')).default
+    const button = /<button[^>]*data-tm-manage-open[^>]*>/.exec(menuSource)?.[0] ?? ''
     expect(button).toContain('focusOnPointerDown')
+    expect(menuSource).toMatch(/role="menuitem"[^>]*@click="dispatch\('tm\.manage\.open'\)"/)
 
     const ctx = await freshOverlay()
     listMock.mockResolvedValue(loaded(THREE_ROWS))
@@ -1005,6 +1008,35 @@ describe('focus and the edit form', () => {
     await settle(wrapper)
     expect(document.activeElement).toBe(opener)
     wrapper.unmount()
+  })
+
+  it('an item chosen by keyboard leaves the DOM when the list closes; closing TM management returns focus to Công cụ ▾', async () => {
+    const ctx = await freshOverlay()
+    listMock.mockResolvedValue(loaded(THREE_ROWS))
+    const tools = await import('../../src/titlebarToolsState')
+    const Menu = (await import('../../src/TitlebarToolsMenu.vue')).default
+    const menu = mount(Menu, { attachTo: document.body })
+    const wrapper = mount(ctx.Overlay, { attachTo: document.body })
+    const trigger = menu.get('.tools-trigger')
+    ;(trigger.element as HTMLElement).focus()
+    tools.toggleToolsMenu()
+    await settle(menu)
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    const item = document.activeElement as HTMLElement
+    expect(item.getAttribute('data-tools-item')).toBe('tm.manage.open')
+
+    item.click()
+    await vi.waitFor(() => expect(ctx.state.tmManageStatus.value).toBe('loaded'))
+    await settle(wrapper)
+    expect(tools.toolsMenuIsOpen.value).toBe(false)
+    expect(item.isConnected).toBe(false)
+
+    ctx.state.closeTmManage()
+    await settle(wrapper)
+    expect(document.activeElement).toBe(trigger.element)
+    wrapper.unmount()
+    menu.unmount()
   })
 
   it('Enter moves focus into the edit field; Esc there cancels the edit and keeps the overlay, focus back on the list', async () => {

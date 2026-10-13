@@ -181,8 +181,9 @@ describe('Story 3.5 review — IPC thật, event nền và modal độc quyền'
     expect(modeBefore).not.toBe('Workspace')
 
     await realClick(opener)
+    await realClick(await $('[data-tools-item="settings.open"]'))
     const openedByDriver = await browser.execute(() => document.querySelector('.set-panel') !== null)
-    if (!openedByDriver) await dispatchPointerSequence('[data-settings-open]')
+    if (!openedByDriver) await dispatchPointerSequence('[data-tools-item="settings.open"]')
     await browser.waitUntil(
       async () => browser.execute(() => document.querySelector('.set-panel') !== null),
       { timeout: 10_000, interval: 50, timeoutMsg: 'khung Cài đặt không hiện sau pointer sequence' },

@@ -26,6 +26,7 @@
 import { realClick } from '../support/pointer.mjs'
 
 const OPENER = '[data-settings-open]'
+const SETTINGS_ITEM = '[data-tools-item="settings.open"]'
 const PANEL = '.set-panel'
 const SHORTCUTS_SECTION = '[data-settings-section="shortcuts"]'
 
@@ -61,6 +62,7 @@ describe('Story 1.21 · AC2 đường CHUỘT — vòng gán phím trên WKWebVi
     const opener = await $(OPENER)
     await opener.waitForExist({ timeout: 30_000 })
     await realClick(opener)
+    await realClick(await $(SETTINGS_ITEM))
     await $(PANEL).waitForDisplayed({ timeout: 10_000 })
     await realClick(await $(SHORTCUTS_SECTION))
 

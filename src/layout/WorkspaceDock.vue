@@ -44,6 +44,7 @@
 // ⚠️ Comment tiếng Việt CÓ DẤU thì hợp lệ — Kiểm A che comment trước khi quét.
 import { onActivated, onBeforeUnmount, onDeactivated, onMounted, shallowRef } from 'vue'
 import { DockviewVue } from 'dockview-vue'
+import { setActiveLayoutPreset } from './layoutPresetState'
 import type { DockviewApi, DockviewReadyEvent, IDockviewPanel, VueComponent } from 'dockview-vue'
 import { enterFocus } from '../commands'
 import GridPanel from '../panels/GridPanel.vue'
@@ -288,6 +289,7 @@ function applyPreset(presetId: string): boolean {
     return false
   }
   currentPresetId.value = preset.id
+  setActiveLayoutPreset(preset.id)
   // 🔴 Story 4.12 (2026-09-23): đánh dấu ghi NGAY, trước khi đo tầng. Các `addPanel` ở trên chỉ
   // tới `onLayoutChange` ở microtask sau, sau cả lượt gộp/ẩn của tầng bên dưới, lúc cờ chặn ghi
   // đã bật. Đo được: áp preset ở tầng `short`/`narrow` ghi 0 lượt, nên lần mở sau vẫn về bố cục
@@ -544,6 +546,7 @@ const currentTier = shallowRef<LayoutTier | null>(null)
  * `presetId` lạ mà `layoutTierFor` đã khai.
  */
 const currentPresetId = shallowRef<PresetId>(DEFAULT_PRESET_ID)
+setActiveLayoutPreset(DEFAULT_PRESET_ID)
 
 /** Có đang gộp `panel.ai_translation` vào NHÓM của `panel.lookup` (tầng `short`) không. */
 const tierMerged = shallowRef(false)
@@ -902,6 +905,7 @@ function restore(api: DockviewApi, saved: string): void {
   }
   try {
     api.fromJSON(JSON.parse(saved))
+    setActiveLayoutPreset(null)
   } catch (err) {
     console.error(
       '[layout] bo cuc da luu KHONG dung lai duoc -- roi ve preset mac dinh (luoi 2x2). ' +
