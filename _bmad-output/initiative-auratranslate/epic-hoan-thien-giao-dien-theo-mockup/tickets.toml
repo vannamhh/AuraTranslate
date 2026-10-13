@@ -1,0 +1,251 @@
+# tickets.toml — epic-hoan-thien-giao-dien-theo-mockup. One [[entry]] per story; table order is the build order.
+# Row refs: `a:16` = bang-lech-a.md line 16 (loại 2, file frozen 2026-10-13); `A10` = row # in phan-loai-loai-5-a.md (loại 5).
+
+[[entry]]
+id = 1
+type = "story"
+title = "Khung app: thanh tiêu đề ba tab và Công cụ ▾"
+description = "Thanh tiêu đề chỉ còn Library · Workspace · Chế độ đọc, công tắc bố cục, trạng thái Proofreader và `Công cụ ▾` liệt kê kèm phím mọi lối vào ở bảng 6.1 (D1, D10, D11); Quản lý TM có phím mặc định không va `Mod+M`; mỗi lối vào rời thanh tiêu đề giữ đường lui tiêu điểm `data-*-open` theo nút mới; story này đặt `keys` cho `library.import_*` (`⌘N`, ô phải Library). Dòng: a:19. Story 2, 4, 10, 16 đặt chỗ theo ngữ cảnh cho các lối vào trong danh sách này; story 13 thêm mục Duyệt thu hoạch vào nó."
+verify = "Một spec e2e: thanh tiêu đề chỉ có ba tab, công tắc bố cục và `Công cụ ▾`; mỗi mục đã tồn tại trong `Công cụ ▾` (Quản lý Glossary, Quản lý TM, Cài đặt, Quét chính tả, Chỗ đã bỏ qua, Nhập bản reviewer, Nối tay) mở được và trả tiêu điểm về `Công cụ ▾` khi đóng."
+covers = []
+after = []
+hitl = false
+risk = "high"
+references = ["ux-auratranslate/EXPERIENCE.md §Information Architecture (🔵 2026-10-13)", "change-hoan-thien-giao-dien-theo-mockup/bang-lech-a.md §Lối vào thanh tiêu đề"]
+
+[[entry]]
+id = 2
+type = "story"
+title = "Library: dải trên, lưới bốn cột, form nhập, trạng thái rỗng"
+description = "Library thành một dải trên (tìm · chế độ dấu · bộ lọc) và lưới Tác phẩm bốn cột chiếm cả khung, form nhập và trạng thái rỗng theo mockup; nút Nhập tài liệu dùng phím `⌘N` do story 1 đặt. Dòng: a:16, a:22, a:23, a:28, a:30, a:31, a:34, a:167, a:186."
+verify = "Một spec e2e ở 1440×790: lưới Library có bốn cột và rộng bằng khung nội dung trừ lề; với Library rỗng thì hiện trạng thái rỗng thay lưới."
+covers = []
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Library: báo cáo sau quét, tìm lại mồ côi, mở thư mục Tác phẩm"
+description = "Sau quét lại, app báo mới · di chuyển · mồ côi, tìm lại được mục mồ côi và dựng lại toàn bộ chỉ mục (FR140); mở được thư mục Tác phẩm (FR142); dấu thời gian chỉ mục. A19 (`tauri-plugin-opener` hay `std::process::Command`) và A10 mỗi chỗ hai phương án: story đo rồi đưa Ice chọn trước khi cài; chọn plugin thì đọc giấy phép và ghi bảng Stack của spine trước (NFR15). Mở thư mục thật trên macOS và Windows là kiểm tay, vào sổ nợ `Chủ: Epic 12`. Nếu A10 cần migration, nó đánh số trước story 14. Dòng: a:140, a:141, a:144; A10, A13, A15, A19."
+verify = "Trên thư mục theo dõi có một tệp bị dời và một tệp bị xoá, quét lại hiện báo cáo đúng hai mục đó; chỉ đường dẫn mới cho mục mồ côi thì nó hết mồ côi; lệnh mở thư mục nhận đúng đường dẫn Tác phẩm."
+covers = ["FR140", "FR142"]
+after = [2]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Danh sách Chương: nhóm trạng thái, chọn nhiều, thanh hành động"
+description = "Danh sách Chương nhóm theo trạng thái, chọn nhiều, có thanh hành động (gộp · tách · đổi tên · xuất · nhập bản reviewer), lọc/tìm/sắp, màn gộp, và số câu chưa xác nhận trên Chương đã xong (FR138). Story này dựng mọi nút của thanh hành động, kể cả Xuất và Nhập bản reviewer; story 17 và 16 chỉ nối hành vi vào hai nút đó. Dòng: a:102, a:103, a:105, a:107, a:108, a:110; A2–A6."
+verify = "Chọn ba Chương rồi gộp qua thanh hành động cho đúng một Chương; Chương đã xong có câu chưa xác nhận hiện đúng số đếm từ Rust."
+covers = ["FR138"]
+after = [3]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Tìm kiếm Library: phạm vi, bộ lọc, mở ở Chế độ đọc"
+description = "Tìm kiếm xuyên Library thu hẹp phạm vi (nguyên văn · bản dịch · cả hai) và lọc theo trạng thái Tác phẩm và hướng dịch (FR139); kết quả mở ở Chế độ đọc qua hàm điều hướng có sẵn, không sửa `ReadingMode.vue`. Dòng: a:121, a:122, a:125, a:127, a:128, a:129, a:132; A7, A8, A9."
+verify = "Một chuỗi chỉ có trong bản dịch không ra kết quả ở phạm vi nguyên văn và ra ở phạm vi bản dịch; bấm kết quả mở Chế độ đọc ở đúng câu."
+covers = ["FR139"]
+after = [4]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Màn xem trước nhập hai cột"
+description = "Xem trước tách Chương, URL và song ngữ thành màn hai cột của mockup; song ngữ có \"Nhập luôn, nối sau\"; màn xem trước báo ước lượng số ứng viên Glossary, chỉ đọc (FR137, AD-20). Dòng: a:43, a:44, a:47, a:48, a:52, a:59–a:62, a:64, a:66, a:69, a:84, a:88, a:91; A1."
+verify = "Nhập một tệp txt hiện màn hai cột với ước lượng ứng viên; bảng chờ không đổi số hàng trước khi xác nhận; tệp song ngữ còn hàng lệch vẫn nhập được bằng \"Nhập luôn, nối sau\"."
+covers = ["FR137"]
+after = [5]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Workspace: lưới hai cột và thanh trạng thái"
+description = "Lưới bỏ chữ trạng thái khỏi mắt, vạch lề mang trạng thái khác nhau ngoài màu, chữ ẩn cho trình đọc màn hình (D3, DESIGN.md §Vạch lề segment); bỏ dòng nguồn Hán Việt (D4); thanh trạng thái có bộ đếm, gợi ý phím, vị trí câu, dòng tra cứu ở màn hẹp. Hình vạch do Sally chọn trong story. Dòng: a:157, a:182, c:113; B1, B2, B29, B30, A20."
+verify = "Test lưới: hàng chưa dịch, đã dịch, đã xác nhận không hiện chữ trạng thái, có tên truy cập chứa chữ trạng thái, và vạch lề khác nhau ở thuộc tính ngoài màu."
+covers = []
+after = [1]
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/DESIGN.md §Vạch lề segment", "ux-auratranslate/EXPERIENCE.md §Bề mặt nhập › Hình dạng"]
+
+[[entry]]
+id = 8
+type = "story"
+title = "Panel Tra cứu: popup nguồn, đầu khối gọn, âm đọc, chip lịch sử"
+description = "Nút `Nguồn N/M ▾` mở popup nguồn (D2, D12, 6.3); đầu khối nguồn gọn (D5); bỏ dòng dẫn bất đồng (D6); Ghim ở đầu panel; âm đọc cạnh đầu mục, nghĩa nhóm theo âm (FR136); hai chip lịch sử `Phiên này · Chương này` (D13a). Dòng: b:51, b:53, b:63, a:163, a:164; B3 (tiêu đề hiện phím thật), B4, B5, B7."
+verify = "Tra 打: các khối nguồn xếp chồng không có dòng dẫn, mỗi khối mở bằng tên · số nghĩa · `⌄`; trong popup `↑↓` rồi `Space` tắt một nguồn và `Esc` trả tiêu điểm về nút; chip `Chương này` chỉ còn mục của Chương đang mở."
+covers = ["FR136"]
+after = [7]
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/EXPERIENCE.md §Component Patterns (Bộ chọn nguồn từ điển, Lịch sử tra cứu, Bản ghi từ điển)"]
+
+[[entry]]
+id = 9
+type = "story"
+title = "Dải gợi ý mọc thành track hàng dưới câu đang sửa"
+description = "Dải TM, chốt Glossary và Proofreader rời slot chung trên thanh trạng thái, mọc thành một track hàng ngay dưới hàng đang sửa trong lưới `subgrid`; giữ `topmostStrip` và thứ tự ưu tiên; `GlossaryQuickAdd` ở lại chân cửa sổ (D8, đề xuất 5). Story 10 thay nội dung dải trên vị trí này. Dòng: b:116, b:133, c:110, c:111."
+verify = "Mở dải TM ở câu 1.500 của Chương ≥ 2.000 câu: dải hiện ngay dưới câu đó; thời gian frame khi dải mọc/thu được đo và ghi vào plan để Ice đọc; không có ngưỡng đạt trước."
+covers = []
+after = [7]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Nội dung ba dải: TM, chốt Glossary, Proofreader"
+description = "Dải TM và Proofreader theo mockup (bộ chọn phạm vi quét, link Chỗ đã bỏ qua là lối vào theo ngữ cảnh của D11); dải chốt Glossary đề xuất bản dịch có trong TM cạnh Hán Việt, chọn bằng phím số (FR146). Story 14 lọc TM theo Tác phẩm (FR149): đề xuất ở đây đi qua cùng hàm truy TM để nhận bộ lọc đó. Story 15 thêm tỉ lệ FR150 vào dải Proofreader và Chỗ đã bỏ qua của story này. Dòng: b:117, b:121, c:112, c:114, c:116; B13–B17 (B16 không gồm \"bạn vừa viết\")."
+verify = "Một thuật ngữ có hai cặp TM chứa nó: dải chốt hiện âm Hán Việt và hai bản dịch TM, phím 2 chốt bản dịch TM thứ nhất; từ dải Proofreader mở được Chỗ đã bỏ qua."
+covers = ["FR146"]
+after = [9]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Panel AI và hàng lô"
+description = "Panel Đề xuất AI hiện nhà cung cấp/mô hình, link Xem prompt ở đầu panel; hàng lô có chữ và token từng hàng (B21), Bỏ lô, trạng thái lỗi/chưa cấu hình; đưa cả lô sang có hai phương án (webview hay lệnh Rust): story đo rồi đưa Ice chọn (B22). Lô có lỗi dựng bằng `invoke` giả ở vitest; phía Rust dùng seam `run_translate_call` + `FakeProvider` của `tests/ai_translate_contract.rs`. Dòng: b:152, b:155, b:160, b:162, a:170; B19–B23."
+verify = "Một lô 20 câu chạy dở có một lỗi: mỗi hàng hiện chữ trạng thái và token; Bỏ lô dừng phần còn lại; với cấu hình AI trống panel hiện trạng thái chưa cấu hình của mockup."
+covers = []
+after = [1]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Xem prompt: màn đầy đủ tách tầng và gửi lại"
+description = "Xem prompt thành màn đầy đủ tách tầng, có token thật sau khi gửi và tỉ lệ chèn động (B26, không ước tính trước gửi), Chép, gửi lại đúng prompt đã lắp với kết quả về panel Đề xuất AI (FR145, FR72), lối sửa dòng bị loại, tab Kết quả. Lần dịch AI trong test dùng seam `run_translate_call` + `FakeProvider` của `tests/ai_translate_contract.rs`. Dòng: b:173, b:174, b:175, b:177; B25–B28."
+verify = "Sau một lần dịch AI, màn Xem prompt hiện các tầng và số token thật của lần gửi; Gửi lại đưa một đề xuất mới vào panel Đề xuất AI và không ghi `target_text`."
+covers = ["FR145"]
+after = [11]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Glossary: bảng chờ, quản lý, màn duyệt thu hoạch"
+description = "Bảng chờ có thanh tiến độ, bộ lọc, thẻ nở, phím `Space`; Quản lý Glossary thành bảng có đầu cột, công tắc tầng, cột Xuất xứ, vạch lề trạng thái dùng cùng hình vạch mà story 7 chốt; màn duyệt thu hoạch trên các hàng `candidate_origin = 'review_harvest'` với \"Nhận N mục đã chọn\" và \"Để lại trong bảng chờ\" (D13b, AD-20). Thêm mục Duyệt thu hoạch vào `Công cụ ▾` của story 1; story 16 mở màn này sau khi nhập bản reviewer. Dòng: c:14, c:15, c:18–c:20, c:23, c:34, c:36, c:37, c:39–c:42, c:44, c:45, c:48, c:50; C1, C3–C6."
+verify = "Có ba hàng thu hoạch trong bảng chờ: màn thu hoạch liệt kê đúng ba hàng, nhận hai thì bảng chờ còn một; \"Để lại trong bảng chờ\" không ghi gì."
+covers = []
+after = [1, 7]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 14
+type = "story"
+title = "TM và Thư viện prompt: bảng, chỉ dùng cặp của tôi, Nhân bản"
+description = "Quản lý TM thành bảng có sắp, phạm vi xuất TMX; theo từng Tác phẩm chọn chỉ dùng cặp TM của mình và xuất TMX riêng các cặp đó (FR149); Thư viện prompt mở lại màn Xem prompt của story 12 tại chỗ soạn, và có Nhân bản (C13). Bộ lọc FR149 đặt trong hàm truy TM mà dải chốt của story 10 dùng. Migration của story này đánh số sau story 3 (nếu A10 có migration) và trước story 15, 19, 20. Dòng: c:61, c:63, c:65–c:67, c:84, c:85, c:89, c:90, c:93, c:96, a:169; C7–C11, C13."
+verify = "Một Tác phẩm bật chỉ dùng cặp của tôi: dải TM và dải chốt không còn đề xuất từ cặp nhập ngoài; xuất TMX riêng chỉ chứa cặp do người dùng tạo."
+covers = ["FR149"]
+after = [3, 10, 12]
+hitl = false
+risk = "high"
+unknown = "Cửa G4: công tắc FR149 ở cột mới trên `work` hay ở phạm vi cấu hình (AD-18) — chờ AD của Winston trong spine."
+
+[[entry]]
+id = 15
+type = "story"
+title = "Proofreader và Chế độ đọc: tỉ lệ phát hiện, gỡ dấu, xuất xứ Chương"
+description = "Proofreader hiện tỉ lệ đã nhận · không phải lỗi · bỏ qua (FR150) và \"Sửa lần lượt\"; Chế độ đọc gỡ được từng dấu \"cần sửa\" và gỡ hết dấu của một Tác phẩm (FR148), hiện xuất xứ bản dịch ở cấp Chương với ba giá trị có thật (FR151). Tỉ lệ FR150 hiện trên dải Proofreader và Chỗ đã bỏ qua mà story 10 đã dựng lại. Migration đánh số sau story 14. Dòng: c:129–c:133, c:141, c:142, c:145; C14, C15, C16."
+verify = "Sau một lượt quét có hai phát hiện, nhận một và bỏ qua một: tỉ lệ hiện 1 · 0 · 1 và còn sau khi mở lại Tác phẩm; gỡ hết dấu một Tác phẩm thì Chỗ cần sửa rỗng."
+covers = ["FR148", "FR150", "FR151"]
+after = [10, 14]
+hitl = false
+risk = "high"
+unknown = "Cửa G3: cách lưu đã nhận/bỏ qua cho FR150 (AD-53) — chờ AD của Winston trong spine."
+
+[[entry]]
+id = 16
+type = "story"
+title = "Review Mode, nhập bản reviewer, nối tay"
+description = "Nhập bản reviewer mở từ thẻ Tác phẩm và từ nút mà story 4 đã dựng trên thanh hành động danh sách Chương; Nối tay là bước liền sau khi nhập và link trong Review Mode khi còn đoạn chưa nối; sau khi nhập mở màn duyệt thu hoạch của story 13 (D11, bảng 6.1); các dòng bảng mục 7 của `bang-lech-c.md`. Dòng: c:155, c:156, c:157, c:161, c:164."
+verify = "Nhập một bản reviewer có một đoạn lệch: app đi thẳng vào Nối tay, rồi tới màn thu hoạch; trong Review Mode link Nối tay chỉ hiện khi còn đoạn chưa nối."
+covers = []
+after = [4, 13]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 17
+type = "story"
+title = "Xuất: tuỳ chọn nội dung, khối ghi nguồn, xem trước"
+description = "Màn xuất mở từ nút mà story 4 đã dựng trên thanh hành động danh sách Chương; chọn đánh số câu · phụ lục thuật ngữ đã chốt · đánh dấu câu chưa xác nhận (chỉ bản hai cột; FR152, FR121 không đổi); bốn trường khối ghi nguồn; xem trước theo định dạng. Dòng: c:176, c:180, c:181, c:184, c:185, c:186, c:189; C17 (không gồm cột ghi chú trống), C18, C19."
+verify = "Xuất DOCX hai cột có bật cả ba tuỳ chọn: tệp có số câu, phụ lục thuật ngữ và dấu ở câu chưa xác nhận; xuất bản một cột không có dấu chưa xác nhận."
+covers = ["FR152"]
+after = [4]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 18
+type = "story"
+title = "Cài đặt: bố cục, phím tắt, thử kết nối, khung Cập nhật"
+description = "Cài đặt có các mục Bố cục, Chế độ đọc, Dữ liệu và khung mục Cập nhật (nội dung là Story 10.7; không tự kiểm khi khởi động, AD-15); thử kết nối nhà cung cấp AI (FR143); màn phím tắt tìm theo tên hoặc tra ngược theo phím, xuất/nhập bộ phím, trả về mặc định (FR144). Chọn nhà cung cấp/mô hình dùng cấu hình AI mà story 11 hiện ở panel. Dòng: a:197, a:206, a:208; A21–A23, A24 (khung), A25, A26."
+verify = "Nhập phím đang gán cho gộp segment vào ô tra ngược thì ra đúng lệnh đó; xuất bộ phím, đổi một phím, nhập lại thì phím cũ trở về; Thử kết nối với khoá sai hiện lỗi tường minh."
+covers = ["FR143", "FR144"]
+after = [1, 11]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 19
+type = "story"
+title = "Lịch sử phiên bản: xuất xứ từng phiên bản và so với bản đang dùng"
+description = "Lịch sử phiên bản của một câu ghi xuất xứ từng phiên bản bằng bốn nhãn của mockup và so được từng phiên bản với bản đang dùng (FR141); diff dựng ở Rust thành mô hình có cấu trúc, không `v-html`. Migration đánh số sau story 15. Dòng: a:149; A17, A18."
+verify = "Một câu có phiên bản gõ tay, từ AI, từ TM: lịch sử hiện ba nhãn đúng và diff mỗi phiên bản với bản đang dùng."
+covers = ["FR141"]
+after = [15]
+hitl = false
+risk = "high"
+unknown = "Cửa G2: xuất xứ trên `segment_version` (AD-47/AD-50) — chờ AD của Winston trong spine."
+
+[[entry]]
+id = 20
+type = "story"
+title = "Hoàn tác chốt bản dịch Glossary"
+description = "Ngay sau khi chốt bản dịch một mục Glossary ở dải chốt, người dùng hoàn tác được việc chốt (FR147), qua đường mà AD của cửa G1 cho phép bên cạnh trigger `glossary_entry_lifecycle_is_one_way`. Migration đánh số sau story 19. Dòng: B18."
+verify = "Chốt một thuật ngữ rồi hoàn tác: mục trở về chờ chốt và không câu nào giữ bản dịch vừa chốt."
+covers = ["FR147"]
+after = [10, 19]
+hitl = false
+risk = "high"
+unknown = "Cửa G1: hoàn tác qua trigger vòng đời Glossary một chiều (AD-49/AD-36) — chờ AD của Winston trong spine."
+
+[[entry]]
+id = 21
+type = "story"
+title = "Attribution thành màn đầy đủ"
+description = "Attribution rời hộp thoại phủ thành màn đầy đủ có dòng \"Giới thiệu · Nguồn dữ liệu\"; \"Mở văn bản giấy phép\" và \"Sao chép bản ghi công\" thành hai nút ở chân bảng dùng chung cả bảng; thêm các chuỗi tĩnh của mockup. Màn vẫn dựng từ các tệp dữ liệu có mặt (FR109, FR36). Dòng: b:99, b:103; B11."
+verify = "Test webview: Attribution hiện là màn đầy đủ, chân bảng có đúng hai nút và không hàng nguồn nào còn nút riêng; gỡ một tệp nguồn thì hàng đó biến mất."
+covers = []
+after = [1, "10.4"]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 22
+type = "story"
+title = "Refactor sweep"
+description = "Dọn mã do các story của epic để lại; phạm vi chốt khi bắt đầu, từ plan và các phát hiện review đã hoãn trong epic; chỉ dọn, việc bị đẩy ra từ story khác là story mới."
+verify = "Bộ test đầy đủ xanh, và mỗi phát hiện review đã hoãn trong epic có dạng đóng hoặc chủ mới."
+covers = []
+after = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+hitl = false
+risk = "low"

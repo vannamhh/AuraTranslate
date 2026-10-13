@@ -233,7 +233,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với hướng dẫn cài đặt, khi viết thì có cho cả macOS và Windows"
 covers = ["FR108"]
-after = []
+after = ["12.22"]
 hitl = false
 risk = "low"
 v6_key = "10-6-hướng-dẫn-cài-đặt-có-ảnh-chụp-màn-hình"
@@ -276,7 +276,7 @@ Tiêu chí gốc (epics.md, nguyên văn):
 '''
 verify = "Với cơ chế cập nhật, khi chạy thì chỉ kiểm tra và thông báo phiên bản mới"
 covers = ["FR111"]
-after = []
+after = ["12.18"]
 hitl = false
 risk = "low"
 v6_key = "10-7-cập-nhật-chỉ-kiểm-tra-và-thông-báo"
@@ -405,7 +405,7 @@ Gộp từ Story 6.18 (2026-09-15, `correct-course`): story này nhận AC đo l
 '''
 verify = "Với bản cài hoàn chỉnh kèm toàn bộ dữ liệu từ điển và font, khi đo dung lượng thì payload sản phẩm nằm dưới trần 400.000.000 byte của NFR6 *(trần nâng 2026-08-05; đo ở Story 1.10 = 343.991.430 byte)*"
 covers = ["NFR1", "NFR19", "NFR3", "NFR4", "NFR5"]
-after = []
+after = ["12.22"]
 hitl = false
 risk = "low"
 v6_key = "10-9-nghiệm-thu-cuối-các-ngưỡng-phi-chức-năng"

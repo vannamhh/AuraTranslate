@@ -61,7 +61,15 @@ title = "AI Proofreader — bắt lỗi trước khi bàn giao"
 covers = ["FR80", "FR81", "FR82", "FR83", "FR84", "FR85", "FR86"]
 
 [[epic]]
+id = 12
+slug = "epic-hoan-thien-giao-dien-theo-mockup"
+title = "Hoàn thiện giao diện theo mockup"
+covers = ["FR136", "FR137", "FR138", "FR139", "FR140", "FR141", "FR142", "FR143", "FR144", "FR145", "FR146", "FR147", "FR148", "FR149", "FR150", "FR151", "FR152"]
+after = [{ epic = 10, needs = "AttributionOverlay.vue của Story 10.4, cho 12.21" }]
+
+[[epic]]
 id = 10
 slug = "epic-phat-hanh-va-tin-cay"
 title = "Phát hành & tin cậy — vượt rào cản không ký số"
 covers = ["FR105", "FR106", "FR107", "FR108", "FR109", "FR110", "FR111", "FR112"]
+after = [{ epic = 12, needs = "giao diện cuối cho 10.6 và 10.9 (12.22), khung mục Cập nhật cho 10.7 (12.18)" }]

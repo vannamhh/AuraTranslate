@@ -672,6 +672,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   ⚠️ Vế *"Tra cứu rút về THANH TRẠNG THÁI, không bao giờ mất hẳn"* **chưa cài** — `panel.lookup` hôm nay chỉ **nhường**. Đừng đọc `SACRIFICE_ORDER` thành *"Tra cứu được phép biến mất"*. Cũng thuộc **Story 4.12**; ngăn kéo cũng vậy.
   ⚠️ **Sự thật đã có mà 4.12 sẽ đụng:** `tauri.conf.json:19-20` khai `minWidth: 960` · `minHeight: 600`, nên ngưỡng *"< 860 rộng ⇒ báo không hỗ trợ"* của UX-DR15 **không đến được bằng cách kéo cửa sổ** trên cấu hình hôm nay. Story này không sửa `tauri.conf.json` *(`deferred-work.md` [D4], Ice chốt lần thứ tư)* — ghi ra để 4.12 quyết **một lần**.
   → 2026-10-06 (Story 4.12 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
+  → 2026-10-13 (correct-course `change-hoan-thien-giao-dien-theo-mockup`, đề xuất 7) — vế "Tra cứu rút về thanh trạng thái" ở tầng rất hẹp là dòng A20, do Story 12.7 dựng. **Chủ: Epic 12.**
 
 - ⚠️ **LỖ NFR17 MỞ RA CÓ Ý THỨC: bốn `layout.toggle_*` không có phím.** Ẩn/hiện panel hôm nay **chỉ tới được bằng chuột** *(qua menu ngữ cảnh của dockview)*. Đổi lại: `unbound()` giữ được **bốn** phần tử thật, nên **AC6 của Story 1.6** *(*"liệt kê được thao tác chưa gán phím"*)* không mất bằng chứng — gán phím cho cả bốn sẽ làm `unbound()` trả mảng rỗng và **không cổng nào đỏ** *(§Bẫy 5 của story)*. Một lỗ **có tên và có chủ** tốt hơn một bằng chứng bị xoá. Chủ: **Story 1.21** *(màn hình gán phím)*. ⚠️ Handler thì **chạy thật** — `registry.ts` ném với một `run` thiếu, nên không có command rỗng nào ở đây.
   → ⚠️ **ĐÓNG MỘT NỬA 2026-08-11 (Story 1.21), và nửa còn lại KHÔNG được đóng — mệnh đề ghi ra bằng chữ thay vì gạch mục.**
@@ -3575,6 +3576,7 @@ mục nào mồ côi.
   văn bản làm nhãn khớp **nhiều** hàng. Story nào dựng nó phải nhớ theo **id**, không theo nội
   dung — tức nó cần một cột hoặc một quy ước mới, không chỉ một lượt render.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: schema.rs:1395-1399 bảng segment_version vẫn đúng bốn cột (không xuất xứ); SegmentHistoryOverlay.vue:264 vẫn không vẽ nhãn nào, đúng như mục ghi; còn thiếu: Cả bốn nhãn (đang dùng · từ bản review · từ AI · từ TM) vẫn chưa dựng; Epic 4 đang chạy, Epic 7 và Epic 8 vẫn backlog nên phần lớn nhãn còn chờ. **Chủ: Epic 4.**
+  → 2026-10-13 (correct-course `change-hoan-thien-giao-dien-theo-mockup`, đề xuất 7) — bốn nhãn là dòng A17 (FR141), Story 12.19, sau AD của cửa G2. **Chủ: Epic 12.**
 
 - 🟡 **Vế DIFF (`So với phiên bản trước`) không được dựng — chữ ký #4(a).**
   Mockup vẽ `<del>`/`<ins>`; **không AC nào của Story 2.6 đòi diff**. `src-tauri/Cargo.toml:86-89`
@@ -3586,6 +3588,7 @@ mục nào mồ côi.
   Vue render từ mô hình đó, và mô hình **không có nhánh nào mang HTML** (AD-16).
   **Chủ: Story 8.1.**
   → 2026-10-07 (incept Epic 8, Ice duyệt) — AD-51 mục 9 co 8.1 thành phép đo trên bản review thật; phần render `DiffSpan` dựng ở 8.12, xét dùng lại cho lịch sử segment tại đó. Chủ: Story 8.12.
+  → 2026-10-13 (correct-course `change-hoan-thien-giao-dien-theo-mockup`, đề xuất 7) — diff với bản đang dùng là dòng A18 (FR141), Story 12.19; vẫn không `v-html`. **Chủ: Epic 12.**
 
 - 🔴 **HỞ THẬT: `is_target_paragraph_end` KHÔNG được khôi phục cùng `target_text`, và bảng không
   có chỗ nào lưu nó.** Cờ ngắt đoạn của bản dịch (bước di trú 9, Story 2.5d, AD-46) là **dữ liệu
@@ -6031,6 +6034,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     CHỐT, không tra ngược một chuỗi ngắn vào kho TM.
     **(Chủ: Epic 7 — bộ nhớ dịch. Cùng lý do Story 3.7: dải chốt của Story 3.6 là chỗ hiện
     đề xuất đó khi Epic 7 dựng xong, không cần một dải thứ hai.)**
+  → 2026-10-13 (correct-course `change-hoan-thien-giao-dien-theo-mockup`, đề xuất 7) — đề xuất TM cho thuật ngữ ở dải chốt là dòng B16 (FR146), Story 12.10; "bạn vừa viết" vẫn loại 3. **Chủ: Epic 12.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
   summary: **Nguồn gợi ý "bạn vừa viết" (đoán bản dịch từ một cụm người dùng vừa gõ gần đó,

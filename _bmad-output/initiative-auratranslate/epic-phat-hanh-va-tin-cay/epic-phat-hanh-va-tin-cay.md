@@ -51,3 +51,4 @@ Phát hành, giấy phép, Attribution và nghiệm thu cuối. Không thêm nă
 
 - Decision: Story 6.18 (đo lại NFR3, NFR4, NFR5 trên thư viện 5.000 Chương) gộp vào Story 10.9 ngày 2026-09-15 qua `correct-course`; Story 10.9 giữ AC đó.
 - Source conflict: epics.md nêu một nghĩa vụ ngoài mã nguồn không mang số FR — thông báo cho tác giả Đặng Thế Kiệt khi công cụ hoàn thành (điều kiện của phép sử dụng) — nhưng không story nào của epic trích nó.
+- Waits on Epic 12 because: 10.6 chụp và 10.9 đo giao diện cuối (12.22); 10.7 điền nội dung vào khung mục Cập nhật mà 12.18 dựng (correct-course `change-hoan-thien-giao-dien-theo-mockup`, đề xuất 7, 2026-10-13).
