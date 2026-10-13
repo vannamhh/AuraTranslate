@@ -739,7 +739,7 @@ try {
 const ticketStatus = new Map([...ticketTree.stories, ...ticketTree.epics])
 /** ceil(0.85 × live), qua `judgeFloor`. */
 const TICKET_FLOOR = 172
-const PLANNED_TICKET_FLOOR = 140
+const PLANNED_TICKET_FLOOR = 150
 {
   const v = judgeFloor(TICKET_FLOOR, ticketTree.stories.size, 'TICKET_FLOOR', 'ticket trong cay ve')
   if (!v.ok) {
