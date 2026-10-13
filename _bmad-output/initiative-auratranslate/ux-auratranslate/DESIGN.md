@@ -394,6 +394,7 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 > ① *"Đây là **cách duy nhất** trạng thái segment được hiển thị"* — **hết đúng**: lưới có thêm một **cột nhãn trạng thái** đọc được bằng chữ. Đó không phải một lượt nói hai lần: vạch là kênh **thị giác**, và một người đi bàn phím hoặc dùng trình đọc màn hình không có nó — cột nhãn là lý do vạch được phép `aria-hidden`.
 > ② *"văn bản không bị chia khối"* — **hết đúng**: văn bản **có** chia ô, mỗi câu một hàng, mỗi hàng hai ô chữ. Tiền đề cũ *(trang văn liền mạch)* không còn tồn tại sau lượt correct-course 2026-08-14.
 > ⚠️ Máng **22px** cũng hết đúng — cột vạch nay rộng **3px** và vạch lấy chiều cao từ **track hàng** của `subgrid`, không từ một phép đo `getClientRects()`.
+> 🔵 **2026-10-13 (D3, `change-hoan-thien-giao-dien-theo-mockup`):** cột nhãn trạng thái không còn hiện. Chữ trạng thái ở lại trong hàng, ẩn khỏi mắt, và là lý do vạch vẫn được `aria-hidden`. Vì vạch thành kênh thị giác duy nhất, các trạng thái của nó phải khác nhau **ngoài màu** (WCAG 1.4.1): hình nét (liền · đứt · chấm) hoặc độ dày, chọn trong story dựng lưới.
 
 **Ranh giới câu** — ký tự `⏐` màu `ornament`, `opacity: 0` mặc định, hiện ở `0.55` khi rê chuột hoặc khi con trỏ chạm.
 

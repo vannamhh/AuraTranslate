@@ -2,7 +2,7 @@
 type: initiative
 title: "AuraTranslate: nơi bản dịch của người dịch sống"
 parent: none
-covers: [FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR19, FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29, FR30, FR31, FR32, FR33, FR34, FR35, FR36, FR37, FR38, FR39, FR40, FR41, FR42, FR43, FR44, FR45, FR46, FR47, FR48, FR49, FR50, FR51, FR52, FR53, FR54, FR55, FR56, FR57, FR58, FR59, FR60, FR61, FR62, FR63, FR64, FR65, FR66, FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74, FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82, FR83, FR84, FR85, FR86, FR87, FR88, FR89, FR90, FR91, FR92, FR93, FR94, FR95, FR96, FR97, FR98, FR99, FR100, FR101, FR102, FR103, FR104, FR105, FR106, FR107, FR108, FR109, FR110, FR111, FR112, FR113, FR114, FR115, FR116, FR117, FR118, FR119, FR120, FR121, FR122, FR123, FR124, FR125, FR126, FR127, FR128, FR129, FR130, FR131, FR132, FR133, FR134, FR135, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11, NFR12, NFR13, NFR14, NFR15, NFR16, NFR17, NFR18, NFR19]
+covers: [FR1, FR2, FR3, FR4, FR5, FR6, FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR19, FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29, FR30, FR31, FR32, FR33, FR34, FR35, FR36, FR37, FR38, FR39, FR40, FR41, FR42, FR43, FR44, FR45, FR46, FR47, FR48, FR49, FR50, FR51, FR52, FR53, FR54, FR55, FR56, FR57, FR58, FR59, FR60, FR61, FR62, FR63, FR64, FR65, FR66, FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74, FR75, FR76, FR77, FR78, FR79, FR80, FR81, FR82, FR83, FR84, FR85, FR86, FR87, FR88, FR89, FR90, FR91, FR92, FR93, FR94, FR95, FR96, FR97, FR98, FR99, FR100, FR101, FR102, FR103, FR104, FR105, FR106, FR107, FR108, FR109, FR110, FR111, FR112, FR113, FR114, FR115, FR116, FR117, FR118, FR119, FR120, FR121, FR122, FR123, FR124, FR125, FR126, FR127, FR128, FR129, FR130, FR131, FR132, FR133, FR134, FR135, FR136, FR137, FR138, FR139, FR140, FR141, FR142, FR143, FR144, FR145, FR146, FR147, FR148, FR149, FR150, FR151, FR152, NFR1, NFR2, NFR3, NFR4, NFR5, NFR6, NFR7, NFR8, NFR9, NFR10, NFR11, NFR12, NFR13, NFR14, NFR15, NFR16, NFR17, NFR18, NFR19]
 after: []
 assignee: ""
 status: in-progress
@@ -21,11 +21,11 @@ Người dịch Việt Nam có một công cụ thay thế QuickTranslator trên
 
 ## Requirements
 
-Yêu cầu nằm ở PRD (FR1–FR135 trừ FR20 đã rút, NFR1–NFR19); mỗi epic trích mã của nó ở `covers`.
+Yêu cầu nằm ở PRD (FR1–FR152 trừ FR20 đã rút, NFR1–NFR19); mỗi epic trích mã của nó ở `covers`.
 
 ## Done when
 
-1. Mọi yêu cầu chức năng còn hiệu lực (FR1–FR135 trừ FR20) và NFR1–NFR19 của PRD đạt ngưỡng nghiệm thu của chính nó, không còn nợ mang tên Ice mở ở epic cuối.
+1. Mọi yêu cầu chức năng còn hiệu lực (FR1–FR152 trừ FR20) và NFR1–NFR19 của PRD đạt ngưỡng nghiệm thu của chính nó, không còn nợ mang tên Ice mở ở epic cuối.
 2. Tra cứu hoạt động 100% khi ngoại tuyến, mọi mục từ hiển thị nguồn định nghĩa, và độ trễ Auto-Lookup đầu-cuối p95 dưới 100 ms (NFR1).
 3. Một vòng dịch trọn một Chương làm được không chạm chuột (NFR17), và sập ứng dụng mất không quá 5 giây công việc (NFR18).
 4. Có thể mang dữ liệu đi: xuất được TMX; bản cài dưới trần 400.000.000 byte và không tải thêm sau khi cài.

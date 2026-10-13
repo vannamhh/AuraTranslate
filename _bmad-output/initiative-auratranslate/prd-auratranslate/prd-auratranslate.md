@@ -252,6 +252,10 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 
 **FR7.** Mỗi Tác phẩm hiển thị tiến độ: số Chương đã xong trên tổng số, kèm thanh tiến độ trực quan.
 
+**FR138.** Danh sách Chương ghi **số câu chưa xác nhận** trên Chương đã xong, như FR120 làm ở Chế độ đọc.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
 #### Tìm kiếm & duyệt
 
 **FR8.** Full-text search **xuyên toàn bộ Library**: tìm đồng thời trong văn bản nguồn và văn bản dịch của mọi Tác phẩm. Kết quả trả về kèm Tác phẩm, Chương và đoạn văn bản khớp.
@@ -261,6 +265,10 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 > **Căn cứ:** Giai đoạn 0 phát hiện `unicode61` mặc định xoá dấu, gộp `má / ma / mà / mả / mã / mạ` thành một kết quả. Với công cụ dịch tiếng Việt đây là lỗi phá vỡ độ chính xác. Nhưng người dùng vẫn thường gõ không dấu cho nhanh — nên cần cả hai, không phải chọn một.
 
 **FR10.** Lọc và sắp xếp Library theo trạng thái, lĩnh vực, ngôn ngữ nguồn và ngày sửa gần nhất.
+
+**FR139.** Tìm kiếm xuyên Library **thu hẹp phạm vi** (nguyên văn · bản dịch · cả hai) và **lọc** theo trạng thái Tác phẩm và hướng dịch.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
 
 #### Đọc lại thành quả
 
@@ -294,6 +302,14 @@ Bound tối thiểu cho "tối ưu cho việc đọc dài":
 
 **FR12.** Mở một Chương từ Library đưa thẳng vào Workspace, đúng Chương đó, khôi phục vị trí làm việc lần trước.
 
+**FR148.** Người dùng **gỡ dấu "cần sửa"** đã đặt ở Chế độ đọc: gỡ từng dấu, và gỡ hết dấu của một Tác phẩm.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
+**FR151.** Chế độ đọc hiện **xuất xứ bản dịch** ở cấp Chương. Đây là thông tin, không phải công cụ biên tập theo nghĩa FR11.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
 #### Nhập tài liệu
 
 **FR13.** Tạo Tác phẩm mới từ file (`.txt`, `.docx`, `.md`) hoặc từ văn bản dán trực tiếp.
@@ -303,6 +319,10 @@ Bound tối thiểu cho "tối ưu cho việc đọc dài":
 > **Vì sao bắt buộc:** một bộ truyện 2000 chương không thể nhập bằng tay từng chương. Không có FR này thì mô hình hai tầng ở FR1 không dùng được trên thực tế.
 
 **FR15.** Sau khi nhập: đổi tên, sắp xếp lại thứ tự, gộp và tách Chương.
+
+**FR137.** Màn xem trước nhập báo **ước lượng số ứng viên Glossary** sẽ vào bảng chờ, trước khi người dùng xác nhận nhập. Ước lượng chỉ đọc, không ghi bảng chờ (AD-20).
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
 
 #### Nhập từ URL website
 
@@ -436,6 +456,10 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 
 **FR22.** **Global Hotkeys** cho các thao tác lặp lại: dịch segment hiện tại, chuyển focus giữa các panel, xác nhận segment, tra cứu cụm đang chọn, bật/tắt sync scroll. **Toàn bộ phím tắt cấu hình lại được.**
 
+**FR144.** Màn phím tắt cho **tìm theo tên lệnh hoặc tra ngược theo phím**, **xuất và nhập bộ phím**, **trả toàn bộ về mặc định**.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
 #### Biên tập theo segment
 
 **FR23.** Editor phân đoạn văn bản thành **segment ở cấp độ câu**. Segment là đơn vị của Translation Memory (C5) và của luồng xác nhận.
@@ -490,6 +514,10 @@ Một Chương bị xếp vào nhóm *cần xem* khi có ít nhất một dấu 
 **FR29.** Một từ có nhiều từ loại phải hiện thành **nhiều mục riêng biệt**, mỗi mục có ví dụ riêng. Ví dụ: cùng một chữ dùng làm động từ và làm phó từ là hai mục, không phải một chuỗi nghĩa gộp.
 
 **FR30.** **Ví dụ gắn với từng từ loại**, không gắn với cả từ. **Trích dẫn** là trường riêng biệt với ví dụ: trích dẫn có xuất xứ văn bản.
+
+**FR136.** Bản ghi tra cứu hiện **âm đọc** cạnh đầu mục khi nguồn có dữ liệu âm đọc. Một chữ nhiều âm thì nghĩa nhóm theo âm, mỗi âm kèm số nghĩa.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
 
 #### Nguyên tắc nền — hiển thị nguồn
 
@@ -595,6 +623,14 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 > Đây là trụ định vị #1 phát biểu dưới dạng yêu cầu. Đối thủ tự sinh glossary và tự cập nhật; AuraTranslate thay *"tự động quyết"* bằng *"tự động đề xuất, người dùng duyệt"* — bỏ gánh nặng gõ tay mà không nhường quyền biên tập.
 
+**FR146.** Dải chốt bản dịch Glossary đề xuất thêm **các bản dịch đã có trong TM** cho thuật ngữ, cạnh âm Hán Việt (FR113); chọn bằng phím số.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
+**FR147.** Người dùng **hoàn tác được việc chốt bản dịch** một mục Glossary ngay sau khi chốt.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
 ---
 
 ### 6.5 C5 — Translation Memory & tái sử dụng
@@ -629,6 +665,10 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 **FR64.** **Xuất và nhập TMX.** Đây là yêu cầu của trụ định vị #3 — dữ liệu phải sống lâu hơn phần mềm, và người dùng không bị khoá vào `.atproj`.
 
+**FR149.** Theo từng Tác phẩm, người dùng chọn **chỉ dùng cặp TM của mình**; và **xuất TMX riêng các cặp của mình**.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
 ---
 
 ### 6.6 C6 — AI mở & Smart RAG Injector
@@ -644,6 +684,10 @@ Glossary là nơi các quyết định biên tập của người dùng được
 **FR67.** **API key được lưu trong keychain / credential manager của hệ điều hành.** Không lưu dạng văn bản thuần trong file dự án hay file cấu hình, không đồng bộ đi đâu.
 
 **FR68.** Cấu hình AI (nhà cung cấp, mô hình, tham số sinh) đặt ở **tầng toàn cục**, **ghi đè được theo từng Tác phẩm**.
+
+**FR143.** Người dùng **thử kết nối** tới nhà cung cấp AI đã cấu hình; kết quả là thành công hoặc một lỗi tường minh.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
 
 #### Prompt
 
@@ -676,6 +720,10 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 **FR76.** Hiển thị số token đã dùng và **ước tính chi phí** cho mỗi lần gọi.
 
+**FR145.** Từ màn Xem prompt, người dùng **gửi lại đúng prompt đã lắp**. Kết quả chỉ về panel Đề xuất AI (FR72).
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
 #### Ranh giới
 
 **FR77.** **Ứng dụng phải hoạt động đầy đủ khi không cấu hình AI.** Mọi năng lực ngoài C6 và C7 — Library, Workspace, từ điển, Glossary, TM, export/import — phải chạy được mà không cần một API key nào.
@@ -705,6 +753,10 @@ Glossary là nơi các quyết định biên tập của người dùng được
 **FR85.** **Proofreader không được tự sửa văn bản.** Mọi thay đổi phải do người dùng chấp nhận.
 
 **FR86.** Kết quả proofread hiển thị **ngay tại chỗ trên Editor** (đánh dấu trên đúng đoạn văn), không phải một danh sách rời bắt người dùng tự đối chiếu vị trí.
+
+**FR150.** Ứng dụng hiện **tỉ lệ đã nhận · không phải lỗi · bỏ qua** của các phát hiện Proofreader.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
 
 ---
 
@@ -752,6 +804,10 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 
 > **Vì sao ghi nguồn phải là một thao tác của công cụ chứ không của người đăng:** với bài báo, ghi tác giả và link bài gốc thường **là điều kiện của giấy phép bài gốc**, không phải phép lịch sự. Người đăng không cài app, không biết bài này dịch từ đâu, và đang làm việc từ một file. Thứ gì không nằm trong file thì không tồn tại với họ.
 
+**FR152.** Khi xuất, người dùng chọn: **đánh số câu** · **kèm phụ lục thuật ngữ đã chốt** · **đánh dấu câu chưa xác nhận** (chỉ ở bản hai cột; FR121 không đổi).
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
 #### Nhập
 
 **FR90.** Nhập lại file `.docx` / `.md` mà Reviewer đã chỉnh sửa, vào đúng Tác phẩm hiện có.
@@ -786,6 +842,10 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 
 **FR99.** **Quét lại thư mục:** phát hiện `.atproj` mới xuất hiện, `.atproj` đã bị di chuyển hoặc xoá (mục mồ côi trong Library), và cập nhật chỉ mục tương ứng.
 
+**FR140.** Sau khi quét lại thư mục, ứng dụng **báo những gì đã đổi** (mới · di chuyển · mồ côi). Người dùng **tìm lại** được một mục mồ côi bằng cách chỉ đường dẫn mới, và **dựng lại toàn bộ** chỉ mục Library.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
 #### Lưu và phiên bản
 
 **FR100.** **Auto-save định kỳ, không gián đoạn UI.** Không được có gai trễ cảm nhận được khi đang gõ.
@@ -793,6 +853,14 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 **FR101.** **Versioning:** lưu lịch sử các phiên bản dịch của từng segment; xem lại và **khôi phục** được.
 
 **FR102.** **Sao lưu bằng cách copy thư mục là đủ.** Không được yêu cầu một thao tác export riêng để có bản sao lưu dùng được.
+
+**FR141.** Lịch sử phiên bản của một câu ghi **xuất xứ của từng phiên bản** và **so được từng phiên bản với bản đang dùng**.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
+**FR142.** Người dùng **mở thư mục của một Tác phẩm** trong trình quản lý tệp của hệ điều hành.
+
+> Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
 
 #### Phân cấp cấu hình
 

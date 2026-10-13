@@ -48,6 +48,32 @@ Cửa sổ ứng dụng
 
 Ba chế độ là **ngang hàng**, không phân cấp. Chuyển giữa chúng bằng `⌘1` `⌘2` `⌘3` hoặc tab ở thanh tiêu đề. Chuyển chế độ **luôn giữ ngữ cảnh**: rời Workspace sang Chế độ đọc rồi quay lại thì vẫn đúng Chương, đúng câu, đúng vị trí cuộn (FR12).
 
+### Thanh tiêu đề và lối vào
+
+🔵 2026-10-13 (D1, D10, D11, D13b của `change-hoan-thien-giao-dien-theo-mockup`): thanh tiêu đề chỉ mang ba tab chế độ, công tắc bố cục và một nút `Công cụ ▾`; các lối vào khác rời thanh tiêu đề về chỗ theo ngữ cảnh.
+
+```
+Thanh tiêu đề
+├── trái   Library · Workspace · Chế độ đọc        ⌘1 ⌘2 ⌘3
+└── phải   [Proofreader: "Chương 47 · đã quét N câu"] · công tắc Ⓑ-2/Ⓑ-1 · Công cụ ▾
+```
+
+`Công cụ ▾` là mục duy nhất trên thanh tiêu đề mà mockup không vẽ. Nó là danh sách thả xuống trong webview, giống nhau trên macOS và Windows, không dùng menu gốc của hệ điều hành; mỗi mục ghi kèm phím.
+
+| Lối vào | Chỗ theo ngữ cảnh | `Công cụ ▾` | Phím |
+|---|---|---|---|
+| Quản lý Glossary | — | có | `Mod+Alt+M` |
+| Quản lý TM | — | có | phím riêng, không `Mod+M` (gộp segment) |
+| Cài đặt | — | có | `Mod+,` |
+| Quét chính tả | bộ chọn phạm vi trong dải Proofreader · trạng thái bên phải thanh tiêu đề | có | `⌘P` |
+| Chỗ đã bỏ qua | link trong dải Proofreader | có | — |
+| Nhập bản reviewer | thẻ Tác phẩm · thanh hành động danh sách Chương | có | — |
+| Nối tay | bước liền sau khi nhập · link trong Review Mode khi còn đoạn chưa nối | có | — |
+| Duyệt thu hoạch thuật ngữ | bước sau khi nhập bản reviewer | có | — |
+| Bảng chờ Glossary | Workspace | — | `Mod+Alt+Q` |
+| Review Mode | preset Workspace | — | `Mod+Alt+3` |
+| Xuất | thanh hành động danh sách Chương | — | — |
+
 ## Voice and Tone
 
 Viết cho **một người dịch chuyên nghiệp**, không phải cho người dùng phổ thông cần dỗ dành.
@@ -64,13 +90,17 @@ Mọi chuỗi ở trên là khoá trong `vi.json`. Không chuỗi hiển thị n
 
 **Panel** — mỗi panel ẩn được hoàn toàn (FR17); ẩn panel Đề xuất AI là ca sử dụng thật của người dịch không dùng AI, không phải trường hợp biên. Preset bố cục lưu và chuyển bằng phím (FR18).
 
-**Bản ghi từ điển** — bản ghi có cấu trúc, không phải đoạn văn (FR28). Mỗi nguồn là một khối riêng xếp chồng dọc. **Không có trạng thái nào hợp nhất các nguồn** (AD-19). Khi hai nguồn ghi khác nhau, một dòng dẫn nói rõ điều đó trước khi liệt kê — người dùng biết mình đang nhìn bất đồng chứ không phải trùng lặp.
+**Bản ghi từ điển** — bản ghi có cấu trúc, không phải đoạn văn (FR28). Mỗi nguồn là một khối riêng xếp chồng dọc. **Không có trạng thái nào hợp nhất các nguồn** (AD-19). 🔵 2026-10-13 (D5, D6): không có dòng dẫn trước các khối. Mỗi khối mở bằng một dòng đầu gọn — tên nguồn · số nghĩa · `⌄` thu gọn, như `lookup-real-density.html` — và bất đồng đọc ra từ chính các khối xếp chồng. FR32 không đổi.
+
+**Bộ chọn nguồn từ điển** *(quyết định 2026-10-13, D2, D12)* — nút `Nguồn N/M ▾` ở đầu panel Tra cứu, cạnh link "Nguồn dữ liệu"; link này đứng ngang hàng tiêu đề "Tra cứu". Nút mở một popup, mỗi nguồn một dòng: công tắc · tên ngắn · tên đầy đủ · số mục của chữ đang tra. `↑↓` chọn dòng, `Space` bật/tắt nguồn đang chọn qua `lookup.toggle_source`. Không có phím riêng cho từng nguồn: danh sách nguồn dẫn xuất lúc chạy còn sổ lệnh là tĩnh (AD-34, Story 1.19). `Esc` đóng popup và trả tiêu điểm về nút (UX-DR17). FR37 không đổi; dải chip ở `sources-attribution.html` §1 không còn hiệu lực.
+
+**Lịch sử tra cứu** *(quyết định 2026-10-13, D13)* — hai chip phạm vi `Phiên này · Chương này`. Không có chip "Cả Tác phẩm" của `lookup-history-pins.html`: lịch sử chỉ sống trong phiên (FR41).
 
 **Editor liền mạch** — trang văn bản liền, không ô không bảng. Trạng thái từng câu đọc ở vạch lề. Ranh giới câu ẩn, hiện khi con trỏ chạm hoặc rê chuột.
 
 **Bảng chờ Glossary** — danh sách ứng viên xếp theo tần suất, mỗi dòng có số lần xuất hiện và một ví dụ ngữ cảnh. Duyệt và bỏ bằng **một phím**, không gõ (FR53). Không mục nào rời bảng chờ sang Glossary mà không qua thao tác của người dùng (FR55, AD-20).
 
-**Dải mọc dưới câu đang sửa** — mẫu chung cho mọi thứ cần hỏi người dùng *về câu này*, thay cho hộp thoại: chốt bản dịch Glossary lần đầu gặp (FR114), phát hiện Proofreader (FR83), và gợi ý TM khớp mờ (FR59). Dải đẩy văn bản xuống chứ không phủ lên nó, và thu lại ngay khi xong.
+**Dải mọc dưới câu đang sửa** — mẫu chung cho mọi thứ cần hỏi người dùng *về câu này*, thay cho hộp thoại: chốt bản dịch Glossary lần đầu gặp (FR114), phát hiện Proofreader (FR83), và gợi ý TM khớp mờ (FR59). Dải đẩy văn bản xuống chứ không phủ lên nó, và thu lại ngay khi xong. 🔵 2026-10-13 (D8): slot chung trên thanh trạng thái mà Story 3.6 dựng (Ice ký 2026-08-22) bị thay; dải là một track hàng ngay dưới hàng đang sửa trong lưới. `GlossaryQuickAdd` không gắn với câu nào nên ở lại chân cửa sổ. Vị trí đáy panel trong `glossary-confirm-inline.html` không còn hiệu lực.
 
 **Chỉ một dải mọc tại một thời điểm** *(quyết định 2026-08-03)*. Một câu có thể kích hoạt cả ba. Nguyên tắc xếp thứ tự: **cái nào chặn thì thắng, cái nào chỉ gợi ý thì nhường.**
 
@@ -230,7 +260,7 @@ Cộng lại: người dịch **không thấy** câu chưa dịch, **không bấ
 
 ### Hình dạng
 
-**Mỗi câu là một HÀNG.** Trên hàng đó, từ trái sang: **vạch trạng thái** · **số câu** · **nguyên văn** · **bản dịch** · **nhãn trạng thái**.
+**Mỗi câu là một HÀNG.** Trên hàng đó, từ trái sang: **vạch trạng thái** · **số câu** · **nguyên văn** · **bản dịch**. 🔵 2026-10-13 (D3): nhãn trạng thái không còn hiện; chữ trạng thái vẫn nằm trong hàng, ẩn khỏi mắt, cho trình đọc màn hình. Trạng thái nhìn thấy do vạch mang (DESIGN.md §Vạch lề segment).
 
 - **Cùng một hàng là cùng một câu.** Đối chiếu trở thành **cấu trúc**, không còn là một tính năng phải dựng.
   ⇒ **FR20 (Sync Scrolling) mất hai phần ba lý do tồn tại** — `Source ↔ Editor` nay là cùng một hàng.
@@ -386,7 +416,7 @@ Luồng PRD đánh dấu **nhiều chỗ dễ hỏng nhất**. `FR13 → FR14 �
 
 1. Từ Library, Ice mở Chương 47. Vào Workspace, **đúng câu đang dở lần trước**, cuộn đúng chỗ.
 2. Câu đầu đã có sẵn bản dịch với vạch lề nâu vàng — TM khớp 100% từ một Chương trước. Ice đọc, thấy đúng, bấm xác nhận. Vạch chuyển xanh ô liu.
-3. Câu tiếp có chữ `走廊` Ice không chắc. Ice bôi đen. Panel Lookup hiện ngay — **ba nguồn, và một dòng dẫn báo CVDICT với Thiều Chửu ghi khác nhau**. Ice đọc cả hai, chọn "hành lang".
+3. Câu tiếp có chữ `走廊` Ice không chắc. Ice bôi đen. Panel Lookup hiện ngay — **ba nguồn xếp chồng; CVDICT và Thiều Chửu ghi khác nhau**. Ice đọc cả hai, chọn "hành lang".
 4. Ice bấm gọi AI. Kết quả chảy dần ở panel Đề xuất, kèm dòng "Đã chèn 2 thuật ngữ Glossary và 3 câu TM tương tự". Ice mở **Xem prompt** để kiểm — đúng là tên nhân vật đã chốt được đưa vào.
 5. **Nhịp then chốt:** bản dịch AI dùng đúng thuật ngữ nhưng ngắt câu theo kiểu Trung. Ice bấm `⌘⇧↵` đưa sang Bản dịch rồi **viết lại thành một câu Việt gộp hai câu Trung** — gõ tự do, xoá luôn ranh giới. Hệ thống gộp ngầm, báo một dòng ở lề: *"Đã gộp hai câu. Câu mới chưa xác nhận — lịch sử của hai câu cũ vẫn tra lại được."*
 6. Ice xác nhận. Cặp TM mới được ghi ngay tại chuyển tiếp đó (AD-31).

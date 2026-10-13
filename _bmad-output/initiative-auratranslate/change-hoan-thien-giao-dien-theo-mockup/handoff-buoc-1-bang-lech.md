@@ -55,7 +55,7 @@ Kèm thêm một bảng riêng cho 10 lối vào ở thanh tiêu đề (`grep di
 Agent bước 1 viết xong `bang-lech.md` thì DỪNG, báo Ice. Mỗi bước dưới đây là một phiên mới do Ice mở, đầu vào là tệp này cùng `bang-lech.md`.
 
 2. ✅ Xong 2026-10-13: bảng lệch gộp ở `bang-lech.md`, ảnh app thật ở `anh/` (`anh/README.md`; 13 dòng "cần ảnh" chỉ tới được khi ghi dữ liệu, để story build tự chụp), quyết định D7–D13 ở trên.
-3. `bmad-correct-course`: thêm epic giao diện; sửa FR37 (D2, D12), EXPERIENCE.md §Information Architecture (D1, D10, D11), §Component Patterns và KF-2 (D6); nêu FR/Rust mới mà D7 kéo theo. Ice duyệt đề xuất, rồi `bmad-ticket` cắt story.
+3. ✅ Xong 2026-10-13: `change-hoan-thien-giao-dien-theo-mockup.md` (Ice duyệt; PRD FR136–FR152, EXPERIENCE.md, DESIGN.md, hai mockup đã áp). Việc gốc: `bmad-correct-course`: thêm epic giao diện; sửa FR37 (D2, D12), EXPERIENCE.md §Information Architecture (D1, D10, D11), §Component Patterns và KF-2 (D6); nêu FR/Rust mới mà D7 kéo theo. Ice duyệt đề xuất, rồi `bmad-ticket` cắt story.
 4. `bmad-build` từng story, 4 pha. Đường lui tiêu điểm `data-*-open` (UX-DR17) đi theo nút khi dời nút; chạy một spec e2e trước khi push.
 
 Thứ tự với Epic 10: 10.6 (ảnh hướng dẫn cài đặt) và 10.9 (NFR17, WCAG) đợi epic này; 10.5, 10.7, 10.8 không đụng bố cục.
