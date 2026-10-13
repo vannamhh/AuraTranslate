@@ -110,7 +110,7 @@ async function gridProbe() {
     return {
       cellCount: cells.length,
       names: cells.map((cell) => (cell.querySelector('.work-name')?.textContent || '').trim()),
-      coverTexts: cells.map((cell) => (cell.querySelector('.work-cover')?.textContent || '').trim()),
+      coverTexts: cells.map((cell) => (cell.querySelector('.work-cover .work-initial')?.textContent || '').trim()),
       currentIndex: cells.findIndex((cell) => cell.getAttribute('aria-current') === 'true'),
       genreSelectValue: document.querySelector('select[data-library-genre-filter]')?.value ?? null,
       sortSelectValue: document.querySelector('select[data-library-sort]')?.value ?? null,

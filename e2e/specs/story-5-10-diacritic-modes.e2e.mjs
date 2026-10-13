@@ -51,7 +51,6 @@ const SOURCE_MARKER = `zzqqsourcehalfmarker${RUN_TAG}`
 const SOURCE_TEXT = `Cau khong lien quan gi ca。Cau chua tu khoa ${SOURCE_MARKER} o day。`
 
 const SEARCH_INPUT = '[data-library-search-input]'
-const SEARCH_BUTTON = '[data-library-search-button]'
 const SEARCH_STATUS = '[data-library-search-status]'
 const SEARCH_HITS = '[data-library-search-hit]'
 const MODE_LENIENT_BTN = '[data-library-search-mode="lenient"]'
@@ -101,6 +100,12 @@ async function typeSearchQuery(text) {
   )
 }
 
+/** Enter in the search field runs `library.search`; the Tìm button no longer exists. A pointer click does not focus the field in this driver, so focus it directly. */
+async function submitSearch() {
+  await browser.execute((el) => el.focus(), await $(SEARCH_INPUT))
+  await browser.keys(['Enter'])
+}
+
 async function searchHitCount() {
   return browser.execute((sel) => document.querySelectorAll(sel).length, SEARCH_HITS)
 }
@@ -142,7 +147,6 @@ describe('Story 5.10 — hai chế độ dấu (FR9)', () => {
   // ═══════════════════════════════════════════════════════════════════════════════
   it('truy vấn không khớp gì ⇒ tự nới chạy qua IPC thật, trạng thái nói "đã thử cả hai chế độ"', async () => {
     await typeSearchQuery(NONSENSE_QUERY)
-    const searchBtn = await $(SEARCH_BUTTON)
 
     // ⚠️ Chờ trên NỘI DUNG trạng thái, không trên số hàng: 0 hit là ĐÍCH của ca này, nên
     // `searchHitCount() === 0` xanh NGAY LẬP TỨC (kể cả trước khi lượt tìm chạy) — hàng rào
@@ -152,7 +156,7 @@ describe('Story 5.10 — hai chế độ dấu (FR9)', () => {
       async () => {
         const status = await searchStatusText()
         if (status.includes('khoan dung')) return true
-        await realClick(searchBtn)
+        await submitSearch()
         return false
       },
       {
@@ -183,13 +187,12 @@ describe('Story 5.10 — hai chế độ dấu (FR9)', () => {
   // ═══════════════════════════════════════════════════════════════════════════════
   it('bật khoan dung dấu rồi tìm một chuỗi ở nửa nguyên văn ⇒ hit vẫn còn', async () => {
     await typeSearchQuery(SOURCE_MARKER)
-    const searchBtn = await $(SEARCH_BUTTON)
 
     // ── Trước: tìm ở chế độ CHÍNH XÁC (mặc định), hit phải có mặt. ──────────────────────
     await browser.waitUntil(
       async () => {
         if ((await hitTexts()).includes(SOURCE_MARKER)) return true
-        await realClick(searchBtn)
+        await submitSearch()
         return false
       },
       {

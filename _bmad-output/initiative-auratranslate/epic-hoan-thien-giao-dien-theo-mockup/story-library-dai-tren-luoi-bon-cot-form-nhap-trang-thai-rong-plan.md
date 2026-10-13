@@ -3,14 +3,14 @@ title: 'Library: dải trên, lưới bốn cột, form nhập thành lớp ph�
 type: 'feature'
 ticket: '2'
 created: '2026-10-13'
-status: 'ready-for-dev'
+status: 'built'
 baseline_revision: 'fe08b04e2cb70d9d3805a4a6e013131b1e8e5249'
 route: 'full'
 route_source: 'auto'
 risk: 'high'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context: []
 ---
@@ -65,6 +65,7 @@ context: []
 - `src/config/library.ts:179` `WorkRow` đã có `source_lang`, `genre`, `updated_at`. `lookupHistoryState.ts:250` có `relativeTimeKey` nhưng chỉ tới giờ ("ph", "g"), không có ngày; cần helper thuần mới. `vi.json`: `mode.library.lang_zh/en` 631, `search_*` 853–877, `status`/`empty_body` 627–628, `search_mode_exact/lenient` 868–869.
 - `updated_at` của hàng chỉ mục: `core/library/meta.rs::rebuild_from_store` (294) tính MAX(work, chương, segment) nhưng chỉ chạy khi tạo Tác phẩm (`work_creation.rs:574`), đổi trạng thái Chương (`lifecycle.rs:96`) và quét lại. Sửa chữ thuần không ghi lại `meta.json`; doc-comment 285–293 đã ghi đây là dư địa chờ một AD mới.
 - Test phụ thuộc form luôn có: `tests/frontend/libraryWorks.test.ts:825,840` (cũng khẳng định `.empty .big/.small`), `importPreviewDestination.test.ts` (`.import-form` ở 152–695), `titlebarToolsMenu.test.ts:144–172` (focus ô đầu), `e2e/specs/titlebar-tools.e2e.mjs:92`, `e2e/support/importForm.mjs` (`createWorkThroughForm`, dùng bởi `story-5-4-lifecycle`, `story-5-5-progress`), `story-5-9`/`5-10` (`[data-library-search-button]`).
+- Tests that move: `tests/frontend/importPreviewDestination.test.ts` · `tests/frontend/titlebarToolsMenu.test.ts` · `tests/frontend/libraryWorks.test.ts`; mới: `tests/frontend/libraryImportOverlay.test.ts` · `tests/frontend/libraryTopBar.test.ts` · `tests/frontend/libraryWorkCard.test.ts`; e2e mới `story-12-2-library-top-grid-overlay.e2e.mjs`.
 - Cổng: `check:i18n` (khoá mới, bỏ `search_label`/`search_button` nếu không còn dùng), `check:commands` (`HANDLER_TABLE` ở `scripts/check-commands.mjs` cần dòng cho handler `@keydown` của lớp phủ mới, cạnh `ExportOverlay.vue::trapTab` 2446; sàn CLICK/DISPATCH), `check:tokens` (`/* aura-allow-z-index */` cho scrim), `check:panel-refs`, `check:layout`. `main.ts:1002` liệt kê lớp phủ đang mở: thêm lớp phủ mới.
 
 ## Tasks & Acceptance
@@ -90,9 +91,29 @@ context: []
 
 ## Implementation Notes
 
+- Form chuyển nguyên sang `LibraryImportOverlay.vue`; state ô form vốn là `ref` cấp module nên đóng lớp phủ không mất bản nháp.
+- Lớp phủ nhập đứng dưới màn xem trước và chỉ đóng khi `finishImportSubmission` thành công; lỗi nộp hiện trong lớp phủ.
+- `workCardMeta` bỏ vế thời gian khi `updated_at` ở tương lai hoặc không đọc được; quá 30 ngày in ngày cắt từ chuỗi ISO nên không phụ thuộc múi giờ.
+- Container query đo hộp nội dung `.mode`: cửa sổ 1440 ra bốn cột, xuống ba quanh cửa sổ 1032, xuống hai quanh 832.
+- Driver e2e trên WKWebView không đặt tiêu điểm vào ô nhập khi bấm con trỏ; spec 5-9, 5-10 và spec mới focus bằng JS rồi nhấn Enter.
+- Bốn sàn cổng nâng theo luật 80% vì có tệp mới: `check-commands` `TS_FLOOR` 105, `check-panel-refs`/`check-tokens`/`check-doc-refs` `FILE_FLOOR` 105/148/545.
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+- medium · patch — `titlebarToolsMenu.test.ts`: khối `title bar in App.vue` (hai ca canh thanh tiêu đề của 12-1) bị xoá dù 12-2 không chạm thanh tiêu đề. Khôi phục.
+- low · patch — `LibraryImportOverlay.vue` mang comment lịch sử (mã story, ngày, 🔵) chép theo form; spec e2e mới mở đầu bằng "Story 12-2:". Xoá hoặc rút thành bất biến tiếng Anh.
+- false — comment "is outside both Kiểm A and Kiểm K" có sẵn ở fe08b04, diff chỉ dời chỗ.
+- low · reject — comment `.root-block` "cùng khuôn với `.empty`/`.field` ở trên" vẫn đúng: hai lớp còn trong tệp; dòng không đổi.
+- false — `resetLibraryImportOverlay` chỉ test gọi, cùng mẫu `resetExport`; lớp phủ không thuộc tầng Tác phẩm nên không cần dọn khi đổi Tác phẩm.
+- low · reject — `workCards` đóng băng `new Date()`; Library tải lại danh sách ở mỗi `onActivated` nên mốc chỉ cũ khi đứng yên ở Library; sửa cần thêm đồng hồ.
+- false — "lọc ra 0": `libraryWorksTotal` là tổng chưa lọc (khoá `works_no_match` in nó làm mẫu số), nên `total = 0` là Library rỗng thật và câu `works_empty` đúng.
+- false — mất `librarySearchBusy` trên nút Tìm: `runLibrarySearch` gộp lượt gọi khi đang bận (`reloadPending`), Enter lặp không chạy song song.
+- low · reject — e2e đặt tiêu điểm ô tìm bằng `el.focus()`: driver WKWebView không focus khi bấm con trỏ (đã đo); bấm vào ô là hành vi gốc của trình duyệt.
+- false — ngưỡng cột đo trên hộp nội dung `.mode` đúng Decision 1 ("khung `.mode`").
+- false — `.filter-actions, .filter-selects { margin-bottom: 0 }` ghi đè luật có thật ở đầu khối style; thụt lề `.segmented` là thẩm mỹ.
+- false — Escape gắn ở scrim cùng mẫu `ExportOverlay`; đường thất bại giữ đích trả tiêu điểm trong form, đường thành công đóng lớp phủ, nên không có lúc lớp phủ mở mà tiêu điểm ở `body`.
 
 ## Design Notes
 

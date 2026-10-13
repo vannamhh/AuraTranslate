@@ -57,7 +57,6 @@ const DIA_MISS = `khoang${RUN_TAG}`
 const SOURCE_TEXT_B = `Tac pham khac, khong lien quan。Cau mang ${DIA_MISS} khong dau。Cau mang ${DIA_HIT} co dau。`
 
 const SEARCH_INPUT = '[data-library-search-input]'
-const SEARCH_BUTTON = '[data-library-search-button]'
 const SEARCH_STATUS = '[data-library-search-status]'
 const SEARCH_HITS = '[data-library-search-hit]'
 const SEARCH_OPEN_BTN = '[data-library-search-open]'
@@ -116,6 +115,12 @@ async function typeSearchQuery(text) {
   )
 }
 
+/** Enter in the search field runs `library.search`; the Tìm button no longer exists. A pointer click does not focus the field in this driver, so focus it directly. */
+async function submitSearch() {
+  await browser.execute((el) => el.focus(), await $(SEARCH_INPUT))
+  await browser.keys(['Enter'])
+}
+
 async function searchHitCount() {
   return browser.execute((sel) => document.querySelectorAll(sel).length, SEARCH_HITS)
 }
@@ -157,11 +162,10 @@ describe('Story 5.9 — tìm kiếm full-text xuyên Library, mở đúng Tác p
     //    tra được ngay — nhưng `waitUntil` dưới đây (bấm lại nếu chưa ra hàng nào) là hàng
     //    rào cho một lượt chỉ mục CHƯA commit kịp trên máy chậm, không phải một vòng che lỗi.
     await typeSearchQuery(MARKER)
-    const searchBtn = await $(SEARCH_BUTTON)
     await browser.waitUntil(
       async () => {
         if ((await searchHitCount()) >= 1) return true
-        await realClick(searchBtn)
+        await submitSearch()
         return false
       },
       {
@@ -248,7 +252,6 @@ describe('Story 5.9 — tìm kiếm full-text xuyên Library, mở đúng Tác p
     )
 
     await typeSearchQuery(DIA_HIT)
-    const searchBtn = await $(SEARCH_BUTTON)
 
     /** Văn bản của MỌI hàng kết quả đang hiện, nối lại. */
     const hitTexts = async () =>
@@ -265,7 +268,7 @@ describe('Story 5.9 — tìm kiếm full-text xuyên Library, mở đúng Tác p
     await browser.waitUntil(
       async () => {
         if ((await hitTexts()).includes(DIA_HIT)) return true
-        await realClick(searchBtn)
+        await submitSearch()
         return false
       },
       {

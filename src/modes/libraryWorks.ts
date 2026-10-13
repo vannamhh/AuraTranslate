@@ -117,6 +117,11 @@ export const libraryFilterIsEmpty = computed<boolean>(
   () => statusFilter.value.size === 0 && genreFilter.value === null && sourceLangFilter.value === null,
 )
 
+export const libraryShowsFirstRunInvitation = computed<boolean>(
+  () =>
+    worksHaveLoaded.value && worksTotal.value === 0 && worksError.value === null && libraryFilterIsEmpty.value,
+)
+
 function clampWorkCursor(): void {
   const maxIndex = works.value.length - 1
   if (workCursor.value > maxIndex) workCursor.value = Math.max(0, maxIndex)

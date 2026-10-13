@@ -222,8 +222,10 @@ export type CommandDeps = {
    * FR115) — mở màn xem trước RIÊNG (`bilingualImportPreviewState.ts`), không
    * `importPreviewState.ts`. */
   submitBilingualFilePath?: () => void
-  /** Moves to Library and focuses the import form. Handler of `library.import.open`. */
+  /** Moves to Library and opens the import overlay. Handler of `library.import.open`. */
   openLibraryImportForm?: () => void
+  /** Closes the import overlay. Handler of `library.import.close`. */
+  closeLibraryImportForm?: () => void
   /** Opens or closes the title-bar `Công cụ ▾` list. Handler of `titlebar.tools.toggle`. */
   toggleToolsMenu?: () => void
 
@@ -1446,6 +1448,15 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.openLibraryImportForm === undefined) return portMissing('library.import.open', 'openLibraryImportForm')
       deps.openLibraryImportForm()
+    },
+  })
+  target.register({
+    id: 'library.import.close',
+    labelKey: 'command.library.import.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeLibraryImportForm === undefined) return portMissing('library.import.close', 'closeLibraryImportForm')
+      deps.closeLibraryImportForm()
     },
   })
   target.register({

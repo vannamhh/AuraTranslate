@@ -15,37 +15,7 @@
 import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
 import type { WorkRow, WorkSortKey } from '../config/library'
-import {
-  bilingualFilePath,
-  busy,
-  createdWork,
-  destinationExistingWorkAvailable,
-  destinationLibraryGenuinelyEmpty,
-  destinationMode,
-  destinationPending,
-  destinationWorkId,
-  destinationWorks,
-  destinationWorksError,
-  effectiveFilePaths,
-  effectiveName,
-  filePath,
-  genre,
-  isDragOver,
-  lastError,
-  loadDestinationWorks,
-  name,
-  noticeKey,
-  onFilePathInput,
-  pastedText,
-  pastedUrlCount,
-  pastedUrls,
-  pickedDestinationWork,
-  setDestinationMode,
-  setDestinationWorkId,
-  sourceLang,
-  unwireDragDrop,
-  wireDragDropOnce,
-} from './libraryImport'
+import { createdWork, loadDestinationWorks, unwireDragDrop, wireDragDropOnce } from './libraryImport'
 import {
   currentLibraryOrphan,
   currentLibraryRoot,
@@ -68,6 +38,7 @@ import {
   libraryFilterIsEmpty,
   libraryGenreFilter,
   libraryGenres,
+  libraryShowsFirstRunInvitation,
   librarySortKey,
   librarySourceLangFilter,
   librarySourceLangs,
@@ -121,7 +92,6 @@ import ChapterOrigin from '../ChapterOrigin.vue'
 // 🔵 SỬA (retro Epic 5, AI-3 — 2026-09-03) — thêm `librarySearchCoverageGapState`, bề mặt ĐỘC
 // LẬP với `librarySearchStatusKey` (§Always: "phải hiện cả khi có kết quả").
 import {
-  librarySearchBusy,
   librarySearchCoverageGapState,
   librarySearchCursor,
   librarySearchError,
@@ -133,8 +103,16 @@ import {
   librarySearchTruncated,
 } from './librarySearch'
 import { t, tError } from '../i18n'
+import { shortcutRows } from '../config/shortcutsState'
+import { workCardMeta } from './libraryWorkCard'
 
 const root = useTemplateRef<HTMLElement>('root')
+
+const workCards = computed(() => libraryWorks.value.map((work) => workCardMeta(work, new Date())))
+
+const importChord = computed(
+  () => shortcutRows.value.find((row) => row.id === 'library.import.open')?.display.join(' / ') ?? '',
+)
 
 onMounted(() => {
   declareFocus('mode.library', () => root.value)
@@ -336,6 +314,496 @@ watch(libraryChapterCursor, (cursor) => {
 <template>
   <!-- `tabindex="-1"` để phần tử nhận được focus lập trình. Nó KHÔNG vào thứ tự Tab. -->
   <section ref="root" class="mode" tabindex="-1">
+    <div class="top-bar">
+      <div class="top-row">
+        <div class="search-field">
+          <!-- aura-allow-text: decorative glyph, hidden from assistive tech. -->
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input
+            v-model="librarySearchQuery"
+            type="text"
+            class="search-input"
+            autocomplete="off"
+            :placeholder="t('mode.library.search_placeholder')"
+            :aria-label="t('mode.library.search_placeholder')"
+            data-library-search-input
+            @keyup.enter="dispatch('library.search')"
+          />
+        </div>
+      <div class="segmented" role="group" :aria-label="t('mode.library.search_mode_heading')">
+        <button
+          type="button"
+          class="segment"
+          data-library-search-mode="exact"
+          :aria-pressed="librarySearchMode === 'exact'"
+          @click="dispatch('library.search_mode_exact')"
+        >
+          {{ t('mode.library.search_mode_exact') }}
+        </button>
+        <button
+          type="button"
+          class="segment"
+          data-library-search-mode="lenient"
+          :aria-pressed="librarySearchMode === 'lenient'"
+          @click="dispatch('library.search_mode_lenient')"
+        >
+          {{ t('mode.library.search_mode_lenient') }}
+        </button>
+      </div>
+        <button type="button" class="btn btn-primary" data-library-import-open @click="dispatch('library.import.open')">
+          {{ t('command.library.import.open') }}
+        </button>
+      </div>
+
+
+      <!--
+        🔵 THÊM (2026-08-28) `data-lifecycle-filter`/`data-lifecycle-action` — MÓC ĐỊNH DANH
+        cho `e2e/specs/story-5-4-lifecycle.e2e.mjs`, cùng khuôn `data-shortcuts-open`
+        (`ShortcutsOverlay`) và `data-col` (lưới) đã có. Trước đó spec định vị bằng
+        `:nth-of-type(n)`: đổi thứ tự sáu nút làm spec bấm NHẦM nút và vẫn xanh, thay vì đỏ ở
+        đúng chỗ vừa đổi. Một móc đọc được là rẻ hơn một lượt đỏ sai nguyên nhân.
+      -->
+      <!--
+        🔴 BỐN nút RIÊNG, KHÔNG một `v-for` chọn id động — `check:commands` Kiểm A đòi mỗi
+        `@click` là ĐÚNG MỘT lời gọi `dispatch('<id>')` với id LITERAL, đọc TĨNH được từ mã
+        nguồn; một biểu thức ba ngôi chọn id lúc chạy không đọc tĩnh được (đã đo: Kiểm A đỏ).
+      -->
+      <div class="filter-actions">
+        <button
+          type="button"
+          class="btn"
+          data-lifecycle-filter="not_started"
+          :aria-pressed="libraryStatusFilter.has('not_started')"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.filter_not_started')"
+        >
+          {{ t('lifecycle.not_started') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-lifecycle-filter="in_progress"
+          :aria-pressed="libraryStatusFilter.has('in_progress')"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.filter_in_progress')"
+        >
+          {{ t('lifecycle.in_progress') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-lifecycle-filter="paused"
+          :aria-pressed="libraryStatusFilter.has('paused')"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.filter_paused')"
+        >
+          {{ t('lifecycle.paused') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-lifecycle-filter="done"
+          :aria-pressed="libraryStatusFilter.has('done')"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.filter_done')"
+        >
+          {{ t('lifecycle.done') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-lifecycle-action="clear_filter"
+          :disabled="libraryWorksBusy || libraryFilterIsEmpty"
+          @click="dispatch('library.filter_clear')"
+        >
+          {{ t('mode.library.clear_filter') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-lifecycle-action="list_works"
+          :disabled="libraryWorksBusy"
+          @click="dispatch('library.list_works')"
+        >
+          {{ t('mode.library.list_works') }}
+        </button>
+      </div>
+
+      <!--
+        Story 5.6 — ba `<select>` (lĩnh vực · ngôn ngữ · sắp xếp), tập-mở nên KHÔNG viết được
+        thành nút literal (§Design Notes "Vì sao `<select>` chứ không thêm nút"). `@change`
+        is outside both Kiểm A and Kiểm K (not one of Kiểm K's five event types).
+        `<option>` dựng từ hai mảng DO
+        RUST TRẢ VỀ (`libraryGenres`/`librarySourceLangs`, `DISTINCT` trên bảng CHƯA LỌC) —
+        KHÔNG BAO GIỜ suy từ `libraryWorks` đã lọc (AD-1, §Always).
+      -->
+      <div class="filter-selects">
+        <label class="field">
+          <span>{{ t('mode.library.filter_genre_label') }}</span>
+          <select
+            data-library-genre-filter
+            :value="libraryGenreFilter ?? ''"
+            :disabled="libraryWorksBusy"
+            @change="onGenreFilterChange"
+          >
+            <option value="">{{ t('mode.library.filter_all_genres') }}</option>
+            <!-- aura-allow-text: lĩnh vực là DỮ LIỆU người dùng gõ, không một câu UI. -->
+            <option v-for="genreOption in libraryGenres" :key="genreOption" :value="genreOption">
+              {{ genreOption }}
+            </option>
+          </select>
+        </label>
+        <label class="field">
+          <span>{{ t('mode.library.filter_source_lang_label') }}</span>
+          <select
+            data-library-source-lang-filter
+            :value="librarySourceLangFilter ?? ''"
+            :disabled="libraryWorksBusy"
+            @change="onSourceLangFilterChange"
+          >
+            <option value="">{{ t('mode.library.filter_all_source_langs') }}</option>
+            <!-- aura-allow-text: ngôn ngữ nguồn là DỮ LIỆU (mã ngôn ngữ), không một câu UI. -->
+            <option v-for="langOption in librarySourceLangs" :key="langOption" :value="langOption">
+              {{ langOption }}
+            </option>
+          </select>
+        </label>
+        <label class="field">
+          <span>{{ t('mode.library.sort_label') }}</span>
+          <select data-library-sort :value="librarySortKey" :disabled="libraryWorksBusy" @change="onSortKeyChange">
+            <option value="updated_desc">{{ t('mode.library.sort_updated_desc') }}</option>
+            <option value="name_asc">{{ t('mode.library.sort_name_asc') }}</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="search-results-block">
+      <!--
+        role="status" TÁM NHÁNH, LUÔN có mặt (không v-if) — §Always của story: "một danh sách
+        kết quả rỗng phải nói VÌ SAO nó rỗng", tám ca PHÂN BIỆT được, không gộp (xem khối 🔵 đầu
+        `librarySearch.ts` cho lý do "tám" chứ không "bảy"). Thứ tự ưu tiên khớp đúng
+        `librarySearch.ts` doc-comment đầu tệp.
+        🔴 SỬA (vòng rà bốn lớp, mục 1) — `result_widened` PHẢI rẽ theo `librarySearchTruncated`
+        NGAY BÊN TRONG nhánh của nó, cùng lý do `SearchReport::truncated` tồn tại từ Story 5.9:
+        "không trần nào được cắt trong im lặng" là luật của kho, không một nhánh mới nào được
+        miễn — một lượt vừa tự nới VỪA bị trần cắt mà chỉ nói "đã tự chuyển sang khoan dung dấu"
+        thì đúng hình dạng, sai sự thật.
+        aura-allow-text: mọi nhánh đều qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
+      -->
+      <p class="status" role="status" data-library-search-status>
+        {{
+          librarySearchStatusKey === 'searching'
+            ? t('mode.library.search_searching')
+            : librarySearchStatusKey === 'not_typed'
+              ? t('mode.library.search_not_typed')
+              : librarySearchStatusKey === 'index_empty'
+                ? t('mode.library.search_index_empty')
+                : librarySearchStatusKey === 'short_query'
+                  ? t('mode.library.search_short_query')
+                  : librarySearchStatusKey === 'no_match_widened'
+                    ? t('mode.library.search_no_match_widened')
+                    : librarySearchStatusKey === 'no_match'
+                      ? t('mode.library.search_no_match')
+                      : librarySearchStatusKey === 'result_widened'
+                        ? librarySearchTruncated
+                          ? t('mode.library.search_result_widened_truncated', { total: String(librarySearchTotal) })
+                          : t('mode.library.search_result_widened', { total: String(librarySearchTotal) })
+                        : librarySearchTruncated
+                          ? t('mode.library.search_result_truncated', { total: String(librarySearchTotal) })
+                          : t('mode.library.search_result', { total: String(librarySearchTotal) })
+        }}
+      </p>
+      <!-- aura-allow-text: như trên, qua tError(). -->
+      <p class="error" role="status">{{ librarySearchError ? tError(librarySearchError) : '' }}</p>
+
+      <!--
+        🔴 THÊM (retro Epic 5, AI-3 — 2026-09-03) — bề mặt ĐỘC LẬP với khối `role="status"` tám
+        nhánh ngay trên: nó phải hiện được CẢ KHI có kết quả (§Always). Một `v-if` RIÊNG theo
+        `librarySearchCoverageGapState` (hàm thuần `librarySearchCoverageGap`), KHÔNG một nhánh
+        chèn vào cây ba ngôi tám nhánh ở trên (§Code Map: "không sửa cây ba ngôi này").
+        🔵 SỬA (vòng rà lần hai, mục 5 — 2026-09-03): GỠ class `status-coverage-gap` — nó không
+        mang một quy tắc CSS nào (`grep -c status-coverage-gap` trên khối CSS của tệp này = 0),
+        tức một selector chết. Chọn GỠ thay vì dựng một quy tắc mới: chưa có quyết định thiết kế nào
+        cho một hình dạng RIÊNG của dòng này (nó dùng lại nguyên `.status` đã có, đúng nhóm với
+        `.error` ngay dưới) — dựng token cho một khác biệt thị giác CHƯA AI YÊU CẦU là bịa thêm
+        phạm vi ngoài spec. `data-library-search-coverage-gap` vẫn ở lại làm móc chọn cho test.
+        aura-allow-text: qua t().
+      -->
+      <p v-if="librarySearchCoverageGapState !== null" class="status" role="status" data-library-search-coverage-gap>
+        {{
+          t('mode.library.search_coverage_gap', {
+            missing: String(librarySearchCoverageGapState.missing),
+            total: String(librarySearchCoverageGapState.total),
+          })
+        }}
+      </p>
+
+      <div v-if="librarySearchHits.length > 0" class="grid-nav">
+        <button
+          type="button"
+          class="btn"
+          data-library-search-prev
+          :aria-label="t('mode.library.search_prev')"
+          @click="dispatch('library.search_prev')"
+        >
+          ‹
+        </button>
+        <span class="grid-nav-position">{{
+          t('mode.library.search_position', {
+            current: String(librarySearchCursor + 1),
+            total: String(librarySearchHits.length),
+          })
+        }}</span>
+        <button
+          type="button"
+          class="btn"
+          data-library-search-next
+          :aria-label="t('mode.library.search_next')"
+          @click="dispatch('library.search_next')"
+        >
+          ›
+        </button>
+      </div>
+
+      <ul v-if="librarySearchHits.length > 0" class="search-results" data-library-search-results>
+        <li
+          v-for="(hit, idx) in librarySearchHits"
+          :key="`${hit.work_id}-${hit.chapter_id}-${hit.segment_id ?? 'chapter'}-${hit.field}`"
+          class="search-hit"
+          :class="{ 'search-hit--current': idx === librarySearchCursor }"
+          :aria-current="idx === librarySearchCursor ? 'true' : undefined"
+          data-library-search-hit
+        >
+          <!-- aura-allow-text: tên Tác phẩm/tiêu đề Chương là DỮ LIỆU người dùng. -->
+          <p class="search-hit-locus">
+            {{ hit.work_name }} · {{ hit.chapter_title ?? t('mode.library.chapter_untitled', { ord: String(hit.chapter_ord) }) }}
+            <!-- aura-allow-text: qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+            <span class="search-hit-field">{{
+              hit.field === 'target' ? t('mode.library.search_field_target') : t('mode.library.search_field_source')
+            }}</span>
+            <!-- aura-allow-text: qua t(). -->
+            <span v-if="hit.segment_id === null" class="search-hit-field">{{ t('mode.library.search_chapter_level') }}</span>
+            <!-- Story 5.10 -- hit chỉ khớp qua chỉ mục KHOAN DUNG mang một nhãn phân biệt được
+                 (§Always: "hai loại kết quả phân biệt được trên màn hình"). aura-allow-text: qua t(). -->
+            <span v-if="hit.match_kind === 'lenient'" class="search-hit-field search-hit-field--lenient" data-library-search-hit-lenient>{{
+              t('mode.library.search_hit_lenient')
+            }}</span>
+          </p>
+          <!-- aura-allow-text: đoạn trích là DỮ LIỆU người dùng, văn bản THUẦN (AD-16) -- không v-html. -->
+          <p class="search-hit-snippet">{{ hit.snippet }}</p>
+          <button
+            v-if="idx === librarySearchCursor"
+            type="button"
+            class="btn"
+            data-library-search-open
+            @click="dispatch('library.open_search_hit')"
+          >
+            {{ t('mode.library.search_open_button') }}
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="works-block">
+      <p class="section-heading">{{ t('mode.library.works_heading') }}</p>
+      <!-- role="status" LUÔN có mặt (không v-if) -- cùng khuôn dải trạng thái của khối quét lại. -->
+      <!-- aura-allow-text: ba nhánh đều qua t()/chuỗi rỗng -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+      <p class="status" role="status">
+        {{
+          !libraryWorksHaveLoaded
+            ? t('mode.library.works_not_loaded')
+            : libraryShowsFirstRunInvitation
+              ? ''
+              : libraryWorksTotal === 0
+              ? t('mode.library.works_empty')
+              : libraryWorksMatched === 0
+                ? t('mode.library.works_no_match', { total: String(libraryWorksTotal) })
+                : t('mode.library.works_result', { matched: String(libraryWorksMatched), total: String(libraryWorksTotal) })
+        }}
+      </p>
+      <!-- aura-allow-text: như trên, qua tError(). -->
+      <p class="error" role="status">{{ libraryWorksError ? tError(libraryWorksError) : '' }}</p>
+
+      <div v-if="libraryShowsFirstRunInvitation" class="empty" data-library-empty>
+        <div class="rule" aria-hidden="true"></div>
+        <p class="big">{{ t('mode.library.status') }}</p>
+        <p class="small">{{ t('mode.library.empty_body') }}</p>
+        <div class="empty-actions">
+          <button type="button" class="btn btn-primary" data-library-empty-invite="paste" @click="dispatch('library.import.open')">
+            {{ t('mode.library.empty_invite_paste') }}
+          </button>
+          <button type="button" class="btn" data-library-empty-invite="file" @click="dispatch('library.import.open')">
+            {{ t('mode.library.empty_invite_file') }}
+          </button>
+        </div>
+        <!-- aura-allow-text: qua t(); phím tắt đã định dạng theo nền tảng. -->
+        <p v-if="importChord !== ''" class="small">{{ t('mode.library.empty_shortcut_hint', { chord: importChord }) }}</p>
+      </div>
+
+      <!--
+        Story 5.6 — lưới Tác phẩm (AC2/AC3/AC4/AC6/AC7), thay danh sách phẳng của Story 5.4.
+        Con trỏ (`libraryWorkCursor`) di chuyển bằng HAI NÚT thật (`‹`/`›`, `dispatch()` id
+        literal — Kiểm A) chứ không một `@keydown` tự chế trên từng ô: cùng khuôn
+        `library.orphan_next`/`orphan_prev` đã có trong chính tệp này.
+      -->
+      <div v-if="libraryWorks.length > 0" class="grid-nav">
+        <button
+          type="button"
+          class="btn"
+          data-library-work-prev
+          :aria-label="t('mode.library.work_prev')"
+          @click="dispatch('library.work_prev')"
+        >
+          ‹
+        </button>
+        <span class="grid-nav-position">{{ t('mode.library.work_position', { current: String(libraryWorkCursor + 1), total: String(libraryWorks.length) }) }}</span>
+        <button
+          type="button"
+          class="btn"
+          data-library-work-next
+          :aria-label="t('mode.library.work_next')"
+          @click="dispatch('library.work_next')"
+        >
+          ›
+        </button>
+      </div>
+
+      <ul v-if="libraryWorks.length > 0" class="works-grid" data-library-grid>
+        <li
+          v-for="(work, workIndex) in libraryWorks"
+          ref="workCellRefs"
+          :key="work.work_id"
+          class="work-cell"
+          :class="{ 'work-cell--current': workIndex === libraryWorkCursor }"
+          :aria-current="workIndex === libraryWorkCursor ? 'true' : undefined"
+          data-library-work-cell
+        >
+          <div class="work-cover" role="img" :aria-label="t('mode.library.cover_placeholder_label', { name: work.name })">
+            <!-- aura-allow-text: biểu diễn thay thế là chữ cái đầu của TÊN, dữ liệu người dùng. -->
+            <span class="work-initial" data-library-work-initial>{{ coverInitial(work.name) }}</span>
+            <!-- aura-allow-text: nhãn ngôn ngữ nguồn qua t() hoặc chính mã ngôn ngữ (dữ liệu). -->
+            <span v-if="workCards[workIndex].langLabel !== null" class="work-lang" data-library-work-lang>{{
+              workCards[workIndex].langLabel
+            }}</span>
+          </div>
+          <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
+          <span class="work-name">{{ work.name }}</span>
+          <!-- aura-allow-text: lĩnh vực là dữ liệu, nhãn thời gian qua t(). -->
+          <span v-if="workCards[workIndex].line !== null" class="work-meta" data-library-work-meta>{{
+            workCards[workIndex].line
+          }}</span>
+          <!--
+            aura-allow-text: mọi nhánh đều qua t().
+            🔵 SỬA (2026-08-28, lượt rà) — TÁCH nhánh cuối làm HAI. Bản trước cho `status = null`
+            (`meta.json` v1, thật sự CHƯA BIẾT) và một `status` mang giá trị NGOÀI danh mục bốn
+            (dữ liệu hỏng) đọc lên GIỐNG HỆT nhau, nên một hàng hỏng đội lốt một hàng chưa di
+            trú và không ai lần được. Hai câu khác nhau vì hai trạng thái khác nhau.
+          -->
+          <span class="work-status">
+            {{
+              work.status === 'not_started'
+                ? t('lifecycle.not_started')
+                : work.status === 'in_progress'
+                  ? t('lifecycle.in_progress')
+                  : work.status === 'paused'
+                    ? t('lifecycle.paused')
+                    : work.status === 'done'
+                      ? t('lifecycle.done')
+                      : work.status === null
+                        ? t('mode.library.works_status_unknown')
+                        : t('mode.library.works_status_invalid', { status: work.status })
+            }}
+          </span>
+          <span v-if="work.status_is_override" class="override-marker">{{ t('mode.library.override_marker') }}</span>
+          <!--
+            Story 5.5 — "Tiến độ Tác phẩm" (FR7). `chapter_done_count === null` ⇒ câu "chưa
+            biết" và KHÔNG vẽ thanh (§I/O Matrix: "không hiện 0 /") — một `meta.json` chưa
+            từng qua `WorkMeta::rebuild_from_store` không được phép trông như "0 Chương xong".
+            aura-allow-text: cả hai nhánh đi qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
+          -->
+          <span class="work-progress">
+            {{
+              work.chapter_done_count === null
+                ? t('mode.library.works_progress_unknown')
+                : t('mode.library.works_progress', {
+                    done: String(work.chapter_done_count),
+                    total: String(work.chapter_count),
+                  })
+            }}
+          </span>
+          <div
+            v-if="work.chapter_done_count !== null"
+            class="work-progress-track"
+            role="progressbar"
+            :aria-valuemin="0"
+            :aria-valuemax="work.chapter_count"
+            :aria-valuenow="work.chapter_done_count"
+            :aria-valuetext="
+              t('mode.library.works_progress_aria', {
+                done: String(work.chapter_done_count),
+                total: String(work.chapter_count),
+              })
+            "
+          >
+            <div class="work-progress-fill" :style="{ width: progressPercent(work) + '%' }"></div>
+          </div>
+          <!--
+            Story 5.7 — "Mở Tác phẩm" (FR12). Cùng khuôn `library.forget_orphan`: thao tác
+            trên `currentLibraryWork` (con trỏ), không một tham số qua `dispatch()` — nên NÚT
+            chỉ hiện ở đúng ô đang chọn (`v-if`), tránh việc bấm nút ở một ô KHÁC ô cursor mà
+            lại mở đúng Tác phẩm cursor đang trỏ tới, một hành vi lệch trực quan.
+          -->
+          <button
+            v-if="workIndex === libraryWorkCursor"
+            type="button"
+            class="btn"
+            data-library-open-work
+            :disabled="libraryOpenWorkBusy"
+            @click="dispatch('library.open_work')"
+          >
+            {{ t('mode.library.open_work_button') }}
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="created-block">
+
+      <!--
+        Bốn node LUÔN có mặt (không `v-if`) để trình đọc màn hình công bố được nội
+        dung ĐỔI — cùng lý lẽ với dải báo lỗi cấu hình của `App.vue`. `role="status"`,
+        không `role="alert"`: đây là kết quả một thao tác, không phải tình huống khẩn.
+      -->
+      <!-- aura-allow-text: cả hai nhánh đi qua t()/chuỗi rỗng, không chuỗi viết thẳng
+           nào — Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+      <p class="status" role="status">
+        {{ createdWork ? t('mode.library.created', { name: createdWork.meta.name, folder: createdWork.folder }) : '' }}
+      </p>
+      <!--
+        `source_lang_mismatch` là một
+        CẢNH BÁO không chặn (script của văn bản không khớp `source_lang` đã khai): Rust vẫn
+        ghi, và dải này chỉ NÓI, không khoá gì. Đứng CẠNH `.status`, không lồng vào trong —
+        cùng khuôn ba node kia, mỗi node một câu độc lập.
+      -->
+      <!-- aura-allow-text: qua t()/chuỗi rỗng, Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
+      <p class="notice source-lang-warning" role="status">
+        {{ createdWork?.source_lang_mismatch === true ? t('mode.library.source_lang_mismatch_warning') : '' }}
+      </p>
+      <!--
+        `images_failed` — chỉ hiện khi CÓ ảnh không tải được (§Never: không hiện một dòng
+        "0 ảnh không tải được" vô nghĩa). Nút "xem" mở CÙNG màn Cài đặt > Quyền riêng tư mà
+        `ImportPreviewOverlay.vue` dùng cho nhật ký domain — không một màn riêng.
+      -->
+      <p v-if="(createdWork?.images_failed ?? 0) > 0" class="notice" role="status">
+        <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+        {{ t('mode.library.images_failed_warning', { count: String(createdWork?.images_failed ?? 0) }) }}
+        <button type="button" class="images-failed-domain-log-view" @click="dispatch('settings.privacy.open')">
+          {{ t('mode.library.preview.domain_log_view') }}
+        </button>
+      </p>
+    </div>
+
     <!--
       Story 5.3 — "Quét lại thư mục" (FR99). Màn hình TỐI THIỂU CÓ CHỦ: chỉ thư mục gốc,
       nút quét lại, danh sách mục mồ côi (con trỏ một mục, cùng khuôn GlossaryQueueOverlay),
@@ -493,453 +961,7 @@ watch(libraryChapterCursor, (cursor) => {
       </div>
     </div>
 
-    <!--
-      Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8). Đồng thời trên nguyên văn VÀ bản
-      dịch, xuyên MỌI Tác phẩm — không phụ thuộc Tác phẩm nào đang mở/đang chọn trong lưới.
-    -->
-    <div class="search-block">
-      <p class="section-heading">{{ t('mode.library.search_heading') }}</p>
-      <div class="search-form">
-        <label class="field">
-          <span>{{ t('mode.library.search_label') }}</span>
-          <input
-            v-model="librarySearchQuery"
-            type="text"
-            autocomplete="off"
-            data-library-search-input
-            @keyup.enter="dispatch('library.search')"
-          />
-        </label>
-        <button
-          type="button"
-          class="btn"
-          data-library-search-button
-          :disabled="librarySearchBusy"
-          @click="dispatch('library.search')"
-        >
-          {{ t('mode.library.search_button') }}
-        </button>
-      </div>
-
-      <!--
-        Story 5.10 (FR9) — hai nút chế độ dấu, cùng khuôn nhóm-lựa-chọn của bốn nút lọc trạng
-        thái ở `.filter-actions` bên dưới: mỗi lựa chọn một `dispatch` id RIÊNG (Kiểm A đòi id
-        LITERAL), không một nút "đảo". `aria-pressed` đọc `librarySearchMode` -- AC4: người
-        dùng đọc được chế độ ĐANG CHỌN mà không phải suy ra từ số kết quả.
-      -->
-      <div class="mode-actions">
-        <span class="mode-actions-label">{{ t('mode.library.search_mode_heading') }}</span>
-        <button
-          type="button"
-          class="btn"
-          data-library-search-mode="exact"
-          :aria-pressed="librarySearchMode === 'exact'"
-          @click="dispatch('library.search_mode_exact')"
-        >
-          {{ t('mode.library.search_mode_exact') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-library-search-mode="lenient"
-          :aria-pressed="librarySearchMode === 'lenient'"
-          @click="dispatch('library.search_mode_lenient')"
-        >
-          {{ t('mode.library.search_mode_lenient') }}
-        </button>
-      </div>
-
-      <!--
-        role="status" TÁM NHÁNH, LUÔN có mặt (không v-if) — §Always của story: "một danh sách
-        kết quả rỗng phải nói VÌ SAO nó rỗng", tám ca PHÂN BIỆT được, không gộp (xem khối 🔵 đầu
-        `librarySearch.ts` cho lý do "tám" chứ không "bảy"). Thứ tự ưu tiên khớp đúng
-        `librarySearch.ts` doc-comment đầu tệp.
-        🔴 SỬA (vòng rà bốn lớp, mục 1) — `result_widened` PHẢI rẽ theo `librarySearchTruncated`
-        NGAY BÊN TRONG nhánh của nó, cùng lý do `SearchReport::truncated` tồn tại từ Story 5.9:
-        "không trần nào được cắt trong im lặng" là luật của kho, không một nhánh mới nào được
-        miễn — một lượt vừa tự nới VỪA bị trần cắt mà chỉ nói "đã tự chuyển sang khoan dung dấu"
-        thì đúng hình dạng, sai sự thật.
-        aura-allow-text: mọi nhánh đều qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
-      -->
-      <p class="status" role="status" data-library-search-status>
-        {{
-          librarySearchStatusKey === 'searching'
-            ? t('mode.library.search_searching')
-            : librarySearchStatusKey === 'not_typed'
-              ? t('mode.library.search_not_typed')
-              : librarySearchStatusKey === 'index_empty'
-                ? t('mode.library.search_index_empty')
-                : librarySearchStatusKey === 'short_query'
-                  ? t('mode.library.search_short_query')
-                  : librarySearchStatusKey === 'no_match_widened'
-                    ? t('mode.library.search_no_match_widened')
-                    : librarySearchStatusKey === 'no_match'
-                      ? t('mode.library.search_no_match')
-                      : librarySearchStatusKey === 'result_widened'
-                        ? librarySearchTruncated
-                          ? t('mode.library.search_result_widened_truncated', { total: String(librarySearchTotal) })
-                          : t('mode.library.search_result_widened', { total: String(librarySearchTotal) })
-                        : librarySearchTruncated
-                          ? t('mode.library.search_result_truncated', { total: String(librarySearchTotal) })
-                          : t('mode.library.search_result', { total: String(librarySearchTotal) })
-        }}
-      </p>
-      <!-- aura-allow-text: như trên, qua tError(). -->
-      <p class="error" role="status">{{ librarySearchError ? tError(librarySearchError) : '' }}</p>
-
-      <!--
-        🔴 THÊM (retro Epic 5, AI-3 — 2026-09-03) — bề mặt ĐỘC LẬP với khối `role="status"` tám
-        nhánh ngay trên: nó phải hiện được CẢ KHI có kết quả (§Always). Một `v-if` RIÊNG theo
-        `librarySearchCoverageGapState` (hàm thuần `librarySearchCoverageGap`), KHÔNG một nhánh
-        chèn vào cây ba ngôi tám nhánh ở trên (§Code Map: "không sửa cây ba ngôi này").
-        🔵 SỬA (vòng rà lần hai, mục 5 — 2026-09-03): GỠ class `status-coverage-gap` — nó không
-        mang một quy tắc CSS nào (`grep -c status-coverage-gap` trên khối CSS của tệp này = 0),
-        tức một selector chết. Chọn GỠ thay vì dựng một quy tắc mới: chưa có quyết định thiết kế nào
-        cho một hình dạng RIÊNG của dòng này (nó dùng lại nguyên `.status` đã có, đúng nhóm với
-        `.error` ngay dưới) — dựng token cho một khác biệt thị giác CHƯA AI YÊU CẦU là bịa thêm
-        phạm vi ngoài spec. `data-library-search-coverage-gap` vẫn ở lại làm móc chọn cho test.
-        aura-allow-text: qua t().
-      -->
-      <p v-if="librarySearchCoverageGapState !== null" class="status" role="status" data-library-search-coverage-gap>
-        {{
-          t('mode.library.search_coverage_gap', {
-            missing: String(librarySearchCoverageGapState.missing),
-            total: String(librarySearchCoverageGapState.total),
-          })
-        }}
-      </p>
-
-      <div v-if="librarySearchHits.length > 0" class="grid-nav">
-        <button
-          type="button"
-          class="btn"
-          data-library-search-prev
-          :aria-label="t('mode.library.search_prev')"
-          @click="dispatch('library.search_prev')"
-        >
-          ‹
-        </button>
-        <span class="grid-nav-position">{{
-          t('mode.library.search_position', {
-            current: String(librarySearchCursor + 1),
-            total: String(librarySearchHits.length),
-          })
-        }}</span>
-        <button
-          type="button"
-          class="btn"
-          data-library-search-next
-          :aria-label="t('mode.library.search_next')"
-          @click="dispatch('library.search_next')"
-        >
-          ›
-        </button>
-      </div>
-
-      <ul v-if="librarySearchHits.length > 0" class="search-results" data-library-search-results>
-        <li
-          v-for="(hit, idx) in librarySearchHits"
-          :key="`${hit.work_id}-${hit.chapter_id}-${hit.segment_id ?? 'chapter'}-${hit.field}`"
-          class="search-hit"
-          :class="{ 'search-hit--current': idx === librarySearchCursor }"
-          :aria-current="idx === librarySearchCursor ? 'true' : undefined"
-          data-library-search-hit
-        >
-          <!-- aura-allow-text: tên Tác phẩm/tiêu đề Chương là DỮ LIỆU người dùng. -->
-          <p class="search-hit-locus">
-            {{ hit.work_name }} · {{ hit.chapter_title ?? t('mode.library.chapter_untitled', { ord: String(hit.chapter_ord) }) }}
-            <!-- aura-allow-text: qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
-            <span class="search-hit-field">{{
-              hit.field === 'target' ? t('mode.library.search_field_target') : t('mode.library.search_field_source')
-            }}</span>
-            <!-- aura-allow-text: qua t(). -->
-            <span v-if="hit.segment_id === null" class="search-hit-field">{{ t('mode.library.search_chapter_level') }}</span>
-            <!-- Story 5.10 -- hit chỉ khớp qua chỉ mục KHOAN DUNG mang một nhãn phân biệt được
-                 (§Always: "hai loại kết quả phân biệt được trên màn hình"). aura-allow-text: qua t(). -->
-            <span v-if="hit.match_kind === 'lenient'" class="search-hit-field search-hit-field--lenient" data-library-search-hit-lenient>{{
-              t('mode.library.search_hit_lenient')
-            }}</span>
-          </p>
-          <!-- aura-allow-text: đoạn trích là DỮ LIỆU người dùng, văn bản THUẦN (AD-16) -- không v-html. -->
-          <p class="search-hit-snippet">{{ hit.snippet }}</p>
-          <button
-            v-if="idx === librarySearchCursor"
-            type="button"
-            class="btn"
-            data-library-search-open
-            @click="dispatch('library.open_search_hit')"
-          >
-            {{ t('mode.library.search_open_button') }}
-          </button>
-        </li>
-      </ul>
-    </div>
-
-    <!--
-      Story 5.4 — "Bốn trạng thái vòng đời" (FR5/FR6): bốn nút lọc trạng thái + khối vòng đời
-      cho Tác phẩm đang mở.
-      🔵 SỬA (2026-08-28, Story 5.6) — câu cũ ("danh sách phẳng TỐI THIỂU CÓ CHỦ … Story 5.6
-      sở hữu phần đó") đã HẾT ĐÚNG: lưới (bìa, tiến độ, sắp xếp, lọc lĩnh vực/ngôn ngữ, điều
-      hướng bằng bàn phím) nay có mặt ngay dưới đây.
-    -->
-    <div class="works-block">
-      <p class="section-heading">{{ t('mode.library.works_heading') }}</p>
-
-      <!--
-        🔵 THÊM (2026-08-28) `data-lifecycle-filter`/`data-lifecycle-action` — MÓC ĐỊNH DANH
-        cho `e2e/specs/story-5-4-lifecycle.e2e.mjs`, cùng khuôn `data-shortcuts-open`
-        (`ShortcutsOverlay`) và `data-col` (lưới) đã có. Trước đó spec định vị bằng
-        `:nth-of-type(n)`: đổi thứ tự sáu nút làm spec bấm NHẦM nút và vẫn xanh, thay vì đỏ ở
-        đúng chỗ vừa đổi. Một móc đọc được là rẻ hơn một lượt đỏ sai nguyên nhân.
-      -->
-      <!--
-        🔴 BỐN nút RIÊNG, KHÔNG một `v-for` chọn id động — `check:commands` Kiểm A đòi mỗi
-        `@click` là ĐÚNG MỘT lời gọi `dispatch('<id>')` với id LITERAL, đọc TĨNH được từ mã
-        nguồn; một biểu thức ba ngôi chọn id lúc chạy không đọc tĩnh được (đã đo: Kiểm A đỏ).
-      -->
-      <div class="filter-actions">
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-filter="not_started"
-          :aria-pressed="libraryStatusFilter.has('not_started')"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.filter_not_started')"
-        >
-          {{ t('lifecycle.not_started') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-filter="in_progress"
-          :aria-pressed="libraryStatusFilter.has('in_progress')"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.filter_in_progress')"
-        >
-          {{ t('lifecycle.in_progress') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-filter="paused"
-          :aria-pressed="libraryStatusFilter.has('paused')"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.filter_paused')"
-        >
-          {{ t('lifecycle.paused') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-filter="done"
-          :aria-pressed="libraryStatusFilter.has('done')"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.filter_done')"
-        >
-          {{ t('lifecycle.done') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-action="clear_filter"
-          :disabled="libraryWorksBusy || libraryFilterIsEmpty"
-          @click="dispatch('library.filter_clear')"
-        >
-          {{ t('mode.library.clear_filter') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-action="list_works"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.list_works')"
-        >
-          {{ t('mode.library.list_works') }}
-        </button>
-      </div>
-
-      <!--
-        Story 5.6 — ba `<select>` (lĩnh vực · ngôn ngữ · sắp xếp), tập-mở nên KHÔNG viết được
-        thành nút literal (§Design Notes "Vì sao `<select>` chứ không thêm nút"). `@change`
-        is outside both Kiểm A and Kiểm K (not one of Kiểm K's five event types).
-        `<option>` dựng từ hai mảng DO
-        RUST TRẢ VỀ (`libraryGenres`/`librarySourceLangs`, `DISTINCT` trên bảng CHƯA LỌC) —
-        KHÔNG BAO GIỜ suy từ `libraryWorks` đã lọc (AD-1, §Always).
-      -->
-      <div class="filter-selects">
-        <label class="field">
-          <span>{{ t('mode.library.filter_genre_label') }}</span>
-          <select
-            data-library-genre-filter
-            :value="libraryGenreFilter ?? ''"
-            :disabled="libraryWorksBusy"
-            @change="onGenreFilterChange"
-          >
-            <option value="">{{ t('mode.library.filter_all_genres') }}</option>
-            <!-- aura-allow-text: lĩnh vực là DỮ LIỆU người dùng gõ, không một câu UI. -->
-            <option v-for="genreOption in libraryGenres" :key="genreOption" :value="genreOption">
-              {{ genreOption }}
-            </option>
-          </select>
-        </label>
-        <label class="field">
-          <span>{{ t('mode.library.filter_source_lang_label') }}</span>
-          <select
-            data-library-source-lang-filter
-            :value="librarySourceLangFilter ?? ''"
-            :disabled="libraryWorksBusy"
-            @change="onSourceLangFilterChange"
-          >
-            <option value="">{{ t('mode.library.filter_all_source_langs') }}</option>
-            <!-- aura-allow-text: ngôn ngữ nguồn là DỮ LIỆU (mã ngôn ngữ), không một câu UI. -->
-            <option v-for="langOption in librarySourceLangs" :key="langOption" :value="langOption">
-              {{ langOption }}
-            </option>
-          </select>
-        </label>
-        <label class="field">
-          <span>{{ t('mode.library.sort_label') }}</span>
-          <select data-library-sort :value="librarySortKey" :disabled="libraryWorksBusy" @change="onSortKeyChange">
-            <option value="updated_desc">{{ t('mode.library.sort_updated_desc') }}</option>
-            <option value="name_asc">{{ t('mode.library.sort_name_asc') }}</option>
-          </select>
-        </label>
-      </div>
-
-      <!-- role="status" LUÔN có mặt (không v-if) -- cùng khuôn dải trạng thái của khối quét lại. -->
-      <!-- aura-allow-text: ba nhánh đều qua t()/chuỗi rỗng -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
-      <p class="status" role="status">
-        {{
-          !libraryWorksHaveLoaded
-            ? t('mode.library.works_not_loaded')
-            : libraryWorksTotal === 0
-              ? t('mode.library.works_empty')
-              : libraryWorksMatched === 0
-                ? t('mode.library.works_no_match', { total: String(libraryWorksTotal) })
-                : t('mode.library.works_result', { matched: String(libraryWorksMatched), total: String(libraryWorksTotal) })
-        }}
-      </p>
-      <!-- aura-allow-text: như trên, qua tError(). -->
-      <p class="error" role="status">{{ libraryWorksError ? tError(libraryWorksError) : '' }}</p>
-
-      <!--
-        Story 5.6 — lưới Tác phẩm (AC2/AC3/AC4/AC6/AC7), thay danh sách phẳng của Story 5.4.
-        Con trỏ (`libraryWorkCursor`) di chuyển bằng HAI NÚT thật (`‹`/`›`, `dispatch()` id
-        literal — Kiểm A) chứ không một `@keydown` tự chế trên từng ô: cùng khuôn
-        `library.orphan_next`/`orphan_prev` đã có trong chính tệp này.
-      -->
-      <div v-if="libraryWorks.length > 0" class="grid-nav">
-        <button
-          type="button"
-          class="btn"
-          data-library-work-prev
-          :aria-label="t('mode.library.work_prev')"
-          @click="dispatch('library.work_prev')"
-        >
-          ‹
-        </button>
-        <span class="grid-nav-position">{{ t('mode.library.work_position', { current: String(libraryWorkCursor + 1), total: String(libraryWorks.length) }) }}</span>
-        <button
-          type="button"
-          class="btn"
-          data-library-work-next
-          :aria-label="t('mode.library.work_next')"
-          @click="dispatch('library.work_next')"
-        >
-          ›
-        </button>
-      </div>
-
-      <ul v-if="libraryWorks.length > 0" class="works-grid" data-library-grid>
-        <li
-          v-for="(work, workIndex) in libraryWorks"
-          ref="workCellRefs"
-          :key="work.work_id"
-          class="work-cell"
-          :class="{ 'work-cell--current': workIndex === libraryWorkCursor }"
-          :aria-current="workIndex === libraryWorkCursor ? 'true' : undefined"
-          data-library-work-cell
-        >
-          <div class="work-cover" role="img" :aria-label="t('mode.library.cover_placeholder_label', { name: work.name })">
-            <!-- aura-allow-text: biểu diễn thay thế là chữ cái đầu của TÊN, dữ liệu người dùng. -->
-            {{ coverInitial(work.name) }}
-          </div>
-          <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
-          <span class="work-name">{{ work.name }}</span>
-          <!--
-            aura-allow-text: mọi nhánh đều qua t().
-            🔵 SỬA (2026-08-28, lượt rà) — TÁCH nhánh cuối làm HAI. Bản trước cho `status = null`
-            (`meta.json` v1, thật sự CHƯA BIẾT) và một `status` mang giá trị NGOÀI danh mục bốn
-            (dữ liệu hỏng) đọc lên GIỐNG HỆT nhau, nên một hàng hỏng đội lốt một hàng chưa di
-            trú và không ai lần được. Hai câu khác nhau vì hai trạng thái khác nhau.
-          -->
-          <span class="work-status">
-            {{
-              work.status === 'not_started'
-                ? t('lifecycle.not_started')
-                : work.status === 'in_progress'
-                  ? t('lifecycle.in_progress')
-                  : work.status === 'paused'
-                    ? t('lifecycle.paused')
-                    : work.status === 'done'
-                      ? t('lifecycle.done')
-                      : work.status === null
-                        ? t('mode.library.works_status_unknown')
-                        : t('mode.library.works_status_invalid', { status: work.status })
-            }}
-          </span>
-          <span v-if="work.status_is_override" class="override-marker">{{ t('mode.library.override_marker') }}</span>
-          <!--
-            Story 5.5 — "Tiến độ Tác phẩm" (FR7). `chapter_done_count === null` ⇒ câu "chưa
-            biết" và KHÔNG vẽ thanh (§I/O Matrix: "không hiện 0 /") — một `meta.json` chưa
-            từng qua `WorkMeta::rebuild_from_store` không được phép trông như "0 Chương xong".
-            aura-allow-text: cả hai nhánh đi qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
-          -->
-          <span class="work-progress">
-            {{
-              work.chapter_done_count === null
-                ? t('mode.library.works_progress_unknown')
-                : t('mode.library.works_progress', {
-                    done: String(work.chapter_done_count),
-                    total: String(work.chapter_count),
-                  })
-            }}
-          </span>
-          <div
-            v-if="work.chapter_done_count !== null"
-            class="work-progress-track"
-            role="progressbar"
-            :aria-valuemin="0"
-            :aria-valuemax="work.chapter_count"
-            :aria-valuenow="work.chapter_done_count"
-            :aria-valuetext="
-              t('mode.library.works_progress_aria', {
-                done: String(work.chapter_done_count),
-                total: String(work.chapter_count),
-              })
-            "
-          >
-            <div class="work-progress-fill" :style="{ width: progressPercent(work) + '%' }"></div>
-          </div>
-          <!--
-            Story 5.7 — "Mở Tác phẩm" (FR12). Cùng khuôn `library.forget_orphan`: thao tác
-            trên `currentLibraryWork` (con trỏ), không một tham số qua `dispatch()` — nên NÚT
-            chỉ hiện ở đúng ô đang chọn (`v-if`), tránh việc bấm nút ở một ô KHÁC ô cursor mà
-            lại mở đúng Tác phẩm cursor đang trỏ tới, một hành vi lệch trực quan.
-          -->
-          <button
-            v-if="workIndex === libraryWorkCursor"
-            type="button"
-            class="btn"
-            data-library-open-work
-            :disabled="libraryOpenWorkBusy"
-            @click="dispatch('library.open_work')"
-          >
-            {{ t('mode.library.open_work_button') }}
-          </button>
-        </li>
-      </ul>
-
+    <div class="open-work-wrap">
       <div class="open-work-block">
         <p class="section-heading">{{ t('mode.library.open_work_heading') }}</p>
         <!--
@@ -1249,255 +1271,6 @@ watch(libraryChapterCursor, (cursor) => {
         </div>
       </div>
     </div>
-
-    <!--
-      🔴 Xác nhận đứng CẠNH form, KHÔNG bọc form trong một `v-else`. Bản trước dùng
-      `v-if`/`v-else` và `createdWork` không bao giờ được đặt lại, nên tạo xong Tác phẩm
-      đầu tiên là form VÀ dải báo lỗi biến mất vĩnh viễn trong phiên. Code review
-      2026-08-06.
-    -->
-    <div class="empty">
-      <div class="rule" aria-hidden="true"></div>
-      <!--
-        Story 5.6, AC5 — câu "Library chưa có Tác phẩm nào" (`mode.library.status`) không
-        được phép nói khi ĐÃ có Tác phẩm, và không được nói TRƯỚC khi lượt tải xong (đó là
-        "chưa biết", không phải "không có" — `AGENTS.md::Known pitfalls`). Khối giải thích
-        đứng TRƯỚC form (lời mời nhập) khi library rỗng thật; form vẫn LUÔN hiện (thêm Tác
-        phẩm không bị khoá lại chỉ vì đã có sẵn Tác phẩm khác).
-      -->
-      <template v-if="libraryWorksHaveLoaded && libraryWorksTotal === 0">
-        <p class="big">{{ t('mode.library.status') }}</p>
-        <p class="small">{{ t('mode.library.empty_body') }}</p>
-      </template>
-
-      <form class="import-form" @submit.prevent>
-        <!--
-          🔴 STORY 6.7b (FR122 nửa hai) — "Đưa vào": Tác phẩm mới, hoặc thêm Chương vào
-          cuối một Tác phẩm sẵn có. Khớp mockup `web-import.html:198-207` — đứng NGAY TRƯỚC
-          `Tên Tác phẩm`/`Ngôn ngữ nguồn` trong cùng cột, vì đích quyết định GIÁ TRỊ của hai
-          ô đó (Decision 2 — kế thừa, không dò). Chỉ ba nút nộp đơn ngữ (dán/tệp/URL) đọc
-          đích này — nút song ngữ (`submitBilingualFilePath`) không đổi (Decision 1).
-        -->
-        <!-- 🔵 SỬA (vòng rà, mục B7) — `<fieldset>`/`<legend>` thay `<div>`/`<span>` trần: hai
-             radio bên dưới cùng một nhóm ngữ nghĩa (chọn ĐÚNG MỘT đích), và trước bản sửa này
-             không có gì nói với trình đọc màn hình rằng chúng đi cùng nhau. -->
-        <fieldset class="field field-group" data-import-destination>
-          <legend>{{ t('mode.library.field_destination') }}</legend>
-
-          <label class="radio-field">
-            <input
-              type="radio"
-              name="import-destination-mode"
-              value="new"
-              :checked="destinationMode === 'new'"
-              @change="setDestinationMode('new')"
-            />
-            <span class="radio-copy">
-              <span class="radio-title">{{ t('mode.library.destination_new_work') }}</span>
-              <span class="radio-desc">{{ t('mode.library.destination_new_work_desc') }}</span>
-            </span>
-          </label>
-
-          <label class="radio-field">
-            <input
-              type="radio"
-              name="import-destination-mode"
-              value="existing"
-              :checked="destinationMode === 'existing'"
-              :disabled="!destinationExistingWorkAvailable"
-              @change="setDestinationMode('existing')"
-            />
-            <span class="radio-copy">
-              <span class="radio-title">{{ t('mode.library.destination_existing_work') }}</span>
-              <span class="radio-desc">{{ t('mode.library.destination_existing_work_desc') }}</span>
-            </span>
-          </label>
-
-          <!-- I/O Matrix spec 6.7b "Empty Library" — nói vì sao, không chỉ khoá im lặng.
-               🔵 SỬA (vòng rà, mục E6) — trước bản sửa này canh `!destinationExistingWorkAvailable`,
-               đúng CẢ khi Library rỗng thật LẪN khi lượt tải vừa lỗi, nên câu "Library trống" và
-               câu lỗi thật hiện CÙNG LÚC, nói dối về lý do. `destinationLibraryGenuinelyEmpty`
-               loại trừ lẫn nhau với dải lỗi ngay dưới. -->
-          <p v-if="destinationLibraryGenuinelyEmpty" class="hint" role="status">
-            {{ t('mode.library.destination_empty_library') }}
-          </p>
-          <p v-if="destinationWorksError !== null" class="hint hint-error" role="alert">
-            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
-            {{ tError(destinationWorksError) }}
-          </p>
-
-          <label v-if="destinationMode === 'existing'" class="field" data-import-destination-picker>
-            <span>{{ t('mode.library.destination_pick_label') }}</span>
-            <select
-              :value="destinationWorkId ?? ''"
-              @change="setDestinationWorkId(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="" disabled>{{ t('mode.library.destination_pick_placeholder') }}</option>
-              <!-- aura-allow-text: DỮ LIỆU (tên Tác phẩm người dùng tự đặt). -->
-              <option v-for="w in destinationWorks" :key="w.work_id" :value="w.work_id">{{ w.name }}</option>
-            </select>
-          </label>
-        </fieldset>
-
-        <label class="field">
-          <span>{{ t('mode.library.field_name') }}</span>
-          <input v-if="pickedDestinationWork === null" v-model="name" type="text" autocomplete="off" />
-          <input v-else :value="pickedDestinationWork.name" type="text" autocomplete="off" disabled />
-        </label>
-
-        <label class="field">
-          <span>{{ t('mode.library.field_source_lang') }}</span>
-          <select v-if="pickedDestinationWork === null" v-model="sourceLang">
-            <option value="zh">{{ t('mode.library.lang_zh') }}</option>
-            <option value="en">{{ t('mode.library.lang_en') }}</option>
-          </select>
-          <input v-else :value="pickedDestinationWork.source_lang" type="text" autocomplete="off" disabled />
-        </label>
-
-        <label class="field">
-          <span>{{ t('mode.library.field_genre') }}</span>
-          <input v-if="pickedDestinationWork === null" v-model="genre" type="text" autocomplete="off" />
-          <input v-else :value="pickedDestinationWork.genre" type="text" autocomplete="off" disabled />
-        </label>
-
-        <label class="field">
-          <span>{{ t('mode.library.field_paste') }}</span>
-          <textarea v-model="pastedText" rows="6"></textarea>
-        </label>
-        <button
-          type="button"
-          class="btn"
-          data-import-preview-open
-          :disabled="busy || pastedText.trim() === '' || destinationPending || effectiveName.trim() === ''"
-          @click="dispatch('library.import_text')"
-        >
-          <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
-               tử ba ngôi. -->
-          {{ destinationMode === 'existing' ? t('mode.library.submit_text_append') : t('mode.library.submit_text') }}
-        </button>
-
-        <!--
-          🔴 Vùng kéo-thả — một CHỈ BÁO, không phải một điều khiển. Nó không mang
-          `tabindex`: thả một tệp chỉ **điền vào ô đường dẫn ngay dưới**, rồi người dùng
-          bấm cùng cái nút mà đường bàn phím bấm — nên không có thao tác nào riêng của
-          vùng này để một chặng Tab dẫn tới. Bản trước có `tabindex="0"` mà không
-          `role`, không `@keydown`: một chặng Tab ăn tiêu điểm rồi không phản hồi
-          phím nào. Code review 2026-08-06.
-
-          ⇒ NFR17 đạt bằng chính cấu trúc này: **mọi** đường mở tệp kết thúc ở ô đường dẫn
-          + nút, cả hai đều là điều khiển HTML gốc. Kéo-thả chỉ là lối tắt cho chuột.
-        -->
-        <div class="dropzone" :class="{ over: isDragOver }">
-          {{ t('mode.library.dropzone') }}
-        </div>
-
-        <label class="field">
-          <span>{{ t('mode.library.field_path') }}</span>
-          <input
-            :value="filePath"
-            type="text"
-            autocomplete="off"
-            @input="onFilePathInput(($event.target as HTMLInputElement).value)"
-          />
-        </label>
-        <button
-          type="button"
-          class="btn"
-          data-import-preview-open
-          :disabled="busy || effectiveFilePaths.length === 0 || destinationPending || effectiveName.trim() === ''"
-          @click="dispatch('library.import_file')"
-        >
-          <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
-               tử ba ngôi. -->
-          {{ destinationMode === 'existing' ? t('mode.library.submit_file_append') : t('mode.library.submit_file') }}
-        </button>
-
-        <!--
-          Story 6.16 (FR115) — nhập tài liệu song ngữ hai cột (`.csv`/`.tsv`). Ô đường dẫn
-          RIÊNG với `filePath`: gõ vào ô này LÀ hành động "chọn chế độ song ngữ tường minh"
-          (§Intent) — không một hộp chọn chế độ riêng, cùng khuôn NFR17 của nhánh tệp thường
-          (ô + nút, không thao tác chuột-duy-nhất nào).
-        -->
-        <label class="field">
-          <span>{{ t('mode.library.field_bilingual_path') }}</span>
-          <input v-model="bilingualFilePath" type="text" autocomplete="off" />
-        </label>
-        <button
-          type="button"
-          class="btn"
-          data-bilingual-import-preview-open
-          :disabled="busy || bilingualFilePath.trim() === '' || name.trim() === ''"
-          @click="dispatch('library.import_bilingual')"
-        >
-          {{ t('mode.library.submit_bilingual') }}
-        </button>
-
-        <!--
-          Story 6.7 (FR122) — nhập từ URL bằng danh sách link, một link mỗi dòng.
-
-          🔴 Hai con số ngay dưới ("N link · sẽ tạo N Chương") tính CỤC BỘ trên
-          `pastedUrls` (`pastedUrlCount`, `libraryImport.ts`) — 0 lời gọi IPC, 0 lời gọi
-          mạng cho tới khi nút TẢI được bấm. `role="status"` để trình đọc màn hình công
-          bố con số ĐỔI khi gõ, cùng khuôn dải trạng thái ở cuối form.
-        -->
-        <label class="field">
-          <span>{{ t('mode.library.field_urls') }}</span>
-          <textarea v-model="pastedUrls" rows="6" placeholder="https://…"></textarea>
-        </label>
-        <!-- aura-allow-text: qua t(), Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
-        <p class="url-count" role="status">
-          {{ pastedUrlCount > 0 ? t('mode.library.url_count', { count: String(pastedUrlCount) }) : '' }}
-        </p>
-        <button
-          type="button"
-          class="btn"
-          data-import-preview-open
-          :disabled="busy || pastedUrlCount === 0 || destinationPending || effectiveName.trim() === ''"
-          @click="dispatch('library.import_urls')"
-        >
-          <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
-               tử ba ngôi. -->
-          {{ destinationMode === 'existing' ? t('mode.library.submit_urls_append') : t('mode.library.submit_urls') }}
-        </button>
-      </form>
-
-      <!--
-        Bốn node LUÔN có mặt (không `v-if`) để trình đọc màn hình công bố được nội
-        dung ĐỔI — cùng lý lẽ với dải báo lỗi cấu hình của `App.vue`. `role="status"`,
-        không `role="alert"`: đây là kết quả một thao tác, không phải tình huống khẩn.
-      -->
-      <!-- aura-allow-text: cả hai nhánh đi qua t()/chuỗi rỗng, không chuỗi viết thẳng
-           nào — Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
-      <p class="status" role="status">
-        {{ createdWork ? t('mode.library.created', { name: createdWork.meta.name, folder: createdWork.folder }) : '' }}
-      </p>
-      <!--
-        `source_lang_mismatch` là một
-        CẢNH BÁO không chặn (script của văn bản không khớp `source_lang` đã khai): Rust vẫn
-        ghi, và dải này chỉ NÓI, không khoá gì. Đứng CẠNH `.status`, không lồng vào trong —
-        cùng khuôn ba node kia, mỗi node một câu độc lập.
-      -->
-      <!-- aura-allow-text: qua t()/chuỗi rỗng, Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
-      <p class="notice source-lang-warning" role="status">
-        {{ createdWork?.source_lang_mismatch === true ? t('mode.library.source_lang_mismatch_warning') : '' }}
-      </p>
-      <!--
-        `images_failed` — chỉ hiện khi CÓ ảnh không tải được (§Never: không hiện một dòng
-        "0 ảnh không tải được" vô nghĩa). Nút "xem" mở CÙNG màn Cài đặt > Quyền riêng tư mà
-        `ImportPreviewOverlay.vue` dùng cho nhật ký domain — không một màn riêng.
-      -->
-      <p v-if="(createdWork?.images_failed ?? 0) > 0" class="notice" role="status">
-        <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
-        {{ t('mode.library.images_failed_warning', { count: String(createdWork?.images_failed ?? 0) }) }}
-        <button type="button" class="images-failed-domain-log-view" @click="dispatch('settings.privacy.open')">
-          {{ t('mode.library.preview.domain_log_view') }}
-        </button>
-      </p>
-      <!-- aura-allow-text: như trên. -->
-      <p class="notice" role="status">{{ noticeKey ? t(noticeKey) : '' }}</p>
-      <!-- aura-allow-text: như trên, qua tError(). -->
-      <p class="error" role="status">{{ lastError ? tError(lastError) : '' }}</p>
-    </div>
   </section>
 </template>
 
@@ -1506,6 +1279,7 @@ watch(libraryChapterCursor, (cursor) => {
   height: 100%;
   padding: var(--space-panel-block) var(--space-panel-inline);
   overflow-y: auto;
+  container-type: inline-size;
 }
 
 /*
@@ -1553,19 +1327,6 @@ watch(libraryChapterCursor, (cursor) => {
   text-decoration: underline;
 }
 
-/* Story 6.7 — hai con số "N link · sẽ tạo N Chương", computed CỤC BỘ (0 IPC). */
-.url-count {
-  margin: 4px 0 0;
-  min-height: 1em;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.empty {
-  max-width: 420px;
-}
 
 .rule {
   width: 34px;
@@ -1591,12 +1352,6 @@ watch(libraryChapterCursor, (cursor) => {
   color: var(--color-on-surface-variant);
 }
 
-.import-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
 .field {
   display: flex;
   flex-direction: column;
@@ -1619,59 +1374,6 @@ watch(libraryChapterCursor, (cursor) => {
   padding: 8px 8px;
 }
 
-/* 🔴 STORY 6.7b — "Đưa vào" (radio đích + picker Tác phẩm đã có). */
-.field-group {
-  gap: 8px;
-  /* 🔵 SỬA (vòng rà, mục B7) — `.field-group` nay là một `<fieldset>` (nhóm ngữ nghĩa hai
-     radio), không còn `<div>`. Reset viền/margin/padding mặc định của trình duyệt cho
-     `<fieldset>`: dự án không dùng viền/khoảng cách nào ngoài token thiết kế. */
-  border: none;
-  margin: 0;
-  padding: 0;
-}
-
-.field-group legend {
-  padding: 0;
-  margin: 0;
-}
-
-.radio-field {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.radio-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.radio-title {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.radio-desc {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.hint {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-  margin: 0;
-}
-
-.hint-error {
-  color: var(--color-error);
-}
-
 .btn {
   align-self: flex-start;
   font-family: var(--face-ui-md);
@@ -1688,23 +1390,6 @@ watch(libraryChapterCursor, (cursor) => {
 .btn:disabled {
   color: var(--color-on-surface-variant);
   cursor: not-allowed;
-}
-
-.dropzone {
-  border: 1px dashed var(--color-outline);
-  border-radius: 4px;
-  padding: 16px;
-  text-align: center;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-  background: var(--color-surface-sunken);
-}
-
-.dropzone.over {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
 }
 
 /*
@@ -1727,7 +1412,6 @@ watch(libraryChapterCursor, (cursor) => {
 
 /* Story 5.3 — "Quét lại thư mục". Cùng khuôn token/cỡ chữ với `.empty`/`.field` ở trên. */
 .root-block {
-  max-width: 420px;
   margin-bottom: var(--space-panel-block);
   padding-bottom: var(--space-panel-block);
   border-bottom: 1px solid var(--color-outline);
@@ -1819,7 +1503,6 @@ watch(libraryChapterCursor, (cursor) => {
 
 /* Story 5.4 — "Bốn trạng thái vòng đời". Cùng khuôn token/cỡ chữ với `.root-block` ở trên. */
 .works-block {
-  max-width: 420px;
   margin-bottom: var(--space-panel-block);
   padding-bottom: var(--space-panel-block);
   border-bottom: 1px solid var(--color-outline);
@@ -1876,7 +1559,7 @@ watch(libraryChapterCursor, (cursor) => {
   margin: 12px 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 
@@ -2087,46 +1770,6 @@ watch(libraryChapterCursor, (cursor) => {
   color: var(--color-on-surface-variant);
 }
 
-/* Story 5.9 — "Tìm kiếm full-text xuyên Library". Cùng khuôn token/cỡ chữ với `.root-block`. */
-.search-block {
-  max-width: 420px;
-  margin-bottom: var(--space-panel-block);
-  padding-bottom: var(--space-panel-block);
-  border-bottom: 1px solid var(--color-outline);
-}
-
-.search-form {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.search-form .field {
-  flex: 1;
-}
-
-/* Story 5.10 — hai nút chế độ dấu, cùng khuôn `.filter-actions` (token màu cho trạng thái
-   ĐANG BẬT, không bóng đổ/gradient — AD-21). */
-.mode-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.mode-actions-label {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.mode-actions .btn[aria-pressed='true'] {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
 .search-results {
   margin: 12px 0 0;
   padding: 0;
@@ -2177,5 +1820,131 @@ watch(libraryChapterCursor, (cursor) => {
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
   word-break: break-word;
+}
+@container (min-width: 800px) {
+  .works-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@container (min-width: 1000px) {
+  .works-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.top-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: var(--space-panel-block);
+}
+
+.top-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 200px;
+  gap: 8px;
+  padding: 0 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+}
+
+.search-icon {
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface-variant);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 0;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface);
+  background: none;
+  border: none;
+}
+
+.search-field:focus-within {
+  border-color: var(--color-primary);
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.segment {
+  padding: 8px 12px;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface-variant);
+  background: var(--color-surface-sunken);
+  border: none;
+  cursor: pointer;
+}
+
+.segment + .segment {
+  border-left: 1px solid var(--color-outline);
+}
+
+.segment[aria-pressed='true'] {
+  color: var(--color-primary);
+  background: var(--color-surface-accent);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.btn-primary {
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.filter-actions,
+.filter-selects {
+  margin-bottom: 0;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.work-cover {
+  position: relative;
+}
+
+.work-lang {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  font-weight: var(--weight-ui-md-strong);
+  color: var(--color-on-surface);
+  background: var(--color-surface);
+}
+
+.work-meta {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 </style>

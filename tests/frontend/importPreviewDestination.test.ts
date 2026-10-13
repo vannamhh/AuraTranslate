@@ -91,6 +91,25 @@ function mockInvokeWithWorks(works: WorkRow[]): void {
   })
 }
 
+let pageWrapper: ReturnType<typeof mount> | null = null
+
+/** Mounts the Library page (its `onMounted` loads the destination picker) and the open import overlay. */
+async function mountImportOverlay(): Promise<ReturnType<typeof mount>> {
+  const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+  const { default: LibraryImportOverlay } = await import('../../src/LibraryImportOverlay.vue')
+  const overlayState = await import('../../src/modes/libraryImportOverlayState')
+  pageWrapper = mount(LibraryMode)
+  overlayState.openLibraryImportOverlay()
+  return mount(LibraryImportOverlay)
+}
+
+afterEach(async () => {
+  pageWrapper?.unmount()
+  pageWrapper = null
+  const overlayState = await import('../../src/modes/libraryImportOverlayState')
+  overlayState.resetLibraryImportOverlay()
+})
+
 // Tệp này không có một khuôn `freshState()`/`freshOverlay()` chung — mỗi ca tự `import()` một
 // trong hai NHÁNH độc lập (`modes/LibraryMode.vue`, kéo theo `modes/libraryImport` ở tầng
 // module, và `ImportPreviewOverlay.vue`, kéo theo `importPreviewState`). Nạp CẢ HAI cùng lúc
@@ -143,8 +162,7 @@ describe('LibraryMode.vue — chọn Tác phẩm đã có khoá ba ô tên/ngu�
   it('chọn "Tác phẩm đã có" rồi chọn một Tác phẩm trong picker: ba ô đổi sang disabled, hiện đúng giá trị của đích', async () => {
     mockInvokeWithWorks([workRow()])
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
+    wrapper = await mountImportOverlay()
     await flushPromises() // onMounted -> loadDestinationWorks() (best-effort, không đồng bộ)
     await wrapper.vm.$nextTick()
 
@@ -172,8 +190,7 @@ describe('LibraryMode.vue — chọn Tác phẩm đã có khoá ba ô tên/ngu�
   it('Library RỖNG: radio "Tác phẩm đã có" bị khoá và một dòng nói vì sao, không chỉ khoá im lặng', async () => {
     mockInvokeWithWorks([])
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
+    wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -349,8 +366,7 @@ describe('libraryImport.ts — hint rỗng và dải lỗi nói HAI câu khác n
       return Promise.reject(new Error(`invoke gia khong biet lenh: ${cmd}`))
     })
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    const wrapper = mount(LibraryMode)
+    const wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -488,8 +504,7 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
 
   it('đích Tác phẩm mới (mặc định): nút dán/tệp đọc "Tạo Tác phẩm từ …", nút URL giữ nguyên "Tải danh sách URL"', async () => {
     mockInvokeWithWorks([workRow()])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
+    wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -504,8 +519,7 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
 
   it('đích là một Tác phẩm đã có: ba nút đổi sang "Thêm Chương từ …", không còn nói "Tạo Tác phẩm"/"Tải danh sách URL"', async () => {
     mockInvokeWithWorks([workRow()])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
+    wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -525,8 +539,7 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
 
   it('nhóm hai radio đích nằm trong một `<fieldset>`/`<legend>` (mục B7)', async () => {
     mockInvokeWithWorks([workRow()])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
+    wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -640,8 +653,7 @@ describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần kho�
 
   it('đích Tác phẩm mới, ô Tên rỗng/toàn khoảng trắng: cả ba nút dán/tệp/URL VÀ nút song ngữ đều disabled dù các ô khác đã điền đủ', async () => {
     mockInvokeWithWorks([])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
+    wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -680,8 +692,7 @@ describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần kho�
 
   it('đích là một Tác phẩm đã có: effectiveName kế thừa từ đích (không rỗng) nên ba nút dán/tệp/URL không bị khoá vì lý do Tên', async () => {
     mockInvokeWithWorks([workRow()])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
+    wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -715,8 +726,8 @@ describe('LibraryMode.vue — dải cảnh báo `source_lang_mismatch` (Rust pha
 
   it('`createdWork.source_lang_mismatch === true` ⇒ dải cảnh báo hiện, VÀ dải "đã tạo" vẫn hiện cùng lúc (ghi vẫn xảy ra)', async () => {
     mockInvokeWithWorks([])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
     const nhap = await import('../../src/modes/libraryImport')
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
     wrapper = mount(LibraryMode)
     await flushPromises()
     await wrapper.vm.$nextTick()
@@ -740,7 +751,7 @@ describe('LibraryMode.vue — dải cảnh báo `source_lang_mismatch` (Rust pha
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('.source-lang-warning').text()).not.toBe('')
-    expect(wrapper.get('.empty .status').text()).toContain('Truyen Tieng Viet') // lượt ghi vẫn có thật
+    expect(wrapper.get('.created-block .status').text()).toContain('Truyen Tieng Viet') // lượt ghi vẫn có thật
   })
 
   it('`createdWork` là `null` (chưa nộp gì) ⇒ dải cảnh báo rỗng', async () => {
@@ -779,7 +790,7 @@ describe('LibraryMode.vue — dải cảnh báo `source_lang_mismatch` (Rust pha
     }
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.get('.empty .status').text()).toContain('Truyen Trung Van')
+    expect(wrapper.get('.created-block .status').text()).toContain('Truyen Trung Van')
     expect(wrapper.get('.source-lang-warning').text()).toBe('')
   })
 })

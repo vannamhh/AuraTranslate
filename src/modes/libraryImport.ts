@@ -74,6 +74,7 @@ import type { CreatedWork } from '../config/project'
 import { listLibraryWorks } from '../config/library'
 import type { WorkRow } from '../config/library'
 import type { IpcError } from '../i18n'
+import { closeLibraryImportOverlay } from './libraryImportOverlayState'
 
 /** Khớp `src-tauri/src/lib.rs::DRAG_DROP_EVENT`. */
 const DRAG_DROP_EVENT = 'aura://file-dropped'
@@ -414,6 +415,7 @@ async function beginSubmit(): Promise<boolean> {
 export function finishImportSubmission(created: CreatedWork | null, error: IpcError | null): void {
   lastError.value = error
   createdWork.value = created
+  if (created !== null) closeLibraryImportOverlay()
 
   // 🔴 Tác phẩm MỚI ⇒ vứt state Panel Source VÀ Panel Lookup của Tác phẩm CŨ.
   // `replace_open_work` phía Rust vừa trỏ `OpenWorkState` sang chỗ khác, còn cờ

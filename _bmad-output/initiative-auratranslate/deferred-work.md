@@ -13112,3 +13112,7 @@ chính nó.
   summary: Thẻ Tác phẩm ghi "sửa … trước" từ `updated_at` của chỉ mục Library, chỉ tươi tới lượt ghi `meta.json` gần nhất (tạo Tác phẩm, đổi trạng thái Chương, quét lại); sửa câu thuần không làm mới nó.
   evidence: `core/library/meta.rs` 285–293 (`rebuild_from_store`); đóng cần một AD mới cho chỗ ghi `meta.json` thứ ba (ví dụ khi đóng Tác phẩm). Mục ✅ 2026-09-23 về MAX(updated_at) không đóng vế này.
   Chủ: Winston.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-library-dai-tren-luoi-bon-cot-form-nhap-trang-thai-rong-plan.md`
+  summary: Chưa ai nhìn Library mới trong app thật trên macOS: dải trên, lưới bốn/ba/hai cột khi kéo cửa sổ, bìa vuông ở bốn cột, nền lớp phủ nhập, và `⌘N` rồi Escape trả tiêu điểm về nút `Nhập tài liệu`.
+  evidence: e2e chỉ đo số cột và tiêu điểm qua driver (ô tìm phải focus bằng JS); không phép đo nào thấy hình dạng.
+  Chủ: Epic 12.

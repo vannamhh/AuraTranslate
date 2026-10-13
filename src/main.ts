@@ -283,6 +283,7 @@ import { reviewModeCommandDeps } from './reviewModeCommandDeps'
 import { installReviewerImportHooks, reviewerImportOverlayIsOpen } from './reviewerImportState'
 import { resetReviewMode } from './reviewModeState'
 import { exportOverlayIsOpen } from './exportState'
+import { closeLibraryImportOverlay, libraryImportOverlayIsOpen } from './modes/libraryImportOverlayState'
 import { tmManageCommandDeps } from './tmManageCommandDeps'
 import { tmImportOverlayIsOpen } from './tmImportState'
 import { tmManageOverlayIsOpen } from './tmManageState'
@@ -540,9 +541,8 @@ async function boot(): Promise<void> {
       submitFilePath,
       submitPastedUrls,
       submitBilingualFilePath,
-      openLibraryImportForm: () => {
-        void openLibraryImportForm()
-      },
+      openLibraryImportForm,
+      closeLibraryImportForm: closeLibraryImportOverlay,
       toggleToolsMenu,
       // Story 6.3 — màn xem trước bảng mã (FR126). `confirmImportPreview` KHÔNG bỏ qua kết
       // quả (khác `submitPastedText`): thành công hay trượt đều phải đóng vòng nộp form
@@ -1000,6 +1000,7 @@ async function boot(): Promise<void> {
         tmManageOverlayIsOpen.value ||
         tmImportOverlayIsOpen.value ||
         exportOverlayIsOpen.value ||
+        libraryImportOverlayIsOpen.value ||
         reviewerImportOverlayIsOpen.value ||
         alignmentOverlayIsOpen.value ||
         importOverlayIsOpen.value ||

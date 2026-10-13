@@ -79,7 +79,7 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
     expect(await activeIsTrigger()).toBe(true)
   })
 
-  it('Mod+Alt+B mở Quản lý TM; Mod+N sang Library và đặt tiêu điểm vào form nhập', async () => {
+  it('Mod+Alt+B mở Quản lý TM; Mod+N sang Library và mở lớp phủ nhập; Escape đóng và trả tiêu điểm về nút Nhập tài liệu', async () => {
     await browser.keys(['Meta', 'Alt', 'b'])
     await $('.tm-panel').waitForDisplayed({ timeout: 10_000 })
     await browser.keys(['Escape'])
@@ -88,11 +88,17 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
     await browser.keys(['Meta', '2'])
     await $('.layout-switch').waitForDisplayed({ timeout: 10_000 })
     await browser.keys(['Meta', 'n'])
-    await browser.waitUntil(
-      async () => browser.execute(() => (document.activeElement?.closest('.import-form') ?? null) !== null),
-      { timeout: 10_000, interval: 50, timeoutMsg: 'tiêu điểm không vào form nhập sau Mod+N' },
-    )
+    await $('.li-panel .import-form').waitForDisplayed({ timeout: 10_000 })
     const bar = await browser.execute(() => document.querySelector('.layout-switch') !== null)
     expect(bar).toBe(false)
+    await browser.waitUntil(
+      async () => browser.execute(() => (document.activeElement?.closest('.import-form') ?? null) !== null),
+      { timeout: 10_000, interval: 50, timeoutMsg: 'tiêu điểm không vào form trong lớp phủ sau Mod+N' },
+    )
+    await browser.keys(['Escape'])
+    await $('.li-panel').waitForExist({ reverse: true, timeout: 10_000 })
+    expect(
+      await browser.execute(() => document.activeElement?.hasAttribute('data-library-import-open') ?? false),
+    ).toBe(true)
   })
 })

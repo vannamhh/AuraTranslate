@@ -65,6 +65,7 @@ import TmImportOverlay from './TmImportOverlay.vue'
 // `z-index` (11, trên 10 của Manage) là thứ giữ nó xếp ĐÚNG lớp, không phải vị trí trong DOM.
 import GlossaryImportOverlay from './GlossaryImportOverlay.vue'
 import ExportOverlay from './ExportOverlay.vue'
+import LibraryImportOverlay from './LibraryImportOverlay.vue'
 import ReviewerImportOverlay from './ReviewerImportOverlay.vue'
 import AlignmentOverlay from './AlignmentOverlay.vue'
 // Story 6.3 — lớp phủ "Xem trước lượt nhập — bảng mã" (FR126), lớp phủ THỨ TÁM. Mở TỪ
@@ -351,6 +352,7 @@ onMounted(async () => {
     <TmImportOverlay />
 
     <ExportOverlay />
+    <LibraryImportOverlay />
     <ReviewerImportOverlay />
     <AlignmentOverlay />
 

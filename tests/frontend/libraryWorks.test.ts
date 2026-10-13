@@ -791,7 +791,7 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
 
     const cover = wrapper.find('.work-cover')
     expect(cover.exists()).toBe(true)
-    expect(cover.text()).toBe('?')
+    expect(cover.find('.work-initial').text()).toBe('?')
   })
 
   it('AC6 — tên bình thường dùng chữ cái đầu VIẾT HOA', async () => {
@@ -803,7 +803,7 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     await state.loadWorks()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.work-cover').text()).toBe('Z')
+    expect(wrapper.find('.work-cover .work-initial').text()).toBe('Z')
   })
 
   it('AC5 — khối giải thích hiện KHI VÀ CHỈ KHI đã tải xong VÀ total === 0', async () => {
@@ -819,10 +819,11 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     await state.loadWorks()
     await wrapper.vm.$nextTick()
 
-    // SAU lượt tải, total === 0: khối giải thích PHẢI hiện, trước form (lời mời nhập).
+    // SAU lượt tải, total === 0: khối giải thích PHẢI hiện cùng hai lời mời mở lớp phủ nhập.
     expect(wrapper.find('.empty .big').exists()).toBe(true)
     expect(wrapper.find('.empty .small').exists()).toBe(true)
-    expect(wrapper.find('.import-form').exists()).toBe(true)
+    expect(wrapper.findAll('[data-library-empty-invite]')).toHaveLength(2)
+    expect(wrapper.find('.import-form').exists()).toBe(false)
   })
 
   it('AC5 — câu "Library chưa có Tác phẩm nào" KHÔNG xuất hiện khi ĐÃ có Tác phẩm', async () => {
@@ -836,8 +837,54 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
 
     expect(wrapper.find('.empty .big').exists()).toBe(false)
     expect(wrapper.find('.empty .small').exists()).toBe(false)
-    // Form nhập vẫn LUÔN hiện (thêm Tác phẩm không bị khoá lại vì đã có sẵn Tác phẩm khác).
-    expect(wrapper.find('.import-form').exists()).toBe(true)
+    expect(wrapper.find('[data-library-empty]').exists()).toBe(false)
+    expect(wrapper.find('.import-form').exists()).toBe(false)
+  })
+
+  it('lời mời lần đầu: lọc ra 0, chưa tải và tải lỗi đều KHÔNG hiện; bỏ lọc thì hiện', async () => {
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryWorks')
+    const invite = () => wrapper?.find('[data-library-empty]').exists() ?? false
+
+    // Đã tải, total 3 nhưng bộ lọc cho 0 khớp: lưới rỗng, không có lời mời.
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'library_list_works'
+        ? Promise.resolve({ total: 3, matched: 0, works: [], genres: ['Tien hiep'], source_langs: [] })
+        : Promise.reject({ code: 'work.none_open', message_key: 'err.work.none_open', params: {}, retryable: false }),
+    )
+    wrapper = mount(LibraryMode)
+    expect(invite()).toBe(false)
+    const settle = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      await wrapper?.vm.$nextTick()
+    }
+    state.setGenreFilter('Tien hiep')
+    await settle()
+    expect(state.libraryShowsFirstRunInvitation.value).toBe(false)
+    expect(invite()).toBe(false)
+    expect(wrapper.find('.works-block .status').text()).toContain('3')
+
+    // total === 0 nhưng đang có bộ lọc: vẫn không phải lần đầu.
+    mockInvokeForMount([])
+    await state.loadWorks()
+    await settle()
+    expect(state.libraryShowsFirstRunInvitation.value).toBe(false)
+    expect(invite()).toBe(false)
+
+    // Bỏ lọc ⇒ lời mời hiện.
+    state.setGenreFilter(null)
+    await settle()
+    expect(invite()).toBe(true)
+
+    // Đã tải rỗng rồi lượt tải sau lỗi: lời mời biến mất, lỗi sẵn có hiện.
+    mockInvoke.mockImplementation(() => Promise.reject(new Error('panic gia lap')))
+    Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true })
+    await state.loadWorks()
+    await settle()
+    Reflect.deleteProperty(window, '__TAURI_INTERNALS__')
+    expect(state.libraryShowsFirstRunInvitation.value).toBe(false)
+    expect(invite()).toBe(false)
+    expect(wrapper.find('.works-block .error').text()).not.toBe('')
   })
 
   it('AC7 — ô đang chọn mang `aria-current`, và nút `‹`/`›` di chuyển con trỏ qua `dispatch()`', async () => {

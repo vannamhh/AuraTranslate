@@ -150,26 +150,15 @@ describe('chords', () => {
 })
 
 describe('openLibraryImportForm', () => {
-  it('moves to Library, scrolls the form into view and focuses its first text field', async () => {
+  it('moves to Library and opens the import overlay', async () => {
     vi.resetModules()
-    document.body.innerHTML =
-      '<form class="import-form"><input type="radio" name="d"><input id="name" type="text"><textarea></textarea></form>'
-    const scroll = vi.fn()
-    ;(document.querySelector('.import-form') as HTMLElement).scrollIntoView = scroll
     const { currentMode, setMode } = await import('../../src/modes/modeState')
+    const overlay = await import('../../src/modes/libraryImportOverlayState')
     setMode('workspace')
     const { openLibraryImportForm } = await import('../../src/modes/libraryImportFocus')
-    await openLibraryImportForm()
+    openLibraryImportForm()
     expect(currentMode.value).toBe('library')
-    expect(scroll).toHaveBeenCalledTimes(1)
-    expect(document.activeElement?.id).toBe('name')
-  })
-
-  it('does not throw when the form is absent', async () => {
-    vi.resetModules()
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const { openLibraryImportForm } = await import('../../src/modes/libraryImportFocus')
-    await expect(openLibraryImportForm()).resolves.toBeUndefined()
+    expect(overlay.libraryImportOverlayIsOpen.value).toBe(true)
   })
 })
 

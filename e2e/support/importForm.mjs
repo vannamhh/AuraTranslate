@@ -28,6 +28,8 @@
 
 import { realClick } from './pointer.mjs'
 
+const IMPORT_OPEN_BTN = '[data-library-import-open]'
+const IMPORT_PANEL = '.li-panel'
 const OVERLAY_SCRIM = '.ip-scrim'
 const OVERLAY_CONFIRM_BTN = '.ip-scrim .ip-act-primary'
 const OVERLAY_ERROR = '.ip-scrim .ip-error'
@@ -153,7 +155,7 @@ async function waitOverlayClosed() {
 }
 
 /**
- * Tạo một Tác phẩm qua ĐÚNG ĐƯỜNG người dùng bấm: điền form → bấm nộp dán-văn-bản → chờ màn
+ * Tạo một Tác phẩm qua ĐÚNG ĐƯỜNG người dùng bấm: bấm `Nhập tài liệu` mở lớp phủ nhập → điền form → bấm nộp dán-văn-bản → chờ màn
  * xem trước cho phép xác nhận → bấm xác nhận → chờ màn đóng. Xem doc-comment đầu tệp cho lý
  * do đường này (không phải cầu IPC trần) và cách neo nút (không phải vị trí nút).
  *
@@ -161,7 +163,9 @@ async function waitOverlayClosed() {
  * @returns {Promise<void>}
  */
 export async function createWorkThroughForm(name) {
-  const form = await $('.import-form')
+  await realClick(await $(IMPORT_OPEN_BTN))
+  const form = await $(`${IMPORT_PANEL} .import-form`)
+  await form.waitForDisplayed({ timeout: 10_000 })
   await (await form.$('input[type="text"]')).setValue(name)
   // Một ký tự là đủ — cả hai spec dùng hàm này đo TRẠNG THÁI/TIẾN ĐỘ, không đo bộ tách câu.
   await (await form.$('textarea')).setValue('x')
@@ -172,4 +176,5 @@ export async function createWorkThroughForm(name) {
   await waitConfirmEnabled()
   await realClick(await $(OVERLAY_CONFIRM_BTN))
   await waitOverlayClosed()
+  await $(IMPORT_PANEL).waitForExist({ reverse: true, timeout: 10_000 })
 }
