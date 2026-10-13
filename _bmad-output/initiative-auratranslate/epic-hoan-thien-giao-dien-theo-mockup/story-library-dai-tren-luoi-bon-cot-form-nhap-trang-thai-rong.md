@@ -45,4 +45,6 @@ Verify: Một spec e2e. Ở 1440×790, lưới Library có bốn cột và rộn
 - Open question: ngưỡng 4 → 3 → 2 cột. `narrow-layout.html` chỉ ghi thứ tự, không ghi số. Build đề xuất ngưỡng theo bề ngang khung nội dung và đưa Ice chọn.
 - Open question: "sửa … trước" đọc `updated_at` của hàng chỉ mục Library. Chưa kiểm hàng chỉ mục cập nhật lúc nào sau một lượt sửa câu. Nếu nó chỉ mới lúc quét lại thì thẻ ghi thời điểm cũ.
 - Helper e2e tạo Tác phẩm qua form (`createWorkThroughForm`) có 20 trên 31 spec e2e dùng. Ba tệp vitest dựa vào form luôn có trong DOM: `libraryWorks`, `titlebarToolsMenu`, `importPreviewDestination`.
+  🔵 2026-10-13: sai. Chỉ `story-5-4` và `story-5-5` gọi `createWorkThroughForm`; 17 spec tạo Tác phẩm qua IPC, không chạm form.
 - Kiểm ngoài tiêu chí (risk high): lượt e2e nightly macOS chạy đủ mọi spec sau khi story này merge, vì hai phần ba spec tạo Tác phẩm qua form mà story này dời.
+  🔵 2026-10-13: lý do đúng là các spec `story-5-x` đọc `[data-library-*]`, và `story-5-9`, `story-5-10` bấm nút "Tìm" mà story này gỡ.
