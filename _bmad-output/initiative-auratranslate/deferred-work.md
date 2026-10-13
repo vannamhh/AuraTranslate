@@ -13108,3 +13108,7 @@ chính nó.
   summary: Chưa ai thử trong ứng dụng thật trên macOS: mở `Công cụ ▾` bằng bàn phím (Enter, mũi tên, Enter, Escape) rồi đóng lớp phủ và xem tiêu điểm về `Công cụ ▾`; thử `⌘N` từ Workspace và Chế độ đọc; xem trạng thái "Chương N · đã quét M câu" sau một lượt quét thật.
   evidence: e2e không tự kích hoạt nút bằng phím trên WKWebView; không giả được provider AI để quét một Chương.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-library-dai-tren-luoi-bon-cot-form-nhap-trang-thai-rong-plan.md`
+  summary: Thẻ Tác phẩm ghi "sửa … trước" từ `updated_at` của chỉ mục Library, chỉ tươi tới lượt ghi `meta.json` gần nhất (tạo Tác phẩm, đổi trạng thái Chương, quét lại); sửa câu thuần không làm mới nó.
+  evidence: `core/library/meta.rs` 285–293 (`rebuild_from_store`); đóng cần một AD mới cho chỗ ghi `meta.json` thứ ba (ví dụ khi đóng Tác phẩm). Mục ✅ 2026-09-23 về MAX(updated_at) không đóng vế này.
+  Chủ: Winston.
