@@ -44,6 +44,19 @@ export type TextSkippedEntry = {
   reason: string
 }
 
+export type AppearedEntry = {
+  work_id: string
+  name: string
+  atproj_path: string
+}
+
+export type MovedEntry = {
+  work_id: string
+  name: string
+  from_path: string
+  to_path: string
+}
+
 /** Kết quả một lượt quét — khớp `commands::library::RescanReport`. */
 export type RescanReport = {
   /** Thư mục gốc VỪA quét — chỉ Rust biết bộ phân giải (móc e2e ⇒ cấu hình ⇒ mặc định) đã
@@ -72,6 +85,11 @@ export type RescanReport = {
    * `conflicts`/`orphans` ngay trên.
    */
   text_skipped: TextSkippedEntry[]
+  appeared: AppearedEntry[]
+  moved: MovedEntry[]
+  newly_orphaned: OrphanEntry[]
+  /** `null` = mốc dựng chưa biết. */
+  rebuilt_at: string | null
 }
 
 /** Ba trạng thái, cùng khuôn `CreateWorkResult`. */
@@ -138,6 +156,23 @@ function isTextSkippedEntryArray(value: unknown): value is TextSkippedEntry[] {
   return Array.isArray(value) && value.every(isTextSkippedEntry)
 }
 
+function isAppearedEntry(value: unknown): value is AppearedEntry {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<AppearedEntry>
+  return typeof v.work_id === 'string' && typeof v.name === 'string' && typeof v.atproj_path === 'string'
+}
+
+function isMovedEntry(value: unknown): value is MovedEntry {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<MovedEntry>
+  return (
+    typeof v.work_id === 'string' &&
+    typeof v.name === 'string' &&
+    typeof v.from_path === 'string' &&
+    typeof v.to_path === 'string'
+  )
+}
+
 function isRescanReport(value: unknown): value is RescanReport {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<RescanReport>
@@ -148,7 +183,14 @@ function isRescanReport(value: unknown): value is RescanReport {
     isConflictEntryArray(v.conflicts) &&
     typeof v.skipped === 'number' &&
     Array.isArray(v.orphans) &&
-    isTextSkippedEntryArray(v.text_skipped)
+    isTextSkippedEntryArray(v.text_skipped) &&
+    Array.isArray(v.appeared) &&
+    v.appeared.every(isAppearedEntry) &&
+    Array.isArray(v.moved) &&
+    v.moved.every(isMovedEntry) &&
+    Array.isArray(v.newly_orphaned) &&
+    v.newly_orphaned.every(isAppearedEntry) &&
+    (v.rebuilt_at === null || typeof v.rebuilt_at === 'string')
   )
 }
 
@@ -307,6 +349,10 @@ function isOpenedWork(value: unknown): value is OpenedWork {
 const CMD_RESCAN = 'library_rescan'
 const CMD_CHOOSE_ROOT = 'library_choose_root'
 const CMD_FORGET_ORPHAN = 'library_forget_orphan'
+const CMD_RELOCATE_ORPHAN = 'library_relocate_orphan'
+const CMD_REBUILD_INDEX = 'library_rebuild_index'
+const CMD_OPEN_WORK_FOLDER = 'library_open_work_folder'
+const CMD_INDEX_REBUILT_AT = 'library_index_rebuilt_at'
 const CMD_LIST_WORKS = 'library_list_works'
 /** Lệnh ĐỌC THUẦN — không tham số, không gọi
  * `Indexer::rebuild` — cho danh sách mồ côi hiện có trong `library-index.db`, KHÔNG cần một
@@ -411,6 +457,49 @@ export async function rescanLibrary(): Promise<RescanResult> {
  */
 export async function chooseLibraryRoot(): Promise<ChooseRootResult> {
   return callChooseRoot(CMD_CHOOSE_ROOT)
+}
+
+/** Tìm lại một mục mồ côi — lệnh `library.relocate_orphan`. `report: null, error: null` == huỷ hộp thoại HOẶC không cầu IPC. */
+export async function relocateLibraryOrphan(workId: string): Promise<ChooseRootResult> {
+  return callChooseRoot(CMD_RELOCATE_ORPHAN, { workId })
+}
+
+/** Dựng lại toàn bộ chỉ mục — lệnh `library.rebuild_index`. */
+export async function rebuildLibraryIndex(): Promise<RescanResult> {
+  return callRescan(CMD_REBUILD_INDEX)
+}
+
+/** Đọc mốc dựng chỉ mục — lệnh `library_index_rebuilt_at`. `rebuiltAt: null` = chưa biết (hoặc không có cầu IPC). */
+export async function readLibraryRebuiltAt(): Promise<{ rebuiltAt: string | null; error: IpcError | null }> {
+  try {
+    const rebuiltAt = await invoke<string | null>(CMD_INDEX_REBUILT_AT)
+    if (rebuiltAt !== null && typeof rebuiltAt !== 'string') return { rebuiltAt: null, error: UNKNOWN_IPC_ERROR }
+    return { rebuiltAt, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { rebuiltAt: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[library] \`${CMD_INDEX_REBUILT_AT}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { rebuiltAt: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[library] không gọi được \`${CMD_INDEX_REBUILT_AT}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { rebuiltAt: null, error: null }
+  }
+}
+
+/** Mở thư mục của một Tác phẩm — lệnh `library.open_work_folder`. `error: null` kể cả khi không có cầu IPC. */
+export async function openWorkFolder(workId: string): Promise<{ error: IpcError | null }> {
+  try {
+    await invoke<null>(CMD_OPEN_WORK_FOLDER, { workId })
+    return { error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { error: err }
+    if (hasIpcBridge()) {
+      console.error(`[library] \`${CMD_OPEN_WORK_FOLDER}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[library] không gọi được \`${CMD_OPEN_WORK_FOLDER}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { error: null }
+  }
 }
 
 /**

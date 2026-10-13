@@ -32,8 +32,18 @@
  */
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { chooseLibraryRoot, forgetLibraryOrphan, listOrphans, rescanLibrary } from '../config/library'
-import type { ConflictEntry, OrphanEntry, TextSkippedEntry } from '../config/library'
+import {
+  chooseLibraryRoot,
+  forgetLibraryOrphan,
+  listOrphans,
+  openWorkFolder,
+  readLibraryRebuiltAt,
+  rebuildLibraryIndex,
+  relocateLibraryOrphan,
+  rescanLibrary,
+} from '../config/library'
+import type { AppearedEntry, ConflictEntry, MovedEntry, OrphanEntry, TextSkippedEntry } from '../config/library'
+import { currentLibraryWork, libraryWorksHaveLoaded } from './libraryWorks'
 import type { IpcError } from '../i18n'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,6 +67,11 @@ const skippedCount = ref(0)
 // VĂN BẢN ở lượt quét gần nhất. Đếm từ `.length`, cùng khuôn `conflictCount`/`skippedCount`
 // ngay trên — một nguồn sự thật DUY NHẤT.
 const textSkippedCount = ref(0)
+const appeared = ref<AppearedEntry[]>([])
+const moved = ref<MovedEntry[]>([])
+const newlyOrphaned = ref<OrphanEntry[]>([])
+const rebuiltAt = ref<string | null>(null)
+const indexRevision = ref(0)
 const rescanBusy = ref(false)
 const libraryScanHasLoaded = ref(false)
 const rescanResultHasLoaded = ref(false)
@@ -79,6 +94,17 @@ export const libraryConflicts: DeepReadonly<Ref<ConflictEntry[]>> = readonly(con
 export const libraryConflictCount: DeepReadonly<Ref<number>> = readonly(conflictCount)
 export const librarySkippedCount: DeepReadonly<Ref<number>> = readonly(skippedCount)
 export const libraryTextSkippedCount: DeepReadonly<Ref<number>> = readonly(textSkippedCount)
+export const libraryAppeared: DeepReadonly<Ref<AppearedEntry[]>> = readonly(appeared)
+export const libraryMoved: DeepReadonly<Ref<MovedEntry[]>> = readonly(moved)
+export const libraryNewlyOrphaned: DeepReadonly<Ref<OrphanEntry[]>> = readonly(newlyOrphaned)
+export const libraryRebuiltAt: DeepReadonly<Ref<string | null>> = readonly(rebuiltAt)
+export const libraryIndexRevision: DeepReadonly<Ref<number>> = readonly(indexRevision)
+export const libraryRebuiltAtLabel = computed<string | null>(() => {
+  const iso = rebuiltAt.value
+  if (iso === null) return null
+  const date = new Date(iso)
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleString('vi-VN')
+})
 export const libraryRescanBusy: DeepReadonly<Ref<boolean>> = readonly(rescanBusy)
 export const libraryScanHasLoadedState: DeepReadonly<Ref<boolean>> = readonly(libraryScanHasLoaded)
 /** Bật DUY NHẤT bởi [`applyReport`] (một lượt Quét lại/Đổi thư mục gốc THẬT) — xem khối lý
@@ -119,6 +145,10 @@ function applyReport(report: {
   skipped: number
   orphans: OrphanEntry[]
   text_skipped: TextSkippedEntry[]
+  appeared: AppearedEntry[]
+  moved: MovedEntry[]
+  newly_orphaned: OrphanEntry[]
+  rebuilt_at: string | null
 }): void {
   libraryRoot.value = report.root
   rootMissing.value = report.root_missing
@@ -133,6 +163,11 @@ function applyReport(report: {
   // **THÊM (retro Epic 5, AI-2/AI-3)** -- cùng lý lẽ `conflictCount`: suy từ `.length`, không
   // nhận một con số rời từ Rust.
   textSkippedCount.value = report.text_skipped.length
+  appeared.value = report.appeared
+  moved.value = report.moved
+  newlyOrphaned.value = report.newly_orphaned
+  rebuiltAt.value = report.rebuilt_at
+  indexRevision.value += 1
   libraryScanHasLoaded.value = true
   rescanResultHasLoaded.value = true
   clampCursor()
@@ -186,6 +221,60 @@ export async function chooseLibraryRootFolder(): Promise<void> {
 
   writeEpoch += 1
   applyReport(result.report)
+}
+
+export async function relocateCurrentLibraryOrphan(): Promise<void> {
+  if (rescanBusy.value) return
+  const target = currentLibraryOrphan.value
+  if (target === null) return
+
+  rescanBusy.value = true
+  lastError.value = null
+  const mySequence = ++sequence
+
+  const result = await relocateLibraryOrphan(target.work_id)
+  if (mySequence !== sequence) return
+
+  rescanBusy.value = false
+  if (result.error !== null) {
+    lastError.value = result.error
+    return
+  }
+  if (result.report === null) return
+
+  writeEpoch += 1
+  applyReport(result.report)
+}
+
+export async function rebuildLibraryIndexFolder(): Promise<void> {
+  if (rescanBusy.value) return
+
+  rescanBusy.value = true
+  lastError.value = null
+  const mySequence = ++sequence
+
+  const result = await rebuildLibraryIndex()
+  if (mySequence !== sequence) return
+
+  rescanBusy.value = false
+  if (result.error !== null) {
+    lastError.value = result.error
+    return
+  }
+  if (result.report === null) return
+
+  writeEpoch += 1
+  applyReport(result.report)
+}
+
+export async function openCurrentLibraryWorkFolder(): Promise<void> {
+  if (!libraryWorksHaveLoaded.value) return
+  const work = currentLibraryWork.value
+  if (work === null) return
+
+  lastError.value = null
+  const result = await openWorkFolder(work.work_id)
+  if (result.error !== null) lastError.value = result.error
 }
 
 /** Gỡ mục mồ côi ĐANG CHỌN khỏi chỉ mục — lệnh `library.forget_orphan`. */
@@ -243,6 +332,19 @@ export async function loadLibraryOrphans(): Promise<void> {
   clampCursor()
 }
 
+export async function loadLibraryRebuiltAt(): Promise<void> {
+  const myEpoch = writeEpoch
+
+  const result = await readLibraryRebuiltAt()
+  if (myEpoch !== writeEpoch) return
+
+  if (result.error !== null) {
+    lastError.value = result.error
+    return
+  }
+  rebuiltAt.value = result.rebuiltAt
+}
+
 /** Chuyển con trỏ xuống mục mồ côi kế tiếp — không vòng. */
 export function nextLibraryOrphan(): void {
   if (orphanCursor.value < orphans.value.length - 1) orphanCursor.value += 1
@@ -270,6 +372,11 @@ export function resetLibraryRescan(): void {
   conflictCount.value = 0
   skippedCount.value = 0
   textSkippedCount.value = 0
+  appeared.value = []
+  moved.value = []
+  newlyOrphaned.value = []
+  rebuiltAt.value = null
+  indexRevision.value = 0
   rescanBusy.value = false
   libraryScanHasLoaded.value = false
   rescanResultHasLoaded.value = false

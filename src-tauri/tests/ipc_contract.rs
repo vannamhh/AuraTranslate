@@ -507,6 +507,23 @@ fn library_wire_structs_keep_snake_case_field_names() {
             work_id: "id-3".to_owned(),
             reason: "schema_too_old".to_owned(),
         }],
+        appeared: vec![auratranslate_lib::commands::library::AppearedEntry {
+            work_id: "id-4".to_owned(),
+            name: "Mới".to_owned(),
+            atproj_path: "/tmp/new.atproj".to_owned(),
+        }],
+        moved: vec![auratranslate_lib::commands::library::MovedEntry {
+            work_id: "id-5".to_owned(),
+            name: "Dời".to_owned(),
+            from_path: "/tmp/a.atproj".to_owned(),
+            to_path: "/tmp/b.atproj".to_owned(),
+        }],
+        newly_orphaned: vec![auratranslate_lib::commands::library::OrphanEntry {
+            work_id: "id-1".to_owned(),
+            name: "Tên".to_owned(),
+            atproj_path: "/tmp/x.atproj".to_owned(),
+        }],
+        rebuilt_at: None,
     };
     let value = serde_json::to_value(&report).expect("RescanReport phải serialize được");
     let mut top_keys: Vec<&str> = value
@@ -519,9 +536,13 @@ fn library_wire_structs_keep_snake_case_field_names() {
     assert_eq!(
         top_keys,
         vec![
+            "appeared",
             "conflicts",
             "indexed",
+            "moved",
+            "newly_orphaned",
             "orphans",
+            "rebuilt_at",
             "root",
             "root_missing",
             "skipped",
@@ -566,6 +587,26 @@ fn library_wire_structs_keep_snake_case_field_names() {
         "khoá trên dây của OrphanEntry là snake_case. Nhận được: {orphan_keys:?}. Nghi phạm số \
          một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
     );
+
+    for (field, expected) in [
+        ("appeared", vec!["atproj_path", "name", "work_id"]),
+        ("moved", vec!["from_path", "name", "to_path", "work_id"]),
+        ("newly_orphaned", vec!["atproj_path", "name", "work_id"]),
+    ] {
+        let entry = value
+            .get(field)
+            .and_then(|v| v.as_array())
+            .and_then(|a| a.first())
+            .unwrap_or_else(|| panic!("{field} phải mang ít nhất một mục cho ca test này"));
+        let mut keys: Vec<&str> = entry
+            .as_object()
+            .unwrap_or_else(|| panic!("một mục {field} phải serialize thành object"))
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        assert_eq!(keys, expected, "khoá trên dây của mục {field} là snake_case.");
+    }
 
     let conflict_value = value
         .get("conflicts")

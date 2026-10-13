@@ -2572,6 +2572,11 @@ CREATE TABLE library_work (
   status_is_override  INTEGER NOT NULL DEFAULT 0,
   chapter_done_count  INTEGER
 );
+CREATE TABLE library_index_state (
+  id           INTEGER PRIMARY KEY CHECK (id = 1),
+  rebuilt_at   TEXT    NOT NULL,
+  duration_ms  INTEGER NOT NULL
+);
 CREATE TABLE library_segment (
   work_id           TEXT    NOT NULL,
   chapter_id        INTEGER NOT NULL,
@@ -2655,8 +2660,11 @@ CREATE VIRTUAL TABLE library_source_fts_nd USING fts5(
 /// `library-index.db` ở `to_version` 1..7 bị xoá-và-dựng-lại. ⚠️ Đoạn xem trước (`snippet()`)
 /// của lượt khoan dung giờ trích từ cột ĐÃ GẤP — một hit khoan dung trên `"đường"` hiện
 /// `"duong"`, không phải `"đường"` nguyên bản; lượt CHÍNH XÁC không đổi.
+///
+/// `library_index_state` is rebuilt-at state kept in a table, not the file mtime: with
+/// `wal_autocheckpoint = 0` the main file's mtime follows checkpoints, not rebuilds.
 pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 8,
+    to_version: 9,
     sql: LIBRARY_WORK_DDL,
 }];
 

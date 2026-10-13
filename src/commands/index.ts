@@ -362,6 +362,12 @@ export type CommandDeps = {
   chooseLibraryRootFolder?: () => void
   /** Gỡ mục mồ côi đang chọn khỏi chỉ mục. Handler của `library.forget_orphan`. */
   forgetCurrentLibraryOrphan?: () => void
+  /** Tìm lại mục mồ côi đang chọn. Handler của `library.relocate_orphan`. */
+  relocateCurrentLibraryOrphan?: () => void
+  /** Dựng lại toàn bộ chỉ mục. Handler của `library.rebuild_index`. */
+  rebuildLibraryIndexFolder?: () => void
+  /** Mở thư mục của Tác phẩm đang chọn. Handler của `library.open_work_folder`. */
+  openCurrentLibraryWorkFolder?: () => void
   /** Chuyển con trỏ xuống mục mồ côi kế tiếp. Handler của `library.orphan_next`. */
   nextLibraryOrphan?: () => void
   /** Chuyển con trỏ lên mục mồ côi trước. Handler của `library.orphan_prev`. */
@@ -1854,6 +1860,39 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.forget_orphan', 'forgetCurrentLibraryOrphan')
       }
       deps.forgetCurrentLibraryOrphan()
+    },
+  })
+  target.register({
+    id: 'library.relocate_orphan',
+    labelKey: 'command.library.relocate_orphan',
+    keys: undefined,
+    run: () => {
+      if (deps.relocateCurrentLibraryOrphan === undefined) {
+        return portMissing('library.relocate_orphan', 'relocateCurrentLibraryOrphan')
+      }
+      deps.relocateCurrentLibraryOrphan()
+    },
+  })
+  target.register({
+    id: 'library.rebuild_index',
+    labelKey: 'command.library.rebuild_index',
+    keys: undefined,
+    run: () => {
+      if (deps.rebuildLibraryIndexFolder === undefined) {
+        return portMissing('library.rebuild_index', 'rebuildLibraryIndexFolder')
+      }
+      deps.rebuildLibraryIndexFolder()
+    },
+  })
+  target.register({
+    id: 'library.open_work_folder',
+    labelKey: 'command.library.open_work_folder',
+    keys: undefined,
+    run: () => {
+      if (deps.openCurrentLibraryWorkFolder === undefined) {
+        return portMissing('library.open_work_folder', 'openCurrentLibraryWorkFolder')
+      }
+      deps.openCurrentLibraryWorkFolder()
     },
   })
   target.register({

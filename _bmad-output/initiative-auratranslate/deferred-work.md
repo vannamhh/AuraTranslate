@@ -13116,3 +13116,11 @@ chính nó.
   summary: Chưa ai nhìn Library mới trong app thật trên macOS: dải trên, lưới bốn/ba/hai cột khi kéo cửa sổ, bìa vuông ở bốn cột, nền lớp phủ nhập, và `⌘N` rồi Escape trả tiêu điểm về nút `Nhập tài liệu`.
   evidence: e2e chỉ đo số cột và tiêu điểm qua driver (ô tìm phải focus bằng JS); không phép đo nào thấy hình dạng.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-library-bao-cao-sau-quet-tim-lai-mo-coi-mo-thu-muc-tac-pham-plan.md`
+  summary: Chưa ai thử trên bản đóng gói macOS: `Mở thư mục` mở Finder đúng thư mục `.atproj` (qua `tauri-plugin-opener`), và `Tìm lại…` qua hộp thoại chọn thư mục thật đưa một mục mồ côi về lưới.
+  evidence: test chỉ chạy bộ mở giả và đường dẫn chọn sẵn; hộp thoại gốc và Finder nằm ngoài tầm driver e2e.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-library-bao-cao-sau-quet-tim-lai-mo-coi-mo-thu-muc-tac-pham-plan.md`
+  summary: Chưa ai thử trên Windows: `Mở thư mục` mở Explorer đúng thư mục `.atproj` (đường dẫn có dấu tiếng Việt), và `Tìm lại…` qua hộp thoại thật.
+  evidence: CI Windows chỉ chạy test với bộ mở giả; không có lượt dùng thật trên Windows.
+  Chủ: B7.

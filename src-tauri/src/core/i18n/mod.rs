@@ -492,6 +492,10 @@ message_keys! {
     /// câu này, và hộp thoại chọn thư mục của hệ điều hành đã tự lọc phần lớn ca sai hình
     /// dạng trước khi trả về.
     LibraryRootInvalid => "err.library.root_invalid" [],
+    LibraryRelocateMismatch => "err.library.relocate_mismatch" ["name"],
+    LibraryRelocateOutsideRoot => "err.library.relocate_outside_root" ["name"],
+    LibraryWorkNotFound => "err.library.work_not_found" ["work_id"],
+    LibraryOpenFolderFailed => "err.library.open_folder_failed" ["name"],
     // ── Story 5.9 (FR8) / 5.10 (FR9) — danh mục ĐÓNG nay có HAI khoá ──────────────────
     //
     // Bề mặt IPC "Tìm kiếm full-text xuyên Library" (5.9) + "Hai chế độ dấu" (5.10). Danh mục

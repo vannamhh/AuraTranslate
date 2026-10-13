@@ -34,7 +34,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::library::{
-    apply_chosen_root, forget_orphan, list_works, rescan, search_library,
+    apply_chosen_root, forget_orphan, index_rebuilt_at, list_works, open_work_folder,
+    rebuild_index, relocate_orphan, rescan, search_library,
 };
 use auratranslate_lib::core::library::indexer::{
     Indexer, MINIMUM_HARVEST_SCHEMA_VERSION, WorkQuery,
@@ -990,5 +991,309 @@ fn rescan_and_search_library_report_the_two_new_wire_fields_through_the_real_con
 
     indexer.close();
     global.close();
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// 12-3 — báo cáo sau quét, `Tìm lại…`, dựng lại toàn bộ, mở thư mục
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn a_moved_atproj_and_a_deleted_one_are_reported_as_exactly_one_move_and_one_new_orphan() {
+    let dir = temp_dir("report-move-delete");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let moved_from = write_atproj(&root, "Moving", "id-moving", "Dang doi cho");
+    let doomed = write_atproj(&root, "Doomed", "id-doomed", "Bi xoa");
+    let indexer = open_indexer(&dir);
+    rescan(Some(&indexer), Some(&global), &root).expect("lượt quét đầu");
+
+    let moved_to = root.join("Renamed.atproj");
+    fs::rename(&moved_from, &moved_to).expect("dời .atproj");
+    fs::remove_dir_all(&doomed).expect("xoá .atproj");
+
+    let report = rescan(Some(&indexer), Some(&global), &root).expect("lượt quét sau");
+    assert_eq!(report.moved.len(), 1);
+    assert_eq!(report.moved[0].work_id, "id-moving");
+    assert_eq!(report.moved[0].from_path, moved_from.display().to_string());
+    assert_eq!(report.moved[0].to_path, moved_to.display().to_string());
+    assert_eq!(report.newly_orphaned.len(), 1);
+    assert_eq!(report.newly_orphaned[0].work_id, "id-doomed");
+    assert!(report.appeared.is_empty());
+    assert_eq!(report.orphans.len(), 1);
+    assert!(report.rebuilt_at.is_some());
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_never_seen_work_id_is_reported_as_appeared_only() {
+    let dir = temp_dir("report-appeared");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj(&root, "First", "id-first", "Dau");
+    let indexer = open_indexer(&dir);
+    rescan(Some(&indexer), Some(&global), &root).expect("lượt quét đầu");
+
+    write_atproj(&root, "Second", "id-second", "Hai");
+    let report = rescan(Some(&indexer), Some(&global), &root).expect("lượt quét sau");
+    assert_eq!(report.appeared.len(), 1);
+    assert_eq!(report.appeared[0].work_id, "id-second");
+    assert!(report.moved.is_empty());
+    assert!(report.newly_orphaned.is_empty());
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn rescanning_an_unchanged_library_reports_three_empty_lists() {
+    let dir = temp_dir("report-unchanged");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj(&root, "First", "id-first", "Dau");
+    let indexer = open_indexer(&dir);
+    rescan(Some(&indexer), Some(&global), &root).expect("lượt quét đầu");
+
+    let report = rescan(Some(&indexer), Some(&global), &root).expect("lượt quét sau");
+    assert!(report.appeared.is_empty());
+    assert!(report.moved.is_empty());
+    assert!(report.newly_orphaned.is_empty());
+    assert!(report.rebuilt_at.is_some());
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+/// Dựng một mục mồ côi `id-lost`: quét, rồi dời `.atproj` ra ngoài gốc và quét lại.
+fn orphaned_fixture(dir: &Path, root: &Path, global: &Store, indexer: &Indexer) -> PathBuf {
+    let original = write_atproj(root, "Lost", "id-lost", "Mat tich");
+    rescan(Some(indexer), Some(global), root).expect("lượt quét đầu");
+    let outside = dir.join("elsewhere");
+    fs::create_dir_all(&outside).expect("tạo thư mục ngoài gốc");
+    let parked = outside.join("Lost.atproj");
+    fs::rename(&original, &parked).expect("dời ra ngoài gốc");
+    let report = rescan(Some(indexer), Some(global), root).expect("lượt quét sau khi dời");
+    assert_eq!(report.orphans.len(), 1);
+    parked
+}
+
+#[test]
+fn relocating_an_orphan_to_a_matching_folder_inside_the_root_restores_it() {
+    let dir = temp_dir("relocate-ok");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let indexer = open_indexer(&dir);
+    let parked = orphaned_fixture(&dir, &root, &global, &indexer);
+
+    let target = root.join("Found.atproj");
+    fs::rename(&parked, &target).expect("đặt lại vào gốc");
+
+    let report = relocate_orphan(
+        Some(&indexer),
+        Some(&global),
+        "id-lost",
+        Some(&target),
+        &root,
+    )
+    .expect("tìm lại")
+    .expect("không huỷ");
+    assert!(report.orphans.is_empty());
+    assert_eq!(report.indexed, 1);
+    assert_eq!(
+        report.moved.iter().map(|m| m.work_id.as_str()).collect::<Vec<_>>(),
+        vec!["id-lost"],
+        "a work leaving the orphan list is reported as moved"
+    );
+    assert!(indexer.find_work("id-lost").expect("find_work").is_some());
+    assert!(
+        indexer
+            .list_orphans(Some(&global))
+            .expect("list_orphans")
+            .is_empty(),
+        "library_orphan phải mất hàng"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn relocating_to_a_wrong_folder_keeps_the_orphan_and_writes_nothing() {
+    let dir = temp_dir("relocate-wrong");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let indexer = open_indexer(&dir);
+    let parked = orphaned_fixture(&dir, &root, &global, &indexer);
+
+    let other = write_atproj(&root, "Other", "id-other", "Khac");
+    let no_meta = root.join("Empty.atproj");
+    fs::create_dir_all(&no_meta).expect("tạo thư mục rỗng");
+    let works_before = indexer
+        .list_works(WorkQuery::default())
+        .expect("list")
+        .works
+        .len();
+
+    for (picked, code) in [
+        (&other, "library.relocate_mismatch"),
+        (&no_meta, "library.relocate_mismatch"),
+        (&root, "library.relocate_mismatch"),
+        (&parked, "library.relocate_outside_root"),
+    ] {
+        let err = relocate_orphan(
+            Some(&indexer),
+            Some(&global),
+            "id-lost",
+            Some(picked),
+            &root,
+        )
+        .expect_err("phải từ chối");
+        assert_eq!(err.code(), code, "picked = {}", picked.display());
+    }
+
+    assert_eq!(
+        indexer
+            .list_orphans(Some(&global))
+            .expect("list_orphans")
+            .len(),
+        1
+    );
+    assert_eq!(
+        indexer
+            .list_works(WorkQuery::default())
+            .expect("list")
+            .works
+            .len(),
+        works_before
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn cancelling_the_relocate_dialog_changes_nothing() {
+    let dir = temp_dir("relocate-cancel");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let indexer = open_indexer(&dir);
+    orphaned_fixture(&dir, &root, &global, &indexer);
+
+    let outcome = relocate_orphan(Some(&indexer), Some(&global), "id-lost", None, &root)
+        .expect("huỷ không phải lỗi");
+    assert!(outcome.is_none());
+    assert_eq!(
+        indexer
+            .list_orphans(Some(&global))
+            .expect("list_orphans")
+            .len(),
+        1
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn rebuilding_everything_drops_a_broken_but_present_work_without_orphaning_it() {
+    let dir = temp_dir("rebuild-all");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let broken = write_atproj(&root, "Broken", "id-broken", "Hong");
+    let gone = write_atproj(&root, "Gone", "id-gone", "Mat");
+    write_atproj(&root, "Fine", "id-fine", "On");
+    let indexer = open_indexer(&dir);
+    rescan(Some(&indexer), Some(&global), &root).expect("lượt quét đầu");
+
+    fs::write(broken.join("meta.json"), b"{ not json").expect("làm hỏng meta.json");
+    fs::remove_dir_all(&gone).expect("xoá .atproj");
+
+    let kept_by_plain_rescan = rescan(Some(&indexer), Some(&global), &root).expect("quét thường");
+    assert_eq!(kept_by_plain_rescan.skipped, 1);
+    assert!(
+        indexer.find_work("id-broken").expect("find_work").is_some(),
+        "quét thường giữ hàng hỏng-nhưng-còn"
+    );
+
+    let report = rebuild_index(Some(&indexer), Some(&global), &root).expect("dựng lại");
+    assert_eq!(report.skipped, 1);
+    assert!(indexer.find_work("id-broken").expect("find_work").is_none());
+    assert!(indexer.find_work("id-fine").expect("find_work").is_some());
+    let orphan_ids: Vec<&str> = report.orphans.iter().map(|o| o.work_id.as_str()).collect();
+    assert_eq!(
+        orphan_ids,
+        vec!["id-gone"],
+        "hỏng-nhưng-còn không thành mồ côi"
+    );
+    assert!(report.rebuilt_at.is_some());
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn opening_a_work_folder_hands_the_indexed_path_to_the_opener() {
+    let dir = temp_dir("open-folder");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let atproj = write_atproj(&root, "Open", "id-open", "Mo");
+    let indexer = open_indexer(&dir);
+    rescan(Some(&indexer), Some(&global), &root).expect("lượt quét đầu");
+
+    let seen = std::cell::RefCell::new(Vec::<PathBuf>::new());
+    open_work_folder(Some(&indexer), "id-open", &|path: &Path| {
+        seen.borrow_mut().push(path.to_path_buf());
+        Ok(())
+    })
+    .expect("mở thư mục");
+    assert_eq!(*seen.borrow(), vec![atproj]);
+
+    let unknown = open_work_folder(Some(&indexer), "id-unknown", &|_: &Path| {
+        panic!("bộ mở không được gọi với workId lạ")
+    })
+    .expect_err("workId lạ");
+    assert_eq!(unknown.code(), "library.work_not_found");
+
+    let refused = open_work_folder(Some(&indexer), "id-open", &|_: &Path| {
+        Err(std::io::Error::other("refused"))
+    })
+    .expect_err("hệ điều hành từ chối");
+    assert_eq!(refused.code(), "library.open_folder_failed");
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn the_index_rebuilt_at_read_is_null_before_any_rebuild_and_the_stamp_after() {
+    let dir = temp_dir("rebuilt-at");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj(&root, "Open", "id-open", "Mo");
+    let indexer = open_indexer(&dir);
+
+    assert_eq!(index_rebuilt_at(Some(&indexer)).expect("trước lượt dựng"), None);
+
+    let report = rescan(Some(&indexer), Some(&global), &root).expect("lượt quét");
+    let stamp = index_rebuilt_at(Some(&indexer))
+        .expect("sau lượt dựng")
+        .expect("mốc phải có sau lượt dựng");
+    assert_eq!(Some(stamp), report.rebuilt_at);
+
+    let missing = index_rebuilt_at(None).expect_err("không có Indexer");
+    assert_eq!(missing.code(), "library.indexer_missing");
+
+    drop(indexer);
+    drop(global);
     cleanup(&dir);
 }

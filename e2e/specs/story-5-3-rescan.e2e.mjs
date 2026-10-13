@@ -177,6 +177,7 @@ describe('Story 5.3 · FR99 — quét lại thư mục trong cửa sổ thật',
 
     expect((await resultCounts()).indexed).toBe(before.indexed - 1)
     expect(await (await $(ORPHAN_NAME)).getText()).toBe(WORK_NAME)
+    expect(await (await $('li[data-library-change="orphaned"] .change-name')).getText()).toBe(WORK_NAME)
     // AC3 nguyên văn: "nêu rõ nó trỏ tới đâu" — đường dẫn CŨ, không rỗng, không bị xoá.
     expect(await (await $(ORPHAN_PATH)).getText()).toContain(workDir)
   })

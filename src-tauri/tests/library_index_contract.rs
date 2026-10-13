@@ -490,8 +490,8 @@ fn an_index_file_at_schema_version_4_is_deleted_and_rebuilt_at_version_6_with_th
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("đọc PRAGMA user_version");
         assert_eq!(
-            version, 8,
-            "library-index.db phải ở đúng to_version 8 sau lượt mở lại"
+            version, 9,
+            "library-index.db phải ở đúng to_version 9 sau lượt mở lại"
         );
     }
 
@@ -610,8 +610,8 @@ fn an_index_file_at_schema_version_6_is_deleted_and_rebuilt_at_version_7_with_th
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("đọc PRAGMA user_version");
         assert_eq!(
-            version, 8,
-            "library-index.db phải ở đúng to_version 8 sau lượt mở lại (đích hiện hành)"
+            version, 9,
+            "library-index.db phải ở đúng to_version 9 sau lượt mở lại (đích hiện hành)"
         );
     }
 
@@ -5617,6 +5617,81 @@ fn true_matches_piling_up_at_an_early_work_id_starve_a_later_work_ids_real_match
          goi co (khong co duong tim theo tung Tac pham hom nay, no la mon no kien truc rieng \
          cua Epic 5)",
         report.indexed_segments, report.total, report.truncated
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn the_index_state_is_unknown_before_the_first_rebuild_and_known_after_it() {
+    let dir = temp_dir("index-state");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    write_atproj(&root, "One", "id-one", "One", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    assert!(
+        indexer
+            .index_state()
+            .unwrap_or_else(|e| panic!("index_state: {e}"))
+            .is_none(),
+        "chưa dựng lần nào thì mốc dựng là không biết, không phải một hàng giả"
+    );
+
+    indexer
+        .rebuild(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild: {e}"));
+    let state = indexer
+        .index_state()
+        .unwrap_or_else(|e| panic!("index_state sau rebuild: {e}"))
+        .expect("rebuild phải ghi hàng library_index_state");
+    assert_eq!(state.rebuilt_at.len(), 20, "UTC ISO-8601: {}", state.rebuilt_at);
+    assert!(state.rebuilt_at.ends_with('Z'));
+
+    indexer
+        .rebuild_all(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild_all: {e}"));
+    assert!(
+        indexer
+            .index_state()
+            .unwrap_or_else(|e| panic!("index_state sau rebuild_all: {e}"))
+            .is_some(),
+        "vẫn đúng một hàng sau lượt dựng thứ hai"
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn rebuild_all_drops_a_broken_but_present_work_where_a_plain_rebuild_keeps_it() {
+    let dir = temp_dir("rebuild-all-broken");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let work_dir = write_atproj(&root, "Breaks", "id-breaks", "Breaks", 1);
+    write_atproj(&root, "Fine", "id-fine", "Fine", 1);
+
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mở indexer: {e}"));
+    indexer
+        .rebuild(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild đầu: {e}"));
+    fs::write(work_dir.join("meta.json"), b"{ hong")
+        .unwrap_or_else(|e| panic!("ghi meta.json hỏng: {e}"));
+
+    let all = indexer
+        .rebuild_all(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild_all: {e}"));
+    assert_eq!(all.indexed, 1);
+    assert_eq!(all.skipped.len(), 1);
+    assert_eq!(all.orphans, 0, "thư mục còn đó thì không thành mồ côi");
+    assert!(
+        indexer
+            .list_orphans(Some(&global))
+            .unwrap_or_else(|e| panic!("list_orphans: {e}"))
+            .is_empty()
     );
 
     drop(indexer);

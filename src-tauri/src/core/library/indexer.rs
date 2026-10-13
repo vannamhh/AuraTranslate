@@ -224,6 +224,26 @@ impl Indexer {
         root: &Path,
         global: Option<&Store>,
     ) -> Result<RebuildOutcome, IndexError> {
+        self.rebuild_inner(root, global, false)
+    }
+
+    /// Like [`Self::rebuild`] but purges `library_work` first, so a broken-but-present row
+    /// leaves the index and counts in `skipped` instead of being kept.
+    pub fn rebuild_all(
+        &self,
+        root: &Path,
+        global: Option<&Store>,
+    ) -> Result<RebuildOutcome, IndexError> {
+        self.rebuild_inner(root, global, true)
+    }
+
+    fn rebuild_inner(
+        &self,
+        root: &Path,
+        global: Option<&Store>,
+        purge: bool,
+    ) -> Result<RebuildOutcome, IndexError> {
+        let started = std::time::Instant::now();
         // Khoá TOÀN BỘ scan+ghi (CẢ HAI kho) ngay từ đây — xem doc-comment của
         // `rebuild_lock`. Giữ khoá xuyên suốt cả hàm (biến `_guard` sống tới cuối scope) là
         // điểm mấu chốt: nó không chỉ khoá lượt ghi (đã nối tiếp qua `store::Writer` của mỗi
@@ -241,7 +261,7 @@ impl Indexer {
         let global = global.ok_or_else(|| global_store_missing("Indexer::rebuild"))?;
 
         if !root.exists() {
-            return self.mark_all_orphaned_for_missing_root(global);
+            return self.mark_all_orphaned_for_missing_root(global, started);
         }
 
         let scan = match scan_atproj_dirs(root)? {
@@ -251,7 +271,7 @@ impl Indexer {
             // đó thành `IndexError::Io` — một LỖI CỨNG cho đúng tình huống mà nhánh
             // `root_missing` êm ái ngay trên đã tồn tại để canh. `scan_atproj_dirs` tự ánh xạ
             // `NotFound` về [`ScanRootOutcome::RootMissing`]; xử lý y hệt fast-path phía trên.
-            ScanRootOutcome::RootMissing => return self.mark_all_orphaned_for_missing_root(global),
+            ScanRootOutcome::RootMissing => return self.mark_all_orphaned_for_missing_root(global, started),
             ScanRootOutcome::Scanned(scan) => scan,
         };
 
@@ -321,7 +341,65 @@ impl Indexer {
         // côi ở lượt này — nhưng KHÔNG xoá gì khỏi `library_work` trong CHÍNH giao dịch này.
         // Việc xoá phải đợi bước 2 (ghi `global.db`) thành công trước — xem khối 🔴 ở
         // doc-comment hàm này.
-        let (to_orphan, text_skipped): (Vec<OrphanRecord>, Vec<TextHarvestSkipped>) = self.store.write(move |tx: &Transaction<'_>| {
+        let orphans_before: HashMap<String, String> = orphan_store::list(global)?
+            .into_iter()
+            .map(|record| (record.work_id, record.atproj_path))
+            .collect();
+
+        let (to_orphan, text_skipped, appeared, moved): (
+            Vec<OrphanRecord>,
+            Vec<TextHarvestSkipped>,
+            Vec<AppearedWork>,
+            Vec<MovedWork>,
+        ) = self.store.write(move |tx: &Transaction<'_>| {
+            let mut stmt = tx.prepare("SELECT work_id, atproj_path, name FROM library_work")?;
+            let existing: Vec<(String, String, String)> = stmt
+                .query_map([], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                    ))
+                })?
+                .collect::<crate::core::store::SqlResult<Vec<_>>>()?;
+            drop(stmt);
+
+            let paths_before: HashMap<&str, &str> = existing
+                .iter()
+                .map(|(work_id, path, _)| (work_id.as_str(), path.as_str()))
+                .collect();
+            let mut appeared = Vec::new();
+            let mut moved = Vec::new();
+            for (dir, meta) in &kept {
+                let now_path = dir.display().to_string();
+                let from_path = paths_before
+                    .get(meta.work_id.as_str())
+                    .copied()
+                    .or_else(|| orphans_before.get(&meta.work_id).map(String::as_str));
+                match from_path {
+                    None => appeared.push(AppearedWork {
+                        work_id: meta.work_id.clone(),
+                        name: meta.name.clone(),
+                        atproj_path: now_path,
+                    }),
+                    Some(from) => {
+                        let was_orphan = !paths_before.contains_key(meta.work_id.as_str());
+                        if was_orphan || from != now_path {
+                            moved.push(MovedWork {
+                                work_id: meta.work_id.clone(),
+                                name: meta.name.clone(),
+                                from_path: from.to_owned(),
+                                to_path: now_path,
+                            });
+                        }
+                    }
+                }
+            }
+
+            if purge {
+                tx.execute("DELETE FROM library_work", [])?;
+            }
+
             // Vế MỘT của vị từ mồ côi — "work_id không đọc được ở lượt này" — thoả bằng
             // chính việc một hàng KHÔNG nằm trong `kept` (nó không được UPSERT ở đây).
             //
@@ -436,22 +514,8 @@ impl Indexer {
             tx.execute("INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')", [])?;
             tx.execute("INSERT INTO library_source_fts_nd(library_source_fts_nd) VALUES('rebuild')", [])?;
 
-            // Mọi hàng CÒN LẠI (không vừa UPSERT ở trên): mồ côi khi và chỉ khi `atproj_path`
-            // của nó KHÔNG nằm trong `unreadable_paths` — vế HAI của vị từ (P3). Đọc lại toàn
-            // bảng trong CÙNG giao dịch (không phải một `Store::read` riêng) để không có cửa
-            // sổ đua giữa "đọc trạng thái cũ" và "quyết định mồ côi hay không".
-            let mut stmt = tx.prepare("SELECT work_id, atproj_path, name FROM library_work")?;
-            let existing: Vec<(String, String, String)> = stmt
-                .query_map([], |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                    ))
-                })?
-                .collect::<crate::core::store::SqlResult<Vec<_>>>()?;
-            drop(stmt);
-
+            // `existing` is read before the UPSERT in this same transaction; a row is orphaned
+            // iff its path is not in `unreadable_paths`.
             let mut to_orphan = Vec::new();
             for (work_id, atproj_path, name) in existing {
                 if first_seen.contains_key(&work_id) {
@@ -467,7 +531,9 @@ impl Indexer {
                 });
             }
 
-            Ok((to_orphan, text_skipped))
+            write_index_state(tx, started)?;
+
+            Ok((to_orphan, text_skipped, appeared, moved))
         })?;
 
         // Bước 2 (global.db TRƯỚC, rồi library-index.db SAU) — chỉ chạy khi có gì để chuyển.
@@ -494,6 +560,8 @@ impl Indexer {
         // và lượt đọc này. Xem doc-comment của `RebuildOutcome::current_orphans`.
         let current_orphans = orphan_store::list(global)?;
 
+        let rebuilt_at = self.index_state()?.map(|state| state.rebuilt_at);
+
         Ok(RebuildOutcome {
             indexed,
             root_missing: false,
@@ -502,6 +570,10 @@ impl Indexer {
             orphans: to_orphan.len(),
             current_orphans,
             text_skipped,
+            appeared,
+            moved,
+            newly_orphaned: to_orphan,
+            rebuilt_at,
         })
     }
 
@@ -521,6 +593,7 @@ impl Indexer {
     fn mark_all_orphaned_for_missing_root(
         &self,
         global: &Store,
+        started: std::time::Instant,
     ) -> Result<RebuildOutcome, IndexError> {
         let existing: Vec<(String, String, String)> = self.store.read(|conn: ReadHandle<'_>| {
             let mut stmt = conn.prepare("SELECT work_id, atproj_path, name FROM library_work")?;
@@ -534,7 +607,7 @@ impl Indexer {
             .collect::<crate::core::store::SqlResult<Vec<_>>>()
         })?;
 
-        let orphans = existing.len();
+        let mut newly_orphaned: Vec<OrphanRecord> = Vec::new();
         if !existing.is_empty() {
             let records: Vec<OrphanRecord> = existing
                 .iter()
@@ -545,7 +618,8 @@ impl Indexer {
                 })
                 .collect();
             // global.db TRƯỚC -- xem khối 🔴 ở doc-comment của `rebuild`.
-            orphan_store::upsert_many(global, records)?;
+            orphan_store::upsert_many(global, records.clone())?;
+            newly_orphaned = records;
 
             let ids: Vec<String> = existing.into_iter().map(|(work_id, ..)| work_id).collect();
             self.store.write(move |tx: &Transaction<'_>| {
@@ -564,6 +638,7 @@ impl Indexer {
         // tìm kiếm dù `library_work` đã trống từ trước.
         self.store.write(move |tx: &Transaction<'_>| {
             tx.execute("DELETE FROM library_segment", [])?;
+            write_index_state(tx, started)?;
             tx.execute(
                 "INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')",
                 [],
@@ -585,14 +660,19 @@ impl Indexer {
 
         // P3 -- cùng lý do nhánh `rebuild` bình thường: chụp TRONG khi khoá còn sống.
         let current_orphans = orphan_store::list(global)?;
+        let rebuilt_at = self.index_state()?.map(|state| state.rebuilt_at);
         Ok(RebuildOutcome {
             indexed: 0,
             root_missing: true,
             conflicts: Vec::new(),
             skipped: Vec::new(),
-            orphans,
+            orphans: newly_orphaned.len(),
             current_orphans,
             text_skipped: Vec::new(),
+            appeared: Vec::new(),
+            moved: Vec::new(),
+            newly_orphaned,
+            rebuilt_at,
         })
     }
 
@@ -735,6 +815,30 @@ impl Indexer {
                 }
             },
         )
+    }
+
+    pub fn dir_holds_work(dir: &Path, work_id: &str) -> bool {
+        matches!(WorkMeta::read(dir), Ok(meta) if meta.work_id == work_id)
+    }
+
+    pub fn index_state(&self) -> Result<Option<IndexState>, StoreError> {
+        self.store
+            .read(|conn: ReadHandle<'_>| -> SqlResult<Option<IndexState>> {
+                match conn.query_row(
+                    "SELECT rebuilt_at, duration_ms FROM library_index_state WHERE id = 1",
+                    [],
+                    |row| {
+                        Ok(IndexState {
+                            rebuilt_at: row.get(0)?,
+                            duration_ms: u64::try_from(row.get::<_, i64>(1)?).ok(),
+                        })
+                    },
+                ) {
+                    Ok(state) => Ok(Some(state)),
+                    Err(SqlError::QueryReturnedNoRows) => Ok(None),
+                    Err(err) => Err(err),
+                }
+            })
     }
 
     /// **THÊM Story 5.3.** Đường ĐỌC — mọi hàng MỒ CÔI, cho màn hình tối thiểu của story
@@ -2053,6 +2157,44 @@ pub struct RebuildOutcome {
     /// (mọi Tác phẩm thu hoạch được); khác `orphans`, một `text_skipped` không rỗng không tự
     /// nó là một lỗi hệ thống — nó là bằng chứng CÓ TÊN cho một Tác phẩm cụ thể.
     pub text_skipped: Vec<TextHarvestSkipped>,
+    pub appeared: Vec<AppearedWork>,
+    pub moved: Vec<MovedWork>,
+    pub newly_orphaned: Vec<OrphanRecord>,
+    pub rebuilt_at: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppearedWork {
+    pub work_id: String,
+    pub name: String,
+    pub atproj_path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MovedWork {
+    pub work_id: String,
+    pub name: String,
+    pub from_path: String,
+    pub to_path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexState {
+    pub rebuilt_at: String,
+    pub duration_ms: Option<u64>,
+}
+
+fn write_index_state(tx: &Transaction<'_>, started: std::time::Instant) -> SqlResult<()> {
+    let duration_ms = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+    tx.execute(
+        "INSERT INTO library_index_state (id, rebuilt_at, duration_ms) \
+         VALUES (1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), ?1) \
+         ON CONFLICT (id) DO UPDATE SET \
+           rebuilt_at  = excluded.rebuilt_at, \
+           duration_ms = excluded.duration_ms",
+        [duration_ms],
+    )?;
+    Ok(())
 }
 
 /// **THÊM Story 5.9.** Một Tác phẩm mà lượt thu hoạch văn bản của lượt `rebuild` này bị bỏ

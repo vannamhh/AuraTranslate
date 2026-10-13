@@ -1512,6 +1512,21 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/library.rs",
+            "pub fn library_relocate_orphan(\n        app: tauri::AppHandle",
+            "mo hop thoai chon thu muc (`blocking_pick_folder()`) roi quet lai goc Library",
+        ),
+        (
+            "src/commands/library.rs",
+            "pub fn library_rebuild_index(app: tauri::AppHandle",
+            "doc lai moi `.atproj` va `project.db` cua goc Library, xoa roi nap lai chi muc",
+        ),
+        (
+            "src/commands/library.rs",
+            "pub fn library_open_work_folder(\n        app: tauri::AppHandle",
+            "goi he dieu hanh mo trinh quan ly tep -- I/O dong bo",
+        ),
+        (
+            "src/commands/library.rs",
             "pub fn library_search(\n        app: tauri::AppHandle",
             "chay CA HAI chi muc FTS5 (unicode61 + trigram) roi HOP ket qua, va nhanh trigram \
              con qua mot buoc xac minh chuoi con o Rust tren toan bo ung vien -- Story 5.9, \
@@ -2111,7 +2126,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
     ),
     ("src/commands/export.rs", 7, 7, 7, ""),
     ("src/commands/glossary.rs", 7, 8, 8, ""),
-    ("src/commands/library.rs", 2, 4, 4, ""),
+    ("src/commands/library.rs", 3, 7, 7, ""),
     ("src/commands/lifecycle.rs", 1, 2, 2, ""),
     (
         "src/commands/pinned.rs",
@@ -2302,9 +2317,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (88, 56),
+        (89, 59),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         88/56.\n\n\
+         89/59.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

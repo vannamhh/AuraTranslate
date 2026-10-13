@@ -130,7 +130,10 @@ import {
   chooseLibraryRootFolder,
   forgetCurrentLibraryOrphan,
   nextLibraryOrphan,
+  openCurrentLibraryWorkFolder,
   prevLibraryOrphan,
+  rebuildLibraryIndexFolder,
+  relocateCurrentLibraryOrphan,
   rescanLibraryFolder,
 } from './modes/libraryRescan'
 // ── Story 5.4 — "Bốn trạng thái vòng đời" (FR5/FR6) ──────────────────────────────────
@@ -617,6 +620,9 @@ async function boot(): Promise<void> {
       rescanLibraryFolder,
       chooseLibraryRootFolder,
       forgetCurrentLibraryOrphan,
+      relocateCurrentLibraryOrphan,
+      rebuildLibraryIndexFolder,
+      openCurrentLibraryWorkFolder,
       nextLibraryOrphan,
       prevLibraryOrphan,
       // Story 5.4 — "Bốn trạng thái vòng đời" (FR5/FR6).

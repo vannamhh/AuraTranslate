@@ -1214,6 +1214,9 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `Noto Serif CJK TC` *(chỉ Regular; = Source Han Serif 2.003R đổi nhãn)* | 2.003 | SIL OFL 1.1 |
 | `Source Serif 4` *(kênh Google, font biến thiên)* | 4.004 | SIL OFL 1.1 |
 | `Source Sans 3` *(kênh Google, font biến thiên)* | 3.052 | SIL OFL 1.1 |
+| `tauri-plugin-opener` *(Library `Mở thư mục` — gọi từ Rust qua `workId`; đăng ký `Builder::new().open_js_links_on_click(false)`, không quyền `opener:*` trong `capabilities/main.json`; giấy phép đọc trong nguồn đã tải: `LICENSE_MIT` · `LICENSE_APACHE-2.0` · `LICENSE.spdx`, không Exhibit B)* | 2.5.4 | Apache-2.0 OR MIT ✓ |
+| `open` *(bắc cầu của `tauri-plugin-opener`; `LICENSE.md` MIT, không Exhibit B)* | 5.4.0 | MIT ✓ |
+| `is-wsl` · `is-docker` *(bắc cầu của `open`; `LICENSE` MIT mỗi gói, đọc trong nguồn đã tải)* | 0.4.0 · 0.2.0 | MIT ✓ |
 
 Tương thích GPL v3 theo diện **gộp gói** — font nằm cạnh mã, không liên kết vào mã. Ràng buộc kèm theo: **chỉ `Source Sans 3` khai Reserved Font Name `'Source'`** — subset riêng tệp đó thì bắt buộc đổi tên font nội bộ; hai tệp kia không khai nên subset thoải mái. Cả ba tệp giấy phép gốc phải đi kèm bản phát hành (FR38, FR109).
 

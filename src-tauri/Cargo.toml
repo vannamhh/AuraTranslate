@@ -96,6 +96,10 @@ uuid = { version = "=1.24.0", features = ["v4"] }
 # nguồn đã tải `~/.cargo/registry/src/…/tauri-plugin-dialog-2.7.2/Cargo.toml:27` — tương thích
 # GPLv3 chiều vào. Ghim `=` theo lệ của kho.
 tauri-plugin-dialog = "=2.7.2"
+# Mở thư mục Tác phẩm trong trình quản lý tệp, gọi TỪ RUST theo `workId`; đăng ký với
+# `open_js_links_on_click(false)` và không cấp quyền `opener:*`. Giấy phép `Apache-2.0 OR MIT`
+# (và `open` 5.4.0 MIT), đọc trong nguồn đã tải; hàng Stack của spine.
+tauri-plugin-opener = "=2.5.4"
 
 # ── Ba crate của mũi thăm dò Story 6.1 (FR123/FR126, core::webimport) ────────────────
 #

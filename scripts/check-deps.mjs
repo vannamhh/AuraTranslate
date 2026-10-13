@@ -243,7 +243,7 @@ for (const [crate, why] of DEV_ONLY_CRATES) {
 // Kiểm 1c — danh sách CHO PHÉP: mọi plugin Tauri trong cây phải nằm trong tập đã duyệt.
 // Danh sách cấm ở trên chỉ chặn tên đã biết; một plugin mới (`tauri-plugin-shell`...) đi
 // qua nó. Thêm plugin = sửa tập này cùng bảng Stack của spine.
-const ALLOWED_TAURI_CRATES = new Set(['tauri-plugin', 'tauri-plugin-dialog', 'tauri-plugin-fs'])
+const ALLOWED_TAURI_CRATES = new Set(['tauri-plugin', 'tauri-plugin-dialog', 'tauri-plugin-fs', 'tauri-plugin-opener'])
 const ALLOWED_TAURI_NPM = [/^@tauri-apps\/api$/, /^@tauri-apps\/cli$/, /^@tauri-apps\/cli-[a-z0-9-]+$/]
 
 {

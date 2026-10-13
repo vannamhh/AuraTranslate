@@ -1095,6 +1095,13 @@ pub fn run() {
     // webview, và `capabilities/main.json` không cần sửa một chữ (command của plugin CHƯA
     // đăng ký thì không cần ACL).
     let builder = builder.plugin(tauri_plugin_dialog::init());
+    // No `opener:*` permission is granted; `open_js_links_on_click(false)` drops the
+    // plugin's link-click script.
+    let builder = builder.plugin(
+        tauri_plugin_opener::Builder::new()
+            .open_js_links_on_click(false)
+            .build(),
+    );
 
     let builder = builder
         // ─────────────────────────────────────────────────────────────────────────
@@ -1168,6 +1175,10 @@ pub fn run() {
             crate::commands::library::wire::library_rescan,
             crate::commands::library::wire::library_choose_root,
             crate::commands::library::wire::library_forget_orphan,
+            crate::commands::library::wire::library_relocate_orphan,
+            crate::commands::library::wire::library_rebuild_index,
+            crate::commands::library::wire::library_open_work_folder,
+            crate::commands::library::wire::library_index_rebuilt_at,
             // Story 5.4 -- "Bon trang thai vong doi" (FR5/FR6). Doc thuan, khong `(async)`.
             crate::commands::library::wire::library_list_works,
             // Doc thuan danh sach mo coi, cung khuon library_list_works.

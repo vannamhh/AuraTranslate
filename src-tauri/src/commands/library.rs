@@ -30,8 +30,9 @@ use std::path::Path;
 
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::library::indexer::{
-    DEFAULT_SEARCH_LIMIT, IndexError, IndexedWork, Indexer, SearchHit as CoreSearchHit, SearchMode,
-    SearchReport as CoreSearchReport, TextHarvestSkipped, WorkIdConflict, WorkQuery, WorkSortKey,
+    AppearedWork, DEFAULT_SEARCH_LIMIT, IndexError, IndexedWork, Indexer, MovedWork,
+    RebuildOutcome, SearchHit as CoreSearchHit, SearchMode, SearchReport as CoreSearchReport,
+    TextHarvestSkipped, WorkIdConflict, WorkQuery, WorkSortKey,
 };
 use crate::core::library::orphan_store::OrphanRecord;
 use crate::core::lifecycle::LifecycleStatus;
@@ -113,6 +114,42 @@ impl From<TextHarvestSkipped> for TextSkippedEntry {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct AppearedEntry {
+    pub work_id: String,
+    pub name: String,
+    pub atproj_path: String,
+}
+
+impl From<AppearedWork> for AppearedEntry {
+    fn from(work: AppearedWork) -> Self {
+        Self {
+            work_id: work.work_id,
+            name: work.name,
+            atproj_path: work.atproj_path,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct MovedEntry {
+    pub work_id: String,
+    pub name: String,
+    pub from_path: String,
+    pub to_path: String,
+}
+
+impl From<MovedWork> for MovedEntry {
+    fn from(work: MovedWork) -> Self {
+        Self {
+            work_id: work.work_id,
+            name: work.name,
+            from_path: work.from_path,
+            to_path: work.to_path,
+        }
+    }
+}
+
 /// Kết quả một lượt [`rescan`] — ba con số của AC1 cộng danh sách mồ côi hiện tại (sau lượt
 /// quét này), để một lượt gọi `library.rescan` là đủ cho cả màn hình, không cần một lệnh
 /// đọc riêng ngay sau đó.
@@ -142,6 +179,48 @@ pub struct RescanReport {
     /// `RebuildOutcome::text_skipped`, chở NGUYÊN nó (mã lý do + `work_id`) — đúng khuôn
     /// `conflicts`/`orphans` ngay trên: một lượt gọi `library.rescan` là đủ cho cả màn hình.
     pub text_skipped: Vec<TextSkippedEntry>,
+    pub appeared: Vec<AppearedEntry>,
+    pub moved: Vec<MovedEntry>,
+    pub newly_orphaned: Vec<OrphanEntry>,
+    pub rebuilt_at: Option<String>,
+}
+
+impl RescanReport {
+    fn from_outcome(root: &Path, outcome: RebuildOutcome) -> Self {
+        Self {
+            root: root.display().to_string(),
+            root_missing: outcome.root_missing,
+            indexed: outcome.indexed,
+            conflicts: outcome
+                .conflicts
+                .into_iter()
+                .map(ConflictEntry::from)
+                .collect(),
+            skipped: outcome.skipped.len(),
+            orphans: outcome
+                .current_orphans
+                .into_iter()
+                .map(OrphanEntry::from)
+                .collect(),
+            text_skipped: outcome
+                .text_skipped
+                .into_iter()
+                .map(TextSkippedEntry::from)
+                .collect(),
+            appeared: outcome
+                .appeared
+                .into_iter()
+                .map(AppearedEntry::from)
+                .collect(),
+            moved: outcome.moved.into_iter().map(MovedEntry::from).collect(),
+            newly_orphaned: outcome
+                .newly_orphaned
+                .into_iter()
+                .map(OrphanEntry::from)
+                .collect(),
+            rebuilt_at: outcome.rebuilt_at,
+        }
+    }
 }
 
 /// `Indexer` chưa được quản lý (mở `library-index.db` thất bại lúc khởi động) — tái dùng
@@ -205,32 +284,7 @@ pub fn rescan(
     // KHÁC (người dùng bấm "Quét lại") không được đứng ngoài quy ước đó.
     outcome.log_if_notable("rescan");
 
-    // `outcome.current_orphans` là ảnh chụp lấy TRONG cùng phạm vi khoá của
-    // `Indexer::rebuild` (nay đọc từ `global.db`) — dùng thẳng nó, không một lượt đọc riêng.
-    Ok(RescanReport {
-        root: root.display().to_string(),
-        // P1 -- không vứt `root_missing` nữa, chuyển thẳng nguyên vẹn.
-        root_missing: outcome.root_missing,
-        indexed: outcome.indexed,
-        // Phán quyết Ice #3 -- chở NGUYÊN dữ liệu xung đột, không nén thành `.len()`.
-        conflicts: outcome
-            .conflicts
-            .into_iter()
-            .map(ConflictEntry::from)
-            .collect(),
-        skipped: outcome.skipped.len(),
-        orphans: outcome
-            .current_orphans
-            .into_iter()
-            .map(OrphanEntry::from)
-            .collect(),
-        // 🔵 THÊM (retro Epic 5, AI-2/AI-3) -- thay vì vứt, chở NGUYÊN mã lý do + work_id.
-        text_skipped: outcome
-            .text_skipped
-            .into_iter()
-            .map(TextSkippedEntry::from)
-            .collect(),
-    })
+    Ok(RescanReport::from_outcome(root, outcome))
 }
 
 /// **THÊM (2026-08-27, vòng rà THỨ HAI P9)** — `err.library.not_orphaned` phải nói được
@@ -341,6 +395,116 @@ pub fn apply_chosen_root(
     // `library_orphan` (phán quyết Ice #1). Không một `try_state` thứ hai.
     let report = rescan(indexer, store, path)?;
     Ok(Some(report))
+}
+
+fn relocate_mismatch(name: &str) -> IpcError {
+    let mut params = BTreeMap::new();
+    params.insert("name".to_owned(), name.to_owned());
+    IpcError::new(
+        "library.relocate_mismatch",
+        MessageKey::LibraryRelocateMismatch,
+        params,
+        false,
+    )
+}
+
+fn relocate_outside_root(name: &str) -> IpcError {
+    let mut params = BTreeMap::new();
+    params.insert("name".to_owned(), name.to_owned());
+    IpcError::new(
+        "library.relocate_outside_root",
+        MessageKey::LibraryRelocateOutsideRoot,
+        params,
+        false,
+    )
+}
+
+/// `picked = None` (dialog cancelled) returns `Ok(None)` and changes nothing.
+pub fn relocate_orphan(
+    indexer: Option<&Indexer>,
+    global: Option<&Store>,
+    work_id: &str,
+    picked: Option<&Path>,
+    root: &Path,
+) -> Result<Option<RescanReport>, IpcError> {
+    let indexer = indexer.ok_or_else(indexer_is_missing)?;
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
+
+    let orphan = indexer
+        .list_orphans(global)?
+        .into_iter()
+        .find(|record| record.work_id == work_id)
+        .ok_or_else(|| not_orphaned(work_id.to_owned(), work_id.to_owned()))?;
+
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|_| relocate_outside_root(&orphan.name))?;
+    let canonical_picked = picked
+        .canonicalize()
+        .map_err(|_| relocate_mismatch(&orphan.name))?;
+    if !canonical_picked.starts_with(&canonical_root) {
+        return Err(relocate_outside_root(&orphan.name));
+    }
+
+    let is_direct_atproj_child = canonical_picked.parent() == Some(canonical_root.as_path())
+        && canonical_picked.extension().and_then(|ext| ext.to_str()) == Some("atproj");
+    if !is_direct_atproj_child {
+        return Err(relocate_mismatch(&orphan.name));
+    }
+    if !Indexer::dir_holds_work(&canonical_picked, work_id) {
+        return Err(relocate_mismatch(&orphan.name));
+    }
+
+    let outcome = indexer.rebuild(root, global)?;
+    outcome.log_if_notable("relocate");
+    Ok(Some(RescanReport::from_outcome(root, outcome)))
+}
+
+pub fn rebuild_index(
+    indexer: Option<&Indexer>,
+    global: Option<&Store>,
+    root: &Path,
+) -> Result<RescanReport, IpcError> {
+    let indexer = indexer.ok_or_else(indexer_is_missing)?;
+    let outcome = indexer.rebuild_all(root, global)?;
+    outcome.log_if_notable("rebuild_index");
+    Ok(RescanReport::from_outcome(root, outcome))
+}
+
+pub fn index_rebuilt_at(indexer: Option<&Indexer>) -> Result<Option<String>, IpcError> {
+    let indexer = indexer.ok_or_else(indexer_is_missing)?;
+    Ok(indexer.index_state()?.map(|state| state.rebuilt_at))
+}
+
+/// `opener` receives the `atproj_path` stored in the index; the webview never sends a path.
+pub fn open_work_folder(
+    indexer: Option<&Indexer>,
+    work_id: &str,
+    opener: &dyn Fn(&Path) -> std::io::Result<()>,
+) -> Result<(), IpcError> {
+    let indexer = indexer.ok_or_else(indexer_is_missing)?;
+    let work = indexer.find_work(work_id)?.ok_or_else(|| {
+        let mut params = BTreeMap::new();
+        params.insert("work_id".to_owned(), work_id.to_owned());
+        IpcError::new(
+            "library.work_not_found",
+            MessageKey::LibraryWorkNotFound,
+            params,
+            false,
+        )
+    })?;
+    opener(&work.atproj_path).map_err(|_| {
+        let mut params = BTreeMap::new();
+        params.insert("name".to_owned(), work.name.clone());
+        IpcError::new(
+            "library.open_folder_failed",
+            MessageKey::LibraryOpenFolderFailed,
+            params,
+            false,
+        )
+    })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -635,6 +799,8 @@ pub mod wire {
     use tauri::Manager as _;
     use tauri_plugin_dialog::DialogExt as _;
 
+    use tauri_plugin_opener::OpenerExt as _;
+
     use super::{
         OrphanEntry, RescanReport, WorkListReport, indexer_is_missing, root_invalid,
         store_is_missing,
@@ -725,6 +891,72 @@ pub mod wire {
         let store = app.try_state::<Store>();
         let indexer = app.try_state::<Indexer>();
         super::apply_chosen_root(store.as_deref(), indexer.as_deref(), path.as_deref())
+    }
+
+    /// `(async)`: `blocking_pick_folder()` blocks the calling thread.
+    #[tauri::command(async)]
+    pub fn library_relocate_orphan(
+        app: tauri::AppHandle,
+        work_id: String,
+    ) -> Result<Option<RescanReport>, IpcError> {
+        if app.try_state::<Store>().is_none() {
+            return Err(store_is_missing());
+        }
+        if app.try_state::<Indexer>().is_none() {
+            return Err(indexer_is_missing());
+        }
+        let root = {
+            let store = app.try_state::<Store>();
+            crate::commands::project::resolve_library_root(&app, store.as_deref())?
+        };
+
+        let picked = app
+            .dialog()
+            .file()
+            .set_directory(&root)
+            .blocking_pick_folder();
+        let path = match picked {
+            Some(picked) => Some(picked.into_path().map_err(|_| root_invalid())?),
+            None => None,
+        };
+
+        let store = app.try_state::<Store>();
+        let indexer = app.try_state::<Indexer>();
+        super::relocate_orphan(
+            indexer.as_deref(),
+            store.as_deref(),
+            &work_id,
+            path.as_deref(),
+            &root,
+        )
+    }
+
+    #[tauri::command(async)]
+    pub fn library_rebuild_index(app: tauri::AppHandle) -> Result<RescanReport, IpcError> {
+        let indexer = app.try_state::<Indexer>();
+        let store = app.try_state::<Store>();
+        let root = crate::commands::project::resolve_library_root(&app, store.as_deref())?;
+        super::rebuild_index(indexer.as_deref(), store.as_deref(), &root)
+    }
+
+    #[tauri::command]
+    pub fn library_index_rebuilt_at(app: tauri::AppHandle) -> Result<Option<String>, IpcError> {
+        let indexer = app.try_state::<Indexer>();
+        super::index_rebuilt_at(indexer.as_deref())
+    }
+
+    #[tauri::command(async)]
+    pub fn library_open_work_folder(
+        app: tauri::AppHandle,
+        work_id: String,
+    ) -> Result<(), IpcError> {
+        let indexer = app.try_state::<Indexer>();
+        let opener = |path: &std::path::Path| {
+            app.opener()
+                .open_path(path.display().to_string(), None::<&str>)
+                .map_err(std::io::Error::other)
+        };
+        super::open_work_folder(indexer.as_deref(), &work_id, &opener)
     }
 
     /// Vỏ IPC của [`super::list_works`] — Story 5.4 (bộ lọc trạng thái) + Story 5.6 (lĩnh vực

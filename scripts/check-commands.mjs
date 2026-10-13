@@ -244,7 +244,7 @@ const COMMAND_FLOOR = 200
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const CLICK_FLOOR = 162
-const DISPATCH_FLOOR = 220
+const DISPATCH_FLOOR = 236
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')

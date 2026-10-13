@@ -20,8 +20,14 @@ import {
   currentLibraryOrphan,
   currentLibraryRoot,
   firstLibraryConflict,
+  libraryAppeared,
   libraryConflicts,
+  libraryIndexRevision,
   libraryIndexedCount,
+  libraryMoved,
+  libraryNewlyOrphaned,
+  libraryRebuiltAtLabel,
+  libraryRebuiltAt,
   libraryOrphanCursor,
   libraryOrphans,
   libraryRescanBusy,
@@ -33,6 +39,7 @@ import {
   librarySkippedCount,
   libraryTextSkippedCount,
   loadLibraryOrphans,
+  loadLibraryRebuiltAt,
 } from './libraryRescan'
 import {
   libraryFilterIsEmpty,
@@ -153,6 +160,11 @@ onActivated(() => {
   // thuần, không `Indexer::rebuild` — cùng nguyên lý `loadWorks` ngay trên (danh sách phải
   // phản ánh trạng thái thật, không giữ ảnh chụp của lần hiện trước).
   void loadLibraryOrphans()
+  void loadLibraryRebuiltAt()
+})
+
+watch(libraryIndexRevision, () => {
+  void loadWorks()
 })
 
 // 🔵 THÊM (2026-08-28) — KHUYẾT TẬT ĐO ĐƯỢC, tìm ra ở lượt chạy e2e đầu tiên của Story 5.4.
@@ -764,6 +776,15 @@ watch(libraryChapterCursor, (cursor) => {
           >
             {{ t('mode.library.open_work_button') }}
           </button>
+          <button
+            v-if="workIndex === libraryWorkCursor"
+            type="button"
+            class="btn"
+            data-library-open-work-folder
+            @click="dispatch('library.open_work_folder')"
+          >
+            {{ t('mode.library.open_work_folder_button') }}
+          </button>
         </li>
       </ul>
     </div>
@@ -872,6 +893,49 @@ watch(libraryChapterCursor, (cursor) => {
             : ''
         }}
       </p>
+      <div v-if="libraryRescanResultHasLoadedState" class="rescan-changes" data-library-rescan-changes>
+        <p
+          v-if="libraryAppeared.length === 0 && libraryMoved.length === 0 && libraryNewlyOrphaned.length === 0"
+          class="rescan-changes-none"
+          data-library-rescan-unchanged
+        >
+          {{ t('mode.library.changes_none') }}
+        </p>
+        <template v-else>
+          <section v-if="libraryAppeared.length > 0" data-library-changes="appeared">
+            <p class="section-heading">{{ t('mode.library.changes_appeared') }}</p>
+            <ul>
+              <li v-for="entry in libraryAppeared" :key="entry.work_id" data-library-change="appeared" :data-work-id="entry.work_id">
+                <!-- aura-allow-text: tên là DỮ LIỆU đĩa. -->
+                <span class="change-name">{{ entry.name }}</span>
+                <!-- aura-allow-text: đường dẫn là DỮ LIỆU đĩa. -->
+                <span class="change-path">{{ entry.atproj_path }}</span>
+              </li>
+            </ul>
+          </section>
+          <section v-if="libraryMoved.length > 0" data-library-changes="moved">
+            <p class="section-heading">{{ t('mode.library.changes_moved') }}</p>
+            <ul>
+              <li v-for="entry in libraryMoved" :key="entry.work_id" data-library-change="moved" :data-work-id="entry.work_id">
+                <!-- aura-allow-text: tên là DỮ LIỆU; câu nối đi qua t(). -->
+                <span class="change-name">{{ entry.name }}</span>
+                <span class="change-path">{{ t('mode.library.change_moved_path', { from: entry.from_path, to: entry.to_path }) }}</span>
+              </li>
+            </ul>
+          </section>
+          <section v-if="libraryNewlyOrphaned.length > 0" data-library-changes="orphaned">
+            <p class="section-heading">{{ t('mode.library.changes_orphaned') }}</p>
+            <ul>
+              <li v-for="entry in libraryNewlyOrphaned" :key="entry.work_id" data-library-change="orphaned" :data-work-id="entry.work_id">
+                <!-- aura-allow-text: tên là DỮ LIỆU đĩa. -->
+                <span class="change-name">{{ entry.name }}</span>
+                <!-- aura-allow-text: đường dẫn là DỮ LIỆU đĩa. -->
+                <span class="change-path">{{ entry.atproj_path }}</span>
+              </li>
+            </ul>
+          </section>
+        </template>
+      </div>
       <!-- aura-allow-text: như trên, qua tError(). -->
       <p class="error" role="status">{{ libraryRescanError ? tError(libraryRescanError) : '' }}</p>
 
@@ -957,8 +1021,34 @@ watch(libraryChapterCursor, (cursor) => {
           >
             {{ t('mode.library.forget_orphan') }}
           </button>
+          <button
+            type="button"
+            class="btn"
+            data-library-relocate-orphan
+            :disabled="libraryRescanBusy"
+            @click="dispatch('library.relocate_orphan')"
+          >
+            {{ t('mode.library.relocate_orphan') }}
+          </button>
         </div>
       </div>
+    </div>
+
+    <div class="rebuild-block">
+      <button
+        type="button"
+        class="btn"
+        data-library-rebuild-index
+        :disabled="libraryRescanBusy"
+        @click="dispatch('library.rebuild_index')"
+      >
+        {{ t('mode.library.rebuild_index') }}
+      </button>
+      <p class="notice">{{ t('mode.library.rebuild_index_note') }}</p>
+      <!-- aura-allow-text: mốc dựng là DỮ LIỆU; câu bao quanh đi qua t(). -->
+      <p v-if="libraryRebuiltAt !== null" class="notice" data-library-rebuilt-at :data-rebuilt-at="libraryRebuiltAt">
+        {{ t('mode.library.rebuilt_at', { when: libraryRebuiltAtLabel ?? '' }) }}
+      </p>
     </div>
 
     <div class="open-work-wrap">

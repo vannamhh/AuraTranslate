@@ -8,7 +8,7 @@
  * trỏ mồ côi kẹp lại sau khi danh sách co lại, và `forgetOrphan` không gọi IPC khi chưa có
  * mục nào để gỡ.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockInvoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => mockInvoke(...args) }))
@@ -22,7 +22,16 @@ const RESCAN_REPORT_ONE_ORPHAN = {
   orphans: [{ work_id: 'id-orphan', name: 'Ghost Work', atproj_path: '/tmp/library/Ghost.atproj' }],
   // 🔵 THÊM (retro Epic 5, AI-2/AI-3 — 2026-09-03) -- trường mới, bắt buộc trên dây.
   text_skipped: [],
+  appeared: [],
+  moved: [],
+  newly_orphaned: [],
+  rebuilt_at: null,
 }
+
+// Cold-compiling LibraryMode.vue inside the mount case overran the 5 s case timeout.
+beforeAll(async () => {
+  await import('../../src/modes/LibraryMode.vue')
+}, 60_000)
 
 beforeEach(async () => {
   mockInvoke.mockReset()
@@ -164,6 +173,7 @@ describe('modes/libraryRescan.ts — con trỏ mồ côi kẹp lại sau khi m�
         { work_id: 'id-b', name: 'B', atproj_path: '/tmp/B.atproj' },
       ],
       text_skipped: [],
+      appeared: [], moved: [], newly_orphaned: [], rebuilt_at: null,
     }
     mockInvoke.mockResolvedValueOnce(twoOrphans)
     const state = await import('../../src/modes/libraryRescan')
@@ -207,6 +217,7 @@ describe('P1 (vòng rà bốn lớp, 2026-08-27) — `root_missing` phải phân
       skipped: 0,
       orphans: [],
       text_skipped: [],
+      appeared: [], moved: [], newly_orphaned: [], rebuilt_at: null,
     })
     const state = await import('../../src/modes/libraryRescan')
 
@@ -324,6 +335,7 @@ describe('phán quyết Ice #3 (2026-08-27) — dữ liệu xung đột có cấ
       skipped: 0,
       orphans: [],
       text_skipped: [],
+      appeared: [], moved: [], newly_orphaned: [], rebuilt_at: null,
     })
     const state = await import('../../src/modes/libraryRescan')
 
@@ -403,6 +415,7 @@ describe('retro Epic 5, AI-2/AI-3 (2026-09-03) — text_skipped không còn bị
         { work_id: 'id-old-1', reason: 'schema_too_old' },
         { work_id: 'id-old-2', reason: 'schema_too_old' },
       ],
+      appeared: [], moved: [], newly_orphaned: [], rebuilt_at: null,
     })
     const state = await import('../../src/modes/libraryRescan')
 
@@ -420,6 +433,7 @@ describe('retro Epic 5, AI-2/AI-3 (2026-09-03) — text_skipped không còn bị
       skipped: 0,
       orphans: [],
       text_skipped: [{ work_id: 'id-old-1', reason: 'schema_too_old' }],
+      appeared: [], moved: [], newly_orphaned: [], rebuilt_at: null,
     })
     const state = await import('../../src/modes/libraryRescan')
     await state.rescanLibraryFolder()
