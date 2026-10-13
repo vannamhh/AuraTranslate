@@ -3,7 +3,7 @@ title: 'Khung app: thanh tiêu đề ba tab và Công cụ ▾'
 type: 'feature'
 ticket: '1'
 created: '2026-10-13'
-status: 'built'
+status: done
 baseline_revision: 'c35ef91fa180a09515832c32f66fafd1215ecaf1'
 route: 'full'
 route_source: 'auto'
