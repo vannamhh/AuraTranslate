@@ -9,7 +9,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-10-10'
+updated: '2026-10-13'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md'
@@ -283,6 +283,8 @@ graph TD
 
   **Thứ tự sắp xếp kết quả TM có hai khoá, khai tường minh vì hai chiều này chồng lên nhau:** khoá **chính** là **xuất xứ** (cặp *của tôi* trước, FR118); khoá **phụ** là **tầng** (Tác phẩm trước Global). Xuất xứ thắng vì một cặp TM toàn cục do **chính người dùng** dịch vẫn giống văn phong của họ hơn một cặp Tác phẩm do người khác dịch — mà mục đích của FR70 là học văn phong. Không khai thứ tự này thì Giai đoạn 4 và Giai đoạn 6 sẽ cài lệch nhau.
 
+  🔵 2026-10-13: Tác phẩm bật `tm_only_mine` thì khoá chính chỉ còn một giá trị — cặp người khác bị lọc trước khi xếp hạng, ở một chỗ trong `core/tm` (AD-57). Bảng ngữ nghĩa không thêm hàng.
+
   Xác nhận segment (FR56) **chỉ** ghi vào TM Tác phẩm. TM toàn cục chỉ nhận qua thao tác chủ động (nhập TMX, hoặc đẩy lên tầng toàn cục).
 
   → chi tiết & bằng chứng: `spine-evidence.md#AD-18`
@@ -433,6 +435,8 @@ graph TD
 - **Binds:** C4, C6, C3
 - **Prevents:** (1) một giai đoạn sau truy vấn thẳng bảng Glossary rồi chèn cả mục *chờ chốt* vào prompt — FR70 gửi đi một trường trống, và tệ hơn là gợi ý cho mô hình rằng thuật ngữ đó **không có** bản dịch quy ước; (2) âm Hán Việt bị cài lại lần thứ hai bên trong `glossary/` thay vì đọc qua cổng `DictionarySource`, sinh hai nguồn sự thật cho cùng một dữ kiện.
 - **Rule:** ba trạng thái, một chiều: **ứng viên** (bảng chờ riêng, AD-20) → **chờ chốt bản dịch** (FR114) → **đã chốt**. Trường bản dịch **nullable** cho tới khi chốt.
+
+  🔵 2026-10-13: *một chiều* có đúng một ngoại lệ — lệnh gỡ chốt, chỉ trên mục mà lượt chốt FR114 đưa lên đã chốt, khoá bằng cột `pending_confirmed_at` và trigger ở cả hai kho (AD-54).
 
   `glossary/` phơi ra **đúng một** truy vấn trả về mục **đủ điều kiện chèn**; `ai/` không có đường nào khác chạm dữ liệu Glossary. Điều kiện chèn nằm ở `glossary/` — nơi sở hữu dữ liệu — chứ không nằm ở chỗ gọi.
 
@@ -725,6 +729,8 @@ graph TD
 
   **⑤ Khôi phục (FR101) làm (a) mà KHÔNG làm (b).** Đây là **hệ quả bắt buộc** của chữ ký #1(a): `segment_version` không mang xuất xứ, nên **không có gì để trả về**. 🔵 2026-10-01: mốc nay là `baseline_target_text` phía Rust (AD-50) — lượt khôi phục ghi cột đó và không ghi `baseline_translation_origin`, thay cho việc `replaceEditorSegment` định nghĩa lại mốc trong webview.
 
+  🔵 2026-10-13: `segment_version` nay mang xuất xứ (AD-55); lượt khôi phục đặt `baseline_translation_origin` bằng xuất xứ của phiên bản, chỉ phiên bản `NULL` (có trước bậc đó) còn ra *người khác dịch*. Lượt khôi phục vẫn không ghi `translation_origin`.
+
   ⚠️ **Chỗ yếu, ghi ra thay vì để người sau tự phát hiện:** khôi phục văn bản của một phiên bản cũ rồi xác nhận mà không sửa ⇒ giữ nguyên xuất xứ **hiện tại**, thứ có thể thuộc về một phiên bản khác. 🔵 2026-10-01: AD-50 đóng chiều đắt của chỗ yếu này — lượt khôi phục đặt mốc xuất xứ *người khác dịch*, nên ký không sửa ra *người khác dịch*; cái còn lại là chiều rẻ, khi văn bản khôi phục là của chính người dùng.
 
   **⑥ Tập giá trị FR117 giữ ĐÚNG BA, cộng `''`. `AD` này KHÔNG nới nó.** Lý do đo được: tập giá trị nằm **trên đĩa người dùng**, nên mỗi lượt nới là **một bước di trú nữa** cho mọi `.atproj` đã tồn tại. Thứ giữ cho tập ba giá trị đủ dùng là **phép chiếu xuống trục nhị phân của FR118** — trục duy nhất mà hành vi thật đọc tới:
@@ -791,7 +797,7 @@ graph TD
 
   1. **`⌘Z` duy nhất là `⌘Z` gốc của trình duyệt trong một vùng gõ.** Nó sửa văn bản trong đúng một editing host và xuống đĩa qua bộ đệm gõ như một lượt gõ (AD-35, AD-47). Lịch sử của nó hết khi một lượt ghi rời rạc viết lại chính ô đó; không thao tác nào được hứa khôi phục lịch sử ấy. Mọi binding `Mod+Z` · `Mod+Shift+Z` phải **nhường vùng gõ** — không `preventDefault` ở đó — và vùng gõ là đúng vị từ `keys.ts::isTypingZone`, không vị từ thứ hai.
   2. **Mỗi thao tác ghi rời rạc thuộc đúng một lớp**, khai trong spec của story dựng nó:
-     **(i) có lệnh nghịch đảo đi cặp** — đường lui là gọi lệnh kia, và lệnh kia trả lại **mọi** nội dung người dùng (mục 3) mà lệnh đi đã đổi; không trả đủ thì thao tác thuộc lớp (iii) (cắt bỏ ↔ khôi phục câu FR133, ngắt ↔ nối đoạn FR134, dời Chương lên ↔ xuống, gộp ↔ tách Chương);
+     **(i) có lệnh nghịch đảo đi cặp** — đường lui là gọi lệnh kia, và lệnh kia trả lại **mọi** nội dung người dùng (mục 3) mà lệnh đi đã đổi; không trả đủ thì thao tác thuộc lớp (iii) (cắt bỏ ↔ khôi phục câu FR133, ngắt ↔ nối đoạn FR134, dời Chương lên ↔ xuống, gộp ↔ tách Chương). 🔵 2026-10-13: thêm cặp chốt ↔ gỡ chốt bản dịch Glossary (AD-54);
      **(ii) không phá byte nội dung người dùng nào** — bản trước vẫn tra lại được (gộp/tách segment theo AD-5, xác nhận theo AD-31); đường lui là người dùng gọi lại lệnh gộp/tách, hoặc sửa văn bản của câu đã xác nhận để đưa nó về chưa xác nhận (AD-31); không có nghịch đảo tự động;
      **(iii) phá nội dung người dùng không còn bản sao** — hỏi trước khi ghi: bấm hai lần kèm chữ *"không hoàn tác được"*, hoặc khuôn `needs_confirmation`/`force` của FR101. 🔵 2026-10-10: ngoại lệ có tên duy nhất — chấp nhận đề xuất proofreader không hỏi dù cụm gốc mất bản sao khi ngăn hoàn lại mất (AD-53 mục 3). Phép thử là *"cái sắp mất có bản sao ở đâu không"* (hợp đồng phụ của AD-31), không phải một cờ `dirty`.
   3. **Nội dung người dùng** ở lớp (iii) = `segment.target_text` và các hàng người dùng soạn trọn một thực thể (`glossary_entry`, `prompt_set`, `import_cleanup_rule`). **Không** gồm: siêu dữ liệu Chương (`title`, `origin_*` — AD-43), giá trị ghi đè cấu hình của các tầng AD-18 (`config_value`, `ai_config` — xoá = trả về kế thừa), dữ liệu dẫn xuất (`library_*`). Bảng hoặc cột mới mang văn bản người dùng tự soạn thì vào danh sách này, khai trong spec của story dựng nó.
@@ -812,7 +818,7 @@ graph TD
      |---|---|---|
      | Nạp Chương | không phải lượt ghi — không chạm | không chạm |
      | Flush (AD-35) · xác nhận (AD-31) | không chạm | không chạm |
-     | Khôi phục phiên bản (FR101) | văn bản phiên bản | **người khác dịch** — `segment_version` không mang xuất xứ, nên chọn chiều rẻ (AD-47 ④) |
+     | Khôi phục phiên bản (FR101) | văn bản phiên bản | ~~**người khác dịch** — `segment_version` không mang xuất xứ, nên chọn chiều rẻ (AD-47 ④)~~ 🔵 2026-10-13: xuất xứ của phiên bản; phiên bản `NULL` ⇒ **người khác dịch** (AD-55) |
      | Mọi hàng còn lại của AD-47 ③ | văn bản vừa ghi | đúng giá trị vừa ghi vào `translation_origin` |
 
      Lượt khôi phục **không** ghi `translation_origin` (AD-47 ⑤); nhánh hỏi lại (`needs_confirmation`) không ghi cột nào.
@@ -946,7 +952,7 @@ graph TD
      | Câu TM 100% chưa sửa | xuất xứ của cặp TM | *người khác dịch* |
 
      ⚠️ **Cái mất, ghi ra:** một đề xuất ngữ pháp viết lại cả một mệnh đề trong câu của người dùng vẫn mang *tôi dịch*. Khi văn bản trước lượt ghi là chữ người dùng gõ đè lên một lượt ghi không-phải-người-dùng, mốc cũ mất: gõ lại đúng nguyên văn lượt ghi gốc rồi ký ra *tôi dịch*, không còn ra xuất xứ gốc.
-  3. **Đường lui: ngăn hoàn lại, ngoại lệ có tên duy nhất của AD-49.** Lệnh hoàn lại là cùng phép thay khoảng với tham số đảo: khoảng `[start, start + độ dài UTF-16 của chữ đề xuất)` thay lại bằng cụm gốc, cùng phép kiểm, cùng luật xuất xứ theo loại. Mỗi segment có một ngăn hoàn lại trong bộ nhớ webview, chỉ hoàn lại được lượt chấp nhận sau cùng (LIFO), không hỏi. Cả hai lệnh là command trong `CommandRegistry` (AD-34), đăng ký phía Rust trong `lib.rs`. Đây là đường duy nhất từ proofreader tới `target_text` (FR85); 9.4 dựng cổng canh vế đó.
+  3. **Đường lui: ngăn hoàn lại, ngoại lệ có tên duy nhất của AD-49.** Lệnh hoàn lại là cùng phép thay khoảng với tham số đảo: khoảng `[start, start + độ dài UTF-16 của chữ đề xuất)` thay lại bằng cụm gốc, cùng phép kiểm, cùng luật xuất xứ theo loại. Mỗi segment có một ngăn hoàn lại trong bộ nhớ webview, chỉ hoàn lại được lượt chấp nhận sau cùng (LIFO), không hỏi. Cả hai lệnh là command trong `CommandRegistry` (AD-34), đăng ký phía Rust trong `lib.rs`. 🔵 2026-10-13: lệnh hoàn lại mang thêm `decision_id` của lượt chấp nhận (AD-56). Đây là đường duy nhất từ proofreader tới `target_text` (FR85); 9.4 dựng cổng canh vế đó.
      - Chính tả và ngữ pháp: ký ngay sau khi hoàn lại ra cùng kết quả như trước lượt chấp nhận, và `target_text` về đúng byte cũ. Gõ thêm rồi mới ký thì không bảo đảm (mục 2 ⚠️).
      - Loại của 9.2: hoàn lại để câu mang *người khác dịch* kể cả khi câu cũ là của người dùng — chiều rẻ; xuất xứ cũ không đi qua IPC (AD-50 mục 5) nên không có gì để trả về.
      - Lớp AD-49: chấp nhận thuộc lớp (i) chừng nào ngăn hoàn lại còn mục của nó. Khi ngăn mất (mục 5), cụm gốc không còn bản sao nào mà lượt chấp nhận đã không hỏi — đây là ngoại lệ có tên thứ hai, của lớp (iii). Đã nhận để không hỏi ở mỗi lượt chấp nhận: cái bị thay là một cụm do model chỉ ra, không phải cả câu.
@@ -965,7 +971,7 @@ graph TD
      - Cụm trích xuất hiện hơn một lần trong segment, với loại theo ngữ cảnh, thì không được đặt vị trí: đếm vào `ambiguous`, hiện trên dải, không chấp nhận được. Với chính tả, đặt ở lần xuất hiện đầu chưa bị chiếm như 9.1.
      - Kết quả quét mang `unlocated`, `ambiguous`, `filtered` (mục 7) và `not_scanned` — số segment trong phạm vi mà lô của nó lỗi hay bị huỷ — để *"0 phát hiện"* không đứng thay cho một trong bốn trạng thái đó. Hình dạng một phát hiện trên dây của 9.1 không đổi; `Done` thêm `ambiguous` (9.4), `filtered` (9.6) và `not_scanned` (9.3).
   6. **Đua với ô đang soạn, và nhiều phát hiện trên một segment.** Ô của segment khoá gõ trong lúc lệnh chấp nhận hay hoàn lại đang chạy. Webview chỉ áp văn bản Rust trả qua `replaceEditorSegment`, đường mọi lượt ghi rời dùng; lượt flush kế tiếp vì thế chở đúng văn bản đã chấp nhận. Sau lượt ghi, webview dời vị trí các phát hiện còn lại và các mục trong ngăn hoàn lại của segment đó, với `[s, e)` là khoảng vừa bị thay trong văn bản cũ: phát hiện có `end ≤ s` giữ nguyên; có `start ≥ e` dời đúng chênh lệch độ dài UTF-16; còn lại là chồng lên, bỏ. Văn bản mong đợi mới là văn bản Rust trả. Phép kiểm cụm ở mục 4 giữ cho một lần dời sai không ghi sai. Không quét lại sau mỗi lần chấp nhận (FR82).
-  7. **"Bỏ qua" và "không phải lỗi" là hai thao tác.** *Bỏ qua* (FR83, 9.4) đóng một phát hiện trong bộ nhớ webview, không gọi Rust, không lưu gì. *Không phải lỗi* (FR84, 9.6) là ghi nhớ bền: một command trong `commands/proofread.rs`, gọi hàm kiểm ở mục 4, ghi `PROOF_IGNORE` trong `project.db` — phạm vi Tác phẩm là cấu trúc, không phải một cột lọc. Chữ ký **không** chứa `segment.id`, vị trí, giải thích hay đề xuất; lưu văn bản thuần, không băm.
+  7. **"Bỏ qua" và "không phải lỗi" là hai thao tác.** *Bỏ qua* (FR83, 9.4) đóng một phát hiện trong bộ nhớ webview, không gọi Rust, không lưu gì. 🔵 2026-10-13: *Bỏ qua* nay gọi một command Rust và lưu một hàng `proof_decision`, vẫn không ghi nhớ (AD-56). *Không phải lỗi* (FR84, 9.6) là ghi nhớ bền: một command trong `commands/proofread.rs`, gọi hàm kiểm ở mục 4, ghi `PROOF_IGNORE` trong `project.db` — phạm vi Tác phẩm là cấu trúc, không phải một cột lọc. Chữ ký **không** chứa `segment.id`, vị trí, giải thích hay đề xuất; lưu văn bản thuần, không băm.
      - **Cụm:** `text[start..end)` sau `trim` + NFC, cùng phép AD-50 mục 4 dùng.
      - **Theo cụm (chính tả):** khoá `(loại, cụm)`, khớp khi bằng nhau, im trong cả Tác phẩm.
      - **Theo cụm và ngữ cảnh (ngữ pháp, loại của 9.2):** khoá `(loại, cụm, ngữ cảnh trước, ngữ cảnh sau)`. Ngữ cảnh trước là tối đa N ký tự Unicode cuối của NFC(`text[..start]`), ngữ cảnh sau là tối đa N ký tự đầu của NFC(`text[end..]`). Khớp khi `loại` và `cụm` bằng nhau và, ở mỗi phía: phía đã lưu **rỗng** chỉ khớp phía hiện tại cũng rỗng; phía đã lưu không rỗng khớp khi nó là đuôi (phía trước) hoặc đầu (phía sau) của phía hiện tại. Gộp segment chỉ làm ngữ cảnh dài ra nên ghi nhớ sống sót, trừ khi cụm nằm sát biên segment (phía rỗng); tách hay sửa chữ trong vùng N quanh cụm thì báo lại.
@@ -987,6 +993,147 @@ graph TD
 
   → bằng chứng: `.memlog.md` 2026-10-10 · `reviews/review-ad-53-{rubric,reality,adversarial}-2026-10-10.md` · mã đọc: `commands/segment/targets.rs::write_non_user_target`, `commands/segment/review_accept.rs`, `core/segment/translation_origin.rs::arbitrate`, `commands/segment/confirm.rs` (lượt chèn `segment_version` duy nhất), `commands/proofread.rs` (dây 9.1).
 
+### AD-54 — Gỡ chốt bản dịch Glossary là lệnh nghịch đảo của lượt chốt; vòng đời một chiều trừ đúng lệnh đó, khoá bằng cột `pending_confirmed_at`
+
+- **Binds:** C4, C9 — Story 12.20 (FR147), `core/glossary/store.rs`, `core/glossary/candidate_store.rs`, `commands/glossary.rs`, `glossary_entry` ở **cả** `global.db` lẫn `project.db`, dải chốt bản dịch (FR114).
+- **Prevents:**
+  1. FR147 dựng bằng cách bỏ trigger `glossary_entry_lifecycle_is_one_way`, rồi một `UPDATE translation = NULL` sơ ý ở chỗ khác đưa mục đã chốt về chờ chốt, và mục đó rời prompt trong im lặng.
+  2. FR147 dựng bằng xoá rồi chèn lại cùng id để lách trigger: AD-36 nói *một chiều* trong khi mã đi ngược.
+  3. Lượt chốt bị giữ trong webview chờ ghi để hoàn tác được: prompt không thấy thuật ngữ trong lúc chờ, đóng app là mất, trái AD-1.
+  4. Bốn đường ghi `translation` hiện có (sửa thủ công, thu hoạch review, nhập tệp nhánh `TakeTheirs`, sửa mục đã chốt qua `confirm_translation`) mỗi đường phải tự nhớ xoá dấu gỡ chốt; đường nào quên thì ABORT trên đúng các hàng vừa chốt, mà test dùng hàng không có dấu vẫn xanh.
+  5. Một nút gỡ chốt còn sót gỡ nhầm một lượt chốt khác cùng chữ, hay một mục cùng id ở Tác phẩm khác.
+  6. Glossary gắn `Mod+Z` và nuốt `⌘Z` gốc của ô bản dịch: sau lượt chốt, tiêu điểm trở về chỗ cũ (`glossaryConfirmStripState.ts::restoreFocusAndSelection`), thường là ô đó.
+- **Rule:**
+
+  1. **Vòng đời.** Ba trạng thái của AD-36, một chiều, **trừ đúng một** chiều lùi: *đã chốt → chờ chốt* qua lệnh gỡ chốt, chỉ trên mục mà **lượt chốt FR114** đưa lên đã chốt và bản dịch chưa đổi từ đó. Ứng viên không lùi: `glossary_candidate.resolution` giữ `approved`; mục gỡ chốt quay lại dải chờ chốt, không quay lại bảng chờ (AD-20).
+  2. **Hình dạng.** `glossary_entry` thêm `pending_confirmed_at TEXT NULL` ở cả hai kho, cùng một hằng DDL, kèm `CHECK (pending_confirmed_at IS NULL OR translation IS NOT NULL)`. Nghĩa: thời điểm lượt chốt FR114 ghi bản dịch đang có. `NULL` = không gỡ chốt được — mục không lên đã chốt bằng lượt đó, bản dịch đã đổi sau đó, hoặc hàng có trước bậc này. Cột là dữ kiện về **lượt ghi**, không phải trạng thái: `translation IS NULL` vẫn là vị từ duy nhất của *chờ chốt*, đọc qua `is_confirmed()`.
+  3. **Ai ghi cột.** Đặt khác `NULL`: chỉ nhánh *chờ chốt → đã chốt* của `confirm_translation`, một câu `UPDATE … SET translation = ?, pending_confirmed_at = <now> WHERE id = ? AND translation IS NULL`; nhánh sửa mục đã chốt của cùng hàm là câu lệnh khác, không đặt cột. Đặt `NULL`: lệnh gỡ chốt (mục 5) và trigger tự xoá (mục 4). Không người ghi `translation` nào khác phải biết cột tồn tại; mọi `INSERT` để nó `NULL`, kể cả `promote_to_global`.
+  4. **Trigger, cả hai kho.** Thân mới thay thân cũ của `glossary_entry_lifecycle_is_one_way`:
+     - `BEFORE UPDATE OF translation, pending_confirmed_at` `RAISE(ABORT)` khi chiều lùi (`OLD.translation IS NOT NULL AND NEW.translation IS NULL`) không kèm `OLD.pending_confirmed_at IS NOT NULL AND NEW.pending_confirmed_at IS NULL`; và khi `pending_confirmed_at` đi từ `NULL` sang khác `NULL` mà `OLD.translation IS NOT NULL`.
+     - `AFTER UPDATE OF translation` khi `OLD.translation IS NOT NULL AND NEW.translation IS NOT OLD.translation AND NEW.pending_confirmed_at IS NOT NULL` ⇒ `UPDATE glossary_entry SET pending_confirmed_at = NULL WHERE id = NEW.id`. Sửa bản dịch đã chốt bằng bất kỳ đường nào xoá quyền gỡ chốt mà không ABORT. Sửa mỗi `note` hay `category` (bản dịch không đổi) không chạm cột.
+
+     Một `UPDATE translation = NULL` không kèm cột mới vẫn bị chặn như hôm nay. Với trigger tự xoá, ABORT chỉ còn bắn ở lỗi lập trình, nên nó ra lỗi kho thô, không ánh xạ sang lỗi có kiểu.
+  5. **Lệnh gỡ chốt.** `glossary_unconfirm_translation(tier, id, expected_translation, expected_pending_confirmed_at)`, cả hai giá trị mong đợi là chuỗi bắt buộc, không `Option`; lượt chốt trả `pending_confirmed_at` nó vừa ghi để webview gửi lại. Cùng tầng mã và cùng phép chọn kho theo tầng với lệnh chốt; tầng Work đọc kho từ `OpenWorkState`. Trong một giao dịch, lỗi có kiểu theo thứ tự, lỗi nào cũng không ghi gì:
+     - không có hàng ⇒ `glossary.not_found`;
+     - `translation` khác `expected_translation` (so bằng byte) ⇒ `glossary.translation_changed`;
+     - `pending_confirmed_at` khác `expected_pending_confirmed_at`, kể cả `NULL` ⇒ `glossary.not_unconfirmable`.
+
+     Thành công ⇒ `SET translation = NULL, pending_confirmed_at = NULL`, không chạm cột nào khác. Truy vấn chèn của AD-36 đọc sống nên mục rời prompt từ lượt lắp kế tiếp; dấu thuật ngữ trên trình soạn làm mới bằng đúng đường làm mới sau lượt chốt.
+  6. **Lối vào và vòng đời của nút.** Lối vào duy nhất là nút trên thông báo *Đã chốt* của dải. Nút chết khi dải chuyển sang mục khác hay đóng, khi đổi Chương hay Tác phẩm, và sau bất kỳ lượt ghi Glossary nào khác. Rust không đặt cửa sổ thời gian: điều kiện cho phép là trạng thái hàng ở mục 5. Lệnh là command trong `CommandRegistry` (AD-34), **không có phím mặc định** — `Mod+Z` thuộc vùng gõ (AD-49 ①), người dùng gán phím qua FR22; thông báo hiện phím thật của lệnh khi có, không in cứng `⌘Z`. Mục vừa gỡ chốt vào tập *Để sau* của dải trong phiên, để dải không mọc lại ngay trên chính thuật ngữ đó.
+  7. **Lớp AD-49.** Chốt ↔ gỡ chốt là một cặp lớp (i): lượt chốt chỉ đổi `translation` từ `NULL` sang chữ, gỡ chốt trả đúng cột đó về `NULL`. Có đường lui hay không do **trạng thái hàng trên đĩa** quyết, nên đây không phải ngoại lệ của câu *"không trạng thái hoàn tác nào sống qua một lượt ghi"*; webview chỉ nhớ mục vừa chốt để vẽ nút.
+
+     ⚠️ **Cái mất, ghi ra:** chữ người dùng vừa gõ trong dải mất khi gỡ chốt, không bản sao — gỡ chốt là chủ ý huỷ đúng chữ đó, vài giây sau khi gõ. Mục đẩy lên Global (`promote_to_global`) không gỡ chốt được ở cả hai tầng.
+  8. **Di trú.** Một bậc trong `GLOBAL_MIGRATIONS` và một bậc trong `PROJECT_MIGRATIONS`, sau bậc của Story 12.19 (thứ tự ở AD-57 mục 9). Story 12.20 thêm một phép kiểm lược đồ trên cả hai kho sau bậc cuối: cột và cả hai trigger có mặt. Mọi bậc dựng lại bảng `glossary_entry` sau này chép cột và dựng lại cả hai trigger; phép kiểm đó đỏ nếu quên.
+  9. **Đổi gì / không đổi gì.** AD-36: câu *"ba trạng thái, một chiều"* nhận một dòng cập nhật trỏ AD-54; mục *đúng một truy vấn chèn* không đổi. AD-49: danh sách ví dụ lớp (i) nhận một dòng cập nhật; mục ①③④ không đổi chữ. AD-20, AD-18 không đổi.
+
+- **Phương án bị loại:**
+  - **Chốt trễ trong webview** (giữ N giây, `⌘Z` huỷ trước khi ghi): Prevents 3.
+  - **Không làm chiều lùi**, hoàn tác là sửa bản dịch đã chốt: FR147 phải viết lại; không có đường về *chờ chốt*.
+  - **Xoá rồi chèn lại cùng id:** Prevents 2.
+  - **Bỏ trigger, canh bằng cổng đọc mã:** `update_manual_term` nhận `Option<String>`, một giá trị `None` lúc chạy không đọc ra được từ dòng mã.
+  - **Mỗi người ghi tự xoá cột, trigger ABORT khi quên:** Prevents 4.
+
+  → bằng chứng: `.memlog.md` 2026-10-13 · `phan-loai-loai-5-b.md` hàng 18 · `reviews/review-ad-54-57-{rubric,reality,adversarial}-2026-10-13.md` (trigger chạy thật trên SQLite 3.53.2 đóng gói và 3.43.2) · mã đọc: `core/store/schema.rs` (`GLOSSARY_ENTRY_DDL`, hai bậc dựng lại trigger), `core/glossary/store.rs` (`confirm_translation`, `update_manual_term`, nhánh `TakeTheirs`, `promote_to_global`), `core/glossary/candidate_store.rs`, `src/glossaryConfirmStripState.ts`.
+
+### AD-55 — Mỗi phiên bản segment mang xuất xứ của lượt ký tạo ra nó; diff với bản đang dùng tính phía Rust
+
+- **Binds:** C2, C9 — Story 12.19 (FR141), `segment_version`, `commands/segment/confirm.rs`, `commands/segment/history.rs`, `core/segment/`, khôi phục FR101, `SegmentHistoryOverlay.vue`.
+- **Prevents:**
+  1. Xuất xứ phiên bản suy lúc đọc: từ `segment.translation_origin` hiện tại (đúng cho một phiên bản, sai cho mọi phiên bản khác), hay nối với `tm_unit` theo thời điểm (hàng TM sửa và xoá được). Nhãn sai trong im lặng.
+  2. Hàng cũ được điền `''` hay *tôi dịch* lúc di trú: `''` đọc là *chưa có bản dịch*; *tôi dịch* là chiều nói dối đắt của AD-47 ④.
+  3. Tập giá trị bị nới để vẽ đủ nhãn *từ AI · từ TM · từ bản review* của mockup, trong khi AD-47 ⑥ đòi một AD mới và một bước di trú cho việc đó.
+  4. Webview tự diff bằng một thư viện JS, lệch phép chuẩn hoá với `core::matching` (AD-51).
+  5. Nhãn *đang dùng* khớp theo nội dung và sáng nhiều hàng trùng chữ; hoặc nhãn chỉ một phiên bản trong khi lượt ký sau khôi phục mang xuất xứ của phiên bản khác cùng chữ.
+- **Rule:**
+
+  1. **Hình dạng.** `segment_version.translation_origin TEXT NULL`, `CHECK (translation_origin IS NULL OR translation_origin IN ('self','other','bilingual_import'))`: tập AD-47 ⑥ trừ `''`, vì lượt ký từ chối văn bản rỗng (`confirm.rs`, `Arbitrated::Unsigned`). `NULL` = không rõ, chỉ hàng có trước bậc này mang nó; không suy ngược, không điền. Trigger `BEFORE INSERT ON segment_version` `RAISE(ABORT)` khi `NEW.translation_origin IS NULL`, tạo sau mọi lượt chép hàng trong bậc, nên hàng mới không bao giờ *không rõ*. Câu `INSERT` ở `confirm.rs` và mọi câu chèn `segment_version` trong test (`alignment_contract.rs`, `segment_contract.rs`, `project_contract.rs`) đổi trong cùng bậc. Phép kiểm tập lúc mở kho (AD-50 mục 1) thêm một nhánh cho cột này: tập ba giá trị, `NULL` được phép, `''` thì không.
+  2. **Người ghi.** Lượt chèn duy nhất ở `confirm_segment` ghi đúng giá trị nó ghi vào `segment.translation_origin` trong cùng giao dịch, tức kết quả hàm phân xử AD-50 mục 4.
+  3. **Một phép chọn phiên bản.** Một hàm thuần trong `core/segment/`: cho một văn bản, trả id lớn nhất trong các phiên bản của segment có `target_text` bằng văn bản đó sau `trim` + NFC (phép so của AD-50 mục 4); không phiên bản nào bằng ⇒ `None`. Cả nhãn *đang dùng* (mục 5) lẫn xuất xứ lượt khôi phục đặt (mục 4) gọi hàm này, nên hai thứ luôn chỉ cùng một phiên bản. Hai phép so bằng byte sẵn có trong `restore_segment_version` (không ghi khi văn bản đã bằng; hỏi lại khi bản nháp không có bản sao) trả lời câu hỏi khác — *có ghi không* — và giữ nguyên.
+  4. **Khôi phục (FR101).** `baseline_translation_origin` = xuất xứ của phiên bản mà mục 3 chọn cho văn bản vừa khôi phục; phiên bản đó `NULL` ⇒ *người khác dịch*, chiều rẻ như cũ. `baseline_target_text`, nhánh `needs_confirmation` và việc không ghi `translation_origin` giữ nguyên. Ký ngay sau khi khôi phục, không sửa ⇒ ra đúng xuất xứ nhãn *đang dùng* chỉ.
+  5. **Đọc lịch sử.** Mở lịch sử là thao tác rời: webview flush segment trước (AD-35). Lệnh đọc trả `current_version_id` = mục 3 trên `segment.target_text`, và cho mỗi phiên bản dãy span của `core::matching::diff_spans(văn bản phiên bản, target_text hiện tại, MatchLang::En)`: đích tiếng Việt tách theo từ, cùng hàm và cùng phép chuẩn hoá của AD-51. Webview chỉ vẽ span theo khuôn `ReviewSpans.vue`, không thư viện diff JS, không so văn bản để chọn hàng.
+
+     ⚠️ Chưa đo: diff tính cho mọi phiên bản mỗi lần mở. Story 12.19 đo trên một segment ≥ 50 phiên bản; lệnh đọc quá 50 ms (ngưỡng frame của NFR2) thì chuyển sang tính theo phiên bản được mở, cùng hàm.
+  6. **Nhãn.** Webview ánh xạ đúng bốn giá trị sang bốn nhãn: `self` · `other` · `bilingual_import` · `NULL` (*không rõ*), cùng nghĩa với nhãn xuất xứ đang dùng ở chỗ khác; không nhãn thứ năm. Mọi phiên bản đều là bản đã ký, nên *đã xác nhận* không phải nhãn riêng. Segment sinh từ gộp/tách bắt đầu với lịch sử rỗng (AD-5).
+  7. **Dây.** `SegmentVersionRow` thêm `translation_origin: Option<String>` (chỉ để hiển thị, không gửi ngược, AD-50 mục 5) và dãy span; `ipc_contract` ghim cả hai. Không DTO nào mang khoá `baseline_*`.
+  8. **Đổi gì / không đổi gì.** AD-47 ⑤ nhận một dòng cập nhật: lượt khôi phục đặt mốc xuất xứ theo phiên bản, chỗ yếu của ⑤ chỉ còn với phiên bản `NULL`. AD-47 ⑥ không đổi: ba cơ chế *từ AI · từ TM · từ bản review* của mockup thành lệch có chủ đích. AD-50 mục 2: hàng *Khôi phục phiên bản* nhận một dòng cập nhật theo mục 4. Consistency Conventions, dòng *Xuất xứ bản dịch*, nhận một dòng về cột này. AD-31, AD-35, AD-51 không đổi chữ. Chú thích *"không thêm cột"* quanh `SEGMENT_STATUS_AND_VERSION_DDL` ở `schema.rs` hết đúng; story thay nó trong lượt sửa chính dòng đó.
+
+- **Phương án bị loại:**
+  - **Trục thứ hai *cơ chế ghi*** trên `segment` và `segment_version`: hai cột, sửa mọi chỗ gọi `write_non_user_target`, AD-47 ③ phải khai cơ chế cho từng hàng, và thêm một tên giống *origin* thứ năm vào Consistency Conventions.
+  - **Suy ngược hàng cũ bằng nối `tm_unit`:** Prevents 1; dữ liệu thật hôm nay chỉ là `.atproj` thử.
+  - **`NOT NULL DEFAULT ''`:** Prevents 2.
+  - **Khôi phục lấy xuất xứ của phiên bản người dùng bấm, nhãn lấy phiên bản mới nhất cùng chữ:** Prevents 5.
+
+  → bằng chứng: `.memlog.md` 2026-10-13 · `phan-loai-loai-5-a.md` hàng 17 · `reviews/review-ad-54-57-*-2026-10-13.md` · mã đọc: `core/store/schema.rs` (`SEGMENT_STATUS_AND_VERSION_DDL`), `commands/segment/confirm.rs`, `commands/segment/history.rs`, `core/matching/mod.rs::diff_spans`, `src/SegmentHistoryOverlay.vue`.
+
+### AD-56 — Mỗi quyết định trên một phát hiện proofreader là một hàng `proof_decision`; tỉ lệ FR150 đếm từ đó, mẫu số là số quyết định
+
+- **Binds:** C7, C9 — Story 12.15 (FR150), `commands/segment/` (chấp nhận, hoàn lại), `commands/proofread.rs` (không phải lỗi, bỏ qua, đọc tỉ lệ), `core/ai/proofread.rs`, `project.db`.
+- **Prevents:**
+  1. Tỉ lệ dựng từ dữ liệu không mang quyết định: `proof_ignore` gộp chữ ký trùng nên đếm thiếu *không phải lỗi*, lượt chấp nhận chỉ để lại văn bản đã đổi, *bỏ qua* không để lại gì. Ra một con số trông hợp lệ mà sai.
+  2. Bộ đếm cộng dồn mà hoàn lại phải trừ: một lần trừ hụt là trôi vĩnh viễn, không tính lại được.
+  3. *Bỏ qua* và *để yên* lẫn nhau trên đĩa.
+  4. Story 12.15 chia cho `proof_scan.reported` theo phép đo FR81, trong khi ba phần của mockup cộng lại 100%: hai con số cùng tên, khác mẫu.
+  5. Hiện 0% khi chưa có quyết định nào.
+  6. Lệnh hoàn lại xoá nhầm một hàng quyết định khác vì id bị tái dùng.
+- **Rule:**
+
+  1. **Hình dạng.** Bảng `proof_decision` trong `project.db`, phạm vi Tác phẩm là cấu trúc như bảng `proof_ignore`: `id INTEGER PRIMARY KEY AUTOINCREMENT`, `kind TEXT NOT NULL` với cùng `CHECK` tập loại của `proof_ignore` (AD-53 mục 1; thêm một loại là sửa cả hai `CHECK` trong cùng bậc), `outcome TEXT NOT NULL CHECK (outcome IN ('accepted','not_error','skipped'))`, `decided_at TEXT NOT NULL`. Không văn bản, không `segment_id`, không vị trí (AD-3), không khoá ngoại tới `proof_scan`.
+  2. **Người ghi**, mỗi người trong giao dịch của chính thao tác:
+     - *accepted*: `ai_proofread_accept` chèn sau phép kiểm AD-53 mục 4 và lượt ghi văn bản. Kết quả của lệnh chấp nhận là kiểu riêng mang `decision_id`, không còn dùng chung kiểu với lệnh hoàn lại; webview cất `decision_id` trong mục của ngăn hoàn lại.
+     - *hoàn lại*: `ai_proofread_revert` nhận `decision_id`. Phép kiểm AD-53 mục 4 chạy trước; rồi `DELETE … WHERE id = ? AND outcome = 'accepted' AND kind = ?` cùng giao dịch với lượt ghi văn bản; xoá 0 hàng ⇒ `ai_proofread.decision_missing` và không ghi gì, kể cả văn bản. Ngăn hoàn lại mất (AD-53 mục 5) ⇒ hàng ở lại, vì lượt chấp nhận đứng.
+     - *not_error*: `proofread_ignore_add` chèn một hàng cùng giao dịch với `INSERT OR IGNORE INTO proof_ignore`, kể cả khi chữ ký đã có.
+     - *skipped*: *Bỏ qua* thành một command trong `commands/proofread.rs` nhận đúng `kind`, kiểm tập, chèn một hàng. Không chạm segment nên không gọi hàm kiểm AD-53 mục 4; không tạo ghi nhớ.
+
+     Không có hàng: phát hiện chưa ai xử lý, phát hiện bị xoá vì gõ, đổi Chương hay quét lại, phát hiện bị lọc (`filtered`), không đặt được vị trí (`ambiguous`, `unlocated`). Ngoài lệnh hoàn lại, không đường nào sửa hay xoá `proof_decision`; gỡ ghi nhớ `proof_ignore` không xoá hàng *not_error* — bảng là lịch sử quyết định, không phải trạng thái ghi nhớ. Lệnh hoàn lại sống nhờ câu đó, nên Story 12.15 dựng một cổng đọc dòng mã đỏ khi `DELETE FROM proof_decision` hay `UPDATE proof_decision` xuất hiện ngoài lệnh hoàn lại.
+  3. **Đọc.** Một command trả số đếm theo `outcome` và theo `kind` của mọi hàng trong Tác phẩm đang mở, cộng dồn, không theo lượt quét, không đặt lại; đếm bằng một hàm thuần trong `core/ai/proofread.rs`. Mẫu số FR150 = *accepted + not_error + skipped*; tổng 0 ⇒ không có tỉ lệ, webview hiện *chưa có quyết định*, không 0%. Phần trăm do webview định dạng từ số đếm (AD-21).
+  4. **Hai đại lượng không thay nhau.** FR150 đếm **quyết định**, không đếm phát hiện: một phát hiện bỏ qua ở hai lượt quét là hai hàng. Tỉ phần *không phải lỗi* của FR150 chia cho số quyết định; tỉ lệ báo động giả của FR81 (`scripts/measure-proofread-false-alarm.mjs`) chia cho `proof_scan.reported` và không đổi theo AD này. Nhãn giao diện nêu mẫu số của con số nó hiện.
+
+     ⚠️ **Cái mất, ghi ra:** `kind` của *skipped* là lời khai của webview, Rust không có phát hiện để đối chiếu. Đổi Chương làm mất ngăn hoàn lại, nên một lượt chấp nhận người dùng tự gõ ngược sau đó vẫn đếm là *accepted*.
+  5. **Đổi gì / không đổi gì.** AD-53 mục 7: câu *"Bỏ qua … không gọi Rust, không lưu gì"* nhận một dòng cập nhật — gọi Rust, lưu một hàng quyết định, vẫn không ghi nhớ. AD-53 mục 3: lệnh hoàn lại mang thêm `decision_id`. AD-53 mục 7 gọi tên một ngoại lệ cho phép thử *"`commands/proofread.rs` không ghi `project.db`"*; phép thử đó chưa được dựng (`proofread_write_boundary.rs` chỉ canh `write_non_user_target`), và AD này không dựng nó. AD-53 mục 1, 2, 4, 5, 6 và AD-3, AD-13 không đổi chữ.
+
+- **Phương án bị loại:**
+  - **Bộ đếm cộng dồn** theo (loại × kết quả): Prevents 2; không cắt được theo thời gian.
+  - **Lưu cụm hay chữ ký trên mỗi hàng:** FR150 không cần, và nó chép văn bản người dùng sang một bảng thứ hai.
+  - ***Bỏ qua* = phát hiện còn lại lúc reset:** đếm cả thứ người dùng chưa nhìn tới; Prevents 3.
+
+  → bằng chứng: `.memlog.md` 2026-10-13 · `phan-loai-loai-5-c.md` hàng 14 · `reviews/review-ad-54-57-*-2026-10-13.md` · mã đọc: `core/store/schema.rs` (`PROOFREAD_MEMORY_DDL`), `commands/segment/proofread_accept.rs`, `commands/segment/wire.rs`, `commands/proofread.rs`, `src/proofreadState.ts`, `scripts/lib/falseAlarm.mjs`.
+
+### AD-57 — "Chỉ dùng cặp TM của tôi" là thuộc tính của Tác phẩm; chính sách phía đi vào tầng đọc của `core/tm`, đọc một lần mỗi thao tác
+
+- **Binds:** C5, C6, C9 — Story 12.14 (FR149), Story 12.10 (FR146), bảng `work` của `project.db`, các hàm đọc công khai của `core/tm` (`read_tier_rows`, `pairs_for_source`, `core/tm/tmx.rs::distinct_tier_pairs`) và mọi chỗ gọi chúng: `commands/segment/chapter_read.rs::fill_exact_tm_matches`, `commands/segment/tm_match.rs`, `core/ai/rag.rs` (cả `commands/aiprompt.rs` và dịch lô `commands/aitranslate.rs` đi qua nó), đề xuất TM của dải chốt Glossary, `commands/tm.rs::tm_export_tier`.
+- **Prevents:**
+  1. Mỗi bên tiêu thụ tự lọc theo cách hiểu riêng: điền sẵn lọc mà Smart RAG quên, AI vẫn nhận cặp người khác làm *tham khảo* khi người dùng đã bật công tắc.
+  2. Một chỗ gọi mới quên đọc công tắc, hay tự gõ *ưu tiên của tôi* cho khỏi nghĩ, và rơi im lặng về hành vi cũ.
+  3. Công tắc khai thành một loại AD-18 cần tầng Global mà FR149 không đòi, hoặc nhét vào `config_value`, nơi chỉ nhận loại chỉ-toàn-cục.
+  4. *Của tôi* định nghĩa lại theo Tác phẩm nguồn thay vì theo xuất xứ: cặp tầng Global không mang work id.
+  5. Lọc ở webview: Rust vẫn gửi cặp người khác qua IPC, và Smart RAG không đi qua webview.
+  6. Bật công tắc mà mọi bề mặt rỗng không lời giải thích: không phân biệt được *TM không có* với *công tắc ẩn hết*.
+  7. Công tắc đổi giữa một lô dịch: nửa lô dùng cặp người khác, nửa sau không, không dấu vết.
+- **Rule:**
+
+  1. **Hình dạng.** `work.tm_only_mine INTEGER NOT NULL DEFAULT 0 CHECK (tm_only_mine IN (0, 1))` trong `project.db`, bằng `ALTER TABLE work ADD COLUMN` như `status_override` (cột đó không có ràng buộc; cột này có). Đây là thuộc tính của Tác phẩm, như ngôn ngữ nguồn ở AD-18: không phải loại trong bảng ngữ nghĩa, không tầng Global, không đi qua `ScopeResolver`, không vào `meta.json`.
+  2. **Người ghi.** Một command đặt cờ cho Tác phẩm đang mở (`OpenWorkState`), không nhận work id qua IPC.
+  3. **Kiểu chính sách.** `TmSidePolicy` chỉ dựng được qua hai hàm: một hàm đọc cờ của Tác phẩm đang mở (không Tác phẩm nào mở ⇒ *ưu tiên của tôi*), và `browse()` (*ưu tiên của tôi*). Biến thể không dựng thẳng được từ ngoài `core/tm`. `read_tier_rows` và `pairs_for_source` nhận nó làm **tham số bắt buộc**; ảnh chụp `TierRows` mang chính sách nó được đọc dưới đó. Một cổng đọc dòng mã đỏ khi `browse()` được gọi ngoài đúng hai **hàm** `prepare_tm_concordance` và `prepare_tm_list` (hạt là hàm, không phải tệp: `tm_match.rs` chứa cả bề mặt áp lẫn concordance); đối chứng đỏ bằng cách đổi chỗ gọi của điền sẵn sang `browse()`.
+  4. **Một chỗ lọc, sau khi khớp.** Một vị từ duy nhất trong `core/tm` quyết cặp nào là *của tôi*, bằng phép chiếu AD-47 ⑥; không bên tiêu thụ nào tự lọc theo `side`. Ảnh chụp giữ đủ cặp. Mỗi hàm khớp của `core/tm` (khớp 100%, khớp mờ, khớp cho Smart RAG) chạy trên đủ cặp rồi áp chính sách của ảnh chụp ở bước cuối, qua một hàm trả kiểu kết quả `{ cặp giữ lại, số cặp khớp bị ẩn }` mà chỉ hàm đó dựng được. *Chỉ của tôi* bỏ mọi cặp *người khác* ở cả hai tầng; *ưu tiên của tôi* là thứ tự hai khoá của AD-18 hôm nay, số bị ẩn là 0. Số bị ẩn vì thế đếm đúng các cặp đáng lẽ khớp với bề mặt đó, không phải cả kho. Các hàm đọc phục vụ ghi và quản lý (`existing_pair_keys`, `pair_by_id`, `live_copies`) không nhận chính sách; `fuzzy_pairs_for_source` không ai gọi, Story 12.14 xoá nó.
+  5. **Ai áp.**
+     - Áp: điền sẵn khớp 100% (FR58) — không có cặp của tôi ⇒ không điền; dải khớp mờ (FR59); đề xuất TM của dải chốt Glossary (FR146); Smart RAG (FR70), gồm dịch lô.
+     - Không áp, dùng `browse()`: concordance và danh sách quản lý TM, vì đó là tra cứu và quản lý, không phải *dùng*.
+  6. **Đọc một lần mỗi thao tác; đếm cái bị ẩn.** Chính sách đọc một lần ở đầu mỗi thao tác — một lượt nạp Chương, một lượt chuẩn bị gợi ý, một lô dịch — và đi xuống cùng ảnh chụp; đổi cờ có hiệu lực từ thao tác kế tiếp. Kết quả của mỗi bề mặt *áp* mang số cặp người khác bị ẩn, và bề mặt rỗng vì công tắc nói điều đó thay cho *không có*; prompt ghi số đó vào sổ chèn TM của nó.
+  7. **Ghi không đổi.** Xác nhận segment vẫn ghi cặp TM với xuất xứ phân xử (AD-31, AD-50) bất kể cờ; cờ chỉ đổi đường đọc. Bật cờ không viết lại chữ đã điền sẵn từ cặp người khác trước đó. Tắt cờ ⇒ mọi cặp người khác quay lại ngay.
+  8. **Xuất riêng.** `tm_export_tier` nhận bộ lọc xuất `all | mine`, một kiểu riêng, không phải `TmSidePolicy`, độc lập với cờ; `distinct_tier_pairs` lọc bằng cùng vị từ ở mục 4, trên tầng đang xuất; `x-aura-origin` không đổi.
+  9. **Thứ tự di trú của Epic 12.** Bốn story thêm bậc theo đúng chuỗi `after` của epic: 12.14 (cột này) → 12.15 (`proof_decision`, AD-56) → 12.19 (`segment_version`, AD-55) → 12.20 (`glossary_entry`, AD-54, cả hai thang). Mỗi story lấy số bậc kế tiếp có thật lúc dựng.
+  10. **Đổi gì / không đổi gì.** AD-18 §thứ tự hai khoá nhận một dòng cập nhật: khi `tm_only_mine` bật, khoá chính chỉ còn một giá trị; bảng ngữ nghĩa và `scope_kinds!` không đổi. AD-47, AD-14 không đổi chữ. FR118 *ưu tiên* vẫn là hành vi khi cờ tắt.
+
+     ⚠️ **Cái mất, ghi ra (Ice chọn 2026-10-13):** AD-47 ④, AD-53 và AD-55 gọi *người khác dịch* là chiều rẻ vì cặp đó chỉ bị xếp sau. Khi cờ bật nó bị **loại**: khôi phục phiên bản `NULL` rồi ký, đề xuất proofreader loại 9.2, và mọi cặp *nhập song ngữ* — kể cả bản người dùng tự dịch rồi nhập — vắng khỏi điền sẵn, gợi ý và prompt. Phép chiếu giữ nguyên; nhãn công tắc nói rõ nó không gồm bản nhập song ngữ, và mục 6 cho người dùng thấy bao nhiêu cặp bị ẩn.
+
+- **Phương án bị loại:**
+  - **Loại thứ 10 trong bảng AD-18, ngữ nghĩa ghi đè:** Prevents 3; cần bảng tầng Work mới cho một mặc định toàn cục không ai yêu cầu.
+  - **Tham số chính sách có mặc định, hay biến thể dựng thẳng được:** Prevents 2.
+  - **Lọc ở từng bên tiêu thụ hay ở webview:** Prevents 1, 5.
+  - **Thêm giá trị *không rõ* mà *chỉ của tôi* coi là của tôi:** AD-47 ⑥ buộc mỗi giá trị chiếu về đúng một vế cố định, và nó chỉ chữa ca phiên bản `NULL`.
+
+  → bằng chứng: `.memlog.md` 2026-10-13 · `phan-loai-loai-5-c.md` hàng 9 · `reviews/review-ad-54-57-*-2026-10-13.md` · mã đọc: `core/store/schema.rs` (bảng `work`), `core/scope/kinds.rs`, `core/tm/mod.rs`, `core/tm/tmx.rs`, `core/ai/rag.rs`, `commands/tm.rs`.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -996,7 +1143,7 @@ graph TD
 | **File & thư mục** | Rust `snake_case`; Vue component `PascalCase.vue`; tài nguyên chuỗi `vi.json` phẳng theo khoá chấm (`lookup.empty_result`) |
 | **Định danh** | `Work` = UUID v4 · `Chapter`, `Segment`, mục Glossary, mục TM = số nguyên cục bộ trong database chứa nó. Id đã về hưu không bao giờ tái dùng |
 | **Ghi nhớ proofreader** | Khoá theo `(work, chữ ký phát hiện)`, **không** theo `segment.id` — FR84 nói phạm vi là *"trong cùng Tác phẩm"*, và nhờ vậy ghi nhớ sống sót qua gộp/tách segment. Hình dạng chữ ký theo loại phát hiện: AD-53 mục 7 |
-| **Xuất xứ bản dịch** | Ghi **chỉ** ở hai chỗ: lượt ghi không-phải-người-dùng đặt mốc (AD-47 ③④), và chuyển tiếp sang **đã xác nhận** (AD-31). Không đường mã nào khác chạm cột đó. Hai cột mốc `baseline_target_text` · `baseline_translation_origin` chỉ lượt ghi không-phải-người-dùng ghi, theo bảng AD-50 mục 2, qua một đường ghi có cổng canh, và không đi qua IPC (AD-50). Ba giá trị FR117 cộng `''`; mọi giá trị mới phải khai vế của nó trên trục nhị phân FR118 |
+| **Xuất xứ bản dịch** | Ghi **chỉ** ở hai chỗ: lượt ghi không-phải-người-dùng đặt mốc (AD-47 ③④), và chuyển tiếp sang **đã xác nhận** (AD-31). Không đường mã nào khác chạm cột đó. Hai cột mốc `baseline_target_text` · `baseline_translation_origin` chỉ lượt ghi không-phải-người-dùng ghi, theo bảng AD-50 mục 2, qua một đường ghi có cổng canh, và không đi qua IPC (AD-50). Ba giá trị FR117 cộng `''`; mọi giá trị mới phải khai vế của nó trên trục nhị phân FR118. 🔵 2026-10-13: `segment_version.translation_origin` chép giá trị của lượt ký, chỉ ở lượt chèn trong `confirm_segment`; tập ba giá trị không `''`, cộng `NULL` cho phiên bản có trước bậc của nó (AD-55) |
 | **Chữ "xuất xứ" chỉ BỐN thực thể rời nhau** | Bản dịch (FR117, AD-47) · mục Glossary (FR47, AD-36) · tài liệu nguồn (FR128/FR131, AD-43) · trích dẫn từ điển (FR30). Định danh trong mã phải **tự phân biệt được**; `origin` trần thì không — chữ đó đã đông nghĩa ở frontend (`WorkspaceDock.vue:416` dùng `origin === 'user'` cho lượt kích hoạt panel) |
 | **Segment của ảnh** | Alt-text và caption đều là `Segment` bình thường mang trường **vai**, không phải danh sách rời và không phải cột trên `ASSET` (AD-42). `alt` mang `ord` **đúng vị trí ảnh**; `caption` mang `ord` **ngay sau ảnh** (FR42–FR44, FR129) |
 | **Đường nhập** | Mọi nguồn đi qua **cùng một pipeline, cùng thứ tự** (AD-39). Xem trước luôn hiện kết quả **sau toàn bộ chuỗi** |
@@ -1288,14 +1435,14 @@ AuraTranslate/
 | Nhóm năng lực | Lives in | Governed by |
 |---|---|---|
 | **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43 |
-| **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42 |
+| **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42, AD-55 |
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
-| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48 |
-| **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51 |
-| **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36 |
-| **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22, AD-47, AD-49, AD-50, AD-53 |
+| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57 |
+| **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51, AD-57 |
+| **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57 |
+| **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22, AD-47, AD-49, AD-50, AD-53, AD-56 |
 | **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48, AD-51, AD-52 |
-| **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43 |
+| **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43, AD-54, AD-55, AD-56, AD-57 |
 | **C10** Phát hành & tin cậy | `tools/dict-build/`, `dict-manifest.toml`, GitHub Actions | AD-10, AD-15, AD-25, AD-41 |
 
 ## Deferred
@@ -1330,4 +1477,4 @@ AuraTranslate/
 
 - `spine-evidence.md` — bằng chứng và lý do của từng AD, trỏ từ spine bằng `spine-evidence.md#…`
 - `.memlog.md` — nhật ký phiên viết spine
-- `reviews/` — các lượt review spine (`review-ad-44`, `review-ad-49-*`, `review-ad-50-*`, và ba lượt `review-*-2026-08-03b`)
+- `reviews/` — các lượt review spine (`review-ad-44`, `review-ad-49-*`, `review-ad-50-*`, ba lượt `review-*-2026-08-03b`, và `review-ad-54-57-*-2026-10-13`)
