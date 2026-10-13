@@ -57,4 +57,6 @@ Hình dạng bề mặt webview và các chức năng loại 5 Ice nhận (D7). 
 - Open question: B22 (đưa cả lô sang), A10 (dấu thời gian chỉ mục), A19 (mở thư mục Tác phẩm) mỗi chỗ hai phương án hợp lệ; story đo rồi đưa Ice chọn.
 - Decision: AD-54 (G1, FR147), AD-55 (G2, FR141), AD-56 (G3, FR150), AD-57 (G4, FR149) vào spine; Ice ký 2026-10-13. Entry 14, 15, 19, 20 hết `unknown`.
 - Decision: nhãn từ AI · từ TM · từ bản review của A17 thành lệch có chủ đích; entry 19 dựng ba giá trị xuất xứ cộng không rõ (AD-55, Ice duyệt 2026-10-13).
+- Decision: Xuất nằm tạm trong `Công cụ ▾` từ story 1 tới story 4, vì `export.open` không có phím và thanh hành động danh sách Chương chưa có; story 4 gỡ mục đó (Ice, 2026-10-13).
+- Open question: Bảng chờ Glossary và Review Mode không còn lối mở nhìn thấy sau story 1, chỉ còn `Mod+Alt+Q` và `Mod+Alt+3`. IA ghi chỗ của chúng là "Workspace", nhưng không entry nào đặt nút ở đó. Done when 1 cần một story nhận việc này.
 - Unknown: chi phí track hàng chèn vào lưới `subgrid` năm cột (`src/panels/GridPanel.vue`) trên Chương lớn chưa đo.
