@@ -3577,6 +3577,7 @@ mục nào mồ côi.
   dung — tức nó cần một cột hoặc một quy ước mới, không chỉ một lượt render.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: schema.rs:1395-1399 bảng segment_version vẫn đúng bốn cột (không xuất xứ); SegmentHistoryOverlay.vue:264 vẫn không vẽ nhãn nào, đúng như mục ghi; còn thiếu: Cả bốn nhãn (đang dùng · từ bản review · từ AI · từ TM) vẫn chưa dựng; Epic 4 đang chạy, Epic 7 và Epic 8 vẫn backlog nên phần lớn nhãn còn chờ. **Chủ: Epic 4.**
   → 2026-10-13 (correct-course `change-hoan-thien-giao-dien-theo-mockup`, đề xuất 7) — bốn nhãn là dòng A17 (FR141), Story 12.19, sau AD của cửa G2. **Chủ: Epic 12.**
+  → 🟡 2026-10-13 (AD-55) — ba nhãn `từ AI` · `từ TM` · `từ bản review` không làm: AD-55 giữ tập ba giá trị của AD-47 ⑥, nên chúng là lệch có chủ đích. Còn lại: nhãn `đang dùng` chọn theo phiên bản (không theo nội dung) và xuất xứ ba giá trị cộng *không rõ*, Story 12.19. **Chủ: Epic 12.**
 
 - 🟡 **Vế DIFF (`So với phiên bản trước`) không được dựng — chữ ký #4(a).**
   Mockup vẽ `<del>`/`<ins>`; **không AC nào của Story 2.6 đòi diff**. `src-tauri/Cargo.toml:86-89`
@@ -6068,6 +6069,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     hoan-tac.md`. Bất kỳ đường hoàn tác nào cho lượt chốt Glossary phải tương thích với luật
     một-chiều của AD-36, không phải một `UPDATE … SET translation = NULL` trần.)**
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: đối chiếu với AD-49 (mô hình hoàn tác) xem mục đã được trả lời chưa. **Chủ: Winston.**
+  → 🟡 2026-10-13 (AD-54) — đã trả lời: gỡ chốt là lệnh nghịch đảo lớp (i) của AD-49, AD-36 một chiều trừ đúng lệnh đó, không phải một `UPDATE … SET translation = NULL` trần. Còn lại: dựng lệnh và nút, Story 12.20 (dòng B18). **Chủ: Epic 12.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
   summary: **Số lần xuất hiện của thuật ngữ trên dải (mockup vẽ "644 lần") — `GlossaryMark`

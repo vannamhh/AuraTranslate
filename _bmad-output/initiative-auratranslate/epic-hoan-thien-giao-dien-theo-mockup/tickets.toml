@@ -151,25 +151,23 @@ risk = "medium"
 id = 14
 type = "story"
 title = "TM và Thư viện prompt: bảng, chỉ dùng cặp của tôi, Nhân bản"
-description = "Quản lý TM thành bảng có sắp, phạm vi xuất TMX; theo từng Tác phẩm chọn chỉ dùng cặp TM của mình và xuất TMX riêng các cặp đó (FR149); Thư viện prompt mở lại màn Xem prompt của story 12 tại chỗ soạn, và có Nhân bản (C13). Bộ lọc FR149 đặt trong hàm truy TM mà dải chốt của story 10 dùng. Migration của story này đánh số sau story 3 (nếu A10 có migration) và trước story 15, 19, 20. Dòng: c:61, c:63, c:65–c:67, c:84, c:85, c:89, c:90, c:93, c:96, a:169; C7–C11, C13."
-verify = "Một Tác phẩm bật chỉ dùng cặp của tôi: dải TM và dải chốt không còn đề xuất từ cặp nhập ngoài; xuất TMX riêng chỉ chứa cặp do người dùng tạo."
+description = "Quản lý TM thành bảng có sắp, phạm vi xuất TMX; theo từng Tác phẩm chọn chỉ dùng cặp TM của mình và xuất TMX riêng các cặp đó (FR149); Thư viện prompt mở lại màn Xem prompt của story 12 tại chỗ soạn, và có Nhân bản (C13). Công tắc và bộ lọc theo AD-57: cột trên Tác phẩm, một chỗ lọc sau bước khớp, áp cho điền sẵn, dải TM, đề xuất TM của dải chốt story 10, Smart RAG và dịch lô; concordance và danh sách quản lý TM vẫn hiện đủ; mỗi bề mặt bị lọc báo số cặp bị ẩn. Migration của story này đánh số sau story 3 (nếu A10 có migration) và trước story 15, 19, 20. Dòng: c:61, c:63, c:65–c:67, c:84, c:85, c:89, c:90, c:93, c:96, a:169; C7–C11, C13."
+verify = "Một Tác phẩm bật chỉ dùng cặp của tôi: dải TM và dải chốt không còn đề xuất từ cặp người khác dịch hay nhập song ngữ, và một dải rỗng vì công tắc báo số cặp bị ẩn; concordance vẫn hiện cặp người khác; xuất TMX riêng chỉ chứa cặp tôi dịch."
 covers = ["FR149"]
 after = [3, 10, 12]
 hitl = false
 risk = "high"
-unknown = "Cửa G4: công tắc FR149 ở cột mới trên `work` hay ở phạm vi cấu hình (AD-18) — chờ AD của Winston trong spine."
 
 [[entry]]
 id = 15
 type = "story"
 title = "Proofreader và Chế độ đọc: tỉ lệ phát hiện, gỡ dấu, xuất xứ Chương"
-description = "Proofreader hiện tỉ lệ đã nhận · không phải lỗi · bỏ qua (FR150) và \"Sửa lần lượt\"; Chế độ đọc gỡ được từng dấu \"cần sửa\" và gỡ hết dấu của một Tác phẩm (FR148), hiện xuất xứ bản dịch ở cấp Chương với ba giá trị có thật (FR151). Tỉ lệ FR150 hiện trên dải Proofreader và Chỗ đã bỏ qua mà story 10 đã dựng lại. Migration đánh số sau story 14. Dòng: c:129–c:133, c:141, c:142, c:145; C14, C15, C16."
-verify = "Sau một lượt quét có hai phát hiện, nhận một và bỏ qua một: tỉ lệ hiện 1 · 0 · 1 và còn sau khi mở lại Tác phẩm; gỡ hết dấu một Tác phẩm thì Chỗ cần sửa rỗng."
+description = "Proofreader hiện tỉ lệ đã nhận · không phải lỗi · bỏ qua (FR150) và \"Sửa lần lượt\"; Chế độ đọc gỡ được từng dấu \"cần sửa\" và gỡ hết dấu của một Tác phẩm (FR148), hiện xuất xứ bản dịch ở cấp Chương với ba giá trị có thật (FR151). Tỉ lệ FR150 hiện trên dải Proofreader và Chỗ đã bỏ qua mà story 10 đã dựng lại; mỗi quyết định lưu một hàng và mẫu số là số quyết định, theo AD-56. Migration đánh số sau story 14. Dòng: c:129–c:133, c:141, c:142, c:145; C14, C15, C16."
+verify = "Sau một lượt quét có hai phát hiện, nhận một và bỏ qua một: tỉ lệ hiện 1 · 0 · 1 và còn sau khi mở lại Tác phẩm; hoàn lại lượt nhận thì tỉ lệ về 0 · 0 · 1; Tác phẩm chưa có quyết định nào hiện chưa có quyết định, không 0%; gỡ hết dấu một Tác phẩm thì Chỗ cần sửa rỗng."
 covers = ["FR148", "FR150", "FR151"]
 after = [10, 14]
 hitl = false
 risk = "high"
-unknown = "Cửa G3: cách lưu đã nhận/bỏ qua cho FR150 (AD-53) — chờ AD của Winston trong spine."
 
 [[entry]]
 id = 16
@@ -208,25 +206,23 @@ risk = "medium"
 id = 19
 type = "story"
 title = "Lịch sử phiên bản: xuất xứ từng phiên bản và so với bản đang dùng"
-description = "Lịch sử phiên bản của một câu ghi xuất xứ từng phiên bản bằng bốn nhãn của mockup và so được từng phiên bản với bản đang dùng (FR141); diff dựng ở Rust thành mô hình có cấu trúc, không `v-html`. Migration đánh số sau story 15. Dòng: a:149; A17, A18."
-verify = "Một câu có phiên bản gõ tay, từ AI, từ TM: lịch sử hiện ba nhãn đúng và diff mỗi phiên bản với bản đang dùng."
+description = "Lịch sử phiên bản của một câu ghi xuất xứ từng phiên bản và so được từng phiên bản với bản đang dùng (FR141), theo AD-55: ba giá trị có thật (tôi dịch · người khác dịch · nhập song ngữ) cộng không rõ cho phiên bản có trước; nhãn từ AI · từ TM · từ bản review của mockup là lệch có chủ đích; nhãn đang dùng chọn theo phiên bản, không theo nội dung; khôi phục đặt xuất xứ theo đúng phiên bản nhãn đó chỉ; diff dựng ở Rust thành mô hình có cấu trúc, không `v-html`. Migration đánh số sau story 15. Dòng: a:149; A17, A18."
+verify = "Một câu có ba phiên bản — một bản có trước bậc di trú, một bản gõ tay, một bản đưa đề xuất AI sang rồi ký không sửa: lịch sử hiện không rõ · tôi dịch · người khác dịch, đúng một hàng mang nhãn đang dùng, và diff mỗi phiên bản với bản đang dùng; khôi phục bản người khác dịch rồi ký không sửa ra người khác dịch."
 covers = ["FR141"]
 after = [15]
 hitl = false
 risk = "high"
-unknown = "Cửa G2: xuất xứ trên `segment_version` (AD-47/AD-50) — chờ AD của Winston trong spine."
 
 [[entry]]
 id = 20
 type = "story"
 title = "Hoàn tác chốt bản dịch Glossary"
-description = "Ngay sau khi chốt bản dịch một mục Glossary ở dải chốt, người dùng hoàn tác được việc chốt (FR147), qua đường mà AD của cửa G1 cho phép bên cạnh trigger `glossary_entry_lifecycle_is_one_way`. Migration đánh số sau story 19. Dòng: B18."
-verify = "Chốt một thuật ngữ rồi hoàn tác: mục trở về chờ chốt và không câu nào giữ bản dịch vừa chốt."
+description = "Ngay sau khi chốt bản dịch một mục Glossary ở dải chốt, người dùng hoàn tác được việc chốt (FR147), theo AD-54: lệnh gỡ chốt mở từ nút trên thông báo Đã chốt, không có phím mặc định; mục gỡ chốt về chờ chốt, không về bảng chờ. Migration đánh số sau story 19. Dòng: B18."
+verify = "Chốt một thuật ngữ rồi gỡ chốt: mục trở về chờ chốt, rời prompt kế tiếp, không quay lại bảng chờ, và không câu nào giữ bản dịch vừa chốt; sửa bản dịch rồi mới gỡ chốt thì bị từ chối; một mục chốt trước khi có bậc di trú không gỡ chốt được."
 covers = ["FR147"]
 after = [10, 19]
 hitl = false
 risk = "high"
-unknown = "Cửa G1: hoàn tác qua trigger vòng đời Glossary một chiều (AD-49/AD-36) — chờ AD của Winston trong spine."
 
 [[entry]]
 id = 21

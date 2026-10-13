@@ -41,7 +41,7 @@ Hình dạng bề mặt webview và các chức năng loại 5 Ice nhận (D7). 
 - decisions — _bmad-output/initiative-auratranslate/change-hoan-thien-giao-dien-theo-mockup/handoff-buoc-1-bang-lech.md, D1–D13
 - rows — _bmad-output/initiative-auratranslate/change-hoan-thien-giao-dien-theo-mockup/bang-lech-{a,b,c}.md, phan-loai-loai-5-{a,b,c}.md; ảnh app thật ở `anh/`
 - design — _bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md §Information Architecture, §Component Patterns, §Bề mặt nhập; DESIGN.md §Vạch lề segment; mockups/
-- constraint — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, AD-20, AD-34, AD-36, AD-47, AD-49, AD-53; UX-DR17
+- constraint — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, AD-20, AD-34, AD-36, AD-47, AD-49, AD-53, AD-54, AD-55, AD-56, AD-57; UX-DR17
 
 ## Notes
 
@@ -55,5 +55,6 @@ Hình dạng bề mặt webview và các chức năng loại 5 Ice nhận (D7). 
 - Waits on Epic 10 because: 12.21 sửa `AttributionOverlay.vue` mà Story 10.4 dựng.
 - Source conflict: `bang-lech.md` ghi 118 dòng loại 2 (A 47) và đề xuất 2 ghi "khoảng 55" dòng loại 5 vào epic; đếm lại cột Loại cho 122 (A 51) và 63 dòng loại 5 "làm" (tính cả dòng làm một phần). Entry trích dòng theo số dòng tệp, không theo số đếm.
 - Open question: B22 (đưa cả lô sang), A10 (dấu thời gian chỉ mục), A19 (mở thư mục Tác phẩm) mỗi chỗ hai phương án hợp lệ; story đo rồi đưa Ice chọn.
-- Unknown: AD cho G1 (FR147), G2 (FR141), G3 (FR150), G4 (FR149) chưa có; Winston một phiên `bmad-architecture`. Các entry phụ thuộc mang `unknown` tới khi AD vào spine.
+- Decision: AD-54 (G1, FR147), AD-55 (G2, FR141), AD-56 (G3, FR150), AD-57 (G4, FR149) vào spine; Ice ký 2026-10-13. Entry 14, 15, 19, 20 hết `unknown`.
+- Decision: nhãn từ AI · từ TM · từ bản review của A17 thành lệch có chủ đích; entry 19 dựng ba giá trị xuất xứ cộng không rõ (AD-55, Ice duyệt 2026-10-13).
 - Unknown: chi phí track hàng chèn vào lưới `subgrid` năm cột (`src/panels/GridPanel.vue`) trên Chương lớn chưa đo.
