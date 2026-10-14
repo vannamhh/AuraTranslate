@@ -5647,7 +5647,12 @@ fn the_index_state_is_unknown_before_the_first_rebuild_and_known_after_it() {
         .index_state()
         .unwrap_or_else(|e| panic!("index_state sau rebuild: {e}"))
         .expect("rebuild phải ghi hàng library_index_state");
-    assert_eq!(state.rebuilt_at.len(), 20, "UTC ISO-8601: {}", state.rebuilt_at);
+    assert_eq!(
+        state.rebuilt_at.len(),
+        20,
+        "UTC ISO-8601: {}",
+        state.rebuilt_at
+    );
     assert!(state.rebuilt_at.ends_with('Z'));
 
     indexer

@@ -271,7 +271,9 @@ impl Indexer {
             // đó thành `IndexError::Io` — một LỖI CỨNG cho đúng tình huống mà nhánh
             // `root_missing` êm ái ngay trên đã tồn tại để canh. `scan_atproj_dirs` tự ánh xạ
             // `NotFound` về [`ScanRootOutcome::RootMissing`]; xử lý y hệt fast-path phía trên.
-            ScanRootOutcome::RootMissing => return self.mark_all_orphaned_for_missing_root(global, started),
+            ScanRootOutcome::RootMissing => {
+                return self.mark_all_orphaned_for_missing_root(global, started);
+            }
             ScanRootOutcome::Scanned(scan) => scan,
         };
 
@@ -467,7 +469,8 @@ impl Indexer {
                 match harvest_work_text(dir) {
                     Ok(rows) => {
                         for row in rows {
-                            let source_text_fold = fold_diacritics_case_preserving(&row.source_text);
+                            let source_text_fold =
+                                fold_diacritics_case_preserving(&row.source_text);
                             let target_text_fold = fold_dd_letter(&row.target_text);
                             tx.execute(
                                 "INSERT INTO library_segment \
@@ -500,7 +503,10 @@ impl Indexer {
                             meta.work_id,
                             reason.diagnostic()
                         );
-                        text_skipped.push(TextHarvestSkipped { work_id: meta.work_id.clone(), reason });
+                        text_skipped.push(TextHarvestSkipped {
+                            work_id: meta.work_id.clone(),
+                            reason,
+                        });
                     }
                 }
             }
@@ -509,10 +515,22 @@ impl Indexer {
             // khuôn 'rebuild' external-content chuẩn của FTS5. Chạy SAU khi mọi `INSERT` ở
             // trên đã xong: một lượt 'rebuild' quét TOÀN BỘ bảng nội dung tại thời điểm nó
             // chạy, không phải một API tăng dần theo từng hàng.
-            tx.execute("INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')", [])?;
-            tx.execute("INSERT INTO library_target_fts_nd(library_target_fts_nd) VALUES('rebuild')", [])?;
-            tx.execute("INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')", [])?;
-            tx.execute("INSERT INTO library_source_fts_nd(library_source_fts_nd) VALUES('rebuild')", [])?;
+            tx.execute(
+                "INSERT INTO library_target_fts(library_target_fts) VALUES('rebuild')",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO library_target_fts_nd(library_target_fts_nd) VALUES('rebuild')",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO library_source_fts(library_source_fts) VALUES('rebuild')",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO library_source_fts_nd(library_source_fts_nd) VALUES('rebuild')",
+                [],
+            )?;
 
             // `existing` is read before the UPSERT in this same transaction; a row is orphaned
             // iff its path is not in `unreadable_paths`.

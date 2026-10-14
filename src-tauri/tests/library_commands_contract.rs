@@ -1105,7 +1105,11 @@ fn relocating_an_orphan_to_a_matching_folder_inside_the_root_restores_it() {
     assert!(report.orphans.is_empty());
     assert_eq!(report.indexed, 1);
     assert_eq!(
-        report.moved.iter().map(|m| m.work_id.as_str()).collect::<Vec<_>>(),
+        report
+            .moved
+            .iter()
+            .map(|m| m.work_id.as_str())
+            .collect::<Vec<_>>(),
         vec!["id-lost"],
         "a work leaving the orphan list is reported as moved"
     );
@@ -1282,7 +1286,10 @@ fn the_index_rebuilt_at_read_is_null_before_any_rebuild_and_the_stamp_after() {
     write_atproj(&root, "Open", "id-open", "Mo");
     let indexer = open_indexer(&dir);
 
-    assert_eq!(index_rebuilt_at(Some(&indexer)).expect("trước lượt dựng"), None);
+    assert_eq!(
+        index_rebuilt_at(Some(&indexer)).expect("trước lượt dựng"),
+        None
+    );
 
     let report = rescan(Some(&indexer), Some(&global), &root).expect("lượt quét");
     let stamp = index_rebuilt_at(Some(&indexer))

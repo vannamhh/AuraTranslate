@@ -605,7 +605,10 @@ fn library_wire_structs_keep_snake_case_field_names() {
             .map(String::as_str)
             .collect();
         keys.sort_unstable();
-        assert_eq!(keys, expected, "khoá trên dây của mục {field} là snake_case.");
+        assert_eq!(
+            keys, expected,
+            "khoá trên dây của mục {field} là snake_case."
+        );
     }
 
     let conflict_value = value
