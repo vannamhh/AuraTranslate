@@ -36,6 +36,10 @@ const SEARCH_HIT_A = {
   field: 'target' as const,
   snippet: '‹má› của tôi',
   match_kind: 'exact' as const,
+  segment_ord: 3,
+  segment_status: 'confirmed',
+  work_status: 'in_progress',
+  source_lang: 'zh',
 }
 
 /** **THÊM Story 5.10.** Cùng khuôn `SEARCH_HIT_A`, khác đúng `match_kind` — hit chỉ khớp qua
@@ -50,6 +54,10 @@ const SEARCH_HIT_LENIENT = {
   field: 'target' as const,
   snippet: '‹khoáng› sản',
   match_kind: 'lenient' as const,
+  segment_ord: 3,
+  segment_status: 'confirmed',
+  work_status: 'in_progress',
+  source_lang: 'zh',
 }
 
 const OPENED_WORK_A = {
@@ -192,7 +200,7 @@ describe('modes/librarySearch.ts::runLibrarySearch — truy vấn rỗng', () =>
   it('truy vấn có chữ ⇒ gọi ĐÚNG một lượt `library_search`', async () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5, scope: 'both', chapters_total: 3, chapters_filtered_out: 0, work_counts: [], source_counts_capped: false })
       }
       return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
     })
@@ -253,6 +261,11 @@ describe('modes/librarySearch.ts::runLibrarySearch — chống đua giữa hai l
         widened: false,
         works_total: 5,
         works_with_text: 5,
+        scope: 'both',
+        chapters_total: 3,
+        chapters_filtered_out: 0,
+        work_counts: [],
+        source_counts_capped: false,
       })
     })
 
@@ -271,7 +284,7 @@ describe('modes/librarySearch.ts::runLibrarySearch — chống đua giữa hai l
     expect(callCount).toBe(1)
 
     // BÂY GIỜ mới cho lượt đầu (CŨ, truy vấn `ma`) hạ cánh với kết quả RỖNG.
-    resolveFirst({ hits: [], total: 0, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
+    resolveFirst({ hits: [], total: 0, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5, scope: 'both', chapters_total: 3, chapters_filtered_out: 0, work_counts: [], source_counts_capped: false })
     await firstRun
 
     // 🔴 Lượt ghi nhớ phải đã chạy, và phải chạy bằng truy vấn MỚI — không phải truy vấn cũ.
@@ -320,6 +333,11 @@ describe('modes/librarySearch.ts::setLibrarySearchModeExact/Lenient', () => {
         widened: false,
         works_total: 5,
         works_with_text: 5,
+        scope: 'both',
+        chapters_total: 3,
+        chapters_filtered_out: 0,
+        work_counts: [],
+        source_counts_capped: false,
       })
     })
 
@@ -366,6 +384,11 @@ describe('modes/librarySearch.ts::setLibrarySearchModeExact/Lenient', () => {
         widened: false,
         works_total: 5,
         works_with_text: 5,
+        scope: 'both',
+        chapters_total: 3,
+        chapters_filtered_out: 0,
+        work_counts: [],
+        source_counts_capped: false,
       })
     })
 
@@ -418,6 +441,8 @@ function mockInvokeForSearchMount(
     widened: boolean
     works_total: number
     works_with_text: number
+    chapters_total: number
+    work_counts: { work_id: string; target_count: number; source_count: number; source_count_is_lower_bound: boolean }[]
   }> = {},
 ): void {
   mockInvoke.mockImplementation((cmd: string) => {
@@ -438,6 +463,11 @@ function mockInvokeForSearchMount(
         widened: overrides.widened ?? false,
         works_total: overrides.works_total ?? 5,
         works_with_text: overrides.works_with_text ?? 5,
+        scope: 'both',
+        chapters_total: overrides.chapters_total ?? 3,
+        chapters_filtered_out: 0,
+        work_counts: overrides.work_counts ?? [],
+        source_counts_capped: false,
       })
     }
     return Promise.reject(new Error(`invoke gia khong biet lenh: ${cmd}`))
@@ -549,9 +579,9 @@ describe('modes/LibraryMode.vue — nhãn khoan dung dấu trên DOM thật (mou
     await state.runLibrarySearch()
     await wrapper.vm.$nextTick()
 
-    const status = wrapper.find('[data-library-search-status]')
-    expect(status.text()).toContain('đã tự chuyển sang khoan dung dấu')
-    expect(status.text()).not.toContain('còn nữa')
+    const note = wrapper.find('[data-library-search-mode-note]')
+    expect(note.text()).toContain('đã tự chuyển sang không dấu')
+    expect(wrapper.find('[data-library-search-truncated]').exists()).toBe(false)
   })
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -567,6 +597,7 @@ describe('modes/LibraryMode.vue — nhãn khoan dung dấu trên DOM thật (mou
       truncated: true,
       mode: 'exact',
       effective_mode: 'lenient',
+      work_counts: [{ work_id: 'id-b', target_count: 9, source_count: 0, source_count_is_lower_bound: false }],
     })
 
     const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
@@ -578,9 +609,42 @@ describe('modes/LibraryMode.vue — nhãn khoan dung dấu trên DOM thật (mou
     await state.runLibrarySearch()
     await wrapper.vm.$nextTick()
 
-    const status = wrapper.find('[data-library-search-status]')
-    expect(status.text()).toContain('khoan dung dấu')
-    expect(status.text()).toContain('còn nữa')
+    expect(wrapper.find('[data-library-search-mode-note]').text()).toContain('đã tự chuyển sang không dấu')
+    expect(wrapper.find('[data-library-search-truncated]').text()).toContain('xem thêm')
+  })
+})
+
+describe('modes/librarySearch.ts::groupSearchHits — thứ tự nhóm', () => {
+  it('nhóm theo thứ tự work_counts, không theo hit đầu tiên; Tác phẩm thiếu số đếm xếp sau', async () => {
+    const { groupSearchHits } = await import('../../src/modes/librarySearch')
+    const sourceHit = { ...SEARCH_HIT_LENIENT, work_id: 'id-s', work_name: 'Src', field: 'source' as const }
+    const orphanHit = { ...SEARCH_HIT_LENIENT, work_id: 'id-o', work_name: 'Orphan' }
+    const count = (work_id: string) => ({ work_id, target_count: 1, source_count: 0, source_count_is_lower_bound: false })
+    const groups = groupSearchHits(
+      [SEARCH_HIT_A, orphanHit, sourceHit],
+      [count('id-s'), count('id-a'), count('id-gone')],
+      [],
+    )
+    expect(groups.map((group) => group.workId)).toEqual(['id-s', 'id-a', 'id-o'])
+  })
+})
+
+describe('modes/LibrarySearchResults.vue — phạm vi tiêu đề', () => {
+  it('tiêu đề hiện số Chương và Tác phẩm của chỉ mục, không đếm hit trả về', async () => {
+    mockInvokeForSearchMount([SEARCH_HIT_A], {
+      works_total: 12,
+      chapters_total: 1847,
+      work_counts: [{ work_id: 'id-a', target_count: 1, source_count: 0, source_count_is_lower_bound: false }],
+    })
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/librarySearch')
+    const wrapper = mount(LibraryMode)
+    await wrapper.vm.$nextTick()
+    state.librarySearchQuery.value = 'ma'
+    await state.runLibrarySearch()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-library-search-extent]').text()).toBe('1847 Chương · 12 Tác phẩm')
+    wrapper.unmount()
   })
 })
 
@@ -600,7 +664,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
     mockInvoke.mockImplementation((cmd: string) => {
       callOrder.push(cmd)
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5, scope: 'both', chapters_total: 3, chapters_filtered_out: 0, work_counts: [], source_counts_capped: false })
       }
       if (cmd === 'open_work') return Promise.resolve(OPENED_WORK_A)
       if (cmd === 'open_chapter') return Promise.resolve(OPEN_CHAPTER_A)
@@ -636,7 +700,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
     }
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5, scope: 'both', chapters_total: 3, chapters_filtered_out: 0, work_counts: [], source_counts_capped: false })
       }
       // `invoke()` giả trượt bằng cách NÉM đúng hình dạng IpcError -- cùng khuôn adapter thật.
       if (cmd === 'open_work') return Promise.reject(OPEN_WORK_ERROR)
@@ -657,7 +721,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
     ketQuaFlush.value = 'still-dirty'
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
+        return Promise.resolve({ hits: [SEARCH_HIT_A], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5, scope: 'both', chapters_total: 3, chapters_filtered_out: 0, work_counts: [], source_counts_capped: false })
       }
       return Promise.reject(new Error(`KHONG duoc goi: ${cmd}`))
     })
@@ -688,7 +752,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
   ): void {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_search') {
-        return Promise.resolve({ hits: [hit], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5 })
+        return Promise.resolve({ hits: [hit], total: 1, indexed_segments: 5, short_query: false, truncated: false, mode: 'exact', effective_mode: 'exact', widened: false, works_total: 5, works_with_text: 5, scope: 'both', chapters_total: 3, chapters_filtered_out: 0, work_counts: [], source_counts_capped: false })
       }
       if (cmd === 'open_work') return Promise.resolve(OPENED_WORK_A)
       if (cmd === 'open_chapter') return Promise.resolve(OPEN_CHAPTER_A)
@@ -791,6 +855,11 @@ describe('modes/librarySearch.ts::resetLibrarySearch', () => {
           widened: true,
           works_total: 5,
           works_with_text: 5,
+          scope: 'both',
+          chapters_total: 3,
+          chapters_filtered_out: 0,
+          work_counts: [],
+          source_counts_capped: false,
         })
       }
       return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))

@@ -171,10 +171,13 @@ import {
 import {
   nextLibrarySearchHit,
   openCurrentLibrarySearchHit,
+  openCurrentLibrarySearchHitInReading,
   prevLibrarySearchHit,
   runLibrarySearch,
+  seeAllLibrarySearchGroup,
   setLibrarySearchModeExact,
   setLibrarySearchModeLenient,
+  toggleCurrentLibrarySearchGroup,
 } from './modes/librarySearch'
 // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────────
 //
@@ -654,6 +657,13 @@ async function boot(): Promise<void> {
       nextLibrarySearchHit,
       prevLibrarySearchHit,
       openCurrentLibrarySearchHit,
+      openCurrentLibrarySearchHitInReading: () => {
+        void openCurrentLibrarySearchHitInReading()
+      },
+      toggleCurrentLibrarySearchGroup,
+      seeAllLibrarySearchGroup: () => {
+        void seeAllLibrarySearchGroup()
+      },
       // Story 5.10 — "Hai che do dau" (FR9).
       setLibrarySearchModeExact,
       setLibrarySearchModeLenient,

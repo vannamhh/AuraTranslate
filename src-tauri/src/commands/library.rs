@@ -31,8 +31,9 @@ use std::path::Path;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::library::indexer::{
     AppearedWork, DEFAULT_SEARCH_LIMIT, IndexError, IndexedWork, Indexer, MovedWork,
-    RebuildOutcome, SearchHit as CoreSearchHit, SearchMode, SearchReport as CoreSearchReport,
-    TextHarvestSkipped, WorkIdConflict, WorkQuery, WorkSortKey,
+    RebuildOutcome, SearchFilter, SearchHit as CoreSearchHit, SearchMode,
+    SearchReport as CoreSearchReport, SearchScope, TextHarvestSkipped, WorkIdConflict, WorkQuery,
+    WorkSortKey,
 };
 use crate::core::library::orphan_store::OrphanRecord;
 use crate::core::lifecycle::LifecycleStatus;
@@ -598,6 +599,17 @@ fn unknown_search_mode(mode: &str) -> IpcError {
     )
 }
 
+fn unknown_search_scope(scope: &str) -> IpcError {
+    let mut params = BTreeMap::new();
+    params.insert("scope".to_owned(), scope.to_owned());
+    IpcError::new(
+        "library.unknown_search_scope",
+        MessageKey::LibraryUnknownSearchScope,
+        params,
+        false,
+    )
+}
+
 /// **Hàm thuần** — liệt kê + lọc + sắp Tác phẩm cho Library, Story 5.4 (bộ lọc trạng thái) +
 /// Story 5.6 (lĩnh vực · ngôn ngữ nguồn · sắp xếp).
 ///
@@ -690,6 +702,19 @@ pub struct SearchHit {
     /// [`crate::core::library::indexer::MatchKind`]). `rowid` nội bộ của lõi KHÔNG đi qua đây
     /// (§Never: chi tiết triển khai, không phải hợp đồng dây).
     pub match_kind: String,
+    pub segment_ord: Option<i64>,
+    /// As stale as the snippet: refreshed only on index rebuild, not when a segment is confirmed.
+    pub segment_status: Option<String>,
+    pub work_status: Option<String>,
+    pub source_lang: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct WorkSearchCount {
+    pub work_id: String,
+    pub target_count: usize,
+    pub source_count: usize,
+    pub source_count_is_lower_bound: bool,
 }
 
 impl From<CoreSearchHit> for SearchHit {
@@ -704,6 +729,10 @@ impl From<CoreSearchHit> for SearchHit {
             field: hit.field.as_str().to_owned(),
             snippet: hit.snippet,
             match_kind: hit.match_kind.as_str().to_owned(),
+            segment_ord: hit.segment_ord,
+            segment_status: hit.segment_status,
+            work_status: hit.work_status,
+            source_lang: hit.source_lang,
         }
     }
 }
@@ -741,6 +770,12 @@ pub struct SearchReport {
     /// **THÊM (retro Epic 5, AI-3).** Số Tác phẩm CÓ văn bản trong chỉ mục — xem
     /// [`crate::core::library::indexer::SearchReport::works_with_text`].
     pub works_with_text: usize,
+    pub scope: String,
+    pub chapters_total: usize,
+    pub chapters_filtered_out: usize,
+    pub work_counts: Vec<WorkSearchCount>,
+    /// A count at the candidate ceiling is a lower bound; Works sorted after the cut may be missing.
+    pub source_counts_capped: bool,
 }
 
 impl From<CoreSearchReport> for SearchReport {
@@ -756,6 +791,20 @@ impl From<CoreSearchReport> for SearchReport {
             widened: report.widened,
             works_total: report.works_total,
             works_with_text: report.works_with_text,
+            scope: String::new(),
+            chapters_total: report.chapters_total,
+            chapters_filtered_out: report.chapters_filtered_out,
+            work_counts: report
+                .work_counts
+                .into_iter()
+                .map(|count| WorkSearchCount {
+                    work_id: count.work_id,
+                    target_count: count.target_count,
+                    source_count: count.source_count,
+                    source_count_is_lower_bound: count.source_count_is_lower_bound,
+                })
+                .collect(),
+            source_counts_capped: report.source_counts_capped,
         }
     }
 }
@@ -782,14 +831,77 @@ pub fn search_library(
     limit: Option<u32>,
     mode: Option<&str>,
 ) -> Result<SearchReport, IpcError> {
+    search_library_scoped(indexer, query, limit, mode, &SearchArgs::default())
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SearchArgs<'a> {
+    pub scope: Option<&'a str>,
+    /// Empty means no filter, unlike `SearchFilter::status` where `Some(vec![])` matches zero rows.
+    pub status: Option<&'a [String]>,
+    pub source_lang: Option<&'a str>,
+    pub sort: Option<&'a str>,
+    pub work_id: Option<&'a str>,
+}
+
+/// Every unknown wire value is rejected before any SQL runs.
+pub fn search_library_scoped(
+    indexer: Option<&Indexer>,
+    query: &str,
+    limit: Option<u32>,
+    mode: Option<&str>,
+    args: &SearchArgs<'_>,
+) -> Result<SearchReport, IpcError> {
     let indexer = indexer.ok_or_else(indexer_is_missing)?;
     let limit = limit.map(|l| l as usize).unwrap_or(DEFAULT_SEARCH_LIMIT);
     let parsed_mode = match mode {
         None => SearchMode::default(),
         Some(raw) => SearchMode::from_wire(raw).ok_or_else(|| unknown_search_mode(raw))?,
     };
-    let report = indexer.search(query, limit, parsed_mode)?;
-    Ok(SearchReport::from(report))
+    let scope = match args.scope {
+        None => SearchScope::default(),
+        Some(raw) => SearchScope::from_wire(raw).ok_or_else(|| unknown_search_scope(raw))?,
+    };
+    let status = match args.status {
+        None | Some([]) => None,
+        Some(raw) => {
+            let mut parsed = Vec::with_capacity(raw.len());
+            for value in raw {
+                parsed.push(
+                    LifecycleStatus::from_wire(value)
+                        .ok_or_else(|| crate::commands::lifecycle::unknown_status(value))?,
+                );
+            }
+            Some(parsed)
+        }
+    };
+    let sort = match args.sort {
+        None => None,
+        Some(raw) => Some(WorkSortKey::from_wire(raw).ok_or_else(|| unknown_sort(raw))?),
+    };
+    if let Some(lang) = args.source_lang
+        && !matches!(lang, "zh" | "en")
+    {
+        let mut params = BTreeMap::new();
+        params.insert("source_lang".to_owned(), lang.to_owned());
+        return Err(IpcError::new(
+            "import.unsupported_source_lang",
+            MessageKey::ImportUnsupportedSourceLang,
+            params,
+            false,
+        ));
+    }
+    let filter = SearchFilter {
+        scope,
+        status,
+        source_lang: args.source_lang.map(str::to_owned),
+        sort,
+        work_id: args.work_id.map(str::to_owned),
+    };
+    let report = indexer.search_filtered(query, limit, parsed_mode, filter)?;
+    let mut wire = SearchReport::from(report);
+    wire.scope = scope.as_str().to_owned();
+    Ok(wire)
 }
 
 /// Sáu vỏ `#[tauri::command]` — ba của Story 5.3, [`library_list_works`] của Story 5.4,
@@ -1002,6 +1114,10 @@ pub mod wire {
     /// (`search_candidate_ceiling`, tới 50× `limit`) trước khi cắt còn `limit` — nặng hơn hẳn
     /// một lượt liệt kê `library_work`. Cổng canh:
     /// `config_invariants.rs::the_blocking_wires_run_off_the_main_thread`.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "IPC command parameters mirror the wire contract field for field"
+    )]
     #[tauri::command(async)]
     pub fn library_search(
         app: tauri::AppHandle,
@@ -1009,8 +1125,20 @@ pub mod wire {
         limit: Option<u32>,
         // 🔵 THÊM (2026-08-29, Story 5.10, FR9) — chế độ dấu; `None` ⇒ `exact` (§Always).
         mode: Option<String>,
+        scope: Option<String>,
+        status: Option<Vec<String>>,
+        source_lang: Option<String>,
+        sort: Option<String>,
+        work_id: Option<String>,
     ) -> Result<super::SearchReport, IpcError> {
         let indexer = app.try_state::<Indexer>();
-        super::search_library(indexer.as_deref(), &query, limit, mode.as_deref())
+        let args = super::SearchArgs {
+            scope: scope.as_deref(),
+            status: status.as_deref(),
+            source_lang: source_lang.as_deref(),
+            sort: sort.as_deref(),
+            work_id: work_id.as_deref(),
+        };
+        super::search_library_scoped(indexer.as_deref(), &query, limit, mode.as_deref(), &args)
     }
 }

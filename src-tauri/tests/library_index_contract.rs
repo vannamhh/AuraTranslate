@@ -40,8 +40,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::core::library::indexer::{
-    HarvestSkipReason, IndexError, Indexer, MINIMUM_HARVEST_SCHEMA_VERSION, MatchKind, SearchField,
-    SearchMode, WorkQuery, WorkSortKey,
+    HarvestSkipReason, IndexError, Indexer, MINIMUM_HARVEST_SCHEMA_VERSION, MatchKind,
+    SOURCE_COUNT_CEILING, SearchField, SearchFilter, SearchMode, SearchScope, WorkQuery,
+    WorkSortKey,
 };
 use auratranslate_lib::core::library::meta::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::lifecycle::LifecycleStatus;
@@ -490,8 +491,8 @@ fn an_index_file_at_schema_version_4_is_deleted_and_rebuilt_at_version_6_with_th
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("đọc PRAGMA user_version");
         assert_eq!(
-            version, 9,
-            "library-index.db phải ở đúng to_version 9 sau lượt mở lại"
+            version, 10,
+            "library-index.db phải ở đúng to_version 10 sau lượt mở lại"
         );
     }
 
@@ -610,8 +611,20 @@ fn an_index_file_at_schema_version_6_is_deleted_and_rebuilt_at_version_7_with_th
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .expect("đọc PRAGMA user_version");
         assert_eq!(
-            version, 9,
-            "library-index.db phải ở đúng to_version 9 sau lượt mở lại (đích hiện hành)"
+            version, 10,
+            "library-index.db phải ở đúng to_version 10 sau lượt mở lại (đích hiện hành)"
+        );
+        let has_segment_status: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('library_segment') \
+                 WHERE name = 'segment_status'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("đọc pragma_table_info");
+        assert_eq!(
+            has_segment_status, 1,
+            "chỉ mục v10 phải có cột segment_status"
         );
     }
 
@@ -5698,6 +5711,620 @@ fn rebuild_all_drops_a_broken_but_present_work_where_a_plain_rebuild_keeps_it() 
             .unwrap_or_else(|e| panic!("list_orphans: {e}"))
             .is_empty()
     );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Phạm vi, bộ lọc và số đếm theo Tác phẩm của `Indexer::search_filtered`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// `(source_text, target_text, segment.status)`.
+type ScopedSegment = (String, String, &'static str);
+
+/// Một Tác phẩm một Chương với `project.db` THẬT, `source_lang`/`status` của `library_work` và
+/// trạng thái từng câu do chỗ gọi chọn.
+fn write_scoped_work(
+    root: &Path,
+    work_id: &str,
+    name: &str,
+    lang: &str,
+    status: &str,
+    segments: Vec<ScopedSegment>,
+) -> Store {
+    write_scoped_work_at(
+        root,
+        work_id,
+        name,
+        lang,
+        status,
+        "2026-08-01T00:00:00.000Z",
+        segments,
+    )
+}
+
+fn write_scoped_work_at(
+    root: &Path,
+    work_id: &str,
+    name: &str,
+    lang: &str,
+    status: &str,
+    updated_at: &str,
+    segments: Vec<ScopedSegment>,
+) -> Store {
+    let dir = write_atproj_full(root, work_id, work_id, name, "g", lang, status, updated_at);
+    let db_path = dir.join("project.db");
+    fs::remove_file(&db_path).unwrap_or_else(|e| panic!("xoa project.db rac: {e}"));
+    let store = Store::open(StoreSpec::project(db_path))
+        .unwrap_or_else(|e| panic!("mo project.db that: {e}"));
+    store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                 VALUES (1, 'C1', 'chapter source', 'draft', '2026-08-29T00:00:00.000Z', \
+                         '2026-08-29T00:00:00.000Z')",
+                [],
+            )?;
+            let chapter_id = tx.last_insert_rowid();
+            for (idx, (source, target, status)) in segments.iter().enumerate() {
+                tx.execute(
+                    "INSERT INTO segment \
+                     (chapter_id, ord, source_text, is_paragraph_end, created_at, updated_at, \
+                      target_text, status, is_omitted, translation_origin) \
+                     VALUES (?1, ?2, ?3, 0, '2026-08-29T00:00:00.000Z', \
+                             '2026-08-29T00:00:00.000Z', ?4, ?5, 0, 'self')",
+                    (chapter_id, (idx + 1) as i64, source, target, status),
+                )?;
+            }
+            Ok(())
+        })
+        .unwrap_or_else(|e| panic!("ghi fixture project.db: {e}"));
+    store
+}
+
+fn seg(source: &str, target: &str, status: &'static str) -> ScopedSegment {
+    (source.to_owned(), target.to_owned(), status)
+}
+
+fn scoped_index(
+    tag: &str,
+    works: Vec<(&str, &str, &str, Vec<ScopedSegment>)>,
+) -> (PathBuf, Store, Indexer) {
+    let dir = temp_dir(tag);
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    for (work_id, lang, status, segments) in works {
+        drop(write_scoped_work(
+            &root, work_id, work_id, lang, status, segments,
+        ));
+    }
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer
+        .rebuild(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild: {e}"));
+    (dir, global, indexer)
+}
+
+fn scoped(scope: SearchScope) -> SearchFilter {
+    SearchFilter {
+        scope,
+        ..Default::default()
+    }
+}
+
+#[test]
+fn a_string_only_in_the_translation_is_found_in_target_and_both_scopes_but_not_in_source() {
+    let (dir, global, indexer) = scoped_index(
+        "scope-target-only",
+        vec![(
+            "id-a",
+            "zh",
+            "in_progress",
+            vec![seg(
+                "alpha beta gamma",
+                "zzuniquetargetword here",
+                "confirmed",
+            )],
+        )],
+    );
+    let run = |scope| {
+        indexer
+            .search_filtered("zzuniquetargetword", 20, SearchMode::Exact, scoped(scope))
+            .unwrap_or_else(|e| panic!("search: {e}"))
+    };
+
+    assert!(run(SearchScope::Source).hits.is_empty());
+    let target = run(SearchScope::Target);
+    assert_eq!(target.hits.len(), 1);
+    assert_eq!(target.hits[0].field, SearchField::Target);
+    assert_eq!(target.hits[0].segment_ord, Some(1));
+    assert_eq!(target.hits[0].segment_status.as_deref(), Some("confirmed"));
+    assert_eq!(target.hits[0].work_status.as_deref(), Some("in_progress"));
+    assert_eq!(target.hits[0].source_lang, "zh");
+    assert_eq!(run(SearchScope::Both).hits.len(), 1);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn the_scope_decides_which_half_runs_and_the_short_query_flag_only_speaks_for_the_source_half() {
+    let (dir, global, indexer) = scoped_index(
+        "scope-short-query",
+        vec![(
+            "id-a",
+            "en",
+            "done",
+            vec![seg("hello sharedword", "xin chao sharedword", "draft")],
+        )],
+    );
+    let both = indexer
+        .search_filtered(
+            "sharedword",
+            20,
+            SearchMode::Exact,
+            scoped(SearchScope::Both),
+        )
+        .expect("both");
+    assert_eq!(both.hits.len(), 2);
+    let source = indexer
+        .search_filtered(
+            "sharedword",
+            20,
+            SearchMode::Exact,
+            scoped(SearchScope::Source),
+        )
+        .expect("source");
+    assert!(source.hits.iter().all(|h| h.field == SearchField::Source));
+    assert_eq!(source.hits.len(), 1);
+
+    let short_target = indexer
+        .search_filtered("xi", 20, SearchMode::Exact, scoped(SearchScope::Target))
+        .expect("short target");
+    assert!(!short_target.short_query);
+    let short_source = indexer
+        .search_filtered("xi", 20, SearchMode::Exact, scoped(SearchScope::Source))
+        .expect("short source");
+    assert!(short_source.short_query);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn the_filter_runs_before_the_limit_so_a_filtered_out_work_cannot_fill_the_page() {
+    let blocked: Vec<ScopedSegment> = (0..6)
+        .map(|i| seg("irrelevant", &format!("needleword blocked {i}"), "draft"))
+        .collect();
+    let (dir, global, indexer) = scoped_index(
+        "filter-before-limit",
+        vec![
+            ("id-a-blocked", "zh", "in_progress", blocked),
+            (
+                "id-b-allowed",
+                "zh",
+                "done",
+                vec![seg("irrelevant", "needleword allowed", "confirmed")],
+            ),
+        ],
+    );
+    let filter = SearchFilter {
+        status: Some(vec![LifecycleStatus::Done]),
+        ..Default::default()
+    };
+    let report = indexer
+        .search_filtered("needleword", 3, SearchMode::Exact, filter)
+        .expect("search");
+    assert_eq!(report.hits.len(), 1, "hits: {:?}", report.hits);
+    assert_eq!(report.hits[0].work_id, "id-b-allowed");
+    assert!(!report.truncated);
+
+    let lang = SearchFilter {
+        source_lang: Some("en".to_owned()),
+        ..Default::default()
+    };
+    let none = indexer
+        .search_filtered("needleword", 3, SearchMode::Exact, lang)
+        .expect("lang");
+    assert!(none.hits.is_empty());
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_work_with_unknown_status_hidden_by_a_status_filter_counts_as_filtered_out() {
+    let dir = temp_dir("filter-blocked-null-status");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    drop(write_scoped_work(
+        &root,
+        "id-done",
+        "id-done",
+        "zh",
+        "done",
+        vec![seg("s", "t", "draft")],
+    ));
+    write_v1_atproj_missing_lifecycle_fields(&root, "Old", "id-old", "Old Work");
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer
+        .rebuild(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let filter = SearchFilter {
+        status: Some(vec![LifecycleStatus::Done]),
+        ..Default::default()
+    };
+    let report = indexer
+        .search_filtered("t", 20, SearchMode::Exact, filter)
+        .expect("search");
+    assert_eq!(report.chapters_total, 2);
+    assert_eq!(report.chapters_filtered_out, 1);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn chapters_the_filter_blocks_are_counted_against_the_total() {
+    let (dir, global, indexer) = scoped_index(
+        "filter-blocked-chapters",
+        vec![
+            (
+                "id-a",
+                "zh",
+                "in_progress",
+                vec![seg("s", "blockedonly", "draft")],
+            ),
+            ("id-b", "zh", "done", vec![seg("s", "t", "draft")]),
+            ("id-c", "en", "done", vec![seg("s", "t", "draft")]),
+        ],
+    );
+    let filter = SearchFilter {
+        status: Some(vec![LifecycleStatus::Done]),
+        source_lang: Some("zh".to_owned()),
+        ..Default::default()
+    };
+    let report = indexer
+        .search_filtered("blockedonly", 20, SearchMode::Exact, filter)
+        .expect("search");
+    assert!(report.hits.is_empty());
+    assert_eq!(report.chapters_total, 3);
+    assert_eq!(report.chapters_filtered_out, 2);
+
+    let unfiltered = indexer
+        .search_filtered(
+            "blockedonly",
+            20,
+            SearchMode::Exact,
+            SearchFilter::default(),
+        )
+        .expect("unfiltered");
+    assert_eq!(unfiltered.chapters_filtered_out, 0);
+    assert_eq!(unfiltered.hits.len(), 1);
+
+    let one_work = SearchFilter {
+        work_id: Some("id-b".to_owned()),
+        ..Default::default()
+    };
+    let scoped_work = indexer
+        .search_filtered("blockedonly", 20, SearchMode::Exact, one_work)
+        .expect("work_id");
+    assert!(scoped_work.hits.is_empty());
+    assert_eq!(scoped_work.chapters_filtered_out, 0);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn widening_stays_inside_the_filter_and_never_borrows_a_filtered_out_exact_hit() {
+    let (dir, global, indexer) = scoped_index(
+        "widen-respects-filter",
+        vec![
+            (
+                "id-a-blocked",
+                "zh",
+                "in_progress",
+                vec![seg("s", "ghé da nang city", "draft")],
+            ),
+            (
+                "id-b-allowed",
+                "zh",
+                "done",
+                vec![seg("s", "ghé Đà Nẵng city", "draft")],
+            ),
+        ],
+    );
+    let unfiltered = indexer
+        .search_filtered("da nang", 20, SearchMode::Exact, SearchFilter::default())
+        .expect("unfiltered");
+    assert!(!unfiltered.widened);
+    assert_eq!(unfiltered.hits.len(), 1);
+    assert_eq!(unfiltered.hits[0].work_id, "id-a-blocked");
+
+    let filter = SearchFilter {
+        status: Some(vec![LifecycleStatus::Done]),
+        ..Default::default()
+    };
+    let filtered = indexer
+        .search_filtered("da nang", 20, SearchMode::Exact, filter)
+        .expect("filtered");
+    assert!(filtered.widened);
+    assert_eq!(filtered.effective_mode, SearchMode::Lenient);
+    assert_eq!(filtered.hits.len(), 1);
+    assert_eq!(filtered.hits[0].work_id, "id-b-allowed");
+    assert_eq!(filtered.hits[0].match_kind, MatchKind::Lenient);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn target_counts_are_the_real_count_per_work_not_the_number_of_hits_returned() {
+    let many: Vec<ScopedSegment> = (0..7)
+        .map(|i| seg("irrelevant", &format!("countedword number {i}"), "draft"))
+        .collect();
+    let (dir, global, indexer) = scoped_index(
+        "target-counts",
+        vec![
+            ("id-a", "zh", "done", many),
+            (
+                "id-b",
+                "zh",
+                "done",
+                vec![seg("s", "countedword once", "draft")],
+            ),
+        ],
+    );
+    let report = indexer
+        .search_filtered(
+            "countedword",
+            3,
+            SearchMode::Exact,
+            scoped(SearchScope::Target),
+        )
+        .expect("search");
+    assert_eq!(report.hits.len(), 3);
+    assert!(report.truncated);
+    let by_work: Vec<(&str, usize, usize)> = report
+        .work_counts
+        .iter()
+        .map(|c| (c.work_id.as_str(), c.target_count, c.source_count))
+        .collect();
+    assert_eq!(by_work, vec![("id-a", 7, 0), ("id-b", 1, 0)]);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn work_counts_follow_the_filter_sort_not_the_work_id_or_which_side_hit() {
+    let dir = temp_dir("work-counts-order");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    drop(write_scoped_work_at(
+        &root,
+        "id-z-target-only",
+        "alpha",
+        "zh",
+        "done",
+        "2026-08-01T00:00:00.000Z",
+        vec![seg("s", "orderword here", "draft")],
+    ));
+    drop(write_scoped_work_at(
+        &root,
+        "id-a-source-only",
+        "zulu",
+        "zh",
+        "done",
+        "2026-09-01T00:00:00.000Z",
+        vec![seg("orderword here", "t", "draft")],
+    ));
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer
+        .rebuild(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let order = |sort: Option<WorkSortKey>| -> Vec<String> {
+        indexer
+            .search_filtered(
+                "orderword",
+                20,
+                SearchMode::Exact,
+                SearchFilter {
+                    scope: SearchScope::Both,
+                    sort,
+                    ..Default::default()
+                },
+            )
+            .expect("search")
+            .work_counts
+            .into_iter()
+            .map(|c| c.work_id)
+            .collect()
+    };
+    assert_eq!(order(None), ["id-a-source-only", "id-z-target-only"]);
+    assert_eq!(
+        order(Some(WorkSortKey::UpdatedDesc)),
+        ["id-a-source-only", "id-z-target-only"]
+    );
+    assert_eq!(
+        order(Some(WorkSortKey::NameAsc)),
+        ["id-z-target-only", "id-a-source-only"]
+    );
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn source_counts_only_include_candidates_the_rust_verification_accepted() {
+    // 'ς' (final sigma) folds to 'σ' inside the trigram tokenizer but not under Rust's
+    // `to_lowercase`, so the first row is a candidate that verification must reject.
+    let (dir, global, indexer) = scoped_index(
+        "source-count-verified",
+        vec![(
+            "id-a",
+            "en",
+            "done",
+            vec![seg("ςςς", "t", "draft"), seg("xx σσσ yy", "t", "draft")],
+        )],
+    );
+    let report = indexer
+        .search_filtered("σσσ", 20, SearchMode::Exact, scoped(SearchScope::Source))
+        .expect("search");
+    assert_eq!(report.hits.len(), 1);
+    assert_eq!(report.work_counts.len(), 1);
+    assert_eq!(report.work_counts[0].source_count, 1);
+    assert!(!report.work_counts[0].source_count_is_lower_bound);
+    assert!(!report.source_counts_capped);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_source_count_past_the_candidate_ceiling_is_flagged_as_a_lower_bound() {
+    let dir = temp_dir("source-count-ceiling");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let early = write_scoped_work(&root, "id-a-early", "early", "zh", "done", vec![]);
+    early
+        .write(|tx: &Transaction<'_>| {
+            tx.execute(
+                "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?1) \
+                 INSERT INTO segment \
+                 (chapter_id, ord, source_text, is_paragraph_end, created_at, updated_at, \
+                  target_text, status, is_omitted, translation_origin) \
+                 SELECT (SELECT id FROM chapter LIMIT 1), i, 'noise zzqqceilingword ' || i, 0, \
+                        '2026-08-29T00:00:00.000Z', '2026-08-29T00:00:00.000Z', '', 'draft', 0, \
+                        'self' FROM n",
+                [SOURCE_COUNT_CEILING + 100],
+            )?;
+            Ok(())
+        })
+        .unwrap_or_else(|e| panic!("bulk insert: {e}"));
+    drop(early);
+    drop(write_scoped_work(
+        &root,
+        "id-z-late",
+        "late",
+        "zh",
+        "done",
+        vec![seg("zzqqceilingword late", "t", "draft")],
+    ));
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer
+        .rebuild(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let report = indexer
+        .search_filtered(
+            "zzqqceilingword",
+            20,
+            SearchMode::Exact,
+            scoped(SearchScope::Source),
+        )
+        .expect("search");
+    assert!(report.source_counts_capped);
+    let early_count = report
+        .work_counts
+        .iter()
+        .find(|c| c.work_id == "id-a-early")
+        .expect("early work counted");
+    assert!(early_count.source_count_is_lower_bound);
+    assert_eq!(early_count.source_count as i64, SOURCE_COUNT_CEILING);
+    assert!(report.work_counts.iter().all(|c| c.work_id != "id-z-late"));
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_chapter_level_hit_has_no_segment_ord_and_no_segment_status() {
+    let dir = temp_dir("chapter-level-hit");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    let (_dir, store) = write_atproj_with_real_project_db(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        vec![(Some("C1"), "chapterlevelneedle text", vec![])],
+    );
+    drop(store);
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    let report = rebuild_and_search(
+        &indexer,
+        &root,
+        &global,
+        "chapterlevelneedle",
+        20,
+        SearchMode::Exact,
+    );
+    assert_eq!(report.hits.len(), 1);
+    assert_eq!(report.hits[0].segment_id, None);
+    assert_eq!(report.hits[0].segment_ord, None);
+    assert_eq!(report.hits[0].segment_status, None);
+
+    drop(indexer);
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn the_sort_key_orders_works_inside_the_sql_before_the_limit() {
+    let dir = temp_dir("sort-in-sql");
+    let global = open_global(&dir);
+    let root = library_root(&dir);
+    drop(write_scoped_work(
+        &root,
+        "id-a",
+        "Zeta",
+        "zh",
+        "done",
+        vec![seg("s", "sortneedle one", "draft")],
+    ));
+    drop(write_scoped_work(
+        &root,
+        "id-b",
+        "Alpha",
+        "zh",
+        "done",
+        vec![seg("s", "sortneedle two", "draft")],
+    ));
+    let indexer = Indexer::open(index_path(&dir)).unwrap_or_else(|e| panic!("mo indexer: {e}"));
+    indexer
+        .rebuild(&root, Some(&global))
+        .unwrap_or_else(|e| panic!("rebuild: {e}"));
+
+    let by_name = SearchFilter {
+        sort: Some(WorkSortKey::NameAsc),
+        ..Default::default()
+    };
+    let report = indexer
+        .search_filtered("sortneedle", 1, SearchMode::Exact, by_name)
+        .expect("search");
+    assert_eq!(report.hits.len(), 1);
+    assert_eq!(report.hits[0].work_id, "id-b");
+
+    let default_order = indexer
+        .search_filtered("sortneedle", 1, SearchMode::Exact, SearchFilter::default())
+        .expect("default");
+    assert_eq!(default_order.hits[0].work_id, "id-a");
 
     drop(indexer);
     drop(global);

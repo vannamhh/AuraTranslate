@@ -523,6 +523,7 @@ message_keys! {
     /// `commands::library::search_library` trên dây (`mode`). Cùng khuôn `LibraryUnknownSort`
     /// ngay trên: **0** truy vấn SQL nào chạy trước khi lỗi này được trả.
     LibraryUnknownSearchMode => "err.library.unknown_search_mode" ["mode"],
+    LibraryUnknownSearchScope => "err.library.unknown_search_scope" ["scope"],
 
     // ── Story 5.4 (FR5/FR6) — ĐÚNG MỘT khoá ─────────────────────────────────────────
     //

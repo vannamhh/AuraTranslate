@@ -45,9 +45,11 @@
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { searchLibrary } from '../config/library'
-import type { SearchHit, SearchMode } from '../config/library'
+import type { SearchHit, SearchMode, SearchScope, WorkSearchCount } from '../config/library'
 import { openChapterById } from '../panels/editorPanelState'
 import { libraryOpenWorkError, libraryOpenWorkNotice, openWorkById } from './libraryChapters'
+import { librarySortKey, librarySourceLangFilter, libraryStatusFilter } from './libraryWorks'
+import { openSearchHitInReading } from './readingState'
 import { setMode } from './modeState'
 import type { IpcError } from '../i18n'
 
@@ -85,6 +87,16 @@ const widened = ref(false)
 // `worksReloadPending`. Không phải `ref`: không khối template nào đọc nó.
 let reloadPending = false
 let sequence = 0
+const scope = ref<SearchScope>('both')
+// Set only by `seeAllLibrarySearchGroup`; any new typed or Enter search clears it.
+const workIdFilter = ref<string | null>(null)
+const elapsedMs = ref<number | null>(null)
+const chaptersTotal = ref(0)
+const chaptersFilteredOut = ref(0)
+const workCounts = ref<WorkSearchCount[]>([])
+const sourceCountsCapped = ref(false)
+const reportScope = ref<SearchScope>('both')
+const expandedWorks = ref<string[]>([])
 
 /** Ghi được cho `v-model` của ô tìm — cùng khuôn `libraryImport.ts::pastedText` (export
  * TRẦN, không bọc `readonly()`). */
@@ -112,16 +124,134 @@ export const librarySearchMode: DeepReadonly<Ref<SearchMode>> = readonly(mode)
 export const librarySearchEffectiveMode: DeepReadonly<Ref<SearchMode>> = readonly(effectiveMode)
 /** `true` ⇔ lượt tìm gần nhất đã TỰ NỚI. */
 export const librarySearchWidened: DeepReadonly<Ref<boolean>> = readonly(widened)
+export const librarySearchScope: DeepReadonly<Ref<SearchScope>> = readonly(scope)
+export const librarySearchReportScope: DeepReadonly<Ref<SearchScope>> = readonly(reportScope)
+export const librarySearchWorkId: DeepReadonly<Ref<string | null>> = readonly(workIdFilter)
+export const librarySearchElapsedMs: DeepReadonly<Ref<number | null>> = readonly(elapsedMs)
+export const librarySearchChaptersTotal: DeepReadonly<Ref<number>> = readonly(chaptersTotal)
+export const librarySearchChaptersFilteredOut: DeepReadonly<Ref<number>> = readonly(chaptersFilteredOut)
+export const librarySearchSourceCountsCapped: DeepReadonly<Ref<boolean>> = readonly(sourceCountsCapped)
+export const librarySearchExpandedWorks: DeepReadonly<Ref<string[]>> = readonly(expandedWorks)
+
+export const SEARCH_GROUP_COLLAPSED_HITS = 3
+
+export type LibrarySearchGroup = {
+  workId: string
+  workName: string
+  workStatus: string | null
+  sourceLang: string
+  count: number
+  countIsLowerBound: boolean
+  hits: SearchHit[]
+  visible: SearchHit[]
+  expanded: boolean
+  /** Returned-but-hidden hits only. */
+  remaining: number
+  hasUnreturned: boolean
+}
+
+export function splitSnippet(snippet: string): { text: string; match: boolean }[] {
+  const parts: { text: string; match: boolean }[] = []
+  let rest = snippet
+  while (rest.length > 0) {
+    const open = rest.indexOf('‹')
+    if (open === -1) {
+      parts.push({ text: rest, match: false })
+      break
+    }
+    const close = rest.indexOf('›', open + 1)
+    if (close === -1) {
+      parts.push({ text: rest.replace('‹', ''), match: false })
+      break
+    }
+    if (open > 0) parts.push({ text: rest.slice(0, open), match: false })
+    parts.push({ text: rest.slice(open + 1, close), match: true })
+    rest = rest.slice(close + 1)
+  }
+  return parts
+}
+
+function hitOrder(a: SearchHit, b: SearchHit): number {
+  if (a.chapter_ord !== b.chapter_ord) return a.chapter_ord - b.chapter_ord
+  const ao = a.segment_ord ?? -1
+  const bo = b.segment_ord ?? -1
+  if (ao !== bo) return ao - bo
+  if (a.field === b.field) return 0
+  return a.field === 'target' ? -1 : 1
+}
+
+/** Groups follow `work_counts` order, which Rust sorts by the filter's key. */
+export function groupSearchHits(
+  hitList: readonly SearchHit[],
+  counts: readonly WorkSearchCount[],
+  expanded: readonly string[],
+): LibrarySearchGroup[] {
+  const firstSeen: string[] = []
+  const byWork = new Map<string, SearchHit[]>()
+  for (const hit of hitList) {
+    const bucket = byWork.get(hit.work_id)
+    if (bucket === undefined) {
+      firstSeen.push(hit.work_id)
+      byWork.set(hit.work_id, [hit])
+    } else {
+      bucket.push(hit)
+    }
+  }
+  const counted = counts.map((count) => count.work_id).filter((workId) => byWork.has(workId))
+  const countedSet = new Set(counted)
+  const order = [...new Set(counted), ...firstSeen.filter((workId) => !countedSet.has(workId))]
+  return order.map((workId) => {
+    const groupHits = [...(byWork.get(workId) ?? [])].sort(hitOrder)
+    const first = groupHits[0]
+    const entry = counts.find((count) => count.work_id === workId)
+    const count = entry === undefined ? groupHits.length : entry.target_count + entry.source_count
+    const isExpanded = expanded.includes(workId)
+    const visible = isExpanded ? groupHits : groupHits.slice(0, SEARCH_GROUP_COLLAPSED_HITS)
+    const lowerBound = entry?.source_count_is_lower_bound ?? false
+    return {
+      workId,
+      workName: first.work_name,
+      workStatus: first.work_status,
+      sourceLang: first.source_lang,
+      count,
+      countIsLowerBound: lowerBound,
+      hits: groupHits,
+      visible,
+      expanded: isExpanded,
+      remaining: groupHits.length - visible.length,
+      hasUnreturned: count > groupHits.length || lowerBound,
+    }
+  })
+}
+
+export const librarySearchGroups = computed<LibrarySearchGroup[]>(() =>
+  groupSearchHits(hits.value, workCounts.value, expandedWorks.value),
+)
+
+export const librarySearchVisibleHits = computed<SearchHit[]>(() =>
+  librarySearchGroups.value.flatMap((group) => group.visible),
+)
+
+export const librarySearchResultCount = computed<{ count: number; lowerBound: boolean }>(() => ({
+  count: librarySearchGroups.value.reduce((sum, group) => sum + group.count, 0),
+  lowerBound: sourceCountsCapped.value || librarySearchGroups.value.some((group) => group.countIsLowerBound),
+}))
+
+export const librarySearchFilterActive = computed<boolean>(
+  () => libraryStatusFilter.value.size > 0 || librarySourceLangFilter.value !== null,
+)
 
 /**
  * Kết quả ĐANG CHỌN trong danh sách, hoặc `null` nếu con trỏ ngoài phạm vi — cùng lý do
  * `currentLibraryWork` (`libraryWorks.ts`): `.at()`, không `[]` (`noUncheckedIndexedAccess`
  * không bật).
  */
-export const currentLibrarySearchHit = computed<SearchHit | null>(() => hits.value.at(cursor.value) ?? null)
+export const currentLibrarySearchHit = computed<SearchHit | null>(
+  () => librarySearchVisibleHits.value.at(cursor.value) ?? null,
+)
 
 function clampCursor(): void {
-  const maxIndex = hits.value.length - 1
+  const maxIndex = librarySearchVisibleHits.value.length - 1
   if (cursor.value > maxIndex) cursor.value = Math.max(0, maxIndex)
   if (cursor.value < 0) cursor.value = 0
 }
@@ -226,8 +356,25 @@ export const librarySearchCoverageGapState = computed<{ missing: number; total: 
  * `short_query && hits.length === 0`.
  */
 export async function runLibrarySearch(): Promise<void> {
+  workIdFilter.value = null
+  await executeLibrarySearch()
+}
+
+export async function rerunLibrarySearch(): Promise<void> {
+  if (query.value.trim().length === 0 || (!hasLoaded.value && !busy.value)) return
+  await executeLibrarySearch()
+}
+
+async function executeLibrarySearch(): Promise<void> {
   const trimmed = query.value.trim()
   if (trimmed.length === 0) {
+    workIdFilter.value = null
+    elapsedMs.value = null
+    chaptersTotal.value = 0
+    chaptersFilteredOut.value = 0
+    workCounts.value = []
+    sourceCountsCapped.value = false
+    expandedWorks.value = []
     hits.value = []
     total.value = 0
     indexedSegments.value = 0
@@ -258,7 +405,15 @@ export async function runLibrarySearch(): Promise<void> {
   error.value = null
   const mySequence = ++sequence
 
-  const result = await searchLibrary(trimmed, undefined, mode.value)
+  const startedAt = performance.now()
+  const result = await searchLibrary(trimmed, undefined, mode.value, {
+    scope: scope.value,
+    status: Array.from(libraryStatusFilter.value),
+    sourceLang: librarySourceLangFilter.value,
+    sort: librarySortKey.value,
+    workId: workIdFilter.value,
+  })
+  const elapsed = Math.round(performance.now() - startedAt)
   // ⚠️ **Đo 2026-08-29 — hàng rào này KHÔNG với tới được từ đường gõ nhanh, và câu chú thích
   // đầu tiên ở đây ("một lượt MỚI hơn đã bắt đầu") nói sai lý do.** Cửa `busy` ngay trên
   // (`:142-145`) chặn lượt hai TRƯỚC khi nó kịp bump `sequence`, nên hai lượt không bao giờ
@@ -281,6 +436,13 @@ export async function runLibrarySearch(): Promise<void> {
     return
   }
 
+  elapsedMs.value = elapsed
+  reportScope.value = result.report.scope
+  chaptersTotal.value = result.report.chapters_total
+  chaptersFilteredOut.value = result.report.chapters_filtered_out
+  workCounts.value = result.report.work_counts
+  sourceCountsCapped.value = result.report.source_counts_capped
+  expandedWorks.value = []
   hits.value = result.report.hits
   total.value = result.report.total
   indexedSegments.value = result.report.indexed_segments
@@ -300,7 +462,7 @@ export async function runLibrarySearch(): Promise<void> {
 async function runPendingSearchReload(): Promise<void> {
   if (!reloadPending) return
   reloadPending = false
-  await runLibrarySearch()
+  await executeLibrarySearch()
 }
 
 /**
@@ -316,7 +478,7 @@ async function runPendingSearchReload(): Promise<void> {
 function setLibrarySearchMode(next: SearchMode): void {
   mode.value = next
   if (query.value.trim().length === 0) return
-  void runLibrarySearch()
+  void executeLibrarySearch()
 }
 
 /** Handler của `library.search_mode_exact`. */
@@ -329,9 +491,59 @@ export function setLibrarySearchModeLenient(): void {
   setLibrarySearchMode('lenient')
 }
 
+export function setLibrarySearchScope(next: SearchScope): void {
+  if (scope.value === next) return
+  scope.value = next
+  if (query.value.trim().length === 0) return
+  void executeLibrarySearch()
+}
+
+export function clearLibrarySearchWorkFilter(): void {
+  if (workIdFilter.value === null) return
+  workIdFilter.value = null
+  void executeLibrarySearch()
+}
+
+export function setLibrarySearchCursor(index: number): void {
+  cursor.value = index
+  clampCursor()
+}
+
+export function selectLibrarySearchGroup(workId: string): void {
+  if (currentLibrarySearchHit.value?.work_id === workId) return
+  const first = librarySearchVisibleHits.value.findIndex((hit) => hit.work_id === workId)
+  if (first !== -1) cursor.value = first
+}
+
+export function toggleCurrentLibrarySearchGroup(): void {
+  const hit = currentLibrarySearchHit.value
+  if (hit === null) return
+  toggleLibrarySearchGroup(hit.work_id)
+}
+
+export function toggleLibrarySearchGroup(workId: string): void {
+  const wasExpanded = expandedWorks.value.includes(workId)
+  expandedWorks.value = wasExpanded
+    ? expandedWorks.value.filter((id) => id !== workId)
+    : [...expandedWorks.value, workId]
+  if (wasExpanded) {
+    clampCursor()
+    return
+  }
+  const first = librarySearchVisibleHits.value.findIndex((hit) => hit.work_id === workId)
+  if (first !== -1) cursor.value = first
+}
+
+export async function seeAllLibrarySearchGroup(): Promise<void> {
+  const hit = currentLibrarySearchHit.value
+  if (hit === null) return
+  workIdFilter.value = hit.work_id
+  await executeLibrarySearch()
+}
+
 /** Chuyển con trỏ danh sách kết quả xuống ô kế tiếp — không vòng. No-op trên danh sách rỗng. */
 export function nextLibrarySearchHit(): void {
-  if (cursor.value < hits.value.length - 1) cursor.value += 1
+  if (cursor.value < librarySearchVisibleHits.value.length - 1) cursor.value += 1
 }
 
 /** Chuyển con trỏ danh sách kết quả lên ô trước — không vòng. */
@@ -363,6 +575,16 @@ export async function openCurrentLibrarySearchHit(): Promise<void> {
   if (moved) setMode('workspace')
 }
 
+export async function openCurrentLibrarySearchHitInReading(): Promise<void> {
+  const hit = currentLibrarySearchHit.value
+  if (hit === null) return
+
+  await openWorkById(hit.work_id)
+  if (libraryOpenWorkError.value !== null || libraryOpenWorkNotice.value !== null) return
+
+  await openSearchHitInReading(hit.chapter_id, hit.segment_id)
+}
+
 /**
  * 🔴 Vứt toàn bộ state — `check:panel-refs` đòi mọi ô nhớ cấp module có một đường
  * `reset*()`. Dùng bởi bàn đo/test; sản phẩm không có chỗ gọi (khối này sống suốt phiên).
@@ -385,4 +607,13 @@ export function resetLibrarySearch(): void {
   mode.value = 'exact'
   effectiveMode.value = 'exact'
   widened.value = false
+  scope.value = 'both'
+  reportScope.value = 'both'
+  workIdFilter.value = null
+  elapsedMs.value = null
+  chaptersTotal.value = 0
+  chaptersFilteredOut.value = 0
+  workCounts.value = []
+  sourceCountsCapped.value = false
+  expandedWorks.value = []
 }

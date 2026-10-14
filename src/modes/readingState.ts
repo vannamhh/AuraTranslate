@@ -221,6 +221,16 @@ export async function openAimedReadingSegment(): Promise<void> {
   await nextTick()
 }
 
+export async function openSearchHitInReading(chapterId: number, segmentId: number | null): Promise<boolean> {
+  const moved = await openChapterById(chapterId, segmentId ?? undefined)
+  if (!moved) return false
+  anchorSegmentId.value = segmentId
+  resetReading({ preserveAnchor: true })
+  resetReadingToc()
+  setMode('reading')
+  return true
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // ② DANH SÁCH MARKER THEO TÁC PHẨM
 // ═════════════════════════════════════════════════════════════════════════════════

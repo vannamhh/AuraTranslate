@@ -476,8 +476,8 @@ impl Indexer {
                                 "INSERT INTO library_segment \
                                  (work_id, chapter_id, chapter_ord, chapter_title, segment_id, \
                                   segment_ord, source_text, target_text, source_text_fold, \
-                                  target_text_fold) \
-                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                                  target_text_fold, segment_status) \
+                                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
                                 (
                                     &meta.work_id,
                                     row.chapter_id,
@@ -489,6 +489,7 @@ impl Indexer {
                                     &row.target_text,
                                     &source_text_fold,
                                     &target_text_fold,
+                                    &row.segment_status,
                                 ),
                             )?;
                         }
@@ -970,9 +971,23 @@ impl Indexer {
         limit: usize,
         mode: SearchMode,
     ) -> Result<SearchReport, StoreError> {
+        self.search_filtered(query, limit, mode, SearchFilter::default())
+    }
+
+    pub fn search_filtered(
+        &self,
+        query: &str,
+        limit: usize,
+        mode: SearchMode,
+        filter: SearchFilter,
+    ) -> Result<SearchReport, StoreError> {
         let limit = limit.clamp(1, MAX_SEARCH_LIMIT);
         let trimmed = query.trim().to_owned();
         let short_query = trimmed.chars().count() < MIN_SUBSTRING_QUERY_CHARS;
+        let scope = filter.scope;
+        let runs_source = scope.runs_source() && !short_query;
+        let runs_target = scope.runs_target();
+        let reported_short_query = short_query && scope.runs_source();
 
         self.store
             .read(move |conn: ReadHandle<'_>| -> SqlResult<SearchReport> {
@@ -982,11 +997,7 @@ impl Indexer {
                     conn.query_row("SELECT COUNT(*) FROM library_segment", [], |row| row.get(0))?;
                 let indexed_segments = indexed_segments.max(0) as usize;
 
-                // **THÊM (retro Epic 5, AI-3).** Độ phủ cấp TÁC PHẨM, đo TẠI LÚC TRUY VẤN trong
-                // CÙNG closure — KHÔNG đọc `RebuildOutcome::text_skipped` (§Design Notes của spec
-                // retro AI-2/AI-3: con số đó chỉ sống trong bộ nhớ của lượt `rebuild` gần nhất
-                // trong tiến trình này và biến mất sau khi khởi động lại; hai `COUNT` này luôn nói
-                // đúng trạng thái trên đĩa).
+                // Measured at query time; `RebuildOutcome::text_skipped` lives only in memory.
                 let works_total: i64 =
                     conn.query_row("SELECT COUNT(*) FROM library_work", [], |row| row.get(0))?;
                 let works_total = works_total.max(0) as usize;
@@ -997,36 +1008,74 @@ impl Indexer {
                 )?;
                 let works_with_text = works_with_text.max(0) as usize;
 
-                if trimmed.is_empty() {
-                    // Chỗ gọi (`commands::library::search_library`) không nên gửi một truy vấn
-                    // rỗng xuống đây (§I/O Matrix: "0 lượt IPC" ở tầng frontend) — nhưng đây vẫn
-                    // là ranh giới AN TOÀN cuối cùng: một cụm rỗng bọc ngoặc kép (`""`) là một
-                    // truy vấn FTS5 HỢP LỆ khớp MỌI hàng, đúng thứ không ai muốn ở đây.
-                    return Ok(SearchReport {
-                        hits: Vec::new(),
-                        total: 0,
+                let chapters_total: i64 = conn.query_row(
+                    "SELECT COALESCE(SUM(chapter_count), 0) FROM library_work",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let chapters_total = chapters_total.max(0) as usize;
+                let blocked = filter.work_clause(1, false);
+                let chapters_filtered_out: i64 = if blocked.sql.is_empty() {
+                    0
+                } else {
+                    conn.query_row(
+                        &format!(
+                            "SELECT COALESCE(SUM(w.chapter_count), 0) FROM library_work w \
+                             WHERE NOT COALESCE((1{}), 0)",
+                            blocked.sql
+                        ),
+                        params_from_iter(blocked.params.iter()),
+                        |row| row.get(0),
+                    )?
+                };
+                let chapters_filtered_out = chapters_filtered_out.max(0) as usize;
+
+                let report = |hits: Vec<SearchHit>,
+                              truncated: bool,
+                              effective_mode: SearchMode,
+                              widened: bool,
+                              counts: SearchCounts| {
+                    let total = hits.len();
+                    SearchReport {
+                        hits,
+                        total,
                         indexed_segments,
-                        short_query: true,
-                        truncated: false,
+                        short_query: reported_short_query,
+                        truncated,
                         mode,
-                        effective_mode: mode,
-                        widened: false,
+                        effective_mode,
+                        widened,
                         works_total,
                         works_with_text,
-                    });
+                        chapters_total,
+                        chapters_filtered_out,
+                        work_counts: counts.work_counts,
+                        source_counts_capped: counts.source_capped,
+                    }
+                };
+
+                if trimmed.is_empty() {
+                    // A quoted empty phrase (`""`) is valid FTS5 and matches every row.
+                    let mut empty = report(Vec::new(), false, mode, false, SearchCounts::default());
+                    empty.short_query = true;
+                    return Ok(empty);
                 }
 
                 // ── Lượt CHÍNH XÁC — LUÔN chạy TRƯỚC, mỗi lượt, không ngoại lệ (AD-27 · AC1). ──
                 // Lấy `limit + 1` ở MỖI nhánh: hàng thứ `limit + 1` không bao giờ hiển thị, nó chỉ
                 // là BẰNG CHỨNG rằng còn nữa. Xem [`SearchReport::truncated`].
-                let mut target = search_target_text(&conn, &trimmed, limit + 1)?;
-                let target_truncated = target.len() > limit;
-                target.truncate(limit);
+                let mut target = Vec::new();
+                let mut target_truncated = false;
+                if runs_target {
+                    target = search_target_text(&conn, &trimmed, limit + 1, &filter)?;
+                    target_truncated = target.len() > limit;
+                    target.truncate(limit);
+                }
 
                 let mut source = Vec::new();
                 let mut source_truncated = false;
-                if !short_query {
-                    source = search_source_text(&conn, &trimmed, limit + 1)?;
+                if runs_source {
+                    source = search_source_text(&conn, &trimmed, limit + 1, &filter)?;
                     source_truncated = source.len() > limit;
                     source.truncate(limit);
                 }
@@ -1040,44 +1089,50 @@ impl Indexer {
                 };
 
                 if effective_mode == SearchMode::Exact {
+                    let counts = count_per_work(
+                        &conn,
+                        &trimmed,
+                        SearchMode::Exact,
+                        &filter,
+                        runs_target,
+                        runs_source,
+                    )?;
                     let mut hits = target;
                     hits.extend(source);
-                    let total = hits.len();
-                    return Ok(SearchReport {
+                    return Ok(report(
                         hits,
-                        total,
-                        indexed_segments,
-                        short_query,
-                        truncated: target_truncated || source_truncated,
-                        mode,
+                        target_truncated || source_truncated,
                         effective_mode,
                         widened,
-                        works_total,
-                        works_with_text,
-                    });
+                        counts,
+                    ));
                 }
 
                 // ── Lượt KHOAN DUNG — CẢ HAI nửa đổi nguồn sang `_nd` của mình. Xem khối
                 // doc-comment ở trên cho lý lẽ dán nhãn theo tập rowid.
                 let exact_target_rowids: std::collections::HashSet<i64> =
                     target.iter().map(|hit| hit.rowid).collect();
-                let mut nd_target = search_target_text_nd(&conn, &trimmed, limit + 1)?;
-                let nd_target_truncated = nd_target.len() > limit;
-                nd_target.truncate(limit);
-                for hit in &mut nd_target {
-                    hit.match_kind = if exact_target_rowids.contains(&hit.rowid) {
-                        MatchKind::Exact
-                    } else {
-                        MatchKind::Lenient
-                    };
+                let mut nd_target = Vec::new();
+                let mut nd_target_truncated = false;
+                if runs_target {
+                    nd_target = search_target_text_nd(&conn, &trimmed, limit + 1, &filter)?;
+                    nd_target_truncated = nd_target.len() > limit;
+                    nd_target.truncate(limit);
+                    for hit in &mut nd_target {
+                        hit.match_kind = if exact_target_rowids.contains(&hit.rowid) {
+                            MatchKind::Exact
+                        } else {
+                            MatchKind::Lenient
+                        };
+                    }
                 }
 
                 let exact_source_rowids: std::collections::HashSet<i64> =
                     source.iter().map(|hit| hit.rowid).collect();
                 let mut nd_source = Vec::new();
                 let mut nd_source_truncated = false;
-                if !short_query {
-                    nd_source = search_source_text_nd(&conn, &trimmed, limit + 1)?;
+                if runs_source {
+                    nd_source = search_source_text_nd(&conn, &trimmed, limit + 1, &filter)?;
                     nd_source_truncated = nd_source.len() > limit;
                     nd_source.truncate(limit);
                     for hit in &mut nd_source {
@@ -1089,21 +1144,23 @@ impl Indexer {
                     }
                 }
 
+                let counts = count_per_work(
+                    &conn,
+                    &trimmed,
+                    SearchMode::Lenient,
+                    &filter,
+                    runs_target,
+                    runs_source,
+                )?;
                 let mut hits = nd_target;
                 hits.extend(nd_source);
-                let total = hits.len();
-                Ok(SearchReport {
+                Ok(report(
                     hits,
-                    total,
-                    indexed_segments,
-                    short_query,
-                    truncated: nd_target_truncated || nd_source_truncated,
-                    mode,
+                    nd_target_truncated || nd_source_truncated,
                     effective_mode,
                     widened,
-                    works_total,
-                    works_with_text,
-                })
+                    counts,
+                ))
             })
     }
 }
@@ -1140,6 +1197,10 @@ pub const DEFAULT_SEARCH_LIMIT: usize = 50;
 /// Trần TRÊN của `limit` — cùng lý lẽ `candidate_ceiling` của `core/dict/query.rs`: không để
 /// một chỗ gọi (hoặc một tham số IPC bất thường) kéo cả `library_segment` vào bộ nhớ.
 const MAX_SEARCH_LIMIT: usize = 500;
+
+/// Candidates the per-work source count reads before it stops and flags a lower bound; the
+/// lenient verifier per candidate is what keeps a near-universal source term inside NFR3.
+pub const SOURCE_COUNT_CEILING: i64 = 5_000;
 
 /// Hệ số AN TOÀN cho tập ứng viên `trigram` TRƯỚC khi xác minh — cùng lý lẽ
 /// `core/dict/query.rs::candidate_ceiling`: cắt ứng viên TRƯỚC khi xác minh làm số hàng cuối
@@ -1384,6 +1445,132 @@ impl Default for SearchMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SearchScope {
+    #[default]
+    Both,
+    Source,
+    Target,
+}
+
+impl SearchScope {
+    pub const ALL: &'static [SearchScope] =
+        &[SearchScope::Both, SearchScope::Source, SearchScope::Target];
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            SearchScope::Both => "both",
+            SearchScope::Source => "source",
+            SearchScope::Target => "target",
+        }
+    }
+
+    pub fn from_wire(raw: &str) -> Option<SearchScope> {
+        match raw {
+            "both" => Some(SearchScope::Both),
+            "source" => Some(SearchScope::Source),
+            "target" => Some(SearchScope::Target),
+            _ => None,
+        }
+    }
+
+    const fn runs_source(self) -> bool {
+        !matches!(self, SearchScope::Target)
+    }
+
+    const fn runs_target(self) -> bool {
+        !matches!(self, SearchScope::Source)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SearchFilter {
+    pub scope: SearchScope,
+    /// `Some(vec![])` matches zero rows; `None` means no status filter.
+    pub status: Option<Vec<crate::core::lifecycle::LifecycleStatus>>,
+    pub source_lang: Option<String>,
+    pub sort: Option<WorkSortKey>,
+    pub work_id: Option<String>,
+}
+
+struct FilterClause {
+    sql: String,
+    params: Vec<String>,
+}
+
+impl SearchFilter {
+    fn work_clause(&self, first_index: usize, include_work_id: bool) -> FilterClause {
+        let mut sql = String::new();
+        let mut params: Vec<String> = Vec::new();
+        let mut next = first_index;
+        if let Some(statuses) = &self.status {
+            if statuses.is_empty() {
+                sql.push_str(" AND 0");
+            } else {
+                let marks: Vec<String> = statuses
+                    .iter()
+                    .map(|status| {
+                        params.push(status.as_str().to_owned());
+                        let mark = format!("?{next}");
+                        next += 1;
+                        mark
+                    })
+                    .collect();
+                sql.push_str(&format!(" AND w.status IN ({})", marks.join(",")));
+            }
+        }
+        if let Some(lang) = &self.source_lang {
+            sql.push_str(&format!(" AND w.source_lang = ?{next}"));
+            params.push(lang.clone());
+            next += 1;
+        }
+        if include_work_id && let Some(work_id) = &self.work_id {
+            sql.push_str(&format!(" AND w.work_id = ?{next}"));
+            params.push(work_id.clone());
+        }
+        FilterClause { sql, params }
+    }
+
+    fn work_order_sql(&self) -> &'static str {
+        match self.sort {
+            None => "w.work_id",
+            Some(WorkSortKey::UpdatedDesc) => "w.updated_at DESC, w.work_id",
+            Some(WorkSortKey::NameAsc) => "w.name COLLATE NOCASE, w.work_id",
+        }
+    }
+
+    fn order_sql(&self) -> &'static str {
+        match self.sort {
+            None => "s.work_id, s.chapter_ord, s.segment_ord",
+            Some(WorkSortKey::UpdatedDesc) => {
+                "w.updated_at DESC, s.work_id, s.chapter_ord, s.segment_ord"
+            }
+            Some(WorkSortKey::NameAsc) => {
+                "w.name COLLATE NOCASE, s.work_id, s.chapter_ord, s.segment_ord"
+            }
+        }
+    }
+}
+
+const HIT_EXTRA_COLUMNS: &str = "s.segment_ord, s.segment_status, w.status, w.source_lang";
+
+struct HitExtras {
+    segment_ord: Option<i64>,
+    segment_status: Option<String>,
+    work_status: Option<String>,
+    source_lang: String,
+}
+
+fn read_hit_extras(row: &Row<'_>, base: usize, segment_id: Option<i64>) -> SqlResult<HitExtras> {
+    let ord: i64 = row.get(base)?;
+    Ok(HitExtras {
+        segment_ord: segment_id.map(|_| ord),
+        segment_status: row.get(base + 1)?,
+        work_status: row.get(base + 2)?,
+        source_lang: row.get(base + 3)?,
+    })
+}
+
 /// Vị từ nào đã tìm ra một hit — danh mục ĐÓNG, hai giá trị. Story 5.10.
 ///
 /// 🔴 **Nhãn này đến từ một PHÉP ĐO CÙNG VỊ TỪ (tập rowid của nhánh chính xác), không từ một
@@ -1441,6 +1628,20 @@ pub struct SearchHit {
     /// ở `commands::library` không chép trường này — nó là chi tiết TRIỂN KHAI của lõi, không
     /// phải hợp đồng IPC.
     pub rowid: i64,
+    pub segment_ord: Option<i64>,
+    /// As stale as the snippet: refreshed only on index rebuild, not on confirm.
+    pub segment_status: Option<String>,
+    pub work_status: Option<String>,
+    pub source_lang: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkSearchCount {
+    pub work_id: String,
+    pub target_count: usize,
+    pub source_count: usize,
+    /// The candidate ceiling was hit inside this Work, so `source_count` is a lower bound.
+    pub source_count_is_lower_bound: bool,
 }
 
 /// Kết quả một lượt [`Indexer::search`] — Story 5.9, mở rộng Story 5.10. Ba trường đầu ngoài
@@ -1496,6 +1697,13 @@ pub struct SearchReport {
     /// quả (`total`/`hits`): một lượt trả kết quả vẫn phải hiện dòng này nếu chỉ mục THỦNG
     ///   (§Always: "phải hiện cả khi có kết quả").
     pub works_with_text: usize,
+    pub chapters_total: usize,
+    /// The `work_id` filter does not count here.
+    pub chapters_filtered_out: usize,
+    /// Ordered by the filter's sort.
+    pub work_counts: Vec<WorkSearchCount>,
+    /// A count at the candidate ceiling is a lower bound; Works sorted after the cut may be missing.
+    pub source_counts_capped: bool,
 }
 
 /// **Nhánh bản dịch** — `library_target_fts` (`unicode61 remove_diacritics 0`), khớp TRỌN TỪ,
@@ -1505,21 +1713,32 @@ fn search_target_text(
     conn: &ReadHandle<'_>,
     query: &str,
     limit: usize,
+    filter: &SearchFilter,
 ) -> SqlResult<Vec<SearchHit>> {
     let phrase = fts_phrase(query);
-    let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
-    let sql = "\
-        SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
-               snippet(library_target_fts, 0, '\u{2039}', '\u{203a}', '\u{2026}', 10) \
-        FROM library_target_fts f \
-        JOIN library_segment s ON s.rowid = f.rowid \
-        JOIN library_work w ON w.work_id = s.work_id \
-        WHERE library_target_fts MATCH ?1 \
-        ORDER BY s.work_id, s.chapter_ord, s.segment_ord \
-        LIMIT ?2";
-    let mut stmt = conn.prepare_cached(sql)?;
-    let rows = stmt.query_map((&phrase, limit_i64), |row| {
+    let clause = filter.work_clause(2, true);
+    let sql = format!(
+        "SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+                snippet(library_target_fts, 0, '\u{2039}', '\u{203a}', '\u{2026}', 10), \
+                {HIT_EXTRA_COLUMNS} \
+         FROM library_target_fts f \
+         JOIN library_segment s ON s.rowid = f.rowid \
+         JOIN library_work w ON w.work_id = s.work_id \
+         WHERE library_target_fts MATCH ?1{} \
+         ORDER BY {} \
+         LIMIT {limit}",
+        clause.sql,
+        filter.order_sql()
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt.query_map(params_from_iter(bind_params(&phrase, &clause)), |row| {
+        let segment_id: Option<i64> = row.get(6)?;
+        let extras = read_hit_extras(row, 8, segment_id)?;
         Ok(SearchHit {
+            segment_ord: extras.segment_ord,
+            segment_status: extras.segment_status,
+            work_status: extras.work_status,
+            source_lang: extras.source_lang,
             rowid: row.get(0)?,
             work_id: row.get(1)?,
             work_name: row.get(2)?,
@@ -1550,24 +1769,35 @@ fn search_target_text_nd(
     conn: &ReadHandle<'_>,
     query: &str,
     limit: usize,
+    filter: &SearchFilter,
 ) -> SqlResult<Vec<SearchHit>> {
     let phrase = fts_phrase(&fold_dd_letter(query));
-    let limit_i64 = i64::try_from(limit).unwrap_or(i64::MAX);
-    let sql = "\
-        SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
-               s.target_text, \
-               highlight(library_target_fts_nd, 0, '\u{e000}', '\u{e001}') \
-        FROM library_target_fts_nd f \
-        JOIN library_segment s ON s.rowid = f.rowid \
-        JOIN library_work w ON w.work_id = s.work_id \
-        WHERE library_target_fts_nd MATCH ?1 \
-        ORDER BY s.work_id, s.chapter_ord, s.segment_ord \
-        LIMIT ?2";
-    let mut stmt = conn.prepare_cached(sql)?;
-    let rows = stmt.query_map((&phrase, limit_i64), |row| {
+    let clause = filter.work_clause(2, true);
+    let sql = format!(
+        "SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+                s.target_text, \
+                highlight(library_target_fts_nd, 0, '\u{e000}', '\u{e001}'), \
+                {HIT_EXTRA_COLUMNS} \
+         FROM library_target_fts_nd f \
+         JOIN library_segment s ON s.rowid = f.rowid \
+         JOIN library_work w ON w.work_id = s.work_id \
+         WHERE library_target_fts_nd MATCH ?1{} \
+         ORDER BY {} \
+         LIMIT {limit}",
+        clause.sql,
+        filter.order_sql()
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt.query_map(params_from_iter(bind_params(&phrase, &clause)), |row| {
         let target_text: String = row.get(7)?;
         let folded_highlighted: String = row.get(8)?;
+        let segment_id: Option<i64> = row.get(6)?;
+        let extras = read_hit_extras(row, 9, segment_id)?;
         Ok(SearchHit {
+            segment_ord: extras.segment_ord,
+            segment_status: extras.segment_status,
+            work_status: extras.work_status,
+            source_lang: extras.source_lang,
             rowid: row.get(0)?,
             work_id: row.get(1)?,
             work_name: row.get(2)?,
@@ -1615,22 +1845,34 @@ fn search_source_text(
     conn: &ReadHandle<'_>,
     query: &str,
     limit: usize,
+    filter: &SearchFilter,
 ) -> SqlResult<Vec<SearchHit>> {
     let phrase = fts_phrase(query);
     let ceiling = search_candidate_ceiling(limit);
-    let sql = "\
-        SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
-               s.source_text, \
-               snippet(library_source_fts, 0, '\u{2039}', '\u{203a}', '\u{2026}', 64) \
-        FROM library_source_fts f \
-        JOIN library_segment s ON s.rowid = f.rowid \
-        JOIN library_work w ON w.work_id = s.work_id \
-        WHERE library_source_fts MATCH ?1 \
-        ORDER BY s.work_id, s.chapter_ord, s.segment_ord \
-        LIMIT ?2";
-    let mut stmt = conn.prepare_cached(sql)?;
-    let rows = stmt.query_map((&phrase, ceiling), |row| {
+    let clause = filter.work_clause(2, true);
+    let sql = format!(
+        "SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+                s.source_text, \
+                snippet(library_source_fts, 0, '\u{2039}', '\u{203a}', '\u{2026}', 64), \
+                {HIT_EXTRA_COLUMNS} \
+         FROM library_source_fts f \
+         JOIN library_segment s ON s.rowid = f.rowid \
+         JOIN library_work w ON w.work_id = s.work_id \
+         WHERE library_source_fts MATCH ?1{} \
+         ORDER BY {} \
+         LIMIT {ceiling}",
+        clause.sql,
+        filter.order_sql()
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt.query_map(params_from_iter(bind_params(&phrase, &clause)), |row| {
+        let segment_id: Option<i64> = row.get(6)?;
+        let extras = read_hit_extras(row, 9, segment_id)?;
         let hit = SearchHit {
+            segment_ord: extras.segment_ord,
+            segment_status: extras.segment_status,
+            work_status: extras.work_status,
+            source_lang: extras.source_lang,
             rowid: row.get(0)?,
             work_id: row.get(1)?,
             work_name: row.get(2)?,
@@ -1682,24 +1924,36 @@ fn search_source_text_nd(
     conn: &ReadHandle<'_>,
     query: &str,
     limit: usize,
+    filter: &SearchFilter,
 ) -> SqlResult<Vec<SearchHit>> {
     let phrase = fts_phrase(&fold_diacritics_case_preserving(query));
     let ceiling = search_candidate_ceiling(limit);
-    let sql = "\
-        SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
-               s.source_text, \
-               highlight(library_source_fts_nd, 0, '\u{e000}', '\u{e001}') \
-        FROM library_source_fts_nd f \
-        JOIN library_segment s ON s.rowid = f.rowid \
-        JOIN library_work w ON w.work_id = s.work_id \
-        WHERE library_source_fts_nd MATCH ?1 \
-        ORDER BY s.work_id, s.chapter_ord, s.segment_ord \
-        LIMIT ?2";
-    let mut stmt = conn.prepare_cached(sql)?;
-    let rows = stmt.query_map((&phrase, ceiling), |row| {
+    let clause = filter.work_clause(2, true);
+    let sql = format!(
+        "SELECT s.rowid, s.work_id, w.name, s.chapter_id, s.chapter_ord, s.chapter_title, s.segment_id, \
+                s.source_text, \
+                highlight(library_source_fts_nd, 0, '\u{e000}', '\u{e001}'), \
+                {HIT_EXTRA_COLUMNS} \
+         FROM library_source_fts_nd f \
+         JOIN library_segment s ON s.rowid = f.rowid \
+         JOIN library_work w ON w.work_id = s.work_id \
+         WHERE library_source_fts_nd MATCH ?1{} \
+         ORDER BY {} \
+         LIMIT {ceiling}",
+        clause.sql,
+        filter.order_sql()
+    );
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt.query_map(params_from_iter(bind_params(&phrase, &clause)), |row| {
         let source_text: String = row.get(7)?;
         let folded_highlighted: String = row.get(8)?;
+        let segment_id: Option<i64> = row.get(6)?;
+        let extras = read_hit_extras(row, 9, segment_id)?;
         let hit = SearchHit {
+            segment_ord: extras.segment_ord,
+            segment_status: extras.segment_status,
+            work_status: extras.work_status,
+            source_lang: extras.source_lang,
             rowid: row.get(0)?,
             work_id: row.get(1)?,
             work_name: row.get(2)?,
@@ -1729,6 +1983,148 @@ fn search_source_text_nd(
         .collect();
     verified.truncate(limit);
     Ok(verified)
+}
+
+fn bind_params(phrase: &str, clause: &FilterClause) -> Vec<String> {
+    let mut all = Vec::with_capacity(1 + clause.params.len());
+    all.push(phrase.to_owned());
+    all.extend(clause.params.iter().cloned());
+    all
+}
+
+fn count_entry(
+    by_work: &mut BTreeMap<String, WorkSearchCount>,
+    work_id: String,
+) -> &mut WorkSearchCount {
+    by_work
+        .entry(work_id.clone())
+        .or_insert_with(|| WorkSearchCount {
+            work_id,
+            target_count: 0,
+            source_count: 0,
+            source_count_is_lower_bound: false,
+        })
+}
+
+#[derive(Default)]
+struct SearchCounts {
+    work_counts: Vec<WorkSearchCount>,
+    source_capped: bool,
+}
+
+fn count_per_work(
+    conn: &ReadHandle<'_>,
+    query: &str,
+    mode: SearchMode,
+    filter: &SearchFilter,
+    runs_target: bool,
+    runs_source: bool,
+) -> SqlResult<SearchCounts> {
+    let clause = filter.work_clause(2, true);
+    let lenient = mode == SearchMode::Lenient;
+    let mut by_work: BTreeMap<String, WorkSearchCount> = BTreeMap::new();
+    if runs_target {
+        let (table, phrase) = if lenient {
+            ("library_target_fts_nd", fts_phrase(&fold_dd_letter(query)))
+        } else {
+            ("library_target_fts", fts_phrase(query))
+        };
+        let sql = format!(
+            "SELECT s.work_id, COUNT(*) \
+             FROM {table} f \
+             JOIN library_segment s ON s.rowid = f.rowid \
+             JOIN library_work w ON w.work_id = s.work_id \
+             WHERE {table} MATCH ?1{} \
+             GROUP BY s.work_id",
+            clause.sql
+        );
+        let mut stmt = conn.prepare_cached(&sql)?;
+        let rows = stmt.query_map(params_from_iter(bind_params(&phrase, &clause)), |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })?;
+        for row in rows {
+            let (work_id, count) = row?;
+            count_entry(&mut by_work, work_id).target_count = count.max(0) as usize;
+        }
+    }
+
+    let mut source_capped = false;
+    if runs_source {
+        let (table, column, phrase) = if lenient {
+            (
+                "library_source_fts_nd",
+                "s.source_text",
+                fts_phrase(&fold_diacritics_case_preserving(query)),
+            )
+        } else {
+            ("library_source_fts", "s.source_text", fts_phrase(query))
+        };
+        let ceiling = SOURCE_COUNT_CEILING;
+        let sql = format!(
+            "SELECT s.work_id, {column} \
+             FROM {table} f \
+             JOIN library_segment s ON s.rowid = f.rowid \
+             JOIN library_work w ON w.work_id = s.work_id \
+             WHERE {table} MATCH ?1{} \
+             ORDER BY {} \
+             LIMIT {ceiling}",
+            clause.sql,
+            filter.order_sql()
+        );
+        let mut stmt = conn.prepare_cached(&sql)?;
+        let rows = stmt.query_map(params_from_iter(bind_params(&phrase, &clause)), |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        let needle_exact = query.to_lowercase();
+        let needle_lenient = fold_for_tolerant_verification(query);
+        let mut candidates: i64 = 0;
+        let mut last_work: Option<String> = None;
+        for row in rows {
+            let (work_id, source_text) = row?;
+            candidates += 1;
+            let verified = if lenient {
+                fold_for_tolerant_verification(&source_text).contains(&needle_lenient)
+            } else {
+                source_text.to_lowercase().contains(&needle_exact)
+            };
+            if verified {
+                count_entry(&mut by_work, work_id.clone()).source_count += 1;
+            }
+            last_work = Some(work_id);
+        }
+        if candidates >= ceiling {
+            source_capped = true;
+            if let Some(work_id) = last_work
+                && let Some(found) = by_work.get_mut(&work_id)
+            {
+                found.source_count_is_lower_bound = true;
+            }
+        }
+    }
+
+    let work_counts = if by_work.is_empty() {
+        Vec::new()
+    } else {
+        let sql = format!(
+            "SELECT w.work_id FROM library_work w ORDER BY {}",
+            filter.work_order_sql()
+        );
+        let mut stmt = conn.prepare_cached(&sql)?;
+        let ordered: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<SqlResult<_>>()?;
+        let mut sorted: Vec<WorkSearchCount> = ordered
+            .into_iter()
+            .filter_map(|work_id| by_work.remove(&work_id))
+            .collect();
+        sorted.extend(by_work.into_values());
+        sorted
+    };
+
+    Ok(SearchCounts {
+        work_counts,
+        source_capped,
+    })
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -1854,6 +2250,7 @@ struct HarvestedRow {
     segment_ord: i64,
     source_text: String,
     target_text: String,
+    segment_status: Option<String>,
 }
 
 /// Story 5.9 — thu hoạch TOÀN BỘ văn bản (nguyên văn + bản dịch) của MỘT Tác phẩm, đọc CHỈ ĐỌC
@@ -1931,13 +2328,19 @@ fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, HarvestSkipReason>
             // rỗng im lặng khác, đổi lỗi này lấy lỗi kia.
             let mut seg_stmt = conn.prepare(
                 "SELECT id, ord, source_text, \
-                        CASE WHEN is_omitted = 1 THEN '' ELSE target_text END \
+                        CASE WHEN is_omitted = 1 THEN '' ELSE target_text END, status \
                  FROM segment \
                  WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord",
             )?;
-            let segments: Vec<(i64, i64, String, String)> = seg_stmt
+            let segments: Vec<(i64, i64, String, String, String)> = seg_stmt
                 .query_map([chapter_id], |row| {
-                    Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
                 })?
                 .collect::<SqlResult<Vec<_>>>()?;
             drop(seg_stmt);
@@ -1953,9 +2356,11 @@ fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, HarvestSkipReason>
                     segment_ord: 0,
                     source_text: chapter_source_text,
                     target_text: String::new(),
+                    segment_status: None,
                 });
             } else {
-                for (segment_id, segment_ord, source_text, target_text) in segments {
+                for (segment_id, segment_ord, source_text, target_text, segment_status) in segments
+                {
                     out.push(HarvestedRow {
                         chapter_id,
                         chapter_ord,
@@ -1964,6 +2369,7 @@ fn harvest_work_text(dir: &Path) -> Result<Vec<HarvestedRow>, HarvestSkipReason>
                         segment_ord,
                         source_text,
                         target_text,
+                        segment_status: Some(segment_status),
                     });
                 }
             }

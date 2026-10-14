@@ -247,8 +247,8 @@ describe('Story 5.9 — tìm kiếm full-text xuyên Library, mở đúng Tác p
     // không một selector tự đặt.
     await browser.keys(['Meta', '1'])
     await browser.waitUntil(
-      async () => browser.execute(() => document.querySelector('.works-block') !== null),
-      { timeout: 30_000, timeoutMsg: 'quay về Library rồi mà khối "Tác phẩm" không có mặt sau 30 giây' },
+      async () => browser.execute((sel) => document.querySelector(sel) !== null, SEARCH_INPUT),
+      { timeout: 30_000, timeoutMsg: 'quay về Library rồi mà ô tìm kiếm không có mặt sau 30 giây' },
     )
 
     await typeSearchQuery(DIA_HIT)

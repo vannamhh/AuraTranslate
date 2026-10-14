@@ -13169,3 +13169,11 @@ chính nó.
   summary: Chưa ai dùng popup `Nguồn N/M ▾` bằng phím thật (`↑↓`, `Space` trên dòng, `Esc`) trên bản đóng gói macOS, chưa ai nghe VoiceOver đọc bật/tắt của `menuitemcheckbox`, và chưa ai nhìn khối nguồn, âm đọc, chip lịch sử ở sáng và tối.
   evidence: vitest giả `Space` bằng `click`; e2e 12-8 chỉ đo hình học popup và `Esc` trên bản debug, không chạy lượt tra thật.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tim-kiem-library-pham-vi-bo-loc-mo-o-che-o-oc-plan.md`
+  summary: `library.open_search_hit_reading` (nút `Mở ở Chế độ đọc` trên hàng kết quả tìm Library) chưa có phím mặc định; Ice quyết định chưa gán, `Mod+Enter` thuộc `editor.confirm_segment`. Chọn một chord còn trống rồi thêm vào gợi ý phím của khối kết quả.
+  evidence: `src/commands/index.ts` khối `library.*`, `keys: undefined`; hàng hit chỉ có nút; gợi ý phím cố ý không ghi `⌘↵`.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tim-kiem-library-pham-vi-bo-loc-mo-o-che-o-oc-plan.md`
+  summary: Kết quả tìm Library nay thay lưới Tác phẩm, nhưng không có nút hay phím đóng tìm kiếm; muốn về lưới phải xoá ô tìm rồi Enter. Mockup có `Esc đóng tìm kiếm`, mà `Escape` toàn cục thuộc `editor.clear_source_cuts`, và chia `Escape` là quyết định của Ice (`src/commands/index.ts` khối `Escape`).
+  evidence: `LibraryMode.vue` `searchActive` chỉ về `false` khi `executeLibrarySearch` chạy với truy vấn rỗng.
+  Chủ: Epic 12.

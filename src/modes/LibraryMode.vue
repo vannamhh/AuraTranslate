@@ -78,22 +78,35 @@ import LibraryWorkPage from './LibraryWorkPage.vue'
 // không cần một export mới cho `widened` — tám giá trị của nó đã chở đủ thông tin).
 // 🔵 SỬA (retro Epic 5, AI-3 — 2026-09-03) — thêm `librarySearchCoverageGapState`, bề mặt ĐỘC
 // LẬP với `librarySearchStatusKey` (§Always: "phải hiện cả khi có kết quả").
+import LibrarySearchResults from './LibrarySearchResults.vue'
 import {
-  librarySearchCoverageGapState,
-  librarySearchCursor,
+  librarySearchBusy,
   librarySearchError,
-  librarySearchHits,
+  librarySearchHasLoaded,
   librarySearchMode,
   librarySearchQuery,
-  librarySearchStatusKey,
-  librarySearchTotal,
-  librarySearchTruncated,
+  librarySearchScope,
+  rerunLibrarySearch,
+  setLibrarySearchScope,
 } from './librarySearch'
+import type { SearchScope } from '../config/library'
 import { t, tError } from '../i18n'
 import { shortcutRows } from '../config/shortcutsState'
 import { workCardMeta } from './libraryWorkCard'
 
 const root = useTemplateRef<HTMLElement>('root')
+
+const searchActive = computed(
+  () => librarySearchHasLoaded.value || librarySearchBusy.value || librarySearchError.value !== null,
+)
+
+watch([libraryStatusFilter, librarySourceLangFilter, librarySortKey], () => {
+  void rerunLibrarySearch()
+})
+
+function onSearchScopeChange(scope: SearchScope): void {
+  setLibrarySearchScope(scope)
+}
 
 const workCards = computed(() => libraryWorks.value.map((work) => workCardMeta(work, new Date())))
 
@@ -297,6 +310,38 @@ watch(libraryWorkPageIsOpen, (open, wasOpen) => {
           {{ t('mode.library.search_mode_lenient') }}
         </button>
       </div>
+      <div class="segmented" role="radiogroup" :aria-label="t('mode.library.search_scope_heading')">
+        <label class="segment" :class="{ 'segment--on': librarySearchScope === 'both' }">
+          <input
+            type="radio"
+            name="library-search-scope"
+            data-library-search-scope="both"
+            :checked="librarySearchScope === 'both'"
+            @change="onSearchScopeChange('both')"
+          />
+          {{ t('mode.library.search_scope_both') }}
+        </label>
+        <label class="segment" :class="{ 'segment--on': librarySearchScope === 'source' }">
+          <input
+            type="radio"
+            name="library-search-scope"
+            data-library-search-scope="source"
+            :checked="librarySearchScope === 'source'"
+            @change="onSearchScopeChange('source')"
+          />
+          {{ t('mode.library.search_scope_source') }}
+        </label>
+        <label class="segment" :class="{ 'segment--on': librarySearchScope === 'target' }">
+          <input
+            type="radio"
+            name="library-search-scope"
+            data-library-search-scope="target"
+            :checked="librarySearchScope === 'target'"
+            @change="onSearchScopeChange('target')"
+          />
+          {{ t('mode.library.search_scope_target') }}
+        </label>
+      </div>
         <button type="button" class="btn btn-primary" data-library-import-open @click="dispatch('library.import.open')">
           {{ t('command.library.import.open') }}
         </button>
@@ -425,132 +470,9 @@ watch(libraryWorkPageIsOpen, (open, wasOpen) => {
       </div>
     </div>
 
-    <div class="search-results-block">
-      <!--
-        role="status" TÁM NHÁNH, LUÔN có mặt (không v-if) — §Always của story: "một danh sách
-        kết quả rỗng phải nói VÌ SAO nó rỗng", tám ca PHÂN BIỆT được, không gộp (xem khối 🔵 đầu
-        `librarySearch.ts` cho lý do "tám" chứ không "bảy"). Thứ tự ưu tiên khớp đúng
-        `librarySearch.ts` doc-comment đầu tệp.
-        🔴 SỬA (vòng rà bốn lớp, mục 1) — `result_widened` PHẢI rẽ theo `librarySearchTruncated`
-        NGAY BÊN TRONG nhánh của nó, cùng lý do `SearchReport::truncated` tồn tại từ Story 5.9:
-        "không trần nào được cắt trong im lặng" là luật của kho, không một nhánh mới nào được
-        miễn — một lượt vừa tự nới VỪA bị trần cắt mà chỉ nói "đã tự chuyển sang khoan dung dấu"
-        thì đúng hình dạng, sai sự thật.
-        aura-allow-text: mọi nhánh đều qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
-      -->
-      <p class="status" role="status" data-library-search-status>
-        {{
-          librarySearchStatusKey === 'searching'
-            ? t('mode.library.search_searching')
-            : librarySearchStatusKey === 'not_typed'
-              ? t('mode.library.search_not_typed')
-              : librarySearchStatusKey === 'index_empty'
-                ? t('mode.library.search_index_empty')
-                : librarySearchStatusKey === 'short_query'
-                  ? t('mode.library.search_short_query')
-                  : librarySearchStatusKey === 'no_match_widened'
-                    ? t('mode.library.search_no_match_widened')
-                    : librarySearchStatusKey === 'no_match'
-                      ? t('mode.library.search_no_match')
-                      : librarySearchStatusKey === 'result_widened'
-                        ? librarySearchTruncated
-                          ? t('mode.library.search_result_widened_truncated', { total: String(librarySearchTotal) })
-                          : t('mode.library.search_result_widened', { total: String(librarySearchTotal) })
-                        : librarySearchTruncated
-                          ? t('mode.library.search_result_truncated', { total: String(librarySearchTotal) })
-                          : t('mode.library.search_result', { total: String(librarySearchTotal) })
-        }}
-      </p>
-      <!-- aura-allow-text: như trên, qua tError(). -->
-      <p class="error" role="status">{{ librarySearchError ? tError(librarySearchError) : '' }}</p>
-
-      <!--
-        🔴 THÊM (retro Epic 5, AI-3 — 2026-09-03) — bề mặt ĐỘC LẬP với khối `role="status"` tám
-        nhánh ngay trên: nó phải hiện được CẢ KHI có kết quả (§Always). Một `v-if` RIÊNG theo
-        `librarySearchCoverageGapState` (hàm thuần `librarySearchCoverageGap`), KHÔNG một nhánh
-        chèn vào cây ba ngôi tám nhánh ở trên (§Code Map: "không sửa cây ba ngôi này").
-        🔵 SỬA (vòng rà lần hai, mục 5 — 2026-09-03): GỠ class `status-coverage-gap` — nó không
-        mang một quy tắc CSS nào (`grep -c status-coverage-gap` trên khối CSS của tệp này = 0),
-        tức một selector chết. Chọn GỠ thay vì dựng một quy tắc mới: chưa có quyết định thiết kế nào
-        cho một hình dạng RIÊNG của dòng này (nó dùng lại nguyên `.status` đã có, đúng nhóm với
-        `.error` ngay dưới) — dựng token cho một khác biệt thị giác CHƯA AI YÊU CẦU là bịa thêm
-        phạm vi ngoài spec. `data-library-search-coverage-gap` vẫn ở lại làm móc chọn cho test.
-        aura-allow-text: qua t().
-      -->
-      <p v-if="librarySearchCoverageGapState !== null" class="status" role="status" data-library-search-coverage-gap>
-        {{
-          t('mode.library.search_coverage_gap', {
-            missing: String(librarySearchCoverageGapState.missing),
-            total: String(librarySearchCoverageGapState.total),
-          })
-        }}
-      </p>
-
-      <div v-if="librarySearchHits.length > 0" class="grid-nav">
-        <button
-          type="button"
-          class="btn"
-          data-library-search-prev
-          :aria-label="t('mode.library.search_prev')"
-          @click="dispatch('library.search_prev')"
-        >
-          ‹
-        </button>
-        <span class="grid-nav-position">{{
-          t('mode.library.search_position', {
-            current: String(librarySearchCursor + 1),
-            total: String(librarySearchHits.length),
-          })
-        }}</span>
-        <button
-          type="button"
-          class="btn"
-          data-library-search-next
-          :aria-label="t('mode.library.search_next')"
-          @click="dispatch('library.search_next')"
-        >
-          ›
-        </button>
-      </div>
-
-      <ul v-if="librarySearchHits.length > 0" class="search-results" data-library-search-results>
-        <li
-          v-for="(hit, idx) in librarySearchHits"
-          :key="`${hit.work_id}-${hit.chapter_id}-${hit.segment_id ?? 'chapter'}-${hit.field}`"
-          class="search-hit"
-          :class="{ 'search-hit--current': idx === librarySearchCursor }"
-          :aria-current="idx === librarySearchCursor ? 'true' : undefined"
-          data-library-search-hit
-        >
-          <!-- aura-allow-text: tên Tác phẩm/tiêu đề Chương là DỮ LIỆU người dùng. -->
-          <p class="search-hit-locus">
-            {{ hit.work_name }} · {{ hit.chapter_title ?? t('mode.library.chapter_untitled', { ord: String(hit.chapter_ord) }) }}
-            <!-- aura-allow-text: qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
-            <span class="search-hit-field">{{
-              hit.field === 'target' ? t('mode.library.search_field_target') : t('mode.library.search_field_source')
-            }}</span>
-            <!-- aura-allow-text: qua t(). -->
-            <span v-if="hit.segment_id === null" class="search-hit-field">{{ t('mode.library.search_chapter_level') }}</span>
-            <!-- Story 5.10 -- hit chỉ khớp qua chỉ mục KHOAN DUNG mang một nhãn phân biệt được
-                 (§Always: "hai loại kết quả phân biệt được trên màn hình"). aura-allow-text: qua t(). -->
-            <span v-if="hit.match_kind === 'lenient'" class="search-hit-field search-hit-field--lenient" data-library-search-hit-lenient>{{
-              t('mode.library.search_hit_lenient')
-            }}</span>
-          </p>
-          <!-- aura-allow-text: đoạn trích là DỮ LIỆU người dùng, văn bản THUẦN (AD-16) -- không v-html. -->
-          <p class="search-hit-snippet">{{ hit.snippet }}</p>
-          <button
-            v-if="idx === librarySearchCursor"
-            type="button"
-            class="btn"
-            data-library-search-open
-            @click="dispatch('library.open_search_hit')"
-          >
-            {{ t('mode.library.search_open_button') }}
-          </button>
-        </li>
-      </ul>
-    </div>
+    <LibrarySearchResults v-if="searchActive" />
+    <template v-else>
+    <p class="status" role="status" data-library-search-status>{{ t('mode.library.search_not_typed') }}</p>
 
     <div class="works-block">
       <p class="section-heading">{{ t('mode.library.works_heading') }}</p>
@@ -723,6 +645,8 @@ watch(libraryWorkPageIsOpen, (open, wasOpen) => {
         </li>
       </ul>
     </div>
+
+    </template>
 
     <div class="created-block">
 
@@ -1380,57 +1304,6 @@ watch(libraryWorkPageIsOpen, (open, wasOpen) => {
   border-radius: var(--radius-full);
 }
 
-.search-results {
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.search-hit {
-  padding: 12px;
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  background: var(--color-surface-sunken);
-}
-
-.search-hit--current {
-  border-color: var(--color-primary);
-}
-
-.search-hit-locus {
-  margin: 0 0 4px;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  font-weight: var(--weight-ui-md-strong);
-  color: var(--color-on-surface);
-}
-
-.search-hit-field {
-  margin-left: 8px;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  font-weight: normal;
-  color: var(--color-on-surface-variant);
-}
-
-/* Story 5.10 — nhãn "khoan dung dấu" trên một hit chỉ khớp qua `_nd`, phân biệt bằng TOKEN
-   MÀU (không bóng đổ/gradient — AD-21), cùng token `--color-primary` đã dùng cho trạng thái
-   ĐANG BẬT của các nút chế độ ngay trên. */
-.search-hit-field--lenient {
-  color: var(--color-primary);
-}
-
-.search-hit-snippet {
-  margin: 0 0 8px;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-  word-break: break-word;
-}
 @container (min-width: 800px) {
   .works-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -1511,7 +1384,8 @@ watch(libraryWorkPageIsOpen, (open, wasOpen) => {
   border-left: 1px solid var(--color-outline);
 }
 
-.segment[aria-pressed='true'] {
+.segment[aria-pressed='true'],
+.segment--on {
   color: var(--color-primary);
   background: var(--color-surface-accent);
   font-weight: var(--weight-ui-md-strong);

@@ -479,6 +479,9 @@ export type CommandDeps = {
   /** Mở kết quả ĐANG CHỌN vào Workspace. Handler của `library.open_search_hit` — cùng khuôn
    * `openCurrentLibraryWork` (đọc con trỏ hiện thời, không tham số). */
   openCurrentLibrarySearchHit?: () => void
+  openCurrentLibrarySearchHitInReading?: () => void
+  seeAllLibrarySearchGroup?: () => void
+  toggleCurrentLibrarySearchGroup?: () => void
   // ── Story 5.10 — "Hai chế độ dấu" (FR9) ──────────────────────────────────────────
   //
   // Cùng cửa và cùng lý do ba dep ngay trên: state sống ở `src/modes/librarySearch.ts`.
@@ -2366,6 +2369,39 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.open_search_hit', 'openCurrentLibrarySearchHit')
       }
       deps.openCurrentLibrarySearchHit()
+    },
+  })
+  target.register({
+    id: 'library.open_search_hit_reading',
+    labelKey: 'command.library.open_search_hit_reading',
+    keys: undefined,
+    run: () => {
+      if (deps.openCurrentLibrarySearchHitInReading === undefined) {
+        return portMissing('library.open_search_hit_reading', 'openCurrentLibrarySearchHitInReading')
+      }
+      deps.openCurrentLibrarySearchHitInReading()
+    },
+  })
+  target.register({
+    id: 'library.search_group_toggle',
+    labelKey: 'command.library.search_group_toggle',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleCurrentLibrarySearchGroup === undefined) {
+        return portMissing('library.search_group_toggle', 'toggleCurrentLibrarySearchGroup')
+      }
+      deps.toggleCurrentLibrarySearchGroup()
+    },
+  })
+  target.register({
+    id: 'library.search_group_see_all',
+    labelKey: 'command.library.search_group_see_all',
+    keys: undefined,
+    run: () => {
+      if (deps.seeAllLibrarySearchGroup === undefined) {
+        return portMissing('library.search_group_see_all', 'seeAllLibrarySearchGroup')
+      }
+      deps.seeAllLibrarySearchGroup()
     },
   })
 

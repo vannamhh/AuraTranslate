@@ -2587,7 +2587,8 @@ CREATE TABLE library_segment (
   source_text       TEXT    NOT NULL,
   target_text       TEXT    NOT NULL,
   source_text_fold  TEXT    NOT NULL,
-  target_text_fold  TEXT    NOT NULL
+  target_text_fold  TEXT    NOT NULL,
+  segment_status    TEXT
 );
 CREATE INDEX idx_library_segment_work ON library_segment(work_id);
 CREATE VIRTUAL TABLE library_target_fts USING fts5(
@@ -2664,7 +2665,7 @@ CREATE VIRTUAL TABLE library_source_fts_nd USING fts5(
 /// `library_index_state` is rebuilt-at state kept in a table, not the file mtime: with
 /// `wal_autocheckpoint = 0` the main file's mtime follows checkpoints, not rebuilds.
 pub const LIBRARY_INDEX_MIGRATIONS: &[Migration] = &[Migration {
-    to_version: 9,
+    to_version: 10,
     sql: LIBRARY_WORK_DDL,
 }];
 

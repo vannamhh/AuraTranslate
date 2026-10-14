@@ -34,8 +34,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::library::{
-    apply_chosen_root, forget_orphan, index_rebuilt_at, list_works, open_work_folder,
-    rebuild_index, relocate_orphan, rescan, search_library,
+    SearchArgs, apply_chosen_root, forget_orphan, index_rebuilt_at, list_works, open_work_folder,
+    rebuild_index, relocate_orphan, rescan, search_library, search_library_scoped,
 };
 use auratranslate_lib::core::library::indexer::{
     Indexer, MINIMUM_HARVEST_SCHEMA_VERSION, WorkQuery,
@@ -1302,5 +1302,122 @@ fn the_index_rebuilt_at_read_is_null_before_any_rebuild_and_the_stamp_after() {
 
     drop(indexer);
     drop(global);
+    cleanup(&dir);
+}
+
+/// Giá trị lạ của phạm vi/trạng thái/khoá sắp/ngôn ngữ nguồn bị từ chối ở tầng lệnh, mỗi giá
+/// trị bằng khoá lỗi của nó, trước khi SQL nào chạy.
+#[test]
+fn unknown_scope_status_sort_and_source_lang_are_refused_at_the_command_layer() {
+    let dir = temp_dir("search-unknown-filters");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_atproj(&root, "Mot", "11111111-1111-4111-8111-111111111111", "Mot");
+    indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+
+    let run = |args: SearchArgs<'_>| {
+        search_library_scoped(Some(&indexer), "bat ky truy van nao", None, None, &args)
+            .expect_err("gia tri la phai bi tu choi")
+            .code()
+            .to_owned()
+    };
+    assert_eq!(
+        run(SearchArgs {
+            scope: Some("everywhere"),
+            ..Default::default()
+        }),
+        "library.unknown_search_scope"
+    );
+    let bad_status = vec!["done".to_owned(), "archived".to_owned()];
+    assert_eq!(
+        run(SearchArgs {
+            status: Some(&bad_status),
+            ..Default::default()
+        }),
+        "lifecycle.unknown_status"
+    );
+    assert_eq!(
+        run(SearchArgs {
+            sort: Some("random"),
+            ..Default::default()
+        }),
+        "library.unknown_sort"
+    );
+    assert_eq!(
+        run(SearchArgs {
+            source_lang: Some("fr"),
+            ..Default::default()
+        }),
+        "import.unsupported_source_lang"
+    );
+
+    let empty: Vec<String> = Vec::new();
+    let ok = search_library_scoped(
+        Some(&indexer),
+        "bat ky truy van nao",
+        None,
+        None,
+        &SearchArgs {
+            scope: Some("target"),
+            status: Some(&empty),
+            source_lang: Some("zh"),
+            sort: Some("name_asc"),
+            work_id: None,
+        },
+    )
+    .expect("gia tri hop le");
+    assert_eq!(ok.scope, "target");
+
+    indexer.close();
+    global.close();
+    cleanup(&dir);
+}
+
+/// Các trường mới đi qua `From<CoreSearchHit>`/`From<CoreSearchReport>` với một hit THẬT, và
+/// `scope` được lệnh điền lại.
+#[test]
+fn search_library_scoped_carries_the_new_hit_fields_counts_and_scope_to_the_wire() {
+    let dir = temp_dir("search-scoped-wire");
+    let root = library_root(&dir);
+    fs::create_dir_all(&root).expect("tạo thư mục gốc");
+    let indexer = open_indexer(&dir);
+    let global = open_global(&dir);
+    write_atproj_with_one_real_segment(
+        &root,
+        "Solo",
+        "id-solo",
+        "Solo",
+        "irrelevant",
+        "wiretargetword here",
+    );
+    indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
+
+    let report = search_library_scoped(
+        Some(&indexer),
+        "wiretargetword",
+        None,
+        None,
+        &SearchArgs {
+            scope: Some("target"),
+            ..Default::default()
+        },
+    )
+    .expect("search");
+    assert_eq!(report.scope, "target");
+    assert_eq!(report.hits.len(), 1);
+    let hit = &report.hits[0];
+    assert_eq!(hit.segment_ord, Some(1));
+    assert!(hit.segment_status.is_some());
+    assert_eq!(hit.source_lang, "en");
+    assert!(hit.work_status.is_some());
+    assert_eq!(report.chapters_total, 1);
+    assert_eq!(report.chapters_filtered_out, 0);
+    assert_eq!(report.work_counts.len(), 1);
+    assert_eq!(report.work_counts[0].target_count, 1);
+
+    indexer.close();
+    global.close();
     cleanup(&dir);
 }

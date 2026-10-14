@@ -629,6 +629,23 @@ export type SearchField = 'target' | 'source'
  */
 export type SearchMode = 'exact' | 'lenient'
 
+export type SearchScope = 'both' | 'source' | 'target'
+
+export type SearchLibraryOptions = {
+  scope?: SearchScope
+  status?: string[]
+  sourceLang?: string | null
+  sort?: WorkSortKey
+  workId?: string | null
+}
+
+export type WorkSearchCount = {
+  work_id: string
+  target_count: number
+  source_count: number
+  source_count_is_lower_bound: boolean
+}
+
 /**
  * **THÊM Story 5.10.** Vị từ nào đã tìm ra một hit — khớp
  * `core::library::indexer::MatchKind::as_str()` phía Rust. Union ĐÓNG.
@@ -656,6 +673,11 @@ export type SearchHit = {
   /** **THÊM Story 5.10.** `'exact'`/`'lenient'` — hit này đến từ chỉ mục CHÍNH hay chỉ mục
    * khoan dung `_nd`. */
   match_kind: MatchKind
+  segment_ord: number | null
+  /** As stale as the snippet: refreshed only on index rebuild, not on confirm. */
+  segment_status: string | null
+  work_status: string | null
+  source_lang: string
 }
 
 /** Kết quả một lượt tìm kiếm — khớp `commands::library::SearchReport`. */
@@ -687,6 +709,13 @@ export type SearchReport = {
   /** **THÊM (retro Epic 5, AI-3).** Số Tác phẩm CÓ ÍT NHẤT một dòng văn bản trong chỉ mục, đo
    * TẠI LÚC TRUY VẤN. `works_total - works_with_text` là số Tác phẩm chưa vào chỉ mục. */
   works_with_text: number
+  scope: SearchScope
+  chapters_total: number
+  chapters_filtered_out: number
+  /** Ordered by the filter's sort. */
+  work_counts: WorkSearchCount[]
+  /** A count at the candidate ceiling is a lower bound; Works sorted after the cut may be missing. */
+  source_counts_capped: boolean
 }
 
 /** Ba trạng thái cho [`searchLibrary`]. */
@@ -707,6 +736,29 @@ function isSearchMode(value: unknown): value is SearchMode {
   return value === 'exact' || value === 'lenient'
 }
 
+function isSearchScope(value: unknown): value is SearchScope {
+  return value === 'both' || value === 'source' || value === 'target'
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return typeof value === 'string' || value === null
+}
+
+function isNullableNumber(value: unknown): value is number | null {
+  return typeof value === 'number' || value === null
+}
+
+function isWorkSearchCount(value: unknown): value is WorkSearchCount {
+  if (typeof value !== 'object' || value === null) return false
+  const count = value as Partial<WorkSearchCount>
+  return (
+    typeof count.work_id === 'string' &&
+    typeof count.target_count === 'number' &&
+    typeof count.source_count === 'number' &&
+    typeof count.source_count_is_lower_bound === 'boolean'
+  )
+}
+
 function isSearchHit(value: unknown): value is SearchHit {
   if (typeof value !== 'object' || value === null) return false
   const hit = value as Partial<SearchHit>
@@ -719,7 +771,11 @@ function isSearchHit(value: unknown): value is SearchHit {
     (typeof hit.segment_id === 'number' || hit.segment_id === null) &&
     isSearchField(hit.field) &&
     typeof hit.snippet === 'string' &&
-    isMatchKind(hit.match_kind)
+    isMatchKind(hit.match_kind) &&
+    isNullableNumber(hit.segment_ord) &&
+    isNullableString(hit.segment_status) &&
+    isNullableString(hit.work_status) &&
+    typeof hit.source_lang === 'string'
   )
 }
 
@@ -748,7 +804,13 @@ function isSearchReport(value: unknown): value is SearchReport {
     isSearchMode(v.effective_mode) &&
     typeof v.widened === 'boolean' &&
     typeof v.works_total === 'number' &&
-    typeof v.works_with_text === 'number'
+    typeof v.works_with_text === 'number' &&
+    isSearchScope(v.scope) &&
+    typeof v.chapters_total === 'number' &&
+    typeof v.chapters_filtered_out === 'number' &&
+    Array.isArray(v.work_counts) &&
+    v.work_counts.every(isWorkSearchCount) &&
+    typeof v.source_counts_capped === 'boolean'
   )
 }
 
@@ -760,9 +822,23 @@ function isSearchReport(value: unknown): value is SearchReport {
  * gọi truyền `undefined` để Rust tự áp `SearchMode::default()` (`exact`, §Always), không đoán
  * ở TypeScript.
  */
-export async function searchLibrary(query: string, limit?: number, mode?: SearchMode): Promise<SearchLibraryResult> {
+export async function searchLibrary(
+  query: string,
+  limit?: number,
+  mode?: SearchMode,
+  options: SearchLibraryOptions = {},
+): Promise<SearchLibraryResult> {
   try {
-    const report = await invoke<unknown>(CMD_SEARCH, { query, limit: limit ?? null, mode: mode ?? null })
+    const report = await invoke<unknown>(CMD_SEARCH, {
+      query,
+      limit: limit ?? null,
+      mode: mode ?? null,
+      scope: options.scope ?? null,
+      status: options.status ?? null,
+      sourceLang: options.sourceLang ?? null,
+      sort: options.sort ?? null,
+      workId: options.workId ?? null,
+    })
     if (!isSearchReport(report)) {
       console.error(`[library] \`${CMD_SEARCH}\` trả một SearchReport SAI HÌNH DẠNG: ${JSON.stringify(report)}`)
       return { report: null, error: UNKNOWN_IPC_ERROR }

@@ -721,6 +721,10 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
             field: "target".to_owned(),
             snippet: "‹má› của tôi".to_owned(),
             match_kind: "exact".to_owned(),
+            segment_ord: Some(3),
+            segment_status: Some("confirmed".to_owned()),
+            work_status: Some("in_progress".to_owned()),
+            source_lang: "zh".to_owned(),
         }],
         total: 1,
         indexed_segments: 5,
@@ -732,6 +736,16 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
         // 🔵 THÊM (retro Epic 5, AI-3 — 2026-09-03) -- hai trường mới, đóng băng cùng lượt.
         works_total: 47,
         works_with_text: 12,
+        scope: "both".to_owned(),
+        chapters_total: 120,
+        chapters_filtered_out: 30,
+        work_counts: vec![auratranslate_lib::commands::library::WorkSearchCount {
+            work_id: "id-1".to_owned(),
+            target_count: 4,
+            source_count: 9,
+            source_count_is_lower_bound: true,
+        }],
+        source_counts_capped: false,
     };
     let value = serde_json::to_value(&report).expect("SearchReport phải serialize được");
     let mut top_keys: Vec<&str> = value
@@ -744,14 +758,19 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
     assert_eq!(
         top_keys,
         vec![
+            "chapters_filtered_out",
+            "chapters_total",
             "effective_mode",
             "hits",
             "indexed_segments",
             "mode",
+            "scope",
             "short_query",
+            "source_counts_capped",
             "total",
             "truncated",
             "widened",
+            "work_counts",
             "works_total",
             "works_with_text",
         ],
@@ -779,12 +798,39 @@ fn library_search_wire_structs_keep_snake_case_field_names() {
             "field",
             "match_kind",
             "segment_id",
+            "segment_ord",
+            "segment_status",
             "snippet",
+            "source_lang",
             "work_id",
             "work_name",
+            "work_status",
         ],
         "khoá trên dây của SearchHit là snake_case. Nhận được: {hit_keys:?}. Nghi phạm số một: \
          `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+
+    let count_value = value
+        .get("work_counts")
+        .and_then(|v| v.as_array())
+        .and_then(|a| a.first())
+        .expect("work_counts phải mang ít nhất một mục cho ca test này");
+    let mut count_keys: Vec<&str> = count_value
+        .as_object()
+        .expect("một mục work_counts phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    count_keys.sort_unstable();
+    assert_eq!(
+        count_keys,
+        vec![
+            "source_count",
+            "source_count_is_lower_bound",
+            "target_count",
+            "work_id",
+        ],
+        "khoá trên dây của WorkSearchCount là snake_case. Nhận được: {count_keys:?}."
     );
 }
 
@@ -1616,6 +1662,11 @@ fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
         "query: String",
         "limit: Option<u32>",
         "mode: Option<String>",
+        "scope: Option<String>",
+        "status: Option<Vec<String>>",
+        "source_lang: Option<String>",
+        "sort: Option<String>",
+        "work_id: Option<String>",
     ] {
         assert!(
             library_src.contains(param),
