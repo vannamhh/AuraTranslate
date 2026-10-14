@@ -13156,3 +13156,7 @@ chính nó.
   summary: Chưa đo (maybe-false, nếu đúng là medium): Esc hoặc nhận khớp trong dải TM khi tiêu điểm đang ở dải có thể để con trỏ về `null` qua `GridPanel.vue::onStripFocusOut` nếu tiêu điểm không trả về ô bản dịch.
   evidence: WKWebView, vào dải bằng `Mod+Alt+E`, nhấn Esc rồi nhận một khớp; đọc `editorCaretSegmentId` và `document.activeElement` sau mỗi lần.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-dai-goi-y-moc-thanh-track-hang-duoi-cau-ang-sua-plan.md`
+  summary: Chưa ai nhìn dải gợi ý mọc ở hàng cuối khung nhìn trên bản đóng gói macOS, sáng và tối, và chưa ai nghe VoiceOver đọc dải qua `aria-details` của ô câu neo (dải đứng sau cả bốn cột trong DOM).
+  evidence: e2e 12-9 chỉ đo hình học và `scrollTop` trên bản debug; thứ tự đọc thật cần người nghe.
+  Chủ: Epic 12.
