@@ -24,6 +24,7 @@ vi.mock('../../src/config/tm', () => ({
   tmOpenImportPreview: (...args: unknown[]) => openPreviewMock(...args),
   tmConfirmImport: (...args: unknown[]) => confirmMock(...args),
   tmCancelImport: (...args: unknown[]) => cancelMock(...args),
+  tmCountPairs: async () => null,
 }))
 
 function listing(over: Partial<TmManageListing> = {}): TmManageListing {

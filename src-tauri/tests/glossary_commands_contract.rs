@@ -31,8 +31,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::glossary::{
     glossary_add_term, glossary_approve_candidate, glossary_confirm_pending_translation,
-    glossary_delete_term, glossary_list_entries, glossary_lookup_term, glossary_pending_candidates,
-    glossary_promote_term_to_global, glossary_reject_candidate, glossary_update_term,
+    glossary_count_entries, glossary_delete_term, glossary_list_entries, glossary_lookup_term,
+    glossary_pending_candidates, glossary_promote_term_to_global, glossary_reject_candidate,
+    glossary_update_term,
 };
 use auratranslate_lib::commands::project::create_work_from_text;
 use auratranslate_lib::core::glossary::scan::ScanCandidate;
@@ -1113,6 +1114,12 @@ fn glossary_list_entries_lists_both_tiers_and_flags_the_shadowed_row() {
         "dung hai hang cho cung mot source_term. Nhan: {rows:?}"
     );
 
+    assert_eq!(
+        glossary_count_entries(Some(&global), Some(&opened)).expect("dem muc"),
+        rows.len() as u64,
+        "so dem phai gom ca hang bi che"
+    );
+
     let winner = rows
         .iter()
         .find(|r| r.tier == "work" && !r.is_shadowed)
@@ -1151,6 +1158,10 @@ fn glossary_list_entries_without_an_open_work_lists_only_the_global_tier() {
 
     let rows = glossary_list_entries(Some(&global), None).expect("liet ke khi chua mo Tac pham");
     assert_eq!(rows.len(), 1);
+    assert_eq!(
+        glossary_count_entries(Some(&global), None).expect("dem khi chua mo Tac pham"),
+        1
+    );
     assert_eq!(rows[0].tier, "global");
     assert!(
         !rows[0].is_shadowed,

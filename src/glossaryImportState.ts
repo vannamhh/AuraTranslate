@@ -18,6 +18,7 @@
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { cancelGlossaryImport, confirmGlossaryImport, openGlossaryImportPreview } from './config/glossary'
+import { refreshWorkspaceCounts } from './workspaceCountsState'
 import type { GlossaryConflictDecision, GlossaryImportPreview, GlossaryTierWire } from './config/glossary'
 import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
@@ -220,6 +221,7 @@ export async function confirmGlossaryImportPreview(): Promise<void> {
     return
   }
 
+  void refreshWorkspaceCounts()
   closeWithoutCancelling()
 }
 

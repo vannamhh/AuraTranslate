@@ -145,14 +145,14 @@ beforeEach(() => {
 })
 
 describe('GridPanel.vue — ảnh đúng vị trí + nhãn vai (Story 6.14)', () => {
-  it('🔴 mỗi trong năm cột có đúng N phần tử con và `gridTemplateRows` đếm đúng N — ảnh không sinh thêm track nào', async () => {
+  it('🔴 mỗi trong bốn cột có đúng N phần tử con và `gridTemplateRows` đếm đúng N — ảnh không sinh thêm track nào', async () => {
     const wrapper = await mountGrid()
 
     const grid = rootOf(wrapper).querySelector<HTMLElement>('.grid')
     expect(grid).not.toBeNull()
     expect(grid?.style.gridTemplateRows).toBe(`repeat(${SEGMENTS.length}, auto)`)
 
-    for (const colSelector of ['.col-rule', '.col-num', '.col-src', '.col-tgt', '.col-state']) {
+    for (const colSelector of ['.col-rule', '.col-num', '.col-src', '.col-tgt']) {
       const col = rootOf(wrapper).querySelector(colSelector)
       expect(col, `cột ${colSelector} phải có mặt`).not.toBeNull()
       expect(col?.children.length, `cột ${colSelector} phải có đúng ${SEGMENTS.length} phần tử con`).toBe(SEGMENTS.length)

@@ -104,10 +104,11 @@ async function mountGrid() {
   return { wrapper, state, history }
 }
 
+/** Nhãn lỗi hàng nằm ở thuộc tính `data-row-error` của ô bản dịch (vẽ bằng `::after`). */
 function stateCellTextFor(wrapper: ReturnType<typeof mount>, index: number): string | null {
-  const cells = Array.from((wrapper.element as unknown as Element).querySelectorAll('.col-state .cell-state'))
+  const cells = Array.from((wrapper.element as unknown as Element).querySelectorAll('.col-tgt .cell-tgt'))
   const cell = cells.at(index)
-  return cell === undefined ? null : cell.textContent.trim()
+  return cell === undefined ? null : cell.getAttribute('data-row-error')
 }
 
 beforeEach(() => {
@@ -139,6 +140,9 @@ describe('GridPanel.vue — nhãn hàng ưu tiên lỗi xác nhận trên lỗi 
 
     expect(stateCellTextFor(wrapper, 1)).toBe(t('err.segment.nothing_to_confirm', { segment_id: '12' }))
     expect(stateCellTextFor(wrapper, 1)).not.toBe(t('err.store.write_failed', {}))
+    const cell = (wrapper.element as unknown as Element).querySelectorAll('.col-tgt .cell-tgt')[1]
+    expect(cell.getAttribute('aria-label')).toContain(t('err.segment.nothing_to_confirm', { segment_id: '12' }))
+    expect(cell.classList.contains('refused')).toBe(true)
   })
 
   it('cùng một segment mang cả lỗi xác nhận VÀ lỗi khôi phục ⇒ hàng hiện lỗi XÁC NHẬN, không lỗi khôi phục', async () => {

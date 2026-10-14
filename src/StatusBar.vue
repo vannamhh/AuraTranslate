@@ -36,13 +36,26 @@ import { dispatch } from './commands'
 // applyTier` ĐỒNG BỘ qua `syncLayoutTier` (sửa 2026-09-23 — bản đầu thăm dò DOM mỗi 200ms;
 // xem doc-comment đầu tệp đó). `StatusBar` chỉ ĐỌC nó qua `v-if`, không còn vòng đời nào để
 // bắt đầu/dừng ở đây.
-import { lookupHasRetreated } from './layout/lookupDrawerState'
+import { lookupHasRetreated, workspaceLayoutTier } from './layout/lookupDrawerState'
+import { isSegmentConfirmed } from './config/segment'
+import { EDITOR_HARD_CAP_MS, EDITOR_IDLE_MS } from './panels/editorFlush'
+import { isMeaningKind } from './config/proofread'
+import { shortcutRows } from './config/shortcutsState'
+import { libraryChapters } from './modes/libraryChapters'
+import { groupedLookup, sensesByLayer } from './panels/lookupPanelState'
+import { proofreadResults, proofreadStateValue } from './proofreadState'
+import { refreshWorkspaceCounts, workspaceGlossaryEntryCount, workspaceTmPairCount } from './workspaceCountsState'
 import {
+  editorCaretSegmentId,
+  editorChapterId,
   editorConfirmNotice,
+  editorHasLoaded,
+  editorLastCaretSegmentId,
   editorNavNotice,
   editorLastSavedAt,
   editorRegroupError,
   editorRegroupNotice,
+  editorSegments,
   // 🔵 Story 5.8 — ô câu chữ THỨ TƯ: lượt tách CHƯƠNG (`editor.split_chapter`, `Mod+Shift+Slash`).
   editorSplitChapterError,
   editorSplitChapterNotice,
@@ -127,6 +140,105 @@ onBeforeUnmount(() => {
   // `ResizeObserver` và bộ hẹn đo vạch.
   if (ticker !== null) clearInterval(ticker)
   ticker = null
+})
+
+/**
+ * Permanent information of the status bar. It sits outside the `role="status"` region so a
+ * caret move or a counter change is never announced; an unknown value is `null` and its item
+ * is hidden, never rendered as 0.
+ */
+const positionInChapter = computed<number | null>(() => {
+  const segments = editorSegments.value
+  const id = editorCaretSegmentId.value ?? editorLastCaretSegmentId.value
+  if (id === null) return null
+  const index = segments.findIndex((s) => s.id === id)
+  return index < 0 ? null : index + 1
+})
+
+const chapterLabel = computed<string | null>(() => {
+  const id = editorChapterId.value
+  const row = libraryChapters.value.find((chapter) => chapter.chapter_id === id)
+  return row === undefined ? null : t('mode.library.chapter_untitled', { ord: String(row.ord) })
+})
+
+const positionText = computed<string | null>(() => {
+  if (!editorHasLoaded()) return null
+  const n = positionInChapter.value
+  if (n === null) return null
+  const total = String(editorSegments.value.length)
+  const label = chapterLabel.value
+  return label === null
+    ? t('status.position_sentence_only', { n: String(n), total })
+    : t('status.position', { chapter: label, n: String(n), total })
+})
+
+const confirmedCounterText = computed<string | null>(() => {
+  if (!editorHasLoaded()) return null
+  const counted = editorSegments.value.filter((s) => !s.is_omitted)
+  if (counted.length === 0) return null
+  const confirmed = counted.filter(isSegmentConfirmed).length
+  return t('status.confirmed_counter', { confirmed: String(confirmed), total: String(counted.length) })
+})
+
+const shortcutHintText = computed<string | null>(() => {
+  const chordOf = (id: string): string =>
+    shortcutRows.value.find((row) => row.id === id)?.display.join(' / ') ?? ''
+  const merge = chordOf('editor.merge_segments')
+  const split = chordOf('editor.split_segment')
+  if (merge === '' || split === '') return null
+  return t('status.regroup_hint', { merge_chord: merge, split_chord: split })
+})
+
+const proofreadCountsText = computed<string | null>(() => {
+  if (proofreadStateValue.value !== 'done' || !editorHasLoaded()) return null
+  let spelling = 0
+  let meaning = 0
+  for (const entry of proofreadResults.value.values()) {
+    for (const finding of entry.findings) {
+      if (isMeaningKind(finding.kind)) meaning += 1
+      else spelling += 1
+    }
+  }
+  return t('status.proofread_counts', { spelling_count: String(spelling), meaning_count: String(meaning) })
+})
+
+const glossaryCountText = computed<string | null>(() => {
+  const count = workspaceGlossaryEntryCount.value
+  return count === null ? null : t('status.glossary_count', { count: String(count) })
+})
+
+const tmCountText = computed<string | null>(() => {
+  const count = workspaceTmPairCount.value
+  return count === null ? null : t('status.tm_count', { count: String(count) })
+})
+
+const showAutoSave = computed(() => workspaceLayoutTier.value === 'full')
+
+const autoSaveHintText = computed(() =>
+  t('status.autosave_hint', {
+    idle_seconds: String(EDITOR_IDLE_MS / 1000),
+    cap_seconds: String(EDITOR_HARD_CAP_MS / 1000),
+  }),
+)
+
+const lookupLineText = computed<string | null>(() => {
+  const group = groupedLookup.value?.groups[0]
+  if (group === undefined) return null
+  const entryIds = new Set(group.entries.map((hit) => hit.entry_id))
+  const sense = (sensesByLayer.value[group.layer] ?? []).find((s) => entryIds.has(s.entry_id))
+  return sense === undefined ? null : sense.gloss
+})
+
+const lookupChordText = computed<string>(
+  () => shortcutRows.value.find((row) => row.id === 'layout.lookup_drawer_open')?.display.join(' / ') ?? '',
+)
+
+onMounted(() => {
+  void refreshWorkspaceCounts()
+})
+
+watch(editorChapterId, () => {
+  void refreshWorkspaceCounts()
 })
 
 /**
@@ -334,8 +446,7 @@ const navNoticeKey = computed<string | null>(() => {
  * VÌ SAO TÁI DÙNG `glossary.quick_add.translation_label` CHO CA ĐÃ CHỐT, KHÔNG MỘT KHOÁ MỚI
  * ─────────────────────────────────────────────────────────────────────────────
  * `translation` là DỮ LIỆU của người dùng (một mục Glossary họ đã chốt), không một chuỗi giao
- * diện — cùng luật `panel.source.han_viet_sources_prefix` + `sourcesLine` ở
- * `SourceHanViet.vue`: một khoá LÀM TIỀN TỐ, dữ liệu ghép sau. `glossary.quick_add.translation_label`
+ * diện — một khoá LÀM TIỀN TỐ, dữ liệu ghép sau. `glossary.quick_add.translation_label`
  * ("Bản dịch") đã tồn tại từ Story 3.3 đúng cho vai này — thêm một khoá thứ hai cho cùng một
  * câu là hai nguồn sự thật cho một mệnh đề, và Story 1.7 §Completion Notes #3 cấm một khoá
  * không có nhánh nào đi qua (ở đây thì NGƯỢC LẠI: một khoá ĐÃ có nhánh, đúc thêm một bản sao
@@ -374,19 +485,22 @@ const glossaryHoverText = computed<string | null>(() => {
 
 <template>
   <!--
-    `role="status"` chứ không `role="alert"`: `alert` cắt ngang trình đọc màn hình giữa câu, và
-    đây là một thông báo về **trạng thái** — cùng phân xử mà dải báo lỗi cấu hình của Story 1.8
-    đã ghi ở `App.vue`.
-
-    ⚠️ `aria-live` để mặc định của `role="status"` (`polite`). Một mốc *"Đã lưu N giây trước"*
-    đổi **mỗi giây**, nên `assertive` sẽ là một trình đọc màn hình nói liên tục không dứt.
+    `role="status"` chỉ bọc chuỗi câu báo (nhánh cuối là mốc "Đã lưu N giây trước"), không bọc
+    cả thanh: vị trí câu và bộ đếm đổi theo từng cú gõ, và một vùng sống bọc chúng sẽ bắt trình
+    đọc màn hình đọc lại mỗi lần. `aria-live` để mặc định (`polite`).
   -->
-  <footer class="status" role="status">
-    <!--
-      aura-allow-text: KẾT QUẢ của `t()` — chuỗi đã đi qua `vi.json`. `v-if` chứ không một chuỗi
-      rỗng: trước lượt flush ĐẦU TIÊN thanh này **không khẳng định gì**, vì *"Đã lưu 0 giây
-      trước"* lúc chưa lưu gì là câu nói dối tệ nhất mà UX-DR30 tồn tại để chặn.
-    -->
+  <footer class="status">
+    <div class="status-info" data-status-info>
+      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+      <span v-if="positionText !== null" class="info-item" data-status-position>{{ positionText }}</span>
+      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+      <span v-if="confirmedCounterText !== null" class="info-item" data-status-confirmed>{{ confirmedCounterText }}</span>
+      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+      <span v-if="shortcutHintText !== null" class="info-item" data-status-hint>{{ shortcutHintText }}</span>
+      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+      <span v-if="proofreadCountsText !== null" class="info-item" data-status-proofread>{{ proofreadCountsText }}</span>
+    </div>
+    <div class="status-live" role="status" data-status-live>
     <!--
       aura-allow-text: KẾT QUẢ của `t()`. 🔵 2026-08-15 — câu báo của lượt xác nhận đứng **TRƯỚC**
       mốc *"Đã lưu"* và **thay** chỗ nó (`v-if`/`v-else-if`, không hai `v-if` rời). Lý do ở
@@ -457,7 +571,21 @@ const glossaryHoverText = computed<string | null>(() => {
     <span v-else-if="secondsSinceSave !== null" class="saved" data-status-saved>{{
       t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
     }}</span>
-
+    </div>
+    <div class="status-end" data-status-end>
+      <template v-if="!lookupHasRetreated">
+        <span class="info-item" data-status-lookup-offline>{{ t('status.lookup_offline') }}</span>
+        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+        <span v-if="glossaryCountText !== null" class="info-item" data-status-glossary>{{ glossaryCountText }}</span>
+        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+        <span v-if="tmCountText !== null" class="info-item" data-status-tm>{{ tmCountText }}</span>
+        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+        <span v-if="showAutoSave" class="info-item" data-status-autosave-hint>{{ autoSaveHintText }}</span>
+      </template>
+      <!-- aura-allow-text: nghĩa đầu của nguồn đầu — DỮ LIỆU từ điển, không chuỗi giao diện. -->
+      <span v-else-if="lookupLineText !== null" class="info-item lookup-line" data-status-lookup-line>{{ lookupLineText }}</span>
+      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+      <span v-if="lookupHasRetreated && lookupChordText !== ''" class="info-item" data-status-lookup-chord>{{ lookupChordText }}</span>
     <!--
       🔵 Story 4.12, Phase 3a (Decision 2) — điểm vào ngăn kéo Tra cứu.
 
@@ -479,6 +607,7 @@ const glossaryHoverText = computed<string | null>(() => {
     >
       {{ t('command.layout.lookup_drawer_open') }}
     </button>
+    </div>
   </footer>
 </template>
 
@@ -503,9 +632,54 @@ const glossaryHoverText = computed<string | null>(() => {
   align-items: center;
   flex: none;
   height: var(--space-status-height);
+  gap: var(--space-panel-inline);
   padding: 0 var(--space-panel-inline);
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface);
+}
+
+/*
+ * Permanent items truncate with an ellipsis before they can push the live notice out; the
+ * notice keeps its own width, so the row never overflows the 34px bar.
+ */
+.status-info,
+.status-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-panel-inline);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.status-info {
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+
+.status-live {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-end {
+  flex: 0 1 auto;
+  margin-left: auto;
+}
+
+.info-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-line {
+  max-width: 40ch;
 }
 
 .saved {
@@ -543,7 +717,6 @@ const glossaryHoverText = computed<string | null>(() => {
  */
 .lookup-entry {
   flex: none;
-  margin-left: auto;
   padding: 0;
   background: none;
   border: none;

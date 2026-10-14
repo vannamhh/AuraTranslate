@@ -291,6 +291,14 @@ pub fn tm_list_pairs(
     score_tm_list(prepare_tm_list(global, open, pair_origin, tier, search)?)
 }
 
+/// Stored pairs of both tiers (Global only with no Work open); equals `total_pairs` of an
+/// unfiltered `tm_list_pairs`, which concatenates the tiers without deduplicating.
+pub fn tm_count_pairs(global: Option<&Store>, open: Option<&OpenWork>) -> Result<u64, IpcError> {
+    let global = global.ok_or_else(global_store_missing)?;
+    crate::core::tm::count_tier_pairs(global, open.map(|o| &o.store))
+        .map_err(|e| tm_lookup_failed(&e))
+}
+
 /// Replaces the target on every copy of a row; each copy's origin becomes `self`, id and date
 /// stay. Copies are re-read first and only those still holding `source_text` and
 /// `expected_target` are touched; none left is `tm.pair_not_found`. A `target_text` equal to
@@ -835,6 +843,21 @@ pub mod wire {
             }
         };
         super::score_tm_list(scan)
+    }
+
+    /// Wire shell of [`super::tm_count_pairs`]: one `COUNT(*)` per tier, so a plain command.
+    #[tauri::command]
+    pub fn tm_count_pairs<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<u64, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<crate::core::store::Store>();
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::tm_count_pairs(global.as_deref(), None);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::tm_count_pairs(global.as_deref(), guard.as_ref())
     }
 
     /// Wire shell of [`super::tm_update_pair_target`]; `copies`, `sourceText`, `expectedTarget`,

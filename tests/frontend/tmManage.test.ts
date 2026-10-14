@@ -19,6 +19,7 @@ vi.mock('../../src/config/tm', () => ({
   tmDeletePair: (...args: unknown[]) => deleteMock(...args),
   tmDeleteOthers: (...args: unknown[]) => deleteOthersMock(...args),
   tmPushPairToGlobal: (...args: unknown[]) => pushMock(...args),
+  tmCountPairs: async () => null,
 }))
 
 function row(over: Partial<TmManageRow> = {}): TmManageRow {

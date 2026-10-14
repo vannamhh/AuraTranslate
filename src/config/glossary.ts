@@ -733,6 +733,7 @@ export type GlossaryListEntriesResult = { entries: GlossaryEntry[] | null; error
 
 /** Tên command trên dây. Khớp `src-tauri/src/commands/glossary.rs` (module `wire`). */
 const CMD_LIST_ENTRIES = 'glossary_list_entries'
+const CMD_COUNT_ENTRIES = 'glossary_count_entries'
 const CMD_DELETE_TERM = 'glossary_delete_term'
 const CMD_PROMOTE_TERM_TO_GLOBAL = 'glossary_promote_term_to_global'
 
@@ -761,6 +762,17 @@ export async function listGlossaryEntries(): Promise<GlossaryListEntriesResult> 
 
     console.info(`[glossary] không gọi được \`${CMD_LIST_ENTRIES}\` — chạy ngoài Tauri? ${String(err)}`)
     return { entries: null, error: null }
+  }
+}
+
+/** Số mục Glossary của cả hai tầng; `null` khi chưa biết (lệnh trượt hoặc không có cầu IPC). Không ném. */
+export async function countGlossaryEntries(): Promise<number | null> {
+  try {
+    const count = await invoke<unknown>(CMD_COUNT_ENTRIES)
+    if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) return null
+    return count
+  } catch {
+    return null
   }
 }
 

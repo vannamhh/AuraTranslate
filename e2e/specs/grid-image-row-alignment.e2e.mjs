@@ -58,7 +58,7 @@ async function openWorkFromDocx(name, path) {
  * `browser.execute` ships this function body to the page standalone, with no access to a
  * module-level constant, so the column selector list is inlined here. */
 function measureGrid() {
-  const selectors = ['.col-rule', '.col-num', '.col-src', '.col-tgt', '.col-state']
+  const selectors = ['.col-rule', '.col-num', '.col-src', '.col-tgt']
   const columns = selectors.map((sel) => [...document.querySelectorAll(`${sel} > *`)])
   const columnCounts = columns.map((cells) => cells.length)
   const rowCount = columnCounts[0]
@@ -76,7 +76,7 @@ function measureGrid() {
   }
 }
 
-describe('Lưới 5 cột giữ hàng thẳng khi một ảnh làm một hàng cao hơn (FR42/FR43, ticket #68)', () => {
+describe('Lưới 4 cột giữ hàng thẳng khi một ảnh làm một hàng cao hơn (FR42/FR43, ticket #68)', () => {
   it('mọi cột cùng hàng có top khớp nhau, và hai hàng không đè lên nhau', async () => {
     const path = writeFixtureDocx()
     try {

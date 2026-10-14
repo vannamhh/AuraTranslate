@@ -50,6 +50,7 @@ import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBus
 import type { IpcError } from './i18n'
 import { editorChapterId, editorSegments } from './panels/editorPanelState'
 import { refreshGlossaryMarks } from './panels/glossaryMarksState'
+import { refreshWorkspaceCounts } from './workspaceCountsState'
 import { sourceChapter } from './panels/sourcePanelState'
 
 /**
@@ -466,6 +467,7 @@ export async function saveGlossaryManageEdit(): Promise<void> {
  * của `glossaryQuickAddState.ts`. `void` có chủ ý: mục Glossary đã đổi XUỐNG ĐĨA THẬT dù
  * lượt làm mới này có trượt. */
 function refreshGlossaryMarksAfterMutation(): void {
+  void refreshWorkspaceCounts()
   const chapterId = editorChapterId.value
   const chapter = sourceChapter.value
   if (chapterId === null || chapter === null || chapterId !== chapter.chapter_id) return

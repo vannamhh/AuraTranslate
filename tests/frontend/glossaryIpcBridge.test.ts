@@ -177,6 +177,9 @@ const CASES: readonly BridgeCase[] = [
  * về khác nhau, và một `as` ở đây sẽ dạy `@typescript-eslint/no-unnecessary-condition` rằng
  * nhánh nó đang đọc luôn đúng — tức làm đúng cái điều mà cổng thứ mười ra đời để chặn.
  */
+/** Adapters whose result is `number | null` with no `error` field; covered by the ②d group instead. */
+const COUNT_ADAPTERS: ReadonlySet<string> = new Set(['countGlossaryEntries'])
+
 function fieldOf(result: unknown, key: string): unknown {
   if (typeof result !== 'object' || result === null) return undefined
   return (result as Record<string, unknown>)[key]
@@ -275,7 +278,9 @@ describe('②c quần thể — bảng ca phải phủ ĐỦ số nhánh `catch`
 
     const exported = new Set(
       Object.keys(glossary).filter(
-        (key) => typeof (glossary as unknown as Record<string, unknown>)[key] === 'function',
+        (key) =>
+          typeof (glossary as unknown as Record<string, unknown>)[key] === 'function' &&
+          !COUNT_ADAPTERS.has(key),
       ),
     )
     const tabled = new Set(CASES.map((c) => c.name))
@@ -284,5 +289,36 @@ describe('②c quần thể — bảng ca phải phủ ĐỦ số nhánh `catch`
     // Tên trên dây cũng phải đôi một khác nhau: hai hàng chép nhầm cùng một `wire` thì phép
     // khẳng định "chẩn đoán nêu đích danh command" của ②a xanh oan cho một trong hai.
     expect(new Set(CASES.map((c) => c.wire)).size).toBe(CASES.length)
+  })
+})
+
+describe('②d countGlossaryEntries — một con số hoặc `null` (chưa biết), không bao giờ `0` giả và không ném', () => {
+  it('lệnh trả một số nguyên không âm ⇒ đúng số đó, kể cả 0 thật', async () => {
+    const glossary = await freshAdapter()
+    attachBridge()
+    mockInvoke.mockReset()
+
+    mockInvoke.mockResolvedValue(42)
+    expect(await glossary.countGlossaryEntries()).toBe(42)
+    mockInvoke.mockResolvedValue(0)
+    expect(await glossary.countGlossaryEntries()).toBe(0)
+    expect(mockInvoke).toHaveBeenCalledWith('glossary_count_entries')
+  })
+
+  it('lệnh trượt, hoặc trả sai hình dạng ⇒ `null`', async () => {
+    const glossary = await freshAdapter()
+    attachBridge()
+
+    expect(await glossary.countGlossaryEntries()).toBeNull()
+    for (const bad of ['7', -1, 1.5, null, undefined, { count: 7 }]) {
+      mockInvoke.mockReset()
+      mockInvoke.mockResolvedValue(bad)
+      expect(await glossary.countGlossaryEntries(), String(bad)).toBeNull()
+    }
+  })
+
+  it('không có cầu Tauri ⇒ `null`', async () => {
+    const glossary = await freshAdapter()
+    expect(await glossary.countGlossaryEntries()).toBeNull()
   })
 })

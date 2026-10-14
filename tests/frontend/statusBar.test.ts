@@ -93,7 +93,7 @@ describe('thanh trạng thái — AC7 · AC10 · UX-DR30', () => {
     // Vỏ CÓ mặt — `EXPERIENCE.md:417` tính chiều cao nó vào bố cục cả ba chế độ. Nội dung thì không.
     expect(wrapper.find('.status').exists()).toBe(true)
     expect(wrapper.find('.saved').exists()).toBe(false)
-    expect(wrapper.text()).toBe('')
+    expect(wrapper.find('[data-status-live]').text()).toBe('')
 
     // Và nó vẫn im sau ba nhịp đồng hồ — không phải chỉ im ở lượt vẽ đầu.
     await vi.advanceTimersByTimeAsync(3000)

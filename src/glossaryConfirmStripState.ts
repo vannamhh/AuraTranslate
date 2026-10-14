@@ -39,6 +39,7 @@ import type { IpcError } from './i18n'
 import { glossaryMarksBySegment } from './panels/glossaryMarksMap'
 import type { GlossarySegmentSource } from './panels/glossaryMarksMap'
 import { refreshGlossaryMarks } from './panels/glossaryMarksState'
+import { refreshWorkspaceCounts } from './workspaceCountsState'
 
 /**
  * Mục đang được hỏi — `tier`+`id` đủ để gọi `confirmPendingGlossaryTranslation`.
@@ -424,6 +425,7 @@ export async function confirmGlossaryConfirmStrip(
   }
 
   if (stillCurrentTarget) restoreFocusAndSelection()
+  void refreshWorkspaceCounts()
   void refreshGlossaryMarks(chapterId, segments, sourceLang)
   return true
 }

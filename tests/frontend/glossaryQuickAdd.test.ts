@@ -22,6 +22,7 @@ vi.mock('../../src/config/glossary', () => ({
   lookupGlossaryTerm: (term: string) => lookupMock(term),
   addGlossaryTerm: (...args: unknown[]) => addMock(...args),
   updateGlossaryTerm: (...args: unknown[]) => updateMock(...args),
+  countGlossaryEntries: async () => null,
 }))
 
 /** Nạp lại module mỗi ca — state của dải là module-level singleton (cùng khuôn `statusBar.test.ts`). */

@@ -362,8 +362,8 @@ const SRC_ATOMIC = 'data-src-atomic'
  *
  * ⚠️ Chặn ở `cell` chứ không đi hết lên `document` — cùng lý do [`duoiRt`] đã ghi.
  *
- * 🔴 **`null` là một câu trả lời ĐÚNG, không một ca sót.** Nó là thứ làm dòng
- * `Nguồn: thieu-chuu` (`.hv-sources`), câu trạng thái (`.hv-notice`) và `<rt>` **không** đẻ
+ * 🔴 **`null` là một câu trả lời ĐÚNG, không một ca sót.** Nó là thứ làm câu
+ * trạng thái (`.hv-notice`) và `<rt>` **không** đẻ
  * ra một chỗ cắt — theo **cấu tạo**, không nhờ một danh sách loại trừ phải bảo trì. Một phần
  * tử mới thêm vào ô mà quên neo sẽ **im lặng không cắt được**, chứ không **cắt sai chỗ**; hai
  * kiểu hỏng đó cách nhau rất xa khi AD-5 không cho hoàn tác.

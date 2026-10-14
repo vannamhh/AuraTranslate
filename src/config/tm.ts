@@ -86,6 +86,7 @@ export type TmDeleteOthersResult = {
 }
 
 const CMD_TM_LIST_PAIRS = 'tm_list_pairs'
+const CMD_TM_COUNT_PAIRS = 'tm_count_pairs'
 const CMD_TM_UPDATE_PAIR_TARGET = 'tm_update_pair_target'
 const CMD_TM_DELETE_PAIR = 'tm_delete_pair'
 const CMD_TM_DELETE_OTHERS = 'tm_delete_others'
@@ -230,6 +231,17 @@ export async function tmListPairs(
     return { listing, error: null }
   } catch (err) {
     return { listing: null, error: failureOf(err, CMD_TM_LIST_PAIRS) }
+  }
+}
+
+/** Pair count of both tiers; `null` when unknown (command failed or no bridge). Never throws. */
+export async function tmCountPairs(): Promise<number | null> {
+  try {
+    const count = await invoke<unknown>(CMD_TM_COUNT_PAIRS)
+    if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) return null
+    return count
+  } catch {
+    return null
   }
 }
 

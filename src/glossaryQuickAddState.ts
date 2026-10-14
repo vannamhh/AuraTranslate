@@ -30,6 +30,7 @@ import type { IpcError } from './i18n'
 // làm mới THỨ HAI mà `3-4b-…md` §Intent liệt kê, cạnh gộp/tách segment.
 import { editorChapterId, editorSegments } from './panels/editorPanelState'
 import { refreshGlossaryMarks } from './panels/glossaryMarksState'
+import { refreshWorkspaceCounts } from './workspaceCountsState'
 import { sourceChapter } from './panels/sourcePanelState'
 
 /**
@@ -383,6 +384,7 @@ export async function saveGlossaryQuickAdd(): Promise<boolean> {
  * hoàn tác nếu IPC thứ hai này lỗi, cùng khuôn mọi lượt gọi "làm mới" khác trong kho.
  */
 function refreshGlossaryMarksAfterSave(): void {
+  void refreshWorkspaceCounts()
   const chapterId = editorChapterId.value
   const chapter = sourceChapter.value
   if (chapterId === null || chapter === null || chapterId !== chapter.chapter_id) return

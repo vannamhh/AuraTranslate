@@ -23,6 +23,7 @@ vi.mock('../../src/config/glossary', () => ({
   lookupGlossaryTerm: (term: string) => lookupMock(term),
   approveGlossaryCandidate: (...args: unknown[]) => approveMock(...args),
   rejectGlossaryCandidate: (id: number) => rejectMock(id),
+  countGlossaryEntries: async () => null,
 }))
 
 /** Nạp lại module mỗi ca — state của lớp phủ là module-level singleton. */

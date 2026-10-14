@@ -38,6 +38,7 @@ vi.mock('../../src/config/glossary', () => ({
   updateGlossaryTerm: (...args: unknown[]) => updateMock(...args),
   lookupGlossaryTerm: (term: string) => lookupMock(term),
   exportGlossaryTier: (tier: string) => exportMock(tier),
+  countGlossaryEntries: async () => null,
 }))
 
 vi.mock('../../src/panels/editorPanelState', () => ({

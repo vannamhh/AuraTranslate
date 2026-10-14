@@ -26,6 +26,7 @@ import type {
 } from './config/tm'
 import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
+import { refreshWorkspaceCounts } from './workspaceCountsState'
 
 export type TmManageStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded'
 
@@ -460,6 +461,7 @@ export async function deleteTmManagePair(): Promise<void> {
     return
   }
   editing.value = false
+  void refreshWorkspaceCounts()
   await loadRows(null)
 }
 
@@ -496,6 +498,7 @@ export async function deleteTmManageOthers(): Promise<void> {
     global: result.outcome.deleted_global,
   }
   editing.value = false
+  void refreshWorkspaceCounts()
   await loadRows(null)
 }
 
@@ -530,6 +533,7 @@ export async function pushTmManagePair(): Promise<void> {
     return
   }
   editing.value = false
+  void refreshWorkspaceCounts()
   const movedKey = tmManageRowKey(result.pair)
   await loadRows(movedKey)
   if (mySession !== session) return

@@ -2179,13 +2179,38 @@ if (editorVue === undefined) {
     //    gì là thứ story sau tin nhầm. Bắt ở code review 2026-08-12.
     const escaped = value.replace(/[.+^${}()|[\]\\]/g, '\\$&')
     const wantDecl = new RegExp(
-      `\\.rule-${escaped}\\s*\\{[^}]*background-color:\\s*var\\(\\s*--color-${escaped}\\s*\\)`,
+      `\\.rule-${escaped}\\s*\\{[^}]*(?:background-color|border-color|border-left):[^;}]*var\\(\\s*--color-${escaped}\\s*\\)`,
     )
     if (!wantDecl.test(editorCss)) {
-      fail(`\`.rule-${value}\` không khai \`background-color: var(--color-${value})\``)
+      fail(`\`.rule-${value}\` không khai màu vạch từ \`var(--color-${value})\` (background-color, border-color hoặc border-left)`)
       detail('Màu vạch phải đến từ token và phải nằm trong CSS — `check-tokens.mjs` không đọc TypeScript.')
       iBad += 1
     }
+  }
+  // WCAG 1.4.1: the margin rule is the only visual channel of segment status, so the drawn
+  // values must differ pairwise in border style or width, not only in colour.
+  const strokeByValue = new Map()
+  for (const value of ruleValues) {
+    if (value === 'none' || !declaredClasses.has(value)) continue
+    const block = new RegExp(`\\.rule-${value.replace(/[.+^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(editorCss)
+    const border = block === null ? null : /border-left:\s*([^;}]*)/.exec(block[1])
+    const width = border === null ? null : /(\d+(?:\.\d+)?px)/.exec(border[1])
+    const style = border === null ? null : /\b(solid|dashed|dotted|double)\b/.exec(border[1])
+    if (width === null || style === null) {
+      fail(`\`.rule-${value}\` không khai độ dày và kiểu nét trong \`border-left\` — vạch chỉ còn khác nhau bằng màu`)
+      iBad += 1
+      continue
+    }
+    strokeByValue.set(value, `${width[1]} ${style[1]}`)
+  }
+  const seenStroke = new Map()
+  for (const [value, stroke] of strokeByValue) {
+    const other = seenStroke.get(stroke)
+    if (other !== undefined) {
+      fail(`\`.rule-${other}\` và \`.rule-${value}\` cùng nét \`${stroke}\` — chỉ khác nhau bằng màu (WCAG 1.4.1)`)
+      iBad += 1
+    }
+    seenStroke.set(stroke, value)
   }
   for (const cls of declaredClasses) {
     if (!ruleValues.includes(cls)) {

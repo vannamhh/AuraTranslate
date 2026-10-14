@@ -73,6 +73,10 @@ const drawerOpen = ref(false)
 /** `true` khi ngăn kéo đang mở — nguồn `v-if` DUY NHẤT của `LookupDrawer.vue`. */
 export const lookupDrawerIsOpen: DeepReadonly<Ref<boolean>> = readonly(drawerOpen)
 
+const currentTier = ref<LayoutTier | null>(null)
+/** The tier last pushed by the dock; `null` until the first measurement. */
+export const workspaceLayoutTier: DeepReadonly<Ref<LayoutTier | null>> = readonly(currentTier)
+
 const retreated = ref(false)
 /** `true` khi tầng đang áp đòi Tra cứu rút khỏi lưới — nguồn hiện/ẩn điểm vào ở `StatusBar.vue`. */
 export const lookupHasRetreated: DeepReadonly<Ref<boolean>> = readonly(retreated)
@@ -87,6 +91,7 @@ export const lookupHasRetreated: DeepReadonly<Ref<boolean>> = readonly(retreated
  * để lại hợp đồng: `null` KHÔNG BAO GIỜ được đọc thành một tầng, xem `measureAndApplyTier`).
  */
 export function syncLayoutTier(tier: LayoutTier): void {
+  currentTier.value = tier
   const next = requiresRetreat(tier)
   if (retreated.value !== next) retreated.value = next
   if (next || !drawerOpen.value) return

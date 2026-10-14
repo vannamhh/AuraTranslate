@@ -273,6 +273,19 @@ pub fn confirm_translation(store: &Store, id: i64, translation: &str) -> Result<
     })
 }
 
+/// Rows of both tiers, one `COUNT(*)` per tier. `source_term` is unique per tier, so this equals
+/// the length of [`list_all_entries`] (a shadowed Global row is listed beside its Work row).
+pub fn count_tier_entries(global: &Store, work: Option<&Store>) -> Result<u64, StoreError> {
+    let count_one = |store: &Store| -> Result<u64, StoreError> {
+        let n: i64 = store.read(|conn: ReadHandle<'_>| {
+            conn.query_row("SELECT COUNT(*) FROM glossary_entry", [], |r| r.get(0))
+        })?;
+        Ok(n as u64)
+    };
+    let work_count = work.map(count_one).transpose()?.unwrap_or(0);
+    Ok(count_one(global)? + work_count)
+}
+
 /// Nạp toàn bộ một tầng (một `Store`, tức một `global.db` hoặc `project.db`), khoá theo
 /// `source_term` — hình dạng `BTreeMap` mà `ScopeResolver::apply_override` đòi ở tham số
 /// `global`/`work`.

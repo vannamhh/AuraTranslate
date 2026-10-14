@@ -37,6 +37,7 @@ import { ensureChapterLoaded, resetSourcePanel, sourceChapter } from './sourcePa
 import { resetAiTranslate } from '../aiTranslateState'
 import { resetAiTranslateBatch } from '../aiTranslateBatchState'
 import { resetProofread } from '../proofreadState'
+import { refreshWorkspaceCounts, resetWorkspaceCounts } from '../workspaceCountsState'
 import {
   confirmSegment,
   mergeSegments,
@@ -847,6 +848,7 @@ export function resetEditorPanel(): void {
   // 🔵 THÊM Story 6.14 — ảnh/thư mục thuộc Tác phẩm VỪA BỊ THAY, cùng lý lẽ `segments` ngay trên.
   chapterAssets.value = []
   assetsDir.value = ''
+  resetWorkspaceCounts()
 
   // 🔴 Tập chờ và mốc *"Đã lưu"* thuộc Tác phẩm VỪA BỊ THAY, nên chúng phải đi cùng nó.
   //
@@ -1281,7 +1283,10 @@ export async function confirmCurrentSegment(): Promise<ConfirmResult> {
     // 🔴 **Và đây là chỗ Quyết định #6(c) được thi hành** — nhánh duy nhất ghi một câu ở lượt
     // xác nhận **THÀNH CÔNG**. Xem [`kyTrungCauCuoi`] về vì sao tín hiệu đi bằng một cờ chứ
     // không bằng một phép suy ra từ `caretSegmentId`.
-    if (result === 'confirmed') datThongBao({ nav: kyTrungCauCuoi ? 'confirmed-last' : null })
+    if (result === 'confirmed') {
+      void refreshWorkspaceCounts()
+      datThongBao({ nav: kyTrungCauCuoi ? 'confirmed-last' : null })
+    }
     else datThongBao({ confirm: result === 'refused' ? null : result })
     return result
   } finally {

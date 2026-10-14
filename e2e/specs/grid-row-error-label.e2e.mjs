@@ -48,12 +48,11 @@ async function translate(key, params) {
   )
 }
 
-/** Nhãn `.col-state .cell-state` ở đúng chỉ số hàng — cùng thứ tự `editorSegments` mà
- * `[data-col="src"]`/`[data-col="tgt"]` đã dùng (không một mối nối `data-segment-id` riêng
- * trên chính ô nhãn — xem `GridPanel.vue`). */
+/** Row error label: the `data-row-error` attribute of the translation cell at that row index
+ * (drawn under the text by `::after`, never a DOM child of the contenteditable cell). */
 async function stateLabelAt(index) {
   return browser.execute(
-    (i) => document.querySelectorAll('.col-state .cell-state')[i]?.textContent?.trim() ?? null,
+    (i) => document.querySelectorAll('.col-tgt .cell-tgt')[i]?.getAttribute('data-row-error') ?? null,
     index,
   )
 }
@@ -98,6 +97,13 @@ describe('Story 11.5 · L2610 + L3510 — nhãn hàng hiện đúng message_key 
     })
 
     expect(await stateLabelAt(0)).toBe(expected)
+
+    const drawn = await browser.execute(() => {
+      const cell = document.querySelectorAll('.col-tgt .cell-tgt')[0]
+      return { content: getComputedStyle(cell, '::after').content, label: cell.getAttribute('aria-label') }
+    })
+    expect(drawn.content).toContain(expected)
+    expect(drawn.label).toContain(expected)
   })
 
   it('lỗi KHÔI PHỤC thật (`err.segment.not_found`) ⇒ nhãn hàng hiện đúng câu vi.json', async () => {

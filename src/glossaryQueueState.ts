@@ -35,6 +35,7 @@ import {
   rejectGlossaryCandidate,
 } from './config/glossary'
 import type { GlossaryCandidate, GlossaryCategory } from './config/glossary'
+import { refreshWorkspaceCounts } from './workspaceCountsState'
 import type { IpcError } from './i18n'
 
 /** Một hàng của bảng chờ, cùng phân loại đang chọn (mặc định `'other'` — §Design Notes của
@@ -293,6 +294,7 @@ export async function acceptGlossaryQueueCandidate(): Promise<void> {
     return
   }
 
+  void refreshWorkspaceCounts()
   row.outcome = 'accepted'
   // 🔴 SỬA 2026-08-24 (vòng rà ba lớp) — chỉ TỰ TIẾN khi con trỏ VẪN đứng ở `index`. Trong
   // lúc `await` ở trên, người dùng có thể đã bấm Chuyển (`next`/`prev`) và dời con trỏ sang

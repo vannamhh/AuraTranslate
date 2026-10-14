@@ -2130,7 +2130,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
          ai do no o TANG VO.",
     ),
     ("src/commands/export.rs", 7, 7, 7, ""),
-    ("src/commands/glossary.rs", 7, 8, 8, ""),
+    ("src/commands/glossary.rs", 8, 8, 8, ""),
     ("src/commands/library.rs", 3, 7, 7, ""),
     ("src/commands/lifecycle.rs", 1, 3, 3, ""),
     (
@@ -2168,7 +2168,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
     // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
     // `(async)`: it runs one DELETE per others-side origin in each of two stores.
     // The other three act on the copies of one row, a few statements each.
-    ("src/commands/tm.rs", 3, 6, 6, ""),
+    ("src/commands/tm.rs", 4, 6, 6, ""),
     (
         "src/lib.rs",
         4,
@@ -2322,9 +2322,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (89, 60),
+        (91, 60),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         89/60.\n\n\
+         91/60.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

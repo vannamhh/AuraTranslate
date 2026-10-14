@@ -19,6 +19,7 @@ vi.mock('../../src/config/glossary', () => ({
   openGlossaryImportPreview: (tier: string) => openPreviewMock(tier),
   confirmGlossaryImport: (decisions: Record<string, string>) => confirmMock(decisions),
   cancelGlossaryImport: () => cancelMock(),
+  countGlossaryEntries: async () => null,
 }))
 
 /** Nạp lại module mỗi ca — state của lớp phủ là module-level singleton. */

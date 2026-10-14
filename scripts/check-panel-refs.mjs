@@ -255,6 +255,11 @@ const EXEMPT = new Map([
       'mặt người dùng đang dùng, không phải dọn dữ liệu của Tác phẩm cũ.',
   ],
   [
+    'src/layout/lookupDrawerState.ts::currentTier',
+    'Tầng bố cục do `WorkspaceDock.vue::applyTier` đẩy vào mỗi lượt đo; suy ra từ KÍCH THƯỚC ' +
+      'CỬA SỔ, không từ dữ liệu của Tác phẩm. Cùng loại "chỉ phiên" với `retreated`.',
+  ],
+  [
     'src/layout/lookupDrawerState.ts::retreated',
     'Tầng bố cục hiện tại có đòi Tra cứu rút hay không — suy ra từ KÍCH THƯỚC CỬA SỔ, đo lại ' +
       'ĐỒNG BỘ ở lượt kế tiếp `WorkspaceDock.vue::applyTier` gọi `syncLayoutTier` (mỗi lượt ' +

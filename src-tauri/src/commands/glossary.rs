@@ -649,6 +649,18 @@ pub fn glossary_list_entries(
         .collect())
 }
 
+/// Số mục mà [`glossary_list_entries`] liệt kê cho cùng Tác phẩm, cả hai tầng; chỉ `COUNT(*)`.
+pub fn glossary_count_entries(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+) -> Result<u64, IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    Ok(crate::core::glossary::count_tier_entries(
+        global,
+        open.map(|o| &o.store),
+    )?)
+}
+
 /// Xoá mục `(tier, id)` — **hàm thuần, đây là thứ test gọi**.
 ///
 /// # Lỗi
@@ -1350,6 +1362,21 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::glossary_list_entries(global.as_deref(), guard.as_ref())
+    }
+
+    /// Vỏ IPC của [`super::glossary_count_entries`]; `COUNT(*)` mỗi tầng, nhẹ.
+    #[tauri::command]
+    pub fn glossary_count_entries(app: tauri::AppHandle) -> Result<u64, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_count_entries(global.as_deref(), None);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_count_entries(global.as_deref(), guard.as_ref())
     }
 
     /// Vỏ IPC của [`super::glossary_delete_term`]. Story 3.9.

@@ -13144,3 +13144,11 @@ chính nó.
   summary: Chưa ai gộp, tách, đổi trạng thái trên một Tác phẩm 2.000 Chương ở bản đóng gói; chưa nhìn trang Tác phẩm bằng mắt (tiêu điểm danh sách sau nhấn chuột, viền hàng hiện tại, hộp tách mở Chương đích vào Editor).
   evidence: e2e chạy fixture 5 Chương trên bản debug; Shift/Mod+nhấn trong e2e là `mousedown` phát trong trang, không phải phím giữ thật.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-workspace-luoi-hai-cot-va-thanh-trang-thai-plan.md`
+  summary: Câu bỏ qua (`is_omitted`) được trình đọc màn hình đọc là "chưa dịch" (hoặc "chưa xác nhận" nếu có chữ): `resolveSegmentRule` không có nhánh bỏ qua, và từ 12-7 tên truy cập ô bản dịch là kênh duy nhất nói trạng thái.
+  evidence: `src/panels/editorSegments.ts::resolveSegmentRule` và `GridPanel.vue::cellLabelOf`; cột ⑤ cũ in cùng chữ sai, nên lỗi có từ trước 12-7. Sửa cần khoá `state_omitted` và một nhánh trước `none`.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-workspace-luoi-hai-cot-va-thanh-trang-thai-plan.md`
+  summary: Chưa ai nhìn vạch lề liền · đứt · chấm · dày 3px trên bản đóng gói macOS, sáng và tối, để xác nhận phân biệt được không cần màu; thanh trạng thái 34px chưa được nhìn ở cả ba tầng bố cục.
+  evidence: e2e 12-7 chỉ đọc `getComputedStyle` trên bản debug; WCAG 1.4.1 cần mắt người.
+  Chủ: Epic 12.

@@ -58,7 +58,8 @@ describe('GridPanel.vue — segment TM điền sẵn', () => {
     expect(rules[0].classList.contains('rule-draft')).toBe(true)
     expect(rules[1].classList.contains('rule-tm-rule')).toBe(true)
 
-    const states = root.querySelectorAll('.col-state > *')
-    expect(states[1].textContent).toContain((vi_json as Record<string, string>)['panel.grid.state_tm'])
+    expect(root.querySelector('.col-state')).toBeNull()
+    const cells = root.querySelectorAll('.col-tgt .cell-tgt')
+    expect(cells[1].getAttribute('aria-label')).toContain((vi_json as Record<string, string>)['panel.grid.state_tm'])
   })
 })

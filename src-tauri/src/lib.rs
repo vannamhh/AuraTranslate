@@ -1326,6 +1326,7 @@ pub fn run() {
             // Toan cuc (INSERT global TRUOC, DELETE work SAU -- hai kho khong co giao dich
             // chung).
             crate::commands::glossary::wire::glossary_list_entries,
+            crate::commands::glossary::wire::glossary_count_entries,
             crate::commands::glossary::wire::glossary_delete_term,
             crate::commands::glossary::wire::glossary_promote_term_to_global,
             // Story 3.10b -- hop thoai chon tep noi vao xuat/nhap CSV/TSV (AD-48). Bon vo:
@@ -1409,6 +1410,7 @@ pub fn run() {
             crate::commands::segment::wire::accept_tm_exact,
             crate::commands::segment::wire::tm_concordance,
             crate::commands::tm::wire::tm_list_pairs,
+            crate::commands::tm::wire::tm_count_pairs,
             crate::commands::tm::wire::tm_update_pair_target,
             crate::commands::tm::wire::tm_delete_pair,
             crate::commands::tm::wire::tm_delete_others,

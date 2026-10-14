@@ -2822,6 +2822,34 @@ mod manage {
     }
 
     #[test]
+    fn the_count_wire_equals_the_unfiltered_listing_across_both_tiers() {
+        let w = wired("mg-count", "一。", true);
+        dated_work(&w, &[("s1", "a", "self", D1), ("s2", "b", "other", D1)]);
+        dated_global(
+            &w,
+            &[("s3", "c", "bilingual_import", D1), ("s4", "a", "self", D2)],
+        );
+
+        let counted = tm_wire::tm_count_pairs(w.app.handle().clone()).expect("dem cap TM");
+
+        let listed = list(&w, "all", "both", "");
+        assert_eq!(counted, listed.total_pairs as u64);
+        assert_eq!(counted, 4);
+    }
+
+    #[test]
+    fn the_same_pair_in_both_tiers_counts_twice_like_the_listing() {
+        let w = wired("mg-count-dup", "一。", true);
+        dated_work(&w, &[("s1", "a", "self", D1)]);
+        dated_global(&w, &[("s1", "a", "self", D1)]);
+
+        let counted = tm_wire::tm_count_pairs(w.app.handle().clone()).expect("dem cap TM");
+
+        assert_eq!(counted, list(&w, "all", "both", "").total_pairs as u64);
+        assert_eq!(counted, 2);
+    }
+
+    #[test]
     fn a_stored_origin_filter_and_the_mine_side_filter_narrow_rows() {
         let w = wired("mg-origin", "一。", true);
         dated_work(&w, &[("s1", "a", "self", D1), ("s2", "b", "other", D1)]);

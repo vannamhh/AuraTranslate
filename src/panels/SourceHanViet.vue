@@ -62,9 +62,8 @@ import {
   isHanChar,
   layersLoaded,
   sourceHanVietPending,
-  sourcesUsed,
 } from './sourcePanelState'
-import { dictSources, everySourceOffForRoute } from './dictSourcesState'
+import { everySourceOffForRoute } from './dictSourcesState'
 import { WORD_JOINER, wordStartOffsets } from './wordBoundary'
 // 🔵 2026-08-17 (code review) — `originalOffsets` sống ở `editorSegments.ts`, không ở đây. Nó là
 // một mệnh đề **thuần** về phép ánh xạ chỉ số, và trong một `<script setup>` nó không có đường
@@ -470,12 +469,6 @@ const surfaceNoticeKey = computed<string | null>(() => {
   return null
 })
 
-const sourcesLine = computed(() =>
-  sourcesUsed.value
-    .map((code) => dictSources.value.find((s) => s.code === code)?.display_name ?? code)
-    .join(', '),
-)
-
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 STORY 1.18 · AC2 · AC12 — BỀ MẶT HÁN VIỆT LÀ MỘT NGUỒN VÙNG CHỌN
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -486,11 +479,9 @@ const parallelEl = useTemplateRef<HTMLElement>('parallelEl')
  * 🔴 **BỀ MẶT ĐĂNG KÝ — ĐÚNG đoạn văn bản đang hiện, KHÔNG bọc `.hv-surface`** (lượt review
  * 2026-08-07, AC11).
  *
- * Bản đầu đăng ký `.hv-surface` — cái div BỌC cả `.hv-notice`/`.hv-sources` (dòng trạng thái/
- * nguồn) LẪN đoạn văn bản. `focusSelectionSource()` gọi `range.selectNodeContents(source.el)`
+ * Bản đầu đăng ký `.hv-surface` — cái div BỌC cả `.hv-notice` (dòng trạng thái) LẪN đoạn văn bản. `focusSelectionSource()` gọi `range.selectNodeContents(source.el)`
  * rồi `collapse(true)` — tức đặt caret vào **con ĐẦU TIÊN** của phần tử đã đăng ký. Khi
- * `.hv-notice`/`.hv-sources` render (ca THƯỜNG, không ca biên — chúng hiện bất cứ khi nào có
- * dòng nguồn), caret rơi vào dòng trạng thái/nguồn, không vào văn bản — `Selection.modify()`
+ * `.hv-notice` render (ca THƯỜNG, không ca biên), caret rơi vào dòng trạng thái, không vào văn bản — `Selection.modify()`
  * mở rộng từ đó đi qua đúng thứ không phải nội dung tra cứu trước.
  *
  * ⇒ Đăng ký đúng đoạn `<p>` đang hiện (`.hv-switch` hoặc `.hv-parallel`), cùng mẫu với
@@ -839,11 +830,6 @@ onBeforeUnmount(() => {
     <!-- 🔴 MỘT dòng cho trạng thái của CẢ bề mặt (đang tra / lượt tra trượt / chưa lớp
          nào gắn) — không nhân câu đó ra theo số ký tự. Xem `surfaceNoticeKey`. -->
     <p v-if="surfaceNoticeKey !== null" class="hv-notice">{{ t(surfaceNoticeKey) }}</p>
-    <!-- aura-allow-text: `sourcesLine` lists the `display_name` of each contributing source
-         (falls back to `code`) — DATA, not a UI string. -->
-    <p v-if="sourcesLine !== ''" class="hv-sources">
-      {{ t('panel.source.han_viet_sources_prefix') }} {{ sourcesLine }}
-    </p>
     <!-- 🔴 STORY 1.18 · AC11 — `tabindex="0"` ĐÚNG TRÊN ĐOẠN VĂN BẢN, không trên `.hv-surface`
          bọc ngoài (lượt review 2026-08-07 — xem doc-comment của `surface` ở script). Cùng lý
          do và cùng giá với ô nguyên văn của `GridPanel.vue` *(🔵 `SourcePanel.vue` đã gỡ)*.
@@ -997,17 +983,6 @@ onBeforeUnmount(() => {
   font-size: var(--font-ui-md-wrap);
   line-height: var(--leading-ui-md-wrap);
   color: var(--color-on-surface-variant);
-}
-
-.hv-sources {
-  margin: 0 0 var(--space-panel-block) 0;
-  font-family: var(--face-ui-label);
-  font-size: var(--font-ui-label);
-  font-weight: var(--weight-ui-label);
-  line-height: var(--leading-ui-label);
-  letter-spacing: var(--tracking-ui-label);
-  color: var(--color-primary);
-  text-transform: uppercase;
 }
 
 /* Chuyển đổi — khối văn bản khai token source-hanviet của CHÍNH NÓ (AC1/AC7). */

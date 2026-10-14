@@ -335,6 +335,20 @@ pub fn read_tier_rows(
     })
 }
 
+/// Stored pairs of both tiers, one `COUNT(*)` per tier; equals `total_pairs` of an unfiltered listing.
+pub fn count_tier_pairs(
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+) -> Result<u64, TmStoreError> {
+    let count_one = |store: &crate::core::store::Store| -> Result<u64, TmStoreError> {
+        let n: i64 =
+            store.read(|conn| conn.query_row("SELECT COUNT(*) FROM tm_unit", [], |r| r.get(0)))?;
+        Ok(n as u64)
+    };
+    let work_count = work.map(count_one).transpose()?.unwrap_or(0);
+    Ok(count_one(global)? + work_count)
+}
+
 /// Pairs of both tiers whose source scores at least `threshold` percent against `source_text`,
 /// best first, ties in `pairs_for_source` order, one row per distinct (source, target), at most
 /// [`FUZZY_MATCH_LIMIT`]. A pair whose source equals `source_text` is excluded (exact matches

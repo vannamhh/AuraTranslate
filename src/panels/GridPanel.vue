@@ -322,13 +322,7 @@ const selectedRowClassById = computed(() => {
   return map
 })
 
-/**
- * AC4 — **cột nhãn trạng thái**, năm nhãn, khoá phẳng có tiền tố miền.
- *
- * 🔴 Đây là cột thứ năm, và nó là **kênh đọc được** cho đúng thứ vạch lề nói bằng màu. Vạch
- * là một lớp thông tin **thị giác**; một người dùng đọc bằng bàn phím hoặc bằng trình đọc màn
- * hình không có nó. Cột này là lý do vạch được phép `aria-hidden`.
- */
+/** Chữ trạng thái của hàng: không hiện ra mắt, chỉ nằm trong tên truy cập của ô bản dịch. */
 const STATE_LABEL_KEYS: Readonly<Record<SegmentRuleValue, string>> = {
   confirmed: 'panel.grid.state_confirmed',
   primary: 'panel.grid.state_editing',
@@ -1680,6 +1674,20 @@ const rowErrorLabelById = computed<ReadonlyMap<number, IpcError>>(() => {
   return map
 })
 
+const rowErrorTextById = computed(() => {
+  const map = new Map<number, string>()
+  for (const [id, err] of rowErrorLabelById.value) map.set(id, tError(err))
+  return map
+})
+
+function cellLabelOf(id: number, index: number): string {
+  const state = t(STATE_LABEL_KEYS[ruleById.value.get(id) ?? 'none'])
+  const error = rowErrorTextById.value.get(id)
+  return error === undefined
+    ? t('panel.grid.cell_label', { n: String(index + 1), state })
+    : t('panel.grid.cell_label_error', { n: String(index + 1), state, error })
+}
+
 const chapterId = computed(() => editorChapterId.value)
 
 // `@keydown` arrow handlers must also `.focus()` the newly active tab button: dispatch alone
@@ -1776,8 +1784,8 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
         <!--
           Cột ① — VẠCH TRẠNG THÁI (UX-DR19, sáu giá trị).
 
-          `aria-hidden`: vạch là một lớp thông tin **thị giác** trùng lặp với thứ cột ⑤ nói
-          bằng chữ. Một chuỗi div rỗng không nhãn ở đây chỉ là tiếng ồn cho công nghệ trợ giúp.
+          `aria-hidden`: vạch là kênh **thị giác** của trạng thái; trình đọc màn hình nghe
+          trạng thái qua tên truy cập (`aria-label`) của ô bản dịch.
         -->
         <div class="col col-rule" aria-hidden="true">
           <div
@@ -1954,12 +1962,13 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
             nào biết vì sao. 🔴 Rust là nguồn sự thật cho "rỗng"; lưới đi theo, không ngược lại.
           -->
           <div
-            v-for="s in editorSegments"
+            v-for="(s, i) in editorSegments"
             :key="s.id"
             class="cell cell-tgt"
             :class="[
               {
                 'para-end': s.is_paragraph_end,
+                refused: rowErrorLabelById.has(s.id),
                 empty: (editorEditedText.get(s.id) ?? s.target_text).trim() === '',
                 editing: editorCaretSegmentId === s.id,
                 omitted: s.is_omitted,
@@ -1970,27 +1979,11 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
             :data-segment-id="s.id"
             data-col="tgt"
             contenteditable="true"
+            role="textbox"
+            aria-multiline="true"
+            :aria-label="cellLabelOf(s.id, i)"
+            :data-row-error="rowErrorTextById.get(s.id)"
           >{{ s.target_text }}</div>
-        </div>
-
-        <!-- Cột ⑤ — NHÃN TRẠNG THÁI, và là bề mặt báo lỗi của AC14 (Quyết định #8(a)). -->
-        <div class="col col-state">
-          <div
-            v-for="s in editorSegments"
-            :key="s.id"
-            class="cell cell-state"
-            :class="[
-              {
-                'para-end': s.is_paragraph_end,
-                refused: rowErrorLabelById.has(s.id),
-                omitted: s.is_omitted,
-              },
-              selectedRowClassById.get(s.id),
-            ]"
-          >
-            <template v-if="rowErrorLabelById.get(s.id)">{{ tError(rowErrorLabelById.get(s.id)!) }}</template>
-            <template v-else>{{ t(STATE_LABEL_KEYS[ruleById.get(s.id) ?? 'none']) }}</template>
-          </div>
         </div>
       </div>
     </div>
@@ -2109,7 +2102,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
 }
 
 /*
- * AC2 — NĂM CỘT. Bề rộng hai cột chữ chia đều; ba cột phụ lấy đúng chỗ chúng cần.
+ * AC2 — BỐN CỘT. Bề rộng hai cột chữ chia đều; hai cột phụ lấy đúng chỗ chúng cần.
  *
  * ⚠️ `minmax(0, 1fr)` chứ không `1fr`: mặc định `min-width` của một grid item là `auto`, nên
  * một ô nguyên văn dài **không xuống dòng** mà đẩy cả lưới rộng ra. Đây là bẫy thường gặp
@@ -2117,7 +2110,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
  */
 .grid {
   display: grid;
-  grid-template-columns: 3px 30px minmax(0, 1fr) minmax(0, 1fr) 96px;
+  grid-template-columns: 3px 30px minmax(0, 1fr) minmax(0, 1fr);
   align-items: stretch;
 }
 
@@ -2209,15 +2202,15 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
  * thuộc Epic 7 (`isTmFilled` còn là hằng `false`) và `ornament` thuộc Story 2.8.
  */
 .rule.rule-confirmed {
-  background-color: var(--color-confirmed);
+  border-left: 2px solid var(--color-confirmed);
 }
 
 .rule.rule-primary {
-  background-color: var(--color-primary);
+  border-left: 3px solid var(--color-primary);
 }
 
 .rule.rule-tm-rule {
-  background-color: var(--color-tm-rule);
+  border-left: 2px dotted var(--color-tm-rule);
 }
 
 /*
@@ -2234,7 +2227,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
  * (`LookupPanel.vue`, `ImportPreviewOverlay.vue`, `ReadingMode.vue`, dấu điểm cắt ngay dưới).
  */
 .rule.rule-draft {
-  background-color: var(--color-draft);
+  border-left: 2px dashed var(--color-draft);
 }
 
 /*
@@ -2613,21 +2606,17 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
   text-decoration: line-through;
 }
 
-/* Cột ⑤ — nhãn trạng thái. `on-surface-variant` (Quyết định #9(a)), cùng lý do cột số câu. */
-.cell-state {
+/*
+ * AC14 — nhãn lỗi của hàng nằm dưới chữ trong ô bản dịch. Vẽ bằng pseudo-element để không
+ * vào `textContent`, nơi đường ghi đọc văn bản đang gõ.
+ */
+.cell-tgt[data-row-error]::after {
+  content: attr(data-row-error);
+  display: block;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   line-height: var(--leading-ui-label);
-  color: var(--color-on-surface-variant);
-}
-
-/*
- * AC14 — một lượt từ chối đổi **đúng một pixel ở đúng chỗ người dùng vừa bấm**.
- *
- * ⚠️ `error` có vai `text` trong `tokens.json:56-63` và cặp `(error, surface)` đã có trong
- * `contrast.pairs` — không cặp mới nào phát sinh.
- */
-.cell-state.refused {
   color: var(--color-error);
+  user-select: none;
 }
 </style>

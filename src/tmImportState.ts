@@ -6,6 +6,7 @@
 import { readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { tmCancelImport, tmConfirmImport, tmOpenImportPreview } from './config/tm'
+import { refreshWorkspaceCounts } from './workspaceCountsState'
 import type { TmManageTier, TmxImportPreview } from './config/tm'
 import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
@@ -89,6 +90,7 @@ export async function confirmTmImportPreview(): Promise<void> {
     return
   }
 
+  void refreshWorkspaceCounts()
   noteTmImportDone(result.summary)
   overlayOpen.value = false
   await refreshTmManage()
