@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readingKey, sharedReadingKey, toneMarkedReading } from '../../src/panels/pinyin'
+import { readingKey, sharedReadingKey, sharedReadingText, toneMarkedReading } from '../../src/panels/pinyin'
 
 describe('toneMarkedReading', () => {
   it.each([
@@ -38,5 +38,16 @@ describe('sharedReadingKey', () => {
     expect(sharedReadingKey(['da2', 'da3', 'dǎ'])).toBeNull()
     expect(sharedReadingKey([null, null])).toBeNull()
     expect(sharedReadingKey([])).toBeNull()
+  })
+})
+
+describe('sharedReadingText', () => {
+  it('shows the syllable-spaced form when any source carries one', () => {
+    expect(sharedReadingText([null, 'zou3 lang2', 'zǒuláng'])).toBe('zǒu láng')
+    expect(sharedReadingText(['zǒuláng', 'zou3 lang2'])).toBe('zǒu láng')
+  })
+  it('falls back to the key when no source spaces its syllables, and is null when readings differ', () => {
+    expect(sharedReadingText(['Shan1', 'shān (shan¹)'])).toBe('shān')
+    expect(sharedReadingText(['da2', 'da3'])).toBeNull()
   })
 })

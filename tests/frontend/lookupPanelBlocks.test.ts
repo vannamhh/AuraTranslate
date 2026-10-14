@@ -166,9 +166,9 @@ describe('computeSpine', () => {
 })
 
 describe('reading beside the headword', () => {
-  it('shows the shared key when every source with a reading agrees (走廊: zou3 lang2 and zǒuláng)', async () => {
+  it('shows the syllable-spaced reading when every source with a reading agrees (走廊: zou3 lang2 and zǒuláng)', async () => {
     const w = await lookedUp('走廊', ZOULANG)
-    expect(w.get('.lookup-head-reading').text()).toBe('zǒuláng')
+    expect(w.get('.lookup-head-reading').text()).toBe('zǒu láng')
   })
 
   it('shows nothing when two readings differ (打: da2, da3)', async () => {

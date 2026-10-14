@@ -48,3 +48,15 @@ export function sharedReadingKey(readings: readonly (string | null)[]): string |
   }
   return shared
 }
+
+/** What the head shows for a shared reading: the syllable-spaced form when a source has one (`zǒu láng`), else the key. */
+export function sharedReadingText(readings: readonly (string | null)[]): string | null {
+  const key = sharedReadingKey(readings)
+  if (key === null) return null
+  for (const r of readings) {
+    if (r === null) continue
+    const spaced = toneMarkedReading(r).replace(TRAILING_PAREN, '').trim().toLowerCase().normalize('NFC')
+    if (/\s/.test(spaced)) return spaced.replace(/\s+/g, ' ')
+  }
+  return key
+}

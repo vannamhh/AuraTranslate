@@ -27,7 +27,7 @@ context:
 ## Decisions (Ice, 2026-10-14)
 
 1. Ghim: nút ở đầu panel tác động khi kết quả có đúng một mục (đường `lookup.toggle_pin` sẵn có); mỗi nhóm mục giữ một nút ghim nhỏ cho ca nhiều mục. Lệch mockup b:51 một phần, có chủ đích.
-2. Âm đọc chỉ trong khối: mỗi nhóm mục mở bằng `âm · N nghĩa`; cạnh đầu mục ở đầu panel chỉ hiện âm khi mọi mục có âm đều cùng một khoá so (đổi sang dấu, bỏ đuôi ngoặc `(shan¹)`, bỏ khoảng trắng, chữ thường), và hiện chính khoá đó (`zǒuláng`). Trong khối, âm hiện theo dạng của nguồn sau khi đổi sang dấu. Không dải âm, không cộng số giữa nguồn, không lọc theo âm.
+2. Âm đọc chỉ trong khối: mỗi nhóm mục mở bằng `âm · N nghĩa`; cạnh đầu mục ở đầu panel chỉ hiện âm khi mọi mục có âm đều cùng một khoá so (đổi sang dấu, bỏ đuôi ngoặc `(shan¹)`, bỏ khoảng trắng, chữ thường), và hiện chính khoá đó (`zǒuláng`). 🔵 2026-10-14 (Ice): đầu panel hiện dạng tách âm tiết `zǒu láng` như hàng I/O, lấy từ nguồn có âm tách (pinyin số), chữ thường; không nguồn nào tách thì hiện khoá; khoá vẫn chỉ dùng để so. Trong khối, âm hiện theo dạng của nguồn sau khi đổi sang dấu. Không dải âm, không cộng số giữa nguồn, không lọc theo âm.
 3. Khối đang mở hiện mọi nghĩa; `⌄` thu cả khối về dòng đầu. Trạng thái thu gọn nhớ theo `source_code` trong phiên.
 4. Thanh nhịp chỉ còn "N nguồn · M nghĩa"; bỏ chip từng nguồn, nên không gì bị cắt. Đóng nợ §1-17 "Chip thanh nhịp" của `deferred-work.md`.
 5. Không kết quả: "Không nguồn nào có {q}", "Đã tra N nguồn đang bật", nút "Tra riêng" cho từng chữ của truy vấn nhiều chữ, và giữ dòng trỏ Concordance sẵn có.
@@ -102,7 +102,7 @@ context:
 
 ## Implementation Notes
 
-- Âm đọc ở ba dạng (đo `resources/dict`): CC-CEDICT/CVDICT pinyin số tách âm tiết (`zou3 lang2`), Wiktionary liền có dấu (`zǒuláng`), 14.063/145.136 mục en-wiktionary có đuôi `(shan¹)`; 山 có cả `Shan1` và `shan1`. Đầu panel hiện khoá so (`zǒuláng`) theo Quyết định 2; hàng I/O ghi `zǒu láng` là chỗ lệch trong khối frozen, chưa sửa.
+- Âm đọc ở ba dạng (đo `resources/dict`): CC-CEDICT/CVDICT pinyin số tách âm tiết (`zou3 lang2`), Wiktionary liền có dấu (`zǒuláng`), 14.063/145.136 mục en-wiktionary có đuôi `(shan¹)`; 山 có cả `Shan1` và `shan1`. Đầu panel từng hiện khoá so `zǒuláng`, lệch hàng I/O `zǒu láng`; Ice chọn dạng tách âm tiết (`pinyin.ts::sharedReadingText`).
 - Popup nguồn lúc đầu cao 375 px với 9 nguồn thật, đáy lọt dưới tab "Đề xuất AI" (e2e bắt, happy-dom không có bố cục): khi mở, `max-height` lấy theo chỗ còn lại tới đáy `.lookup-body`.
 - `lookupHistoryState.ts` không import được `editorPanelState.ts` (vòng import), nên Chương đang mở được đẩy sang bằng `watch(chapterId, setLookupChapter, { flush: 'sync' })`.
 - `dict_source` không có cột tên ngắn, popup chỉ hiện `display_name`; ghi nợ `Chủ: Epic 12`.

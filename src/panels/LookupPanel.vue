@@ -18,7 +18,7 @@ import { t } from '../i18n'
 import { dispatch } from '../commands'
 import { dictSources, enabledSourceCount, everySourceOffForRoute } from './dictSourcesState'
 import { shortcutRows } from '../config/shortcutsState'
-import { sharedReadingKey } from './pinyin'
+import { sharedReadingText } from './pinyin'
 import { useSelectionSurface } from './selectionContract'
 import { markPainted } from './lookupTiming'
 import {
@@ -160,7 +160,7 @@ const hiddenSources = computed(() => groupedLookup.value?.hidden_sources ?? [])
 const spine = computed(() => computeSpine(groups.value, sensesByLayer.value, hiddenSources.value))
 
 const headReading = computed(() =>
-  sharedReadingKey(groups.value.flatMap((g) => g.entries.map((hit) => hit.reading))),
+  sharedReadingText(groups.value.flatMap((g) => g.entries.map((hit) => hit.reading))),
 )
 
 const headPinTarget = computed(() => {
