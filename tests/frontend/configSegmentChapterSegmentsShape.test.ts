@@ -33,6 +33,7 @@ describe('readOpenChapterSegments — một hàng segment thiếu trường ph�
           retired_at: null,
           status: 'draft',
           is_omitted: false,
+          unlinked: false,
           is_target_paragraph_end: false,
           role: null,
           // `translation_origin` THIẾU — đúng lớp lỗi Rust quên gửi một trường.
@@ -66,6 +67,7 @@ describe('readOpenChapterSegments — một hàng segment thiếu trường ph�
           retired_at: null,
           status: 'draft',
           is_omitted: false,
+          unlinked: false,
           is_target_paragraph_end: false,
           role: null,
           translation_origin: '',
@@ -89,6 +91,7 @@ const VALID_ROW = {
   retired_at: null,
   status: 'draft',
   is_omitted: false,
+  unlinked: false,
   is_target_paragraph_end: false,
   role: null,
   translation_origin: '',

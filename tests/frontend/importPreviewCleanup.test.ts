@@ -294,7 +294,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
   it('sửa luật THÀNH CÔNG ⇒ gọi cleanupEditRule rồi tải lại', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/x.txt', ok: true, error: null }], encoding_preview: preview() },
+      batch: { items: [{ path: '/tmp/x.txt', ok: true, byte_len: null, error: null }], encoding_preview: preview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'en', '', ['/tmp/x.txt'], null)
@@ -302,7 +302,7 @@ describe('importPreviewState — bốn hành động CRUD luật làm sạch d�
 
     cleanupEditRuleMock.mockResolvedValue({ ok: true, error: null })
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/x.txt', ok: true, error: null }], encoding_preview: preview() },
+      batch: { items: [{ path: '/tmp/x.txt', ok: true, byte_len: null, error: null }], encoding_preview: preview() },
       error: null,
     })
 

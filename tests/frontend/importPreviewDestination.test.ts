@@ -93,6 +93,27 @@ function mockInvokeWithWorks(works: WorkRow[]): void {
 
 let pageWrapper: ReturnType<typeof mount> | null = null
 
+async function mountUrlScreen(): Promise<ReturnType<typeof mount>> {
+  const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+  const { default: LibraryUrlImportScreen } = await import('../../src/modes/LibraryUrlImportScreen.vue')
+  const overlayState = await import('../../src/modes/libraryImportOverlayState')
+  pageWrapper = mount(LibraryMode)
+  overlayState.openLibraryImportOverlay()
+  overlayState.openLibraryUrlImportScreen()
+  return mount(LibraryUrlImportScreen)
+}
+
+function minimalPreview() {
+  return {
+    selected_encoding: 'UTF-8',
+    confidence: 'high',
+    candidates: [],
+    self_declared_normalized: null,
+    self_declared_cleanup: null,
+    self_declared_chapters: null,
+  }
+}
+
 /** Mounts the Library page (its `onMounted` loads the destination picker) and the open import overlay. */
 async function mountImportOverlay(): Promise<ReturnType<typeof mount>> {
   const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
@@ -502,22 +523,40 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
     wrapper = null
   })
 
-  it('đích Tác phẩm mới (mặc định): nút dán/tệp đọc "Tạo Tác phẩm từ …", nút URL giữ nguyên "Tải danh sách URL"', async () => {
+  it('đích Tác phẩm mới (mặc định): nút dán/tệp đọc "Tạo Tác phẩm từ …", nút mở màn website đọc "Nhập từ website…"', async () => {
     mockInvokeWithWorks([workRow()])
     wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    // Thứ tự tài liệu: dán văn bản, tệp, URL — cả ba đều mang `data-import-preview-open`.
     const buttons = wrapper.findAll('[data-import-preview-open]')
-    expect(buttons).toHaveLength(3)
-    const [textBtn, fileBtn, urlBtn] = buttons
+    expect(buttons).toHaveLength(2)
+    const [textBtn, fileBtn] = buttons
     expect(textBtn.text()).toContain('Tạo Tác phẩm')
     expect(fileBtn.text()).toContain('Tạo Tác phẩm')
-    expect(urlBtn.text()).toBe('Tải danh sách URL')
+    expect(wrapper.get('[data-library-url-screen-open]').text()).toBe('Nhập từ website…')
   })
 
-  it('đích là một Tác phẩm đã có: ba nút đổi sang "Thêm Chương từ …", không còn nói "Tạo Tác phẩm"/"Tải danh sách URL"', async () => {
+  it('màn Nhập từ website: nút nộp đọc "Tải N link" với đích mới, "Thêm Chương từ N link" với đích đã có', async () => {
+    mockInvokeWithWorks([workRow()])
+    const nhap = await import('../../src/modes/libraryImport')
+    const screen = await mountUrlScreen()
+    await flushPromises()
+    nhap.pastedUrls.value = 'https://a.example/1\nhttps://b.example/2\nhttps://a.example/3'
+    nhap.name.value = 'Ten'
+    await screen.vm.$nextTick()
+
+    expect(screen.get('[data-import-preview-open]').text()).toBe('Tải 3 link')
+    expect(screen.get('.us-count').text()).toBe('3 link · sẽ tạo 3 Chương · 2 domain')
+
+    await screen.get('[data-import-destination] input[type="radio"]:not(:checked)').setValue(true)
+    await screen.vm.$nextTick()
+    expect(screen.get('[data-import-preview-open]').text()).toBe('Thêm Chương từ 3 link')
+
+    screen.unmount()
+  })
+
+  it('đích là một Tác phẩm đã có: hai nút đổi sang "Thêm Chương từ …", không còn nói "Tạo Tác phẩm"', async () => {
     mockInvokeWithWorks([workRow()])
     wrapper = await mountImportOverlay()
     await flushPromises()
@@ -530,11 +569,42 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
     // Radio "đã có" chọn được nhưng picker CHƯA chọn Tác phẩm nào -- chữ trên nút đổi theo
     // RADIO (destinationMode), không đợi một Tác phẩm cụ thể được chọn.
     const buttons = wrapper.findAll('[data-import-preview-open]')
-    expect(buttons).toHaveLength(3)
-    const [textBtn, fileBtn, urlBtn] = buttons
+    expect(buttons).toHaveLength(2)
+    const [textBtn, fileBtn] = buttons
     expect(textBtn.text()).toBe('Thêm Chương từ văn bản')
     expect(fileBtn.text()).toBe('Thêm Chương từ tệp')
-    expect(urlBtn.text()).toBe('Thêm Chương từ danh sách URL')
+  })
+
+  it('mở bằng chuột (pointerdown, nút không nhận tiêu điểm): Huỷ trả tiêu điểm về chính nút đã bấm, không về ô đang gõ', async () => {
+    mockInvokeWithWorks([workRow()])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: LibraryImportOverlay } = await import('../../src/LibraryImportOverlay.vue')
+    const overlayState = await import('../../src/modes/libraryImportOverlayState')
+    pageWrapper = mount(LibraryMode)
+    overlayState.openLibraryImportOverlay()
+    wrapper = mount(LibraryImportOverlay, { attachTo: document.body })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    const state = await import('../../src/importPreviewState')
+    previewTextMock.mockResolvedValue({ preview: minimalPreview(), error: null })
+
+    await wrapper.get('.import-form .field input[type="text"]').setValue('Ten')
+    await wrapper.get('.import-form textarea').setValue('noi dung')
+    const textarea = wrapper.get('.import-form textarea').element as HTMLTextAreaElement
+    textarea.focus()
+    const openerBtn = wrapper.findAll('[data-import-preview-open]')[0]
+    await openerBtn.trigger('pointerdown')
+    expect(document.activeElement).toBe(textarea)
+
+    await state.openImportPreviewFromText('Ten', 'zh', '', 'noi dung', null)
+    await flushPromises()
+    state.cancelImportPreview()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(document.activeElement).toBe(openerBtn.element)
+
+    state.resetImportPreview()
   })
 
   it('nhóm hai radio đích nằm trong một `<fieldset>`/`<legend>` (mục B7)', async () => {
@@ -611,7 +681,7 @@ describe('ImportPreviewOverlay.vue — dải .ip-destination đọc đúng đíc
   it('đích Tác phẩm mới: dải đọc "Tác phẩm mới"', async () => {
     const state = await import('../../src/importPreviewState')
     const { default: ImportPreviewOverlay } = await import('../../src/ImportPreviewOverlay.vue')
-    previewTextMock.mockResolvedValue({ preview: null, error: null })
+    previewTextMock.mockResolvedValue({ preview: minimalPreview(), error: null })
 
     await state.openImportPreviewFromText('Ten Moi', 'zh', '', 'noi dung', null)
     const wrapper = mount(ImportPreviewOverlay)
@@ -625,7 +695,7 @@ describe('ImportPreviewOverlay.vue — dải .ip-destination đọc đúng đíc
   it('đích là một Tác phẩm đã có: dải nêu TÊN đích, không còn nói "Tác phẩm mới"', async () => {
     const state = await import('../../src/importPreviewState')
     const { default: ImportPreviewOverlay } = await import('../../src/ImportPreviewOverlay.vue')
-    previewTextMock.mockResolvedValue({ preview: null, error: null })
+    previewTextMock.mockResolvedValue({ preview: minimalPreview(), error: null })
 
     await state.openImportPreviewFromText('Truyen Da Co', 'zh', '', 'noi dung', 'w-1')
     const wrapper = mount(ImportPreviewOverlay)
@@ -651,17 +721,15 @@ describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần kho�
     wrapper = null
   })
 
-  it('đích Tác phẩm mới, ô Tên rỗng/toàn khoảng trắng: cả ba nút dán/tệp/URL VÀ nút song ngữ đều disabled dù các ô khác đã điền đủ', async () => {
+  it('đích Tác phẩm mới, ô Tên rỗng/toàn khoảng trắng: cả hai nút dán/tệp VÀ nút song ngữ đều disabled dù các ô khác đã điền đủ', async () => {
     mockInvokeWithWorks([])
     wrapper = await mountImportOverlay()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    // Hai `<textarea>` theo thứ tự tài liệu: dán văn bản, danh sách URL.
     const textareas = wrapper.findAll('.import-form textarea')
-    expect(textareas).toHaveLength(2)
+    expect(textareas).toHaveLength(1)
     await textareas[0]?.setValue('mot doan van ban')
-    await textareas[1]?.setValue('https://example.com/1')
 
     // Thứ tự tài liệu của bốn ô văn bản trần trong form: Tên, Thể loại, Đường dẫn tệp,
     // Đường dẫn song ngữ (§Nguồn là một `<select>`, không nằm trong tập này).
@@ -672,7 +740,7 @@ describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần kho�
     await nameInput.setValue('   ')
 
     const previewButtons = wrapper.findAll('[data-import-preview-open]')
-    expect(previewButtons).toHaveLength(3)
+    expect(previewButtons).toHaveLength(2)
     for (const btn of previewButtons) {
       expect((btn.element as HTMLButtonElement).disabled).toBe(true)
     }

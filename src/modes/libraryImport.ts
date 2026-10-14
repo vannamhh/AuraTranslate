@@ -308,6 +308,19 @@ export const pastedUrlLines = computed<string[]>(() =>
  * con số lệch nhau, không ai phải nhớ đi kiểm). */
 export const pastedUrlCount = computed<number>(() => pastedUrlLines.value.length)
 
+/** Distinct hosts among the pasted lines that parse as URLs; display only. */
+export const pastedUrlDomainCount = computed<number>(() => {
+  const hosts = new Set<string>()
+  for (const line of pastedUrlLines.value) {
+    try {
+      hosts.add(new URL(line).hostname)
+    } catch {
+      continue
+    }
+  }
+  return hosts.size
+})
+
 /** Đang có một lượt gọi IPC dở dang — vô hiệu hoá nút trong lúc chờ. */
 export const busy = ref(false)
 

@@ -109,6 +109,7 @@ pub fn create_work_with_progress(
     // (§Never: "regroupings travel as a per-call param, like chapter_pattern"), KHÔNG một
     // `Mutex` override thứ ba. `&[]` cho mọi chỗ gọi không phải đường song ngữ.
     regroupings: &[crate::core::segment::bilingual::BilingualRegrouping],
+    mismatched_rows: crate::core::segment::bilingual::MismatchedRowPolicy,
     on_image_progress: &mut dyn FnMut(usize, usize),
     should_cancel: &dyn Fn() -> bool,
 ) -> Result<OpenWork, IpcError> {
@@ -234,7 +235,8 @@ pub fn create_work_with_progress(
                 bilingual_target_column,
                 bilingual_has_header,
             )
-            .with_bilingual_regroupings(regroupings.to_vec()),
+            .with_bilingual_regroupings(regroupings.to_vec())
+            .with_bilingual_mismatched_rows(mismatched_rows),
     ) {
         Ok(outcome) => outcome,
         Err(err) => {
@@ -671,6 +673,7 @@ pub fn create_work(
         domain_log_state,
         docx_sidecar,
         regroupings,
+        crate::core::segment::bilingual::MismatchedRowPolicy::Refuse,
         &mut |_, _| {},
         &|| false,
     )

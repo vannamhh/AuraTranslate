@@ -53,7 +53,7 @@ describe('🔴 lượt xác nhận TRƯỢT rồi THÀNH CÔNG — ô đường 
     nhap.filePath.value = '/tmp/gbk.txt'
     previewFileMock.mockResolvedValue({
       batch: {
-        items: [{ path: '/tmp/gbk.txt', ok: true, error: null }],
+        items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }],
         encoding_preview: {
           confidence: 'low',
           selected_encoding: 'Big5',

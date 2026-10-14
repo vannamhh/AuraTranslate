@@ -142,14 +142,7 @@ pub fn scan_candidates_controlled(
     // sau đó clone bản đã cắt thay vì clone/cắt cả segment ngay trong pha đếm.
     let mut context_by_segment: HashMap<usize, String> = HashMap::new();
     for (term, count, first_segment) in counted {
-        if count
-            < i64::from(effective_threshold(
-                term.as_str(),
-                lang,
-                threshold,
-                surnames,
-            ))
-        {
+        if !passes_threshold(&term, count, lang, threshold, surnames) {
             continue;
         }
         if is_cancelled() {
@@ -174,6 +167,39 @@ pub fn scan_candidates_controlled(
 
     out.sort_by(|a, b| a.source_term.cmp(&b.source_term));
     ScanOutcome::Completed(out)
+}
+
+fn passes_threshold(
+    term: &str,
+    count: i64,
+    lang: MatchLang,
+    threshold: u32,
+    surnames: &[char],
+) -> bool {
+    count >= i64::from(effective_threshold(term, lang, threshold, surnames))
+}
+
+/// The terms [`scan_candidates_controlled`] would send to the dictionary probe for `segments`:
+/// everything that survives counting, nested-padding removal and the per-term threshold.
+/// `None` when cancelled.
+pub fn terms_passing_threshold(
+    segments: &[&str],
+    lang: MatchLang,
+    threshold: u32,
+    surnames: &[char],
+    is_cancelled: &mut dyn FnMut() -> bool,
+) -> Option<Vec<String>> {
+    let counted = match lang {
+        MatchLang::Zh => count_zh_candidates(segments, is_cancelled),
+        MatchLang::En => count_en_candidates(segments, is_cancelled),
+    }?;
+    Some(
+        counted
+            .into_iter()
+            .filter(|(term, count, _)| passes_threshold(term, *count, lang, threshold, surnames))
+            .map(|(term, _, _)| term)
+            .collect(),
+    )
 }
 
 /// Ngưỡng THẬT SỰ áp cho `term` — `threshold - 1` khi (và chỉ khi) `lang == Zh`, `term` dài

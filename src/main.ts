@@ -94,6 +94,7 @@ import {
   cancelImportPreviewImageDownload,
   confirmImportPreview,
   confirmImportPreviewBlockRange,
+  importPreviewIsOpen,
   jumpImportPreviewToCleanupRules,
   markImportPreviewBlockRangeStart,
   nextImportPreviewBlock,
@@ -111,8 +112,10 @@ import {
 // RIÊNG — xem doc-comment đầu tệp đó cho lý do không dùng chung với `importPreviewState.ts`.
 import {
   acceptAllBilingualProposals,
+  bilingualImportPreviewIsOpen,
   cancelBilingualImportPreview,
   confirmBilingualImportPreview,
+  focusFirstBilingualMismatch,
   moveBilingualCaretLeft,
   moveBilingualCaretRight,
   moveToNextBilingualMismatch,
@@ -293,7 +296,13 @@ import { reviewModeCommandDeps } from './reviewModeCommandDeps'
 import { installReviewerImportHooks, reviewerImportOverlayIsOpen } from './reviewerImportState'
 import { resetReviewMode } from './reviewModeState'
 import { exportOverlayIsOpen } from './exportState'
-import { closeLibraryImportOverlay, libraryImportOverlayIsOpen } from './modes/libraryImportOverlayState'
+import {
+  closeLibraryImportOverlay,
+  closeLibraryUrlImportScreen,
+  libraryImportOverlayIsOpen,
+  libraryUrlImportScreenIsOpen,
+  openLibraryUrlImportScreen,
+} from './modes/libraryImportOverlayState'
 import { tmManageCommandDeps } from './tmManageCommandDeps'
 import { tmImportOverlayIsOpen } from './tmImportState'
 import { tmManageOverlayIsOpen } from './tmManageState'
@@ -553,6 +562,8 @@ async function boot(): Promise<void> {
       submitBilingualFilePath,
       openLibraryImportForm,
       closeLibraryImportForm: closeLibraryImportOverlay,
+      openLibraryUrlImportScreen,
+      closeLibraryUrlImportScreen,
       toggleToolsMenu,
       // Story 6.3 — màn xem trước bảng mã (FR126). `confirmImportPreview` KHÔNG bỏ qua kết
       // quả (khác `submitPastedText`): thành công hay trượt đều phải đóng vòng nộp form
@@ -585,6 +596,18 @@ async function boot(): Promise<void> {
           }
         })()
       },
+      confirmBilingualImportUnlinked: () => {
+        void (async () => {
+          const result = await confirmBilingualImportPreview(true)
+          if (result.created !== null || result.error !== null) {
+            finishImportSubmission(result.created, result.error)
+            if (result.created !== null) {
+              bilingualFilePath.value = ''
+            }
+          }
+        })()
+      },
+      focusFirstBilingualMismatch,
       cancelBilingualImportPreview,
       swapBilingualColumns: () => {
         void swapBilingualColumns()
@@ -1027,6 +1050,8 @@ async function boot(): Promise<void> {
         chapterMergeOverlayIsOpen.value ||
         chapterSplitOverlayIsOpen.value ||
         libraryImportOverlayIsOpen.value ||
+        (currentMode.value === 'library' &&
+          (libraryUrlImportScreenIsOpen.value || importPreviewIsOpen.value || bilingualImportPreviewIsOpen.value)) ||
         reviewerImportOverlayIsOpen.value ||
         alignmentOverlayIsOpen.value ||
         importOverlayIsOpen.value ||

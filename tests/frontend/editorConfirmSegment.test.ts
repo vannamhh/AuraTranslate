@@ -77,11 +77,25 @@ async function recordSaveOrdered(
   return recordSave(chapterId, edits)
 }
 
+const unlinkedIds = new Set<number>()
+
+async function readFixtureWithUnlinked() {
+  const result = await readFixture()
+  if (result.loaded === null) return result
+  return {
+    ...result,
+    loaded: {
+      ...result.loaded,
+      segments: result.loaded.segments.map((s) => ({ ...s, unlinked: unlinkedIds.has(s.id) })),
+    },
+  }
+}
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return {
     ...actual,
-    readOpenChapterSegments: readFixture,
+    readOpenChapterSegments: readFixtureWithUnlinked,
     saveSegmentTargets: recordSaveOrdered,
     confirmSegment: recordConfirm,
   }
@@ -100,6 +114,7 @@ beforeEach(() => {
   confirmCalls.length = 0
   confirmArgs.length = 0
   failNextConfirm.value = false
+  unlinkedIds.clear()
   midFlightHooks.length = 0
   saveIndex = 0
 })
@@ -353,5 +368,20 @@ describe('④ AD-50 — lượt ký không gửi mốc so', () => {
     expect(await state.confirmCurrentSegment()).toBe('confirmed')
 
     expect(confirmArgs).toEqual([[12]])
+  })
+})
+
+describe('⑤ dấu chưa nối mất ngay khi ký thành công', () => {
+  it('ký một câu chưa nối ⇒ hàng trên màn hết `unlinked`, các hàng khác giữ nguyên', async () => {
+    unlinkedIds.add(12)
+    unlinkedIds.add(13)
+    const state = await freshState()
+    expect(state.editorSegments.value.find((s) => s.id === 12)?.unlinked).toBe(true)
+    state.setEditorCaret(12)
+
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+
+    expect(state.editorSegments.value.find((s) => s.id === 12)?.unlinked).toBe(false)
+    expect(state.editorSegments.value.find((s) => s.id === 13)?.unlinked).toBe(true)
   })
 })

@@ -368,6 +368,8 @@ pub struct ChapterRow {
     pub translated_count: i64,
     /// Câu sống thuộc bản dịch chưa ở trạng thái `confirmed`. Câu `is_omitted` không tính.
     pub unconfirmed_count: i64,
+    /// Live sentences still marked unlinked (bilingual rows imported whole).
+    pub unlinked_count: i64,
     /// ISO-8601 UTC: the later of `chapter.updated_at` and the Chapter's last sentence confirmation
     /// (`segment_version.created_at`); unconfirmed drafts do not move it.
     pub updated_at: String,
@@ -399,12 +401,16 @@ fn fetch_chapter_rows(store: &Store) -> Result<Vec<ChapterRow>, IpcError> {
              c.origin_author, c.origin_site_name, c.origin_url, c.origin_published_at, \
              COALESCE(n.translated, 0), COALESCE(n.unconfirmed, 0), \
              MAX(c.updated_at, COALESCE(v.last_confirmed, c.updated_at)), \
-             COALESCE(n.in_translation, 0) \
+             COALESCE(n.in_translation, 0), COALESCE(u.unlinked, 0) \
              FROM chapter c LEFT JOIN ( \
                SELECT chapter_id, COUNT(*) AS in_translation, SUM(NOT ({UNTRANSLATED_SQL})) AS translated, \
                       SUM(status <> 'confirmed') AS unconfirmed \
                FROM segment WHERE retired_at IS NULL AND {IN_TRANSLATION_SQL} \
                GROUP BY chapter_id) n ON n.chapter_id = c.id \
+             LEFT JOIN ( \
+               SELECT s.chapter_id, COUNT(*) AS unlinked \
+               FROM segment_unlinked m JOIN segment s ON s.id = m.segment_id \
+               WHERE s.retired_at IS NULL GROUP BY s.chapter_id) u ON u.chapter_id = c.id \
              LEFT JOIN ( \
                SELECT s.chapter_id, MAX(sv.created_at) AS last_confirmed \
                FROM segment_version sv JOIN segment s ON s.id = sv.segment_id \
@@ -426,6 +432,7 @@ fn fetch_chapter_rows(store: &Store) -> Result<Vec<ChapterRow>, IpcError> {
                 unconfirmed_count: row.get(10)?,
                 updated_at: row.get(11)?,
                 in_translation_count: row.get(12)?,
+                unlinked_count: row.get(13)?,
             })
         })?;
         mapped.collect::<SqlResult<Vec<ChapterRow>>>()

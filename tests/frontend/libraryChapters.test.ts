@@ -34,6 +34,7 @@ const CHAPTER_ROW_A = {
   segment_count: 10,
   translated_count: 0,
   unconfirmed_count: 0,
+  unlinked_count: 0,
   in_translation_count: 10,
   updated_at: '2026-10-01T00:00:00Z',
   origin_author: null,
@@ -50,6 +51,7 @@ const CHAPTER_ROW_UNTITLED = {
   segment_count: 5,
   translated_count: 0,
   unconfirmed_count: 0,
+  unlinked_count: 0,
   in_translation_count: 5,
   updated_at: '2026-10-01T00:00:00Z',
   origin_author: null,
@@ -274,6 +276,22 @@ describe('modes/LibraryMode.vue — khối Chương (mount thật)', () => {
     expect(row.find('.chapter-segment-count').text()).toBe(`${CHAPTER_ROW_A.in_translation_count} câu`)
   })
 
+  it('Chương có câu chưa nối ghi "N câu chưa nối"; Chương không có thì vắng nhãn', async () => {
+    mockInvokeForChaptersMount([{ ...CHAPTER_ROW_A, unlinked_count: 47 }, CHAPTER_ROW_UNTITLED])
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(LibraryMode)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('.chapter-row')).toHaveLength(2)
+    const withMark = wrapper.get(`[data-chapter-id="${CHAPTER_ROW_A.chapter_id}"]`)
+    const without = wrapper.get(`[data-chapter-id="${CHAPTER_ROW_UNTITLED.chapter_id}"]`)
+    expect(withMark.get('[data-library-chapter-unlinked]').text()).toContain('47 câu chưa nối')
+    expect(without.find('[data-library-chapter-unlinked]').exists()).toBe(false)
+  })
+
   it('AC2 — danh sách 2.000 Chương ⇒ số `<li>` THẬT trong DOM ≤ 60', async () => {
     const many = Array.from({ length: 2000 }, (_, i) => ({
       chapter_id: i + 1,
@@ -283,6 +301,7 @@ describe('modes/LibraryMode.vue — khối Chương (mount thật)', () => {
       segment_count: 1,
       translated_count: 0,
       unconfirmed_count: 0,
+      unlinked_count: 0,
       in_translation_count: 1,
       updated_at: '2026-10-01T00:00:00Z',
       origin_author: null,
@@ -633,6 +652,7 @@ const chapterRowOrd = (ord: number) => ({
   segment_count: 1,
   translated_count: 0,
   unconfirmed_count: 0,
+  unlinked_count: 0,
   in_translation_count: 1,
   updated_at: '2026-10-01T00:00:00Z',
   origin_author: null,
@@ -650,6 +670,7 @@ const CHAPTER_ROW_WITH_ORIGIN = {
   segment_count: 10,
   translated_count: 0,
   unconfirmed_count: 0,
+  unlinked_count: 0,
   in_translation_count: 10,
   updated_at: '2026-10-01T00:00:00Z',
   origin_author: 'Nguyen Van A',

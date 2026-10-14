@@ -3,6 +3,7 @@ import { nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
+import { recordImportOpener } from './importOpener'
 import { useSelectionSurface } from './panels/selectionContract'
 import {
   bilingualFilePath,
@@ -23,15 +24,15 @@ import {
   noticeKey,
   onFilePathInput,
   pastedText,
-  pastedUrlCount,
-  pastedUrls,
   pickedDestinationWork,
   setDestinationMode,
   setDestinationWorkId,
   sourceLang,
   destinationExistingWorkAvailable,
 } from './modes/libraryImport'
-import { libraryImportOverlayIsOpen } from './modes/libraryImportOverlayState'
+import { bilingualImportPreviewIsOpen } from './bilingualImportPreviewState'
+import { importPreviewIsOpen } from './importPreviewState'
+import { libraryImportOverlayIsOpen, libraryUrlImportScreenIsOpen } from './modes/libraryImportOverlayState'
 
 const FIRST_FIELD =
   'input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([disabled]), textarea:not([disabled])'
@@ -94,7 +95,13 @@ function trapTab(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <div v-if="libraryImportOverlayIsOpen" class="li-scrim" @keydown.esc="dispatch('library.import.close')" @keydown.tab="trapTab($event)">
+  <div
+    v-if="libraryImportOverlayIsOpen"
+    v-show="!(libraryUrlImportScreenIsOpen || importPreviewIsOpen || bilingualImportPreviewIsOpen)"
+    class="li-scrim"
+    @keydown.esc="dispatch('library.import.close')"
+    @keydown.tab="trapTab($event)"
+  >
     <section ref="panel" class="li-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="li-title">
       <header class="li-head">
         <h2 id="li-title" class="li-title">{{ t('mode.library.import_title') }}</h2>
@@ -187,6 +194,9 @@ function trapTab(event: KeyboardEvent): void {
           class="btn"
           data-import-preview-open
           :disabled="busy || pastedText.trim() === '' || destinationPending || effectiveName.trim() === ''"
+          @pointerdown="recordImportOpener"
+          @mousedown="recordImportOpener"
+          @focus="recordImportOpener"
           @click="dispatch('library.import_text')"
         >
           <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
@@ -213,6 +223,9 @@ function trapTab(event: KeyboardEvent): void {
           class="btn"
           data-import-preview-open
           :disabled="busy || effectiveFilePaths.length === 0 || destinationPending || effectiveName.trim() === ''"
+          @pointerdown="recordImportOpener"
+          @mousedown="recordImportOpener"
+          @focus="recordImportOpener"
           @click="dispatch('library.import_file')"
         >
           <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
@@ -229,29 +242,25 @@ function trapTab(event: KeyboardEvent): void {
           class="btn"
           data-bilingual-import-preview-open
           :disabled="busy || bilingualFilePath.trim() === '' || name.trim() === ''"
+          @pointerdown="recordImportOpener"
+          @mousedown="recordImportOpener"
+          @focus="recordImportOpener"
           @click="dispatch('library.import_bilingual')"
         >
           {{ t('mode.library.submit_bilingual') }}
         </button>
 
-        <label class="field">
-          <span>{{ t('mode.library.field_urls') }}</span>
-          <textarea v-model="pastedUrls" rows="6" placeholder="https://…"></textarea>
-        </label>
-        <!-- aura-allow-text: qua t(), Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
-        <p class="url-count" role="status">
-          {{ pastedUrlCount > 0 ? t('mode.library.url_count', { count: String(pastedUrlCount) }) : '' }}
-        </p>
         <button
           type="button"
           class="btn"
-          data-import-preview-open
-          :disabled="busy || pastedUrlCount === 0 || destinationPending || effectiveName.trim() === ''"
-          @click="dispatch('library.import_urls')"
+          data-library-url-screen-open
+          :disabled="busy"
+          @pointerdown="recordImportOpener"
+          @mousedown="recordImportOpener"
+          @focus="recordImportOpener"
+          @click="dispatch('library.import_urls_open')"
         >
-          <!-- aura-allow-text: qua t() cả hai nhánh, mục B4 — Kiểm A2 không đọc tĩnh được toán
-               tử ba ngôi. -->
-          {{ destinationMode === 'existing' ? t('mode.library.submit_urls_append') : t('mode.library.submit_urls') }}
+          {{ t('mode.library.url_screen_open') }}
         </button>
       </form>
 
@@ -424,15 +433,6 @@ function trapTab(event: KeyboardEvent): void {
 .dropzone.over {
   border-color: var(--color-primary);
   color: var(--color-primary);
-}
-
-.url-count {
-  margin: 4px 0 0;
-  min-height: 1em;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
 }
 
 .notice {

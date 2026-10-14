@@ -109,6 +109,8 @@ export type ChapterSegment = {
    * làm phép đổi `0/1 → bool` trước khi gửi. Không có giá trị thứ ba để một union nói dối.
    */
   is_omitted: boolean
+  /** Imported whole from a mismatched bilingual row and not yet linked; cleared on confirm or retire. */
+  unlinked: boolean
   /**
    * Cờ **kết đoạn của BẢN DỊCH** (FR134/AD-46, Story 2.5d) — bước di trú 9.
    *
@@ -244,6 +246,7 @@ function isChapterSegmentRow(row: unknown): row is ChapterSegment {
     (typeof v.retired_at === 'string' || v.retired_at === null) &&
     typeof v.status === 'string' &&
     typeof v.is_omitted === 'boolean' &&
+    typeof v.unlinked === 'boolean' &&
     typeof v.is_target_paragraph_end === 'boolean' &&
     (typeof v.role === 'string' || v.role === null) &&
     typeof v.translation_origin === 'string'

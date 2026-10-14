@@ -80,6 +80,8 @@ pub struct ChapterSegment {
     /// Origin of [`Self::target_text`]: one of [`TRANSLATION_ORIGINS`], `""` when none. Display
     /// only; never sent back to Rust (AD-50 rule 5).
     pub translation_origin: String,
+    /// Imported whole from a bilingual row with mismatched sentence counts and not yet confirmed.
+    pub unlinked: bool,
 }
 
 /// Trọn bộ segment của Chương **đang mở** — thứ đi ra qua dây.
@@ -225,7 +227,8 @@ pub(crate) fn select_chapter_segments(
 ) -> SqlResult<Vec<ChapterSegment>> {
     let mut stmt = conn.prepare(
         "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
-         is_omitted, is_target_paragraph_end, role, translation_origin \
+         is_omitted, is_target_paragraph_end, role, translation_origin, \
+         EXISTS (SELECT 1 FROM segment_unlinked u WHERE u.segment_id = segment.id) \
          FROM segment WHERE chapter_id = ?1 AND retired_at IS NULL ORDER BY ord, id",
     )?;
     let rows = stmt.query_map([chapter_id], |row| {
@@ -248,6 +251,7 @@ pub(crate) fn select_chapter_segments(
             is_target_paragraph_end: target_para_end != 0,
             role: row.get(9)?,
             translation_origin: row.get(10)?,
+            unlinked: row.get(11)?,
         })
     })?;
     rows.collect::<SqlResult<Vec<ChapterSegment>>>()

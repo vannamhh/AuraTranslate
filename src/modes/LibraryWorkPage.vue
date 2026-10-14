@@ -671,6 +671,13 @@ onMounted(() => {
                 data-library-chapter-unconfirmed
                 >{{ ' · ' + t('library.work_page.row_unconfirmed', { count: String(item.row.unconfirmed_count) }) }}</span
               >
+              <!-- aura-allow-text: ghép từ t() với số đếm do Rust trả về. -->
+              <span
+                v-if="item.row.unlinked_count > 0"
+                class="chapter-unlinked"
+                data-library-chapter-unlinked
+                >{{ ' · ' + t('library.work_page.row_unlinked', { count: String(item.row.unlinked_count) }) }}</span
+              >
             </span>
             <!-- aura-allow-text: nhãn trạng thái qua t(). -->
             <span class="chapter-status chapter-chip" :class="'chapter-chip--' + item.row.status">{{
@@ -1209,6 +1216,10 @@ onMounted(() => {
 }
 
 .chapter-unconfirmed {
+  color: var(--color-tm-text);
+}
+
+.chapter-unlinked {
   color: var(--color-tm-text);
 }
 

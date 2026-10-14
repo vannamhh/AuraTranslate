@@ -1126,6 +1126,8 @@ pub fn run() {
             crate::commands::project::wire::preview_import_encoding_from_text,
             crate::commands::project::wire::preview_import_encoding_from_file,
             crate::commands::project::wire::confirm_import_with_encoding,
+            crate::commands::project::wire::estimate_import_glossary,
+            crate::commands::project::wire::cancel_import_glossary_estimate,
             // Story 6.16 (FR115) -- nhap tai lieu song ngu hai cot (.csv/.tsv): mot vo xem
             // truoc (doc tep MOT LAN, cat vao PendingImportSourceState -- TAI DUNG, khong mot
             // hop thu ba) cong mot vo xac nhan (clone tu o dang cho, goi `create_work`).
@@ -1662,6 +1664,7 @@ fn open_work_slot(app: &tauri::App) {
     app.manage(crate::commands::project::OpenWorkState::new(None));
     app.manage(crate::commands::project::ImportScanGeneration::default());
     app.manage(crate::commands::project::ImageDownloadGeneration::default());
+    app.manage(crate::commands::project::ImportEstimateGeneration::default());
     // Story 3.10b (AD-48) -- lo nhap Glossary dang TREO giua nhip mot va nhip hai. Quan ly
     // canh OpenWorkState vi lo dang treo o tang Work phai chet cung Tac pham dang mo no --
     // xem close_open_work.

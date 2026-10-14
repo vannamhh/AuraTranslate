@@ -71,7 +71,7 @@ function preview(): ImportEncodingPreview {
 function batchFor(paths: string[]) {
   return {
     batch: {
-      items: paths.map((p) => ({ path: p, ok: true, error: null })),
+      items: paths.map((p) => ({ path: p, ok: true, byte_len: null, error: null })),
       encoding_preview: preview(),
     },
     error: null,

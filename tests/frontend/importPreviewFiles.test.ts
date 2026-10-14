@@ -60,7 +60,7 @@ async function freshOverlay() {
 }
 
 function fileItem(path: string, ok: boolean, error: IpcError | null = null): FileImportItemWire {
-  return { path, ok, error: ok ? null : (error ?? sampleError(path)) }
+  return { path, byte_len: null, ok, error: ok ? null : (error ?? sampleError(path)) }
 }
 
 function sampleError(path: string): IpcError {
@@ -177,7 +177,7 @@ describe('importPreviewState — openImportPreviewFromFile giữ đúng thứ t�
 
     await state.openImportPreviewFromFile('Ten', 'en', '', ['/tmp/mot.txt'], null)
 
-    expect(state.importPreviewFileItems.value).toEqual([{ path: '/tmp/mot.txt', ok: true, error: null }])
+    expect(state.importPreviewFileItems.value).toEqual([{ path: '/tmp/mot.txt', ok: true, byte_len: null, error: null }])
     expect(state.importPreview.value).not.toBeNull()
   })
 })

@@ -10,7 +10,7 @@
  *    `tier2BlockConfirmRange` với đúng `(start, end, total, sourceLang)`, `]` trước `[` KÊU
  *    không NÉM (0 lời gọi IPC).
  * 2. Lớp BÀN PHÍM (`ImportPreviewOverlay.vue`) — cài BỘ COMMAND THẬT (`installCommands`),
- *    mount component thật, bắn `keydown` THẬT trên `.ip-scrim`, khẳng định handler DOM cục bộ
+ *    mount component thật, bắn `keydown` THẬT trên `.ip-screen`, khẳng định handler DOM cục bộ
  *    gọi ĐÚNG `dispatch('<id>')` → `CommandRegistry` thật → `deps.xxx()` — không một đường tắt
  *    tự dựng trong test. Cộng đối chứng AC "tiêu điểm ở NÚT thì `Space` không bị cướp".
  */
@@ -381,7 +381,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
 
     await scrim.trigger('keydown', { key: 'j' })
     expect(nextMock).toHaveBeenCalledTimes(1)
@@ -420,7 +420,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
     const tier3 = wrapper.get('[aria-labelledby="ip-tier-3-title"]')
     expect(document.activeElement).not.toBe(tier3.element) // diem khoi dau -- doi chung am.
 
@@ -454,7 +454,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
     const blocksList = wrapper.get('.ip-blocks')
     expect(document.activeElement).not.toBe(blocksList.element)
 
@@ -479,7 +479,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
 
     await scrim.trigger('keydown', { key: ' ', metaKey: true })
     await scrim.trigger('keydown', { key: 'j', ctrlKey: true })
@@ -493,7 +493,7 @@ describe('ImportPreviewOverlay.vue — bàn phím cục bộ dispatch ĐÚNG sá
   // 🔴 AC spec 6.9: "tiêu điểm đang ở một <button> bất kỳ, khi bấm Space, nút đó hoạt động
   // bình thường — không phím nào của story này chiếm hợp âm toàn cục". `trigger()` của
   // test-utils không đặt được `event.target`; bắn một `KeyboardEvent` THẬT từ chính cái nút
-  // (nó nổi bọt lên `.ip-scrim` đúng như một lượt gõ thật) — khuôn
+  // (nó nổi bọt lên `.ip-screen` đúng như một lượt gõ thật) — khuôn
   // `glossaryManage.test.ts::'Enter khi tiêu điểm đang ở một NÚT không bị nuốt thành lệnh Sửa'`.
   it('Space khi tiêu điểm đang ở một <button> KHÔNG bắn import.preview.block_toggle_kept', async () => {
     const toggleMock = vi.fn()

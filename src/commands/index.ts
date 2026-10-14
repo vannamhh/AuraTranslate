@@ -226,6 +226,10 @@ export type CommandDeps = {
   openLibraryImportForm?: () => void
   /** Closes the import overlay. Handler of `library.import.close`. */
   closeLibraryImportForm?: () => void
+  /** Opens the "Nhập từ website" screen. Handler of `library.import_urls_open`. */
+  openLibraryUrlImportScreen?: () => void
+  /** Closes the "Nhập từ website" screen back to the import form. Handler of `library.import_urls_close`. */
+  closeLibraryUrlImportScreen?: () => void
   /** Opens or closes the title-bar `Công cụ ▾` list. Handler of `titlebar.tools.toggle`. */
   toggleToolsMenu?: () => void
 
@@ -259,6 +263,11 @@ export type CommandDeps = {
    * kết quả TIÊU THỤ ở `main.ts` (đóng vòng nộp form qua `finishImportSubmission`, cùng khuôn
    * `confirmImportPreview`). */
   confirmBilingualImportPreview?: () => void
+  /** "Nhập luôn, nối sau". Handler của `import.preview.bilingual_confirm_unlinked` — `async`,
+   * cùng khuôn `confirmBilingualImportPreview` nhưng gửi cờ nhập hàng lệch. */
+  confirmBilingualImportUnlinked?: () => void
+  /** "Xem N chỗ lệch rồi nhập". Handler của `import.preview.bilingual_focus_mismatch`. */
+  focusFirstBilingualMismatch?: () => void
   /** Huỷ lượt xem trước song ngữ — 0 lượt ghi. Handler của `import.preview.bilingual_cancel`. */
   cancelBilingualImportPreview?: () => void
   /** Đảo vai cột nguồn/đích. Handler của `import.preview.bilingual_swap_columns` — `async`,
@@ -1467,6 +1476,31 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.submitPastedUrls()
     },
   })
+  /** `library.import_urls_open` / `library.import_urls_close` — the paste step of the website
+   * import is a Library screen; no key, same reason as `library.import_urls`. */
+  target.register({
+    id: 'library.import_urls_open',
+    labelKey: 'command.library.import_urls_open',
+    keys: undefined,
+    run: () => {
+      if (deps.openLibraryUrlImportScreen === undefined) {
+        return portMissing('library.import_urls_open', 'openLibraryUrlImportScreen')
+      }
+      deps.openLibraryUrlImportScreen()
+    },
+  })
+  target.register({
+    id: 'library.import_urls_close',
+    labelKey: 'command.library.import_urls_close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeLibraryUrlImportScreen === undefined) {
+        return portMissing('library.import_urls_close', 'closeLibraryUrlImportScreen')
+      }
+      deps.closeLibraryUrlImportScreen()
+    },
+  })
+
   /** `library.import_bilingual` — Story 6.16 (FR115). Cố ý KHÔNG gán phím, cùng lý do ba lệnh
    * `library.import_*` ngay trên. */
   target.register({
@@ -1598,6 +1632,28 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('import.preview.bilingual_confirm', 'confirmBilingualImportPreview')
       }
       deps.confirmBilingualImportPreview()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_confirm_unlinked',
+    labelKey: 'command.import.preview.bilingual_confirm_unlinked',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmBilingualImportUnlinked === undefined) {
+        return portMissing('import.preview.bilingual_confirm_unlinked', 'confirmBilingualImportUnlinked')
+      }
+      deps.confirmBilingualImportUnlinked()
+    },
+  })
+  target.register({
+    id: 'import.preview.bilingual_focus_mismatch',
+    labelKey: 'command.import.preview.bilingual_focus_mismatch',
+    keys: undefined,
+    run: () => {
+      if (deps.focusFirstBilingualMismatch === undefined) {
+        return portMissing('import.preview.bilingual_focus_mismatch', 'focusFirstBilingualMismatch')
+      }
+      deps.focusFirstBilingualMismatch()
     },
   })
   target.register({

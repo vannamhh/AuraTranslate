@@ -49,6 +49,7 @@ const HANG_MOI: ChapterSegment = {
   retired_at: null,
   status: 'draft',
   is_omitted: false,
+  unlinked: false,
   is_target_paragraph_end: true,
   role: null,
   translation_origin: '',

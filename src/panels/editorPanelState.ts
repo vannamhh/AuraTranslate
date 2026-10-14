@@ -1379,7 +1379,7 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
   const index = segments.value.findIndex((s) => s.id === id)
   if (index >= 0) {
     const next = [...segments.value]
-    next[index] = { ...next[index], status: outcome.status }
+    next[index] = { ...next[index], status: outcome.status, unlinked: false }
     segments.value = next
 
     // ② Quyết định #1(a) — dời con trỏ sang câu kế tiếp, nếu có.

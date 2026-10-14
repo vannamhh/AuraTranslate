@@ -921,7 +921,12 @@ pub struct FilesImportOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileImportItem {
     pub path: String,
+    pub byte_len: Option<u64>,
     pub error: Option<ImportError>,
+}
+
+fn file_byte_len(path: &str) -> Option<u64> {
+    std::fs::metadata(path).ok().map(|m| m.len())
 }
 
 /// **THÊM 2026-09-15 (Story 6.6b)** — nhánh N tệp của AC1: đường DUY NHẤT
@@ -951,6 +956,7 @@ pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError>
             docx_sidecar,
             items: vec![FileImportItem {
                 path: paths[0].clone(),
+                byte_len: file_byte_len(&paths[0]),
                 error: None,
             }],
         });
@@ -963,6 +969,7 @@ pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError>
         if let Err(e) = reject_batch_unsupported_extension(path) {
             items.push(FileImportItem {
                 path: p.clone(),
+                byte_len: file_byte_len(p),
                 error: Some(e),
             });
             continue;
@@ -976,6 +983,7 @@ pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError>
                 inputs.push(input);
                 items.push(FileImportItem {
                     path: p.clone(),
+                    byte_len: file_byte_len(p),
                     error: None,
                 });
             }
@@ -992,6 +1000,7 @@ pub fn import_files(paths: &[String]) -> Result<FilesImportOutcome, ImportError>
             Err(e) => {
                 items.push(FileImportItem {
                     path: p.clone(),
+                    byte_len: file_byte_len(p),
                     error: Some(e),
                 });
             }

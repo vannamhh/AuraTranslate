@@ -271,8 +271,10 @@ fn write_regroup(
         let mut stmt = tx.prepare_cached(
             "UPDATE segment SET retired_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?1",
         )?;
+        let mut unmark = tx.prepare_cached("DELETE FROM segment_unlinked WHERE segment_id = ?1")?;
         for id in retire {
             stmt.execute([id])?;
+            unmark.execute([id])?;
         }
     }
 
@@ -358,7 +360,9 @@ fn write_regroup(
 fn read_fresh_rows(tx: &Transaction<'_>, ids: &[i64]) -> SqlResult<Vec<ChapterSegment>> {
     let mut stmt = tx.prepare(
         "SELECT id, ord, source_text, target_text, is_paragraph_end, retired_at, status, \
-         is_omitted, is_target_paragraph_end, role, translation_origin FROM segment WHERE id = ?1",
+         is_omitted, is_target_paragraph_end, role, translation_origin, \
+         EXISTS (SELECT 1 FROM segment_unlinked u WHERE u.segment_id = segment.id) \
+         FROM segment WHERE id = ?1",
     )?;
     let mut out = Vec::with_capacity(ids.len());
     for id in ids {
@@ -382,6 +386,7 @@ fn read_fresh_rows(tx: &Transaction<'_>, ids: &[i64]) -> SqlResult<Vec<ChapterSe
                 // "một câu mới không thừa kế vai của câu cũ".
                 role: row.get(9)?,
                 translation_origin: row.get(10)?,
+                unlinked: row.get(11)?,
             })
         })?);
     }

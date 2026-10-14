@@ -72,7 +72,9 @@
 //! [`run_import`] TRƯỚC khi mở giao dịch ghi — cùng lý do Quyết định #3 cũ của Story 1.15
 //! (AD-11 giữ MỘT writer duy nhất nối tiếp; CPU trong closure ghi chặn MỌI lượt ghi khác).
 
-use super::bilingual::{BilingualMismatch, BilingualRegrouping, BilingualRow, BilingualSegment};
+use super::bilingual::{
+    BilingualMismatch, BilingualRegrouping, BilingualRow, BilingualSegment, MismatchedRowPolicy,
+};
 use super::chapterpattern::ChapterPattern;
 use super::import::{ImportError, ImportedChapter};
 use super::normalize;
@@ -336,6 +338,7 @@ pub struct PipelineInput {
     /// mục không khớp hàng nào (hàng đã cặp được, hay số hàng không tồn tại) đơn giản không
     /// bao giờ được đọc tới. Rỗng ⇒ hành vi CŨ y hệt (mọi hàng lệch cặp ở lại danh sách).
     pub bilingual_regroupings: Vec<BilingualRegrouping>,
+    pub bilingual_mismatched_rows: MismatchedRowPolicy,
 }
 
 impl PipelineInput {
@@ -355,6 +358,7 @@ impl PipelineInput {
             bilingual_target_column: 1,
             bilingual_has_header: false,
             bilingual_regroupings: Vec::new(),
+            bilingual_mismatched_rows: MismatchedRowPolicy::Refuse,
         }
     }
 
@@ -382,6 +386,7 @@ impl PipelineInput {
             bilingual_target_column: 1,
             bilingual_has_header: false,
             bilingual_regroupings: Vec::new(),
+            bilingual_mismatched_rows: MismatchedRowPolicy::Refuse,
         }
     }
 
@@ -448,6 +453,12 @@ impl PipelineInput {
         self.bilingual_regroupings = regroupings;
         self
     }
+
+    #[must_use]
+    pub fn with_bilingual_mismatched_rows(mut self, policy: MismatchedRowPolicy) -> Self {
+        self.bilingual_mismatched_rows = policy;
+        self
+    }
 }
 
 /// Thủ công vì `encoding_rs::Encoding` không tự `Debug` — in TÊN NHÃN WHATWG
@@ -468,6 +479,7 @@ impl std::fmt::Debug for PipelineInput {
             .field("bilingual_target_column", &self.bilingual_target_column)
             .field("bilingual_has_header", &self.bilingual_has_header)
             .field("bilingual_regroupings", &self.bilingual_regroupings)
+            .field("bilingual_mismatched_rows", &self.bilingual_mismatched_rows)
             .finish()
     }
 }
@@ -731,6 +743,7 @@ pub fn run_import_with_order(
         bilingual_target_column,
         bilingual_has_header,
         bilingual_regroupings,
+        bilingual_mismatched_rows,
     } = input;
 
     // `labels` phải được đọc TRƯỚC khi `ChapterInput` bị `Unit::from` tiêu thụ —
@@ -1243,6 +1256,7 @@ pub fn run_import_with_order(
                     bilingual_source_column,
                     bilingual_target_column,
                     &bilingual_regroupings,
+                    bilingual_mismatched_rows,
                 )?;
                 bilingual_skipped_target_sentence_count = skipped_target_sentence_count;
                 trace.push(step);
@@ -2165,6 +2179,10 @@ fn split_on_literal_bytes<'a>(data: &'a [u8], pattern: &[u8]) -> Vec<&'a [u8]> {
 /// neo trên chính dãy segment này — dời neo phải thấy đúng số segment ĐÃ ép, không phải số
 /// segment sẽ ép SAU. Đường KHÔNG có `blocks` (`.txt`, dán tay, `.docx`) đi ĐÚNG nhánh cũ, gọi
 /// thẳng [`split_source_text`] — không một byte nào đổi (§Always spec 6.13).
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
 fn split_segments_step(
     mut flow: Flow,
     source_lang: &str,
@@ -2173,6 +2191,7 @@ fn split_segments_step(
     bilingual_source_column: usize,
     bilingual_target_column: usize,
     bilingual_regroupings: &[BilingualRegrouping],
+    mismatched_rows: MismatchedRowPolicy,
 ) -> Result<(Flow, usize), ImportError> {
     if let Some(mut groups) = flow.bilingual_chapters.take() {
         let mut mismatches = Vec::new();
@@ -2211,6 +2230,7 @@ fn split_segments_step(
                             source_text: s,
                             target_text: t,
                             is_paragraph_end: i + 1 == n,
+                            unlinked: false,
                         });
                     }
                 };
@@ -2249,6 +2269,21 @@ fn split_segments_step(
                     }
                     Some(super::bilingual::RegroupResolution::Skipped) => {
                         skipped_target_sentence_count += derived.target_sentences.len();
+                    }
+                    None if mismatched_rows == MismatchedRowPolicy::ImportUnlinked
+                        && !derived.source_sentences.is_empty() =>
+                    {
+                        let joiner = if source_lang.starts_with("zh") {
+                            ""
+                        } else {
+                            " "
+                        };
+                        group.segments.push(BilingualSegment {
+                            source_text: derived.source_sentences.join(joiner),
+                            target_text: derived.target_line,
+                            is_paragraph_end: true,
+                            unlinked: true,
+                        });
                     }
                     None => {
                         let candidate_positions = super::bilingual::candidate_positions(

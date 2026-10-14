@@ -72,6 +72,12 @@ import {
   loadChapters,
 } from './libraryChapters'
 import LibraryWorkPage from './LibraryWorkPage.vue'
+import LibraryUrlImportScreen from './LibraryUrlImportScreen.vue'
+import ImportPreviewOverlay from '../ImportPreviewOverlay.vue'
+import BilingualImportPreviewOverlay from '../BilingualImportPreviewOverlay.vue'
+import { importPreviewIsOpen } from '../importPreviewState'
+import { bilingualImportPreviewIsOpen } from '../bilingualImportPreviewState'
+import { libraryUrlImportScreenIsOpen } from './libraryImportOverlayState'
 // ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ─────────────────────────────
 // 🔵 SỬA (2026-08-29, Story 5.10) — thêm `librarySearchMode` cho hai nút chế độ + đọc thêm
 // `match_kind` của mỗi hit; `role="status"` mở rộng tám nhánh (đọc thẳng `librarySearchStatusKey`,
@@ -267,13 +273,19 @@ watch(libraryWorkPageIsOpen, (open, wasOpen) => {
     else root.value?.focus()
   })
 })
+const importScreenIsOpen = computed<boolean>(
+  () => libraryUrlImportScreenIsOpen.value || importPreviewIsOpen.value || bilingualImportPreviewIsOpen.value,
+)
 </script>
 
 <template>
   <!-- `tabindex="-1"` để phần tử nhận được focus lập trình. Nó KHÔNG vào thứ tự Tab. -->
   <section ref="root" class="mode" tabindex="-1">
-    <LibraryWorkPage v-if="libraryWorkPageIsOpen" />
-    <template v-else>
+    <LibraryUrlImportScreen />
+    <ImportPreviewOverlay />
+    <BilingualImportPreviewOverlay />
+    <LibraryWorkPage v-if="!importScreenIsOpen && libraryWorkPageIsOpen" />
+    <template v-else-if="!importScreenIsOpen">
     <div class="top-bar">
       <div class="top-row">
         <div class="search-field">

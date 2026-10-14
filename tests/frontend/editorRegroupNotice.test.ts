@@ -45,6 +45,7 @@ const HANG_GOP: ChapterSegment = {
   // buộc dòng báo phải nói ra bằng chữ.
   status: 'draft',
   is_omitted: false,
+  unlinked: false,
   is_target_paragraph_end: true,
   role: null,
   translation_origin: '',

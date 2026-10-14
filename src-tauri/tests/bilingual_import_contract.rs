@@ -432,6 +432,208 @@ fn a_mismatched_row_is_listed_in_preview_and_confirm_is_refused_writing_nothing(
     cleanup(&root);
 }
 
+const UNLINKED_CSV: &str = "Mot cau day.,Mot cau dich.\n\
+                            Hai cau day. Cau hai nua.,Chi mot cau thoi.\n\
+                            Ba cau day. Cau ba nua. Cau ba nua nua.,Hai cau dich. Cau hai nua.\n";
+
+fn confirm_unlinked_fixture(
+    tag: &str,
+    policy: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy,
+    csv: &str,
+) -> (
+    PathBuf,
+    Result<auratranslate_lib::commands::project::OpenWork, auratranslate_lib::core::i18n::IpcError>,
+) {
+    let root = temp_dir(tag);
+    let path = write_file(&root, "lech.csv", csv.as_bytes());
+    let shape = import_bilingual_file(&path).expect("tep hop le phai doc duoc");
+    let state = pending_state();
+    stash_pending_import_source(&state, shape, None);
+    let result = auratranslate_lib::commands::project::confirm_bilingual_import_with_policy(
+        &root,
+        &state,
+        "Chua Noi",
+        "en",
+        "",
+        "UTF-8",
+        Vec::new(),
+        None,
+        0,
+        1,
+        false,
+        Vec::new(),
+        None,
+        policy,
+    );
+    (root, result)
+}
+
+#[test]
+fn without_the_flag_mismatched_rows_are_still_refused_and_no_unlinked_mark_exists() {
+    use auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy;
+    let (root, result) = confirm_unlinked_fixture(
+        "unlinked-refused",
+        MismatchedRowPolicy::Refuse,
+        UNLINKED_CSV,
+    );
+    let err = result.expect_err("khong co co thi hang lech van bi tu choi");
+    assert_eq!(err.message_key(), MessageKey::ImportBilingualMismatchedRows);
+    assert_eq!(err.params().get("count").map(String::as_str), Some("2"));
+    assert_eq!(entry_count(&root), 1, "0 .atproj nao duoc ghi");
+    cleanup(&root);
+}
+
+#[test]
+fn the_flag_imports_each_mismatched_row_as_one_whole_unconfirmed_unlinked_segment() {
+    use auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy;
+    let (root, result) = confirm_unlinked_fixture(
+        "unlinked-import",
+        MismatchedRowPolicy::ImportUnlinked,
+        UNLINKED_CSV,
+    );
+    let opened = result.expect("co co thi hang lech nhap duoc");
+    let chapter_id = read_chapters(&opened.store)[0].id;
+    let segments = read_segments(&opened.store, chapter_id);
+    assert_eq!(segments.len(), 3, "mot hang = mot segment");
+    assert_eq!(
+        segments[1].source_text, "Hai cau day. Cau hai nua.",
+        "nguon tron hang"
+    );
+    assert_eq!(segments[1].target_text, "Chi mot cau thoi.");
+    assert_eq!(segments[2].target_text, "Hai cau dich. Cau hai nua.");
+    for row in &segments {
+        assert_eq!(row.translation_origin, "bilingual_import");
+        assert_eq!(row.status, "draft");
+    }
+
+    let unlinked: Vec<(i64, i64)> = opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT s.ord, s.id FROM segment_unlinked m JOIN segment s ON s.id = m.segment_id \
+                 ORDER BY s.ord",
+            )?;
+            let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc segment_unlinked");
+    assert_eq!(
+        unlinked.iter().map(|(ord, _)| *ord).collect::<Vec<_>>(),
+        vec![2, 3]
+    );
+
+    let baseline: Vec<(String, String)> = opened
+        .store
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT target_text, baseline_target_text FROM segment ORDER BY ord")?;
+            let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+            rows.collect::<Result<Vec<_>, _>>()
+        })
+        .expect("doc baseline");
+    assert!(
+        baseline.iter().all(|(t, b)| t == b),
+        "baseline = target (AD-47)"
+    );
+
+    let rows =
+        auratranslate_lib::commands::chapter::list_chapters(Some(&opened)).expect("list_chapters");
+    assert_eq!(rows[0].unlinked_count, 2);
+    let wire = auratranslate_lib::commands::segment::read_open_chapter_segments(Some(&opened))
+        .expect("doc segment cua Chuong");
+    assert_eq!(
+        wire.segments.iter().map(|s| s.unlinked).collect::<Vec<_>>(),
+        vec![false, true, true]
+    );
+
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn confirming_splitting_or_merging_an_unlinked_segment_clears_its_mark_in_the_same_transaction() {
+    use auratranslate_lib::commands::segment::{confirm_segment, split_segment};
+    use auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy;
+    let (root, result) = confirm_unlinked_fixture(
+        "unlinked-clear",
+        MismatchedRowPolicy::ImportUnlinked,
+        UNLINKED_CSV,
+    );
+    let opened = result.expect("co co thi hang lech nhap duoc");
+    let count = |open: &auratranslate_lib::commands::project::OpenWork| -> i64 {
+        auratranslate_lib::commands::chapter::list_chapters(Some(open)).expect("list")[0]
+            .unlinked_count
+    };
+    let ids = |open: &auratranslate_lib::commands::project::OpenWork| -> Vec<i64> {
+        auratranslate_lib::commands::segment::read_open_chapter_segments(Some(open))
+            .expect("doc")
+            .segments
+            .iter()
+            .map(|s| s.id)
+            .collect()
+    };
+    assert_eq!(count(&opened), 2);
+
+    let second = ids(&opened)[1];
+    confirm_segment(Some(&opened), second).expect("xac nhan cau chua noi");
+    assert_eq!(count(&opened), 1, "xac nhan xoa dau");
+    let marks: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment_unlinked", [], |r| r.get(0)))
+        .expect("dem dau");
+    assert_eq!(marks, 1);
+
+    let third = ids(&opened)[2];
+    split_segment(Some(&opened), third, vec![9]).expect("tach cau chua noi");
+    assert_eq!(count(&opened), 0, "tach xoa dau");
+    let marks: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment_unlinked", [], |r| r.get(0)))
+        .expect("dem dau");
+    assert_eq!(marks, 0, "ke ca hang ve huu khong con dau");
+
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn merging_two_unlinked_segments_leaves_no_mark_on_the_retired_rows() {
+    use auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy;
+    let (root, result) = confirm_unlinked_fixture(
+        "unlinked-merge",
+        MismatchedRowPolicy::ImportUnlinked,
+        UNLINKED_CSV,
+    );
+    let opened = result.expect("co co thi hang lech nhap duoc");
+    let third = auratranslate_lib::commands::segment::read_open_chapter_segments(Some(&opened))
+        .expect("doc")
+        .segments[2]
+        .id;
+    auratranslate_lib::commands::segment::merge_segments(Some(&opened), third)
+        .expect("gop hai cau chua noi");
+    let marks: i64 = opened
+        .store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM segment_unlinked", [], |r| r.get(0)))
+        .expect("dem dau");
+    assert_eq!(marks, 0);
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn a_mismatched_row_with_a_blank_source_is_refused_even_with_the_flag() {
+    use auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy;
+    let (root, result) = confirm_unlinked_fixture(
+        "unlinked-blank-source",
+        MismatchedRowPolicy::ImportUnlinked,
+        ",Chi co ban dich.\nMot cau day.,Mot cau dich.\n",
+    );
+    let err = result.expect_err("nguon rong khong co cau nao de nhap thanh segment");
+    assert_eq!(err.message_key(), MessageKey::ImportBilingualMismatchedRows);
+    assert_eq!(err.params().get("count").map(String::as_str), Some("1"));
+    cleanup(&root);
+}
+
 #[test]
 fn a_blank_target_cell_is_a_mismatch_of_one_versus_zero() {
     let root = temp_dir("blank-target");

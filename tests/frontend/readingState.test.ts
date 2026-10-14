@@ -92,6 +92,7 @@ function chapterRow(overrides: Partial<{ chapter_id: number; ord: number; title:
     segment_count: 4,
     translated_count: 0,
     unconfirmed_count: 0,
+    unlinked_count: 0,
     in_translation_count: 4,
     updated_at: '2026-10-01T00:00:00Z',
     origin_author: null,

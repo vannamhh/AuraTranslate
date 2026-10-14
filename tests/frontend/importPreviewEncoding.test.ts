@@ -219,7 +219,7 @@ describe('importPreviewState — dải MỞ (hiển thị) đúng khi và chỉ 
   it('tin cậy THẤP ⇒ dải MỞ với đúng năm ô, theo thứ tự FR126', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
 
@@ -281,7 +281,7 @@ describe('importPreviewState — buộc mở dải bằng `E` (`openImportPrevie
     expect(state.importPreviewStripIsOpen.value).toBe(true)
 
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: highConfidencePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: highConfidencePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten2', 'en', '', ['/tmp/x.txt'], null)
@@ -294,7 +294,7 @@ describe('importPreviewState — chọn một ứng viên khác', () => {
   it('cập nhật ứng viên đang chọn và bản dựng thật hiện NGAY, không đòi mở lại màn xem trước', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
@@ -318,7 +318,7 @@ describe('importPreviewState — chọn một ứng viên khác', () => {
   it('chọn một `encoding` không có trong dải là vô hiệu — giữ nguyên lựa chọn cũ', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
@@ -331,7 +331,7 @@ describe('importPreviewState — chọn một ứng viên khác', () => {
   it('🔴 vòng rà đối kháng 2, mục 11 — đổi lựa chọn TRONG LÚC một lượt xác nhận đang BAY là vô hiệu', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
@@ -390,7 +390,7 @@ describe('importPreviewState — xác nhận', () => {
   it('trượt (bảng mã sai) giữ lớp phủ MỞ và hiện lỗi — không đóng vòng nộp form', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
@@ -412,7 +412,7 @@ describe('importPreviewState — xác nhận', () => {
     // xác nhận lại (chọn đúng bảng mã) sau đó không còn biết xoá `pastedText`/`filePath`.
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
@@ -470,7 +470,7 @@ describe('importPreviewState — huỷ (defect #5, vòng rà 1)', () => {
   it('huỷ xoá SẠCH `preview`/lựa chọn — xác nhận SAU đó là no-op, KHÔNG gọi IPC', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: lowConfidencePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: lowConfidencePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)

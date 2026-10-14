@@ -33,11 +33,13 @@ import { computed, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import {
   cancelImageDownload,
+  cancelImportGlossaryEstimate,
   cleanupAddRule,
   cleanupDeleteRule,
   cleanupEditRule,
   cleanupSetEnabled,
   confirmImportWithEncoding,
+  estimateImportGlossary,
   previewChapterDetail,
   previewImportEncodingFromFile,
   previewImportEncodingFromText,
@@ -511,6 +513,77 @@ export const importPreviewUrlListHasBrokenItem = computed<boolean>(() => {
 export const importPreviewCanConfirm = computed<boolean>(() => {
   if (lastSubmittedFrom.value === 'urls') return !importPreviewUrlListHasBrokenItem.value
   return preview.value !== null
+})
+
+export type GlossaryEstimateState =
+  | { kind: 'idle' }
+  | { kind: 'running' }
+  | { kind: 'estimated'; count: number }
+  | { kind: 'unavailable' }
+
+const glossaryEstimate = ref<GlossaryEstimateState>({ kind: 'idle' })
+export const importPreviewGlossaryEstimate: DeepReadonly<Ref<GlossaryEstimateState>> = readonly(glossaryEstimate)
+
+const GLOSSARY_ESTIMATE_DEBOUNCE_MS = 300
+let glossaryEstimateToken = 0
+let glossaryEstimateTimer: ReturnType<typeof setTimeout> | null = null
+
+function stopGlossaryEstimate(): void {
+  glossaryEstimateToken += 1
+  if (glossaryEstimateTimer !== null) {
+    clearTimeout(glossaryEstimateTimer)
+    glossaryEstimateTimer = null
+  }
+  if (glossaryEstimate.value.kind === 'running') void cancelImportGlossaryEstimate()
+  glossaryEstimate.value = { kind: 'idle' }
+}
+
+async function runGlossaryEstimate(token: number, encoding: string): Promise<void> {
+  const result = await estimateImportGlossary(pendingSourceLang.value, encoding, chapterPatternWire())
+  if (token !== glossaryEstimateToken) return
+  const estimate = result.estimate
+  glossaryEstimate.value =
+    estimate !== null && estimate.outcome === 'estimated' && estimate.count !== null
+      ? { kind: 'estimated', count: estimate.count }
+      : { kind: 'unavailable' }
+}
+
+function scheduleGlossaryEstimate(): void {
+  stopGlossaryEstimate()
+  const encoding = selectedEncoding.value
+  if (!overlayOpen.value || status.value !== 'loaded' || preview.value === null || encoding === null) return
+  if (confirming.value) return
+  const token = glossaryEstimateToken
+  glossaryEstimate.value = { kind: 'running' }
+  glossaryEstimateTimer = setTimeout(() => {
+    glossaryEstimateTimer = null
+    void runGlossaryEstimate(token, encoding)
+  }, GLOSSARY_ESTIMATE_DEBOUNCE_MS)
+}
+
+watch([overlayOpen, status, preview, selectedEncoding, confirming], scheduleGlossaryEstimate)
+
+/** Names of the files behind a `'file'` source, in the order they were submitted. */
+export const importPreviewSourceFileNames = computed<string[]>(() => {
+  if (lastSubmittedFrom.value !== 'file') return []
+  return pendingPaths.value.map((path) => path.split(/[\\/]/).pop() ?? path)
+})
+
+/** Total size of a `'file'` source; `null` when any file's size is unknown. */
+export const importPreviewSourceFileBytes = computed<number | null>(() => {
+  if (lastSubmittedFrom.value !== 'file' || fileImportItems.value.length === 0) return null
+  let total = 0
+  for (const item of fileImportItems.value) {
+    if (item.byte_len === null) return null
+    total += item.byte_len
+  }
+  return total
+})
+
+/** UTF-8 size of a pasted-text source; `null` for every other source. */
+export const importPreviewSourceTextBytes = computed<number | null>(() => {
+  if (lastSubmittedFrom.value !== 'text' || pendingText.value === null) return null
+  return new TextEncoder().encode(pendingText.value).length
 })
 
 /** Dải năm ô mở khi và chỉ khi tin cậy THẤP **hoặc** người dùng đã buộc mở bằng `E` — một
@@ -2159,6 +2232,11 @@ export function cancelImportPreview(): void {
  */
 export function resetImportPreview(): void {
   sequence += 1
+  glossaryEstimateToken += 1
+  if (glossaryEstimateTimer !== null) clearTimeout(glossaryEstimateTimer)
+  glossaryEstimateTimer = null
+  if (glossaryEstimate.value.kind === 'running') void cancelImportGlossaryEstimate()
+  glossaryEstimate.value = { kind: 'idle' }
   // P3 (vòng rà đối kháng bước 4) — vô hiệu hoá mọi lượt gọi `loadImportPreviewChapterDetail`
   // ĐANG BAY, cùng lý do `sequence += 1` ngay trên (một lượt huỷ/mở MỚI làm mọi kết quả trễ
   // hết còn khớp bất kỳ thứ gì đang hiện).

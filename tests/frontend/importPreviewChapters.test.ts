@@ -395,7 +395,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
     await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.find('.ip-chapters-count').text()).toContain('2')
+    expect(wrapper.get('.ip-summary').text()).toMatch(/Chương nhận ra\s*2(\D|$)/)
     const rows = wrapper.findAll('.ip-chapters-entry')
     expect(rows).toHaveLength(2)
     expect(rows[0]?.find('.ip-chapters-title').text()).toBe('Chuong 1: Mo Dau')
@@ -1454,7 +1454,7 @@ describe('ImportPreviewOverlay.vue — dòng giải thích khi mẫu regex neo `
     await state.setImportPreviewChapterPattern('^Chuong', 'regex')
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.find('.ip-chapters-count').text()).toContain('1')
+    expect(wrapper.get('.ip-summary').text()).toMatch(/Chương nhận ra\s*1(\D|$)/)
     expect(wrapper.find('.ip-chapters-anchor-hint').exists()).toBe(true)
     expect(wrapper.find('.ip-chapters-anchor-hint').text().length).toBeGreaterThan(0)
 
@@ -1470,7 +1470,7 @@ describe('ImportPreviewOverlay.vue — dòng giải thích khi mẫu regex neo `
     await state.setImportPreviewChapterPattern('^Chuong', 'regex')
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.find('.ip-chapters-count').text()).toContain('2')
+    expect(wrapper.get('.ip-summary').text()).toMatch(/Chương nhận ra\s*2(\D|$)/)
     expect(wrapper.find('.ip-chapters-anchor-hint').exists()).toBe(false)
 
     wrapper.unmount()
@@ -1488,7 +1488,7 @@ describe('ImportPreviewOverlay.vue — dòng giải thích khi mẫu regex neo `
     await state.setImportPreviewChapterPattern('^Chuong', 'literal')
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.find('.ip-chapters-count').text()).toContain('1')
+    expect(wrapper.get('.ip-summary').text()).toMatch(/Chương nhận ra\s*1(\D|$)/)
     expect(wrapper.find('.ip-chapters-anchor-hint').exists()).toBe(false)
 
     wrapper.unmount()

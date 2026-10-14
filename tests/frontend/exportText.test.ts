@@ -35,6 +35,7 @@ function row(id: number, ord: number): ChapterRow {
     segment_count: 3,
     translated_count: 0,
     unconfirmed_count: 0,
+    unlinked_count: 0,
     in_translation_count: 3,
     updated_at: '2026-10-01T00:00:00Z',
     origin_author: null,

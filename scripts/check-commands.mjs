@@ -228,7 +228,7 @@ const tsFiles = keep(tsAll)
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const VUE_FLOOR = 44
-const TS_FLOOR = 105
+const TS_FLOOR = 113
 
 /**
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
@@ -243,7 +243,7 @@ const COMMAND_FLOOR = 230
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 183
+const CLICK_FLOOR = 197
 const DISPATCH_FLOOR = 258
 
 {
@@ -2411,7 +2411,6 @@ const HANDLER_TABLE = {
   'src/AttributionOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
   'src/AttributionOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/BilingualImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.bilingual_cancel'] },
-  'src/BilingualImportPreviewOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/BilingualImportPreviewOverlay.vue::onScrimKeydown': { nonCommand: R_SCRIM_CLOSE },
   'src/GlossaryImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/GlossaryManageOverlay.vue::onEscape': { ids: ['glossary.manage.close'] },
@@ -2425,7 +2424,6 @@ const HANDLER_TABLE = {
   },
   'src/GlossaryQuickAdd.vue::onCategoryKeydown': { nonCommand: R_CATEGORY_NAV },
   'src/ImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.cancel'] },
-  'src/ImportPreviewOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ImportPreviewOverlay.vue::onScrimKeydown': { nonCommand: R_SCRIM_CLOSE },
   'src/ImportPreviewOverlay.vue::onReloadUrlItem': { nonCommand: R_SUBMIT_DIRECT },
   'src/ImportPreviewOverlay.vue::onRemoveUrlItem': { nonCommand: R_SUBMIT_DIRECT },
@@ -2478,6 +2476,9 @@ const HANDLER_TABLE = {
     ids: ['library.open_chapter', 'library.chapter_rename.begin', 'library.chapters.clear_selection'],
   },
   'src/LibraryImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/LibraryImportOverlay.vue::recordImportOpener': { nonCommand: R_POINTER_FOCUS },
+  'src/modes/LibraryUrlImportScreen.vue::recordImportOpener': { nonCommand: R_POINTER_FOCUS },
+  'src/modes/LibraryUrlImportScreen.vue::onEscape': { ids: ['library.import_urls_close'] },
   'src/TmImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ReviewerImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TmManageOverlay.vue::onEscape': { ids: ['tm.manage.cancel', 'tm.manage.close'] },
@@ -2734,7 +2735,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 107
+const HANDLER_ATTR_FLOOR = 114
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

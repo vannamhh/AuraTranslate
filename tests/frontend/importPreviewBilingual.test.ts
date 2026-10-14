@@ -61,6 +61,7 @@ vi.mock('../../src/config/project', async (importOriginal) => {
       hasHeader: boolean,
       regroupings: BilingualRegroupingInput[],
       tableIndex: number | null,
+      importMismatchedRows: boolean,
     ) =>
       confirmMock(
         name,
@@ -73,6 +74,7 @@ vi.mock('../../src/config/project', async (importOriginal) => {
         hasHeader,
         regroupings,
         tableIndex,
+        importMismatchedRows,
       ),
   }
 })
@@ -294,7 +296,7 @@ describe('bilingualImportPreviewState — vai cột, tiêu đề, mẫu phân t�
     expect(state.bilingualImportPreviewHasHeader.value).toBe(true)
 
     await state.confirmBilingualImportPreview()
-    expect(confirmMock).toHaveBeenCalledWith('Ten', 'zh', '', 'GBK', null, 1, 0, true, [], null)
+    expect(confirmMock).toHaveBeenCalledWith('Ten', 'zh', '', 'GBK', null, 1, 0, true, [], null, false)
   })
 
   // 🔴 SỬA (vòng rà đối kháng) — `refresh()` từng GHI ĐÈ ứng viên NGƯỜI DÙNG đang chọn bằng
@@ -323,7 +325,7 @@ describe('bilingualImportPreviewState — vai cột, tiêu đề, mẫu phân t�
     expect(state.bilingualImportPreviewSelectedEncoding.value).toBe('GBK')
 
     await state.confirmBilingualImportPreview()
-    expect(confirmMock).toHaveBeenCalledWith('Ten', 'zh', '', 'GBK', { pattern: 'CHUONG', kind: 'literal' }, 1, 0, true, [], null)
+    expect(confirmMock).toHaveBeenCalledWith('Ten', 'zh', '', 'GBK', { pattern: 'CHUONG', kind: 'literal' }, 1, 0, true, [], null, false)
   })
 
   // 🔴 SỬA (vòng rà đối kháng) — nếu ứng viên đang chọn tay BIẾN MẤT khỏi dải mới (không còn
@@ -401,7 +403,7 @@ describe('bilingualImportPreviewState — xác nhận bị KHOÁ khi còn hàng 
     expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
     const result = await state.confirmBilingualImportPreview()
 
-    expect(confirmMock).toHaveBeenCalledWith('Ten Tac Pham', 'en', 'Tieu thuyet', 'UTF-8', null, 0, 1, false, [], null)
+    expect(confirmMock).toHaveBeenCalledWith('Ten Tac Pham', 'en', 'Tieu thuyet', 'UTF-8', null, 0, 1, false, [], null, false)
     expect(result.created).toEqual({ meta: { work_id: 'w1' } })
     expect(state.bilingualImportPreviewIsOpen.value).toBe(false)
   })
@@ -546,7 +548,7 @@ describe('bilingualImportPreviewState — bảng .docx', () => {
 
     confirmMock.mockResolvedValue({ created: { work_id: 'w' }, error: null })
     await state.confirmBilingualImportPreview()
-    expect(confirmMock).toHaveBeenCalledWith('Ten', 'en', '', 'UTF-8', null, 0, 1, false, [], 1)
+    expect(confirmMock).toHaveBeenCalledWith('Ten', 'en', '', 'UTF-8', null, 0, 1, false, [], 1, false)
   })
 
   it('một bảng: Rust tự chọn bảng 0, xác nhận mở ngay và gửi tableIndex 0', async () => {
@@ -561,7 +563,7 @@ describe('bilingualImportPreviewState — bảng .docx', () => {
     expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
     confirmMock.mockResolvedValue({ created: { work_id: 'w' }, error: null })
     await state.confirmBilingualImportPreview()
-    expect(confirmMock).toHaveBeenCalledWith('Ten', 'en', '', 'UTF-8', null, 0, 1, false, [], 0)
+    expect(confirmMock).toHaveBeenCalledWith('Ten', 'en', '', 'UTF-8', null, 0, 1, false, [], 0, false)
   })
 
   it('chỉ số bảng ngoài khoảng: lỗi có kiểu lên trạng thái error, không lùi về bảng khác', async () => {
@@ -661,7 +663,7 @@ describe('BilingualImportPreviewOverlay.vue — bảy phím dispatch ĐÚNG bả
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/lech.csv')
 
     const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
-    const scrim = wrapper.get('.bip-scrim')
+    const scrim = wrapper.get('.bip-screen')
 
     await scrim.trigger('keydown', { key: 'ArrowDown' })
     expect(nextMock).toHaveBeenCalledTimes(1)
@@ -689,7 +691,7 @@ describe('BilingualImportPreviewOverlay.vue — bảy phím dispatch ĐÚNG bả
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/lech.csv')
 
     const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
-    await wrapper.get('.bip-scrim').trigger('keydown', { key: 'ArrowDown', ctrlKey: true })
+    await wrapper.get('.bip-screen').trigger('keydown', { key: 'ArrowDown', ctrlKey: true })
 
     expect(nextMock).not.toHaveBeenCalled()
 
@@ -1179,7 +1181,7 @@ describe('BilingualImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬ
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-cot.csv')
 
     const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
-    const scrim = wrapper.get('.bip-scrim')
+    const scrim = wrapper.get('.bip-screen')
 
     await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true })
     expect(toggleMock).toHaveBeenCalledTimes(1)
@@ -1197,7 +1199,7 @@ describe('BilingualImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬ
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-cot.csv')
 
     const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
-    const scrim = wrapper.get('.bip-scrim')
+    const scrim = wrapper.get('.bip-screen')
 
     await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true })
     await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true, repeat: true })
@@ -1217,7 +1219,7 @@ describe('BilingualImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬ
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/hai-cot.csv')
 
     const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
-    const scrim = wrapper.get('.bip-scrim')
+    const scrim = wrapper.get('.bip-screen')
 
     await scrim.trigger('keydown', { code: 'KeyW', key: 'w' })
     expect(toggleMock).not.toHaveBeenCalled()
@@ -1240,7 +1242,7 @@ describe('BilingualImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬ
     await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/lech.csv')
 
     const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
-    await wrapper.get('.bip-scrim').trigger('keydown', { key: 'ArrowDown', code: 'ArrowDown', altKey: true })
+    await wrapper.get('.bip-screen').trigger('keydown', { key: 'ArrowDown', code: 'ArrowDown', altKey: true })
 
     expect(nextMock).not.toHaveBeenCalled()
 
@@ -1260,10 +1262,124 @@ describe('BilingualImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬ
 
     state.cancelBilingualImportPreview()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.bip-scrim').exists()).toBe(false)
+    expect(wrapper.find('.bip-screen').exists()).toBe(false)
 
     expect(toggleMock).not.toHaveBeenCalled()
 
     wrapper.unmount()
+  })
+})
+
+describe('BilingualImportPreviewOverlay.vue — "Nhập luôn, nối sau" và "Xem chỗ lệch"', () => {
+  async function openWith(mismatches: BilingualMismatchWire[]) {
+    const ctx = await freshOverlay()
+    previewMock.mockResolvedValue({
+      preview: preview({ candidates: [candidate({ mismatches })] }),
+      error: null,
+    })
+    await ctx.state.openBilingualImportPreview('Ten', 'en', '', '/tmp/lech.csv')
+    return ctx
+  }
+
+  it('còn hàng lệch có nguồn: "Nhập luôn" mở được, xác nhận thường khoá, "Xem N chỗ lệch" hiện đúng số', async () => {
+    const { state, BilingualImportPreviewOverlay } = await openWith([mismatch(), mismatch({ row_number: 5 })])
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+
+    expect(wrapper.get('[data-bilingual-import-unlinked]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('.bip-act-primary').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.bip-mismatch-focus, .bip-actions .bip-act').text()).toContain('2')
+
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('còn hàng lệch NGUỒN RỖNG: "Nhập luôn" khoá kèm lý do có số hàng rỗng, và gọi hàm nhập luôn là no-op', async () => {
+    const { state, BilingualImportPreviewOverlay } = await openWith([
+      mismatch(),
+      mismatch({ row_number: 7, source_sentences: [], proposed_cuts: [], candidate_positions: [] }),
+    ])
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+
+    expect(wrapper.get('[data-bilingual-import-unlinked]').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Còn 1 hàng lệch không có câu nguồn')
+
+    const result = await state.confirmBilingualImportPreview(true)
+    expect(result).toEqual({ created: null, error: null })
+    expect(confirmMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('0 hàng lệch: nút "Nhập luôn" vắng mặt (không có gì để nối sau)', async () => {
+    const { state, BilingualImportPreviewOverlay } = await openWith([])
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+
+    expect(wrapper.find('[data-bilingual-import-unlinked]').exists()).toBe(false)
+
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('xác nhận thường gửi importMismatchedRows=false, nhập luôn gửi true (tham số cuối của lệnh)', async () => {
+    const clean = await freshOverlay()
+    previewMock.mockResolvedValue({ preview: preview(), error: null })
+    confirmMock.mockResolvedValue({ created: null, error: null })
+    await clean.state.openBilingualImportPreview('Ten', 'en', '', '/tmp/ok.csv')
+    await clean.state.confirmBilingualImportPreview()
+    expect(confirmMock.mock.calls.at(-1)?.at(-1)).toBe(false)
+    clean.state.resetBilingualImportPreview()
+
+    const lech = await openWith([mismatch()])
+    confirmMock.mockResolvedValue({ created: null, error: null })
+    await lech.state.confirmBilingualImportPreview(true)
+    expect(confirmMock.mock.calls.at(-1)?.at(-1)).toBe(true)
+    lech.state.resetBilingualImportPreview()
+  })
+
+  it('xác nhận thường khi còn hàng lệch KHÔNG gọi Rust (cờ vắng ⇒ từ chối ở tầng giao diện)', async () => {
+    const { state } = await openWith([mismatch()])
+    await state.confirmBilingualImportPreview(false)
+    expect(confirmMock).not.toHaveBeenCalled()
+    state.resetBilingualImportPreview()
+  })
+
+  it('"Xem N chỗ lệch rồi nhập" chạy lệnh THẬT import.preview.bilingual_focus_mismatch: hàng lệch đầu thành hàng đang chọn, KHÔNG nhập', async () => {
+    const { state, BilingualImportPreviewOverlay } = await freshOverlay({
+      focusFirstBilingualMismatch: () => {
+        state.focusFirstBilingualMismatch()
+      },
+    })
+    previewMock.mockResolvedValue({
+      preview: preview({ candidates: [candidate({ mismatches: [mismatch({ row_number: 3 }), mismatch({ row_number: 9 })] })] }),
+      error: null,
+    })
+    await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/lech.csv')
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+    state.moveToNextBilingualMismatch()
+    expect(state.bilingualImportPreviewActiveMismatch.value?.row_number).toBe(9)
+
+    const viewBtn = wrapper.findAll('.bip-actions .bip-act').find((b) => b.text().startsWith('Xem 2'))
+    expect(viewBtn).toBeDefined()
+    await viewBtn!.trigger('click')
+
+    expect(state.bilingualImportPreviewActiveMismatch.value?.row_number).toBe(3)
+    expect(confirmMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('màn song ngữ không có dòng ước lượng Glossary và không có scrim', async () => {
+    const { state, BilingualImportPreviewOverlay } = await openWith([])
+    const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+
+    expect(wrapper.find('[data-ip-glossary-estimate]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Ứng viên Glossary')
+    expect(wrapper.find('.bip-scrim').exists()).toBe(false)
+    expect(wrapper.find('[aria-modal]').exists()).toBe(false)
+
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
   })
 })

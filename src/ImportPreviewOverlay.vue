@@ -1,30 +1,10 @@
 <script setup lang="ts">
-// Lớp phủ **Xem trước lượt nhập — bảng mã** (Story 6.3, FR126, AD-39 bước 1).
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 KHUÔN `GlossaryImportOverlay.vue` — scrim + `role="dialog"` + bẫy Tab tự viết +
-// focus-return qua `data-import-preview-open` (đặt trên hai nút nộp form của
-// `LibraryMode.vue`: dán văn bản VÀ tệp — cả hai mở lớp phủ NÀY).
-//
-// 🔴 Ba tầng theo thứ tự NHÂN QUẢ, KHÔNG nút "Tiếp theo" (§Always spec 6.3): bảng mã →
-// ranh giới nội dung → luật làm sạch, tất cả trên MỘT màn hình. Tầng 2 (Story 6.9) LUÔN
-// hiện, LUÔN rỗng, LUÔN nói ra vì sao. 🔵 SỬA 2026-09-05 (Story 6.5) — tầng 3 nay CÓ THÂN:
-// văn bản đã đánh dấu gạch ngang + danh sách luật (xem/sửa/tắt/thêm/xoá). Gạch ngang render
-// Ở ĐÂY, không ở tầng 2 — tầng 2 (bóc nội dung khối) vẫn rỗng, và §Design Notes spec 6.5
-// giải thích đây là một lượt dời có chủ khi 6.9 dựng xong, không phải một lệch UX.
-//
-// 🔴 Dải năm ứng viên đi qua `<input type="radio">` + `@change`, KHÔNG `dispatch` — cùng lý
-// do đúng hệt `GlossaryImportOverlay.vue`: `dispatch` không nhận tham số, và "hàng thứ N
-// được chọn" không diễn đạt được qua nó. `check:commands` Kiểm A chỉ canh `@click`, nên
-// `@change` nằm ngoài phạm vi của nó — có tiền lệ, không phải một lỗ hổng.
-//
-// Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — mọi văn bản qua `t()`/`tError()`.
-// Không `v-html` ở bất kỳ đâu (AD-16) — mọi bản dựng thật của dải là DỮ LIỆU văn bản thô từ
-// Rust, không phải markup.
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
+import { takeRecordedImportOpener } from './importOpener'
+import { groupThousands } from './importFormat'
 import { useSelectionSurface } from './panels/selectionContract'
 import ChapterOrigin from './ChapterOrigin.vue'
 import {
@@ -62,6 +42,7 @@ import {
   importPreviewCurrentChapterOrigin,
   importPreviewFileImportBusy,
   importPreviewFileImportError,
+  importPreviewGlossaryEstimate,
   importPreviewFileItems,
   importPreviewImageDownloadCancelling,
   importPreviewImageProgress,
@@ -77,7 +58,6 @@ import {
   importPreviewSelectedChapters,
   importPreviewSelectedCleanup,
   importPreviewSelectedEncoding,
-  importPreviewSelectedNormalized,
   importPreviewStatus,
   importPreviewStripIsOpen,
   importPreviewUrlDuplicatesDropped,
@@ -141,15 +121,6 @@ function tierEmptyMessageKey(reason: 'story_6_9'): string {
  */
 function normalizedTierEmptyReason(): 'no_candidate' | 'undecodable' {
   return importPreviewSelectedCandidate.value === null ? 'no_candidate' : 'undecodable'
-}
-
-function normalizedTierEmptyMessageKey(reason: 'no_candidate' | 'undecodable'): string {
-  switch (reason) {
-    case 'no_candidate':
-      return 'mode.library.preview.tier_normalized_empty_no_candidate'
-    case 'undecodable':
-      return 'mode.library.preview.tier_normalized_empty_undecodable'
-  }
 }
 
 /**
@@ -491,7 +462,7 @@ useSelectionSurface(panel, 'display')
 
 watch(importPreviewIsOpen, (open) => {
   if (open) {
-    returnFocusTo = focusReturnTargetOnOpen('[data-import-preview-open]')
+    returnFocusTo = takeRecordedImportOpener() ?? focusReturnTargetOnOpen('[data-import-preview-open]')
     void nextTick(() => panel.value?.focus())
     return
   }
@@ -499,46 +470,21 @@ watch(importPreviewIsOpen, (open) => {
   const back = returnFocusTo
   returnFocusTo = null
 
-  if (back !== null && back.isConnected) {
-    back.focus()
-    return
-  }
+  // The opener sits in a form hidden while this screen is open; wait for it to be shown again.
+  void nextTick(() => {
+    if (back !== null && back.isConnected) {
+      back.focus()
+      return
+    }
 
-  const opener = document.querySelector<HTMLElement>('[data-import-preview-open]')
-  if (opener !== null) {
-    opener.focus()
-    return
-  }
-  console.warn('[import-preview] focus-return target is gone; focus falls back to body.')
+    const opener = document.querySelector<HTMLElement>('[data-import-preview-open]')
+    if (opener !== null) {
+      opener.focus()
+      return
+    }
+    console.warn('[import-preview] focus-return target is gone; focus falls back to body.')
+  })
 })
-
-function focusableWithin(root: HTMLElement): HTMLElement[] {
-  return Array.from(
-    root.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
-        'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ),
-  )
-}
-
-/** Bẫy tiêu điểm — điều kiện để `aria-modal="true"` không phải một lời khai sai. */
-function trapTab(event: KeyboardEvent): void {
-  const root = panel.value
-  if (root === null) return
-
-  event.preventDefault()
-  const stops = focusableWithin(root)
-  if (stops.length === 0) {
-    root.focus()
-    return
-  }
-
-  const active = document.activeElement
-  const index = active instanceof HTMLElement ? stops.indexOf(active) : -1
-  const step = event.shiftKey ? -1 : 1
-  const next = index === -1 ? (event.shiftKey ? stops.length - 1 : 0) : index + step
-  stops[(next + stops.length) % stops.length].focus()
-}
 
 function onCandidateChange(encoding: string, event: Event): void {
   const target = event.target
@@ -832,6 +778,26 @@ const destinationSourceLangLabel = computed<string>(() => {
   return importPreviewPendingSourceLang.value
 })
 
+const glossaryEstimateText = computed<string>(() => {
+  const estimate = importPreviewGlossaryEstimate.value
+  switch (estimate.kind) {
+    case 'running':
+      return t('mode.library.preview.glossary_estimate_running')
+    case 'estimated':
+      return t('mode.library.preview.glossary_estimate_value', { count: groupThousands(estimate.count) })
+    case 'unavailable':
+      return t('mode.library.preview.glossary_estimate_unavailable')
+    case 'idle':
+      return t('mode.library.preview.glossary_estimate_idle')
+  }
+})
+
+const confirmLabel = computed<string>(() => {
+  const chapters = importPreviewSelectedChapters.value
+  if (chapters === null) return t('command.import.preview.confirm')
+  return t('mode.library.preview.confirm_with_count', { count: groupThousands(chapters.chapter_count) })
+})
+
 /** `R` — cuộn + đặt tiêu điểm sang tầng 3 (§Spec Change Log spec 6.9). */
 const cleanupTierSection = useTemplateRef<HTMLElement>('cleanupTierSection')
 watch(importPreviewJumpToCleanupRulesSignal, () => {
@@ -847,46 +813,12 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 </script>
 
 <template>
-  <div
-    v-if="importPreviewIsOpen"
-    class="ip-scrim"
-    @keydown.esc="onEscapeCancel"
-    @keydown.tab="trapTab($event)"
-    @keydown="onScrimKeydown"
-  >
-    <section ref="panel" class="ip-panel" tabindex="-1" role="dialog" aria-modal="true">
+  <div v-if="importPreviewIsOpen" class="ip-screen" @keydown.esc="onEscapeCancel" @keydown="onScrimKeydown">
+    <section ref="panel" class="ip-panel" tabindex="-1" aria-labelledby="ip-title">
       <header class="ip-head">
-        <h2 class="ip-title">{{ t('mode.library.preview.title') }}</h2>
-        <button
-          type="button"
-          class="ip-close"
-          :disabled="importPreviewConfirming"
-          @click="dispatch('import.preview.cancel')"
-        >
-          {{ t('command.import.preview.cancel') }}
-        </button>
+        <h2 id="ip-title" class="ip-title">{{ t('mode.library.preview.title') }}</h2>
+        <p class="ip-head-note">{{ t('mode.library.preview.screen_subtitle') }}</p>
       </header>
-
-      <!--
-        🔴 STORY 6.7b (FR122 nửa hai, Decision 2) — dòng ĐỌC, không một điều khiển đổi đích:
-        đích đã CHỐT ở `LibraryMode.vue` TRƯỚC lượt mở này (xem doc-comment
-        `pendingDestinationWorkId` ở `importPreviewState.ts` cho lý do không có radio sống ở
-        đây — `sourceLang` gửi lúc mở đã phải là ngôn ngữ CỦA ĐÍCH, và phiên URL không có
-        đường Rust nào cho phép đổi đích sau lượt tải đầu). Ngôn ngữ nguồn hiện Ở ĐÂY luôn
-        là giá trị ĐÃ KẾ THỪA khi đích là một Tác phẩm sẵn có (Decision 2: "adopted, shown
-        read-only").
-      -->
-      <p class="ip-destination" role="status">
-        <span v-if="importPreviewDestinationWorkId === null">
-          {{ t('mode.library.preview.destination_new_work') }}
-        </span>
-        <span v-else>
-          {{ t('mode.library.preview.destination_existing_work', { name: importPreviewPendingName }) }}
-        </span>
-        <span class="ip-destination-lang">
-          {{ t('mode.library.preview.destination_source_lang', { lang: destinationSourceLangLabel }) }}
-        </span>
-      </p>
 
       <p v-if="importPreviewStatus === 'unknown'" class="ip-status" role="status">
         <!-- aura-allow-text: qua t() cả hai nhánh, Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
@@ -1065,6 +997,89 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
         </section>
 
       <template v-if="importPreview !== null">
+      <div class="ip-two" :class="{ 'ip-two-stacked': importPreviewLastSubmittedFrom === 'urls' }">
+        <aside class="ip-config" :aria-label="t('mode.library.preview.config_label')">
+          <p class="ip-destination" role="status">
+            <span v-if="importPreviewDestinationWorkId === null">
+              {{ t('mode.library.preview.destination_new_work') }}
+            </span>
+            <span v-else>
+              {{ t('mode.library.preview.destination_existing_work', { name: importPreviewPendingName }) }}
+            </span>
+          </p>
+          <dl class="ip-summary">
+            <div class="ip-summary-line">
+              <dt>{{ t('mode.library.preview.summary_work_name') }}</dt>
+              <!-- aura-allow-text: DỮ LIỆU (tên Tác phẩm người dùng tự đặt). -->
+              <dd>{{ importPreviewPendingName }}</dd>
+            </div>
+            <div class="ip-summary-line">
+              <dt>{{ t('mode.library.preview.summary_source_lang') }}</dt>
+              <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn ngôn ngữ nguồn. -->
+              <dd>{{ destinationSourceLangLabel }}</dd>
+            </div>
+            <div class="ip-summary-line">
+              <dt>{{ t('mode.library.preview.summary_initial_status') }}</dt>
+              <dd>{{ t('lifecycle.not_started') }}</dd>
+            </div>
+            <div v-if="importPreviewSelectedChapters !== null" class="ip-summary-line">
+              <dt>{{ t('mode.library.preview.summary_chapters') }}</dt>
+              <!-- aura-allow-text: KẾT QUẢ của `groupThousands()`, số đếm từ Rust. -->
+              <dd>{{ groupThousands(importPreviewSelectedChapters.chapter_count) }}</dd>
+            </div>
+            <div class="ip-summary-line" data-ip-glossary-estimate>
+              <dt>{{ t('mode.library.preview.summary_glossary_estimate') }}</dt>
+              <dd role="status">
+                <!-- aura-allow-text: qua t() ở mọi nhánh, Kiểm A2 không đọc tĩnh được chuỗi nhánh. -->
+                {{ glossaryEstimateText }}
+              </dd>
+            </div>
+          </dl>
+          <template v-if="importPreviewSelectedChapters !== null">
+            <form class="ip-chapters-pattern-row" @submit.prevent>
+              <!-- 🔴 KHÔNG `@click` — `@change` mang tham số (giá trị ô/kind), cùng lý do
+                   dải bảng mã và luật làm sạch dùng `@change` thay vì `dispatch()` trần
+                   (§Design Notes spec 6.3). -->
+              <label class="ip-chapters-pattern-label">
+                {{ t('mode.library.preview.chapters_pattern_label') }}
+                <input
+                  v-model="chapterPatternDraft"
+                  type="text"
+                  class="ip-chapters-pattern-input"
+                  :placeholder="t('mode.library.preview.chapters_pattern_placeholder')"
+                  :disabled="importPreviewConfirming || importPreviewChapterPatternSending"
+                  @change="onChapterPatternChange"
+                />
+              </label>
+              <select
+                v-model="chapterPatternKindDraft"
+                class="ip-chapters-pattern-kind"
+                :disabled="importPreviewConfirming || importPreviewChapterPatternSending"
+                @change="onChapterPatternChange"
+              >
+                <option value="literal">{{ t('mode.library.preview.cleanup_kind_literal') }}</option>
+                <option value="regex">{{ t('mode.library.preview.cleanup_kind_regex') }}</option>
+              </select>
+            </form>
+
+            <p v-if="importPreviewChapterPatternError !== null" class="ip-chapters-error" role="alert">
+              <!-- aura-allow-text: KẾT QUẢ của `tError()`. §I/O Matrix spec 6.6: mẫu hỏng GIỮ
+                   NGUYÊN danh sách bên dưới, chỉ thêm dòng báo lỗi này. -->
+              {{ tError(importPreviewChapterPatternError) }}
+            </p>
+
+            <!--
+              Mẫu `regex` neo `^` mà chỉ ra 1 Chương gần như luôn là thiếu dòng trống ngăn
+              cách trước tiêu đề, không phải mẫu sai — nói rõ NGUYÊN NHÂN thay vì để người
+              dùng tự đoán.
+            -->
+            <p v-if="chapterPatternAnchoredSingleChapterHint" class="ip-chapters-anchor-hint" role="status">
+              {{ t('mode.library.preview.chapters_anchor_single_chapter_hint') }}
+            </p>
+
+          </template>
+        </aside>
+        <div class="ip-main">
         <!-- ═══════════════════ Tầng 1 — bảng mã (CÓ THÂN) ═══════════════════ -->
         <section class="ip-tier ip-tier-1" aria-labelledby="ip-tier-1-title">
           <h3 id="ip-tier-1-title" class="ip-tier-title">{{ t('mode.library.preview.tier1_title') }}</h3>
@@ -1119,45 +1134,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
           </template>
         </section>
 
-        <!-- ═══ Tầng chuẩn hoá — xuống dòng & khoảng trắng (CÓ THÂN, Story 6.4) ═══ -->
-        <section class="ip-tier" aria-labelledby="ip-tier-normalized-title">
-          <h3 id="ip-tier-normalized-title" class="ip-tier-title">
-            {{ t('mode.library.preview.tier_normalized_title') }}
-          </h3>
-
-          <template v-if="importPreviewSelectedNormalized !== null">
-            <p class="ip-normalized-counts">
-              <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
-              {{
-                t('mode.library.preview.tier_normalized_joined_lines', {
-                  count: String(importPreviewSelectedNormalized.joined_lines),
-                })
-              }}
-              ·
-              {{
-                t('mode.library.preview.tier_normalized_blank_lines_removed', {
-                  count: String(importPreviewSelectedNormalized.blank_lines_removed),
-                })
-              }}
-            </p>
-            <p v-if="importPreviewSelectedNormalized.window_truncated" class="ip-normalized-window-note">
-              {{ t('mode.library.preview.tier_normalized_window_truncated') }}
-            </p>
-            <p v-if="importPreviewSelectedNormalized.text !== ''" class="ip-normalized-text">
-              <!-- aura-allow-text: DỮ LIỆU (bản dựng đã chuẩn hoá thật từ Rust, KHÔNG markup — AD-16). -->
-              {{ importPreviewSelectedNormalized.text }}
-            </p>
-            <!-- Vá vòng rà 1, mục 2 — `text === ''` (cửa sổ không đủ MỘT dòng trọn vẹn, hoặc
-                 nguồn chỉ toàn khoảng trắng) phải nói RA, không để lại một đoạn trắng câm. -->
-            <p v-else class="ip-normalized-window-note">
-              {{ t('mode.library.preview.tier_normalized_text_empty') }}
-            </p>
-          </template>
-          <p v-else class="ip-tier-empty-reason">
-            {{ t(normalizedTierEmptyMessageKey(normalizedTierEmptyReason())) }}
-          </p>
-        </section>
-
         <!--
           ═══════════ Tầng 2 — ranh giới nội dung (Story 6.9, FR123) ═══════════
           🔴 THAY TRỌN (2026-09-07, Story 6.9) — dãy khối cả trang thay cho một đoạn văn liền.
@@ -1201,26 +1177,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
           <p v-if="importPreviewChapterDetailError !== null" class="ip-tier2-range-notice" role="alert">
             <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
             {{ tError(importPreviewChapterDetailError) }}
-          </p>
-          <!--
-            🔴 Story 6.15 (FR128/AD-43) — xuất xứ tài liệu, ở ĐẦU Chương con trỏ. Component
-            DÙNG CHUNG với `LibraryMode.vue` (`ChapterOrigin.vue`); ở đây `@commit` ghi vào
-            DRAFT client + `ChapterOriginOverridesState` (Rust), chưa xuống đĩa — xuống đĩa
-            chỉ xảy ra lúc `confirmImportPreview()`.
-          -->
-          <ChapterOrigin
-            v-if="importPreviewLastSubmittedFrom === 'urls'"
-            :author="importPreviewCurrentChapterOrigin.author"
-            :site-name="importPreviewCurrentChapterOrigin.site_name"
-            :url="importPreviewCurrentChapterOrigin.url"
-            :published-at="importPreviewCurrentChapterOrigin.published_at"
-            :disabled="importPreviewConfirming"
-            class="ip-chapter-origin"
-            @commit="(edit) => commitImportPreviewChapterOrigin(edit)"
-          />
-          <p v-if="importPreviewChapterOriginError !== null" class="ip-tier2-range-notice" role="alert">
-            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
-            {{ tError(importPreviewChapterOriginError) }}
           </p>
           <template v-if="importPreviewLastSubmittedFrom === 'urls'">
             <p class="ip-normalized-window-note">{{ t('mode.library.preview.tier2_current_chapter_note') }}</p>
@@ -1454,51 +1410,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
           <h3 id="ip-tier-4-title" class="ip-tier-title">{{ t('mode.library.preview.tier4_title') }}</h3>
 
           <template v-if="importPreviewSelectedChapters !== null">
-            <form class="ip-chapters-pattern-row" @submit.prevent>
-              <!-- 🔴 KHÔNG `@click` — `@change` mang tham số (giá trị ô/kind), cùng lý do
-                   dải bảng mã và luật làm sạch dùng `@change` thay vì `dispatch()` trần
-                   (§Design Notes spec 6.3). -->
-              <label class="ip-chapters-pattern-label">
-                {{ t('mode.library.preview.chapters_pattern_label') }}
-                <input
-                  v-model="chapterPatternDraft"
-                  type="text"
-                  class="ip-chapters-pattern-input"
-                  :placeholder="t('mode.library.preview.chapters_pattern_placeholder')"
-                  :disabled="importPreviewConfirming || importPreviewChapterPatternSending"
-                  @change="onChapterPatternChange"
-                />
-              </label>
-              <select
-                v-model="chapterPatternKindDraft"
-                class="ip-chapters-pattern-kind"
-                :disabled="importPreviewConfirming || importPreviewChapterPatternSending"
-                @change="onChapterPatternChange"
-              >
-                <option value="literal">{{ t('mode.library.preview.cleanup_kind_literal') }}</option>
-                <option value="regex">{{ t('mode.library.preview.cleanup_kind_regex') }}</option>
-              </select>
-            </form>
-
-            <p v-if="importPreviewChapterPatternError !== null" class="ip-chapters-error" role="alert">
-              <!-- aura-allow-text: KẾT QUẢ của `tError()`. §I/O Matrix spec 6.6: mẫu hỏng GIỮ
-                   NGUYÊN danh sách bên dưới, chỉ thêm dòng báo lỗi này. -->
-              {{ tError(importPreviewChapterPatternError) }}
-            </p>
-
-            <p class="ip-chapters-count">
-              <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
-              {{ t('mode.library.preview.chapters_count', { count: String(importPreviewSelectedChapters.chapter_count) }) }}
-            </p>
-            <!--
-              Mẫu `regex` neo `^` mà chỉ ra 1 Chương gần như luôn là thiếu dòng trống ngăn
-              cách trước tiêu đề, không phải mẫu sai — nói rõ NGUYÊN NHÂN thay vì để người
-              dùng tự đoán.
-            -->
-            <p v-if="chapterPatternAnchoredSingleChapterHint" class="ip-chapters-anchor-hint" role="status">
-              {{ t('mode.library.preview.chapters_anchor_single_chapter_hint') }}
-            </p>
-
             <!--
               ═══════ Chip "cần xem"/"sạch" + dòng tách hai vế (Story 6.10, FR132) ═══════
               🔴 Hai con số DO RUST CỘNG (AD-1) — `needs_review_count`/`clean_count` đọc THẲNG
@@ -1639,6 +1550,28 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             {{ t(chaptersTierEmptyMessageKey(normalizedTierEmptyReason())) }}
           </p>
         </section>
+
+        <!-- Tầng 4 (đường URL) — xuất xứ tài liệu của Chương con trỏ, ở cuối (FR128/AD-43). -->
+        <section v-if="importPreviewLastSubmittedFrom === 'urls'" class="ip-tier" aria-labelledby="ip-tier-origin-title">
+          <h3 id="ip-tier-origin-title" class="ip-tier-title">{{ t('mode.library.preview.tier_origin_title') }}</h3>
+          <p class="ip-normalized-window-note">{{ t('mode.library.preview.tier_origin_note') }}</p>
+          <!-- `@commit` writes the draft + `ChapterOriginOverridesState` only; nothing hits disk before confirm. -->
+          <ChapterOrigin
+            :author="importPreviewCurrentChapterOrigin.author"
+            :site-name="importPreviewCurrentChapterOrigin.site_name"
+            :url="importPreviewCurrentChapterOrigin.url"
+            :published-at="importPreviewCurrentChapterOrigin.published_at"
+            :disabled="importPreviewConfirming"
+            class="ip-chapter-origin"
+            @commit="(edit) => commitImportPreviewChapterOrigin(edit)"
+          />
+          <p v-if="importPreviewChapterOriginError !== null" class="ip-tier2-range-notice" role="alert">
+            <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+            {{ tError(importPreviewChapterOriginError) }}
+          </p>
+        </section>
+        </div>
+      </div>
       </template>
       <!--
         🔵 SỬA 2026-09-08 (Story 6.10a) — `importPreview === null` KHÔNG còn đồng nghĩa "còn
@@ -1728,7 +1661,8 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
           "
           @click="dispatch('import.preview.confirm')"
         >
-          {{ t('command.import.preview.confirm') }}
+          <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn có số Chương. -->
+          {{ confirmLabel }}
         </button>
         <button
           type="button"
@@ -1745,25 +1679,61 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 </template>
 
 <style scoped>
-.ip-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 11; /* aura-allow-z-index: cùng tầng GlossaryImportOverlay — hai lớp phủ không mở đồng thời. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
+.ip-screen {
+  width: 100%;
 }
 
 .ip-panel {
   width: 100%;
-  max-width: 760px;
-  max-height: 100%;
-  overflow: auto;
-  padding: var(--space-panel-inline);
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
+}
+
+.ip-head-note {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ip-two {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: calc(var(--space-unit) * 5);
+  align-items: start;
+}
+
+.ip-two-stacked {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ip-config,
+.ip-main {
+  min-width: 0;
+}
+
+.ip-summary {
+  margin: 0 0 var(--space-panel-block) 0;
+}
+
+.ip-summary-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 2) 0;
+  border-top: 1px solid var(--color-outline);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface);
+}
+
+.ip-summary-line dt {
+  color: var(--color-on-surface-variant);
+}
+
+.ip-summary-line dd {
+  margin: 0;
+  text-align: right;
 }
 
 .ip-head {
@@ -1781,22 +1751,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.ip-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.ip-close:disabled {
-  cursor: default;
 }
 
 .ip-status {
@@ -2337,14 +2291,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-error);
-}
-
-.ip-chapters-count {
-  margin: 0 0 calc(var(--space-unit) * 1) 0;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
 }
 
 .ip-chapters-sort-toggle {

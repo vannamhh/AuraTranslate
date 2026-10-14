@@ -1561,6 +1561,7 @@ pub struct ImportEncodingPreview {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct FileImportItemWire {
     pub path: String,
+    pub byte_len: Option<u64>,
     pub ok: bool,
     pub error: Option<IpcError>,
 }
@@ -1569,6 +1570,7 @@ impl From<&crate::core::segment::import::FileImportItem> for FileImportItemWire 
     fn from(item: &crate::core::segment::import::FileImportItem) -> Self {
         FileImportItemWire {
             path: item.path.clone(),
+            byte_len: item.byte_len,
             ok: item.error.is_none(),
             error: item.error.clone().map(IpcError::from),
         }
@@ -2684,6 +2686,7 @@ pub fn confirm_import_with_encoding_with_progress(
         docx_sidecar,
         // Đường văn xuôi/URL không bao giờ mang `PipelineShape::Bilingual` — 0 regrouping.
         &[],
+        crate::core::segment::bilingual::MismatchedRowPolicy::Refuse,
         on_image_progress,
         should_cancel,
     )?;
@@ -3645,8 +3648,10 @@ pub mod wire;
 /// nguyên mọi đường dẫn `super::X`/`crate::commands::project::X` mà
 /// `wire.rs`/`tests.rs`/`tests/project_contract.rs` đã dùng trước lượt tách.
 mod bilingual;
+mod glossary_estimate;
 mod url_import;
 mod work_creation;
 pub use bilingual::*;
+pub use glossary_estimate::*;
 pub use url_import::*;
 pub use work_creation::*;

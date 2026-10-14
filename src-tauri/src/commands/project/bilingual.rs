@@ -443,10 +443,48 @@ pub fn confirm_bilingual_import(
     bilingual_source_column: usize,
     bilingual_target_column: usize,
     bilingual_has_header: bool,
+    regroupings: Vec<crate::core::segment::bilingual::BilingualRegrouping>,
+    table_index: Option<usize>,
+) -> Result<OpenWork, IpcError> {
+    confirm_bilingual_import_with_policy(
+        documents_root,
+        state,
+        name,
+        source_lang,
+        genre,
+        encoding_wire_id,
+        cleanup_rules,
+        chapter_pattern,
+        bilingual_source_column,
+        bilingual_target_column,
+        bilingual_has_header,
+        regroupings,
+        table_index,
+        crate::core::segment::bilingual::MismatchedRowPolicy::Refuse,
+    )
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
+pub fn confirm_bilingual_import_with_policy(
+    documents_root: &Path,
+    state: &PendingImportSourceState,
+    name: &str,
+    source_lang: &str,
+    genre: &str,
+    encoding_wire_id: &str,
+    cleanup_rules: Vec<CleanupRule>,
+    chapter_pattern: Option<ChapterPattern>,
+    bilingual_source_column: usize,
+    bilingual_target_column: usize,
+    bilingual_has_header: bool,
     // 🔴 **THÊM 2026-09-12 (Story 6.17, FR116)** — quy nhóm câu đích, cùng khuôn ba tham số vai
     // cột/tiêu đề ngay trên (tham số MỖI LƯỢT, không state).
     regroupings: Vec<crate::core::segment::bilingual::BilingualRegrouping>,
     table_index: Option<usize>,
+    mismatched_rows: crate::core::segment::bilingual::MismatchedRowPolicy,
 ) -> Result<OpenWork, IpcError> {
     let chosen = encoding::encoding_for_wire_id(encoding_wire_id).ok_or_else(|| {
         IpcError::from(ImportError::UnrecognizedEncoding {
@@ -463,7 +501,7 @@ pub fn confirm_bilingual_import(
         .ok_or_else(no_pending_import_source)?;
     let shape = select_bilingual_table(&shape, table_index)?;
 
-    let opened = create_work(
+    let opened = create_work_with_progress(
         documents_root,
         name,
         source_lang,
@@ -486,6 +524,9 @@ pub fn confirm_bilingual_import(
         &std::sync::Mutex::new(Vec::new()),
         None,
         &regroupings,
+        mismatched_rows,
+        &mut |_, _| {},
+        &|| false,
     )?;
 
     *guard = None;

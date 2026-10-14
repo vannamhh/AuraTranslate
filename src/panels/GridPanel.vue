@@ -1697,8 +1697,13 @@ const rowErrorTextById = computed(() => {
   return map
 })
 
+const unlinkedIds = computed<ReadonlySet<number>>(
+  () => new Set(editorSegments.value.filter((s) => s.unlinked).map((s) => s.id)),
+)
+
 function cellLabelOf(id: number, index: number): string {
-  const state = t(STATE_LABEL_KEYS[ruleById.value.get(id) ?? 'none'])
+  const rule = t(STATE_LABEL_KEYS[ruleById.value.get(id) ?? 'none'])
+  const state = unlinkedIds.value.has(id) ? t('panel.grid.state_with_unlinked', { state: rule }) : rule
   const error = rowErrorTextById.value.get(id)
   return error === undefined
     ? t('panel.grid.cell_label', { n: String(index + 1), state })
@@ -1808,7 +1813,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
           <template v-for="s in editorSegments" :key="s.id">
             <div
               class="cell cell-rule"
-              :class="[{ 'para-end': s.is_paragraph_end }, selectedRowClassById.get(s.id)]"
+              :class="[{ 'para-end': s.is_paragraph_end, 'cell-unlinked': unlinkedIds.has(s.id) }, selectedRowClassById.get(s.id)]"
             >
               <div v-if="ruleClassById.get(s.id)" class="rule" :class="ruleClassById.get(s.id)"></div>
             </div>
@@ -1998,6 +2003,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
             ]"
             :data-segment-id="s.id"
             data-col="tgt"
+            :data-unlinked="unlinkedIds.has(s.id) ? 'true' : undefined"
             contenteditable="true"
             role="textbox"
             aria-multiline="true"
@@ -2244,6 +2250,10 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
 .cell-rule {
   padding: 4px 0;
   border-bottom: none;
+}
+
+.cell-rule.cell-unlinked {
+  border-right: 2px dotted var(--color-on-surface-variant);
 }
 
 /*

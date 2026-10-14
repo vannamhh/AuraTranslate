@@ -1007,6 +1007,16 @@ CREATE TABLE proof_scan (
   CHECK (reported >= 0 AND filtered >= 0)
 );";
 
+/// Step 35: a bilingual row whose source and target sentence counts differ, imported as one segment
+/// instead of refused. One row per segment still unlinked; a segment leaves the table when it is
+/// confirmed or retired, in the same transaction as that operation. No `REFERENCES`: foreign keys
+/// are off in this store.
+pub const SEGMENT_UNLINKED_DDL: &str = "\
+CREATE TABLE segment_unlinked (
+  segment_id INTEGER PRIMARY KEY,
+  created_at TEXT    NOT NULL
+);";
+
 /// Step 32 (AD-20, AD-52 rule 7): a `glossary_candidate` of origin `review_harvest` carries the
 /// replaced and the proposed translation and how often the reviewer made the change. The four
 /// columns are filled exactly for that origin, and the one-per-`source_term` index becomes two
@@ -2003,7 +2013,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Ba mươi ba bước, và đích là phiên bản 34.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Ba mươi bốn bước, và đích là phiên bản 35.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2367,6 +2377,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 34,
         sql: PROOFREAD_MEMORY_DDL,
+    },
+    Migration {
+        to_version: 35,
+        sql: SEGMENT_UNLINKED_DDL,
     },
 ];
 

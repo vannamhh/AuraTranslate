@@ -348,6 +348,17 @@ export type ImportEncodingPreview = {
   self_declared_chapters: ChapterSplitPreviewWire | null
 }
 
+/** Mirrors `commands::project::GlossaryEstimateWire`; `count` is `null` unless `estimated`. */
+export type GlossaryEstimateWire = {
+  outcome: 'estimated' | 'inconclusive' | 'cancelled'
+  count: number | null
+}
+
+export type GlossaryEstimateResult = {
+  estimate: GlossaryEstimateWire | null
+  error: IpcError | null
+}
+
 /** Ba trạng thái, cùng khuôn `CreateWorkResult`. */
 export type ImportEncodingPreviewResult = {
   preview: ImportEncodingPreview | null
@@ -616,6 +627,7 @@ export async function previewImportEncodingFromText(
 /** Một mục trong danh sách tệp — khớp `commands::project::FileImportItemWire`. */
 export type FileImportItemWire = {
   path: string
+  byte_len: number | null
   ok: boolean
   error: IpcError | null
 }
@@ -639,6 +651,7 @@ function isFileImportItemWire(value: unknown): value is FileImportItemWire {
   const v = value as Partial<FileImportItemWire>
   return (
     typeof v.path === 'string' &&
+    (v.byte_len === null || typeof v.byte_len === 'number') &&
     typeof v.ok === 'boolean' &&
     // Thiếu vế `null` thì một mục lỗi mang `error: undefined` lọt qua Kiểm TYPE này, đúng
     // bẫy mà `isUrlImportItemWire` đã bị bắt cho hình dạng anh em của nó.
@@ -978,6 +991,7 @@ export async function confirmBilingualImport(
   hasHeader: boolean,
   regroupings: BilingualRegroupingInput[],
   tableIndex: number | null,
+  importMismatchedRows = false,
 ): Promise<CreateWorkResult> {
   return callCreateWork(CMD_CONFIRM_BILINGUAL_IMPORT, {
     name,
@@ -990,6 +1004,7 @@ export async function confirmBilingualImport(
     hasHeader,
     regroupings,
     tableIndex,
+    importMismatchedRows,
   })
 }
 
@@ -1263,6 +1278,54 @@ export async function cancelImageDownload(): Promise<void> {
     await invoke<void>(CMD_CANCEL_IMAGE_DOWNLOAD)
   } catch (err) {
     console.error(`[project] \`${CMD_CANCEL_IMAGE_DOWNLOAD}\` trượt: ${String(err)}`)
+  }
+}
+
+const CMD_ESTIMATE_IMPORT_GLOSSARY = 'estimate_import_glossary'
+const CMD_CANCEL_IMPORT_GLOSSARY_ESTIMATE = 'cancel_import_glossary_estimate'
+
+function isGlossaryEstimateWire(value: unknown): value is GlossaryEstimateWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<GlossaryEstimateWire>
+  return (
+    (v.outcome === 'estimated' || v.outcome === 'inconclusive' || v.outcome === 'cancelled') &&
+    (v.count === null || typeof v.count === 'number')
+  )
+}
+
+/** Read-only estimate of the Glossary candidates the pending import would queue (FR137). Each
+ * call retires the previous one on the Rust side. */
+export async function estimateImportGlossary(
+  sourceLang: string,
+  encoding: string,
+  chapterPattern: ChapterPatternInput | null,
+): Promise<GlossaryEstimateResult> {
+  try {
+    const estimate = await invoke<unknown>(CMD_ESTIMATE_IMPORT_GLOSSARY, {
+      sourceLang,
+      encoding,
+      chapterPattern,
+    })
+    if (!isGlossaryEstimateWire(estimate)) {
+      console.error(`[project] \`${CMD_ESTIMATE_IMPORT_GLOSSARY}\` tra ve mot hinh dang khong dung`)
+      return { estimate: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { estimate, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { estimate: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[project] \`${CMD_ESTIMATE_IMPORT_GLOSSARY}\` trượt: ${String(err)}`)
+      return { estimate: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { estimate: null, error: null }
+  }
+}
+
+export async function cancelImportGlossaryEstimate(): Promise<void> {
+  try {
+    await invoke<void>(CMD_CANCEL_IMPORT_GLOSSARY_ESTIMATE)
+  } catch (err) {
+    console.error(`[project] \`${CMD_CANCEL_IMPORT_GLOSSARY_ESTIMATE}\` trượt: ${String(err)}`)
   }
 }
 

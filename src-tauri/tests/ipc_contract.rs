@@ -878,6 +878,7 @@ fn chapter_row_wire_struct_keeps_snake_case_field_names() {
         unconfirmed_count: 0,
         updated_at: String::new(),
         in_translation_count: 0,
+        unlinked_count: 0,
     };
     let value = serde_json::to_value(&row).expect("ChapterRow phải serialize được");
     let mut keys: Vec<&str> = value
@@ -902,6 +903,7 @@ fn chapter_row_wire_struct_keeps_snake_case_field_names() {
             "title",
             "translated_count",
             "unconfirmed_count",
+            "unlinked_count",
             "updated_at"
         ],
         "khoá trên dây của ChapterRow là snake_case. Nhận được: {keys:?}. Nghi phạm số một: \
@@ -2687,6 +2689,7 @@ fn the_confirm_segment_wire_takes_only_the_segment_id_and_the_segment_dto_carrie
         is_target_paragraph_end: false,
         role: None,
         translation_origin: String::new(),
+        unlinked: false,
     })
     .expect("ChapterSegment phai serialize duoc");
     let leaked: Vec<&String> = dto

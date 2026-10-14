@@ -172,6 +172,13 @@ pub(crate) fn insert_bilingual_segments(
             pair_origin,
             &segment.target_text,
         ))?;
+        if segment.unlinked {
+            tx.execute(
+                "INSERT INTO segment_unlinked (segment_id, created_at) \
+                 VALUES (?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [tx.last_insert_rowid()],
+            )?;
+        }
     }
     Ok(())
 }

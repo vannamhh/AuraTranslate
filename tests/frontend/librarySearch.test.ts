@@ -769,6 +769,7 @@ describe('modes/librarySearch.ts::openCurrentLibrarySearchHit', () => {
             is_paragraph_end: false,
             is_target_paragraph_end: false,
             is_omitted: false,
+            unlinked: false,
             role: null,
             retired_at: null,
             translation_origin: '',

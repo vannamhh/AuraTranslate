@@ -12,6 +12,7 @@ const SEGMENTS: ChapterSegment[] = [1, 2].map((id) => ({
   retired_at: null,
   status: 'draft',
   is_omitted: false,
+  unlinked: false,
   is_target_paragraph_end: false,
   role: null,
   translation_origin: id === 2 ? 'self' : '',
@@ -61,5 +62,27 @@ describe('GridPanel.vue — segment TM điền sẵn', () => {
     expect(root.querySelector('.col-state')).toBeNull()
     const cells = root.querySelectorAll('.col-tgt .cell-tgt')
     expect(cells[1].getAttribute('aria-label')).toContain((vi_json as Record<string, string>)['panel.grid.state_tm'])
+  })
+})
+
+describe('GridPanel.vue — câu chưa nối', () => {
+  it('câu mang dấu chưa nối có `data-unlinked`, lớp `cell-unlinked` và chữ "chưa nối" trong aria-label; câu kia thì không', async () => {
+    SEGMENTS[0] = { ...SEGMENTS[0], unlinked: true }
+    vi.resetModules()
+    const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
+    const state = await import('../../src/panels/editorPanelState')
+    const wrapper = mount(GridPanel, { props: { params: {} } as never, global: { stubs: STUBS }, attachTo: document.body })
+    await state.ensureSegmentsLoaded()
+    await wrapper.vm.$nextTick()
+
+    const root = wrapper.element as unknown as Element
+    const cells = root.querySelectorAll('.col-tgt .cell-tgt')
+    expect(cells[0].getAttribute('data-unlinked')).toBe('true')
+    expect(cells[0].getAttribute('aria-label')).toContain('chưa nối')
+    expect(cells[1].getAttribute('data-unlinked')).toBeNull()
+    expect(cells[1].getAttribute('aria-label')).not.toContain('chưa nối')
+    expect(root.querySelectorAll('.cell-unlinked')).toHaveLength(1)
+
+    SEGMENTS[0] = { ...SEGMENTS[0], unlinked: false }
   })
 })

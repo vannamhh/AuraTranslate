@@ -110,6 +110,8 @@ export type ChapterRow = {
   unconfirmed_count: number
   /** Live, not omitted: the denominator of translated / total. `segment_count` still counts omitted. */
   in_translation_count: number
+  /** Live sentences still marked unlinked (bilingual rows imported whole). */
+  unlinked_count: number
   /** ISO-8601 UTC. */
   updated_at: string
   /**
@@ -155,6 +157,7 @@ function isChapterRow(value: unknown): value is ChapterRow {
     typeof v.translated_count === 'number' &&
     typeof v.unconfirmed_count === 'number' &&
     typeof v.in_translation_count === 'number' &&
+    typeof v.unlinked_count === 'number' &&
     typeof v.updated_at === 'string' &&
     isNullableString(v.origin_author) &&
     isNullableString(v.origin_site_name) &&

@@ -108,7 +108,7 @@ describe('🔴 mục 9 — một màn xem trước đang MỞ chặn lượt n�
 
     nhap.filePath.value = '/tmp/a.txt'
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/a.txt', ok: true, error: null }], encoding_preview: preview() },
+      batch: { items: [{ path: '/tmp/a.txt', ok: true, byte_len: null, error: null }], encoding_preview: preview() },
       error: null,
     })
     await nhap.submitFilePath()
@@ -132,7 +132,7 @@ describe('🔴 mục 9 — một màn xem trước đang MỞ chặn lượt n�
 
     nhap.filePath.value = '/tmp/a.txt'
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/a.txt', ok: true, error: null }], encoding_preview: preview() },
+      batch: { items: [{ path: '/tmp/a.txt', ok: true, byte_len: null, error: null }], encoding_preview: preview() },
       error: null,
     })
     await nhap.submitFilePath()

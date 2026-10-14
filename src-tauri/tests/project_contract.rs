@@ -38,7 +38,7 @@ use auratranslate_lib::core::library::{META_SCHEMA_VERSION, WorkMeta};
 use auratranslate_lib::core::scope::{ScopeResolver, Tier, WorkScope};
 use auratranslate_lib::core::segment::chapterpattern::{ChapterPattern, ChapterPatternKind};
 use auratranslate_lib::core::segment::import::{
-    FileImportItem, FilesImportOutcome, ImportError, import_file, import_text,
+    FileImportItem, FilesImportOutcome, ImportError, import_file, import_files, import_text,
 };
 use auratranslate_lib::core::segment::pipeline::{
     ChapterInput, PipelineInput, PipelineShape, run_import,
@@ -1026,6 +1026,31 @@ fn a_files_batch_rolls_back_completely_when_one_unit_is_undecodable() {
     cleanup(&root);
 }
 
+#[test]
+fn import_files_reports_each_files_byte_length_and_none_when_it_cannot_be_measured() {
+    let root = temp_dir("file-byte-len");
+    let a = root.join("a.txt");
+    let b = root.join("b.txt");
+    fs::write(&a, "Cau mot.").expect("ghi a");
+    fs::write(&b, "Cau hai va them chut nua.").expect("ghi b");
+    let gone = root.join("gone.txt");
+
+    let outcome = import_files(&[
+        a.display().to_string(),
+        b.display().to_string(),
+        gone.display().to_string(),
+    ])
+    .expect("batch khong ca lo");
+    let lens: Vec<Option<u64>> = outcome.items.iter().map(|i| i.byte_len).collect();
+    assert_eq!(lens, vec![Some(8), Some(25), None]);
+    assert!(outcome.items[2].error.is_some(), "tep mat phai la muc loi, khong phai 0 byte");
+
+    let single = import_files(&[a.display().to_string()]).expect("mot tep");
+    assert_eq!(single.items[0].byte_len, Some(8));
+
+    cleanup(&root);
+}
+
 /// **THÊM 2026-09-16 (phản biện)** — `build_file_import_batch_wire` (hàm THUẦN, lõi của
 /// quyết định "mọi mục OK / khoá / cất" §Decisions spec 6.6b) chạy được KHÔNG cần
 /// `tauri::AppHandle`, trên một `FilesImportOutcome` DỰNG TAY mang đúng MỘT mục hỏng — trước
@@ -1048,14 +1073,17 @@ fn build_file_import_batch_wire_locks_confirm_on_one_failed_item_and_opens_it_wh
         items: vec![
             FileImportItem {
                 path: "a.txt".to_owned(),
+                byte_len: None,
                 error: ok_err.clone(),
             },
             FileImportItem {
                 path: "b.txt".to_owned(),
+                byte_len: None,
                 error: broken_err,
             },
             FileImportItem {
                 path: "c.txt".to_owned(),
+                byte_len: None,
                 error: ok_err.clone(),
             },
         ],
@@ -1086,10 +1114,12 @@ fn build_file_import_batch_wire_locks_confirm_on_one_failed_item_and_opens_it_wh
         items: vec![
             FileImportItem {
                 path: "a.txt".to_owned(),
+                byte_len: None,
                 error: ok_err.clone(),
             },
             FileImportItem {
                 path: "c.txt".to_owned(),
+                byte_len: None,
                 error: ok_err,
             },
         ],
@@ -2034,7 +2064,7 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 /// (AD-18, `Semantics::Merge`) không GẮN theo `chapter`/`work` nào — nó là dữ liệu tầng
 /// Tác phẩm ĐỘC LẬP, đúng vai với `glossary_entry` (cũng hai tầng, cũng không phải một
 /// container giữa Work và Chapter).
-const NON_ENTITY_DETAIL_TABLES: [&str; 20] = [
+const NON_ENTITY_DETAIL_TABLES: [&str; 21] = [
     // Story 6.11 (FR127) -- moi hang la MOT ANH cua MOT Chuong (chapter_id, khong work_id --
     // xem doc-comment ASSET_DDL: "project.db la kho cua DUNG mot Tac pham nen chapter_id da
     // xac dinh no"), cung vai voi `segment`/`chapter_position` -- mot chi tiet VE tren mot
@@ -2068,6 +2098,8 @@ const NON_ENTITY_DETAIL_TABLES: [&str; 20] = [
     "review_row",
     "schema_migration_log",
     "segment",
+    // Bilingual rows imported whole; one row per segment still unlinked, no Work or Chapter reference.
+    "segment_unlinked",
     "segment_version",
     "sqlite_sequence",
     // References neither segment.id nor chapter_id (AD-6), so it is no Work -> Chapter container.

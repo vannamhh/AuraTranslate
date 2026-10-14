@@ -276,6 +276,10 @@ pub fn confirm_segment(
             ),
         )?;
         tx.execute(
+            "DELETE FROM segment_unlinked WHERE segment_id = ?1",
+            [segment_id],
+        )?;
+        tx.execute(
             "INSERT INTO segment_version (segment_id, target_text, created_at) \
              VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
             (segment_id, &target_text),

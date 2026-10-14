@@ -14,6 +14,7 @@ const SEGMENTS: ChapterSegment[] = [1, 2].map((id) => ({
   retired_at: null,
   status: 'draft',
   is_omitted: false,
+  unlinked: false,
   is_target_paragraph_end: false,
   role: null,
   translation_origin: '',

@@ -147,6 +147,16 @@ pub struct BilingualSegment {
     /// AD-37 flag, mirrored for both `is_paragraph_end`/`is_target_paragraph_end` at
     /// `commands::segment::insert_bilingual_segments` (AD-46: they start equal).
     pub is_paragraph_end: bool,
+    /// The row's sentence counts differed and it was imported whole; `segment_unlinked` marks it.
+    pub unlinked: bool,
+}
+
+/// What the import does with a row whose source and target sentence counts differ.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MismatchedRowPolicy {
+    #[default]
+    Refuse,
+    ImportUnlinked,
 }
 
 /// One mismatched row — §I/O Matrix "Mismatched row"/"Blank target cell". `chapter_index` is

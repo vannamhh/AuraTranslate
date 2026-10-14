@@ -165,7 +165,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
   // Story 6.4 — tầng chuẩn hoá xuống dòng/khoảng trắng CÓ THÂN, chèn giữa tầng 1 (bảng mã)
   // và tầng 2 (ranh giới nội dung, vẫn rỗng). Ứng viên có `normalized` ⇒ hiện văn bản thật
   // + hai số đếm, KHÔNG rơi vào nhánh rỗng "undecodable"/"no_candidate".
-  it('tầng chuẩn hoá (Story 6.4) hiện văn bản thật + hai số đếm khi ứng viên có `normalized`', async () => {
+  it('không còn tầng chuẩn hoá: ứng viên có `normalized` không dựng văn bản hay số đếm nào', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({
       preview: preview({
@@ -186,13 +186,10 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
-    expect(wrapper.find('.ip-normalized-text').text()).toBe('Han nhin ve phia ngon nui xa.')
-    expect(wrapper.find('.ip-normalized-counts').text()).toContain('1')
-    expect(wrapper.find('.ip-normalized-counts').text()).toContain('2')
-    // `window_truncated: true` ⇒ ghi chú phạm vi cửa sổ phải hiện ra bằng chữ.
-    expect(wrapper.find('.ip-normalized-window-note').exists()).toBe(true)
-    // Tầng mới KHÔNG rơi vào nhánh rỗng — CHỈ tầng 2 còn `.ip-tier-empty-reason` (tầng 3 nay
-    // CÓ THÂN, ứng viên mặc định mang `cleanup`).
+    expect(wrapper.find('.ip-normalized-text').exists()).toBe(false)
+    expect(wrapper.find('.ip-normalized-counts').exists()).toBe(false)
+    expect(wrapper.find('.ip-normalized-window-note').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Han nhin ve phia ngon nui xa.')
     expect(wrapper.findAll('.ip-tier-empty-reason')).toHaveLength(1)
 
     wrapper.unmount()
@@ -201,7 +198,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
 
   // Story 6.4 — ứng viên "không ra chữ" (`normalized: null`) ⇒ tầng mới rơi vào nhánh rỗng
   // riêng của nó, KHÔNG hiện `.ip-normalized-text`/`.ip-normalized-window-note`.
-  it('tầng chuẩn hoá rơi vào nhánh rỗng khi ứng viên đang chọn "không ra chữ"', async () => {
+  it('ứng viên "không ra chữ": chỉ tầng ranh giới và tầng làm sạch rơi vào nhánh rỗng', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({
       // Story 6.5 — `cleanup: null` ĐỒNG BỘ với `normalized: null` (cùng một sự thật: bảng
@@ -214,8 +211,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
     expect(wrapper.find('.ip-normalized-text').exists()).toBe(false)
-    // Ba tầng rỗng: tầng chuẩn hoá (undecodable) + tầng 2 (6.9) + tầng 3 (undecodable).
-    expect(wrapper.findAll('.ip-tier-empty-reason')).toHaveLength(3)
+    expect(wrapper.findAll('.ip-tier-empty-reason')).toHaveLength(2)
 
     wrapper.unmount()
     state.resetImportPreview()
@@ -224,7 +220,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
   // 🔴 Vá vòng rà 1, mục 1/2 — đối chứng DOM trực tiếp cho lỗi chính vòng rà 1 phát hiện:
   // đường DÁN VĂN BẢN TAY (0 ứng viên) phải hiện bản chuẩn hoá THẬT, không rơi vào
   // "Chưa chọn được ứng viên bảng mã nào".
-  it('đường DÁN VĂN BẢN TAY (0 ứng viên) hiện bản chuẩn hoá của self_declared_normalized', async () => {
+  it('đường DÁN VĂN BẢN TAY (0 ứng viên) không dựng tầng chuẩn hoá và không rơi vào nhánh "chưa chọn được ứng viên"', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({
       preview: preview({
@@ -264,35 +260,9 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
 
-    expect(wrapper.find('.ip-normalized-text').text()).toBe('Van ban da dan roi noi lai.')
-    // Nhãn số đếm phải đọc là "chỗ nối", không phải "dòng" — mục 2 của vá vòng rà 1.
-    expect(wrapper.find('.ip-normalized-counts').text()).toContain('chỗ nối')
-    expect(wrapper.find('.ip-normalized-counts').text()).not.toContain('dòng đã nối');
+    expect(wrapper.find('.ip-normalized-text').exists()).toBe(false)
     // KHÔNG rơi vào nhánh "chưa chọn được ứng viên" — đúng cái lỗi vòng rà 1 bắt được.
     expect(wrapper.text()).not.toContain('Chưa chọn được ứng viên bảng mã nào')
-
-    wrapper.unmount()
-    state.resetImportPreview()
-  })
-
-  // Vá vòng rà 1, mục 2 — `self_declared_normalized.text === ''` phải có lời giải thích
-  // riêng, không một đoạn `.ip-normalized-text` trống trơn.
-  it('văn bản đã chuẩn hoá RỖNG hiện lời giải thích, không một đoạn trắng', async () => {
-    const { state, ImportPreviewOverlay } = await freshOverlay()
-    previewTextMock.mockResolvedValue({
-      preview: preview({
-        confidence: 'self_declared',
-        candidates: [],
-        self_declared_normalized: { text: '', joined_lines: 0, blank_lines_removed: 0, window_truncated: false },
-      }),
-      error: null,
-    })
-    await state.openImportPreviewFromText('Ten', 'en', '', '   ', null)
-
-    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-
-    expect(wrapper.find('.ip-normalized-text').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Không có gì để hiện')
 
     wrapper.unmount()
     state.resetImportPreview()
@@ -321,7 +291,7 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
 
     await scrim.trigger('keydown', { key: 'ArrowRight', altKey: true })
     expect(nextMock).toHaveBeenCalledTimes(1)
@@ -340,7 +310,7 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
 
     await scrim.trigger('keydown', { key: 'ArrowRight', altKey: true })
     await scrim.trigger('keydown', { key: 'ArrowRight', altKey: true, repeat: true })
@@ -359,7 +329,7 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
 
     await scrim.trigger('keydown', { key: 'ArrowRight' })
     expect(nextMock).not.toHaveBeenCalled()
@@ -380,7 +350,7 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
 
     await scrim.trigger('keydown', { key: 'j', altKey: true })
     expect(nextBlockMock).not.toHaveBeenCalled()
@@ -404,12 +374,12 @@ describe('ImportPreviewOverlay.vue — con trỏ Chương DOM THẬT (`⌥←`/`
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
 
-    // Đóng lớp phủ THẬT (huỷ) — `.ip-scrim` biến mất khỏi DOM (`v-if="importPreviewIsOpen"`).
+    // Đóng lớp phủ THẬT (huỷ) — `.ip-screen` biến mất khỏi DOM (`v-if="importPreviewIsOpen"`).
     state.cancelImportPreview()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.ip-scrim').exists()).toBe(false)
+    expect(wrapper.find('.ip-screen').exists()).toBe(false)
 
-    // Không còn `.ip-scrim` để mà bắn `keydown` lên — đúng nghĩa "không thao tác nào của màn
+    // Không còn `.ip-screen` để mà bắn `keydown` lên — đúng nghĩa "không thao tác nào của màn
     // nhập xảy ra" (I/O Matrix spec 6.10a): không có phần tử nào trong cây của lớp phủ còn
     // sống để nhận sự kiện, nên `nextMock`/`prevMock` chắc chắn không thể bị gọi qua đường
     // bàn phím của NÓ nữa — đối chứng THÊM ở tầng state (`importPreviewChapterCursor.test`,
@@ -440,7 +410,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬT (`⌥W`
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
 
     await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true })
     expect(toggleMock).toHaveBeenCalledTimes(1)
@@ -457,7 +427,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬT (`⌥W`
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
 
     await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true })
     await scrim.trigger('keydown', { code: 'KeyW', key: '∑', altKey: true, repeat: true })
@@ -476,7 +446,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬT (`⌥W`
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    const scrim = wrapper.get('.ip-scrim')
+    const scrim = wrapper.get('.ip-screen')
 
     await scrim.trigger('keydown', { code: 'KeyW', key: 'w' })
     expect(toggleMock).not.toHaveBeenCalled()
@@ -496,7 +466,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" DOM THẬT (`⌥W`
 
     state.cancelImportPreview()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.ip-scrim').exists()).toBe(false)
+    expect(wrapper.find('.ip-screen').exists()).toBe(false)
 
     expect(toggleMock).not.toHaveBeenCalled()
 
@@ -611,35 +581,24 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" đổi thứ HIỆ
 // `confirming`, radio `@change` THẬT, ba nhánh dựng `unknown`/`ipc_unavailable`/`error`
 // ═════════════════════════════════════════════════════════════════════════════════
 
-describe('ImportPreviewOverlay.vue — bẫy tiêu điểm Tab trong `.ip-scrim` (L8557)', () => {
-  it('Tab từ phần tử CUỐI focusable trong `.ip-panel` vòng về phần tử ĐẦU', async () => {
+describe('ImportPreviewOverlay.vue — màn thay chỗ nội dung Library, không còn lớp phủ modal', () => {
+  it('không scrim, không role="dialog"/aria-modal, không nút đóng đầu màn', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
     await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    const panelEl = wrapper.get('.ip-panel').element as HTMLElement
-    const focusable = Array.from(
-      panelEl.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
-          'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    )
-    expect(focusable.length).toBeGreaterThan(1)
-    const first = focusable[0]!
-    const last = focusable[focusable.length - 1]!
 
-    last.focus()
-    expect(document.activeElement).toBe(last)
-
-    await wrapper.get('.ip-scrim').trigger('keydown', { key: 'Tab' })
-    expect(document.activeElement).toBe(first)
+    expect(wrapper.find('.ip-scrim').exists()).toBe(false)
+    expect(wrapper.find('.ip-close').exists()).toBe(false)
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-modal]').exists()).toBe(false)
 
     wrapper.unmount()
     state.resetImportPreview()
   })
 
-  it('Shift+Tab từ phần tử ĐẦU vòng về phần tử CUỐI', async () => {
+  it('Tab không bị bẫy: keydown Tab trên màn không bị preventDefault, tiêu điểm đi theo trình duyệt', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
     await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
@@ -647,18 +606,15 @@ describe('ImportPreviewOverlay.vue — bẫy tiêu điểm Tab trong `.ip-scrim`
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     const panelEl = wrapper.get('.ip-panel').element as HTMLElement
     const focusable = Array.from(
-      panelEl.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
-          'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
+      panelEl.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled])'),
     )
-    const first = focusable[0]!
     const last = focusable[focusable.length - 1]!
+    last.focus()
 
-    first.focus()
-    expect(document.activeElement).toBe(first)
+    const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    last.dispatchEvent(event)
 
-    await wrapper.get('.ip-scrim').trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(event.defaultPrevented).toBe(false)
     expect(document.activeElement).toBe(last)
 
     wrapper.unmount()
@@ -667,7 +623,7 @@ describe('ImportPreviewOverlay.vue — bẫy tiêu điểm Tab trong `.ip-scrim`
 })
 
 describe('ImportPreviewOverlay.vue — nút Xác nhận/Huỷ khoá lại khi `importPreviewConfirming` (L8557)', () => {
-  it('lượt xác nhận ĐANG BAY ⇒ cả nút Xác nhận LẪN nút Huỷ (đầu VÀ chân màn) đều `disabled`', async () => {
+  it('lượt xác nhận ĐANG BAY ⇒ cả nút Xác nhận LẪN nút Huỷ (chân màn) đều `disabled`', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewTextMock.mockResolvedValue({ preview: preview(), error: null })
     await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
@@ -681,14 +637,12 @@ describe('ImportPreviewOverlay.vue — nút Xác nhận/Huỷ khoá lại khi `i
     )
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect((wrapper.get('.ip-close').element as HTMLButtonElement).disabled).toBe(false)
     expect((wrapper.get('.ip-act-primary').element as HTMLButtonElement).disabled).toBe(false)
 
     const confirming = state.confirmImportPreview()
     await wrapper.vm.$nextTick()
 
     expect(state.importPreviewConfirming.value).toBe(true)
-    expect((wrapper.get('.ip-close').element as HTMLButtonElement).disabled).toBe(true)
     expect((wrapper.get('.ip-act-primary').element as HTMLButtonElement).disabled).toBe(true)
     const footerCancel = wrapper.findAll('.ip-act').find((b) => !b.classes().includes('ip-act-primary'))
     expect((footerCancel?.element as HTMLButtonElement).disabled).toBe(true)
@@ -748,7 +702,7 @@ describe('ImportPreviewOverlay.vue — ba nhánh dựng `unknown`/`ipc_unavailab
     expect(state.importPreviewStatus.value).toBe('unknown')
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.find('.ip-scrim').exists()).toBe(false)
+    expect(wrapper.find('.ip-screen').exists()).toBe(false)
 
     wrapper.unmount()
   })

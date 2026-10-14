@@ -96,7 +96,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
   it('mặc định là bản chuẩn hoá của ứng viên Rust đã chọn (GBK)', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: fivecandidatePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
@@ -107,7 +107,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
   it('đổi ứng viên đổi NGAY bản dựng + hai số đếm, 0 lời gọi IPC thêm', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: fivecandidatePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
@@ -129,7 +129,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
   it('phạm vi cửa sổ (`window_truncated`) đổi theo đúng ứng viên đang chọn', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: fivecandidatePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)
@@ -149,7 +149,7 @@ describe('importPreviewState — importPreviewSelectedNormalized hiện đúng b
   it('ứng viên "không ra chữ" (`normalized: null`) đọc ra `null`, không panic/undefined ngầm', async () => {
     const state = await freshState()
     previewFileMock.mockResolvedValue({
-      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, error: null }], encoding_preview: fivecandidatePreview() },
+      batch: { items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }], encoding_preview: fivecandidatePreview() },
       error: null,
     })
     await state.openImportPreviewFromFile('Ten', 'zh', '', ['/tmp/gbk.txt'], null)

@@ -56,6 +56,7 @@ const confirmError = ref<IpcError | null>(null)
  * lại đi qua `rebuildBilingualImportPreview` trên byte Rust đã cất lúc mở, không đọc lại tệp. */
 const pendingName = ref('')
 const pendingSourceLang = ref('')
+const pendingPath = ref('')
 const pendingGenre = ref('')
 
 /** Vai cột (0-based) + cờ tiêu đề — tham số MỖI LƯỢT gọi Rust, cùng khuôn `chapterPattern`
@@ -117,6 +118,12 @@ export const bilingualImportPreviewChapterPatternKind: DeepReadonly<Ref<ChapterP
 export const bilingualImportPreviewChapterFilterActive: DeepReadonly<Ref<boolean>> = readonly(chapterFilterActive)
 export const bilingualImportPreviewChapterCursor: DeepReadonly<Ref<number>> = readonly(chapterCursor)
 
+export const bilingualImportPreviewPendingName: DeepReadonly<Ref<string>> = readonly(pendingName)
+export const bilingualImportPreviewPendingSourceLang: DeepReadonly<Ref<string>> = readonly(pendingSourceLang)
+export const bilingualImportPreviewSourceFileName = computed<string>(
+  () => pendingPath.value.split(/[\\/]/).pop() ?? pendingPath.value,
+)
+
 /** Ứng viên bảng mã ĐANG CHỌN — `null` khi chưa có `preview` hoặc không ứng viên nào khớp
  * `selectedEncoding` (không nên xảy ra trên đường sản phẩm, phòng thủ kiểu). */
 export const bilingualImportPreviewSelectedCandidate = computed<BilingualEncodingCandidateWire | null>(() => {
@@ -144,6 +151,36 @@ export const bilingualImportPreviewCanConfirm = computed<boolean>(() => {
     !tableChoicePending()
   )
 })
+
+/** Mismatched rows whose source side is empty; Rust refuses these even with the unlinked flag. */
+export const bilingualImportPreviewEmptySourceMismatchCount = computed<number>(
+  () => bilingualImportPreviewMismatches.value.filter((m) => m.source_sentences.length === 0).length,
+)
+
+export const bilingualImportPreviewCanImportUnlinked = computed<boolean>(() => {
+  const candidate = bilingualImportPreviewSelectedCandidate.value
+  return (
+    status.value === 'loaded' &&
+    !confirming.value &&
+    !opening.value &&
+    candidate !== null &&
+    candidate.mismatches.length > 0 &&
+    bilingualImportPreviewEmptySourceMismatchCount.value === 0 &&
+    !tableChoicePending()
+  )
+})
+
+const mismatchFocusSignal = ref(0)
+export const bilingualImportPreviewMismatchFocusSignal: DeepReadonly<Ref<number>> = readonly(mismatchFocusSignal)
+
+/** "Xem N chỗ lệch rồi nhập" — puts the first mismatched row in focus. */
+export function focusFirstBilingualMismatch(): void {
+  const list = bilingualImportPreviewMismatches.value
+  if (list.length === 0) return
+  activeMismatchRow.value = list[0].row_number
+  caretPosition.value = 0
+  mismatchFocusSignal.value += 1
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Story 6.17 (FR116) — quy nhóm câu đích trong từng hàng lệch cặp
@@ -315,6 +352,7 @@ export async function openBilingualImportPreview(
 
   pendingName.value = name
   pendingSourceLang.value = sourceLang
+  pendingPath.value = path
   pendingGenre.value = genre
   sourceColumn.value = 0
   targetColumn.value = 1
@@ -547,11 +585,14 @@ export async function skipActiveBilingualRow(): Promise<void> {
  * khuôn `confirmImportPreview`; `main.ts` tiêu thụ kết quả rồi gọi
  * `libraryImport.ts::finishImportSubmission` (dùng CHUNG với ba nhánh cũ — reset panel/nạp
  * lại Chương không khác gì theo nguồn nhập). */
-export async function confirmBilingualImportPreview(): Promise<{
+export async function confirmBilingualImportPreview(importMismatchedRows = false): Promise<{
   created: CreatedWork | null
   error: IpcError | null
 }> {
-  if (!bilingualImportPreviewCanConfirm.value || selectedEncoding.value === null) {
+  const allowed = importMismatchedRows
+    ? bilingualImportPreviewCanImportUnlinked.value
+    : bilingualImportPreviewCanConfirm.value
+  if (!allowed || selectedEncoding.value === null) {
     return { created: null, error: null }
   }
   confirming.value = true
@@ -569,6 +610,7 @@ export async function confirmBilingualImportPreview(): Promise<{
     hasHeader.value,
     Array.from(regroupings.value.values()),
     tableIndex.value,
+    importMismatchedRows,
   )
   if (mySequence !== sequence) return { created: null, error: null }
 
@@ -603,6 +645,7 @@ export function resetBilingualImportPreview(): void {
   pendingName.value = ''
   pendingSourceLang.value = ''
   pendingGenre.value = ''
+  pendingPath.value = ''
   sourceColumn.value = 0
   targetColumn.value = 1
   hasHeader.value = false
@@ -614,4 +657,5 @@ export function resetBilingualImportPreview(): void {
   caretPosition.value = 0
   chapterFilterActive.value = false
   chapterCursor.value = 0
+  mismatchFocusSignal.value = 0
 }

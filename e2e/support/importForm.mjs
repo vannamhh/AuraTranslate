@@ -30,13 +30,13 @@ import { realClick } from './pointer.mjs'
 
 const IMPORT_OPEN_BTN = '[data-library-import-open]'
 const IMPORT_PANEL = '.li-panel'
-const OVERLAY_SCRIM = '.ip-scrim'
-const OVERLAY_CONFIRM_BTN = '.ip-scrim .ip-act-primary'
-const OVERLAY_ERROR = '.ip-scrim .ip-error'
+const OVERLAY_SCRIM = '.ip-screen'
+const OVERLAY_CONFIRM_BTN = '.ip-screen .ip-act-primary'
+const OVERLAY_ERROR = '.ip-screen .ip-error'
 
 /**
  * Tìm nút nộp dán-văn-bản bằng CẤU TRÚC DOM, không bằng việc tin `form.$('[data-import-preview-open]')`
- * luôn trúng đúng nút. Ba nút — dán văn bản, tệp, URL — CÙNG mang thuộc tính
+ * luôn trúng đúng nút. Hai nút — dán văn bản, tệp — CÙNG mang thuộc tính
  * `[data-import-preview-open]` (`src/modes/LibraryMode.vue:1250,1279,1325`), không thuộc tính
  * nào phân biệt được chúng với nhau; "lấy nút khớp ĐẦU TIÊN" chỉ đúng vì thứ tự HIỆN TẠI
  * trong form, và một lượt thêm/đổi thứ tự nhánh nhập sẽ làm giả định đó sai một cách im lặng.
@@ -128,7 +128,7 @@ async function waitConfirmEnabled() {
   }
 }
 
-/** Chờ màn xem trước ĐÓNG (`.ip-scrim` biến mất) — đọc lỗi hiện có nếu nó còn mở lúc timeout. */
+/** Chờ màn xem trước ĐÓNG (`.ip-screen` biến mất) — đọc lỗi hiện có nếu nó còn mở lúc timeout. */
 async function waitOverlayClosed() {
   let last = null
   try {

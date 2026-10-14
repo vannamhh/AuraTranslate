@@ -13177,3 +13177,7 @@ chính nó.
   summary: Kết quả tìm Library nay thay lưới Tác phẩm, nhưng không có nút hay phím đóng tìm kiếm; muốn về lưới phải xoá ô tìm rồi Enter. Mockup có `Esc đóng tìm kiếm`, mà `Escape` toàn cục thuộc `editor.clear_source_cuts`, và chia `Escape` là quyết định của Ice (`src/commands/index.ts` khối `Escape`).
   evidence: `LibraryMode.vue` `searchActive` chỉ về `false` khi `executeLibrarySearch` chạy với truy vấn rỗng.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-man-xem-truoc-nhap-hai-cot-plan.md`
+  summary: Lượt dùng thật trên bản đóng gói macOS: nhập một tệp `.docx` song ngữ thật còn hàng lệch bằng "Nhập luôn, nối sau", tìm lại câu "chưa nối" từ danh sách Chương, xác nhận một câu thì dấu mất; nhìn bốn màn hai cột (cột trái 300 px, ô dán đánh số dòng cao 260 px) ở sáng và tối.
+  evidence: e2e 12-6 chạy trên bản debug với tệp `.csv` tổng hợp; CSS hai cột chưa ai nhìn bằng mắt trên WKWebView; ước lượng chỉ đo trên 2.000 Chương tổng hợp.
+  Chủ: Epic 12.

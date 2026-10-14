@@ -1692,6 +1692,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/project/wire.rs",
+            "pub fn estimate_import_glossary(\n    app: tauri::AppHandle",
+            "chay lai TRON pipeline nhap roi dem n-gram tren moi Chuong (tuyen tinh theo kich thuoc tai lieu), cong tra tu dien o che do exact",
+        ),
+        (
+            "src/commands/project/wire.rs",
             "pub fn preview_chapter_detail(\n    app: tauri::AppHandle",
             "cung ly do `tier2_block_set_kept` ngay tren -- `pending_destination`",
         ),
@@ -2142,10 +2147,10 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
     ),
     (
         "src/commands/project/wire.rs",
-        3,
-        15,
-        13,
-        "cancel_image_download them plain -- chi bom mot AtomicU64, khong doc/ghi Store, cung lop voi ai_translate_cancel.",
+        4,
+        16,
+        14,
+        "cancel_image_download them plain -- chi bom mot AtomicU64, khong doc/ghi Store, cung lop voi ai_translate_cancel. cancel_import_glossary_estimate them plain -- cung mot AtomicU64.",
     ),
     (
         "src/commands/promptset.rs",
@@ -2322,7 +2327,7 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (91, 60),
+        (92, 61),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
          91/60.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \

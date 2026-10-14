@@ -251,6 +251,7 @@ mod tests {
             is_target_paragraph_end,
             role: role.map(str::to_owned),
             translation_origin: String::new(),
+            unlinked: false,
         }
     }
 

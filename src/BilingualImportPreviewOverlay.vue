@@ -1,28 +1,20 @@
 <script setup lang="ts">
-// Lớp phủ **Xem trước lượt nhập song ngữ** (Story 6.16, FR115, AD-39 · AD-37/46 · AD-47 ③).
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 KHUÔN `ImportPreviewOverlay.vue` — scrim + `role="dialog"` + bẫy Tab tự viết +
-// focus-return qua `data-bilingual-import-preview-open` (đặt trên nút nộp form RIÊNG của
-// `LibraryMode.vue` — không dùng chung `data-import-preview-open` với ba nhánh cũ, hai lớp
-// phủ độc lập không được tranh cùng một mỏ neo focus-return).
-//
-// Đổi cột nguồn/đích, bật/tắt tiêu đề, và gửi mẫu phân tách Chương đi qua `@change` (KHÔNG
-// `dispatch`, cùng tiền lệ dải năm ứng viên bảng mã và mẫu phân tách Chương của
-// `ImportPreviewOverlay.vue` — `check:commands` Kiểm A chỉ canh `@click`).
-//
-// Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — mọi văn bản qua `t()`/`tError()`.
-// Không `v-html` ở bất kỳ đâu (AD-16) — mọi ô mẫu là DỮ LIỆU văn bản thô từ Rust.
 import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
+import { takeRecordedImportOpener } from './importOpener'
 import {
   bilingualImportPreview,
   bilingualImportPreviewActiveCuts,
   bilingualImportPreviewActiveMismatch,
   bilingualImportPreviewActiveMismatchIndex,
   bilingualImportPreviewCanConfirm,
+  bilingualImportPreviewCanImportUnlinked,
+  bilingualImportPreviewEmptySourceMismatchCount,
+  bilingualImportPreviewMismatchFocusSignal,
+  bilingualImportPreviewPendingName,
+  bilingualImportPreviewPendingSourceLang,
   bilingualImportPreviewCanSkipActiveRow,
   bilingualImportPreviewCaretPosition,
   bilingualImportPreviewChapterFilterActive,
@@ -299,7 +291,7 @@ const panel = useTemplateRef<HTMLElement>('panel')
 
 watch(bilingualImportPreviewIsOpen, (open) => {
   if (open) {
-    returnFocusTo = focusReturnTargetOnOpen('[data-bilingual-import-preview-open]')
+    returnFocusTo = takeRecordedImportOpener() ?? focusReturnTargetOnOpen('[data-bilingual-import-preview-open]')
     void nextTick(() => panel.value?.focus())
     return
   }
@@ -307,67 +299,45 @@ watch(bilingualImportPreviewIsOpen, (open) => {
   const back = returnFocusTo
   returnFocusTo = null
 
-  if (back !== null && back.isConnected) {
-    back.focus()
-    return
-  }
+  // The opener sits in a form hidden while this screen is open; wait for it to be shown again.
+  void nextTick(() => {
+    if (back !== null && back.isConnected) {
+      back.focus()
+      return
+    }
 
-  const opener = document.querySelector<HTMLElement>('[data-bilingual-import-preview-open]')
-  if (opener !== null) {
-    opener.focus()
-    return
-  }
-  console.warn('[bilingual-import-preview] focus-return target is gone; focus falls back to body.')
+    const opener = document.querySelector<HTMLElement>('[data-bilingual-import-preview-open]')
+    if (opener !== null) {
+      opener.focus()
+      return
+    }
+    console.warn('[bilingual-import-preview] focus-return target is gone; focus falls back to body.')
+  })
 })
 
-function focusableWithin(root: HTMLElement): HTMLElement[] {
-  return Array.from(
-    root.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
-        'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ),
-  )
-}
+const sourceLangLabel = computed<string>(() => {
+  if (bilingualImportPreviewPendingSourceLang.value === 'zh') return t('mode.library.lang_zh')
+  if (bilingualImportPreviewPendingSourceLang.value === 'en') return t('mode.library.lang_en')
+  return bilingualImportPreviewPendingSourceLang.value
+})
 
-/** Bẫy tiêu điểm — điều kiện để `aria-modal="true"` không phải một lời khai sai. */
-function trapTab(event: KeyboardEvent): void {
-  const root = panel.value
-  if (root === null) return
-
-  event.preventDefault()
-  const stops = focusableWithin(root)
-  if (stops.length === 0) {
-    root.focus()
-    return
-  }
-
-  const active = document.activeElement
-  const index = active instanceof HTMLElement ? stops.indexOf(active) : -1
-  const step = event.shiftKey ? -1 : 1
-  const next = index === -1 ? (event.shiftKey ? stops.length - 1 : 0) : index + step
-  stops[(next + stops.length) % stops.length].focus()
-}
+const mismatchFocus = useTemplateRef<HTMLElement>('mismatchFocus')
+watch(bilingualImportPreviewMismatchFocusSignal, () => {
+  void nextTick(() => {
+    const el = mismatchFocus.value
+    if (el === null) return
+    el.scrollIntoView({ block: 'nearest' })
+    el.focus()
+  })
+})
 </script>
 
 <template>
-  <div
-    v-if="bilingualImportPreviewIsOpen"
-    class="bip-scrim"
-    @keydown.esc="onEscapeCancel"
-    @keydown.tab="trapTab($event)"
-    @keydown="onScrimKeydown"
-  >
-    <section ref="panel" class="bip-panel" tabindex="-1" role="dialog" aria-modal="true">
+  <div v-if="bilingualImportPreviewIsOpen" class="bip-screen" @keydown.esc="onEscapeCancel" @keydown="onScrimKeydown">
+    <section ref="panel" class="bip-panel" tabindex="-1" aria-labelledby="bip-title">
       <header class="bip-head">
-        <h2 class="bip-title">{{ t('mode.library.preview.bilingual_title') }}</h2>
-        <button
-          type="button"
-          class="bip-close"
-          :disabled="bilingualImportPreviewConfirming"
-          @click="dispatch('import.preview.bilingual_cancel')"
-        >
-          {{ t('command.import.preview.bilingual_cancel') }}
-        </button>
+        <h2 id="bip-title" class="bip-title">{{ t('mode.library.preview.bilingual_title') }}</h2>
+        <p class="bip-head-note">{{ t('mode.library.preview.bilingual_screen_subtitle') }}</p>
       </header>
 
       <p v-if="bilingualImportPreviewStatus === 'unknown'" class="bip-status" role="status">
@@ -386,6 +356,24 @@ function trapTab(event: KeyboardEvent): void {
       </p>
 
       <template v-else-if="bilingualImportPreviewStatus === 'loaded' && bilingualImportPreview !== null">
+        <div class="bip-two">
+        <aside class="bip-config" :aria-label="t('mode.library.preview.config_label')">
+          <dl class="bip-summary">
+            <div class="bip-summary-line">
+              <dt>{{ t('mode.library.preview.summary_work_name') }}</dt>
+              <!-- aura-allow-text: DỮ LIỆU (tên Tác phẩm người dùng tự đặt). -->
+              <dd>{{ bilingualImportPreviewPendingName }}</dd>
+            </div>
+            <div class="bip-summary-line">
+              <dt>{{ t('mode.library.preview.summary_source_lang') }}</dt>
+              <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn ngôn ngữ nguồn. -->
+              <dd>{{ sourceLangLabel }}</dd>
+            </div>
+            <div class="bip-summary-line">
+              <dt>{{ t('mode.library.preview.summary_initial_status') }}</dt>
+              <dd>{{ t('lifecycle.not_started') }}</dd>
+            </div>
+          </dl>
         <section v-if="bilingualImportPreview.source_tables.length > 0" class="bip-tier" aria-labelledby="bip-tier-table-title">
           <h3 id="bip-tier-table-title" class="bip-tier-title">
             {{ t('mode.library.preview.bilingual_table_title') }}
@@ -417,43 +405,6 @@ function trapTab(event: KeyboardEvent): void {
           <p v-if="bilingualImportPreview.table_choice_required" class="bip-status" role="status">
             {{ t('mode.library.preview.bilingual_table_choice_required') }}
           </p>
-        </section>
-
-        <!-- ═══════════════════ Dải năm ứng viên bảng mã ═══════════════════ -->
-        <section
-          v-if="bilingualImportPreview.source_tables.length === 0"
-          class="bip-tier"
-          aria-labelledby="bip-tier-encoding-title"
-        >
-          <h3 id="bip-tier-encoding-title" class="bip-tier-title">
-            {{ t('mode.library.preview.tier1_title') }}
-          </h3>
-          <div class="bip-strip" role="radiogroup" :aria-label="t('mode.library.preview.strip_hint')">
-            <label
-              v-for="candidate in bilingualImportPreview.candidates"
-              :key="candidate.encoding"
-              class="bip-candidate"
-              :class="{ 'bip-candidate-selected': bilingualImportPreviewSelectedEncoding === candidate.encoding }"
-            >
-              <input
-                type="radio"
-                name="bip-candidate"
-                class="bip-candidate-radio"
-                :checked="bilingualImportPreviewSelectedEncoding === candidate.encoding"
-                :disabled="bilingualImportPreviewConfirming"
-                @change="onCandidateChange(candidate.encoding, $event)"
-              />
-              <!-- aura-allow-text: DỮ LIỆU (nhãn FR126, một trong năm chuỗi cố định). -->
-              <span class="bip-candidate-label">{{ candidate.label }}</span>
-              <span v-if="candidate.preview !== null" class="bip-candidate-preview">
-                <!-- aura-allow-text: DỮ LIỆU (bản dựng thật từ Rust, KHÔNG markup — AD-16). -->
-                {{ candidate.preview }}
-              </span>
-              <span v-else class="bip-candidate-preview bip-candidate-undecodable">
-                {{ t('mode.library.preview.candidate_undecodable') }}
-              </span>
-            </label>
-          </div>
         </section>
 
         <!-- ═══════════════════ Vai cột + tiêu đề + mẫu phân tách ═══════════════════ -->
@@ -522,6 +473,45 @@ function trapTab(event: KeyboardEvent): void {
               <option value="regex">{{ t('mode.library.preview.cleanup_kind_regex') }}</option>
             </select>
           </form>
+        </section>
+
+        </aside>
+        <div class="bip-main">
+        <!-- ═══════════════════ Dải năm ứng viên bảng mã ═══════════════════ -->
+        <section
+          v-if="bilingualImportPreview.source_tables.length === 0"
+          class="bip-tier"
+          aria-labelledby="bip-tier-encoding-title"
+        >
+          <h3 id="bip-tier-encoding-title" class="bip-tier-title">
+            {{ t('mode.library.preview.tier1_title') }}
+          </h3>
+          <div class="bip-strip" role="radiogroup" :aria-label="t('mode.library.preview.strip_hint')">
+            <label
+              v-for="candidate in bilingualImportPreview.candidates"
+              :key="candidate.encoding"
+              class="bip-candidate"
+              :class="{ 'bip-candidate-selected': bilingualImportPreviewSelectedEncoding === candidate.encoding }"
+            >
+              <input
+                type="radio"
+                name="bip-candidate"
+                class="bip-candidate-radio"
+                :checked="bilingualImportPreviewSelectedEncoding === candidate.encoding"
+                :disabled="bilingualImportPreviewConfirming"
+                @change="onCandidateChange(candidate.encoding, $event)"
+              />
+              <!-- aura-allow-text: DỮ LIỆU (nhãn FR126, một trong năm chuỗi cố định). -->
+              <span class="bip-candidate-label">{{ candidate.label }}</span>
+              <span v-if="candidate.preview !== null" class="bip-candidate-preview">
+                <!-- aura-allow-text: DỮ LIỆU (bản dựng thật từ Rust, KHÔNG markup — AD-16). -->
+                {{ candidate.preview }}
+              </span>
+              <span v-else class="bip-candidate-preview bip-candidate-undecodable">
+                {{ t('mode.library.preview.candidate_undecodable') }}
+              </span>
+            </label>
+          </div>
         </section>
 
         <!-- ═══════════════════ Số đếm + hàng lệch cặp ═══════════════════ -->
@@ -628,7 +618,9 @@ function trapTab(event: KeyboardEvent): void {
 
             <div
               v-if="bilingualImportPreviewMismatches.length > 0 && bilingualImportPreviewActiveMismatch !== null"
+              ref="mismatchFocus"
               class="bip-mismatch-focus"
+              tabindex="-1"
             >
               <p class="bip-mismatch-heading" role="status">
                 <!-- aura-allow-text: KẾT QUẢ của `t()`, mọi tham số là DỮ LIỆU (chỉ số/số đếm). -->
@@ -705,6 +697,8 @@ function trapTab(event: KeyboardEvent): void {
             </div>
           </template>
         </section>
+        </div>
+        </div>
       </template>
 
       <p
@@ -718,12 +712,39 @@ function trapTab(event: KeyboardEvent): void {
 
       <div class="bip-actions">
         <button
+          v-if="bilingualImportPreviewMismatches.length > 0"
+          type="button"
+          class="bip-act"
+          :disabled="bilingualImportPreviewConfirming"
+          @click="dispatch('import.preview.bilingual_focus_mismatch')"
+        >
+          {{ t('mode.library.preview.bilingual_view_mismatches', { count: String(bilingualImportPreviewMismatches.length) }) }}
+        </button>
+        <button
+          v-if="bilingualImportPreviewMismatches.length > 0"
+          type="button"
+          class="bip-act"
+          data-bilingual-import-unlinked
+          :disabled="bilingualImportPreviewConfirming || !bilingualImportPreviewCanImportUnlinked"
+          @click="dispatch('import.preview.bilingual_confirm_unlinked')"
+        >
+          {{ t('command.import.preview.bilingual_confirm_unlinked') }}
+        </button>
+        <button
           type="button"
           class="bip-act bip-act-primary"
           :disabled="bilingualImportPreviewConfirming || !bilingualImportPreviewCanConfirm"
           @click="dispatch('import.preview.bilingual_confirm')"
         >
           {{ t('command.import.preview.bilingual_confirm') }}
+        </button>
+        <button
+          type="button"
+          class="bip-act"
+          :disabled="bilingualImportPreviewConfirming"
+          @click="dispatch('import.preview.bilingual_cancel')"
+        >
+          {{ t('command.import.preview.bilingual_cancel') }}
         </button>
         <p
           v-if="
@@ -740,31 +761,79 @@ function trapTab(event: KeyboardEvent): void {
             })
           }}
         </p>
+        <p
+          v-if="bilingualImportPreviewEmptySourceMismatchCount > 0"
+          class="bip-tier-empty-reason"
+          role="status"
+        >
+          {{
+            t('mode.library.preview.bilingual_unlinked_locked_reason', {
+              count: String(bilingualImportPreviewEmptySourceMismatchCount),
+            })
+          }}
+        </p>
+        <p v-else-if="bilingualImportPreviewCanImportUnlinked" class="bip-tier-empty-reason" role="status">
+          {{ t('mode.library.preview.bilingual_unlinked_hint') }}
+        </p>
+        <p class="bip-hint">{{ t('mode.library.preview.hint_no_write_before_confirm_bilingual') }}</p>
       </div>
     </section>
   </div>
 </template>
 
 <style scoped>
-.bip-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 11; /* aura-allow-z-index: cùng tầng ImportPreviewOverlay — hai lớp phủ không mở đồng thời. */
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-panel-inline);
-  background: var(--color-background);
+.bip-screen {
+  width: 100%;
 }
 
 .bip-panel {
   width: 100%;
-  max-width: 760px;
-  max-height: 100%;
-  overflow: auto;
-  padding: var(--space-panel-inline);
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
+}
+
+.bip-head-note,
+.bip-hint {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.bip-two {
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: calc(var(--space-unit) * 5);
+  align-items: start;
+}
+
+.bip-config,
+.bip-main {
+  min-width: 0;
+}
+
+.bip-summary {
+  margin: 0 0 var(--space-panel-block) 0;
+}
+
+.bip-summary-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 2) 0;
+  border-top: 1px solid var(--color-outline);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface);
+}
+
+.bip-summary-line dt {
+  color: var(--color-on-surface-variant);
+}
+
+.bip-summary-line dd {
+  margin: 0;
+  text-align: right;
 }
 
 .bip-head {
@@ -782,22 +851,6 @@ function trapTab(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.bip-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.bip-close:disabled {
-  cursor: default;
 }
 
 .bip-status {
@@ -1142,9 +1195,10 @@ button.bip-chapter-filter-chip:disabled {
 
 .bip-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: calc(var(--space-unit) * 1);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  margin-top: var(--space-panel-block);
 }
 
 .bip-act {

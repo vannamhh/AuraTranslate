@@ -11,6 +11,7 @@ const FULL_ROW = {
   segment_count: 5,
   translated_count: 4,
   unconfirmed_count: 1,
+  unlinked_count: 0,
   in_translation_count: 5,
   updated_at: '2026-10-01T00:00:00Z',
   origin_author: null,

@@ -279,7 +279,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // lẻo nào ở guard bên dưới (đối chứng "guard bác payload thiếu trường" ngay dưới không đổi).
   it('nhánh TỆP dùng CHUNG bộ phân giải — payload hợp lệ (envelope batch) đi qua thật', async () => {
     mockInvoke.mockResolvedValue({
-      items: [{ path: '/tmp/gbk.txt', ok: true, error: null }],
+      items: [{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }],
       encoding_preview: validWirePreview(),
     })
     const { previewImportEncodingFromFile } = await import('../../src/config/project')
@@ -287,7 +287,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
     const result = await previewImportEncodingFromFile(['/tmp/gbk.txt'], 'zh', null, null)
 
     expect(result.error).toBeNull()
-    expect(result.batch?.items).toEqual([{ path: '/tmp/gbk.txt', ok: true, error: null }])
+    expect(result.batch?.items).toEqual([{ path: '/tmp/gbk.txt', ok: true, byte_len: null, error: null }])
     expect(result.batch?.encoding_preview?.candidates).toHaveLength(5)
   })
 
@@ -322,12 +322,26 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // **THÊM (Story 6.6b)** — `encoding_preview: null` (một mục hỏng khoá xác nhận) là một
   // payload HỢP LỆ, không phải một lý do để bác — cùng khuôn `UrlImportBatchWire` khi mục
   // hỏng khoá nút xác nhận.
+  it('mục tệp thiếu `byte_len` bị bác (kích thước chưa biết là null, không vắng)', async () => {
+    mockInvoke.mockResolvedValue({
+      items: [{ path: '/tmp/a.txt', ok: true, error: null }],
+      encoding_preview: null,
+    })
+    const { previewImportEncodingFromFile } = await import('../../src/config/project')
+
+    const result = await previewImportEncodingFromFile(['/tmp/a.txt'], 'zh', null, null)
+
+    expect(result.batch).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
   it('payload TỆP với `encoding_preview: null` (mục hỏng, khoá xác nhận) vẫn đi qua thật', async () => {
     mockInvoke.mockResolvedValue({
       items: [
-        { path: '/tmp/a.txt', ok: true, error: null },
+        { path: '/tmp/a.txt', ok: true, byte_len: null, error: null },
         {
           path: '/tmp/b.txt',
+          byte_len: null,
           ok: false,
           error: { code: 'io.read_failed', message_key: 'err.io.read_failed', params: {}, retryable: false },
         },

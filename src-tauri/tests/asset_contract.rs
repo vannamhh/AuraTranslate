@@ -1952,6 +1952,7 @@ fn create_work_with_progress_calls_on_image_progress_once_per_image_in_order() {
         &DomainLogState::new(Vec::new()),
         None,
         &[],
+        auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
         &mut |completed, total| calls.push((completed, total)),
         &|| false,
     )
@@ -2012,6 +2013,7 @@ fn cancelling_mid_loop_keeps_the_chapter_and_already_downloaded_images_and_opens
         &DomainLogState::new(Vec::new()),
         None,
         &[],
+        auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
         &mut |_, _| {},
         &|| cancel_after_first.fetch_add(1, Ordering::SeqCst) >= 1,
     )

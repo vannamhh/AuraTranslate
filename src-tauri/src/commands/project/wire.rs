@@ -1248,6 +1248,7 @@ pub fn confirm_bilingual_import(
     // confirm".
     regroupings: Vec<super::BilingualRegroupingWire>,
     table_index: Option<usize>,
+    import_mismatched_rows: bool,
 ) -> Result<CreatedWork, IpcError> {
     use tauri::Manager as _;
 
@@ -1260,7 +1261,12 @@ pub fn confirm_bilingual_import(
     let cleanup_rules = resolve_cleanup_rules(&app);
     let resolved: Vec<crate::core::segment::bilingual::BilingualRegrouping> =
         regroupings.into_iter().map(Into::into).collect();
-    let opened = super::confirm_bilingual_import(
+    let mismatched_rows = if import_mismatched_rows {
+        crate::core::segment::bilingual::MismatchedRowPolicy::ImportUnlinked
+    } else {
+        crate::core::segment::bilingual::MismatchedRowPolicy::Refuse
+    };
+    let opened = super::confirm_bilingual_import_with_policy(
         &root,
         &pending_state,
         &name,
@@ -1274,6 +1280,7 @@ pub fn confirm_bilingual_import(
         has_header,
         resolved,
         table_index,
+        mismatched_rows,
     )?;
 
     let created = CreatedWork::from_open(&opened);
@@ -1672,6 +1679,118 @@ pub fn tier2_block_confirm_range(
         &origin_overrides,
         0,
     ))
+}
+
+#[tauri::command(async)]
+pub fn estimate_import_glossary(
+    app: tauri::AppHandle,
+    source_lang: String,
+    encoding: String,
+    chapter_pattern: Option<super::ChapterPatternWire>,
+) -> Result<super::GlossaryEstimateWire, IpcError> {
+    use tauri::Manager as _;
+
+    let Some(pending_state) = app.try_state::<PendingImportSourceState>() else {
+        return Err(no_pending_import_source());
+    };
+    let chosen =
+        crate::core::segment::encoding::encoding_for_wire_id(&encoding).ok_or_else(|| {
+            IpcError::from(
+                crate::core::segment::import::ImportError::UnrecognizedEncoding {
+                    wire_id: encoding.clone(),
+                },
+            )
+        })?;
+    let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
+    let (shape, destination) = {
+        let guard = pending_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let pending = guard.as_ref().ok_or_else(no_pending_import_source)?;
+        (pending.shape.clone(), pending.destination_work_id.clone())
+    };
+    let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
+    let block_overrides = resolve_tier2_block_overrides(&app);
+
+    let Some(global) = app.try_state::<Store>() else {
+        return Err(crate::commands::segment::global_store_missing());
+    };
+    let config = crate::core::scope::load_global_config(&global).map_err(IpcError::from)?;
+    let mut excluded = global.read(crate::core::glossary::entry_source_terms)?;
+    if let Some(work_id) = destination.as_deref() {
+        let in_open_work = app.try_state::<OpenWorkState>().and_then(|state| {
+            let guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let open = guard.as_ref().filter(|open| open.meta.work_id == work_id)?;
+            Some(open.store.read(|conn| {
+                let mut terms = crate::core::glossary::entry_source_terms(conn)?;
+                terms.extend(crate::core::glossary::import_scan_source_terms(conn)?);
+                Ok(terms)
+            }))
+        });
+        let work_terms = match in_open_work {
+            Some(terms) => terms?,
+            None => {
+                let Some(indexer) = app.try_state::<Indexer>() else {
+                    return Err(indexer_is_missing());
+                };
+                let indexed = indexer.find_work(work_id)?;
+                let Some(indexed) = indexed else {
+                    return Err(super::work_not_indexed(work_id));
+                };
+                let db = crate::core::store::ReadOnlyDb::open(
+                    indexed.atproj_path.join("project.db"),
+                    crate::core::store::StoreKind::Project,
+                )?;
+                let terms = db.read(|conn| {
+                    let mut terms = crate::core::glossary::entry_source_terms(conn)?;
+                    terms.extend(crate::core::glossary::import_scan_source_terms(conn)?);
+                    Ok(terms)
+                });
+                db.close();
+                terms?
+            }
+        };
+        excluded.extend(work_terms);
+    }
+
+    let generation_owned: super::ImportEstimateGeneration = app
+        .try_state::<super::ImportEstimateGeneration>()
+        .as_deref()
+        .cloned()
+        .unwrap_or_default();
+    let generation = generation_owned.next();
+    let mut is_cancelled = || !generation_owned.is_current(generation);
+
+    let layers_state = app.try_state::<crate::core::dict::DictLayers>();
+    let layers = super::guarded_dict_layers(layers_state.as_deref(), "import_estimate");
+
+    super::estimate_import_glossary(
+        super::GlossaryEstimateSource {
+            shape,
+            encoding: chosen,
+            source_lang,
+            cleanup_rules,
+            chapter_pattern: pattern,
+            block_overrides,
+        },
+        &excluded,
+        &config,
+        layers,
+        &mut is_cancelled,
+    )
+}
+
+#[tauri::command]
+pub fn cancel_import_glossary_estimate(app: tauri::AppHandle) {
+    use tauri::Manager as _;
+
+    let Some(generation_state) = app.try_state::<super::ImportEstimateGeneration>() else {
+        eprintln!("project[import_estimate_cancel] ImportEstimateGeneration chua duoc quan ly");
+        return;
+    };
+    generation_state.next();
 }
 
 /// Cancels an in-flight image-download pass by bumping

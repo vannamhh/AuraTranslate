@@ -65,20 +65,10 @@ import ChapterSplitOverlay from './ChapterSplitOverlay.vue'
 import LibraryImportOverlay from './LibraryImportOverlay.vue'
 import ReviewerImportOverlay from './ReviewerImportOverlay.vue'
 import AlignmentOverlay from './AlignmentOverlay.vue'
-// Story 6.3 — lớp phủ "Xem trước lượt nhập — bảng mã" (FR126), lớp phủ THỨ TÁM. Mở TỪ
-// `LibraryMode.vue` (nộp form) nhưng dựng ở cùng tầng gốc như mọi lớp phủ khác — luật của
-// kho: "LibraryMode.vue không mở lớp phủ" (§Code Map spec 6.3).
-import ImportPreviewOverlay from './ImportPreviewOverlay.vue'
 // Story 6.8 (NFR19, AD-41) — lớp phủ "Cài đặt", lớp phủ THỨ CHÍN. Mở TỪ nút titlebar
 // (`data-settings-open`) VÀ từ dòng tóm tắt nhật ký domain ở chân `ImportPreviewOverlay`
 // (`settings.privacy.open`, mở THẲNG vào mục Quyền riêng tư) — hai cửa vào, một lớp phủ.
 import SettingsOverlay from './SettingsOverlay.vue'
-// Story 6.16 (FR115) — lớp phủ "Xem trước lượt nhập song ngữ", lớp phủ THỨ MƯỜI. Mở TỪ
-// `LibraryMode.vue` (nộp form, ô đường dẫn RIÊNG) — cùng luật "LibraryMode.vue không mở lớp
-// phủ" mà `ImportPreviewOverlay` đã theo. State RIÊNG với `ImportPreviewOverlay` (xem
-// doc-comment `bilingualImportPreviewState.ts`), nên đây là component RIÊNG, không một nhánh
-// mới trong component cũ.
-import BilingualImportPreviewOverlay from './BilingualImportPreviewOverlay.vue'
 // Story 4.4 (FR69) — lớp phủ "Thư viện prompt", lớp phủ THỨ MƯỜI MỘT. Mở TỪ mục `prompt` của
 // `SettingsOverlay` VÀ từ Panel AI Translation (`AiTranslationPanel.vue`) — hai cửa, một lớp
 // phủ, cùng khuôn `SettingsOverlay` (titlebar + chân `ImportPreviewOverlay`). §Never spec 4.4:
@@ -99,6 +89,7 @@ import AiPromptInspectorOverlay from './AiPromptInspectorOverlay.vue'
 import LookupDrawer from './layout/LookupDrawer.vue'
 import TitlebarToolsMenu from './TitlebarToolsMenu.vue'
 import { proofreadStatusText } from './titlebarProofreadStatus'
+import { importSourceStatusText } from './titlebarImportSource'
 import { activeLayoutPreset } from './layout/layoutPresetState'
 import { reviewModeIsOpen } from './reviewModeState'
 import LibraryMode from './modes/LibraryMode.vue'
@@ -236,6 +227,8 @@ onMounted(async () => {
       <div class="titlebar-right">
         <!-- aura-allow-text: `proofreadStatusText` is the output of t() with the chapter label and sentence count. -->
         <span v-if="proofreadStatusText !== null" class="titlebar-status" role="status">{{ proofreadStatusText }}</span>
+        <!-- aura-allow-text: `importSourceStatusText` is the output of t() with the file name and size. -->
+        <span v-if="importSourceStatusText !== null" class="titlebar-status" data-titlebar-import-source>{{ importSourceStatusText }}</span>
 
         <div
           v-if="currentMode === 'workspace'"
@@ -346,12 +339,6 @@ onMounted(async () => {
 
     <!-- Story 3.10b · AD-48 — cùng khuôn: lớp phủ tự quản `v-if` qua `importOverlayIsOpen`. -->
     <GlossaryImportOverlay />
-
-    <!-- Story 6.3 · FR126 — cùng khuôn: lớp phủ tự quản `v-if` qua `importPreviewIsOpen`. -->
-    <ImportPreviewOverlay />
-
-    <!-- Story 6.16 · FR115 — cùng khuôn: lớp phủ tự quản `v-if` qua `bilingualImportPreviewIsOpen`. -->
-    <BilingualImportPreviewOverlay />
 
     <!-- Story 6.8 · NFR19 — cùng khuôn: lớp phủ tự quản `v-if` qua `settingsOverlayIsOpen`. -->
     <SettingsOverlay />

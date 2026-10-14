@@ -280,6 +280,7 @@
 pub mod candidate;
 pub mod candidate_store;
 pub mod entry;
+pub mod estimate;
 pub mod exchange;
 pub mod exchange_io;
 pub mod han_viet_suggestion;
@@ -302,7 +303,12 @@ pub use exchange::{
 };
 pub use exchange_io::{MAX_GLOSSARY_IMPORT_BYTES, read_import_file, write_export_file};
 pub use han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
-pub use scan::{DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates_controlled};
+pub use estimate::{
+    EstimateOutcome, entry_source_terms, estimate_import_candidates, import_scan_source_terms,
+};
+pub use scan::{
+    DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates_controlled, terms_passing_threshold,
+};
 
 pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_candidates};
 pub(crate) use store::filter_import_scan_candidates_by_scope;

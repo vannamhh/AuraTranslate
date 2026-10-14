@@ -934,11 +934,11 @@ fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
         versions,
         vec![
             1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-            26, 27, 28, 29, 30, 31, 32, 33, 34
+            26, 27, 28, 29, 30, 31, 32, 33, 34, 35
         ],
         "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
          -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 -> 25 \
-         -> 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33 -> 34 (4 la so da chay)"
+         -> 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33 -> 34 -> 35 (4 la so da chay)"
     );
 }
 
@@ -1014,7 +1014,7 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // Target moved 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        34,
+        35,
         "buoc 5..25 phai da chay tren mot tep dung o phien ban 4"
     );
 
@@ -1183,7 +1183,7 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        34,
+        35,
         "buoc 6..25 phai chay tren mot tep dung o phien ban 5"
     );
 
@@ -1264,8 +1264,8 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers step), then 25 -> 26 (work.last_chapter_id). Assertion unchanged.
     assert_eq!(
         opened.store.schema_version(),
-        34,
-        "mot `project.db` moi phai dung o phien ban 34"
+        35,
+        "mot `project.db` moi phai dung o phien ban 35"
     );
 
     let (notnull, default_value): (i64, String) = opened
@@ -1393,7 +1393,7 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        34,
+        35,
         "buoc 7..25 phai chay tren mot tep dung o phien ban 6"
     );
 
@@ -1714,7 +1714,7 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        34,
+        35,
         "buoc 10..25 phai chay tren mot tep dung o phien ban 9"
     );
 
@@ -1826,7 +1826,7 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        34,
+        35,
         "buoc 8..25 phai chay tren mot tep dung o phien ban 7"
     );
 
@@ -2040,7 +2040,7 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        34,
+        35,
         "buoc 9..25 phai chay tren mot tep dung o phien ban 8"
     );
 
@@ -2187,7 +2187,7 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 /// `[Migration; 29]`, fake step `to_version: 30`.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_THIRTYFOUR: [Migration; 34] = [
+    static STEP_THIRTYFOUR: [Migration; 35] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -2221,8 +2221,9 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[30],
         PROJECT_MIGRATIONS[31],
         PROJECT_MIGRATIONS[32],
+        PROJECT_MIGRATIONS[33],
         Migration {
-            to_version: 35,
+            to_version: 36,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -2234,15 +2235,15 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         migrations: &STEP_THIRTYFOUR,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 35");
-    assert_eq!(future.schema_version(), 35);
+    .expect("dung fixture o phien ban 36");
+    assert_eq!(future.schema_version(), 36);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.expect_err(
-        "mot `project.db` o phien ban 35 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 36 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -6361,7 +6362,7 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        34,
+        35,
         "buoc 11..25 phai chay tren mot tep dung o phien ban 10"
     );
 
@@ -9121,6 +9122,7 @@ fn splitting_chapters_before_decoding_reproduces_the_ad_39_symptom_exactly_one_c
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let outcome = run_import_with_order(&wrong_order, input)
@@ -9173,6 +9175,7 @@ fn splitting_chapters_after_decoding_finds_the_pattern_and_produces_n_chapters()
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let outcome =
@@ -9236,6 +9239,7 @@ fn an_already_text_shape_skips_the_transcode_half_of_the_decode_step() {
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let outcome = run_import(input).expect("hình dạng AlreadyText không được lỗi");
@@ -9286,6 +9290,7 @@ fn an_already_chapters_shape_skips_chapter_splitting_and_keeps_the_input_unit_co
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let outcome = run_import(input).expect("hình dạng đã-chia-Chương không được lỗi");
@@ -9323,6 +9328,7 @@ fn a_single_element_chapters_shape_is_not_split_even_though_its_length_matches_a
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let outcome = run_import(input).expect("hình dạng đã-chia-Chương (1 phần tử) không được lỗi");
@@ -9354,6 +9360,7 @@ fn an_empty_chapter_pattern_is_a_no_op_for_decoded_text() {
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
     let outcome = run_import(input).expect("mẫu rỗng không được lỗi");
     assert_eq!(outcome.chapters.len(), 1);
@@ -9390,6 +9397,7 @@ fn an_empty_chapter_pattern_is_a_no_op_for_raw_bytes_too() {
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
     let outcome = run_import_with_order(&wrong_order, input).expect("mẫu rỗng không được lỗi");
     assert_eq!(outcome.chapters.len(), 1);
@@ -9419,6 +9427,7 @@ fn splitting_by_position_keeps_the_matched_title_line_at_the_front_of_each_new_c
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let outcome = run_import(input).expect("mau regex hop le khong duoc loi");
@@ -9472,6 +9481,7 @@ fn a_literal_pattern_matching_three_times_yields_three_chapters_each_starting_wi
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
@@ -9516,6 +9526,7 @@ fn text_before_the_first_match_becomes_its_own_untitled_chapter_instead_of_being
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let outcome = run_import(input).expect("mau regex hop le khong duoc loi");
@@ -9559,6 +9570,7 @@ fn a_zero_length_regex_chapter_pattern_is_filtered_at_the_source_and_yields_one_
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
     let outcome = run_import(input).expect("mau khop do dai 0 khong duoc la loi");
     assert_eq!(
@@ -9585,6 +9597,7 @@ fn a_pattern_matching_nothing_yields_exactly_one_untitled_chapter_not_an_error()
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
     let outcome = run_import(input).expect("mau khong khop khong duoc la loi");
     assert_eq!(outcome.chapters.len(), 1);
@@ -9617,6 +9630,7 @@ fn a_chapter_piece_collapsed_to_a_single_line_by_normalization_has_no_title() {
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
 
@@ -9662,6 +9676,7 @@ fn a_chapter_piece_with_a_blank_line_separator_keeps_its_title() {
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
     let outcome = run_import(input).expect("mau literal hop le khong duoc loi");
 
@@ -9705,6 +9720,7 @@ fn a_regex_chapter_pattern_never_runs_against_undecoded_bytes() {
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let outcome = run_import_with_order(&wrong_order, input)
@@ -9736,6 +9752,7 @@ fn an_invalid_chapter_pattern_regex_propagates_an_error_instead_of_being_swallow
         bilingual_target_column: 1,
         bilingual_has_header: false,
         bilingual_regroupings: Vec::new(),
+        bilingual_mismatched_rows: auratranslate_lib::core::segment::bilingual::MismatchedRowPolicy::Refuse,
     };
 
     let err = run_import(input).expect_err(
@@ -10555,7 +10572,7 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
             // 🔵 THÊM (Story 6.9) — khối tầng 2 (ranh giới bóc) của chính ứng viên này.
             &"blocks".to_owned(),
         ]),
-        "EncodingCandidateWire phai serialize DUNG SAU ten truong nay (Story 6.4 them \
+        "EncodingCandidateWire phai serialize DUNG NAM ten truong nay (Story 6.4 them \
          `normalized`, Story 6.5 them `cleanup`, Story 6.6 them `chapters`, Story 6.9 them \
          `blocks`)"
     );
