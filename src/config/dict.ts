@@ -125,6 +125,7 @@ export type EntryHit = {
   lang: string
   headword: string
   headword_simp: string | null
+  reading: string | null
 }
 
 /** Hình dạng `ExampleRecord` phía Rust. */

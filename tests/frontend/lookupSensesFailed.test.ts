@@ -10,7 +10,7 @@ import type { GroupedLookup, LookupResponse, SourceGroup } from '../../src/confi
 const GROUP: SourceGroup = {
   layer: 'layer-hong',
   source: { code: 'src-hong', display_name: 'Nguồn Hỏng' },
-  entries: [{ entry_id: 1, source_code: 'src-hong', lang: 'zh', headword: '測試', headword_simp: null }],
+  entries: [{ entry_id: 1, source_code: 'src-hong', lang: 'zh', headword: '測試', headword_simp: null, reading: null }],
   total_entries: null,
 }
 

@@ -17,8 +17,9 @@
 // mount component với ĐÚNG MỘT prop tên `params`, và bên trong nó mới là
 // `{ params, api, containerApi, tabLocation }`. Đọc từ
 // `node_modules/dockview-vue/dist/dockview-vue.es.js:116-125`, không từ trí nhớ.
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { t } from '../i18n'
+import { shortcutRows } from '../config/shortcutsState'
 
 /** Chỉ hai mảnh của `DockviewPanelApi` mà tab này đọc — không kéo cả kiểu vào vỏ. */
 type TabPanelApi = {
@@ -54,6 +55,14 @@ const sync = (): void => {
   current.value = api.isActive && api.isGroupActive
 }
 
+const TAB_CHORD_COMMAND = new Map([['panel.lookup.title', 'lookup.lookup_selection']])
+
+const chord = computed(() => {
+  const id = TAB_CHORD_COMMAND.get(props.params.params.titleKey ?? '')
+  if (id === undefined) return ''
+  return shortcutRows.value.find((row) => row.id === id)?.display.join(' / ') ?? ''
+})
+
 // `Event<T>` của dockview là một hàm nhận listener và trả `IDisposable`. Không gỡ thì
 // mỗi lượt ẩn/hiện panel (AC3 — `removePanel` rồi `addPanel`) để lại một listener sống
 // trỏ vào một component đã tháo.
@@ -77,7 +86,11 @@ onBeforeUnmount(() => {
     🔴 Dời focus DOM khi đổi panel (AD-34 §2) đi qua `onDidActivePanelChange` ở
     `WorkspaceDock.vue` — MỘT chỗ nghe cho cả bốn tab, thay vì bốn handler rời.
   -->
-  <span class="tab" :class="{ current }">{{ t(props.params.params.titleKey ?? '') }}</span>
+  <span class="tab" :class="{ current }">
+    {{ t(props.params.params.titleKey ?? '') }}
+    <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+    <span v-if="chord !== ''" class="tab-chord">{{ chord }}</span>
+  </span>
 </template>
 
 <style scoped>
@@ -97,6 +110,12 @@ onBeforeUnmount(() => {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   font-weight: var(--weight-ui-md);
+}
+
+.tab-chord {
+  margin-left: var(--space-panel-inline);
+  font-weight: var(--weight-ui-md);
+  color: var(--color-on-surface-variant);
 }
 
 /*

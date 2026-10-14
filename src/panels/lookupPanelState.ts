@@ -18,23 +18,19 @@
 import { computed, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { lookupDictionary } from '../config/dict'
-import type { LookupResponse, QueryRoute, SenseRecord, SourceGroup } from '../config/dict'
+import type {
+  GroupedLookup,
+  LookupResponse,
+  QueryRoute,
+  SenseRecord,
+  SourceAttribution,
+  SourceGroup,
+} from '../config/dict'
 // 🔴 STORY 1.20 — điểm ghi lịch sử. Chiều phụ thuộc đi MỘT hướng: tệp này biết
 // `lookupHistoryState`, tệp kia KHÔNG biết tệp này. Đảo lại là một vòng import.
 import { recordLookup, resetLookupHistory } from './lookupHistoryState'
 import type { IpcError } from '../i18n'
 import { resetConcordance } from './concordanceState'
-
-/**
- * 🔴 **AC5 — vị từ "bất đồng", hàm THUẦN xuất được** (không một biểu thức chôn trong
- * `<template>`). không chỉ MỘT nguồn có kết quả ⇒ không dòng dẫn ("một nguồn không bất
- * đồng với ai") — nên vị từ chỉ cần hỏi *"có từ hai nguồn trở lên không"*: dòng dẫn không
- * phán xét nguồn nào đúng, không tóm tắt sự khác biệt — nó chỉ báo rằng có KHẢ NĂNG bất đồng
- * để người dịch tự đối chiếu các khối bên dưới, đúng mệnh đề AD-19.
- */
-export function sourcesDisagree(groups: readonly SourceGroup[]): boolean {
-  return groups.length >= 2
-}
 
 /**
  * 🔴 **Số nghĩa của một nguồn có phải một CẬN DƯỚI không** (AC12, Quyết định #4 §hệ quả ③).
@@ -43,36 +39,18 @@ export function sourcesDisagree(groups: readonly SourceGroup[]): boolean {
  * chỉ là số của **phần đã lấy về**, không số thật. Thanh nhịp phải đọc ra như một cận dưới,
  * không khẳng định — *"thanh nhịp không bao giờ khẳng định một con số nó không biết"*.
  *
- * Hàm THUẦN, xuất được, test được — cùng doctrine [`sourcesDisagree`].
+ * Hàm THUẦN, xuất được, test được.
  */
 export function senseCountIsLowerBound(group: SourceGroup): boolean {
   return group.total_entries !== null
 }
 
-/** Một mục của thanh nhịp — một nguồn kèm số nghĩa của riêng nó. */
-export type SpineSource = {
-  code: string
-  displayName: string
-  senseCount: number
-  /** `true` ⇔ [`senseCount`] là một CẬN DƯỚI (trần đã cắt nguồn này) — AC12. */
-  atLeast: boolean
-}
-
-/** Một nguồn bị trần cắt SẠCH khỏi trang — có tên, có số, không có nghĩa nào lấy về. */
-export type SpineHiddenSource = {
-  displayName: string
-  count: number
-}
-
-/** Thanh nhịp đã dẫn xuất — `N nguồn · M nghĩa` + một mục cho mỗi nguồn (Quyết định #6). */
+/** Thanh nhịp đã dẫn xuất — `N nguồn · M nghĩa`. */
 export type Spine = {
   sourceCount: number
   senseCount: number
   /** `true` ⇔ [`senseCount`] là CẬN DƯỚI — thanh nhịp phải đọc ra như vậy (AC12). */
   senseCountAtLeast: boolean
-  sources: SpineSource[]
-  /** Nguồn bị giấu hẳn — FR31 đòi gọi TÊN, không chỉ đếm. */
-  hidden: SpineHiddenSource[]
 }
 
 /**
@@ -85,29 +63,87 @@ export function computeSpine(
   sensesByLayer: Readonly<Record<string, readonly SenseRecord[]>>,
   hiddenSources: readonly (readonly [string, number])[] = [],
 ): Spine {
-  const sources = groups.map((group) => {
+  const perSource = groups.map((group) => {
     const entryIds = new Set(group.entries.map((hit) => hit.entry_id))
     const senseCount = (sensesByLayer[group.layer] ?? []).filter((sense) =>
       entryIds.has(sense.entry_id),
     ).length
-    return {
-      code: group.source.code,
-      displayName: group.source.display_name,
-      senseCount,
-      atLeast: senseCountIsLowerBound(group),
-    }
+    return { senseCount, atLeast: senseCountIsLowerBound(group) }
   })
-  const senseCount = sources.reduce((sum, s) => sum + s.senseCount, 0)
   return {
     // 🔴 Nguồn bị trần cắt SẠCH vẫn được ĐẾM (AC12/FR31): một thanh nhịp nói "1 nguồn"
     // trong khi có hai nguồn khớp là đúng con số sai mà §hệ quả ③ tồn tại để chặn.
     sourceCount: groups.length + hiddenSources.length,
-    senseCount,
-    // Cận dưới ở CẤP TỔNG khi bất kỳ nguồn nào bị cắt, hoặc có nguồn bị giấu hẳn.
-    senseCountAtLeast: sources.some((s) => s.atLeast) || hiddenSources.length > 0,
-    sources,
-    hidden: hiddenSources.map(([displayName, count]) => ({ displayName, count })),
+    senseCount: perSource.reduce((sum, s) => sum + s.senseCount, 0),
+    senseCountAtLeast: perSource.some((s) => s.atLeast) || hiddenSources.length > 0,
   }
+}
+
+/**
+ * Entries one source returned for the current lookup, or `null` when the count is unknown:
+ * nothing looked up yet, source off, layer skipped, or the LIMIT cut the source (fully or partly).
+ */
+export function sourceEntryCount(
+  grouped: GroupedLookup | null,
+  source: Pick<SourceAttribution, 'code' | 'display_name' | 'layer'>,
+  off: boolean,
+): number | null {
+  if (grouped === null || off) return null
+  if (grouped.skipped.includes(source.layer)) return null
+  if (grouped.hidden_sources.some(([name]) => name === source.display_name)) return null
+  const group = grouped.groups.find((g) => g.source.code === source.code)
+  if (group === undefined) return 0
+  return group.total_entries === null ? group.entries.length : null
+}
+
+/** Distinct non-space characters of a multi-character query; empty for a single-character one. */
+export function singleCharsOf(text: string): string[] {
+  const chars = Array.from(text).filter((c) => c.trim() !== '')
+  return chars.length < 2 ? [] : Array.from(new Set(chars))
+}
+
+const collapsed = ref<ReadonlySet<string>>(new Set())
+let aimedCollapseCode: string | null = null
+let aimedChar: string | null = null
+
+export function sourceIsCollapsed(code: string): boolean {
+  return collapsed.value.has(code)
+}
+
+export function aimSourceCollapseFrom(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLElement)) return
+  aimedCollapseCode = target.closest<HTMLElement>('[data-collapse-code]')?.dataset.collapseCode ?? null
+}
+
+function datasetOfFocus(key: 'collapseCode' | 'lookupChar'): string | null {
+  if (typeof document === 'undefined') return null
+  const active = document.activeElement
+  return active instanceof HTMLElement ? (active.dataset[key] ?? null) : null
+}
+
+/** Handler of `lookup.toggle_source_collapse`: the aimed block, else the focused button. */
+export function toggleAimedSourceCollapse(): void {
+  const code = aimedCollapseCode ?? datasetOfFocus('collapseCode')
+  aimedCollapseCode = null
+  if (code === null) return
+  const next = new Set(collapsed.value)
+  if (!next.delete(code)) next.add(code)
+  collapsed.value = next
+}
+
+export function aimLookupCharFrom(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLElement)) return
+  aimedChar = target.closest<HTMLElement>('[data-lookup-char]')?.dataset.lookupChar ?? null
+}
+
+/** Handler of `lookup.lookup_char`: looks up the aimed character of a failed multi-character query. */
+export function lookupAimedChar(): void {
+  const char = aimedChar ?? datasetOfFocus('lookupChar')
+  aimedChar = null
+  if (char === null) return
+  void runLookup(char)
 }
 
 const query = shallowRef<string | null>(null)
@@ -352,6 +388,9 @@ export function resetLookupPanel(): void {
   // ghim sống ở `global.db`, tức nó không thuộc Tác phẩm nào. Vế *"nạp lại theo Tác phẩm
   // mới"* của AC12 tự rụng cùng phạm vi cũ — đọc doc-comment của `resetLookupHistory()`
   // để thấy hàm đó vứt đúng cái gì và cố ý giữ lại cái gì.
+  collapsed.value = new Set()
+  aimedCollapseCode = null
+  aimedChar = null
   resetLookupHistory()
   resetConcordance()
 }

@@ -307,6 +307,8 @@ describe('AC1 · AC2 — Chương kề mở ra, và lưới nạp lại', () => 
     await settle()
 
     expect(state.editorChapterId.value).toBe(99)
+    const history = await import('../../src/panels/lookupHistoryState')
+    expect(history.lookupChapterId.value).toBe(99)
     // Lượt nạp lại phải THẬT SỰ chạy — `resetEditorPanel()` gỡ cờ `requested`, và một cài đặt
     // quên gỡ nó sẽ để lưới đứng nguyên trên ảnh chụp cũ mà không lỗi nào.
     expect(soThuTu.filter((d) => d.startsWith('read:'))).toEqual([

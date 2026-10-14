@@ -37,6 +37,18 @@ const sourcesError = shallowRef<IpcError | null>(null)
 const sourcesSkipped = shallowRef<readonly string[]>([])
 const disabled = ref<ReadonlySet<string>>(new Set())
 const attributionOpen = ref(false)
+const sourcesMenuOpen = ref(false)
+
+export const sourcesMenuIsOpen: DeepReadonly<Ref<boolean>> = readonly(sourcesMenuOpen)
+
+/** Handler of `lookup.toggle_sources_menu`. */
+export function toggleSourcesMenu(): void {
+  sourcesMenuOpen.value = !sourcesMenuOpen.value
+}
+
+export function closeSourcesMenu(): void {
+  sourcesMenuOpen.value = false
+}
 
 /** Mọi nguồn của mọi tệp đang gắn, kể cả nguồn đang TẮT (AC10). Thứ tự tất định từ Rust. */
 export const dictSources: DeepReadonly<Ref<readonly SourceAttribution[]>> = readonly(sources)
@@ -387,6 +399,7 @@ export function resetDictSources(): void {
   sourcesSkipped.value = []
   disabled.value = new Set()
   attributionOpen.value = false
+  sourcesMenuOpen.value = false
   aimedCode = null
   aimedAttributionCode.value = null
   licenseViewRef.value = null

@@ -89,6 +89,8 @@ export type LookupHistoryEntry = {
   at: number
   /** `source_code:entry_id` của mọi đầu mục lượt tra này lấy về. */
   keys: readonly string[]
+  /** `chapter.id` of every Chapter this query was looked up in (never contains an unknown Chapter). */
+  chapters: readonly number[]
 }
 
 /**
@@ -115,6 +117,15 @@ export function entryKey(sourceCode: string, entryId: number): string {
 
 const tab = ref<LookupTab>('record')
 const history = ref<readonly LookupHistoryEntry[]>([])
+
+export type LookupHistoryScope = 'session' | 'chapter'
+const scope = ref<LookupHistoryScope>('session')
+const openChapter = ref<number | null>(null)
+
+/** Fed by `editorPanelState.ts` (it cannot be imported here without a cycle). */
+export function setLookupChapter(id: number | null): void {
+  openChapter.value = id
+}
 
 /**
  * Bộ ghim đọc từ đĩa. **`null` ⇔ chưa có câu trả lời nào** — khác hẳn `[]` (*đã hỏi, chưa
@@ -197,6 +208,26 @@ export const pinnedLoadFailed = computed(() => pinnedErr.value !== null)
 export const pinnedIsEmpty = computed(
   () => pinnedErr.value === null && pinnedRaw.value !== null && pinnedRaw.value.length === 0,
 )
+
+/** Chapter currently open in the Editor, or `null` when none is. */
+export const lookupChapterId: DeepReadonly<Ref<number | null>> = readonly(openChapter)
+
+/** The scope in effect: `chapter` falls back to `session` while no Chapter is open. */
+export const lookupHistoryScope = computed<LookupHistoryScope>(() =>
+  scope.value === 'chapter' && openChapter.value !== null ? 'chapter' : 'session',
+)
+
+/** History rows after the scope chip; pins are never filtered. */
+export const visibleLookupHistory = computed<readonly LookupHistoryEntry[]>(() => {
+  const chapter = openChapter.value
+  if (lookupHistoryScope.value === 'session' || chapter === null) return history.value
+  return history.value.filter((row) => row.chapters.includes(chapter))
+})
+
+/** Handler of `lookup.history_scope_*`. */
+export function selectLookupHistoryScope(next: LookupHistoryScope): void {
+  scope.value = next
+}
 
 /** Chưa tra gì trong phiên này (AC8 vế lịch sử). */
 export const historyIsEmpty = computed(() => history.value.length === 0)
@@ -335,9 +366,15 @@ export function recordLookup(query: string, response: LookupResponse): void {
     count: (previous?.count ?? 0) + 1,
     at,
     keys,
+    chapters: mergeChapter(previous?.chapters ?? [], openChapter.value),
   }
 
   history.value = [row, ...rest].slice(0, HISTORY_CEILING)
+}
+
+function mergeChapter(known: readonly number[], chapter: number | null): readonly number[] {
+  if (chapter === null || known.includes(chapter)) return known
+  return [...known, chapter]
 }
 
 /** Handler thật của `lookup.clear_history` — vứt lịch sử của phiên, **giữ nguyên** bộ ghim. */
@@ -363,6 +400,8 @@ export function resetLookupHistory(): void {
   workSequence += 1
 
   history.value = []
+  scope.value = 'session'
+  openChapter.value = null
   currentTargets = []
   aimedKey = null
   pinNotice.value = null

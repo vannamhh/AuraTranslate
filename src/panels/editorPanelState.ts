@@ -70,6 +70,7 @@ import { ensureGlossaryMarksLoaded, refreshGlossaryMarks, resetGlossaryMarks } f
 // Call site #4 of `refreshGlossaryMarks` (see doc-comment in glossaryMarksState.ts): a
 // dictionary source toggle changes what the Rust side matches against, so marks refresh too.
 import { dictSourcesDisabled } from './dictSourcesState'
+import { setLookupChapter } from './lookupHistoryState'
 // 🔵 Story 3.6 — dải "Chờ chốt lần đầu gặp" mang một sổ "Để sau" phạm vi ĐÚNG MỘT Chương;
 // hai chỗ dọn dấu Glossary (đổi Chương/Tác phẩm, gộp/tách) cũng là hai chỗ dọn sổ đó. Xem
 // doc-comment đầu `../glossaryConfirmStripState.ts` cho lý do tệp đó KHÔNG import ngược lại
@@ -96,6 +97,8 @@ const chapterId = shallowRef<number | null>(null)
 const loadError = shallowRef<IpcError | null>(null)
 const pending = ref(false)
 let requested = false
+
+watch(chapterId, (id) => setLookupChapter(id), { flush: 'sync' })
 
 /** Not `immediate`: no Chapter is open yet at module load, and the guard inside skips any
  * tick where the open Chapter doesn't match. */

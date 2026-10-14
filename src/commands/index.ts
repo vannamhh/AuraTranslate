@@ -732,6 +732,14 @@ export type CommandDeps = {
   toggleLookupPin?: () => void
   /** Xoá lịch sử tra cứu của phiên. Handler của `lookup.clear_history` (AC6). */
   clearLookupHistory?: () => void
+  /** Opens or closes the `Nguồn N/M` list. Handler of `lookup.toggle_sources_menu`. */
+  toggleLookupSourcesMenu?: () => void
+  /** Collapses or expands the aimed source block. Handler of `lookup.toggle_source_collapse`. */
+  toggleLookupSourceCollapse?: () => void
+  /** Looks up the aimed single character of a failed query. Handler of `lookup.lookup_char`. */
+  lookupAimedChar?: () => void
+  /** Handler of `lookup.history_scope_session` / `lookup.history_scope_chapter`. */
+  selectLookupHistoryScope?: (scope: 'session' | 'chapter') => void
 
   // ── Story 1.21 — màn hình phím tắt ─────────────────────────────────────────────
   //
@@ -2912,6 +2920,38 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.clearLookupHistory()
     },
   })
+
+  for (const [id, port] of [
+    ['lookup.toggle_sources_menu', 'toggleLookupSourcesMenu'],
+    ['lookup.toggle_source_collapse', 'toggleLookupSourceCollapse'],
+    ['lookup.lookup_char', 'lookupAimedChar'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: undefined,
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
+
+  for (const [id, scope] of [
+    ['lookup.history_scope_session', 'session'],
+    ['lookup.history_scope_chapter', 'chapter'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: undefined,
+      run: () => {
+        if (deps.selectLookupHistoryScope === undefined) return portMissing(id, 'selectLookupHistoryScope')
+        deps.selectLookupHistoryScope(scope)
+      },
+    })
+  }
 
   for (const [id, port, chord] of [
     ['selection.extend_left', 'extendSelectionLeft', 'Shift+ArrowLeft'],

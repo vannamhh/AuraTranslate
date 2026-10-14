@@ -913,6 +913,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 📝 **Chip thanh nhịp bị `overflow: hidden` cắt CÂM khi nhiều nguồn** (`src/panels/LookupPanel.vue:109-113,131-137`) — `.lookup-head` khoá `height: 76px` + `overflow: hidden` để giữ bất biến AC7, còn `.lookup-spine` là `flex-wrap: wrap`. Đo thật cho `山` ra **7–8 nhóm** ⇒ chip tràn sang dòng thứ ba trở đi bị cắt mất hoàn toàn: không dấu hiệu, không cuộn, không chỉ báo `+N`. Đây là đánh đổi CÓ CHỦ ĐÍCH đã ghi trong chú thích tại chỗ (giữ chiều cao bất biến quan trọng hơn), nhưng hệ quả "tên nguồn biến mất" thì chưa ai quyết. Nhặt lại cùng Story 4.12 (bố cục màn hình hẹp) hoặc khi thanh nhịp có chủ sở hữu UX thật. **(Chủ: story kế tiếp chạm `LookupPanel.vue` (thanh nhịp).)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: LookupPanel.vue dòng 974-990: .lookup-head vẫn height:76px + overflow:hidden, .lookup-spine flex-wrap; cơ chế hidden_sources/AC12 mới chỉ phủ nguồn bị LIMIT cắt ở backend, không phủ chip bị CSS overflow cắt khi tràn dòng thứ ba. **Chủ: Story 4.12.**
   → 2026-10-06 (Story 4.12 đã done) — Chủ: Epic 4 — Epic 4 chưa đóng nên giữ chủ ở epic cho tới khi có story nhận.
+  → ✅ ĐÃ ĐÓNG 2026-10-14 (Story 12.8) — thanh nhịp chỉ còn "N nguồn · M nghĩa", chip từng nguồn bị bỏ nên không gì bị cắt; tên nguồn nằm ở popup `Nguồn N/M ▾`.
 
 - 📝 **`layers_loaded = false` khi MỌI tệp `.db` hỏng ⇒ panel hiện "chưa gắn lớp từ điển nào" — một chẩn đoán SAI** (`src-tauri/src/core/dict/layer.rs:460-493`) — `DictLayers::new` đẩy mọi lớp mở-hỏng vào `skipped` chứ không vào `layers`, nên `layers_loaded: !layers.layers().is_empty()` cho `false` cả khi thư mục ĐẦY tệp `.db` hỏng. AC6 dựng chuỗi đó riêng cho ca "thư mục rỗng" (AD-25). Rủi ro thấp: banner `someLayerFailed` vẫn hiện song song nên người dùng không bị bỏ câm, chỉ đọc được hai câu hơi lệch nhau. Sửa gọn: `!layers().is_empty() || !skipped().is_empty()`. **(Chủ: story kế tiếp chạm `core/dict/layer.rs`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: src-tauri/src/core/dict/mod.rs:935 vẫn dùng `layers_loaded: !layers.layers().is_empty()`, chưa cộng thêm `!skipped().is_empty()` như đề xuất. **Chủ: Ice.**
@@ -13159,4 +13160,12 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-dai-goi-y-moc-thanh-track-hang-duoi-cau-ang-sua-plan.md`
   summary: Chưa ai nhìn dải gợi ý mọc ở hàng cuối khung nhìn trên bản đóng gói macOS, sáng và tối, và chưa ai nghe VoiceOver đọc dải qua `aria-details` của ô câu neo (dải đứng sau cả bốn cột trong DOM).
   evidence: e2e 12-9 chỉ đo hình học và `scrollTop` trên bản debug; thứ tự đọc thật cần người nghe.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-panel-tra-cuu-popup-nguon-au-khoi-gon-am-oc-chip-lich-su-plan.md`
+  summary: Popup `Nguồn N/M ▾` chỉ hiện `display_name`, chưa có vế "tên ngắn · tên đầy đủ" của EXPERIENCE.md §Bộ chọn nguồn từ điển.
+  evidence: `dict_source` không có cột tên ngắn; `display_name` lúc ngắn (`CVDICT`) lúc dài (`Wiktionary tiếng Anh (mục tiếng Trung)`). Cần cột mới qua `tools/dict-build` hoặc bảng tên ngắn trong webview.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-panel-tra-cuu-popup-nguon-au-khoi-gon-am-oc-chip-lich-su-plan.md`
+  summary: Chưa ai dùng popup `Nguồn N/M ▾` bằng phím thật (`↑↓`, `Space` trên dòng, `Esc`) trên bản đóng gói macOS, chưa ai nghe VoiceOver đọc bật/tắt của `menuitemcheckbox`, và chưa ai nhìn khối nguồn, âm đọc, chip lịch sử ở sáng và tối.
+  evidence: vitest giả `Space` bằng `click`; e2e 12-8 chỉ đo hình học popup và `Esc` trên bản debug, không chạy lượt tra thật.
   Chủ: Epic 12.

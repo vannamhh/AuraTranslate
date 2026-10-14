@@ -63,52 +63,8 @@ describe('Story 1.19 · AC11 — Escape trả tiêu điểm về nút mở Attri
     // the AI panel — see `layoutTier.mjs` for why this must be `full` instead.
     await ensureFullLayoutTier()
 
-    // ── 🔴 TIỀN ĐỀ CÓ ĐIỀU KIỆN — thêm 2026-08-20, sau lượt CI đầu tiên ─────────────
-    //
-    // Ca này là spec DUY NHẤT của bộ thật sự cần dữ liệu từ điển: nút `[data-attribution-
-    // open]` nằm trong dải chip nguồn, và dải chỉ render khi `dictSources.length > 0`.
-    // CI now builds four tiny fixture `.db` files before `npm run test:e2e`, so this case
-    // runs there too; the source-count check below still guards a bare local machine.
-    //
-    // 🔴 VÀ NÓ HỎI ĐÚNG CÂU, KHÔNG HỎI CÂU DỄ. Hỏi *"nút có mặt không"* rồi bỏ qua khi
-    // vắng sẽ nuốt luôn một hồi quy thật — ngày nút biến mất trên máy CÓ từ điển, ca này
-    // im lặng chuyển sang `skip` thay vì đỏ, tức đúng loại cổng không bao giờ đỏ mà kho
-    // này cấm. Nên nó hỏi NGUỒN TỪ ĐIỂN qua IPC, không hỏi cái nút:
-    //   · 0 nguồn  ⇒ tiền đề bàn đo không dựng được ⇒ `skip`, in ra lý do;
-    //   · có nguồn ⇒ nút PHẢI có mặt, và vắng mặt là một lượt ĐỎ thật.
-    const dictSourceCount = await browser.execute(async () => {
-      try {
-        const res = await window.__TAURI_INTERNALS__.invoke('list_dict_sources')
-        return Array.isArray(res?.sources) ? res.sources.length : -1
-      } catch {
-        return -1
-      }
-    })
-
-    if (dictSourceCount < 0) {
-      throw new Error(
-        '[BÀN ĐO HỎNG] `list_dict_sources` ném hoặc trả về một hình dạng không có mảng `sources` (`SourceAttributions`).\n' +
-          'Tiền đề chưa dựng được, nên mệnh đề AC11 CHƯA ĐƯỢC ĐO — lượt đỏ này không đọc ' +
-          'thành "sản phẩm đạt" hay "sản phẩm hỏng", cả hai đều là kết quả không có thật.',
-      )
-    }
-
-    if (dictSourceCount === 0) {
-      console.warn(
-        '[BÀN ĐO KHÔNG DỰNG ĐƯỢC] `list_dict_sources` trả 0 nguồn, nên dải chip nguồn ' +
-          'không render và nút `[data-attribution-open]` không tồn tại.\n' +
-          'Mệnh đề AC11 của Story 1.19 CHƯA ĐƯỢC ĐO ở lượt này — đừng đọc lượt `skip` ' +
-          'này thành "đạt". Dựng dữ liệu từ điển (`src-tauri/target/debug/dict/*.db`) rồi ' +
-          'chạy lại. Nợ có chủ ở `deferred-work.md`.',
-      )
-      this.skip()
-    }
-
     const opener = await $(OPENER)
-    // `realClick`'s Actions API needs the element resolved and laid out — `dictSourceCount`
-    // above only proves the IPC source list is non-empty, not that Vue has already rendered
-    // the chip strip around this same tick (same race `shortcuts-focus.e2e.mjs` already waits
-    // out for its own opener).
+    // `realClick`'s Actions API needs the element resolved and laid out.
     await opener.waitForExist({ timeout: 30_000 })
 
     // ── Mở bằng CHUỘT THẬT ───────────────────────────────────────────────────────

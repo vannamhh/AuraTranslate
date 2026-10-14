@@ -255,7 +255,7 @@ describe('dictionary not-found pointer', () => {
   it('shows nothing extra when the count is zero', async () => {
     const { w } = await notFoundFor('师父', 0)
     expect(w.find('.lookup-concordance-pointer').exists()).toBe(false)
-    expect(w.text()).toContain('Không tìm thấy trong từ điển')
+    expect(w.text()).toContain('Không nguồn nào có 师父')
     w.unmount()
   })
 

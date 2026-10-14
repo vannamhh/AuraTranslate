@@ -710,6 +710,57 @@ fn results_carry_the_source_code_not_the_id() {
     cleanup(&dir);
 }
 
+/// FR136: `reading` đi nguyên văn từ `dict_entry.reading`; nguồn không có âm đọc ⇒ `None`.
+#[test]
+fn hits_carry_the_raw_reading_and_none_when_the_source_has_none() {
+    let dir = temp_dir("reading");
+    let path = build_fixture(&dir);
+    {
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "INSERT INTO dict_entry (id, source_id, lang, headword, headword_simp, reading)
+             VALUES (900, 1, 'zh', '打', NULL, 'da2'),
+                    (901, 1, 'zh', '打', NULL, 'da3'),
+                    (902, 2, 'zh', '打', NULL, NULL);
+             INSERT INTO char_idx (ch, entry_id) VALUES ('打', 900), ('打', 901), ('打', 902);",
+        )
+        .unwrap();
+        conn.close().unwrap_or_else(|(_, e)| panic!("đóng: {e}"));
+    }
+
+    {
+        let db = open_fixture(&path);
+        let result = db
+            .read(|conn| lookup(conn, "打", LookupMode::Exact, QueryRoute::Zh, UNLIMITED))
+            .unwrap();
+        let readings = |code: &str| -> Vec<Option<String>> {
+            result
+                .hits
+                .iter()
+                .filter(|h| h.source_code == code)
+                .map(|h| h.reading.clone())
+                .collect()
+        };
+        assert_eq!(
+            readings("fixture-alpha"),
+            vec![Some("da2".to_owned()), Some("da3".to_owned())]
+        );
+        assert_eq!(readings("fixture-beta"), vec![None]);
+
+        let substring = db
+            .read(|conn| lookup(conn, "打", LookupMode::Substring, QueryRoute::Zh, UNLIMITED))
+            .unwrap();
+        assert!(
+            substring
+                .hits
+                .iter()
+                .any(|h| h.reading.as_deref() == Some("da3")),
+            "nhánh char_idx cũng phải mang `reading`"
+        );
+    }
+    cleanup(&dir);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Bẫy 4 — `entry_fts MATCH` và cú pháp truy vấn FTS5
 // ═════════════════════════════════════════════════════════════════════════════════

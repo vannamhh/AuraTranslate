@@ -2500,7 +2500,11 @@ const HANDLER_TABLE = {
   'src/panels/GridPanel.vue::selectTabViaArrow': {
     ids: ['source.select_tab_original', 'source.select_tab_han_viet'],
   },
-  'src/panels/LookupPanel.vue::aimDictSourceFrom': { nonCommand: R_CURSOR_IMPORTED },
+  'src/panels/LookupSourcesMenu.vue::aimDictSourceFrom': { nonCommand: R_CURSOR_IMPORTED },
+  'src/panels/LookupSourcesMenu.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
+  'src/panels/LookupSourcesMenu.vue::onKeydown': { nonCommand: R_CATEGORY_NAV },
+  'src/panels/LookupPanel.vue::aimLookupCharFrom': { nonCommand: R_CURSOR_IMPORTED },
+  'src/panels/LookupRecord.vue::aimSourceCollapseFrom': { nonCommand: R_CURSOR_IMPORTED },
   'src/panels/LookupPanel.vue::moveTabFocus': { nonCommand: R_DISPATCH_VIA_PARAM },
   'src/panels/LookupPanel.vue::aimLookupEntryFrom': { nonCommand: R_CURSOR_IMPORTED },
 }

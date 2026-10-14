@@ -12,18 +12,18 @@
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import PanelFrame from './PanelFrame.vue'
 import LookupRecord from './LookupRecord.vue'
+import LookupSourcesMenu from './LookupSourcesMenu.vue'
 import type { DockviewPanelProps } from '../layout/panelProps'
 import { t } from '../i18n'
 import { dispatch } from '../commands'
-import {
-  aimDictSourceFrom,
-  dictSources,
-  everySourceOffForRoute,
-  sourceIsDisabled,
-} from './dictSourcesState'
+import { dictSources, enabledSourceCount, everySourceOffForRoute } from './dictSourcesState'
+import { shortcutRows } from '../config/shortcutsState'
+import { sharedReadingKey } from './pinyin'
 import { useSelectionSurface } from './selectionContract'
 import { markPainted } from './lookupTiming'
 import {
+  aimLookupCharFrom,
+  computeSpine,
   currentQuery,
   groupedLookup,
   layerSensesFailed,
@@ -39,9 +39,9 @@ import {
   queryWasTruncated,
   sensesByLayer,
   someLayerFailed,
+  singleCharsOf,
   someLayerTruncated,
 } from './lookupPanelState'
-import { computeSpine, sourcesDisagree } from './lookupPanelState'
 import { historyTimeLabel } from './segmentHistoryTime'
 import type { TmConcordanceHit } from '../config/segment'
 // ── Story 1.20 — dải tab, lịch sử trong phiên, bộ ghim ──────────────────────────────
@@ -51,10 +51,13 @@ import type { TmConcordanceHit } from '../config/segment'
 // sống sót qua lượt tháo/dựng đó — một `ref` cục bộ làm tab tự nhảy về mặc định.
 import {
   aimLookupEntryFrom,
+  entryIsPinned,
   entryKey,
   historyIsEmpty,
-  lookupHistory,
+  lookupChapterId,
+  lookupHistoryScope,
   lookupTab,
+  pinLabelKey,
   pinNoticeKey,
   pinWriteError,
   pinnedEntries,
@@ -63,6 +66,7 @@ import {
   relativeTimeKey,
   relativeTimeParams,
   sessionLookupCount,
+  visibleLookupHistory,
 } from './lookupHistoryState'
 import { tError } from '../i18n'
 import {
@@ -82,26 +86,12 @@ defineProps<DockviewPanelProps>()
 // nhưng bề mặt này không vẽ một chỉ báo chờ nào — panel giữ nguyên trạng thái TRƯỚC ĐÓ cho tới
 // khi lượt tra mới trả lời.
 
-/**
- * AC6 trạng thái 1 — chỉ khi chưa tra gì thì `PanelFrame` mới hiện câu dạy thao tác.
- *
- * ⚠️ Vùng đầu mục vẫn được RENDER ở trạng thái này (chiều cao bất biến, AC7) — chỉ chữ
- * bên trong nó rỗng. Xem chú thích `.lookup-head`.
- *
- * ═════════════════════════════════════════════════════════════════════════════════
- * 🔴 STORY 1.20 · AC14 — VÀ TAB ĐANG CHỌN PHẢI LÀ `record`
- * ═════════════════════════════════════════════════════════════════════════════════
- *
- * `PanelFrame.vue` render câu trạng thái **phía trên `<slot />`**, tức phía trên toàn bộ
- * thân panel. Mở app sạch rồi chuyển thẳng sang tab Lịch sử — **đúng ca nghiệm thu AC3**
- * (*"đóng rồi mở lại, mục ghim vẫn còn"*) — cho `neverLookedUp === true`, nên panel sẽ
- * hiện *"Chọn một từ trong Nguyên văn để tra cứu."* **đè trên danh sách ghim**. Câu đó sai
- * ngữ cảnh: người dùng đang xem mục đã ghim, không đang chờ tra cứu.
- *
- * ⚠️ Một dòng, nhưng **không** tìm ra được nếu chỉ đọc tệp này: nguyên nhân nằm ở
- * `PanelFrame.vue`, một tệp story này không sửa. Bắt lúc dựng story, thành AC14.
- */
-const showFrameStatus = computed(() => neverLookedUp.value && lookupTab.value === 'record')
+const lookupChord = computed(
+  () => shortcutRows.value.find((row) => row.id === 'lookup.lookup_selection')?.display.join(' / ') ?? '',
+)
+const neverLookedUpKey = computed(() =>
+  lookupChord.value === '' ? 'panel.lookup.status' : 'panel.lookup.status_chord',
+)
 
 /** `id` của tab đang chọn — `aria-labelledby` của vùng nội dung trỏ về đúng nút đó. */
 const tabpanelLabelledBy = computed(() => `lookup-tab-${lookupTab.value}`)
@@ -168,7 +158,21 @@ function sourceLabel(code: string): string {
 const groups = computed<readonly SourceGroup[]>(() => groupedLookup.value?.groups ?? [])
 const hiddenSources = computed(() => groupedLookup.value?.hidden_sources ?? [])
 const spine = computed(() => computeSpine(groups.value, sensesByLayer.value, hiddenSources.value))
-const disagree = computed(() => sourcesDisagree(groups.value))
+
+const headReading = computed(() =>
+  sharedReadingKey(groups.value.flatMap((g) => g.entries.map((hit) => hit.reading))),
+)
+
+const headPinTarget = computed(() => {
+  const only = groups.value.length === 1 && groups.value[0].entries.length === 1 ? groups.value[0].entries[0] : null
+  return only
+})
+const headPinKey = computed(() => {
+  const only = headPinTarget.value
+  return pinLabelKey(only !== null && entryIsPinned(only.source_code, only.entry_id))
+})
+
+const notFoundChars = computed(() => singleCharsOf(currentQuery.value ?? ''))
 
 /**
  * 🔴 AC6 — **một lượt tra TRƯỢT phải nói ra**. `lookupError` từng là một export không ai tiêu
@@ -359,83 +363,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <PanelFrame owner="panel.lookup" status-key="panel.lookup.status" :show-status="showFrameStatus">
+  <PanelFrame owner="panel.lookup" status-key="panel.lookup.status" :show-status="false">
     <div ref="body" class="lookup-body">
-      <!--
-        🔴 STORY 1.19 · AC1 · AC2 · AC11 — DẢI CHIP NGUỒN.
-
-        ⚠️ **NGOÀI `.lookup-head`, không TRONG nó** — và đó là một phép đo, không một sở
-        thích. `.lookup-head` khoá `height: 76px; overflow: hidden`, và Story 1.17/1.18 đã
-        vỡ đúng chỗ này **hai lần** (một lần với thanh nhịp, một lần với vạch tiến trình).
-        Đo trên bố cục hiện tại: đầu mục 24px/1.3 ≈ 31px + `margin-top` 7px + thanh nhịp
-        ≈ 15px + `padding-bottom` ⇒ vùng 76px **đã đầy**. Nhồi một hàng chip thứ ba vào đó
-        là nới hằng trong im lặng, đúng thứ Bẫy 4 cấm.
-        ⇒ dải chip là một hàng RIÊNG, `flex: none`, **trên** vùng đầu mục — đúng thứ tự mà
-        `mockups/sources-attribution.html:132-141` vẽ (`.chips` đứng trước `.hw`).
-        `--lookup-head-height` giữ NGUYÊN giá trị và NGUYÊN vai trò.
-
-        🔴 AC11 — `@click` của mỗi chip là **đúng một** `dispatch('<id>')` (Kiểm A của
-        `check:commands`). Mục tiêu đi bằng `@mousedown` uỷ quyền ở vùng chứa, cùng khuôn
-        `deps.currentSelection` của `lookup.lookup_selection`: command đọc trạng thái quanh
-        nó tại thời điểm chạy. Xem `dictSourcesState.ts` về vì sao WKWebView bắt buộc phải
-        có `@mousedown` chứ không chỉ `document.activeElement`.
-      -->
-      <div
-        class="lookup-sources"
-        @mousedown="aimDictSourceFrom($event)"
-      >
-        <span v-if="dictSources.length > 0" class="lookup-sources-label">{{
-          t('panel.lookup.sources_label')
-        }}</span>
-        <!--
-          🔴 **VÙNG CUỘN RIÊNG CHO CHIP — Ice chốt 2026-08-10 sau khi CHẠY THẬT.**
-
-          Bản đầu để mọi thứ trong **một** hộp `flex-wrap` có `max-height: 52px; overflow:
-          hidden`, với lý lẽ *"hàng thứ ba tới được bằng bàn phím"*. Ảnh chụp app thật với
-          **mười** nguồn cho thấy lý lẽ đó bỏ sót hai thứ, và cả hai đều nặng:
-          ① thứ bị cắt đầu tiên là **nút "Nguồn dữ liệu"** — nó là con CUỐI trong dải, tức
-             **đường chuột DUY NHẤT** vào màn hình Attribution (AC11) biến mất;
-          ② chip thứ 9 là **Trần Văn Chánh** (`license_kind = "copyrighted"`, mang cảnh báo
-             pháp lý) và thứ 10 là VietPhrase — hai nguồn **không tắt được bằng chuột**, trong
-             khi FR112 dựng cả cơ chế lớp gỡ rời chính vì rủi ro của nguồn thứ nhất.
-          ⇒ nút tách **ra ngoài** vùng wrap (`flex: none`, không bao giờ bị cắt), và phần chip
-          **cuộn** thay vì biến mất không dấu vết.
-
-          ⚠️ Đây là một lượt **cầm máu**, không phải thiết kế cuối. Ice đã nêu hướng khác
-          *(đưa bật tắt sang trang Settings, thu gọn dòng nhịp)* — nó đảo AC1/AC2/AC11 của
-          Story 1.19 và cần một bề mặt Settings chưa tồn tại, nên đi qua `correct-course`.
-        -->
-        <div v-if="dictSources.length > 0" class="lookup-sources-chips">
-          <button
-            v-for="src in dictSources"
-            :key="src.code"
-            type="button"
-            class="source-chip"
-            :class="{ off: sourceIsDisabled(src.code) }"
-            :data-source-code="src.code"
-            :title="t('panel.lookup.source_toggle_hint')"
-            @click="dispatch('lookup.toggle_source')"
-          >
-            <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name` của chính tệp, FR31/AC1). -->
-            {{ src.display_name }}
-          </button>
-        </div>
-        <!--
-          ⚠️ `data-attribution-open` là một **mối nối**, không một móc kiểu dáng:
-          `AttributionOverlay.vue` tìm lại nút này để trả tiêu điểm về khi node giữ tiêu điểm
-          lúc mở đã rời DOM (UX-DR17). Đi bằng thuộc tính `data-` chứ không tên lớp CSS, vì
-          tên lớp là chuyện trình bày và phải đổi được tự do.
-        -->
-        <button
-          type="button"
-          class="lookup-sources-attr"
-          data-attribution-open
-          @click="dispatch('attribution.open')"
-        >
-          {{ t('command.attribution.open') }}
-        </button>
-      </div>
-
       <!--
         🔴 STORY 1.20 · AC5 · AC10 — DẢI TAB, MỘT HÀNG **RIÊNG**.
 
@@ -451,6 +380,7 @@ onBeforeUnmount(() => {
         trái/phải đổi tab. Dải tab Hán Việt ghi lý do bằng chữ: *"hợp đồng `tablist` khai
         một nửa còn tệ hơn không khai, vì nó hứa một mô hình tương tác không tồn tại"*.
       -->
+      <div class="lookup-tabrow">
       <div class="lookup-tabs" role="tablist">
         <button
           id="lookup-tab-record"
@@ -492,6 +422,22 @@ onBeforeUnmount(() => {
           @keydown.left.prevent="moveTabFocus('lookup.select_tab_concordance', 'lookup-tab-concordance')"
         >{{ t('panel.lookup.tab_history') }}</button>
       </div>
+      <div class="lookup-tools">
+        <LookupSourcesMenu />
+        <!--
+          `data-attribution-open` is a seam: `AttributionOverlay.vue` looks this button up to return
+          focus when the node focused at open time has left the DOM (UX-DR17).
+        -->
+        <button
+          type="button"
+          class="lookup-sources-attr"
+          data-attribution-open
+          @click="dispatch('attribution.open')"
+        >
+          {{ t('command.attribution.open') }}
+        </button>
+      </div>
+      </div>
 
       <!--
         🔴 AC7 — vùng đầu mục CHIỀU CAO CỐ ĐỊNH, không đổi một pixel **kể cả giữa bốn trạng
@@ -508,9 +454,20 @@ onBeforeUnmount(() => {
         chúng ở đây làm cổng cắt nhầm và **mọi** miễn trừ `aura-allow-text` phía dưới mất
         hiệu lực cùng lúc (bắt lúc chạy cổng, 2026-08-07).
       -->
-      <div class="lookup-head">
-        <!-- aura-allow-text: truy vấn vừa tra — DỮ LIỆU người dùng chọn, không chuỗi giao diện. -->
-        <p class="lookup-headword">{{ currentQuery }}</p>
+      <div class="lookup-head" @mousedown="aimLookupEntryFrom($event)">
+        <div class="lookup-head-row">
+          <!-- aura-allow-text: truy vấn vừa tra — DỮ LIỆU người dùng chọn, không chuỗi giao diện. -->
+          <p class="lookup-headword">{{ currentQuery }}</p>
+          <!-- aura-allow-text: shared reading key of every entry that has one — DỮ LIỆU từ điển. -->
+          <span v-if="headReading !== null" class="lookup-head-reading">{{ headReading }}</span>
+          <button
+            v-if="lookupDisplayable && groups.length > 0"
+            type="button"
+            class="lookup-pin lookup-head-pin"
+            :title="t('panel.lookup.head_pin_hint')"
+            @click="dispatch('lookup.toggle_pin')"
+          >{{ t(headPinKey) }}</button>
+        </div>
         <div v-if="lookupDisplayable && groups.length > 0" class="lookup-spine">
           <!--
             🔴 AC12 — thanh nhịp không **khẳng định một con số nó không biết**. Khi trần `LIMIT`
@@ -523,19 +480,6 @@ onBeforeUnmount(() => {
             <span v-if="spine.senseCountAtLeast">{{ t('panel.lookup.at_least') }} </span
             ><!-- aura-allow-text: số nghĩa — DỮ LIỆU dẫn xuất. -->{{ spine.senseCount }}
             {{ t('panel.lookup.unit_senses') }}
-          </span>
-          <span v-for="src in spine.sources" :key="src.code" class="lookup-spine-chip">
-            <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name`, AC2/FR31). -->
-            {{ src.displayName }}
-            <!-- aura-allow-text: số nghĩa của nguồn này — DỮ LIỆU dẫn xuất. -->
-            <i>{{ src.atLeast ? '≥' : '' }}{{ src.senseCount }}</i>
-          </span>
-          <!-- 🔴 FR31 — nguồn bị trần cắt SẠCH vẫn phải được GỌI TÊN, không chỉ đếm. -->
-          <span v-for="h in spine.hidden" :key="`hidden-${h.displayName}`" class="lookup-spine-chip is-hidden">
-            <!-- aura-allow-text: tên nguồn bị giấu — DỮ LIỆU (`display_name`). -->
-            {{ h.displayName }}
-            <!-- aura-allow-text: số đầu mục của nguồn bị giấu — DỮ LIỆU. -->
-            <i>{{ h.count }}</i>
           </span>
         </div>
 
@@ -590,7 +534,9 @@ onBeforeUnmount(() => {
         <!-- 🔴 AC6 — một lượt tra TRƯỢT phải nói ra, không để lại một vùng trắng câm. -->
         <p v-if="showLookupError" class="lookup-empty">{{ t('panel.lookup.lookup_failed') }}</p>
 
-        <template v-else-if="!neverLookedUp">
+        <p v-else-if="neverLookedUp" class="lookup-empty">{{ t(neverLookedUpKey, { chord: lookupChord }) }}</p>
+
+        <template v-else>
           <p v-if="someLayerFailed" class="lookup-banner">{{ t('panel.lookup.some_layer_failed') }}</p>
           <p v-if="someLayerTruncated" class="lookup-banner">{{ t('panel.lookup.list_incomplete') }}</p>
           <!-- Trần ĐỘ DÀI đã cắt truy vấn — không được đọc thành "không tìm thấy" (câu đó SAI ở đây). -->
@@ -624,7 +570,23 @@ onBeforeUnmount(() => {
             {{ t('panel.lookup.all_sources_off') }}
           </p>
           <template v-else-if="lookupResolved && notFound">
-            <p class="lookup-empty">{{ t('panel.lookup.not_found') }}</p>
+            <!-- aura-allow-text: not-found title — the query is user DATA passed to t(). -->
+            <p class="lookup-empty-title">{{ t('panel.lookup.not_found', { query: currentQuery ?? '' }) }}</p>
+            <p class="lookup-empty">{{ t('panel.lookup.not_found_checked', { n: String(enabledSourceCount) }) }}</p>
+            <div v-if="notFoundChars.length > 0" class="lookup-chars" @mousedown="aimLookupCharFrom($event)">
+              <span class="lookup-chars-label">{{ t('panel.lookup.lookup_each') }}</span>
+              <button
+                v-for="char in notFoundChars"
+                :key="char"
+                type="button"
+                class="lookup-char"
+                :data-lookup-char="char"
+                @click="dispatch('lookup.lookup_char')"
+              >
+                <!-- aura-allow-text: a character of the query — user DATA. -->
+                {{ char }}
+              </button>
+            </div>
             <button
               v-if="probeTotal !== null && probeTotal > 0"
               type="button"
@@ -633,8 +595,6 @@ onBeforeUnmount(() => {
             >{{ t('tm.concordance.pointer', { n: String(probeTotal) }) }}</button>
           </template>
           <template v-else-if="lookupDisplayable">
-            <!-- AC5 — dòng dẫn bất đồng ĐỨNG TRƯỚC khi liệt kê các khối nguồn. -->
-            <p v-if="disagree" class="lookup-disagree">{{ t('panel.lookup.sources_disagree') }}</p>
             <LookupRecord
               v-for="group in groups"
               :key="`${group.layer}:${group.source.code}`"
@@ -752,12 +712,21 @@ onBeforeUnmount(() => {
 
           <div class="lookup-section">
             <span class="lookup-section-label">{{ t('panel.lookup.section_recent') }}</span>
-            <!--
-              🔴 Quyết định #5 — thanh bộ lọc ba chip của mockup (`:106-111`) bị LOẠI: hai
-              chip *"Chương 47"* và *"Cả Tác phẩm"* mâu thuẫn trực tiếp với AC4 (*"lịch sử
-              của phiên kết thúc"*), và một bộ lọc phạm vi trên một tập dữ liệu chỉ có đúng
-              một phạm vi là một hứa hẹn rỗng. Nút xoá thì có nghĩa thật, nên nó ở lại.
-            -->
+            <button
+              type="button"
+              class="lookup-scope"
+              :aria-pressed="lookupHistoryScope === 'session'"
+              :class="{ on: lookupHistoryScope === 'session' }"
+              @click="dispatch('lookup.history_scope_session')"
+            >{{ t('panel.lookup.scope_session') }}</button>
+            <button
+              type="button"
+              class="lookup-scope"
+              :disabled="lookupChapterId === null"
+              :aria-pressed="lookupHistoryScope === 'chapter'"
+              :class="{ on: lookupHistoryScope === 'chapter' }"
+              @click="dispatch('lookup.history_scope_chapter')"
+            >{{ t('panel.lookup.scope_chapter') }}</button>
             <button
               type="button"
               class="lookup-clear"
@@ -770,6 +739,9 @@ onBeforeUnmount(() => {
             <p class="lookup-empty">{{ t('panel.lookup.history_empty_body') }}</p>
             <p class="lookup-empty-note">{{ t('panel.lookup.history_empty_note') }}</p>
           </template>
+          <p v-else-if="visibleLookupHistory.length === 0" class="lookup-empty">
+            {{ t('panel.lookup.history_chapter_empty') }}
+          </p>
 
           <!--
             🔴 AC1 — `lookupHistory` đã ở thứ tự **gần nhất trước**; không `sort()` ở đây.
@@ -777,7 +749,7 @@ onBeforeUnmount(() => {
             MỘT hàng, và tra lại nó đẩy hàng đó lên đầu thay vì thêm hàng thứ hai.
           -->
           <div
-            v-for="row in lookupHistory"
+            v-for="row in visibleLookupHistory"
             :key="row.query"
             class="lookup-row"
             :class="{ 'is-current': row.query === currentQuery }"
@@ -809,107 +781,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/*
- * 🔴 STORY 1.19 — DẢI CHIP NGUỒN: một hàng RIÊNG, `flex: none`, KHÔNG một pixel nào vào
- * `--lookup-head-height`. Xem lý lẽ đo được ở chú thích `<template>` (Bẫy 4).
- *
- * 🔴 **BA VÙNG, KHÔNG MỘT — Ice chốt 2026-08-10 sau khi chạy thật.** Hộp ngoài **không** cắt
- * gì cả; chỉ vùng chip ở giữa mới có trần và mới cuộn. Nhãn và nút *"Nguồn dữ liệu"* đều
- * `flex: none`, nên chúng **không bao giờ** bị đẩy ra khỏi tầm nhìn.
- *
- * Bản đầu gộp cả ba vào một hộp `flex-wrap` có `overflow: hidden`, và chú thích cũ biện hộ
- * *"hàng thứ ba tới được bằng bàn phím"*. Ảnh chụp app thật với mười nguồn bác nó bằng số:
- * thứ bị cắt là **nút mở Attribution** *(con cuối trong dải ⇒ đường chuột duy nhất vào AC11)*
- * cộng hai chip cuối, mà chip thứ 9 là **Trần Văn Chánh** — nguồn `copyrighted` có cảnh báo
- * pháp lý, tức đúng nguồn người dùng cần tắt được nhất. *"Tới được bằng Tab"* không cứu được
- * một nút mà người dùng chuột không nhìn thấy.
- */
-.lookup-sources {
-  display: flex;
-  align-items: center;
-  flex: none;
-  gap: 8px;
-  padding-bottom: var(--space-panel-block);
-  margin-bottom: var(--space-panel-block);
-  border-bottom: 1px solid var(--color-outline);
-}
-
-/*
- * Vùng chip: nơi DUY NHẤT được phép tràn, và nó **cuộn** chứ không nuốt.
- *
- * ⚠️ `overflow-y: auto`, không `hidden`: một chip bị cắt khỏi tầm nhìn mà không để lại dấu
- * vết nào là đúng thứ vừa giấu mất hai nguồn thật. Thanh cuộn là dấu vết đó.
- * ⚠️ `min-width: 0` bắt buộc trên một con flex có nội dung tràn — thiếu nó, hộp con lấy
- * `min-content` làm chiều rộng tối thiểu và đẩy nút *"Nguồn dữ liệu"* ra ngoài mép, tức
- * dựng lại đúng lỗi vừa vá bằng một cơ chế khác.
- */
-.lookup-sources-chips {
-  display: flex;
-  align-items: center;
-  flex: 1 1 auto;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: 8px;
-  max-height: 52px;
-  overflow-y: auto;
-}
-
-.lookup-sources-label {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-/*
- * 🔴 CHIP NGUỒN — `primary` là màu của **nhãn nguồn từ điển**, một trong đúng ba việc mà
- * `DESIGN.md` §Do's dành cho nó (cùng vai với `.lookup-spine-chip`).
- *
- * ⚠️ `<button>` chứ không `<span @click>`: NFR17 đòi mọi thao tác gọi được bằng bàn phím,
- * và một `<span>` không vào được thứ tự Tab ở bất kỳ trình duyệt nào. Mỗi chip là **một
- * điểm dừng Tab** — số điểm dừng mới khai ra thành số ở §Completion Notes (AC11).
- *
- * KHÔNG `outline: none` — focus ring của trình duyệt là nửa còn lại của NFR17 (§Trap 4 của
- * Story 1.6 giới hạn `outline: none` cho gốc `tabindex="-1"` của chế độ và panel).
- */
-.source-chip {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid transparent;
-  cursor: pointer;
-  font-family: var(--face-ui-label);
-  font-size: var(--font-ui-label);
-  font-weight: var(--weight-ui-label);
-  line-height: var(--leading-ui-label);
-  letter-spacing: var(--tracking-ui-label);
-  text-transform: uppercase;
-  color: var(--color-primary);
-}
-
-/*
- * 🔴 UX-DR6 — TRẠNG THÁI TẮT PHÂN BIỆT BẰNG **MÀU + GẠCH NGANG**, KHÔNG BẰNG `opacity`.
- *
- * `DESIGN.md:216-219` cấm làm mờ **chữ** ở trạng thái **NGHỈ**, và một chip tắt là một
- * trạng thái nghỉ — nó đứng đó cho tới khi người dùng bấm lại. Hai tín hiệu chứ không một:
- * màu một mình không đọc được với người mù màu, và `text-decoration` một mình mờ nhạt ở cỡ
- * chữ `ui-label`. Cả hai đều là thuộc tính của **NÉT VÀ MÀU CHỮ**, không phải độ đục.
- */
-.source-chip.off {
-  color: var(--color-on-surface-variant);
-  text-decoration: line-through;
-}
-
-/* Đường vào màn hình ghi công — một thao tác phụ, nên nó mang màu chữ phụ chứ không `primary`. */
-/*
- * 🔴 `flex: none` + `white-space: nowrap` — nút này **không bao giờ** được co lại hay bị đẩy
- * đi: nó là đường chuột DUY NHẤT vào màn hình Attribution (AC11), và một lượt chạy thật ngày
- * 2026-08-10 đã cho thấy nó là thứ đầu tiên biến mất khi dải chip tràn.
- *
- * ⚠️ `margin-left: auto` gỡ đi: nó có nghĩa khi nút là con của một hộp `flex-wrap` chung với
- * chip. Nay vùng chip đã là một con `flex: 1 1 auto` riêng và tự đẩy nút sang phải, nên
- * `auto` ở đây chỉ thừa.
- */
+/* A secondary action: it takes the secondary text colour, not `primary`. */
 .lookup-sources-attr {
   padding: 0;
   flex: none;
@@ -1085,6 +957,24 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--color-outline);
 }
 
+.lookup-head-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-panel-inline);
+}
+
+.lookup-head-reading {
+  flex: none;
+  font-family: var(--face-lookup-gloss);
+  font-size: var(--font-lookup-gloss);
+  line-height: var(--leading-lookup-gloss);
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-head-pin {
+  margin-left: auto;
+}
+
 /* `lookup-headword` khai `wraps: false` (24px/1.3) — đầu mục dài CẮT bằng ellipsis. */
 .lookup-headword {
   margin: 0;
@@ -1105,36 +995,11 @@ onBeforeUnmount(() => {
   margin-top: 8px;
 }
 
-.lookup-spine-count,
-.lookup-spine-chip {
+.lookup-spine-count {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.lookup-spine-chip {
-  font-family: var(--face-ui-label);
-  font-size: var(--font-ui-label);
-  font-weight: var(--weight-ui-label);
-  line-height: var(--leading-ui-label);
-  letter-spacing: var(--tracking-ui-label);
-  color: var(--color-primary);
-  text-transform: uppercase;
-}
-
-/* Nguồn bị trần cắt SẠCH — có tên, có số, nhưng không nghĩa nào lấy về (FR31/AC12). */
-.lookup-spine-chip.is-hidden {
-  color: var(--color-on-surface-variant);
-}
-
-.lookup-spine-chip i {
-  font-style: normal;
-  font-family: var(--face-ui-sm);
-  color: var(--color-on-surface-variant);
-  text-transform: none;
-  letter-spacing: normal;
-  margin-left: 4px;
 }
 
 /*
@@ -1142,19 +1007,12 @@ onBeforeUnmount(() => {
  * đây là NGƯỜI TIÊU THỤ MỚI đầu tiên của token, cùng lượt với ba chỗ dùng cũ được vá.
  */
 .lookup-empty,
-.lookup-banner,
-.lookup-disagree {
+.lookup-banner {
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
   line-height: var(--leading-ui-md-wrap);
   color: var(--color-on-surface-variant);
-}
-
-.lookup-disagree {
-  padding-left: 12px;
-  border-left: 2px solid var(--color-tm-rule);
-  color: var(--color-tm-text);
 }
 
 /*
@@ -1169,9 +1027,23 @@ onBeforeUnmount(() => {
 .lookup-tabs {
   display: flex;
   align-items: center;
+  gap: var(--space-panel-inline);
+}
+
+.lookup-tabrow {
+  display: flex;
+  align-items: center;
   flex: none;
+  flex-wrap: wrap;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
+}
+
+.lookup-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-panel-inline);
+  margin-left: auto;
 }
 
 /* Cùng khai token với `.tab` của `GridPanel.vue` — một dải tab, một hình dạng. */
@@ -1192,6 +1064,64 @@ onBeforeUnmount(() => {
  * `DESIGN.md` §Do's dành cho màu này, và một tab đang chọn là chỗ tiêu điểm đang ở. */
 .lookup-tab.active {
   color: var(--color-primary);
+}
+
+/* A chip is a pressed button, drawn by a rule under the label, not by a filled box. */
+.lookup-scope {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-scope.on {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.lookup-scope:disabled {
+  cursor: default;
+  text-decoration: line-through;
+}
+
+.lookup-chars {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-panel-inline);
+  margin: 0 0 var(--space-panel-block) 0;
+}
+
+.lookup-chars-label {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-char {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-lookup-gloss);
+  font-size: var(--font-lookup-gloss);
+  line-height: var(--leading-lookup-gloss);
+  color: var(--color-on-surface);
+}
+
+.lookup-char + .lookup-char::before {
+  content: '·';
+  margin-right: var(--space-panel-inline);
+  color: var(--color-on-surface-variant);
 }
 
 /* Đầu mục *Đã ghim* / *Tra gần đây* — một hàng nhãn cộng một thao tác bên phải. */

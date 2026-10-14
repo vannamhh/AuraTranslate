@@ -43,11 +43,11 @@ use crate::core::store::{ReadHandle, Row, SqlResult, ToSql};
 
 use super::EntryHit;
 
-/// Bốn cột dựng nên một [`EntryHit`], cộng `s.code` của AC6.
+/// Sáu cột dựng nên một [`EntryHit`], cộng `s.code` của AC6.
 ///
 /// 🔴 `s.code` chứ **không** `e.source_id`: mỗi tệp `.db` có bảng `dict_source` riêng,
 /// nên `id = 1` trỏ ba nguồn khác nhau ở ba tệp. Xem [`EntryHit::source_code`].
-const COLUMNS: &str = "e.id, s.code, e.lang, e.headword, e.headword_simp";
+const COLUMNS: &str = "e.id, s.code, e.lang, e.headword, e.headword_simp, e.reading";
 
 /// `JOIN` lấy `code` — bắt buộc ở **cả ba** nhánh, cùng lý do với [`COLUMNS`].
 const JOIN_SOURCE: &str = "JOIN dict_source s ON s.id = e.source_id";
@@ -59,6 +59,7 @@ fn row_to_hit(row: &Row<'_>) -> SqlResult<EntryHit> {
         lang: row.get(2)?,
         headword: row.get(3)?,
         headword_simp: row.get(4)?,
+        reading: row.get(5)?,
     })
 }
 

@@ -54,7 +54,7 @@ vi.mock('@tauri-apps/api/core', () => ({
             {
               layer: 'layer-a',
               source: { code: 'src-a', display_name: 'Nguồn A' },
-              entries: [{ entry_id: 1, source_code: 'src-a', lang: 'zh', headword: '測試', headword_simp: null }],
+              entries: [{ entry_id: 1, source_code: 'src-a', lang: 'zh', headword: '測試', headword_simp: null, reading: null }],
               total_entries: null,
             },
           ],

@@ -22,6 +22,8 @@ import { computed } from 'vue'
 import { t } from '../i18n'
 import { dispatch } from '../commands'
 import { entryIsPinned, entryKey, pinLabelKey } from './lookupHistoryState'
+import { aimSourceCollapseFrom, sourceIsCollapsed } from './lookupPanelState'
+import { toneMarkedReading } from './pinyin'
 import type { SenseRecord, SourceGroup } from '../config/dict'
 
 const props = defineProps<{
@@ -38,6 +40,8 @@ const props = defineProps<{
 type EntryCluster = {
   entryId: number
   headword: string
+  /** Reading shown on the cluster head, tone-marked; `null` when the source carries none. */
+  reading: string | null
   senses: SenseRecord[]
   /** `source_code:entry_id` — mối nối cho `@mousedown` uỷ quyền của `LookupPanel.vue`. */
   key: string
@@ -64,6 +68,7 @@ const clusters = computed<EntryCluster[]>(() => {
   return props.group.entries.map((hit) => ({
     entryId: hit.entry_id,
     headword: hit.headword,
+    reading: hit.reading === null ? null : toneMarkedReading(hit.reading),
     senses: byEntry.get(hit.entry_id) ?? [],
     // ⚠️ `hit.source_code`, KHÔNG `group.source.code`: một tệp `.db` chở nhiều nguồn, và
     // khoá ghim phải là nguồn của chính ĐẦU MỤC — cùng cặp `(source_code, entry_id)` mà
@@ -79,6 +84,17 @@ const clusters = computed<EntryCluster[]>(() => {
  * lượt tra thường là cái giá quá đắt cho một ca thiểu số.
  */
 const showEntryHeadwords = computed(() => clusters.value.length >= 2)
+
+const collapsed = computed(() => sourceIsCollapsed(props.group.source.code))
+
+/** `null` when the sense count is unknown: hydration failed for this layer. */
+const senseTotal = computed<number | null>(() =>
+  props.sensesFailed === true ? null : clusters.value.reduce((sum, c) => sum + c.senses.length, 0),
+)
+
+const senseTotalKey = computed(() =>
+  props.group.total_entries === null ? 'panel.lookup.block_senses' : 'panel.lookup.block_senses_at_least',
+)
 </script>
 
 <template>
@@ -87,6 +103,19 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
       <!-- aura-allow-text: `display_name` là DỮ LIỆU đọc từ `dict_source` của chính tệp
            .db (AC2, FR31) — không chuỗi giao diện của vi.json. -->
       <span class="lookup-source-name">{{ group.source.display_name }}</span>
+      <span v-if="senseTotal !== null" class="lookup-source-count">{{
+        t(senseTotalKey, { n: String(senseTotal) })
+      }}</span>
+      <!-- `data-collapse-code` is the seam `aimSourceCollapseFrom` and `lookup.toggle_source_collapse` read. -->
+      <button
+        type="button"
+        class="lookup-collapse"
+        :data-collapse-code="group.source.code"
+        :aria-expanded="!collapsed"
+        :aria-label="t(collapsed ? 'panel.lookup.expand_label' : 'panel.lookup.collapse_label')"
+        @mousedown="aimSourceCollapseFrom($event)"
+        @click="dispatch('lookup.toggle_source_collapse')"
+      >{{ t(collapsed ? 'panel.lookup.collapse_closed' : 'panel.lookup.collapse_open') }}</button>
     </div>
 
     <!--
@@ -95,11 +124,21 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
       tử này bằng `closest()` từ `@mousedown` uỷ quyền ở `LookupPanel.vue`. Đi bằng thuộc
       tính `data-` chứ không tên lớp CSS, vì tên lớp là chuyện trình bày và phải đổi được.
     -->
-    <div v-for="cluster in clusters" :key="cluster.entryId" class="lookup-entry" :data-entry-key="cluster.key">
+    <div
+      v-for="cluster in collapsed ? [] : clusters"
+      :key="cluster.entryId"
+      class="lookup-entry"
+      :data-entry-key="cluster.key"
+    >
       <div class="lookup-entry-head">
         <!-- Quyết định #5(a) — ranh giới đầu mục hiện ra, không đánh số, không gộp. -->
         <!-- aura-allow-text: đầu mục THẬT trong từ điển — DỮ LIỆU (`EntryHit.headword`). -->
         <p v-if="showEntryHeadwords" class="lookup-entry-headword">{{ cluster.headword }}</p>
+        <!-- aura-allow-text: reading — DỮ LIỆU từ điển (`EntryHit.reading`), tone-marked by `toneMarkedReading`. -->
+        <span v-if="cluster.reading !== null" class="lookup-entry-reading">{{ cluster.reading }}</span>
+        <span v-if="cluster.reading !== null && !sensesFailed" class="lookup-entry-count">{{
+          t('panel.lookup.block_senses', { n: String(cluster.senses.length) })
+        }}</span>
         <!--
           🔴 AC2 — ĐƯỜNG CHUỘT vào thao tác ghim. `@click` là **đúng một**
           `dispatch('<id>')` (Kiểm A của `check:commands`); mục tiêu do `@mousedown` uỷ
@@ -175,6 +214,9 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
 }
 
 .lookup-source-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-panel-inline);
   padding-bottom: 4px;
   margin-bottom: var(--space-panel-block);
   border-bottom: 1px solid var(--color-outline-faint);
@@ -189,6 +231,33 @@ const showEntryHeadwords = computed(() => clusters.value.length >= 2)
   letter-spacing: var(--tracking-ui-label);
   color: var(--color-primary);
   text-transform: uppercase;
+}
+
+.lookup-source-count,
+.lookup-entry-count {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-collapse {
+  margin-left: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface-variant);
+}
+
+.lookup-entry-reading {
+  font-family: var(--face-lookup-gloss);
+  font-size: var(--font-lookup-gloss);
+  line-height: var(--leading-lookup-gloss);
+  color: var(--color-on-surface);
 }
 
 /*

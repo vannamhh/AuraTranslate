@@ -274,6 +274,9 @@ pub struct EntryHit {
 
     /// Dạng giản thể, `None` khi nguồn không phân biệt phồn/giản.
     pub headword_simp: Option<String>,
+
+    /// `dict_entry.reading` nguyên văn của nguồn (pinyin số, pinyin dấu, hay `None`).
+    pub reading: Option<String>,
 }
 
 /// Kết quả một lượt tra: **đường đã đi** cộng các hàng khớp.
