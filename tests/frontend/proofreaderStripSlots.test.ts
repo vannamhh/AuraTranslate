@@ -276,3 +276,36 @@ describe('slot: job strip keeps its place ahead of TM', () => {
     expect(top()).toBe('proofreader')
   })
 })
+
+describe('placement', () => {
+  it('renders a running scan only in the window-foot instance, with Cancel, even without a caret', async () => {
+    runMock.mockImplementation((_ids: number[], onEvent: (e: unknown) => void) => {
+      onEvent({ kind: 'planned', segments: 1, batches: 1 })
+      return new Promise(() => {})
+    })
+    const foot = mount(ProofreaderStrip, { props: { place: 'foot' }, attachTo: document.body })
+    const track = mount(ProofreaderStrip, { props: { place: 'track' }, attachTo: document.body })
+    void runProofread([1])
+    await flushPromises()
+    caretRef.value = null
+    await flushPromises()
+    expect(foot.find('.proofreader-strip').exists()).toBe(true)
+    expect(track.find('.proofreader-strip').exists()).toBe(false)
+    for (const button of foot.findAll('button')) await button.trigger('click')
+    expect(dispatchMock.mock.calls.map((c) => c[0])).toContain('ai.proofread.cancel')
+    foot.unmount()
+    track.unmount()
+  })
+
+  it('renders the caret sentence finding only in the track instance once the scan is done', async () => {
+    scanResult([FINDING])
+    const foot = mount(ProofreaderStrip, { props: { place: 'foot' }, attachTo: document.body })
+    const track = mount(ProofreaderStrip, { props: { place: 'track' }, attachTo: document.body })
+    await runProofread([1])
+    await flushPromises()
+    expect(track.text()).toContain(FINDING.explanation)
+    expect(foot.find('.proofreader-strip').exists()).toBe(false)
+    foot.unmount()
+    track.unmount()
+  })
+})

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Fuzzy TM strip in the shared inline slot above the status bar. It shows only when
+// Fuzzy TM strip, a grid track under the anchor row of GridPanel. It shows only when
 // `topmostStrip` says `tm_fuzzy` wins, so a Glossary strip always takes the slot first.
 import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { dispatch } from './commands'
@@ -224,7 +224,6 @@ const acceptErrorText = computed(() => {
 .tm-fuzzy-strip {
   display: flex;
   flex-direction: column;
-  flex: none;
   gap: calc(var(--space-unit) * 2);
   padding: var(--space-panel-inline);
   border-top: 1px solid var(--color-outline);

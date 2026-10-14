@@ -201,4 +201,17 @@ describe('proofread wiring in source', () => {
     expect(menu).toMatch(/data-proofread-scope-open/)
     expect(menu).toMatch(/dispatch\('ai\.proofread\.scope\.open'\)/)
   })
+
+  it('mounts the foot Proofreader strip outside KeepAlive and the track strips inside the grid track', () => {
+    const app = codeLines('src/App.vue').join('\n')
+    expect(app).toContain('<ProofreaderStrip place="foot" />')
+    expect(app).not.toMatch(/<TmFuzzyStrip|<GlossaryConfirmStrip/)
+    const keepAlive = app.match(/<KeepAlive[\s\S]*?<\/KeepAlive>/)
+    expect(keepAlive).not.toBeNull()
+    expect(keepAlive![0]).not.toContain('<ProofreaderStrip')
+    const grid = codeLines('src/panels/GridPanel.vue').join('\n')
+    const track = grid.match(/<div[^>]*class="strip-track"[\s\S]*?<\/div>/)
+    expect(track).not.toBeNull()
+    expect(track![0]).toContain('<ProofreaderStrip place="track" />')
+  })
 })

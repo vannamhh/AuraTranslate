@@ -3,7 +3,8 @@ import { computed } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
 import { aiUsageLine, aiUsageSummaryLine } from './aiUsageLine'
-import { eligibleInlineStrips } from './inlineStripEligibility'
+import { eligibleInlineStrips, proofreaderStripPlace } from './inlineStripEligibility'
+import type { ProofreaderStripPlace } from './inlineStripEligibility'
 import { topmostStrip } from './panels/inlineStripPriority'
 import type { ProofreadFindingKind } from './config/proofread'
 import {
@@ -23,9 +24,12 @@ import {
   proofreadUsageSummary,
 } from './proofreadState'
 
+const props = defineProps<{ place?: ProofreaderStripPlace }>()
+
 const isVisible = computed(() => {
   const top = topmostStrip(eligibleInlineStrips.value)
-  return top === 'proofreader' || top === 'proofreader_summary'
+  if (top !== 'proofreader' && top !== 'proofreader_summary') return false
+  return props.place === undefined || proofreaderStripPlace.value === props.place
 })
 
 const isJob = computed(() => topmostStrip(eligibleInlineStrips.value) === 'proofreader')

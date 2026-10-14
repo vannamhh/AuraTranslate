@@ -183,7 +183,6 @@ watch(confirmStripFocusRequest, () => {
 .glossary-confirm-strip {
   display: flex;
   flex-direction: column;
-  flex: none;
   gap: calc(var(--space-unit) * 2);
   padding: var(--space-panel-inline);
   border-top: 1px solid var(--color-outline);

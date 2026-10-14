@@ -13152,3 +13152,7 @@ chính nó.
   summary: Chưa ai nhìn vạch lề liền · đứt · chấm · dày 3px trên bản đóng gói macOS, sáng và tối, để xác nhận phân biệt được không cần màu; thanh trạng thái 34px chưa được nhìn ở cả ba tầng bố cục.
   evidence: e2e 12-7 chỉ đọc `getComputedStyle` trên bản debug; WCAG 1.4.1 cần mắt người.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-dai-goi-y-moc-thanh-track-hang-duoi-cau-ang-sua-plan.md`
+  summary: Chưa đo (maybe-false, nếu đúng là medium): Esc hoặc nhận khớp trong dải TM khi tiêu điểm đang ở dải có thể để con trỏ về `null` qua `GridPanel.vue::onStripFocusOut` nếu tiêu điểm không trả về ô bản dịch.
+  evidence: WKWebView, vào dải bằng `Mod+Alt+E`, nhấn Esc rồi nhận một khớp; đọc `editorCaretSegmentId` và `document.activeElement` sau mỗi lần.
+  Chủ: Epic 12.

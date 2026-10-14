@@ -123,6 +123,10 @@ import {
 // (cột nhãn trạng thái của hàng).
 import { historyRestoreError } from './segmentHistoryState'
 import ChapterImage from '../ChapterImage.vue'
+import GlossaryConfirmStrip from '../GlossaryConfirmStrip.vue'
+import ProofreaderStrip from '../ProofreaderStrip.vue'
+import TmFuzzyStrip from '../TmFuzzyStrip.vue'
+import { inlineStripAnchorSegmentId } from '../inlineStripEligibility'
 // 🔵 Story 3.4b — tiêu thụ bề mặt IPC `glossary_marks_for_chapter` (Story 3.4). `glossaryMarks`
 // là mảng TUYỆT ĐỐI (offset vào chuỗi Chương nối bằng `\n`); `glossaryMarksBySegment` chia nó
 // về từng hàng — xem doc-comment của cả hai tệp cho lý do chất nối và lý do KHÔNG gộp tập biên
@@ -585,6 +589,13 @@ function onGlossaryPieceLeave(): void {
 // ═════════════════════════════════════════════════════════════════════════════════
 const colSrc = useTemplateRef<HTMLElement>('colSrc')
 const colTgt = useTemplateRef<HTMLElement>('colTgt')
+const stripTrack = useTemplateRef<HTMLElement>('stripTrack')
+
+const stripAnchorSegmentId = computed(() => inlineStripAnchorSegmentId.value)
+const stripAnchorIndex = computed(() => {
+  const id = stripAnchorSegmentId.value
+  return id === null ? -1 : editorSegments.value.findIndex((s) => s.id === id)
+})
 
 /**
  * Truy vấn cho một vùng chọn trên **cột nguyên văn**.
@@ -1026,7 +1037,13 @@ function ensureCaretNextFrame(cell: HTMLElement): void {
 /** Rời tiêu điểm khỏi cột bản dịch ⇒ không câu nào *"đang sửa"* nữa. */
 function onColumnFocusOut(event: FocusEvent): void {
   const next = event.relatedTarget
-  if (next instanceof Node && colTgt.value?.contains(next)) return
+  if (next instanceof Node && (colTgt.value?.contains(next) || stripTrack.value?.contains(next))) return
+  setEditorCaret(null)
+}
+
+function onStripFocusOut(event: FocusEvent): void {
+  const next = event.relatedTarget
+  if (next instanceof Node && (colTgt.value?.contains(next) || stripTrack.value?.contains(next))) return
   setEditorCaret(null)
 }
 
@@ -1780,7 +1797,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
         **không bao giờ** — Kiểm B của `check-tokens.mjs` đọc CSS, không đọc TypeScript, nên
         một màu bind qua `:style` đi qua cổng mà không một dòng nào được soi.
       -->
-      <div class="grid" :style="{ gridTemplateRows: `repeat(${editorSegments.length}, auto)` }">
+      <div class="grid" :style="{ gridTemplateRows: `repeat(${editorSegments.length + (stripAnchorIndex < 0 ? 0 : 1)}, auto)` }">
         <!--
           Cột ① — VẠCH TRẠNG THÁI (UX-DR19, sáu giá trị).
 
@@ -1788,14 +1805,15 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
           trạng thái qua tên truy cập (`aria-label`) của ô bản dịch.
         -->
         <div class="col col-rule" aria-hidden="true">
-          <div
-            v-for="s in editorSegments"
-            :key="s.id"
-            class="cell cell-rule"
-            :class="[{ 'para-end': s.is_paragraph_end }, selectedRowClassById.get(s.id)]"
-          >
-            <div v-if="ruleClassById.get(s.id)" class="rule" :class="ruleClassById.get(s.id)"></div>
-          </div>
+          <template v-for="s in editorSegments" :key="s.id">
+            <div
+              class="cell cell-rule"
+              :class="[{ 'para-end': s.is_paragraph_end }, selectedRowClassById.get(s.id)]"
+            >
+              <div v-if="ruleClassById.get(s.id)" class="rule" :class="ruleClassById.get(s.id)"></div>
+            </div>
+            <div v-if="s.id === stripAnchorSegmentId" class="strip-pad" aria-hidden="true"></div>
+          </template>
         </div>
 
         <!--
@@ -1805,19 +1823,19 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
           aura-allow-text: số thứ tự hàng là DỮ LIỆU, không một chuỗi giao diện.
         -->
         <div class="col col-num" aria-hidden="true">
+          <template v-for="(s, i) in editorSegments" :key="s.id">
           <div
-            v-for="(s, i) in editorSegments"
-            :key="s.id"
             class="cell cell-num"
             :class="[{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }, selectedRowClassById.get(s.id)]"
           ><!-- aura-allow-text: số thứ tự hàng — một con số dựng tại chỗ hiển thị, đúng luật "định dạng số và ngày giờ CHỈ ở frontend" (§Consistency Conventions), không một chuỗi giao diện dịch được. -->{{ i + 1 }}</div>
+          <div v-if="s.id === stripAnchorSegmentId" class="strip-pad" aria-hidden="true"></div>
+          </template>
         </div>
 
         <!-- Cột ③ — NGUYÊN VĂN. Một bề mặt vùng chọn duy nhất, vai `'source'` (AC7). -->
         <div ref="colSrc" class="col col-src" :class="sourceTokenClass">
+          <template v-for="s in editorSegments" :key="s.id">
           <div
-            v-for="s in editorSegments"
-            :key="s.id"
             class="cell cell-src"
             :class="[
               {
@@ -1914,6 +1932,8 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
               />
             </figure>
           </div>
+          <div v-if="s.id === stripAnchorSegmentId" class="strip-pad" aria-hidden="true"></div>
+          </template>
         </div>
 
         <!--
@@ -1961,9 +1981,9 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
             nên trông đã dịch, mà `confirm_segment` vẫn từ chối ký — người dùng không có cách
             nào biết vì sao. 🔴 Rust là nguồn sự thật cho "rỗng"; lưới đi theo, không ngược lại.
           -->
+          <template v-for="(s, i) in editorSegments" :key="s.id">
+          <!-- aura-allow-text: bản dịch của người dùng, dữ liệu. -->
           <div
-            v-for="(s, i) in editorSegments"
-            :key="s.id"
             class="cell cell-tgt"
             :class="[
               {
@@ -1983,7 +2003,24 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
             aria-multiline="true"
             :aria-label="cellLabelOf(s.id, i)"
             :data-row-error="rowErrorTextById.get(s.id)"
+            :aria-details="s.id === stripAnchorSegmentId ? 'strip-track' : undefined"
           >{{ s.target_text }}</div>
+          <div v-if="s.id === stripAnchorSegmentId" class="strip-pad" aria-hidden="true"></div>
+          </template>
+        </div>
+
+        <!-- Must follow the four columns in DOM order: it paints over and takes clicks in col-tgt only by coming later. -->
+        <div
+          id="strip-track"
+          ref="stripTrack"
+          class="strip-track"
+          :class="{ 'strip-track-off': stripAnchorIndex < 0 }"
+          :style="stripAnchorIndex < 0 ? undefined : { gridRow: stripAnchorIndex + 2 }"
+          @focusout="onStripFocusOut"
+        >
+          <TmFuzzyStrip />
+          <GlossaryConfirmStrip />
+          <ProofreaderStrip place="track" />
         </div>
       </div>
     </div>
@@ -2129,6 +2166,41 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
   grid-template-rows: subgrid;
   grid-row: 1 / -1;
   min-width: 0;
+}
+
+.col-rule { grid-column: 1; }
+.col-num { grid-column: 2; }
+.col-src { grid-column: 3; }
+.col-tgt { grid-column: 4; }
+
+.strip-pad {
+  min-height: 0;
+}
+
+.strip-track {
+  grid-column: 4;
+  min-width: 0;
+  animation: strip-track-in 90ms ease-out;
+}
+
+.strip-track-off {
+  display: none;
+}
+
+@keyframes strip-track-in {
+  from {
+    /* aura-allow-opacity: mốc đầu của quá độ 90 ms, không một trạng thái nghỉ. */
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strip-track {
+    animation: none;
+  }
 }
 
 /*
