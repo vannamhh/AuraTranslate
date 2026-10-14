@@ -93,7 +93,6 @@ onBeforeUnmount(() => {
       data-proofread-memory-open
       data-reviewer-import-open
       data-alignment-open
-      data-export-open
       @mousedown="focusOnPointerDown($event)"
       @click="dispatch('titlebar.tools.toggle')"
     >
@@ -172,13 +171,6 @@ onBeforeUnmount(() => {
           <span>{{ t('command.export.alignment.open') }}</span>
           <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
           <span class="tools-chord">{{ chordOf('export.alignment.open') }}</span>
-        </button>
-      </li>
-      <li role="none">
-        <button type="button" role="menuitem" tabindex="-1" class="tools-item" data-tools-item="export.open" @click="dispatch('export.open')">
-          <span>{{ t('command.export.open') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="tools-chord">{{ chordOf('export.open') }}</span>
         </button>
       </li>
     </ul>

@@ -460,9 +460,6 @@ export type CommandDeps = {
   moveCurrentLibraryChapterUp?: () => void
   /** Dời Chương ĐANG CHỌN xuống. Handler của `library.chapter_move_down`. */
   moveCurrentLibraryChapterDown?: () => void
-  /** Gộp Chương ĐANG CHỌN vào Chương liền trước nó. Handler của
-   * `library.chapter_merge_up`. */
-  mergeCurrentLibraryChapterUp?: () => void
 
   // ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ────────────────────────
   //
@@ -899,6 +896,31 @@ export type CommandDeps = {
   hideTmFuzzyStrip?: () => void
   /** Saves the threshold typed in Settings. Handler of `tm.settings.save`. */
   saveTmSettings?: () => void
+
+  // ── Work page (Chapter list: filter, selection, bulk actions, merge and split screens) ──
+  /** Back to the Works grid. Handler of `library.work_page.close`. */
+  closeLibraryWorkPage?: () => void
+  /** Status filter pills. Handler of `library.chapter_filter.*`. */
+  setLibraryChapterFilter?: (filter: 'all' | 'in_progress' | 'paused' | 'done' | 'not_started') => void
+  /** Folds or unfolds the Not started group. Handler of `library.chapter_group.toggle_not_started`. */
+  toggleLibraryNotStartedGroup?: () => void
+  /** Esc / the clear button. Handler of `library.chapters.clear_selection`. */
+  clearLibraryChapterSelection?: () => void
+  /** Handlers of `library.chapter_rename.begin` and `library.chapter_rename.cancel`. */
+  beginLibraryChapterRename?: () => void
+  cancelLibraryChapterRename?: () => void
+  /** Handler of `library.chapters.status_menu`. */
+  toggleLibraryChapterStatusMenu?: () => void
+  /** Handler of `library.chapters.status_set.*`. */
+  setLibrarySelectedChaptersStatus?: (status: string) => void
+  /** Handlers of `library.chapter_merge.open|close|confirm`. */
+  openLibraryChapterMerge?: () => void
+  closeLibraryChapterMerge?: () => void
+  confirmLibraryChapterMerge?: () => void
+  /** Handlers of `library.chapter_split.open|close|confirm`. */
+  openLibraryChapterSplit?: () => void
+  closeLibraryChapterSplit?: () => void
+  confirmLibraryChapterSplit?: () => void
 
   // ── Export screen (FR89) ──
   /** Opens the export screen. Handler of `export.open`. */
@@ -2098,15 +2120,194 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.moveCurrentLibraryChapterDown()
     },
   })
+
   target.register({
-    id: 'library.chapter_merge_up',
-    labelKey: 'command.library.chapter_merge_up',
+    id: 'library.work_page.close',
+    labelKey: 'command.library.work_page.close',
     keys: undefined,
     run: () => {
-      if (deps.mergeCurrentLibraryChapterUp === undefined) {
-        return portMissing('library.chapter_merge_up', 'mergeCurrentLibraryChapterUp')
-      }
-      deps.mergeCurrentLibraryChapterUp()
+      if (deps.closeLibraryWorkPage === undefined) return portMissing('library.work_page.close', 'closeLibraryWorkPage')
+      deps.closeLibraryWorkPage()
+    },
+  })
+  target.register({
+    id: 'library.chapter_filter.all',
+    labelKey: 'command.library.chapter_filter.all',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibraryChapterFilter === undefined) return portMissing('library.chapter_filter.all', 'setLibraryChapterFilter')
+      deps.setLibraryChapterFilter('all')
+    },
+  })
+  target.register({
+    id: 'library.chapter_filter.in_progress',
+    labelKey: 'command.library.chapter_filter.in_progress',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibraryChapterFilter === undefined) return portMissing('library.chapter_filter.in_progress', 'setLibraryChapterFilter')
+      deps.setLibraryChapterFilter('in_progress')
+    },
+  })
+  target.register({
+    id: 'library.chapter_filter.paused',
+    labelKey: 'command.library.chapter_filter.paused',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibraryChapterFilter === undefined) return portMissing('library.chapter_filter.paused', 'setLibraryChapterFilter')
+      deps.setLibraryChapterFilter('paused')
+    },
+  })
+  target.register({
+    id: 'library.chapter_filter.done',
+    labelKey: 'command.library.chapter_filter.done',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibraryChapterFilter === undefined) return portMissing('library.chapter_filter.done', 'setLibraryChapterFilter')
+      deps.setLibraryChapterFilter('done')
+    },
+  })
+  target.register({
+    id: 'library.chapter_filter.not_started',
+    labelKey: 'command.library.chapter_filter.not_started',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibraryChapterFilter === undefined) return portMissing('library.chapter_filter.not_started', 'setLibraryChapterFilter')
+      deps.setLibraryChapterFilter('not_started')
+    },
+  })
+  target.register({
+    id: 'library.chapter_group.toggle_not_started',
+    labelKey: 'command.library.chapter_group.toggle_not_started',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleLibraryNotStartedGroup === undefined) return portMissing('library.chapter_group.toggle_not_started', 'toggleLibraryNotStartedGroup')
+      deps.toggleLibraryNotStartedGroup()
+    },
+  })
+  target.register({
+    id: 'library.chapters.clear_selection',
+    labelKey: 'command.library.chapters.clear_selection',
+    keys: undefined,
+    run: () => {
+      if (deps.clearLibraryChapterSelection === undefined) return portMissing('library.chapters.clear_selection', 'clearLibraryChapterSelection')
+      deps.clearLibraryChapterSelection()
+    },
+  })
+  target.register({
+    id: 'library.chapter_rename.begin',
+    labelKey: 'command.library.chapter_rename.begin',
+    keys: undefined,
+    run: () => {
+      if (deps.beginLibraryChapterRename === undefined) return portMissing('library.chapter_rename.begin', 'beginLibraryChapterRename')
+      deps.beginLibraryChapterRename()
+    },
+  })
+  target.register({
+    id: 'library.chapter_rename.cancel',
+    labelKey: 'command.library.chapter_rename.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelLibraryChapterRename === undefined) return portMissing('library.chapter_rename.cancel', 'cancelLibraryChapterRename')
+      deps.cancelLibraryChapterRename()
+    },
+  })
+  target.register({
+    id: 'library.chapters.status_menu',
+    labelKey: 'command.library.chapters.status_menu',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleLibraryChapterStatusMenu === undefined) return portMissing('library.chapters.status_menu', 'toggleLibraryChapterStatusMenu')
+      deps.toggleLibraryChapterStatusMenu()
+    },
+  })
+  target.register({
+    id: 'library.chapters.status_set.in_progress',
+    labelKey: 'command.library.chapters.status_set.in_progress',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibrarySelectedChaptersStatus === undefined) return portMissing('library.chapters.status_set.in_progress', 'setLibrarySelectedChaptersStatus')
+      deps.setLibrarySelectedChaptersStatus('in_progress')
+    },
+  })
+  target.register({
+    id: 'library.chapters.status_set.paused',
+    labelKey: 'command.library.chapters.status_set.paused',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibrarySelectedChaptersStatus === undefined) return portMissing('library.chapters.status_set.paused', 'setLibrarySelectedChaptersStatus')
+      deps.setLibrarySelectedChaptersStatus('paused')
+    },
+  })
+  target.register({
+    id: 'library.chapters.status_set.done',
+    labelKey: 'command.library.chapters.status_set.done',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibrarySelectedChaptersStatus === undefined) return portMissing('library.chapters.status_set.done', 'setLibrarySelectedChaptersStatus')
+      deps.setLibrarySelectedChaptersStatus('done')
+    },
+  })
+  target.register({
+    id: 'library.chapters.status_set.not_started',
+    labelKey: 'command.library.chapters.status_set.not_started',
+    keys: undefined,
+    run: () => {
+      if (deps.setLibrarySelectedChaptersStatus === undefined) return portMissing('library.chapters.status_set.not_started', 'setLibrarySelectedChaptersStatus')
+      deps.setLibrarySelectedChaptersStatus('not_started')
+    },
+  })
+  target.register({
+    id: 'library.chapter_merge.open',
+    labelKey: 'command.library.chapter_merge.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openLibraryChapterMerge === undefined) return portMissing('library.chapter_merge.open', 'openLibraryChapterMerge')
+      deps.openLibraryChapterMerge()
+    },
+  })
+  target.register({
+    id: 'library.chapter_merge.close',
+    labelKey: 'command.library.chapter_merge.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeLibraryChapterMerge === undefined) return portMissing('library.chapter_merge.close', 'closeLibraryChapterMerge')
+      deps.closeLibraryChapterMerge()
+    },
+  })
+  target.register({
+    id: 'library.chapter_merge.confirm',
+    labelKey: 'command.library.chapter_merge.confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmLibraryChapterMerge === undefined) return portMissing('library.chapter_merge.confirm', 'confirmLibraryChapterMerge')
+      deps.confirmLibraryChapterMerge()
+    },
+  })
+  target.register({
+    id: 'library.chapter_split.open',
+    labelKey: 'command.library.chapter_split.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openLibraryChapterSplit === undefined) return portMissing('library.chapter_split.open', 'openLibraryChapterSplit')
+      deps.openLibraryChapterSplit()
+    },
+  })
+  target.register({
+    id: 'library.chapter_split.close',
+    labelKey: 'command.library.chapter_split.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeLibraryChapterSplit === undefined) return portMissing('library.chapter_split.close', 'closeLibraryChapterSplit')
+      deps.closeLibraryChapterSplit()
+    },
+  })
+  target.register({
+    id: 'library.chapter_split.confirm',
+    labelKey: 'command.library.chapter_split.confirm',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmLibraryChapterSplit === undefined) return portMissing('library.chapter_split.confirm', 'confirmLibraryChapterSplit')
+      deps.confirmLibraryChapterSplit()
     },
   })
 
@@ -3430,7 +3631,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     },
   })
 
-  // Export screen: the title-bar button dispatches `export.open`; no default chord.
+  // Dispatched by the Work page action bar `Xuất…` button; no default chord.
   target.register({
     id: 'export.open',
     labelKey: 'command.export.open',

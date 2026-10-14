@@ -7,7 +7,7 @@
  * ═════════════════════════════════════════════════════════════════════════════════
  * `project_contract.rs` gọi hàm THUẦN và là đường nghiệm thu của AD-32 (đúng hai cột đổi);
  * `tests/frontend/libraryChapters.test.ts` chạy trên `happy-dom` với `invoke` GIẢ. Bốn vỏ IPC
- * mới (`rename_chapter` · `move_chapter` · `merge_chapter_into_previous` ·
+ * mới (`rename_chapter` · `move_chapter` · `merge_chapters` ·
  * `split_chapter_at_segment`) và năm id lệnh mới của `CommandRegistry` chưa từng bị bất kỳ ca
  * nào chạm THẬT trước spec này — và ba trong bốn thao tác chạy **khuôn bốn bước** (ghi SQL →
  * `WorkMeta::rebuild_from_store` → `write_atomic` → `reindex`), tức chúng chạm `meta.json` và
@@ -34,7 +34,7 @@
  *    §onPrepare). Spec này định vị Tác phẩm của chính nó bằng TÊN, không bằng chỉ số `0`.
  */
 
-import { realClick } from '../support/pointer.mjs'
+import { realClick, modifiedMouseDown } from '../support/pointer.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `e2e-reorg-${RUN_TAG}`
@@ -46,12 +46,16 @@ const SOURCE_TEXT = 'Cau mot。Cau hai。Cau ba。Cau bon。'
 const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
 const WORK_NEXT_BTN = '[data-library-work-next]'
 const OPEN_WORK_BTN = '[data-library-open-work]'
-const CHAPTER_ROWS = '.chapters-list [data-library-chapter-row]'
-const CHAPTER_NEXT_BTN = '[data-library-chapter-next]'
+const WORK_PAGE = '[data-library-work-page]'
+const WORK_PAGE_BACK_BTN = '[data-library-work-page-close]'
+const CHAPTER_ROWS = '[data-library-chapters-list] [data-library-chapter-row]'
+const RENAME_BEGIN_BTN = '[data-library-chapter-rename-begin]'
 const RENAME_INPUT = '[data-library-chapter-rename-input]'
 const RENAME_BTN = '[data-library-chapter-rename]'
 const MOVE_DOWN_BTN = '[data-library-chapter-move-down]'
-const MERGE_UP_BTN = '[data-library-chapter-merge-up]'
+const MERGE_OPEN_BTN = '[data-library-chapter-merge-open]'
+const MERGE_CONFIRM_BTN = '[data-library-chapter-merge-confirm]'
+const MERGE_OVERLAY = '[data-library-chapter-merge-overlay]'
 
 /** Tạo một Tác phẩm qua cầu IPC thật, cùng khuôn mọi spec Epic 5 khác. */
 async function createWork(name, text) {
@@ -112,7 +116,7 @@ async function chapterProbe() {
       ord: (row.querySelector('.chapter-ord')?.textContent || '').trim(),
       title: (row.querySelector('.chapter-title')?.textContent || '').trim(),
       count: (row.querySelector('.chapter-segment-count')?.textContent || '').trim(),
-      current: row.getAttribute('aria-current') === 'true',
+      selected: row.getAttribute('aria-selected') === 'true',
     }))
   }, CHAPTER_ROWS)
 }
@@ -145,9 +149,27 @@ async function moveWorkCursorTo(name) {
 }
 
 /** Nạp lại danh sách Chương qua đường SẢN PHẨM — bấm "Mở Tác phẩm" (`library.open_work`),
- * thứ đọc lại `.atproj` từ đĩa rồi `loadChapters()`. Không một lối tắt gọi thẳng state. */
+ * thứ đọc lại `.atproj` từ đĩa rồi `loadChapters()`. Nút đó chỉ có trên lưới
+ * Library: đi qua nút về Library trước rồi mở lại. */
 async function reloadChaptersViaOpenWork() {
+  const back = await $(WORK_PAGE_BACK_BTN)
+  if (await back.isExisting()) {
+    await realClick(back)
+    await $(WORK_PAGE).waitForExist({ reverse: true, timeout: 10_000 })
+    await moveWorkCursorTo(WORK_NAME)
+  }
   await realClick(await $(OPEN_WORK_BTN))
+  await $(WORK_PAGE).waitForExist({ timeout: 20_000 })
+}
+
+/** Chọn hàng thứ `index` bằng một lượt nhấn chuột thật (chọn là `mousedown`). */
+async function selectRow(index) {
+  const rows = await $$(CHAPTER_ROWS)
+  await realClick(rows[index])
+  await browser.waitUntil(async () => (await chapterProbe())[index]?.selected === true, {
+    timeout: 10_000,
+    timeoutMsg: `hàng Chương thứ ${index + 1} không được chọn sau lượt nhấn chuột`,
+  })
 }
 
 describe('Story 5.8 — tổ chức lại Chương: tách, đổi tên, dời, gộp', () => {
@@ -168,7 +190,8 @@ describe('Story 5.8 — tổ chức lại Chương: tách, đổi tên, dời, g
     // ── Đưa Tác phẩm này thành Tác phẩm đang chọn trong lưới. ───────────────────────
     await realClick(await $(LIST_WORKS_BTN))
     await moveWorkCursorTo(WORK_NAME)
-    await reloadChaptersViaOpenWork()
+    await realClick(await $(OPEN_WORK_BTN))
+    await $(WORK_PAGE).waitForExist({ timeout: 20_000 })
 
     await browser.waitUntil(async () => (await chapterProbe()).length === 1, {
       timeout: 20_000,
@@ -189,12 +212,15 @@ describe('Story 5.8 — tổ chức lại Chương: tách, đổi tên, dời, g
     // `ord` phải LIÊN TỤC từ 1 — tiền đề mà `open_adjacent_chapter`/Story 2.10 đứng trên.
     expect(sauTach.map((r) => r.ord)).toEqual(['1', '2'])
     // 1 + 3, không 2 + 2: xem chú thích của `SOURCE_TEXT` cho vì sao hai số phải KHÁC nhau.
-    expect(sauTach.map((r) => r.count)).toEqual(['1', '3'])
+    expect(sauTach.map((r) => r.count)).toEqual(['1 câu', '3 câu'])
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // ② ĐỔI TÊN Chương đang chọn (hàng đầu) — đường SẢN PHẨM, `library.chapter_rename`.
     // ═══════════════════════════════════════════════════════════════════════════════
     const TEN_MOI = 'Hoi Mot'
+    await selectRow(0)
+    await realClick(await $(RENAME_BEGIN_BTN))
+    await $(RENAME_INPUT).waitForDisplayed({ timeout: 10_000 })
     await browser.execute(
       (sel, ten) => {
         const input = document.querySelector(sel)
@@ -213,7 +239,7 @@ describe('Story 5.8 — tổ chức lại Chương: tách, đổi tên, dời, g
       timeoutMsg: `hàng Chương đầu không mang tên "${TEN_MOI}" sau lượt đổi tên`,
     })
     // Đổi tên KHÔNG được đụng số câu của bất kỳ hàng nào.
-    expect((await chapterProbe()).map((r) => r.count)).toEqual(['1', '3'])
+    expect((await chapterProbe()).map((r) => r.count)).toEqual(['1 câu', '3 câu'])
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // ③ DỜI XUỐNG — chỉ cột `ord` đổi, số câu đi theo đúng Chương của nó.
@@ -226,23 +252,29 @@ describe('Story 5.8 — tổ chức lại Chương: tách, đổi tên, dời, g
     const sauDoi = await chapterProbe()
     expect(sauDoi.map((r) => r.ord)).toEqual(['1', '2'])
     // Ba câu nay ở hàng ĐẦU, một câu ở hàng hai — đúng phép hoán vị, không một lượt đánh số lại.
-    expect(sauDoi.map((r) => r.count)).toEqual(['3', '1'])
+    expect(sauDoi.map((r) => r.count)).toEqual(['3 câu', '1 câu'])
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // ④ GỘP hàng thứ hai vào hàng đầu ⇒ một Chương, BỐN câu, KHÔNG câu nào về hưu.
     // ═══════════════════════════════════════════════════════════════════════════════
-    await realClick(await $(CHAPTER_NEXT_BTN)) // Con trỏ về hàng thứ hai.
-    await browser.waitUntil(async () => (await chapterProbe())[1]?.current === true, {
-      timeout: 20_000,
-      timeoutMsg: 'con trỏ danh sách Chương không tới được hàng thứ hai',
+    // Chọn hàng đầu bằng chuột, mở rộng sang hàng hai bằng Shift+nhấn, rồi gộp qua màn gộp.
+    await selectRow(0)
+    await modifiedMouseDown((await $$(CHAPTER_ROWS))[1], 'shift')
+    await browser.waitUntil(async () => (await chapterProbe()).every((r) => r.selected), {
+      timeout: 10_000,
+      timeoutMsg: 'Shift+nhấn không mở rộng vùng chọn sang hàng thứ hai',
     })
-    await realClick(await $(MERGE_UP_BTN))
+    await $(`${MERGE_OPEN_BTN}:not([disabled])`).waitForExist({ timeout: 10_000 })
+    await realClick(await $(MERGE_OPEN_BTN))
+    await $(MERGE_OVERLAY).waitForDisplayed({ timeout: 10_000 })
+    await realClick(await $(MERGE_CONFIRM_BTN))
+    await $(MERGE_OVERLAY).waitForExist({ reverse: true, timeout: 20_000 })
 
     await browser.waitUntil(async () => (await chapterProbe()).length === 1, {
       timeout: 20_000,
       timeoutMsg: 'lượt gộp không đưa danh sách về đúng một hàng sau 20 giây',
     })
-    expect((await chapterProbe())[0]?.count).toBe('4')
+    expect((await chapterProbe())[0]?.count).toBe('4 câu')
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // 🔴 MỆNH ĐỀ CHÍNH — AD-32 đọc trên ĐĨA THẬT sau BỐN lượt tổ chức nối tiếp.

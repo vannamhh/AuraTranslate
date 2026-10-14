@@ -61,6 +61,12 @@ const FILTER_DONE_BTN = '[data-lifecycle-filter="done"]'
 const CLEAR_FILTER_BTN = '[data-lifecycle-action="clear_filter"]'
 const WORKS_ROWS = '.works-block .works-grid .work-cell'
 
+const WORK_NEXT_BTN = '[data-library-work-next]'
+const OPEN_WORK_BTN = '[data-library-open-work]'
+const WORK_PAGE = '[data-library-work-page]'
+const WORK_PAGE_BACK_BTN = '[data-library-work-page-close]'
+const STATUS_WHY = '[data-library-work-status-why]'
+
 const SET_OVERRIDE_PAUSED_BTN = '[data-lifecycle-action="set_override_paused"]'
 const CLEAR_OVERRIDE_BTN = '[data-lifecycle-action="clear_override"]'
 
@@ -107,7 +113,7 @@ async function screenProbe() {
       return { present: node !== null, enabled: node !== null && node.disabled !== true }
     }
     return {
-      openStatus: text('.open-work-block p.status'),
+      openStatus: text('[data-library-work-status-cell]'),
       setOverride: button('[data-lifecycle-action="set_override_paused"]'),
       names: Array.from(document.querySelectorAll('.works-block .works-grid .work-cell .work-name')).map(
         (node) => (node.textContent || '').trim(),
@@ -179,24 +185,54 @@ async function loadWorksUntilPresent(name) {
   )
 }
 
+/** Moves the grid cursor to the card named `name` with the grid's next button. */
+async function moveWorkCursorTo(name) {
+  const nextBtn = await $(WORK_NEXT_BTN)
+  await browser.waitUntil(
+    async () => {
+      const current = await browser.execute(() => {
+        const cell = document.querySelector('.works-grid .work-cell[aria-current="true"] .work-name')
+        return cell === null ? '' : (cell.textContent || '').trim()
+      })
+      if (current === name) return true
+      await realClick(nextBtn)
+      return false
+    },
+    { timeout: 30_000, timeoutMsg: `the grid cursor never reached "${name}"` },
+  )
+}
+
+/** The lifecycle buttons now live on the Work page: select the card, open the page. */
+async function openWorkPageOf(name) {
+  await moveWorkCursorTo(name)
+  await realClick(await $(OPEN_WORK_BTN))
+  await $(WORK_PAGE).waitForExist({ timeout: 20_000 })
+}
+
+async function backToGrid() {
+  await realClick(await $(WORK_PAGE_BACK_BTN))
+  await $(WORK_PAGE).waitForExist({ reverse: true, timeout: 10_000 })
+}
+
 /** Chờ tới khi một nút hết `disabled` — bấm một nút đang tắt là một cú bấm im lặng không làm gì. */
 async function waitOverrideButtonEnabled(timeoutMsg) {
   await browser.waitUntil(async () => (await screenProbe()).setOverride.enabled, { timeout: 30_000, timeoutMsg })
 }
 
 describe('Story 5.4 · FR5/FR6 — bốn trạng thái vòng đời trong cửa sổ thật', () => {
-  it('ghi đè thủ công hiện dấu phân biệt — cả ở khối "Tác phẩm đang mở" lẫn ở hàng trong danh sách', async () => {
+  it('ghi đè thủ công hiện dấu phân biệt — cả ở ô trạng thái của trang Tác phẩm (kèm giá trị suy ra) lẫn ở thẻ trong lưới', async () => {
     await createWorkThroughForm(WORK_NAME_A)
+    await loadWorksUntilPresent(WORK_NAME_A)
+    await openWorkPageOf(WORK_NAME_A)
 
-    // 🔴 Chờ nút BẬT, không chờ "dòng trạng thái khác rỗng". Ở lượt khởi động chưa Tác phẩm nào
-    // mở nên khối này ở trạng thái "chưa tải" — dòng chữ ĐÃ khác rỗng ngay từ đầu, và ba nút
-    // vòng đời `disabled`. Chờ đúng thứ quyết định được: nút đã bấm được hay chưa.
+    // 🔴 Chờ nút BẬT, không chờ "dòng trạng thái khác rỗng": trước lượt tải xong ba nút vòng
+    // đời `disabled` và ô trạng thái đã mang chữ "chưa tải".
     await waitOverrideButtonEnabled(
-      'nút "Tạm ngưng Tác phẩm này" vẫn tắt sau 30 giây — khối "Tác phẩm đang mở" chưa tải lại '
-        + 'sau khi tạo Tác phẩm (bản vá `watch(createdWork, …)` của `LibraryMode.vue`)',
+      'nút "Tạm ngưng Tác phẩm này" vẫn tắt sau 30 giây — ô trạng thái của trang Tác phẩm chưa tải',
     )
     const beforeOverride = (await screenProbe()).openStatus
     expect(beforeOverride).not.toContain('ghi đè thủ công')
+    expect(beforeOverride).toContain('suy ra tự động')
 
     await realClick(await $(SET_OVERRIDE_PAUSED_BTN))
     await browser.waitUntil(async () => (await screenProbe()).openStatus.includes('ghi đè thủ công'), {
@@ -206,22 +242,31 @@ describe('Story 5.4 · FR5/FR6 — bốn trạng thái vòng đời trong cửa 
     const afterOverride = (await screenProbe()).openStatus
     expect(afterOverride).toContain('Tạm ngưng')
     expect(afterOverride).toContain('ghi đè thủ công')
+    // The cell names the derived value too, not only the override in force.
+    const why = await browser.execute((sel) => (document.querySelector(sel)?.textContent || '').trim(), STATUS_WHY)
+    expect(why).toContain('Chưa bắt đầu')
 
-    // Hàng tương ứng trong danh sách "Tác phẩm" cũng phải mang dấu — không chỉ khối riêng.
-    // Vế này là thứ chứng minh lượt reindex SAU một lượt ghi thật sự chạy: dấu chỉ tới được
-    // đây qua `meta.json` → `Indexer::rebuild` → `library_work` → `library_list_works`.
-    await loadWorksUntilPresent(WORK_NAME_A)
+    // Hàng tương ứng trong lưới cũng phải mang dấu. Dấu chỉ tới được đây qua `meta.json` →
+    // `Indexer::rebuild` → `library_work` → `library_list_works`, nên vế này chứng minh lượt
+    // reindex SAU một lượt ghi thật sự chạy.
+    await backToGrid()
+    await browser.waitUntil(async () => (await workRowState(WORK_NAME_A)).hasMarker, {
+      timeout: 30_000,
+      timeoutMsg: 'hàng trong lưới không mang dấu ghi đè thủ công sau khi quay về Library',
+    })
     const row = await workRowState(WORK_NAME_A)
     expect(row.found).toBe(true)
-    expect(row.hasMarker).toBe(true)
     expect(row.markerText).toContain('ghi đè thủ công')
 
     // Bỏ ghi đè — dấu phải biến mất.
+    await openWorkPageOf(WORK_NAME_A)
+    await waitOverrideButtonEnabled('nút ghi đè vẫn tắt sau khi mở lại trang Tác phẩm')
     await realClick(await $(CLEAR_OVERRIDE_BTN))
     await browser.waitUntil(async () => !(await screenProbe()).openStatus.includes('ghi đè thủ công'), {
       timeout: 30_000,
       timeoutMsg: 'dấu ghi đè thủ công không biến mất sau khi bỏ ghi đè',
     })
+    await backToGrid()
   })
 
   it('một bộ lọc trạng thái lọc RIÊNG RẼ, không kéo theo bộ lọc khác', async () => {

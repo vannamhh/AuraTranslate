@@ -11,7 +11,6 @@ const ITEM_IDS = [
   'ai.proofread.memory.open',
   'export.reviewer_import.open',
   'export.alignment.open',
-  'export.open',
 ]
 
 const OVERLAYS = [
@@ -32,7 +31,7 @@ async function openList() {
 }
 
 describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
-  it('thanh tiêu đề chỉ có ba tab và Công cụ ▾ ở Library; danh sách có tám mục theo thứ tự IA', async () => {
+  it('thanh tiêu đề chỉ có ba tab và Công cụ ▾ ở Library; danh sách có bảy mục theo thứ tự IA, không còn Xuất', async () => {
     await browser.keys(['Meta', '1'])
     const trigger = await $(TRIGGER)
     await trigger.waitForDisplayed({ timeout: 30_000 })
@@ -73,7 +72,7 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
     expect(at).toBe('tm.manage.open')
     await browser.keys(['ArrowUp', 'ArrowUp'])
     const wrapped = await browser.execute(() => document.activeElement?.getAttribute('data-tools-item') ?? '')
-    expect(wrapped).toBe('export.open')
+    expect(wrapped).toBe('export.alignment.open')
     await browser.keys(['Escape'])
     await $(ITEM('settings.open')).waitForExist({ reverse: true, timeout: 10_000 })
     expect(await activeIsTrigger()).toBe(true)

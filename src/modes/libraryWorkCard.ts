@@ -18,7 +18,7 @@ function sourceLangLabel(code: string): string | null {
 }
 
 /** `null` when the timestamp is unreadable or lies in the future. */
-function updatedLabel(updatedAt: string, now: Date): string | null {
+export function updatedLabel(updatedAt: string, now: Date): string | null {
   const stamp = Date.parse(updatedAt)
   if (Number.isNaN(stamp)) return null
   const diff = now.getTime() - stamp

@@ -31,6 +31,10 @@ function row(id: number, ord: number, title: string | null): ChapterRow {
     title,
     status: 'not_started',
     segment_count: 3,
+    translated_count: 0,
+    unconfirmed_count: 0,
+    in_translation_count: 3,
+    updated_at: '2026-10-01T00:00:00Z',
     origin_author: null,
     origin_site_name: null,
     origin_url: null,
@@ -220,11 +224,13 @@ describe('destination folder', () => {
 })
 
 describe('keyboard', () => {
-  it('the Công cụ ▾ opener carries the hook and its list dispatches export.open; Escape closes the screen and returns focus to the opener', async () => {
+  it('the Công cụ ▾ list no longer carries export; the Work page action bar owns the opener hook; Escape closes the screen and returns focus to the opener', async () => {
     const { state, commands, Overlay } = await fresh()
     const menuSource = readFileSync(resolve(__dirname, '../../src/TitlebarToolsMenu.vue'), 'utf8')
-    expect(/<button[^>]*data-export-open[^>]*>/.test(menuSource)).toBe(true)
-    expect(menuSource).toMatch(/role="menuitem"[^>]*@click="dispatch\('export\.open'\)"/)
+    expect(menuSource).not.toMatch(/data-export-open|dispatch\('export\.open'\)/)
+    const pageSource = readFileSync(resolve(__dirname, '../../src/modes/LibraryWorkPage.vue'), 'utf8')
+    expect(/<button[^>]*data-export-open[^>]*>/.test(pageSource)).toBe(true)
+    expect(pageSource).toMatch(/data-export-open[\s\S]*?@click="dispatch\('export\.open'\)"/)
 
     const opener = document.createElement('button')
     opener.setAttribute('data-export-open', '')

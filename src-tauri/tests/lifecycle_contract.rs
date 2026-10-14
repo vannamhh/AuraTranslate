@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::lifecycle::{
-    read_work_lifecycle, set_chapter_status, set_work_status_override,
+    read_work_lifecycle, set_chapter_status, set_chapters_status, set_work_status_override,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::library::meta::WorkMeta;
@@ -612,4 +612,65 @@ fn overriding_the_work_status_leaves_both_the_value_and_the_override_flag_in_the
     global.close();
     cleanup(&root);
     cleanup(&side);
+}
+
+#[test]
+fn setting_several_chapters_status_is_one_transaction_that_refuses_an_unknown_id() {
+    let root = temp_dir("bulk-status");
+    let mut opened = open_work(&root, "Bulk");
+    let first = opened.chapter_id;
+    let second = add_chapter(&opened, 2, "not_started");
+    let third = add_chapter(&opened, 3, "not_started");
+
+    let err = set_chapters_status(Some(&mut opened), &[first, second, 9_999], "paused")
+        .expect_err("id la phai bi tu choi");
+    assert_eq!(
+        err.message_key(),
+        auratranslate_lib::core::i18n::MessageKey::SegmentChapterNotFound
+    );
+    assert_eq!(chapter_statuses(&opened), vec!["not_started"; 3]);
+
+    let err = set_chapters_status(Some(&mut opened), &[first], "archived")
+        .expect_err("gia tri la phai bi tu choi");
+    assert_eq!(
+        err.message_key(),
+        auratranslate_lib::core::i18n::MessageKey::LifecycleUnknownStatus
+    );
+
+    set_chapters_status(Some(&mut opened), &[first, second, third], "paused")
+        .unwrap_or_else(|e| panic!("set_chapters_status: {e:?}"));
+    assert_eq!(chapter_statuses(&opened), vec!["paused"; 3]);
+
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn an_overridden_work_still_reports_the_derived_status() {
+    let root = temp_dir("derived-under-override");
+    let mut opened = open_work(&root, "Derived");
+    let first = opened.chapter_id;
+
+    set_chapter_status(Some(&mut opened), first, "done").expect("set_chapter_status");
+    let lifecycle = set_work_status_override(Some(&mut opened), Some("paused"))
+        .unwrap_or_else(|e| panic!("override: {e:?}"));
+    assert_eq!(lifecycle.status.as_deref(), Some("paused"));
+    assert!(lifecycle.status_is_override);
+    assert_eq!(lifecycle.derived_status, "done");
+
+    let read = read_work_lifecycle(Some(&opened)).expect("read");
+    assert_eq!(read.derived_status, "done");
+
+    drop(opened);
+    cleanup(&root);
+}
+
+fn chapter_statuses(open: &OpenWork) -> Vec<String> {
+    open.store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT status FROM chapter ORDER BY ord, id")?;
+            let mapped = stmt.query_map([], |row| row.get::<_, String>(0))?;
+            mapped.collect()
+        })
+        .expect("doc status Chuong")
 }

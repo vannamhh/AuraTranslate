@@ -108,7 +108,7 @@ const SOURCE_TEXT_B = 'Chi mot cau。'
 
 const WORK_NEXT_BTN = '[data-library-work-next]'
 const OPEN_WORK_BTN = '[data-library-open-work]'
-const CHAPTER_ROWS = '.chapters-list [data-library-chapter-row]'
+const CHAPTER_ROWS = '[data-library-chapters-list] [data-library-chapter-row]'
 const OPEN_CHAPTER_BTN = '[data-library-open-chapter]'
 const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
 
@@ -301,6 +301,10 @@ describe('Story 5.7 — mở lại một .atproj đã có trên đĩa và khôi 
     // đo quay về đúng vai của nó: **một** thao tác người dùng, **một** phép khẳng định. Một
     // vòng bấm lại ở đây là đúng thứ `e2e/AGENTS.md` cấm bằng chữ — *"đừng vá bằng
     // `continue-on-error` hay một vòng chạy lại, cả hai biến job thành thứ không bao giờ đỏ"*.
+    //
+    // "Mở Chương" is enabled only while exactly one row is selected; the press is the selection.
+    await realClick(await $(CHAPTER_ROWS))
+    await $(`${OPEN_CHAPTER_BTN}:not([disabled])`).waitForExist({ timeout: 10_000 })
     const openChapterBtn = await $(OPEN_CHAPTER_BTN)
     await realClick(openChapterBtn)
 

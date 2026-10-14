@@ -32,6 +32,10 @@ const CHAPTER_ROW_A = {
   title: 'Chuong Mot',
   status: 'not_started',
   segment_count: 10,
+  translated_count: 0,
+  unconfirmed_count: 0,
+  in_translation_count: 10,
+  updated_at: '2026-10-01T00:00:00Z',
   origin_author: null,
   origin_site_name: null,
   origin_url: null,
@@ -44,6 +48,10 @@ const CHAPTER_ROW_UNTITLED = {
   title: null,
   status: 'in_progress',
   segment_count: 5,
+  translated_count: 0,
+  unconfirmed_count: 0,
+  in_translation_count: 5,
+  updated_at: '2026-10-01T00:00:00Z',
   origin_author: null,
   origin_site_name: null,
   origin_url: null,
@@ -64,7 +72,7 @@ const WORK_NONE_OPEN_ERROR = {
 // đúng NÓ ở `beforeAll` thay vì bốn lượt `await` nối tiếp, để giá dịch rơi vào `hookTimeout`
 // một lượt DUY NHẤT thay vì bốn.
 beforeAll(async () => {
-  await import('../../src/modes/LibraryMode.vue')
+  await import('../../src/modes/LibraryWorkPage.vue')
 })
 
 beforeEach(async () => {
@@ -188,6 +196,15 @@ describe('modes/libraryChapters.ts::loadChapters', () => {
 // `modes/LibraryMode.vue` — mount THẬT, khối "Chương".
 // ═════════════════════════════════════════════════════════════════════════════════
 
+/** Selecting a row is how a single-Chapter write picks its target; no row at `index` is a no-op. */
+async function chonHang(index: number): Promise<void> {
+  const state = await import('../../src/modes/libraryChapters')
+  const row = state.libraryChapters.value.at(index)
+  if (row === undefined) return
+  state.selectLibraryChapter(row.chapter_id, { toggle: false, range: false })
+  await Promise.resolve()
+}
+
 function mockInvokeForChaptersMount(chapters: unknown[] | 'none-open'): void {
   mockInvoke.mockImplementation((cmd: string) => {
     if (cmd === 'library_list_works') {
@@ -217,7 +234,7 @@ describe('modes/LibraryMode.vue — khối Chương (mount thật)', () => {
   it('nhánh `chaptersHaveLoaded === false` KHÔNG nói "Tác phẩm này chưa có Chương nào"', async () => {
     mockInvokeForChaptersMount('none-open')
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
     wrapper = mount(LibraryMode)
     await wrapper.vm.$nextTick()
 
@@ -230,7 +247,7 @@ describe('modes/LibraryMode.vue — khối Chương (mount thật)', () => {
   it('`title: null` ⇒ nhãn dựng từ `ord`', async () => {
     mockInvokeForChaptersMount([CHAPTER_ROW_UNTITLED])
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
     const state = await import('../../src/modes/libraryChapters')
     wrapper = mount(LibraryMode)
     await state.loadChapters()
@@ -244,7 +261,7 @@ describe('modes/LibraryMode.vue — khối Chương (mount thật)', () => {
   it('Tác phẩm có Chương ⇒ câu kết quả nói đúng SỐ, và mỗi hàng mang ord/tiêu đề/trạng thái/số câu', async () => {
     mockInvokeForChaptersMount([CHAPTER_ROW_A])
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
     const state = await import('../../src/modes/libraryChapters')
     wrapper = mount(LibraryMode)
     await state.loadChapters()
@@ -254,7 +271,7 @@ describe('modes/LibraryMode.vue — khối Chương (mount thật)', () => {
     expect(row.exists()).toBe(true)
     expect(row.find('.chapter-ord').text()).toBe(String(CHAPTER_ROW_A.ord))
     expect(row.find('.chapter-title').text()).toBe(CHAPTER_ROW_A.title)
-    expect(row.find('.chapter-segment-count').text()).toBe(String(CHAPTER_ROW_A.segment_count))
+    expect(row.find('.chapter-segment-count').text()).toBe(`${CHAPTER_ROW_A.in_translation_count} câu`)
   })
 
   it('AC2 — danh sách 2.000 Chương ⇒ số `<li>` THẬT trong DOM ≤ 60', async () => {
@@ -264,6 +281,10 @@ describe('modes/LibraryMode.vue — khối Chương (mount thật)', () => {
       title: `Chuong ${i + 1}`,
       status: 'not_started',
       segment_count: 1,
+      translated_count: 0,
+      unconfirmed_count: 0,
+      in_translation_count: 1,
+      updated_at: '2026-10-01T00:00:00Z',
       origin_author: null,
       origin_site_name: null,
       origin_url: null,
@@ -271,7 +292,7 @@ describe('modes/LibraryMode.vue — khối Chương (mount thật)', () => {
     }))
     mockInvokeForChaptersMount(many)
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
     const state = await import('../../src/modes/libraryChapters')
     wrapper = mount(LibraryMode)
     await state.loadChapters()
@@ -336,29 +357,32 @@ describe('modes/libraryChapters.ts — cửa chặn flush của bốn thao tác 
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
     mockInvoke.mockClear()
 
     ketQuaFlush.value = 'still-dirty'
     await state.renameCurrentChapter()
 
     const daGhi = mockInvoke.mock.calls.some((c) =>
-      ['rename_chapter', 'move_chapter', 'merge_chapter_into_previous'].includes(String(c[0])),
+      ['rename_chapter', 'move_chapter', 'merge_chapters'].includes(String(c[0])),
     )
     expect(daGhi).toBe(false)
     expect(state.libraryChapterReorgNotice.value).toBe('still-dirty')
   })
 
-  it("🔴 flush trả `'failed'` ⇒ lượt GỘP bị CHẶN, `merge_chapter_into_previous` KHÔNG chạy", async () => {
+  it("🔴 flush trả `'failed'` ⇒ lượt GỘP bị CHẶN, `merge_chapters` KHÔNG chạy", async () => {
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
-    state.nextChapter() // Con trỏ về hàng thứ hai -- hàng đầu không có Chương nào phía trước.
+    const selection = await import('../../src/modes/libraryChapterSelection')
+    selection.setChapterSelection(new Set([1, 2]), 1)
     mockInvoke.mockClear()
 
     ketQuaFlush.value = 'failed'
-    await state.mergeCurrentChapterUp()
+    const outcome = await state.mergeSelectedChapters()
 
-    expect(mockInvoke.mock.calls.some((c) => c[0] === 'merge_chapter_into_previous')).toBe(false)
+    expect(outcome).toBe('blocked')
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'merge_chapters')).toBe(false)
     expect(state.libraryChapterReorgNotice.value).toBe('flush-failed')
   })
 })
@@ -369,6 +393,7 @@ describe('modes/libraryChapters.ts::renameCurrentChapter — Story 5.8', () => {
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
     expect(state.libraryChapters.value[0]?.title).toBe('Chuong Mot')
 
     // Từ đây trở đi cả `rename_chapter` lẫn `list_chapters` đều trả TÊN MỚI.
@@ -392,6 +417,7 @@ describe('modes/libraryChapters.ts::renameCurrentChapter — Story 5.8', () => {
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
 
     mockInvoke.mockReset()
     mockInvoke.mockRejectedValue(WORK_NONE_OPEN_ERROR)
@@ -410,34 +436,60 @@ describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chươ
     wrapper = null
   })
 
-  it('danh sách chưa tải ⇒ khối tổ chức KHÔNG render (không có nút nào để bấm nhầm)', async () => {
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.find('[data-library-chapter-rename]').exists()).toBe(false)
-    expect(wrapper.find('[data-library-chapter-merge-up]').exists()).toBe(false)
-  })
-
-  it('đã tải, có Chương ⇒ bốn nút tổ chức có mặt và BẤM ĐƯỢC', async () => {
+  it('chưa chọn Chương nào ⇒ mọi nút ghi TẮT (không có nút nào để bấm nhầm)', async () => {
     ketQuaFlush.value = 'clean'
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
     const state = await import('../../src/modes/libraryChapters')
-    wrapper = mount(LibraryMode)
+    wrapper = mount(WorkPage)
     await state.loadChapters()
     await wrapper.vm.$nextTick()
 
     for (const attr of [
-      'data-library-chapter-rename',
+      'data-library-chapter-rename-begin',
       'data-library-chapter-move-up',
       'data-library-chapter-move-down',
-      'data-library-chapter-merge-up',
+      'data-library-chapter-merge-open',
+      'data-library-chapter-split-open',
+      'data-library-chapters-status-menu',
     ]) {
       const nut = wrapper.find(`[${attr}]`)
       expect(nut.exists()).toBe(true)
-      expect(nut.attributes('disabled')).toBeUndefined()
+      expect(nut.attributes('disabled')).toBeDefined()
     }
+  })
+
+  it('row sentence total is the in-translation count, not the count that includes omitted sentences', async () => {
+    ketQuaFlush.value = 'clean'
+    mockInvoke.mockResolvedValue([{ ...CHAPTER_ROW_A, status: 'done', segment_count: 12, in_translation_count: 9 }])
+    const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(WorkPage)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.chapter-segment-count').text()).toBe('9 câu')
+  })
+
+  it('chọn đúng một Chương ⇒ đổi tên · dời lên · dời xuống · tách SÁNG; gộp vẫn tắt', async () => {
+    ketQuaFlush.value = 'clean'
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
+    const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(WorkPage)
+    await state.loadChapters()
+    await chonHang(0)
+    await wrapper.vm.$nextTick()
+
+    for (const attr of [
+      'data-library-chapter-rename-begin',
+      'data-library-chapter-move-up',
+      'data-library-chapter-move-down',
+      'data-library-chapter-split-open',
+    ]) {
+      expect(wrapper.find(`[${attr}]`).attributes('disabled')).toBeUndefined()
+    }
+    expect(wrapper.find('[data-library-chapter-merge-open]').attributes('disabled')).toBeDefined()
   })
 })
 
@@ -470,6 +522,7 @@ describe('modes/libraryChapters.ts — ô nhập tên đi THEO Chương đang ch
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
     await Promise.resolve()
 
     // Con trỏ ở hàng 0 (`Chuong Mot`) -- ô nhập mồi bằng chính tên đó.
@@ -477,8 +530,7 @@ describe('modes/libraryChapters.ts — ô nhập tên đi THEO Chương đang ch
 
     // Người dùng gõ dở một cái tên rồi ĐỔI Ý, dời con trỏ sang Chương khác.
     state.chapterRenameDraft.value = 'Ten go do cho Chuong Mot'
-    state.nextChapter()
-    await Promise.resolve()
+    await chonHang(1)
 
     // 🔴 Không có `watch`, ô nhập giữ nguyên "Ten go do cho Chuong Mot" và một lượt bấm "Đổi
     // tên" sẽ áp nó lên Chương THỨ HAI — một lượt ghi dữ liệu người dùng, im lặng.
@@ -491,49 +543,16 @@ describe('modes/libraryChapters.ts — ô nhập tên đi THEO Chương đang ch
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
     await Promise.resolve()
 
     state.chapterRenameDraft.value = 'Dang go do'
     // `loadChapters()` thay CẢ MẢNG -- một `watch` trên `currentLibraryChapter` sẽ bắn ở đây.
     await state.loadChapters()
+    await chonHang(0)
     await Promise.resolve()
 
     expect(state.chapterRenameDraft.value).toBe('Dang go do')
-  })
-})
-
-describe('modes/libraryChapters.ts::mergeCurrentChapterUp — con trỏ ở hàng ĐẦU (Story 5.8, lượt rà)', () => {
-  it('🔴 con trỏ ở 0 ⇒ KHÔNG đọc nhầm hàng CUỐI làm "Chương liền trước" (`.at(-1)` vòng)', async () => {
-    ketQuaFlush.value = 'clean'
-    const CHUONG_CUOI = {
-      chapter_id: 9,
-      ord: 3,
-      title: 'Chuong Cuoi',
-      status: 'done',
-      segment_count: 2,
-      origin_author: null,
-      origin_site_name: null,
-      origin_url: null,
-      origin_published_at: null,
-    }
-    mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'list_chapters') return Promise.resolve([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED, CHUONG_CUOI])
-      if (cmd === 'merge_chapter_into_previous') return Promise.resolve(null)
-      return Promise.resolve(null)
-    })
-    const state = await import('../../src/modes/libraryChapters')
-    await state.loadChapters()
-    // Con trỏ ở 0 -- `chapters.value.at(-1)` sẽ trả `CHUONG_CUOI`, KHÔNG `undefined`.
-    expect(state.libraryChapterCursor.value).toBe(0)
-
-    await state.mergeCurrentChapterUp()
-
-    // Mệnh đề đáng đo: lượt gọi vẫn đi tới IPC với ĐÚNG hàng đang chọn, và cờ bận được nhả.
-    // (Rust là nơi từ chối bằng `chapter.at_first`; webview không được tự đoán biên.)
-    const goiMerge = mockInvoke.mock.calls.filter((c) => c[0] === 'merge_chapter_into_previous')
-    expect(goiMerge).toHaveLength(1)
-    expect(goiMerge[0]?.[1]).toEqual({ chapterId: CHAPTER_ROW_A.chapter_id })
-    expect(state.libraryChapterReorgBusy.value).toBe(false)
   })
 })
 
@@ -612,6 +631,10 @@ const chapterRowOrd = (ord: number) => ({
   title: `Chuong ${ord}`,
   status: 'not_started',
   segment_count: 1,
+  translated_count: 0,
+  unconfirmed_count: 0,
+  in_translation_count: 1,
+  updated_at: '2026-10-01T00:00:00Z',
   origin_author: null,
   origin_site_name: null,
   origin_url: null,
@@ -625,6 +648,10 @@ const CHAPTER_ROW_WITH_ORIGIN = {
   title: 'Chuong Mot',
   status: 'not_started',
   segment_count: 10,
+  translated_count: 0,
+  unconfirmed_count: 0,
+  in_translation_count: 10,
+  updated_at: '2026-10-01T00:00:00Z',
   origin_author: 'Nguyen Van A',
   origin_site_name: 'Bao Thi Du',
   origin_url: 'https://example.test/bai-viet',
@@ -636,6 +663,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
     expect(state.libraryChapters.value[0]?.origin_author).toBe(null)
 
     const daSua = { ...CHAPTER_ROW_A, origin_author: 'Tac Gia Moi' }
@@ -656,6 +684,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
 
     mockInvoke.mockReset()
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
@@ -681,6 +710,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
 
     mockInvoke.mockReset()
     mockInvoke.mockRejectedValue(WORK_NONE_OPEN_ERROR)
@@ -694,6 +724,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     mockInvoke.mockResolvedValue([])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
 
     mockInvoke.mockReset()
     await state.saveCurrentChapterOrigin({ author: 'x', siteName: '', url: '', publishedAt: '' })
@@ -716,6 +747,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     mockInvoke.mockResolvedValue([rowWithOrigin])
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
 
     mockInvoke.mockReset()
     mockInvoke.mockResolvedValue([rowWithOrigin])
@@ -737,6 +769,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     mockInvoke.mockResolvedValue(CHAPTERS_ORD_1_TO_5)
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
     expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
 
     state.setChapterOriginApplyThroughOrd('5')
@@ -760,6 +793,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     mockInvoke.mockResolvedValue(CHAPTERS_ORD_1_TO_5)
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
 
     // Chương cuối đã tải mang `ord` 5 — 6 vượt quá, đúng lỗi gõ nhầm mà cổng này chặn.
     state.setChapterOriginApplyThroughOrd('6')
@@ -774,6 +808,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     mockInvoke.mockResolvedValue(CHAPTERS_ORD_1_TO_5)
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
     state.setChapterOriginApplyThroughOrd('5')
 
     await state.saveCurrentChapterOrigin({ author: 'A', siteName: '', url: '', publishedAt: '' })
@@ -793,6 +828,7 @@ describe('modes/libraryChapters.ts::saveCurrentChapterOrigin — Story 6.15', ()
     )
     const state = await import('../../src/modes/libraryChapters')
     await state.loadChapters()
+    await chonHang(0)
     state.setChapterOriginApplyThroughOrd('5')
 
     await state.saveCurrentChapterOrigin({ author: 'A', siteName: '', url: '', publishedAt: '' })
@@ -813,10 +849,11 @@ describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15
   it('bốn ô hiện đúng giá trị của Chương đang chọn', async () => {
     mockInvokeForChaptersMount([CHAPTER_ROW_WITH_ORIGIN])
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
     const state = await import('../../src/modes/libraryChapters')
     wrapper = mount(LibraryMode)
     await state.loadChapters()
+    await chonHang(0)
     await wrapper.vm.$nextTick()
 
     const inputs = wrapper.findAll('.chapter-origin-input')
@@ -833,10 +870,11 @@ describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15
   it('ô rỗng hiện placeholder "không tìm thấy"', async () => {
     mockInvokeForChaptersMount([CHAPTER_ROW_A])
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
     const state = await import('../../src/modes/libraryChapters')
     wrapper = mount(LibraryMode)
     await state.loadChapters()
+    await chonHang(0)
     await wrapper.vm.$nextTick()
 
     const input = wrapper.find('.chapter-origin-input')
@@ -848,10 +886,11 @@ describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15
   it('gõ đè rồi `change` ⇒ gọi `update_chapter_origin` với giá trị VỪA GÕ', async () => {
     mockInvokeForChaptersMount([CHAPTER_ROW_A])
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
     const state = await import('../../src/modes/libraryChapters')
     wrapper = mount(LibraryMode)
     await state.loadChapters()
+    await chonHang(0)
     await wrapper.vm.$nextTick()
 
     mockInvoke.mockReset()
@@ -868,10 +907,11 @@ describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15
   it('một ord đích NGOÀI dải gõ vào ô số ⇒ ô được đặt về rỗng, không giữ số vừa gõ', async () => {
     mockInvokeForChaptersMount(CHAPTERS_ORD_1_TO_5)
 
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
     const state = await import('../../src/modes/libraryChapters')
     wrapper = mount(LibraryMode)
     await state.loadChapters()
+    await chonHang(0)
     await wrapper.vm.$nextTick()
 
     const input = wrapper.get('[data-library-chapter-origin-apply-through]')

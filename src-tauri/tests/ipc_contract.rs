@@ -793,6 +793,7 @@ fn lifecycle_wire_struct_keeps_snake_case_field_names() {
     let lifecycle = auratranslate_lib::commands::lifecycle::WorkLifecycle {
         status: Some("paused".to_owned()),
         status_is_override: true,
+        derived_status: "in_progress".to_owned(),
     };
     let value = serde_json::to_value(&lifecycle).expect("WorkLifecycle phải serialize được");
     let mut keys: Vec<&str> = value
@@ -804,7 +805,7 @@ fn lifecycle_wire_struct_keeps_snake_case_field_names() {
     keys.sort_unstable();
     assert_eq!(
         keys,
-        vec!["status", "status_is_override"],
+        vec!["derived_status", "status", "status_is_override"],
         "khoá trên dây của WorkLifecycle là snake_case. Nhận được: {keys:?}."
     );
 }
@@ -824,6 +825,10 @@ fn chapter_row_wire_struct_keeps_snake_case_field_names() {
         origin_site_name: None,
         origin_url: None,
         origin_published_at: None,
+        translated_count: 0,
+        unconfirmed_count: 0,
+        updated_at: String::new(),
+        in_translation_count: 0,
     };
     let value = serde_json::to_value(&row).expect("ChapterRow phải serialize được");
     let mut keys: Vec<&str> = value
@@ -837,6 +842,7 @@ fn chapter_row_wire_struct_keeps_snake_case_field_names() {
         keys,
         vec![
             "chapter_id",
+            "in_translation_count",
             "ord",
             "origin_author",
             "origin_published_at",
@@ -844,7 +850,10 @@ fn chapter_row_wire_struct_keeps_snake_case_field_names() {
             "origin_url",
             "segment_count",
             "status",
-            "title"
+            "title",
+            "translated_count",
+            "unconfirmed_count",
+            "updated_at"
         ],
         "khoá trên dây của ChapterRow là snake_case. Nhận được: {keys:?}. Nghi phạm số một: \
          `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
@@ -979,7 +988,7 @@ fn the_four_chapter_organise_wires_are_registered_and_keep_their_parameter_names
     for wire in [
         "crate::commands::chapter::wire::rename_chapter",
         "crate::commands::chapter::wire::move_chapter",
-        "crate::commands::chapter::wire::merge_chapter_into_previous",
+        "crate::commands::chapter::wire::merge_chapters",
         "crate::commands::chapter::wire::split_chapter_at_segment",
     ] {
         assert!(

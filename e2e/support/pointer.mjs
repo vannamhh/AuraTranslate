@@ -56,3 +56,28 @@ export async function realClick(element) {
     .pause(100)
     .perform()
 }
+
+/**
+ * `mousedown` with one modifier held (`'shift'` | `'control'` | `'meta'`), dispatched in the page.
+ * The WKWebView driver does not deliver a held Shift/Meta to a real press, so this exercises
+ * handlers that read `event.shiftKey` / `event.metaKey`. Only use it where the component
+ * selects on `mousedown`; the plain press still goes through `realClick`.
+ */
+export async function modifiedMouseDown(element, modifier) {
+  await browser.execute(
+    (node, held) => {
+      node.dispatchEvent(
+        new MouseEvent('mousedown', {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+          shiftKey: held === 'shift',
+          ctrlKey: held === 'control',
+          metaKey: held === 'meta',
+        }),
+      )
+    },
+    element,
+    modifier,
+  )
+}

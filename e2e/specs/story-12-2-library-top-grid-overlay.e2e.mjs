@@ -169,11 +169,11 @@ describe('Story 12-2: Library top bar, grid and import overlay', () => {
       return {
         grid: pick('.works-grid'),
         root: pick('.root-block'),
-        open: pick('.open-work-wrap'),
+        rebuild: pick('.rebuild-block'),
       }
     })
     expect(order.grid).not.toBeNull()
     expect(order.root).toBeGreaterThan(order.grid)
-    expect(order.open).toBeGreaterThan(order.root)
+    expect(order.rebuild).toBeGreaterThan(order.root)
   })
 })

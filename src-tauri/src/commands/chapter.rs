@@ -36,7 +36,9 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use crate::commands::project::OpenWork;
+use crate::core::export::UNTRANSLATED_SQL;
 use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::segment::omit::IN_TRANSLATION_SQL;
 use crate::core::store::{SqlResult, Store, Transaction};
 use crate::core::webimport;
 
@@ -359,6 +361,16 @@ pub struct ChapterRow {
     pub origin_site_name: Option<String>,
     pub origin_url: Option<String>,
     pub origin_published_at: Option<String>,
+    /// Câu sống thuộc bản dịch (không `is_omitted`): mẫu số của tiến độ `translated_count`.
+    pub in_translation_count: i64,
+    /// Câu sống thuộc bản dịch (không `is_omitted`) đã có chữ dịch — cùng định nghĩa với màn
+    /// Xuất (`core::export::scope`). `0` khi Chương chưa có câu nào.
+    pub translated_count: i64,
+    /// Câu sống thuộc bản dịch chưa ở trạng thái `confirmed`. Câu `is_omitted` không tính.
+    pub unconfirmed_count: i64,
+    /// ISO-8601 UTC: the later of `chapter.updated_at` and the Chapter's last sentence confirmation
+    /// (`segment_version.created_at`); unconfirmed drafts do not move it.
+    pub updated_at: String,
 }
 
 /// **Liệt kê Chương của Tác phẩm đang mở** — hàm thuần, đây là thứ test gọi. Story 5.7,
@@ -381,12 +393,24 @@ pub fn list_chapters(open: Option<&OpenWork>) -> Result<Vec<ChapterRow>, IpcErro
 /// *"webview không phải đoán"*) mà không đúc một bản chép SQL thứ hai của cùng một câu.
 fn fetch_chapter_rows(store: &Store) -> Result<Vec<ChapterRow>, IpcError> {
     let rows = store.read(|conn| {
-        let mut stmt = conn.prepare(
+        let mut stmt = conn.prepare(&format!(
             "SELECT c.id, c.ord, c.title, c.status, \
              (SELECT COUNT(*) FROM segment s WHERE s.chapter_id = c.id AND s.retired_at IS NULL), \
-             c.origin_author, c.origin_site_name, c.origin_url, c.origin_published_at \
-             FROM chapter c ORDER BY c.ord, c.id",
-        )?;
+             c.origin_author, c.origin_site_name, c.origin_url, c.origin_published_at, \
+             COALESCE(n.translated, 0), COALESCE(n.unconfirmed, 0), \
+             MAX(c.updated_at, COALESCE(v.last_confirmed, c.updated_at)), \
+             COALESCE(n.in_translation, 0) \
+             FROM chapter c LEFT JOIN ( \
+               SELECT chapter_id, COUNT(*) AS in_translation, SUM(NOT ({UNTRANSLATED_SQL})) AS translated, \
+                      SUM(status <> 'confirmed') AS unconfirmed \
+               FROM segment WHERE retired_at IS NULL AND {IN_TRANSLATION_SQL} \
+               GROUP BY chapter_id) n ON n.chapter_id = c.id \
+             LEFT JOIN ( \
+               SELECT s.chapter_id, MAX(sv.created_at) AS last_confirmed \
+               FROM segment_version sv JOIN segment s ON s.id = sv.segment_id \
+               GROUP BY s.chapter_id) v ON v.chapter_id = c.id \
+             ORDER BY c.ord, c.id"
+        ))?;
         let mapped = stmt.query_map([], |row| {
             Ok(ChapterRow {
                 chapter_id: row.get(0)?,
@@ -398,6 +422,10 @@ fn fetch_chapter_rows(store: &Store) -> Result<Vec<ChapterRow>, IpcError> {
                 origin_site_name: row.get(6)?,
                 origin_url: row.get(7)?,
                 origin_published_at: row.get(8)?,
+                translated_count: row.get(9)?,
+                unconfirmed_count: row.get(10)?,
+                updated_at: row.get(11)?,
+                in_translation_count: row.get(12)?,
             })
         })?;
         mapped.collect::<SqlResult<Vec<ChapterRow>>>()
@@ -486,6 +514,17 @@ fn chapter_at_last(chapter_id: i64) -> IpcError {
     IpcError::new(
         "chapter.at_last",
         MessageKey::ChapterAtLast,
+        std::collections::BTreeMap::new(),
+        false,
+    )
+}
+
+/// Gộp nhiều Chương mà tập chọn có dưới hai Chương, hoặc không liền nhau theo `(ord, id)`.
+/// **0 hàng bị chạm.**
+fn chapter_merge_not_contiguous() -> IpcError {
+    IpcError::new(
+        "chapter.merge_not_contiguous",
+        MessageKey::ChapterMergeNotContiguous,
         std::collections::BTreeMap::new(),
         false,
     )
@@ -846,187 +885,202 @@ pub fn merge_chapter_into_previous(
 ) -> Result<(), IpcError> {
     let open = open.ok_or_else(no_work_open)?;
 
-    let no_previous: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
-    let no_previous_in = Arc::clone(&no_previous);
-    let merged_into: Arc<Mutex<Option<i64>>> = Arc::new(Mutex::new(None));
-    let merged_into_in = Arc::clone(&merged_into);
-    let khong_ton_tai: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
-    let khong_ton_tai_in = Arc::clone(&khong_ton_tai);
+    let step = open
+        .store
+        .write(move |tx: &Transaction<'_>| merge_into_previous_tx(tx, chapter_id))?;
 
-    let touched: usize = open.store.write(move |tx: &Transaction<'_>| {
-        // 🔴 KIEM HANG TON TAI TRUOC MOI THU KHAC, KE CA TRUOC `normalize_chapter_ord` — cung
-        // ly do da ghi o `move_chapter`: chay `normalize_chapter_ord` TRUOC kiem ton tai danh
-        // lai `ord` that su cho moi Chuong con song roi moi phat hien `chapter_id` la, va
-        // `Store::write` van COMMIT lan danh lai do vi `Ok(0)` van la `Ok`. Duong tach Chuong
-        // (`:988`) da lam DUNG thu tu nay tu truoc.
-        //
-        // Khong co khoi kiem nay, `query_row` duoi day tra `QueryReturnedNoRows` cho mot
-        // `chapter_id` la, va `Store::write` goi no thanh `StoreError::WriteFailed` ⇒ nguoi
-        // dung doc mot cau LOI KHO ("khong ghi duoc kho du lieu") cho mot Tac pham hoan toan
-        // lanh lan, trong khi `rename_chapter` ngay tren tra `segment.chapter_not_found` cho
-        // đúng ca đó.
-        //
-        // ⚠️ Day DUNG lop loi ma Story 2.11 da sua MOT LAN cho `chapter_not_found` (xem
-        // doc-comment cua ham do: mot cau SAI VE LOAI, khong tep nao hong). Mot lop loi da co
-        // ten ma lai lot lai o hai ham moi la ly do khoi nay mang chu ky nay thay vi mot dong
-        // `?` im lang.
-        let ton_tai: i64 =
-            tx.query_row("SELECT COUNT(*) FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0))?;
-        if ton_tai == 0 {
-            *khong_ton_tai_in
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
-            return Ok(0);
-        }
-
-        normalize_chapter_ord(tx)?;
-
-        let b_ord: i64 =
-            tx.query_row("SELECT ord FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0))?;
-
-        // "Liền trước" -- ĐÚNG câu so sánh bộ đôi mà `open_adjacent_chapter`/`move_chapter`
-        // dùng cho hướng Prev.
-        let previous: Option<(i64, String)> = {
-            let mut stmt = tx.prepare(
-                "SELECT id, status FROM chapter \
-                 WHERE ord < ?1 OR (ord = ?1 AND id < ?2) \
-                 ORDER BY ord DESC, id DESC LIMIT 1",
-            )?;
-            let mut rows = stmt.query_map((b_ord, chapter_id), |row| {
-                Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
-            })?;
-            rows.next().transpose()?
-        };
-
-        let Some((a_id, a_status)) = previous else {
-            *no_previous_in
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
-            return Ok(0);
-        };
-
-        let b_status: String =
-            tx.query_row("SELECT status FROM chapter WHERE id = ?1", [chapter_id], |row| row.get(0))?;
-
-        // `COALESCE(MAX(ord), 0)` -- A chưa có segment nào (25 Chương Epic 1) ⇒ shift = 0,
-        // và hàng của B đi vào A giữ nguyên `ord` tương đối của chúng.
-        let shift: i64 = tx.query_row(
-            "SELECT COALESCE(MAX(ord), 0) FROM segment WHERE chapter_id = ?1",
-            [a_id],
-            |row| row.get(0),
-        )?;
-
-        // 🔴 Mọi hàng -- SỐNG và VỀ HƯU -- đi cùng khối, không mệnh đề `retired_at` nào lọc
-        // bớt (§Always: đây là điểm khác AD-5 cố ý).
-        tx.execute(
-            "UPDATE segment SET chapter_id = ?1, ord = ord + ?2 WHERE chapter_id = ?3",
-            (a_id, shift, chapter_id),
-        )?;
-
-        // 🔴 THÊM (Ice chốt 2026-09-09, "duy trì hàng `asset` qua bốn đường tổ chức lại
-        // Chương") — hàng `asset` của B (Chương bị gộp) đi theo ĐÚNG khuôn segment ngay
-        // trên: đổi `chapter_id` sang A, dời `anchor_after_segment_ord` ĐÚNG bằng `shift`
-        // (số segment A đã có TRƯỚC khi B nối vào — cùng con số segment của B vừa dời).
-        // Không mệnh đề nào lọc bớt: mọi ảnh của B đều dời, kể cả một ảnh của B mang neo 0
-        // (đứng TRƯỚC mọi segment của B) khi chính B không có segment nào — neo mới của nó
-        // là `0 + shift = shift`, đúng vị trí "ngay TRƯỚC nội dung mà B lẽ ra đóng góp".
-        //
-        // 🔵 SỬA 2026-09-09 (vòng rà đối kháng 3, mục T5) — câu trước còn khai "đúng vị trí
-        // NGAY SAU SEGMENT CUỐI CŨ CỦA A" cho MỌI trường hợp — SAI khi CHÍNH A cũng có 0
-        // segment (`shift = 0`): khi đó neo mới vẫn là `0`, nghĩa là "TRƯỚC MỌI THỨ" trong
-        // Chương gộp, không phải "sau segment cuối của A" — A không CÓ segment cuối nào để
-        // mà đứng sau. Giá trị (`shift`) vẫn ĐÚNG ở cả hai ca; chỉ câu MÔ TẢ vị trí bằng lời
-        // là sai cho ca suy biến (A rỗng), sửa tại đây thay vì để nó đọc như một mệnh đề
-        // đúng cho MỌI trường hợp.
-        //
-        // Cùng khuôn `chapter_position` (§"SỬA 2026-08-29 (Story 5.8)" ngay trên
-        // `CHAPTER_POSITION_DDL`, `core/store/schema.rs`) và §"SỬA 2026-09-09 (vòng rà đối
-        // kháng 3, mục T3)" ngay trên `ASSET_DDL` (cùng tệp): KHÔNG còn đường sản phẩm nào
-        // tạo một hàng `asset` mồ côi sau lượt gộp.
-        tx.execute(
-            "UPDATE asset SET chapter_id = ?1, anchor_after_segment_ord = anchor_after_segment_ord + ?2 \
-             WHERE chapter_id = ?3",
-            (a_id, shift, chapter_id),
-        )?;
-
-        // §Design Notes "Vì sao gộp done + chưa xong ra in_progress".
-        //
-        // 🔴 Qua `LifecycleStatus::…as_str()`, KHÔNG hai chuỗi viết thẳng. §Verification của
-        // Story 5.4 khai luật đó bằng chữ (*"mọi lần xuất hiện ở vị trí mã nằm trong
-        // core/lifecycle/mod.rs; chỗ khác chỉ được nhắc qua LifecycleStatus::…"*), và
-        // ⚠️ **KHÔNG cổng nào canh nó** — đo 2026-08-29: `grep '"done"\|"in_progress"\|
-        // "not_started"\|"paused"'` trên `src-tauri/src/**` ngoài `core/lifecycle/mod.rs`
-        // cho **0** kết quả ở vị trí mã, nên hai chuỗi viết thẳng ở đây sẽ là hai chỗ DUY
-        // NHẤT phải giữ khớp bằng kỷ luật, và chúng trôi trong im lặng ngày giá trị trên dây
-        // đổi. `LifecycleStatus` là danh mục ĐÓNG sinh từ một khai báo (`lifecycle_statuses!`)
-        // nên một lượt đổi ở đó kéo theo chỗ này qua trình biên dịch.
-        let done = crate::core::lifecycle::LifecycleStatus::Done.as_str();
-        let merged_status: String = if a_status == done && b_status != done {
-            crate::core::lifecycle::LifecycleStatus::InProgress.as_str().to_owned()
-        } else {
-            a_status
-        };
-
-        // Nối THÔ -- B vẫn còn hàng ở đây, `SELECT` con đọc được `source_text` của nó TRƯỚC
-        // khi bị xoá bên dưới.
-        tx.execute(
-            "UPDATE chapter SET source_text = source_text || char(10) || char(10) || \
-             (SELECT source_text FROM chapter WHERE id = ?2), status = ?3, \
-             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?1",
-            (a_id, chapter_id, merged_status),
-        )?;
-
-        tx.execute("DELETE FROM chapter_position WHERE chapter_id = ?1", [chapter_id])?;
-        crate::core::export::delete_alignment_of_chapter(tx, chapter_id)?;
-        tx.execute(
-            "DELETE FROM review_row WHERE review_chapter_id IN \
-             (SELECT id FROM review_chapter WHERE chapter_id = ?1)",
-            [chapter_id],
-        )?;
-        tx.execute("DELETE FROM review_chapter WHERE chapter_id = ?1", [chapter_id])?;
-        tx.execute(
-            "UPDATE review_chapter SET stale_at = COALESCE(stale_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) \
-             WHERE chapter_id = ?1",
-            [a_id],
-        )?;
-        tx.execute("DELETE FROM chapter WHERE id = ?1", [chapter_id])?;
-        // Chương SAU B tịnh tiến `ord - 1` -- một phép SẮP LẠI, không `updated_at`.
-        tx.execute("UPDATE chapter SET ord = ord - 1 WHERE ord > ?1", [b_ord])?;
-
-        *merged_into_in
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(a_id);
-        Ok(1)
-    })?;
-
-    if touched == 0 {
-        if *khong_ton_tai
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-        {
-            return Err(chapter_not_found(chapter_id));
-        }
-        if *no_previous
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-        {
-            return Err(chapter_at_first(chapter_id));
-        }
-    }
+    let a_id = match step {
+        MergeStep::NotFound => return Err(chapter_not_found(chapter_id)),
+        MergeStep::NoPrevious => return Err(chapter_at_first(chapter_id)),
+        MergeStep::Merged { into } => into,
+    };
 
     // 🔴 Con trỏ đổi SAU khi giao dịch commit, không trước (luật đã ghi ở
     // `open_adjacent_chapter`). Chương B không còn tồn tại -- nếu B đang mở, con trỏ dời
     // sang A.
-    if let Some(a_id) = *merged_into
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        && open.chapter_id == chapter_id
-    {
+    if open.chapter_id == chapter_id {
         set_open_chapter(open, a_id)?;
     }
 
     crate::commands::lifecycle::write_lifecycle_after_change(open)?;
     Ok(())
+}
+
+/// **Gộp nhiều Chương liền nhau thành Chương đầu của dải** — hàm thuần, đây là thứ test gọi.
+/// Mỗi Chương sau Chương đầu được gộp vào Chương liền trước nó, TẤT CẢ trong một giao dịch:
+/// một bước hỏng thì không Chương nào đổi. Trả danh sách Chương dựng lại.
+///
+/// # Lỗi
+/// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
+/// - `chapter_id` không tồn tại ⇒ `segment.chapter_not_found`, không ghi gì;
+/// - ít hơn hai Chương khác nhau, hoặc không liền nhau theo `(ord, id)` ⇒
+///   `err.chapter.merge_not_contiguous`, không ghi gì.
+pub fn merge_chapters(
+    open: Option<&mut OpenWork>,
+    chapter_ids: &[i64],
+) -> Result<Vec<ChapterRow>, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+
+    let wanted: std::collections::BTreeSet<i64> = chapter_ids.iter().copied().collect();
+    let wanted_in = wanted.clone();
+
+    enum Outcome {
+        NotFound(i64),
+        NotContiguous,
+        Merged { first: i64 },
+    }
+
+    let outcome = open.store.write(move |tx: &Transaction<'_>| {
+        let ordered: Vec<i64> = {
+            let mut stmt = tx.prepare("SELECT id FROM chapter ORDER BY ord, id")?;
+            let rows = stmt.query_map([], |row| row.get::<_, i64>(0))?;
+            rows.collect::<SqlResult<Vec<i64>>>()?
+        };
+        if let Some(missing) = wanted_in.iter().find(|id| !ordered.contains(id)) {
+            return Ok(Outcome::NotFound(*missing));
+        }
+        let positions: Vec<usize> = ordered
+            .iter()
+            .enumerate()
+            .filter(|(_, id)| wanted_in.contains(id))
+            .map(|(index, _)| index)
+            .collect();
+        let contiguous = positions.windows(2).all(|pair| pair[1] == pair[0] + 1);
+        if positions.len() < 2 || !contiguous {
+            return Ok(Outcome::NotContiguous);
+        }
+        let run: Vec<i64> = positions.iter().map(|&index| ordered[index]).collect();
+        for id in run.iter().skip(1) {
+            if !matches!(merge_into_previous_tx(tx, *id)?, MergeStep::Merged { .. }) {
+                return Err(crate::core::store::SqlError::QueryReturnedNoRows);
+            }
+        }
+        Ok(Outcome::Merged { first: run[0] })
+    })?;
+
+    let first = match outcome {
+        Outcome::NotFound(id) => return Err(chapter_not_found(id)),
+        Outcome::NotContiguous => return Err(chapter_merge_not_contiguous()),
+        Outcome::Merged { first } => first,
+    };
+
+    if wanted.contains(&open.chapter_id) {
+        set_open_chapter(open, first)?;
+    }
+
+    crate::commands::lifecycle::write_lifecycle_after_change(open)?;
+    fetch_chapter_rows(&open.store)
+}
+
+/// Kết cục của một bước gộp trong giao dịch đang mở.
+enum MergeStep {
+    NotFound,
+    NoPrevious,
+    Merged { into: i64 },
+}
+
+/// Thân giao dịch của việc gộp một Chương vào Chương liền trước nó; chạy trong giao dịch của
+/// người gọi để [`merge_chapters`] gọi lặp mà vẫn là MỘT giao dịch. `NotFound` và `NoPrevious`
+/// trả về TRƯỚC mọi câu ghi của bước đó.
+fn merge_into_previous_tx(tx: &Transaction<'_>, chapter_id: i64) -> SqlResult<MergeStep> {
+    // Must precede `normalize_chapter_ord`: a renumbering that commits before an unknown
+    // `chapter_id` is detected would still be persisted.
+    let ton_tai: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM chapter WHERE id = ?1",
+        [chapter_id],
+        |row| row.get(0),
+    )?;
+    if ton_tai == 0 {
+        return Ok(MergeStep::NotFound);
+    }
+
+    normalize_chapter_ord(tx)?;
+
+    let b_ord: i64 = tx.query_row(
+        "SELECT ord FROM chapter WHERE id = ?1",
+        [chapter_id],
+        |row| row.get(0),
+    )?;
+
+    let previous: Option<(i64, String)> = {
+        let mut stmt = tx.prepare(
+            "SELECT id, status FROM chapter \
+             WHERE ord < ?1 OR (ord = ?1 AND id < ?2) \
+             ORDER BY ord DESC, id DESC LIMIT 1",
+        )?;
+        let mut rows = stmt.query_map((b_ord, chapter_id), |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?;
+        rows.next().transpose()?
+    };
+
+    let Some((a_id, a_status)) = previous else {
+        return Ok(MergeStep::NoPrevious);
+    };
+
+    let b_status: String = tx.query_row(
+        "SELECT status FROM chapter WHERE id = ?1",
+        [chapter_id],
+        |row| row.get(0),
+    )?;
+
+    let shift: i64 = tx.query_row(
+        "SELECT COALESCE(MAX(ord), 0) FROM segment WHERE chapter_id = ?1",
+        [a_id],
+        |row| row.get(0),
+    )?;
+
+    // Retired rows move with the block; no `retired_at` filter on purpose.
+    tx.execute(
+        "UPDATE segment SET chapter_id = ?1, ord = ord + ?2 WHERE chapter_id = ?3",
+        (a_id, shift, chapter_id),
+    )?;
+
+    tx.execute(
+        "UPDATE asset SET chapter_id = ?1, anchor_after_segment_ord = anchor_after_segment_ord + ?2 \
+         WHERE chapter_id = ?3",
+        (a_id, shift, chapter_id),
+    )?;
+
+    let done = crate::core::lifecycle::LifecycleStatus::Done.as_str();
+    let merged_status: String = if a_status == done && b_status != done {
+        crate::core::lifecycle::LifecycleStatus::InProgress
+            .as_str()
+            .to_owned()
+    } else {
+        a_status
+    };
+
+    tx.execute(
+        "UPDATE chapter SET source_text = source_text || char(10) || char(10) || \
+         (SELECT source_text FROM chapter WHERE id = ?2), status = ?3, \
+         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?1",
+        (a_id, chapter_id, merged_status),
+    )?;
+
+    tx.execute(
+        "DELETE FROM chapter_position WHERE chapter_id = ?1",
+        [chapter_id],
+    )?;
+    crate::core::export::delete_alignment_of_chapter(tx, chapter_id)?;
+    tx.execute(
+        "DELETE FROM review_row WHERE review_chapter_id IN \
+         (SELECT id FROM review_chapter WHERE chapter_id = ?1)",
+        [chapter_id],
+    )?;
+    tx.execute(
+        "DELETE FROM review_chapter WHERE chapter_id = ?1",
+        [chapter_id],
+    )?;
+    tx.execute(
+        "UPDATE review_chapter SET stale_at = COALESCE(stale_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) \
+         WHERE chapter_id = ?1",
+        [a_id],
+    )?;
+    tx.execute("DELETE FROM chapter WHERE id = ?1", [chapter_id])?;
+    tx.execute("UPDATE chapter SET ord = ord - 1 WHERE ord > ?1", [b_ord])?;
+
+    Ok(MergeStep::Merged { into: a_id })
 }
 
 /// **Tách Chương đang mở tại một câu** — hàm thuần, đây là thứ test gọi. Story 5.8, Task 9.
@@ -1271,6 +1325,22 @@ pub fn merge_chapter_into_previous_indexed(
     )
 }
 
+/// [`merge_chapters`] cộng bước 4.
+pub fn merge_chapters_indexed(
+    open: Option<&mut OpenWork>,
+    indexer: Option<&crate::core::library::indexer::Indexer>,
+    global: Option<&Store>,
+    root: &std::path::Path,
+    chapter_ids: &[i64],
+) -> Result<Vec<ChapterRow>, IpcError> {
+    crate::commands::lifecycle::finish_lifecycle_write(
+        merge_chapters(open, chapter_ids),
+        indexer,
+        global,
+        root,
+    )
+}
+
 /// [`split_chapter_at_segment`] cộng bước 4.
 pub fn split_chapter_at_segment_indexed(
     open: Option<&mut OpenWork>,
@@ -1472,24 +1542,22 @@ pub mod wire {
         finish_with_reindex(&app, result)
     }
 
-    /// Vỏ IPC của [`super::merge_chapter_into_previous`]. Story 5.8.
-    ///
-    /// ⚠️ `chapter_id` đi trên dây dưới tên **`chapterId`**.
+    /// Vỏ IPC của [`super::merge_chapters`]. Tham số trên dây: `chapterIds`.
     #[tauri::command(async)]
-    pub fn merge_chapter_into_previous(
+    pub fn merge_chapters(
         app: tauri::AppHandle,
-        chapter_id: i64,
-    ) -> Result<(), IpcError> {
+        chapter_ids: Vec<i64>,
+    ) -> Result<Vec<ChapterRow>, IpcError> {
         use tauri::Manager as _;
 
         let Some(state) = app.try_state::<OpenWorkState>() else {
-            return super::merge_chapter_into_previous(None, chapter_id);
+            return super::merge_chapters(None, &chapter_ids);
         };
         let result = {
             let mut guard = state
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            super::merge_chapter_into_previous(guard.as_mut(), chapter_id)
+            super::merge_chapters(guard.as_mut(), &chapter_ids)
         };
         finish_with_reindex(&app, result)
     }

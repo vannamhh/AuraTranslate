@@ -13124,3 +13124,23 @@ chính nó.
   summary: Chưa ai thử trên Windows: `Mở thư mục` mở Explorer đúng thư mục `.atproj` (đường dẫn có dấu tiếng Việt), và `Tìm lại…` qua hộp thoại thật.
   evidence: CI Windows chỉ chạy test với bộ mở giả; không có lượt dùng thật trên Windows.
   Chủ: B7.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+  summary: Không có tay kéo ⠿ để đổi thứ tự Chương; thứ tự chỉ đổi bằng Dời lên / Dời xuống khi chọn đúng một Chương.
+  evidence: mockup chapter-list.html có tay kéo; Ice giữ nút Dời lên/xuống cho 12-4 (Decisions, 2026-10-14). Kéo thả cần thêm lệnh Rust đặt `ord` theo vị trí đích.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+  summary: Đổi tên hàng loạt Chương (chọn nhiều rồi đặt tên theo mẫu) chưa làm; `Đổi tên…` chỉ bật khi chọn đúng một Chương.
+  evidence: Decisions của 12-4; `rename_chapter` nhận một id, chưa có lệnh ghi nhiều tên trong một giao dịch.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+  summary: Ô trạng thái Tác phẩm chưa có "ngày đặt ghi đè": chỉ hiện giá trị đang dùng và giá trị suy ra, không hiện đặt từ khi nào.
+  evidence: `WorkMeta` không lưu thời điểm đặt ghi đè; thêm cần cột meta mới và migration, ngoài phạm vi 12-4 (không migration).
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+  summary: Gộp Chương không hoàn tác được bằng ⌘Z; màn gộp cố ý không hứa điều đó.
+  evidence: gộp xoá hàng Chương bị gộp và dồn `chapter_id`/`ord` trong một giao dịch (AD-32), không giữ bản ghi để đảo; app chưa có ngăn xếp hoàn tác cho thao tác Chương.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+  summary: Chưa ai gộp, tách, đổi trạng thái trên một Tác phẩm 2.000 Chương ở bản đóng gói; chưa nhìn trang Tác phẩm bằng mắt (tiêu điểm danh sách sau nhấn chuột, viền hàng hiện tại, hộp tách mở Chương đích vào Editor).
+  evidence: e2e chạy fixture 5 Chương trên bản debug; Shift/Mod+nhấn trong e2e là `mousedown` phát trong trang, không phải phím giữ thật.
+  Chủ: Epic 12.

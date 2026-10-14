@@ -143,7 +143,7 @@ describe('config/lifecycle.ts — adapter không bao giờ ném', () => {
   })
 
   it('`setChapterStatus()` gửi `chapterId`/`status` camelCase đúng chỗ gọi', async () => {
-    mockInvoke.mockResolvedValueOnce({ status: 'done', status_is_override: false })
+    mockInvoke.mockResolvedValueOnce({ status: 'done', status_is_override: false, derived_status: 'done' })
 
     const { setChapterStatus } = await import('../../src/config/lifecycle')
     await setChapterStatus(42, 'done')
@@ -490,7 +490,7 @@ describe('modes/libraryWorks.ts — trạng thái Tác phẩm đang mở', () =>
   })
 
   it('`loadOpenWorkLifecycle()` thành công cập nhật status/is_override', async () => {
-    mockInvoke.mockResolvedValueOnce({ status: 'paused', status_is_override: true })
+    mockInvoke.mockResolvedValueOnce({ status: 'paused', status_is_override: true, derived_status: 'in_progress' })
     const state = await import('../../src/modes/libraryWorks')
 
     await state.loadOpenWorkLifecycle()
@@ -515,7 +515,7 @@ describe('modes/libraryWorks.ts — trạng thái Tác phẩm đang mở', () =>
   })
 
   it('`setOpenWorkOverride()` rồi `clearOpenWorkOverride()` cập nhật đúng dấu ghi đè', async () => {
-    mockInvoke.mockResolvedValueOnce({ status: 'paused', status_is_override: true })
+    mockInvoke.mockResolvedValueOnce({ status: 'paused', status_is_override: true, derived_status: 'in_progress' })
     // Lượt gọi kèm theo: `applyOpenWorkLifecycleResult` tự `loadWorks()` để đồng bộ danh
     // sách -- mock thêm một lượt cho lời gọi đó.
     mockInvoke.mockResolvedValueOnce({ total: 1, matched: 1, works: [WORK_ROW_B], genres: [], source_langs: [] })
@@ -526,7 +526,7 @@ describe('modes/libraryWorks.ts — trạng thái Tác phẩm đang mở', () =>
     expect(state.openWorkLifecycleIsOverride.value).toBe(true)
     expect(mockInvoke).toHaveBeenCalledWith('set_work_status_override', { status: 'paused' })
 
-    mockInvoke.mockResolvedValueOnce({ status: 'done', status_is_override: false })
+    mockInvoke.mockResolvedValueOnce({ status: 'done', status_is_override: false, derived_status: 'done' })
     mockInvoke.mockResolvedValueOnce({ total: 1, matched: 1, works: [WORK_ROW_A], genres: [], source_langs: [] })
     await state.clearOpenWorkOverride()
     expect(state.openWorkLifecycleStatus.value).toBe('done')

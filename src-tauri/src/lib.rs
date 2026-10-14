@@ -1191,6 +1191,7 @@ pub fn run() {
             // cua `commands::lifecycle::wire`.
             crate::commands::lifecycle::wire::read_work_lifecycle,
             crate::commands::lifecycle::wire::set_chapter_status,
+            crate::commands::lifecycle::wire::set_chapters_status,
             crate::commands::lifecycle::wire::set_work_status_override,
             crate::commands::chapter::wire::read_open_chapter,
             // Story 2.11 — chuyen Chuong trong Workspace (FR26). RUST quyet Chuong ke
@@ -1226,7 +1227,7 @@ pub fn run() {
             // `commands::chapter::wire`.
             crate::commands::chapter::wire::rename_chapter,
             crate::commands::chapter::wire::move_chapter,
-            crate::commands::chapter::wire::merge_chapter_into_previous,
+            crate::commands::chapter::wire::merge_chapters,
             crate::commands::chapter::wire::split_chapter_at_segment,
             // Story 6.15 (FR128/AD-43) -- sua bon o xuat xu tu danh sach Chuong. `(async)`,
             // cung khuon bon vo Story 5.8 ngay tren -- di qua finish_with_reindex.

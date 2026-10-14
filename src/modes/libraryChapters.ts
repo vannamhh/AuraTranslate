@@ -32,10 +32,18 @@
 import { computed, nextTick, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { enterFocus } from '../commands'
-import { listChapters, mergeChapterIntoPrevious, moveChapter, renameChapter, updateChapterOrigin } from '../config/chapter'
+import {
+  listChapters,
+  mergeChapters,
+  moveChapter,
+  renameChapter,
+  updateChapterOrigin,
+} from '../config/chapter'
 import type { ChapterDirection, ChapterOriginEdit, ChapterRow } from '../config/chapter'
 import type { ChapterOriginEditFields } from '../config/project'
 import { openWork } from '../config/library'
+import type { WorkRow } from '../config/library'
+import { setChaptersStatus } from '../config/lifecycle'
 import {
   editorChapterId,
   ensureSegmentsLoaded,
@@ -48,7 +56,34 @@ import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelStat
 import { resetLookupPanel } from '../panels/lookupPanelState'
 import { resetSegmentHistory } from '../panels/segmentHistoryState'
 import { setMode } from './modeState'
-import { currentLibraryWork } from './libraryWorks'
+import {
+  applyOpenWorkLifecycleResult,
+  currentLibraryWork,
+  loadOpenWorkLifecycle,
+  loadWorks,
+  selectLibraryWorkById,
+} from './libraryWorks'
+import {
+  applyChapterClick,
+  buildChapterView,
+  chapterActionRules,
+  clearChapterSelection,
+  closeChapterStatusMenu,
+  countChaptersByGroup,
+  flatIndexOfChapter,
+  libraryChapterAnchorId,
+  libraryChapterFilter,
+  libraryChapterNotStartedExpanded,
+  libraryChapterSearch,
+  libraryChapterSelectedIds,
+  libraryChapterSort,
+  pruneChapterSelection,
+  resetLibraryChapterSelection,
+  selectedRowsInOrder,
+  setChapterSelection,
+  visibleChapterIds,
+} from './libraryChapterSelection'
+import type { ChapterClickModifiers } from './libraryChapterSelection'
 // Story 5.11 — Chế độ đọc mang CÙNG lớp cache module-level (`readingState.ts`), nên nó phải
 // đi cùng lượt vứt state Tác phẩm/Chương này — cùng lý lẽ `resetEditorPanel` đã ghi.
 import { resetReading, resetReadingToc } from './readingState'
@@ -107,6 +142,8 @@ const openWorkError = ref<IpcError | null>(null)
  * (export TRẦN, không bọc `readonly()`: `LibraryMode.vue` phải ghi được qua `v-model`). */
 export const chapterRenameDraft = ref('')
 const chapterReorgBusy = ref(false)
+const chapterRenameEditing = ref(false)
+const workPageWork = ref<WorkRow | null>(null)
 /** Kết cục một lượt tổ chức bị CHẶN vì tập chờ Editor chưa sạch — cùng khuôn `OpenWorkNotice`
  * ngay trên, và cùng hai giá trị: §Always của story chỉ đòi phân biệt được hai ca đó. */
 export type ChapterReorgNotice = 'flush-failed' | 'still-dirty'
@@ -132,6 +169,9 @@ export const libraryChapterCursor: DeepReadonly<Ref<number>> = readonly(chapterC
 export const libraryOpenWorkBusy: DeepReadonly<Ref<boolean>> = readonly(openWorkBusy)
 export const libraryOpenWorkNotice: DeepReadonly<Ref<OpenWorkNotice | null>> = readonly(openWorkNotice)
 export const libraryOpenWorkError: DeepReadonly<Ref<IpcError | null>> = readonly(openWorkError)
+export const libraryChapterRenameEditing: DeepReadonly<Ref<boolean>> = readonly(chapterRenameEditing)
+export const libraryWorkPageWork: DeepReadonly<Ref<WorkRow | null>> = readonly(workPageWork)
+export const libraryWorkPageIsOpen = computed<boolean>(() => workPageWork.value !== null)
 export const libraryChapterReorgBusy: DeepReadonly<Ref<boolean>> = readonly(chapterReorgBusy)
 export const libraryChapterReorgNotice: DeepReadonly<Ref<ChapterReorgNotice | null>> = readonly(chapterReorgNotice)
 export const libraryChapterReorgError: DeepReadonly<Ref<IpcError | null>> = readonly(chapterReorgError)
@@ -150,29 +190,46 @@ export const currentLibraryChapter = computed<ChapterRow | null>(
   () => chapters.value.at(chapterCursor.value) ?? null,
 )
 
+/** The one selected Chapter, or `null` for zero or several. Every single-Chapter write targets it. */
+export const soleSelectedLibraryChapter = computed<ChapterRow | null>(() => {
+  if (libraryChapterSelectedIds.value.size !== 1) return null
+  return chapters.value.find((row) => libraryChapterSelectedIds.value.has(row.chapter_id)) ?? null
+})
+
+export const libraryChapterView = computed(() =>
+  buildChapterView(
+    chapters.value,
+    libraryChapterFilter.value,
+    libraryChapterSearch.value,
+    libraryChapterSort.value,
+    libraryChapterNotStartedExpanded.value,
+  ),
+)
+export const libraryChapterGroupCounts = computed(() => countChaptersByGroup(chapters.value))
+export const libraryChapterSelectedRows = computed<ChapterRow[]>(() =>
+  selectedRowsInOrder(chapters.value, libraryChapterSelectedIds.value),
+)
+export const libraryChapterRules = computed(() => chapterActionRules(chapters.value, libraryChapterSelectedIds.value))
+
+/** The action bar must never act on rows the filter, search or fold hides. */
+watch(
+  () => visibleChapterIds(libraryChapterView.value.items),
+  (visible) => {
+    const shown = new Set(visible)
+    pruneChapterSelection(chapters.value.filter((row) => shown.has(row.chapter_id)))
+  },
+  { flush: 'sync' },
+)
+
 /**
- * 🔴 **Ô nhập tên đi THEO Chương đang chọn — và ô nhớ này phải được đồng bộ, không để trôi.**
- *
- * ⚠️ **Lỗ bắt được ở lượt rà 2026-08-29:** `chapterRenameDraft` là một ô nhớ cấp module, chỉ
- * được dọn bởi `resetLibraryChapters()`. Không có khối này, dời con trỏ sang một Chương KHÁC
- * rồi bấm "Đổi tên" **mà không chạm ô nhập** sẽ áp chữ còn sót của Chương TRƯỚC lên Chương
- * mới — một lượt ghi dữ liệu người dùng, im lặng, không lỗi nào. Cùng hạng *"một kết quả sai
- * trông như bình thường"* mà `AGENTS.md::Known pitfalls` đặt lên đầu.
- *
- * 🔴 **Theo dõi `chapter_id`, KHÔNG theo dõi chính đối tượng hàng.** `loadChapters()` thay cả
- * mảng ở mỗi lượt nạp (sau mỗi thao tác tổ chức), nên một `watch` trên `currentLibraryChapter`
- * sẽ bắn cả khi Chương đang chọn KHÔNG đổi — và nó sẽ giẫm lên chữ người dùng đang gõ dở. Danh
- * tính của "Chương đang chọn" là `chapter_id`, và đó là thứ đáng nghe.
- *
- * Mồi bằng tên hiện thời (không phải chuỗi rỗng): lượt đổi tên trở thành một lượt SỬA thấy
- * được chữ cũ, thay vì một lượt ghi đè mù.
+ * The rename draft follows the sole selected Chapter by `chapter_id`, not by row object:
+ * `loadChapters()` replaces the array, and a watch on the object would overwrite text being typed.
  */
 watch(
-  () => currentLibraryChapter.value?.chapter_id ?? null,
+  () => soleSelectedLibraryChapter.value?.chapter_id ?? null,
   () => {
-    chapterRenameDraft.value = currentLibraryChapter.value?.title ?? ''
-    // Chương NGUỒN của lượt áp theo đoạn vừa đổi dưới chân — một ord đích còn treo từ Chương
-    // trước không còn nghĩa đúng cho Chương này.
+    chapterRenameDraft.value = soleSelectedLibraryChapter.value?.title ?? ''
+    chapterRenameEditing.value = false
     chapterOriginApplyThroughOrd.value = null
   },
 )
@@ -215,6 +272,7 @@ export async function loadChapters(): Promise<void> {
 
   chapters.value = result.chapters
   chaptersHaveLoaded.value = true
+  pruneChapterSelection(result.chapters)
   // §I/O Matrix "Con trỏ Chương ra ngoài sau lượt tải" -- kẹp NGAY, trước khi ai đọc
   // `currentLibraryChapter`.
   clampChapterCursor()
@@ -241,8 +299,8 @@ export function prevChapter(): void {
  * Mở lại một `.atproj` đã có trên đĩa — lệnh `library.open_work`. Chép khuôn
  * `libraryImport.ts::beginSubmit`/`finishSubmit` — xem khối doc-comment đầu tệp.
  */
-export async function openWorkById(workId: string): Promise<void> {
-  if (openWorkBusy.value) return
+export async function openWorkById(workId: string): Promise<boolean> {
+  if (openWorkBusy.value) return false
 
   openWorkBusy.value = true
   openWorkNotice.value = null
@@ -256,7 +314,7 @@ export async function openWorkById(workId: string): Promise<void> {
     )
     openWorkNotice.value = flushed === 'failed' ? 'flush-failed' : 'still-dirty'
     openWorkBusy.value = false
-    return
+    return false
   }
 
   // Vị trí đang chờ ghi của Tác phẩm CŨ cũng phải rời đi trước khi `OpenWorkState` đổi chỗ —
@@ -268,12 +326,12 @@ export async function openWorkById(workId: string): Promise<void> {
   if (error !== null) {
     openWorkError.value = error
     openWorkBusy.value = false
-    return
+    return false
   }
   if (opened === null) {
     // Không có cầu IPC -- im lặng, cùng nhánh mọi adapter khác.
     openWorkBusy.value = false
-    return
+    return false
   }
 
   // ═════════════════════════════════════════════════════════════════════════════════
@@ -300,6 +358,9 @@ export async function openWorkById(workId: string): Promise<void> {
   chapters.value = []
   chaptersHaveLoaded.value = false
   chapterCursor.value = 0
+  resetLibraryChapterSelection()
+  chapterRenameEditing.value = false
+  workPageWork.value = null
 
   // 🔴 Tác phẩm MỚI ⇒ vứt state tầng TÁC PHẨM của Tác phẩm CŨ — nguyên văn bốn lượt vứt của
   // `libraryImport.ts::finishSubmit` (Story 1.17), không một lời gọi thứ hai rải ra.
@@ -354,15 +415,30 @@ export async function openWorkById(workId: string): Promise<void> {
 
   // Nhả cờ bận SAU CÙNG — xem khối 🔴 "CỬA SỔ MỞ NHẦM CHƯƠNG" phía trên.
   openWorkBusy.value = false
+  return true
 }
 
 /** Mở Tác phẩm ĐANG CHỌN trong lưới — nút "Mở Tác phẩm" của mỗi ô, cùng khuôn
  * `forgetCurrentLibraryOrphan` (`libraryRescan.ts`): đọc con trỏ hiện thời, không nhận tham
- * số qua `dispatch()`. No-op khi không có ô nào đang chọn. */
+ * số qua `dispatch()`. No-op khi không có ô nào đang chọn. Thành công ⇒ trang Tác phẩm thay lưới. */
 export async function openCurrentLibraryWork(): Promise<void> {
   const work = currentLibraryWork.value
   if (work === null) return
-  await openWorkById(work.work_id)
+  const opened = await openWorkById(work.work_id)
+  if (!opened) return
+  workPageWork.value = { ...work }
+  await loadOpenWorkLifecycle()
+}
+
+/** Back to the Works grid; the grid reloads so the card shows the new status. */
+export function closeLibraryWorkPage(): void {
+  const closing = workPageWork.value
+  if (closing === null) return
+  workPageWork.value = null
+  resetLibraryChapterSelection()
+  chapterRenameEditing.value = false
+  selectLibraryWorkById(closing.work_id)
+  void loadWorks().then(() => selectLibraryWorkById(closing.work_id))
 }
 
 /** Mở Chương ĐANG CHỌN vào Workspace — lệnh `library.open_chapter`. No-op trên danh sách
@@ -405,7 +481,7 @@ async function beginChapterReorg(): Promise<boolean> {
 /** Đổi tên Chương ĐANG CHỌN trong danh sách — lệnh `library.chapter_rename`. No-op trên danh
  * sách rỗng. */
 export async function renameCurrentChapter(): Promise<void> {
-  const row = currentLibraryChapter.value
+  const row = soleSelectedLibraryChapter.value
   if (row === null) return
   if (!(await beginChapterReorg())) return
 
@@ -416,13 +492,26 @@ export async function renameCurrentChapter(): Promise<void> {
     return
   }
 
+  chapterRenameEditing.value = false
   await loadChapters()
   chapterReorgBusy.value = false
 }
 
+/** Opens the inline rename field for the sole selected Chapter, seeded with its current title. */
+export function beginChapterRename(): void {
+  const row = soleSelectedLibraryChapter.value
+  if (row === null) return
+  chapterRenameDraft.value = row.title ?? ''
+  chapterRenameEditing.value = true
+}
+
+export function cancelChapterRename(): void {
+  chapterRenameEditing.value = false
+}
+
 /** Nhịp chung của `moveCurrentChapterUp`/`moveCurrentChapterDown` — chỉ khác nhau ở hướng. */
 async function moveCurrentChapter(direction: ChapterDirection): Promise<void> {
-  const row = currentLibraryChapter.value
+  const row = soleSelectedLibraryChapter.value
   if (row === null) return
   if (!(await beginChapterReorg())) return
 
@@ -434,6 +523,7 @@ async function moveCurrentChapter(direction: ChapterDirection): Promise<void> {
   }
 
   await loadChapters()
+  syncCursorToChapter(row.chapter_id)
   chapterReorgBusy.value = false
 }
 
@@ -445,60 +535,6 @@ export async function moveCurrentChapterUp(): Promise<void> {
 /** Dời Chương ĐANG CHỌN xuống — lệnh `library.chapter_move_down`. */
 export async function moveCurrentChapterDown(): Promise<void> {
   await moveCurrentChapter('next')
-}
-
-/** Gộp Chương ĐANG CHỌN vào Chương liền trước nó — lệnh `library.chapter_merge_up`.
- *
- * 🔴 Chương liền trước (A) và Chương đang chọn (B) đều có thể là "Chương đang mở" của Editor
- * (`editorChapterId`) — B biến mất, A đổi nội dung. Cả hai id lấy được TỪ TRƯỚC lượt gọi IPC:
- * B là chính hàng đang chọn; A là hàng liền trước nó trong `chapters.value`, danh sách đã
- * tải sẵn (đúng thứ tự `(ord, id)` mà Rust trả về, `libraryChapters.ts::loadChapters`) —
- * không cần đoán, không cần một lượt IPC phụ chỉ để hỏi "ai là Chương trước". */
-export async function mergeCurrentChapterUp(): Promise<void> {
-  const row = currentLibraryChapter.value
-  if (row === null) return
-  if (!(await beginChapterReorg())) return
-  // 🔴 ĐỌC SAU lượt flush, và KẸP BIÊN DƯỚI — hai lỗi của bản đầu, cùng bắt được ở lượt rà
-  // 2026-08-29:
-  //   ① `chapters.value.at(chapterCursor.value - 1)` với con trỏ ở **0** cho `.at(-1)`, tức
-  //      phần tử CUỐI mảng, không phải `undefined`. `Array.prototype.at` nhận chỉ số ÂM là
-  //      đếm ngược — một hành vi đúng của ngôn ngữ, đọc ra thành một bug ở đây.
-  //   ② đọc TRƯỚC `beginChapterReorg()` là đọc trước một lượt `await` có thể kéo tới trần
-  //      cứng 5 giây của AD-35, tức một ảnh chụp có thể đã cũ khi lượt IPC bay đi.
-  // Hậu quả của ① hôm nay hẹp (một lượt gộp ở con trỏ 0 luôn bị Rust từ chối bằng
-  // `chapter.at_first`, nên hàm trả về trước khi dùng tới `previousRow`) — nhưng nó là một
-  // giá trị SAI nằm sẵn chờ đường gọi thứ hai, và cửa nó mở ra là *"Editor không nạp lại sau
-  // một lượt gộp"*.
-  const previousRow = chapterCursor.value > 0 ? (chapters.value.at(chapterCursor.value - 1) ?? null) : null
-
-  const { error } = await mergeChapterIntoPrevious(row.chapter_id)
-  if (error !== null) {
-    chapterReorgError.value = error
-    chapterReorgBusy.value = false
-    return
-  }
-
-  // Chương đang mở của Editor bị ẢNH HƯỞNG ⇔ nó là A hoặc B — vứt state Chương của Editor rồi
-  // nạp lại NGAY, cùng khuôn `openWorkById`/`openChapterById` (`resetEditorPanel()` +
-  // `resetSourcePanel()` rồi `ensureChapterLoaded()` + `ensureSegmentsLoaded()`).
-  const openId = editorChapterId.value
-  if (openId !== null && (openId === row.chapter_id || openId === previousRow?.chapter_id)) {
-    resetEditorPanel()
-    resetSourcePanel()
-    // 🔵 THÊM Story 5.11 — `OpenWork::chapter_id` là MỘT con trỏ duy nhất phía Rust, dùng
-    // chung giữa Editor và Chế độ đọc; Chương đang đọc (nếu có) cũng vừa bị gộp/đổi số.
-    resetReading()
-    resetReadingToc()
-    await ensureChapterLoaded()
-    await ensureSegmentsLoaded()
-    // 🔴 Cùng khuôn đuôi của `openWorkById` ngay trên: TIÊU ĐIỂM phải Ở LẠI trong lưới sau
-    // lượt nạp lại này.
-    await nextTick()
-    enterFocus('panel.grid')
-  }
-
-  await loadChapters()
-  chapterReorgBusy.value = false
 }
 
 /**
@@ -516,7 +552,7 @@ export async function mergeCurrentChapterUp(): Promise<void> {
  * `update_chapter_origin` nhận đủ bốn trường, không phân biệt "chưa chạm"/"giá trị cũ".
  */
 export async function saveCurrentChapterOrigin(edit: ChapterOriginEditFields): Promise<void> {
-  const row = currentLibraryChapter.value
+  const row = soleSelectedLibraryChapter.value
   if (row === null) return
   chapterOriginBusy.value = true
   chapterOriginError.value = null
@@ -551,13 +587,135 @@ export function setChapterOriginApplyThroughOrd(raw: string): void {
     return
   }
   const parsed = Number(trimmed)
-  const row = currentLibraryChapter.value
+  const row = soleSelectedLibraryChapter.value
   const lastOrd = chapters.value.at(-1)?.ord ?? null
   if (!Number.isInteger(parsed) || row === null || lastOrd === null || parsed < row.ord || parsed > lastOrd) {
     chapterOriginApplyThroughOrd.value = null
     return
   }
   chapterOriginApplyThroughOrd.value = parsed
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Work page: selection, keyboard cursor, bulk status, multi-Chapter merge
+// ═════════════════════════════════════════════════════════════════════════════════
+
+function syncCursorToChapter(chapterId: number): void {
+  const index = chapters.value.findIndex((row) => row.chapter_id === chapterId)
+  if (index !== -1) chapterCursor.value = index
+}
+
+function syncCursorToSoleSelection(): void {
+  const only = soleSelectedLibraryChapter.value
+  if (only !== null) syncCursorToChapter(only.chapter_id)
+}
+
+/** Pointer or key selection of a Chapter row. A sole selection always moves the cursor with it. */
+export function selectLibraryChapter(chapterId: number, mods: ChapterClickModifiers): void {
+  const result = applyChapterClick(
+    libraryChapterSelectedIds.value,
+    libraryChapterAnchorId.value,
+    visibleChapterIds(libraryChapterView.value.items),
+    chapterId,
+    mods,
+  )
+  setChapterSelection(result.selected, result.anchor)
+  closeChapterStatusMenu()
+  if (result.selected.size === 1) syncCursorToSoleSelection()
+  else syncCursorToChapter(chapterId)
+}
+
+/** Up/Down on the list: moves the cursor over the visible rows; Shift extends the range. */
+export function moveLibraryChapterSelection(step: 1 | -1, extend: boolean): void {
+  const visible = visibleChapterIds(libraryChapterView.value.items)
+  if (visible.length === 0) return
+  const current = chapters.value.at(chapterCursor.value)?.chapter_id
+  const at = current === undefined ? -1 : visible.indexOf(current)
+  const next = at === -1 ? (step === 1 ? 0 : visible.length - 1) : Math.min(visible.length - 1, Math.max(0, at + step))
+  const targetId = visible[next]
+  selectLibraryChapter(targetId, { toggle: false, range: extend })
+}
+
+/** Space on the list: toggles the cursor row in the selection. */
+export function toggleLibraryChapterAtCursor(): void {
+  const row = chapters.value.at(chapterCursor.value)
+  if (row === undefined) return
+  selectLibraryChapter(row.chapter_id, { toggle: true, range: false })
+}
+
+export function clearLibraryChapterSelection(): void {
+  clearChapterSelection()
+}
+
+/** Flat-list index of the cursor row inside the filtered view, or -1 when it is filtered out. */
+export function libraryChapterCursorFlatIndex(): number {
+  const row = chapters.value.at(chapterCursor.value)
+  return row === undefined ? -1 : flatIndexOfChapter(libraryChapterView.value.items, row.chapter_id)
+}
+
+/** Bulk status change for the selected Chapters (one Rust transaction). */
+export async function setSelectedChaptersStatus(status: string): Promise<void> {
+  const ids = libraryChapterSelectedRows.value.map((row) => row.chapter_id)
+  if (ids.length === 0 || chapterReorgBusy.value) return
+  chapterReorgBusy.value = true
+  chapterReorgError.value = null
+  chapterReorgNotice.value = null
+  closeChapterStatusMenu()
+
+  const { lifecycle, error } = await setChaptersStatus(ids, status)
+  if (error !== null) {
+    chapterReorgError.value = error
+    chapterReorgBusy.value = false
+    return
+  }
+  applyOpenWorkLifecycleResult(lifecycle)
+  await loadChapters()
+  chapterReorgBusy.value = false
+}
+
+export type MergeChaptersOutcome = 'merged' | 'blocked' | 'refused'
+
+/**
+ * Merges the selected, contiguous Chapters into the first one. Flushes the Editor first; reloads
+ * the Editor when the open Chapter was one of the merged ones.
+ */
+export async function mergeSelectedChapters(): Promise<MergeChaptersOutcome> {
+  const picked = libraryChapterSelectedRows.value
+  if (picked.length < 2) return 'refused'
+  if (!(await beginChapterReorg())) return 'blocked'
+
+  const ids = picked.map((row) => row.chapter_id)
+  const { chapters: rebuilt, error } = await mergeChapters(ids)
+  if (error !== null) {
+    chapterReorgError.value = error
+    chapterReorgBusy.value = false
+    return 'refused'
+  }
+  if (rebuilt === null) {
+    chapterReorgBusy.value = false
+    return 'refused'
+  }
+
+  const survivorId = picked[0].chapter_id
+  const openId = editorChapterId.value
+  chapters.value = rebuilt
+  chaptersHaveLoaded.value = true
+  clampChapterCursor()
+  setChapterSelection(new Set([survivorId]), survivorId)
+  syncCursorToChapter(survivorId)
+
+  if (openId !== null && ids.includes(openId)) {
+    resetEditorPanel()
+    resetSourcePanel()
+    resetReading()
+    resetReadingToc()
+    await ensureChapterLoaded()
+    await ensureSegmentsLoaded()
+    await nextTick()
+    enterFocus('panel.grid')
+  }
+  chapterReorgBusy.value = false
+  return 'merged'
 }
 
 /**
@@ -576,6 +734,9 @@ export function resetLibraryChapters(): void {
   openWorkNotice.value = null
   openWorkError.value = null
   chapterRenameDraft.value = ''
+  chapterRenameEditing.value = false
+  workPageWork.value = null
+  resetLibraryChapterSelection()
   chapterReorgBusy.value = false
   chapterReorgNotice.value = null
   chapterReorgError.value = null

@@ -104,6 +104,14 @@ export type ChapterRow = {
   title: string | null
   status: string
   segment_count: number
+  /** Live, not omitted, non-blank target (the export-scope definition). */
+  translated_count: number
+  /** Live, not omitted, `status <> 'confirmed'`. */
+  unconfirmed_count: number
+  /** Live, not omitted: the denominator of translated / total. `segment_count` still counts omitted. */
+  in_translation_count: number
+  /** ISO-8601 UTC. */
+  updated_at: string
   /**
    * **THÊM (Story 6.15, FR128/AD-43)** — bốn cột xuất xứ `chapter.origin_*`. `null` ⇔
    * "không tìm thấy" (chưa ai tìm/nhập) — MỘT nhãn duy nhất cho mọi Chương, kể cả Chương
@@ -144,6 +152,10 @@ function isChapterRow(value: unknown): value is ChapterRow {
     (v.title === null || typeof v.title === 'string') &&
     typeof v.status === 'string' &&
     typeof v.segment_count === 'number' &&
+    typeof v.translated_count === 'number' &&
+    typeof v.unconfirmed_count === 'number' &&
+    typeof v.in_translation_count === 'number' &&
+    typeof v.updated_at === 'string' &&
     isNullableString(v.origin_author) &&
     isNullableString(v.origin_site_name) &&
     isNullableString(v.origin_url) &&
@@ -291,8 +303,8 @@ export async function openChapter(chapterId: number): Promise<OpenChapterResult>
 /** Tên command trên dây — Story 5.8. Khớp `commands/chapter.rs::wire`. */
 const CMD_RENAME_CHAPTER = 'rename_chapter'
 const CMD_MOVE_CHAPTER = 'move_chapter'
-const CMD_MERGE_CHAPTER_INTO_PREVIOUS = 'merge_chapter_into_previous'
 const CMD_SPLIT_CHAPTER_AT_SEGMENT = 'split_chapter_at_segment'
+const CMD_MERGE_CHAPTERS = 'merge_chapters'
 
 /** Ba trạng thái cho [`renameChapter`] — giá trị là `ChapterRow[]` đã dựng lại, không phải
  * `true` trần: Rust trả danh sách MỚI để chỗ gọi không phải đoán (Task 6 của story). */
@@ -328,7 +340,7 @@ export async function renameChapter(chapterId: number, title: string): Promise<R
   }
 }
 
-/** Ba trạng thái cho [`moveChapter`]/[`mergeChapterIntoPrevious`]/[`splitChapterAtSegment`] —
+/** Ba trạng thái cho [`moveChapter`]/[`splitChapterAtSegment`] —
  * cùng khuôn `SaveChapterPositionResult` (`config/segment.ts`): lệnh chỉ ghi, không trả dữ
  * liệu, nên giá trị thành công là `true | null`. */
 export type ChapterOrganiseResult = {
@@ -358,29 +370,35 @@ export async function moveChapter(chapterId: number, direction: ChapterDirection
   }
 }
 
+/** Ba trạng thái cho [`mergeChapters`] — Rust trả danh sách đã dựng lại của cả Tác phẩm. */
+export type MergeChaptersResult = {
+  chapters: ChapterRow[] | null
+  error: IpcError | null
+}
+
 /**
- * **Gộp một Chương vào Chương liền trước nó.** Story 5.8. Không ném.
+ * **Gộp nhiều Chương liền nhau thành một** — một giao dịch phía Rust. Không ném.
  *
- * ⚠️ `invoke()` gửi tham số dạng camelCase: `chapterId`.
+ * ⚠️ `invoke()` gửi tham số dạng camelCase: `chapterIds`.
  */
-export async function mergeChapterIntoPrevious(chapterId: number): Promise<ChapterOrganiseResult> {
+export async function mergeChapters(chapterIds: number[]): Promise<MergeChaptersResult> {
   try {
-    await invoke<void>(CMD_MERGE_CHAPTER_INTO_PREVIOUS, { chapterId })
-    return { ok: true, error: null }
+    const raw = await invoke<unknown>(CMD_MERGE_CHAPTERS, { chapterIds })
+    if (!isChapterRowArray(raw)) {
+      console.error(`[chapter] \`${CMD_MERGE_CHAPTERS}\` trả một hình dạng không phải ChapterRow[]: ${String(raw)}`)
+      return { chapters: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { chapters: raw, error: null }
   } catch (err) {
-    if (isIpcError(err)) return { ok: null, error: err }
+    if (isIpcError(err)) return { chapters: null, error: err }
 
     if (hasIpcBridge()) {
-      console.error(
-        `[chapter] \`${CMD_MERGE_CHAPTER_INTO_PREVIOUS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
-      )
-      return { ok: null, error: UNKNOWN_IPC_ERROR }
+      console.error(`[chapter] \`${CMD_MERGE_CHAPTERS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { chapters: null, error: UNKNOWN_IPC_ERROR }
     }
 
-    console.info(
-      `[chapter] không gọi được \`${CMD_MERGE_CHAPTER_INTO_PREVIOUS}\` — chạy ngoài Tauri? ${String(err)}`,
-    )
-    return { ok: null, error: null }
+    console.info(`[chapter] không gọi được \`${CMD_MERGE_CHAPTERS}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { chapters: null, error: null }
   }
 }
 

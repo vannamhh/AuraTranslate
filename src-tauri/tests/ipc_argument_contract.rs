@@ -555,7 +555,7 @@ fn call_site_key_sets(chars: &[char], const_name: &str) -> Vec<BTreeSet<String>>
 
 /// Sàn số lệnh đăng ký trong `generate_handler!`, sau khi trừ mục bị `#[cfg(feature =
 /// "nfr-bench")]` che (xem doc-comment đầu tệp).
-const REGISTERED_COMMAND_FLOOR: usize = 124;
+const REGISTERED_COMMAND_FLOOR: usize = 125;
 
 #[test]
 fn every_registered_commands_business_parameters_match_camel_case_across_the_wire() {

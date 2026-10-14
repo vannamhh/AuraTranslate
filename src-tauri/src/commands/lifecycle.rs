@@ -44,15 +44,33 @@ pub struct WorkLifecycle {
     pub status: Option<String>,
     /// `true` ⇔ [`Self::status`] đến từ ghi đè thủ công (`work.status_override`).
     pub status_is_override: bool,
+    /// Giá trị [`crate::core::lifecycle::derive_work_status`] cho tập trạng thái Chương hiện
+    /// tại, bất kể có ghi đè hay không. Khi `status_is_override` là `false` nó bằng `status`.
+    pub derived_status: String,
 }
 
-impl From<&WorkMeta> for WorkLifecycle {
-    fn from(meta: &WorkMeta) -> Self {
+impl WorkLifecycle {
+    fn from_meta(meta: &WorkMeta, derived: LifecycleStatus) -> Self {
         Self {
             status: meta.status.clone(),
             status_is_override: meta.status_is_override,
+            derived_status: derived.as_str().to_owned(),
         }
     }
+}
+
+/// Trạng thái suy ra của Tác phẩm từ `chapter.status` hiện có; hàng ngoài danh mục bị bỏ qua,
+/// cùng luật với `WorkMeta::rebuild_from_store`.
+fn derived_status_of(store: &Store) -> Result<LifecycleStatus, IpcError> {
+    let raw: Vec<String> = store.read(|conn| {
+        let mut stmt = conn.prepare("SELECT status FROM chapter")?;
+        stmt.query_map([], |row| row.get::<_, String>(0))?.collect()
+    })?;
+    let parsed: Vec<LifecycleStatus> = raw
+        .iter()
+        .filter_map(|s| LifecycleStatus::from_wire(s))
+        .collect();
+    Ok(crate::core::lifecycle::derive_work_status(&parsed))
 }
 
 /// Giá trị trạng thái vòng đời ngoài danh mục bốn giá trị đóng — dùng chung cho ca
@@ -112,7 +130,7 @@ pub(crate) fn write_lifecycle_after_change(open: &mut OpenWork) -> Result<WorkLi
         return Err(crate::core::library::WorkError::from(err).into());
     }
 
-    let lifecycle = WorkLifecycle::from(&meta);
+    let lifecycle = WorkLifecycle::from_meta(&meta, derived_status_of(&open.store)?);
     open.meta = meta;
     Ok(lifecycle)
 }
@@ -125,7 +143,10 @@ pub(crate) fn write_lifecycle_after_change(open: &mut OpenWork) -> Result<WorkLi
 /// chưa Tác phẩm nào mở ⇒ `work.none_open` (tái dùng [`no_work_open`]).
 pub fn read_work_lifecycle(open: Option<&OpenWork>) -> Result<WorkLifecycle, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
-    Ok(WorkLifecycle::from(&open.meta))
+    Ok(WorkLifecycle::from_meta(
+        &open.meta,
+        derived_status_of(&open.store)?,
+    ))
 }
 
 /// Đặt trạng thái vòng đời của MỘT Chương — hàm thuần, đây là thứ test gọi. Story 5.4, FR5.
@@ -166,6 +187,53 @@ pub fn set_chapter_status(
 
     if touched == 0 {
         return Err(chapter_not_found(chapter_id));
+    }
+
+    write_lifecycle_after_change(open)
+}
+
+/// Đặt trạng thái vòng đời của NHIỀU Chương trong MỘT giao dịch — hàm thuần, đây là thứ test
+/// gọi. Cùng khuôn [`set_chapter_status`].
+///
+/// # Lỗi
+/// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
+/// - `status` ngoài danh mục ⇒ `err.lifecycle.unknown_status`, không ghi;
+/// - bất kỳ `chapter_id` không tồn tại ⇒ `segment.chapter_not_found`; mọi id được kiểm TRƯỚC
+///   câu `UPDATE` đầu tiên nên KHÔNG Chương nào đổi.
+///
+/// `chapter_ids` rỗng không ghi gì và trả trạng thái hiện thời.
+pub fn set_chapters_status(
+    open: Option<&mut OpenWork>,
+    chapter_ids: &[i64],
+    status: &str,
+) -> Result<WorkLifecycle, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+
+    let parsed = LifecycleStatus::from_wire(status).ok_or_else(|| unknown_status(status))?;
+    let wire_status = parsed.as_str();
+    if chapter_ids.is_empty() {
+        return read_work_lifecycle(Some(open));
+    }
+    let ids: Vec<i64> = chapter_ids.to_vec();
+
+    let missing: Option<i64> = open.store.write(move |tx: &Transaction<'_>| {
+        let mut exists = tx.prepare("SELECT COUNT(*) FROM chapter WHERE id = ?1")?;
+        for id in &ids {
+            if exists.query_row([id], |row| row.get::<_, i64>(0))? == 0 {
+                return Ok(Some(*id));
+            }
+        }
+        let mut update = tx.prepare(
+            "UPDATE chapter SET status = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?2",
+        )?;
+        for id in &ids {
+            update.execute((wire_status, id))?;
+        }
+        Ok(None)
+    })?;
+
+    if let Some(id) = missing {
+        return Err(chapter_not_found(id));
     }
 
     write_lifecycle_after_change(open)
@@ -302,6 +370,23 @@ pub fn set_chapter_status_indexed(
     )
 }
 
+/// [`set_chapters_status`] **cộng bước 4**.
+pub fn set_chapters_status_indexed(
+    open: Option<&mut OpenWork>,
+    indexer: Option<&Indexer>,
+    global: Option<&Store>,
+    root: &Path,
+    chapter_ids: &[i64],
+    status: &str,
+) -> Result<WorkLifecycle, IpcError> {
+    finish_lifecycle_write(
+        set_chapters_status(open, chapter_ids, status),
+        indexer,
+        global,
+        root,
+    )
+}
+
 /// [`set_work_status_override`] **cộng bước 4** — cùng lý lẽ [`set_chapter_status_indexed`].
 pub fn set_work_status_override_indexed(
     open: Option<&mut OpenWork>,
@@ -367,6 +452,29 @@ pub mod wire {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::set_chapter_status(guard.as_mut(), chapter_id, &status)
+        };
+        finish_with_reindex(&app, result)
+    }
+
+    /// Vỏ IPC của [`super::set_chapters_status`]. Tham số trên dây: `chapterIds`, `status`.
+    ///
+    /// 🔴 `(async)` — cùng lý do [`set_chapter_status`].
+    #[tauri::command(async)]
+    pub fn set_chapters_status(
+        app: tauri::AppHandle,
+        chapter_ids: Vec<i64>,
+        status: String,
+    ) -> Result<WorkLifecycle, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::set_chapters_status(None, &chapter_ids, &status);
+        };
+        let result = {
+            let mut guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            super::set_chapters_status(guard.as_mut(), &chapter_ids, &status)
         };
         finish_with_reindex(&app, result)
     }
@@ -448,7 +556,11 @@ mod tests {
             status_is_override: true,
             chapter_done_count: Some(0),
         };
-        let lifecycle = WorkLifecycle::from(&meta);
+        let lifecycle = WorkLifecycle::from_meta(&meta, LifecycleStatus::InProgress);
+        assert_eq!(
+            lifecycle.derived_status,
+            LifecycleStatus::InProgress.as_str()
+        );
         assert_eq!(
             lifecycle.status.as_deref(),
             Some(LifecycleStatus::Paused.as_str())

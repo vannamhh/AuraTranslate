@@ -1540,6 +1540,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/lifecycle.rs",
+            "pub fn set_chapters_status(\n        app: tauri::AppHandle",
+            "cung ly do `set_chapter_status` ngay tren -- reindex sau luot dat trang thai nhieu Chuong",
+        ),
+        (
+            "src/commands/lifecycle.rs",
             "pub fn set_work_status_override(\n        app: tauri::AppHandle",
             "cung ly do `set_chapter_status` ngay tren -- reindex sau moi luot ghi trang thai",
         ),
@@ -1556,8 +1561,8 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/chapter.rs",
-            "pub fn merge_chapter_into_previous(\n        app: tauri::AppHandle",
-            "cung ly do `rename_chapter` ngay tren -- reindex sau moi luot to chuc Chuong",
+            "pub fn merge_chapters(\n        app: tauri::AppHandle",
+            "cung ly do `rename_chapter` ngay tren -- reindex sau moi luot gop nhieu Chuong",
         ),
         (
             "src/commands/chapter.rs",
@@ -1868,7 +1873,7 @@ fn the_blocking_wires_run_off_the_main_thread() {
 /// 🔵 **SỬA 2026-09-15 (AI-4) — tập tệp DẪN XUẤT từ [`blocking_wire_cases`], không chép tay
 /// nữa.** Bản chép tay ở đây đã TRÔI đúng lớp lỗi mà ca này sinh ra để bắt: nó liệt kê ba tệp
 /// và bỏ sót `commands/chapter.rs`, vốn có năm hàng trong `cases` — **bốn** từ Story 5.8
-/// (`rename_chapter` · `move_chapter` · `merge_chapter_into_previous` ·
+/// (`rename_chapter` · `move_chapter` · `merge_chapters` ·
 /// `split_chapter_at_segment`) và hàng thứ năm (`update_chapter_origin`) từ Story 6.15. Một danh sách
 /// chép tay dùng để chứng minh một danh sách khác không bị chép sai thì tự nó vô nghĩa.
 /// Hai tệp `chapter.rs` và `project.rs` được GHIM đích danh — `chapter.rs` vì nó là tệp đã
@@ -2127,7 +2132,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
     ("src/commands/export.rs", 7, 7, 7, ""),
     ("src/commands/glossary.rs", 7, 8, 8, ""),
     ("src/commands/library.rs", 3, 7, 7, ""),
-    ("src/commands/lifecycle.rs", 1, 2, 2, ""),
+    ("src/commands/lifecycle.rs", 1, 3, 3, ""),
     (
         "src/commands/pinned.rs",
         3,
@@ -2317,9 +2322,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (89, 59),
+        (89, 60),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         89/59.\n\n\
+         89/60.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

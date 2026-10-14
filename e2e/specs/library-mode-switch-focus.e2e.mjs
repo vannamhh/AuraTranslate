@@ -1,7 +1,7 @@
 /**
  * Story 11.5 — Disposition 3, L140 (Ice quyết định #62): sau một lượt ĐỔI TÁC PHẨM
  * (`openWorkById`), một lượt NHẬP xong (`finishImportSubmission`), hay một lượt GỘP CHƯƠNG
- * (`mergeCurrentChapterUp`), tiêu điểm phải rơi vào lưới, không rơi về `body` — ba trong năm
+ * (`mergeSelectedChapters`), tiêu điểm phải rơi vào lưới, không rơi về `body` — ba trong năm
  * chỗ gọi `enterFocus('panel.grid')` mà story này thêm (`openChapterById` — chỗ còn lại — có
  * TỪ TRƯỚC story này và vẫn tự khai "🔴 VẾ NÀY CHƯA CÓ ĐƯỜNG NGHIỆM THU" — ngoài phạm vi ở
  * đây).
@@ -14,7 +14,7 @@
  * 🔴 VÌ SAO GỌI HÀM SẢN PHẨM QUA `import()`, KHÔNG BẤM MỘT NÚT
  * ═════════════════════════════════════════════════════════════════════════════════
  * Cả ba hàm chỉ CÓ ĐƯỜNG GỌI qua giao diện Library (`library.open_work` · form nhập ·
- * `library.chapter_merge_up`) — và `App.vue` bọc ba chế độ trong `<KeepAlive>` với `v-if`
+ * `library.chapter_merge.confirm`) — và `App.vue` bọc ba chế độ trong `<KeepAlive>` với `v-if`
  * (không `v-show`): rời `workspace` DEATTACH cây DOM của `GridPanel.vue` khỏi `document`
  * (`PanelFrame.vue::onDeactivated` tự khai "tiêu điểm THẬT đã ở gốc chế độ" khi rời Workspace).
  * ⇒ Gọi ba hàm này từ ĐÚNG đường giao diện của chúng luôn chạy trong lúc `workspace` đã bị
@@ -203,7 +203,7 @@ describe('Story 11.5 · L140 — tiêu điểm rơi vào lưới sau ba lượt 
     expect(after.hasGridDescendant).toBe(true)
   })
 
-  it('GỘP Chương đang mở trong Editor vào Chương trước nó (`mergeCurrentChapterUp`) ⇒ tiêu điểm rơi vào lưới', async () => {
+  it('GỘP hai Chương, một trong đó đang mở trong Editor (`mergeSelectedChapters`) ⇒ tiêu điểm rơi vào lưới', async () => {
     const tag = `${Date.now() % 1_000_000}`
 
     // Bốn câu ⇒ tách ở câu thứ hai cho 1 + 3, hai con số KHÁC nhau nên mọi phép kiểm phía
@@ -221,14 +221,15 @@ describe('Story 11.5 · L140 — tiêu điểm rơi vào lưới sau ba lượt 
     // không qua `ensureChapterLoaded`) — vẫn trỏ đúng chapterIdA, đúng tiền đề cần cho bước gộp.
     await splitAtSegmentViaIpc(before.segments[1].id)
 
-    // Nạp lại danh sách Chương của Tác phẩm ĐANG MỞ rồi dời con trỏ sang hàng THỨ HAI (phần
-    // SAU vừa tách) — cùng hai hàm THẬT đứng sau nút "Mở Chương"/mũi tên của Library, gọi
-    // thẳng vì không có nút nào của Library trong cây DOM khi Workspace đang mở (xem khối lý
-    // do đầu tệp).
+    // Nạp lại danh sách Chương của Tác phẩm ĐANG MỞ rồi chọn cả hai hàng (chọn khoảng) — cùng
+    // hàm THẬT đứng sau thanh hành động của trang Tác phẩm, gọi thẳng vì không có nút nào của
+    // Library trong cây DOM khi Workspace đang mở (xem khối lý do đầu tệp).
     const chapters = await browser.execute(async (modulePath) => {
       const mod = await import(/* @vite-ignore */ modulePath)
       await mod.loadChapters()
-      mod.nextChapter()
+      const [first, second] = mod.libraryChapters.value
+      mod.selectLibraryChapter(first.chapter_id, { toggle: false, range: false })
+      mod.selectLibraryChapter(second.chapter_id, { toggle: false, range: true })
       return mod.libraryChapters.value.map((c) => ({ chapter_id: c.chapter_id, count: c.segment_count }))
     }, MODULE_LIBRARY_CHAPTERS)
     expect(chapters).toHaveLength(2)
@@ -240,7 +241,7 @@ describe('Story 11.5 · L140 — tiêu điểm rơi vào lưới sau ba lượt 
 
     await browser.execute(async (modulePath) => {
       const mod = await import(/* @vite-ignore */ modulePath)
-      await mod.mergeCurrentChapterUp()
+      await mod.mergeSelectedChapters()
     }, MODULE_LIBRARY_CHAPTERS)
 
     // Chương A (đang mở trong Editor) nay mang lại đủ BỐN câu — bằng chứng lượt gộp đã ghi

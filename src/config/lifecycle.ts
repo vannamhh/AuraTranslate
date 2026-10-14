@@ -19,6 +19,8 @@ import type { IpcError } from '../i18n'
 export type WorkLifecycle = {
   status: string | null
   status_is_override: boolean
+  /** Value derived from Chapter statuses, present even while `status` is an override. */
+  derived_status: string
 }
 
 /** Ba trạng thái, cùng khuôn `ReadOpenChapterResult` (`./chapter.ts`). */
@@ -31,7 +33,9 @@ function isWorkLifecycle(value: unknown): value is WorkLifecycle {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<WorkLifecycle>
   return (
-    (typeof v.status === 'string' || v.status === null) && typeof v.status_is_override === 'boolean'
+    (typeof v.status === 'string' || v.status === null) &&
+    typeof v.status_is_override === 'boolean' &&
+    typeof v.derived_status === 'string'
   )
 }
 
@@ -53,6 +57,7 @@ function isIpcError(value: unknown): value is IpcError {
 /** Tên command trên dây. Khớp `src-tauri/src/commands/lifecycle.rs` (module `wire`). */
 const CMD_READ = 'read_work_lifecycle'
 const CMD_SET_CHAPTER_STATUS = 'set_chapter_status'
+const CMD_SET_CHAPTERS_STATUS = 'set_chapters_status'
 const CMD_SET_WORK_OVERRIDE = 'set_work_status_override'
 
 /** Cùng khuôn `config/chapter.ts::hasIpcBridge`. */
@@ -100,6 +105,11 @@ export async function readWorkLifecycle(): Promise<WorkLifecycleResult> {
  */
 export async function setChapterStatus(chapterId: number, status: string): Promise<WorkLifecycleResult> {
   return callLifecycle(CMD_SET_CHAPTER_STATUS, { chapterId, status })
+}
+
+/** Đặt trạng thái cho nhiều Chương trong MỘT giao dịch — lệnh `set_chapters_status`. */
+export async function setChaptersStatus(chapterIds: number[], status: string): Promise<WorkLifecycleResult> {
+  return callLifecycle(CMD_SET_CHAPTERS_STATUS, { chapterIds, status })
 }
 
 /**

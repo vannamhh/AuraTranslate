@@ -19,8 +19,9 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::chapter::{
-    ChapterDirection, ChapterSwitchOutcome, merge_chapter_into_previous, move_chapter,
-    open_adjacent_chapter, read_open_chapter, rename_chapter, split_chapter_at_segment,
+    ChapterDirection, ChapterSwitchOutcome, list_chapters, merge_chapter_into_previous,
+    merge_chapters, move_chapter, open_adjacent_chapter, read_open_chapter, rename_chapter,
+    split_chapter_at_segment,
 };
 use auratranslate_lib::commands::lifecycle::set_work_status_override;
 use auratranslate_lib::commands::project::{
@@ -6980,4 +6981,243 @@ fn append_chapters_to_work_flags_a_source_lang_mismatch_when_only_the_second_new
 
     drop(opened);
     cleanup(&root);
+}
+
+fn chapter_ids_in_order(opened: &OpenWork) -> Vec<i64> {
+    opened
+        .store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT id FROM chapter ORDER BY ord, id")?;
+            let mapped = stmt.query_map([], |row| row.get::<_, i64>(0))?;
+            mapped.collect::<SqlResult<Vec<i64>>>()
+        })
+        .expect("doc thu tu Chuong that bai")
+}
+
+#[test]
+fn merging_three_adjacent_chapters_leaves_one_chapter_holding_every_segment() {
+    let root = temp_dir("merge-three");
+    let mut opened = create_work_from_text(&root, "Gop Ba", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a = opened.chapter_id;
+    let b = insert_chapter_directly(&opened, 2, "");
+    let c = insert_chapter_directly(&opened, 3, "");
+    let d = insert_chapter_directly(&opened, 4, "");
+    insert_segment_directly(&opened, a, 1, "A1", false);
+    insert_segment_directly(&opened, b, 1, "B1", false);
+    insert_segment_directly(&opened, b, 2, "B2", false);
+    insert_segment_directly(&opened, c, 1, "C1", false);
+    insert_segment_directly(&opened, d, 1, "D1", false);
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            for (id, title) in [(a, "Ten A"), (b, "Ten B"), (c, "Ten C")] {
+                tx.execute("UPDATE chapter SET title = ?1 WHERE id = ?2", (title, id))?;
+            }
+            Ok(())
+        })
+        .expect("dat ten Chuong that bai");
+
+    let rows = merge_chapters(Some(&mut opened), &[c, a, b]).expect("gop ba that bai");
+
+    assert_eq!(
+        rows.iter().map(|r| r.chapter_id).collect::<Vec<_>>(),
+        vec![a, d]
+    );
+    assert_eq!(rows.iter().map(|r| r.ord).collect::<Vec<_>>(), vec![1, 2]);
+    assert_eq!(rows[0].segment_count, 4, "so cau bang tong ba Chuong");
+    assert_eq!(
+        rows[0].title.as_deref(),
+        Some("Ten A"),
+        "ten giu theo Chuong dau"
+    );
+    assert_eq!(chapter_ids_in_order(&opened), vec![a, d]);
+    let segments = snapshot_segments(&opened);
+    assert!(
+        segments
+            .iter()
+            .filter(|s| s.source_text != "D1")
+            .all(|s| s.chapter_id == a)
+    );
+    let ords: Vec<i64> = segments
+        .iter()
+        .filter(|s| s.chapter_id == a)
+        .map(|s| s.ord)
+        .collect();
+    assert_eq!(ords, vec![1, 2, 3, 4], "ord cau noi tiep nhau");
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn merging_non_adjacent_chapters_is_refused_and_changes_nothing() {
+    let root = temp_dir("merge-gap");
+    let mut opened = create_work_from_text(&root, "Gop Cach", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a = opened.chapter_id;
+    let b = insert_chapter_directly(&opened, 2, "");
+    let c = insert_chapter_directly(&opened, 3, "");
+    insert_segment_directly(&opened, a, 1, "A1", false);
+    insert_segment_directly(&opened, c, 1, "C1", false);
+
+    let chapters_before = read_all_chapter_ord(&opened);
+    let segments_before = snapshot_segments(&opened);
+
+    let err = merge_chapters(Some(&mut opened), &[a, c])
+        .expect_err("gop khong lien nhau phai bi tu choi");
+    assert_eq!(err.code(), "chapter.merge_not_contiguous");
+    assert_eq!(err.message_key(), MessageKey::ChapterMergeNotContiguous);
+
+    let single =
+        merge_chapters(Some(&mut opened), &[b]).expect_err("mot Chuong khong phai mot lenh gop");
+    assert_eq!(single.message_key(), MessageKey::ChapterMergeNotContiguous);
+
+    let unknown =
+        merge_chapters(Some(&mut opened), &[a, 9_999]).expect_err("id la phai bi tu choi");
+    assert_eq!(unknown.message_key(), MessageKey::SegmentChapterNotFound);
+
+    assert_eq!(read_all_chapter_ord(&opened), chapters_before);
+    assert_eq!(snapshot_segments(&opened), segments_before);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_failure_midway_through_a_multi_chapter_merge_rolls_every_chapter_back() {
+    let root = temp_dir("merge-midway");
+    let mut opened = create_work_from_text(&root, "Gop Giua Chung", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a = opened.chapter_id;
+    let b = insert_chapter_directly(&opened, 2, "");
+    let c = insert_chapter_directly(&opened, 3, "");
+    insert_segment_directly(&opened, a, 1, "A1", false);
+    insert_segment_directly(&opened, b, 1, "B1", false);
+    insert_segment_directly(&opened, c, 1, "C1", false);
+
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute_batch(&format!(
+                "CREATE TRIGGER fail_on_third BEFORE DELETE ON chapter WHEN OLD.id = {c} \
+                 BEGIN SELECT RAISE(ABORT, 'boom'); END;"
+            ))
+        })
+        .expect("dat trigger that bai");
+
+    let chapters_before = read_all_chapter_ord(&opened);
+    let segments_before = snapshot_segments(&opened);
+
+    merge_chapters(Some(&mut opened), &[a, b, c]).expect_err("buoc thu hai hong");
+
+    assert_eq!(read_all_chapter_ord(&opened), chapters_before);
+    assert_eq!(snapshot_segments(&opened), segments_before);
+    assert_eq!(chapter_ids_in_order(&opened), vec![a, b, c]);
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn chapter_rows_count_translated_and_unconfirmed_segments_without_the_omitted_ones() {
+    let root = temp_dir("row-counts");
+    let opened = create_work_from_text(&root, "Dem Cau", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a = opened.chapter_id;
+    let s1 = insert_segment_directly(&opened, a, 1, "S1", false);
+    let s2 = insert_segment_directly(&opened, a, 2, "S2", false);
+    let s3 = insert_segment_directly(&opened, a, 3, "S3", false);
+    let s4 = insert_segment_directly(&opened, a, 4, "S4", false);
+    let _retired = insert_segment_directly(&opened, a, 5, "S5", true);
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = 'x', status = 'confirmed' WHERE id = ?1",
+                [s1],
+            )?;
+            tx.execute("UPDATE segment SET target_text = 'y' WHERE id = ?1", [s2])?;
+            tx.execute(
+                "UPDATE segment SET target_text = '  \n' WHERE id = ?1",
+                [s3],
+            )?;
+            tx.execute(
+                "UPDATE segment SET target_text = 'z', is_omitted = 1 WHERE id = ?1",
+                [s4],
+            )?;
+            Ok(())
+        })
+        .expect("dat cau that bai");
+
+    let rows = list_chapters(Some(&opened)).expect("liet ke that bai");
+    let row = &rows[0];
+    assert_eq!(row.segment_count, 5 - 1, "segment_count chi dem cau song");
+    assert_eq!(
+        row.in_translation_count, 3,
+        "s1, s2, s3; s4 omitted, s5 retired"
+    );
+    assert_eq!(row.translated_count, 2, "s1 va s2; s3 trong, s4 bi bo qua");
+    assert_eq!(
+        row.unconfirmed_count, 2,
+        "s2 va s3; s4 bi bo qua khong tinh"
+    );
+    assert!(!row.updated_at.is_empty());
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+}
+
+#[test]
+fn chapter_row_updated_at_moves_with_the_last_sentence_confirmation_not_with_drafts() {
+    let root = temp_dir("row-updated-at");
+    let opened = create_work_from_text(&root, "Moc Sua", "zh", "", String::new())
+        .expect("tao tac pham that bai");
+    let a = opened.chapter_id;
+    let s1 = insert_segment_directly(&opened, a, 1, "S1", false);
+    let s2 = insert_segment_directly(&opened, a, 2, "S2", false);
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE chapter SET updated_at = '2020-01-01T00:00:00.000Z' WHERE id = ?1",
+                [a],
+            )?;
+            tx.execute(
+                "UPDATE segment SET target_text = 'nhap' WHERE id = ?1",
+                [s2],
+            )?;
+            Ok(())
+        })
+        .expect("dat moc that bai");
+    let rows = list_chapters(Some(&opened)).expect("liet ke that bai");
+    assert_eq!(
+        rows[0].updated_at, "2020-01-01T00:00:00.000Z",
+        "ban nhap chua xac nhan khong doi moc"
+    );
+
+    opened
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "INSERT INTO segment_version (segment_id, target_text, created_at) \
+                 VALUES (?1, 'x', '2026-01-01T00:00:00.000Z')",
+                [s1],
+            )?;
+            Ok(())
+        })
+        .expect("ghi phien ban that bai");
+    let rows = list_chapters(Some(&opened)).expect("liet ke that bai");
+    assert_eq!(
+        rows[0].updated_at, "2026-01-01T00:00:00.000Z",
+        "lan xac nhan cau cuoi cung day moc len"
+    );
+
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
 }

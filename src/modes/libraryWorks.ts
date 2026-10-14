@@ -29,6 +29,7 @@ import type { DeepReadonly, Ref } from 'vue'
 import { listLibraryWorks } from '../config/library'
 import type { WorkRow, WorkSortKey } from '../config/library'
 import { readWorkLifecycle, setChapterStatus, setWorkStatusOverride } from '../config/lifecycle'
+import type { WorkLifecycle } from '../config/lifecycle'
 import { editorChapterId } from '../panels/editorPanelState'
 import type { IpcError } from '../i18n'
 
@@ -68,6 +69,7 @@ const worksError = ref<IpcError | null>(null)
 
 const openWorkStatus = ref<string | null>(null)
 const openWorkIsOverride = ref(false)
+const openWorkDerived = ref<string | null>(null)
 const openWorkLifecycleHasLoaded = ref(false)
 const openWorkBusy = ref(false)
 const openWorkError = ref<IpcError | null>(null)
@@ -100,6 +102,7 @@ export const libraryWorksError: DeepReadonly<Ref<IpcError | null>> = readonly(wo
 export const currentLibraryWork = computed<WorkRow | null>(() => works.value.at(workCursor.value) ?? null)
 
 export const openWorkLifecycleStatus: DeepReadonly<Ref<string | null>> = readonly(openWorkStatus)
+export const openWorkLifecycleDerivedStatus: DeepReadonly<Ref<string | null>> = readonly(openWorkDerived)
 export const openWorkLifecycleIsOverride: DeepReadonly<Ref<boolean>> = readonly(openWorkIsOverride)
 export const openWorkLifecycleLoaded: DeepReadonly<Ref<boolean>> = readonly(openWorkLifecycleHasLoaded)
 export const openWorkLifecycleBusy: DeepReadonly<Ref<boolean>> = readonly(openWorkBusy)
@@ -212,6 +215,12 @@ export function nextWork(): void {
   if (workCursor.value < works.value.length - 1) workCursor.value += 1
 }
 
+/** Points the grid cursor at the card of `workId`; no-op when that Work is not in the list. */
+export function selectLibraryWorkById(workId: string): void {
+  const index = works.value.findIndex((work) => work.work_id === workId)
+  if (index !== -1) workCursor.value = index
+}
+
 /** Chuyển con trỏ lưới lên ô trước — không vòng. No-op trên danh sách rỗng. */
 export function prevWork(): void {
   if (workCursor.value > 0) workCursor.value -= 1
@@ -275,15 +284,15 @@ export async function loadOpenWorkLifecycle(): Promise<void> {
 
   openWorkStatus.value = result.lifecycle.status
   openWorkIsOverride.value = result.lifecycle.status_is_override
+  openWorkDerived.value = result.lifecycle.derived_status
   openWorkLifecycleHasLoaded.value = true
 }
 
-function applyOpenWorkLifecycleResult(
-  lifecycle: { status: string | null; status_is_override: boolean } | null,
-): void {
+export function applyOpenWorkLifecycleResult(lifecycle: WorkLifecycle | null): void {
   if (lifecycle === null) return
   openWorkStatus.value = lifecycle.status
   openWorkIsOverride.value = lifecycle.status_is_override
+  openWorkDerived.value = lifecycle.derived_status
   openWorkLifecycleHasLoaded.value = true
   // Chỉ mục Library đã đổi (Rust gọi lại `reindex_library` sau lượt ghi này) -- tải lại danh
   // sách để hàng của Tác phẩm đang mở phản ánh giá trị mới, không đợi một lượt Quét lại
@@ -378,6 +387,7 @@ export function resetLibraryWorks(): void {
   worksError.value = null
   openWorkStatus.value = null
   openWorkIsOverride.value = false
+  openWorkDerived.value = null
   openWorkLifecycleHasLoaded.value = false
   openWorkBusy.value = false
   openWorkError.value = null

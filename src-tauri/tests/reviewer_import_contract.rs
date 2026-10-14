@@ -1205,7 +1205,7 @@ fn every_function_that_deletes_a_chapter_or_moves_its_segments_names_review_chap
     assert!(
         touching
             .iter()
-            .any(|f| f.ends_with("::merge_chapter_into_previous"))
+            .any(|f| f.ends_with("::merge_into_previous_tx"))
             && touching
                 .iter()
                 .any(|f| f.ends_with("::split_chapter_at_segment")),

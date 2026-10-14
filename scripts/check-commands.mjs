@@ -227,14 +227,14 @@ const tsFiles = keep(tsAll)
  * bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const VUE_FLOOR = 40
+const VUE_FLOOR = 44
 const TS_FLOOR = 105
 
 /**
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
  * không kiểm gì. `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const COMMAND_FLOOR = 200
+const COMMAND_FLOOR = 230
 
 /**
  * SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy. Sàn tệp ở trên đóng được "cây rỗng
@@ -243,8 +243,8 @@ const COMMAND_FLOOR = 200
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 162
-const DISPATCH_FLOOR = 236
+const CLICK_FLOOR = 183
+const DISPATCH_FLOOR = 258
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -1809,7 +1809,7 @@ const SELECTION_PANEL_FILES = {
  * rỗng)*, không canh số bề mặt đúng. Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
  */
 /** `ceil(0.85 × live)`, qua `judgeFloor`. */
-const SELECTION_SURFACE_FLOOR = 16
+const SELECTION_SURFACE_FLOOR = 19
 
 const SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g
 
@@ -2352,6 +2352,7 @@ const R_CATEGORY_NAV = 'in-place list navigation (arrow/Enter selects a row) —
 const R_DISPATCH_VIA_PARAM =
   'dispatches an id received as a parameter, not a literal — already counted by ' +
   "Kiểm B's nonLiteralDispatchCalls"
+const R_SELECT_IN_PLACE = 'selects Chapter rows in place from a pointer press — selection is view state, no dispatch'
 const R_SOURCE_CUT_EXEMPT = 'calls `setEditorSourceCut(...)` directly — a named exemption, not a command'
 
 /**
@@ -2444,6 +2445,13 @@ const HANDLER_TABLE = {
   },
   'src/TmFuzzyStrip.vue::aimTmFuzzyRow': { nonCommand: R_CURSOR_IMPORTED },
   'src/ExportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ChapterMergeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/ChapterSplitOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/modes/LibraryWorkPage.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
+  'src/modes/LibraryWorkPage.vue::onRowMouseDown': { nonCommand: R_SELECT_IN_PLACE },
+  'src/modes/LibraryWorkPage.vue::onListKeydown': {
+    ids: ['library.open_chapter', 'library.chapter_rename.begin', 'library.chapters.clear_selection'],
+  },
   'src/LibraryImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TmImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ReviewerImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
@@ -2697,7 +2705,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 98
+const HANDLER_ATTR_FLOOR = 107
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

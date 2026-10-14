@@ -571,6 +571,9 @@ message_keys! {
     /// Chương mới sẽ RỖNG — một kết quả không có nghĩa, bị từ chối trước khi chạm SQL ghi nào.
     /// `chapter_id` là Chương sẽ bị để rỗng (Chương đang mở, phía trước điểm cắt).
     ChapterSplitLeavesEmpty => "err.chapter.split_leaves_empty" [],
+    /// Gộp nhiều Chương với dưới hai Chương, hoặc các Chương không liền nhau theo `(ord, id)`.
+    /// **0 hàng bị chạm.**
+    ChapterMergeNotContiguous => "err.chapter.merge_not_contiguous" [],
 
     // ── Story 6.5 (FR124 · AD-18) — bốn khoá, luật làm sạch lúc nhập ────────────────
     //

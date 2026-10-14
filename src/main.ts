@@ -156,7 +156,6 @@ import {
 // thật (`ref`) và gọi `@tauri-apps/api` xuyên qua `config/chapter.ts`/`config/library.ts`.
 import {
   loadChapters as loadLibraryChapters,
-  mergeCurrentChapterUp as mergeCurrentLibraryChapterUp,
   moveCurrentChapterDown as moveCurrentLibraryChapterDown,
   moveCurrentChapterUp as moveCurrentLibraryChapterUp,
   nextChapter as nextLibraryChapter,
@@ -279,6 +278,9 @@ import { saveGlossarySettings } from './glossarySettingsState'
 import { tmConcordanceCommandDeps } from './tmConcordanceCommandDeps'
 import { tmFuzzyCommandDeps } from './tmFuzzyCommandDeps'
 import { exportCommandDeps } from './exportCommandDeps'
+import { libraryWorkPageCommandDeps } from './libraryWorkPageCommandDeps'
+import { chapterMergeOverlayIsOpen } from './chapterMergeState'
+import { chapterSplitOverlayIsOpen } from './chapterSplitState'
 import { reviewerImportCommandDeps } from './reviewerImportCommandDeps'
 import { alignmentCommandDeps } from './alignmentCommandDeps'
 import { alignmentOverlayIsOpen } from './alignmentState'
@@ -645,7 +647,6 @@ async function boot(): Promise<void> {
       renameCurrentLibraryChapter,
       moveCurrentLibraryChapterUp,
       moveCurrentLibraryChapterDown,
-      mergeCurrentLibraryChapterUp,
       // Story 5.9 — "Tim kiem full-text xuyen Library" (FR8).
       runLibrarySearch,
       nextLibrarySearchHit,
@@ -899,6 +900,7 @@ async function boot(): Promise<void> {
       ...tmConcordanceCommandDeps(),
       ...tmManageCommandDeps(),
       ...exportCommandDeps(),
+      ...libraryWorkPageCommandDeps(),
       ...reviewerImportCommandDeps(),
       ...alignmentCommandDeps(),
       ...reviewModeCommandDeps(),
@@ -1006,6 +1008,8 @@ async function boot(): Promise<void> {
         tmManageOverlayIsOpen.value ||
         tmImportOverlayIsOpen.value ||
         exportOverlayIsOpen.value ||
+        chapterMergeOverlayIsOpen.value ||
+        chapterSplitOverlayIsOpen.value ||
         libraryImportOverlayIsOpen.value ||
         reviewerImportOverlayIsOpen.value ||
         alignmentOverlayIsOpen.value ||

@@ -65,6 +65,8 @@ import TmImportOverlay from './TmImportOverlay.vue'
 // `z-index` (11, trên 10 của Manage) là thứ giữ nó xếp ĐÚNG lớp, không phải vị trí trong DOM.
 import GlossaryImportOverlay from './GlossaryImportOverlay.vue'
 import ExportOverlay from './ExportOverlay.vue'
+import ChapterMergeOverlay from './ChapterMergeOverlay.vue'
+import ChapterSplitOverlay from './ChapterSplitOverlay.vue'
 import LibraryImportOverlay from './LibraryImportOverlay.vue'
 import ReviewerImportOverlay from './ReviewerImportOverlay.vue'
 import AlignmentOverlay from './AlignmentOverlay.vue'
@@ -352,6 +354,8 @@ onMounted(async () => {
     <TmImportOverlay />
 
     <ExportOverlay />
+    <ChapterMergeOverlay />
+    <ChapterSplitOverlay />
     <LibraryImportOverlay />
     <ReviewerImportOverlay />
     <AlignmentOverlay />
