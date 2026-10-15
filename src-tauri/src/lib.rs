@@ -1317,6 +1317,7 @@ pub fn run() {
             // dich cho mot muc CHO CHOT, va nhan mot ung vien thanh mot muc Glossary. Vo IPC
             // GHI dau tien cua `confirm_translation` (gian tiep) va `approve_candidate`.
             crate::commands::glossary::wire::glossary_confirm_pending_translation,
+            crate::commands::glossary::wire::glossary_tm_suggestions,
             crate::commands::glossary::wire::glossary_approve_candidate,
             // Story 3.8 -- duyet hang loat mot phim (FR53/FR55). Vo IPC GHI dau tien cua
             // `reject_candidate` (Story 3.2 dung, 0 cho goi cho toi luot nay) -- lop phu

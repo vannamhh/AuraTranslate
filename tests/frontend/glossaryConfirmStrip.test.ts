@@ -60,6 +60,8 @@ function markWire(opts: {
     han_viet_suggestion: opts.hanVietSuggestion ?? null,
     han_viet_status: opts.hanVietStatus ?? 'not_requested',
     occurrence_count: opts.occurrenceCount ?? null,
+    term_origin: 'manual',
+    category: 'other' as const,
   }
 }
 
@@ -129,7 +131,7 @@ describe('confirmGlossaryConfirmStrip — chốt bản dịch', () => {
     expect(ok).toBe(false)
     expect(state.confirmStripIsOpen.value).toBe(true)
     expect(state.confirmStripEmptyInputError.value).toBe(true)
-    expect(mockInvoke).not.toHaveBeenCalled()
+    expect(mockInvoke).not.toHaveBeenCalledWith('glossary_confirm_pending_translation', expect.anything())
   })
 
   it('lượt ghi TRƯỢT ⇒ dải Ở LẠI kèm lỗi đọc được (IpcError), KHÔNG đóng', async () => {
@@ -328,7 +330,8 @@ describe('applyTarget — nhánh GIỮA: cùng danh tính, đề xuất Hán Vi�
     })
     state.syncGlossaryConfirmStripTarget(1, segments, true, [before])
     expect(state.confirmStripSuggestionStatus.value).toBe('ok')
-    expect(state.confirmStripTranslationInput.value).toBe('Tieu Viem')
+    expect(state.confirmStripOptions.value.map((o) => o.text)).toEqual(['Tieu Viem'])
+    expect(state.confirmStripTranslationInput.value).toBe('')
 
     // Same sentence, same tier+id (same identity) -- only the Han Viet suggestion changed, as
     // when a dict source toggle re-triggers refreshGlossaryMarks then sync.
@@ -343,8 +346,7 @@ describe('applyTarget — nhánh GIỮA: cùng danh tính, đề xuất Hán Vi�
     state.syncGlossaryConfirmStripTarget(1, segments, true, [after])
 
     expect(state.confirmStripSuggestionStatus.value).toBe('dict_unavailable')
-    // Input still shows the OLD suggestion ('Tieu Viem'); user hasn't overtyped it, so it's
-    // refilled with the NEW suggestion (empty here, since `dict_unavailable` has none).
+    expect(state.confirmStripOptions.value).toEqual([])
     expect(state.confirmStripTranslationInput.value).toBe('')
   })
 
@@ -360,7 +362,7 @@ describe('applyTarget — nhánh GIỮA: cùng danh tính, đề xuất Hán Vi�
       hanVietStatus: 'ok',
     })
     state.syncGlossaryConfirmStripTarget(1, segments, true, [before])
-    expect(state.confirmStripTranslationInput.value).toBe('Tieu Viem')
+    expect(state.confirmStripOptions.value.map((o) => o.text)).toEqual(['Tieu Viem'])
 
     state.confirmStripTranslationInput.value = 'Tieu Viem, da sua tay'
 
@@ -375,6 +377,7 @@ describe('applyTarget — nhánh GIỮA: cùng danh tính, đề xuất Hán Vi�
     state.syncGlossaryConfirmStripTarget(1, segments, true, [after])
 
     expect(state.confirmStripSuggestionStatus.value).toBe('ok') // status updated
+    expect(state.confirmStripOptions.value.map((o) => o.text)).toEqual(['Mot de xuat khac'])
     expect(state.confirmStripTranslationInput.value).toBe('Tieu Viem, da sua tay') // input untouched
   })
 })

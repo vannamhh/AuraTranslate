@@ -15,6 +15,8 @@ function span(patch: Partial<SegmentTermSpan>): SegmentTermSpan {
     hanVietSuggestion: null,
     hanVietStatus: 'not_requested',
     occurrenceCount: null,
+    termOrigin: 'manual',
+    category: 'other' as const,
     ...patch,
   }
 }

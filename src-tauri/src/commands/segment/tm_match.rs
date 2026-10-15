@@ -12,6 +12,8 @@ pub struct TmFuzzyMatch {
     pub diff: Vec<crate::core::matching::DiffSpan>,
     /// `"mine"` or `"others"` (AD-47 ⑥).
     pub side: &'static str,
+    /// ISO-8601 UTC with milliseconds.
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -162,6 +164,7 @@ pub fn score_tm_fuzzy(prepared: TmFuzzyPrepared) -> Result<TmFuzzyMatches, IpcEr
                 crate::core::tm::TmTier::Global => "global",
             },
             unit_id: f.pair.id,
+            created_at: f.pair.created_at.clone(),
             percent: f.percent,
             diff: crate::core::matching::diff_spans(&f.pair.source_text, &scan.source, scan.lang),
             source_text: f.pair.source_text,

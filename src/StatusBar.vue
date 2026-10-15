@@ -44,7 +44,8 @@ import { shortcutRows } from './config/shortcutsState'
 import { libraryChapters } from './modes/libraryChapters'
 import { groupedLookup, sensesByLayer } from './panels/lookupPanelState'
 import { proofreadResults, proofreadStateValue } from './proofreadState'
-import { refreshWorkspaceCounts, workspaceGlossaryEntryCount, workspaceTmPairCount } from './workspaceCountsState'
+import { tmFuzzyThresholdInUse } from './tmSettingsState'
+import { refreshWorkspaceCounts, workspaceGlossaryEntryCount, workspaceTmPairCounts } from './workspaceCountsState'
 import {
   editorCaretSegmentId,
   editorChapterId,
@@ -208,8 +209,14 @@ const glossaryCountText = computed<string | null>(() => {
 })
 
 const tmCountText = computed<string | null>(() => {
-  const count = workspaceTmPairCount.value
-  return count === null ? null : t('status.tm_count', { count: String(count) })
+  const counts = workspaceTmPairCounts.value
+  if (counts === null) return null
+  return t('status.tm_summary', {
+    total: String(counts.total),
+    mine: String(counts.mine),
+    others: String(counts.others),
+    threshold: String(tmFuzzyThresholdInUse.value),
+  })
 })
 
 const showAutoSave = computed(() => workspaceLayoutTier.value === 'full')

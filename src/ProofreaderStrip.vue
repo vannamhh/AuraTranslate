@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
 import { aiUsageLine, aiUsageSummaryLine } from './aiUsageLine'
 import { eligibleInlineStrips, proofreaderStripPlace } from './inlineStripEligibility'
 import type { ProofreaderStripPlace } from './inlineStripEligibility'
 import { topmostStrip } from './panels/inlineStripPriority'
+import { editorCaretSegmentId } from './panels/editorPanelState'
+import { shortcutRows } from './config/shortcutsState'
+import { proofreadScopeCounts } from './proofreadScope'
 import type { ProofreadFindingKind } from './config/proofread'
 import {
   proofreadActionError,
@@ -22,6 +25,7 @@ import {
   proofreadStateValue,
   proofreadUnlocated,
   proofreadUsageSummary,
+  syncProofreadStripHidden,
 } from './proofreadState'
 
 const props = defineProps<{ place?: ProofreaderStripPlace }>()
@@ -31,6 +35,29 @@ const isVisible = computed(() => {
   if (top !== 'proofreader' && top !== 'proofreader_summary') return false
   return props.place === undefined || proofreaderStripPlace.value === props.place
 })
+
+watch(editorCaretSegmentId, (segmentId) => { syncProofreadStripHidden(segmentId) }, { immediate: true })
+
+const chordById = computed(() => {
+  const byId = new Map<string, string>()
+  for (const row of shortcutRows.value) byId.set(row.id, row.display.join(' / '))
+  return byId
+})
+
+const hintText = computed(() => {
+  const parts: string[] = []
+  const next = chordById.value.get('ai.proofread.next')
+  const prev = chordById.value.get('ai.proofread.prev')
+  if (next !== undefined && next !== '') parts.push(t('proofread.strip.hint_next', { chord: next }))
+  if (prev !== undefined && prev !== '') parts.push(t('proofread.strip.hint_prev', { chord: prev }))
+  parts.push(t('proofread.strip.hint_hide'))
+  return parts.join(' · ')
+})
+
+function focusOnPointerDown(event: MouseEvent): void {
+  const target = event.currentTarget
+  if (target instanceof HTMLElement) target.focus()
+}
 
 const isJob = computed(() => topmostStrip(eligibleInlineStrips.value) === 'proofreader')
 
@@ -59,8 +86,14 @@ const card = computed(() => {
       finding_count: String(current.count),
     }),
     many: current.count > 1,
+    title: t('proofread.strip.title_found', {
+      finding_index: String(current.index + 1),
+      finding_count: String(current.count),
+    }),
   }
 })
+
+const titleText = computed(() => card.value?.title ?? t('proofread.strip.title'))
 
 const actionErrorText = computed<string | null>(() => {
   const err = isJob.value ? proofreadActionError.value : null
@@ -148,9 +181,17 @@ const usageText = computed<string | null>(() => {
 </script>
 
 <template>
-  <section v-if="isVisible" class="proofreader-strip" :aria-label="t('proofread.strip.title')">
+  <section
+    v-if="isVisible"
+    class="proofreader-strip"
+    :aria-label="titleText"
+    @keydown.esc.prevent="dispatch('ai.proofread.hide')"
+  >
     <header class="pfs-head">
-      <span class="pfs-title">{{ t('proofread.strip.title') }}</span>
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      <span class="pfs-title">{{ titleText }}</span>
+      <!-- aura-allow-text: result of t() computed in the script. -->
+      <span v-if="isJob && card !== null" class="pfs-hint">{{ hintText }}</span>
       <button
         v-if="proofreadStateValue === 'scanning'"
         type="button"
@@ -159,7 +200,55 @@ const usageText = computed<string | null>(() => {
       >
         {{ t('proofread.strip.cancel') }}
       </button>
+      <button
+        type="button"
+        class="pfs-link"
+        data-proofread-strip-memory
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('ai.proofread.memory.open')"
+      >
+        {{ t('command.ai.proofread.memory.open') }}
+      </button>
     </header>
+
+    <div class="pfs-scopes" role="group" :aria-label="t('proofread.scope.title')">
+      <button
+        type="button"
+        class="pfs-btn pfs-scope"
+        data-proofread-strip-scope="segment"
+        :disabled="proofreadStateValue === 'scanning' || proofreadScopeCounts.segment === 0"
+        @click="dispatch('ai.proofread.run')"
+      >
+        {{ t('proofread.scope.segment') }}
+        <span class="pfs-scope-count">{{
+          t('proofread.scope.count', { sentence_count: String(proofreadScopeCounts.segment) })
+        }}</span>
+      </button>
+      <button
+        type="button"
+        class="pfs-btn pfs-scope"
+        data-proofread-strip-scope="selection"
+        :disabled="proofreadStateValue === 'scanning' || proofreadScopeCounts.selection === 0"
+        @click="dispatch('ai.proofread.run_selection')"
+      >
+        {{ t('proofread.scope.selection') }}
+        <span class="pfs-scope-count">{{
+          t('proofread.scope.count', { sentence_count: String(proofreadScopeCounts.selection) })
+        }}</span>
+      </button>
+      <button
+        type="button"
+        class="pfs-btn pfs-scope"
+        data-proofread-strip-scope="chapter"
+        :disabled="proofreadStateValue === 'scanning' || proofreadScopeCounts.chapter === 0"
+        @click="dispatch('ai.proofread.run_chapter')"
+      >
+        {{ t('proofread.scope.chapter') }}
+        <span class="pfs-scope-count">{{
+          t('proofread.scope.count', { sentence_count: String(proofreadScopeCounts.chapter) })
+        }}</span>
+      </button>
+    </div>
 
     <div v-if="card !== null" class="pfs-card">
       <p class="pfs-status pfs-card-head">
@@ -176,13 +265,13 @@ const usageText = computed<string | null>(() => {
       <p class="pfs-status pfs-suggestion">{{ card.suggestion }}</p>
       <div class="pfs-actions">
         <button type="button" class="pfs-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.accept')">
-          {{ t('command.ai.proofread.accept') }}
+          {{ t('proofread.strip.accept') }}
         </button>
         <button type="button" class="pfs-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.dismiss')">
-          {{ t('command.ai.proofread.dismiss') }}
+          {{ t('proofread.strip.dismiss') }}
         </button>
         <button type="button" class="pfs-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.ignore')">
-          {{ t('command.ai.proofread.ignore') }}
+          {{ t('proofread.strip.ignore') }}
         </button>
         <template v-if="card.many">
           <button type="button" class="pfs-btn" @click="dispatch('ai.proofread.prev')">
@@ -265,6 +354,39 @@ const usageText = computed<string | null>(() => {
   font-weight: var(--weight-ui-md-strong);
 }
 
+.pfs-hint {
+  margin-right: auto;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.pfs-link {
+  margin-left: auto;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.pfs-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.pfs-scope-count {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
 .pfs-status {
   margin: 0;
   font-family: var(--face-ui-sm);
@@ -311,6 +433,11 @@ const usageText = computed<string | null>(() => {
 
 .pfs-error {
   color: var(--color-error);
+}
+
+.pfs-btn:disabled {
+  cursor: default;
+  color: var(--color-on-surface-variant);
 }
 
 .pfs-btn {

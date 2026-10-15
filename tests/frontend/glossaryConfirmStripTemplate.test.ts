@@ -60,6 +60,8 @@ function pendingMarkWire(overrides: Record<string, unknown> = {}) {
     han_viet_suggestion: null,
     han_viet_status: 'not_requested',
     occurrence_count: null,
+    term_origin: 'manual',
+    category: 'other',
     ...overrides,
   }
 }
@@ -314,10 +316,8 @@ describe('`@submit`/`@keydown.esc` phát ĐÚNG `dispatch`', () => {
   })
 })
 
-describe('`.gcs-occurrence` — chỉ hiện khi `occurrence_count` KHÔNG `null`', () => {
+describe('`.gcs-occurrence` — số lần chỉ hiện khi `occurrence_count` KHÔNG `null`', () => {
   it('mục sinh từ một ứng viên (occurrence_count là một số) ⇒ `.gcs-occurrence` hiện đúng số đó', async () => {
-    // Counter-check: removing `v-if="confirmStripOccurrenceCount !== null"` from
-    // GlossaryConfirmStrip.vue turns the "manual entry" case below red (span shows even when null).
     const { marksState, i18n, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
     const segs: Segment[] = [{ id: 1, source_text: '萧炎登场' }]
     segments.value = segs
@@ -333,15 +333,12 @@ describe('`.gcs-occurrence` — chỉ hiện khi `occurrence_count` KHÔNG `null
     const wrapper = mount(GlossaryConfirmStrip)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.gcs-occurrence').exists()).toBe(true)
-    expect(wrapper.get('.gcs-occurrence').text()).toBe(
-      i18n.t('glossary.confirm.occurrence_count_label', { count: '12' }),
-    )
+    expect(wrapper.get('.gcs-occurrence').text()).toBe(i18n.t('glossary.confirm.meta_occurrences', { count: '12' }))
     wrapper.unmount()
   })
 
-  it('mục nhập tay/nhập CSV (occurrence_count là `null`) ⇒ `.gcs-occurrence` KHÔNG hiện, không phải "0" giả', async () => {
-    const { marksState, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
+  it('mục nhập tay/nhập CSV (occurrence_count là `null`) ⇒ chỉ "chờ chốt bản dịch", không phải "0 lần" giả', async () => {
+    const { marksState, i18n, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
     const segs: Segment[] = [{ id: 1, source_text: '萧炎登场' }]
     segments.value = segs
     mockInvoke.mockImplementation((cmd: string) => {
@@ -356,7 +353,7 @@ describe('`.gcs-occurrence` — chỉ hiện khi `occurrence_count` KHÔNG `null
     const wrapper = mount(GlossaryConfirmStrip)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.gcs-occurrence').exists()).toBe(false)
+    expect(wrapper.get('.gcs-occurrence').text()).toBe(i18n.t('glossary.confirm.meta_pending'))
     wrapper.unmount()
   })
 })

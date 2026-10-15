@@ -52,6 +52,8 @@ function term(start: number, end: number, isConfirmed = true, translation: strin
     hanVietSuggestion: null,
     hanVietStatus: 'not_requested',
     occurrenceCount: null,
+    termOrigin: 'manual',
+    category: 'other' as const,
   }
 }
 

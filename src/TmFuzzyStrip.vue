@@ -7,6 +7,7 @@ import { t, tError } from './i18n'
 import { eligibleInlineStrips } from './inlineStripEligibility'
 import { editorCaretSegmentId, editorSegments } from './panels/editorPanelState'
 import { historyTimeLabel } from './panels/segmentHistoryTime'
+import { shortDayMonth } from './panels/shortDate'
 import { topmostStrip } from './panels/inlineStripPriority'
 import {
   aimTmFuzzyRow,
@@ -15,11 +16,13 @@ import {
   tmFuzzyAccepting,
   tmFuzzyAimedIndex,
   tmFuzzyExactShown,
+  tmFuzzyExpandedRows,
   tmFuzzyFocusRequest,
   tmFuzzyMatchesShown,
   tmFuzzyPendingAccept,
   tmFuzzyRowCount,
   tmFuzzyScanError,
+  tmFuzzyRowKey,
   tmFuzzySegmentId,
 } from './tmFuzzyStripState'
 
@@ -45,10 +48,22 @@ const currentTarget = computed(() => {
   return editorSegments.value.find((s) => s.id === id)?.target_text ?? null
 })
 
-const stripTitle = computed(() => (isExactList.value ? t('tm.exact.title') : t('tm.fuzzy.title')))
+const stripTitle = computed(() =>
+  isExactList.value
+    ? t('tm.exact.title')
+    : t('tm.fuzzy.title', { count: String(tmFuzzyMatchesShown.value.length) }),
+)
 const stripHint = computed(() => (isExactList.value ? t('tm.exact.hint') : t('tm.fuzzy.hint')))
 const overwriteQuestion = computed(() =>
   tmFuzzyPendingAccept.value?.kind === 'exact' ? t('tm.exact.overwrite_question') : t('tm.fuzzy.overwrite_question'),
+)
+
+const fuzzyRows = computed(() =>
+  tmFuzzyMatchesShown.value.map((match) => ({
+    match,
+    date: shortDayMonth(match.created_at),
+    expanded: tmFuzzyExpandedRows.value.includes(tmFuzzyRowKey(match)),
+  })),
 )
 
 const exactRows = computed(() => {
@@ -100,7 +115,7 @@ const acceptErrorText = computed(() => {
     ref="root"
     class="tm-fuzzy-strip"
     tabindex="-1"
-    :aria-label="t('tm.fuzzy.title')"
+    :aria-label="stripTitle"
     @keydown="onKeydown"
   >
     <header class="tmf-head">
@@ -176,14 +191,17 @@ const acceptErrorText = computed(() => {
 
     <ol v-else class="tmf-list">
       <li
-        v-for="(match, i) in tmFuzzyMatchesShown"
+        v-for="({ match, date, expanded }, i) in fuzzyRows"
         :key="`${match.tier}:${match.unit_id}`"
         class="tmf-row"
-        :class="{ 'tmf-row-aimed': i === tmFuzzyAimedIndex }"
+        :class="{ 'tmf-row-aimed': i === tmFuzzyAimedIndex, 'tmf-row-expanded': expanded }"
         :aria-current="i === tmFuzzyAimedIndex ? 'true' : undefined"
         @mouseenter="aimTmFuzzyRow(i)"
       >
-        <span class="tmf-pct">{{ t('tm.fuzzy.percent', { percent: String(match.percent) }) }}</span>
+        <span class="tmf-pct">
+          {{ t('tm.fuzzy.percent', { percent: String(match.percent) }) }}
+          <small class="tmf-pct-word">{{ t('tm.fuzzy.match_word') }}</small>
+        </span>
         <div class="tmf-body">
           <p class="tmf-source">
             <template v-for="(span, k) in match.diff" :key="k">
@@ -204,6 +222,8 @@ const acceptErrorText = computed(() => {
             <!-- aura-allow-text: result of t(). -->
             {{ match.tier === 'work' ? t('tm.fuzzy.tier_work') : t('tm.fuzzy.tier_global') }}
           </span>
+          <!-- aura-allow-text: dd-MM computed from the pair's creation time. -->
+          <span v-if="date !== null" class="tmf-date-meta">{{ date }}</span>
           <button
             type="button"
             class="tmf-btn"
@@ -213,6 +233,17 @@ const acceptErrorText = computed(() => {
             @click="dispatch('tm.fuzzy.accept')"
           >
             {{ t('tm.fuzzy.accept', { n: String(i + 1) }) }}
+          </button>
+          <button
+            type="button"
+            class="tmf-btn"
+            :aria-expanded="expanded"
+            @focus="aimTmFuzzyRow(i)"
+            @mousedown="aimTmFuzzyRow(i)"
+            @click="dispatch('tm.fuzzy.toggle_full')"
+          >
+            <!-- aura-allow-text: result of t(). -->
+            {{ expanded ? t('tm.fuzzy.collapse_sentence') : t('tm.fuzzy.full_sentence') }}
           </button>
         </div>
       </li>
@@ -297,6 +328,23 @@ const acceptErrorText = computed(() => {
 
 .tmf-body p {
   margin: 0;
+}
+
+.tmf-row:not(.tmf-row-expanded, .tmf-exact-row) .tmf-body p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tmf-pct-word,
+.tmf-date-meta {
+  display: block;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .tmf-target {

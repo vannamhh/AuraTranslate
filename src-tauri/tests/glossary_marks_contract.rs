@@ -1006,3 +1006,41 @@ fn marks_for_source_text_fails_loudly_when_a_store_is_given_without_a_work_tier_
     drop(global);
     cleanup(&global_dir);
 }
+
+#[test]
+fn a_mark_carries_the_term_origin_and_category_of_the_entry_on_the_wire() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let global_dir = temp_dir("zh-origin-category");
+    let global = open_global(&global_dir);
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "慕容",
+        None,
+        "",
+        Category::Person,
+    )
+    .expect("them muc");
+
+    let marks = marks_for_source_text(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+        "慕容说话了",
+        MatchLang::Zh,
+        &layers,
+        &disabled,
+    )
+    .expect("khong loi");
+    let wire = auratranslate_lib::commands::glossary::GlossaryMarkWire::from(marks[0].clone());
+    let json = serde_json::to_value(&wire).expect("json");
+
+    assert_eq!(
+        (json["term_origin"].as_str(), json["category"].as_str()),
+        (Some("manual"), Some("person"))
+    );
+    drop(global);
+    cleanup(&global_dir);
+}

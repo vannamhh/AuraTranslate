@@ -33,6 +33,15 @@ export type ProofreadSegmentResultWire = {
   ambiguous: number
 }
 
+/** Findings an ignore entry silenced during one scan; only entries with `count > 0` are sent. */
+export type ProofreadBlockedWire = { ignore_id: number; count: number }
+
+function isBlockedWire(value: unknown): value is ProofreadBlockedWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ProofreadBlockedWire, unknown>>
+  return isCount(v.ignore_id) && isCount(v.count)
+}
+
 export type ProofreadEventWire =
   | { kind: 'planned'; segments: number; batches: number }
   | { kind: 'batch'; usage: AiTranslateUsageWire | null; segments: ProofreadSegmentResultWire[] }
@@ -40,7 +49,7 @@ export type ProofreadEventWire =
 export type ProofreadOutcomeWire =
   | { state: 'not_configured' }
   | { state: 'cancelled'; not_scanned: number }
-  | { state: 'done'; not_scanned: number; filtered: number }
+  | { state: 'done'; not_scanned: number; filtered: number; blocked: ProofreadBlockedWire[] }
 
 const CMD_PROOFREAD = 'ai_proofread_segments'
 const CMD_PROOFREAD_CANCEL = 'ai_proofread_cancel'
@@ -96,9 +105,16 @@ export function isProofreadEventWire(value: unknown): value is ProofreadEventWir
 
 export function isProofreadOutcomeWire(value: unknown): value is ProofreadOutcomeWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { state?: unknown; not_scanned?: unknown; filtered?: unknown }
+  const v = value as { state?: unknown; not_scanned?: unknown; filtered?: unknown; blocked?: unknown }
   if (v.state === 'not_configured') return true
-  if (v.state === 'done') return typeof v.not_scanned === 'number' && isCount(v.filtered)
+  if (v.state === 'done') {
+    return (
+      typeof v.not_scanned === 'number' &&
+      isCount(v.filtered) &&
+      Array.isArray(v.blocked) &&
+      v.blocked.every(isBlockedWire)
+    )
+  }
   return v.state === 'cancelled' && typeof v.not_scanned === 'number'
 }
 
@@ -237,6 +253,8 @@ export type ProofreadIgnoreRowWire = {
   context_before: string
   context_after: string
   created_at: string
+  /** `null` = the row predates the counter: show the date only, never `0`. */
+  blocked_count: number | null
 }
 
 export type ProofreadScanScope = 'segment' | 'selection' | 'chapter'
@@ -253,7 +271,8 @@ function isIgnoreRowWire(value: unknown): value is ProofreadIgnoreRowWire {
     typeof v.phrase === 'string' &&
     typeof v.context_before === 'string' &&
     typeof v.context_after === 'string' &&
-    typeof v.created_at === 'string'
+    typeof v.created_at === 'string' &&
+    (v.blocked_count === null || isCount(v.blocked_count))
   )
 }
 
@@ -332,9 +351,10 @@ export async function recordProofreadScan(
   scope: ProofreadScanScope,
   reported: number,
   filtered: number,
+  blocked: readonly ProofreadBlockedWire[],
 ): Promise<{ ok: boolean; error: IpcError | null }> {
   try {
-    await invoke<unknown>(CMD_SCAN_RECORD, { workId, scope, reported, filtered })
+    await invoke<unknown>(CMD_SCAN_RECORD, { workId, scope, reported, filtered, blocked })
     return { ok: true, error: null }
   } catch (err) {
     return { ok: false, error: memoryFailure('scan_record', err) }

@@ -199,6 +199,7 @@ fn run_of(batch_sizes: &[usize]) -> PreparedProofreadRun {
             })
             .collect(),
         remembered: Vec::new(),
+        remembered_ids: Vec::new(),
     }
 }
 
@@ -258,7 +259,8 @@ fn a_clean_reply_places_findings_on_the_segment_it_names_and_carries_the_batch_u
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
             not_scanned: 0,
-            filtered: 0
+            filtered: 0,
+            blocked: Vec::new()
         })
     );
     assert_eq!(
@@ -375,7 +377,8 @@ fn a_malformed_reply_loses_only_its_own_batch() {
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
             not_scanned: 3,
-            filtered: 0
+            filtered: 0,
+            blocked: Vec::new()
         })
     );
     assert_eq!(
@@ -450,7 +453,8 @@ fn nothing_to_scan_calls_no_provider_and_is_done() {
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
             not_scanned: 0,
-            filtered: 0
+            filtered: 0,
+            blocked: Vec::new()
         })
     );
     assert_eq!(
@@ -468,10 +472,11 @@ fn the_outcome_wire_keeps_its_state_tags_and_counts() {
     assert_eq!(
         serde_json::to_value(AiProofreadOutcomeWire::Done {
             not_scanned: 2,
-            filtered: 0
+            filtered: 0,
+            blocked: Vec::new()
         })
         .unwrap(),
-        serde_json::json!({"state":"done","not_scanned":2,"filtered":0})
+        serde_json::json!({"state":"done","not_scanned":2,"filtered":0,"blocked":[]})
     );
     assert_eq!(
         serde_json::to_value(AiProofreadOutcomeWire::Cancelled { not_scanned: 4 }).unwrap(),
@@ -562,7 +567,8 @@ fn a_whole_chapter_scans_every_filled_segment_in_document_order_and_skips_empty_
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
             not_scanned: 0,
-            filtered: 0
+            filtered: 0,
+            blocked: Vec::new()
         })
     );
     assert_eq!(
@@ -732,7 +738,8 @@ fn a_whole_chapter_scan_with_findings_changes_no_text_status_origin_baseline_or_
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
             not_scanned: 0,
-            filtered: 0
+            filtered: 0,
+            blocked: Vec::new()
         })
     );
     let findings: usize = batch_events(&events)
@@ -811,7 +818,8 @@ fn a_repeated_context_phrase_reaches_the_wire_as_ambiguous_and_never_as_a_findin
         out.ok(),
         Some(AiProofreadOutcomeWire::Done {
             not_scanned: 0,
-            filtered: 0
+            filtered: 0,
+            blocked: Vec::new()
         })
     );
 }

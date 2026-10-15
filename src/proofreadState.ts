@@ -9,6 +9,7 @@ import {
   runProofreadSegments,
 } from './config/proofread'
 import type {
+  ProofreadBlockedWire,
   ProofreadEventWire,
   ProofreadFindingWire,
   ProofreadScanScope,
@@ -169,6 +170,7 @@ export async function runProofread(segmentIds: readonly number[], scope: Proofre
   }
 
   const mine = ++sequence
+  hiddenForSegmentId.value = null
   runSegmentIds.value = [...segmentIds]
   clearResult()
   state.value = 'scanning'
@@ -207,18 +209,25 @@ export async function runProofread(segmentIds: readonly number[], scope: Proofre
   if (result.value.state !== 'not_configured') notScanned.value = result.value.not_scanned
   if (result.value.state === 'done') {
     filteredCount.value = result.value.filtered
-    if (scope !== null) void recordFinishedScan(scope, reportedFindings.value, result.value.filtered)
+    if (scope !== null) {
+      void recordFinishedScan(scope, reportedFindings.value, result.value.filtered, result.value.blocked)
+    }
   }
   state.value = result.value.state
 }
 
-async function recordFinishedScan(scope: ProofreadScanScope, reported: number, filtered: number): Promise<void> {
+async function recordFinishedScan(
+  scope: ProofreadScanScope,
+  reported: number,
+  filtered: number,
+  blocked: readonly ProofreadBlockedWire[],
+): Promise<void> {
   const workId = openWorkId.value
   if (workId === null) {
     console.warn('[proofread] scan not recorded: no open Work id known')
     return
   }
-  const result = await recordProofreadScan(workId, scope, reported, filtered)
+  const result = await recordProofreadScan(workId, scope, reported, filtered, blocked)
   if (!result.ok) console.warn(`[proofread] scan not recorded: ${result.error?.code ?? 'no IPC bridge'}`)
 }
 
@@ -258,6 +267,27 @@ export function clearProofreadFor(segmentId: number): void {
   }
 }
 
+/** Segment whose Proofreader strip Esc hid; it shows again once the caret reaches another segment. */
+const hiddenForSegmentId = ref<number | null>(null)
+
+export const proofreadStripHidden: ComputedRef<boolean> = computed(
+  () => hiddenForSegmentId.value !== null && hiddenForSegmentId.value === editorCaretSegmentId.value,
+)
+
+/** Focus returns to the caret's translation cell first, so leaving the strip keeps the caret. */
+export function hideProofreadStrip(): void {
+  if (state.value === 'scanning' || state.value === 'error' || state.value === 'not_configured') return
+  const segmentId = editorCaretSegmentId.value
+  if (segmentId === null) return
+  const cell = document.querySelector(`[data-col="tgt"][data-segment-id="${String(segmentId)}"]`)
+  if (cell instanceof HTMLElement && document.activeElement?.closest('.proofreader-strip')) cell.focus()
+  hiddenForSegmentId.value = segmentId
+}
+
+export function syncProofreadStripHidden(caretSegmentId: number | null): void {
+  if (caretSegmentId !== null && hiddenForSegmentId.value !== caretSegmentId) hiddenForSegmentId.value = null
+}
+
 export function openProofreadScope(): void {
   scopeOpen.value = true
 }
@@ -273,6 +303,7 @@ export function resetProofread(): void {
   state.value = 'idle'
   runSegmentIds.value = []
   scopeOpen.value = false
+  hiddenForSegmentId.value = null
   reverts.value = new Map()
   focus.value = { segmentId: -1, index: 0 }
   acting.value = false

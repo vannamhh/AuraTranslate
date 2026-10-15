@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { readFixture, recordSave, resetRecorder } from './support/segmentFixture'
 
-const tmCount = vi.fn<() => Promise<number | null>>()
+const tmCount = vi.fn<() => Promise<{ total: number; mine: number; others: number } | null>>()
 const glossaryCount = vi.fn<() => Promise<number | null>>()
 
 async function confirmOk(segmentId: number) {
@@ -70,6 +70,7 @@ vi.mock('@tauri-apps/api/core', () => ({
         senses_failed: [],
       }
     }
+    if (cmd === 'put_config') return null
     throw new Error(`statusBarWorkspace.test.ts: unexpected invoke "${cmd}"`)
   }),
 }))
@@ -109,7 +110,7 @@ const info = (w: { find: (s: string) => { exists: () => boolean; text: () => str
 beforeEach(() => {
   document.body.innerHTML = ''
   resetRecorder()
-  tmCount.mockReset().mockResolvedValue(12)
+  tmCount.mockReset().mockResolvedValue({ total: 12, mine: 9, others: 3 })
   glossaryCount.mockReset().mockResolvedValue(7)
   chaptersOnDisk = CHAPTERS
   omittedSegmentId = null
@@ -225,14 +226,14 @@ describe('thanh trạng thái — số Glossary và TM', () => {
 
     expect(info(wrapper, 'data-status-glossary')).toBe('Glossary 7 mục')
     expect(info(wrapper, 'data-status-tm')).toBeNull()
-    expect(wrapper.text()).not.toMatch(/TM 0 cặp|Glossary 0 mục/)
+    expect(wrapper.text()).not.toMatch(/TM: 0 cặp|Glossary 0 mục/)
     wrapper.unmount()
   })
 
   it('0 thật vẫn hiện là 0 (khác "chưa biết")', async () => {
-    tmCount.mockResolvedValue(0)
+    tmCount.mockResolvedValue({ total: 0, mine: 0, others: 0 })
     const { wrapper } = await freshBar()
-    expect(info(wrapper, 'data-status-tm')).toBe('TM 0 cặp')
+    expect(info(wrapper, 'data-status-tm')).toBe('TM: 0 cặp · 0 của tôi · 0 của người khác · ngưỡng gợi ý 65%')
     wrapper.unmount()
   })
 
@@ -241,16 +242,28 @@ describe('thanh trạng thái — số Glossary và TM', () => {
     state.setEditorCaret(12)
     await flushPromises()
     expect(info(wrapper, 'data-status-confirmed')).toBe('1/3 đã xác nhận')
-    expect(info(wrapper, 'data-status-tm')).toBe('TM 12 cặp')
+    expect(info(wrapper, 'data-status-tm')).toBe('TM: 12 cặp · 9 của tôi · 3 của người khác · ngưỡng gợi ý 65%')
     const callsBefore = tmCount.mock.calls.length
-    tmCount.mockResolvedValue(13)
+    tmCount.mockResolvedValue({ total: 13, mine: 10, others: 3 })
 
     await state.confirmCurrentSegment()
     await flushPromises()
 
     expect(tmCount.mock.calls.length).toBeGreaterThan(callsBefore)
-    expect(info(wrapper, 'data-status-tm')).toBe('TM 13 cặp')
+    expect(info(wrapper, 'data-status-tm')).toBe('TM: 13 cặp · 10 của tôi · 3 của người khác · ngưỡng gợi ý 65%')
     expect(info(wrapper, 'data-status-confirmed')).toBe('2/3 đã xác nhận')
+    wrapper.unmount()
+  })
+
+  it('the threshold follows a save in Settings, not the value read at startup', async () => {
+    const { state, wrapper } = await freshBar()
+    state.setEditorCaret(12)
+    await flushPromises()
+    const settings = await import('../../src/tmSettingsState')
+    settings.tmSettingsThresholdInput.value = '80'
+    await settings.saveTmSettings()
+    await flushPromises()
+    expect(info(wrapper, 'data-status-tm')).toBe('TM: 12 cặp · 9 của tôi · 3 của người khác · ngưỡng gợi ý 80%')
     wrapper.unmount()
   })
 })

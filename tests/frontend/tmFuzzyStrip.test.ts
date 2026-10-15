@@ -48,6 +48,7 @@ function matchOf(patch: Partial<TmFuzzyMatch> = {}): TmFuzzyMatch {
       { kind: 'equal', text: '門。' },
     ],
     side: 'mine',
+    created_at: '2026-07-14T12:00:00.000Z',
     ...patch,
   }
 }
@@ -122,7 +123,7 @@ describe('scan trigger and rendering', () => {
     const { wrapper } = await mountOn(12, [matchOf()])
     expect(tmFuzzyMatchesMock).toHaveBeenCalledWith(12)
     const row = wrapper.get('.tmf-row')
-    expect(row.get('.tmf-pct').text()).toBe('82%')
+    expect(row.get('.tmf-pct').text()).toBe('82% khớp')
     expect(row.get('.tmf-del').text()).toBe('推開')
     expect(row.get('.tmf-ins').text()).toBe('關上')
     expect(row.get('.tmf-source').text()).toBe('他推開關上門。')
@@ -440,7 +441,7 @@ describe('review fixes', () => {
   it('mousedown on a row button aims that row before the click accepts', async () => {
     const { wrapper } = await mountOn(12, [matchOf({ unit_id: 1 }), matchOf({ unit_id: 2 })])
     acceptTmFuzzyMock.mockResolvedValue(acceptedOf())
-    const second = wrapper.findAll('.tmf-row .tmf-btn')[1]
+    const second = wrapper.findAll('.tmf-row')[1].get('.tmf-btn')
     await second.trigger('mousedown')
     await second.trigger('click')
     await flushPromises()

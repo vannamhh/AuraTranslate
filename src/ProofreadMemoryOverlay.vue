@@ -14,6 +14,7 @@ import {
   proofreadMemorySelectedId,
   selectProofreadMemoryRow,
 } from './proofreadMemoryState'
+import { shortDayMonth } from './panels/shortDate'
 import type { ProofreadFindingKind } from './config/proofread'
 
 const panel = useTemplateRef<HTMLElement>('panel')
@@ -57,9 +58,18 @@ const KIND_LABELS: Readonly<Record<ProofreadFindingKind, () => string>> = {
   obscure: () => t('proofread.kind.obscure'),
 }
 
+function metaOf(row: { created_at: string; blocked_count: number | null }): string {
+  const parts: string[] = []
+  const date = shortDayMonth(row.created_at)
+  if (date !== null) parts.push(t('proofread.memory.meta_date', { date }))
+  if (row.blocked_count !== null) parts.push(t('proofread.memory.meta_blocked', { blocked_count: String(row.blocked_count) }))
+  return parts.join(' · ')
+}
+
 const lines = computed(() =>
   proofreadMemoryRows.value.map((row) => ({
     id: row.id,
+    meta: metaOf(row),
     kind: KIND_LABELS[row.kind](),
     text:
       row.context_before === '' && row.context_after === ''
@@ -151,6 +161,8 @@ function trapTab(event: KeyboardEvent): void {
             <span class="pfmem-kind">{{ line.kind }}</span>
             <!-- aura-allow-text: text the user marked, shown as text only. -->
             <span class="pfmem-text">{{ line.text }}</span>
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            <span v-if="line.meta !== ''" class="pfmem-meta">{{ line.meta }}</span>
           </button>
         </li>
       </ul>
@@ -294,6 +306,15 @@ function trapTab(event: KeyboardEvent): void {
 
 .pfmem-text {
   overflow-wrap: anywhere;
+}
+
+.pfmem-meta {
+  flex: none;
+  margin-left: auto;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .pfmem-actions {

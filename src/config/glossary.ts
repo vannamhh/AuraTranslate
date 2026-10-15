@@ -288,6 +288,9 @@ export type GlossaryMark = {
   /** `null` for a manual/imported entry, or one predating this column — display as "—",
    * never as `0`. */
   occurrence_count: number | null
+  /** `manual` | `import_scan` | `review_harvest` | `file_import`; always present on the wire. */
+  term_origin: string
+  category: GlossaryCategory
 }
 
 /** Năm trạng thái đóng của `han_viet_status` — khớp NGUYÊN VĂN
@@ -356,7 +359,9 @@ function isGlossaryMark(value: unknown): value is GlossaryMark {
     (v.occurrence_count === null ||
       (typeof v.occurrence_count === 'number' &&
         Number.isInteger(v.occurrence_count) &&
-        v.occurrence_count >= 0))
+        v.occurrence_count >= 0)) &&
+    typeof v.term_origin === 'string' &&
+    isGlossaryCategory(v.category)
   )
 }
 
@@ -367,6 +372,10 @@ function isGlossaryMark(value: unknown): value is GlossaryMark {
  */
 function isGlossaryMarkArray(value: unknown): value is GlossaryMark[] {
   return Array.isArray(value) && value.every(isGlossaryMark)
+}
+
+function isGlossaryCategory(value: unknown): value is GlossaryCategory {
+  return value === 'person' || value === 'place' || value === 'domain_term' || value === 'other'
 }
 
 /** Ba trạng thái, cùng khuôn [`GlossaryWriteResult`]. */
@@ -570,6 +579,55 @@ export async function confirmPendingGlossaryTranslation(
     console.info(
       `[glossary] không gọi được \`${CMD_CONFIRM_PENDING_TRANSLATION}\` — chạy ngoài Tauri? ${String(err)}`,
     )
+    return { value: null, error: null }
+  }
+}
+
+const CMD_TM_SUGGESTIONS = 'glossary_tm_suggestions'
+
+export type GlossaryTmSuggestion = { target_text: string; count: number }
+
+function isGlossaryTmSuggestionArray(value: unknown): value is GlossaryTmSuggestion[] {
+  return (
+    Array.isArray(value) &&
+    value.every((item: unknown) => {
+      if (typeof item !== 'object' || item === null) return false
+      const v = item as Partial<GlossaryTmSuggestion>
+      return (
+        typeof v.target_text === 'string' &&
+        typeof v.count === 'number' &&
+        Number.isInteger(v.count) &&
+        v.count > 0
+      )
+    })
+  )
+}
+
+/**
+ * Translations the TM already holds for a pending term (FR146): pairs whose source equals
+ * the term exactly, grouped by target. **Never throws.** An empty array is a real answer.
+ */
+export async function listGlossaryTmSuggestions(
+  sourceTerm: string,
+): Promise<GlossaryWriteResult<GlossaryTmSuggestion[]>> {
+  try {
+    const wire: unknown = await invoke(CMD_TM_SUGGESTIONS, { sourceTerm })
+    if (!isGlossaryTmSuggestionArray(wire)) {
+      console.error(`[glossary] \`${CMD_TM_SUGGESTIONS}\` trả về hình dạng không đúng`)
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { value: wire, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[glossary] \`${CMD_TM_SUGGESTIONS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(`[glossary] không gọi được \`${CMD_TM_SUGGESTIONS}\` — chạy ngoài Tauri? ${String(err)}`)
     return { value: null, error: null }
   }
 }

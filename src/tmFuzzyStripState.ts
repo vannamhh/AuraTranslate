@@ -24,6 +24,7 @@ const acceptError = shallowRef<IpcError | null>(null)
 const accepting = ref(false)
 const pendingAccept = shallowRef<TmFuzzyPendingAccept | null>(null)
 const focusRequest = ref(0)
+const expandedRows = ref<readonly string[]>([])
 
 let suppressed = new Set<number>()
 let sequence = 0
@@ -39,6 +40,21 @@ export const tmFuzzyAcceptError: DeepReadonly<Ref<IpcError | null>> = readonly(a
 export const tmFuzzyAccepting: DeepReadonly<Ref<boolean>> = readonly(accepting)
 export const tmFuzzyPendingAccept: DeepReadonly<Ref<TmFuzzyPendingAccept | null>> = readonly(pendingAccept)
 export const tmFuzzyFocusRequest: DeepReadonly<Ref<number>> = readonly(focusRequest)
+export const tmFuzzyExpandedRows: DeepReadonly<Ref<readonly string[]>> = readonly(expandedRows)
+
+export function tmFuzzyRowKey(match: TmFuzzyMatch): string {
+  return `${match.tier}:${match.unit_id}`
+}
+
+/** Unfolds or folds the aimed row's full source and target sentences in place. */
+export function toggleTmFuzzyAimedExpanded(): void {
+  const match = tmFuzzyAimedMatch()
+  if (match === null) return
+  const key = tmFuzzyRowKey(match)
+  expandedRows.value = expandedRows.value.includes(key)
+    ? expandedRows.value.filter((k) => k !== key)
+    : [...expandedRows.value, key]
+}
 
 /** Eligible to render: matches to show, or a scan error the user must see. */
 export const tmFuzzyIsEligible = computed<boolean>(
@@ -69,6 +85,7 @@ function clearShown(): void {
   scanError.value = null
   acceptError.value = null
   pendingAccept.value = null
+  expandedRows.value = []
 }
 
 export const TM_FUZZY_SCAN_DEBOUNCE_MS = 150

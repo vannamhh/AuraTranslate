@@ -11,6 +11,7 @@ import {
   tmFuzzyAimedMatch,
   tmFuzzyPendingAccept,
   tmFuzzySegmentId,
+  toggleTmFuzzyAimedExpanded,
 } from './tmFuzzyStripState'
 import { saveTmSettings } from './tmSettingsState'
 
@@ -23,6 +24,7 @@ export function tmFuzzyCommandDeps(): Pick<
   | 'acceptTmFuzzyRow'
   | 'confirmTmFuzzyOverwrite'
   | 'hideTmFuzzyStrip'
+  | 'toggleTmFuzzyFull'
   | 'saveTmSettings'
 > {
   return {
@@ -52,6 +54,7 @@ export function tmFuzzyCommandDeps(): Pick<
       void acceptTmFuzzyToEditor(waiting.segmentId, waiting.tier, waiting.unitId, waiting.expectedTarget, true, waiting.kind)
     },
     hideTmFuzzyStrip,
+    toggleTmFuzzyFull: toggleTmFuzzyAimedExpanded,
     saveTmSettings: () => {
       void saveTmSettings()
     },

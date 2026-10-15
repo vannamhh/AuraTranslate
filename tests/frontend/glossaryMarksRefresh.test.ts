@@ -347,7 +347,7 @@ describe('Story 3.4b — gộp segment làm MỚI dấu, không dấu nào trỏ
     // Lượt IPC THỨ HAI (do `refreshGlossaryMarks` phát sau gộp) trả một dấu phủ '一' của hàng
     // MỚI (offset [0,1) trong `source_text` của hàng 99).
     hangDoiMarks.push({
-      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Ghép', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }],
+      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Ghép', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null, term_origin: 'manual', category: 'other' as const }],
       error: null,
     })
 
@@ -378,7 +378,7 @@ describe('Story 3.4b — thêm nhanh một thuật ngữ làm dấu xuất hiệ
 
     // Lượt IPC THỨ HAI (do lưu thành công phát ra) trả một dấu phủ '一' của segment 11.
     hangDoiMarks.push({
-      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }],
+      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null, term_origin: 'manual', category: 'other' as const }],
       error: null,
     })
 
@@ -426,6 +426,8 @@ describe('bật/tắt một nguồn từ điển làm mới dấu Glossary của
           han_viet_suggestion: null,
           han_viet_status: 'not_requested',
           occurrence_count: null,
+          term_origin: 'manual',
+          category: 'other' as const,
         },
       ],
       error: null,
@@ -471,7 +473,7 @@ describe('Story 3.4b — chuyển Chương KỀ nạp đúng dấu của Chươn
     // Chương A (mở lúc mount): mark phủ '你' của segment 11 — KHÔNG, segment 11 là '一。' —
     // dùng đúng nội dung FIXTURE: mark phủ '一' [0,1).
     hangDoiMarks = [
-      { marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một (A)', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }], error: null },
+      { marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một (A)', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null, term_origin: 'manual', category: 'other' as const }], error: null },
     ]
     const { editorState, wrapper } = await mountGrid()
     await wrapper.vm.$nextTick()
@@ -484,7 +486,7 @@ describe('Story 3.4b — chuyển Chương KỀ nạp đúng dấu của Chươn
     // Lượt IPC THỨ HAI (do `switchChapter()` phát ra cho Chương B) trả một dấu KHÁC hẳn, phủ
     // '你' của segment 50 (Chương B, '你好').
     hangDoiMarks.push({
-      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Chào (B)', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }],
+      marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Chào (B)', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null, term_origin: 'manual', category: 'other' as const }],
       error: null,
     })
 
@@ -520,7 +522,7 @@ describe('Story 3.4b — `GridPanel → SourceHanViet` qua prop `:glossary-terms
   it('🔴 chuyển tab Hán Việt ⇒ `.hv-word` mang ĐÚNG lớp dấu mà `GridPanel` tính cho segment đó', async () => {
     // Mark phủ '一' của segment 11 ('一。') — segment ĐẦU của FIXTURE, [0, 1).
     hangDoiMarks = [
-      { marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }], error: null },
+      { marks: [{ start: 0, end: 1, tier: 'global', is_confirmed: true, translation: 'Một', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null, term_origin: 'manual', category: 'other' as const }], error: null },
     ]
     const { sourceState, wrapper } = await mountGrid()
 
@@ -601,7 +603,7 @@ describe('Story 3.4b — điểm cắt NGƯỜI DÙNG rơi vào GIỮA một spa
     // được sinh ra (`glossaryMarksBySegment` chỉ thêm biên khi span dừng TRƯỚC cuối segment).
     // Điểm cắt duy nhất trong ca này phải đến từ CHÍNH `pendingCuts`.
     hangDoiMarks = [
-      { marks: [{ start: 0, end: 2, tier: 'global', is_confirmed: true, translation: 'Cả câu', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null }], error: null },
+      { marks: [{ start: 0, end: 2, tier: 'global', is_confirmed: true, translation: 'Cả câu', id: 1, source_term: 'thuật ngữ', han_viet_suggestion: null, han_viet_status: 'not_requested', occurrence_count: null, term_origin: 'manual', category: 'other' as const }], error: null },
     ]
     const { editorState, wrapper } = await mountGrid()
 

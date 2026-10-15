@@ -234,12 +234,17 @@ export async function tmListPairs(
   }
 }
 
-/** Pair count of both tiers; `null` when unknown (command failed or no bridge). Never throws. */
-export async function tmCountPairs(): Promise<number | null> {
+/** Pair counts of both tiers: `mine` = own translations, `others` = everything else. */
+export type TmPairCounts = { total: number; mine: number; others: number }
+
+/** `null` when unknown (command failed or no bridge). Never throws. */
+export async function tmCountPairs(): Promise<TmPairCounts | null> {
   try {
-    const count = await invoke<unknown>(CMD_TM_COUNT_PAIRS)
-    if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) return null
-    return count
+    const wire = await invoke<unknown>(CMD_TM_COUNT_PAIRS)
+    if (typeof wire !== 'object' || wire === null) return null
+    const v = wire as Partial<Record<keyof TmPairCounts, unknown>>
+    if (!isCount(v.total) || !isCount(v.mine) || !isCount(v.others)) return null
+    return { total: v.total, mine: v.mine, others: v.others }
   } catch {
     return null
   }

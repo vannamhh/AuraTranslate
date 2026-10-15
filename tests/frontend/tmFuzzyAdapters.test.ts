@@ -18,6 +18,7 @@ const WIRE_MATCH = {
   target_text: 'x',
   diff: [{ kind: 'equal', text: 'a b' }],
   side: 'others',
+  created_at: '2026-07-14T12:00:00.000Z',
 }
 
 describe('tmFuzzyMatches', () => {

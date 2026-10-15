@@ -24,6 +24,7 @@ vi.mock('../../src/panels/editorPanelState', async () => {
   const editorSegments = vueRef<{ id: number; target_text: string }[]>([])
   return {
     editorCaretSegmentId: vueRef<number | null>(null),
+    editorLastCaretSegmentId: vueRef<number | null>(null),
     editorSegments,
     flushEditorBeforeDiscreteWrite: () => flushMock(),
     moveEditorCaretTo: () => true,
@@ -33,6 +34,7 @@ vi.mock('../../src/panels/editorPanelState', async () => {
   }
 })
 vi.mock('../../src/commands', () => ({ dispatch: (...args: unknown[]) => dispatchMock(...args) }))
+vi.mock('../../src/config/shortcutsState', () => ({ shortcutRows: ref([]) }))
 vi.mock('../../src/tmFuzzyStripState', () => ({ tmFuzzyIsEligible: tmEligible }))
 vi.mock('../../src/glossaryConfirmStripState', () => ({ confirmStripIsOpen: confirmOpen }))
 vi.mock('../../src/glossaryQuickAddState', () => ({ quickAddIsOpen: quickAddOpen }))
@@ -114,8 +116,8 @@ describe('strip content', () => {
     await runProofread([1])
     await flushPromises()
     const labels = new Map(wrapper.findAll('button').map((b) => [b.text(), b]))
-    await labels.get(t('command.ai.proofread.accept'))?.trigger('click')
-    await labels.get(t('command.ai.proofread.dismiss'))?.trigger('click')
+    await labels.get(t('proofread.strip.accept'))?.trigger('click')
+    await labels.get(t('proofread.strip.dismiss'))?.trigger('click')
     expect(dispatchMock.mock.calls.map((c) => c[0])).toEqual(['ai.proofread.accept', 'ai.proofread.dismiss'])
     wrapper.unmount()
   })

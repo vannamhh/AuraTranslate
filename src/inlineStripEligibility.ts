@@ -11,6 +11,7 @@ import {
   proofreadRevertible,
   proofreadRunSegmentIds,
   proofreadStateValue,
+  proofreadStripHidden,
 } from './proofreadState'
 import { tmFuzzyIsEligible, tmFuzzySegmentId } from './tmFuzzyStripState'
 
@@ -31,14 +32,16 @@ export const eligibleInlineStrips = computed<InlineStripKind[]>(() => {
   if (confirmStripIsOpen.value) list.push('glossary_confirm')
   const proofread = proofreadStateValue.value
   const caret = editorCaretSegmentId.value
+  const hidden = proofreadStripHidden.value && !proofreadScanLevelPresent.value
   const hasJob =
-    proofreadScanLevelPresent.value ||
+    !hidden &&
+    (proofreadScanLevelPresent.value ||
     proofreadCurrent.value !== null ||
     proofreadRevertible.value ||
-    proofreadActionError.value !== null
+    proofreadActionError.value !== null)
   if (hasJob) list.push('proofreader')
   if (tmFuzzyIsEligible.value) list.push('tm_fuzzy')
-  if (proofread !== 'idle' && (caret === null || proofreadRunSegmentIds.value.includes(caret))) {
+  if (!hidden && proofread !== 'idle' && (caret === null || proofreadRunSegmentIds.value.includes(caret))) {
     list.push('proofreader_summary')
   }
   return list

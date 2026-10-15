@@ -115,6 +115,12 @@ const CASES: readonly BridgeCase[] = [
     run: (g) => g.confirmPendingGlossaryTranslation('global', 7, 'Mộ Dung'),
   },
   {
+    name: 'listGlossaryTmSuggestions',
+    wire: 'glossary_tm_suggestions',
+    family: 'error',
+    run: (g) => g.listGlossaryTmSuggestions('慕容复'),
+  },
+  {
     name: 'approveGlossaryCandidate',
     wire: 'glossary_approve_candidate',
     family: 'error',
@@ -271,7 +277,7 @@ describe('②c quần thể — bảng ca phải phủ ĐỦ số nhánh `catch`
    * export ở đây sẽ làm ca này đỏ dù nó không phải adapter. Đó là hành vi ĐÚNG và có chủ ý —
    * cùng hình dạng danh-sách-cho-phép của `check:layout` Kiểm C: thêm một cái tên vào bề mặt
    * export của tệp này là một quyết định phải viết ra, không một dòng tiện tay. Đo 2026-08-26:
-   * `src/config/glossary.ts` export đúng **15** hàm, không hàm nào ngoài adapter.
+   * `src/config/glossary.ts` export đúng **16** hàm, không hàm nào ngoài adapter.
    */
   it('bảng ca khớp CHÍNH XÁC tập hàm export của `src/config/glossary.ts`, không thừa không thiếu', async () => {
     const glossary = await freshAdapter()

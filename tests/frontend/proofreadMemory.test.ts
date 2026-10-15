@@ -7,8 +7,8 @@ import { FIXTURE_SEGMENTS } from './support/segmentFixture'
 const invokeMock = vi.fn()
 
 const ROWS = [
-  { id: 2, kind: 'grammar', phrase: 'nhin', context_before: 'toi ', context_after: ' thay', created_at: 't' },
-  { id: 1, kind: 'spelling', phrase: 'sai', context_before: '', context_after: '', created_at: 't' },
+  { id: 2, kind: 'grammar', phrase: 'nhin', context_before: 'toi ', context_after: ' thay', created_at: 't', blocked_count: null },
+  { id: 1, kind: 'spelling', phrase: 'sai', context_before: '', context_after: '', created_at: 't', blocked_count: null },
 ]
 
 function seg(id: number, text: string): ChapterSegment {
@@ -22,7 +22,7 @@ async function fresh(handler: Handler = () => null) {
   invokeMock.mockReset()
   invokeMock.mockImplementation((cmd: string, args?: Record<string, unknown>) => {
     if (cmd === 'ai_proofread_ignore_list') return Promise.resolve(ROWS)
-    if (cmd === 'ai_proofread_segments') return Promise.resolve({ state: 'done', not_scanned: 0, filtered: 2 })
+    if (cmd === 'ai_proofread_segments') return Promise.resolve({ state: 'done', not_scanned: 0, filtered: 2, blocked: [] })
     return Promise.resolve(handler(cmd, args))
   })
   const caret = ref<number | null>(5)
@@ -87,7 +87,7 @@ afterEach(() => {
 describe('ignoreProofreadFinding', () => {
   it('sends the finding, its kind and the scanned text, then drops it from the strip', async () => {
     const { state } = await fresh()
-    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
+    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0, blocked: [] }, error: null })
     expect(state.proofreadFindingCount.value).toBe(1)
     await state.ignoreProofreadFinding()
     expect(calls('ai_proofread_ignore_add')).toEqual([
@@ -105,7 +105,7 @@ describe('ignoreProofreadFinding', () => {
     invokeMock.mockImplementation((cmd: string) =>
       cmd === 'ai_proofread_ignore_add' ? Promise.reject(err) : Promise.resolve(null),
     )
-    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
+    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0, blocked: [] }, error: null })
     await state.ignoreProofreadFinding()
     expect(state.proofreadFindingCount.value).toBe(1)
     expect(state.proofreadActionError.value).toEqual(err)
@@ -113,7 +113,7 @@ describe('ignoreProofreadFinding', () => {
 
   it('"Bỏ qua" of 9.4 stays memory only: no ai_proofread_ignore_add', async () => {
     const { state } = await fresh()
-    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
+    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0, blocked: [] }, error: null })
     state.dismissProofreadFinding()
     expect(calls('ai_proofread_ignore_add')).toHaveLength(0)
     expect(state.proofreadFindingCount.value).toBe(0)
@@ -121,7 +121,7 @@ describe('ignoreProofreadFinding', () => {
 })
 
 describe('the scan record', () => {
-  const DONE = (filtered: number) => ({ value: { state: 'done', not_scanned: 0, filtered }, error: null })
+  const DONE = (filtered: number) => ({ value: { state: 'done', not_scanned: 0, filtered, blocked: [] }, error: null })
 
   it('is written once after Done with the Work, the scope, the findings that arrived and the filtered total', async () => {
     const { state, identity } = await fresh()
@@ -130,7 +130,7 @@ describe('the scan record', () => {
     await vi.waitFor(() => {
       expect(calls('ai_proofread_scan_record')).toHaveLength(1)
     })
-    expect(calls('ai_proofread_scan_record')[0]).toEqual({ workId: 'work-1', scope: 'chapter', reported: 2, filtered: 2 })
+    expect(calls('ai_proofread_scan_record')[0]).toEqual({ workId: 'work-1', scope: 'chapter', reported: 2, filtered: 2, blocked: [] })
     expect(state.proofreadFiltered.value).toBe(2)
   })
 
@@ -182,7 +182,7 @@ describe('ProofreaderStrip', () => {
     const { state, Strip } = await fresh()
     const { t } = await import('../../src/i18n')
     const wrapper = mount(Strip, { attachTo: document.body })
-    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 3 }, error: null })
+    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 3, blocked: [] }, error: null })
     await nextTick()
     expect(wrapper.text()).toContain(t('proofread.strip.filtered', { filtered_count: '3' }))
     expect(wrapper.text()).toContain(t('command.ai.proofread.ignore'))
@@ -193,7 +193,7 @@ describe('ProofreaderStrip', () => {
     const { state, Strip } = await fresh()
     const { t } = await import('../../src/i18n')
     const wrapper = mount(Strip, { attachTo: document.body })
-    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
+    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0, blocked: [] }, error: null })
     await nextTick()
     expect(wrapper.text()).not.toContain(t('proofread.strip.filtered', { filtered_count: '0' }))
     wrapper.unmount()
@@ -203,7 +203,7 @@ describe('ProofreaderStrip', () => {
     const { state, Strip } = await fresh()
     const { t } = await import('../../src/i18n')
     const wrapper = mount(Strip, { attachTo: document.body })
-    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0 }, error: null })
+    await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0, blocked: [] }, error: null })
     await nextTick()
     const button = wrapper.findAll('button').find((b) => b.text() === t('command.ai.proofread.ignore'))
     await button?.trigger('click')

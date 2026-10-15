@@ -34,7 +34,12 @@
  * ⚠️ **Hàm THUẦN** — không `import` Vue, không DOM, test được bằng dữ liệu bịa
  * (`tests/frontend/glossaryMarksMap.test.ts`).
  */
-import type { GlossaryMark, GlossaryTierWire, HanVietSuggestionStatus } from '../config/glossary'
+import type {
+  GlossaryCategory,
+  GlossaryMark,
+  GlossaryTierWire,
+  HanVietSuggestionStatus,
+} from '../config/glossary'
 
 /** Đúng bốn trường mà [`glossaryMarksBySegment`] cần từ một hàng segment. */
 export type GlossarySegmentSource = { id: number; source_text: string }
@@ -80,6 +85,8 @@ export type SegmentTermSpan = {
   hanVietStatus: HanVietSuggestionStatus
   /** Copied from `GlossaryMark.occurrence_count`. */
   occurrenceCount: number | null
+  termOrigin: string
+  category: GlossaryCategory
 }
 
 /** Dấu thuật ngữ của MỘT segment — biên cắt (không nhãn) cộng span (có nhãn). */
@@ -163,6 +170,8 @@ export function glossaryMarksBySegment(
         hanVietSuggestion: mark.han_viet_suggestion,
         hanVietStatus: mark.han_viet_status,
         occurrenceCount: mark.occurrence_count,
+        termOrigin: mark.term_origin,
+        category: mark.category,
       })
       if (localStart > 0) boundarySet.add(localStart)
       if (localEnd < len) boundarySet.add(localEnd)

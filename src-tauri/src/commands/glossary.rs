@@ -242,6 +242,10 @@ pub struct GlossaryMarkWire {
     pub han_viet_status: String,
     /// `None` for a manual/imported entry, a Global entry, or one predating this column.
     pub occurrence_count: Option<i64>,
+    /// `TermOrigin::as_str` of the resolved entry.
+    pub term_origin: String,
+    /// `Category::as_str` of the resolved entry.
+    pub category: String,
 }
 
 impl From<GlossaryMark> for GlossaryMarkWire {
@@ -257,6 +261,8 @@ impl From<GlossaryMark> for GlossaryMarkWire {
             han_viet_suggestion: mark.han_viet_suggestion,
             han_viet_status: mark.han_viet_status.to_owned(),
             occurrence_count: mark.occurrence_count,
+            term_origin: mark.term_origin.as_str().to_owned(),
+            category: mark.category.as_str().to_owned(),
         }
     }
 }
@@ -528,6 +534,34 @@ pub fn glossary_confirm_pending_translation(
 
     confirm_pending_translation(global, work_store, tier, id, translation)?;
     Ok(())
+}
+
+/// One TM target for a pending Glossary term and how many TM pairs carry it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct GlossaryTmSuggestion {
+    pub target_text: String,
+    pub count: u32,
+}
+
+/// TM targets whose pair source equals `source_term` exactly, both tiers (FR146); most pairs first.
+pub fn glossary_tm_suggestions(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    source_term: &str,
+) -> Result<Vec<GlossaryTmSuggestion>, IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    let scope = work_context(open)?;
+    let grouped = crate::core::tm::target_suggestions_for_term(
+        scope.resolver(),
+        global,
+        scope.work(),
+        source_term,
+    )
+    .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?;
+    Ok(grouped
+        .into_iter()
+        .map(|(target_text, count)| GlossaryTmSuggestion { target_text, count })
+        .collect())
 }
 
 /// Nhận một ứng viên (id) thành một mục Glossary — **hàm thuần, đây là thứ test gọi**. Vỏ
@@ -1307,6 +1341,24 @@ pub mod wire {
             id,
             &translation,
         )
+    }
+
+    /// Wire shell of [`super::glossary_tm_suggestions`]; `sourceTerm` on the wire.
+    #[tauri::command]
+    pub fn glossary_tm_suggestions(
+        app: tauri::AppHandle,
+        source_term: String,
+    ) -> Result<Vec<super::GlossaryTmSuggestion>, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_tm_suggestions(global.as_deref(), None, &source_term);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_tm_suggestions(global.as_deref(), guard.as_ref(), &source_term)
     }
 
     /// Vỏ IPC của [`super::glossary_approve_candidate`]. Story 3.6.

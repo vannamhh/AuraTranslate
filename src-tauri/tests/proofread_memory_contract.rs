@@ -11,9 +11,9 @@ use auratranslate_lib::commands::aitranslate::PreparedTranslateCall;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::proofread::{
     AiProofreadEventWire, AiProofreadOutcomeWire, PreparedProofreadBatch, PreparedProofreadRun,
-    PreparedProofreadSegment, ProofreadPrepareOutcome, prepare_proofread_call,
-    proofread_ignore_add, proofread_ignore_clear, proofread_ignore_list, proofread_ignore_remove,
-    proofread_scan_record, run_proofread_call,
+    PreparedProofreadSegment, ProofreadBlockedWire, ProofreadPrepareOutcome,
+    prepare_proofread_call, proofread_ignore_add, proofread_ignore_clear, proofread_ignore_list,
+    proofread_ignore_remove, proofread_scan_record, run_proofread_call,
 };
 use auratranslate_lib::commands::segment::{
     merge_segments, promote_ai_translation, read_open_chapter_segments, split_segment,
@@ -160,7 +160,7 @@ fn scan(open: &OpenWork, id: i64, text: &str, kind: &str, quote: &str) -> (usize
     let remembered = {
         let mut run = prepared_run(id, text);
         // The memory is read by `prepare_proofread_call`; this fixture reads it the same way.
-        run.remembered = remembered_of(open);
+        (run.remembered, run.remembered_ids) = remembered_of(open);
         run
     };
     scan_run(&remembered, &reply_of(kind, quote))
@@ -184,6 +184,7 @@ fn prepared_run(id: i64, text: &str) -> PreparedProofreadRun {
             }],
         }],
         remembered: Vec::new(),
+        remembered_ids: Vec::new(),
     }
 }
 
@@ -216,7 +217,10 @@ fn scan_run(run: &PreparedProofreadRun, reply: &str) -> (usize, u32) {
 
 fn remembered_of(
     open: &OpenWork,
-) -> Vec<auratranslate_lib::core::ai::proofread::ProofreadSignature> {
+) -> (
+    Vec<auratranslate_lib::core::ai::proofread::ProofreadSignature>,
+    Vec<i64>,
+) {
     let _g = KEYCHAIN_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -242,7 +246,7 @@ fn remembered_of(
     let out = prepare_proofread_call(Some(&global), Some(open), &filled).expect("prepare");
     let _ = ai_config_delete_key(AiConfigTier::Global);
     match out {
-        ProofreadPrepareOutcome::Ready(run) => run.remembered,
+        ProofreadPrepareOutcome::Ready(run) => (run.remembered, run.remembered_ids),
         ProofreadPrepareOutcome::NotConfigured => panic!("expected Ready"),
     }
 }
@@ -492,7 +496,8 @@ fn the_tables_carry_no_segment_position_explanation_or_suggestion_column() {
             "phrase",
             "context_before",
             "context_after",
-            "created_at"
+            "created_at",
+            "blocked_count"
         ]
     );
     assert_eq!(
@@ -599,7 +604,7 @@ fn the_scan_count_records_one_row_and_refuses_what_rust_can_check() {
     let open = work_of("scan-record", 1);
     let work_id = open.meta.work_id.clone();
 
-    proofread_scan_record(Some(&open), &work_id, "chapter", 4, 1).expect("record");
+    proofread_scan_record(Some(&open), &work_id, "chapter", 4, 1, &[]).expect("record");
     assert_eq!(table_count(&open, "proof_scan"), 1);
     let row: (String, i64, i64, String) = open
         .store
@@ -620,13 +625,13 @@ fn the_scan_count_records_one_row_and_refuses_what_rust_can_check() {
         (work_id.as_str(), "segment", -1, 0),
         (work_id.as_str(), "segment", 0, -1),
     ] {
-        let err = proofread_scan_record(Some(&open), work, scope, reported, filtered)
+        let err = proofread_scan_record(Some(&open), work, scope, reported, filtered, &[])
             .expect_err("refused");
         assert_eq!(err.code(), "ai_proofread.scan_record_rejected");
     }
     assert_eq!(table_count(&open, "proof_scan"), 1);
     assert_eq!(
-        proofread_scan_record(None, &work_id, "segment", 0, 0)
+        proofread_scan_record(None, &work_id, "segment", 0, 0, &[])
             .expect_err("none")
             .code(),
         "work.none_open"
@@ -663,4 +668,147 @@ fn a_cancelled_scan_and_a_scan_never_write_the_memory_tables() {
     scan_run(&run, &reply_of("spelling", "nguời"));
     assert_eq!(table_count(&open, "proof_scan"), 0);
     assert_eq!(table_count(&open, "proof_ignore"), 1);
+}
+
+fn blocked_of(run: &PreparedProofreadRun, reply: &str) -> Vec<ProofreadBlockedWire> {
+    let channel = tauri::ipc::Channel::<AiProofreadEventWire>::new(|_| Ok(()));
+    let provider = Replying(reply.to_owned());
+    let out =
+        tauri::async_runtime::block_on(run_proofread_call(&provider, run, &channel, &|| false));
+    let Ok(AiProofreadOutcomeWire::Done { blocked, .. }) = out else {
+        panic!("scan did not finish")
+    };
+    blocked
+}
+
+fn blocked_counts(open: &OpenWork) -> Vec<Option<i64>> {
+    open.store
+        .read(|conn| {
+            let mut stmt = conn.prepare("SELECT blocked_count FROM proof_ignore ORDER BY id")?;
+            stmt.query_map([], |r| r.get(0))?
+                .collect::<Result<Vec<Option<i64>>, _>>()
+        })
+        .expect("counts")
+}
+
+fn two_hit_reply() -> String {
+    r#"[{"kind":"spelling","quote":"nguời","explanation":"e","suggestion":"s"},
+        {"kind":"spelling","quote":"nguời","explanation":"e","suggestion":"s"}]"#
+        .to_owned()
+}
+
+#[test]
+fn a_new_memory_row_starts_at_zero_and_a_row_before_the_counter_stays_null() {
+    let open = work_of("counter-null", 1);
+    let id = ids(&open)[0];
+    let text = "Mọi nguời đã đi.";
+    set_target(&open, id, text);
+    remember(&open, id, text, "nguời", ProofreadKind::Spelling).expect("remember");
+    open.store
+        .write(|tx| {
+            tx.execute(
+                "INSERT INTO proof_ignore (kind, phrase, context_before, context_after, created_at) \
+                 VALUES ('spelling', 'cũ', '', '', '2026-01-01T00:00:00.000Z')",
+                [],
+            )?;
+            Ok(())
+        })
+        .expect("legacy row");
+
+    assert_eq!(blocked_counts(&open), vec![Some(0), None]);
+    let listed = proofread_ignore_list(Some(&open)).expect("list");
+    let by_phrase = |p: &str| {
+        listed
+            .iter()
+            .find(|e| e.phrase == p)
+            .expect("row")
+            .blocked_count
+    };
+    assert_eq!((by_phrase("nguời"), by_phrase("cũ")), (Some(0), None));
+}
+
+#[test]
+fn a_scan_reports_blocked_findings_per_entry_and_recording_it_raises_only_that_entry() {
+    let open = work_of("counter-raise", 1);
+    let work_id = open.meta.work_id.clone();
+    let id = ids(&open)[0];
+    let text = "Mọi nguời đã đi, nguời ấy về.";
+    set_target(&open, id, text);
+    remember(&open, id, text, "nguời", ProofreadKind::Spelling).expect("remember");
+    remember(&open, id, text, "đã đi", ProofreadKind::Grammar).expect("other entry");
+    let mut run = prepared_run(id, text);
+    (run.remembered, run.remembered_ids) = remembered_of(&open);
+
+    let blocked = blocked_of(&run, &two_hit_reply());
+    let spelling_id: i64 = open
+        .store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT id FROM proof_ignore WHERE kind = 'spelling'",
+                [],
+                |r| r.get(0),
+            )
+        })
+        .expect("id");
+    assert_eq!(
+        blocked,
+        vec![ProofreadBlockedWire {
+            ignore_id: spelling_id,
+            count: 2
+        }]
+    );
+
+    proofread_scan_record(Some(&open), &work_id, "chapter", 0, 2, &blocked).expect("record");
+    proofread_scan_record(Some(&open), &work_id, "chapter", 0, 2, &blocked).expect("again");
+    let counts: Vec<(String, Option<i64>)> = open
+        .store
+        .read(|conn| {
+            let mut stmt =
+                conn.prepare("SELECT kind, blocked_count FROM proof_ignore ORDER BY id")?;
+            stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .expect("counts");
+    assert_eq!(
+        counts,
+        vec![
+            ("spelling".to_owned(), Some(4)),
+            ("grammar".to_owned(), Some(0))
+        ]
+    );
+}
+
+#[test]
+fn recording_a_block_never_gives_a_null_counter_a_number() {
+    let open = work_of("counter-null-stays", 1);
+    let work_id = open.meta.work_id.clone();
+    open.store
+        .write(|tx| {
+            tx.execute(
+                "INSERT INTO proof_ignore (kind, phrase, context_before, context_after, created_at) \
+                 VALUES ('spelling', 'cũ', '', '', '2026-01-01T00:00:00.000Z')",
+                [],
+            )?;
+            Ok(())
+        })
+        .expect("legacy row");
+    let legacy_id: i64 = open
+        .store
+        .read(|conn| conn.query_row("SELECT id FROM proof_ignore", [], |r| r.get(0)))
+        .expect("id");
+
+    proofread_scan_record(
+        Some(&open),
+        &work_id,
+        "segment",
+        0,
+        3,
+        &[ProofreadBlockedWire {
+            ignore_id: legacy_id,
+            count: 3,
+        }],
+    )
+    .expect("record");
+
+    assert_eq!(blocked_counts(&open), vec![None]);
 }

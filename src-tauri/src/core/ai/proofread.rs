@@ -247,29 +247,35 @@ pub fn signature_matches(stored: &ProofreadSignature, current: &ProofreadSignatu
     side(&stored.before, &current.before, true) && side(&stored.after, &current.after, false)
 }
 
-/// Drops the findings `remembered` silences and returns how many it dropped.
+/// Drops the findings `remembered` silences. The second value counts the dropped findings per
+/// `remembered` index; a finding silenced by several entries is credited to the first.
 pub fn filter_remembered(
     scanned_text: &str,
     findings: Vec<ProofreadFinding>,
     remembered: &[ProofreadSignature],
-) -> (Vec<ProofreadFinding>, u32) {
+) -> (Vec<ProofreadFinding>, Vec<u32>) {
+    let mut blocked = vec![0u32; remembered.len()];
     if remembered.is_empty() {
-        return (findings, 0);
+        return (findings, blocked);
     }
-    let mut filtered = 0u32;
     let kept = findings
         .into_iter()
         .filter(|finding| {
             let current = utf16_to_byte(scanned_text, finding.start)
                 .zip(utf16_to_byte(scanned_text, finding.end))
                 .and_then(|(start, end)| signature_of(finding.kind, scanned_text, start, end));
-            let silenced = current
-                .is_some_and(|current| remembered.iter().any(|s| signature_matches(s, &current)));
-            filtered += u32::from(silenced);
-            !silenced
+            let silenced_by = current.and_then(|current| {
+                remembered
+                    .iter()
+                    .position(|s| signature_matches(s, &current))
+            });
+            if let Some(index) = silenced_by {
+                blocked[index] += 1;
+            }
+            silenced_by.is_none()
         })
         .collect();
-    (kept, filtered)
+    (kept, blocked)
 }
 
 #[cfg(test)]
@@ -557,10 +563,10 @@ mod tests {
             ..at(3)
         };
         let remembered = [signature(ProofreadKind::Spelling, text, "wrogn")];
-        let (kept, filtered) =
+        let (kept, blocked) =
             filter_remembered(text, vec![at(3), grammar.clone(), at(12)], &remembered);
-        assert_eq!((kept, filtered), (vec![grammar], 2));
+        assert_eq!((kept, blocked), (vec![grammar], vec![2]));
         let (all, none) = filter_remembered(text, vec![at(3)], &[]);
-        assert_eq!((all.len(), none), (1, 0));
+        assert_eq!((all.len(), none), (1, Vec::<u32>::new()));
     }
 }

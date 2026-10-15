@@ -26,7 +26,7 @@ type OnEvent = (event: ProofreadEventWire) => void
 type RunResult = { value: ProofreadOutcomeWire | null; error: IpcError | null }
 
 const FINDING = { kind: 'spelling' as const, start: 4, end: 9, explanation: 'e', suggestion: 's' }
-const DONE: ProofreadOutcomeWire = { state: 'done', not_scanned: 0, filtered: 0 }
+const DONE: ProofreadOutcomeWire = { state: 'done', not_scanned: 0, filtered: 0, blocked: [] }
 
 function batch(ids: number[], usage: AiTranslateUsageWire | null = null): ProofreadEventWire {
   return {

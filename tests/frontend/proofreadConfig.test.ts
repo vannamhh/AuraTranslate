@@ -32,12 +32,15 @@ describe('isProofreadOutcomeWire', () => {
   it('accepts the three outcomes', () => {
     expect(isProofreadOutcomeWire({ state: 'not_configured' })).toBe(true)
     expect(isProofreadOutcomeWire({ state: 'cancelled', not_scanned: 2 })).toBe(true)
-    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0 })).toBe(true)
+    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0, blocked: [] })).toBe(true)
+    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 2, blocked: [{ ignore_id: 7, count: 2 }] })).toBe(true)
   })
 
   it('rejects a done or cancelled outcome without not_scanned, and unknown states', () => {
     expect(isProofreadOutcomeWire({ state: 'done' })).toBe(false)
     expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0 })).toBe(false)
+    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0 })).toBe(false)
+    expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 0, blocked: [{ ignore_id: 7 }] })).toBe(false)
     expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: -1 })).toBe(false)
     expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: 1.5 })).toBe(false)
     expect(isProofreadOutcomeWire({ state: 'done', not_scanned: 0, filtered: '2' })).toBe(false)
@@ -117,7 +120,7 @@ describe('cancelProofreadCall', () => {
 })
 
 describe('the remembered-ignore adapters', () => {
-  const ROW = { id: 7, kind: 'grammar', phrase: 'p', context_before: 'a', context_after: 'b', created_at: '2026-10-12T00:00:00Z' }
+  const ROW = { id: 7, kind: 'grammar', phrase: 'p', context_before: 'a', context_after: 'b', created_at: '2026-10-12T00:00:00Z', blocked_count: 2 }
   const err = { code: 'ai_proofread.text_changed', message_key: 'err.ai_proofread.text_changed', params: {}, retryable: false }
 
   it('ignore_add sends camelCase keys without a replacement', async () => {
@@ -143,8 +146,11 @@ describe('the remembered-ignore adapters', () => {
   it('ignore_list accepts a list of well-shaped rows and rejects any other shape', async () => {
     invokeMock.mockResolvedValue([ROW])
     expect(await listProofreadIgnores()).toEqual({ rows: [ROW], error: null })
+    invokeMock.mockResolvedValue([{ ...ROW, blocked_count: null }])
+    expect((await listProofreadIgnores()).rows?.[0]?.blocked_count).toBeNull()
+    invokeMock.mockResolvedValue([ROW])
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    for (const bad of [{}, [{ ...ROW, kind: 'style' }], [{ ...ROW, id: '7' }], [{ ...ROW, context_after: null }], null]) {
+    for (const bad of [{}, [{ ...ROW, kind: 'style' }], [{ ...ROW, id: '7' }], [{ ...ROW, context_after: null }], [{ ...ROW, blocked_count: undefined }], null]) {
       invokeMock.mockResolvedValue(bad)
       const result = await listProofreadIgnores()
       expect(result.rows).toBeNull()
@@ -172,11 +178,18 @@ describe('the remembered-ignore adapters', () => {
     }
   })
 
-  it('scan_record sends workId, scope, reported and filtered, and never throws', async () => {
+  it('scan_record sends workId, scope, reported, filtered and the per-entry blocks, and never throws', async () => {
     invokeMock.mockResolvedValue(null)
-    expect(await recordProofreadScan('w1', 'chapter', 3, 2)).toEqual({ ok: true, error: null })
-    expect(invokeMock).toHaveBeenCalledWith('ai_proofread_scan_record', { workId: 'w1', scope: 'chapter', reported: 3, filtered: 2 })
+    const blocked = [{ ignore_id: 7, count: 2 }]
+    expect(await recordProofreadScan('w1', 'chapter', 3, 2, blocked)).toEqual({ ok: true, error: null })
+    expect(invokeMock).toHaveBeenCalledWith('ai_proofread_scan_record', {
+      workId: 'w1',
+      scope: 'chapter',
+      reported: 3,
+      filtered: 2,
+      blocked,
+    })
     invokeMock.mockRejectedValue(err)
-    expect(await recordProofreadScan('w1', 'chapter', 3, 2)).toEqual({ ok: false, error: err })
+    expect(await recordProofreadScan('w1', 'chapter', 3, 2, [])).toEqual({ ok: false, error: err })
   })
 })

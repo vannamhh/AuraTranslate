@@ -6037,6 +6037,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Epic 7 — bộ nhớ dịch. Cùng lý do Story 3.7: dải chốt của Story 3.6 là chỗ hiện
     đề xuất đó khi Epic 7 dựng xong, không cần một dải thứ hai.)**
   → 2026-10-13 (correct-course `change-hoan-thien-giao-dien-theo-mockup`, đề xuất 7) — đề xuất TM cho thuật ngữ ở dải chốt là dòng B16 (FR146), Story 12.10; "bạn vừa viết" vẫn loại 3. **Chủ: Epic 12.**
+  → ✅ ĐÃ ĐÓNG 2026-10-15 (Story 12.10) — dải chốt đề xuất bản dịch từ TM theo câu nguồn đúng bằng thuật ngữ (`glossary_tm_suggestions`, `pairs_for_source` cả hai tầng), đánh số sau dòng Hán Việt; "bạn vừa viết" vẫn loại 3, không làm.
 
 - source_spec: `_bmad-output/implementation-artifacts/3-6-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap.md`
   summary: **Nguồn gợi ý "bạn vừa viết" (đoán bản dịch từ một cụm người dùng vừa gõ gần đó,
@@ -13180,4 +13181,20 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-man-xem-truoc-nhap-hai-cot-plan.md`
   summary: Lượt dùng thật trên bản đóng gói macOS: nhập một tệp `.docx` song ngữ thật còn hàng lệch bằng "Nhập luôn, nối sau", tìm lại câu "chưa nối" từ danh sách Chương, xác nhận một câu thì dấu mất; nhìn bốn màn hai cột (cột trái 300 px, ô dán đánh số dòng cao 260 px) ở sáng và tối.
   evidence: e2e 12-6 chạy trên bản debug với tệp `.csv` tổng hợp; CSS hai cột chưa ai nhìn bằng mắt trên WKWebView; ước lượng chỉ đo trên 2.000 Chương tổng hợp.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
+  summary: Chi phí ước tính trước khi quét (c:114) chưa có ở bộ chọn phạm vi của dải Proofreader; dải chỉ hiện số câu theo phạm vi.
+  evidence: Quyết định 4 của plan; `ProofreadScopeOverlay.vue` và dải dùng chung `proofreadScopeCounts`, chưa có ước lượng token hay tiền.
+  Chủ: Winston.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
+  summary: Dải TM không hiện "Chương N · câu M" của mockup tm-fuzzy-match.
+  evidence: AD-6: TM không giữ vị trí nguồn của cặp.
+  → KHÔNG LÀM 2026-10-15 (Story 12.10) — mockup sửa theo AD-6, dải chỉ hiện tầng, phía và ngày.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
+  summary: Chỗ đã bỏ qua không hiện lý do hay đề xuất cũ của mỗi mục (mockup proofreader.html).
+  evidence: AD-53 ⑦: mục nhớ chỉ giữ cụm và ngữ cảnh, không giữ lý do hay đề xuất.
+  → KHÔNG LÀM 2026-10-15 (Story 12.10) — Chỗ đã bỏ qua hiện cụm, ngày bỏ qua và số lần chặn.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
+  summary: Lượt dùng thật trên bản đóng gói: mở Chỗ đã bỏ qua từ link trong dải Proofreader sau một lượt quét thật, nhìn số lần chặn tăng sau lượt quét kế, và phím số trên dải chốt Glossary với bàn phím số.
+  evidence: e2e không giả được lượt quét Proofreader (`e2e/specs/proofread-underline.e2e.mjs`); vitest giả `event.code`.
   Chủ: Epic 12.

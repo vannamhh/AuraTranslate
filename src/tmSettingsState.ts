@@ -1,4 +1,4 @@
-import { readonly, ref } from 'vue'
+import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import type { IpcError } from './i18n'
 import { editorCaretSegmentId } from './panels/editorPanelState'
@@ -15,6 +15,7 @@ export const tmSettingsSaved: DeepReadonly<Ref<boolean>> = readonly(saved)
 export const tmSettingsThresholdInput: Ref<string> = thresholdInput
 export const tmSettingsSaving: DeepReadonly<Ref<boolean>> = readonly(saving)
 export const tmSettingsSaveError: DeepReadonly<Ref<IpcError | null>> = readonly(saveError)
+export const tmFuzzyThresholdInUse = computed(() => knownThreshold.value ?? bootstrapTmFuzzyThreshold.value)
 
 export const TM_FUZZY_THRESHOLD_MIN = 50
 export const TM_FUZZY_THRESHOLD_MAX = 99

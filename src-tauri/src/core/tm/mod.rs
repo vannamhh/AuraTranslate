@@ -335,18 +335,60 @@ pub fn read_tier_rows(
     })
 }
 
-/// Stored pairs of both tiers, one `COUNT(*)` per tier; equals `total_pairs` of an unfiltered listing.
+/// Stored pairs per FR118 side, summed over both tiers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TierPairCounts {
+    pub mine: u64,
+    pub others: u64,
+}
+
+impl TierPairCounts {
+    pub fn total(self) -> u64 {
+        self.mine + self.others
+    }
+}
+
+/// Stored pairs of both tiers split by side; `total()` equals `total_pairs` of an unfiltered listing.
 pub fn count_tier_pairs(
     global: &crate::core::store::Store,
     work: Option<&crate::core::store::Store>,
-) -> Result<u64, TmStoreError> {
-    let count_one = |store: &crate::core::store::Store| -> Result<u64, TmStoreError> {
-        let n: i64 =
-            store.read(|conn| conn.query_row("SELECT COUNT(*) FROM tm_unit", [], |r| r.get(0)))?;
-        Ok(n as u64)
+) -> Result<TierPairCounts, TmStoreError> {
+    let count_one = |store: &crate::core::store::Store| -> Result<(u64, u64), TmStoreError> {
+        let (mine, total): (i64, i64) = store.read(|conn| {
+            conn.query_row(
+                "SELECT COALESCE(SUM(translation_origin = 'self'), 0), COUNT(*) FROM tm_unit",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+        })?;
+        Ok((mine as u64, (total - mine) as u64))
     };
-    let work_count = work.map(count_one).transpose()?.unwrap_or(0);
-    Ok(count_one(global)? + work_count)
+    let (work_mine, work_others) = work.map(count_one).transpose()?.unwrap_or((0, 0));
+    let (global_mine, global_others) = count_one(global)?;
+    Ok(TierPairCounts {
+        mine: work_mine + global_mine,
+        others: work_others + global_others,
+    })
+}
+
+/// Distinct targets of pairs whose source equals `source_term`, both tiers, with how many pairs
+/// carry each. Most pairs first, ties in `pairs_for_source` order (AD-18).
+pub fn target_suggestions_for_term(
+    resolver: &crate::core::scope::ScopeResolver,
+    global: &crate::core::store::Store,
+    work: Option<&crate::core::store::Store>,
+    source_term: &str,
+) -> Result<Vec<(String, u32)>, TmStoreError> {
+    let pairs = pairs_for_source(resolver, global, work, source_term)?;
+    let mut grouped: Vec<(String, u32)> = Vec::new();
+    for pair in pairs {
+        match grouped.iter_mut().find(|(t, _)| *t == pair.target_text) {
+            Some((_, n)) => *n += 1,
+            None => grouped.push((pair.target_text, 1)),
+        }
+    }
+    grouped.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+    Ok(grouped)
 }
 
 /// Pairs of both tiers whose source scores at least `threshold` percent against `source_text`,

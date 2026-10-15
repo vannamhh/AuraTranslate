@@ -33,8 +33,14 @@
  */
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { confirmPendingGlossaryTranslation } from './config/glossary'
-import type { GlossaryMark, GlossaryTierWire, HanVietSuggestionStatus } from './config/glossary'
+import { confirmPendingGlossaryTranslation, listGlossaryTmSuggestions } from './config/glossary'
+import type {
+  GlossaryCategory,
+  GlossaryMark,
+  GlossaryTierWire,
+  GlossaryTmSuggestion,
+  HanVietSuggestionStatus,
+} from './config/glossary'
 import type { IpcError } from './i18n'
 import { glossaryMarksBySegment } from './panels/glossaryMarksMap'
 import type { GlossarySegmentSource } from './panels/glossaryMarksMap'
@@ -55,7 +61,18 @@ type CurrentTarget = {
   hanVietSuggestion: string | null
   hanVietStatus: HanVietSuggestionStatus
   occurrenceCount: number | null
+  termOrigin: string
+  category: GlossaryCategory
 }
+
+/** One numbered proposal: Hán Việt first (when available), then TM translations. */
+export type ConfirmStripOption = {
+  text: string
+  isHanViet: boolean
+  tmCount: number | null
+}
+
+const MAX_OPTIONS = 9
 
 /** Identity only (`tier`+`id`), not the Hán Việt suggestion — two targets with the same
  * identity can carry a different suggestion between two `sync` calls; see [`applyTarget`]. */
@@ -79,6 +96,9 @@ const saveError = ref<IpcError | null>(null)
 /** Chuỗi gửi lên là rỗng/toàn khoảng trắng — chặn Ở TẦNG DẢI, thông báo qua `t()`, KHÔNG một
  * `IpcError` (không lượt IPC nào được phát cho ca này). */
 const emptyInputError = ref(false)
+const tmSuggestions = ref<readonly GlossaryTmSuggestion[]>([])
+const tmSuggestionError = ref<IpcError | null>(null)
+const aimedText = ref<string | null>(null)
 
 /** `source_term` đã "Để sau" trong Chương ĐANG MỞ — xoá khi đổi Chương (§Design Notes: một
  * mục đã chốt không bao giờ hỏi lại NHỜ CẤU TRÚC `translation IS NOT NULL`, sổ này chỉ tồn
@@ -130,6 +150,31 @@ export const confirmStripSourceTerm = computed<string | null>(() => current.valu
 export const confirmStripSuggestionStatus = computed<HanVietSuggestionStatus | null>(
   () => current.value?.hanVietStatus ?? null,
 )
+export const confirmStripTermOrigin = computed<string | null>(() => current.value?.termOrigin ?? null)
+export const confirmStripCategory = computed<GlossaryCategory | null>(() => current.value?.category ?? null)
+export const confirmStripTmError: DeepReadonly<Ref<IpcError | null>> = readonly(tmSuggestionError)
+export const confirmStripOptions = computed<ConfirmStripOption[]>(() => {
+  const target = current.value
+  if (target === null) return []
+  const options: ConfirmStripOption[] = []
+  const hanViet = target.hanVietStatus === 'ok' ? (target.hanVietSuggestion ?? '').trim() : ''
+  if (hanViet !== '') options.push({ text: hanViet, isHanViet: true, tmCount: null })
+  for (const suggestion of tmSuggestions.value) {
+    const text = suggestion.target_text.trim()
+    const same = options.find((o) => o.text === text)
+    if (same !== undefined) {
+      same.tmCount = (same.tmCount ?? 0) + suggestion.count
+    } else {
+      options.push({ text, isHanViet: false, tmCount: suggestion.count })
+    }
+  }
+  return options.slice(0, MAX_OPTIONS)
+})
+/** The aim is kept by text, so a list reshuffled by a late Hán Việt or TM answer cannot move it. */
+export const confirmStripAimedOption = computed<number | null>(() => {
+  const index = confirmStripOptions.value.findIndex((o) => o.text === aimedText.value)
+  return index === -1 ? null : index
+})
 export const confirmStripOccurrenceCount = computed<number | null>(
   () => current.value?.occurrenceCount ?? null,
 )
@@ -174,29 +219,36 @@ function selectPendingSpan(
         hanVietSuggestion: next.hanVietSuggestion,
         hanVietStatus: next.hanVietStatus,
         occurrenceCount: next.occurrenceCount,
+        termOrigin: next.termOrigin,
+        category: next.category,
       }
+}
+
+async function loadTmSuggestions(sourceTerm: string, mySequence: number): Promise<void> {
+  const result = await listGlossaryTmSuggestions(sourceTerm)
+  if (mySequence !== sequence) return
+  tmSuggestions.value = result.value ?? []
+  tmSuggestionError.value = result.error
+}
+
+/** Aim a proposal so the next `glossary.confirm.save` confirms it; `null` clears the aim. */
+export function aimGlossaryConfirmOption(index: number | null): void {
+  aimedText.value = index === null ? null : (confirmStripOptions.value[index]?.text ?? null)
 }
 
 /**
  * Áp một mục MỚI — reset ô nhập/lỗi CHỈ KHI danh tính mục đổi (không xoá chữ người dùng
  * đang gõ nếu `sync` được gọi lại cho ĐÚNG mục hiện tại).
  *
- * 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — ô nhập ĐIỀN SẴN bằng `next.hanVietSuggestion` khi
- * có (§I/O Matrix: "Dải chốt mọc ⇒ Ô nhập điền sẵn đề xuất"; đổi sang một mục KHÔNG đề xuất
- * được ⇒ ô RỖNG LẠI, không giữ chữ của mục trước — cùng đúng chỗ mà bản trước đã `= ''`).
- *
  * Three branches, not two: same identity but a changed suggestion (e.g. toggling a
- * dictionary source) updates `current` and refills the input only if it still holds the
- * previous suggestion verbatim, so a same-identity `sync` can't be silently ignored.
+ * dictionary source) still updates `current`, so a same-identity `sync` can't be silently ignored.
  */
 function applyTarget(next: CurrentTarget | null): void {
   const prev = current.value
 
   if (targetsEqual(prev, next)) {
     if (prev !== null && next !== null && suggestionChanged(prev, next)) {
-      const unedited = translationInput.value === (prev.hanVietSuggestion ?? '')
       current.value = next
-      if (unedited) translationInput.value = next.hanVietSuggestion ?? ''
     }
     return
   }
@@ -220,9 +272,13 @@ function applyTarget(next: CurrentTarget | null): void {
   enteredViaChord = false
 
   current.value = next
-  translationInput.value = next?.hanVietSuggestion ?? ''
+  translationInput.value = ''
   saveError.value = null
   emptyInputError.value = false
+  tmSuggestions.value = []
+  tmSuggestionError.value = null
+  aimedText.value = null
+  if (next !== null) void loadTmSuggestions(next.sourceTerm, sequence)
 }
 
 /**
@@ -299,8 +355,7 @@ export function focusGlossaryConfirmStrip(initialTranslation: string, isVisible:
   savedRange =
     selection !== null && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
 
-  const unedited = translationInput.value === (current.value.hanVietSuggestion ?? '')
-  if (unedited && initialTranslation !== '') {
+  if (translationInput.value === '' && initialTranslation !== '') {
     translationInput.value = initialTranslation
   }
 
@@ -404,7 +459,10 @@ export async function confirmGlossaryConfirmStrip(
   if (target === null) return false
   if (saving.value) return false // chốt tái nhập -- cùng lý do `saveGlossaryQuickAdd`.
 
-  const value = translationInput.value.trim()
+  const aimedIndex = confirmStripAimedOption.value
+  const aimed = aimedIndex === null ? undefined : confirmStripOptions.value[aimedIndex]
+  const typed = translationInput.value.trim()
+  const value = aimed?.text ?? (typed !== '' ? typed : (confirmStripOptions.value[0]?.text ?? ''))
   if (value === '') {
     emptyInputError.value = true
     return false
@@ -440,6 +498,9 @@ export function resetGlossaryConfirmStrip(): void {
   sequence += 1 // vô hiệu hoá mọi lượt ghi đang bay -- cùng lý do mọi `reset*()` khác trong kho.
   current.value = null
   translationInput.value = ''
+  tmSuggestions.value = []
+  tmSuggestionError.value = null
+  aimedText.value = null
   saving.value = false
   saveError.value = null
   emptyInputError.value = false

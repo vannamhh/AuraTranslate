@@ -45,6 +45,8 @@ function markOf(patch: Partial<GlossaryMark>): GlossaryMark {
     han_viet_suggestion: null,
     han_viet_status: 'not_requested',
     occurrence_count: null,
+    term_origin: 'manual',
+    category: 'other' as const,
     ...patch,
   }
 }

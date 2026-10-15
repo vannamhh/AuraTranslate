@@ -38,6 +38,8 @@ function pendingMarkWire(overrides: Record<string, unknown> = {}) {
     han_viet_suggestion: null,
     han_viet_status: 'not_requested',
     occurrence_count: null,
+    term_origin: 'manual',
+    category: 'other',
     ...overrides,
   }
 }
@@ -81,8 +83,8 @@ afterEach(() => {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 describe('dải mọc cho một mục có đề xuất', () => {
-  it('ô nhập ĐIỀN SẴN đúng chuỗi đề xuất, và nhãn "âm Hán Việt" hiện', async () => {
-    const { marksState, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
+  it('đề xuất là lựa chọn số 1 kèm nhãn "âm Hán Việt", ô nhập để trống', async () => {
+    const { marksState, i18n, GlossaryConfirmStrip, caretSegmentId, segments } = await freshStrip()
     const segs: Segment[] = [{ id: 1, source_text: '萧炎登场' }]
     segments.value = segs
     mockInvoke.mockImplementation((cmd: string) => {
@@ -100,8 +102,11 @@ describe('dải mọc cho một mục có đề xuất', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find(STRIP_SELECTOR).exists()).toBe(true)
-    expect((wrapper.find('.gcs-input').element as HTMLInputElement).value).toBe('Tiêu Viêm')
-    expect(wrapper.find('.gcs-suggestion-label').exists()).toBe(true)
+    expect((wrapper.find('.gcs-input').element as HTMLInputElement).value).toBe('')
+    const option = wrapper.get('.gcs-option')
+    expect(option.get('.gcs-key').text()).toBe('1')
+    expect(option.get('.gcs-option-text').text()).toBe('Tiêu Viêm')
+    expect(option.get('.gcs-option-source').text()).toBe(i18n.t('glossary.confirm.source_han_viet'))
     // Đúng MỘT đoạn trạng thái luôn render tại một thời điểm — không đoạn nào khác hiện.
     expect(wrapper.find('#gcs-status-msg').exists()).toBe(false)
 
@@ -133,7 +138,8 @@ describe('vào dải bằng hợp âm khi đang có vùng chọn', () => {
     // `glossaryConfirmStrip.test.ts`).
     state.syncGlossaryConfirmStripTarget(1, segs, marksState.glossaryMarksHaveLoaded(), marksState.glossaryMarks.value)
 
-    expect(state.confirmStripTranslationInput.value).toBe('Tiêu Viêm') // de xuat da dien san luc mo
+    expect(state.confirmStripTranslationInput.value).toBe('')
+    expect(state.confirmStripOptions.value.map((o) => o.text)).toEqual(['Tiêu Viêm'])
 
     const entered = state.focusGlossaryConfirmStrip('Bản dịch đã chọn', true)
 
@@ -183,7 +189,7 @@ describe('dải mọc khi chưa cài dữ liệu từ điển', () => {
     await wrapper.vm.$nextTick()
 
     expect((wrapper.find('.gcs-input').element as HTMLInputElement).value).toBe('')
-    expect(wrapper.find('.gcs-suggestion-label').exists()).toBe(false)
+    expect(wrapper.find('.gcs-option').exists()).toBe(false)
     const notice = wrapper.find('#gcs-status-msg')
     expect(notice.exists()).toBe(true)
     expect(notice.text()).toBe(i18n.t('glossary.confirm.suggestion_unavailable'))
@@ -233,13 +239,13 @@ describe('đổi mục — ô KHÔNG giữ chữ của mục trước', () => {
 
     caretSegmentId.value = 1
     state.syncGlossaryConfirmStripTarget(1, segs, marksState.glossaryMarksHaveLoaded(), marksState.glossaryMarks.value)
-    expect(state.confirmStripTranslationInput.value).toBe('Tiêu Viêm')
+    expect(state.confirmStripOptions.value.map((o) => o.text)).toEqual(['Tiêu Viêm'])
 
     caretSegmentId.value = 2
     state.syncGlossaryConfirmStripTarget(2, segs, marksState.glossaryMarksHaveLoaded(), marksState.glossaryMarks.value)
 
     expect(state.confirmStripSourceTerm.value).toBe('dragon')
-    // doi sang muc khong de xuat duoc -- o KHONG duoc giu chu cua muc truoc
+    expect(state.confirmStripOptions.value).toEqual([])
     expect(state.confirmStripTranslationInput.value).toBe('')
     expect(state.confirmStripSuggestionStatus.value).toBe('not_chinese')
   })

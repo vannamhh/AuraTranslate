@@ -2606,7 +2606,8 @@ fn the_proofread_memory_wires_are_registered_and_keep_their_parameter_names() {
         ("ai_proofread_ignore_clear", "app: tauri::AppHandle<R>,"),
         (
             "ai_proofread_scan_record",
-            "app: tauri::AppHandle<R>, work_id: String, scope: String, reported: i64, filtered: i64,",
+            "app: tauri::AppHandle<R>, work_id: String, scope: String, reported: i64, filtered: i64, \
+             blocked: Vec<super::ProofreadBlockedWire>,",
         ),
     ] {
         let registered = format!("crate::commands::proofread::wire::{name}");
@@ -2848,5 +2849,26 @@ fn tmx_exchange_wire_structs_keep_their_snake_case_keys() {
     assert_eq!(
         keys(&summary),
         ["already_count", "future_dated_count", "inserted"]
+    );
+}
+
+#[test]
+fn the_glossary_tm_suggestions_wire_is_registered_and_keeps_its_parameter_names() {
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let lib_src = fs::read_to_string(manifest.join("lib.rs")).expect("doc lib.rs");
+    let glossary_src =
+        fs::read_to_string(manifest.join("commands").join("glossary.rs")).expect("doc glossary.rs");
+
+    assert!(
+        lib_src.contains("crate::commands::glossary::wire::glossary_tm_suggestions"),
+        "`glossary_tm_suggestions` phai co mat trong lib.rs"
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list(
+            &glossary_src[glossary_src.find("pub mod wire {").expect("wire module")..],
+            "glossary_tm_suggestions"
+        )),
+        normalize_param_list("app: tauri::AppHandle, source_term: String,"),
+        "`src/config/glossary.ts` la cho duy nhat go lai theo dung ten/thu tu do."
     );
 }

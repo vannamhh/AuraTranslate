@@ -1601,6 +1601,8 @@ pub fn marks_for_source_text(
                 han_viet_suggestion: suggestion.suggestion_text().map(str::to_owned),
                 han_viet_status: suggestion.as_status_str(),
                 occurrence_count: entry.occurrence_count,
+                term_origin: entry.term_origin,
+                category: entry.category,
             }
         })
         .collect();

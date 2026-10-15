@@ -244,7 +244,7 @@ const COMMAND_FLOOR = 230
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const CLICK_FLOOR = 197
-const DISPATCH_FLOOR = 258
+const DISPATCH_FLOOR = 280
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2403,6 +2403,7 @@ const HANDLER_TABLE = {
   'src/AiPromptInspectorOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TitlebarToolsMenu.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
   'src/TitlebarToolsMenu.vue::onKeydown': { nonCommand: R_CATEGORY_NAV },
+  'src/ProofreaderStrip.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
   'src/ProofreadScopeOverlay.vue::onEscape': { ids: ['ai.proofread.scope.close'] },
   'src/ProofreadScopeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ProofreadMemoryOverlay.vue::onEscape': { ids: ['ai.proofread.memory.close'] },
@@ -2467,6 +2468,8 @@ const HANDLER_TABLE = {
     ],
   },
   'src/TmFuzzyStrip.vue::aimTmFuzzyRow': { nonCommand: R_CURSOR_IMPORTED },
+  'src/GlossaryConfirmStrip.vue::onKeydown': { ids: ['glossary.confirm.save'] },
+  'src/GlossaryConfirmStrip.vue::aimGlossaryConfirmOption': { nonCommand: R_CURSOR_IMPORTED },
   'src/ExportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ChapterMergeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ChapterSplitOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },

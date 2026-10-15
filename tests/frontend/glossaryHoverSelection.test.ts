@@ -35,6 +35,8 @@ const MARK: GlossaryMark = {
   han_viet_suggestion: null,
   han_viet_status: 'not_requested',
   occurrence_count: null,
+  term_origin: 'manual',
+  category: 'other' as const,
 }
 
 async function docNguyenVanGia() {

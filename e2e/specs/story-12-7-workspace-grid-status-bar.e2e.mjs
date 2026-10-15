@@ -130,7 +130,7 @@ describe('12.7 — lưới hai cột và thanh trạng thái', () => {
       expect(counts).toEqual({ glossary: null, tm: null })
     } else {
       expect(counts.glossary).toMatch(/^Glossary \d+ mục$/)
-      expect(counts.tm).toMatch(/^TM \d+ cặp$/)
+      expect(counts.tm).toMatch(/^TM: \d+ cặp · \d+ của tôi · \d+ của người khác · ngưỡng gợi ý \d+%$/)
     }
   })
 })

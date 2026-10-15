@@ -293,10 +293,26 @@ pub fn tm_list_pairs(
 
 /// Stored pairs of both tiers (Global only with no Work open); equals `total_pairs` of an
 /// unfiltered `tm_list_pairs`, which concatenates the tiers without deduplicating.
-pub fn tm_count_pairs(global: Option<&Store>, open: Option<&OpenWork>) -> Result<u64, IpcError> {
+pub fn tm_count_pairs(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+) -> Result<TmPairCount, IpcError> {
     let global = global.ok_or_else(global_store_missing)?;
-    crate::core::tm::count_tier_pairs(global, open.map(|o| &o.store))
-        .map_err(|e| tm_lookup_failed(&e))
+    let counts = crate::core::tm::count_tier_pairs(global, open.map(|o| &o.store))
+        .map_err(|e| tm_lookup_failed(&e))?;
+    Ok(TmPairCount {
+        total: counts.total(),
+        mine: counts.mine,
+        others: counts.others,
+    })
+}
+
+/// `total` = `mine` + `others`; the sides follow `PairOrigin::side()` (FR118).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct TmPairCount {
+    pub total: u64,
+    pub mine: u64,
+    pub others: u64,
 }
 
 /// Replaces the target on every copy of a row; each copy's origin becomes `self`, id and date
@@ -847,7 +863,9 @@ pub mod wire {
 
     /// Wire shell of [`super::tm_count_pairs`]: one `COUNT(*)` per tier, so a plain command.
     #[tauri::command]
-    pub fn tm_count_pairs<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<u64, IpcError> {
+    pub fn tm_count_pairs<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<super::TmPairCount, IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<crate::core::store::Store>();

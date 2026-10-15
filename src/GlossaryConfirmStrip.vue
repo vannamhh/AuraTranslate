@@ -18,18 +18,25 @@ import { useTemplateRef } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
 import {
+  aimGlossaryConfirmOption,
+  confirmStripAimedOption,
+  confirmStripCategory,
   confirmStripEmptyInputError,
   confirmStripFocusRequest,
   confirmStripIsOpen,
   confirmStripOccurrenceCount,
+  confirmStripOptions,
   confirmStripSaveError,
   confirmStripSaving,
   confirmStripSourceTerm,
   confirmStripSuggestionStatus,
+  confirmStripTermOrigin,
   confirmStripTier,
+  confirmStripTmError,
   confirmStripTranslationInput,
   syncGlossaryConfirmStripTarget,
 } from './glossaryConfirmStripState'
+import type { ConfirmStripOption } from './glossaryConfirmStripState'
 import { quickAddIsOpen } from './glossaryQuickAddState'
 import { editorCaretSegmentId, editorSegments } from './panels/editorPanelState'
 import { glossaryMarks, glossaryMarksHaveLoaded } from './panels/glossaryMarksState'
@@ -83,12 +90,67 @@ const statusMessageId = computed<string | undefined>(() =>
 )
 
 const translationInputEl = useTemplateRef<HTMLInputElement>('translationInputEl')
+const root = useTemplateRef<HTMLElement>('root')
 
-/** Focus ô nhập CHỈ khi được yêu cầu tường minh (`glossary.confirm.focus`) — dải KHÔNG cướp
- * tiêu điểm lúc mọc (§Boundaries). */
+const metaText = computed(() =>
+  confirmStripOccurrenceCount.value === null
+    ? t('glossary.confirm.meta_pending')
+    : t('glossary.confirm.meta_occurrences', { count: String(confirmStripOccurrenceCount.value) }),
+)
+
+const ORIGIN_KEYS: Readonly<Partial<Record<string, string>>> = {
+  manual: 'glossary.manage.origin_manual',
+  import_scan: 'glossary.manage.origin_import_scan',
+  review_harvest: 'glossary.manage.origin_review_harvest',
+  file_import: 'glossary.manage.origin_file_import',
+}
+
+const originLine = computed(() => {
+  const parts: string[] = []
+  const originKey = ORIGIN_KEYS[confirmStripTermOrigin.value ?? '']
+  if (originKey !== undefined) parts.push(t('glossary.confirm.origin_clause', { term_origin: t(originKey) }))
+  if (confirmStripCategory.value !== null) {
+    parts.push(
+      t('glossary.confirm.category_clause', { category: t(`glossary.manage.category_${confirmStripCategory.value}`) }),
+    )
+  }
+  return parts.join(' · ')
+})
+
+function optionSource(option: ConfirmStripOption): string {
+  if (option.isHanViet) {
+    return option.tmCount === null
+      ? t('glossary.confirm.source_han_viet')
+      : t('glossary.confirm.source_han_viet_tm', { count: String(option.tmCount) })
+  }
+  return t('glossary.confirm.source_tm', { count: String(option.tmCount ?? 0) })
+}
+
+const DIGIT_CODE = /^(?:Digit|Numpad)([1-9])$/
+
+/** Digits confirm a proposal only when focus is not in the free-text input. */
+function onKeydown(event: KeyboardEvent): void {
+  if (event.target === translationInputEl.value) return
+  if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
+  const digit = DIGIT_CODE.exec(event.code)?.[1]
+  if (digit !== undefined) {
+    const index = Number(digit) - 1
+    if (index >= confirmStripOptions.value.length) return
+    event.preventDefault()
+    aimGlossaryConfirmOption(index)
+    dispatch('glossary.confirm.save')
+  } else if (event.code === 'Enter' && event.target === event.currentTarget) {
+    event.preventDefault()
+    dispatch('glossary.confirm.save')
+  }
+}
+
+/** Focus is requested only explicitly (`glossary.confirm.focus`): the strip never steals it on
+ * appearing. With proposals on offer the strip itself takes it so digits work. */
 watch(confirmStripFocusRequest, () => {
   void nextTick(() => {
-    translationInputEl.value?.focus()
+    if (confirmStripOptions.value.length > 0) root.value?.focus()
+    else translationInputEl.value?.focus()
   })
 })
 </script>
@@ -96,34 +158,48 @@ watch(confirmStripFocusRequest, () => {
 <template>
   <form
     v-if="isVisible"
+    ref="root"
     class="glossary-confirm-strip"
+    tabindex="-1"
+    :aria-label="t('glossary.confirm.title', { source_term: confirmStripSourceTerm ?? '' })"
     @submit.prevent="dispatch('glossary.confirm.save')"
     @keydown.esc.prevent="dispatch('glossary.confirm.defer')"
+    @keydown="onKeydown"
   >
     <fieldset class="gcs-fieldset" :disabled="confirmStripSaving">
       <div class="gcs-row gcs-title-row">
-        <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
-        <span class="gcs-title">{{ t('glossary.confirm.title', { source_term: confirmStripSourceTerm ?? '' }) }}</span>
-        <!-- aura-allow-text: KẾT QUẢ của `t()`, cùng khuôn `GlossaryQuickAdd.vue:104-107`. -->
+        <!-- aura-allow-text: the Glossary source term, user data. -->
+        <span class="gcs-title">{{ confirmStripSourceTerm }}</span>
+        <!-- aura-allow-text: result of t(). -->
         <span class="gcs-tier">
           {{ confirmStripTier === 'work' ? t('glossary.quick_add.tier_work') : t('glossary.quick_add.tier_global') }}
         </span>
-        <!-- aura-allow-text: KẾT QUẢ của `t()`. Story 3.7, FR113: nhãn RIÊNG cho ca đề xuất
-             sẵn sàng (`han_viet_status === 'ok'`) -- đúng tiền lệ
-             `panel.source.han_viet_unknown`/`han_viet_unavailable` của Story 1.16.
-             🔴 SỐNG Ở HÀNG TIÊU ĐỀ, cạnh `.gcs-tier`, KHÔNG bên trong `<label class="gcs-field">`
-             — và đó là một ràng buộc KHẢ TRUY CẬP, không phải một lựa chọn bố cục. Tên khả
-             truy cập của `<input>` được tính từ TOÀN BỘ nội dung văn bản của `<label>` bọc nó;
-             đặt nhãn này vào trong đó khiến trình đọc màn hình đọc ô nhập thành *"Bản dịch Âm
-             Hán Việt"* — hai nhãn dính làm một cụm vô nghĩa. Ở đây nó là một chip ĐỘC LẬP,
-             đọc được riêng, đúng khuôn `.gcs-tier` ngay trên. *(Vòng rà Bước 4 bắt, 2026-08-24.)* -->
-        <span v-if="confirmStripSuggestionStatus === 'ok'" class="gcs-suggestion-label">
-          {{ t('glossary.confirm.suggestion_label') }}
-        </span>
-        <span v-if="confirmStripOccurrenceCount !== null" class="gcs-occurrence">
-          {{ t('glossary.confirm.occurrence_count_label', { count: String(confirmStripOccurrenceCount) }) }}
-        </span>
+        <!-- aura-allow-text: result of t() computed in the script. -->
+        <span class="gcs-occurrence">{{ metaText }}</span>
+        <!-- aura-allow-text: result of t() computed in the script. -->
+        <span v-if="originLine !== ''" class="gcs-origin">{{ originLine }}</span>
       </div>
+
+      <ol v-if="confirmStripOptions.length > 0" class="gcs-options">
+        <li v-for="(option, i) in confirmStripOptions" :key="option.text">
+          <button
+            type="button"
+            class="gcs-option"
+            :class="{ 'gcs-option-aimed': i === confirmStripAimedOption }"
+            :aria-keyshortcuts="String(i + 1)"
+            @focus="aimGlossaryConfirmOption(i)"
+            @mousedown="aimGlossaryConfirmOption(i)"
+            @click="dispatch('glossary.confirm.save')"
+          >
+            <!-- aura-allow-text: the option's ordinal, not a sentence. -->
+            <kbd class="gcs-key">{{ i + 1 }}</kbd>
+            <!-- aura-allow-text: a proposed translation, user or dictionary data. -->
+            <span class="gcs-option-text">{{ option.text }}</span>
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            <span class="gcs-option-source">{{ optionSource(option) }}</span>
+          </button>
+        </li>
+      </ol>
 
       <label class="gcs-field">
         <span class="gcs-field-label">{{ t('glossary.confirm.translation_label') }}</span>
@@ -133,19 +209,16 @@ watch(confirmStripFocusRequest, () => {
           type="text"
           class="gcs-input"
           autocomplete="off"
+          :placeholder="t('glossary.confirm.type_other_placeholder')"
           :aria-describedby="statusMessageId"
+          @focus="aimGlossaryConfirmOption(null)"
+          @input="aimGlossaryConfirmOption(null)"
         />
       </label>
 
-      <!--
-        🔵 THÊM 2026-08-22 (rà ba lớp) — `id="gcs-status-msg"` CHUNG cho cả ba đoạn: đúng MỘT
-        trong ba luôn render (chuỗi `v-if`/`v-else-if`), nên trùng `id` không bao giờ xảy ra
-        THẬT trong DOM — ô nhập nối `aria-describedby` tới ĐÚNG đoạn đang hiện mà không cần
-        `computed` chọn id theo nhánh.
-        🔵 THÊM 2026-08-24 (Story 3.7) — đoạn thứ TƯ, ưu tiên THẤP NHẤT: dòng *"chưa cài dữ
-        liệu từ điển"* khi `han_viet_status === 'dict_unavailable'` -- một ô rỗng câm là
-        đúng lớp lỗi RỖNG IM LẶNG mà kho cấm (`AGENTS.md:46`).
-      -->
+      <p v-if="confirmStripTmError !== null" class="gcs-status gcs-error" role="alert">
+        {{ tError(confirmStripTmError) }}
+      </p>
       <p v-if="confirmStripSaveError !== null" id="gcs-status-msg" class="gcs-status gcs-error" role="alert">
         {{ tError(confirmStripSaveError) }}
       </p>
@@ -169,7 +242,10 @@ watch(confirmStripFocusRequest, () => {
         <button type="button" class="gcs-act" @click="dispatch('glossary.confirm.defer')">
           {{ t('glossary.confirm.defer') }}
         </button>
+        <span class="gcs-status">{{ t('glossary.confirm.defer_hint') }}</span>
       </div>
+
+      <p class="gcs-status gcs-why">{{ t('glossary.confirm.rag_note') }}</p>
     </fieldset>
   </form>
 </template>
@@ -243,13 +319,58 @@ watch(confirmStripFocusRequest, () => {
   color: var(--color-on-surface-variant);
 }
 
-/* 🔵 THÊM 2026-08-24 (Story 3.7) — nhãn RIÊNG cạnh ô nhập khi có đề xuất Hán Việt. Màu VÀ
- * cỡ chữ chỉ từ token, cùng khuôn `.gcs-tier` — không bóng đổ, không gradient. */
-.gcs-suggestion-label {
+.gcs-origin {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gcs-options {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gcs-option {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 3);
+  width: 100%;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface);
+  background: var(--color-background);
+  border: 1px solid transparent;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  text-align: left;
+  cursor: pointer;
+}
+
+.gcs-option-aimed {
+  border-color: var(--color-primary);
+}
+
+.gcs-key {
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-mono);
   color: var(--color-primary);
+}
+
+.gcs-option-source {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gcs-why {
+  margin: 0;
 }
 
 .gcs-input {

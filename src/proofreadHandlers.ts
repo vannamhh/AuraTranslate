@@ -13,6 +13,7 @@ import {
   cancelProofread,
   closeProofreadScope,
   dismissProofreadFinding,
+  hideProofreadStrip,
   ignoreProofreadFinding,
   nextProofreadFinding,
   openProofreadScope,
@@ -81,6 +82,10 @@ export const proofreadHandlers = {
 
   clearAiProofreadMemory: (): void => {
     void clearProofreadMemory()
+  },
+
+  hideAiProofread: (): void => {
+    hideProofreadStrip()
   },
 
   nextAiProofread: (): void => {

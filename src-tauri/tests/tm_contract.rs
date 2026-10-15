@@ -775,7 +775,7 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
                  DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35); \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36); \
                  PRAGMA user_version = 27;",
             )
         })
@@ -783,8 +783,8 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
     let open = reopen(open);
     assert_eq!(
         open.store.schema_version(),
-        35,
-        "mo lai phai chay buoc 28 den 35 that"
+        36,
+        "mo lai phai chay buoc 28 den 36 that"
     );
 
     confirm_segment(Some(&open), ids[0]).expect("xac nhan");
@@ -814,13 +814,13 @@ fn the_step_28_backfill_copies_target_and_origin_into_the_baseline_of_every_row_
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
                  DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35); \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 35);
+    assert_eq!(open.store.schema_version(), 36);
 
     let rows: Vec<(i64, String, String, String, String)> = open
         .store
@@ -1212,7 +1212,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
     let (root, open) = work("index-upgrade", "一。");
     open.store
         .write(|tx: &Transaction<'_>| {
-            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32, 33, 34, 35); PRAGMA user_version = 28;")
+            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32, 33, 34, 35, 36); PRAGMA user_version = 28;")
         })
         .expect("ha ve buoc 28");
     let open = reopen(open);
@@ -1226,7 +1226,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
             )
         })
         .expect("doc master");
-    assert_eq!((open.store.schema_version(), has_index), (35, 1));
+    assert_eq!((open.store.schema_version(), has_index), (36, 1));
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -1651,7 +1651,7 @@ fn set_threshold(w: &Wired, value: &str) {
 #[test]
 fn a_near_pair_comes_back_with_percent_tier_side_and_pair_identity() {
     let w = wired("fz-hit", FUZZY_CURRENT, true);
-    w.seed_work(FUZZY_NEAR, "near", "self");
+    w.seed_work_dated(FUZZY_NEAR, "near", "self", "2026-03-01T10:20:30.123Z");
     let id = w.first_id();
     let got = fuzzy(&w, id);
     assert_eq!(
@@ -1665,6 +1665,11 @@ fn a_near_pair_comes_back_with_percent_tier_side_and_pair_identity() {
     );
     assert_eq!(got.matches[0].source_text, FUZZY_NEAR);
     assert!(got.matches[0].unit_id > 0);
+    assert_eq!(got.matches[0].created_at, "2026-03-01T10:20:30.123Z");
+    assert_eq!(
+        serde_json::to_value(&got.matches[0]).expect("json")["created_at"],
+        "2026-03-01T10:20:30.123Z"
+    );
 }
 
 #[test]
@@ -2830,7 +2835,9 @@ mod manage {
             &[("s3", "c", "bilingual_import", D1), ("s4", "a", "self", D2)],
         );
 
-        let counted = tm_wire::tm_count_pairs(w.app.handle().clone()).expect("dem cap TM");
+        let counted = tm_wire::tm_count_pairs(w.app.handle().clone())
+            .expect("dem cap TM")
+            .total;
 
         let listed = list(&w, "all", "both", "");
         assert_eq!(counted, listed.total_pairs as u64);
@@ -2843,7 +2850,9 @@ mod manage {
         dated_work(&w, &[("s1", "a", "self", D1)]);
         dated_global(&w, &[("s1", "a", "self", D1)]);
 
-        let counted = tm_wire::tm_count_pairs(w.app.handle().clone()).expect("dem cap TM");
+        let counted = tm_wire::tm_count_pairs(w.app.handle().clone())
+            .expect("dem cap TM")
+            .total;
 
         assert_eq!(counted, list(&w, "all", "both", "").total_pairs as u64);
         assert_eq!(counted, 2);
@@ -3881,4 +3890,86 @@ mod manage {
         delete_one(&w, "work", pair_id).expect("xoa");
         assert!(fuzzy(&w, id).exact.is_empty(), "one target left is no list");
     }
+}
+
+use auratranslate_lib::commands::glossary::{GlossaryTmSuggestion, glossary_tm_suggestions};
+
+fn suggestions(global: &Store, open: Option<&OpenWork>, term: &str) -> Vec<(String, u32)> {
+    glossary_tm_suggestions(Some(global), open, term)
+        .expect("de xuat")
+        .into_iter()
+        .map(|GlossaryTmSuggestion { target_text, count }| (target_text, count))
+        .collect()
+}
+
+#[test]
+fn a_term_is_suggested_from_pairs_whose_source_equals_it_grouped_by_target() {
+    let (root, open) = work("sug-group", "一。");
+    let global = open_global_db(&root);
+    seed(&open.store, &[("T", "y", "self"), ("T", "x", "self")]);
+    seed(&global, &[("T", "x", "other"), ("T", "z", "other")]);
+
+    let got = suggestions(&global, Some(&open), "T");
+
+    assert_eq!(
+        got,
+        [
+            ("x".to_owned(), 2),
+            ("y".to_owned(), 1),
+            ("z".to_owned(), 1)
+        ]
+    );
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_pair_whose_source_only_contains_the_term_is_not_a_suggestion() {
+    let (root, open) = work("sug-substring", "一。");
+    let global = open_global_db(&root);
+    seed(
+        &open.store,
+        &[("a long sentence with T inside", "x", "self")],
+    );
+    seed(&global, &[("TT", "y", "self")]);
+
+    assert!(suggestions(&global, Some(&open), "T").is_empty());
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn suggestions_come_from_the_global_tier_alone_when_no_work_is_open() {
+    let (root, open) = work("sug-global-only", "一。");
+    let global = open_global_db(&root);
+    seed(&open.store, &[("T", "w", "self")]);
+    seed(&global, &[("T", "g", "self")]);
+
+    assert_eq!(suggestions(&global, None, "T"), [("g".to_owned(), 1)]);
+    assert_eq!(
+        glossary_tm_suggestions(None, None, "T")
+            .expect_err("no global store")
+            .code(),
+        "store.open_failed"
+    );
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn the_count_wire_splits_both_tiers_by_side() {
+    let w = wired("mg-count-sides", "一。", true);
+    w.seed_work_dated("s1", "a", "self", "2026-03-01T00:00:00.000Z");
+    w.seed_work_dated("s2", "b", "other", "2026-03-01T00:00:00.000Z");
+    w.seed_global_dated("s3", "c", "bilingual_import", "2026-03-01T00:00:00.000Z");
+    w.seed_global_dated("s4", "a", "self", "2026-03-01T00:00:00.000Z");
+
+    let counted = auratranslate_lib::commands::tm::wire::tm_count_pairs(w.app.handle().clone())
+        .expect("dem cap TM");
+
+    assert_eq!((counted.total, counted.mine, counted.others), (4, 2, 2));
+    assert_eq!(
+        serde_json::to_value(counted).expect("json"),
+        serde_json::json!({"total": 4, "mine": 2, "others": 2})
+    );
 }

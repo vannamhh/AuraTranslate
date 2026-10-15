@@ -298,4 +298,6 @@ pub struct GlossaryMark {
     pub han_viet_status: &'static str,
     /// Copied from the resolved entry's [`GlossaryEntry::occurrence_count`].
     pub occurrence_count: Option<i64>,
+    pub term_origin: TermOrigin,
+    pub category: Category,
 }

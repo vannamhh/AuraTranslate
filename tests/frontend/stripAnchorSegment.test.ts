@@ -21,6 +21,7 @@ vi.mock('../../src/proofreadState', () => ({
   proofreadRevertible: ref(false),
   proofreadRunSegmentIds: runIds,
   proofreadStateValue: proofreadState,
+  proofreadStripHidden: ref(false),
 }))
 
 const { inlineStripAnchorSegmentId, proofreaderStripPlace } = await import('../../src/inlineStripEligibility')

@@ -914,6 +914,8 @@ export type CommandDeps = {
   confirmTmFuzzyOverwrite?: () => void
   /** Esc: answers an overwrite question with no, else hides the strip for the segment. Handler of `tm.fuzzy.hide`. */
   hideTmFuzzyStrip?: () => void
+  /** Unfolds or folds the aimed row's full sentences. Handler of `tm.fuzzy.toggle_full`. */
+  toggleTmFuzzyFull?: () => void
   /** Saves the threshold typed in Settings. Handler of `tm.settings.save`. */
   saveTmSettings?: () => void
 
@@ -1152,6 +1154,8 @@ export type CommandDeps = {
   forgetAiProofreadMemory?: () => void
   /** Xoá toàn bộ ghi nhớ, hai lần bấm. Handler của `ai.proofread.memory.clear`. */
   clearAiProofreadMemory?: () => void
+  /** Esc on the strip: hides it for the caret sentence until the caret moves to another. Handler of `ai.proofread.hide`. */
+  hideAiProofread?: () => void
   nextAiProofread?: () => void
   prevAiProofread?: () => void
   revertAiProofread?: () => void
@@ -3752,6 +3756,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     },
   })
   target.register({
+    id: 'tm.fuzzy.toggle_full',
+    labelKey: 'command.tm.fuzzy.toggle_full',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleTmFuzzyFull === undefined) {
+        return portMissing('tm.fuzzy.toggle_full', 'toggleTmFuzzyFull')
+      }
+      deps.toggleTmFuzzyFull()
+    },
+  })
+  target.register({
     id: 'tm.settings.save',
     labelKey: 'command.tm.settings.save',
     keys: undefined,
@@ -4722,6 +4737,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.proofread.memory.clear', 'clearAiProofreadMemory')
       }
       deps.clearAiProofreadMemory()
+    },
+  })
+  target.register({
+    id: 'ai.proofread.hide',
+    labelKey: 'command.ai.proofread.hide',
+    keys: undefined,
+    run: () => {
+      if (deps.hideAiProofread === undefined) {
+        return portMissing('ai.proofread.hide', 'hideAiProofread')
+      }
+      deps.hideAiProofread()
     },
   })
   target.register({

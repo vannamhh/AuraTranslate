@@ -1149,7 +1149,7 @@ fn a_version_21_project_database_migrates_to_22_with_all_origin_columns_null_and
     // and never touches `chapter`, so this assertion still holds.
     assert_eq!(
         migrated.schema_version(),
-        35,
+        36,
         "di tru phai chay het toi dich moi nhat (qua ca buoc 22 chapter.origin_*)"
     );
 

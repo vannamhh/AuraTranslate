@@ -58,6 +58,8 @@ pub struct PreparedProofreadBatch {
 pub struct PreparedProofreadRun {
     pub batches: Vec<PreparedProofreadBatch>,
     pub remembered: Vec<ProofreadSignature>,
+    /// `proof_ignore.id` of each `remembered` entry, same order.
+    pub remembered_ids: Vec<i64>,
 }
 
 pub enum ProofreadPrepareOutcome {
@@ -88,6 +90,12 @@ pub enum AiProofreadEventWire {
     },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ProofreadBlockedWire {
+    pub ignore_id: i64,
+    pub count: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum AiProofreadOutcomeWire {
@@ -97,6 +105,8 @@ pub enum AiProofreadOutcomeWire {
     Done {
         not_scanned: u32,
         filtered: u32,
+        /// `filtered` split by the `proof_ignore` entry that silenced each finding.
+        blocked: Vec<ProofreadBlockedWire>,
     },
     /// `not_scanned`: segments of the batch cut short and of every batch after it.
     Cancelled {
@@ -156,6 +166,7 @@ pub fn prepare_proofread_call(
         return Ok(ProofreadPrepareOutcome::Ready(PreparedProofreadRun {
             batches: Vec::new(),
             remembered: Vec::new(),
+            remembered_ids: Vec::new(),
         }));
     }
 
@@ -163,7 +174,7 @@ pub fn prepare_proofread_call(
         return Ok(ProofreadPrepareOutcome::NotConfigured);
     };
 
-    let remembered = read_remembered(open_work)?;
+    let (remembered, remembered_ids) = read_remembered(open_work)?;
     let sizes: Vec<usize> = rows
         .iter()
         .map(|r| r.source_text.chars().count() + r.target_text.chars().count())
@@ -203,13 +214,14 @@ pub fn prepare_proofread_call(
     Ok(ProofreadPrepareOutcome::Ready(PreparedProofreadRun {
         batches,
         remembered,
+        remembered_ids,
     }))
 }
 
-fn read_remembered(open: &OpenWork) -> Result<Vec<ProofreadSignature>, IpcError> {
+fn read_remembered(open: &OpenWork) -> Result<(Vec<ProofreadSignature>, Vec<i64>), IpcError> {
     Ok(open.store.read(|conn| {
         let mut stmt = conn.prepare(
-            "SELECT kind, phrase, context_before, context_after FROM proof_ignore ORDER BY id",
+            "SELECT kind, phrase, context_before, context_after, id FROM proof_ignore ORDER BY id",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok((
@@ -217,11 +229,13 @@ fn read_remembered(open: &OpenWork) -> Result<Vec<ProofreadSignature>, IpcError>
                 row.get::<_, String>(1)?,
                 row.get::<_, String>(2)?,
                 row.get::<_, String>(3)?,
+                row.get::<_, i64>(4)?,
             ))
         })?;
         let mut out = Vec::new();
+        let mut ids = Vec::new();
         for row in rows {
-            let (kind, phrase, before, after) = row?;
+            let (kind, phrase, before, after, id) = row?;
             if let Some(kind) = ProofreadKind::from_wire(&kind) {
                 out.push(ProofreadSignature {
                     kind,
@@ -229,9 +243,10 @@ fn read_remembered(open: &OpenWork) -> Result<Vec<ProofreadSignature>, IpcError>
                     before,
                     after,
                 });
+                ids.push(id);
             }
         }
-        Ok(out)
+        Ok((out, ids))
     })?)
 }
 
@@ -252,6 +267,7 @@ pub async fn run_proofread_call<P: TranslationProvider>(
 
     let mut not_scanned = 0usize;
     let mut filtered = 0u32;
+    let mut blocked_by_entry = vec![0u32; run.remembered.len()];
     let mut parsed_batches = 0usize;
     for (index, batch) in run.batches.iter().enumerate() {
         let remaining = || {
@@ -314,12 +330,15 @@ pub async fn run_proofread_call<P: TranslationProvider>(
                     .iter()
                     .zip(located)
                     .map(|(segment, located)| {
-                        let (findings, dropped) = filter_remembered(
+                        let (findings, blocked) = filter_remembered(
                             &segment.scanned_text,
                             located.findings,
                             &run.remembered,
                         );
-                        filtered = filtered.saturating_add(dropped);
+                        for (total, n) in blocked_by_entry.iter_mut().zip(blocked) {
+                            *total = total.saturating_add(n);
+                            filtered = filtered.saturating_add(n);
+                        }
                         AiProofreadSegmentWire {
                             segment_id: segment.segment_id,
                             scanned_text: segment.scanned_text.clone(),
@@ -341,9 +360,20 @@ pub async fn run_proofread_call<P: TranslationProvider>(
     if parsed_batches == 0 && not_scanned > 0 {
         return Err(ProofreadRunError::ReplyMalformed { not_scanned });
     }
+    let blocked = run
+        .remembered_ids
+        .iter()
+        .zip(blocked_by_entry)
+        .filter(|(_, count)| *count > 0)
+        .map(|(ignore_id, count)| ProofreadBlockedWire {
+            ignore_id: *ignore_id,
+            count,
+        })
+        .collect();
     Ok(AiProofreadOutcomeWire::Done {
         not_scanned,
         filtered,
+        blocked,
     })
 }
 
@@ -355,6 +385,8 @@ pub struct ProofreadIgnoreEntryWire {
     pub context_before: String,
     pub context_after: String,
     pub created_at: String,
+    /// `None` for a row that predates the counter.
+    pub blocked_count: Option<i64>,
 }
 
 fn scan_record_rejected() -> IpcError {
@@ -399,8 +431,8 @@ pub fn proofread_ignore_add(
             return Ok(Err(crate::commands::segment::range_invalid(segment_id)));
         };
         tx.execute(
-            "INSERT OR IGNORE INTO proof_ignore (kind, phrase, context_before, context_after, created_at) \
-             VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+            "INSERT OR IGNORE INTO proof_ignore (kind, phrase, context_before, context_after, created_at, blocked_count) \
+             VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), 0)",
             (signature.kind.as_str(), &signature.phrase, &signature.before, &signature.after),
         )?;
         Ok(Ok(()))
@@ -414,7 +446,7 @@ pub fn proofread_ignore_list(
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
     Ok(open.store.read(|conn| {
         let mut stmt = conn.prepare(
-            "SELECT id, kind, phrase, context_before, context_after, created_at FROM proof_ignore \
+            "SELECT id, kind, phrase, context_before, context_after, created_at, blocked_count FROM proof_ignore \
              ORDER BY created_at DESC, id DESC",
         )?;
         let rows = stmt.query_map([], |row| {
@@ -425,11 +457,13 @@ pub fn proofread_ignore_list(
                 row.get::<_, String>(3)?,
                 row.get::<_, String>(4)?,
                 row.get::<_, String>(5)?,
+                row.get::<_, Option<i64>>(6)?,
             ))
         })?;
         let mut out = Vec::new();
         for row in rows {
-            let (id, kind, phrase, context_before, context_after, created_at) = row?;
+            let (id, kind, phrase, context_before, context_after, created_at, blocked_count) =
+                row?;
             if let Some(kind) = ProofreadKind::from_wire(&kind) {
                 out.push(ProofreadIgnoreEntryWire {
                     id,
@@ -438,6 +472,7 @@ pub fn proofread_ignore_list(
                     context_before,
                     context_after,
                     created_at,
+                    blocked_count,
                 });
             }
         }
@@ -462,14 +497,17 @@ pub fn proofread_ignore_clear(open: Option<&OpenWork>) -> Result<u32, IpcError> 
     Ok(u32::try_from(removed).unwrap_or(u32::MAX))
 }
 
-/// Records one finished scan. The counts come from the webview, so Rust checks only what it can:
+/// Records one finished scan and raises the blocked counter of each entry that silenced findings,
+/// in the same transaction. The counts come from the webview, so Rust checks only what it can:
 /// `work_id` is the open Work, `scope` is one of the closed set, the counts are not negative.
+/// A row with a `NULL` counter stays `NULL`.
 pub fn proofread_scan_record(
     open: Option<&OpenWork>,
     work_id: &str,
     scope: &str,
     reported: i64,
     filtered: i64,
+    blocked: &[ProofreadBlockedWire],
 ) -> Result<(), IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
     if open.meta.work_id != work_id
@@ -480,12 +518,20 @@ pub fn proofread_scan_record(
         return Err(scan_record_rejected());
     }
     let scope = scope.to_owned();
+    let blocked = blocked.to_vec();
     open.store.write(move |tx| {
         tx.execute(
             "INSERT INTO proof_scan (scope, scanned_at, reported, filtered) \
              VALUES (?1, strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?2, ?3)",
             (&scope, reported, filtered),
         )?;
+        for entry in &blocked {
+            tx.execute(
+                "UPDATE proof_ignore SET blocked_count = blocked_count + ?1 \
+                 WHERE id = ?2 AND blocked_count IS NOT NULL",
+                (entry.count, entry.ignore_id),
+            )?;
+        }
         Ok(())
     })?;
     Ok(())
@@ -652,9 +698,10 @@ pub mod wire {
         scope: String,
         reported: i64,
         filtered: i64,
+        blocked: Vec<super::ProofreadBlockedWire>,
     ) -> Result<(), IpcError> {
         with_open(&app, |open| {
-            super::proofread_scan_record(open, &work_id, &scope, reported, filtered)
+            super::proofread_scan_record(open, &work_id, &scope, reported, filtered, &blocked)
         })
     }
 

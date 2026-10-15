@@ -1162,6 +1162,7 @@ export type TmFuzzyMatch = {
   target_text: string
   diff: TmDiffSpan[]
   side: TmFuzzySide
+  created_at: string
 }
 
 /** Matches `commands::segment::TmExactTarget`: one distinct target of an exact-source match. */
@@ -1198,6 +1199,7 @@ function isTmFuzzyMatch(value: unknown): value is TmFuzzyMatch {
     typeof v.source_text === 'string' &&
     typeof v.target_text === 'string' &&
     (v.side === 'mine' || v.side === 'others') &&
+    typeof v.created_at === 'string' &&
     Array.isArray(v.diff) &&
     v.diff.every(isTmDiffSpan)
   )
