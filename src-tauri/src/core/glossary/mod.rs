@@ -297,17 +297,18 @@ pub use candidate_store::{
     insert_import_scan_candidates, pending_candidates, reject_candidate,
 };
 pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
+pub use estimate::{
+    EstimateOutcome, entry_source_terms, estimate_import_candidates, import_scan_source_terms,
+};
 pub use exchange::{
     ConflictDecision, Delimiter, ImportRow, ImportSummary, ParseIssue, ParsedImport, RowPlan,
     RowPlanKind, classify, parse, render_tier,
 };
 pub use exchange_io::{MAX_GLOSSARY_IMPORT_BYTES, read_import_file, write_export_file};
 pub use han_viet_suggestion::{HanVietSuggestion, suggest_han_viet_batch};
-pub use estimate::{
-    EstimateOutcome, entry_source_terms, estimate_import_candidates, import_scan_source_terms,
-};
 pub use scan::{
-    DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates_controlled, terms_passing_threshold,
+    DictionaryProbe, ScanCandidate, ScanOutcome, scan_candidates_controlled,
+    terms_passing_threshold,
 };
 
 pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_candidates};

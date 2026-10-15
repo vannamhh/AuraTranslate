@@ -1043,7 +1043,10 @@ fn import_files_reports_each_files_byte_length_and_none_when_it_cannot_be_measur
     .expect("batch khong ca lo");
     let lens: Vec<Option<u64>> = outcome.items.iter().map(|i| i.byte_len).collect();
     assert_eq!(lens, vec![Some(8), Some(25), None]);
-    assert!(outcome.items[2].error.is_some(), "tep mat phai la muc loi, khong phai 0 byte");
+    assert!(
+        outcome.items[2].error.is_some(),
+        "tep mat phai la muc loi, khong phai 0 byte"
+    );
 
     let single = import_files(&[a.display().to_string()]).expect("mot tep");
     assert_eq!(single.items[0].byte_len, Some(8));
