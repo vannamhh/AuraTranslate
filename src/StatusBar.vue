@@ -220,6 +220,13 @@ const tmCountText = computed<string | null>(() => {
   })
 })
 
+// WKWebView does not focus a <button> on mouse click; the overlay would then save the wrong
+// opener and UX-DR17 would return focus elsewhere.
+function focusOnPointerDown(event: MouseEvent): void {
+  const target = event.currentTarget
+  if (target instanceof HTMLElement) target.focus()
+}
+
 const showAutoSave = computed(() => workspaceLayoutTier.value === 'full')
 
 const autoSaveHintText = computed(() =>
@@ -608,6 +615,15 @@ const glossaryHoverText = computed<string | null>(() => {
       bày, đổi được tự do).
     -->
     <button
+      type="button"
+      class="queue-entry"
+      data-glossary-queue-open
+      @mousedown="focusOnPointerDown($event)"
+      @click="dispatch('glossary.queue.open')"
+    >
+      {{ t('command.glossary.queue.open') }}
+    </button>
+    <button
       v-if="lookupHasRetreated"
       type="button"
       class="lookup-entry"
@@ -724,7 +740,8 @@ const glossaryHoverText = computed<string | null>(() => {
  * cùng cỡ với phần còn lại của thanh, không phải một huy hiệu nổi bật hơn (Kiểm F của
  * `check:tokens` cấm bóng đổ; nổi bật bằng token màu KHÔNG bằng elevation).
  */
-.lookup-entry {
+.lookup-entry,
+.queue-entry {
   flex: none;
   padding: 0;
   background: none;

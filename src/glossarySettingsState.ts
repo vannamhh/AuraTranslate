@@ -21,13 +21,14 @@
  * tệ hơn, không ghi gì và trông như đã ghi — cùng cái bẫy mà `ShortcutsOverlay.vue` đã ghi
  * ra cho `Shortcut`.
  */
-import { readonly, ref } from 'vue'
+import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import type { IpcError } from './i18n'
 import {
   KEY_GLOSSARY_SCAN_THRESHOLD,
   SCOPE_APP_CONFIG,
   bootstrapGlossaryScanThreshold,
+  configError,
   putConfig,
 } from './config/bootstrap'
 
@@ -45,6 +46,11 @@ const thresholdInput = ref('')
 const knownThreshold = ref<number | null>(null)
 const saving = ref(false)
 const saveError = ref<IpcError | null>(null)
+
+/** Scan threshold in force, or `null` when the startup config could not be read. */
+export const glossaryScanThresholdInUse = computed<number | null>(() =>
+  configError.value !== null ? null : (knownThreshold.value ?? bootstrapGlossaryScanThreshold.value),
+)
 
 /** `true` from a successful save until the form is reloaded or the input is edited. */
 export const glossarySettingsSaved: DeepReadonly<Ref<boolean>> = readonly(saved)

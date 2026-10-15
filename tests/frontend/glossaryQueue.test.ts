@@ -576,7 +576,7 @@ describe('GlossaryQueueOverlay.vue — số Chương khác nhau render trên m�
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('.gq-chapter-span').text()).toBe(
-      i18n.t('glossary.queue.chapter_span_count', { count: '3' }),
+      i18n.t('glossary.queue.card_meta', { count: '10', chapters: '3' }),
     )
 
     wrapper.unmount()
@@ -594,7 +594,7 @@ describe('GlossaryQueueOverlay.vue — số Chương khác nhau render trên m�
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('.gq-chapter-span').text()).toBe(
-      i18n.t('glossary.queue.chapter_span_count', { count: '0' }),
+      i18n.t('glossary.queue.card_meta', { count: '10', chapters: '0' }),
     )
 
     wrapper.unmount()
@@ -805,5 +805,89 @@ describe('the queue opened after a reviewer import', () => {
     expect(rejectMock).not.toHaveBeenCalled()
     expect(pendingMock).toHaveBeenCalledTimes(2)
     expect(queueRows.value.map((row) => row.candidate.id)).toEqual([7])
+  })
+})
+
+describe('Space "để lại" và đếm trong phiên', () => {
+  it('Space đánh dấu để lại, chuyển con trỏ sang hàng kế và không gọi lệnh ghi nào', async () => {
+    const leaveGlossaryQueueCandidate = vi.fn()
+    const { state, GlossaryQueueOverlay } = await freshOverlay({ leaveGlossaryQueueCandidate })
+    pendingMock.mockResolvedValue({ candidates: [candidate({ id: 1 }), candidate({ id: 2 })], error: null })
+    await state.openGlossaryQueue()
+    const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    await wrapper.get('.gq-scrim').trigger('keydown', { key: ' ' })
+    expect(leaveGlossaryQueueCandidate).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+
+    state.leaveGlossaryQueueCandidate()
+    expect(state.queueRows.value[0]?.left).toBe(true)
+    expect(state.queueCursor.value).toBe(1)
+    expect(approveMock).not.toHaveBeenCalled()
+    expect(rejectMock).not.toHaveBeenCalled()
+    expect(state.queueSessionCounts.value).toEqual({ total: 2, accepted: 0, rejected: 0, left: 1, remaining: 1 })
+  })
+
+  it('mở lại sau Esc đặt con trỏ ở ứng viên còn chờ, hàng đầu khi nó đã được quyết', async () => {
+    const { state } = await freshOverlay()
+    const rows = [candidate({ id: 1 }), candidate({ id: 2 }), candidate({ id: 3 })]
+    pendingMock.mockResolvedValue({ candidates: rows, error: null })
+    await state.openGlossaryQueue()
+    state.setGlossaryQueueCursor(2)
+    state.closeGlossaryQueue()
+    await state.openGlossaryQueue()
+    expect(state.queueCursor.value).toBe(2)
+
+    state.closeGlossaryQueue()
+    pendingMock.mockResolvedValue({ candidates: [rows[0], rows[1]], error: null })
+    await state.openGlossaryQueue()
+    expect(state.queueCursor.value).toBe(0)
+  })
+
+  it('nhịp ẩn tới khi có hai quyết định', async () => {
+    vi.useFakeTimers()
+    try {
+      const { state } = await freshOverlay()
+      pendingMock.mockResolvedValue({ candidates: [candidate({ id: 1 }), candidate({ id: 2 }), candidate({ id: 3 })], error: null })
+      approveMock.mockResolvedValue({ value: 1, error: null })
+      await state.openGlossaryQueue()
+      await state.acceptGlossaryQueueCandidate()
+      expect(state.queuePaceSeconds.value).toBeNull()
+      vi.advanceTimersByTime(2000)
+      await state.acceptGlossaryQueueCandidate()
+      expect(state.queuePaceSeconds.value).toBe(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('thanh tiến độ và chú giải theo phiên', () => {
+  it('chú giải đếm đã nhận, đã bỏ, để lại và còn lại; "Để lại" chỉ hiện khi có hàng để lại', async () => {
+    const { state, i18n, GlossaryQueueOverlay } = await freshOverlay()
+    pendingMock.mockResolvedValue({
+      candidates: [candidate({ id: 1 }), candidate({ id: 2 }), candidate({ id: 3 }), candidate({ id: 4 })],
+      error: null,
+    })
+    approveMock.mockResolvedValue({ value: 1, error: null })
+    rejectMock.mockResolvedValue({ ok: true, error: null })
+    await state.openGlossaryQueue()
+    const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('.gq-legend').text()).not.toContain(i18n.t('glossary.queue.legend_left', { count: '1' }))
+
+    await state.acceptGlossaryQueueCandidate()
+    await state.rejectGlossaryQueueCandidate()
+    state.leaveGlossaryQueueCandidate()
+    await wrapper.vm.$nextTick()
+
+    const legend = wrapper.get('.gq-legend').text()
+    expect(legend).toContain(i18n.t('glossary.queue.legend_accepted', { count: '1' }))
+    expect(legend).toContain(i18n.t('glossary.queue.legend_rejected', { count: '1' }))
+    expect(legend).toContain(i18n.t('glossary.queue.legend_left', { count: '1' }))
+    expect(legend).toContain(i18n.t('glossary.queue.legend_remaining', { count: '1' }))
+    expect(wrapper.find('.gq-bar-accepted').attributes('style')).toContain('25%')
+    expect(wrapper.get('.gq-bar').attributes('aria-hidden')).toBe('true')
+    wrapper.unmount()
   })
 })

@@ -46,6 +46,8 @@ export type GlossaryQueueRow = {
   /** `null` == chưa xử lý. Đặt CHỈ KHI lượt ghi thành công — lỗi KHÔNG đổi trường này
    * (§I/O Matrix: "Lỗi ⇒ hàng KHÔNG đổi"). */
   outcome: 'accepted' | 'rejected' | null
+  /** Marked "leave for later" in this session only; no write happens and `resolution` stays `NULL`. */
+  left: boolean
 }
 
 /**
@@ -71,6 +73,9 @@ const rows = ref<GlossaryQueueRow[]>([])
 const cursor = ref(0)
 const saving = ref(false)
 const actionError = ref<IpcError | null>(null)
+const decisionStamps = ref<number[]>([])
+/** Survives close/reopen so the cursor returns to where the user stopped. */
+let rememberedCandidateId: number | null = null
 
 /** Số thứ tự lượt mở — chặn một lượt tải CHẬM ghi đè lên một lượt mở SAU nó đã về nhanh
  * hơn (đua round-trip IPC), cùng khuôn `sequence` của các state Glossary khác. Cũng vô hiệu
@@ -111,6 +116,41 @@ export const queueCurrentRow = computed<GlossaryQueueRow | null>(() => rows.valu
  * [`queueEmptyReasonFor`]).
  */
 export const queueUnprocessedCount = computed<number>(() => rows.value.filter((r) => r.outcome === null).length)
+
+export type GlossaryQueueSessionCounts = {
+  total: number
+  accepted: number
+  rejected: number
+  left: number
+  remaining: number
+}
+
+/** Counts within this opening of the queue only (the rows loaded by `openGlossaryQueue`). */
+export const queueSessionCounts = computed<GlossaryQueueSessionCounts>(() => {
+  let accepted = 0
+  let rejected = 0
+  let left = 0
+  let remaining = 0
+  for (const row of rows.value) {
+    if (row.outcome === 'accepted') accepted += 1
+    else if (row.outcome === 'rejected') rejected += 1
+    else if (row.left) left += 1
+    else remaining += 1
+  }
+  return { total: rows.value.length, accepted, rejected, left, remaining }
+})
+
+/**
+ * Mean seconds between the decisions of this session, or `null` until two exist: one decision
+ * has no interval, and showing 0 would read as an instant pace.
+ */
+export const queuePaceSeconds = computed<number | null>(() => {
+  const stamps = decisionStamps.value
+  if (stamps.length < 2) return null
+  const first = stamps[0]
+  const last = stamps[stamps.length - 1]
+  return (last - first) / 1000 / (stamps.length - 1)
+})
 
 /**
  * Đúng khuôn `quickAddLookupHasLoaded` — chỉ `'loaded'` cho phép khẳng định "bảng chờ sạch";
@@ -172,6 +212,7 @@ export async function openGlossaryQueue(): Promise<void> {
   cursor.value = 0
   saving.value = false
   actionError.value = null
+  decisionStamps.value = []
 
   const pending = await pendingGlossaryCandidates()
   if (mySequence !== sequence) return // bị một lượt mở SAU vượt mặt.
@@ -188,8 +229,10 @@ export async function openGlossaryQueue(): Promise<void> {
       candidate,
       category: 'other' as GlossaryCategory,
       outcome: null,
+      left: false,
     }))
-    cursor.value = 0
+    const remembered = rows.value.findIndex((r) => r.candidate.id === rememberedCandidateId)
+    cursor.value = remembered === -1 ? 0 : remembered
     return
   }
 
@@ -220,7 +263,23 @@ export async function openGlossaryQueue(): Promise<void> {
  */
 export function closeGlossaryQueue(): void {
   if (saving.value) return
+  const row = rows.value.at(cursor.value)
+  rememberedCandidateId = row !== undefined && row.outcome === null ? row.candidate.id : null
   overlayOpen.value = false
+}
+
+/**
+ * Marks the current row "leave for later" and moves to the next undecided row. Never writes:
+ * the candidate stays pending in the store (AD-20).
+ */
+export function leaveGlossaryQueueCandidate(): void {
+  if (saving.value) return
+  const index = cursor.value
+  const row = rows.value.at(index)
+  if (row === undefined) return
+  if (row.outcome === null) row.left = true
+  const next = firstPendingIndexFrom(index + 1)
+  if (next !== null) cursor.value = next
 }
 
 /** Bounds-checked to `[0, rows.length)`. The one shared setter both mouse (a row's hidden
@@ -296,6 +355,7 @@ export async function acceptGlossaryQueueCandidate(): Promise<void> {
 
   void refreshWorkspaceCounts()
   row.outcome = 'accepted'
+  decisionStamps.value.push(Date.now())
   // 🔴 SỬA 2026-08-24 (vòng rà ba lớp) — chỉ TỰ TIẾN khi con trỏ VẪN đứng ở `index`. Trong
   // lúc `await` ở trên, người dùng có thể đã bấm Chuyển (`next`/`prev`) và dời con trỏ sang
   // một hàng KHÁC — `cursor.value = next` vô điều kiện ở đây sẽ ĐÈ MẤT lượt điều hướng đó
@@ -334,18 +394,15 @@ export async function rejectGlossaryQueueCandidate(): Promise<void> {
   }
 
   row.outcome = 'rejected'
+  decisionStamps.value.push(Date.now())
   // 🔴 Cùng vệ — xem chú thích ở `acceptGlossaryQueueCandidate`.
   const next = firstPendingIndexFrom(index + 1)
   if (next !== null && cursor.value === index) cursor.value = next
 }
 
 /**
- * 🔴 Vứt toàn bộ state của lớp phủ — `check:panel-refs` đòi mọi ô nhớ cấp module có một
- * đường `reset*()`. **0 chỗ gọi sản phẩm hôm nay**, đúng tiền lệ
- * `glossaryQuickAddState.ts::resetGlossaryQuickAdd`: lớp phủ là một MODAL chắn hết tương
- * tác phía sau nó (scrim + bẫy Tab), nên không có đường nào để Tác phẩm/Chương đổi ĐANG khi
- * nó mở; và mỗi lượt mở lại (`openGlossaryQueue`) đã tự nạp lại TOÀN BỘ state từ đầu, nên
- * không có "state cũ của Tác phẩm khác" nào sống sót để cần dọn riêng.
+ * Drops all overlay state, including the remembered cursor id (candidate ids are per Work
+ * store). Called wherever the open Work changes: `modes/libraryImport.ts` and `modes/libraryChapters.ts`.
  */
 export function resetGlossaryQueue(): void {
   sequence += 1
@@ -356,6 +413,8 @@ export function resetGlossaryQueue(): void {
   cursor.value = 0
   saving.value = false
   actionError.value = null
+  decisionStamps.value = []
+  rememberedCandidateId = null
 }
 
 /** Reviewer changed this term in at most half of the places it occurs. */

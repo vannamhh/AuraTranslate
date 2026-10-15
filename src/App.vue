@@ -52,6 +52,7 @@ import SegmentHistoryOverlay from './SegmentHistoryOverlay.vue'
 // Story 3.8 — lớp phủ "Duyệt hàng loạt một phím" (FR53/FR55), lớp phủ THỨ NĂM. Cùng tầng,
 // cùng lý do bốn lớp phủ kia.
 import GlossaryQueueOverlay from './GlossaryQueueOverlay.vue'
+import GlossaryHarvestOverlay from './GlossaryHarvestOverlay.vue'
 import GlossaryManageOverlay from './GlossaryManageOverlay.vue'
 import TmManageOverlay from './TmManageOverlay.vue'
 import TmImportOverlay from './TmImportOverlay.vue'
@@ -322,6 +323,7 @@ onMounted(async () => {
 
     <!-- Story 3.8 · FR53/FR55 — cùng khuôn: lớp phủ tự quản `v-if` qua `queueOverlayIsOpen`. -->
     <GlossaryQueueOverlay />
+    <GlossaryHarvestOverlay />
 
     <!-- Story 3.9 · FR49 — cùng khuôn: lớp phủ tự quản `v-if` qua `manageOverlayIsOpen`. -->
     <GlossaryManageOverlay />

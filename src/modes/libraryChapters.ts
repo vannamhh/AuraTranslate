@@ -109,6 +109,7 @@ import { resetProofread } from '../proofreadState'
 // lý lẽ dòng trên. Xem doc-comment đầu `panels/segmentSelectionState.ts`.
 import { resetSegmentSelection } from '../panels/segmentSelectionState'
 import { resetReviewMode } from '../reviewModeState'
+import { resetGlossaryQueue } from '../glossaryQueueState'
 import type { IpcError } from '../i18n'
 import { setOpenWorkId } from '../openWorkIdentity'
 
@@ -389,6 +390,7 @@ export async function openWorkById(workId: string): Promise<boolean> {
   // cần dòng này (tự lành qua `indexOf`).
   resetSegmentSelection()
   resetReviewMode()
+  resetGlossaryQueue()
 
   // Vứt là CHƯA ĐỦ — nạp lại NGAY, cùng lý do `finishSubmit`: ba chế độ sống trong
   // `<KeepAlive>`, không có `mounted` lần thứ hai.

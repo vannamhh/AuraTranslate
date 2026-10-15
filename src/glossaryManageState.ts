@@ -63,8 +63,10 @@ import { sourceChapter } from './panels/sourcePanelState'
  */
 export type GlossaryManageStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded'
 
-/** Ba trạng thái chốt để lọc — `'all'` là mặc định (không lọc theo trục này). */
-export type GlossaryManageConfirmedFilter = 'all' | 'confirmed' | 'pending'
+/** `'pending'` keeps only rows still waiting for a translation; `'all'` is the default. */
+export type GlossaryManageConfirmedFilter = 'all' | 'pending'
+
+export type GlossaryManageTierFilter = 'global' | 'work' | 'both'
 
 /** Ba xuất xứ (khớp `TermOrigin::as_str()` phía Rust) cộng `'all'`. */
 export type GlossaryManageOriginFilter = 'all' | 'manual' | 'import_scan' | 'review_harvest'
@@ -78,6 +80,7 @@ const status = ref<GlossaryManageStatus>('unknown')
 const loadError = ref<IpcError | null>(null)
 const rows = ref<GlossaryEntry[]>([])
 const searchQuery = ref('')
+const tierFilterState = ref<GlossaryManageTierFilter>('both')
 const categoryFilterState = ref<GlossaryCategory | 'all'>('all')
 const originFilterState = ref<GlossaryManageOriginFilter>('all')
 const confirmedFilterState = ref<GlossaryManageConfirmedFilter>('all')
@@ -140,6 +143,7 @@ export const manageOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayO
 export const manageStatus: DeepReadonly<Ref<GlossaryManageStatus>> = readonly(status)
 export const manageLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
 export const manageSearchQuery: DeepReadonly<Ref<string>> = readonly(searchQuery)
+export const manageTierFilter: DeepReadonly<Ref<GlossaryManageTierFilter>> = readonly(tierFilterState)
 export const manageCategoryFilter: DeepReadonly<Ref<GlossaryCategory | 'all'>> = readonly(categoryFilterState)
 export const manageOriginFilter: DeepReadonly<Ref<GlossaryManageOriginFilter>> = readonly(originFilterState)
 export const manageConfirmedFilter: DeepReadonly<Ref<GlossaryManageConfirmedFilter>> = readonly(confirmedFilterState)
@@ -174,6 +178,37 @@ export const manageExportIpcUnavailable: DeepReadonly<Ref<boolean>> = readonly(e
  */
 export const manageTotalRows = computed<number>(() => rows.value.length)
 
+function matchesFilters(entry: GlossaryEntry, withTier: boolean): boolean {
+  if (withTier && tierFilterState.value !== 'both' && entry.tier !== tierFilterState.value) return false
+  if (categoryFilterState.value !== 'all' && entry.category !== categoryFilterState.value) return false
+  if (originFilterState.value !== 'all' && entry.term_origin !== originFilterState.value) return false
+  if (confirmedFilterState.value === 'pending' && entry.translation !== null) return false
+  const q = searchQuery.value.trim().toLowerCase()
+  if (q === '') return true
+  return entry.source_term.toLowerCase().includes(q) || (entry.translation ?? '').toLowerCase().includes(q)
+}
+
+function placeShadowedBelowWinner(list: GlossaryEntry[]): GlossaryEntry[] {
+  const winnerTerms = new Set(list.filter((r) => r.tier === 'work' && !r.is_shadowed).map((r) => r.source_term))
+  const shadowedByTerm = new Map<string, GlossaryEntry[]>()
+  for (const row of list) {
+    if (!row.is_shadowed || !winnerTerms.has(row.source_term)) continue
+    shadowedByTerm.set(row.source_term, [...(shadowedByTerm.get(row.source_term) ?? []), row])
+  }
+  if (shadowedByTerm.size === 0) return list
+  const placed: GlossaryEntry[] = []
+  for (const row of list) {
+    if (row.is_shadowed && winnerTerms.has(row.source_term)) continue
+    placed.push(row)
+    if (row.tier !== 'work' || row.is_shadowed) continue
+    const below = shadowedByTerm.get(row.source_term)
+    if (below === undefined) continue
+    placed.push(...below)
+    shadowedByTerm.delete(row.source_term)
+  }
+  return placed
+}
+
 /**
  * Danh sách đã qua BA bộ lọc + ô tìm — tính lại mỗi lần một trong bốn đầu vào đổi,
  * KHÔNG một round-trip IPC nào (§Design Notes của spec).
@@ -182,22 +217,29 @@ export const manageTotalRows = computed<number>(() => rows.value.length)
  * always last (a stable sort, so same-rank rows keep their filtered order).
  */
 export const manageFilteredRows = computed<GlossaryEntry[]>(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  const filtered = rows.value.filter((entry) => {
-    if (categoryFilterState.value !== 'all' && entry.category !== categoryFilterState.value) return false
-    if (originFilterState.value !== 'all' && entry.term_origin !== originFilterState.value) return false
-    if (confirmedFilterState.value === 'confirmed' && entry.translation === null) return false
-    if (confirmedFilterState.value === 'pending' && entry.translation !== null) return false
-    if (q === '') return true
-    return entry.source_term.toLowerCase().includes(q) || (entry.translation ?? '').toLowerCase().includes(q)
-  })
-  if (!sortByFrequencyState.value) return filtered
-  return [...filtered].sort((a, b) => {
+  const filtered = rows.value.filter((entry) => matchesFilters(entry, true))
+  if (!sortByFrequencyState.value) return placeShadowedBelowWinner(filtered)
+  const sorted = [...filtered].sort((a, b) => {
     if (a.occurrence_count === null) return b.occurrence_count === null ? 0 : 1
     if (b.occurrence_count === null) return -1
     return b.occurrence_count - a.occurrence_count
   })
+  return placeShadowedBelowWinner(sorted)
 })
+
+export const manageTierCounts = computed<{ global: number; work: number; both: number }>(() => {
+  const scoped = rows.value.filter((entry) => matchesFilters(entry, false))
+  const work = scoped.filter((entry) => entry.tier === 'work').length
+  return { global: scoped.length - work, work, both: scoped.length }
+})
+
+export const managePendingCount = computed<number>(
+  () =>
+    rows.value.filter(
+      (entry) =>
+        entry.translation === null && (tierFilterState.value === 'both' || entry.tier === tierFilterState.value),
+    ).length,
+)
 
 /**
  * Hàng ĐANG CHỌN trong danh sách ĐÃ LỌC, hoặc `null` nếu con trỏ ngoài phạm vi.
@@ -298,6 +340,7 @@ export async function openGlossaryManage(): Promise<void> {
   loadError.value = null
   rows.value = []
   searchQuery.value = ''
+  tierFilterState.value = 'both'
   categoryFilterState.value = 'all'
   originFilterState.value = 'all'
   confirmedFilterState.value = 'all'
@@ -347,6 +390,20 @@ export function setGlossaryManageSearch(query: string): void {
   if (isEditingBlocked()) return
   searchQuery.value = query
   cursor.value = 0
+  discardOpenEdit()
+}
+
+export function setGlossaryManageTierFilter(value: GlossaryManageTierFilter): void {
+  if (isEditingBlocked()) return
+  tierFilterState.value = value
+  cursor.value = 0
+  discardOpenEdit()
+}
+
+export function setGlossaryManageCursor(index: number): void {
+  if (isEditingBlocked()) return
+  if (index === cursor.value || index < 0 || index >= manageFilteredRows.value.length) return
+  cursor.value = index
   discardOpenEdit()
 }
 
@@ -644,6 +701,7 @@ export function resetGlossaryManage(): void {
   loadError.value = null
   rows.value = []
   searchQuery.value = ''
+  tierFilterState.value = 'both'
   categoryFilterState.value = 'all'
   originFilterState.value = 'all'
   confirmedFilterState.value = 'all'

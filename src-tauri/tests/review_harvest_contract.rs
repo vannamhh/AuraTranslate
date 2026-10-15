@@ -734,3 +734,55 @@ fn a_pending_pair_the_recount_no_longer_finds_is_deleted_and_the_count_matches_t
     finish(&[&mine, &reviewer, &unchanged]);
     let _ = fs::remove_dir_all(dir);
 }
+
+#[test]
+fn approving_two_of_three_harvest_candidates_one_id_at_a_time_leaves_exactly_one_pending() {
+    let (mut mine_rows, mut their_rows) = lines(4, 4);
+    for (source, mine_text, their_text) in [
+        ("开门，快点。", "Hắn đả khai cửa lớn.", "Hắn mở cửa lớn."),
+        ("开门，慢点。", "Hắn đả khai cửa sổ.", "Hắn mở cửa sổ."),
+        ("开门，看看。", "Hắn đả khai cửa sau.", "Hắn mở cửa sau."),
+        ("关门，快点。", "Hắn đả quan cửa lớn.", "Hắn đóng cửa lớn."),
+        ("关门，慢点。", "Hắn đả quan cửa sổ.", "Hắn đóng cửa sổ."),
+        ("关门，看看。", "Hắn đả quan cửa sau.", "Hắn đóng cửa sau."),
+    ] {
+        mine_rows.push((source.to_owned(), mine_text.to_owned()));
+        their_rows.push((source.to_owned(), their_text.to_owned()));
+    }
+    let mine = build("approve-two-mine", &[mine_rows]);
+    let reviewer = build("approve-two-rev", &[their_rows]);
+    let (global, dir) = global_store("approve-two");
+    work_term(&mine, &global, "北凉王", BAC_LUONG);
+    work_term(&mine, &global, "开门", "đả khai");
+    work_term(&mine, &global, "关门", "đả quan");
+    mine.import_with(Some(&global), &reviewer.docx());
+    let pending = pending_candidates(&mine.open.store).expect("doc hang cho");
+    assert_eq!(pending.len(), 3);
+
+    for candidate in &pending[..2] {
+        approve_candidate(&mine.open.store, candidate.id, None, Category::Person).expect("duyet");
+    }
+
+    let left = pending_candidates(&mine.open.store).expect("doc hang cho");
+    assert_eq!(left.len(), 1);
+    assert_eq!(left[0].id, pending[2].id);
+    let tier = load_tier(&mine.open.store).expect("doc tang Work");
+    let origins: Vec<_> = pending[..2]
+        .iter()
+        .map(|c| tier[c.source_term.as_str()].term_origin)
+        .collect();
+    assert_eq!(origins, vec![TermOrigin::ReviewHarvest; 2]);
+    for candidate in &pending[..2] {
+        let proposed = &candidate
+            .review_harvest
+            .as_ref()
+            .expect("ung vien thu hoach")
+            .proposed_translation;
+        assert_eq!(
+            tier[candidate.source_term.as_str()].translation.as_deref(),
+            Some(proposed.as_str())
+        );
+    }
+    finish(&[&mine, &reviewer]);
+    let _ = fs::remove_dir_all(dir);
+}

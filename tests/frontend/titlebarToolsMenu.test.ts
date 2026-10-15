@@ -32,7 +32,7 @@ afterEach(() => {
 })
 
 describe('Công cụ ▾ list', () => {
-  it('lists exactly seven items in IA order, showing a chord only where the command has one', async () => {
+  it('lists exactly eight items in IA order, showing a chord only where the command has one', async () => {
     const { state, Menu, i18n } = await setup()
     const wrapper = mount(Menu, { attachTo: document.body })
     expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(0)
@@ -49,13 +49,14 @@ describe('Công cụ ▾ list', () => {
         'command.ai.proofread.memory.open',
         'command.export.reviewer_import.open',
         'command.export.alignment.open',
+        'command.glossary.harvest.open',
       ].map((key) => i18n.t(key)),
     )
-    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', 'Ctrl+Alt+B', 'Ctrl+,', '', '', '', ''])
+    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', 'Ctrl+Alt+B', 'Ctrl+,', '', '', '', '', ''])
     wrapper.unmount()
   })
 
-  it('the trigger carries all seven opener hooks and the items carry none', async () => {
+  it('the trigger carries all eight opener hooks and the items carry none', async () => {
     const { state, Menu } = await setup()
     const wrapper = mount(Menu, { attachTo: document.body })
     state.toggleToolsMenu()
@@ -68,6 +69,7 @@ describe('Công cụ ▾ list', () => {
       'proofread-memory',
       'reviewer-import',
       'alignment',
+      'glossary-harvest',
     ]
     for (const hook of hooks) expect(wrapper.get('.tools-trigger').attributes()).toHaveProperty(`data-${hook}-open`)
     for (const item of wrapper.findAll('[role="menuitem"]')) {
@@ -91,9 +93,9 @@ describe('Công cụ ▾ list', () => {
     expect(document.activeElement).toBe(items[1]?.element)
     await items[1]?.trigger('keydown', { key: 'ArrowUp' })
     await items[0]?.trigger('keydown', { key: 'ArrowUp' })
-    expect(document.activeElement).toBe(items[6]?.element)
+    expect(document.activeElement).toBe(items[7]?.element)
 
-    await items[6]?.trigger('keydown', { key: 'Escape' })
+    await items[7]?.trigger('keydown', { key: 'Escape' })
     expect(state.toolsMenuIsOpen.value).toBe(false)
     expect(document.activeElement).toBe(trigger.element)
     wrapper.unmount()
@@ -121,7 +123,7 @@ describe('Công cụ ▾ list', () => {
     const wrapper = mount(Menu, { attachTo: document.body })
     await wrapper.get('.tools-trigger').trigger('click')
     expect(state.toolsMenuIsOpen.value).toBe(true)
-    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(7)
+    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(8)
     await wrapper.get('.tools-trigger').trigger('click')
     expect(state.toolsMenuIsOpen.value).toBe(false)
     wrapper.unmount()

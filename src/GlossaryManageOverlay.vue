@@ -23,7 +23,7 @@
 // tác dụng.
 //
 // Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — mọi văn bản qua `t()`/`tError()`.
-import { nextTick, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
@@ -51,7 +51,10 @@ import {
   manageExportIpcUnavailable,
   manageExportedPath,
   manageFilteredRows,
+  manageTierCounts,
+  manageTierFilter,
   manageTotalRows,
+  managePendingCount,
   manageLoadError,
   manageOriginFilter,
   manageOverlayIsOpen,
@@ -63,12 +66,14 @@ import {
   manageWorkTierAvailable,
   setGlossaryManageCategoryFilter,
   setGlossaryManageConfirmedFilter,
+  setGlossaryManageCursor,
   setGlossaryManageExchangeTier,
   setGlossaryManageOriginFilter,
   setGlossaryManageSearch,
   setGlossaryManageSortByFrequency,
+  setGlossaryManageTierFilter,
 } from './glossaryManageState'
-import type { GlossaryManageConfirmedFilter, GlossaryManageOriginFilter } from './glossaryManageState'
+import type { GlossaryManageOriginFilter, GlossaryManageTierFilter } from './glossaryManageState'
 
 /** 🔴 UX-DR17 — trả tiêu điểm về chỗ cũ. Khuôn và lý lẽ chép từ `GlossaryQueueOverlay.vue`. */
 let returnFocusTo: HTMLElement | null = null
@@ -240,33 +245,83 @@ const ORIGIN_OPTIONS: ReadonlyArray<{ value: GlossaryManageOriginFilter; labelKe
   { value: 'review_harvest', labelKey: 'glossary.manage.origin_review_harvest' },
 ]
 
-const CONFIRMED_OPTIONS: ReadonlyArray<{ value: GlossaryManageConfirmedFilter; labelKey: string }> = [
-  { value: 'all', labelKey: 'glossary.manage.confirmed_filter_all' },
-  { value: 'confirmed', labelKey: 'glossary.manage.confirmed_filter_confirmed' },
-  { value: 'pending', labelKey: 'glossary.manage.confirmed_filter_pending' },
+const TIER_OPTIONS: ReadonlyArray<{ value: GlossaryManageTierFilter; labelKey: string }> = [
+  { value: 'global', labelKey: 'glossary.manage.tier_global' },
+  { value: 'work', labelKey: 'glossary.manage.tier_work' },
+  { value: 'both', labelKey: 'glossary.manage.tier_both' },
 ]
+
+const ORIGIN_KEYS: Readonly<Partial<Record<string, string>>> = {
+  manual: 'glossary.manage.origin_manual',
+  import_scan: 'glossary.manage.origin_import_scan',
+  review_harvest: 'glossary.manage.origin_review_harvest',
+  file_import: 'glossary.manage.origin_file_import',
+}
+
+const hasShadowedRows = computed(() => manageFilteredRows.value.some((row) => row.is_shadowed))
+
+function originLabel(termOrigin: string): string {
+  const key = ORIGIN_KEYS[termOrigin]
+  return key === undefined ? termOrigin : t(key)
+}
+
+function addedDate(createdAt: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(createdAt)
+  return m === null ? '—' : `${m[3]}-${m[2]}-${m[1]}`
+}
+
+function tierCountVisible(value: GlossaryManageTierFilter): boolean {
+  return manageStatus.value === 'loaded' && (value !== 'work' || manageWorkTierAvailable.value)
+}
+
+function marginBarClass(row: GlossaryEntry): string {
+  if (row.translation === null) return 'gm-row-bar-pending'
+  return row.tier === 'work' ? 'gm-row-bar-work' : ''
+}
+
+function aimRow(index: number): void {
+  setGlossaryManageCursor(index)
+}
+
+watch(manageEditing, (editing) => {
+  void nextTick(() => {
+    if (editing) {
+      panel.value?.querySelector<HTMLElement>('[data-gm-edit-translation]')?.focus()
+      return
+    }
+    if (manageOverlayIsOpen.value && !panel.value?.contains(document.activeElement)) list.value?.focus()
+  })
+})
+
+function onRowEscape(event: KeyboardEvent, index: number): void {
+  if (!manageEditing.value || index !== manageCursor.value) return
+  event.preventDefault()
+  event.stopPropagation()
+  dispatch('glossary.manage.cancel')
+}
+
+function onTierChange(value: GlossaryManageTierFilter): void {
+  setGlossaryManageTierFilter(value)
+}
+
+function onPendingToggle(event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement) setGlossaryManageConfirmedFilter(target.checked ? 'pending' : 'all')
+}
 
 function onSearchInput(event: Event): void {
   const target = event.target
   if (target instanceof HTMLInputElement) setGlossaryManageSearch(target.value)
 }
 
-function onCategoryFilterChange(event: Event): void {
-  const target = event.target
-  if (!(target instanceof HTMLSelectElement)) return
-  setGlossaryManageCategoryFilter(target.value as GlossaryCategory | 'all')
+function onCategoryChange(value: GlossaryCategory | 'all'): void {
+  setGlossaryManageCategoryFilter(value)
 }
 
 function onOriginFilterChange(event: Event): void {
   const target = event.target
   if (!(target instanceof HTMLSelectElement)) return
   setGlossaryManageOriginFilter(target.value as GlossaryManageOriginFilter)
-}
-
-function onConfirmedFilterChange(event: Event): void {
-  const target = event.target
-  if (!(target instanceof HTMLSelectElement)) return
-  setGlossaryManageConfirmedFilter(target.value as GlossaryManageConfirmedFilter)
 }
 
 function onSortByFrequencyChange(event: Event): void {
@@ -379,55 +434,108 @@ function onKeydown(event: KeyboardEvent): void {
       </p>
 
       <div class="gm-toolbar">
+        <fieldset class="gm-seg" role="radiogroup" :aria-label="t('glossary.manage.tier_label')">
+          <label
+            v-for="opt in TIER_OPTIONS"
+            :key="opt.value"
+            class="gm-seg-opt"
+            :class="{ 'gm-seg-on': manageTierFilter === opt.value }"
+          >
+            <input
+              type="radio"
+              name="gm-tier"
+              class="gm-sr-only"
+              :checked="manageTierFilter === opt.value"
+              :disabled="manageEditing || (opt.value === 'work' && !manageWorkTierAvailable)"
+              @change="onTierChange(opt.value)"
+            />
+            {{ t(opt.labelKey) }}
+            <!-- aura-allow-text: DỮ LIỆU (số hàng đếm được ở nấc này). -->
+            <b v-if="tierCountVisible(opt.value)" class="gm-seg-count">{{ manageTierCounts[opt.value] }}</b>
+          </label>
+        </fieldset>
+
         <!-- `:disabled` here is UX only; the real guard is `isEditingBlocked` in
              glossaryManageState.ts. -->
-        <label class="gm-field">
-          <span class="gm-field-label">{{ t('glossary.manage.search_label') }}</span>
+        <label class="gm-field gm-field-search">
+          <span class="gm-sr-only">{{ t('glossary.manage.search_label') }}</span>
           <input
             type="text"
             class="gm-input"
             autocomplete="off"
+            :placeholder="t('glossary.manage.search_label')"
             :value="manageSearchQuery"
             :disabled="manageEditing"
             @input="onSearchInput"
           />
         </label>
 
-        <label class="gm-field">
-          <span class="gm-field-label">{{ t('glossary.manage.category_filter_label') }}</span>
-          <select class="gm-input" :value="manageCategoryFilter" :disabled="manageEditing" @change="onCategoryFilterChange">
-            <option value="all">{{ t('glossary.manage.category_filter_all') }}</option>
-            <option v-for="opt in CATEGORY_OPTIONS" :key="opt.value" :value="opt.value">
-              {{ t(opt.labelKey) }}
-            </option>
-          </select>
+        <fieldset class="gm-pills" role="radiogroup" :aria-label="t('glossary.manage.category_filter_label')">
+          <label class="gm-pill" :class="{ 'gm-pill-on': manageCategoryFilter === 'all' }">
+            <input
+              type="radio"
+              name="gm-category"
+              class="gm-sr-only"
+              :checked="manageCategoryFilter === 'all'"
+              :disabled="manageEditing"
+              @change="onCategoryChange('all')"
+            />
+            {{ t('glossary.manage.category_all') }}
+          </label>
+          <label
+            v-for="opt in CATEGORY_OPTIONS"
+            :key="opt.value"
+            class="gm-pill"
+            :class="{ 'gm-pill-on': manageCategoryFilter === opt.value }"
+          >
+            <input
+              type="radio"
+              name="gm-category"
+              class="gm-sr-only"
+              :checked="manageCategoryFilter === opt.value"
+              :disabled="manageEditing"
+              @change="onCategoryChange(opt.value)"
+            />
+            {{ t(opt.labelKey) }}
+          </label>
+        </fieldset>
+
+        <label
+          v-if="manageStatus === 'loaded'"
+          class="gm-pill gm-pill-pending"
+          :class="{ 'gm-pill-on': manageConfirmedFilter === 'pending' }"
+          :title="t('glossary.manage.pending_pill_title')"
+        >
+          <input
+            type="checkbox"
+            class="gm-sr-only"
+            :checked="manageConfirmedFilter === 'pending'"
+            :disabled="manageEditing"
+            @change="onPendingToggle"
+          />
+          <!-- aura-allow-text: KẾT QUẢ của `t()` (đã nội suy số đếm). -->
+          {{ t('glossary.manage.pending_pill', { count: String(managePendingCount) }) }}
         </label>
 
-        <label class="gm-field">
-          <span class="gm-field-label">{{ t('glossary.manage.origin_filter_label') }}</span>
+        <label class="gm-field gm-field-origin">
+          <span class="gm-sr-only">{{ t('glossary.manage.origin_filter_label') }}</span>
           <select class="gm-input" :value="manageOriginFilter" :disabled="manageEditing" @change="onOriginFilterChange">
             <option v-for="opt in ORIGIN_OPTIONS" :key="opt.value" :value="opt.value">{{ t(opt.labelKey) }}</option>
           </select>
         </label>
 
-        <label class="gm-field">
-          <span class="gm-field-label">{{ t('glossary.manage.confirmed_filter_label') }}</span>
-          <select
-            class="gm-input"
-            :value="manageConfirmedFilter"
-            :disabled="manageEditing"
-            @change="onConfirmedFilterChange"
-          >
-            <option v-for="opt in CONFIRMED_OPTIONS" :key="opt.value" :value="opt.value">
-              {{ t(opt.labelKey) }}
-            </option>
-          </select>
-        </label>
-
         <!-- Not disabled while editing: sorting only reorders, it doesn't change the row set. -->
-        <label class="gm-field gm-field-checkbox">
-          <input type="checkbox" :checked="manageSortByFrequency" @change="onSortByFrequencyChange" />
-          <span class="gm-field-label">{{ t('glossary.manage.sort_by_frequency_label') }}</span>
+        <label class="gm-field gm-field-checkbox gm-sort">
+          <input
+            type="checkbox"
+            :aria-label="t('glossary.manage.sort_by_frequency_label')"
+            :checked="manageSortByFrequency"
+            @change="onSortByFrequencyChange"
+          />
+          <span class="gm-field-label">
+            {{ t('glossary.manage.sort_prefix') }}
+            <b>{{ t(manageSortByFrequency ? 'glossary.manage.sort_current_frequency' : 'glossary.manage.sort_current_default') }}</b>
+          </span>
         </label>
       </div>
 
@@ -479,76 +587,132 @@ function onKeydown(event: KeyboardEvent): void {
           thao tác; `<ul>` CŨNG mang `tabindex="-1"` vì nó nhận tiêu điểm bằng JS, không bằng
           Tab (cùng khuôn `panel` — cả hai đều KHÔNG nằm trong `stops` của `trapTab`).
         -->
-        <ul
+        <table
           v-else
           ref="list"
           class="gm-list"
-          role="listbox"
+          role="grid"
           tabindex="-1"
           :aria-label="t('glossary.manage.list_label')"
           :aria-activedescendant="manageCurrentRow === null ? undefined : manageOptionId(manageCurrentRow)"
         >
-          <li
-            v-for="(row, i) in manageFilteredRows"
-            :id="manageOptionId(row)"
-            :key="`${row.tier}:${row.id}`"
-            class="gm-row"
-            role="option"
-            tabindex="-1"
-            :aria-selected="i === manageCursor"
-            :class="{
-              'gm-row-current': i === manageCursor,
-              'gm-row-shadowed': row.is_shadowed,
-              'gm-row-delete-pending': i === manageCursor && manageDeletePending,
-            }"
-          >
-            <!-- aura-allow-text: DỮ LIỆU (`source_term` của chính hàng). -->
-            <span class="gm-term">{{ row.source_term }}</span>
-            <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
-            <span class="gm-badge">{{ row.tier === 'global' ? t('glossary.quick_add.tier_global') : t('glossary.quick_add.tier_work') }}</span>
-            <span v-if="row.is_shadowed" class="gm-badge gm-badge-shadowed">{{ t('glossary.manage.shadowed_badge') }}</span>
-            <!--
-              Cụm D vá — trạng thái "chờ xác nhận xoá" phân biệt bằng CHỮ (câu riêng, không
-              chỉ đổi màu) trên đúng hàng đang chờ (§Always: "phân biệt bằng chữ và ký hiệu,
-              không bằng opacity trung gian").
-            -->
-            <span v-if="i === manageCursor && manageDeletePending" class="gm-badge gm-badge-delete-pending">
-              {{ t('glossary.manage.delete_confirm_badge') }}
-            </span>
-            <!-- aura-allow-text: DỮ LIỆU (`translation` của chính hàng) hoặc KẾT QUẢ của `t()`. -->
-            <span v-if="row.translation !== null" class="gm-translation">{{ row.translation }}</span>
-            <span v-else class="gm-badge gm-badge-pending">{{ t('glossary.manage.pending_badge') }}</span>
-            <!-- aura-allow-text: DỮ LIỆU (`note` của chính hàng). -->
-            <span class="gm-note-cell" :title="row.note">{{ row.note }}</span>
-            <!-- aura-allow-text: DỮ LIỆU (`occurrence_count` của chính hàng) hoặc dấu "—" cố định. -->
-            <span class="gm-count" :title="t('glossary.manage.occurrence_count_title')">{{
-              row.occurrence_count === null ? '—' : row.occurrence_count
-            }}</span>
-          </li>
-        </ul>
+          <thead>
+            <tr>
+              <th scope="col">{{ t('glossary.manage.col_term') }}</th>
+              <th scope="col">{{ t('glossary.manage.col_translation') }}</th>
+              <th scope="col">{{ t('glossary.manage.col_category') }}</th>
+              <th scope="col">{{ t('glossary.manage.col_origin') }}</th>
+              <th scope="col">{{ t('glossary.manage.col_count') }}</th>
+              <th scope="col">{{ t('glossary.manage.col_note') }}</th>
+              <th scope="col">{{ t('glossary.manage.col_added') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, i) in manageFilteredRows"
+              :id="manageOptionId(row)"
+              :key="`${row.tier}:${row.id}`"
+              class="gm-row"
+              tabindex="-1"
+              :aria-selected="i === manageCursor"
+              :class="[
+                marginBarClass(row),
+                {
+                  'gm-row-current': i === manageCursor,
+                  'gm-row-shadowed': row.is_shadowed,
+                  'gm-row-delete-pending': i === manageCursor && manageDeletePending,
+                },
+              ]"
+              @mousedown="aimRow(i)"
+              @dblclick="dispatch('glossary.manage.edit')"
+              @keydown.esc="onRowEscape($event, i)"
+            >
+              <td class="gm-cell-term"><div class="gm-term-flex">
+                <!-- aura-allow-text: DỮ LIỆU (`source_term` của chính hàng). -->
+                <span class="gm-term">{{ row.source_term }}</span>
+                <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+                <span class="gm-badge">{{ row.tier === 'global' ? t('glossary.quick_add.tier_global') : t('glossary.quick_add.tier_work') }}</span>
+                <span v-if="row.is_shadowed" class="gm-badge gm-badge-shadowed">{{ t('glossary.manage.shadowed_badge') }}</span>
+                <span v-if="i === manageCursor && manageDeletePending" class="gm-badge gm-badge-delete-pending">
+                  {{ t('glossary.manage.delete_confirm_badge') }}
+                </span>
+                <span class="gm-sr-only">{{ t(row.translation === null ? 'glossary.manage.status_pending' : 'glossary.manage.status_confirmed') }}</span>
+              </div></td>
+              <td>
+                <input
+                  v-if="i === manageCursor && manageEditing"
+                  v-model="manageEditTranslation"
+                  form="gm-edit-form"
+                  type="text"
+                  class="gm-input gm-cell-input"
+                  autocomplete="off"
+                  data-gm-edit-translation
+                  :aria-label="t('glossary.manage.translation_label')"
+                  :disabled="manageSaving"
+                />
+                <!-- aura-allow-text: DỮ LIỆU (`translation` của chính hàng). -->
+                <span v-else-if="row.translation !== null" class="gm-translation">{{ row.translation }}</span>
+                <span v-else class="gm-badge gm-badge-pending">{{ t('glossary.manage.pending_badge') }}</span>
+              </td>
+              <td>
+                <select
+                  v-if="i === manageCursor && manageEditing"
+                  v-model="manageEditCategory"
+                  form="gm-edit-form"
+                  class="gm-input gm-cell-input"
+                  :aria-label="t('glossary.quick_add.category_label')"
+                  :disabled="manageSaving"
+                >
+                  <option v-for="opt in CATEGORY_OPTIONS" :key="opt.value" :value="opt.value">{{ t(opt.labelKey) }}</option>
+                </select>
+                <span v-else class="gm-category">{{ t(`glossary.manage.category_${row.category}`) }}</span>
+              </td>
+              <!-- aura-allow-text: KẾT QUẢ của `t()` hoặc DỮ LIỆU (xuất xứ lạ hiện nguyên giá trị). -->
+              <td class="gm-origin">{{ originLabel(row.term_origin) }}</td>
+              <td>
+                <!-- aura-allow-text: DỮ LIỆU (`occurrence_count` của chính hàng) hoặc dấu "—" cố định. -->
+                <span class="gm-count" :title="t('glossary.manage.occurrence_count_title')">{{
+                  row.occurrence_count === null ? '—' : row.occurrence_count
+                }}</span>
+              </td>
+              <td class="gm-cell-note">
+                <input
+                  v-if="i === manageCursor && manageEditing"
+                  v-model="manageEditNote"
+                  form="gm-edit-form"
+                  type="text"
+                  class="gm-input gm-cell-input"
+                  autocomplete="off"
+                  :aria-label="t('glossary.manage.note_label')"
+                  :disabled="manageSaving"
+                />
+                <!-- aura-allow-text: DỮ LIỆU (`note` của chính hàng). -->
+                <span v-else class="gm-note-cell" :title="row.note">{{ row.note }}</span>
+              </td>
+              <!-- aura-allow-text: KẾT QUẢ của `addedDate()` (ngày cắt từ `created_at`, hoặc dấu "—"). -->
+              <td class="gm-added">{{ addedDate(row.created_at) }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div v-if="managePendingCount > 0" class="gm-box gm-box-pending">
+          <b>{{ t('glossary.manage.pending_box_title', { count: String(managePendingCount) }) }}</b>
+          {{ t('glossary.manage.pending_box_body') }}
+        </div>
+        <div v-if="hasShadowedRows" class="gm-box gm-box-shadow">
+          <b>{{ t('glossary.manage.shadow_box_title') }}</b>
+          {{ t('glossary.manage.shadow_box_body') }}
+        </div>
       </template>
 
-      <!-- Form Sửa — chỉ hiện khi có một hàng đang chọn VÀ `manageEditing`. -->
+      <!-- Inline edit: the three inputs live in the cursor row and join this form by `form="gm-edit-form"`. -->
       <form
         v-if="manageEditing && manageCurrentRow !== null"
+        id="gm-edit-form"
         class="gm-edit-form"
         @submit.prevent="dispatch('glossary.manage.save')"
         @keydown.esc.prevent.stop="dispatch('glossary.manage.cancel')"
       >
-        <label class="gm-field">
-          <span class="gm-field-label">{{ t('glossary.manage.translation_label') }}</span>
-          <input v-model="manageEditTranslation" type="text" class="gm-input" autocomplete="off" :disabled="manageSaving" />
-        </label>
-        <label class="gm-field">
-          <span class="gm-field-label">{{ t('glossary.manage.note_label') }}</span>
-          <input v-model="manageEditNote" type="text" class="gm-input" autocomplete="off" :disabled="manageSaving" />
-        </label>
-        <label class="gm-field">
-          <span class="gm-field-label">{{ t('glossary.quick_add.category_label') }}</span>
-          <select v-model="manageEditCategory" class="gm-input" :disabled="manageSaving">
-            <option v-for="opt in CATEGORY_OPTIONS" :key="opt.value" :value="opt.value">{{ t(opt.labelKey) }}</option>
-          </select>
-        </label>
         <div class="gm-edit-actions">
           <button type="submit" class="gm-act gm-act-primary" :disabled="manageSaving">
             {{ t('glossary.manage.save') }}
@@ -695,6 +859,13 @@ function onKeydown(event: KeyboardEvent): void {
           {{ t('glossary.manage.export_done', { path: manageExportedPath }) }}
         </p>
       </div>
+
+      <div class="gm-foot">
+        <button type="button" class="gm-act gm-act-primary" @click="dispatch('glossary.manage.add_term')">
+          {{ t('glossary.manage.add_term') }}
+        </button>
+        <span class="gm-foot-hint">{{ t('glossary.manage.foot_hint') }}</span>
+      </div>
     </section>
   </div>
 </template>
@@ -713,7 +884,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-panel {
   width: 100%;
-  max-width: 880px;
+  max-width: 1100px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -818,35 +989,189 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gm-list {
-  list-style: none;
+  width: 100%;
   margin: 0 0 var(--space-panel-block) 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  max-height: 50vh;
-  overflow: auto;
+  border-collapse: collapse;
   border: 1px solid var(--color-outline);
-}
-
-.gm-row {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
-  border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
 }
 
-.gm-row:last-child {
-  border-bottom: none;
+.gm-list th {
+  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  text-align: left;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  font-weight: var(--weight-ui-md-strong);
+  color: var(--color-on-surface-variant);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.gm-row > td {
+  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-outline);
+}
+
+/* Margin bar of the row status; the shapes mirror the editor margin (2px solid confirmed, 2px dashed draft). */
+.gm-row > td:first-child {
+  border-left: 2px solid transparent;
+}
+
+.gm-row-bar-work > td:first-child {
+  border-left: 2px solid var(--color-confirmed);
+}
+
+.gm-row-bar-pending > td:first-child {
+  border-left: 2px dashed var(--color-draft);
 }
 
 .gm-row-current {
   background: var(--color-surface-accent);
+}
+
+.gm-row-shadowed > td:first-child {
+  padding-left: calc(var(--space-unit) * 8);
+}
+
+.gm-term-flex {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.gm-cell-input {
+  width: 100%;
+}
+
+.gm-category,
+.gm-origin,
+.gm-added {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gm-added {
+  white-space: nowrap;
+}
+
+.gm-seg {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-outline);
+}
+
+.gm-seg-opt,
+.gm-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+}
+
+.gm-seg-opt + .gm-seg-opt {
+  border-left: 1px solid var(--color-outline);
+}
+
+.gm-seg-on,
+.gm-pill-on {
+  background: var(--color-surface-accent);
+  color: var(--color-primary);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.gm-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.gm-pill {
+  border: 1px solid var(--color-outline);
+}
+
+.gm-pill-pending.gm-pill-on {
+  border-color: var(--color-draft);
+}
+
+.gm-seg-opt:has(input:focus-visible),
+.gm-pill:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+}
+
+.gm-field-search {
+  flex: 1;
+  max-width: 18rem;
+}
+
+.gm-field-origin {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.gm-sort {
+  margin-left: auto;
+}
+
+.gm-box {
+  margin: 0 0 var(--space-panel-block) 0;
+  padding: calc(var(--space-unit) * 3) var(--space-panel-inline);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+  background: var(--color-background);
+}
+
+.gm-box-pending {
+  border-left: 2px dashed var(--color-draft);
+}
+
+.gm-box-shadow {
+  border-left: 2px solid var(--color-confirmed);
+}
+
+.gm-foot {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 3);
+  margin-top: var(--space-panel-block);
+}
+
+.gm-foot-hint {
+  margin-left: auto;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gm-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px; /* aura-allow-spacing: kích thước hình học của kỹ thuật ẩn sr-only, không phải khoảng cách lưới */
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /*
@@ -870,8 +1195,8 @@ function onKeydown(event: KeyboardEvent): void {
  * CHÍNH của nhịp chờ là chữ (badge + nhãn nút), đúng như câu trên (đã sửa) khai; nét đáy này
  * chỉ là một gợi ý thị giác thêm, không đứng một mình.
  */
-.gm-row-delete-pending {
-  border-color: var(--color-error);
+.gm-row-delete-pending > td {
+  border-bottom-color: var(--color-error);
 }
 
 .gm-badge-delete-pending {
@@ -911,9 +1236,12 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
+.gm-cell-note {
+  max-width: 14rem;
+}
+
 .gm-note-cell {
-  flex: 1;
-  min-width: 8rem;
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

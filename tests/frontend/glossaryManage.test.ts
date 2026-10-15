@@ -200,7 +200,7 @@ describe('Tìm và ba bộ lọc — chạy TRONG BỘ NHỚ, 0 lượt IPC', ()
     expect(listMock).not.toHaveBeenCalled()
   })
 
-  it('giao của ba bộ lọc (phân loại · xuất xứ · trạng thái chốt) với ô tìm', async () => {
+  it('giao của hai bộ lọc (phân loại · xuất xứ) với trạng thái chờ chốt', async () => {
     const { openGlossaryManage, setGlossaryManageCategoryFilter, setGlossaryManageOriginFilter, setGlossaryManageConfirmedFilter, manageFilteredRows } =
       await freshState()
     listMock.mockResolvedValue({
@@ -216,7 +216,11 @@ describe('Tìm và ba bộ lọc — chạy TRONG BỘ NHỚ, 0 lượt IPC', ()
 
     setGlossaryManageCategoryFilter('person')
     setGlossaryManageOriginFilter('manual')
-    setGlossaryManageConfirmedFilter('confirmed')
+    setGlossaryManageConfirmedFilter('pending')
+
+    expect(manageFilteredRows.value.map((r) => r.id)).toEqual([])
+
+    setGlossaryManageConfirmedFilter('all')
 
     expect(manageFilteredRows.value.map((r) => r.id)).toEqual([1])
   })
@@ -1076,7 +1080,7 @@ describe('GlossaryManageOverlay.vue — `aria-activedescendant` trỏ đúng con
     return { state, GlossaryManageOverlay }
   }
 
-  it('⑤a con trỏ ở hàng thứ n ⇒ `<ul>` mang `aria-activedescendant` bằng ĐÚNG `id` của `<li>` thứ n', async () => {
+  it('⑤a con trỏ ở hàng thứ n ⇒ `<table>` mang `aria-activedescendant` bằng ĐÚNG `id` của `<tr>` thứ n', async () => {
     const { state, GlossaryManageOverlay } = await freshOverlay()
     listMock.mockResolvedValue({
       entries: [entry({ id: 1, source_term: 'một' }), entry({ id: 2, source_term: 'hai' })],
@@ -1090,7 +1094,7 @@ describe('GlossaryManageOverlay.vue — `aria-activedescendant` trỏ đúng con
     await wrapper.vm.$nextTick()
 
     const list = wrapper.get('.gm-list')
-    const rows = wrapper.findAll('.gm-list li')
+    const rows = wrapper.findAll('.gm-list tbody tr')
     expect(rows).toHaveLength(2)
     const activeId = list.attributes('aria-activedescendant')
     expect(activeId).toBeDefined()
@@ -1113,7 +1117,7 @@ describe('GlossaryManageOverlay.vue — `aria-activedescendant` trỏ đúng con
     await wrapper.vm.$nextTick()
 
     const list = wrapper.get('.gm-list')
-    const rows = wrapper.findAll('.gm-list li')
+    const rows = wrapper.findAll('.gm-list tbody tr')
     const firstId = rows[0]?.attributes('id')
     const secondId = rows[1]?.attributes('id')
     expect(list.attributes('aria-activedescendant')).toBe(firstId)
@@ -1127,7 +1131,7 @@ describe('GlossaryManageOverlay.vue — `aria-activedescendant` trỏ đúng con
     wrapper.unmount()
   })
 
-  it('⑤c danh sách rỗng (bộ lọc loại hết hàng) ⇒ `<ul>` KHÔNG mang `aria-activedescendant` trỏ một `id` không tồn tại', async () => {
+  it('⑤c danh sách rỗng (bộ lọc loại hết hàng) ⇒ `<table>` KHÔNG mang `aria-activedescendant` trỏ một `id` không tồn tại', async () => {
     const { state, GlossaryManageOverlay } = await freshOverlay()
     listMock.mockResolvedValue({ entries: [entry({ id: 1, category: 'place' })], error: null })
     lookupMock.mockResolvedValue(workOpenProbe)
@@ -1330,6 +1334,165 @@ describe('GlossaryManageOverlay.vue — cột "Dùng" (`.gm-count`)', () => {
     const counts = wrapper.findAll('.gm-count').map((c) => c.text())
     expect(counts).toEqual(['42', '—'])
 
+    wrapper.unmount()
+  })
+})
+
+describe('GlossaryManageOverlay.vue — bảng mockup (tầng, vạch lề, xuất xứ, sửa tại chỗ)', () => {
+  async function freshOverlay(deps: Partial<CommandDeps> = {}) {
+    vi.resetModules()
+    listMock.mockReset()
+    updateMock.mockReset()
+    lookupMock.mockReset()
+    const commands = await import('../../src/commands')
+    commands.installCommands(deps as CommandDeps)
+    const state = await import('../../src/glossaryManageState')
+    const i18n = await import('../../src/i18n')
+    const GlossaryManageOverlay = (await import('../../src/GlossaryManageOverlay.vue')).default
+    return { state, i18n, GlossaryManageOverlay }
+  }
+
+  const mixed = [
+    entry({ tier: 'work', id: 10, source_term: '北涼王', translation: 'vương Bắc Lương', term_origin: 'review_harvest' }),
+    entry({ tier: 'work', id: 11, source_term: '氣機', translation: null, term_origin: 'import_scan' }),
+    entry({ tier: 'global', id: 1, source_term: '金丹', translation: 'kim đan' }),
+    entry({ tier: 'global', id: 2, source_term: '北涼王', translation: 'Bắc Lương vương', is_shadowed: true }),
+  ]
+
+  async function open(fresh: Awaited<ReturnType<typeof freshOverlay>>) {
+    listMock.mockResolvedValue({ entries: mixed, error: null })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await fresh.state.openGlossaryManage()
+    const wrapper = mount(fresh.GlossaryManageOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    return wrapper
+  }
+
+  it('số trên mỗi nấc tầng bằng số hàng bảng hiện ở nấc đó', async () => {
+    const fresh = await freshOverlay()
+    const wrapper = await open(fresh)
+
+    const labels = wrapper.findAll('.gm-seg-opt')
+    const shown = labels.map((l) => Number(l.get('.gm-seg-count').text()))
+    expect(shown).toEqual([2, 2, 4])
+
+    for (const [i, value] of (['global', 'work', 'both'] as const).entries()) {
+      fresh.state.setGlossaryManageTierFilter(value)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.findAll('.gm-list tbody tr')).toHaveLength(shown[i])
+    }
+    wrapper.unmount()
+  })
+
+  it('số trên mỗi nấc tầng tính theo các bộ lọc khác đang bật, và vẫn bằng số hàng bảng', async () => {
+    const fresh = await freshOverlay()
+    const wrapper = await open(fresh)
+    fresh.state.setGlossaryManageOriginFilter('import_scan')
+    await wrapper.vm.$nextTick()
+
+    const shown = wrapper.findAll('.gm-seg-opt').map((l) => l.get('.gm-seg-count').text())
+    expect(shown).toEqual(['0', '1', '1'])
+    for (const [i, value] of (['global', 'work', 'both'] as const).entries()) {
+      fresh.state.setGlossaryManageTierFilter(value)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.findAll('.gm-list tbody tr')).toHaveLength(Number(shown[i]))
+    }
+    wrapper.unmount()
+  })
+
+  it('tầng "Cả hai": hàng Toàn cục bị che nằm ngay dưới hàng Tác phẩm che nó', async () => {
+    const fresh = await freshOverlay()
+    const wrapper = await open(fresh)
+
+    const ids = wrapper.findAll('.gm-list tbody tr').map((r) => r.attributes('id'))
+    expect(ids).toEqual(['gm-option-work-10', 'gm-option-global-2', 'gm-option-work-11', 'gm-option-global-1'])
+    expect(wrapper.get('#gm-option-global-2').classes()).toContain('gm-row-shadowed')
+    wrapper.unmount()
+  })
+
+  it('vạch lề: chờ chốt, đã chốt Tác phẩm và đã chốt Toàn cục là ba lớp khác nhau; trạng thái có chữ', async () => {
+    const fresh = await freshOverlay()
+    const wrapper = await open(fresh)
+
+    expect(wrapper.get('#gm-option-work-11').classes()).toContain('gm-row-bar-pending')
+    expect(wrapper.get('#gm-option-work-10').classes()).toContain('gm-row-bar-work')
+    const globalRow = wrapper.get('#gm-option-global-1')
+    expect(globalRow.classes()).not.toContain('gm-row-bar-work')
+    expect(globalRow.classes()).not.toContain('gm-row-bar-pending')
+    expect(wrapper.get('#gm-option-work-11').text()).toContain(fresh.i18n.t('glossary.manage.status_pending'))
+    expect(wrapper.get('#gm-option-work-10').text()).toContain(fresh.i18n.t('glossary.manage.status_confirmed'))
+    wrapper.unmount()
+  })
+
+  it('mỗi hàng hiện xuất xứ bằng chữ và ngày thêm', async () => {
+    const fresh = await freshOverlay()
+    const wrapper = await open(fresh)
+
+    const origins = wrapper.findAll('.gm-origin').map((c) => c.text())
+    expect(origins[0]).toBe(fresh.i18n.t('glossary.manage.origin_review_harvest'))
+    expect(origins[1]).toBe(fresh.i18n.t('glossary.manage.origin_manual'))
+    expect(wrapper.get('.gm-added').text()).toBe('24-08-2026')
+    wrapper.unmount()
+  })
+
+  it('nhấp đúp một hàng đặt con trỏ vào hàng đó và mở ô sửa ngay trong hàng', async () => {
+    const fresh = await freshOverlay({ beginGlossaryManageEdit: () => fresh.state.beginGlossaryManageEdit() })
+    const wrapper = await open(fresh)
+
+    const target = wrapper.get('#gm-option-work-11')
+    await target.trigger('mousedown')
+    await target.trigger('dblclick')
+    await wrapper.vm.$nextTick()
+
+    expect(fresh.state.manageCursor.value).toBe(2)
+    expect(fresh.state.manageEditing.value).toBe(true)
+    expect(target.find('input[data-gm-edit-translation]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('Esc trong ô sửa tại chỗ huỷ phép sửa và không đóng lớp phủ', async () => {
+    const fresh = await freshOverlay({
+      beginGlossaryManageEdit: () => fresh.state.beginGlossaryManageEdit(),
+      cancelGlossaryManageEdit: () => fresh.state.cancelGlossaryManageEdit(),
+      closeGlossaryManage: () => fresh.state.closeGlossaryManage(),
+    })
+    const wrapper = await open(fresh)
+    const target = wrapper.get('#gm-option-work-11')
+    await target.trigger('mousedown')
+    await target.trigger('dblclick')
+    await wrapper.vm.$nextTick()
+    expect(fresh.state.manageEditing.value).toBe(true)
+
+    await target.get('input[data-gm-edit-translation]').trigger('keydown', { key: 'Escape' })
+    await wrapper.vm.$nextTick()
+
+    expect(fresh.state.manageEditing.value).toBe(false)
+    expect(fresh.state.manageOverlayIsOpen.value).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('bấm chuột sang hàng khác khi đang sửa không bỏ mất phép sửa', async () => {
+    const fresh = await freshOverlay({ beginGlossaryManageEdit: () => fresh.state.beginGlossaryManageEdit() })
+    const wrapper = await open(fresh)
+    const target = wrapper.get('#gm-option-work-11')
+    await target.trigger('mousedown')
+    await target.trigger('dblclick')
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('#gm-option-work-10').trigger('mousedown')
+
+    expect(fresh.state.manageCursor.value).toBe(2)
+    expect(fresh.state.manageEditing.value).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('"Thêm thuật ngữ" gọi addGlossaryTermFromManage đúng một lần', async () => {
+    const add = vi.fn()
+    const fresh = await freshOverlay({ addGlossaryTermFromManage: add })
+    const wrapper = await open(fresh)
+
+    await wrapper.get('.gm-foot button').trigger('click')
+    expect(add).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 })

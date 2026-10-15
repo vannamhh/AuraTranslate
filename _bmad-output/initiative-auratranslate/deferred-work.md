@@ -13235,3 +13235,11 @@ chính nó.
   summary: Quản lý TM gọi `refreshExportCounts` sau mỗi lần sửa / xoá / đẩy / nhập, tức bốn lượt đọc trọn tầng (`tm_export_counts` hai tầng × `all` / `mine`); chưa đo trên TM lớn.
   evidence: chưa kiểm (review 12.14 xếp maybe-false, nếu đúng là medium); muốn chốt thì đo thời gian `tm_export_counts` và thời gian giữ khoá `OpenWorkState` ở 200.000 cặp, cùng quần thể `nfr_bench`.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-glossary-bang-cho-quan-ly-man-duyet-thu-hoach-plan.md`
+  summary: Lượt dùng thật trong app: vạch lề Quản lý Glossary nét đứt (chờ chốt) và nét liền (đã chốt Tác phẩm) phân biệt được ở giao diện sáng và tối; vạch hàng bảng chờ đứt / liền; phím trong menu Công cụ ▾ tới mục Duyệt thu hoạch thuật ngữ; Space trên bảng chờ không bật radio ẩn của hàng; Enter lưu từ ô sửa tại chỗ (`form="gm-edit-form"`).
+  evidence: happy-dom không tính CSS có phạm vi nên `border-left-style` chỉ được canh qua tên lớp; bàn phím kích hoạt `<button>` không lái được bằng e2e.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-glossary-bang-cho-quan-ly-man-duyet-thu-hoach-plan.md`
+  summary: `e2e/specs/story-12-13-glossary-harvest.e2e.mjs` và mục thứ tám của `titlebar-tools.e2e.mjs` chưa chạy cục bộ; spec không dựng bản reviewer nên màn thu hoạch chỉ được mở ở trạng thái rỗng (ba ứng viên nhận hai nằm ở `review_harvest_contract.rs` và `glossaryHarvest.test.ts`).
+  evidence: webview e2e đứng ở `tauri://localhost`; cần đọc lượt nightly macOS đầu tiên sau khi gộp.
+  Chủ: Epic 12.

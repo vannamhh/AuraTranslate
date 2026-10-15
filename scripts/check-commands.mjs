@@ -2416,13 +2416,27 @@ const HANDLER_TABLE = {
   'src/GlossaryImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/GlossaryManageOverlay.vue::onEscape': { ids: ['glossary.manage.close'] },
   'src/GlossaryManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/GlossaryManageOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
+  'src/GlossaryManageOverlay.vue::onRowEscape': { ids: ['glossary.manage.cancel'] },
   'src/GlossaryManageOverlay.vue::onKeydown': {
     ids: ['glossary.manage.next', 'glossary.manage.prev', 'glossary.manage.edit', 'glossary.manage.delete'],
   },
   'src/GlossaryQueueOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/GlossaryQueueOverlay.vue::onKeydown': {
-    ids: ['glossary.queue.next', 'glossary.queue.prev', 'glossary.queue.accept', 'glossary.queue.reject'],
+    ids: [
+      'glossary.queue.next',
+      'glossary.queue.prev',
+      'glossary.queue.accept',
+      'glossary.queue.reject',
+      'glossary.queue.leave',
+    ],
   },
+  'src/GlossaryHarvestOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/GlossaryHarvestOverlay.vue::aimRow': { nonCommand: R_CURSOR_LOCAL },
+  'src/GlossaryHarvestOverlay.vue::onKeydown': {
+    ids: ['glossary.harvest.next', 'glossary.harvest.prev', 'glossary.harvest.accept', 'glossary.harvest.reject'],
+  },
+  'src/StatusBar.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
   'src/GlossaryQuickAdd.vue::onCategoryKeydown': { nonCommand: R_CATEGORY_NAV },
   'src/ImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.cancel'] },
   'src/ImportPreviewOverlay.vue::onScrimKeydown': { nonCommand: R_SCRIM_CLOSE },

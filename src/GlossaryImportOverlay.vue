@@ -134,6 +134,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
       </p>
 
       <template v-else-if="importStatus === 'loaded' && importPreview !== null">
+        <h3 class="gi-read-title">{{ t('glossary.import.read_title') }}</h3>
         <dl class="gi-summary">
           <div class="gi-summary-row">
             <dt>{{ t('glossary.import.file_name_label') }}</dt>
@@ -361,6 +362,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   color: var(--color-on-surface);
 }
 
+.gi-read-title,
 .gi-conflicts-title {
   margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-ui-md);

@@ -1,4 +1,4 @@
-import { createApp, watch } from 'vue'
+import { createApp, nextTick, watch } from 'vue'
 import App from './App.vue'
 import './tokens/reset.css'
 // ── Story 1.14 — dockview: MỘT lượt import CSS cho cả ứng dụng ──────────────────────
@@ -313,12 +313,23 @@ import { tmManageOverlayIsOpen } from './tmManageState'
 import {
   acceptGlossaryQueueCandidate,
   closeGlossaryQueue,
+  leaveGlossaryQueueCandidate,
   nextGlossaryQueueCandidate,
   openGlossaryQueue,
   prevGlossaryQueueCandidate,
   queueOverlayIsOpen,
   rejectGlossaryQueueCandidate,
 } from './glossaryQueueState'
+import {
+  acceptGlossaryHarvestRow,
+  acceptGlossaryHarvestSelected,
+  closeGlossaryHarvest,
+  harvestOverlayIsOpen,
+  nextGlossaryHarvestRow,
+  openGlossaryHarvest,
+  prevGlossaryHarvestRow,
+  rejectGlossaryHarvestRow,
+} from './glossaryHarvestState'
 // ── Story 3.9 — lớp phủ "Quản lý Glossary" (FR49) ─────────────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `glossaryQueueState.ts`: `glossaryManageState.ts` dùng
@@ -957,6 +968,22 @@ async function boot(): Promise<void> {
       },
       nextGlossaryQueueCandidate,
       prevGlossaryQueueCandidate,
+      leaveGlossaryQueueCandidate,
+      openGlossaryHarvest: () => {
+        void openGlossaryHarvest()
+      },
+      closeGlossaryHarvest,
+      acceptGlossaryHarvestRow: () => {
+        void acceptGlossaryHarvestRow()
+      },
+      rejectGlossaryHarvestRow: () => {
+        void rejectGlossaryHarvestRow()
+      },
+      nextGlossaryHarvestRow,
+      prevGlossaryHarvestRow,
+      acceptGlossaryHarvestSelected: () => {
+        void acceptGlossaryHarvestSelected()
+      },
       // Story 3.9 · FR49 — lớp phủ "Quản lý Glossary".
       openGlossaryManage: () => {
         void openGlossaryManage()
@@ -975,6 +1002,10 @@ async function boot(): Promise<void> {
       },
       nextGlossaryManageRow,
       prevGlossaryManageRow,
+      addGlossaryTermFromManage: () => {
+        closeGlossaryManage()
+        void nextTick(() => openGlossaryQuickAdd(''))
+      },
       // Story 3.10b · AD-48 — hộp thoại chọn tệp nối vào xuất/nhập Glossary.
       exportGlossaryManageTier: () => {
         void exportGlossaryManageTier()
@@ -1045,6 +1076,7 @@ async function boot(): Promise<void> {
         attributionIsOpen.value ||
         captureIsArmed.value ||
         queueOverlayIsOpen.value ||
+        harvestOverlayIsOpen.value ||
         manageOverlayIsOpen.value ||
         tmManageOverlayIsOpen.value ||
         tmImportOverlayIsOpen.value ||

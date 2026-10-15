@@ -1047,6 +1047,23 @@ export type CommandDeps = {
   nextGlossaryQueueCandidate?: () => void
   /** Chuyển con trỏ lên hàng trước. Handler của `glossary.queue.prev`. */
   prevGlossaryQueueCandidate?: () => void
+  /** Đánh dấu hàng đang chọn "để lại" trong phiên, không ghi gì. Handler của `glossary.queue.leave`. */
+  leaveGlossaryQueueCandidate?: () => void
+
+  /** Opens the harvest review overlay. Handler of `glossary.harvest.open`. */
+  openGlossaryHarvest?: () => void
+  /** Closes it without writing ("leave in the queue"). Handler of `glossary.harvest.close`. */
+  closeGlossaryHarvest?: () => void
+  /** Accepts the row under the cursor. Handler of `glossary.harvest.accept`. */
+  acceptGlossaryHarvestRow?: () => void
+  /** Rejects the row under the cursor. Handler of `glossary.harvest.reject`. */
+  rejectGlossaryHarvestRow?: () => void
+  /** Moves the cursor down. Handler of `glossary.harvest.next`. */
+  nextGlossaryHarvestRow?: () => void
+  /** Moves the cursor up. Handler of `glossary.harvest.prev`. */
+  prevGlossaryHarvestRow?: () => void
+  /** Accepts every ticked row, one write per id. Handler of `glossary.harvest.accept_selected`. */
+  acceptGlossaryHarvestSelected?: () => void
 
   // ── Story 3.9 — lớp phủ "Quản lý Glossary" (FR49) ───────────────────────────────
   /**
@@ -1077,6 +1094,8 @@ export type CommandDeps = {
   nextGlossaryManageRow?: () => void
   /** Chuyển con trỏ lên hàng trước (danh sách đã lọc). Handler của `glossary.manage.prev`. */
   prevGlossaryManageRow?: () => void
+  /** Closes Quản lý Glossary and opens the quick-add strip. Handler of `glossary.manage.add_term`. */
+  addGlossaryTermFromManage?: () => void
 
   // ── Story 3.10b — hộp thoại chọn tệp nối vào xuất/nhập Glossary (AD-48) ─────────
   /** Mở hộp thoại LƯU rồi xuất tầng đang chọn. Handler của `glossary.manage.export_csv` —
@@ -4235,6 +4254,80 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.prevGlossaryQueueCandidate()
     },
   })
+  target.register({
+    id: 'glossary.queue.leave',
+    labelKey: 'command.glossary.queue.leave',
+    keys: undefined,
+    run: () => {
+      if (deps.leaveGlossaryQueueCandidate === undefined) return portMissing('glossary.queue.leave', 'leaveGlossaryQueueCandidate')
+      deps.leaveGlossaryQueueCandidate()
+    },
+  })
+
+  // Harvest review: opened only from the title-bar `Công cụ ▾` list, no chord.
+  target.register({
+    id: 'glossary.harvest.open',
+    labelKey: 'command.glossary.harvest.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openGlossaryHarvest === undefined) return portMissing('glossary.harvest.open', 'openGlossaryHarvest')
+      deps.openGlossaryHarvest()
+    },
+  })
+  target.register({
+    id: 'glossary.harvest.close',
+    labelKey: 'command.glossary.harvest.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeGlossaryHarvest === undefined) return portMissing('glossary.harvest.close', 'closeGlossaryHarvest')
+      deps.closeGlossaryHarvest()
+    },
+  })
+  target.register({
+    id: 'glossary.harvest.accept',
+    labelKey: 'command.glossary.harvest.accept',
+    keys: undefined,
+    run: () => {
+      if (deps.acceptGlossaryHarvestRow === undefined) return portMissing('glossary.harvest.accept', 'acceptGlossaryHarvestRow')
+      deps.acceptGlossaryHarvestRow()
+    },
+  })
+  target.register({
+    id: 'glossary.harvest.reject',
+    labelKey: 'command.glossary.harvest.reject',
+    keys: undefined,
+    run: () => {
+      if (deps.rejectGlossaryHarvestRow === undefined) return portMissing('glossary.harvest.reject', 'rejectGlossaryHarvestRow')
+      deps.rejectGlossaryHarvestRow()
+    },
+  })
+  target.register({
+    id: 'glossary.harvest.next',
+    labelKey: 'command.glossary.harvest.next',
+    keys: undefined,
+    run: () => {
+      if (deps.nextGlossaryHarvestRow === undefined) return portMissing('glossary.harvest.next', 'nextGlossaryHarvestRow')
+      deps.nextGlossaryHarvestRow()
+    },
+  })
+  target.register({
+    id: 'glossary.harvest.prev',
+    labelKey: 'command.glossary.harvest.prev',
+    keys: undefined,
+    run: () => {
+      if (deps.prevGlossaryHarvestRow === undefined) return portMissing('glossary.harvest.prev', 'prevGlossaryHarvestRow')
+      deps.prevGlossaryHarvestRow()
+    },
+  })
+  target.register({
+    id: 'glossary.harvest.accept_selected',
+    labelKey: 'command.glossary.harvest.accept_selected',
+    keys: undefined,
+    run: () => {
+      if (deps.acceptGlossaryHarvestSelected === undefined) return portMissing('glossary.harvest.accept_selected', 'acceptGlossaryHarvestSelected')
+      deps.acceptGlossaryHarvestSelected()
+    },
+  })
 
   /**
    * ═══════════════════════════════════════════════════════════════════════════════
@@ -4350,6 +4443,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.manage.prev', 'prevGlossaryManageRow')
       }
       deps.prevGlossaryManageRow()
+    },
+  })
+  target.register({
+    id: 'glossary.manage.add_term',
+    labelKey: 'command.glossary.manage.add_term',
+    keys: undefined,
+    run: () => {
+      if (deps.addGlossaryTermFromManage === undefined) {
+        return portMissing('glossary.manage.add_term', 'addGlossaryTermFromManage')
+      }
+      deps.addGlossaryTermFromManage()
     },
   })
 

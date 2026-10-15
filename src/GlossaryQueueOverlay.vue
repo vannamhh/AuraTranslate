@@ -25,13 +25,16 @@ import {
   queueEmptyReasonFor,
   queueLoadError,
   queueOverlayIsOpen,
+  queuePaceSeconds,
   queueRows,
   queueSaving,
+  queueSessionCounts,
   queueStatus,
   queueUnprocessedCount,
   setGlossaryQueueCategory,
   setGlossaryQueueCursor,
 } from './glossaryQueueState'
+import { glossaryScanThresholdInUse } from './glossarySettingsState'
 
 /** Row selection is data (AD-34 §1): keyboard and the hidden per-row radio share this one
  *  get/set instead of two parallel selection mechanisms. */
@@ -62,6 +65,41 @@ useSelectionSurface(panel, 'display')
  * chỉ đổi SỐ LẦN GỌI.
  */
 const queueEmptyReason = computed(() => queueEmptyReasonFor(queueStatus.value, queueUnprocessedCount.value))
+
+const subtitleText = computed<string>(() => {
+  const threshold = glossaryScanThresholdInUse.value
+  return threshold === null
+    ? t('glossary.queue.subtitle_no_threshold')
+    : t('glossary.queue.subtitle', { threshold: String(threshold) })
+})
+
+/** Share of the session bar per outcome, against the rows loaded for this opening. */
+function barPercent(count: number): string {
+  const total = queueSessionCounts.value.total
+  return total === 0 ? '0%' : `${(count / total) * 100}%`
+}
+
+const paceText = computed<string | null>(() => {
+  const pace = queuePaceSeconds.value
+  if (pace === null) return null
+  const remaining = queueUnprocessedCount.value
+  const minutes = Math.max(1, Math.ceil((pace * remaining) / 60))
+  return t('glossary.queue.pace', {
+    pace: pace.toLocaleString('vi-VN', { maximumFractionDigits: 1 }),
+    minutes: String(minutes),
+  })
+})
+
+function categoryLabel(category: GlossaryCategory): string {
+  const opt = CATEGORY_OPTIONS.find((o) => o.value === category)
+  return opt === undefined ? '' : t(opt.labelKey)
+}
+
+watch(queueCursor, () => {
+  void nextTick(() => {
+    panel.value?.querySelector<HTMLElement>('.gq-row-current')?.scrollIntoView({ block: 'nearest' })
+  })
+})
 
 watch(queueOverlayIsOpen, (open) => {
   if (open) {
@@ -191,6 +229,11 @@ function onKeydown(event: KeyboardEvent): void {
       event.preventDefault()
       dispatch('glossary.queue.reject')
       return
+    case ' ':
+      if (event.target instanceof HTMLButtonElement) return
+      event.preventDefault()
+      dispatch('glossary.queue.leave')
+      return
     default:
       return
   }
@@ -212,6 +255,8 @@ function onKeydown(event: KeyboardEvent): void {
           {{ t('command.glossary.queue.close') }}
         </button>
       </header>
+      <!-- aura-allow-text: KẾT QUẢ của `t()` (ngưỡng đọc từ cấu hình). -->
+      <p class="gq-subtitle">{{ subtitleText }}</p>
 
       <!--
         🔵 THÊM 2026-08-24 (vòng rà ba lớp), 🔴 DỜI vào `queueEmptyReasonFor` (cụm D vá,
@@ -240,12 +285,38 @@ function onKeydown(event: KeyboardEvent): void {
       </p>
 
       <template v-else-if="queueStatus === 'loaded'">
+        <div class="gq-progress" role="group" :aria-label="t('glossary.queue.progress_label')">
+          <div class="gq-bar" aria-hidden="true">
+            <i class="gq-bar-accepted" :style="{ width: barPercent(queueSessionCounts.accepted) }"></i>
+            <i class="gq-bar-rejected" :style="{ width: barPercent(queueSessionCounts.rejected) }"></i>
+          </div>
+          <div class="gq-legend">
+            <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+            <span><span class="gq-sw gq-sw-accepted" aria-hidden="true"></span>{{ t('glossary.queue.legend_accepted', { count: String(queueSessionCounts.accepted) }) }}</span>
+            <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+            <span><span class="gq-sw gq-sw-rejected" aria-hidden="true"></span>{{ t('glossary.queue.legend_rejected', { count: String(queueSessionCounts.rejected) }) }}</span>
+            <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+            <span v-if="queueSessionCounts.left > 0">{{ t('glossary.queue.legend_left', { count: String(queueSessionCounts.left) }) }}</span>
+            <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+            <span><span class="gq-sw gq-sw-remaining" aria-hidden="true"></span>{{ t('glossary.queue.legend_remaining', { count: String(queueSessionCounts.remaining) }) }}</span>
+            <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+            <span v-if="paceText !== null" class="gq-pace">{{ paceText }}</span>
+          </div>
+        </div>
+
         <ul class="gq-list">
           <li
             v-for="(row, i) in queueRows"
             :key="row.candidate.id"
             class="gq-row"
-            :class="{ 'gq-row-current': i === queueCursor, 'gq-row-done': row.outcome !== null }"
+            :class="{
+              'gq-row-current': i === queueCursor,
+              'gq-card': i === queueCursor && row.outcome === null,
+              'gq-row-done': row.outcome !== null,
+              'gq-row-accepted': row.outcome === 'accepted',
+              'gq-row-rejected': row.outcome === 'rejected',
+              'gq-row-left': row.outcome === null && row.left,
+            }"
           >
             <!-- `<label>` wraps the row so a hidden radio can select it; `.gq-row-label` is
                  `display: contents` so the flex layout stays on `.gq-row` (see <style>). -->
@@ -253,8 +324,25 @@ function onKeydown(event: KeyboardEvent): void {
               <input v-model="cursorModel" type="radio" name="gq-row-cursor" class="gq-sr-only" :value="i" />
               <!-- aura-allow-text: DỮ LIỆU (`source_term` của chính hàng). -->
               <span class="gq-term">{{ row.candidate.source_term }}</span>
-              <!-- aura-allow-text: DỮ LIỆU (`occurrence_count`, một con số). -->
-              <span class="gq-count">{{ row.candidate.occurrence_count }}</span>
+              <template v-if="i === queueCursor && row.outcome === null">
+                <!-- aura-allow-text: KẾT QUẢ của `t()` cộng hai con số đếm. -->
+                <span class="gq-chapter-span">{{
+                  t('glossary.queue.card_meta', {
+                    count: String(row.candidate.occurrence_count),
+                    chapters: String(row.candidate.chapter_span_count),
+                  })
+                }}</span>
+                <!-- aura-allow-text: KẾT QUẢ của `t()` cộng hai con số vị trí. -->
+                <span class="gq-position">{{
+                  t('glossary.queue.card_position', { index: String(i + 1), total: String(queueRows.length) })
+                }}</span>
+              </template>
+              <template v-else>
+                <!-- aura-allow-text: KẾT QUẢ của `t()` (nhãn phân loại của phiên). -->
+                <span class="gq-cat">{{ categoryLabel(row.category) }}</span>
+                <!-- aura-allow-text: KẾT QUẢ của `t()` cộng một con số đếm. -->
+                <span class="gq-count">{{ t('glossary.queue.row_count', { count: String(row.candidate.occurrence_count) }) }}</span>
+              </template>
               <template v-if="row.candidate.candidate_origin === 'review_harvest'">
                 <!-- aura-allow-text: DỮ LIỆU (X → Y của chính hàng) + KẾT QUẢ của `t()`. -->
                 <span class="gq-harvest">{{
@@ -269,60 +357,74 @@ function onKeydown(event: KeyboardEvent): void {
                   t('glossary.queue.harvest_inconsistent')
                 }}</span>
               </template>
-              <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
-              <span class="gq-chapter-span">{{
-                t('glossary.queue.chapter_span_count', { count: String(row.candidate.chapter_span_count) })
-              }}</span>
-              <!--
-                aura-allow-text: DỮ LIỆU (`context_example` của chính hàng).
-                🔵 THÊM 2026-08-24 (vòng rà ba lớp) — `:title` cho phần bị `text-overflow:
-                ellipsis` cắt cụt: AC đòi mỗi hàng có ÍT NHẤT một ví dụ ngữ cảnh đọc được, và
-                một chuỗi dài hơn bề ngang cột trước đó KHÔNG có lối đọc lại nào (không cuộn,
-                không mở rộng). `title` là tooltip gốc trình duyệt, 0 CSS/JS mới cần viết.
-              -->
-              <span class="gq-context" :title="row.candidate.context_example ?? ''">{{
-                row.candidate.context_example ?? ''
-              }}</span>
-              <span v-if="row.candidate.han_viet_status === 'ok'" class="gq-suggestion">
+              <!-- aura-allow-text: DỮ LIỆU (`context_example`), `:title` cho phần bị cắt bởi ellipsis. -->
+              <span
+                v-if="!(i === queueCursor && row.outcome === null)"
+                class="gq-context gq-peek"
+                :title="row.candidate.context_example ?? ''"
+                >{{ row.candidate.context_example ?? '' }}</span
+              >
+              <span v-if="row.candidate.han_viet_status === 'ok' && !(i === queueCursor && row.outcome === null)" class="gq-suggestion">
                 <!-- aura-allow-text: DỮ LIỆU (`han_viet_suggestion` của chính hàng). -->
                 {{ row.candidate.han_viet_suggestion }}
               </span>
               <span v-if="row.outcome === 'accepted'" class="gq-mark" aria-hidden="true">✓</span>
               <span v-else-if="row.outcome === 'rejected'" class="gq-mark" aria-hidden="true">✕</span>
-              <!--
-                🔵 THÊM 2026-08-24 (vòng rà ba lớp) — tín hiệu ĐỌC ĐƯỢC cho hàng đã xử lý,
-                KHÔNG chỉ màu + một dấu `aria-hidden`. `.gq-mark` ở trên là DECORATIVE (đúng
-                chủ ý AC — dấu ✓/✕ là phần NHÌN, không đổi); span này là văn bản THẬT, ẩn về
-                THỊ GIÁC bằng kỹ thuật `.gq-sr-only` (cùng khuôn `App.vue::.sr-announcer`), nên
-                trình đọc màn hình biết hàng đã quyết mà không cần suy từ một lượt đổi màu.
-              -->
-              <!-- aura-allow-text: KẾT QUẢ của `t()`, cùng khuôn `GlossaryQuickAdd.vue:104-107`. -->
-              <span v-if="row.outcome !== null" class="gq-sr-only">
-                {{ row.outcome === 'accepted' ? t('glossary.queue.row_status_accepted') : t('glossary.queue.row_status_rejected') }}
+              <!-- aura-allow-text: KẾT QUẢ của `t()`; trạng thái luôn có chữ, vạch lề chỉ là phụ. -->
+              <span v-if="row.outcome !== null || row.left" class="gq-sr-only">
+                {{
+                  row.outcome === 'accepted'
+                    ? t('glossary.queue.row_status_accepted')
+                    : row.outcome === 'rejected'
+                      ? t('glossary.queue.row_status_rejected')
+                      : t('glossary.queue.row_status_left')
+                }}
               </span>
             </label>
+
+            <div v-if="i === queueCursor && row.outcome === null" class="gq-card-body">
+              <div v-if="row.candidate.han_viet_status === 'ok'" class="gq-guess">
+                <span class="gq-guess-label">{{ t('glossary.queue.han_viet_label') }}</span>
+                <!-- aura-allow-text: DỮ LIỆU (`han_viet_suggestion` của chính hàng). -->
+                <span class="gq-suggestion">{{ row.candidate.han_viet_suggestion }}</span>
+              </div>
+
+              <div class="gq-category">
+                <span class="gq-category-label">{{ t('glossary.queue.category_label') }}</span>
+                <!-- A real radio per chip, same precedent as `GlossaryQuickAdd.vue`. -->
+                <label
+                  v-for="opt in CATEGORY_OPTIONS"
+                  :key="opt.value"
+                  class="gq-chip"
+                  :class="{ on: row.category === opt.value }"
+                >
+                  <input v-model="currentCategoryModel" type="radio" name="gq-category" :value="opt.value" />
+                  {{ t(opt.labelKey) }}
+                  <!-- aura-allow-text: chữ số phím tắt. -->
+                  <sup class="gq-chip-digit">{{ opt.digit }}</sup>
+                </label>
+              </div>
+              <p class="gq-hint">{{ t('glossary.queue.category_not_persisted_hint') }}</p>
+
+              <div v-if="row.candidate.context_example !== null" class="gq-ctx">
+                <div class="gq-ctx-label">{{ t('glossary.queue.context_label') }}</div>
+                <!-- aura-allow-text: DỮ LIỆU (`context_example` của chính hàng). -->
+                <div class="gq-ctx-quote">{{ row.candidate.context_example }}</div>
+              </div>
+
+              <div
+                v-if="
+                  row.candidate.han_viet_status !== 'ok' &&
+                  (row.candidate.candidate_origin !== 'review_harvest' || row.candidate.proposed_translation === null)
+                "
+                class="gq-notrans"
+              >
+                <b>{{ t('glossary.queue.no_translation_title') }}</b>
+                {{ t('glossary.queue.no_translation_body') }}
+              </div>
+            </div>
           </li>
         </ul>
-
-        <!-- Phân loại của hàng ĐANG CHỌN — chỉ hiện khi nó còn CHỜ QUYẾT (đã xử lý thì
-             phân loại không còn ý nghĩa để đổi). -->
-        <div v-if="queueCurrentRow !== null && queueCurrentRow.outcome === null" class="gq-category">
-          <span class="gq-category-label">{{ t('glossary.queue.category_label') }}</span>
-          <!-- A real radio per chip, same precedent as `GlossaryQuickAdd.vue`. -->
-          <label
-            v-for="opt in CATEGORY_OPTIONS"
-            :key="opt.value"
-            class="gq-chip"
-            :class="{ on: queueCurrentRow.category === opt.value }"
-          >
-            <input v-model="currentCategoryModel" type="radio" name="gq-category" :value="opt.value" />
-            {{ t(opt.labelKey) }}
-          </label>
-        </div>
-        <!-- Always shown, not an error: category choice isn't kept across a close. -->
-        <p v-if="queueCurrentRow !== null && queueCurrentRow.outcome === null" class="gq-hint">
-          {{ t('glossary.queue.category_not_persisted_hint') }}
-        </p>
 
         <p v-if="queueActionError !== null" class="gq-status gq-error" role="alert">
           <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
@@ -332,18 +434,25 @@ function onKeydown(event: KeyboardEvent): void {
 
         <div class="gq-actions">
           <button type="button" class="gq-act gq-act-primary" @click="dispatch('glossary.queue.accept')">
-            {{ t('glossary.queue.accept') }}
+            <!-- aura-allow-text: tên phím. --><kbd>N</kbd>{{ t('glossary.queue.accept') }}
           </button>
           <button type="button" class="gq-act" @click="dispatch('glossary.queue.reject')">
-            {{ t('glossary.queue.reject') }}
+            <!-- aura-allow-text: tên phím. --><kbd>B</kbd>{{ t('glossary.queue.reject') }}
+          </button>
+          <button type="button" class="gq-act" @click="dispatch('glossary.queue.leave')">
+            <!-- aura-allow-text: tên phím. --><kbd>Space</kbd>{{ t('glossary.queue.key_leave') }}
           </button>
           <button type="button" class="gq-act" @click="dispatch('glossary.queue.prev')">
-            {{ t('glossary.queue.prev') }}
+            <!-- aura-allow-text: tên phím. --><kbd>↑</kbd>{{ t('glossary.queue.prev') }}
           </button>
           <button type="button" class="gq-act" @click="dispatch('glossary.queue.next')">
-            {{ t('glossary.queue.next') }}
+            <!-- aura-allow-text: tên phím. --><kbd>↓</kbd>{{ t('glossary.queue.next') }}
           </button>
         </div>
+        <p class="gq-hint gq-stop">{{ t('glossary.queue.stop_note') }}</p>
+        <p class="gq-hint gq-footer">
+          {{ t('glossary.queue.footer_rule') }} {{ t('glossary.queue.footer_origin') }}
+        </p>
       </template>
     </section>
   </div>
@@ -426,6 +535,7 @@ function onKeydown(event: KeyboardEvent): void {
   gap: calc(var(--space-unit) * 3);
   padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
   border-bottom: 1px solid var(--color-outline);
+  border-left: 2px solid transparent;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
@@ -444,6 +554,176 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-row-current {
   background: var(--color-surface-accent);
+  border-left: 3px solid var(--color-primary);
+}
+
+.gq-row-accepted {
+  border-left: 2px solid var(--color-confirmed);
+}
+
+.gq-row-rejected {
+  border-left: 2px solid var(--color-ornament);
+}
+
+.gq-row-left {
+  border-left: 2px dashed var(--color-draft);
+}
+
+.gq-card {
+  display: block;
+  padding-block: calc(var(--space-unit) * 4);
+}
+
+.gq-card .gq-row-label {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 3);
+}
+
+.gq-card .gq-term {
+  font-family: var(--family-read);
+  font-size: var(--font-read-title);
+  line-height: var(--leading-read-title);
+}
+
+.gq-position {
+  margin-left: auto;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gq-card-body {
+  margin-top: calc(var(--space-unit) * 3);
+  cursor: default;
+}
+
+.gq-guess {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 2);
+  margin-bottom: calc(var(--space-unit) * 2);
+}
+
+.gq-guess-label,
+.gq-ctx-label {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gq-ctx {
+  margin-bottom: calc(var(--space-unit) * 3);
+  padding-left: calc(var(--space-unit) * 3);
+  border-left: 2px solid var(--color-outline-faint);
+}
+
+.gq-ctx-quote {
+  font-family: var(--family-read);
+  font-size: var(--font-read-sm);
+  line-height: var(--leading-read-sm);
+  color: var(--color-on-surface);
+}
+
+.gq-notrans {
+  margin-bottom: calc(var(--space-unit) * 3);
+  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  border-left: 2px solid var(--color-tm-rule);
+  background: var(--color-surface-tm);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-tm-text);
+}
+
+.gq-subtitle {
+  margin: 0 0 calc(var(--space-unit) * 3) 0;
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
+}
+
+.gq-progress {
+  margin-bottom: var(--space-panel-block);
+}
+
+.gq-bar {
+  display: flex;
+  height: calc(var(--space-unit) * 1);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.gq-bar i {
+  display: block;
+  height: 100%;
+}
+
+.gq-bar-accepted,
+.gq-sw-accepted {
+  background: var(--color-confirmed);
+}
+
+.gq-bar-rejected,
+.gq-sw-rejected {
+  background: var(--color-ornament);
+}
+
+.gq-sw-remaining {
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-outline);
+}
+
+.gq-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 4);
+  margin-top: calc(var(--space-unit) * 2);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gq-sw {
+  display: inline-block;
+  width: calc(var(--space-unit) * 2);
+  height: calc(var(--space-unit) * 2);
+  margin-right: calc(var(--space-unit) * 1);
+}
+
+.gq-pace {
+  margin-left: auto;
+}
+
+.gq-cat {
+  min-width: 6rem;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.gq-chip-digit {
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+}
+
+.gq-act kbd {
+  margin-right: calc(var(--space-unit) * 2);
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-mono);
+  color: var(--color-on-surface-variant);
+}
+
+.gq-stop,
+.gq-footer {
+  margin: calc(var(--space-unit) * 3) 0 0 0;
 }
 
 /*
@@ -585,6 +865,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-panel-inline);
 }
 
