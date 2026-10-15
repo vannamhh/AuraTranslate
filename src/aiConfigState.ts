@@ -61,8 +61,15 @@ const keyDraft = ref('')
 const keyBusy = ref(false)
 const keyError = ref<IpcError | null>(null)
 
+export type AiConfigReadiness = 'unknown' | 'ready' | 'unconfigured' | 'key_unchecked'
+
+const readiness = ref<AiConfigReadiness>('unknown')
+const effectiveProvider = ref('')
+const effectiveModel = ref('')
+
 /** Số thứ tự lượt đọc — chỉ lượt MỚI NHẤT được quyền ghi kết quả (khuôn `settingsState.ts`). */
 let sequence = 0
+let readinessSequence = 0
 
 export type AiConfigViewTier = 'global' | 'work'
 
@@ -106,6 +113,10 @@ export const aiConfigLoading: DeepReadonly<Ref<boolean>> = readonly(loading)
 export const aiConfigLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
 export const aiConfigWorkIsOpen: DeepReadonly<Ref<boolean>> = readonly(workIsOpen)
 export const aiConfigKeyConfigured: DeepReadonly<Ref<boolean | null>> = readonly(keyConfigured)
+/** Rust's `ready` verdict: `unknown` = not read yet or the read failed; `key_unchecked` = endpoint and model set but the keychain cannot be asked. */
+export const aiConfigReadiness: DeepReadonly<Ref<AiConfigReadiness>> = readonly(readiness)
+export const aiConfigEffectiveProvider: DeepReadonly<Ref<string>> = readonly(effectiveProvider)
+export const aiConfigEffectiveModel: DeepReadonly<Ref<string>> = readonly(effectiveModel)
 export const aiConfigKeyBusy: DeepReadonly<Ref<boolean>> = readonly(keyBusy)
 export const aiConfigKeyError: DeepReadonly<Ref<IpcError | null>> = readonly(keyError)
 
@@ -202,6 +213,26 @@ function isAbsoluteHttpUrl(trimmed: string): boolean {
   return host.length > 0 && !/\s/.test(host)
 }
 
+type AiConfigGetResult = Awaited<ReturnType<typeof aiConfigGet>>
+
+function applyReadiness(result: AiConfigGetResult): void {
+  if (result.error !== null || result.fields === null) {
+    readiness.value = 'unknown'
+    return
+  }
+  effectiveProvider.value = result.fields.find((f) => f.field === 'provider')?.value ?? ''
+  effectiveModel.value = result.fields.find((f) => f.field === 'model')?.value ?? ''
+  readiness.value = result.ready === true ? 'ready' : result.ready === false ? 'unconfigured' : 'key_unchecked'
+}
+
+/** Reads only the readiness verdict and provider/model for the AI panel header; drafts and the Settings section state stay untouched. */
+export async function refreshAiConfigReadiness(): Promise<void> {
+  const mine = ++readinessSequence
+  const result = await aiConfigGet()
+  if (mine !== readinessSequence) return
+  applyReadiness(result)
+}
+
 /**
  * Đọc lại năm trường — gọi mỗi lần mục `ai_and_model` trở thành mục ĐANG CHỌN (khuôn
  * `loadDomainLog` của `settingsState.ts`). **Không tham số**: `workIsOpen` lấy từ
@@ -213,6 +244,8 @@ export async function loadAiConfigSection(): Promise<void> {
   const result = await aiConfigGet()
   if (mine !== sequence) return // một lượt tải MỚI đã vượt mặt lượt này
   loading.value = false
+  readinessSequence += 1
+  applyReadiness(result)
 
   if (result.error !== null) {
     loadError.value = result.error
@@ -330,6 +363,10 @@ export async function deleteAiConfigKey(): Promise<void> {
  */
 export function resetAiConfigSection(): void {
   sequence += 1
+  readinessSequence += 1
+  readiness.value = 'unknown'
+  effectiveProvider.value = ''
+  effectiveModel.value = ''
   resolvedFields.value = []
   drafts.value = emptyDrafts()
   saving.value = emptyFlags()

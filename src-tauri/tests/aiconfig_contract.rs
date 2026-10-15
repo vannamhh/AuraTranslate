@@ -1213,3 +1213,54 @@ fn saving_a_key_leaves_no_trace_on_disk_in_global_db_or_project_db() {
 
     cleanup_dir(&root);
 }
+
+#[test]
+fn ready_is_true_false_or_none_by_endpoint_model_and_key() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = temp_dir("ready-three-values");
+    let global = open_global(&root);
+    reset_key_to_not_configured();
+
+    let ready = |global: &Store| {
+        ai_config_get(Some(global), None)
+            .expect("doc ai_config")
+            .ready
+    };
+    let save = |field: AiConfigField, value: &str| {
+        ai_config_save_field(Some(&global), None, AiConfigTier::Global, field, value)
+            .expect("luu truong");
+    };
+
+    assert_eq!(ready(&global), Some(false), "endpoint va mo hinh rong");
+    inject_one_shot_keychain_error();
+    assert_eq!(
+        ready(&global),
+        Some(false),
+        "endpoint va mo hinh rong thang truoc khoa khong hoi duoc"
+    );
+
+    save(AiConfigField::Endpoint, "http://localhost:11434/v1");
+    assert_eq!(ready(&global), Some(false), "thieu mo hinh");
+
+    save(AiConfigField::Model, "qwen2.5:14b");
+    assert_eq!(
+        ready(&global),
+        Some(false),
+        "du endpoint + mo hinh nhung chua co khoa"
+    );
+
+    ai_config_save_key(AiConfigTier::Global, "sk-ready").expect("luu khoa");
+    assert_eq!(ready(&global), Some(true), "du ca ba");
+
+    inject_one_shot_keychain_error();
+    assert_eq!(
+        ready(&global),
+        None,
+        "khoa khong hoi duoc ⇒ None, khong phai Some(false)"
+    );
+
+    drop(global);
+    cleanup_dir(&root);
+}

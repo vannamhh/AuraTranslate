@@ -303,3 +303,24 @@ describe('bước ③ `switchChapter` huỷ lượt AI đang bay của Chương 
     expect(state.aiTranslateRunSegmentId.value).toBeNull()
   })
 })
+
+describe('cụm reset #4 — `ai.translate.batch_discard` (Bỏ lô) đi qua handler thật tới `resetAiTranslateBatch()`', () => {
+  it('🔴 gỡ lời gọi `resetAiTranslateBatch()` khỏi `discardAiTranslateBatch` sẽ làm ca này ĐỎ: Bỏ lô không huỷ lượt đang bay, hàng vẫn còn', async () => {
+    const commands = await import('../../src/commands')
+    const batchState = await import('../../src/aiTranslateBatchState')
+    const { aiTranslateHandlers } = await import('../../src/aiTranslateHandlers')
+    commands.installCommands({ ...aiTranslateHandlers } as import('../../src/commands').CommandDeps)
+    pendingBatchRun()
+
+    void batchState.runAiTranslateBatch(null, [11, 12])
+    await flushPromises()
+    expect(batchState.aiTranslateBatchStateValue.value).toBe('generating')
+
+    cancelMock.mockClear()
+    commands.dispatch('ai.translate.batch_discard')
+
+    expect(cancelMock).toHaveBeenCalledTimes(1)
+    expect(batchState.aiTranslateBatchStateValue.value).toBe('not_configured')
+    expect(batchState.aiTranslateBatchRows.value).toEqual([])
+  })
+})

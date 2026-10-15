@@ -139,6 +139,9 @@ pub struct AiConfigGetWire {
     /// hình". Khoá là Global-only nên trường này không đi qua [`AiConfigFieldWire`]/
     /// `shadowed` — nó không có khái niệm tầng để mà che.
     pub key_configured: Option<bool>,
+    /// Same verdict a translate call reaches (`aitranslate::call_ready`): `Some(false)` when
+    /// endpoint or model is empty or the key is absent, `None` when the key cannot be asked.
+    pub ready: Option<bool>,
 }
 
 /// Đọc năm trường, hai tầng đã phân giải, cộng `work_tier_available` và `key_configured` —
@@ -182,11 +185,23 @@ pub fn ai_config_get(
     // `.ok()`, KHONG `?` -- mot keychain tu choi tra loi khong duoc phep lam nam truong
     // plaintext ben tren bien mat theo (xem khoi doc-comment SUA o tren).
     let key_configured = keychain::configured().ok();
+    let resolved_value = |field: AiConfigField| {
+        resolved
+            .get(field.as_str())
+            .map(|f| f.value.as_str())
+            .unwrap_or_default()
+    };
+    let ready = crate::commands::aitranslate::call_ready(
+        resolved_value(AiConfigField::Endpoint),
+        resolved_value(AiConfigField::Model),
+        key_configured,
+    );
 
     Ok(AiConfigGetWire {
         work_tier_available: open.is_some(),
         fields,
         key_configured,
+        ready,
     })
 }
 

@@ -1,11 +1,13 @@
 import {
   aiTranslateBatchError,
+  aiTranslateBatchPromotableItems,
   aiTranslateBatchRetryIds,
   aiTranslateBatchRows,
   aiTranslateBatchStartStamp,
   aiTranslateBatchStateValue,
   aiTranslateBatchTextForSegment,
   cancelAiTranslateBatch,
+  resetAiTranslateBatch,
   retryAiTranslateBatch,
   runAiTranslateBatch,
 } from './aiTranslateBatchState'
@@ -18,12 +20,18 @@ import {
   cancelAiTranslate,
   runAiTranslate,
 } from './aiTranslateState'
-import { editorCaretSegmentId, promoteAiTranslationToEditor } from './panels/editorPanelState'
+import {
+  cancelPendingPromote,
+  editorCaretSegmentId,
+  editorPendingPromoteBatch,
+  promoteAiTranslationBatchToEditor,
+  promoteAiTranslationToEditor,
+} from './panels/editorPanelState'
 import { segmentSelectionIds } from './panels/segmentSelectionState'
 import { selectedPromptSetName } from './promptSetState'
 
 /**
- * The six AI-translate command handlers. Single run and batch guard each other here because
+ * The AI-translate command handlers. Single run and batch guard each other here because
  * neither state module may import the other. Each handler logs and returns instead of throwing.
  */
 export const aiTranslateHandlers = {
@@ -116,5 +124,22 @@ export const aiTranslateHandlers = {
       return
     }
     void retryAiTranslateBatch(selectedPromptSetName.value, ids)
+  },
+  discardAiTranslateBatch: (): void => {
+    if (editorPendingPromoteBatch.value !== null) cancelPendingPromote()
+    resetAiTranslateBatch()
+  },
+
+  promoteAiTranslateBatch: (): void => {
+    if (aiTranslateBatchStateValue.value === 'generating') {
+      console.warn('[ai-translate-batch] khong dua ca lo sang Editor: lo dang chay')
+      return
+    }
+    const items = aiTranslateBatchPromotableItems(aiTranslateBatchRows.value)
+    if (items.length === 0) {
+      console.warn('[ai-translate-batch] khong dua ca lo sang Editor: khong co hang nao da xong')
+      return
+    }
+    void promoteAiTranslationBatchToEditor(items)
   },
 }

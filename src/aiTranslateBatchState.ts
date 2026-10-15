@@ -169,6 +169,44 @@ export function aiTranslateBatchTextForSegment(
   return row.text
 }
 
+/** Rows ready to hand to the Editor, in batch order. */
+export function aiTranslateBatchPromotableItems(
+  currentRows: readonly AiTranslateBatchRow[],
+): { segmentId: number; text: string }[] {
+  return currentRows
+    .filter((r) => r.status === 'done' && r.text !== '')
+    .map((r) => ({ segmentId: r.segmentId, text: r.text }))
+}
+
+export const aiTranslateBatchPromotableCount: ComputedRef<number> = computed(
+  () => aiTranslateBatchPromotableItems(rows.value).length,
+)
+
+export type AiTranslateBatchErrorBlock = {
+  /** 1-based position of the first failed row in the batch. */
+  stoppedAt: number
+  intact: { from: number; to: number } | null
+  notCalled: { from: number; to: number } | null
+}
+
+/**
+ * Splits the batch around its first `error` row: done rows before it stay intact, pending rows
+ * after it were never called. `run_batch_call` stops at the first error, so this always covers
+ * the batch. `null` when no row failed.
+ */
+export function aiTranslateBatchErrorBlock(currentRows: readonly AiTranslateBatchRow[]): AiTranslateBatchErrorBlock | null {
+  const failedIndex = currentRows.findIndex((r) => r.status === 'error')
+  if (failedIndex === -1) return null
+  const doneBefore = currentRows.slice(0, failedIndex).filter((r) => r.status === 'done' || r.status === 'skipped').length
+  const lastPending = currentRows.reduce((last, r, i) => (i > failedIndex && r.status === 'pending' ? i : last), -1)
+  const firstPending = currentRows.findIndex((r, i) => i > failedIndex && r.status === 'pending')
+  return {
+    stoppedAt: failedIndex + 1,
+    intact: doneBefore > 0 ? { from: 1, to: failedIndex } : null,
+    notCalled: firstPending === -1 ? null : { from: firstPending + 1, to: lastPending + 1 },
+  }
+}
+
 /**
  * ID những hàng một lượt RETRY sẽ chạy lại: hàng `error` cộng MỌI hàng `pending`, giữ ĐÚNG
  * thứ tự trong `currentRows` (thứ tự tài liệu đã đóng băng từ lúc [`runAiTranslateBatch`]

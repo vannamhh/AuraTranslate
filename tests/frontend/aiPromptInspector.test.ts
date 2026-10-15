@@ -172,6 +172,9 @@ async function freshOverlay() {
   vi.doMock('../../src/panels/editorPanelState', () => ({
     editorCaretSegmentId: caretSegmentId,
     editorPendingPromote: ref(null),
+    editorPendingPromoteBatch: ref(null),
+    editorPromoteBatchReport: ref(null),
+    editorSegments: ref([]),
     editorPromoteAiTranslationError: ref(null),
   }))
 
@@ -227,6 +230,9 @@ async function freshPanel() {
   vi.doMock('../../src/panels/editorPanelState', () => ({
     editorCaretSegmentId: caretSegmentId,
     editorPendingPromote: ref(null),
+    editorPendingPromoteBatch: ref(null),
+    editorPromoteBatchReport: ref(null),
+    editorSegments: ref([]),
     editorPromoteAiTranslationError: ref(null),
   }))
 
@@ -1460,6 +1466,79 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
     expect(wrapper.get('.ai-inspector-summary').text()).toBe(
       i18n.t('ai.prompt.summary_asked_tm', { count: '0', tm_count: '1' }),
     )
+    wrapper.unmount()
+  })
+})
+
+describe('dòng tóm tắt Glossary so với câu trước (matrix: "Số liệu Glossary đổi so với câu trước")', () => {
+  const twoTerms = [injectedTerm(), injectedTerm({ source_term: 'castle' })]
+  const threeTerms = [...twoTerms, injectedTerm({ source_term: 'moat' })]
+
+  async function assembleAndMount(segmentId: number, terms: InjectedGlossaryTermWire[], fresh: Awaited<ReturnType<typeof freshPanel>>) {
+    assembleMock.mockResolvedValueOnce({
+      value: record({ segment_id: segmentId, ledger: { ...record().ledger, glossary: asked(terms) } }),
+      error: null,
+    })
+    await fresh.state.assembleCurrentAiPrompt('Happy', segmentId)
+    await flushPromises()
+  }
+
+  it('lắp câu A (2 thuật ngữ) rồi câu B (3) ⇒ "Đã chèn 3 thuật ngữ Glossary — tăng 1 so với câu trước."', async () => {
+    const fresh = await freshPanel()
+    const wrapper = mount(fresh.AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+
+    await assembleAndMount(1, twoTerms, fresh)
+    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 2 thuật ngữ Glossary.')
+    await assembleAndMount(2, threeTerms, fresh)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 3 thuật ngữ Glossary — tăng 1 so với câu trước.')
+    expect(fresh.state.aiPromptGlossaryDelta.value).toBe(1)
+    wrapper.unmount()
+  })
+
+  it('giảm cũng được nêu: câu B có ít hơn câu A ⇒ "giảm 1"', async () => {
+    const fresh = await freshPanel()
+    const wrapper = mount(fresh.AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+
+    await assembleAndMount(1, threeTerms, fresh)
+    await assembleAndMount(2, twoTerms, fresh)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 2 thuật ngữ Glossary — giảm 1 so với câu trước.')
+    wrapper.unmount()
+  })
+
+  it('lắp lại CÙNG câu ⇒ không phần "so với"', async () => {
+    const fresh = await freshPanel()
+    const wrapper = mount(fresh.AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+
+    await assembleAndMount(1, twoTerms, fresh)
+    await assembleAndMount(1, threeTerms, fresh)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 3 thuật ngữ Glossary.')
+    expect(fresh.state.aiPromptGlossaryDelta.value).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('chưa có bản ghi trước ⇒ không phần "so với"; reset xoá ô nhớ số đếm trước', async () => {
+    const fresh = await freshPanel()
+    const wrapper = mount(fresh.AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+
+    await assembleAndMount(2, threeTerms, fresh)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 3 thuật ngữ Glossary.')
+
+    await assembleAndMount(3, twoTerms, fresh)
+    expect(fresh.state.aiPromptGlossaryDelta.value).toBe(-1)
+    fresh.state.resetAiPromptInspector()
+    await assembleAndMount(4, threeTerms, fresh)
+    expect(fresh.state.aiPromptGlossaryDelta.value).toBeNull()
     wrapper.unmount()
   })
 })

@@ -402,6 +402,114 @@ export async function promoteAiTranslationToEditor(
   return 'promoted'
 }
 
+export type PromoteBatchItem = { segmentId: number; text: string }
+export type PromoteBatchReport = { written: number; skipped: number }
+export type PendingPromoteBatch = {
+  /** Items whose target holds an unsigned draft; nothing has been written for them yet. */
+  items: { segmentId: number; text: string; draft: string }[]
+  written: number
+  skipped: number
+}
+
+const pendingPromoteBatch = shallowRef<PendingPromoteBatch | null>(null)
+/** One question for every unsigned draft a batch hand-over would overwrite. */
+export const editorPendingPromoteBatch: DeepReadonly<Ref<PendingPromoteBatch | null>> = readonly(pendingPromoteBatch)
+const promoteBatchReport = shallowRef<PromoteBatchReport | null>(null)
+/** Outcome of the last batch hand-over: sentences written and sentences left out. */
+export const editorPromoteBatchReport: DeepReadonly<Ref<PromoteBatchReport | null>> = readonly(promoteBatchReport)
+let promoteBatchBusy = false
+
+/**
+ * Hands every `items` entry to the Editor through `promote_ai_translation` (the only write path,
+ * AD-47), one flush for the whole batch. Drafts that need confirmation are gathered into
+ * [`editorPendingPromoteBatch`]; [`confirmPendingPromoteBatch`] repeats them with `force = true`.
+ * Not atomic: a sentence that fails is skipped and the rest still land. Never throws.
+ */
+export async function promoteAiTranslationBatchToEditor(
+  items: readonly PromoteBatchItem[],
+): Promise<'done' | 'needs-confirmation' | 'refused'> {
+  if (promoteBatchBusy || items.length === 0) return 'refused'
+  promoteBatchBusy = true
+  try {
+    const flushed = await flushEditorBeforeDiscreteWrite()
+    if (flushed === 'failed' || flushed === 'still-dirty') {
+      console.error(`[editor] KHÔNG đưa lô AI sang Editor: flush trước lượt PROMOTE ${flushed}.`)
+      return 'refused'
+    }
+    pendingPromote.value = null
+    promoteBatchReport.value = null
+    promoteAiTranslationError.value = null
+
+    const asking: PendingPromoteBatch['items'] = []
+    let written = 0
+    let skipped = 0
+    for (const item of items) {
+      const { outcome, error } = await promoteAiTranslation(item.segmentId, item.text, false)
+      if (outcome === null) {
+        skipped += 1
+        if (error !== null) promoteAiTranslationError.value = error
+        continue
+      }
+      if (outcome.needs_confirmation) {
+        asking.push({ ...item, draft: outcome.unsigned_draft ?? '' })
+        continue
+      }
+      written += 1
+      replaceEditorSegment(item.segmentId, {
+        target_text: outcome.target_text,
+        translation_origin: outcome.translation_origin,
+        status: outcome.status,
+      })
+    }
+    if (asking.length > 0) {
+      pendingPromoteBatch.value = { items: asking, written, skipped }
+      return 'needs-confirmation'
+    }
+    promoteBatchReport.value = { written, skipped }
+    return 'done'
+  } finally {
+    promoteBatchBusy = false
+  }
+}
+
+async function settlePendingPromoteBatch(force: boolean): Promise<void> {
+  const waiting = pendingPromoteBatch.value
+  if (waiting === null || promoteBatchBusy) return
+  pendingPromoteBatch.value = null
+  let written = waiting.written
+  let skipped = waiting.skipped
+  if (!force) {
+    promoteBatchReport.value = { written, skipped: skipped + waiting.items.length }
+    return
+  }
+  promoteBatchBusy = true
+  try {
+    const flushed = await flushEditorBeforeDiscreteWrite()
+    if (flushed === 'failed' || flushed === 'still-dirty') {
+      console.error(`[editor] KHÔNG ghi đè bản nháp của lô AI: flush trước lượt PROMOTE ${flushed}.`)
+      promoteBatchReport.value = { written, skipped: skipped + waiting.items.length }
+      return
+    }
+    for (const item of waiting.items) {
+      const { outcome, error } = await promoteAiTranslation(item.segmentId, item.text, true)
+      if (outcome === null || outcome.needs_confirmation) {
+        skipped += 1
+        if (error !== null) promoteAiTranslationError.value = error
+        continue
+      }
+      written += 1
+      replaceEditorSegment(item.segmentId, {
+        target_text: outcome.target_text,
+        translation_origin: outcome.translation_origin,
+        status: outcome.status,
+      })
+    }
+    promoteBatchReport.value = { written, skipped }
+  } finally {
+    promoteBatchBusy = false
+  }
+}
+
 /**
  * Đồng ý ghi đè bản nháp chưa ký của lượt PROMOTE đang chờ. Handler của command
  * `ai.translate.confirm_promote`.
@@ -411,6 +519,10 @@ export async function promoteAiTranslationToEditor(
  * câu khác trong lúc đọc câu hỏi.
  */
 export function confirmPendingPromote(): void {
+  if (pendingPromoteBatch.value !== null) {
+    void settlePendingPromoteBatch(true)
+    return
+  }
   const waiting = pendingPromote.value
   if (waiting === null) return
   void promoteAiTranslationToEditor(waiting.segmentId, waiting.text, true)
@@ -421,6 +533,10 @@ export function confirmPendingPromote(): void {
  * `ai.translate.cancel_promote`.
  */
 export function cancelPendingPromote(): void {
+  if (pendingPromoteBatch.value !== null) {
+    void settlePendingPromoteBatch(false)
+    return
+  }
   pendingPromote.value = null
 }
 
@@ -1002,6 +1118,9 @@ export function resetEditorPanel(): void {
   // 🔴 Cùng lý do ngay trên: một lượt PROMOTE đang chờ đồng ý thuộc về segment của Tác phẩm
   // VỪA BỊ THAY, và id đó không còn nghĩa gì ở Tác phẩm mới.
   pendingPromote.value = null
+  pendingPromoteBatch.value = null
+  promoteBatchReport.value = null
+  promoteBatchBusy = false
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

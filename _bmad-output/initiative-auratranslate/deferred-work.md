@@ -13198,3 +13198,11 @@ chính nó.
   summary: Lượt dùng thật trên bản đóng gói: mở Chỗ đã bỏ qua từ link trong dải Proofreader sau một lượt quét thật, nhìn số lần chặn tăng sau lượt quét kế, và phím số trên dải chốt Glossary với bàn phím số.
   evidence: e2e không giả được lượt quét Proofreader (`e2e/specs/proofread-underline.e2e.mjs`); vitest giả `event.code`.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-panel-ai-va-hang-lo-plan.md`
+  summary: Lượt dùng thật trên bản đóng gói macOS: một lô nhà cung cấp thật có lỗi thật giữa chừng, "Bỏ lô" giữa chừng, "Đưa cả lô" khi có bản nháp chưa ký, và trạng thái chưa cấu hình khi xoá endpoint trong Cài đặt.
+  evidence: e2e không giả được provider AI; vitest giả `aiConfigGet`, `runAiTranslateBatchCall` và `promoteAiTranslation` ở biên IPC (`tests/frontend/aiBatchPanelRows.test.ts`).
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-panel-ai-va-hang-lo-plan.md`
+  summary: Lượt dịch đòi khoá cả với Ollama / LM Studio (`read_api_key` trong `aitranslate.rs`), nên panel không ghi "chạy không cần khoá" như mockup ai-batch-translate; bỏ yêu cầu khoá cho nhà cung cấp cục bộ thì sửa lại câu `panel.ai_translation.unconfigured_local`.
+  evidence: Quyết định 4 của plan; `ready` ở `ai_config_get` gồm cả khoá.
+  Chủ: Story 12.18.

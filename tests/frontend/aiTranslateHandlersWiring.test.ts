@@ -28,11 +28,13 @@ describe('main.ts nối sáu handler AI từ một module dùng chung', () => {
     }
   })
 
-  it('module xuất đúng sáu handler', async () => {
+  it('module xuất đúng tám handler', async () => {
     const { aiTranslateHandlers } = await import('../../src/aiTranslateHandlers')
     expect(Object.keys(aiTranslateHandlers).sort()).toEqual([
       'cancelAiTranslate',
+      'discardAiTranslateBatch',
       'promoteAiTranslate',
+      'promoteAiTranslateBatch',
       'retryAiTranslate',
       'retryAiTranslateBatch',
       'runAiTranslate',

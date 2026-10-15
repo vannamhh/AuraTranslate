@@ -148,6 +148,9 @@ async function freshPanel() {
     // hỏi chống mất bản nháp). Factory này thay THẲNG cả module — thiếu một export ở đây là
     // `undefined.value` lúc component mount, không phải một cảnh báo im lặng.
     editorPendingPromote: ref(null),
+    editorPendingPromoteBatch: ref(null),
+    editorPromoteBatchReport: ref(null),
+    editorSegments: ref([]),
     editorPromoteAiTranslationError: ref(null),
   }))
 

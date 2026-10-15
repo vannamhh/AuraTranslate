@@ -46,8 +46,22 @@ import { useSelectionSurface } from './selectionContract'
 import { dispatch } from '../commands'
 import { t, tError } from '../i18n'
 import { loadPromptSets, promptSets, selectedPromptSetName, setSelectedPromptSetName } from '../promptSetState'
-import { editorCaretSegmentId, editorPendingPromote, editorPromoteAiTranslationError } from './editorPanelState'
 import {
+  editorCaretSegmentId,
+  editorPendingPromote,
+  editorPendingPromoteBatch,
+  editorPromoteAiTranslationError,
+  editorPromoteBatchReport,
+  editorSegments,
+} from './editorPanelState'
+import {
+  aiConfigEffectiveModel,
+  aiConfigEffectiveProvider,
+  aiConfigReadiness,
+  refreshAiConfigReadiness,
+} from '../aiConfigState'
+import {
+  aiPromptGlossaryDelta,
   aiPromptAssembleBusy,
   aiPromptAssembleError,
   aiPromptRecord,
@@ -68,6 +82,8 @@ import {
 import {
   aiTranslateBatchDoneCount,
   aiTranslateBatchError,
+  aiTranslateBatchErrorBlock,
+  aiTranslateBatchPromotableCount,
   aiTranslateBatchRemainingCount,
   aiTranslateBatchRows,
   aiTranslateBatchRunningSegmentId,
@@ -100,6 +116,7 @@ onMounted(() => {
   // Story 4.7 — đồng bộ với bản ghi Rust đang giữ ngay lúc panel này mount: dockview có thể
   // tháo/dựng lại panel trong khi phiên vẫn còn một bản ghi từ một lượt Lắp trước đó.
   void refreshAiPromptRecord()
+  void refreshAiConfigReadiness()
 })
 
 /**
@@ -144,6 +161,14 @@ const glossarySummaryText = computed<string>(() => {
     return summary.tmCount === null
       ? t('ai.prompt.summary_not_asked')
       : t('ai.prompt.summary_not_asked_tm', { tm_count: String(summary.tmCount) })
+  }
+  const delta = aiPromptGlossaryDelta.value
+  if (delta !== null) {
+    const direction = delta > 0 ? 'up' : 'down'
+    const params = { count: String(summary.count), delta: String(Math.abs(delta)) }
+    return summary.tmCount === null
+      ? t(`ai.prompt.summary_asked_${direction}`, params)
+      : t(`ai.prompt.summary_asked_tm_${direction}`, { ...params, tm_count: String(summary.tmCount) })
   }
   return summary.tmCount === null
     ? t('ai.prompt.summary_asked', { count: String(summary.count) })
@@ -333,10 +358,79 @@ const canRetryAiTranslateBatch = computed<boolean>(
     aiTranslateBatchError.value.retryable === true &&
     aiTranslateStateValue.value !== 'generating',
 )
+const providerModelText = computed<string | null>(() => {
+  if (aiConfigReadiness.value !== 'ready') return null
+  const model = aiConfigEffectiveModel.value
+  const provider = aiConfigEffectiveProvider.value
+  return provider === '' ? model : t('panel.ai_translation.provider_model', { provider, model })
+})
+
+const cancelLabelKey = computed<string>(() =>
+  aiTranslateBatchStateValue.value === 'generating'
+    ? 'panel.ai_translation.cancel_batch'
+    : 'command.ai.translate.cancel',
+)
+
+const canPromoteAiTranslateBatch = computed<boolean>(
+  () => aiTranslateBatchStateValue.value !== 'generating' && aiTranslateBatchPromotableCount.value > 0,
+)
+
+const batchRowTexts = computed<string[]>(() => {
+  const sourceById = new Map(editorSegments.value.map((s) => [s.id, s.source_text]))
+  return aiTranslateBatchRows.value.map((row) => (row.text !== '' ? row.text : (sourceById.get(row.segmentId) ?? '')))
+})
+
+const batchErrorBlock = computed(() =>
+  aiTranslateBatchStateValue.value === 'error' ? aiTranslateBatchErrorBlock(aiTranslateBatchRows.value) : null,
+)
+
+function formatRange(range: { from: number; to: number }): string {
+  return range.from === range.to ? String(range.from) : `${range.from}–${range.to}`
+}
+
+const promoteBatchReportText = computed<string | null>(() => {
+  const report = editorPromoteBatchReport.value
+  if (report === null) return null
+  return report.skipped === 0
+    ? t('panel.ai_translation.promote_batch_report', { written: String(report.written) })
+    : t('panel.ai_translation.promote_batch_report_skipped', {
+        written: String(report.written),
+        skipped: String(report.skipped),
+      })
+})
 </script>
 
 <template>
-  <PanelFrame owner="panel.ai_translation" status-key="panel.ai_translation.status">
+  <PanelFrame owner="panel.ai_translation" status-key="panel.ai_translation.status" :show-status="false">
+    <div class="ai-panel-head">
+      <span class="ai-panel-title">{{ t('panel.ai_translation.title') }}</span>
+      <!-- aura-allow-text: KẾT QUẢ của t() (nhà cung cấp · mô hình đọc từ cấu hình). -->
+      <span v-if="providerModelText !== null" class="ai-panel-provider" data-ai-panel-provider>{{ providerModelText }}</span>
+      <button
+        type="button"
+        class="ai-inspector-open"
+        data-ai-prompt-inspector-open
+        @click="dispatch('ai.prompt_inspector.open')"
+      >
+        {{ t('command.ai.prompt_inspector.open') }}
+      </button>
+    </div>
+    <div v-if="aiConfigReadiness === 'unconfigured'" class="ai-unconfigured" data-ai-unconfigured>
+      <p class="ai-unconfigured-title">{{ t('panel.ai_translation.unconfigured_title') }}</p>
+      <p class="ai-unconfigured-text">{{ t('panel.ai_translation.unconfigured_other') }}</p>
+      <p class="ai-unconfigured-text">{{ t('panel.ai_translation.unconfigured_local') }}</p>
+      <button
+        type="button"
+        class="ai-unconfigured-open"
+        data-ai-unconfigured-open-settings
+        @click="dispatch('settings.open')"
+      >
+        {{ t('panel.ai_translation.unconfigured_open_settings') }}
+      </button>
+    </div>
+    <p v-else-if="aiConfigReadiness === 'key_unchecked'" class="ai-translate-hint" data-ai-key-unchecked>
+      {{ t('panel.ai_translation.key_unchecked') }}
+    </p>
     <div class="ai-prompt-bar">
       <p v-if="promptSets.length === 0" class="ai-prompt-empty">{{ t('panel.ai_translation.prompt_set_empty') }}</p>
       <label v-else class="ai-prompt-select-label">
@@ -396,14 +490,6 @@ const canRetryAiTranslateBatch = computed<boolean>(
           <!-- aura-allow-text: KẾT QUẢ của t() (hai nhãn, chọn theo cờ đang bận). -->
           {{ aiPromptAssembleBusy ? t('panel.ai_translation.assemble_busy') : t('command.ai.prompt.assemble') }}
         </button>
-        <button
-          type="button"
-          class="ai-inspector-open"
-          data-ai-prompt-inspector-open
-          @click="dispatch('ai.prompt_inspector.open')"
-        >
-          {{ t('command.ai.prompt_inspector.open') }}
-        </button>
       </div>
     </div>
     <div ref="surface" class="ai-surface">
@@ -424,7 +510,8 @@ const canRetryAiTranslateBatch = computed<boolean>(
           :disabled="!canCancelAiTranslate"
           @click="dispatch('ai.translate.cancel')"
         >
-          {{ t('command.ai.translate.cancel') }}
+          <!-- aura-allow-text: KẾT QUẢ của t() (hai nhãn: Huỷ dịch / Huỷ lô). -->
+          {{ t(cancelLabelKey) }}
         </button>
         <button
           type="button"
@@ -457,7 +544,11 @@ const canRetryAiTranslateBatch = computed<boolean>(
         {{ t('panel.ai_translation.state_cancelled') }}
       </p>
       <p
-        v-else-if="aiTranslateStateValue === 'not_configured' && aiTranslateRunSegmentId !== null"
+        v-else-if="
+          aiTranslateStateValue === 'not_configured' &&
+          aiTranslateRunSegmentId !== null &&
+          aiConfigReadiness !== 'unconfigured'
+        "
         class="ai-translate-status"
         data-ai-translate-state="not_configured"
       >
@@ -505,6 +596,26 @@ const canRetryAiTranslateBatch = computed<boolean>(
           </button>
         </div>
       </div>
+      <div v-if="editorPendingPromoteBatch !== null" class="ai-promote-confirm" data-ai-translate-promote-batch-confirm>
+        <p class="ai-promote-confirm-title">
+          {{ t('panel.ai_translation.promote_batch_confirm_title', { count: String(editorPendingPromoteBatch.items.length) }) }}
+        </p>
+        <p class="ai-promote-confirm-body">{{ t('panel.ai_translation.promote_confirm_body') }}</p>
+        <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — các bản dịch họ vừa gõ, không một chuỗi giao diện. -->
+        <p v-for="item in editorPendingPromoteBatch.items" :key="item.segmentId" class="ai-promote-draft">{{ item.draft }}</p>
+        <div class="ai-promote-confirm-acts">
+          <button type="button" class="ai-promote-act" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
+            {{ t('panel.ai_translation.promote_confirm_accept') }}
+          </button>
+          <button type="button" class="ai-promote-act" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
+            {{ t('panel.ai_translation.promote_confirm_cancel') }}
+          </button>
+        </div>
+      </div>
+      <p v-if="promoteBatchReportText !== null" class="ai-translate-status" role="status" data-ai-translate-promote-batch-report>
+        <!-- aura-allow-text: KẾT QUẢ của t() (số câu đã ghi / bị bỏ). -->
+        {{ promoteBatchReportText }}
+      </p>
       <p v-if="isAiTranslateStale && aiTranslateAccumulatedText !== ''" class="ai-translate-stale" role="status" data-ai-translate-stale-notice>
         <!-- aura-allow-text: KẾT QUẢ của t() (nội suy hai số câu). -->
         {{
@@ -574,36 +685,93 @@ const canRetryAiTranslateBatch = computed<boolean>(
         >
           {{ t('panel.ai_translation.batch_running', { segment_id: String(aiTranslateBatchRunningSegmentId) }) }}
         </p>
-        <p
+        <div
           v-if="aiTranslateBatchStateValue === 'error' && aiTranslateBatchError !== null"
-          class="ai-translate-alert"
+          class="ai-translate-alert ai-batch-error"
           role="alert"
           data-ai-translate-batch-alert
         >
-          <!-- aura-allow-text: KẾT QUẢ của tError(). -->
-          {{ tError(aiTranslateBatchError) }}
-        </p>
-        <button
-          v-if="canRetryAiTranslateBatch"
-          type="button"
-          class="ai-translate-batch-retry"
-          data-ai-translate-batch-retry
-          @click="dispatch('ai.translate.batch_retry')"
-        >
-          {{ t('command.ai.translate.batch_retry') }}
-        </button>
+          <template v-if="batchErrorBlock !== null">
+            <p class="ai-batch-error-line" data-ai-batch-error-stopped>
+              {{ t('panel.ai_translation.batch_error_stopped', { index: String(batchErrorBlock.stoppedAt) }) }}
+            </p>
+            <p v-if="batchErrorBlock.intact !== null" class="ai-batch-error-line" data-ai-batch-error-intact>
+              {{ t('panel.ai_translation.batch_error_intact', { range: formatRange(batchErrorBlock.intact) }) }}
+            </p>
+            <p class="ai-batch-error-line" data-ai-batch-error-cause>
+              <!-- aura-allow-text: KẾT QUẢ của tError() trong t(). -->
+              {{
+                t('panel.ai_translation.batch_error_cause', {
+                  index: String(batchErrorBlock.stoppedAt),
+                  cause: tError(aiTranslateBatchError),
+                })
+              }}
+            </p>
+            <p v-if="batchErrorBlock.notCalled !== null" class="ai-batch-error-line" data-ai-batch-error-not-called>
+              {{ t('panel.ai_translation.batch_error_not_called', { range: formatRange(batchErrorBlock.notCalled) }) }}
+            </p>
+          </template>
+          <template v-else>
+            <!-- aura-allow-text: KẾT QUẢ của tError(). -->
+            {{ tError(aiTranslateBatchError) }}
+          </template>
+        </div>
+        <div class="ai-batch-actions" data-ai-translate-batch-actions>
+          <button
+            v-if="canRetryAiTranslateBatch"
+            type="button"
+            class="ai-translate-batch-retry"
+            data-ai-translate-batch-retry
+            @click="dispatch('ai.translate.batch_retry')"
+          >
+            <!-- aura-allow-text: KẾT QUẢ của t() (nội suy số câu dừng). -->
+            {{
+              batchErrorBlock !== null
+                ? t('panel.ai_translation.batch_retry_from', { index: String(batchErrorBlock.stoppedAt) })
+                : t('command.ai.translate.batch_retry')
+            }}
+          </button>
+          <button
+            type="button"
+            class="ai-translate-promote-batch"
+            data-ai-translate-promote-batch
+            :disabled="!canPromoteAiTranslateBatch"
+            @click="dispatch('ai.translate.promote_batch')"
+          >
+            {{ t('panel.ai_translation.promote_batch', { count: String(aiTranslateBatchPromotableCount) }) }}
+          </button>
+          <button
+            type="button"
+            class="ai-translate-batch-discard"
+            data-ai-translate-batch-discard
+            @click="dispatch('ai.translate.batch_discard')"
+          >
+            {{ t('command.ai.translate.batch_discard') }}
+          </button>
+        </div>
         <ul class="ai-batch-rows" data-ai-translate-batch-rows>
           <li
-            v-for="row in aiTranslateBatchRows"
+            v-for="(row, index) in aiTranslateBatchRows"
             :key="row.segmentId"
             class="ai-batch-row"
             :data-ai-translate-batch-row-status="row.status"
+            :data-ai-translate-batch-row-segment-id="row.segmentId"
           >
-            <span class="ai-batch-row-segment">
-              <!-- aura-allow-text: DỮ LIỆU (segment.id của hàng). -->
-              {{ row.segmentId }}
+            <span class="ai-batch-row-segment" data-ai-translate-batch-row-no>
+              <!-- aura-allow-text: DỮ LIỆU (số thứ tự của hàng trong lô). -->
+              {{ index + 1 }}
             </span>
-            <span class="ai-batch-row-status">{{ t(aiTranslateBatchRowStatusKey(row.status)) }}</span>
+            <span class="ai-batch-row-text" data-ai-translate-batch-row-text>
+              <!-- aura-allow-text: DỮ LIỆU (bản dịch AI, hoặc câu nguồn khi chưa có bản dịch). -->
+              {{ batchRowTexts[index] }}
+            </span>
+            <span v-if="row.usage !== null" class="ai-batch-row-tokens" data-ai-translate-batch-row-tokens>
+              {{ t('panel.ai_translation.batch_row_tokens', { token_count: String(row.usage.total_tokens) }) }}
+            </span>
+            <span class="ai-batch-row-status" :class="{ 'ai-batch-row-status-error': row.status === 'error' }">
+              <!-- aura-allow-text: KẾT QUẢ của t() (nhãn theo trạng thái hàng). -->
+              {{ t(aiTranslateBatchRowStatusKey(row.status)) }}
+            </span>
           </li>
         </ul>
       </template>
@@ -652,6 +820,65 @@ const canRetryAiTranslateBatch = computed<boolean>(
 }
 
 .ai-prompt-open {
+  align-self: flex-start;
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-panel-head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 3);
+  margin-bottom: var(--space-panel-block);
+}
+
+.ai-panel-title {
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface);
+}
+
+.ai-panel-provider {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-panel-head .ai-inspector-open {
+  margin-left: auto;
+}
+
+.ai-unconfigured {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  margin-bottom: var(--space-panel-block);
+}
+
+.ai-unconfigured-title {
+  margin: 0;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface);
+}
+
+.ai-unconfigured-text {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-unconfigured-open {
   align-self: flex-start;
   padding: 0;
   background: none;
@@ -743,7 +970,9 @@ const canRetryAiTranslateBatch = computed<boolean>(
 .ai-translate-promote,
 .ai-translate-batch-run,
 .ai-translate-retry,
-.ai-translate-batch-retry {
+.ai-translate-batch-retry,
+.ai-translate-promote-batch,
+.ai-translate-batch-discard {
   align-self: flex-start;
   padding: 0;
   background: none;
@@ -758,6 +987,7 @@ const canRetryAiTranslateBatch = computed<boolean>(
 .ai-translate-run:disabled,
 .ai-translate-cancel:disabled,
 .ai-translate-promote:disabled,
+.ai-translate-promote-batch:disabled,
 .ai-translate-batch-run:disabled {
   cursor: default;
   color: var(--color-on-surface-variant);
@@ -828,6 +1058,40 @@ const canRetryAiTranslateBatch = computed<boolean>(
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.ai-batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 3);
+}
+
+.ai-batch-error {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-batch-error-line {
+  margin: 0;
+}
+
+.ai-batch-row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--face-read-sm);
+  font-size: var(--font-read-sm);
+}
+
+.ai-batch-row-tokens,
+.ai-batch-row-status {
+  white-space: nowrap;
+}
+
+.ai-batch-row-status-error {
+  color: var(--color-error);
 }
 
 .ai-batch-row-segment {

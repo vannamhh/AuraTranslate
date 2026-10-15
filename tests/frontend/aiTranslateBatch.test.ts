@@ -556,8 +556,8 @@ describe('AiTranslationPanel.vue — lỗi giữa lô (I/O Matrix "Error mid-bat
     // `PROVIDER_UNREACHABLE_ON_12` đầu tệp: so hai lời gọi `tError` giống nhau là một phép đối
     // chứng RỖNG. Chép NGUYÊN VĂN từ `src/i18n/vi.json` (`err.ai_translate.provider_unreachable`)
     // — câu KHÔNG nêu số câu 12, đúng Quyết định 2 ("No per-path duplicate of the family").
-    expect(alert.text()).toBe(
-      'Không kết nối được tới nhà cung cấp AI — chưa có kết quả mới nào. Những đoạn đã nhận trước đó vẫn còn trên màn hình.',
+    expect(alert.get('[data-ai-batch-error-cause]').text()).toBe(
+      'Câu 2: Không kết nối được tới nhà cung cấp AI — chưa có kết quả mới nào. Những đoạn đã nhận trước đó vẫn còn trên màn hình.',
     )
 
     const rows = wrapper.findAll('[data-ai-translate-batch-rows] li')
@@ -606,7 +606,7 @@ describe('AiTranslationPanel.vue — nút "Thử lại" LÔ (Story 4.10, §Alway
     expect(rows[1]?.attributes('data-ai-translate-batch-row-status')).toBe('error')
     expect(rows[2]?.attributes('data-ai-translate-batch-row-status')).toBe('pending')
 
-    expect(wrapper.get('[data-ai-translate-batch-retry]').text()).toBe('Thử lại các câu chưa xong')
+    expect(wrapper.get('[data-ai-translate-batch-retry]').text()).toBe('Thử lại từ câu 2')
     // Hàm THUẦN trực tiếp (Left for Phase 3, `## Phase notes` §"Phase 2") -- không suy tập id
     // từ dispatch, đọc thẳng từ module.
     expect(batchState.aiTranslateBatchRetryIds(batchState.aiTranslateBatchRows.value)).toEqual([12, 13])

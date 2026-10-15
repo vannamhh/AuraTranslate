@@ -1192,6 +1192,12 @@ export type CommandDeps = {
    * không có lỗi `retryable` đang chờ, hoặc một lượt khác đang chạy. Handler của
    * `ai.translate.batch_retry`. */
   retryAiTranslateBatch?: () => void
+  /** Bỏ lô: huỷ lượt đang bay và xoá mọi hàng, tiến độ, token, lỗi lô. Handler của
+   * `ai.translate.batch_discard`. */
+  discardAiTranslateBatch?: () => void
+  /** Đưa mọi hàng lô đã xong sang Bản dịch, một câu hỏi chung cho các bản nháp chưa ký. Handler
+   * của `ai.translate.promote_batch`. */
+  promoteAiTranslateBatch?: () => void
 
   // ── Story 5.11 — "Chế độ đọc: typography và bố cục đọc dài" (FR11) ─────────────
   //
@@ -4874,6 +4880,29 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.translate.batch_retry', 'retryAiTranslateBatch')
       }
       deps.retryAiTranslateBatch()
+    },
+  })
+
+  target.register({
+    id: 'ai.translate.batch_discard',
+    labelKey: 'command.ai.translate.batch_discard',
+    keys: undefined,
+    run: () => {
+      if (deps.discardAiTranslateBatch === undefined) {
+        return portMissing('ai.translate.batch_discard', 'discardAiTranslateBatch')
+      }
+      deps.discardAiTranslateBatch()
+    },
+  })
+  target.register({
+    id: 'ai.translate.promote_batch',
+    labelKey: 'command.ai.translate.promote_batch',
+    keys: ['Mod+Alt+Shift+Enter'],
+    run: () => {
+      if (deps.promoteAiTranslateBatch === undefined) {
+        return portMissing('ai.translate.promote_batch', 'promoteAiTranslateBatch')
+      }
+      deps.promoteAiTranslateBatch()
     },
   })
 

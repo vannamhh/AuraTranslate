@@ -22,8 +22,8 @@
  *
  * ⚠️ Cùng luật mọi state Vue khác: tệp này KHÔNG được `import` vào `src/commands/index.ts`.
  */
-import { readonly, ref } from 'vue'
-import type { DeepReadonly, Ref } from 'vue'
+import { computed, readonly, ref } from 'vue'
+import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { aiPromptAssemble, aiPromptReadRecord } from './config/aiprompt'
 import type { AssembledPromptWire } from './config/aiprompt'
 import type { IpcError } from './i18n'
@@ -43,6 +43,8 @@ const assembleError = ref<IpcError | null>(null)
  * nào", I/O Matrix). Ô nhớ RIÊNG với [`assembleError`]: hai nhịp khác nhau (Decision 2), hai
  * lỗi khác nhau, cùng lý do `record`/`assembleBusy` đã tách. Xem [`refreshAiPromptRecord`]. */
 const readError = ref<IpcError | null>(null)
+/** Glossary count of the record before the current one, set only when that record belonged to another segment. */
+const previousGlossaryCount = ref<number | null>(null)
 
 /** Số thứ tự lượt ghi/đọc — chỉ lượt MỚI NHẤT được quyền ghi [`record`] (khuôn
  * `promptSetState.ts`/`aiConfigState.ts`). Một sequence DUY NHẤT cho cả Lắp và Đọc: hai
@@ -67,6 +69,21 @@ let sequence = 0
  * "kể cả cờ busy" từng cố giữ, chỉ khác đối tượng so sánh.
  */
 let latestAssembleSequence = 0
+
+function injectedCountOf(current: ReadonlyAssembledPromptWire | null): number | null {
+  if (current === null) return null
+  const status = current.ledger.glossary
+  return status.kind === 'not_asked' ? null : status.injected.length
+}
+
+function adoptRecord(next: AssembledPromptWire | null, afterAssemble: boolean): void {
+  const prev = record.value
+  if (prev !== null && next !== null) {
+    if (prev.segment_id !== next.segment_id) previousGlossaryCount.value = injectedCountOf(prev)
+    else if (afterAssemble) previousGlossaryCount.value = null
+  }
+  record.value = next
+}
 
 export const aiPromptInspectorIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
 /** Bản ghi hiện tại của phiên, hoặc `null` khi chưa có lượt Lắp nào — I/O Matrix "Nothing
@@ -103,7 +120,7 @@ export async function refreshAiPromptRecord(): Promise<void> {
     return
   }
   readError.value = null
-  record.value = result.value
+  adoptRecord(result.value, false)
 }
 
 /** Handler thật của `ai.prompt_inspector.open` — chỉ ĐỌC (Decision 2), không đường nào ở đây
@@ -194,7 +211,7 @@ export async function assembleCurrentAiPrompt(promptSetName: string | null, segm
   if (result.value === null) return
 
   if (mine !== sequence) return // một lượt Lắp/Đọc MỚI đã vượt mặt lượt THÀNH CÔNG này
-  record.value = result.value
+  adoptRecord(result.value, true)
 }
 
 /**
@@ -221,6 +238,14 @@ export function glossaryInjectionSummary(current: ReadonlyAssembledPromptWire | 
   if (status.kind === 'not_asked') return { kind: 'not_asked', tmCount }
   return { kind: 'asked', count: status.injected.length, tmCount }
 }
+
+/** Signed change in injected Glossary terms against the previous segment's record; `null` when there is no comparable earlier record or no change. */
+export const aiPromptGlossaryDelta: ComputedRef<number | null> = computed(() => {
+  const now = injectedCountOf(record.value)
+  const before = previousGlossaryCount.value
+  if (now === null || before === null || now === before) return null
+  return now - before
+})
 
 /**
  * `true` ⇔ bản ghi hiện tại được lắp từ một câu KHÁC câu đang có tiêu điểm bây giờ — I/O
@@ -250,6 +275,7 @@ export function resetAiPromptInspector(): void {
   latestAssembleSequence = sequence
   overlayOpen.value = false
   record.value = null
+  previousGlossaryCount.value = null
   assembleBusy.value = false
   assembleError.value = null
   readError.value = null

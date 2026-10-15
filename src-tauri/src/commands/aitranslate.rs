@@ -241,6 +241,23 @@ pub(crate) struct ResolvedCallConfig<'a> {
     pub(crate) max_tokens: Option<u32>,
 }
 
+pub(crate) fn endpoint_and_model_set(endpoint: &str, model: &str) -> bool {
+    !endpoint.trim().is_empty() && !model.trim().is_empty()
+}
+
+/// Same predicate pair as a translate call: endpoint + model set, then a stored key.
+/// `None` only when both are set and the keychain cannot be asked.
+pub(crate) fn call_ready(
+    endpoint: &str,
+    model: &str,
+    key_configured: Option<bool>,
+) -> Option<bool> {
+    if !endpoint_and_model_set(endpoint, model) {
+        return Some(false);
+    }
+    key_configured
+}
+
 /// `None` only when `endpoint` or `model` is empty; an unset or unparsable
 /// `temperature`/`max_tokens` is sent as absent, never treated as "not configured".
 pub(crate) fn resolve_call_config<'a>(
@@ -255,7 +272,7 @@ pub(crate) fn resolve_call_config<'a>(
 
     let endpoint = resolved_field_value(&resolved, AiConfigField::Endpoint);
     let model = resolved_field_value(&resolved, AiConfigField::Model);
-    if endpoint.trim().is_empty() || model.trim().is_empty() {
+    if !endpoint_and_model_set(&endpoint, &model) {
         return Ok(None);
     }
 

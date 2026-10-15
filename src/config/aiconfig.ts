@@ -48,6 +48,8 @@ type AiConfigGetWire = {
    * `commands/aiconfig.rs::AiConfigGetWire.key_configured`: `null` là một trạng thái THỨ BA,
    * không phải "chưa cấu hình" (`false`). */
   key_configured: boolean | null
+  /** Rust's verdict for a translate call: `null` only when the key cannot be asked. */
+  ready: boolean | null
 }
 
 function isIpcError(value: unknown): value is IpcError {
@@ -91,6 +93,7 @@ export async function aiConfigGet(): Promise<{
   fields: AiConfigFieldWire[] | null
   workTierAvailable: boolean
   keyConfigured: boolean | null
+  ready: boolean | null
   error: IpcError | null
 }> {
   try {
@@ -99,16 +102,17 @@ export async function aiConfigGet(): Promise<{
       fields: wire.fields,
       workTierAvailable: wire.work_tier_available,
       keyConfigured: wire.key_configured,
+      ready: wire.ready,
       error: null,
     }
   } catch (err) {
-    if (isIpcError(err)) return { fields: null, workTierAvailable: false, keyConfigured: null, error: err }
+    if (isIpcError(err)) return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, error: err }
     if (hasIpcBridge()) {
       console.error(`[aiconfig] \`${CMD_GET}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
-      return { fields: null, workTierAvailable: false, keyConfigured: null, error: UNKNOWN_IPC_ERROR }
+      return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, error: UNKNOWN_IPC_ERROR }
     }
     console.info(`[aiconfig] không gọi được \`${CMD_GET}\` — chạy ngoài Tauri? ${String(err)}`)
-    return { fields: null, workTierAvailable: false, keyConfigured: null, error: null }
+    return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, error: null }
   }
 }
 
