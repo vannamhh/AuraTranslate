@@ -99,6 +99,7 @@ function isAiTranslateOutcomeWire(value: unknown): value is AiTranslateOutcomeWi
 
 const CMD_TRANSLATE = 'ai_translate_segment'
 const CMD_TRANSLATE_BATCH = 'ai_translate_batch'
+const CMD_TRANSLATE_RESEND = 'ai_translate_resend'
 const CMD_CANCEL = 'ai_translate_cancel'
 
 /**
@@ -135,6 +136,33 @@ export async function runAiTranslateSegment(
       return { value: null, error: UNKNOWN_IPC_ERROR }
     }
     console.info(`[aitranslate] không gọi được \`${CMD_TRANSLATE}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { value: null, error: null }
+  }
+}
+
+/** Resends the prompt Rust holds; only `channel` crosses the wire, never prompt text or a segment id. */
+export async function runAiTranslateResendCall(
+  onToken: (text: string) => void,
+): Promise<{ value: AiTranslateOutcomeWire | null; error: IpcError | null }> {
+  const channel = new Channel<string>()
+  channel.onmessage = onToken
+
+  try {
+    const wire = await invoke<unknown>(CMD_TRANSLATE_RESEND, { channel })
+    if (!isAiTranslateOutcomeWire(wire)) {
+      console.error(
+        `[aitranslate] \`${CMD_TRANSLATE_RESEND}\` tra ve mot hinh dang khong dung AiTranslateOutcomeWire`,
+      )
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { value: wire, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[aitranslate] \`${CMD_TRANSLATE_RESEND}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[aitranslate] không gọi được \`${CMD_TRANSLATE_RESEND}\` — chạy ngoài Tauri? ${String(err)}`)
     return { value: null, error: null }
   }
 }

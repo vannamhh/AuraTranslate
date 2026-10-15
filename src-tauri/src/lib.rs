@@ -1388,6 +1388,7 @@ pub fn run() {
             // the he len MOT, dung hinh dang `commands::project::ImportScanGeneration`.
             crate::commands::aitranslate::wire::ai_translate_segment,
             crate::commands::aitranslate::wire::ai_translate_cancel,
+            crate::commands::aitranslate::wire::ai_translate_resend,
             // Story 4.9, Phase 2 -- dich THEO LO cac segment da chon, huy giua chung (FR73,
             // AD-22, Quyet dinh 1/2/4). `ai_translate_batch` la `async fn` LITERAL thu hai cung
             // co che `Future: Send`, chay qua MOT `Channel<AiTranslateBatchEventWire>` -- moi

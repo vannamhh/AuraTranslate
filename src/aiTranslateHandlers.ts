@@ -18,8 +18,10 @@ import {
   aiTranslateStartStamp,
   aiTranslateStateValue,
   cancelAiTranslate,
+  resendAiPrompt,
   runAiTranslate,
 } from './aiTranslateState'
+import { aiPromptRecord, refreshAiPromptRecord, selectAiPromptInspectorTab } from './aiPromptInspectorState'
 import {
   cancelPendingPromote,
   editorCaretSegmentId,
@@ -41,6 +43,24 @@ export const aiTranslateHandlers = {
       return
     }
     void runAiTranslate(selectedPromptSetName.value, editorCaretSegmentId.value)
+  },
+
+  resendAiPrompt: (): void => {
+    const record = aiPromptRecord.value
+    if (record === null) {
+      console.warn('[ai-translate] khong gui lai: chua co ban ghi prompt nao')
+      return
+    }
+    if (aiTranslateBatchStateValue.value === 'generating') {
+      console.warn('[ai-translate] khong gui lai: mot lo dang chay')
+      return
+    }
+    if (aiTranslateStateValue.value === 'generating') {
+      console.warn('[ai-translate] khong gui lai: mot luot don dang chay')
+      return
+    }
+    selectAiPromptInspectorTab('result')
+    void resendAiPrompt(record.segment_id).then(() => refreshAiPromptRecord())
   },
 
   cancelAiTranslate: (): void => {

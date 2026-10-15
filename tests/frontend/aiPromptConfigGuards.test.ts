@@ -41,8 +41,8 @@ function validSimilarSegmentWire(over: Record<string, unknown> = {}) {
 
 function validLedgerWire(over: Record<string, unknown> = {}) {
   return {
-    glossary: { kind: 'asked', injected: [validInjectedTermWire()], suppressed_by_pending_overlap: [] },
-    tm: { kind: 'not_asked', similar_segments: null },
+    glossary: { kind: 'asked', injected: [validInjectedTermWire()], suppressed_by_pending_overlap: [], pending_matched: [] },
+    tm: { kind: 'not_asked', similar_segments: null, omitted_count: null },
     unknown_markers: [],
     source_segment_missing: false,
     pieces: [validPieceWire()],
@@ -59,6 +59,9 @@ function validWire(over: Record<string, unknown> = {}) {
     prompt_set_name: 'Happy',
     prompt_set_tier: 'global',
     ledger: validLedgerWire(),
+    sent_at: null,
+    sent_model: null,
+    sent_usage: null,
     ...over,
   }
 }
@@ -134,7 +137,7 @@ describe('③ isInjectedGlossaryTermWire / isSuppressedGlossaryTermWire — đ�
     const state = await freshAdapter()
     const suppressed = [validInjectedTermWire({ source_term: 'castle', tier: 'work' })]
     mockInvoke.mockResolvedValue(
-      validWire({ ledger: validLedgerWire({ glossary: { kind: 'asked', injected: [], suppressed_by_pending_overlap: suppressed } }) }),
+      validWire({ ledger: validLedgerWire({ glossary: { kind: 'asked', injected: [], suppressed_by_pending_overlap: suppressed, pending_matched: [] } }) }),
     )
 
     const result = await state.aiPromptAssemble('Happy', 1)
@@ -160,7 +163,7 @@ describe('④ isGlossaryInjectionStatusWire — BA GIÁ TRỊ không được co
   it('đối chứng chiều ngược — kind: "not_asked" với CẢ HAI payload null (đúng bất biến) ⇒ error === null', async () => {
     const state = await freshAdapter()
     mockInvoke.mockResolvedValue(
-      validWire({ ledger: validLedgerWire({ glossary: { kind: 'not_asked', injected: null, suppressed_by_pending_overlap: null } }) }),
+      validWire({ ledger: validLedgerWire({ glossary: { kind: 'not_asked', injected: null, suppressed_by_pending_overlap: null, pending_matched: null } }) }),
     )
 
     const result = await state.aiPromptAssemble('Happy', 1)
@@ -184,7 +187,7 @@ describe('⑤ isTmInjectionStatusWire / isSimilarSegmentWire', () => {
   it('đối chứng chiều ngược — kind: "searched" với một mảng SimilarSegmentWire hợp lệ ⇒ error === null', async () => {
     const state = await freshAdapter()
     mockInvoke.mockResolvedValue(
-      validWire({ ledger: validLedgerWire({ tm: { kind: 'searched', similar_segments: [validSimilarSegmentWire()] } }) }),
+      validWire({ ledger: validLedgerWire({ tm: { kind: 'searched', similar_segments: [validSimilarSegmentWire()], omitted_count: 0 } }) }),
     )
 
     const result = await state.aiPromptAssemble('Happy', 1)
@@ -336,5 +339,92 @@ describe('⑧ aiPromptReadRecord — bốn nhánh trả về', () => {
     expect(result.value).toBeNull()
     expect(result.error).not.toBeNull()
     expect(result.error?.code).toBe('ipc.unknown')
+  })
+})
+
+describe('⑨ trường của màn Xem prompt đầy đủ — sent_*, pending_matched, omitted_count', () => {
+  const pending = { id: 41, source_term: 'dragon', start: 2, end: 8, tier: 'work' }
+
+  async function assemble(wire: unknown) {
+    const state = await freshAdapter()
+    mockInvoke.mockResolvedValue(wire)
+    return state.aiPromptAssemble('Happy', 1)
+  }
+
+  it('kind "asked" thiếu `pending_matched` hoặc nó là null ⇒ bị từ chối (null chỉ hợp lệ khi not_asked)', async () => {
+    const glossary = { kind: 'asked', injected: [], suppressed_by_pending_overlap: [] }
+    const missing = await assemble(validWire({ ledger: validLedgerWire({ glossary }) }))
+    expect(missing.value).toBeNull()
+    expect(missing.error).not.toBeNull()
+
+    const asNull = await assemble(validWire({ ledger: validLedgerWire({ glossary: { ...glossary, pending_matched: null } }) }))
+    expect(asNull.value).toBeNull()
+  })
+
+  it('kind "not_asked" mang pending_matched là mảng (không null) ⇒ bị từ chối', async () => {
+    const glossary = { kind: 'not_asked', injected: null, suppressed_by_pending_overlap: null, pending_matched: [] }
+    const result = await assemble(validWire({ ledger: validLedgerWire({ glossary }) }))
+    expect(result.value).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  it('một mục pending_matched thiếu `id` hoặc tier lạ ⇒ bị từ chối; đối chứng: mục đủ trường ⇒ nhận', async () => {
+    const asked = (entry: unknown) => ({
+      kind: 'asked',
+      injected: [],
+      suppressed_by_pending_overlap: [],
+      pending_matched: [entry],
+    })
+    const noId = await assemble(validWire({ ledger: validLedgerWire({ glossary: asked({ ...pending, id: undefined }) }) }))
+    expect(noId.value).toBeNull()
+    const badTier = await assemble(validWire({ ledger: validLedgerWire({ glossary: asked({ ...pending, tier: 'shared' }) }) }))
+    expect(badTier.value).toBeNull()
+
+    const ok = await assemble(validWire({ ledger: validLedgerWire({ glossary: asked(pending) }) }))
+    expect(ok.error).toBeNull()
+    expect(ok.value?.ledger.glossary.kind).toBe('asked')
+  })
+
+  it('tm "searched" thiếu omitted_count hoặc null ⇒ bị từ chối; 0 hợp lệ (khác null)', async () => {
+    const searched = (omitted: unknown) => ({ kind: 'searched', similar_segments: [], omitted_count: omitted })
+    const missing = await assemble(validWire({ ledger: validLedgerWire({ tm: { kind: 'searched', similar_segments: [] } }) }))
+    expect(missing.value).toBeNull()
+    const asNull = await assemble(validWire({ ledger: validLedgerWire({ tm: searched(null) }) }))
+    expect(asNull.value).toBeNull()
+    const zero = await assemble(validWire({ ledger: validLedgerWire({ tm: searched(0) }) }))
+    expect(zero.error).toBeNull()
+  })
+
+  it('tm "not_asked" mang omitted_count số ⇒ bị từ chối', async () => {
+    const result = await assemble(
+      validWire({ ledger: validLedgerWire({ tm: { kind: 'not_asked', similar_segments: null, omitted_count: 0 } }) }),
+    )
+    expect(result.value).toBeNull()
+  })
+
+  it('sent_usage: hình dạng sai ⇒ bị từ chối; null và usage đủ trường ⇒ nhận; thiếu hẳn sent_usage ⇒ bị từ chối', async () => {
+    const usage = { prompt_tokens: 100, completion_tokens: 312, total_tokens: 412, cost_usd: 0.00412 }
+
+    const bad = await assemble(validWire({ sent_usage: { prompt_tokens: '100' } }))
+    expect(bad.value).toBeNull()
+    expect(bad.error).not.toBeNull()
+
+    const ok = await assemble(validWire({ sent_at: '2026-10-15T08:09:10.000Z', sent_model: 'm', sent_usage: usage }))
+    expect(ok.error).toBeNull()
+    expect(ok.value?.sent_usage).toEqual(usage)
+
+    const noPrice = await assemble(validWire({ sent_usage: { ...usage, cost_usd: null } }))
+    expect(noPrice.error).toBeNull()
+
+    const { sent_usage: _omitted, ...withoutUsage } = validWire()
+    const missing = await assemble(withoutUsage)
+    expect(missing.value).toBeNull()
+  })
+
+  it('sent_at / sent_model sai kiểu ⇒ bị từ chối', async () => {
+    const badAt = await assemble(validWire({ sent_at: 5 }))
+    expect(badAt.value).toBeNull()
+    const badModel = await assemble(validWire({ sent_model: 5 }))
+    expect(badModel.value).toBeNull()
   })
 })

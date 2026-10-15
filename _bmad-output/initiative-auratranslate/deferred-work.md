@@ -13206,3 +13206,20 @@ chính nó.
   summary: Lượt dịch đòi khoá cả với Ollama / LM Studio (`read_api_key` trong `aitranslate.rs`), nên panel không ghi "chạy không cần khoá" như mockup ai-batch-translate; bỏ yêu cầu khoá cho nhà cung cấp cục bộ thì sửa lại câu `panel.ai_translation.unconfigured_local`.
   evidence: Quyết định 4 của plan; `ready` ở `ai_config_get` gồm cả khoá.
   Chủ: Story 12.18.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
+  summary: Lượt dùng thật trên bản đóng gói macOS với nhà cung cấp thật: dịch một câu, mở Xem prompt, đối chiếu số token thật với số nhà cung cấp báo, Chép rồi dán, Gửi lại và xem panel Đề xuất AI, chắc `target_text` không đổi.
+  evidence: e2e không giả được provider AI; vitest giả `runAiTranslateResendCall` ở biên IPC (`tests/frontend/aiPromptInspectorScreen.test.ts`).
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
+  summary: Màn Xem prompt chưa hiện hai loại "đã cân nhắc nhưng không chèn" của mockup prompt-inspector: thuật ngữ bị tầng khác ghi đè, và cặp TM dưới ngưỡng.
+  evidence: `confirmed_terms_for_injection` và `select_tm_pairs` không giữ lại hai loại này; cần quyết lưu gì trong ledger (Never của plan).
+  Chủ: Winston.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
+  summary: Khối "Thân bộ prompt" không tách được thành "Prompt hệ thống" và "Prompt theo thể loại" như mockup, vì bộ prompt chỉ có một thân; prompt có Glossary/TM xen giữa hiện nhiều khối "Thân bộ prompt" liền nhau theo thứ tự.
+  evidence: `PromptPieceKind` chỉ có `authored`; tách cần đổi hình dạng bộ prompt (`core/promptset`).
+  Chủ: Winston.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
+  summary: Dòng thông tin của mockup prompt-inspector có "lắp bởi RagInjector"; màn Xem prompt không hiện phần này.
+  evidence: chỉ có một đường lắp prompt (`core::ai::rag::assemble_prompt`), nên chữ này cố định và không mang thông tin.
+  Chủ: Ice.
+  → KHÔNG LÀM 2026-10-15 (Story 12.12) — Ice chọn bỏ; dòng thông tin chỉ giữ giờ gửi và mô hình.

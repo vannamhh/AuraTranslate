@@ -2456,6 +2456,7 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
         "crate::commands::aitranslate::wire::ai_translate_cancel",
         "crate::commands::segment::wire::promote_ai_translation",
         "crate::commands::aitranslate::wire::ai_translate_batch",
+        "crate::commands::aitranslate::wire::ai_translate_resend",
     ] {
         assert!(
             lib_src.contains(wire),
@@ -2498,6 +2499,13 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
         normalize_param_list("app: tauri::AppHandle<R>"),
         "vo `ai_translate_cancel` trong `pub mod wire` cua commands/aitranslate.rs khong con \
          dung danh sach tham so mong doi"
+    );
+
+    let resend_params = fn_param_list_async(&aitranslate_src, "ai_translate_resend");
+    assert_eq!(
+        normalize_param_list(&resend_params),
+        normalize_param_list("app: tauri::AppHandle<R>, channel: tauri::ipc::Channel<String>,"),
+        "vo `ai_translate_resend` khong nhan prompt tu webview: chi `channel`."
     );
 
     // Story 4.9, Phase 2 — `ai_translate_batch` cung la `async fn` LITERAL (cung ly do

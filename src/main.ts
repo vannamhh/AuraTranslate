@@ -388,6 +388,7 @@ import {
 } from './aiPromptInspectorState'
 import { selectedPromptSetName } from './promptSetState'
 import { aiTranslateHandlers } from './aiTranslateHandlers'
+import { aiPromptInspectorHandlers } from './aiPromptInspectorHandlers'
 import { proofreadHandlers } from './proofreadHandlers'
 import { proofreadMemoryIsOpen } from './proofreadMemoryState'
 import { proofreadScopeIsOpen } from './proofreadState'
@@ -1015,6 +1016,7 @@ async function boot(): Promise<void> {
         void assembleCurrentAiPrompt(selectedPromptSetName.value, editorCaretSegmentId.value)
       },
       ...aiTranslateHandlers,
+      ...aiPromptInspectorHandlers,
       ...proofreadHandlers,
       // 🔴 Câu hỏi chống mất bản nháp của PROMOTE, cùng khuôn
       // `confirmPendingRestore`/`cancelPendingRestore`.

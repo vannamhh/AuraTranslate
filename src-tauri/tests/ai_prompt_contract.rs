@@ -1511,12 +1511,14 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
             // `AssembledPromptRecord::sent_at`/`sent_model`).
             "sent_at",
             "sent_model",
+            "sent_usage",
         ]),
         "TEN TRUONG cap AssembledPromptWire tren day that -- mot truong bi doi ten/them/bot \
          khong duoc mot ca nao khac trong tep nay bat, vi tat ca so tren gia tri Rust da giai ma"
     );
     assert_eq!(json["sent_at"], serde_json::json!(null));
     assert_eq!(json["sent_model"], serde_json::json!(null));
+    assert_eq!(json["sent_usage"], serde_json::json!(null));
     assert_eq!(json["prompt_set_tier"], serde_json::json!("global"));
 
     let ledger = &json["ledger"];
@@ -1562,7 +1564,7 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
     // Than khong mang `{{tm_similar_segments}}` -- pin TAG `not_asked` o tang JSON.
     assert_eq!(
         ledger["tm"],
-        serde_json::json!({ "kind": "not_asked", "similar_segments": null })
+        serde_json::json!({ "kind": "not_asked", "similar_segments": null, "omitted_count": null })
     );
 
     // `pieces` -- ĐÚNG BA nhãn đường gọi này sản xuất được, dưới dạng CHUỖI JSON snake_case.
@@ -1611,4 +1613,160 @@ fn prompt_piece_kind_wire_tm_variant_serializes_to_the_literal_string_tm() {
         json,
         serde_json::json!({ "kind": "tm", "text": "khong toi tu prompt that" })
     );
+}
+
+#[test]
+fn the_wire_carries_matched_pending_entries_with_the_entry_id_and_null_when_glossary_was_not_asked()
+{
+    let global_dir = temp_dir("pending-wire-global");
+    let work_dir = temp_dir("pending-wire-work");
+    let global = open_global(&global_dir);
+    let open = open_work(
+        &work_dir,
+        "Pending Wire",
+        "en",
+        "A dragon guards the castle.",
+    );
+    let entry_id = add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them muc cho chot");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "WithTerms",
+        "Terms: {{glossary_terms}}\n{{source_segment}}",
+    )
+    .expect("tao bo prompt co thuat ngu");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt tron");
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
+    let record = fresh_record();
+
+    let asked = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("WithTerms"),
+        segment_id,
+    )
+    .expect("lap rap");
+    let json = serde_json::to_value(&asked).expect("serialize");
+    assert_eq!(
+        json["ledger"]["glossary"]["pending_matched"],
+        serde_json::json!([{
+            "id": entry_id,
+            "source_term": "dragon",
+            "start": 2,
+            "end": 8,
+            "tier": "global"
+        }])
+    );
+    assert_eq!(
+        json["ledger"]["glossary"]["injected"],
+        serde_json::json!([])
+    );
+
+    let not_asked = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        segment_id,
+    )
+    .expect("lap rap tron");
+    let json = serde_json::to_value(&not_asked).expect("serialize");
+    assert_eq!(
+        json["ledger"]["glossary"]["kind"],
+        serde_json::json!("not_asked")
+    );
+    assert_eq!(
+        json["ledger"]["glossary"]["pending_matched"],
+        serde_json::json!(null),
+        "chua hoi Glossary thi pending_matched la null, khong phai mang rong"
+    );
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn the_wire_reports_how_many_matching_tm_pairs_the_cap_cut_and_zero_is_not_null() {
+    let (global_dir, work_dir, global, open, segment_id) = tm_setup("omitted-wire");
+    let record = fresh_record();
+
+    let none = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("TmProbe"),
+        segment_id,
+    )
+    .expect("lap rap");
+    let json = serde_json::to_value(&none).expect("serialize");
+    assert_eq!(json["ledger"]["tm"]["kind"], serde_json::json!("searched"));
+    assert_eq!(
+        json["ledger"]["tm"]["omitted_count"],
+        serde_json::json!(0),
+        "da tim ma khong cap nao bi cat la 0, khong phai null"
+    );
+
+    let variants = [
+        "The old dragon breathed fire at the quiet town.",
+        "The old dragon breathed fire at the quiet hamlet.",
+        "The old dragon breathed fire at the quiet city.",
+        "The old dragon breathed fire at the quiet harbor.",
+        "The old dragon breathed fire at the quiet valley.",
+    ];
+    let distinct_targets: Vec<(String, String)> = variants
+        .iter()
+        .enumerate()
+        .map(|(i, s)| ((*s).to_owned(), format!("ban dich {i}")))
+        .collect();
+    let refs: Vec<(&str, &str, PairOrigin)> = distinct_targets
+        .iter()
+        .map(|(a, b)| (a.as_str(), b.as_str(), PairOrigin::SelfTranslated))
+        .collect();
+    seed_tm(&open.store, &refs);
+
+    let capped = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("TmProbe"),
+        segment_id,
+    )
+    .expect("lap rap");
+    let injected = capped
+        .ledger
+        .tm
+        .similar_segments
+        .as_ref()
+        .map_or(0, Vec::len);
+    let json = serde_json::to_value(&capped).expect("serialize");
+    assert_eq!(injected, 3, "tran 3 cap");
+    assert_eq!(json["ledger"]["tm"]["omitted_count"], serde_json::json!(2));
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
 }

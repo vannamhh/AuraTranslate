@@ -822,6 +822,7 @@ message_keys! {
     /// Segment mang `is_omitted == true` — bị từ chối TRƯỚC khi request được dựng (§Always
     /// spec 4.8: "never sent to a provider, checked before the request is built").
     AiTranslateSegmentOmitted => "err.ai_translate.segment_omitted" ["segment_id"],
+    AiTranslateNoPromptToResend => "err.ai_translate.no_prompt_to_resend" [],
 
     // ── Story 4.10 (FR75, Quyết định 2) — SÁU khoá HỌ NGUYÊN NHÂN, thay cho MỘT khoá gộp ──
     //

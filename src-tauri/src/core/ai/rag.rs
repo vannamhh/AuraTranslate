@@ -93,6 +93,16 @@ pub struct SuppressedGlossaryTerm {
     pub tier: GlossaryTier,
 }
 
+/// A matched glossary entry that has no translation yet; `id` is the entry id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingGlossaryTerm {
+    pub id: i64,
+    pub source_term: String,
+    pub start: usize,
+    pub end: usize,
+    pub tier: GlossaryTier,
+}
+
 /// Trạng thái Glossary của MỘT lượt gọi [`assemble_prompt`] — hai giá trị, không collapse.
 ///
 /// 🔴 `NotAsked` và `Asked { injected: vec![], .. }` là HAI biến thể `enum` khác nhau, không
@@ -109,6 +119,7 @@ pub enum GlossaryInjectionStatus {
     Asked {
         injected: Vec<InjectedGlossaryTerm>,
         suppressed_by_pending_overlap: Vec<SuppressedGlossaryTerm>,
+        pending_matched: Vec<PendingGlossaryTerm>,
     },
 }
 
@@ -130,7 +141,11 @@ pub struct InjectedTmPair {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TmInjectionStatus {
     NotAsked,
-    Searched(Vec<InjectedTmPair>),
+    /// `omitted_count` is the number of matching pairs left out by the pair cap.
+    Searched {
+        pairs: Vec<InjectedTmPair>,
+        omitted_count: usize,
+    },
 }
 
 /// Nhãn của MỘT mảnh `prompt` đã lắp — Story 4.7, finding B1 (loop 1), sửa lại ở loop 2
@@ -224,6 +239,7 @@ pub fn gather_glossary_context(
     let GlossaryInjectionOutcome {
         injected,
         suppressed_by_pending_overlap,
+        pending_matched,
     } = confirmed_terms_for_injection(resolver, global, work, sentence, lang)?;
 
     Ok(GlossaryInjectionStatus::Asked {
@@ -242,6 +258,16 @@ pub fn gather_glossary_context(
             .map(|t| SuppressedGlossaryTerm {
                 source_term: t.source_term,
                 translation: t.translation,
+                start: t.start,
+                end: t.end,
+                tier: t.tier,
+            })
+            .collect(),
+        pending_matched: pending_matched
+            .into_iter()
+            .map(|t| PendingGlossaryTerm {
+                id: t.id,
+                source_term: t.source_term,
                 start: t.start,
                 end: t.end,
                 tier: t.tier,
@@ -347,7 +373,7 @@ fn render_glossary_pairs(injected: &[InjectedGlossaryTerm]) -> String {
 
 /// The user's own pairs first, then others', each side by percent (stable, so ties keep the
 /// order `tm` came in); a pair identical to `sentence` is never picked; at most [`TM_PAIR_CAP`].
-fn select_tm_pairs(tm: &[SimilarSegment], sentence: &str) -> Vec<InjectedTmPair> {
+fn select_tm_pairs(tm: &[SimilarSegment], sentence: &str) -> (Vec<InjectedTmPair>, usize) {
     let side_sorted = |side: PairSide| {
         let mut picked: Vec<&SimilarSegment> = tm
             .iter()
@@ -357,10 +383,14 @@ fn select_tm_pairs(tm: &[SimilarSegment], sentence: &str) -> Vec<InjectedTmPair>
         picked
     };
     let mut seen: std::collections::HashSet<(&str, &str)> = std::collections::HashSet::new();
-    side_sorted(PairSide::Mine)
+    let distinct: Vec<&SimilarSegment> = side_sorted(PairSide::Mine)
         .into_iter()
         .chain(side_sorted(PairSide::Others))
         .filter(|s| seen.insert((s.source_text.as_str(), s.target_text.as_str())))
+        .collect();
+    let omitted_count = distinct.len().saturating_sub(TM_PAIR_CAP);
+    let pairs = distinct
+        .into_iter()
         .take(TM_PAIR_CAP)
         .map(|s| InjectedTmPair {
             source_text: s.source_text.clone(),
@@ -370,7 +400,8 @@ fn select_tm_pairs(tm: &[SimilarSegment], sentence: &str) -> Vec<InjectedTmPair>
             percent: s.percent,
             reference: s.side == PairSide::Others,
         })
-        .collect()
+        .collect();
+    (pairs, omitted_count)
 }
 
 fn render_tm_pairs(pairs: &[InjectedTmPair]) -> String {
@@ -666,11 +697,17 @@ pub fn assemble_prompt(
     };
     let tm_status = match tm {
         None => TmInjectionStatus::NotAsked,
-        Some(segments) => TmInjectionStatus::Searched(select_tm_pairs(segments, sentence)),
+        Some(segments) => {
+            let (pairs, omitted_count) = select_tm_pairs(segments, sentence);
+            TmInjectionStatus::Searched {
+                pairs,
+                omitted_count,
+            }
+        }
     };
     let tm_block = match &tm_status {
         TmInjectionStatus::NotAsked => String::new(),
-        TmInjectionStatus::Searched(pairs) => render_tm_pairs(pairs),
+        TmInjectionStatus::Searched { pairs, .. } => render_tm_pairs(pairs),
     };
 
     let (prompt, source_segment_seen, pieces) =

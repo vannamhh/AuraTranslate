@@ -32,7 +32,8 @@
  */
 import { readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { runAiTranslateSegment } from './config/aitranslate'
+import { runAiTranslateResendCall, runAiTranslateSegment } from './config/aitranslate'
+import type { AiTranslateOutcomeWire } from './config/aitranslate'
 import { cancelWhenGenerating } from './aiTranslateCancel'
 import type { AiTranslateUsageWire } from './config/aitranslate'
 import type { IpcError } from './i18n'
@@ -100,12 +101,29 @@ export function isAiTranslateResultStale(
  * xem doc-comment đầu tệp.
  */
 export async function runAiTranslate(promptSetName: string | null, segmentId: number | null): Promise<void> {
-  if (state.value === 'generating') {
-    console.warn('[ai-translate] khong dich: mot luot dich khac dang chay')
-    return
-  }
   if (segmentId === null) {
     console.warn('[ai-translate] khong dich: khong co cau nao dang duoc chon (editorCaretSegmentId === null)')
+    return
+  }
+  await runTranslateWith(segmentId, (onToken) => runAiTranslateSegment(segmentId, promptSetName, onToken))
+}
+
+/** Resends the prompt Rust recorded for `segmentId`; shares `runAiTranslate`'s state, so the result lands in the AI panel. */
+export async function resendAiPrompt(segmentId: number | null): Promise<void> {
+  if (segmentId === null) {
+    console.warn('[ai-translate] khong gui lai: chua co ban ghi prompt nao')
+    return
+  }
+  await runTranslateWith(segmentId, runAiTranslateResendCall)
+}
+
+type TranslateCall = (
+  onToken: (text: string) => void,
+) => Promise<{ value: AiTranslateOutcomeWire | null; error: IpcError | null }>
+
+async function runTranslateWith(segmentId: number, call: TranslateCall): Promise<void> {
+  if (state.value === 'generating') {
+    console.warn('[ai-translate] khong dich: mot luot dich khac dang chay')
     return
   }
 
@@ -124,7 +142,7 @@ export async function runAiTranslate(promptSetName: string | null, segmentId: nu
     accumulatedText.value += text
   }
 
-  const result = await runAiTranslateSegment(segmentId, promptSetName, onToken)
+  const result = await call(onToken)
   if (mine !== sequence) return // đã bị vượt mặt trong lúc lượt gọi này còn đang bay
 
   if (result.error !== null) {

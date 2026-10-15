@@ -106,16 +106,16 @@ function suppressedTerm(overrides: Partial<SuppressedGlossaryTermWire> = {}): Su
   return { source_term: 'dog', translation: 'cho', start: 4, end: 7, tier: 'global', ...overrides }
 }
 
-const NOT_ASKED: GlossaryInjectionStatusWire = { kind: 'not_asked', injected: null, suppressed_by_pending_overlap: null }
+const NOT_ASKED: GlossaryInjectionStatusWire = { kind: 'not_asked', injected: null, suppressed_by_pending_overlap: null, pending_matched: null }
 
 function asked(
   injected: InjectedGlossaryTermWire[],
   suppressed: SuppressedGlossaryTermWire[] = [],
 ): GlossaryInjectionStatusWire {
-  return { kind: 'asked', injected, suppressed_by_pending_overlap: suppressed }
+  return { kind: 'asked', injected, suppressed_by_pending_overlap: suppressed, pending_matched: [] }
 }
 
-const TM_NOT_ASKED: TmInjectionStatusWire = { kind: 'not_asked', similar_segments: null }
+const TM_NOT_ASKED: TmInjectionStatusWire = { kind: 'not_asked', similar_segments: null, omitted_count: null }
 
 function tmPair(over: Partial<SimilarSegmentWire> = {}): SimilarSegmentWire {
   return {
@@ -154,6 +154,9 @@ function record(overrides: Partial<AssembledPromptWire> = {}): AssembledPromptWi
       source_segment_missing: false,
       pieces: DEFAULT_PIECES,
     },
+    sent_at: null,
+    sent_model: null,
+    sent_usage: null,
     ...overrides,
   }
 }
@@ -302,10 +305,10 @@ describe('glossaryInjectionSummary — no_record / not_asked / asked-N, không c
   it('TM searched ⇒ tmCount là số cặp đã chèn; searched rỗng ⇒ 0 (không phải null)', async () => {
     const { state } = await freshOverlay()
     const withPairs = state.glossaryInjectionSummary(
-      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair(), tmPair()] } } }),
+      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair(), tmPair()], omitted_count: 0 } } }),
     )
     const empty = state.glossaryInjectionSummary(
-      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [] } } }),
+      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [], omitted_count: 0 } } }),
     )
     expect(withPairs).toEqual({ kind: 'asked', count: 0, tmCount: 2 })
     expect(empty).toEqual({ kind: 'asked', count: 0, tmCount: 0 })
@@ -389,7 +392,7 @@ describe('AiPromptInspectorOverlay.vue — "no record" khác "một bản ghi c�
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('[data-aip-body-state="present"]').exists()).toBe(true)
-    expect(wrapper.get('[data-aip-body-state="present"]').text()).toBe('Prompt thật.')
+    expect(wrapper.get('[data-aip-body-state="present"] .aip-piece').element.textContent).toBe('Prompt thật.')
 
     wrapper.unmount()
   })
@@ -426,9 +429,8 @@ describe('AiPromptInspectorOverlay.vue — "no record" khác "một bản ghi c�
     const body = wrapper.get('[data-aip-body-state="present"]')
     // Nối lại đúng `prompt` TỪNG BYTE, kể cả khoảng trắng đầu/cuối -- đối chứng chính của B1,
     // đo bằng `textContent` THÔ, không `.text()` (P12).
-    expect(body.element.textContent).toBe(prompt)
-
     const spans = body.findAll('.aip-piece')
+    expect(spans.map((span) => span.element.textContent).join('')).toBe(prompt)
     expect(spans).toHaveLength(5)
     const ALL_KIND_CLASSES = ['aip-piece-glossary', 'aip-piece-source_segment', 'aip-piece-tm']
 
@@ -531,7 +533,7 @@ describe('AiPromptInspectorOverlay.vue — Glossary: not_asked / asked-0 / asked
 })
 
 describe('AiPromptInspectorOverlay.vue — danh sách "đã cân nhắc nhưng không chèn" (Decision 3)', () => {
-  it('mang tier + lý do CHỜ CHỐT trên MỖI dòng, và KHÔNG một hành động sửa-ngay nào', async () => {
+  it('mục bị che mang tier + lý do, và có lối sửa "Xem mục"', async () => {
     const { state, i18n, AiPromptInspectorOverlay } = await freshOverlay()
     readRecordMock.mockResolvedValue(
       record({
@@ -547,28 +549,20 @@ describe('AiPromptInspectorOverlay.vue — danh sách "đã cân nhắc nhưng k
     const wrapper = mount(AiPromptInspectorOverlay)
     await wrapper.vm.$nextTick()
 
-    const rows = wrapper.findAll('.aip-term-list-suppressed .aip-term-row')
+    const rows = wrapper.findAll('[data-aip-excluded-kind="suppressed"]')
     expect(rows).toHaveLength(1)
     const row = rows[0]
 
     expect(row.get('.aip-term-source').text()).toBe('dog')
     expect(row.get('.aip-term-translation').text()).toBe('cho')
     expect(row.get('.aip-term-tier').text()).toBe(i18n.t('ai.prompt_inspector.tier_work'))
-    expect(row.get('.aip-term-reason').text()).toBe(
-      i18n.t('ai.prompt_inspector.glossary_suppressed_reason_pending_overlap'),
-    )
-
-    // Decision 3 — read-only: KHÔNG một <button>/<a> nào trong hàng "đã cân nhắc nhưng không
-    // chèn", khác hẳn mockup's fix-it-now action.
-    expect(row.findAll('button')).toHaveLength(0)
-    expect(row.findAll('a')).toHaveLength(0)
-    // Và đối chứng bên NGOÀI toàn danh sách suppressed — không sót một nút nào ở đây nói chung.
-    expect(wrapper.find('.aip-term-list-suppressed button').exists()).toBe(false)
+    expect(row.get('.aip-ewhy').text()).toBe(i18n.t('ai.prompt_inspector.glossary_suppressed_reason_pending_overlap'))
+    expect(row.findAll('button')).toHaveLength(1)
 
     wrapper.unmount()
   })
 
-  it('rỗng ⇒ ghi chú "không có thuật ngữ nào bị loại", không một <ul> nào render', async () => {
+  it('không mục nào bị loại ⇒ ghi chú rỗng có chữ, không hàng nào', async () => {
     const { state, i18n, AiPromptInspectorOverlay } = await freshOverlay()
     readRecordMock.mockResolvedValue(record({ ledger: { ...record().ledger, glossary: asked([]) } }))
     state.openAiPromptInspector()
@@ -577,8 +571,8 @@ describe('AiPromptInspectorOverlay.vue — danh sách "đã cân nhắc nhưng k
     const wrapper = mount(AiPromptInspectorOverlay)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.aip-term-list-suppressed').exists()).toBe(false)
-    expect(wrapper.text()).toContain(i18n.t('ai.prompt_inspector.glossary_suppressed_empty'))
+    expect(wrapper.find('[data-aip-excluded-kind]').exists()).toBe(false)
+    expect(wrapper.get('[data-aip-excluded-empty]').text()).toBe(i18n.t('ai.prompt_inspector.excluded_empty'))
 
     wrapper.unmount()
   })
@@ -604,7 +598,7 @@ describe('AiPromptInspectorOverlay.vue — TM: not_asked khác searched-rỗng k
   it('kind "searched" rỗng ⇒ "0 câu", không có danh sách', async () => {
     const { state, i18n, AiPromptInspectorOverlay } = await freshOverlay()
     readRecordMock.mockResolvedValue(
-      record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: [] } } }),
+      record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: [], omitted_count: 0 } } }),
     )
     state.openAiPromptInspector()
     await flushPromises()
@@ -626,7 +620,7 @@ describe('AiPromptInspectorOverlay.vue — TM: not_asked khác searched-rỗng k
       tmPair({ source_text: 'Other src', target_text: 'Other tgt', side: 'others', tier: 'global', percent: 90, reference: true }),
     ]
     readRecordMock.mockResolvedValue(
-      record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: pairs } } }),
+      record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: pairs, omitted_count: 0 } } }),
     )
     state.openAiPromptInspector()
     await flushPromises()
@@ -1401,7 +1395,7 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
         ledger: {
           ...record().ledger,
           glossary: asked([injectedTerm()]),
-          tm: { kind: 'searched', similar_segments: [tmPair(), tmPair({ side: 'others', reference: true })] },
+          tm: { kind: 'searched', similar_segments: [tmPair(), tmPair({ side: 'others', reference: true })], omitted_count: 0 },
         },
       }),
     )
@@ -1425,7 +1419,7 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
     const readsBefore = readRecordMock.mock.calls.length
 
     readRecordMock.mockResolvedValue(
-      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair()] } } }),
+      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair()], omitted_count: 0 } } }),
     )
     const batchState = await import('../../src/aiTranslateBatchState')
     await batchState.runAiTranslateBatch('Happy', [5, 6])
@@ -1453,7 +1447,7 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
         ledger: {
           ...record().ledger,
           glossary: asked([]),
-          tm: { kind: 'searched', similar_segments: [tmPair()] },
+          tm: { kind: 'searched', similar_segments: [tmPair()], omitted_count: 0 },
         },
       }),
     )

@@ -2082,15 +2082,15 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
     ),
     (
         "src/commands/aitranslate.rs",
-        3,
+        4,
         0,
         0,
-        "CHUA DO -- chu: Dev. Ba vo (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2): \
-         `ai_translate_segment` va `ai_translate_batch` deu la `async fn` LITERAL -- than moi \
+        "CHUA DO -- chu: Dev. Bon vo (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12): \
+         `ai_translate_segment`, `ai_translate_batch` va `ai_translate_resend` deu la `async fn` LITERAL -- than moi \
          ham tu spawn mot luong cua ho boi blocking roi `Handle::block_on` BEN TRONG luong do \
          (xem doc-comment dau `commands/aitranslate.rs`), nen khong ham nao giu `OpenWorkState` \
          xuyen mot luot goi mang co the dai hang chuc giay; `ai_translate_cancel` chi bom mot \
-         `AtomicU64`, dung CHUNG cho ca lot dich mot segment lan mot lo. Ca ba la vo \
+         `AtomicU64`, dung CHUNG cho ca lot dich mot segment lan mot lo. Ca bon la vo \
          `#[tauri::command]` PLAIN ve mat CHU KY thuoc tinh -- `count_command_attrs_in` doc VAN \
          BAN dong thuoc tinh, khong doc `asyncness` cua chu ky ham, nen mot `async fn` mang \
          `#[tauri::command]` tran (khong `(async)`) roi vao cot `plain` dung nhu mot ham dong \
@@ -2327,9 +2327,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (93, 61),
+        (94, 61),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         93/61.\n\n\
+         94/61.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

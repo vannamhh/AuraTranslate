@@ -93,6 +93,7 @@ fn a_confirmed_global_term_is_injected_and_listed_in_the_ledger() {
         GlossaryInjectionStatus::Asked {
             injected,
             suppressed_by_pending_overlap,
+            ..
         } => {
             // "A dragon roared." -- "dragon" chiem diem ma 2..8.
             assert_eq!(
@@ -502,6 +503,7 @@ fn a_pending_term_overlapping_a_confirmed_term_suppresses_both_and_the_ledger_na
         GlossaryInjectionStatus::Asked {
             injected,
             suppressed_by_pending_overlap,
+            ..
         } => {
             assert!(injected.is_empty(), "khong ben nao duoc chen: {injected:?}");
             assert_eq!(
@@ -659,7 +661,7 @@ fn tm_prompt(segments: &[SimilarSegment]) -> (String, InjectionLedger) {
 
 fn injected(ledger: &InjectionLedger) -> &[InjectedTmPair] {
     match &ledger.tm {
-        TmInjectionStatus::Searched(pairs) => pairs,
+        TmInjectionStatus::Searched { pairs, .. } => pairs,
         other => panic!("tm phai la Searched, nhan {other:?}"),
     }
 }
@@ -677,7 +679,13 @@ fn tm_not_asked_removes_the_marker_line_and_ledger_records_not_asked() {
 fn tm_searched_with_an_empty_slice_removes_the_line_and_is_searched_not_not_asked() {
     let (prompt, ledger) = tm_prompt(&[]);
     assert_eq!(prompt, "TM:\nHello.");
-    assert_eq!(ledger.tm, TmInjectionStatus::Searched(Vec::new()));
+    assert_eq!(
+        ledger.tm,
+        TmInjectionStatus::Searched {
+            pairs: Vec::new(),
+            omitted_count: 0
+        }
+    );
     assert_ne!(ledger.tm, TmInjectionStatus::NotAsked);
 }
 
@@ -865,6 +873,7 @@ fn a_marker_sharing_its_line_with_two_or_more_pairs_never_splices_mid_line() {
             },
         ],
         suppressed_by_pending_overlap: Vec::new(),
+        pending_matched: Vec::new(),
     };
     let body = "Terms: {{glossary_terms}} end.";
     let (prompt, _ledger) = assemble_prompt(body, "Hello.", status, None);
@@ -946,6 +955,7 @@ fn injected_text_containing_a_literal_marker_is_never_rescanned() {
             tier: GlossaryTier::Global,
         }],
         suppressed_by_pending_overlap: Vec::new(),
+        pending_matched: Vec::new(),
     };
     let body = "{{glossary_terms}}\n---\n{{source_segment}}";
     let (prompt, ledger) = assemble_prompt(body, "A widget here.", status, None);
@@ -1001,6 +1011,7 @@ fn render_glossary_pairs_dedupes_by_source_term_but_the_ledger_keeps_every_occur
             },
         ],
         suppressed_by_pending_overlap: Vec::new(),
+        pending_matched: Vec::new(),
     };
     let body = "{{glossary_terms}}\n{{source_segment}}";
     let (prompt, ledger) = assemble_prompt(body, "The dog and the dog.", status, None);
@@ -1237,6 +1248,7 @@ fn calling_assemble_prompt_twice_on_the_same_inputs_is_byte_identical() {
             },
         ],
         suppressed_by_pending_overlap: Vec::new(),
+        pending_matched: Vec::new(),
     };
     let (prompt1, ledger1) = assemble_prompt(GLOSSARY_BODY, "Hello.", status.clone(), None);
     let (prompt2, ledger2) = assemble_prompt(GLOSSARY_BODY, "Hello.", status, None);
@@ -1561,4 +1573,288 @@ fn confirmed_terms_for_injection_fails_loudly_when_the_resolver_reports_work_but
 
     drop(global);
     cleanup(&global_dir);
+}
+
+fn asked_parts(
+    status: &GlossaryInjectionStatus,
+) -> (
+    &[InjectedGlossaryTerm],
+    &[auratranslate_lib::core::ai::rag::PendingGlossaryTerm],
+) {
+    match status {
+        GlossaryInjectionStatus::Asked {
+            injected,
+            pending_matched,
+            ..
+        } => (injected, pending_matched),
+        other => panic!("mong Asked, nhan {other:?}"),
+    }
+}
+
+#[test]
+fn a_matched_pending_entry_is_listed_with_its_id_span_and_tier_but_never_injected() {
+    let dir = temp_dir("pending-matched");
+    let global = open_global(&dir);
+    let id = add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them muc cho chot");
+
+    let resolver = ScopeResolver::global_only();
+    let status = gather_glossary_context(
+        GLOSSARY_BODY,
+        &resolver,
+        &global,
+        None,
+        "en",
+        "A dragon roared.",
+    )
+    .expect("gather khong loi");
+    let (injected, pending) = asked_parts(&status);
+
+    assert!(injected.is_empty(), "muc cho chot khong duoc chen");
+    assert_eq!(
+        pending,
+        &[auratranslate_lib::core::ai::rag::PendingGlossaryTerm {
+            id,
+            source_term: "dragon".to_owned(),
+            start: 2,
+            end: 8,
+            tier: GlossaryTier::Global,
+        }]
+    );
+
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_confirmed_entry_is_injected_and_never_listed_as_pending_matched() {
+    let dir = temp_dir("pending-matched-confirmed");
+    let global = open_global(&dir);
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them muc da chot");
+
+    let resolver = ScopeResolver::global_only();
+    let status = gather_glossary_context(
+        GLOSSARY_BODY,
+        &resolver,
+        &global,
+        None,
+        "en",
+        "A dragon roared.",
+    )
+    .expect("gather khong loi");
+    let (injected, pending) = asked_parts(&status);
+
+    assert_eq!(injected.len(), 1);
+    assert!(pending.is_empty(), "muc da chot khong phai muc cho chot");
+
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_pending_work_entry_shadowing_a_confirmed_global_one_is_the_one_listed_as_pending() {
+    let global_dir = temp_dir("pending-matched-shadow-global");
+    let work_dir = temp_dir("pending-matched-shadow-work");
+    let global = open_global(&global_dir);
+    let work = open_project(&work_dir);
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        Some("rong"),
+        "",
+        Category::Other,
+    )
+    .expect("them global da chot");
+    let work_id = add_manual_term(
+        &global,
+        Some(&work),
+        GlossaryTier::Work,
+        "dragon",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them work cho chot");
+
+    let resolver = ScopeResolver::with_work(WorkScope {
+        work_id: "w1".to_owned(),
+    });
+    let status = gather_glossary_context(
+        GLOSSARY_BODY,
+        &resolver,
+        &global,
+        Some(&work),
+        "en",
+        "A dragon roared.",
+    )
+    .expect("gather khong loi");
+    let (injected, pending) = asked_parts(&status);
+
+    assert!(injected.is_empty());
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].id, work_id);
+    assert_eq!(pending[0].tier, GlossaryTier::Work);
+
+    drop(global);
+    drop(work);
+    cleanup(&global_dir);
+    cleanup(&work_dir);
+}
+
+#[test]
+fn the_pending_winner_of_an_overlap_is_listed_while_the_confirmed_loser_stays_in_suppressed() {
+    let dir = temp_dir("pending-matched-overlap");
+    let global = open_global(&dir);
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dog",
+        Some("cho"),
+        "",
+        Category::Other,
+    )
+    .expect("them dog da chot");
+    let walker_id = add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dog walker",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them dog walker cho chot");
+
+    let resolver = ScopeResolver::global_only();
+    let status = gather_glossary_context(
+        GLOSSARY_BODY,
+        &resolver,
+        &global,
+        None,
+        "en",
+        "The dog walker arrived.",
+    )
+    .expect("gather khong loi");
+    let (injected, pending) = asked_parts(&status);
+
+    assert!(injected.is_empty());
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].id, walker_id);
+    assert_eq!(pending[0].source_term, "dog walker");
+    assert_eq!((pending[0].start, pending[0].end), (4, 14));
+    match &status {
+        GlossaryInjectionStatus::Asked {
+            suppressed_by_pending_overlap,
+            ..
+        } => assert_eq!(suppressed_by_pending_overlap.len(), 1),
+        other => panic!("mong Asked, nhan {other:?}"),
+    }
+
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_pending_entry_that_does_not_match_the_sentence_is_not_listed() {
+    let dir = temp_dir("pending-matched-no-match");
+    let global = open_global(&dir);
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them muc cho chot");
+
+    let resolver = ScopeResolver::global_only();
+    let status = gather_glossary_context(
+        GLOSSARY_BODY,
+        &resolver,
+        &global,
+        None,
+        "en",
+        "A knight rode.",
+    )
+    .expect("gather khong loi");
+    let (injected, pending) = asked_parts(&status);
+    assert!(injected.is_empty());
+    assert!(pending.is_empty());
+
+    drop(global);
+    cleanup(&dir);
+}
+
+fn omitted_count_of(ledger: &InjectionLedger) -> usize {
+    match &ledger.tm {
+        TmInjectionStatus::Searched { omitted_count, .. } => *omitted_count,
+        other => panic!("tm phai la Searched, nhan {other:?}"),
+    }
+}
+
+#[test]
+fn omitted_count_is_the_number_of_matching_pairs_the_cap_cut() {
+    let segments = vec![
+        seg("M1", "t-m1", PairSide::Mine, 90),
+        seg("M2", "t-m2", PairSide::Mine, 80),
+        seg("M3", "t-m3", PairSide::Mine, 70),
+        seg("M4", "t-m4", PairSide::Mine, 60),
+        seg("O1", "t-o1", PairSide::Others, 99),
+    ];
+    let (_prompt, ledger) = tm_prompt(&segments);
+    assert_eq!(injected(&ledger).len(), 3);
+    assert_eq!(omitted_count_of(&ledger), 2);
+}
+
+#[test]
+fn omitted_count_is_zero_at_or_under_the_cap() {
+    let at_cap = vec![
+        seg("M1", "t-m1", PairSide::Mine, 90),
+        seg("M2", "t-m2", PairSide::Mine, 80),
+        seg("M3", "t-m3", PairSide::Mine, 70),
+    ];
+    let (_p, ledger) = tm_prompt(&at_cap);
+    assert_eq!(omitted_count_of(&ledger), 0);
+    let (_p, empty) = tm_prompt(&[]);
+    assert_eq!(omitted_count_of(&empty), 0);
+}
+
+#[test]
+fn omitted_count_ignores_duplicates_and_a_pair_equal_to_the_sentence() {
+    let segments = vec![
+        seg("M1", "t-m1", PairSide::Mine, 90),
+        seg("M2", "t-m2", PairSide::Mine, 80),
+        seg("M3", "t-m3", PairSide::Mine, 70),
+        seg("M3", "t-m3", PairSide::Others, 70),
+        seg("Hello.", "t-same", PairSide::Mine, 100),
+    ];
+    let (_p, ledger) = tm_prompt(&segments);
+    assert_eq!(injected(&ledger).len(), 3);
+    assert_eq!(
+        omitted_count_of(&ledger),
+        0,
+        "ban sao va cap trung cau khong phai cap bi trần cat"
+    );
 }

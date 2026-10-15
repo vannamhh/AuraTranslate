@@ -1656,6 +1656,16 @@ pub struct SuppressedByPendingOverlap {
     pub end: usize,
 }
 
+/// A matched glossary entry that has no translation yet; `id` is the entry id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingMatchedTerm {
+    pub id: i64,
+    pub source_term: String,
+    pub tier: GlossaryTier,
+    pub start: usize,
+    pub end: usize,
+}
+
 /// Kết quả của [`confirmed_terms_for_injection`] — TRỌN những gì `core::ai::rag` cần để dựng
 /// ledger, không hơn.
 ///
@@ -1671,6 +1681,7 @@ pub struct GlossaryInjectionOutcome {
     pub injected: Vec<GlossaryInjectionTerm>,
     /// Xem [`SuppressedByPendingOverlap`].
     pub suppressed_by_pending_overlap: Vec<SuppressedByPendingOverlap>,
+    pub pending_matched: Vec<PendingMatchedTerm>,
 }
 
 /// **Cửa DUY NHẤT** vào dữ liệu Glossary cho `core::ai::rag` (Story 4.6, Decision 5 —
@@ -1722,6 +1733,23 @@ pub fn confirmed_terms_for_injection(
                 tier: *tier,
                 source_term: entry.source_term.clone(),
                 translation,
+            })
+        })
+        .collect();
+
+    let pending_matched: Vec<PendingMatchedTerm> = selected
+        .iter()
+        .filter_map(|m| {
+            let (tier, entry) = &payload[m.term_index];
+            if entry.is_confirmed() {
+                return None;
+            }
+            Some(PendingMatchedTerm {
+                id: entry.id,
+                source_term: entry.source_term.clone(),
+                tier: *tier,
+                start: byte_to_codepoint(&boundaries, m.span.start),
+                end: byte_to_codepoint(&boundaries, m.span.end),
             })
         })
         .collect();
@@ -1778,6 +1806,7 @@ pub fn confirmed_terms_for_injection(
     Ok(GlossaryInjectionOutcome {
         injected,
         suppressed_by_pending_overlap: suppressed,
+        pending_matched,
     })
 }
 

@@ -56,7 +56,8 @@ use auratranslate_lib::commands::aiprompt::{
 use auratranslate_lib::commands::aitranslate::{
     AiTranslateBatchEventWire, AiTranslateBatchOutcome, PrepareBatchOutcome, PrepareOutcome,
     PreparedBatchItem, PreparedTranslateCall, batch_panicked_error, batch_stopped_error,
-    prepare_batch_call, prepare_translate_call, run_batch_call, run_translate_call,
+    prepare_batch_call, prepare_resend_call, prepare_translate_call, run_batch_call,
+    run_translate_call,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::promptset::prompt_set_create;
@@ -1078,6 +1079,7 @@ fn assemble_only_and_translate_write_an_identical_record_differing_only_in_the_s
         &prepared.prompt,
         "gpt-test",
         "2026-09-21T00:00:00.000Z",
+        None,
     );
     let wire_translate = read_last_assembled_prompt(&record_translate).expect("phai co ban ghi");
 
@@ -1201,6 +1203,7 @@ fn a_record_replaced_mid_flight_by_a_newer_assemble_is_left_unstamped() {
         &sent_prompt,
         "gpt-test",
         "2026-09-21T00:00:00.000Z",
+        None,
     );
 
     let wire = read_last_assembled_prompt(&record).expect("phai co ban ghi");
@@ -3568,4 +3571,348 @@ fn cancelling_exactly_between_two_sentences_never_calls_the_provider_for_the_nex
         got, expected,
         "cau 1 va cau 2 hoan tat sach; khong su kien nao cho cau 3"
     );
+}
+
+struct RecordingProvider {
+    seen_prompts: Arc<Mutex<Vec<String>>>,
+    usage: Option<TranslateUsage>,
+}
+
+impl TranslationProvider for RecordingProvider {
+    type Error = FakeProviderError;
+
+    async fn translate(
+        &self,
+        request: TranslateRequest<'_>,
+        on_token: &mut dyn FnMut(&str),
+        _should_cancel: &dyn Fn() -> bool,
+    ) -> Result<TranslateOutcome, Self::Error> {
+        self.seen_prompts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(request.prompt.to_owned());
+        on_token("Xin chào");
+        Ok(TranslateOutcome::Done(self.usage))
+    }
+}
+
+const RESEND_USAGE: TranslateUsage = TranslateUsage {
+    prompt_tokens: 100,
+    completion_tokens: 312,
+    total_tokens: 412,
+    cost_usd: Some(0.00412),
+};
+
+struct ResendFixture {
+    global_dir: PathBuf,
+    work_dir: PathBuf,
+    global: Store,
+    open: OpenWork,
+    segment_id: i64,
+    record: LastAssembledPromptState,
+}
+
+impl ResendFixture {
+    fn teardown(self) {
+        let Self {
+            global_dir,
+            work_dir,
+            global,
+            open,
+            ..
+        } = self;
+        drop(open);
+        drop(global);
+        cleanup(&work_dir);
+        cleanup(&global_dir);
+    }
+}
+
+fn resend_fixture(tag: &str, configure: bool) -> ResendFixture {
+    let global_dir = temp_dir(&format!("{tag}-global"));
+    let work_dir = temp_dir(&format!("{tag}-work"));
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, tag, "en", "A dragon roared.");
+    if configure {
+        write_field(
+            &global,
+            AiConfigField::Endpoint,
+            "https://api.example.invalid/v1/chat/completions",
+        )
+        .expect("ghi endpoint");
+        write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+    }
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "Dich: {{source_segment}}",
+    )
+    .expect("tao bo prompt");
+    let segment_id = first_segment_id(&open);
+    let record = fresh_record();
+    assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        segment_id,
+    )
+    .expect("lap rap khong duoc loi");
+    ResendFixture {
+        global_dir,
+        work_dir,
+        global,
+        open,
+        segment_id,
+        record,
+    }
+}
+
+fn set_record_prompt(record: &LastAssembledPromptState, prompt: &str) {
+    record
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .as_mut()
+        .expect("phai co ban ghi")
+        .prompt = prompt.to_owned();
+}
+
+#[test]
+fn resend_sends_the_recorded_prompt_byte_for_byte_writes_no_segment_and_stamps_the_usage() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    save_key("sk-resend-test-key");
+    let fx = resend_fixture("resend-bytes", true);
+
+    // Chuoi khong the tai lap boi mot lan lap rap lai: moi lan lap rap tu bo "Plain" cho
+    // "Dich: A dragon roared.", nen chi doc tu ban ghi moi cho ra chuoi nay.
+    let recorded = "  Chuoi la\tcua ban ghi \u{1F409}\n--\nA dragon roared.  ";
+    set_record_prompt(&fx.record, recorded);
+    let before = read_text_and_origin(&fx.open, fx.segment_id);
+    let source_before = read_open_chapter_segments(Some(&fx.open))
+        .expect("nap chuong")
+        .segments[0]
+        .source_text
+        .clone();
+
+    let (segment_id, outcome) =
+        prepare_resend_call(Some(&fx.global), Some(&fx.open), &fx.record).expect("khong loi");
+    assert_eq!(
+        segment_id, fx.segment_id,
+        "ket qua thuoc segment cua ban ghi"
+    );
+    let prepared = match outcome {
+        PrepareOutcome::Ready(p) => p,
+        PrepareOutcome::NotConfigured => panic!("phai san sang"),
+    };
+    assert_eq!(prepared.prompt, recorded);
+
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let provider = RecordingProvider {
+        seen_prompts: Arc::clone(&seen),
+        usage: Some(RESEND_USAGE),
+    };
+    let (channel, received) = collecting_channel();
+    let done =
+        tauri::async_runtime::block_on(run_translate_call(&provider, &prepared, &channel, &|| {
+            false
+        }))
+        .expect("khong duoc loi");
+    assert_eq!(done, TranslateOutcome::Done(Some(RESEND_USAGE)));
+    assert_eq!(
+        *seen.lock().expect("khoa"),
+        vec![recorded.to_owned()],
+        "provider phai nhan DUNG chuoi cua ban ghi, tung byte"
+    );
+    assert_eq!(*received.lock().expect("khoa"), vec!["Xin chào".to_owned()]);
+
+    let TranslateOutcome::Done(usage) = done else {
+        panic!("phai Done")
+    };
+    mark_prompt_as_sent(
+        &fx.record,
+        segment_id,
+        &prepared.prompt,
+        &prepared.model,
+        "2026-10-15T00:00:00.000Z",
+        usage.map(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from),
+    );
+    let wire = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
+    assert_eq!(wire.prompt, recorded, "gui lai khong doi ban ghi");
+    assert_eq!(wire.sent_at.as_deref(), Some("2026-10-15T00:00:00.000Z"));
+    assert_eq!(wire.sent_model.as_deref(), Some("gpt-test"));
+    let stamped = wire.sent_usage.expect("usage phai duoc dong dau");
+    assert_eq!(stamped.total_tokens, 412);
+    assert_eq!(stamped.prompt_tokens, 100);
+    assert_eq!(stamped.completion_tokens, 312);
+    assert_eq!(stamped.cost_usd, Some(0.00412));
+
+    assert_eq!(
+        read_text_and_origin(&fx.open, fx.segment_id),
+        before,
+        "gui lai khong duoc ghi target_text hay translation_origin"
+    );
+    assert_eq!(
+        read_open_chapter_segments(Some(&fx.open))
+            .expect("nap chuong")
+            .segments[0]
+            .source_text,
+        source_before
+    );
+    fx.teardown();
+}
+
+#[test]
+fn resend_with_nothing_assembled_is_an_error_not_a_silent_empty_send() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    save_key("sk-resend-none-key");
+    let global_dir = temp_dir("resend-none-global");
+    let global = open_global(&global_dir);
+
+    let err = expect_prepare_err(
+        prepare_resend_call(Some(&global), None, &fresh_record()).map(|(_, o)| o),
+        "khong co ban ghi",
+    );
+    assert_eq!(err.code(), "ai_translate.no_prompt_to_resend");
+    assert!(!err.retryable());
+
+    drop(global);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn resend_reports_not_configured_without_a_key_or_endpoint_and_leaves_the_record_unstamped() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    let fx = resend_fixture("resend-notconf-key", true);
+    let (segment_id, no_key) =
+        prepare_resend_call(Some(&fx.global), Some(&fx.open), &fx.record).expect("khong loi");
+    assert_eq!(segment_id, fx.segment_id);
+    assert!(matches!(no_key, PrepareOutcome::NotConfigured));
+    fx.teardown();
+
+    save_key("sk-resend-notconf-key");
+    let fx = resend_fixture("resend-notconf-endpoint", false);
+    let (_, no_endpoint) =
+        prepare_resend_call(Some(&fx.global), Some(&fx.open), &fx.record).expect("khong loi");
+    assert!(matches!(no_endpoint, PrepareOutcome::NotConfigured));
+    let wire = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
+    assert_eq!(wire.sent_at, None);
+    assert!(wire.sent_usage.is_none());
+    fx.teardown();
+}
+
+#[test]
+fn a_send_whose_provider_returned_no_usage_stamps_sent_at_but_leaves_usage_none_not_zero() {
+    let fx = resend_fixture("stamp-no-usage", true);
+    let prompt = read_last_assembled_prompt(&fx.record)
+        .expect("phai co ban ghi")
+        .prompt;
+    mark_prompt_as_sent(
+        &fx.record,
+        fx.segment_id,
+        &prompt,
+        "gpt-test",
+        "2026-10-15T00:00:00.000Z",
+        None,
+    );
+    let wire = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
+    assert!(wire.sent_at.is_some());
+    assert!(
+        wire.sent_usage.is_none(),
+        "provider khong tra usage la None, khong phai mot usage toan so 0"
+    );
+    let json = serde_json::to_value(&wire).expect("serialize");
+    assert_eq!(json["sent_usage"], serde_json::json!(null));
+    fx.teardown();
+}
+
+#[test]
+fn stamped_usage_serializes_with_the_exact_field_names_the_webview_guard_reads() {
+    let fx = resend_fixture("stamp-usage-json", true);
+    let prompt = read_last_assembled_prompt(&fx.record)
+        .expect("phai co ban ghi")
+        .prompt;
+    mark_prompt_as_sent(
+        &fx.record,
+        fx.segment_id,
+        &prompt,
+        "gpt-test",
+        "2026-10-15T00:00:00.000Z",
+        Some(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(RESEND_USAGE)),
+    );
+    let json = serde_json::to_value(read_last_assembled_prompt(&fx.record).expect("ban ghi"))
+        .expect("json");
+    assert_eq!(
+        json["sent_usage"],
+        serde_json::json!({
+            "prompt_tokens": 100,
+            "completion_tokens": 312,
+            "total_tokens": 412,
+            "cost_usd": 0.00412
+        })
+    );
+    fx.teardown();
+}
+
+#[test]
+fn a_record_reassembled_after_a_send_carries_no_stale_sent_facts_and_a_late_stamp_is_ignored() {
+    let fx = resend_fixture("stamp-reassembled", true);
+    let old_prompt = read_last_assembled_prompt(&fx.record)
+        .expect("phai co ban ghi")
+        .prompt;
+    mark_prompt_as_sent(
+        &fx.record,
+        fx.segment_id,
+        &old_prompt,
+        "gpt-test",
+        "2026-10-15T00:00:00.000Z",
+        Some(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(RESEND_USAGE)),
+    );
+
+    prompt_set_create(
+        Some(&fx.global),
+        Some(&fx.open),
+        PromptSetTier::Global,
+        "Other",
+        "Doi bo: {{source_segment}}",
+    )
+    .expect("tao bo prompt thu hai");
+    let reassembled = assemble_and_record_prompt(
+        Some(&fx.global),
+        Some(&fx.open),
+        &fx.record,
+        Some("Other"),
+        fx.segment_id,
+    )
+    .expect("lap lai");
+    assert_ne!(reassembled.prompt, old_prompt);
+    assert_eq!(reassembled.sent_at, None);
+    assert_eq!(reassembled.sent_model, None);
+    assert!(
+        reassembled.sent_usage.is_none(),
+        "lap lai phai xoa usage cua lot gui truoc"
+    );
+
+    mark_prompt_as_sent(
+        &fx.record,
+        fx.segment_id,
+        &old_prompt,
+        "gpt-test",
+        "2026-10-15T00:01:00.000Z",
+        Some(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(RESEND_USAGE)),
+    );
+    let wire = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
+    assert_eq!(wire.sent_at, None, "dau cham cua chuoi cu bi bo qua");
+    assert!(wire.sent_usage.is_none());
+    fx.teardown();
 }

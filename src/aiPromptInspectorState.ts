@@ -22,7 +22,7 @@
  *
  * ⚠️ Cùng luật mọi state Vue khác: tệp này KHÔNG được `import` vào `src/commands/index.ts`.
  */
-import { computed, readonly, ref } from 'vue'
+import { computed, nextTick, readonly, ref } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { aiPromptAssemble, aiPromptReadRecord } from './config/aiprompt'
 import type { AssembledPromptWire } from './config/aiprompt'
@@ -46,11 +46,43 @@ const readError = ref<IpcError | null>(null)
 /** Glossary count of the record before the current one, set only when that record belonged to another segment. */
 const previousGlossaryCount = ref<number | null>(null)
 
+export type AiPromptInspectorTab = 'result' | 'prompt'
+const tab = ref<AiPromptInspectorTab>('prompt')
+export type AiPromptCopyState = 'idle' | 'copied' | 'failed'
+const copyState = ref<AiPromptCopyState>('idle')
+
 /** Số thứ tự lượt ghi/đọc — chỉ lượt MỚI NHẤT được quyền ghi [`record`] (khuôn
  * `promptSetState.ts`/`aiConfigState.ts`). Một sequence DUY NHẤT cho cả Lắp và Đọc: hai
  * đường đều ghi vào CÙNG một ô, nên một lượt Đọc trả lời TRỄ không được phép ghi đè lên kết
  * quả của một lượt Lắp đã XẢY RA SAU nó, và ngược lại. */
 let sequence = 0
+
+export function selectAiPromptInspectorTab(next: AiPromptInspectorTab): void {
+  tab.value = next
+}
+
+/** Closes, then runs `next` after the overlay's focus-return watcher, which would otherwise steal the focus `next` sets. */
+export async function closeAiPromptInspectorThen(next: () => void): Promise<void> {
+  overlayOpen.value = false
+  await nextTick()
+  next()
+}
+
+/** Copies `record.prompt` verbatim; a clipboard refusal becomes `'failed'`. */
+export async function copyAiPromptToClipboard(): Promise<void> {
+  const current = record.value
+  if (current === null) {
+    console.warn('[ai-prompt-inspector] khong chep: chua co ban ghi prompt nao')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(current.prompt)
+    copyState.value = 'copied'
+  } catch (err) {
+    console.error(`[ai-prompt-inspector] clipboard tu choi: ${String(err)}`)
+    copyState.value = 'failed'
+  }
+}
 
 /**
  * ⚠️ **SỬA 2026-09-18 — cờ `assembleBusy` có thể TREO MÃI, bắt được ở lượt rà soát build.**
@@ -89,6 +121,8 @@ export const aiPromptInspectorIsOpen: DeepReadonly<Ref<boolean>> = readonly(over
 /** Bản ghi hiện tại của phiên, hoặc `null` khi chưa có lượt Lắp nào — I/O Matrix "Nothing
  * recorded yet ... this is a state, not an error". */
 export const aiPromptRecord: DeepReadonly<Ref<AssembledPromptWire | null>> = readonly(record)
+export const aiPromptInspectorTab: DeepReadonly<Ref<AiPromptInspectorTab>> = readonly(tab)
+export const aiPromptCopyState: DeepReadonly<Ref<AiPromptCopyState>> = readonly(copyState)
 export const aiPromptAssembleBusy: DeepReadonly<Ref<boolean>> = readonly(assembleBusy)
 /** Lỗi của lượt LẮP gần nhất — `null` sau một lượt thành công hoặc khi chưa lắp lần nào.
  * RIÊNG với một lỗi đọc: [`refreshAiPromptRecord`] không có đường lỗi (`ai_prompt_read_record`
@@ -127,6 +161,8 @@ export async function refreshAiPromptRecord(): Promise<void> {
  * gọi lắp ráp. */
 export function openAiPromptInspector(): void {
   overlayOpen.value = true
+  tab.value = 'prompt'
+  copyState.value = 'idle'
   void refreshAiPromptRecord()
 }
 
@@ -274,9 +310,119 @@ export function resetAiPromptInspector(): void {
   sequence += 1
   latestAssembleSequence = sequence
   overlayOpen.value = false
+  tab.value = 'prompt'
+  copyState.value = 'idle'
   record.value = null
   previousGlossaryCount.value = null
   assembleBusy.value = false
   assembleError.value = null
   readError.value = null
+}
+
+export type AiPromptTierBlockKind = 'authored' | 'glossary' | 'tm' | 'source_segment'
+
+export type AiPromptTierBlock = { kind: AiPromptTierBlockKind; text: string; chars: number }
+
+function charCount(text: string): number {
+  return Array.from(text).length
+}
+
+/** Consecutive same-kind `ledger.pieces` merged into tier blocks in prompt order; empty pieces dropped. */
+export function aiPromptTierBlocks(current: ReadonlyAssembledPromptWire | null): AiPromptTierBlock[] {
+  if (current === null) return []
+  const blocks: AiPromptTierBlock[] = []
+  for (const piece of current.ledger.pieces) {
+    if (piece.text === '') continue
+    const last = blocks.length > 0 ? blocks[blocks.length - 1] : undefined
+    if (last !== undefined && last.kind === piece.kind) {
+      last.text += piece.text
+      last.chars = charCount(last.text)
+      continue
+    }
+    blocks.push({ kind: piece.kind, text: piece.text, chars: charCount(piece.text) })
+  }
+  return blocks
+}
+
+/** Characters per tier; the unit is characters, never tokens. */
+export function aiPromptCharsByKind(blocks: readonly AiPromptTierBlock[]): Record<AiPromptTierBlockKind, number> {
+  const totals: Record<AiPromptTierBlockKind, number> = { authored: 0, glossary: 0, tm: 0, source_segment: 0 }
+  for (const b of blocks) totals[b.kind] += b.chars
+  return totals
+}
+
+/** Dynamic share (Glossary + TM) of all prompt characters, 0-100; `null` for an empty prompt. */
+export function aiPromptDynamicRatio(blocks: readonly AiPromptTierBlock[]): number | null {
+  const totals = aiPromptCharsByKind(blocks)
+  const all = totals.authored + totals.glossary + totals.tm + totals.source_segment
+  if (all === 0) return null
+  return ((totals.glossary + totals.tm) / all) * 100
+}
+
+/** One decimal, decimal comma, no locale API (NFR16). */
+export function formatPercentParam(percent: number): string {
+  return (Math.round(percent * 10) / 10).toFixed(1).replace('.', ',')
+}
+
+/** Local `HH:MM:SS` of an ISO-8601 instant; unparseable input is returned as is. */
+export function formatSentAtClock(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const two = (n: number): string => String(n).padStart(2, '0')
+  return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`
+}
+
+/** The record's source sentence from its `source_segment` pieces; `''` when the prompt carries none. */
+export function aiPromptSourceText(current: ReadonlyAssembledPromptWire | null): string {
+  if (current === null) return ''
+  return current.ledger.pieces
+    .filter((p) => p.kind === 'source_segment')
+    .map((p) => p.text)
+    .join('')
+}
+
+export type AiPromptTokenLine =
+  | { kind: 'unsent' }
+  | { kind: 'unavailable' }
+  | { kind: 'real'; promptTokens: number; costUsd: number | null }
+
+/** Unsent, sent without a count and counted are three states; none is a fake 0. */
+export function aiPromptTokenLine(current: ReadonlyAssembledPromptWire | null): AiPromptTokenLine {
+  if (current === null || current.sent_at === null) return { kind: 'unsent' }
+  if (current.sent_usage === null) return { kind: 'unavailable' }
+  return { kind: 'real', promptTokens: current.sent_usage.prompt_tokens, costUsd: current.sent_usage.cost_usd }
+}
+
+export type AiPromptResult =
+  | { kind: 'empty' }
+  | { kind: 'generating'; text: string }
+  | { kind: 'text'; text: string; from: 'single' | 'batch' }
+  | { kind: 'error' }
+  | { kind: 'not_configured' }
+
+export type AiPromptResultInput = {
+  recordSegmentId: number
+  singleSegmentId: number | null
+  singleState: string
+  singleText: string
+  singleStamp: number
+  batchText: string | null
+  batchStamp: number
+}
+
+/** Translation result of the record's own segment only; another segment's result never shows. */
+export function aiPromptResultFor(input: AiPromptResultInput): AiPromptResult {
+  const mine = input.singleSegmentId === input.recordSegmentId
+  if (mine && input.singleState === 'generating') return { kind: 'generating', text: input.singleText }
+
+  const singleUsable =
+    mine && (input.singleState === 'done' || input.singleState === 'cancelled') && input.singleText !== ''
+  const batchUsable = input.batchText !== null
+  if (batchUsable && (!singleUsable || input.batchStamp > input.singleStamp)) {
+    return { kind: 'text', text: input.batchText ?? '', from: 'batch' }
+  }
+  if (singleUsable) return { kind: 'text', text: input.singleText, from: 'single' }
+  if (mine && input.singleState === 'error') return { kind: 'error' }
+  if (mine && input.singleState === 'not_configured') return { kind: 'not_configured' }
+  return { kind: 'empty' }
 }

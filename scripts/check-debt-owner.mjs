@@ -769,7 +769,7 @@ const PLANNED_TICKET_FLOOR = 150
  * bản lịch sử đúng là có ít mục hơn, và chấm nó là lỗi hạ tầng thì cổng tự chặn vế TRƯỚC
  * của AC5.
  */
-const ITEM_FLOOR = 684
+const ITEM_FLOOR = 728
 if (DEBT_PATH === REAL_DEBT_PATH) {
   const v = judgeFloor(ITEM_FLOOR, summary.total, 'ITEM_FLOOR', 'muc trong so no THAT')
   if (!v.ok) abort(

@@ -1119,6 +1119,14 @@ export type CommandDeps = {
   openAiPromptInspector?: () => void
   /** Đóng lớp phủ soi prompt. Handler của `ai.prompt_inspector.close`. */
   closeAiPromptInspector?: () => void
+  resendAiPrompt?: () => void
+  copyAiPrompt?: () => void
+  selectAiPromptResultTab?: () => void
+  selectAiPromptPromptTab?: () => void
+  openAiPromptTmConcordance?: () => void
+  confirmAiPromptTermNow?: () => void
+  openAiPromptGlossaryEntry?: () => void
+  openAiPromptWorkPrompts?: () => void
   /** LẮP RÁP một prompt cho câu đang có tiêu điểm bằng bộ prompt hiệu lực đang chọn, rồi
    * GHI kết quả — nút "Lắp prompt cho câu này" ở Panel AI Translation, thứ Story 4.8 sẽ thay
    * bằng nút Dịch thật (§Consequences accepted, Decision 2). Handler của `ai.prompt.assemble`. */
@@ -4538,6 +4546,94 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.prompt_inspector.close', 'closeAiPromptInspector')
       }
       deps.closeAiPromptInspector()
+    },
+  })
+  target.register({
+    id: 'ai.prompt_inspector.resend',
+    labelKey: 'command.ai.prompt_inspector.resend',
+    keys: undefined,
+    run: () => {
+      if (deps.resendAiPrompt === undefined) {
+        return portMissing('ai.prompt_inspector.resend', 'resendAiPrompt')
+      }
+      deps.resendAiPrompt()
+    },
+  })
+  target.register({
+    id: 'ai.prompt_inspector.copy',
+    labelKey: 'command.ai.prompt_inspector.copy',
+    keys: undefined,
+    run: () => {
+      if (deps.copyAiPrompt === undefined) {
+        return portMissing('ai.prompt_inspector.copy', 'copyAiPrompt')
+      }
+      deps.copyAiPrompt()
+    },
+  })
+  target.register({
+    id: 'ai.prompt_inspector.tab_result',
+    labelKey: 'command.ai.prompt_inspector.tab_result',
+    keys: undefined,
+    run: () => {
+      if (deps.selectAiPromptResultTab === undefined) {
+        return portMissing('ai.prompt_inspector.tab_result', 'selectAiPromptResultTab')
+      }
+      deps.selectAiPromptResultTab()
+    },
+  })
+  target.register({
+    id: 'ai.prompt_inspector.tab_prompt',
+    labelKey: 'command.ai.prompt_inspector.tab_prompt',
+    keys: undefined,
+    run: () => {
+      if (deps.selectAiPromptPromptTab === undefined) {
+        return portMissing('ai.prompt_inspector.tab_prompt', 'selectAiPromptPromptTab')
+      }
+      deps.selectAiPromptPromptTab()
+    },
+  })
+  target.register({
+    id: 'ai.prompt_inspector.tm_concordance',
+    labelKey: 'command.ai.prompt_inspector.tm_concordance',
+    keys: undefined,
+    run: () => {
+      if (deps.openAiPromptTmConcordance === undefined) {
+        return portMissing('ai.prompt_inspector.tm_concordance', 'openAiPromptTmConcordance')
+      }
+      deps.openAiPromptTmConcordance()
+    },
+  })
+  target.register({
+    id: 'ai.prompt_inspector.confirm_now',
+    labelKey: 'command.ai.prompt_inspector.confirm_now',
+    keys: undefined,
+    run: () => {
+      if (deps.confirmAiPromptTermNow === undefined) {
+        return portMissing('ai.prompt_inspector.confirm_now', 'confirmAiPromptTermNow')
+      }
+      deps.confirmAiPromptTermNow()
+    },
+  })
+  target.register({
+    id: 'ai.prompt_inspector.open_glossary_entry',
+    labelKey: 'command.ai.prompt_inspector.open_glossary_entry',
+    keys: undefined,
+    run: () => {
+      if (deps.openAiPromptGlossaryEntry === undefined) {
+        return portMissing('ai.prompt_inspector.open_glossary_entry', 'openAiPromptGlossaryEntry')
+      }
+      deps.openAiPromptGlossaryEntry()
+    },
+  })
+  target.register({
+    id: 'ai.prompt_inspector.open_work_prompts',
+    labelKey: 'command.ai.prompt_inspector.open_work_prompts',
+    keys: undefined,
+    run: () => {
+      if (deps.openAiPromptWorkPrompts === undefined) {
+        return portMissing('ai.prompt_inspector.open_work_prompts', 'openAiPromptWorkPrompts')
+      }
+      deps.openAiPromptWorkPrompts()
     },
   })
   target.register({

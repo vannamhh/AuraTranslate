@@ -314,11 +314,12 @@ pub use scan::{
 pub(crate) use candidate_store::{ImportScanWriteTicket, enqueue_import_scan_candidates};
 pub(crate) use store::filter_import_scan_candidates_by_scope;
 pub use store::{
-    GlossaryError, GlossaryInjectionOutcome, GlossaryInjectionTerm, SuppressedByPendingOverlap,
-    WorkContext, add_manual_term, classify_import_rows, confirm_pending_translation,
-    confirm_translation, confirmed_term_translations, confirmed_terms_for_injection,
-    count_tier_entries, delete_manual_term, export_tier, import_into_tier, insert_manual_entry,
-    list_all_entries, load_tier, marks_for_source_text, match_lang_for_source_lang,
-    promote_to_global, resolve_term_for_quick_add, update_manual_term, warm_jieba_for_source_lang,
+    GlossaryError, GlossaryInjectionOutcome, GlossaryInjectionTerm, PendingMatchedTerm,
+    SuppressedByPendingOverlap, WorkContext, add_manual_term, classify_import_rows,
+    confirm_pending_translation, confirm_translation, confirmed_term_translations,
+    confirmed_terms_for_injection, count_tier_entries, delete_manual_term, export_tier,
+    import_into_tier, insert_manual_entry, list_all_entries, load_tier, marks_for_source_text,
+    match_lang_for_source_lang, promote_to_global, resolve_term_for_quick_add, update_manual_term,
+    warm_jieba_for_source_lang,
 };
 pub use surnames::COMMON_SURNAMES;

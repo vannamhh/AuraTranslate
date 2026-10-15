@@ -20,6 +20,8 @@ import { invoke } from '@tauri-apps/api/core'
 import type { IpcError } from '../i18n'
 import type { PromptSetTier } from './promptset'
 import type { GlossaryTierWire as GlossaryTier } from './glossary'
+import { isAiTranslateUsageWire } from './aitranslate'
+import type { AiTranslateUsageWire } from './aitranslate'
 
 /** Một thuật ngữ Glossary ĐÃ CHÈN — khớp NGUYÊN VĂN `InjectedGlossaryTermWire` phía Rust. Đủ
  * NĂM trường — bỏ sót `start`/`end`/`tier` là đúng khuyết tật §Always spec 4.7 cấm. */
@@ -42,15 +44,25 @@ export type SuppressedGlossaryTermWire = {
   tier: GlossaryTier
 }
 
+/** Mirrors Rust `PendingGlossaryTermWire`: a matched entry still awaiting its translation. */
+export type PendingGlossaryTermWire = {
+  id: number
+  source_term: string
+  start: number
+  end: number
+  tier: GlossaryTier
+}
+
 /** Trạng thái Glossary trên dây — BA GIÁ TRỊ không được collapse (§Always spec 4.7).
  * `kind === 'not_asked'` ⇒ hai trường payload LUÔN `null`; `kind === 'asked'` ⇒ cả hai LUÔN
  * là mảng (có thể rỗng — "asked, nothing matched" vẫn là MỘT mảng rỗng, không phải thiếu). */
 export type GlossaryInjectionStatusWire =
-  | { kind: 'not_asked'; injected: null; suppressed_by_pending_overlap: null }
+  | { kind: 'not_asked'; injected: null; suppressed_by_pending_overlap: null; pending_matched: null }
   | {
       kind: 'asked'
       injected: InjectedGlossaryTermWire[]
       suppressed_by_pending_overlap: SuppressedGlossaryTermWire[]
+      pending_matched: PendingGlossaryTermWire[]
     }
 
 /** Một cặp TM đã chèn vào prompt — khớp NGUYÊN VĂN `InjectedTmPair` phía Rust. `reference` đúng
@@ -67,8 +79,8 @@ export type SimilarSegmentWire = {
 /** Trạng thái TM trên dây — `not_asked` ⇔ thân bộ prompt không có `{{tm_similar_segments}}`;
  * `searched` mang CHỈ các cặp đã chèn (mảng rỗng = đã tìm, không có cặp nào). */
 export type TmInjectionStatusWire =
-  | { kind: 'not_asked'; similar_segments: null }
-  | { kind: 'searched'; similar_segments: SimilarSegmentWire[] }
+  | { kind: 'not_asked'; similar_segments: null; omitted_count: null }
+  | { kind: 'searched'; similar_segments: SimilarSegmentWire[]; omitted_count: number }
 
 /** Nhãn của MỘT mảnh `prompt` — khớp NGUYÊN VĂN `PromptPieceKindWire` phía Rust. Story 4.7
  * loop 1, finding B1: `'glossary'` là đúng khối `{{glossary_terms}}` mở rộng ra; `'authored'`
@@ -112,6 +124,11 @@ export type AssembledPromptWire = {
   prompt_set_name: string
   prompt_set_tier: PromptSetTier
   ledger: InjectionLedgerWire
+  /** UTC ISO-8601 of the last real send of this exact record; `null` = never sent. */
+  sent_at: string | null
+  sent_model: string | null
+  /** Provider-reported usage; `null` when unsent, not reported, or sent by a batch. Never a stand-in 0. */
+  sent_usage: AiTranslateUsageWire | null
 }
 
 function isIpcError(value: unknown): value is IpcError {
@@ -163,18 +180,37 @@ function isSuppressedGlossaryTermWire(value: unknown): value is SuppressedGlossa
   return isInjectedGlossaryTermWire(value)
 }
 
+function isPendingGlossaryTermWire(value: unknown): value is PendingGlossaryTermWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<PendingGlossaryTermWire>
+  return (
+    typeof v.id === 'number' &&
+    typeof v.source_term === 'string' &&
+    typeof v.start === 'number' &&
+    typeof v.end === 'number' &&
+    isGlossaryTier(v.tier)
+  )
+}
+
 function isGlossaryInjectionStatusWire(value: unknown): value is GlossaryInjectionStatusWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { kind?: unknown; injected?: unknown; suppressed_by_pending_overlap?: unknown }
+  const v = value as {
+    kind?: unknown
+    injected?: unknown
+    suppressed_by_pending_overlap?: unknown
+    pending_matched?: unknown
+  }
   if (v.kind === 'not_asked') {
-    return v.injected === null && v.suppressed_by_pending_overlap === null
+    return v.injected === null && v.suppressed_by_pending_overlap === null && v.pending_matched === null
   }
   if (v.kind === 'asked') {
     return (
       Array.isArray(v.injected) &&
       v.injected.every(isInjectedGlossaryTermWire) &&
       Array.isArray(v.suppressed_by_pending_overlap) &&
-      v.suppressed_by_pending_overlap.every(isSuppressedGlossaryTermWire)
+      v.suppressed_by_pending_overlap.every(isSuppressedGlossaryTermWire) &&
+      Array.isArray(v.pending_matched) &&
+      v.pending_matched.every(isPendingGlossaryTermWire)
     )
   }
   return false
@@ -195,10 +231,14 @@ function isSimilarSegmentWire(value: unknown): value is SimilarSegmentWire {
 
 function isTmInjectionStatusWire(value: unknown): value is TmInjectionStatusWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { kind?: unknown; similar_segments?: unknown }
-  if (v.kind === 'not_asked') return v.similar_segments === null
+  const v = value as { kind?: unknown; similar_segments?: unknown; omitted_count?: unknown }
+  if (v.kind === 'not_asked') return v.similar_segments === null && v.omitted_count === null
   if (v.kind === 'searched') {
-    return Array.isArray(v.similar_segments) && v.similar_segments.every(isSimilarSegmentWire)
+    return (
+      Array.isArray(v.similar_segments) &&
+      v.similar_segments.every(isSimilarSegmentWire) &&
+      typeof v.omitted_count === 'number'
+    )
   }
   return false
 }
@@ -236,7 +276,10 @@ function isAssembledPromptWire(value: unknown): value is AssembledPromptWire {
     typeof v.chapter_id === 'number' &&
     typeof v.prompt_set_name === 'string' &&
     isPromptSetTier(v.prompt_set_tier) &&
-    isInjectionLedgerWire(v.ledger)
+    isInjectionLedgerWire(v.ledger) &&
+    (v.sent_at === null || typeof v.sent_at === 'string') &&
+    (v.sent_model === null || typeof v.sent_model === 'string') &&
+    (v.sent_usage === null || isAiTranslateUsageWire(v.sent_usage))
   )
 }
 

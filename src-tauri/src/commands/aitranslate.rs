@@ -88,6 +88,15 @@ fn segment_is_omitted(segment_id: i64) -> IpcError {
     )
 }
 
+fn no_prompt_to_resend() -> IpcError {
+    IpcError::new(
+        "ai_translate.no_prompt_to_resend",
+        MessageKey::AiTranslateNoPromptToResend,
+        std::collections::BTreeMap::new(),
+        false,
+    )
+}
+
 /// Keychain từ chối trả lời lúc dịch — tái dùng ĐÚNG khoá của Story 4.3 (§Code Map spec 4.8:
 /// "reuses ... `AiConfigKeychainUnavailable` where the fact already has a key"), không một khoá
 /// thứ hai cho cùng sự thật.
@@ -392,6 +401,53 @@ pub fn prepare_translate_call(
         api_key,
         prompt: assembled.prompt,
     }))
+}
+
+/// Builds a call from the prompt string the record already holds, byte for byte: it never
+/// assembles again and takes no prompt from the caller. Returns the record's `segment_id` with
+/// the call so the result lands against the segment the prompt was built for.
+///
+/// # Errors
+/// `ai_translate.no_prompt_to_resend` when nothing was assembled this session; store/work/keychain
+/// errors as in [`prepare_translate_call`]. Unconfigured is [`PrepareOutcome::NotConfigured`].
+pub fn prepare_resend_call(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    record: &LastAssembledPromptState,
+) -> Result<(i64, PrepareOutcome), IpcError> {
+    let (segment_id, prompt) = {
+        let guard = record
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match guard.as_ref() {
+            Some(r) => (r.segment_id, r.prompt.clone()),
+            None => return Err(no_prompt_to_resend()),
+        }
+    };
+    let Some(ResolvedCallConfig {
+        endpoint,
+        model,
+        temperature,
+        max_tokens,
+        ..
+    }) = resolve_call_config(global, open)?
+    else {
+        return Ok((segment_id, PrepareOutcome::NotConfigured));
+    };
+    let Some(api_key) = read_api_key()? else {
+        return Ok((segment_id, PrepareOutcome::NotConfigured));
+    };
+    Ok((
+        segment_id,
+        PrepareOutcome::Ready(PreparedTranslateCall {
+            endpoint,
+            model,
+            temperature,
+            max_tokens,
+            api_key,
+            prompt,
+        }),
+    ))
 }
 
 /// Một hàng ĐÃ PHÂN LOẠI của [`prepare_batch_call`] — hoặc bị cắt (`is_omitted`, không gọi
@@ -884,12 +940,13 @@ pub fn single_run_outcome_wire(outcome: TranslateOutcome) -> AiTranslateOutcomeW
 /// 4.8). **Không một quy tắc nào sống ở đây** ngoài việc mở/thả khoá đúng lúc (xem doc-comment
 /// đầu tệp).
 pub mod wire {
+    use super::AiTranslateUsageWire;
     use super::{
         AiTranslateBatchEventWire, AiTranslateBatchOutcome, AiTranslateGeneration,
         AiTranslateOutcomeWire, BatchCallError, PrepareBatchOutcome, PrepareOutcome,
         PreparedBatchItem, batch_panicked_error, batch_stopped_error, prepare_batch_call,
-        prepare_translate_call, send_prepared_batch_call, send_prepared_translate_call,
-        single_run_outcome_wire, state_missing,
+        prepare_resend_call, prepare_translate_call, send_prepared_batch_call,
+        send_prepared_translate_call, single_run_outcome_wire, state_missing,
     };
     use crate::commands::aiprompt::{LastAssembledPromptState, mark_prompt_as_sent};
     use crate::commands::project::OpenWorkState;
@@ -979,6 +1036,79 @@ pub mod wire {
                         &prompt_sent,
                         &model_sent,
                         &sent_at,
+                        usage.map(AiTranslateUsageWire::from),
+                    );
+                }
+                Ok(single_run_outcome_wire(TranslateOutcome::Done(usage)))
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    /// Resends the recorded prompt unchanged (FR145): no webview text goes in, nothing is
+    /// assembled again, and the result only flows to the channel. Same lock discipline and
+    /// generation counter as [`ai_translate_segment`].
+    #[tauri::command]
+    pub async fn ai_translate_resend<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        channel: tauri::ipc::Channel<String>,
+    ) -> Result<AiTranslateOutcomeWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(record_state) = app.try_state::<LastAssembledPromptState>() else {
+            return Err(state_missing(
+                "resend",
+                "LastAssembledPromptState",
+                "ai_translate.record_state_missing",
+            ));
+        };
+
+        let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {
+            return Err(state_missing(
+                "resend",
+                "AiTranslateGeneration",
+                "ai_translate.generation_state_missing",
+            ));
+        };
+        let generation_state = generation_state.inner().clone();
+        let generation = generation_state.next();
+
+        let (segment_id, prepared) = {
+            let global = app.try_state::<Store>();
+            let work_state = app.try_state::<OpenWorkState>();
+            let guard = work_state
+                .as_ref()
+                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+            let open = guard.as_ref().and_then(|g| g.as_ref());
+
+            prepare_resend_call(global.as_deref(), open, record_state.inner())?
+        };
+
+        let prepared = match prepared {
+            PrepareOutcome::NotConfigured => return Ok(AiTranslateOutcomeWire::NotConfigured),
+            PrepareOutcome::Ready(p) => p,
+        };
+
+        let model_sent = prepared.model.clone();
+        let prompt_sent = prepared.prompt.clone();
+        let outcome =
+            send_prepared_translate_call(prepared, channel, generation_state, generation).await;
+
+        match outcome {
+            Ok(TranslateOutcome::Cancelled) => {
+                Ok(single_run_outcome_wire(TranslateOutcome::Cancelled))
+            }
+            Ok(TranslateOutcome::Done(usage)) => {
+                if let Some(global) = app.try_state::<Store>()
+                    && let Some(sent_at) = super::now_utc_iso8601(&global)
+                {
+                    mark_prompt_as_sent(
+                        record_state.inner(),
+                        segment_id,
+                        &prompt_sent,
+                        &model_sent,
+                        &sent_at,
+                        usage.map(AiTranslateUsageWire::from),
                     );
                 }
                 Ok(single_run_outcome_wire(TranslateOutcome::Done(usage)))
@@ -1077,6 +1207,7 @@ pub mod wire {
                         &prompt_sent,
                         &model_sent,
                         &sent_at,
+                        None,
                     );
                 }
                 // Story 4.11 -- lô KHÔNG mang một số tổng ở giá trị cuối dùng chung này (xem

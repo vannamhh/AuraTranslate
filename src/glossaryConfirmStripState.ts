@@ -140,6 +140,7 @@ let savedRange: Range | null = null
 let enteredViaChord = false
 
 export const confirmStripTier = computed<GlossaryTierWire | null>(() => current.value?.tier ?? null)
+export const confirmStripEntryId = computed<number | null>(() => current.value?.id ?? null)
 export const confirmStripSourceTerm = computed<string | null>(() => current.value?.sourceTerm ?? null)
 /**
  * 🔵 THÊM 2026-08-24 (Story 3.7, FR113) — trạng thái đề xuất âm Hán Việt của mục đang hỏi,

@@ -27,12 +27,13 @@
 //! ⚠️ Mọi chuỗi trong tệp này viết KHÔNG DẤU — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs`.
 
+use crate::commands::aitranslate::AiTranslateUsageWire;
 use crate::commands::project::OpenWork;
 use crate::commands::promptset::PromptSetTierWire;
 use crate::core::ai::rag::{
-    GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair, InjectionLedger, PromptPiece,
-    PromptPieceKind, SuppressedGlossaryTerm, TmInjectionStatus, TmRows, assemble_prompt,
-    gather_glossary_context, gather_tm_context, load_tm_rows,
+    GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair, InjectionLedger,
+    PendingGlossaryTerm, PromptPiece, PromptPieceKind, SuppressedGlossaryTerm, TmInjectionStatus,
+    TmRows, assemble_prompt, gather_glossary_context, gather_tm_context, load_tm_rows,
 };
 use crate::core::glossary::GlossaryTier;
 use crate::core::i18n::{IpcError, MessageKey};
@@ -164,6 +165,7 @@ pub struct GlossaryInjectionStatusWire {
     pub kind: &'static str,
     pub injected: Option<Vec<InjectedGlossaryTermWire>>,
     pub suppressed_by_pending_overlap: Option<Vec<SuppressedGlossaryTermWire>>,
+    pub pending_matched: Option<Vec<PendingGlossaryTermWire>>,
 }
 
 impl From<GlossaryInjectionStatus> for GlossaryInjectionStatusWire {
@@ -173,10 +175,12 @@ impl From<GlossaryInjectionStatus> for GlossaryInjectionStatusWire {
                 kind: "not_asked",
                 injected: None,
                 suppressed_by_pending_overlap: None,
+                pending_matched: None,
             },
             GlossaryInjectionStatus::Asked {
                 injected,
                 suppressed_by_pending_overlap,
+                pending_matched,
             } => Self {
                 kind: "asked",
                 injected: Some(injected.into_iter().map(Into::into).collect()),
@@ -186,7 +190,30 @@ impl From<GlossaryInjectionStatus> for GlossaryInjectionStatusWire {
                         .map(Into::into)
                         .collect(),
                 ),
+                pending_matched: Some(pending_matched.into_iter().map(Into::into).collect()),
             },
+        }
+    }
+}
+
+/// Output shape of [`PendingGlossaryTerm`]: a matched entry still awaiting its translation.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct PendingGlossaryTermWire {
+    pub id: i64,
+    pub source_term: String,
+    pub start: usize,
+    pub end: usize,
+    pub tier: GlossaryTierWire,
+}
+
+impl From<PendingGlossaryTerm> for PendingGlossaryTermWire {
+    fn from(t: PendingGlossaryTerm) -> Self {
+        Self {
+            id: t.id,
+            source_term: t.source_term,
+            start: t.start,
+            end: t.end,
+            tier: t.tier.into(),
         }
     }
 }
@@ -229,6 +256,8 @@ impl From<InjectedTmPair> for SimilarSegmentWire {
 pub struct TmInjectionStatusWire {
     pub kind: &'static str,
     pub similar_segments: Option<Vec<SimilarSegmentWire>>,
+    /// Matching pairs left out by the pair cap; `None` exactly when `kind == "not_asked"`.
+    pub omitted_count: Option<usize>,
 }
 
 impl From<TmInjectionStatus> for TmInjectionStatusWire {
@@ -237,10 +266,15 @@ impl From<TmInjectionStatus> for TmInjectionStatusWire {
             TmInjectionStatus::NotAsked => Self {
                 kind: "not_asked",
                 similar_segments: None,
+                omitted_count: None,
             },
-            TmInjectionStatus::Searched(pairs) => Self {
+            TmInjectionStatus::Searched {
+                pairs,
+                omitted_count,
+            } => Self {
                 kind: "searched",
                 similar_segments: Some(pairs.into_iter().map(Into::into).collect()),
+                omitted_count: Some(omitted_count),
             },
         }
     }
@@ -348,6 +382,9 @@ pub struct AssembledPromptRecord {
     /// dùng đổi mô hình SAU lượt gửi này; bản ghi giữ đúng cái nó đã DÙNG, không cái đang cấu
     /// hình bây giờ.
     pub sent_model: Option<String>,
+    /// Provider-reported usage of the send that stamped `sent_at`; `None` when the provider
+    /// returned none or the send was a batch. Never a zero stand-in.
+    pub sent_usage: Option<AiTranslateUsageWire>,
 }
 
 /// Kiểu state Tauri quản lý cho [`AssembledPromptRecord`] — `None` == chưa lắp prompt nào
@@ -372,6 +409,8 @@ pub struct AssembledPromptWire {
     pub sent_at: Option<String>,
     /// Xem doc-comment [`AssembledPromptRecord::sent_model`].
     pub sent_model: Option<String>,
+    /// Xem [`AssembledPromptRecord::sent_usage`].
+    pub sent_usage: Option<AiTranslateUsageWire>,
 }
 
 impl From<AssembledPromptRecord> for AssembledPromptWire {
@@ -385,6 +424,7 @@ impl From<AssembledPromptRecord> for AssembledPromptWire {
             ledger: r.ledger.into(),
             sent_at: r.sent_at,
             sent_model: r.sent_model,
+            sent_usage: r.sent_usage,
         }
     }
 }
@@ -489,6 +529,7 @@ pub fn assemble_and_record_prompt_with_tm(
         // GHI DE mot ban ghi cu DA tung gui, prompt MOI nay la mot prompt CHUA gui.
         sent_at: None,
         sent_model: None,
+        sent_usage: None,
     };
 
     let mut guard = record
@@ -559,6 +600,7 @@ pub fn mark_prompt_as_sent(
     sent_prompt: &str,
     model: &str,
     sent_at: &str,
+    usage: Option<AiTranslateUsageWire>,
 ) {
     let mut guard = record
         .lock()
@@ -569,6 +611,7 @@ pub fn mark_prompt_as_sent(
     {
         r.sent_at = Some(sent_at.to_owned());
         r.sent_model = Some(model.to_owned());
+        r.sent_usage = usage;
     }
 }
 

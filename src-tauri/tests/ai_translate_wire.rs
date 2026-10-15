@@ -64,7 +64,14 @@ fn save_key(value: &str) {
     ai_config_save_key(AiConfigTier::Global, value).expect("luu khoa API that bai");
 }
 
-fn spawn_counted_sse_server(connections: usize) -> (String, Arc<AtomicUsize>) {
+const USAGE_CHUNK: &str = "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":7,\"total_tokens\":18}}\n\n";
+
+fn spawn_counted_sse_server(
+    connections: usize,
+    with_usage: bool,
+) -> (String, Arc<AtomicUsize>, Arc<Mutex<Vec<String>>>) {
+    let bodies = Arc::new(Mutex::new(Vec::<String>::new()));
+    let body_sink = Arc::clone(&bodies);
     let accepted = Arc::new(AtomicUsize::new(0));
     let counter = Arc::clone(&accepted);
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind cong tam");
@@ -100,8 +107,14 @@ fn spawn_counted_sse_server(connections: usize) -> (String, Arc<AtomicUsize>) {
                 }
                 received.extend_from_slice(&chunk[..n]);
             }
-            let body =
-                "data: {\"choices\":[{\"delta\":{\"content\":\"Xin chao\"}}]}\n\ndata: [DONE]\n\n";
+            body_sink
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(String::from_utf8_lossy(&received[header_end..]).into_owned());
+            let body = format!(
+                "data: {{\"choices\":[{{\"delta\":{{\"content\":\"Xin chao\"}}}}]}}\n\n{}data: [DONE]\n\n",
+                if with_usage { USAGE_CHUNK } else { "" }
+            );
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n{body}"
             );
@@ -112,6 +125,7 @@ fn spawn_counted_sse_server(connections: usize) -> (String, Arc<AtomicUsize>) {
     (
         format!("http://127.0.0.1:{port}/v1/chat/completions"),
         accepted,
+        bodies,
     )
 }
 
@@ -119,19 +133,30 @@ struct Harness {
     app: tauri::App<MockRuntime>,
     dirs: Vec<PathBuf>,
     accepted: Arc<AtomicUsize>,
+    bodies: Arc<Mutex<Vec<String>>>,
 }
 
 impl Harness {
     fn new(tag: &str, text: &str, connections: usize) -> Self {
-        Self::build(tag, text, connections, true)
+        Self::build(tag, text, connections, true, false)
     }
 
-    fn build(tag: &str, text: &str, connections: usize, manage_generation: bool) -> Self {
+    fn with_usage(tag: &str, text: &str, connections: usize) -> Self {
+        Self::build(tag, text, connections, true, true)
+    }
+
+    fn build(
+        tag: &str,
+        text: &str,
+        connections: usize,
+        manage_generation: bool,
+        with_usage: bool,
+    ) -> Self {
         let global_dir = temp_dir(&format!("{tag}-global"));
         let work_dir = temp_dir(&format!("{tag}-work"));
         let global =
             Store::open(StoreSpec::global(global_dir.join("global.db"))).expect("mo global.db");
-        let (endpoint, accepted) = spawn_counted_sse_server(connections);
+        let (endpoint, accepted, bodies) = spawn_counted_sse_server(connections, with_usage);
         write_field(&global, AiConfigField::Endpoint, &endpoint).expect("ghi endpoint");
         write_field(&global, AiConfigField::Model, "gpt-wire").expect("ghi model");
 
@@ -159,6 +184,7 @@ impl Harness {
             app,
             dirs: vec![global_dir, work_dir],
             accepted,
+            bodies,
         }
     }
 
@@ -377,7 +403,7 @@ fn single_run_without_generation_state_fails_with_generation_state_missing() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     save_key("sk-wire-nogen-single");
-    let h = Harness::build("nogen-single", "A dragon roared.", 0, false);
+    let h = Harness::build("nogen-single", "A dragon roared.", 0, false, false);
     let segment_id = h.segment_ids()[0];
     let channel = tauri::ipc::Channel::<String>::new(|_| Ok(()));
     let err = tauri::async_runtime::block_on(wire::ai_translate_segment(
@@ -396,7 +422,7 @@ fn batch_without_generation_state_fails_with_generation_state_missing() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     save_key("sk-wire-nogen-batch");
-    let h = Harness::build("nogen-batch", "A dragon roared.", 0, false);
+    let h = Harness::build("nogen-batch", "A dragon roared.", 0, false, false);
     let ids = h.segment_ids();
     let channel = tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(|_| Ok(()));
     let err = tauri::async_runtime::block_on(wire::ai_translate_batch(
@@ -530,4 +556,135 @@ fn batch_without_a_saved_key_returns_not_configured() {
         matches!(outcome, AiTranslateOutcomeWire::NotConfigured),
         "ket qua: {outcome:?}"
     );
+}
+
+fn sink_channel() -> tauri::ipc::Channel<String> {
+    tauri::ipc::Channel::<String>::new(|_| Ok(()))
+}
+
+fn target_texts(h: &Harness) -> Vec<String> {
+    h.with_open(|open, _| {
+        read_open_chapter_segments(Some(open))
+            .expect("nap chuong")
+            .segments
+            .iter()
+            .map(|s| s.target_text.clone())
+            .collect()
+    })
+}
+
+fn assert_usage_18(usage: Option<auratranslate_lib::commands::aitranslate::AiTranslateUsageWire>) {
+    let usage = usage.expect("sent_usage phai mang so provider tra");
+    assert_eq!(
+        (
+            usage.prompt_tokens,
+            usage.completion_tokens,
+            usage.total_tokens
+        ),
+        (11, 7, 18)
+    );
+}
+
+#[test]
+fn a_single_run_that_ends_with_provider_usage_stamps_it_on_the_record() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-usage");
+    let h = Harness::with_usage("single-usage", "A dragon roared.", 1);
+    let segment_id = h.segment_ids()[0];
+    let outcome = tauri::async_runtime::block_on(wire::ai_translate_segment(
+        h.app.handle().clone(),
+        segment_id,
+        Some("Plain".to_owned()),
+        sink_channel(),
+    ))
+    .expect("ai_translate_segment phai tra Ok");
+    assert!(
+        matches!(outcome, AiTranslateOutcomeWire::Done { usage: Some(_) }),
+        "ket qua: {outcome:?}"
+    );
+    assert_usage_18(h.record().sent_usage);
+}
+
+#[test]
+fn resend_sends_the_recorded_prompt_stamps_usage_and_leaves_target_text_alone() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-resend");
+    let h = Harness::with_usage("resend", "A dragon roared.", 1);
+    let segment_id = h.segment_ids()[0];
+    h.assemble(segment_id);
+    let before = target_texts(&h);
+    let recorded = h.record();
+    assert!(recorded.sent_at.is_none() && recorded.sent_usage.is_none());
+
+    let outcome = tauri::async_runtime::block_on(wire::ai_translate_resend(
+        h.app.handle().clone(),
+        sink_channel(),
+    ))
+    .expect("ai_translate_resend phai tra Ok");
+    assert!(
+        matches!(outcome, AiTranslateOutcomeWire::Done { usage: Some(_) }),
+        "ket qua: {outcome:?}"
+    );
+    assert_eq!(h.accepted.load(Ordering::SeqCst), 1);
+    let bodies = h
+        .bodies
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert_eq!(bodies.len(), 1);
+    assert!(
+        bodies[0].contains(&serde_json::to_string(&recorded.prompt).expect("json")),
+        "than gui di phai mang dung prompt cua ban ghi: {}",
+        bodies[0]
+    );
+
+    let after = h.record();
+    assert!(after.sent_at.is_some());
+    assert_eq!(after.sent_model.as_deref(), Some("gpt-wire"));
+    assert_usage_18(after.sent_usage);
+    assert_eq!(
+        target_texts(&h),
+        before,
+        "gui lai khong duoc ghi target_text"
+    );
+}
+
+#[test]
+fn resend_without_a_record_returns_no_prompt_to_resend() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-resend-none");
+    let h = Harness::new("resend-none", "A dragon roared.", 0);
+    let err = tauri::async_runtime::block_on(wire::ai_translate_resend(
+        h.app.handle().clone(),
+        sink_channel(),
+    ))
+    .expect_err("khong co ban ghi thi phai loi");
+    assert_eq!(err.code(), "ai_translate.no_prompt_to_resend");
+}
+
+#[test]
+fn a_batch_stamps_no_usage_even_when_the_provider_reports_it() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-batch-usage");
+    let h = Harness::with_usage("batch-usage", "A dragon roared. The knight fled.", 2);
+    let ids = h.segment_ids();
+    let channel = tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(|_| Ok(()));
+    tauri::async_runtime::block_on(wire::ai_translate_batch(
+        h.app.handle().clone(),
+        ids,
+        Some("Plain".to_owned()),
+        channel,
+    ))
+    .expect("ai_translate_batch phai tra Ok");
+    let record = h.record();
+    assert!(record.sent_at.is_some());
+    assert!(record.sent_usage.is_none(), "lo khong dong dau usage");
 }
