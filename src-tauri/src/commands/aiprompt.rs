@@ -258,6 +258,9 @@ pub struct TmInjectionStatusWire {
     pub similar_segments: Option<Vec<SimilarSegmentWire>>,
     /// Matching pairs left out by the pair cap; `None` exactly when `kind == "not_asked"`.
     pub omitted_count: Option<usize>,
+    /// Distinct pairs the "only mine" switch kept out before the cap (AD-57); `None` exactly
+    /// when `kind == "not_asked"`, 0 when the switch is off.
+    pub hidden_count: Option<usize>,
 }
 
 impl From<TmInjectionStatus> for TmInjectionStatusWire {
@@ -267,14 +270,17 @@ impl From<TmInjectionStatus> for TmInjectionStatusWire {
                 kind: "not_asked",
                 similar_segments: None,
                 omitted_count: None,
+                hidden_count: None,
             },
             TmInjectionStatus::Searched {
                 pairs,
                 omitted_count,
+                hidden_count,
             } => Self {
                 kind: "searched",
                 similar_segments: Some(pairs.into_iter().map(Into::into).collect()),
                 omitted_count: Some(omitted_count),
+                hidden_count: Some(hidden_count),
             },
         }
     }
@@ -516,7 +522,7 @@ pub fn assemble_and_record_prompt_with_tm(
     }
     let tm = gather_tm_context(tm_cache.0.as_ref(), &resolver, source_lang, sentence)
         .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?;
-    let (prompt, ledger) = assemble_prompt(&set.body, sentence, glossary, tm.as_deref());
+    let (prompt, ledger) = assemble_prompt(&set.body, sentence, glossary, tm.as_ref());
 
     let record_value = AssembledPromptRecord {
         prompt,

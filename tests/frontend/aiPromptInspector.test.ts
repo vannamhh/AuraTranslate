@@ -115,7 +115,7 @@ function asked(
   return { kind: 'asked', injected, suppressed_by_pending_overlap: suppressed, pending_matched: [] }
 }
 
-const TM_NOT_ASKED: TmInjectionStatusWire = { kind: 'not_asked', similar_segments: null, omitted_count: null }
+const TM_NOT_ASKED: TmInjectionStatusWire = { kind: 'not_asked', similar_segments: null, omitted_count: null, hidden_count: null }
 
 function tmPair(over: Partial<SimilarSegmentWire> = {}): SimilarSegmentWire {
   return {
@@ -305,10 +305,10 @@ describe('glossaryInjectionSummary — no_record / not_asked / asked-N, không c
   it('TM searched ⇒ tmCount là số cặp đã chèn; searched rỗng ⇒ 0 (không phải null)', async () => {
     const { state } = await freshOverlay()
     const withPairs = state.glossaryInjectionSummary(
-      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair(), tmPair()], omitted_count: 0 } } }),
+      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair(), tmPair()], omitted_count: 0, hidden_count: 0 } } }),
     )
     const empty = state.glossaryInjectionSummary(
-      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [], omitted_count: 0 } } }),
+      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [], omitted_count: 0, hidden_count: 0 } } }),
     )
     expect(withPairs).toEqual({ kind: 'asked', count: 0, tmCount: 2 })
     expect(empty).toEqual({ kind: 'asked', count: 0, tmCount: 0 })
@@ -598,7 +598,7 @@ describe('AiPromptInspectorOverlay.vue — TM: not_asked khác searched-rỗng k
   it('kind "searched" rỗng ⇒ "0 câu", không có danh sách', async () => {
     const { state, i18n, AiPromptInspectorOverlay } = await freshOverlay()
     readRecordMock.mockResolvedValue(
-      record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: [], omitted_count: 0 } } }),
+      record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: [], omitted_count: 0, hidden_count: 0 } } }),
     )
     state.openAiPromptInspector()
     await flushPromises()
@@ -620,7 +620,7 @@ describe('AiPromptInspectorOverlay.vue — TM: not_asked khác searched-rỗng k
       tmPair({ source_text: 'Other src', target_text: 'Other tgt', side: 'others', tier: 'global', percent: 90, reference: true }),
     ]
     readRecordMock.mockResolvedValue(
-      record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: pairs, omitted_count: 0 } } }),
+      record({ ledger: { ...record().ledger, tm: { kind: 'searched', similar_segments: pairs, omitted_count: 0, hidden_count: 0 } } }),
     )
     state.openAiPromptInspector()
     await flushPromises()
@@ -1395,7 +1395,7 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
         ledger: {
           ...record().ledger,
           glossary: asked([injectedTerm()]),
-          tm: { kind: 'searched', similar_segments: [tmPair(), tmPair({ side: 'others', reference: true })], omitted_count: 0 },
+          tm: { kind: 'searched', similar_segments: [tmPair(), tmPair({ side: 'others', reference: true })], omitted_count: 0, hidden_count: 0 },
         },
       }),
     )
@@ -1419,7 +1419,7 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
     const readsBefore = readRecordMock.mock.calls.length
 
     readRecordMock.mockResolvedValue(
-      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair()], omitted_count: 0 } } }),
+      record({ ledger: { ...record().ledger, glossary: asked([]), tm: { kind: 'searched', similar_segments: [tmPair()], omitted_count: 0, hidden_count: 0 } } }),
     )
     const batchState = await import('../../src/aiTranslateBatchState')
     await batchState.runAiTranslateBatch('Happy', [5, 6])
@@ -1447,7 +1447,7 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
         ledger: {
           ...record().ledger,
           glossary: asked([]),
-          tm: { kind: 'searched', similar_segments: [tmPair()], omitted_count: 0 },
+          tm: { kind: 'searched', similar_segments: [tmPair()], omitted_count: 0, hidden_count: 0 },
         },
       }),
     )

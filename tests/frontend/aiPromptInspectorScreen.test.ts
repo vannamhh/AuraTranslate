@@ -53,7 +53,7 @@ vi.mock('../../src/config/aitranslate', async (importOriginal) => ({
 
 vi.mock('../../src/config/glossary', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/glossary')>()),
-  listGlossaryTmSuggestions: async () => ({ value: [], error: null }),
+  listGlossaryTmSuggestions: async () => ({ value: { suggestions: [], hidden_count: 0 }, error: null }),
 }))
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
@@ -87,7 +87,7 @@ function askedWith(pending: PendingGlossaryTermWire[]): GlossaryInjectionStatusW
 }
 
 function searched(omitted: number): TmInjectionStatusWire {
-  return { kind: 'searched', similar_segments: [], omitted_count: omitted }
+  return { kind: 'searched', similar_segments: [], omitted_count: omitted, hidden_count: 0 }
 }
 
 const PIECES: AssembledPromptWire['ledger']['pieces'] = [
@@ -107,7 +107,7 @@ function record(overrides: Partial<AssembledPromptWire> = {}): AssembledPromptWi
     prompt_set_tier: 'global',
     ledger: {
       glossary: NOT_ASKED,
-      tm: { kind: 'not_asked', similar_segments: null, omitted_count: null },
+      tm: { kind: 'not_asked', similar_segments: null, omitted_count: null, hidden_count: null },
       unknown_markers: [],
       source_segment_missing: false,
       pieces: PIECES,
@@ -666,6 +666,18 @@ describe('phần "đã cân nhắc nhưng không chèn" và lối sửa', () => 
     expect(hoisted.tmConcordance).toHaveBeenCalledWith('SSSSSSSSSS')
     expect(hoisted.segmentCalls).toEqual([])
     wrapper.unmount()
+  })
+
+  it('hidden_count > 0 ⇒ dòng "cặp của người khác không dùng" nêu số; 0 ⇒ không dòng nào', async () => {
+    const screen = await freshScreen()
+    const hiddenTm: TmInjectionStatusWire = { kind: 'searched', similar_segments: [], omitted_count: 0, hidden_count: 5 }
+    const wrapper = await openWith(screen, withLedger({ tm: hiddenTm }))
+    expect(wrapper.get('[data-aip-tm-hidden]').text()).toBe(screen.i18n.t('tm.policy.hidden_note', { count: '5' }))
+    wrapper.unmount()
+
+    const clean = await openWith(screen, withLedger({ tm: searched(0) }))
+    expect(clean.find('[data-aip-tm-hidden]').exists()).toBe(false)
+    clean.unmount()
   })
 
   it('bản ghi không mang câu nguồn: "Xem cả N" chỉ cảnh báo, không đóng màn, không tra', async () => {

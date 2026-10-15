@@ -1564,7 +1564,7 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
     // Than khong mang `{{tm_similar_segments}}` -- pin TAG `not_asked` o tang JSON.
     assert_eq!(
         ledger["tm"],
-        serde_json::json!({ "kind": "not_asked", "similar_segments": null, "omitted_count": null })
+        serde_json::json!({ "kind": "not_asked", "similar_segments": null, "omitted_count": null, "hidden_count": null })
     );
 
     // `pieces` -- ĐÚNG BA nhãn đường gọi này sản xuất được, dưới dạng CHUỖI JSON snake_case.

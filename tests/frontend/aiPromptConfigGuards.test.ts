@@ -42,7 +42,7 @@ function validSimilarSegmentWire(over: Record<string, unknown> = {}) {
 function validLedgerWire(over: Record<string, unknown> = {}) {
   return {
     glossary: { kind: 'asked', injected: [validInjectedTermWire()], suppressed_by_pending_overlap: [], pending_matched: [] },
-    tm: { kind: 'not_asked', similar_segments: null, omitted_count: null },
+    tm: { kind: 'not_asked', similar_segments: null, omitted_count: null, hidden_count: null },
     unknown_markers: [],
     source_segment_missing: false,
     pieces: [validPieceWire()],
@@ -187,7 +187,7 @@ describe('⑤ isTmInjectionStatusWire / isSimilarSegmentWire', () => {
   it('đối chứng chiều ngược — kind: "searched" với một mảng SimilarSegmentWire hợp lệ ⇒ error === null', async () => {
     const state = await freshAdapter()
     mockInvoke.mockResolvedValue(
-      validWire({ ledger: validLedgerWire({ tm: { kind: 'searched', similar_segments: [validSimilarSegmentWire()], omitted_count: 0 } }) }),
+      validWire({ ledger: validLedgerWire({ tm: { kind: 'searched', similar_segments: [validSimilarSegmentWire()], omitted_count: 0, hidden_count: 0 } }) }),
     )
 
     const result = await state.aiPromptAssemble('Happy', 1)
@@ -386,8 +386,8 @@ describe('⑨ trường của màn Xem prompt đầy đủ — sent_*, pending_m
   })
 
   it('tm "searched" thiếu omitted_count hoặc null ⇒ bị từ chối; 0 hợp lệ (khác null)', async () => {
-    const searched = (omitted: unknown) => ({ kind: 'searched', similar_segments: [], omitted_count: omitted })
-    const missing = await assemble(validWire({ ledger: validLedgerWire({ tm: { kind: 'searched', similar_segments: [] } }) }))
+    const searched = (omitted: unknown) => ({ kind: 'searched', similar_segments: [], omitted_count: omitted, hidden_count: 0 })
+    const missing = await assemble(validWire({ ledger: validLedgerWire({ tm: { kind: 'searched', similar_segments: [], hidden_count: 0 } }) }))
     expect(missing.value).toBeNull()
     const asNull = await assemble(validWire({ ledger: validLedgerWire({ tm: searched(null) }) }))
     expect(asNull.value).toBeNull()
@@ -397,7 +397,24 @@ describe('⑨ trường của màn Xem prompt đầy đủ — sent_*, pending_m
 
   it('tm "not_asked" mang omitted_count số ⇒ bị từ chối', async () => {
     const result = await assemble(
-      validWire({ ledger: validLedgerWire({ tm: { kind: 'not_asked', similar_segments: null, omitted_count: 0 } }) }),
+      validWire({ ledger: validLedgerWire({ tm: { kind: 'not_asked', similar_segments: null, omitted_count: 0, hidden_count: null } }) }),
+    )
+    expect(result.value).toBeNull()
+  })
+
+  it('tm "searched" thiếu hidden_count hoặc null ⇒ bị từ chối; 0 hợp lệ (khác null)', async () => {
+    const base = { kind: 'searched', similar_segments: [], omitted_count: 0 }
+    const missing = await assemble(validWire({ ledger: validLedgerWire({ tm: base }) }))
+    expect(missing.value).toBeNull()
+    const asNull = await assemble(validWire({ ledger: validLedgerWire({ tm: { ...base, hidden_count: null } }) }))
+    expect(asNull.value).toBeNull()
+    const zero = await assemble(validWire({ ledger: validLedgerWire({ tm: { ...base, hidden_count: 0 } }) }))
+    expect(zero.error).toBeNull()
+  })
+
+  it('tm "not_asked" mang hidden_count số ⇒ bị từ chối', async () => {
+    const result = await assemble(
+      validWire({ ledger: validLedgerWire({ tm: { kind: 'not_asked', similar_segments: null, omitted_count: null, hidden_count: 0 } }) }),
     )
     expect(result.value).toBeNull()
   })

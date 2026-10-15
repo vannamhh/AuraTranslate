@@ -33,7 +33,7 @@ function markWire(overrides: Record<string, unknown> = {}) {
   }
 }
 
-async function mountStrip(options: { mark?: Record<string, unknown>; tm?: TmSuggestion[] | Error } = {}) {
+async function mountStrip(options: { mark?: Record<string, unknown>; tm?: TmSuggestion[] | Error; hidden?: number } = {}) {
   vi.resetModules()
   mockInvoke.mockReset()
 
@@ -61,7 +61,7 @@ async function mountStrip(options: { mark?: Record<string, unknown>; tm?: TmSugg
       const tm = options.tm ?? []
       return tm instanceof Error
         ? Promise.reject({ code: 'tm.broken', message_key: 'err.unknown', params: {}, retryable: false })
-        : Promise.resolve(tm)
+        : Promise.resolve({ suggestions: tm, hidden_count: options.hidden ?? 0 })
     }
     return Promise.reject(new Error(`unexpected command: ${cmd}`))
   })
@@ -91,6 +91,21 @@ function optionTexts(wrapper: Awaited<ReturnType<typeof mountStrip>>['wrapper'])
     .findAll('.gcs-option')
     .map((b) => ['.gcs-key', '.gcs-option-text', '.gcs-option-source'].map((c) => b.get(c).text()).join(' '))
 }
+
+describe('hidden TM pairs (only-mine switch)', () => {
+  it('no proposal but a hidden count ⇒ the note names the count; Hán Việt stays option 1', async () => {
+    const { wrapper } = await mountStrip({ tm: [], hidden: 4 })
+    expect(wrapper.get('[data-tm-hidden-note]').text()).toContain('4')
+    expect(optionTexts(wrapper)).toEqual(['1 Thính Triều Các âm Hán Việt'])
+    wrapper.unmount()
+  })
+
+  it('a zero hidden count shows no note', async () => {
+    const { wrapper } = await mountStrip({ tm: [{ target_text: 'Gác Nghe Sóng', count: 2 }], hidden: 0 })
+    expect(wrapper.find('[data-tm-hidden-note]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
 
 describe('numbered proposals', () => {
   it('lists Hán Việt as 1, then TM translations by count', async () => {

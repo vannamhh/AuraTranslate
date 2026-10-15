@@ -13223,3 +13223,15 @@ chính nó.
   evidence: chỉ có một đường lắp prompt (`core::ai::rag::assemble_prompt`), nên chữ này cố định và không mang thông tin.
   Chủ: Ice.
   → KHÔNG LÀM 2026-10-15 (Story 12.12) — Ice chọn bỏ; dòng thông tin chỉ giữ giờ gửi và mô hình.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
+  summary: Mockup prompt-library vẽ hàng biến thứ tư `{{chapter_context}}`; Thư viện prompt chỉ có ba biến đã chuẩn y nên không dựng hàng này.
+  evidence: `PromptVariable::ALL` có ba biến; thêm biến là đổi từ vựng đã chuẩn y (Epic 4), không phải việc của giao diện.
+  Chủ: Winston.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
+  summary: Lượt dùng thật trong app: bật công tắc "chỉ dùng cặp của tôi" trên Tác phẩm có cặp người khác, mở Chương, đối chiếu dải TM, dải chốt Glossary, Xem prompt; xuất riêng rồi mở TMX xem `x-aura-origin`; gõ dở thân prompt rồi Nhân bản và đối chiếu lớp tô biến với ô gõ bằng mắt.
+  evidence: webview e2e đứng ở `tauri://localhost` nên hai spec `story-12-14-*` chưa chạy xanh; tô biến cần khớp điểm ảnh trong WKWebView mà happy-dom không đo được.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
+  summary: Quản lý TM gọi `refreshExportCounts` sau mỗi lần sửa / xoá / đẩy / nhập, tức bốn lượt đọc trọn tầng (`tm_export_counts` hai tầng × `all` / `mine`); chưa đo trên TM lớn.
+  evidence: chưa kiểm (review 12.14 xếp maybe-false, nếu đúng là medium); muốn chốt thì đo thời gian `tm_export_counts` và thời gian giữ khoá `OpenWorkState` ở 200.000 cặp, cùng quần thể `nfr_bench`.
+  Chủ: Epic 12.

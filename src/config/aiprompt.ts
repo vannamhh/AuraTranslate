@@ -79,8 +79,8 @@ export type SimilarSegmentWire = {
 /** Trạng thái TM trên dây — `not_asked` ⇔ thân bộ prompt không có `{{tm_similar_segments}}`;
  * `searched` mang CHỈ các cặp đã chèn (mảng rỗng = đã tìm, không có cặp nào). */
 export type TmInjectionStatusWire =
-  | { kind: 'not_asked'; similar_segments: null; omitted_count: null }
-  | { kind: 'searched'; similar_segments: SimilarSegmentWire[]; omitted_count: number }
+  | { kind: 'not_asked'; similar_segments: null; omitted_count: null; hidden_count: null }
+  | { kind: 'searched'; similar_segments: SimilarSegmentWire[]; omitted_count: number; hidden_count: number }
 
 /** Nhãn của MỘT mảnh `prompt` — khớp NGUYÊN VĂN `PromptPieceKindWire` phía Rust. Story 4.7
  * loop 1, finding B1: `'glossary'` là đúng khối `{{glossary_terms}}` mở rộng ra; `'authored'`
@@ -231,13 +231,19 @@ function isSimilarSegmentWire(value: unknown): value is SimilarSegmentWire {
 
 function isTmInjectionStatusWire(value: unknown): value is TmInjectionStatusWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { kind?: unknown; similar_segments?: unknown; omitted_count?: unknown }
-  if (v.kind === 'not_asked') return v.similar_segments === null && v.omitted_count === null
+  const v = value as {
+    kind?: unknown
+    similar_segments?: unknown
+    omitted_count?: unknown
+    hidden_count?: unknown
+  }
+  if (v.kind === 'not_asked') return v.similar_segments === null && v.omitted_count === null && v.hidden_count === null
   if (v.kind === 'searched') {
     return (
       Array.isArray(v.similar_segments) &&
       v.similar_segments.every(isSimilarSegmentWire) &&
-      typeof v.omitted_count === 'number'
+      typeof v.omitted_count === 'number' &&
+      typeof v.hidden_count === 'number'
     )
   }
   return false

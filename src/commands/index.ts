@@ -1015,6 +1015,10 @@ export type CommandDeps = {
   prevTmManageRow?: () => void
   /** Opens the save dialog in Rust and writes the chosen tier as TMX. Handler of `tm.manage.export_tmx`. */
   exportTmManageTier?: () => void
+  /** Exports only the pairs I translated from the chosen tier. Handler of `tm.manage.export_mine`. */
+  exportTmManageMine?: () => void
+  /** Flips "only my pairs" for the open Work. Handler of `tm.manage.only_mine_toggle`. */
+  toggleTmOnlyMine?: () => void
   /** Opens the pick dialog in Rust and shows the import preview. Handler of `tm.manage.import_tmx`. */
   openTmImportPreview?: () => void
   /** Writes the previewed TMX import. Handler of `tm.import.confirm`. */
@@ -4099,6 +4103,24 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.exportTmManageTier === undefined) return portMissing('tm.manage.export_tmx', 'exportTmManageTier')
       deps.exportTmManageTier()
+    },
+  })
+  target.register({
+    id: 'tm.manage.export_mine',
+    labelKey: 'command.tm.manage.export_mine',
+    keys: undefined,
+    run: () => {
+      if (deps.exportTmManageMine === undefined) return portMissing('tm.manage.export_mine', 'exportTmManageMine')
+      deps.exportTmManageMine()
+    },
+  })
+  target.register({
+    id: 'tm.manage.only_mine_toggle',
+    labelKey: 'command.tm.manage.only_mine_toggle',
+    keys: undefined,
+    run: () => {
+      if (deps.toggleTmOnlyMine === undefined) return portMissing('tm.manage.only_mine_toggle', 'toggleTmOnlyMine')
+      deps.toggleTmOnlyMine()
     },
   })
   target.register({

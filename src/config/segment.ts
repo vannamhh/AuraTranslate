@@ -214,14 +214,15 @@ export type ChapterSegments = {
 
 /** `not_asked` ⇒ no fill was attempted; it is never "ran, 0 hits". */
 export type TmPrefillStatus =
-  | { kind: 'ran' }
+  | { kind: 'ran'; hidden_count: number }
   | { kind: 'not_asked' }
   | { kind: 'skipped'; code: string }
 
 function isTmPrefillStatus(value: unknown): value is TmPrefillStatus {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { kind?: unknown; code?: unknown }
-  if (v.kind === 'ran' || v.kind === 'not_asked') return true
+  const v = value as { kind?: unknown; code?: unknown; hidden_count?: unknown }
+  if (v.kind === 'ran') return typeof v.hidden_count === 'number' && Number.isInteger(v.hidden_count) && v.hidden_count >= 0
+  if (v.kind === 'not_asked') return true
   return v.kind === 'skipped' && typeof v.code === 'string'
 }
 
@@ -1179,6 +1180,8 @@ export type TmFuzzyMatches = {
   segment_id: number
   matches: TmFuzzyMatch[]
   exact: TmExactTarget[]
+  /** Pairs left out because "only my pairs" is on; `0` when the switch is off. */
+  hidden_count: number
 }
 
 export type TmFuzzyMatchesResult = { outcome: TmFuzzyMatches | null; error: IpcError | null }
@@ -1225,7 +1228,10 @@ function isTmFuzzyMatches(value: unknown): value is TmFuzzyMatches {
     Array.isArray(v.matches) &&
     v.matches.every(isTmFuzzyMatch) &&
     Array.isArray(v.exact) &&
-    v.exact.every(isTmExactTarget)
+    v.exact.every(isTmExactTarget) &&
+    typeof v.hidden_count === 'number' &&
+    Number.isInteger(v.hidden_count) &&
+    v.hidden_count >= 0
   )
 }
 

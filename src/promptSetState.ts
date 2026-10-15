@@ -307,6 +307,28 @@ export async function exportPromptSets(sets: ReadonlyArray<{ tier: PromptSetTier
 }
 
 /**
+ * First free `"<name> (<suffix>)"`, then `"<name> (<suffix> 2)"`, and so on, skipping `taken`
+ * and the first `skip` candidates (used to retry after a `name_taken` the list did not predict).
+ */
+export function duplicatePromptSetName(
+  name: string,
+  suffix: string,
+  taken: ReadonlySet<string>,
+  skip = 0,
+): string {
+  let seen = 0
+  for (let n = 1; ; n += 1) {
+    const candidate = n === 1 ? `${name} (${suffix})` : `${name} (${suffix} ${n})`
+    if (taken.has(candidate)) continue
+    if (seen < skip) {
+      seen += 1
+      continue
+    }
+    return candidate
+  }
+}
+
+/**
  * Vứt toàn bộ state của mục — `check:panel-refs` đòi mọi ô nhớ cấp module có một đường
  * `reset*()`, cùng khuôn `resetAiConfigSection`.
  */

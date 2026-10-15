@@ -346,7 +346,7 @@ fn a_drifted_floor_names_the_constant_and_ceil_0_85_times_live() {
 // Every `*_boundary.rs` file reaches the shared scanner
 // ═════════════════════════════════════════════════════════════════════════════════
 
-const BOUNDARY_FILE_FLOOR: usize = 17;
+const BOUNDARY_FILE_FLOOR: usize = 19;
 const BOUNDARY_SCAN_DECLARATION: &str = "#[path = \"support/boundary_scan.rs\"]";
 const POPULATION_HELPER_CALLS: [&str; 3] = [
     "boundary_scan::rust_sources(",

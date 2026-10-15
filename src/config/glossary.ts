@@ -587,10 +587,17 @@ const CMD_TM_SUGGESTIONS = 'glossary_tm_suggestions'
 
 export type GlossaryTmSuggestion = { target_text: string; count: number }
 
-function isGlossaryTmSuggestionArray(value: unknown): value is GlossaryTmSuggestion[] {
+export type GlossaryTmSuggestions = { suggestions: GlossaryTmSuggestion[]; hidden_count: number }
+
+function isGlossaryTmSuggestions(value: unknown): value is GlossaryTmSuggestions {
+  if (typeof value !== 'object' || value === null) return false
+  const w = value as Partial<GlossaryTmSuggestions>
   return (
-    Array.isArray(value) &&
-    value.every((item: unknown) => {
+    typeof w.hidden_count === 'number' &&
+    Number.isInteger(w.hidden_count) &&
+    w.hidden_count >= 0 &&
+    Array.isArray(w.suggestions) &&
+    w.suggestions.every((item: unknown) => {
       if (typeof item !== 'object' || item === null) return false
       const v = item as Partial<GlossaryTmSuggestion>
       return (
@@ -605,14 +612,14 @@ function isGlossaryTmSuggestionArray(value: unknown): value is GlossaryTmSuggest
 
 /**
  * Translations the TM already holds for a pending term (FR146): pairs whose source equals
- * the term exactly, grouped by target. **Never throws.** An empty array is a real answer.
+ * the term exactly, grouped by target, plus the count hidden by "only my pairs". **Never throws.** An empty list is a real answer.
  */
 export async function listGlossaryTmSuggestions(
   sourceTerm: string,
-): Promise<GlossaryWriteResult<GlossaryTmSuggestion[]>> {
+): Promise<GlossaryWriteResult<GlossaryTmSuggestions>> {
   try {
     const wire: unknown = await invoke(CMD_TM_SUGGESTIONS, { sourceTerm })
-    if (!isGlossaryTmSuggestionArray(wire)) {
+    if (!isGlossaryTmSuggestions(wire)) {
       console.error(`[glossary] \`${CMD_TM_SUGGESTIONS}\` trả về hình dạng không đúng`)
       return { value: null, error: UNKNOWN_IPC_ERROR }
     }

@@ -972,8 +972,8 @@ fn chapter_segments_wire_struct_carries_caret_segment_id() {
     );
     use auratranslate_lib::commands::segment::TmPrefillStatus;
     assert_eq!(
-        serde_json::to_value(TmPrefillStatus::Ran).unwrap(),
-        serde_json::json!({ "kind": "ran" })
+        serde_json::to_value(TmPrefillStatus::Ran { hidden_count: 2 }).unwrap(),
+        serde_json::json!({ "kind": "ran", "hidden_count": 2 })
     );
     assert_eq!(
         serde_json::to_value(TmPrefillStatus::Skipped {
@@ -2732,6 +2732,10 @@ fn tm_manage_wire_structs_keep_their_snake_case_keys() {
             translation_origin: "self",
             count: 1,
         }],
+        tier_totals: auratranslate_lib::commands::tm::TmTierTotalsWire {
+            work: Some(1),
+            global: 0,
+        },
         total_pairs: 1,
         total_groups: 1,
         groups: vec![TmSourceGroupWire {
@@ -2758,6 +2762,7 @@ fn tm_manage_wire_structs_keep_their_snake_case_keys() {
         [
             "groups",
             "health",
+            "tier_totals",
             "tm_empty",
             "total_groups",
             "total_pairs",
@@ -2879,4 +2884,82 @@ fn the_glossary_tm_suggestions_wire_is_registered_and_keeps_its_parameter_names(
         normalize_param_list("app: tauri::AppHandle, source_term: String,"),
         "`src/config/glossary.ts` la cho duy nhat go lai theo dung ten/thu tu do."
     );
+}
+
+#[test]
+fn the_tm_only_mine_wires_are_registered_keep_their_parameter_names_and_json_keys() {
+    use auratranslate_lib::commands::glossary::{GlossaryTmSuggestion, GlossaryTmSuggestions};
+    use auratranslate_lib::commands::tm::{TmExportCounts, TmOnlyMineState};
+
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let lib_src = fs::read_to_string(manifest.join("lib.rs")).expect("doc lib.rs");
+    let tm_src = fs::read_to_string(manifest.join("commands").join("tm.rs")).expect("doc tm.rs");
+    let wire = &tm_src[tm_src.find("pub mod wire {").expect("wire module")..];
+    for name in ["tm_only_mine_get", "tm_only_mine_set", "tm_export_counts"] {
+        assert!(
+            lib_src.contains(&format!("crate::commands::tm::wire::{name}")),
+            "`{name}` phai co mat trong lib.rs"
+        );
+    }
+    let params = |name: &str| normalize_param_list(&fn_param_list(wire, name));
+    assert_eq!(
+        params("tm_only_mine_set"),
+        "app: tauri::AppHandle<R>, only_mine: bool,"
+    );
+    assert_eq!(
+        params("tm_export_counts"),
+        "app: tauri::AppHandle<R>, tier: String,"
+    );
+    assert!(
+        params("tm_list_pairs").ends_with("search: String, sort: Option<String>,"),
+        "tham so sap xep phai la tham so cuoi, tuy chon"
+    );
+    assert!(
+        params("tm_export_tier").contains("filter: Option<String>"),
+        "bo loc xuat phai la tham so tuy chon"
+    );
+
+    let keys = |v: serde_json::Value| -> Vec<String> {
+        let mut k: Vec<String> = v.as_object().expect("object").keys().cloned().collect();
+        k.sort();
+        k
+    };
+    assert_eq!(
+        keys(
+            serde_json::to_value(TmOnlyMineState {
+                work_open: true,
+                only_mine: false
+            })
+            .expect("serialize")
+        ),
+        ["only_mine", "work_open"]
+    );
+    assert_eq!(
+        keys(serde_json::to_value(TmExportCounts { all: 2, mine: 1 }).expect("serialize")),
+        ["all", "mine"]
+    );
+    let suggestions = serde_json::to_value(GlossaryTmSuggestions {
+        suggestions: vec![GlossaryTmSuggestion {
+            target_text: "x".to_owned(),
+            count: 1,
+        }],
+        hidden_count: 3,
+    })
+    .expect("serialize");
+    assert_eq!(keys(suggestions.clone()), ["hidden_count", "suggestions"]);
+    assert_eq!(
+        keys(suggestions["suggestions"][0].clone()),
+        ["count", "target_text"]
+    );
+}
+
+#[test]
+fn setting_the_tm_only_mine_switch_without_an_open_work_is_refused_and_reading_it_is_false() {
+    use auratranslate_lib::commands::tm::{tm_only_mine_get, tm_only_mine_set};
+
+    let err = tm_only_mine_set(None, true).expect_err("khong co tac pham thi tu choi");
+    assert_eq!(err.code(), "work.none_open");
+    let state = tm_only_mine_get(None).expect("doc khi khong mo tac pham");
+    assert!(!state.work_open);
+    assert!(!state.only_mine);
 }

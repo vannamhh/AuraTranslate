@@ -127,8 +127,9 @@ pub struct ChapterSegments {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(tag = "kind")]
 pub enum TmPrefillStatus {
+    /// `hidden_count`: distinct pairs the "only mine" switch kept out of the fill (AD-57).
     #[serde(rename = "ran")]
-    Ran,
+    Ran { hidden_count: usize },
     #[serde(rename = "not_asked")]
     NotAsked,
     #[serde(rename = "skipped")]
@@ -493,7 +494,7 @@ pub fn load_open_chapter_segments(
             .ok_or_else(global_store_missing)
             .and_then(|g| fill_exact_tm_matches(g, open))
         {
-            Ok(filled) => Some(Ok(filled)),
+            Ok(done) => Some(Ok(done)),
             Err(e) => {
                 eprintln!("tm prefill bi bo qua: {}", e.code());
                 Some(Err(e.code().to_owned()))
@@ -504,12 +505,12 @@ pub fn load_open_chapter_segments(
     };
     let mut chapter = read_open_chapter_segments(Some(open))?;
     match outcome {
-        Some(Ok(filled)) => {
+        Some(Ok((filled, hidden_count))) => {
             chapter.tm_filled_segment_ids = filled
                 .into_iter()
                 .filter(|id| chapter.segments.iter().any(|s| s.id == *id))
                 .collect();
-            chapter.tm_prefill = TmPrefillStatus::Ran;
+            chapter.tm_prefill = TmPrefillStatus::Ran { hidden_count };
         }
         Some(Err(code)) => chapter.tm_prefill = TmPrefillStatus::Skipped { code },
         None => {}
@@ -520,7 +521,9 @@ pub fn load_open_chapter_segments(
 fn fill_exact_tm_matches(
     global: &crate::core::store::Store,
     open: &OpenWork,
-) -> Result<Vec<i64>, IpcError> {
+) -> Result<(Vec<i64>, usize), IpcError> {
+    let policy = crate::core::tm::TmSidePolicy::from_work(Some(&open.store))
+        .map_err(|e| tm_lookup_failed(&e))?;
     let chapter_id = open.chapter_id;
     let candidates: Vec<(i64, String)> = open.store.read(move |conn| {
         let mut stmt = conn.prepare(&format!(
@@ -537,15 +540,23 @@ fn fill_exact_tm_matches(
     })?;
 
     let mut by_source: BTreeMap<String, Option<(String, &'static str)>> = BTreeMap::new();
+    let mut hidden_count = 0usize;
     let mut picks: Vec<(i64, String, &'static str)> = Vec::new();
     for (id, source) in candidates {
         if source.trim().is_empty() {
             continue;
         }
         if !by_source.contains_key(&source) {
-            let pairs =
-                crate::core::tm::pairs_for_source(&open.scope, global, Some(&open.store), &source)
-                    .map_err(|e| tm_lookup_failed(&e))?;
+            let (pairs, hidden) = crate::core::tm::pairs_for_source(
+                &open.scope,
+                global,
+                Some(&open.store),
+                &source,
+                policy,
+            )
+            .map_err(|e| tm_lookup_failed(&e))?
+            .into_parts();
+            hidden_count += hidden;
             let first = pairs
                 .into_iter()
                 .next()
@@ -557,7 +568,7 @@ fn fill_exact_tm_matches(
         }
     }
     if picks.is_empty() {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), hidden_count));
     }
 
     let filled = open.store.write(move |tx: &Transaction<'_>| {
@@ -578,7 +589,7 @@ fn fill_exact_tm_matches(
         }
         Ok(filled)
     })?;
-    Ok(filled)
+    Ok((filled, hidden_count))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

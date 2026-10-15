@@ -17,7 +17,10 @@ use crate::core::tm::tmx::{
     existing_pair_keys, pairs_not_in, parse_tmx, plan_import, render_tmx, write_planned_pairs,
 };
 use crate::core::tm::tmx_io::{read_tmx_file, write_tmx_file};
-use crate::core::tm::{CopyRef, PairOriginFilter, PushOutcome, TierFilter, TmPair, TmTier};
+use crate::core::tm::{
+    CopyRef, ManageSort, PairOriginFilter, PushOutcome, TierFilter, TmExportFilter, TmPair,
+    TmSidePolicy, TmTier,
+};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TmPairWire {
@@ -89,6 +92,13 @@ pub struct TmOriginCountWire {
     pub count: usize,
 }
 
+/// Stored pairs per tier whatever the filters say; `work` is `None` with no Work open, never 0.
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+pub struct TmTierTotalsWire {
+    pub work: Option<usize>,
+    pub global: usize,
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct TmPairList {
     /// A Work is open, so the Work tier and push-up exist.
@@ -97,6 +107,7 @@ pub struct TmPairList {
     pub tm_empty: bool,
     /// Always three entries (`self`, `other`, `bilingual_import`) over the tier filter alone.
     pub health: Vec<TmOriginCountWire>,
+    pub tier_totals: TmTierTotalsWire,
     /// Pairs passing every filter, before the cap.
     pub total_pairs: usize,
     /// Source groups passing every filter, before the cap; `groups.len()` is smaller when capped.
@@ -191,6 +202,7 @@ pub struct TmListScan {
     tier: TierFilter,
     pair_origin: PairOriginFilter,
     search: String,
+    sort: ManageSort,
     resolver: crate::core::scope::ScopeResolver,
     snapshot: crate::core::tm::TierRows,
 }
@@ -202,8 +214,10 @@ pub fn prepare_tm_list(
     pair_origin: &str,
     tier: &str,
     search: &str,
+    sort: &str,
 ) -> Result<TmListScan, IpcError> {
     let (tier, pair_origin) = parse_filters(tier, pair_origin)?;
+    let sort = ManageSort::from_wire(sort).ok_or_else(|| invalid_filter("sort", sort))?;
     if tier == TierFilter::Work && open.is_none() {
         return Err(crate::commands::chapter::no_work_open());
     }
@@ -212,13 +226,15 @@ pub fn prepare_tm_list(
         Some(open) => open.scope.clone(),
         None => crate::core::scope::ScopeResolver::global_only(),
     };
-    let snapshot = crate::core::tm::read_tier_rows(global, open.map(|o| &o.store))
-        .map_err(|e| tm_lookup_failed(&e))?;
+    let snapshot =
+        crate::core::tm::read_tier_rows(global, open.map(|o| &o.store), TmSidePolicy::browse())
+            .map_err(|e| tm_lookup_failed(&e))?;
     Ok(TmListScan {
         work_open: open.is_some(),
         tier,
         pair_origin,
         search: search.to_owned(),
+        sort,
         resolver,
         snapshot,
     })
@@ -231,6 +247,7 @@ pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
         scan.tier,
         scan.pair_origin,
         &scan.search,
+        scan.sort,
     )
     .map_err(|e| tm_lookup_failed(&e))?;
     let groups = listing
@@ -273,6 +290,10 @@ pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
                 count,
             })
             .collect(),
+        tier_totals: TmTierTotalsWire {
+            work: listing.tier_totals.work,
+            global: listing.tier_totals.global,
+        },
         total_pairs: listing.total_pairs,
         total_groups: listing.total_groups,
         groups,
@@ -280,15 +301,50 @@ pub fn score_tm_list(scan: TmListScan) -> Result<TmPairList, IpcError> {
 }
 
 /// Lists pairs of both tiers narrowed by `pair_origin` (`all`, `mine`, `others` or a stored value),
-/// `tier` (`both`, `work`, `global`) and `search` (FR62), grouped by source (FR63).
+/// `tier` (`both`, `work`, `global`) and `search` (FR62), grouped by source (FR63) and ordered by
+/// `sort` (`newest`, `oldest`, `source`, `target`, `side`) before the group cap.
 pub fn tm_list_pairs(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     pair_origin: &str,
     tier: &str,
     search: &str,
+    sort: &str,
 ) -> Result<TmPairList, IpcError> {
-    score_tm_list(prepare_tm_list(global, open, pair_origin, tier, search)?)
+    score_tm_list(prepare_tm_list(
+        global,
+        open,
+        pair_origin,
+        tier,
+        search,
+        sort,
+    )?)
+}
+
+/// The "only mine" switch of the open Work (AD-57). `only_mine` is `false` with no Work open.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct TmOnlyMineState {
+    pub work_open: bool,
+    pub only_mine: bool,
+}
+
+pub fn tm_only_mine_get(open: Option<&OpenWork>) -> Result<TmOnlyMineState, IpcError> {
+    let policy =
+        TmSidePolicy::from_work(open.map(|o| &o.store)).map_err(|e| tm_lookup_failed(&e))?;
+    Ok(TmOnlyMineState {
+        work_open: open.is_some(),
+        only_mine: policy.only_mine(),
+    })
+}
+
+/// Sets the switch of the open Work and nothing else; the next operation reads it.
+pub fn tm_only_mine_set(
+    open: Option<&OpenWork>,
+    only_mine: bool,
+) -> Result<TmOnlyMineState, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    crate::core::tm::write_only_mine(&open.store, only_mine).map_err(|e| tm_lookup_failed(&e))?;
+    tm_only_mine_get(Some(open))
 }
 
 /// Stored pairs of both tiers (Global only with no Work open); equals `total_pairs` of an
@@ -495,6 +551,10 @@ fn no_pending_tmx_import() -> IpcError {
     )
 }
 
+fn export_filter_from_wire(filter: &str) -> Result<TmExportFilter, IpcError> {
+    TmExportFilter::from_wire(filter).ok_or_else(|| invalid_filter("export_filter", filter))
+}
+
 fn tmx_tier_from_wire(tier: &str) -> Result<TmTier, IpcError> {
     match tier {
         "work" => Ok(TmTier::Work),
@@ -533,16 +593,19 @@ fn owned_work_label(open: Option<&OpenWork>, tier: TmTier) -> Option<String> {
     }
 }
 
-/// Reads the distinct pairs of one tier. `tier = work` with no Work open is `work.none_open`.
+/// Reads the distinct pairs of one tier that `filter` (`all`, `mine`) admits, whatever the Work's
+/// switch says. `tier = work` with no Work open is `work.none_open`.
 pub fn tm_read_tier_pairs(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: &str,
+    filter: &str,
 ) -> Result<TierPairs, IpcError> {
     let tier = tmx_tier_from_wire(tier)?;
+    let filter = export_filter_from_wire(filter)?;
     let global = global.ok_or_else(global_store_missing)?;
     let store = tmx_tier_store(global, open, tier)?;
-    let pairs = distinct_tier_pairs(store, tier).map_err(|e| tm_lookup_failed(&e))?;
+    let pairs = distinct_tier_pairs(store, tier, filter).map_err(|e| tm_lookup_failed(&e))?;
     Ok(TierPairs {
         tier,
         source_lang: owned_work_label(open, tier),
@@ -564,10 +627,29 @@ pub fn tm_render_tier(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: &str,
+    filter: &str,
 ) -> Result<RenderedTmx, IpcError> {
     Ok(tm_render_tier_pairs(&tm_read_tier_pairs(
-        global, open, tier,
+        global, open, tier, filter,
     )?))
+}
+
+/// What an export of one tier would carry: every distinct pair and the ones of the user's own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct TmExportCounts {
+    pub all: usize,
+    pub mine: usize,
+}
+
+pub fn tm_export_counts(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: &str,
+) -> Result<TmExportCounts, IpcError> {
+    Ok(TmExportCounts {
+        all: tm_read_tier_pairs(global, open, tier, "all")?.pairs.len(),
+        mine: tm_read_tier_pairs(global, open, tier, "mine")?.pairs.len(),
+    })
 }
 
 /// Writes rendered TMX to `path` atomically.
@@ -595,9 +677,10 @@ pub fn tm_export_tier(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: &str,
+    filter: &str,
     path: &Path,
 ) -> Result<TmxExported, IpcError> {
-    tm_write_rendered(path, &tm_render_tier(global, open, tier)?)
+    tm_write_rendered(path, &tm_render_tier(global, open, tier, filter)?)
 }
 
 /// The export once the dialog answered: `None` (cancelled) touches no file.
@@ -605,12 +688,13 @@ pub fn tm_export_tier_after_dialog(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     tier: &str,
+    filter: &str,
     picked_path: Option<PathBuf>,
 ) -> Result<Option<TmxExported>, IpcError> {
     let Some(path) = picked_path else {
         return Ok(None);
     };
-    tm_export_tier(global, open, tier, &path).map(Some)
+    tm_export_tier(global, open, tier, filter, &path).map(Some)
 }
 
 fn counts(
@@ -839,12 +923,16 @@ pub mod wire {
         pair_origin: String,
         tier: String,
         search: String,
+        sort: Option<String>,
     ) -> Result<TmPairList, IpcError> {
         use tauri::Manager as _;
 
+        let sort = sort.as_deref().unwrap_or("newest");
         let global = app.try_state::<crate::core::store::Store>();
         let scan = match app.try_state::<OpenWorkState>() {
-            None => super::prepare_tm_list(global.as_deref(), None, &pair_origin, &tier, &search)?,
+            None => {
+                super::prepare_tm_list(global.as_deref(), None, &pair_origin, &tier, &search, sort)?
+            }
             Some(state) => {
                 let guard = state
                     .lock()
@@ -855,10 +943,56 @@ pub mod wire {
                     &pair_origin,
                     &tier,
                     &search,
+                    sort,
                 )?
             }
         };
         super::score_tm_list(scan)
+    }
+
+    /// Wire shell of [`super::tm_only_mine_get`]; takes no Work id.
+    #[tauri::command]
+    pub fn tm_only_mine_get<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<super::TmOnlyMineState, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::tm_only_mine_get(None);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::tm_only_mine_get(guard.as_ref())
+    }
+
+    /// Wire shell of [`super::tm_only_mine_set`]; `onlyMine` on the wire, no Work id.
+    #[tauri::command]
+    pub fn tm_only_mine_set<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        only_mine: bool,
+    ) -> Result<super::TmOnlyMineState, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::tm_only_mine_set(None, only_mine);
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::tm_only_mine_set(guard.as_ref(), only_mine)
+    }
+
+    /// Wire shell of [`super::tm_export_counts`]; `tier` on the wire. Async: it reads every pair
+    /// of the tier twice.
+    #[tauri::command(async)]
+    pub fn tm_export_counts<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        tier: String,
+    ) -> Result<super::TmExportCounts, IpcError> {
+        with_tier_store(&app, &tier, |global, open| {
+            super::tm_export_counts(global, open, &tier)
+        })
     }
 
     /// Wire shell of [`super::tm_count_pairs`]: one `COUNT(*)` per tier, so a plain command.
@@ -1060,29 +1194,35 @@ pub mod wire {
     pub fn export_tier_to<R: tauri::Runtime>(
         app: &tauri::AppHandle<R>,
         tier: &str,
+        filter: &str,
         path: &std::path::Path,
     ) -> Result<Option<super::TmxExported>, IpcError> {
         let read = with_tier_store(app, tier, |global, open| {
-            super::tm_read_tier_pairs(global, open, tier)
+            super::tm_read_tier_pairs(global, open, tier, filter)
         })?;
         super::tm_write_rendered(path, &super::tm_render_tier_pairs(&read)).map(Some)
     }
 
-    /// Wire shell of [`super::tm_export_tier_after_dialog`]; `tier` on the wire. Async: the save
+    /// Wire shell of [`super::tm_export_tier_after_dialog`]; `tier` and optional `filter` (`all`
+    /// by default, or `mine`) on the wire. Async: the save
     /// dialog blocks, and on the main thread that deadlocks the event loop it waits on. `None`
     /// is a cancelled dialog.
     #[tauri::command(async)]
     pub fn tm_export_tier<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
         tier: String,
+        filter: Option<String>,
     ) -> Result<Option<super::TmxExported>, IpcError> {
         use tauri_plugin_dialog::DialogExt as _;
 
+        let filter = filter.as_deref().unwrap_or("all");
+        super::export_filter_from_wire(filter)?;
         tier_is_ready(&app, &tier)?;
-        let default_name = if tier == "global" {
-            "tm_global.tmx"
-        } else {
-            "tm_work.tmx"
+        let default_name = match (tier == "global", filter == "mine") {
+            (true, false) => "tm_global.tmx",
+            (true, true) => "tm_global_mine.tmx",
+            (false, false) => "tm_work.tmx",
+            (false, true) => "tm_work_mine.tmx",
         };
         let picked_path = match app
             .dialog()
@@ -1094,7 +1234,7 @@ pub mod wire {
             None => return Ok(None),
             Some(picked) => picked_to_path(picked)?,
         };
-        export_tier_to(&app, &tier, &picked_path)
+        export_tier_to(&app, &tier, filter, &picked_path)
     }
 
     /// The preview once the dialog picked `path`: the file is read and parsed unlocked, the Work

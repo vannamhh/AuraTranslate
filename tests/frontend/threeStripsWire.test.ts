@@ -59,14 +59,21 @@ describe('proofread wire', () => {
 
 describe('listGlossaryTmSuggestions', () => {
   it('sends sourceTerm in camelCase and returns the grouped list', async () => {
-    invokeMock.mockResolvedValue([{ target_text: 'X', count: 2 }])
+    invokeMock.mockResolvedValue({ suggestions: [{ target_text: 'X', count: 2 }], hidden_count: 1 })
     const result = await listGlossaryTmSuggestions('T')
     expect(invokeMock).toHaveBeenCalledWith('glossary_tm_suggestions', { sourceTerm: 'T' })
-    expect(result).toEqual({ value: [{ target_text: 'X', count: 2 }], error: null })
+    expect(result).toEqual({ value: { suggestions: [{ target_text: 'X', count: 2 }], hidden_count: 1 }, error: null })
   })
 
   it('rejects a malformed list instead of showing it', async () => {
-    invokeMock.mockResolvedValue([{ target_text: 'X' }])
+    invokeMock.mockResolvedValue({ suggestions: [{ target_text: 'X' }], hidden_count: 0 })
+    expect((await listGlossaryTmSuggestions('T')).error).not.toBeNull()
+  })
+
+  it('rejects the old bare array and a missing hidden_count', async () => {
+    invokeMock.mockResolvedValue([{ target_text: 'X', count: 2 }])
+    expect((await listGlossaryTmSuggestions('T')).error).not.toBeNull()
+    invokeMock.mockResolvedValue({ suggestions: [] })
     expect((await listGlossaryTmSuggestions('T')).error).not.toBeNull()
   })
 })

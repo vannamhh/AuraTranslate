@@ -23,7 +23,7 @@ const WIRE_MATCH = {
 
 describe('tmFuzzyMatches', () => {
   it('sends segmentId in camelCase and returns the typed outcome', async () => {
-    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [WIRE_MATCH], exact: [] })
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [WIRE_MATCH], exact: [], hidden_count: 0 })
     const { tmFuzzyMatches } = await import('../../src/config/segment')
     const result = await tmFuzzyMatches(9)
     expect(mockInvoke).toHaveBeenCalledWith('tm_fuzzy_matches', { segmentId: 9 })
@@ -99,12 +99,21 @@ describe('Story 7.8 wire', () => {
     expect(result.error).not.toBeNull()
   })
 
+  it('a payload without hidden_count is a wire mismatch; a count is kept', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { tmFuzzyMatches } = await import('../../src/config/segment')
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [], exact: [] })
+    expect((await tmFuzzyMatches(9)).outcome).toBeNull()
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [], exact: [], hidden_count: 4 })
+    expect((await tmFuzzyMatches(9)).outcome?.hidden_count).toBe(4)
+  })
+
   it('exact targets are typed and an exact row without created_at is rejected', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const { tmFuzzyMatches } = await import('../../src/config/segment')
-    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [], exact: [WIRE_EXACT] })
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [], exact: [WIRE_EXACT], hidden_count: 0 })
     expect((await tmFuzzyMatches(9)).outcome?.exact[0]?.unit_id).toBe(3)
-    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [], exact: [{ ...WIRE_EXACT, created_at: undefined }] })
+    mockInvoke.mockResolvedValueOnce({ segment_id: 9, matches: [], exact: [{ ...WIRE_EXACT, created_at: undefined }], hidden_count: 0 })
     expect((await tmFuzzyMatches(9)).outcome).toBeNull()
   })
 

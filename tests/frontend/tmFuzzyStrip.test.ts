@@ -57,8 +57,9 @@ function scanOf(
   segmentId: number,
   matches: TmFuzzyMatch[],
   exact: TmExactTarget[] = [],
+  hiddenCount = 0,
 ): { outcome: TmFuzzyMatches; error: null } {
-  return { outcome: { segment_id: segmentId, matches, exact }, error: null }
+  return { outcome: { segment_id: segmentId, matches, exact, hidden_count: hiddenCount }, error: null }
 }
 
 function acceptedOf(patch: Partial<PromoteAiTranslationOutcome> = {}) {
@@ -136,6 +137,26 @@ describe('scan trigger and rendering', () => {
   it('no matches ⇒ no strip', async () => {
     const { wrapper } = await mountOn(12, [])
     expect(wrapper.find('.tm-fuzzy-strip').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('only a hidden count (switch on) keeps the strip, says so, and does not claim zero matches', async () => {
+    const ctx = await fresh()
+    tmFuzzyMatchesMock.mockResolvedValue(scanOf(12, [], [], 3))
+    await ctx.editor.ensureSegmentsLoaded()
+    const wrapper = mount(ctx.TmFuzzyStrip, { attachTo: document.body })
+    ctx.editor.setEditorCaret(12)
+    await flushPromises()
+    expect(wrapper.find('.tm-fuzzy-strip').exists()).toBe(true)
+    expect(wrapper.get('[data-tm-hidden-note]').text()).toContain('3')
+    expect(wrapper.get('.tmf-title').text()).not.toContain('0 câu')
+    expect(wrapper.find('.tmf-row').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('no matches and no hidden count ⇒ the strip is cleared', async () => {
+    const { wrapper } = await mountOn(12, [])
+    expect(wrapper.find('[data-tm-hidden-note]').exists()).toBe(false)
     wrapper.unmount()
   })
 

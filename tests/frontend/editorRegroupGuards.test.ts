@@ -69,7 +69,7 @@ async function docSegmentGia() {
       chapter_id: CHUONG_CUA_SEGMENT,
       segments: FIXTURE_SEGMENTS.map((s) => ({ ...s })),
       tm_filled_segment_ids: [],
-      tm_prefill: { kind: 'ran' },
+      tm_prefill: { kind: 'ran', hidden_count: 0 },
     },
     error: null,
   }

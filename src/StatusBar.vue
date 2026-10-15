@@ -53,6 +53,7 @@ import {
   editorHasLoaded,
   editorLastCaretSegmentId,
   editorNavNotice,
+  editorTmPrefillHiddenCount,
   editorLastSavedAt,
   editorRegroupError,
   editorRegroupNotice,
@@ -438,6 +439,7 @@ const NAV_NOTICE_KEYS: Record<NonNullable<typeof editorNavNotice.value>, string>
   'confirm-in-flight': 'panel.grid.nav_confirm_in_flight',
   'chapter-still-dirty': 'panel.grid.nav_chapter_still_dirty',
   'tm-prefill-skipped': 'panel.grid.nav_tm_prefill_skipped',
+  'tm-prefill-hidden': 'panel.grid.nav_tm_prefill_hidden',
 }
 
 const navNoticeKey = computed<string | null>(() => {
@@ -563,7 +565,7 @@ const glossaryHoverText = computed<string | null>(() => {
       `datThongBao` đứng. Thấy một câu sai thì sửa **bất biến**, đừng sửa thứ tự — đổi thứ tự
       chỉ dời chỗ nói dối sang một ô nhớ khác.
     -->
-    <span v-else-if="navNoticeKey !== null" class="notice">{{ t(navNoticeKey) }}</span>
+    <span v-else-if="navNoticeKey !== null" class="notice">{{ t(navNoticeKey, { count: String(editorTmPrefillHiddenCount) }) }}</span>
     <!--
       aura-allow-text: KẾT QUẢ của `t()` cộng (ca đã chốt) một chuỗi DỮ LIỆU của Tác phẩm —
       bản dịch một thuật ngữ Glossary do người dùng chốt. 🔵 Story 3.4b — nhánh THỨ NĂM, dưới

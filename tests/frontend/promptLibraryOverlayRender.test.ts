@@ -359,13 +359,59 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
       error: null,
     })
 
-    await wrapper.find('.pl-body-form').trigger('submit')
+    await wrapper.find('.pl-body-form textarea').trigger('blur')
     await flushPromises()
     await wrapper.vm.$nextTick()
 
     expect(promptSetUpdateBodyMock).toHaveBeenCalledWith('global', 3, '{{glosary_terms}} sai chinh ta')
     expect(wrapper.text()).toContain('{{glosary_terms}}')
     expect(wrapper.text()).toContain('glossary_terms')
+
+    wrapper.unmount()
+    promptLibraryState.resetPromptLibrary()
+    promptSetState.resetPromptSets()
+  })
+
+  it('blur lưu thân đang bay rồi Nhân bản ngay ⇒ đúng MỘT bản sao, tạo sau khi lưu xong', async () => {
+    const { promptSetState, promptLibraryState, PromptLibraryOverlay } = await freshOverlay()
+    promptSetListMock.mockResolvedValueOnce({
+      sets: [row({ id: 3, name: 'Cu', body: 'than cu' })],
+      workTierAvailable: false,
+      error: null,
+    })
+    promptLibraryState.openPromptLibrary()
+    await flushPromises()
+
+    const wrapper = mount(PromptLibraryOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    await wrapper.findAll('.pl-row-form')[0].trigger('submit')
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.pl-body-form textarea').setValue('than moi')
+
+    let finishSave: (v: unknown) => void = () => undefined
+    promptSetUpdateBodyMock.mockReturnValue(
+      new Promise((resolve) => {
+        finishSave = resolve
+      }),
+    )
+    promptSetCreateMock.mockResolvedValue({ warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
+    const saved = [row({ id: 3, name: 'Cu', body: 'than moi' })]
+    promptSetListMock.mockResolvedValue({ sets: saved, workTierAvailable: false, error: null })
+
+    await wrapper.find('.pl-body-form textarea').trigger('blur')
+    await flushPromises()
+    const dup = wrapper.find('.pl-dup-form')
+    expect(dup.find('button').attributes('disabled')).toBeUndefined()
+    await dup.trigger('submit')
+    await flushPromises()
+    expect(promptSetCreateMock).not.toHaveBeenCalled()
+
+    finishSave({ warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
+    await flushPromises()
+
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledTimes(1)
+    expect(promptSetCreateMock).toHaveBeenCalledTimes(1)
+    expect(promptSetCreateMock.mock.calls[0][2]).toBe('than moi')
 
     wrapper.unmount()
     promptLibraryState.resetPromptLibrary()
@@ -472,6 +518,223 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
     wrapper.unmount()
     promptLibraryState.resetPromptLibrary()
     promptSetState.resetPromptSets()
+  })
+})
+
+describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô biến, Nhân bản, tự lưu (ticket 14)', () => {
+  async function openLibrary(sets: WireRow[], extra: Record<string, unknown> = {}) {
+    const ctx = await freshOverlay()
+    promptSetListMock.mockResolvedValue({ sets, workTierAvailable: true, variables: ['glossary_terms', 'source_segment', 'tm_similar_segments'], error: null, ...extra })
+    const commands = await import('../../src/commands')
+    const openInspector = vi.fn()
+    const closeLibrary = vi.fn()
+    commands.installCommands({ isMac: true, setMode: () => {}, openAiPromptInspector: openInspector, closePromptLibrary: closeLibrary } as never)
+    const i18n = await import('../../src/i18n')
+    ctx.promptLibraryState.openPromptLibrary()
+    await flushPromises()
+    const wrapper = mount(ctx.PromptLibraryOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    return { ...ctx, wrapper, i18n, openInspector, closeLibrary }
+  }
+
+  async function pick(wrapper: Awaited<ReturnType<typeof openLibrary>>['wrapper'], index = 0) {
+    await wrapper.findAll('.pl-row-form')[index].trigger('submit')
+    await flushPromises()
+  }
+
+  it('phạm vi tầng mang số hàng mỗi tầng; chọn Tác phẩm chỉ còn hàng Tác phẩm', async () => {
+    const { wrapper, i18n } = await openLibrary([
+      row({ id: 5, name: 'W1', tier: 'work', body: 'a' }),
+      row({ id: 6, name: 'W2', tier: 'work', body: 'b' }),
+      row({ id: 7, name: 'G1', tier: 'global', body: 'c' }),
+    ])
+    const labels = wrapper.findAll('input[name="pl-scope"]').map((el) => el.element.parentElement?.textContent.trim())
+    expect(labels).toEqual([
+      i18n.t('prompt.library.count_label', { label: i18n.t('prompt.library.tier_global'), count: '1' }),
+      i18n.t('prompt.library.count_label', { label: i18n.t('prompt.library.tier_work'), count: '2' }),
+      i18n.t('prompt.library.scope_both'),
+    ])
+    await wrapper.get('input[name="pl-scope"][value="work"]').setValue(true)
+    await flushPromises()
+    const names = wrapper.findAll('.pl-row-name').map((n) => n.text())
+    expect(names).toEqual(['W1', 'W2'])
+    wrapper.unmount()
+  })
+
+  it('dòng "Đang dùng" nói chưa chọn bộ nào, rồi nêu tên bộ sau khi chọn dùng', async () => {
+    const { wrapper, promptSetState, i18n } = await openLibrary([row({ id: 3, name: 'Cu', body: 'x' })])
+    expect(wrapper.get('[data-prompt-in-use]').text()).toBe(i18n.t('prompt.library.in_use_none'))
+    promptSetState.setSelectedPromptSetName('Cu')
+    await flushPromises()
+    expect(wrapper.get('[data-prompt-in-use]').text()).toBe(i18n.t('prompt.library.in_use_line', { name: 'Cu' }))
+    wrapper.unmount()
+  })
+
+  it('ba biến mang nhãn bắt buộc có / nên có, không hàng thứ tư', async () => {
+    const { wrapper, i18n } = await openLibrary([row({ id: 3, name: 'Cu', body: 'x' })])
+    await pick(wrapper)
+    const rows = wrapper.findAll('.pl-vrow')
+    expect(rows.map((r) => r.get('.pl-vs').text())).toEqual([
+      i18n.t('prompt.library.var_glossary_terms_need'),
+      i18n.t('prompt.library.var_source_segment_need'),
+      i18n.t('prompt.library.var_tm_similar_segments_need'),
+    ])
+    wrapper.unmount()
+  })
+
+  it('lớp phản chiếu tô biến đã biết và biến lạ, và chữ của nó khớp từng ký tự với ô gõ', async () => {
+    const body = 'Dich {{glossary_terms}} va {{la_hoac}} xong'
+    const { wrapper } = await openLibrary([row({ id: 3, name: 'Cu', body })])
+    await pick(wrapper)
+    const mirror = wrapper.get('.pl-ta-mirror')
+    expect(mirror.text()).toBe(body)
+    expect(mirror.findAll('.pl-var').map((e) => e.text())).toEqual(['{{glossary_terms}}', '{{la_hoac}}'])
+    expect(mirror.findAll('.pl-var-unknown').map((e) => e.text())).toEqual(['{{la_hoac}}'])
+    wrapper.unmount()
+  })
+
+  it('thân không đổi thì rời ô không ghi gì', async () => {
+    const { wrapper } = await openLibrary([row({ id: 3, name: 'Cu', body: 'than cu' })])
+    await pick(wrapper)
+    await wrapper.get('.pl-body-form textarea').trigger('blur')
+    await flushPromises()
+    expect(promptSetUpdateBodyMock).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('chọn bộ khác khi thân đang sửa dở ⇒ lưu thân cũ trước, đúng bộ cũ', async () => {
+    const { wrapper } = await openLibrary([
+      row({ id: 3, name: 'Cu', body: 'than cu' }),
+      row({ id: 4, name: 'Moi', body: 'than moi' }),
+    ])
+    await pick(wrapper, 0)
+    await wrapper.get('.pl-body-form textarea').setValue('sua do')
+    promptSetUpdateBodyMock.mockResolvedValue({ warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
+    await pick(wrapper, 1)
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 3, 'sua do')
+    wrapper.unmount()
+  })
+
+  it('lưu lỗi thì bản nháp còn nguyên trong ô và không rời sang bộ khác', async () => {
+    const { wrapper } = await openLibrary([
+      row({ id: 3, name: 'Cu', body: 'than cu' }),
+      row({ id: 4, name: 'Moi', body: 'than moi' }),
+    ])
+    await pick(wrapper, 0)
+    await wrapper.get('.pl-body-form textarea').setValue('sua do')
+    promptSetUpdateBodyMock.mockResolvedValue({ warnings: null, error: { code: 'x.fail', message_key: 'err.unknown', params: {}, retryable: false } })
+    await pick(wrapper, 1)
+    const area = wrapper.get('.pl-body-form textarea').element as HTMLTextAreaElement
+    expect(area.value).toBe('sua do')
+    expect(wrapper.get('.pl-rename-form input').element).toHaveProperty('value', 'Cu')
+    wrapper.unmount()
+  })
+
+  it('Xem prompt lưu thân đang sửa trước rồi mới mở', async () => {
+    const { wrapper, openInspector } = await openLibrary([row({ id: 3, name: 'Cu', body: 'than cu' })])
+    await pick(wrapper)
+    await wrapper.get('.pl-body-form textarea').setValue('sua do')
+    promptSetUpdateBodyMock.mockImplementation(async () => {
+      expect(openInspector).not.toHaveBeenCalled()
+      return { warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null }
+    })
+    await wrapper.get('.pl-inspect-form').trigger('submit')
+    await flushPromises()
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 3, 'sua do')
+    expect(openInspector).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['Esc', async (w: Awaited<ReturnType<typeof openLibrary>>['wrapper']) => w.get('.pl-scrim').trigger('keydown', { key: 'Escape' })],
+    ['nút Đóng', async (w: Awaited<ReturnType<typeof openLibrary>>['wrapper']) => w.get('.pl-head form').trigger('submit')],
+  ])('đóng lớp phủ bằng %s lưu thân đang sửa trước rồi mới đóng', async (_name, closeBy) => {
+    const { wrapper, closeLibrary } = await openLibrary([row({ id: 3, name: 'Cu', body: 'than cu' })])
+    await pick(wrapper)
+    await wrapper.get('.pl-body-form textarea').setValue('sua do')
+    promptSetUpdateBodyMock.mockImplementation(async () => {
+      expect(closeLibrary).not.toHaveBeenCalled()
+      return { warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null }
+    })
+    await closeBy(wrapper)
+    await flushPromises()
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 3, 'sua do')
+    expect(closeLibrary).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('Nhân bản lưu thân đang sửa trước, tạo "<tên> (bản sao)" cùng tầng với thân đó, bộ gốc không bị đổi', async () => {
+    const { wrapper } = await openLibrary([row({ id: 3, name: 'A', body: 'than cu' })])
+    await pick(wrapper)
+    await wrapper.get('.pl-body-form textarea').setValue('sua do')
+    const order: string[] = []
+    promptSetUpdateBodyMock.mockImplementation(async () => {
+      order.push('update')
+      return { warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null }
+    })
+    promptSetCreateMock.mockImplementation(async () => {
+      order.push('create')
+      return { warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null }
+    })
+    await wrapper.get('.pl-dup-form').trigger('submit')
+    await flushPromises()
+    expect(order).toEqual(['update', 'create'])
+    expect(promptSetCreateMock).toHaveBeenCalledExactlyOnceWith('global', 'A (bản sao)', 'sua do')
+    wrapper.unmount()
+  })
+
+  it('name_taken ngoài dự kiến ⇒ thử số kế "(bản sao 2)"; lỗi khác thì dừng và không tạo gì thêm', async () => {
+    const { wrapper } = await openLibrary([row({ id: 3, name: 'A', body: 'x' })])
+    await pick(wrapper)
+    const taken = { warnings: null, error: { code: 'prompt_set.name_taken', message_key: 'err.unknown', params: {}, retryable: false } }
+    promptSetCreateMock.mockResolvedValueOnce(taken)
+    promptSetCreateMock.mockResolvedValueOnce({ warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
+    await wrapper.get('.pl-dup-form').trigger('submit')
+    await flushPromises()
+    expect(promptSetCreateMock.mock.calls.map((c) => c[1])).toEqual(['A (bản sao)', 'A (bản sao 2)'])
+
+    promptSetCreateMock.mockReset()
+    promptSetCreateMock.mockResolvedValue({ warnings: null, error: { code: 'x.fail', message_key: 'err.unknown', params: {}, retryable: false } })
+    await wrapper.get('.pl-dup-form').trigger('submit')
+    await flushPromises()
+    expect(promptSetCreateMock).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+})
+
+describe('promptMarkers.splitPromptBody và duplicatePromptSetName', () => {
+  it('khớp fixture dùng chung với scan_markers của Rust, từng ca', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { splitPromptBody } = await import('../../src/promptMarkers')
+    const fixture = JSON.parse(readFileSync('tests/fixtures/prompt-variable-markers.json', 'utf8')) as {
+      known: string[]
+      cases: { name: string; body: string; unknown_markers: string[]; known_markers: string[] }[]
+    }
+    expect(fixture.cases.length).toBeGreaterThanOrEqual(8)
+    for (const c of fixture.cases) {
+      const parts = splitPromptBody(c.body, fixture.known)
+      expect(parts.map((p) => p.text).join(''), c.name).toBe(c.body)
+      const unknown = [...new Set(parts.filter((p) => p.kind === 'unknown').map((p) => p.text))]
+      expect(unknown, c.name).toEqual(c.unknown_markers)
+      expect(parts.filter((p) => p.kind === 'known').map((p) => p.text), c.name).toEqual(c.known_markers)
+    }
+  })
+
+  it('tách đúng: plain / known / unknown, ghép lại bằng đúng chuỗi gốc', async () => {
+    const { splitPromptBody } = await import('../../src/promptMarkers')
+    const body = 'a {{x}} b {{y}}{{x}} {{ }} {{z'
+    const parts = splitPromptBody(body, ['x'])
+    expect(parts.map((p) => p.text).join('')).toBe(body)
+    expect(parts.filter((p) => p.kind === 'known').map((p) => p.text)).toEqual(['{{x}}', '{{x}}'])
+    expect(parts.filter((p) => p.kind === 'unknown').map((p) => p.text)).toContain('{{y}}')
+  })
+
+  it('sinh tên bản sao: bỏ qua tên đã có, rồi bỏ qua `skip` ứng viên đầu', async () => {
+    const { duplicatePromptSetName } = await import('../../src/promptSetState')
+    expect(duplicatePromptSetName('A', 'bản sao', new Set())).toBe('A (bản sao)')
+    expect(duplicatePromptSetName('A', 'bản sao', new Set(['A (bản sao)']))).toBe('A (bản sao 2)')
+    expect(duplicatePromptSetName('A', 'bản sao', new Set(['A (bản sao)', 'A (bản sao 3)']))).toBe('A (bản sao 2)')
+    expect(duplicatePromptSetName('A', 'bản sao', new Set(), 1)).toBe('A (bản sao 2)')
   })
 })
 

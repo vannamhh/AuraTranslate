@@ -737,3 +737,47 @@ fn the_three_white_space_guard_ddls_share_the_same_set_of_exactly_25_code_points
         "GLOSSARY_ENTRY_DDL va PROMPT_SET_DDL phai cung TAP diem ma"
     );
 }
+
+#[test]
+fn scan_markers_agrees_with_the_shared_marker_fixture() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../tests/fixtures/prompt-variable-markers.json");
+    let fixture: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&path).expect("fixture is readable"))
+            .expect("fixture is JSON");
+    let cases = fixture["cases"].as_array().expect("cases");
+    assert!(cases.len() >= 8, "fixture lost cases: {}", cases.len());
+    for case in cases {
+        let name = case["name"].as_str().expect("name");
+        let body = case["body"].as_str().expect("body");
+        let expected_unknown: Vec<&str> = case["unknown_markers"]
+            .as_array()
+            .expect("unknown_markers")
+            .iter()
+            .map(|v| v.as_str().expect("string"))
+            .collect();
+        let expected_known: Vec<&str> = case["known_markers"]
+            .as_array()
+            .expect("known_markers")
+            .iter()
+            .map(|v| v.as_str().expect("string"))
+            .collect();
+
+        let warnings = auratranslate_lib::core::promptset::scan_markers(body);
+
+        assert_eq!(
+            warnings.unknown_markers, expected_unknown,
+            "{name}: unknown markers"
+        );
+        assert_eq!(
+            warnings.glossary_terms_missing,
+            !expected_known.contains(&"{{glossary_terms}}"),
+            "{name}: glossary_terms"
+        );
+        assert_eq!(
+            warnings.tm_similar_segments_missing,
+            !expected_known.contains(&"{{tm_similar_segments}}"),
+            "{name}: tm_similar_segments"
+        );
+    }
+}

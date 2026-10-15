@@ -543,25 +543,39 @@ pub struct GlossaryTmSuggestion {
     pub count: u32,
 }
 
+/// TM suggestions for a term and the distinct pairs the "only mine" switch kept out (AD-57).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct GlossaryTmSuggestions {
+    pub suggestions: Vec<GlossaryTmSuggestion>,
+    pub hidden_count: usize,
+}
+
 /// TM targets whose pair source equals `source_term` exactly, both tiers (FR146); most pairs first.
 pub fn glossary_tm_suggestions(
     global: Option<&Store>,
     open: Option<&OpenWork>,
     source_term: &str,
-) -> Result<Vec<GlossaryTmSuggestion>, IpcError> {
+) -> Result<GlossaryTmSuggestions, IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
     let scope = work_context(open)?;
-    let grouped = crate::core::tm::target_suggestions_for_term(
+    let policy = crate::core::tm::TmSidePolicy::from_work(scope.work())
+        .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?;
+    let found = crate::core::tm::target_suggestions_for_term(
         scope.resolver(),
         global,
         scope.work(),
         source_term,
+        policy,
     )
     .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?;
-    Ok(grouped
-        .into_iter()
-        .map(|(target_text, count)| GlossaryTmSuggestion { target_text, count })
-        .collect())
+    Ok(GlossaryTmSuggestions {
+        suggestions: found
+            .suggestions
+            .into_iter()
+            .map(|(target_text, count)| GlossaryTmSuggestion { target_text, count })
+            .collect(),
+        hidden_count: found.hidden_count,
+    })
 }
 
 /// Nhận một ứng viên (id) thành một mục Glossary — **hàm thuần, đây là thứ test gọi**. Vỏ
@@ -1348,7 +1362,7 @@ pub mod wire {
     pub fn glossary_tm_suggestions(
         app: tauri::AppHandle,
         source_term: String,
-    ) -> Result<Vec<super::GlossaryTmSuggestion>, IpcError> {
+    ) -> Result<super::GlossaryTmSuggestions, IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();

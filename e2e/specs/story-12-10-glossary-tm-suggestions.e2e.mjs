@@ -69,9 +69,10 @@ describe('Story 12-10 -- Glossary strip proposes TM translations', () => {
       await invoke('confirm_segment', { segmentId: segments[i].id })
     }
 
-    const suggestions = await invoke('glossary_tm_suggestions', { sourceTerm: TERM })
+    const { suggestions, hidden_count: hiddenCount } = await invoke('glossary_tm_suggestions', { sourceTerm: TERM })
     await expect(suggestions.map((s) => s.target_text)).toContain(FIRST)
     await expect(suggestions.map((s) => s.target_text)).toContain(SECOND)
+    await expect(hiddenCount).toBe(0)
 
     const anchorId = segments[3].id
     await browser.execute((id) => {

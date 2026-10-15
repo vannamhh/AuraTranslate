@@ -45,8 +45,8 @@ use crate::core::promptset::{PromptVariable, scan_markers};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::Store;
 use crate::core::tm::{
-    PairSide, SimilarSegment, TierRows, TmStoreError, TmTier, fuzzy_pairs_in_candidates,
-    read_tier_rows,
+    PairSide, SimilarSegment, TierRows, TmSidePolicy, TmStoreError, TmTier,
+    fuzzy_pairs_in_candidates, read_tier_rows,
 };
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -141,10 +141,12 @@ pub struct InjectedTmPair {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TmInjectionStatus {
     NotAsked,
-    /// `omitted_count` is the number of matching pairs left out by the pair cap.
+    /// `omitted_count` is the number of matching pairs left out by the pair cap; `hidden_count`
+    /// the distinct pairs the "only mine" switch kept out before the cap (AD-57).
     Searched {
         pairs: Vec<InjectedTmPair>,
         omitted_count: usize,
+        hidden_count: usize,
     },
 }
 
@@ -290,8 +292,16 @@ pub struct TmRows {
     threshold: u8,
 }
 
-/// Reads the TM rows, or `None` without touching a store when `body` has no
-/// `{{tm_similar_segments}}` marker.
+/// The pairs the policy kept for one sentence and how many it hid.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TmContext {
+    pub segments: Vec<SimilarSegment>,
+    pub hidden_count: usize,
+}
+
+/// Reads the TM rows under the Work's "only mine" switch, read here once per batch; `None`
+/// without touching a store (the switch included) when `body` has no `{{tm_similar_segments}}`
+/// marker.
 pub fn load_tm_rows(
     body: &str,
     global: &Store,
@@ -300,11 +310,12 @@ pub fn load_tm_rows(
     if scan_markers(body).tm_similar_segments_missing {
         return Ok(None);
     }
+    let policy = TmSidePolicy::from_work(work)?;
     let threshold = crate::core::scope::load_global_config(global)
         .map_err(TmStoreError::Store)?
         .tm_fuzzy_threshold();
     Ok(Some(TmRows {
-        candidates: read_tier_rows(global, work)?,
+        candidates: read_tier_rows(global, work, policy)?,
         threshold: u8::try_from(threshold).unwrap_or(u8::MAX),
     }))
 }
@@ -316,18 +327,22 @@ pub fn gather_tm_context(
     resolver: &ScopeResolver,
     source_lang: &str,
     sentence: &str,
-) -> Result<Option<Vec<SimilarSegment>>, TmStoreError> {
+) -> Result<Option<TmContext>, TmStoreError> {
     let Some(rows) = rows else {
         return Ok(None);
     };
     if sentence.trim().is_empty() {
-        return Ok(Some(Vec::new()));
+        return Ok(Some(TmContext {
+            segments: Vec::new(),
+            hidden_count: 0,
+        }));
     }
     let lang = match_lang_for_source_lang(source_lang);
-    let pairs =
-        fuzzy_pairs_in_candidates(resolver, &rows.candidates, sentence, lang, rows.threshold)?;
-    Ok(Some(
-        pairs
+    let (pairs, hidden_count) =
+        fuzzy_pairs_in_candidates(resolver, &rows.candidates, sentence, lang, rows.threshold)?
+            .into_parts();
+    Ok(Some(TmContext {
+        segments: pairs
             .into_iter()
             .map(|f| SimilarSegment {
                 source_text: f.pair.source_text,
@@ -337,7 +352,8 @@ pub fn gather_tm_context(
                 percent: f.percent,
             })
             .collect(),
-    ))
+        hidden_count,
+    }))
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -684,12 +700,12 @@ fn expand_prompt_body(
 /// hồ, không I/O: đầu vào giống hệt nhau cho ra `prompt` giống hệt nhau, TỪNG BYTE.
 ///
 /// `glossary` comes from [`gather_glossary_context`]; `tm` from [`gather_tm_context`]: `None` is
-/// "not asked", `Some(&[])` is "asked, nothing similar".
+/// "not asked", `Some` with no segments is "asked, nothing similar".
 pub fn assemble_prompt(
     body: &str,
     sentence: &str,
     glossary: GlossaryInjectionStatus,
-    tm: Option<&[SimilarSegment]>,
+    tm: Option<&TmContext>,
 ) -> (String, InjectionLedger) {
     let glossary_block = match &glossary {
         GlossaryInjectionStatus::NotAsked => String::new(),
@@ -697,11 +713,12 @@ pub fn assemble_prompt(
     };
     let tm_status = match tm {
         None => TmInjectionStatus::NotAsked,
-        Some(segments) => {
-            let (pairs, omitted_count) = select_tm_pairs(segments, sentence);
+        Some(context) => {
+            let (pairs, omitted_count) = select_tm_pairs(&context.segments, sentence);
             TmInjectionStatus::Searched {
                 pairs,
                 omitted_count,
+                hidden_count: context.hidden_count,
             }
         }
     };

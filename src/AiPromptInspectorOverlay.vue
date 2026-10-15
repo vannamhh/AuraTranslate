@@ -390,6 +390,9 @@ const resultUsage = computed(() => {
             <p v-else class="aip-note" data-aip-tm-kind="searched">
               {{ t('ai.prompt_inspector.tm_searched', { count: String(tmSearched.similar_segments.length) }) }}
             </p>
+            <p v-if="tmSearched !== null && tmSearched.hidden_count > 0" class="aip-note" data-aip-tm-hidden>
+              {{ t('tm.policy.hidden_note', { count: String(tmSearched.hidden_count) }) }}
+            </p>
             <ul v-if="tmSearched !== null && tmSearched.similar_segments.length > 0" class="aip-term-list aip-term-list-tm">
               <li v-for="(pair, i) in tmSearched.similar_segments" :key="`tm-${i}`" class="aip-term-row">
                 <!-- aura-allow-text: DỮ LIỆU (câu nguồn trong TM của người dùng). -->

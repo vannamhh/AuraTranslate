@@ -19,7 +19,7 @@ use auratranslate_lib::core::scope::ScopeResolver;
 use auratranslate_lib::core::segment::import::import_bilingual_file;
 use auratranslate_lib::core::store::{GLOBAL_MIGRATIONS, Store, StoreSpec, Transaction};
 use auratranslate_lib::core::tm::{
-    PairOrigin, PairSide, TmPair, TmStoreError, TmTier, pairs_for_source,
+    PairOrigin, PairSide, TmPair, TmSidePolicy, TmStoreError, TmTier, pairs_for_source,
 };
 use tauri::Manager as _;
 use tauri::test::{MockRuntime, mock_builder, mock_context, noop_assets};
@@ -774,8 +774,8 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
-                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36); \
+                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37); \
                  PRAGMA user_version = 27;",
             )
         })
@@ -783,8 +783,8 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
     let open = reopen(open);
     assert_eq!(
         open.store.schema_version(),
-        36,
-        "mo lai phai chay buoc 28 den 36 that"
+        37,
+        "mo lai phai chay buoc 28 den 37 that"
     );
 
     confirm_segment(Some(&open), ids[0]).expect("xac nhan");
@@ -813,14 +813,14 @@ fn the_step_28_backfill_copies_target_and_origin_into_the_baseline_of_every_row_
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
-                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36); \
+                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 36);
+    assert_eq!(open.store.schema_version(), 37);
 
     let rows: Vec<(i64, String, String, String, String)> = open
         .store
@@ -915,7 +915,12 @@ fn lookup(
     source: &str,
 ) -> Result<Vec<TmPair>, TmStoreError> {
     let resolver = open.map_or_else(ScopeResolver::global_only, |o| o.scope.clone());
-    pairs_for_source(&resolver, global, open.map(|o| &o.store), source)
+    let policy = TmSidePolicy::from_work(open.map(|o| &o.store))?;
+    Ok(
+        pairs_for_source(&resolver, global, open.map(|o| &o.store), source, policy)?
+            .into_parts()
+            .0,
+    )
 }
 
 fn shape(pairs: &[TmPair]) -> Vec<(&str, TmTier)> {
@@ -1212,7 +1217,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
     let (root, open) = work("index-upgrade", "一。");
     open.store
         .write(|tx: &Transaction<'_>| {
-            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32, 33, 34, 35, 36); PRAGMA user_version = 28;")
+            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32, 33, 34, 35, 36, 37); PRAGMA user_version = 28;")
         })
         .expect("ha ve buoc 28");
     let open = reopen(open);
@@ -1226,7 +1231,40 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
             )
         })
         .expect("doc master");
-    assert_eq!((open.store.schema_version(), has_index), (36, 1));
+    assert_eq!((open.store.schema_version(), has_index), (37, 1));
+    drop(open);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn a_work_row_from_step_36_gains_the_switch_off_and_keeps_its_other_columns() {
+    let (root, open) = work("step-36", "一。");
+    open.store
+        .write(|tx: &Transaction<'_>| {
+            tx.execute_batch(
+                "ALTER TABLE work DROP COLUMN tm_only_mine; \
+                 DELETE FROM schema_migration_log WHERE version = 37; \
+                 PRAGMA user_version = 36;",
+            )
+        })
+        .expect("ha ve buoc 36");
+    let name_before: String = open
+        .store
+        .read(|conn| conn.query_row("SELECT name FROM work", [], |r| r.get(0)))
+        .expect("doc ten");
+    let open = reopen(open);
+    let (rows, switch, name): (i64, i64, String) = open
+        .store
+        .read(|conn| {
+            conn.query_row(
+                "SELECT (SELECT COUNT(*) FROM work), tm_only_mine, name FROM work",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+        })
+        .expect("doc work");
+    assert_eq!((open.store.schema_version(), rows, switch), (37, 1, 0));
+    assert_eq!(name, name_before);
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -1557,7 +1595,7 @@ fn a_valid_load_reports_ran_and_an_unasked_load_reports_not_asked() {
     assert_eq!(w.with_open(|o| w_target(o, id)), "");
 
     let ran = w.load();
-    assert_eq!(ran.tm_prefill, TmPrefillStatus::Ran);
+    assert_eq!(ran.tm_prefill, TmPrefillStatus::Ran { hidden_count: 0 });
     assert_eq!(ran.tm_filled_segment_ids, [id]);
 }
 
@@ -2093,10 +2131,16 @@ fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
     let global = open_global_db(&dir);
     seed(&global, &[(stored, "t", "self")]);
     if stored == query {
-        let exact = pairs_for_source(&ScopeResolver::global_only(), &global, None, query);
-        return exact.expect("tra chinh xac").len() == 1;
+        let exact = pairs_for_source(
+            &ScopeResolver::global_only(),
+            &global,
+            None,
+            query,
+            TmSidePolicy::browse(),
+        );
+        return exact.expect("tra chinh xac").kept().len() == 1;
     }
-    let candidates = read_tier_rows(&global, None).expect("nap ung vien");
+    let candidates = read_tier_rows(&global, None, TmSidePolicy::browse()).expect("nap ung vien");
     let ranked = rank_fuzzy_candidates(
         &ScopeResolver::global_only(),
         candidates,
@@ -2104,7 +2148,9 @@ fn tm_ranks_sentence_top(stored: &str, query: &str, source_lang: &str) -> bool {
         match_lang_for_source_lang(source_lang),
         99,
     )
-    .expect("xep hang");
+    .expect("xep hang")
+    .into_parts()
+    .0;
     ranked.len() == 1
 }
 
@@ -2125,12 +2171,14 @@ fn a_source_differing_only_by_surrounding_whitespace_scores_99_and_no_other_pair
 
     let ranked = rank_fuzzy_candidates(
         &ScopeResolver::global_only(),
-        read_tier_rows(&global, None).expect("nap"),
+        read_tier_rows(&global, None, TmSidePolicy::browse()).expect("nap"),
         "\u{7b2c}\u{4e09}\u{7ae0}",
         MatchLang::Zh,
         65,
     )
-    .expect("xep hang");
+    .expect("xep hang")
+    .into_parts()
+    .0;
 
     let percent = |target: &str| {
         ranked
@@ -2745,6 +2793,7 @@ mod manage {
             pair_origin.to_owned(),
             tier.to_owned(),
             search.to_owned(),
+            None,
         )
         .expect("liet ke TM")
     }
@@ -3063,6 +3112,7 @@ mod manage {
             "bogus".to_owned(),
             "both".to_owned(),
             String::new(),
+            None,
         )
         .expect_err("origin la");
         assert_eq!(err.code(), "tm.invalid_filter");
@@ -3071,6 +3121,7 @@ mod manage {
             "all".to_owned(),
             "bogus".to_owned(),
             String::new(),
+            None,
         )
         .expect_err("tang la");
         assert_eq!(err.code(), "tm.invalid_filter");
@@ -3502,6 +3553,7 @@ mod manage {
             [
                 "groups",
                 "health",
+                "tier_totals",
                 "tm_empty",
                 "total_groups",
                 "total_pairs",
@@ -3862,6 +3914,7 @@ mod manage {
             "all".to_owned(),
             "work".to_owned(),
             String::new(),
+            None,
         )
         .expect_err("khong co tac pham");
 
@@ -3897,6 +3950,7 @@ use auratranslate_lib::commands::glossary::{GlossaryTmSuggestion, glossary_tm_su
 fn suggestions(global: &Store, open: Option<&OpenWork>, term: &str) -> Vec<(String, u32)> {
     glossary_tm_suggestions(Some(global), open, term)
         .expect("de xuat")
+        .suggestions
         .into_iter()
         .map(|GlossaryTmSuggestion { target_text, count }| (target_text, count))
         .collect()

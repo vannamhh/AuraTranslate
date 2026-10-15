@@ -1,4 +1,5 @@
 import { dispatch } from './commands'
+import { promptLibraryOverlayIsOpen } from './promptLibraryState'
 import {
   aiPromptRecord,
   aiPromptSourceText,
@@ -48,8 +49,9 @@ export const aiPromptInspectorHandlers = {
   },
 
   openAiPromptWorkPrompts: (): void => {
+    const libraryIsOpen = promptLibraryOverlayIsOpen.value
     void closeAiPromptInspectorThen(() => {
-      dispatch('prompt.library.open')
+      if (!libraryIsOpen) dispatch('prompt.library.open')
     })
   },
 }

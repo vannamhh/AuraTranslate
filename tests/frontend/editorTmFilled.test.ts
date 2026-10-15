@@ -3,7 +3,7 @@ import { FIXTURE_CHAPTER_ID, FIXTURE_SEGMENTS, resetRecorder, recordSave } from 
 import vi_json from '../../src/i18n/vi.json'
 
 const filledIds = { value: [12] as number[] }
-const prefill = { value: { kind: 'ran' } as { kind: 'ran' } | { kind: 'skipped'; code: string } }
+const prefill = { value: { kind: 'ran', hidden_count: 0 } as { kind: 'ran'; hidden_count: number } | { kind: 'skipped'; code: string } }
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
@@ -39,7 +39,7 @@ async function freshState() {
 beforeEach(() => {
   resetRecorder()
   filledIds.value = [12]
-  prefill.value = { kind: 'ran' }
+  prefill.value = { kind: 'ran', hidden_count: 0 }
 })
 
 describe('dấu TM điền sẵn sống trong phiên', () => {
@@ -84,6 +84,23 @@ describe('a skipped TM pre-fill is a non-fatal notice', () => {
     expect(state.editorLoadError.value).toBeNull()
     expect(state.editorSegments.value.length).toBeGreaterThan(0)
     expect(state.editorNavNotice.value).toBe('tm-prefill-skipped')
+  })
+
+  it('ran with hidden pairs => a hidden-count notice carrying the count', async () => {
+    prefill.value = { kind: 'ran', hidden_count: 6 }
+    const state = await freshState()
+    expect(state.editorNavNotice.value).toBe('tm-prefill-hidden')
+    expect(state.editorTmPrefillHiddenCount.value).toBe(6)
+  })
+
+  it('the StatusBar names the hidden count after a pre-fill that left pairs out', async () => {
+    prefill.value = { kind: 'ran', hidden_count: 6 }
+    await freshState()
+    const { mount } = await import('@vue/test-utils')
+    const StatusBar = (await import('../../src/StatusBar.vue')).default
+    const wrapper = mount(StatusBar)
+    expect(wrapper.find('.notice').text()).toContain('6')
+    wrapper.unmount()
   })
 
   it('ran => no notice', async () => {

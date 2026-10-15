@@ -227,6 +227,10 @@ export async function ensureSegmentsLoaded(): Promise<void> {
     console.error(`[editor] TM pre-fill skipped: ${loaded.tm_prefill.code}`)
     datThongBao({ nav: 'tm-prefill-skipped' })
   }
+  if (loaded?.tm_prefill.kind === 'ran' && loaded.tm_prefill.hidden_count > 0) {
+    tmPrefillHiddenCountState.value = loaded.tm_prefill.hidden_count
+    datThongBao({ nav: 'tm-prefill-hidden' })
+  }
   // 🔵 THÊM Story 6.14 — cùng lượt IPC, cùng lý do `segments`: `''`/`[]` khi nạp trượt hoặc
   // chạy ngoài Tauri, không phân biệt với "Chương 0 ảnh" (chỗ dùng phân biệt bằng `loadError`).
   chapterAssets.value = loaded?.assets ?? []
@@ -955,6 +959,8 @@ export async function flushEditorBeforeDiscreteWrite(): Promise<PreWriteFlushRes
 export function resetEditorPanel(): void {
   // Vô hiệu hoá mọi lượt nạp ĐANG BAY — xem [`sequence`].
   sequence += 1
+
+  tmPrefillHiddenCountState.value = 0
 
   segments.value = []
   tmFilledSegmentIds.value = new Set()
@@ -2587,6 +2593,11 @@ export type NavNotice =
   | 'confirm-in-flight'
   /** The Chapter loaded but the TM pre-fill was skipped; nothing was written from TM. */
   | 'tm-prefill-skipped'
+  /** The Chapter loaded with "only my pairs" on and the pre-fill left pairs out; the count is `editorTmPrefillHiddenCount`. */
+  | 'tm-prefill-hidden'
+
+const tmPrefillHiddenCountState = ref(0)
+export const editorTmPrefillHiddenCount: DeepReadonly<Ref<number>> = readonly(tmPrefillHiddenCountState)
 
 const navNotice = shallowRef<NavNotice | null>(null)
 /** Xem [`navNotice`]. `StatusBar.vue` đọc. `null` ⇒ không có gì để nói. */

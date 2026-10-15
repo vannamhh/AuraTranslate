@@ -18,6 +18,7 @@ import {
   tmFuzzyExactShown,
   tmFuzzyExpandedRows,
   tmFuzzyFocusRequest,
+  tmFuzzyHiddenCount,
   tmFuzzyMatchesShown,
   tmFuzzyPendingAccept,
   tmFuzzyRowCount,
@@ -48,12 +49,15 @@ const currentTarget = computed(() => {
   return editorSegments.value.find((s) => s.id === id)?.target_text ?? null
 })
 
-const stripTitle = computed(() =>
-  isExactList.value
-    ? t('tm.exact.title')
-    : t('tm.fuzzy.title', { count: String(tmFuzzyMatchesShown.value.length) }),
-)
-const stripHint = computed(() => (isExactList.value ? t('tm.exact.hint') : t('tm.fuzzy.hint')))
+const stripTitle = computed(() => {
+  if (isExactList.value) return t('tm.exact.title')
+  if (tmFuzzyMatchesShown.value.length === 0) return t('tm.fuzzy.title_hidden_only')
+  return t('tm.fuzzy.title', { count: String(tmFuzzyMatchesShown.value.length) })
+})
+const stripHint = computed(() => {
+  if (tmFuzzyRowCount() === 0) return ''
+  return isExactList.value ? t('tm.exact.hint') : t('tm.fuzzy.hint')
+})
 const overwriteQuestion = computed(() =>
   tmFuzzyPendingAccept.value?.kind === 'exact' ? t('tm.exact.overwrite_question') : t('tm.fuzzy.overwrite_question'),
 )
@@ -122,11 +126,14 @@ const acceptErrorText = computed(() => {
       <!-- aura-allow-text: result of t() computed in the script. -->
       <span class="tmf-title">{{ stripTitle }}</span>
       <!-- aura-allow-text: result of t() computed in the script. -->
-      <span class="tmf-hint">{{ stripHint }}</span>
+      <span v-if="stripHint !== ''" class="tmf-hint">{{ stripHint }}</span>
     </header>
 
     <p v-if="tmFuzzyScanError !== null" class="tmf-status tmf-error" role="alert">
       {{ tError(tmFuzzyScanError) }}
+    </p>
+    <p v-if="tmFuzzyHiddenCount > 0" class="tmf-status" role="status" data-tm-hidden-note>
+      {{ t('tm.policy.hidden_note', { count: String(tmFuzzyHiddenCount) }) }}
     </p>
     <p v-if="acceptErrorText !== null" class="tmf-status tmf-error" role="alert">
       <!-- aura-allow-text: result of t()/tError() computed in the script. -->

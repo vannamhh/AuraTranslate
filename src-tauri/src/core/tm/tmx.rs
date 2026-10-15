@@ -660,12 +660,15 @@ pub fn write_planned_pairs(
 }
 
 /// One `<tu>` per distinct (source, target) of a tier, carrying its first copy in AD-18 order
-/// (mine first, newest, highest id); output in the id order of those copies.
+/// (mine first, newest, highest id) among the copies the filter admits; output in the id order
+/// of those copies.
 pub fn distinct_tier_pairs(
     store: &crate::core::store::Store,
     tier: super::TmTier,
+    filter: super::TmExportFilter,
 ) -> Result<Vec<TmPair>, super::TmStoreError> {
-    let rows = super::load_all_pair_rows(store)?;
+    let mut rows = super::load_all_pair_rows(store)?;
+    rows.retain(|row| filter.admits(row.translation_origin));
     let resolver = crate::core::scope::ScopeResolver::global_only();
     let ordered = match tier {
         super::TmTier::Global => super::merge_tiers(&resolver, rows, None)?,

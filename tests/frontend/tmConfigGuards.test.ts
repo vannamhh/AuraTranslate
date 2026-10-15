@@ -40,6 +40,7 @@ function listingWire(over: Record<string, unknown> = {}) {
       { translation_origin: 'other', count: 0 },
       { translation_origin: 'bilingual_import', count: 0 },
     ],
+    tier_totals: { work: 1, global: 0 },
     total_pairs: 1,
     total_groups: 1,
     groups: [{ source_text: '你好', distinct_targets: 1, rows: [rowWire()] }],
@@ -67,6 +68,7 @@ describe('tmListPairs', () => {
       pairOrigin: 'all',
       tier: 'both',
       search: 'x',
+      sort: 'newest',
     })
     expect(result.error).toBeNull()
     expect(result.listing?.groups[0].rows[0].copies).toEqual([{ tier: 'work', unit_id: 1 }])
@@ -131,6 +133,8 @@ describe('tmListPairs', () => {
     ],
     ['health entry without count', { health: [{ translation_origin: 'self' }] }],
     ['work_open as a string', { work_open: 'yes' }],
+    ['tier_totals missing', { tier_totals: undefined }],
+    ['tier_totals global as a string', { tier_totals: { work: 1, global: 'x' } }],
   ])('refuses %s with a readable error and no throw', async (_name, over) => {
     const tm = await freshAdapter()
     mockInvoke.mockResolvedValue(listingWire(over))
@@ -218,7 +222,9 @@ describe('TMX exchange wrappers', () => {
     const a = await freshAdapter()
     mockInvoke.mockResolvedValue({ path: '/tmp/tm_work.tmx', left_out_count: 3 })
     expect(await a.tmExportTier('work')).toEqual({ outcome: 'done', path: '/tmp/tm_work.tmx', leftOutCount: 3 })
-    expect(mockInvoke).toHaveBeenCalledWith('tm_export_tier', { tier: 'work' })
+    expect(mockInvoke).toHaveBeenCalledWith('tm_export_tier', { tier: 'work', filter: 'all' })
+    await a.tmExportTier('global', 'mine')
+    expect(mockInvoke).toHaveBeenLastCalledWith('tm_export_tier', { tier: 'global', filter: 'mine' })
 
     mockInvoke.mockResolvedValue(null)
     expect(await a.tmExportTier('global')).toEqual({ outcome: 'cancelled' })
@@ -273,5 +279,32 @@ describe('TMX exchange wrappers', () => {
     expect(await a.tmOpenImportPreview('work')).toEqual({ outcome: 'error', error: err })
     expect((await a.tmConfirmImport(false)).error).toEqual(err)
     expect((await a.tmCancelImport()).error).toEqual(err)
+  })
+})
+
+describe('TM-only-mine wrappers', () => {
+  it('only_mine get/set accept the two booleans, send onlyMine, and refuse a missing field', async () => {
+    const a = await freshAdapter()
+    mockInvoke.mockResolvedValue({ work_open: true, only_mine: true })
+    expect(await a.tmOnlyMineGet()).toEqual({ state: { work_open: true, only_mine: true }, error: null })
+    expect(mockInvoke).toHaveBeenLastCalledWith('tm_only_mine_get')
+    await a.tmOnlyMineSet(false)
+    expect(mockInvoke).toHaveBeenLastCalledWith('tm_only_mine_set', { onlyMine: false })
+
+    mockInvoke.mockResolvedValue({ work_open: true })
+    const bad = await a.tmOnlyMineGet()
+    expect(bad.state).toBeNull()
+    expect(bad.error?.code).toBe('ipc.unknown')
+  })
+
+  it('export counts send the tier and refuse a missing or non-count field with null', async () => {
+    const a = await freshAdapter()
+    mockInvoke.mockResolvedValue({ all: 5, mine: 2 })
+    expect(await a.tmExportCounts('work')).toEqual({ all: 5, mine: 2 })
+    expect(mockInvoke).toHaveBeenLastCalledWith('tm_export_counts', { tier: 'work' })
+    mockInvoke.mockResolvedValue({ all: 5 })
+    expect(await a.tmExportCounts('work')).toBeNull()
+    mockInvoke.mockResolvedValue({ all: -1, mine: 0 })
+    expect(await a.tmExportCounts('work')).toBeNull()
   })
 })

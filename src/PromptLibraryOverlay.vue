@@ -33,6 +33,7 @@ import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import { promptLibraryOverlayIsOpen } from './promptLibraryState'
+import { splitPromptBody } from './promptMarkers'
 // Story 4.5 review fix — kết quả lượt Nhập gần nhất (`prompt.import.confirm`) không được hiện
 // ở đâu cả: lớp phủ Xem trước tự đóng ngay khi thành công, nên đây (màn Thư viện, vẫn mở bên
 // dưới) là chỗ RẺ NHẤT để nói cho người dùng biết lượt nhập đã tạo/thay/không ghi gì.
@@ -41,6 +42,7 @@ import {
   clearPromptSetActionFeedback,
   createPromptSet,
   deletePromptSet,
+  duplicatePromptSetName,
   exportPromptSet,
   exportPromptSets,
   isPromptSetNameValid,
@@ -138,9 +140,21 @@ function varDescKey(name: string): string {
   return `prompt.library.var_${name}_desc`
 }
 
+function varNeedKey(name: string): string {
+  return `prompt.library.var_${name}_need`
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Hàng đang xem/sửa — state CỤC BỘ (xem khối 🔵 đầu tệp)
 // ═══════════════════════════════════════════════════════════════════════════════
+
+type LibraryScope = 'global' | 'work' | 'both'
+const scope = ref<LibraryScope>('both')
+const SCOPE_OPTIONS: ReadonlyArray<{ value: LibraryScope; labelKey: string }> = [
+  { value: 'global', labelKey: 'prompt.library.tier_global' },
+  { value: 'work', labelKey: 'prompt.library.tier_work' },
+  { value: 'both', labelKey: 'prompt.library.scope_both' },
+]
 
 const selectedTier = ref<PromptSetTier | null>(null)
 const selectedId = ref<number | null>(null)
@@ -247,7 +261,77 @@ const globalRows = computed<DisplayRow[]>(() => {
   return rows
 })
 
-function selectRow(row: DisplayRow): void {
+function scopeLabel(opt: { value: LibraryScope; labelKey: string }): string {
+  if (opt.value === 'both') return t(opt.labelKey)
+  const count = opt.value === 'work' ? workRows.value.length : globalRows.value.length
+  return t('prompt.library.count_label', { label: t(opt.labelKey), count: String(count) })
+}
+
+function onScopeChange(value: LibraryScope, event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement && target.checked) scope.value = value
+}
+
+const inUseLine = computed(() =>
+  selectedPromptSetName.value === null
+    ? t('prompt.library.in_use_none')
+    : t('prompt.library.in_use_line', { name: selectedPromptSetName.value }),
+)
+
+const bodySegments = computed(() => splitPromptBody(bodyDraft.value, promptSetVariables.value))
+
+const mirror = useTemplateRef<HTMLElement>('mirror')
+
+function onBodyScroll(event: Event): void {
+  const target = event.target
+  if (!(target instanceof HTMLTextAreaElement) || mirror.value === null) return
+  mirror.value.scrollTop = target.scrollTop
+  mirror.value.scrollLeft = target.scrollLeft
+}
+
+function whenIdle(): Promise<void> {
+  if (!promptSetBusy.value) return Promise.resolve()
+  return new Promise((resolve) => {
+    const stop = watch(promptSetBusy, (busy) => {
+      if (busy) return
+      stop()
+      resolve()
+    })
+  })
+}
+
+let flushChain: Promise<boolean> = Promise.resolve(true)
+
+function bodyIsDirty(): boolean {
+  const row = selectedRow.value
+  return row !== null && !createOpen.value && bodyDraft.value !== row.body
+}
+
+async function saveBodyIfChanged(): Promise<boolean> {
+  await whenIdle()
+  const row = selectedRow.value
+  if (row === null || createOpen.value || bodyDraft.value === row.body) return true
+  deletePending.value = false
+  await updatePromptSetBody(row.tier, row.id, bodyDraft.value)
+  return promptSetActionError.value === null
+}
+
+/** Saves a changed body and answers whether it is safe to leave it; a failed save keeps the draft in the box. */
+function flushBody(): Promise<boolean> {
+  flushChain = flushChain.then(saveBodyIfChanged)
+  return flushChain
+}
+
+watch(promptLibraryOverlayIsOpen, (open) => {
+  if (open) {
+    scope.value = 'both'
+    return
+  }
+  void flushBody()
+})
+
+async function selectRow(row: DisplayRow): Promise<void> {
+  if (!isCurrent(row) && bodyIsDirty() && !(await flushBody())) return
   selectedTier.value = row.tier
   selectedId.value = row.id
   nameDraft.value = row.name
@@ -273,7 +357,8 @@ function onBodyInput(event: Event): void {
   if (target instanceof HTMLTextAreaElement) bodyDraft.value = target.value
 }
 
-function onOpenCreate(): void {
+async function onOpenCreate(): Promise<void> {
+  if (bodyIsDirty() && !(await flushBody())) return
   createOpen.value = true
   createTier.value = promptSetWorkTierAvailable.value ? 'work' : 'global'
   createNameDraft.value = ''
@@ -379,15 +464,54 @@ async function onSubmitRename(): Promise<void> {
   await renamePromptSet(selectedTier.value, selectedId.value, nameDraft.value)
 }
 
-async function onSubmitBody(): Promise<void> {
-  if (selectedTier.value === null || selectedId.value === null) return
-  deletePending.value = false // cùng lý do onSubmitRename — sửa thân không phải xác nhận xoá
-  await updatePromptSetBody(selectedTier.value, selectedId.value, bodyDraft.value)
+function onBodyBlur(): void {
+  void flushBody()
+}
+
+async function onClose(): Promise<void> {
+  if (await flushBody()) dispatch('prompt.library.close')
+}
+
+const inspectorButton = useTemplateRef<HTMLButtonElement>('inspectorButton')
+
+async function onOpenInspector(): Promise<void> {
+  if (!(await flushBody())) return
+  inspectorButton.value?.focus()
+  dispatch('ai.prompt_inspector.open')
+}
+
+async function onDuplicate(): Promise<void> {
+  const source = selectedRow.value
+  if (source === null) return
+  if (!(await flushBody())) return
+  await whenIdle()
+  const body = bodyDraft.value
+  const taken = new Set(
+    [...workRows.value, ...globalRows.value].filter((r) => r.tier === source.tier).map((r) => r.name),
+  )
+  const suffix = t('prompt.library.copy_suffix')
+  for (let retry = 0; retry < DUPLICATE_ATTEMPTS; retry += 1) {
+    const name = duplicatePromptSetName(source.name, suffix, taken, retry)
+    await createPromptSet(source.tier, name, body)
+    const error = promptSetActionError.value
+    if (error === null) {
+      const created = promptSets.value.find((s) => s.tier === source.tier && s.name === name)
+      if (created !== undefined) {
+        selectedTier.value = created.tier
+        selectedId.value = created.id
+        nameDraft.value = created.name
+        bodyDraft.value = created.body
+      }
+      return
+    }
+    if (error.code !== 'prompt_set.name_taken') return
+  }
 }
 
 /** Xoá hai nhịp — khuôn Cụm D `GlossaryManageOverlay.vue`: nhịp MỘT chỉ đặt cờ chờ, nhịp HAI
  * (cùng nút, đã đổi chữ) mới gọi IPC thật. */
 async function onDeleteSubmit(): Promise<void> {
+  await whenIdle()
   if (selectedTier.value === null || selectedId.value === null) return
   if (!deletePending.value) {
     deletePending.value = true
@@ -405,8 +529,11 @@ async function onDeleteSubmit(): Promise<void> {
  * (khuôn Rename/Delete/Save body cùng màn hình). */
 async function onExportSelected(): Promise<void> {
   if (selectedRow.value === null) return
+  if (!(await flushBody())) return
   await exportPromptSet(selectedRow.value.tier, selectedRow.value.id)
 }
+
+const DUPLICATE_ATTEMPTS = 20
 
 const exportPicked = ref<string[]>([])
 
@@ -459,7 +586,7 @@ function onUseSelected(): void {
  * ngoài hai ca đó mới đóng cả lớp phủ — cùng luật "Escape huỷ nhịp một trước" của
  * `GlossaryManageOverlay.vue::onEscape`.
  */
-function onEscape(): void {
+async function onEscape(): Promise<void> {
   if (deletePending.value) {
     deletePending.value = false
     return
@@ -468,7 +595,7 @@ function onEscape(): void {
     createOpen.value = false
     return
   }
-  dispatch('prompt.library.close')
+  if (await flushBody()) dispatch('prompt.library.close')
 }
 </script>
 
@@ -489,10 +616,32 @@ function onEscape(): void {
     >
       <header class="pl-head">
         <h2 id="pl-title" class="pl-title">{{ t('prompt.library.title') }}</h2>
-        <button type="button" class="pl-close" @click="dispatch('prompt.library.close')">
-          {{ t('command.prompt.library.close') }}
-        </button>
+        <form @submit.prevent="onClose">
+          <button type="submit" class="pl-close">
+            {{ t('command.prompt.library.close') }}
+          </button>
+        </form>
       </header>
+
+      <div v-if="promptSetLoadError === null && !promptSetLoading" class="pl-bar">
+        <fieldset class="pl-seg" role="radiogroup" :aria-label="t('prompt.library.scope_label')">
+          <legend class="pl-seg-legend">{{ t('prompt.library.scope_label') }}</legend>
+          <label v-for="opt in SCOPE_OPTIONS" :key="opt.value" class="pl-pill" :class="{ 'pl-pill-on': scope === opt.value }">
+            <input
+              type="radio"
+              name="pl-scope"
+              :value="opt.value"
+              :checked="scope === opt.value"
+              @change="onScopeChange(opt.value, $event)"
+            />
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            {{ scopeLabel(opt) }}
+          </label>
+        </fieldset>
+        <span class="pl-bar-msg">{{ t('prompt.library.scope_msg') }}</span>
+        <!-- aura-allow-text: result of t() computed in the script. -->
+        <span class="pl-bar-use" data-prompt-in-use>{{ inUseLine }}</span>
+      </div>
 
       <p v-if="!promptSetWorkTierAvailable" class="pl-note">
         {{ t('prompt.library.work_tier_unavailable_note') }}
@@ -514,9 +663,9 @@ function onEscape(): void {
       <div v-else class="pl-cols">
         <nav class="pl-list" aria-label="prompt-library-list">
           <p v-if="promptSets.length === 0" class="pl-group-empty">{{ t('prompt.library.empty') }}</p>
-          <h3 class="pl-group-h">{{ t('prompt.library.group_work') }}</h3>
-          <p v-if="workRows.length === 0 && promptSets.length > 0" class="pl-group-empty">{{ t('prompt.library.group_work_empty') }}</p>
-          <form v-for="row in workRows" :key="row.key" class="pl-row-form" @submit.prevent="selectRow(row)">
+          <h3 v-if="scope !== 'global'" class="pl-group-h">{{ t('prompt.library.group_work') }}</h3>
+          <p v-if="scope !== 'global' && workRows.length === 0 && promptSets.length > 0" class="pl-group-empty">{{ t('prompt.library.group_work_empty') }}</p>
+          <form v-for="row in scope === 'global' ? [] : workRows" :key="row.key" class="pl-row-form" @submit.prevent="selectRow(row)">
             <button type="submit" class="pl-row" :class="{ 'pl-row-on': isCurrent(row) }" :aria-current="isCurrent(row) ? 'true' : undefined">
               <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
               <span class="pl-row-name">{{ row.name }}</span>
@@ -525,14 +674,14 @@ function onEscape(): void {
             </button>
           </form>
 
-          <h3 class="pl-group-h">{{ t('prompt.library.group_global') }}</h3>
-          <p v-if="globalRows.length === 0 && promptSets.length > 0" class="pl-group-empty">{{ t('prompt.library.group_global_empty') }}</p>
+          <h3 v-if="scope !== 'work'" class="pl-group-h">{{ t('prompt.library.group_global') }}</h3>
+          <p v-if="scope !== 'work' && globalRows.length === 0 && promptSets.length > 0" class="pl-group-empty">{{ t('prompt.library.group_global_empty') }}</p>
           <!--
             🔵 SỬA Story 4.5, Quyết định #3 — hàng Global bị che nay CHỌN ĐƯỢC (mang `shadowed_id`
             thật), nên nó dùng CHUNG một `<form>` với mọi hàng Global khác thay vì một `<div>`
             chỉ-hiển-thị riêng. `isShadowedDisplay` chỉ còn quyết định lớp CSS/huy hiệu.
           -->
-          <form v-for="row in globalRows" :key="row.key" class="pl-row-form" @submit.prevent="selectRow(row)">
+          <form v-for="row in scope === 'work' ? [] : globalRows" :key="row.key" class="pl-row-form" @submit.prevent="selectRow(row)">
             <button
               type="submit"
               class="pl-row"
@@ -676,14 +825,27 @@ function onEscape(): void {
                 <!-- aura-allow-text: định danh máy đọc (tên biến), không phải chữ giao diện. -->
                 <code>{{ marker(v) }}</code>
                 <span class="pl-vd">{{ t(varDescKey(v)) }}</span>
+                <span class="pl-vs">{{ t(varNeedKey(v)) }}</span>
               </div>
             </div>
 
-            <form class="pl-body-form" @submit.prevent="onSubmitBody">
-              <label class="pl-field">
-                <span class="pl-field-label">{{ t('prompt.library.body_label') }}</span>
-                <textarea class="pl-textarea" rows="12" :value="bodyDraft" :disabled="promptSetBusy" @input="onBodyInput"></textarea>
-              </label>
+            <div class="pl-body-form">
+              <div class="pl-field">
+                <label class="pl-field-label" for="pl-body-input">{{ t('prompt.library.body_label') }}</label>
+                <div class="pl-ta-wrap">
+                  <pre ref="mirror" class="pl-ta-mirror" aria-hidden="true"><template v-for="(seg, i) in bodySegments" :key="i"><!-- aura-allow-text: prompt body text, user data. --><span v-if="seg.kind === 'plain'">{{ seg.text }}</span><!-- aura-allow-text: prompt body text, user data. --><span v-else class="pl-var" :class="{ 'pl-var-unknown': seg.kind === 'unknown' }">{{ seg.text }}</span></template></pre>
+                  <textarea
+                    id="pl-body-input"
+                    class="pl-textarea pl-ta-input"
+                    rows="12"
+                    :value="bodyDraft"
+                    :disabled="promptSetBusy"
+                    @input="onBodyInput"
+                    @scroll="onBodyScroll"
+                    @blur="onBodyBlur"
+                  ></textarea>
+                </div>
+              </div>
 
               <p v-if="promptSetActionWarnings !== null && promptSetActionWarnings.unknown_markers.length > 0" class="pl-warn">
                 {{ t('prompt.library.warning_unknown_markers', { tokens: promptSetActionWarnings.unknown_markers.join(', ') }) }}
@@ -695,16 +857,22 @@ function onEscape(): void {
                 <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
                 {{ tError(promptSetActionError) }}
               </p>
-
-              <button type="submit" class="pl-act pl-act-primary" :disabled="promptSetBusy">
-                {{ t('prompt.library.save_body_button') }}
-              </button>
-            </form>
+            </div>
 
             <div class="pl-actions">
               <form class="pl-use-form" @submit.prevent="onUseSelected">
                 <button type="submit" class="pl-act" :disabled="selectedRow.name === selectedPromptSetName">
                   {{ t('prompt.library.use_button') }}
+                </button>
+              </form>
+              <form class="pl-inspect-form" @submit.prevent="onOpenInspector">
+                <button ref="inspectorButton" type="submit" class="pl-act" data-prompt-inspector-open>
+                  {{ t('prompt.library.inspect_button') }}
+                </button>
+              </form>
+              <form class="pl-dup-form" @submit.prevent="onDuplicate">
+                <button type="submit" class="pl-act">
+                  {{ t('prompt.library.duplicate_button') }}
                 </button>
               </form>
               <form class="pl-export-form" @submit.prevent="onExportSelected">
@@ -713,11 +881,12 @@ function onEscape(): void {
                 </button>
               </form>
               <form class="pl-delete-form" @submit.prevent="onDeleteSubmit">
-                <button type="submit" class="pl-act" :class="{ 'pl-act-danger': deletePending }" :disabled="promptSetBusy">
+                <button type="submit" class="pl-act" :class="{ 'pl-act-danger': deletePending }">
                   {{ t(deletePending ? 'prompt.library.delete_confirm_button' : 'prompt.library.delete_button') }}
                 </button>
               </form>
             </div>
+            <p class="pl-status pl-hint-line">{{ t('prompt.library.autosave_hint') }}</p>
             <p v-if="deletePending" class="pl-status pl-alert" role="status">{{ t('prompt.library.delete_confirm_hint') }}</p>
             <p v-if="promptSetExportError !== null" class="pl-status pl-alert" role="alert">
               <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
@@ -989,6 +1158,131 @@ function onEscape(): void {
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
   resize: vertical;
+}
+
+.pl-ta-wrap {
+  position: relative;
+  background: var(--color-background);
+}
+
+.pl-ta-mirror {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: calc(var(--space-unit) * 2);
+  border: 1px solid transparent;
+  overflow: hidden;
+  scrollbar-gutter: stable;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-family: var(--family-read);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface);
+}
+
+.pl-ta-input {
+  position: relative;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  scrollbar-gutter: stable;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--color-on-surface);
+}
+
+.pl-ta-mirror::after {
+  content: '\A';
+  white-space: pre;
+}
+
+.pl-var {
+  background: var(--color-surface-accent);
+  color: var(--color-primary);
+}
+
+.pl-var-unknown {
+  background: var(--color-surface-tm);
+  color: var(--color-error);
+  text-decoration: underline;
+}
+
+.pl-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 3);
+  margin-bottom: var(--space-panel-block);
+  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  background: var(--color-surface-sunken);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.pl-seg {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.pl-seg-legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.pl-pill {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  padding: 0 calc(var(--space-unit) * 3);
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+}
+
+.pl-pill-on {
+  border-color: var(--color-primary);
+  background: var(--color-surface-accent);
+  color: var(--color-primary);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.pl-bar-msg {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.pl-bar-use {
+  margin-left: auto;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface);
+}
+
+.pl-vs {
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+  white-space: nowrap;
+}
+
+.pl-hint-line {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .pl-export-many {

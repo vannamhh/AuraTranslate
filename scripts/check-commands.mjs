@@ -244,7 +244,7 @@ const COMMAND_FLOOR = 250
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const CLICK_FLOOR = 214
-const DISPATCH_FLOOR = 280
+const DISPATCH_FLOOR = 299
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2442,7 +2442,9 @@ const HANDLER_TABLE = {
   'src/PromptLibraryOverlay.vue::onSubmitCreate': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onCancelCreate': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onSubmitRename': { nonCommand: R_SUBMIT_DIRECT },
-  'src/PromptLibraryOverlay.vue::onSubmitBody': { nonCommand: R_SUBMIT_DIRECT },
+  'src/PromptLibraryOverlay.vue::onClose': { ids: ['prompt.library.close'] },
+  'src/PromptLibraryOverlay.vue::onOpenInspector': { ids: ['ai.prompt_inspector.open'] },
+  'src/PromptLibraryOverlay.vue::onDuplicate': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onUseSelected': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onExportSelected': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onExportPicked': { nonCommand: R_SUBMIT_DIRECT },
@@ -2486,6 +2488,8 @@ const HANDLER_TABLE = {
   'src/ReviewerImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/TmManageOverlay.vue::onEscape': { ids: ['tm.manage.cancel', 'tm.manage.close'] },
   'src/TmManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/TmManageOverlay.vue::onRowEdit': { ids: ['tm.manage.edit'] },
+  'src/TmManageOverlay.vue::onRowDelete': { ids: ['tm.manage.delete'] },
   'src/TmManageOverlay.vue::onKeydown': {
     ids: ['tm.manage.next', 'tm.manage.prev', 'tm.manage.edit', 'tm.manage.delete'],
   },
@@ -2738,7 +2742,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 114
+const HANDLER_ATTR_FLOOR = 122
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

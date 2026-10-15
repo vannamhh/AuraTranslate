@@ -22,7 +22,7 @@ describe('readOpenChapterSegments — một hàng segment thiếu trường ph�
       assets: [],
       assets_dir: '',
       tm_filled_segment_ids: [],
-      tm_prefill: { kind: 'ran' },
+      tm_prefill: { kind: 'ran', hidden_count: 0 },
       segments: [
         {
           id: 1,
@@ -56,7 +56,7 @@ describe('readOpenChapterSegments — một hàng segment thiếu trường ph�
       assets: [],
       assets_dir: '',
       tm_filled_segment_ids: [],
-      tm_prefill: { kind: 'ran' },
+      tm_prefill: { kind: 'ran', hidden_count: 0 },
       segments: [
         {
           id: 1,
@@ -144,7 +144,7 @@ describe('readOpenChapterSegments — `tm_prefill` is a closed wire type', () =>
     expect(error).not.toBeNull()
   })
 
-  it.each([{ kind: 'ran' }, { kind: 'not_asked' }, { kind: 'skipped', code: 'store.open_failed' }])(
+  it.each([{ kind: 'ran', hidden_count: 0 }, { kind: 'not_asked' }, { kind: 'skipped', code: 'store.open_failed' }])(
     '%j passes',
     async (tmPrefill) => {
       const { readOpenChapterSegments } = await import('../../src/config/segment')
@@ -156,9 +156,19 @@ describe('readOpenChapterSegments — `tm_prefill` is a closed wire type', () =>
     },
   )
 
+  it('rejects a ran prefill status without hidden_count', async () => {
+    const { readOpenChapterSegments } = await import('../../src/config/segment')
+    invokeMock.mockResolvedValueOnce({ ...base, tm_prefill: { kind: 'ran' } })
+
+    const { loaded, error } = await readOpenChapterSegments()
+
+    expect(loaded).toBeNull()
+    expect(error).not.toBeNull()
+  })
+
   it('sends prefill true by default and false when asked', async () => {
     const { readOpenChapterSegments } = await import('../../src/config/segment')
-    invokeMock.mockResolvedValue({ ...base, tm_prefill: { kind: 'ran' } })
+    invokeMock.mockResolvedValue({ ...base, tm_prefill: { kind: 'ran', hidden_count: 0 } })
 
     await readOpenChapterSegments()
     await readOpenChapterSegments({ prefill: false })

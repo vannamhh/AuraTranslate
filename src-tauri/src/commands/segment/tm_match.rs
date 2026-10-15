@@ -24,6 +24,8 @@ pub struct TmFuzzyMatches {
     /// Every distinct target of an exact source match, AD-18 order; non-empty only with 2+
     /// distinct targets, and then `matches` is empty.
     pub exact: Vec<TmExactTarget>,
+    /// Distinct pairs the "only mine" switch kept off this strip (AD-57); 0 when it is off.
+    pub hidden_count: usize,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -61,6 +63,7 @@ pub struct TmFuzzyScan {
     threshold: u8,
     resolver: crate::core::scope::ScopeResolver,
     candidates: crate::core::tm::TierRows,
+    exact_hidden: usize,
 }
 
 pub enum TmFuzzyPrepared {
@@ -98,18 +101,28 @@ pub fn prepare_tm_fuzzy(
             segment_id,
             matches: Vec::new(),
             exact: Vec::new(),
+            hidden_count: 0,
         })
     };
     if source.trim().is_empty() {
         return Ok(empty());
     }
 
-    let exact = crate::core::tm::pairs_for_source(&open.scope, global, Some(&open.store), &source)
+    let policy = crate::core::tm::TmSidePolicy::from_work(Some(&open.store))
         .map_err(|e| tm_lookup_failed(&e))?;
+    let (exact, exact_hidden) =
+        crate::core::tm::pairs_for_source(&open.scope, global, Some(&open.store), &source, policy)
+            .map_err(|e| tm_lookup_failed(&e))?
+            .into_parts();
     if !exact.is_empty() {
         let distinct = crate::core::tm::distinct_exact_targets(exact);
         if distinct.len() < 2 {
-            return Ok(empty());
+            return Ok(TmFuzzyPrepared::Empty(TmFuzzyMatches {
+                segment_id,
+                matches: Vec::new(),
+                exact: Vec::new(),
+                hidden_count: exact_hidden,
+            }));
         }
         let exact = distinct
             .into_iter()
@@ -125,13 +138,15 @@ pub fn prepare_tm_fuzzy(
             segment_id,
             matches: Vec::new(),
             exact,
+            hidden_count: exact_hidden,
         }));
     }
 
     let threshold = crate::core::scope::load_global_config(global)?.tm_fuzzy_threshold();
-    let candidates = crate::core::tm::read_tier_rows(global, Some(&open.store))
+    let candidates = crate::core::tm::read_tier_rows(global, Some(&open.store), policy)
         .map_err(|e| tm_lookup_failed(&e))?;
     Ok(TmFuzzyPrepared::Scan(TmFuzzyScan {
+        exact_hidden,
         segment_id,
         lang: crate::core::glossary::match_lang_for_source_lang(&open.meta.source_lang),
         source,
@@ -147,14 +162,15 @@ pub fn score_tm_fuzzy(prepared: TmFuzzyPrepared) -> Result<TmFuzzyMatches, IpcEr
         TmFuzzyPrepared::Empty(done) => return Ok(done),
         TmFuzzyPrepared::Scan(scan) => scan,
     };
-    let pairs = crate::core::tm::rank_fuzzy_candidates(
+    let (pairs, fuzzy_hidden) = crate::core::tm::rank_fuzzy_candidates(
         &scan.resolver,
         scan.candidates,
         &scan.source,
         scan.lang,
         scan.threshold,
     )
-    .map_err(|e| tm_lookup_failed(&e))?;
+    .map_err(|e| tm_lookup_failed(&e))?
+    .into_parts();
 
     let matches = pairs
         .into_iter()
@@ -179,6 +195,7 @@ pub fn score_tm_fuzzy(prepared: TmFuzzyPrepared) -> Result<TmFuzzyMatches, IpcEr
         segment_id: scan.segment_id,
         matches,
         exact: Vec::new(),
+        hidden_count: scan.exact_hidden + fuzzy_hidden,
     })
 }
 
@@ -235,8 +252,12 @@ pub fn prepare_tm_concordance(
         Some(open) => open.scope.clone(),
         None => crate::core::scope::ScopeResolver::global_only(),
     };
-    let candidates = crate::core::tm::read_tier_rows(global, open.map(|o| &o.store))
-        .map_err(|e| tm_lookup_failed(&e))?;
+    let candidates = crate::core::tm::read_tier_rows(
+        global,
+        open.map(|o| &o.store),
+        crate::core::tm::TmSidePolicy::browse(),
+    )
+    .map_err(|e| tm_lookup_failed(&e))?;
     Ok(TmConcordanceScan {
         query: query.to_owned(),
         resolver,

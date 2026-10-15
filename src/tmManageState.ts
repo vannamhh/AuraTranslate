@@ -10,22 +10,28 @@ import type { DeepReadonly, Ref } from 'vue'
 import {
   tmDeleteOthers,
   tmDeletePair,
+  tmExportCounts,
   tmExportTier,
   tmListPairs,
   tmPushPairToGlobal,
   tmUpdatePairTarget,
 } from './config/tm'
 import type {
+  TmExportCounts,
+  TmExportFilter,
   TmHealthEntry,
   TmManageListing,
   TmManagePairOriginFilter,
   TmManageRow,
+  TmManageSort,
   TmManageTier,
   TmManageTierFilter,
+  TmTierTotals,
   TmxImportSummary,
 } from './config/tm'
 import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
+import { loadTmPolicy, resetTmPolicy } from './tmPolicyState'
 import { refreshWorkspaceCounts } from './workspaceCountsState'
 
 export type TmManageStatus = 'unknown' | 'ipc_unavailable' | 'error' | 'loaded'
@@ -49,6 +55,7 @@ const listing = ref<TmManageListing | null>(null)
 const searchQuery = ref('')
 const pairOriginFilterState = ref<TmManagePairOriginFilter>('all')
 const tierFilterState = ref<TmManageTierFilter>('both')
+const sortState = ref<TmManageSort>('newest')
 const cursor = ref(0)
 const editing = ref(false)
 let editPin: { key: string; row: TmManageRow; source: string } | null = null
@@ -65,6 +72,12 @@ export const TM_MANAGE_SEARCH_DEBOUNCE_MS = 150
 
 let session = 0
 const exchangeTierState = ref<TmManageTier>('global')
+const exportMineOnlyState = ref(false)
+const exportCountsState = ref<{ work: TmExportCounts | null; global: TmExportCounts | null }>({
+  work: null,
+  global: null,
+})
+let countsToken = 0
 const exportBusy = ref(false)
 const exportError = ref<IpcError | null>(null)
 const exportIpcUnavailable = ref(false)
@@ -80,6 +93,7 @@ export const tmManageLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(lo
 export const tmManageSearchQuery: DeepReadonly<Ref<string>> = readonly(searchQuery)
 export const tmManagePairOriginFilter: DeepReadonly<Ref<TmManagePairOriginFilter>> = readonly(pairOriginFilterState)
 export const tmManageTierFilter: DeepReadonly<Ref<TmManageTierFilter>> = readonly(tierFilterState)
+export const tmManageSort: DeepReadonly<Ref<TmManageSort>> = readonly(sortState)
 export const tmManageCursor: DeepReadonly<Ref<number>> = readonly(cursor)
 export const tmManageEditing: DeepReadonly<Ref<boolean>> = readonly(editing)
 export const tmManageEditTarget: Ref<string> = editTargetInput
@@ -93,6 +107,9 @@ export const tmManageActionNotice: DeepReadonly<
 export const tmManageBulkDeleted: DeepReadonly<Ref<{ work: number; global: number } | null>> = readonly(bulkDeleted)
 
 export const tmManageExchangeTier: DeepReadonly<Ref<TmManageTier>> = readonly(exchangeTierState)
+export const tmManageExportMineOnly: DeepReadonly<Ref<boolean>> = readonly(exportMineOnlyState)
+/** Pairs an export of each tier holds, per filter; `null` while unknown or when the tier is closed. */
+export const tmManageExportCounts = readonly(exportCountsState)
 export const tmManageExportBusy: DeepReadonly<Ref<boolean>> = readonly(exportBusy)
 export const tmManageExportError: DeepReadonly<Ref<IpcError | null>> = readonly(exportError)
 export const tmManageExportIpcUnavailable: DeepReadonly<Ref<boolean>> = readonly(exportIpcUnavailable)
@@ -103,6 +120,7 @@ export const tmManageImportDone: DeepReadonly<Ref<TmxImportSummary | null>> = re
 
 export function noteTmImportDone(summary: TmxImportSummary | null): void {
   importDone.value = summary
+  void refreshExportCounts()
 }
 
 export const tmManageWorkOpen = computed<boolean>(() => listing.value?.work_open ?? false)
@@ -110,9 +128,35 @@ export const tmManageTmEmpty = computed<boolean>(() => listing.value?.tm_empty ?
 export const tmManageTotalGroups = computed<number>(() => listing.value?.total_groups ?? 0)
 export const tmManageTotalPairs = computed<number>(() => listing.value?.total_pairs ?? 0)
 export const tmManageShownGroups = computed<number>(() => listing.value?.groups.length ?? 0)
+export const tmManageTierTotals = computed<TmTierTotals | null>(() => listing.value?.tier_totals ?? null)
 export const tmManageHealth = computed<TmHealthEntry[]>(() => listing.value?.health ?? [])
 
 export const tmManageHealthTotal = computed<number>(() => tmManageHealth.value.reduce((sum, h) => sum + h.count, 0))
+
+function healthCount(pairOrigins: ReadonlyArray<TmHealthEntry['translation_origin']>): number {
+  return tmManageHealth.value.filter((h) => pairOrigins.includes(h.translation_origin)).reduce((n, h) => n + h.count, 0)
+}
+
+/** Counts behind the origin pills, over the current tier filter. */
+export const tmManageOriginCounts = computed(() => ({
+  all: tmManageHealthTotal.value,
+  self: healthCount(['self']),
+  others: healthCount(['other', 'bilingual_import']),
+  other: healthCount(['other']),
+  bilingual_import: healthCount(['bilingual_import']),
+}))
+
+/** Pairs an export of the chosen tier would hold under the chosen filter; `null` while unknown. */
+export const tmManageExportCount = computed<number | null>(() => {
+  const counts = exportCountsState.value[exchangeTierState.value]
+  if (counts === null) return null
+  return exportMineOnlyState.value ? counts.mine : counts.all
+})
+
+/** Pairs the "mine only" export of the chosen tier would hold; `null` while unknown. */
+export const tmManageExportMineCount = computed<number | null>(
+  () => exportCountsState.value[exchangeTierState.value]?.mine ?? null,
+)
 
 /** Pairs a bulk delete would remove: the others side over the current tier filter. */
 export const tmManageOthersCount = computed<number>(() =>
@@ -174,7 +218,12 @@ async function loadRows(keepKey: string | null): Promise<boolean> {
   listToken += 1
   const mine = listToken
   const mySession = session
-  const result = await tmListPairs(pairOriginFilterState.value, tierFilterState.value, searchQuery.value)
+  const result = await tmListPairs(
+    pairOriginFilterState.value,
+    tierFilterState.value,
+    searchQuery.value,
+    sortState.value,
+  )
   if (mine !== listToken || mySession !== session) return false
 
   if (result.listing === null) {
@@ -213,6 +262,8 @@ export async function openTmManage(): Promise<void> {
   resetTmManage()
   overlayOpen.value = true
   const mySession = session
+  void loadTmPolicy()
+  void refreshExportCounts()
   await loadRows(null)
   if (mySession === session && listing.value !== null) {
     exchangeTierState.value = listing.value.work_open ? 'work' : 'global'
@@ -224,6 +275,20 @@ export async function refreshTmManage(): Promise<void> {
   const current = tmManageCurrentRow.value
   await loadRows(current === null ? null : tmManageRowKey(current))
   if (listing.value !== null && !listing.value.work_open) exchangeTierState.value = 'global'
+}
+
+export async function refreshExportCounts(): Promise<void> {
+  countsToken += 1
+  const mine = countsToken
+  const mySession = session
+  const [work, global] = await Promise.all([tmExportCounts('work'), tmExportCounts('global')])
+  if (mine !== countsToken || mySession !== session) return
+  exportCountsState.value = { work, global }
+}
+
+export function setTmManageExportMineOnly(value: boolean): void {
+  if (exportBusy.value) return
+  exportMineOnlyState.value = value
 }
 
 export function setTmManageExchangeTier(value: TmManageTier): void {
@@ -238,6 +303,14 @@ export function setTmManageExchangeTier(value: TmManageTier): void {
 }
 
 export async function exportTmManageTier(): Promise<void> {
+  await runTmExport(exportMineOnlyState.value ? 'mine' : 'all')
+}
+
+export async function exportTmManageMine(): Promise<void> {
+  await runTmExport('mine')
+}
+
+async function runTmExport(filter: TmExportFilter): Promise<void> {
   if (!overlayOpen.value || exportBusy.value || glossaryExchangeBusy.value) return
 
   exportBusy.value = true
@@ -249,7 +322,7 @@ export async function exportTmManageTier(): Promise<void> {
   importDone.value = null
   const mySession = session
 
-  const result = await tmExportTier(exchangeTierState.value)
+  const result = await tmExportTier(exchangeTierState.value, filter)
   if (mySession !== session) return
 
   exportBusy.value = false
@@ -289,6 +362,7 @@ export function resetTmManage(): void {
   searchQuery.value = ''
   pairOriginFilterState.value = 'all'
   tierFilterState.value = 'both'
+  sortState.value = 'newest'
   cursor.value = 0
   editing.value = false
   editPin = null
@@ -300,6 +374,10 @@ export function resetTmManage(): void {
   actionNotice.value = null
   bulkDeleted.value = null
   exchangeTierState.value = 'global'
+  exportMineOnlyState.value = false
+  countsToken += 1
+  exportCountsState.value = { work: null, global: null }
+  resetTmPolicy()
   exportBusy.value = false
   exportError.value = null
   exportIpcUnavailable.value = false
@@ -346,6 +424,12 @@ export function setTmManagePairOriginFilter(value: TmManagePairOriginFilter): vo
   refilter()
 }
 
+export function setTmManageSort(value: TmManageSort): void {
+  if (filtersLocked()) return
+  sortState.value = value
+  refilter()
+}
+
 export function setTmManageTierFilter(value: TmManageTierFilter): void {
   if (filtersLocked()) return
   tierFilterState.value = value
@@ -356,6 +440,12 @@ function moveTo(next: number): void {
   cursor.value = next
   editing.value = false
   clearPending()
+}
+
+export function aimTmManageRow(index: number): void {
+  if (!overlayOpen.value || saving.value || editing.value) return
+  if (index < 0 || index >= tmManageFlatRows.value.length || index === cursor.value) return
+  moveTo(index)
 }
 
 export function nextTmManageRow(): void {
@@ -427,6 +517,7 @@ export async function saveTmManageEdit(): Promise<void> {
   }
   editing.value = false
   editPin = null
+  void refreshExportCounts()
   await loadRows(tmManageRowKey(row))
 }
 
@@ -462,6 +553,7 @@ export async function deleteTmManagePair(): Promise<void> {
   }
   editing.value = false
   void refreshWorkspaceCounts()
+  void refreshExportCounts()
   await loadRows(null)
 }
 
@@ -499,6 +591,7 @@ export async function deleteTmManageOthers(): Promise<void> {
   }
   editing.value = false
   void refreshWorkspaceCounts()
+  void refreshExportCounts()
   await loadRows(null)
 }
 
@@ -534,6 +627,7 @@ export async function pushTmManagePair(): Promise<void> {
   }
   editing.value = false
   void refreshWorkspaceCounts()
+  void refreshExportCounts()
   const movedKey = tmManageRowKey(result.pair)
   await loadRows(movedKey)
   if (mySession !== session) return

@@ -101,7 +101,7 @@ fn seed(store: &Store, data: &[(&str, &str, &str, &str)]) {
 
 fn export_to(f: &Fixture, tier: &str, name: &str) -> (PathBuf, String) {
     let path = f.dir.join(name);
-    tm_export_tier(Some(&f.global), Some(&f.open), tier, &path).expect("xuat");
+    tm_export_tier(Some(&f.global), Some(&f.open), tier, "all", &path).expect("xuat");
     let text = fs::read_to_string(&path).expect("doc tep xuat");
     (path, text)
 }
@@ -644,7 +644,7 @@ fn the_work_tier_needs_an_open_work_and_the_global_tier_does_not() {
     let err = tm_open_import_preview(Some(&f.global), None, &f.pending, "work", &path)
         .expect_err("khong co tac pham");
     assert_eq!(err.code(), "work.none_open");
-    let err = tm_export_tier(Some(&f.global), None, "work", &f.dir.join("x.tmx"))
+    let err = tm_export_tier(Some(&f.global), None, "work", "all", &f.dir.join("x.tmx"))
         .expect_err("khong co tac pham");
     assert_eq!(err.code(), "work.none_open");
     assert!(!f.dir.join("x.tmx").exists());
@@ -671,8 +671,14 @@ fn a_global_preview_stores_no_work_id() {
 #[test]
 fn an_unknown_tier_is_refused_before_any_file_is_touched() {
     let f = fixture("bad-tier");
-    let err = tm_export_tier(Some(&f.global), Some(&f.open), "both", &f.dir.join("x.tmx"))
-        .expect_err("tang la");
+    let err = tm_export_tier(
+        Some(&f.global),
+        Some(&f.open),
+        "both",
+        "all",
+        &f.dir.join("x.tmx"),
+    )
+    .expect_err("tang la");
     assert_eq!(err.code(), "tm.invalid_filter");
     assert!(!f.dir.join("x.tmx").exists());
 }
@@ -866,10 +872,15 @@ fn a_pair_xml_cannot_represent_is_left_out_of_the_export_and_counted() {
     );
     let path = f.dir.join("out.tmx");
 
-    let exported =
-        tm_export_tier_after_dialog(Some(&f.global), Some(&f.open), "work", Some(path.clone()))
-            .unwrap()
-            .expect("da ghi");
+    let exported = tm_export_tier_after_dialog(
+        Some(&f.global),
+        Some(&f.open),
+        "work",
+        "all",
+        Some(path.clone()),
+    )
+    .unwrap()
+    .expect("da ghi");
 
     assert_eq!(exported.left_out_count, 2);
     let text = fs::read_to_string(&path).unwrap();
@@ -884,14 +895,19 @@ fn a_cancelled_save_dialog_writes_no_file_and_a_picked_one_writes_atomically() {
     let path = f.dir.join("out.tmx");
 
     assert_eq!(
-        tm_export_tier_after_dialog(Some(&f.global), Some(&f.open), "work", None).unwrap(),
+        tm_export_tier_after_dialog(Some(&f.global), Some(&f.open), "work", "all", None).unwrap(),
         None
     );
     assert!(!path.exists());
 
-    let written =
-        tm_export_tier_after_dialog(Some(&f.global), Some(&f.open), "work", Some(path.clone()))
-            .unwrap();
+    let written = tm_export_tier_after_dialog(
+        Some(&f.global),
+        Some(&f.open),
+        "work",
+        "all",
+        Some(path.clone()),
+    )
+    .unwrap();
     assert_eq!(
         written.map(|w| (w.path, w.left_out_count)),
         Some((path.display().to_string(), 0))

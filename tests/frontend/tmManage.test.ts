@@ -12,6 +12,10 @@ const updateMock = vi.fn()
 const deleteMock = vi.fn()
 const deleteOthersMock = vi.fn()
 const pushMock = vi.fn()
+const exportCountsMock = vi.fn()
+const onlyMineGetMock = vi.fn()
+const onlyMineSetMock = vi.fn()
+const exportTierMock = vi.fn()
 
 vi.mock('../../src/config/tm', () => ({
   tmListPairs: (...args: unknown[]) => listMock(...args),
@@ -20,6 +24,10 @@ vi.mock('../../src/config/tm', () => ({
   tmDeleteOthers: (...args: unknown[]) => deleteOthersMock(...args),
   tmPushPairToGlobal: (...args: unknown[]) => pushMock(...args),
   tmCountPairs: async () => null,
+  tmExportCounts: (...args: unknown[]) => exportCountsMock(...args),
+  tmOnlyMineGet: (...args: unknown[]) => onlyMineGetMock(...args),
+  tmOnlyMineSet: (...args: unknown[]) => onlyMineSetMock(...args),
+  tmExportTier: (...args: unknown[]) => exportTierMock(...args),
 }))
 
 function row(over: Partial<TmManageRow> = {}): TmManageRow {
@@ -53,6 +61,7 @@ function listing(over: Partial<TmManageListing> = {}): TmManageListing {
       { translation_origin: 'other', count: 0 },
       { translation_origin: 'bilingual_import', count: 0 },
     ],
+    tier_totals: { work: rows.length, global: 0 },
     total_pairs: rows.length,
     total_groups: 1,
     groups: [{ source_text: '你好', distinct_targets: 1, rows }],
@@ -127,6 +136,14 @@ async function settle(wrapper: { vm: { $nextTick: () => Promise<void> } }): Prom
 
 beforeEach(() => {
   document.body.innerHTML = ''
+  exportCountsMock.mockReset()
+  exportCountsMock.mockResolvedValue(null)
+  onlyMineGetMock.mockReset()
+  onlyMineGetMock.mockResolvedValue({ state: { work_open: true, only_mine: false }, error: null })
+  onlyMineSetMock.mockReset()
+  onlyMineSetMock.mockResolvedValue({ state: { work_open: true, only_mine: true }, error: null })
+  exportTierMock.mockReset()
+  exportTierMock.mockResolvedValue({ outcome: 'cancelled' })
 })
 
 afterEach(() => {
@@ -139,7 +156,7 @@ describe('open and list', () => {
     listMock.mockResolvedValue(loaded(THREE_ROWS))
     await s.openTmManage()
 
-    expect(listMock).toHaveBeenCalledWith('all', 'both', '')
+    expect(listMock).toHaveBeenCalledWith('all', 'both', '', 'newest')
     expect(s.tmManageStatus.value).toBe('loaded')
     expect(s.tmManageFlatRows.value.map((f) => [f.row.unit_id, f.groupHeader, f.showSource])).toEqual([
       [1, true, false],
@@ -233,11 +250,11 @@ describe('open and list', () => {
 
     s.setTmManagePairOriginFilter('others')
     expect(s.tmManageCursor.value).toBe(0)
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('others', 'both', ''))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('others', 'both', '', 'newest'))
     s.setTmManageTierFilter('global')
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('others', 'global', ''))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('others', 'global', '', 'newest'))
     s.setTmManageSearch('你好')
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('others', 'global', '你好'))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('others', 'global', '你好', 'newest'))
   })
 
   it('a slow answer to an older query never overwrites the newer one', async () => {
@@ -408,7 +425,7 @@ describe('bulk delete of the others side', () => {
     expect(s.tmManageOthersCount.value).toBe(2)
 
     s.setTmManageTierFilter('work')
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'work', ''))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'work', '', 'newest'))
     await s.deleteTmManageOthers()
     expect(deleteOthersMock).not.toHaveBeenCalled()
     expect(s.tmManageBulkPending.value).toBe(true)
@@ -439,7 +456,7 @@ describe('bulk delete of the others side', () => {
     await s.deleteTmManageOthers()
     s.setTmManageTierFilter('global')
     expect(s.tmManageBulkPending.value).toBe(false)
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'global', ''))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'global', '', 'newest'))
     await s.deleteTmManageOthers()
     expect(deleteOthersMock).not.toHaveBeenCalled()
   })
@@ -553,7 +570,7 @@ describe('overlay, keyboard only', () => {
         percent: '33',
       }),
     )
-    expect(wrapper.findAll('[role="option"]')).toHaveLength(3)
+    expect(wrapper.findAll('[role="row"].tm-row')).toHaveLength(3)
     wrapper.unmount()
   })
 
@@ -636,7 +653,7 @@ describe('overlay, keyboard only', () => {
     const wrapper = mount(Overlay, { attachTo: document.body })
     await settle(wrapper)
 
-    const bulk = wrapper.get('.tm-actions button:nth-of-type(4)')
+    const bulk = wrapper.get('.tm-actions button:nth-of-type(2)')
     expect(bulk.text()).toBe(i18n.t('tm.manage.delete_others_both'))
     await bulk.trigger('click')
     await settle(wrapper)
@@ -662,7 +679,7 @@ describe('overlay, keyboard only', () => {
     await state.openTmManage()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await settle(wrapper)
-    const push = wrapper.get('.tm-actions button:nth-of-type(3)')
+    const push = wrapper.get('.tm-actions button:nth-of-type(1)')
     expect(push.attributes('disabled')).toBeUndefined()
 
     await wrapper.get('.tm-scrim').trigger('keydown', { key: 'ArrowDown' })
@@ -682,7 +699,7 @@ describe('overlay, keyboard only', () => {
       pair: { ...row({ tier: 'global', unit_id: 30 }), source_text: '你好' },
       error: null,
     })
-    await wrapper.get('.tm-actions button:nth-of-type(3)').trigger('click')
+    await wrapper.get('.tm-actions button:nth-of-type(1)').trigger('click')
     await settle(wrapper)
     expect(pushMock).toHaveBeenCalledExactlyOnceWith([{ tier: 'work', unit_id: 1 }], '你好', 'Xin chào')
     wrapper.unmount()
@@ -699,7 +716,7 @@ describe('overlay, keyboard only', () => {
       pair: null,
       error: ipcError('tm.global_pair_exists'),
     })
-    await wrapper.get('.tm-actions button:nth-of-type(3)').trigger('click')
+    await wrapper.get('.tm-actions button:nth-of-type(1)').trigger('click')
     await settle(wrapper)
     expect(wrapper.get('[role="alert"]').text()).toBe(i18n.t('tm.manage.push_exists'))
     wrapper.unmount()
@@ -771,7 +788,7 @@ describe('search debounce', () => {
       await vi.advanceTimersByTimeAsync(100)
       expect(listMock).not.toHaveBeenCalled()
       await vi.advanceTimersByTimeAsync(60)
-      expect(listMock).toHaveBeenCalledExactlyOnceWith('all', 'both', '你好')
+      expect(listMock).toHaveBeenCalledExactlyOnceWith('all', 'both', '你好', 'newest')
     } finally {
       vi.useRealTimers()
     }
@@ -821,7 +838,7 @@ describe('failed re-list and locks', () => {
       Promise.resolve(tier === 'work' ? { listing: null, error: ipcError('work.none_open') } : loaded(THREE_ROWS)),
     )
     s.setTmManageTierFilter('work')
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'both', ''))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'both', '', 'newest'))
     expect(s.tmManageTierFilter.value).toBe('both')
     expect(s.tmManageStatus.value).toBe('loaded')
   })
@@ -853,11 +870,8 @@ describe('failed re-list and locks', () => {
     await state.openTmManage()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await settle(wrapper)
-    const values = wrapper
-      .findAll('.tm-toolbar select')[1]
-      .findAll('option')
-      .map((o) => o.attributes('value'))
-    expect(values).toEqual(['all', 'others', 'self', 'other', 'bilingual_import'])
+    const values = wrapper.findAll('input[name="tm-origin-filter"]').map((o) => o.attributes('value'))
+    expect(values).toEqual(['all', 'self', 'others', 'other', 'bilingual_import'])
     wrapper.unmount()
   })
 })
@@ -885,8 +899,8 @@ describe('collapsed row', () => {
     const wrapper = mount(Overlay, { attachTo: document.body })
     await settle(wrapper)
 
-    expect(wrapper.findAll('[role="option"]')).toHaveLength(1)
-    const text = wrapper.get('[role="option"]').text()
+    expect(wrapper.findAll('[role="row"].tm-row')).toHaveLength(1)
+    const text = wrapper.get('[role="row"].tm-row').text()
     expect(text).toContain(i18n.t('tm.fuzzy.tier_work'))
     expect(text).toContain(i18n.t('tm.fuzzy.tier_global'))
     expect(text).toContain(i18n.t('tm.manage.copies', { count: '2' }))
@@ -920,10 +934,10 @@ describe('bulk delete names its tier', () => {
     await state.openTmManage()
     const wrapper = mount(Overlay, { attachTo: document.body })
     await settle(wrapper)
-    const bulk = () => wrapper.get('.tm-actions button:nth-of-type(4)')
+    const bulk = () => wrapper.get('.tm-actions button:nth-of-type(2)')
 
     state.setTmManageTierFilter('global')
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'global', ''))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'global', '', 'newest'))
     await settle(wrapper)
     expect(bulk().text()).toBe(i18n.t('tm.manage.delete_others_global'))
     await bulk().trigger('click')
@@ -932,7 +946,7 @@ describe('bulk delete names its tier', () => {
     expect(i18n.t('tm.manage.bulk_confirm_hint_global', { count: '2' })).toContain('mọi Tác phẩm')
 
     state.setTmManageTierFilter('work')
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'work', ''))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'work', '', 'newest'))
     await settle(wrapper)
     expect(bulk().text()).toBe(i18n.t('tm.manage.delete_others_work'))
 
@@ -1258,7 +1272,7 @@ describe('push under the Work-only filter', () => {
     listMock.mockResolvedValue(loaded(THREE_ROWS))
     await s.openTmManage()
     s.setTmManageTierFilter('work')
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'work', ''))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'work', '', 'newest'))
     const { copies: _c, ...moved } = row({ tier: 'global', unit_id: 30 })
     pushMock.mockResolvedValue({ pair: { ...moved, source_text: '你好' }, error: null })
     listMock.mockResolvedValue(loaded(listing({ groups: [THREE_ROWS.groups[0]] })))
@@ -1297,7 +1311,7 @@ describe('copy and scrolling in the overlay', () => {
     expect(hint).not.toMatch(/1 bản/)
 
     state.setTmManageTierFilter('global')
-    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'global', ''))
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'global', '', 'newest'))
     deleteOthersMock.mockResolvedValue({ outcome: { deleted_work: 0, deleted_global: 2 }, error: null })
     await state.deleteTmManageOthers()
     await state.deleteTmManageOthers()
@@ -1341,7 +1355,7 @@ describe('accessible names, button keys, Work-closed view and Tab wrap', () => {
 
   it('an option inside a multi-target group is named by the group source and its own content', async () => {
     const { wrapper } = await mountedWith(THREE_ROWS)
-    const options = wrapper.findAll('[role="option"]')
+    const options = wrapper.findAll('[role="row"].tm-row')
     for (const opt of options.slice(0, 2)) {
       const ids = (opt.attributes('aria-labelledby') ?? '').split(' ')
       expect(ids).toHaveLength(2)
@@ -1440,8 +1454,8 @@ describe('accessible names, button keys, Work-closed view and Tab wrap', () => {
 
   it('with no Work open: push is disabled on a Work row, the work tier option is disabled and the note shows', async () => {
     const { i18n, wrapper } = await mountedWith(listing({ work_open: false }))
-    expect(wrapper.get('.tm-actions button:nth-of-type(3)').attributes('disabled')).toBeDefined()
-    const workOption = wrapper.findAll('.tm-toolbar select')[0].find('option[value="work"]')
+    expect(wrapper.get('.tm-actions button:nth-of-type(1)').attributes('disabled')).toBeDefined()
+    const workOption = wrapper.get('input[name="tm-tier-filter"][value="work"]')
     expect(workOption.attributes('disabled')).toBeDefined()
     expect(wrapper.text()).toContain(i18n.t('tm.manage.work_note'))
     wrapper.unmount()
@@ -1464,6 +1478,122 @@ describe('accessible names, button keys, Work-closed view and Tab wrap', () => {
 
     await wrapper.get('.tm-scrim').trigger('keydown', { key: 'Tab', shiftKey: true })
     expect(document.activeElement).toBe(stops[stops.length - 1])
+    wrapper.unmount()
+  })
+})
+
+describe('tier counts, origin pills, sort and the TM-only-mine policy', () => {
+  async function mountOpen(value: TmManageListing) {
+    const ctx = await freshOverlay()
+    listMock.mockResolvedValue(loaded(value))
+    await ctx.state.openTmManage()
+    const wrapper = mount(ctx.Overlay, { attachTo: document.body })
+    await settle(wrapper)
+    return { ...ctx, wrapper }
+  }
+
+  it('tier pills carry the stored count per tier, not the filtered one', async () => {
+    const { i18n, wrapper } = await mountOpen(listing({ tier_totals: { work: 7, global: 12 } }))
+    const labels = wrapper.findAll('input[name="tm-tier-filter"]').map((el) => el.element.parentElement?.textContent.trim())
+    expect(labels).toContain(i18n.t('tm.manage.count_label', { label: i18n.t('tm.fuzzy.tier_work'), count: '7' }))
+    expect(labels).toContain(i18n.t('tm.manage.count_label', { label: i18n.t('tm.fuzzy.tier_global'), count: '12' }))
+    wrapper.unmount()
+  })
+
+  it('origin pills count mine, others (other plus bilingual) and each exact origin', async () => {
+    const { state, wrapper } = await mountOpen(THREE_ROWS)
+    expect(state.tmManageOriginCounts.value).toEqual({ all: 3, self: 1, others: 2, other: 1, bilingual_import: 1 })
+    wrapper.unmount()
+  })
+
+  it('the sort control re-lists with the chosen axis as the fourth argument', async () => {
+    const { wrapper } = await mountOpen(THREE_ROWS)
+    const select = wrapper.get('.tm-toolbar select')
+    await select.setValue('side')
+    await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'both', '', 'side'))
+    wrapper.unmount()
+  })
+
+  it('the switch reads on, is disabled without a Work, and a click flips it through Rust', async () => {
+    const { state, wrapper } = await mountOpen(THREE_ROWS)
+    const policy = await import('../../src/tmPolicyState')
+    await policy.loadTmPolicy()
+    await settle(wrapper)
+    const toggle = wrapper.get('[role="switch"]')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    await toggle.trigger('click')
+    await settle(wrapper)
+    expect(onlyMineSetMock).toHaveBeenCalledExactlyOnceWith(true)
+    expect(wrapper.get('[role="switch"]').attributes('aria-checked')).toBe('true')
+    expect(state.tmManageTotalPairs.value).toBe(3)
+    wrapper.unmount()
+  })
+
+  it('the switch is disabled while no Work is open', async () => {
+    onlyMineGetMock.mockResolvedValue({ state: { work_open: false, only_mine: false }, error: null })
+    const { wrapper } = await mountOpen(listing({ work_open: false }))
+    const policy = await import('../../src/tmPolicyState')
+    await policy.loadTmPolicy()
+    await settle(wrapper)
+    expect(wrapper.get('[role="switch"]').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('the switch stays off and shows the error when Rust refuses', async () => {
+    onlyMineSetMock.mockResolvedValue({ state: null, error: ipcError('work.none_open') })
+    const { wrapper } = await mountOpen(THREE_ROWS)
+    const policy = await import('../../src/tmPolicyState')
+    await policy.loadTmPolicy()
+    await settle(wrapper)
+    await wrapper.get('[role="switch"]').trigger('click')
+    await settle(wrapper)
+    expect(wrapper.get('[role="switch"]').attributes('aria-checked')).toBe('false')
+    expect(wrapper.find('.tm-policy [role="alert"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('"Xuất riêng" shows the Rust count and exports with the mine filter regardless of the checkbox', async () => {
+    exportCountsMock.mockImplementation(async (tier: string) =>
+      tier === 'work' ? { all: 5, mine: 2 } : { all: 9, mine: 0 },
+    )
+    const { i18n, state, wrapper } = await mountOpen(THREE_ROWS)
+    await state.refreshExportCounts()
+    await settle(wrapper)
+    const buttons = wrapper.findAll('.tm-exchange-actions button')
+    expect(buttons[1].text()).toBe(i18n.t('tm.exchange.export_mine', { count: '2' }))
+    exportTierMock.mockResolvedValue({ outcome: 'cancelled' })
+    await buttons[1].trigger('click')
+    await settle(wrapper)
+    expect(exportTierMock).toHaveBeenCalledExactlyOnceWith('work', 'mine')
+    wrapper.unmount()
+  })
+
+  it('"Xuất riêng" is disabled when no pair of mine would be exported', async () => {
+    exportCountsMock.mockResolvedValue({ all: 4, mine: 0 })
+    const { state, wrapper } = await mountOpen(THREE_ROWS)
+    await state.refreshExportCounts()
+    await settle(wrapper)
+    expect(wrapper.findAll('.tm-exchange-actions button')[1].attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('the mine-only checkbox makes the main export button send the mine filter', async () => {
+    exportCountsMock.mockResolvedValue({ all: 4, mine: 3 })
+    const { state, wrapper } = await mountOpen(THREE_ROWS)
+    await state.refreshExportCounts()
+    await settle(wrapper)
+    await wrapper.get('.tm-exchange input[type="checkbox"]').setValue(true)
+    await wrapper.findAll('.tm-exchange-actions button')[0].trigger('click')
+    await settle(wrapper)
+    expect(exportTierMock).toHaveBeenCalledExactlyOnceWith('work', 'mine')
+    wrapper.unmount()
+  })
+
+  it('an empty TM explains itself and offers the TMX import', async () => {
+    const { i18n, wrapper } = await mountOpen(listing({ tm_empty: true, total_pairs: 0, total_groups: 0, groups: [], tier_totals: { work: 0, global: 0 } }))
+    expect(wrapper.text()).toContain(i18n.t('tm.manage.empty_import_prompt'))
+    const link = wrapper.findAll('.tm-empty-block button').find((b) => b.text() === i18n.t('tm.exchange.import_tmx'))
+    expect(link).toBeDefined()
     wrapper.unmount()
   })
 })

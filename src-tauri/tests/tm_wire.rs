@@ -196,7 +196,7 @@ fn a_global_confirm_preview_and_export_finish_while_open_work_state_is_held_else
     let out = dir.join("out.tmx");
     let export_path = out.clone();
     let exported = finishes_while_open_work_is_held(&app, move |h| {
-        wire::export_tier_to(&h, "global", &export_path)
+        wire::export_tier_to(&h, "global", "all", &export_path)
     });
     assert!(exported.expect("xuat Global").is_some());
     assert!(
@@ -254,7 +254,7 @@ fn the_work_export_shell_holds_open_work_state_only_while_it_reads_the_store() {
     let out = dir.join("out.tmx");
 
     let (result, held, run) =
-        lock_held_against_run(&app, move |h| wire::export_tier_to(&h, "work", &out));
+        lock_held_against_run(&app, move |h| wire::export_tier_to(&h, "work", "all", &out));
 
     result.expect("xuat Work");
     assert!(

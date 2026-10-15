@@ -28,10 +28,17 @@ export type TmManageGroup = {
 
 export type TmHealthEntry = { translation_origin: TmPairOrigin; count: number }
 
+export type TmManageSort = 'newest' | 'oldest' | 'source' | 'target' | 'side'
+export type TmExportFilter = 'all' | 'mine'
+
+/** Stored pairs per tier, not narrowed by any filter; `work` is `null` when no Work is open. */
+export type TmTierTotals = { work: number | null; global: number }
+
 export type TmManageListing = {
   work_open: boolean
   tm_empty: boolean
   health: TmHealthEntry[]
+  tier_totals: TmTierTotals
   total_pairs: number
   total_groups: number
   groups: TmManageGroup[]
@@ -92,6 +99,9 @@ const CMD_TM_DELETE_PAIR = 'tm_delete_pair'
 const CMD_TM_DELETE_OTHERS = 'tm_delete_others'
 const CMD_TM_PUSH_PAIR_TO_GLOBAL = 'tm_push_pair_to_global'
 const CMD_TM_EXPORT_TIER = 'tm_export_tier'
+const CMD_TM_EXPORT_COUNTS = 'tm_export_counts'
+const CMD_TM_ONLY_MINE_GET = 'tm_only_mine_get'
+const CMD_TM_ONLY_MINE_SET = 'tm_only_mine_set'
 const CMD_TM_OPEN_IMPORT_PREVIEW = 'tm_open_import_preview'
 const CMD_TM_CONFIRM_IMPORT = 'tm_confirm_import'
 const CMD_TM_CANCEL_IMPORT = 'tm_cancel_import'
@@ -189,6 +199,12 @@ function isHealthEntry(value: unknown): value is TmHealthEntry {
   return isPairOrigin(v.translation_origin) && typeof v.count === 'number'
 }
 
+function isTierTotals(value: unknown): value is TmTierTotals {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof TmTierTotals, unknown>>
+  return (v.work === null || isCount(v.work)) && isCount(v.global)
+}
+
 function isListing(value: unknown): value is TmManageListing {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<TmManageListing>
@@ -199,6 +215,7 @@ function isListing(value: unknown): value is TmManageListing {
     typeof v.total_groups === 'number' &&
     Array.isArray(v.health) &&
     v.health.every(isHealthEntry) &&
+    isTierTotals(v.tier_totals) &&
     Array.isArray(v.groups) &&
     v.groups.every(isManageGroup)
   )
@@ -220,12 +237,14 @@ export async function tmListPairs(
   pairOrigin: TmManagePairOriginFilter,
   tier: TmManageTierFilter,
   search: string,
+  sort: TmManageSort = 'newest',
 ): Promise<TmListResult> {
   try {
     const listing = await invoke<unknown>(CMD_TM_LIST_PAIRS, {
       pairOrigin,
       tier,
       search,
+      sort,
     })
     if (!isListing(listing)) return { listing: null, error: malformed(listing, CMD_TM_LIST_PAIRS) }
     return { listing, error: null }
@@ -341,9 +360,9 @@ function isImportSummary(value: unknown): value is TmxImportSummary {
 }
 
 /** Opens the save dialog in Rust and writes one tier as TMX. `null` from Rust is a cancelled dialog. Never throws. */
-export async function tmExportTier(tier: TmManageTier): Promise<TmExportResult> {
+export async function tmExportTier(tier: TmManageTier, filter: TmExportFilter = 'all'): Promise<TmExportResult> {
   try {
-    const wire = await invoke<unknown>(CMD_TM_EXPORT_TIER, { tier })
+    const wire = await invoke<unknown>(CMD_TM_EXPORT_TIER, { tier, filter })
     if (wire === null) return { outcome: 'cancelled' }
     if (!isExported(wire)) return { outcome: 'error', error: malformed(wire, CMD_TM_EXPORT_TIER) }
     return { outcome: 'done', path: wire.path, leftOutCount: wire.left_out_count }
@@ -384,5 +403,54 @@ export async function tmCancelImport(): Promise<TmAckResult> {
     return { ok: true, error: null }
   } catch (err) {
     return { ok: false, error: failureOf(err, CMD_TM_CANCEL_IMPORT) }
+  }
+}
+
+/** Pairs an export of one tier would hold, per export filter. */
+export type TmExportCounts = { all: number; mine: number }
+
+/** `null` when unknown (no Work open for `work`, command failed or no bridge). Never throws. */
+export async function tmExportCounts(tier: TmManageTier): Promise<TmExportCounts | null> {
+  try {
+    const wire = await invoke<unknown>(CMD_TM_EXPORT_COUNTS, { tier })
+    if (typeof wire !== 'object' || wire === null) return null
+    const v = wire as Partial<Record<keyof TmExportCounts, unknown>>
+    if (!isCount(v.all) || !isCount(v.mine)) return null
+    return { all: v.all, mine: v.mine }
+  } catch {
+    return null
+  }
+}
+
+/** `only_mine` is `false` when no Work is open; `work_open` says whether the switch can be changed. */
+export type TmOnlyMineState = { work_open: boolean; only_mine: boolean }
+
+export type TmOnlyMineResult = { state: TmOnlyMineState | null; error: IpcError | null }
+
+function isOnlyMineState(value: unknown): value is TmOnlyMineState {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmOnlyMineState>
+  return typeof v.work_open === 'boolean' && typeof v.only_mine === 'boolean'
+}
+
+/** Never throws. `error === null` with `state === null` means no IPC bridge. */
+export async function tmOnlyMineGet(): Promise<TmOnlyMineResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_TM_ONLY_MINE_GET)
+    if (!isOnlyMineState(wire)) return { state: null, error: malformed(wire, CMD_TM_ONLY_MINE_GET) }
+    return { state: wire, error: null }
+  } catch (err) {
+    return { state: null, error: failureOf(err, CMD_TM_ONLY_MINE_GET) }
+  }
+}
+
+/** Sets the open Work's switch. No Work open answers `work.none_open`. Never throws. */
+export async function tmOnlyMineSet(onlyMine: boolean): Promise<TmOnlyMineResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_TM_ONLY_MINE_SET, { onlyMine })
+    if (!isOnlyMineState(wire)) return { state: null, error: malformed(wire, CMD_TM_ONLY_MINE_SET) }
+    return { state: wire, error: null }
+  } catch (err) {
+    return { state: null, error: failureOf(err, CMD_TM_ONLY_MINE_SET) }
   }
 }

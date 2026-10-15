@@ -55,7 +55,7 @@ function scanOf(
   matches: TmFuzzyMatch[],
   exact: TmExactTarget[] = [],
 ): { outcome: TmFuzzyMatches; error: null } {
-  return { outcome: { segment_id: segmentId, matches, exact }, error: null }
+  return { outcome: { segment_id: segmentId, matches, exact, hidden_count: 0 }, error: null }
 }
 
 async function fresh() {

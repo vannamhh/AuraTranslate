@@ -926,6 +926,7 @@ mod nfr_bench {
                             "all".to_owned(),
                             "both".to_owned(),
                             String::new(),
+                            None,
                         );
                         if round == 0 {
                             if let Ok(listed) = &result {
@@ -1415,6 +1416,9 @@ pub fn run() {
             crate::commands::segment::wire::tm_concordance,
             crate::commands::tm::wire::tm_list_pairs,
             crate::commands::tm::wire::tm_count_pairs,
+            crate::commands::tm::wire::tm_only_mine_get,
+            crate::commands::tm::wire::tm_only_mine_set,
+            crate::commands::tm::wire::tm_export_counts,
             crate::commands::tm::wire::tm_update_pair_target,
             crate::commands::tm::wire::tm_delete_pair,
             crate::commands::tm::wire::tm_delete_others,

@@ -523,7 +523,7 @@ describe('openSearchHitInReading — mở hit ở Chế độ đọc', () => {
           assets: [],
           assets_dir: '',
           tm_filled_segment_ids: [],
-          tm_prefill: { kind: 'ran' },
+          tm_prefill: { kind: 'ran', hidden_count: 0 },
         })
       }
       if (cmd === 'read_open_chapter') return Promise.resolve(OPEN_CHAPTER)

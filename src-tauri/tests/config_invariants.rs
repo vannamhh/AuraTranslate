@@ -1435,6 +1435,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/tm.rs",
+            "pub fn tm_export_counts<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "doc TOAN BO cap cua mot tang hai lan de dem cap xuat, chi phi scale theo kich thuoc TM",
+        ),
+        (
+            "src/commands/tm.rs",
             "pub fn tm_delete_others<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
             "mot DELETE moi nguon goc phia nguoi khac tren moi kho, co the xoa hang chuc nghin cap",
         ),
@@ -2173,7 +2178,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
     // `tm_list_pairs` is `(async)`: it reads every pair of both TM tiers. `tm_delete_others` is
     // `(async)`: it runs one DELETE per others-side origin in each of two stores.
     // The other three act on the copies of one row, a few statements each.
-    ("src/commands/tm.rs", 4, 6, 6, ""),
+    ("src/commands/tm.rs", 6, 7, 7, ""),
     (
         "src/lib.rs",
         4,
@@ -2327,9 +2332,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (94, 61),
+        (96, 62),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         94/61.\n\n\
+         96/62.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

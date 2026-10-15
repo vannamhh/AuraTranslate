@@ -17,6 +17,7 @@ const shown = shallowRef<{
   segmentId: number
   matches: readonly TmFuzzyMatch[]
   exact: readonly TmExactTarget[]
+  hiddenCount: number
 } | null>(null)
 const aimed = ref(0)
 const scanError = shallowRef<IpcError | null>(null)
@@ -33,6 +34,7 @@ let enteredViaChord = false
 
 export const tmFuzzyMatchesShown = computed<readonly TmFuzzyMatch[]>(() => shown.value?.matches ?? [])
 export const tmFuzzyExactShown = computed<readonly TmExactTarget[]>(() => shown.value?.exact ?? [])
+export const tmFuzzyHiddenCount = computed<number>(() => shown.value?.hiddenCount ?? 0)
 export const tmFuzzySegmentId = computed<number | null>(() => shown.value?.segmentId ?? null)
 export const tmFuzzyAimedIndex: DeepReadonly<Ref<number>> = readonly(aimed)
 export const tmFuzzyScanError: DeepReadonly<Ref<IpcError | null>> = readonly(scanError)
@@ -59,7 +61,8 @@ export function toggleTmFuzzyAimedExpanded(): void {
 /** Eligible to render: matches to show, or a scan error the user must see. */
 export const tmFuzzyIsEligible = computed<boolean>(
   () =>
-    (shown.value !== null && (shown.value.matches.length > 0 || shown.value.exact.length > 0)) ||
+    (shown.value !== null &&
+      (shown.value.matches.length > 0 || shown.value.exact.length > 0 || shown.value.hiddenCount > 0)) ||
     scanError.value !== null,
 )
 
@@ -108,11 +111,16 @@ async function runScan(segmentId: number, mine: number): Promise<void> {
   }
   if (outcome.segment_id !== segmentId) return
   scanError.value = null
-  if (outcome.matches.length === 0 && outcome.exact.length === 0) {
+  if (outcome.matches.length === 0 && outcome.exact.length === 0 && outcome.hidden_count === 0) {
     clearShown()
     return
   }
-  shown.value = { segmentId, matches: outcome.matches, exact: outcome.exact }
+  shown.value = {
+    segmentId,
+    matches: outcome.matches,
+    exact: outcome.exact,
+    hiddenCount: outcome.hidden_count,
+  }
   aimed.value = 0
 }
 

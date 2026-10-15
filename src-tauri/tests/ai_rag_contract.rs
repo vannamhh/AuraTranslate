@@ -21,7 +21,7 @@ use std::time::Instant;
 
 use auratranslate_lib::core::ai::rag::{
     GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair, InjectionLedger,
-    PromptPieceKind, SuppressedGlossaryTerm, TmInjectionStatus, assemble_prompt,
+    PromptPieceKind, SuppressedGlossaryTerm, TmContext, TmInjectionStatus, assemble_prompt,
     gather_glossary_context,
 };
 use auratranslate_lib::core::glossary::{
@@ -655,7 +655,10 @@ fn tm_prompt(segments: &[SimilarSegment]) -> (String, InjectionLedger) {
         TM_BODY,
         "Hello.",
         GlossaryInjectionStatus::NotAsked,
-        Some(segments),
+        Some(&TmContext {
+            segments: segments.to_vec(),
+            hidden_count: 0,
+        }),
     )
 }
 
@@ -683,7 +686,8 @@ fn tm_searched_with_an_empty_slice_removes_the_line_and_is_searched_not_not_aske
         ledger.tm,
         TmInjectionStatus::Searched {
             pairs: Vec::new(),
-            omitted_count: 0
+            omitted_count: 0,
+            hidden_count: 0
         }
     );
     assert_ne!(ledger.tm, TmInjectionStatus::NotAsked);

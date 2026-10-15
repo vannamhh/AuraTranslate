@@ -33,6 +33,7 @@ import {
   confirmStripTermOrigin,
   confirmStripTier,
   confirmStripTmError,
+  confirmStripTmHiddenCount,
   confirmStripTranslationInput,
   syncGlossaryConfirmStripTarget,
 } from './glossaryConfirmStripState'
@@ -200,6 +201,10 @@ watch(confirmStripFocusRequest, () => {
           </button>
         </li>
       </ol>
+
+      <p v-if="confirmStripTmHiddenCount > 0" class="gcs-origin" role="status" data-tm-hidden-note>
+        {{ t('tm.policy.hidden_note', { count: String(confirmStripTmHiddenCount) }) }}
+      </p>
 
       <label class="gcs-field">
         <span class="gcs-field-label">{{ t('glossary.confirm.translation_label') }}</span>

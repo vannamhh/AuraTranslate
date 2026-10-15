@@ -6,14 +6,24 @@ import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import { historyTimeLabel } from './panels/segmentHistoryTime'
-import type { TmManagePairOriginFilter, TmManageTier, TmManageTierFilter, TmPairOrigin } from './config/tm'
+import type {
+  TmManagePairOriginFilter,
+  TmManageSort,
+  TmManageTier,
+  TmManageTierFilter,
+  TmPairOrigin,
+} from './config/tm'
 import { glossaryExchangeBusy } from './glossaryExchangeGate'
 import { tmExchangeErrorText } from './tmExchangeError'
+import { tmPolicyBusy, tmPolicyError, tmPolicyOnlyMine } from './tmPolicyState'
 import {
+  aimTmManageRow,
   cancelTmManageDeleteConfirm,
-  setTmManagePairOriginFilter,
   setTmManageExchangeTier,
+  setTmManageExportMineOnly,
+  setTmManagePairOriginFilter,
   setTmManageSearch,
+  setTmManageSort,
   setTmManageTierFilter,
   tmManageActionError,
   tmManageActionNotice,
@@ -28,6 +38,10 @@ import {
   tmManageEmptyReasonFor,
   tmManageExchangeTier,
   tmManageExportBusy,
+  tmManageExportCount,
+  tmManageExportCounts,
+  tmManageExportMineCount,
+  tmManageExportMineOnly,
   tmManageExportError,
   tmManageExportIpcUnavailable,
   tmManageExportLeftOutCount,
@@ -38,6 +52,7 @@ import {
   tmManageImportDone,
   tmManageLoadError,
   tmManagePairOriginFilter,
+  tmManageOriginCounts,
   tmManageOthersCount,
   tmManageOverlayIsOpen,
   tmManageRowKey,
@@ -45,8 +60,10 @@ import {
   tmManageSavingAction,
   tmManageSearchQuery,
   tmManageShownGroups,
+  tmManageSort,
   tmManageStatus,
   tmManageTierFilter,
+  tmManageTierTotals,
   tmManageTmEmpty,
   tmManageTotalGroups,
   tmManageWorkOpen,
@@ -159,21 +176,60 @@ const TIER_OPTIONS: ReadonlyArray<{
   value: TmManageTierFilter
   labelKey: string
 }> = [
-  { value: 'both', labelKey: 'tm.manage.tier_both' },
   { value: 'work', labelKey: 'tm.fuzzy.tier_work' },
   { value: 'global', labelKey: 'tm.fuzzy.tier_global' },
+  { value: 'both', labelKey: 'tm.manage.tier_both' },
 ]
 
-const PAIR_ORIGIN_OPTIONS: ReadonlyArray<{
+const ORIGIN_PILLS: ReadonlyArray<{
   value: TmManagePairOriginFilter
   labelKey: string
+  countKey: 'all' | 'self' | 'others'
 }> = [
-  { value: 'all', labelKey: 'tm.manage.origin_filter_all' },
-  { value: 'others', labelKey: 'tm.manage.origin_filter_others' },
-  { value: 'self', labelKey: 'tm.manage.origin_self' },
-  { value: 'other', labelKey: 'tm.manage.origin_other' },
-  { value: 'bilingual_import', labelKey: 'tm.manage.origin_bilingual_import' },
+  { value: 'all', labelKey: 'tm.manage.origin_filter_all', countKey: 'all' },
+  { value: 'self', labelKey: 'tm.manage.pill_self', countKey: 'self' },
+  { value: 'others', labelKey: 'tm.manage.pill_others', countKey: 'others' },
 ]
+
+const EXACT_ORIGIN_PILLS: ReadonlyArray<{
+  value: TmManagePairOriginFilter
+  labelKey: string
+  countKey: 'other' | 'bilingual_import'
+}> = [
+  { value: 'other', labelKey: 'tm.manage.origin_other', countKey: 'other' },
+  { value: 'bilingual_import', labelKey: 'tm.manage.origin_bilingual_import', countKey: 'bilingual_import' },
+]
+
+const SORT_OPTIONS: ReadonlyArray<{ value: TmManageSort; labelKey: string }> = [
+  { value: 'newest', labelKey: 'tm.manage.sort_newest' },
+  { value: 'oldest', labelKey: 'tm.manage.sort_oldest' },
+  { value: 'source', labelKey: 'tm.manage.sort_source' },
+  { value: 'target', labelKey: 'tm.manage.sort_target' },
+  { value: 'side', labelKey: 'tm.manage.sort_side' },
+]
+
+function tierPillLabel(value: TmManageTierFilter, labelKey: string): string {
+  const totals = tmManageTierTotals.value
+  const count =
+    value === 'work'
+      ? totals?.work
+      : value === 'global'
+        ? totals?.global
+        : totals === null
+          ? null
+          : totals.global + (totals.work ?? 0)
+  return count === null || count === undefined
+    ? t(labelKey)
+    : t('tm.manage.count_label', { label: t(labelKey), count: formatCount(count) })
+}
+
+function pillLabel(labelKey: string, count: number): string {
+  return t('tm.manage.count_label', { label: t(labelKey), count: formatCount(count) })
+}
+
+function formatCount(n: number): string {
+  return n.toLocaleString('vi-VN')
+}
 
 function pairOriginLabel(pairOrigin: TmPairOrigin): string {
   return t(`tm.manage.origin_${pairOrigin}`)
@@ -185,6 +241,88 @@ function tierLabel(tier: string): string {
 
 function healthPercent(count: number): number {
   return tmManageHealthTotal.value === 0 ? 0 : Math.round((count * 100) / tmManageHealthTotal.value)
+}
+
+function healthShare(count: number): number {
+  return tmManageHealthTotal.value === 0 ? 0 : (count * 100) / tmManageHealthTotal.value
+}
+
+const HEALTH_TONE: Readonly<Record<TmPairOrigin, string>> = {
+  self: 'own',
+  other: 'other',
+  bilingual_import: 'import',
+}
+
+const othersOutweighMine = computed(
+  () => tmManageOriginCounts.value.others > tmManageOriginCounts.value.self,
+)
+
+const othersPercent = computed(() => healthPercent(tmManageOriginCounts.value.others))
+
+const exportTierCount = computed(() => {
+  const counts = tmManageExportCounts.value
+  return {
+    work: counts.work === null ? null : counts.work.all,
+    global: counts.global === null ? null : counts.global.all,
+  }
+})
+
+function exchangeTierLabel(tier: TmManageTier): string {
+  const count = exportTierCount.value[tier]
+  const label = t(tier === 'global' ? 'tm.fuzzy.tier_global' : 'tm.fuzzy.tier_work')
+  return count === null ? label : t('tm.manage.count_label', { label, count: formatCount(count) })
+}
+
+const exportButtonLabel = computed(() =>
+  tmManageExportCount.value === null
+    ? t('tm.exchange.export_tmx')
+    : t('tm.exchange.export_tmx_count', { count: formatCount(tmManageExportCount.value) }),
+)
+
+const exportMineLabel = computed(() =>
+  tmManageExportMineCount.value === null
+    ? t('tm.exchange.export_mine_unknown')
+    : t('tm.exchange.export_mine', { count: formatCount(tmManageExportMineCount.value) }),
+)
+
+const policyStateLabel = computed(() =>
+  tmPolicyOnlyMine.value === null
+    ? t('tm.policy.state_unknown')
+    : t(tmPolicyOnlyMine.value ? 'tm.policy.state_on' : 'tm.policy.state_off'),
+)
+
+function sideTone(pairOrigin: TmPairOrigin): string {
+  return HEALTH_TONE[pairOrigin]
+}
+
+function onRowEdit(index: number): void {
+  aimTmManageRow(index)
+  dispatch('tm.manage.edit')
+}
+
+function onRowDelete(index: number): void {
+  aimTmManageRow(index)
+  dispatch('tm.manage.delete')
+}
+
+function onSortChange(event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLSelectElement) setTmManageSort(target.value as TmManageSort)
+}
+
+function onExportMineOnlyChange(event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement) setTmManageExportMineOnly(target.checked)
+}
+
+function onTierRadio(value: TmManageTierFilter, event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement && target.checked) setTmManageTierFilter(value)
+}
+
+function onOriginRadio(value: TmManagePairOriginFilter, event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement && target.checked) setTmManagePairOriginFilter(value)
 }
 
 const nowMs = computed(() => {
@@ -284,16 +422,6 @@ function onSearchInput(event: Event): void {
   if (target instanceof HTMLInputElement) setTmManageSearch(target.value)
 }
 
-function onTierChange(event: Event): void {
-  const target = event.target
-  if (target instanceof HTMLSelectElement) setTmManageTierFilter(target.value as TmManageTierFilter)
-}
-
-function onPairOriginChange(event: Event): void {
-  const target = event.target
-  if (target instanceof HTMLSelectElement) setTmManagePairOriginFilter(target.value as TmManagePairOriginFilter)
-}
-
 function onEscape(): void {
   if (tmManageEditing.value) {
     dispatch('tm.manage.cancel')
@@ -371,20 +499,8 @@ function onKeydown(event: KeyboardEvent): void {
         {{ t('tm.manage.work_note') }}
       </p>
 
-      <ul v-if="tmManageStatus === 'loaded'" class="tm-health" :aria-label="t('tm.manage.health_label')">
-        <li v-for="h in tmManageHealth" :key="h.translation_origin" class="tm-badge">
-          {{
-            t('tm.manage.health_item', {
-              label: pairOriginLabel(h.translation_origin),
-              count: String(h.count),
-              percent: String(healthPercent(h.count)),
-            })
-          }}
-        </li>
-      </ul>
-
       <div class="tm-toolbar">
-        <label class="tm-field">
+        <label class="tm-field tm-field-search">
           <span class="tm-field-label">{{ t('tm.manage.search_label') }}</span>
           <input
             type="text"
@@ -396,39 +512,103 @@ function onKeydown(event: KeyboardEvent): void {
           />
         </label>
 
-        <label class="tm-field">
-          <span class="tm-field-label">{{ t('tm.manage.tier_filter_label') }}</span>
-          <select
-            class="tm-input"
-            :value="tmManageTierFilter"
-            :disabled="tmManageEditing || tmManageSaving"
-            @change="onTierChange"
-          >
-            <option
-              v-for="opt in TIER_OPTIONS"
-              :key="opt.value"
+        <fieldset class="tm-seg" :disabled="tmManageEditing || tmManageSaving">
+          <legend class="tm-field-label">{{ t('tm.manage.tier_filter_label') }}</legend>
+          <label v-for="opt in TIER_OPTIONS" :key="opt.value" class="tm-pill" :class="{ 'tm-pill-on': tmManageTierFilter === opt.value }">
+            <input
+              type="radio"
+              name="tm-tier-filter"
               :value="opt.value"
+              :checked="tmManageTierFilter === opt.value"
               :disabled="opt.value === 'work' && tmManageStatus === 'loaded' && !tmManageWorkOpen"
-            >
-              {{ t(opt.labelKey) }}
-            </option>
-          </select>
-        </label>
+              @change="onTierRadio(opt.value, $event)"
+            />
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            {{ tierPillLabel(opt.value, opt.labelKey) }}
+          </label>
+        </fieldset>
 
-        <label class="tm-field">
-          <span class="tm-field-label">{{ t('tm.manage.origin_filter_label') }}</span>
+        <fieldset class="tm-seg" :disabled="tmManageEditing || tmManageSaving">
+          <legend class="tm-field-label">{{ t('tm.manage.origin_filter_label') }}</legend>
+          <label
+            v-for="opt in ORIGIN_PILLS"
+            :key="opt.value"
+            class="tm-pill"
+            :class="{ 'tm-pill-on': tmManagePairOriginFilter === opt.value, 'tm-pill-other': opt.value === 'others' }"
+          >
+            <input
+              type="radio"
+              name="tm-origin-filter"
+              :value="opt.value"
+              :checked="tmManagePairOriginFilter === opt.value"
+              @change="onOriginRadio(opt.value, $event)"
+            />
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            {{ opt.value === 'all' ? t(opt.labelKey) : pillLabel(opt.labelKey, tmManageOriginCounts[opt.countKey]) }}
+          </label>
+          <label
+            v-for="opt in EXACT_ORIGIN_PILLS"
+            :key="opt.value"
+            class="tm-pill tm-pill-minor"
+            :class="{ 'tm-pill-on': tmManagePairOriginFilter === opt.value }"
+          >
+            <input
+              type="radio"
+              name="tm-origin-filter"
+              :value="opt.value"
+              :checked="tmManagePairOriginFilter === opt.value"
+              @change="onOriginRadio(opt.value, $event)"
+            />
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            {{ pillLabel(opt.labelKey, tmManageOriginCounts[opt.countKey]) }}
+          </label>
+        </fieldset>
+
+        <label class="tm-field tm-field-sort">
+          <span class="tm-field-label">{{ t('tm.manage.sort_label') }}</span>
           <select
             class="tm-input"
-            :value="tmManagePairOriginFilter"
+            :value="tmManageSort"
             :disabled="tmManageEditing || tmManageSaving"
-            @change="onPairOriginChange"
+            @change="onSortChange"
           >
-            <option v-for="opt in PAIR_ORIGIN_OPTIONS" :key="opt.value" :value="opt.value">
+            <option v-for="opt in SORT_OPTIONS" :key="opt.value" :value="opt.value">
               {{ t(opt.labelKey) }}
             </option>
           </select>
         </label>
       </div>
+
+      <section v-if="tmManageStatus === 'loaded' && !tmManageTmEmpty" class="tm-health" :aria-label="t('tm.manage.health_label')">
+        <div class="tm-mix">
+          <div class="tm-track" aria-hidden="true">
+            <i
+              v-for="h in tmManageHealth"
+              :key="h.translation_origin"
+              class="tm-seg-fill"
+              :class="`tm-seg-${HEALTH_TONE[h.translation_origin]}`"
+              :style="{ width: `${healthShare(h.count)}%` }"
+            />
+          </div>
+          <ul class="tm-legend">
+            <li v-for="h in tmManageHealth" :key="h.translation_origin" class="tm-legend-item">
+              <i class="tm-swatch" :class="`tm-seg-${HEALTH_TONE[h.translation_origin]}`" aria-hidden="true" />
+              {{
+                t('tm.manage.health_item', {
+                  label: pairOriginLabel(h.translation_origin),
+                  count: formatCount(h.count),
+                  percent: String(healthPercent(h.count)),
+                })
+              }}
+            </li>
+          </ul>
+        </div>
+        <p class="tm-hnote">{{ t('tm.manage.health_note') }}</p>
+      </section>
+
+      <p v-if="tmManageStatus === 'loaded' && !tmManageTmEmpty && othersOutweighMine" class="tm-box tm-box-warn" role="status">
+        {{ t('tm.manage.others_outweigh', { percent: String(othersPercent) }) }}
+      </p>
 
       <p v-if="emptyReason === 'not_loaded'" class="tm-status" role="status">
         {{ t('tm.manage.loading') }}
@@ -439,9 +619,15 @@ function onKeydown(event: KeyboardEvent): void {
       <p v-else-if="tmManageStatus === 'error' && tmManageLoadError !== null" class="tm-empty tm-error" role="alert">
         {{ tError(tmManageLoadError) }}
       </p>
-      <p v-else-if="emptyReason === 'tm_empty'" class="tm-empty">
-        {{ t('tm.manage.empty_tm') }}
-      </p>
+      <div v-else-if="emptyReason === 'tm_empty'" class="tm-empty-block">
+        <p class="tm-empty">{{ t('tm.manage.empty_tm') }}</p>
+        <p class="tm-empty">
+          {{ t('tm.manage.empty_import_prompt') }}
+          <button type="button" class="tm-link" :disabled="glossaryExchangeBusy" @click="dispatch('tm.manage.import_tmx')">
+            {{ t('tm.exchange.import_tmx') }}
+          </button>
+        </p>
+      </div>
 
       <template v-else-if="tmManageStatus === 'loaded'">
         <p v-if="emptyReason === 'filter_no_match'" class="tm-empty">
@@ -459,13 +645,19 @@ function onKeydown(event: KeyboardEvent): void {
           <ul
             ref="list"
             class="tm-list"
-            role="listbox"
+            role="grid"
             tabindex="-1"
             :aria-label="t('tm.manage.list_label')"
             :aria-activedescendant="
               tmManageCurrentRow === null ? undefined : optionId(tmManageCurrentRow.tier, tmManageCurrentRow.unit_id)
             "
           >
+            <li class="tm-list-head" role="row">
+              <span role="columnheader">{{ t('tm.manage.col_source') }}</span>
+              <span role="columnheader">{{ t('tm.manage.col_target') }}</span>
+              <span role="columnheader">{{ t('tm.manage.col_meta') }}</span>
+              <span role="columnheader">{{ t('tm.manage.col_actions') }}</span>
+            </li>
             <template v-for="(flat, i) in tmManageFlatRows" :key="tmManageRowKey(flat.row)">
               <li v-if="flat.groupHeader" class="tm-group" role="presentation">
                 <!-- aura-allow-text: stored source text of the pair, user content. -->
@@ -479,7 +671,7 @@ function onKeydown(event: KeyboardEvent): void {
               <li
                 :id="optionId(flat.row.tier, flat.row.unit_id)"
                 class="tm-row"
-                role="option"
+                role="row"
                 tabindex="-1"
                 :aria-labelledby="
                   flat.showSource
@@ -487,34 +679,63 @@ function onKeydown(event: KeyboardEvent): void {
                     : `tm-source-${flat.groupKey} ${optionId(flat.row.tier, flat.row.unit_id)}`
                 "
                 :aria-selected="i === tmManageCursor"
-                :class="{
-                  'tm-row-current': i === tmManageCursor,
-                  'tm-row-delete-pending': i === tmManageCursor && tmManageDeletePending,
-                }"
+                :class="[
+                  `tm-row-${sideTone(flat.row.translation_origin)}`,
+                  {
+                    'tm-row-current': i === tmManageCursor,
+                    'tm-row-delete-pending': i === tmManageCursor && tmManageDeletePending,
+                  },
+                ]"
               >
                 <!-- aura-allow-text: stored source text of the pair, user content. -->
-                <span v-if="flat.showSource" class="tm-source">{{ flat.source_text }}</span>
+                <span v-if="flat.showSource" role="gridcell" class="tm-source tm-cell">{{ flat.source_text }}</span>
+                <span v-else role="gridcell" class="tm-cell tm-same-source">{{ t('tm.manage.same_source') }}</span>
                 <!-- aura-allow-text: stored target text of the pair, user content. -->
-                <span class="tm-target">{{ flat.row.target_text }}</span>
-                <!-- aura-allow-text: result of t() computed in the script. -->
-                <span class="tm-badge">{{ pairOriginLabel(flat.row.translation_origin) }}</span>
-                <!-- aura-allow-text: result of t() computed in the script. -->
-                <span v-for="tier in copyTiers(flat.row.copies)" :key="tier" class="tm-badge">{{
-                  tierLabel(tier)
-                }}</span>
-                <span v-if="flat.row.copies.length > 1" class="tm-badge">{{
-                  t('tm.manage.copies', {
-                    count: String(flat.row.copies.length),
-                  })
-                }}</span>
-                <!-- aura-allow-text: result of t() computed in the script. -->
-                <span class="tm-date">{{ dateLabel(flat.row.created_at) }}</span>
-                <span v-if="i === tmManageCursor && tmManageDeletePending" class="tm-badge tm-badge-delete-pending">
-                  {{ t('tm.manage.delete_confirm_badge') }}
+                <span role="gridcell" class="tm-target tm-cell">{{ flat.row.target_text }}</span>
+                <span role="gridcell" class="tm-meta tm-cell">
+                  <!-- aura-allow-text: result of t() computed in the script. -->
+                  <b class="tm-origin" :class="`tm-origin-${sideTone(flat.row.translation_origin)}`">{{
+                    pairOriginLabel(flat.row.translation_origin)
+                  }}</b>
+                  <span class="tm-meta-line">
+                    <!-- aura-allow-text: result of t() computed in the script. -->
+                    <span v-for="tier in copyTiers(flat.row.copies)" :key="tier" class="tm-badge">{{
+                      tierLabel(tier)
+                    }}</span>
+                    <span v-if="flat.row.copies.length > 1" class="tm-badge">{{
+                      t('tm.manage.copies', {
+                        count: String(flat.row.copies.length),
+                      })
+                    }}</span>
+                  </span>
+                  <!-- aura-allow-text: result of t() computed in the script. -->
+                  <span class="tm-date">{{ dateLabel(flat.row.created_at) }}</span>
+                  <span v-if="i === tmManageCursor && tmManageDeletePending" class="tm-badge tm-badge-delete-pending">
+                    {{ t('tm.manage.delete_confirm_badge') }}
+                  </span>
+                </span>
+                <span role="gridcell" class="tm-row-acts tm-cell">
+                  <form @submit.prevent="onRowEdit(i)">
+                    <button type="submit" class="tm-act" :disabled="tmManageSaving || tmManageEditing">
+                      {{ t('tm.manage.edit') }}
+                    </button>
+                  </form>
+                  <form @submit.prevent="onRowDelete(i)">
+                    <button
+                      type="submit"
+                      class="tm-act"
+                      :class="{ 'tm-act-danger': i === tmManageCursor && tmManageDeletePending }"
+                      :disabled="tmManageSaving || tmManageEditing"
+                    >
+                      {{ t(i === tmManageCursor && tmManageDeletePending ? 'tm.manage.delete_confirm_button' : 'tm.manage.delete') }}
+                    </button>
+                  </form>
                 </span>
               </li>
             </template>
           </ul>
+          <p class="tm-box tm-box-ok">{{ t('tm.manage.multi_note') }}</p>
+          <p class="tm-box tm-box-info">{{ t('tm.manage.origin_note') }}</p>
         </template>
       </template>
 
@@ -596,23 +817,6 @@ function onKeydown(event: KeyboardEvent): void {
         <button
           type="button"
           class="tm-act"
-          :disabled="tmManageCurrentRow === null"
-          @click="dispatch('tm.manage.edit')"
-        >
-          {{ t('tm.manage.edit') }}
-        </button>
-        <button
-          type="button"
-          class="tm-act"
-          :class="{ 'tm-act-danger': tmManageDeletePending }"
-          :disabled="tmManageCurrentRow === null"
-          @click="dispatch('tm.manage.delete')"
-        >
-          {{ t(tmManageDeletePending ? 'tm.manage.delete_confirm_button' : 'tm.manage.delete') }}
-        </button>
-        <button
-          type="button"
-          class="tm-act"
           :disabled="
             tmManageCurrentRow === null ||
             tmManageCurrentRow.copies.some((c) => c.tier === 'global') ||
@@ -638,7 +842,32 @@ function onKeydown(event: KeyboardEvent): void {
         <button type="button" class="tm-act" @click="dispatch('tm.manage.next')">
           {{ t('tm.manage.next') }}
         </button>
+        <span class="tm-hint">{{ t('tm.manage.keys_hint') }}</span>
       </div>
+
+      <section v-if="!tmManageEditing && tmManageStatus === 'loaded'" class="tm-policy" :aria-label="t('tm.policy.heading')">
+        <h3 class="tm-sub">{{ t('tm.policy.heading') }}</h3>
+        <div class="tm-policy-row">
+          <button
+            type="button"
+            class="tm-act tm-switch"
+            role="switch"
+            :aria-checked="tmPolicyOnlyMine === true"
+            :disabled="tmPolicyOnlyMine === null || !tmManageWorkOpen || tmPolicyBusy"
+            @click="dispatch('tm.manage.only_mine_toggle')"
+          >
+            {{ t('tm.policy.switch_label') }}
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            <b class="tm-switch-state">{{ policyStateLabel }}</b>
+          </button>
+        </div>
+        <p class="tm-status">{{ t('tm.policy.switch_note') }}</p>
+        <p v-if="tmPolicyError !== null" class="tm-status tm-error" role="alert">
+          <!-- aura-allow-text: result of tError() computed in the script. -->
+          {{ tError(tmPolicyError) }}
+        </p>
+      </section>
+
       <div v-if="!tmManageEditing" class="tm-exchange">
         <fieldset class="tm-exchange-tier" role="radiogroup" :aria-label="t('tm.exchange.tier_label')">
           <legend class="tm-field-label">{{ t('tm.exchange.tier_label') }}</legend>
@@ -650,7 +879,8 @@ function onKeydown(event: KeyboardEvent): void {
               :checked="tmManageExchangeTier === 'work'"
               @change="onExchangeTierChange('work', $event)"
             />
-            {{ t('tm.fuzzy.tier_work') }}
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            {{ exchangeTierLabel('work') }}
           </label>
           <label class="tm-radio-label">
             <input
@@ -659,22 +889,43 @@ function onKeydown(event: KeyboardEvent): void {
               :checked="tmManageExchangeTier === 'global'"
               @change="onExchangeTierChange('global', $event)"
             />
-            {{ t('tm.fuzzy.tier_global') }}
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            {{ exchangeTierLabel('global') }}
           </label>
         </fieldset>
+        <label class="tm-radio-label">
+          <input
+            type="checkbox"
+            :checked="tmManageExportMineOnly"
+            :disabled="tmManageExportBusy"
+            @change="onExportMineOnlyChange"
+          />
+          {{ t('tm.exchange.mine_only_label') }}
+        </label>
         <p v-if="!tmManageWorkOpen" class="tm-status" role="status">{{ t('tm.exchange.work_unavailable') }}</p>
         <p v-else-if="tmManageExchangeTier === 'global'" class="tm-status" role="status">
           {{ t('tm.exchange.global_note') }}
         </p>
+        <p class="tm-status">{{ t('tm.exchange.keeps_all_note') }}</p>
 
         <div class="tm-exchange-actions">
           <button
             type="button"
             class="tm-act"
-            :disabled="glossaryExchangeBusy"
+            :disabled="glossaryExchangeBusy || tmManageExportCount === 0"
             @click="dispatch('tm.manage.export_tmx')"
           >
-            {{ t('tm.exchange.export_tmx') }}
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            {{ exportButtonLabel }}
+          </button>
+          <button
+            type="button"
+            class="tm-act"
+            :disabled="glossaryExchangeBusy || tmManageExportMineCount === null || tmManageExportMineCount === 0"
+            @click="dispatch('tm.manage.export_mine')"
+          >
+            <!-- aura-allow-text: result of t() computed in the script. -->
+            {{ exportMineLabel }}
           </button>
           <button
             type="button"
@@ -686,6 +937,8 @@ function onKeydown(event: KeyboardEvent): void {
             {{ t('tm.exchange.import_tmx') }}
           </button>
         </div>
+        <p class="tm-status">{{ t('tm.exchange.origin_travels') }}</p>
+        <pre class="tm-mono">{{ t('tm.exchange.origin_sample') }}</pre>
 
         <p v-if="glossaryExchangeBusy && !tmManageExportBusy" class="tm-status" role="status">
           {{ t('tm.exchange.busy_other') }}
@@ -783,12 +1036,98 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .tm-health {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 4);
+  margin: 0 0 var(--space-panel-block) 0;
+}
+
+.tm-mix {
+  flex: 1;
+  min-width: 16rem;
+  max-width: 26rem;
+}
+
+.tm-track {
+  display: flex;
+  height: calc(var(--space-unit) * 1);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.tm-seg-fill {
+  display: block;
+  height: 100%;
+}
+
+.tm-seg-own {
+  background: var(--color-primary);
+}
+
+.tm-seg-other {
+  background: var(--color-tm-rule);
+}
+
+.tm-seg-import {
+  background: var(--color-outline);
+}
+
+.tm-legend {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
-  margin: 0 0 var(--space-panel-block) 0;
+  gap: calc(var(--space-unit) * 3);
+  margin: calc(var(--space-unit) * 2) 0 0 0;
   padding: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.tm-legend-item {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+}
+
+.tm-swatch {
+  display: inline-block;
+  width: calc(var(--space-unit) * 2);
+  height: calc(var(--space-unit) * 2);
+}
+
+.tm-hnote {
+  flex: 1;
+  min-width: 14rem;
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.tm-box {
+  margin: 0 0 var(--space-panel-block) 0;
+  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  border-left: 2px solid var(--color-primary);
+  background: var(--color-surface-accent);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.tm-box-warn {
+  border-left-color: var(--color-tm-rule);
+  background: var(--color-surface-tm);
+  color: var(--color-tm-text);
+}
+
+.tm-box-ok {
+  border-left-color: var(--color-confirmed);
+  background: var(--color-surface-sunken);
 }
 
 .tm-toolbar {
@@ -796,6 +1135,46 @@ function onKeydown(event: KeyboardEvent): void {
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 4);
   margin-bottom: var(--space-panel-block);
+}
+
+.tm-seg {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.tm-pill {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  padding: 0 calc(var(--space-unit) * 3);
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+}
+
+.tm-pill-on {
+  border-color: var(--color-primary);
+  background: var(--color-surface-accent);
+  color: var(--color-primary);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.tm-pill-other {
+  border-color: var(--color-tm-rule);
+}
+
+.tm-field-search {
+  flex: 2;
+  min-width: 12rem;
 }
 
 .tm-field {
@@ -846,12 +1225,32 @@ function onKeydown(event: KeyboardEvent): void {
   border: 1px solid var(--color-outline);
 }
 
+.tm-list-head,
+.tm-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 9rem 6rem;
+  gap: var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 2) var(--space-panel-inline) calc(var(--space-unit) * 2) calc(var(--space-unit) * 7);
+  align-items: start;
+}
+
+.tm-list-head {
+  padding-top: calc(var(--space-unit) * 1);
+  padding-bottom: calc(var(--space-unit) * 1);
+  border-bottom: 1px solid var(--color-outline);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
 .tm-group {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline) 0;
+  padding: calc(var(--space-unit) * 2) var(--space-panel-inline) calc(var(--space-unit) * 1) calc(var(--space-unit) * 7);
+  background: var(--color-surface-tm);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
@@ -859,16 +1258,30 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .tm-row {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  position: relative;
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+}
+
+.tm-row::before {
+  content: '';
+  position: absolute;
+  left: var(--space-panel-inline);
+  top: calc(var(--space-unit) * 2);
+  bottom: calc(var(--space-unit) * 2);
+  width: 2px;
+  background: var(--color-primary);
+}
+
+.tm-row-other::before {
+  background: var(--color-tm-rule);
+}
+
+.tm-row-import::before {
+  background: var(--color-outline);
 }
 
 .tm-row:last-child {
@@ -886,6 +1299,61 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-badge-delete-pending {
   color: var(--color-error);
   border-color: var(--color-error);
+}
+
+.tm-cell {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tm-same-source {
+  color: var(--color-on-surface-variant);
+}
+
+.tm-meta {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.tm-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 1);
+}
+
+.tm-origin {
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.tm-origin-own {
+  color: var(--color-primary);
+}
+
+.tm-origin-other {
+  color: var(--color-tm-text);
+}
+
+.tm-origin-import {
+  color: var(--color-on-surface-variant);
+}
+
+.tm-row-acts {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
+}
+
+.tm-row-acts form {
+  display: contents;
+}
+
+.tm-row-acts .tm-act {
+  padding: 0 calc(var(--space-unit) * 2);
 }
 
 .tm-source {
@@ -993,5 +1461,65 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-exchange-actions {
   display: flex;
   gap: calc(var(--space-unit) * 2);
+}
+
+.tm-link {
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-outline);
+  cursor: pointer;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-primary);
+}
+
+.tm-hint {
+  align-self: center;
+  margin-left: auto;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.tm-sub {
+  margin: 0;
+  font-family: var(--face-ui-md-strong);
+  font-size: var(--font-ui-md);
+  font-weight: var(--weight-ui-md-strong);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface);
+}
+
+.tm-policy {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 2);
+  margin-top: var(--space-panel-block);
+  padding-top: var(--space-panel-block);
+  border-top: 1px solid var(--color-outline);
+}
+
+.tm-policy-row {
+  display: flex;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.tm-switch-state {
+  margin-left: calc(var(--space-unit) * 2);
+}
+
+.tm-mono {
+  margin: 0;
+  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  overflow-x: auto;
+  border: 1px solid var(--color-outline);
+  background: var(--color-background);
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-mono);
+  color: var(--color-on-surface-variant);
 }
 </style>

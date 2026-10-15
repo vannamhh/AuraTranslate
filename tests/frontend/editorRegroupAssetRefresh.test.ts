@@ -85,7 +85,7 @@ async function docSegmentGia(options: { prefill?: boolean } = {}): Promise<KetQu
         assets: anhLanDau,
         assets_dir: anhLanDau.length > 0 ? '/tac-pham/assets-cu' : '',
         tm_filled_segment_ids: [],
-        tm_prefill: { kind: 'ran' },
+        tm_prefill: { kind: 'ran', hidden_count: 0 },
       },
       error: null,
     }
@@ -102,7 +102,7 @@ async function docSegmentGia(options: { prefill?: boolean } = {}): Promise<KetQu
       assets: [ANH_SAU_GOP],
       assets_dir: '/tac-pham/assets',
       tm_filled_segment_ids: dienSanLanHai,
-      tm_prefill: { kind: 'ran' },
+      tm_prefill: { kind: 'ran', hidden_count: 0 },
     },
     error: null,
   }
@@ -225,7 +225,7 @@ describe('applyRegroup — ảnh chụp Chương nạp lại sau một lượt g
         assets: [ANH_SAU_GOP],
         assets_dir: '/tac-pham/assets',
         tm_filled_segment_ids: [13],
-        tm_prefill: { kind: 'ran' },
+        tm_prefill: { kind: 'ran', hidden_count: 0 },
       },
       error: null,
     })
@@ -293,7 +293,7 @@ describe('refreshChapterAssetsAfterRegroup — không làm hỏng lượt nạp 
         assets: [],
         assets_dir: '',
         tm_filled_segment_ids: [],
-        tm_prefill: { kind: 'ran' },
+        tm_prefill: { kind: 'ran', hidden_count: 0 },
       },
       error: null,
     })
@@ -305,7 +305,7 @@ describe('refreshChapterAssetsAfterRegroup — không làm hỏng lượt nạp 
         assets: [ANH_SAU_GOP],
         assets_dir: '/tac-pham/assets',
         tm_filled_segment_ids: [],
-        tm_prefill: { kind: 'ran' },
+        tm_prefill: { kind: 'ran', hidden_count: 0 },
       },
       error: null,
     })

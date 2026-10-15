@@ -211,18 +211,147 @@ fn side_rank(side: PairSide) -> u8 {
     }
 }
 
+/// Which side of the TM a reading surface may use (AD-57). Built only by [`TmSidePolicy::from_work`]
+/// and [`TmSidePolicy::browse`], so no reader can pick a side by accident.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TmSidePolicy {
+    only_mine: bool,
+}
+
+impl TmSidePolicy {
+    /// The switch of the open Work; no Work open prefers mine, which keeps both sides.
+    pub fn from_work(work: Option<&crate::core::store::Store>) -> Result<Self, TmStoreError> {
+        let only_mine = match work {
+            Some(store) => read_only_mine(store)?,
+            None => false,
+        };
+        Ok(Self { only_mine })
+    }
+
+    /// Lookup and management surfaces, which show every pair whatever the switch says.
+    pub fn browse() -> Self {
+        Self { only_mine: false }
+    }
+
+    pub fn only_mine(self) -> bool {
+        self.only_mine
+    }
+
+    fn admits(self, pair_origin: PairOrigin) -> bool {
+        !self.only_mine || pair_origin.side() == PairSide::Mine
+    }
+}
+
+/// `work.tm_only_mine` of a Work store.
+pub fn read_only_mine(work: &crate::core::store::Store) -> Result<bool, TmStoreError> {
+    let flag: i64 = work.read(|conn| {
+        conn.query_row("SELECT tm_only_mine FROM work WHERE id = 1", [], |r| {
+            r.get(0)
+        })
+    })?;
+    Ok(flag != 0)
+}
+
+/// Sets `work.tm_only_mine` and nothing else: no `updated_at`, no `meta.json`.
+pub fn write_only_mine(
+    work: &crate::core::store::Store,
+    only_mine: bool,
+) -> Result<(), TmStoreError> {
+    work.write(move |tx| {
+        tx.execute(
+            "UPDATE work SET tm_only_mine = ?1 WHERE id = 1",
+            [i64::from(only_mine)],
+        )
+    })?;
+    Ok(())
+}
+
+/// What a policy kept and how many distinct (source, target) pairs it hid: pairs that would have
+/// matched the surface and survive only as another side's copy. Only [`police`] builds one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolicedMatches<T> {
+    kept: Vec<T>,
+    hidden_count: usize,
+}
+
+impl<T> PolicedMatches<T> {
+    pub fn kept(&self) -> &[T] {
+        &self.kept
+    }
+
+    pub fn hidden_count(&self) -> usize {
+        self.hidden_count
+    }
+
+    pub fn into_parts(self) -> (Vec<T>, usize) {
+        (self.kept, self.hidden_count)
+    }
+
+    /// Reshapes the kept items (dedup, sort, cut); the hidden count stays.
+    pub fn map_kept<U>(self, f: impl FnOnce(Vec<T>) -> Vec<U>) -> PolicedMatches<U> {
+        PolicedMatches {
+            kept: f(self.kept),
+            hidden_count: self.hidden_count,
+        }
+    }
+}
+
+/// The single place that drops pairs by side (AD-57 rule 4); runs after scoring and before any
+/// dedup or cut.
+fn police<T>(
+    policy: TmSidePolicy,
+    items: Vec<T>,
+    pair_of: impl Fn(&T) -> &TmPair,
+) -> PolicedMatches<T> {
+    if !policy.only_mine {
+        return PolicedMatches {
+            kept: items,
+            hidden_count: 0,
+        };
+    }
+    let mut kept = Vec::new();
+    let mut removed: Vec<(String, String)> = Vec::new();
+    for item in items {
+        let pair = pair_of(&item);
+        if policy.admits(pair.translation_origin) {
+            kept.push(item);
+        } else {
+            removed.push((pair.source_text.clone(), pair.target_text.clone()));
+        }
+    }
+    let kept_texts: std::collections::HashSet<(&str, &str)> = kept
+        .iter()
+        .map(|item| {
+            let pair = pair_of(item);
+            (pair.source_text.as_str(), pair.target_text.as_str())
+        })
+        .collect();
+    let hidden: std::collections::HashSet<(&str, &str)> = removed
+        .iter()
+        .map(|(s, t)| (s.as_str(), t.as_str()))
+        .filter(|texts| !kept_texts.contains(texts))
+        .collect();
+    let hidden_count = hidden.len();
+    PolicedMatches { kept, hidden_count }
+}
+
 /// Pairs whose source equals `source_text`, both tiers merged (AD-18): mine before others, then
 /// Work before Global, then newest `created_at`, then highest id. Exact equality; normalization
-/// belongs to matching.
+/// belongs to matching. The policy drops the others side; the count says how many it hid.
 pub fn pairs_for_source(
     resolver: &crate::core::scope::ScopeResolver,
     global: &crate::core::store::Store,
     work: Option<&crate::core::store::Store>,
     source_text: &str,
-) -> Result<Vec<TmPair>, TmStoreError> {
+    policy: TmSidePolicy,
+) -> Result<PolicedMatches<TmPair>, TmStoreError> {
     let global_rows = load_pair_rows(global, source_text)?;
     let work_rows = work.map(|w| load_pair_rows(w, source_text)).transpose()?;
-    merge_tiers(resolver, global_rows, work_rows)
+    Ok(police(
+        policy,
+        merge_tiers(resolver, global_rows, work_rows)?,
+        |p| p,
+    ))
 }
 
 fn merge_tiers(
@@ -323,15 +452,18 @@ pub struct FuzzyPair {
 pub struct TierRows {
     global_rows: Vec<RawPair>,
     work_rows: Option<Vec<RawPair>>,
+    policy: TmSidePolicy,
 }
 
 pub fn read_tier_rows(
     global: &crate::core::store::Store,
     work: Option<&crate::core::store::Store>,
+    policy: TmSidePolicy,
 ) -> Result<TierRows, TmStoreError> {
     Ok(TierRows {
         global_rows: load_all_pair_rows(global)?,
         work_rows: work.map(load_all_pair_rows).transpose()?,
+        policy,
     })
 }
 
@@ -371,6 +503,13 @@ pub fn count_tier_pairs(
     })
 }
 
+/// Targets suggested for a term, and how many pairs the policy hid from them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TermSuggestions {
+    pub suggestions: Vec<(String, u32)>,
+    pub hidden_count: usize,
+}
+
 /// Distinct targets of pairs whose source equals `source_term`, both tiers, with how many pairs
 /// carry each. Most pairs first, ties in `pairs_for_source` order (AD-18).
 pub fn target_suggestions_for_term(
@@ -378,8 +517,10 @@ pub fn target_suggestions_for_term(
     global: &crate::core::store::Store,
     work: Option<&crate::core::store::Store>,
     source_term: &str,
-) -> Result<Vec<(String, u32)>, TmStoreError> {
-    let pairs = pairs_for_source(resolver, global, work, source_term)?;
+    policy: TmSidePolicy,
+) -> Result<TermSuggestions, TmStoreError> {
+    let (pairs, hidden_count) =
+        pairs_for_source(resolver, global, work, source_term, policy)?.into_parts();
     let mut grouped: Vec<(String, u32)> = Vec::new();
     for pair in pairs {
         match grouped.iter_mut().find(|(t, _)| *t == pair.target_text) {
@@ -388,23 +529,10 @@ pub fn target_suggestions_for_term(
         }
     }
     grouped.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
-    Ok(grouped)
-}
-
-/// Pairs of both tiers whose source scores at least `threshold` percent against `source_text`,
-/// best first, ties in `pairs_for_source` order, one row per distinct (source, target), at most
-/// [`FUZZY_MATCH_LIMIT`]. A pair whose source equals `source_text` is excluded (exact matches
-/// belong to the pre-fill).
-pub fn fuzzy_pairs_for_source(
-    resolver: &crate::core::scope::ScopeResolver,
-    global: &crate::core::store::Store,
-    work: Option<&crate::core::store::Store>,
-    source_text: &str,
-    lang: crate::core::matching::MatchLang,
-    threshold: u8,
-) -> Result<Vec<FuzzyPair>, TmStoreError> {
-    let candidates = read_tier_rows(global, work)?;
-    rank_fuzzy_candidates(resolver, candidates, source_text, lang, threshold)
+    Ok(TermSuggestions {
+        suggestions: grouped,
+        hidden_count,
+    })
 }
 
 pub fn rank_fuzzy_candidates(
@@ -413,26 +541,29 @@ pub fn rank_fuzzy_candidates(
     source_text: &str,
     lang: crate::core::matching::MatchLang,
     threshold: u8,
-) -> Result<Vec<FuzzyPair>, TmStoreError> {
-    let mut merged = first_per_text_pair(
-        fuzzy_pairs_in_candidates(resolver, &candidates, source_text, lang, threshold)?,
-        |f| &f.pair,
-    );
-    merged.sort_by_key(|m| std::cmp::Reverse(m.percent));
-    merged.truncate(FUZZY_MATCH_LIMIT);
-    Ok(merged)
+) -> Result<PolicedMatches<FuzzyPair>, TmStoreError> {
+    Ok(
+        fuzzy_pairs_in_candidates(resolver, &candidates, source_text, lang, threshold)?.map_kept(
+            |all| {
+                let mut merged = first_per_text_pair(all, |f| &f.pair);
+                merged.sort_by_key(|m| std::cmp::Reverse(m.percent));
+                merged.truncate(FUZZY_MATCH_LIMIT);
+                merged
+            },
+        ),
+    )
 }
 
 /// Every pair of both tiers scoring at least `threshold` against `source_text`, in AD-18 order,
-/// uncut; a pair whose source equals `source_text` is excluded. Borrows the rows so one read
-/// can serve many sentences.
+/// uncut, after the snapshot's policy; a pair whose source equals `source_text` is excluded.
+/// Borrows the rows so one read can serve many sentences.
 pub fn fuzzy_pairs_in_candidates(
     resolver: &crate::core::scope::ScopeResolver,
     candidates: &TierRows,
     source_text: &str,
     lang: crate::core::matching::MatchLang,
     threshold: u8,
-) -> Result<Vec<FuzzyPair>, TmStoreError> {
+) -> Result<PolicedMatches<FuzzyPair>, TmStoreError> {
     let mut scorer = crate::core::matching::SimilarityScorer::new(source_text, lang);
     let query_trimmed = source_text.trim();
     let mut keep = |rows: &[RawPair]| -> Vec<(RawPair, u8)> {
@@ -450,10 +581,11 @@ pub fn fuzzy_pairs_in_candidates(
     };
     let global_rows = keep(&candidates.global_rows);
     let work_rows = candidates.work_rows.as_deref().map(&mut keep);
-    Ok(merge_tagged_tiers(resolver, global_rows, work_rows)?
+    let all: Vec<FuzzyPair> = merge_tagged_tiers(resolver, global_rows, work_rows)?
         .into_iter()
         .map(|(pair, percent)| FuzzyPair { pair, percent })
-        .collect())
+        .collect();
+    Ok(police(candidates.policy, all, |f| &f.pair))
 }
 
 /// Most hits one Concordance search ships; the total is reported beside them.
@@ -596,6 +728,61 @@ impl PairOriginFilter {
     }
 }
 
+/// Which pairs an export carries (AD-57 rule 8); independent of the Work's switch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TmExportFilter {
+    All,
+    Mine,
+}
+
+impl TmExportFilter {
+    pub fn from_wire(value: &str) -> Option<Self> {
+        match value {
+            "all" => Some(Self::All),
+            "mine" => Some(Self::Mine),
+            _ => None,
+        }
+    }
+
+    fn admits(self, pair_origin: PairOrigin) -> bool {
+        match self {
+            Self::All => true,
+            Self::Mine => pair_origin.side() == PairSide::Mine,
+        }
+    }
+}
+
+/// Order of the source groups of a management listing; applied before the group cap, so every
+/// axis is right over the whole store.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ManageSort {
+    Newest,
+    Oldest,
+    Source,
+    Target,
+    Side,
+}
+
+impl ManageSort {
+    pub fn from_wire(value: &str) -> Option<Self> {
+        match value {
+            "newest" => Some(Self::Newest),
+            "oldest" => Some(Self::Oldest),
+            "source" => Some(Self::Source),
+            "target" => Some(Self::Target),
+            "side" => Some(Self::Side),
+            _ => None,
+        }
+    }
+}
+
+/// Stored pairs per tier; the Work tier is `None` with no Work open, never 0.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TierPairTotals {
+    pub work: Option<usize>,
+    pub global: usize,
+}
+
 /// One list row: identical (source, target) copies collapse into it (Q8). `pair` is the first
 /// copy in AD-18 order, `copies` holds every copy in that order, `pair` included.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -627,6 +814,8 @@ pub struct ManageListing {
     /// Pairs per stored origin over the tier filter alone, in `self`, `other`,
     /// `bilingual_import` order.
     pub health: [(PairOrigin, usize); 3],
+    /// Stored pairs per tier, whatever the filters say.
+    pub tier_totals: TierPairTotals,
     /// Pairs passing every filter, before the cap.
     pub total_pairs: usize,
     /// Source groups passing every filter, before the cap.
@@ -643,9 +832,14 @@ pub fn rank_manage_listing(
     tier: TierFilter,
     pair_origin: PairOriginFilter,
     search: &str,
+    sort: ManageSort,
 ) -> Result<ManageListing, TmStoreError> {
     let tm_empty =
         snapshot.global_rows.is_empty() && snapshot.work_rows.as_ref().is_none_or(Vec::is_empty);
+    let tier_totals = TierPairTotals {
+        work: snapshot.work_rows.as_ref().map(Vec::len),
+        global: snapshot.global_rows.len(),
+    };
     let mut counts = [0usize; 3];
     let needle = concordance_key(search);
     let mut keep = |rows: &[RawPair]| -> Vec<RawPair> {
@@ -713,9 +907,24 @@ pub fn rank_manage_listing(
         }
     }
     let mut ordered: Vec<(SourceGroup, (String, i64))> = groups.into_iter().zip(newest).collect();
-    ordered.sort_by(|a, b| {
-        b.1.cmp(&a.1)
-            .then_with(|| a.0.source_text.cmp(&b.0.source_text))
+    let by_source = |a: &SourceGroup, b: &SourceGroup| a.source_text.cmp(&b.source_text);
+    let first_target = |g: &SourceGroup| g.rows.first().map(|r| r.pair.target_text.clone());
+    let first_side = |g: &SourceGroup| {
+        g.rows
+            .first()
+            .map(|r| side_rank(r.pair.translation_origin.side()))
+    };
+    ordered.sort_by(|a, b| match sort {
+        ManageSort::Newest => b.1.cmp(&a.1).then_with(|| by_source(&a.0, &b.0)),
+        ManageSort::Oldest => a.1.cmp(&b.1).then_with(|| by_source(&a.0, &b.0)),
+        ManageSort::Source => by_source(&a.0, &b.0).then_with(|| b.1.cmp(&a.1)),
+        ManageSort::Target => first_target(&a.0)
+            .cmp(&first_target(&b.0))
+            .then_with(|| b.1.cmp(&a.1)),
+        ManageSort::Side => first_side(&a.0)
+            .cmp(&first_side(&b.0))
+            .then_with(|| b.1.cmp(&a.1))
+            .then_with(|| by_source(&a.0, &b.0)),
     });
     let total_groups = ordered.len();
     ordered.truncate(MANAGE_GROUP_LIMIT);
@@ -762,6 +971,7 @@ pub fn rank_manage_listing(
             (PairOrigin::Other, counts[1]),
             (PairOrigin::BilingualImport, counts[2]),
         ],
+        tier_totals,
         total_pairs,
         total_groups,
         groups,

@@ -1,0 +1,13 @@
+{
+  "known": ["glossary_terms", "source_segment", "tm_similar_segments"],
+  "cases": [
+    { "name": "plain text", "body": "Dich cau nay.", "unknown_markers": [], "known_markers": [] },
+    { "name": "three known", "body": "{{glossary_terms}} {{source_segment}} {{tm_similar_segments}}", "unknown_markers": [], "known_markers": ["{{glossary_terms}}", "{{source_segment}}", "{{tm_similar_segments}}"] },
+    { "name": "unknown deduplicated in order", "body": "{{b}} {{a}} {{b}}", "unknown_markers": ["{{b}}", "{{a}}"], "known_markers": [] },
+    { "name": "orphan open brace before a real marker", "body": "ghi chu {{ rieng: {{glossary_terms}}", "unknown_markers": [], "known_markers": ["{{glossary_terms}}"] },
+    { "name": "unclosed open brace ends the scan", "body": "{{source_segment}} roi {{ khong dong {{glossary_terms}", "unknown_markers": [], "known_markers": ["{{source_segment}}"] },
+    { "name": "only an unclosed open brace", "body": "gõ {{ thế thôi", "unknown_markers": [], "known_markers": [] },
+    { "name": "empty and spaced tokens are unknown", "body": "{{}} {{ glossary_terms }}", "unknown_markers": ["{{}}", "{{ glossary_terms }}"], "known_markers": [] },
+    { "name": "vietnamese text around markers", "body": "Dịch {{source_segment}} thành tiếng Việt, theo {{glossary_terms}}.", "unknown_markers": [], "known_markers": ["{{source_segment}}", "{{glossary_terms}}"] }
+  ]
+}

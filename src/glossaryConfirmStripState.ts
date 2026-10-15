@@ -98,6 +98,7 @@ const saveError = ref<IpcError | null>(null)
 const emptyInputError = ref(false)
 const tmSuggestions = ref<readonly GlossaryTmSuggestion[]>([])
 const tmSuggestionError = ref<IpcError | null>(null)
+const tmHiddenCount = ref(0)
 const aimedText = ref<string | null>(null)
 
 /** `source_term` đã "Để sau" trong Chương ĐANG MỞ — xoá khi đổi Chương (§Design Notes: một
@@ -153,6 +154,7 @@ export const confirmStripSuggestionStatus = computed<HanVietSuggestionStatus | n
 )
 export const confirmStripTermOrigin = computed<string | null>(() => current.value?.termOrigin ?? null)
 export const confirmStripCategory = computed<GlossaryCategory | null>(() => current.value?.category ?? null)
+export const confirmStripTmHiddenCount: DeepReadonly<Ref<number>> = readonly(tmHiddenCount)
 export const confirmStripTmError: DeepReadonly<Ref<IpcError | null>> = readonly(tmSuggestionError)
 export const confirmStripOptions = computed<ConfirmStripOption[]>(() => {
   const target = current.value
@@ -228,8 +230,16 @@ function selectPendingSpan(
 async function loadTmSuggestions(sourceTerm: string, mySequence: number): Promise<void> {
   const result = await listGlossaryTmSuggestions(sourceTerm)
   if (mySequence !== sequence) return
-  tmSuggestions.value = result.value ?? []
+  tmSuggestions.value = result.value?.suggestions ?? []
+  tmHiddenCount.value = result.value?.hidden_count ?? 0
   tmSuggestionError.value = result.error
+}
+
+/** Re-reads the TM proposals of the current term, for when "only my pairs" changed. */
+export function refreshGlossaryConfirmTmSuggestions(): void {
+  const target = current.value
+  if (target === null) return
+  void loadTmSuggestions(target.sourceTerm, sequence)
 }
 
 /** Aim a proposal so the next `glossary.confirm.save` confirms it; `null` clears the aim. */
@@ -277,6 +287,7 @@ function applyTarget(next: CurrentTarget | null): void {
   saveError.value = null
   emptyInputError.value = false
   tmSuggestions.value = []
+  tmHiddenCount.value = 0
   tmSuggestionError.value = null
   aimedText.value = null
   if (next !== null) void loadTmSuggestions(next.sourceTerm, sequence)
@@ -500,6 +511,7 @@ export function resetGlossaryConfirmStrip(): void {
   current.value = null
   translationInput.value = ''
   tmSuggestions.value = []
+  tmHiddenCount.value = 0
   tmSuggestionError.value = null
   aimedText.value = null
   saving.value = false

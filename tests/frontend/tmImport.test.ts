@@ -25,6 +25,9 @@ vi.mock('../../src/config/tm', () => ({
   tmConfirmImport: (...args: unknown[]) => confirmMock(...args),
   tmCancelImport: (...args: unknown[]) => cancelMock(...args),
   tmCountPairs: async () => null,
+  tmExportCounts: async () => null,
+  tmOnlyMineGet: async () => ({ state: { work_open: true, only_mine: false }, error: null }),
+  tmOnlyMineSet: async () => ({ state: { work_open: true, only_mine: true }, error: null }),
 }))
 
 function listing(over: Partial<TmManageListing> = {}): TmManageListing {
@@ -36,6 +39,7 @@ function listing(over: Partial<TmManageListing> = {}): TmManageListing {
       { translation_origin: 'other', count: 0 },
       { translation_origin: 'bilingual_import', count: 0 },
     ],
+    tier_totals: { work: 1, global: 0 },
     total_pairs: 1,
     total_groups: 1,
     groups: [
@@ -105,7 +109,7 @@ describe('export', () => {
 
     exportMock.mockResolvedValue({ outcome: 'cancelled' })
     await manage.exportTmManageTier()
-    expect(exportMock).toHaveBeenLastCalledWith('work')
+    expect(exportMock).toHaveBeenLastCalledWith('work', 'all')
     expect(manage.tmManageExportedPath.value).toBeNull()
     expect(manage.tmManageExportError.value).toBeNull()
     expect(manage.tmManageExportIpcUnavailable.value).toBe(false)
@@ -113,7 +117,7 @@ describe('export', () => {
     manage.setTmManageExchangeTier('global')
     exportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/tm_global.tmx', leftOutCount: 0 })
     await manage.exportTmManageTier()
-    expect(exportMock).toHaveBeenLastCalledWith('global')
+    expect(exportMock).toHaveBeenLastCalledWith('global', 'all')
     expect(manage.tmManageExportedPath.value).toBe('/tmp/tm_global.tmx')
   })
 
@@ -306,7 +310,7 @@ describe('overlays', () => {
     const [exportButton] = wrapper.findAll('.tm-exchange-actions button')
     await exportButton.trigger('click')
     await settle(wrapper)
-    expect(exportMock).toHaveBeenCalledWith('global')
+    expect(exportMock).toHaveBeenCalledWith('global', 'all')
     expect(wrapper.text()).toContain(i18n.t('tm.exchange.export_done', { path: '/tmp/tm_global.tmx' }))
     expect(wrapper.text()).not.toContain(i18n.t('tm.exchange.export_left_out', { count: '2' }))
 
@@ -328,7 +332,7 @@ describe('overlays', () => {
     expect(manage.tmManageExchangeTier.value).toBe('work')
     exportMock.mockResolvedValue({ outcome: 'cancelled' })
     await wrapper.findAll('.tm-exchange-actions button')[0].trigger('click')
-    expect(exportMock).toHaveBeenCalledWith('work')
+    expect(exportMock).toHaveBeenCalledWith('work', 'all')
     wrapper.unmount()
   })
 
