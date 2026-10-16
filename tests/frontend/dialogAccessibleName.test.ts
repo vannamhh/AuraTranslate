@@ -46,6 +46,9 @@ vi.mock('../../src/config/tm', () => ({
   tmOpenImportPreview: (...args: unknown[]) => tmOpenImportPreviewMock(...args),
   tmConfirmImport: vi.fn(),
   tmCancelImport: vi.fn(),
+  tmExportCounts: async () => null,
+  tmOnlyMineGet: async () => ({ state: { work_open: true, only_mine: false }, error: null }),
+  tmOnlyMineSet: async () => ({ state: { work_open: true, only_mine: true }, error: null }),
 }))
 
 vi.mock('../../src/config/project', () => ({
