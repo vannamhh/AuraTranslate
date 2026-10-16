@@ -32,7 +32,7 @@ mod text_export;
 
 pub use alignment::{
     AcceptableChange, AlignmentError, AlignmentGroup, AlignmentItem, AlignmentRow,
-    AlignmentSegment, ChapterAlignment, DecidedBy, GroupDiff, MIN_PAIR_SIMILARITY,
+    AlignmentSegment, ChapterAlignment, DecidedBy, GroupDiff, MIN_PAIR_SIMILARITY, MatchCounts,
     acceptable_change, align_chapter, delete_alignment_of_chapter, join, mark_accepted,
     move_members_of_retired, read_alignment, review_diff, skip, skip_change, unjoin,
 };

@@ -654,6 +654,17 @@ const importScreenIsOpen = computed<boolean>(
           >
             {{ t('mode.library.open_work_folder_button') }}
           </button>
+          <button
+            v-if="workIndex === libraryWorkCursor"
+            type="button"
+            class="btn"
+            data-library-work-reviewer-import
+            data-reviewer-import-open
+            :disabled="libraryOpenWorkBusy"
+            @click="dispatch('library.open_work_reviewer_import')"
+          >
+            {{ t('command.export.reviewer_import.open') }}
+          </button>
         </li>
       </ul>
     </div>

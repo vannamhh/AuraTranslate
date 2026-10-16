@@ -10,8 +10,22 @@ import type { ReviewerImportPreview } from '../../src/config/reviewerImport'
 const openMock = vi.fn()
 const confirmMock = vi.fn()
 const cancelMock = vi.fn()
+const refreshMock = vi.fn()
+const openAlignmentMock = vi.fn()
+let alignmentListeners: Array<(event: { chapterId: number | null; flow: unknown; chainEnded: boolean }) => void> = []
+
+vi.mock('../../src/alignmentState', () => ({
+  openAlignmentOverlay: (...args: unknown[]) => openAlignmentMock(...args),
+  onAlignmentClosed: (listener: (typeof alignmentListeners)[number]) => {
+    alignmentListeners.push(listener)
+    return () => {
+      alignmentListeners = alignmentListeners.filter((l) => l !== listener)
+    }
+  },
+}))
 
 vi.mock('../../src/config/reviewerImport', () => ({
+  reviewerHarvestRefresh: (...args: unknown[]) => refreshMock(...args),
   reviewerImportOpenPreview: (...args: unknown[]) => openMock(...args),
   reviewerImportConfirm: (...args: unknown[]) => confirmMock(...args),
   reviewerImportCancel: (...args: unknown[]) => cancelMock(...args),
@@ -33,7 +47,8 @@ function ipcError(code: string) {
 
 async function fresh() {
   vi.resetModules()
-  for (const m of [openMock, confirmMock, cancelMock]) m.mockReset()
+  for (const m of [openMock, confirmMock, cancelMock, refreshMock, openAlignmentMock]) m.mockReset()
+  alignmentListeners = []
   cancelMock.mockResolvedValue({ ok: true, error: null })
   return await import('../../src/reviewerImportState')
 }
@@ -78,7 +93,7 @@ describe('reviewer import overlay state', () => {
 
   it('confirm moves to done with the summary, and closing afterwards does not call cancel', async () => {
     openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
-    confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, harvest_candidate_count: 0, harvest_error: null }, error: null })
+    confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, chapters: [], harvest_candidate_count: 0, harvest_error: null }, error: null })
     await state.openReviewerImportPreviewOverlay()
     await state.confirmReviewerImportPreview()
     expect(state.reviewerImportStatus.value).toBe('done')
@@ -92,7 +107,7 @@ describe('reviewer import overlay state', () => {
     openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
     const harvestError = ipcError('export.harvest_failed')
     confirmMock.mockResolvedValue({
-      summary: { chapter_count: 1, row_count: 3, replaced_count: 0, harvest_candidate_count: null, harvest_error: harvestError },
+      summary: { chapter_count: 1, row_count: 3, replaced_count: 0, chapters: [], harvest_candidate_count: null, harvest_error: harvestError },
       error: null,
     })
     await state.openReviewerImportPreviewOverlay()
@@ -106,7 +121,7 @@ describe('reviewer import overlay state', () => {
     const afterImported = vi.fn()
     state.installReviewerImportHooks({ afterImported })
     openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
-    confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, harvest_candidate_count: 0, harvest_error: null }, error: null })
+    confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, chapters: [], harvest_candidate_count: 0, harvest_error: null }, error: null })
     await state.openReviewerImportPreviewOverlay()
     await state.confirmReviewerImportPreview()
     expect(afterImported).toHaveBeenCalledTimes(1)
@@ -127,7 +142,7 @@ describe('reviewer import overlay state', () => {
       const afterClosedWithHarvest = vi.fn()
       state.installReviewerImportHooks({ afterClosedWithHarvest })
       openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
-      confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, ...summary }, error: null })
+      confirmMock.mockResolvedValue({ summary: { chapter_count: 1, row_count: 3, replaced_count: 0, chapters: [], ...summary }, error: null })
       await state.openReviewerImportPreviewOverlay()
       await state.confirmReviewerImportPreview()
       await state.cancelReviewerImportPreview()
@@ -184,6 +199,155 @@ describe('reviewer import overlay state', () => {
     await state.openReviewerImportPreviewOverlay()
     await state.openReviewerImportPreviewOverlay()
     expect(openMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('import flow into hand joining', () => {
+  let state: Awaited<ReturnType<typeof fresh>>
+  beforeEach(async () => {
+    state = await fresh()
+  })
+
+  function match(chapterId: number, ord: number, unresolved: number, matched = 2, total = 3) {
+    return { chapter_id: chapterId, chapter_ord: ord, matched_rows: matched, total_rows: total, unresolved_count: unresolved }
+  }
+
+  async function confirmWith(chapters: ReturnType<typeof match>[], harvest: { count: number | null; error?: unknown } = { count: 0 }) {
+    const afterClosedWithHarvest = vi.fn()
+    state.installReviewerImportHooks({ afterClosedWithHarvest })
+    openMock.mockResolvedValue({ outcome: 'loaded', preview: preview() })
+    confirmMock.mockResolvedValue({
+      summary: {
+        chapter_count: chapters.length,
+        row_count: 3,
+        replaced_count: 0,
+        chapters,
+        harvest_candidate_count: harvest.count,
+        harvest_error: harvest.error ?? null,
+      },
+      error: null,
+    })
+    await state.openReviewerImportPreviewOverlay()
+    await state.confirmReviewerImportPreview()
+    await new Promise((r) => setTimeout(r, 0))
+    return afterClosedWithHarvest
+  }
+
+  function closeAlignment(chapterId: number, chainEnded = false) {
+    for (const listener of [...alignmentListeners]) listener({ chapterId, flow: {}, chainEnded })
+  }
+
+  async function settle() {
+    await new Promise((r) => setTimeout(r, 0))
+  }
+
+  it('opens hand joining on the mismatched Chapter, carrying that Chapter\'s own match numbers', async () => {
+    await confirmWith([match(10, 1, 0, 3, 3), match(30, 3, 1, 2, 3)])
+    expect(state.reviewerImportOverlayIsOpen.value).toBe(false)
+    expect(openAlignmentMock).toHaveBeenCalledTimes(1)
+    expect(openAlignmentMock).toHaveBeenCalledWith(30, { chapterIndex: 1, chapterCount: 1, matchedRows: 2, totalRows: 3, unresolved: 1 })
+  })
+
+  it('walks the mismatched Chapters in chapter_ord order, one at a time', async () => {
+    await confirmWith([match(50, 5, 1), match(30, 3, 2)])
+    expect(openAlignmentMock.mock.calls.map((c) => c[0])).toEqual([30])
+    expect(openAlignmentMock.mock.calls[0][1]).toMatchObject({ chapterIndex: 1, chapterCount: 2 })
+    refreshMock.mockResolvedValue({ refresh: { harvest_candidate_count: 0, harvest_error: null }, error: null })
+    closeAlignment(30)
+    await settle()
+    expect(openAlignmentMock.mock.calls.map((c) => c[0])).toEqual([30, 50])
+    expect(openAlignmentMock.mock.calls[1][1]).toMatchObject({ chapterIndex: 2, chapterCount: 2 })
+    expect(refreshMock).not.toHaveBeenCalled()
+  })
+
+  it('refreshes the harvest after the last Chapter and opens the harvest screen when it queued candidates', async () => {
+    const hook = await confirmWith([match(30, 3, 1)], { count: 0 })
+    refreshMock.mockResolvedValue({ refresh: { harvest_candidate_count: 4, harvest_error: null }, error: null })
+    closeAlignment(30)
+    await settle()
+    expect(refreshMock).toHaveBeenCalledTimes(1)
+    expect(hook).toHaveBeenCalledTimes(1)
+    expect(state.reviewerImportOverlayIsOpen.value).toBe(false)
+  })
+
+  it('decides on the refreshed count, not the count at import time', async () => {
+    const hook = await confirmWith([match(30, 3, 1)], { count: 7 })
+    refreshMock.mockResolvedValue({ refresh: { harvest_candidate_count: 0, harvest_error: null }, error: null })
+    closeAlignment(30)
+    await settle()
+    expect(hook).not.toHaveBeenCalled()
+    expect(state.reviewerImportOverlayIsOpen.value).toBe(true)
+    expect(state.reviewerImportStatus.value).toBe('done')
+    expect(state.reviewerImportSummary.value?.harvest_candidate_count).toBe(0)
+  })
+
+  it('Esc mid-chain ends the chain and goes to the harvest', async () => {
+    const hook = await confirmWith([match(30, 3, 1), match(50, 5, 1)])
+    refreshMock.mockResolvedValue({ refresh: { harvest_candidate_count: 2, harvest_error: null }, error: null })
+    closeAlignment(30, true)
+    await settle()
+    expect(openAlignmentMock).toHaveBeenCalledTimes(1)
+    expect(refreshMock).toHaveBeenCalledTimes(1)
+    expect(hook).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a close of hand joining that is not part of the flow', async () => {
+    await confirmWith([match(30, 3, 0)])
+    expect(openAlignmentMock).not.toHaveBeenCalled()
+    expect(alignmentListeners).toHaveLength(0)
+  })
+
+  it('everything matched with candidates opens the harvest straight away', async () => {
+    const hook = await confirmWith([match(10, 1, 0)], { count: 3 })
+    expect(openAlignmentMock).not.toHaveBeenCalled()
+    expect(refreshMock).not.toHaveBeenCalled()
+    expect(hook).toHaveBeenCalledTimes(1)
+    expect(state.reviewerImportOverlayIsOpen.value).toBe(false)
+  })
+
+  it('everything matched without candidates stays on the imported screen with the match numbers', async () => {
+    const hook = await confirmWith([match(10, 1, 0, 3, 3)], { count: 0 })
+    expect(hook).not.toHaveBeenCalled()
+    expect(state.reviewerImportOverlayIsOpen.value).toBe(true)
+    expect(state.reviewerImportStatus.value).toBe('done')
+    expect(state.reviewerImportMatchTotals.value).toEqual({ matched: 3, total: 3, unresolved: 0 })
+  })
+
+  it('an import-time harvest error skips the refresh and stops on the imported screen after hand joining', async () => {
+    const hook = await confirmWith([match(30, 3, 1)], { count: null, error: ipcError('export.harvest_failed') })
+    expect(openAlignmentMock).toHaveBeenCalledTimes(1)
+    closeAlignment(30)
+    await settle()
+    expect(refreshMock).not.toHaveBeenCalled()
+    expect(hook).not.toHaveBeenCalled()
+    expect(state.reviewerImportOverlayIsOpen.value).toBe(true)
+    expect(state.reviewerImportSummary.value?.harvest_error?.code).toBe('export.harvest_failed')
+  })
+
+  it('a refresh error keeps its error on the imported screen and opens no harvest', async () => {
+    const hook = await confirmWith([match(30, 3, 1)], { count: 0 })
+    refreshMock.mockResolvedValue({ refresh: { harvest_candidate_count: null, harvest_error: ipcError('export.harvest_failed') }, error: null })
+    closeAlignment(30)
+    await settle()
+    expect(hook).not.toHaveBeenCalled()
+    expect(state.reviewerImportOverlayIsOpen.value).toBe(true)
+    expect(state.reviewerImportSummary.value?.harvest_error?.code).toBe('export.harvest_failed')
+  })
+
+  it('a refresh command failure is shown as the harvest error, not swallowed', async () => {
+    const hook = await confirmWith([match(30, 3, 1)], { count: 0 })
+    refreshMock.mockResolvedValue({ refresh: null, error: ipcError('work.none_open') })
+    closeAlignment(30)
+    await settle()
+    expect(hook).not.toHaveBeenCalled()
+    expect(state.reviewerImportSummary.value?.harvest_error?.code).toBe('work.none_open')
+  })
+
+  it('reset during the chain drops the listener', async () => {
+    await confirmWith([match(30, 3, 1)])
+    expect(alignmentListeners).toHaveLength(1)
+    state.resetReviewerImport()
+    expect(alignmentListeners).toHaveLength(0)
   })
 })
 

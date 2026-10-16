@@ -28,10 +28,19 @@ export type ReviewerImportPreview = {
   image_rows_ignored: number
 }
 
+export type ReviewerImportChapterMatch = {
+  chapter_id: number
+  chapter_ord: number
+  matched_rows: number
+  total_rows: number
+  unresolved_count: number
+}
+
 export type ReviewerImportSummary = {
   chapter_count: number
   row_count: number
   replaced_count: number
+  chapters: ReviewerImportChapterMatch[]
   /** `null` when harvesting failed; the import itself is already written then. */
   harvest_candidate_count: number | null
   harvest_error: IpcError | null
@@ -47,11 +56,21 @@ export type ReviewerImportConfirmResult =
   | { summary: ReviewerImportSummary; error: null }
   | { summary: null; error: IpcError | null }
 
+export type ReviewerHarvestRefresh = {
+  harvest_candidate_count: number | null
+  harvest_error: IpcError | null
+}
+
+export type ReviewerHarvestRefreshResult =
+  | { refresh: ReviewerHarvestRefresh; error: null }
+  | { refresh: null; error: IpcError | null }
+
 export type ReviewerImportAckResult = { ok: boolean; error: IpcError | null }
 
 const CMD_OPEN_PREVIEW = 'reviewer_import_open_preview'
 const CMD_CONFIRM = 'reviewer_import_confirm'
 const CMD_CANCEL = 'reviewer_import_cancel'
+const CMD_REFRESH_HARVEST = 'reviewer_harvest_refresh'
 
 const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
@@ -134,14 +153,33 @@ function isPreview(value: unknown): value is ReviewerImportPreview {
   )
 }
 
+function isChapterMatch(value: unknown): value is ReviewerImportChapterMatch {
+  return (
+    isObject(value) &&
+    typeof value.chapter_id === 'number' &&
+    typeof value.chapter_ord === 'number' &&
+    typeof value.matched_rows === 'number' &&
+    typeof value.total_rows === 'number' &&
+    typeof value.unresolved_count === 'number'
+  )
+}
+
+function isHarvestFields(value: Record<string, unknown>): boolean {
+  return (
+    (value.harvest_candidate_count === null || typeof value.harvest_candidate_count === 'number') &&
+    (value.harvest_error === null || isIpcError(value.harvest_error))
+  )
+}
+
 function isSummary(value: unknown): value is ReviewerImportSummary {
   return (
     isObject(value) &&
     typeof value.chapter_count === 'number' &&
     typeof value.row_count === 'number' &&
     typeof value.replaced_count === 'number' &&
-    (value.harvest_candidate_count === null || typeof value.harvest_candidate_count === 'number') &&
-    (value.harvest_error === null || isIpcError(value.harvest_error))
+    Array.isArray(value.chapters) &&
+    value.chapters.every(isChapterMatch) &&
+    isHarvestFields(value)
   )
 }
 
@@ -165,6 +203,23 @@ export async function reviewerImportConfirm(): Promise<ReviewerImportConfirmResu
     return { summary: wire, error: null }
   } catch (err) {
     return { summary: null, error: failureOf(err, CMD_CONFIRM) }
+  }
+}
+
+/** Re-runs the harvest over the Work's groups (after hand joins). A harvest failure rides in `harvest_error`. */
+export async function reviewerHarvestRefresh(): Promise<ReviewerHarvestRefreshResult> {
+  try {
+    const wire = await invoke<unknown>(CMD_REFRESH_HARVEST)
+    if (!isObject(wire) || !isHarvestFields(wire)) return { refresh: null, error: malformed(wire, CMD_REFRESH_HARVEST) }
+    return {
+      refresh: {
+        harvest_candidate_count: wire.harvest_candidate_count as number | null,
+        harvest_error: wire.harvest_error as IpcError | null,
+      },
+      error: null,
+    }
+  } catch (err) {
+    return { refresh: null, error: failureOf(err, CMD_REFRESH_HARVEST) }
   }
 }
 

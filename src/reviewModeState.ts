@@ -6,6 +6,7 @@
  */
 import { computed, nextTick, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
+import { onAlignmentClosed } from './alignmentState'
 import { enterFocus } from './commands'
 import {
   alignmentOpen,
@@ -34,6 +35,9 @@ const MINE_OWNER = 'panel.review_mine'
 
 export type ReviewPairView = {
   key: string
+  /** 1-based place of the pair among `pairs`. */
+  position: number
+  labelKey: string
   groupId: number
   changed: boolean
   /** A difference or a decision: the pairs the jumps walk and the status line counts. */
@@ -78,11 +82,22 @@ export const reviewModeSegments = computed<AlignmentSegment[]>(() => [...segment
 export const reviewModeRows = computed<AlignmentRow[]>(() => rows.value)
 
 export const reviewModePairs = computed<ReviewPairView[]>(() =>
-  pairs.value.map((p) => {
+  pairs.value.map((p, index) => {
     const firstRow = p.row_ids.length > 0 ? rows.value.find((r) => r.id === p.row_ids[0]) : undefined
     const changed = p.spans.some((span) => span.kind !== 'equal')
     return {
       key: `g${p.group_id}`,
+      position: index + 1,
+      labelKey:
+        p.decision === 'accepted'
+          ? 'review.pair_accepted'
+          : p.decision === 'skipped'
+            ? 'review.pair_skipped'
+            : p.segment_ids.length === 0 || p.row_ids.length === 0
+              ? 'review.pair_index'
+              : changed
+                ? 'review.pair_changed'
+                : 'review.pair_same',
       groupId: p.group_id,
       changed,
       isChange: changed || p.decision !== null,
@@ -160,6 +175,10 @@ export const reviewModeChangeStats = computed(() => {
   const changes = reviewModePairs.value.filter((p) => p.isChange && p.hasRow)
   return { count: changes.length, handled: changes.filter((p) => p.decision !== null).length }
 })
+/** Segments plus reviewer rows in no group: the one count `AlignmentOverlay` shows for the same Chapter. */
+export const reviewModeUnresolvedCount = computed<number>(
+  () => unmatchedSegmentIds.value.length + unmatchedRowIds.value.length,
+)
 export const reviewModePendingAccept: DeepReadonly<Ref<PendingAccept | null>> = readonly(pendingAccept)
 export const reviewModeBusy: DeepReadonly<Ref<boolean>> = readonly(busy)
 export const reviewModeDiffMessage: DeepReadonly<Ref<ReviewDiffMessage | null>> = readonly(diffMessage)
@@ -427,3 +446,8 @@ export async function reviewSkipChange(): Promise<void> {
     busy.value = false
   }
 }
+
+onAlignmentClosed((event) => {
+  if (status.value !== 'open' || openChapterId === null || event.chapterId !== openChapterId) return
+  void reload(openChapterId, sequence)
+})

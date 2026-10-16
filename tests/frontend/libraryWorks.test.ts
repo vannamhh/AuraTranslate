@@ -947,3 +947,27 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     expect(sortOptionValues).toEqual(['updated_desc', 'name_asc'])
   })
 })
+
+describe('modes/LibraryMode.vue — nút Nhập bản reviewer trên ô Tác phẩm', () => {
+  let wrapper: ReturnType<typeof mount> | null = null
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  it('chỉ ô đang chọn có nút, và nút mang dấu mở để tiêu điểm về đúng nó', async () => {
+    mockInvokeForMount([WORK_ROW_A, WORK_ROW_B])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryWorks')
+    wrapper = mount(LibraryMode)
+    await state.loadWorks()
+    await wrapper.vm.$nextTick()
+
+    const buttons = wrapper.findAll('[data-library-work-reviewer-import]')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]!.attributes('data-reviewer-import-open')).toBeDefined()
+    expect(buttons[0]!.element.closest('.work-cell')?.querySelector('.work-name')?.textContent).toBe('A')
+    expect(buttons[0]!.attributes('disabled')).toBeUndefined()
+  })
+})

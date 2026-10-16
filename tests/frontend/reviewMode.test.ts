@@ -14,6 +14,7 @@ import { applyPreset, isDockSuspended, panelRing, togglePanel } from '../../src/
 import { declareFocus, dispatch, enterFocus, installCommands, MODE_IDS, releaseFocus } from '../../src/commands'
 import type { CommandDeps } from '../../src/commands'
 import { currentMode, setMode } from '../../src/modes/modeState'
+import * as alignmentState from '../../src/alignmentState'
 import * as state from '../../src/reviewModeState'
 import { t } from '../../src/i18n'
 
@@ -281,14 +282,14 @@ describe('mounted Review Mode', () => {
     expect(mine.exists()).toBe(true)
     expect(copy.exists()).toBe(true)
     expect(mine.findAll('[data-review-mine-item]').map((e) => e.text())).toEqual([
-      'dịch một',
-      'dịch hai',
-      t('review.untranslated'),
+      `${t('review.pair_changed', { index: '1' })}dịch một`,
+      `${t('review.pair_same', { index: '2' })}dịch hai`,
+      `${t('review.pair_same', { index: '3' })}${t('review.untranslated')}`,
     ])
     expect(copy.findAll('[data-review-copy-item]').map((e) => e.text())).toEqual([
-      'dịch sửa một',
-      `${t('review.row_caption')}dịch hai`,
-      t('review.row_empty'),
+      `${t('review.pair_index', { index: '1' })}dịch sửa một`,
+      `${t('review.pair_index', { index: '2' })}${t('review.row_caption')}dịch hai`,
+      `${t('review.pair_index', { index: '3' })}${t('review.row_empty')}`,
     ])
     expect(w.find('[data-review-dock] input, [data-review-dock] textarea, [data-review-dock] [contenteditable]').exists()).toBe(false)
 
@@ -514,8 +515,88 @@ describe('diff rendering', () => {
   it('identical pair carries no ins or del on either side', async () => {
     const w = await openWith(diffOf(pair(2, [11], [101], [eq('giống hệt')])))
     expect(w.find('[data-review-dock]').findAll('ins, del')).toHaveLength(0)
-    expect(w.find('[data-review-mine]').text()).toBe('giống hệt')
+    expect(w.find('[data-review-mine]').text()).toBe(`${t('review.pair_same', { index: '1' })}giống hệt`)
     expect(w.find('[data-review-copy]').text()).toContain('giống hệt')
+  })
+
+  it('labels each pair by its place among the pairs, on both panels', async () => {
+    const w = await openWith(
+      diffOf(
+        pair(5, [10], [100], [eq('a'), ins('b')]),
+        pair(6, [11], [101], [eq('c')]),
+        pair(7, [12], [102], [del('x')], 'accepted'),
+        pair(8, [12], [102], [del('y')], 'skipped'),
+      ),
+    )
+    const mine = w.find('[data-review-mine]').findAll('[data-review-pair-label]')
+    expect(mine.map((e) => e.text())).toEqual([
+      t('review.pair_changed', { index: '1' }),
+      t('review.pair_same', { index: '2' }),
+      t('review.pair_accepted', { index: '3' }),
+      t('review.pair_skipped', { index: '4' }),
+    ])
+    expect(mine.map((e) => e.attributes('data-review-label'))).toEqual(['changed', 'same', 'accepted', 'skipped'])
+    const copy = w.find('[data-review-copy]').findAll('[data-review-pair-label]')
+    expect(copy.map((e) => e.text())).toEqual(['Đoạn 1', 'Đoạn 2', 'Đoạn 3', 'Đoạn 4'])
+  })
+
+  it('a pair missing one side carries only its number, never "không đổi"', async () => {
+    const w = await openWith(diffOf(pair(5, [10], [], [eq('a')]), pair(6, [], [100], [eq('b')])))
+    const mine = w.find('[data-review-mine]').findAll('[data-review-pair-label]')
+    expect(mine.map((e) => e.text())).toEqual([
+      t('review.pair_index', { index: '1' }),
+      t('review.pair_index', { index: '2' }),
+    ])
+  })
+
+  it('shows the hand-join link with the unresolved count only while something is unresolved', async () => {
+    const w = await openWith(defaultDiff(), { unmatched_segment_ids: [11, 12], unmatched_row_ids: [101] })
+    const link = w.find('[data-review-align-link]')
+    expect(link.exists()).toBe(true)
+    expect(link.attributes('data-alignment-open')).toBeDefined()
+    expect(link.text()).toBe(t('review.align_link', { count: '3' }))
+    expect(state.reviewModeUnresolvedCount.value).toBe(3)
+  })
+
+  it('has no hand-join link when everything is grouped, and still carries the footnote', async () => {
+    const w = await openWith(defaultDiff())
+    expect(w.find('[data-review-align-link]').exists()).toBe(false)
+    expect(w.find('[data-review-footnote]').text()).toBe(t('review.footnote'))
+  })
+
+  it('reads the diff again when hand joining closes on the open Chapter, so the link goes away without reopening', async () => {
+    const w = await openWith(defaultDiff(), { unmatched_segment_ids: [11], unmatched_row_ids: [101] })
+    expect(w.find('[data-review-align-link]').exists()).toBe(true)
+    openMock.mockResolvedValue(ok(alignment({ unmatched_segment_ids: [], unmatched_row_ids: [] })))
+    const diffCalls = diffMock.mock.calls.length
+    await alignmentState.openAlignmentOverlay(7)
+    alignmentState.closeAlignmentOverlay()
+    await settle()
+    expect(diffMock.mock.calls.length).toBeGreaterThan(diffCalls)
+    expect(w.find('[data-review-align-link]').exists()).toBe(false)
+    expect(state.reviewModeStatus.value).toBe('open')
+    alignmentState.resetAlignment()
+  })
+
+  it('ignores a hand-join close on another Chapter', async () => {
+    await openWith(defaultDiff())
+    openMock.mockResolvedValue(ok(alignment({ chapter_id: 99 })))
+    await alignmentState.openAlignmentOverlay(99)
+    const diffCalls = diffMock.mock.calls.length
+    alignmentState.closeAlignmentOverlay()
+    await settle()
+    expect(diffMock.mock.calls.length).toBe(diffCalls)
+    alignmentState.resetAlignment()
+  })
+
+  it('a failed re-read after hand joining lands in the existing error state', async () => {
+    await openWith(defaultDiff(), { unmatched_segment_ids: [11] })
+    await alignmentState.openAlignmentOverlay(7)
+    openMock.mockResolvedValue(failure('store.read_failed'))
+    alignmentState.closeAlignmentOverlay()
+    await settle()
+    expect(state.reviewModeStatus.value).toBe('error')
+    alignmentState.resetAlignment()
   })
 
   it('ungrouped items are listed plain and labelled, never marked', async () => {

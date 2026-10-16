@@ -944,3 +944,84 @@ describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15
     expect((input.element as HTMLInputElement).value).toBe('')
   })
 })
+
+describe('modes/libraryChapters.ts::openCurrentLibraryWorkThenReviewerImport', () => {
+  const openPicker = vi.fn()
+  let pickerInstalled = false
+  const WORK_ROW = {
+    work_id: 'id-a',
+    atproj_path: '/tmp/A.atproj',
+    name: 'A',
+    source_lang: 'zh',
+    genre: '',
+    created_at: '2026-08-01T00:00:00.000Z',
+    updated_at: '2026-08-01T00:00:00.000Z',
+    chapter_count: 1,
+    status: 'not_started',
+    status_is_override: false,
+    chapter_done_count: 0,
+  }
+
+  async function prepare(openWorkResult: 'ok' | 'error') {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'library_list_works') {
+        return Promise.resolve({ total: 1, matched: 1, works: [WORK_ROW], genres: [], source_langs: [] })
+      }
+      if (cmd === 'open_work') {
+        if (openWorkResult === 'error') return Promise.reject(WORK_NONE_OPEN_ERROR)
+        return Promise.resolve({ meta: { name: 'A' }, folder: '/tmp/A', chapter_id: 1 })
+      }
+      if (cmd === 'list_chapters') return Promise.resolve([])
+      return Promise.reject(WORK_NONE_OPEN_ERROR)
+    })
+    if (!pickerInstalled) {
+      const commands = await import('../../src/commands')
+      commands.installCommands({ openReviewerImportPreview: openPicker } as never)
+      pickerInstalled = true
+    }
+    openPicker.mockClear()
+    const works = await import('../../src/modes/libraryWorks')
+    await works.loadWorks()
+    const state = await import('../../src/modes/libraryChapters')
+    return { state, openPicker }
+  }
+
+  it('opens the Work first, then the file picker', async () => {
+    ketQuaFlush.value = 'clean'
+    const { state, openPicker } = await prepare('ok')
+    await state.openCurrentLibraryWorkThenReviewerImport()
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'open_work')).toBe(true)
+    expect(state.libraryWorkPageWork.value?.work_id).toBe('id-a')
+    expect(openPicker).toHaveBeenCalledTimes(1)
+  })
+
+  it('a failed open of the Work never reaches the file picker', async () => {
+    ketQuaFlush.value = 'clean'
+    const { state, openPicker } = await prepare('error')
+    await state.openCurrentLibraryWorkThenReviewerImport()
+    expect(state.libraryWorkPageWork.value).toBeNull()
+    expect(openPicker).not.toHaveBeenCalled()
+  })
+
+  it('a blocked open (editor not flushed) never reaches the file picker', async () => {
+    ketQuaFlush.value = 'still-dirty'
+    const { state, openPicker } = await prepare('ok')
+    await state.openCurrentLibraryWorkThenReviewerImport()
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'open_work')).toBe(false)
+    expect(openPicker).not.toHaveBeenCalled()
+    ketQuaFlush.value = 'clean'
+  })
+})
+
+describe('modes/LibraryWorkPage.vue — nút Nhập bản reviewer của thanh hành động', () => {
+  it('mang dấu mở để tiêu điểm về đúng nút khi đóng màn nhập', async () => {
+    mockInvokeForChaptersMount([CHAPTER_ROW_A])
+    const { default: Page } = await import('../../src/modes/LibraryWorkPage.vue')
+    const wrapper = mount(Page)
+    await wrapper.vm.$nextTick()
+    const button = wrapper.find('[data-library-chapters-reviewer-import]')
+    expect(button.exists()).toBe(true)
+    expect(button.attributes('data-reviewer-import-open')).toBeDefined()
+    wrapper.unmount()
+  })
+})

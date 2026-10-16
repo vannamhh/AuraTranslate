@@ -84,6 +84,30 @@ pub struct ChapterAlignment {
     pub is_resolved: bool,
 }
 
+impl ChapterAlignment {
+    /// Reviewer rows in a group with both sides, all reviewer rows, and rows plus segments in no group.
+    pub fn match_counts(&self) -> MatchCounts {
+        let two_sided: HashSet<i64> = self
+            .groups
+            .iter()
+            .filter(|g| !g.segment_ids.is_empty() && !g.row_ids.is_empty())
+            .flat_map(|g| g.row_ids.iter().copied())
+            .collect();
+        MatchCounts {
+            matched_rows: two_sided.len(),
+            total_rows: self.rows.len(),
+            unresolved: self.unmatched_row_ids.len() + self.unmatched_segment_ids.len(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MatchCounts {
+    pub matched_rows: usize,
+    pub total_rows: usize,
+    pub unresolved: usize,
+}
+
 #[derive(Debug)]
 pub enum AlignmentError {
     Copy(ReviewCopyError),

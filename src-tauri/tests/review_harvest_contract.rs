@@ -8,11 +8,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::chapter::merge_chapter_into_previous;
 use auratranslate_lib::commands::export::{
     PendingReviewerImportState, ReviewerImportSummaryWire, export_docx_two_column,
-    reviewer_import_confirm, reviewer_import_preview,
+    reviewer_harvest_refresh, reviewer_import_confirm, reviewer_import_preview,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::export::{
-    ExportScope, HarvestFinding, ImageMode, harvest_work, read_review_copy,
+    ExportScope, HarvestFinding, ImageMode, harvest_work, join, read_alignment, read_review_copy,
 };
 use auratranslate_lib::core::glossary::{
     Category, GlossaryTier, TermOrigin, add_manual_term, approve_candidate,
@@ -783,6 +783,61 @@ fn approving_two_of_three_harvest_candidates_one_id_at_a_time_leaves_exactly_one
             Some(proposed.as_str())
         );
     }
+    finish(&[&mine, &reviewer]);
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_group_joined_by_hand_after_the_import_gives_candidates_when_the_harvest_is_refreshed() {
+    let (mine_rows, mut their_rows) = lines(4, 4);
+    their_rows[3] = (
+        "别处，无关。".to_owned(),
+        format!("{BAC_LUONG_SWAPPED} chuyện khác hẳn."),
+    );
+    let mine = build("refresh-mine", &[mine_rows]);
+    let reviewer = build("refresh-rev", &[their_rows]);
+    let (global, dir) = global_store("refresh");
+    work_term(&mine, &global, "北凉王", BAC_LUONG);
+
+    let summary = mine.import_with(Some(&global), &reviewer.docx());
+    let before = pending_candidates(&mine.open.store).expect("doc hang cho");
+    let before_seen = before[0].review_harvest.as_ref().map(|d| d.seen_count);
+    assert_eq!(summary.chapters[0].unresolved_count, 2);
+
+    let alignment = read_alignment(&mine.open.store, mine.chapters[0]).expect("doc noi tay");
+    join(
+        &mine.open.store,
+        mine.chapters[0],
+        &alignment.unmatched_segment_ids,
+        &alignment.unmatched_row_ids,
+    )
+    .expect("noi tay");
+    let refreshed = reviewer_harvest_refresh(Some(&mine.open), Some(&global)).expect("lam moi");
+
+    let after = pending_candidates(&mine.open.store).expect("doc hang cho");
+    let after_seen = after[0].review_harvest.as_ref().map(|d| d.seen_count);
+    assert_eq!(
+        (refreshed.harvest_error.as_ref(), after.len()),
+        (None, 1),
+        "chay lai cap nhat cung mot ung vien, khong them hang"
+    );
+    assert_eq!((before_seen, after_seen), (Some(3), Some(4)));
+    finish(&[&mine, &reviewer]);
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn refreshing_the_harvest_without_a_global_store_reports_the_error_and_without_a_work_fails() {
+    let (mine, reviewer, global, dir) = setup("refresh-err", 4, 4);
+    let missing = reviewer_harvest_refresh(Some(&mine.open), None).expect("lam moi");
+    assert_eq!(
+        (
+            missing.harvest_candidate_count,
+            missing.harvest_error.is_some()
+        ),
+        (None, true)
+    );
+    assert!(reviewer_harvest_refresh(None, Some(&global)).is_err());
     finish(&[&mine, &reviewer]);
     let _ = fs::remove_dir_all(dir);
 }

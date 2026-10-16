@@ -162,6 +162,12 @@ const EXEMPT = new Map([
       'listener: hàm nhả mất, listener ở lại.',
   ],
   [
+    'src/alignmentState.ts::closedListeners',
+    'Người nghe `onAlignmentClosed`, không phải dữ liệu Tác phẩm: Review Mode đăng ký một lần lúc ' +
+      'nạp module, luồng nhập tự huỷ đăng ký khi chuỗi kết thúc. Dọn nó cắt im lặng việc Review ' +
+      'Mode đọc lại diff sau Nối tay.',
+  ],
+  [
     'src/tokens/fonts.ts::inflight',
     'Chống nạp font hai lần trong MỘT phiên. Font là tài nguyên cấp ứng dụng, không theo Tác ' +
       'phẩm — CSP ghim `$RESOURCE/fonts/**`, không có đường nào tải font theo Tác phẩm.',

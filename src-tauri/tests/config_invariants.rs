@@ -1501,6 +1501,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/export.rs",
+            "pub fn reviewer_harvest_refresh(\n        app: tauri::AppHandle",
+            "chay lai thu hoach thuat ngu tren ban reviewer va ghi hang cho ung vien xuong global.db va project.db",
+        ),
+        (
+            "src/commands/export.rs",
             "pub fn reviewer_import_cancel(app: tauri::AppHandle",
             "khoa `PendingReviewerImportState`, mutex ma `reviewer_import_confirm` giu suot luot ghi",
         ),
@@ -2139,7 +2144,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
         "CHUA DO -- chu: Dev. Bon vo tra tu dien; duong tra cuu nong co nguong NFR rieng, chua \
          ai do no o TANG VO.",
     ),
-    ("src/commands/export.rs", 7, 7, 7, ""),
+    ("src/commands/export.rs", 7, 8, 8, ""),
     ("src/commands/glossary.rs", 9, 8, 8, ""),
     ("src/commands/library.rs", 3, 7, 7, ""),
     ("src/commands/lifecycle.rs", 1, 3, 3, ""),
@@ -2332,9 +2337,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (100, 62),
+        (100, 63),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         100/62.\n\n\
+         100/63.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

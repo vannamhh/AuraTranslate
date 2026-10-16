@@ -33,12 +33,15 @@ onBeforeUnmount(() => registerReviewScroller('mine', null))
           :data-review-current="item.pair.key === reviewModeCurrentPairKey ? '' : undefined"
           data-review-mine-item
         >
+          <span
+            class="review-bar-label"
+            :data-review-label="item.pair.decision ?? (item.pair.changed ? 'changed' : 'same')"
+            data-review-pair-label
+          >{{ t(item.pair.labelKey, { index: String(item.pair.position) }) }}</span>
           <span v-if="!item.pair.hasSegment" class="review-empty">{{ t('review.no_counterpart') }}</span>
           <span v-else-if="item.pair.mine.length === 0" class="review-empty">{{ t('review.untranslated') }}</span>
           <ReviewSpans v-else :spans="item.pair.mine" />
-          <span v-if="item.pair.decision === 'accepted'" class="review-kind" data-review-label="accepted">{{ t('review.label_accepted') }}</span>
-          <span v-else-if="item.pair.decision === 'skipped'" class="review-kind" data-review-label="skipped">{{ t('review.label_skipped') }}</span>
-          <span v-else-if="item.pair.isChange && !item.pair.acceptable" class="review-kind" data-review-label="manual">{{ t('review.label_manual') }}</span>
+          <span v-if="item.pair.isChange && !item.pair.acceptable && item.pair.decision === null" class="review-kind" data-review-label="manual">{{ t('review.label_manual') }}</span>
           <span
             v-if="item.pair.key === reviewModeCurrentPairKey && (item.pair.acceptable || item.pair.hasRow) && item.pair.decision !== 'accepted'"
             class="review-actions"
@@ -145,6 +148,13 @@ onBeforeUnmount(() => registerReviewScroller('mine', null))
 
 .review-act:disabled {
   cursor: default;
+  color: var(--color-on-surface-variant);
+}
+
+.review-bar-label {
+  display: block;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
 }
 

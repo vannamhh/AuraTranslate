@@ -243,7 +243,7 @@ const COMMAND_FLOOR = 250
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 214
+const CLICK_FLOOR = 228
 const DISPATCH_FLOOR = 322
 
 {
@@ -2389,6 +2389,7 @@ const R_SOURCE_CUT_EXEMPT = 'calls `setEditorSourceCut(...)` directly — a name
 /** @type {Record<string, HandlerExpectation>} */
 const HANDLER_TABLE = {
   'src/AlignmentOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/AlignmentOverlay.vue::onEscape': { ids: ['export.alignment.close'] },
   'src/AlignmentOverlay.vue::onKeydown': {
     ids: [
       'export.alignment.next',

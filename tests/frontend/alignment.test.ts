@@ -276,3 +276,109 @@ describe('AlignmentOverlay.vue keyboard', () => {
     wrapper.unmount()
   })
 })
+
+describe('AlignmentOverlay.vue two-column layout and import flow', () => {
+  const flow = { chapterIndex: 2, chapterCount: 3, matchedRows: 5, totalRows: 7, unresolved: 2 }
+
+  async function mountOpen(flowArg: typeof flow | null = null, deps: (state: Awaited<ReturnType<typeof freshState>>) => Partial<CommandDeps> = () => ({})) {
+    const state = await freshState()
+    const commands = await import('../../src/commands')
+    commands.installCommands(deps(state) as CommandDeps)
+    const { t } = await import('../../src/i18n')
+    const AlignmentOverlay = (await import('../../src/AlignmentOverlay.vue')).default
+    openMock.mockResolvedValue(ok(alignment()))
+    await state.openAlignmentOverlay(7, flowArg)
+    const wrapper = mount(AlignmentOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    return { state, wrapper, t }
+  }
+
+  it('names the two columns and marks pending rows with ? and grouped rows with the arrow', async () => {
+    const { wrapper, t } = await mountOpen()
+    expect(wrapper.get('.al-cols').text()).toContain(t('alignment.col_mine'))
+    expect(wrapper.get('.al-cols').text()).toContain(t('alignment.col_reviewer'))
+    const rows = wrapper.findAll('.al-row')
+    expect(rows.map((r) => (r.find('.al-link-pending').exists() ? '?' : r.find('.al-link').text()))).toEqual(['?', '?', '→', '→'])
+    expect(rows[0]!.findAll('.al-cell-empty')).toHaveLength(1)
+    expect(rows[0]!.text()).toContain(t('alignment.no_counterpart'))
+    expect(rows.filter((r) => r.classes().includes('al-row-grouped'))).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('labels the join button by the number of marked items', async () => {
+    const { state, wrapper, t } = await mountOpen()
+    expect(wrapper.get('.al-act-primary').text()).toBe(t('alignment.join_none'))
+    state.toggleAlignmentMark()
+    state.nextAlignmentEntry()
+    state.toggleAlignmentMark()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('.al-act-primary').text()).toBe(t('alignment.join_n', { count: '2' }))
+    wrapper.unmount()
+  })
+
+  it('shows the position hint and the remaining-items button, which walks to the next unprocessed item', async () => {
+    const next = vi.fn()
+    const { wrapper, t } = await mountOpen(null, () => ({ nextAlignmentEntry: next }))
+    expect(wrapper.text()).toContain(t('alignment.position_hint', { index: '1', count: '2' }))
+    const see = wrapper.findAll('button').find((b) => b.text() === t('alignment.see_remaining', { count: '1' }))
+    expect(see).toBeDefined()
+    await see!.trigger('click')
+    expect(next).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('opened by hand it carries no import header; opened by the import flow it names the numbers and the Chapter', async () => {
+    const plain = await mountOpen()
+    expect(plain.wrapper.text()).not.toContain(plain.t('alignment.flow_matched', { matched: '5', total: '7', unresolved: '2' }))
+    plain.wrapper.unmount()
+    document.body.innerHTML = ''
+
+    const { wrapper, t } = await mountOpen(flow)
+    expect(wrapper.text()).toContain(t('alignment.flow_matched', { matched: '5', total: '7', unresolved: '2' }))
+    expect(wrapper.text()).toContain(t('alignment.flow_chapter', { index: '2', count: '3' }))
+    expect(wrapper.text()).toContain(t('alignment.next_chapter'))
+    wrapper.unmount()
+  })
+
+  it('the last Chapter of the flow closes with the plain close label and no Chapter step', async () => {
+    const { wrapper, t } = await mountOpen({ ...flow, chapterIndex: 3 })
+    expect(wrapper.text()).not.toContain(t('alignment.next_chapter'))
+    wrapper.unmount()
+  })
+
+  it('a single-Chapter flow omits the Chapter position', async () => {
+    const { wrapper, t } = await mountOpen({ ...flow, chapterIndex: 1, chapterCount: 1 })
+    expect(wrapper.text()).not.toContain(t('alignment.flow_chapter', { index: '1', count: '1' }))
+    wrapper.unmount()
+  })
+
+  it('Esc ends the chain, while closing by the button does not', async () => {
+    const { state, wrapper } = await mountOpen(flow, (s) => ({ closeAlignment: () => s.closeAlignmentOverlay() }))
+    const events: Array<{ chapterId: number | null; chainEnded: boolean; hasFlow: boolean }> = []
+    state.onAlignmentClosed((e) => events.push({ chapterId: e.chapterId, chainEnded: e.chainEnded, hasFlow: e.flow !== null }))
+
+    await wrapper.get('.al-scrim').trigger('keydown', { key: 'Escape' })
+    expect(events).toEqual([{ chapterId: 7, chainEnded: true, hasFlow: true }])
+
+    openMock.mockResolvedValue(ok(alignment()))
+    await state.openAlignmentOverlay(7, flow)
+    state.closeAlignmentOverlay()
+    expect(events[1]).toEqual({ chapterId: 7, chainEnded: false, hasFlow: true })
+    wrapper.unmount()
+  })
+
+  it('closing an overlay that is not open emits nothing, and the chain flag does not leak into the next open', async () => {
+    const state = await freshState()
+    const seen: boolean[] = []
+    state.onAlignmentClosed((e) => seen.push(e.chainEnded))
+    state.closeAlignmentOverlay()
+    expect(seen).toEqual([])
+    openMock.mockResolvedValue(ok(alignment()))
+    await state.openAlignmentOverlay(7)
+    state.endAlignmentChain()
+    state.closeAlignmentOverlay()
+    await state.openAlignmentOverlay(7)
+    state.closeAlignmentOverlay()
+    expect(seen).toEqual([true, false])
+  })
+})

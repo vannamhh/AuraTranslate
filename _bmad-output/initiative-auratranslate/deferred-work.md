@@ -13247,3 +13247,7 @@ chính nó.
   summary: Lượt dùng thật trong app: tỉ lệ quyết định trên dải Proofreader và Chỗ đã bỏ qua sau quét, nhận, Bỏ qua, Hoàn lại và mở lại Tác phẩm; Chế độ đọc gỡ từng dấu, "Bỏ hết đánh dấu" hai bước với Esc, "Sửa lần lượt" sang Workspace với nút "Chỗ kế tiếp (n/m)", dòng xuất xứ Chương; bố cục thanh công cụ, mốc cuối, lớp phủ dấu so mockup. `e2e/specs/story-12-15-proofread-ratio-reading-marks.e2e.mjs` đã viết, chưa chạy (đi qua lệnh IPC thật, không qua quét mô hình).
   evidence: happy-dom không tính hình học và CSS có phạm vi; webview e2e đứng ở `tauri://localhost` nên chưa có spec nào chạy được.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-review-mode-nhap-ban-reviewer-noi-tay-plan.md`
+  summary: Lượt dùng thật: nhập một `.docx` reviewer có đoạn gộp ở hai Chương → Nối tay đi lần lượt "Chương i/n" → màn thu hoạch có cặp nối tay; nhãn "Đoạn N · …", chú thích chân và link Nối tay của Review Mode; nút Nhập bản reviewer trên thẻ Tác phẩm. `e2e/specs/story-12-16-reviewer-import-hand-join.e2e.mjs` chỉ mở Nối tay rỗng từ `Công cụ ▾`, chưa chạy.
+  evidence: hộp chọn tệp reviewer là hộp thoại gốc do Rust mở (AD-48), WebDriver không lái được; webview e2e đứng ở `tauri://localhost`. Chuỗi chỉ được canh bằng `reviewerImport.test.ts` và `review_harvest_contract.rs`.
+  Chủ: Epic 12.

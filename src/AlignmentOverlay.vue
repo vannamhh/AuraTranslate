@@ -12,6 +12,8 @@ import {
   alignmentCursor,
   alignmentData,
   alignmentEntries,
+  alignmentFlow,
+  endAlignmentChain,
   alignmentLoadError,
   alignmentMarkedRows,
   alignmentMarkedSegments,
@@ -37,7 +39,15 @@ const groupById = computed(() => new Map((alignmentData.value?.groups ?? []).map
 const pendingCount = computed(
   () => (alignmentData.value?.unmatched_segment_ids.length ?? 0) + (alignmentData.value?.unmatched_row_ids.length ?? 0),
 )
-const firstGroupIndex = computed(() => pendingCount.value)
+const remainingAfterCursor = computed(() => Math.max(0, pendingCount.value - Math.min(alignmentCursor.value + 1, pendingCount.value)))
+const markedCount = computed(() => alignmentMarkedSegments.value.length + alignmentMarkedRows.value.length)
+const hasNextChapter = computed(() => alignmentFlow.value !== null && alignmentFlow.value.chapterIndex < alignmentFlow.value.chapterCount)
+
+function onEscape(): void {
+  endAlignmentChain()
+  dispatch('export.alignment.close')
+}
+
 
 function rowLabelKey(rowId: number): string {
   const row = rowById.value.get(rowId)
@@ -144,7 +154,7 @@ function onKeydown(event: KeyboardEvent): void {
   <div
     v-if="alignmentOverlayIsOpen"
     class="al-scrim"
-    @keydown.esc="dispatch('export.alignment.close')"
+    @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
     @keydown="onKeydown"
   >
@@ -152,7 +162,8 @@ function onKeydown(event: KeyboardEvent): void {
       <header class="al-head">
         <h2 id="al-title" class="al-title">{{ t('alignment.title') }}</h2>
         <button type="button" class="al-close" @click="dispatch('export.alignment.close')">
-          {{ t('command.export.alignment.close') }}
+          <!-- aura-allow-text: result of t() chosen in the template. -->
+          {{ hasNextChapter ? t('alignment.next_chapter') : t('command.export.alignment.close') }}
         </button>
       </header>
 
@@ -167,54 +178,79 @@ function onKeydown(event: KeyboardEvent): void {
       <template v-else-if="alignmentStatus === 'loaded' && alignmentData !== null">
         <!-- aura-allow-text: result of t() with the file name interpolated. -->
         <p class="al-note">{{ t('alignment.file_label', { file_name: alignmentData.file_name }) }}</p>
+        <p v-if="alignmentFlow !== null" class="al-note">
+          <!-- aura-allow-text: result of t() with the import numbers interpolated. -->
+          {{
+            t('alignment.flow_matched', {
+              matched: String(alignmentFlow.matchedRows),
+              total: String(alignmentFlow.totalRows),
+              unresolved: String(alignmentFlow.unresolved),
+            })
+          }}
+          <template v-if="alignmentFlow.chapterCount > 1">
+            <!-- aura-allow-text: result of t() with the Chapter position interpolated. -->
+            {{ t('alignment.flow_chapter', { index: String(alignmentFlow.chapterIndex), count: String(alignmentFlow.chapterCount) }) }}
+          </template>
+        </p>
         <p class="al-status" role="status">
           <!-- aura-allow-text: result of t() with the count interpolated. -->
           {{ alignmentData.is_resolved ? t('alignment.resolved') : t('alignment.unresolved', { count: String(pendingCount) }) }}
         </p>
 
-        <h3 class="al-sub">{{ t('alignment.pending_heading') }}</h3>
+        <div class="al-cols" aria-hidden="true">
+          <span>{{ t('alignment.col_mine') }}</span>
+          <span></span>
+          <span>{{ t('alignment.col_reviewer') }}</span>
+        </div>
         <p v-if="pendingCount === 0" class="al-note">{{ t('alignment.pending_empty') }}</p>
         <ul class="al-list">
           <template v-for="(entry, i) in alignmentEntries" :key="entry.kind + ':' + entry.id">
-            <li v-if="i === firstGroupIndex"><h3 class="al-sub al-sub-groups">{{ t('alignment.groups_heading') }}</h3></li>
-            <li class="al-row" :class="{ 'al-row-current': i === alignmentCursor }">
+            <li class="al-row" :class="{ 'al-row-current': i === alignmentCursor, 'al-row-grouped': entry.kind === 'group' }">
               <label class="al-row-label">
                 <input v-model="cursorModel" type="radio" name="al-row-cursor" class="al-sr-only" :value="i" />
 
                 <template v-if="entry.kind === 'segment' && segmentById.get(entry.id) !== undefined">
-                  <span class="al-side">
-                    <!-- aura-allow-text: result of t() with the ordinal interpolated. -->
-                    {{ t('alignment.side_segment', { ord: String(segmentById.get(entry.id)?.ord ?? '') }) }}
+                  <span class="al-cell">
+                    <!-- aura-allow-text: data (segment text). -->
+                    <span class="al-text">{{ segmentById.get(entry.id)?.target_text }}</span>
+                    <span v-if="alignmentMarkedSegments.includes(entry.id)" class="al-mark" aria-hidden="true">✓</span>
+                    <span v-if="alignmentMarkedSegments.includes(entry.id)" class="al-sr-only">{{ t('alignment.marked') }}</span>
                   </span>
-                  <!-- aura-allow-text: data (segment text). -->
-                  <span class="al-text">{{ segmentById.get(entry.id)?.source_text }}</span>
-                  <!-- aura-allow-text: data (segment text). -->
-                  <span class="al-text">{{ segmentById.get(entry.id)?.target_text }}</span>
-                  <span v-if="alignmentMarkedSegments.includes(entry.id)" class="al-mark" aria-hidden="true">✓</span>
-                  <span v-if="alignmentMarkedSegments.includes(entry.id)" class="al-sr-only">{{ t('alignment.marked') }}</span>
+                  <span class="al-link al-link-pending" aria-hidden="true">?</span>
+                  <span class="al-cell al-cell-empty">{{ t('alignment.no_counterpart') }}</span>
                 </template>
 
                 <template v-else-if="entry.kind === 'row' && rowById.get(entry.id) !== undefined">
-                  <span class="al-side">{{ t(rowLabelKey(entry.id)) }}</span>
-                  <!-- aura-allow-text: data (reviewer row text). -->
-                  <span class="al-text">{{ rowById.get(entry.id)?.source_text ?? t('alignment.source_missing') }}</span>
-                  <!-- aura-allow-text: data (reviewer row text). -->
-                  <span class="al-text">{{ rowById.get(entry.id)?.target_text }}</span>
-                  <span v-if="alignmentMarkedRows.includes(entry.id)" class="al-mark" aria-hidden="true">✓</span>
-                  <span v-if="alignmentMarkedRows.includes(entry.id)" class="al-sr-only">{{ t('alignment.marked') }}</span>
+                  <span class="al-cell al-cell-empty">{{ t('alignment.no_counterpart') }}</span>
+                  <span class="al-link al-link-pending" aria-hidden="true">?</span>
+                  <span class="al-cell">
+                    <span class="al-side">{{ t(rowLabelKey(entry.id)) }}</span>
+                    <!-- aura-allow-text: data (reviewer row text). -->
+                    <span class="al-text">{{ rowById.get(entry.id)?.target_text }}</span>
+                    <span v-if="alignmentMarkedRows.includes(entry.id)" class="al-mark" aria-hidden="true">✓</span>
+                    <span v-if="alignmentMarkedRows.includes(entry.id)" class="al-sr-only">{{ t('alignment.marked') }}</span>
+                  </span>
                 </template>
 
                 <template v-else-if="entry.kind === 'group'">
-                  <span class="al-side">{{ t(groupLabelKey(entry.id)) }}</span>
-                  <span class="al-members">
+                  <span class="al-cell">
                     <template v-for="segmentId in groupById.get(entry.id)?.segment_ids ?? []" :key="'s' + segmentId">
                       <!-- aura-allow-text: data (segment text). -->
                       <span class="al-text">{{ segmentById.get(segmentId)?.target_text }}</span>
                     </template>
+                    <span v-if="(groupById.get(entry.id)?.segment_ids.length ?? 0) === 0" class="al-cell-empty">
+                      {{ t('alignment.no_counterpart') }}
+                    </span>
+                  </span>
+                  <span class="al-link" :title="t(groupLabelKey(entry.id))">→</span>
+                  <span class="al-cell">
                     <template v-for="rowId in groupById.get(entry.id)?.row_ids ?? []" :key="'r' + rowId">
                       <!-- aura-allow-text: data (reviewer row text). -->
                       <span class="al-text">{{ rowById.get(rowId)?.target_text }}</span>
                     </template>
+                    <span v-if="(groupById.get(entry.id)?.row_ids.length ?? 0) === 0" class="al-cell-empty">
+                      {{ t('alignment.no_counterpart') }}
+                    </span>
                   </span>
                 </template>
               </label>
@@ -228,22 +264,30 @@ function onKeydown(event: KeyboardEvent): void {
         </p>
         <p v-else-if="alignmentActionUnavailable" class="al-status" role="status">{{ t('alignment.action_unavailable') }}</p>
         <p v-else-if="alignmentBusy" class="al-status" role="status">{{ t('alignment.saving') }}</p>
-        <p class="al-hint">{{ t('alignment.hint_keys') }}</p>
-
         <div class="al-actions">
-          <button type="button" class="al-act" @click="dispatch('export.alignment.toggle')">
-            {{ t('command.export.alignment.toggle') }}
-          </button>
           <button type="button" class="al-act al-act-primary" @click="dispatch('export.alignment.join')">
-            {{ t('command.export.alignment.join') }}
+            <!-- aura-allow-text: result of t() with the selection count interpolated. -->
+            {{ markedCount > 0 ? t('alignment.join_n', { count: String(markedCount) }) : t('alignment.join_none') }}
           </button>
           <button type="button" class="al-act" @click="dispatch('export.alignment.skip')">
-            {{ t('command.export.alignment.skip') }}
+            {{ t('alignment.skip_this') }}
+          </button>
+          <button v-if="remainingAfterCursor > 0" type="button" class="al-act" @click="dispatch('export.alignment.next')">
+            <!-- aura-allow-text: result of t() with the count interpolated. -->
+            {{ t('alignment.see_remaining', { count: String(remainingAfterCursor) }) }}
+          </button>
+          <button type="button" class="al-act" @click="dispatch('export.alignment.toggle')">
+            {{ t('command.export.alignment.toggle') }}
           </button>
           <button type="button" class="al-act" @click="dispatch('export.alignment.unjoin')">
             {{ t('command.export.alignment.unjoin') }}
           </button>
+          <span v-if="pendingCount > 0" class="al-hint">
+            <!-- aura-allow-text: result of t() with the position interpolated. -->
+            {{ t('alignment.position_hint', { index: String(Math.min(alignmentCursor + 1, Math.max(pendingCount, 1))), count: String(pendingCount) }) }}
+          </span>
         </div>
+        <p class="al-hint">{{ t('alignment.hint_keys') }}</p>
       </template>
     </section>
   </div>
@@ -322,15 +366,6 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-error);
 }
 
-.al-sub {
-  margin: 0 0 var(--space-panel-block) 0;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  font-weight: var(--weight-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-}
-
 .al-list {
   list-style: none;
   margin: 0 0 var(--space-panel-block) 0;
@@ -340,10 +375,6 @@ function onKeydown(event: KeyboardEvent): void {
   max-height: 55vh;
   overflow: auto;
   border: 1px solid var(--color-outline);
-}
-
-.al-sub-groups {
-  margin: var(--space-panel-block) var(--space-panel-inline) 0 var(--space-panel-inline);
 }
 
 .al-row {
@@ -356,11 +387,48 @@ function onKeydown(event: KeyboardEvent): void {
   cursor: pointer;
 }
 
+.al-cols,
 .al-row-label {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3rem minmax(0, 1fr);
   align-items: baseline;
-  flex-wrap: wrap;
   gap: calc(var(--space-unit) * 3);
+}
+
+.al-cols {
+  margin: 0 0 var(--space-panel-block) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.al-cell {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.al-cell-empty {
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.al-link {
+  text-align: center;
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-mono);
+  color: var(--color-on-surface-variant);
+}
+
+.al-link-pending {
+  font-weight: var(--weight-ui-md);
+  color: var(--color-on-surface);
+}
+
+.al-row-grouped {
+  color: var(--color-on-surface-variant);
 }
 
 .al-row-current {
@@ -375,16 +443,7 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
-.al-members {
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
-}
-
 .al-text {
-  flex: 1;
-  min-width: 12rem;
   font-family: var(--family-read);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

@@ -3,10 +3,17 @@
  * the preview. Do NOT import this file from `src/commands/index.ts`; the handlers are injected
  * through `CommandDeps` (`reviewerImportCommandDeps.ts`).
  */
-import { readonly, ref } from 'vue'
+import { computed, nextTick, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { reviewerImportCancel, reviewerImportConfirm, reviewerImportOpenPreview } from './config/reviewerImport'
-import type { ReviewerImportPreview, ReviewerImportSummary } from './config/reviewerImport'
+import {
+  reviewerHarvestRefresh,
+  reviewerImportCancel,
+  reviewerImportConfirm,
+  reviewerImportOpenPreview,
+} from './config/reviewerImport'
+import type { ReviewerImportChapterMatch, ReviewerImportPreview, ReviewerImportSummary } from './config/reviewerImport'
+import { onAlignmentClosed, openAlignmentOverlay } from './alignmentState'
+import type { AlignmentClosedEvent } from './alignmentState'
 import { glossaryExchangeBusy, resetGlossaryExchangeGate, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 import type { IpcError } from './i18n'
 
@@ -35,6 +42,9 @@ const confirmError = ref<IpcError | null>(null)
 const confirmUnavailable = ref(false)
 const opening = ref(false)
 let sequence = 0
+let flowChapters: ReviewerImportChapterMatch[] = []
+let flowIndex = 0
+let stopListening: (() => void) | null = null
 
 export const reviewerImportOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
 export const reviewerImportOpening: DeepReadonly<Ref<boolean>> = readonly(opening)
@@ -45,6 +55,94 @@ export const reviewerImportSummary: DeepReadonly<Ref<ReviewerImportSummary | nul
 export const reviewerImportConfirming: DeepReadonly<Ref<boolean>> = readonly(confirming)
 export const reviewerImportConfirmError: DeepReadonly<Ref<IpcError | null>> = readonly(confirmError)
 export const reviewerImportConfirmUnavailable: DeepReadonly<Ref<boolean>> = readonly(confirmUnavailable)
+
+/** Match numbers summed over the imported Chapters: reviewer rows matched, rows total, items left for hand joining. */
+export const reviewerImportMatchTotals = computed<{ matched: number; total: number; unresolved: number } | null>(() => {
+  const chapters = summary.value?.chapters
+  if (chapters === undefined) return null
+  return {
+    matched: chapters.reduce((sum, c) => sum + c.matched_rows, 0),
+    total: chapters.reduce((sum, c) => sum + c.total_rows, 0),
+    unresolved: chapters.reduce((sum, c) => sum + c.unresolved_count, 0),
+  }
+})
+
+function stopAlignmentFlow(): void {
+  stopListening?.()
+  stopListening = null
+  flowChapters = []
+  flowIndex = 0
+}
+
+function openFlowChapter(): void {
+  const chapter = flowChapters.at(flowIndex)
+  if (chapter === undefined) return
+  const mySequence = sequence
+  void nextTick().then(() => {
+    if (mySequence !== sequence) return
+    return openAlignmentOverlay(chapter.chapter_id, {
+      chapterIndex: flowIndex + 1,
+      chapterCount: flowChapters.length,
+      matchedRows: chapter.matched_rows,
+      totalRows: chapter.total_rows,
+      unresolved: chapter.unresolved_count,
+    })
+  })
+}
+
+async function finishAfterAlignment(): Promise<void> {
+  const mySequence = sequence
+  const before = summary.value
+  if (before === null) return
+
+  if (before.harvest_error === null) {
+    const result = await reviewerHarvestRefresh()
+    if (mySequence !== sequence) return
+    const refreshed = result.refresh
+    summary.value = {
+      ...before,
+      harvest_candidate_count: refreshed?.harvest_candidate_count ?? null,
+      harvest_error: refreshed?.harvest_error ?? result.error,
+    }
+  }
+
+  const after = summary.value
+  const count = after?.harvest_candidate_count ?? null
+  if (after !== null && after.harvest_error === null && count !== null && count > 0) {
+    hooks.afterClosedWithHarvest?.()
+    return
+  }
+  overlayOpen.value = true
+}
+
+function onFlowClosed(event: AlignmentClosedEvent): void {
+  if (event.flow === null) return
+  if (!event.chainEnded && flowIndex + 1 < flowChapters.length) {
+    flowIndex += 1
+    openFlowChapter()
+    return
+  }
+  stopAlignmentFlow()
+  void finishAfterAlignment()
+}
+
+function afterConfirmed(imported: ReviewerImportSummary): void {
+  const pending = imported.chapters.filter((c) => c.unresolved_count > 0).sort((a, b) => a.chapter_ord - b.chapter_ord)
+  if (pending.length > 0) {
+    stopAlignmentFlow()
+    flowChapters = pending
+    flowIndex = 0
+    stopListening = onAlignmentClosed(onFlowClosed)
+    overlayOpen.value = false
+    openFlowChapter()
+    return
+  }
+  const count = imported.harvest_candidate_count
+  if (imported.harvest_error === null && count !== null && count > 0) {
+    overlayOpen.value = false
+    hooks.afterClosedWithHarvest?.()
+  }
+}
 
 export async function openReviewerImportPreviewOverlay(): Promise<void> {
   if (opening.value || overlayOpen.value || glossaryExchangeBusy.value) return
@@ -57,6 +155,7 @@ export async function openReviewerImportPreviewOverlay(): Promise<void> {
   confirmError.value = null
   confirmUnavailable.value = false
   summary.value = null
+  stopAlignmentFlow()
 
   const result = await reviewerImportOpenPreview()
   if (mySequence !== sequence) return
@@ -112,6 +211,7 @@ export async function confirmReviewerImportPreview(): Promise<void> {
   summary.value = result.summary
   status.value = 'done'
   hooks.afterImported?.()
+  afterConfirmed(result.summary)
 }
 
 export async function cancelReviewerImportPreview(): Promise<void> {
@@ -138,6 +238,7 @@ export async function cancelReviewerImportPreview(): Promise<void> {
 
 export function resetReviewerImport(): void {
   sequence += 1
+  stopAlignmentFlow()
   overlayOpen.value = false
   status.value = 'unknown'
   loadError.value = null

@@ -17,7 +17,34 @@ export type AlignmentEntry =
   | { kind: 'row'; id: number }
   | { kind: 'group'; id: number }
 
+/** Where an overlay opened by the reviewer-import flow stands: which Chapter of how many, and the import's match numbers. */
+export type AlignmentFlow = {
+  chapterIndex: number
+  chapterCount: number
+  matchedRows: number
+  totalRows: number
+  unresolved: number
+}
+
+export type AlignmentClosedEvent = {
+  chapterId: number | null
+  flow: AlignmentFlow | null
+  chainEnded: boolean
+}
+
+const closedListeners = new Set<(event: AlignmentClosedEvent) => void>()
+
+export function onAlignmentClosed(listener: (event: AlignmentClosedEvent) => void): () => void {
+  closedListeners.add(listener)
+  return () => {
+    closedListeners.delete(listener)
+  }
+}
+
 const overlayOpen = ref(false)
+const openedChapterId = ref<number | null>(null)
+const flowRef = ref<AlignmentFlow | null>(null)
+let chainEnded = false
 const status = ref<AlignmentStatus>('unknown')
 const loadError = ref<IpcError | null>(null)
 const alignment = ref<ChapterAlignment | null>(null)
@@ -30,6 +57,7 @@ const actionUnavailable = ref(false)
 let sequence = 0
 
 export const alignmentOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
+export const alignmentFlow: DeepReadonly<Ref<AlignmentFlow | null>> = readonly(flowRef)
 export const alignmentStatus: DeepReadonly<Ref<AlignmentStatus>> = readonly(status)
 export const alignmentLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loadError)
 export const alignmentData: DeepReadonly<Ref<ChapterAlignment | null>> = readonly(alignment)
@@ -85,12 +113,15 @@ function adopt(result: AlignmentResult): void {
   setAlignmentCursor(cursor.value)
 }
 
-export async function openAlignmentOverlay(chapterId: number | null): Promise<void> {
+export async function openAlignmentOverlay(chapterId: number | null, flow: AlignmentFlow | null = null): Promise<void> {
   if (overlayOpen.value) return
 
   sequence += 1
   const mySequence = sequence
   overlayOpen.value = true
+  openedChapterId.value = chapterId
+  flowRef.value = flow
+  chainEnded = false
   status.value = 'unknown'
   loadError.value = null
   alignment.value = null
@@ -162,15 +193,32 @@ export async function unjoinAlignmentEntry(): Promise<void> {
   await mutate((chapterId) => alignmentUnjoin(chapterId, groupId))
 }
 
+/** Marks the close that follows as the end of the import flow's Chapter chain (Esc), not a step to the next Chapter. */
+export function endAlignmentChain(): void {
+  chainEnded = true
+}
+
 export function closeAlignmentOverlay(): void {
+  if (!overlayOpen.value) return
   sequence += 1
   overlayOpen.value = false
   busy.value = false
+  const event: AlignmentClosedEvent = {
+    chapterId: alignment.value?.chapter_id ?? openedChapterId.value,
+    flow: flowRef.value,
+    chainEnded,
+  }
+  flowRef.value = null
+  chainEnded = false
+  for (const listener of [...closedListeners]) listener(event)
 }
 
 export function resetAlignment(): void {
   sequence += 1
   overlayOpen.value = false
+  openedChapterId.value = null
+  flowRef.value = null
+  chainEnded = false
   status.value = 'unknown'
   loadError.value = null
   alignment.value = null

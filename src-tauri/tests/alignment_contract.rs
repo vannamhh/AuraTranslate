@@ -7,8 +7,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::chapter::merge_chapter_into_previous;
 use auratranslate_lib::commands::export::{
-    PendingReviewerImportState, export_docx_two_column, export_text, reviewer_import_confirm,
-    reviewer_import_preview,
+    PendingReviewerImportState, alignment_open, export_docx_two_column, export_text,
+    reviewer_import_confirm, reviewer_import_preview,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::segment::{merge_segments, review_accept_change, split_segment};
@@ -302,6 +302,35 @@ fn a_dropped_row_and_a_foreign_row_are_listed_and_no_pair_is_shifted() {
     assert_eq!(alignment.unmatched_row_ids, vec![alignment.rows[2].id]);
     assert!(!alignment.is_resolved);
     assert_eq!(alignment.groups.len(), 2);
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
+fn the_import_summary_counts_each_chapter_by_the_same_numbers_alignment_open_reports() {
+    let (mine, reviewer) = mine_and_reviewer(
+        "summary-counts",
+        vec![
+            ("a1", "dich mot"),
+            ("a2", "dich hai"),
+            ("zz", "chuyen khac han"),
+        ],
+    );
+    let state = pending();
+    reviewer_import_preview(Some(&mine.open), &state, &reviewer.docx()).expect("xem truoc");
+    let summary = reviewer_import_confirm(Some(&mine.open), None, &state).expect("xac nhan");
+
+    let opened = alignment_open(Some(&mine.open), mine.chapters[0]).expect("mo noi tay");
+    assert_eq!(summary.chapters.len(), 1);
+    let chapter = &summary.chapters[0];
+    assert_eq!(chapter.chapter_id, mine.chapters[0]);
+    assert_eq!((chapter.matched_rows, chapter.total_rows), (2, 3));
+    let listed = opened.unmatched_row_ids.len() + opened.unmatched_segment_ids.len();
+    assert_eq!(
+        chapter.unresolved_count,
+        i64::try_from(listed).unwrap_or(-1)
+    );
+    assert_eq!(chapter.unresolved_count, 2);
     mine.finish();
     reviewer.finish();
 }

@@ -23,13 +23,13 @@ describe('main.ts wires the reviewer-import hooks', () => {
     expect(block).toMatch(/afterImported:\s*resetReviewMode/)
   })
 
-  it('attaches openGlossaryQueue to the after-closed-with-harvest hook', () => {
-    expect(block).toMatch(/afterClosedWithHarvest:[\s\S]*openGlossaryQueue\(\)/)
+  it('attaches openGlossaryHarvest to the after-closed-with-harvest hook', () => {
+    expect(block).toMatch(/afterClosedWithHarvest:[\s\S]*openGlossaryHarvest\(\)/)
   })
 })
 
 describe('harvest path runs without Review Mode loaded', () => {
-  it('imports, confirms and closes with the queue hook firing, never loading reviewModeState', async () => {
+  it('imports, confirms and closes with the harvest hook firing, never loading reviewModeState', async () => {
     try {
       vi.resetModules()
       vi.doMock('../../src/reviewModeState', () => {
@@ -41,7 +41,7 @@ describe('harvest path runs without Review Mode loaded', () => {
           preview: { file_name: 'r.docx', file_kind: 'docx', chapters: [], skipped: [], image_rows_ignored: 0 },
         }),
         reviewerImportConfirm: async () => ({
-          summary: { chapter_count: 1, row_count: 3, replaced_count: 0, harvest_candidate_count: 2, harvest_error: null },
+          summary: { chapter_count: 1, row_count: 3, replaced_count: 0, chapters: [], harvest_candidate_count: 2, harvest_error: null },
           error: null,
         }),
         reviewerImportCancel: async () => ({ ok: true, error: null }),

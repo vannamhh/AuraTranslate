@@ -2,9 +2,9 @@
 import { onBeforeUnmount } from 'vue'
 import { DockviewVue } from 'dockview-vue'
 import type { DockviewReadyEvent, VueComponent } from 'dockview-vue'
-import { enterFocus, focusRegistry } from '../commands'
+import { dispatch, enterFocus, focusRegistry } from '../commands'
 import { t } from '../i18n'
-import { reviewModeChangeStats, reviewModeDiffMessage } from '../reviewModeState'
+import { reviewModeChangeStats, reviewModeDiffMessage, reviewModeUnresolvedCount } from '../reviewModeState'
 import PanelTab from '../panels/PanelTab.vue'
 import ReviewCopyPanel from '../panels/ReviewCopyPanel.vue'
 import ReviewMinePanel from '../panels/ReviewMinePanel.vue'
@@ -83,6 +83,17 @@ onBeforeUnmount(() => {
       <p class="diff-status" role="status" data-review-diff-status>
         <template v-if="reviewModeDiffMessage !== null">{{ t(reviewModeDiffMessage.key, reviewModeDiffMessage.params) }}</template>
       </p>
+      <button
+        v-if="reviewModeUnresolvedCount > 0"
+        type="button"
+        class="review-align-link"
+        data-alignment-open
+        data-review-align-link
+        @click="dispatch('export.alignment.open')"
+      >
+        {{ t('review.align_link', { count: String(reviewModeUnresolvedCount) }) }}
+      </button>
+      <p class="review-footnote" data-review-footnote>{{ t('review.footnote') }}</p>
     </div>
     <DockviewVue
       class="dock dockview-theme-aura"
@@ -124,6 +135,27 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   min-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.review-align-link {
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  border: 0;
+  background: none;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.review-footnote {
+  margin: 0 0 0 auto;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

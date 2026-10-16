@@ -164,6 +164,7 @@ import {
   nextChapter as nextLibraryChapter,
   openCurrentChapter as openCurrentLibraryChapter,
   openCurrentLibraryWork,
+  openCurrentLibraryWorkThenReviewerImport,
   prevChapter as prevLibraryChapter,
   renameCurrentChapter as renameCurrentLibraryChapter,
 } from './modes/libraryChapters'
@@ -685,6 +686,7 @@ async function boot(): Promise<void> {
       prevLibraryWork,
       // Story 5.7 — "Danh sách Chương và mở Chương vào Workspace" (FR12).
       openCurrentLibraryWork,
+      openCurrentLibraryWorkThenReviewerImport,
       loadLibraryChapters,
       nextLibraryChapter,
       prevLibraryChapter,
@@ -1222,7 +1224,7 @@ async function boot(): Promise<void> {
   installReviewerImportHooks({
     afterImported: resetReviewMode,
     afterClosedWithHarvest: () => {
-      void openGlossaryQueue()
+      void openGlossaryHarvest()
     },
   })
 

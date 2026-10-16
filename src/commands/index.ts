@@ -444,6 +444,8 @@ export type CommandDeps = {
    * `rescanLibraryFolder` — promise trả về bị bỏ qua có chủ ý, kết quả đi ra qua các `ref`
    * ở tầng module. */
   openCurrentLibraryWork?: () => void
+  /** Handler of `library.open_work_reviewer_import`: opens the selected Work, then the reviewer-import picker. */
+  openCurrentLibraryWorkThenReviewerImport?: () => void
   /** Liệt kê (hoặc tải lại) Chương của Tác phẩm ĐANG MỞ. Handler của
    * `library.list_chapters`. */
   loadLibraryChapters?: () => void
@@ -2156,6 +2158,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.open_work', 'openCurrentLibraryWork')
       }
       deps.openCurrentLibraryWork()
+    },
+  })
+  target.register({
+    id: 'library.open_work_reviewer_import',
+    labelKey: 'command.library.open_work_reviewer_import',
+    keys: undefined,
+    run: () => {
+      if (deps.openCurrentLibraryWorkThenReviewerImport === undefined) {
+        return portMissing('library.open_work_reviewer_import', 'openCurrentLibraryWorkThenReviewerImport')
+      }
+      deps.openCurrentLibraryWorkThenReviewerImport()
     },
   })
   target.register({

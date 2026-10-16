@@ -31,7 +31,7 @@
  */
 import { computed, nextTick, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { enterFocus } from '../commands'
+import { dispatch, enterFocus } from '../commands'
 import {
   listChapters,
   mergeChapters,
@@ -430,6 +430,15 @@ export async function openCurrentLibraryWork(): Promise<void> {
   if (!opened) return
   workPageWork.value = { ...work }
   await loadOpenWorkLifecycle()
+}
+
+/** Opens the selected Work, then the reviewer-import file picker; a failed or blocked open stops before the picker. */
+export async function openCurrentLibraryWorkThenReviewerImport(): Promise<void> {
+  await openCurrentLibraryWork()
+  if (workPageWork.value === null) return
+  await nextTick()
+  document.querySelector<HTMLElement>('[data-library-chapters-reviewer-import]')?.focus()
+  dispatch('export.reviewer_import.open')
 }
 
 /** Back to the Works grid; the grid reloads so the card shows the new status. */

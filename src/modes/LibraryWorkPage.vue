@@ -497,6 +497,7 @@ onMounted(() => {
         type="button"
         class="btn"
         data-library-chapters-reviewer-import
+        data-reviewer-import-open
         @mousedown="focusOnPointerDown($event)"
         @click="dispatch('export.reviewer_import.open')"
       >

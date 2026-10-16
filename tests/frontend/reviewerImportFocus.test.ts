@@ -22,7 +22,7 @@ vi.mock('../../src/config/reviewerImport', () => ({
     preview: { file_name: 'r.docx', file_kind: 'docx', chapters: [], skipped: [], image_rows_ignored: 0 },
   }),
   reviewerImportConfirm: async () => ({
-    summary: { chapter_count: 1, row_count: 3, replaced_count: 0, harvest_candidate_count: 2, harvest_error: null },
+    summary: { chapter_count: 1, row_count: 3, replaced_count: 0, chapters: [], harvest_candidate_count: 2, harvest_error: null },
     error: null,
   }),
   reviewerImportCancel: async () => ({ ok: true, error: null }),
@@ -56,7 +56,7 @@ function harvestCandidate(id: number) {
 }
 
 describe('focus after a reviewer import with harvested candidates', () => {
-  it('lands inside the queue panel, then returns to a connected element on close', async () => {
+  it('lands inside the harvest panel, then returns to a connected element on close', async () => {
     vi.resetModules()
     pendingMock.mockReset()
     lookupMock.mockReset()
@@ -65,21 +65,21 @@ describe('focus after a reviewer import with harvested candidates', () => {
 
     const commands = await import('../../src/commands')
     commands.installCommands({} as never)
-    const queue = await import('../../src/glossaryQueueState')
+    const harvest = await import('../../src/glossaryHarvestState')
     const importState = await import('../../src/reviewerImportState')
-    const GlossaryQueueOverlay = (await import('../../src/GlossaryQueueOverlay.vue')).default
+    const GlossaryHarvestOverlay = (await import('../../src/GlossaryHarvestOverlay.vue')).default
     const ReviewerImportOverlay = (await import('../../src/ReviewerImportOverlay.vue')).default
 
     const opener = document.createElement('button')
-    opener.setAttribute('data-glossary-queue-open', '')
+    opener.setAttribute('data-glossary-harvest-open', '')
     document.body.appendChild(opener)
 
-    const Host = defineComponent({ render: () => [h(GlossaryQueueOverlay), h(ReviewerImportOverlay)] })
+    const Host = defineComponent({ render: () => [h(GlossaryHarvestOverlay), h(ReviewerImportOverlay)] })
     const wrapper = mount(Host, { attachTo: document.body })
 
     importState.installReviewerImportHooks({
       afterClosedWithHarvest: () => {
-        void queue.openGlossaryQueue()
+        void harvest.openGlossaryHarvest()
       },
     })
 
@@ -87,15 +87,15 @@ describe('focus after a reviewer import with harvested candidates', () => {
     await importState.confirmReviewerImportPreview()
     await wrapper.vm.$nextTick()
     await importState.cancelReviewerImportPreview()
-    await vi.waitFor(() => expect(queue.queueOverlayIsOpen.value).toBe(true))
+    await vi.waitFor(() => expect(harvest.harvestOverlayIsOpen.value).toBe(true))
     await new Promise((resolve) => setTimeout(resolve, 0))
     await wrapper.vm.$nextTick()
 
-    const panel = document.querySelector('.gq-panel')
+    const panel = document.querySelector('.gh-panel')
     expect(panel).not.toBeNull()
     expect(panel?.contains(document.activeElement)).toBe(true)
 
-    queue.closeGlossaryQueue()
+    harvest.closeGlossaryHarvest()
     await wrapper.vm.$nextTick()
     expect(document.activeElement?.isConnected).toBe(true)
     expect(document.activeElement).not.toBe(document.body)

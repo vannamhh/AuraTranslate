@@ -9,6 +9,7 @@ import {
   reviewerImportConfirmUnavailable,
   reviewerImportConfirming,
   reviewerImportLoadError,
+  reviewerImportMatchTotals,
   reviewerImportOverlayIsOpen,
   reviewerImportPreview,
   reviewerImportStatus,
@@ -111,6 +112,16 @@ function trapTab(event: KeyboardEvent): void {
             })
           }}
         </p>
+        <p v-if="reviewerImportMatchTotals !== null" class="ri-status" role="status">
+          <!-- aura-allow-text: result of t() with the counts interpolated. -->
+          {{
+            t('reviewer.import.matched', {
+              matched: String(reviewerImportMatchTotals.matched),
+              total: String(reviewerImportMatchTotals.total),
+              unresolved: String(reviewerImportMatchTotals.unresolved),
+            })
+          }}
+        </p>
         <p v-if="reviewerImportSummary.harvest_error !== null" class="ri-status ri-error" role="alert">
           <!-- aura-allow-text: result of tError() computed in the script. -->
           {{ tError(reviewerImportSummary.harvest_error) }}
@@ -119,11 +130,6 @@ function trapTab(event: KeyboardEvent): void {
           <!-- aura-allow-text: result of t() with the count interpolated. -->
           {{ t('reviewer.import.harvest_done', { count: String(reviewerImportSummary.harvest_candidate_count) }) }}
         </p>
-        <div class="ri-actions">
-          <button type="button" class="ri-act ri-act-primary" @click="dispatch('export.alignment.open')">
-            {{ t('command.export.alignment.open') }}
-          </button>
-        </div>
       </template>
       <template v-else-if="reviewerImportStatus === 'loaded' && reviewerImportPreview !== null">
         <dl class="ri-summary">

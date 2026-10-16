@@ -27,6 +27,7 @@ onBeforeUnmount(() => registerReviewScroller('copy', null))
           :data-review-current="item.pair.key === reviewModeCurrentPairKey ? '' : undefined"
           data-review-copy-item
         >
+          <span class="review-bar-label" data-review-pair-label>{{ t('review.pair_index', { index: String(item.pair.position) }) }}</span>
           <span v-if="item.pair.rowKind === 'alt'" class="review-kind">{{ t('review.row_alt') }}</span>
           <span v-else-if="item.pair.rowKind === 'caption'" class="review-kind">{{ t('review.row_caption') }}</span>
           <span v-if="!item.pair.hasRow" class="review-empty">{{ t('review.no_counterpart') }}</span>
@@ -68,6 +69,13 @@ onBeforeUnmount(() => registerReviewScroller('copy', null))
 .review-item.current {
   border-left: 2px solid var(--color-on-surface);
   padding-left: calc(var(--space-unit) * 1);
+}
+
+.review-bar-label {
+  display: block;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .review-kind,

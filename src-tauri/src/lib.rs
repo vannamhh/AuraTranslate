@@ -1213,6 +1213,7 @@ pub fn run() {
             crate::commands::export::wire::reviewer_import_open_preview,
             crate::commands::export::wire::reviewer_import_confirm,
             crate::commands::export::wire::reviewer_import_cancel,
+            crate::commands::export::wire::reviewer_harvest_refresh,
             crate::commands::export::wire::alignment_open,
             crate::commands::export::wire::review_diff,
             crate::commands::export::wire::alignment_join,

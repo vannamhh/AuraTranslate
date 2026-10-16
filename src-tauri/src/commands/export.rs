@@ -379,10 +379,23 @@ pub struct ReviewerImportPreviewWire {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ReviewerImportChapterMatchWire {
+    pub chapter_id: i64,
+    pub chapter_ord: i64,
+    /// Reviewer rows that sit in a group with both sides.
+    pub matched_rows: i64,
+    pub total_rows: i64,
+    /// Rows plus segments in no group: the count `alignment_open` reports for the same Chapter.
+    pub unresolved_count: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ReviewerImportSummaryWire {
     pub chapter_count: i64,
     pub row_count: i64,
     pub replaced_count: i64,
+    /// One entry per imported Chapter, by `chapter_ord`.
+    pub chapters: Vec<ReviewerImportChapterMatchWire>,
     /// Glossary candidates queued or refreshed by the harvest; `None` when the harvest failed.
     pub harvest_candidate_count: Option<i64>,
     /// Set exactly when `harvest_candidate_count` is `None`. The import itself was written.
@@ -598,6 +611,11 @@ pub fn reviewer_import_confirm(
     let Some(previewed) = guard.as_ref().map(|p| p.plan.clone()) else {
         return Err(reviewer_no_pending());
     };
+    let imported: Vec<(i64, i64)> = previewed
+        .chapters
+        .iter()
+        .map(|c| (c.chapter_id, c.chapter_ord))
+        .collect();
     let outcome = open
         .store
         .write(move |tx| match confirm_import(tx, &previewed) {
@@ -609,6 +627,20 @@ pub fn reviewer_import_confirm(
     match outcome {
         Some(summary) => {
             *guard = None;
+            let mut chapters = Vec::with_capacity(imported.len());
+            for (chapter_id, chapter_ord) in imported {
+                let counts = crate::core::export::read_alignment(&open.store, chapter_id)
+                    .map_err(alignment_error)?
+                    .match_counts();
+                chapters.push(ReviewerImportChapterMatchWire {
+                    chapter_id,
+                    chapter_ord,
+                    matched_rows: count_wire(counts.matched_rows),
+                    total_rows: count_wire(counts.total_rows),
+                    unresolved_count: count_wire(counts.unresolved),
+                });
+            }
+            chapters.sort_by_key(|c| c.chapter_ord);
             let (harvest_candidate_count, harvest_error) =
                 match harvest_reviewer_copies(open, global) {
                     Ok(count) => (Some(count), None),
@@ -618,6 +650,7 @@ pub fn reviewer_import_confirm(
                 chapter_count: count_wire(summary.chapter_count),
                 row_count: count_wire(summary.row_count),
                 replaced_count: count_wire(summary.replaced_count),
+                chapters,
                 harvest_candidate_count,
                 harvest_error,
             })
@@ -627,6 +660,33 @@ pub fn reviewer_import_confirm(
             Err(reviewer_preview_stale())
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ReviewerHarvestRefreshWire {
+    pub harvest_candidate_count: Option<i64>,
+    /// Set exactly when `harvest_candidate_count` is `None`.
+    pub harvest_error: Option<IpcError>,
+}
+
+/// Runs the reviewer-copy harvest again, so groups joined by hand after the import give candidates.
+///
+/// # Errors
+/// - no Work open => `work.none_open`;
+/// - a failed harvest is not an error of this call: it comes back as `harvest_error`.
+pub fn reviewer_harvest_refresh(
+    open: Option<&OpenWork>,
+    global: Option<&Store>,
+) -> Result<ReviewerHarvestRefreshWire, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    let (harvest_candidate_count, harvest_error) = match harvest_reviewer_copies(open, global) {
+        Ok(count) => (Some(count), None),
+        Err(error) => (None, Some(error)),
+    };
+    Ok(ReviewerHarvestRefreshWire {
+        harvest_candidate_count,
+        harvest_error,
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -1075,6 +1135,19 @@ pub mod wire {
         let open = guard.as_ref().and_then(|g| g.as_ref());
         let global = app.try_state::<Store>();
         super::reviewer_import_confirm(open, global.as_deref(), pending.inner())
+    }
+
+    /// Vỏ IPC của [`super::reviewer_harvest_refresh`]. `(async)`: ghi hàng đợi ứng viên.
+    #[tauri::command(async)]
+    pub fn reviewer_harvest_refresh(
+        app: tauri::AppHandle,
+    ) -> Result<super::ReviewerHarvestRefreshWire, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        with_open(&app, |open| {
+            super::reviewer_harvest_refresh(open, global.as_deref())
+        })
     }
 
     /// `(async)`: locks `PendingReviewerImportState`, which `reviewer_import_confirm` holds for its write.

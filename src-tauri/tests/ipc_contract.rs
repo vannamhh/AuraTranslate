@@ -3004,3 +3004,57 @@ fn setting_the_tm_only_mine_switch_without_an_open_work_is_refused_and_reading_i
     assert!(!state.work_open);
     assert!(!state.only_mine);
 }
+
+#[test]
+fn reviewer_import_summary_wire_carries_per_chapter_match_counts_in_snake_case() {
+    use auratranslate_lib::commands::export::{
+        ReviewerHarvestRefreshWire, ReviewerImportChapterMatchWire, ReviewerImportSummaryWire,
+    };
+    let summary = ReviewerImportSummaryWire {
+        chapter_count: 1,
+        row_count: 3,
+        replaced_count: 0,
+        chapters: vec![ReviewerImportChapterMatchWire {
+            chapter_id: 7,
+            chapter_ord: 3,
+            matched_rows: 2,
+            total_rows: 3,
+            unresolved_count: 2,
+        }],
+        harvest_candidate_count: Some(0),
+        harvest_error: None,
+    };
+    let value = serde_json::to_value(&summary).expect("serialize");
+    let mut chapter_keys: Vec<&str> = value["chapters"][0]
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    chapter_keys.sort_unstable();
+    assert_eq!(
+        chapter_keys,
+        vec![
+            "chapter_id",
+            "chapter_ord",
+            "matched_rows",
+            "total_rows",
+            "unresolved_count"
+        ]
+    );
+    assert!(value.get("chapters").is_some());
+
+    let refresh = ReviewerHarvestRefreshWire {
+        harvest_candidate_count: Some(1),
+        harvest_error: None,
+    };
+    let value = serde_json::to_value(&refresh).expect("serialize");
+    let mut keys: Vec<&str> = value
+        .as_object()
+        .expect("object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    keys.sort_unstable();
+    assert_eq!(keys, vec!["harvest_candidate_count", "harvest_error"]);
+}
