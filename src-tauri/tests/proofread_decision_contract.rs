@@ -12,8 +12,8 @@ use auratranslate_lib::commands::proofread::{
     proofread_ignore_clear, proofread_ignore_remove,
 };
 use auratranslate_lib::commands::segment::{
-    SegmentTargetEdit, accept_proofread_range, promote_ai_translation,
-    read_open_chapter_segments, revert_proofread_range, save_segment_targets,
+    SegmentTargetEdit, accept_proofread_range, promote_ai_translation, read_open_chapter_segments,
+    revert_proofread_range, save_segment_targets,
 };
 use auratranslate_lib::core::ai::proofread::ProofDecisionCounts;
 use auratranslate_lib::core::library::indexer::IndexedWork;

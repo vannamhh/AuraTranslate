@@ -763,7 +763,11 @@ fn decision_write_files(sources: &[(String, String)]) -> Vec<(String, usize)> {
                     .collect::<Vec<_>>()
                     .join(" ")
                     .replace(['\\', '"'], " ");
-            let code = code.split_whitespace().collect::<Vec<_>>().join(" ").to_uppercase();
+            let code = code
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .to_uppercase();
             let hits: usize = DECISION_WRITES
                 .iter()
                 .map(|w| code.matches(w).count())
