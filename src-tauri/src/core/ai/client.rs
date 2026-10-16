@@ -57,7 +57,8 @@
 //! khoá đã lộ, không nhắm kiểu lỗi của module này.
 
 use crate::ports::translation_provider::{
-    TranslateOutcome, TranslateRequest, TranslateUsage, TranslationProvider,
+    ConnectionCheck, ConnectionCheckOutcome, ConnectionCheckRequest, TranslateOutcome,
+    TranslateRequest, TranslateUsage, TranslationProvider,
 };
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -362,16 +363,18 @@ impl TranslationProvider for OpenAiChatClient {
         // 🔵 SỬA 2026-09-22 (Story 4.10, Phase 1) -- biến thể riêng `ApiKeyHeaderInvalid`, không
         // còn dùng chung `RequestFailed`: thất bại ở đây là hình dạng khoá đã lưu, không phải
         // một sự cố mạng tạm thời -- xem doc-comment `OpenAiClientError::ApiKeyHeaderInvalid`.
-        let mut auth_value =
-            reqwest::header::HeaderValue::from_str(&format!("Bearer {}", request.api_key))
-                .map_err(|e| OpenAiClientError::ApiKeyHeaderInvalid {
-                    detail: e.to_string(),
-                })?;
-        auth_value.set_sensitive(true);
+        let mut call = client.post(chat_completions_url(request.endpoint));
+        if !request.api_key.is_empty() {
+            let mut auth_value =
+                reqwest::header::HeaderValue::from_str(&format!("Bearer {}", request.api_key))
+                    .map_err(|e| OpenAiClientError::ApiKeyHeaderInvalid {
+                        detail: e.to_string(),
+                    })?;
+            auth_value.set_sensitive(true);
+            call = call.header(reqwest::header::AUTHORIZATION, auth_value);
+        }
 
-        let mut response = client
-            .post(request.endpoint)
-            .header(reqwest::header::AUTHORIZATION, auth_value)
+        let mut response = call
             .header(reqwest::header::CONTENT_TYPE, "application/json")
             .header(reqwest::header::ACCEPT, "text/event-stream")
             .body(body_json)
@@ -434,6 +437,126 @@ impl TranslationProvider for OpenAiChatClient {
                 }
             }
         }
+    }
+}
+
+const CONNECTION_CHECK_TIMEOUT: Duration = Duration::from_secs(10);
+const MAX_MODEL_LIST_BYTES: usize = 4 * 1024 * 1024;
+
+const CHAT_COMPLETIONS_SUFFIX: &str = "/chat/completions";
+
+/// The endpoint without a trailing `/chat/completions` or `/`: a saved base URL and a saved full
+/// chat URL name the same server.
+fn endpoint_base(endpoint: &str) -> &str {
+    let trimmed = endpoint.trim().trim_end_matches('/');
+    trimmed
+        .strip_suffix(CHAT_COMPLETIONS_SUFFIX)
+        .unwrap_or(trimmed)
+        .trim_end_matches('/')
+}
+
+/// URL a translate call posts to: a saved full `/chat/completions` URL is kept, a base URL gets
+/// the suffix.
+pub fn chat_completions_url(endpoint: &str) -> String {
+    format!("{}{CHAT_COMPLETIONS_SUFFIX}", endpoint_base(endpoint))
+}
+
+pub fn models_url(endpoint: &str) -> String {
+    format!("{}/models", endpoint_base(endpoint))
+}
+
+#[derive(Deserialize)]
+struct ModelList {
+    data: Vec<ModelEntry>,
+}
+
+#[derive(Deserialize)]
+struct ModelEntry {
+    id: String,
+}
+
+/// Reads an OpenAI-style `{"data":[{"id":..}]}` model list. A model saved without a tag matches
+/// the same id with `:latest` (Ollama lists untagged pulls that way).
+pub fn check_model_list(
+    body: &[u8],
+    model: &str,
+) -> Result<ConnectionCheckOutcome, OpenAiClientError> {
+    let list: ModelList =
+        serde_json::from_slice(body).map_err(|e| OpenAiClientError::MalformedEvent {
+            detail: e.to_string(),
+        })?;
+    let wanted = model.trim();
+    let tagged = format!("{wanted}:latest");
+    let found = list.data.iter().any(|m| m.id == wanted || m.id == tagged);
+    Ok(if found {
+        ConnectionCheckOutcome::Connected {
+            model_count: list.data.len(),
+        }
+    } else {
+        ConnectionCheckOutcome::ModelMissing
+    })
+}
+
+impl ConnectionCheck for OpenAiChatClient {
+    type Error = OpenAiClientError;
+
+    async fn check_connection(
+        &self,
+        request: ConnectionCheckRequest<'_>,
+        should_cancel: &dyn Fn() -> bool,
+    ) -> Result<ConnectionCheckOutcome, Self::Error> {
+        if should_cancel() {
+            return Ok(ConnectionCheckOutcome::Cancelled);
+        }
+        let client = reqwest::Client::builder()
+            .timeout(CONNECTION_CHECK_TIMEOUT)
+            .build()
+            .map_err(|e| OpenAiClientError::ClientBuildFailed {
+                detail: e.to_string(),
+            })?;
+
+        let mut builder = client
+            .get(models_url(request.endpoint))
+            .header(reqwest::header::ACCEPT, "application/json");
+        if let Some(key) = request.api_key {
+            let mut auth_value = reqwest::header::HeaderValue::from_str(&format!("Bearer {key}"))
+                .map_err(|e| OpenAiClientError::ApiKeyHeaderInvalid {
+                detail: e.to_string(),
+            })?;
+            auth_value.set_sensitive(true);
+            builder = builder.header(reqwest::header::AUTHORIZATION, auth_value);
+        }
+
+        let mut response = builder
+            .send()
+            .await
+            .map_err(|e| OpenAiClientError::RequestFailed {
+                detail: e.to_string(),
+            })?;
+        if !response.status().is_success() {
+            return Err(OpenAiClientError::NonSuccessStatus {
+                status: response.status().as_u16(),
+            });
+        }
+
+        let mut body: Vec<u8> = Vec::new();
+        loop {
+            if should_cancel() {
+                return Ok(ConnectionCheckOutcome::Cancelled);
+            }
+            let chunk = response
+                .chunk()
+                .await
+                .map_err(|e| OpenAiClientError::ReadFailed {
+                    detail: e.to_string(),
+                })?;
+            let Some(bytes) = chunk else { break };
+            body.extend_from_slice(&bytes);
+            if body.len() > MAX_MODEL_LIST_BYTES {
+                return Err(OpenAiClientError::BufferOverflow { size: body.len() });
+            }
+        }
+        check_model_list(&body, request.model)
     }
 }
 

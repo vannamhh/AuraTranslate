@@ -365,12 +365,16 @@ import {
 // `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
 import { installUnhandledRejectionLog } from './unhandledRejectionLog'
 import {
+  clearAiOverridesFromSettings,
   closeSettings,
   openSettings,
+  openSettingsToAiConfig,
   openSettingsToPrivacy,
   openSettingsToSection,
   settingsOverlayIsOpen,
+  settingsOwnsChord,
 } from './settingsState'
+import { initUserLayoutPresets } from './layout/layoutPresetState'
 // ── Story 4.4 — lớp phủ "Thư viện prompt" (FR69) ─────────────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với `settingsState.ts`: `promptLibraryState.ts` dùng `ref` của
@@ -526,6 +530,7 @@ async function boot(): Promise<void> {
   // (Chế độ đọc chưa vẽ gì ở đây) — gọi trước `installCommands()` chỉ để đi cùng nhóm với
   // lượt đọc cấu hình khởi động khác, không phải một ràng buộc thật.
   initReadingPreferencesFromBootstrap(bootstrapReadingPreferences.value)
+  initUserLayoutPresets(config?.layout_presets ?? {})
 
   // ⚠️ THỨ TỰ BẮT BUỘC #2 — `installCommands()` phải chạy TRƯỚC `mount()`.
   //
@@ -1046,6 +1051,12 @@ async function boot(): Promise<void> {
       // Story 6.8 · NFR19 — lớp phủ "Cài đặt".
       openSettings,
       openSettingsToPrivacy,
+      openSettingsToAiConfig,
+      clearAllAiConfigOverrides: clearAiOverridesFromSettings,
+      openLibraryRescanReport: () => {
+        closeSettings()
+        setMode('library')
+      },
       closeSettings,
       // Story 4.4 · FR69 — lớp phủ "Thư viện prompt".
       openPromptLibrary,
@@ -1096,7 +1107,7 @@ async function boot(): Promise<void> {
     // `aria-modal` and `trapTab`, and a layout-preset chord behind it would rebuild the panels
     // and orphan `returnFocusTo`.
     void attachKeyboard(window, {
-      isBlocked: () =>
+      isBlocked: (event) =>
         attributionIsOpen.value ||
         captureIsArmed.value ||
         queueOverlayIsOpen.value ||
@@ -1117,7 +1128,7 @@ async function boot(): Promise<void> {
         // `aria-modal="true"` và `trapTab`; không chặn ở đây thì một hợp âm đổi preset bố
         // cục phía sau nó vẫn chạy được, gọi `api.clear()` và làm `returnFocusTo` của lớp
         // phủ ôm một node đã rời DOM (UX-DR17 vỡ im lặng, đúng khuyết tật Story 1.19 đã bắt).
-        settingsOverlayIsOpen.value ||
+        (settingsOverlayIsOpen.value && !settingsOwnsChord(event)) ||
         // Story 4.4 — cùng lý do hệt `settingsOverlayIsOpen`: `PromptLibraryOverlay.vue`
         // cũng khai `aria-modal="true"` và `trapTab`.
         promptLibraryOverlayIsOpen.value ||

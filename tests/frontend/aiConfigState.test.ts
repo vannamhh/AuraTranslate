@@ -31,6 +31,8 @@ vi.mock('../../src/config/aiconfig', () => ({
   aiConfigClearOverride: (...args: unknown[]) => aiConfigClearOverrideMock(...args),
   aiConfigSaveKey: (...args: unknown[]) => aiConfigSaveKeyMock(...args),
   aiConfigDeleteKey: (...args: unknown[]) => aiConfigDeleteKeyMock(...args),
+  aiConfigTestConnection: vi.fn(),
+  aiConfigTestConnectionCancel: vi.fn(),
 }))
 
 /** Nạp lại module mỗi ca — state là module-level singleton, cùng lý do `freshState` của
@@ -747,5 +749,72 @@ describe('bộ chọn tầng Toàn cục/Tác phẩm — tầng xem và tầng g
     s.selectAiConfigViewTier('global')
     await s.loadAiConfigSection()
     expect(s.aiConfigViewTier.value).toBe('global')
+  })
+})
+
+describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế thừa', () => {
+  const fieldRows = (overrides: Partial<Record<string, { value: string; tier: 'global' | 'work' }>> = {}) =>
+    ['provider', 'endpoint', 'model', 'temperature', 'max_tokens'].map((field) => ({
+      field,
+      value: overrides[field]?.value ?? '',
+      tier: overrides[field]?.tier ?? 'global',
+      shadowed: null,
+    }))
+
+  async function loaded(workTierAvailable: boolean, rows = fieldRows()) {
+    aiConfigGetMock.mockResolvedValue({ fields: rows, workTierAvailable, keyConfigured: false, error: null })
+    const state = await freshState()
+    await state.loadAiConfigSection()
+    return state
+  }
+
+  it('commitAiConfigField bỏ qua giá trị rỗng, không hợp lệ hoặc không đổi', async () => {
+    const state = await loaded(false, fieldRows({ model: { value: 'm', tier: 'global' } }))
+    state.setAiConfigDraft('model', '   ')
+    await state.commitAiConfigField('model')
+    state.setAiConfigDraft('model', 'm')
+    await state.commitAiConfigField('model')
+    state.setAiConfigDraft('temperature', '9')
+    await state.commitAiConfigField('temperature')
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+
+    state.setAiConfigDraft('model', 'n')
+    await state.commitAiConfigField('model')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'model', 'n')
+  })
+
+  it('selectAiConfigProvider ghi đúng trường provider và không chạm endpoint', async () => {
+    const state = await loaded(false)
+    await state.selectAiConfigProvider('ollama')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'provider', 'ollama')
+    expect(state.aiConfigDraft('endpoint')).toBe('')
+  })
+
+  it('placeholder theo nhà cung cấp; giá trị lạ là "Endpoint khác" và không có placeholder', async () => {
+    const state = await loaded(false, fieldRows({ provider: { value: 'ollama', tier: 'global' } }))
+    expect(state.aiConfigEndpointPlaceholder()).toBe('http://localhost:11434/v1')
+    expect(state.aiConfigProviderChoice()).toBe('ollama')
+
+    const other = await loaded(false, fieldRows({ provider: { value: 'groq', tier: 'global' } }))
+    expect(other.aiConfigProviderChoice()).toBeNull()
+    expect(other.aiConfigProviderIsOther()).toBe(true)
+    expect(other.aiConfigEndpointPlaceholder()).toBe('')
+  })
+
+  it('clearAllAiConfigOverrides xoá đúng các trường tier work, rồi đọc lại; không có Tác phẩm thì không làm gì', async () => {
+    const rows = fieldRows({
+      model: { value: 'w', tier: 'work' },
+      temperature: { value: '0.5', tier: 'work' },
+      max_tokens: { value: '10', tier: 'global' },
+    })
+    const state = await loaded(true, rows)
+    expect(state.aiConfigOverrideCount.value).toBe(2)
+    await state.clearAllAiConfigOverrides()
+    expect(aiConfigClearOverrideMock.mock.calls.map((c) => c[0]).sort()).toEqual(['model', 'temperature'])
+
+    aiConfigClearOverrideMock.mockClear()
+    const closed = await loaded(false, rows)
+    await closed.clearAllAiConfigOverrides()
+    expect(aiConfigClearOverrideMock).not.toHaveBeenCalled()
   })
 })

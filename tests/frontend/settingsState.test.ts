@@ -232,3 +232,93 @@ describe('SettingsOverlay.vue — Quyền riêng tư: lỗi đứng TRƯỚC r�
     wrapper.unmount()
   })
 })
+
+describe('mục nav mới và phạm vi', () => {
+  it('Phạm vi: chỉ AI và mô hình có tầng Tác phẩm; Phím tắt, Bố cục, Chế độ đọc, Dữ liệu, Cập nhật khoá ở Toàn cục', async () => {
+    const { state } = await freshState()
+    const withWork = state.SETTINGS_SECTIONS.filter((s) => state.settingsSectionHasWorkTier(s))
+    const locked = state.SETTINGS_SECTIONS.filter((s) => state.settingsSectionLocksScope(s))
+    expect(withWork).toEqual(['ai_and_model'])
+    expect(locked).toEqual(['shortcuts', 'layout', 'reading', 'data', 'update'])
+  })
+
+  it('openSettingsToAiConfig mở thẳng mục AI và mô hình bất kể mục trước đó', async () => {
+    const { state } = await freshState()
+    listDomainLogMock.mockResolvedValue({ entries: [], error: null })
+    state.selectSettingsSection('privacy')
+    state.openSettingsToAiConfig()
+    expect(state.settingsOverlayIsOpen.value).toBe(true)
+    expect(state.settingsActiveSection.value).toBe('ai_and_model')
+  })
+})
+
+describe('settingsOwnsChord — cổng phím khi Cài đặt mở', () => {
+  async function withCommands(deps: Record<string, unknown> = {}) {
+    const { state } = await freshState()
+    listDomainLogMock.mockResolvedValue({ entries: [], error: null })
+    const commands = await import('../../src/commands')
+    commands.installCommands({
+      isMac: true,
+      setMode: () => {},
+      openSettingsToAiConfig: state.openSettingsToAiConfig,
+      ...deps,
+    })
+    return { state, commands }
+  }
+  const ev = (code: string, init: Record<string, unknown> = {}) =>
+    ({ code, metaKey: true, ...init }) as Parameters<
+      (typeof import('../../src/settingsState'))['settingsOwnsChord']
+    >[0]
+
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'platform', { value: 'MacIntel', configurable: true })
+  })
+
+  it('⌘T và ⌘⇧R là của Cài đặt; ⌘M, ⌘, và phím không phải tổ hợp thì không', async () => {
+    const { state } = await withCommands()
+    expect(state.settingsOwnsChord(ev('KeyT'))).toBe(true)
+    expect(state.settingsOwnsChord(ev('KeyR', { shiftKey: true }))).toBe(true)
+    expect(state.settingsOwnsChord(ev('KeyM'))).toBe(false)
+    expect(state.settingsOwnsChord(ev('Comma'))).toBe(false)
+    expect(state.settingsOwnsChord(ev('ShiftLeft'))).toBe(false)
+  })
+
+  it('trong ô tìm phím tắt, ⌘T là tra ngược chứ không chạy lệnh', async () => {
+    const { state } = await withCommands()
+    const input = document.createElement('input')
+    input.setAttribute('data-shortcut-search', '')
+    document.body.appendChild(input)
+    expect(state.settingsOwnsChord({ ...ev('KeyT'), target: input } as never)).toBe(false)
+  })
+
+  it('đi qua attachKeyboard như main.ts: Cài đặt mở thì ⌘T chạy, ⌘M bị chặn', async () => {
+    const mergeSegments = vi.fn()
+    const { state, commands } = await withCommands({ mergeSegments })
+    state.openSettings()
+    state.selectSettingsSection('privacy')
+    const off = commands.attachKeyboard(document, {
+      isBlocked: (event) => state.settingsOverlayIsOpen.value && !state.settingsOwnsChord(event),
+    })
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyM', metaKey: true, bubbles: true }))
+    expect(mergeSegments).not.toHaveBeenCalled()
+    expect(state.settingsActiveSection.value).toBe('privacy')
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyT', metaKey: true, bubbles: true }))
+    expect(state.settingsActiveSection.value).toBe('ai_and_model')
+
+    state.closeSettings()
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyM', metaKey: true, bubbles: true }))
+    expect(mergeSegments).toHaveBeenCalledTimes(1)
+    off()
+  })
+})
+
+describe('settings.ai_config.clear_all_overrides ngoài mục AI', () => {
+  it('không làm gì khi Cài đặt đang mở ở mục khác', async () => {
+    const { state } = await freshState()
+    const ai = await import('../../src/aiConfigState')
+    const spy = vi.spyOn(ai, 'clearAllAiConfigOverrides')
+    state.openSettingsToSection('shortcuts')
+    state.clearAiOverridesFromSettings()
+    expect(spy).not.toHaveBeenCalled()
+  })
+})

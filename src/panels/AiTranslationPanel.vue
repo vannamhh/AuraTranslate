@@ -60,6 +60,7 @@ import {
   aiConfigReadiness,
   refreshAiConfigReadiness,
 } from '../aiConfigState'
+import { aiUsageVisible } from '../aiUsageVisibleState'
 import {
   aiPromptGlossaryDelta,
   aiPromptAssembleBusy,
@@ -630,7 +631,7 @@ const promoteBatchReportText = computed<string | null>(() => {
         {{ aiTranslateAccumulatedText }}
       </p>
       <p
-        v-if="aiTranslateUsageLineValue !== null"
+        v-if="aiUsageVisible && aiTranslateUsageLineValue !== null"
         class="ai-translate-usage"
         role="status"
         data-ai-translate-usage
@@ -670,7 +671,7 @@ const promoteBatchReportText = computed<string | null>(() => {
           }}
         </p>
         <p
-          v-if="aiTranslateBatchUsageLineValue !== null"
+          v-if="aiUsageVisible && aiTranslateBatchUsageLineValue !== null"
           class="ai-batch-usage"
           role="status"
           data-ai-translate-batch-usage
@@ -765,7 +766,7 @@ const promoteBatchReportText = computed<string | null>(() => {
               <!-- aura-allow-text: DỮ LIỆU (bản dịch AI, hoặc câu nguồn khi chưa có bản dịch). -->
               {{ batchRowTexts[index] }}
             </span>
-            <span v-if="row.usage !== null" class="ai-batch-row-tokens" data-ai-translate-batch-row-tokens>
+            <span v-if="aiUsageVisible && row.usage !== null" class="ai-batch-row-tokens" data-ai-translate-batch-row-tokens>
               {{ t('panel.ai_translation.batch_row_tokens', { token_count: String(row.usage.total_tokens) }) }}
             </span>
             <span class="ai-batch-row-status" :class="{ 'ai-batch-row-status-error': row.status === 'error' }">

@@ -239,6 +239,15 @@ const EXEMPT = new Map([
       'AppConfig là GlobalOnly (kinds.rs:218), nên "đổi Tác phẩm" không phải một sự kiện của nó.',
   ],
   [
+    'src/config/bootstrap.ts::aiUsageVisible',
+    'Công tắc hiện token đã nạp lúc khởi động — cùng loại "chỉ toàn cục" với `tmFuzzyThreshold`: ' +
+      'AppConfig là GlobalOnly, nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
+    'src/config/bootstrap.ts::shortcutRowIds',
+    'Id của mọi hàng `shortcut` trên đĩa lúc khởi động — ảnh chụp khởi động, cùng loại "chỉ toàn cục" với `tmFuzzyThreshold`.',
+  ],
+  [
     'src/modes/modeState.ts::mode',
     'Chế độ đang mở (library/workspace). Dọn nó khi đổi Tác phẩm sẽ ném người dùng về màn ' +
       'hình Library ngay giữa lượt họ vừa mở một Tác phẩm — nó là state của PHIÊN.',
@@ -624,7 +633,7 @@ try {
  * Sàn là cận dưới: nó không đỏ oan khi thêm tệp, nhưng một sàn cũ là một sàn vô nghĩa —
  * thêm tệp vào `src/**` thì xét lại số này.
  */
-const FILE_FLOOR = 113
+const FILE_FLOOR = 121
 {
   const v = judgeFloor(FILE_FLOOR, files.length, 'FILE_FLOOR', 'tệp `.ts` dưới `src/**`')
   if (!v.ok) abort('cây nguồn `src/**`', new Error(v.message))

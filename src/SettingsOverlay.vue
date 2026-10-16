@@ -8,10 +8,22 @@
 //
 // No Vietnamese string in a `.vue` (NFR16, AD-21) and no `v-html` (AD-16): the domain log is
 // plain text data.
-import { nextTick, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import {
   AI_CONFIG_FIELDS,
+  AI_PROVIDERS,
   aiConfigDraft,
+  aiConfigEndpointPlaceholder,
+  aiConfigOverrideCount,
+  aiConfigProviderChoice,
+  aiConfigProviderIsOther,
+  aiConfigTestError,
+  aiConfigTestModelCount,
+  aiConfigTestStatus,
+  cancelAiConfigTest,
+  commitAiConfigField,
+  runAiConfigTest,
+  selectAiConfigProvider,
   aiConfigFieldWire,
   aiConfigViewTier,
   aiConfigWorkIsOpen,
@@ -29,20 +41,24 @@ import {
   deleteAiConfigKey,
   isAiConfigKeyValueValid,
   isAiConfigValueValid,
-  saveAiConfigField,
   saveAiConfigKey,
   setAiConfigDraft,
   setAiConfigKeyDraft,
 } from './aiConfigState'
 import type { AiConfigField } from './config/aiconfig'
+import { aiUsageVisible, aiUsageVisibleSaveError, setAiUsageVisible } from './aiUsageVisibleState'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
-import { cancelCapture, captureIsArmed } from './config/shortcutsState'
+import { cancelCapture, captureIsArmed, shortcutDisplayFor, unboundShortcutIds, shortcutTotalCount } from './config/shortcutsState'
 import SettingsGlossarySection from './SettingsGlossarySection.vue'
 import SettingsShortcutsSection from './SettingsShortcutsSection.vue'
 import SettingsExportSection from './SettingsExportSection.vue'
 import SettingsTmSection from './SettingsTmSection.vue'
+import SettingsLayoutSection from './SettingsLayoutSection.vue'
+import SettingsReadingSection from './SettingsReadingSection.vue'
+import SettingsDataSection from './SettingsDataSection.vue'
+import SettingsUpdateSection from './SettingsUpdateSection.vue'
 import { useSelectionSurface } from './panels/selectionContract'
 import {
   SETTINGS_SECTIONS,
@@ -51,6 +67,8 @@ import {
   domainLogReasonKey,
   selectSettingsSection,
   settingsActiveSection,
+  settingsSectionHasWorkTier,
+  settingsSectionLocksScope,
   settingsDomainLogError,
   settingsDomainLogIsEmpty,
   settingsDomainLogLoading,
@@ -196,8 +214,49 @@ function onAiConfigInput(field: AiConfigField, event: Event): void {
   if (target instanceof HTMLInputElement) setAiConfigDraft(field, target.value)
 }
 
-function onSaveAiConfigField(field: AiConfigField): void {
-  void saveAiConfigField(field)
+/** Leaving the box (or Enter) saves a valid, changed value: there is no per-field Save button. */
+function onCommitAiConfigField(field: AiConfigField): void {
+  void commitAiConfigField(field)
+}
+
+function onSelectAiProvider(provider: (typeof AI_PROVIDERS)[number]): void {
+  void selectAiConfigProvider(provider)
+}
+
+function onRunAiConfigTest(): void {
+  void runAiConfigTest()
+}
+
+function onCancelAiConfigTest(): void {
+  void cancelAiConfigTest()
+}
+
+function onToggleAiUsage(): void {
+  void setAiUsageVisible(!aiUsageVisible.value)
+}
+
+function aiUsageStateKey(): string {
+  return aiUsageVisible.value ? 'settings.ai_config.usage_on' : 'settings.ai_config.usage_off'
+}
+
+const AI_TEXT_FIELDS: readonly AiConfigField[] = AI_CONFIG_FIELDS.filter((f) => f !== 'provider')
+
+function aiProviderLabelKey(provider: (typeof AI_PROVIDERS)[number]): string {
+  return `settings.ai_config.provider_${provider}`
+}
+
+function aiProviderIsOn(provider: (typeof AI_PROVIDERS)[number]): boolean {
+  return aiConfigProviderChoice() === provider || (provider === 'custom' && aiConfigProviderIsOther())
+}
+
+const activeSection = computed(() => settingsActiveSection.value)
+const scopeHasWorkTier = computed(() => settingsSectionHasWorkTier(activeSection.value))
+const scopeIsLocked = computed(() => settingsSectionLocksScope(activeSection.value))
+const scopeIsShown = computed(() => scopeHasWorkTier.value || scopeIsLocked.value)
+
+function scopeMessageKey(): string {
+  if (scopeIsLocked.value) return `settings.scope.locked_${activeSection.value}`
+  return aiConfigViewTier.value === 'work' ? 'settings.scope.msg_work' : 'settings.scope.msg_global'
 }
 
 function onClearAiConfigOverride(field: AiConfigField): void {
@@ -251,6 +310,55 @@ function onDeleteAiConfigKey(): void {
         </button>
       </header>
 
+      <div v-if="scopeIsShown" class="set-scope" data-settings-scope>
+        <span class="set-scope-label">{{ t('settings.scope.label') }}</span>
+        <span class="set-scope-seg" role="group" :aria-label="t('settings.scope.label')">
+          <form class="set-scope-form" @submit.prevent="onSelectAiConfigTier('global')">
+            <button
+              type="submit"
+              class="set-scope-btn"
+              data-settings-scope-global
+              :disabled="scopeIsLocked"
+              :aria-pressed="scopeIsLocked || aiConfigViewTier === 'global'"
+            >
+              {{ t('settings.ai_config.tier_global') }}
+            </button>
+          </form>
+          <form class="set-scope-form" @submit.prevent="onSelectAiConfigTier('work')">
+            <button
+              type="submit"
+              class="set-scope-btn"
+              data-settings-scope-work
+              :disabled="scopeIsLocked || !aiConfigWorkIsOpen"
+              :aria-pressed="!scopeIsLocked && aiConfigViewTier === 'work'"
+            >
+              {{ t('settings.ai_config.tier_work') }}
+            </button>
+          </form>
+        </span>
+        <span class="set-scope-msg" data-settings-scope-msg>{{ t(scopeMessageKey()) }}</span>
+        <span
+          v-if="scopeHasWorkTier && !aiConfigWorkIsOpen"
+          class="set-scope-msg"
+          data-settings-scope-work-unavailable
+        >
+          {{ t('settings.ai_config.tier_work_unavailable') }}
+        </span>
+        <span v-if="scopeHasWorkTier && aiConfigViewTier === 'work'" class="set-scope-right" data-settings-scope-overrides>
+          {{ t('settings.scope.override_count', { count: String(aiConfigOverrideCount) }) }}
+          <!-- aura-allow-text: hợp âm đã định dạng — DỮ LIỆU. -->
+          <span class="set-scope-chord">{{ shortcutDisplayFor('settings.ai_config.clear_all_overrides') }}</span>
+        </span>
+        <span v-else-if="activeSection === 'shortcuts'" class="set-scope-right" data-settings-scope-shortcut-count>
+          {{
+            t('settings.scope.shortcut_count', {
+              total: String(shortcutTotalCount),
+              unbound: String(unboundShortcutIds.length),
+            })
+          }}
+        </span>
+      </div>
+
       <div class="set-grid">
         <nav class="set-nav" aria-label="settings-nav">
           <form
@@ -273,7 +381,6 @@ function onDeleteAiConfigKey(): void {
 
         <div class="set-main">
           <template v-if="settingsActiveSection === 'ai_and_model'">
-            <!-- ═══════════════════ AI và mô hình (FR68, Story 4.2) ═══════════════════ -->
             <h3 class="set-h2">{{ t('settings.nav.ai_and_model') }}</h3>
             <p class="set-h2s">{{ t('settings.ai_config.intro') }}</p>
 
@@ -285,42 +392,64 @@ function onDeleteAiConfigKey(): void {
               {{ t('settings.ai_config.loading') }}
             </p>
             <template v-else>
-              <fieldset class="ai-tier" role="radiogroup" :aria-label="t('settings.ai_config.tier_label')">
-                <legend class="ai-field-label">{{ t('settings.ai_config.tier_label') }}</legend>
-                <label class="ai-tier-option">
-                  <input
-                    type="radio"
-                    name="ai-config-tier"
-                    :checked="aiConfigViewTier === 'global'"
-                    @change="onSelectAiConfigTier('global')"
-                  />
-                  {{ t('settings.ai_config.tier_global') }}
-                </label>
-                <label class="ai-tier-option">
-                  <input
-                    type="radio"
-                    name="ai-config-tier"
-                    :disabled="!aiConfigWorkIsOpen"
-                    :checked="aiConfigViewTier === 'work'"
-                    @change="onSelectAiConfigTier('work')"
-                  />
-                  {{ t('settings.ai_config.tier_work') }}
-                </label>
-              </fieldset>
-              <p v-if="!aiConfigWorkIsOpen" class="ai-field-status">{{ t('settings.ai_config.tier_work_unavailable') }}</p>
+              <h4 class="ai-sh">{{ t('settings.ai_config.group_connection') }}</h4>
 
-              <div v-for="field in AI_CONFIG_FIELDS" :key="field" class="ai-field">
-                <!-- Nút Lưu là `type="submit"` của FORM NÀY — form đi qua ĐÚNG MỘT handler,
-                     cùng khuôn `SettingsGlossarySection.vue`. -->
-                <form class="ai-field-form" @submit.prevent="onSaveAiConfigField(field)">
+              <div class="ai-field" data-ai-field="provider">
+                <span class="ai-field-label-text">{{ t(aiConfigFieldLabelKey('provider')) }}</span>
+                <div class="ai-pills" role="group" :aria-label="t(aiConfigFieldLabelKey('provider'))">
+                  <form
+                    v-for="provider in AI_PROVIDERS"
+                    :key="provider"
+                    class="ai-pill-form"
+                    @submit.prevent="onSelectAiProvider(provider)"
+                  >
+                    <button
+                      type="submit"
+                      class="ai-pill"
+                      :data-ai-provider="provider"
+                      :aria-pressed="aiProviderIsOn(provider)"
+                      :disabled="aiConfigIsSaving('provider')"
+                    >
+                      {{ t(aiProviderLabelKey(provider)) }}
+                    </button>
+                  </form>
+                </div>
+                <p class="ai-field-status">
+                  <span :class="aiConfigIsOverridden('provider') ? 'mark-over' : 'mark-inh'">
+                    {{
+                      t(aiConfigStatusKey('provider'), {
+                        value: aiConfigFieldWire('provider')?.shadowed ?? '',
+                      })
+                    }}
+                  </span>
+                </p>
+                <p v-if="aiConfigSaveErrorFor('provider') !== null" class="ai-field-alert" role="alert">
+                  <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                  {{ tError(aiConfigSaveErrorFor('provider')!) }}
+                </p>
+                <form
+                  v-if="aiConfigViewTier === 'work' && aiConfigFieldWire('provider')?.tier === 'work'"
+                  class="ai-field-clear-form"
+                  @submit.prevent="onClearAiConfigOverride('provider')"
+                >
+                  <button type="submit" class="ai-field-clear" :disabled="aiConfigIsSaving('provider')">
+                    {{ t('settings.ai_config.clear_override') }}
+                  </button>
+                </form>
+              </div>
+
+              <div v-for="field in AI_TEXT_FIELDS" :key="field" class="ai-field" :data-ai-field="field">
+                <form class="ai-field-form" @submit.prevent="onCommitAiConfigField(field)">
                   <label class="ai-field-label">
                     <span>{{ t(aiConfigFieldLabelKey(field)) }}</span>
                     <input
                       class="ai-field-input"
                       autocomplete="off"
+                      :placeholder="field === 'endpoint' ? aiConfigEndpointPlaceholder() : undefined"
                       :value="aiConfigDraft(field)"
                       :disabled="aiConfigIsSaving(field)"
                       @input="onAiConfigInput(field, $event)"
+                      @blur="onCommitAiConfigField(field)"
                     />
                   </label>
 
@@ -334,9 +463,8 @@ function onDeleteAiConfigKey(): void {
                     </span>
                   </p>
 
-                  <!-- "Chưa cấu hình" KHÔNG phải một lỗi (quy tắc chung của Epic 4) — một ô
-                       trống lúc mới mở mục không được hiện câu từ chối; chỉ hiện SAU khi
-                       người dùng đã gõ gì đó mà giá trị đó không hợp lệ. -->
+                  <!-- "Chưa cấu hình" KHÔNG phải một lỗi: câu từ chối chỉ hiện SAU khi người dùng đã
+                       gõ gì đó mà giá trị đó không hợp lệ. -->
                   <p
                     v-if="aiConfigDraft(field) !== '' && !isAiConfigValueValid(field, aiConfigDraft(field))"
                     class="ai-field-alert"
@@ -347,18 +475,8 @@ function onDeleteAiConfigKey(): void {
                     <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
                     {{ tError(aiConfigSaveErrorFor(field)!) }}
                   </p>
-
-                  <button
-                    type="submit"
-                    class="ai-field-save"
-                    :disabled="!isAiConfigValueValid(field, aiConfigDraft(field)) || aiConfigIsSaving(field)"
-                  >
-                    {{ t('settings.ai_config.save') }}
-                  </button>
                 </form>
 
-                <!-- `<form>` THỨ HAI, ĐỨNG CẠNH — `<form>` không lồng nhau được trong HTML.
-                     Chỉ hiện khi trường ĐANG ghi đè ở tầng Tác phẩm. -->
                 <form
                   v-if="aiConfigViewTier === 'work' && aiConfigFieldWire(field)?.tier === 'work'"
                   class="ai-field-clear-form"
@@ -370,12 +488,7 @@ function onDeleteAiConfigKey(): void {
                 </form>
               </div>
 
-              <!-- ═══════════════════ Khoá API (FR65/FR67, NFR11, Story 4.3) ═══════════════════
-                   Không đi qua `v-for="field in AI_CONFIG_FIELDS"` ở trên — khoá không có hình
-                   dạng `AiConfigFieldWire` (không tầng, không `shadowed`, giá trị KHÔNG BAO GIỜ
-                   trở lại qua IPC). Ba trạng thái hiển thị, không hai: xem
-                   `aiConfigKeyStatusKey()`. Lớp `ai-key-field` chỉ để test nhắm đúng khối này
-                   giữa nhiều `.ai-field`/`<form>` khác trên cùng màn — không đụng CSS. -->
+              <!-- The key keeps its own Save/Delete buttons: it has no field wire and never returns over IPC. -->
               <div class="ai-field ai-key-field">
                 <form class="ai-field-form" @submit.prevent="onSaveAiConfigKey">
                   <label class="ai-field-label">
@@ -401,12 +514,8 @@ function onDeleteAiConfigKey(): void {
                       {{ t(aiConfigKeyStatusKey()) }}
                     </span>
                   </p>
-                  <!-- Câu nói ra vì sao mục này KHÔNG có nút chọn tầng như năm ô trên —
-                       Quyết định 2026-09-17 (spec 4.3): một khoá cho toàn ứng dụng. -->
                   <p class="ai-field-status">{{ t('settings.ai_config.key_note') }}</p>
 
-                  <!-- Cùng luật năm ô trên: "chưa cấu hình" không phải lỗi, chỉ hiện câu từ
-                       chối SAU khi người dùng đã gõ gì đó không hợp lệ. -->
                   <p
                     v-if="aiConfigKeyDraft() !== '' && !isAiConfigKeyValueValid(aiConfigKeyDraft())"
                     class="ai-field-alert"
@@ -427,9 +536,6 @@ function onDeleteAiConfigKey(): void {
                   </button>
                 </form>
 
-                <!-- `<form>` THỨ HAI, ĐỨNG CẠNH — hiện trừ lúc đã biết CHẮC chưa có khoá nào
-                     (`=== false`). Một thăm dò trượt (`null`) không nói gì về việc Xoá có
-                     trượt hay không, nên nút vẫn hiện — chỉ khi gọi thật mới biết. -->
                 <form
                   v-if="aiConfigKeyConfigured !== false"
                   class="ai-field-clear-form"
@@ -440,6 +546,70 @@ function onDeleteAiConfigKey(): void {
                   </button>
                 </form>
               </div>
+
+              <h4 class="ai-sh">{{ t('settings.ai_config.group_cost') }}</h4>
+              <div class="ai-field" data-ai-usage-switch>
+                <span class="ai-field-label-text">{{ t('settings.ai_config.usage_label') }}</span>
+                <form class="ai-field-form" @submit.prevent="onToggleAiUsage()">
+                  <button type="submit" class="ai-field-save" :aria-pressed="aiUsageVisible" data-ai-usage-toggle>
+                    {{ t(aiUsageStateKey()) }}
+                  </button>
+                </form>
+                <p class="ai-field-status">{{ t('settings.ai_config.usage_note') }}</p>
+                <p v-if="aiUsageVisibleSaveError !== null" class="ai-field-alert" role="alert">
+                  <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                  {{ tError(aiUsageVisibleSaveError) }}
+                </p>
+              </div>
+
+              <div class="ai-actions">
+                <form class="ai-field-clear-form" @submit.prevent="onRunAiConfigTest()">
+                  <button
+                    type="submit"
+                    class="ai-field-save"
+                    data-ai-test-connection
+                    :disabled="aiConfigTestStatus === 'running'"
+                  >
+                    {{ t('settings.ai_config.test_connection') }}
+                  </button>
+                </form>
+                <form v-if="aiConfigTestStatus === 'running'" class="ai-field-clear-form" @submit.prevent="onCancelAiConfigTest()">
+                  <button type="submit" class="ai-field-clear" data-ai-test-cancel>
+                    {{ t('settings.ai_config.test_cancel') }}
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  class="ai-field-clear"
+                  data-ai-clear-all
+                  :disabled="aiConfigViewTier !== 'work' || aiConfigOverrideCount === 0"
+                  @click="dispatch('settings.ai_config.clear_all_overrides')"
+                >
+                  {{ t('settings.ai_config.clear_all') }}
+                </button>
+                <span class="ai-field-status">{{ t('settings.ai_config.autosave_hint') }}</span>
+              </div>
+              <p v-if="aiConfigTestStatus === 'running'" class="ai-field-status" role="status" data-ai-test-result="running">
+                {{ t('settings.ai_config.test_running') }}
+              </p>
+              <p v-else-if="aiConfigTestStatus === 'connected'" class="ai-field-status" role="status" data-ai-test-result="connected">
+                {{ t('settings.ai_config.test_connected', { count: String(aiConfigTestModelCount) }) }}
+              </p>
+              <p v-else-if="aiConfigTestStatus === 'not_configured'" class="ai-field-status" role="status" data-ai-test-result="not_configured">
+                {{ t('settings.ai_config.test_not_configured') }}
+              </p>
+              <p v-else-if="aiConfigTestStatus === 'cancelled'" class="ai-field-status" role="status" data-ai-test-result="cancelled">
+                {{ t('settings.ai_config.test_cancelled') }}
+              </p>
+              <p
+                v-else-if="aiConfigTestStatus === 'error' && aiConfigTestError !== null"
+                class="ai-field-alert"
+                role="alert"
+                data-ai-test-result="error"
+              >
+                <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                {{ tError(aiConfigTestError) }}
+              </p>
             </template>
           </template>
           <template v-else-if="settingsActiveSection === 'prompt'">
@@ -475,6 +645,25 @@ function onDeleteAiConfigKey(): void {
             <h3 class="set-h2">{{ t('shortcuts.title') }}</h3>
             <p class="set-h2s">{{ t('shortcuts.intro') }}</p>
             <SettingsShortcutsSection />
+          </template>
+          <template v-else-if="settingsActiveSection === 'layout'">
+            <h3 class="set-h2">{{ t('settings.nav.layout') }}</h3>
+            <p class="set-h2s">{{ t('settings.layout.intro') }}</p>
+            <SettingsLayoutSection />
+          </template>
+          <template v-else-if="settingsActiveSection === 'reading'">
+            <h3 class="set-h2">{{ t('settings.nav.reading') }}</h3>
+            <p class="set-h2s">{{ t('settings.reading.intro') }}</p>
+            <SettingsReadingSection />
+          </template>
+          <template v-else-if="settingsActiveSection === 'data'">
+            <h3 class="set-h2">{{ t('settings.nav.data') }}</h3>
+            <p class="set-h2s">{{ t('settings.data.intro') }}</p>
+            <SettingsDataSection />
+          </template>
+          <template v-else-if="settingsActiveSection === 'update'">
+            <h3 class="set-h2">{{ t('settings.nav.update') }}</h3>
+            <SettingsUpdateSection />
           </template>
           <template v-else-if="settingsActiveSection === 'privacy'">
             <!-- ═══════════════════ Quyền riêng tư — nhật ký domain (AD-41, NFR19) ═══════════════════ -->
@@ -700,6 +889,115 @@ function onDeleteAiConfigKey(): void {
   color: var(--color-on-surface-variant);
 }
 
+.set-scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 3);
+  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 4);
+  border-bottom: 1px solid var(--color-outline);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.set-scope-label {
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  font-weight: var(--weight-ui-label);
+  letter-spacing: var(--tracking-ui-label);
+  text-transform: uppercase;
+}
+
+.set-scope-seg {
+  display: inline-flex;
+  border: 1px solid var(--color-outline);
+}
+
+.set-scope-form {
+  margin: 0;
+}
+
+.set-scope-btn {
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.set-scope-btn[aria-pressed='true'] {
+  color: var(--color-primary);
+  font-weight: var(--weight-ui-label);
+}
+
+.set-scope-btn:disabled {
+  cursor: default;
+}
+
+.set-scope-right {
+  margin-left: auto;
+}
+
+.set-scope-chord {
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+}
+
+.ai-sh {
+  margin: calc(var(--space-unit) * 3) 0 calc(var(--space-unit) * 2) 0;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  font-weight: var(--weight-ui-label);
+  letter-spacing: var(--tracking-ui-label);
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+}
+
+.ai-field-label-text {
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  letter-spacing: var(--tracking-ui-label);
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+}
+
+.ai-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.ai-pill-form {
+  margin: 0;
+}
+
+.ai-pill {
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
+  border: 1px solid var(--color-outline);
+  background: none;
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-pill[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: var(--weight-ui-label);
+}
+
+.ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 3);
+  margin-top: calc(var(--space-unit) * 4);
+}
+
 .ai-field {
   display: flex;
   flex-direction: column;
@@ -710,25 +1008,6 @@ function onDeleteAiConfigKey(): void {
 
 .ai-field:first-child {
   padding-top: 0;
-}
-
-.ai-tier {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: calc(var(--space-unit) * 3);
-  margin: 0 0 calc(var(--space-unit) * 3) 0;
-  padding: 0;
-  border: none;
-}
-
-.ai-tier-option {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 1);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
 }
 
 .ai-field-form {

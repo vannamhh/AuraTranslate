@@ -179,6 +179,7 @@ fn ipc_error_wire_shape() {
         // ⚠️ Trường thứ **tám**. Cùng lời dừng như các trường trên.
         reading_preferences: String::new(),
         tm_fuzzy_threshold: 65,
+        ai_usage_visible: String::new(),
     })
     .expect("BootstrapConfig phải serialize được");
     // ⚠️ Sắp xếp trước khi so: `serde_json::Map` là `BTreeMap` hay `IndexMap` tuỳ feature
@@ -195,6 +196,7 @@ fn ipc_error_wire_shape() {
     assert_eq!(
         ok_keys,
         vec![
+            "ai_usage_visible",
             "dict_sources_disabled",
             "glossary_scan_threshold",
             "layout_presets",
@@ -2236,6 +2238,28 @@ fn the_aiconfig_key_wires_are_registered() {
             lib_src.contains(wire),
             "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi invoke() tra \
              \"command not found\" va Luu/Xoa khoa API vo tren mot ban dung that."
+        );
+    }
+}
+
+#[test]
+fn the_connection_check_and_shortcut_file_wires_are_registered() {
+    let lib_rs = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("lib.rs");
+    let lib_src = fs::read_to_string(&lib_rs)
+        .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
+
+    for wire in [
+        "crate::commands::aiconfig::wire::ai_config_test_connection,",
+        "crate::commands::aiconfig::wire::ai_config_test_connection_cancel,",
+        "crate::commands::shortcuts::wire::shortcuts_export,",
+        "crate::commands::shortcuts::wire::shortcuts_import,",
+    ] {
+        assert!(
+            lib_src.contains(wire),
+            "`{wire}` phai co mat trong generate_handler! cua lib.rs. Thieu no thi Thu ket noi \
+             va Xuat/Nhap phim tat tra \"command not found\" tren mot ban dung that."
         );
     }
 }

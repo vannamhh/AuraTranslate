@@ -1117,6 +1117,12 @@ export type CommandDeps = {
   /** Mở lớp phủ THẲNG vào mục Quyền riêng tư. Handler của `settings.privacy.open` — dòng
    * tóm tắt nhật ký domain ở chân `ImportPreviewOverlay.vue` dispatch command này. */
   openSettingsToPrivacy?: () => void
+  /** Mở lớp phủ THẲNG vào mục AI và mô hình. Handler của `settings.ai_config.open`. */
+  openSettingsToAiConfig?: () => void
+  /** Trả mọi trường AI đang ghi đè ở tầng Tác phẩm về kế thừa. Handler của `settings.ai_config.clear_all_overrides`. */
+  clearAllAiConfigOverrides?: () => void
+  /** Closes Settings and switches to Library mode, where the rescan report is drawn. Handler of `settings.data.open_report`. */
+  openLibraryRescanReport?: () => void
   /** Đóng lớp phủ — KHÔNG dọn nhật ký đã tải. Handler của `settings.close`. */
   closeSettings?: () => void
 
@@ -4569,6 +4575,39 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('settings.privacy.open', 'openSettingsToPrivacy')
       }
       deps.openSettingsToPrivacy()
+    },
+  })
+  target.register({
+    id: 'settings.ai_config.open',
+    labelKey: 'command.settings.ai_config.open',
+    keys: ['Mod+T'],
+    run: () => {
+      if (deps.openSettingsToAiConfig === undefined) {
+        return portMissing('settings.ai_config.open', 'openSettingsToAiConfig')
+      }
+      deps.openSettingsToAiConfig()
+    },
+  })
+  target.register({
+    id: 'settings.ai_config.clear_all_overrides',
+    labelKey: 'command.settings.ai_config.clear_all_overrides',
+    keys: ['Mod+Shift+R'],
+    run: () => {
+      if (deps.clearAllAiConfigOverrides === undefined) {
+        return portMissing('settings.ai_config.clear_all_overrides', 'clearAllAiConfigOverrides')
+      }
+      deps.clearAllAiConfigOverrides()
+    },
+  })
+  target.register({
+    id: 'settings.data.open_report',
+    labelKey: 'command.settings.data.open_report',
+    keys: undefined,
+    run: () => {
+      if (deps.openLibraryRescanReport === undefined) {
+        return portMissing('settings.data.open_report', 'openLibraryRescanReport')
+      }
+      deps.openLibraryRescanReport()
     },
   })
   target.register({

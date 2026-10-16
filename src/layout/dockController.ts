@@ -52,6 +52,10 @@ export type DockController = {
    */
   visiblePanelsInLayoutOrder(): readonly string[]
   activePanelId(): string | null
+  /** The layout as it would be persisted now, or `null` when it cannot be serialised. */
+  currentLayoutJson(): string | null
+  /** Applies a layout JSON saved earlier (a user preset). */
+  applyLayoutJson(json: string): boolean
 }
 
 let live: DockController | null = null
@@ -130,4 +134,16 @@ export function panelRing(): readonly string[] {
   if (suspended) return REVIEW_RING
   if (live === null) return []
   return live.visiblePanelsInLayoutOrder()
+}
+
+/** The live layout as JSON for saving a user preset; `null` when no dock is live (or while Review Mode hides it). */
+export function currentLayoutJson(): string | null {
+  if (suspended || live === null) return null
+  return live.currentLayoutJson()
+}
+
+/** Applies a saved user preset to the live dock. */
+export function applyLayoutJson(json: string): boolean {
+  if (suspended) return refused('applyLayoutJson')
+  return live === null ? absent('applyLayoutJson') : live.applyLayoutJson(json)
 }

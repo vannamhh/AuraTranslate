@@ -729,6 +729,24 @@ message_keys! {
     /// 4.3: "the key is stored and read at the Global tier only"); bị chặn TẠI TẦNG LỆNH,
     /// không chỉ ẩn ở UI.
     AiConfigKeyIsGlobal => "err.ai_config.key_is_global" [],
+    /// Connection check: the provider answered 401 or 403 to the saved key.
+    AiConfigTestKeyRejected => "err.ai_config.test_key_rejected" [],
+    /// Connection check: the provider answered 404 to the model-list request.
+    AiConfigTestEndpointNotFound => "err.ai_config.test_endpoint_not_found" [],
+    /// Connection check: the server is reachable but does not list the saved model.
+    AiConfigTestModelMissing => "err.ai_config.test_model_missing" ["model"],
+    /// Connection check: no answer from the server (DNS, refused, timeout).
+    AiConfigTestUnreachable => "err.ai_config.test_unreachable" [],
+    /// Connection check: any other non-2xx status.
+    AiConfigTestRefused => "err.ai_config.test_refused" ["status"],
+    /// Connection check: a 2xx answer that is not a model list.
+    AiConfigTestReplyUnreadable => "err.ai_config.test_reply_unreadable" [],
+    /// Shortcut file: larger than the import cap.
+    ShortcutsFileTooLarge => "err.shortcuts.file_too_large" [],
+    /// Shortcut file: could not be read, or is not UTF-8 text.
+    ShortcutsFileUnreadable => "err.shortcuts.file_unreadable" [],
+    /// Shortcut file: could not be written.
+    ShortcutsFileWriteFailed => "err.shortcuts.file_write_failed" [],
 
     // ── Story 4.4 (FR69, AD-18) — năm khoá, bộ prompt theo thể loại ─────────────────
     //

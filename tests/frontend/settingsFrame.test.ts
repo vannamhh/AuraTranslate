@@ -25,9 +25,23 @@ vi.mock('../../src/config/aiconfig', () => ({
   aiConfigClearOverride: vi.fn(),
   aiConfigSaveKey: vi.fn(),
   aiConfigDeleteKey: vi.fn(),
+  aiConfigTestConnection: vi.fn(),
+  aiConfigTestConnectionCancel: vi.fn(),
 }))
 
-const EXPECTED_SECTIONS = ['ai_and_model', 'prompt', 'glossary', 'tm', 'export', 'shortcuts', 'privacy']
+const EXPECTED_SECTIONS = [
+  'ai_and_model',
+  'prompt',
+  'glossary',
+  'tm',
+  'export',
+  'shortcuts',
+  'layout',
+  'reading',
+  'data',
+  'update',
+  'privacy',
+]
 
 const cleanups: Array<() => void> = []
 
@@ -83,6 +97,10 @@ describe('Settings nav', () => {
       glossary: (root) => root.find('input.gs-input').exists(),
       export: (root) => root.find('[data-export-translator-input]').exists(),
       shortcuts: (root) => root.find('table.sc-table').exists(),
+      layout: (root) => root.find('[data-settings-layout]').exists(),
+      reading: (root) => root.find('[data-settings-reading-level]').exists(),
+      data: (root) => root.find('[data-settings-data-root]').exists(),
+      update: (root) => root.find('[data-settings-update]').exists(),
       privacy: (root) => root.find('.set-main').text().includes(t('settings.privacy.empty')),
     }
     const forms = wrapper.findAll('.set-nav-form')
@@ -95,6 +113,26 @@ describe('Settings nav', () => {
         expect(present(wrapper), `${section}: marker of ${name}`).toBe(name === section)
       }
     }
+    wrapper.unmount()
+  })
+
+  it('the Update section has no button or input, and the scope bar locks to Global with the reason', async () => {
+    const { settings, SettingsOverlay, t } = await freshFrame()
+    settings.openSettings()
+    settings.selectSettingsSection('update')
+    const wrapper = mount(SettingsOverlay, { attachTo: document.body })
+    await flushPromises()
+
+    const body = wrapper.find('[data-settings-update]')
+    expect(body.exists()).toBe(true)
+    expect(body.findAll('button, input, a, form')).toHaveLength(0)
+    expect(wrapper.find('[data-settings-scope-global]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-settings-scope-work]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-settings-scope-msg]').text()).toBe(t('settings.scope.locked_update'))
+
+    settings.selectSettingsSection('ai_and_model')
+    await flushPromises()
+    expect(wrapper.find('[data-settings-scope-global]').attributes('disabled')).toBeUndefined()
     wrapper.unmount()
   })
 

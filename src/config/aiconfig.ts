@@ -81,6 +81,8 @@ const CMD_SAVE_FIELD = 'ai_config_save_field'
 const CMD_CLEAR_OVERRIDE = 'ai_config_clear_override'
 const CMD_SAVE_KEY = 'ai_config_save_key'
 const CMD_DELETE_KEY = 'ai_config_delete_key'
+const CMD_TEST_CONNECTION = 'ai_config_test_connection'
+const CMD_TEST_CONNECTION_CANCEL = 'ai_config_test_connection_cancel'
 
 /**
  * Đọc năm trường, hai tầng đã phân giải, cộng `workTierAvailable` và `keyConfigured`. Không
@@ -190,5 +192,50 @@ export async function aiConfigDeleteKey(): Promise<IpcError | null> {
     }
     console.info(`[aiconfig] không gọi được \`${CMD_DELETE_KEY}\` — chạy ngoài Tauri? ${String(err)}`)
     return null
+  }
+}
+
+/** Mirrors the Rust `ConnectionCheckOutcome` tagged by `kind`. */
+export type AiConfigTestOutcome =
+  | { kind: 'connected'; model_count: number }
+  | { kind: 'not_configured' }
+  | { kind: 'cancelled' }
+
+function isTestOutcome(value: unknown): value is AiConfigTestOutcome {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as { kind?: unknown; model_count?: unknown }
+  if (v.kind === 'connected') return typeof v.model_count === 'number'
+  return v.kind === 'not_configured' || v.kind === 'cancelled'
+}
+
+/**
+ * Tests the SAVED configuration of `tier` against the provider (`GET {endpoint}/models`).
+ * Never throws. `outcome: null, error: null` == no IPC bridge.
+ */
+export async function aiConfigTestConnection(
+  tier: AiConfigTierWire,
+): Promise<{ outcome: AiConfigTestOutcome | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_TEST_CONNECTION, { tier })
+    if (isTestOutcome(wire)) return { outcome: wire, error: null }
+    console.error(`[aiconfig] \`${CMD_TEST_CONNECTION}\` trả về hình dạng lạ.`)
+    return { outcome: null, error: UNKNOWN_IPC_ERROR }
+  } catch (err) {
+    if (isIpcError(err)) return { outcome: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[aiconfig] \`${CMD_TEST_CONNECTION}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[aiconfig] không gọi được \`${CMD_TEST_CONNECTION}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { outcome: null, error: null }
+  }
+}
+
+/** Cancels only the running connection test, never a translate run. Never throws. */
+export async function aiConfigTestConnectionCancel(): Promise<void> {
+  try {
+    await invoke(CMD_TEST_CONNECTION_CANCEL)
+  } catch (err) {
+    console.warn(`[aiconfig] không huỷ được lượt thử kết nối: ${String(err)}`)
   }
 }

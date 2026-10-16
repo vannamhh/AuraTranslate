@@ -299,6 +299,29 @@ describe('Huỷ lô (matrix: "Huỷ giữa lô")', () => {
   })
 })
 
+describe('công tắc "Hiện token và ước tính chi phí"', () => {
+  it('tắt ⇒ dòng tổng token của lô và token từng hàng biến mất; bật lại ⇒ hiện lại; số liệu không mất', async () => {
+    const fresh = await freshPanel()
+    const visibility = await import('../../src/aiUsageVisibleState')
+    const { wrapper } = await startBatchFailingAtSix(fresh, PROVIDER_UNREACHABLE_ON_106)
+
+    expect(wrapper.find('[data-ai-translate-batch-usage]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-ai-translate-batch-row-tokens]')).toHaveLength(5)
+
+    await visibility.setAiUsageVisible(false)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-translate-batch-usage]').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-translate-batch-row-tokens]').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-translate-batch-rows]').exists()).toBe(true)
+
+    await visibility.setAiUsageVisible(true)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-translate-batch-usage]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-ai-translate-batch-row-tokens]')).toHaveLength(5)
+    wrapper.unmount()
+  })
+})
+
 describe('Bỏ lô (matrix: "Bỏ lô")', () => {
   it('không hàng nào ⇒ nút ẩn', async () => {
     const fresh = await freshPanel()
@@ -401,7 +424,8 @@ describe('đầu panel và trạng thái chưa cấu hình (matrix: "Đã cấu 
     const block = wrapper.get('[data-ai-unconfigured]')
     expect(block.text()).toContain('Chưa cấu hình AI')
     expect(block.text()).toContain('Mọi năng lực khác vẫn chạy đầy đủ')
-    expect(block.text()).toContain('Nhà cung cấp cục bộ như Ollama / LM Studio vẫn cần một khoá bất kỳ.')
+    expect(block.text()).toContain('Ollama và LM Studio chạy trên máy này không cần khoá')
+    expect(block.text()).not.toContain('vẫn cần một khoá bất kỳ')
     expect(block.attributes('role')).toBeUndefined()
     expect(block.find('[role="alert"]').exists()).toBe(false)
     expect(block.classes().join(' ')).not.toContain('error')
@@ -416,6 +440,17 @@ describe('đầu panel và trạng thái chưa cấu hình (matrix: "Đã cấu 
     await wrapper.get('[data-ai-translate-run]').trigger('click')
     await flushPromises()
     expect(runSegmentMock).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('Ollama đã có endpoint và mô hình nhưng không có khoá: Rust báo ready = true ⇒ panel sẵn sàng, không đòi khoá', async () => {
+    const fresh = await freshPanel()
+    aiConfigGetMock.mockResolvedValue({ ...readyConfig(true, 'Ollama', 'qwen2.5:14b'), keyConfigured: false })
+    const wrapper = await mountPanel(fresh.AiTranslationPanel)
+
+    expect(wrapper.find('[data-ai-unconfigured]').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-key-unchecked]').exists()).toBe(false)
+    expect(wrapper.get('[data-ai-panel-provider]').text()).toBe('Ollama · qwen2.5:14b')
     wrapper.unmount()
   })
 

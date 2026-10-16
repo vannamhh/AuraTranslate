@@ -1358,6 +1358,8 @@ pub fn run() {
             // TAI DAY, khong chi an di tren webview.
             crate::commands::aiconfig::wire::ai_config_save_key,
             crate::commands::aiconfig::wire::ai_config_delete_key,
+            crate::commands::aiconfig::wire::ai_config_test_connection,
+            crate::commands::aiconfig::wire::ai_config_test_connection_cancel,
             // Story 4.4 -- bo prompt theo the loai (FR69, AD-18). Nam vo: liet ke hai tang da
             // phan giai (Quyet dinh #1 -- ca bo, theo ten, hang Global bi che van hien) · tao
             // mot bo o mot tang · doi ten · sua than · xoa. Canh bao dau ngoac (Quyet dinh #3)
@@ -1429,6 +1431,8 @@ pub fn run() {
             crate::commands::tm::wire::tm_delete_pair,
             crate::commands::tm::wire::tm_delete_others,
             crate::commands::tm::wire::tm_push_pair_to_global,
+            crate::commands::shortcuts::wire::shortcuts_export,
+            crate::commands::shortcuts::wire::shortcuts_import,
             crate::commands::tm::wire::tm_export_tier,
             crate::commands::tm::wire::tm_open_import_preview,
             crate::commands::tm::wire::tm_confirm_import,
@@ -1705,6 +1709,7 @@ fn open_work_slot(app: &tauri::App) {
     // LAN cho ca PHIEN, khong theo Tac pham dang mo -- mot luot dich con dang chay khi nguoi
     // dung dong Tac pham van phai huy duoc sach, khong phai mot rang buoc voi OpenWorkState).
     app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());
+    app.manage(crate::commands::aitranslate::ConnectionCheckGeneration::default());
     app.manage(crate::commands::proofread::ProofreadGeneration::default());
     // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong

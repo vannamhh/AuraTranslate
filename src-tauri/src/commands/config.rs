@@ -112,6 +112,8 @@ pub struct BootstrapConfig {
     /// `#[tauri::command]` riêng cho trường này.
     pub reading_preferences: String,
     pub tm_fuzzy_threshold: u32,
+    /// `"off"` hides the token and cost lines of the AI panel; empty when never saved.
+    pub ai_usage_visible: String,
 }
 
 /// Kho vắng mặt ⇒ lỗi *mở kho*, và đó là câu đúng theo nghĩa đen.
@@ -157,6 +159,7 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
         glossary_scan_threshold: config.glossary_scan_threshold(),
         reading_preferences: config.reading_preferences().to_owned(),
         tm_fuzzy_threshold: config.tm_fuzzy_threshold(),
+        ai_usage_visible: config.ai_usage_visible().to_owned(),
     })
 }
 

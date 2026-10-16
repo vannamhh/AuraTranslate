@@ -141,6 +141,7 @@ pub fn prepare_proofread_call(
 ) -> Result<ProofreadPrepareOutcome, IpcError> {
     let Some(ResolvedCallConfig {
         open_work,
+        provider,
         endpoint,
         model,
         temperature,
@@ -170,7 +171,7 @@ pub fn prepare_proofread_call(
         }));
     }
 
-    let Some(api_key) = read_api_key()? else {
+    let Some(api_key) = read_api_key(&provider)? else {
         return Ok(ProofreadPrepareOutcome::NotConfigured);
     };
 

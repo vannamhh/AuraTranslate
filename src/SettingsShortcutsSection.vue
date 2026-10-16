@@ -8,16 +8,29 @@ import { dispatch } from './commands'
 import {
   aimRowFrom,
   aimedShortcutRow,
+  askResetAllShortcuts,
   cancelCapture,
+  cancelResetAllShortcuts,
   captureIsArmed,
+  clearShortcutSearch,
+  confirmResetAllShortcuts,
   defaultDisplayFor,
   diskBindingsRejected,
   enterShortcutsScreen,
+  exportShortcuts,
   handleCaptureKey,
+  handleSearchKey,
+  importShortcuts,
   leaveShortcutsScreen,
+  setShortcutSearchText,
+  shortcutFileNotice,
   shortcutNotice,
-  shortcutRows,
+  shortcutResetAllPending,
+  shortcutSearchChordDisplay,
+  shortcutSearchText,
+  shortcutTotalCount,
   unboundShortcutIds,
+  visibleShortcutRows,
 } from './config/shortcutsState'
 
 onMounted(enterShortcutsScreen)
@@ -33,6 +46,43 @@ onBeforeUnmount(leaveShortcutsScreen)
  * đúng khi và chỉ khi handler tới được. Vế còn lại của nó là cú ép tiêu điểm lúc arming ở
  * `config/shortcutsState.ts::captureShortcut`; một vế không có vế kia thì vô nghĩa.
  */
+function onSearchInput(event: Event): void {
+  const target = event.target
+  if (target instanceof HTMLInputElement) setShortcutSearchText(target.value)
+}
+
+/** A chord (or a non-printable key) in the search box is a reverse lookup; Escape clears a non-empty box before Settings sees it. */
+function onSearchKeydown(event: KeyboardEvent): void {
+  if (event.code === 'Escape') {
+    if (shortcutSearchText.value === '' && shortcutSearchChordDisplay.value === null) return
+    event.preventDefault()
+    event.stopPropagation()
+    clearShortcutSearch()
+    return
+  }
+  if (handleSearchKey(event)) event.preventDefault()
+}
+
+function onExportShortcuts(): void {
+  void exportShortcuts()
+}
+
+function onImportShortcuts(): void {
+  void importShortcuts()
+}
+
+function onAskResetAll(): void {
+  askResetAllShortcuts()
+}
+
+function onConfirmResetAll(): void {
+  void confirmResetAllShortcuts()
+}
+
+function onCancelResetAll(): void {
+  cancelResetAllShortcuts()
+}
+
 function onKeyCellFocusOut(): void {
   if (captureIsArmed.value) cancelCapture()
 }
@@ -95,6 +145,44 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
       <p class="sc-gesture">{{ t('shortcuts.gesture') }}</p>
 
+      <p v-if="shortcutFileNotice !== null" class="sc-alert" role="status" data-shortcut-file-notice>
+        {{ t(shortcutFileNotice.key, shortcutFileNotice.params) }}
+      </p>
+
+      <div class="sc-search">
+        <input
+          class="sc-search-input"
+          type="text"
+          autocomplete="off"
+          data-shortcut-search
+          :placeholder="t('shortcuts.search_placeholder')"
+          :aria-label="t('shortcuts.search_placeholder')"
+          :value="shortcutSearchText"
+          @input="onSearchInput($event)"
+          @keydown="onSearchKeydown($event)"
+        />
+        <!-- aura-allow-text: hợp âm đã định dạng — DỮ LIỆU. -->
+        <span v-if="shortcutSearchChordDisplay !== null" class="sc-search-chord" data-shortcut-search-chord>{{
+          shortcutSearchChordDisplay
+        }}</span>
+        <span class="sc-search-count" data-shortcut-count>
+          {{
+            t('shortcuts.count', {
+              shown: String(visibleShortcutRows.length),
+              total: String(shortcutTotalCount),
+            })
+          }}
+        </span>
+      </div>
+      <p
+        v-if="shortcutSearchChordDisplay !== null && visibleShortcutRows.length === 0"
+        class="sc-gesture"
+        role="status"
+        data-shortcut-chord-empty
+      >
+        {{ t('shortcuts.search_chord_none', { chord: shortcutSearchChordDisplay }) }}
+      </p>
+
       <!--
         🔴 `@mousedown` uỷ quyền ở VÙNG CHỨA, không một handler trên mỗi hàng: một bảng 30+
         hàng là 30+ chỗ để sai, và `@click` của mỗi nút phải ở lại đúng một `dispatch`.
@@ -130,7 +218,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
             nó CŨ. Doc-comment đầy đủ ở `src/commands/registry.ts`.
           -->
           <tr
-            v-for="row in shortcutRows"
+            v-for="row in visibleShortcutRows"
             :key="row.id"
             :data-command-id="row.id"
             :class="{ 'sc-aimed': aimedShortcutRow === row.id }"
@@ -218,6 +306,31 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
       <p class="sc-unbound-line">
         {{ t('shortcuts.unbound_count', { so: String(unboundShortcutIds.length) }) }}
       </p>
+
+      <div class="sc-file-row">
+        <form class="sc-file-form" @submit.prevent="onExportShortcuts()">
+          <button type="submit" class="sc-file-btn" data-shortcut-export>{{ t('shortcuts.export') }}</button>
+        </form>
+        <form class="sc-file-form" @submit.prevent="onImportShortcuts()">
+          <button type="submit" class="sc-file-btn" data-shortcut-import>{{ t('shortcuts.import') }}</button>
+        </form>
+        <form v-if="!shortcutResetAllPending" class="sc-file-form" @submit.prevent="onAskResetAll()">
+          <button type="submit" class="sc-file-btn" data-shortcut-reset-all>{{ t('shortcuts.reset_all') }}</button>
+        </form>
+        <template v-else>
+          <span class="sc-file-ask" role="alert" data-shortcut-reset-all-ask>{{ t('shortcuts.reset_all_ask') }}</span>
+          <form class="sc-file-form" @submit.prevent="onConfirmResetAll()">
+            <button type="submit" class="sc-file-btn" data-shortcut-reset-all-confirm>
+              {{ t('shortcuts.reset_all_confirm') }}
+            </button>
+          </form>
+          <form class="sc-file-form" @submit.prevent="onCancelResetAll()">
+            <button type="submit" class="sc-file-btn" data-shortcut-reset-all-cancel>
+              {{ t('shortcuts.reset_all_cancel') }}
+            </button>
+          </form>
+        </template>
+      </div>
   </div>
 </template>
 
@@ -370,5 +483,61 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
 .sc-default {
   margin-left: 4px;
+}
+
+.sc-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-panel-inline);
+  margin: 0 0 var(--space-panel-block) 0;
+}
+
+.sc-search-input {
+  flex: 0 1 320px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-outline);
+  background: var(--color-background);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface);
+}
+
+.sc-search-chord {
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  color: var(--color-primary);
+}
+
+.sc-search-count {
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  color: var(--color-on-surface-variant);
+}
+
+.sc-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-panel-inline);
+}
+
+.sc-file-form {
+  margin: 0;
+}
+
+.sc-file-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--color-outline);
+  background: none;
+  cursor: pointer;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  color: var(--color-on-surface);
+}
+
+.sc-file-ask {
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  color: var(--color-error);
 }
 </style>

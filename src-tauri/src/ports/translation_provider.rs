@@ -169,3 +169,40 @@ pub trait TranslationProvider {
         should_cancel: &dyn Fn() -> bool,
     ) -> Result<TranslateOutcome, Self::Error>;
 }
+
+/// One connection check: the saved endpoint and model, and a key only when the provider needs
+/// one. Not `Debug` for the same reason as [`TranslateRequest`].
+pub struct ConnectionCheckRequest<'a> {
+    pub endpoint: &'a str,
+    pub model: &'a str,
+    pub api_key: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectionCheckOutcome {
+    /// The server answered its model list and the saved model is in it.
+    Connected {
+        model_count: usize,
+    },
+    /// The server answered, but the saved model is not in its model list.
+    ModelMissing,
+    Cancelled,
+}
+
+/// Zero-token reachability check of the provider behind [`TranslationProvider`]. Kept as its own
+/// trait so a translate-only implementation does not have to answer it.
+pub trait ConnectionCheck {
+    type Error: std::error::Error;
+
+    /// Never retries. `should_cancel` is asked between the phases of the call; the whole call is
+    /// also bounded by a fixed timeout.
+    #[expect(
+        async_fn_in_trait,
+        reason = "driven by `block_on` inside `spawn_blocking`, like `translate`"
+    )]
+    async fn check_connection(
+        &self,
+        request: ConnectionCheckRequest<'_>,
+        should_cancel: &dyn Fn() -> bool,
+    ) -> Result<ConnectionCheckOutcome, Self::Error>;
+}

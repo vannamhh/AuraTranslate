@@ -54,4 +54,5 @@ pub mod project;
 pub mod promptset;
 pub mod proofread;
 pub mod segment;
+pub mod shortcuts;
 pub mod tm;

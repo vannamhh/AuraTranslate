@@ -19,4 +19,4 @@ pub mod translation_provider;
 
 pub use dict_source::DictionarySource;
 pub use project_store::ProjectStore;
-pub use translation_provider::TranslationProvider;
+pub use translation_provider::{ConnectionCheck, TranslationProvider};

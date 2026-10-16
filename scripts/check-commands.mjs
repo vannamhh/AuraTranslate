@@ -228,13 +228,13 @@ const tsFiles = keep(tsAll)
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const VUE_FLOOR = 48
-const TS_FLOOR = 113
+const TS_FLOOR = 121
 
 /**
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
  * không kiểm gì. `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const COMMAND_FLOOR = 250
+const COMMAND_FLOOR = 267
 
 /**
  * SÀN NỘI DUNG — tầng thứ hai của cùng một cái bẫy. Sàn tệp ở trên đóng được "cây rỗng
@@ -243,8 +243,8 @@ const COMMAND_FLOOR = 250
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 228
-const DISPATCH_FLOOR = 322
+const CLICK_FLOOR = 237
+const DISPATCH_FLOOR = 334
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2373,6 +2373,7 @@ const R_CLOSE_IMPORTED =
 const R_CURSOR_LOCAL = 'sets caret / grid-cell cursor memory in place — no dispatch'
 const R_CURSOR_IMPORTED = 'sets grid-cell cursor memory via a state-module import — same limit as R_CLOSE_IMPORTED'
 const R_SUBMIT_DIRECT = '`@submit` acting directly on local form state — a named exemption, not a command'
+const R_FILTER_LOCAL = 'filters a list in place from a typed key or chord — view state, no dispatch'
 const R_CATEGORY_NAV = 'in-place list navigation (arrow/Enter selects a row) — no dispatch'
 const R_DISPATCH_VIA_PARAM =
   'dispatches an id received as a parameter, not a literal — already counted by ' +
@@ -2471,7 +2472,23 @@ const HANDLER_TABLE = {
   'src/SettingsOverlay.vue::onEscape': { ids: ['settings.close'] },
   'src/SettingsOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/SettingsOverlay.vue::onSelectSection': { nonCommand: R_SUBMIT_DIRECT },
-  'src/SettingsOverlay.vue::onSaveAiConfigField': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onCommitAiConfigField': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onSelectAiConfigTier': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onSelectAiProvider': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onRunAiConfigTest': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onCancelAiConfigTest': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onToggleAiUsage': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsLayoutSection.vue::onApplyBuiltin': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsLayoutSection.vue::onApplyUser': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsLayoutSection.vue::onSavePreset': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsLayoutSection.vue::onRenamePreset': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsLayoutSection.vue::onDeletePreset': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsShortcutsSection.vue::onSearchKeydown': { nonCommand: R_FILTER_LOCAL },
+  'src/SettingsShortcutsSection.vue::onExportShortcuts': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsShortcutsSection.vue::onImportShortcuts': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsShortcutsSection.vue::onAskResetAll': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsShortcutsSection.vue::onConfirmResetAll': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsShortcutsSection.vue::onCancelResetAll': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onClearAiConfigOverride': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onSaveAiConfigKey': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onDeleteAiConfigKey': { nonCommand: R_SUBMIT_DIRECT },
@@ -2762,7 +2779,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 131
+const HANDLER_ATTR_FLOOR = 146
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

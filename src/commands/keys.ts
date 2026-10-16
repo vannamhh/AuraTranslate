@@ -568,7 +568,7 @@ export type KeymapGate = {
    * `capture` trên `window`, tức **trước** nó; chặn dòng sự kiện ở đây là để lớp phủ không
    * đóng được bằng phím, tức nhốt người dùng bàn phím vào trong đúng thứ nó vừa mở.
    */
-  isBlocked?: () => boolean
+  isBlocked?: (event: ChordEvent) => boolean
 }
 
 /**
@@ -598,7 +598,7 @@ export function attachKeymap(keymap: Keymap, target: EventTarget, gate?: KeymapG
   const listener = (event: Event): void => {
     // Xem [`KeymapGate`]: thoát sớm, không `preventDefault()` — sự kiện phải đi tiếp tới
     // handler DOM của lớp phủ đang mở.
-    if (gate?.isBlocked?.() === true) return
+    if (gate?.isBlocked?.(event as unknown as ChordEvent) === true) return
     keymap.handle(event as unknown as ChordEvent)
   }
   target.addEventListener('keydown', listener, { capture: true })

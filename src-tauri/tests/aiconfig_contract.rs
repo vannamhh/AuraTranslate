@@ -1261,6 +1261,107 @@ fn ready_is_true_false_or_none_by_endpoint_model_and_key() {
         "khoa khong hoi duoc ⇒ None, khong phai Some(false)"
     );
 
+    reset_key_to_not_configured();
+    save(AiConfigField::Provider, "anthropic");
+    assert_eq!(
+        ready(&global),
+        Some(false),
+        "nha cung cap qua mang, chua co khoa"
+    );
+    save(AiConfigField::Provider, "ollama");
+    assert_eq!(ready(&global), Some(true), "Ollama chay khong can khoa");
+    inject_one_shot_keychain_error();
+    assert_eq!(
+        ready(&global),
+        Some(true),
+        "nha cung cap cuc bo khong hoi keychain"
+    );
+    save(AiConfigField::Provider, "lmstudio");
+    assert_eq!(ready(&global), Some(true), "LM Studio chay khong can khoa");
+    save(AiConfigField::Provider, "custom");
+    assert_eq!(ready(&global), Some(false), "endpoint khac van can khoa");
+
     drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn test_connection_without_endpoint_or_model_or_key_invites_configuration_and_opens_no_socket() {
+    use auratranslate_lib::commands::aiconfig::{ConnectionCheckPrep, prepare_connection_check};
+    use auratranslate_lib::commands::aitranslate::{
+        ConnectionCheckGeneration, ConnectionCheckWire,
+    };
+    use tauri::Manager as _;
+    use tauri::test::{mock_builder, mock_context, noop_assets};
+
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = temp_dir("test-connection-not-configured");
+    let global = open_global(&root);
+    reset_key_to_not_configured();
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+    listener.set_nonblocking(true).expect("nonblocking");
+    let endpoint = format!(
+        "http://127.0.0.1:{}/v1",
+        listener.local_addr().unwrap().port()
+    );
+    let save = |field: AiConfigField, value: &str| {
+        ai_config_save_field(Some(&global), None, AiConfigTier::Global, field, value)
+            .expect("luu truong");
+    };
+    let prep = |global: &Store| {
+        prepare_connection_check(Some(global), None, AiConfigTier::Global).expect("prep")
+    };
+
+    assert!(matches!(prep(&global), ConnectionCheckPrep::NotConfigured));
+    save(AiConfigField::Endpoint, &endpoint);
+    assert!(
+        matches!(prep(&global), ConnectionCheckPrep::NotConfigured),
+        "thieu mo hinh"
+    );
+    save(AiConfigField::Provider, "ollama");
+    assert!(
+        matches!(prep(&global), ConnectionCheckPrep::NotConfigured),
+        "nha cung cap cuc bo khong can khoa van can mo hinh"
+    );
+    save(AiConfigField::Provider, "openai");
+    save(AiConfigField::Model, "qwen2.5:14b");
+    assert!(
+        matches!(prep(&global), ConnectionCheckPrep::NotConfigured),
+        "nha cung cap can khoa ma chua co khoa"
+    );
+    save(AiConfigField::Provider, "ollama");
+    assert!(
+        matches!(prep(&global), ConnectionCheckPrep::Ready(_)),
+        "Ollama khong can khoa"
+    );
+    save(AiConfigField::Provider, "openai");
+    ai_config_save_key(AiConfigTier::Global, "sk-test").expect("luu khoa");
+    match prep(&global) {
+        ConnectionCheckPrep::Ready(p) => assert_eq!(p.api_key.as_deref(), Some("sk-test")),
+        ConnectionCheckPrep::NotConfigured => panic!("co du ba thu ma van moi cau hinh"),
+    }
+    reset_key_to_not_configured();
+
+    // The wire command: openai with endpoint and model but no key is an invitation, no socket.
+    let app = mock_builder()
+        .build(mock_context(noop_assets()))
+        .expect("app");
+    app.manage(ConnectionCheckGeneration::default());
+    app.manage(global);
+    let outcome = tauri::async_runtime::block_on(
+        auratranslate_lib::commands::aiconfig::wire::ai_config_test_connection(
+            app.handle().clone(),
+            AiConfigTier::Global,
+        ),
+    );
+    assert_eq!(outcome.unwrap(), ConnectionCheckWire::NotConfigured);
+    assert!(
+        listener.accept().is_err(),
+        "an unconfigured check opened a socket"
+    );
+    drop(app);
     cleanup_dir(&root);
 }

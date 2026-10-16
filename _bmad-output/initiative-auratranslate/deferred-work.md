@@ -13206,6 +13206,7 @@ chính nó.
   summary: Lượt dịch đòi khoá cả với Ollama / LM Studio (`read_api_key` trong `aitranslate.rs`), nên panel không ghi "chạy không cần khoá" như mockup ai-batch-translate; bỏ yêu cầu khoá cho nhà cung cấp cục bộ thì sửa lại câu `panel.ai_translation.unconfigured_local`.
   evidence: Quyết định 4 của plan; `ready` ở `ai_config_get` gồm cả khoá.
   Chủ: Story 12.18.
+  → ✅ ĐÃ ĐÓNG 2026-10-16 (Story 12-18): `call_ready` và `read_api_key` không đòi khoá cho `ollama`/`lmstudio` (hàng mới trong `ready_is_true_false_or_none_by_endpoint_model_and_key`); `panel.ai_translation.unconfigured_local` nay nói hai nhà cung cấp cục bộ không cần khoá; `aiBatchPanelRows.test.ts` khoá ca Ollama không khoá ⇒ sẵn sàng.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
   summary: Lượt dùng thật trên bản đóng gói macOS với nhà cung cấp thật: dịch một câu, mở Xem prompt, đối chiếu số token thật với số nhà cung cấp báo, Chép rồi dán, Gửi lại và xem panel Đề xuất AI, chắc `target_text` không đổi.
   evidence: e2e không giả được provider AI; vitest giả `runAiTranslateResendCall` ở biên IPC (`tests/frontend/aiPromptInspectorScreen.test.ts`).
@@ -13259,3 +13260,7 @@ chính nó.
   summary: `export_preview` là lệnh plain, giữ khoá `OpenWorkState` và đọc trọn Chương đầu phạm vi (cộng Glossary hai tầng) ở mỗi lần bật công tắc hay đổi định dạng, chỉ để trả 6 hàng; chưa biết có làm giật màn Xuất không (medium, chưa kiểm chứng).
   evidence: chưa đo; đo thời gian lệnh trên Chương ≥ 2.000 câu ở bản build release, nếu vượt ngưỡng phản hồi UI thì giới hạn số câu đọc hoặc chuyển `(async)`.
   Chủ: Story 12.22.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-cai-at-bo-cuc-phim-tat-thu-ket-noi-khung-cap-nhat-plan.md`
+  summary: Lượt dùng thật trên bản đóng gói macOS: bấm Thử kết nối với khoá sai (phải ra "khoá bị từ chối") rồi khoá đúng trên một nhà cung cấp thật và một Ollama thật; Xuất rồi Nhập bộ phím qua hộp thoại gốc; `⌘T` và `⌘⇧R` trong app; lưu rồi áp một preset bố cục người dùng trên dock thật; bấm chuột vào ô tìm phím rồi gõ được ngay (click WebDriver không làm ô nhận tiêu điểm nên e2e gọi `.focus()`).
+  evidence: e2e không giả được provider hay hộp thoại gốc (`e2e/specs/story-12-18-settings.e2e.mjs` chạy xanh 4/4 cho khung, tra ngược và `⌘T`); Rust chỉ đo qua máy chủ HTTP giả cục bộ (`connection_check_contract.rs`), vitest giả biên IPC.
+  Chủ: Epic 12.

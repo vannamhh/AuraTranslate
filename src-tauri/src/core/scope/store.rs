@@ -163,6 +163,10 @@ const KEY_LIBRARY_ROOT: &str = "library_root";
 /// [`KEY_LIBRARY_ROOT`]: tuỳ chọn đọc không phải dữ liệu của một Tác phẩm cụ thể.
 const KEY_READING_PREFERENCES: &str = "reading_preferences";
 
+/// Global `app_config` key for the "show tokens and cost estimate" switch: `"off"` hides the
+/// usage lines of the AI panel, anything else (including absent) shows them.
+const KEY_AI_USAGE_VISIBLE: &str = "ai_usage_visible";
+
 /// Phân giải thư mục gốc Library từ giá trị THÔ trên đĩa — **hàm thuần, đây là thứ test
 /// gọi**. Chép khuôn [`parse_glossary_scan_threshold`]: đây là chỗ DUY NHẤT biết một giá trị
 /// trên đĩa hỏng, vì `config_value.value` không mang `CHECK` nào (phục vụ MỌI khoá của MỌI
@@ -312,6 +316,13 @@ impl GlobalConfig {
     pub fn reading_preferences(&self) -> &str {
         self.app
             .get(KEY_READING_PREFERENCES)
+            .map_or("", |r| r.value().as_str())
+    }
+
+    /// Raw switch value, empty when never saved (the default shows the usage lines).
+    pub fn ai_usage_visible(&self) -> &str {
+        self.app
+            .get(KEY_AI_USAGE_VISIBLE)
             .map_or("", |r| r.value().as_str())
     }
 

@@ -1681,6 +1681,16 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
             "xoa khoi keychain he dieu hanh, cung ly do `ai_config_save_key` -- Story 11.7 lo B",
         ),
         (
+            "src/commands/shortcuts.rs",
+            "pub fn shortcuts_export<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "hop thoai LUU chan (blocking_save_file), tren luong chinh la bi dung vong lap su kien ma hop thoai dang cho",
+        ),
+        (
+            "src/commands/shortcuts.rs",
+            "pub fn shortcuts_import<R: tauri::Runtime>(\n        app: tauri::AppHandle<R>",
+            "hop thoai CHON chan (blocking_pick_file), cung ly do voi xuat",
+        ),
+        (
             "src/commands/aiprompt.rs",
             "pub fn ai_prompt_assemble(\n        app: tauri::AppHandle",
             "doc TOAN BO Chuong dang mo roi khop Glossary cho tung segment -- luot quet N hang, Story 11.7 lo B",
@@ -2075,13 +2085,13 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (9 hàng /
 /// 11 `(async)`): `start_url_import` và `reload_url_import_item`
 /// mang `(async)` từ Story 6.7 và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 20] = [
     (
         "src/commands/aiconfig.rs",
-        2,
+        4,
         3,
         3,
-        "MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Hai vo con lai (`ai_config_save_field`/`ai_config_clear_override`) ghi/xoa MOT hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev.",
+        "MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Hai vo (`ai_config_save_field`/`ai_config_clear_override`) ghi/xoa MOT hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev. `ai_config_test_connection` la `async fn` literal (cung co che `ai_translate_segment`: than tu spawn luong blocking, khong giu `OpenWorkState` xuyen luot goi mang), nen roi vao cot `plain`. `ai_config_test_connection_cancel` chi bom mot `AtomicU64` rieng cua lan kiem tra ket noi.",
     ),
     (
         "src/commands/aiprompt.rs",
@@ -2114,6 +2124,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 19] = [
         "CHUA DO -- chu: Dev. `ai_proofread_segment` la `async fn` literal chay cung co che spawn_blocking cua `ai_translate_segment` (khong giu `OpenWorkState` xuyen luot goi mang); `ai_proofread_cancel` chi bom mot `AtomicU64`. Nam vo ghi nho \"khong phai loi\" la plain: moi vo mot cau INSERT/DELETE/SELECT tren bang nho `proof_ignore`/`proof_scan`, tuc thoi.",
     ),
     ("src/commands/chapter.rs", 4, 5, 5, ""),
+    ("src/commands/shortcuts.rs", 0, 2, 2, ""),
     (
         "src/commands/cleanup.rs",
         5,
@@ -2337,9 +2348,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (101, 63),
+        (103, 65),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         101/63.\n\n\
+         103/65.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

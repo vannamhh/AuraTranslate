@@ -318,6 +318,36 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     wrapper.unmount()
   })
 
+  it('tắt công tắc token ⇒ dòng usage của lượt đơn biến mất dù lượt dịch đã có số liệu; bật lại thì hiện', async () => {
+    const { AiTranslationPanel, caretSegmentId } = await freshPanel()
+    const visibility = await import('../../src/aiUsageVisibleState')
+    caretSegmentId.value = 42
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    fake.token('Ket qua.')
+    fake.settle({
+      value: { state: 'done', usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3, cost_usd: null } },
+      error: null,
+    })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-translate-usage]').exists()).toBe(true)
+
+    await visibility.setAiUsageVisible(false)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-translate-usage]').exists()).toBe(false)
+    expect(wrapper.find('.ai-translate-text').text()).toContain('Ket qua.')
+
+    await visibility.setAiUsageVisible(true)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-translate-usage]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('done + usage KHÔNG có giá (mô hình chưa có hàng trong bảng giá): chỉ hiện số token, không một số tiền nào, và không phải một trạng thái lỗi', async () => {
     const { AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 42

@@ -192,6 +192,7 @@ pub fn ai_config_get(
             .unwrap_or_default()
     };
     let ready = crate::commands::aitranslate::call_ready(
+        resolved_value(AiConfigField::Provider),
         resolved_value(AiConfigField::Endpoint),
         resolved_value(AiConfigField::Model),
         key_configured,
@@ -277,6 +278,66 @@ pub fn ai_config_clear_override(
     Ok(())
 }
 
+/// Result of [`prepare_connection_check`]: "not configured" is a state, not an error.
+pub enum ConnectionCheckPrep {
+    NotConfigured,
+    Ready(crate::commands::aitranslate::PreparedConnectionCheck),
+}
+
+/// Resolves the SAVED configuration of `tier` (Global reads `global.db` only; Work resolves both
+/// tiers) and, for a provider that needs one, the stored key. No network.
+///
+/// # Errors
+/// `global.db` missing; Work tier without an open Work (`ai_config.work_tier_unavailable`);
+/// keychain refusing to answer (`ai_config.keychain_unavailable`).
+pub fn prepare_connection_check(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: AiConfigTier,
+) -> Result<ConnectionCheckPrep, IpcError> {
+    use crate::commands::aitranslate::{
+        PreparedConnectionCheck, endpoint_and_model_set, provider_needs_key, read_api_key,
+    };
+
+    let global_store = global.ok_or_else(store_is_missing)?;
+    let resolved = match tier {
+        AiConfigTier::Global => {
+            resolve_two_tiers(&ScopeResolver::global_only(), global_store, None)?
+        }
+        AiConfigTier::Work => {
+            let work = open.ok_or(AiConfigStoreError::WorkTierUnavailable)?;
+            resolve_two_tiers(&work.scope.clone(), global_store, Some(&work.store))?
+        }
+    };
+    let value = |field: AiConfigField| {
+        resolved
+            .get(field.as_str())
+            .map(|f| f.value.clone())
+            .unwrap_or_default()
+    };
+    let (provider, endpoint, model) = (
+        value(AiConfigField::Provider),
+        value(AiConfigField::Endpoint),
+        value(AiConfigField::Model),
+    );
+    if !endpoint_and_model_set(&endpoint, &model) {
+        return Ok(ConnectionCheckPrep::NotConfigured);
+    }
+    let api_key = if provider_needs_key(&provider) {
+        match read_api_key(&provider)? {
+            Some(key) => Some(key),
+            None => return Ok(ConnectionCheckPrep::NotConfigured),
+        }
+    } else {
+        None
+    };
+    Ok(ConnectionCheckPrep::Ready(PreparedConnectionCheck {
+        endpoint,
+        model,
+        api_key,
+    }))
+}
+
 /// Năm vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 ///
 /// ⚠️ Tên command trên dây LÀ tên hàm — năm vỏ dưới đây mang ĐÚNG tên năm hàm thuần ở
@@ -287,7 +348,11 @@ pub fn ai_config_clear_override(
 /// hành, không trong `global.db`/`project.db`, và tầng bị từ chối bằng tham số `tier` tới
 /// tay chứ không bằng việc dò `OpenWorkState` (xem doc-comment đầu tệp).
 pub mod wire {
-    use super::{AiConfigField, AiConfigGetWire, AiConfigTier};
+    use super::{AiConfigField, AiConfigGetWire, AiConfigTier, ConnectionCheckPrep};
+    use crate::commands::aitranslate::{
+        ConnectionCheckGeneration, ConnectionCheckWire, send_prepared_connection_check,
+        state_missing,
+    };
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
     use crate::core::store::Store;
@@ -354,5 +419,51 @@ pub mod wire {
     #[tauri::command(async)]
     pub fn ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {
         super::ai_config_delete_key(tier)
+    }
+
+    /// Checks the SAVED configuration of `tier` against the provider: `GET {endpoint}/models`
+    /// (no tokens), then the saved model must be listed. Has its own `ConnectionCheckGeneration`:
+    /// `ai_config_test_connection_cancel` cancels it, and it never touches a translate run. The Work lock is released before any `.await`.
+    #[tauri::command]
+    pub async fn ai_config_test_connection<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        tier: AiConfigTier,
+    ) -> Result<ConnectionCheckWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(generation_state) = app.try_state::<ConnectionCheckGeneration>() else {
+            return Err(state_missing(
+                "test_connection",
+                "ConnectionCheckGeneration",
+                "ai_config.generation_state_missing",
+            ));
+        };
+        let generation_state = generation_state.inner().clone();
+        let generation = generation_state.next();
+
+        let prep = {
+            let global = app.try_state::<Store>();
+            let work_state = app.try_state::<OpenWorkState>();
+            let guard = work_state
+                .as_ref()
+                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+            let open = guard.as_ref().and_then(|g| g.as_ref());
+            super::prepare_connection_check(global.as_deref(), open, tier)?
+        };
+        let prepared = match prep {
+            ConnectionCheckPrep::NotConfigured => return Ok(ConnectionCheckWire::NotConfigured),
+            ConnectionCheckPrep::Ready(p) => p,
+        };
+        send_prepared_connection_check(prepared, generation_state, generation).await
+    }
+
+    /// Cancels the running connection check only. Reads and writes no store.
+    #[tauri::command]
+    pub fn ai_config_test_connection_cancel<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+        use tauri::Manager as _;
+
+        if let Some(generation_state) = app.try_state::<ConnectionCheckGeneration>() {
+            generation_state.next();
+        }
     }
 }

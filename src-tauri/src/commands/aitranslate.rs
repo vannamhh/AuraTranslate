@@ -63,7 +63,8 @@ use crate::core::aiconfig::{AiConfigField, resolve_two_tiers};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::store::{ReadHandle, Store, StoreError, StoreKind};
 use crate::ports::translation_provider::{
-    TranslateOutcome, TranslateRequest, TranslateUsage, TranslationProvider,
+    ConnectionCheck, ConnectionCheckOutcome, ConnectionCheckRequest, TranslateOutcome,
+    TranslateRequest, TranslateUsage, TranslationProvider,
 };
 
 /// Kho `global.db` vắng mặt ⇒ lỗi *mở kho* — cùng khuôn `commands::aiprompt::store_is_missing`.
@@ -244,6 +245,7 @@ fn resolved_field_value(
 pub(crate) struct ResolvedCallConfig<'a> {
     pub(crate) global_store: &'a Store,
     pub(crate) open_work: &'a OpenWork,
+    pub(crate) provider: String,
     pub(crate) endpoint: String,
     pub(crate) model: String,
     pub(crate) temperature: Option<f64>,
@@ -257,6 +259,7 @@ pub(crate) fn endpoint_and_model_set(endpoint: &str, model: &str) -> bool {
 /// Same predicate pair as a translate call: endpoint + model set, then a stored key.
 /// `None` only when both are set and the keychain cannot be asked.
 pub(crate) fn call_ready(
+    provider: &str,
     endpoint: &str,
     model: &str,
     key_configured: Option<bool>,
@@ -264,7 +267,19 @@ pub(crate) fn call_ready(
     if !endpoint_and_model_set(endpoint, model) {
         return Some(false);
     }
+    if !provider_needs_key(provider) {
+        return Some(true);
+    }
     key_configured
+}
+
+/// Local runtimes (Ollama, LM Studio) run without an API key; every other provider, including
+/// an unset or unknown one, needs the stored key.
+pub(crate) fn provider_needs_key(provider: &str) -> bool {
+    !matches!(
+        provider.trim().to_ascii_lowercase().as_str(),
+        "ollama" | "lmstudio"
+    )
 }
 
 /// `None` only when `endpoint` or `model` is empty; an unset or unparsable
@@ -279,6 +294,7 @@ pub(crate) fn resolve_call_config<'a>(
     let resolver = open_work.scope.clone();
     let resolved = resolve_two_tiers(&resolver, global_store, Some(&open_work.store))?;
 
+    let provider = resolved_field_value(&resolved, AiConfigField::Provider);
     let endpoint = resolved_field_value(&resolved, AiConfigField::Endpoint);
     let model = resolved_field_value(&resolved, AiConfigField::Model);
     if !endpoint_and_model_set(&endpoint, &model) {
@@ -300,6 +316,7 @@ pub(crate) fn resolve_call_config<'a>(
     Ok(Some(ResolvedCallConfig {
         global_store,
         open_work,
+        provider,
         endpoint,
         model,
         temperature,
@@ -317,7 +334,12 @@ pub(crate) fn state_missing(tag: &str, state_name: &str, code: &'static str) -> 
     )
 }
 
-pub(crate) fn read_api_key() -> Result<Option<String>, IpcError> {
+/// The key to send for `provider`: empty for a local runtime (nothing is stored or read), the
+/// stored key otherwise. `None` is "no key stored".
+pub(crate) fn read_api_key(provider: &str) -> Result<Option<String>, IpcError> {
+    if !provider_needs_key(provider) {
+        return Ok(Some(String::new()));
+    }
     match crate::core::aiconfig::keychain::read() {
         Ok(Some(secret)) => Ok(Some(secret.expose_secret().to_owned())),
         Ok(None) => Ok(None),
@@ -359,6 +381,7 @@ pub fn prepare_translate_call(
     let Some(ResolvedCallConfig {
         global_store,
         open_work,
+        provider,
         endpoint,
         model,
         temperature,
@@ -381,7 +404,7 @@ pub fn prepare_translate_call(
         return Err(segment_is_omitted(segment_id));
     }
 
-    let Some(api_key) = read_api_key()? else {
+    let Some(api_key) = read_api_key(&provider)? else {
         return Ok(PrepareOutcome::NotConfigured);
     };
 
@@ -425,6 +448,7 @@ pub fn prepare_resend_call(
         }
     };
     let Some(ResolvedCallConfig {
+        provider,
         endpoint,
         model,
         temperature,
@@ -434,7 +458,7 @@ pub fn prepare_resend_call(
     else {
         return Ok((segment_id, PrepareOutcome::NotConfigured));
     };
-    let Some(api_key) = read_api_key()? else {
+    let Some(api_key) = read_api_key(&provider)? else {
         return Ok((segment_id, PrepareOutcome::NotConfigured));
     };
     Ok((
@@ -513,6 +537,7 @@ pub fn prepare_batch_call(
     let Some(ResolvedCallConfig {
         global_store,
         open_work,
+        provider,
         endpoint,
         model,
         temperature,
@@ -541,7 +566,7 @@ pub fn prepare_batch_call(
 
     let needs_translation = ordered_rows.iter().any(|row| !row.is_omitted);
     let api_key: Option<String> = if needs_translation {
-        match read_api_key()? {
+        match read_api_key(&provider)? {
             Some(key) => Some(key),
             None => return Ok(PrepareBatchOutcome::NotConfigured),
         }
@@ -592,13 +617,13 @@ pub fn prepare_batch_call(
 pub struct AiTranslateGeneration(std::sync::Arc<std::sync::atomic::AtomicU64>);
 
 impl AiTranslateGeneration {
-    fn next(&self) -> u64 {
+    pub(crate) fn next(&self) -> u64 {
         self.0
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
             .wrapping_add(1)
     }
 
-    fn is_current(&self, generation: u64) -> bool {
+    pub fn is_current(&self, generation: u64) -> bool {
         self.0.load(std::sync::atomic::Ordering::Acquire) == generation
     }
 }
@@ -631,6 +656,131 @@ pub async fn run_translate_call<P: TranslationProvider>(
     provider
         .translate(request, &mut on_token, should_cancel)
         .await
+}
+
+/// Generation counter of the connection check, separate from [`AiTranslateGeneration`] so a check
+/// never supersedes a running translate or batch (and its cancel never stops one).
+#[derive(Debug, Clone, Default)]
+pub struct ConnectionCheckGeneration(std::sync::Arc<std::sync::atomic::AtomicU64>);
+
+impl ConnectionCheckGeneration {
+    pub fn next(&self) -> u64 {
+        self.0
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+            .wrapping_add(1)
+    }
+
+    pub fn is_current(&self, generation: u64) -> bool {
+        self.0.load(std::sync::atomic::Ordering::Acquire) == generation
+    }
+}
+
+/// A connection check ready to send. Not `Debug`: `api_key` is a bare secret.
+pub struct PreparedConnectionCheck {
+    pub endpoint: String,
+    pub model: String,
+    pub api_key: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ConnectionCheckWire {
+    Connected { model_count: usize },
+    NotConfigured,
+    Cancelled,
+}
+
+fn connection_check_error(err: OpenAiClientError) -> IpcError {
+    let no_params = std::collections::BTreeMap::new;
+    match err {
+        OpenAiClientError::NonSuccessStatus { status: 401 | 403 } => IpcError::new(
+            "ai_config.test_key_rejected",
+            MessageKey::AiConfigTestKeyRejected,
+            no_params(),
+            false,
+        ),
+        OpenAiClientError::NonSuccessStatus { status: 404 } => IpcError::new(
+            "ai_config.test_endpoint_not_found",
+            MessageKey::AiConfigTestEndpointNotFound,
+            no_params(),
+            false,
+        ),
+        OpenAiClientError::NonSuccessStatus { status } => IpcError::new(
+            "ai_config.test_refused",
+            MessageKey::AiConfigTestRefused,
+            std::collections::BTreeMap::from([("status".to_owned(), status.to_string())]),
+            false,
+        ),
+        OpenAiClientError::RequestFailed { .. } | OpenAiClientError::ReadFailed { .. } => {
+            IpcError::new(
+                "ai_config.test_unreachable",
+                MessageKey::AiConfigTestUnreachable,
+                no_params(),
+                true,
+            )
+        }
+        OpenAiClientError::MalformedEvent { .. } | OpenAiClientError::BufferOverflow { .. } => {
+            IpcError::new(
+                "ai_config.test_reply_unreadable",
+                MessageKey::AiConfigTestReplyUnreadable,
+                no_params(),
+                false,
+            )
+        }
+        other @ (OpenAiClientError::ClientBuildFailed { .. }
+        | OpenAiClientError::ApiKeyHeaderInvalid { .. }
+        | OpenAiClientError::StreamEndedWithoutDone) => IpcError::from(other),
+    }
+}
+
+/// Seam for tests: runs one check through any [`ConnectionCheck`] implementation backed by the
+/// real client error type. A listed-but-different model is an error, not an outcome.
+pub async fn run_connection_check<P: ConnectionCheck<Error = OpenAiClientError>>(
+    provider: &P,
+    prepared: &PreparedConnectionCheck,
+    should_cancel: &dyn Fn() -> bool,
+) -> Result<ConnectionCheckWire, IpcError> {
+    let request = ConnectionCheckRequest {
+        endpoint: &prepared.endpoint,
+        model: &prepared.model,
+        api_key: prepared.api_key.as_deref(),
+    };
+    match provider
+        .check_connection(request, should_cancel)
+        .await
+        .map_err(connection_check_error)?
+    {
+        ConnectionCheckOutcome::Connected { model_count } => {
+            Ok(ConnectionCheckWire::Connected { model_count })
+        }
+        ConnectionCheckOutcome::Cancelled => Ok(ConnectionCheckWire::Cancelled),
+        ConnectionCheckOutcome::ModelMissing => Err(IpcError::new(
+            "ai_config.test_model_missing",
+            MessageKey::AiConfigTestModelMissing,
+            std::collections::BTreeMap::from([("model".to_owned(), prepared.model.clone())]),
+            false,
+        )),
+    }
+}
+
+pub(crate) async fn send_prepared_connection_check(
+    prepared: PreparedConnectionCheck,
+    generation_state: ConnectionCheckGeneration,
+    generation: u64,
+) -> Result<ConnectionCheckWire, IpcError> {
+    let join = tauri::async_runtime::spawn_blocking(move || {
+        let provider = OpenAiChatClient::new();
+        let should_cancel = || !generation_state.is_current(generation);
+        tauri::async_runtime::handle().block_on(run_connection_check(
+            &provider,
+            &prepared,
+            &should_cancel,
+        ))
+    });
+    match join.await {
+        Ok(outcome) => outcome,
+        Err(_join_err) => Err(internal_failure_error()),
+    }
 }
 
 /// Số liệu sử dụng + ước tính chi phí, hình dạng WIRE — Story 4.11. Mirror trực tiếp

@@ -8,6 +8,8 @@ import {
   aiConfigGet,
   aiConfigSaveField,
   aiConfigSaveKey,
+  aiConfigTestConnection,
+  aiConfigTestConnectionCancel,
 } from './config/aiconfig'
 import type { AiConfigField, AiConfigFieldWire } from './config/aiconfig'
 
@@ -21,6 +23,18 @@ export const AI_CONFIG_FIELDS: readonly AiConfigField[] = [
   'temperature',
   'max_tokens',
 ]
+
+export const AI_PROVIDERS = ['anthropic', 'openai', 'ollama', 'lmstudio', 'custom'] as const
+export type AiProvider = (typeof AI_PROVIDERS)[number]
+
+/** The endpoint shown as a placeholder only: a save writes exactly the column the user changed. */
+const PROVIDER_ENDPOINT_PLACEHOLDER: Record<AiProvider, string> = {
+  anthropic: 'https://api.anthropic.com/v1',
+  openai: 'https://api.openai.com/v1',
+  ollama: 'http://localhost:11434/v1',
+  lmstudio: 'http://localhost:1234/v1',
+  custom: '',
+}
 
 type FieldRecord<T> = Record<AiConfigField, T>
 
@@ -107,6 +121,7 @@ export function selectAiConfigViewTier(tier: AiConfigViewTier): void {
   tierChoice.value = tier
   drafts.value = draftsForTier(effectiveTier())
   saveErrors.value = emptyErrors()
+  if (testState.value !== 'running') resetAiConfigTest()
 }
 
 export const aiConfigLoading: DeepReadonly<Ref<boolean>> = readonly(loading)
@@ -258,6 +273,7 @@ export async function loadAiConfigSection(): Promise<void> {
   keyConfigured.value = result.keyConfigured
   resolvedFields.value = result.fields
   drafts.value = draftsForTier(effectiveTier())
+  if (testState.value !== 'running') resetAiConfigTest()
 }
 
 /**
@@ -379,4 +395,146 @@ export function resetAiConfigSection(): void {
   keyDraft.value = ''
   keyBusy.value = false
   keyError.value = null
+  inFlightSave = null
+  resetAiConfigTest()
+}
+
+/** The provider chip that matches the displayed `provider` value, or `null` for an unknown value ("Endpoint khác"). */
+export function aiConfigProviderChoice(): AiProvider | null {
+  const current = drafts.value.provider.trim().toLowerCase()
+  return AI_PROVIDERS.find((p) => p === current) ?? null
+}
+
+/** `true` when a non-empty provider value is outside the known list. */
+export function aiConfigProviderIsOther(): boolean {
+  return drafts.value.provider.trim() !== '' && aiConfigProviderChoice() === null
+}
+
+export function aiConfigEndpointPlaceholder(): string {
+  const choice = aiConfigProviderChoice()
+  return choice === null ? '' : PROVIDER_ENDPOINT_PLACEHOLDER[choice]
+}
+
+let inFlightSave: Promise<void> | null = null
+
+function trackSave(job: Promise<void>): Promise<void> {
+  const tracked = job.finally(() => {
+    if (inFlightSave === tracked) inFlightSave = null
+  })
+  inFlightSave = tracked
+  return tracked
+}
+
+/** Saves `field` when the user leaves the box: a valid draft that differs from the displayed stored value. */
+export function commitAiConfigField(field: AiConfigField): Promise<void> {
+  const raw = drafts.value[field].trim()
+  if (raw === '') {
+    drafts.value = { ...drafts.value, [field]: aiConfigValueAtViewTier(field) }
+    return Promise.resolve()
+  }
+  if (!isAiConfigValueValid(field, raw)) return Promise.resolve()
+  if (raw === aiConfigValueAtViewTier(field)) return Promise.resolve()
+  return trackSave(saveAiConfigField(field))
+}
+
+/** Picks a provider chip: writes only the `provider` column. */
+export function selectAiConfigProvider(provider: AiProvider): Promise<void> {
+  setAiConfigDraft('provider', provider)
+  return trackSave(saveAiConfigField('provider'))
+}
+
+/** Commits every dirty text draft; called when Settings closes, before the inputs unmount. */
+export function flushAiConfigDrafts(): Promise<void> {
+  const jobs = AI_CONFIG_FIELDS.filter((f) => f !== 'provider').map((f) => commitAiConfigField(f))
+  return Promise.all(jobs).then(() => undefined)
+}
+
+/** Number of AI fields the open Work overrides. */
+export const aiConfigOverrideCount: ComputedRef<number> = computed(
+  () => resolvedFields.value.filter((f) => f.tier === 'work').length,
+)
+
+/** Returns every Work-tier override to inheritance (`⌘⇧R` and the button share this). */
+export async function clearAllAiConfigOverrides(): Promise<void> {
+  if (!workIsOpen.value) return
+  const overridden = resolvedFields.value.filter((f) => f.tier === 'work').map((f) => f.field)
+  if (overridden.length === 0) return
+  for (const field of overridden) {
+    saving.value = { ...saving.value, [field]: true }
+    saveErrors.value = { ...saveErrors.value, [field]: null }
+  }
+  for (const field of overridden) {
+    const err = await aiConfigClearOverride(field)
+    saving.value = { ...saving.value, [field]: false }
+    if (err !== null) saveErrors.value = { ...saveErrors.value, [field]: err }
+  }
+  await loadAiConfigSection()
+}
+
+export type AiConfigTestState = 'idle' | 'running' | 'connected' | 'not_configured' | 'cancelled' | 'error'
+
+const testState = ref<AiConfigTestState>('idle')
+const testModelCount = ref(0)
+const testError = ref<IpcError | null>(null)
+let testSequence = 0
+let testWaitingForSave = false
+let testCancelRequested = false
+
+export const aiConfigTestStatus: DeepReadonly<Ref<AiConfigTestState>> = readonly(testState)
+export const aiConfigTestModelCount: DeepReadonly<Ref<number>> = readonly(testModelCount)
+export const aiConfigTestError: DeepReadonly<Ref<IpcError | null>> = readonly(testError)
+
+/** Tests the SAVED configuration of the tier being viewed; waits for a blur save still in flight. */
+export async function runAiConfigTest(): Promise<void> {
+  if (testState.value === 'running') return
+  const mine = ++testSequence
+  testState.value = 'running'
+  testError.value = null
+  testCancelRequested = false
+  if (inFlightSave !== null) {
+    testWaitingForSave = true
+    await inFlightSave
+    testWaitingForSave = false
+    if (mine !== testSequence) return
+    if (cancelWasRequested()) {
+      testCancelRequested = false
+      testState.value = 'cancelled'
+      return
+    }
+  }
+  const result = await aiConfigTestConnection(effectiveTier())
+  if (mine !== testSequence) return
+  if (result.error !== null) {
+    testError.value = result.error
+    testState.value = 'error'
+    return
+  }
+  if (result.outcome === null) {
+    testState.value = 'idle'
+    return
+  }
+  if (result.outcome.kind === 'connected') testModelCount.value = result.outcome.model_count
+  testState.value = result.outcome.kind
+}
+
+function cancelWasRequested(): boolean {
+  return testCancelRequested
+}
+
+export async function cancelAiConfigTest(): Promise<void> {
+  if (testState.value !== 'running') return
+  if (testWaitingForSave) {
+    testCancelRequested = true
+    return
+  }
+  await aiConfigTestConnectionCancel()
+}
+
+export function resetAiConfigTest(): void {
+  testSequence += 1
+  testWaitingForSave = false
+  testCancelRequested = false
+  testState.value = 'idle'
+  testModelCount.value = 0
+  testError.value = null
 }

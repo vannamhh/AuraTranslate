@@ -32,7 +32,7 @@
  * người dùng gỡ phím của `mode.library` rồi không còn đường nào lấy lại `Mod+1`.
  */
 import { computed, readonly, ref, shallowRef } from 'vue'
-import type { ComputedRef, DeepReadonly, Ref } from 'vue'
+import type { ComputedRef, DeepReadonly, Ref, ShallowRef } from 'vue'
 import {
   applyBindings,
   chordFromEvent,
@@ -49,7 +49,8 @@ import {
 import type { ChordEvent, ChordOverrides, CommandId, CommandSpec } from '../commands'
 import { t } from '../i18n'
 import type { IpcError } from '../i18n'
-import { SCOPE_SHORTCUT, deleteConfig, putConfig } from './bootstrap'
+import { SCOPE_SHORTCUT, bootstrapShortcutRowIds, deleteConfig, putConfig } from './bootstrap'
+import { shortcutsExport, shortcutsImport } from './shortcuts'
 
 /**
  * Nền tảng, đọc **một lần**. Cùng giá trị mà `installCommands` đã dùng — hai lượt đọc khác
@@ -73,6 +74,11 @@ const notice = shallowRef<ShortcutNotice | null>(null)
  * đọc chạm vào nó. Một dòng, và nó là khác biệt giữa AC12 chạy và AC12 chỉ được viết ra.
  */
 const bindingsEpoch = ref(0)
+/** Text typed in the search box; the chord, when the user pressed one, is kept apart. */
+const searchText = ref('')
+const searchChord = ref<string | null>(null)
+const resetAllPending = ref(false)
+const fileNotice = shallowRef<ShortcutNotice | null>(null)
 
 /** Một câu phải hiện ra, kèm lý do. Khoá đi qua `vi.json`; `params` là dữ liệu. */
 export type ShortcutNotice = {
@@ -273,9 +279,7 @@ function requireRow(): CommandId | null {
   return id
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
 // NĂM HANDLER — nối vào `CommandDeps` ở `src/main.ts`
-// ═══════════════════════════════════════════════════════════════════════════════
 
 /** Called when the Shortcuts section mounts in Settings. */
 export function enterShortcutsScreen(): void {
@@ -287,6 +291,15 @@ export function leaveShortcutsScreen(): void {
   capturing.value = false
   aimedRow.value = null
   notice.value = null
+  resetShortcutsSearchAndFiles()
+}
+
+/** Drops the search box, the pending "reset all" question and the last file message. */
+export function resetShortcutsSearchAndFiles(): void {
+  searchText.value = ''
+  searchChord.value = null
+  resetAllPending.value = false
+  fileNotice.value = null
 }
 
 /** Handler thật của `shortcuts.capture` — vào trạng thái **chờ một hợp âm**. AC2 · AC10. */
@@ -429,4 +442,194 @@ async function persist(id: CommandId, write: () => Promise<IpcError | null>): Pr
     console.warn(`[shortcuts] không lưu được hợp âm của \`${id}\`.`)
     notice.value = { key: 'shortcuts.save_failed' }
   }
+}
+
+export const shortcutSearchText: DeepReadonly<Ref<string>> = readonly(searchText)
+
+/** The chord being looked up, formatted for reading, or `null` when the box holds plain text. */
+export const shortcutSearchChordDisplay: ComputedRef<string | null> = computed(() => {
+  const chord = searchChord.value
+  return chord === null ? null : formatChord(chord, platform)
+})
+
+export function setShortcutSearchText(value: string): void {
+  searchText.value = value
+  searchChord.value = null
+}
+
+export function clearShortcutSearch(): void {
+  searchText.value = ''
+  searchChord.value = null
+}
+
+/** Rows that survive the search box: by chord holder when a chord was pressed, else by name or id. */
+export const visibleShortcutRows: ComputedRef<readonly ShortcutRow[]> = computed(() => {
+  const rows = shortcutRows.value
+  const chord = searchChord.value
+  if (chord !== null) {
+    const holder = conflictFor(chord, '')
+    return holder === null ? [] : rows.filter((row) => row.id === holder.heldBy)
+  }
+  const needle = searchText.value.trim().toLowerCase()
+  if (needle === '') return rows
+  return rows.filter((row) => t(row.labelKey).toLowerCase().includes(needle) || row.id.toLowerCase().includes(needle))
+})
+
+export const shortcutTotalCount: ComputedRef<number> = computed(() => shortcutRows.value.length)
+
+function isTextKey(key: string): boolean {
+  return key === 'Tab' || key === 'Escape' || key === 'Backspace' || key === 'Enter'
+}
+
+/**
+ * Keydown on the search box. A printable key without Mod/Ctrl/Alt stays text (returns `false`,
+ * the browser types it); a chord or a non-printable key becomes the reverse lookup (`true`).
+ */
+export function handleSearchKey(event: ChordEvent & { key?: string }): boolean {
+  if (event.isComposing === true) return false
+  const key = event.key ?? ''
+  if (isTextKey(key) || key === 'Process' || key === 'Dead') return false
+  const hasMod = event.metaKey === true || event.ctrlKey === true || event.altKey === true
+  if (!hasMod && key.length === 1) return false
+  const chord = chordFromEvent(event, platform)
+  if (chord === null) return false
+  searchChord.value = chord
+  searchText.value = ''
+  return true
+}
+
+const FILE_FORMAT = 'auratranslate-shortcuts'
+const FILE_VERSION = 1
+
+export const shortcutFileNotice: DeepReadonly<ShallowRef<ShortcutNotice | null>> = readonly(fileNotice)
+export const shortcutResetAllPending: DeepReadonly<Ref<boolean>> = readonly(resetAllPending)
+
+/** Serialises the user's overrides only (never the defaults). */
+export function buildShortcutsFile(overrides: ChordOverrides): string {
+  const bindings: Record<string, readonly string[]> = {}
+  for (const [id, chords] of Object.entries(overrides)) bindings[id] = [...chords]
+  return JSON.stringify({ format: FILE_FORMAT, version: FILE_VERSION, bindings }, null, 2)
+}
+
+export type ParsedShortcutsFile =
+  | { ok: true; bindings: Record<CommandId, readonly string[]>; unknownCount: number }
+  | { ok: false; reasonKey: string }
+
+/** Validates the shape of an import file against the registered command ids; touches nothing. */
+export function parseShortcutsFile(raw: string, knownIds: ReadonlySet<CommandId>): ParsedShortcutsFile {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return { ok: false, reasonKey: 'shortcuts.import_not_json' }
+  }
+  if (typeof parsed !== 'object' || parsed === null) return { ok: false, reasonKey: 'shortcuts.import_wrong_format' }
+  const file = parsed as { format?: unknown; version?: unknown; bindings?: unknown }
+  if (file.format !== FILE_FORMAT) return { ok: false, reasonKey: 'shortcuts.import_wrong_format' }
+  if (file.version !== FILE_VERSION) return { ok: false, reasonKey: 'shortcuts.import_wrong_version' }
+  const entries = file.bindings
+  if (typeof entries !== 'object' || entries === null || Array.isArray(entries)) {
+    return { ok: false, reasonKey: 'shortcuts.import_wrong_format' }
+  }
+  const bindings: Record<CommandId, readonly string[]> = {}
+  let unknownCount = 0
+  for (const [id, value] of Object.entries(entries)) {
+    if (!Array.isArray(value) || !value.every((chord): chord is string => typeof chord === 'string' && chord.trim() !== '')) {
+      return { ok: false, reasonKey: 'shortcuts.import_wrong_format' }
+    }
+    if (!knownIds.has(id)) {
+      unknownCount += 1
+      continue
+    }
+    bindings[id] = value.map((chord) => chord.trim())
+  }
+  return { ok: true, bindings, unknownCount }
+}
+
+async function writeOverrideDiff(previous: ChordOverrides, next: ChordOverrides): Promise<boolean> {
+  let allWritten = true
+  const onDisk = new Set([...bootstrapShortcutRowIds.value, ...Object.keys(previous)])
+  for (const id of onDisk) {
+    if (Object.prototype.hasOwnProperty.call(next, id)) continue
+    if ((await deleteConfig(SCOPE_SHORTCUT, id)) !== null) allWritten = false
+  }
+  for (const [id, chords] of Object.entries(next)) {
+    if ((await putConfig(SCOPE_SHORTCUT, id, chords.join(','))) !== null) allWritten = false
+  }
+  return allWritten
+}
+
+/** Export button: writes the user's overrides through the save dialog. */
+export async function exportShortcuts(): Promise<void> {
+  fileNotice.value = null
+  const result = await shortcutsExport(buildShortcutsFile(currentOverrides()))
+  if (result.error !== null) {
+    fileNotice.value = { key: result.error.message_key, params: result.error.params }
+    return
+  }
+  if (result.path === null) return
+  fileNotice.value = { key: 'shortcuts.export_done' }
+}
+
+/**
+ * Import button: the file REPLACES the whole override set. A bad file, a bad chord or a clash
+ * rejects everything before any row is written.
+ */
+export async function importShortcuts(): Promise<void> {
+  fileNotice.value = null
+  const result = await shortcutsImport()
+  if (result.error !== null) {
+    fileNotice.value = { key: result.error.message_key, params: result.error.params }
+    return
+  }
+  if (result.content === null) return
+
+  const known = new Set(commandRegistry.list().map((spec) => spec.id))
+  const parsed = parseShortcutsFile(result.content, known)
+  if (!parsed.ok) {
+    fileNotice.value = { key: parsed.reasonKey }
+    return
+  }
+
+  const previous = currentOverrides()
+  if (!commitBindings(parsed.bindings)) {
+    fileNotice.value = { key: 'shortcuts.import_rejected' }
+    return
+  }
+  const written = await writeOverrideDiff(previous, parsed.bindings)
+  if (!written) {
+    fileNotice.value = { key: 'shortcuts.save_failed' }
+    return
+  }
+  fileNotice.value =
+    parsed.unknownCount > 0
+      ? { key: 'shortcuts.import_done_skipped', params: { skipped: String(parsed.unknownCount) } }
+      : { key: 'shortcuts.import_done' }
+}
+
+/** First press asks, second press resets every shortcut row to the product defaults. */
+export function askResetAllShortcuts(): void {
+  fileNotice.value = null
+  resetAllPending.value = true
+}
+
+export function cancelResetAllShortcuts(): void {
+  resetAllPending.value = false
+}
+
+export async function confirmResetAllShortcuts(): Promise<void> {
+  if (!resetAllPending.value) return
+  resetAllPending.value = false
+  const previous = currentOverrides()
+  if (!commitBindings({})) {
+    fileNotice.value = { key: 'shortcuts.apply_failed' }
+    return
+  }
+  const written = await writeOverrideDiff(previous, {})
+  fileNotice.value = { key: written ? 'shortcuts.reset_all_done' : 'shortcuts.save_failed' }
+}
+
+/** The chords now in force for `id`, formatted for reading ('' when it has none). */
+export function shortcutDisplayFor(id: CommandId): string {
+  return shortcutRows.value.find((row) => row.id === id)?.display.join(' · ') ?? ''
 }

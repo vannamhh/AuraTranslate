@@ -807,6 +807,57 @@ function jsonForPersist(api: DockviewApi): unknown {
   return json
 }
 
+/** The layout as it would be persisted now, for "save the current layout as a preset". */
+function currentLayoutJson(): string | null {
+  const api = dock.value
+  if (api === null) return null
+  try {
+    return JSON.stringify(jsonForPersist(api))
+  } catch (err) {
+    console.error(`[layout] khong serialize duoc bo cuc hien tai. ${String(err)}`)
+    return null
+  }
+}
+
+/**
+ * Applies a saved layout JSON (a user preset). `false` means the JSON did not restore (bad shape or
+ * no panel) and the layout that was showing is put back.
+ */
+function applyLayoutJson(json: string): boolean {
+  const api = dock.value
+  if (api === null) return false
+  const before = jsonForPersist(api)
+  api.clear()
+  let restored = false
+  try {
+    api.fromJSON(JSON.parse(json))
+    restored = api.panels.length > 0
+  } catch {
+    restored = false
+  }
+  if (!restored) {
+    api.clear()
+    try {
+      api.fromJSON(before as Parameters<DockviewApi['fromJSON']>[0])
+    } catch (err) {
+      console.error(`[layout] khong dung lai duoc bo cuc cu sau preset hong -- ve preset mac dinh. ${String(err)}`)
+      applyPreset(DEFAULT_PRESET_ID)
+    }
+    return false
+  }
+  hidden.clear()
+  autoHiddenIds.clear()
+  tierMerged.value = false
+  mergedSpot = null
+  setActiveLayoutPreset(null)
+  for (const id of PANEL_IDS) {
+    if (api.getPanel(id) === undefined) hidden.set(id, { reference: id, direction: 'right' })
+  }
+  onLayoutChange()
+  measureAndApplyTier()
+  return true
+}
+
 function flush(): void {
   if (timer !== null) {
     clearTimeout(timer)
@@ -995,7 +1046,14 @@ function onReady(event: DockviewReadyEvent): void {
   )
   disposables.push(api.onDidLayoutChange(onLayoutChange))
 
-  setDockController({ applyPreset, togglePanel, visiblePanelsInLayoutOrder, activePanelId })
+  setDockController({
+    applyPreset,
+    togglePanel,
+    visiblePanelsInLayoutOrder,
+    activePanelId,
+    currentLayoutJson,
+    applyLayoutJson,
+  })
 
   // Story 4.12, Task 3 — tầng khởi động: `restore()` ở trên có thể đã đi qua nhánh
   // `fromJSON` (bố cục tuỳ ý, không qua `applyPreset`), nhánh đó KHÔNG tự đo tầng. Gọi ở đây
@@ -1053,7 +1111,14 @@ onDeactivated(() => {
  */
 onActivated(() => {
   if (dock.value !== null) {
-    setDockController({ applyPreset, togglePanel, visiblePanelsInLayoutOrder, activePanelId })
+    setDockController({
+      applyPreset,
+      togglePanel,
+      visiblePanelsInLayoutOrder,
+      activePanelId,
+      currentLayoutJson,
+      applyLayoutJson,
+    })
   }
 })
 
