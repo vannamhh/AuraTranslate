@@ -14,12 +14,14 @@ import type { ExportScope, ExportScopeCounts } from '../../src/config/export'
 const listMock = vi.fn()
 const summaryMock = vi.fn()
 const folderMock = vi.fn()
+const previewMock = vi.fn()
 
 vi.mock('../../src/config/chapter', () => ({
   listChapters: (...args: unknown[]) => listMock(...args),
 }))
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...args: unknown[]) => summaryMock(...args),
+  exportPreview: (...args: unknown[]) => previewMock(...args),
   exportChooseFolder: (...args: unknown[]) => folderMock(...args),
   exportDocxTwoColumn: () => Promise.resolve({ file: null, error: null }),
 }))
@@ -53,7 +55,21 @@ function ipcError(code: string) {
 
 async function fresh() {
   vi.resetModules()
-  for (const m of [listMock, summaryMock, folderMock]) m.mockReset()
+  for (const m of [listMock, summaryMock, folderMock, previewMock]) m.mockReset()
+  previewMock.mockResolvedValue({
+    preview: {
+      chapter_id: 10,
+      chapter_ord: 1,
+      chapter_title: 'Mở đầu',
+      file_name: 'x-hai-cot.docx',
+      attribution: [],
+      appendix: [],
+      appendix_term_count: 0,
+      not_reimportable: false,
+      rows: [{ source: 'gốc', target: 'dịch' }],
+    },
+    error: null,
+  })
   listMock.mockResolvedValue({
     chapters: [row(10, 1, 'Mở đầu'), row(11, 2, null), row(12, 3, 'Kết')],
     error: null,
@@ -267,7 +283,7 @@ describe('keyboard', () => {
     )
     expect(interactive.length).toBeGreaterThan(5)
     expect(allowed.length).toBe(interactive.length)
-    expect(wrapper.findAll('input[type="checkbox"]').length).toBe(4)
+    expect(wrapper.findAll('input[type="checkbox"]').length).toBe(7)
 
     await wrapper.findAll('input[type="checkbox"]')[1].trigger('change')
     expect(lastScope()).toEqual({ kind: 'chapters', chapter_ids: [11] })

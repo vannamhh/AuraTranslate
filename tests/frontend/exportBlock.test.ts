@@ -9,6 +9,8 @@ import type { CommandDeps } from '../../src/commands'
 import type { ChapterRow } from '../../src/config/chapter'
 import type { ExportScopeCounts } from '../../src/config/export'
 
+const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false }
+
 const listMock = vi.fn()
 const summaryMock = vi.fn()
 const folderMock = vi.fn()
@@ -20,6 +22,7 @@ vi.mock('../../src/config/chapter', () => ({
 }))
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...args: unknown[]) => summaryMock(...args),
+  exportPreview: () => Promise.resolve({ preview: null, error: null }),
   exportChooseFolder: (...args: unknown[]) => folderMock(...args),
   exportDocxTwoColumn: (...args: unknown[]) => twoColumnMock(...args),
   exportDocxOneBlock: (...args: unknown[]) => oneBlockMock(...args),
@@ -216,7 +219,7 @@ describe('running the one-block export', () => {
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
     await settle(wrapper)
 
-    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false)
+    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false, OFF)
     expect(twoColumnMock).not.toHaveBeenCalled()
     expect(wrapper.get('[data-export-result]').text()).toBe('/tmp/out/Tac Pham-mot-khoi.docx')
     wrapper.unmount()
@@ -230,7 +233,7 @@ describe('running the one-block export', () => {
     commands.dispatch('export.run')
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
 
-    expect(twoColumnMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false)
+    expect(twoColumnMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false, OFF)
     expect(oneBlockMock).not.toHaveBeenCalled()
   })
 
@@ -243,6 +246,6 @@ describe('running the one-block export', () => {
     state.setExportImageMode('link')
 
     await state.runExport()
-    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out', false)
+    expect(oneBlockMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out', false, OFF)
   })
 })

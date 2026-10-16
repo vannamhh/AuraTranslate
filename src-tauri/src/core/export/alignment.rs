@@ -196,7 +196,7 @@ fn markdown_units(
         |image| image,
     );
     let mut units = Vec::new();
-    for (item, segment_ids) in emit_items(segments, head, by_anchor, orphans) {
+    for (item, segment_ids) in emit_items(segments, head, by_anchor, orphans, None) {
         match item {
             Emitted::Paragraph(text) => {
                 units.push(SegmentUnit {

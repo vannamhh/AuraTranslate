@@ -5,7 +5,10 @@ use docx_rs::{
     TableLayoutType, TableRow, WidthType,
 };
 
+use crate::core::docx::EXPORT_ANNOTATED_PROPERTY;
+
 use super::image_files::copied_name;
+use super::options::ExportContent;
 use super::table_rows::{ChapterTable, ExportCell, ExportImage, ExportRow};
 
 /// Điều một hàng ảnh ghi ra: link tới `source_url`, hoặc đường dẫn tương đối tới tệp trong thư mục ảnh.
@@ -34,6 +37,21 @@ pub(super) fn paragraph_of(text: &str, gap_after: bool) -> Paragraph {
     Paragraph::new()
         .add_run(run)
         .line_spacing(LineSpacing::new().after(gap))
+}
+
+/// The empty document every `.docx` export starts from: the glossary appendix as plain
+/// paragraphs, and the custom property that marks an annotated copy.
+pub(super) fn document_for(content: &ExportContent) -> Docx {
+    let mut docx = Docx::new();
+    if content.options.annotated() {
+        docx = docx.custom_property(EXPORT_ANNOTATED_PROPERTY, "1");
+    }
+    let lines = content.appendix_lines();
+    let last = lines.len().saturating_sub(1);
+    for (i, line) in lines.iter().enumerate() {
+        docx = docx.add_paragraph(paragraph_of(line, i == last));
+    }
+    docx
 }
 
 fn cell_of(cell: &ExportCell) -> TableCell {
@@ -77,8 +95,9 @@ fn row_of(row: &ExportRow, reference: ImageReference<'_>) -> TableRow {
 pub fn write_two_column_docx(
     tables: &[ChapterTable],
     reference: ImageReference<'_>,
+    content: &ExportContent,
 ) -> Result<Vec<u8>, DocxWriteError> {
-    let mut docx = Docx::new();
+    let mut docx = document_for(content);
     for chapter in tables {
         if !chapter.attribution.is_empty() {
             docx = docx.add_paragraph(paragraph_of(&chapter.attribution.join("\n"), true));

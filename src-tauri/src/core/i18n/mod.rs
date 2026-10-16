@@ -931,6 +931,10 @@ message_keys! {
     ExportImageFileMissing => "err.export.image_file_missing" ["chapter_ord", "file_name"],
     /// Tệp `.docx` một khối dành cho đăng bài: không nhập lại được.
     ExportPublishCopyNotReimportable => "err.export.publish_copy_not_reimportable" [],
+    /// Tệp xuất có số câu hoặc dấu chưa xác nhận: không nhập lại được.
+    ExportAnnotatedCopyNotReimportable => "err.export.annotated_copy_not_reimportable" [],
+    /// Dấu câu chưa xác nhận chỉ có ở bản `.docx` hai cột.
+    ExportMarkTwoColumnOnly => "err.export.mark_two_column_only" [],
     /// Tệp reviewer không khớp Chương nào của Tác phẩm đang mở.
     ExportReviewerWrongWork => "err.export.reviewer_import_wrong_work" ["work_name"],
     /// Tệp reviewer không đọc được hoặc không đúng hình dạng bản xuất hai cột / `.md`.

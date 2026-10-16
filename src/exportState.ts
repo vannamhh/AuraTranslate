@@ -8,9 +8,25 @@ import { readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { listChapters } from './config/chapter'
 import type { ChapterRow } from './config/chapter'
-import { exportChooseFolder, exportDocxOneBlock, exportDocxTwoColumn, exportScopeSummary, exportText } from './config/export'
+import {
+  exportChooseFolder,
+  exportDocxOneBlock,
+  exportDocxTwoColumn,
+  exportPreview,
+  exportScopeSummary,
+  exportText,
+} from './config/export'
 import { translatorNameGet } from './config/attribution'
-import type { ExportImageMode, ExportRunResult, ExportScope, ExportScopeCounts, ExportedFile } from './config/export'
+import type {
+  ExportImageMode,
+  ExportOptions,
+  ExportPreview,
+  ExportPreviewFormat,
+  ExportRunResult,
+  ExportScope,
+  ExportScopeCounts,
+  ExportedFile,
+} from './config/export'
 import type { IpcError } from './i18n'
 
 export type ExportFormat = 'docx_two_column' | 'docx_one_block' | 'markdown' | 'plain_text'
@@ -40,6 +56,13 @@ const choosingFolder = ref(false)
 const format = ref<ExportFormat>('docx_two_column')
 const imageMode = ref<ExportImageMode>('file')
 const attribution = ref(false)
+const numberSegments = ref(false)
+const glossaryAppendix = ref(false)
+const markUnconfirmed = ref(false)
+const preview = ref<ExportPreview | null>(null)
+const previewError = ref<IpcError | null>(null)
+const previewLoading = ref(false)
+let previewSequence = 0
 const translatorName = ref<string | null>(null)
 const translatorNameError = ref<IpcError | null>(null)
 const runStatus = ref<ExportRunStatus>('idle')
@@ -64,6 +87,12 @@ export const exportChoosingFolder: DeepReadonly<Ref<boolean>> = readonly(choosin
 export const exportFormat: DeepReadonly<Ref<ExportFormat>> = readonly(format)
 export const exportImageMode: DeepReadonly<Ref<ExportImageMode>> = readonly(imageMode)
 export const exportAttribution: DeepReadonly<Ref<boolean>> = readonly(attribution)
+export const exportNumberSegments: DeepReadonly<Ref<boolean>> = readonly(numberSegments)
+export const exportGlossaryAppendix: DeepReadonly<Ref<boolean>> = readonly(glossaryAppendix)
+export const exportMarkUnconfirmed: DeepReadonly<Ref<boolean>> = readonly(markUnconfirmed)
+export const exportPreviewData: DeepReadonly<Ref<ExportPreview | null>> = readonly(preview)
+export const exportPreviewError: DeepReadonly<Ref<IpcError | null>> = readonly(previewError)
+export const exportPreviewLoading: DeepReadonly<Ref<boolean>> = readonly(previewLoading)
 export const exportTranslatorName: DeepReadonly<Ref<string | null>> = readonly(translatorName)
 export const exportTranslatorNameError: DeepReadonly<Ref<IpcError | null>> = readonly(translatorNameError)
 export const exportRunStatus: DeepReadonly<Ref<ExportRunStatus>> = readonly(runStatus)
@@ -76,10 +105,64 @@ function clearRun(): void {
   runError.value = null
 }
 
+/** The mark is a two-column-only option (FR121); other formats never send it. */
+export function exportMarkAvailable(): boolean {
+  return format.value === 'docx_two_column'
+}
+
+/** Numbering and mark make the file un-reimportable; the appendix does not. */
+export function exportNotReimportable(): boolean {
+  return numberSegments.value || (exportMarkAvailable() && markUnconfirmed.value)
+}
+
+/** `false` only once a preview says the Glossary has no confirmed term; unknown keeps the switch usable. */
+export function exportAppendixAvailable(): boolean {
+  return preview.value === null || preview.value.appendix_term_count > 0
+}
+
+export function currentExportOptions(): ExportOptions {
+  return {
+    number_segments: numberSegments.value,
+    glossary_appendix: exportAppendixAvailable() && glossaryAppendix.value,
+    mark_unconfirmed: exportMarkAvailable() && markUnconfirmed.value,
+  }
+}
+
+function previewFormatOf(chosen: ExportFormat): ExportPreviewFormat {
+  return chosen === 'plain_text' ? 'plain' : chosen
+}
+
+/** Rebuilds the preview from Rust; a reply that arrives after a newer request is dropped. */
+export async function refreshExportPreview(): Promise<void> {
+  previewSequence += 1
+  const mine = previewSequence
+  const scope = currentExportScope()
+  if (scope === null) {
+    preview.value = null
+    previewError.value = null
+    previewLoading.value = false
+    return
+  }
+  previewLoading.value = true
+  const result = await exportPreview(scope, previewFormatOf(format.value), currentExportOptions(), attribution.value)
+  if (mine !== previewSequence) return
+  previewLoading.value = false
+  preview.value = result.preview
+  previewError.value = result.error
+}
+
 /** Link mode needs at least one image in scope that carries a source URL. */
 export function exportLinkUsable(): boolean {
   const c = counts.value
   return c !== null && c.image_count - c.missing_link_images.length > 0
+}
+
+/** First Chapter of the scope (list order); source of the attribution fields shown on the screen. */
+export function exportFirstScopeChapter(): ChapterRow | null {
+  const all = chapters.value
+  if (scopeKind.value === 'work') return all[0] ?? null
+  if (scopeKind.value === 'chapter') return all.find((c) => c.chapter_id === singleChapterId.value) ?? null
+  return all.find((c) => selectedChapterIds.value.includes(c.chapter_id)) ?? null
 }
 
 /** The scope a later export command sends to Rust; `null` while nothing is selected. */
@@ -100,8 +183,10 @@ async function refreshCounts(): Promise<void> {
     counts.value = null
     countsError.value = null
     countsStatus.value = 'none_selected'
+    void refreshExportPreview()
     return
   }
+  void refreshExportPreview()
 
   const result = await exportScopeSummary(scope)
   if (mySequence !== sequence) return
@@ -158,6 +243,26 @@ export async function openExport(): Promise<void> {
 export function setExportFormat(next: ExportFormat): void {
   format.value = next
   clearRun()
+  preview.value = null
+  void refreshExportPreview()
+}
+
+export function setExportNumberSegments(next: boolean): void {
+  numberSegments.value = next
+  clearRun()
+  void refreshExportPreview()
+}
+
+export function setExportGlossaryAppendix(next: boolean): void {
+  glossaryAppendix.value = next
+  clearRun()
+  void refreshExportPreview()
+}
+
+export function setExportMarkUnconfirmed(next: boolean): void {
+  markUnconfirmed.value = next
+  clearRun()
+  void refreshExportPreview()
 }
 
 export function setExportImageMode(next: ExportImageMode): void {
@@ -169,11 +274,13 @@ export function setExportImageMode(next: ExportImageMode): void {
 export function setExportAttribution(next: boolean): void {
   attribution.value = next
   clearRun()
+  void refreshExportPreview()
 }
 
 export function closeExport(): void {
   if (!overlayOpen.value) return
   sequence += 1
+  previewSequence += 1
   overlayOpen.value = false
   choosingFolder.value = false
 }
@@ -219,12 +326,13 @@ function writeFormat(
   mode: ExportImageMode,
   target: string,
   withAttribution: boolean,
+  options: ExportOptions,
 ): Promise<ExportRunResult> {
-  if (chosen === 'markdown') return exportText(scope, mode, 'markdown', target, withAttribution)
-  if (chosen === 'plain_text') return exportText(scope, mode, 'plain', target, withAttribution)
+  if (chosen === 'markdown') return exportText(scope, mode, 'markdown', target, withAttribution, options)
+  if (chosen === 'plain_text') return exportText(scope, mode, 'plain', target, withAttribution, options)
   return chosen === 'docx_one_block'
-    ? exportDocxOneBlock(scope, mode, target, withAttribution)
-    : exportDocxTwoColumn(scope, mode, target, withAttribution)
+    ? exportDocxOneBlock(scope, mode, target, withAttribution, options)
+    : exportDocxTwoColumn(scope, mode, target, withAttribution, options)
 }
 
 /** Writes the selected format for the current scope into the chosen folder. */
@@ -236,7 +344,7 @@ export async function runExport(): Promise<void> {
   runStatus.value = 'running'
   runResult.value = null
   runError.value = null
-  const result = await writeFormat(format.value, scope, imageMode.value, target, attribution.value)
+  const result = await writeFormat(format.value, scope, imageMode.value, target, attribution.value, currentExportOptions())
   if (result.file !== null) {
     runResult.value = result.file
     runStatus.value = 'done'
@@ -265,6 +373,13 @@ export function resetExport(): void {
   format.value = 'docx_two_column'
   imageMode.value = 'file'
   attribution.value = false
+  numberSegments.value = false
+  glossaryAppendix.value = false
+  markUnconfirmed.value = false
+  previewSequence += 1
+  preview.value = null
+  previewError.value = null
+  previewLoading.value = false
   translatorName.value = null
   translatorNameError.value = null
   clearRun()

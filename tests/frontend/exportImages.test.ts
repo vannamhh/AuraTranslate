@@ -9,6 +9,8 @@ import type { CommandDeps } from '../../src/commands'
 import type { ChapterRow } from '../../src/config/chapter'
 import type { ExportScopeCounts } from '../../src/config/export'
 
+const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false }
+
 const listMock = vi.fn()
 const summaryMock = vi.fn()
 const folderMock = vi.fn()
@@ -19,6 +21,7 @@ vi.mock('../../src/config/chapter', () => ({
 }))
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...args: unknown[]) => summaryMock(...args),
+  exportPreview: () => Promise.resolve({ preview: null, error: null }),
   exportChooseFolder: (...args: unknown[]) => folderMock(...args),
   exportDocxTwoColumn: (...args: unknown[]) => docxMock(...args),
 }))
@@ -136,7 +139,7 @@ describe('image mode choice', () => {
     await state.chooseExportFolder()
     commands.dispatch('export.run')
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
-    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out', false)
+    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'link', '/tmp/out', false, OFF)
     wrapper.unmount()
   })
 
@@ -145,7 +148,7 @@ describe('image mode choice', () => {
     await state.openExport()
     await state.chooseExportFolder()
     await state.runExport()
-    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false)
+    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false, OFF)
   })
 })
 

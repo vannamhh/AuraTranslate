@@ -47,7 +47,7 @@ const MATCHING_DIR: &str = "core/matching";
 const MATCHING_FLOOR: usize = 1;
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép đếm toàn cây là thật.
-const SRC_RS_FLOOR: usize = 113;
+const SRC_RS_FLOOR: usize = 122;
 
 /// Ba crate mà **chỉ** `core/matching/**` được gõ ở vị trí mã (AD-17).
 const MATCHING_ONLY_CRATES: [&str; 3] = ["jieba_rs", "tantivy_stemmers", "similar"];

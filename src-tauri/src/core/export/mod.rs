@@ -23,6 +23,8 @@ mod harvest;
 mod image_files;
 mod images;
 mod new_file;
+mod options;
+mod preview;
 mod reimport_gate;
 mod review_decision;
 mod reviewer_copy;
@@ -47,7 +49,11 @@ pub use harvest::{HarvestError, HarvestFinding, MIN_CHANGED_COUNT, harvest_work}
 pub use image_files::{IMAGE_DIR_SUFFIX, ImageFilesError, write_file_with_images};
 pub use images::{ImageMode, ImageScan, MissingLinkImage, scan_images};
 pub use new_file::{safe_stem, write_new_file};
-pub use reimport_gate::{ReimportShapeError, ReviewerDocx};
+pub use options::{
+    ExportContent, ExportFormat, ExportOptions, ExportOptionsError, MARKDOWN_ANNOTATED_MARKER,
+};
+pub use preview::{ExportPreview, ExportPreviewRow, PREVIEW_LIMIT, build_preview};
+pub use reimport_gate::{ReimportShapeError, ReviewerDocx, admit_markdown};
 pub use review_decision::ReviewDecision;
 pub use reviewer_copy::{
     ConfirmError, ImportSummary, PlannedChapter, ReplacedCopy, ReviewCopy, ReviewCopyError,
@@ -55,7 +61,9 @@ pub use reviewer_copy::{
     SkippedSection, confirm_import, plan_import, read_docx_copy, read_markdown_copy,
     read_review_copy,
 };
-pub use scope::{ExportScope, ScopeCounts, ScopeError, count_scope, resolve_chapter_ids};
+pub use scope::{
+    ExportScope, ScopeCounts, ScopeError, count_scope, is_unconfirmed, resolve_chapter_ids,
+};
 pub use table_rows::{
     ChapterTable, ExportCell, ExportImage, ExportRow, LoadedTables, load_chapter_tables,
 };

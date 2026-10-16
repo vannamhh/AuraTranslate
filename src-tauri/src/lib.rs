@@ -1210,6 +1210,7 @@ pub fn run() {
             crate::commands::export::wire::export_docx_two_column,
             crate::commands::export::wire::export_docx_one_block,
             crate::commands::export::wire::export_text,
+            crate::commands::export::wire::export_preview,
             crate::commands::export::wire::reviewer_import_open_preview,
             crate::commands::export::wire::reviewer_import_confirm,
             crate::commands::export::wire::reviewer_import_cancel,

@@ -11,6 +11,7 @@ use auratranslate_lib::commands::export::{
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::docx::{DocxParsed, read_docx};
+use auratranslate_lib::core::export::ExportContent;
 use auratranslate_lib::core::export::{ExportScope, ImageMode, is_untranslated};
 use auratranslate_lib::core::store::Transaction;
 
@@ -127,8 +128,15 @@ fn fixture_in(tag: &str, lang: &str, first_title: Option<&str>, segs: Vec<Seg>) 
 
 impl Fixture {
     fn export(&self, scope: &ExportScope) -> PathBuf {
-        let file = export_docx_one_block(Some(&self.open), scope, ImageMode::File, None, &self.out)
-            .expect("xuat that bai");
+        let file = export_docx_one_block(
+            Some(&self.open),
+            scope,
+            ImageMode::File,
+            &ExportContent::default(),
+            None,
+            &self.out,
+        )
+        .expect("xuat that bai");
         PathBuf::from(file.path)
     }
 
@@ -497,8 +505,15 @@ fn link_mode_puts_one_hyperlink_paragraph_after_the_anchor_in_both_cells_and_cou
         1,
     );
     insert_asset(&f.open, f.first, "nolink.jpg", None, 1);
-    let file =
-        export_docx_one_block(Some(&f.open), &work(), ImageMode::Link, None, &f.out).expect("xuat");
+    let file = export_docx_one_block(
+        Some(&f.open),
+        &work(),
+        ImageMode::Link,
+        &ExportContent::default(),
+        None,
+        &f.out,
+    )
+    .expect("xuat");
     let xml = document_xml(Path::new(&file.path));
     let cells = cells(&xml);
 
@@ -539,8 +554,15 @@ fn file_mode_writes_relative_paths_into_the_stem_folder_and_copies_the_files() {
     let f = fixture("img-file", None, vec![seg("s0", "t0")]);
     insert_asset(&f.open, f.first, "p.jpg", Some("https://x.test/p.jpg"), 0);
     put_asset_file(&f.open, "p.jpg", b"jpg");
-    let file =
-        export_docx_one_block(Some(&f.open), &work(), ImageMode::File, None, &f.out).expect("xuat");
+    let file = export_docx_one_block(
+        Some(&f.open),
+        &work(),
+        ImageMode::File,
+        &ExportContent::default(),
+        None,
+        &f.out,
+    )
+    .expect("xuat");
     let cells = cells(&document_xml(Path::new(&file.path)));
 
     assert!(file.path.ends_with("Tac Pham-mot-khoi.docx"));
@@ -564,8 +586,15 @@ fn file_mode_writes_relative_paths_into_the_stem_folder_and_copies_the_files() {
 fn a_missing_image_file_is_the_named_error_of_the_two_column_export() {
     let f = fixture("img-missing", None, vec![seg("s0", "t0")]);
     insert_asset(&f.open, f.first, "gone.jpg", None, 0);
-    let err = export_docx_one_block(Some(&f.open), &work(), ImageMode::File, None, &f.out)
-        .expect_err("phai loi");
+    let err = export_docx_one_block(
+        Some(&f.open),
+        &work(),
+        ImageMode::File,
+        &ExportContent::default(),
+        None,
+        &f.out,
+    )
+    .expect_err("phai loi");
     assert_eq!(err.code(), "export.image_file_missing");
     assert_eq!(fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0), 0);
     f.finish();
@@ -618,6 +647,7 @@ fn scope_errors_a_closed_work_and_a_bad_folder_are_the_named_errors_of_the_scope
                 chapter_ids: vec![]
             },
             ImageMode::File,
+            &ExportContent::default(),
             None,
             &f.out
         )),
@@ -630,6 +660,7 @@ fn scope_errors_a_closed_work_and_a_bad_folder_are_the_named_errors_of_the_scope
                 chapter_ids: vec![9999]
             },
             ImageMode::File,
+            &ExportContent::default(),
             None,
             &f.out
         )),
@@ -640,6 +671,7 @@ fn scope_errors_a_closed_work_and_a_bad_folder_are_the_named_errors_of_the_scope
             None,
             &work(),
             ImageMode::File,
+            &ExportContent::default(),
             None,
             &f.out
         )),
@@ -650,6 +682,7 @@ fn scope_errors_a_closed_work_and_a_bad_folder_are_the_named_errors_of_the_scope
             Some(&f.open),
             &work(),
             ImageMode::File,
+            &ExportContent::default(),
             None,
             &f.out.join("khong-co")
         )),
@@ -725,8 +758,15 @@ fn the_summary_counts_unconfirmed_translated_and_untranslated_apart_and_skips_om
 #[test]
 fn the_two_column_export_of_the_same_work_is_unchanged_by_the_block_command() {
     let f = fixture("coexist", Some("T"), vec![seg("a", "b")]);
-    let two = export_docx_two_column(Some(&f.open), &work(), ImageMode::File, None, &f.out)
-        .expect("hai cot");
+    let two = export_docx_two_column(
+        Some(&f.open),
+        &work(),
+        ImageMode::File,
+        &ExportContent::default(),
+        None,
+        &f.out,
+    )
+    .expect("hai cot");
     assert!(two.path.ends_with("Tac Pham-hai-cot.docx"));
     assert_eq!(parsed(Path::new(&two.path)).tables[0].rows, 1);
     f.finish();
@@ -755,8 +795,15 @@ fn an_untranslated_chapter_with_an_anchored_image_shows_the_image_and_no_text_on
         vec![flagged("s0", " ", true, true)],
     );
     insert_asset(&f.open, f.first, "p.jpg", Some("https://x.test/p.jpg"), 0);
-    let file =
-        export_docx_one_block(Some(&f.open), &work(), ImageMode::Link, None, &f.out).expect("xuat");
+    let file = export_docx_one_block(
+        Some(&f.open),
+        &work(),
+        ImageMode::Link,
+        &ExportContent::default(),
+        None,
+        &f.out,
+    )
+    .expect("xuat");
     let cells = cells(&document_xml(Path::new(&file.path)));
 
     assert_eq!(cells[1], paras(&["https://x.test/p.jpg"]));

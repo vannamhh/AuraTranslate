@@ -11,6 +11,30 @@ export type ExportTextFormat = 'markdown' | 'plain'
 
 export type ExportImageMode = 'link' | 'file'
 
+export type ExportOptions = {
+  number_segments: boolean
+  glossary_appendix: boolean
+  mark_unconfirmed: boolean
+}
+
+export type ExportPreviewFormat = 'docx_two_column' | 'docx_one_block' | 'markdown' | 'plain'
+
+export type ExportPreviewRow = { source: string | null; target: string }
+
+export type ExportPreview = {
+  chapter_id: number
+  chapter_ord: number
+  chapter_title: string | null
+  file_name: string
+  attribution: string[]
+  appendix: string[]
+  appendix_term_count: number
+  not_reimportable: boolean
+  rows: ExportPreviewRow[]
+}
+
+export type ExportPreviewResult = { preview: ExportPreview | null; error: IpcError | null }
+
 export type MissingLinkImage = {
   chapter_id: number
   chapter_ord: number
@@ -53,6 +77,7 @@ const CMD_EXPORT_CHOOSE_FOLDER = 'export_choose_folder'
 const CMD_EXPORT_DOCX_TWO_COLUMN = 'export_docx_two_column'
 const CMD_EXPORT_DOCX_ONE_BLOCK = 'export_docx_one_block'
 const CMD_EXPORT_TEXT = 'export_text'
+const CMD_EXPORT_PREVIEW = 'export_preview'
 
 const UNKNOWN_IPC_ERROR: IpcError = {
   code: 'ipc.unknown',
@@ -161,9 +186,10 @@ export async function exportDocxTwoColumn(
   imageMode: ExportImageMode,
   folder: string,
   attribution: boolean,
+  options: ExportOptions,
 ): Promise<ExportRunResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_TWO_COLUMN, { scope, imageMode, folder, attribution })
+    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_TWO_COLUMN, { scope, imageMode, options, folder, attribution })
     if (!isExportedFile(raw)) {
       console.error(`[export] \`${CMD_EXPORT_DOCX_TWO_COLUMN}\` returned an unexpected shape: ${String(raw)}`)
       return { file: null, error: UNKNOWN_IPC_ERROR }
@@ -179,9 +205,10 @@ export async function exportDocxOneBlock(
   imageMode: ExportImageMode,
   folder: string,
   attribution: boolean,
+  options: ExportOptions,
 ): Promise<ExportRunResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_ONE_BLOCK, { scope, imageMode, folder, attribution })
+    const raw = await invoke<unknown>(CMD_EXPORT_DOCX_ONE_BLOCK, { scope, imageMode, options, folder, attribution })
     if (!isExportedFile(raw)) {
       console.error(`[export] \`${CMD_EXPORT_DOCX_ONE_BLOCK}\` returned an unexpected shape: ${String(raw)}`)
       return { file: null, error: UNKNOWN_IPC_ERROR }
@@ -198,9 +225,10 @@ export async function exportText(
   format: ExportTextFormat,
   folder: string,
   attribution: boolean,
+  options: ExportOptions,
 ): Promise<ExportRunResult> {
   try {
-    const raw = await invoke<unknown>(CMD_EXPORT_TEXT, { scope, imageMode, format, folder, attribution })
+    const raw = await invoke<unknown>(CMD_EXPORT_TEXT, { scope, imageMode, format, options, folder, attribution })
     if (!isExportedFile(raw)) {
       console.error(`[export] \`${CMD_EXPORT_TEXT}\` returned an unexpected shape: ${String(raw)}`)
       return { file: null, error: UNKNOWN_IPC_ERROR }
@@ -208,5 +236,50 @@ export async function exportText(
     return { file: raw, error: null }
   } catch (err) {
     return { file: null, error: failureOf(err, CMD_EXPORT_TEXT) }
+  }
+}
+
+function isPreviewRow(value: unknown): value is ExportPreviewRow {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ExportPreviewRow>
+  return (v.source === null || typeof v.source === 'string') && typeof v.target === 'string'
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
+function isPreview(value: unknown): value is ExportPreview {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<ExportPreview>
+  return (
+    typeof v.chapter_id === 'number' &&
+    typeof v.chapter_ord === 'number' &&
+    (v.chapter_title === null || typeof v.chapter_title === 'string') &&
+    typeof v.file_name === 'string' &&
+    isStringArray(v.attribution) &&
+    isStringArray(v.appendix) &&
+    typeof v.appendix_term_count === 'number' &&
+    typeof v.not_reimportable === 'boolean' &&
+    Array.isArray(v.rows) &&
+    v.rows.every(isPreviewRow)
+  )
+}
+
+export async function exportPreview(
+  scope: ExportScope,
+  format: ExportPreviewFormat,
+  options: ExportOptions,
+  attribution: boolean,
+): Promise<ExportPreviewResult> {
+  try {
+    const raw = await invoke<unknown>(CMD_EXPORT_PREVIEW, { scope, format, options, attribution })
+    if (!isPreview(raw)) {
+      console.error(`[export] \`${CMD_EXPORT_PREVIEW}\` returned an unexpected shape: ${String(raw)}`)
+      return { preview: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { preview: raw, error: null }
+  } catch (err) {
+    return { preview: null, error: failureOf(err, CMD_EXPORT_PREVIEW) }
   }
 }

@@ -1,11 +1,12 @@
 use std::io::Cursor;
 
-use docx_rs::{Docx, Table, TableCell, TableLayoutType, TableRow, WidthType};
+use docx_rs::{Table, TableCell, TableLayoutType, TableRow, WidthType};
 
 use super::block_paragraphs::{BlockParagraph, ChapterBlock};
 use super::docx_table::{
-    COLUMN_WIDTH_DXA, DocxWriteError, ImageReference, image_paragraph, paragraph_of,
+    COLUMN_WIDTH_DXA, DocxWriteError, ImageReference, document_for, image_paragraph, paragraph_of,
 };
+use super::options::ExportContent;
 
 fn cell_of(paragraphs: &[BlockParagraph], reference: ImageReference<'_>) -> TableCell {
     let mut cell = TableCell::new()
@@ -27,8 +28,9 @@ fn cell_of(paragraphs: &[BlockParagraph], reference: ImageReference<'_>) -> Tabl
 pub fn write_one_block_docx(
     blocks: &[ChapterBlock],
     reference: ImageReference<'_>,
+    content: &ExportContent,
 ) -> Result<Vec<u8>, DocxWriteError> {
-    let mut docx = Docx::new();
+    let mut docx = document_for(content);
     for block in blocks {
         if !block.attribution.is_empty() {
             docx = docx.add_paragraph(paragraph_of(&block.attribution.join("\n"), true));

@@ -13,6 +13,7 @@ use auratranslate_lib::commands::export::{
     reviewer_import_preview,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
+use auratranslate_lib::core::export::ExportContent;
 use auratranslate_lib::core::export::{
     Attribution, ExportScope, ImageMode, ReviewCopyError, ReviewFileKind, ReviewRowKind,
     TextFormat, read_review_copy,
@@ -176,9 +177,15 @@ impl Work {
     }
 
     fn docx(&self, mode: ImageMode) -> PathBuf {
-        let file =
-            export_docx_two_column(Some(&self.open), &ExportScope::Work, mode, None, &self.out)
-                .expect("xuat docx");
+        let file = export_docx_two_column(
+            Some(&self.open),
+            &ExportScope::Work,
+            mode,
+            &ExportContent::default(),
+            None,
+            &self.out,
+        )
+        .expect("xuat docx");
         PathBuf::from(file.path)
     }
 
@@ -188,6 +195,7 @@ impl Work {
             &ExportScope::Work,
             ImageMode::Link,
             TextFormat::Markdown,
+            &ExportContent::default(),
             attribution,
             &self.out,
         )
@@ -441,6 +449,7 @@ fn a_one_block_publishing_copy_is_refused_with_its_own_key_and_nothing_is_writte
         Some(&reviewer.open),
         &ExportScope::Work,
         ImageMode::File,
+        &ExportContent::default(),
         None,
         &reviewer.out,
     )

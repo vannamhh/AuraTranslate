@@ -12,6 +12,7 @@ use auratranslate_lib::commands::export::{
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::segment::{merge_segments, review_accept_change, split_segment};
+use auratranslate_lib::core::export::ExportContent;
 use auratranslate_lib::core::export::{
     AlignmentError, AlignmentItem, ChapterAlignment, DecidedBy, ExportScope, ImageMode,
     MIN_PAIR_SIMILARITY, ReviewCopyError, TextFormat, join, read_alignment, read_review_copy,
@@ -105,6 +106,7 @@ impl Work {
             Some(&self.open),
             &ExportScope::Work,
             ImageMode::File,
+            &ExportContent::default(),
             None,
             &self.out,
         )
@@ -118,6 +120,7 @@ impl Work {
             &ExportScope::Work,
             ImageMode::Link,
             TextFormat::Markdown,
+            &ExportContent::default(),
             None,
             &self.out,
         )

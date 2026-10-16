@@ -2487,6 +2487,7 @@ const HANDLER_TABLE = {
   'src/TmFuzzyStrip.vue::aimTmFuzzyRow': { nonCommand: R_CURSOR_IMPORTED },
   'src/GlossaryConfirmStrip.vue::onKeydown': { ids: ['glossary.confirm.save'] },
   'src/GlossaryConfirmStrip.vue::aimGlossaryConfirmOption': { nonCommand: R_CURSOR_IMPORTED },
+  'src/ExportOverlay.vue::runShortcut': { ids: ['export.run'] },
   'src/ExportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ChapterMergeOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ChapterSplitOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
@@ -2761,7 +2762,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 122
+const HANDLER_ATTR_FLOOR = 131
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

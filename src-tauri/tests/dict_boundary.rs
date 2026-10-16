@@ -358,7 +358,7 @@ fn exactly_one_definition_of_is_han_exists_under_src_tauri() {
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để bốn cổng dưới đây là thật — **không**
 /// gồm `tests/**`, khác [`SRC_TAURI_RS_FLOOR`] ngay trên.
-const SRC_ONLY_RS_FLOOR: usize = 113;
+const SRC_ONLY_RS_FLOOR: usize = 122;
 
 /// **Mười `code` THẬT**, đo trên bốn tệp `.db` ở `tools/dict-build/out/` ngày 2026-08-08.
 ///

@@ -9,6 +9,8 @@ import { mount } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
 import type { ChapterRow } from '../../src/config/chapter'
 
+const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false }
+
 const listMock = vi.fn()
 const summaryMock = vi.fn()
 const folderMock = vi.fn()
@@ -19,6 +21,7 @@ vi.mock('../../src/config/chapter', () => ({
 }))
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...args: unknown[]) => summaryMock(...args),
+  exportPreview: () => Promise.resolve({ preview: null, error: null }),
   exportChooseFolder: (...args: unknown[]) => folderMock(...args),
   exportDocxTwoColumn: (...args: unknown[]) => docxMock(...args),
 }))
@@ -102,7 +105,7 @@ describe('running the export', () => {
     await vi.waitFor(() => expect(state.exportRunStatus.value).toBe('done'))
     await settle(wrapper)
 
-    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false)
+    expect(docxMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', '/tmp/out', false, OFF)
     expect(wrapper.get('[data-export-result]').text()).toBe('/tmp/out/Tac Pham-hai-cot.docx')
     wrapper.unmount()
   })

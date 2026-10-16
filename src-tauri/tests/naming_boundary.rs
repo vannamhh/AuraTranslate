@@ -120,7 +120,7 @@ const STORE_EXEMPT: [&str; 8] = [
 ];
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép quét là thật.
-const RUST_FLOOR: usize = 113;
+const RUST_FLOOR: usize = 122;
 
 /// Số tệp `.ts`/`.vue` tối thiểu dưới `src/**` để phép quét là thật.
 const FRONTEND_FLOOR: usize = 167;

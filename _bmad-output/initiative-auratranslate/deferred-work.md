@@ -13251,3 +13251,11 @@ chính nó.
   summary: Lượt dùng thật: nhập một `.docx` reviewer có đoạn gộp ở hai Chương → Nối tay đi lần lượt "Chương i/n" → màn thu hoạch có cặp nối tay; nhãn "Đoạn N · …", chú thích chân và link Nối tay của Review Mode; nút Nhập bản reviewer trên thẻ Tác phẩm. `e2e/specs/story-12-16-reviewer-import-hand-join.e2e.mjs` chỉ mở Nối tay rỗng từ `Công cụ ▾`, chưa chạy.
   evidence: hộp chọn tệp reviewer là hộp thoại gốc do Rust mở (AD-48), WebDriver không lái được; webview e2e đứng ở `tauri://localhost`. Chuỗi chỉ được canh bằng `reviewerImport.test.ts` và `review_harvest_contract.rs`.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xuat-tuy-chon-noi-dung-khoi-ghi-nguon-xem-truoc-plan.md`
+  summary: Lượt dùng thật: xuất `.docx` hai cột với cả ba tuỳ chọn rồi mở bằng Word (và LibreOffice nếu có): số câu `[n]`, đoạn phụ lục thuật ngữ và dòng "— câu chưa xác nhận —" đọc được; lưu lại trong Word rồi nhập làm bản reviewer vẫn bị từ chối `export.annotated_copy_not_reimportable` (thuộc tính `aura.export_annotated` còn trong `docProps/custom.xml`). Nếu Word làm mất thuộc tính thì rơi vào ca sót đã chấp nhận ở Design Notes. Windows: `B7`. Nhìn bằng mắt vạch `ex-warning` (token `tm-rule`) trên màn Xuất.
+  evidence: chỉ đo vòng tròn bằng `docx-rs` -> `core::docx::read_docx` (`export_content_options_contract.rs`), máy không có Word hay `soffice`; `e2e/specs/story-12-17-export-content-options.e2e.mjs` chưa chạy vì webview đứng ở `tauri://localhost`, hộp chọn thư mục là hộp thoại gốc nên nút Xuất không bấm được trong e2e.
+  Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xuat-tuy-chon-noi-dung-khoi-ghi-nguon-xem-truoc-plan.md`
+  summary: `export_preview` là lệnh plain, giữ khoá `OpenWorkState` và đọc trọn Chương đầu phạm vi (cộng Glossary hai tầng) ở mỗi lần bật công tắc hay đổi định dạng, chỉ để trả 6 hàng; chưa biết có làm giật màn Xuất không (medium, chưa kiểm chứng).
+  evidence: chưa đo; đo thời gian lệnh trên Chương ≥ 2.000 câu ở bản build release, nếu vượt ngưỡng phản hồi UI thì giới hạn số câu đọc hoặc chuyển `(async)`.
+  Chủ: Story 12.22.

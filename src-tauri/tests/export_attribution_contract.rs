@@ -13,6 +13,7 @@ use auratranslate_lib::commands::export::{
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::docx::{DocxParsed, read_docx};
+use auratranslate_lib::core::export::ExportContent;
 use auratranslate_lib::core::export::{Attribution, ExportScope, ImageMode, TextFormat};
 use auratranslate_lib::core::store::{Store, StoreSpec, Transaction, Tuning};
 
@@ -124,6 +125,7 @@ fn md(f: &Fixture, attribution: Option<&Attribution>) -> String {
         &ExportScope::Work,
         ImageMode::Link,
         TextFormat::Markdown,
+        &ExportContent::default(),
         attribution,
         &f.out,
     )
@@ -137,6 +139,7 @@ fn txt(f: &Fixture, attribution: Option<&Attribution>) -> String {
         &ExportScope::Work,
         ImageMode::Link,
         TextFormat::Plain,
+        &ExportContent::default(),
         attribution,
         &f.out,
     )
@@ -149,6 +152,7 @@ fn two_column(f: &Fixture, attribution: Option<&Attribution>) -> DocxParsed {
         Some(&f.open),
         &ExportScope::Work,
         ImageMode::Link,
+        &ExportContent::default(),
         attribution,
         &f.out,
     )
@@ -161,6 +165,7 @@ fn one_block(f: &Fixture, attribution: Option<&Attribution>) -> DocxParsed {
         Some(&f.open),
         &ExportScope::Work,
         ImageMode::Link,
+        &ExportContent::default(),
         attribution,
         &f.out,
     )

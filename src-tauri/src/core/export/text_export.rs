@@ -3,6 +3,9 @@ use super::block_paragraphs::target_pieces;
 use super::docx_table::ImageReference;
 use super::image_files::copied_name;
 use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
+use super::options::{
+    ExportContent, ExportOptions, MARKDOWN_ANNOTATED_MARKER, numbered, segment_numbers,
+};
 use super::table_rows::ExportImage;
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::reading::paragraphs_by_flag;
@@ -63,6 +66,7 @@ pub(super) fn emit_items<I>(
     head: Vec<I>,
     mut by_anchor: BTreeMap<i64, Vec<I>>,
     orphans: Vec<I>,
+    numbers: Option<&BTreeMap<i64, i64>>,
 ) -> Vec<(Emitted<I>, Vec<i64>)> {
     let mut items: Vec<(Emitted<I>, Vec<i64>)> = head
         .into_iter()
@@ -90,7 +94,13 @@ pub(super) fn emit_items<I>(
                     if i > 0 {
                         flush(&mut pieces, &mut ids, &mut items);
                     }
-                    pieces.push(piece.to_owned());
+                    let number = numbers
+                        .filter(|_| i == 0)
+                        .and_then(|numbers| numbers.get(&segment.id));
+                    pieces.push(match number {
+                        Some(&n) => numbered(n, piece),
+                        None => piece.to_owned(),
+                    });
                     if ids.last() != Some(&segment.id) {
                         ids.push(segment.id);
                     }
@@ -112,6 +122,7 @@ pub fn load_chapter_text(
     chapter_ids: &[i64],
     image_mode: ImageMode,
     attribution: Option<&Attribution>,
+    options: ExportOptions,
 ) -> Result<LoadedText, StoreError> {
     store.read(|conn| {
         let mut title_stmt = conn.prepare("SELECT ord, title FROM chapter WHERE id = ?1")?;
@@ -144,13 +155,15 @@ pub fn load_chapter_text(
                 },
             );
             skipped += chapter_skipped;
-            let items: Vec<TextItem> = emit_items(&segments, head, by_anchor, orphans)
-                .into_iter()
-                .map(|(item, _)| match item {
-                    Emitted::Paragraph(text) => TextItem::Paragraph(text),
-                    Emitted::Image(image) => TextItem::Image(image),
-                })
-                .collect();
+            let numbers = options.number_segments.then(|| segment_numbers(&segments));
+            let items: Vec<TextItem> =
+                emit_items(&segments, head, by_anchor, orphans, numbers.as_ref())
+                    .into_iter()
+                    .map(|(item, _)| match item {
+                        Emitted::Paragraph(text) => TextItem::Paragraph(text),
+                        Emitted::Image(image) => TextItem::Image(image),
+                    })
+                    .collect();
             let attribution = lines_for(conn, chapter_id, attribution)?;
             chapters.push(TextChapter {
                 chapter_ord,
@@ -167,6 +180,25 @@ pub fn load_chapter_text(
 }
 
 impl LoadedText {
+    /// Attribution lines and the first `limit` paragraphs of the first Chapter, as the file
+    /// would carry them.
+    pub fn preview(&self, limit: usize, escape_markdown: bool) -> (Vec<String>, Vec<String>) {
+        let Some(chapter) = self.chapters.first() else {
+            return (Vec::new(), Vec::new());
+        };
+        let paragraphs = chapter
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                TextItem::Paragraph(text) if escape_markdown => Some(markdown_text(text)),
+                TextItem::Paragraph(text) => Some(text.clone()),
+                TextItem::Image(_) => None,
+            })
+            .take(limit)
+            .collect();
+        (chapter.attribution.clone(), paragraphs)
+    }
+
     pub fn images(&self) -> Vec<&ExportImage> {
         self.chapters
             .iter()
@@ -302,8 +334,18 @@ pub fn render_text(
     loaded: &LoadedText,
     format: TextFormat,
     reference: ImageReference<'_>,
+    content: &ExportContent,
 ) -> String {
     let mut sections = Vec::new();
+    if format == TextFormat::Markdown && content.options.annotated() {
+        sections.push(MARKDOWN_ANNOTATED_MARKER.to_owned());
+    }
+    for line in content.appendix_lines() {
+        sections.push(match format {
+            TextFormat::Markdown => markdown_text(&line),
+            TextFormat::Plain => line,
+        });
+    }
     for chapter in loaded.chapters.iter().filter(|c| !c.items.is_empty()) {
         let heading = match format {
             TextFormat::Markdown => format!("## {}", markdown_heading(&heading_of(chapter))),

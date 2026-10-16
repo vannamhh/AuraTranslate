@@ -8,6 +8,8 @@ import type { CommandDeps } from '../../src/commands'
 import type { ChapterRow } from '../../src/config/chapter'
 import type { ExportScopeCounts } from '../../src/config/export'
 
+const OFF = { number_segments: false, glossary_appendix: false, mark_unconfirmed: false }
+
 const listMock = vi.fn()
 const summaryMock = vi.fn()
 const folderMock = vi.fn()
@@ -20,6 +22,7 @@ vi.mock('../../src/config/chapter', () => ({
 }))
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...args: unknown[]) => summaryMock(...args),
+  exportPreview: () => Promise.resolve({ preview: null, error: null }),
   exportChooseFolder: (...args: unknown[]) => folderMock(...args),
   exportDocxTwoColumn: (...args: unknown[]) => twoColumnMock(...args),
   exportDocxOneBlock: (...args: unknown[]) => oneBlockMock(...args),
@@ -157,7 +160,7 @@ describe('run', () => {
     state.setExportFormat(format)
     await state.runExport()
 
-    expect(textMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', wire, '/tmp/out', false)
+    expect(textMock).toHaveBeenCalledWith({ kind: 'work' }, 'file', wire, '/tmp/out', false, OFF)
     expect(twoColumnMock).not.toHaveBeenCalled()
     expect(oneBlockMock).not.toHaveBeenCalled()
     expect(state.exportRunStatus.value).toBe('done')

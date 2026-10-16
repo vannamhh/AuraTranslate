@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::export::export_docx_two_column;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::docx::{DocxParsed, read_docx};
+use auratranslate_lib::core::export::ExportContent;
 use auratranslate_lib::core::export::{ExportScope, ImageMode};
 use auratranslate_lib::core::store::Transaction;
 
@@ -122,9 +123,15 @@ fn fixture(tag: &str, first_title: Option<&str>, segs: Vec<Seg>) -> Fixture {
 
 impl Fixture {
     fn export(&self, scope: &ExportScope) -> PathBuf {
-        let file =
-            export_docx_two_column(Some(&self.open), scope, ImageMode::File, None, &self.out)
-                .expect("xuat that bai");
+        let file = export_docx_two_column(
+            Some(&self.open),
+            scope,
+            ImageMode::File,
+            &ExportContent::default(),
+            None,
+            &self.out,
+        )
+        .expect("xuat that bai");
         PathBuf::from(file.path)
     }
 
@@ -367,6 +374,7 @@ fn a_folder_that_does_not_exist_is_a_named_error_and_writes_nothing() {
         Some(&f.open),
         &ExportScope::Work,
         ImageMode::File,
+        &ExportContent::default(),
         None,
         &missing,
     )
@@ -385,6 +393,7 @@ fn scope_errors_and_a_closed_work_stay_the_named_errors_of_the_scope_screen() {
             chapter_ids: vec![],
         },
         ImageMode::File,
+        &ExportContent::default(),
         None,
         &f.out,
     )
@@ -396,13 +405,21 @@ fn scope_errors_and_a_closed_work_stay_the_named_errors_of_the_scope_screen() {
             chapter_ids: vec![9_999],
         },
         ImageMode::File,
+        &ExportContent::default(),
         None,
         &f.out,
     )
     .expect_err("Chuong la");
     assert_eq!(unknown.code(), "segment.chapter_not_found");
-    let none = export_docx_two_column(None, &ExportScope::Work, ImageMode::File, None, &f.out)
-        .expect_err("chua mo Tac pham");
+    let none = export_docx_two_column(
+        None,
+        &ExportScope::Work,
+        ImageMode::File,
+        &ExportContent::default(),
+        None,
+        &f.out,
+    )
+    .expect_err("chua mo Tac pham");
     assert_eq!(none.code(), "work.none_open");
     assert_eq!(
         fs::read_dir(&f.out).map(Iterator::count).unwrap_or(0),
@@ -421,6 +438,7 @@ fn the_returned_counts_match_the_rows_written() {
         Some(&f.open),
         &ExportScope::Work,
         ImageMode::File,
+        &ExportContent::default(),
         None,
         &f.out,
     )
@@ -457,8 +475,15 @@ fn put_asset_file(open: &OpenWork, file_name: &str, bytes: &[u8]) {
 }
 
 fn export_with(f: &Fixture, mode: ImageMode) -> auratranslate_lib::commands::export::ExportedFile {
-    export_docx_two_column(Some(&f.open), &ExportScope::Work, mode, None, &f.out)
-        .expect("xuat that bai")
+    export_docx_two_column(
+        Some(&f.open),
+        &ExportScope::Work,
+        mode,
+        &ExportContent::default(),
+        None,
+        &f.out,
+    )
+    .expect("xuat that bai")
 }
 
 fn three() -> Vec<Seg> {
@@ -575,6 +600,7 @@ fn file_mode_with_a_missing_image_file_is_a_named_error_and_leaves_nothing_behin
         Some(&f.open),
         &ExportScope::Work,
         ImageMode::File,
+        &ExportContent::default(),
         None,
         &f.out,
     )

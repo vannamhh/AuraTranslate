@@ -11,6 +11,7 @@ use auratranslate_lib::commands::export::{
     reviewer_harvest_refresh, reviewer_import_confirm, reviewer_import_preview,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
+use auratranslate_lib::core::export::ExportContent;
 use auratranslate_lib::core::export::{
     ExportScope, HarvestFinding, ImageMode, harvest_work, join, read_alignment, read_review_copy,
 };
@@ -106,6 +107,7 @@ impl Work {
             Some(&self.open),
             &ExportScope::Work,
             ImageMode::File,
+            &ExportContent::default(),
             None,
             &self.out,
         )

@@ -17,6 +17,7 @@ vi.mock('../../src/config/chapter', () => ({ listChapters: (...a: unknown[]) => 
 vi.mock('../../src/config/attribution', () => ({ translatorNameGet: (...a: unknown[]) => nameMock(...a) }))
 vi.mock('../../src/config/export', () => ({
   exportScopeSummary: (...a: unknown[]) => summaryMock(...a),
+  exportPreview: () => Promise.resolve({ preview: null, error: null }),
   exportChooseFolder: (...a: unknown[]) => folderMock(...a),
   exportDocxTwoColumn: (...a: unknown[]) => twoColumnMock(...a),
   exportDocxOneBlock: (...a: unknown[]) => oneBlockMock(...a),
@@ -124,7 +125,8 @@ describe('attribution toggle', () => {
     await state.runExport()
     const mock = which === 'two' ? twoColumnMock : which === 'one' ? oneBlockMock : textMock
     expect(mock).toHaveBeenCalledTimes(1)
-    expect(mock.mock.calls[0][mock.mock.calls[0].length - 1]).toBe(true)
+    const args = mock.mock.calls[0]
+    expect(args[args.length - 2]).toBe(true)
   })
 
   it('resetExport turns it back off', async () => {

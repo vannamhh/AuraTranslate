@@ -147,7 +147,13 @@ pub struct DocxParsed {
     pub body: Vec<DocxBodyItem>,
     /// Indexes into `body` of tables nested inside another table's cell.
     pub nested_table_body_indexes: Vec<usize>,
+    /// `docProps/custom.xml` carries [`EXPORT_ANNOTATED_PROPERTY`] set to `1`.
+    pub export_annotated: bool,
 }
+
+/// Custom document property the exporter writes when the file carries sentence numbers or
+/// unconfirmed marks, so the reviewer import can refuse it.
+pub const EXPORT_ANNOTATED_PROPERTY: &str = "aura.export_annotated";
 
 impl DocxParsed {
     pub fn top_level_tables(&self) -> Vec<&Vec<Vec<String>>> {
@@ -304,6 +310,10 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
         return Err(DocxError::EmptyText);
     }
 
+    let export_annotated = read_zip_entry(&mut archive, "docProps/custom.xml")
+        .and_then(|raw| String::from_utf8(raw).ok())
+        .is_some_and(|xml| custom_flag_is_set(&xml, EXPORT_ANNOTATED_PROPERTY));
+
     Ok(DocxParsed {
         text,
         blocks,
@@ -311,7 +321,28 @@ pub fn read_docx(bytes: &[u8]) -> Result<DocxParsed, DocxError> {
         images,
         body,
         nested_table_body_indexes,
+        export_annotated,
     })
+}
+
+fn custom_flag_is_set(xml: &str, name: &str) -> bool {
+    let mut reader = Reader::from_str(xml);
+    let mut inside = false;
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(e)) if local_name_of(&e) == "property" => {
+                inside = attr_value(&e, "name").as_deref() == Some(name);
+            }
+            Ok(Event::End(e)) if local_name_of_end(&e) == "property" => inside = false,
+            Ok(Event::Text(t)) if inside => {
+                if t.decode().is_ok_and(|text| text.trim() == "1") {
+                    return true;
+                }
+            }
+            Ok(Event::Eof) | Err(_) => return false,
+            _ => {}
+        }
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

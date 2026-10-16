@@ -13,6 +13,11 @@ pub enum ExportScope {
     Chapters { chapter_ids: Vec<i64> },
 }
 
+/// Row-level twin of the `status <> 'confirmed'` the counts in [`count_scope`] use.
+pub fn is_unconfirmed(status: &str) -> bool {
+    status != "confirmed"
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub struct ScopeCounts {
     pub chapter_count: i64,

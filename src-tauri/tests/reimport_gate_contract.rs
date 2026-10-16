@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use auratranslate_lib::commands::export::{export_docx_one_block, export_docx_two_column};
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::core::docx::{DocxParsed, TableShape, read_docx};
+use auratranslate_lib::core::export::ExportContent;
 use auratranslate_lib::core::export::{ExportScope, ImageMode, ReimportShapeError, ReviewerDocx};
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
 use auratranslate_lib::core::store::Transaction;
@@ -90,6 +91,7 @@ impl Fixture {
             Some(&self.open),
             &ExportScope::Work,
             ImageMode::File,
+            &ExportContent::default(),
             None,
             &self.out,
         )
@@ -102,6 +104,7 @@ impl Fixture {
             Some(&self.open),
             &ExportScope::Work,
             ImageMode::File,
+            &ExportContent::default(),
             None,
             &self.out,
         )
@@ -130,6 +133,7 @@ fn empty_docx() -> Vec<u8> {
         Some(&f.open),
         &ExportScope::Work,
         ImageMode::File,
+        &ExportContent::default(),
         None,
         &f.out,
     )
@@ -209,6 +213,7 @@ fn a_real_two_column_export_with_image_rows_passes() {
         Some(&f.open),
         &ExportScope::Work,
         ImageMode::Link,
+        &ExportContent::default(),
         None,
         &f.out,
     )

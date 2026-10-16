@@ -1,5 +1,8 @@
 use super::attribution::{Attribution, lines_for};
+use super::block_paragraphs::is_untranslated;
 use super::images::{ImageMode, ScopeImage, chapter_images};
+use super::options::{ExportOptions, marked_unconfirmed, numbered, segment_numbers};
+use super::scope::is_unconfirmed;
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::omit::segments_in_translation;
 use crate::core::store::{Store, StoreError};
@@ -43,14 +46,28 @@ pub struct ChapterTable {
 /// Cột phải: cờ kết đoạn đọc từ cờ đích đã lưu (AD-46), không suy từ nguyên văn. Mỗi ô là một
 /// đoạn duy nhất để bảng một hàng không bao giờ mang hình dạng AD-38 từ chối. Câu chưa dịch là
 /// một đoạn rỗng để ô vẫn tồn tại.
-fn row_of(segment: &ChapterSegment) -> ExportRow {
+///
+/// Sentence number and unconfirmed mark are glued into the two cells; the number is skipped on a
+/// blank target so an untranslated sentence keeps its cell empty.
+fn row_of(segment: &ChapterSegment, number: Option<i64>, mark_unconfirmed: bool) -> ExportRow {
+    let source = match number {
+        Some(n) => numbered(n, &segment.source_text),
+        None => segment.source_text.clone(),
+    };
+    let mut target = match number {
+        Some(n) if !is_untranslated(&segment.target_text) => numbered(n, &segment.target_text),
+        _ => segment.target_text.clone(),
+    };
+    if mark_unconfirmed && is_unconfirmed(&segment.status) {
+        target = marked_unconfirmed(&target);
+    }
     ExportRow::Text {
         source: ExportCell {
-            text: segment.source_text.clone(),
+            text: source,
             ends_paragraph: segment.is_paragraph_end,
         },
         target: ExportCell {
-            text: segment.target_text.clone(),
+            text: target,
             ends_paragraph: segment.is_target_paragraph_end,
         },
     }
@@ -93,6 +110,7 @@ pub fn load_chapter_tables(
     chapter_ids: &[i64],
     image_mode: ImageMode,
     attribution: Option<&Attribution>,
+    options: ExportOptions,
 ) -> Result<LoadedTables, StoreError> {
     store.read(|conn| {
         let mut title_stmt = conn.prepare("SELECT ord, title FROM chapter WHERE id = ?1")?;
@@ -111,6 +129,7 @@ pub fn load_chapter_tables(
                     pending.push(image);
                 }
             }
+            let numbers = segment_numbers(&segments);
             let mut rows = Vec::new();
             let (head, mut rest): (Vec<_>, Vec<_>) = pending
                 .into_iter()
@@ -120,7 +139,14 @@ pub fn load_chapter_tables(
                     .map(|image| image_row(chapter_id, chapter_ord, image)),
             );
             for segment in segments_in_translation(&segments) {
-                rows.push(row_of(segment));
+                rows.push(row_of(
+                    segment,
+                    options
+                        .number_segments
+                        .then(|| numbers.get(&segment.id).copied())
+                        .flatten(),
+                    options.mark_unconfirmed,
+                ));
                 let (here, later): (Vec<_>, Vec<_>) = rest
                     .into_iter()
                     .partition(|i| i.after_segment_id == Some(segment.id));

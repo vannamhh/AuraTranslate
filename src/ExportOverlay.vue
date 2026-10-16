@@ -11,6 +11,16 @@ import {
   exportCountsError,
   exportAttribution,
   exportCountsStatus,
+  exportAppendixAvailable,
+  exportFirstScopeChapter,
+  exportGlossaryAppendix,
+  exportMarkAvailable,
+  exportMarkUnconfirmed,
+  exportNotReimportable,
+  exportNumberSegments,
+  exportPreviewData,
+  exportPreviewError,
+  exportPreviewLoading,
   exportFolder,
   exportFolderError,
   exportFolderUnavailable,
@@ -32,6 +42,9 @@ import {
   selectExportSingleChapter,
   setExportAttribution,
   setExportFormat,
+  setExportGlossaryAppendix,
+  setExportMarkUnconfirmed,
+  setExportNumberSegments,
   setExportImageMode,
   setExportScopeKind,
   toggleExportChapter,
@@ -59,6 +72,77 @@ const canRun = computed(
 
 function chapterLabel(row: ChapterRow): string {
   return row.title === null ? t('mode.library.chapter_untitled', { ord: String(row.ord) }) : row.title
+}
+
+function chapterStatusLabel(status: string): string {
+  switch (status) {
+    case 'not_started':
+      return t('export.chapter.status_not_started')
+    case 'in_progress':
+      return t('export.chapter.status_in_progress')
+    case 'paused':
+      return t('export.chapter.status_paused')
+    case 'done':
+      return t('export.chapter.status_done')
+    default:
+      return t('export.chapter.status_unknown')
+  }
+}
+
+function chapterMeta(row: ChapterRow): string {
+  return t('export.chapter.row_meta', { count: String(row.segment_count), status: chapterStatusLabel(row.status) })
+}
+
+const firstChapter = computed(() => exportFirstScopeChapter())
+
+const firstChapterLabel = computed(() => (firstChapter.value === null ? '' : chapterLabel(firstChapter.value)))
+
+function fieldValue(value: string | null): string {
+  return value === null || value.trim() === '' ? t('export.attribution.field_empty') : value
+}
+
+const attributionFields = computed(() => {
+  const row = firstChapter.value
+  if (row === null) return []
+  return [
+    { key: 'author', label: t('export.attribution.field_author'), value: row.origin_author },
+    { key: 'site', label: t('export.attribution.field_site'), value: row.origin_site_name },
+    { key: 'url', label: t('export.attribution.field_url'), value: row.origin_url },
+    { key: 'published', label: t('export.attribution.field_published'), value: row.origin_published_at },
+  ]
+})
+
+const appendixEnabled = computed(() => exportAppendixAvailable())
+const markEnabled = computed(() => exportMarkAvailable())
+const notReimportable = computed(() => exportNotReimportable())
+
+const fileExtension = computed(() => {
+  switch (exportFormat.value) {
+    case 'markdown':
+      return '.md'
+    case 'plain_text':
+      return '.txt'
+    default:
+      return '.docx'
+  }
+})
+
+const runLabel = computed(() =>
+  t('export.run.button', { count: String(exportCounts.value?.chapter_count ?? 0), ext: fileExtension.value }),
+)
+
+const previewChapterLabel = computed(() => {
+  const p = exportPreviewData.value
+  if (p === null) return ''
+  return p.chapter_title ?? t('mode.library.chapter_untitled', { ord: String(p.chapter_ord) })
+})
+
+const appendixLines = computed(() => exportPreviewData.value?.appendix ?? [])
+
+function runShortcut(event: KeyboardEvent): void {
+  if (!(event.metaKey || event.ctrlKey)) return
+  event.preventDefault()
+  if (canRun.value) dispatch('export.run')
 }
 
 function missingLabel(item: MissingLinkImage): string {
@@ -118,7 +202,7 @@ function trapTab(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <div v-if="exportOverlayIsOpen" class="ex-scrim" @keydown.esc="dispatch('export.close')" @keydown.tab="trapTab($event)">
+  <div v-if="exportOverlayIsOpen" class="ex-scrim" @keydown.esc="dispatch('export.close')" @keydown.enter="runShortcut($event)" @keydown.tab="trapTab($event)">
     <section ref="panel" class="ex-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="ex-title">
       <header class="ex-head">
         <h2 id="ex-title" class="ex-title">{{ t('export.title') }}</h2>
@@ -161,6 +245,8 @@ function trapTab(event: KeyboardEvent): void {
                 />
                 <!-- aura-allow-text: data (Chapter title or the numbered label). -->
                 <span>{{ chapterLabel(row) }}</span>
+                <!-- aura-allow-text: result of t() with count and status interpolated. -->
+                <span class="ex-meta" data-export-chapter-meta>{{ chapterMeta(row) }}</span>
               </label>
             </template>
             <template v-else>
@@ -172,6 +258,8 @@ function trapTab(event: KeyboardEvent): void {
                 />
                 <!-- aura-allow-text: data (Chapter title or the numbered label). -->
                 <span>{{ chapterLabel(row) }}</span>
+                <!-- aura-allow-text: result of t() with count and status interpolated. -->
+                <span class="ex-meta" data-export-chapter-meta>{{ chapterMeta(row) }}</span>
               </label>
             </template>
           </fieldset>
@@ -274,6 +362,59 @@ function trapTab(event: KeyboardEvent): void {
           </p>
         </fieldset>
 
+        <fieldset class="ex-format" data-export-content>
+          <legend class="ex-legend">{{ t('export.content.legend') }}</legend>
+          <label class="ex-choice">
+            <input
+              type="checkbox"
+              data-export-number-toggle
+              :checked="exportNumberSegments"
+              @change="setExportNumberSegments(($event.target as HTMLInputElement).checked)"
+            />
+            <span>{{ t('export.content.number_segments') }}</span>
+          </label>
+          <p class="ex-note">{{ t('export.content.number_segments_desc') }}</p>
+          <label class="ex-choice">
+            <input
+              type="checkbox"
+              data-export-appendix-toggle
+              :checked="appendixEnabled && exportGlossaryAppendix"
+              :disabled="!appendixEnabled"
+              @change="setExportGlossaryAppendix(($event.target as HTMLInputElement).checked)"
+            />
+            <span>{{ t('export.content.glossary_appendix') }}</span>
+            <span v-if="exportPreviewData !== null" class="ex-meta" data-export-appendix-count>
+              <!-- aura-allow-text: result of t() with the count interpolated. -->
+              {{ t('export.content.glossary_appendix_count', { count: String(exportPreviewData.appendix_term_count) }) }}
+            </span>
+          </label>
+          <p class="ex-note">{{ t('export.content.glossary_appendix_desc') }}</p>
+          <p
+            v-if="!appendixEnabled"
+            class="ex-note" data-export-appendix-empty>
+            {{ t('export.content.glossary_appendix_empty') }}
+          </p>
+          <label class="ex-choice">
+            <input
+              type="checkbox"
+              data-export-mark-toggle
+              :checked="markEnabled && exportMarkUnconfirmed"
+              :disabled="!markEnabled"
+              @change="setExportMarkUnconfirmed(($event.target as HTMLInputElement).checked)"
+            />
+            <span>{{ t('export.content.mark_unconfirmed') }}</span>
+            <span v-if="exportCounts !== null" class="ex-meta" data-export-mark-count>
+              <!-- aura-allow-text: result of t() with the count interpolated. -->
+              {{ t('export.content.mark_count', { count: String(exportCounts.unconfirmed_count) }) }}
+            </span>
+          </label>
+          <p class="ex-note">{{ t('export.content.mark_unconfirmed_desc') }}</p>
+          <p v-if="!markEnabled" class="ex-note" data-export-mark-disabled>{{ t('export.content.mark_two_column_only') }}</p>
+          <p v-if="notReimportable" class="ex-note" role="status" data-export-not-reimportable>
+            {{ t('export.content.not_reimportable') }}
+          </p>
+        </fieldset>
+
         <fieldset v-if="exportCounts !== null" class="ex-format" data-export-images>
           <legend class="ex-legend">{{ t('export.images.legend') }}</legend>
           <!-- aura-allow-text: result of t() with the count interpolated. -->
@@ -339,6 +480,18 @@ function trapTab(event: KeyboardEvent): void {
           <p v-else-if="exportAttribution" class="ex-note" data-export-translator-missing>
             {{ t('export.attribution.translator_missing') }}
           </p>
+          <template v-if="exportAttribution && firstChapter !== null">
+            <!-- aura-allow-text: result of t() with the Chapter label interpolated. -->
+            <p class="ex-note" data-export-attribution-source>{{ t('export.attribution.fields_of', { chapter: firstChapterLabel }) }}</p>
+            <dl class="ex-fields" data-export-attribution-fields>
+              <template v-for="field in attributionFields" :key="field.key">
+                <!-- aura-allow-text: result of t() stored in a computed. -->
+                <dt>{{ field.label }}</dt>
+                <!-- aura-allow-text: data (Chapter origin field, or the empty label). -->
+                <dd :data-export-attribution-field="field.key" :class="{ 'ex-field-empty': field.value === null || field.value.trim() === '' }">{{ fieldValue(field.value) }}</dd>
+              </template>
+            </dl>
+          </template>
         </fieldset>
 
         <div class="ex-folder">
@@ -356,12 +509,6 @@ function trapTab(event: KeyboardEvent): void {
         </p>
         <p v-else-if="exportFolderUnavailable" class="ex-status" role="status">{{ t('export.folder.unavailable') }}</p>
 
-        <div class="ex-folder">
-          <button type="button" class="ex-act" data-export-run :disabled="!canRun" @click="dispatch('export.run')">
-            {{ t('command.export.run') }}
-          </button>
-          <span v-if="exportFolder === null" class="ex-note">{{ t('export.run.need_folder') }}</span>
-        </div>
         <p v-if="exportRunStatus === 'running'" class="ex-status" role="status">{{ t('export.run.running') }}</p>
         <p v-else-if="exportRunStatus === 'ipc_unavailable'" class="ex-status" role="status">
           {{ t('export.run.ipc_unavailable') }}
@@ -398,17 +545,68 @@ function trapTab(event: KeyboardEvent): void {
         <section class="ex-preview" aria-labelledby="ex-preview-title">
           <h3 id="ex-preview-title" class="ex-legend">{{ t('export.preview.heading') }}</h3>
           <p class="ex-note">{{ t('export.preview.note') }}</p>
-          <div class="ex-word" data-export-word-preview>
-            <table class="ex-word-table">
-              <tbody>
-                <tr>
-                  <td>{{ t('export.preview.source_sample') }}</td>
-                  <td>{{ t('export.preview.target_sample') }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <p v-if="exportPreviewError !== null" class="ex-status ex-error" role="alert" data-export-preview-error>
+            <!-- aura-allow-text: result of tError() on the IPC error. -->
+            {{ tError(exportPreviewError) }}
+          </p>
+          <p v-else-if="exportPreviewData === null && exportPreviewLoading" class="ex-status" role="status">
+            {{ t('export.preview.loading') }}
+          </p>
+          <p v-else-if="exportPreviewData === null" class="ex-note" data-export-preview-empty>{{ t('export.preview.empty') }}</p>
+          <template v-else>
+            <!-- aura-allow-text: result of t() with the Chapter label interpolated. -->
+            <p class="ex-note" data-export-preview-chapter>{{ t('export.preview.chapter', { chapter: previewChapterLabel }) }}</p>
+            <!-- aura-allow-text: data (lines Rust built with the export attribution formatter). -->
+            <p v-for="(line, index) in exportPreviewData.attribution" :key="`a-${index}`" class="ex-note" data-export-preview-attribution>{{ line }}</p>
+            <!-- aura-allow-text: data (appendix lines Rust built from the confirmed Glossary entries). -->
+            <p v-for="(line, index) in appendixLines" :key="`g-${index}`" class="ex-note" data-export-preview-appendix>{{ line }}</p>
+            <p v-if="exportPreviewData.appendix_term_count > appendixLines.length - 1 && appendixLines.length > 0" class="ex-note">
+              {{ t('export.preview.appendix_more', { count: String(exportPreviewData.appendix_term_count - (appendixLines.length - 1)) }) }}
+            </p>
+            <div v-if="exportFormat === 'docx_two_column'" class="ex-word" data-export-word-preview>
+              <table class="ex-word-table">
+                <tbody>
+                  <tr v-for="(row, index) in exportPreviewData.rows" :key="index" data-export-preview-row>
+                    <!-- aura-allow-text: data (source and target text of the first Chapter). -->
+                    <td>{{ row.source }}</td>
+                    <!-- aura-allow-text: data (target text of the first Chapter). -->
+                    <td class="ex-pre">{{ row.target }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else-if="exportFormat === 'docx_one_block'" class="ex-word" data-export-word-preview>
+              <table class="ex-word-table">
+                <tbody>
+                  <tr v-for="(row, index) in exportPreviewData.rows" :key="index" data-export-preview-row>
+                    <!-- aura-allow-text: data (source and target paragraphs of the first Chapter). -->
+                    <td class="ex-pre">{{ row.source }}</td>
+                    <!-- aura-allow-text: data (target paragraphs of the first Chapter). -->
+                    <td class="ex-pre">{{ row.target }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <pre v-else class="ex-mono" data-export-text-preview><!-- aura-allow-text: data (paragraphs of the first Chapter). -->{{ exportPreviewData.rows.map((row) => row.target).join('\n\n') }}</pre>
+          </template>
         </section>
+
+        <div class="ex-folder ex-footer">
+          <span v-if="exportPreviewData !== null" class="ex-note" data-export-file-name>
+            {{ t('export.run.file_name') }}
+            <!-- aura-allow-text: data (file name Rust would write, before de-duplication). -->
+            <span class="ex-path">{{ exportPreviewData.file_name }}</span>
+          </span>
+          <button type="button" class="ex-act" data-export-cancel @click="dispatch('export.close')">
+            {{ t('export.run.cancel') }}
+          </button>
+          <button type="button" class="ex-act" data-export-run :disabled="!canRun" @click="dispatch('export.run')">
+            <!-- aura-allow-text: result of t() with chapter count and extension interpolated. -->
+            {{ runLabel }}
+          </button>
+          <span class="ex-note" data-export-run-shortcut>{{ t('export.run.shortcut') }}</span>
+          <span v-if="exportFolder === null" class="ex-note">{{ t('export.run.need_folder') }}</span>
+        </div>
       </template>
     </section>
   </div>
@@ -536,7 +734,9 @@ function trapTab(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
-  color: var(--color-error);
+  color: var(--color-on-surface);
+  border-left: 2px solid var(--color-tm-rule);
+  padding-left: calc(var(--space-unit) * 2);
 }
 
 .ex-folder {
@@ -568,6 +768,55 @@ function trapTab(event: KeyboardEvent): void {
 .ex-act:disabled {
   cursor: default;
   color: var(--color-on-surface-variant);
+}
+
+.ex-meta {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ex-fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
+  margin: 0 0 var(--space-panel-block) 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface);
+}
+
+.ex-fields dt {
+  color: var(--color-on-surface-variant);
+}
+
+.ex-fields dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ex-field-empty {
+  color: var(--color-on-surface-variant);
+}
+
+.ex-pre {
+  white-space: pre-wrap;
+}
+
+.ex-mono {
+  margin: 0;
+  padding: calc(var(--space-unit) * 4);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
+  border: 1px solid var(--color-outline);
+}
+
+.ex-footer {
+  margin-top: var(--space-panel-block);
 }
 
 .ex-word {

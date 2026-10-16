@@ -8,14 +8,18 @@ use crate::commands::project::OpenWork;
 use crate::core::attribution::resolve_translator_name;
 use crate::core::export::{
     AlignmentError, AlignmentItem, Attribution, ChapterAlignment, ConfirmError, DocxWriteError,
-    ExportImage, ExportScope, ImageFilesError, ImageMode, ImageReference, MissingLinkImage,
-    ReviewCopyError, ReviewFileKind, ReviewerDocx, ReviewerImportPlan, ScopeError, TextFormat,
+    ExportContent, ExportFormat, ExportImage, ExportOptions, ExportPreview, ExportScope,
+    ImageFilesError, ImageMode, ImageReference, MissingLinkImage, ReviewCopyError, ReviewFileKind,
+    ReviewerDocx, ReviewerImportPlan, ScopeError, TextFormat, admit_markdown, build_preview,
     confirm_import, count_scope, harvest_work, load_chapter_blocks, load_chapter_tables,
     load_chapter_text, plan_import, read_docx_copy, read_markdown_copy, render_text,
     resolve_chapter_ids, safe_stem, scan_images, write_file_with_images, write_new_file,
     write_one_block_docx, write_two_column_docx,
 };
-use crate::core::glossary::{ReviewHarvestDetail, ReviewHarvestProposal, enqueue_review_harvest};
+use crate::core::glossary::{
+    ReviewHarvestDetail, ReviewHarvestProposal, WorkContext, confirmed_term_translations,
+    enqueue_review_harvest,
+};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
@@ -84,6 +88,35 @@ pub fn attribution_of(
     Ok(Some(Attribution { translator }))
 }
 
+/// The content switches plus, when the appendix is on, every confirmed Glossary term of both
+/// tiers (AD-36) in one load. Reads nothing from the Glossary when the switch is off.
+///
+/// # Errors
+/// No Work open => `work.none_open`; a Glossary read that fails.
+pub fn export_content_of(
+    open: Option<&OpenWork>,
+    options: ExportOptions,
+    global: Option<&Store>,
+) -> Result<ExportContent, IpcError> {
+    if !options.glossary_appendix {
+        return Ok(ExportContent {
+            options,
+            appendix: Vec::new(),
+        });
+    }
+    let open = open.ok_or_else(no_work_open)?;
+    let global = global.ok_or_else(crate::commands::attribution::store_is_missing)?;
+    let appendix = confirmed_terms(open, global)?;
+    Ok(ExportContent { options, appendix })
+}
+
+fn confirmed_terms(open: &OpenWork, global: &Store) -> Result<Vec<(String, String)>, IpcError> {
+    let scope = WorkContext::new(Some((&open.scope, &open.store))).map_err(IpcError::from)?;
+    let mut terms = confirmed_term_translations(&scope, global).map_err(IpcError::from)?;
+    terms.sort();
+    Ok(terms)
+}
+
 fn export_folder_invalid() -> IpcError {
     IpcError::new(
         "export.folder_invalid",
@@ -150,19 +183,29 @@ pub fn export_docx_two_column(
     open: Option<&OpenWork>,
     scope: &ExportScope,
     image_mode: ImageMode,
+    content: &ExportContent,
     attribution: Option<&Attribution>,
     folder: &std::path::Path,
 ) -> Result<ExportedFile, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
+    content
+        .check_for(ExportFormat::DocxTwoColumn)
+        .map_err(IpcError::from)?;
     let counts = count_scope(&open.store, scope).map_err(scope_error)?;
     if !folder.is_dir() {
         return Err(export_folder_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
-    let loaded = load_chapter_tables(&open.store, &chapter_ids, image_mode, attribution)
-        .map_err(IpcError::from)?;
+    let loaded = load_chapter_tables(
+        &open.store,
+        &chapter_ids,
+        image_mode,
+        attribution,
+        content.options,
+    )
+    .map_err(IpcError::from)?;
     let images = loaded.images();
-    let stem = format!("{}-hai-cot", safe_stem(&open.meta.name, "export"));
+    let stem = export_stem(&open.meta.name, ExportFormat::DocxTwoColumn);
     let (path, images_dir) = write_export_file(
         open,
         folder,
@@ -170,7 +213,7 @@ pub fn export_docx_two_column(
         "docx",
         image_mode,
         &images,
-        |reference| write_two_column_docx(&loaded.tables, reference),
+        |reference| write_two_column_docx(&loaded.tables, reference, content),
     )?;
     exported_file(
         &counts,
@@ -178,6 +221,17 @@ pub fn export_docx_two_column(
         path,
         images_dir,
     )
+}
+
+fn export_format_of(format: TextFormat) -> ExportFormat {
+    match format {
+        TextFormat::Markdown => ExportFormat::Markdown,
+        TextFormat::Plain => ExportFormat::Plain,
+    }
+}
+
+fn export_stem(work_name: &str, format: ExportFormat) -> String {
+    format!("{}{}", safe_stem(work_name, "export"), format.stem_suffix())
 }
 
 struct ImageSummary {
@@ -258,10 +312,14 @@ pub fn export_docx_one_block(
     open: Option<&OpenWork>,
     scope: &ExportScope,
     image_mode: ImageMode,
+    content: &ExportContent,
     attribution: Option<&Attribution>,
     folder: &std::path::Path,
 ) -> Result<ExportedFile, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
+    content
+        .check_for(ExportFormat::DocxOneBlock)
+        .map_err(IpcError::from)?;
     let counts = count_scope(&open.store, scope).map_err(scope_error)?;
     if !folder.is_dir() {
         return Err(export_folder_invalid());
@@ -273,10 +331,11 @@ pub fn export_docx_one_block(
         image_mode,
         &open.meta.source_lang,
         attribution,
+        content.options,
     )
     .map_err(IpcError::from)?;
     let images = loaded.images();
-    let stem = format!("{}-mot-khoi", safe_stem(&open.meta.name, "export"));
+    let stem = export_stem(&open.meta.name, ExportFormat::DocxOneBlock);
     let (path, images_dir) = write_export_file(
         open,
         folder,
@@ -284,7 +343,7 @@ pub fn export_docx_one_block(
         "docx",
         image_mode,
         &images,
-        |reference| write_one_block_docx(&loaded.blocks, reference),
+        |reference| write_one_block_docx(&loaded.blocks, reference, content),
     )?;
     exported_file(
         &counts,
@@ -300,23 +359,29 @@ pub fn export_text(
     scope: &ExportScope,
     image_mode: ImageMode,
     format: TextFormat,
+    content: &ExportContent,
     attribution: Option<&Attribution>,
     folder: &std::path::Path,
 ) -> Result<ExportedFile, IpcError> {
     let open = open.ok_or_else(no_work_open)?;
+    let export_format = export_format_of(format);
+    content.check_for(export_format).map_err(IpcError::from)?;
     let counts = count_scope(&open.store, scope).map_err(scope_error)?;
     if !folder.is_dir() {
         return Err(export_folder_invalid());
     }
     let chapter_ids = resolve_chapter_ids(&open.store, scope).map_err(scope_error)?;
-    let loaded = load_chapter_text(&open.store, &chapter_ids, image_mode, attribution)
-        .map_err(IpcError::from)?;
+    let loaded = load_chapter_text(
+        &open.store,
+        &chapter_ids,
+        image_mode,
+        attribution,
+        content.options,
+    )
+    .map_err(IpcError::from)?;
     let images = loaded.images();
-    let stem = safe_stem(&open.meta.name, "export");
-    let extension = match format {
-        TextFormat::Markdown => "md",
-        TextFormat::Plain => "txt",
-    };
+    let stem = export_stem(&open.meta.name, export_format);
+    let extension = export_format.extension();
     let (path, images_dir) = write_export_file(
         open,
         folder,
@@ -324,7 +389,7 @@ pub fn export_text(
         extension,
         image_mode,
         &images,
-        |reference| Ok(render_text(&loaded, format, reference).into_bytes()),
+        |reference| Ok(render_text(&loaded, format, reference, content).into_bytes()),
     )?;
     exported_file(
         &counts,
@@ -332,6 +397,41 @@ pub fn export_text(
         path,
         images_dir,
     )
+}
+
+/// First rows of the file `format` would write for the first Chapter of `scope`, plus its
+/// attribution lines and the file name. Reads only.
+///
+/// # Errors
+/// As [`export_scope_summary`], and `export.mark_two_column_only` for the mark outside the
+/// two-column `.docx`.
+pub fn export_preview(
+    open: Option<&OpenWork>,
+    scope: &ExportScope,
+    format: ExportFormat,
+    content: &ExportContent,
+    attribution: Option<&Attribution>,
+    global: Option<&Store>,
+) -> Result<ExportPreview, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    content.check_for(format).map_err(IpcError::from)?;
+    let term_count = match (content.options.glossary_appendix, global) {
+        (true, _) => content.appendix.len(),
+        (false, Some(global)) => confirmed_terms(open, global)?.len(),
+        (false, None) => 0,
+    };
+    let mut preview = build_preview(
+        &open.store,
+        scope,
+        format,
+        content,
+        attribution,
+        &open.meta.source_lang,
+        &open.meta.name,
+    )
+    .map_err(scope_error)?;
+    preview.appendix_term_count = i64::try_from(term_count).unwrap_or(i64::MAX);
+    Ok(preview)
 }
 
 const MAX_REVIEWER_DOCX_BYTES: u64 = 64 * 1024 * 1024;
@@ -485,7 +585,8 @@ fn read_reviewer_file(
         }
         ReviewFileKind::Markdown => {
             let text = String::from_utf8(bytes).map_err(|_| reviewer_unreadable("not utf-8"))?;
-            read_markdown_copy(&text, &file_name)
+            let text = admit_markdown(&text).map_err(IpcError::from)?;
+            read_markdown_copy(text, &file_name)
         }
     };
     copy.map_err(|_| reviewer_unreadable("shape"))
@@ -537,6 +638,7 @@ pub fn reviewer_import_cancel(pending: &PendingReviewerImportState) {
 /// - no Work open => `work.none_open`;
 /// - not a two-column `.docx` / `.md` => `export.reviewer_import_unreadable`;
 /// - a one-block publishing copy => `export.publish_copy_not_reimportable`;
+/// - a copy exported with sentence numbers or marks => `export.annotated_copy_not_reimportable`;
 /// - no section matches a Chapter => `export.reviewer_import_wrong_work`.
 pub fn reviewer_import_preview(
     open: Option<&OpenWork>,
@@ -935,9 +1037,9 @@ pub fn alignment_unjoin(
 /// Một vỏ `#[tauri::command]`. Không một quy tắc nào sống ở đây.
 pub mod wire {
     use super::{
-        ChapterAlignmentWire, ExportScope, ExportScopeSummary, ExportedFile, ImageMode, IpcError,
-        PendingReviewerImportState, ReviewerImportPreviewWire, ReviewerImportSummaryWire,
-        TextFormat,
+        ChapterAlignmentWire, ExportFormat, ExportOptions, ExportPreview, ExportScope,
+        ExportScopeSummary, ExportedFile, ImageMode, IpcError, PendingReviewerImportState,
+        ReviewerImportPreviewWire, ReviewerImportSummaryWire, TextFormat,
     };
     use crate::commands::project::OpenWorkState;
     use crate::core::store::Store;
@@ -983,6 +1085,7 @@ pub mod wire {
         app: tauri::AppHandle,
         scope: ExportScope,
         image_mode: ImageMode,
+        options: ExportOptions,
         attribution: bool,
         folder: String,
     ) -> Result<ExportedFile, IpcError> {
@@ -992,10 +1095,12 @@ pub mod wire {
         let global = app.try_state::<Store>();
         let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
+            let content = super::export_content_of(None, options, global.as_deref())?;
             return super::export_docx_two_column(
                 None,
                 &scope,
                 image_mode,
+                &content,
                 attribution.as_ref(),
                 &folder,
             );
@@ -1003,10 +1108,12 @@ pub mod wire {
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let content = super::export_content_of(guard.as_ref(), options, global.as_deref())?;
         super::export_docx_two_column(
             guard.as_ref(),
             &scope,
             image_mode,
+            &content,
             attribution.as_ref(),
             &folder,
         )
@@ -1019,6 +1126,7 @@ pub mod wire {
         app: tauri::AppHandle,
         scope: ExportScope,
         image_mode: ImageMode,
+        options: ExportOptions,
         attribution: bool,
         folder: String,
     ) -> Result<ExportedFile, IpcError> {
@@ -1028,10 +1136,12 @@ pub mod wire {
         let global = app.try_state::<Store>();
         let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
+            let content = super::export_content_of(None, options, global.as_deref())?;
             return super::export_docx_one_block(
                 None,
                 &scope,
                 image_mode,
+                &content,
                 attribution.as_ref(),
                 &folder,
             );
@@ -1039,10 +1149,12 @@ pub mod wire {
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let content = super::export_content_of(guard.as_ref(), options, global.as_deref())?;
         super::export_docx_one_block(
             guard.as_ref(),
             &scope,
             image_mode,
+            &content,
             attribution.as_ref(),
             &folder,
         )
@@ -1056,6 +1168,7 @@ pub mod wire {
         scope: ExportScope,
         image_mode: ImageMode,
         format: TextFormat,
+        options: ExportOptions,
         attribution: bool,
         folder: String,
     ) -> Result<ExportedFile, IpcError> {
@@ -1065,11 +1178,13 @@ pub mod wire {
         let global = app.try_state::<Store>();
         let attribution = super::attribution_of(attribution, global.as_deref())?;
         let Some(state) = app.try_state::<OpenWorkState>() else {
+            let content = super::export_content_of(None, options, global.as_deref())?;
             return super::export_text(
                 None,
                 &scope,
                 image_mode,
                 format,
+                &content,
                 attribution.as_ref(),
                 &folder,
             );
@@ -1077,15 +1192,56 @@ pub mod wire {
         let guard = state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let content = super::export_content_of(guard.as_ref(), options, global.as_deref())?;
         super::export_text(
             guard.as_ref(),
             &scope,
             image_mode,
             format,
+            &content,
             attribution.as_ref(),
             &folder,
         )
     }
+
+    /// Vỏ IPC của [`super::export_preview`].
+    #[tauri::command]
+    pub fn export_preview(
+        app: tauri::AppHandle,
+        scope: ExportScope,
+        format: ExportFormat,
+        options: ExportOptions,
+        attribution: bool,
+    ) -> Result<ExportPreview, IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let attribution = super::attribution_of(attribution, global.as_deref())?;
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            let content = super::export_content_of(None, options, global.as_deref())?;
+            return super::export_preview(
+                None,
+                &scope,
+                format,
+                &content,
+                attribution.as_ref(),
+                global.as_deref(),
+            );
+        };
+        let guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let content = super::export_content_of(guard.as_ref(), options, global.as_deref())?;
+        super::export_preview(
+            guard.as_ref(),
+            &scope,
+            format,
+            &content,
+            attribution.as_ref(),
+            global.as_deref(),
+        )
+    }
+
     /// `(async)`: `blocking_pick_file()` on the main thread deadlocks the event loop the dialog
     /// waits on. `OpenWorkState` is locked only after the dialog closes.
     #[tauri::command(async)]

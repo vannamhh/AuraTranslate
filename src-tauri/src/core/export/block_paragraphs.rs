@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use super::attribution::{Attribution, lines_for};
 use super::images::{ImageMode, ImageSplit, chapter_images, split_by_anchor};
+use super::options::{ExportOptions, numbered, segment_numbers};
 use super::table_rows::ExportImage;
 use crate::commands::segment::{ChapterSegment, select_chapter_assets, select_chapter_segments};
 use crate::core::segment::reading::paragraphs_by_flag;
@@ -113,27 +114,32 @@ fn build_column<'a>(
     ends_paragraph: impl Fn(&ChapterSegment) -> bool,
     joiner: &'static str,
     pieces_of: impl Fn(&'a ChapterSegment) -> Vec<&'a str>,
-    head: &[ExportImage],
-    by_anchor: &BTreeMap<i64, Vec<ExportImage>>,
-    orphans: &[ExportImage],
+    images: &ImageSplit<ExportImage>,
+    numbers: Option<&BTreeMap<i64, i64>>,
 ) -> Vec<BlockParagraph> {
     let mut column = ColumnBuilder::new(joiner);
-    column.push_images(head);
+    column.push_images(&images.head);
     for group in paragraphs_by_flag(segments, ends_paragraph) {
         for segment in group {
             for (i, piece) in pieces_of(segment).into_iter().enumerate() {
                 if i > 0 {
                     column.flush();
                 }
-                column.pieces.push(piece.to_owned());
+                let number = numbers
+                    .filter(|_| i == 0)
+                    .and_then(|numbers| numbers.get(&segment.id));
+                column.pieces.push(match number {
+                    Some(&n) => numbered(n, piece),
+                    None => piece.to_owned(),
+                });
             }
-            if let Some(images) = by_anchor.get(&segment.id) {
+            if let Some(images) = images.by_anchor.get(&segment.id) {
                 column.push_images(images);
             }
         }
         column.flush();
     }
-    column.push_images(orphans);
+    column.push_images(&images.orphans);
     column.paragraphs
 }
 
@@ -144,30 +150,23 @@ fn build_chapter_block(
     segments: &[ChapterSegment],
     images: ImageSplit<ExportImage>,
     source_lang: &str,
+    numbers: Option<&BTreeMap<i64, i64>>,
 ) -> ChapterBlock {
-    let ImageSplit {
-        head,
-        by_anchor,
-        orphans,
-        ..
-    } = images;
     let source = build_column(
         segments,
         |s| s.is_paragraph_end,
         source_joiner(source_lang),
         |s| source_pieces(&s.source_text),
-        &head,
-        &by_anchor,
-        &orphans,
+        &images,
+        numbers,
     );
     let target = build_column(
         segments,
         |s| s.is_target_paragraph_end,
         " ",
         |s| target_pieces(&s.target_text),
-        &head,
-        &by_anchor,
-        &orphans,
+        &images,
+        numbers,
     );
     ChapterBlock {
         chapter_id,
@@ -184,6 +183,7 @@ pub fn load_chapter_blocks(
     image_mode: ImageMode,
     source_lang: &str,
     attribution: Option<&Attribution>,
+    options: ExportOptions,
 ) -> Result<LoadedBlocks, StoreError> {
     store.read(|conn| {
         let mut title_stmt = conn.prepare("SELECT ord, title FROM chapter WHERE id = ?1")?;
@@ -208,6 +208,7 @@ pub fn load_chapter_blocks(
             );
             skipped += split.skipped;
             let lines = lines_for(conn, chapter_id, attribution)?;
+            let numbers = options.number_segments.then(|| segment_numbers(&segments));
             blocks.push(build_chapter_block(
                 chapter_id,
                 title,
@@ -215,6 +216,7 @@ pub fn load_chapter_blocks(
                 &segments,
                 split,
                 source_lang,
+                numbers.as_ref(),
             ));
         }
         Ok(LoadedBlocks {

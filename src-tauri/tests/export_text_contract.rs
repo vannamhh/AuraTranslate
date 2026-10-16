@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::export::{ExportedFile, export_text};
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
+use auratranslate_lib::core::export::ExportContent;
 use auratranslate_lib::core::export::{ExportScope, ImageMode, TextFormat};
 use auratranslate_lib::core::store::Transaction;
 
@@ -143,6 +144,7 @@ impl Fixture {
             &ExportScope::Work,
             mode,
             format,
+            &ExportContent::default(),
             None,
             &self.out,
         )
@@ -316,6 +318,7 @@ fn a_missing_image_file_is_the_named_error_and_nothing_is_overwritten() {
         &ExportScope::Work,
         ImageMode::File,
         MD,
+        &ExportContent::default(),
         None,
         &f.out,
     )
@@ -345,10 +348,18 @@ fn a_chapter_with_nothing_translated_and_no_image_is_absent() {
 fn an_empty_scope_an_unknown_chapter_and_no_open_work_are_the_named_errors() {
     let f = fixture("scope", Some("T"), vec![seg("p", "Hello")]);
     let code = |open: Option<&OpenWork>, scope: ExportScope| {
-        export_text(open, &scope, ImageMode::File, MD, None, &f.out)
-            .expect_err("phai loi")
-            .code()
-            .to_owned()
+        export_text(
+            open,
+            &scope,
+            ImageMode::File,
+            MD,
+            &ExportContent::default(),
+            None,
+            &f.out,
+        )
+        .expect_err("phai loi")
+        .code()
+        .to_owned()
     };
     assert_eq!(
         code(

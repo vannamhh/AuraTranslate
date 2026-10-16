@@ -1,11 +1,13 @@
 use std::collections::BTreeMap;
 
+use super::options::MARKDOWN_ANNOTATED_MARKER;
 use crate::core::docx::DocxParsed;
 use crate::core::i18n::{IpcError, MessageKey};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReimportShapeError {
     PublishCopy,
+    AnnotatedCopy,
 }
 
 impl From<ReimportShapeError> for IpcError {
@@ -14,6 +16,12 @@ impl From<ReimportShapeError> for IpcError {
             ReimportShapeError::PublishCopy => IpcError::new(
                 "export.publish_copy_not_reimportable",
                 MessageKey::ExportPublishCopyNotReimportable,
+                BTreeMap::new(),
+                false,
+            ),
+            ReimportShapeError::AnnotatedCopy => IpcError::new(
+                "export.annotated_copy_not_reimportable",
+                MessageKey::ExportAnnotatedCopyNotReimportable,
                 BTreeMap::new(),
                 false,
             ),
@@ -30,6 +38,9 @@ pub struct ReviewerDocx {
 
 impl ReviewerDocx {
     pub fn admit(parsed: DocxParsed) -> Result<Self, ReimportShapeError> {
+        if parsed.export_annotated {
+            return Err(ReimportShapeError::AnnotatedCopy);
+        }
         let is_publish_copy = parsed.tables.iter().any(|table| {
             table.rows == 1
                 && table
@@ -47,5 +58,20 @@ impl ReviewerDocx {
 
     pub fn parsed(&self) -> &DocxParsed {
         &self.parsed
+    }
+}
+
+/// The `.md` counterpart of [`ReviewerDocx::admit`]: a Markdown file the exporter marked as
+/// carrying sentence numbers is refused before it is parsed.
+pub fn admit_markdown(text: &str) -> Result<&str, ReimportShapeError> {
+    let first_line = text
+        .trim_start_matches('\u{feff}')
+        .lines()
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or("");
+    if first_line.trim() == MARKDOWN_ANNOTATED_MARKER {
+        Err(ReimportShapeError::AnnotatedCopy)
+    } else {
+        Ok(text)
     }
 }
