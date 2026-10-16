@@ -7,6 +7,7 @@ import {
   recordProofreadScan,
   revertProofreadSuggestion,
   runProofreadSegments,
+  skipProofreadDecision,
 } from './config/proofread'
 import type {
   ProofreadBlockedWire,
@@ -17,6 +18,7 @@ import type {
   ProofreadWriteResult,
 } from './config/proofread'
 import { openWorkId } from './openWorkIdentity'
+import { reloadProofreadDecisions, resetProofreadDecisions } from './proofreadDecisionState'
 import { resetProofreadMemory } from './proofreadMemoryState'
 import type { AiUsageSummary } from './aiUsageLine'
 import type { IpcError } from './i18n'
@@ -38,6 +40,7 @@ export type ProofreadSegmentResult = {
 }
 
 type RevertItem = {
+  readonly decisionId: number
   readonly finding: ProofreadFindingWire
   readonly phrase: string
   readonly before: string
@@ -309,6 +312,7 @@ export function resetProofread(): void {
   acting.value = false
   clearResult()
   resetProofreadMemory()
+  resetProofreadDecisions()
 }
 
 function dropReverts(segmentId: number): void {
@@ -464,6 +468,7 @@ export async function acceptProofreadFinding(): Promise<void> {
     next.set(segmentId, [
       ...stack,
       {
+        decisionId: result.decisionId as number,
         finding,
         phrase: scannedText.slice(finding.start, finding.end),
         before: scannedText,
@@ -473,6 +478,7 @@ export async function acceptProofreadFinding(): Promise<void> {
       },
     ])
     reverts.value = next
+    void reloadProofreadDecisions()
   } finally {
     acting.value = false
   }
@@ -503,6 +509,7 @@ export async function revertProofreadFinding(): Promise<void> {
       expectedPhrase: live.text,
       replacement: live.before,
       kind: live.finding.kind,
+      decisionId: live.decisionId,
     })
     if (result.outcome === null) {
       if (result.error !== null) actionFailure.value = { segmentId: caret, error: result.error }
@@ -515,6 +522,7 @@ export async function revertProofreadFinding(): Promise<void> {
     if (rest.length === 0) nextReverts.delete(caret)
     else nextReverts.set(caret, rest)
     reverts.value = nextReverts
+    void reloadProofreadDecisions()
     if (mine !== sequence) return
     const delta = live.phrase.length - (live.end - live.start)
     shiftProofreadFindings(caret, { start: live.start, end: live.end }, delta, result.outcome.target_text, null)
@@ -539,11 +547,32 @@ function removeFinding(current: ProofreadCurrent): void {
   setEntry(current.segmentId, { ...entry, findings: entry.findings.filter((f) => f !== current.finding) })
 }
 
-/** Closes the finding at the caret in memory only: no IPC, nothing remembered. */
-export function dismissProofreadFinding(): void {
+/** "Bỏ qua": Rust records one `skipped` decision (no segment, no memory), then the finding leaves the strip. */
+export async function dismissProofreadFinding(): Promise<void> {
+  if (acting.value) return
   const current = proofreadCurrent.value
   if (current === null) return
-  removeFinding(current)
+  const mine = sequence
+  const { segmentId, finding } = current
+  acting.value = true
+  actionFailure.value = null
+  try {
+    const result = await skipProofreadDecision(finding.kind)
+    if (!result.ok) {
+      if (result.error !== null) actionFailure.value = { segmentId, error: result.error }
+      return
+    }
+    void reloadProofreadDecisions()
+    if (mine !== sequence) return
+    const live = proofreadCurrent.value
+    if (live !== null && live.finding === finding) removeFinding(live)
+    else {
+      const entry = results.value.get(segmentId)
+      if (entry !== undefined) setEntry(segmentId, { ...entry, findings: entry.findings.filter((f) => f !== finding) })
+    }
+  } finally {
+    acting.value = false
+  }
 }
 
 /** "Not a mistake": Rust remembers the signature for the open Work, then the finding leaves the strip. */
@@ -574,6 +603,7 @@ export async function ignoreProofreadFinding(): Promise<void> {
       if (result.error !== null) actionFailure.value = { segmentId, error: result.error }
       return
     }
+    void reloadProofreadDecisions()
     if (mine !== sequence) return
     const live = proofreadCurrent.value
     if (live !== null && live.finding === finding) removeFinding(live)

@@ -42,6 +42,8 @@ import { EDITOR_HARD_CAP_MS, EDITOR_IDLE_MS } from './panels/editorFlush'
 import { isMeaningKind } from './config/proofread'
 import { shortcutRows } from './config/shortcutsState'
 import { libraryChapters } from './modes/libraryChapters'
+import { currentMode } from './modes/modeState'
+import { readingMarksWalkProgress } from './modes/readingState'
 import { groupedLookup, sensesByLayer } from './panels/lookupPanelState'
 import { proofreadResults, proofreadStateValue } from './proofreadState'
 import { tmFuzzyThresholdInUse } from './tmSettingsState'
@@ -615,6 +617,16 @@ const glossaryHoverText = computed<string | null>(() => {
       bày, đổi được tự do).
     -->
     <button
+      v-if="currentMode === 'workspace' && readingMarksWalkProgress !== null"
+      type="button"
+      class="walk-entry"
+      data-reading-walk-next
+      @mousedown="focusOnPointerDown($event)"
+      @click="dispatch('reading.marks_walk_next')"
+    >
+      {{ t('status.reading_walk_next', { next: String(readingMarksWalkProgress.next), total: String(readingMarksWalkProgress.total) }) }}
+    </button>
+    <button
       type="button"
       class="queue-entry"
       data-glossary-queue-open
@@ -741,6 +753,7 @@ const glossaryHoverText = computed<string | null>(() => {
  * `check:tokens` cấm bóng đổ; nổi bật bằng token màu KHÔNG bằng elevation).
  */
 .lookup-entry,
+.walk-entry,
 .queue-entry {
   flex: none;
   padding: 0;

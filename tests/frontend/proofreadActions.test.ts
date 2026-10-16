@@ -7,6 +7,7 @@ const revertMock = vi.fn()
 const flushMock = vi.fn()
 const moveMock = vi.fn()
 const invokeMock = vi.fn()
+const skipMock = vi.fn()
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => invokeMock(...args), Channel: class {} }))
 vi.mock('../../src/config/proofread', () => ({
@@ -14,6 +15,8 @@ vi.mock('../../src/config/proofread', () => ({
   cancelProofreadCall: () => Promise.resolve(),
   acceptProofreadSuggestion: (...args: unknown[]) => acceptMock(...args),
   revertProofreadSuggestion: (...args: unknown[]) => revertMock(...args),
+  skipProofreadDecision: (...args: unknown[]) => skipMock(...args),
+  getProofreadDecisionCounts: () => Promise.resolve({ counts: { accepted: 0, not_error: 0, skipped: 0, by_kind: [] }, error: null }),
 }))
 vi.mock('../../src/panels/editorPanelState', async () => {
   const { ref } = await import('vue')
@@ -72,7 +75,7 @@ async function runWith(id: number, text: string, findings: ProofreadFindingWire[
 }
 
 function reply(id: number, text: string, origin = 'ai_proofread') {
-  return { outcome: { segment_id: id, target_text: text, translation_origin: origin, status: 'draft', needs_confirmation: false, unsigned_draft: null }, error: null }
+  return { outcome: { segment_id: id, target_text: text, translation_origin: origin, status: 'draft', needs_confirmation: false, unsigned_draft: null }, decisionId: 7, error: null }
 }
 
 function textOf(id: number): string {
@@ -83,6 +86,8 @@ beforeEach(() => {
   state.resetProofread()
   acceptMock.mockReset()
   revertMock.mockReset()
+  skipMock.mockReset()
+  skipMock.mockResolvedValue({ ok: true, error: null })
   flushMock.mockReset()
   moveMock.mockReset()
   invokeMock.mockReset()
@@ -201,6 +206,7 @@ describe('revert', () => {
       expectedPhrase: 'aa BB cc ddd',
       replacement: TEXT,
       kind: 'spelling',
+      decisionId: 7,
     })
     expect(textOf(1)).toBe(TEXT)
     expect(state.proofreadRevertible.value).toBe(false)
@@ -225,6 +231,7 @@ describe('revert', () => {
       expectedPhrase: 'aa cc ddd',
       replacement: TEXT,
       kind: 'spelling',
+      decisionId: 7,
     })
     expect(textOf(1)).toBe(TEXT)
     expect(state.proofreadCurrent.value?.finding).toEqual(spelling(2, 6, ''))
@@ -273,12 +280,13 @@ describe('revert', () => {
 })
 
 describe('dismiss', () => {
-  it('removes the finding in memory only: no IPC, text untouched, count down by one', async () => {
+  it('records one skipped decision in Rust and removes the finding: no text write, count down by one', async () => {
     seed(1, TEXT)
     caretRef.value = 1
     await scan(1, TEXT, [spelling(0, 2, 'A'), spelling(3, 6, 'B')])
     expect(state.proofreadFindingCount.value).toBe(2)
-    state.dismissProofreadFinding()
+    await state.dismissProofreadFinding()
+    expect(skipMock).toHaveBeenCalledExactlyOnceWith('spelling')
     expect(state.proofreadFindingCount.value).toBe(1)
     expect(state.proofreadCurrent.value?.count).toBe(1)
     expect(state.proofreadCurrent.value?.finding.suggestion).toBe('B')
@@ -287,6 +295,17 @@ describe('dismiss', () => {
     expect(revertMock).not.toHaveBeenCalled()
     expect(invokeMock).not.toHaveBeenCalled()
     expect(state.proofreadStateValue.value).toBe('done')
+  })
+
+  it('keeps the finding and reports the error when Rust refuses to record the skip', async () => {
+    seed(1, TEXT)
+    caretRef.value = 1
+    await scan(1, TEXT, [spelling(0, 2, 'A')])
+    const err = { code: 'store.write_failed', message_key: 'store.write_failed', params: {}, retryable: false } as unknown as IpcError
+    skipMock.mockResolvedValue({ ok: false, error: err })
+    await state.dismissProofreadFinding()
+    expect(state.proofreadFindingCount.value).toBe(1)
+    expect(state.proofreadActionError.value).toEqual(err)
   })
 })
 

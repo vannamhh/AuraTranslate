@@ -38,6 +38,7 @@ function chapterFixture(
       segments: segments.map((s) => ({ is_confirmed: true, is_marked: false, ...s })),
     })),
     segment_count: segmentCount,
+    translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
     images: [],
     ...overrides,
   }

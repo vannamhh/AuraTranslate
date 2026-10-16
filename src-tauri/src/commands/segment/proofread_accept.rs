@@ -28,6 +28,15 @@ pub(crate) fn range_invalid(segment_id: i64) -> IpcError {
     )
 }
 
+fn decision_missing(decision_id: i64) -> IpcError {
+    IpcError::new(
+        "ai_proofread.decision_missing",
+        MessageKey::AiProofreadDecisionMissing,
+        BTreeMap::from([("decision_id".to_owned(), decision_id.to_string())]),
+        false,
+    )
+}
+
 fn text_would_be_empty(segment_id: i64) -> IpcError {
     proofread_error(
         "ai_proofread.text_would_be_empty",
@@ -107,17 +116,31 @@ pub(crate) fn check_proofread_range(
     }))
 }
 
+/// Result of accepting a suggestion: the text write plus the `proof_decision` row it left, which
+/// the webview keeps in its undo entry and hands back to [`revert_proofread_range`] (AD-56).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ProofreadAcceptOutcome {
+    #[serde(flatten)]
+    pub write: PromoteAiTranslationOutcome,
+    pub decision_id: i64,
+}
+
+enum DecisionStep {
+    Accept,
+    Revert { decision_id: i64 },
+}
+
 /// Replaces `[start, end)` (UTF-16) of the segment's translation with `replacement`, verbatim,
 /// when the segment still holds `expected_text` and that range still holds `expected_phrase`
-/// (AD-53 rules 2-4). Accepting a suggestion and reverting one are this call with the two
-/// phrases swapped. The write is the non-user write: text, both baseline columns and
-/// `translation_origin` set together by the kind's origin rule, `status` back to `draft`, no
-/// `segment_version` row.
+/// (AD-53 rules 2-4). Accepting and reverting are this splice with the two phrases swapped. The
+/// write is the non-user write: text, both baseline columns and `translation_origin` set together
+/// by the kind's origin rule, `status` back to `draft`, no `segment_version` row. The
+/// `proof_decision` row is inserted (accept) or deleted (revert) in the same transaction (AD-56).
 #[expect(
     clippy::too_many_arguments,
     reason = "each parameter is an independent import option; a parameter struct would only rename the list"
 )]
-pub fn replace_proofread_range(
+fn splice_proofread_range(
     open: Option<&OpenWork>,
     segment_id: i64,
     expected_text: &str,
@@ -126,7 +149,8 @@ pub fn replace_proofread_range(
     expected_phrase: &str,
     replacement: &str,
     kind: ProofreadKind,
-) -> Result<PromoteAiTranslationOutcome, IpcError> {
+    step: DecisionStep,
+) -> Result<(PromoteAiTranslationOutcome, Option<i64>), IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
     let open_chapter_id = open.chapter_id;
     let (expected_text, expected_phrase, replacement) = (
@@ -171,6 +195,15 @@ pub fn replace_proofread_range(
                 }
             }
         };
+        if let DecisionStep::Revert { decision_id } = step {
+            let removed = tx.execute(
+                "DELETE FROM proof_decision WHERE id = ?1 AND outcome = 'accepted' AND kind = ?2",
+                (decision_id, kind.as_str()),
+            )?;
+            if removed == 0 {
+                return Ok(Err(decision_missing(decision_id)));
+            }
+        }
         write_non_user_target(
             tx,
             segment_id,
@@ -178,16 +211,94 @@ pub fn replace_proofread_range(
             declared_origin,
             Some(declared_origin),
         )?;
-        Ok(Ok((new_text, declared_origin)))
+        let decision_id = if matches!(step, DecisionStep::Accept) {
+            tx.execute(
+                "INSERT INTO proof_decision (kind, outcome, decided_at) \
+                 VALUES (?1, 'accepted', strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+                [kind.as_str()],
+            )?;
+            Some(tx.last_insert_rowid())
+        } else {
+            None
+        };
+        Ok(Ok((new_text, declared_origin, decision_id)))
     })?;
 
-    let (target_text, declared_origin) = outcome?;
-    Ok(PromoteAiTranslationOutcome {
+    let (target_text, declared_origin, decision_id) = outcome?;
+    Ok((
+        PromoteAiTranslationOutcome {
+            segment_id,
+            target_text,
+            translation_origin: declared_origin.to_owned(),
+            status: SEGMENT_STATUS_DRAFT.to_owned(),
+            needs_confirmation: false,
+            unsigned_draft: None,
+        },
+        decision_id,
+    ))
+}
+
+/// Accepts a suggestion: `expected_phrase` is the flagged phrase, `replacement` the suggestion.
+/// Leaves one `accepted` `proof_decision` row and returns its id.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
+pub fn accept_proofread_range(
+    open: Option<&OpenWork>,
+    segment_id: i64,
+    expected_text: &str,
+    start: u32,
+    end: u32,
+    expected_phrase: &str,
+    replacement: &str,
+    kind: ProofreadKind,
+) -> Result<ProofreadAcceptOutcome, IpcError> {
+    let (write, decision_id) = splice_proofread_range(
+        open,
         segment_id,
-        target_text,
-        translation_origin: declared_origin.to_owned(),
-        status: SEGMENT_STATUS_DRAFT.to_owned(),
-        needs_confirmation: false,
-        unsigned_draft: None,
+        expected_text,
+        start,
+        end,
+        expected_phrase,
+        replacement,
+        kind,
+        DecisionStep::Accept,
+    )?;
+    Ok(ProofreadAcceptOutcome {
+        write,
+        decision_id: decision_id.ok_or_else(|| decision_missing(0))?,
     })
+}
+
+/// Reverts an accepted suggestion: `expected_phrase` is the suggestion now in the text,
+/// `replacement` the original phrase. Deletes the `accepted` row `decision_id`; no such row
+/// (of this `kind`) ⇒ `ai_proofread.decision_missing` and nothing is written.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "each parameter is an independent import option; a parameter struct would only rename the list"
+)]
+pub fn revert_proofread_range(
+    open: Option<&OpenWork>,
+    segment_id: i64,
+    expected_text: &str,
+    start: u32,
+    end: u32,
+    expected_phrase: &str,
+    replacement: &str,
+    kind: ProofreadKind,
+    decision_id: i64,
+) -> Result<PromoteAiTranslationOutcome, IpcError> {
+    splice_proofread_range(
+        open,
+        segment_id,
+        expected_text,
+        start,
+        end,
+        expected_phrase,
+        replacement,
+        kind,
+        DecisionStep::Revert { decision_id },
+    )
+    .map(|(write, _)| write)
 }

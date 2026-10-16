@@ -6,7 +6,10 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
-use auratranslate_lib::commands::segment::{read_open_chapter_segments, replace_proofread_range};
+use auratranslate_lib::commands::segment::{
+    PromoteAiTranslationOutcome, ProofreadAcceptOutcome, accept_proofread_range,
+    read_open_chapter_segments, revert_proofread_range,
+};
 use auratranslate_lib::core::i18n::IpcError;
 use auratranslate_lib::core::segment::proofread_kind::ProofreadKind;
 use auratranslate_lib::core::store::Transaction;
@@ -43,6 +46,7 @@ struct Row {
     status: String,
     retired: bool,
     versions: i64,
+    decisions: i64,
 }
 
 struct Fixture {
@@ -91,7 +95,8 @@ impl Fixture {
                 tx.query_row(
                     "SELECT target_text, baseline_target_text, baseline_translation_origin, \
                      translation_origin, status, retired_at IS NOT NULL, \
-                     (SELECT COUNT(*) FROM segment_version WHERE segment_id = ?1) FROM segment WHERE id = ?1",
+                     (SELECT COUNT(*) FROM segment_version WHERE segment_id = ?1), \
+                     (SELECT COUNT(*) FROM proof_decision) FROM segment WHERE id = ?1",
                     [id],
                     |r| {
                         Ok(Row {
@@ -102,6 +107,7 @@ impl Fixture {
                             status: r.get(4)?,
                             retired: r.get(5)?,
                             versions: r.get(6)?,
+                            decisions: r.get(7)?,
                         })
                     },
                 )
@@ -117,8 +123,8 @@ impl Fixture {
         expected_phrase: &str,
         replacement: &str,
         kind: ProofreadKind,
-    ) -> Result<auratranslate_lib::commands::segment::PromoteAiTranslationOutcome, IpcError> {
-        replace_proofread_range(
+    ) -> Result<PromoteAiTranslationOutcome, IpcError> {
+        accept_proofread_range(
             Some(&self.open),
             self.segment_id,
             expected_text,
@@ -128,13 +134,39 @@ impl Fixture {
             replacement,
             kind,
         )
+        .map(|accepted| accepted.write)
     }
 
-    fn accept(
+    fn accept(&self, kind: ProofreadKind) -> Result<ProofreadAcceptOutcome, IpcError> {
+        accept_proofread_range(
+            Some(&self.open),
+            self.segment_id,
+            SCANNED,
+            PHRASE_START,
+            PHRASE_END,
+            PHRASE,
+            SUGGESTION,
+            kind,
+        )
+    }
+
+    fn revert(
         &self,
         kind: ProofreadKind,
-    ) -> Result<auratranslate_lib::commands::segment::PromoteAiTranslationOutcome, IpcError> {
-        self.replace(SCANNED, PHRASE_START, PHRASE_END, PHRASE, SUGGESTION, kind)
+        decision_id: i64,
+    ) -> Result<PromoteAiTranslationOutcome, IpcError> {
+        let end = PHRASE_START + u32::try_from(SUGGESTION.encode_utf16().count()).expect("len");
+        revert_proofread_range(
+            Some(&self.open),
+            self.segment_id,
+            ACCEPTED,
+            PHRASE_START,
+            end,
+            SUGGESTION,
+            PHRASE,
+            kind,
+            decision_id,
+        )
     }
 }
 
@@ -191,7 +223,7 @@ fn accepting_declares_the_origin_of_ad_53_rule_2_for_each_row_and_column() {
                 .unwrap_or_else(|e| panic!("{name} {kind:?}: {}", e.code()));
             let after = f.row();
             assert_eq!(after.target_text, ACCEPTED, "{name} {kind:?}");
-            assert_eq!(out.target_text, ACCEPTED);
+            assert_eq!(out.write.target_text, ACCEPTED);
             assert_eq!(after.translation_origin, expected_origin, "{name} {kind:?}");
             assert_eq!(
                 after.baseline_translation_origin, expected_origin,
@@ -199,8 +231,8 @@ fn accepting_declares_the_origin_of_ad_53_rule_2_for_each_row_and_column() {
             );
             assert_eq!(after.baseline_target_text, ACCEPTED, "{name} {kind:?}");
             assert_eq!(after.status, "draft", "{name} {kind:?}");
-            assert_eq!(out.status, "draft");
-            assert_eq!(out.translation_origin, expected_origin);
+            assert_eq!(out.write.status, "draft");
+            assert_eq!(out.write.translation_origin, expected_origin);
             assert_eq!(
                 after.versions, before.versions,
                 "{name} {kind:?}: no segment_version row"
@@ -234,17 +266,12 @@ fn reverting_restores_the_exact_bytes_and_the_origin_of_the_spelling_row() {
             baseline_origin,
             "confirmed",
         );
-        f.accept(ProofreadKind::Spelling).expect("accept");
-        let end = PHRASE_START + u32::try_from(SUGGESTION.encode_utf16().count()).expect("len");
-        f.replace(
-            ACCEPTED,
-            PHRASE_START,
-            end,
-            SUGGESTION,
-            PHRASE,
-            ProofreadKind::Spelling,
-        )
-        .unwrap_or_else(|e| panic!("{name}: {}", e.code()));
+        let decision = f
+            .accept(ProofreadKind::Spelling)
+            .expect("accept")
+            .decision_id;
+        f.revert(ProofreadKind::Spelling, decision)
+            .unwrap_or_else(|e| panic!("{name}: {}", e.code()));
         let after = f.row();
         assert_eq!(after.target_text, SCANNED, "{name}: byte-exact");
         assert_eq!(after.translation_origin, spelling_origin, "{name}");
@@ -256,17 +283,12 @@ fn reverting_restores_the_exact_bytes_and_the_origin_of_the_spelling_row() {
 #[test]
 fn reverting_a_meaning_kind_declares_other_even_over_a_user_sentence() {
     let f = fixture(SCANNED, "Khác hẳn", "other", "self", "draft");
-    f.accept(ProofreadKind::Mistranslation).expect("accept");
-    let end = PHRASE_START + u32::try_from(SUGGESTION.encode_utf16().count()).expect("len");
-    f.replace(
-        ACCEPTED,
-        PHRASE_START,
-        end,
-        SUGGESTION,
-        PHRASE,
-        ProofreadKind::Mistranslation,
-    )
-    .expect("revert");
+    let decision = f
+        .accept(ProofreadKind::Mistranslation)
+        .expect("accept")
+        .decision_id;
+    f.revert(ProofreadKind::Mistranslation, decision)
+        .expect("revert");
     assert_eq!(f.row().translation_origin, "other");
     assert_eq!(f.row().target_text, SCANNED);
 }
@@ -291,6 +313,86 @@ fn offsets_are_utf16_units_and_the_replacement_is_not_normalised() {
         f.row().target_text,
         format!("😀 cafe\u{301} {nfd_suggestion}")
     );
+}
+
+#[test]
+fn accepting_leaves_one_accepted_row_and_reverting_removes_exactly_that_row() {
+    let f = fixture(SCANNED, SCANNED, "other", "other", "confirmed");
+    let first = f.accept(ProofreadKind::Spelling).expect("accept");
+    assert_eq!(f.row().decisions, 1);
+    let kind_and_outcome: (String, String) = f
+        .open
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.query_row(
+                "SELECT kind, outcome FROM proof_decision WHERE id = ?1",
+                [first.decision_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+        })
+        .expect("read decision");
+    assert_eq!(
+        kind_and_outcome,
+        ("spelling".to_owned(), "accepted".to_owned())
+    );
+
+    f.revert(ProofreadKind::Spelling, first.decision_id)
+        .expect("revert");
+    assert_eq!(
+        (f.row().decisions, f.row().target_text.as_str()),
+        (0, SCANNED)
+    );
+}
+
+#[test]
+fn reverting_with_a_missing_or_foreign_decision_writes_nothing_not_even_the_text() {
+    let f = fixture(SCANNED, SCANNED, "other", "other", "confirmed");
+    let accepted = f.accept(ProofreadKind::Spelling).expect("accept");
+    let snapshot = f.row();
+
+    let unknown = f.revert(ProofreadKind::Spelling, accepted.decision_id + 1_000);
+    assert_eq!(
+        unknown.expect_err("unknown id").code(),
+        "ai_proofread.decision_missing"
+    );
+    assert_eq!(f.row(), snapshot, "unknown id: nothing written");
+
+    let wrong_kind = f.revert(ProofreadKind::Grammar, accepted.decision_id);
+    assert_eq!(
+        wrong_kind.expect_err("other kind").code(),
+        "ai_proofread.decision_missing"
+    );
+    assert_eq!(
+        f.row(),
+        snapshot,
+        "decision of another kind: nothing written"
+    );
+
+    f.revert(ProofreadKind::Spelling, accepted.decision_id)
+        .expect("revert");
+    let after_revert = f.row();
+    let again = f.revert(ProofreadKind::Spelling, accepted.decision_id);
+    assert_eq!(
+        again.expect_err("second revert").code(),
+        "ai_proofread.text_changed"
+    );
+    assert_eq!(f.row(), after_revert);
+    assert_eq!(f.row().target_text, SCANNED);
+}
+
+#[test]
+fn a_refused_accept_leaves_no_decision_row() {
+    let f = fixture(SCANNED, SCANNED, "other", "other", "confirmed");
+    let r = f.replace(
+        "stale",
+        PHRASE_START,
+        PHRASE_END,
+        PHRASE,
+        SUGGESTION,
+        ProofreadKind::Spelling,
+    );
+    assert!(r.is_err());
+    assert_eq!(f.row().decisions, 0);
 }
 
 struct Case {
@@ -412,7 +514,7 @@ fn every_check_error_writes_nothing_and_carries_its_code() {
     );
 
     let f = seeded();
-    let r = replace_proofread_range(
+    let r = accept_proofread_range(
         Some(&f.open),
         f.segment_id + 1_000,
         SCANNED,
@@ -469,7 +571,7 @@ fn a_segment_outside_the_open_chapter_is_refused_before_the_text_is_compared() {
 
 #[test]
 fn no_work_open_is_refused() {
-    let r = replace_proofread_range(
+    let r = accept_proofread_range(
         None,
         1,
         SCANNED,
@@ -483,7 +585,7 @@ fn no_work_open_is_refused() {
 }
 
 const SRC_RS_FLOOR: usize = 118;
-const WEBVIEW_PROOFREAD_FILE_FLOOR: usize = 8;
+const WEBVIEW_PROOFREAD_FILE_FLOOR: usize = 11;
 const WRITE_CALL: &str = "write_non_user_target(";
 const ACCEPT_FILE: &str = "commands/segment/proofread_accept.rs";
 const WEBVIEW_FORBIDDEN: [&str; 2] = ["save_segment_targets", "saveSegmentTargets"];
@@ -643,4 +745,79 @@ fn the_predicates_catch_each_forbidden_shape_and_ignore_comments() {
         "// invoke('save_segment_targets')\n".to_owned(),
     )];
     assert!(webview_violations(&ts_comment).is_empty());
+}
+
+const DECISION_WRITES: [&str; 3] = [
+    "DELETE FROM PROOF_DECISION",
+    "UPDATE PROOF_DECISION",
+    "REPLACE INTO PROOF_DECISION",
+];
+
+fn decision_write_files(sources: &[(String, String)]) -> Vec<(String, usize)> {
+    sources
+        .iter()
+        .filter_map(|(rel, text)| {
+            let code: String =
+                boundary_scan::code_lines(&boundary_scan::without_test_modules(text))
+                    .map(|(_, line)| line)
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .replace(['\\', '"'], " ");
+            let code = code.split_whitespace().collect::<Vec<_>>().join(" ").to_uppercase();
+            let hits: usize = DECISION_WRITES
+                .iter()
+                .map(|w| code.matches(w).count())
+                .sum();
+            (hits > 0).then(|| (rel.clone(), hits))
+        })
+        .collect()
+}
+
+#[test]
+fn proof_decision_rows_are_deleted_only_by_the_revert_in_the_accept_file() {
+    let found = decision_write_files(&product_sources());
+    assert_eq!(
+        found,
+        vec![(ACCEPT_FILE.to_owned(), 1)],
+        "AD-56 rule 2: one DELETE FROM proof_decision, in the revert, and no UPDATE anywhere"
+    );
+}
+
+#[test]
+fn the_decision_gate_catches_a_delete_elsewhere_an_update_and_a_split_literal() {
+    let elsewhere = vec![(
+        "commands/proofread.rs".to_owned(),
+        "fn a() {\n    tx.execute(\"DELETE FROM proof_decision\", []);\n}\n".to_owned(),
+    )];
+    assert_eq!(decision_write_files(&elsewhere).len(), 1);
+    let update = vec![(
+        ACCEPT_FILE.to_owned(),
+        "fn a() {\n    tx.execute(\"UPDATE proof_decision SET outcome = 'x'\", []);\n}\n"
+            .to_owned(),
+    )];
+    assert_eq!(
+        decision_write_files(&update),
+        vec![(ACCEPT_FILE.to_owned(), 1)]
+    );
+    let split = vec![(
+        "commands/proofread.rs".to_owned(),
+        "fn a() {\n    tx.execute(\"DELETE FROM \\\n proof_decision\", []);\n}\n".to_owned(),
+    )];
+    assert_eq!(decision_write_files(&split).len(), 1);
+    let replace = vec![(
+        "commands/proofread.rs".to_owned(),
+        "fn a() {\n    tx.execute(\"INSERT OR REPLACE INTO proof_decision (id) VALUES (1)\", []);\n}\n"
+            .to_owned(),
+    )];
+    assert_eq!(decision_write_files(&replace).len(), 1);
+    let lowercase = vec![(
+        "commands/proofread.rs".to_owned(),
+        "fn a() {\n    tx.execute(\"delete from proof_decision\", []);\n}\n".to_owned(),
+    )];
+    assert_eq!(decision_write_files(&lowercase).len(), 1);
+    let commented = vec![(
+        "commands/proofread.rs".to_owned(),
+        "// DELETE FROM proof_decision\nfn a() {}\n".to_owned(),
+    )];
+    assert!(decision_write_files(&commented).is_empty());
 }

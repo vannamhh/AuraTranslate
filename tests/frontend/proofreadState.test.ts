@@ -10,6 +10,7 @@ const flushMock = vi.fn()
 vi.mock('../../src/config/proofread', () => ({
   runProofreadSegments: (...args: unknown[]) => runMock(...args),
   cancelProofreadCall: (...args: unknown[]) => cancelMock(...args),
+  getProofreadDecisionCounts: () => Promise.resolve({ counts: { accepted: 0, not_error: 0, skipped: 0, by_kind: [] }, error: null }),
 }))
 vi.mock('../../src/panels/editorPanelState', async () => {
   const { ref } = await import('vue')

@@ -105,6 +105,30 @@ pub fn list_reading_marks(app: tauri::AppHandle) -> Result<Vec<ReadingMark>, Ipc
     super::list_reading_marks(guard.as_ref())
 }
 
+#[tauri::command]
+pub fn unmark_reading_segment(app: tauri::AppHandle, segment_id: i64) -> Result<bool, IpcError> {
+    use tauri::Manager as _;
+    let Some(state) = app.try_state::<OpenWorkState>() else {
+        return super::unmark_reading_segment(None, segment_id);
+    };
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    super::unmark_reading_segment(guard.as_ref(), segment_id)
+}
+
+#[tauri::command]
+pub fn clear_reading_marks(app: tauri::AppHandle) -> Result<u32, IpcError> {
+    use tauri::Manager as _;
+    let Some(state) = app.try_state::<OpenWorkState>() else {
+        return super::clear_reading_marks(None);
+    };
+    let guard = state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    super::clear_reading_marks(guard.as_ref())
+}
+
 /// Vỏ IPC của [`super::save_segment_targets`] — đường flush của AD-35. Story 2.3.
 ///
 /// ⚠️ `chapter_id` đi trên dây dưới tên **`chapterId`**, và `edits` dưới tên **`edits`** —
@@ -461,8 +485,8 @@ pub fn review_accept_change<R: tauri::Runtime>(
     )
 }
 
-/// Wire shell of [`super::replace_proofread_range`] for accepting a suggestion: `expectedPhrase`
-/// is the flagged phrase, `replacement` the suggestion.
+/// Wire shell of [`super::accept_proofread_range`]: `expectedPhrase` is the flagged phrase,
+/// `replacement` the suggestion.
 #[expect(
     clippy::too_many_arguments,
     reason = "IPC command parameters mirror the wire contract field for field"
@@ -477,11 +501,11 @@ pub fn ai_proofread_accept<R: tauri::Runtime>(
     expected_phrase: String,
     replacement: String,
     kind: crate::core::segment::proofread_kind::ProofreadKind,
-) -> Result<PromoteAiTranslationOutcome, IpcError> {
+) -> Result<super::ProofreadAcceptOutcome, IpcError> {
     use tauri::Manager as _;
 
     let Some(state) = app.try_state::<OpenWorkState>() else {
-        return super::replace_proofread_range(
+        return super::accept_proofread_range(
             None,
             segment_id,
             &expected_text,
@@ -495,7 +519,7 @@ pub fn ai_proofread_accept<R: tauri::Runtime>(
     let guard = state
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    super::replace_proofread_range(
+    super::accept_proofread_range(
         guard.as_ref(),
         segment_id,
         &expected_text,
@@ -507,8 +531,8 @@ pub fn ai_proofread_accept<R: tauri::Runtime>(
     )
 }
 
-/// Wire shell of [`super::replace_proofread_range`] for reverting an accepted suggestion:
-/// `expectedPhrase` is the suggestion now in the text, `replacement` the original phrase.
+/// Wire shell of [`super::revert_proofread_range`]: `expectedPhrase` is the suggestion now in
+/// the text, `replacement` the original phrase, `decisionId` the id [`ai_proofread_accept`] returned.
 #[expect(
     clippy::too_many_arguments,
     reason = "IPC command parameters mirror the wire contract field for field"
@@ -523,11 +547,12 @@ pub fn ai_proofread_revert<R: tauri::Runtime>(
     expected_phrase: String,
     replacement: String,
     kind: crate::core::segment::proofread_kind::ProofreadKind,
+    decision_id: i64,
 ) -> Result<PromoteAiTranslationOutcome, IpcError> {
     use tauri::Manager as _;
 
     let Some(state) = app.try_state::<OpenWorkState>() else {
-        return super::replace_proofread_range(
+        return super::revert_proofread_range(
             None,
             segment_id,
             &expected_text,
@@ -536,12 +561,13 @@ pub fn ai_proofread_revert<R: tauri::Runtime>(
             &expected_phrase,
             &replacement,
             kind,
+            decision_id,
         );
     };
     let guard = state
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    super::replace_proofread_range(
+    super::revert_proofread_range(
         guard.as_ref(),
         segment_id,
         &expected_text,
@@ -550,6 +576,7 @@ pub fn ai_proofread_revert<R: tauri::Runtime>(
         &expected_phrase,
         &replacement,
         kind,
+        decision_id,
     )
 }
 

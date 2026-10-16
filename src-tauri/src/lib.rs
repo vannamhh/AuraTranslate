@@ -1259,6 +1259,8 @@ pub fn run() {
             // Story 5.13 -- marker ben vung khi doc (FR119).
             crate::commands::segment::wire::mark_reading_segment,
             crate::commands::segment::wire::list_reading_marks,
+            crate::commands::segment::wire::unmark_reading_segment,
+            crate::commands::segment::wire::clear_reading_marks,
             // Story 2.3 — duong FLUSH cua AD-35. MOT lo, MOT giao dich, `prepare_cached`
             // mot lan; cham dung hai cot (`target_text` + `updated_at`). Auto-save KHONG
             // doi trang thai va KHONG tao `SegmentVersion` (AD-31 hang 1).
@@ -1401,6 +1403,8 @@ pub fn run() {
             crate::commands::proofread::wire::ai_proofread_segments,
             crate::commands::proofread::wire::ai_proofread_cancel,
             crate::commands::proofread::wire::ai_proofread_ignore_add,
+            crate::commands::proofread::wire::ai_proofread_decision_skip,
+            crate::commands::proofread::wire::ai_proofread_decision_counts,
             crate::commands::proofread::wire::ai_proofread_ignore_list,
             crate::commands::proofread::wire::ai_proofread_ignore_remove,
             crate::commands::proofread::wire::ai_proofread_ignore_clear,

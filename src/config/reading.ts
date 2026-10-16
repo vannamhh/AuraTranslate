@@ -99,6 +99,12 @@ export type ReadingImage = {
  *
  * `images` — **THÊM Story 6.14**: ảnh của Chương này, đã phân giải vị trí.
  */
+export type ReadingTranslationOriginCounts = {
+  self_count: number
+  other_count: number
+  bilingual_import_count: number
+}
+
 export type ReadingChapter = {
   chapter_id: number
   chapter_ord: number
@@ -107,6 +113,7 @@ export type ReadingChapter = {
   paragraphs: ReadingParagraph[]
   segment_count: number
   images: ReadingImage[]
+  translation_origin_counts: ReadingTranslationOriginCounts
 }
 
 /**
@@ -243,6 +250,16 @@ function isReadingImageArray(value: unknown): value is ReadingImage[] {
  * 🔴 **THÊM Story 6.14 — `images` phải nhận hình dạng mới, nếu không CẢ RUN bị từ chối và
  * trang trắng** (cùng cảnh báo đã ghi ở đầu tệp cho `isReadingSegment`/`isReadingRun`).
  */
+function isCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+function isTranslationOriginCounts(value: unknown): value is ReadingTranslationOriginCounts {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ReadingTranslationOriginCounts, unknown>>
+  return isCount(v.self_count) && isCount(v.other_count) && isCount(v.bilingual_import_count)
+}
+
 function isReadingChapter(value: unknown): value is ReadingChapter {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ReadingChapter>
@@ -252,7 +269,8 @@ function isReadingChapter(value: unknown): value is ReadingChapter {
     (typeof v.chapter_title === 'string' || v.chapter_title === null) &&
     isReadingParagraphArray(v.paragraphs) &&
     typeof v.segment_count === 'number' &&
-    isReadingImageArray(v.images)
+    isReadingImageArray(v.images) &&
+    isTranslationOriginCounts(v.translation_origin_counts)
   )
 }
 
@@ -317,6 +335,8 @@ const UNKNOWN_IPC_ERROR: IpcError = {
 const CMD_READ_READING_RUN = 'read_reading_run'
 const CMD_MARK_READING_SEGMENT = 'mark_reading_segment'
 const CMD_LIST_READING_MARKS = 'list_reading_marks'
+const CMD_UNMARK_READING_SEGMENT = 'unmark_reading_segment'
+const CMD_CLEAR_READING_MARKS = 'clear_reading_marks'
 
 /**
  * Đọc lượt đọc bắt đầu tại Chương đang mở. Không ném — cùng lý do và cùng khuôn
@@ -385,5 +405,45 @@ export async function listReadingMarks(): Promise<ListReadingMarksResult> {
       return { marks: null, error: UNKNOWN_IPC_ERROR }
     }
     return { marks: null, error: null }
+  }
+}
+
+/** `removed` is false when the sentence had no mark; that is not an error. */
+export async function unmarkReadingSegment(
+  segmentId: number,
+): Promise<{ removed: boolean | null; error: IpcError | null }> {
+  try {
+    const raw = await invoke<unknown>(CMD_UNMARK_READING_SEGMENT, { segmentId })
+    if (typeof raw !== 'boolean') {
+      console.error(`[reading] \`${CMD_UNMARK_READING_SEGMENT}\` returned a shape that is not a boolean`)
+      return { removed: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { removed: raw, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { removed: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[reading] \`${CMD_UNMARK_READING_SEGMENT}\` failed with a non-IpcError: ${String(err)}`)
+      return { removed: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { removed: null, error: null }
+  }
+}
+
+/** `cleared` is the number of marks removed; null on failure, with every mark still in place. */
+export async function clearReadingMarks(): Promise<{ cleared: number | null; error: IpcError | null }> {
+  try {
+    const raw = await invoke<unknown>(CMD_CLEAR_READING_MARKS)
+    if (!isCount(raw)) {
+      console.error(`[reading] \`${CMD_CLEAR_READING_MARKS}\` returned a shape that is not a row count`)
+      return { cleared: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { cleared: raw, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { cleared: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[reading] \`${CMD_CLEAR_READING_MARKS}\` failed with a non-IpcError: ${String(err)}`)
+      return { cleared: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { cleared: null, error: null }
   }
 }

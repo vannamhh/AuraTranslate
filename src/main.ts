@@ -416,6 +416,12 @@ import {
   nextTocChapter,
   openAimedReadingSegment,
   openCurrentReadingMark,
+  unmarkCurrentReadingMark,
+  clearAllReadingMarks,
+  cancelReadingMarksClear,
+  walkReadingMarks,
+  walkNextReadingMark,
+  openReadingWorkStart,
   openCurrentTocChapter,
   openFrontierInWorkspace,
   openReadingMarks,
@@ -737,6 +743,22 @@ async function boot(): Promise<void> {
       prevReadingMark,
       openCurrentReadingMark: () => {
         void openCurrentReadingMark()
+      },
+      unmarkCurrentReadingMark: () => {
+        void unmarkCurrentReadingMark()
+      },
+      clearAllReadingMarks: () => {
+        void clearAllReadingMarks()
+      },
+      cancelReadingMarksClear,
+      walkReadingMarks: () => {
+        void walkReadingMarks()
+      },
+      walkNextReadingMark: () => {
+        void walkNextReadingMark()
+      },
+      openReadingWorkStart: () => {
+        void openReadingWorkStart()
       },
       setOpenWorkOverridePaused: setOpenWorkOverride,
       clearOpenWorkOverride,

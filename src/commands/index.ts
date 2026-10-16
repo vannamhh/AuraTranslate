@@ -1279,6 +1279,12 @@ export type CommandDeps = {
   nextReadingMark?: () => void
   prevReadingMark?: () => void
   openCurrentReadingMark?: () => void
+  unmarkCurrentReadingMark?: () => void
+  clearAllReadingMarks?: () => void
+  cancelReadingMarksClear?: () => void
+  walkReadingMarks?: () => void
+  walkNextReadingMark?: () => void
+  openReadingWorkStart?: () => void
 }
 
 /**
@@ -2705,6 +2711,12 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     ['reading.marks_next', 'command.reading.marks_next', 'nextReadingMark'],
     ['reading.marks_prev', 'command.reading.marks_prev', 'prevReadingMark'],
     ['reading.marks_open', 'command.reading.marks_open', 'openCurrentReadingMark'],
+    ['reading.marks_unmark', 'command.reading.marks_unmark', 'unmarkCurrentReadingMark'],
+    ['reading.marks_clear', 'command.reading.marks_clear', 'clearAllReadingMarks'],
+    ['reading.marks_clear_cancel', 'command.reading.marks_clear_cancel', 'cancelReadingMarksClear'],
+    ['reading.marks_walk', 'command.reading.marks_walk', 'walkReadingMarks'],
+    ['reading.marks_walk_next', 'command.reading.marks_walk_next', 'walkNextReadingMark'],
+    ['reading.work_start', 'command.reading.work_start', 'openReadingWorkStart'],
   ] as const) {
     target.register({
       id,

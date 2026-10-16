@@ -7,6 +7,7 @@ import { flushPromises } from './support/flushMicrotasks'
 
 const runMock = vi.fn()
 const acceptMock = vi.fn()
+const skipMock = vi.fn()
 const flushMock = vi.fn()
 const dispatchMock = vi.fn()
 const tmEligible = ref(false)
@@ -17,7 +18,9 @@ vi.mock('../../src/config/proofread', () => ({
   runProofreadSegments: (...args: unknown[]) => runMock(...args),
   cancelProofreadCall: () => Promise.resolve(),
   acceptProofreadSuggestion: (...args: unknown[]) => acceptMock(...args),
-  revertProofreadSuggestion: () => Promise.resolve({ outcome: null, error: null }),
+  revertProofreadSuggestion: () => Promise.resolve({ outcome: null, decisionId: null, error: null }),
+  skipProofreadDecision: (...args: unknown[]) => skipMock(...args),
+  getProofreadDecisionCounts: () => Promise.resolve({ counts: { accepted: 0, not_error: 0, skipped: 0, by_kind: [] }, error: null }),
 }))
 vi.mock('../../src/panels/editorPanelState', async () => {
   const { ref: vueRef } = await import('vue')
@@ -75,6 +78,8 @@ afterEach(() => {
   resetProofread()
   runMock.mockReset()
   acceptMock.mockReset()
+  skipMock.mockReset()
+  skipMock.mockResolvedValue({ ok: true, error: null })
   flushMock.mockReset()
   dispatchMock.mockReset()
   tmEligible.value = false
@@ -122,16 +127,17 @@ describe('strip content', () => {
     wrapper.unmount()
   })
 
-  it('dismiss writes nothing and the card goes away at once', async () => {
+  it('dismiss writes no text and the card goes away once Rust recorded the skip', async () => {
     scanResult([FINDING])
     const wrapper = mount(ProofreaderStrip, { attachTo: document.body })
     await runProofread([1])
     await flushPromises()
     const { dismissProofreadFinding, proofreadFindingCount } = await import('../../src/proofreadState')
-    dismissProofreadFinding()
+    await dismissProofreadFinding()
     await flushPromises()
     expect(proofreadFindingCount.value).toBe(0)
     expect(wrapper.find('.pfs-card').exists()).toBe(false)
+    expect(skipMock).toHaveBeenCalledOnce()
     expect(acceptMock).not.toHaveBeenCalled()
     wrapper.unmount()
   })

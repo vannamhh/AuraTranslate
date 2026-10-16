@@ -1701,6 +1701,12 @@ fn reading_wire_structs_keep_snake_case_field_names() {
                 }],
             }],
             segment_count: 1,
+            translation_origin_counts:
+                auratranslate_lib::commands::segment::TranslationOriginCounts {
+                    self_count: 1,
+                    other_count: 2,
+                    bilingual_import_count: 3,
+                },
             // **THÊM Story 6.14** — một ảnh, để `chapter_keys`/nội dung image dưới đây có
             // ít nhất một mục thật đi qua serde.
             images: vec![auratranslate_lib::commands::segment::ReadingImage {
@@ -1760,10 +1766,23 @@ fn reading_wire_structs_keep_snake_case_field_names() {
             "chapter_title",
             "images",
             "paragraphs",
-            "segment_count"
+            "segment_count",
+            "translation_origin_counts"
         ],
         "khoá trên dây của ReadingChapter là snake_case. Nhận được: {chapter_keys:?}. Nghi phạm \
          số một: `#[serde(rename_all = \"camelCase\")]` đặt nhầm lên struct này."
+    );
+
+    let mut count_keys: Vec<&str> = chapter_value["translation_origin_counts"]
+        .as_object()
+        .expect("translation_origin_counts phải serialize thành object")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    count_keys.sort_unstable();
+    assert_eq!(
+        count_keys,
+        vec!["bilingual_import_count", "other_count", "self_count"]
     );
 
     // **THÊM Story 6.14** — khoá trên dây của `ReadingImage`.
@@ -1920,7 +1939,12 @@ fn the_read_reading_run_wire_is_registered() {
          doc cung mot be mat Che do doc la hai nguon su that."
     );
 
-    for wire in ["mark_reading_segment", "list_reading_marks"] {
+    for wire in [
+        "mark_reading_segment",
+        "list_reading_marks",
+        "unmark_reading_segment",
+        "clear_reading_marks",
+    ] {
         assert!(
             lib_src.contains(&format!("crate::commands::segment::wire::{wire}")),
             "wire marker `{wire}` phai co mat trong generate_handler!"
@@ -1938,6 +1962,15 @@ fn the_read_reading_run_wire_is_registered() {
             "pub fn mark_reading_segment(\n    app: tauri::AppHandle,\n    segment_id: i64,"
         ),
         "wire mark_reading_segment phai giu tham so `segment_id` (webview gui `segmentId`)"
+    );
+    assert!(
+        segment_src
+            .contains("pub fn unmark_reading_segment(app: tauri::AppHandle, segment_id: i64)"),
+        "wire unmark_reading_segment phai giu tham so `segment_id` (webview gui `segmentId`)"
+    );
+    assert!(
+        segment_src.contains("pub fn clear_reading_marks(app: tauri::AppHandle)"),
+        "wire clear_reading_marks khong nhan tham so nao ngoai `app`"
     );
 }
 
@@ -2613,6 +2646,11 @@ fn the_proofread_memory_wires_are_registered_and_keep_their_parameter_names() {
         ),
         ("ai_proofread_ignore_clear", "app: tauri::AppHandle<R>,"),
         (
+            "ai_proofread_decision_skip",
+            "app: tauri::AppHandle<R>, kind: ProofreadKind,",
+        ),
+        ("ai_proofread_decision_counts", "app: tauri::AppHandle<R>,"),
+        (
             "ai_proofread_scan_record",
             "app: tauri::AppHandle<R>, work_id: String, scope: String, reported: i64, filtered: i64, \
              blocked: Vec<super::ProofreadBlockedWire>,",
@@ -2647,7 +2685,13 @@ fn the_proofread_write_wires_are_registered_and_keep_their_parameter_names() {
     let wire_src = fs::read_to_string(&wire_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", wire_rs.display()));
 
-    for name in ["ai_proofread_accept", "ai_proofread_revert"] {
+    let accept_params = "app: tauri::AppHandle<R>, segment_id: i64, expected_text: String, start: u32, end: u32, \
+                 expected_phrase: String, replacement: String, kind: crate::core::segment::proofread_kind::ProofreadKind,";
+    let revert_params = format!("{accept_params} decision_id: i64,");
+    for (name, params) in [
+        ("ai_proofread_accept", accept_params.to_owned()),
+        ("ai_proofread_revert", revert_params),
+    ] {
         let registered = format!("crate::commands::segment::wire::{name}");
         assert!(
             lib_src.contains(&registered),
@@ -2655,10 +2699,7 @@ fn the_proofread_write_wires_are_registered_and_keep_their_parameter_names() {
         );
         assert_eq!(
             normalize_param_list(&fn_param_list(&wire_src, name)),
-            normalize_param_list(
-                "app: tauri::AppHandle<R>, segment_id: i64, expected_text: String, start: u32, end: u32, \
-                 expected_phrase: String, replacement: String, kind: crate::core::segment::proofread_kind::ProofreadKind,"
-            ),
+            normalize_param_list(&params),
             "vo `{name}` khong con dung danh sach tham so mong doi -- `src/config/proofread.ts` la cho \
              duy nhat go lai theo dung ten/thu tu do."
         );

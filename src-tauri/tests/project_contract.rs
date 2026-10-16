@@ -2067,7 +2067,7 @@ fn a_missing_chapter_row_is_a_named_error_not_a_store_error() {
 /// (AD-18, `Semantics::Merge`) không GẮN theo `chapter`/`work` nào — nó là dữ liệu tầng
 /// Tác phẩm ĐỘC LẬP, đúng vai với `glossary_entry` (cũng hai tầng, cũng không phải một
 /// container giữa Work và Chapter).
-const NON_ENTITY_DETAIL_TABLES: [&str; 21] = [
+const NON_ENTITY_DETAIL_TABLES: [&str; 22] = [
     // Story 6.11 (FR127) -- moi hang la MOT ANH cua MOT Chuong (chapter_id, khong work_id --
     // xem doc-comment ASSET_DDL: "project.db la kho cua DUNG mot Tac pham nen chapter_id da
     // xac dinh no"), cung vai voi `segment`/`chapter_position` -- mot chi tiet VE tren mot
@@ -2090,6 +2090,8 @@ const NON_ENTITY_DETAIL_TABLES: [&str; 21] = [
     // phai mot container giua Work va Chapter.
     "prompt_set",
     // FR84, AD-53 rule 7: signature of a finding the user said is not an error; the store holds one Work.
+    // AD-56: one row per decision on a proofreader finding; the FR150 ratio counts these.
+    "proof_decision",
     "proof_ignore",
     // FR84: one row per finished proofreader scan; no reference to a Work or Chapter.
     "proof_scan",

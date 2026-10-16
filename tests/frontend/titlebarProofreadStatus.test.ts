@@ -8,6 +8,7 @@ const chapters = ref([{ chapter_id: 9, ord: 47 }])
 vi.mock('../../src/config/proofread', () => ({
   runProofreadSegments: (...args: unknown[]) => runMock(...args),
   cancelProofreadCall: vi.fn(),
+  getProofreadDecisionCounts: () => Promise.resolve({ counts: { accepted: 0, not_error: 0, skipped: 0, by_kind: [] }, error: null }),
 }))
 vi.mock('../../src/panels/editorPanelState', () => ({
   editorCaretSegmentId: ref<number | null>(null),

@@ -774,8 +774,8 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
-                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37); \
+                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_decision; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38); \
                  PRAGMA user_version = 27;",
             )
         })
@@ -783,8 +783,8 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
     let open = reopen(open);
     assert_eq!(
         open.store.schema_version(),
-        37,
-        "mo lai phai chay buoc 28 den 37 that"
+        38,
+        "mo lai phai chay buoc 28 den 38 that"
     );
 
     confirm_segment(Some(&open), ids[0]).expect("xac nhan");
@@ -813,14 +813,14 @@ fn the_step_28_backfill_copies_target_and_origin_into_the_baseline_of_every_row_
                 "ALTER TABLE segment DROP COLUMN baseline_target_text; \
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
-                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
-                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37); \
+                 DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_decision; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; \
+                 DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 37);
+    assert_eq!(open.store.schema_version(), 38);
 
     let rows: Vec<(i64, String, String, String, String)> = open
         .store
@@ -1217,7 +1217,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
     let (root, open) = work("index-upgrade", "一。");
     open.store
         .write(|tx: &Transaction<'_>| {
-            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32, 33, 34, 35, 36, 37); PRAGMA user_version = 28;")
+            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_decision; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32, 33, 34, 35, 36, 37, 38); PRAGMA user_version = 28;")
         })
         .expect("ha ve buoc 28");
     let open = reopen(open);
@@ -1231,7 +1231,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
             )
         })
         .expect("doc master");
-    assert_eq!((open.store.schema_version(), has_index), (37, 1));
+    assert_eq!((open.store.schema_version(), has_index), (38, 1));
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -1242,8 +1242,9 @@ fn a_work_row_from_step_36_gains_the_switch_off_and_keeps_its_other_columns() {
     open.store
         .write(|tx: &Transaction<'_>| {
             tx.execute_batch(
-                "ALTER TABLE work DROP COLUMN tm_only_mine; \
-                 DELETE FROM schema_migration_log WHERE version = 37; \
+                "DROP TABLE proof_decision; \
+                 ALTER TABLE work DROP COLUMN tm_only_mine; \
+                 DELETE FROM schema_migration_log WHERE version IN (37, 38); \
                  PRAGMA user_version = 36;",
             )
         })
@@ -1263,7 +1264,7 @@ fn a_work_row_from_step_36_gains_the_switch_off_and_keeps_its_other_columns() {
             )
         })
         .expect("doc work");
-    assert_eq!((open.store.schema_version(), rows, switch), (37, 1, 0));
+    assert_eq!((open.store.schema_version(), rows, switch), (38, 1, 0));
     assert_eq!(name, name_before);
     drop(open);
     let _ = fs::remove_dir_all(root);

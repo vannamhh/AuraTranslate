@@ -31,6 +31,8 @@ import {
   ensureReadingLoaded,
   READING_LINE_HEIGHT_FLOOR,
   readingBilingual,
+  readingChaptersDone,
+  readingCurrentChapter,
   readingAnchorSegmentId,
   readingAimedSegmentId,
   readingRun,
@@ -41,7 +43,9 @@ import {
   readingMarksCursor,
   readingMarksError,
   readingMarksHaveLoaded,
+  readingMarksClearPending,
   readingMarksOpen,
+  readingMarksTotal,
   readingStatusKind,
   readingStyle,
   readingTocBusy,
@@ -56,7 +60,10 @@ import {
   setFontSize,
   setLineHeight,
   setReadingAim,
+  setReadingMarksCursor,
 } from './readingState'
+import { readingOriginLabel } from './readingOrigin'
+import { shortcutRows } from '../config/shortcutsState'
 import type { ReadingChapter, ReadingFrontierChapter, ReadingImage, ReadingParagraph, ReadingSegment } from '../config/reading'
 import ChapterImage from '../ChapterImage.vue'
 
@@ -107,11 +114,15 @@ watch(readingMarksOpen, async (open) => {
 async function restoreReadingAnchor(): Promise<void> {
   const loaded = readingRun.value
   const anchor = readingAnchorSegmentId.value
-  if (loaded === null || anchor === null) return
+  if (loaded === null) return
   await nextTick()
   if (!readingModeActive) return
   const host = root.value
   if (host === null) return
+  if (anchor === null) {
+    host.scrollTop = 0
+    return
+  }
   const exact = host.querySelector<HTMLElement>(`[data-reading-segment="${String(anchor)}"]`)
   if (exact !== null) {
     exact.scrollIntoView({ block: 'center', inline: 'nearest' })
@@ -353,6 +364,65 @@ function chapterEmptyNote(chapter: DeepReadonly<ReadingChapter>): string {
  */
 const runChapters = computed<DeepReadonly<ReadingChapter>[]>(() => [...(readingRun.value?.chapters ?? [])])
 
+const chordById = computed(() => {
+  const byId = new Map<string, string>()
+  for (const row of shortcutRows.value) byId.set(row.id, row.display.join(' / '))
+  return byId
+})
+
+function chordOf(id: string): string {
+  return chordById.value.get(id) ?? ''
+}
+
+const marksButtonText = computed(() =>
+  readingMarksTotal.value === null
+    ? t('mode.reading.marks_button')
+    : t('mode.reading.marks_button_count', { mark_count: String(readingMarksTotal.value) }),
+)
+
+const themeText = computed(() => (currentTheme.value === 'dark' ? t('mode.reading.theme_dark') : t('mode.reading.theme_light')))
+
+const progressText = computed(() => {
+  const done = readingChaptersDone.value
+  const current = readingCurrentChapter.value
+  if (done === null || current === null) return ''
+  return t('mode.reading.progress', { done_count: String(done), chapter_ord: String(current.chapter_ord) })
+})
+
+const currentChapterText = computed(() => {
+  const current = readingCurrentChapter.value
+  return current === null ? '' : chapterLabel(current)
+})
+
+function originText(chapter: DeepReadonly<ReadingChapter>): string {
+  return t(`mode.reading.origin_${readingOriginLabel(chapter.translation_origin_counts)}`)
+}
+
+const marksWalkText = computed(() => t('mode.reading.marks_walk', { mark_count: String(readingMarks.value.length) }))
+
+const marksClearText = computed(() =>
+  readingMarksClearPending.value
+    ? t('mode.reading.marks_clear_confirm', { mark_count: String(readingMarks.value.length) })
+    : t('mode.reading.marks_clear'),
+)
+
+const frontierMarksText = computed(() => t('mode.reading.frontier_marks', { mark_count: String(readingMarksTotal.value ?? 0) }))
+
+function onMarksEscape(): void {
+  if (readingMarksClearPending.value) dispatch('reading.marks_clear_cancel')
+  else dispatch('reading.marks_close')
+}
+
+function onMarksKeydown(event: KeyboardEvent): void {
+  if (event.target !== event.currentTarget) return
+  if (event.key === 'ArrowDown') dispatch('reading.marks_next')
+  else if (event.key === 'ArrowUp') dispatch('reading.marks_prev')
+  else if (event.key === 'Enter') dispatch('reading.marks_open')
+  else if (event.key === 'Backspace') dispatch('reading.marks_unmark')
+  else return
+  event.preventDefault()
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔵 THÊM Story 6.14 (FR42 · FR43) — ẢNH ĐÚNG VỊ TRÍ
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -422,34 +492,41 @@ function paragraphRuns(
         @click="dispatch('reading.toggle_bilingual')"
       >
         {{ t('mode.reading.bilingual') }}
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.toggle_bilingual') !== ''" class="kbd">{{ chordOf('reading.toggle_bilingual') }}</span>
       </button>
-      <button
-        type="button"
-        class="btn"
-        data-reading-level="lg"
-        :aria-pressed="currentReadingLevel === 'lg'"
-        @click="dispatch('reading.level_airy')"
-      >
-        {{ t('mode.reading.level_airy') }}
-      </button>
-      <button
-        type="button"
-        class="btn"
-        data-reading-level="md"
-        :aria-pressed="currentReadingLevel === 'md'"
-        @click="dispatch('reading.level_balanced')"
-      >
-        {{ t('mode.reading.level_balanced') }}
-      </button>
-      <button
-        type="button"
-        class="btn"
-        data-reading-level="sm"
-        :aria-pressed="currentReadingLevel === 'sm'"
-        @click="dispatch('reading.level_dense')"
-      >
-        {{ t('mode.reading.level_dense') }}
-      </button>
+      <span class="level-group" role="group" :aria-label="t('mode.reading.level_group')">
+        <span class="level-label">{{ t('mode.reading.level_group') }}</span>
+        <button
+          type="button"
+          class="btn"
+          data-reading-level="lg"
+          :aria-pressed="currentReadingLevel === 'lg'"
+          @click="dispatch('reading.level_airy')"
+        >
+          {{ t('mode.reading.level_airy') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-reading-level="md"
+          :aria-pressed="currentReadingLevel === 'md'"
+          @click="dispatch('reading.level_balanced')"
+        >
+          {{ t('mode.reading.level_balanced') }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          data-reading-level="sm"
+          :aria-pressed="currentReadingLevel === 'sm'"
+          @click="dispatch('reading.level_dense')"
+        >
+          {{ t('mode.reading.level_dense') }}
+        </button>
+        <!-- aura-allow-text: chord displays from the shortcut registry. -->
+        <span class="kbd">{{ [chordOf('reading.level_airy'), chordOf('reading.level_balanced'), chordOf('reading.level_dense')].join(' ') }}</span>
+      </span>
       <button
         type="button"
         class="btn"
@@ -466,14 +543,29 @@ function paragraphRuns(
         :aria-pressed="currentTheme === 'dark'"
         @click="dispatch('reading.toggle_theme')"
       >
-        {{ t('mode.reading.theme') }}
+        <!-- aura-allow-text: themeText is a computed that goes through t(). -->
+        {{ themeText }}
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.toggle_theme') !== ''" class="kbd">{{ chordOf('reading.toggle_theme') }}</span>
       </button>
       <button type="button" class="btn" data-reading-toc :aria-expanded="readingTocOpen" @click="dispatch('reading.toc')">
         {{ t('mode.reading.toc') }}
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.toc') !== ''" class="kbd">{{ chordOf('reading.toc') }}</span>
       </button>
       <button type="button" class="btn" data-reading-marks :aria-expanded="readingMarksOpen" @click="dispatch('reading.marks')">
-        {{ t('mode.reading.marks_button') }}
+        <!-- aura-allow-text: marksButtonText is a computed that goes through t(). -->
+        {{ marksButtonText }}
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.mark_aimed') !== ''" class="kbd">{{ chordOf('reading.mark_aimed') }}</span>
       </button>
+    </div>
+
+    <div v-if="progressText !== ''" class="progress-line" data-reading-progress>
+      <!-- aura-allow-text: chapter label is Work data or goes through t(). -->
+      <span>{{ currentChapterText }}</span>
+      <!-- aura-allow-text: progressText is a computed that goes through t(). -->
+      <span>{{ progressText }}</span>
     </div>
 
     <!-- aura-allow-text: lỗi marker đi qua tError; đặt cạnh toolbar để một lỗi ghi ở đầu
@@ -567,6 +659,8 @@ function paragraphRuns(
           <!-- aura-allow-text: `chapterLabel()` trả tên Chương (dữ liệu) hoặc gọi `untitled()`
                (qua t()) cho hàng chưa đặt tên -- không một biểu thức trộn nào lộ ra template. -->
           <h2 class="chapter-title">{{ chapterLabel(chapter) }}</h2>
+          <!-- aura-allow-text: originText() goes through t(). -->
+          <p class="chapter-origin" data-reading-chapter-origin>{{ originText(chapter) }}</p>
           <!--
             🔵 Story 6.14 (FR42) — ảnh neo `0` (hoặc dời hẳn về đầu Chương), TRƯỚC đoạn ĐẦU
             TIÊN. `<figcaption>` chỉ dựng khi `caption_text` có nội dung THẬT (§Always: "ảnh
@@ -624,13 +718,21 @@ function paragraphRuns(
                     @keydown.enter="onReadingSegmentEnter"
                     ><!-- aura-allow-text: bản dịch là DỮ LIỆU Tác phẩm; biểu thức đầu chỉ ngăn câu. -->
                     <span class="segment-text">{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span>
-                    <button
-                      type="button"
-                      tabindex="-1"
-                      class="mark-affordance"
-                      :aria-disabled="segment.is_marked ? 'true' : undefined"
-                      @click="dispatch('reading.mark_aimed')"
-                    ><!-- aura-allow-text: cả hai nhánh đều đi qua t(). -->{{ segment.is_marked ? t('mode.reading.marked') : t('mode.reading.mark_action') }}</button></span
+                    <span class="mark-actions">
+                      <button
+                        type="button"
+                        tabindex="-1"
+                        class="mark-affordance"
+                        :aria-disabled="segment.is_marked ? 'true' : undefined"
+                        @click="dispatch('reading.mark_aimed')"
+                      ><!-- aura-allow-text: cả hai nhánh đều đi qua t(). -->{{ segment.is_marked ? t('mode.reading.marked') : t('mode.reading.mark_action') }}</button>
+                      <button
+                        type="button"
+                        tabindex="-1"
+                        class="mark-affordance"
+                        @click="dispatch('reading.open_aimed')"
+                      >{{ t('mode.reading.edit_action') }}</button>
+                    </span></span
                   >
                 </p>
                 <!-- 🔵 Story 6.14 (FR42) — ảnh GIỮA hai câu của cùng một đoạn. -->
@@ -676,43 +778,87 @@ function paragraphRuns(
         <!-- aura-allow-text: `frontierButtonText` tự đi qua t() bên trong. -->
         {{ frontierButtonText }}
       </button>
+      <button
+        v-if="readingMarksTotal !== null && readingMarksTotal > 0"
+        type="button"
+        class="btn"
+        data-reading-frontier-marks
+        @click="dispatch('reading.marks')"
+      >
+        <!-- aura-allow-text: frontierMarksText goes through t(). -->
+        {{ frontierMarksText }}
+      </button>
+      <button type="button" class="btn" data-reading-frontier-work-start @click="dispatch('reading.work_start')">
+        {{ t('mode.reading.frontier_work_start') }}
+      </button>
     </div>
 
     <div
       v-if="readingMarksOpen"
-      class="toc-overlay"
+      class="marks-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="reading-marks-heading"
-      @keydown.esc="dispatch('reading.marks_close')"
+      @keydown.esc="onMarksEscape()"
       @keydown.tab="trapOverlayTab($event, marksPanel)"
     >
-      <div ref="marksPanel" class="toc-panel" tabindex="-1">
+      <div ref="marksPanel" class="marks-panel" tabindex="-1" @keydown="onMarksKeydown($event)">
         <p id="reading-marks-heading" class="toc-heading">{{ t('mode.reading.marks_heading') }}</p>
+        <p class="marks-hint">{{ t('mode.reading.marks_hint') }}</p>
         <!-- aura-allow-text: nhánh có chữ đi qua t(); nhánh còn lại là chuỗi rỗng. -->
         <p role="status">{{ readingMarksBusy ? t('mode.reading.marks_loading') : '' }}</p>
         <!-- aura-allow-text: lỗi dây đi qua tError()/chuỗi rỗng. -->
         <p role="status">{{ readingMarksError === null ? '' : tError(readingMarksError) }}</p>
         <!-- aura-allow-text: cả hai nhánh đi qua t()/chuỗi rỗng. -->
         <p role="status">{{ readingMarksHaveLoaded && readingMarksError === null && readingMarks.length === 0 ? t('mode.reading.marks_empty') : '' }}</p>
-        <ul class="toc-list">
+        <ul class="marks-list">
           <li
             v-for="(mark, index) in readingMarks"
             :key="mark.segment_id"
+            class="marks-row"
             :class="{ current: index === readingMarksCursor }"
             :aria-current="index === readingMarksCursor ? 'true' : undefined"
           >
-            <!-- aura-allow-text: target_text/chapter_title là dữ liệu Tác phẩm. -->
-            <span>{{ mark.chapter_title ?? untitled(mark.chapter_ord) }} — {{ mark.target_text === '' ? mark.source_text : mark.target_text }}</span>
+            <span class="marks-chapter">{{ t('mode.reading.marks_row_chapter', { chapter_ord: String(mark.chapter_ord) }) }}</span>
+            <!-- aura-allow-text: target_text là dữ liệu Tác phẩm. -->
+            <span class="marks-text">{{ mark.target_text === '' ? mark.source_text : mark.target_text }}</span>
             <span v-if="mark.is_retired" class="retired-note">{{ t('mode.reading.marks_retired') }}</span>
+            <button
+              type="button"
+              class="btn"
+              :disabled="readingMarksBusy"
+              @pointerdown="setReadingMarksCursor(index)"
+              @focus="setReadingMarksCursor(index)"
+              @click="dispatch('reading.marks_open')"
+            >{{ t('mode.reading.marks_row_edit') }}</button>
+            <button
+              type="button"
+              class="btn"
+              :disabled="readingMarksBusy"
+              @pointerdown="setReadingMarksCursor(index)"
+              @focus="setReadingMarksCursor(index)"
+              @click="dispatch('reading.marks_unmark')"
+            >{{ t('mode.reading.marks_row_unmark') }}</button>
           </li>
         </ul>
         <div class="toc-actions">
-          <button type="button" class="btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_prev')">{{ t('mode.reading.marks_prev') }}</button>
-          <button type="button" class="btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_next')">{{ t('mode.reading.marks_next') }}</button>
-          <button type="button" class="btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_open')">{{ t('mode.reading.marks_open') }}</button>
+          <button type="button" class="btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_walk')">
+            <!-- aura-allow-text: marksWalkText goes through t(). -->
+            {{ marksWalkText }}
+          </button>
+          <button
+            type="button"
+            class="btn"
+            data-reading-marks-clear
+            :disabled="readingMarksBusy || readingMarks.length === 0"
+            @click="dispatch('reading.marks_clear')"
+          >
+            <!-- aura-allow-text: marksClearText goes through t(). -->
+            {{ marksClearText }}
+          </button>
           <button type="button" class="btn" @click="dispatch('reading.marks_close')">{{ t('mode.reading.marks_close') }}</button>
         </div>
+        <p class="marks-hint">{{ t('mode.reading.marks_keys') }}</p>
       </div>
     </div>
 
@@ -921,7 +1067,7 @@ function paragraphRuns(
   background: var(--color-surface-tm);
 }
 
-.mark-affordance {
+.mark-actions {
   display: none;
   position: absolute;
   inset-inline-start: 100%;
@@ -929,18 +1075,22 @@ function paragraphRuns(
   /* aura-allow-z-index: thứ tự sơn trong cùng dòng để nút tuyệt đối không nằm dưới chữ câu kế, không elevation */
   z-index: 1;
   white-space: nowrap;
+  gap: var(--space-panel-inline);
   margin-inline-start: var(--space-panel-inline);
   background: var(--color-surface);
+}
+
+.mark-affordance {
   color: var(--color-tm-text);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   font-family: var(--face-ui-sm);
 }
 
-.reading-segment:hover .mark-affordance,
-.reading-segment.aimed .mark-affordance,
-.reading-segment:focus-within .mark-affordance {
-  display: inline;
+.reading-segment:hover .mark-actions,
+.reading-segment.aimed .mark-actions,
+.reading-segment:focus-within .mark-actions {
+  display: inline-flex;
 }
 
 .marker-error,
@@ -1033,6 +1183,105 @@ function paragraphRuns(
 
 .toc-list li.current {
   background: var(--color-surface-accent);
+}
+
+.marks-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background);
+}
+
+.marks-panel {
+  background: var(--color-surface);
+  padding: var(--space-panel-block) var(--space-panel-inline);
+  max-width: 72ch;
+  max-height: 80vh;
+  overflow: auto;
+  border-radius: var(--radius-default);
+}
+
+.marks-panel:focus {
+  /* aura-allow-outline-none: tabindex=-1 root, focused programmatically, not an interactive control. */
+  outline: none;
+}
+
+.marks-hint,
+.chapter-origin,
+.progress-line,
+.kbd {
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
+}
+
+.marks-list {
+  list-style: none;
+  margin: 0 0 var(--space-panel-block) 0;
+  padding: 0;
+}
+
+.marks-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-panel-inline);
+  padding: var(--space-panel-inline);
+  border-bottom: 1px solid var(--color-outline);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  font-family: var(--face-ui-md);
+}
+
+.marks-row.current {
+  background: var(--color-surface-accent);
+}
+
+.marks-chapter {
+  flex: none;
+  color: var(--color-on-surface-variant);
+}
+
+.marks-text {
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+.level-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+}
+
+.level-label {
+  margin-inline-end: var(--space-panel-inline);
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
+}
+
+.level-group .kbd {
+  margin-inline-start: var(--space-panel-inline);
+}
+
+.kbd {
+  margin-inline-start: var(--space-panel-inline);
+}
+
+.progress-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-panel-inline);
+  margin-bottom: var(--space-panel-block);
+  padding-bottom: var(--space-panel-inline);
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.chapter-origin {
+  margin: 0 0 var(--space-panel-block) 0;
 }
 
 .toc-actions {

@@ -88,7 +88,7 @@ const TOKENS_PATH = join(SRC_ROOT, 'tokens', 'tokens.json')
  * Sàn tồn tại để bắt một cây bị CẮT MẤT, không phải để đếm tệp mới. `ceil(0.85 × live)`,
  * qua `judgeFloor`.
  */
-const FILE_FLOOR = 159
+const FILE_FLOOR = 170
 const COMPONENT_FILE_FLOOR = 164
 
 let failures = 0

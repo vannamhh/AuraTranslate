@@ -35,6 +35,7 @@ const RUN = {
         },
       ],
       segment_count: 2,
+      translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
       images: [
         // Neo `0` — trước đoạn ĐẦU TIÊN của Chương.
         { asset_id: 100, file_name: 'lead.jpg', source_url: null, after_segment_id: null, alt_text: 'Mo ta dau chuong', caption_text: null },

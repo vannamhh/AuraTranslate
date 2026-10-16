@@ -17,6 +17,7 @@ vi.mock('../../src/config/proofread', () => ({
   runProofreadSegments: (...args: unknown[]) => runMock(...args),
   cancelProofreadCall: () => Promise.resolve(),
   recordProofreadScan: (...args: unknown[]) => recordMock(...args),
+  getProofreadDecisionCounts: () => Promise.resolve({ counts: { accepted: 0, not_error: 0, skipped: 0, by_kind: [] }, error: null }),
 }))
 vi.mock('../../src/config/shortcutsState', () => ({ shortcutRows: chordRows }))
 vi.mock('../../src/openWorkIdentity', () => ({ openWorkId: ref('work-1') }))

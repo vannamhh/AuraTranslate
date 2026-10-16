@@ -13243,3 +13243,7 @@ chính nó.
   summary: `e2e/specs/story-12-13-glossary-harvest.e2e.mjs` và mục thứ tám của `titlebar-tools.e2e.mjs` chưa chạy cục bộ; spec không dựng bản reviewer nên màn thu hoạch chỉ được mở ở trạng thái rỗng (ba ứng viên nhận hai nằm ở `review_harvest_contract.rs` và `glossaryHarvest.test.ts`).
   evidence: webview e2e đứng ở `tauri://localhost`; cần đọc lượt nightly macOS đầu tiên sau khi gộp.
   Chủ: Epic 12.
+- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-proofreader-va-che-o-oc-ti-le-phat-hien-go-dau-xuat-xu-chuon-plan.md`
+  summary: Lượt dùng thật trong app: tỉ lệ quyết định trên dải Proofreader và Chỗ đã bỏ qua sau quét, nhận, Bỏ qua, Hoàn lại và mở lại Tác phẩm; Chế độ đọc gỡ từng dấu, "Bỏ hết đánh dấu" hai bước với Esc, "Sửa lần lượt" sang Workspace với nút "Chỗ kế tiếp (n/m)", dòng xuất xứ Chương; bố cục thanh công cụ, mốc cuối, lớp phủ dấu so mockup. `e2e/specs/story-12-15-proofread-ratio-reading-marks.e2e.mjs` đã viết, chưa chạy (đi qua lệnh IPC thật, không qua quét mô hình).
+  evidence: happy-dom không tính hình học và CSS có phạm vi; webview e2e đứng ở `tauri://localhost` nên chưa có spec nào chạy được.
+  Chủ: Epic 12.

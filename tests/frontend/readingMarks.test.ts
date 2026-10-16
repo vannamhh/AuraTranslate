@@ -30,6 +30,7 @@ const RUN = {
       chapter_title: 'Chương Hai',
       paragraphs: [{ segments: [SEGMENT] }],
       segment_count: 1,
+      translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
       images: [],
     },
   ],
@@ -91,12 +92,12 @@ describe('modes/readingState — aim, mark và điều hướng exact segment', 
     await state.ensureReadingLoaded()
 
     await state.markAimedReadingSegment()
-    expect(mockInvoke).toHaveBeenCalledTimes(1)
+    expect(mockInvoke.mock.calls.filter((c) => c[0] === 'mark_reading_segment')).toHaveLength(0)
 
     state.setReadingAim(12)
     mockInvoke.mockResolvedValueOnce(MARK)
     await state.markAimedReadingSegment()
-    expect(mockInvoke).toHaveBeenLastCalledWith('mark_reading_segment', { segmentId: 12 })
+    expect(mockInvoke).toHaveBeenCalledWith('mark_reading_segment', { segmentId: 12 })
     expect(state.readingRun.value?.chapters[0]?.paragraphs[0]?.segments[0]?.is_marked).toBe(true)
     expect(state.readingAimedSegmentId.value).toBe(12)
     expect(state.readingAnchorSegmentId.value).toBeNull()
@@ -269,7 +270,7 @@ describe('modes/ReadingMode.vue — wrapper focus và affordance', () => {
 
     const dialog = wrapper.get('[role="dialog"]')
     expect(dialog.attributes('aria-labelledby')).toBe('reading-marks-heading')
-    const buttons = dialog.findAll('.toc-actions .btn')
+    const buttons = dialog.findAll('button').filter((b) => b.attributes('disabled') === undefined)
     const first = buttons[0]
     const last = buttons.at(-1)
     expect(first).toBeDefined()

@@ -30,6 +30,7 @@ function chapterFixture(chapterId: number, ord: number, paragraphs: SegmentFixtu
     chapter_title: `Chuong ${ord}`,
     paragraphs: paragraphs.map((segments) => ({ segments })),
     segment_count: paragraphs.reduce((sum, p) => sum + p.length, 0),
+    translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
     images: [],
   }
 }
@@ -128,6 +129,7 @@ describe('config/reading.ts::readReadingRun — `is_confirmed` THIẾU làm adap
           // Segment KHÔNG mang `is_confirmed` -- mô phỏng một hình dạng dây đã trượt.
           paragraphs: [{ segments: [{ id: 1, source_text: 'a', target_text: 'b', is_marked: false }] }],
           segment_count: 1,
+          translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
         },
       ],
       frontier: { kind: 'end-of-work', chapter: null },
@@ -150,6 +152,7 @@ describe('config/reading.ts::readReadingRun — `is_confirmed` THIẾU làm adap
           chapter_title: null,
           paragraphs: [{ segments: [{ id: 1, source_text: 'a', target_text: 'b', is_marked: false }] }],
           segment_count: 1,
+          translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
         },
       ],
       frontier: { kind: 'end-of-work', chapter: null },

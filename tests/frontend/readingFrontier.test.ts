@@ -41,6 +41,7 @@ function chapter(overrides: Partial<{ chapter_id: number; chapter_ord: number; c
     chapter_title: null,
     paragraphs: [{ segments: [segment()] }],
     segment_count: 1,
+    translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
     images: [],
     ...overrides,
   }

@@ -14,6 +14,8 @@ import {
   proofreadMemorySelectedId,
   selectProofreadMemoryRow,
 } from './proofreadMemoryState'
+import ProofreadDecisionRatio from './ProofreadDecisionRatio.vue'
+import { reloadProofreadDecisions } from './proofreadDecisionState'
 import { shortDayMonth } from './panels/shortDate'
 import type { ProofreadFindingKind } from './config/proofread'
 
@@ -24,6 +26,7 @@ let returnFocusTo: HTMLElement | null = null
 watch(proofreadMemoryIsOpen, (open) => {
   if (open) {
     returnFocusTo = focusReturnTargetOnOpen('[data-proofread-memory-open]')
+    void reloadProofreadDecisions()
     void nextTick(() => {
       const first = panel.value?.querySelector<HTMLElement>('button:not([disabled])')
       ;(first ?? panel.value)?.focus()
@@ -140,6 +143,8 @@ function trapTab(event: KeyboardEvent): void {
           {{ t('command.ai.proofread.memory.close') }}
         </button>
       </header>
+
+      <ProofreadDecisionRatio :active="proofreadMemoryIsOpen" />
 
       <p v-if="!proofreadMemoryHasLoaded && proofreadMemoryBusy" class="pfmem-note" role="status">
         {{ t('proofread.memory.loading') }}

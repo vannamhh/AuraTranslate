@@ -539,11 +539,13 @@ const AI_PROOFREAD_SEAM_COMMAND_FILE: &str = "commands/proofread.rs";
 
 const AI_PROOFREAD_SEAM_COMMAND_FILE_MARKER: &str = "crate::core::ai::";
 
-const ALLOWED_AI_PATHS_IN_PROOFREAD_SEAM: [&str; 10] = [
+const ALLOWED_AI_PATHS_IN_PROOFREAD_SEAM: [&str; 12] = [
     "client::OpenAiChatClient",
+    "proofread::ProofDecisionCounts",
     "proofread::ProofreadFinding",
     "proofread::ProofreadReplyError",
     "proofread::ProofreadSignature",
+    "proofread::count_decisions",
     "proofread::filter_remembered",
     "proofread::locate_batch_findings",
     "proofread::plan_batches",

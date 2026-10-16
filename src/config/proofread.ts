@@ -60,6 +60,8 @@ const CMD_IGNORE_LIST = 'ai_proofread_ignore_list'
 const CMD_IGNORE_REMOVE = 'ai_proofread_ignore_remove'
 const CMD_IGNORE_CLEAR = 'ai_proofread_ignore_clear'
 const CMD_SCAN_RECORD = 'ai_proofread_scan_record'
+const CMD_DECISION_SKIP = 'ai_proofread_decision_skip'
+const CMD_DECISION_COUNTS = 'ai_proofread_decision_counts'
 
 function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0
@@ -169,8 +171,10 @@ export type ProofreadRangeWrite = {
   kind: ProofreadFindingKind
 }
 
+/** `decisionId` is set only by accept; revert hands it back to Rust. */
 export type ProofreadWriteResult = {
   outcome: PromoteAiTranslationOutcome | null
+  decisionId: number | null
   error: IpcError | null
 }
 
@@ -191,22 +195,28 @@ function isWriteOutcome(value: unknown): value is PromoteAiTranslationOutcome {
 
 function writeFailure(which: WriteWhich, err: unknown): ProofreadWriteResult {
   const command = which === 'accept' ? CMD_PROOFREAD_ACCEPT : CMD_PROOFREAD_REVERT
-  if (isIpcError(err)) return { outcome: null, error: err }
+  if (isIpcError(err)) return { outcome: null, decisionId: null, error: err }
   if (hasIpcBridge()) {
     console.error(`[proofread] \`${command}\` failed with a non-IpcError: ${String(err)}`)
-    return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    return { outcome: null, decisionId: null, error: UNKNOWN_IPC_ERROR }
   }
   console.info(`[proofread] cannot call \`${command}\` outside Tauri: ${String(err)}`)
-  return { outcome: null, error: null }
+  return { outcome: null, decisionId: null, error: null }
 }
 
 function checkedOutcome(which: WriteWhich, wire: unknown): ProofreadWriteResult {
   const command = which === 'accept' ? CMD_PROOFREAD_ACCEPT : CMD_PROOFREAD_REVERT
   if (!isWriteOutcome(wire)) {
     console.error(`[proofread] \`${command}\` returned a shape that is not a write outcome`)
-    return { outcome: null, error: UNKNOWN_IPC_ERROR }
+    return { outcome: null, decisionId: null, error: UNKNOWN_IPC_ERROR }
   }
-  return { outcome: wire, error: null }
+  if (which === 'revert') return { outcome: wire, decisionId: null, error: null }
+  const decisionId = (wire as { decision_id?: unknown }).decision_id
+  if (!isCount(decisionId)) {
+    console.error(`[proofread] \`${command}\` returned no decision_id`)
+    return { outcome: null, decisionId: null, error: UNKNOWN_IPC_ERROR }
+  }
+  return { outcome: wire, decisionId, error: null }
 }
 
 /** Replaces `[start, end)` with `replacement`; Rust refuses unless the text and phrase still match. Never throws. */
@@ -228,7 +238,9 @@ export async function acceptProofreadSuggestion(args: ProofreadRangeWrite): Prom
 }
 
 /** Same replacement with the roles swapped: `expectedPhrase` is the suggestion now in the text. Never throws. */
-export async function revertProofreadSuggestion(args: ProofreadRangeWrite): Promise<ProofreadWriteResult> {
+export async function revertProofreadSuggestion(
+  args: ProofreadRangeWrite & { decisionId: number },
+): Promise<ProofreadWriteResult> {
   try {
     const wire = await invoke<unknown>(CMD_PROOFREAD_REVERT, {
       segmentId: args.segmentId,
@@ -238,6 +250,7 @@ export async function revertProofreadSuggestion(args: ProofreadRangeWrite): Prom
       expectedPhrase: args.expectedPhrase,
       replacement: args.replacement,
       kind: args.kind,
+      decisionId: args.decisionId,
     })
     return checkedOutcome('revert', wire)
   } catch (err) {
@@ -358,5 +371,56 @@ export async function recordProofreadScan(
     return { ok: true, error: null }
   } catch (err) {
     return { ok: false, error: memoryFailure('scan_record', err) }
+  }
+}
+
+export type ProofreadDecisionTally = { accepted: number; not_error: number; skipped: number }
+
+export type ProofreadDecisionCountsWire = ProofreadDecisionTally & {
+  by_kind: (ProofreadDecisionTally & { kind: ProofreadFindingKind })[]
+}
+
+function isTallyWire(value: unknown): value is ProofreadDecisionTally {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<Record<keyof ProofreadDecisionTally, unknown>>
+  return isCount(v.accepted) && isCount(v.not_error) && isCount(v.skipped)
+}
+
+function isKindTallyWire(value: unknown): value is ProofreadDecisionTally & { kind: ProofreadFindingKind } {
+  if (!isTallyWire(value)) return false
+  const kind = (value as unknown as { kind?: unknown }).kind
+  return typeof kind === 'string' && (PROOFREAD_FINDING_KINDS as readonly string[]).includes(kind)
+}
+
+function isDecisionCountsWire(value: unknown): value is ProofreadDecisionCountsWire {
+  if (!isTallyWire(value)) return false
+  const byKind = (value as unknown as { by_kind?: unknown }).by_kind
+  return Array.isArray(byKind) && byKind.every(isKindTallyWire)
+}
+
+/** Records one "Bỏ qua" decision; touches no segment and creates no memory. `ok` is false on any failure. Never throws. */
+export async function skipProofreadDecision(kind: ProofreadFindingKind): Promise<{ ok: boolean; error: IpcError | null }> {
+  try {
+    await invoke<unknown>(CMD_DECISION_SKIP, { kind })
+    return { ok: true, error: null }
+  } catch (err) {
+    return { ok: false, error: memoryFailure('decision_skip', err) }
+  }
+}
+
+/** Counts of the open Work's decisions. `counts` is null on failure, never a zeroed stand-in. Never throws. */
+export async function getProofreadDecisionCounts(): Promise<{
+  counts: ProofreadDecisionCountsWire | null
+  error: IpcError | null
+}> {
+  try {
+    const wire = await invoke<unknown>(CMD_DECISION_COUNTS)
+    if (!isDecisionCountsWire(wire)) {
+      console.error(`[proofread] \`${CMD_DECISION_COUNTS}\` returned a shape that is not ProofreadDecisionCountsWire`)
+      return { counts: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { counts: wire, error: null }
+  } catch (err) {
+    return { counts: null, error: memoryFailure('decision_counts', err) }
   }
 }

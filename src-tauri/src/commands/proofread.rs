@@ -435,8 +435,55 @@ pub fn proofread_ignore_add(
              VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), 0)",
             (signature.kind.as_str(), &signature.phrase, &signature.before, &signature.after),
         )?;
+        tx.execute(
+            "INSERT INTO proof_decision (kind, outcome, decided_at) \
+             VALUES (?1, 'not_error', strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+            [signature.kind.as_str()],
+        )?;
         Ok(Ok(()))
     })?
+}
+
+/// Records that the user skipped a finding of `kind` (AD-56): one `skipped` `proof_decision` row.
+/// No segment is read or written and nothing is remembered; `kind` is the webview's word.
+pub fn proofread_decision_skip(
+    open: Option<&OpenWork>,
+    kind: ProofreadKind,
+) -> Result<(), IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    open.store.write(move |tx| {
+        tx.execute(
+            "INSERT INTO proof_decision (kind, outcome, decided_at) \
+             VALUES (?1, 'skipped', strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
+            [kind.as_str()],
+        )?;
+        Ok(())
+    })?;
+    Ok(())
+}
+
+/// Every decision of the open Work counted by outcome and by kind (AD-56 rule 3), cumulative.
+pub fn proofread_decision_counts(
+    open: Option<&OpenWork>,
+) -> Result<crate::core::ai::proofread::ProofDecisionCounts, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    Ok(open.store.read(|conn| {
+        let mut stmt = conn
+            .prepare("SELECT outcome, kind, COUNT(*) FROM proof_decision GROUP BY outcome, kind")?;
+        let groups = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })?
+            .collect::<crate::core::store::SqlResult<Vec<_>>>()?;
+        crate::core::ai::proofread::count_decisions(
+            groups.iter().map(|(o, k, n)| (o.as_str(), k.as_str(), *n)),
+        )
+        .ok_or(crate::core::store::SqlError::InvalidQuery)
+    })?)
 }
 
 /// Every remembered finding of the open Work, newest first.
@@ -667,6 +714,21 @@ pub mod wire {
                 kind,
             )
         })
+    }
+
+    #[tauri::command]
+    pub fn ai_proofread_decision_skip<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        kind: ProofreadKind,
+    ) -> Result<(), IpcError> {
+        with_open(&app, |open| super::proofread_decision_skip(open, kind))
+    }
+
+    #[tauri::command]
+    pub fn ai_proofread_decision_counts<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+    ) -> Result<crate::core::ai::proofread::ProofDecisionCounts, IpcError> {
+        with_open(&app, super::proofread_decision_counts)
     }
 
     #[tauri::command]

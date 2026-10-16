@@ -278,9 +278,83 @@ pub fn filter_remembered(
     (kept, blocked)
 }
 
+/// Decisions of one `kind` (AD-56), by outcome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct ProofDecisionKindCounts {
+    pub kind: ProofreadKind,
+    pub accepted: i64,
+    pub not_error: i64,
+    pub skipped: i64,
+}
+
+/// Every `proof_decision` row of a Work, counted by outcome and by kind (AD-56 rule 3).
+/// `by_kind` always holds the five kinds, in [`ProofreadKind::ALL`] order. A Work with no rows
+/// is all zeros: the caller reads "no decision yet" from the sum, never from a percentage.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ProofDecisionCounts {
+    pub accepted: i64,
+    pub not_error: i64,
+    pub skipped: i64,
+    pub by_kind: Vec<ProofDecisionKindCounts>,
+}
+
+/// Folds `(outcome, kind, rows)` groups into [`ProofDecisionCounts`]. `None` when a group names
+/// an outcome or kind outside the closed sets, so a corrupt row is an error and not a smaller
+/// number.
+#[must_use]
+pub fn count_decisions<'a>(
+    groups: impl IntoIterator<Item = (&'a str, &'a str, i64)>,
+) -> Option<ProofDecisionCounts> {
+    let mut by_kind: Vec<ProofDecisionKindCounts> = ProofreadKind::ALL
+        .into_iter()
+        .map(|kind| ProofDecisionKindCounts {
+            kind,
+            accepted: 0,
+            not_error: 0,
+            skipped: 0,
+        })
+        .collect();
+    for (outcome, kind, rows) in groups {
+        let kind = ProofreadKind::from_wire(kind)?;
+        let slot = by_kind.iter_mut().find(|entry| entry.kind == kind)?;
+        match outcome {
+            "accepted" => slot.accepted += rows,
+            "not_error" => slot.not_error += rows,
+            "skipped" => slot.skipped += rows,
+            _ => return None,
+        }
+    }
+    Some(ProofDecisionCounts {
+        accepted: by_kind.iter().map(|k| k.accepted).sum(),
+        not_error: by_kind.iter().map(|k| k.not_error).sum(),
+        skipped: by_kind.iter().map(|k| k.skipped).sum(),
+        by_kind,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn decisions_are_counted_by_outcome_and_kind_and_empty_is_all_zero() {
+        let empty = count_decisions([]).expect("empty");
+        assert_eq!((empty.accepted, empty.not_error, empty.skipped), (0, 0, 0));
+        assert_eq!(empty.by_kind.len(), 5);
+        let counts = count_decisions([
+            ("accepted", "spelling", 2),
+            ("skipped", "grammar", 1),
+            ("not_error", "spelling", 3),
+        ])
+        .expect("counts");
+        assert_eq!(
+            (counts.accepted, counts.not_error, counts.skipped),
+            (2, 3, 1)
+        );
+        assert_eq!(counts.by_kind[0].not_error, 3);
+        assert!(count_decisions([("bogus", "spelling", 1)]).is_none());
+        assert!(count_decisions([("accepted", "bogus", 1)]).is_none());
+    }
 
     fn reply(items: &str) -> String {
         format!("[{items}]")

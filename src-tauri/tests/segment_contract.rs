@@ -934,11 +934,11 @@ fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
         versions,
         vec![
             1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-            26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37
+            26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38
         ],
         "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
          -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 -> 25 \
-         -> 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37 (4 la so da chay)"
+         -> 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37 -> 38 (4 la so da chay)"
     );
 }
 
@@ -1014,7 +1014,7 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // Target moved 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        37,
+        38,
         "buoc 5..25 phai da chay tren mot tep dung o phien ban 4"
     );
 
@@ -1183,7 +1183,7 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        37,
+        38,
         "buoc 6..25 phai chay tren mot tep dung o phien ban 5"
     );
 
@@ -1264,8 +1264,8 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers step), then 25 -> 26 (work.last_chapter_id). Assertion unchanged.
     assert_eq!(
         opened.store.schema_version(),
-        37,
-        "mot `project.db` moi phai dung o phien ban 37"
+        38,
+        "mot `project.db` moi phai dung o phien ban 38"
     );
 
     let (notnull, default_value): (i64, String) = opened
@@ -1393,7 +1393,7 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        37,
+        38,
         "buoc 7..25 phai chay tren mot tep dung o phien ban 6"
     );
 
@@ -1714,7 +1714,7 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        37,
+        38,
         "buoc 10..25 phai chay tren mot tep dung o phien ban 9"
     );
 
@@ -1826,7 +1826,7 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        37,
+        38,
         "buoc 8..25 phai chay tren mot tep dung o phien ban 7"
     );
 
@@ -2040,7 +2040,7 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        37,
+        38,
         "buoc 9..25 phai chay tren mot tep dung o phien ban 8"
     );
 
@@ -2187,7 +2187,7 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 /// `[Migration; 29]`, fake step `to_version: 30`.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_THIRTYFOUR: [Migration; 37] = [
+    static STEP_THIRTYFOUR: [Migration; 38] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -2224,8 +2224,9 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[33],
         PROJECT_MIGRATIONS[34],
         PROJECT_MIGRATIONS[35],
+        PROJECT_MIGRATIONS[36],
         Migration {
-            to_version: 38,
+            to_version: 39,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -2237,15 +2238,15 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         migrations: &STEP_THIRTYFOUR,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 38");
-    assert_eq!(future.schema_version(), 38);
+    .expect("dung fixture o phien ban 39");
+    assert_eq!(future.schema_version(), 39);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.expect_err(
-        "mot `project.db` o phien ban 38 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 39 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -6364,7 +6365,7 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        37,
+        38,
         "buoc 11..25 phai chay tren mot tep dung o phien ban 10"
     );
 

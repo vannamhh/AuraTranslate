@@ -111,11 +111,12 @@ describe('ignoreProofreadFinding', () => {
     expect(state.proofreadActionError.value).toEqual(err)
   })
 
-  it('"Bỏ qua" of 9.4 stays memory only: no ai_proofread_ignore_add', async () => {
+  it('"Bỏ qua" records one skipped decision in Rust and remembers nothing: no ai_proofread_ignore_add', async () => {
     const { state } = await fresh()
     await scanOne(state, 'segment', { value: { state: 'done', not_scanned: 0, filtered: 0, blocked: [] }, error: null })
-    state.dismissProofreadFinding()
+    await state.dismissProofreadFinding()
     expect(calls('ai_proofread_ignore_add')).toHaveLength(0)
+    expect(calls('ai_proofread_decision_skip')).toEqual([{ kind: 'grammar' }])
     expect(state.proofreadFindingCount.value).toBe(0)
   })
 })

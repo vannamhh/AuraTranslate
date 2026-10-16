@@ -867,7 +867,7 @@ fn a_version_20_project_database_migrates_to_21_and_every_existing_row_gets_role
     // and doesn't affect this assertion.
     assert_eq!(
         migrated.schema_version(),
-        37,
+        38,
         "di tru phai chay het toi dich moi nhat (qua ca buoc 21 segment.role)"
     );
 

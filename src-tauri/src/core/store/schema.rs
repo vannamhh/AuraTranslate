@@ -1028,6 +1028,18 @@ ALTER TABLE proof_ignore ADD COLUMN blocked_count INTEGER CHECK (blocked_count >
 pub const WORK_TM_ONLY_MINE_DDL: &str = "\
 ALTER TABLE work ADD COLUMN tm_only_mine INTEGER NOT NULL DEFAULT 0 CHECK (tm_only_mine IN (0, 1));";
 
+/// Step 38 (AD-56): one row per decision on a proofreader finding; the FR150 ratio counts these.
+/// No text, no `segment_id`; the `kind` set matches `proof_ignore`.
+pub const PROOF_DECISION_DDL: &str = "\
+CREATE TABLE proof_decision (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind       TEXT NOT NULL,
+  outcome    TEXT NOT NULL,
+  decided_at TEXT NOT NULL,
+  CHECK (kind IN ('spelling', 'grammar', 'mistranslation', 'too_loose', 'obscure')),
+  CHECK (outcome IN ('accepted', 'not_error', 'skipped'))
+);";
+
 /// Step 32 (AD-20, AD-52 rule 7): a `glossary_candidate` of origin `review_harvest` carries the
 /// replaced and the proposed translation and how often the reviewer made the change. The four
 /// columns are filled exactly for that origin, and the one-per-`source_term` index becomes two
@@ -2024,7 +2036,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Ba mươi sáu bước, và đích là phiên bản 37.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Ba mươi bảy bước, và đích là phiên bản 38.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2400,6 +2412,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 37,
         sql: WORK_TM_ONLY_MINE_DDL,
+    },
+    Migration {
+        to_version: 38,
+        sql: PROOF_DECISION_DDL,
     },
 ];
 

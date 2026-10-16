@@ -7,6 +7,7 @@ import { eligibleInlineStrips, proofreaderStripPlace } from './inlineStripEligib
 import type { ProofreaderStripPlace } from './inlineStripEligibility'
 import { topmostStrip } from './panels/inlineStripPriority'
 import { editorCaretSegmentId } from './panels/editorPanelState'
+import ProofreadDecisionRatio from './ProofreadDecisionRatio.vue'
 import { shortcutRows } from './config/shortcutsState'
 import { proofreadScopeCounts } from './proofreadScope'
 import type { ProofreadFindingKind } from './config/proofread'
@@ -325,6 +326,7 @@ const usageText = computed<string | null>(() => {
       <!-- aura-allow-text: result of t() computed in the script. -->
       {{ usageText }}
     </p>
+    <ProofreadDecisionRatio :active="isVisible" />
   </section>
 </template>
 

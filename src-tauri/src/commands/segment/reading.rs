@@ -122,6 +122,26 @@ pub fn mark_reading_segment(
     }
 }
 
+/// `false`, not an error, when the sentence carries no mark.
+pub fn unmark_reading_segment(open: Option<&OpenWork>, segment_id: i64) -> Result<bool, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    Ok(open.store.write(move |tx: &Transaction<'_>| {
+        Ok(tx.execute(
+            "DELETE FROM reading_mark WHERE segment_id = ?1",
+            [segment_id],
+        )? > 0)
+    })?)
+}
+
+/// Returns the number of marks removed.
+pub fn clear_reading_marks(open: Option<&OpenWork>) -> Result<u32, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    let removed = open
+        .store
+        .write(|tx: &Transaction<'_>| tx.execute("DELETE FROM reading_mark", []))?;
+    Ok(u32::try_from(removed).unwrap_or(u32::MAX))
+}
+
 /// Liệt kê marker của đúng Tác phẩm đang mở. `project.db` là biên cách ly Work; không nhận
 /// `work_id` từ webview nên không có đường trộn dữ liệu giữa hai kho.
 pub fn list_reading_marks(open: Option<&OpenWork>) -> Result<Vec<ReadingMark>, IpcError> {
@@ -163,6 +183,31 @@ pub struct ReadingChapter {
     /// (hoặc `None` ⇒ trước đoạn đầu tiên) — webview không cần tra cứu gì thêm để biết chèn
     /// ảnh vào đâu.
     pub images: Vec<ReadingImage>,
+    /// FR151: how many sentences of this Chapter carry each translation origin, counted from
+    /// the rows already read for `segment_count`. Omitted sentences and sentences without a
+    /// translation (`''`) are not counted.
+    pub translation_origin_counts: TranslationOriginCounts,
+}
+
+/// Sentences of one Chapter per `segment.translation_origin` value (FR151); no field for `''`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
+pub struct TranslationOriginCounts {
+    pub self_count: i64,
+    pub other_count: i64,
+    pub bilingual_import_count: i64,
+}
+
+fn count_translation_origins(segments: &[ChapterSegment]) -> TranslationOriginCounts {
+    let mut counts = TranslationOriginCounts::default();
+    for segment in segments.iter().filter(|s| !s.is_omitted) {
+        match segment.translation_origin.as_str() {
+            TRANSLATION_ORIGIN_SELF => counts.self_count += 1,
+            TRANSLATION_ORIGIN_OTHER => counts.other_count += 1,
+            TRANSLATION_ORIGIN_BILINGUAL_IMPORT => counts.bilingual_import_count += 1,
+            _ => {}
+        }
+    }
+    counts
 }
 
 /// Một ảnh đã phân giải vị trí, ra dây cho CHẾ ĐỘ ĐỌC — Story 6.14, FR42/FR43.
@@ -387,6 +432,7 @@ pub fn read_reading_run(open: Option<&OpenWork>) -> Result<ReadingRun, IpcError>
                 paragraphs,
                 segment_count,
                 images,
+                translation_origin_counts: count_translation_origins(&segments),
             });
         }
 

@@ -260,7 +260,7 @@ const vueFiles = keep(vueAll)
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const RS_FLOOR = 114
-const VUE_FLOOR = 44
+const VUE_FLOOR = 48
 {
   const v1 = judgeFloor(RS_FLOOR, rsFiles.length, 'RS_FLOOR', 'tệp `.rs` sau miễn trừ')
   const v2 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` sau miễn trừ')

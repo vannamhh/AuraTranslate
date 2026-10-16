@@ -227,7 +227,7 @@ const tsFiles = keep(tsAll)
  * bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const VUE_FLOOR = 44
+const VUE_FLOOR = 48
 const TS_FLOOR = 113
 
 /**
@@ -244,7 +244,7 @@ const COMMAND_FLOOR = 250
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const CLICK_FLOOR = 214
-const DISPATCH_FLOOR = 299
+const DISPATCH_FLOOR = 322
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2513,6 +2513,10 @@ const HANDLER_TABLE = {
   'src/layout/LookupDrawer.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/modes/ReadingMode.vue::onReadingSegmentEnter': { ids: ['reading.open_aimed'] },
   'src/modes/ReadingMode.vue::trapOverlayTab': { nonCommand: R_FOCUS_TRAP },
+  'src/modes/ReadingMode.vue::onMarksEscape': { ids: ['reading.marks_clear_cancel', 'reading.marks_close'] },
+  'src/modes/ReadingMode.vue::onMarksKeydown': {
+    ids: ['reading.marks_next', 'reading.marks_prev', 'reading.marks_open', 'reading.marks_unmark'],
+  },
   'src/panels/GridPanel.vue::onSourceCellMouseUp': { nonCommand: R_SOURCE_CUT_EXEMPT },
   'src/panels/GridPanel.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridPanel.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },

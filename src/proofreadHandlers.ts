@@ -61,7 +61,7 @@ export const proofreadHandlers = {
   },
 
   dismissAiProofread: (): void => {
-    dismissProofreadFinding()
+    void dismissProofreadFinding()
   },
 
   ignoreAiProofread: (): void => {

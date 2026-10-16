@@ -61,6 +61,7 @@ function chapterFixture(
       segments: segments.map((s) => ({ is_confirmed: true, is_marked: false, ...s })),
     })),
     segment_count: segmentCount,
+    translation_origin_counts: { self_count: 0, other_count: 0, bilingual_import_count: 0 },
     images: [],
     ...overrides,
   }
@@ -542,18 +543,19 @@ describe('modes/readingState — `resetReading({ preserveAnchor: true })` (đún
     mockInvoke.mockResolvedValue(runFixture([chapterFixture([[{ id: 1, source_text: 'Mot.', target_text: 'Cau mot.' }]])]))
     const state = await import('../../src/modes/readingState')
 
+    const runReads = (): number => mockInvoke.mock.calls.filter((c) => c[0] === 'read_reading_run').length
     await state.ensureReadingLoaded()
-    expect(mockInvoke).toHaveBeenCalledTimes(1)
+    expect(runReads()).toBe(1)
 
     // Idempotent TRƯỚC lượt vứt — gọi lại không phát thêm một lượt IPC nào (hành vi đã có từ
     // trước, đối chứng ở đây để phân biệt với hành vi SAU lượt vứt ngay dưới).
     await state.ensureReadingLoaded()
-    expect(mockInvoke).toHaveBeenCalledTimes(1)
+    expect(runReads()).toBe(1)
 
     state.resetReading({ preserveAnchor: true })
     await state.ensureReadingLoaded()
 
-    expect(mockInvoke).toHaveBeenCalledTimes(2) // một vòng `read_reading_run` THẬT thứ hai
+    expect(runReads()).toBe(2) // một vòng `read_reading_run` THẬT thứ hai
     expect(state.readingRun.value).not.toBeNull()
   })
 })

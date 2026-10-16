@@ -30,8 +30,14 @@ import { listChapters } from '../config/chapter'
 import type { ChapterRow } from '../config/chapter'
 import { KEY_READING_PREFERENCES, SCOPE_APP_CONFIG, putConfig } from '../config/bootstrap'
 import { createWriteSchedule } from '../layout/writeSchedule'
-import { listReadingMarks, markReadingSegment, readReadingRun } from '../config/reading'
-import type { ReadingMark, ReadingRun, ReadingSegment } from '../config/reading'
+import {
+  clearReadingMarks,
+  listReadingMarks,
+  markReadingSegment,
+  readReadingRun,
+  unmarkReadingSegment,
+} from '../config/reading'
+import type { ReadingChapter, ReadingMark, ReadingRun, ReadingSegment } from '../config/reading'
 import { openChapterById, requestCurrentEditorCaretPlacement } from '../panels/editorPanelState'
 import { setMode } from './modeState'
 import type { IpcError } from '../i18n'
@@ -50,8 +56,10 @@ const loadError = shallowRef<IpcError | null>(null)
 const aimedSegmentId = ref<number | null>(null)
 const anchorSegmentId = ref<number | null>(null)
 const markerError = shallowRef<IpcError | null>(null)
+const chaptersDone = ref<number | null>(null)
 let sequence = 0
 let requested = false
+let progressSequence = 0
 
 export const readingRun: DeepReadonly<Ref<ReadingRun | null>> = readonly(run)
 export const readingHasLoaded: DeepReadonly<Ref<boolean>> = readonly(hasLoaded)
@@ -60,6 +68,26 @@ export const readingLoadError: DeepReadonly<Ref<IpcError | null>> = readonly(loa
 export const readingAimedSegmentId: DeepReadonly<Ref<number | null>> = readonly(aimedSegmentId)
 export const readingAnchorSegmentId: DeepReadonly<Ref<number | null>> = readonly(anchorSegmentId)
 export const readingMarkerError: DeepReadonly<Ref<IpcError | null>> = readonly(markerError)
+/** Chapters of the open Work whose status is `done`; null until `list_chapters` answered. */
+export const readingChaptersDone: DeepReadonly<Ref<number | null>> = readonly(chaptersDone)
+
+/** The Chapter holding the aimed sentence, else the anchor sentence, else the first Chapter of the run. */
+export const readingCurrentChapter: ComputedRef<ReadingChapter | null> = computed(() => {
+  const chapters = run.value?.chapters ?? []
+  for (const id of [aimedSegmentId.value, anchorSegmentId.value]) {
+    if (id === null) continue
+    const found = findReadingSegment(id)
+    if (found !== null) return chapters.find((chapter) => chapter.chapter_id === found.chapterId) ?? null
+  }
+  return chapters.at(0) ?? null
+})
+
+async function loadReadingChapterProgress(): Promise<void> {
+  const mine = ++progressSequence
+  const { chapters } = await listChapters()
+  if (mine !== progressSequence) return
+  chaptersDone.value = chapters === null ? null : chapters.filter((row) => row.status === 'done').length
+}
 
 /**
  * Tám nhánh phân biệt được của `role="status"` — **SỬA TẠI CHỖ Story 5.12**: bốn nhánh
@@ -122,6 +150,10 @@ export async function ensureReadingLoaded(): Promise<void> {
 
   // Một lượt TRƯỢT không được khoá vĩnh viễn đường nạp — cùng lý do `ensureSegmentsLoaded`.
   if (loaded === null) requested = false
+  else {
+    void refreshReadingMarkTotal()
+    void loadReadingChapterProgress()
+  }
 }
 
 /** Nạp lại CƯỠNG BỨC — dùng sau một lượt mở Chương khác qua mục lục. */
@@ -145,7 +177,12 @@ export function resetReading(options: { preserveAnchor?: boolean } = {}): void {
   loadError.value = null
   aimedSegmentId.value = null
   markerError.value = null
-  if (options.preserveAnchor !== true) anchorSegmentId.value = null
+  chaptersDone.value = null
+  progressSequence += 1
+  if (options.preserveAnchor !== true) {
+    anchorSegmentId.value = null
+    marksWalk.value = null
+  }
   resetReadingMarks()
 }
 
@@ -187,7 +224,12 @@ export async function markAimedReadingSegment(): Promise<void> {
   markerError.value = error
   if (mark === null) return
 
-  // `shallowRef`: thay nguyên cây để Vue nhìn thấy cờ marker vừa được Rust xác nhận.
+  setRunMarked((id) => id === segmentId, true)
+  void refreshReadingMarkTotal()
+}
+
+/** `shallowRef`: the whole tree is replaced so Vue sees the flag Rust just confirmed. */
+function setRunMarked(matches: (segmentId: number) => boolean, marked: boolean): void {
   const current = run.value
   if (current === null) return
   run.value = {
@@ -197,7 +239,7 @@ export async function markAimedReadingSegment(): Promise<void> {
       paragraphs: chapter.paragraphs.map((paragraph) => ({
         ...paragraph,
         segments: paragraph.segments.map((segment) =>
-          segment.id === segmentId ? { ...segment, is_marked: true } : segment,
+          matches(segment.id) ? { ...segment, is_marked: marked } : segment,
         ),
       })),
     })),
@@ -241,7 +283,10 @@ const marksHaveLoaded = ref(false)
 const marksBusy = ref(false)
 const marksError = shallowRef<IpcError | null>(null)
 const marksCursor = ref(0)
+const marksTotal = ref<number | null>(null)
+const marksClearPending = ref(false)
 let marksSequence = 0
+let totalSequence = 0
 
 export const readingMarksOpen: DeepReadonly<Ref<boolean>> = readonly(marksOpen)
 export const readingMarks: DeepReadonly<Ref<ReadingMark[]>> = readonly(marks)
@@ -249,12 +294,23 @@ export const readingMarksHaveLoaded: DeepReadonly<Ref<boolean>> = readonly(marks
 export const readingMarksBusy: DeepReadonly<Ref<boolean>> = readonly(marksBusy)
 export const readingMarksError: DeepReadonly<Ref<IpcError | null>> = readonly(marksError)
 export const readingMarksCursor: DeepReadonly<Ref<number>> = readonly(marksCursor)
+/** Marks of the open Work; null until the list was read, never a stand-in 0. */
+export const readingMarksTotal: DeepReadonly<Ref<number | null>> = readonly(marksTotal)
+export const readingMarksClearPending: DeepReadonly<Ref<boolean>> = readonly(marksClearPending)
+
+export async function refreshReadingMarkTotal(): Promise<void> {
+  const mine = ++totalSequence
+  const { marks: loaded } = await listReadingMarks()
+  if (mine !== totalSequence) return
+  marksTotal.value = loaded === null ? null : loaded.length
+}
 
 export async function openReadingMarks(): Promise<void> {
   // Hai overlay đều `aria-modal`; cho chúng cùng tồn tại khiến Tab lọt qua hai lớp và lượt
   // đóng lớp trên trả focus về trang dù lớp dưới vẫn mở. Một cửa vào phải đóng cửa kia.
   tocOpen.value = false
   marksOpen.value = true
+  marksClearPending.value = false
   const mine = ++marksSequence
   marksBusy.value = true
   const { marks: loaded, error } = await listReadingMarks()
@@ -264,10 +320,117 @@ export async function openReadingMarks(): Promise<void> {
   marksError.value = error
   marksHaveLoaded.value = true
   marksCursor.value = 0
+  if (loaded !== null) marksTotal.value = loaded.length
 }
 
 export function closeReadingMarks(): void {
   marksOpen.value = false
+  marksClearPending.value = false
+}
+
+export function setReadingMarksCursor(index: number): void {
+  if (index >= 0 && index < marks.value.length) marksCursor.value = index
+  marksClearPending.value = false
+}
+
+export async function unmarkCurrentReadingMark(): Promise<void> {
+  const mark = marks.value.at(marksCursor.value)
+  if (mark === undefined || marksBusy.value) return
+  const mine = marksSequence
+  marksClearPending.value = false
+  marksBusy.value = true
+  const { removed, error } = await unmarkReadingSegment(mark.segment_id)
+  if (mine !== marksSequence) return
+  marksBusy.value = false
+  marksError.value = error
+  if (removed === null) return
+  const rest = marks.value.filter((row) => row.segment_id !== mark.segment_id)
+  marks.value = rest
+  marksTotal.value = rest.length
+  marksCursor.value = Math.min(marksCursor.value, Math.max(rest.length - 1, 0))
+  setRunMarked((id) => id === mark.segment_id, false)
+}
+
+/** First call arms, second call clears every mark of the Work; `cancelReadingMarksClear` disarms without a call. */
+export async function clearAllReadingMarks(): Promise<void> {
+  if (marks.value.length === 0 || marksBusy.value) return
+  if (!marksClearPending.value) {
+    marksClearPending.value = true
+    return
+  }
+  const mine = marksSequence
+  marksClearPending.value = false
+  marksBusy.value = true
+  const { cleared, error } = await clearReadingMarks()
+  if (mine !== marksSequence) return
+  marksBusy.value = false
+  marksError.value = error
+  if (cleared === null) return
+  marks.value = []
+  marksTotal.value = 0
+  marksCursor.value = 0
+  setRunMarked(() => true, false)
+}
+
+export function cancelReadingMarksClear(): void {
+  marksClearPending.value = false
+}
+
+const marksWalk = shallowRef<{ marks: ReadingMark[]; index: number } | null>(null)
+
+/** Position of the mark last opened by the walk and the total; null when no walk is running or nothing is left to step to. */
+export const readingMarksWalkProgress: ComputedRef<{ next: number; total: number } | null> = computed(() => {
+  const walk = marksWalk.value
+  if (walk === null || walk.index + 1 >= walk.marks.length) return null
+  return { next: walk.index + 1, total: walk.marks.length }
+})
+
+async function openWalkMark(mark: ReadingMark): Promise<boolean> {
+  const moved = await openChapterById(mark.chapter_id, mark.navigation_segment_id)
+  if (!moved) return false
+  anchorSegmentId.value = mark.navigation_segment_id
+  resetReading({ preserveAnchor: true })
+  resetReadingToc()
+  setMode('workspace')
+  await nextTick()
+  requestCurrentEditorCaretPlacement()
+  await nextTick()
+  return true
+}
+
+/** "Sửa lần lượt": snapshots the list, opens its first mark in the Workspace and arms the step-through. */
+export async function walkReadingMarks(): Promise<void> {
+  const snapshot = marks.value
+  const first = snapshot.at(0)
+  if (first === undefined) return
+  marksCursor.value = 0
+  if (!(await openWalkMark(first))) return
+  marksWalk.value = { marks: snapshot, index: 0 }
+}
+
+/** Workspace "chỗ kế tiếp (n/m)": opens the next mark of the walk; a failed open keeps the position. */
+export async function walkNextReadingMark(): Promise<void> {
+  const walk = marksWalk.value
+  if (walk === null) return
+  const index = walk.index + 1
+  const mark = walk.marks.at(index)
+  if (mark === undefined) {
+    marksWalk.value = null
+    return
+  }
+  if (!(await openWalkMark(mark))) return
+  marksWalk.value = index + 1 >= walk.marks.length ? null : { marks: walk.marks, index }
+}
+
+export async function openReadingWorkStart(): Promise<void> {
+  const { chapters, error } = await listChapters()
+  markerError.value = error
+  const first = chapters?.at(0)
+  if (first === undefined) return
+  const moved = await openChapterById(first.chapter_id)
+  if (!moved) return
+  resetReading()
+  await reloadReading()
 }
 
 export function nextReadingMark(): void {
@@ -300,6 +463,9 @@ export function resetReadingMarks(): void {
   marksBusy.value = false
   marksError.value = null
   marksCursor.value = 0
+  marksTotal.value = null
+  marksClearPending.value = false
+  totalSequence += 1
 }
 
 /**
