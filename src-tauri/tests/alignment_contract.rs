@@ -1169,7 +1169,7 @@ fn give_copy(work: &Work, id: i64, text: &'static str) {
     work.open
         .store
         .write(move |tx: &Transaction<'_>| {
-            tx.execute("INSERT INTO segment_version (segment_id, target_text, created_at) VALUES (?1, ?2, 't')", (id, text))
+            tx.execute("INSERT INTO segment_version (segment_id, target_text, created_at, translation_origin) VALUES (?1, ?2, 't', 'self')", (id, text))
         })
         .expect("chen ban sao");
 }

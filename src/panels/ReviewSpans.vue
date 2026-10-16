@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ReviewDiffSpan } from '../config/alignment'
 
-defineProps<{ spans: ReviewDiffSpan[] }>()
+defineProps<{ spans: readonly ReviewDiffSpan[] }>()
 </script>
 
 <template>

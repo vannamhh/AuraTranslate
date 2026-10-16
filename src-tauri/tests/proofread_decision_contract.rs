@@ -273,7 +273,9 @@ fn a_work_from_before_step_38_has_no_decisions_even_with_remembered_findings() {
         .write(|tx: &Transaction<'_>| {
             tx.execute_batch(
                 "DROP TABLE proof_decision; \
-                 DELETE FROM schema_migration_log WHERE version = 38; \
+                 DROP TRIGGER segment_version_requires_translation_origin; \
+                 ALTER TABLE segment_version DROP COLUMN translation_origin; \
+                 DELETE FROM schema_migration_log WHERE version IN (38, 39); \
                  PRAGMA user_version = 37;",
             )
         })

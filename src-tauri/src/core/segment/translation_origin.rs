@@ -49,3 +49,28 @@ pub fn arbitrate(
         .map(Arbitrated::PairOrigin)
         .ok_or_else(|| UnknownBaselineOrigin(baseline_translation_origin.to_owned()))
 }
+
+/// One stored version, as far as [`version_matching_text`] needs it.
+#[derive(Debug, Clone, Copy)]
+pub struct VersionText<'a> {
+    pub id: i64,
+    pub target_text: &'a str,
+}
+
+/// The version that stands for `text`: the largest `id` whose `target_text` equals `text` after
+/// `trim` + NFC (the comparison `arbitrate` uses). `None` when no version matches. The "in use"
+/// label and the origin a restore hands to the next confirm both come from this one function.
+pub fn version_matching_text<'a>(
+    versions: impl IntoIterator<Item = VersionText<'a>>,
+    text: &str,
+) -> Option<i64> {
+    let wanted: String = text.trim().nfc().collect();
+    versions
+        .into_iter()
+        .filter(|version| {
+            let candidate: String = version.target_text.trim().nfc().collect();
+            candidate == wanted
+        })
+        .map(|version| version.id)
+        .max()
+}

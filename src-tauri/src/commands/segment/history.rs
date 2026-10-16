@@ -1,26 +1,26 @@
 use super::*;
+use crate::core::segment::translation_origin::{VersionText, version_matching_text};
 
-/// **Một hàng lịch sử phiên bản** — thứ đi ra qua dây cho màn hình FR101.
-///
-/// Story 2.6, AC1 · AC5.
-///
-/// 🔴 **KHÔNG** `#[serde(rename_all = "camelCase")]`, và đây là một thói quen viết Tauri phải
-/// cưỡng lại chứ không một lượt quên. Bốn tên trường dưới đây là **dây**: `src/config/segment.ts`
-/// đọc đúng bốn cái tên `snake_case` này. ⚠️ Chiều ngược lại thì khác hẳn — `invoke()` gửi
-/// **tham số** ở dạng camelCase (`segmentId`) dù hàm Rust nhận `snake_case`. Hai chiều khác
-/// nhau là chỗ dễ sai nhất trên dây, và `src/config/segment.ts` là chỗ duy nhất gõ cả hai.
-///
-/// ⚠️ Bốn trường, đúng bốn cột của bảng — [`crate::core::store::schema::SEGMENT_STATUS_AND_VERSION_DDL`].
-/// **Không** cột xuất xứ *(FR117, Story 2.7)*, **không** cột cặp TM *(FR56, Epic 7)*: cả hai
-/// được khai bằng chữ ở doc-comment của DDL là **cố ý chưa thêm**. Quyết định #5 đường (a)
-/// (Ice ký 2026-08-16) giữ nguyên lằn ranh đó — màn hình hiện **thời điểm** và không nhãn nào,
-/// vì bốn nhãn của mockup trỏ vào bốn năng lực chưa dựng.
+/// One history row as it crosses the wire. Field names are `snake_case` (no `rename_all`).
+/// `translation_origin` is for display only and `None` for a row that predates step 39;
+/// `spans` is the diff from this version to the segment's current `target_text`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct SegmentVersionRow {
     pub id: i64,
     pub segment_id: i64,
     pub target_text: String,
     pub created_at: String,
+    pub translation_origin: Option<String>,
+    pub spans: Vec<crate::core::matching::DiffSpan>,
+}
+
+/// A segment's history: `current_version_id` is the version standing for the current
+/// `target_text` (`None` for an unsigned draft), `source_text` the segment's own source.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct SegmentHistory {
+    pub current_version_id: Option<i64>,
+    pub source_text: String,
+    pub versions: Vec<SegmentVersionRow>,
 }
 
 /// **Lịch sử phiên bản của một segment**, mới nhất trước — **hàm thuần, đây là thứ test gọi**.
@@ -88,27 +88,31 @@ pub struct SegmentVersionRow {
 pub fn read_segment_history(
     open: Option<&OpenWork>,
     segment_id: i64,
-) -> Result<Vec<SegmentVersionRow>, IpcError> {
+) -> Result<SegmentHistory, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
 
     // ① Segment co ton tai khong? Mot truy van RIENG, va no la thu lam "rong" phan biet duoc
     //    voi "khong tim thay" (AC3). KHONG hoi `retired_at` -- duong DOC khong tu choi mot
     //    tombstone (AC4), nen cot do khong lien quan o day.
-    let exists: bool = open
+    let segment_row: Option<(String, String)> = open
         .store
         .read(move |conn| {
             conn.query_row(
-                "SELECT EXISTS(SELECT 1 FROM segment WHERE id = ?1)",
+                "SELECT source_text, target_text FROM segment WHERE id = ?1",
                 [segment_id],
-                |row| row.get::<_, i64>(0),
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
             )
-            .map(|n| n != 0)
+            .map(Some)
+            .or_else(|err| match err {
+                SqlError::QueryReturnedNoRows => Ok(None),
+                other => Err(other),
+            })
         })
         .map_err(IpcError::from)?;
 
-    if !exists {
+    let Some((source_text, current_text)) = segment_row else {
         return Err(segment_not_found(segment_id));
-    }
+    };
 
     // ② Lich su. Rong la mot cau tra loi HOP LE o day -- mot segment chua tung duoc ky.
     //
@@ -124,7 +128,7 @@ pub fn read_segment_history(
     //    lai trong bo nho, tren mot tap DA duoc index thu hep ve mot `segment_id`.
     let rows = open.store.read(move |conn| {
         let mut stmt = conn.prepare(
-            "SELECT id, segment_id, target_text, created_at FROM segment_version \
+            "SELECT id, segment_id, target_text, created_at, translation_origin FROM segment_version \
              WHERE segment_id = ?1 ORDER BY created_at DESC, id DESC",
         )?;
         let rows = stmt.query_map([segment_id], |row| {
@@ -133,12 +137,34 @@ pub fn read_segment_history(
                 segment_id: row.get(1)?,
                 target_text: row.get(2)?,
                 created_at: row.get(3)?,
+                translation_origin: row.get(4)?,
+                spans: Vec::new(),
             })
         })?;
         rows.collect::<SqlResult<Vec<SegmentVersionRow>>>()
     })?;
 
-    Ok(rows)
+    let mut rows = rows;
+    let current_version_id = version_matching_text(
+        rows.iter().map(|row| VersionText {
+            id: row.id,
+            target_text: &row.target_text,
+        }),
+        &current_text,
+    );
+    for row in &mut rows {
+        row.spans = crate::core::matching::diff_spans(
+            &row.target_text,
+            &current_text,
+            crate::core::matching::MatchLang::En,
+        );
+    }
+
+    Ok(SegmentHistory {
+        current_version_id,
+        source_text,
+        versions: rows,
+    })
 }
 
 /// Lý do một lượt **khôi phục** bị từ chối, mang ra khỏi closure ghi.
@@ -373,13 +399,32 @@ pub fn restore_segment_version(
         // ⑥ Ghi. HAI cot, MOT giao dich: van ban va trang thai (AC2).
         //    ⚠️ `updated_at` CO doi o day, khac `confirm_segment`: mot luot khoi phuc SUA van
         //    ban that su, nen no dung nghia "moc sua van ban" ma `SEGMENT_DDL` khai cho cot do.
-        write_non_user_target(
-            tx,
-            segment_id,
+        let versions: Vec<(i64, String, Option<String>)> = {
+            let mut stmt = tx.prepare(
+                "SELECT id, target_text, translation_origin FROM segment_version \
+                 WHERE segment_id = ?1",
+            )?;
+            let rows = stmt.query_map([segment_id], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })?;
+            rows.collect::<SqlResult<_>>()?
+        };
+        let chosen = version_matching_text(
+            versions.iter().map(|(id, text, _)| VersionText {
+                id: *id,
+                target_text: text,
+            }),
             &version_text,
-            TRANSLATION_ORIGIN_OTHER,
-            None,
-        )?;
+        );
+        let baseline_origin = chosen
+            .and_then(|id| versions.iter().find(|(v, _, _)| *v == id))
+            .and_then(|(_, _, stored)| stored.as_deref())
+            .and_then(crate::core::tm::PairOrigin::from_stored)
+            .map_or(
+                TRANSLATION_ORIGIN_OTHER,
+                crate::core::tm::PairOrigin::as_str,
+            );
+        write_non_user_target(tx, segment_id, &version_text, baseline_origin, None)?;
 
         Ok((true, false, SEGMENT_STATUS_DRAFT.to_owned()))
     });

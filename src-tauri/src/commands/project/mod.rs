@@ -3148,6 +3148,24 @@ fn reject_unknown_translation_origin(store: &Store) -> Result<(), crate::core::s
         }
     })?;
 
+    let found = match found {
+        Some(value) => Some(value),
+        None => store.read(|conn| {
+            conn.query_row(
+                "SELECT translation_origin FROM segment_version \
+                 WHERE translation_origin IS NOT NULL \
+                   AND translation_origin NOT IN ('self', 'other', 'bilingual_import') LIMIT 1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .map(Some)
+            .or_else(|err| match err {
+                crate::core::store::SqlError::QueryReturnedNoRows => Ok(None),
+                other => Err(other),
+            })
+        })?,
+    };
+
     match found {
         Some(value) => Err(StoreError::UnknownTranslationOrigin {
             store: StoreKind::Project,

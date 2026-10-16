@@ -21,15 +21,19 @@
 // (`commands/index.ts`), và đây là tiền lệ đã đo, không một lượt quên.
 import { computed, nextTick, useTemplateRef, watch } from 'vue'
 
+import type { VersionTranslationOrigin } from './config/segment'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { t } from './i18n'
+import ReviewSpans from './panels/ReviewSpans.vue'
 import { historyTimeLabel } from './panels/segmentHistoryTime'
 import { useSelectionSurface } from './panels/selectionContract'
 import {
   aimHistoryVersion,
   closeSegmentHistory,
   historyAimedVersionId,
+  historyCompareOn,
+  historyCurrentVersionId,
   historyIsOpen,
   historyLoadError,
   historyPending,
@@ -37,7 +41,9 @@ import {
   historyRestoreError,
   historyRestoreNotice,
   historySegmentId,
+  historySourceText,
   historyVersions,
+  moveHistoryAim,
 } from './panels/segmentHistoryState'
 
 const panel = useTemplateRef<HTMLElement>('panel')
@@ -141,6 +147,14 @@ const nowMs = computed(() => {
 // đọc là đúng thứ lượt tự rà Ⓠ của story này vừa gỡ ở `reloadHistory()` — mã không ai dùng, và
 // `check:lint` KHÔNG bắt được nó. Vế "hàng nào đang dùng" ghi nợ, chủ Story 2.7.
 
+const aimedVersion = computed(
+  () => historyVersions.value.find((v) => v.id === historyAimedVersionId.value) ?? null,
+)
+
+function originKey(stored: VersionTranslationOrigin | null): string {
+  return `history.origin_${stored ?? 'unknown'}`
+}
+
 function labelFor(createdAt: string): string {
   const { key, params } = historyTimeLabel(createdAt, nowMs.value)
   return t(key, params)
@@ -175,6 +189,8 @@ function aimRow(id: number): void {
     v-if="historyIsOpen"
     class="hist-scrim"
     @keydown.esc="closeSegmentHistory()"
+    @keydown.up.prevent="moveHistoryAim(-1)"
+    @keydown.down.prevent="moveHistoryAim(1)"
     @keydown.tab="trapTab($event)"
   >
     <section ref="panel" class="hist-panel" tabindex="-1" role="dialog" aria-modal="true">
@@ -254,62 +270,86 @@ function aimRow(id: number): void {
         {{ t('history.still_dirty') }}
       </p>
 
-      <!--
-        🔴 MỖI PHIÊN BẢN HIỆN **TOÀN VĂN**, KHÔNG DIFF — Quyết định #4 đường (a).
+      <p
+        v-if="historyLoadError === null && historyVersions.length > 0 && historyCurrentVersionId === null"
+        class="hist-notice"
+        data-history-unsigned
+      >
+        {{ t('history.unsigned_current') }}
+      </p>
 
-        `Cargo.toml` ghi sẵn cả `similar` 3.1.1 lẫn `dissimilar` 1.0.11 và **cố ý không cài
-        cái nào**; chốt ở **Story 8.1** sau khi thử cả hai trên bản review thật. Và **không AC
-        nào của story này đòi diff**. Vế so sánh ghi nợ có chủ.
-
-        🔴 VÀ KHÔNG NHÃN NÀO — Quyết định #5 đường (a). Bốn nhãn của mockup (`đang dùng` ·
-        `từ bản review` · `từ AI` · `từ TM`) trỏ vào bốn năng lực chưa dựng; bảng
-        `segment_version` có đúng bốn cột và `schema.rs` khai bằng chữ rằng cột xuất xứ thuộc
-        Story 2.7, cột cặp TM thuộc Epic 7.
-
-        🔵 **2026-08-16 (code review) — `hist-current` ĐÃ GỠ, Ice chốt.** Bản trước gắn một
-        viền trái `--color-primary` cho hàng có `target_text === currentText` và tự biện minh
-        rằng *"nó cố ý không mang chữ"*. Nhưng đó **chính là** phép so mà bảng của Quyết định
-        #5 gọi tên là *"suy được, nhưng KHÔNG AN TOÀN — hai phiên bản trùng văn bản thì nhãn
-        khớp NHIỀU hàng"*, và chữ ký (a) là *"không nhãn nào"*. Lập luận *chữ thì cấm, màu thì
-        không* không đứng được: chuỗi **ký → sửa → hoàn tác về bản cũ** sinh hai hàng trùng văn
-        bản, và cả hai cùng sáng viền ⇒ chỉ dấu **nói dối** ở đúng ca nó được dựng để phục vụ.
-        ⇒ Vế *"hàng nào đang dùng"* ghi nợ cùng bốn nhãn kia, **chủ Story 2.7** — ở đó cột xuất
-        xứ (FR117) làm nó trả lời được theo `id` chứ không theo nội dung, tức đường (b).
-      -->
-      <ol v-if="historyVersions.length > 0" class="hist-list">
-        <li
-          v-for="version in historyVersions"
-          :key="version.id"
-          class="hist-item"
-          :class="{ 'hist-aimed': historyAimedVersionId === version.id }"
-          @mousedown="aimRow(version.id)"
-          @focusin="aimRow(version.id)"
-        >
-          <div class="hist-row">
-            <!-- aura-allow-text: KẾT QUẢ của `t()` — `labelFor` chỉ chọn nhánh rồi gọi `t(key, params)`. Bốn khoá `history.time_*` nằm trong `vi.json` và Kiểm E chạy trên chúng. -->
-            <span class="hist-when">{{ labelFor(version.created_at) }}</span>
-            <!--
-              🔵 2026-08-16 (code review) — KHOÁ CẢ KHI ĐANG CÓ MỘT CÂU HỎI CHỜ TRẢ LỜI.
-
-              `historyPending` một mình **không đủ**: cờ đó về `false` trong khối `finally`
-              **trước** khi câu hỏi hiện ra. ⇒ Người dùng bấm sang hàng khác trong lúc hộp thoại
-              đang mở, một lượt mới ghi đè `pendingRestore`, và câu hỏi cũ **biến mất không dấu
-              vết** — không ai từng trả lời nó. Một chốt an toàn đi vòng qua được bằng đúng thao
-              tác mà bề mặt vẫn mời làm.
-            -->
-            <button
-              type="button"
-              class="hist-act"
-              :disabled="historyPending || historyPendingRestore !== null"
-              @click="dispatch('history.restore')"
+      <div v-if="historyVersions.length > 0" class="hist-two">
+        <div class="hist-vlist">
+          <p class="hist-vh">{{ t('history.versions_count', { count: String(historyVersions.length) }) }}</p>
+          <ol class="hist-list">
+            <li
+              v-for="version in historyVersions"
+              :key="version.id"
+              class="hist-item"
+              :class="{ 'hist-aimed': historyAimedVersionId === version.id }"
+              data-history-row
+              :data-history-current="historyCurrentVersionId === version.id ? 'true' : 'false'"
+              :data-history-origin="version.translation_origin ?? 'unknown'"
+              @mousedown="aimRow(version.id)"
+              @focusin="aimRow(version.id)"
             >
-              {{ t('history.act_restore') }}
-            </button>
-          </div>
-          <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — một bản dịch cũ, hiện nguyên văn. Cùng lý do với `hist-draft` ở trên. -->
-          <p class="hist-text">{{ version.target_text }}</p>
-        </li>
-      </ol>
+              <div class="hist-row">
+                <!-- aura-allow-text: KẾT QUẢ của `t()` — `labelFor` chỉ chọn nhánh rồi gọi `t(key, params)`. -->
+                <span class="hist-when">{{ labelFor(version.created_at) }}</span>
+                <span v-if="historyCurrentVersionId === version.id" class="hist-badge">{{
+                  t('history.badge_current')
+                }}</span>
+              </div>
+              <p class="hist-origin">{{ t(originKey(version.translation_origin)) }}</p>
+            </li>
+          </ol>
+        </div>
+
+        <div class="hist-detail" data-history-detail>
+          <template v-if="aimedVersion !== null">
+            <p class="hist-label">{{ t('history.source_label') }}</p>
+            <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — nguyên văn của segment, hiện nguyên văn. -->
+            <p class="hist-text" data-history-source>{{ historySourceText }}</p>
+
+            <p v-if="historyCompareOn" class="hist-label">{{ t('history.detail_diff') }}</p>
+            <p v-else class="hist-label">{{ t('history.detail_full') }}</p>
+            <p v-if="historyCompareOn && historyCurrentVersionId === null" class="hist-notice">
+              {{ t('history.unsigned_current') }}
+            </p>
+            <p v-else-if="historyCompareOn" class="hist-text" data-history-diff>
+              <ReviewSpans :spans="aimedVersion.spans" />
+            </p>
+            <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — một bản dịch cũ, hiện nguyên văn. -->
+            <p v-else class="hist-text" data-history-full>{{ aimedVersion.target_text }}</p>
+            <p
+              v-if="historyCompareOn && historyCurrentVersionId === aimedVersion.id"
+              class="hist-notice"
+            >
+              {{ t('history.detail_current') }}
+            </p>
+
+            <p class="hist-origin">
+              {{ t('history.origin_line', { label: t(originKey(aimedVersion.translation_origin)) }) }}
+            </p>
+
+            <div class="hist-confirm-acts">
+              <button
+                type="button"
+                class="hist-act"
+                :disabled="historyPending || historyPendingRestore !== null"
+                @click="dispatch('history.restore')"
+              >
+                {{ t('history.act_restore_version') }}
+              </button>
+              <button type="button" class="hist-act" @click="dispatch('history.toggle_compare')">
+                {{ t('history.act_compare') }}
+              </button>
+            </div>
+            <p class="hist-origin">{{ t('history.keys_hint') }}</p>
+          </template>
+          <p v-else class="hist-empty">{{ t('history.pick_version') }}</p>
+        </div>
+      </div>
     </section>
   </div>
 </template>
@@ -415,6 +455,41 @@ function aimRow(id: number): void {
 .hist-confirm-acts {
   display: flex;
   gap: var(--space-panel-inline);
+}
+
+.hist-two {
+  display: grid;
+  grid-template-columns: 270px 1fr;
+  gap: var(--space-panel-inline);
+}
+
+.hist-vlist {
+  border-right: 1px solid var(--color-outline);
+  padding-right: var(--space-panel-inline);
+}
+
+.hist-vh,
+.hist-label,
+.hist-origin,
+.hist-badge {
+  margin: 0;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.hist-label {
+  margin-top: var(--space-panel-block);
+}
+
+.hist-badge {
+  border-bottom: 1px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.hist-detail {
+  min-width: 0;
 }
 
 .hist-list {

@@ -934,11 +934,11 @@ fn the_project_migration_set_matches_the_declared_ladder_step_for_step() {
         versions,
         vec![
             1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-            26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38
+            26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39
         ],
         "bo di tru cua `project.db` phai la 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 \
          -> 12 -> 13 -> 14 -> 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 -> 25 \
-         -> 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37 -> 38 (4 la so da chay)"
+         -> 26 -> 27 -> 28 -> 29 -> 30 -> 31 -> 32 -> 33 -> 34 -> 35 -> 36 -> 37 -> 38 -> 39 (4 la so da chay)"
     );
 }
 
@@ -1014,7 +1014,7 @@ fn a_project_database_stranded_at_the_burned_version_four_opens_and_migrates_pas
     // Target moved 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        38,
+        39,
         "buoc 5..25 phai da chay tren mot tep dung o phien ban 4"
     );
 
@@ -1183,7 +1183,7 @@ fn a_project_database_at_version_five_migrates_up_and_keeps_every_segment_row() 
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        38,
+        39,
         "buoc 6..25 phai chay tren mot tep dung o phien ban 5"
     );
 
@@ -1264,8 +1264,8 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers step), then 25 -> 26 (work.last_chapter_id). Assertion unchanged.
     assert_eq!(
         opened.store.schema_version(),
-        38,
-        "mot `project.db` moi phai dung o phien ban 38"
+        39,
+        "mot `project.db` moi phai dung o phien ban 39"
     );
 
     let (notnull, default_value): (i64, String) = opened
@@ -1304,8 +1304,14 @@ fn a_fresh_project_database_lands_at_the_target_with_a_status_column_and_a_versi
 
     assert_eq!(
         cols,
-        vec!["id", "segment_id", "target_text", "created_at"],
-        "`segment_version` phai TOI GIAN dung bon cot -- Story 2.6 doc chung, khong them cot moi"
+        vec![
+            "id",
+            "segment_id",
+            "target_text",
+            "created_at",
+            "translation_origin"
+        ],
+        "`segment_version` co dung nam cot: bon cot cua Story 2.6 va `translation_origin` (buoc 39)"
     );
 
     // Moi segment vua nhap phai o `'draft'` -- khong mot gia tri moi nao.
@@ -1393,7 +1399,7 @@ fn a_project_database_at_version_six_migrates_up_and_every_old_row_becomes_draft
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        38,
+        39,
         "buoc 7..25 phai chay tren mot tep dung o phien ban 6"
     );
 
@@ -1594,7 +1600,7 @@ fn the_segment_version_index_has_the_shape_ice_signed_and_the_table_grew_no_new_
         "cot `created_at` phai giam dan (`DESC`) -- AC1 doi \"moi nhat truoc\". DDL: {index_sql}"
     );
 
-    // ② Bang KHONG mang `CHECK`, KHONG mang khoa ngoai.
+    // ② Bang chi mang `CHECK` cua `translation_origin` (buoc 39), KHONG mang khoa ngoai.
     let table_ddl: String = opened
         .store
         .read(|conn| {
@@ -1606,10 +1612,14 @@ fn the_segment_version_index_has_the_shape_ice_signed_and_the_table_grew_no_new_
         })
         .expect("doc DDL cua bang `segment_version`");
     let table_up = table_ddl.to_uppercase();
+    assert_eq!(
+        table_up.matches("CHECK").count(),
+        1,
+        "bang `segment_version` chi duoc mang MOT `CHECK`, tren `translation_origin`. DDL: {table_ddl}"
+    );
     assert!(
-        !table_up.contains("CHECK"),
-        "bang `segment_version` mang mot rang buoc `CHECK` -- gia tri hop le cuong che o \
-         tang Rust, dung khuon `status`, `is_omitted` va `chapter.status`. DDL: {table_ddl}"
+        table_up.contains("TRANSLATION_ORIGIN TEXT CHECK"),
+        "`CHECK` phai gan voi cot `translation_origin`. DDL: {table_ddl}"
     );
     assert!(
         !table_up.contains("FOREIGN KEY") && !table_up.contains("REFERENCES"),
@@ -1714,7 +1724,7 @@ fn a_project_database_at_version_nine_gains_the_index_and_no_version_row_is_touc
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        38,
+        39,
         "buoc 10..25 phai chay tren mot tep dung o phien ban 9"
     );
 
@@ -1826,7 +1836,7 @@ fn a_project_database_at_version_seven_migrates_up_and_no_old_row_is_omitted() {
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        38,
+        39,
         "buoc 8..25 phai chay tren mot tep dung o phien ban 7"
     );
 
@@ -2040,7 +2050,7 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        38,
+        39,
         "buoc 9..25 phai chay tren mot tep dung o phien ban 8"
     );
 
@@ -2187,7 +2197,7 @@ fn a_project_database_at_version_eight_backfills_the_target_flag_from_the_source
 /// `[Migration; 29]`, fake step `to_version: 30`.
 #[test]
 fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
-    static STEP_THIRTYFOUR: [Migration; 38] = [
+    static STEP_THIRTYFOUR: [Migration; 39] = [
         PROJECT_MIGRATIONS[0],
         PROJECT_MIGRATIONS[1],
         PROJECT_MIGRATIONS[2],
@@ -2225,8 +2235,9 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         PROJECT_MIGRATIONS[34],
         PROJECT_MIGRATIONS[35],
         PROJECT_MIGRATIONS[36],
+        PROJECT_MIGRATIONS[37],
         Migration {
-            to_version: 39,
+            to_version: 40,
             sql: "CREATE TABLE tu_tuong_lai (id INTEGER PRIMARY KEY);",
         },
     ];
@@ -2238,15 +2249,15 @@ fn a_project_database_newer_than_the_app_is_refused_and_never_written_to() {
         migrations: &STEP_THIRTYFOUR,
         ..StoreSpec::project(db.clone())
     })
-    .expect("dung fixture o phien ban 39");
-    assert_eq!(future.schema_version(), 39);
+    .expect("dung fixture o phien ban 40");
+    assert_eq!(future.schema_version(), 40);
     drop(future);
 
     let before = fs::metadata(&db).expect("doc metadata truoc").len();
 
     let refused = Store::open(StoreSpec::project(db.clone()));
     let err = refused.expect_err(
-        "mot `project.db` o phien ban 39 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
+        "mot `project.db` o phien ban 40 PHAI bi tu choi mo -- AD-30 noi \"khong bao gio ghi vao\"",
     );
     let ipc: auratranslate_lib::core::i18n::IpcError = err.into();
     assert_eq!(
@@ -4932,7 +4943,9 @@ fn the_history_command_returns_every_version_newest_first_with_the_real_text() {
         confirm_segment(Some(&opened), first).expect("xac nhan that bai");
     }
 
-    let history = read_segment_history(Some(&opened), first).expect("doc lich su that bai");
+    let history = read_segment_history(Some(&opened), first)
+        .expect("doc lich su that bai")
+        .versions;
 
     assert_eq!(
         history.len(),
@@ -4992,7 +5005,8 @@ fn a_segment_never_confirmed_returns_an_empty_history_not_an_error_and_not_a_mis
 
     // ① Segment CO THAT, chua tung ky ⇒ RONG, khong loi.
     let empty = read_segment_history(Some(&opened), first)
-        .expect("mot segment chua tung ky KHONG duoc la mot loi -- day la rong CO LY DO");
+        .expect("mot segment chua tung ky KHONG duoc la mot loi -- day la rong CO LY DO")
+        .versions;
     assert!(
         empty.is_empty(),
         "mot segment chua tung duoc xac nhan phai cho lich su RONG"
@@ -5001,7 +5015,9 @@ fn a_segment_never_confirmed_returns_an_empty_history_not_an_error_and_not_a_mis
     // ② Van con rong sau khi CHI GO ma khong ky -- AD-31 hang 1: auto-save KHONG tao phien ban.
     save_segment_targets(Some(&opened), chapter_id, &[edit(first, "Go ma chua ky.")])
         .expect("lo ghi that bai");
-    let still_empty = read_segment_history(Some(&opened), first).expect("doc lich su that bai");
+    let still_empty = read_segment_history(Some(&opened), first)
+        .expect("doc lich su that bai")
+        .versions;
     assert!(
         still_empty.is_empty(),
         "AD-31 hang 1: auto-save KHONG tao mot `SegmentVersion` nao. Neu ca nay do, mot luot \
@@ -5080,10 +5096,12 @@ fn a_retired_segment_still_hands_back_its_full_history_because_reading_is_not_wr
     );
 
     // Va duong DOC thi KHONG.
-    let history = read_segment_history(Some(&opened), first).expect(
-        "AC4: lich su cua mot segment DA VE HUU phai tra lai duoc. Mot phep tu choi o day la \
+    let history = read_segment_history(Some(&opened), first)
+        .expect(
+            "AC4: lich su cua mot segment DA VE HUU phai tra lai duoc. Mot phep tu choi o day la \
          mot luot chep hang rao cua ba lenh GHI sang mot duong DOC",
-    );
+        )
+        .versions;
     assert_eq!(
         history.len(),
         2,
@@ -5129,8 +5147,12 @@ fn the_history_of_one_segment_never_carries_a_row_belonging_to_another() {
         .expect("lo ghi that bai");
     confirm_segment(Some(&opened), second).expect("xac nhan that bai");
 
-    let a = read_segment_history(Some(&opened), first).expect("doc lich su cau mot that bai");
-    let b = read_segment_history(Some(&opened), second).expect("doc lich su cau hai that bai");
+    let a = read_segment_history(Some(&opened), first)
+        .expect("doc lich su cau mot that bai")
+        .versions;
+    let b = read_segment_history(Some(&opened), second)
+        .expect("doc lich su cau hai that bai")
+        .versions;
 
     assert_eq!(a.len(), 2, "cau mot phai co dung hai phien ban");
     assert_eq!(b.len(), 1, "cau hai phai co dung mot phien ban");
@@ -5182,8 +5204,8 @@ fn two_versions_sharing_a_millisecond_still_come_back_in_a_deterministic_order()
         .write(move |tx: &Transaction<'_>| {
             for (n, text) in ["som nhat", "giua", "muon nhat"].iter().enumerate() {
                 tx.execute(
-                    "INSERT INTO segment_version (segment_id, target_text, created_at) \
-                     VALUES (?1, ?2, '2026-08-16T02:10:55.856Z')",
+                    "INSERT INTO segment_version (segment_id, target_text, created_at, translation_origin) \
+                     VALUES (?1, ?2, '2026-08-16T02:10:55.856Z', 'self')",
                     (first, format!("{text} ({n})")),
                 )?;
             }
@@ -5191,7 +5213,9 @@ fn two_versions_sharing_a_millisecond_still_come_back_in_a_deterministic_order()
         })
         .expect("bom ba hang trung moc that bai");
 
-    let history = read_segment_history(Some(&opened), first).expect("doc lich su that bai");
+    let history = read_segment_history(Some(&opened), first)
+        .expect("doc lich su that bai")
+        .versions;
 
     let texts: Vec<&str> = history.iter().map(|v| v.target_text.as_str()).collect();
     assert_eq!(
@@ -5251,7 +5275,9 @@ fn restoring_rewrites_the_target_and_drops_the_status_without_growing_the_histor
 
     let (id, chapter_id) = sign_repeatedly(&opened, &["Ban mot.", "Ban hai.", "Ban ba."]);
 
-    let before = read_segment_history(Some(&opened), id).expect("doc lich su that bai");
+    let before = read_segment_history(Some(&opened), id)
+        .expect("doc lich su that bai")
+        .versions;
     assert_eq!(before.len(), 3, "ba luot ky phai cho ba phien ban");
 
     // Phien ban CU NHAT (`Ban mot.`) la hang cuoi cua danh sach moi-nhat-truoc.
@@ -5290,7 +5316,9 @@ fn restoring_rewrites_the_target_and_drops_the_status_without_growing_the_histor
     );
 
     // 🔴 Lich su KHONG dai them -- chu ky #1(a).
-    let after = read_segment_history(Some(&opened), id).expect("doc lai lich su that bai");
+    let after = read_segment_history(Some(&opened), id)
+        .expect("doc lai lich su that bai")
+        .versions;
     assert_eq!(
         after.len(),
         3,
@@ -5298,14 +5326,29 @@ fn restoring_rewrites_the_target_and_drops_the_status_without_growing_the_histor
          (a), Ice ky 2026-08-16). Bang Rule cua AD-31 co dung SAU hang va khong hang nao la \
          \"khoi phuc\"; mot hang thu bay phai di qua thu tuc viet mot `AD` moi"
     );
+    let stored = |rows: &[auratranslate_lib::commands::segment::SegmentVersionRow]| {
+        rows.iter()
+            .map(|v| {
+                (
+                    v.id,
+                    v.target_text.clone(),
+                    v.created_at.clone(),
+                    v.translation_origin.clone(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
     assert_eq!(
-        after, before,
+        stored(&after),
+        stored(&before),
         "va khong hang cu nao bi dung toi -- \"lich su chi dai them, khong bao gio ngan di\""
     );
 
     // Va no dai them o LUOT XAC NHAN KE TIEP, dung nhu loi hua cua mockup -- chi muon mot nhip.
     confirm_segment(Some(&opened), id).expect("xac nhan lai that bai");
-    let grown = read_segment_history(Some(&opened), id).expect("doc lai lich su that bai");
+    let grown = read_segment_history(Some(&opened), id)
+        .expect("doc lai lich su that bai")
+        .versions;
     assert_eq!(
         grown.len(),
         4,
@@ -5353,7 +5396,9 @@ fn restoring_over_an_unsigned_draft_holds_the_write_until_the_caller_confirms() 
     )
     .expect("lo ghi that bai");
 
-    let history = read_segment_history(Some(&opened), id).expect("doc lich su that bai");
+    let history = read_segment_history(Some(&opened), id)
+        .expect("doc lich su that bai")
+        .versions;
     assert_eq!(history.len(), 1, "chi mot luot ky ⇒ mot phien ban");
     let target = &history[0];
 
@@ -5429,7 +5474,9 @@ fn text_that_still_has_a_copy_in_the_history_does_not_trigger_the_confirmation_h
     save_segment_targets(Some(&opened), chapter_id, &[edit(id, "Ban mot.")])
         .expect("lo ghi that bai");
 
-    let history = read_segment_history(Some(&opened), id).expect("doc lich su that bai");
+    let history = read_segment_history(Some(&opened), id)
+        .expect("doc lich su that bai")
+        .versions;
     let newest = &history[0];
     assert_eq!(newest.target_text, "Ban hai.");
 
@@ -5466,7 +5513,9 @@ fn restoring_to_the_text_already_in_place_writes_nothing_and_keeps_the_signature
     let (id, _) = sign_repeatedly(&opened, &["Ban mot.", "Ban hai."]);
 
     // Segment dang o `confirmed` voi `Ban hai.`; phien ban moi nhat cung la `Ban hai.`
-    let history = read_segment_history(Some(&opened), id).expect("doc lich su that bai");
+    let history = read_segment_history(Some(&opened), id)
+        .expect("doc lich su that bai")
+        .versions;
     let newest = &history[0];
     assert_eq!(newest.target_text, "Ban hai.");
 
@@ -5530,7 +5579,9 @@ fn a_version_belonging_to_another_segment_is_refused_and_never_crosses_over() {
     }
 
     // Phien ban cua cau HAI, dem ap len cau MOT.
-    let b_history = read_segment_history(Some(&opened), second).expect("doc lich su that bai");
+    let b_history = read_segment_history(Some(&opened), second)
+        .expect("doc lich su that bai")
+        .versions;
     let b_version = b_history[0].id;
 
     let refused = restore_segment_version(Some(&opened), first, b_version, false);
@@ -5585,7 +5636,9 @@ fn restoring_onto_a_retired_segment_is_refused_because_writing_is_not_reading() 
         .expect("tao tac pham that bai");
 
     let (id, _) = sign_repeatedly(&opened, &["Ban mot.", "Ban hai."]);
-    let history = read_segment_history(Some(&opened), id).expect("doc lich su that bai");
+    let history = read_segment_history(Some(&opened), id)
+        .expect("doc lich su that bai")
+        .versions;
     let oldest = history.last().expect("phai co phien ban cu nhat").id;
 
     opened
@@ -5610,7 +5663,9 @@ fn restoring_onto_a_retired_segment_is_refused_because_writing_is_not_reading() 
     );
 
     // Va lich su van doc duoc -- hai nua cua cung mot menh de, khang dinh canh nhau.
-    let still = read_segment_history(Some(&opened), id).expect("AC4: doc van phai duoc");
+    let still = read_segment_history(Some(&opened), id)
+        .expect("AC4: doc van phai duoc")
+        .versions;
     assert_eq!(still.len(), 2);
 
     let dir = opened.dir.clone();
@@ -6365,7 +6420,7 @@ fn a_project_database_at_version_ten_backfills_the_origin_only_for_signed_rows()
     // Target moved 24 -> 25 (occurrence_count + zero-width triggers, extra step), then 25 -> 26 (work.last_chapter_id). Assertion unaffected.
     assert_eq!(
         migrated.schema_version(),
-        38,
+        39,
         "buoc 11..25 phai chay tren mot tep dung o phien ban 10"
     );
 
@@ -6976,7 +7031,9 @@ fn merging_retires_both_rows_and_creates_one_unconfirmed_row_with_an_empty_histo
     assert_eq!(moi.retired_at, None, "hang moi con song");
 
     // AC3, ve LICH SU RONG -- va no phai dung DU hai cau cu deu co `segment_version` that.
-    let history = read_segment_history(Some(&opened), moi.id).expect("doc lich su hang moi");
+    let history = read_segment_history(Some(&opened), moi.id)
+        .expect("doc lich su hang moi")
+        .versions;
     assert!(
         history.is_empty(),
         "AC3 -- lich su cua segment moi phai RONG. Mot luot chup `segment_version` truoc khi \
@@ -7021,7 +7078,9 @@ fn the_history_of_a_genuinely_retired_segment_still_reads_back_after_a_real_merg
     .expect("ghi ban dich");
     confirm_segment(Some(&opened), 1).expect("xac nhan -- day la luot sinh ra hang lich su");
 
-    let truoc = read_segment_history(Some(&opened), 1).expect("doc lich su truoc khi gop");
+    let truoc = read_segment_history(Some(&opened), 1)
+        .expect("doc lich su truoc khi gop")
+        .versions;
     assert_eq!(
         truoc.len(),
         1,
@@ -7030,7 +7089,9 @@ fn the_history_of_a_genuinely_retired_segment_still_reads_back_after_a_real_merg
 
     merge_segments(Some(&opened), 2).expect("gop -- cau 1 ve huu THAT sau lenh nay");
 
-    let sau = read_segment_history(Some(&opened), 1).expect("doc lich su SAU khi cau 1 ve huu");
+    let sau = read_segment_history(Some(&opened), 1)
+        .expect("doc lich su SAU khi cau 1 ve huu")
+        .versions;
     assert_eq!(
         sau, truoc,
         "AC4 -- lich su phien ban cua mot segment DA VE HUU van tra lai duoc, nguyen ven. \

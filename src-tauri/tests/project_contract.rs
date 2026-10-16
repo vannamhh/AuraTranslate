@@ -3415,8 +3415,8 @@ fn insert_segment_version_directly(opened: &OpenWork, segment_id: i64, target_te
         .store
         .write(move |tx: &Transaction<'_>| {
             tx.execute(
-                "INSERT INTO segment_version (segment_id, target_text, created_at) \
-                 VALUES (?1, ?2, '2026-08-29T00:00:00.000Z')",
+                "INSERT INTO segment_version (segment_id, target_text, created_at, translation_origin) \
+                 VALUES (?1, ?2, '2026-08-29T00:00:00.000Z', 'self')",
                 (segment_id, &target_text),
             )?;
             Ok(tx.last_insert_rowid())
@@ -7241,8 +7241,8 @@ fn chapter_row_updated_at_moves_with_the_last_sentence_confirmation_not_with_dra
         .store
         .write(move |tx: &Transaction<'_>| {
             tx.execute(
-                "INSERT INTO segment_version (segment_id, target_text, created_at) \
-                 VALUES (?1, 'x', '2026-01-01T00:00:00.000Z')",
+                "INSERT INTO segment_version (segment_id, target_text, created_at, translation_origin) \
+                 VALUES (?1, 'x', '2026-01-01T00:00:00.000Z', 'self')",
                 [s1],
             )?;
             Ok(())

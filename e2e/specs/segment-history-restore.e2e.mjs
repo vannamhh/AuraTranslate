@@ -68,7 +68,8 @@ async function signWith(chapterId, id, text) {
 async function readHistory(id) {
   return browser.execute(async (i) => {
     const internals = window.__TAURI_INTERNALS__
-    return internals.invoke('read_segment_history', { segmentId: i })
+    const history = await internals.invoke('read_segment_history', { segmentId: i })
+    return history.versions
   }, id)
 }
 

@@ -53,6 +53,15 @@ const versions = shallowRef<readonly SegmentVersion[]>([])
  */
 export const historyVersions: DeepReadonly<Ref<readonly SegmentVersion[]>> = readonly(versions)
 
+const currentVersionId = shallowRef<number | null>(null)
+export const historyCurrentVersionId: DeepReadonly<Ref<number | null>> = readonly(currentVersionId)
+
+const sourceText = shallowRef('')
+export const historySourceText: DeepReadonly<Ref<string>> = readonly(sourceText)
+
+const compareOn = shallowRef(false)
+export const historyCompareOn: DeepReadonly<Ref<boolean>> = readonly(compareOn)
+
 const pending = shallowRef(false)
 /** Một lượt đọc hoặc ghi đang bay. */
 export const historyPending: DeepReadonly<Ref<boolean>> = readonly(pending)
@@ -115,6 +124,9 @@ export function openSegmentHistory(): void {
   const id = editorCaretSegmentId.value
   segmentId.value = id
   versions.value = []
+  currentVersionId.value = null
+  sourceText.value = ''
+  compareOn.value = false
   loadError.value = null
   restoreError.value = null
   restoreNotice.value = null
@@ -159,6 +171,18 @@ const aimedVersionId = shallowRef<number | null>(null)
  * nên hai sự kiện đó được xử lý tự do)*, rồi command không tham số đọc mục tiêu **lúc chạy**.
  */
 export const historyAimedVersionId: DeepReadonly<Ref<number | null>> = readonly(aimedVersionId)
+
+export function toggleHistoryCompare(): void {
+  compareOn.value = !compareOn.value
+}
+
+export function moveHistoryAim(delta: 1 | -1): void {
+  const rows = versions.value
+  if (rows.length === 0) return
+  const at = rows.findIndex((v) => v.id === aimedVersionId.value)
+  const next = at === -1 ? 0 : Math.min(rows.length - 1, Math.max(0, at + delta))
+  aimedVersionId.value = rows[next].id
+}
 
 /** Nhắm một hàng phiên bản. Gọi từ `@mousedown`/`@focusin`, **không** từ `@click`. */
 export function aimHistoryVersion(id: number | null): void {
@@ -215,20 +239,26 @@ export function confirmPendingRestore(): void {
 async function loadHistory(id: number): Promise<void> {
   pending.value = true
   try {
-    const { versions: rows, error } = await readSegmentHistory(id)
+    const { history, error } = await readSegmentHistory(id)
     // ⚠️ Cau da doi trong luc luot doc dang bay (nguoi dung dong roi mo cau khac). Vut ket
     //    qua cu di -- ghi no vao la hien lich su cua cau A duoi tieu de cua cau B.
     if (segmentId.value !== id) return
 
-    if (rows === null) {
+    if (history === null) {
       // ⚠️ `error === null` cung vao day: ca "khong co cau IPC". Ca hai deu la "chua doc duoc",
       //    va ca hai deu KHONG duoc doc thanh "cau nay chua co phien ban nao".
       loadError.value = error
       versions.value = []
+      currentVersionId.value = null
       return
     }
     loadError.value = null
-    versions.value = rows
+    versions.value = history.versions
+    currentVersionId.value = history.current_version_id
+    sourceText.value = history.source_text
+    if (!history.versions.some((v) => v.id === aimedVersionId.value)) {
+      aimedVersionId.value = history.versions.length > 0 ? history.versions[0].id : null
+    }
   } finally {
     if (segmentId.value === id) pending.value = false
   }
@@ -363,6 +393,7 @@ export async function restoreVersion(versionId: number, force: boolean): Promise
     }
 
     restoreNotice.value = 'restored'
+    await loadHistory(id)
     return 'restored'
   } finally {
     // ⚠️ Cung ve chong ket qua cu voi `loadHistory`: mot luot cua cau A khong duoc ha co
@@ -388,6 +419,9 @@ export function resetSegmentHistory(): void {
   isOpen.value = false
   segmentId.value = null
   versions.value = []
+  currentVersionId.value = null
+  sourceText.value = ''
+  compareOn.value = false
   pending.value = false
   loadError.value = null
   restoreError.value = null

@@ -76,7 +76,7 @@ async function saveRecordingEmptyKey(chapterId: number, edits: readonly { id: nu
 }
 
 async function recordHistory(_segmentId: number) {
-  return { versions: [], error: null }
+  return { history: { current_version_id: null, source_text: '', versions: [] }, error: null }
 }
 
 vi.mock('../../src/config/segment', async (importOriginal) => {

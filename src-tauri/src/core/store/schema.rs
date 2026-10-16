@@ -1028,6 +1028,16 @@ ALTER TABLE proof_ignore ADD COLUMN blocked_count INTEGER CHECK (blocked_count >
 pub const WORK_TM_ONLY_MINE_DDL: &str = "\
 ALTER TABLE work ADD COLUMN tm_only_mine INTEGER NOT NULL DEFAULT 0 CHECK (tm_only_mine IN (0, 1));";
 
+/// Step 39 (AD-55): who translated the text a `segment_version` row holds. `NULL` is a row that
+/// predates this step (unknown, never inferred); the trigger keeps a new row from being `NULL`.
+pub const SEGMENT_VERSION_ORIGIN_DDL: &str = "\
+ALTER TABLE segment_version ADD COLUMN translation_origin TEXT \
+  CHECK (translation_origin IS NULL OR translation_origin IN ('self', 'other', 'bilingual_import'));
+CREATE TRIGGER segment_version_requires_translation_origin
+BEFORE INSERT ON segment_version
+WHEN NEW.translation_origin IS NULL
+BEGIN SELECT RAISE(ABORT, 'segment_version requires translation_origin'); END;";
+
 /// Step 38 (AD-56): one row per decision on a proofreader finding; the FR150 ratio counts these.
 /// No text, no `segment_id`; the `kind` set matches `proof_ignore`.
 pub const PROOF_DECISION_DDL: &str = "\
@@ -1665,10 +1675,8 @@ pub const SEGMENT_TARGET_TEXT_DDL: &str =
 /// - `created_at` — ISO-8601 UTC, sinh ở tầng SQL bằng `strftime`, **không** truyền từ
 ///   Rust. Story 2.6 đòi *thời điểm*, và nó phải sinh từ **một** đồng hồ.
 ///
-/// ⚠️ **ĐÚNG BỐN CỘT, và con số bốn là một mệnh đề nghiệm thu.** Xuất xứ (FR117, Story 2.7)
-/// và cặp TM (FR56, Epic 7) ghi tại **cùng một chuyển tiếp**, nhưng cột của chúng thuộc
-/// story chủ của chúng — thêm sẵn hôm nay là đoán trước một hợp đồng chưa ai chốt, đúng thứ
-/// doc-comment của [`SEGMENT_DDL`] đã cấm bằng chữ cho `target_text`.
+/// This constant creates exactly four columns and never changes; the origin column arrives at
+/// step 39 ([`SEGMENT_VERSION_ORIGIN_DDL`]).
 ///
 /// ⚠️ **KHÔNG** `CREATE INDEX` nào cho bảng này, và đó là một quyết định chứ không một lượt
 /// quên. Story 2.5 **chỉ ghi**, không đọc — không đường sản phẩm nào truy vấn
@@ -2036,7 +2044,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Ba mươi bảy bước, và đích là phiên bản 38.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Ba mươi tám bước, và đích là phiên bản 39.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2416,6 +2424,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 38,
         sql: PROOF_DECISION_DDL,
+    },
+    Migration {
+        to_version: 39,
+        sql: SEGMENT_VERSION_ORIGIN_DDL,
     },
 ];
 

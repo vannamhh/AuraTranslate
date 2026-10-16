@@ -1,7 +1,7 @@
 use super::{
     ChapterSegments, ConfirmOutcome, IpcError, OmitOutcome, ParagraphEndOutcome,
     PromoteAiTranslationOutcome, ReadingMark, ReadingRun, RegroupOutcome, RestoreOutcome,
-    SaveOutcome, SegmentTargetEdit, SegmentVersionRow, SplitOutcome,
+    SaveOutcome, SegmentHistory, SegmentTargetEdit, SplitOutcome,
 };
 use crate::commands::project::OpenWorkState;
 
@@ -296,7 +296,7 @@ pub fn set_segment_paragraph_end(
 pub fn read_segment_history(
     app: tauri::AppHandle,
     segment_id: i64,
-) -> Result<Vec<SegmentVersionRow>, IpcError> {
+) -> Result<SegmentHistory, IpcError> {
     use tauri::Manager as _;
 
     let Some(state) = app.try_state::<OpenWorkState>() else {

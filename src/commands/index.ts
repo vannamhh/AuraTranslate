@@ -792,6 +792,8 @@ export type CommandDeps = {
   confirmPendingRestore?: () => void
   /** Giữ bản đang soạn, bỏ câu hỏi. Handler của `history.cancel_restore` (AC2). */
   cancelPendingRestore?: () => void
+  /** Bật/tắt diff của phiên bản đang nhắm với bản đang dùng. Handler của `history.toggle_compare`. */
+  toggleHistoryCompare?: () => void
 
   /** Mở Cài đặt ở mục Phím tắt. Handler của `shortcuts.open` (AC1). */
   openShortcuts?: () => void
@@ -2970,6 +2972,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     ['history.restore', 'restoreAimedVersion', undefined],
     ['history.confirm_restore', 'confirmPendingRestore', undefined],
     ['history.cancel_restore', 'cancelPendingRestore', undefined],
+    ['history.toggle_compare', 'toggleHistoryCompare', undefined],
   ] as const) {
     target.register({
       id,

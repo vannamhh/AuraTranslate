@@ -3579,6 +3579,7 @@ mục nào mồ côi.
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: schema.rs:1395-1399 bảng segment_version vẫn đúng bốn cột (không xuất xứ); SegmentHistoryOverlay.vue:264 vẫn không vẽ nhãn nào, đúng như mục ghi; còn thiếu: Cả bốn nhãn (đang dùng · từ bản review · từ AI · từ TM) vẫn chưa dựng; Epic 4 đang chạy, Epic 7 và Epic 8 vẫn backlog nên phần lớn nhãn còn chờ. **Chủ: Epic 4.**
   → 2026-10-13 (correct-course `change-hoan-thien-giao-dien-theo-mockup`, đề xuất 7) — bốn nhãn là dòng A17 (FR141), Story 12.19, sau AD của cửa G2. **Chủ: Epic 12.**
   → 🟡 2026-10-13 (AD-55) — ba nhãn `từ AI` · `từ TM` · `từ bản review` không làm: AD-55 giữ tập ba giá trị của AD-47 ⑥, nên chúng là lệch có chủ đích. Còn lại: nhãn `đang dùng` chọn theo phiên bản (không theo nội dung) và xuất xứ ba giá trị cộng *không rõ*, Story 12.19. **Chủ: Epic 12.**
+  → ✅ ĐÃ ĐÓNG 2026-10-16 (Story 12-19) — nhãn `đang dùng` chọn theo `id` (`current_version_id` từ Rust) cùng xuất xứ tôi dịch · người khác dịch · nhập song ngữ · không rõ; `từ AI` · `từ TM` · `từ bản review` KHÔNG làm, lệch có chủ đích AD-55.
 
 - 🟡 **Vế DIFF (`So với phiên bản trước`) không được dựng — chữ ký #4(a).**
   Mockup vẽ `<del>`/`<ins>`; **không AC nào của Story 2.6 đòi diff**. `src-tauri/Cargo.toml:86-89`
@@ -3591,6 +3592,7 @@ mục nào mồ côi.
   **Chủ: Story 8.1.**
   → 2026-10-07 (incept Epic 8, Ice duyệt) — AD-51 mục 9 co 8.1 thành phép đo trên bản review thật; phần render `DiffSpan` dựng ở 8.12, xét dùng lại cho lịch sử segment tại đó. Chủ: Story 8.12.
   → 2026-10-13 (correct-course `change-hoan-thien-giao-dien-theo-mockup`, đề xuất 7) — diff với bản đang dùng là dòng A18 (FR141), Story 12.19; vẫn không `v-html`. **Chủ: Epic 12.**
+  → ✅ ĐÃ ĐÓNG 2026-10-16 (Story 12-19) — diff của mỗi phiên bản với bản đang dùng dựng ở Rust (`diff_spans`), webview vẽ `<del>`/`<ins>` qua `ReviewSpans`, không `v-html`; "So với phiên bản trước" KHÔNG làm, lệch có chủ đích AD-55.
 
 - 🔴 **HỞ THẬT: `is_target_paragraph_end` KHÔNG được khôi phục cùng `target_text`, và bảng không
   có chỗ nào lưu nó.** Cờ ngắt đoạn của bản dịch (bước di trú 9, Story 2.5d, AD-46) là **dữ liệu
@@ -13263,4 +13265,9 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-cai-at-bo-cuc-phim-tat-thu-ket-noi-khung-cap-nhat-plan.md`
   summary: Lượt dùng thật trên bản đóng gói macOS: bấm Thử kết nối với khoá sai (phải ra "khoá bị từ chối") rồi khoá đúng trên một nhà cung cấp thật và một Ollama thật; Xuất rồi Nhập bộ phím qua hộp thoại gốc; `⌘T` và `⌘⇧R` trong app; lưu rồi áp một preset bố cục người dùng trên dock thật; bấm chuột vào ô tìm phím rồi gõ được ngay (click WebDriver không làm ô nhận tiêu điểm nên e2e gọi `.focus()`).
   evidence: e2e không giả được provider hay hộp thoại gốc (`e2e/specs/story-12-18-settings.e2e.mjs` chạy xanh 4/4 cho khung, tra ngược và `⌘T`); Rust chỉ đo qua máy chủ HTTP giả cục bộ (`connection_check_contract.rs`), vitest giả biên IPC.
+  Chủ: Epic 12.
+
+- 🟡 **Lớp phủ lịch sử phiên bản hai ngăn chưa có lượt dùng thật** (Story 12-19).
+  summary: Trong app thật mở `⌘H` trên một câu có ≥ 3 phiên bản: hai ngăn 270px | 1fr vừa khung, đúng một nhãn "đang dùng", bốn nhãn xuất xứ hiện đúng, "So với bản đang dùng" bật/tắt diff, ↑↓ đổi hàng nhắm, khôi phục xong lịch sử đọc lại.
+  evidence: vitest dựng DOM trong happy-dom, e2e `story-12-19-segment-history-origin.e2e.mjs` không đo hình học; không máy nào thấy bố cục thật.
   Chủ: Epic 12.

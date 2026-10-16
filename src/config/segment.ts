@@ -417,35 +417,30 @@ export type SetSegmentParagraphEndResult = {
   error: IpcError | null
 }
 
-/**
- * Một hàng **lịch sử phiên bản** — Story 2.6 · FR101 · AC1 · AC5.
- *
- * ⚠️ **`snake_case`, đúng như trên dây.** `commands/segment.rs::SegmentVersionRow` cố ý KHÔNG
- * đặt `#[serde(rename_all = "camelCase")]`.
- *
- * ⚠️ Bốn trường, đúng bốn cột của bảng. **Không** nhãn xuất xứ *(FR117, Story 2.7)*, **không**
- * cặp TM *(FR56, Epic 7)* — Quyết định #5 đường (a) (Ice ký 2026-08-16) giữ nguyên lằn ranh
- * mà `schema.rs` khai bằng chữ. Bốn nhãn của mockup ghi nợ, bốn chủ tách rời.
- */
+export type VersionTranslationOrigin = 'self' | 'other' | 'bilingual_import'
+
+export type HistorySpan = { kind: 'equal' | 'delete' | 'insert'; text: string }
+
+/** `spans` is the diff against the version in use, built in Rust; `translation_origin` is display-only. */
 export type SegmentVersion = {
   id: number
   segment_id: number
   target_text: string
-  /**
-   * **ISO-8601 UTC có mili giây** (`YYYY-MM-DDTHH:MM:SS.sssZ`), sinh ở tầng SQL.
-   *
-   * 🔴 Đây là **mốc KÝ**, không phải `segment.updated_at` *(mốc sửa **văn bản**)*. Hai mốc
-   * không nói cùng một chuyện — dùng nhầm cho một danh sách mà **mọi hàng mang cùng một mốc**,
-   * và mốc đó là lần gõ cuối chứ không phải lần ký.
-   *
-   * ⚠️ Định dạng hiển thị làm ở **frontend**, không ở Rust (Consistency Conventions §Ngày giờ).
-   */
+  /** Sign time, not `segment.updated_at`. */
   created_at: string
+  translation_origin: VersionTranslationOrigin | null
+  spans: HistorySpan[]
+}
+
+export type SegmentHistory = {
+  current_version_id: number | null
+  source_text: string
+  versions: SegmentVersion[]
 }
 
 /** Ba trạng thái, cùng khuôn `ReadChapterSegmentsResult`. */
 export type ReadSegmentHistoryResult = {
-  versions: SegmentVersion[] | null
+  history: SegmentHistory | null
   error: IpcError | null
 }
 
@@ -496,29 +491,41 @@ export type RestoreSegmentVersionResult = {
   error: IpcError | null
 }
 
-/**
- * Payload trả về có **đúng bốn trường, đúng kiểu** không — kiểm **lúc chạy**, Story 2.6.
- *
- * 🔴 Guard này đóng một lớp lỗi **đã xảy ra thật** *(nguyên vụ ghi ở `commands/segment.rs`)* —
- * Rust quên gửi một trường ⇒ `undefined` phía webview ⇒ một giá trị falsy đọc thành một câu
- * trả lời hợp lệ, và **mọi** test frontend vẫn xanh vì fixture chép tay có sẵn trường đó.
- *
- * Mọi adapter khác của tệp này mang một guard cùng khuôn — xem `isSplitOutcome`,
- * `isSaveOutcome`, `isConfirmOutcome`, `isOmitOutcome`, `isParagraphEndOutcome`,
- * `isRestoreOutcome`, `isPromoteAiTranslationOutcome`, `isRegroupOutcome`.
- */
-function isSegmentVersionArray(value: unknown): value is SegmentVersion[] {
-  if (!Array.isArray(value)) return false
-  return value.every((row: unknown) => {
-    if (typeof row !== 'object' || row === null) return false
-    const v = row as Partial<SegmentVersion>
-    return (
-      typeof v.id === 'number' &&
-      typeof v.segment_id === 'number' &&
-      typeof v.target_text === 'string' &&
-      typeof v.created_at === 'string'
-    )
-  })
+function isHistorySpan(value: unknown): value is HistorySpan {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<HistorySpan>
+  return (
+    (v.kind === 'equal' || v.kind === 'delete' || v.kind === 'insert') &&
+    typeof v.text === 'string'
+  )
+}
+
+function isSegmentVersionRow(row: unknown): row is SegmentVersion {
+  if (typeof row !== 'object' || row === null) return false
+  const v = row as Partial<SegmentVersion>
+  return (
+    typeof v.id === 'number' &&
+    typeof v.segment_id === 'number' &&
+    typeof v.target_text === 'string' &&
+    typeof v.created_at === 'string' &&
+    (v.translation_origin === null ||
+      v.translation_origin === 'self' ||
+      v.translation_origin === 'other' ||
+      v.translation_origin === 'bilingual_import') &&
+    Array.isArray(v.spans) &&
+    v.spans.every(isHistorySpan)
+  )
+}
+
+function isSegmentHistory(value: unknown): value is SegmentHistory {
+  if (typeof value !== 'object' || value === null) return false
+  const h = value as Partial<SegmentHistory>
+  return (
+    (h.current_version_id === null || typeof h.current_version_id === 'number') &&
+    typeof h.source_text === 'string' &&
+    Array.isArray(h.versions) &&
+    h.versions.every(isSegmentVersionRow)
+  )
 }
 
 /** Tên command trên dây. Khớp `src-tauri/src/commands/segment.rs` (module `wire`). */
@@ -980,18 +987,18 @@ export async function setSegmentParagraphEnd(
  * chiều **trả về** thì giữ `snake_case`. Hai chiều khác nhau, và đây là chỗ dễ sai nhất trên dây.
  *
  * 🔴 **Một mảng RỖNG và một `null` nói hai chuyện khác nhau, đừng gộp:**
- * - `{ versions: [], error: null }` — segment có thật, **chưa từng được xác nhận**. Đây là
+ * - `{ history: { …, versions: [] }, error: null }` — segment có thật, **chưa từng được xác nhận**. Đây là
  *   trạng thái rỗng của AC3, và bề mặt phải **nói ra cơ chế** *(lịch sử sinh ra khi xác nhận,
  *   không phải khi gõ)*.
- * - `{ versions: null, error: <IpcError> }` — một phép từ chối phân biệt được.
- * - `{ versions: null, error: null }` — **không có cầu IPC** (`npm run dev` ngoài Tauri).
+ * - `{ history: null, error: <IpcError> }` — một phép từ chối phân biệt được.
+ * - `{ history: null, error: null }` — **không có cầu IPC** (`npm run dev` ngoài Tauri).
  *
  * ⚠️ Segment **đã về hưu** vẫn trả đủ lịch sử (AC4) — đường này **đọc**, và nó cố ý **không**
  * mang hàng rào `err.segment.retired` của ba lệnh ghi.
  */
 export async function readSegmentHistory(segmentId: number): Promise<ReadSegmentHistoryResult> {
   try {
-    const versions = await invoke<SegmentVersion[]>(CMD_READ_SEGMENT_HISTORY, { segmentId })
+    const history = await invoke<SegmentHistory>(CMD_READ_SEGMENT_HISTORY, { segmentId })
 
     // 🔴 KIEM KIEU LUC CHAY, va no dong mot lop loi DA XAY RA THAT.
     //
@@ -1005,29 +1012,29 @@ export async function readSegmentHistory(segmentId: number): Promise<ReadSegment
     //
     // ⚠️ No BIEN mot payload sai thanh mot trang thai PHAN BIET DUOC, khong phai mot dong log
     //    roi di tiep — mot guard chi ghi log la mot guard khong lam gi ca.
-    if (!isSegmentVersionArray(versions)) {
+    if (!isSegmentHistory(history)) {
       console.error(
         `[segment] \`${CMD_READ_SEGMENT_HISTORY}\` tra ve mot hinh dang KHONG dung hop dong day — mot truong bi thieu hoac sai kieu`,
       )
-      return { versions: null, error: UNKNOWN_IPC_ERROR }
+      return { history: null, error: UNKNOWN_IPC_ERROR }
     }
 
-    return { versions, error: null }
+    return { history, error: null }
   } catch (err) {
-    if (isIpcError(err)) return { versions: null, error: err }
+    if (isIpcError(err)) return { history: null, error: err }
 
     // 🔴 Cùng ba nhánh và cùng lý do với `setSegmentOmitted` — xem chú thích ở đó.
     if (hasIpcBridge()) {
       console.error(
         `[segment] \`${CMD_READ_SEGMENT_HISTORY}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
       )
-      return { versions: null, error: UNKNOWN_IPC_ERROR }
+      return { history: null, error: UNKNOWN_IPC_ERROR }
     }
 
     console.info(
       `[segment] không gọi được \`${CMD_READ_SEGMENT_HISTORY}\` — chạy ngoài Tauri? ${String(err)}`,
     )
-    return { versions: null, error: null }
+    return { history: null, error: null }
   }
 }
 
@@ -1410,7 +1417,7 @@ export type RegroupOutcome = {
 
 /**
  * Kiểm **lúc chạy** hình dạng `RegroupOutcome`,
- * cùng mức chặt [`isSegmentVersionArray`]: mỗi hàng của cả hai mảng đi qua
+ * cùng mức chặt [`isSegmentHistory`]: mỗi hàng của cả hai mảng đi qua
  * [`isChapterSegmentRow`], không chỉ `Array.isArray` trần.
  */
 function isRegroupOutcome(value: unknown): value is RegroupOutcome {
@@ -1441,7 +1448,7 @@ export type RegroupResult = {
  * (AD-35). Cùng nghĩa vụ mà `restoreSegmentVersion` đã mang.
  *
  * `mergeSegments` kiểm hình dạng lúc chạy qua [`isRegroupOutcome`] — mỗi hàng của cả `retired`
- * lẫn `new_segments` đi qua [`isChapterSegmentRow`], cùng mức chặt [`isSegmentVersionArray`]:
+ * lẫn `new_segments` đi qua [`isChapterSegmentRow`], cùng mức chặt [`isSegmentHistory`]:
  * trường có mặt, đúng kiểu. Không đào sâu hơn *(giá trị hợp lệ theo NGHĨA nghiệp vụ vẫn là
  * việc của Rust, AD-1)*.
  */

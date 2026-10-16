@@ -42,21 +42,36 @@ const failNextRestore = { value: false }
 /** Bật để lượt `restoreSegmentVersion` kế tiếp trả `restored: false` (ca vô hại). */
 const unchangedNextRestore = { value: false }
 
-/** Lịch sử giả cho segment 11 — hai phiên bản, mới nhất trước. */
-const VERSIONS = [
-  {
-    id: 202,
+/** Phiên bản mà Rust đang trả là "đang dùng" cho segment 11; lượt khôi phục thành công đổi nó. */
+const currentVersion: { id: number | null } = { id: 202 }
+
+const TEXTS: Record<number, string> = { 202: 'Ban hai.', 201: 'Ban mot.' }
+
+/** Lịch sử giả cho segment 11 — hai phiên bản, mới nhất trước; diff theo bản đang dùng. */
+function versionsFor(currentId: number | null) {
+  const currentText = currentId === null ? 'Ban dang soan.' : TEXTS[currentId]
+  return [
+    {
+      id: 202,
+      created_at: '2026-08-16T10:00:00.000Z',
+      origin: 'other' as const,
+    },
+    { id: 201, created_at: '2026-08-16T09:00:00.000Z', origin: null },
+  ].map(({ id, created_at, origin }) => ({
+    id,
     segment_id: 11,
-    target_text: 'Ban hai.',
-    created_at: '2026-08-16T10:00:00.000Z',
-  },
-  {
-    id: 201,
-    segment_id: 11,
-    target_text: 'Ban mot.',
-    created_at: '2026-08-16T09:00:00.000Z',
-  },
-]
+    target_text: TEXTS[id],
+    created_at,
+    translation_origin: origin,
+    spans:
+      TEXTS[id] === currentText
+        ? [{ kind: 'equal' as const, text: TEXTS[id] }]
+        : [
+            { kind: 'delete' as const, text: TEXTS[id] },
+            { kind: 'insert' as const, text: currentText },
+          ],
+  }))
+}
 
 async function recordRead(segmentId: number) {
   callOrder.push('read')
@@ -64,7 +79,7 @@ async function recordRead(segmentId: number) {
   if (failNextRead.value) {
     failNextRead.value = false
     return {
-      versions: null,
+      history: null,
       error: {
         code: 'segment.not_found',
         message_key: 'err.segment.not_found',
@@ -74,7 +89,21 @@ async function recordRead(segmentId: number) {
     }
   }
   // Chi segment 11 co lich su; moi segment khac chua tung duoc ky ⇒ RONG, khong loi.
-  return { versions: segmentId === 11 ? VERSIONS : [], error: null }
+  return {
+    history:
+      segmentId === 11
+        ? {
+            current_version_id: currentVersion.id,
+            source_text: 'Nguyen van cau 11.',
+            versions: versionsFor(currentVersion.id),
+          }
+        : {
+            current_version_id: null,
+            source_text: 'Nguyen van.',
+            versions: [],
+          },
+    error: null,
+  }
 }
 
 async function recordRestore(segmentId: number, versionId: number, force: boolean) {
@@ -122,6 +151,7 @@ async function recordRestore(segmentId: number, versionId: number, force: boolea
     }
   }
 
+  currentVersion.id = versionId
   return {
     outcome: {
       segment_id: segmentId,
@@ -175,6 +205,7 @@ beforeEach(() => {
   holdNextRestore.value = false
   failNextRestore.value = false
   unchangedNextRestore.value = false
+  currentVersion.id = 202
 })
 
 describe('① ba trạng thái rỗng, và cả ba phải phân biệt được', () => {
@@ -391,7 +422,7 @@ describe('④ FLUSH chạy TRƯỚC lượt khôi phục', () => {
 
     await history.restoreVersion(201, false)
 
-    expect(callOrder).toEqual(['flush', 'restore'])
+    expect(callOrder).toEqual(['flush', 'restore', 'read'])
   })
 
   it('không câu nào đang xem ⇒ `no-segment`, và KHÔNG một lượt IPC nào', async () => {
@@ -415,7 +446,11 @@ describe('⑤ hàng đang nhắm — khuôn `aimedShortcutRow` của Story 1.21'
     history.restoreAimedVersion()
     await vi.waitFor(() => expect(restoreCalls.length).toBe(1))
 
-    expect(restoreCalls[0]).toEqual({ segmentId: 11, versionId: 201, force: false })
+    expect(restoreCalls[0]).toEqual({
+      segmentId: 11,
+      versionId: 201,
+      force: false,
+    })
   })
 
   /** *"Hàm chạy từ một hợp âm bàn phím KHÔNG BAO GIỜ ném — nó KÊU."* */
@@ -445,5 +480,95 @@ describe('⑤ hàng đang nhắm — khuôn `aimedShortcutRow` của Story 1.21'
     expect(history.historyPendingRestore.value).toBeNull()
     expect(history.historyRestoreNotice.value).toBeNull()
     expect(history.historyRestoreError.value).toBeNull()
+  })
+})
+
+describe('⑥ nhãn "đang dùng" đi theo `id` Rust trả, và nạp lại sau khôi phục', () => {
+  async function opened() {
+    const { editor, history } = await freshState()
+    editor.setEditorCaret(11)
+    history.openSegmentHistory()
+    await vi.waitFor(() => expect(history.historyPending.value).toBe(false))
+    return { editor, history }
+  }
+
+  it('mở ⇒ giữ `current_version_id`, `source_text`, xuất xứ và span; nhắm hàng đầu', async () => {
+    const { history } = await opened()
+
+    expect(history.historyCurrentVersionId.value).toBe(202)
+    expect(history.historySourceText.value).toBe('Nguyen van cau 11.')
+    expect(history.historyVersions.value.map((v) => v.translation_origin)).toEqual(['other', null])
+    expect(history.historyVersions.value[1].spans.map((s) => s.kind)).toEqual(['delete', 'insert'])
+    expect(history.historyAimedVersionId.value).toBe(202)
+  })
+
+  it('khôi phục thành công ⇒ đọc lại lịch sử, nhãn đang dùng chuyển hàng và diff tính lại', async () => {
+    const { history } = await opened()
+    expect(historyCalls).toEqual([11])
+
+    expect(await history.restoreVersion(201, false)).toBe('restored')
+
+    expect(historyCalls).toEqual([11, 11])
+    expect(history.historyCurrentVersionId.value).toBe(201)
+    const rows = history.historyVersions.value
+    expect(rows.find((v) => v.id === 201)?.spans.every((s) => s.kind === 'equal')).toBe(true)
+    expect(rows.find((v) => v.id === 202)?.spans.some((s) => s.kind !== 'equal')).toBe(true)
+  })
+
+  it('lượt khôi phục bị từ chối hoặc vô hại ⇒ không đọc lại, nhãn đứng yên', async () => {
+    const { history } = await opened()
+
+    failNextRestore.value = true
+    await history.restoreVersion(201, false)
+    unchangedNextRestore.value = true
+    await history.restoreVersion(202, false)
+
+    expect(historyCalls).toEqual([11])
+    expect(history.historyCurrentVersionId.value).toBe(202)
+  })
+
+  it('đọc lại sau khôi phục hỏng ⇒ `historyLoadError`, ảnh chụp bản dịch vẫn là bản đã khôi phục', async () => {
+    const { editor, history } = await opened()
+
+    const pending = history.restoreVersion(201, false)
+    failNextRead.value = true
+    await pending
+
+    expect(history.historyLoadError.value?.message_key).toBe('err.segment.not_found')
+    expect(editor.editorSegments.value.find((s) => s.id === 11)?.target_text).toBe('Ban mot.')
+  })
+
+  it('`current_version_id` null ⇒ không phiên bản nào đang dùng', async () => {
+    currentVersion.id = null
+    const { history } = await opened()
+
+    expect(history.historyCurrentVersionId.value).toBeNull()
+    expect(history.historyVersions.value).toHaveLength(2)
+  })
+
+  it('`toggleHistoryCompare` bật rồi tắt; mở lại lịch sử đặt về toàn văn', async () => {
+    const { history } = await opened()
+    expect(history.historyCompareOn.value).toBe(false)
+
+    history.toggleHistoryCompare()
+    expect(history.historyCompareOn.value).toBe(true)
+    history.toggleHistoryCompare()
+    expect(history.historyCompareOn.value).toBe(false)
+
+    history.toggleHistoryCompare()
+    history.openSegmentHistory()
+    expect(history.historyCompareOn.value).toBe(false)
+  })
+
+  it('↑↓ đổi hàng nhắm và dừng ở hai đầu', async () => {
+    const { history } = await opened()
+
+    history.moveHistoryAim(1)
+    expect(history.historyAimedVersionId.value).toBe(201)
+    history.moveHistoryAim(1)
+    expect(history.historyAimedVersionId.value).toBe(201)
+    history.moveHistoryAim(-1)
+    history.moveHistoryAim(-1)
+    expect(history.historyAimedVersionId.value).toBe(202)
   })
 })

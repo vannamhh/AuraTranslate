@@ -251,6 +251,7 @@ import {
   confirmPendingRestore,
   openSegmentHistory,
   restoreAimedVersion,
+  toggleHistoryCompare,
 } from './panels/segmentHistoryState'
 // ── Story 3.3 — dải "Thêm thuật ngữ" (FR48) ──────────────────────────────────────────
 //
@@ -943,6 +944,7 @@ async function boot(): Promise<void> {
       restoreAimedVersion,
       confirmPendingRestore,
       cancelPendingRestore,
+      toggleHistoryCompare,
       // Story 3.3 · FR48 — "Thêm nhanh thuật ngữ". `currentSelectionForGlossary` là đường
       // RIÊNG của lệnh này (KHÔNG `currentSelectionText`, đọc doc-comment của
       // `currentSelectionTextForGlossaryQuickAdd`).
