@@ -902,6 +902,7 @@ export type CommandDeps = {
   /** Để sau — `source_term` hiện tại không hỏi lại trong Chương đang mở, trả lại tiêu điểm.
    * Handler của `glossary.confirm.defer`. */
   deferGlossaryConfirmStrip?: () => void
+  undoGlossaryConfirmStrip?: () => void
 
   // ── Fuzzy TM strip (FR59) ──
   /** Searches the TM for the selection and opens the Concordance tab. Handler of `tm.concordance`. */
@@ -3746,6 +3747,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('glossary.confirm.defer', 'deferGlossaryConfirmStrip')
       }
       deps.deferGlossaryConfirmStrip()
+    },
+  })
+  target.register({
+    id: 'glossary.confirm.undo',
+    labelKey: 'command.glossary.confirm.undo',
+    keys: undefined,
+    run: () => {
+      if (deps.undoGlossaryConfirmStrip === undefined) {
+        return portMissing('glossary.confirm.undo', 'undoGlossaryConfirmStrip')
+      }
+      deps.undoGlossaryConfirmStrip()
     },
   })
 

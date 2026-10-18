@@ -203,6 +203,11 @@ const EXEMPT = new Map([
       '`resetShortcut()` cùng tệp là "trả MỘT phím tắt về mặc định", một khái niệm khác hẳn.',
   ],
   [
+    'src/config/glossary.ts::writeCount',
+    'Bộ đếm lượt ghi Glossary chỉ để so BẰNG với giá trị nút gỡ chốt đã chụp (AD-54 mục 6). ' +
+      'Đặt về 0 làm một nút đã chết có thể trùng số và sống lại.',
+  ],
+  [
     'src/config/shortcutsState.ts::capturing',
     'Đang bắt một hợp âm hay không. Cùng vòng đời với `aimedRow` — và dọn nó giữa một ' +
       'lượt bắt sẽ bỏ rơi lượt bắt đó mà không ai báo.',

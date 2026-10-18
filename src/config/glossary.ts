@@ -11,6 +11,7 @@
  * — hai chiều khác nhau, xem `src/AGENTS.md`.
  */
 import { invoke } from '@tauri-apps/api/core'
+import { readonly, ref } from 'vue'
 import type { IpcError } from '../i18n'
 
 /** Bốn phân loại (FR46) — khớp NGUYÊN VĂN `Category::as_str()` phía Rust. */
@@ -170,6 +171,14 @@ export async function lookupGlossaryTerm(sourceTerm: string): Promise<GlossaryLo
 /** Kết quả một lượt ghi (thêm hoặc sửa) — ba trạng thái, cùng khuôn mọi adapter khác. */
 export type GlossaryWriteResult<T> = { value: T | null; error: IpcError | null }
 
+const writeCount = ref(0)
+/** Bumped by every wrapper in this file that writes the Glossary, before its `invoke`. */
+export const glossaryWriteCount = readonly(writeCount)
+
+function bumpGlossaryWriteCount(): void {
+  writeCount.value += 1
+}
+
 /**
  * Thêm một mục **nhập tay** mới ở tầng `tier`. **Không bao giờ ném.** Trả về `id` mục vừa
  * tạo khi thành công.
@@ -184,6 +193,7 @@ export async function addGlossaryTerm(
   category: GlossaryCategory,
 ): Promise<GlossaryWriteResult<number>> {
   try {
+    bumpGlossaryWriteCount()
     const id = await invoke<unknown>(CMD_ADD, {
       tier,
       sourceTerm,
@@ -225,6 +235,7 @@ export async function updateGlossaryTerm(
   category: GlossaryCategory,
 ): Promise<GlossaryWriteResult<true>> {
   try {
+    bumpGlossaryWriteCount()
     await invoke(CMD_UPDATE, { tier, id, translation, note, category })
     return { value: true, error: null }
   } catch (err) {
@@ -551,6 +562,46 @@ export async function pendingGlossaryCandidates(): Promise<GlossaryPendingCandid
 /** Tên command trên dây. Khớp `src-tauri/src/commands/glossary.rs` (module `wire`). */
 const CMD_CONFIRM_PENDING_TRANSLATION = 'glossary_confirm_pending_translation'
 const CMD_APPROVE_CANDIDATE = 'glossary_approve_candidate'
+const CMD_UNCONFIRM_TRANSLATION = 'glossary_unconfirm_translation'
+
+/** `pendingConfirmedAt` is `null` when the row was already confirmed (the write became an edit). */
+export type GlossaryConfirmed = { pendingConfirmedAt: string | null }
+
+/**
+ * Returns a row confirmed through the strip to pending (FR147, AD-54). The expected values
+ * are what the confirm wrote; Rust decides whether the row still allows it. **Never throws.**
+ */
+export async function unconfirmGlossaryTranslation(
+  tier: GlossaryTierWire,
+  id: number,
+  expectedTranslation: string,
+  expectedPendingConfirmedAt: string,
+): Promise<GlossaryWriteResult<true>> {
+  try {
+    bumpGlossaryWriteCount()
+    await invoke(CMD_UNCONFIRM_TRANSLATION, {
+      tier,
+      id,
+      expectedTranslation,
+      expectedPendingConfirmedAt,
+    })
+    return { value: true, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { value: null, error: err }
+
+    if (hasIpcBridge()) {
+      console.error(
+        `[glossary] \`${CMD_UNCONFIRM_TRANSLATION}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`,
+      )
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+
+    console.info(
+      `[glossary] không gọi được \`${CMD_UNCONFIRM_TRANSLATION}\` — chạy ngoài Tauri? ${String(err)}`,
+    )
+    return { value: null, error: null }
+  }
+}
 
 /**
  * Chốt bản dịch cho mục `(tier, id)` — dải mọc "chờ chốt lần đầu gặp" (Story 3.6, FR114).
@@ -562,10 +613,15 @@ export async function confirmPendingGlossaryTranslation(
   tier: GlossaryTierWire,
   id: number,
   translation: string,
-): Promise<GlossaryWriteResult<true>> {
+): Promise<GlossaryWriteResult<GlossaryConfirmed>> {
   try {
-    await invoke(CMD_CONFIRM_PENDING_TRANSLATION, { tier, id, translation })
-    return { value: true, error: null }
+    bumpGlossaryWriteCount()
+    const wire: unknown = await invoke(CMD_CONFIRM_PENDING_TRANSLATION, { tier, id, translation })
+    if (wire !== null && typeof wire !== 'string') {
+      console.error(`[glossary] \`${CMD_CONFIRM_PENDING_TRANSLATION}\` trả về hình dạng lạ: ${String(wire)}`)
+      return { value: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { value: { pendingConfirmedAt: wire }, error: null }
   } catch (err) {
     if (isIpcError(err)) return { value: null, error: err }
 
@@ -662,6 +718,7 @@ export async function approveGlossaryCandidate(
   category: GlossaryCategory,
 ): Promise<GlossaryWriteResult<number>> {
   try {
+    bumpGlossaryWriteCount()
     const newId = await invoke<unknown>(CMD_APPROVE_CANDIDATE, { id, translation, category })
     // 🔴 THÊM (cụm D vá) — cùng lý do `addGlossaryTerm`: một `id` không phải số nguyên đi
     // tiếp vào state sẽ thành khoá tra cứu cho mọi lượt sửa/xoá về sau.
@@ -706,6 +763,7 @@ const CMD_REJECT_CANDIDATE = 'glossary_reject_candidate'
  */
 export async function rejectGlossaryCandidate(id: number): Promise<GlossaryWriteResult<true>> {
   try {
+    bumpGlossaryWriteCount()
     await invoke(CMD_REJECT_CANDIDATE, { id })
     return { value: true, error: null }
   } catch (err) {
@@ -849,6 +907,7 @@ export async function countGlossaryEntries(): Promise<number | null> {
  */
 export async function deleteGlossaryTerm(tier: GlossaryTierWire, id: number): Promise<GlossaryWriteResult<true>> {
   try {
+    bumpGlossaryWriteCount()
     await invoke(CMD_DELETE_TERM, { tier, id })
     return { value: true, error: null }
   } catch (err) {
@@ -1080,6 +1139,7 @@ export async function confirmGlossaryImport(
   decisions: Record<string, GlossaryConflictDecision>,
 ): Promise<GlossaryConfirmImportResult> {
   try {
+    bumpGlossaryWriteCount()
     const wire = await invoke<unknown>(CMD_CONFIRM_IMPORT, { decisions })
     if (!isGlossaryImportSummary(wire)) {
       console.error(`[glossary] \`${CMD_CONFIRM_IMPORT}\` tra ve mot hinh dang khong dung GlossaryImportSummary`)
@@ -1122,6 +1182,7 @@ export async function cancelGlossaryImport(): Promise<GlossaryWriteResult<true>>
 
 export async function promoteGlossaryTermToGlobal(id: number): Promise<GlossaryWriteResult<true>> {
   try {
+    bumpGlossaryWriteCount()
     await invoke(CMD_PROMOTE_TERM_TO_GLOBAL, { id })
     return { value: true, error: null }
   } catch (err) {

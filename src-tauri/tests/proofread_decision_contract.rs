@@ -275,7 +275,13 @@ fn a_work_from_before_step_38_has_no_decisions_even_with_remembered_findings() {
                 "DROP TABLE proof_decision; \
                  DROP TRIGGER segment_version_requires_translation_origin; \
                  ALTER TABLE segment_version DROP COLUMN translation_origin; \
-                 DELETE FROM schema_migration_log WHERE version IN (38, 39); \
+                 DROP TRIGGER glossary_entry_edit_clears_unconfirm; \
+                 DROP TRIGGER glossary_entry_lifecycle_is_one_way; \
+                 ALTER TABLE glossary_entry DROP COLUMN pending_confirmed_at; \
+                 CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry \
+                 WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL \
+                 BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; \
+                 DELETE FROM schema_migration_log WHERE version IN (38, 39, 40); \
                  PRAGMA user_version = 37;",
             )
         })

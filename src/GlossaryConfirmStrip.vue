@@ -34,10 +34,14 @@ import {
   confirmStripTier,
   confirmStripTmError,
   confirmStripTmHiddenCount,
+  confirmStripUndo,
+  confirmStripUndoError,
+  confirmStripUndoing,
   confirmStripTranslationInput,
   syncGlossaryConfirmStripTarget,
 } from './glossaryConfirmStripState'
 import type { ConfirmStripOption } from './glossaryConfirmStripState'
+import { shortcutRows } from './config/shortcutsState'
 import { quickAddIsOpen } from './glossaryQuickAddState'
 import { editorCaretSegmentId, editorSegments } from './panels/editorPanelState'
 import { glossaryMarks, glossaryMarksHaveLoaded } from './panels/glossaryMarksState'
@@ -118,6 +122,16 @@ const originLine = computed(() => {
   return parts.join(' · ')
 })
 
+const undoChord = computed(() => {
+  const row = shortcutRows.value.find((r) => r.id === 'glossary.confirm.undo')
+  const chord = row?.display.join(' / ') ?? ''
+  return chord === '' ? null : chord
+})
+
+const undoLabel = computed(() =>
+  confirmStripUndoing.value ? t('glossary.confirm.undoing') : t('glossary.confirm.undo'),
+)
+
 function optionSource(option: ConfirmStripOption): string {
   if (option.isHanViet) {
     return option.tmCount === null
@@ -157,6 +171,33 @@ watch(confirmStripFocusRequest, () => {
 </script>
 
 <template>
+  <div
+    v-if="confirmStripUndo !== null || confirmStripUndoError !== null"
+    class="gcs-done"
+    role="status"
+    data-glossary-confirm-done
+  >
+    <template v-if="confirmStripUndo !== null">
+      <!-- aura-allow-text: result of t() over user data. -->
+      <span class="gcs-done-text">
+        {{ t('glossary.confirm.done', { source_term: confirmStripUndo.sourceTerm, translation: confirmStripUndo.translation }) }}
+      </span>
+      <button
+        type="button"
+        class="gcs-act gcs-undo"
+        :disabled="confirmStripUndoing"
+        @click="dispatch('glossary.confirm.undo')"
+      >
+        <!-- aura-allow-text: result of t() computed in the script. -->
+        {{ undoLabel }}
+      </button>
+      <!-- aura-allow-text: the user's bound chord. -->
+      <kbd v-if="undoChord !== null" class="gcs-key">{{ undoChord }}</kbd>
+    </template>
+    <span v-if="confirmStripUndoError !== null" class="gcs-error" role="alert">
+      {{ tError(confirmStripUndoError) }}
+    </span>
+  </div>
   <form
     v-if="isVisible"
     ref="root"
@@ -256,6 +297,24 @@ watch(confirmStripFocusRequest, () => {
 </template>
 
 <style scoped>
+.gcs-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 3);
+  padding: var(--space-panel-inline);
+  border-top: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface);
+}
+
+.gcs-done-text {
+  font-weight: var(--weight-ui-md-strong);
+}
+
 /*
  * AC — dải ĐẨY nội dung workspace lên, không phủ lên nó: KHÔNG `position: fixed`, KHÔNG
  * `z-index`, KHÔNG `box-shadow` — cùng khuôn `GlossaryQuickAdd.vue`. Màu và cỡ chữ CHỈ qua

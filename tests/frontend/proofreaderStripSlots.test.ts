@@ -12,6 +12,7 @@ const flushMock = vi.fn()
 const dispatchMock = vi.fn()
 const tmEligible = ref(false)
 const confirmOpen = ref(false)
+const confirmNotice = ref(false)
 const quickAddOpen = ref(false)
 
 vi.mock('../../src/config/proofread', () => ({
@@ -39,7 +40,7 @@ vi.mock('../../src/panels/editorPanelState', async () => {
 vi.mock('../../src/commands', () => ({ dispatch: (...args: unknown[]) => dispatchMock(...args) }))
 vi.mock('../../src/config/shortcutsState', () => ({ shortcutRows: ref([]) }))
 vi.mock('../../src/tmFuzzyStripState', () => ({ tmFuzzyIsEligible: tmEligible }))
-vi.mock('../../src/glossaryConfirmStripState', () => ({ confirmStripIsOpen: confirmOpen }))
+vi.mock('../../src/glossaryConfirmStripState', () => ({ confirmStripIsOpen: confirmOpen, confirmStripNoticeShown: confirmNotice, confirmStripNoticeSegmentId: { value: null } }))
 vi.mock('../../src/glossaryQuickAddState', () => ({ quickAddIsOpen: quickAddOpen }))
 
 const editor = await import('../../src/panels/editorPanelState')
@@ -84,6 +85,7 @@ afterEach(() => {
   dispatchMock.mockReset()
   tmEligible.value = false
   confirmOpen.value = false
+  confirmNotice.value = false
   quickAddOpen.value = false
 })
 

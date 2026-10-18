@@ -13271,3 +13271,8 @@ chính nó.
   summary: Trong app thật mở `⌘H` trên một câu có ≥ 3 phiên bản: hai ngăn 270px | 1fr vừa khung, đúng một nhãn "đang dùng", bốn nhãn xuất xứ hiện đúng, "So với bản đang dùng" bật/tắt diff, ↑↓ đổi hàng nhắm, khôi phục xong lịch sử đọc lại.
   evidence: vitest dựng DOM trong happy-dom, e2e `story-12-19-segment-history-origin.e2e.mjs` không đo hình học; không máy nào thấy bố cục thật.
   Chủ: Epic 12.
+
+- 🟡 **Hoàn tác chốt bản dịch Glossary chưa có lượt dùng thật trên bản đóng gói** (Story 12-20).
+  summary: Chốt một thuật ngữ ở dải, thấy thông báo "đã chốt" ngay dưới câu, gán một phím cho lệnh gỡ chốt ở màn Phím tắt rồi thấy thông báo in đúng phím đó, bấm gỡ chốt và thấy dấu thuật ngữ trở lại nét đứt, dải không mọc lại trên chính thuật ngữ đó trong Chương.
+  evidence: e2e `story-12-20-glossary-unconfirm.e2e.mjs` chạy thật xanh cho chốt → gỡ chốt bằng chuột nhưng không gán phím và không đo nét đứt; vitest không có bố cục (thông báo từng vô hình trong app vì không có track, chỉ e2e lộ ra).
+  Chủ: Epic 12.

@@ -721,7 +721,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Mười ba bước, và đích là phiên bản 13.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười bốn bước, và đích là phiên bản 14.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -820,6 +820,36 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
         to_version: 13,
         sql: TRANSLATOR_NAME_DDL,
     },
+    Migration {
+        to_version: 14,
+        sql: GLOSSARY_ENTRY_PENDING_CONFIRMED_AT_DDL,
+    },
+];
+
+/// Adds `glossary_entry.pending_confirmed_at` (AD-54) to both stores and replaces the
+/// one-way lifecycle trigger: the only legal step back is clearing this column together
+/// with `translation`; any other edit of a confirmed `translation` clears the column.
+pub const GLOSSARY_ENTRY_PENDING_CONFIRMED_AT_DDL: &str = "\
+ALTER TABLE glossary_entry ADD COLUMN pending_confirmed_at TEXT
+  CHECK (pending_confirmed_at IS NULL OR translation IS NOT NULL);
+DROP TRIGGER glossary_entry_lifecycle_is_one_way;
+CREATE TRIGGER glossary_entry_lifecycle_is_one_way
+BEFORE UPDATE OF translation, pending_confirmed_at ON glossary_entry
+WHEN (OLD.translation IS NOT NULL AND NEW.translation IS NULL
+      AND NOT (OLD.pending_confirmed_at IS NOT NULL AND NEW.pending_confirmed_at IS NULL))
+  OR (OLD.pending_confirmed_at IS NULL AND NEW.pending_confirmed_at IS NOT NULL
+      AND OLD.translation IS NOT NULL)
+BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;
+CREATE TRIGGER glossary_entry_edit_clears_unconfirm
+AFTER UPDATE OF translation ON glossary_entry
+WHEN OLD.translation IS NOT NULL AND NEW.translation IS NOT OLD.translation
+  AND NEW.pending_confirmed_at IS NOT NULL
+BEGIN UPDATE glossary_entry SET pending_confirmed_at = NULL WHERE id = NEW.id; END;";
+
+/// Trigger and column names the post-migration check requires on `glossary_entry`.
+pub(crate) const GLOSSARY_LIFECYCLE_TRIGGERS: [&str; 2] = [
+    "glossary_entry_lifecycle_is_one_way",
+    "glossary_entry_edit_clears_unconfirm",
 ];
 
 pub const TRANSLATOR_NAME_DDL: &str = "\
@@ -2044,7 +2074,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Ba mươi tám bước, và đích là phiên bản 39.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Ba mươi chín bước, và đích là phiên bản 40.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2428,6 +2458,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 39,
         sql: SEGMENT_VERSION_ORIGIN_DDL,
+    },
+    Migration {
+        to_version: 40,
+        sql: GLOSSARY_ENTRY_PENDING_CONFIRMED_AT_DDL,
     },
 ];
 
@@ -2902,4 +2936,61 @@ pub(crate) fn migrate(
     }
 
     Ok(current)
+}
+
+/// Fails when a migration set carrying the `pending_confirmed_at` step leaves `glossary_entry`
+/// without the column or with a missing/stale lifecycle trigger (a later table rebuild that
+/// forgot them).
+pub(crate) fn check_glossary_lifecycle(
+    conn: &Connection,
+    kind: StoreKind,
+    migrations: &[Migration],
+) -> Result<(), StoreError> {
+    if !migrations
+        .iter()
+        .any(|m| m.sql == GLOSSARY_ENTRY_PENDING_CONFIRMED_AT_DDL)
+    {
+        return Ok(());
+    }
+    let fail = |e: rusqlite::Error| StoreError::OpenFailed {
+        store: kind,
+        detail: format!("glossary lifecycle check: {e}"),
+    };
+    let mut missing: Vec<&'static str> = Vec::new();
+    let has_column: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('glossary_entry') \
+             WHERE name = 'pending_confirmed_at')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(fail)?;
+    if !has_column {
+        missing.push("pending_confirmed_at");
+    }
+    for name in GLOSSARY_LIFECYCLE_TRIGGERS {
+        let sql: Option<String> = conn
+            .query_row(
+                "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?1",
+                [name],
+                |row| row.get(0),
+            )
+            .map(Some)
+            .or_else(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => Ok(None),
+                other => Err(other),
+            })
+            .map_err(fail)?;
+        if !sql.is_some_and(|s| s.contains("pending_confirmed_at")) {
+            missing.push(name);
+        }
+    }
+    if missing.is_empty() {
+        Ok(())
+    } else {
+        Err(StoreError::GlossaryLifecycleMissing {
+            store: kind,
+            missing: missing.join(", "),
+        })
+    }
 }

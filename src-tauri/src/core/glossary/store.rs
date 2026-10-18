@@ -255,13 +255,35 @@ pub fn insert_manual_entry(
 /// ⚠️ Khối `# Lỗi` ở đây từng có HAI bản (một bản cũ chỉ kể ca `CHECK`, đứng trước khối 🔵
 /// đầu tiên) — `rustdoc` gộp cả hai thành một mục và in bản cũ TRƯỚC, tức người đọc gặp
 /// danh sách thiếu trước danh sách đủ. Gộp về một bản 2026-08-20 cùng lượt sửa trên.
-pub fn confirm_translation(store: &Store, id: i64, translation: &str) -> Result<(), StoreError> {
+pub fn confirm_translation(
+    store: &Store,
+    id: i64,
+    translation: &str,
+) -> Result<Option<String>, StoreError> {
     // Cùng lý do cắt khoảng trắng biên đã ghi ở `insert_manual_entry` — chốt qua đường này
     // cũng phải không tạo ra một bản dịch mang khoảng trắng thừa mà `insert_manual_entry`
     // đã cấm.
     let translation = translation.trim().to_owned();
 
     store.write(move |tx: &Transaction<'_>| {
+        let confirmed_at = tx
+            .query_row(
+                "UPDATE glossary_entry
+                 SET translation = ?1,
+                     pending_confirmed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+                 WHERE id = ?2 AND translation IS NULL
+                 RETURNING pending_confirmed_at",
+                (&translation, id),
+                |row| row.get::<_, String>(0),
+            )
+            .map(Some)
+            .or_else(|err| match err {
+                SqlError::QueryReturnedNoRows => Ok(None),
+                other => Err(other),
+            })?;
+        if confirmed_at.is_some() {
+            return Ok(confirmed_at);
+        }
         let changed = tx.execute(
             "UPDATE glossary_entry SET translation = ?1 WHERE id = ?2",
             (&translation, id),
@@ -269,8 +291,69 @@ pub fn confirm_translation(store: &Store, id: i64, translation: &str) -> Result<
         if changed == 0 {
             return Err(row_missing_error(0, "glossary_entry", id));
         }
-        Ok(())
+        Ok(None)
     })
+}
+
+enum UnconfirmOutcome {
+    Done,
+    Missing,
+    TranslationChanged,
+    NotUnconfirmable,
+}
+
+/// Inverse of the first-confirm branch of [`confirm_translation`] (AD-54 item 5): one
+/// transaction, typed refusal in the order missing row, changed translation, changed or
+/// `NULL` `pending_confirmed_at`; a refusal writes nothing.
+pub fn unconfirm_translation(
+    store: &Store,
+    id: i64,
+    expected_translation: &str,
+    expected_pending_confirmed_at: &str,
+) -> Result<(), GlossaryError> {
+    let expected_translation = expected_translation.to_owned();
+    let expected_pending_confirmed_at = expected_pending_confirmed_at.to_owned();
+
+    let outcome = store.write(move |tx: &Transaction<'_>| {
+        let row = tx
+            .query_row(
+                "SELECT translation, pending_confirmed_at FROM glossary_entry WHERE id = ?1",
+                [id],
+                |row| {
+                    Ok((
+                        row.get::<_, Option<String>>(0)?,
+                        row.get::<_, Option<String>>(1)?,
+                    ))
+                },
+            )
+            .map(Some)
+            .or_else(|err| match err {
+                SqlError::QueryReturnedNoRows => Ok(None),
+                other => Err(other),
+            })?;
+        let Some((translation, pending_confirmed_at)) = row else {
+            return Ok(UnconfirmOutcome::Missing);
+        };
+        if translation.as_deref() != Some(expected_translation.as_str()) {
+            return Ok(UnconfirmOutcome::TranslationChanged);
+        }
+        if pending_confirmed_at.as_deref() != Some(expected_pending_confirmed_at.as_str()) {
+            return Ok(UnconfirmOutcome::NotUnconfirmable);
+        }
+        tx.execute(
+            "UPDATE glossary_entry SET translation = NULL, pending_confirmed_at = NULL
+             WHERE id = ?1",
+            [id],
+        )?;
+        Ok(UnconfirmOutcome::Done)
+    })?;
+
+    match outcome {
+        UnconfirmOutcome::Done => Ok(()),
+        UnconfirmOutcome::Missing => Err(GlossaryError::EntryMissing),
+        UnconfirmOutcome::TranslationChanged => Err(GlossaryError::TranslationChanged),
+        UnconfirmOutcome::NotUnconfirmable => Err(GlossaryError::NotUnconfirmable),
+    }
 }
 
 /// Rows of both tiers, one `COUNT(*)` per tier. `source_term` is unique per tier, so this equals
@@ -588,6 +671,11 @@ pub enum GlossaryError {
     /// A `ScopeResolver`/`Store` pair passed to [`WorkContext::new`] disagreed about
     /// whether a Work is open. Programming error, same bucket as [`GlossaryError::Scope`].
     WorkContextMismatch,
+    /// [`unconfirm_translation`]: the row's `translation` is no longer the one the caller saw.
+    TranslationChanged,
+    /// [`unconfirm_translation`]: `pending_confirmed_at` differs from the expected value
+    /// (including `NULL`), so this row is not the one a first confirm just wrote.
+    NotUnconfirmable,
 }
 
 impl std::fmt::Display for GlossaryError {
@@ -638,6 +726,8 @@ impl std::fmt::Display for GlossaryError {
             }
             GlossaryError::NoPendingImport => write!(f, "glossary[no_pending_import]"),
             GlossaryError::WorkContextMismatch => write!(f, "glossary[work_context_mismatch]"),
+            GlossaryError::TranslationChanged => write!(f, "glossary[translation_changed]"),
+            GlossaryError::NotUnconfirmable => write!(f, "glossary[not_unconfirmable]"),
         }
     }
 }
@@ -793,6 +883,18 @@ impl From<GlossaryError> for IpcError {
             GlossaryError::WorkContextMismatch => IpcError::new(
                 "glossary.scope_error",
                 MessageKey::GlossaryScopeError,
+                BTreeMap::new(),
+                false,
+            ),
+            GlossaryError::TranslationChanged => IpcError::new(
+                "glossary.translation_changed",
+                MessageKey::GlossaryTranslationChanged,
+                BTreeMap::new(),
+                false,
+            ),
+            GlossaryError::NotUnconfirmable => IpcError::new(
+                "glossary.not_unconfirmable",
+                MessageKey::GlossaryNotUnconfirmable,
                 BTreeMap::new(),
                 false,
             ),
@@ -1300,13 +1402,35 @@ pub fn confirm_pending_translation(
     tier: GlossaryTier,
     id: i64,
     translation: &str,
-) -> Result<(), GlossaryError> {
+) -> Result<Option<String>, GlossaryError> {
     let store = match tier {
         GlossaryTier::Global => global,
         GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
     };
 
     confirm_translation(store, id, translation).map_err(GlossaryError::from)
+}
+
+/// Tier-routed [`unconfirm_translation`], same store choice as [`confirm_pending_translation`].
+pub fn unconfirm_pending_translation(
+    global: &Store,
+    work: Option<&Store>,
+    tier: GlossaryTier,
+    id: i64,
+    expected_translation: &str,
+    expected_pending_confirmed_at: &str,
+) -> Result<(), GlossaryError> {
+    let store = match tier {
+        GlossaryTier::Global => global,
+        GlossaryTier::Work => work.ok_or(GlossaryError::WorkTierUnavailable)?,
+    };
+
+    unconfirm_translation(
+        store,
+        id,
+        expected_translation,
+        expected_pending_confirmed_at,
+    )
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

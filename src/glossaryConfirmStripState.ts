@@ -33,7 +33,12 @@
  */
 import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { confirmPendingGlossaryTranslation, listGlossaryTmSuggestions } from './config/glossary'
+import {
+  confirmPendingGlossaryTranslation,
+  glossaryWriteCount,
+  listGlossaryTmSuggestions,
+  unconfirmGlossaryTranslation,
+} from './config/glossary'
 import type {
   GlossaryCategory,
   GlossaryMark,
@@ -63,6 +68,20 @@ type CurrentTarget = {
   occurrenceCount: number | null
   termOrigin: string
   category: GlossaryCategory
+}
+
+/**
+ * The row the strip just confirmed, kept only to draw the undo button (AD-54 §6): whether
+ * the row can still be unconfirmed is decided by Rust from the row on disk.
+ */
+type UndoEntry = {
+  tier: GlossaryTierWire
+  id: number
+  sourceTerm: string
+  translation: string
+  pendingConfirmedAt: string
+  segmentId: number | null
+  writeCount: number
 }
 
 /** One numbered proposal: Hán Việt first (when available), then TM translations. */
@@ -100,6 +119,9 @@ const tmSuggestions = ref<readonly GlossaryTmSuggestion[]>([])
 const tmSuggestionError = ref<IpcError | null>(null)
 const tmHiddenCount = ref(0)
 const aimedText = ref<string | null>(null)
+const undoEntry = ref<UndoEntry | null>(null)
+const undoing = ref(false)
+const undoFailure = ref<{ error: IpcError; segmentId: number | null } | null>(null)
 
 /** `source_term` đã "Để sau" trong Chương ĐANG MỞ — xoá khi đổi Chương (§Design Notes: một
  * mục đã chốt không bao giờ hỏi lại NHỜ CẤU TRÚC `translation IS NOT NULL`, sổ này chỉ tồn
@@ -180,6 +202,23 @@ export const confirmStripAimedOption = computed<number | null>(() => {
 })
 export const confirmStripOccurrenceCount = computed<number | null>(
   () => current.value?.occurrenceCount ?? null,
+)
+/** The "confirmed" notice to draw, `null` once any AD-54 §6 event killed the button; the undo's own write does not count while it is in flight. */
+export const confirmStripUndo = computed<{ sourceTerm: string; translation: string } | null>(() => {
+  const entry = undoEntry.value
+  if (entry === null) return null
+  if (!undoing.value && entry.writeCount !== glossaryWriteCount.value) return null
+  return { sourceTerm: entry.sourceTerm, translation: entry.translation }
+})
+export const confirmStripUndoing: DeepReadonly<Ref<boolean>> = readonly(undoing)
+export const confirmStripUndoError = computed<IpcError | null>(() => undoFailure.value?.error ?? null)
+/** `true` while the "confirmed" notice (or its undo error) is on screen and needs a grid track. */
+export const confirmStripNoticeShown = computed<boolean>(
+  () => confirmStripUndo.value !== null || undoFailure.value !== null,
+)
+/** Sentence the notice belongs to; it keeps its grid track while the caret is `null` (focus in another panel). */
+export const confirmStripNoticeSegmentId = computed<number | null>(() =>
+  confirmStripUndo.value !== null ? (undoEntry.value?.segmentId ?? null) : (undoFailure.value?.segmentId ?? null),
 )
 /** `true` ⇔ có một mục đang chờ hỏi — điều kiện ĐỦ ĐIỀU KIỆN của `'glossary_confirm'` cho
  * `topmostStrip`. Không tự là điều kiện HIỂN THỊ — xem doc-comment đầu tệp. */
@@ -264,6 +303,11 @@ function applyTarget(next: CurrentTarget | null): void {
     return
   }
 
+  if (prev !== null && (undoEntry.value === null || prev.tier !== undoEntry.value.tier || prev.id !== undoEntry.value.id)) {
+    undoEntry.value = null
+  }
+  undoFailure.value = null
+
   // 🔵 SỬA 2026-08-22 (rà ba lớp, vòng 2 — Ice bắt) — danh tính THẬT SỰ đổi: vô hiệu hoá mọi
   // lượt ghi đang bay của mục CŨ ([`sequence`], xem [`confirmGlossaryConfirmStrip`]) VÀ dọn
   // trạng thái "đã vào dải bằng hợp âm" của mục CŨ trong CÙNG một nhánh.
@@ -305,6 +349,9 @@ export function syncGlossaryConfirmStripTarget(
   marks: readonly GlossaryMark[],
 ): void {
   lastSyncArgs = { segmentId, segments, marksHaveLoaded, marks }
+  if (undoEntry.value !== null && segmentId !== null && undoEntry.value.segmentId !== segmentId) {
+    undoEntry.value = null
+  }
   applyTarget(selectPendingSpan(segmentId, segments, marksHaveLoaded, marks))
 }
 
@@ -423,6 +470,7 @@ export function deferGlossaryConfirmStrip(): void {
   // hiện tại nên [`selectPendingSpan`] không bao giờ chọn lại nó): phòng một lượt sửa
   // `applyTarget` sau này lặng lẽ bỏ điều kiện đó mà không ai để ý đường `defer` phụ thuộc nó.
   sequence += 1
+  undoEntry.value = null
   deferred.add(target.sourceTerm)
   restoreFocusAndSelection()
 
@@ -483,7 +531,10 @@ export async function confirmGlossaryConfirmStrip(
 
   saving.value = true
   saveError.value = null
+  undoEntry.value = null
+  undoFailure.value = null
   const mySequence = sequence
+  const mySegmentId = lastSyncArgs?.segmentId ?? null
 
   const result = await confirmPendingGlossaryTranslation(target.tier, target.id, value)
   saving.value = false
@@ -495,6 +546,50 @@ export async function confirmGlossaryConfirmStrip(
   }
 
   if (stillCurrentTarget) restoreFocusAndSelection()
+  const confirmedAt = result.value?.pendingConfirmedAt ?? null
+  const caretNow = lastSyncArgs?.segmentId ?? null
+  if (confirmedAt !== null && (caretNow === null || caretNow === mySegmentId)) {
+    undoEntry.value = {
+      tier: target.tier,
+      id: target.id,
+      sourceTerm: target.sourceTerm,
+      translation: value,
+      pendingConfirmedAt: confirmedAt,
+      segmentId: mySegmentId,
+      writeCount: glossaryWriteCount.value,
+    }
+  }
+  void refreshWorkspaceCounts()
+  void refreshGlossaryMarks(chapterId, segments, sourceLang)
+  return true
+}
+
+/** Unconfirms the row the strip just confirmed (AD-54); success defers the term, failure shows `confirmStripUndoError`. */
+export async function undoGlossaryConfirmStrip(
+  chapterId: number,
+  segments: readonly GlossarySegmentSource[],
+  sourceLang: string,
+): Promise<boolean> {
+  const entry = undoEntry.value
+  if (entry === null || confirmStripUndo.value === null || undoing.value) return false
+
+  undoing.value = true
+  undoFailure.value = null
+  const result = await unconfirmGlossaryTranslation(
+    entry.tier,
+    entry.id,
+    entry.translation,
+    entry.pendingConfirmedAt,
+  )
+  undoing.value = false
+  undoEntry.value = null
+
+  if (result.error !== null) {
+    undoFailure.value = { error: result.error, segmentId: entry.segmentId }
+    return false
+  }
+
+  deferred.add(entry.sourceTerm)
   void refreshWorkspaceCounts()
   void refreshGlossaryMarks(chapterId, segments, sourceLang)
   return true
@@ -517,6 +612,9 @@ export function resetGlossaryConfirmStrip(): void {
   saving.value = false
   saveError.value = null
   emptyInputError.value = false
+  undoEntry.value = null
+  undoing.value = false
+  undoFailure.value = null
   focusRequest.value = 0
   deferred = new Set()
   lastSyncArgs = null

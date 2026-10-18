@@ -420,6 +420,15 @@ pub enum StoreError {
         value: String,
     },
 
+    /// `glossary_entry` lacks `pending_confirmed_at` or one of its lifecycle triggers after
+    /// migration (AD-54 item 8). Refuses to open; nothing is written.
+    GlossaryLifecycleMissing {
+        /// Kho nào.
+        store: StoreKind,
+        /// Comma-separated names of the missing column/triggers.
+        missing: String,
+    },
+
     /// Job ghi chạy nhưng trả lỗi ⇒ giao dịch đã rollback, không có nửa ghi nào.
     WriteFailed {
         /// Kho nào.
@@ -471,6 +480,7 @@ impl StoreError {
             | StoreError::WalUnavailable { store, .. }
             | StoreError::SchemaTooNew { store, .. }
             | StoreError::UnknownTranslationOrigin { store, .. }
+            | StoreError::GlossaryLifecycleMissing { store, .. }
             | StoreError::WriteFailed { store, .. }
             | StoreError::Conflict { store, .. }
             | StoreError::WriterGone { store }
@@ -487,6 +497,9 @@ impl StoreError {
             StoreError::SchemaTooNew { .. } => MessageKey::StoreSchemaTooNew,
             StoreError::UnknownTranslationOrigin { .. } => {
                 MessageKey::StoreUnknownTranslationOrigin
+            }
+            StoreError::GlossaryLifecycleMissing { .. } => {
+                MessageKey::StoreGlossaryLifecycleMissing
             }
             StoreError::WriteFailed { .. } | StoreError::WriterGone { .. } => {
                 MessageKey::StoreWriteFailed
@@ -510,6 +523,7 @@ impl StoreError {
             StoreError::WalUnavailable { .. } => "store.wal_unavailable",
             StoreError::SchemaTooNew { .. } => "store.schema_too_new",
             StoreError::UnknownTranslationOrigin { .. } => "store.unknown_translation_origin",
+            StoreError::GlossaryLifecycleMissing { .. } => "store.glossary_lifecycle_missing",
             StoreError::WriteFailed { .. } => "store.write_failed",
             StoreError::Conflict { .. } => "store.conflict",
             StoreError::WriterGone { .. } => "store.writer_gone",
@@ -556,6 +570,11 @@ impl std::fmt::Display for StoreError {
             StoreError::UnknownTranslationOrigin { store, value } => write!(
                 f,
                 "store[{}] segment.translation_origin has unknown value {value:?}",
+                store.as_str()
+            ),
+            StoreError::GlossaryLifecycleMissing { store, missing } => write!(
+                f,
+                "store[{}] glossary lifecycle schema is missing: {missing}",
                 store.as_str()
             ),
             StoreError::WriteFailed { store, detail } => {
@@ -605,6 +624,9 @@ impl From<StoreError> for IpcError {
             }
             StoreError::UnknownTranslationOrigin { value, .. } => {
                 params.insert("value".to_owned(), value.clone());
+            }
+            StoreError::GlossaryLifecycleMissing { missing, .. } => {
+                params.insert("missing".to_owned(), missing.clone());
             }
             _ => {}
         }
@@ -700,6 +722,10 @@ impl Store {
 
         // ── 6. Di trú chỉ tiến, mỗi bước một giao dịch ────────────────────────────
         let schema_version = schema::migrate(&mut conn, kind, found, migrations)?;
+
+        if matches!(kind, StoreKind::Global | StoreKind::Project) {
+            schema::check_glossary_lifecycle(&conn, kind, migrations)?;
+        }
 
         // ── 7. Pool đọc — mỗi kết nối tự đặt PRAGMA của nó (Bẫy 3) ───────────────
         let shared = Arc::new(checkpoint::Shared::new());

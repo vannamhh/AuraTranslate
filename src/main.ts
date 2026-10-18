@@ -277,6 +277,7 @@ import {
   confirmStripIsOpen,
   deferGlossaryConfirmStrip,
   focusGlossaryConfirmStrip as focusGlossaryConfirmStripState,
+  undoGlossaryConfirmStrip,
 } from './glossaryConfirmStripState'
 import { topmostStrip } from './panels/inlineStripPriority'
 import type { InlineStripKind } from './panels/inlineStripPriority'
@@ -978,6 +979,12 @@ async function boot(): Promise<void> {
         void confirmGlossaryConfirmStrip(chapterId, editorSegments.value, chapter.source_lang)
       },
       deferGlossaryConfirmStrip,
+      undoGlossaryConfirmStrip: () => {
+        const chapterId = editorChapterId.value
+        const chapter = sourceChapter.value
+        if (chapterId === null || chapter === null || chapterId !== chapter.chapter_id) return
+        void undoGlossaryConfirmStrip(chapterId, editorSegments.value, chapter.source_lang)
+      },
       ...tmFuzzyCommandDeps(),
       ...tmConcordanceCommandDeps(),
       ...tmManageCommandDeps(),

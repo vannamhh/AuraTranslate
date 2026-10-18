@@ -59,6 +59,7 @@ async function freshStrip() {
   }))
   vi.doMock('../../src/glossaryQuickAddState', () => ({ quickAddIsOpen }))
   vi.doMock('../../src/commands', () => ({ dispatch: (id: string) => dispatchMock(id) }))
+  vi.doMock('../../src/config/shortcutsState', () => ({ shortcutRows: ref([]) }))
 
   const state = await import('../../src/glossaryConfirmStripState')
   const marksState = await import('../../src/panels/glossaryMarksState')

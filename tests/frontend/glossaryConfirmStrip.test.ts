@@ -162,7 +162,7 @@ describe('confirmGlossaryConfirmStrip — chốt bản dịch', () => {
     expect(state.confirmStripSourceTerm.value).toBe('萧炎')
 
     mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'glossary_confirm_pending_translation') return Promise.resolve(undefined)
+      if (cmd === 'glossary_confirm_pending_translation') return Promise.resolve(null)
       if (cmd === 'glossary_marks_for_chapter') {
         return Promise.resolve([
           { ...markLeft, is_confirmed: true, translation: 'Tieu Viem' },
@@ -256,7 +256,7 @@ describe('confirmGlossaryConfirmStrip — chốt bản dịch', () => {
     state.syncGlossaryConfirmStripTarget(null, segments, true, [])
     expect(state.confirmStripIsOpen.value).toBe(false)
 
-    resolveConfirm(undefined)
+    resolveConfirm(null)
     const ok = await confirming
     expect(ok).toBe(true)
 
@@ -299,7 +299,7 @@ describe('confirmGlossaryConfirmStrip — chốt bản dịch', () => {
     expect(state.confirmStripFocusRequest.value).toBe(2) // van tang -- khong bi nhanh tai nhap nuot.
 
     mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'glossary_confirm_pending_translation') return Promise.resolve(undefined)
+      if (cmd === 'glossary_confirm_pending_translation') return Promise.resolve(null)
       if (cmd === 'glossary_marks_for_chapter') return Promise.resolve([{ ...markB, is_confirmed: true, translation: 'Huan Nhi' }])
       return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
     })
@@ -511,7 +511,7 @@ describe('deferGlossaryConfirmStrip — "Để sau" (Esc)', () => {
     expect(state.confirmStripIsOpen.value).toBe(true)
     expect(state.confirmStripSourceTerm.value).toBe('萧炎') // van la muc dang luu, chua bi "De sau"
 
-    resolveConfirm(undefined)
+    resolveConfirm(null)
     await confirming
   })
 })

@@ -142,6 +142,8 @@ message_keys! {
     ///
     /// [`TRANSLATION_ORIGINS`]: crate::commands::segment::TRANSLATION_ORIGINS
     StoreUnknownTranslationOrigin => "err.store.unknown_translation_origin" ["store", "value"],
+    /// `glossary_entry` lost `pending_confirmed_at` or a lifecycle trigger (AD-54): store refuses to open.
+    StoreGlossaryLifecycleMissing => "err.store.glossary_lifecycle_missing" ["store", "missing"],
     /// Asked for the licence text of a `dict_source.code` that no attached dictionary file carries.
     DictUnknownSourceCode => "err.dict.unknown_source_code" ["code"],
 
@@ -347,6 +349,10 @@ message_keys! {
     /// Sửa một mục Glossary bằng `(tier, id)` mà `id` không khớp hàng nào — mục đã bị xoá
     /// giữa chừng (đua với Story 3.9, hoặc một `id` cũ còn kẹt ở webview).
     GlossaryEntryMissing => "err.glossary.entry_missing" [],
+    /// Unconfirm refused: the entry's translation changed since the confirm.
+    GlossaryTranslationChanged => "err.glossary.translation_changed" [],
+    /// Unconfirm refused: the entry was not left confirmed by the confirm the caller holds.
+    GlossaryNotUnconfirmable => "err.glossary.not_unconfirmable" [],
     /// Chọn tầng Tác phẩm cho thêm/sửa một mục Glossary khi chưa có Tác phẩm nào đang mở.
     GlossaryWorkTierUnavailable => "err.glossary.work_tier_unavailable" [],
     /// `ScopeResolver::apply_override` từ chối bên trong `core::glossary::GlossaryError::

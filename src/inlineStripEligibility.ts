@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { confirmStripIsOpen } from './glossaryConfirmStripState'
+import { confirmStripIsOpen, confirmStripNoticeSegmentId, confirmStripNoticeShown } from './glossaryConfirmStripState'
 import { quickAddIsOpen } from './glossaryQuickAddState'
 import { topmostStrip } from './panels/inlineStripPriority'
 import type { InlineStripKind } from './panels/inlineStripPriority'
@@ -29,7 +29,7 @@ const proofreadScanLevelPresent = computed(() => {
 export const eligibleInlineStrips = computed<InlineStripKind[]>(() => {
   const list: InlineStripKind[] = []
   if (quickAddIsOpen.value) list.push('glossary_quick_add')
-  if (confirmStripIsOpen.value) list.push('glossary_confirm')
+  if (confirmStripIsOpen.value || confirmStripNoticeShown.value) list.push('glossary_confirm')
   const proofread = proofreadStateValue.value
   const caret = editorCaretSegmentId.value
   const hidden = proofreadStripHidden.value && !proofreadScanLevelPresent.value
@@ -63,7 +63,7 @@ export const inlineStripAnchorSegmentId = computed<number | null>(() => {
     case 'tm_fuzzy':
       return tmFuzzySegmentId.value
     case 'glossary_confirm':
-      return editorCaretSegmentId.value
+      return confirmStripIsOpen.value ? editorCaretSegmentId.value : confirmStripNoticeSegmentId.value
     case 'proofreader':
     case 'proofreader_summary':
       return proofreaderStripPlace.value === 'track' ? editorCaretSegmentId.value : null

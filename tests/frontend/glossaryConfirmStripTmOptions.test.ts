@@ -47,6 +47,7 @@ async function mountStrip(options: { mark?: Record<string, unknown>; tm?: TmSugg
   }))
   vi.doMock('../../src/glossaryQuickAddState', () => ({ quickAddIsOpen: ref(false) }))
   vi.doMock('../../src/commands', () => ({ dispatch: (id: string) => dispatchMock(id) }))
+  vi.doMock('../../src/config/shortcutsState', () => ({ shortcutRows: ref([]) }))
 
   const state = await import('../../src/glossaryConfirmStripState')
   const marksState = await import('../../src/panels/glossaryMarksState')

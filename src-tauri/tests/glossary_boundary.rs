@@ -124,7 +124,16 @@ const GLOSSARY_ONLY_SURFACE: [&str; 4] = [
 fn line_calls_a_glossary_only_surface_function(code: &str) -> Option<&'static str> {
     GLOSSARY_ONLY_SURFACE
         .into_iter()
-        .find(|needle| code.contains(needle))
+        .find(|needle| names_identifier(code, needle))
+}
+
+fn names_identifier(code: &str, name: &str) -> bool {
+    code.match_indices(name).any(|(at, _)| {
+        !code[..at]
+            .chars()
+            .next_back()
+            .is_some_and(|c| c.is_alphanumeric() || c == '_')
+    })
 }
 
 /// Bốn hàm mà `commands::glossary` ĐƯỢC PHÉP gọi xuống `core::glossary` — bề mặt Story 3.3
@@ -609,7 +618,7 @@ fn commands_glossary_calls_the_new_quick_add_surface_not_the_forbidden_one() {
     }
     for needle in GLOSSARY_ONLY_SURFACE {
         assert!(
-            !code.contains(needle),
+            !names_identifier(&code, needle),
             "commands/glossary.rs goi thang `{needle}` (trong PHAN MA) -- day la mot trong \
              ba ham bi cam ngoai core/glossary/**; dung ba ham moi \
              (resolve_term_for_quick_add / add_manual_term / update_manual_term) thay vi \

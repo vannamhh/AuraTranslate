@@ -4,6 +4,8 @@ import { ref } from 'vue'
 const tmEligible = ref(false)
 const tmSegmentId = ref<number | null>(null)
 const confirmOpen = ref(false)
+const confirmNotice = ref(false)
+const confirmNoticeSegment = ref<number | null>(null)
 const quickAddOpen = ref(false)
 const caret = ref<number | null>(null)
 const proofreadState = ref('idle')
@@ -11,7 +13,7 @@ const runIds = ref<number[]>([])
 const progress = ref({ done: 0, total: 1 })
 
 vi.mock('../../src/tmFuzzyStripState', () => ({ tmFuzzyIsEligible: tmEligible, tmFuzzySegmentId: tmSegmentId }))
-vi.mock('../../src/glossaryConfirmStripState', () => ({ confirmStripIsOpen: confirmOpen }))
+vi.mock('../../src/glossaryConfirmStripState', () => ({ confirmStripIsOpen: confirmOpen, confirmStripNoticeShown: confirmNotice, confirmStripNoticeSegmentId: confirmNoticeSegment }))
 vi.mock('../../src/glossaryQuickAddState', () => ({ quickAddIsOpen: quickAddOpen }))
 vi.mock('../../src/panels/editorPanelState', () => ({ editorCaretSegmentId: caret }))
 vi.mock('../../src/proofreadState', () => ({
@@ -30,6 +32,8 @@ afterEach(() => {
   tmEligible.value = false
   tmSegmentId.value = null
   confirmOpen.value = false
+  confirmNotice.value = false
+  confirmNoticeSegment.value = null
   quickAddOpen.value = false
   caret.value = null
   proofreadState.value = 'idle'
@@ -54,6 +58,15 @@ describe('inlineStripAnchorSegmentId', () => {
     tmSegmentId.value = 5
     confirmOpen.value = true
     caret.value = 9
+    expect(inlineStripAnchorSegmentId.value).toBe(9)
+  })
+
+  it('keeps the track on the confirmed sentence for the notice alone, wherever the caret is', () => {
+    confirmNotice.value = true
+    confirmNoticeSegment.value = 9
+    caret.value = null
+    expect(inlineStripAnchorSegmentId.value).toBe(9)
+    caret.value = 3
     expect(inlineStripAnchorSegmentId.value).toBe(9)
   })
 

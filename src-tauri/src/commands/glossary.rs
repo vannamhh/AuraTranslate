@@ -50,8 +50,8 @@ use crate::core::glossary::{
     classify_import_rows, confirm_pending_translation, delete_manual_term, export_tier,
     import_into_tier, list_all_entries, marks_for_source_text, match_lang_for_source_lang,
     parse as parse_glossary_import, pending_candidates, promote_to_global, read_import_file,
-    reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch, update_manual_term,
-    write_export_file,
+    reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch,
+    unconfirm_pending_translation, update_manual_term, write_export_file,
 };
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::matching::MatchLang;
@@ -528,11 +528,40 @@ pub fn glossary_confirm_pending_translation(
     tier: GlossaryTier,
     id: i64,
     translation: &str,
+) -> Result<Option<String>, IpcError> {
+    let global = global.ok_or_else(store_is_missing)?;
+    let work_store = work_context(open)?.work();
+
+    Ok(confirm_pending_translation(
+        global,
+        work_store,
+        tier,
+        id,
+        translation,
+    )?)
+}
+
+/// Inverse of [`glossary_confirm_pending_translation`] (AD-54): returns the entry to pending
+/// when the row still holds the translation and confirm mark the caller passes.
+pub fn glossary_unconfirm_translation(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: GlossaryTier,
+    id: i64,
+    expected_translation: &str,
+    expected_pending_confirmed_at: &str,
 ) -> Result<(), IpcError> {
     let global = global.ok_or_else(store_is_missing)?;
     let work_store = work_context(open)?.work();
 
-    confirm_pending_translation(global, work_store, tier, id, translation)?;
+    unconfirm_pending_translation(
+        global,
+        work_store,
+        tier,
+        id,
+        expected_translation,
+        expected_pending_confirmed_at,
+    )?;
     Ok(())
 }
 
@@ -1332,7 +1361,7 @@ pub mod wire {
         tier: GlossaryTier,
         id: i64,
         translation: String,
-    ) -> Result<(), IpcError> {
+    ) -> Result<Option<String>, IpcError> {
         use tauri::Manager as _;
 
         let global = app.try_state::<Store>();
@@ -1354,6 +1383,41 @@ pub mod wire {
             tier,
             id,
             &translation,
+        )
+    }
+
+    /// Wire shell of [`super::glossary_unconfirm_translation`].
+    #[tauri::command]
+    pub fn glossary_unconfirm_translation(
+        app: tauri::AppHandle,
+        tier: GlossaryTier,
+        id: i64,
+        expected_translation: String,
+        expected_pending_confirmed_at: String,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_unconfirm_translation(
+                global.as_deref(),
+                None,
+                tier,
+                id,
+                &expected_translation,
+                &expected_pending_confirmed_at,
+            );
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_unconfirm_translation(
+            global.as_deref(),
+            guard.as_ref(),
+            tier,
+            id,
+            &expected_translation,
+            &expected_pending_confirmed_at,
         )
     }
 

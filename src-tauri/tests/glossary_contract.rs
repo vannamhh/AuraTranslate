@@ -952,7 +952,11 @@ CREATE TABLE glossary_entry (
   category     TEXT    NOT NULL,
   term_origin  TEXT    NOT NULL,
   created_at   TEXT    NOT NULL
-);";
+);
+CREATE TRIGGER glossary_entry_lifecycle_is_one_way
+BEFORE UPDATE OF translation ON glossary_entry
+WHEN 0
+BEGIN SELECT 1; END;";
 
     /// Bước 5 GIẢ — chỉ để `schema_version()` chạm đích THẬT (5) mà không đưa
     /// `glossary_entry` qua `CHECK` nào. Một bảng đánh dấu vô hại, không ai đọc nó.
@@ -3438,7 +3442,7 @@ fn migrating_past_the_old_three_value_check_keeps_ids_and_carries_the_watermark_
     // Schema moved 9 -> 10 (added column + zero-width triggers on `glossary_entry`), but
     // neither touches the index/trigger this test guards nor blocks the plain ASCII values used here.
     let migrated = Store::open(StoreSpec::global(db)).expect("mo lai sau khi di tru");
-    assert_eq!(migrated.schema_version(), 13, "buoc 5 den 13 phai da chay");
+    assert_eq!(migrated.schema_version(), 14, "buoc 5 den 14 phai da chay");
 
     // (1) + (2) hang con song du, va id KHONG doi ('a' van la 1, 'b' van la 2 -- khong bi
     // don lai).

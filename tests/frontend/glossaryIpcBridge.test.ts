@@ -115,6 +115,12 @@ const CASES: readonly BridgeCase[] = [
     run: (g) => g.confirmPendingGlossaryTranslation('global', 7, 'Mộ Dung'),
   },
   {
+    name: 'unconfirmGlossaryTranslation',
+    wire: 'glossary_unconfirm_translation',
+    family: 'error',
+    run: (g) => g.unconfirmGlossaryTranslation('global', 7, 'Mộ Dung', '2026-10-18T01:41:01.014Z'),
+  },
+  {
     name: 'listGlossaryTmSuggestions',
     wire: 'glossary_tm_suggestions',
     family: 'error',
