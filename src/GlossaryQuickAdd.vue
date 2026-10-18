@@ -250,10 +250,8 @@ watch(quickAddIsOpen, (open) => {
 
 <style scoped>
 /*
- * AC — dải ĐẨY nội dung workspace lên, không phủ lên nó: KHÔNG `position: fixed`, KHÔNG
- * `z-index`, KHÔNG `box-shadow`. `.shell` (App.vue) là flex column cao đúng `100vh`;
- * `.modeport` là `flex: 1` — một khối `flex: none` chèn giữa nó và `<StatusBar />` chỉ đơn
- * giản CHIẾM CHỖ trong luồng bình thường, đúng cách `.status`/`.config-error` đã làm.
+ * The strip pushes the workspace up instead of covering it: no `position: fixed`, `z-index` or
+ * `box-shadow`. `.stage` is the flex:1 column holding .modeport and these strips.
  *
  * Màu và cỡ chữ CHỈ qua token (`check:tokens` Kiểm B/B2/F) — không giá trị viết thẳng.
  */

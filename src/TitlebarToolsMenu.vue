@@ -4,6 +4,7 @@ import { dispatch } from './commands'
 import { t } from './i18n'
 import { shortcutRows } from './config/shortcutsState'
 import { closeToolsMenu, toolsMenuIsOpen } from './titlebarToolsState'
+import { attributionIsOpen } from './panels/dictSourcesState'
 
 const root = useTemplateRef<HTMLElement>('root')
 const trigger = useTemplateRef<HTMLButtonElement>('trigger')
@@ -85,6 +86,7 @@ onBeforeUnmount(() => {
       class="tools-trigger"
       aria-haspopup="menu"
       :aria-expanded="toolsMenuIsOpen"
+      :disabled="attributionIsOpen"
       data-tools-trigger
       data-glossary-manage-open
       data-tm-manage-open

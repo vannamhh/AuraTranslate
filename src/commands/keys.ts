@@ -562,11 +562,8 @@ export type KeymapGate = {
   /**
    * Trả `true` ⇒ hợp âm bị **nuốt trọn**, không một command nào chạy.
    *
-   * ⚠️ Nuốt bằng cách **thoát sớm**, KHÔNG `preventDefault()`: `Escape` của lớp phủ
-   * Attribution là một `@keydown.esc` **DOM thường** trên `.attr-scrim`, không một command
-   * (§AC11 — `Escape` là một lượt huỷ **trong ngữ cảnh**). Listener này chạy ở pha
-   * `capture` trên `window`, tức **trước** nó; chặn dòng sự kiện ở đây là để lớp phủ không
-   * đóng được bằng phím, tức nhốt người dùng bàn phím vào trong đúng thứ nó vừa mở.
+   * Attribution's Escape is a plain @keydown.esc on .attr-screen, not a command;
+   * swallow chords by returning early, no preventDefault.
    */
   isBlocked?: (event: ChordEvent) => boolean
 }

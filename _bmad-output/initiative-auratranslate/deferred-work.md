@@ -13276,3 +13276,16 @@ chính nó.
   summary: Chốt một thuật ngữ ở dải, thấy thông báo "đã chốt" ngay dưới câu, gán một phím cho lệnh gỡ chốt ở màn Phím tắt rồi thấy thông báo in đúng phím đó, bấm gỡ chốt và thấy dấu thuật ngữ trở lại nét đứt, dải không mọc lại trên chính thuật ngữ đó trong Chương.
   evidence: e2e `story-12-20-glossary-unconfirm.e2e.mjs` chạy thật xanh cho chốt → gỡ chốt bằng chuột nhưng không gán phím và không đo nét đứt; vitest không có bố cục (thông báo từng vô hình trong app vì không có track, chỉ e2e lộ ra).
   Chủ: Epic 12.
+
+- 🟡 **Màn Attribution đầy đủ chưa có lượt dùng thật trên bản đóng gói** (Story 12-21).
+  summary: Mở Attribution từ panel Tra cứu và từ ngăn kéo Tra cứu ở cửa sổ hẹp: màn phủ kín vùng dưới thanh tiêu đề (cả hai dải chân và thanh trạng thái), ba tab còn bấm được, công tắc bố cục và `Công cụ ▾` vô hiệu; bật một lỗi cấu hình để `p.config-error` hiện và thấy màn không che tab; đóng bằng Esc khi mở từ ngăn kéo thì tiêu điểm về nút mở trong ngăn kéo (`nextTick` lần hai, happy-dom không thấy `display: none`).
+  evidence: e2e `attribution-focus.e2e.mjs` chỉ đo `elementFromPoint` trên ba tab ở cửa sổ rộng; vitest dựng `App.vue` với dải giả, không có hình học.
+  Chủ: Epic 12.
+
+- **Mở Attribution từ ngăn kéo Tra cứu rồi bấm tab chế độ thì ngăn kéo hiện lại trên chế độ mới và kéo tiêu điểm vào nó** (Story 12-21, triage hàng 24).
+  summary: `mode.*` chỉ đóng Attribution; `lookupDrawerIsOpen` sống qua lượt đổi chế độ, `.ld-scrim` ở gốc hiện lại khi `v-show` lật và `nextTick` trả tiêu điểm về nút mở trong ngăn kéo. Esc đóng được ngăn kéo; gọi `closeLookupDrawer` từ `mode.*` thì focus-return của ngăn kéo tranh với chế độ mới.
+  Chủ: Epic 12.
+
+- **Bấm vùng không nhận tiêu điểm của thanh tiêu đề khi Attribution mở làm tiêu điểm rơi về `body`, Esc và Tab không còn tới `.attr-screen`** (Story 12-21, triage hàng 29).
+  summary: Đã có từ trước với lề scrim cũ ngoài `.attr-panel`; thanh tiêu đề còn sống nên vùng rộng hơn. Sửa cần một đường Esc cấp ứng dụng đi qua `isBlocked` (`src/main.ts`).
+  Chủ: Epic 12.

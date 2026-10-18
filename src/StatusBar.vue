@@ -660,9 +660,8 @@ const glossaryHoverText = computed<string | null>(() => {
  *       thanh trạng thái. Qua token, không một con số viết thẳng ⇒ Kiểm B/B2 của `check-tokens`.
  *   (c) mọi text node đi qua `t()` ⇒ Kiểm A2 của `check-i18n`.
  *
- * ⚠️ `flex: none` là bắt buộc, không làm đẹp: `.shell` là một flex container dọc cao đúng
- * `100vh` và `.modeport` là `flex: 1`. Không có nó, thanh này chạy ở `flex: 0 1 auto` và bị co
- * lại khi vùng làm việc đòi chỗ — cùng bài học mà `.config-error` và `.selftest` đã ghi.
+ * `flex: none` is required: `.stage` is the flex:1 column holding .modeport and these strips,
+ * and without it the bar shrinks when the work area claims space.
  */
 .status {
   display: flex;

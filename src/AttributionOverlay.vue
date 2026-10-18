@@ -1,20 +1,13 @@
 <script setup lang="ts">
-// Bề mặt **Attribution** — Story 1.19 · AC7 · AC8 · AC9 · AC10 · AC11.
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// 🔴 MỘT LỚP PHỦ, KHÔNG MỘT CHẾ ĐỘ THỨ TƯ (§Quyết định #4a, Ice chốt 2026-08-08)
-// ─────────────────────────────────────────────────────────────────────────────
-// AD-24 khai **BA** chế độ ngang hàng và `MODE_IDS` là một hằng có ba phần tử; thêm chế độ
-// thứ tư là một quyết định kiến trúc, và `Mod+Alt+3` là phím của Story 8.11. Lớp phủ dựng ở
-// `App.vue` — cùng tầng với dải báo lỗi cấu hình, không trong một panel: nó nói về **cả ứng
-// dụng**, không về một panel.
-//
-import { nextTick, useTemplateRef, watch } from 'vue'
+// A screen, not a fourth mode (AD-24): mounted in `App.vue` inside `div.stage` below the
+// title bar, not in a panel, because it is about the whole app.
+import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import {
   aimAttributionSource,
+  attributionAimedCode,
   attributionCopyFailedCode,
   attributionIsOpen,
   attributionLicenseView,
@@ -43,6 +36,9 @@ import { useSelectionSurface } from './panels/selectionContract'
 const panel = useTemplateRef<HTMLElement>('panel')
 const licenseViewEl = useTemplateRef<HTMLElement>('licenseViewEl')
 useSelectionSurface(panel, 'display')
+
+const aimedSource = computed(() => dictSources.value.find((s) => s.code === attributionAimedCode.value))
+const canOpenLicense = computed(() => (aimedSource.value?.license_text_len ?? 0) > 0)
 
 /**
  * 🔴 UX-DR17 — TRẢ TIÊU ĐIỂM VỀ CHỖ CŨ.
@@ -81,6 +77,9 @@ watch(attributionIsOpen, (open) => {
   // mọi đường dựng lại DOM mà lượt này chưa lường tới.
   if (back !== null && back.isConnected) {
     back.focus()
+    void nextTick(() => {
+      if (back.isConnected && document.activeElement !== back) back.focus()
+    })
     return
   }
 
@@ -102,34 +101,44 @@ function aimRow(code: string): void {
   aimAttributionSource(code)
 }
 
+watch(
+  [attributionIsOpen, dictSources, attributionAimedCode],
+  () => {
+    if (!attributionIsOpen.value) return
+    const code = attributionAimedCode.value
+    if (code !== null && dictSources.value.some((s) => s.code === code)) return
+    aimAttributionSource(dictSources.value[0]?.code ?? null)
+  },
+  { immediate: true },
+)
+
+watch(attributionAimedCode, (code, previous) => {
+  if (attributionLicenseView.value === null || code === previous) return
+  dispatch(canOpenLicense.value ? 'attribution.open_license' : 'attribution.close_license')
+})
+
 // The licence text viewer closes first; the next Escape closes the overlay.
 function onEscape(): void {
   if (attributionLicenseView.value === null) dispatch('attribution.close')
   else dispatch('attribution.close_license')
 }
 
-// Whichever path closes the viewer, focus goes back to the row button that opened it.
+// Whichever path closes the viewer, focus goes back to the foot button, or to the aimed row
+// when that button is disabled (focus() on a disabled button is a silent no-op).
 watch(attributionLicenseView, (view, previous) => {
   if (view !== null) {
-    void nextTick(() => licenseViewEl.value?.focus())
+    if (previous === null) void nextTick(() => licenseViewEl.value?.focus())
     return
   }
   if (previous === null) return
-  const code = previous.code
   void nextTick(() => {
-    panel.value
-      ?.querySelector<HTMLElement>(`button[data-license-open="${CSS.escape(code)}"]`)
-      ?.focus()
+    const button = panel.value?.querySelector<HTMLButtonElement>('button[data-license-open]')
+    if (button !== null && button !== undefined && !button.disabled) button.focus()
+    else panel.value?.querySelector<HTMLElement>('tr.attr-aimed')?.focus()
   })
 })
 
-/**
- * Danh sách điểm dừng Tab **thật** bên trong lớp phủ, theo đúng thứ tự tài liệu.
- *
- * ⚠️ `:not([disabled])` và `:not([tabindex="-1"])` là bắt buộc: một nút vô hiệu hoá hay
- * `.attr-panel` (mang `tabindex="-1"` để nhận `focus()` mà không chen vào vòng Tab) lọt vào
- * danh sách sẽ làm vòng lặp dừng ở một chỗ người dùng không thao tác được.
- */
+// `:not([tabindex="-1"])` keeps the panel itself (focusable only by script) out of the Tab ring.
 function focusableWithin(root: HTMLElement): HTMLElement[] {
   return Array.from(
     root.querySelectorAll<HTMLElement>(
@@ -139,22 +148,8 @@ function focusableWithin(root: HTMLElement): HTMLElement[] {
   )
 }
 
-/**
- * 🔴 **BẪY TIÊU ĐIỂM — AC11, và nó là điều kiện để `aria-modal="true"` không phải một lời
- * khai sai** (bắt ở code review 2026-08-10).
- *
- * Trước lượt vá, điểm dừng Tab duy nhất bên trong là nút đóng, và không một cơ chế nào giữ
- * tiêu điểm lại. Bấm Tab thêm một lần là rơi ra các phần tử tương tác của ứng dụng — vẫn
- * **có** trong DOM và vẫn nhận được tiêu điểm, nhưng đang bị `.attr-scrim` che kín, nên
- * người dùng bàn phím mất hoàn toàn dấu vết tiêu điểm. Tệ hơn: `@keydown.esc` gắn trên
- * `.attr-scrim`, nên khi tiêu điểm đã ra ngoài thì `Escape` **không còn tới được** handler,
- * và lớp phủ thành một cái bẫy thật thay vì một hộp thoại.
- *
- * ⚠️ **Luôn `preventDefault()` rồi tự lái**, chứ không chỉ chặn ở hai đầu danh sách: tự lái
- * đúng ở **mọi** vị trí xuất phát, kể cả khi tiêu điểm đang ở `.attr-panel` *(vị trí ngay sau
- * lượt mở)* hay đã lạc ra ngoài vì một lượt dựng lại DOM. Phiên bản "chỉ chặn ở hai đầu" đọc
- * gọn hơn và để lọt đúng những ca đó.
- */
+// Always preventDefault and steer: the titlebar stays live, so a native Tab would leave the
+// screen and Escape (bound on .attr-screen) would stop reaching the handler.
 function trapTab(event: KeyboardEvent): void {
   const root = panel.value
   if (root === null) return
@@ -162,8 +157,7 @@ function trapTab(event: KeyboardEvent): void {
   event.preventDefault()
   const stops = focusableWithin(root)
   if (stops.length === 0) {
-    // Lớp phủ không một điểm dừng nào (bảng rỗng và nút đóng bị gỡ): giữ tiêu điểm trên
-    // chính khối hộp thoại, vì `Escape` vẫn phải tới được `.attr-scrim`.
+    // No stops: keep focus on the panel so Escape still reaches .attr-screen.
     root.focus()
     return
   }
@@ -193,13 +187,19 @@ function trapTab(event: KeyboardEvent): void {
   -->
   <div
     v-if="attributionIsOpen"
-    class="attr-scrim"
+    class="attr-screen"
     @keydown.esc="onEscape()"
     @keydown.tab="trapTab($event)"
   >
-    <section ref="panel" class="attr-panel" tabindex="-1" role="dialog" aria-modal="true">
+    <section
+      ref="panel"
+      class="attr-panel"
+      tabindex="-1"
+      role="dialog"
+      aria-labelledby="attr-title"
+    >
       <header class="attr-head">
-        <h2 class="attr-title">{{ t('attribution.title') }}</h2>
+        <h2 id="attr-title" class="attr-title">{{ t('attribution.title') }}</h2>
         <button type="button" class="attr-close" @click="dispatch('attribution.close')">
           {{ t('command.attribution.close') }}
         </button>
@@ -252,6 +252,9 @@ function trapTab(event: KeyboardEvent): void {
           <tr
             v-for="src in dictSources"
             :key="src.code"
+            tabindex="0"
+            :class="{ 'attr-aimed': src.code === attributionAimedCode }"
+            :aria-current="src.code === attributionAimedCode ? 'true' : undefined"
             @mousedown="aimRow(src.code)"
             @focusin="aimRow(src.code)"
           >
@@ -303,27 +306,6 @@ function trapTab(event: KeyboardEvent): void {
               </p>
               <!-- aura-allow-text: source_url — DATA read from the file. -->
               <p v-if="src.source_url !== ''" class="attr-provenance">{{ src.source_url }}</p>
-              <div class="attr-actions">
-                <button
-                  v-if="src.license_text_len > 0"
-                  type="button"
-                  class="attr-action"
-                  :data-license-open="src.code"
-                  @click="dispatch('attribution.open_license')"
-                >
-                  {{ t('command.attribution.open_license') }}
-                </button>
-                <button
-                  type="button"
-                  class="attr-action"
-                  @click="dispatch('attribution.copy_credit')"
-                >
-                  {{ t('command.attribution.copy_credit') }}
-                </button>
-              </div>
-              <p v-if="attributionCopyFailedCode === src.code" class="attr-error" role="alert">
-                {{ t('attribution.copy_failed') }}
-              </p>
             </td>
           </tr>
         </tbody>
@@ -364,6 +346,33 @@ function trapTab(event: KeyboardEvent): void {
         </div>
       </div>
 
+      <div v-if="dictSourcesError === null" class="attr-foot">
+        <button
+          type="button"
+          class="attr-action attr-action-primary"
+          data-license-open
+          :disabled="!canOpenLicense"
+          @click="dispatch('attribution.open_license')"
+        >
+          {{ t('command.attribution.open_license') }}
+        </button>
+        <button
+          type="button"
+          class="attr-action"
+          :disabled="aimedSource === undefined"
+          @click="dispatch('attribution.copy_credit')"
+        >
+          {{ t('command.attribution.copy_credit') }}
+        </button>
+        <span class="attr-hint">
+          {{ t('attribution.hint_licenses_bundled') }} ·
+          <!-- aura-allow-text: tên phím. --><kbd>Tab</kbd> {{ t('attribution.hint_browse') }}
+        </span>
+        <p v-if="attributionCopyFailedCode !== null && attributionCopyFailedCode === attributionAimedCode" class="attr-error" role="alert">
+          {{ t('attribution.copy_failed') }}
+        </p>
+      </div>
+
       <!-- 🔴 AC10 / FR112 — màn hình phải NÓI RA rằng tắt không phải gỡ. -->
       <p class="attr-note">{{ t('attribution.off_is_not_removed') }}</p>
     </section>
@@ -371,30 +380,17 @@ function trapTab(event: KeyboardEvent): void {
 </template>
 
 <style scoped>
-/*
- * Nền phủ. `--color-background` chứ không một `rgba()` viết thẳng — Kiểm B của
- * `check:tokens` đỏ với một giá trị màu viết thẳng, và ở đây không có gì cần lách.
- */
-.attr-scrim {
-  position: fixed;
+/* Follows .modeport in tree order and is positioned, so it paints over it without a z-index. */
+.attr-screen {
+  position: absolute;
   inset: 0;
-  /* aura-allow-z-index: xếp lớp CƠ HỌC — dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel, nên thứ tự tài liệu một mình không đủ để lớp phủ nằm TRÊN lưới. */
-  z-index: 10;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  overflow: auto;
   padding: var(--space-panel-inline);
   background: var(--color-background);
 }
 
 .attr-panel {
   width: 100%;
-  max-width: 1100px;
-  max-height: 100%;
-  overflow: auto;
-  padding: var(--space-panel-inline);
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
 }
 
 .attr-head {
@@ -515,11 +511,43 @@ function trapTab(event: KeyboardEvent): void {
   margin: 4px 0 0 0;
 }
 
-.attr-actions {
+.attr-table td:first-child {
+  border-left: 2px solid transparent;
+}
+
+.attr-table tr.attr-aimed td {
+  background: var(--color-surface);
+}
+
+.attr-table tr.attr-aimed td:first-child {
+  border-left-color: var(--color-primary);
+}
+
+.attr-foot {
   display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
   gap: 12px;
-  margin-top: 8px;
+  margin-bottom: var(--space-panel-block);
+}
+
+.attr-hint {
+  margin-left: auto;
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-on-surface-variant);
+}
+
+.attr-hint kbd {
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  color: var(--color-on-surface-variant);
+}
+
+.attr-foot .attr-error {
+  flex-basis: 100%;
+  margin: 0;
 }
 
 .attr-action {
@@ -532,6 +560,20 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.attr-action:disabled {
+  cursor: default;
+  border-color: var(--color-outline);
+  background: none;
+  color: var(--color-on-surface-variant);
+}
+
+.attr-action-primary:not(:disabled) {
+  padding: 4px 12px;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .attr-error {

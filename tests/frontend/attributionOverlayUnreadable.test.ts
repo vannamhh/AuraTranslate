@@ -51,6 +51,9 @@ describe('AttributionOverlay — trạng thái thứ ba "một phần không đ�
 
     expect(w.find('.attr-empty').exists()).toBe(false)
     expect(w.find('.attr-partial').exists()).toBe(true)
+    const foot = w.findAll('.attr-foot button')
+    expect(foot).toHaveLength(2)
+    expect(foot.every((b) => b.attributes('disabled') !== undefined)).toBe(true)
     w.unmount()
   })
 
@@ -68,6 +71,7 @@ describe('AttributionOverlay — trạng thái thứ ba "một phần không đ�
     expect(w.find('.attr-empty').exists()).toBe(false)
     expect(w.find('.attr-table').exists()).toBe(true)
     expect(w.findAll('tbody tr')).toHaveLength(1)
+    expect(w.get('tbody tr').classes()).toContain('attr-aimed')
     w.unmount()
   })
 

@@ -130,6 +130,23 @@ describe('Công cụ ▾ list', () => {
   })
 })
 
+describe('Công cụ ▾ trigger while Attribution is open', () => {
+  it('is disabled while the Attribution screen is open and enabled after it closes', async () => {
+    const { Menu } = await setup()
+    const dict = await import('../../src/panels/dictSourcesState')
+    const wrapper = mount(Menu, { attachTo: document.body })
+    const trigger = wrapper.get('[data-tools-trigger]')
+    expect(trigger.attributes('disabled')).toBeUndefined()
+    dict.openAttribution()
+    await flush()
+    expect(trigger.attributes('disabled')).toBeDefined()
+    dict.closeAttribution()
+    await flush()
+    expect(trigger.attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+})
+
 describe('chords', () => {
   it('Mod+Alt+B opens TM management, Mod+N opens the import form, Mod+M is untouched', async () => {
     const { keymap } = await setup()
@@ -176,7 +193,7 @@ describe('title bar in App.vue', () => {
 
   it('shows the layout switch only in Workspace, marks the active preset and disables it in Review Mode', () => {
     expect(header).toMatch(/v-if="currentMode === 'workspace'"\s+class="layout-switch"/)
-    expect(header).toContain(":disabled=\"reviewModeIsOpen\"")
+    expect(header.match(/:disabled="reviewModeIsOpen \|\| attributionIsOpen"/g) ?? []).toHaveLength(2)
     expect(header).toContain("dispatch('layout.preset_grid')")
     expect(header).toContain("dispatch('layout.preset_columns')")
     expect(header).toContain("activeLayoutPreset === 'layout.preset_grid'")

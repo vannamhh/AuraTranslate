@@ -29,6 +29,7 @@ import { ensureFullLayoutTier } from '../support/layoutTier.mjs'
 /** Mối nối `data-`, không tên lớp CSS — cùng doctrine với `data-shortcuts-open`. */
 const OPENER = '[data-attribution-open]'
 const PANEL = '.attr-panel'
+const SCREEN = '.attr-screen'
 
 /** Node đang giữ tiêu điểm, đọc TRONG webview thật. */
 async function activeElementSignature() {
@@ -75,16 +76,45 @@ describe('Story 1.19 · AC11 — Escape trả tiêu điểm về nút mở Attri
     const panel = await $(PANEL)
     await panel.waitForDisplayed({ timeout: 10_000 })
 
-    // Bẫy tiêu điểm của `aria-modal="true"` phải THẬT: tiêu điểm nằm trong lớp phủ.
     const insideOverlay = await browser.execute(
       (sel) => document.querySelector(sel)?.contains(document.activeElement) ?? false,
       PANEL,
     )
     expect(insideOverlay).toBe(true)
 
+    const shape = await browser.execute(
+      (screenSel, panelSel) => {
+        const tabs = Array.from(document.querySelectorAll('.mode-tab'))
+        const reachable = tabs.map((tab) => {
+          const r = tab.getBoundingClientRect()
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+          return hit !== null && (hit === tab || tab.contains(hit))
+        })
+        return {
+          scrim: document.querySelector('.attr-scrim') !== null,
+          screen: document.querySelector(screenSel) !== null,
+          ariaModal: document.querySelector(panelSel)?.hasAttribute('aria-modal') ?? null,
+          label: document.querySelector('[data-titlebar-attribution]')?.textContent?.trim() ?? null,
+          footButtons: document.querySelectorAll('.attr-foot button').length,
+          rowButtons: document.querySelectorAll('.attr-table tbody button').length,
+          tabs: tabs.length,
+          reachable,
+        }
+      },
+      SCREEN,
+      PANEL,
+    )
+    expect(shape.scrim).toBe(false)
+    expect(shape.screen).toBe(true)
+    expect(shape.ariaModal).toBe(false)
+    expect(shape.label).toBe('Giới thiệu · Nguồn dữ liệu')
+    expect(shape.footButtons).toBe(2)
+    expect(shape.rowButtons).toBe(0)
+    expect(shape.tabs).toBe(3)
+    expect(shape.reachable).toEqual([true, true, true])
+
     // ── Đóng bằng Escape ─────────────────────────────────────────────────────────
-    // ⚠️ `@keydown.esc` gắn trên `.attr-scrim`, nên `Escape` chỉ tới được handler khi tiêu
-    // điểm còn TRONG lớp phủ — khẳng định ngay trên là điều kiện để bước này có nghĩa.
+    // Escape is bound on .attr-screen, so it only reaches the handler while focus is inside.
     await browser.keys(['Escape'])
     await panel.waitForExist({ reverse: true, timeout: 10_000 })
 

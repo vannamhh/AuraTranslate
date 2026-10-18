@@ -469,7 +469,10 @@ let licenseSequence = 0
 export const attributionLicenseView: DeepReadonly<Ref<LicenseView | null>> = readonly(licenseViewRef)
 export const attributionCopyFailedCode: DeepReadonly<Ref<string | null>> = readonly(copyFailedCodeRef)
 
+export const attributionAimedCode: DeepReadonly<Ref<string | null>> = readonly(aimedAttributionCode)
+
 export function aimAttributionSource(code: string | null): void {
+  if (code !== aimedAttributionCode.value) copyFailedCodeRef.value = null
   aimedAttributionCode.value = code
 }
 

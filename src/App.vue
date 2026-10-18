@@ -93,6 +93,7 @@ import { proofreadStatusText } from './titlebarProofreadStatus'
 import { importSourceStatusText } from './titlebarImportSource'
 import { activeLayoutPreset } from './layout/layoutPresetState'
 import { reviewModeIsOpen } from './reviewModeState'
+import { attributionIsOpen } from './panels/dictSourcesState'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
@@ -230,6 +231,7 @@ onMounted(async () => {
         <span v-if="proofreadStatusText !== null" class="titlebar-status" role="status">{{ proofreadStatusText }}</span>
         <!-- aura-allow-text: `importSourceStatusText` is the output of t() with the file name and size. -->
         <span v-if="importSourceStatusText !== null" class="titlebar-status" data-titlebar-import-source>{{ importSourceStatusText }}</span>
+        <span v-if="attributionIsOpen" class="titlebar-status" data-titlebar-attribution>{{ t('titlebar.attribution_label') }}</span>
 
         <div
           v-if="currentMode === 'workspace'"
@@ -242,7 +244,7 @@ onMounted(async () => {
             class="layout-switch-btn"
             :class="{ on: activeLayoutPreset === 'layout.preset_grid' }"
             :aria-pressed="activeLayoutPreset === 'layout.preset_grid'"
-            :disabled="reviewModeIsOpen"
+            :disabled="reviewModeIsOpen || attributionIsOpen"
             :title="t('command.layout.preset_grid')"
             @click="dispatch('layout.preset_grid')"
           >
@@ -253,7 +255,7 @@ onMounted(async () => {
             class="layout-switch-btn"
             :class="{ on: activeLayoutPreset === 'layout.preset_columns' }"
             :aria-pressed="activeLayoutPreset === 'layout.preset_columns'"
-            :disabled="reviewModeIsOpen"
+            :disabled="reviewModeIsOpen || attributionIsOpen"
             :title="t('command.layout.preset_columns')"
             @click="dispatch('layout.preset_columns')"
           >
@@ -276,36 +278,24 @@ onMounted(async () => {
       chế độ mà không có gì nối được lỗi đó về story này. Chọn đúng ngay bây giờ tốn một
       cặp thẻ.
     -->
-    <div class="modeport">
-      <KeepAlive>
-        <LibraryMode v-if="currentMode === 'library'" />
-        <WorkspaceMode v-else-if="currentMode === 'workspace'" />
-        <ReadingMode v-else />
-      </KeepAlive>
+    <div class="stage">
+      <div class="modeport">
+        <KeepAlive>
+          <LibraryMode v-if="currentMode === 'library'" />
+          <WorkspaceMode v-else-if="currentMode === 'workspace'" />
+          <ReadingMode v-else />
+        </KeepAlive>
+      </div>
+
+      <!-- The strips below share one work-area height across the three modes. -->
+      <GlossaryQuickAdd />
+
+      <ProofreaderStrip place="foot" />
+
+      <StatusBar />
+
+      <AttributionOverlay />
     </div>
-
-    <!--
-      🔴 STORY 2.3 · AC7 · AC9 — THANH TRẠNG THÁI, lượt đầu tiên nó tồn tại.
-
-      Đặt ở **vỏ ứng dụng** dưới `.modeport`, không trong `WorkspaceMode.vue` (Quyết định #5,
-      đường (a)): `EXPERIENCE.md:417` đã dùng nó để tính chiều cao vùng làm việc cho **cả ba**
-      chế độ, và UX-DR15 hứa Panel Lookup *"rút về thanh trạng thái"* ở màn hình hẹp (Story
-      4.12) — một thanh chỉ sống trong Workspace sẽ phải chuyển chỗ lần nữa ở đó.
-
-      ⚠️ Đặt TRƯỚC `pre.selftest`: dải chẩn đoán đó chỉ tồn tại khi `VITE_SCOPE_SELFTEST=1`, và
-      nó là thứ cuối cùng của vỏ trong bản debug. Thanh trạng thái là một phần **thường trực**
-      của bố cục mà `EXPERIENCE.md:417` tính vào chiều cao — nó không được nằm dưới một khối
-      chỉ có mặt trong một chế độ chạy.
-    -->
-    <!--
-      Story 3.3 · FR48 — dải "Thêm thuật ngữ", tự quản `v-if` của nó qua `quickAddIsOpen`.
-      NGAY TRÊN `<StatusBar />` — xem doc-comment đầu `GlossaryQuickAdd.vue`.
-    -->
-    <GlossaryQuickAdd />
-
-    <ProofreaderStrip place="foot" />
-
-    <StatusBar />
 
     <!--
       aura-allow-text: báo cáo self-check phạm vi asset protocol — CHẨN ĐOÁN cho log CI,
@@ -314,9 +304,6 @@ onMounted(async () => {
       lý do mà `src/selftest/**` được miễn trừ TRỌN ở `EXEMPT` của cổng này.
     -->
     <pre v-if="report" class="selftest" :data-verdict="report.verdict">{{ report.text }}</pre>
-
-    <!-- Story 1.19 · AC7–AC11 — lớp phủ tự quản `v-if` của nó qua `attributionIsOpen`. -->
-    <AttributionOverlay />
 
     <!-- Story 2.6 · FR101 · AC1–AC3 — cùng khuôn: lớp phủ tự quản `v-if` qua `historyIsOpen`. -->
     <SegmentHistoryOverlay />
@@ -511,6 +498,14 @@ onMounted(async () => {
   border-bottom-color: var(--color-primary);
 }
 
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .modeport {
   flex: 1;
   min-height: 0;
@@ -524,7 +519,7 @@ onMounted(async () => {
    *
    * Ba phép đo, không một suy đoán:
    *   `dockview.css:2940-2942`  → `.dv-sash { position: absolute; z-index: 99 }`
-   *   `AttributionOverlay.vue`  → `.attr-scrim { position: fixed; z-index: 10 }`
+   *   `LookupDrawer.vue`        → `.ld-scrim { position: fixed; z-index: 10 }`
    *   khối này TRƯỚC lượt vá    → `flex: 1; min-height: 0`, tức **không** thuộc tính nào
    *                               tạo ngữ cảnh xếp lớp
    * ⇒ `99` và `10` tranh nhau trong **cùng một** ngữ cảnh gốc, và sash thắng. Thanh sash
@@ -539,9 +534,9 @@ onMounted(async () => {
    *
    * `isolation: isolate` nói đúng mệnh đề cần nói: *"mọi `z-index` bên trong cây dockview
    * là chuyện NỘI BỘ của nó"*. Cả `99`, `999` lẫn `9999` thành cục bộ, thứ tự giữa chúng
-   * **không đổi một chút nào** (drop target vẫn trên panel), còn `.attr-scrim` — nằm
-   * NGOÀI khối này, anh em với nó trong `.shell` — chỉ cần đứng trên `.modeport` như một
-   * khối duy nhất. `z-index: 10` của nó ở lại nguyên giá trị và nguyên lý do.
+   * **không đổi một chút nào** (drop target vẫn trên panel), còn `.ld-scrim` — nằm
+   * NGOÀI khối này — chỉ cần đứng trên `.modeport` như một khối duy nhất.
+   * `.attr-screen` is a later sibling in `.stage` and positioned, so it paints over `.modeport` without z-index.
    *
    * ⚠️ `isolation` KHÔNG phải `z-index`, nên nó không cần `aura-allow-z-index` của Kiểm F
    * (`check-tokens.mjs:1370`) — và nó cũng không đụng bố cục: không `position`, không
@@ -556,12 +551,8 @@ onMounted(async () => {
 }
 
 .selftest {
-  /* ⚠️ `.shell` là một flex container dọc cao đúng `100vh`, và `.modeport` là `flex: 1`
-     (basis `0%`). Không có ba dòng dưới đây thì `.selftest` chạy ở `flex: 0 1 auto` với
-     `min-height: auto`, tức **không co xuống dưới chiều cao nội dung** — một báo cáo scope
-     nhiều dòng bóp `.modeport` về gần 0 và tràn khỏi `100vh`. Không cổng nào bắt được:
-     `check:scope` đọc dòng `VERDICT:` từ stdout, không đọc bố cục. Hỏng đúng trong bản
-     debug tồn tại để hiển thị chính báo cáo này (Story 1.2/1.3). */
+  /* `.selftest` and `.stage` are siblings in the 100vh `.shell`; without `min-height: 0` a long
+     report keeps its content height and squeezes `.stage` instead of scrolling. */
   flex: 0 1 auto;
   min-height: 0;
   overflow: auto;

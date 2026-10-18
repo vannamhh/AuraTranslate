@@ -1356,6 +1356,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       // `Mod` — KHÔNG phải `Meta`. Xem §Trap 1 ở đầu `./keys.ts`.
       keys: [`Mod+${MODE_IDS.indexOf(mode) + 1}`],
       run: () => {
+        deps.closeAttribution?.()
         setMode(mode)
         // KHÔNG gọi `enterFocus` ở đây. Phần tử của chế độ vừa chọn chưa có trong
         // DOM tại thời điểm này — Vue mới chỉ nhận được thay đổi state. Mỗi chế độ tự

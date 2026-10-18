@@ -38,6 +38,7 @@ import { t } from '../i18n'
 import { dispatch } from '../commands'
 import { focusReturnTargetOnOpen } from '../commands/focus'
 import { closeLookupDrawer, lookupDrawerIsOpen } from './lookupDrawerState'
+import { attributionIsOpen } from '../panels/dictSourcesState'
 import LookupPanel from '../panels/LookupPanel.vue'
 import type { DockviewPanelProps } from './panelProps'
 
@@ -117,6 +118,7 @@ function trapTab(event: KeyboardEvent): void {
   -->
   <div
     v-if="lookupDrawerIsOpen"
+    v-show="!attributionIsOpen"
     class="ld-scrim"
     @keydown.esc="closeLookupDrawer()"
     @keydown.tab="trapTab($event)"
@@ -136,15 +138,11 @@ function trapTab(event: KeyboardEvent): void {
 </template>
 
 <style scoped>
-/*
- * Cùng khuôn `.attr-scrim` — `position: fixed; inset: 0`, nền qua token (không `rgba()` viết
- * thẳng, Kiểm B của `check:tokens`). `justify-content: flex-end` là toàn bộ khác biệt hình
- * học với một lớp phủ căn giữa: panel neo cạnh PHẢI thay vì giữa màn hình (Decision 2).
- */
+/* Anchored to the right edge; colours via tokens only. */
 .ld-scrim {
   position: fixed;
   inset: 0;
-  /* aura-allow-z-index: xếp lớp cơ học, cùng lý do và cùng con số `.attr-scrim` — dockview dựng ngữ cảnh xếp lớp riêng cho mỗi nhóm panel, và `.modeport` (App.vue) đã cô lập nó bằng `isolation: isolate`. */
+  /* aura-allow-z-index: dockview builds a stacking context per group; .modeport isolates it. */
   z-index: 10;
   display: flex;
   justify-content: flex-end;
