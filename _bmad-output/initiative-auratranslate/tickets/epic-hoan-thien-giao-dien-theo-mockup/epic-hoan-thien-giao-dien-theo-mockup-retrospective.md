@@ -30,9 +30,12 @@ Ký hiệu nguồn: `dw:N` là dòng N của `deferred-work.md`.
 ### Quy trình / bằng chứng
 
 - **P1. 34 commit của Epic 12 chưa lên remote.** `origin/master` = `fe08b04`, `master` đi trước 34 commit. Sáu lượt CI `schedule` 2026-10-13..18 đều chạy trên `fe08b04`. Vì vậy từ 12.2 trở đi, phần Windows, lượt UTC và nightly e2e chưa từng chạy, và điều kiện "đọc CI + nightly trước `done`" của AGENTS.md chưa thể đạt cho 21 story. Nguồn: `git rev-list --count origin/master..master` = 34; `gh run list --event schedule`. Xử lý: **sửa ngay** (push, đọc CI). Phòng lần sau: push sau mỗi story để CI có thể đỏ trong lúc epic còn mở.
+  - 🔵 2026-10-19: đã push tới `fa44774`. CI `39281709597` đỏ cả hai nửa, xem P5 và R5. Pre-push đỏ bốn lượt ở `npm run test` khi load 94–283, vitest chạy riêng xanh 206 tệp 2.985 ca ở load 113–126, lượt thứ năm ở load 7 xanh trọn trong 4.585 s.
 - **P2. Bảy spec e2e ghi "chưa chạy".** Gồm 12-10 (cập nhật), 12-13, 12-14 (hai spec), 12-15, 12-16, 12-17, đều vì webview đứng ở `tauri://localhost` trong sandbox; 12.11 và 12.12 không có spec e2e. Nguồn: commit `b9aca37`, `1b50f51`, `a48123e`, `31d6087`, `3a48193`, `e5ac8e6`; `dw:13248`. Xử lý: **sửa ngay**, chạy ngoài sandbox hoặc chờ nightly sau P1.
 - **P3. Lựa chọn hai phương án mà không có số đo.** B22 (12.11 ghi "Không đo hai phương án"), A10, A19 (12.3). Epic Notes đòi "story đo rồi đưa Ice chọn", AGENTS.md cũng có luật "hai phương án hợp lệ ⇒ trình cả hai kèm số đo". Nguồn: plan 12.11 dòng 28, commit `9e13ca1`; plan 12.3 dòng 54–55, commit `c521fd6`. Xử lý: **chấp nhận** (Ice đã chọn). Phòng lần sau: plan phải có ô "số đo hai phương án" thì mới được qua bước chọn.
 - **P4. Thứ tự NFR15 bị đảo.** Hàng Stack của `is-wsl`/`is-docker` ghi sau khi đã vào `Cargo.lock`, commit tự khai. Nguồn: `c521fd6`. Xử lý: **chấp nhận**.
+- **P5. Hai tệp handoff có đường dẫn 264 ký tự trên runner Windows**, vượt giới hạn 260, nên `actions/checkout` của CI `39281709597` thất bại và nửa Windows (cả lượt UTC) không chạy test nào. Nguồn: log bước checkout, "Filename too long". Xử lý: **đã sửa** ở `5e7d249` (đổi tên thư mục, dài nhất còn 242). Phòng lần sau: slug thư mục handoff ngắn như slug story.
+  - 🔵 2026-10-20: CI `39286621482` trên `5e7d249` qua checkout Windows; `cargo test` Windows đỏ ở `store_contract::the_wal_stops_growing_once_it_crosses_the_threshold` (đợt hai đẩy đỉnh WAL thêm 832.240 B, `passive_busy: 1`). Đây là ca đỏ chập chờn đã có trong sổ (`dw:12981`, Chủ: Ice), không do Epic 12.
 
 ### Review ranh giới story (`bmad-review`, ba lens)
 
@@ -42,9 +45,11 @@ Ký hiệu nguồn: `dw:N` là dòng N của `deferred-work.md`.
   - Phía Rust ghi theo `OpenWorkState` hiện tại (`src-tauri/src/commands/segment/wire.rs:363-377`). Các câu còn lại của lô vì thế ghi vào `segment.id` trùng số của Tác phẩm mới, kể cả nhánh `force=true`. Đây là lớp lỗi im lặng.
   - Ranh giới: 12.11 (`9e13ca1`) với đường đổi Tác phẩm của 12.2/12.4 (`libraryChapters.ts:370-396`).
   - Xử lý: **sửa ngay**. Phòng lần sau: mọi vòng `await` ghi theo `segment_id` mang danh tính Tác phẩm và dừng khi nó đổi.
+  - 🔵 2026-10-19: đã sửa ở `fa44774`, ba ca canh đỏ khi gỡ guard.
 - **R2. Thông báo "đã chốt, Hoàn tác" của dải Glossary che dải TM và Proofreader của cùng câu.** Thông báo này đứng đầu thứ tự ưu tiên, nên hai dải kia bị che cho tới khi caret rời câu; lệnh focus dải TM thành no-op mà không báo gì. Nguồn: `src/inlineStripEligibility.ts:32`, `src/glossaryConfirmStripState.ts:207-220`; ranh giới 12.20 (`0dc7b46`) với 12.9 (`a92008f`). Mức tin cậy: có khả năng. Xử lý: **hoãn**, Ice quyết.
 - **R3. Menu `Công cụ ▾` mở bằng lệnh không đóng khi lớp phủ khác mở hoặc khi đổi chế độ.** `resetToolsMenu` không có chỗ gọi sản phẩm, và `isBlocked` không có `toolsMenuIsOpen`. Nguồn: `src/TitlebarToolsMenu.vue:51`, `src/titlebarToolsState.ts:16`, `src/main.ts:1119`; ranh giới 12.1 (`c8b37b1`) với 12.21 (`348e4e8`). Mức tin cậy: có khả năng. Xử lý: **hoãn**, gộp vào A3.
 - **R4. `check_glossary_lifecycle` chỉ kiểm chuỗi con `pending_confirmed_at` trong SQL của trigger**, nên một trigger sai nghĩa vẫn qua cổng. Nguồn: `src-tauri/src/core/store/schema.rs:2984`, `0dc7b46`. Xử lý: **hoãn**.
+- **R5. FR77 đỏ trên CI macOS: `commands/aiconfig.rs` phụ thuộc `commands/aitranslate.rs`**, vi phạm AD-13. Bài test `#[ignore]` xoá `core/ai/` cùng ba seam đã duyệt rồi biên dịch phần còn lại; nó gãy ở `aiconfig.rs:194` (`call_ready`, 12.11 `9e13ca1`) và `:284`, `:298`, `:352` (thử kết nối, 12.18 `2fe5328`). Bài test chỉ chạy trên CI nên pre-push không bắt được. Nguồn: CI `39281709597`, bước FR77. Xử lý: **sửa ngay** (action item 12).
 - Đã kiểm, sạch: phím mặc định trùng (không có), thứ tự migration Project 35..40 và Global 14, `INSERT INTO segment_version` chỉ một chỗ và có `translation_origin` (`commands/segment/confirm.rs:283`), xoá `segment_unlinked` cùng giao dịch, mọi đường đọc TM qua `TmSidePolicy`, import khi trang Tác phẩm đang mở.
 
 ### Aggregate views
@@ -112,6 +117,7 @@ Mọi mục dưới đây là **đề xuất**; retro không sửa mã, spec hay
 
 1. **Push 34 commit và đọc CI, gồm phần Windows và lượt UTC.** Chờ nightly `schedule` chạy trên `e93c5ff` rồi ghi lý do cho mọi chỗ đỏ (P1, P2). Chủ: Ice.
 2. **Sửa R1:** gắn danh tính Tác phẩm (hoặc sequence) vào hai vòng lô PROMOTE, dừng lô khi Tác phẩm đổi, kèm ca canh đỏ khi gỡ guard. Hình dạng story: `bmad-build`, nhỏ. Chủ: Epic 12.
+   - 🔵 2026-10-19: xong ở `fa44774`.
 3. **Story dọn teardown cấp ứng dụng.** Gom danh sách `reset*` khi đổi Tác phẩm về một nơi (A-D2), nối hoặc gỡ 8 hàm `reset*` mồ côi mà không tạo vòng import (A-D3), đóng menu `Công cụ ▾` qua `isBlocked`/reset (R3), và cân nhắc gom `trapTab`/khôi phục tiêu điểm (A-D1). Có thể gộp hai nợ tiêu điểm `dw:13289`, `dw:13293`. Chủ: Epic 12.
 4. **Sửa các mục code nhỏ trong sổ:** `dw:13151` (`state_omitted`), `dw:13237` (`COUNT` SQL), A-C1 (`toLocaleString`); đo `dw:13159` trên WKWebView. Chủ: Epic 12.
 5. **Xác minh S5:** gộp Chương có giữ tên, xuất xứ và bản reviewer của Chương bị gộp như màn hứa không. Chủ: Epic 12.
@@ -134,6 +140,7 @@ Mọi mục dưới đây là **đề xuất**; retro không sửa mã, spec hay
     - Story nào thêm một lớp phủ phải nối reset và tiêu điểm vào chỗ dùng chung, không chép tay (A-D1, A-D3).
 
     Chủ: Ice (đưa vào AGENTS.md qua `bmad-project-context` nếu Ice muốn).
+12. **Sửa R5 (FR77):** chuyển vị từ "đã cấu hình" (`call_ready`, `endpoint_and_model_set`, `provider_needs_key`, `read_api_key`) sang phía không phải AI; chuyển lệnh `ai_config_test_connection` sang `aitranslate::wire` để dòng đăng ký rơi vào seam đã duyệt. Không thêm seam, không cần AD mới. Kiểm bằng đúng lệnh FR77 của CI kèm đối chứng đỏ. Chủ: Epic 12.
 
 ## Acceptance verdict
 
