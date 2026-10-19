@@ -3,7 +3,7 @@ title: 'Workspace: lưới hai cột và thanh trạng thái'
 type: 'feature'
 ticket: '7'
 created: '2026-10-14'
-status: 'built'
+status: done
 baseline_revision: '68f609d192b08bb737cec8bc3c1fa191ef12e2b0'
 route: 'full'
 route_source: 'auto'

@@ -3,7 +3,7 @@ title: 'Library: dải trên, lưới bốn cột, form nhập thành lớp ph�
 type: 'feature'
 ticket: '2'
 created: '2026-10-13'
-status: 'built'
+status: done
 baseline_revision: 'fe08b04e2cb70d9d3805a4a6e013131b1e8e5249'
 route: 'full'
 route_source: 'auto'

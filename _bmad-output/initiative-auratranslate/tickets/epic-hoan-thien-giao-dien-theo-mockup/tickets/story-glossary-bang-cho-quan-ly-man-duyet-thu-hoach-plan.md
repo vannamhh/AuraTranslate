@@ -3,7 +3,7 @@ title: 'Glossary: bảng chờ, quản lý, màn duyệt thu hoạch'
 type: 'feature'
 ticket: '13'
 created: '2026-10-15'
-status: 'built'
+status: done
 baseline_revision: '1b50f511ba7cc9c9ee10150ed95d62201b4d396f'
 route: 'full'
 route_source: 'auto'

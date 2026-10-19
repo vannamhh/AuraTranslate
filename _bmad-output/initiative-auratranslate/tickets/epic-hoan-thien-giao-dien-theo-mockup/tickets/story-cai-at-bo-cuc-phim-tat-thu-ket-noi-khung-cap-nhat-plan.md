@@ -3,7 +3,7 @@ title: 'Cài đặt: bố cục, phím tắt, thử kết nối, khung Cập nh�
 type: 'feature'
 ticket: '18'
 created: '2026-10-16'
-status: 'built'
+status: done
 baseline_revision: 'e5ac8e64cf1d2eab5396481a51d9076989e4083c'
 route: 'full'
 route_source: 'auto'

@@ -3,7 +3,7 @@ title: 'Library: báo cáo sau quét, tìm lại mồ côi, mở thư mục Tác
 type: 'feature'
 ticket: '3'
 created: '2026-10-13'
-status: 'built'
+status: done
 baseline_revision: '26975a928321069fa4daa57a3812b2511e547a74'
 route: 'full'
 route_source: 'auto'

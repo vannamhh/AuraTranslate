@@ -3,7 +3,7 @@ title: 'Nội dung ba dải: TM, chốt Glossary, Proofreader'
 type: 'feature'
 ticket: '10'
 created: '2026-10-14'
-status: 'built'
+status: done
 baseline_revision: '26a731a312b6cb4e3cc59275ce2165ce1b818696'
 route: 'full'
 route_source: 'auto'

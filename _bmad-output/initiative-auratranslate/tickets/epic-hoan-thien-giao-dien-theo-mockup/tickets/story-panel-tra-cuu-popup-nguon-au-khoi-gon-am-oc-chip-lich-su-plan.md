@@ -3,7 +3,7 @@ title: 'Panel Tra cứu: popup nguồn, đầu khối gọn, âm đọc, chip l�
 type: 'feature'
 ticket: '8'
 created: '2026-10-14'
-status: 'built'
+status: done
 baseline_revision: '23b2981b896d2dba8405fe8edbde063dc563c29a'
 route: 'full'
 route_source: 'auto'

@@ -3,7 +3,7 @@ title: 'Panel AI và hàng lô'
 type: 'feature'
 ticket: '11'
 created: '2026-10-15'
-status: 'built'
+status: done
 baseline_revision: 'b9aca374363e97158cc50fc9c7156fe7d2e782f0'
 route: 'full'
 route_source: 'auto'

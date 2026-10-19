@@ -3,7 +3,7 @@ title: 'Dải gợi ý mọc thành track hàng dưới câu đang sửa'
 type: 'feature'
 ticket: '9'
 created: '2026-10-14'
-status: 'built'
+status: done
 baseline_revision: 'de7c67e4fc4a7c25370549d0d02686c1b228239d'
 route: 'full'
 route_source: 'auto'

@@ -3,7 +3,7 @@ title: 'Attribution thành màn đầy đủ'
 type: 'feature'
 ticket: '21'
 created: '2026-10-18'
-status: 'built'
+status: done
 baseline_revision: '0dc7b46b00963b13d11e1612e5a9d9ba2803bcd7'
 route: 'full'
 route_source: 'auto'

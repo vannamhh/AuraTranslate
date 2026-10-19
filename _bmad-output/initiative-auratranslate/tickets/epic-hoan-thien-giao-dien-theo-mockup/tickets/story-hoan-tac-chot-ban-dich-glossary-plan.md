@@ -3,7 +3,7 @@ title: 'Hoàn tác chốt bản dịch Glossary'
 type: 'feature'
 ticket: '20'
 created: '2026-10-18'
-status: 'built'
+status: done
 baseline_revision: 'c2fd3f4a95cc2a0c1776f34f477929f397beefbd'
 route: 'full'
 route_source: 'auto'

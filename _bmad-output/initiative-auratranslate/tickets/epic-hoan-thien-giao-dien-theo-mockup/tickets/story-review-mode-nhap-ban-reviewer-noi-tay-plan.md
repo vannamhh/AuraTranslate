@@ -3,7 +3,7 @@ title: 'Review Mode, nhập bản reviewer, nối tay'
 type: 'feature'
 ticket: '16'
 created: '2026-10-16'
-status: 'built'
+status: done
 baseline_revision: '9dcd7fe621471ca9c2c63cf1ab0349879b2cf4ca'
 route: 'full'
 route_source: 'auto'

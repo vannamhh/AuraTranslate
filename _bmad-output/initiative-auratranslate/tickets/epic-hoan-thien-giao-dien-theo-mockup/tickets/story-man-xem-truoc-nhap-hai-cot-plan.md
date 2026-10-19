@@ -3,7 +3,7 @@ title: 'Màn xem trước nhập hai cột'
 type: 'feature'
 ticket: '6'
 created: '2026-10-14'
-status: 'built'
+status: done
 baseline_revision: 'b6137b0ebbe82fa68c117dfc2ccb9e2a8c15c4b8'
 route: 'full'
 route_source: 'auto'

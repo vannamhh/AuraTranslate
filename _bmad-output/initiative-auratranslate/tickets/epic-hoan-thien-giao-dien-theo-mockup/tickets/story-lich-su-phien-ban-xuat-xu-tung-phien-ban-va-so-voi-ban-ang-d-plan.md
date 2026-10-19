@@ -3,7 +3,7 @@ title: 'Lịch sử phiên bản: xuất xứ từng phiên bản và so với b
 type: 'feature'
 ticket: '19'
 created: '2026-10-16'
-status: 'built'
+status: done
 baseline_revision: '2fe532806650924a93df7726a1c018d1bfea0f23'
 route: 'full'
 route_source: 'auto'

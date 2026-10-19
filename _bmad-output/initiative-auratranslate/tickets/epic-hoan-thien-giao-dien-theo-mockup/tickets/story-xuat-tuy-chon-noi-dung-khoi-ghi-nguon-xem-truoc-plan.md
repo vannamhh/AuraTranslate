@@ -3,7 +3,7 @@ title: 'Xuất: tuỳ chọn nội dung, khối ghi nguồn, xem trước'
 type: 'feature'
 ticket: '17'
 created: '2026-10-16'
-status: 'built'
+status: done
 baseline_revision: '3a481934010a8358df47b3ab102aa7a01d502291'
 route: 'full'
 route_source: 'auto'

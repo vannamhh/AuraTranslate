@@ -3,7 +3,7 @@ title: 'Danh sách Chương: nhóm trạng thái, chọn nhiều, thanh hành đ
 type: 'feature'
 ticket: '4'
 created: '2026-10-14'
-status: 'built'
+status: done
 baseline_revision: 'c521fd6a436d2bd3089a573ece56677a73295800'
 route: 'full'
 route_source: 'auto'

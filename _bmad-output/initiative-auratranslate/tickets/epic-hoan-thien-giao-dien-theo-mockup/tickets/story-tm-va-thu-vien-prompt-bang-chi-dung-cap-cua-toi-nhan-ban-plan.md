@@ -3,7 +3,7 @@ title: 'TM và Thư viện prompt: bảng, chỉ dùng cặp của tôi, Nhân b
 type: 'feature'
 ticket: '14'
 created: '2026-10-15'
-status: 'built'
+status: done
 baseline_revision: '78bf298c0a023e30dedc8bbca6c555cf02728903'
 route: 'full'
 route_source: 'auto'

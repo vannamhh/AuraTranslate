@@ -3,7 +3,7 @@ title: 'Tìm kiếm Library: phạm vi, bộ lọc, mở ở Chế độ đọc'
 type: 'feature'
 ticket: '5'
 created: '2026-10-14'
-status: 'built'
+status: done
 baseline_revision: '6bff1b84752165939b6aa1c055733efd9121f0ef'
 route: 'full'
 route_source: 'auto'

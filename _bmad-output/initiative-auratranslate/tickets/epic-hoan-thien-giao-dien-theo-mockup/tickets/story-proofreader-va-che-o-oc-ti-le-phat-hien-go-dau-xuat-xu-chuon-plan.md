@@ -3,7 +3,7 @@ title: 'Proofreader và Chế độ đọc: tỉ lệ phát hiện, gỡ dấu, 
 type: 'feature'
 ticket: '15'
 created: '2026-10-16'
-status: 'built'
+status: done
 baseline_revision: 'a48123e798710cbc937afd453c1da9c85da40f54'
 route: 'full'
 route_source: 'auto'

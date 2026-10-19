@@ -3,7 +3,7 @@ title: 'Xem prompt: màn đầy đủ tách tầng và gửi lại'
 type: 'feature'
 ticket: '12'
 created: '2026-10-15'
-status: 'built'
+status: done
 baseline_revision: '9e13ca129e3d9bc69edc8add09a97e59e8b706c2'
 route: 'full'
 route_source: 'auto'
