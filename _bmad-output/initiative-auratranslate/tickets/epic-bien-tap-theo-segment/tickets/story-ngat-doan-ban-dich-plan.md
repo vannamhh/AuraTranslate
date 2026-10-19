@@ -415,8 +415,8 @@ Tệp phải **nạp được bằng Node trần** *(cổng `import()` chúng đ
 - `tests/frontend/support/segmentFixture.ts:38-78` · `tests/frontend/editorTypingZone.test.ts:168-191`
 - `scripts/check-commands.mjs:235` · `:794-813` · `:1876-2113` (Kiểm F) · `:2116-2269` (Kiểm I)
 - `scripts/check-tokens.mjs:880-912` · `:1300-1334` · `:1345-1396`
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-cat-bo-cau-khoi-ban-dich-plan.md` — năm chữ ký + Quyết định #6 phát sinh
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-luoi-hai-cot-doi-chieu-plan.md:775-814` — bàn đo hai engine, năm mệnh đề
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-cat-bo-cau-khoi-ban-dich-plan.md` — năm chữ ký + Quyết định #6 phát sinh
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-luoi-hai-cot-doi-chieu-plan.md:775-814` — bàn đo hai engine, năm mệnh đề
 - `_bmad-output/initiative-auratranslate/deferred-work.md:2969-2981` · `:3012-3037` · `:3093-3129` · `:3131-3162` · `:3164-3194` · `:3274-3330` · `:3496-3507`
 - MDN `Element: beforeinput` / `InputEvent.inputType` — https://developer.mozilla.org/en-US/docs/Web/API/InputEvent/inputType
 - SQLite `ALTER TABLE ADD COLUMN` *(ràng buộc `DEFAULT` phải là hằng)* — https://www.sqlite.org/lang_altertable.html
@@ -475,7 +475,7 @@ Bốn đường nghiệm thu, **bốn vai không chồng nhau**. Chọn sai đư
 
 ### Baseline đo trước khi chạm dòng đầu tiên
 
-**Đo 2026-08-15, trước khi chạm một dòng nào.** Cây sạch — `git status --porcelain` chỉ có `?? _bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-ngat-doan-ban-dich-plan.md` *(chính tệp story)*.
+**Đo 2026-08-15, trước khi chạm một dòng nào.** Cây sạch — `git status --porcelain` chỉ có `?? _bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-ngat-doan-ban-dich-plan.md` *(chính tệp story)*.
 
 | Phép đo | Ghi chép trong story | Đo lại | |
 | --- | --- | --- | --- |
@@ -695,7 +695,7 @@ Kê từ `git status --porcelain`, không từ trí nhớ. **24 sửa · 3 thêm
 **Tài liệu**
 - `_bmad-output/initiative-auratranslate/deferred-work.md` *(sửa)* — 6 mục nợ mới
 - `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` *(sửa)*
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-ngat-doan-ban-dich-plan.md` *(**thêm**)*
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-ngat-doan-ban-dich-plan.md` *(**thêm**)*
 
 
 ### Change Log

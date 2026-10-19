@@ -8,7 +8,7 @@ baseline_revision: '07766f01df4152144e742b33c2427d6ac9d9e404'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
-  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-bang-cho-ung-vien-tach-han-khoi-glossary-plan.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-glossary/tickets/story-bang-cho-ung-vien-tach-han-khoi-glossary-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -191,65 +191,65 @@ mode(source_term, lookup) =
 **Bất biến trung tâm — bề mặt IPC đầu tiên của `glossary/`, và ba tên bị cấm vẫn bị cấm**
 
 - Chỗ ĐẦU TIÊN `OpenWork.scope` được đọc trong mã sản phẩm — đóng `deferred-work.md:603`.
-  [`glossary.rs:54`](../../../src-tauri/src/commands/glossary.rs#L54)
+  [`glossary.rs:54`](../../../../../src-tauri/src/commands/glossary.rs#L54)
 
 - Ba hàm phơi ra MỚI, không nới cổng: đường Ice đã ký ở Story 3.1.
-  [`store.rs:495`](../../../src-tauri/src/core/glossary/store.rs#L495)
+  [`store.rs:495`](../../../../../src-tauri/src/core/glossary/store.rs#L495)
 
 - Ghi tay đi qua helper dùng chung — một hình dạng hàng, không hai.
-  [`store.rs:79`](../../../src-tauri/src/core/glossary/store.rs#L79)
+  [`store.rs:79`](../../../../../src-tauri/src/core/glossary/store.rs#L79)
 
 - Cầu lỗi sang dây; nhánh `Scope` mang `code` ổn định, KHÔNG tham số mang câu.
-  [`store.rs:378`](../../../src-tauri/src/core/glossary/store.rs#L378)
+  [`store.rs:378`](../../../../../src-tauri/src/core/glossary/store.rs#L378)
 
 **Tra hai tầng — chỗ dễ cài ngược nhất**
 
 - Không lọc `is_confirmed`: mục chờ chốt bị lọc mất thì dải mở nhầm chế độ THÊM.
-  [`store.rs:495`](../../../src-tauri/src/core/glossary/store.rs#L495)
+  [`store.rs:495`](../../../../../src-tauri/src/core/glossary/store.rs#L495)
 
 - Sửa theo cặp `(tầng, id)` — `id` trần là một lượt `UPDATE` vào nhầm kho.
-  [`store.rs:577`](../../../src-tauri/src/core/glossary/store.rs#L577)
+  [`store.rs:577`](../../../../../src-tauri/src/core/glossary/store.rs#L577)
 
 **Vùng chọn — điều kiện khởi hành của story**
 
 - Đường RIÊNG, không lọc `role`: `currentSelectionText()` rỗng ở ba trong bốn bề mặt.
-  [`selectionContract.ts:232`](../../../src/panels/selectionContract.ts#L232)
+  [`selectionContract.ts:232`](../../../../../src/panels/selectionContract.ts#L232)
 
 **Dải — chế độ là hàm thuần, và lượt ghi có chốt**
 
 - Chế độ suy từ kết quả tra, không phải cờ đặt lúc mở.
-  [`glossaryQuickAddState.ts:109`](../../../src/glossaryQuickAddState.ts#L109)
+  [`glossaryQuickAddState.ts:109`](../../../../../src/glossaryQuickAddState.ts#L109)
 
 - `Esc` giữa lúc ghi KHÔNG đóng dải — màn hình không được nói khác đĩa.
-  [`glossaryQuickAddState.ts:248`](../../../src/glossaryQuickAddState.ts#L248)
+  [`glossaryQuickAddState.ts:248`](../../../../../src/glossaryQuickAddState.ts#L248)
 
 - Chốt tái nhập: lượt Lưu thứ hai bị từ chối, không phát IPC thứ hai.
-  [`glossaryQuickAddState.ts:267`](../../../src/glossaryQuickAddState.ts#L267)
+  [`glossaryQuickAddState.ts:267`](../../../../../src/glossaryQuickAddState.ts#L267)
 
 - Nút Lưu là `submit`, nên Kiểm A của `check:commands` không canh nó — đọc kỹ chỗ này.
-  [`GlossaryQuickAdd.vue:99`](../../../src/GlossaryQuickAdd.vue#L99)
+  [`GlossaryQuickAdd.vue:99`](../../../../../src/GlossaryQuickAdd.vue#L99)
 
 **Cưỡng chế — cổng biên giữ nguyên ba tên**
 
 - Danh sách cấm KHÔNG nới thêm dù có chỗ gọi sản phẩm mới.
-  [`glossary_boundary.rs:99`](../../../src-tauri/tests/glossary_boundary.rs#L99)
+  [`glossary_boundary.rs:99`](../../../../../src-tauri/tests/glossary_boundary.rs#L99)
 
 - Cổng khẳng định bề mặt IPC gọi ba hàm mới, không gọi ba tên cấm.
-  [`glossary_boundary.rs:536`](../../../src-tauri/tests/glossary_boundary.rs#L536)
+  [`glossary_boundary.rs:536`](../../../../../src-tauri/tests/glossary_boundary.rs#L536)
 
 **Test — bốn ca đáng đọc nhất**
 
 - Ca giết story nếu `work_context` thoái hoá: AD-18 qua chính bề mặt thật.
-  [`glossary_commands_contract.rs:140`](../../../src-tauri/tests/glossary_commands_contract.rs#L140)
+  [`glossary_commands_contract.rs:140`](../../../../../src-tauri/tests/glossary_commands_contract.rs#L140)
 
 - Hai bản chép của cùng một hợp đồng dây nay có cổng kiểm chéo.
-  [`glossary_contract.rs:2305`](../../../src-tauri/tests/glossary_contract.rs#L2305)
+  [`glossary_contract.rs:2305`](../../../../../src-tauri/tests/glossary_contract.rs#L2305)
 
 - Mục chờ chốt vẫn mở SỬA — vế mà `entries_eligible_for_injection` lọc mất.
-  [`glossary_contract.rs:1955`](../../../src-tauri/tests/glossary_contract.rs#L1955)
+  [`glossary_contract.rs:1955`](../../../../../src-tauri/tests/glossary_contract.rs#L1955)
 
 - Đối chứng hai chiều cho vai `display`; một chiều thôi không chứng minh gì.
-  [`glossarySelectionContract.test.ts:68`](../../../tests/frontend/glossarySelectionContract.test.ts#L68)
+  [`glossarySelectionContract.test.ts:68`](../../../../../tests/frontend/glossarySelectionContract.test.ts#L68)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

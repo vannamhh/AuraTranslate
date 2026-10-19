@@ -8,7 +8,7 @@ baseline_revision: '5c65256dece0e5b059381e57b58ab8b501242326'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
-  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung-plan.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-glossary/tickets/story-khop-thuat-ngu-theo-ngon-ngu-qua-matcher-dung-chung-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
 ---
@@ -514,65 +514,65 @@ Tauri không dựng được — xem chú thích ⚠️ ngay trên):**
 **Đường ánh xạ offset — chỗ cả story đứng hoặc đổ**
 
 - Điểm vào: chia dấu tuyệt đối về từng segment, phép cộng dồn sống ĐÚNG một chỗ.
-  [`glossaryMarksMap.ts:98`](../../../src/panels/glossaryMarksMap.ts#L98)
+  [`glossaryMarksMap.ts:98`](../../../../../src/panels/glossaryMarksMap.ts#L98)
 
 - Chất nối `\n` — mắt xích mà `ChapterSegment` không mang offset nào buộc phải có.
-  [`glossaryMarksMap.ts:152`](../../../src/panels/glossaryMarksMap.ts#L152)
+  [`glossaryMarksMap.ts:152`](../../../../../src/panels/glossaryMarksMap.ts#L152)
 
 - Bảo đảm KHÔNG chồng lấn đến từ Rust, không từ đây — kiểm bằng hai ca thường trực.
-  [`glossary_marks_contract.rs:564`](../../../src-tauri/tests/glossary_marks_contract.rs#L564)
+  [`glossary_marks_contract.rs:564`](../../../../../src-tauri/tests/glossary_marks_contract.rs#L564)
 
 **Cắt ở tầng dữ liệu, không chèn node — bất biến đứng theo cấu tạo**
 
 - `buildSegments` nay nhận tập biên; ranh giới `Matcher` thắng ranh giới ICU.
-  [`SourceHanViet.vue:199`](../../../src/panels/SourceHanViet.vue#L199)
+  [`SourceHanViet.vue:199`](../../../../../src/panels/SourceHanViet.vue#L199)
 
 - 🔴 HAI tập điểm gộp làm một tập CẮT, nhưng dấu ngắt đoạn chỉ vẽ theo `pendingCuts`.
-  [`GridPanel.vue:1638`](../../../src/panels/GridPanel.vue#L1638)
+  [`GridPanel.vue:1638`](../../../../../src/panels/GridPanel.vue#L1638)
 
 - Dây `GridPanel → SourceHanViet`: span đã chia sẵn theo segment, không offset Chương.
-  [`GridPanel.vue:1620`](../../../src/panels/GridPanel.vue#L1620)
+  [`GridPanel.vue:1620`](../../../../../src/panels/GridPanel.vue#L1620)
 
 **Tần suất gọi — thứ giữ 214 ms ngoài trần NFR2**
 
 - Guard khớp Chương ở `switchChapter`; thiếu nó là dấu Chương này gán cho Chương kia.
-  [`editorPanelState.ts:1575`](../../../src/panels/editorPanelState.ts#L1575)
+  [`editorPanelState.ts:1575`](../../../../../src/panels/editorPanelState.ts#L1575)
 
 - Dọn dấu ĐỒNG BỘ trước khi thay `segments` — đóng cửa sổ dấu cũ trên bố cục mới.
-  [`editorPanelState.ts:2021`](../../../src/panels/editorPanelState.ts#L2021)
+  [`editorPanelState.ts:2021`](../../../../../src/panels/editorPanelState.ts#L2021)
 
 - Làm mới sau thêm nhanh: một lời gọi tường minh, không một event bus ngầm.
-  [`glossaryQuickAddState.ts:314`](../../../src/glossaryQuickAddState.ts#L314)
+  [`glossaryQuickAddState.ts:314`](../../../../../src/glossaryQuickAddState.ts#L314)
 
 **Một cơ chế, hai đường vào — chuột và caret**
 
 - `selectionchange` đạt vế tiêu điểm với 0 tab-stop mới, tái dùng `sourceCutOffsetOf`.
-  [`GridPanel.vue:1054`](../../../src/panels/GridPanel.vue#L1054)
+  [`GridPanel.vue:1054`](../../../../../src/panels/GridPanel.vue#L1054)
 
 - Nhánh thứ năm của thanh: dưới ba câu báo, trên "Đã lưu" — thứ tự là hợp đồng.
-  [`StatusBar.vue:388`](../../../src/StatusBar.vue#L388)
+  [`StatusBar.vue:388`](../../../../../src/StatusBar.vue#L388)
 
 - Câu lỗi tự tắt sau một khoảng, thay vì che "Đã lưu" suốt phiên.
-  [`StatusBar.vue:87`](../../../src/StatusBar.vue#L87)
+  [`StatusBar.vue:87`](../../../../../src/StatusBar.vue#L87)
 
 **Biên IPC**
 
 - Adapter thứ tư, ba trạng thái, không bao giờ ném.
-  [`glossary.ts:288`](../../../src/config/glossary.ts#L288)
+  [`glossary.ts:288`](../../../../../src/config/glossary.ts#L288)
 
 - Type guard lúc chạy: dữ liệu qua dây là một LỜI KHAI, không một bảo đảm.
-  [`glossary.ts:237`](../../../src/config/glossary.ts#L237)
+  [`glossary.ts:237`](../../../../../src/config/glossary.ts#L237)
 
 **Phụ trợ**
 
 - Ba hàng Matrix từng hở, mỗi ca kèm đối chứng "gỡ lời gọi thì ĐỎ".
-  [`glossaryMarksRefresh.test.ts:1`](../../../tests/frontend/glossaryMarksRefresh.test.ts#L1)
+  [`glossaryMarksRefresh.test.ts:1`](../../../../../tests/frontend/glossaryMarksRefresh.test.ts#L1)
 
 - Vế caret trên component mount thật, `Selection`/`Range` thật.
-  [`glossaryHoverSelection.test.ts:121`](../../../tests/frontend/glossaryHoverSelection.test.ts#L121)
+  [`glossaryHoverSelection.test.ts:121`](../../../../../tests/frontend/glossaryHoverSelection.test.ts#L121)
 
 - Sàn quần thể đã nâng theo ba tệp `.ts` mới, số đo bằng `find` kèm ngày.
-  [`check-panel-refs.mjs:517`](../../../scripts/check-panel-refs.mjs#L517)
+  [`check-panel-refs.mjs:517`](../../../../../scripts/check-panel-refs.mjs#L517)
 
 ---
 

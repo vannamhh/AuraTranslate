@@ -12919,13 +12919,13 @@ chính nó.
   summary: F2.4: `commands/segment.rs::accept_tm_fuzzy` and `::accept_tm_exact` re-read the pair via `pair_by_id` and write `pair.target_text`, while the webview sends only `unitId`, so a pair edited between display and accept is accepted silently with different text.
   evidence: the user agreed to the text shown, not the text re-read. Pointer: `src/tmFuzzyStripState.ts`. Reconsidered when Epic 8 is planned; Kiểm C blocks Epic 8 closing. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7. Chủ: Story 8.17.
-  → 🟡 2026-10-07 (Story 8.17) — chưa sửa: gửi `expectedTarget` rồi so (không migration) hoặc tem phiên bản (cột mới, migration một chiều) — hai hình dạng hợp lệ, chờ Ice, Open Questions 1 ở `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
+  → 🟡 2026-10-07 (Story 8.17) — chưa sửa: gửi `expectedTarget` rồi so (không migration) hoặc tem phiên bản (cột mới, migration một chiều) — hai hình dạng hợp lệ, chờ Ice, Open Questions 1 ở `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
   → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 8.17, Ice chọn phương án A) — `accept_tm_fuzzy` và `accept_tm_exact` nhận thêm `expectedTarget` (văn bản dải đã hiển thị), lệch `pair.target_text` thì `tm.pair_not_found` và không ghi; không migration. Hai ca `accepting_a_row_whose_pair_was_edited_after_it_was_shown…` và `picking_a_target_edited_after_the_list_was_shown…` đỏ khi gỡ thật phép so.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F2.7: `core/tm/tmx.rs::escape_into` silently drops characters below 0x20 and U+FFFE/FFFF, and `MAX_TMX_BYTES` is checked only in `decode_tmx_bytes`, so a pair holding such a character comes back as a "new" pair on re-import; and `render_tmx`/`commands/tm.rs::tm_export_tier` have no cap, so a large enough TM exports a file the importer rejects.
   evidence: the 7.10 review rejected this without a debt item; a measured 262 MB export is within about 2.5% of the 256 MiB import cap. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7. Chủ: Story 8.17.
-  → 🟡 2026-10-07 (Story 8.17) — trần xuất đã đóng (`write_tmx_file` từ chối quá `MAX_TMX_BYTES` trước khi tạo tệp); còn ký tự điều khiển bị bỏ im lặng khi xuất (đo: nhập lại thành cặp "mới"), bốn phương án chờ Ice, Open Questions 2 ở `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
+  → 🟡 2026-10-07 (Story 8.17) — trần xuất đã đóng (`write_tmx_file` từ chối quá `MAX_TMX_BYTES` trước khi tạo tệp); còn ký tự điều khiển bị bỏ im lặng khi xuất (đo: nhập lại thành cặp "mới"), bốn phương án chờ Ice, Open Questions 2 ở `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
   → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 8.17, Ice chọn phương án A) — cặp chứa ký tự XML 1.0 không biểu diễn được bị bỏ khỏi tệp xuất và `tm_export_tier` trả `left_out_count`, màn xuất hiện `tm.exchange.export_left_out`; phương án D thành mục nợ riêng ở cuối sổ. Ca `a_pair_xml_cannot_represent_is_left_out_of_the_export_and_counted` đỏ khi gỡ thật phép bỏ.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F2.9: `core/tm/mod.rs::load_fuzzy_candidates`, `::load_concordance_candidates` and `::load_manage_snapshot` build the identical `{global_rows, work_rows}`, and `core/tm/tmx.rs::distinct_tier_pairs` and `core/ai/rag.rs::TmRows` also wrap `load_all_pair_rows`.
@@ -12936,14 +12936,14 @@ chính nó.
   summary: F3.4: `core/tm/mod.rs::fuzzy_pairs_in_candidates` scores all `global_rows` with one `SimilarityScorer::new(source_text, lang)` and no language filter, so pairs of another language pair are scored against this source.
   evidence: the Global tier stores no language, so zh and en pairs mix; the 7.5 strip and 7.11 RAG may insert another language's pair. Unmeasured: measure before calling it a bug. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7; đo trước khi gọi là lỗi. Chủ: Story 8.17.
-  → 🟡 2026-10-07 (Story 8.17) — đã đo: câu dài khác ngôn ngữ tối đa 52 (dưới ngưỡng 65), nhưng tiêu đề ngắn hỗn hợp chữ vượt (75, một ca 100); chưa có số trên TM thật. Sửa cần lọc theo hình dạng hoặc cột ngôn ngữ (migration) — chờ Ice, Open Questions 3 ở `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
-  → KHÔNG LÀM 2026-10-07 (Story 8.17, Ice chọn giữ nguyên) — đo bằng `SimilarityScorer::percent` trên bản `test` (debug) của worktree, mẫu tự dựng (không phải TM thật): câu dài khác ngôn ngữ tối đa 52, dưới ngưỡng mặc định 65; tiêu đề ngắn hỗn hợp chữ vượt ("Chapter 1 Hello" ~ "第1章 Hello" = 75, "A." ~ "A。" = 100). Mở lại khi thấy một ca thật trong TM của người dùng. Chi tiết ở `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`.
+  → 🟡 2026-10-07 (Story 8.17) — đã đo: câu dài khác ngôn ngữ tối đa 52 (dưới ngưỡng 65), nhưng tiêu đề ngắn hỗn hợp chữ vượt (75, một ca 100); chưa có số trên TM thật. Sửa cần lọc theo hình dạng hoặc cột ngôn ngữ (migration) — chờ Ice, Open Questions 3 ở `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
+  → KHÔNG LÀM 2026-10-07 (Story 8.17, Ice chọn giữ nguyên) — đo bằng `SimilarityScorer::percent` trên bản `test` (debug) của worktree, mẫu tự dựng (không phải TM thật): câu dài khác ngôn ngữ tối đa 52, dưới ngưỡng mặc định 65; tiêu đề ngắn hỗn hợp chữ vượt ("Chapter 1 Hello" ~ "第1章 Hello" = 75, "A." ~ "A。" = 100). Mở lại khi thấy một ca thật trong TM của người dùng. Chi tiết ở `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-no-khop-tm-tu-retro-epic-7-plan.md`.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: F3.5: `core/matching/mod.rs::SimilarityScorer` compares raw text, `::diff_spans` trims and NFC-normalises, and `core/tm/mod.rs::concordance_key` trims, NFC-normalises and lowercases, so the three disagree on what counts as the same text.
   evidence: a source differing only in whitespace shows "75%" while its diff is all Equal. Reconsidered when Epic 8 is planned. Chủ: Epic 8.
   → 2026-10-07 (incept Epic 8, Ice duyệt) — gom vào story nợ TM từ retro Epic 7; 8.12 dùng chung `diff_spans`. Chủ: Story 8.17.
-  → 🟡 2026-10-07 (Story 8.17) — đã đo: Zh "第三章" ~ " 第三章" = 83 trong khi diff toàn Equal; đổi chấm điểm đổi phần trăm người dùng thấy và lật ca khoá NFC/NFD của `tm_contract` — ba phương án chờ Ice, Open Questions 4 ở `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
-  → 🟡 2026-10-07 (Story 8.17, Ice chọn B) — nguồn chỉ khác khoảng trắng đầu/cuối nay hiện 99 (`fuzzy_pairs_in_candidates`), cặp khác giữ điểm. Còn hở: nguồn chỉ khác NFC/NFD vẫn hiện điểm thô (60) trong khi `diff_spans` toàn Equal, vì mở B tới NFC làm đỏ ca khoá `glossary_and_tm_catch_exactly_the_same_variants_in_both_directions` (TM bắt, Glossary không — đo 2026-10-07), mà Ice dặn không đụng ca đó; cần Ice chọn lại, xem `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
+  → 🟡 2026-10-07 (Story 8.17) — đã đo: Zh "第三章" ~ " 第三章" = 83 trong khi diff toàn Equal; đổi chấm điểm đổi phần trăm người dùng thấy và lật ca khoá NFC/NFD của `tm_contract` — ba phương án chờ Ice, Open Questions 4 ở `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
+  → 🟡 2026-10-07 (Story 8.17, Ice chọn B) — nguồn chỉ khác khoảng trắng đầu/cuối nay hiện 99 (`fuzzy_pairs_in_candidates`), cặp khác giữ điểm. Còn hở: nguồn chỉ khác NFC/NFD vẫn hiện điểm thô (60) trong khi `diff_spans` toàn Equal, vì mở B tới NFC làm đỏ ca khoá `glossary_and_tm_catch_exactly_the_same_variants_in_both_directions` (TM bắt, Glossary không — đo 2026-10-07), mà Ice dặn không đụng ca đó; cần Ice chọn lại, xem `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-no-khop-tm-tu-retro-epic-7-plan.md`. Chủ: Ice.
   → ✅ ĐÃ ĐÓNG 2026-10-07 (Story 8.17) — vế khoảng trắng đã sửa ở dòng trên; vế NFC/NFD KHÔNG LÀM theo quyết định Ice: chuẩn hoá NFC khi chấm điểm làm đỏ ca khoá TM↔Glossary `glossary_and_tm_catch_exactly_the_same_variants_in_both_directions`, còn hậu quả chỉ là con số khác 100 mà diff không tô gì với văn bản trộn NFD. Mở lại khi gặp ca thật.
 - source_spec: `_bmad-output/implementation-artifacts/epic-7-retro-2026-10-05.md`
   summary: Split `commands/segment.rs` (4557 lines, one file, TM commands divided between it and `commands/tm.rs`) along the Epic 6 AI-6 split of `commands/project.rs`.
@@ -12969,10 +12969,10 @@ chính nó.
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-retro-r-5-tm-honest-scope-and-tmx-ownership.md`
   summary: Real-app check of R-5 not yet run: import a TMX holding a `self` pair with "Tệp này là bản dịch của tôi" off, then filter TM management by `other` (the pair is there); tick it on a second file (lands `self`); filter tier = Work on a pair also in Global and open edit/delete (the hidden-copies note shows 1).
   evidence: only a person can see the overlay text and checkbox in the packaged app; Rust and vitest guards cover the logic. Chủ: Epic 7.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-pham-vi-xuat-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-pham-vi-xuat-plan.md`
   summary: Real-app check of 8-2 not yet run: open Xuất from the title bar, pick a scope, press "Chọn thư mục…" (the OS folder dialog must open without "Not Responding" and cancelling must keep the old folder), Tab through every control, and look at the Word-like block next to a real `.docx` in Word.
   evidence: only a person can see the OS dialog and the Word look in the packaged app; Rust and vitest guards cover counts, warning and contrast arithmetic. Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-docx-bang-hai-cot-theo-segment-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-xuat-docx-bang-hai-cot-theo-segment-plan.md`
   summary: Real-app check of 8-3 not yet run: export a Work with an omitted segment, an untranslated segment and a multi-paragraph target, then open the `.docx` in Microsoft Word and in LibreOffice (table not broken, one row per segment, empty right cell kept, paragraph gaps visible) and let a reviewer edit one right cell.
   evidence: only a person can open the file in Word or LibreOffice; `core::docx` reads it back to the same rows and paragraph counts, which says nothing about how either program renders it. Chủ: Epic 8.
 
@@ -12982,287 +12982,287 @@ chính nó.
   Vì sao đáng giữ: mục *"hồi quy của tầng Store, hay biến động runner?"* ở trên đóng bằng cảnh báo pre-push, không đo nguyên nhân; một cổng đỏ khoảng mỗi tuần một lần dạy người đọc bỏ qua màu đỏ, và lượt đỏ thật của tầng Store sẽ lẫn vào.
   Chủ: Ice — chọn đo nguyên nhân (`walRestartLog` theo nhịp runner, con số Windows lặp lại) hay đổi hình dạng mệnh đề; không nới dung sai theo phản xạ (thông điệp assert của ca đã dặn).
   → 🔵 2026-10-12: thêm run 38206358728 trên `44653f1`, lượt thử 1 Windows đỏ đúng mẫu này với +78.280 B (khác con số +832.240 B lặp lại trước đây), mệnh đề *có trần* xanh; chạy lại riêng job Windows (lượt thử 2) xanh.
-- source_spec: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-no-khop-tm-tu-retro-epic-7-plan.md`
+- source_spec: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-no-khop-tm-tu-retro-epic-7-plan.md`
   summary: Refuse characters XML 1.0 cannot represent (below 0x20 except tab, LF, CR; U+FFFE, U+FFFF) when a pair enters a TM tier, so no stored pair is one the TMX export must leave out.
   evidence: Story 8.17 leaves such pairs out of the export and counts them (Ice, option A); this is the option D that was split off. Entry paths: segment confirm, `push_copies_to_global`, TMX import.
   Chủ: Ice.
-- source_spec: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/epic-cau-noi-reviewer.md`
+- source_spec: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/epic-cau-noi-reviewer.md`
   summary: `e2e/specs/hanviet-segmenter-webkit.e2e.mjs` case ② is red on Ice's Mac: both syllables of the fixture word read `·` (no Hán Việt reading), so the U+2060 clause is never reached; cases ① and ③ are green.
   evidence: same red on `adb934f` (twice) and on `9d5e27c` (pre-Epic 8, fresh worktree) with WebKit 605.1.15, macOS 15.8.1, 2026-10-08; CI nightly `37539268051` at `9d5e27c` green. Ruled out: Epic 8 commits (none touch the Hán Việt path), user config (wdio gives a temp `$APPDATA`), dictionary files (sha256 equal `dict-manifest.toml`). Cause not found; not an Epic 8 regression.
   Chủ: Ice.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-chon-cach-xuat-hinh-anh-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-chon-cach-xuat-hinh-anh-plan.md`
   summary: Since 8.5, `.docx` hai cột has image rows (link or `<stem>-anh/` path, same text in both cells), yet the format screen still says it is re-importable; re-import must recognise these rows instead of reading them as source/target sentences.
   evidence: maybe-false — the Epic 8 re-import path (8.8 shape gate, 8.9) is not built; settled by an 8.9 case that re-imports an 8.5 export containing both image-row kinds and asserts no segment is created or changed from them.
   Chủ: Story 8.9.
   → ✅ ĐÃ ĐÓNG 2026-10-08 (Story 8-9): `reviewer_import_contract` nhập lại bản xuất 8-5 có cả hai kiểu hàng ảnh; hàng ảnh được nhận diện, bỏ qua, không tạo hay đổi segment nào.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-docx-mot-khoi-theo-oan-cho-ang-bai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-xuat-docx-mot-khoi-theo-oan-cho-ang-bai-plan.md`
   summary: Dán thật tệp `.docx` một khối của 8.4 sang trình soạn thảo website (WordPress/Blogger...) chưa được ai làm: bảng một hàng không viền, ô nhiều đoạn, ảnh theo link hoặc theo đường dẫn; kiểm đoạn không dính, không còn viền, ảnh hiện.
   evidence: maybe-false — tests chỉ đọc lại XML của tệp, không có trình soạn thảo thật nào tham gia; cần Ice dán một tệp xuất từ Tác phẩm có ảnh vào ít nhất một trình soạn thảo và xem kết quả.
   Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-md-va-text-thuan-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-xuat-md-va-text-thuan-plan.md`
   summary: Chưa ai mở tệp `.md` của 8.6 trong trình xem Markdown thật: ảnh theo link, ảnh theo file (đích `<Tác phẩm-anh/…>` có khoảng trắng), dòng chú thích nghiêng, chữ đã escape.
   evidence: maybe-false — repo không có bộ phân tích CommonMark nào; test chỉ so chuỗi viết tay. Cần Ice xuất một Tác phẩm có ảnh ra `.md` ở cả hai chế độ và mở bằng ít nhất một trình xem.
   Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-md-va-text-thuan-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-xuat-md-va-text-thuan-plan.md`
   summary: Xuất `.md`/`.txt` (và `.docx` một khối của 8.4) khi mọi Chương trong phạm vi chưa có câu dịch nào và không có ảnh vẫn ghi một tệp rỗng và báo thành công.
   evidence: màn hình chỉ cảnh báo số câu chưa dịch trước khi xuất; `render_text` trả `""` và `export_text` vẫn ghi tệp. Cần quyết: chặn bằng lỗi có tên, hay giữ tệp rỗng kèm cảnh báo hiện có.
   Chủ: Ice.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-khoi-ghi-nguon-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-khoi-ghi-nguon-plan.md`
   summary: Ghi đè tên người dịch theo Tác phẩm chưa có: kind `TranslatorName` đã khai `Override` nhưng chỉ tầng toàn cục (`global.db`, bảng `translator_name`) được dựng; không có bảng ở `project.db`, không lệnh, không UI cho tầng Tác phẩm.
   evidence: maybe-false — Ice chốt 2026-10-08 chỉ làm tầng toàn cục ở 8.7; nhu cầu mỗi Tác phẩm một tên người dịch khác nhau chưa được xác nhận bằng dùng thật.
   Chủ: Ice.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-khoi-ghi-nguon-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-khoi-ghi-nguon-plan.md`
   summary: Chưa ai mở bản xuất có khối ghi nguồn của 8.7 trong Word hoặc LibreOffice để xem khối hiện thành bốn dòng trước tiêu đề Chương, cũng chưa ai bôi cột phải của `.docx` một khối rồi dán sang trình soạn thảo web để xem khối có lẫn vào phần dán không.
   evidence: test chỉ đọc lại XML bằng `core::docx::read_docx`; cách một chương trình thật hiển thị ngắt dòng `TextWrapping` và vùng bôi thì chỉ người làm mới thấy.
   Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-cong-kiem-hinh-dang-bang-docx-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-cong-kiem-hinh-dang-bang-docx-plan.md`
   summary: Alignment và lệnh nhập lại của 8.9 phải nhận `ReviewerDocx` (cổng `core::export::ReviewerDocx::admit`), không nhận `DocxParsed`; cần ca chứng minh khi cổng từ chối thì không ghi gì vào kho.
   evidence: 8.8 chỉ dựng cổng và kiểu; chưa có đường nhập lại nào gọi nó nên chưa có gì để chứng minh "không ghi".
   Chủ: Story 8.9.
   → ✅ ĐÃ ĐÓNG 2026-10-08 (Story 8-9): `ReviewerDocx::admit` là cửa duy nhất của bộ đọc `.docx` trong `reviewer_copy.rs`; `reviewer_import_contract` có ca từ chối bản một khối, chạy `PRAGMA data_version` và số hàng mọi bảng không đổi.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-nhap-lai-file-reviewer-a-sua-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-nhap-lai-file-reviewer-a-sua-plan.md`
   summary: Chưa ai nhập một tệp Word thật đã sửa trong Word (hai cột, có ảnh, có ô sửa) qua nút "Nhập bản reviewer" ở thanh tiêu đề; test chỉ dựng tệp bằng hàm xuất của 8-3/8-5/8-6 và đọc lại bằng `core::docx`.
   evidence: Word ghi lại XML khác bản xuất (run tách, thuộc tính `w:rsid`, ô gộp); chỉ lượt dùng thật mới cho biết bộ khớp còn nhận ra Chương.
   Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-nhap-lai-file-reviewer-a-sua-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-nhap-lai-file-reviewer-a-sua-plan.md`
   summary: Thông báo "Chương đã đổi sau lúc nhập" khi `read_review_copy` trả `Stale` chưa có chỗ hiển thị; Review Mode (8-11) phải bắt `ReviewCopyError::Stale`, không đọc nó như danh sách rỗng.
   evidence: 8-9 chỉ dựng hàm đọc có lỗi kiểu và màn xem trước; chưa có giao diện nào đọc bản reviewer.
   Chủ: Epic 8.
   → 🟡 2026-10-09 (Story 8-11) — lời báo `Stale` đã có: Review Mode báo "Chương đã đổi sau lúc nhập" và mời nhập lại, không vào bố cục. Vế "bản reviewer của Chương bị gộp đã bị bỏ" (AD-52 ⑤) không đọc ra được từ lược đồ; cần bổ sung AD-52 và một migration. Chủ: Winston.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-segment-alignment-may-khop-nguoi-sua-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-segment-alignment-may-khop-nguoi-sua-plan.md`
   summary: Lớp phủ nối tay của 8-10 xếp segment chưa khớp tách khỏi hàng reviewer chưa khớp, không đặt cạnh nhau theo khoảng giữa hai neo như mockup `review-mode.html`; chưa biết cách xếp này có làm việc nối tay khó trên Chương thật không (medium nếu có, chưa xác minh).
   evidence: chưa ai dùng lớp phủ trong ứng dụng thật với một bản reviewer thật; test chỉ kiểm con trỏ và lệnh. Một lượt dùng thật trên Chương có nhiều mục chưa khớp sẽ trả lời; 8-11 nhúng lại nội dung này nên sửa ở đó cũng được.
   Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-segment-alignment-may-khop-nguoi-sua-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-segment-alignment-may-khop-nguoi-sua-plan.md`
   summary: Chưa ai chạy alignment 8-10 trong ứng dụng thật: nhập một bản reviewer đã sửa, mở lớp phủ nối tay từ màn "đã nhập" và từ nút thanh tiêu đề, rồi nối, bỏ qua và tách chỉ bằng bàn phím (↑↓, Space, ↵, S, U, Esc) đến khi Chương báo đã xử lý xong.
   evidence: test frontend gọi lệnh qua bộ đăng ký trong jsdom; focus thật, bẫy Tab và độ trễ trên Chương lớn (danh sách nhóm không ảo hoá) chỉ thấy trong ứng dụng.
   Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-review-mode-bo-cuc-hai-cua-so-side-by-side-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-review-mode-bo-cuc-hai-cua-so-side-by-side-plan.md`
   summary: Chưa ai mở Review Mode trong ứng dụng thật (WKWebView): focus vào panel trái lúc mở và về panel cũ lúc đóng, dock Workspace giữ nguyên cuộn và kích thước sau khi đóng.
   evidence: vitest chạy dockview dưới happy-dom, không tính layout và không có focus thật; `visibility: hidden` của dock Workspace chỉ đo được bằng mắt.
   Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-diff-boi-mau-an-van-ban-goc-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-diff-boi-mau-an-van-ban-goc-plan.md`
   summary: Chưa ai xem Review Mode có tô diff trong ứng dụng thật (WKWebView): chữ tô `diff-*` đọc được ở hai theme, cuộn theo cặp khớp trên Chương dài, Alt+↓/Alt+↑ đưa khác biệt vào tầm nhìn.
   evidence: vitest dưới happy-dom không tính layout; tương phản nền 1,12–1,29:1 nên gạch chân/gạch ngang chỉ đánh giá được bằng mắt.
   Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-thu-hoach-thuat-ngu-tu-ban-review-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-thu-hoach-thuat-ngu-tu-ban-review-plan.md`
   summary: Thu hoạch 8-14 chỉ thấy thuật ngữ S đã chốt trong Glossary; thuật ngữ reviewer sửa mà Glossary chưa có thì không thành ứng viên.
   evidence: thuật toán cần X là bản dịch đã chốt để đếm N/M; dò S chưa có bằng đồng xuất hiện nguồn-đích là một thuật toán khác, chưa đo, Ice chốt phạm vi ngày 2026-10-09.
   Chủ: Ice.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-chap-nhan-tung-thay-oi-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-chap-nhan-tung-thay-oi-plan.md`
   summary: Chưa ai chấp nhận hay bỏ qua thay đổi của reviewer trong ứng dụng thật (WKWebView): focus sau khi bấm nút, khối hỏi lại khi đè bản nháp, và segment hiện "chưa xác nhận" trong Editor sau khi đóng Review Mode.
   evidence: vitest chạy dưới happy-dom và chỉ kiểm lời gọi `replaceEditorSegment` qua mock; Alt+Enter/Alt+Backspace trên bàn phím macOS thật chưa thử.
   Chủ: Epic 8.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-duong-nhap/story-nhap-song-ngu-tu-bang-docx-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-duong-nhap/tickets/story-nhap-song-ngu-tu-bang-docx-plan.md`
   summary: Chưa ai nhập song ngữ một `.docx` thật có hai bảng trong ứng dụng thật (WKWebView): bộ chọn bảng hiện "Chưa chọn bảng", nút xác nhận khoá, chọn bảng thì xem trước đổi sang hàng của bảng đó, bộ chọn bảng mã bị ẩn.
   evidence: test Rust dựng `.docx` bằng `docx-rs`, chưa thử tệp Word thật; vitest chạy lớp phủ dưới happy-dom với lệnh Tauri giả.
   Chủ: Epic 6.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
   summary: Gạch chân lượn sóng của proofreader chạm dấu nằm dưới của `ạ` `ộ` `ợ`: trong `::highlight()` WKWebView bỏ qua `text-underline-offset`, `text-underline-position` và `text-decoration-thickness`, nên mức lùi 4px của EXPERIENCE.md không đạt được.
   evidence: e2e 9.1 đo trên "họcc" (dpr 2): offset 0/4/8px, `under`, thickness 1px cho ảnh byte-giống nhau, sóng ở hàng thiết bị 288-292, chấm dưới `ọ` nằm trên đỉnh sóng; Ice chọn giữ Highlight API cho tracer ngày 2026-10-10. Lối khác đã nêu: lớp phủ đặt theo `Range.getClientRects()`, cần miễn trừ "không lớp nổi" của `src/AGENTS.md`.
   Chủ: Story 9.5.
   → ✅ ĐÃ ĐÓNG 2026-10-12 (Story 9.5) — gạch chân nay là `<span>` inline trong ô nên `text-underline-offset: 4px` có hiệu lực; e2e `proofread-underline` đo khoảng hở giữa mực của "ạ ộ ợ" và sóng ở cả hai theme.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
   summary: Chưa ai chạy ⌘P quét một segment có lỗi cố ý với AI thật trong ứng dụng thật: gạch chân hiện dưới đúng cụm, dải trạng thái (đang quét, Huỷ, số phát hiện, token, chi phí, mời cấu hình), gõ sửa thì gạch chân mất.
   evidence: e2e chỉ dựng Range và vẽ bằng hàm thật trên ô thật; không chạy lệnh vì `__TAURI_INTERNALS__.invoke` bị đóng băng và quét thật cần ghi khoá API vào keychain của Ice; đường lệnh và watcher chỉ có vitest.
   Chủ: Epic 9.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
   summary: `wire::ai_translate_segment` và `wire::ai_translate_batch` lấy `generation_state.next()` sau `prepare_*` (đọc segment + keychain), nên `ai_translate_cancel` đến trong khe đó bị lượt dịch ghi đè và lượt dịch chạy tới cùng.
   evidence: review 9.1 thấy cùng thứ tự ở `commands/proofread.rs` và đã vá ở đó; `commands/aitranslate.rs` gọi `next()` sau `prepare_translate_call`/`prepare_batch_call`, chưa ca nào canh khe này.
   Chủ: Story 9.11.
   → ✅ ĐÃ ĐÓNG 2026-10-12 (Story 9.11) — `next()` nay đứng trước `prepare_*` ở cả hai wire; hai ca `a_cancel_arriving_during_*_prepare_is_not_overwritten` trong `ai_translate_wire.rs`.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-ad-53-luot-ghi-khi-chap-nhan-e-xuat-cua-proofreader-va-chu-k-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-ad-53-luot-ghi-khi-chap-nhan-e-xuat-cua-proofreader-va-chu-k-plan.md`
   summary: Chữ ký ghi nhớ của AD-53 mục 7 chứa loại do model gán, nên một cụm bị gọi chính tả rồi ngữ pháp ở hai lượt quét thì đổi khoá và báo lại (FR84); chữ ký loại 9.2 chỉ mang văn bản đích, không mang cụm nguồn.
   evidence: AD-53 mục 1 ⚠️; reviews/review-ad-53-recheck-2026-10-10.md mục 5; không có dữ liệu dùng thật để đo tần suất.
   Chủ: Story 9.8.
   → 🟡 2026-10-12: một lượt quét không làm xảy ra đổi loại; công cụ đo báo động giả chỉ cho cận dưới (`crossKindPairs`). Chủ: Epic 9.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-quet-mot-chuong-hoac-vung-chon-chi-khi-uoc-goi-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-quet-mot-chuong-hoac-vung-chon-chi-khi-uoc-goi-plan.md`
   summary: Dải proofreader chưa hiện ước tính chi phí trước khi bấm quét Chương hoặc vùng chọn (mockup có, AC của 9.3 không có; dịch theo lô cũng chưa có).
   evidence: `proofreader.html:300-302`; bộ chọn ba ô chỉ hiện số câu.
   Chủ: Sally.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-quet-mot-chuong-hoac-vung-chon-chi-khi-uoc-goi-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-quet-mot-chuong-hoac-vung-chon-chi-khi-uoc-goi-plan.md`
   summary: Gộp vào mục ⌘P với AI thật ở trên: chưa ai quét cả Chương hoặc vùng chọn với AI thật trong ứng dụng thật (bộ chọn, tiêu điểm trả về, gạch chân qua nhiều ô, huỷ giữa lô, tổng token/chi phí, chất lượng lô 20 câu).
   evidence: 9.3 chỉ có test Rust với provider giả và vitest; không có e2e vì e2e không giả provider; màu và bố cục bộ chọn chưa thấy trong cửa sổ thật.
   Chủ: Epic 9.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-xu-ly-tung-phat-hien-dai-goi-y-chap-nhan-bo-qua-phat-hien-ke-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-xu-ly-tung-phat-hien-dai-goi-y-chap-nhan-bo-qua-phat-hien-ke-plan.md`
   summary: Chưa ai chấp nhận, hoàn lại và duyệt F8 trên Chương thật trong ứng dụng thật (dải ở khe StatusBar, văn bản đổi đúng khoảng, gạch chân dời đúng, hoàn lại LIFO, xuất xứ sau chấp nhận).
   evidence: 9-4 chỉ có test Rust với cơ sở dữ liệu thật, vitest và e2e underline; e2e không giả provider nên không có phát hiện thật để bấm; F8 không chạy trong ô gõ vì `keys.ts` bỏ phím trần.
   Chủ: Epic 9.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-gach-chan-luon-song-hoan-chinh-cho-ca-hai-loai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-gach-chan-luon-song-hoan-chinh-cho-ca-hai-loai-plan.md`
   summary: Chưa ai gõ phím thật, Telex và autocorrect trong ô có gạch chân span rồi ⌘Z/⇧⌘Z trong ứng dụng thật: undo có ra đúng văn bản, gạch chân có vẽ lại sau mũi tên và sau dán bị chặn, IME không mất chữ.
   evidence: e2e chỉ giả `keydown`/`CompositionEvent` (sự kiện không tin cậy) và `execCommand('undo')`; `browser.keys` không gõ được vào ô.
   Chủ: Epic 9.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-gach-chan-luon-song-hoan-chinh-cho-ca-hai-loai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-gach-chan-luon-song-hoan-chinh-cho-ca-hai-loai-plan.md`
   summary: Cờ `composing` của `GridPanel.vue` chỉ xoá ở `compositionend`; ô bị dựng lại hay mất focus giữa composition mà không có `compositionend` thì mọi lượt vẽ gạch chân proofreader sau đó bị bỏ im lặng.
   evidence: chưa kiểm (maybe-false, medium nếu đúng); cần Telex thật, đổi segment hoặc Chương giữa lúc đang gõ dấu rồi quét lại.
   Chủ: Epic 9.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-gach-chan-luon-song-hoan-chinh-cho-ca-hai-loai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-gach-chan-luon-song-hoan-chinh-cho-ca-hai-loai-plan.md`
   summary: Vẽ lại gạch chân sau `keydown` bằng `setTimeout(0)` dựa vào `beforeinput`/`input` của phím thật chạy cùng task; nếu không, span bọc lại trước khi chữ vào và ⌘Z làm hỏng văn bản như review 1 của 9.5.
   evidence: chưa kiểm (maybe-false, medium nếu đúng); e2e chỉ có `keydown` giả + `execCommand`, cần gõ phím thật rồi ⌘Z trên ô có gạch chân.
   Chủ: Epic 9.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-bo-qua-co-ghi-nho-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-bo-qua-co-ghi-nho-plan.md`
   summary: Chưa ai thử trong ứng dụng thật trên một Chương: "Không phải lỗi", quét lại (phát hiện không hiện, dải ghi số bị lọc), gộp hai câu rồi quét lại, mở "Chỗ đã bỏ qua", bỏ một mục, "Xoá toàn bộ" (lần bấm đầu không xoá), và hàng `proof_scan` sau mỗi lượt quét xong.
   evidence: e2e không giả được provider AI; vitest giả `invoke`, cargo test không qua webview. Id Tác phẩm cho `scan_record` đến từ `openWorkIdentity.ts` (đặt ở hai điểm tạo/mở Tác phẩm), chưa thử trên đường tạo từ nhập ghép Chương.
   Chủ: Epic 9.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-ai-proofreader/story-o-ty-le-bao-ong-gia-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-ai-proofreader/tickets/story-o-ty-le-bao-ong-gia-plan.md`
   summary: Chưa có số đo tỷ lệ báo động giả thật (FR81): Ice quét một Chương, xử lý hết, chạy `scripts/measure-proofread-false-alarm.mjs`, ghi khối vào `measurements-bao-dong-gia.md`.
   evidence: công cụ và test đã dựng; số chỉ có từ lượt dùng thật, agent không tạo được.
   Chủ: Epic 9.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-khung-app-thanh-tieu-e-ba-tab-va-cong-cu-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-khung-app-thanh-tieu-e-ba-tab-va-cong-cu-plan.md`
   summary: Chưa ai thử trong ứng dụng thật trên macOS: mở `Công cụ ▾` bằng bàn phím (Enter, mũi tên, Enter, Escape) rồi đóng lớp phủ và xem tiêu điểm về `Công cụ ▾`; thử `⌘N` từ Workspace và Chế độ đọc; xem trạng thái "Chương N · đã quét M câu" sau một lượt quét thật.
   evidence: e2e không tự kích hoạt nút bằng phím trên WKWebView; không giả được provider AI để quét một Chương.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-library-dai-tren-luoi-bon-cot-form-nhap-trang-thai-rong-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-library-dai-tren-luoi-bon-cot-form-nhap-trang-thai-rong-plan.md`
   summary: Thẻ Tác phẩm ghi "sửa … trước" từ `updated_at` của chỉ mục Library, chỉ tươi tới lượt ghi `meta.json` gần nhất (tạo Tác phẩm, đổi trạng thái Chương, quét lại); sửa câu thuần không làm mới nó.
   evidence: `core/library/meta.rs` 285–293 (`rebuild_from_store`); đóng cần một AD mới cho chỗ ghi `meta.json` thứ ba (ví dụ khi đóng Tác phẩm). Mục ✅ 2026-09-23 về MAX(updated_at) không đóng vế này.
   Chủ: Winston.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-library-dai-tren-luoi-bon-cot-form-nhap-trang-thai-rong-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-library-dai-tren-luoi-bon-cot-form-nhap-trang-thai-rong-plan.md`
   summary: Chưa ai nhìn Library mới trong app thật trên macOS: dải trên, lưới bốn/ba/hai cột khi kéo cửa sổ, bìa vuông ở bốn cột, nền lớp phủ nhập, và `⌘N` rồi Escape trả tiêu điểm về nút `Nhập tài liệu`.
   evidence: e2e chỉ đo số cột và tiêu điểm qua driver (ô tìm phải focus bằng JS); không phép đo nào thấy hình dạng.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-library-bao-cao-sau-quet-tim-lai-mo-coi-mo-thu-muc-tac-pham-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-library-bao-cao-sau-quet-tim-lai-mo-coi-mo-thu-muc-tac-pham-plan.md`
   summary: Chưa ai thử trên bản đóng gói macOS: `Mở thư mục` mở Finder đúng thư mục `.atproj` (qua `tauri-plugin-opener`), và `Tìm lại…` qua hộp thoại chọn thư mục thật đưa một mục mồ côi về lưới.
   evidence: test chỉ chạy bộ mở giả và đường dẫn chọn sẵn; hộp thoại gốc và Finder nằm ngoài tầm driver e2e.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-library-bao-cao-sau-quet-tim-lai-mo-coi-mo-thu-muc-tac-pham-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-library-bao-cao-sau-quet-tim-lai-mo-coi-mo-thu-muc-tac-pham-plan.md`
   summary: Chưa ai thử trên Windows: `Mở thư mục` mở Explorer đúng thư mục `.atproj` (đường dẫn có dấu tiếng Việt), và `Tìm lại…` qua hộp thoại thật.
   evidence: CI Windows chỉ chạy test với bộ mở giả; không có lượt dùng thật trên Windows.
   Chủ: B7.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
   summary: Không có tay kéo ⠿ để đổi thứ tự Chương; thứ tự chỉ đổi bằng Dời lên / Dời xuống khi chọn đúng một Chương.
   evidence: mockup chapter-list.html có tay kéo; Ice giữ nút Dời lên/xuống cho 12-4 (Decisions, 2026-10-14). Kéo thả cần thêm lệnh Rust đặt `ord` theo vị trí đích.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
   summary: Đổi tên hàng loạt Chương (chọn nhiều rồi đặt tên theo mẫu) chưa làm; `Đổi tên…` chỉ bật khi chọn đúng một Chương.
   evidence: Decisions của 12-4; `rename_chapter` nhận một id, chưa có lệnh ghi nhiều tên trong một giao dịch.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
   summary: Ô trạng thái Tác phẩm chưa có "ngày đặt ghi đè": chỉ hiện giá trị đang dùng và giá trị suy ra, không hiện đặt từ khi nào.
   evidence: `WorkMeta` không lưu thời điểm đặt ghi đè; thêm cần cột meta mới và migration, ngoài phạm vi 12-4 (không migration).
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
   summary: Gộp Chương không hoàn tác được bằng ⌘Z; màn gộp cố ý không hứa điều đó.
   evidence: gộp xoá hàng Chương bị gộp và dồn `chapter_id`/`ord` trong một giao dịch (AD-32), không giữ bản ghi để đảo; app chưa có ngăn xếp hoàn tác cho thao tác Chương.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-danh-sach-chuong-nhom-trang-thai-chon-nhieu-thanh-hanh-ong-plan.md`
   summary: Chưa ai gộp, tách, đổi trạng thái trên một Tác phẩm 2.000 Chương ở bản đóng gói; chưa nhìn trang Tác phẩm bằng mắt (tiêu điểm danh sách sau nhấn chuột, viền hàng hiện tại, hộp tách mở Chương đích vào Editor).
   evidence: e2e chạy fixture 5 Chương trên bản debug; Shift/Mod+nhấn trong e2e là `mousedown` phát trong trang, không phải phím giữ thật.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-workspace-luoi-hai-cot-va-thanh-trang-thai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-workspace-luoi-hai-cot-va-thanh-trang-thai-plan.md`
   summary: Câu bỏ qua (`is_omitted`) được trình đọc màn hình đọc là "chưa dịch" (hoặc "chưa xác nhận" nếu có chữ): `resolveSegmentRule` không có nhánh bỏ qua, và từ 12-7 tên truy cập ô bản dịch là kênh duy nhất nói trạng thái.
   evidence: `src/panels/editorSegments.ts::resolveSegmentRule` và `GridPanel.vue::cellLabelOf`; cột ⑤ cũ in cùng chữ sai, nên lỗi có từ trước 12-7. Sửa cần khoá `state_omitted` và một nhánh trước `none`.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-workspace-luoi-hai-cot-va-thanh-trang-thai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-workspace-luoi-hai-cot-va-thanh-trang-thai-plan.md`
   summary: Chưa ai nhìn vạch lề liền · đứt · chấm · dày 3px trên bản đóng gói macOS, sáng và tối, để xác nhận phân biệt được không cần màu; thanh trạng thái 34px chưa được nhìn ở cả ba tầng bố cục.
   evidence: e2e 12-7 chỉ đọc `getComputedStyle` trên bản debug; WCAG 1.4.1 cần mắt người.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-dai-goi-y-moc-thanh-track-hang-duoi-cau-ang-sua-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-dai-goi-y-moc-thanh-track-hang-duoi-cau-ang-sua-plan.md`
   summary: Chưa đo (maybe-false, nếu đúng là medium): Esc hoặc nhận khớp trong dải TM khi tiêu điểm đang ở dải có thể để con trỏ về `null` qua `GridPanel.vue::onStripFocusOut` nếu tiêu điểm không trả về ô bản dịch.
   evidence: WKWebView, vào dải bằng `Mod+Alt+E`, nhấn Esc rồi nhận một khớp; đọc `editorCaretSegmentId` và `document.activeElement` sau mỗi lần.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-dai-goi-y-moc-thanh-track-hang-duoi-cau-ang-sua-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-dai-goi-y-moc-thanh-track-hang-duoi-cau-ang-sua-plan.md`
   summary: Chưa ai nhìn dải gợi ý mọc ở hàng cuối khung nhìn trên bản đóng gói macOS, sáng và tối, và chưa ai nghe VoiceOver đọc dải qua `aria-details` của ô câu neo (dải đứng sau cả bốn cột trong DOM).
   evidence: e2e 12-9 chỉ đo hình học và `scrollTop` trên bản debug; thứ tự đọc thật cần người nghe.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-panel-tra-cuu-popup-nguon-au-khoi-gon-am-oc-chip-lich-su-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-panel-tra-cuu-popup-nguon-au-khoi-gon-am-oc-chip-lich-su-plan.md`
   summary: Popup `Nguồn N/M ▾` chỉ hiện `display_name`, chưa có vế "tên ngắn · tên đầy đủ" của EXPERIENCE.md §Bộ chọn nguồn từ điển.
   evidence: `dict_source` không có cột tên ngắn; `display_name` lúc ngắn (`CVDICT`) lúc dài (`Wiktionary tiếng Anh (mục tiếng Trung)`). Cần cột mới qua `tools/dict-build` hoặc bảng tên ngắn trong webview.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-panel-tra-cuu-popup-nguon-au-khoi-gon-am-oc-chip-lich-su-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-panel-tra-cuu-popup-nguon-au-khoi-gon-am-oc-chip-lich-su-plan.md`
   summary: Chưa ai dùng popup `Nguồn N/M ▾` bằng phím thật (`↑↓`, `Space` trên dòng, `Esc`) trên bản đóng gói macOS, chưa ai nghe VoiceOver đọc bật/tắt của `menuitemcheckbox`, và chưa ai nhìn khối nguồn, âm đọc, chip lịch sử ở sáng và tối.
   evidence: vitest giả `Space` bằng `click`; e2e 12-8 chỉ đo hình học popup và `Esc` trên bản debug, không chạy lượt tra thật.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tim-kiem-library-pham-vi-bo-loc-mo-o-che-o-oc-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-tim-kiem-library-pham-vi-bo-loc-mo-o-che-o-oc-plan.md`
   summary: `library.open_search_hit_reading` (nút `Mở ở Chế độ đọc` trên hàng kết quả tìm Library) chưa có phím mặc định; Ice quyết định chưa gán, `Mod+Enter` thuộc `editor.confirm_segment`. Chọn một chord còn trống rồi thêm vào gợi ý phím của khối kết quả.
   evidence: `src/commands/index.ts` khối `library.*`, `keys: undefined`; hàng hit chỉ có nút; gợi ý phím cố ý không ghi `⌘↵`.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tim-kiem-library-pham-vi-bo-loc-mo-o-che-o-oc-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-tim-kiem-library-pham-vi-bo-loc-mo-o-che-o-oc-plan.md`
   summary: Kết quả tìm Library nay thay lưới Tác phẩm, nhưng không có nút hay phím đóng tìm kiếm; muốn về lưới phải xoá ô tìm rồi Enter. Mockup có `Esc đóng tìm kiếm`, mà `Escape` toàn cục thuộc `editor.clear_source_cuts`, và chia `Escape` là quyết định của Ice (`src/commands/index.ts` khối `Escape`).
   evidence: `LibraryMode.vue` `searchActive` chỉ về `false` khi `executeLibrarySearch` chạy với truy vấn rỗng.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-man-xem-truoc-nhap-hai-cot-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-man-xem-truoc-nhap-hai-cot-plan.md`
   summary: Lượt dùng thật trên bản đóng gói macOS: nhập một tệp `.docx` song ngữ thật còn hàng lệch bằng "Nhập luôn, nối sau", tìm lại câu "chưa nối" từ danh sách Chương, xác nhận một câu thì dấu mất; nhìn bốn màn hai cột (cột trái 300 px, ô dán đánh số dòng cao 260 px) ở sáng và tối.
   evidence: e2e 12-6 chạy trên bản debug với tệp `.csv` tổng hợp; CSS hai cột chưa ai nhìn bằng mắt trên WKWebView; ước lượng chỉ đo trên 2.000 Chương tổng hợp.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
   summary: Chi phí ước tính trước khi quét (c:114) chưa có ở bộ chọn phạm vi của dải Proofreader; dải chỉ hiện số câu theo phạm vi.
   evidence: Quyết định 4 của plan; `ProofreadScopeOverlay.vue` và dải dùng chung `proofreadScopeCounts`, chưa có ước lượng token hay tiền.
   Chủ: Winston.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
   summary: Dải TM không hiện "Chương N · câu M" của mockup tm-fuzzy-match.
   evidence: AD-6: TM không giữ vị trí nguồn của cặp.
   → KHÔNG LÀM 2026-10-15 (Story 12.10) — mockup sửa theo AD-6, dải chỉ hiện tầng, phía và ngày.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
   summary: Chỗ đã bỏ qua không hiện lý do hay đề xuất cũ của mỗi mục (mockup proofreader.html).
   evidence: AD-53 ⑦: mục nhớ chỉ giữ cụm và ngữ cảnh, không giữ lý do hay đề xuất.
   → KHÔNG LÀM 2026-10-15 (Story 12.10) — Chỗ đã bỏ qua hiện cụm, ngày bỏ qua và số lần chặn.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-noi-dung-ba-dai-tm-chot-glossary-proofreader-plan.md`
   summary: Lượt dùng thật trên bản đóng gói: mở Chỗ đã bỏ qua từ link trong dải Proofreader sau một lượt quét thật, nhìn số lần chặn tăng sau lượt quét kế, và phím số trên dải chốt Glossary với bàn phím số.
   evidence: e2e không giả được lượt quét Proofreader (`e2e/specs/proofread-underline.e2e.mjs`); vitest giả `event.code`.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-panel-ai-va-hang-lo-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-panel-ai-va-hang-lo-plan.md`
   summary: Lượt dùng thật trên bản đóng gói macOS: một lô nhà cung cấp thật có lỗi thật giữa chừng, "Bỏ lô" giữa chừng, "Đưa cả lô" khi có bản nháp chưa ký, và trạng thái chưa cấu hình khi xoá endpoint trong Cài đặt.
   evidence: e2e không giả được provider AI; vitest giả `aiConfigGet`, `runAiTranslateBatchCall` và `promoteAiTranslation` ở biên IPC (`tests/frontend/aiBatchPanelRows.test.ts`).
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-panel-ai-va-hang-lo-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-panel-ai-va-hang-lo-plan.md`
   summary: Lượt dịch đòi khoá cả với Ollama / LM Studio (`read_api_key` trong `aitranslate.rs`), nên panel không ghi "chạy không cần khoá" như mockup ai-batch-translate; bỏ yêu cầu khoá cho nhà cung cấp cục bộ thì sửa lại câu `panel.ai_translation.unconfigured_local`.
   evidence: Quyết định 4 của plan; `ready` ở `ai_config_get` gồm cả khoá.
   Chủ: Story 12.18.
   → ✅ ĐÃ ĐÓNG 2026-10-16 (Story 12-18): `call_ready` và `read_api_key` không đòi khoá cho `ollama`/`lmstudio` (hàng mới trong `ready_is_true_false_or_none_by_endpoint_model_and_key`); `panel.ai_translation.unconfigured_local` nay nói hai nhà cung cấp cục bộ không cần khoá; `aiBatchPanelRows.test.ts` khoá ca Ollama không khoá ⇒ sẵn sàng.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
   summary: Lượt dùng thật trên bản đóng gói macOS với nhà cung cấp thật: dịch một câu, mở Xem prompt, đối chiếu số token thật với số nhà cung cấp báo, Chép rồi dán, Gửi lại và xem panel Đề xuất AI, chắc `target_text` không đổi.
   evidence: e2e không giả được provider AI; vitest giả `runAiTranslateResendCall` ở biên IPC (`tests/frontend/aiPromptInspectorScreen.test.ts`).
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
   summary: Màn Xem prompt chưa hiện hai loại "đã cân nhắc nhưng không chèn" của mockup prompt-inspector: thuật ngữ bị tầng khác ghi đè, và cặp TM dưới ngưỡng.
   evidence: `confirmed_terms_for_injection` và `select_tm_pairs` không giữ lại hai loại này; cần quyết lưu gì trong ledger (Never của plan).
   Chủ: Winston.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
   summary: Khối "Thân bộ prompt" không tách được thành "Prompt hệ thống" và "Prompt theo thể loại" như mockup, vì bộ prompt chỉ có một thân; prompt có Glossary/TM xen giữa hiện nhiều khối "Thân bộ prompt" liền nhau theo thứ tự.
   evidence: `PromptPieceKind` chỉ có `authored`; tách cần đổi hình dạng bộ prompt (`core/promptset`).
   Chủ: Winston.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-xem-prompt-man-ay-u-tach-tang-va-gui-lai-plan.md`
   summary: Dòng thông tin của mockup prompt-inspector có "lắp bởi RagInjector"; màn Xem prompt không hiện phần này.
   evidence: chỉ có một đường lắp prompt (`core::ai::rag::assemble_prompt`), nên chữ này cố định và không mang thông tin.
   Chủ: Ice.
   → KHÔNG LÀM 2026-10-15 (Story 12.12) — Ice chọn bỏ; dòng thông tin chỉ giữ giờ gửi và mô hình.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
   summary: Mockup prompt-library vẽ hàng biến thứ tư `{{chapter_context}}`; Thư viện prompt chỉ có ba biến đã chuẩn y nên không dựng hàng này.
   evidence: `PromptVariable::ALL` có ba biến; thêm biến là đổi từ vựng đã chuẩn y (Epic 4), không phải việc của giao diện.
   Chủ: Winston.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
   summary: Lượt dùng thật trong app: bật công tắc "chỉ dùng cặp của tôi" trên Tác phẩm có cặp người khác, mở Chương, đối chiếu dải TM, dải chốt Glossary, Xem prompt; xuất riêng rồi mở TMX xem `x-aura-origin`; gõ dở thân prompt rồi Nhân bản và đối chiếu lớp tô biến với ô gõ bằng mắt.
   evidence: webview e2e đứng ở `tauri://localhost` nên hai spec `story-12-14-*` chưa chạy xanh; tô biến cần khớp điểm ảnh trong WKWebView mà happy-dom không đo được.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
   summary: Quản lý TM gọi `refreshExportCounts` sau mỗi lần sửa / xoá / đẩy / nhập, tức bốn lượt đọc trọn tầng (`tm_export_counts` hai tầng × `all` / `mine`); chưa đo trên TM lớn.
   evidence: chưa kiểm (review 12.14 xếp maybe-false, nếu đúng là medium); muốn chốt thì đo thời gian `tm_export_counts` và thời gian giữ khoá `OpenWorkState` ở 200.000 cặp, cùng quần thể `nfr_bench`.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-glossary-bang-cho-quan-ly-man-duyet-thu-hoach-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-glossary-bang-cho-quan-ly-man-duyet-thu-hoach-plan.md`
   summary: Lượt dùng thật trong app: vạch lề Quản lý Glossary nét đứt (chờ chốt) và nét liền (đã chốt Tác phẩm) phân biệt được ở giao diện sáng và tối; vạch hàng bảng chờ đứt / liền; phím trong menu Công cụ ▾ tới mục Duyệt thu hoạch thuật ngữ; Space trên bảng chờ không bật radio ẩn của hàng; Enter lưu từ ô sửa tại chỗ (`form="gm-edit-form"`).
   evidence: happy-dom không tính CSS có phạm vi nên `border-left-style` chỉ được canh qua tên lớp; bàn phím kích hoạt `<button>` không lái được bằng e2e.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-glossary-bang-cho-quan-ly-man-duyet-thu-hoach-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-glossary-bang-cho-quan-ly-man-duyet-thu-hoach-plan.md`
   summary: `e2e/specs/story-12-13-glossary-harvest.e2e.mjs` và mục thứ tám của `titlebar-tools.e2e.mjs` chưa chạy cục bộ; spec không dựng bản reviewer nên màn thu hoạch chỉ được mở ở trạng thái rỗng (ba ứng viên nhận hai nằm ở `review_harvest_contract.rs` và `glossaryHarvest.test.ts`).
   evidence: webview e2e đứng ở `tauri://localhost`; cần đọc lượt nightly macOS đầu tiên sau khi gộp.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-proofreader-va-che-o-oc-ti-le-phat-hien-go-dau-xuat-xu-chuon-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-proofreader-va-che-o-oc-ti-le-phat-hien-go-dau-xuat-xu-chuon-plan.md`
   summary: Lượt dùng thật trong app: tỉ lệ quyết định trên dải Proofreader và Chỗ đã bỏ qua sau quét, nhận, Bỏ qua, Hoàn lại và mở lại Tác phẩm; Chế độ đọc gỡ từng dấu, "Bỏ hết đánh dấu" hai bước với Esc, "Sửa lần lượt" sang Workspace với nút "Chỗ kế tiếp (n/m)", dòng xuất xứ Chương; bố cục thanh công cụ, mốc cuối, lớp phủ dấu so mockup. `e2e/specs/story-12-15-proofread-ratio-reading-marks.e2e.mjs` đã viết, chưa chạy (đi qua lệnh IPC thật, không qua quét mô hình).
   evidence: happy-dom không tính hình học và CSS có phạm vi; webview e2e đứng ở `tauri://localhost` nên chưa có spec nào chạy được.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-review-mode-nhap-ban-reviewer-noi-tay-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-review-mode-nhap-ban-reviewer-noi-tay-plan.md`
   summary: Lượt dùng thật: nhập một `.docx` reviewer có đoạn gộp ở hai Chương → Nối tay đi lần lượt "Chương i/n" → màn thu hoạch có cặp nối tay; nhãn "Đoạn N · …", chú thích chân và link Nối tay của Review Mode; nút Nhập bản reviewer trên thẻ Tác phẩm. `e2e/specs/story-12-16-reviewer-import-hand-join.e2e.mjs` chỉ mở Nối tay rỗng từ `Công cụ ▾`, chưa chạy.
   evidence: hộp chọn tệp reviewer là hộp thoại gốc do Rust mở (AD-48), WebDriver không lái được; webview e2e đứng ở `tauri://localhost`. Chuỗi chỉ được canh bằng `reviewerImport.test.ts` và `review_harvest_contract.rs`.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xuat-tuy-chon-noi-dung-khoi-ghi-nguon-xem-truoc-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-xuat-tuy-chon-noi-dung-khoi-ghi-nguon-xem-truoc-plan.md`
   summary: Lượt dùng thật: xuất `.docx` hai cột với cả ba tuỳ chọn rồi mở bằng Word (và LibreOffice nếu có): số câu `[n]`, đoạn phụ lục thuật ngữ và dòng "— câu chưa xác nhận —" đọc được; lưu lại trong Word rồi nhập làm bản reviewer vẫn bị từ chối `export.annotated_copy_not_reimportable` (thuộc tính `aura.export_annotated` còn trong `docProps/custom.xml`). Nếu Word làm mất thuộc tính thì rơi vào ca sót đã chấp nhận ở Design Notes. Windows: `B7`. Nhìn bằng mắt vạch `ex-warning` (token `tm-rule`) trên màn Xuất.
   evidence: chỉ đo vòng tròn bằng `docx-rs` -> `core::docx::read_docx` (`export_content_options_contract.rs`), máy không có Word hay `soffice`; `e2e/specs/story-12-17-export-content-options.e2e.mjs` chưa chạy vì webview đứng ở `tauri://localhost`, hộp chọn thư mục là hộp thoại gốc nên nút Xuất không bấm được trong e2e.
   Chủ: Epic 12.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-xuat-tuy-chon-noi-dung-khoi-ghi-nguon-xem-truoc-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-xuat-tuy-chon-noi-dung-khoi-ghi-nguon-xem-truoc-plan.md`
   summary: `export_preview` là lệnh plain, giữ khoá `OpenWorkState` và đọc trọn Chương đầu phạm vi (cộng Glossary hai tầng) ở mỗi lần bật công tắc hay đổi định dạng, chỉ để trả 6 hàng; chưa biết có làm giật màn Xuất không (medium, chưa kiểm chứng).
   evidence: chưa đo; đo thời gian lệnh trên Chương ≥ 2.000 câu ở bản build release, nếu vượt ngưỡng phản hồi UI thì giới hạn số câu đọc hoặc chuyển `(async)`.
   Chủ: Story 12.22.
-- source_plan: `_bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/story-cai-at-bo-cuc-phim-tat-thu-ket-noi-khung-cap-nhat-plan.md`
+- source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-cai-at-bo-cuc-phim-tat-thu-ket-noi-khung-cap-nhat-plan.md`
   summary: Lượt dùng thật trên bản đóng gói macOS: bấm Thử kết nối với khoá sai (phải ra "khoá bị từ chối") rồi khoá đúng trên một nhà cung cấp thật và một Ollama thật; Xuất rồi Nhập bộ phím qua hộp thoại gốc; `⌘T` và `⌘⇧R` trong app; lưu rồi áp một preset bố cục người dùng trên dock thật; bấm chuột vào ô tìm phím rồi gõ được ngay (click WebDriver không làm ô nhận tiêu điểm nên e2e gọi `.focus()`).
   evidence: e2e không giả được provider hay hộp thoại gốc (`e2e/specs/story-12-18-settings.e2e.mjs` chạy xanh 4/4 cho khung, tra ngược và `⌘T`); Rust chỉ đo qua máy chủ HTTP giả cục bộ (`connection_check_contract.rs`), vitest giả biên IPC.
   Chủ: Epic 12.

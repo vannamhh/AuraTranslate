@@ -1,6 +1,6 @@
 # Walkthrough: 9-1 tracer proofreader
 
-Đích: commit `ed7b7f13e32b68455828a0b2708888dfb9386fa5` · plan: [story-tracer-…-plan.md](../epic-ai-proofreader/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md) · log: [walkthrough-9-1-tracer-proofread-log.md](walkthrough-9-1-tracer-proofread-log.md)
+Đích: commit `ed7b7f13e32b68455828a0b2708888dfb9386fa5` · plan: [story-tracer-…-plan.md](../tickets/epic-ai-proofreader/tickets/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md) · log: [walkthrough-9-1-tracer-proofread-log.md](walkthrough-9-1-tracer-proofread-log.md)
 
 Khối hiện tại: **1**
 

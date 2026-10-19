@@ -507,8 +507,8 @@ Tệp phải **nạp được bằng Node trần** *(cổng `import()` chúng đ
 - `src/StatusBar.vue:36-83` — bề mặt "thời gian trôi" duy nhất, số học epoch thuần
 - `scripts/check-commands.mjs:241` *(`COMMAND_FLOOR` = 33)* · `:794-813` *(Kiểm I `abort`)* · `:2116-2269` *(Kiểm I)*
 - `_bmad-output/initiative-auratranslate/deferred-work.md:2780-2785` · `:2787-2792` *(hai món có chủ 2.6)* · `:1959-1968` · `:2825-2840` · `:3093-3129` · `:3131-3162` · `:3164-3194` · `:3274-3330` · `:3543-3575`
-- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-lich-su-tra-cuu-va-muc-da-ghim-plan.md:350-378` — khuôn dải tab + state cấp module
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-xac-nhan-segment-va-may-trang-thai-plan.md:169-185` — **Quyết định #6 của 2.5**, chỗ bảng `segment_version` được đặt ra và ranh giới với story này
+- `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-lich-su-tra-cuu-va-muc-da-ghim-plan.md:350-378` — khuôn dải tab + state cấp module
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-xac-nhan-segment-va-may-trang-thai-plan.md:169-185` — **Quyết định #6 của 2.5**, chỗ bảng `segment_version` được đặt ra và ranh giới với story này
 - SQLite `CREATE INDEX` — https://www.sqlite.org/lang_createindex.html
 
 ---

@@ -713,7 +713,7 @@ phá · ⚠️ bẫy/giới hạn · ✅ đã đóng · 🟡 đóng một nửa 
 - `ARCHITECTURE-SPINE.md:675-745` — AD-47 (mốc so + xuất xứ; ④ là luật gộp)
 - `_bmad-output/initiative-auratranslate/change-be-mat-nhap-lat-sang-luoi-hai-cot/change-be-mat-nhap-lat-sang-luoi-hai-cot.md:294` — lượt đổi tên + đổi tiền đề
 - `.../ux-designs/ux-AuraTranslate-2026-08-02/EXPERIENCE.md:171` — UX-DR32 bản đã sửa · `:261-268` — bảng phím
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-gop-va-tach-segment-tuong-minh-plan.md:190-214` — Quyết định #9, Ice ký (a)
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-gop-va-tach-segment-tuong-minh-plan.md:190-214` — Quyết định #9, Ice ký (a)
 - `deferred-work.md:3036-3061` — đo `beforeinput` trên WebKit · `:4103-4109` — khe `StatusBar` + `⌘Z`
 - `src/panels/GridPanel.vue:42-46, 1041-1052, 1252-1261, 1289-1303, 1623`
 - `src/panels/editorPanelState.ts:1021-1027, 1101-1103, 1132-1154, 1163-1221, 1229-1233`
@@ -1059,7 +1059,7 @@ của tôi — **3/3 xanh** (0-7, 3m 19s).
 - `src/i18n/vi.json` — 6 khoá `panel.grid.regroup_*`
 - `_bmad-output/initiative-auratranslate/deferred-work.md` — 2 món đóng bằng cách nối tiếp, 5 món mới
 - `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — trạng thái + ghi chép
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-gop-bang-backspace-dau-o-plan.md` — tệp story này
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-gop-bang-backspace-dau-o-plan.md` — tệp story này
 - `e2e/specs/segment-merge-split.e2e.mjs` — hai lượt `mouseup` thêm `metaKey` (hệ quả của AC7)
 - `tests/frontend/editorSourceCut.test.ts` — 6 ca đổi sang hình dạng neo, **giữ nguyên bài
   học**; cộng 8 ca mới cho AC9

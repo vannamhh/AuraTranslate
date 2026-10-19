@@ -618,8 +618,8 @@ chúng nằm ở **đúng tệp** story này sẽ mổ.
 - [Source: `ARCHITECTURE-SPINE.md:406-417`] — AD-34, handler chuột chỉ `dispatch`
 - [Source: `ARCHITECTURE-SPINE.md:218`] — AD-16, không render nội dung ngoài thành HTML
 - [Source: `reviews/review-ad-44-2026-08-05.md:50`] — 🔴 phân xử *"chọn gì để tra"* vs *"tra thế nào"*
-- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-panel-source-va-tab-han-viet-plan.md:511-522`] — AC6 nguyên văn
-- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-auto-lookup-plan.md:495-521`] — AC11 · AC12 nguyên văn
+- [Source: `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-panel-source-va-tab-han-viet-plan.md:511-522`] — AC6 nguyên văn
+- [Source: `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-auto-lookup-plan.md:495-521`] — AC11 · AC12 nguyên văn
 - [Source: `epics.md:1497-1526`] — Story 1.12, Matcher dùng chung
 - [Source: `epics.md:503-505`] — UX-DR5 · UX-DR6
 - [Source: `EXPERIENCE.md:131`] — FR21 Auto-Lookup *"không được thiết kế lại cho khác đi"*
@@ -893,7 +893,7 @@ kiện tiên quyết của 1.18/3.4"* bị story này **phá có chủ đích**,
 | `src/panels/README.md` | UPDATE — hàng 1.18b · §Tách từ tiếng Trung · sửa chú thích `.hv-char` đã sai từ trước |
 | `_bmad-output/initiative-auratranslate/deferred-work.md` | UPDATE — đóng §nghiệm thu tay tab Hán Việt · mở §1-18b với **bốn** món nợ mới |
 | `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | UPDATE — `1-18b…: ready-for-dev → review` |
-| `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-tach-tu-tieng-trung-tab-han-viet-plan.md` | UPDATE — Change Log · Tasks · Dev Agent Record · File List · Status |
+| `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-tach-tu-tieng-trung-tab-han-viet-plan.md` | UPDATE — Change Log · Tasks · Dev Agent Record · File List · Status |
 
 **KHÔNG đổi một dòng nào** *(kiểm bằng `git status`)*: `package.json` · `package-lock.json` ·
 `src-tauri/Cargo.toml` · `src-tauri/Cargo.lock` · `src-tauri/src/core/matching/**` ·

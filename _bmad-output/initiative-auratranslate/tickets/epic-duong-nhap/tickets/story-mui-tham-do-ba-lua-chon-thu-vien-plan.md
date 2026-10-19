@@ -117,57 +117,57 @@ context:
 **Cửa NFR15 — đọc trước tiên, vì nó là thứ story này thực sự canh**
 
 - Điểm vào: lượt rà mở tệp giấy phép thật, ghi TRƯỚC khi thêm phụ thuộc.
-  [`ARCHITECTURE-SPINE.md:898`](../architecture-auratranslate/architecture-auratranslate.md#L898)
+  [`ARCHITECTURE-SPINE.md:898`](../../../architecture-auratranslate/architecture-auratranslate.md#L898)
 
 - MPL-2.0 là hạng giấy phép đầu tiên khác nhóm dễ dãi; Exhibit B đếm được 0/0/0.
-  [`ARCHITECTURE-SPINE.md:908`](../architecture-auratranslate/architecture-auratranslate.md#L908)
+  [`ARCHITECTURE-SPINE.md:908`](../../../architecture-auratranslate/architecture-auratranslate.md#L908)
 
 - Ba hàng Stack mới; hàng `reqwest` nay ghi cả feature `blocking`.
-  [`ARCHITECTURE-SPINE.md:828`](../architecture-auratranslate/architecture-auratranslate.md#L828)
+  [`ARCHITECTURE-SPINE.md:828`](../../../architecture-auratranslate/architecture-auratranslate.md#L828)
 
 **Phán quyết ba giả định — hai đóng, một cố ý để hở**
 
 - Ba hàng Deferred đóng: bóc nội dung ✅, bảng mã 🟡, HTTP client ✅ bằng xác nhận.
-  [`ARCHITECTURE-SPINE.md:1053`](../architecture-auratranslate/architecture-auratranslate.md#L1053)
+  [`ARCHITECTURE-SPINE.md:1053`](../../../architecture-auratranslate/architecture-auratranslate.md#L1053)
 
 - Bảng phán quyết kèm số mẫu thật đứng cạnh mọi tỉ lệ.
-  [`REPORT.md:7`](../../implementation-artifacts/6-1-ban-do/REPORT.md#L7)
+  [`REPORT.md:7`](../../../../implementation-artifacts/6-1-ban-do/REPORT.md#L7)
 
 - Giới hạn tự khai: bảy mẫu, một site, toàn trang báo — ca thuận của Readability.
-  [`REPORT.md:97`](../../implementation-artifacts/6-1-ban-do/REPORT.md#L97)
+  [`REPORT.md:97`](../../../../implementation-artifacts/6-1-ban-do/REPORT.md#L97)
 
 **Phụ thuộc vào cây — chỗ một quyết định thành nợ nếu đọc lướt**
 
 - Ba crate ghim `=`, mỗi crate một chú thích nêu module sở hữu.
-  [`Cargo.toml:75`](../../../src-tauri/Cargo.toml#L75)
+  [`Cargo.toml:75`](../../../../../src-tauri/Cargo.toml#L75)
 
 - `encoding_rs` đã bắc cầu từ trước nên khai tường minh thêm 0 byte.
-  [`Cargo.toml:95`](../../../src-tauri/Cargo.toml#L95)
+  [`Cargo.toml:95`](../../../../../src-tauri/Cargo.toml#L95)
 
 - 12 hàng lock mới nhưng nhị phân release không đo được khác biệt — vì chưa ai gọi.
-  [`environment.txt:33`](../../implementation-artifacts/6-1-ban-do/environment.txt#L33)
+  [`environment.txt:33`](../../../../implementation-artifacts/6-1-ban-do/environment.txt#L33)
 
 - Nợ có chủ: Story 6.9 phải đo lại byte ngay khi `Extractor` gọi thật.
-  [`deferred-work.md:8965`](../deferred-work.md#L8965)
+  [`deferred-work.md:8965`](../../../deferred-work.md#L8965)
 
 **Bàn đo — ngoài đường sản phẩm, và tự khai khi không đo được**
 
 - Bóc nội dung: mỗi mẫu một hàng, lỗi ghi tên rồi đi tiếp.
-  [`webimport_probe.rs:105`](../../../src-tauri/tests/webimport_probe.rs#L105)
+  [`webimport_probe.rs:105`](../../../../../src-tauri/tests/webimport_probe.rs#L105)
 
 - Bảng mã: 0 mẫu thoát khác 0, phân biệt "chưa đo" với "đo ra 0%".
-  [`webimport_probe.rs:260`](../../../src-tauri/tests/webimport_probe.rs#L260)
+  [`webimport_probe.rs:260`](../../../../../src-tauri/tests/webimport_probe.rs#L260)
 
 - `reqwest`: ghi TSV trước `assert!`, nên cột kết quả chở được cả `FAIL`.
-  [`webimport_probe.rs:359`](../../../src-tauri/tests/webimport_probe.rs#L359)
+  [`webimport_probe.rs:359`](../../../../../src-tauri/tests/webimport_probe.rs#L359)
 
 **Ngoại vi**
 
 - Doc-comment module nêu hai crate vừa ghim.
-  [`webimport/mod.rs:11`](../../../src-tauri/src/core/webimport/mod.rs#L11)
+  [`webimport/mod.rs:11`](../../../../../src-tauri/src/core/webimport/mod.rs#L11)
 
 - Cổng chở một mệnh đề đã hết đúng về `reqwest`, sửa tại chỗ kèm 🔵.
-  [`check-deps.mjs:294`](../../../scripts/check-deps.mjs#L294)
+  [`check-deps.mjs:294`](../../../../../scripts/check-deps.mjs#L294)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

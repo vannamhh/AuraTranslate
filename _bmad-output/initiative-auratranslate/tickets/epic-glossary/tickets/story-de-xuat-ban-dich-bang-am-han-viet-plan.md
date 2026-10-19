@@ -8,7 +8,7 @@ review_loop_iteration: 0
 baseline_revision: 'dae3a3d3ba2665b64038bf339f7b1f5ffcd47fa3'
 context:
   - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
-  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap-plan.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-glossary/tickets/story-trang-thai-cho-chot-va-dai-moc-chot-lan-dau-gap-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
   - '{project-root}/src/AGENTS.md'
@@ -368,65 +368,65 @@ số ca đã thêm, không có ca nào biến mất giữa chừng).*
 **Cạnh AD-36 — thứ cả story đứng lên, đọc trước tiên**
 
 - Điểm vào: cạnh `glossary/ → dict/` thành hình, `use` thật chứ không closure như `scan.rs`.
-  [`mod.rs:178`](../../../src-tauri/src/core/glossary/mod.rs#L178)
+  [`mod.rs:178`](../../../../../src-tauri/src/core/glossary/mod.rs#L178)
 
 - Hàm thuần duy nhất của story; một lượt `lookup_han_viet` cho CẢ lô, không N lượt.
-  [`han_viet_suggestion.rs:151`](../../../src-tauri/src/core/glossary/han_viet_suggestion.rs#L151)
+  [`han_viet_suggestion.rs:151`](../../../../../src-tauri/src/core/glossary/han_viet_suggestion.rs#L151)
 
 **Bốn lý do RỖNG phải phân biệt được — lớp lỗi trung tâm của kho**
 
 - Danh mục đóng năm nhánh thay cho một `Option<String>` trần.
-  [`han_viet_suggestion.rs:45`](../../../src-tauri/src/core/glossary/han_viet_suggestion.rs#L45)
+  [`han_viet_suggestion.rs:45`](../../../../../src-tauri/src/core/glossary/han_viet_suggestion.rs#L45)
 
 - Ca mà cây git rỗng làm thành ca thường gặp nhất: chưa cài ≠ không có âm.
-  [`glossary_han_viet_suggestion_contract.rs:248`](../../../src-tauri/tests/glossary_han_viet_suggestion_contract.rs#L248)
+  [`glossary_han_viet_suggestion_contract.rs:248`](../../../../../src-tauri/tests/glossary_han_viet_suggestion_contract.rs#L248)
 
 - Hai trường mới trên dây, giữ `snake_case`, kèm lý do vì sao dấu đã chốt bỏ trống.
-  [`entry.rs:275`](../../../src-tauri/src/core/glossary/entry.rs#L275)
+  [`entry.rs:275`](../../../../../src-tauri/src/core/glossary/entry.rs#L275)
 
 **HAI chỗ nối — đọc kỹ nhất ở đây, cả hai đều từng không có ai canh**
 
 - Marks: gom thuật ngữ chờ chốt SAU `resolve_overlaps`; nhánh `is_confirmed` là phòng thủ dư và nó tự nói ra.
-  [`store.rs:915`](../../../src-tauri/src/core/glossary/store.rs#L915)
+  [`store.rs:915`](../../../../../src-tauri/src/core/glossary/store.rs#L915)
 
 - Ứng viên: ghép theo KHOÁ, không theo vị trí — `debug_assert` chết ở bản phát hành.
-  [`glossary.rs:393`](../../../src-tauri/src/commands/glossary.rs#L393)
+  [`glossary.rs:393`](../../../../../src-tauri/src/commands/glossary.rs#L393)
 
 - Gỡ chỗ nối marks ⇒ ca này đỏ, còn 17 ca marks cũ vẫn xanh trọn.
-  [`glossary_han_viet_suggestion_contract.rs:357`](../../../src-tauri/tests/glossary_han_viet_suggestion_contract.rs#L357)
+  [`glossary_han_viet_suggestion_contract.rs:357`](../../../../../src-tauri/tests/glossary_han_viet_suggestion_contract.rs#L357)
 
 - Ba hàng chờ, ba kết cục khác nhau — một lượt ghép lệch không thể tình cờ đúng.
-  [`glossary_han_viet_suggestion_contract.rs:515`](../../../src-tauri/tests/glossary_han_viet_suggestion_contract.rs#L515)
+  [`glossary_han_viet_suggestion_contract.rs:515`](../../../../../src-tauri/tests/glossary_han_viet_suggestion_contract.rs#L515)
 
 **Đồ thị phụ thuộc — mệnh đề AC duy nhất trước đó chưa có cổng nào canh**
 
 - Cạnh thuận tồn tại, cạnh nghịch vẫn là 0 ⇒ không chu trình.
-  [`dict_boundary.rs:1132`](../../../src-tauri/tests/dict_boundary.rs#L1132)
+  [`dict_boundary.rs:1132`](../../../../../src-tauri/tests/dict_boundary.rs#L1132)
 
 - Cổng mới phải chứng minh nó ĐỎ ĐƯỢC — đối chứng dương gài sẵn một vi phạm.
-  [`dict_boundary.rs:1188`](../../../src-tauri/tests/dict_boundary.rs#L1188)
+  [`dict_boundary.rs:1188`](../../../../../src-tauri/tests/dict_boundary.rs#L1188)
 
 - Bề mặt cho phép lên 8; cổng đòi một lời gọi THẬT, không chỉ một cái tên.
-  [`glossary_boundary.rs:176`](../../../src-tauri/tests/glossary_boundary.rs#L176)
+  [`glossary_boundary.rs:176`](../../../../../src-tauri/tests/glossary_boundary.rs#L176)
 
 **Dải chốt — chỗ đề xuất gặp người dùng**
 
 - Điền sẵn lúc danh tính mục đổi; vùng chọn vẫn thắng đề xuất.
-  [`glossaryConfirmStripState.ts:176`](../../../src/glossaryConfirmStripState.ts#L176)
+  [`glossaryConfirmStripState.ts:176`](../../../../../src/glossaryConfirmStripState.ts#L176)
 
 - Nhãn nguồn là chip ĐỘC LẬP ở hàng tiêu đề — trong `<label>` thì trình đọc màn hình đọc dính hai nhãn.
-  [`GlossaryConfirmStrip.vue:119`](../../../src/GlossaryConfirmStrip.vue#L119)
+  [`GlossaryConfirmStrip.vue:119`](../../../../../src/GlossaryConfirmStrip.vue#L119)
 
 - Thao tác người dùng vừa làm đứng trên gợi ý của máy.
-  [`glossaryConfirmStripSuggestion.test.ts:112`](../../../tests/frontend/glossaryConfirmStripSuggestion.test.ts#L112)
+  [`glossaryConfirmStripSuggestion.test.ts:112`](../../../../../tests/frontend/glossaryConfirmStripSuggestion.test.ts#L112)
 
 **Ngoại vi**
 
 - Type guard là chỗ duy nhất biết dây nói thật — năm chuỗi trạng thái.
-  [`glossary.ts:252`](../../../src/config/glossary.ts#L252)
+  [`glossary.ts:252`](../../../../../src/config/glossary.ts#L252)
 
 - Span cắt về toạ độ cục bộ mà không đánh rơi đề xuất.
-  [`glossaryMarksMap.ts:74`](../../../src/panels/glossaryMarksMap.ts#L74)
+  [`glossaryMarksMap.ts:74`](../../../../../src/panels/glossaryMarksMap.ts#L74)
 
 ---
 

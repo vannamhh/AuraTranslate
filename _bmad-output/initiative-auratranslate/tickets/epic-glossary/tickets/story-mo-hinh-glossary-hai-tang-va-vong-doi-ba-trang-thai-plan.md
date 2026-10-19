@@ -204,48 +204,48 @@ BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END;
 **Bất biến trung tâm — điều kiện chèn**
 
 - Điểm vào: hàm DUY NHẤT module khác gọi được; lọc SAU khi phân giải.
-  [`store.rs:280`](../../../src-tauri/src/core/glossary/store.rs#L280)
+  [`store.rs:280`](../../../../../src-tauri/src/core/glossary/store.rs#L280)
 
 - Vị từ DUY NHẤT định nghĩa "đã chốt" — suy từ `translation`, không từ cột `status`.
-  [`entry.rs:132`](../../../src-tauri/src/core/glossary/entry.rs#L132)
+  [`entry.rs:132`](../../../../../src-tauri/src/core/glossary/entry.rs#L132)
 
 - Hai họ lỗi giữ phân biệt được: `ScopeError` không bao giờ qua IPC, `StoreError` thì có.
-  [`store.rs:229`](../../../src-tauri/src/core/glossary/store.rs#L229)
+  [`store.rs:229`](../../../../../src-tauri/src/core/glossary/store.rs#L229)
 
 **Lược đồ — một hằng, hai thang**
 
 - DDL cùng hai `CHECK` khoảng trắng đã đo; bảng ký tự viết khai triển tại chỗ.
-  [`schema.rs:277`](../../../src-tauri/src/core/store/schema.rs#L277)
+  [`schema.rs:277`](../../../../../src-tauri/src/core/store/schema.rs#L277)
 
 - Bước 4 của `global.db`.
-  [`schema.rs:327`](../../../src-tauri/src/core/store/schema.rs#L327)
+  [`schema.rs:327`](../../../../../src-tauri/src/core/store/schema.rs#L327)
 
 - Bước 12 của `project.db` — không phải 5; số 4 đã bị đốt.
-  [`schema.rs:1060`](../../../src-tauri/src/core/store/schema.rs#L1060)
+  [`schema.rs:1060`](../../../../../src-tauri/src/core/store/schema.rs#L1060)
 
 **Phân giải hai tầng — sửa nguồn thay vì nới cổng**
 
 - Chữ ký nhận `&str`, nên module miền không bao giờ gõ tên kiểu `ScopeKind`.
-  [`mod.rs:281`](../../../src-tauri/src/core/scope/mod.rs#L281)
+  [`mod.rs:281`](../../../../../src-tauri/src/core/scope/mod.rs#L281)
 
 - `ScopeError` mất `Copy` vì biến thể mới mang `String` — lý do ghi tại chỗ.
-  [`mod.rs:124`](../../../src-tauri/src/core/scope/mod.rs#L124)
+  [`mod.rs:124`](../../../../../src-tauri/src/core/scope/mod.rs#L124)
 
 **Cưỡng chế — hai cổng mới**
 
 - Chỉ `core/glossary/**` và `schema.rs` được mang tên bảng.
-  [`glossary_boundary.rs:153`](../../../src-tauri/tests/glossary_boundary.rs#L153)
+  [`glossary_boundary.rs:153`](../../../../../src-tauri/tests/glossary_boundary.rs#L153)
 
 - Vế hai của AD-36: `ai/` không có đường nào khác chạm dữ liệu Glossary.
-  [`glossary_boundary.rs:253`](../../../src-tauri/tests/glossary_boundary.rs#L253)
+  [`glossary_boundary.rs:253`](../../../../../src-tauri/tests/glossary_boundary.rs#L253)
 
 **Test — hai ca đáng đọc nhất**
 
 - Ca dễ cài ngược nhất của cả story: chờ chốt che đã chốt.
-  [`glossary_contract.rs:155`](../../../src-tauri/tests/glossary_contract.rs#L155)
+  [`glossary_contract.rs:155`](../../../../../src-tauri/tests/glossary_contract.rs#L155)
 
 - Ca từng xanh giả: tên khẳng định khoảng trắng, thân chỉ thử dấu cách.
-  [`glossary_contract.rs:301`](../../../src-tauri/tests/glossary_contract.rs#L301)
+  [`glossary_contract.rs:301`](../../../../../src-tauri/tests/glossary_contract.rs#L301)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

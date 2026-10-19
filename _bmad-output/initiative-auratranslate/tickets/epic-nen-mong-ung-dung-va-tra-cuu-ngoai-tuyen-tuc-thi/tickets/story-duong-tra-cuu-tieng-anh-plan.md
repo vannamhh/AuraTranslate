@@ -530,8 +530,8 @@ ports/           # DictionarySource · … (AD-2)                    ← không 
 - [Source: `…/ARCHITECTURE-SPINE.md#Deferred`] — `:852-853` *(stemming · cụm từ nhiều chữ)*
 - [Source: `…/reviews/review-ad-44-2026-08-05.md`] — A1 *(vị từ chạy ở đâu)* · A2 *(cấm sổ đăng ký)* · A3 *(vị từ nhị phân)* · A4 *(lowercase không phụ thuộc locale)* · V1 *(bảng stem là assertion)*
 - [Source: `…/architecture-AuraTranslate-2026-08-02/.memlog.md`] — `:162-172` *(mọi số đo `sqlite3` 2026-08-05; mục 🔴 CHẶN **đã đóng**)*
-- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-ba-nhanh-truy-van-tieng-trung-plan.md`] — chữ ký, SQL, khuôn test, bench, 15 bẫy
-- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-dung-du-lieu-tu-dien-tieng-anh-plan.md`] — `viwiktionary-en`, hình dạng mục tiếng Anh, số đo
+- [Source: `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-ba-nhanh-truy-van-tieng-trung-plan.md`] — chữ ký, SQL, khuôn test, bench, 15 bẫy
+- [Source: `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-dung-du-lieu-tu-dien-tieng-anh-plan.md`] — `viwiktionary-en`, hình dạng mục tiếng Anh, số đo
 - [Source: `_bmad-output/initiative-auratranslate/deferred-work.md`] — `:275-290` *(AD-44 đóng chặn)* · `:285-309` *(lọc `lang` — **vẫn mở cho story này**)* · `:289` *(UX mục tiếng Anh — Sally)*
 - [Source: `_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md`] — `:814` *(NFR1 p95 < 100 ms đầu-cuối; ~99,95 ms cho IPC + render)*
 - [Source: `src-tauri/src/core/dict/mod.rs`] · [`query.rs`] · [`src-tauri/src/core/store/{readonly,pragmas,reader,mod}.rs`]
@@ -725,7 +725,7 @@ incompatible with this crate's strategy of 'unwind'` × 144. Nguyên nhân: `[pr
 | `src-tauri/src/core/dict/query.rs` | **sửa** — `+ exact_en` · `+ fts_trigram_en`; doc-comment module *(luật 2 đảo chiều theo đường)*. **Không** một câu SQL zh nào bị sửa |
 | `src-tauri/tests/dict_lookup.rs` | **sửa** — xoá bản sao `is_han` chỉ-BMP; `+ HAN_RANGES`; `SEEDS` 8 → 10 hàng; `+ 17` ca *(1 cổng parity · 4 vị từ điều phối · 2 bảng nhánh En · 10 hành vi En/AC11)*; bench mở rộng 3 tổ hợp tiếng Anh; 18 ca cũ chỉ đổi **chỗ gọi** |
 | `src-tauri/tests/dict_boundary.rs` | **sửa** — `+ 2` ca *(vị từ ở đúng một tệp · một định nghĩa `is_han` trong `src-tauri/**`)*; `+ SRC_TAURI_RS_FLOOR`; đối chứng dương nới quần thể sang `lang = 'en'` |
-| `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-duong-tra-cuu-tieng-anh-plan.md` | **sửa** — `baseline_commit`, Status, Tasks, Dev Agent Record, File List |
+| `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-duong-tra-cuu-tieng-anh-plan.md` | **sửa** — `baseline_commit`, Status, Tasks, Dev Agent Record, File List |
 | `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` | **sửa** — `1-11b` → `review`, `last_updated` |
 
 

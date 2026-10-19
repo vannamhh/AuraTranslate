@@ -199,54 +199,54 @@ Phép đo cũng sửa một mệnh đề tôi vừa viết: `code_lines` **khôn
 **Điểm vào — vì sao cổng này đứng trước khi `core/ai/` có một dòng mã**
 
 - Đọc đây trước: đối chứng dương quen thuộc dựng không được ở đây, và khuôn thay thế.
-  [`ai_boundary.rs:19`](../../../src-tauri/tests/ai_boundary.rs#L19)
+  [`ai_boundary.rs:19`](../../../../../src-tauri/tests/ai_boundary.rs#L19)
 
 **🔴 Ba vị từ — và ba khuyết tật "thiếu neo biên" vòng rà 1 vá**
 
 - 🔴 Nặng nhất: miễn trừ khớp theo BIÊN THƯ MỤC. Bản đầu dùng `starts_with` ⇒ xanh giả.
-  [`ai_boundary.rs:197`](../../../src-tauri/tests/ai_boundary.rs#L197)
+  [`ai_boundary.rs:197`](../../../../../src-tauri/tests/ai_boundary.rs#L197)
 
 - Vị từ token neo ký tự sau needle — `crate::core::aiven` không còn bị bắt oan.
-  [`ai_boundary.rs:178`](../../../src-tauri/tests/ai_boundary.rs#L178)
+  [`ai_boundary.rs:178`](../../../../../src-tauri/tests/ai_boundary.rs#L178)
 
 - Vị từ re-export neo theo đoạn định danh — `pub use domain_ai::Config;` không còn đỏ oan.
-  [`ai_boundary.rs:212`](../../../src-tauri/tests/ai_boundary.rs#L212)
+  [`ai_boundary.rs:212`](../../../../../src-tauri/tests/ai_boundary.rs#L212)
 
 **Bốn mệnh đề của cổng, mỗi ca một mệnh đề**
 
 - Cổng thật: quét toàn cây trừ `core/ai/**`, và đòi miễn trừ phải khớp thứ gì đó.
-  [`ai_boundary.rs:252`](../../../src-tauri/tests/ai_boundary.rs#L252)
+  [`ai_boundary.rs:252`](../../../../../src-tauri/tests/ai_boundary.rs#L252)
 
 - 🔴 Đối chứng dương bắt buộc: vị từ nổ được trên chuỗi dựng tay, độc lập với cây.
-  [`ai_boundary.rs:302`](../../../src-tauri/tests/ai_boundary.rs#L302)
+  [`ai_boundary.rs:302`](../../../../../src-tauri/tests/ai_boundary.rs#L302)
 
 - Ca vòng rà 1 khoá cả ba neo — gỡ neo nào ra cũng đúng ca này đỏ.
-  [`ai_boundary.rs:469`](../../../src-tauri/tests/ai_boundary.rs#L469)
+  [`ai_boundary.rs:469`](../../../../../src-tauri/tests/ai_boundary.rs#L469)
 
 - Điểm mù có tên: `core/mod.rs` khai `pub mod ai;` trần, không re-export.
-  [`ai_boundary.rs:373`](../../../src-tauri/tests/ai_boundary.rs#L373)
+  [`ai_boundary.rs:373`](../../../../../src-tauri/tests/ai_boundary.rs#L373)
 
 - Sàn quần thể — "cây rỗng đọc thành sạch"; đo lại 55 tệp, sàn 44.
-  [`ai_boundary.rs:225`](../../../src-tauri/tests/ai_boundary.rs#L225)
+  [`ai_boundary.rs:225`](../../../../../src-tauri/tests/ai_boundary.rs#L225)
 
 - NFR14: miễn trừ vẫn khớp khi đường dẫn tới ở hình dạng Windows.
-  [`ai_boundary.rs:433`](../../../src-tauri/tests/ai_boundary.rs#L433)
+  [`ai_boundary.rs:433`](../../../../../src-tauri/tests/ai_boundary.rs#L433)
 
 **Nửa giao diện — đóng nốt AC panel và một món nợ đã ký**
 
 - Câu trạng thái nay nói cả hai vế: mời cấu hình, VÀ mọi năng lực khác chạy đầy đủ.
-  [`vi.json:190`](../../../src/i18n/vi.json#L190)
+  [`vi.json:190`](../../../../../src/i18n/vi.json#L190)
 
 - `.status` sang `ui-md-wrap` — cùng 13px, giãn dòng 1,5 → 1,66. Ba panel đổi theo.
-  [`PanelFrame.vue:227`](../../../src/panels/PanelFrame.vue#L227)
+  [`PanelFrame.vue:227`](../../../../../src/panels/PanelFrame.vue#L227)
 
 **Sổ nợ — thứ story này giao lại, và thứ nó đóng**
 
 - Món nợ Story 1.17 đóng TRỌN sau bốn tháng treo ở `PanelFrame.vue`.
-  [`deferred-work.md:117`](../deferred-work.md#L117)
+  [`deferred-work.md:117`](../../../deferred-work.md#L117)
 
 - Bảy mục mới có chủ — gồm phép đo cho thấy năm tệp boundary kia mang cùng lỗ hổng ②.
-  [`deferred-work.md:7848`](../deferred-work.md#L7848)
+  [`deferred-work.md:7848`](../../../deferred-work.md#L7848)
 
 ## Acceptance criteria from epics.md
 

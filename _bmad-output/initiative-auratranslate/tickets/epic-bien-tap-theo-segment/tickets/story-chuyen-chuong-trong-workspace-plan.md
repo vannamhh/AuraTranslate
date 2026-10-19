@@ -843,7 +843,7 @@ sau story vẫn mười bước, đích **11**, bước kế tiếp **12**. *(Kh
   `:151`, thêm 6 mục mới có chủ
 - `_bmad-output/planning-artifacts/ux-designs/…/EXPERIENCE.md` — UPDATE · hàng `⌘⌥]`/`⌘⌥[` vào
   bảng Phím Workspace
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-chuyen-chuong-trong-workspace-plan.md` — story
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-chuyen-chuong-trong-workspace-plan.md` — story
 - `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — trạng thái
 
 ### Change Log

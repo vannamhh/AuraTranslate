@@ -2550,7 +2550,7 @@ Lượt 2026-08-18 **(a)** — 🔴 **0 tệp mã sản phẩm**. Toàn bộ n�
 
 **Sửa:**
 ```
-_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-mui-tham-do-do-nfr18-va-nfr2-dong-thoi-plan.md
+_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-mui-tham-do-do-nfr18-va-nfr2-dong-thoi-plan.md
 _bmad-output/implementation-artifacts/2-4-ban-do/README.md
 _bmad-output/implementation-artifacts/2-4-ban-do/focus-segment.sh      # nhịp 2,4 s → 4,5 s · toạ độ +640 → +372
 _bmad-output/implementation-artifacts/2-4-ban-do/kill-campaign-v2.sh   # vá cổng AC21 · tách nhịp stat() · ghi loadavg

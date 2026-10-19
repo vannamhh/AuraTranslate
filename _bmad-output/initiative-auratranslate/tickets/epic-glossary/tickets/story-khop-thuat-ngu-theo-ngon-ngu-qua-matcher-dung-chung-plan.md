@@ -8,7 +8,7 @@ baseline_revision: '0c5bf3dcb2cc511b21bb21191fdab24051b31d0d'
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
-  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao-plan.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-glossary/tickets/story-them-nhanh-thuat-ngu-tu-bat-ky-panel-nao-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
 ---
@@ -185,73 +185,73 @@ DOM  / Range    -> UTF-16   (mọi offset của Range)
 **Bất biến trung tâm — hàm phơi ra THỨ TƯ, và ba tên cấm vẫn bị cấm**
 
 - Điểm vào của cả story: tra hai tầng, khớp, phân xử, quy đổi — một chỗ.
-  [`store.rs:771`](../../../src-tauri/src/core/glossary/store.rs#L771)
+  [`store.rs:771`](../../../../../src-tauri/src/core/glossary/store.rs#L771)
 
 - Danh sách CHO PHÉP lên bốn tên; `GLOSSARY_ONLY_SURFACE` vẫn đúng ba.
-  [`glossary_boundary.rs:125`](../../../src-tauri/tests/glossary_boundary.rs#L125)
+  [`glossary_boundary.rs:125`](../../../../../src-tauri/tests/glossary_boundary.rs#L125)
 
 - Bốn trường đủ để VẼ một dấu, cố ý không mang `id`/`source_term`.
-  [`entry.rs:236`](../../../src-tauri/src/core/glossary/entry.rs#L236)
+  [`entry.rs:236`](../../../../../src-tauri/src/core/glossary/entry.rs#L236)
 
 **Ba đơn vị đo — chỗ dễ cài lệch im lặng nhất**
 
 - Quy đổi byte → điểm mã làm trong Rust; DOM lại đếm UTF-16, đơn vị thứ ba.
-  [`store.rs:694`](../../../src-tauri/src/core/glossary/store.rs#L694)
+  [`store.rs:694`](../../../../../src-tauri/src/core/glossary/store.rs#L694)
 
 - Nhánh `Err` của `binary_search` là lưới, không phải đường thật — lý do ghi tại chỗ.
-  [`store.rs:704`](../../../src-tauri/src/core/glossary/store.rs#L704)
+  [`store.rs:704`](../../../../../src-tauri/src/core/glossary/store.rs#L704)
 
 **Chồng nhau — luật RIÊNG của kênh đánh dấu, không phải của phép khớp**
 
 - Dài nhất thắng, hoà thì trái nhất; `find_terms` KHÔNG bị sửa vì TM cũng dùng nó.
-  [`store.rs:722`](../../../src-tauri/src/core/glossary/store.rs#L722)
+  [`store.rs:722`](../../../../../src-tauri/src/core/glossary/store.rs#L722)
 
 **NFR2 — chi phí 179–329 ms được DỜI, không bị xoá**
 
 - `LazyLock::force` sống cạnh `JIEBA`; đưa sang `glossary` sẽ phải phơi nó ra.
-  [`matching/mod.rs:163`](../../../src-tauri/src/core/matching/mod.rs#L163)
+  [`matching/mod.rs:163`](../../../../../src-tauri/src/core/matching/mod.rs#L163)
 
 - Chỉ hâm cho Chương tiếng Trung — hâm cho tiếng Anh là trả 243 ms không ai hưởng.
-  [`store.rs:679`](../../../src-tauri/src/core/glossary/store.rs#L679)
+  [`store.rs:679`](../../../../../src-tauri/src/core/glossary/store.rs#L679)
 
 - Đường mở Chương thứ nhất; lời gọi ở đây là thứ cổng mới canh.
-  [`chapter.rs:117`](../../../src-tauri/src/commands/chapter.rs#L117)
+  [`chapter.rs:117`](../../../../../src-tauri/src/commands/chapter.rs#L117)
 
 - Phép chọn ngôn ngữ nay viết ra ĐÚNG MỘT lần trong `glossary`.
-  [`store.rs:657`](../../../src-tauri/src/core/glossary/store.rs#L657)
+  [`store.rs:657`](../../../../../src-tauri/src/core/glossary/store.rs#L657)
 
 **Bề mặt IPC — khuôn hai lớp**
 
 - Hàm thuần: `tests/**` gọi được không cần webview.
-  [`glossary.rs:258`](../../../src-tauri/src/commands/glossary.rs#L258)
+  [`glossary.rs:258`](../../../../../src-tauri/src/commands/glossary.rs#L258)
 
 - `try_state` chứ không `state()`; `None` chỉ là nhánh chưa `manage`, không phải đường chính.
-  [`glossary.rs:385`](../../../src-tauri/src/commands/glossary.rs#L385)
+  [`glossary.rs:385`](../../../../../src-tauri/src/commands/glossary.rs#L385)
 
 - Bước dễ mất nhất cả story — không test nào bắt lỗi quên đăng ký.
-  [`lib.rs:375`](../../../src-tauri/src/lib.rs#L375)
+  [`lib.rs:375`](../../../../../src-tauri/src/lib.rs#L375)
 
 **Cổng mới — và bằng chứng nó ĐỎ ĐƯỢC**
 
 - Quét nguồn, không đo thời gian: một ngưỡng ms sẽ chập chờn trên runner đang tải.
-  [`matching_boundary.rs:585`](../../../src-tauri/tests/matching_boundary.rs#L585)
+  [`matching_boundary.rs:585`](../../../../../src-tauri/tests/matching_boundary.rs#L585)
 
 - Đối chứng dương; đã xoá thật lời gọi rồi chạy lại — cổng đỏ và gọi đích danh hàm.
-  [`matching_boundary.rs:618`](../../../src-tauri/tests/matching_boundary.rs#L618)
+  [`matching_boundary.rs:618`](../../../../../src-tauri/tests/matching_boundary.rs#L618)
 
 **Test — bốn ca đáng đọc nhất**
 
 - AD-18 đi qua CHÍNH vỏ IPC, không qua resolver lắp tay.
-  [`glossary_marks_contract.rs:507`](../../../src-tauri/tests/glossary_marks_contract.rs#L507)
+  [`glossary_marks_contract.rs:507`](../../../../../src-tauri/tests/glossary_marks_contract.rs#L507)
 
 - Khẳng định cả `translation` lẫn `tier`: ánh xạ `terms`↔`payload` xáo trộn sẽ đỏ.
-  [`glossary_marks_contract.rs:297`](../../../src-tauri/tests/glossary_marks_contract.rs#L297)
+  [`glossary_marks_contract.rs:297`](../../../../../src-tauri/tests/glossary_marks_contract.rs#L297)
 
 - Kho tầng Tác phẩm đóng giữa chừng — nhánh lỗi RIÊNG, không phải nhánh Global.
-  [`glossary_marks_contract.rs:464`](../../../src-tauri/tests/glossary_marks_contract.rs#L464)
+  [`glossary_marks_contract.rs:464`](../../../../../src-tauri/tests/glossary_marks_contract.rs#L464)
 
 - Giới hạn Porter2 ghi thành ca CÓ TÊN, không giấu trong một ca AC.
-  [`glossary_marks_contract.rs:144`](../../../src-tauri/tests/glossary_marks_contract.rs#L144)
+  [`glossary_marks_contract.rs:144`](../../../../../src-tauri/tests/glossary_marks_contract.rs#L144)
 
 ---
 

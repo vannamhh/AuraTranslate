@@ -182,57 +182,57 @@ context:
 **Mô hình khối — bắt đầu ở đây**
 
 - Chữ ký đổi từ `String` phẳng sang dãy khối cả trang; đọc doc-comment đầu tệp trước.
-  [`extractor.rs:150`](../../../src-tauri/src/core/webimport/extractor.rs#L150)
+  [`extractor.rs:150`](../../../../../src-tauri/src/core/webimport/extractor.rs#L150)
 
 - Ba nhánh thân; luật "không nhánh nào mang HTML" sống trong KIỂU, không trong một `if`.
-  [`extractor.rs:112`](../../../src-tauri/src/core/webimport/extractor.rs#L112)
+  [`extractor.rs:112`](../../../../../src-tauri/src/core/webimport/extractor.rs#L112)
 
 - Lượt phân tích HTML thứ hai — cây của Readability đã xoá khối bị loại, nên phải parse lại.
-  [`extractor.rs:191`](../../../src-tauri/src/core/webimport/extractor.rs#L191)
+  [`extractor.rs:191`](../../../../../src-tauri/src/core/webimport/extractor.rs#L191)
 
 - Chỗ tinh vi nhất: khớp tham lam để nav 2 ký tự cướp mất thân bài, mất ~1900 ký tự trên `a03`.
-  [`extractor.rs:499`](../../../src-tauri/src/core/webimport/extractor.rs#L499)
+  [`extractor.rs:499`](../../../../../src-tauri/src/core/webimport/extractor.rs#L499)
 
 **Đường ghi — chỗ vòng 1 đã hụt, đọc kỹ nhất ở đây**
 
 - Một dòng này là toàn bộ khác biệt giữa "sửa được" và "màn hình nói dối".
-  [`project.rs:372`](../../../src-tauri/src/commands/project.rs#L372)
+  [`project.rs:372`](../../../../../src-tauri/src/commands/project.rs#L372)
 
 - Ghép văn bản từ khối đang giữ; không override nào ⇒ trùng đúng đầu ra Story 6.7.
-  [`pipeline.rs:827`](../../../src-tauri/src/core/segment/pipeline.rs#L827)
+  [`pipeline.rs:827`](../../../../../src-tauri/src/core/segment/pipeline.rs#L827)
 
 - Nơi override của người dùng gặp phán đoán của máy.
-  [`pipeline.rs:799`](../../../src-tauri/src/core/segment/pipeline.rs#L799)
+  [`pipeline.rs:799`](../../../../../src-tauri/src/core/segment/pipeline.rs#L799)
 
 **Luật bàn phím — hàm thuần, không nằm trong vỏ `wire`**
 
 - Luật của phím `]`; tách ra hàm thuần vì `tests/**` không có harness Tauri.
-  [`project.rs:1322`](../../../src-tauri/src/commands/project.rs#L1322)
+  [`project.rs:1322`](../../../../../src-tauri/src/commands/project.rs#L1322)
 
 - Kiểm biên theo số khối THẬT, không tin số từ IPC.
-  [`project.rs:1353`](../../../src-tauri/src/commands/project.rs#L1353)
+  [`project.rs:1353`](../../../../../src-tauri/src/commands/project.rs#L1353)
 
 **Bề mặt tầng 2**
 
 - Sáu phím đi qua handler DOM cục bộ — hợp âm trần toàn cục là phương án đã chết.
-  [`ImportPreviewOverlay.vue:516`](../../../src/ImportPreviewOverlay.vue#L516)
+  [`ImportPreviewOverlay.vue:516`](../../../../../src/ImportPreviewOverlay.vue#L516)
 
 - Ba vạch lề suy từ hai cờ trực giao `kept`/`confirmed`.
-  [`ImportPreviewOverlay.vue:468`](../../../src/ImportPreviewOverlay.vue#L468)
+  [`ImportPreviewOverlay.vue:468`](../../../../../src/ImportPreviewOverlay.vue#L468)
 
 - Kiểu dây khối cộng vị từ kiểm kiểu lúc chạy; adapter không bao giờ ném.
-  [`config/project.ts:371`](../../../src/config/project.ts#L371)
+  [`config/project.ts:371`](../../../../../src/config/project.ts#L371)
 
 **Phép kiểm — đọc ba ca này là đủ hiểu vì sao story quay vòng một lần**
 
 - Gỡ `.with_block_overrides()` khỏi `create_work` thì ca này đỏ; hai ca byte-for-byte cũ thì không.
-  [`cleanup_contract.rs:539`](../../../src-tauri/tests/cleanup_contract.rs#L539)
+  [`cleanup_contract.rs:539`](../../../../../src-tauri/tests/cleanup_contract.rs#L539)
 
 - Bảy mẫu thật; a01–a06 so ĐẲNG THỨC từng ký tự, không một sàn phần trăm.
-  [`webimport_contract.rs:1087`](../../../src-tauri/tests/webimport_contract.rs#L1087)
+  [`webimport_contract.rs:1087`](../../../../../src-tauri/tests/webimport_contract.rs#L1087)
 
 - Tám ca cho luật `[`/`]` và vòng đời override — đặt ở `tests/**`, không nội tuyến.
-  [`project_contract.rs:27`](../../../src-tauri/tests/project_contract.rs#L27)
+  [`project_contract.rs:27`](../../../../../src-tauri/tests/project_contract.rs#L27)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

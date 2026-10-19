@@ -351,7 +351,7 @@ Tệp phải **nạp được bằng Node trần** (cổng `import()` chúng đ�
 - `src/config/segment.ts:66-89`
 - `scripts/check-commands.mjs:2116-2269` (Kiểm I) · `:1876-2113` (Kiểm F) · `:665-746` (Kiểm A)
 - `scripts/check-tokens.mjs:833-1064` (Kiểm B/B2) · `:1345-1396` (Kiểm D)
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-luoi-hai-cot-doi-chieu-plan.md:696-710` · `:738-762` · `:775-814` · `:851-947`
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-luoi-hai-cot-doi-chieu-plan.md:696-710` · `:738-762` · `:775-814` · `:851-947`
 - `_bmad-output/initiative-auratranslate/deferred-work.md:3093-3129` · `:3164-3194` · `:3274-3330`
 - XLIFF 2.0 `translate` — https://simplelocalize.io/docs/file-formats/xliff-2/
 - SQLite `ALTER TABLE ADD COLUMN` — https://www.geeksforgeeks.org/sqlite/sqlite-alter-table/
@@ -558,7 +558,7 @@ tệp kê thừa *"mua thời gian đọc một tệp không đổi"* và làm n
 | --- | --- |
 | `src-tauri/src/core/segment/omit.rs` | chốt lọc cho mọi đầu ra (AC5, Quyết định #2(b)) |
 | `tests/frontend/editorOmitSegment.test.ts` | 9 ca — ảnh chụp hiển thị, bốn nhóm |
-| `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-cat-bo-cau-khoi-ban-dich-plan.md` | chính tệp story |
+| `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-cat-bo-cau-khoi-ban-dich-plan.md` | chính tệp story |
 
 **Sửa (20)**
 

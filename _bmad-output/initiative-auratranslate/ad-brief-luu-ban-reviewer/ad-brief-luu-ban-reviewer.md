@@ -8,7 +8,7 @@ skill: bmad-architecture
 # Hồ sơ bàn giao cho Winston — một `AD` mới: **nơi lưu và vòng đời của bản reviewer đã nhập lại**
 
 **Ngày:** 2026-10-08 · **Người bàn giao:** lượt `bmad-build` mở Story 8.9 · **Người nhận:** Winston (architect)
-**Nguồn gốc:** FR90, FR91, FR95. Plan: `initiative-auratranslate/epic-cau-noi-reviewer/story-nhap-lai-file-reviewer-a-sua-plan.md` (draft).
+**Nguồn gốc:** FR90, FR91, FR95. Plan: `initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-nhap-lai-file-reviewer-a-sua-plan.md` (draft).
 > ✅ **ĐÃ ĐÓNG 2026-10-08 — `AD-52` đã viết** (spine §AD-52). Năm câu hỏi ở §3 được trả lời ở các mục 1–7 của AD đó; Reviewer Gate ở `architecture-auratranslate/reviews/review-ad-52-*-2026-10-08.md`.
 
 **Quyết định của Ice (2026-10-08):** nơi lưu phải có `AD` trước, và 8.9 dừng ở plan cho tới khi có. Phương án bị loại: để plan tự chốt bảng `reviewer_copy` + `reviewer_copy_row`, rồi bổ sung sơ đồ ER sau bằng correct-course.

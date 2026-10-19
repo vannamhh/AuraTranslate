@@ -65,11 +65,11 @@ Verify: Trên một Chương có bản reviewer đã nhập, chấp nhận một
 
 ## References
 
-- parent — _bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/epic-cau-noi-reviewer.md
+- parent — _bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/epic-cau-noi-reviewer.md
 - constraint — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, AD-31, AD-35, AD-47, AD-49, AD-50, AD-52
 - design — _bmad-output/initiative-auratranslate/ux-auratranslate/mockups/review-mode.html
-- plan — _bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-segment-alignment-may-khop-nguoi-sua-plan.md
-- plan — _bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-diff-boi-mau-an-van-ban-goc-plan.md
+- plan — _bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-segment-alignment-may-khop-nguoi-sua-plan.md
+- plan — _bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-diff-boi-mau-an-van-ban-goc-plan.md
 
 ## Notes
 

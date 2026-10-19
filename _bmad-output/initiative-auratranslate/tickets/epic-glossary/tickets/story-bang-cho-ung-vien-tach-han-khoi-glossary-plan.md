@@ -8,7 +8,7 @@ baseline_revision: 'e6dee97da65368afe2c973cdfbba0e0a006a2711'
 review_loop_iteration: 1
 context:
   - '{project-root}/_bmad-output/initiative-auratranslate/archive-v6/epic-3-context.md'
-  - '{project-root}/_bmad-output/initiative-auratranslate/epic-glossary/story-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai-plan.md'
+  - '{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-glossary/tickets/story-mo-hinh-glossary-hai-tang-va-vong-doi-ba-trang-thai-plan.md'
   - '{project-root}/AGENTS.md'
   - '{project-root}/src-tauri/AGENTS.md'
 ---
@@ -229,65 +229,65 @@ BEGIN SELECT RAISE(ABORT, 'glossary candidate resolution is one-way'); END;
 **Bất biến trung tâm — FR55 thành cấu trúc, không còn là kỷ luật**
 
 - Chữ ký đã mất `term_origin`: nơi gọi ngoài không diễn đạt được một mục phi-manual.
-  [`store.rs:111`](../../../src-tauri/src/core/glossary/store.rs#L111)
+  [`store.rs:111`](../../../../../src-tauri/src/core/glossary/store.rs#L111)
 
 - Cửa DUY NHẤT còn sinh ra `term_origin` phi-manual — suy từ chính hàng ứng viên.
-  [`candidate_store.rs:120`](../../../src-tauri/src/core/glossary/candidate_store.rs#L120)
+  [`candidate_store.rs:120`](../../../../../src-tauri/src/core/glossary/candidate_store.rs#L120)
 
 - Ánh xạ toàn phần: `CandidateOrigin` chỉ hai biến thể, `Manual` không biểu diễn được.
-  [`candidate.rs:26`](../../../src-tauri/src/core/glossary/candidate.rs#L26)
+  [`candidate.rs:26`](../../../../../src-tauri/src/core/glossary/candidate.rs#L26)
 
 - Helper chèn dùng chung cho cả hai cửa — một hình dạng hàng, không hai.
-  [`store.rs:78`](../../../src-tauri/src/core/glossary/store.rs#L78)
+  [`store.rs:78`](../../../../../src-tauri/src/core/glossary/store.rs#L78)
 
 **Vòng đời một chiều — chỗ vòng rà soát #1 đã sửa**
 
 - `WHEN OLD.resolution IS NOT NULL`: đã quyết thì không quyết lại, kể cả quyết y hệt.
-  [`schema.rs:427`](../../../src-tauri/src/core/store/schema.rs#L427)
+  [`schema.rs:427`](../../../../../src-tauri/src/core/store/schema.rs#L427)
 
 - Lớp Rust cho một lỗi ĐỌC ĐƯỢC, phân biệt với "id không tồn tại".
-  [`candidate_store.rs:172`](../../../src-tauri/src/core/glossary/candidate_store.rs#L172)
+  [`candidate_store.rs:172`](../../../../../src-tauri/src/core/glossary/candidate_store.rs#L172)
 
 - *Chờ duyệt* ⟺ `resolution IS NULL` — không cột song song nào nói cùng chuyện.
-  [`candidate.rs:129`](../../../src-tauri/src/core/glossary/candidate.rs#L129)
+  [`candidate.rs:129`](../../../../../src-tauri/src/core/glossary/candidate.rs#L129)
 
 **Lược đồ — một bảng mới, chỉ ở `project.db`**
 
 - Bảng chờ, `UNIQUE(source_term)` là cơ chế "không quay lại", không phải một phép kiểm.
-  [`schema.rs:409`](../../../src-tauri/src/core/store/schema.rs#L409)
+  [`schema.rs:409`](../../../../../src-tauri/src/core/store/schema.rs#L409)
 
 - Bước 13, và chỉ thang project — `global.db` vẫn dừng ở 4.
-  [`schema.rs:1210`](../../../src-tauri/src/core/store/schema.rs#L1210)
+  [`schema.rs:1210`](../../../../../src-tauri/src/core/store/schema.rs#L1210)
 
 **Cưỡng chế — cổng biên, gồm chỗ suýt đỏ oan**
 
 - Hai tên bảng, không một chuỗi cứng: cổng cũ để lọt mọi bảng đặt tên khác.
-  [`glossary_boundary.rs:70`](../../../src-tauri/tests/glossary_boundary.rs#L70)
+  [`glossary_boundary.rs:70`](../../../../../src-tauri/tests/glossary_boundary.rs#L70)
 
 - Chuỗi ĐỦ ĐỊNH DANH — dạng trần bắt nhầm `CandidateOrigin` của Story 3.5.
-  [`glossary_boundary.rs:123`](../../../src-tauri/tests/glossary_boundary.rs#L123)
+  [`glossary_boundary.rs:123`](../../../../../src-tauri/tests/glossary_boundary.rs#L123)
 
 - Tự kiểm hai chiều: bắt được `TermOrigin::`, không bắt `CandidateOrigin::`.
-  [`glossary_boundary.rs:450`](../../../src-tauri/tests/glossary_boundary.rs#L450)
+  [`glossary_boundary.rs:450`](../../../../../src-tauri/tests/glossary_boundary.rs#L450)
 
 **Test — bốn ca đáng đọc nhất**
 
 - Ca giết story nếu cài ngược: bỏ rồi duyệt lại không được phục sinh thuật ngữ.
-  [`glossary_contract.rs:1593`](../../../src-tauri/tests/glossary_contract.rs#L1593)
+  [`glossary_contract.rs:1593`](../../../../../src-tauri/tests/glossary_contract.rs#L1593)
 
 - Chiều ngược: duyệt rồi bỏ — hai bảng không được nói ngược nhau.
-  [`glossary_contract.rs:1631`](../../../src-tauri/tests/glossary_contract.rs#L1631)
+  [`glossary_contract.rs:1631`](../../../../../src-tauri/tests/glossary_contract.rs#L1631)
 
 - Mọi bước ngang sau một quyết định, không riêng lượt lùi về NULL.
-  [`glossary_contract.rs:1462`](../../../src-tauri/tests/glossary_contract.rs#L1462)
+  [`glossary_contract.rs:1462`](../../../../../src-tauri/tests/glossary_contract.rs#L1462)
 
 - Ghim hành vi ĐANG hở, có chủ ở sổ nợ — không phải hành vi mong muốn.
-  [`glossary_contract.rs:1680`](../../../src-tauri/tests/glossary_contract.rs#L1680)
+  [`glossary_contract.rs:1680`](../../../../../src-tauri/tests/glossary_contract.rs#L1680)
 
 **Ngoại vi — neo phiên bản, chỗ panic ngầm**
 
 - Bước giả nâng lên 14; để nguyên 13 thì ca này panic chứ không đỏ lúc biên dịch.
-  [`segment_contract.rs:1600`](../../../src-tauri/tests/segment_contract.rs#L1600)
+  [`segment_contract.rs:1600`](../../../../../src-tauri/tests/segment_contract.rs#L1600)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

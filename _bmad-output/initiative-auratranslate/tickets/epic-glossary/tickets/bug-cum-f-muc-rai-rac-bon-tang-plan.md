@@ -416,84 +416,84 @@ Sau mỗi lượt, tệp bị sửa được khôi phục lại nguyên trạng 
 **Điểm vào — cụm F bác ba phát hiện của chính nó**
 
 - Đọc đây trước: tám mục vá, ba mục bị đo bác, và vì sao "mười bảy" là mười bốn.
-  [`deferred-work.md:7391`](../deferred-work.md#L7391)
+  [`deferred-work.md:7391`](../../../deferred-work.md#L7391)
 
 **⑦ + P1 — vá một lỗ a11y rồi tự mở một lỗ bàn phím, và đóng lại**
 
 - Vòng 1 dời tiêu điểm sang `<ul>` để `aria-activedescendant` có nghĩa thật.
-  [`GlossaryManageOverlay.vue:140`](../../../src/GlossaryManageOverlay.vue#L140)
+  [`GlossaryManageOverlay.vue:140`](../../../../../src/GlossaryManageOverlay.vue#L140)
 
 - 🔴 P1: vệ đối xứng N→0 — `<ul>` bị `v-if` gỡ thì tiêu điểm phải về `panel`, không rơi ra `body`.
-  [`GlossaryManageOverlay.vue:167`](../../../src/GlossaryManageOverlay.vue#L167)
+  [`GlossaryManageOverlay.vue:167`](../../../../../src/GlossaryManageOverlay.vue#L167)
 
 - `<ul>` nay có `tabindex="-1"` và giữ tiêu điểm — nửa cơ chế mà bản đầu thiếu.
-  [`GlossaryManageOverlay.vue:456`](../../../src/GlossaryManageOverlay.vue#L456)
+  [`GlossaryManageOverlay.vue:456`](../../../../../src/GlossaryManageOverlay.vue#L456)
 
 - Một hàm dựng `id` dùng chung cho `<li>` và `<ul>`, không chép công thức hai chỗ.
-  [`GlossaryManageOverlay.vue:220`](../../../src/GlossaryManageOverlay.vue#L220)
+  [`GlossaryManageOverlay.vue:220`](../../../../../src/GlossaryManageOverlay.vue#L220)
 
 - Rơi về `panel` khi chưa có hàng; điều kiện `list.value !== null` là chỗ đã hụt một lần.
-  [`GlossaryManageOverlay.vue:95`](../../../src/GlossaryManageOverlay.vue#L95)
+  [`GlossaryManageOverlay.vue:95`](../../../../../src/GlossaryManageOverlay.vue#L95)
 
 **① `panic = "abort"` — hai điểm nổ, sổ nợ chỉ nêu một**
 
 - Hàm thuần thay khối `map_err`: danh sách rỗng rơi về `MessageKey::Unknown`, không panic.
-  [`glossary.rs:749`](../../../src-tauri/src/commands/glossary.rs#L749)
+  [`glossary.rs:749`](../../../../../src-tauri/src/commands/glossary.rs#L749)
 
 **④ — gộp "chưa quản lý" với "rỗng" là anti-pattern `project.rs` gọi tên hai ngày trước**
 
 - Combinator, không nhánh viết tay: vỏ `wire::` không gọi được từ `tests/**`.
-  [`glossary.rs:1081`](../../../src-tauri/src/commands/glossary.rs#L1081)
+  [`glossary.rs:1081`](../../../../../src-tauri/src/commands/glossary.rs#L1081)
 
 - Helper dùng chung, mở phạm vi + thêm tham số nêu đúng bề mặt gọi.
-  [`project.rs:492`](../../../src-tauri/src/commands/project.rs#L492)
+  [`project.rs:492`](../../../../../src-tauri/src/commands/project.rs#L492)
 
 **⑤ — bảng họ phồn thể, và cái bẫy `於`**
 
 - Năm cặp Ice chốt; doc-comment chở phép đo 134/110/272 và vì sao KHÔNG nhập trọn.
-  [`surnames.rs:102`](../../../src-tauri/src/core/glossary/surnames.rs#L102)
+  [`surnames.rs:102`](../../../../../src-tauri/src/core/glossary/surnames.rs#L102)
 
 **⑥ — px thô về token mà không đổi một pixel nào**
 
 - Bốn khai báo, bốn bội số giữ nguyên giá trị cũ; `×2.75` có lý do viết ra.
-  [`GlossarySettingsOverlay.vue:235`](../../../src/GlossarySettingsOverlay.vue#L235)
+  [`GlossarySettingsOverlay.vue:235`](../../../../../src/GlossarySettingsOverlay.vue#L235)
 
 **Cổng — ba cổng cấu trúc mới, và một sàn đã hết nghĩa**
 
 - Xoá một API không giữ nó khỏi được dựng lại.
-  [`glossary_boundary.rs:743`](../../../src-tauri/tests/glossary_boundary.rs#L743)
+  [`glossary_boundary.rs:743`](../../../../../src-tauri/tests/glossary_boundary.rs#L743)
 
 - So CẤU TRÚC, không so chuỗi literal — một tên biến khác đã đủ để lách bản đầu.
-  [`config_invariants.rs:1094`](../../../src-tauri/tests/config_invariants.rs#L1094)
+  [`config_invariants.rs:1094`](../../../../../src-tauri/tests/config_invariants.rs#L1094)
 
 - P3: hoán hai literal `surface` thì cổng kia vẫn xanh; cổng này so theo CẶP.
-  [`config_invariants.rs:1173`](../../../src-tauri/tests/config_invariants.rs#L1173)
+  [`config_invariants.rs:1173`](../../../../../src-tauri/tests/config_invariants.rs#L1173)
 
 - Sàn 443/577 = 76,8 % đã tụt khỏi dải chính nó đặt; nâng 490, làm tròn XUỐNG.
-  [`check-debt-owner.mjs:514`](../../../scripts/check-debt-owner.mjs#L514)
+  [`check-debt-owner.mjs:514`](../../../../../scripts/check-debt-owner.mjs#L514)
 
 **Ngoại vi — các ca test, xếp theo thứ tự chúng bị vòng rà bắt thiếu**
 
 - ⑤a: giá trị thuộc tính đúng — nhưng CHỈ giá trị, đó là điều vòng rà 1 bắt.
-  [`glossaryManage.test.ts:953`](../../../tests/frontend/glossaryManage.test.ts#L953)
+  [`glossaryManage.test.ts:953`](../../../../../tests/frontend/glossaryManage.test.ts#L953)
 
 - ⑤d: phần tử mang thuộc tính phải CHÍNH LÀ `document.activeElement`.
-  [`glossaryManage.test.ts:1034`](../../../tests/frontend/glossaryManage.test.ts#L1034)
+  [`glossaryManage.test.ts:1034`](../../../../../tests/frontend/glossaryManage.test.ts#L1034)
 
 - ⑤e: xoá hàng cuối bằng lời gọi THẬT, không `.trigger()` — `.trigger()` cho xanh giả ở đây.
-  [`glossaryManage.test.ts:1087`](../../../tests/frontend/glossaryManage.test.ts#L1087)
+  [`glossaryManage.test.ts:1087`](../../../../../tests/frontend/glossaryManage.test.ts#L1087)
 
 - ⑤f: đổi bộ lọc không được cướp tiêu điểm khỏi ô tìm đang gõ.
-  [`glossaryManage.test.ts:1132`](../../../tests/frontend/glossaryManage.test.ts#L1132)
+  [`glossaryManage.test.ts:1132`](../../../../../tests/frontend/glossaryManage.test.ts#L1132)
 
 - ④a: `陳` nới ngưỡng đúng như vế giản `陈`.
-  [`glossary_scan_contract.rs:383`](../../../src-tauri/tests/glossary_scan_contract.rs#L383)
+  [`glossary_scan_contract.rs:383`](../../../../../src-tauri/tests/glossary_scan_contract.rs#L383)
 
 - ④b: `鬍` KHÔNG được nới — bảng chỉ nới cho họ.
-  [`glossary_scan_contract.rs:402`](../../../src-tauri/tests/glossary_scan_contract.rs#L402)
+  [`glossary_scan_contract.rs:402`](../../../../../src-tauri/tests/glossary_scan_contract.rs#L402)
 
 - ④c: ca quần thể bắt `於` nếu ai đó dán nguyên bảng đo vào.
-  [`glossary_scan_contract.rs:433`](../../../src-tauri/tests/glossary_scan_contract.rs#L433)
+  [`glossary_scan_contract.rs:433`](../../../../../src-tauri/tests/glossary_scan_contract.rs#L433)
 
 - ①b: `Err(vec![])` không lái được qua `parse()` thật, nên hàm thuần là đường duy nhất.
-  [`glossary_import_dialog_contract.rs:732`](../../../src-tauri/tests/glossary_import_dialog_contract.rs#L732)
+  [`glossary_import_dialog_contract.rs:732`](../../../../../src-tauri/tests/glossary_import_dialog_contract.rs#L732)

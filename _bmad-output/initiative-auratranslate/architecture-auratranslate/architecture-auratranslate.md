@@ -17,7 +17,7 @@ sources:
   - '_bmad-output/initiative-auratranslate/brief-auratranslate/brief-auratranslate.md'
   - '_bmad-output/initiative-auratranslate/research-technical-auratranslate-tauri-rust-local-first/research-technical-auratranslate-tauri-rust-local-first.md'
   - '_bmad-output/initiative-auratranslate/research-phase-0-spike-results/research-phase-0-spike-results.md'
-  - '_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md'
+  - '_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md'
 companions:
   - '.memlog.md'
 ---

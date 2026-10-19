@@ -522,8 +522,8 @@ ports/           # DictionarySource · … (AD-2)                 ← không Sto
 - [Source: `…/ARCHITECTURE-SPINE.md#Deferred`] — hàng *Stemming trên đường tra cứu TỪ ĐIỂN tiếng Anh* `:852` · hàng font *(trần NFR6 = **400.000.000 byte**, payload **343.991.430**)*
 - [Source: `…/ARCHITECTURE-SPINE.md#Cây nguồn`] — `:788-795`
 - [Source: `_bmad-output/initiative-auratranslate/deferred-work.md`] — `:278-283` *(phát hiện AD-44 về stemming; `:281` nói **Story 1.12 vẫn dựng Matcher đầy đủ**; `:282` chủ sở hữu các chỗ lệch)*
-- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-duong-tra-cuu-tieng-anh-plan.md`] — AC10 *(không Matcher)* · §Bẫy kế thừa · §Quy ước test · §Trạng thái baseline · bảng đột biến M1–M7
-- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-ba-nhanh-truy-van-tieng-trung-plan.md`] — bẫy `len()` vs `chars().count()`, khuôn cổng ranh giới
+- [Source: `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-duong-tra-cuu-tieng-anh-plan.md`] — AC10 *(không Matcher)* · §Bẫy kế thừa · §Quy ước test · §Trạng thái baseline · bảng đột biến M1–M7
+- [Source: `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-ba-nhanh-truy-van-tieng-trung-plan.md`] — bẫy `len()` vs `chars().count()`, khuôn cổng ranh giới
 - [Source: `src-tauri/src/core/matching/mod.rs`] *(8 dòng, 0 mã)* · [`core/mod.rs`] · [`core/dict/mod.rs`] *(phong cách doc-comment mẫu)* · [`core/{glossary,tm}/mod.rs`]
 - [Source: `src-tauri/Cargo.toml`] — `:56-57` *(hai crate đã ghim)* · `:60-67` *(`[profile.release]` — **không đổi**)*
 - [Source: `src-tauri/tests/dict_boundary.rs`] — `:27-64` *(khuôn `DICT_DIR` · `DICT_FLOOR` · `FORBIDDEN` · `contains_forbidden_token` không phân biệt hoa/thường)* · `:88-104` *(`src_root` · `rel_posix` · `walk`)* · `:197-203` *(khuôn đối chứng dương)*

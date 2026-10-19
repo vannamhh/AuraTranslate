@@ -1,6 +1,6 @@
 # Review đối kháng AD-52 — 2026-10-08
 
-Phạm vi: `### AD-52` (dòng 848-880) đọc cùng AD-16, AD-38, AD-46, AD-47, ER (1118-1119), ACs 8.9/8.10/8.13/8.14/8.15 trong `epic-cau-noi-reviewer/tickets.toml`, và `schema.rs` (kho `project.db` tắt `PRAGMA foreign_keys`, không `ON DELETE CASCADE`). Mã chỉ đọc, không sửa.
+Phạm vi: `### AD-52` (dòng 848-880) đọc cùng AD-16, AD-38, AD-46, AD-47, ER (1118-1119), ACs 8.9/8.10/8.13/8.14/8.15 trong `tickets/epic-cau-noi-reviewer/tickets/tickets.toml`, và `schema.rs` (kho `project.db` tắt `PRAGMA foreign_keys`, không `ON DELETE CASCADE`). Mã chỉ đọc, không sửa.
 
 Phán quyết: AD-52 khoá đúng chỗ LƯU và NGƯỜI GHI, nhưng chưa khoá NGỮ NGHĨA dữ liệu và CÁC ĐƯỜNG LÀM MẤT HIỆU LỰC; 5 lỗ, 2 lỗ nặng.
 

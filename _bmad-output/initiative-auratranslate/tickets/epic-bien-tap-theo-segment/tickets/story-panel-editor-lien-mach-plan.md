@@ -413,8 +413,8 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · st
 - Nợ `insert_segments` chủ là 2.2 — `_bmad-output/initiative-auratranslate/deferred-work.md:2012-2024`
 - Vết sẹo rò ký tự chèn lúc copy — `deferred-work.md:839-848` · nợ *"nghiệm thu chạy trên Blink, không phải WKWebView"* — `:145`
 - Nợ bề mặt đọc phải tự khai token — `deferred-work.md:130-133`
-- Bài học Epic 1 — `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi-retrospective.md` §4, §5, §7.1, §8.1, §8.2
-- Story trước — `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-tach-segment-cap-cau-va-co-ket-doan-plan.md`
+- Bài học Epic 1 — `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi-retrospective.md` §4, §5, §7.1, §8.1, §8.2
+- Story trước — `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-tach-segment-cap-cau-va-co-ket-doan-plan.md`
 
 ---
 
@@ -701,7 +701,7 @@ scripts/check-commands.mjs
 scripts/check-layout.mjs
 _bmad-output/initiative-auratranslate/deferred-work.md
 _bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml
-_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-panel-editor-lien-mach-plan.md
+_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-panel-editor-lien-mach-plan.md
 ```
 
 ⚠️ **Không** đụng: `src/layout/**` · `PanelFrame.vue` · `SourcePanel.vue` · `core/segment/split.rs`

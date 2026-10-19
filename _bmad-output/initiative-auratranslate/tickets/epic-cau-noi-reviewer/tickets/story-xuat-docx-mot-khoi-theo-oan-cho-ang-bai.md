@@ -90,13 +90,13 @@ Người dịch xuất phạm vi đã chọn thành một `.docx` mà mỗi Chư
 
 ## References
 
-- parent — _bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/epic-cau-noi-reviewer.md, Requirements FR121 và FR130, Notes
+- parent — _bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/epic-cau-noi-reviewer.md, Requirements FR121 và FR130, Notes
 - constraint — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, AD-37, AD-38, AD-43, AD-46
 - source — _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md, FR121, FR133, FR134
 - design — _bmad-output/initiative-auratranslate/ux-auratranslate/mockups/export-share.html, §2b
 - design — _bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md, §Yêu cầu mới đã vào PRD
-- sibling — _bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-xuat-docx-bang-hai-cot-theo-segment-plan.md
-- sibling — _bmad-output/initiative-auratranslate/epic-cau-noi-reviewer/story-chon-cach-xuat-hinh-anh-plan.md
+- sibling — _bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-xuat-docx-bang-hai-cot-theo-segment-plan.md
+- sibling — _bmad-output/initiative-auratranslate/tickets/epic-cau-noi-reviewer/tickets/story-chon-cach-xuat-hinh-anh-plan.md
 - debt — _bmad-output/initiative-auratranslate/deferred-work.md, §nghĩa vụ FR133 chỉ phát biểu MỘT CHIỀU và §AC4 vế "đường xuất đọc cả hai nguồn"
 
 ## Notes

@@ -408,8 +408,8 @@ Ghi ra để không ai làm thừa, và để không ai tưởng đã được x
 - [Source: `ux-designs/…/EXPERIENCE.md#State-Patterns`] — dòng 105-115, năm giá trị vạch · [`#KF-2`] 285-297 · [`#Accessibility-Floor`] 175-186 · [`#Voice-and-Tone`] 51-61
 - [Source: `ux-designs/…/DESIGN.md`] — dòng 180-204 (bảng token + sàn tương phản) · 380-382 (vạch lề segment) · 133-140 (`gutter-width 22px`, `segment-gutter-rule 2px`)
 - [Source: `initiative-auratranslate/deferred-work.md`] — `:2046` · `:2052-2064` · `:2066-2072` · `:2388-2391` (bốn món có chủ 2.5) · `:166` (Kiểm A chỉ canh `@click`) · `:1961-1968` (chưa có `SegmentVersion`)
-- [Source: `initiative-auratranslate/epic-bien-tap-theo-segment/story-hop-dong-flush-va-trang-thai-da-luu-plan.md`] — §Dev Agent Record, Quyết định #1/#2, chẩn đoán bị bác, ca đỏ `<span>` rỗng
-- [Source: `initiative-auratranslate/epic-bien-tap-theo-segment/story-mui-tham-do-do-nfr18-va-nfr2-dong-thoi-plan.md`] — `:1280-1294` (Task 1.0 mở), `:1580-1618` (NFR18 không đạt), `:1575-1578` (phát hiện UX có chủ là Ice)
+- [Source: `initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-hop-dong-flush-va-trang-thai-da-luu-plan.md`] — §Dev Agent Record, Quyết định #1/#2, chẩn đoán bị bác, ca đỏ `<span>` rỗng
+- [Source: `initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-mui-tham-do-do-nfr18-va-nfr2-dong-thoi-plan.md`] — `:1280-1294` (Task 1.0 mở), `:1580-1618` (NFR18 không đạt), `:1575-1578` (phát hiện UX có chủ là Ice)
 - [Source: `src-tauri/src/core/store/schema.rs`] — `:285-345` (`SEGMENT_DDL` + ba cột cố ý vắng), `:431-455` (`PROJECT_MIGRATIONS`)
 - [Source: `src-tauri/src/commands/segment.rs`] — `:377-389` (auto-save chạm đúng hai cột), `:420` (hàm thuần), `:583` (`mod wire`)
 - [Source: `src-tauri/tests/segment_contract.rs`] — `:472` (cấm số 4), `:1318` (hai cột)
@@ -618,7 +618,7 @@ của Ice.
 - `_bmad-output/implementation-artifacts/2-5-ban-do/` *(mới — *`chup.mjs`* · *`README.md`* · 4 PNG · *`bao-cao.json`*)*
 - `_bmad-output/initiative-auratranslate/deferred-work.md` — đóng 4 món, mở 8 món có chủ
 - `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml`
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-xac-nhan-segment-va-may-trang-thai-plan.md`
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-xac-nhan-segment-va-may-trang-thai-plan.md`
 
 ### Change Log
 

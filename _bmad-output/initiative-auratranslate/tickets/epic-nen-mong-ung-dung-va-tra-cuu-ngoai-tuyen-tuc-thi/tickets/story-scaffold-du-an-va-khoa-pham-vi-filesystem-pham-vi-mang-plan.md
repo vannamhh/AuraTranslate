@@ -551,7 +551,7 @@ Chưa có framework test nào trong repo, và **story này không phải chỗ c
 - [Source: `ARCHITECTURE-SPINE.md#AD-21`, `#Consistency Conventions`] — không chuỗi tiếng Việt trong `.rs`/`.vue`; quy ước đặt tên; *"mỗi phụ thuộc mới phải rà tương thích GPLv3 trước khi thêm vào (NFR15) và ghi vào bảng Stack"*
 - [Source: `prd.md:778`] — FR104 không telemetry
 - [Source: `prd.md:838–851`] — NFR11 · NFR12 · NFR13 · NFR14 · NFR15 · NFR16
-- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep-plan.md#Ranh giới phạm vi`] — *"Không dùng app thăm dò làm scaffold cho Story 1.2"*; trạng thái repo
+- [Source: `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep-plan.md#Ranh giới phạm vi`] — *"Không dùng app thăm dò làm scaffold cho Story 1.2"*; trạng thái repo
 - [Source: `research/font-spike-results-2026-08-03.md#Cấu hình Tauri đã kiểm chứng`] — khối `security` (CSP + `assetProtocol`) đã kiểm trên bản release, ghi rõ *"Story 1.2 chép lại đúng chỗ này"*
 - [Source: `research/font-spike-results-2026-08-03.md#Bẫy gặp thật khi làm`] — bốn bẫy Tauri
 - [Source: `research/font-spike-results-2026-08-03.md#Phép đo 5`] — bốn tệp font + SHA-256 (Task 9 dùng nếu Ice đồng ý)
@@ -821,7 +821,7 @@ Không có chuỗi tiếng Việt nào là **văn bản hiển thị** trong `.r
 - `.gitignore` — thêm `/src-tauri/target/`, `/src-tauri/gen/schemas/`, `*.tsbuildinfo`; ghi chú giữ dòng `*.db` (AD-25)
 - `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md` — bảng Stack: 7 hàng mới, `reqwest` → 0.13.4, TypeScript → 5.9.3, cột giấy phép mang dấu ✓/⚠️; §rà NFR15 lượt hai; `tauri-plugin-fs`/`sql`/`dialog` vào danh sách "Không dùng"
 - `_bmad-output/initiative-auratranslate/architecture-auratranslate/.memlog.md` — 4 dòng
-- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang-plan.md` — story này
+- `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang-plan.md` — story này
 - `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — `ready-for-dev` → `in-progress` → `review`
 
 **KHÔNG sửa (có chủ ý):** `_bmad-output/initiative-auratranslate/archive-v6/epics.md` — Ice chốt 2026-08-03, giữ tiền lệ Story 1.1.

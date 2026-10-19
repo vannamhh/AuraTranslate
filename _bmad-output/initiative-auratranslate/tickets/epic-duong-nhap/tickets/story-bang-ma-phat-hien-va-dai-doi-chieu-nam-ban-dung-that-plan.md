@@ -256,71 +256,71 @@ cho **1038 passed / 0 failed**, tức tải trọng trung tâm của story khôn
 **Luật ba trạng thái — thứ story này thực sự quyết định**
 
 - Năm nhãn FR126 khai thành dữ liệu; cổng đọc được sự LỆCH, không chỉ sự tồn tại.
-  [`encoding.rs:36`](../../../src-tauri/src/core/segment/encoding.rs#L36)
+  [`encoding.rs:36`](../../../../../src-tauri/src/core/segment/encoding.rs#L36)
 
 - Điểm vào: BOM trước, rồi `chardetng`, rồi luật tin cậy của TA — thư viện không cấp.
-  [`encoding.rs:168`](../../../src-tauri/src/core/segment/encoding.rs#L168)
+  [`encoding.rs:168`](../../../../../src-tauri/src/core/segment/encoding.rs#L168)
 
 - BOM là đường DUY NHẤT UTF-16 vào được; UTF-32 phải loại trước.
-  [`encoding.rs:139`](../../../src-tauri/src/core/segment/encoding.rs#L139)
+  [`encoding.rs:139`](../../../../../src-tauri/src/core/segment/encoding.rs#L139)
 
 - Năm bản dựng thật, giải mã DÒNG CHẢY để đoạn cắt giữa ký tự không bị tính là hỏng.
-  [`encoding.rs:236`](../../../src-tauri/src/core/segment/encoding.rs#L236)
+  [`encoding.rs:236`](../../../../../src-tauri/src/core/segment/encoding.rs#L236)
 
 **Định danh qua dây phải KHÔNG MẤT MÁT — gốc của khuyết tật nặng nhất vòng rà 1**
 
 - Giải ngược theo danh sách cho phép; nhãn ngoài năm bảng bị TỪ CHỐI, không rơi về UTF-8.
-  [`encoding.rs:272`](../../../src-tauri/src/core/segment/encoding.rs#L272)
+  [`encoding.rs:272`](../../../../../src-tauri/src/core/segment/encoding.rs#L272)
 
 - Lượt xác nhận giải `wire_id` thành bảng mã thật rồi mới chạy chuỗi.
-  [`project.rs:1088`](../../../src-tauri/src/commands/project.rs#L1088)
+  [`project.rs:1088`](../../../../../src-tauri/src/commands/project.rs#L1088)
 
 **Chuỗi nhập — byte đọc một lần, ghi sau xác nhận**
 
 - Xem trước chỉ ĐỌC: dò bảng mã, dựng năm ô, không byte nào xuống đĩa.
-  [`project.rs:979`](../../../src-tauri/src/commands/project.rs#L979)
+  [`project.rs:979`](../../../../../src-tauri/src/commands/project.rs#L979)
 
 - Bảng mã đã chọn tiêm vào bước 1; `PIPELINE_ORDER` bảy bước không đụng.
-  [`pipeline.rs:228`](../../../src-tauri/src/core/segment/pipeline.rs#L228)
+  [`pipeline.rs:228`](../../../../../src-tauri/src/core/segment/pipeline.rs#L228)
 
 - Dòng đăng ký trạng thái nguồn đang chờ — xoá nó là nhập chết, nay có cổng.
-  [`lib.rs:1033`](../../../src-tauri/src/lib.rs#L1033)
+  [`lib.rs:1033`](../../../../../src-tauri/src/lib.rs#L1033)
 
 **Lỗi nói đúng tên bảng mã — món nợ kế thừa từ Story 6.2**
 
 - `NotUtf8` thành `UndecodableBytes`, mang theo bảng mã đã chọn.
-  [`import.rs:98`](../../../src-tauri/src/core/segment/import.rs#L98)
+  [`import.rs:98`](../../../../../src-tauri/src/core/segment/import.rs#L98)
 
 - Nửa còn lại: khoá thông điệp; khoá cũ ở lại vì glossary mới là chủ thật của nó.
-  [`i18n/mod.rs:156`](../../../src-tauri/src/core/i18n/mod.rs#L156)
+  [`i18n/mod.rs:156`](../../../../../src-tauri/src/core/i18n/mod.rs#L156)
 
 **Màn xem trước ba tầng — chỉ tầng 1 có thân**
 
 - Chọn ô khác đổi lựa chọn tại chỗ; vì sao KHÔNG chạy lại chuỗi thì ghi ở sổ nợ.
-  [`importPreviewState.ts:217`](../../../src/importPreviewState.ts#L217)
+  [`importPreviewState.ts:217`](../../../../../src/importPreviewState.ts#L217)
 
 - Xác nhận: vé `sequence` chặn lượt cũ ghi đè lượt mới.
-  [`importPreviewState.ts:235`](../../../src/importPreviewState.ts#L235)
+  [`importPreviewState.ts:235`](../../../../../src/importPreviewState.ts#L235)
 
 - Huỷ xoá SẠCH nguồn đang chờ — điều kiện để "huỷ ⇒ 0 lượt ghi" là thật.
-  [`importPreviewState.ts:300`](../../../src/importPreviewState.ts#L300)
+  [`importPreviewState.ts:300`](../../../../../src/importPreviewState.ts#L300)
 
 - Nộp form giờ chỉ MỞ xem trước; lượt tạo Tác phẩm dời hẳn sang xác nhận.
-  [`libraryImport.ts:314`](../../../src/modes/libraryImport.ts#L314)
+  [`libraryImport.ts:314`](../../../../../src/modes/libraryImport.ts#L314)
 
 - Đóng vòng: reset panel chỉ chạy SAU khi Rust đã tạo xong.
-  [`libraryImport.ts:196`](../../../src/modes/libraryImport.ts#L196)
+  [`libraryImport.ts:196`](../../../../../src/modes/libraryImport.ts#L196)
 
 **Cổng — mỗi cổng dưới đây đã được chứng minh là ĐỎ ĐƯỢC**
 
 - Thứ tự năm nhãn khớp PRD; gieo hoán vị hai nhãn thì đỏ.
-  [`segment_encoding_boundary.rs:109`](../../../src-tauri/tests/segment_encoding_boundary.rs#L109)
+  [`segment_encoding_boundary.rs:109`](../../../../../src-tauri/tests/segment_encoding_boundary.rs#L109)
 
 - Hình dạng JSON qua dây: đặt `rename_all` vào là đỏ.
-  [`segment_contract.rs:8705`](../../../src-tauri/tests/segment_contract.rs#L8705)
+  [`segment_contract.rs:8705`](../../../../../src-tauri/tests/segment_contract.rs#L8705)
 
 - Ba vỏ dây và dòng đăng ký trạng thái: xoá một dòng là đỏ.
-  [`ipc_contract.rs:812`](../../../src-tauri/tests/ipc_contract.rs#L812)
+  [`ipc_contract.rs:812`](../../../../../src-tauri/tests/ipc_contract.rs#L812)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

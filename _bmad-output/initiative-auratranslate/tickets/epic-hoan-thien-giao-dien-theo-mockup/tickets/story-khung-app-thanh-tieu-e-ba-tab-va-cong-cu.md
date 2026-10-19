@@ -26,7 +26,7 @@ Verify: Một spec e2e. Thanh tiêu đề chỉ có ba tab, trạng thái Proofr
 
 ## References
 
-- parent — _bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/epic-hoan-thien-giao-dien-theo-mockup.md
+- parent — _bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/epic-hoan-thien-giao-dien-theo-mockup.md
 - design — _bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md, §Thanh tiêu đề và lối vào
 - design — _bmad-output/initiative-auratranslate/ux-auratranslate/mockups/key-screen-workspace.html (công tắc bố cục), proofreader.html §3 (trạng thái Proofreader)
 - decisions — _bmad-output/initiative-auratranslate/change-hoan-thien-giao-dien-theo-mockup/handoff-buoc-1-bang-lech.md, D1, D10, D11

@@ -576,8 +576,8 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · st
 - Cổng phụ thuộc, sàn cây, và luật *"exit khác 0 khi thất bại"* — `scripts/check-deps.mjs:1-52`
 - **Bảng Stack là tài liệu Dev ĐƯỢC đồng bộ** — action item Epic 1 *(“`ARCHITECTURE-SPINE.md` lỗi thời so với mã — 8 chỗ… bảng Stack +10 phụ thuộc… `lint_spine.py` 0 findings”)*, `sprint-status.yaml` §action_items
 - Nợ `isTypingZone` — `deferred-work.md:181-182` · nợ **Kiểm J hết hạn** — `:2135-2139` · nợ *"xét lại `Selection.anchorNode` ở 2.3"* — `:2120-2126` · nợ WKWebView thật — `:2127-2134` · giới hạn bàn đo 2.2 — `:2113-2119` · trần NFR2 dựng 9.850 span — `:2100-2112` · nợ *"mọi bằng chứng trên Blink"* — `:145` · vết sẹo rò ký tự chèn — `:839-848` · không bộ chạy test frontend — `:875-882`
-- Bài học Epic 1 — `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi-retrospective.md` §4, §5, §7.1, §8.1, §8.2
-- Story trước — `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-panel-editor-lien-mach-plan.md` · bàn đo — `2-2-ban-do-editor.html`
+- Bài học Epic 1 — `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi-retrospective.md` §4, §5, §7.1, §8.1, §8.2
+- Story trước — `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-panel-editor-lien-mach-plan.md` · bàn đo — `2-2-ban-do-editor.html`
 
 ---
 

@@ -8,4 +8,4 @@ Session: e16ca69f-11f9-471c-b3df-67a80c724067 · Timestamp: 2026-10-10T19:26:36+
 
 - Action: dựng narrative 10 khối từ plan và diff ed7b7f1.
 - Result: Ice yêu cầu trình bày bằng tiếng Việt.
-- Evidence: plan `epic-ai-proofreader/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`
+- Evidence: plan `tickets/epic-ai-proofreader/tickets/story-tracer-quet-chinh-ta-va-ngu-phap-mot-segment-gach-chan-ngay-plan.md`

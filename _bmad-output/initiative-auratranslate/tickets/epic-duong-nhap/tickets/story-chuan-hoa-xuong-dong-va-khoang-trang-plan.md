@@ -213,51 +213,51 @@ mục vá; §Acceptance Criteria thêm hai mệnh đề (AC6 phủ **mọi** đ�
 **Điểm tiêm — đọc trước nhất**
 
 - Thân bước 4 gọi xuống module thuần; `trace.push` ở lại trong nhánh.
-  [`pipeline.rs:357`](../../../src-tauri/src/core/segment/pipeline.rs#L357)
+  [`pipeline.rs:357`](../../../../../src-tauri/src/core/segment/pipeline.rs#L357)
 
 - Ba phép đúng thứ tự; nhóm theo đoạn rồi mới nối trong từng đoạn.
-  [`normalize.rs:78`](../../../src-tauri/src/core/segment/normalize.rs#L78)
+  [`normalize.rs:78`](../../../../../src-tauri/src/core/segment/normalize.rs#L78)
 
 **Một chủ cho mỗi bảng**
 
 - Vị từ kết câu sống cạnh bảng, nên `normalize.rs` mang 0 ký tự kết câu.
-  [`split.rs:362`](../../../src-tauri/src/core/segment/split.rs#L362)
+  [`split.rs:362`](../../../../../src-tauri/src/core/segment/split.rs#L362)
 
 - Dấu nối theo ngôn ngữ chỉ mở tầm nhìn, không sao chép.
-  [`regroup.rs:106`](../../../src-tauri/src/core/segment/regroup.rs#L106)
+  [`regroup.rs:106`](../../../../../src-tauri/src/core/segment/regroup.rs#L106)
 
 **Cửa sổ bằng chứng — chỗ dễ nói dối nhất**
 
 - Bỏ dòng cuối vì quyết định nối của nó nằm ngoài cửa sổ.
-  [`normalize.rs:165`](../../../src-tauri/src/core/segment/normalize.rs#L165)
+  [`normalize.rs:165`](../../../../../src-tauri/src/core/segment/normalize.rs#L165)
 
 - Ép nhánh cắt cho ứng viên; số đếm và bản dựng cùng một cửa sổ.
-  [`encoding.rs:305`](../../../src-tauri/src/core/segment/encoding.rs#L305)
+  [`encoding.rs:305`](../../../../../src-tauri/src/core/segment/encoding.rs#L305)
 
 **Vá vòng rà 1 — đường tự khai**
 
 - Ca 0 ứng viên vẫn phải có bản dựng; cơ chế theo-ứng-viên không phủ nó.
-  [`project.rs:1085`](../../../src-tauri/src/commands/project.rs#L1085)
+  [`project.rs:1085`](../../../../../src-tauri/src/commands/project.rs#L1085)
 
 - Bản dựng tự khai, chuẩn hoá trên văn bản thật thay vì cửa sổ byte.
-  [`encoding.rs:339`](../../../src-tauri/src/core/segment/encoding.rs#L339)
+  [`encoding.rs:339`](../../../../../src-tauri/src/core/segment/encoding.rs#L339)
 
 - Đọc ứng viên khi có, rơi về bản tự khai khi không — giữ 0 lời gọi IPC.
-  [`importPreviewState.ts:152`](../../../src/importPreviewState.ts#L152)
+  [`importPreviewState.ts:152`](../../../../../src/importPreviewState.ts#L152)
 
 - Tầng mới đặt ngay sau bảng mã, đúng thứ tự nhân quả của xem trước.
-  [`ImportPreviewOverlay.vue:255`](../../../src/ImportPreviewOverlay.vue#L255)
+  [`ImportPreviewOverlay.vue:255`](../../../../../src/ImportPreviewOverlay.vue#L255)
 
 **Cổng — và chỗ mù đã vá**
 
 - Cổng thân-bước: pipeline phải GỌI module, không viết lại nội tuyến.
-  [`segment_normalize_boundary.rs:137`](../../../src-tauri/tests/segment_normalize_boundary.rs#L137)
+  [`segment_normalize_boundary.rs:137`](../../../../../src-tauri/tests/segment_normalize_boundary.rs#L137)
 
 - Neo theo đầu dòng; một chú thích nhắc chuỗi ấy từng làm cổng mù.
-  [`segment_normalize_boundary.rs:98`](../../../src-tauri/tests/segment_normalize_boundary.rs#L98)
+  [`segment_normalize_boundary.rs:98`](../../../../../src-tauri/tests/segment_normalize_boundary.rs#L98)
 
 - Kiểm chứng dương cho chính phép neo trên — cổng đọc được sự lệch.
-  [`segment_normalize_boundary.rs:231`](../../../src-tauri/tests/segment_normalize_boundary.rs#L231)
+  [`segment_normalize_boundary.rs:231`](../../../../../src-tauri/tests/segment_normalize_boundary.rs#L231)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

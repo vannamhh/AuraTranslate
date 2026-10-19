@@ -55,7 +55,7 @@ Verify: Một lượt chạy `release.yml` trên một tag cho ra `.dmg` và `.m
 
 ## References
 
-- parent — _bmad-output/initiative-auratranslate/epic-phat-hanh-va-tin-cay/epic-phat-hanh-va-tin-cay.md
+- parent — _bmad-output/initiative-auratranslate/tickets/epic-phat-hanh-va-tin-cay/epic-phat-hanh-va-tin-cay.md
 - constraint — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, AD-25, AD-10, AD-45
 - debt — _bmad-output/initiative-auratranslate/deferred-work.md, các mục có `Chủ:` cuối là `Story 10.1` (grep, không đọc cả tệp)
 

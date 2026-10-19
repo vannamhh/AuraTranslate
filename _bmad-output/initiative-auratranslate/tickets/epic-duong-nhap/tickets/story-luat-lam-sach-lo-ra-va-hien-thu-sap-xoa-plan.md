@@ -226,56 +226,56 @@ xoá + nhãn trợ năng · gỡ dữ liệu chết · đánh lại số hàng �
 **Điểm tiêm — đọc trước nhất**
 
 - Thân bước 3 gọi xuống module thuần; `trace.push` ở lại trong nhánh.
-  [`pipeline.rs:393`](../../../src-tauri/src/core/segment/pipeline.rs#L393)
+  [`pipeline.rs:393`](../../../../../src-tauri/src/core/segment/pipeline.rs#L393)
 
 - Luật đã tắt vẫn ĐẾM, chỉ không XOÁ; chỗ khớp chồng nhau xoá một lần.
-  [`cleanup/mod.rs:275`](../../../src-tauri/src/core/cleanup/mod.rs#L275)
+  [`cleanup/mod.rs:275`](../../../../../src-tauri/src/core/cleanup/mod.rs#L275)
 
 **Hai tầng — consumer sản phẩm đầu tiên của `apply_merge`**
 
 - Hợp nhất, không ghi đè; đột biến sang `apply_override` làm nhiều ca đỏ.
-  [`cleanup/store.rs:109`](../../../src-tauri/src/core/cleanup/store.rs#L109)
+  [`cleanup/store.rs:109`](../../../../../src-tauri/src/core/cleanup/store.rs#L109)
 
 - Một hằng DDL, hai bước di trú song sinh (7 và 19), rào rỗng 25 điểm mã.
-  [`schema.rs:852`](../../../src-tauri/src/core/store/schema.rs#L852)
+  [`schema.rs:852`](../../../../../src-tauri/src/core/store/schema.rs#L852)
 
 **Xem trước chạy CHÍNH chuỗi — chỗ đóng nợ `:9359`**
 
 - Chạy `run_pipeline` trên TOÀN văn bản; không dựng lại thứ tự bước lần hai.
-  [`project.rs:1191`](../../../src-tauri/src/commands/project.rs#L1191)
+  [`project.rs:1191`](../../../../../src-tauri/src/commands/project.rs#L1191)
 
 - Span vắt qua biên cửa sổ được CẮT về biên, không bị loại bỏ.
-  [`project.rs:1258`](../../../src-tauri/src/commands/project.rs#L1258)
+  [`project.rs:1258`](../../../../../src-tauri/src/commands/project.rs#L1258)
 
 **Chỗ hở đã vá ở vòng rà — đọc kỹ nhất**
 
 - Tầng Tác phẩm phân giải từ Tác phẩm ĐANG MỞ; vì thế bề mặt soạn chỉ tạo luật Toàn cục.
-  [`project.rs:2630`](../../../src-tauri/src/commands/project.rs#L2630)
+  [`project.rs:2630`](../../../../../src-tauri/src/commands/project.rs#L2630)
 
 - Tải lại sau CRUD phải GIỮ ứng viên người dùng đã chọn, nếu không ghi sai bảng mã.
-  [`importPreviewState.ts:319`](../../../src/importPreviewState.ts#L319)
+  [`importPreviewState.ts:319`](../../../../../src/importPreviewState.ts#L319)
 
 **Bề mặt — dữ liệu, không markup**
 
 - Gạch ngang là màu NÉT (`text-decoration-color`), không bao giờ màu chữ.
-  [`ImportPreviewOverlay.vue:492`](../../../src/ImportPreviewOverlay.vue#L492)
+  [`ImportPreviewOverlay.vue:492`](../../../../../src/ImportPreviewOverlay.vue#L492)
 
 - Tick bật/tắt mang `aria-label` nêu đích danh mẫu luật.
-  [`ImportPreviewOverlay.vue:556`](../../../src/ImportPreviewOverlay.vue#L556)
+  [`ImportPreviewOverlay.vue:556`](../../../../../src/ImportPreviewOverlay.vue#L556)
 
 **Cổng — và chỗ mù đã vá**
 
 - Cổng thân-bước nay lọc `#[cfg(test)]` trước khi quét; trước đó thân test làm nó xanh giả.
-  [`cleanup_boundary.rs:133`](../../../src-tauri/tests/cleanup_boundary.rs#L133)
+  [`cleanup_boundary.rs:133`](../../../../../src-tauri/tests/cleanup_boundary.rs#L133)
 
 - Số đếm của TOÀN Chương dù bản dựng bị cắt — ca này đã chứng minh ĐỎ trước khi mã được sửa.
-  [`cleanup_contract.rs:656`](../../../src-tauri/tests/cleanup_contract.rs#L656)
+  [`cleanup_contract.rs:656`](../../../../../src-tauri/tests/cleanup_contract.rs#L656)
 
 - Chỗ khớp vắt biên bị cắt chứ không mất dấu — đối chứng đỏ đã chạy.
-  [`cleanup_contract.rs:709`](../../../src-tauri/tests/cleanup_contract.rs#L709)
+  [`cleanup_contract.rs:709`](../../../../../src-tauri/tests/cleanup_contract.rs#L709)
 
 - Mệnh đề hiệu năng có SỐ, không có lời khai: sáu lượt chuỗi trên Chương 440 KB.
-  [`cleanup_contract.rs:809`](../../../src-tauri/tests/cleanup_contract.rs#L809)
+  [`cleanup_contract.rs:809`](../../../../../src-tauri/tests/cleanup_contract.rs#L809)
 
 
 ## Tiêu chí nghiệm thu từ epics.md

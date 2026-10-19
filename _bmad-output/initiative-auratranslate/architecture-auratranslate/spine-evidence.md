@@ -275,7 +275,7 @@ Phiên bản và tên họ ghi ở đây đọc từ bảng `name` của chính 
 
 *(Tên họ lấy ở **name ID 16** với `Source Sans 3` — ID 1 của tệp đó là `Source Sans 3 ExtraLight` vì nó là font biến thiên có mặc định trục `wght = 200`; hai tệp kia lấy ở **ID 1**.)*
 
-Số đo và lý do đầy đủ: [`research/font-spike-results-2026-08-03.md`](../epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md).
+Số đo và lý do đầy đủ: [`research/font-spike-results-2026-08-03.md`](../tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md).
 
 L870 (ba mảnh cắt, theo thứ tự xuất hiện):
 

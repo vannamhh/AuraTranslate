@@ -70,7 +70,7 @@ So that **một khác biệt nền tảng lọt vào ở Epic 2 không nằm im 
 
 ### AC6 — Hai phép đo `.msi`, ghi lại ở MỖI lần chạy
 
-*(Nhận bàn giao từ Story 1.1 ngày 2026-08-03. Công thức: [`research/font-spike-results-2026-08-03.md`](research-font-spike-results/research-font-spike-results.md) §Công thức đo trên Windows.)*
+*(Nhận bàn giao từ Story 1.1 ngày 2026-08-03. Công thức: [`research/font-spike-results-2026-08-03.md`](../research-font-spike-results/research-font-spike-results.md) §Công thức đo trên Windows.)*
 
 **Given** runner Windows của CI đã chạy được
 **When** CI chạy trên một commit bất kỳ
@@ -506,8 +506,8 @@ jobs:
 - [Source: `_bmad-output/initiative-auratranslate/archive-v6/epics.md#Epic 1 · Ghi chú cài đặt` — vì sao CI đứng ngay sau scaffold, `:812`]
 - [Source: `_bmad-output/planning-artifacts/architecture/.../ARCHITECTURE-SPINE.md#Stack` — 19 hàng đã ghim, `scripts/check-deps.sh` (nay `.mjs`) *"Story 1.3 gắn script này vào CI"*, `:611`]
 - [Source: `_bmad-output/planning-artifacts/architecture/.../ARCHITECTURE-SPINE.md#AD-15` — ba điểm ra mạng; không có điểm thứ tư]
-- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md#Công thức đo trên Windows` — `:417-451`, kèm cảnh báo chiều trừ đảo]
-- [Source: `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md#Phép đo 2` — dải ước 16,0–20,3 MiB và giới hạn của phép tự kiểm, `:105-148`]
+- [Source: `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md#Công thức đo trên Windows` — `:417-451`, kèm cảnh báo chiều trừ đảo]
+- [Source: `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/research-font-spike-results/research-font-spike-results.md#Phép đo 2` — dải ước 16,0–20,3 MiB và giới hạn của phép tự kiểm, `:105-148`]
 - [Source: `_bmad-output/implementation-artifacts/1-2-…-pham-vi-mang.md#Debug Log References` — ba lệnh, bảng đỏ/xanh, `:597-615`]
 - [Source: `_bmad-output/implementation-artifacts/1-2-…-pham-vi-mang.md#AC6` — vì sao `cargo check` cho Windows gãy trên máy Ice, `:716-742`]
 - [Source: `_bmad-output/implementation-artifacts/1-2-…-pham-vi-mang.md#Bàn giao tường minh` — ba việc giao cho 1.3, `:773-784`]

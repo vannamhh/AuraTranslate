@@ -6,7 +6,7 @@ status: complete
 created: 2026-08-03
 updated: 2026-08-03
 relates_to:
-  - '_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep-plan.md'
+  - '_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-mui-tham-do-font-do-dung-luong-that-va-ra-giay-phep-plan.md'
   - '_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md'
   - '_bmad-output/initiative-auratranslate/ux-auratranslate/DESIGN.md'
   - '_bmad-output/initiative-auratranslate/research-phase-0-spike-results/research-phase-0-spike-results.md'

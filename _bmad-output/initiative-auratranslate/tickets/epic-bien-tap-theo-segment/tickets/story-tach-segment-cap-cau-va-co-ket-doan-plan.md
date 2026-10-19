@@ -413,7 +413,7 @@ Quy ước đặt tên đã đo: Rust `snake_case` · Vue `PascalCase.vue` · kh
 - `segment_count = 0` — `_bmad-output/initiative-auratranslate/deferred-work.md:542`
 - Nợ CRLF giao cho 2.1 — `deferred-work.md:561`
 - Hai quyết định của Ice (CI · Windows) — `deferred-work.md:1861-1918`
-- Action item A6 + retro §10 — `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi-retrospective.md:229-231`, `:291`, `:305-306`
+- Action item A6 + retro §10 — `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi-retrospective.md:229-231`, `:291`, `:305-306`
 - UX vạch lề và ranh giới câu — `ux-designs/.../DESIGN.md:380`, `:382`, `:400`; `EXPERIENCE.md:23`, `:99`, `:105-115`
 
 ---

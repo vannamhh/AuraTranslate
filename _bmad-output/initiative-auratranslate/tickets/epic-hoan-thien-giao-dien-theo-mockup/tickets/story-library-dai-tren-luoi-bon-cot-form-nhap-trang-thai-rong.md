@@ -30,7 +30,7 @@ Verify: Một spec e2e. Ở 1440×790, lưới Library có bốn cột và rộn
 
 ## References
 
-- parent — _bmad-output/initiative-auratranslate/epic-hoan-thien-giao-dien-theo-mockup/epic-hoan-thien-giao-dien-theo-mockup.md
+- parent — _bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/epic-hoan-thien-giao-dien-theo-mockup.md
 - design — _bmad-output/initiative-auratranslate/ux-auratranslate/mockups/library-and-import.html, màn Library (dải trên, lưới, thẻ)
 - design — _bmad-output/initiative-auratranslate/ux-auratranslate/mockups/empty-states.html, Library lần đầu
 - design — _bmad-output/initiative-auratranslate/ux-auratranslate/mockups/narrow-layout.html, §Ngưỡng và thứ tự hy sinh (lưới Library 4 → 3 → 2)

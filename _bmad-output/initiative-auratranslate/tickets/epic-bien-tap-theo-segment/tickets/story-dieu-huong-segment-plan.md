@@ -718,7 +718,7 @@ Story viết *"cây **sạch** tại `a664dac`"*. Đo lúc bắt đầu thi côn
 
 ```
  M _bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml
-?? _bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-dieu-huong-segment-plan.md
+?? _bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-dieu-huong-segment-plan.md
 ```
 
 ⇒ Hai tệp này **là tạo tác của chính lượt `create-story`** *(tệp story + dòng `ready-for-dev`)*,
@@ -1027,7 +1027,7 @@ bàn đo Ⓘ đọc đồng bộ · không giật khi bấm liên tục: e2e Ⓔ
   2.10, cộng **sáu** mục mới kèm chủ
 - `_bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md` —
   UPDATE: 🔵 sửa hàng `⌥↓` → `⌘⌥↓`, thêm hàng hai lệnh tuần tự
-- `_bmad-output/initiative-auratranslate/epic-bien-tap-theo-segment/story-dieu-huong-segment-plan.md` — UPDATE: tệp này
+- `_bmad-output/initiative-auratranslate/tickets/epic-bien-tap-theo-segment/tickets/story-dieu-huong-segment-plan.md` — UPDATE: tệp này
 - `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml` — UPDATE: trạng thái story
 
 ### Change Log

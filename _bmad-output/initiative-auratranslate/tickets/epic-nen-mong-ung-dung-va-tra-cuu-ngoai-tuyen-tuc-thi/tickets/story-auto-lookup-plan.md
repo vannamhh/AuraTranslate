@@ -1250,7 +1250,7 @@ Sáu mục trên đã ghi vào `deferred-work.md` §1.18 kèm chủ sở hữu.
 - `src-tauri/tests/dict_sources.rs`
 - `_bmad-output/initiative-auratranslate/deferred-work.md`
 - `_bmad-output/initiative-auratranslate/archive-v6/sprint-status.yaml`
-- `_bmad-output/initiative-auratranslate/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/story-auto-lookup-plan.md`
+- `_bmad-output/initiative-auratranslate/tickets/epic-nen-mong-ung-dung-va-tra-cuu-ngoai-tuyen-tuc-thi/tickets/story-auto-lookup-plan.md`
 
 ⚠️ `src/modes/libraryImport.ts` **không thuộc story này** — nó là commit riêng `09d9c87`
 *(bản vá chưa commit lúc tạo story; Ice chốt tách ra ở Task 0)*.

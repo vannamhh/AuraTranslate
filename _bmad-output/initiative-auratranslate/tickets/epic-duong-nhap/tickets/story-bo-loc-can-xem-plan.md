@@ -189,59 +189,59 @@ context:
 **Phán quyết "cần xem" — nơi luật thật sự sống**
 
 - Điểm vào: toàn bộ luật phân loại nằm trong một hàm thuần duy nhất.
-  [`review.rs:193`](../../../src-tauri/src/core/segment/review.rs#L193)
+  [`review.rs:193`](../../../../../src-tauri/src/core/segment/review.rs#L193)
 
 - Hàng rào Tukey; `1,5` là hằng có tên duy nhất, `IQR = 0` trả `None`.
-  [`review.rs:161`](../../../src-tauri/src/core/segment/review.rs#L161)
+  [`review.rs:161`](../../../../../src-tauri/src/core/segment/review.rs#L161)
 
 - Sàn bốn giá trị là HỆ QUẢ số học, không phải ngưỡng chỉnh được.
-  [`review.rs:125`](../../../src-tauri/src/core/segment/review.rs#L125)
+  [`review.rs:125`](../../../../../src-tauri/src/core/segment/review.rs#L125)
 
 - Vòng rà bắt: thiếu CẢ HAI tín hiệu từng cho hai nhãn trùng khoá.
-  [`review.rs:217`](../../../src-tauri/src/core/segment/review.rs#L217)
+  [`review.rs:217`](../../../../../src-tauri/src/core/segment/review.rs#L217)
 
 **Con số FR125 từng được tính rồi vứt đi**
 
 - `Flow` nay chở số dòng bị nối theo từng đơn vị, khuôn `cleanup_reports`.
-  [`pipeline.rs:476`](../../../src-tauri/src/core/segment/pipeline.rs#L476)
+  [`pipeline.rs:476`](../../../../../src-tauri/src/core/segment/pipeline.rs#L476)
 
 - Đường `Blob`: `None` cho CẢ N — kể cả `ord = 1`, vì số đo thuộc toàn tài liệu.
-  [`pipeline.rs:536`](../../../src-tauri/src/core/segment/pipeline.rs#L536)
+  [`pipeline.rs:536`](../../../../../src-tauri/src/core/segment/pipeline.rs#L536)
 
 **Dây — chỗ hai nghĩa được tách ra**
 
 - `cleanup_match_count` thành `Option`; `0` thôi mang hai nghĩa.
-  [`project.rs:1208`](../../../src-tauri/src/commands/project.rs#L1208)
+  [`project.rs:1208`](../../../../../src-tauri/src/commands/project.rs#L1208)
 
 - Hai con số do Rust cộng, gồm cả vế link hỏng (AD-1).
-  [`project.rs:1306`](../../../src-tauri/src/commands/project.rs#L1306)
+  [`project.rs:1306`](../../../../../src-tauri/src/commands/project.rs#L1306)
 
 - Số mục hỏng đi vào qua tham số; đường tệp/dán tay truyền `0`.
-  [`project.rs:1732`](../../../src-tauri/src/commands/project.rs#L1732)
+  [`project.rs:1732`](../../../../../src-tauri/src/commands/project.rs#L1732)
 
 **Bàn phím và trạng thái bộ lọc**
 
 - `⌥W` so `event.code`; trên macOS `event.key` là `∑`, không bao giờ `'w'`.
-  [`ImportPreviewOverlay.vue:731`](../../../src/ImportPreviewOverlay.vue#L731)
+  [`ImportPreviewOverlay.vue:731`](../../../../../src/ImportPreviewOverlay.vue#L731)
 
 - Chặn BẬT khi không hàng rào nào tồn tại — vòng rà bắt được lỗ này.
-  [`importPreviewState.ts:1076`](../../../src/importPreviewState.ts#L1076)
+  [`importPreviewState.ts:1076`](../../../../../src/importPreviewState.ts#L1076)
 
 **Màn hình**
 
 - Lọc thì bỏ co gọn, nên `aria-activedescendant` không thể trỏ hàng đã lọc.
-  [`ImportPreviewOverlay.vue:389`](../../../src/ImportPreviewOverlay.vue#L389)
+  [`ImportPreviewOverlay.vue:389`](../../../../../src/ImportPreviewOverlay.vue#L389)
 
 - Một `v-for` duy nhất thay ba nhánh lặp — điều kiện để thêm chiều thứ ba.
-  [`ImportPreviewOverlay.vue:403`](../../../src/ImportPreviewOverlay.vue#L403)
+  [`ImportPreviewOverlay.vue:403`](../../../../../src/ImportPreviewOverlay.vue#L403)
 
 - Bốn nhãn nguyên nhân qua `switch` cạn, để `check:i18n` thấy literal.
-  [`ImportPreviewOverlay.vue:355`](../../../src/ImportPreviewOverlay.vue#L355)
+  [`ImportPreviewOverlay.vue:355`](../../../../../src/ImportPreviewOverlay.vue#L355)
 
 **Ngoại vi**
 
 - Bốn ca đầu-cuối qua dây thật, gồm ca `Blob` của ma trận.
-  [`review_contract.rs:20`](../../../src-tauri/tests/review_contract.rs#L20)
+  [`review_contract.rs:20`](../../../../../src-tauri/tests/review_contract.rs#L20)
 
 
 ## Tiêu chí nghiệm thu từ epics.md
