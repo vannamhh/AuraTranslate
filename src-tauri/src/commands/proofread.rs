@@ -6,12 +6,12 @@
 //! grouped into batches, one provider call per batch, run one after another; each batch that
 //! lands is sent over the Channel with every quoted phrase already placed in Rust.
 //! A pure layer takes `Option<&Store>`/`Option<&OpenWork>`; [`wire`] holds the thin commands.
-//! The API key is read through `aitranslate::read_api_key`, never here (AD-13).
+//! The API key is read through `aiconfig::read_api_key`, never here (AD-13).
 
+use crate::commands::aiconfig::read_api_key;
 use crate::commands::aiprompt::segment_not_in_chapter;
 use crate::commands::aitranslate::{
-    AiTranslateUsageWire, PreparedTranslateCall, ResolvedCallConfig, read_api_key,
-    resolve_call_config,
+    AiTranslateUsageWire, PreparedTranslateCall, ResolvedCallConfig, resolve_call_config,
 };
 use crate::commands::project::OpenWork;
 use crate::core::ai::client::OpenAiChatClient;

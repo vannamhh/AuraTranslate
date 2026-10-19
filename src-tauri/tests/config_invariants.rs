@@ -2088,10 +2088,10 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 20] = [
     (
         "src/commands/aiconfig.rs",
-        4,
+        2,
         3,
         3,
-        "MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Hai vo (`ai_config_save_field`/`ai_config_clear_override`) ghi/xoa MOT hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev. `ai_config_test_connection` la `async fn` literal (cung co che `ai_translate_segment`: than tu spawn luong blocking, khong giu `OpenWorkState` xuyen luot goi mang), nen roi vao cot `plain`. `ai_config_test_connection_cancel` chi bom mot `AtomicU64` rieng cua lan kiem tra ket noi.",
+        "MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Hai vo (`ai_config_save_field`/`ai_config_clear_override`) ghi/xoa MOT hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev.",
     ),
     (
         "src/commands/aiprompt.rs",
@@ -2102,7 +2102,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 20] = [
     ),
     (
         "src/commands/aitranslate.rs",
-        4,
+        6,
         0,
         0,
         "CHUA DO -- chu: Dev. Bon vo (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12): \
@@ -2114,7 +2114,10 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 20] = [
          `#[tauri::command]` PLAIN ve mat CHU KY thuoc tinh -- `count_command_attrs_in` doc VAN \
          BAN dong thuoc tinh, khong doc `asyncness` cua chu ky ham, nen mot `async fn` mang \
          `#[tauri::command]` tran (khong `(async)`) roi vao cot `plain` dung nhu mot ham dong \
-         bo; chua ai do chi phi cua chung tren mot lan sinh dai hoac mot lo nhieu cau.",
+         bo; chua ai do chi phi cua chung tren mot lan sinh dai hoac mot lo nhieu cau. \
+         `ai_config_test_connection` cung la `async fn` literal (than tu spawn luong blocking, \
+         khong giu `OpenWorkState` xuyen luot goi mang), nen roi vao cot `plain`; \
+         `ai_config_test_connection_cancel` chi bom mot `AtomicU64` rieng cua lan kiem tra ket noi.",
     ),
     (
         "src/commands/proofread.rs",

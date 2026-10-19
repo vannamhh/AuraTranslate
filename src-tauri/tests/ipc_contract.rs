@@ -2251,8 +2251,8 @@ fn the_connection_check_and_shortcut_file_wires_are_registered() {
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", lib_rs.display()));
 
     for wire in [
-        "crate::commands::aiconfig::wire::ai_config_test_connection,",
-        "crate::commands::aiconfig::wire::ai_config_test_connection_cancel,",
+        "crate::commands::aitranslate::wire::ai_config_test_connection,",
+        "crate::commands::aitranslate::wire::ai_config_test_connection_cancel,",
         "crate::commands::shortcuts::wire::shortcuts_export,",
         "crate::commands::shortcuts::wire::shortcuts_import,",
     ] {

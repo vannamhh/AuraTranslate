@@ -53,6 +53,7 @@
 //! CÓ `Send` (nó chỉ mang `Result<TranslateOutcome, OpenAiClientError>`, cả hai đều `Send`), nên
 //! `.await` nó ngay trong `ai_translate_segment` là hợp lệ.
 
+use crate::commands::aiconfig::{PreparedConnectionCheck, endpoint_and_model_set, read_api_key};
 use crate::commands::aiprompt::{
     AssembledPromptWire, LastAssembledPromptState, TmRowsCache, assemble_and_record_prompt,
     assemble_and_record_prompt_with_tm, segment_not_in_chapter,
@@ -96,13 +97,6 @@ fn no_prompt_to_resend() -> IpcError {
         std::collections::BTreeMap::new(),
         false,
     )
-}
-
-/// Keychain từ chối trả lời lúc dịch — tái dùng ĐÚNG khoá của Story 4.3 (§Code Map spec 4.8:
-/// "reuses ... `AiConfigKeychainUnavailable` where the fact already has a key"), không một khoá
-/// thứ hai cho cùng sự thật.
-fn keychain_unavailable() -> IpcError {
-    crate::core::aiconfig::AiConfigKeyError::Unavailable.into()
 }
 
 /// Phân loại HOÀN CHỈNH của `OpenAiClientError` — Quyết định 2, spec 4.10: sáu HỌ NGUYÊN NHÂN,
@@ -252,36 +246,6 @@ pub(crate) struct ResolvedCallConfig<'a> {
     pub(crate) max_tokens: Option<u32>,
 }
 
-pub(crate) fn endpoint_and_model_set(endpoint: &str, model: &str) -> bool {
-    !endpoint.trim().is_empty() && !model.trim().is_empty()
-}
-
-/// Same predicate pair as a translate call: endpoint + model set, then a stored key.
-/// `None` only when both are set and the keychain cannot be asked.
-pub(crate) fn call_ready(
-    provider: &str,
-    endpoint: &str,
-    model: &str,
-    key_configured: Option<bool>,
-) -> Option<bool> {
-    if !endpoint_and_model_set(endpoint, model) {
-        return Some(false);
-    }
-    if !provider_needs_key(provider) {
-        return Some(true);
-    }
-    key_configured
-}
-
-/// Local runtimes (Ollama, LM Studio) run without an API key; every other provider, including
-/// an unset or unknown one, needs the stored key.
-pub(crate) fn provider_needs_key(provider: &str) -> bool {
-    !matches!(
-        provider.trim().to_ascii_lowercase().as_str(),
-        "ollama" | "lmstudio"
-    )
-}
-
 /// `None` only when `endpoint` or `model` is empty; an unset or unparsable
 /// `temperature`/`max_tokens` is sent as absent, never treated as "not configured".
 pub(crate) fn resolve_call_config<'a>(
@@ -332,19 +296,6 @@ pub(crate) fn state_missing(tag: &str, state_name: &str, code: &'static str) -> 
         std::collections::BTreeMap::new(),
         false,
     )
-}
-
-/// The key to send for `provider`: empty for a local runtime (nothing is stored or read), the
-/// stored key otherwise. `None` is "no key stored".
-pub(crate) fn read_api_key(provider: &str) -> Result<Option<String>, IpcError> {
-    if !provider_needs_key(provider) {
-        return Ok(Some(String::new()));
-    }
-    match crate::core::aiconfig::keychain::read() {
-        Ok(Some(secret)) => Ok(Some(secret.expose_secret().to_owned())),
-        Ok(None) => Ok(None),
-        Err(_unavailable) => Err(keychain_unavailable()),
-    }
 }
 
 /// **Lớp ĐỒNG BỘ** — phân giải cấu hình, đọc khoá, từ chối một segment `is_omitted`, rồi gọi
@@ -673,13 +624,6 @@ impl ConnectionCheckGeneration {
     pub fn is_current(&self, generation: u64) -> bool {
         self.0.load(std::sync::atomic::Ordering::Acquire) == generation
     }
-}
-
-/// A connection check ready to send. Not `Debug`: `api_key` is a bare secret.
-pub struct PreparedConnectionCheck {
-    pub endpoint: String,
-    pub model: String,
-    pub api_key: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -1098,8 +1042,11 @@ pub mod wire {
         prepare_resend_call, prepare_translate_call, send_prepared_batch_call,
         send_prepared_translate_call, single_run_outcome_wire, state_missing,
     };
+    use super::{ConnectionCheckGeneration, ConnectionCheckWire, send_prepared_connection_check};
+    use crate::commands::aiconfig::{ConnectionCheckPrep, prepare_connection_check};
     use crate::commands::aiprompt::{LastAssembledPromptState, mark_prompt_as_sent};
     use crate::commands::project::OpenWorkState;
+    use crate::core::aiconfig::AiConfigTier;
     use crate::core::i18n::IpcError;
     use crate::core::store::Store;
     use crate::ports::translation_provider::TranslateOutcome;
@@ -1388,5 +1335,51 @@ pub mod wire {
             return;
         };
         generation_state.next();
+    }
+
+    /// Checks the SAVED configuration of `tier` against the provider: `GET {endpoint}/models`
+    /// (no tokens), then the saved model must be listed. Has its own `ConnectionCheckGeneration`:
+    /// `ai_config_test_connection_cancel` cancels it, and it never touches a translate run. The Work lock is released before any `.await`.
+    #[tauri::command]
+    pub async fn ai_config_test_connection<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        tier: AiConfigTier,
+    ) -> Result<ConnectionCheckWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(generation_state) = app.try_state::<ConnectionCheckGeneration>() else {
+            return Err(state_missing(
+                "test_connection",
+                "ConnectionCheckGeneration",
+                "ai_config.generation_state_missing",
+            ));
+        };
+        let generation_state = generation_state.inner().clone();
+        let generation = generation_state.next();
+
+        let prep = {
+            let global = app.try_state::<Store>();
+            let work_state = app.try_state::<OpenWorkState>();
+            let guard = work_state
+                .as_ref()
+                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+            let open = guard.as_ref().and_then(|g| g.as_ref());
+            prepare_connection_check(global.as_deref(), open, tier)?
+        };
+        let prepared = match prep {
+            ConnectionCheckPrep::NotConfigured => return Ok(ConnectionCheckWire::NotConfigured),
+            ConnectionCheckPrep::Ready(p) => p,
+        };
+        send_prepared_connection_check(prepared, generation_state, generation).await
+    }
+
+    /// Cancels the running connection check only. Reads and writes no store.
+    #[tauri::command]
+    pub fn ai_config_test_connection_cancel<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+        use tauri::Manager as _;
+
+        if let Some(generation_state) = app.try_state::<ConnectionCheckGeneration>() {
+            generation_state.next();
+        }
     }
 }

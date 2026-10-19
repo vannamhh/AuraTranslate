@@ -1352,7 +1352,7 @@ fn test_connection_without_endpoint_or_model_or_key_invites_configuration_and_op
     app.manage(ConnectionCheckGeneration::default());
     app.manage(global);
     let outcome = tauri::async_runtime::block_on(
-        auratranslate_lib::commands::aiconfig::wire::ai_config_test_connection(
+        auratranslate_lib::commands::aitranslate::wire::ai_config_test_connection(
             app.handle().clone(),
             AiConfigTier::Global,
         ),

@@ -191,7 +191,7 @@ pub fn ai_config_get(
             .map(|f| f.value.as_str())
             .unwrap_or_default()
     };
-    let ready = crate::commands::aitranslate::call_ready(
+    let ready = call_ready(
         resolved_value(AiConfigField::Provider),
         resolved_value(AiConfigField::Endpoint),
         resolved_value(AiConfigField::Model),
@@ -278,10 +278,67 @@ pub fn ai_config_clear_override(
     Ok(())
 }
 
+pub(crate) fn endpoint_and_model_set(endpoint: &str, model: &str) -> bool {
+    !endpoint.trim().is_empty() && !model.trim().is_empty()
+}
+
+/// Same predicate pair as a translate call: endpoint + model set, then a stored key.
+/// `None` only when both are set and the keychain cannot be asked.
+pub(crate) fn call_ready(
+    provider: &str,
+    endpoint: &str,
+    model: &str,
+    key_configured: Option<bool>,
+) -> Option<bool> {
+    if !endpoint_and_model_set(endpoint, model) {
+        return Some(false);
+    }
+    if !provider_needs_key(provider) {
+        return Some(true);
+    }
+    key_configured
+}
+
+/// Local runtimes (Ollama, LM Studio) run without an API key; every other provider, including
+/// an unset or unknown one, needs the stored key.
+pub(crate) fn provider_needs_key(provider: &str) -> bool {
+    !matches!(
+        provider.trim().to_ascii_lowercase().as_str(),
+        "ollama" | "lmstudio"
+    )
+}
+
+/// Keychain từ chối trả lời lúc dịch — tái dùng ĐÚNG khoá của Story 4.3 (§Code Map spec 4.8:
+/// "reuses ... `AiConfigKeychainUnavailable` where the fact already has a key"), không một khoá
+/// thứ hai cho cùng sự thật.
+fn keychain_unavailable() -> IpcError {
+    AiConfigKeyError::Unavailable.into()
+}
+
+/// The key to send for `provider`: empty for a local runtime (nothing is stored or read), the
+/// stored key otherwise. `None` is "no key stored".
+pub(crate) fn read_api_key(provider: &str) -> Result<Option<String>, IpcError> {
+    if !provider_needs_key(provider) {
+        return Ok(Some(String::new()));
+    }
+    match keychain::read() {
+        Ok(Some(secret)) => Ok(Some(secret.expose_secret().to_owned())),
+        Ok(None) => Ok(None),
+        Err(_unavailable) => Err(keychain_unavailable()),
+    }
+}
+
+/// A connection check ready to send. Not `Debug`: `api_key` is a bare secret.
+pub struct PreparedConnectionCheck {
+    pub endpoint: String,
+    pub model: String,
+    pub api_key: Option<String>,
+}
+
 /// Result of [`prepare_connection_check`]: "not configured" is a state, not an error.
 pub enum ConnectionCheckPrep {
     NotConfigured,
-    Ready(crate::commands::aitranslate::PreparedConnectionCheck),
+    Ready(PreparedConnectionCheck),
 }
 
 /// Resolves the SAVED configuration of `tier` (Global reads `global.db` only; Work resolves both
@@ -295,10 +352,6 @@ pub fn prepare_connection_check(
     open: Option<&OpenWork>,
     tier: AiConfigTier,
 ) -> Result<ConnectionCheckPrep, IpcError> {
-    use crate::commands::aitranslate::{
-        PreparedConnectionCheck, endpoint_and_model_set, provider_needs_key, read_api_key,
-    };
-
     let global_store = global.ok_or_else(store_is_missing)?;
     let resolved = match tier {
         AiConfigTier::Global => {
@@ -348,11 +401,7 @@ pub fn prepare_connection_check(
 /// hành, không trong `global.db`/`project.db`, và tầng bị từ chối bằng tham số `tier` tới
 /// tay chứ không bằng việc dò `OpenWorkState` (xem doc-comment đầu tệp).
 pub mod wire {
-    use super::{AiConfigField, AiConfigGetWire, AiConfigTier, ConnectionCheckPrep};
-    use crate::commands::aitranslate::{
-        ConnectionCheckGeneration, ConnectionCheckWire, send_prepared_connection_check,
-        state_missing,
-    };
+    use super::{AiConfigField, AiConfigGetWire, AiConfigTier};
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
     use crate::core::store::Store;
@@ -419,51 +468,5 @@ pub mod wire {
     #[tauri::command(async)]
     pub fn ai_config_delete_key(tier: AiConfigTier) -> Result<(), IpcError> {
         super::ai_config_delete_key(tier)
-    }
-
-    /// Checks the SAVED configuration of `tier` against the provider: `GET {endpoint}/models`
-    /// (no tokens), then the saved model must be listed. Has its own `ConnectionCheckGeneration`:
-    /// `ai_config_test_connection_cancel` cancels it, and it never touches a translate run. The Work lock is released before any `.await`.
-    #[tauri::command]
-    pub async fn ai_config_test_connection<R: tauri::Runtime>(
-        app: tauri::AppHandle<R>,
-        tier: AiConfigTier,
-    ) -> Result<ConnectionCheckWire, IpcError> {
-        use tauri::Manager as _;
-
-        let Some(generation_state) = app.try_state::<ConnectionCheckGeneration>() else {
-            return Err(state_missing(
-                "test_connection",
-                "ConnectionCheckGeneration",
-                "ai_config.generation_state_missing",
-            ));
-        };
-        let generation_state = generation_state.inner().clone();
-        let generation = generation_state.next();
-
-        let prep = {
-            let global = app.try_state::<Store>();
-            let work_state = app.try_state::<OpenWorkState>();
-            let guard = work_state
-                .as_ref()
-                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
-            let open = guard.as_ref().and_then(|g| g.as_ref());
-            super::prepare_connection_check(global.as_deref(), open, tier)?
-        };
-        let prepared = match prep {
-            ConnectionCheckPrep::NotConfigured => return Ok(ConnectionCheckWire::NotConfigured),
-            ConnectionCheckPrep::Ready(p) => p,
-        };
-        send_prepared_connection_check(prepared, generation_state, generation).await
-    }
-
-    /// Cancels the running connection check only. Reads and writes no store.
-    #[tauri::command]
-    pub fn ai_config_test_connection_cancel<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
-        use tauri::Manager as _;
-
-        if let Some(generation_state) = app.try_state::<ConnectionCheckGeneration>() {
-            generation_state.next();
-        }
     }
 }
