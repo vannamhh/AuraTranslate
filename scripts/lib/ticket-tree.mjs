@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export const INITIATIVE_DIR = ['_bmad-output', 'initiative-auratranslate']
+export const TICKETS_DIR = [...INITIATIVE_DIR, 'tickets']
 
 const TABLE_RE = /^\[\[(epic|entry)\]\]$/
 const KEY_RE = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/
@@ -94,8 +95,8 @@ function frontmatterValue(text, key) {
  * @param {string} root
  */
 export function readTicketTree(root) {
-  const base = join(root, ...INITIATIVE_DIR)
-  const epicRows = parseTicketsToml(readFileSync(join(base, 'tickets.toml'), 'utf8'), 'epic', 'tickets.toml')
+  const base = join(root, ...TICKETS_DIR)
+  const epicRows = parseTicketsToml(readFileSync(join(base, 'tickets.toml'), 'utf8'), 'epic', 'tickets/tickets.toml')
   /** @type {Map<string, string | null>} */
   const stories = new Map()
   /** @type {Map<string, string | null>} */
@@ -107,24 +108,25 @@ export function readTicketTree(root) {
   for (const ep of epicRows) {
     if (ep.slug === null || ep.id === null) throw new Error('tickets.toml: epic thieu id hoac slug')
     const dir = join(base, ep.slug)
-    searched.push(dir)
+    const leafDir = join(dir, 'tickets')
+    searched.push(leafDir)
     const entries = parseTicketsToml(
-      readFileSync(join(dir, 'tickets.toml'), 'utf8'),
+      readFileSync(join(leafDir, 'tickets.toml'), 'utf8'),
       'entry',
-      `${ep.slug}/tickets.toml`,
+      `${ep.slug}/tickets/tickets.toml`,
     )
     const epicFile = join(dir, `${ep.slug}.md`)
     epics.set(`epic-${ep.id}`, frontmatterValue(readFileSync(epicFile, 'utf8'), 'status'))
     for (const e of entries) stories.set(`${ep.id}-${e.id}`, null)
-    for (const f of readdirSync(dir)) {
-      if (!f.endsWith('.md') || f === `${ep.slug}.md` || f.endsWith('-retrospective.md')) continue
-      const text = readFileSync(join(dir, f), 'utf8')
+    for (const f of readdirSync(leafDir)) {
+      if (!f.endsWith('.md')) continue
+      const text = readFileSync(join(leafDir, f), 'utf8')
       const ticket = frontmatterValue(text, 'ticket')
       if (ticket === null) continue
       const key = `${ep.id}-${ticket}`
-      if (!stories.has(key)) throw new Error(`${ep.slug}/${f}: ticket ${ticket} khong co trong tickets.toml cua epic`)
-      if (planPaths.has(key)) throw new Error(`${ep.slug}/${f}: ticket ${ticket} co hai plan`)
-      planPaths.set(key, join(dir, f))
+      if (!stories.has(key)) throw new Error(`${ep.slug}/tickets/${f}: ticket ${ticket} khong co trong tickets.toml cua epic`)
+      if (planPaths.has(key)) throw new Error(`${ep.slug}/tickets/${f}: ticket ${ticket} co hai plan`)
+      planPaths.set(key, join(leafDir, f))
       stories.set(key, frontmatterValue(text, 'status'))
     }
   }

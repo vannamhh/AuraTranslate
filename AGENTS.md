@@ -8,7 +8,7 @@ Fully offline dictionary-lookup and translation workspace. Tauri v2 · Rust in `
 ## Where things are
 
 - Architectural invariants (ADs, Stack table, Consistency Conventions): the spine, `_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md` (older code comments call it `ARCHITECTURE-SPINE.md`).
-- Planning (BMad v7 ticket tree): `_bmad-output/initiative-auratranslate/`. One `epic-<slug>/` per epic holds `story-*.md` and `story-*-plan.md` (status lives in the plan frontmatter); `tickets.toml`, the PRD (`prd-auratranslate/`), `ad-brief-*/` and the debt ledger `deferred-work.md` sit at its root. v6 `sprint-status.yaml` and `epics.md` are frozen in `archive-v6/`. Mockup folders `*-ban-do/` stay in `_bmad-output/implementation-artifacts/` because Rust tests read them there.
+- Planning (BMad v7 ticket tree): `_bmad-output/initiative-auratranslate/`. Its `tickets/` holds `tickets.toml` and one `epic-<slug>/` per epic; each epic's own `tickets/` holds its `tickets.toml`, `story-*.md` and `story-*-plan.md` (status lives in the plan frontmatter), while the epic file and retrospective stay beside it. The PRD (`prd-auratranslate/`), `ad-brief-*/` and the debt ledger `deferred-work.md` sit at the initiative root. v6 `sprint-status.yaml` and `epics.md` are frozen in `archive-v6/`. Mockup folders `*-ban-do/` stay in `_bmad-output/implementation-artifacts/` because Rust tests read them there.
 - Directory rules: `AGENTS.md` in `src/` · `src-tauri/` · `scripts/` · `tests/` · `e2e/` · `tools/dict-build/`.
 - Why a rule exists: `evidence-agent-rules.md` (read on demand only). `_bmad-output/inbox/project-context.md` is frozen history (2026-08-20). `docs/` is raw input for `tools/dict-build`, not documentation.
 

@@ -68,7 +68,7 @@ import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { dirname, isAbsolute, join } from 'node:path'
 import { judgeFloor } from './lib/floor-judge.mjs'
-import { INITIATIVE_DIR, parseTicketsToml, readTicketTree } from './lib/ticket-tree.mjs'
+import { INITIATIVE_DIR, TICKETS_DIR, parseTicketsToml, readTicketTree } from './lib/ticket-tree.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -612,8 +612,8 @@ function runSelftest() {
   }
   const emptyRoot = mkdtempSync(join(tmpdir(), 'debt-owner-empty-'))
   try {
-    mkdirSync(join(emptyRoot, ...INITIATIVE_DIR), { recursive: true })
-    writeFileSync(join(emptyRoot, ...INITIATIVE_DIR, 'tickets.toml'), '')
+    mkdirSync(join(emptyRoot, ...TICKETS_DIR), { recursive: true })
+    writeFileSync(join(emptyRoot, ...TICKETS_DIR, 'tickets.toml'), '')
     readTicketTree(emptyRoot)
     fail('tự kiểm C — cây vé rỗng được nhận thay vì ném')
     bad += 1
@@ -630,13 +630,13 @@ function runSelftest() {
   {
     const dir = mkdtempSync(join(tmpdir(), 'debt-owner-tree-'))
     try {
-      const base = join(dir, ...INITIATIVE_DIR)
-      mkdirSync(join(base, 'epic-x'), { recursive: true })
+      const base = join(dir, ...TICKETS_DIR)
+      mkdirSync(join(base, 'epic-x', 'tickets'), { recursive: true })
       writeFileSync(join(base, 'tickets.toml'), '[[epic]]\nid = 1\nslug = "epic-x"\n')
-      writeFileSync(join(base, 'epic-x', 'tickets.toml'), '[[entry]]\nid = 1\n[[entry]]\nid = "2b"\n[[entry]]\nid = 3\n')
+      writeFileSync(join(base, 'epic-x', 'tickets', 'tickets.toml'), '[[entry]]\nid = 1\n[[entry]]\nid = "2b"\n[[entry]]\nid = 3\n')
       writeFileSync(join(base, 'epic-x', 'epic-x.md'), '---\nstatus: done\n---\n')
-      writeFileSync(join(base, 'epic-x', 'a-plan.md'), "---\nticket: '1'\nstatus: 'done'\n---\n")
-      writeFileSync(join(base, 'epic-x', 'b-plan.md'), '---\nticket: 2b\nstatus: in-progress # ghi chu\n---\n')
+      writeFileSync(join(base, 'epic-x', 'tickets', 'a-plan.md'), "---\nticket: '1'\nstatus: 'done'\n---\n")
+      writeFileSync(join(base, 'epic-x', 'tickets', 'b-plan.md'), '---\nticket: 2b\nstatus: in-progress # ghi chu\n---\n')
       const t = readTicketTree(dir)
       const got = `${t.stories.get('1-1')}|${t.stories.get('1-2b')}|${t.stories.get('1-3')}|${t.epics.get('epic-1')}`
       if (got !== 'done|in-progress|null|done') {
@@ -730,7 +730,7 @@ const items = parseItems(raw)
 const summary = summarize(items)
 
 let ticketTree
-const TICKET_TREE_PATH = join(REPO_ROOT, ...INITIATIVE_DIR, 'tickets.toml')
+const TICKET_TREE_PATH = join(REPO_ROOT, ...TICKETS_DIR, 'tickets.toml')
 try {
   ticketTree = readTicketTree(REPO_ROOT)
 } catch (err) {
