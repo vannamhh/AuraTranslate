@@ -434,12 +434,14 @@ export async function promoteAiTranslationBatchToEditor(
 ): Promise<'done' | 'needs-confirmation' | 'refused'> {
   if (promoteBatchBusy || items.length === 0) return 'refused'
   promoteBatchBusy = true
+  const mine = sequence
   try {
     const flushed = await flushEditorBeforeDiscreteWrite()
     if (flushed === 'failed' || flushed === 'still-dirty') {
       console.error(`[editor] KHÔNG đưa lô AI sang Editor: flush trước lượt PROMOTE ${flushed}.`)
       return 'refused'
     }
+    if (mine !== sequence) return 'refused'
     pendingPromote.value = null
     promoteBatchReport.value = null
     promoteAiTranslationError.value = null
@@ -449,6 +451,7 @@ export async function promoteAiTranslationBatchToEditor(
     let skipped = 0
     for (const item of items) {
       const { outcome, error } = await promoteAiTranslation(item.segmentId, item.text, false)
+      if (mine !== sequence) return 'refused'
       if (outcome === null) {
         skipped += 1
         if (error !== null) promoteAiTranslationError.value = error
@@ -472,7 +475,7 @@ export async function promoteAiTranslationBatchToEditor(
     promoteBatchReport.value = { written, skipped }
     return 'done'
   } finally {
-    promoteBatchBusy = false
+    if (mine === sequence) promoteBatchBusy = false
   }
 }
 
@@ -487,8 +490,10 @@ async function settlePendingPromoteBatch(force: boolean): Promise<void> {
     return
   }
   promoteBatchBusy = true
+  const mine = sequence
   try {
     const flushed = await flushEditorBeforeDiscreteWrite()
+    if (mine !== sequence) return
     if (flushed === 'failed' || flushed === 'still-dirty') {
       console.error(`[editor] KHÔNG ghi đè bản nháp của lô AI: flush trước lượt PROMOTE ${flushed}.`)
       promoteBatchReport.value = { written, skipped: skipped + waiting.items.length }
@@ -496,6 +501,7 @@ async function settlePendingPromoteBatch(force: boolean): Promise<void> {
     }
     for (const item of waiting.items) {
       const { outcome, error } = await promoteAiTranslation(item.segmentId, item.text, true)
+      if (mine !== sequence) return
       if (outcome === null || outcome.needs_confirmation) {
         skipped += 1
         if (error !== null) promoteAiTranslationError.value = error
@@ -510,7 +516,7 @@ async function settlePendingPromoteBatch(force: boolean): Promise<void> {
     }
     promoteBatchReport.value = { written, skipped }
   } finally {
-    promoteBatchBusy = false
+    if (mine === sequence) promoteBatchBusy = false
   }
 }
 

@@ -193,3 +193,87 @@ describe('flush TRƯỚC lượt PROMOTE — bản đang soạn chưa xuống đ
     wrapper.unmount()
   })
 })
+
+describe('đổi Tác phẩm giữa lô PROMOTE — lô dừng, không ghi id trùng số vào Tác phẩm mới', () => {
+  const batch = [
+    { segmentId: 11, text: 'Một' },
+    { segmentId: 12, text: 'Hai' },
+    { segmentId: 13, text: 'Ba' },
+  ]
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void
+    const promise = new Promise<T>((r) => {
+      resolve = r
+    })
+    return { promise, resolve }
+  }
+
+  it('reset giữa lượt thứ nhất ⇒ không còn lượt gọi nào, không câu hỏi, không báo cáo', async () => {
+    const { editorPanelState } = await freshPanel()
+    const first = deferred<ReturnType<typeof outcomeOf>>()
+    promoteAiTranslationMock.mockReturnValueOnce(first.promise)
+    promoteAiTranslationMock.mockResolvedValue(outcomeOf({ target_text: 'x' }))
+
+    const running = editorPanelState.promoteAiTranslationBatchToEditor(batch)
+    await flushPromises()
+    expect(promoteAiTranslationMock).toHaveBeenCalledTimes(1)
+
+    editorPanelState.resetEditorPanel()
+    first.resolve(outcomeOf({ target_text: 'Một' }))
+
+    expect(await running).toBe('refused')
+    await flushPromises()
+    expect(promoteAiTranslationMock).toHaveBeenCalledTimes(1)
+    expect(editorPanelState.editorPendingPromoteBatch.value).toBeNull()
+    expect(editorPanelState.editorPromoteBatchReport.value).toBeNull()
+  })
+
+  it('lô của Tác phẩm cũ kết thúc KHÔNG làm sập cờ bận của lô Tác phẩm mới', async () => {
+    const { editorPanelState } = await freshPanel()
+    const oldFirst = deferred<ReturnType<typeof outcomeOf>>()
+    promoteAiTranslationMock.mockReturnValueOnce(oldFirst.promise)
+
+    const oldRun = editorPanelState.promoteAiTranslationBatchToEditor(batch)
+    await flushPromises()
+    editorPanelState.resetEditorPanel()
+
+    const newFirst = deferred<ReturnType<typeof outcomeOf>>()
+    promoteAiTranslationMock.mockReturnValueOnce(newFirst.promise)
+    const newRun = editorPanelState.promoteAiTranslationBatchToEditor([{ segmentId: 11, text: 'Mới' }])
+    await flushPromises()
+
+    oldFirst.resolve(outcomeOf({ target_text: 'Một' }))
+    await oldRun
+    expect(await editorPanelState.promoteAiTranslationBatchToEditor([{ segmentId: 12, text: 'Chen' }])).toBe('refused')
+
+    newFirst.resolve(outcomeOf({ target_text: 'Mới' }))
+    expect(await newRun).toBe('done')
+  })
+
+  it('reset giữa lượt force=true ⇒ các câu còn lại của lô đồng ý ghi đè không được gọi', async () => {
+    const { editorPanelState } = await freshPanel()
+    promoteAiTranslationMock.mockResolvedValue(
+      outcomeOf({ needs_confirmation: true, unsigned_draft: 'Nháp' }),
+    )
+    expect(await editorPanelState.promoteAiTranslationBatchToEditor(batch)).toBe('needs-confirmation')
+    expect(promoteAiTranslationMock).toHaveBeenCalledTimes(3)
+
+    const firstForced = deferred<ReturnType<typeof outcomeOf>>()
+    promoteAiTranslationMock.mockReset()
+    promoteAiTranslationMock.mockReturnValueOnce(firstForced.promise)
+    promoteAiTranslationMock.mockResolvedValue(outcomeOf({ target_text: 'x' }))
+
+    editorPanelState.confirmPendingPromote()
+    await flushPromises()
+    expect(promoteAiTranslationMock).toHaveBeenCalledTimes(1)
+    expect(promoteAiTranslationMock).toHaveBeenNthCalledWith(1, 11, 'Một', true)
+
+    editorPanelState.resetEditorPanel()
+    firstForced.resolve(outcomeOf({ target_text: 'Một' }))
+    await flushPromises()
+
+    expect(promoteAiTranslationMock).toHaveBeenCalledTimes(1)
+    expect(editorPanelState.editorPromoteBatchReport.value).toBeNull()
+  })
+})
