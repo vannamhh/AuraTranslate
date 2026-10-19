@@ -110,6 +110,8 @@ import { resetProofread } from '../proofreadState'
 import { resetSegmentSelection } from '../panels/segmentSelectionState'
 import { resetReviewMode } from '../reviewModeState'
 import { resetGlossaryQueue } from '../glossaryQueueState'
+import { resetAlignment } from '../alignmentState'
+import { resetReviewerImport } from '../reviewerImportState'
 import type { IpcError } from '../i18n'
 import { setOpenWorkId } from '../openWorkIdentity'
 
@@ -391,6 +393,8 @@ export async function openWorkById(workId: string): Promise<boolean> {
   resetSegmentSelection()
   resetReviewMode()
   resetGlossaryQueue()
+  resetAlignment()
+  resetReviewerImport()
 
   // Vứt là CHƯA ĐỦ — nạp lại NGAY, cùng lý do `finishSubmit`: ba chế độ sống trong
   // `<KeepAlive>`, không có `mounted` lần thứ hai.

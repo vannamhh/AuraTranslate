@@ -70,6 +70,8 @@ import { resetProofread } from '../proofreadState'
 import { resetSegmentSelection } from '../panels/segmentSelectionState'
 import { resetReviewMode } from '../reviewModeState'
 import { resetGlossaryQueue } from '../glossaryQueueState'
+import { resetAlignment } from '../alignmentState'
+import { resetReviewerImport } from '../reviewerImportState'
 import { setOpenWorkId } from '../openWorkIdentity'
 import type { CreatedWork } from '../config/project'
 import { listLibraryWorks } from '../config/library'
@@ -462,6 +464,8 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
     resetSegmentSelection()
     resetReviewMode()
     resetGlossaryQueue()
+    resetAlignment()
+    resetReviewerImport()
 
     // ═══════════════════════════════════════════════════════════════════════════════
     // 🔵 CODE REVIEW BA TẦNG 2026-08-19 — HÀM ĐÃ VIẾT Ở STORY 2.12 MÀ CHƯA NỐI DÂY

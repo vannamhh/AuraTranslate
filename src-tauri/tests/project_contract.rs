@@ -19,9 +19,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::chapter::{
-    ChapterDirection, ChapterSwitchOutcome, list_chapters, merge_chapter_into_previous,
-    merge_chapters, move_chapter, open_adjacent_chapter, read_open_chapter, rename_chapter,
-    split_chapter_at_segment,
+    ChapterDirection, ChapterSwitchOutcome, list_chapters, merge_chapters, move_chapter,
+    open_adjacent_chapter, read_open_chapter, rename_chapter, split_chapter_at_segment,
 };
 use auratranslate_lib::commands::lifecycle::set_work_status_override;
 use auratranslate_lib::commands::project::{
@@ -2868,7 +2867,8 @@ fn open_work_falls_back_to_the_first_chapter_when_the_last_chapter_was_merged_aw
     let second_chapter_id = opened.chapter_id;
     assert_ne!(first_chapter_id, second_chapter_id);
 
-    merge_chapter_into_previous(Some(&mut opened), second_chapter_id).expect("gop Chuong that bai");
+    merge_chapters(Some(&mut opened), &[first_chapter_id, second_chapter_id])
+        .expect("gop Chuong that bai");
     assert_eq!(
         opened.chapter_id, first_chapter_id,
         "con tro trong bo nho phai doi theo lan gop"
@@ -2914,7 +2914,8 @@ fn merging_the_open_chapter_into_the_previous_one_persists_the_receiving_chapter
     assert_ne!(first_chapter_id, second_chapter_id);
     assert_ne!(second_chapter_id, third_chapter_id);
 
-    merge_chapter_into_previous(Some(&mut opened), third_chapter_id).expect("gop Chuong 3");
+    merge_chapters(Some(&mut opened), &[second_chapter_id, third_chapter_id])
+        .expect("gop Chuong 3");
     assert_eq!(opened.chapter_id, second_chapter_id);
     let on_disk: i64 = opened
         .store
@@ -2946,19 +2947,18 @@ fn merging_a_chapter_that_is_not_open_leaves_last_chapter_id_alone() {
     let first_chapter_id = opened.chapter_id;
 
     open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 2");
+    let second_chapter_id = opened.chapter_id;
     open_adjacent_chapter(Some(&mut opened), ChapterDirection::Next).expect("sang Chuong 3");
     let third_chapter_id = opened.chapter_id;
-    open_adjacent_chapter(Some(&mut opened), ChapterDirection::Prev).expect("ve Chuong 2");
-    let second_chapter_id = opened.chapter_id;
 
-    merge_chapter_into_previous(Some(&mut opened), third_chapter_id).expect("gop Chuong 3");
-    assert_eq!(opened.chapter_id, second_chapter_id);
+    merge_chapters(Some(&mut opened), &[first_chapter_id, second_chapter_id])
+        .expect("gop Chuong 2 vao Chuong 1");
+    assert_eq!(opened.chapter_id, third_chapter_id);
     let on_disk: i64 = opened
         .store
         .read(|conn| conn.query_row("SELECT last_chapter_id FROM work", [], |r| r.get(0)))
         .expect("doc last_chapter_id that bai");
-    assert_eq!(on_disk, second_chapter_id);
-    assert_ne!(on_disk, first_chapter_id);
+    assert_eq!(on_disk, third_chapter_id);
     drop(opened);
     cleanup(&dir);
 }
@@ -3610,7 +3610,7 @@ fn merging_two_chapters_changes_only_chapter_id_and_ord_on_every_segment_column(
     let versions_before = snapshot_segment_versions(&opened);
     assert_eq!(before.len(), 5, "fixture phai co dung 5 hang segment");
 
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop that bai");
 
     let after = snapshot_segments(&opened);
     let versions_after = snapshot_segment_versions(&opened);
@@ -3789,7 +3789,7 @@ fn no_segment_is_ever_retired_by_a_chapter_reorganisation() {
     insert_segment_directly(&opened, b_id, 1, "Cau ba.", false);
 
     assert_eq!(count_retired(&opened), 0);
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop that bai");
     assert_eq!(
         count_retired(&opened),
         0,
@@ -3838,7 +3838,7 @@ fn merging_a_chapter_moves_its_asset_rows_to_the_target_chapter_with_the_anchor_
     let asset_b0 = insert_asset_directly(&opened, b_id, 0, "anh-b0.jpg");
     let asset_b2 = insert_asset_directly(&opened, b_id, 2, "anh-b2.jpg");
 
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop that bai");
 
     let rows = snapshot_assets(&opened);
     let by_id = |id: i64| {
@@ -4141,7 +4141,7 @@ fn no_reorganisation_ever_leaves_an_asset_row_pointing_at_a_nonexistent_chapter(
         .expect("doc id Chuong moi that bai");
 
     // GOP lai Chuong B vao A.
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop lai B vao A");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop lai B vao A");
     assert_no_orphans(&opened);
 
     let dir = opened.dir.clone();
@@ -4310,7 +4310,7 @@ fn merging_two_chapters_never_touches_the_asset_rows_of_a_third_unrelated_chapte
         .expect("asset_c3 truoc");
 
     // Gop C2 vao C1 (khong dung toi C3).
-    merge_chapter_into_previous(Some(&mut opened), c2).expect("gop C2 vao C1 that bai");
+    merge_chapters(Some(&mut opened), &[c1, c2]).expect("gop C2 vao C1 that bai");
 
     let after = snapshot_assets(&opened);
     let after_c3 = after
@@ -4425,7 +4425,7 @@ fn merging_a_chapter_that_has_a_retired_segment_still_moves_its_asset_rows_corre
     insert_segment_directly(&opened, b_id, 2, "B cau hai.", false);
     let asset_b = insert_asset_directly(&opened, b_id, 1, "b.jpg");
 
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop that bai");
 
     let rows = snapshot_assets(&opened);
     let by_id = |id: i64| {
@@ -4602,7 +4602,7 @@ fn every_asset_anchor_never_exceeds_the_living_segment_count_of_its_own_chapter_
         .read(|conn| conn.query_row("SELECT MAX(id) FROM chapter", [], |row| row.get(0)))
         .expect("doc id Chuong moi that bai");
 
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop lai B vao A");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop lai B vao A");
     assert_anchor_within_bounds(&opened);
 
     let dir = opened.dir.clone();
@@ -4661,7 +4661,7 @@ fn a_merged_chapter_never_claims_done_when_one_half_was_not_done() {
     let b_id = insert_chapter_directly(&opened, 2, "");
     // B mac dinh 'not_started' tu `insert_chapter_directly`.
 
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop that bai");
     assert_eq!(
         read_chapter_status(&opened, a_id),
         "in_progress",
@@ -4681,7 +4681,7 @@ fn a_merged_chapter_never_claims_done_when_one_half_was_not_done() {
     let b2_id = insert_chapter_directly(&opened2, 2, "");
     set_chapter_status_directly(&opened2, b2_id, "done");
 
-    merge_chapter_into_previous(Some(&mut opened2), b2_id).expect("gop that bai");
+    merge_chapters(Some(&mut opened2), &[a2_id, b2_id]).expect("gop that bai");
     assert_eq!(
         read_chapter_status(&opened2, a2_id),
         "done",
@@ -4728,39 +4728,6 @@ fn moving_the_last_chapter_down_touches_no_row_and_is_a_named_error() {
     assert_eq!(err.code(), "chapter.at_last");
     assert_eq!(err.message_key(), MessageKey::ChapterAtLast);
     assert_eq!(read_all_chapter_ord(&opened), before, "0 hang bi cham");
-
-    let dir = opened.dir.clone();
-    drop(opened);
-    cleanup(&dir);
-}
-
-/// Bản song sinh thứ hai: GỘP ở Chương đầu (không có Chương liền trước).
-#[test]
-fn merging_the_first_chapter_touches_no_row_and_is_a_named_error() {
-    let root = temp_dir("merge-at-first");
-    let mut opened = create_work_from_text(&root, "Gop O Dau", "zh", "", String::new())
-        .expect("tao tac pham that bai");
-    let a_id = opened.chapter_id; // Chuong duy nhat -- khong co Chuong lien truoc.
-    insert_segment_directly(&opened, a_id, 1, "Cau mot.", false);
-
-    let chapters_before = read_all_chapter_ord(&opened);
-    let segments_before = snapshot_segments(&opened);
-
-    let err = merge_chapter_into_previous(Some(&mut opened), a_id)
-        .expect_err("gop o Chuong dau phai la mot loi CO TEN");
-    assert_eq!(err.code(), "chapter.at_first");
-    assert_eq!(err.message_key(), MessageKey::ChapterAtFirst);
-
-    assert_eq!(
-        read_all_chapter_ord(&opened),
-        chapters_before,
-        "0 hang chapter bi cham"
-    );
-    assert_eq!(
-        snapshot_segments(&opened),
-        segments_before,
-        "0 hang segment bi cham"
-    );
 
     let dir = opened.dir.clone();
     drop(opened);
@@ -4950,7 +4917,7 @@ fn a_reorganisation_moves_retired_segments_with_their_living_neighbours() {
     let b2_retired = insert_segment_directly(&opened, b_id, 2, "B hai da ve huu.", true);
     let b3 = insert_segment_directly(&opened, b_id, 3, "B ba.", false);
 
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop that bai");
 
     let after = snapshot_segments(&opened);
     let by_id = |id: i64| after.iter().find(|s| s.id == id).unwrap();
@@ -4996,7 +4963,7 @@ fn the_open_chapter_cursor_follows_the_surviving_chapter_after_a_merge() {
     let b_id = insert_chapter_directly(&opened, 2, "");
     opened.chapter_id = b_id; // B ĐANG MỞ.
 
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop that bai");
 
     assert_eq!(
         opened.chapter_id, a_id,
@@ -5024,7 +4991,7 @@ fn merging_concatenates_raw_source_text_with_a_blank_line_between() {
     set_chapter_source_text_directly(&opened, a_id, "Van ban A.");
     let b_id = insert_chapter_directly(&opened, 2, "Van ban B.");
 
-    merge_chapter_into_previous(Some(&mut opened), b_id).expect("gop that bai");
+    merge_chapters(Some(&mut opened), &[a_id, b_id]).expect("gop that bai");
 
     assert_eq!(
         read_chapter_source_text(&opened, a_id),
@@ -5070,7 +5037,7 @@ fn splitting_rebuilds_source_text_from_living_segments_joined_by_newline() {
 
 /// **Bước 4** — "một lượt tổ chức thành công thì `library_work.chapter_count` phải theo
 /// kịp NGAY", cùng khuôn `lifecycle_contract.rs::setting_a_chapter_status_leaves_the_new_
-/// value_in_the_library_index`. Gọi CHÍNH `merge_chapter_into_previous_indexed` -- đối chứng
+/// value_in_the_library_index`. Gọi CHÍNH `merge_chapters_indexed` -- đối chứng
 /// để chạy lại về sau (§Verification): gỡ lời gọi `finish_lifecycle_write` khỏi bốn hàm
 /// `*_indexed` rồi chạy `cargo test --locked` ⇒ ca này phải ĐỎ.
 #[test]
@@ -5120,14 +5087,14 @@ fn merging_two_chapters_leaves_the_smaller_chapter_count_in_the_library_index() 
         "truoc luot gop, chi muc phai mang dung 2 Chuong"
     );
 
-    auratranslate_lib::commands::chapter::merge_chapter_into_previous_indexed(
+    auratranslate_lib::commands::chapter::merge_chapters_indexed(
         Some(&mut opened),
         Some(&indexer),
         Some(&global),
         &root,
-        b_id,
+        &[a_id, b_id],
     )
-    .unwrap_or_else(|e| panic!("merge_chapter_into_previous_indexed: {e:?}"));
+    .unwrap_or_else(|e| panic!("merge_chapters_indexed: {e:?}"));
 
     assert_eq!(
         chapter_count_of(&indexer),
@@ -5280,7 +5247,7 @@ fn every_chapter_organise_command_without_a_work_open_reuses_the_named_error() {
     for err in [
         rename_chapter(None, 1, "Ten moi").expect_err("khong co Tac pham mo"),
         move_chapter(None, 1, ChapterDirection::Prev).expect_err("khong co Tac pham mo"),
-        merge_chapter_into_previous(None, 1).expect_err("khong co Tac pham mo"),
+        merge_chapters(None, &[1, 2]).expect_err("khong co Tac pham mo"),
         split_chapter_at_segment(None, 1).expect_err("khong co Tac pham mo"),
     ] {
         assert_eq!(err.code(), "work.none_open");
@@ -5289,7 +5256,7 @@ fn every_chapter_organise_command_without_a_work_open_reuses_the_named_error() {
 }
 
 /// §Always *"Một lượt ghi không đi đâu phải NÓI VÌ SAO"* áp cho một `chapter_id` **không tồn
-/// tại** — cả `move_chapter` LẪN `merge_chapter_into_previous`, đúng khuôn
+/// tại** — cả `move_chapter` LẪN `merge_chapters`, đúng khuôn
 /// [`renaming_an_unknown_chapter_id_reuses_the_named_error`].
 ///
 /// 🔴 **Ca này ra đời từ lượt rà, và nó có một PHÉP ĐO đứng sau.** Trước lượt vá 2026-08-29,
@@ -5319,7 +5286,7 @@ fn moving_or_merging_an_unknown_chapter_id_reuses_the_named_error_not_a_store_er
             .expect_err("doi mot Chuong khong ton tai phai la mot loi CO TEN"),
         move_chapter(Some(&mut opened), khong_ton_tai, ChapterDirection::Prev)
             .expect_err("doi mot Chuong khong ton tai phai la mot loi CO TEN"),
-        merge_chapter_into_previous(Some(&mut opened), khong_ton_tai)
+        merge_chapters(Some(&mut opened), &[a_id, khong_ton_tai])
             .expect_err("gop mot Chuong khong ton tai phai la mot loi CO TEN"),
     ] {
         assert_eq!(
@@ -5347,7 +5314,7 @@ fn moving_or_merging_an_unknown_chapter_id_reuses_the_named_error_not_a_store_er
     cleanup(&dir);
 }
 
-/// Nếu `move_chapter`/`merge_chapter_into_previous` gọi `normalize_chapter_ord(tx)?` TRƯỚC
+/// Nếu `move_chapter`/`merge_chapters` gọi `normalize_chapter_ord(tx)?` TRƯỚC
 /// khi kiểm `chapter_id` tồn tại thì sai: `normalize_chapter_ord` COMMIT thật (nó chạy trong
 /// CÙNG giao dịch, không rollback khi hàm sau đó trả `Ok(0)`) — nên trên một dãy `ord` THƯA,
 /// một `chapter_id` lạ vẫn để lại một lượt đánh số lại đã chạy, trái với doc-comment
@@ -5363,6 +5330,7 @@ fn moving_or_merging_an_unknown_chapter_id_never_renumbers_a_sparse_ord_sequence
     let root = temp_dir("unknown-id-sparse-ord");
     let mut opened = create_work_from_text(&root, "Id La Thua", "zh", "", String::new())
         .expect("tao tac pham that bai");
+    let a_id = opened.chapter_id;
     insert_chapter_directly(&opened, 5, "");
 
     let chapters_before = read_all_chapter_ord(&opened);
@@ -5394,12 +5362,12 @@ fn moving_or_merging_an_unknown_chapter_id_never_renumbers_a_sparse_ord_sequence
         "L10067: huong Prev cung vay"
     );
 
-    merge_chapter_into_previous(Some(&mut opened), khong_ton_tai)
+    merge_chapters(Some(&mut opened), &[a_id, khong_ton_tai])
         .expect_err("gop mot Chuong khong ton tai phai la mot loi CO TEN");
     assert_eq!(
         read_all_chapter_ord(&opened),
         chapters_before,
-        "L10067: `merge_chapter_into_previous` tren mot `chapter_id` la cung khong duoc danh \
+        "L10067: `merge_chapters` tren mot `chapter_id` la cung khong duoc danh \
          lai `ord`"
     );
 
@@ -5435,7 +5403,7 @@ fn chapter_ord_stays_dense_from_one_after_a_merge_on_a_sparse_ord_sequence_too()
     opened.chapter_id = c1;
 
     // Sau chuẩn hoá: c1 → 1, c2 → 2, c3 → 3. Gộp c2 vào c1.
-    merge_chapter_into_previous(Some(&mut opened), c2).expect("gop that bai");
+    merge_chapters(Some(&mut opened), &[c1, c2]).expect("gop that bai");
 
     let rows = read_all_chapter_ord(&opened);
     let mut ords: Vec<i64> = rows.iter().map(|(_, ord)| *ord).collect();

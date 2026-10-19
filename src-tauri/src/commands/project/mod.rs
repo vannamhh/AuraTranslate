@@ -2843,7 +2843,7 @@ pub fn confirm_append_import_with_encoding(
 /// **THÊM 2026-09-16 (Story 6.7b, Phase 4 — vòng rà của coordinator, đối chứng đỏ ① của
 /// đường APPEND)** — [`confirm_append_import_with_encoding`] CỘNG bước 4, đúng khuôn
 /// [`crate::commands::lifecycle::set_chapter_status_indexed`]/
-/// `crate::commands::chapter::merge_chapter_into_previous_indexed`: hàm THUẦN, không
+/// `crate::commands::chapter::merge_chapters_indexed`: hàm THUẦN, không
 /// `AppHandle`, để `tests/**` gọi được thẳng và chứng minh bước 4 THẬT SỰ chạy sau một lượt
 /// xác nhận append thành công — không phải một lượt `Indexer::rebuild` do chính test tự gọi
 /// rời (đúng cái bẫy "tự reindex thì không canh gì" mà correction của Phase 1 đã gọi tên,
@@ -2872,7 +2872,7 @@ pub fn confirm_append_import_with_encoding(
 /// Cái hàm này ĐÓNG là seam
 /// "bước 4 của đường append CÓ TỒN TẠI và THẬT SỰ cập nhật chỉ mục" — seam mà trước Phase 4
 /// KHÔNG tồn tại ở BẤT KỲ hình dạng nào cho đường append (khác hẳn
-/// `set_chapter_status`/`merge_chapter_into_previous`, cả hai đã có `*_indexed` từ trước).
+/// `set_chapter_status`/`merge_chapters`, cả hai đã có `*_indexed` từ trước).
 #[expect(
     clippy::too_many_arguments,
     reason = "each parameter is an independent import option; a parameter struct would only rename the list"

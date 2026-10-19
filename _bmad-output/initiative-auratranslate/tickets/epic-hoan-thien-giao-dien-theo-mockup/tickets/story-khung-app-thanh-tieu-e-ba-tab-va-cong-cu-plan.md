@@ -116,6 +116,7 @@ Lượt 1 (quick): 9 phát hiện — high 0 · medium 2 · low 4 · false 2 · 
 
 - medium · patch — `WorkspaceDock.vue` `restore()`: bố cục khôi phục bằng `fromJSON` vẫn để công tắc đánh dấu Ⓑ-2, trái AC2; comment ~538 thừa nhận bố cục khôi phục không phải preset nào. Sửa: đặt preset chung về `null` sau `fromJSON` thành công.
 - medium · chờ Ice — `check:debt-owner` đỏ vì plan này đẩy số ticket có trạng thái plan lên 176; sửa là nâng `PLANNED_TICKET_FLOOR` 140 → 150, bị bộ phân loại quyền chặn vì sửa ngưỡng cổng.
+  - 🔵 2026-10-19: đã vượt; `PLANNED_TICKET_FLOOR` nay 160 (`scripts/check-debt-owner.mjs:742`), ghi nhận ở Story 12-22.
 - low · patch — `resetActiveLayoutPreset`, `resetToolsMenu` không ai gọi (grep `src`, `tests`). Xoá.
   - 🔵 2026-10-13: chuyển thành false. Xoá hai hàm làm `check:panel-refs` đỏ: cổng đòi mỗi ref cấp module có một hàm `reset*`. Implementer đã thêm hai mục `EXEMPT` để xanh lại; đã gỡ hai mục đó và trả hai hàm về.
 - low · patch — `main.ts` 70–74: hai import mới chen giữa comment ⚠️ và import `lookupDrawerState` mà nó chú thích. Dời.

@@ -13238,6 +13238,9 @@ chính nó.
   summary: Quản lý TM gọi `refreshExportCounts` sau mỗi lần sửa / xoá / đẩy / nhập, tức bốn lượt đọc trọn tầng (`tm_export_counts` hai tầng × `all` / `mine`); chưa đo trên TM lớn.
   evidence: chưa kiểm (review 12.14 xếp maybe-false, nếu đúng là medium); muốn chốt thì đo thời gian `tm_export_counts` và thời gian giữ khoá `OpenWorkState` ở 200.000 cặp, cùng quần thể `nfr_bench`.
   Chủ: Epic 12.
+  → Chủ: Story 12.22.
+  → 🟡 2026-10-19 (Story 12.22): đo ở `--profile bench-release`, máy Ice không tải, 200.000 cặp MỖI tầng (nửa `self`), 7 lượt (`tests/story_22_measure_export_tm.rs`): `tm_export_counts` tầng Tác phẩm p50 2.315 ms · max 3.170 ms, Global p50 2.561 ms · max 2.838 ms, cũng là thời gian giữ `OpenWorkState`. Còn: đếm bằng `COUNT` SQL thay vì đọc trọn tầng (`commands/tm.rs:644`) trước khi epic đóng (Ice chọn).
+  Chủ: Epic 12.
 - source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-glossary-bang-cho-quan-ly-man-duyet-thu-hoach-plan.md`
   summary: Lượt dùng thật trong app: vạch lề Quản lý Glossary nét đứt (chờ chốt) và nét liền (đã chốt Tác phẩm) phân biệt được ở giao diện sáng và tối; vạch hàng bảng chờ đứt / liền; phím trong menu Công cụ ▾ tới mục Duyệt thu hoạch thuật ngữ; Space trên bảng chờ không bật radio ẩn của hàng; Enter lưu từ ô sửa tại chỗ (`form="gm-edit-form"`).
   evidence: happy-dom không tính CSS có phạm vi nên `border-left-style` chỉ được canh qua tên lớp; bàn phím kích hoạt `<button>` không lái được bằng e2e.
@@ -13262,6 +13265,7 @@ chính nó.
   summary: `export_preview` là lệnh plain, giữ khoá `OpenWorkState` và đọc trọn Chương đầu phạm vi (cộng Glossary hai tầng) ở mỗi lần bật công tắc hay đổi định dạng, chỉ để trả 6 hàng; chưa biết có làm giật màn Xuất không (medium, chưa kiểm chứng).
   evidence: chưa đo; đo thời gian lệnh trên Chương ≥ 2.000 câu ở bản build release, nếu vượt ngưỡng phản hồi UI thì giới hạn số câu đọc hoặc chuyển `(async)`.
   Chủ: Story 12.22.
+  → ✅ ĐÃ ĐÓNG 2026-10-19 (Story 12.22): `--profile bench-release`, máy Ice không tải, một Chương 2.000 câu `draft` (nguồn CJK ~35 ký tự, bản dịch ~70), `ExportContent` mặc định, Glossary rỗng, 200 lượt mỗi định dạng, gọi hàm core không qua IPC (`tests/story_22_measure_export_tm.rs`): p95 plain 15,6 ms · markdown 13,9 ms · `.docx` hai cột 9,6 ms · `.docx` một khối 23,3 ms (một mẫu 88,7 ms), dưới ngưỡng 50 ms Ice chọn; không sửa.
 - source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-cai-at-bo-cuc-phim-tat-thu-ket-noi-khung-cap-nhat-plan.md`
   summary: Lượt dùng thật trên bản đóng gói macOS: bấm Thử kết nối với khoá sai (phải ra "khoá bị từ chối") rồi khoá đúng trên một nhà cung cấp thật và một Ollama thật; Xuất rồi Nhập bộ phím qua hộp thoại gốc; `⌘T` và `⌘⇧R` trong app; lưu rồi áp một preset bố cục người dùng trên dock thật; bấm chuột vào ô tìm phím rồi gõ được ngay (click WebDriver không làm ô nhận tiêu điểm nên e2e gọi `.focus()`).
   evidence: e2e không giả được provider hay hộp thoại gốc (`e2e/specs/story-12-18-settings.e2e.mjs` chạy xanh 4/4 cho khung, tra ngược và `⌘T`); Rust chỉ đo qua máy chủ HTTP giả cục bộ (`connection_check_contract.rs`), vitest giả biên IPC.
@@ -13289,3 +13293,8 @@ chính nó.
 - **Bấm vùng không nhận tiêu điểm của thanh tiêu đề khi Attribution mở làm tiêu điểm rơi về `body`, Esc và Tab không còn tới `.attr-screen`** (Story 12-21, triage hàng 29).
   summary: Đã có từ trước với lề scrim cũ ngoài `.attr-panel`; thanh tiêu đề còn sống nên vùng rộng hơn. Sửa cần một đường Esc cấp ứng dụng đi qua `isBlocked` (`src/main.ts`).
   Chủ: Epic 12.
+
+- **`resetAlignment` và `resetReviewerImport` không ai gọi khi đổi Tác phẩm** (Story 12-16, Implementation Notes "như trước story").
+  summary: Trạng thái alignment và nhập bản reviewer của Tác phẩm trước sống qua lượt mở hay nhập Tác phẩm khác.
+  evidence: hai hàm chỉ test gọi; `resetGlossaryQueue` đã có chỗ gọi ở `modes/libraryImport.ts` và `modes/libraryChapters.ts`.
+  → ✅ ĐÃ ĐÓNG 2026-10-19 (Story 12.22): gọi cạnh `resetGlossaryQueue` ở cả hai chỗ; `tests/frontend/alignmentReviewerImportResetWiring.test.ts` đỏ khi gỡ từng lời gọi.

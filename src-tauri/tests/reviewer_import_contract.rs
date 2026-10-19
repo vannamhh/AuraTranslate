@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::chapter::{merge_chapter_into_previous, split_chapter_at_segment};
+use auratranslate_lib::commands::chapter::{merge_chapters, split_chapter_at_segment};
 use auratranslate_lib::commands::export::{
     PendingReviewerImportState, ReviewerImportPreviewWire, export_docx_one_block,
     export_docx_two_column, export_text, reviewer_import_cancel, reviewer_import_confirm,
@@ -909,7 +909,7 @@ fn confirming_after_the_matched_chapters_changed_writes_nothing_and_reports_it()
         .expect("xem truoc");
     let mut open = mine.open;
     let second = mine.chapters[1];
-    merge_chapter_into_previous(Some(&mut open), second).expect("gop");
+    merge_chapters(Some(&mut open), &[mine.chapters[0], second]).expect("gop");
     let mine = Work { open, ..mine };
     let before = mine.dump();
 
@@ -944,7 +944,7 @@ fn confirming_when_only_some_of_the_previewed_chapters_still_match_writes_nothin
     );
     let mut open = mine.open;
     let third = mine.chapters[2];
-    merge_chapter_into_previous(Some(&mut open), third).expect("gop");
+    merge_chapters(Some(&mut open), &[mine.chapters[1], third]).expect("gop");
     let mine = Work { open, ..mine };
     let before = mine.dump();
 
@@ -1051,7 +1051,7 @@ fn merging_b_into_a_deletes_the_copy_of_b_and_marks_the_copy_of_a_stale() {
     let (a, b) = (mine.chapters[0], mine.chapters[1]);
     let b_copy = read_review_copy(&mine.open.store, b).expect("ban cua B").id;
     let mut open = mine.open;
-    merge_chapter_into_previous(Some(&mut open), b).expect("gop");
+    merge_chapters(Some(&mut open), &[a, b]).expect("gop");
     let mine = Work { open, ..mine };
 
     assert!(matches!(

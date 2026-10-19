@@ -1131,7 +1131,7 @@ CREATE UNIQUE INDEX idx_glossary_candidate_review_harvest
 ///
 /// 🔵 **SỬA 2026-08-29 (Story 5.8) — mệnh đề "một Chương bị xoá để lại một hàng vị trí mồ
 /// côi" đã HẾT ĐÚNG, và story này chính là chủ đã hứa dọn nó.** `commands::chapter` nay có
-/// đúng một đường xoá hàng `chapter`: `merge_chapter_into_previous`, và nó
+/// đúng một đường xoá hàng `chapter`: `merge_chapters`, và nó
 /// `DELETE FROM chapter_position WHERE chapter_id = <Chương bị gộp>` TRONG CÙNG giao dịch
 /// trước khi `DELETE FROM chapter` — không hàng vị trí nào sống sót Chương chủ của nó. Đường
 /// **tách** (`split_chapter_at_segment`) không xoá hàng `chapter` nào — nó chỉ chèn thêm một
@@ -1403,7 +1403,7 @@ CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name);";
 ///
 /// 🔵 **SỬA 2026-09-09 (vòng rà đối kháng 3, mục T2) — lý do cũ đã HẾT ĐÚNG, kết luận thì
 /// CHƯA CHẮC sai, sửa lý do chứ không sửa kết luận.** Câu cũ khai "Story 6.11 chỉ GHI ...
-/// không có đường ĐỌC nào lọc theo `chapter_id`" — SAI từ chính vòng rà này: `merge_chapter_into_previous`,
+/// không có đường ĐỌC nào lọc theo `chapter_id`" — SAI từ chính vòng rà này: `merge_chapters`,
 /// `split_chapter_at_segment`, và bước rebase neo của `write_regroup` (§"duy trì hàng `asset`
 /// qua bốn đường tổ chức lại Chương") đều chạy `UPDATE asset ... WHERE chapter_id = ?`, và cả
 /// ba đều nằm trên writer NỐI TIẾP của AD-11 (một giao dịch một lúc, không có ĐỌC đồng thời
@@ -1420,7 +1420,7 @@ CREATE UNIQUE INDEX idx_prompt_set_name ON prompt_set (name);";
 /// này).** Cùng khuôn đoạn "SỬA 2026-08-29 (Story 5.8)" của [`CHAPTER_POSITION_DDL`] ngay
 /// trên: ba đường sản phẩm CHẠM `asset` khi tổ chức lại Chương, và cả ba giữ bất biến "không
 /// hàng mồ côi, không hàng trỏ quá cuối Chương nó thuộc về" TRONG CÙNG giao dịch với lượt đổi
-/// `chapter`/`segment`. **Gộp Chương** (hàm `merge_chapter_into_previous`) — `UPDATE asset
+/// `chapter`/`segment`. **Gộp Chương** (hàm `merge_chapters`) — `UPDATE asset
 /// SET chapter_id = <Chương đích>, anchor_after_segment_ord = anchor_after_segment_ord +
 /// <shift>` cho MỌI hàng của Chương bị gộp, TRƯỚC khi `DELETE FROM chapter` xoá hàng nguồn.
 /// **Tách Chương** (hàm `split_chapter_at_segment`) — `UPDATE asset SET chapter_id = <Chương

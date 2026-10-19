@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::chapter::merge_chapter_into_previous;
+use auratranslate_lib::commands::chapter::merge_chapters;
 use auratranslate_lib::commands::export::{
     PendingReviewerImportState, alignment_open, export_docx_two_column, export_text,
     reviewer_import_confirm, reviewer_import_preview,
@@ -780,7 +780,7 @@ fn reading_without_a_copy_or_after_a_boundary_change_is_a_typed_error() {
 
     let mut open = mine.open;
     let b = mine.chapters[1];
-    merge_chapter_into_previous(Some(&mut open), b).expect("gop");
+    merge_chapters(Some(&mut open), &[mine.chapters[0], b]).expect("gop");
     let mine = Work { open, ..mine };
 
     let stale = read_alignment(&mine.open.store, mine.chapters[0]);
@@ -939,7 +939,7 @@ fn merging_chapter_b_into_a_leaves_no_alignment_row_of_b() {
     assert!(mine.scalar("SELECT COUNT(*) FROM alignment_group") >= 4);
 
     let mut open = mine.open;
-    merge_chapter_into_previous(Some(&mut open), b).expect("gop");
+    merge_chapters(Some(&mut open), &[mine.chapters[0], b]).expect("gop");
     let mine = Work { open, ..mine };
 
     let sql: &'static str = Box::leak(
@@ -1503,7 +1503,8 @@ fn merging_the_chapter_removes_its_decisions_with_the_reviewer_copy() {
     skip_change(&work.open.store, work.chapters[1], second).expect("bo qua");
     assert_eq!(work.scalar("SELECT COUNT(*) FROM review_decision"), 1);
 
-    merge_chapter_into_previous(Some(&mut work.open), work.chapters[1]).expect("gop Chuong");
+    merge_chapters(Some(&mut work.open), &[work.chapters[0], work.chapters[1]])
+        .expect("gop Chuong");
 
     assert_eq!(work.scalar("SELECT COUNT(*) FROM review_decision"), 0);
     work.finish();

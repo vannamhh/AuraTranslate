@@ -103,7 +103,7 @@ pub(crate) fn unknown_status(status: &str) -> IpcError {
 ///
 /// ⚠️ `pub(crate)` từ 2026-08-29 (Story 5.8) — **hôm nay riêng tư, tên GIỮ NGUYÊN.** Bốn
 /// thao tác tổ chức Chương mới (`commands::chapter::rename_chapter` ·
-/// `move_chapter` · `merge_chapter_into_previous` · `split_chapter_at_segment`) đi qua ĐÚNG
+/// `move_chapter` · `merge_chapters` · `split_chapter_at_segment`) đi qua ĐÚNG
 /// khuôn bốn bước mà hàm này chở (bước 2 + bước 3), và tái dùng nó là cách duy nhất không
 /// đúc một bản chép thứ hai của cùng một khuôn — đo 2026-08-27 đã cho thấy chỗ nối bước 4
 /// **chưa có ai canh** khi khuôn bốn bước bị chép tay một lần rồi (xem

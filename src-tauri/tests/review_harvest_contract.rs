@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use auratranslate_lib::commands::chapter::merge_chapter_into_previous;
+use auratranslate_lib::commands::chapter::merge_chapters;
 use auratranslate_lib::commands::export::{
     PendingReviewerImportState, ReviewerImportSummaryWire, export_docx_two_column,
     reviewer_harvest_refresh, reviewer_import_confirm, reviewer_import_preview,
@@ -495,7 +495,7 @@ fn a_stale_copy_and_a_one_sided_group_contribute_nothing() {
     );
 
     let mut mine = mine;
-    merge_chapter_into_previous(Some(&mut mine.open), mine.chapters[1]).expect("gop");
+    merge_chapters(Some(&mut mine.open), &[mine.chapters[0], mine.chapters[1]]).expect("gop");
 
     assert!(
         mine.harvest(&global).is_empty(),

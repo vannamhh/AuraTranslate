@@ -868,51 +868,6 @@ pub fn move_chapter(
     Ok(())
 }
 
-/// **Gộp một Chương vào Chương liền trước nó** — hàm thuần, đây là thứ test gọi. Story 5.8,
-/// Task 8, và AD-32 là mệnh đề nghiệm thu chính của nó.
-///
-/// Mọi hàng `segment` của Chương bị gộp (B) -- SỐNG và VỀ HƯU -- đổi `chapter_id` sang Chương
-/// đích (A) và `ord` tịnh tiến bằng `MAX(ord)` hiện có của A (`0` nếu A chưa có segment nào,
-/// đúng 25 Chương Epic 1 chưa từng tách câu) -- **không mệnh đề `retired_at`**, không hàng nào
-/// bị bỏ lại. `A.source_text` nối THÔ với `B.source_text` (xem §Design Notes: đây là đường
-/// DUY NHẤT không mất byte nào và đúng cả khi A/B chưa từng tách segment).
-///
-/// Trạng thái vòng đời: `done` chỉ sống sót khi CẢ HAI nửa là `done`; mọi ca khác giữ nguyên
-/// `status` của A, hạ `done` xuống `in_progress` -- không bao giờ khai `done` cho văn bản
-/// chưa ai xác nhận (§Design Notes "Vì sao gộp done + chưa xong ra in_progress").
-///
-/// # Lỗi
-/// - chưa Tác phẩm nào mở ⇒ `work.none_open`;
-/// - `chapter_id` không tồn tại ⇒ `segment.chapter_not_found` (tái dùng khoá đã có), **0 hàng
-///   bị chạm** — cùng phép đo đã ghi ở [`move_chapter`];
-/// - không có Chương liền trước ⇒ `err.chapter.at_first`, **0 hàng bị chạm**.
-pub fn merge_chapter_into_previous(
-    open: Option<&mut OpenWork>,
-    chapter_id: i64,
-) -> Result<(), IpcError> {
-    let open = open.ok_or_else(no_work_open)?;
-
-    let step = open
-        .store
-        .write(move |tx: &Transaction<'_>| merge_into_previous_tx(tx, chapter_id))?;
-
-    let a_id = match step {
-        MergeStep::NotFound => return Err(chapter_not_found(chapter_id)),
-        MergeStep::NoPrevious => return Err(chapter_at_first(chapter_id)),
-        MergeStep::Merged { into } => into,
-    };
-
-    // 🔴 Con trỏ đổi SAU khi giao dịch commit, không trước (luật đã ghi ở
-    // `open_adjacent_chapter`). Chương B không còn tồn tại -- nếu B đang mở, con trỏ dời
-    // sang A.
-    if open.chapter_id == chapter_id {
-        set_open_chapter(open, a_id)?;
-    }
-
-    crate::commands::lifecycle::write_lifecycle_after_change(open)?;
-    Ok(())
-}
-
 /// **Gộp nhiều Chương liền nhau thành Chương đầu của dải** — hàm thuần, đây là thứ test gọi.
 /// Mỗi Chương sau Chương đầu được gộp vào Chương liền trước nó, TẤT CẢ trong một giao dịch:
 /// một bước hỏng thì không Chương nào đổi. Trả danh sách Chương dựng lại.
@@ -958,7 +913,7 @@ pub fn merge_chapters(
         }
         let run: Vec<i64> = positions.iter().map(|&index| ordered[index]).collect();
         for id in run.iter().skip(1) {
-            if !matches!(merge_into_previous_tx(tx, *id)?, MergeStep::Merged { .. }) {
+            if !matches!(merge_into_previous_tx(tx, *id)?, MergeStep::Merged) {
                 return Err(crate::core::store::SqlError::QueryReturnedNoRows);
             }
         }
@@ -983,7 +938,7 @@ pub fn merge_chapters(
 enum MergeStep {
     NotFound,
     NoPrevious,
-    Merged { into: i64 },
+    Merged,
 }
 
 /// Thân giao dịch của việc gộp một Chương vào Chương liền trước nó; chạy trong giao dịch của
@@ -1087,7 +1042,7 @@ fn merge_into_previous_tx(tx: &Transaction<'_>, chapter_id: i64) -> SqlResult<Me
     tx.execute("DELETE FROM chapter WHERE id = ?1", [chapter_id])?;
     tx.execute("UPDATE chapter SET ord = ord - 1 WHERE ord > ?1", [b_ord])?;
 
-    Ok(MergeStep::Merged { into: a_id })
+    Ok(MergeStep::Merged)
 }
 
 /// **Tách Chương đang mở tại một câu** — hàm thuần, đây là thứ test gọi. Story 5.8, Task 9.
@@ -1310,22 +1265,6 @@ pub fn move_chapter_indexed(
 ) -> Result<(), IpcError> {
     crate::commands::lifecycle::finish_lifecycle_write(
         move_chapter(open, chapter_id, direction),
-        indexer,
-        global,
-        root,
-    )
-}
-
-/// [`merge_chapter_into_previous`] cộng bước 4.
-pub fn merge_chapter_into_previous_indexed(
-    open: Option<&mut OpenWork>,
-    indexer: Option<&crate::core::library::indexer::Indexer>,
-    global: Option<&Store>,
-    root: &std::path::Path,
-    chapter_id: i64,
-) -> Result<(), IpcError> {
-    crate::commands::lifecycle::finish_lifecycle_write(
-        merge_chapter_into_previous(open, chapter_id),
         indexer,
         global,
         root,
