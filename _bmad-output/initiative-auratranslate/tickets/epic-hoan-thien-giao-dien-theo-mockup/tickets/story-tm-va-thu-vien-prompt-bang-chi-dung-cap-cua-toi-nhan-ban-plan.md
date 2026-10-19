@@ -180,7 +180,7 @@ Lượt 1 (quick): high 0 · medium 1 · low 4 · false 4 · maybe-false 1; thê
 
 ## Design Notes
 
-- Phân pha (AGENTS.md): plan · Rust · Webview · Tests that move, mỗi pha một agent mới, bàn giao qua tệp ở `handoff-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-phases/`. Pha Rust nên đo thêm thời gian `tm_list_pairs` sau khi thêm đếm theo tầng và phép sắp nhóm, trên cùng quần thể 200.000 cặp của `nfr_bench`, cùng tải máy.
+- Phân pha (AGENTS.md): plan · Rust · Webview · Tests that move, mỗi pha một agent mới, bàn giao qua tệp ở `handoff-tm-va-thu-vien-prompt-phases/`. Pha Rust nên đo thêm thời gian `tm_list_pairs` sau khi thêm đếm theo tầng và phép sắp nhóm, trên cùng quần thể 200.000 cặp của `nfr_bench`, cùng tải máy.
 - Vì sao lọc trước khi cắt: `rank_fuzzy_candidates` cắt ba hàng sau khi sắp theo điểm; lọc sau cắt có thể bỏ hết ba hàng đầu (đều của người khác) trong khi cặp của tôi điểm thấp hơn vẫn tồn tại, tức dải rỗng sai. Cùng lý do với `select_tm_pairs`.
 - `hidden_count` theo cặp chữ phân biệt, không theo hàng: cùng quy ước `first_per_text_pair` và `omitted_count` (ca `omitted_count_ignores_duplicates...`, `ai_rag_contract.rs:1845`).
 - `TmPrefillStatus::Ran` thành biến thể có `hidden_count` để kiểu nói thật (`NotAsked` ≠ `Ran` 0 ẩn); giá phải trả là 36 fixture ở 26 tệp vitest.
