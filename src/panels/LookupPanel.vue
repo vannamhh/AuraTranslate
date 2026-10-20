@@ -67,6 +67,7 @@ import {
   relativeTimeParams,
   sessionLookupCount,
   visibleLookupHistory,
+  pinIsStale,
 } from './lookupHistoryState'
 import { tError } from '../i18n'
 import {
@@ -701,6 +702,9 @@ onBeforeUnmount(() => {
             <span v-else class="lookup-row-gloss">{{ t('panel.lookup.history_no_gloss') }}</span>
             <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name`, FR31). -->
             <span class="lookup-row-source">{{ sourceLabel(entry.source_code) }}</span>
+            <span v-if="pinIsStale(entry, dictSources)" class="lookup-row-stale">{{
+              t('panel.lookup.pinned_stale')
+            }}</span>
             <!-- aura-allow-text: số lần tra CỦA PHIÊN NÀY — DỮ LIỆU dẫn xuất (§⑨). -->
             <span class="lookup-row-count">{{ sessionLookupCount(entry.source_code, entry.entry_id) }}</span>
             <button
@@ -990,12 +994,15 @@ onBeforeUnmount(() => {
 .lookup-spine {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
 }
 
 .lookup-spine-count {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1233,6 +1240,7 @@ onBeforeUnmount(() => {
   color: var(--color-primary);
 }
 
+.lookup-row-stale,
 .lookup-row-count,
 .lookup-row-when {
   flex: none;

@@ -30,6 +30,8 @@ export type PinnedEntry = {
   /** `null` khi lượt tra không lấy về nghĩa nào — hình dạng THẬT, không một ca biên. */
   gloss: string | null
   pinned_at: string
+  /** `null` for pins taken before migration step 15 or while the source was not loaded. */
+  source_version: string | null
 }
 
 /**

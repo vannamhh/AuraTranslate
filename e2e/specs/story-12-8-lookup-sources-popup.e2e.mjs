@@ -107,4 +107,47 @@ describe('Story 12-8 · Lookup sources popup', () => {
       timeoutMsg: 'a second row click did not restore N',
     })
   })
+
+  it('keeps the spine count on one line inside the fixed-height header at a narrow width', async function () {
+    await openWorkspaceWithWork(`e2e-lookup-spine-${Date.now()}`)
+    await ensureFullLayoutTier()
+
+    const ran = await browser.execute(async () => {
+      try {
+        const mod = await import('/src/panels/lookupPanelState.ts')
+        await mod.runLookup('学习')
+        return true
+      } catch {
+        return false
+      }
+    })
+    if (!ran) throw new Error('[BÀN ĐO HỎNG] không gọi được `runLookup`; mệnh đề chưa được đo.')
+
+    const count = await $('.lookup-spine-count')
+    try {
+      await count.waitForExist({ timeout: 15_000 })
+    } catch {
+      console.warn('[BÀN ĐO KHÔNG DỰNG ĐƯỢC] lượt tra không cho nhóm nguồn nào: không có số đếm để đo.')
+      this.skip()
+    }
+
+    const m = await browser.execute(() => {
+      const head = document.querySelector('.lookup-head')
+      const el = document.querySelector('.lookup-spine-count')
+      const previous = head.style.width
+      head.style.width = '120px'
+      try {
+        return {
+          lineHeight: parseFloat(getComputedStyle(el).lineHeight),
+          countHeight: el.getBoundingClientRect().height,
+          headScroll: head.scrollHeight,
+          headClient: head.clientHeight,
+        }
+      } finally {
+        head.style.width = previous
+      }
+    })
+    expect(m.countHeight).toBeLessThanOrEqual(m.lineHeight * 1.5)
+    expect(m.headScroll).toBeLessThanOrEqual(m.headClient)
+  })
 })

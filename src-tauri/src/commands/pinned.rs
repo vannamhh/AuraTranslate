@@ -35,6 +35,7 @@
 //! ⚠️ Mọi chuỗi trong tệp này viết **KHÔNG DẤU** — `scripts/check-i18n.mjs` Kiểm A quét
 //! `src-tauri/**/*.rs` và tệp này không nằm trong danh sách miễn trừ.
 
+use crate::core::dict::{DictLayers, list_source_attributions};
 use crate::core::i18n::IpcError;
 use crate::core::store::{Row, SqlResult, Store, StoreError, StoreKind, Transaction};
 
@@ -73,6 +74,8 @@ pub struct PinnedEntry {
     pub gloss: Option<String>,
     /// ISO-8601 UTC, lay bang `strftime` cua chinh SQLite.
     pub pinned_at: String,
+    /// `None` for pins taken before migration step 15 or while the source was not loaded.
+    pub source_version: Option<String>,
 }
 
 /// Cau lenh doc — dung o ca hai cho, nen thu tu sap xep chi co MOT ban.
@@ -82,7 +85,7 @@ pub struct PinnedEntry {
 /// luot bam lien tiep trong cung mot mili-giay cho ra hai chuoi BANG NHAU. Khong co khoa
 /// phu thi thu tu cua chung do SQLite tu quyet, tuc doi giua hai luot doc.
 const SELECT_PINNED: &str = "\
-SELECT id, source_code, entry_id, headword, gloss, pinned_at \
+SELECT id, source_code, entry_id, headword, gloss, pinned_at, source_version \
 FROM pinned_entry ORDER BY pinned_at DESC, id DESC";
 
 /// Mot hang thanh mot [`PinnedEntry`] — **mot ban duy nhat** cho ca ba duong doc.
@@ -99,6 +102,7 @@ fn row_to_entry(row: &Row<'_>) -> SqlResult<PinnedEntry> {
         headword: row.get(3)?,
         gloss: row.get(4)?,
         pinned_at: row.get(5)?,
+        source_version: row.get(6)?,
     })
 }
 
@@ -142,8 +146,17 @@ pub fn pin_entry(
     entry_id: i64,
     headword: &str,
     gloss: Option<&str>,
+    layers: Option<&DictLayers>,
 ) -> Result<Vec<PinnedEntry>, IpcError> {
     let store = store.ok_or_else(store_is_missing)?;
+
+    let source_version = layers.and_then(|layers| {
+        list_source_attributions(layers)
+            .sources
+            .into_iter()
+            .find(|source| source.code == source_code)
+            .map(|source| source.source_version)
+    });
 
     // ⚠️ `to_owned()` truoc khi vao closure: `Store::write` doi `F: Send + 'static`, nen
     // job khong muon duoc mot `&str` cua chi goi.
@@ -154,9 +167,9 @@ pub fn pin_entry(
     let rows = store.write(move |tx: &Transaction<'_>| {
         tx.execute(
             "INSERT OR IGNORE INTO pinned_entry \
-             (source_code, entry_id, headword, gloss, pinned_at) \
-             VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'))",
-            (&source_code, entry_id, &headword, &gloss),
+             (source_code, entry_id, headword, gloss, pinned_at, source_version) \
+             VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?5)",
+            (&source_code, entry_id, &headword, &gloss, &source_version),
         )?;
 
         let mut stmt = tx.prepare(SELECT_PINNED)?;
@@ -209,6 +222,7 @@ pub fn unpin_entry(
 /// `MutexGuard` phai giu song toi khi loi goi xuong xong. Cung khuon `commands::config`.
 pub mod wire {
     use super::{IpcError, PinnedEntry};
+    use crate::core::dict::DictLayers;
     use crate::core::store::Store;
 
     /// Vo IPC cua [`super::list_pinned_entries`].
@@ -236,12 +250,14 @@ pub mod wire {
         use tauri::Manager as _;
 
         let managed = app.try_state::<Store>();
+        let layers = app.try_state::<DictLayers>();
         super::pin_entry(
             managed.as_deref(),
             &source_code,
             entry_id,
             &headword,
             gloss.as_deref(),
+            layers.as_deref(),
         )
     }
 

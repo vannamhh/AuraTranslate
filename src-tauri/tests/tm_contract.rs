@@ -1184,7 +1184,7 @@ fn a_fresh_and_an_upgraded_global_db_both_end_at_version_14_with_tm_unit_and_its
     let fresh = open_global_db(&fresh_dir);
     assert_eq!(
         (fresh.schema_version(), has_tm(&fresh), has_index(&fresh)),
-        (14, 1, 1)
+        (15, 1, 1)
     );
 
     let old_dir = temp_dir("dual-upgrade");
@@ -1205,7 +1205,7 @@ fn a_fresh_and_an_upgraded_global_db_both_end_at_version_14_with_tm_unit_and_its
             has_tm(&upgraded),
             has_index(&upgraded)
         ),
-        (14, 1, 1)
+        (15, 1, 1)
     );
     drop((fresh, upgraded));
     let _ = fs::remove_dir_all(fresh_dir);

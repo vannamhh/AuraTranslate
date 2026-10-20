@@ -1418,6 +1418,7 @@
   "panel.lookup.pinned_load_failed": "Không đọc được danh sách đã ghim — đây là một lỗi của ứng dụng, không phải một danh sách rỗng.",
   "panel.lookup.pin_no_target": "Chưa nhắm được mục từ nào để ghim — chạm vào một mục trong kết quả tra cứu trước.",
   "panel.lookup.history_hint": "Ghim là của người, lịch sử là của máy. Mục ghim sống qua các phiên và đi theo mọi Tác phẩm; lịch sử tra chỉ sống trong phiên và xoá được bất cứ lúc nào.",
+  "panel.lookup.pinned_stale": "Ghim từ bản từ điển cũ",
   "panel.lookup.history_no_gloss": "không nguồn nào có mục từ này",
   "panel.lookup.time_just_now": "vừa xong",
   "panel.lookup.time_minutes": "{n} ph",

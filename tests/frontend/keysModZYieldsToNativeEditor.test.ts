@@ -66,3 +66,38 @@ describe('handle() — Mod+Z trong vùng gõ nhường trình soạn thảo gố
     expect(preventDefault).not.toHaveBeenCalled()
   })
 })
+
+describe('handle() — hợp âm trần trên input không phải văn bản', () => {
+  function bare(target: object, code: string) {
+    const registry = createRegistry()
+    const run = vi.fn()
+    registry.register({ id: 'x.bare', labelKey: 'command.x.bare', run, keys: ['D', 'ArrowRight', 'Escape'] })
+    const keymap = createKeymap(registry, { isMac: true })
+    const preventDefault = vi.fn()
+    return { handled: keymap.handle({ code, target, preventDefault }), run, preventDefault }
+  }
+
+  it('range: chữ chạy lệnh, mũi tên về control', () => {
+    const range = { tagName: 'INPUT', type: 'range' }
+    const d = bare(range, 'KeyD')
+    expect(d.handled).toBe(true)
+    expect(d.run).toHaveBeenCalledOnce()
+    const arrow = bare(range, 'ArrowRight')
+    expect(arrow.handled).toBe(false)
+    expect(arrow.run).not.toHaveBeenCalled()
+    expect(arrow.preventDefault).not.toHaveBeenCalled()
+  })
+
+  it('checkbox: chữ chạy lệnh, Escape về control', () => {
+    expect(bare({ tagName: 'INPUT', type: 'checkbox' }, 'KeyD').run).toHaveBeenCalledOnce()
+    const esc = bare({ tagName: 'INPUT', type: 'checkbox' }, 'Escape')
+    expect(esc.handled).toBe(false)
+    expect(esc.run).not.toHaveBeenCalled()
+  })
+
+  it('text: không dispatch', () => {
+    const r = bare({ tagName: 'INPUT', type: 'text' }, 'KeyD')
+    expect(r.handled).toBe(false)
+    expect(r.run).not.toHaveBeenCalled()
+  })
+})

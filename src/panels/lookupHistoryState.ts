@@ -49,7 +49,7 @@ import { computed, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { listPinnedEntries, pinEntry, unpinEntry } from '../config/pinned'
 import type { PinnedEntry } from '../config/pinned'
-import type { LookupResponse } from '../config/dict'
+import type { LookupResponse, SourceAttribution } from '../config/dict'
 import type { IpcError } from '../i18n'
 
 /** Tabs of the Panel Lookup body, in strip order. */
@@ -586,4 +586,14 @@ function targetsOf(response: LookupResponse): readonly PinTarget[] {
     }
   }
   return out
+}
+
+/** Compares `source_version` only; a `null` pin or an unloaded source never warns. */
+export function pinIsStale(
+  entry: Pick<PinnedEntry, 'source_code' | 'source_version'>,
+  sources: readonly Pick<SourceAttribution, 'code' | 'source_version'>[],
+): boolean {
+  if (entry.source_version === null) return false
+  const current = sources.find((s) => s.code === entry.source_code)
+  return current !== undefined && current.source_version !== entry.source_version
 }

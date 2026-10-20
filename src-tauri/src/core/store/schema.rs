@@ -721,7 +721,7 @@ CREATE TABLE library_orphan (
 /// [`PROMPT_SET_DDL`] (tầng Global của bộ prompt theo thể loại, FR69, CÙNG một hằng với
 /// bước 24 của `project.db`). Câu *"tám bước, đích là 8"* đã hết đúng, sửa tại chỗ.
 ///
-/// 🔴 **Mười bốn bước, và đích là phiên bản 14.** Không số nào bị bỏ trống ở bộ này (khác
+/// 🔴 **Mười lăm bước, và đích là phiên bản 15.** Không số nào bị bỏ trống ở bộ này (khác
 /// [`PROJECT_MIGRATIONS`], nơi số 4 là một số **đã cháy**), nên ở đây số bước và đích trùng
 /// nhau — và điều đó **không** làm câu trên thừa: nó là mệnh đề mà cổng
 /// `tests/segment_contract.rs::the_migration_doc_headers_state_the_target_their_array_reaches`
@@ -824,7 +824,16 @@ pub const GLOBAL_MIGRATIONS: &[Migration] = &[
         to_version: 14,
         sql: GLOSSARY_ENTRY_PENDING_CONFIRMED_AT_DDL,
     },
+    Migration {
+        to_version: 15,
+        sql: PINNED_ENTRY_SOURCE_VERSION_DDL,
+    },
 ];
+
+/// Adds `pinned_entry.source_version`: the `dict_source.source_version` the pin was taken
+/// from. `NULL` for pins made before this step or whose source was not loaded.
+pub const PINNED_ENTRY_SOURCE_VERSION_DDL: &str =
+    "ALTER TABLE pinned_entry ADD COLUMN source_version TEXT;";
 
 /// Adds `glossary_entry.pending_confirmed_at` (AD-54) to both stores and replaces the
 /// one-way lifecycle trigger: the only legal step back is clearing this column together
@@ -2830,7 +2839,10 @@ pub(crate) fn backup_before_migration(
     kind: StoreKind,
     from: u32,
 ) -> Result<(), StoreError> {
-    let outcome = pragmas::wal_checkpoint(conn, "TRUNCATE", kind)?;
+    let outcome = pragmas::wal_checkpoint(conn, "TRUNCATE", kind).map_err(|e| match e {
+        StoreError::CheckpointFailed { store, detail } => StoreError::OpenFailed { store, detail },
+        other => other,
+    })?;
 
     // 🔴 `busy != 0` nghĩa là TRUNCATE **không chép hết** — tức `.db` vẫn thiếu phần nằm
     // trong WAL, tức bản sao sắp tạo ra là bản sao không đầy đủ. Không đi tiếp: một

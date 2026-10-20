@@ -27,6 +27,7 @@ use auratranslate_lib::commands::pinned::{
     PinnedEntry, list_pinned_entries, pin_entry, unpin_entry,
 };
 use auratranslate_lib::commands::project::create_work_from_text;
+use auratranslate_lib::core::dict::DictLayers;
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::store::{
     GLOBAL_MIGRATIONS, PINNED_ENTRY_DDL, PROJECT_MIGRATIONS, Store, StoreSpec, Transaction,
@@ -88,16 +89,16 @@ fn a_fresh_global_database_ends_at_the_pinned_entry_step() {
 
     assert_eq!(
         store.schema_version(),
-        14,
-        "`GLOBAL_MIGRATIONS` co muoi bon buoc (buoc 14 them glossary_entry.pending_confirmed_at); muoi ba buoc dau gom (1.7 so di tru, 1.8 `config_value`, 1.20 \
+        15,
+        "`GLOBAL_MIGRATIONS` co muoi lam buoc (buoc 15 them pinned_entry.source_version, buoc 14 them glossary_entry.pending_confirmed_at); muoi ba buoc dau gom (1.7 so di tru, 1.8 `config_value`, 1.20 \
          `pinned_entry`, 3.1 `glossary_entry`, 3.10 gia tri term_origin thu tu, phan quyet \
          Ice #1 bang library_orphan, 6.5 bang import_cleanup_rule, 4.2 bang ai_config, 4.4 \
          bang prompt_set, 11.4 cot occurrence_count + trigger ky-tu-an, 7.3 bang tm_unit, 7.4 chi muc \
-         tm_unit, 8.7 bang translator_name), nen mot `global.db` moi phai ket thuc o phien ban 14"
+         tm_unit, 8.7 bang translator_name), nen mot `global.db` moi phai ket thuc o phien ban 15"
     );
     assert_eq!(
         GLOBAL_MIGRATIONS.len(),
-        14,
+        15,
         "so buoc va so phien ban dich phai di cung nhau"
     );
     assert_eq!(
@@ -159,7 +160,7 @@ fn an_older_global_database_migrates_up_and_keeps_its_rows() {
     // doi: di tru khong dung toi cau hinh cu.
     // Target moved 9 -> 10 (occurrence_count + zero-width triggers step). Assertion unaffected:
     // migration doesn't touch old config.
-    assert_eq!(migrated.schema_version(), 14, "buoc 3 den 14 phai da chay");
+    assert_eq!(migrated.schema_version(), 15, "buoc 3 den 15 phai da chay");
 
     let theme: String = migrated
         .read(|conn| {
@@ -311,6 +312,7 @@ fn pinning_the_same_entry_twice_leaves_exactly_one_row() {
         41,
         "聽潮閣",
         Some("Thinh Trieu Cac"),
+        None,
     )
     .expect("luot ghim thu nhat");
     let after = pin_entry(
@@ -319,6 +321,7 @@ fn pinning_the_same_entry_twice_leaves_exactly_one_row() {
         41,
         "聽潮閣",
         Some("Thinh Trieu Cac"),
+        None,
     )
     .expect("luot ghim thu hai phai VO HAI, khong mot loi");
 
@@ -342,13 +345,13 @@ fn unpinning_then_pinning_again_restores_the_same_entry() {
     let dir = temp_dir("unpin-repin");
     let store = open_global(&dir);
 
-    let before = pin_entry(Some(&store), "thieuchuu", 7, "氣機", None).expect("ghim lan dau");
+    let before = pin_entry(Some(&store), "thieuchuu", 7, "氣機", None, None).expect("ghim lan dau");
     assert_eq!(before.len(), 1);
 
     let emptied = unpin_entry(Some(&store), "thieuchuu", 7).expect("bo ghim");
     assert!(emptied.is_empty(), "bo ghim phai xoa han hang do");
 
-    let again = pin_entry(Some(&store), "thieuchuu", 7, "氣機", None).expect("ghim lai");
+    let again = pin_entry(Some(&store), "thieuchuu", 7, "氣機", None, None).expect("ghim lai");
     assert_eq!(again.len(), 1);
     assert_eq!(again[0].source_code, before[0].source_code);
     assert_eq!(again[0].entry_id, before[0].entry_id);
@@ -384,6 +387,7 @@ fn pins_survive_closing_and_reopening_the_store() {
         41,
         "聽潮閣",
         Some("Thinh Trieu Cac"),
+        None,
     )
     .expect("ghim");
     first.close();
@@ -413,7 +417,7 @@ fn without_a_store_every_path_is_a_named_error() {
         ),
         (
             "pin",
-            pin_entry(None, "cvdict", 1, "x", None).expect_err("ghim phai la mot loi"),
+            pin_entry(None, "cvdict", 1, "x", None, None).expect_err("ghim phai la mot loi"),
         ),
         (
             "unpin",
@@ -445,7 +449,7 @@ fn an_entry_with_no_gloss_is_still_pinnable_and_comes_back_as_none() {
     let dir = temp_dir("null-gloss");
     let store = open_global(&dir);
 
-    let rows = pin_entry(Some(&store), "vietphrase", 3, "鐵鏽", None).expect("ghim");
+    let rows = pin_entry(Some(&store), "vietphrase", 3, "鐵鏽", None, None).expect("ghim");
     assert_eq!(rows.len(), 1);
     assert_eq!(
         rows[0].gloss, None,
@@ -490,6 +494,7 @@ fn the_pinned_wire_shape_matches_what_the_frontend_reads() {
         headword: "聽潮閣".to_string(),
         gloss: None,
         pinned_at: "2026-08-11T09:15:00.000Z".to_string(),
+        source_version: None,
     };
 
     let json = serde_json::to_value(&entry).expect("serialize `PinnedEntry`");
@@ -504,6 +509,12 @@ fn the_pinned_wire_shape_matches_what_the_frontend_reads() {
         object.get("gloss"),
         Some(&serde_json::Value::Null),
         "`gloss` NULL phai di ra la `null` co mat, khong mot truong vang mat"
+    );
+
+    assert_eq!(
+        object.get("source_version"),
+        Some(&serde_json::Value::Null),
+        "`source_version` NULL phai di ra la `null` co mat"
     );
 
     let adapter_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -542,7 +553,7 @@ fn the_pinned_wire_shape_matches_what_the_frontend_reads() {
     }
     assert_eq!(
         object.len(),
-        6,
+        7,
         "so truong tren day doi — cap nhat `src/config/pinned.ts` cung luot"
     );
 }
@@ -553,9 +564,9 @@ fn pins_come_back_most_recent_first_after_a_reopen() {
     let dir = temp_dir("order-after-reopen");
 
     let first = open_global(&dir);
-    pin_entry(Some(&first), "cvdict", 1, "春秋", None).expect("ghim mot");
-    pin_entry(Some(&first), "cvdict", 2, "氣機", None).expect("ghim hai");
-    pin_entry(Some(&first), "cvdict", 3, "徐驍", None).expect("ghim ba");
+    pin_entry(Some(&first), "cvdict", 1, "春秋", None, None).expect("ghim mot");
+    pin_entry(Some(&first), "cvdict", 2, "氣機", None, None).expect("ghim hai");
+    pin_entry(Some(&first), "cvdict", 3, "徐驍", None, None).expect("ghim ba");
     first.close();
     drop(first);
 
@@ -569,5 +580,98 @@ fn pins_come_back_most_recent_first_after_a_reopen() {
     );
 
     drop(second);
+    cleanup(&dir);
+}
+
+/// One base layer whose single source `fx-core` carries `source_version`.
+fn dict_layers_with_source_version(dir: &Path, source_version: &str) -> DictLayers {
+    let conn = rusqlite::Connection::open(dir.join("base.db")).expect("dung fixture tu dien");
+    conn.execute_batch(
+        "CREATE TABLE dict_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+         CREATE TABLE dict_source (
+           id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, display_name TEXT NOT NULL,
+           license_kind TEXT NOT NULL, license_id TEXT, license_text TEXT NOT NULL,
+           attribution TEXT NOT NULL, source_version TEXT NOT NULL, source_url TEXT NOT NULL,
+           lang TEXT NOT NULL DEFAULT ''
+         );
+         CREATE TABLE dict_entry (
+           id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES dict_source(id),
+           lang TEXT NOT NULL, headword TEXT NOT NULL, headword_simp TEXT, reading TEXT,
+           han_viet TEXT, nom_reading TEXT
+         );
+         INSERT INTO dict_meta VALUES ('schema_version', '3'), ('layer', 'base');
+         PRAGMA user_version = 3;",
+    )
+    .expect("DDL fixture tu dien");
+    conn.execute(
+        "INSERT INTO dict_source (id, code, display_name, license_kind, license_text, \
+         attribution, source_version, source_url) \
+         VALUES (1, 'fx-core', 'fx', 'public-domain', 'x', 'x', ?1, 'x')",
+        rusqlite::params![source_version],
+    )
+    .expect("nap dict_source");
+    conn.close().expect("dong fixture tu dien");
+    DictLayers::open(dir)
+}
+
+/// `source_version` is read on the Rust side from the loaded `DictLayers`; a source that is
+/// not loaded, or no layers at all, pins `NULL` rather than a guess.
+#[test]
+fn a_pin_records_the_source_version_of_the_loaded_dictionary() {
+    let dir = temp_dir("pin-source-version");
+    let store = open_global(&dir);
+    let layers = dict_layers_with_source_version(&dir, "2026.07");
+
+    pin_entry(Some(&store), "fx-core", 1, "a", None, Some(&layers)).expect("ghim co lop");
+    pin_entry(Some(&store), "fx-core", 2, "b", None, None).expect("ghim khong lop");
+    let rows = pin_entry(Some(&store), "other", 3, "c", None, Some(&layers)).expect("ghim la");
+
+    let version_of = |entry_id: i64| {
+        rows.iter()
+            .find(|row| row.entry_id == entry_id)
+            .expect("hang ghim")
+            .source_version
+            .clone()
+    };
+    assert_eq!(version_of(1), Some("2026.07".to_string()));
+    assert_eq!(version_of(2), None);
+    assert_eq!(version_of(3), None);
+
+    layers.close();
+    drop(store);
+    cleanup(&dir);
+}
+
+/// Upgrading a v14 `global.db` keeps every existing pin, with `source_version` NULL.
+#[test]
+fn migrating_global_db_from_v14_keeps_the_existing_pins() {
+    let dir = temp_dir("pin-v14-to-v15");
+    let db = dir.join("global.db");
+
+    let old = Store::open(StoreSpec {
+        migrations: &GLOBAL_MIGRATIONS[..14],
+        ..StoreSpec::global(db.clone())
+    })
+    .expect("mo kho v14");
+    assert_eq!(old.schema_version(), 14);
+    old.write(|tx: &Transaction<'_>| {
+        tx.execute(
+            "INSERT INTO pinned_entry (source_code, entry_id, headword, gloss, pinned_at) \
+             VALUES ('cvdict', 1, 'a', 'g', '2026-01-01T00:00:00.000Z')",
+            [],
+        )?;
+        Ok(())
+    })
+    .expect("ghim kieu cu");
+    drop(old);
+
+    let migrated = Store::open(StoreSpec::global(db)).expect("nang len v15");
+    assert_eq!(migrated.schema_version(), 15);
+    let pinned = list_pinned_entries(Some(&migrated)).expect("doc");
+    assert_eq!(pinned.len(), 1);
+    assert_eq!(pinned[0].headword, "a");
+    assert_eq!(pinned[0].source_version, None);
+
+    drop(migrated);
     cleanup(&dir);
 }

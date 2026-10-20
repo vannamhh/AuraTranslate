@@ -305,7 +305,7 @@ fn a_row_from_before_the_new_step_cannot_be_unconfirmed_after_migrating() {
         };
         assert_eq!(
             (fx.global.schema_version(), fx.work.schema_version()),
-            (14, 40)
+            (15, 40)
         );
         let id = fx.row_id("慕容");
         assert_eq!(fx.row(id).1, None);

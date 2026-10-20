@@ -3442,7 +3442,7 @@ fn migrating_past_the_old_three_value_check_keeps_ids_and_carries_the_watermark_
     // Schema moved 9 -> 10 (added column + zero-width triggers on `glossary_entry`), but
     // neither touches the index/trigger this test guards nor blocks the plain ASCII values used here.
     let migrated = Store::open(StoreSpec::global(db)).expect("mo lai sau khi di tru");
-    assert_eq!(migrated.schema_version(), 14, "buoc 5 den 14 phai da chay");
+    assert_eq!(migrated.schema_version(), 15, "buoc 5 den 15 phai da chay");
 
     // (1) + (2) hang con song du, va id KHONG doi ('a' van la 1, 'b' van la 2 -- khong bi
     // don lai).

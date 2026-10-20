@@ -360,8 +360,56 @@ pub(crate) fn wal_checkpoint(
             checkpointed: row.get(2)?,
         })
     })
-    .map_err(|e| StoreError::OpenFailed {
+    .map_err(|e| StoreError::CheckpointFailed {
         store: kind,
         detail: format!("wal_checkpoint({mode}): {e}"),
     })
+}
+
+#[cfg(test)]
+mod checkpoint_error_tests {
+    use super::*;
+
+    fn wal_connection_inside_a_write_transaction() -> (Connection, std::path::PathBuf) {
+        let dir = std::env::temp_dir().join(format!(
+            "aura-ckpt-err-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let conn = Connection::open(dir.join("t.db")).expect("open");
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL; CREATE TABLE t (x); BEGIN IMMEDIATE; INSERT INTO t VALUES (1);",
+        )
+        .expect("fixture");
+        (conn, dir)
+    }
+
+    #[test]
+    fn a_failed_checkpoint_is_labelled_checkpoint_failed() {
+        let (conn, dir) = wal_connection_inside_a_write_transaction();
+        let err = wal_checkpoint(&conn, "PASSIVE", StoreKind::Global)
+            .expect_err("checkpoint inside an open write transaction must fail");
+        assert!(
+            matches!(err, StoreError::CheckpointFailed { .. }),
+            "got {err:?}"
+        );
+        drop(conn);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_failed_checkpoint_at_open_time_stays_open_failed() {
+        let (conn, dir) = wal_connection_inside_a_write_transaction();
+        let err = super::super::schema::backup_before_migration(
+            &conn,
+            &dir.join("t.db"),
+            StoreKind::Global,
+            1,
+        )
+        .expect_err("backup must abort when the checkpoint fails");
+        assert!(matches!(err, StoreError::OpenFailed { .. }), "got {err:?}");
+        drop(conn);
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

@@ -25,7 +25,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::core::store::{ReadHandle, Store, StoreError, Transaction};
+use crate::core::store::{ReadHandle, Store, StoreError, StoreKind, Transaction};
 
 use super::kinds::{ScopeKind, Semantics};
 use super::resolve::Resolved;
@@ -365,27 +365,15 @@ fn flatten(map: &BTreeMap<String, Resolved<String>>) -> BTreeMap<String, String>
 /// tồn tại — `.atproj` là Story 1.15. Xem doc-comment của [`super`].
 ///
 /// # Lỗi
-/// [`StoreError::ReadFailed`] / [`StoreError::PoolClosed`] từ đường đọc. Không lỗi nào
-/// của [`super::ScopeError`] thoát ra được: ba lời gọi dưới đây dùng đúng hàm cho ngữ
-/// nghĩa của chúng, và `the_three_global_only_kinds_are_exactly_three` canh mệnh đề đó.
+/// [`StoreError::ReadFailed`] / [`StoreError::PoolClosed`] from the read path, and
+/// [`StoreError::OpenFailed`] with `detail` when a kind no longer declares `GlobalOnly`
+/// ([`super::ScopeError`] never crosses the IPC boundary).
 pub fn load_global_config(store: &Store) -> Result<GlobalConfig, StoreError> {
     let resolver = ScopeResolver::global_only();
 
     let resolve_one = |kind: ScopeKind| -> Result<BTreeMap<String, Resolved<String>>, StoreError> {
         let global = load_kind(store, kind)?;
-        // 🔴 `unwrap_or_default()` chứ không `?`: `resolve_global_only` chỉ trả `Err` khi
-        // mã gọi sai hàm cho loại của nó, và ba loại dưới đây khai `GlobalOnly` ngay trong
-        // `scope_kinds!`. Một `Err` ở đây là lỗi lập trình, không phải một lỗi để báo cho
-        // người dùng — và `ScopeError` KHÔNG BAO GIỜ vượt ranh giới IPC (§Quyết định #7).
-        // Rơi về map rỗng giữ cho ứng dụng lên được bằng mặc định thay vì dựng một từ vựng
-        // lỗi thứ hai ở tầng adapter.
-        let resolved = resolver.resolve_global_only(kind.as_str(), &global, None);
-        debug_assert!(
-            resolved.is_ok(),
-            "scope[{}] must declare GlobalOnly semantics -- see scope_kinds!",
-            kind.as_str()
-        );
-        Ok(resolved.unwrap_or_default())
+        resolve_global_kind(&resolver, store.kind(), kind, &global)
     };
 
     Ok(GlobalConfig {
@@ -393,6 +381,20 @@ pub fn load_global_config(store: &Store) -> Result<GlobalConfig, StoreError> {
         shortcuts: resolve_one(ScopeKind::Shortcut)?,
         layout_presets: resolve_one(ScopeKind::LayoutPreset)?,
     })
+}
+
+fn resolve_global_kind(
+    resolver: &ScopeResolver,
+    store: StoreKind,
+    kind: ScopeKind,
+    global: &BTreeMap<String, String>,
+) -> Result<BTreeMap<String, Resolved<String>>, StoreError> {
+    resolver
+        .resolve_global_only(kind.as_str(), global, None)
+        .map_err(|e| StoreError::OpenFailed {
+            store,
+            detail: format!("scope[{}] semantics mismatch: {e}", kind.as_str()),
+        })
 }
 
 /// Đọc mọi cặp `khoá -> giá trị` của **một** loại từ tầng Global.
@@ -423,6 +425,9 @@ pub(crate) fn load_kind(
     })
 }
 
+pub const MAX_KEY_BYTES: usize = 256;
+pub const MAX_VALUE_BYTES: usize = 64 * 1024;
+
 /// Ghi (hoặc cập nhật) **một** giá trị ở tầng Global.
 ///
 /// `kind` là chuỗi vì nó đến từ bên kia ranh giới IPC — dữ liệu không tin được. Một khoá
@@ -442,6 +447,18 @@ pub(crate) fn load_kind(
 /// `config_value` phục vụ riêng ba loại đó, và một hàng `kind = 'glossary'` trong đó là
 /// mầm của đúng lược đồ EAV mà §Quyết định #1 loại bỏ.
 pub fn save_value(store: &Store, kind: &str, key: &str, value: &str) -> Result<(), StoreError> {
+    if key.len() > MAX_KEY_BYTES || value.len() > MAX_VALUE_BYTES {
+        return Err(StoreError::WriteFailed {
+            store: store.kind(),
+            detail: format!(
+                "config key is {} bytes (max {MAX_KEY_BYTES}) and value is {} bytes (max \
+                 {MAX_VALUE_BYTES}); nothing was written",
+                key.len(),
+                value.len()
+            ),
+        });
+    }
+
     let Some(parsed) = ScopeKind::from_wire(kind) else {
         return Err(StoreError::WriteFailed {
             store: store.kind(),
@@ -538,4 +555,24 @@ pub fn delete_value(store: &Store, kind: &str, key: &str) -> Result<(), StoreErr
     })?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_kind_that_is_not_global_only_is_an_open_failed_with_detail() {
+        let err = resolve_global_kind(
+            &ScopeResolver::global_only(),
+            StoreKind::Global,
+            ScopeKind::Glossary,
+            &BTreeMap::new(),
+        )
+        .expect_err("glossary is not GlobalOnly");
+        match err {
+            StoreError::OpenFailed { detail, .. } => assert!(detail.contains("glossary")),
+            other => panic!("expected OpenFailed, got {other:?}"),
+        }
+    }
 }

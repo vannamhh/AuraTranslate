@@ -1078,6 +1078,52 @@ fn the_workspace_layout_survives_a_write_and_a_reopen() {
     cleanup(&dir);
 }
 
+/// A genuine read failure (the table is gone) surfaces from `bootstrap_config` as
+/// `store.read_failed`, not as an empty config.
+#[test]
+fn bootstrap_config_reports_a_real_read_failure() {
+    let dir = temp_dir("read-failed");
+    let store = open_store(&dir);
+    store
+        .write(|tx: &Transaction<'_>| tx.execute_batch("DROP TABLE config_value"))
+        .expect("break the read path");
+
+    let err = bootstrap_config(Some(&store)).expect_err("a missing table must not read as empty");
+
+    assert_eq!(err.code(), "store.read_failed");
+    assert_eq!(err.message_key(), MessageKey::StoreReadFailed);
+
+    drop(store);
+    cleanup(&dir);
+}
+
+/// `config_value` keys are capped at 256 B and values at 64 KiB; past the cap nothing is
+/// written and the error is `store.write_failed`.
+#[test]
+fn save_value_refuses_a_key_or_value_past_the_ceiling() {
+    let dir = temp_dir("ceiling");
+    let store = open_store(&dir);
+
+    let long_key = "k".repeat(257);
+    let long_value = "v".repeat(64 * 1024 + 1);
+    for (key, value) in [(long_key.as_str(), "x"), ("mode", long_value.as_str())] {
+        let err = put_config(Some(&store), "app_config", key, value)
+            .expect_err("past the ceiling must be refused");
+        assert_eq!(err.code(), "store.write_failed");
+    }
+    let rows: i64 = store
+        .read(|conn| conn.query_row("SELECT COUNT(*) FROM config_value", [], |r| r.get(0)))
+        .expect("count rows");
+    assert_eq!(rows, 0, "a refused write must leave no row");
+
+    let max_key = "k".repeat(256);
+    let max_value = "v".repeat(64 * 1024);
+    save_value(&store, "app_config", &max_key, &max_value).expect("exactly at the ceiling is fine");
+
+    drop(store);
+    cleanup(&dir);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // §Quyết định #7 — từ vựng lỗi qua IPC đúng bằng từ vựng của `StoreError`
 // ═════════════════════════════════════════════════════════════════════════════════

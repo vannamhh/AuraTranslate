@@ -96,9 +96,9 @@ pub use readonly::ReadOnlyDb;
 pub use schema::{
     CHAPTER_DDL, CONFIG_VALUE_DDL, GLOBAL_MIGRATIONS, GLOSSARY_CANDIDATE_DDL, GLOSSARY_ENTRY_DDL,
     IMPORT_CLEANUP_RULE_DDL, LIBRARY_INDEX_MIGRATIONS, LIBRARY_WORK_DDL, Migration,
-    PINNED_ENTRY_DDL, PROJECT_MIGRATIONS, PROMPT_SET_DDL, SCHEMA_MIGRATION_LOG_DDL, SEGMENT_DDL,
-    SEGMENT_OMITTED_DDL, SEGMENT_STATUS_AND_VERSION_DDL, SEGMENT_TARGET_TEXT_DDL,
-    SEGMENT_TRANSLATION_ORIGIN_DDL, WORK_DDL,
+    PINNED_ENTRY_DDL, PINNED_ENTRY_SOURCE_VERSION_DDL, PROJECT_MIGRATIONS, PROMPT_SET_DDL,
+    SCHEMA_MIGRATION_LOG_DDL, SEGMENT_DDL, SEGMENT_OMITTED_DDL, SEGMENT_STATUS_AND_VERSION_DDL,
+    SEGMENT_TARGET_TEXT_DDL, SEGMENT_TRANSLATION_ORIGIN_DDL, WORK_DDL,
 };
 
 /// Lỗi thô của SQLite, cho chỗ gọi cần rẽ nhánh trên nó bên trong một job.
@@ -116,6 +116,7 @@ pub use rusqlite::ToSql;
 /// Kiểu giao dịch mà một job ghi nhận được. Tái xuất để chỗ gọi **không phải gõ
 /// `rusqlite`** — xem [`ReadHandle`] cho cùng lý do.
 pub use rusqlite::Transaction;
+use rusqlite::config::DbConfig;
 /// Dựng tham số ràng buộc cho một danh sách ĐỘ DÀI ĐỘNG (`WHERE x IN (?,?,…)`) — Story 5.4.
 ///
 /// Tái xuất vì cùng lý do sáu mục trên: `core::library::indexer::Indexer::list_works` cần
@@ -437,6 +438,15 @@ pub enum StoreError {
         detail: String,
     },
 
+    /// `PRAGMA wal_checkpoint` failed after the store was open (background or close
+    /// checkpoint). At open time the same failure is reported as [`StoreError::OpenFailed`].
+    CheckpointFailed {
+        /// Kho nào.
+        store: StoreKind,
+        /// Lỗi thô. Không đi lên giao diện.
+        detail: String,
+    },
+
     /// A business rule refused the write (e.g. deciding an already-decided candidate),
     /// unlike [`StoreError::WriteFailed`] (I/O failure): retrying a `Conflict` never helps.
     Conflict {
@@ -482,6 +492,7 @@ impl StoreError {
             | StoreError::UnknownTranslationOrigin { store, .. }
             | StoreError::GlossaryLifecycleMissing { store, .. }
             | StoreError::WriteFailed { store, .. }
+            | StoreError::CheckpointFailed { store, .. }
             | StoreError::Conflict { store, .. }
             | StoreError::WriterGone { store }
             | StoreError::ReadFailed { store, .. }
@@ -501,9 +512,9 @@ impl StoreError {
             StoreError::GlossaryLifecycleMissing { .. } => {
                 MessageKey::StoreGlossaryLifecycleMissing
             }
-            StoreError::WriteFailed { .. } | StoreError::WriterGone { .. } => {
-                MessageKey::StoreWriteFailed
-            }
+            StoreError::WriteFailed { .. }
+            | StoreError::CheckpointFailed { .. }
+            | StoreError::WriterGone { .. } => MessageKey::StoreWriteFailed,
             StoreError::Conflict { .. } => MessageKey::StoreConflict,
             StoreError::ReadFailed { .. } | StoreError::PoolClosed { .. } => {
                 MessageKey::StoreReadFailed
@@ -525,6 +536,7 @@ impl StoreError {
             StoreError::UnknownTranslationOrigin { .. } => "store.unknown_translation_origin",
             StoreError::GlossaryLifecycleMissing { .. } => "store.glossary_lifecycle_missing",
             StoreError::WriteFailed { .. } => "store.write_failed",
+            StoreError::CheckpointFailed { .. } => "store.checkpoint_failed",
             StoreError::Conflict { .. } => "store.conflict",
             StoreError::WriterGone { .. } => "store.writer_gone",
             StoreError::ReadFailed { .. } => "store.read_failed",
@@ -579,6 +591,9 @@ impl std::fmt::Display for StoreError {
             ),
             StoreError::WriteFailed { store, detail } => {
                 write!(f, "store[{}] write failed: {detail}", store.as_str())
+            }
+            StoreError::CheckpointFailed { store, detail } => {
+                write!(f, "store[{}] checkpoint failed: {detail}", store.as_str())
             }
             StoreError::Conflict { store, detail } => {
                 write!(f, "store[{}] conflict: {detail}", store.as_str())
@@ -701,6 +716,9 @@ impl Store {
         // 🔴 `drop` tường minh chứ không để cuối scope: bước 4 ngay dưới đây GHI VÀO
         // database, và một `return` sau nó là AC7 trượt im lặng.
         if found > target {
+            // SQLite would otherwise checkpoint the foreign WAL into the `.db` on close.
+            // Best effort: a refusal here must still report `SchemaTooNew`.
+            let _ = conn.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true);
             drop(conn);
             return Err(StoreError::SchemaTooNew {
                 store: kind,

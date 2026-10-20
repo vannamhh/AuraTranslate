@@ -33,6 +33,7 @@ import {
   FIXTURE_SEGMENTS,
   recordSave,
   resetRecorder,
+  saveCalls,
 } from './support/segmentFixture'
 import { createPositionFlush, POSITION_HARD_CAP_MS, POSITION_IDLE_MS } from '../../src/panels/positionFlush'
 import type { ReadChapterSegmentsResult } from '../../src/config/segment'
@@ -158,12 +159,20 @@ async function docNguyenVanGia() {
   }
 }
 
+const hookGiuaChuyen: (undefined | (() => void))[] = []
+let chiSoLuotLuu = 0
+
+async function luuCoMoc(chapterId: number, edits: { id: number; target_text: string }[]) {
+  hookGiuaChuyen[chiSoLuotLuu++]?.()
+  return recordSave(chapterId, edits)
+}
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return {
     ...actual,
     readOpenChapterSegments: docSegmentGia,
-    saveSegmentTargets: recordSave,
+    saveSegmentTargets: luuCoMoc,
     saveChapterPosition: ghiViTriGia,
   }
 })
@@ -185,7 +194,41 @@ describe('editorPanelState.ts::openChapterById — cửa chặn khi flush chưa 
     resetRecorder()
     luotMoChuong.length = 0
     luotGhiViTri.length = 0
+    hookGiuaChuyen.length = 0
+    chiSoLuotLuu = 0
     caretFromRust.value = FIXTURE_SEGMENTS[0].id
+  })
+
+  it('🔴 gõ tiếp trong lúc một lô TRƯỚC khoá đang bay ⇒ lượt mở chờ lô đó, ghi nốt phần gõ thêm, rồi mới `open_chapter`', async () => {
+    const state = await tuoi()
+    state.setEditorCaret(12)
+    state.noteEditorEdit(12, 'Ban dau.')
+    hookGiuaChuyen[0] = () => state.noteEditorEdit(12, 'Ban hai.')
+    const loDangBay = state.flushEditorNow()
+
+    const moDuoc = await state.openChapterById(99)
+    await loDangBay
+
+    expect(moDuoc).toBe(true)
+    expect(saveCalls.map((c) => c.edits)).toEqual([
+      [{ id: 12, target_text: 'Ban dau.' }],
+      [{ id: 12, target_text: 'Ban hai.' }],
+    ])
+    expect(luotMoChuong).toEqual([99])
+  })
+
+  it('🔴 gõ tiếp trong lúc lô đầu đang bay SAU khi lượt mở đã khoá ⇒ phím bị từ chối, nên không có gì dơ để `still-dirty` và `open_chapter` chạy một lần', async () => {
+    const state = await tuoi()
+    state.setEditorCaret(12)
+    state.noteEditorEdit(12, 'Ban dau.')
+    hookGiuaChuyen[0] = () => state.noteEditorEdit(12, 'Ban hai.')
+
+    const moDuoc = await state.openChapterById(99)
+
+    expect(moDuoc).toBe(true)
+    expect(state.editorNavNotice.value).toBeNull()
+    expect(saveCalls.map((c) => c.edits)).toEqual([[{ id: 12, target_text: 'Ban dau.' }]])
+    expect(luotMoChuong).toEqual([99])
   })
 
   it('🔴 flush TRƯỢT ⇒ lượt mở Chương bị CHẶN, và `open_chapter` KHÔNG chạy', async () => {

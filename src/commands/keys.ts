@@ -433,10 +433,16 @@ const lacksPrimaryMod = (m: Mods): boolean => !m.meta && !m.ctrl
  * lặng lẽ tắt ở đúng chỗ nó cần bật nhất. (Lợi ích phụ, và nó có thật: Kiểm D lái được
  * cả hai nhánh bằng một object giả, nên luật này có lưới thay vì chỉ có lời hứa.)
  */
-function isTypingZone(target: unknown): boolean {
+const NON_TEXT_INPUT_TYPE_RE = /^(?:range|checkbox|radio|button|submit|reset|color|file|image)$/
+const PRINTABLE_CODE_RE = /^(?:Key[A-Z]|Digit\d|Numpad\d|Minus|Equal|BracketLeft|BracketRight|Backslash|IntlBackslash|Semicolon|Quote|Backquote|Comma|Period|Slash)$/
+
+function isTypingZone(target: unknown, code?: string): boolean {
   if (typeof target !== 'object' || target === null) return false
-  const el = target as { tagName?: unknown; isContentEditable?: unknown }
+  const el = target as { tagName?: unknown; isContentEditable?: unknown; type?: unknown }
   if (el.isContentEditable === true) return true
+  if (el.tagName === 'INPUT' && typeof el.type === 'string' && NON_TEXT_INPUT_TYPE_RE.test(el.type)) {
+    return code === undefined || !PRINTABLE_CODE_RE.test(code)
+  }
   return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'
 }
 
@@ -518,7 +524,7 @@ export function createKeymap(
     }
     for (const entry of compiled) {
       if (entry.code !== event.code || !sameMods(entry.mods, mods)) continue
-      if (lacksPrimaryMod(entry.mods) && isTypingZone(event.target)) return false
+      if (lacksPrimaryMod(entry.mods) && isTypingZone(event.target, event.code)) return false
       // Khớp ⇒ chặn hành vi mặc định RỒI mới dispatch. Ngược thứ tự thì một handler ném
       // sẽ để `⌘1` chạy tiếp xuống webview.
       event.preventDefault?.()
