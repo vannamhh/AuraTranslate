@@ -140,40 +140,39 @@ fn lock_window_against_run<T: Send + 'static>(
     (out, seen_taken.then_some(held), run_time)
 }
 
-/// How long `OpenWorkState` stays taken after `shell` started, against how long the shell ran in
-/// all. Polls with `try_lock` from 5 ms on; the first poll must find it taken, or the shell did
-/// not lock it early enough to measure.
+/// How long `OpenWorkState` stays taken once first seen taken, against how long the shell runs
+/// from that same moment.
 fn lock_held_against_run<T: Send + 'static>(
     app: &tauri::App<MockRuntime>,
     shell: impl FnOnce(tauri::AppHandle<MockRuntime>) -> T + Send + 'static,
 ) -> (T, Duration, Duration) {
     let handle = app.handle().clone();
-    let started = Instant::now();
     let run = std::thread::spawn(move || {
         let out = shell(handle);
-        (out, started.elapsed())
+        (out, Instant::now())
     });
-    std::thread::sleep(Duration::from_millis(5));
     let state = app.state::<OpenWorkState>();
-    let mut first = true;
-    let held = loop {
+    let mut taken_at: Option<Instant> = None;
+    let freed_at = loop {
         match state.try_lock() {
-            Ok(_) | Err(std::sync::TryLockError::Poisoned(_)) => break started.elapsed(),
+            Ok(_) | Err(std::sync::TryLockError::Poisoned(_)) => {
+                if taken_at.is_some() {
+                    break Instant::now();
+                }
+            }
             Err(std::sync::TryLockError::WouldBlock) => {
-                first = false;
-                std::thread::sleep(Duration::from_millis(1));
+                taken_at.get_or_insert_with(Instant::now);
             }
         }
         if run.is_finished() {
-            break started.elapsed();
+            break Instant::now();
         }
+        std::thread::sleep(Duration::from_millis(1));
     };
-    let (out, run_time) = run.join().expect("luong lenh");
-    assert!(
-        !first,
-        "tien de: sau 5 ms OpenWorkState phai dang bi giu de do"
-    );
-    (out, held, run_time)
+    let (out, finished_at) = run.join().expect("luong lenh");
+    let taken_at =
+        taken_at.expect("tien de: phai thay OpenWorkState bi giu truoc khi luot xuat xong");
+    (out, freed_at - taken_at, finished_at - taken_at)
 }
 
 #[test]
