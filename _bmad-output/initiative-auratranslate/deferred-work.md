@@ -257,8 +257,10 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   | `close_truncate_budget` | 2 s | Trần để `close()` không làm `check:scope` / `check:scope:bundled` đỏ |
 
   **Đừng đọc chúng như đã hiệu chỉnh**, và đừng để một story sau tưởng chúng đã qua một lượt đo. Doc-comment của `Tuning` và của module đều khai là tạm. **Story 2.4** đo lại cả sáu trên Editor thật.
+  → 🔵 2026-10-20 (rà nợ) — một trên sáu số đã đo: lưới sáu điểm NFR18 của Story 2.4 (2026-08-18, 120 mẫu hợp lệ, Ice ký 2026-08-19) thay `wal_threshold_bytes` từ 512 KiB tới 16 MiB; NFR18 trượt ở mọi điểm, đỉnh `.db-wal` ~754 KB nên ngưỡng từ 1 MiB trở lên không bắn, tức không có đánh đổi WAL–NFR18. Năm số còn lại và ba hằng nhịp flush chưa đo; doc-comment "Tạm" ở `core/store/mod.rs` vẫn đúng. **Chủ: Story 2.4.**
 
 - ⚠️ **AC5 nghiệm thu CƠ CHẾ, không nghiệm thu NGƯỠNG THẬT.** `store_contract.rs::the_wal_stops_growing_once_it_crosses_the_threshold` chạy với `wal_threshold_bytes = 64 KiB` và blob 32 KiB — số thu nhỏ để ca chạy trong dưới một giây trên cả hai nền tảng *(§Testing standards cấm `sleep` dài)*. Nó chứng minh **vế (b) tồn tại và kích hoạt được khi chưa rảnh**; nó **không** chứng minh 4 MiB là con số đúng cho một phiên gõ thật. Cùng chủ sở hữu: **Story 2.4**. **(Chủ: Story 2.4.)**
+  → ✅ ĐÃ ĐÓNG 2026-10-20 (Story 2.4) — câu "4 MiB có đúng cho một phiên gõ thật không" đã có số: lưới sáu điểm (plan Story 2.4 §Kết quả LƯỚI SÁU ĐIỂM) đo đỉnh `.db-wal` ~754 KB khi gõ thật, nên ở 4 MiB vế (b) không bắn, và NFR18 không đổi giữa 512 KiB và 16 MiB. Giới hạn của số: văn bản ASCII, một kho, macOS; hai vế đó do mục "HAI kho cùng lúc" và mục "dấu tiếng Việt" giữ.
 
 - ⚠️ **Ca AC5 phụ thuộc vào nhịp tương đối giữa `checkpoint_tick` và khoảng cách hai lượt ghi.** SQLite chỉ quay `.db-wal` về đầu tệp khi một giao dịch ghi bắt đầu đúng lúc `nBackfill == mxFrame` (`walRestartLog`). Ca test vì thế đặt tick 3 ms / gap 10 ms và ghi lý do ngay tại chỗ. Trên một runner chậm hơn hẳn, tỷ lệ đó có thể lệch. Đã chạy 5 lượt liên tiếp trên máy dev không dao động; **chưa chạy trên runner CI lần nào** — cùng danh sách với bốn phép nghiệm thu của Story 1.3 đang chờ lượt CI thật. **(Chủ: một story kế tiếp chạm `core/store`.)**
   → ✅ ĐÃ ĐÓNG 2026-09-23 (rà sổ nợ) — store_contract.rs:543-548 dẫn một lượt CI thật macos-26 (run 32438371572) khiến ca AC5 (dòng 736) được RESHAPE 2026-09-13; WAL_CEILING_NUM khác theo cfg!(windows) do Ice chốt trên số đo Windows CI thật — ca không #[ignore].
@@ -288,6 +290,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 - 🔴 **`Checkpointer::shutdown()` có thể để luồng nền treo lửng sau khi `close()` đã trả về** — `src-tauri/src/core/store/checkpoint.rs:228`. Đây là đánh đổi CÓ CHỦ Ý và đã ghi rõ trong doc-comment (hết ngân sách ⇒ ghi chẩn đoán rồi thoát, không join, không treo tiến trình). Rủi ro còn lại: luồng nền có thể vẫn đang chạy TRUNCATE (có thể bị chặn tới `busy_timeout` ~5s) sau khi `shutdown()`/`close()` đã trả về ở phía gọi. ~~Hôm nay vô hại vì chỗ gọi DUY NHẤT là `close_global_store()` ở `RunEvent::Exit` (`lib.rs:128`), ngay sau đó tiến trình thoát. Chỉ trở thành rủi ro thật nếu một story sau này thêm luồng "khởi động lại kho mà không thoát tiến trình". Ghi lại cho story đó.~~
   → 🔴 **ĐỔI TRẠNG THÁI 2026-08-06 (Story 1.15): TỪ "VÔ HẠI" SANG "RỦI RO THẬT".** Story 1.15 là chính story đã được cảnh báo trước: `commands::project::replace_open_work` (`lib.rs`) thay `Option<OpenWork>` trong state mỗi khi một Tác phẩm mới được tạo trong CÙNG một phiên — `Store` cũ bị `Drop` (gọi `close()`, tức `Checkpointer::shutdown()`) **giữa chừng tiến trình**, **không** thoát tiến trình. Đây đúng là "luồng khởi động lại kho mà không thoát tiến trình" mà mục này chờ. Rủi ro cụ thể: tạo hai Tác phẩm liên tiếp nhanh trong cùng phiên có thể để lại một luồng checkpoint của Tác phẩm THỨ NHẤT còn chạy TRUNCATE (tới ~5s `busy_timeout`) trong khi Tác phẩm thứ hai đã bắt đầu ghi — hai luồng checkpoint của hai kho KHÁC NHAU nên không tranh chấp dữ liệu, nhưng CPU/I/O chồng lấn chưa được đo. Chưa có test nào ép được ca này (cần dựng đúng nhịp thời gian giữa hai `create_work` liên tiếp). Giao lại cho story đo hiệu năng multi-Work (chưa có chủ) hoặc Story 2.4 (đo `Tuning`). **(Chủ: một story kế tiếp chạm `core/store`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: checkpoint.rs:228-257 Checkpointer::shutdown() vẫn chỉ chờ trong self.budget rồi bỏ qua (không join) nếu hết hạn; không tìm thấy test nào ép hai lần create_work liên tiếp để tạo kịch bản này. **Chủ: Story 2.4.**
+  → 🔵 2026-10-20 (rà nợ) — vẫn đúng: `Checkpointer::shutdown()` (`core/store/checkpoint.rs`) bỏ luồng sau ngân sách, không join; đường giữa tiến trình là `replace_open_work` → `swap_locked` → `drop(old)` (`commands/project/mod.rs`), gọi từ sáu lệnh ở `commands/project/wire.rs`. Vẫn chưa có ca ép hai lượt thay kho liên tiếp; Ice giữ cho Story 2.4. **Chủ: Story 2.4.**
 - **`Writer::shutdown()` không có trần thời gian cho `handle.join()`** — `src-tauri/src/core/store/writer.rs:159`, dựa trên giả định trong doc-comment rằng job ghi "không chặn/không gọi ra ngoài", giả định này không được kiểu hay runtime cưỡng chế. Một job chặn do bug tương lai (9 epic còn lại ghi qua tầng này) sẽ treo `RunEvent::Exit` vô thời hạn. **Ice chốt 2026-08-04 (lượt code review):** chấp nhận rủi ro — giữ kỷ luật "không bỏ dở một giao dịch đang commit để tiết kiệm mili-giây trên đường thoát" cho v1; giám sát bằng review thủ công mỗi khi một story mới ghi qua tầng này thay vì cưỡng chế bằng cơ chế.
   → ⚠️ **Story 1.15 (2026-08-06) là story ĐẦU TIÊN có job ghi kèm việc tạo dữ liệu I/O SONG SONG (ghi `meta.json`) — đã soát và giữ TÁCH RIÊNG có ý thức.** `commands::project::create_work`'s `store.write(move |tx| {...})` chạy **đúng hai** `tx.execute` (INSERT `work`, INSERT `chapter`), cả hai SQL là **hằng `&'static str`**, tham số ràng buộc qua **tuple** *(⚠️ sửa ở lượt code review 2026-08-06 — mục này trước đó ghi `rusqlite::params`, và đó là tên sai: `store_boundary.rs::FORBIDDEN` cấm token `rusqlite` ngoài `core/store`, nên `commands::project` **buộc phải** dùng tuple. Bất biến được ghi nhận — tham số **ràng buộc**, không `format!` chèn dữ liệu người dùng vào SQL — thì **đúng**; chỉ cơ chế bị gọi sai tên)*, không I/O, không gọi ra ngoài, không `Store::write` lồng nhau. `meta.json` (bao gồm `fs::write`/`sync_all`/`rename`) chạy **SAU KHI** `store.write(...)` đã trả về `Ok`, ở tầng THAO TÁC — Quyết định #3 của story, chính vì lý do này. Giả định *"job ghi không chặn, không I/O"* vẫn đúng sau story này. **(Chủ: một story kế tiếp chạm `core/store`.)**
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: writer.rs:312-318 Writer::shutdown() vẫn gọi handle.join() không trần thời gian, dựa trên giả định doc-comment rằng job ghi không chặn/không gọi ra ngoài, không được kiểu hay runtime cưỡng chế. **Chủ: Ice.**
@@ -767,6 +770,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
 ## Deferred from: 1-15-tac-pham-tren-dia-va-duong-vao-van-ban-toi-thieu (2026-08-06)
 
 - ⚠️ **Sáu số `Tuning` của Story 2.4 nay càng khó đo hơn: một phiên có thể chạy HAI kho cùng lúc** (`global.db` + `project.db` của Tác phẩm đang mở) — mỗi kho tự mang luồng checkpoint + pool 4 kết nối riêng. Chưa có phép đo nào về tranh chấp CPU/I/O giữa hai luồng checkpoint chạy song song trên cùng một tiến trình. **Story 2.4** đo lại cả sáu số trên Editor thật, nay nên đo trong ĐÚNG kịch bản hai kho, không phải một kho đơn lẻ. **(Chủ: Story 2.4.)**
+  → 🔵 2026-10-20 (rà nợ) — lưới sáu điểm chạy trên một kho (`project.db`); AC10 của Story 2.4 (hai kho, checkpoint chồng pha) chưa đo, chưa có ca hay bàn đo nào cho hai luồng checkpoint song song. **Chủ: Story 2.4.**
 
 - ⚠️ **`ports::ProjectStore` được khai (AD-2, Task 3) nhưng CHƯA CÓ CÀI ĐẶT nào** — cùng hoàn cảnh `TranslationProvider` (Epic 4). `commands::project` gọi thẳng `Option<&Store>`/`&Path` (khuôn `commands::config`), không qua cổng này. Cắm một `impl ProjectStore` thật là việc của epic đầu tiên cần trừu tượng hoá trên "một Tác phẩm đã mở" (ứng viên: Epic 2 Editor, Epic 3 Glossary). **(Chủ: Epic 4.)**
 
@@ -812,6 +816,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   → ✅ ĐÃ ĐÓNG 2026-09-28 (Story 11.5) — không có việc gì cho Story 11.5: vế Story 2.1 đã đóng từ trước, vế Story 6.4 (chuẩn hoá đường nhập tới) đã đóng, vế di trú dữ liệu cũ là một mục RIÊNG đã tự đóng — `deferred-work.md:8564` → `KHÔNG LÀM 2026-09-24 (phiếu quyết #8)`: chưa phát hành nên Chương nhập trước Story 6.4 chỉ có trên máy dev, bản dịch neo theo segment nên không hỏng. Mục này chỉ là một con trỏ.
 
 - ⚠️ **Trần nhập 100 MB là một con số TẠM, chưa ai đo** — `core::segment::import::MAX_IMPORT_BYTES`, Ice chốt 2026-08-06 ở lượt code review. Nó tồn tại để một tệp bệnh hoạn không giết tiến trình (`fs::read` trọn tệp + `String` + bind SQLite ≈ 3 bản trong bộ nhớ, trên **luồng invoke đồng bộ**, và `panic = "abort"` biến cạn bộ nhớ thành giết cả tiến trình). **Chưa ai đo đỉnh RSS thật** cho một tệp 100 MB đi hết chuỗi, và nó **không** phải một phép đo về *"bao nhiêu thì Editor còn dùng được"*. Còn hai lỗ nữa ghi ra thay vì giấu: ① một **cửa sổ đua** giữa `metadata()` và `read()` *(tệp phình ra ở giữa)* — đóng nó đòi đọc theo khối có trần, mà nhập theo khối là Epic 6; ② lượt nhập vẫn **chặn luồng invoke**, không có tiến độ nào ngoài cờ `busy`. **Chủ: Story 2.4** *(đo `Tuning`)* cho con số, **Epic 6** cho đường đọc theo khối.
+  → 🟡 2026-10-20 (Story 2.4) — vế con số đã đo: Story 6.18 chạy `story_6_18_debt_probes.rs::peak_rss_of_the_whole_seven_step_import_chain_on_a_max_import_bytes_chapter` ở `bench-release` trên tệp 104 853 588 B, đỉnh RSS ~979 MB (~9,8×); việc vá nếu cần thuộc mục đo đó, nay của Story 10.9. Lệnh nhập nay là `#[tauri::command(async)]` (`commands/project/wire.rs`), chạy trên một worker tokio, nhưng vẫn `fs::read` trọn tệp (`core/segment/import.rs`) nên cửa sổ đua `metadata()`/`read()` còn. Còn lại: đọc theo khối có trần. **Chủ: Epic 6.**
 
 - ⚠️ **`err.project.meta_too_new` và `MessageKey::ProjectMetaTooNew` ĐÃ BỊ GỠ ở lượt code review 2026-08-06** — Ice chốt. Cơ chế từ chối một `meta.json` phiên bản mới hơn **vẫn còn nguyên và vẫn có test** (`MetaError::SchemaTooNew` + `WorkMeta::read` + `project_contract.rs::a_newer_meta_schema_is_refused_without_touching_a_single_byte`); thứ bị gỡ là **bề mặt hiển thị** của nó. Lý do: Story 1.15 không dựng màn hình *"mở lại một `.atproj` đã có"*, nên `WorkMeta::read` **không có một chỗ gọi sản phẩm nào**, nên một `MessageKey` + một khoá `vi.json` cho nó là **một khoá cho tính năng chưa tồn tại** — đúng thứ Story 1.7 §Completion Notes #3 cấm và `scope_contract.rs` trích lại nguyên văn. 🔴 **Story nào dựng đường mở lại một `.atproj`** *(ứng viên: Epic 5, lưới Tác phẩm)* **thêm lại cả ba thứ — biến thể `ProjectError`, `MessageKey`, khoá `vi.json` — CÙNG MỘT LƯỢT với màn hình.** **(Chủ: một story hạ tầng kiểm thử kế tiếp.)**
   → ✅ **ĐÃ ĐÓNG 2026-08-29 (Story 5.7).** `commands::project::open_work` là đường mở lại một
@@ -2064,6 +2069,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   tác chạy một lần. 1,3 s ở đây nằm ngay dưới mốc đó, nhưng nó là số của **hôm nay**, khi mọi
   `target_text` còn RỖNG; chữ thật sẽ làm nó tăng.
   **Chủ: Story 2.4** *(story mang AC ghi lại lựa chọn thư viện editor — `epics.md:2142-2145`)*.
+  → KHÔNG LÀM 2026-10-20 (Story 2.4) — `EditorPanel.vue` bị xoá ở `ca33072`; số dựng 9 850 `<span>` mất hiệu lực theo cấu trúc (lưới dựng 49 256 node trong năm cột). Chi phí còn sống là đường dời con trỏ của lưới, mục "TASK 8 ĐÃ ĐO — SỐ GIAO CHO STORY 2.4" giữ nó.
 
 - ⚠️ **Bàn đo của story này là một tệp DÙNG MỘT LẦN, và nó CHÉP chứ không mount.**
   `_bmad-output/implementation-artifacts/2-2-ban-do-editor.html` chép CSS và cấu trúc DOM của
@@ -2132,6 +2138,7 @@ Windows, tức đúng hai món nợ **A4** và **A5** đang chờ chủ. Không 
   **1.308,0 ms** WebKit cho 9.850 câu, so với trần 50 ms/frame của NFR2) và giao số cho
   **Story 2.4**. Ghi ở đây để lượt tối ưu của 2.4 biết rằng caret là **nguồn kích hoạt thứ hai**
   của cùng chi phí đó, không chỉ lượt dựng đầu tiên. **Chủ: Story 2.4.**
+  → KHÔNG LÀM 2026-10-20 (Story 2.4) — `:data-caret` không còn trong `src/` (chỉ một chú thích ở `editorPanelState.ts`); cơ chế sống tiếp ở `ruleById`/`ruleClassById` của `GridPanel.vue`, tính lại trên toàn danh sách mỗi lượt dời con trỏ, và mục "TASK 8 ĐÃ ĐO — SỐ GIAO CHO STORY 2.4" giữ nó.
 
 ## Deferred from: 2-3-hop-dong-flush-va-trang-thai-da-luu (2026-08-12)
 
@@ -2341,6 +2348,7 @@ tới frame sau vẫn chưa có caret nào)* — đánh dấu như vậy để k
   *(`src/commands/registry.ts` · `src/commands/README.md` · `src/i18n/README.md`)* đã được sửa;
   bàn đo của story trước **không** nằm trong danh sách đó nên nó giữ nguyên, và đây là hàng ghi
   lại điều đó. **Chủ: Story 2.4** *(story đó đã nhận món "chụp lại ba ảnh bàn đo 2.2")*.
+  → ✅ ĐÃ ĐÓNG 2026-10-20 (Story 2.4) — câu đầu `2-2-ban-do-editor.html` nay nói bàn đo ra đời khi dự án chưa có bộ chạy test frontend, và nay đã có vitest (`npm test`).
 
 - ⚠️ **`happy-dom` thiếu ba thứ so với một DOM thật, và danh sách đó là một món nợ ĐO ĐƯỢC.**
   `tests/frontend/support/setup.ts` vá `document.fonts` *(không cài FontFaceSet)* và
@@ -2366,6 +2374,7 @@ hoãn, không gom thành một câu *(retro §5)*.
   O(số câu đang gõ dở). ⚠️ Trần đã đo của Story 2.2 là **9 850** câu, nên đây cùng một hàng nợ với
   *"ảo hoá danh sách dài"* (`ARCHITECTURE-SPINE.md:888`) và phải được hiệu chỉnh **cùng lượt** với
   nó — vá lẻ ở đây là tối ưu một hằng số trước khi biết bậc độ lớn có đổi không. **Chủ: Story 2.4.**
+  → ✅ ĐÃ ĐÓNG 2026-10-20 (Story 2.4) — Ice chọn vá ngay, không chờ ảo hoá: `restoreEditedText` (`GridPanel.vue`) duyệt tập chờ và tra từng id bằng `querySelector`, không còn `querySelectorAll('[data-segment-id]')` trên cột bản dịch; chi phí nay là k lượt `querySelector`, k = số câu đang chờ ghi. Ca `tests/frontend/gridRestoreEditedText.test.ts`: đưa lại vòng quét cũ đỏ ca quét, gỡ vòng khôi phục đỏ cả hai ca. Chưa đo thời gian.
 
 - **`nearestSentenceTo()` ép bố cục lại trên mỗi cú bấm hụt.**
   `src/panels/EditorPanel.vue:565`, gọi từ `onDocMouseDown`/`onDocMouseUp`. Mỗi cú bấm rơi vào
@@ -2374,6 +2383,7 @@ hoãn, không gom thành một câu *(retro §5)*.
   một story mà mọi quyết định khác đều có bảng đo chống lưng. Hàm này ra đời ở lượt vá 2026-08-13
   *(một trong ba nguyên nhân thật của "khó click để focus")*, tức nó **chưa từng đi qua** bàn đo
   hai engine của Task 0.1. **Chủ: Story 2.4** *(đo cùng lượt với trần NFR2)*.
+  → KHÔNG LÀM 2026-10-20 (Story 2.4) — `nearestSentenceTo` bị xoá cùng `EditorPanel.vue` ở `ca33072`, 0 chỗ dùng trong `src/`; không còn hàm để đo.
 
 - **Cửa rà giấy phép NFR15 không có một cổng máy nào.**
   `src/commands/registry.ts` · `src/commands/README.md` · `src/i18n/README.md` · `vitest.config.ts`
@@ -2482,6 +2492,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
 **Cái CHƯA đo, và không được đọc bảng NFR2/NFR18 của story 2.4 rộng hơn chỗ này:**
 
 - Văn bản có **dấu tiếng Việt** trên đường gõ — mọi số của 2.4 đọc ra từ văn bản **ASCII**. **(Chủ: Story 2.4.)**
+  → 🔵 2026-10-20 (rà nợ) — vẫn đúng: Ice ký 2026-08-19 "đường gõ giữ ASCII, phần tiếng Việt ghi nợ" vì `osascript keystroke` làm hỏng chữ có dấu (plan Story 2.4); chưa lượt đo nào gõ chữ có dấu. **Chủ: Story 2.4.**
 - Đường **IME**, và cùng với nó là ca *"xoá lùi qua đầu câu"* — ca mà chính tệp này xếp là **ca
   thủng cao nhất theo dự đoán**, và là lý do `type-driver.sh` cố ý đòi tiếng Việt có dấu ngay từ đầu.
 
@@ -2641,6 +2652,7 @@ clipboard *(dán là một sự kiện `paste`, không phải chuỗi phím ngư
   `getClientRects()` lẫn lượt bố cục đi kèm. Vế *"một frame thật có vượt 50 ms không, trên một
   Chương đã dịch xong"* **chưa ai đo**, và Story 2.5 **không tự chấm NFR2 đạt**.
   **Chủ: Story 2.4** *(nó sở hữu bộ đo NFR2/NFR18 — đừng dựng bộ đo thứ hai)*.
+  → KHÔNG LÀM 2026-10-20 (Story 2.4) — `measureGutterRules`/`assignGutterLanes` bị xoá cùng `src/panels/editorGutter.ts` ở `ca33072`; lưới vẽ một `.rule` mỗi hàng, không còn chia làn. Vế "một frame thật trên Chương đã dịch" là đường dời con trỏ của lưới, mục "TASK 8 ĐÃ ĐO — SỐ GIAO CHO STORY 2.4" giữ nó.
 
 ## Deferred from: code review of 2-5-xac-nhan-segment-va-may-trang-thai (2026-08-14)
 
@@ -2771,6 +2783,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   **cách chạy nào** thì không tệp nào ghi lại. Đừng đối chiếu chúng với nhau cho tới khi món này đóng.
 
   **Chủ: Story 2.4** *(nó sở hữu hạ tầng đo và bàn đo; đừng dựng đường chẩn đoán thứ hai)*.
+  → ✅ ĐÃ ĐÓNG 2026-10-20 (Story 2.4) — `6d68dce` cho mỗi tệp spec một tiến trình app trên cặp thư mục trắng (`e2e/wdio.conf.mjs`, `onWorkerEnd`); nightly `39161292771` (`fe08b04`, macOS) chạy cả bộ một lượt: 31/31 tệp xanh — đó là cả bộ lúc ấy, chưa có spec 12-x nào. Bộ nay 49 tệp chưa có lượt nightly xanh: nightly `39331390830` (`5e7d249`) đỏ năm tệp, và cả năm đỏ đúng chỗ ấy khi chạy riêng từng tệp, nên không phải rò giữa các spec (`eb97bbf` sửa năm spec).
 
 ---
 
@@ -3033,6 +3046,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   về ngay khi ô ĐẦU TIÊN có mặt. Bản sửa chờ nhịp frame rẻ trước khi bấm đồng hồ.
 
   **Chủ: Story 2.4** *(sở hữu bộ đo NFR2/NFR18 — 2.5b **giao số**, không tự chấm, B9)*.
+  → 🔵 2026-10-20 (rà nợ) — vẫn đúng ở `bf3f47f`: lưới chưa ảo hoá (mọi `v-for` của `GridPanel.vue` chạy trên toàn `editorSegments`), `ruleById`/`ruleClassById` tính lại trên toàn danh sách mỗi lượt dời con trỏ; 2.5c, 2.5d, 2.11 không đo lại, nên 706–770 ms vẫn là số mới nhất. Lượt rà này không đo lại, không vá. **Chủ: Story 2.4.**
 
 - 🔵 **NGUYÊN VĂN của lượt đỏ chập chờn `attribution-focus` — ĐÃ BẮT ĐƯỢC 2026-08-15.**
 
@@ -4673,6 +4687,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   → KHÔNG LÀM 2026-10-20 (Story 2.3) — nhánh `'chapter-still-dirty'` của `openChapterById` KHÔNG tới được qua API thật: `noteEditorEdit` bỏ phím trong lúc `dangChuyenChuong` bật và `openChapterById` bật khoá đó TRƯỚC lần flush, nên không có gì làm bẩn tập giữa chừng; `libraryChapters.test.ts` mock nhánh này vì lý do đó. Hai cuộc đua tới được nay có ca thật trong `chapterPosition.test.ts` (gõ trong lúc lô flush bắt đầu TRƯỚC khoá ⇒ chờ, lưu thêm chữ, `open_chapter` một lần; gõ dưới khoá bị từ chối ⇒ 1 lần lưu, không thông báo); đối chứng gỡ khoá đỏ ca thứ hai.
 
 - ⚠️ **NFR2 KHÔNG được story này chấm.** Một lượt đổi con trỏ trên 9.850 câu đo được **706–770 ms** *(trần 50 ms)*, và Story 2.11 thêm một đường **nạp lại toàn bộ lưới** vào cùng bề mặt đó. Story này **không đo và không vá** — nó không chạm một dòng nào của đường render. **Chủ vẫn là Story 2.4** **(Chủ: Story 2.4.)**, đúng như §Ranh giới phạm vi của story ghi.
+  → 🔵 2026-10-20 (rà nợ) — cùng trạng thái với mục "TASK 8 ĐÃ ĐO — SỐ GIAO CHO STORY 2.4": chưa đo lại, chưa vá. **Chủ: Story 2.4.**
 
 - ⚠️ **Bộ e2e KHÔNG cho một lượt xanh trọn bộ, và chế độ LÔ là nơi cái đỏ tập trung — dữ kiện MỚI cho món nợ bàn đo của Story 2.5b.** Đo 2026-08-18, trọn bộ 11 spec: **8 passed / 3 failed** (18m51s). Ba ca đỏ đã chạy đối chứng trên **cả hai** cây *(cây story và baseline `5d94ba1`)*: `editor-typing-flush` xanh ở lượt chạy lại; `attribution-focus` **4/4 xanh khi chạy một mình** trên **cả hai** cây *(tức nó chỉ đỏ trong lô)*; `segment-navigation` đỏ trong lô **trên cả baseline** *(before-hook hết 60 s chờ 40 hàng)*, và chạy một mình cho **9/10 xanh** trên cây story so với **5/5 xanh** trên baseline. 🔴 **1/10 so với 0/5 không phân biệt được hai cây** — nó không chứng minh có hồi quy, và **cũng không chứng minh không có**. ⇒ Món nợ không phải một ca đỏ cụ thể mà là **bàn đo không cho một phán quyết đọc được**: một bộ mà chế độ lô đỏ trên baseline thì mọi lượt story sau phải trả cùng cái giá phân xử này bằng tay *(lượt này tốn ~25 phút chạy đối chứng)*. **Chủ: một story hạ tầng e2e** *(cùng chủ với món `devServerIsUp()` đã ghi ở lượt rà 2.5b — không mở một mục thứ hai cho cùng một bàn đo)*.
   ⚠️ **Và giới hạn của chính lượt phân xử, ghi ra thay vì để người sau tưởng đã phủ:** e2e **không chạm một dòng nào** của Story 2.11 — không spec nào gọi `open_adjacent_chapter`, vì không đường sản phẩm nào sinh Chương thứ hai. Ba ca đỏ ở trên nói về **hồi quy**, không về **tính năng mới**.

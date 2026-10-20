@@ -1070,11 +1070,6 @@ function onStripFocusOut(event: FocusEvent): void {
  * lượt ghi sẽ đá caret ra. Phép kiểm hỏi `document.activeElement` — sau một lượt mount lại,
  * mọi ô vẫn `contenteditable` *(chúng luôn thế)* nhưng tiêu điểm thì không, và đó đúng là
  * lượt cần khôi phục nhất.
- *
- * 🔵 **RẺ HƠN `EditorPanel.vue` một bậc, và đó là một hệ quả đo được của lưới:** bản cũ quét
- * **toàn bộ** `.doc` bằng `querySelectorAll` mỗi lượt *(`deferred-work.md §*Deferred from: 2-2-panel-editor-lien-mach (2026-08-12)*`, chủ
- * Story 2.4)*. Ở đây phép quét giới hạn trong **cột bản dịch**, và nó chỉ chạy khi tập chờ
- * **khác rỗng**.
  */
 function restoreEditedText(): void {
   const host = colTgt.value
@@ -1082,12 +1077,9 @@ function restoreEditedText(): void {
   const edited = editorEditedText.value
   if (edited.size === 0) return
 
-  for (const el of host.querySelectorAll<HTMLElement>('[data-segment-id]')) {
-    const id = segmentIdOf(el)
-    if (id === null) continue
-    const text = edited.get(id)
-    if (text === undefined) continue
-    if (document.activeElement === el) continue
+  for (const [id, text] of edited) {
+    const el = host.querySelector<HTMLElement>(`[data-segment-id="${id}"]`)
+    if (el === null || document.activeElement === el) continue
     if (el.textContent !== text) el.textContent = text
   }
   repaintProofread()
