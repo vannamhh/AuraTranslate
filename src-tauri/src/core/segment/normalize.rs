@@ -83,7 +83,11 @@ pub fn normalize(text: &str, source_lang: &str) -> Normalized {
     // thành một `\n` THỨ HAI (cả `\r` và `\n` đều là mã ASCII một byte, không bao giờ là
     // một phần của chuỗi byte UTF-8 đa byte — cắt/thay ở tầng byte không làm hỏng ký tự
     // nào khác).
-    let unified = text.replace("\r\n", "\n").replace('\r', "\n");
+    let unified: std::borrow::Cow<'_, str> = if text.contains('\r') {
+        std::borrow::Cow::Owned(text.replace("\r\n", "\n").replace('\r', "\n"))
+    } else {
+        std::borrow::Cow::Borrowed(text)
+    };
 
     // Phép 2 — trim hai đầu MỖI dòng (str::trim cắt đúng tập 25 điểm mã White_Space, xem
     // doc-comment đầu tệp) — TRƯỚC khi phép 3 xét dòng nào kết thúc một câu.
@@ -220,7 +224,11 @@ pub fn window_safe_prefix(text: &str, max_bytes: usize) -> Option<String> {
     // CẢ HAI phía trong `truncated`) — trừ dòng CUỐI CÙNG của nó, quyết định nối của dòng
     // đó vẫn phụ thuộc dòng dang dở vừa bị cắt bỏ. Bỏ nốt dòng đó bằng cách cắt tới ranh
     // giới dòng KẾ TIẾP (lùi thêm một bước).
-    let unified = cut_at_last_break.replace("\r\n", "\n").replace('\r', "\n");
+    let unified: std::borrow::Cow<'_, str> = if cut_at_last_break.contains('\r') {
+        std::borrow::Cow::Owned(cut_at_last_break.replace("\r\n", "\n").replace('\r', "\n"))
+    } else {
+        std::borrow::Cow::Borrowed(cut_at_last_break)
+    };
     let mut lines: Vec<&str> = unified.split('\n').collect();
     lines.pop(); // dòng TRỌN VẸN cuối — quyết định nối của nó nằm ngoài cửa sổ, bỏ.
 
@@ -283,6 +291,10 @@ mod tests {
     fn crlf_and_bare_cr_both_become_lf() {
         assert_eq!(normalize("A。\r\nB。", LANG_CHINESE).text, "A。\nB。");
         assert_eq!(normalize("A。\rB。", LANG_CHINESE).text, "A。\nB。");
+        assert_eq!(
+            normalize("A。\r\nB。\rC。", LANG_CHINESE).text,
+            "A。\nB。\nC。"
+        );
     }
 
     #[test]

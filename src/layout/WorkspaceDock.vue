@@ -25,23 +25,6 @@
 //   2. ẩn/hiện panel kèm **sổ vị trí đã nhớ** (AC3, §Quyết định #3A);
 //   3. vòng xoay focus theo **thứ tự bố cục** + dời focus DOM tường minh (AC9, AD-34 §2);
 //   4. lưu/khôi phục bố cục qua các phiên, có nhịp ghi (AC4, §Quyết định #5A).
-//
-// ─────────────────────────────────────────────────────────────────────────────────
-// ⚠️ MỌI CHUỖI `console.*` TRONG TỆP NÀY VIẾT **KHÔNG DẤU** — và đó không phải cẩu thả
-// ─────────────────────────────────────────────────────────────────────────────────
-// Kiểm A của `scripts/check-i18n.mjs` quét mọi `.vue` dưới `src/**` và đỏ với một chuỗi
-// tiếng Việt CÓ DẤU ở vị trí mã (AC2 của Story 1.5). Nó đo **DẤU**, nên nó không phân
-// biệt được *"chuỗi hiển thị"* với *"chẩn đoán ra console"* — `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` đã ghi
-// đúng giới hạn đó, và §Quyết định #6 của story này mở rộng cổng theo chiều KHÁC (đo text
-// node của template), không nới chiều này.
-//
-// Đường thoát dễ là dời khối logic dưới đây sang một tệp `.ts` — Kiểm A không quét
-// `.ts`. `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` gọi tên đúng đường đó và cấm nó bằng chữ: *"dời một chuỗi
-// từ `.vue` sang `.ts` là cách hợp lệ về mặt cổng để cho xanh — đừng dùng."*
-//
-// ⇒ Dùng tiền lệ đã có: `src-tauri/src/commands/config.rs:36` cũng viết không dấu, cùng
-// lý do. Người đọc những dòng này là người đang mở DevTools, không phải người dùng cuối.
-// ⚠️ Comment tiếng Việt CÓ DẤU thì hợp lệ — Kiểm A che comment trước khi quét.
 import { onActivated, onBeforeUnmount, onDeactivated, onMounted, shallowRef } from 'vue'
 import { DockviewVue } from 'dockview-vue'
 import { setActiveLayoutPreset } from './layoutPresetState'
@@ -250,8 +233,8 @@ function applyPreset(presetId: string): boolean {
   const preset = presetById(presetId)
   if (preset === undefined) {
     console.error(
-      `[layout] preset \`${presetId}\` chua khai -- bo cuc KHONG doi. ` +
-        'Danh sach khai o `src/layout/workspaceLayout.ts`.',
+      `[layout] preset \`${presetId}\` chưa khai — bố cục KHÔNG đổi. ` +
+        'Danh sách khai ở `src/layout/workspaceLayout.ts`.',
     )
     return false
   }
@@ -278,8 +261,8 @@ function applyPreset(presetId: string): boolean {
     }
   } catch (err) {
     console.error(
-      `[layout] ap preset \`${presetId}\` that bai giua chung -- roi ve mot Workspace rong. ` +
-        `Nguyen nhan: ${String(err)}`,
+      `[layout] áp preset \`${presetId}\` thất bại giữa chừng — rơi về một Workspace rỗng. ` +
+        `Nguyên nhân: ${String(err)}`,
     )
     api.clear()
     hidden.clear()
@@ -388,8 +371,8 @@ function hidePanel(id: PanelId): boolean {
   const spot = rememberSpot(api, panel)
   if (spot === null) {
     console.error(
-      `[layout] \`${id}\` la panel DUY NHAT dang hien -- an no cho ra mot Workspace rong, ` +
-        'va AC3 noi "cac panel CON LAI lap day cho trong". Thao tac bi tu choi.',
+      `[layout] \`${id}\` là panel DUY NHẤT đang hiện — ẩn nó cho ra một Workspace rỗng, ` +
+        'và AC3 nói "các panel CÒN LẠI lấp đầy chỗ trống". Thao tác bị từ chối.',
     )
     return false
   }
@@ -463,8 +446,8 @@ function restoreFocusIfLost(preferred: PanelId): void {
       if (isPanelId(id) && enterFocus(id)) return
     }
     console.error(
-      '[layout] sau mot luot an/hien panel, khong diem vao focus nao nhan duoc focus — ' +
-        'focus dang o `body`. AC4 cua Story 1.6 noi dieu do KHONG duoc xay ra.',
+      '[layout] sau một lượt ẩn/hiện panel, không điểm vào focus nào nhận được focus — ' +
+        'focus đang ở `body`. AC4 của Story 1.6 nói điều đó KHÔNG được xảy ra.',
     )
   })
 }
@@ -472,7 +455,7 @@ function restoreFocusIfLost(preferred: PanelId): void {
 /** Handler thật của bốn command `layout.toggle_*` (AC3). */
 function togglePanel(panelId: string): boolean {
   if (!isPanelId(panelId)) {
-    console.error(`[layout] \`${panelId}\` khong phai mot panel cua Workspace -- bo qua.`)
+    console.error(`[layout] \`${panelId}\` không phải một panel của Workspace — bỏ qua.`)
     return false
   }
   const api = dock.value
@@ -767,8 +750,8 @@ function measureAndApplyTier(): void {
   const tier = layoutTierFor(workArea, currentPresetId.value)
   if (tier === null) {
     console.error(
-      `[layout] khong do duoc dien tich lam viec (cua so ${window.innerWidth}x${window.innerHeight}) ` +
-        `-- giu nguyen tang dang ap (${currentTier.value ?? 'chua ap tang nao'}).`,
+      `[layout] không đo được diện tích làm việc (cửa sổ ${window.innerWidth}x${window.innerHeight}) ` +
+        `— giữ nguyên tầng đang áp (${currentTier.value ?? 'chưa áp tầng nào'}).`,
     )
     return
   }
@@ -814,7 +797,7 @@ function currentLayoutJson(): string | null {
   try {
     return JSON.stringify(jsonForPersist(api))
   } catch (err) {
-    console.error(`[layout] khong serialize duoc bo cuc hien tai. ${String(err)}`)
+    console.error(`[layout] không serialize được bố cục hiện tại. ${String(err)}`)
     return null
   }
 }
@@ -840,7 +823,7 @@ function applyLayoutJson(json: string): boolean {
     try {
       api.fromJSON(before as Parameters<DockviewApi['fromJSON']>[0])
     } catch (err) {
-      console.error(`[layout] khong dung lai duoc bo cuc cu sau preset hong -- ve preset mac dinh. ${String(err)}`)
+      console.error(`[layout] không dựng lại được bố cục cũ sau preset hỏng — về preset mặc định. ${String(err)}`)
       applyPreset(DEFAULT_PRESET_ID)
     }
     return false
@@ -873,7 +856,7 @@ function flush(): void {
   } catch (err) {
     // Không ném: một bố cục không serialize được không phải lý do để giết thao tác
     // mà người dùng vừa làm. Nó chỉ có nghĩa là phiên sau mở bằng preset mặc định.
-    console.error(`[layout] khong serialize duoc bo cuc -- luot luu nay bo qua. ${String(err)}`)
+    console.error(`[layout] không serialize được bố cục — lượt lưu này bỏ qua. ${String(err)}`)
   }
 }
 
@@ -959,9 +942,9 @@ function restore(api: DockviewApi, saved: string): void {
     setActiveLayoutPreset(null)
   } catch (err) {
     console.error(
-      '[layout] bo cuc da luu KHONG dung lai duoc -- roi ve preset mac dinh (luoi 2x2). ' +
-        'Bo cuc cu coi nhu mat; KHONG co gi khac trong kho bi dung toi. ' +
-        `Nguyen nhan: ${String(err)}`,
+      '[layout] bố cục đã lưu KHÔNG dựng lại được — rơi về preset mặc định (lưới 2x2). ' +
+        'Bố cục cũ coi như mất; KHÔNG có gì khác trong kho bị đụng tới. ' +
+        `Nguyên nhân: ${String(err)}`,
     )
     api.clear()
     applyPreset(DEFAULT_PRESET_ID)
@@ -974,7 +957,7 @@ function restore(api: DockviewApi, saved: string): void {
    * khác. Kiểm hậu điều kiện thay vì tin vào việc ném.
    */
   if (api.panels.length === 0) {
-    console.error('[layout] bo cuc da luu dung ra KHONG panel nao -- roi ve preset mac dinh.')
+    console.error('[layout] bố cục đã lưu dựng ra KHÔNG panel nào — rơi về preset mặc định.')
     api.clear()
     applyPreset(DEFAULT_PRESET_ID)
     return

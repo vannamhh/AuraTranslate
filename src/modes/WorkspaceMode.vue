@@ -14,21 +14,6 @@
 // ngưỡng, không tự quyết sacrifice. Nó có thêm một việc thứ tư, thuần hiển thị: nghe
 // sự kiện `tier-change` từ `WorkspaceDock` để hiện một thông báo KHÔNG CHẶN khi tầng đo
 // được là `unsupported` — lưới vẫn gắn DOM và dùng được nguyên vẹn bên dưới thông báo.
-//
-// ─────────────────────────────────────────────────────────────────────────────────
-// ⚠️ CHUỖI CHẨN ĐOÁN TRONG TỆP NÀY VIẾT **KHÔNG DẤU** — và đó KHÔNG phải cẩu thả
-// ─────────────────────────────────────────────────────────────────────────────────
-// Kiểm A của `scripts/check-i18n.mjs` quét mọi `.vue` dưới `src/**` và đỏ với một chuỗi
-// tiếng Việt CÓ DẤU ở vị trí mã (AC2 của Story 1.5). Nó không phân biệt được *"chuỗi
-// hiển thị"* với *"chẩn đoán ra console"* — nó đo DẤU, và `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` đã ghi
-// đúng giới hạn đó.
-//
-// Đường thoát dễ là dời `console.warn` sang một tệp `.ts` — Kiểm A không quét `.ts`.
-// `deferred-work.md §*Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)*` gọi tên đúng đường đó và cấm nó bằng chữ: *"dời một chuỗi từ
-// `.vue` sang `.ts` là cách hợp lệ về mặt cổng để cho xanh — đừng dùng."*
-//
-// ⇒ Dùng tiền lệ đã có: `src-tauri/src/commands/config.rs:36` cũng viết không dấu, cùng
-// lý do. Người đọc dòng này là người đang mở DevTools, không phải người dùng cuối.
 import { computed, onActivated, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
 import { bootstrapLayout, KEY_LAYOUT, putConfig, SCOPE_APP_CONFIG } from '../config/bootstrap'
@@ -82,8 +67,7 @@ onActivated(() => {
  */
 function onPersist(json: string): void {
   void putConfig(SCOPE_APP_CONFIG, KEY_LAYOUT, json).then((err) => {
-    // ⚠️ Chẩn đoán viết KHÔNG DẤU — xem khối `⚠️ CHUỖI CHẨN ĐOÁN` ở đầu tệp.
-    if (err !== null) console.warn(`[layout] khong luu duoc bo cuc (\`${err.code}\`).`)
+    if (err !== null) console.warn(`[layout] không lưu được bố cục (\`${err.code}\`).`)
   })
 }
 

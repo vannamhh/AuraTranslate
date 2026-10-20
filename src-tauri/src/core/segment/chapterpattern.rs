@@ -87,7 +87,7 @@ impl ChapterPattern {
                 .map(|(i, _)| i)
                 .collect()),
             ChapterPatternKind::Regex => {
-                let re = compile(&self.pattern)?;
+                let re = compile_cached(&self.pattern)?;
                 Ok(re
                     .find_iter(text)
                     .filter(|m| !m.range().is_empty())
@@ -96,6 +96,23 @@ impl ChapterPattern {
             }
         }
     }
+}
+
+static LAST_COMPILED: std::sync::Mutex<Option<(String, std::sync::Arc<regex::Regex>)>> =
+    std::sync::Mutex::new(None);
+
+fn compile_cached(pattern: &str) -> Result<std::sync::Arc<regex::Regex>, regex::Error> {
+    let mut slot = LAST_COMPILED
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some((cached, re)) = slot.as_ref()
+        && cached == pattern
+    {
+        return Ok(std::sync::Arc::clone(re));
+    }
+    let re = std::sync::Arc::new(compile(pattern)?);
+    *slot = Some((pattern.to_owned(), std::sync::Arc::clone(&re)));
+    Ok(re)
 }
 
 /// Biên dịch một mẫu `regex` cho mẫu phân tách Chương — LUÔN đa dòng (`multi_line(true)`),
@@ -149,5 +166,16 @@ mod tests {
     fn an_invalid_regex_is_rejected_not_panicking() {
         let p = ChapterPattern::regex("[unclosed");
         assert!(p.match_starts("bat ky van ban nao").is_err());
+        assert!(p.match_starts("bat ky van ban nao").is_err());
+    }
+
+    #[test]
+    fn alternating_patterns_each_match_their_own_text() {
+        let a = ChapterPattern::regex("^A");
+        let b = ChapterPattern::regex("^B");
+        let text = "A1\nB1\nA2";
+        assert_eq!(a.match_starts(text).unwrap(), vec![0, 6]);
+        assert_eq!(b.match_starts(text).unwrap(), vec![3]);
+        assert_eq!(a.match_starts(text).unwrap(), vec![0, 6]);
     }
 }

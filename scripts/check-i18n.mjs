@@ -37,7 +37,8 @@
  *    Xem `EXEMPT` bên dưới.
  * 3. **Chuỗi trong `.vue` — vi phạm thật.** `src/App.vue:38,54` là hai chỗ duy nhất
  *    trong cây nguồn lúc Story 1.5 bắt đầu; Task 5 đã dời chúng sang
- *    `src/selftest/fallbackReport.ts`.
+ *    `src/selftest/fallbackReport.ts`. Ngoại lệ có tên: chuỗi nằm trong đối số của
+ *    `console.<tên>(…)` ở `<script>` của `.vue` được miễn (log Kiểm A đếm số lời gọi).
  *
  * ─────────────────────────────────────────────────────────────────────────────────
  * VÌ SAO KHÔNG `replace(/\/\/.*$/gm, '')` — §Bốn thứ sẽ hỏng im lặng #4
@@ -480,6 +481,10 @@ const REGEX_KEYWORDS = new Set([
   'yield', 'await', 'new', 'delete', 'void', 'throw',
 ])
 
+const CONSOLE_CALL_RE = /console\.[A-Za-z]+\s*\(/y
+let consoleCallsExempted = 0
+let consoleHitsExempted = 0
+
 /**
  * @param {string} lastSig
  * @param {string} text
@@ -518,10 +523,23 @@ function scanScript(text, from, to, hits) {
   let lastSig = ''
   /** Ngăn xếp `${}`: mỗi mục giữ độ sâu ngoặc nhọn của một biểu thức đang mở. */
   const interp = []
+  let consoleDepth = 0
+  let consoleHitsFrom = 0
 
   while (i < to) {
     const ch = text[i]
     if (state === 'code') {
+      if (consoleDepth === 0 && ch === 'c' && !/[\w$.]/.test(text[i - 1] ?? '')) {
+        CONSOLE_CALL_RE.lastIndex = i
+        const m = CONSOLE_CALL_RE.exec(text)
+        if (m && i + m[0].length <= to) {
+          consoleDepth = 1
+          consoleHitsFrom = hits.length
+          i += m[0].length
+          lastSig = '('
+          continue
+        }
+      }
       if (text.startsWith('/*', i)) {
         state = 'block_comment'
         i += 2
@@ -585,6 +603,20 @@ function scanScript(text, from, to, hits) {
             continue
           }
           interp[interp.length - 1] -= 1
+        }
+      }
+      if (consoleDepth > 0) {
+        if (ch === '(') consoleDepth += 1
+        else if (ch === ')') {
+          consoleDepth -= 1
+          if (consoleDepth === 0) {
+            consoleCallsExempted += 1
+            consoleHitsExempted += hits.length - consoleHitsFrom
+            hits.length = consoleHitsFrom
+            lastSig = ')'
+            i += 1
+            continue
+          }
         }
       }
       if (isViChar(ch)) hits.push(i)
@@ -976,7 +1008,23 @@ const rsLineExempt = (lines, line) => line > 1 && RS_ALLOW_RE.test(lines[line - 
     pass('tự kiểm `aura-allow-text` của `.rs` — cần lý do thật, chỉ ăn dòng ngay dưới')
   }
 }
+{
+  const hitCount = (/** @type {string} */ body) => scanVue(`<script setup lang="ts">\n${body}\n</script>\n`).length
+  const plain = hitCount("console.error('Đã lưu')")
+  const afterClose = hitCount("console.warn(x); const y = 'Đã lưu'")
+  const nested = hitCount('console.error(`… ${f(\'Đã\')} …`)')
+  const bareMention = hitCount("const z = myconsole.log('Đã')")
+  const multi = hitCount("console.error(\n  'Đã lưu',\n  g('Đã'),\n)")
+  if (plain !== 0 || afterClose === 0 || nested !== 0 || bareMention === 0 || multi !== 0) {
+    fail('tự kiểm miễn trừ `console.*` của Kiểm A — chỉ đối số tới `)` cân bằng được miễn')
+    detail(`đối số: ${plain} (phải 0) · sau dấu đóng: ${afterClose} (phải > 0) · lồng: ${nested} (phải 0) · tên khác: ${bareMention} (phải > 0) · nhiều dòng: ${multi} (phải 0)`)
+  } else {
+    pass('tự kiểm miễn trừ `console.*` của Kiểm A — đối số được miễn, mã sau dấu `)` đóng vẫn bị bắt')
+  }
+}
 let rsExempted = 0
+consoleCallsExempted = 0
+consoleHitsExempted = 0
 
 let aBad = 0
 /** @type {[string[], (text: string) => number[], string][]} */
@@ -1020,6 +1068,7 @@ if (aBad === 0) {
   )
 }
 detail(`đã miễn trừ ${rsExempted} dòng \`.rs\` bằng \`aura-allow-text\``)
+detail(`đã miễn trừ ${consoleCallsExempted} lời gọi \`console.*\` trong \`.vue\` (${consoleHitsExempted} ký tự có dấu trong đối số)`)
 detail(`đã miễn trừ ${exemptedFiles.length} tệp:`)
 for (const [pattern, why] of EXEMPT) {
   const n = exemptedFiles.filter(([, p]) => p === pattern).length
