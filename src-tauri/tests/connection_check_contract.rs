@@ -2,8 +2,9 @@
 //! twice: through a scripted provider, and through the real `OpenAiChatClient` against a local
 //! fake HTTP server.
 
-use auratranslate_lib::commands::aiconfig::PreparedConnectionCheck;
-use auratranslate_lib::commands::aitranslate::{ConnectionCheckWire, run_connection_check};
+use auratranslate_lib::commands::aitranslate::{
+    ConnectionCheckWire, PreparedConnectionCheck, run_connection_check,
+};
 use auratranslate_lib::commands::shortcuts::{shortcuts_read_file, shortcuts_write_file};
 use auratranslate_lib::core::ai::client::{
     OpenAiClientError, chat_completions_url, check_model_list, models_url,

@@ -53,15 +53,18 @@
 //! CÓ `Send` (nó chỉ mang `Result<TranslateOutcome, OpenAiClientError>`, cả hai đều `Send`), nên
 //! `.await` nó ngay trong `ai_translate_segment` là hợp lệ.
 
-use crate::commands::aiconfig::{PreparedConnectionCheck, endpoint_and_model_set, read_api_key};
+use crate::commands::aiconfig::{endpoint_and_model_set, provider_needs_key};
 use crate::commands::aiprompt::{
     AssembledPromptWire, LastAssembledPromptState, TmRowsCache, assemble_and_record_prompt,
     assemble_and_record_prompt_with_tm, segment_not_in_chapter,
 };
 use crate::commands::project::OpenWork;
 use crate::core::ai::client::{OpenAiChatClient, OpenAiClientError};
-use crate::core::aiconfig::{AiConfigField, resolve_two_tiers};
+use crate::core::aiconfig::{
+    AiConfigField, AiConfigKeyError, AiConfigStoreError, AiConfigTier, keychain, resolve_two_tiers,
+};
 use crate::core::i18n::{IpcError, MessageKey};
+use crate::core::scope::ScopeResolver;
 use crate::core::store::{ReadHandle, Store, StoreError, StoreKind};
 use crate::ports::translation_provider::{
     ConnectionCheck, ConnectionCheckOutcome, ConnectionCheckRequest, TranslateOutcome,
@@ -626,6 +629,89 @@ impl ConnectionCheckGeneration {
     }
 }
 
+/// Keychain từ chối trả lời lúc dịch — tái dùng ĐÚNG khoá của Story 4.3 (§Code Map spec 4.8:
+/// "reuses ... `AiConfigKeychainUnavailable` where the fact already has a key"), không một khoá
+/// thứ hai cho cùng sự thật.
+fn keychain_unavailable() -> IpcError {
+    AiConfigKeyError::Unavailable.into()
+}
+
+/// The key to send for `provider`: empty for a local runtime (nothing is stored or read), the
+/// stored key otherwise. `None` is "no key stored".
+pub(crate) fn read_api_key(provider: &str) -> Result<Option<String>, IpcError> {
+    if !provider_needs_key(provider) {
+        return Ok(Some(String::new()));
+    }
+    match keychain::read() {
+        Ok(Some(secret)) => Ok(Some(secret.expose_secret().to_owned())),
+        Ok(None) => Ok(None),
+        Err(_unavailable) => Err(keychain_unavailable()),
+    }
+}
+
+/// A connection check ready to send. Not `Debug`: `api_key` is a bare secret.
+pub struct PreparedConnectionCheck {
+    pub endpoint: String,
+    pub model: String,
+    pub api_key: Option<String>,
+}
+
+/// Result of [`prepare_connection_check`]: "not configured" is a state, not an error.
+pub enum ConnectionCheckPrep {
+    NotConfigured,
+    Ready(PreparedConnectionCheck),
+}
+
+/// Resolves the SAVED configuration of `tier` (Global reads `global.db` only; Work resolves both
+/// tiers) and, for a provider that needs one, the stored key. No network.
+///
+/// # Errors
+/// `global.db` missing; Work tier without an open Work (`ai_config.work_tier_unavailable`);
+/// keychain refusing to answer (`ai_config.keychain_unavailable`).
+pub fn prepare_connection_check(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: AiConfigTier,
+) -> Result<ConnectionCheckPrep, IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+    let resolved = match tier {
+        AiConfigTier::Global => {
+            resolve_two_tiers(&ScopeResolver::global_only(), global_store, None)?
+        }
+        AiConfigTier::Work => {
+            let work = open.ok_or(AiConfigStoreError::WorkTierUnavailable)?;
+            resolve_two_tiers(&work.scope.clone(), global_store, Some(&work.store))?
+        }
+    };
+    let value = |field: AiConfigField| {
+        resolved
+            .get(field.as_str())
+            .map(|f| f.value.clone())
+            .unwrap_or_default()
+    };
+    let (provider, endpoint, model) = (
+        value(AiConfigField::Provider),
+        value(AiConfigField::Endpoint),
+        value(AiConfigField::Model),
+    );
+    if !endpoint_and_model_set(&endpoint, &model) {
+        return Ok(ConnectionCheckPrep::NotConfigured);
+    }
+    let api_key = if provider_needs_key(&provider) {
+        match read_api_key(&provider)? {
+            Some(key) => Some(key),
+            None => return Ok(ConnectionCheckPrep::NotConfigured),
+        }
+    } else {
+        None
+    };
+    Ok(ConnectionCheckPrep::Ready(PreparedConnectionCheck {
+        endpoint,
+        model,
+        api_key,
+    }))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConnectionCheckWire {
@@ -1042,8 +1128,10 @@ pub mod wire {
         prepare_resend_call, prepare_translate_call, send_prepared_batch_call,
         send_prepared_translate_call, single_run_outcome_wire, state_missing,
     };
-    use super::{ConnectionCheckGeneration, ConnectionCheckWire, send_prepared_connection_check};
-    use crate::commands::aiconfig::{ConnectionCheckPrep, prepare_connection_check};
+    use super::{
+        ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire,
+        prepare_connection_check, send_prepared_connection_check,
+    };
     use crate::commands::aiprompt::{LastAssembledPromptState, mark_prompt_as_sent};
     use crate::commands::project::OpenWorkState;
     use crate::core::aiconfig::AiConfigTier;

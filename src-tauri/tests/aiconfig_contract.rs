@@ -1287,9 +1287,9 @@ fn ready_is_true_false_or_none_by_endpoint_model_and_key() {
 
 #[test]
 fn test_connection_without_endpoint_or_model_or_key_invites_configuration_and_opens_no_socket() {
-    use auratranslate_lib::commands::aiconfig::{ConnectionCheckPrep, prepare_connection_check};
     use auratranslate_lib::commands::aitranslate::{
-        ConnectionCheckGeneration, ConnectionCheckWire,
+        ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire,
+        prepare_connection_check,
     };
     use tauri::Manager as _;
     use tauri::test::{mock_builder, mock_context, noop_assets};
