@@ -13234,6 +13234,7 @@ chính nó.
   summary: Lượt dùng thật trong app: bật công tắc "chỉ dùng cặp của tôi" trên Tác phẩm có cặp người khác, mở Chương, đối chiếu dải TM, dải chốt Glossary, Xem prompt; xuất riêng rồi mở TMX xem `x-aura-origin`; gõ dở thân prompt rồi Nhân bản và đối chiếu lớp tô biến với ô gõ bằng mắt.
   evidence: webview e2e đứng ở `tauri://localhost` nên hai spec `story-12-14-*` chưa chạy xanh; tô biến cần khớp điểm ảnh trong WKWebView mà happy-dom không đo được.
   Chủ: Epic 12.
+  → 🔵 2026-10-20: hai spec `story-12-14-*` nay xanh trên máy Ice (fixture `tm-only-mine` thiếu `confirm_segment`, bộ chọn `button*=` sai, xem `plan-e2e-nightly-39331390830-nam-spec-do.md`); lượt dùng thật vẫn mở, nightly kế tiếp là phép đo trên runner. Chủ: Epic 12.
 - source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-tm-va-thu-vien-prompt-bang-chi-dung-cap-cua-toi-nhan-ban-plan.md`
   summary: Quản lý TM gọi `refreshExportCounts` sau mỗi lần sửa / xoá / đẩy / nhập, tức bốn lượt đọc trọn tầng (`tm_export_counts` hai tầng × `all` / `mine`); chưa đo trên TM lớn.
   evidence: chưa kiểm (review 12.14 xếp maybe-false, nếu đúng là medium); muốn chốt thì đo thời gian `tm_export_counts` và thời gian giữ khoá `OpenWorkState` ở 200.000 cặp, cùng quần thể `nfr_bench`.
@@ -13249,6 +13250,7 @@ chính nó.
   summary: `e2e/specs/story-12-13-glossary-harvest.e2e.mjs` và mục thứ tám của `titlebar-tools.e2e.mjs` chưa chạy cục bộ; spec không dựng bản reviewer nên màn thu hoạch chỉ được mở ở trạng thái rỗng (ba ứng viên nhận hai nằm ở `review_harvest_contract.rs` và `glossaryHarvest.test.ts`).
   evidence: webview e2e đứng ở `tauri://localhost`; cần đọc lượt nightly macOS đầu tiên sau khi gộp.
   Chủ: Epic 12.
+  → 🔵 2026-10-20: nightly `39331390830` đỏ ca bảng của spec này (Glossary rỗng không dựng bảng); nay fixture thêm một thuật ngữ, 3/3 ca xanh trên máy Ice, `titlebar-tools.e2e.mjs` xanh ở cùng nightly (xem `plan-e2e-nightly-39331390830-nam-spec-do.md`); chờ nightly kế tiếp xanh để đóng. Chủ: Epic 12.
 - source_plan: `_bmad-output/initiative-auratranslate/tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-proofreader-va-che-o-oc-ti-le-phat-hien-go-dau-xuat-xu-chuon-plan.md`
   summary: Lượt dùng thật trong app: tỉ lệ quyết định trên dải Proofreader và Chỗ đã bỏ qua sau quét, nhận, Bỏ qua, Hoàn lại và mở lại Tác phẩm; Chế độ đọc gỡ từng dấu, "Bỏ hết đánh dấu" hai bước với Esc, "Sửa lần lượt" sang Workspace với nút "Chỗ kế tiếp (n/m)", dòng xuất xứ Chương; bố cục thanh công cụ, mốc cuối, lớp phủ dấu so mockup. `e2e/specs/story-12-15-proofread-ratio-reading-marks.e2e.mjs` đã viết, chưa chạy (đi qua lệnh IPC thật, không qua quét mô hình).
   evidence: happy-dom không tính hình học và CSS có phạm vi; webview e2e đứng ở `tauri://localhost` nên chưa có spec nào chạy được.

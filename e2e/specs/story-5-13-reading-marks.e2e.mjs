@@ -87,7 +87,7 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     const wrapper = await $(`[data-reading-segment="${originalMarkedId}"]`)
     const affordance = await wrapper.$('.mark-affordance')
     await expect(await affordance.isExisting()).toBe(true)
-    await expect(await affordance.getCSSProperty('display')).toHaveProperty('value', 'none')
+    await expect(await browser.execute((button) => button.getClientRects().length, affordance)).toBe(0)
 
     // Embedded WebDriver của WKWebView không sinh `:hover` từ Actions `move`: bàn đo
     // 2026-08-31 đã nhắm đúng `ClientRect` (elementFromPoint = `.segment-text`) nhưng
@@ -105,7 +105,7 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     await browser.waitUntil(
       async () => browser.execute((id) => {
         const button = document.querySelector(`[data-reading-segment="${id}"] .mark-affordance`)
-        return button instanceof HTMLElement && getComputedStyle(button).display !== 'none'
+        return button instanceof HTMLElement && button.getClientRects().length > 0
       }, originalMarkedId),
       { timeout: 5_000, timeoutMsg: 'affordance marker không hiện khi hover' },
     )
@@ -116,7 +116,7 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     await browser.waitUntil(
       async () => browser.execute((id) => {
         const button = document.querySelector(`[data-reading-segment="${id}"] .mark-affordance`)
-        return button instanceof HTMLElement && getComputedStyle(button).display === 'none'
+        return button instanceof HTMLElement && button.getClientRects().length === 0
       }, originalMarkedId),
       { timeout: 5_000, timeoutMsg: 'affordance marker không ẩn sau khi chuột rời câu' },
     )
@@ -124,7 +124,7 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     await browser.waitUntil(
       async () => browser.execute((id) => {
         const button = document.querySelector(`[data-reading-segment="${id}"] .mark-affordance`)
-        return button instanceof HTMLElement && getComputedStyle(button).display !== 'none'
+        return button instanceof HTMLElement && button.getClientRects().length > 0
       }, originalMarkedId),
       { timeout: 5_000, timeoutMsg: 'affordance marker không hiện khi wrapper nhận focus' },
     )
@@ -206,32 +206,26 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     const listButton = await $('[data-reading-marks]')
     await realClick(listButton)
     await browser.waitUntil(
-      async () => browser.execute(() => document.querySelectorAll('.toc-overlay .toc-list li').length === 2),
+      async () => browser.execute(() => document.querySelectorAll('.marks-overlay .marks-list li').length === 2),
       { timeout: 5_000, timeoutMsg: 'danh sách marker không hiện đủ hai Chương' },
     )
     const listRows = await browser.execute(() =>
-      [...document.querySelectorAll('.toc-overlay .toc-list li')].map((node) => node.textContent ?? ''),
+      [...document.querySelectorAll('.marks-overlay .marks-list li')].map((node) => node.textContent ?? ''),
     )
     await expect(listRows[0]).toContain('Câu này đã đổi')
-    await expect(listRows[0]).toContain('Chương 1')
-    await expect(listRows[1]).toContain('Chương 2')
+    await expect(listRows[0]).toContain('Ch 1')
+    await expect(listRows[1]).toContain('Ch 2')
 
-    // Hai nút điều hướng phải đổi đúng `aria-current` và dừng ở biên; sau đó quay về mục
-    // đầu để ca mở marker retired ngay dưới vẫn nghiệm thu neo của Chương 1.
-    const nextMarked = await $('.toc-overlay .toc-actions .btn:nth-child(2)')
-    const prevMarked = await $('.toc-overlay .toc-actions .btn:nth-child(1)')
-    await realClick(nextMarked)
-    await realClick(nextMarked)
-    await expect(await browser.execute(() =>
-      document.querySelector('.toc-overlay .toc-list li[aria-current="true"]')?.textContent ?? '',
-    )).toContain('Chương 2')
-    await realClick(prevMarked)
-    await expect(await browser.execute(() =>
-      document.querySelector('.toc-overlay .toc-list li[aria-current="true"]')?.textContent ?? '',
-    )).toContain('Chương 1')
+    const currentRow = () => browser.execute(() =>
+      document.querySelector('.marks-overlay .marks-list li[aria-current="true"]')?.textContent ?? '',
+    )
+    await browser.keys(['ArrowDown'])
+    await browser.keys(['ArrowDown'])
+    await expect(await currentRow()).toContain('Ch 2')
+    await browser.keys(['ArrowUp'])
+    await expect(await currentRow()).toContain('Ch 1')
 
-    // Mục đầu là marker retired của Chương 1. Mở nó phải dùng neo SỐNG sau lượt split.
-    const openMarked = await $('.toc-overlay .toc-actions .btn:nth-child(3)')
+    const openMarked = await $('.marks-overlay .marks-list li:first-child .btn')
     await realClick(openMarked)
     await browser.waitUntil(
       async () => browser.execute(() => document.querySelector('[data-col="tgt"]') !== null),

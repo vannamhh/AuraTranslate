@@ -46,6 +46,15 @@ describe('Story 12-13 -- Glossary queue, harvest review and manager', () => {
   })
 
   it('the Glossary manager shows a seven-column table with a tier switch', async () => {
+    await browser.execute(async () =>
+      window.__TAURI_INTERNALS__.invoke('glossary_add_term', {
+        tier: 'global',
+        sourceTerm: '甲',
+        translation: null,
+        note: '',
+        category: 'person',
+      }),
+    )
     const trigger = await $(TRIGGER)
     await realClick(trigger)
     const item = await $('[data-tools-item="glossary.manage.open"]')

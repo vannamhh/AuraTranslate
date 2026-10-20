@@ -51,7 +51,7 @@ describe('Story 12-10 -- Glossary strip proposes TM translations', () => {
       category: 'person',
     })
 
-    const text = `${TERM}\n${TERM}\n${TERM}\n${TERM}登场。`
+    const text = `${TERM}\n\n${TERM}\n\n${TERM}\n\n${TERM}登场。`
     await openWorkspaceWithWork('Story 12-10 -- glossary TM', text)
     await waitForGridRows(4)
 

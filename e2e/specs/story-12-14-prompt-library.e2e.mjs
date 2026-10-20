@@ -3,9 +3,6 @@
  * sit on the same glyph positions, also after the box scrolls, and Duplicate saves the typed body.
  *
  *     npm run test:e2e -- --spec e2e/specs/story-12-14-prompt-library.e2e.mjs
- *
- * Not yet run green on Ice's machine (the webview stands at `tauri://localhost`); the nightly is
- * its first measurement.
  */
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
 import { realClick } from '../support/pointer.mjs'
@@ -40,7 +37,7 @@ describe('Story 12-14 -- Prompt library', () => {
       timeoutMsg: 'the Prompt library did not open',
     })
 
-    const row = await $(`.pl-row-form button*=${NAME}`)
+    const row = await $('.pl-panel').$(`button*=${NAME}`)
     await realClick(row)
     const textarea = await $('.pl-ta-input')
     await textarea.waitForDisplayed({ timeout: 15_000 })

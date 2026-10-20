@@ -4,9 +4,8 @@
  *
  *     npm run test:e2e -- --spec e2e/specs/story-12-14-tm-only-mine.e2e.mjs
  *
- * The others-side pair comes from a bilingual import (origin `bilingual_import`), which the
- * switch treats like a pair translated by someone else. Not yet run green on Ice's machine
- * (the webview stands at `tauri://localhost`); the nightly is its first measurement.
+ * The others-side pair comes from confirming a bilingual-imported segment (origin
+ * `bilingual_import`), which the switch treats like a pair translated by someone else.
  */
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -66,6 +65,8 @@ async function openBilingualWork() {
   await resetPanelState()
   await browser.keys(['Meta', '2'])
   await waitForGridRows(1)
+  const loaded = await invoke('read_open_chapter_segments', { prefill: false })
+  await invoke('confirm_segment', { segmentId: loaded.segments[0].id })
 }
 
 describe('Story 12-14 -- only my pairs', () => {
