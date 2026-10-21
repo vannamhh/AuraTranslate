@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative, sep } from 'node:path'
 
 const mockInvoke = vi.fn()
 vi.mock('@tauri-apps/api/core', () => ({ invoke: (...args: unknown[]) => mockInvoke(...args) }))
@@ -141,7 +141,7 @@ function codeLines(file: string): string {
 
 describe('no startup path reaches the update host', () => {
   const root = join(__dirname, '../../src')
-  const files = sourceFiles(root).map((f) => ({ rel: f.slice(root.length + 1), code: codeLines(f) }))
+  const files = sourceFiles(root).map((f) => ({ rel: relative(root, f).split(sep).join('/'), code: codeLines(f) }))
   const where = (re: RegExp) => files.filter((f) => re.test(f.code)).map((f) => f.rel).sort()
 
   it('update_check is named only by the adapter, updateCheck( is called only by the state, runUpdateCheck only by the section', () => {
