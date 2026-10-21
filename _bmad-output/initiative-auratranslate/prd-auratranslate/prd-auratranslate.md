@@ -889,7 +889,7 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 
 **FR107.** **Build công khai qua GitHub Actions**, để bất kỳ ai cũng kiểm chứng được binary khớp với mã nguồn.
 
-**FR108.** **Hướng dẫn cài đặt có ảnh chụp màn hình** cho cả hai hệ điều hành, xử lý tường minh cảnh báo Gatekeeper trên macOS *(chuột phải → Mở)* và SmartScreen trên Windows *(More info → Run anyway)*.
+**FR108.** **Hướng dẫn cài đặt có ảnh chụp màn hình** cho cả hai hệ điều hành, xử lý tường minh cảnh báo Gatekeeper trên macOS *(chuột phải → Mở)* và SmartScreen trên Windows *(More info → Run anyway)*. 🔵 2026-10-21 (Story 10.6, đo trên macOS 15.8.2): đường chuột phải → Mở chỉ còn đến macOS 14; từ macOS 15 Gatekeeper mở qua System Settings → Privacy & Security → Open Anyway, và hướng dẫn xử lý cả hai đường.
 
 **FR109.** **Màn hình Attribution trong ứng dụng:** liệt kê mọi nguồn từ điển, giấy phép tương ứng và ghi công đầy đủ.
 

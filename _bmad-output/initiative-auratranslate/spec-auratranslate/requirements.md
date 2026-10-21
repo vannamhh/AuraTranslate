@@ -383,7 +383,7 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 - **FR105.** Phát hành bản cài cho **macOS và Windows** qua **GitHub Releases**.
 - **FR106.** Công bố **checksum SHA-256** cho mọi artifact phát hành.
 - **FR107.** **Build công khai qua GitHub Actions**, để bất kỳ ai cũng kiểm chứng được binary khớp với mã nguồn.
-- **FR108.** **Hướng dẫn cài đặt có ảnh chụp màn hình** cho cả hai hệ điều hành, xử lý tường minh Gatekeeper trên macOS *(chuột phải → Mở)* và SmartScreen trên Windows *(More info → Run anyway)*.
+- **FR108.** **Hướng dẫn cài đặt có ảnh chụp màn hình** cho cả hai hệ điều hành, xử lý tường minh Gatekeeper trên macOS *(chuột phải → Mở)* và SmartScreen trên Windows *(More info → Run anyway)*. 🔵 2026-10-21 (Story 10.6): từ macOS 15 đường là Open Anyway, chuột phải → Mở chỉ còn đến macOS 14 — xem FR108 của PRD.
 - **FR109.** **Màn hình Attribution trong ứng dụng:** liệt kê mọi nguồn từ điển, giấy phép tương ứng và ghi công đầy đủ.
 - **FR110.** Kèm văn bản giấy phép **GPL v3** và toàn bộ giấy phép của các bộ dữ liệu trong bản phát hành.
 - **FR111.** Cơ chế cập nhật **chỉ kiểm tra và thông báo** phiên bản mới. **Không tự động tải, không tự động cài.**

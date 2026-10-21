@@ -13367,3 +13367,15 @@ chính nó.
 
 - **`license/` trong bản cài Windows chưa ai thấy** (Story 10.5). Map `../tools/dict-build/assets/licenses/*.txt` và `../NOTICE` chỉ được kiểm trên `.app` macOS cục bộ; `.dmg` không dựng được trong sandbox, `.msi` chưa thử.
   Lượt `release.yml` đầu tiên chạy `inspect-release` trên `msiexec /a` sẽ trả lời; đọc step summary của nửa Windows. **Chủ: B7.**
+  → ✅ ĐÃ ĐÓNG 2026-10-21 (Story 10.6) — lượt `release.yml` `39536246718` đỏ đúng chỗ này (MSI giữ tên nguồn, `license\NOTICE` không đuôi; `.app` bị xoá sau `.dmg`), sửa ở `5858c2f`; lượt `39539697489` xanh cả `inspect-release` trên `.app` và trên `msiexec /a` của `.msi`.
+
+## Deferred from: Story 10.6 (2026-10-21)
+
+- **`INSTALL.md` chưa có ảnh cho nhánh macOS 14 trở xuống (chuột phải → Mở)** (Story 10.6).
+  Ảnh chỉ chụp trên macOS 15.8.2; chưa có máy macOS cũ. Một lượt cài trên macOS ≤14 thêm ảnh vào `install-guide/` và bỏ câu "chưa có ảnh". **Chủ: Epic 10.**
+
+- **Hộp thoại Gatekeeper trên Apple Silicon chưa đo** (Story 10.6). Bundle "not signed at all"; máy Ice là Intel nên chỉ lát x86_64 được mở. Trên arm64 có thể hiện "is damaged" thay vì "Not Opened", và khi đó hướng dẫn sai.
+  Mở `.dmg` tải bằng trình duyệt trên một máy Apple Silicon, so với `install-guide/macos-02…04`. **Chủ: Epic 10.**
+
+- **Ảnh Edge "Keep" (`windows-01-edge-giu-tep.png`) chưa có, và SmartScreen mới đo với `Zone.Identifier` gắn tay** (Story 10.6, Ice chọn ghi nợ).
+  Ở bản phát hành `v*` đầu tiên: tải `.msi` thẳng từ Releases bằng Edge, chụp bước Keep, xác nhận SmartScreen/UAC như `windows-02/03/07`, thêm ảnh vào `INSTALL.md` Bước 1. **Chủ: Epic 10.**

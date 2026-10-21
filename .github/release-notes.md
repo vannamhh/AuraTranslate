@@ -6,7 +6,7 @@ Bộ tra từ điển và dịch thuật chạy hoàn toàn ngoại tuyến.
 
 Bản `.dmg` (macOS) và `.msi` (Windows) **không được ký số và không được notarize**. Dự án phi lợi nhuận, mã nguồn mở GPL-3.0-or-later, không trả phí cho chứng chỉ nhà phát triển của Apple hay chứng chỉ ký mã của Windows.
 
-Vì vậy hệ điều hành sẽ cảnh báo khi mở lần đầu: Gatekeeper trên macOS ("không thể xác minh nhà phát triển"), SmartScreen trên Windows ("Windows đã bảo vệ PC của bạn"). Cảnh báo này đến từ việc thiếu chữ ký, không phải từ nội dung tệp. Hướng dẫn từng bước kèm ảnh sẽ có ở một bản phát hành sau; mục kiểm tra SHA-256 bên dưới đối chiếu được tệp tải về ngay.
+Vì vậy hệ điều hành sẽ cảnh báo khi mở lần đầu: Gatekeeper trên macOS ("Apple could not verify … is free of malware"), SmartScreen trên Windows ("Windows đã bảo vệ PC của bạn"). Cảnh báo này đến từ việc thiếu chữ ký, không phải từ nội dung tệp. Hướng dẫn từng bước kèm ảnh chụp màn hình: [INSTALL.md](https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md). Mục kiểm tra SHA-256 bên dưới đối chiếu được tệp tải về.
 
 ### Gói gì
 

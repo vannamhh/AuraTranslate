@@ -2922,6 +2922,100 @@ fn release_notes_state_the_build_is_not_signed_or_notarized() {
 }
 
 #[test]
+fn install_guide_keeps_its_sections_checksum_commands_and_every_image() {
+    let root = repo_root();
+    let guide_path = root.join("INSTALL.md");
+    let guide = fs::read_to_string(&guide_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", guide_path.display()));
+    let script = fs::read_to_string(root.join("scripts").join("release-checksums.mjs"))
+        .expect("read scripts/release-checksums.mjs");
+
+    assert!(
+        guide.contains("không được ký số và không được notarize"),
+        "INSTALL.md phải nói thẳng bản cài không ký số và không notarize"
+    );
+    for heading in ["\n## macOS\n", "\n## Windows\n"] {
+        assert!(guide.contains(heading), "INSTALL.md thiếu phần `{}`", heading.trim());
+    }
+    for step in ["More info", "Run anyway", "Open Anyway", "Keep"] {
+        assert!(guide.contains(step), "INSTALL.md thiếu bước `{step}`");
+    }
+    assert_eq!(
+        guide.matches("đừng mở tệp").count(),
+        2,
+        "INSTALL.md phải nói cách xử lý khi hash lệch ở cả phần macOS lẫn Windows"
+    );
+
+    for template in [
+        "shasum -a 256 ${mac}",
+        "shasum -a 256 -c --ignore-missing SHA256SUMS.txt",
+        "Get-FileHash .\\\\${win} -Algorithm SHA256",
+    ] {
+        assert!(
+            script.contains(template),
+            "scripts/release-checksums.mjs không còn dòng `{template}`; INSTALL.md phải đổi theo"
+        );
+    }
+    let version = read_json("tauri.conf.json")["version"]
+        .as_str()
+        .expect("tauri.conf.json mang `version`")
+        .to_string();
+    for command in [
+        format!("shasum -a 256 AuraTranslate_{version}_universal.dmg"),
+        "shasum -a 256 -c --ignore-missing SHA256SUMS.txt".to_string(),
+        format!("Get-FileHash .\\AuraTranslate_{version}_x64_en-US.msi -Algorithm SHA256"),
+    ] {
+        assert!(
+            guide.lines().any(|l| l == command),
+            "INSTALL.md thiếu dòng lệnh checksum `{command}` đúng chữ của releaseBody() và đúng \
+             phiên bản {version} của tauri.conf.json"
+        );
+    }
+
+    let mut images = 0;
+    for line in guide.lines() {
+        let mut rest = line;
+        while let Some(at) = rest.find("](") {
+            let after = &rest[at + 2..];
+            let Some(end) = after.find(')') else { break };
+            let target = &after[..end];
+            if rest[..at].contains("![") && !target.starts_with("http") {
+                images += 1;
+                assert!(
+                    root.join(target).is_file(),
+                    "INSTALL.md trỏ tới ảnh không có thật: `{target}`"
+                );
+            }
+            rest = &after[end..];
+        }
+    }
+    assert!(images > 0, "INSTALL.md không có ảnh nào");
+    let dir = root.join("install-guide");
+    for entry in fs::read_dir(&dir).unwrap_or_else(|e| panic!("read {}: {e}", dir.display())) {
+        let path = entry.expect("directory entry").path();
+        if path.extension().and_then(|x| x.to_str()) != Some("png") {
+            continue;
+        }
+        let name = path.file_name().and_then(|n| n.to_str()).expect("utf-8 name");
+        assert!(
+            guide.contains(&format!("](install-guide/{name})")),
+            "ảnh `install-guide/{name}` không được INSTALL.md dẫn tới"
+        );
+    }
+
+    let notes = fs::read_to_string(root.join(".github").join("release-notes.md"))
+        .expect("read .github/release-notes.md");
+    assert!(
+        notes.contains("https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md"),
+        "ghi chú phát hành phải liên kết tới INSTALL.md"
+    );
+    assert!(
+        !notes.contains("sẽ có ở một bản phát hành sau"),
+        "ghi chú phát hành còn câu hứa hướng dẫn ở bản sau"
+    );
+}
+
+#[test]
 fn version_check_precedes_every_tauri_build_and_macos_builds_universal() {
     let raw = release_workflow_text();
     let lines = code_lines(&raw);
