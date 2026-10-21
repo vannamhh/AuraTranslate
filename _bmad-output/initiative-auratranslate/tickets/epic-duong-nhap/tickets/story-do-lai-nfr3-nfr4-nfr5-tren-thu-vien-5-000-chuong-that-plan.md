@@ -262,6 +262,8 @@ Line numbers drift — re-locate by symbol.
 
 ## Implementation Notes
 
+- 🔵 2026-10-21: tasks 7–9 were run and signed under Story 10.9 (`tickets/epic-phat-hanh-va-tin-cay/tickets/story-nghiem-thu-cuoi-cac-nguong-phi-chuc-nang-plan.md`); the full run's output is `_bmad-output/implementation-artifacts/6-18-ban-do/REPORT.md`.
+
 **Scope actually closed this session: tasks 1, 2, 3, and half of 4.** Tasks 5–8 are untouched — see
 the handoff at the end of this section. This split follows `AGENTS.md`'s own rule ("one agent must
 not implement a whole story"; split along the Code Map's shape) rather than rushing a 50-work

@@ -416,6 +416,7 @@ Ba mục dưới đây là phát hiện **có thật** của lượt review ba l
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Số 15.474.554 byte trích trong mục này đã bị Story 1.10c đo lại và SỬA: dư địa thật còn 3.104.634 byte (0,78% trần), không phải 15.474.554 như bản ghi gốc -- xem 1-10c-...md dòng 512, 554. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. Khớp yếu: story nhận tự quyết đóng hay chuyển chủ khi soạn spec. **Chủ: Story 10.9.**
   → 🔵 2026-10-20 (rà nợ 10.9) — chưa đổi; thuộc nghiệm thu NFR cuối. **Chủ: Story 10.9.**
+  → 🟡 2026-10-21 (Story 10.9) — trần NFR6 nâng lên 500.000.000 byte (Ice ký, PRD NFR6 sửa lần ba); build release run `39580744916` đo payload macOS 432.363.050 byte, Windows 415.937.424 byte, dư địa 67.636.950 / 84.062.576. HVTĐTD và Cổ hán văn vẫn chưa dựng; phải đo trước khi hứa đóng gói. **Chủ: Ice.**
 - 🔵 **PHÁT HIỆN MỚI của lượt AD-44 (2026-08-05) — đo thật, không suy luận: `FR40` trên đường TỪ ĐIỂN không cần stemming, và chữ HOA mới là lỗ thật.**
   - **Stemming mua được ~0 recall.** Thứ phủ FR40 là một **tính chất của corpus**: Wiktionary đã có sẵn mọi dạng biến thể làm **đầu mục riêng** — mẫu **16/16** có mặt, **gồm cả bất quy tắc** `went` · `gone` · `children` · `happiest`, thứ stemming về nguyên tắc **không bao giờ** làm được. Quy mô: **7.656** đầu mục `-ing` · **8.855** `-ed` · **19.616** `-s` · **228** `-est` trên **119.039**. *(Dữ kiện phụ, yếu hơn: ba dạng stem Porter kinh điển tra vào `dict-core.db` cho **0** hàng — `dictionari` · `studi` · `happi`; `run` cho 1. ⚠️ **Số hàng là đo thật, nhưng ba CHUỖI stem đó chưa chạy qua stemmer mà sản phẩm sẽ dùng** — ghi rõ trong AD-44 ③.)*
   - 🔴 **Lỗ chữ HOA, chưa tài liệu nào ghi:** `headword='running'` ⇒ **1** hàng nhưng `headword='Running'` ⇒ **0**. Bôi đen một từ ở **đầu câu** là thao tác thường ngày và nó trả rỗng không báo gì — đúng lớp lỗi FR39/AD-26 tồn tại để chặn. **1.635** đầu mục en mang chữ hoa có nghĩa (`API` · `Wikipedia` · `English`) và **184** nhóm chỉ khác nhau ở chữ hoa ⇒ hạ chữ thường phải là **THÊM** khoá, không phải **THAY**.
@@ -5795,6 +5796,7 @@ những mục CÒN LẠI, không mục nào mồ côi.*
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: sprint-status.yaml action item epic-3-retro-item-43-ai-9 (dòng 691-699) vẫn status: open, owner Ice: "Tổng chi phí mở Chương sau Epic 3 chưa ai cộng lại", các số 214ms/351-436ms/169-218ms đều đo TRƯỚC khi Story 3.7 thêm suggest_han_viet_batch vào cùng đường. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. Khớp yếu: story nhận tự quyết đóng hay chuyển chủ khi soạn spec. **Chủ: Story 10.9.**
   → 🔵 2026-10-20 (rà nợ 10.9) — vị trí hiện tại `chapter.rs:151,270,472`, chưa đổi. **Chủ: Story 10.9.**
+  → 2026-10-21 (Story 10.9) — Bộ đo NFR3/4/5 của 10.9 (`6-18-ban-do/REPORT.md`, 2026-10-21) chỉ đo tìm kiếm Library, khởi động và bộ nhớ nhàn, không đo độ trễ mở Chương tiếng Trung trước/sau lượt hâm `Jieba`; mục chưa có số. **Chủ: Ice.**
 
 ## Deferred from: 3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi (2026-08-21)
 
@@ -5916,6 +5918,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: Cặp số LẠNH/ẤM (351-436ms/169-218ms) vẫn là bản Rust thuần đo bằng bench tạm (retro dòng 453, 592) — chưa có phép đo frame thật trên webview để trả lời "có đứng hình không"; retro cũng ghi "Bấm tay trên cửa sổ thật" chưa chạy. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. Khớp yếu: story nhận tự quyết đóng hay chuyển chủ khi soạn spec. **Chủ: Story 10.9.**
   → 🔵 2026-10-20 (rà nợ 10.9) — vị trí hiện tại `chapter.rs:151,270,472`, chưa đổi. **Chủ: Story 10.9.**
+  → 2026-10-21 (Story 10.9) — Bộ đo NFR3/4/5 của 10.9 (`6-18-ban-do/REPORT.md`, 2026-10-21) chỉ đo tìm kiếm Library, khởi động và bộ nhớ nhàn, không đo khung hình trong lúc mở Chương; câu hỏi đứng hình hay chậm chưa có số. **Chủ: Ice.**
 
 - source_spec: `_bmad-output/implementation-artifacts/3-4b-danh-dau-thuat-ngu-o-cot-nguyen-van-cua-luoi.md`
   summary: **Bề mặt ĐÁNH DẤU thuật ngữ chưa có một spec e2e nào — lượt chạy e2e 2026-08-21 chứng
@@ -8024,6 +8027,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     **(Chủ: Story 6.18 — đã có tên trong `epics.md`, không cần Ice chọn lại.)**
   → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
   → 🔵 2026-10-20 (rà nợ 10.9) — chưa đổi; thuộc nghiệm thu NFR cuối. **Chủ: Story 10.9.**
+  → ✅ ĐÃ ĐÓNG 2026-10-21 (Story 10.9) — đo trên thư viện 5.000 Chương dựng qua `confirm_bilingual_import` + `lifecycle::set_chapter_status`, `release`, macOS, 3 phiên × 200 mẫu: p95 xấu nhất 183,9 ms < 500 ms, ĐẠT (`6-18-ban-do/REPORT.md`); Ice ký, PRD A6 ghi kết luận.
 
 ## Deferred from: 5-9-tim-kiem-full-text-xuyen-library — vòng review (2026-08-29)
 
@@ -8099,6 +8103,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     tại.
   → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
   → 🟡 2026-10-20 (Story 10.9) — vế 50 `.atproj` đã đo (25,71 ms/`.atproj`, gần tuyến tính, `bench-release` 2026-09-14); vế "hàng trăm `.atproj`" chưa đo, đo cùng thư viện 5 000 Chương của nghiệm thu NFR cuối. `lifecycle.rs:317` và `project/wire.rs:472` vẫn gọi `Indexer::rebuild` toàn bộ. **Chủ: Story 10.9.**
+  → 🟡 2026-10-21 (Story 10.9) — thư viện của bộ đo 10.9 vẫn là 50 Tác phẩm, nên vế "hàng trăm `.atproj`" chưa đo. **Chủ: Ice.**
 
 - ⚠️ **Một lượt `INSERT` hỏng khi ghi hàng văn bản của MỘT Tác phẩm làm trượt cả lượt `rebuild`
   của toàn thư viện — trong khi một lượt ĐỌC hỏng thì chỉ bỏ qua đúng Tác phẩm đó.**
@@ -8208,6 +8213,7 @@ trong chính lượt đó; bốn phát hiện bị **bác** kèm lý do ghi ở 
     A7 hiệu chỉnh được, không phải một con số để chốt hôm nay.)**
   → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
   → 🔵 2026-10-20 (rà nợ 10.9) — chưa đổi; thuộc nghiệm thu NFR cuối. **Chủ: Story 10.9.**
+  → 🟡 2026-10-21 (Story 10.9) — đo lại 10 phiên trên thư viện thật, `release`, macOS: lạnh trung vị 3.151,7 ms, max 5.770,6 ms; ấm trung vị 3.331,7 ms — VƯỢT; Ice ký (`6-18-ban-do/REPORT.md`). Máy vẫn không nhàn (tải 8,7 → 9,75, một trình duyệt chạy nền); các phiên yên nhất 3.005–3.051 ms chỉ trên ngưỡng 0,2–1,7%. Còn hở: lượt đo trên máy nhàn thật và quyết có tối ưu khởi động không. **Chủ: Ice.**
 
 - ⚠️ **Bàn đo 5.14 chưa có ca nào bắt được CHÍNH NÓ: một khoá chờ tự gây đã lọt qua vòng review
   2026-09-02 rồi ăn trọn hai lượt đo.**
@@ -8974,6 +8980,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   re-đo).
   → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
   → 🟡 2026-10-20 (Story 10.9) — vế con số đã đo: đỉnh RSS ~979 MB (~9,8× nguồn 104 853 588 B, `bench-release` 2026-09-14); có vá hay không là kết luận A8/NFR5 của nghiệm thu NFR cuối. Số 979 MB đo TRƯỚC khi `normalize` gác `contains('\r')` (bỏ hai bản sao toàn buffer với văn bản không có `\r`), chưa đo lại sau bản vá. **Chủ: Story 10.9.**
+  → 🟡 2026-10-21 (Story 10.9) — NFR5 đã có kết luận: `phys_footprint` nhàn lớn nhất 700.018.688 byte, Library nhàn 422,8 MB — VƯỢT trần 300 MB (`6-18-ban-do/REPORT.md`). Đỉnh RSS của chuỗi nhập 100 MB chưa đo lại sau bản vá `normalize`; có vá hay không là quyết định sản phẩm. **Chủ: Ice.**
 
 - ⚠️ **Chín tệp vitest mang ca phụ thuộc TẢI MÁY — đỏ giả khi máy bận, và điều đó CÓ SẴN
   trước Story 6.4.** Đo 2026-09-05 bằng phép đối chứng cùng tải: cây story ở load 215-237 cho
@@ -9296,6 +9303,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.6.**
   → 2026-09-28 (Story 11.6) — thuộc phạm vi đo NFR cuối cùng của Story 10.9 (nghiệm thu ngưỡng phi chức năng thật): cần Chương cỡ thật để đo phí sao chép kép, fixture 2000-Chương hiện có chỉ ~70 byte/Chương nên không chạm được. **Chủ: Story 10.9.**
   → 🔵 2026-10-20 (rà nợ 10.9) — Ice chọn không vá ở lượt này; vị trí hiện tại `mod.rs:2460`. **Chủ: Story 10.9.**
+  → 2026-10-21 (Story 10.9) — Bộ đo NFR3/4/5 của 10.9 (`6-18-ban-do/REPORT.md`, 2026-10-21) chỉ đo tìm kiếm Library, khởi động và bộ nhớ nhàn, không đo đường xem trước URL; phí sao chép kép chưa có số. **Chủ: Ice.**
 
 - ⚠️ **Hợp âm `⌘↵` mà AC của Story 6.10 đòi đã có chủ khác: `editor.confirm_segment`.**
   Đo 2026-09-08: `src/commands/index.ts:2157` khai `keys: ['Mod+Enter']` cho lệnh xác nhận segment của
@@ -9327,6 +9335,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. **Chủ: Story 11.6.**
   → 2026-09-28 (Story 11.6) — cùng phạm vi đo NFR với mục "sao chép kép mỗi lượt dời con trỏ": cần đo trên một nguồn bệnh lý thật (mẫu khớp gần mọi vị trí) trước khi chọn một trần số Chương, đúng luật "không hằng số phù thuỷ" của Ice. **Chủ: Story 10.9.**
   → 🔵 2026-10-20 (rà nợ 10.9) — chưa đổi; thuộc nghiệm thu NFR cuối. **Chủ: Story 10.9.**
+  → 2026-10-21 (Story 10.9) — Bộ đo NFR3/4/5 của 10.9 (`6-18-ban-do/REPORT.md`, 2026-10-21) chỉ đo tìm kiếm Library, khởi động và bộ nhớ nhàn, không đo màn xem trước tách Chương trên nguồn bệnh lý; trần số Chương chưa có số để đặt. **Chủ: Ice.**
 
 - ⚠️ **Tầng 3 (luật làm sạch) của màn xem trước ghim vĩnh viễn vào Chương ĐẦU.**
   `commands::project::cleanup_and_chapters_preview_for` dựng khối làm sạch từ `chapters.first()`.
@@ -9999,6 +10008,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
   MỚI.
   → 🔵 **SỬA 2026-09-15** — Story 6.18 **gộp vào Story 10.9** (`correct-course`, `sprint-change-proposal-2026-09-15.md`). **Chủ: Story 10.9.** Mục này CHƯA đóng: dòng đóng theo luật `AGENTS.md` §Debt (`→ ✅` / `→ 🟡` / `→ KHÔNG LÀM`) vẫn chưa có.
   → 🔵 2026-10-20 (rà nợ 10.9) — vị trí hiện tại `ImportPreviewOverlay.vue:375-381`, chưa đổi. **Chủ: Story 10.9.**
+  → 2026-10-21 (Story 10.9) — Bộ đo NFR3/4/5 của 10.9 (`6-18-ban-do/REPORT.md`, 2026-10-21) chỉ đo tìm kiếm Library, khởi động và bộ nhớ nhàn, không đo màn xem trước nhập; nửa "render trên WKWebView thật" chưa có số. **Chủ: Ice.**
 
 ## Deferred from: 6-11-anh-tai-ve-atproj-neo-vi-tri-va-url-goc (2026-09-08)
 
@@ -12008,6 +12018,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     **(Chủ: Story 10.9 — story đo NFR trên thư viện thật, nơi đã có bàn đo cho đường mở Chương;
     đo TRƯỚC rồi quyết, đừng vá mù.)**
   → 🔵 2026-10-20 (rà nợ 10.9) — vị trí hiện tại `glossary/store.rs:1585-1612`, chưa đổi. **Chủ: Story 10.9.**
+  → 2026-10-21 (Story 10.9) — Bộ đo NFR3/4/5 của 10.9 (`6-18-ban-do/REPORT.md`, 2026-10-21) chỉ đo tìm kiếm Library, khởi động và bộ nhớ nhàn, không đo đường mở Chương; khoản clone Glossary chưa có số. **Chủ: Ice.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
   summary: **"Đúng MỘT truy vấn Glossary mỗi câu" mới được canh bằng phép đếm CHUỖI trong mã
@@ -12029,6 +12040,7 @@ chúng trỏ về `sprint-status.yaml`, nơi giữ bản gốc, để sổ nợ 
     giao; đo TRƯỚC rồi quyết có cần phơi bộ đếm ở tầng `Store` hay không, đừng vá mù.
   → 2026-10-06 (Story 4.8 đã done) — Chủ: Story 10.9 — mục tự ghi "Chủ mới: Story 10.9" nhưng chưa ở dạng `Chủ:` mà cổng đọc được.
   → 🔵 2026-10-20 (rà nợ 10.9) — vị trí hiện tại `ai_boundary.rs:1458`, chưa đổi. **Chủ: Story 10.9.**
+  → 2026-10-21 (Story 10.9) — Bộ đo NFR3/4/5 của 10.9 (`6-18-ban-do/REPORT.md`, 2026-10-21) chỉ đo tìm kiếm Library, khởi động và bộ nhớ nhàn, không đo số truy vấn Glossary của một phiên dịch; `Store` vẫn không phơi bộ đếm. **Chủ: Ice.**
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-6-smart-rag-injector-ham-thuan.md`
   summary: **Thân prompt dùng CRLF để sót một ký tự `\r` mồ côi khi một dòng marker bị gỡ và

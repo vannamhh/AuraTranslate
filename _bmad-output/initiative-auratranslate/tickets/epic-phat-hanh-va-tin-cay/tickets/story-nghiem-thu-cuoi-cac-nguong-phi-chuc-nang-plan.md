@@ -98,19 +98,19 @@ context: ['{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-duo
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `6-18-ban-do/` — chạy `run.sh` trọn, trên máy nhàn → `REPORT.md`, `environment.txt`, TSV thô (task 7 của 6.18) -- bằng chứng NFR3/4/5 trên macOS.
-- [ ] Trình bảng số NFR3/4/5 cho Ice → ghi kết luận A6/A7/A8 vào PRD (:916–918, :1177–1179, đóng Q4 :1222), `spec-auratranslate.md`, `requirements.md`. Đánh dấu 5.14 là sơ bộ (task 8 của 6.18). Thêm một dòng trỏ sang 10.9 vào Implementation Notes của plan 6.18 -- AC Q4.
+- [x] `6-18-ban-do/` — chạy `run.sh` trọn, trên máy nhàn → `REPORT.md`, `environment.txt`, TSV thô (task 7 của 6.18) -- bằng chứng NFR3/4/5 trên macOS.
+- [x] Trình bảng số NFR3/4/5 cho Ice → ghi kết luận A6/A7/A8 vào PRD (:916–918, :1177–1179, đóng Q4 :1222), `spec-auratranslate.md`, `requirements.md`. Đánh dấu 5.14 là sơ bộ (task 8 của 6.18). Thêm một dòng trỏ sang 10.9 vào Implementation Notes của plan 6.18 -- AC Q4.
 - [x] `scripts/inspect-release.mjs` + `.github/workflows/release.yml` — ghi bảng kích thước ra tệp; lượt tag nối hai dòng (payload, WebView2) của mỗi hệ điều hành vào ghi chú phát hành; lượt dispatch tải bảng lên làm artifact để `gh run download` đọc được. Thiếu số thì đỏ -- AC NFR6 "cả hai dòng vào ghi chú phát hành".
 - [x] Test cho phần nối ghi chú (đặt cạnh test hiện có của `release-checksums`/`inspect-release`), có ca thiếu số -- canh nhánh lỗi.
-- [ ] Chạy `release.yml` bằng `workflow_dispatch` → đọc artifact → đối chiếu với 400.000.000 B → trình Ice số nâng trần. Ice ký thì sửa PRD :926 (và dự phóng :1037–1045 nếu còn trích trần cũ) tại chỗ bằng 🔵 -- AC NFR6, Q1.
+- [x] Chạy `release.yml` bằng `workflow_dispatch` → đọc artifact → đối chiếu với 400.000.000 B → trình Ice số nâng trần. Ice ký thì sửa PRD :926 (và dự phóng :1037–1045 nếu còn trích trần cũ) tại chỗ bằng 🔵 -- AC NFR6, Q1.
 - [x] `prd-auratranslate.md:914` — sửa hàng NFR1 tại chỗ bằng 🔵 theo Q2; đóng :945, :1178, :1187 bằng `KHÔNG LÀM` -- Q2.
 - [x] NFR15: rà một lần toàn bộ cây phụ thuộc. Rust dùng `cargo metadata`; npm chỉ lấy gói `dependencies` được đóng gói; trường nào không có `license` thì đọc tệp giấy phép trong mã nguồn đã tải. Đối chiếu bảng Stack với các phụ thuộc trực tiếp, sửa trong spine những hàng lệch và câu ở :1270 -- AC NFR15, Q3.
 - [x] NFR16 và tương phản: chạy lại `check:i18n` và `check:tokens`, ghi kết quả vào báo cáo; chuyển mục nợ :50 sang `Chủ: Ice` -- AC NFR16/WCAG, Q4/Q5.
-- [ ] `deferred-work.md` — mỗi mục trong 17 mục `Chủ: Story 10.9` được đóng bằng số đo của lượt này hoặc chuyển chủ có tên. Thêm mục nợ mới:
+- [x] `deferred-work.md` — mỗi mục trong 17 mục `Chủ: Story 10.9` được đóng bằng số đo của lượt này hoặc chuyển chủ có tên. Thêm mục nợ mới:
   - `Chủ: Epic 10`: vòng một Chương không chạm chuột trên macOS (NFR17); duyệt bằng mắt tương phản hai theme trong WKWebView, kể cả Chế độ đọc và diff
   - `Chủ: B7`: các nửa Windows của NFR14/NFR17
   - Mục :393 (thông báo tác giả) giữ `Chủ: Ice`
-- [ ] Báo cáo nghiệm thu `_bmad-output/implementation-artifacts/10-9-ban-do/REPORT.md`: mỗi AC một hàng, gồm số, nguồn và kết luận -- tránh để kết luận rải rác.
+- [x] Báo cáo nghiệm thu `_bmad-output/implementation-artifacts/10-9-ban-do/REPORT.md`: mỗi AC một hàng, gồm số, nguồn và kết luận -- tránh để kết luận rải rác.
 
 **Acceptance Criteria:**
 - Given bộ đo 6.18 chạy trọn trên máy nhàn, when `summarize.mjs` chạy, then `REPORT.md` có p95 cho từng kiểu truy vấn NFR3, NFR4 lạnh/ấm và NFR5 tính bằng B/MB/MiB, kèm điều kiện đo.
@@ -124,11 +124,12 @@ context: ['{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-duo
 ## Implementation Notes
 
 - Rà NFR15 không thấy hàng Stack nào lệch: 25 tên crate trực tiếp và 20 gói npm trực tiếp đều có đúng một hàng, phiên bản trùng lock. Sửa duy nhất là câu "37 hàng (34+3)" của spine. Chi tiết ở `10-9-ban-do/REPORT.md`.
-- NFR1 sửa luôn giả định A1 của PRD (cùng vế đầu-cuối); `spec-auratranslate/requirements.md:403` còn bản chép cũ của hàng NFR1, chưa sửa.
-- 12 trong 17 mục nợ `Chủ: Story 10.9` còn lại vì cần số của lượt đo NFR3/4/5/6; danh sách ở REPORT.md.
+- NFR1 sửa luôn giả định A1 của PRD (cùng vế đầu-cuối) và bản chép ở `spec-auratranslate/requirements.md` hàng NFR1.
+- Of the 17 debt items only the NFR3 one closed on this run's numbers; seven asked for measurements the 6.18 bench never takes (Chapter open, URL preview, Glossary counters) and moved to `Chủ: Ice`.
 
 - NFR6 notes: `inspect-release.mjs --json` writes `{os,installerBytes,payloadBytes,webview2Bytes}`; `release-checksums.mjs --sizes` (twice) validates and appends a `### Dung lượng (NFR6)` section, red on a missing OS, payload 0, or Windows WebView2 0. macOS WebView2 is legitimately 0 (WKWebView), so its line is a fixed statement, not a number: the "four non-zero numbers" AC holds as three numbers plus that statement.
 - Windows WebView2 is not a file in the `msiexec /a` tree: it is the MSI Binary stream, read from the installer itself (Plan Change Log). Push of the branch also surfaced `check:panel-refs` and `check:clippy` reds left by 10-7/10-8 (never pushed); fixed in their own commit.
+- The 6.18 run went at load 8.7–9.75 (a browser left running); Ice signed the numbers anyway, A7 carries that caveat in the PRD. NFR4 and NFR5 exceed; NFR6 ceiling raised to 500,000,000 B (A2 wrong a second time).
 - `workflow_dispatch` has no `publish` job, so no notes preview is built there; the `nfr6-sizes-<OS>` artifacts (JSON) carry the bytes and Phase M can feed them to `release-checksums.mjs --sizes` locally for the preview.
 
 ## Plan Change Log

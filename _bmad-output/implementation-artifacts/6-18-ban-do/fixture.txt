@@ -1,0 +1,11 @@
+works=50
+chapters=5000
+segments=50000
+library_bytes=33195050
+library_MB=33.195
+library_MiB=31.657
+shape=50 Tác phẩm; 100 Chương/Tác phẩm; 10 segment/Chương; nhập qua confirm_bilingual_import + lifecycle::set_chapter_status + Indexer::rebuild
+build_wall_ms=210281
+build_peak_rss_kb=53196
+build_peak_rss_mb=51.9
+build_stats_note=ps -o rss= mau moi 20ms tren tien trinh cargo test builder, khong phai footprint; bao trum dung tu luc bat dau import den luc quan the full duoc kiem xong
