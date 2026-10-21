@@ -13419,3 +13419,7 @@ chính nó.
 
 - **Nửa Windows của NFR14 và NFR17 chưa có bằng chứng** (Story 10.9). NFR3/4/5 chỉ đo trên macOS (quyết định 6.18); vòng không chạm chuột và phím tắt trên Windows chưa ai chạy.
   Gộp vào bảng nghiệm thu Windows B7. **Chủ: B7.**
+
+- source_plan: `tickets/epic-phat-hanh-va-tin-cay/tickets/story-nghiem-thu-cuoi-cac-nguong-phi-chuc-nang-plan.md`
+  summary: Job `publish` của `release.yml` chưa từng chạy với `--sizes`, nên mục `### Dung lượng (NFR6)` trong ghi chú phát hành mới chỉ được dựng cục bộ từ artifact của run `39580744916`.
+  evidence: Lượt `workflow_dispatch` bỏ qua `publish`, và 10.9 §Never cấm push tag `v*`. Bố cục `size-reports/nfr6-sizes-<OS>/sizes.json` khớp README của `download-artifact` ở SHA đang ghim (`pattern` không kèm `merge-multiple` thì mỗi artifact một thư mục), nhưng chưa có lượt chạy thật nào. Lượt tag đầu tiên sẽ xác nhận; nếu sai, bước `create the release` đỏ và không có bản phát hành nào được tạo. **Chủ: Ice.**

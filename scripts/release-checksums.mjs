@@ -67,7 +67,7 @@ function sizeSection(sizes) {
     `- ${s.os}, payload sản phẩm: ${bytes(s.payloadBytes)} byte`,
     s.os === 'Windows'
       ? `- Windows, WebView2 Runtime nhúng (không tính vào trần): ${bytes(s.webview2Bytes)} byte`
-      : '- macOS, WebView2: không nhúng, dùng WKWebView của hệ điều hành',
+      : `- macOS, WebView2: ${bytes(s.webview2Bytes)} byte (không nhúng, dùng WKWebView của hệ điều hành)`,
   ])
   return ['### Dung lượng (NFR6)', '', ...lines, '']
 }

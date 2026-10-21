@@ -78,7 +78,7 @@ try {
   console.log(`| WebView2 in the installer's Binary table | ${fmt(binaryWebview2Bytes)} |`)
   console.log(`| \`.msi\` copy left by \`msiexec /a\`, excluded | ${fmt(adminPackageBytes)} |`)
   console.log('')
-  console.log('Reference ceiling 400,000,000 bytes. Measured only; the verdict is the PRD tier (Ice).')
+  console.log('Reference ceiling 500,000,000 bytes. Measured only; the verdict is the PRD tier (Ice).')
   if (problems.length > 0) {
     console.error(`\n${problems.length} problem(s) in ${root}:`)
     for (const p of problems) console.error(`  ${p}`)

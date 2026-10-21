@@ -408,7 +408,7 @@ Phần lớn ngưỡng dưới đây **không phải phỏng đoán** — chúng
 
 > Vì sao vẫn đặt ngưỡng dù chưa đo được (NFR3–NFR5): **một ngưỡng tạm sai vẫn nghiệm thu được và vẫn buộc người xây dựng phải đo; một tính từ thì không.**
 >
-> 🔵 **2026-09-02 — ba ngưỡng này nay CÓ số, và chúng vẫn là ngưỡng tạm.** Story 5.14 đo trên một fixture **tổng hợp** (một Work, 5.000 Chương, 50.000 segment dựng thẳng vào HOME nháp), **không** phải thư viện tạo qua đường nhập của sản phẩm — nên mọi phán quyết đều **sơ bộ** và **không ngưỡng nào được sửa theo chúng**. Q4 vẫn mở; **Story 10.9** mới là phép đo nghiệm thu 🔵 *(gộp từ Story 6.18 ngày 2026-09-15 qua `correct-course` — phép đo dời về nghiệm thu cuối)*. Số thô, điều kiện máy và tải: `_bmad-output/implementation-artifacts/5-14-ban-do/`. 🔵 2026-10-21: không còn ngưỡng tạm — Story 10.9 đo trên thư viện thật (macOS) và Q4 đã đóng; số 5.14 là sơ bộ, thay bởi 10.9 (`_bmad-output/implementation-artifacts/6-18-ban-do/REPORT.md`).
+> 🔵 **2026-09-02 — ba ngưỡng này nay CÓ số sơ bộ, và lúc đó chúng vẫn là ngưỡng tạm.** Story 5.14 đo trên một fixture **tổng hợp** (một Work, 5.000 Chương, 50.000 segment dựng thẳng vào HOME nháp), **không** phải thư viện tạo qua đường nhập của sản phẩm — nên mọi phán quyết đều **sơ bộ** và **không ngưỡng nào được sửa theo chúng**. Q4 vẫn mở; **Story 10.9** mới là phép đo nghiệm thu 🔵 *(gộp từ Story 6.18 ngày 2026-09-15 qua `correct-course` — phép đo dời về nghiệm thu cuối)*. Số thô, điều kiện máy và tải: `_bmad-output/implementation-artifacts/5-14-ban-do/`. 🔵 2026-10-21: không còn ngưỡng tạm — Story 10.9 đo trên thư viện thật (macOS) và Q4 đã đóng; số 5.14 là sơ bộ, thay bởi 10.9 (`_bmad-output/implementation-artifacts/6-18-ban-do/REPORT.md`).
 
 ### Dữ liệu & lưu trữ
 

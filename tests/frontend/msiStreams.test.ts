@@ -20,36 +20,61 @@ function msiChars(name: string) {
   return out
 }
 
-/** A version-3 Compound File with one FAT sector and one directory sector; stream data is never read. */
-function compoundFile(streams: Array<{ raw: string, size: number }>): Buffer {
-  const header = Buffer.alloc(512, 0)
-  Buffer.from('d0cf11e0a1b11ae1', 'hex').copy(header, 0)
-  header.writeUInt16LE(0x3e, 0x18)
-  header.writeUInt16LE(3, 0x1a)
-  header.writeUInt16LE(0xfffe, 0x1c)
-  header.writeUInt16LE(9, 0x1e)
-  header.writeUInt16LE(6, 0x20)
-  header.writeUInt32LE(1, 0x2c)
-  header.writeUInt32LE(1, 0x30)
-  header.writeUInt32LE(4096, 0x38)
-  header.writeUInt32LE(0xfffffffe, 0x3c)
-  header.writeUInt32LE(0xfffffffe, 0x44)
-  for (let off = 0x4c; off < 512; off += 4) header.writeUInt32LE(0xffffffff, off)
-  header.writeUInt32LE(0, 0x4c)
-  const fat = Buffer.alloc(512, 0xff)
-  fat.writeUInt32LE(0xfffffffd, 0)
-  fat.writeUInt32LE(0xfffffffe, 4)
-  const dir = Buffer.alloc(512, 0)
+const FREE = 0xffffffff
+const END = 0xfffffffe
+
+/**
+ * A Compound File whose FAT sectors sit at 0..fatSectors-1, an extra DIFAT sector right after them
+ * when there are more than 109, and the directory chain at `dirSectors`; stream data is never read.
+ */
+function compoundFile(
+  streams: Array<{ raw: string, size: number }>,
+  { major = 3, fatSectors = 1, dirSectors = [1] }: { major?: 3 | 4, fatSectors?: number, dirSectors?: number[] } = {},
+): Buffer {
+  const ssz = major === 4 ? 4096 : 512
+  const per = ssz / 4
+  const difatSector = fatSectors > 109 ? fatSectors : null
+  const last = Math.max(...dirSectors, difatSector ?? 0, fatSectors - 1)
+  const file = Buffer.alloc((last + 2) * ssz, 0)
+  const at = (n: number) => (n + 1) * ssz
+  file.write('d0cf11e0a1b11ae1', 0, 'hex')
+  file.writeUInt16LE(0x3e, 0x18)
+  file.writeUInt16LE(major, 0x1a)
+  file.writeUInt16LE(0xfffe, 0x1c)
+  file.writeUInt16LE(major === 4 ? 12 : 9, 0x1e)
+  file.writeUInt16LE(6, 0x20)
+  file.writeUInt32LE(fatSectors, 0x2c)
+  file.writeUInt32LE(dirSectors[0], 0x30)
+  file.writeUInt32LE(4096, 0x38)
+  file.writeUInt32LE(END, 0x3c)
+  file.writeUInt32LE(difatSector ?? END, 0x44)
+  file.writeUInt32LE(difatSector === null ? 0 : 1, 0x48)
+  for (let i = 0; i < 109; i++) file.writeUInt32LE(i < fatSectors ? i : FREE, 0x4c + i * 4)
+  if (difatSector !== null) {
+    for (let i = 0; i < per; i++) file.writeUInt32LE(FREE, at(difatSector) + i * 4)
+    for (let i = 109; i < fatSectors; i++) file.writeUInt32LE(i, at(difatSector) + (i - 109) * 4)
+    file.writeUInt32LE(END, at(difatSector) + (per - 1) * 4)
+  }
+  const fat = new Array<number>(fatSectors * per).fill(FREE)
+  for (let i = 0; i < fatSectors; i++) fat[i] = 0xfffffffd
+  if (difatSector !== null) fat[difatSector] = 0xfffffffc
+  dirSectors.forEach((s, i) => { fat[s] = dirSectors[i + 1] ?? END })
+  fat.forEach((v, i) => file.writeUInt32LE(v, at(Math.floor(i / per)) + (i % per) * 4))
   const entries = [{ raw: 'Root Entry', size: 0, type: 5 }, ...streams.map((s) => ({ ...s, type: 2 }))]
+  const slots = ssz / 128
   entries.forEach((e, i) => {
-    const off = i * 128
-    dir.write(e.raw, off, 'utf16le')
-    dir.writeUInt16LE((e.raw.length + 1) * 2, off + 64)
-    dir[off + 66] = e.type
-    dir.writeUInt32LE(e.size, off + 120)
+    const off = at(dirSectors[Math.floor(i / slots)]) + (i % slots) * 128
+    file.write(e.raw, off, 'utf16le')
+    file.writeUInt16LE((e.raw.length + 1) * 2, off + 64)
+    file[off + 66] = e.type
+    file.writeUInt32LE(e.size % 2 ** 32, off + 120)
+    file.writeUInt32LE(Math.floor(e.size / 2 ** 32), off + 124)
   })
-  return Buffer.concat([header, fat, dir])
+  return file
 }
+
+/** The directory name of the WebView2 stream as stored in the release `.msi` of run 39576340751. */
+const REAL_WEBVIEW2_RAW = '䌋䄱䜵㶾䆬䒵䒶䗩䇎䈪䈠㿥䈬㢺䘛䗱䐬㲨䖱䄷䏯䕨䈾䈻'
 
 let dir: string
 beforeEach(() => {
@@ -67,6 +92,27 @@ describe('msiStreamSizes', () => {
       { name: WEBVIEW2, size: 214_156_024 },
       { name: 'app.cab', size: 7 },
     ])
+  })
+
+  it('decodes the stream name exactly as a real release .msi stores it', () => {
+    expect(decodeMsiStreamName(REAL_WEBVIEW2_RAW)).toBe(WEBVIEW2)
+  })
+
+  it('reads a version-4 file with 4096-byte sectors, a two-sector directory and a size above 4 GiB', () => {
+    const path = join(dir, 'v4.msi')
+    const filler = Array.from({ length: 40 }, (_, i) => ({ raw: msiChars(`s${i}`), size: i }))
+    writeFileSync(path, compoundFile([...filler, { raw: REAL_WEBVIEW2_RAW, size: 2 ** 32 + 5 }], { major: 4, dirSectors: [1, 2] }))
+    const streams = msiStreamSizes(path)
+    expect(streams).toHaveLength(41)
+    expect(streams.at(-1)).toEqual({ name: WEBVIEW2, size: 2 ** 32 + 5 })
+  })
+
+  it('follows the DIFAT chain when the FAT needs more than 109 sectors', () => {
+    const path = join(dir, 'difat.msi')
+    const deep = 109 * 128
+    const filler = ['a', 'b', 'c', 'd'].map((n) => ({ raw: msiChars(n), size: 1 }))
+    writeFileSync(path, compoundFile([...filler, { raw: REAL_WEBVIEW2_RAW, size: 214_156_024 }], { fatSectors: 110, dirSectors: [deep, deep + 1] }))
+    expect(msiStreamSizes(path).at(-1)).toEqual({ name: WEBVIEW2, size: 214_156_024 })
   })
 
   it('decodes a table stream marker', () => {

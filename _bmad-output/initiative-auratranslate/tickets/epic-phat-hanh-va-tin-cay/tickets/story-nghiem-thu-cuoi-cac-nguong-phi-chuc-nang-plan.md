@@ -3,14 +3,14 @@ title: 'Story 10.9 — Nghiệm thu cuối các ngưỡng phi chức năng'
 type: 'chore'
 ticket: '9'
 created: '2026-10-21'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '9b71b277532f72b926f42bd07297968ea55b17e2'
 route: 'full'
 route_source: 'auto'
 risk: 'medium'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context: ['{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-duong-nhap/tickets/story-do-lai-nfr3-nfr4-nfr5-tren-thu-vien-5-000-chuong-that-plan.md']
 ---
@@ -137,6 +137,15 @@ context: ['{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-duo
 - 2026-10-21 — Lượt dispatch `39576340751` (`68cd7fa`) ra Windows WebView2 = 0 và payload 630.621.072 B. Bộ cài offline WebView2 (214.156.024 B) nằm trong bảng Binary của `.msi`, nên `msiexec /a` không giải nén nó; còn bản sao `.msi` mà ảnh quản trị để ở gốc thư mục đích bị cộng vào payload. Ice chọn đọc thẳng từ MSI: `scripts/lib/msi-streams.mjs` đọc bảng thư mục CFB và lấy stream `Binary.*webview2*`, còn `inspectInstalledTree` bỏ tệp `.msi` ở gốc khỏi payload. Sau đó chạy lại dispatch.
 
 ## Review Triage Log
+
+- quick 1 · low · patch — `inspect-release.mjs` summary still printed the 400,000,000 ceiling; now 500,000,000.
+- quick 2 · low · patch — notes printed a sentence, not a number, for macOS WebView2, so AC 3 had three numbers; the line now reads `0 byte (không nhúng, …)`.
+- quick 3 · maybe-false (medium if true) · defer — `publish` never ran with `--sizes`; artifact layout matches the pinned `download-artifact` README; first tag release confirms (`deferred-work.md`, `Chủ: Ice`).
+- quick 4 · low · patch — four 🔵 added mid-sentence (PRD NFR6 note ×2, A2, `spec-auratranslate.md` NFR6 line); moved to sentence start or dropped.
+- quick 5 · false — the A2 row already ends with a dated 🔵 sentence saying A2 was wrong a second time, with the real 432/416 MB payloads.
+- quick 6 · low · patch — SPEC A6–A8 kept "Ngưỡng tạm" / "Chưa đóng" and Q4 "VẪN MỞ"; reworded so the 5.14 text reads as the superseded preliminary.
+- quick 7 · low · rejected — unchecked sector shift and unguarded DIFAT loop only bite on a corrupt `.msi` from our own build; the fix adds guards.
+- quick 8 · medium · patch — tests covered only a v3 single-sector file with a mirrored encoder, while the real MSI is v4/4096 B with a two-sector directory and DIFAT starts near 457 MB; added the real raw stream name plus v4 and DIFAT cases, each counter-checked by a real removal.
 
 ## Design Notes
 

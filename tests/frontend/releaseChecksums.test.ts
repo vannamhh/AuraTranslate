@@ -110,6 +110,7 @@ describe('release-checksums', () => {
       const body = readFileSync(join(out, 'release-body.md'), 'utf8')
       expect(body).toContain('### Dung lượng (NFR6)')
       expect(body).toContain('macOS, payload sản phẩm: 345,000,001 byte')
+      expect(body).toContain('macOS, WebView2: 0 byte (không nhúng, dùng WKWebView của hệ điều hành)')
       expect(body).toContain('Windows, payload sản phẩm: 346,000,002 byte')
       expect(body).toContain('WebView2 Runtime nhúng (không tính vào trần): 127,000,003 byte')
       expect(body.indexOf('### Dung lượng (NFR6)')).toBeLessThan(body.indexOf('### Kiểm tra tệp tải về'))
