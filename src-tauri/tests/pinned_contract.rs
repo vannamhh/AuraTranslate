@@ -27,7 +27,7 @@ use auratranslate_lib::commands::pinned::{
     PinnedEntry, list_pinned_entries, pin_entry, unpin_entry,
 };
 use auratranslate_lib::commands::project::create_work_from_text;
-use auratranslate_lib::core::dict::DictLayers;
+use auratranslate_lib::core::dict::{DictLayers, list_source_attributions};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::store::{
     GLOBAL_MIGRATIONS, PINNED_ENTRY_DDL, PROJECT_MIGRATIONS, Store, StoreSpec, Transaction,
@@ -638,6 +638,35 @@ fn a_pin_records_the_source_version_of_the_loaded_dictionary() {
     assert_eq!(version_of(3), None);
 
     layers.close();
+    drop(store);
+    cleanup(&dir);
+}
+
+/// A pin whose source file is gone from the dictionary directory is still listed and still
+/// accepts a new pin; the list never joins against the loaded layers.
+#[test]
+fn a_pin_of_a_source_whose_layer_file_was_removed_is_still_listed() {
+    let dir = temp_dir("pin-removed-layer");
+    let store = open_global(&dir);
+    let layers = dict_layers_with_source_version(&dir, "2026.07");
+    pin_entry(Some(&store), "fx-core", 1, "a", Some("g"), Some(&layers)).expect("ghim");
+    layers.close();
+
+    fs::remove_file(dir.join("base.db")).expect("go lop");
+    let empty = DictLayers::open(&dir);
+    assert!(
+        list_source_attributions(&empty).sources.is_empty(),
+        "sau khi gỡ, không còn nguồn nào được nạp"
+    );
+
+    let rows = list_pinned_entries(Some(&store)).expect("doc ghim sau khi go lop");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].source_code, "fx-core");
+    assert_eq!(rows[0].source_version.as_deref(), Some("2026.07"));
+    let rows = pin_entry(Some(&store), "fx-core", 2, "b", None, Some(&empty)).expect("ghim tiep");
+    assert_eq!(rows.len(), 2);
+
+    empty.close();
     drop(store);
     cleanup(&dir);
 }

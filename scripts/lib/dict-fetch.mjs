@@ -15,6 +15,7 @@ const SHA256_RE = /^[0-9a-f]{64}$/
 
 /**
  * Entries of `dict-manifest.toml`: `[base]` first, then each `[[detachable]]`, in file order.
+ * `[[removed]]` rows are tombstones and never become entries.
  * @param {string} text
  * @returns {ManifestEntry[]}
  */
@@ -130,7 +131,7 @@ async function walkFiles(dir) {
 /**
  * Looks for every manifest file under `root` (an unpacked `.app` or a `msiexec /a` target),
  * requiring exactly one copy per name, inside a directory called `dict`, with the manifest's
- * SHA-256. Also totals the bytes of the whole tree, minus files named like WebView2.
+ * SHA-256, and no other `.db` under a `dict` directory. Also totals the bytes of the whole tree, minus files named like WebView2.
  *
  * @param {{ manifestText: string, root: string }} options
  * @returns {Promise<{ problems: string[], installedBytes: number, webview2Bytes: number }>}
@@ -139,6 +140,12 @@ export async function inspectInstalledTree({ manifestText, root }) {
   const entries = manifestEntries(manifestText)
   const files = await walkFiles(root)
   const problems = []
+  const known = new Set(entries.map((e) => e.fileName))
+  for (const f of files) {
+    const posix = f.path.replaceAll('\\', '/')
+    const m = posix.match(/\/dict\/([^/]+\.db)$/)
+    if (m && !known.has(m[1])) problems.push(`${m[1]}: .db under a 'dict' directory but not in dict-manifest.toml`)
+  }
   for (const entry of entries) {
     const hits = files.filter((f) => f.path.replaceAll('\\', '/').endsWith(`/dict/${entry.fileName}`))
     if (hits.length !== 1) {

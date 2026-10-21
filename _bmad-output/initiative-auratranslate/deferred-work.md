@@ -13384,3 +13384,8 @@ chính nó.
 
 - **Cài đặt → Cập nhật chưa được thử trên app thật, và e2e `story-12-18-settings` chưa chạy lại với nội dung mới** (Story 10.7). Test chỉ chạy với server giả và IPC giả, nên chưa ai thấy một request thật tới `api.github.com` từ bản dựng.
   Trên app thật: dòng phiên bản hiện `0.1.0`; bấm kiểm tra ra "chưa có bản phát hành ứng dụng" (hôm nay chỉ có tag `dict-*`); tắt công tắc thì nút không bấm được; ở bản `v*` đầu tiên, nút mở đúng trang tag. Chạy `npm run test:e2e` ngoài sandbox. **Chủ: Epic 10.**
+
+## Deferred from: Story 10.8 (2026-10-21)
+
+- **Attribution chưa được mở trên `.app` dựng sau khi gỡ một lớp** (Story 10.8, AC3 chỉ phủ gián tiếp bằng ca dữ liệu thật). Dựng `.app` ba lớp theo `DATA-REMOVAL.md`, mở Attribution, xác nhận ghi công `tran-van-chanh` không còn.
+  Kế hoạch: `tickets/epic-phat-hanh-va-tin-cay/tickets/story-chinh-sach-go-bo-du-lieu-plan.md`. **Chủ: Epic 10.**

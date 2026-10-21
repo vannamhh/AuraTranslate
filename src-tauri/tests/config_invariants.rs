@@ -617,6 +617,28 @@ fn manifest_dict_file_names() -> Vec<String> {
         .collect()
 }
 
+fn manifest_removed_names() -> Vec<String> {
+    let path = repo_root().join("dict-manifest.toml");
+    let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let mut in_removed = false;
+    let mut names = Vec::new();
+    for line in raw.lines().map(str::trim) {
+        if line.starts_with('[') {
+            in_removed = line == "[[removed]]";
+        } else if in_removed {
+            if let Some(rest) = line
+                .strip_prefix("name")
+                .map(str::trim_start)
+                .and_then(|r| r.strip_prefix('='))
+                && let Some(v) = rest.split('"').nth(1)
+            {
+                names.push(v.to_owned());
+            }
+        }
+    }
+    names
+}
+
 /// Từ điển chỉ vào bản cài qua lớp phủ này, và lớp phủ chỉ làm ĐÚNG việc đó.
 ///
 /// Lớp phủ là một map nên Tauri merge nó (RFC 7396) vào `bundle.resources` của
@@ -651,18 +673,24 @@ fn release_overlay_adds_exactly_the_manifest_dictionary_files_under_dict() {
         "từ điển phải tới `$RESOURCE/dict/<tệp>.db` (AD-25)"
     );
 
-    let mut names = manifest_dict_file_names();
-    names.sort();
+    let names = manifest_dict_file_names();
     assert_eq!(
-        names,
-        vec![
-            "dict-core.db",
-            "dict-thieu-chuu.db",
-            "dict-tran-van-chanh.db",
-            "dict-vietphrase.db",
-        ],
-        "bốn tên trong dict-manifest.toml; glob `*.db` của lớp phủ phải phủ đúng bấy nhiêu tệp"
+        names.first().map(String::as_str),
+        Some("dict-core.db"),
+        "`[base]` đứng đầu manifest và là dict-core.db"
     );
+    let unique: std::collections::BTreeSet<_> = names.iter().collect();
+    assert_eq!(
+        unique.len(),
+        names.len(),
+        "tên tệp trong manifest không được trùng: {names:?}"
+    );
+    for removed in manifest_removed_names() {
+        assert!(
+            !names.contains(&format!("dict-{removed}.db")),
+            "lớp `{removed}` ở [[removed]] nhưng manifest vẫn còn url của nó"
+        );
+    }
     assert!(names.iter().all(|n| n.ends_with(".db")));
 }
 
@@ -3098,5 +3126,47 @@ fn bundle_resources_never_rename_a_file_because_msi_keeps_the_source_name() {
                  mục, tệp đơn giữ đúng tên nguồn — đổi tên thì đổi ở tệp nguồn"
             );
         }
+    }
+}
+
+#[test]
+fn data_removal_guide_keeps_the_files_and_gate_commands_it_relies_on() {
+    let root = repo_root();
+    let guide = fs::read_to_string(root.join("DATA-REMOVAL.md")).expect("read DATA-REMOVAL.md");
+    let package = fs::read_to_string(root.join("package.json")).expect("read package.json");
+
+    for needle in [
+        "[[removed]]",
+        "dict-manifest.toml",
+        "NOTICE.txt",
+        "inspect-release",
+        "assets/licenses",
+        "FR112",
+        "FR36",
+        "AD-25",
+        "HVTĐTD",
+    ] {
+        assert!(guide.contains(needle), "DATA-REMOVAL.md thiếu `{needle}`");
+    }
+    for script in ["check:dict-manifest", "check:dict"] {
+        assert!(
+            guide.contains(&format!("npm run {script}")),
+            "DATA-REMOVAL.md thiếu lệnh `npm run {script}`"
+        );
+        assert!(
+            package.contains(&format!("\"{script}\":")),
+            "package.json không còn script `{script}` mà DATA-REMOVAL.md gọi"
+        );
+    }
+    for file in [
+        "scripts/inspect-release.mjs",
+        "scripts/fetch-dicts.mjs",
+        "NOTICE.txt",
+        "dict-manifest.toml",
+    ] {
+        assert!(
+            root.join(file).is_file(),
+            "DATA-REMOVAL.md dựa vào `{file}` nhưng tệp không còn"
+        );
     }
 }

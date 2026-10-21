@@ -16,6 +16,15 @@
 #
 # Lớp nền và mỗi lớp gỡ rời là MỘT file `.db` độc lập (AD-10) → mỗi lớp một mục.
 #
+# Gỡ một lớp gỡ rời (FR112): chuyển khối `[[detachable]]` của lớp đó thành khối dưới đây,
+# xoá `.db` cục bộ, không đổi mã — quy trình ở `DATA-REMOVAL.md`. Khối không có `url`/`sha256`.
+# Hôm nay chưa có mục nào.
+#
+#   [[removed]]
+#   name   = "<mã lớp trong DETACHABLE_ALL>"
+#   reason = "<vì sao gỡ>"
+#   date   = "<YYYY-MM-DD>"
+#
 # **Story sở hữu nội dung: 1.9** (sinh dữ liệu) và **10.1** (đưa vào bản phát hành).
 # Story 1.2 chỉ dựng khung này.
 

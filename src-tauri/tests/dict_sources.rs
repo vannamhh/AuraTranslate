@@ -5703,3 +5703,63 @@ fn a_layer_whose_attribution_columns_go_missing_after_open_is_named_in_skipped()
     layers.close();
     cleanup(&dir);
 }
+
+/// Run by hand against a real dictionary directory: the listed sources are exactly the
+/// `dict_source` codes of the `.db` files present, so a removed layer leaves no credit behind.
+#[test]
+#[ignore = "can thu muc chua tep .db that; chay tay qua AURA_DICT_BENCH_DIR"]
+fn the_source_list_of_a_real_directory_is_exactly_what_its_db_files_carry() {
+    let Ok(raw) = std::env::var("AURA_DICT_BENCH_DIR") else {
+        println!("AURA_DICT_BENCH_DIR vắng mặt — bỏ qua phép đo.");
+        return;
+    };
+    let dir = PathBuf::from(&raw);
+    assert!(
+        dir.is_dir(),
+        "AURA_DICT_BENCH_DIR không phải một thư mục: {raw}"
+    );
+
+    if let Ok(layer) = std::env::var("AURA_DICT_EXPECT_ABSENT") {
+        assert!(
+            !dir.join(format!("dict-{layer}.db")).exists(),
+            "dict-{layer}.db vẫn nằm trong {raw}"
+        );
+    }
+
+    let mut expected = BTreeSet::new();
+    for entry in fs::read_dir(&dir).expect("doc thu muc") {
+        let path = entry.expect("muc thu muc").path();
+        if path.extension().and_then(|e| e.to_str()) != Some("db") {
+            continue;
+        }
+        let conn = rusqlite::Connection::open_with_flags(
+            &path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .expect("mo tep .db that");
+        let mut stmt = conn
+            .prepare("SELECT code FROM dict_source")
+            .expect("doc dict_source");
+        let codes = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .expect("query")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("hang dict_source");
+        expected.extend(codes);
+    }
+    assert!(
+        !expected.is_empty(),
+        "thư mục không có nguồn nào — không phải một phép đo"
+    );
+
+    let layers = DictLayers::open(&dir);
+    let listed: BTreeSet<String> = list_source_attributions(&layers)
+        .sources
+        .into_iter()
+        .map(|row| row.code)
+        .collect();
+    println!("nguồn được liệt kê: {listed:?}");
+    assert_eq!(listed, expected);
+
+    layers.close();
+}
