@@ -2038,6 +2038,44 @@ fn copy_dir_recursive_skipping(
     Ok(())
 }
 
+// The Tauri build script fails `cargo check` when a `bundle.resources` path outside
+// `src-tauri/` is missing, so the probe needs those files beside its copy.
+fn copy_bundled_resources_outside_src_tauri(
+    src_tauri_dir: &Path,
+    probe_dir: &Path,
+) -> std::io::Result<()> {
+    let conf: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(src_tauri_dir.join("tauri.conf.json"))?)
+            .map_err(std::io::Error::other)?;
+    let repo_root = src_tauri_dir
+        .parent()
+        .ok_or_else(|| std::io::Error::other("src-tauri has no parent directory"))?;
+    let keys = conf["bundle"]["resources"]
+        .as_object()
+        .into_iter()
+        .flat_map(|resources| resources.keys());
+    for key in keys {
+        let Some(rel) = key.strip_prefix("../") else {
+            continue;
+        };
+        let rel = Path::new(rel);
+        let is_glob = rel
+            .file_name()
+            .is_some_and(|name| name.to_string_lossy().contains('*'));
+        if is_glob {
+            let dir = rel.parent().unwrap_or(Path::new(""));
+            copy_dir_recursive_skipping(&repo_root.join(dir), &probe_dir.join(dir), &[])?;
+        } else {
+            let dst = probe_dir.join(rel);
+            if let Some(parent) = dst.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::copy(repo_root.join(rel), dst)?;
+        }
+    }
+    Ok(())
+}
+
 /// 🔵 **ĐÓNG 2026-09-21 (spec 4.8, Phase 2, carried task) — nợ Phase 1 đã mở rộng xong.**
 /// Đoạn dưới đây từng ghi rằng Phase 1 chỉ xoá `core/ai/` + HAI seam (aiprompt), vì seam THỨ
 /// BA (`commands/aitranslate.rs`, [`AI_TRANSLATE_SEAM_COMMAND_FILE`]) chưa tồn tại. Tệp đó nay
@@ -2112,6 +2150,12 @@ fn deleting_core_ai_and_its_three_approved_seams_leaves_the_rest_of_the_tree_com
             )
         },
     );
+    copy_bundled_resources_outside_src_tauri(&src_tauri_dir, &probe_dir).unwrap_or_else(|e| {
+        panic!(
+            "khong chep duoc tai nguyen ngoai src-tauri sang {}: {e}",
+            probe_dir.display()
+        )
+    });
 
     let probe_src = probe_src_tauri_dir.join("src");
 
