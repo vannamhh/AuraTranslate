@@ -134,7 +134,7 @@ Ba điểm này sinh ra FR128, FR129, FR130 và FR131. **Mô hình dữ liệu k
 | Nền tảng | Desktop native, **macOS và Windows** |
 | Kiến trúc dữ liệu | Local-first, 100% trên máy người dùng |
 | Ngôn ngữ nguồn | Cố định cho từng Tác phẩm, đặt lúc tạo |
-| Kết nối mạng | Bắt buộc ở **đúng hai chỗ, cả hai đều do người dùng chủ động kích hoạt**: gọi AI qua BYOK, và tải nội dung ở đường nhập từ URL (FR122). **Tra cứu và mọi thao tác dịch phải chạy được offline** — một Tác phẩm đã nhập xong dịch được trọn vẹn khi mất mạng. Ràng buộc thực thi ở NFR19 *(dòng này sửa 2026-08-03; trước đó chỉ nêu BYOK)* |
+| Kết nối mạng | Bắt buộc ở **đúng ba chỗ (AD-15), cả ba đều do người dùng chủ động kích hoạt**: gọi AI qua BYOK, kiểm tra phiên bản mới ở Cài đặt → Cập nhật (FR111), và tải nội dung ở đường nhập từ URL (FR122). **Tra cứu và mọi thao tác dịch phải chạy được offline** — một Tác phẩm đã nhập xong dịch được trọn vẹn khi mất mạng. Ràng buộc thực thi ở NFR19 *(dòng này sửa 2026-08-03; trước đó chỉ nêu BYOK)* 🔵 2026-10-21: "hai chỗ" thành ba theo AD-15, thêm vế kiểm tra phiên bản (Story 10-7). |
 | Giấy phép dự án | GPL v3 |
 
 ---
@@ -962,7 +962,7 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 | ID | Yêu cầu |
 |---|---|
 | **NFR11** | API key lưu trong **keychain / credential manager của hệ điều hành**. Không bao giờ ghi vào file cấu hình, file dự án hay log |
-| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài **hai** luồng do người dùng chủ động kích hoạt: lời gọi AI, và tải nội dung ở đường nhập từ URL *(mở rộng 2026-08-03 cùng FR122; trước đó chỉ có lời gọi AI)* |
+| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài **ba** luồng do người dùng chủ động kích hoạt: lời gọi AI, kiểm tra phiên bản mới (FR111), và tải nội dung ở đường nhập từ URL *(mở rộng 2026-08-03 cùng FR122; trước đó chỉ có lời gọi AI)* 🔵 2026-10-21: "hai" thành ba theo AD-15 (Story 10-7) |
 | **NFR13** | Không tài khoản, không đăng nhập, không đồng bộ đám mây |
 | **NFR19** | **Đường nhập từ URL chỉ ra mạng khi người dùng chủ động bấm.** Không tải nền, không prefetch, không kiểm tra ngầm, không tải lại ảnh đã có. Danh sách domain ứng dụng đã gọi phải **xem được trong ứng dụng** *(số cuối dãy, bổ sung 2026-08-03)* |
 

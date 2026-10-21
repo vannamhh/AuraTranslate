@@ -8,6 +8,8 @@ Vì vậy hệ điều hành sẽ cảnh báo ở lần mở đầu: Gatekeeper 
 
 Hướng dẫn không bao giờ yêu cầu bạn tắt Gatekeeper hay SmartScreen cho toàn máy; mỗi bước chỉ cho phép đúng một ứng dụng này.
 
+Vì bản cài không được ký số nên ứng dụng không tự cập nhật; nó chỉ kiểm tra khi bạn bấm ở Cài đặt → Cập nhật, rồi báo có bản mới để bạn tự tải và đối chiếu checksum.
+
 Tải bản cài từ trang Releases của dự án: <https://github.com/vannamhh/AuraTranslate/releases>. Tên tệp trong ảnh và lệnh dưới đây là của bản `0.1.0`; bản sau đổi số phiên bản.
 
 ## macOS

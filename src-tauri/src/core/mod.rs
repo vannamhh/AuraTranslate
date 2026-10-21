@@ -20,4 +20,5 @@ pub mod scope;
 pub mod segment;
 pub mod store;
 pub mod tm;
+pub mod update;
 pub mod webimport;

@@ -425,7 +425,7 @@ Phần lớn ngưỡng dưới đây **không phải phỏng đoán** — chúng
 | ID | Yêu cầu |
 |---|---|
 | **NFR11** | API key lưu trong **keychain / credential manager của hệ điều hành**. Không bao giờ ghi vào file cấu hình, file dự án hay log |
-| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài **hai** luồng do người dùng chủ động kích hoạt: lời gọi AI, và tải nội dung ở đường nhập từ URL *(mở rộng 2026-08-03 cùng FR122; trước đó chỉ có lời gọi AI)* |
+| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài **ba** luồng do người dùng chủ động kích hoạt: lời gọi AI, kiểm tra phiên bản mới (FR111), và tải nội dung ở đường nhập từ URL *(mở rộng 2026-08-03 cùng FR122; trước đó chỉ có lời gọi AI)* 🔵 2026-10-21: "hai" thành ba theo AD-15 (Story 10-7) |
 | **NFR13** | Không tài khoản, không đăng nhập, không đồng bộ đám mây |
 | **NFR19** | **Đường nhập từ URL chỉ ra mạng khi người dùng chủ động bấm.** Không tải nền, không prefetch, không kiểm tra ngầm, không tải lại ảnh đã có. Danh sách domain ứng dụng đã gọi phải **xem được trong ứng dụng** *(số cuối dãy, bổ sung 2026-08-03)* |
 

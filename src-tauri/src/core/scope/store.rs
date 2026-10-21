@@ -167,6 +167,9 @@ const KEY_READING_PREFERENCES: &str = "reading_preferences";
 /// usage lines of the AI panel, anything else (including absent) shows them.
 const KEY_AI_USAGE_VISIBLE: &str = "ai_usage_visible";
 
+/// Global `app_config` key for the update-check switch: only `"off"` disables the check.
+const KEY_UPDATE_CHECK_ENABLED: &str = "update_check_enabled";
+
 /// Phân giải thư mục gốc Library từ giá trị THÔ trên đĩa — **hàm thuần, đây là thứ test
 /// gọi**. Chép khuôn [`parse_glossary_scan_threshold`]: đây là chỗ DUY NHẤT biết một giá trị
 /// trên đĩa hỏng, vì `config_value.value` không mang `CHECK` nào (phục vụ MỌI khoá của MỌI
@@ -324,6 +327,13 @@ impl GlobalConfig {
         self.app
             .get(KEY_AI_USAGE_VISIBLE)
             .map_or("", |r| r.value().as_str())
+    }
+
+    /// Update check is on unless the saved value is exactly `"off"`.
+    pub fn update_check_enabled(&self) -> bool {
+        self.app
+            .get(KEY_UPDATE_CHECK_ENABLED)
+            .is_none_or(|r| r.value().as_str() != "off")
     }
 
     /// Hợp âm phím tắt theo id thao tác. Rỗng nghĩa là *"dùng hợp âm mặc định"*.

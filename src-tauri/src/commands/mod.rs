@@ -56,3 +56,4 @@ pub mod proofread;
 pub mod segment;
 pub mod shortcuts;
 pub mod tm;
+pub mod update;

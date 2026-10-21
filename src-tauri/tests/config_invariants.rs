@@ -2087,7 +2087,7 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (9 hàng /
 /// 11 `(async)`): `start_url_import` và `reload_url_import_item`
 /// mang `(async)` từ Story 6.7 và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 20] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
     (
         "src/commands/aiconfig.rs",
         2,
@@ -2164,6 +2164,15 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 20] = [
     ("src/commands/glossary.rs", 10, 8, 8, ""),
     ("src/commands/library.rs", 3, 7, 7, ""),
     ("src/commands/lifecycle.rs", 1, 3, 3, ""),
+    (
+        "src/commands/update.rs",
+        2,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. `update_check` la `async fn` literal (spawn_blocking cho yeu cau mang, \
+         khong giu khoa nao); `update_open_release_page` chi dung URL tu bo ba da kiem roi goi \
+         `open_url`, khong cho.",
+    ),
     (
         "src/commands/pinned.rs",
         3,
@@ -2353,9 +2362,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (104, 65),
+        (106, 65),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         104/65.\n\n\
+         106/65.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \
@@ -2935,7 +2944,11 @@ fn install_guide_keeps_its_sections_checksum_commands_and_every_image() {
         "INSTALL.md phải nói thẳng bản cài không ký số và không notarize"
     );
     for heading in ["\n## macOS\n", "\n## Windows\n"] {
-        assert!(guide.contains(heading), "INSTALL.md thiếu phần `{}`", heading.trim());
+        assert!(
+            guide.contains(heading),
+            "INSTALL.md thiếu phần `{}`",
+            heading.trim()
+        );
     }
     for step in ["More info", "Run anyway", "Open Anyway", "Keep"] {
         assert!(guide.contains(step), "INSTALL.md thiếu bước `{step}`");
@@ -2996,7 +3009,10 @@ fn install_guide_keeps_its_sections_checksum_commands_and_every_image() {
         if path.extension().and_then(|x| x.to_str()) != Some("png") {
             continue;
         }
-        let name = path.file_name().and_then(|n| n.to_str()).expect("utf-8 name");
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .expect("utf-8 name");
         assert!(
             guide.contains(&format!("](install-guide/{name})")),
             "ảnh `install-guide/{name}` không được INSTALL.md dẫn tới"

@@ -747,6 +747,20 @@ message_keys! {
     AiConfigTestRefused => "err.ai_config.test_refused" ["status"],
     /// Connection check: a 2xx answer that is not a model list.
     AiConfigTestReplyUnreadable => "err.ai_config.test_reply_unreadable" [],
+    /// Update check refused because the switch is off; no connection was opened.
+    UpdateDisabled => "err.update.disabled" [],
+    /// Update check: no connection to the release host.
+    UpdateConnectFailed => "err.update.connect_failed" [],
+    /// Update check: the release host did not answer in time.
+    UpdateTimeout => "err.update.timeout" [],
+    /// Update check: the release host answered 403 or 429 (hourly request limit).
+    UpdateRateLimited => "err.update.rate_limited" [],
+    /// Update check: any other status, or a body that is not a release list.
+    UpdateBadResponse => "err.update.bad_response" [],
+    /// Release page: the version is not `X.Y.Z`.
+    UpdateInvalidVersion => "err.update.invalid_version" [],
+    /// Release page: the system browser could not be started.
+    UpdateOpenFailed => "err.update.open_failed" [],
     /// Shortcut file: larger than the import cap.
     ShortcutsFileTooLarge => "err.shortcuts.file_too_large" [],
     /// Shortcut file: could not be read, or is not UTF-8 text.

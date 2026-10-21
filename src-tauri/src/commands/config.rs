@@ -114,6 +114,10 @@ pub struct BootstrapConfig {
     pub tm_fuzzy_threshold: u32,
     /// `"off"` hides the token and cost lines of the AI panel; empty when never saved.
     pub ai_usage_visible: String,
+    /// `false` only when the saved switch is `"off"`; the update check is on by default.
+    pub update_check_enabled: bool,
+    /// `CARGO_PKG_VERSION` of the running build.
+    pub app_version: String,
 }
 
 /// Kho vắng mặt ⇒ lỗi *mở kho*, và đó là câu đúng theo nghĩa đen.
@@ -160,6 +164,8 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
         reading_preferences: config.reading_preferences().to_owned(),
         tm_fuzzy_threshold: config.tm_fuzzy_threshold(),
         ai_usage_visible: config.ai_usage_visible().to_owned(),
+        update_check_enabled: config.update_check_enabled(),
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
     })
 }
 

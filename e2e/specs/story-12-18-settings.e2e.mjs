@@ -48,7 +48,7 @@ describe('Story 12-18 · Settings frame', () => {
     expect(await counts('.ai-tier input[type="radio"]')).toBe(0)
   })
 
-  it('walks Bố cục, Chế độ đọc, Dữ liệu and Cập nhật; each has a body, Cập nhật has no button', async () => {
+  it('walks Bố cục, Chế độ đọc, Dữ liệu and Cập nhật; each has a body, Cập nhật has only its switch and check button', async () => {
     const bodies = [
       ['layout', '[data-settings-layout]'],
       ['reading', '[data-settings-reading-level]'],
@@ -63,9 +63,9 @@ describe('Story 12-18 · Settings frame', () => {
       )
       if (!scopeLocked) throw new Error(`${name}: the scope bar is not locked on Global`)
     }
-    expect(
-      await counts('[data-settings-update] button, [data-settings-update] input, [data-settings-update] a'),
-    ).toBe(0)
+    expect(await counts('[data-settings-update] button')).toBe(2)
+    expect(await counts('[data-settings-update] input, [data-settings-update] a')).toBe(0)
+    expect(await counts('[data-update-version]')).toBe(1)
   })
 
   it('typing ⌘M in the shortcut search box leaves only the merge command', async () => {

@@ -96,6 +96,10 @@ export type BootstrapConfig = {
   tm_fuzzy_threshold: number
   /** `'off'` hides the token and cost lines of the AI panel; `''` when never saved. */
   ai_usage_visible: string
+  /** Rust applies the rule: absent or empty is on, only a stored `off` is off. */
+  update_check_enabled: boolean
+  /** `CARGO_PKG_VERSION` of the running app. */
+  app_version: string
 }
 
 /**
@@ -216,6 +220,8 @@ export const KEY_READING_PREFERENCES = 'reading_preferences'
 export const KEY_TM_FUZZY_THRESHOLD = 'tm_fuzzy_threshold'
 /** Matches `core::scope::store::KEY_AI_USAGE_VISIBLE`. */
 export const KEY_AI_USAGE_VISIBLE = 'ai_usage_visible'
+/** Matches `core::scope::store::KEY_UPDATE_CHECK_ENABLED`. */
+export const KEY_UPDATE_CHECK_ENABLED = 'update_check_enabled'
 
 /** Mặc định khi chưa đọc được cấu hình — khớp `DEFAULT_GLOSSARY_SCAN_THRESHOLD` phía Rust. */
 export const DEFAULT_GLOSSARY_SCAN_THRESHOLD = 5
@@ -229,6 +235,8 @@ const glossaryScanThreshold = ref(DEFAULT_GLOSSARY_SCAN_THRESHOLD)
 const readingPreferences = ref('')
 const tmFuzzyThreshold = ref(DEFAULT_TM_FUZZY_THRESHOLD)
 const aiUsageVisible = ref('')
+const updateCheckEnabled = ref(true)
+const appVersion = ref('')
 const shortcutRowIds = ref<string[]>([])
 
 /**
@@ -278,6 +286,12 @@ export const bootstrapShortcutRowIds: DeepReadonly<Ref<string[]>> = readonly(sho
 /** Raw "show tokens and cost" switch read once at startup; `aiUsageVisibleState.ts` owns later changes. */
 export const bootstrapAiUsageVisible: DeepReadonly<Ref<string>> = readonly(aiUsageVisible)
 
+/** Update-check switch read once at startup; `updateCheckState.ts` owns later changes. */
+export const bootstrapUpdateCheckEnabled: DeepReadonly<Ref<boolean>> = readonly(updateCheckEnabled)
+
+/** Version of the running app, empty until the bootstrap read succeeds. */
+export const bootstrapAppVersion: DeepReadonly<Ref<string>> = readonly(appVersion)
+
 /**
  * Nạp cấu hình khởi động. Không ném — xem doc-comment đầu tệp.
  */
@@ -314,6 +328,10 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
         : DEFAULT_TM_FUZZY_THRESHOLD
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field
     aiUsageVisible.value = typeof config?.ai_usage_visible === 'string' ? config.ai_usage_visible : ''
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field
+    updateCheckEnabled.value = typeof config?.update_check_enabled === 'boolean' ? config.update_check_enabled : true
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field
+    appVersion.value = typeof config?.app_version === 'string' ? config.app_version : ''
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field
     shortcutRowIds.value = typeof config?.shortcuts === 'object' ? Object.keys(config.shortcuts) : []
     return { config, error: null }

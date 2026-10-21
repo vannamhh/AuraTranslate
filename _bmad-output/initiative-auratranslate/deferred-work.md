@@ -13379,3 +13379,8 @@ chính nó.
 
 - **Ảnh Edge "Keep" (`windows-01-edge-giu-tep.png`) chưa có, và SmartScreen mới đo với `Zone.Identifier` gắn tay** (Story 10.6, Ice chọn ghi nợ).
   Ở bản phát hành `v*` đầu tiên: tải `.msi` thẳng từ Releases bằng Edge, chụp bước Keep, xác nhận SmartScreen/UAC như `windows-02/03/07`, thêm ảnh vào `INSTALL.md` Bước 1. **Chủ: Epic 10.**
+
+## Deferred from: Story 10.7 (2026-10-21)
+
+- **Cài đặt → Cập nhật chưa được thử trên app thật, và e2e `story-12-18-settings` chưa chạy lại với nội dung mới** (Story 10.7). Test chỉ chạy với server giả và IPC giả, nên chưa ai thấy một request thật tới `api.github.com` từ bản dựng.
+  Trên app thật: dòng phiên bản hiện `0.1.0`; bấm kiểm tra ra "chưa có bản phát hành ứng dụng" (hôm nay chỉ có tag `dict-*`); tắt công tắc thì nút không bấm được; ở bản `v*` đầu tiên, nút mở đúng trang tag. Chạy `npm run test:e2e` ngoài sandbox. **Chủ: Epic 10.**
