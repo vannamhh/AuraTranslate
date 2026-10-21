@@ -26,6 +26,7 @@
 import { readFileSync, readdirSync, lstatSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, relative, sep } from 'node:path'
+import { readDetachableAllCodes } from './lib/detachable-all.mjs'
 import { judgeFloor } from './lib/floor-judge.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -275,33 +276,10 @@ try {
   abort(`${posix(sourcesMetaPath)}`, err)
 }
 
-// Bước 1 — lấy danh sách TÊN HẰNG trong mảng `DETACHABLE_ALL: [&SourceMeta; N] = [&X, &Y];`
-const detachableArrayMatch = sourcesMetaText.match(/DETACHABLE_ALL\s*:\s*\[[^\]]*\]\s*=\s*\[([^\]]*)\]/)
-let rustDetachableCodes = []
-if (!detachableArrayMatch) {
-  fail("không tìm thấy khai báo 'DETACHABLE_ALL' trong sources_meta.rs — Kiểm D không chạy được")
-} else {
-  const constNames = detachableArrayMatch[1]
-    .split(',')
-    .map((s) => s.trim().replace(/^&/, ''))
-    .filter(Boolean)
-
-  // Bước 2 — với MỖI tên hằng, tìm khối `pub const <TÊN>: SourceMeta = SourceMeta { ... };`
-  // rồi lấy trường `code: "..."` bên trong.
-  for (const name of constNames) {
-    const constRe = new RegExp(`pub const ${name}\\s*:\\s*SourceMeta\\s*=\\s*SourceMeta\\s*\\{([\\s\\S]*?)\\};`)
-    const constMatch = sourcesMetaText.match(constRe)
-    if (!constMatch) {
-      fail(`DETACHABLE_ALL khai '${name}' nhưng không tìm thấy khối 'pub const ${name}: SourceMeta { ... }'`)
-      continue
-    }
-    const codeMatch = constMatch[1].match(/code\s*:\s*"([^"]*)"/)
-    if (!codeMatch) {
-      fail(`khối '${name}' không có trường 'code: "..."'`)
-      continue
-    }
-    rustDetachableCodes.push(codeMatch[1])
-  }
+const detachableRead = readDetachableAllCodes(sourcesMetaText)
+const rustDetachableCodes = detachableRead.codes
+detachableRead.problems.forEach((p) => fail(`${p} — Kiểm D không chạy được`))
+if (detachableRead.problems.length === 0) {
   pass(`DETACHABLE_ALL (Rust) khai ${rustDetachableCodes.length} mã lớp: ${JSON.stringify(rustDetachableCodes)}`)
 }
 
@@ -313,23 +291,22 @@ try {
   abort(`${posix(manifestPath)}`, err)
 }
 
-// Chỉ lấy `name = "..."` xuất hiện SAU một dòng `[[detachable]]` — tránh vô tình khớp
-// `name` của một section khác nếu manifest mở rộng thêm bảng trong tương lai.
+// Only `name` keys inside a [[detachable]] or [[removed]] block count.
 const manifestDetachableNames = []
 {
   const lines = manifestText.split(/\r\n|\n/)
-  let inDetachableBlock = false
+  let inLayerBlock = false
   for (const line of lines) {
     const trimmed = line.trim()
-    if (/^\[\[detachable\]\]$/.test(trimmed)) {
-      inDetachableBlock = true
+    if (/^\[\[(detachable|removed)\]\]$/.test(trimmed)) {
+      inLayerBlock = true
       continue
     }
     if (/^\[/.test(trimmed)) {
-      inDetachableBlock = false
+      inLayerBlock = false
       continue
     }
-    if (inDetachableBlock) {
+    if (inLayerBlock) {
       const m = trimmed.match(/^name\s*=\s*"([^"]*)"/)
       if (m) manifestDetachableNames.push(m[1])
     }
@@ -351,13 +328,13 @@ if (rustDetachableCodes.length === 0) {
       'Một danh sách rỗng không phải "đạt": story hôm nay có HAI lớp gỡ rời.'
   )
 } else if (missingFromManifest.length === 0 && extraInManifest.length === 0) {
-  pass(`dict-manifest.toml [[detachable]] khớp CHÍNH XÁC DETACHABLE_ALL: ${JSON.stringify(manifestDetachableNames)}`)
+  pass(`dict-manifest.toml [[detachable]] ∪ [[removed]] khớp CHÍNH XÁC DETACHABLE_ALL: ${JSON.stringify(manifestDetachableNames)}`)
 } else {
   if (missingFromManifest.length) {
-    fail(`DETACHABLE_ALL có mã lớp KHÔNG có mục [[detachable]] tương ứng trong manifest: ${JSON.stringify(missingFromManifest)}`)
+    fail(`DETACHABLE_ALL có mã lớp KHÔNG có mục [[detachable]] hay [[removed]] tương ứng trong manifest: ${JSON.stringify(missingFromManifest)}`)
   }
   if (extraInManifest.length) {
-    fail(`dict-manifest.toml có [[detachable]] 'name' KHÔNG khớp mã lớp nào trong DETACHABLE_ALL: ${JSON.stringify(extraInManifest)}`)
+    fail(`dict-manifest.toml có [[detachable]]/[[removed]] 'name' KHÔNG khớp mã lớp nào trong DETACHABLE_ALL: ${JSON.stringify(extraInManifest)}`)
   }
 }
 
@@ -463,8 +440,27 @@ const manifestSourceVersions = new Map()
   }
 }
 
+// A [[removed]] layer has no source_version in the manifest.
+const removedCodes = new Set()
+{
+  let inRemoved = false
+  for (const line of manifestText.split(/\r\n|\n/)) {
+    const trimmed = line.trim()
+    if (/^\[/.test(trimmed)) inRemoved = trimmed === '[[removed]]'
+    else if (inRemoved) {
+      const m = trimmed.match(/^name\s*=\s*"([^"]*)"/)
+      if (m) removedCodes.add(m[1])
+    }
+  }
+}
+
 let sourceVersionChecked = 0
+let sourceVersionRemoved = 0
 for (const code of rustDetachableCodes) {
+  if (removedCodes.has(code)) {
+    sourceVersionRemoved += 1
+    continue
+  }
   const modulePath = join(REPO_ROOT, 'tools', 'dict-build', 'src', 'sources', `${code.replace(/-/g, '_')}.rs`)
   let moduleText = ''
   try {
@@ -492,8 +488,8 @@ for (const code of rustDetachableCodes) {
   sourceVersionChecked += 1
 }
 
-if (sourceVersionChecked === rustDetachableCodes.length && rustDetachableCodes.length > 0) {
-  pass(`source_version khớp giữa Rust và manifest cho cả ${sourceVersionChecked} lớp gỡ rời`)
+if (sourceVersionChecked + sourceVersionRemoved === rustDetachableCodes.length && rustDetachableCodes.length > 0) {
+  pass(`source_version khớp giữa Rust và manifest cho ${sourceVersionChecked} lớp gỡ rời (${sourceVersionRemoved} lớp đã gỡ bỏ qua)`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────

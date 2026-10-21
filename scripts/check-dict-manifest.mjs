@@ -2,10 +2,8 @@
 /**
  * Cổng `dict-manifest.toml` — Task 8 của Story 1.9 (AC3, đóng `deferred-work.md §*Deferred from: code review of 1-3-ci-toi-thieu-hai-nen-tang-moi-lan-push (2026-08-03)*`:
  * *"đặt ra luật ba trường rồi không cưỡng chế bằng gì cả"*), siết thêm ở Task 7 của
- * Story 1.10 (AC5): `[[detachable]]` giờ đòi ĐÚNG N mục, đúng N `name` — không dư không
- * thiếu. Con số này đổi CÙNG LÚC với dữ liệu khi story nối tiếp thêm một lớp — đó là
- * điều kiện để cổng bắt được một lớp BỊ RƠI MẤT, chứ không chỉ một lớp bị điền sai.
- * Story 1.10c nâng N từ hai lên BA (`tran-van-chanh`).
+ * Story 1.10 (AC5): `DETACHABLE_ALL` (Rust) = `[[detachable]]` ∪ `[[removed]]` (FR112), disjoint.
+ * A dropped layer fails; an intentional removal needs no code change.
  *
  * 🔴 Cổng này KHÔNG đọc tệp `.db` và KHÔNG tải gì từ mạng — nó phải xanh trên một
  * runner CI không có byte dữ liệu từ điển nào (AC cuối của Story 1.3: CI không tải
@@ -22,6 +20,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { checkLayerPartition, readDetachableAllCodes } from './lib/detachable-all.mjs'
 import { TomlSyntaxError, parseStrictToml } from './lib/strict-toml.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -125,35 +124,41 @@ if (!baseList) {
   validateEntry('[base]', baseList[0], false)
 }
 
-// 🔴 Story 1.10c: đúng BA lớp gỡ rời trong phạm vi hôm nay (Thiều Chửu · VietPhrase ·
-// Trần Văn Chánh). ⚠️ Đòi ĐÚNG ba, không phải "≥ 1" — khi story nối tiếp thêm lớp thứ
-// tư, con số này đổi CÙNG LÚC với dữ liệu, đó là điều kiện để cổng bắt được một lớp bị
-// RƠI MẤT.
-const EXPECTED_DETACHABLE_NAMES = ['thieu-chuu', 'vietphrase', 'tran-van-chanh']
+// Layer list comes from DETACHABLE_ALL; each code must be in [[detachable]] or [[removed]].
+const SOURCES_META_PATH = join(REPO_ROOT, 'tools', 'dict-build', 'src', 'sources_meta.rs')
+let detachableCodes = []
+{
+  let metaText = ''
+  try {
+    metaText = readFileSync(SOURCES_META_PATH, 'utf8')
+  } catch (err) {
+    fail(`không đọc được ${SOURCES_META_PATH}: ${String((/** @type {Error | undefined} */ (err))?.message || err).trim()}`)
+  }
+  const read = readDetachableAllCodes(metaText)
+  read.problems.forEach(fail)
+  detachableCodes = read.codes
+  if (read.problems.length === 0 && detachableCodes.length === 0) {
+    fail('DETACHABLE_ALL (Rust) khai 0 mã lớp — một danh sách rỗng không phải "đạt"')
+  }
+}
 
 const detachableList = tables.get('detachable') ?? []
+const removedList = tables.get('removed') ?? []
 if (forms.get('detachable') === 'single') {
   fail(`[[detachable]] khai sai dạng ngoặc — phải là mảng bảng [[detachable]], không phải bảng đơn [detachable]`)
-} else if (detachableList.length !== EXPECTED_DETACHABLE_NAMES.length) {
-  fail(
-    `[[detachable]] có ${detachableList.length} mục, cần ĐÚNG ${EXPECTED_DETACHABLE_NAMES.length} mục (${JSON.stringify(EXPECTED_DETACHABLE_NAMES)}) — không dư không thiếu`,
-  )
-} else {
+} else if (forms.get('removed') === 'single') {
+  fail(`[[removed]] khai sai dạng ngoặc — phải là mảng bảng [[removed]], không phải bảng đơn [removed]`)
+} else if (detachableCodes.length > 0) {
   detachableList.forEach((obj, idx) => {
     validateEntry(`[[detachable]] #${idx + 1}`, obj, true)
   })
-  const actualNames = detachableList.map((o) => o.name).filter((n) => typeof n === 'string')
-  const actualSet = new Set(actualNames)
-  const expectedSet = new Set(EXPECTED_DETACHABLE_NAMES)
-  const missing = EXPECTED_DETACHABLE_NAMES.filter((n) => !actualSet.has(n))
-  const extra = actualNames.filter((n) => !expectedSet.has(n))
-  const duplicated = actualNames.length !== actualSet.size
-  if (missing.length === 0 && extra.length === 0 && !duplicated) {
-    pass(`[[detachable]] có đúng ${EXPECTED_DETACHABLE_NAMES.length} mục, đúng tên: ${JSON.stringify(actualNames)}`)
+  const partition = checkLayerPartition({ codes: detachableCodes, detachable: detachableList, removed: removedList })
+  if (partition.length === 0) {
+    pass(
+      `[[detachable]] ${JSON.stringify(detachableList.map((o) => o.name))} ∪ [[removed]] ${JSON.stringify(removedList.map((o) => o.name))} = DETACHABLE_ALL ${JSON.stringify(detachableCodes)}`,
+    )
   } else {
-    if (missing.length) fail(`[[detachable]] thiếu 'name': ${JSON.stringify(missing)}`)
-    if (extra.length) fail(`[[detachable]] có 'name' không mong đợi: ${JSON.stringify(extra)}`)
-    if (duplicated) fail(`[[detachable]] có 'name' trùng lặp: ${JSON.stringify(actualNames)}`)
+    partition.forEach(fail)
   }
 }
 

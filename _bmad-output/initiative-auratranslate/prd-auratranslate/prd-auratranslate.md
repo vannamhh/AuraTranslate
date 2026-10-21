@@ -134,7 +134,7 @@ Ba điểm này sinh ra FR128, FR129, FR130 và FR131. **Mô hình dữ liệu k
 | Nền tảng | Desktop native, **macOS và Windows** |
 | Kiến trúc dữ liệu | Local-first, 100% trên máy người dùng |
 | Ngôn ngữ nguồn | Cố định cho từng Tác phẩm, đặt lúc tạo |
-| Kết nối mạng | Bắt buộc ở **đúng hai chỗ, cả hai đều do người dùng chủ động kích hoạt**: gọi AI qua BYOK, và tải nội dung ở đường nhập từ URL (FR122). **Tra cứu và mọi thao tác dịch phải chạy được offline** — một Tác phẩm đã nhập xong dịch được trọn vẹn khi mất mạng. Ràng buộc thực thi ở NFR19 *(dòng này sửa 2026-08-03; trước đó chỉ nêu BYOK)* |
+| Kết nối mạng | Bắt buộc ở **đúng ba chỗ (AD-15), cả ba đều do người dùng chủ động kích hoạt**: gọi AI qua BYOK, kiểm tra phiên bản mới ở Cài đặt → Cập nhật (FR111), và tải nội dung ở đường nhập từ URL (FR122). **Tra cứu và mọi thao tác dịch phải chạy được offline** — một Tác phẩm đã nhập xong dịch được trọn vẹn khi mất mạng. Ràng buộc thực thi ở NFR19 *(dòng này sửa 2026-08-03; trước đó chỉ nêu BYOK)* 🔵 2026-10-21: "hai chỗ" thành ba theo AD-15, thêm vế kiểm tra phiên bản (Story 10-7). |
 | Giấy phép dự án | GPL v3 |
 
 ---
@@ -156,7 +156,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 | Mất dữ liệu khi ứng dụng sập | **≤ 5 giây** công việc | Quyết định 2026-08-02, xem NFR18 |
 | Thao tác hoàn toàn bằng bàn phím | Một vòng dịch trọn một Chương **không chạm chuột** | Quyết định 2026-08-02, xem NFR17 |
 | Khả năng mang dữ liệu đi | Xuất được **TMX** | Trụ định vị #3 |
-| Kích thước bản cài | Dưới trần **400.000.000 byte**, **không tải thêm sau khi cài** | Đo được **343.991.430 byte** với 7 nguồn *(2026-08-05)* |
+| Kích thước bản cài | Dưới trần **500.000.000 byte**, **không tải thêm sau khi cài** | 🔵 Đo 2026-10-21 trên build release thật: macOS **432.363.050 byte**, Windows **415.937.424 byte** *(trần nâng từ 400.000.000 cùng ngày — NFR6 sửa lần ba)* |
 
 ### 4.2 Tầng B — Chỉ số kết quả công việc
 
@@ -889,7 +889,7 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 
 **FR107.** **Build công khai qua GitHub Actions**, để bất kỳ ai cũng kiểm chứng được binary khớp với mã nguồn.
 
-**FR108.** **Hướng dẫn cài đặt có ảnh chụp màn hình** cho cả hai hệ điều hành, xử lý tường minh cảnh báo Gatekeeper trên macOS *(chuột phải → Mở)* và SmartScreen trên Windows *(More info → Run anyway)*.
+**FR108.** **Hướng dẫn cài đặt có ảnh chụp màn hình** cho cả hai hệ điều hành, xử lý tường minh cảnh báo Gatekeeper trên macOS *(chuột phải → Mở)* và SmartScreen trên Windows *(More info → Run anyway)*. 🔵 2026-10-21 (Story 10.6, đo trên macOS 15.8.2): đường chuột phải → Mở chỉ còn đến macOS 14; từ macOS 15 Gatekeeper mở qua System Settings → Privacy & Security → Open Anyway, và hướng dẫn xử lý cả hai đường.
 
 **FR109.** **Màn hình Attribution trong ứng dụng:** liệt kê mọi nguồn từ điển, giấy phép tương ứng và ghi công đầy đủ.
 
@@ -911,11 +911,11 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 
 | ID | Yêu cầu | Ngưỡng | Căn cứ |
 |---|---|---|---|
-| **NFR1** | Độ trễ Auto-Lookup **đầu-cuối**: từ lúc thả chuột sau khi bôi đen, tới lúc kết quả hiển thị ở Panel Lookup | **p95 < 100 ms** **[A1]** | Backend đã đo **p50 0,022 ms · p95 0,046 ms**, payload 679 byte — tức backend chỉ tiêu **0,05 ms** trong ngân sách 100 ms. **Toàn bộ phần còn lại (~99,95 ms) dành cho vòng IPC Tauri và render frontend** |
+| **NFR1** | Độ trễ Auto-Lookup ~~**đầu-cuối**: từ lúc thả chuột sau khi bôi đen, tới lúc kết quả hiển thị ở Panel Lookup~~ → của **đường Rust** của một lượt tra (xem ghi chú) | **p95 < 100 ms** **[A1]** | Backend đã đo **p50 0,022 ms · p95 0,046 ms**, payload 679 byte — tức backend chỉ tiêu **0,05 ms** trong ngân sách 100 ms. **Toàn bộ phần còn lại (~99,95 ms) dành cho vòng IPC Tauri và render frontend** 🔵 *(Sửa 2026-10-21, Ice ký — Story 10.9, Q2: bỏ vế đầu-cuối. Ngưỡng **p95 < 100 ms** áp cho **đường Rust của lượt tra** (`commands::dict::lookup`), đã đo p95 1,8–2,4 ms trên bốn lớp `.db` thật; vòng IPC Tauri và lượt vẽ của webview không còn là đối tượng đo, không viết mã đo nào cho chúng. Đây là thay đổi tầng PRD.)* |
 | **NFR2** | Auto-save không làm gián đoạn thao tác gõ | **Không frame nào vượt 50 ms** trong lúc auto-save chạy | Cụ thể hoá yêu cầu "không có gai trễ" của brief; là điều kiện nghiệm thu cho rủi ro R9 |
-| **NFR3** | Tìm kiếm full-text toàn Library | **p95 < 500 ms** trên thư viện 5.000 Chương | **[A6]** Ngưỡng tạm, đặt bằng phán đoán kỹ thuật, hiệu chỉnh sau khi đo trên thư viện thật **ở nghiệm thu cuối (Story 10.9, Giai đoạn 7)** 🔵 *(sửa 2026-09-15 qua `correct-course`: Story 6.18 gộp vào Story 10.9)* |
-| **NFR4** | Khởi động ứng dụng tới lúc Library dùng được | **< 3 giây** trên thư viện 5.000 Chương | **[A7]** Ngưỡng tạm, như A6 |
-| **NFR5** | Bộ nhớ khi nhàn rỗi | **< 300 MB** | **[A8]** Ngưỡng tạm. Baseline Tauri v2 ghi nhận 20–100 MB; phần dôi dành cho chỉ mục và dữ liệu Tác phẩm đang mở |
+| **NFR3** | Tìm kiếm full-text toàn Library | **p95 < 500 ms** trên thư viện 5.000 Chương | **[A6]** 🔵 Đo 2026-10-21 (Story 10.9, macOS, thư viện 5.000 Chương dựng qua đường nhập sản phẩm): p95 xấu nhất 183,9 ms — **ĐẠT**. Số của Story 5.14 là sơ bộ, thay bởi 10.9. Bằng chứng: `_bmad-output/implementation-artifacts/6-18-ban-do/REPORT.md` |
+| **NFR4** | Khởi động ứng dụng tới lúc Library dùng được | **< 3 giây** trên thư viện 5.000 Chương | **[A7]** 🔵 Đo 2026-10-21 (Story 10.9, macOS): lạnh trung vị 3.151,7 ms, max 5.770,6 ms; ấm trung vị 3.331,7 ms, max 6.145,0 ms — **VƯỢT**. ⚠️ Lượt đo chạy khi tải máy khoảng 9 (một trình duyệt chạy nền); các phiên yên nhất chỉ trên ngưỡng 0,2–1,7% (lạnh 3.005–3.051 ms), nên trên máy nhàn kết luận có thể lật; Ice ký số này. Số của Story 5.14 là sơ bộ, thay bởi 10.9. Bằng chứng: `_bmad-output/implementation-artifacts/6-18-ban-do/REPORT.md` |
+| **NFR5** | Bộ nhớ khi nhàn rỗi | **< 300 MB** | **[A8]** 🔵 Đo 2026-10-21 (Story 10.9, macOS): `phys_footprint` lớn nhất 700.018.688 byte (700,0 MB · 667,6 MiB, pha quay lại Library sau Chế độ đọc), RSS đối chiếu 462,5 MB; riêng Library nhàn đã 422,8 MB — **VƯỢT** theo cả MB và MiB. Số của Story 5.14 là sơ bộ, thay bởi 10.9. Bằng chứng: `_bmad-output/implementation-artifacts/6-18-ban-do/REPORT.md` |
 
 > **Vì sao vẫn đặt ngưỡng dù chưa đo được (NFR3–NFR5):** một ngưỡng tạm sai vẫn nghiệm thu được và vẫn buộc người xây dựng phải đo; một tính từ thì không. Ba ngưỡng này được đánh dấu là tạm và có đường đóng ở Q4.
 
@@ -923,13 +923,13 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 
 | ID | Yêu cầu | Ngưỡng |
 |---|---|---|
-| **NFR6** | Kích thước bản cài kèm toàn bộ từ điển | **[A2]** Trần **400.000.000 byte** *(400 MB thập phân)* cho **payload sản phẩm** — mã, font, dữ liệu từ điển — **không có cơ chế tải thêm sau khi cài**. *(Đo thật 2026-08-05, bảy nguồn: **343.991.430 byte** — ĐẠT, dư 56.008.570.)* **Bản WebView2 Runtime nhúng trên Windows nằm NGOÀI trần này**; xem giải thích dưới bảng |
+| **NFR6** | Kích thước bản cài kèm toàn bộ từ điển | **[A2]** Trần **500.000.000 byte** *(500 MB thập phân)* cho **payload sản phẩm** — mã, font, dữ liệu từ điển — **không có cơ chế tải thêm sau khi cài**. 🔵 *(Nâng từ 400.000.000 ngày 2026-10-21, thay đổi tầng PRD do Ice ký — xem sửa lần ba. Đo trên build release thật cùng ngày: macOS **432.363.050 byte**, Windows **415.937.424 byte** — ĐẠT.)* **Bản WebView2 Runtime nhúng trên Windows nằm NGOÀI trần này**; xem giải thích dưới bảng |
 | **NFR7** | Tra cứu khi ngoại tuyến | **100%** hoạt động không cần mạng |
 | **NFR8** | Độ chính xác dấu tiếng Việt | Chỉ mục tìm kiếm **chính** phải **phân biệt dấu**. Chế độ xoá dấu chỉ được tồn tại như một chỉ mục **phụ**, không bao giờ là mặc định |
 | **NFR9** | Khả năng mang dữ liệu đi | TM xuất được TMX; Glossary và prompt xuất được định dạng văn bản mở; `.atproj` tự chứa và mở được trên máy khác |
 | **NFR10** | Toàn vẹn dữ liệu | Mất chỉ mục Library **không được** làm mất dữ liệu — chỉ mục dựng lại được hoàn toàn từ `.atproj` |
 
-> **NFR6 sửa 2026-08-03 — Ice quyết, sau khi Story 1.2 đổi `webviewInstallMode` sang `offlineInstaller`.** Bản `.msi` trên Windows nhúng trọn WebView2 Runtime (**≈ 127 MB**, tải lúc build) để giữ lời hứa *cài được khi không có mạng* — cùng lời hứa mà NFR7 và NFR12 đang mang. Runtime đó là thành phần của hệ điều hành, không phải payload của sản phẩm, nên **nó không tính vào trần NFR6** *(lúc đó là 150–200 MB; nay 400.000.000 byte — xem sửa lần hai bên dưới. Mệnh đề "WebView2 nằm ngoài trần" không đổi)*. Hệ quả bắt buộc, không được bỏ: **mọi phép đo dung lượng phải tách hai dòng** — *payload sản phẩm* (đối chiếu với trần) và *WebView2 Runtime nhúng* (ghi ra, không đối chiếu). Nhờ cách phát biểu này, trần vẫn là **một** con số chung cho macOS lẫn Windows. Đường quay lui vẫn còn nếu về sau thấy `.msi` quá lớn để người dùng tải: đổi về `downloadBootstrapper` (mất mệnh đề cài offline) hoặc phát hành NSIS thay `.msi` — cả hai là quyết định ở Story 10.2, không phải ở tầng kiến trúc.
+> **NFR6 sửa 2026-08-03 — Ice quyết, sau khi Story 1.2 đổi `webviewInstallMode` sang `offlineInstaller`.** Bản `.msi` trên Windows nhúng trọn WebView2 Runtime (**≈ 127 MB** lúc quyết, tải lúc build. 🔵 Đo 2026-10-21 trong `.msi` thật: 214.156.024 byte.) để giữ lời hứa *cài được khi không có mạng* — cùng lời hứa mà NFR7 và NFR12 đang mang. Runtime đó là thành phần của hệ điều hành, không phải payload của sản phẩm, nên **nó không tính vào trần NFR6** *(lúc đó là 150–200 MB. 🔵 Nay là 500.000.000 byte — xem sửa lần hai và lần ba bên dưới. Mệnh đề "WebView2 nằm ngoài trần" không đổi)*. Hệ quả bắt buộc, không được bỏ: **mọi phép đo dung lượng phải tách hai dòng** — *payload sản phẩm* (đối chiếu với trần) và *WebView2 Runtime nhúng* (ghi ra, không đối chiếu). Nhờ cách phát biểu này, trần vẫn là **một** con số chung cho macOS lẫn Windows. Đường quay lui vẫn còn nếu về sau thấy `.msi` quá lớn để người dùng tải: đổi về `downloadBootstrapper` (mất mệnh đề cài offline) hoặc phát hành NSIS thay `.msi` — cả hai là quyết định ở Story 10.2, không phải ở tầng kiến trúc.
 
 > **NFR6 sửa lần hai 2026-08-05 — Ice quyết, trên SỐ ĐO THẬT: trần 150–200 MB → 400.000.000 byte.**
 >
@@ -955,6 +955,18 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 >
 > ⚠️ **Dư địa 56.008.570 byte KHÔNG dành cho tính năng mới.** Hai lớp gỡ rời còn lại — **HVTĐTD** và **Cổ hán văn** — **chưa dựng** *(chưa có nguồn thô; xem `deferred-work.md`)*. VietPhrase một mình ăn 160 MB, nên nếu một trong hai lớp đó hành xử tương tự thì trần 400.000.000 **sẽ vượt lần nữa**. **Đo trước khi hứa** — đây chính là chỗ **[A2]** vẫn còn mở.
 
+> 🔵 **NFR6 sửa lần ba 2026-10-21 — thay đổi tầng PRD, Ice ký trên SỐ ĐO THẬT (Story 10.9, Q1): trần 400.000.000 → 500.000.000 byte.**
+>
+> Trần 400.000.000 byte đã vượt trên build release thật mà chưa thêm lớp nào: bốn lớp từ điển + font + giấy phép đã là 400.541.421 byte (đo ở Story 10.1). Số dưới đây do `scripts/inspect-release.mjs` đo trên lượt `release.yml` `workflow_dispatch` run `39580744916` (commit `03376ab`), cũng là số mà ghi chú phát hành tự ghi.
+>
+> | Hệ điều hành | Payload sản phẩm | WebView2 nhúng (ngoài trần) | Bộ cài |
+> |---|---:|---:|---:|
+> | macOS | 432.363.050 | không nhúng (WKWebView) | 188.852.543 (`.dmg`) |
+> | Windows | 415.937.424 | 214.156.024 | 393.306.112 (`.msi`) |
+> | Dư địa với trần mới | macOS 67.636.950 · Windows 84.062.576 | | |
+>
+> Ice chọn 500.000.000 trong hai phương án 450.000.000 và 500.000.000; ở trần này vẫn còn chỗ cho lớp tiếng Anh đã đo (40.333.312 byte). Không gỡ lớp nào; lời hứa *"không tải thêm sau khi cài"* giữ nguyên. WebView2 trên Windows nằm trong bảng Binary của `.msi`, không phải một tệp cài ra, nên phải đọc từ chính bộ cài.
+
 > **NFR8 giải thích:** Giai đoạn 0 đo được `unicode61` mặc định gộp `má / ma / mà / mả / mã / mạ` thành một kết quả duy nhất. Với một công cụ dịch tiếng Việt, đây là lỗi phá vỡ độ chính xác của toàn bộ tìm kiếm. Chi phí của việc lập chỉ mục hai lần đã biết: **~17 MB mỗi chỉ mục** *(số đo Giai đoạn 0, trên ba nguồn đầu)*, nằm gọn trong trần NFR6. ⚠️ **Hiệu chỉnh 2026-08-05:** trên dữ liệu thật, chi phí chỉ mục **theo tỷ lệ với nguồn**, không phải một hằng số — VietPhrase nở **6,7×** từ 23.844.586 byte thô lên 160.083.968 byte *(đầu mục ngắn, rất nhiều, cộng ba chỉ mục FTS5)*. Chỉ mục phụ vẫn giữ, không đánh đổi: bỏ nó ở riêng một lớp làm lược đồ giữa các tệp `.db` khác nhau và phá chính điều kiện của FR36.
 
 ### 7.3 Bảo mật & quyền riêng tư
@@ -962,7 +974,7 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 | ID | Yêu cầu |
 |---|---|
 | **NFR11** | API key lưu trong **keychain / credential manager của hệ điều hành**. Không bao giờ ghi vào file cấu hình, file dự án hay log |
-| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài **hai** luồng do người dùng chủ động kích hoạt: lời gọi AI, và tải nội dung ở đường nhập từ URL *(mở rộng 2026-08-03 cùng FR122; trước đó chỉ có lời gọi AI)* |
+| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài **ba** luồng do người dùng chủ động kích hoạt: lời gọi AI, kiểm tra phiên bản mới (FR111), và tải nội dung ở đường nhập từ URL *(mở rộng 2026-08-03 cùng FR122; trước đó chỉ có lời gọi AI)* 🔵 2026-10-21: "hai" thành ba theo AD-15 (Story 10-7) |
 | **NFR13** | Không tài khoản, không đăng nhập, không đồng bộ đám mây |
 | **NFR19** | **Đường nhập từ URL chỉ ra mạng khi người dùng chủ động bấm.** Không tải nền, không prefetch, không kiểm tra ngầm, không tải lại ảnh đã có. Danh sách domain ứng dụng đã gọi phải **xem được trong ứng dụng** *(số cuối dãy, bổ sung 2026-08-03)* |
 
@@ -1042,6 +1054,8 @@ Chọn **v3 chứ không phải v2** vì v3 tương thích với crate Apache-2.
 > | **+ Lớp tiếng Anh** *(đo thật)* | **40.333.312** |
 > | **Payload dự phóng** | **384.324.742** — vẫn **ĐẠT** |
 > | Dư địa còn lại cho **HVTĐTD + Cổ hán văn** | **15.675.258** |
+>
+> 🔵 2026-10-21 (Story 10.9): bảng dự phóng này đã cũ. Payload thật trên build release là 432.363.050 byte (macOS) và 415.937.424 byte (Windows), và trần nay là 500.000.000 byte — xem NFR6 sửa lần ba.
 >
 > 🔴 **15,7 MB cho HAI lớp chưa dựng.** Thiều Chửu chỉ tốn 5.787.648 byte nên *có thể* vừa — nhưng **VietPhrase tốn 160.083.968**. Nếu HVTĐTD giàu ví dụ và trích dẫn như mô tả ở §8.3, nó **không vừa**. **Đo cả hai TRƯỚC khi hứa đóng gói** — xem **[A2]** ở §11.
 
@@ -1169,14 +1183,14 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 
 | # | Giả định | Xuất hiện ở | Nếu sai thì sao |
 |---|---|---|---|
-| **A1** | Vòng IPC Tauri thật và thời gian render frontend nằm gọn trong ngân sách 100 ms của NFR1 | NFR1 | Chưa đo được ở môi trường dòng lệnh. Rủi ro đã giảm mạnh nhờ payload 679 byte — nếu chậm, nguyên nhân sẽ ở frontend, không phải đường dữ liệu |
-| **A2** | Trần **400.000.000 byte** đủ cho toàn bộ nguồn từ điển — **tính trên payload sản phẩm, không tính WebView2 Runtime nhúng** *(khoanh lại 2026-08-03; trần nâng 2026-08-05)*. 🟢 **Đã kiểm chứng MỘT PHẦN**: năm nguồn nền + Thiều Chửu + VietPhrase đo thật = **343.991.430 byte**, ĐẠT. 🔴 **Còn mở** cho **HVTĐTD**, **Cổ hán văn**, và **lớp tiếng Anh** *(đã đo 40.333.312 byte nhưng chưa vào bản phát hành)* — dự phóng đủ bảy nguồn + tiếng Anh = **384.324.742 byte**, chỉ còn **15.675.258** cho hai lớp cuối | NFR6 | A2 đã **sai một lần** theo đúng cách nó dự báo: trần cũ 150–200 MB bị vượt. Ice giải bằng cách **nâng trần, giữ lời hứa "không tải thêm sau cài"** — không phải bằng cách bỏ nguồn hay tải sau *(NFR6 sửa lần hai)*. Nếu **sai lần hai** *(hai lớp còn lại ăn hết 56.008.570 byte dư địa)*, đường ra không còn là nâng trần tiếp: ở mức đó, phải cân nhắc lại chính lời hứa **"không tải thêm sau cài"** — tức chạm vào **NFR7** và **NFR12**. **Đo hai lớp đó TRƯỚC khi hứa đóng gói chúng.** |
+| **A1** | Vòng IPC Tauri thật và thời gian render frontend nằm gọn trong ngân sách 100 ms của NFR1 | NFR1 | Chưa đo được ở môi trường dòng lệnh. Rủi ro đã giảm mạnh nhờ payload 679 byte — nếu chậm, nguyên nhân sẽ ở frontend, không phải đường dữ liệu 🔵 *(2026-10-21, Story 10.9, Q2: NFR1 bỏ vế đầu-cuối nên giả định này không còn được nghiệm thu; giữ làm rủi ro đã biết, không có phép đo nào đứng sau.)* |
+| **A2** | Trần **500.000.000 byte** đủ cho toàn bộ nguồn từ điển — **tính trên payload sản phẩm, không tính WebView2 Runtime nhúng** *(khoanh lại 2026-08-03; trần nâng 2026-08-05)*. 🟢 **Đã kiểm chứng MỘT PHẦN**: năm nguồn nền + Thiều Chửu + VietPhrase đo thật = **343.991.430 byte**, ĐẠT. 🔴 **Còn mở** cho **HVTĐTD**, **Cổ hán văn**, và **lớp tiếng Anh** *(đã đo 40.333.312 byte nhưng chưa vào bản phát hành)* — dự phóng đủ bảy nguồn + tiếng Anh = **384.324.742 byte**, chỉ còn **15.675.258** cho hai lớp cuối | NFR6 | A2 đã **sai một lần** theo đúng cách nó dự báo: trần cũ 150–200 MB bị vượt. Ice giải bằng cách **nâng trần, giữ lời hứa "không tải thêm sau cài"** — không phải bằng cách bỏ nguồn hay tải sau *(NFR6 sửa lần hai)*. Nếu **sai lần hai** *(hai lớp còn lại ăn hết 56.008.570 byte dư địa)*, đường ra không còn là nâng trần tiếp: ở mức đó, phải cân nhắc lại chính lời hứa **"không tải thêm sau cài"** — tức chạm vào **NFR7** và **NFR12**. **Đo hai lớp đó TRƯỚC khi hứa đóng gói chúng.** 🔵 2026-10-21 (Story 10.9): A2 đã sai lần hai — build release thật vượt 400.000.000 byte (macOS 432.363.050, Windows 415.937.424) trước cả khi có HVTĐTD, Cổ hán văn hay lớp tiếng Anh. Ice chọn nâng trần lên 500.000.000 byte (Q1 của 10.9, không gỡ lớp nào), lời hứa *"không tải thêm sau cài"* giữ nguyên. Ba lớp kia vẫn phải đo trước khi hứa đóng gói. |
 | **A3** | Bản Thiều Chửu số hoá và bản Cổ hán văn dùng được về mặt pháp lý. 🔄 **Tách đôi 2026-08-05:** **Thiều Chửu** ⇒ 🟢 **ĐÃ KIỂM CHỨNG, thôi là giả định** — CC0 1.0, đối chiếu SHA-256 byte-for-byte với kho `catusf/tudien` *(Story 1.10)*. **Cổ hán văn** ⇒ 🔴 **vẫn là giả định chưa kiểm chứng**, và nay còn chưa có cả nguồn thô | §8.2, §8.6, R7 | Chỉ còn áp cho **Cổ hán văn**: gỡ khỏi bản phát hành kế tiếp qua FR112. Sản phẩm vẫn chạy đầy đủ trên các lớp nền có giấy phép sạch (FR36). ⚠️ Với Thiều Chửu, thứ thay thế rủi ro pháp lý là một **nghĩa vụ vĩnh viễn**: ghi công tác giả *(quyền nhân thân, không hết hạn, CC0 không miễn trừ)* |
 | **A4** | Tách câu tự động đúng ở tỷ lệ chấp nhận được | FR23 | FR78 (gộp/tách tay) là đường lui, nhưng nếu sai quá nhiều thì thao tác thủ công sẽ nuốt hết giá trị của TM |
 | **A5** | Người dùng sẵn sàng vượt qua cảnh báo Gatekeeper/SmartScreen để cài | §9.1 | Đây là rào cản đón nhận lớn nhất và không kiểm soát được bằng thiết kế |
-| **A6** | Ngưỡng tìm kiếm Library **p95 < 500 ms** trên 5.000 Chương là hợp lý | NFR3 | Ngưỡng tạm đặt bằng phán đoán kỹ thuật. Hiệu chỉnh **sau Giai đoạn 3b** (Q4) — Giai đoạn 3 chưa có đường tạo 5.000 Chương. 🔵 *(2026-09-15: hiệu chỉnh dời về **nghiệm thu cuối, Story 10.9** — xem Q4)* |
-| **A7** | Ngưỡng khởi động **< 3 giây** trên 5.000 Chương là hợp lý | NFR4 | Như A6 |
-| **A8** | Ngưỡng bộ nhớ nhàn rỗi **< 300 MB** là hợp lý | NFR5 | Như A6 |
+| **A6** | Ngưỡng tìm kiếm Library **p95 < 500 ms** trên 5.000 Chương là hợp lý | NFR3 | 🔵 Kết luận 2026-10-21 (Story 10.9, macOS): **đúng** — p95 xấu nhất 183,9 ms trên 5.000 Chương thật. Windows chưa đo (B7). |
+| **A7** | Ngưỡng khởi động **< 3 giây** trên 5.000 Chương là hợp lý | NFR4 | 🔵 Kết luận 2026-10-21 (Story 10.9, macOS): sản phẩm **vượt** ngưỡng — lạnh trung vị 3.151,7 ms, đo khi tải máy khoảng 9 (xem NFR4). Windows chưa đo (B7). |
+| **A8** | Ngưỡng bộ nhớ nhàn rỗi **< 300 MB** là hợp lý | NFR5 | 🔵 Kết luận 2026-10-21 (Story 10.9, macOS): sản phẩm **vượt** ngưỡng — `phys_footprint` lớn nhất 700,0 MB. Windows chưa đo (B7). |
 | **A9** | Người dùng thật sự cần lịch sử tra cứu và ghim mục từ | FR41 | Suy đoán từ thói quen dùng, chưa có input xác nhận. Bỏ FR41 không ảnh hưởng nhóm năng lực nào khác |
 | **A10** | Ngưỡng khởi điểm **5 lần lặp** cho ứng viên Glossary là hợp lý | FR52 | Ngưỡng cấu hình lại được, nên sai không gây thiệt hại lâu dài — chỉ làm buổi đầu khó chịu (R4) |
 | **A11** | Các **ngưỡng bố cục màn hình hẹp** do thiết kế đặt là hợp lý — đo theo **vùng làm việc** (chiều cao cửa sổ trừ thanh tiêu đề và thanh trạng thái), không theo kích thước màn hình | Thiết kế (`bmad-ux` EXPERIENCE.md), FR16, FR17, Q9 | Ngưỡng tạm đặt bằng phán đoán thiết kế trên mockup, chưa chạy trên máy thật. Hiệu chỉnh khi có bản chạy được (Q9) — cùng loại A6/A7/A8. **Thứ tự hy sinh không đổi khi hiệu chỉnh số:** Đề xuất AI nhường trước, Tra cứu nhường sau (rút về thanh trạng thái, không bao giờ mất hẳn), cặp Nguyên văn \| Bản dịch không bao giờ nhường |
@@ -1219,7 +1233,7 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 | **Q1** | **Vì sao người dịch không xem lại bản review?** Nguyên nhân gốc chưa xác định | Chủ dự án | **Để ngỏ có chủ ý.** Ghi nhận hiện tượng như dữ kiện quan sát được, không suy diễn động cơ. FR95 khiến câu trả lời không còn chặn tiến độ |
 | ~~Q2~~ | ~~Giao diện có cần bản tiếng Anh không?~~ | — | ✅ **Đóng 2026-08-02** — v1 chỉ tiếng Việt, nhưng bắt buộc tách chuỗi giao diện ra file tài nguyên riêng ngay từ đầu (NFR16) |
 | ~~Q3~~ | ~~HVTĐTD có được đồng ý không?~~ | — | ✅ **Đóng 2026-08-02** — tác giả Đặng Thế Kiệt xác nhận cho phép bằng văn bản. Xem §8.3 |
-| **Q4** | **Hiệu chỉnh ngưỡng tạm A6, A7, A8** (NFR3 tìm kiếm Library, NFR4 khởi động, NFR5 bộ nhớ) | Chủ dự án | Đo trên thư viện thật **sau Giai đoạn 3b**, không phải ở Giai đoạn 3. **Không chặn tiến độ** — ngưỡng tạm đã đủ để nghiệm thu. *(Sửa 2026-08-03: Giai đoạn 3 dựng Library nhưng **không có đường nào tạo ra 5.000 Chương** — nhập hàng loạt là FR14, thuộc Giai đoạn 3b. Phép đo ở Giai đoạn 3 chỉ ra được số sơ bộ trên thư viện nhỏ; phép đo đủ điều kiện phải chạy lại sau khi đường nhập hàng loạt tồn tại.)* 🔵 *(**Sửa 2026-09-15** qua `correct-course`, quyết định chủ dự án: phép đo **dời về nghiệm thu cuối — Story 10.9, Giai đoạn 7**; Story 6.18 gộp vào đó. Điều kiện "sau Giai đoạn 3b" vẫn thoả vì đường nhập hàng loạt đã có; cái đổi là **thời điểm**. "Không chặn tiến độ" vẫn đúng. Hệ quả ghi thẳng: Giai đoạn 2c, 4, 5 và 6 dựng trên ngưỡng còn tạm, trong khi số **sơ bộ** của Story 5.14 cho A7 (max 4.364,883 ms) và A8 (894,570 MB) đang vượt trần.)* |
+| **Q4** | **Hiệu chỉnh ngưỡng tạm A6, A7, A8** (NFR3 tìm kiếm Library, NFR4 khởi động, NFR5 bộ nhớ) | Chủ dự án | Đo trên thư viện thật **sau Giai đoạn 3b**, không phải ở Giai đoạn 3. **Không chặn tiến độ** — ngưỡng tạm đã đủ để nghiệm thu. *(Sửa 2026-08-03: Giai đoạn 3 dựng Library nhưng **không có đường nào tạo ra 5.000 Chương** — nhập hàng loạt là FR14, thuộc Giai đoạn 3b. Phép đo ở Giai đoạn 3 chỉ ra được số sơ bộ trên thư viện nhỏ; phép đo đủ điều kiện phải chạy lại sau khi đường nhập hàng loạt tồn tại.)* 🔵 *(**Sửa 2026-09-15** qua `correct-course`, quyết định chủ dự án: phép đo **dời về nghiệm thu cuối — Story 10.9, Giai đoạn 7**; Story 6.18 gộp vào đó. Điều kiện "sau Giai đoạn 3b" vẫn thoả vì đường nhập hàng loạt đã có; cái đổi là **thời điểm**. "Không chặn tiến độ" vẫn đúng. Hệ quả ghi thẳng: Giai đoạn 2c, 4, 5 và 6 dựng trên ngưỡng còn tạm, trong khi số **sơ bộ** của Story 5.14 cho A7 (max 4.364,883 ms) và A8 (894,570 MB) đang vượt trần.)* 🔵 **ĐÃ ĐÓNG 2026-10-21 (Story 10.9).** Đo trên thư viện 5.000 Chương dựng qua đường nhập sản phẩm, chỉ macOS; kết luận ở A6 (đạt), A7 (vượt), A8 (vượt). Số của Story 5.14 là sơ bộ, thay bởi 10.9. Lượt đo trên Windows là nợ `Chủ: Ice` trỏ B7. |
 | **Q5** | **Baseline cho counter-metrics §4.3** | Chủ dự án | Cần vài tháng dùng thật mới có số so sánh |
 | ~~Q6~~ | ~~Khả năng tiếp cận có nằm trong v1 không?~~ | — | ✅ **Đóng 2026-08-02** — thành **NFR17**. Sàn bàn phím + tương phản WCAG AA; trình đọc màn hình ngoài phạm vi v1 (§3.2) |
 | ~~Q7~~ | ~~Mất tối đa bao nhiêu công việc khi app sập là chấp nhận được?~~ | — | ✅ **Đóng 2026-08-02** — thành **NFR18**, ngưỡng ≤ 5 giây |

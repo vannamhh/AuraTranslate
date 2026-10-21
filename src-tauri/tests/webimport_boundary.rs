@@ -195,7 +195,9 @@ fn the_network_token_check_would_actually_flag_a_seeded_violation_and_ignore_cle
 // ═════════════════════════════════════════════════════════════════════════════════
 
 fn path_is_allowed_for_reqwest(rel: &str) -> bool {
-    rel.starts_with("core/webimport/") || rel.starts_with("core/ai/")
+    rel.starts_with("core/webimport/")
+        || rel.starts_with("core/ai/")
+        || rel.starts_with("core/update/")
 }
 
 #[test]
@@ -224,7 +226,7 @@ fn reqwest_is_named_only_inside_core_webimport_or_core_ai() {
     assert!(
         offenders.is_empty(),
         "`reqwest` (điểm ra mạng thứ ba, AD-15) chỉ được phép xuất hiện trong \
-         `core/webimport/`/`core/ai/` — tìm thấy ở nơi khác:\n{}",
+         `core/webimport/`/`core/ai/`/`core/update/` — tìm thấy ở nơi khác:\n{}",
         offenders.join("\n")
     );
 }
@@ -238,6 +240,14 @@ fn the_reqwest_allowlist_predicate_accepts_only_the_two_named_directories() {
     assert!(
         path_is_allowed_for_reqwest("core/ai/client.rs"),
         "ca DƯƠNG: core/ai/"
+    );
+    assert!(
+        path_is_allowed_for_reqwest("core/update/mod.rs"),
+        "ca DƯƠNG: core/update/"
+    );
+    assert!(
+        !path_is_allowed_for_reqwest("commands/update.rs"),
+        "ca ÂM: `commands::update` gọi XUỐNG `core::update::check`, không tự gõ `reqwest`"
     );
     assert!(
         !path_is_allowed_for_reqwest("core/segment/pipeline.rs"),

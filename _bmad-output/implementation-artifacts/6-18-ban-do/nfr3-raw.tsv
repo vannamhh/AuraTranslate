@@ -1,0 +1,16 @@
+session	record	case	query	warmups	samples	p50_ms	p95_ms	p99_ms	worst_ms
+1	case	target_exact_truncated	má của tôi	10	200	81.875347	102.539561	105.434363	107.316823
+1	case	source_han_truncated	分久必合	10	200	151.187441	183.889961	198.032514	203.195074
+1	case	source_latin_unique	brown fox number 2500-5	10	200	5.215189	7.022300	7.284463	8.201080
+1	case	target_auto_widen_truncated	ma cua toi	10	200	78.952457	102.679057	105.030491	123.261985
+1	case	target_explicit_lenient_truncated	ma cua toi	10	200	76.843276	102.518434	105.328995	151.295320
+2	case	target_exact_truncated	má của tôi	10	200	77.733376	102.002386	103.965022	104.170448
+2	case	source_han_truncated	分久必合	10	200	147.341846	180.445584	199.582321	203.600496
+2	case	source_latin_unique	brown fox number 2500-5	10	200	4.951632	6.540922	7.152336	7.370572
+2	case	target_auto_widen_truncated	ma cua toi	10	200	76.495320	100.626292	104.185717	137.046630
+2	case	target_explicit_lenient_truncated	ma cua toi	10	200	78.465068	102.800753	105.099694	105.845607
+3	case	target_exact_truncated	má của tôi	10	200	77.937020	103.317604	107.050579	139.416449
+3	case	source_han_truncated	分久必合	10	200	148.232539	183.317834	200.947177	224.661077
+3	case	source_latin_unique	brown fox number 2500-5	10	200	5.205810	7.223522	7.621350	7.706084
+3	case	target_auto_widen_truncated	ma cua toi	10	200	77.915708	103.555215	107.720174	110.891848
+3	case	target_explicit_lenient_truncated	ma cua toi	10	200	79.484786	103.588844	111.896040	121.401421

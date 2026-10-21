@@ -116,7 +116,7 @@ describe('Settings nav', () => {
     wrapper.unmount()
   })
 
-  it('the Update section has no button or input, and the scope bar locks to Global with the reason', async () => {
+  it('the Update section has its own controls, and the scope bar locks to Global with the reason', async () => {
     const { settings, SettingsOverlay, t } = await freshFrame()
     settings.openSettings()
     settings.selectSettingsSection('update')
@@ -125,7 +125,8 @@ describe('Settings nav', () => {
 
     const body = wrapper.find('[data-settings-update]')
     expect(body.exists()).toBe(true)
-    expect(body.findAll('button, input, a, form')).toHaveLength(0)
+    expect(body.findAll('button[data-update-toggle], button[data-update-check]')).toHaveLength(2)
+    expect(body.findAll('input, a')).toHaveLength(0)
     expect(wrapper.find('[data-settings-scope-global]').attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-settings-scope-work]').attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-settings-scope-msg]').text()).toBe(t('settings.scope.locked_update'))

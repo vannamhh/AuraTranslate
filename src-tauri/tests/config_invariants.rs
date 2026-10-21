@@ -617,6 +617,27 @@ fn manifest_dict_file_names() -> Vec<String> {
         .collect()
 }
 
+fn manifest_removed_names() -> Vec<String> {
+    let path = repo_root().join("dict-manifest.toml");
+    let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let mut in_removed = false;
+    let mut names = Vec::new();
+    for line in raw.lines().map(str::trim) {
+        if line.starts_with('[') {
+            in_removed = line == "[[removed]]";
+        } else if in_removed
+            && let Some(rest) = line
+                .strip_prefix("name")
+                .map(str::trim_start)
+                .and_then(|r| r.strip_prefix('='))
+            && let Some(v) = rest.split('"').nth(1)
+        {
+            names.push(v.to_owned());
+        }
+    }
+    names
+}
+
 /// Từ điển chỉ vào bản cài qua lớp phủ này, và lớp phủ chỉ làm ĐÚNG việc đó.
 ///
 /// Lớp phủ là một map nên Tauri merge nó (RFC 7396) vào `bundle.resources` của
@@ -651,18 +672,24 @@ fn release_overlay_adds_exactly_the_manifest_dictionary_files_under_dict() {
         "từ điển phải tới `$RESOURCE/dict/<tệp>.db` (AD-25)"
     );
 
-    let mut names = manifest_dict_file_names();
-    names.sort();
+    let names = manifest_dict_file_names();
     assert_eq!(
-        names,
-        vec![
-            "dict-core.db",
-            "dict-thieu-chuu.db",
-            "dict-tran-van-chanh.db",
-            "dict-vietphrase.db",
-        ],
-        "bốn tên trong dict-manifest.toml; glob `*.db` của lớp phủ phải phủ đúng bấy nhiêu tệp"
+        names.first().map(String::as_str),
+        Some("dict-core.db"),
+        "`[base]` đứng đầu manifest và là dict-core.db"
     );
+    let unique: std::collections::BTreeSet<_> = names.iter().collect();
+    assert_eq!(
+        unique.len(),
+        names.len(),
+        "tên tệp trong manifest không được trùng: {names:?}"
+    );
+    for removed in manifest_removed_names() {
+        assert!(
+            !names.contains(&format!("dict-{removed}.db")),
+            "lớp `{removed}` ở [[removed]] nhưng manifest vẫn còn url của nó"
+        );
+    }
     assert!(names.iter().all(|n| n.ends_with(".db")));
 }
 
@@ -2087,7 +2114,7 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 /// xanh, và vỏ mất người canh trong im lặng. Với `project.rs` hai con số cố ý LỆCH (9 hàng /
 /// 11 `(async)`): `start_url_import` và `reload_url_import_item`
 /// mang `(async)` từ Story 6.7 và không có hàng — đúng cái lỗ mà cột `async` bịt.
-const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 20] = [
+const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
     (
         "src/commands/aiconfig.rs",
         2,
@@ -2164,6 +2191,15 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 20] = [
     ("src/commands/glossary.rs", 10, 8, 8, ""),
     ("src/commands/library.rs", 3, 7, 7, ""),
     ("src/commands/lifecycle.rs", 1, 3, 3, ""),
+    (
+        "src/commands/update.rs",
+        2,
+        0,
+        0,
+        "CHUA DO -- chu: Dev. `update_check` la `async fn` literal (spawn_blocking cho yeu cau mang, \
+         khong giu khoa nao); `update_open_release_page` chi dung URL tu bo ba da kiem roi goi \
+         `open_url`, khong cho.",
+    ),
     (
         "src/commands/pinned.rs",
         3,
@@ -2353,9 +2389,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (104, 65),
+        (106, 65),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         104/65.\n\n\
+         106/65.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \
@@ -2922,6 +2958,107 @@ fn release_notes_state_the_build_is_not_signed_or_notarized() {
 }
 
 #[test]
+fn install_guide_keeps_its_sections_checksum_commands_and_every_image() {
+    let root = repo_root();
+    let guide_path = root.join("INSTALL.md");
+    let guide = fs::read_to_string(&guide_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", guide_path.display()));
+    let script = fs::read_to_string(root.join("scripts").join("release-checksums.mjs"))
+        .expect("read scripts/release-checksums.mjs");
+
+    assert!(
+        guide.contains("không được ký số và không được notarize"),
+        "INSTALL.md phải nói thẳng bản cài không ký số và không notarize"
+    );
+    for heading in ["\n## macOS\n", "\n## Windows\n"] {
+        assert!(
+            guide.contains(heading),
+            "INSTALL.md thiếu phần `{}`",
+            heading.trim()
+        );
+    }
+    for step in ["More info", "Run anyway", "Open Anyway", "Keep"] {
+        assert!(guide.contains(step), "INSTALL.md thiếu bước `{step}`");
+    }
+    assert_eq!(
+        guide.matches("đừng mở tệp").count(),
+        2,
+        "INSTALL.md phải nói cách xử lý khi hash lệch ở cả phần macOS lẫn Windows"
+    );
+
+    for template in [
+        "shasum -a 256 ${mac}",
+        "shasum -a 256 -c --ignore-missing SHA256SUMS.txt",
+        "Get-FileHash .\\\\${win} -Algorithm SHA256",
+    ] {
+        assert!(
+            script.contains(template),
+            "scripts/release-checksums.mjs không còn dòng `{template}`; INSTALL.md phải đổi theo"
+        );
+    }
+    let version = read_json("tauri.conf.json")["version"]
+        .as_str()
+        .expect("tauri.conf.json mang `version`")
+        .to_string();
+    for command in [
+        format!("shasum -a 256 AuraTranslate_{version}_universal.dmg"),
+        "shasum -a 256 -c --ignore-missing SHA256SUMS.txt".to_string(),
+        format!("Get-FileHash .\\AuraTranslate_{version}_x64_en-US.msi -Algorithm SHA256"),
+    ] {
+        assert!(
+            guide.lines().any(|l| l == command),
+            "INSTALL.md thiếu dòng lệnh checksum `{command}` đúng chữ của releaseBody() và đúng \
+             phiên bản {version} của tauri.conf.json"
+        );
+    }
+
+    let mut images = 0;
+    for line in guide.lines() {
+        let mut rest = line;
+        while let Some(at) = rest.find("](") {
+            let after = &rest[at + 2..];
+            let Some(end) = after.find(')') else { break };
+            let target = &after[..end];
+            if rest[..at].contains("![") && !target.starts_with("http") {
+                images += 1;
+                assert!(
+                    root.join(target).is_file(),
+                    "INSTALL.md trỏ tới ảnh không có thật: `{target}`"
+                );
+            }
+            rest = &after[end..];
+        }
+    }
+    assert!(images > 0, "INSTALL.md không có ảnh nào");
+    let dir = root.join("install-guide");
+    for entry in fs::read_dir(&dir).unwrap_or_else(|e| panic!("read {}: {e}", dir.display())) {
+        let path = entry.expect("directory entry").path();
+        if path.extension().and_then(|x| x.to_str()) != Some("png") {
+            continue;
+        }
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .expect("utf-8 name");
+        assert!(
+            guide.contains(&format!("](install-guide/{name})")),
+            "ảnh `install-guide/{name}` không được INSTALL.md dẫn tới"
+        );
+    }
+
+    let notes = fs::read_to_string(root.join(".github").join("release-notes.md"))
+        .expect("read .github/release-notes.md");
+    assert!(
+        notes.contains("https://github.com/vannamhh/AuraTranslate/blob/master/INSTALL.md"),
+        "ghi chú phát hành phải liên kết tới INSTALL.md"
+    );
+    assert!(
+        !notes.contains("sẽ có ở một bản phát hành sau"),
+        "ghi chú phát hành còn câu hứa hướng dẫn ở bản sau"
+    );
+}
+
+#[test]
 fn version_check_precedes_every_tauri_build_and_macos_builds_universal() {
     let raw = release_workflow_text();
     let lines = code_lines(&raw);
@@ -2988,5 +3125,47 @@ fn bundle_resources_never_rename_a_file_because_msi_keeps_the_source_name() {
                  mục, tệp đơn giữ đúng tên nguồn — đổi tên thì đổi ở tệp nguồn"
             );
         }
+    }
+}
+
+#[test]
+fn data_removal_guide_keeps_the_files_and_gate_commands_it_relies_on() {
+    let root = repo_root();
+    let guide = fs::read_to_string(root.join("DATA-REMOVAL.md")).expect("read DATA-REMOVAL.md");
+    let package = fs::read_to_string(root.join("package.json")).expect("read package.json");
+
+    for needle in [
+        "[[removed]]",
+        "dict-manifest.toml",
+        "NOTICE.txt",
+        "inspect-release",
+        "assets/licenses",
+        "FR112",
+        "FR36",
+        "AD-25",
+        "HVTĐTD",
+    ] {
+        assert!(guide.contains(needle), "DATA-REMOVAL.md thiếu `{needle}`");
+    }
+    for script in ["check:dict-manifest", "check:dict"] {
+        assert!(
+            guide.contains(&format!("npm run {script}")),
+            "DATA-REMOVAL.md thiếu lệnh `npm run {script}`"
+        );
+        assert!(
+            package.contains(&format!("\"{script}\":")),
+            "package.json không còn script `{script}` mà DATA-REMOVAL.md gọi"
+        );
+    }
+    for file in [
+        "scripts/inspect-release.mjs",
+        "scripts/fetch-dicts.mjs",
+        "NOTICE.txt",
+        "dict-manifest.toml",
+    ] {
+        assert!(
+            root.join(file).is_file(),
+            "DATA-REMOVAL.md dựa vào `{file}` nhưng tệp không còn"
+        );
     }
 }

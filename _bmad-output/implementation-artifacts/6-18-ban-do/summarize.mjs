@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const dir = path.dirname(new URL(import.meta.url).pathname)
+const dir = path.dirname(fileURLToPath(import.meta.url))
 
 function rows(file) {
   const raw = fs.readFileSync(path.join(dir, file), 'utf8').trim()

@@ -158,11 +158,41 @@ describe('inspectInstalledTree', () => {
     expect(report.problems[1]).toContain('dict-thieu-chuu.db: found 0 copies')
   })
 
+  it('reports a .db under a dict directory that the manifest does not list', async () => {
+    install({
+      'App/dict/dict-core.db': BODIES['dict-core.db'],
+      'App/dict/dict-thieu-chuu.db': BODIES['dict-thieu-chuu.db'],
+      'App/dict/dict-tran-van-chanh.db': 'stale',
+    })
+    const report = await inspectInstalledTree({ manifestText: manifest(), root: dest })
+    expect(report.problems).toEqual(["dict-tran-van-chanh.db: .db under a 'dict' directory but not in dict-manifest.toml"])
+  })
+
+  it('treats a [[removed]] tombstone as no entry, so its stale .db is reported', async () => {
+    install({
+      'App/dict/dict-core.db': BODIES['dict-core.db'],
+      'App/dict/dict-thieu-chuu.db': BODIES['dict-thieu-chuu.db'],
+      'App/dict/dict-gone.db': 'stale',
+    })
+    const text = `${manifest()}\n[[removed]]\nname   = "gone"\nreason = "r"\ndate   = "2026-10-21"\n`
+    expect(manifestEntries(text).map((e) => e.fileName)).toEqual(['dict-core.db', 'dict-thieu-chuu.db'])
+    const report = await inspectInstalledTree({ manifestText: text, root: dest })
+    expect(report.problems).toHaveLength(1)
+    expect(report.problems[0]).toContain('dict-gone.db')
+  })
+
   it('leaves WebView2 files out of the installed total', async () => {
     install({ 'App/dict/dict-core.db': BODIES['dict-core.db'], 'App/MicrosoftEdgeWebView2Setup.exe': 'x'.repeat(1000) })
     const report = await inspectInstalledTree({ manifestText: manifest(), root: dest })
     expect(report.webview2Bytes).toBe(1000)
     expect(report.installedBytes).toBe('core bytes'.length)
+  })
+
+  it('leaves the root .msi copy of an administrative image out of the installed total, but not a nested one', async () => {
+    install({ 'dict/dict-core.db': BODIES['dict-core.db'], 'AuraTranslate.msi': 'x'.repeat(700), 'App/inner.msi': 'y'.repeat(30) })
+    const report = await inspectInstalledTree({ manifestText: manifest(), root: dest })
+    expect(report.adminPackageBytes).toBe(700)
+    expect(report.installedBytes).toBe('core bytes'.length + 30)
   })
 })
 

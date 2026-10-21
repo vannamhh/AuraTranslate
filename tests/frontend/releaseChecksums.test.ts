@@ -89,4 +89,63 @@ describe('release-checksums', () => {
     expect(r.stderr).toContain('missing.md')
     expect(existsSync(out)).toBe(false)
   })
+
+  describe('NFR6 size lines', () => {
+    const MAC = { os: 'macOS', installerBytes: 9, payloadBytes: 345_000_001, webview2Bytes: 0 }
+    const WIN = { os: 'Windows', installerBytes: 9, payloadBytes: 346_000_002, webview2Bytes: 127_000_003 }
+    function sizes(name: string, value: unknown) {
+      return file(name, JSON.stringify(value))
+    }
+    function runWith(...reports: string[]) {
+      const dmg = file('x.dmg', 'abc')
+      const msi = file('y.msi', 'hello')
+      const out = join(dir, 'out')
+      const args = ['--notes', join(dir, 'notes.md'), '--out-dir', out, ...reports.flatMap((r) => ['--sizes', r]), dmg, msi]
+      return { r: run(args), out }
+    }
+
+    it('appends payload and WebView2 lines for both systems', () => {
+      const { r, out } = runWith(sizes('mac.json', MAC), sizes('win.json', WIN))
+      expect(r.status).toBe(0)
+      const body = readFileSync(join(out, 'release-body.md'), 'utf8')
+      expect(body).toContain('### Dung lượng (NFR6)')
+      expect(body).toContain('macOS, payload sản phẩm: 345,000,001 byte')
+      expect(body).toContain('macOS, WebView2: 0 byte (không nhúng, dùng WKWebView của hệ điều hành)')
+      expect(body).toContain('Windows, payload sản phẩm: 346,000,002 byte')
+      expect(body).toContain('WebView2 Runtime nhúng (không tính vào trần): 127,000,003 byte')
+      expect(body.indexOf('### Dung lượng (NFR6)')).toBeLessThan(body.indexOf('### Kiểm tra tệp tải về'))
+    })
+
+    it('writes the lines and stays green when a payload is over the 500,000,000-byte ceiling', () => {
+      const { r, out } = runWith(sizes('mac.json', { ...MAC, payloadBytes: 612_000_004 }), sizes('win.json', WIN))
+      expect(r.status).toBe(0)
+      expect(readFileSync(join(out, 'release-body.md'), 'utf8')).toContain('macOS, payload sản phẩm: 612,000,004 byte')
+    })
+
+    it.each([
+      ['a payload of 0', { ...MAC, payloadBytes: 0 }, 'payloadBytes'],
+      ['no payload field', { os: 'macOS' }, 'payloadBytes'],
+      ['a Windows report without WebView2', { ...WIN, webview2Bytes: 0 }, 'webview2Bytes'],
+    ])('fails on %s and writes nothing', (_label, bad, field) => {
+      const good = bad.os === 'Windows' ? MAC : WIN
+      const { r, out } = runWith(sizes('bad.json', bad), sizes('good.json', good))
+      expect(r.status).not.toBe(0)
+      expect(r.stderr).toContain(field)
+      expect(existsSync(out)).toBe(false)
+    })
+
+    it('fails when one system has no report and names it', () => {
+      const { r, out } = runWith(sizes('mac.json', MAC))
+      expect(r.status).not.toBe(0)
+      expect(r.stderr).toContain('Windows')
+      expect(existsSync(out)).toBe(false)
+    })
+
+    it('fails on a missing or unreadable report file', () => {
+      const { r, out } = runWith(sizes('mac.json', MAC), join(dir, 'gone.json'))
+      expect(r.status).not.toBe(0)
+      expect(r.stderr).toContain('gone.json')
+      expect(existsSync(out)).toBe(false)
+    })
+  })
 })

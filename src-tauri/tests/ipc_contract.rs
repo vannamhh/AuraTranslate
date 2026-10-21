@@ -180,6 +180,8 @@ fn ipc_error_wire_shape() {
         reading_preferences: String::new(),
         tm_fuzzy_threshold: 65,
         ai_usage_visible: String::new(),
+        update_check_enabled: true,
+        app_version: "0.1.0".to_owned(),
     })
     .expect("BootstrapConfig phải serialize được");
     // ⚠️ Sắp xếp trước khi so: `serde_json::Map` là `BTreeMap` hay `IndexMap` tuỳ feature
@@ -197,6 +199,7 @@ fn ipc_error_wire_shape() {
         ok_keys,
         vec![
             "ai_usage_visible",
+            "app_version",
             "dict_sources_disabled",
             "glossary_scan_threshold",
             "layout_presets",
@@ -205,6 +208,7 @@ fn ipc_error_wire_shape() {
             "shortcuts",
             "theme",
             "tm_fuzzy_threshold",
+            "update_check_enabled",
             "workspace_layout",
         ],
         "khoá trên dây là `snake_case`. Nhận được: {ok_keys:?}. Nghi phạm số một: \

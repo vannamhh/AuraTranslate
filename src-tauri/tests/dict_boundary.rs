@@ -296,7 +296,7 @@ fn the_routing_predicate_lives_in_exactly_one_file_and_the_adapter_never_calls_i
 /// 🔴 **Quần thể này KHÁC bốn sàn `src/**` khác của kho** — nó gồm cả `tests/**`, vì bản sao
 /// `is_han` đã bị xoá sống ở `tests/**`. Chép sàn `RS_FLOOR` của `store_boundary.rs` sang
 /// đây là đặt một cái sàn cho một cây khác.
-const SRC_TAURI_RS_FLOOR: usize = 195;
+const SRC_TAURI_RS_FLOOR: usize = 208;
 
 /// 🔴 **AC2 vế cuối** — trong toàn bộ `src-tauri/**` chỉ còn **MỘT** định nghĩa `is_han`.
 ///
