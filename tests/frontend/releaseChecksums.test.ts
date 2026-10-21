@@ -115,6 +115,12 @@ describe('release-checksums', () => {
       expect(body.indexOf('### Dung lượng (NFR6)')).toBeLessThan(body.indexOf('### Kiểm tra tệp tải về'))
     })
 
+    it('writes the lines and stays green when a payload is over the 500,000,000-byte ceiling', () => {
+      const { r, out } = runWith(sizes('mac.json', { ...MAC, payloadBytes: 612_000_004 }), sizes('win.json', WIN))
+      expect(r.status).toBe(0)
+      expect(readFileSync(join(out, 'release-body.md'), 'utf8')).toContain('macOS, payload sản phẩm: 612,000,004 byte')
+    })
+
     it.each([
       ['a payload of 0', { ...MAC, payloadBytes: 0 }, 'payloadBytes'],
       ['no payload field', { os: 'macOS' }, 'payloadBytes'],
