@@ -1,8 +1,11 @@
 ---
 ticket: 3
-status: in-progress
+status: built
 type: feature
 baseline_revision: 6a9777bac1add41aaed79590901d8d337380cab4
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: [quick]
 ---
 # Story 2.3: Hợp đồng flush và trạng thái đã lưu
 
@@ -376,7 +379,9 @@ Cộng hai va chạm cụ thể hơn: `check-i18n.mjs` Kiểm A đỏ với **ch
   - [x] 2.8 Ca ở `segment_contract.rs`: lô nhiều segment (AC13) · bảy cột kia y nguyên (AC14) · round-trip đúng chữ, ranh giới không đổi (AC16).
   - [x] 2.9 Ca biên: `chapter_id` không thuộc Tác phẩm đang mở · `segment.id` không tồn tại · chưa Tác phẩm nào mở ⇒ `project.no_work_open`.
   - [x] 2.10 Doc-comment tại chỗ nêu AD-31 hàng 1 và gọi tên hai story chủ (`status` → 2.5 · `SegmentVersion` → 2.6) — AC15.
-- [ ] 🔴 **Task 3 — Vùng gõ: MỘT câu tại một thời điểm** (AC8) — **KHÔNG đánh dấu xong.** Sáu subtask dưới đây **đã làm và đã nghiệm thu trên Blink** *(bàn đo hai engine · vitest · e2e vế vùng gõ xanh)*, và Kiểm J đã gỡ đúng lúc. Vế còn đỏ, **đo lại 2026-08-13 bằng một lượt `npm run test:e2e` thật**: `editor-typing-flush.e2e.mjs` = **1 xanh / 1 đỏ**, đỏ ở `:133` — **lượt gõ ĐẦU TIÊN vào một câu CHƯA DỊCH** cho `execCommand('insertText')` trả `false`, vì câu đó là một `<span>` **rỗng, rộng 0 px**, không text node để neo caret. Đây là ca **thường nhất** của tính năng: mọi Chương mới mở ra đều toàn câu rỗng.
+- [x] 🔴 **Task 3 — Vùng gõ: MỘT câu tại một thời điểm** (AC8) — ~~**KHÔNG đánh dấu xong.**~~ 🔵 2026-10-21 đánh dấu vì đã bị thay thế, xem đoạn 🔵 ngay dưới. Sáu subtask dưới đây **đã làm và đã nghiệm thu trên Blink** *(bàn đo hai engine · vitest · e2e vế vùng gõ xanh)*, và Kiểm J đã gỡ đúng lúc. Vế còn đỏ, **đo lại 2026-08-13 bằng một lượt `npm run test:e2e` thật**: `editor-typing-flush.e2e.mjs` = **1 xanh / 1 đỏ**, đỏ ở `:133` — **lượt gõ ĐẦU TIÊN vào một câu CHƯA DỊCH** cho `execCommand('insertText')` trả `false`, vì câu đó là một `<span>` **rỗng, rộng 0 px**, không text node để neo caret. Đây là ca **thường nhất** của tính năng: mọi Chương mới mở ra đều toàn câu rỗng.
+
+  🔵 **2026-10-21 — Task 3 đóng vì đã bị thay thế, không vì ca đỏ đã xanh.** `EditorPanel.vue` và cả vùng gõ `<span>` đã xoá ở `ca33072` (Story 2.5b); mỗi ô bản dịch của `GridPanel.vue` nay là một editing host riêng, ô rỗng có ca e2e `grid-empty-cell.e2e.mjs`. Hai mục nợ của ca đỏ đóng KHÔNG LÀM (`deferred-work.md` §*CÒN LẠI SAU ĐÍNH CHÍNH* và §*Đo thêm về ca đỏ `<span>` rỗng*); lượt gõ tay IME vào ô rỗng là `Chủ: Epic 2`. Không chạy lại e2e trong lượt đóng này.
 
   🔵 **ĐÍNH CHÍNH 2026-08-13 — chẩn đoán cũ của chính dòng này đã bị BÁC.** Bản trước ghi *"bấm chuột vào một câu không đặt được caret, vì một lượt dời tiêu điểm của hợp đồng **AD-34 §2** xoá vùng chọn"*. Phép đo cho thấy **không ai giành tiêu điểm cả**, và nguyên nhân thật là một lượt đặt thuộc tính **bất đồng bộ** — đã vá bằng `setAttribute` đồng bộ trong `mousedown`. **AD-34 và `focus.ts` không bị chạm một dòng**, và vế *"dừng và báo vì đụng AD Story 1.6 sở hữu"* **không còn áp dụng**. Ba hướng đã thử và ba hướng chưa thử cho ca `<span>` rỗng ghi ở `deferred-work.md` §*CÒN LẠI SAU ĐÍNH CHÍNH*.
   - [x] 3.1 `contenteditable` sống trên **đúng một** `<span class="sent">` — câu caret đang chạm. `.doc` **không** mang `contenteditable`. **Không** phá AC1/AC2/AC4/AC5 của Story 2.2 — `<span>` chảy inline, `data-segment-id` còn nguyên, `::after` còn neo được, `getClientRects()` còn đo được.
@@ -738,6 +743,9 @@ Ghi lại thay vì chỉ trình bày kết quả cuối, đúng luật *"đo tr�
 >
 > ⇒ **AC8 vẫn KHÔNG đạt trọn vẹn**, nhưng vì lý do khác với lý do đoạn dưới ghi. Giữ đoạn dưới
 > làm dấu vết, đừng đọc nó như trạng thái hôm nay.
+>
+> 🔵 2026-10-21 — vế còn đỏ của AC8 thuộc bề mặt `<span>` đã xoá ở `ca33072`, nên AC8 đóng vì đã
+> bị thay thế, không vì ca đỏ đã xanh; xem đoạn 🔵 2026-10-21 ở Task 3.
 
 Bề mặt Editor **gõ được trên Blink** *(bàn đo hai engine · 32 ca vitest · e2e vế vùng gõ, tất cả xanh)* nhưng **chưa gõ được bằng chuột trên macOS/WKWebView** — tức trên đúng nền tảng duy nhất dự án đang chạy.
 
@@ -749,7 +757,7 @@ Phát hiện này chỉ lộ ra vì story dựng một spec e2e chạy trong **c
 
 | AC | Trạng thái | Vì sao |
 | --- | --- | --- |
-| **AC8** | **một phần** | vùng gõ lên đúng một câu · Kiểm J đã gỡ đúng lúc · nhưng **chuột không đặt được caret trên WKWebView** *(mục trên)* |
+| **AC8** | ~~**một phần**~~ 🔵 Thay thế 2026-10-21 | vùng gõ lên đúng một câu · Kiểm J đã gỡ đúng lúc · nhưng **chuột không đặt được caret trên WKWebView** *(mục trên)* · 🔵 Bề mặt đó đã xoá ở `ca33072`; ô rỗng của `GridPanel` có `grid-empty-cell.e2e.mjs`, gõ tay IME là `Chủ: Epic 2` |
 | **AC3** | **một phần** | ba đường *(nhịp 2 s · rời segment · đóng Tác phẩm)* + vế **thoát ứng dụng** đã dựng. Vế ***"xác nhận segment"*** chưa có đường nào chạm tới — nó cần cột `segment.status` và một máy trạng thái, **chủ: Story 2.5** |
 | **AC17** | **đạt, kèm nợ kế thừa** | `wire_exit_flush` phủ lượt đóng **bình thường**. `panic = "abort"` khiến một lần thoát **cứng** không đi qua đây — món nợ kế thừa từ `close_global_store`, story này **không** đóng nó |
 
@@ -1054,3 +1062,13 @@ Gỡ nguyên văn từ `sprint-status.yaml` ngày 2026-08-19: tệp đó giữ T
   # nhan menh de ③ ghim hai panel. Chi tiet: `initiative-auratranslate/change-auto-lookup-thu-ve-panel-source/change-auto-lookup-thu-ve-panel-source.md`.
   # ⚠️ Cung luot do sua mot menh de NGUYEN TAC o `EXPERIENCE.md:131` — xem §4.8 cua proposal.
 ```
+
+## Review Triage Log
+
+Lượt đóng Task 3 vì đã bị thay thế, 2026-10-21, lens `quick`, chỉ trên diff tài liệu của lượt đóng.
+
+- Tiêu đề Task 3 `[x]` mà còn câu "KHÔNG đánh dấu xong" — `low`, patch: gạch câu cũ, thêm 🔵 tại chỗ.
+- AC8 còn "một phần" ở §Completion Notes và bảng AC — `medium`, patch: 🔵 tại chỗ, AC8 đóng vì bị thay thế.
+- Subtask 7.2 còn `[ ]` — `false`: có từ trước lượt này, vế còn lại đã là nợ có chủ; `built` không phải `done`.
+- `lenses_ran: [quick]` là lời khai không có căn cứ — `false`: lens `quick` đã chạy, chính nó nêu phát hiện này.
+- Dòng đóng nợ :2485 gộp ba việc đo, việc 3 chỉ suy từ :2315 — `low`, patch: tách việc 2 (không chạy) và việc 3 (suy, không đo).

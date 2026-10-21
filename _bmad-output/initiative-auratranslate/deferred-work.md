@@ -2483,6 +2483,7 @@ nằm vĩnh viễn trong kho.
    ra với tay người thì nó là khuyết tật sản phẩm thật, và nó **không** phải ca `<span>` rỗng.
 
 **Chủ: Story 2.3 (tiếp) — chờ lượt gõ tay của Ice.**
+  → KHÔNG LÀM 2026-10-21 (Story 2.3) — cả ba việc đo trên `EditorPanel.vue`, đã xoá ở `ca33072`; ô rỗng của `GridPanel` có ca e2e riêng (`grid-empty-cell.e2e.mjs`); việc 2 (đếm ~10 lượt) không chạy; việc 3 không đo lại trên lưới, chỉ suy từ :2315 (Story 11.5, caret sau `enterFocus` của dockview); lượt gõ tay IME vào ô rỗng đã sang `Chủ: Epic 2` ở :2280.
 
 ---
 
