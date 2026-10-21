@@ -253,6 +253,41 @@ const EXEMPT = new Map([
     'Id của mọi hàng `shortcut` trên đĩa lúc khởi động — ảnh chụp khởi động, cùng loại "chỉ toàn cục" với `tmFuzzyThreshold`.',
   ],
   [
+    'src/config/bootstrap.ts::updateCheckEnabled',
+    'Công tắc kiểm tra cập nhật đã nạp lúc khởi động — cùng loại "chỉ toàn cục" với `aiUsageVisible`: ' +
+      'AppConfig là GlobalOnly, nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
+    'src/config/bootstrap.ts::appVersion',
+    'Phiên bản ứng dụng đọc một lần lúc khởi động — thuộc tiến trình, không thuộc Tác phẩm nào.',
+  ],
+  [
+    'src/updateCheckState.ts::changed',
+    'Công tắc kiểm tra cập nhật người dùng vừa đổi — ghi đè `bootstrap.ts::updateCheckEnabled`, cùng ' +
+      'loại "chỉ toàn cục": AppConfig là GlobalOnly, nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
+    'src/updateCheckState.ts::outcome',
+    'Kết quả lượt kiểm tra cập nhật gần nhất — nói về bản phát hành của ứng dụng, không về Tác phẩm; ' +
+      'dọn nó khi đổi Tác phẩm xoá thông báo "có bản mới" người dùng chưa đọc.',
+  ],
+  [
+    'src/updateCheckState.ts::checking',
+    'Cờ "đang kiểm tra cập nhật" của một lượt mạng đang bay — dọn nó giữa lượt cho bấm lại chạy chồng hai lượt.',
+  ],
+  [
+    'src/updateCheckState.ts::checkError',
+    'Lỗi của lượt kiểm tra cập nhật gần nhất — cùng vòng đời với `outcome`, không thuộc Tác phẩm.',
+  ],
+  [
+    'src/updateCheckState.ts::saveError',
+    'Lỗi ghi công tắc kiểm tra cập nhật — cùng loại "chỉ toàn cục" với `changed`.',
+  ],
+  [
+    'src/updateCheckState.ts::openError',
+    'Lỗi mở trang bản phát hành — cùng vòng đời với `outcome`, không thuộc Tác phẩm.',
+  ],
+  [
     'src/modes/modeState.ts::mode',
     'Chế độ đang mở (library/workspace). Dọn nó khi đổi Tác phẩm sẽ ném người dùng về màn ' +
       'hình Library ngay giữa lượt họ vừa mở một Tác phẩm — nó là state của PHIÊN.',

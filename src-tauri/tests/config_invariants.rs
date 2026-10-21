@@ -625,15 +625,14 @@ fn manifest_removed_names() -> Vec<String> {
     for line in raw.lines().map(str::trim) {
         if line.starts_with('[') {
             in_removed = line == "[[removed]]";
-        } else if in_removed {
-            if let Some(rest) = line
+        } else if in_removed
+            && let Some(rest) = line
                 .strip_prefix("name")
                 .map(str::trim_start)
                 .and_then(|r| r.strip_prefix('='))
-                && let Some(v) = rest.split('"').nth(1)
-            {
-                names.push(v.to_owned());
-            }
+            && let Some(v) = rest.split('"').nth(1)
+        {
+            names.push(v.to_owned());
         }
     }
     names
