@@ -65,7 +65,7 @@ jobs:
       - name: tauri build (macOS universal .dmg)
         if: runner.os == 'macOS'
         shell: bash
-        run: npx tauri build --target universal-apple-darwin --bundles dmg --config src-tauri/tauri.release.conf.json
+        run: npx tauri build --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.release.conf.json
 
       - name: tauri build (Windows .msi)
         if: runner.os == 'Windows'

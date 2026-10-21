@@ -26,7 +26,7 @@ function expectedLicenses() {
       .filter((name) => name.endsWith('.txt'))
       .map((name) => ({ name, sourcePath: join(dir, name) })),
   )
-  return [...listed, { name: 'NOTICE.txt', sourcePath: join(REPO_ROOT, 'NOTICE') }]
+  return [...listed, { name: 'NOTICE.txt', sourcePath: join(REPO_ROOT, 'NOTICE.txt') }]
 }
 
 /** @param {string[]} argv */

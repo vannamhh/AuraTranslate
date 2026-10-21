@@ -2944,7 +2944,7 @@ fn version_check_precedes_every_tauri_build_and_macos_builds_universal() {
     let mac: Vec<&str> = builds
         .iter()
         .map(|(_, l)| **l)
-        .filter(|l| l.contains("--bundles dmg"))
+        .filter(|l| l.contains("dmg"))
         .collect();
     assert_eq!(
         mac.len(),
@@ -2956,4 +2956,37 @@ fn version_check_precedes_every_tauri_build_and_macos_builds_universal() {
         "dòng `tauri build` macOS phải mang `--target universal-apple-darwin`: `{}`",
         mac[0]
     );
+    // tauri-cli 2.11.4 deletes bundle/macos/*.app after packing the .dmg unless `app` is
+    // requested too, and the inspect step reads that .app.
+    assert!(
+        mac[0].contains("--bundles app,dmg"),
+        "dòng `tauri build` macOS phải xin `--bundles app,dmg`, không thì `.app` bị xoá sau khi \
+         đóng `.dmg` và bước kiểm bản cài thấy 0 `.app`: `{}`",
+        mac[0]
+    );
+}
+
+#[test]
+fn bundle_resources_never_rename_a_file_because_msi_keeps_the_source_name() {
+    for rel in ["tauri.conf.json", "tauri.release.conf.json"] {
+        let conf = read_json(rel);
+        let resources = conf["bundle"]["resources"]
+            .as_object()
+            .unwrap_or_else(|| panic!("`bundle.resources` của {rel} là một map"));
+        for (source, target) in resources {
+            let target = target.as_str().expect("resource targets are strings");
+            let source_name = source.rsplit('/').next().unwrap_or(source);
+            let ok = if source_name.contains('*') {
+                target.ends_with('/')
+            } else {
+                target.rsplit('/').next() == Some(source_name)
+            };
+            assert!(
+                ok,
+                "{rel} mang `{source}` → `{target}`: trình đóng gói MSI của tauri-cli 2.11.4 bỏ tên \
+                 tệp ở đích và giữ tên nguồn, nên `.msi` cài ra tên khác `.app`; glob trỏ vào thư \
+                 mục, tệp đơn giữ đúng tên nguồn — đổi tên thì đổi ở tệp nguồn"
+            );
+        }
+    }
 }
