@@ -183,3 +183,30 @@ export async function inspectInstalledFonts({ sourceDir, root }) {
   }
   return { problems, fontCount: sources.length }
 }
+
+const MIN_BUNDLED_LICENSES = 9
+
+/**
+ * Requires every expected license file to appear exactly once under a `license` directory of
+ * `root` with the same SHA-256 as its source.
+ *
+ * @param {{ expected: { name: string, sourcePath: string }[], root: string }} options
+ * @returns {Promise<{ problems: string[], licenseCount: number }>}
+ */
+export async function inspectInstalledLicenses({ expected, root }) {
+  if (expected.length < MIN_BUNDLED_LICENSES) {
+    throw new Error(`found ${expected.length} license sources, need at least ${MIN_BUNDLED_LICENSES}; this is an infrastructure failure, not a pass`)
+  }
+  const files = await walkFiles(root)
+  const problems = []
+  for (const { name, sourcePath } of expected) {
+    const hits = files.filter((f) => f.path.replaceAll('\\', '/').endsWith(`/license/${name}`))
+    if (hits.length !== 1) {
+      problems.push(`${name}: found ${hits.length} copies under a 'license' directory, need exactly 1`)
+      continue
+    }
+    const [want, actual] = await Promise.all([sha256OfFile(sourcePath), sha256OfFile(hits[0].path)])
+    if (actual !== want) problems.push(`${name}: sha256 ${actual} does not match the source ${want}`)
+  }
+  return { problems, licenseCount: expected.length }
+}

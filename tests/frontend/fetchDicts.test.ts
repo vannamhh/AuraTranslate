@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { fetchDicts, inspectInstalledFonts, inspectInstalledTree, manifestEntries } from '../../scripts/lib/dict-fetch.mjs'
+import { fetchDicts, inspectInstalledFonts, inspectInstalledLicenses, inspectInstalledTree, manifestEntries } from '../../scripts/lib/dict-fetch.mjs'
 
 const sha = (text: string) => createHash('sha256').update(text).digest('hex')
 
@@ -211,5 +211,65 @@ describe('inspectInstalledFonts', () => {
   it('aborts instead of passing when the source holds fewer than four fonts', async () => {
     rmSync(join(sourceDir, 'D.ttf'))
     await expect(inspectInstalledFonts({ sourceDir, root: dest })).rejects.toThrow(/infrastructure failure/)
+  })
+})
+
+describe('inspectInstalledLicenses', () => {
+  const LICENSES: Record<string, string> = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`L${i}.txt`, `text ${i}`]))
+  let sourceDir: string
+
+  function put(base: string, files: Record<string, string>) {
+    for (const [rel, body] of Object.entries(files)) {
+      const full = join(base, rel)
+      mkdirSync(dirname(full), { recursive: true })
+      writeFileSync(full, body)
+    }
+  }
+  const installed = (files: Record<string, string>) => Object.fromEntries(Object.entries(files).map(([n, b]) => [`App/Resources/license/${n}`, b]))
+  const expectedOf = (files: Record<string, string>) => Object.keys(files).map((name) => ({ name, sourcePath: join(sourceDir, name) }))
+
+  beforeEach(() => {
+    sourceDir = mkdtempSync(join(tmpdir(), 'license-src-'))
+    put(sourceDir, LICENSES)
+  })
+  afterEach(() => {
+    rmSync(sourceDir, { recursive: true, force: true })
+  })
+
+  it('accepts a tree carrying every license file with the source hash', async () => {
+    put(dest, installed(LICENSES))
+    expect(await inspectInstalledLicenses({ expected: expectedOf(LICENSES), root: dest })).toEqual({ problems: [], licenseCount: 9 })
+  })
+
+  it('names the missing license file', async () => {
+    const { 'L3.txt': _gone, ...rest } = LICENSES
+    put(dest, installed(rest))
+    const { problems } = await inspectInstalledLicenses({ expected: expectedOf(LICENSES), root: dest })
+    expect(problems).toEqual([expect.stringContaining('L3.txt: found 0 copies')])
+  })
+
+  it('names a license file whose bytes differ from the source', async () => {
+    put(dest, installed({ ...LICENSES, 'L5.txt': 'text 5!' }))
+    const { problems } = await inspectInstalledLicenses({ expected: expectedOf(LICENSES), root: dest })
+    expect(problems).toEqual([expect.stringContaining('L5.txt: sha256')])
+    expect(problems[0]).toContain('does not match the source')
+  })
+
+  it('names a license file that appears twice under license directories', async () => {
+    put(dest, { ...installed(LICENSES), 'App/Resources/extra/license/L2.txt': 'text 2' })
+    const { problems } = await inspectInstalledLicenses({ expected: expectedOf(LICENSES), root: dest })
+    expect(problems).toEqual([expect.stringContaining('L2.txt: found 2 copies')])
+  })
+
+  it('does not count a license file outside a license directory', async () => {
+    const { 'L1.txt': _moved, ...rest } = LICENSES
+    put(dest, { ...installed(rest), 'App/Resources/other/L1.txt': 'text 1' })
+    const { problems } = await inspectInstalledLicenses({ expected: expectedOf(LICENSES), root: dest })
+    expect(problems).toEqual([expect.stringContaining('L1.txt: found 0 copies')])
+  })
+
+  it('aborts instead of passing when fewer than nine sources are expected', async () => {
+    const { 'L8.txt': _dropped, ...rest } = LICENSES
+    await expect(inspectInstalledLicenses({ expected: expectedOf(rest), root: dest })).rejects.toThrow(/infrastructure failure/)
   })
 })

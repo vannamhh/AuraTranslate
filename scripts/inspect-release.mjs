@@ -1,19 +1,33 @@
 #!/usr/bin/env node
 /**
  * Checks an unpacked release build (the `.app`, or the target of `msiexec /a`) against
- * `dict-manifest.toml` and the bundled fonts under `src-tauri/resources/fonts`, and prints a
- * Markdown size report for the CI step summary (NFR6). Exit 1 when any dictionary or font file
- * is missing, duplicated or has the wrong SHA-256. The sizes are reported, never judged.
+ * `dict-manifest.toml`, the bundled fonts under `src-tauri/resources/fonts` and the license files
+ * under `license/`, and prints a Markdown size report for the CI step summary (NFR6). Exit 1 when
+ * any dictionary, font or license file is missing, duplicated or has the wrong SHA-256. The sizes
+ * are reported, never judged.
  *
  * Usage: node scripts/inspect-release.mjs --root <dir> --installer <file> [--manifest <path>]
  */
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { inspectInstalledFonts, inspectInstalledTree } from './lib/dict-fetch.mjs'
+import { inspectInstalledFonts, inspectInstalledLicenses, inspectInstalledTree } from './lib/dict-fetch.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const FONT_SOURCE_DIR = join(REPO_ROOT, 'src-tauri', 'resources', 'fonts')
+const LICENSE_DIRS = [
+  join(REPO_ROOT, 'src-tauri', 'resources', 'license'),
+  join(REPO_ROOT, 'tools', 'dict-build', 'assets', 'licenses'),
+]
+
+function expectedLicenses() {
+  const listed = LICENSE_DIRS.flatMap((dir) =>
+    readdirSync(dir)
+      .filter((name) => name.endsWith('.txt'))
+      .map((name) => ({ name, sourcePath: join(dir, name) })),
+  )
+  return [...listed, { name: 'NOTICE.txt', sourcePath: join(REPO_ROOT, 'NOTICE') }]
+}
 
 /** @param {string[]} argv */
 function parseArgs(argv) {
@@ -42,6 +56,8 @@ try {
   })
   const fonts = await inspectInstalledFonts({ sourceDir: FONT_SOURCE_DIR, root })
   problems.push(...fonts.problems)
+  const licenses = await inspectInstalledLicenses({ expected: expectedLicenses(), root })
+  problems.push(...licenses.problems)
   const installerBytes = statSync(installer).size
   console.log(`### NFR6 size report (${installer.split(/[\\/]/).pop()})`)
   console.log('')
@@ -57,7 +73,7 @@ try {
     for (const p of problems) console.error(`  ${p}`)
     process.exit(1)
   }
-  console.error(`all dictionary files in ${root} match ${manifest} and all ${fonts.fontCount} font files match ${FONT_SOURCE_DIR}`)
+  console.error(`all dictionary files in ${root} match ${manifest}, all ${fonts.fontCount} font files match ${FONT_SOURCE_DIR} and all ${licenses.licenseCount} license files match their sources`)
 } catch (err) {
   console.error(`inspect-release: ${err instanceof Error ? err.message : err}`)
   process.exit(1)

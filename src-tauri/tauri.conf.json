@@ -36,7 +36,9 @@
       "resources/fonts/*.otf": "fonts/",
       "resources/fonts/*.ttf": "fonts/",
       "resources/fonts/*.txt": "fonts/",
-      "resources/license/*.txt": "license/"
+      "resources/license/*.txt": "license/",
+      "../tools/dict-build/assets/licenses/*.txt": "license/",
+      "../NOTICE": "license/NOTICE.txt"
     },
     "icon": [
       "icons/32x32.png",

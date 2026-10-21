@@ -14,6 +14,6 @@ SHA-256 từng tệp: `font-spike-results-2026-08-03.md §Phép đo 5`. **Đối
 
 ⚠️ **`NotoSerifCJKtc` ≠ `NotoSerifTC`.** Cái sau là bản subset theo ngôn ngữ (45 MB); lấy nhầm **hỏng im lặng** — phần lớn ký tự vẫn hiện, chỉ tofu khi gặp văn bản khác hệ chữ. Tổng byte lệch khỏi 27.253.184 nghĩa là đã lấy sai tệp.
 
-⚠️ **Chỉ `Source Sans 3` khai Reserved Font Name `'Source'`** — subset riêng tệp đó thì **bắt buộc** đổi tên font nội bộ. Hai tệp Serif không khai nên subset thoải mái.
+⚠️ **Cả ba tệp Source khai Reserved Font Name `'Source'` trong name ID 0** (`SourceSans3`, hai tệp `SourceSerif4`; `OFL-sourceserif4.txt` thì không khai). Subset tệp nào trong ba thì **bắt buộc** đổi tên font nội bộ. `NotoSerifCJKtc` không khai.
 
 Story 1.2 chỉ đặt tệp vào đây. `@font-face` và token typography là **Story 1.4**.

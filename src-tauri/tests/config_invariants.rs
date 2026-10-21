@@ -675,7 +675,9 @@ fn base_config_never_carries_the_dictionary() {
     for (source, target) in resources {
         let target = target.as_str().expect("resource targets are strings");
         assert!(
-            !source.contains("dict") && !target.contains("dict"),
+            !source.ends_with(".db")
+                && !source.split(['/', '\\']).any(|part| part == "dict")
+                && !target.starts_with("dict"),
             "`tauri.conf.json` mang `{source}` → `{target}`: từ điển chỉ vào qua lớp phủ release, \
              nếu không mọi build (dev, ci, e2e) phải có 373 MB"
         );

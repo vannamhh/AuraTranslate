@@ -25,6 +25,7 @@
   → 🟡 2026-09-23 (rà sổ nợ) — đã có: Story 1.4 đã đưa đường nạp font thật vào pipeline (src/tokens/fonts.ts qua resolveResource/convertFileSrc), nhưng chưa có bằng chứng nào mới về ảnh chụp WKWebView hay Windows trong repo; còn thiếu: WKWebView và Windows vẫn chưa có lượt đo bằng ảnh chụp; bẫy khoá wght=200 vẫn chưa tái lập được trên engine nào. **Chủ: Epic 10.**
 - **Rà NFR15 chưa đọc name ID 13/14 của tệp font phát hành** — đã mở `LICENSE` / `OFL.txt` trong zip mà đọc (đúng yêu cầu "rà tường minh"), nhưng chưa đối chiếu với trường License Description nhúng trong chính tệp `.otf`/`.ttf` sẽ được đóng gói. **(Chủ: Story 1.2 / 10.5.)**
   → 2026-09-23 (rà sổ nợ AI-2) — vẫn đúng: chưa đối chiếu name ID 13/14 trong tệp font; Story 1.2 đã done, việc rà giấy phép trong bản phát hành là phạm vi Story 10.5 (backlog). **Chủ: Story 10.5.**
+  → ✅ ĐÃ ĐÓNG 2026-10-21 (Story 10.5): đã đọc bảng `name` của cả ba họ font. ID 13 của cả bốn tệp nêu SIL OFL 1.1, ID 14 của cả bốn là `http://scripts.sil.org/OFL`, khớp ba tệp giấy phép kèm (`OFL-sourcesans3.txt` · `OFL-sourceserif4.txt` · `LICENSE-notoserifcjk.txt`). ⚠️ ID 0 của `SourceSerif4` (cả hai tệp) cũng khai Reserved Font Name 'Source', trong khi `OFL-sourceserif4.txt` không khai và `fonts/README.md` cùng spine §Stack nói chỉ `Source Sans 3` khai; tệp giấy phép đi kèm đúng, câu 'subset thoải mái' cho Source Serif 4 thì chưa. Xem mục ngay dưới.
 
 ## Deferred from: code review of 1-2-scaffold-du-an-va-khoa-pham-vi-filesystem-pham-vi-mang (2026-08-03)
 
@@ -13354,3 +13355,15 @@ chính nó.
   summary: Trạng thái alignment và nhập bản reviewer của Tác phẩm trước sống qua lượt mở hay nhập Tác phẩm khác.
   evidence: hai hàm chỉ test gọi; `resetGlossaryQueue` đã có chỗ gọi ở `modes/libraryImport.ts` và `modes/libraryChapters.ts`.
   → ✅ ĐÃ ĐÓNG 2026-10-19 (Story 12.22): gọi cạnh `resetGlossaryQueue` ở cả hai chỗ; `tests/frontend/alignmentReviewerImportResetWiring.test.ts` đỏ khi gỡ từng lời gọi.
+
+- **Vế HVTĐTD của FR110 (điều khoản giấy phép HVTĐTD trong `NOTICE`) không viết** (Story 10.5).
+  summary: Dữ liệu HVTĐTD không tới bản phát hành (Ice chốt 2026-08-08, `src/panels/dictSourcesState.ts:256`), nên `NOTICE` không có điều khoản cho nó.
+  → KHÔNG LÀM 2026-10-21 (Story 10.5) — nguồn không đi vào `dict/`; thêm điều khoản khi một nguồn HVTĐTD thật vào bản phát hành.
+
+- **Subset `Source Serif 4` không "thoải mái": name ID 0 của `SourceSerif4[opsz,wght].ttf` và `SourceSerif4-Italic[opsz,wght].ttf` khai Reserved Font Name 'Source'** (Story 10.5, đo bảng `name` 2026-10-21).
+  summary: `fonts/README.md` và spine §Stack nói chỉ Source Sans 3 khai RFN; `OFL-sourceserif4.txt` đúng là không khai, nhưng chuỗi nhúng trong tệp có. Subset hai tệp Serif vẫn nên đổi tên font nội bộ cho an toàn.
+  Chủ: Ice.
+  → ✅ ĐÃ ĐÓNG 2026-10-21 (Story 10.5) — đọc lại name ID 0 bằng một parser bảng `name` độc lập: cả hai tệp `SourceSerif4` khai RFN 'Source'; câu sai ở `src-tauri/resources/fonts/README.md` đã thay, câu ở spine §Stack sửa tại chỗ bằng 🔵.
+
+- **`license/` trong bản cài Windows chưa ai thấy** (Story 10.5). Map `../tools/dict-build/assets/licenses/*.txt` và `../NOTICE` chỉ được kiểm trên `.app` macOS cục bộ; `.dmg` không dựng được trong sandbox, `.msi` chưa thử.
+  Lượt `release.yml` đầu tiên chạy `inspect-release` trên `msiexec /a` sẽ trả lời; đọc step summary của nửa Windows. **Chủ: B7.**
