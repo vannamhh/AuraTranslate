@@ -6,9 +6,12 @@
  * any dictionary, font or license file is missing, duplicated or has the wrong SHA-256. The sizes
  * are reported, never judged.
  *
- * Usage: node scripts/inspect-release.mjs --root <dir> --installer <file> [--manifest <path>]
+ * With `--json <path>` it also writes the sizes as `{os, installerBytes, payloadBytes, webview2Bytes}`
+ * (only when the build is clean), which `release-checksums.mjs --sizes` appends to the release notes.
+ *
+ * Usage: node scripts/inspect-release.mjs --root <dir> --installer <file> [--manifest <path>] [--json <path>]
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inspectInstalledFonts, inspectInstalledLicenses, inspectInstalledTree } from './lib/dict-fetch.mjs'
@@ -36,20 +39,20 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 2) {
     const flag = argv[i]
     const value = argv[i + 1]
-    if (!['--root', '--installer', '--manifest'].includes(flag) || value === undefined) {
-      throw new Error(`unknown or incomplete argument '${flag}'. Usage: inspect-release.mjs --root <dir> --installer <file> [--manifest <path>]`)
+    if (!['--root', '--installer', '--manifest', '--json'].includes(flag) || value === undefined) {
+      throw new Error(`unknown or incomplete argument '${flag}'. Usage: inspect-release.mjs --root <dir> --installer <file> [--manifest <path>] [--json <path>]`)
     }
     values[flag] = resolve(value)
   }
   if (!values['--root'] || !values['--installer']) throw new Error('--root and --installer are required')
-  return { root: values['--root'], installer: values['--installer'], manifest: values['--manifest'] }
+  return { root: values['--root'], installer: values['--installer'], manifest: values['--manifest'], json: values['--json'] }
 }
 
 /** @param {number} n */
 const fmt = (n) => n.toLocaleString('en-US')
 
 try {
-  const { root, installer, manifest } = parseArgs(process.argv.slice(2))
+  const { root, installer, manifest, json } = parseArgs(process.argv.slice(2))
   const { problems, installedBytes, webview2Bytes } = await inspectInstalledTree({
     manifestText: readFileSync(manifest, 'utf8'),
     root,
@@ -72,6 +75,10 @@ try {
     console.error(`\n${problems.length} problem(s) in ${root}:`)
     for (const p of problems) console.error(`  ${p}`)
     process.exit(1)
+  }
+  if (json) {
+    const os = installer.toLowerCase().endsWith('.msi') ? 'Windows' : 'macOS'
+    writeFileSync(json, `${JSON.stringify({ os, installerBytes, payloadBytes: installedBytes, webview2Bytes }, null, 2)}\n`)
   }
   console.error(`all dictionary files in ${root} match ${manifest}, all ${fonts.fontCount} font files match ${FONT_SOURCE_DIR} and all ${licenses.licenseCount} license files match their sources`)
 } catch (err) {

@@ -96,7 +96,7 @@ jobs:
             case "$ARCHS" in *" x86_64 "*) ;; *) echo "$bin lacks x86_64" >&2; exit 1 ;; esac
             case "$ARCHS" in *" arm64 "*) ;; *) echo "$bin lacks arm64" >&2; exit 1 ;; esac
           done
-          node scripts/inspect-release.mjs --root "${APPS[0]}" --installer "${DMGS[0]}" > "$RUNNER_TEMP/report.md"
+          node scripts/inspect-release.mjs --root "${APPS[0]}" --installer "${DMGS[0]}" --json "$RUNNER_TEMP/sizes.json" > "$RUNNER_TEMP/report.md"
           cat "$RUNNER_TEMP/report.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: inspect the bundle (dictionary files, fonts and NFR6 sizes)
@@ -111,9 +111,16 @@ jobs:
           $proc = Start-Process msiexec.exe -ArgumentList '/a', "`"$msiPath`"", '/qn', "TARGETDIR=`"$target`"" -Wait -PassThru
           if ($proc.ExitCode -ne 0) { throw "msiexec /a exited with $($proc.ExitCode)" }
           $report = Join-Path $env:RUNNER_TEMP 'report.md'
-          node scripts/inspect-release.mjs --root $target --installer $msiPath | Out-File -FilePath $report -Encoding utf8
+          node scripts/inspect-release.mjs --root $target --installer $msiPath --json (Join-Path $env:RUNNER_TEMP 'sizes.json') | Out-File -FilePath $report -Encoding utf8
           if ($LASTEXITCODE -ne 0) { throw "inspect-release exited with $LASTEXITCODE" }
           Get-Content $report | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nfr6-sizes-${{ runner.os }}
+          path: ${{ runner.temp }}/sizes.json
+          if-no-files-found: error
+          retention-days: 30
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: runner.os == 'macOS'
@@ -169,6 +176,11 @@ jobs:
           merge-multiple: true
           path: release-files
 
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: nfr6-sizes-*
+          path: size-reports
+
       - name: create the release
         run: |
           set -euo pipefail
@@ -179,5 +191,5 @@ jobs:
             ls -l release-files >&2
             exit 1
           fi
-          node scripts/release-checksums.mjs --notes .github/release-notes.md --out-dir "$RUNNER_TEMP/release" "${DMGS[0]}" "${MSIS[0]}"
+          node scripts/release-checksums.mjs --notes .github/release-notes.md --out-dir "$RUNNER_TEMP/release" --sizes size-reports/nfr6-sizes-macOS/sizes.json --sizes size-reports/nfr6-sizes-Windows/sizes.json "${DMGS[0]}" "${MSIS[0]}"
           gh release create "$GITHUB_REF_NAME" --verify-tag --latest --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release/release-body.md" "${DMGS[0]}" "${MSIS[0]}" "$RUNNER_TEMP/release/SHA256SUMS.txt"

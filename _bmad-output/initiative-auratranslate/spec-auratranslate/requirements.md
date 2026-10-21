@@ -400,7 +400,7 @@ Phần lớn ngưỡng dưới đây **không phải phỏng đoán** — chúng
 
 | ID | Yêu cầu | Ngưỡng | Căn cứ |
 |---|---|---|---|
-| **NFR1** | Độ trễ Auto-Lookup **đầu-cuối**: từ lúc thả chuột sau khi bôi đen tới lúc kết quả hiển thị ở Panel Lookup | **p95 < 100 ms** **[A1]** | Backend đo được p50 0,022 ms · p95 0,046 ms, payload 679 byte — backend chỉ tiêu 0,05 ms. **Toàn bộ phần còn lại (~99,95 ms) dành cho vòng IPC Tauri và render frontend** |
+| **NFR1** | Độ trễ Auto-Lookup ~~**đầu-cuối**: từ lúc thả chuột sau khi bôi đen tới lúc kết quả hiển thị ở Panel Lookup~~ → của **đường Rust** của một lượt tra | **p95 < 100 ms** **[A1]** | Backend đo được p50 0,022 ms · p95 0,046 ms, payload 679 byte — backend chỉ tiêu 0,05 ms. **Toàn bộ phần còn lại (~99,95 ms) dành cho vòng IPC Tauri và render frontend** 🔵 *(Sửa 2026-10-21, Ice ký — Story 10.9, Q2: bỏ vế đầu-cuối, ngưỡng áp cho `commands::dict::lookup`, đã đo p95 1,8–2,4 ms trên bốn lớp `.db` thật; xem PRD NFR1.)* |
 | **NFR2** | Auto-save không làm gián đoạn thao tác gõ | **Không frame nào vượt 50 ms** trong lúc auto-save chạy | Cụ thể hoá "không có gai trễ"; là điều kiện nghiệm thu cho R9 |
 | **NFR3** | Tìm kiếm full-text toàn Library | **p95 < 500 ms** trên thư viện 5.000 Chương | **[A6]** Ngưỡng tạm, hiệu chỉnh ở **nghiệm thu cuối (Story 10.9)** 🔵 *(sửa 2026-09-15)*. **Đo sơ bộ 2026-09-02** (Story 5.14, fixture tổng hợp): p95 xấu nhất từng ca **57,981 ms** — dưới ngưỡng |
 | **NFR4** | Khởi động ứng dụng tới lúc Library dùng được | **< 3 giây** trên thư viện 5.000 Chương | **[A7]** Ngưỡng tạm. 🔴 **Đo sơ bộ 2026-09-02**: cold median 2.581,373 ms, **max 4.364,883 ms** — **vượt ngưỡng**; biên độ giữa phiên lớn hơn khoảng cách tới trần |
