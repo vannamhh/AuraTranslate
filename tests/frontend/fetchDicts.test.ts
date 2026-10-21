@@ -187,6 +187,13 @@ describe('inspectInstalledTree', () => {
     expect(report.webview2Bytes).toBe(1000)
     expect(report.installedBytes).toBe('core bytes'.length)
   })
+
+  it('leaves the root .msi copy of an administrative image out of the installed total, but not a nested one', async () => {
+    install({ 'dict/dict-core.db': BODIES['dict-core.db'], 'AuraTranslate.msi': 'x'.repeat(700), 'App/inner.msi': 'y'.repeat(30) })
+    const report = await inspectInstalledTree({ manifestText: manifest(), root: dest })
+    expect(report.adminPackageBytes).toBe(700)
+    expect(report.installedBytes).toBe('core bytes'.length + 30)
+  })
 })
 
 describe('inspectInstalledFonts', () => {

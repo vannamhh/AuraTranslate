@@ -128,9 +128,12 @@ context: ['{project-root}/_bmad-output/initiative-auratranslate/tickets/epic-duo
 - 12 trong 17 mục nợ `Chủ: Story 10.9` còn lại vì cần số của lượt đo NFR3/4/5/6; danh sách ở REPORT.md.
 
 - NFR6 notes: `inspect-release.mjs --json` writes `{os,installerBytes,payloadBytes,webview2Bytes}`; `release-checksums.mjs --sizes` (twice) validates and appends a `### Dung lượng (NFR6)` section, red on a missing OS, payload 0, or Windows WebView2 0. macOS WebView2 is legitimately 0 (WKWebView), so its line is a fixed statement, not a number: the "four non-zero numbers" AC holds as three numbers plus that statement.
+- Windows WebView2 is not a file in the `msiexec /a` tree: it is the MSI Binary stream, read from the installer itself (Plan Change Log). Push of the branch also surfaced `check:panel-refs` and `check:clippy` reds left by 10-7/10-8 (never pushed); fixed in their own commit.
 - `workflow_dispatch` has no `publish` job, so no notes preview is built there; the `nfr6-sizes-<OS>` artifacts (JSON) carry the bytes and Phase M can feed them to `release-checksums.mjs --sizes` locally for the preview.
 
 ## Plan Change Log
+
+- 2026-10-21 — Lượt dispatch `39576340751` (`68cd7fa`) ra Windows WebView2 = 0 và payload 630.621.072 B. Bộ cài offline WebView2 (214.156.024 B) nằm trong bảng Binary của `.msi`, nên `msiexec /a` không giải nén nó; còn bản sao `.msi` mà ảnh quản trị để ở gốc thư mục đích bị cộng vào payload. Ice chọn đọc thẳng từ MSI: `scripts/lib/msi-streams.mjs` đọc bảng thư mục CFB và lấy stream `Binary.*webview2*`, còn `inspectInstalledTree` bỏ tệp `.msi` ở gốc khỏi payload. Sau đó chạy lại dispatch.
 
 ## Review Triage Log
 

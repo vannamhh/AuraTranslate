@@ -15,6 +15,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inspectInstalledFonts, inspectInstalledLicenses, inspectInstalledTree } from './lib/dict-fetch.mjs'
+import { msiStreamSizes } from './lib/msi-streams.mjs'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const FONT_SOURCE_DIR = join(REPO_ROOT, 'src-tauri', 'resources', 'fonts')
@@ -53,10 +54,15 @@ const fmt = (n) => n.toLocaleString('en-US')
 
 try {
   const { root, installer, manifest, json } = parseArgs(process.argv.slice(2))
-  const { problems, installedBytes, webview2Bytes } = await inspectInstalledTree({
-    manifestText: readFileSync(manifest, 'utf8'),
-    root,
-  })
+  const tree = await inspectInstalledTree({ manifestText: readFileSync(manifest, 'utf8'), root })
+  const { problems, installedBytes, adminPackageBytes } = tree
+  const isMsi = installer.toLowerCase().endsWith('.msi')
+  const binaryWebview2Bytes = isMsi
+    ? msiStreamSizes(installer)
+        .filter((s) => /^Binary\..*webview2/i.test(s.name))
+        .reduce((sum, s) => sum + s.size, 0)
+    : 0
+  const webview2Bytes = tree.webview2Bytes + binaryWebview2Bytes
   const fonts = await inspectInstalledFonts({ sourceDir: FONT_SOURCE_DIR, root })
   problems.push(...fonts.problems)
   const licenses = await inspectInstalledLicenses({ expected: expectedLicenses(), root })
@@ -67,8 +73,10 @@ try {
   console.log('| Measure | bytes |')
   console.log('|---|---:|')
   console.log(`| installer file | ${fmt(installerBytes)} |`)
-  console.log(`| installed tree, WebView2 excluded | ${fmt(installedBytes)} |`)
-  console.log(`| WebView2 files excluded from the line above | ${fmt(webview2Bytes)} |`)
+  console.log(`| installed tree, WebView2 and administrative-image package excluded | ${fmt(installedBytes)} |`)
+  console.log(`| WebView2 files excluded from the line above | ${fmt(tree.webview2Bytes)} |`)
+  console.log(`| WebView2 in the installer's Binary table | ${fmt(binaryWebview2Bytes)} |`)
+  console.log(`| \`.msi\` copy left by \`msiexec /a\`, excluded | ${fmt(adminPackageBytes)} |`)
   console.log('')
   console.log('Reference ceiling 400,000,000 bytes. Measured only; the verdict is the PRD tier (Ice).')
   if (problems.length > 0) {
@@ -77,7 +85,7 @@ try {
     process.exit(1)
   }
   if (json) {
-    const os = installer.toLowerCase().endsWith('.msi') ? 'Windows' : 'macOS'
+    const os = isMsi ? 'Windows' : 'macOS'
     writeFileSync(json, `${JSON.stringify({ os, installerBytes, payloadBytes: installedBytes, webview2Bytes }, null, 2)}\n`)
   }
   console.error(`all dictionary files in ${root} match ${manifest}, all ${fonts.fontCount} font files match ${FONT_SOURCE_DIR} and all ${licenses.licenseCount} license files match their sources`)
