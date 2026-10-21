@@ -1,6 +1,6 @@
 ---
 ticket: 3
-status: built
+status: done
 type: feature
 baseline_revision: 6a9777bac1add41aaed79590901d8d337380cab4
 review: 'quick'
@@ -9,7 +9,7 @@ lenses_ran: [quick]
 ---
 # Story 2.3: Hợp đồng flush và trạng thái đã lưu
 
-Status: in-progress
+Status: done
 
 > 🔵 **ĐÍNH CHÍNH 2026-08-13 — chẩn đoán "AD-34 giành tiêu điểm" là SAI, và bản vá Ice ký KHÔNG được thi hành.**
 >
