@@ -67,11 +67,6 @@ function onToggle(): void {
         </p>
       </template>
     </div>
-
-    <div class="su-note" data-settings-update-why>
-      <strong class="su-note-title">{{ t('settings.update.why_title') }}</strong>
-      {{ t('settings.update.why_body') }}
-    </div>
   </div>
 </template>
 
@@ -133,18 +128,5 @@ function onToggle(): void {
   font-size: var(--font-ui-md-wrap);
   line-height: var(--leading-ui-md-wrap);
   color: var(--color-error);
-}
-
-.su-note {
-  padding-left: 12px;
-  border-left: 2px solid var(--color-tm-rule);
-  font-family: var(--face-ui-md-wrap);
-  font-size: var(--font-ui-md-wrap);
-  line-height: var(--leading-ui-md-wrap);
-  color: var(--color-tm-text);
-}
-
-.su-note-title {
-  color: var(--color-on-surface);
 }
 </style>

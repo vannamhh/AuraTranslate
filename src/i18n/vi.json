@@ -2016,8 +2016,6 @@
   "settings.update.available": "Có bản {version}.",
   "settings.update.open_page": "Mở trang bản phát hành",
   "settings.update.checksum_hint": "Tải tay từ trang đó rồi đối chiếu SHA-256 của tệp với SHA256SUMS.txt trước khi cài.",
-  "settings.update.why_title": "Vì sao không có nút \"Cập nhật ngay\".",
-  "settings.update.why_body": "Bản phát hành không được ký số — dự án không có kinh phí cho notarization của Apple hay chứng chỉ EV của Windows. Không có chữ ký thì không có gì xác minh được bản tải về là chính chủ, nên một cơ chế tự cập nhật ở đây là một đường tấn công thật chứ không phải một tiện ích. Đường an toàn hơn: tải tay từ GitHub Releases rồi đối chiếu checksum.",
   "settings.ai_config.provider_anthropic": "Anthropic",
   "settings.ai_config.provider_openai": "OpenAI",
   "settings.ai_config.provider_ollama": "Ollama · máy này",
