@@ -522,21 +522,51 @@ fn open_fails_when_wal_cannot_be_enabled() {
 // AC4 / AC5 — luồng checkpoint
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Ghi `rounds` job, mỗi job một blob `blob_bytes` byte, cách nhau `gap`.
-fn write_blobs(store: &Store, rounds: usize, blob_bytes: usize, gap: Duration) {
+/// Ghi `rounds` job liền nhau, mỗi job một blob `blob_bytes` byte.
+fn write_blobs(store: &Store, rounds: usize, blob_bytes: usize) {
     for _ in 0..rounds {
-        store
-            .write(move |tx| {
-                tx.execute(
-                    "INSERT INTO bulk (payload) VALUES (?1)",
-                    rusqlite::params![vec![0u8; blob_bytes]],
-                )?;
-                Ok(())
-            })
-            .expect("job ghi khối");
-        if !gap.is_zero() {
-            thread::sleep(gap);
+        write_blob(store, blob_bytes);
+    }
+}
+
+fn write_blob(store: &Store, blob_bytes: usize) {
+    store
+        .write(move |tx| {
+            tx.execute(
+                "INSERT INTO bulk (payload) VALUES (?1)",
+                rusqlite::params![vec![0u8; blob_bytes]],
+            )?;
+            Ok(())
+        })
+        .expect("job ghi khối");
+}
+
+/// Ghi như [`write_blobs`], nhưng khi `.db-wal` đã quá `threshold` thì chờ một lượt PASSIVE
+/// TRỌN VẸN bắt đầu sau lượt ghi rồi mới ghi tiếp — điều kiện để `walRestartLog` quay WAL về
+/// đầu tệp. `passive_runs` tăng ở ĐẦU mỗi lượt, nên +2 nghĩa là lượt +1 đã chạy xong.
+fn write_blobs_paced_by_checkpoint(
+    store: &Store,
+    rounds: usize,
+    blob_bytes: usize,
+    wal: &Path,
+    threshold: u64,
+) {
+    for i in 0..rounds {
+        write_blob(store, blob_bytes);
+        let over = fs::metadata(wal).is_ok_and(|m| m.len() > threshold);
+        if !over {
+            continue;
         }
+        let started = store.checkpoint_stats().passive_runs;
+        let caught_up = wait_until(Duration::from_secs(5), || {
+            store.checkpoint_stats().passive_runs >= started + 2
+        });
+        assert!(
+            caught_up,
+            "lượt ghi {i}: `.db-wal` quá ngưỡng {threshold} B mà 5 s không có lượt PASSIVE trọn \
+             vẹn nào chạy sau nó. Stats: {:?}",
+            store.checkpoint_stats()
+        );
     }
 }
 
@@ -736,7 +766,7 @@ fn an_idle_pause_triggers_one_passive_checkpoint() {
     store
         .write(|tx| tx.execute_batch("CREATE TABLE bulk (id INTEGER PRIMARY KEY, payload BLOB)"))
         .expect("dựng bảng");
-    write_blobs(&store, 20, 4096, Duration::ZERO);
+    write_blobs(&store, 20, 4096);
 
     let reached = wait_until(Duration::from_secs(5), || {
         let s = store.checkpoint_stats();
@@ -784,12 +814,12 @@ fn the_wal_stops_growing_once_it_crosses_the_threshold() {
     //
     // - `blob` lớn hơn nửa `threshold` ⇒ chỉ hai lượt ghi là WAL vượt ngưỡng. Không có
     //   điều đó thì ca này đo một cái ngưỡng chưa bao giờ chạm tới.
-    // - `checkpoint_tick` **ngắn hơn hẳn** khoảng cách giữa hai lượt ghi ⇒ lượt checkpoint
-    //   chép xong TRƯỚC lượt ghi kế tiếp. Đây là điều kiện để SQLite quay WAL về đầu tệp:
-    //   `walRestartLog` chỉ chạy khi giao dịch ghi bắt đầu ở đúng lúc `nBackfill ==
-    //   mxFrame`. Đảo lại (ghi dày, checkpoint thưa) thì mỗi lượt ghi bắt đầu trên một
-    //   WAL còn tồn đọng, WAL không bao giờ quay đầu, và ca này đỏ vì một lý do **không
-    //   phải** lỗi của cơ chế.
+    // - Lượt checkpoint chép xong TRƯỚC lượt ghi kế tiếp: `walRestartLog` chỉ quay WAL về
+    //   đầu tệp khi giao dịch ghi bắt đầu lúc `nBackfill == mxFrame`. Thiếu điều kiện này thì
+    //   ca đỏ vì một lý do **không phải** lỗi của cơ chế. `write_blobs_paced_by_checkpoint`
+    //   bảo đảm nó bằng cách chờ, không bằng nhịp đồng hồ.
+    //   Windows rounds the checkpoint thread's 3 ms condvar timeout up to the ~15.6 ms system
+    //   tick, longer than the old fixed 10 ms gap, so a timing-based pace inverted there.
     // - `idle_before_passive` để một giờ ⇒ vế (a) tuyệt đối không kích hoạt được, nên mọi
     //   lượt checkpoint quan sát được ở đây đều là bằng chứng của vế (b).
     let tuning = Tuning {
@@ -811,15 +841,13 @@ fn the_wal_stops_growing_once_it_crosses_the_threshold() {
     // ra khỏi đỉnh đo được — xem doc-comment của hàm đó cho lý do.
     let before_writes = settled_wal_len(&store, &wal, Duration::from_millis(500));
 
-    let gap = Duration::from_millis(10);
-
-    write_blobs(&store, rounds, blob, gap);
+    write_blobs_paced_by_checkpoint(&store, rounds, blob, &wal, threshold);
     let crossed = wait_until(Duration::from_secs(5), || {
         store.checkpoint_stats().threshold_triggered > 0
     });
     let after_first = settled_wal_len(&store, &wal, Duration::from_millis(500));
 
-    write_blobs(&store, rounds, blob, gap);
+    write_blobs_paced_by_checkpoint(&store, rounds, blob, &wal, threshold);
     let after_second = settled_wal_len(&store, &wal, Duration::from_millis(500));
 
     let stats = store.checkpoint_stats();
@@ -1036,7 +1064,7 @@ fn close_truncates_the_wal_to_nothing() {
     store
         .write(|tx| tx.execute_batch("CREATE TABLE bulk (id INTEGER PRIMARY KEY, payload BLOB)"))
         .expect("dựng bảng");
-    write_blobs(&store, 40, 4096, Duration::ZERO);
+    write_blobs(&store, 40, 4096);
 
     assert!(
         file_len(&sidecar(&db, "-wal")) > 0,

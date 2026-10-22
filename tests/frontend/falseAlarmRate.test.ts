@@ -23,6 +23,9 @@ let counter = 0
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'false-alarm-'))
+  // The first child `node` on a loaded Windows runner can exceed the first case's 5 s budget;
+  // pay that cold start here, under the wider hookTimeout.
+  run([])
 })
 afterAll(() => rmSync(dir, { recursive: true, force: true }))
 
