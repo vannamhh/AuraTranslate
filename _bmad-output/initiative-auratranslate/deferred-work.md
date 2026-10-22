@@ -3065,6 +3065,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 
   **Chủ: Story 2.4** *(sở hữu bộ đo NFR2/NFR18 — 2.5b **giao số**, không tự chấm, B9)*.
   → 🔵 2026-10-20 (rà nợ) — vẫn đúng ở `bf3f47f`: lưới chưa ảo hoá (mọi `v-for` của `GridPanel.vue` chạy trên toàn `editorSegments`), `ruleById`/`ruleClassById` tính lại trên toàn danh sách mỗi lượt dời con trỏ; 2.5c, 2.5d, 2.11 không đo lại, nên 706–770 ms vẫn là số mới nhất. Lượt rà này không đo lại, không vá. **Chủ: Story 2.4.**
+  → 🔵 2026-10-22 — Ice tách đường dời con trỏ khỏi Task 6/AC13 của Story 2.4 thành bug 2.14 (`epic-bien-tap-theo-segment/tickets/bug-doi-con-tro-cham-o-chuong-lon.md`); 2.4 vẫn đo gõ kèm auto-save. **Chủ: Story 2.14.**
 
 - 🔵 **NGUYÊN VĂN của lượt đỏ chập chờn `attribution-focus` — ĐÃ BẮT ĐƯỢC 2026-08-15.**
 

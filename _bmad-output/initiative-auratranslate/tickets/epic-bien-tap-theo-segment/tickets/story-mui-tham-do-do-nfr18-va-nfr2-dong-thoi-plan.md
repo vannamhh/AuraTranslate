@@ -13,6 +13,7 @@ Status: in-progress
 > - 🔴 Task 3 (NFR2 thật, 30 phút × n=3) **chưa có một tệp kết quả nào**: lượt `run-nfr2-real.sh` duy nhất (`real-run-20260819-2007.log`) hỏng cả bốn phiên vì màn hình khoá, 0 tệp `nfr2-real*.json`. Cổng `require_unlocked` dựng sau lượt đó, chưa chạy lại.
 > - ⚠️ Bàn đo dựng trên mã tháng 8; mốc trôi 47 commit từng làm chết một nửa bàn đo (§Rà điều kiện khởi hành lại 2026-08-18). Trước lượt 2 giờ 20 phút phải dựng lại bản đo và chạy một phiên smoke ngắn.
 > - Bước kế, chủ Ice, trong `_bmad-output/implementation-artifacts/2-4-ban-do/`, máy rảnh, màn hình mở, không instance app nào khác: `./build-bench.sh` → `./nfr2-session.sh m 30 smoke-1007` (đọc JSON: lưới có ô, phím đổ số tới) → `./run-nfr2-real.sh`. Sau đó dev đọc số rồi làm Task 5–11.
+> - 🔵 2026-10-22 — Ice tách đường **dời con trỏ** khỏi Task 6/AC13 sang bug 2.14 (`bug-doi-con-tro-cham-o-chuong-lon.md`). Story này vẫn đo gõ kèm auto-save; số gõ phím ở 9.850 câu mà 2.14 ghi sẽ giao về đây.
 
 > 🔴 **ĐÂY LÀ MỘT MŨI THĂM DÒ, KHÔNG PHẢI MỘT STORY TÍNH NĂNG.** Sản phẩm giao ra là **số đo** và
 > **một báo cáo**, không phải một bề mặt mới. Mã sản phẩm story này được phép chạm là **các hằng
