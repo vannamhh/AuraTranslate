@@ -25,15 +25,8 @@ fail() {
 
 ZERO=0000000000000000000000000000000000000000
 
-# naming_boundary.rs reads the root AGENTS.md, and *-ban-do/ holds test fixtures.
 is_docs_only() {
-  files=$(git diff --name-only "$1" "$2" 2>/dev/null) || return 1
-  printf '%s\n' "$files" | awk '
-    $0 == "" { next }
-    $0 == "AGENTS.md" || /-ban-do\// { found = 1; exit }
-    /^_bmad-output\// || /\.md$/ { next }
-    { found = 1; exit }
-    END { exit found }'
+  node scripts/docs-only.mjs "$1" "$2" 2>/dev/null
 }
 
 DOCS_ONLY=0

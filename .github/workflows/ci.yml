@@ -70,7 +70,8 @@ on:
     - cron: '0 18 * * *'
 
 # Không `paths`/`paths-ignore`. AC1 nói "một commit BẤT KỲ". Lọc đường dẫn là đúng chỗ
-# một thay đổi thật lọt qua vì nó nằm chung commit với một tệp `.md`.
+# một thay đổi thật lọt qua vì nó nằm chung commit với một tệp `.md`. Bước `changes` chỉ
+# bỏ test và build khi MỌI tệp trong lượt push là tài liệu (`scripts/docs-only.mjs`).
 
 concurrency:
   # Đòn bẩy rẻ nhất cho AC7 và cho §Ngân sách CI: push liên tiếp thì huỷ lượt cũ.
@@ -90,8 +91,8 @@ jobs:
       # được huỷ nền tảng kia; gộp lại là mất đúng thứ AC1 đòi.
       fail-fast: false
       matrix:
-        # Ghim ảnh, không dùng `-latest`: story này ghi số dung lượng ở MỖI lần chạy
-        # (AC6), nên ảnh runner đổi dưới chân là một hồi quy giả.
+        # Ghim ảnh, không dùng `-latest`: job này ghi số dung lượng (AC6), nên ảnh runner
+        # đổi dưới chân là một hồi quy giả.
         # ⚠️ `macos-26` là arm64 (Apple Silicon). Story 1.1/1.2 đo trên Intel x86_64 —
         # số `.dmg` ở đây KHÔNG so được với `22.944.022 byte` của Story 1.1.
         os: [macos-26, windows-2025]
@@ -108,7 +109,9 @@ jobs:
     # công khai, nên hệ số ×10 và "hoá đơn" không còn là lý do của `timeout-minutes`.
     # ⇒ Trần này ở lại, nhưng vì lý do CÒN LẠI và nó tự đủ: một job TREO phải thành một
     # lỗi tường minh trong 60 phút thay vì im lặng chiếm runner tới trần 360 phút.
-    timeout-minutes: 60
+    # Lượt đêm và lượt bấm tay còn dựng ba bản `.msi` (khoảng 21 phút trên Windows), nên trần
+    # của chúng là 90.
+    timeout-minutes: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 90 || 60 }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -118,6 +121,30 @@ jobs:
           # Máy Ice v22.22.2; Vite 8 đòi `^20.19.0 || >=22.12.0`.
           node-version: '22'
           cache: 'npm'
+
+      # Cùng luật với `.githooks/pre-push`: chỉ đổi tài liệu thì chạy các cổng, bỏ test, build
+      # và các bước dựng app. Lượt đêm, lượt bấm tay và mọi lượt không đọc được diff chạy trọn.
+      - name: chỉ đổi tài liệu?
+        id: changes
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            push) FROM="$BEFORE" ;;
+            pull_request) FROM="$BASE" ;;
+            *) FROM="" ;;
+          esac
+          DOCS_ONLY=false
+          if [ -n "$FROM" ] && [ "$FROM" != 0000000000000000000000000000000000000000 ] \
+            && git fetch --no-tags --depth=1 origin "$FROM" \
+            && node scripts/docs-only.mjs "$FROM" "$GITHUB_SHA"; then
+            DOCS_ONLY=true
+          fi
+          echo "docs_only=$DOCS_ONLY" | tee -a "$GITHUB_OUTPUT"
 
       - uses: dtolnay/rust-toolchain@cf201f30d2291af293e25b32e435b13c42d51aaf # 1.97.1
         with:
@@ -308,6 +335,7 @@ jobs:
       # danh sách **thứ ba** không ai canh: `.githooks/pre-push`. Cả ba danh sách mang bước
       # này, và `check:gates` Kiểm F cưỡng chế điều đó bằng máy.
       - name: npm test — bộ chạy test frontend (Story 2.3, NFR15 đã rà giấy phép)
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm run test
 
       # ⚠️⚠️ THỨ TỰ BẮT BUỘC — bước này PHẢI đứng TRƯỚC `cargo test`.
@@ -316,12 +344,14 @@ jobs:
       # dev bẫy này vô hình vì `dist/` còn lại từ lượt build trước; trên runner sạch nó
       # là lỗi đầu tiên.
       - name: npm run build (PHẢI trước cargo test)
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm run build
 
       # ⚠️ Không `--all-features`, và không `--release`: profile release có
       # `lto = true` + `codegen-units = 1`, biên dịch lâu gấp nhiều lần mà không kiểm
       # thêm được gì. `--locked` là nửa Rust của NFR15.
       - name: cargo test
+        if: steps.changes.outputs.docs_only != 'true'
         run: cargo test --locked --manifest-path src-tauri/Cargo.toml
 
       # ═══════════════════════════════════════════════════════════════════════════════
@@ -353,6 +383,7 @@ jobs:
       # macOS lẫn Windows (Windows dùng bash của Git for Windows, đúng cách bước
       # `tauri build (macOS — .dmg)` ở trên đã làm cho nền tảng của nó).
       - name: FR77 — xoá core/ai/ + ba seam đã duyệt vẫn để phần còn lại của cây biên dịch
+        if: steps.changes.outputs.docs_only != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -378,7 +409,7 @@ jobs:
       # nó tránh bẫy #1 của Story 1.1 — `bundle_dmg.sh` chết ở bước AppleScript.
 
       - name: tauri build (macOS — .dmg)
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.changes.outputs.docs_only != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -430,7 +461,7 @@ jobs:
             echo "> chưa đóng vì chưa ai đo universal binary)."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # ── AC6 · Task 5 + Task 6 — hai (ba) phép đo `.msi`, GHI Ở MỖI LẦN CHẠY ──────
+      # ── AC6 · Task 5 + Task 6 — hai (ba) phép đo `.msi`, GHI Ở MỖI LƯỢT ĐÊM ─────
       #
       # Cả ba bản dựng trong CÙNG MỘT bước, có chủ ý: khâu biên dịch Rust dùng chung,
       # các bản sau chỉ tốn khâu đóng gói. Tách ra job riêng là trả tiền biên dịch nhiều
@@ -451,8 +482,10 @@ jobs:
       #     `resources: null` → 28.068 KiB, fonts/ BIẾN MẤT   ✅
       #     `resources: {}`   → 54.712 KiB, fonts/ vẫn còn    ← no-op, y hệt bản đầu
       # `src-tauri/tests/config_invariants.rs` neo lớp phủ đó lại bằng một test.
+      # Chỉ lượt đêm và lượt bấm tay: ba lượt dựng release chiếm khoảng 21 trong 58 phút của job
+      # Windows, và `release.yml` đã đo dung lượng bản cài thật ở mỗi lần phát hành.
       - name: đo .msi — có font · không font · runtime nhúng (AC6, NFR6)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -628,6 +661,7 @@ jobs:
       # treo): script hết giờ và exit 1 kèm lý do. Theo mệnh đề cuối AC8, đó là lúc GHI
       # RÕ và trả lại cho Ice — không đánh dấu đạt, không lặng lẽ bỏ qua bước này.
       - name: check scope ngoài chế độ dev (AC8 — CSP + asset protocol)
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm run check:scope:bundled
 
       # ── Kiểm 3 CHIỀU ÂM — chế độ dev, nơi duy nhất đọc được HTTP 403 ────────────
@@ -647,6 +681,7 @@ jobs:
       # ĐỪNG gỡ bước này. Lượt chạy đó chính là bằng chứng để ghi rõ lý do và trả lại
       # cho Ice theo mệnh đề cuối AC8 — không đánh dấu đạt, không lặng lẽ bỏ.
       - name: check scope chiều âm (chế độ dev — 403 thật)
+        if: steps.changes.outputs.docs_only != 'true'
         run: npm run check:scope
 
       # KHÔNG upload `.msi`/`.dmg` lên đâu cả ở story này.
