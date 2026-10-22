@@ -409,3 +409,14 @@ after = ["12.22"]
 hitl = false
 risk = "low"
 v6_key = "10-9-nghiệm-thu-cuối-các-ngưỡng-phi-chức-năng"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Sửa lỗi ranh giới giữa các story của Epic 10"
+description = "Chủ dự án được: văn bản đi kèm bản phát hành (`NOTICE.txt`, mục dung lượng NFR6 trong ghi chú phát hành, `SHA256SUMS.txt`) không thể lệch khỏi dữ liệu thật trong khi mọi cổng vẫn xanh. Mục đích: gỡ một lớp dữ liệu hay thêm một asset không âm thầm để lại một tuyên bố giấy phép sai hoặc một tệp không có checksum. Phạm vi là bốn phát hiện R1, R2, R3, A2 của `epic-phat-hanh-va-tin-cay-retrospective.md`: `NOTICE.txt` liệt kê lớp từ điển bằng tay, không cổng nào nối với manifest hay `DETACHABLE_ALL` (10.5 ↔ 10.8); `--sizes` của `release-checksums.mjs` là tuỳ chọn và không gì canh `release.yml` truyền nó (10.3 ↔ 10.9); guard checksum chỉ kiểm hai bản cài, không kiểm mọi asset của `gh release create` (10.3); `scripts/test-story.mjs` còn dùng `new URL(…).pathname`, đúng dạng đã đỏ trên Windows ở `841b181`."
+verify = "Với mỗi phát hiện R1, R2, R3, gỡ thật seam trong mã sản xuất thì đúng guard của nó đỏ vì đúng lý do đó, khôi phục thì xanh; và `scripts/test-story.mjs` không còn `.pathname` nào lấy từ `import.meta.url`."
+covers = ["FR106", "FR110", "FR112"]
+after = []
+hitl = false
+risk = "low"
