@@ -193,13 +193,25 @@ risk = "low"
 v6_key = "2-13-phân-loại-sổ-nợ-199-mục-mồ-côi-và-một-luật-đang-bị-phá"
 
 [[entry]]
+id = 16
+type = "story"
+title = "Lưới đối chiếu chia khối 200 hàng"
+description = "Lưới chia thành khối ~200 hàng, mỗi khối một lưới có cột subgrid riêng, vì WebKit tính lại bố cục cả lưới trong mỗi lệnh gõ: trang tổng hợp 9.850 hàng cho 10 ms mỗi phím khi chia khối so với 468 ms khi một subgrid trải cả Chương."
+verify = "Với bản release trên WKWebView của hệ điều hành ở Chương 9.850 câu, khi gõ 30 giây ở 10 phím/giây rồi dời con trỏ ba lượt, thì phím cuối hiện ≤ 100 ms và mỗi lượt dời con trỏ ≤ 50 ms; vùng chọn nhiều câu qua ranh giới khối đúng theo segment id."
+covers = ["FR16", "FR21"]
+after = []
+hitl = false
+risk = "high"
+refine = true
+
+[[entry]]
 id = 14
 type = "bug"
 title = "Dời con trỏ chậm ở Chương lớn"
 description = "Bấm sang câu khác trên Chương 9.850 câu mất 706–770 ms, khoảng 15 lần trần 50 ms của một frame, vì lưới chưa ảo hoá và quy tắc vạch lề được tính lại trên toàn danh sách mỗi lượt dời con trỏ."
 verify = "Với một Chương 9.850 câu trong bản dựng thật trên macOS, khi dời con trỏ sang câu khác ba lượt bằng chuột và ba lượt bằng phím điều hướng, thì mỗi lượt tới hết hai frame ≤ 50 ms."
 covers = []
-after = []
+after = [16]
 hitl = false
 risk = "medium"
 
@@ -210,6 +222,6 @@ title = "Gõ liên tục thì ứng dụng tụt lại sau phím gõ"
 description = "Gõ liên tục 30 giây thì phím xếp hàng và ứng dụng chỉ đuổi kịp sau khi ngừng gõ (đo tháng 8 ở 122 câu, nhịp bàn đo ~40 phím/giây); ở 9.850 câu một phím gõ rời tốn ~700 ms trên bản debug."
 verify = "Với bản dựng thật trên macOS, khi gõ liên tục 30 giây ở 10 phím/giây vào ô bản dịch của Chương 122 câu và Chương 9.850 câu, ba phiên mỗi cỡ, thì chữ của phím cuối và `Mod+Enter` bấm ngay sau đó có tác dụng ≤ 100 ms."
 covers = []
-after = []
+after = [16]
 hitl = false
 risk = "medium"

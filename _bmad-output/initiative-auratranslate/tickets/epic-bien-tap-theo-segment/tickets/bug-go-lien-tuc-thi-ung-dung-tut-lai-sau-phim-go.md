@@ -4,7 +4,7 @@ type: bug
 title: "Gõ liên tục thì ứng dụng tụt lại sau phím gõ"
 parent: epic-bien-tap-theo-segment
 covers: []
-after: []
+after: [16]
 assignee: ""
 refined: true
 hitl: false

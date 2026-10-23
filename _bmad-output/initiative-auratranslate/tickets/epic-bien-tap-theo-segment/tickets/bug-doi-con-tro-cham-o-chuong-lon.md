@@ -4,7 +4,7 @@ type: bug
 title: "Dời con trỏ chậm ở Chương lớn"
 parent: epic-bien-tap-theo-segment
 covers: []
-after: []
+after: [16]
 assignee: ""
 refined: true
 hitl: false
