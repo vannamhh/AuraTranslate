@@ -3071,6 +3071,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 - Một phím gõ ở Chương 9.850 câu tốn 661–762 ms tới hết hai frame (`InputEvent` tổng hợp, WKWebView, bản debug nạp Vite, trước khi sửa) và 611–795 ms sau `v-memo`; vượt trần 50 ms của NFR2 cùng cơ chế vùng sửa được. Story 2.14 chỉ đo, không đụng đường gõ.
   Bàn đo: `_bmad-output/implementation-artifacts/2-14-ban-do/do-doi-con-tro.e2e.mjs`. **Chủ: Story 2.4.**
   → 2026-10-23 — đường gõ sang bug 2.15, cùng mục "App tụt lại ~15 giây…". **Chủ: Story 2.15.**
+  → 🟡 2026-10-23 (Story 2.15) — bản sửa chỉ đổi cách tính của slot lưới, chưa đóng: bản release thật, gõ 300 phím ở 10 phím/giây rồi `Mod+Enter`, 9.850 câu vẫn tụt 157–163 giây ở phím cuối và `Mod+Enter` (trước sửa 188–193 giây), mỗi phím ~0,5 giây; 122 câu đạt từ trước sửa (≤ 55 ms). Số trong `_bmad-output/implementation-artifacts/2-15-ban-do/`. Ranh giới của vé cấm đổi cấu trúc lưới nên vé dừng `blocked`, nguồn chi phí còn lại chưa tách. **Chủ: Ice.**
 
 - 🔵 **NGUYÊN VĂN của lượt đỏ chập chờn `attribution-focus` — ĐÃ BẮT ĐƯỢC 2026-08-15.**
 
@@ -5122,6 +5123,7 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. Khớp yếu: story nhận tự quyết đóng hay chuyển chủ khi soạn spec. **Chủ: Story 10.9.**
   → 🔵 2026-10-20 (rà nợ 10.9) — mệnh đề NFR2, mà Story 10.9 phủ NFR1/3/4/5/19, không phủ NFR2; Ice chuyển sang mũi đo NFR2+NFR18 của Story 2.4. **Chủ: Story 2.4.**
   → 2026-10-23 — Ice tách đường gõ thành bug 2.15 (`epic-bien-tap-theo-segment/tickets/bug-go-lien-tuc-thi-ung-dung-tut-lai-sau-phim-go.md`), không gộp vào 2.14; 2.4 là mũi thăm dò, chỉ đo, không sửa. **Chủ: Story 2.15.**
+  → 🟡 2026-10-23 (Story 2.15) — bản sửa chỉ đổi cách tính của slot lưới, chưa đóng: bản release thật, gõ 300 phím ở 10 phím/giây rồi `Mod+Enter`, 9.850 câu vẫn tụt 157–163 giây ở phím cuối và `Mod+Enter` (trước sửa 188–193 giây), mỗi phím ~0,5 giây; 122 câu đạt từ trước sửa (≤ 55 ms). Số trong `_bmad-output/implementation-artifacts/2-15-ban-do/`. Ranh giới của vé cấm đổi cấu trúc lưới nên vé dừng `blocked`, nguồn chi phí còn lại chưa tách. **Chủ: Ice.**
 
 - ⚠️ **Story 3.4 là story rủi ro nhất của Epic 3, và nó vào với sổ nợ này còn mở.** Nó thêm một
   kênh trang trí lên **cột nguyên văn của lưới** — đúng đường nóng mà cả ba mục trên đang nói tới.

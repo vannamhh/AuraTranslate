@@ -17,8 +17,10 @@
  * ⚠️ Bảng ánh xạ *trạng thái → vạch* **không** ở đây: nó sống ở `./editorSegments.ts`, một
  * module thuần mà cổng `import()` chạy được. Đừng kéo nó về đây cho gần.
  */
-import { nextTick, readonly, ref, shallowRef, watch } from 'vue'
+import { nextTick, readonly, ref, shallowRef, triggerRef, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
+import { textShapeOf } from './editorSegments'
+import type { TextShape } from './editorSegments'
 import { enterFocus } from '../commands'
 import { openAdjacentChapter, openChapter, splitChapterAtSegment } from '../config/chapter'
 import type { ChapterDirection } from '../config/chapter'
@@ -674,15 +676,16 @@ export async function flushChapterPositionNow(): Promise<void> {
  * 🔴 **Tách rời `segments`:** `segments` giữ bản **lúc nạp segment**; ghi văn bản đang gõ đè
  * lên đó làm ảnh chụp lệch đĩa cho tới lượt nạp lại.
  *
- * ⚠️ Đây là nguồn hiển thị: template đọc `editedText.get(id) ?? s.target_text`. Giá trị ở đây
- * luôn được đặt **từ chính DOM** *(`textContent` của câu đang gõ)*, nên lượt render kế tiếp
- * thấy chuỗi **y hệt** thứ đang có trong DOM ⇒ Vue không ghi vào text node đó ⇒ caret không
- * bị đụng. Đó là điều kiện để một `contenteditable` và một binding của Vue cùng sống trên một
- * phần tử mà không tranh nhau.
+ * Written in place without triggering: a reactive read here in the grid template would
+ * re-render the whole grid slot on every keystroke. The template reads `editedShape`.
  */
-const editedText = ref(new Map<number, string>())
-/** Văn bản đang gõ theo `segment.id`, `undefined` ⇒ chưa ai sửa câu đó trong phiên này. */
-export const editorEditedText: DeepReadonly<Ref<Map<number, string>>> = readonly(editedText)
+const editedText = shallowRef(new Map<number, string>())
+/** Text typed this session by `segment.id`; not reactive per keystroke, so read it imperatively. */
+export const editorEditedText: Readonly<Ref<ReadonlyMap<number, string>>> = editedText
+
+const editedShape = shallowRef(new Map<number, TextShape>())
+/** Triggers only when a row's effective shape changes, which is all the grid renders from typed text. */
+export const editorEditedShape: Readonly<Ref<ReadonlyMap<number, TextShape>>> = editedShape
 
 /**
  * Mốc lượt flush **thành công** gần nhất, mili-giây epoch. `null` ⇒ chưa lượt nào.
@@ -780,9 +783,14 @@ export function noteEditorEdit(segmentId: number, targetText: string): void {
     return
   }
 
-  const next = new Map(editedText.value)
-  next.set(segmentId, targetText)
-  editedText.value = next
+  const shape = textShapeOf(targetText)
+  const shapes = editedShape.value
+  const before =
+    shapes.get(segmentId) ??
+    textShapeOf(segments.value.find((s) => s.id === segmentId)?.target_text ?? '')
+  editedText.value.set(segmentId, targetText)
+  shapes.set(segmentId, shape)
+  if (shape !== before) triggerRef(editedShape)
   dropTmFilled(segmentId)
 
   flush.markChanged(segmentId, targetText, Date.now())
@@ -990,6 +998,7 @@ export function resetEditorPanel(): void {
   clearFlushTimer()
   flush.reset()
   editedText.value = new Map()
+  editedShape.value = new Map()
   lastSavedAt.value = null
 
   // 🔵 THÊM Story 5.7 — nhịp ghi vị trí cũng thuộc Tác phẩm/Chương VỪA BỊ THAY, cùng lý lẽ

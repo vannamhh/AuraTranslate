@@ -174,6 +174,14 @@ export function resolveSegmentRule(input: SegmentRuleInput): SegmentRuleValue {
   return 'none'
 }
 
+/** `0` empty, `1` whitespace only, `2` text: the rule tests `!== ''`, the `empty` class tests `.trim()`. */
+export type TextShape = 0 | 1 | 2
+
+export function textShapeOf(text: string): TextShape {
+  if (text === '') return 0
+  return text.trim() === '' ? 1 : 2
+}
+
 /**
  * Dựng dữ kiện cho [`resolveSegmentRule`] từ một hàng đã nạp.
  *

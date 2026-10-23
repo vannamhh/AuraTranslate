@@ -88,6 +88,7 @@ import {
   segmentRuleInputOf,
   selectedRowClassOf,
   sourceCutOffsetOf,
+  textShapeOf,
 } from './editorSegments'
 import type { SegmentRuleValue } from './editorSegments'
 import {
@@ -106,6 +107,7 @@ import {
   editorChapterAssets,
   editorChapterId,
   editorConfirmError,
+  editorEditedShape,
   editorEditedText,
   editorTmFilledSegmentIds,
   editorFlushError,
@@ -277,12 +279,16 @@ const showFrameStatus = computed(
  * *"chưa dịch"* cho tới lượt nạp lại.
  */
 const restRuleById = computed(() => {
-  const edited = editorEditedText.value
+  const shapes = editorEditedShape.value
   const tmFilled = editorTmFilledSegmentIds.value
   const map = new Map<number, SegmentRuleValue>()
   for (const s of editorSegments.value) {
     const input = segmentRuleInputOf(s, null, tmFilled)
-    map.set(s.id, resolveSegmentRule({ ...input, targetText: edited.get(s.id) ?? input.targetText }))
+    const shape = shapes.get(s.id)
+    map.set(
+      s.id,
+      resolveSegmentRule(shape === undefined ? input : { ...input, targetText: shape === 0 ? '' : 'x' }),
+    )
   }
   return map
 })
@@ -2016,7 +2022,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
               selectedRowClassById.get(s.id),
               s.id === stripAnchorSegmentId,
               rowErrorTextById.get(s.id),
-              editorEditedText.get(s.id),
+              editorEditedShape.get(s.id),
               ruleOf(s.id),
             ]"
           >
@@ -2027,7 +2033,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
               {
                 'para-end': s.is_paragraph_end,
                 refused: rowErrorLabelById.has(s.id),
-                empty: (editorEditedText.get(s.id) ?? s.target_text).trim() === '',
+                empty: (editorEditedShape.get(s.id) ?? textShapeOf(s.target_text)) < 2,
                 editing: editorCaretSegmentId === s.id,
                 omitted: s.is_omitted,
                 'tgt-para-end': s.is_target_paragraph_end,
