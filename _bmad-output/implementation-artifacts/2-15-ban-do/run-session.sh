@@ -21,12 +21,12 @@ sleep 2
 APID=$(pgrep -x auratranslate | head -1)
 require_front "$APID" 10 >/dev/null || { echo "front gate red"; exit 5; }
 A0=$(q __bench_alive__)
-[ "$N" = 122 ] && hk 18 || hk 25
+[ "$N" = 122 ] && hk 12 || hk 13
 for i in $(seq 1 240); do [ "$(q __bench_alive__)" != "$A0" ] && break; sleep 0.5; done
 [ "$(q __bench_alive__)" != "$A0" ] || { echo "work not created: $(q __b215_err__)"; exit 6; }
 sleep 4
 require_front "$APID" 10 >/dev/null || { echo "front gate red 2"; exit 5; }
-hk 19
+hk 14
 for i in $(seq 1 360); do R=$(q __b215_ready__); [ -n "$R" ] && break; sleep 0.5; done
 echo "ready=$R"
 case "$R" in *,true,*) ;; *) echo "cell not focused"; exit 7;; esac

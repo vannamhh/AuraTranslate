@@ -59,10 +59,10 @@
     }
     if (e.ctrlKey && e.altKey && e.shiftKey) {
       var k = e.code
-      if (k === 'Digit1') { e.preventDefault(); create(122) }
-      else if (k === 'Digit9') { e.preventDefault(); create(9850) }
-      else if (k === 'Digit2') { e.preventDefault(); openAndFocus() }
-      else if (k === 'Digit3') {
+      if (k === 'KeyQ') { e.preventDefault(); create(122) }
+      else if (k === 'KeyW') { e.preventDefault(); create(9850) }
+      else if (k === 'KeyE') { e.preventDefault(); openAndFocus() }
+      else if (k === 'KeyU') {
         e.preventDefault()
         dumpNow()
       }
