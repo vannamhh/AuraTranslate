@@ -44,3 +44,37 @@ Kết luận: bản thử chia khối ĐẠT vế gõ, TRƯỢT vế dời con t
 - Nghi nguyên nhân dời con trỏ chậm hơn: `gridBlockViews` tính lại 50 khối (slice mới) mỗi khi `stripAnchorIndex` đổi, nên mọi `.grid-block` re-render + diff; và 50 subgrid-khối vẫn bị WebKit tính lại vì thay đổi class `editing`/neo dải. Cần đo (profile) trước khi sửa; không tự chọn.
 - Hai phương án để Ice chọn: (A) dừng 2-16, giữ bug 2.14/2.15 blocked; (B) thử lại bản thử với danh sách khối ổn định (slice theo khối được cache, chỉ khối chứa neo đổi) rồi đo lại. Chưa làm B.
 - Số thô: `2-16-ban-do/ket-qua-blocks-9850-{1,2,3}.json` (chuột/phím/bố cục), `2-15-ban-do/ket-qua-blocks-9850-{1,2,3}.json` (gõ). Chưa ghi vào README bàn đo, chưa đụng plan/story/deferred-work.
+
+# Handoff Pha 2 lượt 2 -> Ice / Pha 3 (story 2-16) — BLOCKED lần hai, cho Ice quyết
+
+Phương án B (Ice 2026-10-23) đã làm đủ ba việc. Kết quả: danh sách khối ổn định KHÔNG cứu được vế dời con trỏ; không commit `src/`, cây `src/` sạch. Pha 3 và 4 chưa nên chạy.
+
+## Đã làm
+- `blocks-prototype-2.patch` (+ `gridBlocks.ts.txt` như cũ): bản thử đã sửa. `gridBlockViews` chỉ phụ thuộc `editorSegments` (slice theo khối, không đọc neo dải); `stripRowIn(block)` và `stripBlockIndex` đọc neo ngay trong template, nên chỉ khối chứa neo đổi `gridTemplateRows`/`.strip-track`. vue-tsc xanh. Áp: `git apply blocks-prototype-2.patch` (thay cho patch 1) và chép `gridBlocks.ts.txt` thành `src/panels/gridBlocks.ts`.
+- Bàn đo (`bench-216.js`, `analyse.py`, đã sửa, chưa commit):
+  - Bố cục đầu chỉ coi là xong khi 60 frame liên tiếp cách nhau < 40 ms (`quiet`), rồi mới focus ô đầu; `pickTargets` chỉ phát toạ độ khi vị trí 17 ô đích đứng yên 1 s (thử lại tới 8 lần). Thay cho `setTimeout 1500`.
+  - Profile mỗi lượt chuột/phím: `bubble` (mousedown tới listener bubble ở `document`, tức sau handler Vue + flush microtask, trước hành động mặc định), `task` (setTimeout 0), `style`/`layout` ép tay, `raf1`, `f`, số đột biến DOM (MutationObserver gom qua callback) và số khối bị đụng.
+- Số thô: `ket-qua-prof{Base,B,A,A2}-9850-*.json`. `Base` = cây 30049b3 (bố cục cũ), `B` = bản thử đã sửa, `A`/`A2` = bản thử cũ (neo dải đổi cả danh sách). Dựng release, ký ad-hoc, WKWebView macOS 15.8.2, 9.850 câu, cửa sổ 1200×900, cliclick + osascript. Dùng chung một bàn đo ⇒ so được với nhau, không so với số 4,4–4,7 s / 114–142 ms của Pha 1 (bàn cũ, máy nhẹ hơn).
+
+## Kết quả (loadavg 1 phút lúc bắt đầu 12–20, 5 phút 21–32: máy bận hơn Pha 1 nhiều; cặp Base/B chạy xen kẽ nên cùng điều kiện)
+| | Base (3 phiên) | B (3 phiên) |
+|---|---|---|
+| chuột: mousedown → bubble (JS handler + Vue flush) | 113·62·87 / 122·119·71 | 258·356·347 / 230·206·272 / 174·186·226 |
+| chuột: handler → 2 frame (lượt trúng ô) | 235·240·174 (phiên 3); phiên 1 250·150·196 | 360·454·467 / 318·291·347 / 238·247·316 |
+| phần sau flush (task → 2 frame) | ~80–127 | ~60–119 |
+| phím `segment.next` handler → f | 87·132·112 / 102·99·90 / 144·156·104 | 67·92·177 / 83·86·87 / 45·88·162 |
+| bố cục đầu (ms) | 5731 · 6066 · 6722 | 8102 · 5960 · 5877 |
+- Chênh nằm ở JS giữa mousedown và listener bubble: khối làm phần Vue render + flush của một lượt `setEditorCaret` dày gấp 2–3 lần (63–122 → 174–356 ms). Phần style/layout ép tay đo 0–1 ms và `focus()`/`getBoundingClientRect` không bị gọi ở đường này: layout không phải chỗ tốn. Đột biến DOM chỉ 6 bản ghi, 1 khối ⇒ DOM vá nhỏ; cái tốn là hàm render/diff.
+- Danh sách khối ổn định (B) không khác bản neo-đổi-cả-danh-sách (A2: 255–381 ms) ⇒ giả thuyết "mỗi lần neo đổi, 50 khối cắt lại" sai.
+- Bố cục đầu dưới cùng tải: Base 5,7–6,7 s, B 5,9–8,1 s (hai phiên 5,9 s) — không còn "gấp đôi" như lượt 1, phần lớn lượt 1 là do tải; nhưng cũng không nhanh hơn.
+- Vế gõ: KHÔNG đo lại ở bản B (lượt 1 đã đạt: phím cuối 55–84 ms). Danh sách khối ổn định không chạm đường gõ nhưng chưa có số.
+- Tiêu chí dời con trỏ ≤ 50 ms: cả Base (kể cả 114–142 ms của Pha 1) lẫn B đều trượt; B tệ hơn Base ~1,3–2 lần từ handler tới frame.
+
+## Giới hạn, rủi ro
+- Tải máy 12–32: số tuyệt đối phồng; chỉ cặp xen kẽ Base/B có giá trị so sánh. Không có phiên nào ở máy nhẹ.
+- Phiên Base 2 và A2 1 có lượt bấm không đổi tiêu điểm (task 0–1 ms, `hit=False`): bỏ khỏi so sánh. `mouseup` hầu như không ghi được (như Pha 1).
+- Chưa rõ vì sao render gấp 2–3 lần: chưa kiểm hai giả thuyết (Fragment lồng thêm một tầng làm `v-memo` mất đường tắt `n1 === n2` ở cấp khối; 50 lần `patchKeyedChildren` trên mảng slice mới mỗi lần `gridBlockViews`/render tạo mảng mới thay vì cùng mảng). Cần profiler Vue/Safari timeline, không có trong bàn này.
+- Chưa commit gì: bàn đo sửa + 9 `ket-qua-prof*.json` + `blocks-prototype-2.patch` còn là tệp chưa theo dõi/đã sửa trong cây. README bàn đo chưa có bảng số mới; plan/story/deferred-work chưa đụng.
+
+## Gợi ý
+- Ice chọn: (A) dừng 2-16, giữ 2.14/2.15 blocked; (B2) tiếp tục chỉ khi muốn điều tra gốc render 2–3 lần bằng Safari Web Inspector Timeline trên bản release (đo bằng tay, ngoài bàn này); (C) bỏ ý tưởng khối-subgrid và tìm hướng khác cho lệnh gõ (ví dụ tắt subgrid bằng hàng cao cố định) — chưa đo.

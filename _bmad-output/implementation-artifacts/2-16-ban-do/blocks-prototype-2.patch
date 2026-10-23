@@ -1,0 +1,295 @@
+diff --git a/src/panels/GridPanel.vue b/src/panels/GridPanel.vue
+index 7e7e641..a3d59ee 100644
+--- a/src/panels/GridPanel.vue
++++ b/src/panels/GridPanel.vue
+@@ -67,8 +67,9 @@
+ // Story 1.6, và `'panel.grid'` có trong `FOCUS_OWNERS`. **Đừng** dựng vạch tiêu điểm panel
+ // thứ hai — `.panel.focused::before` đã có, và nó là vạch của **panel** (UX-DR8), khác hẳn
+ // vạch của **segment** (UX-DR19) mà tệp này dựng.
+-import { computed, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
++import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+ import { isMeaningKind } from '../config/proofread'
++import { GRID_BLOCK_ROWS, gridBlocksOf } from './gridBlocks'
+ import { repaintProofreadHost, unwrapAllProofread, unwrapProofread } from './proofreadHighlight'
+ import { clearProofreadFor, proofreadResults } from '../proofreadState'
+ import PanelFrame from './PanelFrame.vue'
+@@ -593,9 +594,13 @@ function onGlossaryPieceLeave(): void {
+ // ═════════════════════════════════════════════════════════════════════════════════
+ // AC7 · B1 — HỢP ĐỒNG VÙNG CHỌN THEO **CỘT**, hai lời gọi, hai vai KHÔNG được đảo
+ // ═════════════════════════════════════════════════════════════════════════════════
+-const colSrc = useTemplateRef<HTMLElement>('colSrc')
+-const colTgt = useTemplateRef<HTMLElement>('colTgt')
+-const stripTrack = useTemplateRef<HTMLElement>('stripTrack')
++const gridRoot = useTemplateRef<HTMLElement>('gridRoot')
++const colSrc = shallowRef<HTMLElement | null>(null)
++const colTgt = shallowRef<HTMLElement | null>(null)
++const stripTrack = shallowRef<HTMLElement | null>(null)
++const setColSrcRef = (el: unknown): void => { colSrc.value = el instanceof HTMLElement ? el : null }
++const setColTgtRef = (el: unknown): void => { colTgt.value = el instanceof HTMLElement ? el : null }
++const setStripTrackRef = (el: unknown): void => { stripTrack.value = el instanceof HTMLElement ? el : null }
+ 
+ const stripAnchorSegmentId = computed(() => inlineStripAnchorSegmentId.value)
+ const stripAnchorIndex = computed(() => {
+@@ -603,6 +608,34 @@ const stripAnchorIndex = computed(() => {
+   return id === null ? -1 : editorSegments.value.findIndex((s) => s.id === id)
+ })
+ 
++const gridBlockViews = computed(() => {
++  const segments = editorSegments.value
++  return gridBlocksOf(segments.length).map((b, index) => ({
++    index,
++    start: b.start,
++    segments: segments.slice(b.start, b.start + b.rows),
++  }))
++})
++
++function stripRowIn(block: { readonly start: number; readonly segments: readonly unknown[] }): number {
++  const anchor = stripAnchorIndex.value
++  return anchor >= block.start && anchor < block.start + block.segments.length ? anchor - block.start : -1
++}
++
++const stripBlockIndex = computed(() => {
++  const anchor = stripAnchorIndex.value
++  return anchor < 0 ? 0 : Math.floor(anchor / GRID_BLOCK_ROWS)
++})
++
++function isInTargetColumn(node: Node): boolean {
++  const from = node instanceof Element ? node : node.parentElement
++  return from?.closest('.col-tgt') != null
++}
++
++function targetCellById(id: number): HTMLElement | null {
++  return gridRoot.value?.querySelector<HTMLElement>(`[data-col="tgt"][data-segment-id="${String(id)}"]`) ?? null
++}
++
+ /**
+  * Truy vấn cho một vùng chọn trên **cột nguyên văn**.
+  *
+@@ -1043,13 +1076,13 @@ function ensureCaretNextFrame(cell: HTMLElement): void {
+ /** Rời tiêu điểm khỏi cột bản dịch ⇒ không câu nào *"đang sửa"* nữa. */
+ function onColumnFocusOut(event: FocusEvent): void {
+   const next = event.relatedTarget
+-  if (next instanceof Node && (colTgt.value?.contains(next) || stripTrack.value?.contains(next))) return
++  if (next instanceof Node && (isInTargetColumn(next) || stripTrack.value?.contains(next))) return
+   setEditorCaret(null)
+ }
+ 
+ function onStripFocusOut(event: FocusEvent): void {
+   const next = event.relatedTarget
+-  if (next instanceof Node && (colTgt.value?.contains(next) || stripTrack.value?.contains(next))) return
++  if (next instanceof Node && (isInTargetColumn(next) || stripTrack.value?.contains(next))) return
+   setEditorCaret(null)
+ }
+ 
+@@ -1078,24 +1111,23 @@ function onStripFocusOut(event: FocusEvent): void {
+  * lượt cần khôi phục nhất.
+  */
+ function restoreEditedText(): void {
+-  const host = colTgt.value
+-  if (host === null) return
++  if (gridRoot.value === null) return
+   const edited = editorEditedText.value
+   if (edited.size === 0) return
+ 
+   for (const [id, text] of edited) {
+-    const el = host.querySelector<HTMLElement>(`[data-segment-id="${id}"]`)
++    const el = targetCellById(id)
+     if (el === null || document.activeElement === el) continue
+     if (el.textContent !== text) el.textContent = text
+   }
+   repaintProofread()
+ }
+ 
+-watch([() => editorSegments.value, colTgt], restoreEditedText, { flush: 'post' })
++watch([() => editorSegments.value, gridRoot], restoreEditedText, { flush: 'post' })
+ 
+ /** Underlines are inline spans inside the cell; drawn only while the cell still holds the scanned text. */
+ function repaintProofread(): void {
+-  const host = colTgt.value
++  const host = gridRoot.value
+   if (host === null || composing) return
+   repaintProofreadHost(host, proofreadResults.value, isMeaningKind)
+ }
+@@ -1120,10 +1152,10 @@ function onCompositionEnd(): void {
+   scheduleRepaintProofread()
+ }
+ 
+-watch([proofreadResults, () => editorSegments.value, colTgt], repaintProofread, { flush: 'post' })
++watch([proofreadResults, () => editorSegments.value, gridRoot], repaintProofread, { flush: 'post' })
+ onBeforeUnmount(() => {
+   if (repaintTimer !== null) clearTimeout(repaintTimer)
+-  if (colTgt.value !== null) unwrapAllProofread(colTgt.value)
++  if (gridRoot.value !== null) unwrapAllProofread(gridRoot.value)
+ })
+ 
+ // ═════════════════════════════════════════════════════════════════════════════════
+@@ -1141,10 +1173,9 @@ onBeforeUnmount(() => {
+  * `primary` sáng là để vạch nói dối.
+  */
+ function onSelectionChange(): void {
+-  const host = colTgt.value
+-  if (host === null) return
++  if (gridRoot.value === null) return
+   const anchor = window.getSelection()?.anchorNode ?? null
+-  if (anchor === null || !host.contains(anchor)) return
++  if (anchor === null || !isInTargetColumn(anchor)) return
+   const id = segmentIdOf(targetCellOf(anchor))
+   if (id !== null) setEditorCaret(id)
+ }
+@@ -1257,9 +1288,7 @@ watch(
+   (id) => {
+     if (id === null) return
+     clearEditorCaretPlacement()
+-    const host = colTgt.value
+-    if (host === null) return
+-    const target = host.querySelector<HTMLElement>(`[data-segment-id="${id}"]`)
++    const target = targetCellById(id)
+     if (target === null) return
+     // 🔵 **STORY 2.10 · AC8 NỬA SAU — `focus()` LÀ VẾ CUỘN, và nó ĐÃ Ở ĐÂY TỪ TRƯỚC.**
+     //
+@@ -1805,7 +1834,13 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
+         **không bao giờ** — Kiểm B của `check-tokens.mjs` đọc CSS, không đọc TypeScript, nên
+         một màu bind qua `:style` đi qua cổng mà không một dòng nào được soi.
+       -->
+-      <div class="grid" :style="{ gridTemplateRows: `repeat(${editorSegments.length + (stripAnchorIndex < 0 ? 0 : 1)}, auto)` }">
++      <div ref="gridRoot" class="grid">
++        <div
++          v-for="block in gridBlockViews"
++          :key="block.index"
++          class="grid-block"
++          :style="{ gridTemplateRows: `repeat(${block.segments.length + (stripRowIn(block) < 0 ? 0 : 1)}, auto)` }"
++        >
+         <!--
+           Cột ① — VẠCH TRẠNG THÁI (UX-DR19, sáu giá trị).
+ 
+@@ -1814,7 +1849,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
+         -->
+         <div class="col col-rule" aria-hidden="true">
+           <template
+-            v-for="s in editorSegments"
++            v-for="s in block.segments"
+             :key="s.id"
+             v-memo="[s, ruleClassForRow(s.id), selectedRowClassById.get(s.id), s.id === stripAnchorSegmentId]"
+           >
+@@ -1836,22 +1871,22 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
+         -->
+         <div class="col col-num" aria-hidden="true">
+           <template
+-            v-for="(s, i) in editorSegments"
++            v-for="(s, j) in block.segments"
+             :key="s.id"
+-            v-memo="[s, i, selectedRowClassById.get(s.id), s.id === stripAnchorSegmentId]"
++            v-memo="[s, block.start + j, selectedRowClassById.get(s.id), s.id === stripAnchorSegmentId]"
+           >
+           <div
+             class="cell cell-num"
+             :class="[{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }, selectedRowClassById.get(s.id)]"
+-          ><!-- aura-allow-text: số thứ tự hàng — một con số dựng tại chỗ hiển thị, đúng luật "định dạng số và ngày giờ CHỈ ở frontend" (§Consistency Conventions), không một chuỗi giao diện dịch được. -->{{ i + 1 }}</div>
++          ><!-- aura-allow-text: số thứ tự hàng — một con số dựng tại chỗ hiển thị, đúng luật "định dạng số và ngày giờ CHỈ ở frontend" (§Consistency Conventions), không một chuỗi giao diện dịch được. -->{{ block.start + j + 1 }}</div>
+           <div v-if="s.id === stripAnchorSegmentId" class="strip-pad" aria-hidden="true"></div>
+           </template>
+         </div>
+ 
+         <!-- Cột ③ — NGUYÊN VĂN. Một bề mặt vùng chọn duy nhất, vai `'source'` (AC7). -->
+-        <div ref="colSrc" class="col col-src" :class="sourceTokenClass">
++        <div :ref="block.index === 0 ? setColSrcRef : undefined" class="col col-src" :class="sourceTokenClass">
+           <template
+-            v-for="s in editorSegments"
++            v-for="s in block.segments"
+             :key="s.id"
+             v-memo="[
+               s,
+@@ -1975,7 +2010,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
+           9.850 hàng là N lượt đăng ký mà một lượt là đủ.
+         -->
+         <div
+-          ref="colTgt"
++          :ref="block.index === 0 ? setColTgtRef : undefined"
+           class="col col-tgt tok-editor"
+           @focusout="onColumnFocusOut"
+           @mousedown="onCellMouseDown"
+@@ -2014,11 +2049,11 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
+             nào biết vì sao. 🔴 Rust là nguồn sự thật cho "rỗng"; lưới đi theo, không ngược lại.
+           -->
+           <template
+-            v-for="(s, i) in editorSegments"
++            v-for="(s, j) in block.segments"
+             :key="s.id"
+             v-memo="[
+               s,
+-              i,
++              block.start + j,
+               selectedRowClassById.get(s.id),
+               s.id === stripAnchorSegmentId,
+               rowErrorTextById.get(s.id),
+@@ -2046,7 +2081,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
+             contenteditable="true"
+             role="textbox"
+             aria-multiline="true"
+-            :aria-label="cellLabelOf(s.id, i)"
++            :aria-label="cellLabelOf(s.id, block.start + j)"
+             :data-row-error="rowErrorTextById.get(s.id)"
+             :aria-details="s.id === stripAnchorSegmentId ? 'strip-track' : undefined"
+           >{{ s.target_text }}</div>
+@@ -2056,17 +2091,19 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
+ 
+         <!-- Must follow the four columns in DOM order: it paints over and takes clicks in col-tgt only by coming later. -->
+         <div
++          v-if="block.index === stripBlockIndex"
+           id="strip-track"
+-          ref="stripTrack"
++          :ref="setStripTrackRef"
+           class="strip-track"
+-          :class="{ 'strip-track-off': stripAnchorIndex < 0 }"
+-          :style="stripAnchorIndex < 0 ? undefined : { gridRow: stripAnchorIndex + 2 }"
++          :class="{ 'strip-track-off': stripRowIn(block) < 0 }"
++          :style="stripRowIn(block) < 0 ? undefined : { gridRow: stripRowIn(block) + 2 }"
+           @focusout="onStripFocusOut"
+         >
+           <TmFuzzyStrip />
+           <GlossaryConfirmStrip />
+           <ProofreaderStrip place="track" />
+         </div>
++        </div>
+       </div>
+     </div>
+   </PanelFrame>
+@@ -2191,8 +2228,12 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
+  * nhất của CSS Grid, và nó chỉ lộ ra ở Chương có câu dài.
+  */
+ .grid {
++  --grid-columns: 3px 30px minmax(0, 1fr) minmax(0, 1fr);
++}
++
++.grid-block {
+   display: grid;
+-  grid-template-columns: 3px 30px minmax(0, 1fr) minmax(0, 1fr);
++  grid-template-columns: var(--grid-columns);
+   align-items: stretch;
+ }
+ 
+diff --git a/src/panels/proofreadHighlight.ts b/src/panels/proofreadHighlight.ts
+index 1e88f2a..efd24f8 100644
+--- a/src/panels/proofreadHighlight.ts
++++ b/src/panels/proofreadHighlight.ts
+@@ -121,7 +121,7 @@ export function repaintProofreadHost<K>(
+ ): void {
+   unwrapAllProofread(host)
+   for (const [id, entry] of results) {
+-    const cell = host.querySelector(`[data-segment-id="${String(id)}"]`)
++    const cell = host.querySelector(`[data-col="tgt"][data-segment-id="${String(id)}"]`)
+     if (cell === null) continue
+     wrapProofread(cell, entry.scannedText, entry.findings.map((f) => ({ start: f.start, end: f.end, meaning: isMeaning(f.kind) })))
+   }
+diff --git a/tests/frontend/proofreadHighlight.test.ts b/tests/frontend/proofreadHighlight.test.ts
+index 8c63a3b..a40530e 100644
+--- a/tests/frontend/proofreadHighlight.test.ts
++++ b/tests/frontend/proofreadHighlight.test.ts
+@@ -114,6 +114,7 @@ describe('repaintProofreadHost after a typed edit in one segment', () => {
+     for (const [id, text] of [[1, 'ab cd'], [2, 'ef gh']] as const) {
+       const cell = cellOf(text)
+       cell.setAttribute('data-segment-id', String(id))
++      cell.setAttribute('data-col', 'tgt')
+       host.appendChild(cell)
+     }
+     return host
