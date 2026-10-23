@@ -1,0 +1,72 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>grid</title>
+<style>
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; width: 1200px; }
+  .scroll { height: 860px; overflow: auto; }
+  .grid { display: grid; grid-template-columns: 3px 48px 1fr 1fr; }
+  .col { display: grid; grid-template-rows: subgrid; grid-row: 1 / -1; }
+  .cell { padding: 4px 8px; border-bottom: 1px solid #ddd; white-space: pre-wrap; }
+  .cell-rule { padding: 0; border-left: 3px solid transparent; }
+  .cell-tgt { outline: none; }
+  .row { display: grid; grid-template-columns: 3px 48px 1fr 1fr; }
+</style></head>
+<body><div class="scroll" id="scroll"></div>
+<script>
+const q = new URLSearchParams(location.search)
+const N = Number(q.get('n') || 9850), KEYS = Number(q.get('keys') || 20), V = q.get('v') || 'subgrid', CHUNK = 200
+let seed = 7
+const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648
+const WORDS = 'the of and to in translation chapter sentence grid layout engine typing slow fast row column'.split(' ')
+const text = () => { let s = ''; const len = 20 + Math.floor(rnd() * 140); while (s.length < len) s += WORDS[Math.floor(rnd() * WORDS.length)] + ' '; return s.trim() }
+const rows = Array.from({ length: N }, (_, i) => ({ i, src: text(), tgt: rnd() < 0.5 ? text() : '' }))
+const cell = (cls, txt, edit) => { const d = document.createElement('div'); d.className = 'cell ' + cls; if (edit) { d.contentEditable = 'true'; d.dataset.row = edit } d.textContent = txt; return d }
+function columnGrid(list) {
+  const g = document.createElement('div'); g.className = 'grid'; g.style.gridTemplateRows = `repeat(${list.length}, auto)`
+  const cols = ['rule', 'num', 'src', 'tgt'].map(c => { const d = document.createElement('div'); d.className = 'col col-' + c; g.appendChild(d); return d })
+  for (const r of list) {
+    cols[0].appendChild(cell('cell-rule', ''))
+    cols[1].appendChild(cell('cell-num', String(r.i + 1)))
+    cols[2].appendChild(cell('cell-src', r.src))
+    cols[3].appendChild(cell('cell-tgt', r.tgt, String(r.i)))
+  }
+  return g
+}
+function rowMajor(list) {
+  const g = document.createElement('div')
+  for (const r of list) {
+    const row = document.createElement('div'); row.className = 'row'
+    row.append(cell('cell-rule', ''), cell('cell-num', String(r.i + 1)), cell('cell-src', r.src), cell('cell-tgt', r.tgt, String(r.i)))
+    g.appendChild(row)
+  }
+  return g
+}
+const raf = () => new Promise(r => requestAnimationFrame(() => r(performance.now())))
+const median = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)] }
+async function run() {
+  const t0 = performance.now()
+  const root = document.getElementById('scroll')
+  if (V === 'subgrid') root.appendChild(columnGrid(rows))
+  else if (V === 'chunk') for (let i = 0; i < N; i += CHUNK) root.appendChild(columnGrid(rows.slice(i, i + CHUNK)))
+  else root.appendChild(rowMajor(rows))
+  await raf(); await raf()
+  const firstLayout = performance.now() - t0
+  const target = document.querySelector(`[data-row="${Math.floor(N / 2)}"]`)
+  target.scrollIntoView({ block: 'center' }); await raf(); await raf()
+  target.focus()
+  const sel = getSelection(); sel.selectAllChildren(target); sel.collapseToEnd()
+  await raf(); await raf()
+  const sync = [], frame = []
+  for (let k = 0; k < KEYS; k++) {
+    const a = performance.now()
+    document.execCommand('insertText', false, k % 5 === 4 ? ' ' : 'a')
+    const b = performance.now()
+    const c = await raf()
+    sync.push(b - a); frame.push(c - a)
+    await new Promise(r => setTimeout(r, 30))
+  }
+  const ok = target.textContent.endsWith('aaaa ') || target.textContent.length > 0
+  return { v: V, n: N, keys: KEYS, firstLayoutMs: Math.round(firstLayout), syncMedMs: +median(sync).toFixed(1), syncMaxMs: +Math.max(...sync).toFixed(1), toFrameMedMs: +median(frame).toFixed(1), toFrameMaxMs: +Math.max(...frame).toFixed(1), typed: ok, ua: navigator.userAgent }
+}
+window.__run = run
+if (q.get('auto')) run().then(r => { document.title = 'DONE:' + JSON.stringify(r) }, e => { document.title = 'DONE:' + JSON.stringify({ error: String(e) }) })
+</script></body></html>

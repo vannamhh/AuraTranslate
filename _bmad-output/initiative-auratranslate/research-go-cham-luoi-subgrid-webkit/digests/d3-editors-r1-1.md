@@ -1,0 +1,30 @@
+# D3 digest r1-1 — large-document editors, CAT grids, virtualization libs
+Accessed 2026-10-23. 14 tool calls. WebFetch summarises pages through a small model, so quotes are second-hand; confidence capped accordingly.
+
+## Claims
+- CodeMirror 6 does not render the whole document when it is big; it renders the visible part plus a margin, keeps height info for the whole doc, and coordinate queries outside the viewport do not work | https://codemirror.net/docs/guide/ | codemirror.net (Marijn Haverbeke) | undated | accessed 2026-10-23 | high | pattern
+- CodeMirror 6 selection is stored in editor state (not tied to rendering); only the main range is mirrored to the DOM selection, the others are drawn by the library; undo history is an extension, not core | https://codemirror.net/docs/guide/ | codemirror.net | undated | accessed 2026-10-23 | medium | pattern
+- CodeMirror guide does not state behaviour for IME, browser Cmd/Ctrl+F, or accessibility with off-viewport text (inference only: off-viewport text is not in the DOM, so native find would miss it) | same | codemirror.net | undated | accessed 2026-10-23 | low | pattern
+- ProseMirror renders the full document DOM; view diffs old/new doc and leaves DOM of unchanged nodes alone; typing is "usually left to the browser"; history is a plugin recording inverses of transactions (own undo, selective undo) | https://prosemirror.net/docs/guide/ | prosemirror.net | undated | accessed 2026-10-23 | medium | pattern
+- ProseMirror has no virtualization; Marijn: "Very big documents making things slow is a known issue" (2020-01-31); a user reports `display:none` on most nodes made a focused large doc fast, attributing lag to visible DOM node count; another suggests CSS `content-visibility: auto` + `contain-intrinsic-size` (search-result paraphrase, not verified in the thread text I fetched) | https://discuss.prosemirror.net/t/performance-issues-with-prosemirror-and-chrome/2498 | ProseMirror discuss forum | 2020-01/2020-05 | accessed 2026-10-23 | medium (older, Chrome-centred) | failure-report
+- A ProseMirror user trying to keep one EditorView for a dynamic list and restore per-item history hit "Position out of range" / mismatched-transaction errors; no clean fix offered | https://discuss.prosemirror.net/t/how-to-restore-history-data-when-using-single-instance-of-editorview/5819 | ProseMirror discuss forum | undated (not fetched, from search snippet) | accessed 2026-10-23 | low | failure-report
+- Editors with their own document model keep the browser-native undo stack empty (W3C editing discussion cited via search; not fetched) | https://lists.w3.org/Archives/Public/public-webapps-github/2025Nov/0256.html | W3C public-webapps-github list | 2025-11 | accessed 2026-10-23 | low | pattern
+- Recreating DOM/editor instances resets undo/redo (TinyMCE forum, GoJS forum; both non-virtualization analogues, search snippets only) | https://www.outsystems.com/forums/discussion/102330/tiny-rich-text-editor-lose-undo-and-redo-history-with-render/ | OutSystems forum | undated | accessed 2026-10-23 | low | failure-report
+- @tanstack/virtual: MIT license, Vue adapter, "dynamic & measured sizing"; npm @tanstack/vue-virtual dist-tag latest 3.13.48 (publish date not retrieved) | https://github.com/TanStack/virtual ; https://registry.npmjs.org/@tanstack/vue-virtual | GitHub / npm | n/a | accessed 2026-10-23 | medium | license / library-version
+- virtua: MIT license, `virtua/vue` adapter requires vue >= 3.2, dynamic sizes measured from DOM, own scroll-anchoring handling (warns to disable browser scroll anchoring on header/footer elements); npm latest 0.53.6 (publish date not retrieved; still 0.x) | https://github.com/inokawa/virtua ; https://registry.npmjs.org/virtua/latest | GitHub / npm | n/a | accessed 2026-10-23 | medium | license / library-version
+- vue-virtual-scroller (Akryum): README says ESM-only in Vue 3 line, 437 commits, 179 open issues, 25 open PRs; license, release date and dynamic-size support NOT visible in the fetched page | https://github.com/Akryum/vue-virtual-scroller | GitHub | n/a | accessed 2026-10-23 | low | library-version
+
+## Leads
+- Read CodeMirror source/changelog for IME and `EditorView.contentAttributes`/find handling off-viewport (codemirror.net/docs/ref, discuss.codemirror.net "search" threads): search panel is in-editor, not native find.
+- VS Code wiki "[WIP] Code Editor Design Doc" (github.com/microsoft/vscode/wiki), section "Render Performance" — only the TOC was seen; official Monaco viewport-line rendering evidence still to fetch.
+- ProseMirror discuss "Lazy rendering for ProseMirror" (/t/lazy-rendering-for-prosemirror/1486) and handlewithcare.dev 2025-12-18 post on low-priority editor updates (reported <10 ms updates on large docs).
+- Fetch raw LICENSE files and npm `time` fields to confirm licenses and publish dates for the three libs.
+- Weblate (open source, github.com/WeblateOrg/weblate) and MateCat (github.com/matecat/MateCat) source: inspect segment list JS for virtualization/pagination (MateCat is known to load segments in batches, unverified).
+- CSS `content-visibility: auto` as an alternative to JS virtualization; check WebKit support/version and its interaction with native find and selection.
+
+## Looked for, not found
+- Official Monaco documentation or design doc stating viewport-only line rendering (only AI-generated tutorial pages and a TOC hit).
+- Any Lexical documentation or issue on 10k+ block performance (search returned unrelated virtualization hits; Lexical not researched).
+- Any engineering write-up on MateCat, Smartcat, Crowdin, Weblate, Phrase or Trados Live segment-grid rendering/virtualization.
+- Retrospective/post-mortem of virtualizing contenteditable rows (native undo loss, IME re-render, cross-row selection, scroll-anchor jumps); only analogues found, so no failure claim here meets the two-independent-source bar.
+- Release dates / last-commit dates for TanStack Virtual, virtua, vue-virtual-scroller (npm `time` truncated).

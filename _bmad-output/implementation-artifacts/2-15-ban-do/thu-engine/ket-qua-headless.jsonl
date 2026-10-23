@@ -1,0 +1,6 @@
+{"engine":"webkit","version":"27.2","v":"subgrid","n":9850,"keys":20,"firstLayoutMs":3841,"syncMedMs":998,"syncMaxMs":1432,"toFrameMedMs":1020,"toFrameMaxMs":1432,"typed":true}
+{"engine":"webkit","version":"27.2","v":"chunk","n":9850,"keys":20,"firstLayoutMs":2455,"syncMedMs":15,"syncMaxMs":17,"toFrameMedMs":15,"toFrameMaxMs":31,"typed":true}
+{"engine":"webkit","version":"27.2","v":"rows","n":9850,"keys":20,"firstLayoutMs":3408,"syncMedMs":14,"syncMaxMs":19,"toFrameMedMs":15,"toFrameMaxMs":61,"typed":true}
+{"engine":"chromium","version":"156.0.8078.4","v":"subgrid","n":9850,"keys":20,"firstLayoutMs":1053,"syncMedMs":171.7,"syncMaxMs":204.9,"toFrameMedMs":172.7,"toFrameMaxMs":205,"typed":true}
+{"engine":"chromium","version":"156.0.8078.4","v":"chunk","n":9850,"keys":20,"firstLayoutMs":986,"syncMedMs":2.9,"syncMaxMs":5.7,"toFrameMedMs":3.2,"toFrameMaxMs":18.9,"typed":true}
+{"engine":"chromium","version":"156.0.8078.4","v":"rows","n":9850,"keys":20,"firstLayoutMs":1095,"syncMedMs":10.7,"syncMaxMs":15.8,"toFrameMedMs":10.9,"toFrameMaxMs":42.9,"typed":true}

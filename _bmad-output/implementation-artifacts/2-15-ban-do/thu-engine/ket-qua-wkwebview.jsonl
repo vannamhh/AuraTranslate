@@ -1,0 +1,5 @@
+2026-10-23 12:26:45.463 swift-frontend[39425:11349723] ApplePersistence=NO
+{"wkwebview":"/System/Library/Frameworks/WebKit.framework","version":"20621.3.11.11.3"}
+{"engine":"system-wkwebview","v":"subgrid","n":9850,"keys":20,"firstLayoutMs":1614,"syncMedMs":468,"syncMaxMs":581,"toFrameMedMs":469,"toFrameMaxMs":581,"typed":true,"ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)"}
+{"engine":"system-wkwebview","v":"chunk","n":9850,"keys":20,"firstLayoutMs":1366,"syncMedMs":10,"syncMaxMs":18,"toFrameMedMs":10,"toFrameMaxMs":26,"typed":true,"ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)"}
+{"engine":"system-wkwebview","v":"rows","n":9850,"keys":20,"firstLayoutMs":2940,"syncMedMs":789,"syncMaxMs":876,"toFrameMedMs":789,"toFrameMaxMs":877,"typed":true,"ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)"}
