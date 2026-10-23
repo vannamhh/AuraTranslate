@@ -3070,6 +3070,7 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
 
 - Một phím gõ ở Chương 9.850 câu tốn 661–762 ms tới hết hai frame (`InputEvent` tổng hợp, WKWebView, bản debug nạp Vite, trước khi sửa) và 611–795 ms sau `v-memo`; vượt trần 50 ms của NFR2 cùng cơ chế vùng sửa được. Story 2.14 chỉ đo, không đụng đường gõ.
   Bàn đo: `_bmad-output/implementation-artifacts/2-14-ban-do/do-doi-con-tro.e2e.mjs`. **Chủ: Story 2.4.**
+  → 2026-10-23 — đường gõ sang bug 2.15, cùng mục "App tụt lại ~15 giây…". **Chủ: Story 2.15.**
 
 - 🔵 **NGUYÊN VĂN của lượt đỏ chập chờn `attribution-focus` — ĐÃ BẮT ĐƯỢC 2026-08-15.**
 
@@ -5120,6 +5121,7 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   → 2026-09-23 (rà sổ nợ) — vẫn đúng: 'Mục ngay trên' (Phiên NFR2 thật 30 phút×n=3, deferred-work.md:4439) vẫn chưa chạy — không dòng đóng nào theo sau lần ghi 2026-08-19; chủ vẫn là Ice chờ máy rảnh ~2 giờ 20 phút. **Chủ: Ice.**
   → 2026-09-24 (xếp nợ) — giao theo `sprint-change-proposal-2026-09-24-epic-11-tra-no-nen.md`. Khớp yếu: story nhận tự quyết đóng hay chuyển chủ khi soạn spec. **Chủ: Story 10.9.**
   → 🔵 2026-10-20 (rà nợ 10.9) — mệnh đề NFR2, mà Story 10.9 phủ NFR1/3/4/5/19, không phủ NFR2; Ice chuyển sang mũi đo NFR2+NFR18 của Story 2.4. **Chủ: Story 2.4.**
+  → 2026-10-23 — Ice tách đường gõ thành bug 2.15 (`epic-bien-tap-theo-segment/tickets/bug-go-lien-tuc-thi-ung-dung-tut-lai-sau-phim-go.md`), không gộp vào 2.14; 2.4 là mũi thăm dò, chỉ đo, không sửa. **Chủ: Story 2.15.**
 
 - ⚠️ **Story 3.4 là story rủi ro nhất của Epic 3, và nó vào với sổ nợ này còn mở.** Nó thêm một
   kênh trang trí lên **cột nguyên văn của lưới** — đúng đường nóng mà cả ba mục trên đang nói tới.

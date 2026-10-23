@@ -202,3 +202,14 @@ covers = []
 after = []
 hitl = false
 risk = "medium"
+
+[[entry]]
+id = 15
+type = "bug"
+title = "Gõ liên tục thì ứng dụng tụt lại sau phím gõ"
+description = "Gõ liên tục 30 giây thì phím xếp hàng và ứng dụng chỉ đuổi kịp sau khi ngừng gõ (đo tháng 8 ở 122 câu, nhịp bàn đo ~40 phím/giây); ở 9.850 câu một phím gõ rời tốn ~700 ms trên bản debug."
+verify = "Với bản dựng thật trên macOS, khi gõ liên tục 30 giây ở 10 phím/giây vào ô bản dịch của Chương 122 câu và Chương 9.850 câu, ba phiên mỗi cỡ, thì chữ của phím cuối và `Mod+Enter` bấm ngay sau đó có tác dụng ≤ 100 ms."
+covers = []
+after = []
+hitl = false
+risk = "medium"

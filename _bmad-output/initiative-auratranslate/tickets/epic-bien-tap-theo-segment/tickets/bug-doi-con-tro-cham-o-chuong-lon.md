@@ -82,5 +82,6 @@ Lưới chưa ảo hoá, và cả lưới là một component dựng mọi hàng
 - Mục nợ đã nêu ba hướng thấy được: ảo hoá hàng, tính quy tắc vạch lề tại chỗ thay vì dựng một `Map` cho toàn danh sách, và tách lớp `editing` ra khỏi lượt tính lại. Chưa hướng nào được đo. Quyết định #7 do Ice ký là "không tối ưu mù".
 - Open question: nếu cách sửa là ảo hoá hàng, hàng §Deferred "Chiến lược ảo hoá danh sách dài" của spine mở sớm hơn Giai đoạn 3. Spine ghi đây là quyết định trình bày trong một module, nên chưa rõ việc này cần một AD mới do Winston soạn hay chỉ cần sửa hàng đó.
 - Đường gõ phím vẫn thuộc Story 2.4 theo quyết định ngày 2026-10-22. Người dựng vé này tự đo và ghi số gõ phím của tiêu chí 2, trước và sau khi sửa, trên cùng bản dựng với số dời con trỏ; 2.4 đọc số đó, không đo thay; nếu số đó vượt 50 ms thì Ice quyết có đưa đường gõ vào vé này hay không.
+- Decision: 2026-10-23, Ice — số gõ phím đã vượt 50 ms (Implementation Notes của plan); đường gõ thành bug 2.15, không gộp vào đây và không chờ vé này.
 - Nếu cách sửa phải đổi cấu trúc lưới và vượt một phiên làm việc, người dựng báo lại để chia vé trước khi làm tiếp.
 - Vế Blink/WebView2 chưa đo; theo luật của dự án, phần kiểm chỉ làm được trên Windows đi vào B7.
