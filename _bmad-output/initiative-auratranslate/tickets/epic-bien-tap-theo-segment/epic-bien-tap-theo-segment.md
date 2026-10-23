@@ -61,4 +61,5 @@ Panel Editor và lưới đối chiếu của một Chương. Không gồm Gloss
 ## Notes
 
 - Retrospective: epic-bien-tap-theo-segment-retrospective.md
+- Decision: 2026-10-23, Ice — Story 2.16 (lưới chia khối) đứng trước bug 2.14 và 2.15, vì cả hai bug dừng ở blocked: WebKit tính lại bố cục cả lưới khi một subgrid trải cả Chương, nên không vá nào trong lưới hiện tại đạt trần.
 - Decision: Story 2.2 và 2.5b thay đổi lời văn FR16, FR19, FR21; ba FR này nghiệm thu lại ở Story 2.5b (epics.md, 2026-08-14); FR20 đã rút.
