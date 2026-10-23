@@ -78,3 +78,55 @@ Phương án B (Ice 2026-10-23) đã làm đủ ba việc. Kết quả: danh sá
 
 ## Gợi ý
 - Ice chọn: (A) dừng 2-16, giữ 2.14/2.15 blocked; (B2) tiếp tục chỉ khi muốn điều tra gốc render 2–3 lần bằng Safari Web Inspector Timeline trên bản release (đo bằng tay, ngoài bàn này); (C) bỏ ý tưởng khối-subgrid và tìm hướng khác cho lệnh gõ (ví dụ tắt subgrid bằng hàng cao cố định) — chưa đo.
+
+# Giao việc Pha 2 lượt 3 (story 2-16) — bản thử C2, Ice duyệt 2026-10-23
+
+Gốc chi phí đã rõ (`d7262fc`; `../../initiative-auratranslate/research-grid-render-on-caret-move/research-grid-render-on-caret-move.md` §3, §Where the answers meet; `memo-probe.cjs`): ở bản thử 2, bốn vòng hàng có `v-memo` nằm trong `v-for` khối nên mọi khối dùng chung bốn ô `_cache` (7/9/13/15) của component; khối k nhận vnode của khối k−1, `_cached.key === s.id` trượt, mọi hàng dựng lại mỗi lượt dời con trỏ. Cả lưới là slot của `PanelFrame`, nên một lượt dời chạy lại một hiệu ứng render cho cả 50 khối.
+
+## Việc (chỉ phần 1 và 2; KHÔNG dựng release, KHÔNG chạy bàn đo — phần 3 Ice hẹn giờ)
+1. Bản thử 3 trên nền bản thử 2: mỗi khối 200 hàng là một component con (tên theo từ vựng cố định của AGENTS.md; không dùng `Project/Book/Novel/Document`). Mục tiêu đo được: một lượt dời con trỏ chỉ render lại khối con trỏ rời và khối con trỏ tới; các khối khác không chạy render.
+   - Khối không được đọc trong render bất kỳ giá trị nào đổi theo con trỏ ở phạm vi cả Chương: `editorCaretSegmentId`, `stripAnchorSegmentId`, `stripAnchorIndex`, `stripBlockIndex`. Mỗi giá trị ấy vào khối qua prop đã thu về phạm vi khối: id con trỏ nếu nằm trong khối, ngược lại `null`; tương tự neo dải, hàng của dải trong khối (`stripRowIn`), có dựng dải hay không. `ruleOf`/`cellLabelOf`/lớp `editing` trong khối dùng prop này, không dùng ref toàn cục.
+   - Giá trị không đổi khi dời con trỏ (`restRuleById`, `selectedRowClassById`, `rowErrorTextById`, `editorEditedShape`, `glossaryTermsOf`…) được phép đọc chung; ghi rõ trong handoff giá trị nào đọc chung.
+   - ⚠️ Prop nào là object/mảng/hàm mới mỗi lượt render của cha (literal `{}`/`[]`, arrow inline, `.slice()` trong template) làm `shouldUpdateComponent` trả true cho mọi khối ⇒ quay về C1. `block` lấy từ `gridBlockViews` (giữ danh tính khi dời con trỏ). Handler sự kiện chuyển qua `provide/inject` một đối tượng hằng hoặc prop hàm ổn định.
+   - Giữ hành vi bản thử 2: `colSrc/colTgt` chỉ gắn ở khối 0, dải ở khối chứa neo, `[data-col="tgt"][data-segment-id]` làm bộ chọn. Không sửa phần ngoài `src/panels/` trừ khi bắt buộc; nếu phải, ghi lý do.
+2. Kiểm bằng vitest (dev build, happy-dom): một tệp test mới đếm số lần mỗi khối render/updated khi `setEditorCaret` đi (a) trong một khối, (b) qua ranh giới khối, (c) khi neo dải đổi khối, ở ≥ 1.000 câu (≥ 5 khối). Mong đợi (a) ≤ 1 khối, (b)(c) ≤ 2 khối. Đếm qua hook công khai của Vue (`updated` trong một mixin/plugin của test, hoặc tương đương), không cài thiết bị đo vào mã sản phẩm. Phải đối chứng đỏ: tạm cho khối đọc thẳng `editorCaretSegmentId` (phép gỡ thật, giữ chữ ký) và thấy test đỏ đúng lý do, rồi trả lại.
+   - Chạy thêm `vue-tsc` và các tệp vitest lưới: `gridCaretMoveCost`, `gridTypingCost`, `gridRuleStable`, `gridPanelStripTrack`, `gridPanelImages`, `gridPanelCellLabel`, `gridPanelRowErrorPriority`, `gridRestoreEditedText`, `editorTypingZone`, `segmentSelection`, `proofreadHighlight`. Đỏ đã biết từ bản thử 2: `gridPanelStripTrack` ×4 và `gridPanelImages` ×1 (đọc `style.gridTemplateRows` trên `.grid`). Đỏ khác ⇒ ghi lý do.
+
+## Nơi làm và đầu ra
+- Worktree tạm (đã có bản thử 2 commit ở `b2874aa`, `node_modules` là symlink): `/private/tmp/claude-501/-Users-hoangnam-LocalSites-addon-AuraTranslate/38ff5937-f6f4-47cd-9033-1ffaf37e4590/scratchpad/tree-b`. Không đụng cây chính ngoài hai tệp đầu ra dưới đây.
+- Đầu ra, ghi vào `/Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/2-16-ban-do/`:
+  - `blocks-prototype-3.patch`: `git diff cc60020 -- src tests` trong worktree (dùng `git add -N` cho tệp mới), áp được lên `cc60020` bằng `git apply` và đứng một mình (không cần patch 2 hay `gridBlocks.ts.txt`).
+  - Mục `# Handoff Pha 2 lượt 3 -> Ice / phần 3` nối vào cuối tệp này: đã làm gì, giá trị nào đọc chung, số khối render ở từng ca, kết quả đối chứng đỏ, danh sách test xanh/đỏ, `vue-tsc`, rủi ro. Ngắn, số kèm phạm vi đo.
+
+# Handoff Pha 2 lượt 3 -> Ice / phần 3 (story 2-16) — bản thử C2
+
+Chưa dựng release, chưa chạy bàn đo; mọi số dưới đây là vitest dev build trên happy-dom, 1.050 câu = 6 khối (5 × 200 + 50), đếm hook `updated` của Vue qua mixin của test.
+
+## Đã làm
+- Patch `blocks-prototype-3.patch` = `git diff cc60020 -- src tests`, `git apply --check` xanh trên cây sạch ở `cc60020`, đứng một mình. Cây thử: scratch `tree-b`, bản thử 3 CHƯA commit ở đó.
+- `src/panels/GridBlock.vue` (mới): một khối 200 hàng = một component, mang nguyên bốn cột + dải cũ và toàn bộ CSS từ `.grid-block` trở xuống (scoped chuyển theo). `src/panels/gridBlockContext.ts` (mới): khoá `provide/inject` + kiểu. `GridPanel.vue` còn vòng `<GridBlock v-for>` và dựng một đối tượng ngữ cảnh HẰNG gọi `provide` một lần.
+- Prop của khối đều nguyên thuỷ hoặc `block` từ `gridBlockViews`: `caretId` (id con trỏ nếu nằm trong khối, ngược lại `null`), `anchorId` (id neo dải nếu nằm trong khối), `stripRow` (hàng dải trong khối, -1 nếu không), `hasStripTrack` (boolean). Cha thêm computed `caretIndex` (một `findIndex` mỗi lượt dời) để cắt `caretId` theo khối.
+- `ruleOf`, `ruleClassForRow`, `ruleSlotClass`, `cellLabelOf`, `STATE_LABEL_KEYS` chuyển sang khối; `ruleOf` dùng `props.caretId` + `restRuleById`. Lớp `editing` dùng `caretId`. v-memo hàng dùng `anchorId`. Khối KHÔNG đọc `editorCaretSegmentId`, `stripAnchorSegmentId`, `stripAnchorIndex`, `stripBlockIndex`.
+- Đọc chung qua ngữ cảnh (không đổi khi dời con trỏ): `restRuleById`, `selectedRowClassById`, `unlinkedIds`, `rowErrorLabelById`, `rowErrorTextById`, `firstSegmentId`, `showHanViet`, `sourceTokenClass`, `cutOffsetsOf`/`cutCountOf`, `glossaryTermsOf`, `sourcePieceInfoOf`, `trailingImagesOf`/`leadingImagesOf`, bảng nhãn vai, các ref/handler (`setCol*Ref`, `setStripTrackRef`, sáu handler cột bản dịch, `onSourceCellMouseUp`, `onGlossaryPiece*`, `onStripFocusOut`). Đọc thẳng từ module trạng thái trong khối: `editorEditedShape`, `editorChapterAssets`, `editorAssetsDir`, `concordanceSourceHighlight`, `viewMode`.
+- Ngoài `src/panels/`: không đụng. Test chuyển theo mã: `gridRuleStable.test.ts` đọc CSS từ `GridBlock.vue` (1 dòng).
+- Hành vi bản thử 2 giữ nguyên: `colSrc/colTgt` chỉ ở khối 0, dải ở khối chứa neo, bộ chọn `[data-col="tgt"][data-segment-id]`.
+
+## Số khối `updated` mỗi lượt (test mới `tests/frontend/gridBlockRenderCost.test.ts`, 4 ca, xanh)
+- (a) dời con trỏ trong một khối (câu 250 -> 251): khối {1} = 1 khối.
+- (b) qua ranh giới (399 -> 400): {1, 2} = 2 khối.
+- (c) con trỏ và neo dải cùng sang khối khác (250 -> 650): {1, 3} = 2 khối; chỉ neo dải đổi (250 -> 850): {1, 4} = 2 khối.
+
+## Đối chứng đỏ
+Phép gỡ thật: `ruleOf` trong `GridBlock.vue` đọc `editorCaretSegmentId.value` thay `props.caretId` (giữ chữ ký, prop vẫn truyền). Kết quả: ca (a) nhận `[0,1,2,3,4,5]` thay `[1]`, ca (b) `[0..5]` thay `[1,2]`, ca con trỏ+neo `[0..5]` thay `[1,3]` — đỏ đúng lý do (cả 6 khối chạy render); ca chỉ-neo vẫn xanh vì nó không đụng con trỏ. Đã trả lại, bốn ca xanh.
+
+## Test và kiểu
+- `vue-tsc --noEmit -p tsconfig.json`: 0 lỗi.
+- vitest, 12 tệp (11 tệp lưới theo giao việc + tệp mới): 85 xanh, 5 đỏ, đúng danh sách đã biết: `gridPanelStripTrack` ×4 và `gridPanelImages` ×1 (đều đọc `style.gridTemplateRows` trên `.grid`; nay thuộc tính ấy nằm trên `.grid-block`). Không đỏ nào khác.
+- Không chạy: toàn bộ suite, gate, e2e, build release.
+
+## Rủi ro
+- Cha vẫn render lại mỗi lượt dời con trỏ (đọc `caretIndex` để cắt prop) và vẫn chạy lại hiệu ứng render của slot `PanelFrame`; chưa đo, nhưng nó chỉ so 50 bộ prop nguyên thuỷ. Phần 3 cần đo thật trên release.
+- `defineExpose({ concordanceHighlightOf, chapterAssetsOf })` trong `GridBlock.vue` chỉ để `vue-tsc` 3.3.9 không báo TS6133 (nó không tính biểu thức `v-memo` là lượt đọc). Một dòng chú thích đã ghi; nếu bản thử vào `src/` thật nên đổi sang cách khác.
+- 5 test đỏ ở trên cần sửa bộ chọn sang `.grid-block` nếu bản thử được nhận; tôi cố ý để nguyên vì giao việc ghi chúng là đỏ đã biết.
+- `selectedRowClassById`, `rowErrorTextById`, `unlinkedIds` đọc chung: khi chúng đổi (vùng chọn, lỗi), mọi khối đọc `.get`/`.has` sẽ chạy lại; chưa có ca test cho vùng chọn đa-segment qua nhiều khối.
+- Ca test không phủ `cutOffsetsOf` (điểm cắt đang chờ) khi dời con trỏ: chưa kiểm khối không-liên-quan có render lại khi `editorSourceCut` đổi cùng lượt dời con trỏ.
