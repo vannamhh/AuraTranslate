@@ -276,26 +276,24 @@ const showFrameStatus = computed(
  * chuỗi rỗng suốt phiên gõ. Không có vế thứ nhất, người dùng gõ xong một câu mà vạch vẫn nói
  * *"chưa dịch"* cho tới lượt nạp lại.
  */
-const ruleById = computed(() => {
-  const caret = editorCaretSegmentId.value
+const restRuleById = computed(() => {
   const edited = editorEditedText.value
   const tmFilled = editorTmFilledSegmentIds.value
   const map = new Map<number, SegmentRuleValue>()
   for (const s of editorSegments.value) {
-    const input = segmentRuleInputOf(s, caret, tmFilled)
+    const input = segmentRuleInputOf(s, null, tmFilled)
     map.set(s.id, resolveSegmentRule({ ...input, targetText: edited.get(s.id) ?? input.targetText }))
   }
   return map
 })
 
-const ruleClassById = computed(() => {
-  const map = new Map<number, string>()
-  for (const [id, rule] of ruleById.value) {
-    const cls = ruleClassOf(rule)
-    if (cls !== null) map.set(id, cls)
-  }
-  return map
-})
+function ruleOf(id: number): SegmentRuleValue {
+  return editorCaretSegmentId.value === id ? 'primary' : (restRuleById.value.get(id) ?? 'none')
+}
+
+function ruleClassForRow(id: number): string {
+  return ruleClassOf(ruleOf(id)) ?? ''
+}
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔵 THÊM Story 4.9 — VÙNG CHỌN NHIỀU-SEGMENT (Decision 1). §Phase 1 Task 2: "a selection
@@ -372,8 +370,10 @@ const trailingImagesBySegmentId = computed(() => {
 })
 
 /** Ảnh hiện Ở CUỐI ô nguyên văn của segment `id` — mọi neo `> 0` khớp đúng segment đó. */
+const NO_IMAGES: ChapterAsset[] = []
+
 function trailingImagesOf(id: number): ChapterAsset[] {
-  return trailingImagesBySegmentId.value.get(id) ?? []
+  return trailingImagesBySegmentId.value.get(id) ?? NO_IMAGES
 }
 
 /** Ảnh hiện Ở ĐẦU ô nguyên văn — CHỈ cho câu đầu Chương, CHỈ ảnh mang neo `0`. */
@@ -1274,7 +1274,7 @@ watch(
 // Story 2.10 giao Task 4 *"cuộn tới hàng, tức thì, không hiệu ứng"* với tiền đề
 // *"CHƯA CÓ — `grep scrollIntoView|scrollTop` trên tệp này = 0 kết quả"*. Tiền đề đó **sai**, và
 // nó sai theo đúng cách mà AC8 **nửa đầu** đã sai: cả hai vế đã được dựng sẵn ở nơi khác.
-// Nửa đầu do `ruleById` lo; nửa sau do `focus()` lo.
+// Nửa đầu do `ruleOf` lo; nửa sau do `focus()` lo.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // BA PHÉP ĐO, và phép thứ nhất là một ĐỘT BIẾN chứ không một lượt đọc mã
@@ -1693,8 +1693,13 @@ const unlinkedIds = computed<ReadonlySet<number>>(
   () => new Set(editorSegments.value.filter((s) => s.unlinked).map((s) => s.id)),
 )
 
+function ruleSlotClass(cls: string): string[] | null {
+  return cls === '' ? null : ['rule', cls]
+}
+
+
 function cellLabelOf(id: number, index: number): string {
-  const rule = t(STATE_LABEL_KEYS[ruleById.value.get(id) ?? 'none'])
+  const rule = t(STATE_LABEL_KEYS[ruleOf(id)])
   const state = unlinkedIds.value.has(id) ? t('panel.grid.state_with_unlinked', { state: rule }) : rule
   const error = rowErrorTextById.value.get(id)
   return error === undefined
@@ -1802,12 +1807,16 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
           trạng thái qua tên truy cập (`aria-label`) của ô bản dịch.
         -->
         <div class="col col-rule" aria-hidden="true">
-          <template v-for="s in editorSegments" :key="s.id">
+          <template
+            v-for="s in editorSegments"
+            :key="s.id"
+            v-memo="[s, ruleClassForRow(s.id), selectedRowClassById.get(s.id), s.id === stripAnchorSegmentId]"
+          >
             <div
               class="cell cell-rule"
               :class="[{ 'para-end': s.is_paragraph_end, 'cell-unlinked': unlinkedIds.has(s.id) }, selectedRowClassById.get(s.id)]"
             >
-              <div v-if="ruleClassById.get(s.id)" class="rule" :class="ruleClassById.get(s.id)"></div>
+              <div class="margin-slot" :class="ruleSlotClass(ruleClassForRow(s.id))"></div>
             </div>
             <div v-if="s.id === stripAnchorSegmentId" class="strip-pad" aria-hidden="true"></div>
           </template>
@@ -1820,7 +1829,11 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
           aura-allow-text: số thứ tự hàng là DỮ LIỆU, không một chuỗi giao diện.
         -->
         <div class="col col-num" aria-hidden="true">
-          <template v-for="(s, i) in editorSegments" :key="s.id">
+          <template
+            v-for="(s, i) in editorSegments"
+            :key="s.id"
+            v-memo="[s, i, selectedRowClassById.get(s.id), s.id === stripAnchorSegmentId]"
+          >
           <div
             class="cell cell-num"
             :class="[{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }, selectedRowClassById.get(s.id)]"
@@ -1831,7 +1844,23 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
 
         <!-- Cột ③ — NGUYÊN VĂN. Một bề mặt vùng chọn duy nhất, vai `'source'` (AC7). -->
         <div ref="colSrc" class="col col-src" :class="sourceTokenClass">
-          <template v-for="s in editorSegments" :key="s.id">
+          <template
+            v-for="s in editorSegments"
+            :key="s.id"
+            v-memo="[
+              s,
+              selectedRowClassById.get(s.id),
+              s.id === stripAnchorSegmentId,
+              cutOffsetsOf(s.id),
+              glossaryTermsOf(s.id),
+              concordanceSourceHighlight?.segmentId === s.id ? concordanceSourceHighlight : null,
+              trailingImagesOf(s.id),
+              s.id === firstSegmentId ? editorChapterAssets : null,
+              editorAssetsDir,
+              showHanViet,
+              viewMode,
+            ]"
+          >
           <div
             class="cell cell-src"
             :class="[
@@ -1978,7 +2007,19 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
             nên trông đã dịch, mà `confirm_segment` vẫn từ chối ký — người dùng không có cách
             nào biết vì sao. 🔴 Rust là nguồn sự thật cho "rỗng"; lưới đi theo, không ngược lại.
           -->
-          <template v-for="(s, i) in editorSegments" :key="s.id">
+          <template
+            v-for="(s, i) in editorSegments"
+            :key="s.id"
+            v-memo="[
+              s,
+              i,
+              selectedRowClassById.get(s.id),
+              s.id === stripAnchorSegmentId,
+              rowErrorTextById.get(s.id),
+              editorEditedText.get(s.id),
+              ruleOf(s.id),
+            ]"
+          >
           <!-- aura-allow-text: bản dịch của người dùng, dữ liệu. -->
           <div
             class="cell cell-tgt"
@@ -2256,8 +2297,12 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
  * là một hàng. Phép đo của nó *(O(n²) 482,4/254,5/261,6 ms → quét đường 8,3/5,2/4,3 ms trên
  * 9.850 vạch)* sống tiếp trong `deferred-work.md` — mã bị gỡ, bằng chứng thì không.
  */
-.rule {
+.margin-slot {
   height: 100%;
+  border-left: 3px solid transparent;
+}
+
+.rule {
   border-radius: var(--radius-sm);
 }
 
@@ -2269,14 +2314,14 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
  * hàm TS sẽ đi qua cổng mà không một dòng nào được soi. `check-commands.mjs` Kiểm I đối chiếu
  * năm khối này **hai chiều** với `SEGMENT_RULE_VALUES`.
  *
- * ⚠️ Giá trị thứ sáu — *không vạch* — **không có khối CSS**, vì nó không vẽ gì: `ruleClassOf`
- * trả `null` và `v-if` không dựng phần tử nào. Năm khối + một sự vắng mặt có chủ = sáu.
+ * Every rule keeps the slot's 3px border width and differs only in style and colour: a width
+ * change relayouts the whole subgrid on WebKit, once per caret move.
  *
  * ⚠️ Hai trong năm màu hôm nay **không đường nào tới được** trên dữ liệu thật — `tm-rule`
  * thuộc Epic 7 (`isTmFilled` còn là hằng `false`) và `ornament` thuộc Story 2.8.
  */
 .rule.rule-confirmed {
-  border-left: 2px solid var(--color-confirmed);
+  border-left: 3px double var(--color-confirmed);
 }
 
 .rule.rule-primary {
@@ -2284,7 +2329,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
 }
 
 .rule.rule-tm-rule {
-  border-left: 2px dotted var(--color-tm-rule);
+  border-left: 3px dotted var(--color-tm-rule);
 }
 
 /*
@@ -2301,7 +2346,7 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
  * (`LookupPanel.vue`, `ImportPreviewOverlay.vue`, `ReadingMode.vue`, dấu điểm cắt ngay dưới).
  */
 .rule.rule-draft {
-  border-left: 2px dashed var(--color-draft);
+  border-left: 3px dashed var(--color-draft);
 }
 
 /*

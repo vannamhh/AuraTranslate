@@ -3066,6 +3066,10 @@ trong chính lượt rà; hai món dưới đây **không** nghiệm thu đượ
   **Chủ: Story 2.4** *(sở hữu bộ đo NFR2/NFR18 — 2.5b **giao số**, không tự chấm, B9)*.
   → 🔵 2026-10-20 (rà nợ) — vẫn đúng ở `bf3f47f`: lưới chưa ảo hoá (mọi `v-for` của `GridPanel.vue` chạy trên toàn `editorSegments`), `ruleById`/`ruleClassById` tính lại trên toàn danh sách mỗi lượt dời con trỏ; 2.5c, 2.5d, 2.11 không đo lại, nên 706–770 ms vẫn là số mới nhất. Lượt rà này không đo lại, không vá. **Chủ: Story 2.4.**
   → 🔵 2026-10-22 — Ice tách đường dời con trỏ khỏi Task 6/AC13 của Story 2.4 thành bug 2.14 (`epic-bien-tap-theo-segment/tickets/bug-doi-con-tro-cham-o-chuong-lon.md`); 2.4 vẫn đo gõ kèm auto-save. **Chủ: Story 2.14.**
+  → 🟡 2026-10-22 (Story 2.14) — đã thử `v-memo` ở bốn `v-for` và tách vế con trỏ khỏi `ruleById`, rồi bỏ theo quyết định của Ice cùng ngày vì không có lợi ích đo được: ở 9.850 câu (WKWebView 605.1.15, bản debug nạp Vite, n=3–4) bấm chuột 663/634/645 ms (trước 688/661/733), `Mod+Alt+ArrowDown` 669/627/711 ms (trước 677/735/777/709). Thử tách phần trong cùng phiên: `setPosition` vào ô bản dịch `contenteditable` ~600 ms, vào ô nguyên văn 27–34 ms, đổi class thuần 33 ms, phần JS đồng bộ 0–14 ms, nên chi phí nghi nằm ở WebKit khi vùng chọn vào một trong 9.850 vùng sửa được, không ở Vue; chưa có phép gỡ đối chứng. Bàn đo: `_bmad-output/implementation-artifacts/2-14-ban-do/`. **Chủ: Story 2.14.**
+
+- Một phím gõ ở Chương 9.850 câu tốn 661–762 ms tới hết hai frame (`InputEvent` tổng hợp, WKWebView, bản debug nạp Vite, trước khi sửa) và 611–795 ms sau `v-memo`; vượt trần 50 ms của NFR2 cùng cơ chế vùng sửa được. Story 2.14 chỉ đo, không đụng đường gõ.
+  Bàn đo: `_bmad-output/implementation-artifacts/2-14-ban-do/do-doi-con-tro.e2e.mjs`. **Chủ: Story 2.4.**
 
 - 🔵 **NGUYÊN VĂN của lượt đỏ chập chờn `attribution-focus` — ĐÃ BẮT ĐƯỢC 2026-08-15.**
 
@@ -13428,3 +13432,6 @@ chính nó.
 - source_plan: `tickets/epic-phat-hanh-va-tin-cay/tickets/story-nghiem-thu-cuoi-cac-nguong-phi-chuc-nang-plan.md`
   summary: Job `publish` của `release.yml` chưa từng chạy với `--sizes`, nên mục `### Dung lượng (NFR6)` trong ghi chú phát hành mới chỉ được dựng cục bộ từ artifact của run `39580744916`.
   evidence: Lượt `workflow_dispatch` bỏ qua `publish`, và 10.9 §Never cấm push tag `v*`. Bố cục `size-reports/nfr6-sizes-<OS>/sizes.json` khớp README của `download-artifact` ở SHA đang ghim (`pattern` không kèm `merge-multiple` thì mỗi artifact một thư mục), nhưng chưa có lượt chạy thật nào. Lượt tag đầu tiên sẽ xác nhận; nếu sai, bước `create the release` đỏ và không có bản phát hành nào được tạo. **Chủ: Ice.**
+
+- **Hình vạch lề mới chưa ai nhìn trong ứng dụng thật** (Story 2.14). Mọi vạch nay dày 3 px, `confirmed` thành nét đôi trong cột rộng 3 px; e2e chỉ đọc computed style, không xem nét đôi, đứt, chấm có còn phân biệt được bằng mắt ở dpr 1 và 2, sáng và tối.
+  Nhìn một Chương có đủ bốn trạng thái trong lượt dùng thật trước khi Epic 2 đóng. **Chủ: Epic 2.**

@@ -1,0 +1,607 @@
+{
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "tai_truoc": "22:00  up 2 days, 12:20, 20 users, load averages: 4.59 4.77 4.52",
+  "tai_sau": "22:04  up 2 days, 12:24, 20 users, load averages: 4.24 4.52 4.48",
+  "bien_the": [
+    {
+      "ten": "1-tgt-setPosition",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 35965,
+          "t1": 35967,
+          "tLong": 36659,
+          "tR1": 36604,
+          "tR2": 36702,
+          "tSel": 36232
+        },
+        {
+          "t0": 37468,
+          "t1": 37471,
+          "tLong": 38165,
+          "tR1": 38111.00000000001,
+          "tR2": 38184,
+          "tSel": 37768
+        },
+        {
+          "t0": 38973,
+          "t1": 38975,
+          "tLong": 39587,
+          "tR1": 39539,
+          "tR2": 39618,
+          "tSel": 39206
+        },
+        {
+          "t0": 40477.00000000001,
+          "t1": 40480.00000000001,
+          "tLong": 41189,
+          "tR1": 41123,
+          "tR2": 41218,
+          "tSel": 40727.00000000001
+        },
+        {
+          "t0": 41981,
+          "t1": 41983.00000000001,
+          "tLong": 42600,
+          "tR1": 42554,
+          "tR2": 42634,
+          "tSel": 42214
+        },
+        {
+          "t0": 43484,
+          "t1": 43487,
+          "tLong": 44183,
+          "tR1": 44113,
+          "tR2": 44201,
+          "tSel": 43717
+        }
+      ],
+      "derived": [
+        {
+          "sync": 2,
+          "handlers": 267,
+          "toFrame1": 639,
+          "frame1": 98,
+          "total": 737,
+          "tLong": 694
+        },
+        {
+          "sync": 3,
+          "handlers": 300,
+          "toFrame1": 643,
+          "frame1": 73,
+          "total": 716,
+          "tLong": 697
+        },
+        {
+          "sync": 2,
+          "handlers": 233,
+          "toFrame1": 566,
+          "frame1": 79,
+          "total": 645,
+          "tLong": 614
+        },
+        {
+          "sync": 3,
+          "handlers": 250,
+          "toFrame1": 646,
+          "frame1": 95,
+          "total": 741,
+          "tLong": 712
+        },
+        {
+          "sync": 2,
+          "handlers": 233,
+          "toFrame1": 573,
+          "frame1": 80,
+          "total": 653,
+          "tLong": 619
+        },
+        {
+          "sync": 3,
+          "handlers": 233,
+          "toFrame1": 629,
+          "frame1": 88,
+          "total": 717,
+          "tLong": 699
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 250,
+        "toFrame1": 639,
+        "frame1": 88,
+        "total": 717,
+        "tLong": 697
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ]
+    },
+    {
+      "ten": "2-src-setPosition",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 35764,
+          "t1": 35764,
+          "tLong": 35764,
+          "tR1": 35764,
+          "tR2": 35789,
+          "tSel": 35764
+        },
+        {
+          "t0": 37265,
+          "t1": 37265,
+          "tLong": 37266,
+          "tR1": 37266,
+          "tR2": 37289,
+          "tSel": 37266
+        },
+        {
+          "t0": 38766,
+          "t1": 38766,
+          "tLong": 38766,
+          "tR1": 38766,
+          "tR2": 38788.00000000001,
+          "tSel": 38766
+        },
+        {
+          "t0": 40267,
+          "t1": 40267,
+          "tLong": 40267,
+          "tR1": 40267,
+          "tR2": 40289,
+          "tSel": 40267
+        },
+        {
+          "t0": 41768,
+          "t1": 41768,
+          "tLong": 41772,
+          "tR1": 41768,
+          "tR2": 41789,
+          "tSel": 41768
+        },
+        {
+          "t0": 43269,
+          "t1": 43269,
+          "tLong": 43273,
+          "tR1": 43269,
+          "tR2": 43289,
+          "tSel": 43269
+        }
+      ],
+      "derived": [
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 25,
+          "total": 25,
+          "tLong": 0
+        },
+        {
+          "sync": 0,
+          "handlers": 1,
+          "toFrame1": 1,
+          "frame1": 23,
+          "total": 24,
+          "tLong": 1
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 22,
+          "total": 22,
+          "tLong": 0
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 22,
+          "total": 22,
+          "tLong": 0
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 21,
+          "total": 21,
+          "tLong": 4
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 20,
+          "total": 20,
+          "tLong": 4
+        }
+      ],
+      "medians": {
+        "sync": 0,
+        "handlers": 0,
+        "toFrame1": 0,
+        "frame1": 22,
+        "total": 22,
+        "tLong": 1
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ]
+    },
+    {
+      "ten": "3-tgt-realClick",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 54349.00000000001,
+          "t1": null,
+          "tLong": 54622,
+          "tR1": 55041.00000000001,
+          "tR2": 55174,
+          "tSel": 55102.00000000001
+        },
+        {
+          "t0": 56867.00000000001,
+          "t1": null,
+          "tLong": 57087,
+          "tR1": 57414,
+          "tR2": 57476,
+          "tSel": 57457
+        },
+        {
+          "t0": 59198,
+          "t1": null,
+          "tLong": 59475,
+          "tR1": 59855.00000000001,
+          "tR2": 59910.00000000001,
+          "tSel": 59897
+        },
+        {
+          "t0": 61652,
+          "t1": null,
+          "tLong": 61908,
+          "tR1": 62297.00000000001,
+          "tR2": 62360,
+          "tSel": 62348
+        },
+        {
+          "t0": 64108.00000000001,
+          "t1": null,
+          "tLong": 64372,
+          "tR1": 64762,
+          "tR2": 64826.00000000001,
+          "tSel": 64807
+        },
+        {
+          "t0": 66556,
+          "t1": null,
+          "tLong": 66805,
+          "tR1": 67196,
+          "tR2": 67259,
+          "tSel": 67246
+        }
+      ],
+      "derived": [
+        {
+          "sync": null,
+          "handlers": 753,
+          "toFrame1": 692,
+          "frame1": 133,
+          "total": 825,
+          "tLong": 273
+        },
+        {
+          "sync": null,
+          "handlers": 590,
+          "toFrame1": 547,
+          "frame1": 62,
+          "total": 609,
+          "tLong": 220
+        },
+        {
+          "sync": null,
+          "handlers": 699,
+          "toFrame1": 657,
+          "frame1": 55,
+          "total": 712,
+          "tLong": 277
+        },
+        {
+          "sync": null,
+          "handlers": 696,
+          "toFrame1": 645,
+          "frame1": 63,
+          "total": 708,
+          "tLong": 256
+        },
+        {
+          "sync": null,
+          "handlers": 699,
+          "toFrame1": 654,
+          "frame1": 64,
+          "total": 718,
+          "tLong": 264
+        },
+        {
+          "sync": null,
+          "handlers": 690,
+          "toFrame1": 640,
+          "frame1": 63,
+          "total": 703,
+          "tLong": 249
+        }
+      ],
+      "medians": {
+        "sync": null,
+        "handlers": 699,
+        "toFrame1": 654,
+        "frame1": 63,
+        "total": 712,
+        "tLong": 264
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ]
+    },
+    {
+      "ten": "4-tgt-setPosition-drift",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 35886,
+          "t1": 35894,
+          "tLong": 36594,
+          "tR1": 36548,
+          "tR2": 36628,
+          "tSel": 36178
+        },
+        {
+          "t0": 37416.00000000001,
+          "t1": 37419.00000000001,
+          "tLong": 38137,
+          "tR1": 38069,
+          "tR2": 38162,
+          "tSel": 37678
+        },
+        {
+          "t0": 38920,
+          "t1": 38923,
+          "tLong": 39638,
+          "tR1": 39581,
+          "tR2": 39678.00000000001,
+          "tSel": 39195
+        },
+        {
+          "t0": 40437,
+          "t1": 40441,
+          "tLong": 41098,
+          "tR1": 41044.00000000001,
+          "tR2": 41129,
+          "tSel": 40675.00000000001
+        },
+        {
+          "t0": 41954,
+          "t1": 41957,
+          "tLong": 42621,
+          "tR1": 42563,
+          "tR2": 42662,
+          "tSel": 42198
+        },
+        {
+          "t0": 43458,
+          "t1": 43461,
+          "tLong": 44158,
+          "tR1": 44085,
+          "tR2": 44178.00000000001,
+          "tSel": 43690
+        }
+      ],
+      "derived": [
+        {
+          "sync": 8,
+          "handlers": 292,
+          "toFrame1": 662,
+          "frame1": 80,
+          "total": 742,
+          "tLong": 708
+        },
+        {
+          "sync": 3,
+          "handlers": 262,
+          "toFrame1": 653,
+          "frame1": 93,
+          "total": 746,
+          "tLong": 721
+        },
+        {
+          "sync": 3,
+          "handlers": 275,
+          "toFrame1": 661,
+          "frame1": 97,
+          "total": 758,
+          "tLong": 718
+        },
+        {
+          "sync": 4,
+          "handlers": 238,
+          "toFrame1": 607,
+          "frame1": 85,
+          "total": 692,
+          "tLong": 661
+        },
+        {
+          "sync": 3,
+          "handlers": 244,
+          "toFrame1": 609,
+          "frame1": 99,
+          "total": 708,
+          "tLong": 667
+        },
+        {
+          "sync": 3,
+          "handlers": 232,
+          "toFrame1": 627,
+          "frame1": 93,
+          "total": 720,
+          "tLong": 700
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 262,
+        "toFrame1": 653,
+        "frame1": 93,
+        "total": 742,
+        "tLong": 708
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ]
+    }
+  ]
+}

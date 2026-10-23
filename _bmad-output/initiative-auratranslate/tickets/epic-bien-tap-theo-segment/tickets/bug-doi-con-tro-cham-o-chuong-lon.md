@@ -34,6 +34,8 @@ Lưới chưa ảo hoá, và cả lưới là một component dựng mọi hàng
 
 Đường gõ phím có thể chung cơ chế: mỗi phím gõ thay cả bảng chữ đang sửa, mà bảng này cả quy tắc vạch lề lẫn template đều đọc. Chưa ai đo một lượt gõ ở 9.850 câu; số 24–33 ms của 2.5b là `selectionchange` bên trong cùng một ô, lúc con trỏ không đổi câu.
 
+🔵 2026-10-22 — đo tách trong Story 2.14 (plan, Implementation Notes) cho thấy giả thuyết trên chỉ đúng một phần. ~225 ms là `PanelFrame` dựng lại cả slot lưới. ~390 ms là WebKit tính lại bố cục cả lưới `subgrid`, vì vạch lề của câu nhận con trỏ là một phần tử được chèn mới vào lưới. Số ô sửa được, vùng chọn, bộ gõ và CSS của lưới không phải nguyên nhân.
+
 ## Acceptance Criteria
 
 1. **Dời con trỏ xong trong một frame ở Chương lớn**
@@ -74,6 +76,8 @@ Lưới chưa ảo hoá, và cả lưới là một component dựng mọi hàng
 
 - Decision: 2026-10-22, Ice — vé này nhận hẳn đường dời con trỏ, tách khỏi Task 6 và AC13 của Story 2.4. Story 2.4 vẫn đo lúc gõ kèm auto-save. Mục nợ ở `deferred-work.md` đổi Chủ từ Story 2.4 sang vé này.
 - Decision: 2026-10-22, Ice — trần 50 ms là trần frame mượn từ NFR2. Theo lời PRD, NFR2 chỉ nói về lúc auto-save chạy, nên vé này không nghiệm thu NFR2 và `covers` để rỗng.
+- Decision: 2026-10-22, Ice — sau sáu phép đo, hướng sửa là: vạch lề luôn có mặt, `.strip-pad` sửa cùng khuôn nếu đắt, làm lại `v-memo` kèm ca test cho từng giá trị, đo trên bản dựng thật; không ảo hoá hàng.
+- Decision: 2026-10-23, Ice — mọi vạch lề dày 3 px, chỉ khác kiểu nét và màu (`confirmed` thành nét đôi), vì đổi bề dày vạch khi dời con trỏ ép tính lại bố cục cả lưới; DESIGN.md mang 🔵 2026-10-23.
 - Decision: 2026-10-22, Ice — đặt ở Epic 2; risk medium vì đây là thao tác thường nhất, chậm 15 lần nhưng không mất dữ liệu; severity P2 vì Chương nhỏ vẫn dùng được.
 - Mục nợ đã nêu ba hướng thấy được: ảo hoá hàng, tính quy tắc vạch lề tại chỗ thay vì dựng một `Map` cho toàn danh sách, và tách lớp `editing` ra khỏi lượt tính lại. Chưa hướng nào được đo. Quyết định #7 do Ice ký là "không tối ưu mù".
 - Open question: nếu cách sửa là ảo hoá hàng, hàng §Deferred "Chiến lược ảo hoá danh sách dài" của spine mở sớm hơn Giai đoạn 3. Spine ghi đây là quyết định trình bày trong một module, nên chưa rõ việc này cần một AD mới do Winston soạn hay chỉ cần sửa hàng đó.

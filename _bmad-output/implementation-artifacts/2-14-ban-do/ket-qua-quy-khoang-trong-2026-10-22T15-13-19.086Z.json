@@ -1,0 +1,2891 @@
+{
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "tai_truoc": "22:11  up 2 days, 12:31, 20 users, load averages: 4.82 3.95 4.15",
+  "tai_sau": "22:13  up 2 days, 12:33, 20 users, load averages: 4.13 4.00 4.15",
+  "vue_app": true,
+  "bien_the": [
+    {
+      "ten": "a-instr-setPosition",
+      "instr": true,
+      "n": 6,
+      "per_sample": [
+        {
+          "cov": {
+            "r1": 644,
+            "total": 742,
+            "vue": 218.99999999999272,
+            "layout_union": 2,
+            "layout_sum_hits": 2,
+            "layout_sum_all_calls": 2,
+            "timers": 0,
+            "events": 245,
+            "ipc_handlers": 0,
+            "known_union": 247,
+            "uncovered": 397,
+            "blocks_union": 644,
+            "blocks_not_known": 397,
+            "n_ping": 313
+          },
+          "timeline": [
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 702,
+              "dur": 702
+            },
+            {
+              "kind": "layout",
+              "rel": 1,
+              "dur": 2,
+              "name": "focus",
+              "src": "@",
+              "frames": [
+                "@"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 3,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "vue",
+              "rel": 4,
+              "dur": 0,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 4,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "vue",
+              "rel": 28.000000000007276,
+              "dur": 168.99999999999272,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 197,
+              "dur": 50,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 248,
+              "name": "selectionchange:doc_last"
+            },
+            {
+              "kind": "timeout",
+              "rel": 644,
+              "dur": 0,
+              "sched_rel": 1,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 644,
+              "dur": 0,
+              "sched_rel": 1,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 702,
+              "dur": 0,
+              "sched_rel": 248,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 703,
+              "dur": 0,
+              "sched_rel": 3,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "block",
+              "rel": 742,
+              "end": 762,
+              "dur": 20
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "blur",
+              "rel": 1,
+              "end": 1,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 1,
+              "end": 1,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 1,
+              "end": 1,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 1,
+              "end": 1,
+              "dur": 0
+            },
+            {
+              "type": "selectionchange",
+              "rel": 3,
+              "end": 248,
+              "dur": 245
+            }
+          ],
+          "consumers": {
+            "layout focus @ @": {
+              "ms": 2,
+              "n": 1
+            },
+            "timeout cb scheduled @ onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 0,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 2,
+              "n": 1
+            }
+          },
+          "tSel": 3
+        },
+        {
+          "cov": {
+            "r1": 596,
+            "total": 688,
+            "vue": 233,
+            "layout_union": 4,
+            "layout_sum_hits": 4,
+            "layout_sum_all_calls": 4,
+            "timers": 0,
+            "events": 257,
+            "ipc_handlers": 0,
+            "known_union": 260,
+            "uncovered": 336,
+            "blocks_union": 596,
+            "blocks_not_known": 336,
+            "n_ping": 133
+          },
+          "timeline": [
+            {
+              "kind": "layout",
+              "rel": 0,
+              "dur": 4,
+              "name": "focus",
+              "src": "@",
+              "frames": [
+                "@"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 667,
+              "dur": 667
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 1,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "vue",
+              "rel": 4,
+              "dur": 0,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 4,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 4,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "vue",
+              "rel": 26,
+              "dur": 185,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 211,
+              "dur": 48,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 260,
+              "name": "selectionchange:doc_last"
+            },
+            {
+              "kind": "timeout",
+              "rel": 596,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 596,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 667,
+              "dur": 1,
+              "sched_rel": 260,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 668,
+              "dur": 0,
+              "sched_rel": 4,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "block",
+              "rel": 688,
+              "end": 735,
+              "dur": 47
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "blur",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 0,
+              "end": 1,
+              "dur": 1
+            },
+            {
+              "type": "selectionchange",
+              "rel": 4,
+              "end": 260,
+              "dur": 256
+            }
+          ],
+          "consumers": {
+            "layout focus @ @": {
+              "ms": 4,
+              "n": 1
+            },
+            "timeout cb scheduled @ onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 1,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 0,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 4,
+              "n": 1
+            }
+          },
+          "tSel": 4
+        },
+        {
+          "cov": {
+            "r1": 633,
+            "total": 733,
+            "vue": 229,
+            "layout_union": 3,
+            "layout_sum_hits": 3,
+            "layout_sum_all_calls": 3,
+            "timers": 0,
+            "events": 253,
+            "ipc_handlers": 0,
+            "known_union": 256,
+            "uncovered": 377,
+            "blocks_union": 633,
+            "blocks_not_known": 377,
+            "n_ping": 317
+          },
+          "timeline": [
+            {
+              "kind": "layout",
+              "rel": 0,
+              "dur": 3,
+              "name": "focus",
+              "src": "@",
+              "frames": [
+                "@"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 691,
+              "dur": 691
+            },
+            {
+              "kind": "vue",
+              "rel": 3,
+              "dur": 1,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "event",
+              "rel": 3,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "vue",
+              "rel": 4,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "vue",
+              "rel": 27,
+              "dur": 175,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 202,
+              "dur": 53,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 256,
+              "name": "selectionchange:doc_last"
+            },
+            {
+              "kind": "timeout",
+              "rel": 633,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 633,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 691,
+              "dur": 0,
+              "sched_rel": 255,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 691,
+              "dur": 0,
+              "sched_rel": 3,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "block",
+              "rel": 732,
+              "end": 752,
+              "dur": 20
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "blur",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "selectionchange",
+              "rel": 3,
+              "end": 256,
+              "dur": 253
+            }
+          ],
+          "consumers": {
+            "layout focus @ @": {
+              "ms": 3,
+              "n": 1
+            },
+            "timeout cb scheduled @ onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 0,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 3,
+              "n": 1
+            }
+          },
+          "tSel": 3
+        },
+        {
+          "cov": {
+            "r1": 651.9999999999927,
+            "total": 757.9999999999927,
+            "vue": 215,
+            "layout_union": 3,
+            "layout_sum_hits": 3,
+            "layout_sum_all_calls": 3,
+            "timers": 0,
+            "events": 240.99999999998545,
+            "ipc_handlers": 0,
+            "known_union": 242.99999999999272,
+            "uncovered": 409,
+            "blocks_union": 651.9999999999927,
+            "blocks_not_known": 409,
+            "n_ping": 153
+          },
+          "timeline": [
+            {
+              "kind": "layout",
+              "rel": 0,
+              "dur": 3,
+              "name": "focus",
+              "src": "@",
+              "frames": [
+                "@"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 734.9999999999927,
+              "dur": 734.9999999999927
+            },
+            {
+              "kind": "event",
+              "rel": 0.999999999992724,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0.999999999992724,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 3,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "vue",
+              "rel": 3.999999999992724,
+              "dur": 0,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 3.999999999992724,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "vue",
+              "rel": 26.999999999992724,
+              "dur": 166,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 192.99999999999272,
+              "dur": 49,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 242.99999999999272,
+              "name": "selectionchange:doc_last"
+            },
+            {
+              "kind": "timeout",
+              "rel": 650.9999999999927,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 650.9999999999927,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 735.9999999999927,
+              "dur": 0,
+              "sched_rel": 241.99999999999272,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 735.9999999999927,
+              "dur": 0,
+              "sched_rel": 3.999999999992724,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "block",
+              "rel": 757.9999999999927,
+              "end": 779.9999999999927,
+              "dur": 22
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "blur",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 0,
+              "end": 0.999999999992724,
+              "dur": 0.999999999992724
+            },
+            {
+              "type": "selectionchange",
+              "rel": 3,
+              "end": 242.99999999999272,
+              "dur": 239.99999999999272
+            }
+          ],
+          "consumers": {
+            "layout focus @ @": {
+              "ms": 3,
+              "n": 1
+            },
+            "timeout cb scheduled @ onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 0,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 3,
+              "n": 1
+            }
+          },
+          "tSel": 3
+        },
+        {
+          "cov": {
+            "r1": 619,
+            "total": 716,
+            "vue": 222,
+            "layout_union": 3,
+            "layout_sum_hits": 3,
+            "layout_sum_all_calls": 3,
+            "timers": 0,
+            "events": 240,
+            "ipc_handlers": 0,
+            "known_union": 243,
+            "uncovered": 376,
+            "blocks_union": 619,
+            "blocks_not_known": 376,
+            "n_ping": 275
+          },
+          "timeline": [
+            {
+              "kind": "layout",
+              "rel": 0,
+              "dur": 3,
+              "name": "focus",
+              "src": "@",
+              "frames": [
+                "@"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 679,
+              "dur": 679
+            },
+            {
+              "kind": "event",
+              "rel": 1.000000000007276,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 1.000000000007276,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 1.000000000007276,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 1.000000000007276,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 1.000000000007276,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "vue",
+              "rel": 3,
+              "dur": 0,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 3,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 3,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "vue",
+              "rel": 21,
+              "dur": 174,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 195,
+              "dur": 48,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 243,
+              "name": "selectionchange:doc_last"
+            },
+            {
+              "kind": "timeout",
+              "rel": 679,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 679,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 679,
+              "dur": 0,
+              "sched_rel": 243,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 679,
+              "dur": 1,
+              "sched_rel": 3,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "block",
+              "rel": 716,
+              "end": 761,
+              "dur": 45
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "blur",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 1.000000000007276,
+              "end": 1.000000000007276,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 1.000000000007276,
+              "end": 1.000000000007276,
+              "dur": 0
+            },
+            {
+              "type": "selectionchange",
+              "rel": 3,
+              "end": 243,
+              "dur": 240
+            }
+          ],
+          "consumers": {
+            "layout focus @ @": {
+              "ms": 3,
+              "n": 1
+            },
+            "timeout cb scheduled @ onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 1,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 3,
+              "n": 1
+            }
+          },
+          "tSel": 3
+        },
+        {
+          "cov": {
+            "r1": 674,
+            "total": 769,
+            "vue": 239,
+            "layout_union": 3,
+            "layout_sum_hits": 3,
+            "layout_sum_all_calls": 3,
+            "timers": 0,
+            "events": 266,
+            "ipc_handlers": 0,
+            "known_union": 269,
+            "uncovered": 405,
+            "blocks_union": 674,
+            "blocks_not_known": 405,
+            "n_ping": 190
+          },
+          "timeline": [
+            {
+              "kind": "layout",
+              "rel": 0,
+              "dur": 3,
+              "name": "focus",
+              "src": "@",
+              "frames": [
+                "@"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 743,
+              "dur": 743
+            },
+            {
+              "kind": "vue",
+              "rel": 3,
+              "dur": 0,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 3,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 3,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "vue",
+              "rel": 29,
+              "dur": 181,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 210,
+              "dur": 58,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 269,
+              "name": "selectionchange:doc_last"
+            },
+            {
+              "kind": "timeout",
+              "rel": 743,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 743,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 0,
+              "src": "onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26"
+            },
+            {
+              "kind": "timeout",
+              "rel": 743,
+              "dur": 0,
+              "sched_rel": 269,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 743,
+              "dur": 1,
+              "sched_rel": 3,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "block",
+              "rel": 769,
+              "end": 827,
+              "dur": 58
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "blur",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "selectionchange",
+              "rel": 3,
+              "end": 269,
+              "dur": 266
+            }
+          ],
+          "consumers": {
+            "layout focus @ @": {
+              "ms": 3,
+              "n": 1
+            },
+            "timeout cb scheduled @ onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 1,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 3,
+              "n": 1
+            }
+          },
+          "tSel": 3
+        }
+      ],
+      "totals": [
+        742,
+        688,
+        733,
+        757.9999999999927,
+        716,
+        769
+      ],
+      "r1s": [
+        644,
+        596,
+        633,
+        651.9999999999927,
+        619,
+        674
+      ],
+      "cov_medians": {
+        "r1": 644,
+        "total": 742,
+        "vue": 229,
+        "layout_union": 3,
+        "layout_sum_hits": 3,
+        "layout_sum_all_calls": 3,
+        "timers": 0,
+        "events": 253,
+        "ipc_handlers": 0,
+        "known_union": 256,
+        "uncovered": 397,
+        "blocks_union": 644,
+        "blocks_not_known": 397,
+        "n_ping": 275
+      },
+      "consumers": {
+        "layout focus @ @": {
+          "ms": 3,
+          "n": 1
+        },
+        "timeout cb scheduled @ onBlur@http://localhost:1420/node_modules/.vite/deps/dockview-vue.js:368:26": {
+          "ms": 0,
+          "n": 2
+        },
+        "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+          "ms": 0,
+          "n": 1
+        },
+        "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+          "ms": 0,
+          "n": 1
+        }
+      },
+      "agg_medians": {
+        "focus": {
+          "ms": 3,
+          "n": 1
+        }
+      },
+      "medians": {
+        "total": 742,
+        "r1": 644
+      }
+    },
+    {
+      "ten": "b-control-setPosition",
+      "instr": false,
+      "n": 6,
+      "marks": [
+        {
+          "t0": 44227.00000000001,
+          "tR1": 44829,
+          "tEnd": 44927
+        },
+        {
+          "t0": 45729,
+          "tR1": 46389,
+          "tEnd": 46519
+        },
+        {
+          "t0": 47233.00000000001,
+          "tR1": 47870.00000000001,
+          "tEnd": 47944
+        },
+        {
+          "t0": 48738,
+          "tR1": 49351,
+          "tEnd": 49444
+        },
+        {
+          "t0": 50250,
+          "tR1": 50865,
+          "tEnd": 50960
+        },
+        {
+          "t0": 51760,
+          "tR1": 52303.00000000001,
+          "tEnd": 52378
+        }
+      ],
+      "totals": [
+        699.9999999999927,
+        790,
+        710.9999999999927,
+        706,
+        710,
+        618
+      ],
+      "r1s": [
+        601.9999999999927,
+        660,
+        637,
+        613,
+        615,
+        543.0000000000073
+      ],
+      "medians": {
+        "total": 710,
+        "r1": 615
+      }
+    },
+    {
+      "ten": "c-instr-realClick",
+      "instr": true,
+      "n": 5,
+      "per_sample": [
+        {
+          "cov": {
+            "r1": 655,
+            "total": 706,
+            "vue": 270.00000000001455,
+            "layout_union": 1.999999999985448,
+            "layout_sum_hits": 1.999999999985448,
+            "layout_sum_all_calls": 1.999999999985448,
+            "timers": 0,
+            "events": 0,
+            "ipc_handlers": 0,
+            "known_union": 272,
+            "uncovered": 383,
+            "blocks_union": 655,
+            "blocks_not_known": 383,
+            "n_ping": 175
+          },
+          "timeline": [
+            {
+              "kind": "vue",
+              "rel": 0,
+              "dur": 1,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:doc_bub"
+            },
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 688,
+              "dur": 688
+            },
+            {
+              "kind": "vue",
+              "rel": 1,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "vue",
+              "rel": 24,
+              "dur": 209,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 233,
+              "dur": 60.00000000001455,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "layout",
+              "rel": 653.0000000000146,
+              "dur": 1.999999999985448,
+              "name": "focus",
+              "src": "src/panels/GridPanel.vue:788",
+              "frames": [
+                "onCellMouseUp@http://localhost:1420/src/panels/GridPanel.vue:788:14",
+                "callWithErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1895:19",
+                "callWithAsyncErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1902:36",
+                "invoker@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:7721:36"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "mouseup:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "mouseup:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 653.0000000000146,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "raf",
+              "rel": 655,
+              "dur": 0,
+              "sched_rel": 655,
+              "delay": null,
+              "src": "src/panels/GridPanel.vue:897"
+            },
+            {
+              "kind": "event",
+              "rel": 655,
+              "name": "mouseup:doc_bub"
+            },
+            {
+              "kind": "timeout",
+              "rel": 687,
+              "dur": 0,
+              "sched_rel": 294,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 687,
+              "dur": 1,
+              "sched_rel": 0,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "timeout",
+              "rel": 688,
+              "dur": 0,
+              "sched_rel": 653.0000000000146,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 688,
+              "dur": 0,
+              "sched_rel": 653.0000000000146,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 688,
+              "dur": 0,
+              "sched_rel": 655,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:919"
+            },
+            {
+              "kind": "event",
+              "rel": 688,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "event",
+              "rel": 688,
+              "name": "selectionchange:doc_last"
+            },
+            {
+              "kind": "block",
+              "rel": 706,
+              "end": 721,
+              "dur": 15
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "mousedown",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "mouseup",
+              "rel": 653.0000000000146,
+              "end": 653.0000000000146,
+              "dur": 0
+            },
+            {
+              "type": "blur",
+              "rel": 653.0000000000146,
+              "end": 653.0000000000146,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 653.0000000000146,
+              "end": 653.0000000000146,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 653.0000000000146,
+              "end": 653.0000000000146,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 653.0000000000146,
+              "end": 653.0000000000146,
+              "dur": 0
+            },
+            {
+              "type": "selectionchange",
+              "rel": 688,
+              "end": 688,
+              "dur": 0
+            }
+          ],
+          "consumers": {
+            "layout focus @ src/panels/GridPanel.vue:788": {
+              "ms": 1.999999999985448,
+              "n": 1
+            },
+            "raf cb scheduled @ src/panels/GridPanel.vue:897": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 1,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:788": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:919": {
+              "ms": 0,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 1.999999999985448,
+              "n": 1
+            }
+          },
+          "tSel": 688
+        },
+        {
+          "cov": {
+            "r1": 652,
+            "total": 720,
+            "vue": 223,
+            "layout_union": 3,
+            "layout_sum_hits": 3,
+            "layout_sum_all_calls": 3,
+            "timers": 0,
+            "events": 0,
+            "ipc_handlers": 0,
+            "known_union": 226,
+            "uncovered": 426,
+            "blocks_union": 652,
+            "blocks_not_known": 426,
+            "n_ping": 74
+          },
+          "timeline": [
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:doc_bub"
+            },
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 710,
+              "dur": 710
+            },
+            {
+              "kind": "vue",
+              "rel": 1,
+              "dur": 0,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 1,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "vue",
+              "rel": 23,
+              "dur": 172,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 195,
+              "dur": 51,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "layout",
+              "rel": 648,
+              "dur": 3,
+              "name": "focus",
+              "src": "src/panels/GridPanel.vue:788",
+              "frames": [
+                "onCellMouseUp@http://localhost:1420/src/panels/GridPanel.vue:788:14",
+                "callWithErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1895:19",
+                "callWithAsyncErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1902:36",
+                "invoker@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:7721:36"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 648,
+              "name": "mouseup:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 648,
+              "name": "mouseup:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 649,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "raf",
+              "rel": 652,
+              "dur": 0,
+              "sched_rel": 652,
+              "delay": null,
+              "src": "src/panels/GridPanel.vue:897"
+            },
+            {
+              "kind": "event",
+              "rel": 652,
+              "name": "mouseup:doc_bub"
+            },
+            {
+              "kind": "timeout",
+              "rel": 709.0000000000146,
+              "dur": 0,
+              "sched_rel": 246,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 709.0000000000146,
+              "dur": 0.9999999999854481,
+              "sched_rel": 0,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "timeout",
+              "rel": 710,
+              "dur": 0,
+              "sched_rel": 649,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 710,
+              "dur": 0,
+              "sched_rel": 649,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 710,
+              "dur": 0,
+              "sched_rel": 652,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:919"
+            },
+            {
+              "kind": "event",
+              "rel": 710,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "event",
+              "rel": 710,
+              "name": "selectionchange:doc_last"
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "mousedown",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "mouseup",
+              "rel": 648,
+              "end": 648,
+              "dur": 0
+            },
+            {
+              "type": "blur",
+              "rel": 649,
+              "end": 649,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 649,
+              "end": 649,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 649,
+              "end": 649,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 649,
+              "end": 649,
+              "dur": 0
+            },
+            {
+              "type": "selectionchange",
+              "rel": 710,
+              "end": 710,
+              "dur": 0
+            }
+          ],
+          "consumers": {
+            "layout focus @ src/panels/GridPanel.vue:788": {
+              "ms": 3,
+              "n": 1
+            },
+            "raf cb scheduled @ src/panels/GridPanel.vue:897": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 0.9999999999854481,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:788": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:919": {
+              "ms": 0,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 3,
+              "n": 1
+            }
+          },
+          "tSel": 710
+        },
+        {
+          "cov": {
+            "r1": 576,
+            "total": 629,
+            "vue": 224,
+            "layout_union": 2,
+            "layout_sum_hits": 2,
+            "layout_sum_all_calls": 2,
+            "timers": 0,
+            "events": 0,
+            "ipc_handlers": 0,
+            "known_union": 226,
+            "uncovered": 350,
+            "blocks_union": 576,
+            "blocks_not_known": 350,
+            "n_ping": 170
+          },
+          "timeline": [
+            {
+              "kind": "vue",
+              "rel": 0,
+              "dur": 0,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:doc_bub"
+            },
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 609.0000000000146,
+              "dur": 609.0000000000146
+            },
+            {
+              "kind": "vue",
+              "rel": 1,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "vue",
+              "rel": 21,
+              "dur": 176,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 197,
+              "dur": 48,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "layout",
+              "rel": 573,
+              "dur": 2,
+              "name": "focus",
+              "src": "src/panels/GridPanel.vue:788",
+              "frames": [
+                "onCellMouseUp@http://localhost:1420/src/panels/GridPanel.vue:788:14",
+                "callWithErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1895:19",
+                "callWithAsyncErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1902:36",
+                "invoker@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:7721:36"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "mouseup:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "mouseup:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 573,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "raf",
+              "rel": 576,
+              "dur": 0,
+              "sched_rel": 576,
+              "delay": null,
+              "src": "src/panels/GridPanel.vue:897"
+            },
+            {
+              "kind": "event",
+              "rel": 576,
+              "name": "mouseup:doc_bub"
+            },
+            {
+              "kind": "timeout",
+              "rel": 609.0000000000146,
+              "dur": 0,
+              "sched_rel": 245,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 609.0000000000146,
+              "dur": 0,
+              "sched_rel": 0,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "timeout",
+              "rel": 609.0000000000146,
+              "dur": 0,
+              "sched_rel": 573,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 609.0000000000146,
+              "dur": 0,
+              "sched_rel": 573,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 609.0000000000146,
+              "dur": 0,
+              "sched_rel": 576,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:919"
+            },
+            {
+              "kind": "event",
+              "rel": 609.0000000000146,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "event",
+              "rel": 609.0000000000146,
+              "name": "selectionchange:doc_last"
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "mousedown",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "mouseup",
+              "rel": 573,
+              "end": 573,
+              "dur": 0
+            },
+            {
+              "type": "blur",
+              "rel": 573,
+              "end": 573,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 573,
+              "end": 573,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 573,
+              "end": 573,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 573,
+              "end": 573,
+              "dur": 0
+            },
+            {
+              "type": "selectionchange",
+              "rel": 609.0000000000146,
+              "end": 609.0000000000146,
+              "dur": 0
+            }
+          ],
+          "consumers": {
+            "layout focus @ src/panels/GridPanel.vue:788": {
+              "ms": 2,
+              "n": 1
+            },
+            "raf cb scheduled @ src/panels/GridPanel.vue:897": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:788": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:919": {
+              "ms": 0,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 2,
+              "n": 1
+            }
+          },
+          "tSel": 609.0000000000146
+        },
+        {
+          "cov": {
+            "r1": 638.9999999999854,
+            "total": 703.9999999999854,
+            "vue": 236,
+            "layout_union": 2,
+            "layout_sum_hits": 2,
+            "layout_sum_all_calls": 2,
+            "timers": 0,
+            "events": 0,
+            "ipc_handlers": 0,
+            "known_union": 238,
+            "uncovered": 400.99999999998545,
+            "blocks_union": 638.9999999999854,
+            "blocks_not_known": 400.99999999998545,
+            "n_ping": 102
+          },
+          "timeline": [
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 690.9999999999854,
+              "dur": 690.9999999999854
+            },
+            {
+              "kind": "vue",
+              "rel": 0.9999999999854481,
+              "dur": 0,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 0.9999999999854481,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 0.9999999999854481,
+              "name": "mousedown:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0.9999999999854481,
+              "name": "mousedown:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0.9999999999854481,
+              "name": "mousedown:doc_bub"
+            },
+            {
+              "kind": "vue",
+              "rel": 23.999999999985448,
+              "dur": 184,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 207.99999999998545,
+              "dur": 52,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "layout",
+              "rel": 635.9999999999854,
+              "dur": 2,
+              "name": "focus",
+              "src": "src/panels/GridPanel.vue:788",
+              "frames": [
+                "onCellMouseUp@http://localhost:1420/src/panels/GridPanel.vue:788:14",
+                "callWithErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1895:19",
+                "callWithAsyncErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1902:36",
+                "invoker@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:7721:36"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 635.9999999999854,
+              "name": "mouseup:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 635.9999999999854,
+              "name": "mouseup:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 635.9999999999854,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 635.9999999999854,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 635.9999999999854,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 635.9999999999854,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 635.9999999999854,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 635.9999999999854,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 635.9999999999854,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 636.9999999999854,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 636.9999999999854,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 636.9999999999854,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "raf",
+              "rel": 638.9999999999854,
+              "dur": 0,
+              "sched_rel": 638.9999999999854,
+              "delay": null,
+              "src": "src/panels/GridPanel.vue:897"
+            },
+            {
+              "kind": "event",
+              "rel": 638.9999999999854,
+              "name": "mouseup:doc_bub"
+            },
+            {
+              "kind": "timeout",
+              "rel": 690.9999999999854,
+              "dur": 0,
+              "sched_rel": 260.99999999998545,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 690.9999999999854,
+              "dur": 0,
+              "sched_rel": 0.9999999999854481,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "event",
+              "rel": 690.9999999999854,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "timeout",
+              "rel": 691.9999999999854,
+              "dur": 0,
+              "sched_rel": 635.9999999999854,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 691.9999999999854,
+              "dur": 0,
+              "sched_rel": 635.9999999999854,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 691.9999999999854,
+              "dur": 0,
+              "sched_rel": 638.9999999999854,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:919"
+            },
+            {
+              "kind": "event",
+              "rel": 691.9999999999854,
+              "name": "selectionchange:doc_last"
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "mousedown",
+              "rel": 0.9999999999854481,
+              "end": 0.9999999999854481,
+              "dur": 0
+            },
+            {
+              "type": "mouseup",
+              "rel": 635.9999999999854,
+              "end": 635.9999999999854,
+              "dur": 0
+            },
+            {
+              "type": "blur",
+              "rel": 635.9999999999854,
+              "end": 635.9999999999854,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 635.9999999999854,
+              "end": 635.9999999999854,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 635.9999999999854,
+              "end": 635.9999999999854,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 636.9999999999854,
+              "end": 636.9999999999854,
+              "dur": 0
+            },
+            {
+              "type": "selectionchange",
+              "rel": 690.9999999999854,
+              "end": 691.9999999999854,
+              "dur": 1
+            }
+          ],
+          "consumers": {
+            "layout focus @ src/panels/GridPanel.vue:788": {
+              "ms": 2,
+              "n": 1
+            },
+            "raf cb scheduled @ src/panels/GridPanel.vue:897": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:788": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:919": {
+              "ms": 0,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 2,
+              "n": 1
+            }
+          },
+          "tSel": 690.9999999999854
+        },
+        {
+          "cov": {
+            "r1": 597,
+            "total": 662.0000000000146,
+            "vue": 207.99999999998545,
+            "layout_union": 2,
+            "layout_sum_hits": 2,
+            "layout_sum_all_calls": 2,
+            "timers": 0,
+            "events": 0,
+            "ipc_handlers": 0,
+            "known_union": 209.99999999998545,
+            "uncovered": 387.00000000001455,
+            "blocks_union": 597,
+            "blocks_not_known": 387.00000000001455,
+            "n_ping": 226
+          },
+          "timeline": [
+            {
+              "kind": "vue",
+              "rel": 0,
+              "dur": 0,
+              "name": "<StatusBar> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 0,
+              "dur": 0,
+              "name": "<StatusBar> patch"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 0,
+              "name": "mousedown:doc_bub"
+            },
+            {
+              "kind": "block",
+              "rel": 0,
+              "end": 636,
+              "dur": 636
+            },
+            {
+              "kind": "vue",
+              "rel": 22.000000000014552,
+              "dur": 160.99999999998545,
+              "name": "<PanelFrame> render"
+            },
+            {
+              "kind": "vue",
+              "rel": 183,
+              "dur": 47,
+              "name": "<PanelFrame> patch"
+            },
+            {
+              "kind": "layout",
+              "rel": 594,
+              "dur": 2,
+              "name": "focus",
+              "src": "src/panels/GridPanel.vue:788",
+              "frames": [
+                "onCellMouseUp@http://localhost:1420/src/panels/GridPanel.vue:788:14",
+                "callWithErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1895:19",
+                "callWithAsyncErrorHandling@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:1902:36",
+                "invoker@http://localhost:1420/node_modules/.vite/deps/vue.runtime.esm-bundler-CR3Nwe7D.js:7721:36"
+              ]
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "mouseup:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "mouseup:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "blur:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "blur:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "focusout:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "focusout:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "focusout:doc_bub"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "focus:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "focus:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "focusin:cap"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "focusin:tgt_last"
+            },
+            {
+              "kind": "event",
+              "rel": 594,
+              "name": "focusin:doc_bub"
+            },
+            {
+              "kind": "raf",
+              "rel": 597,
+              "dur": 0,
+              "sched_rel": 597,
+              "delay": null,
+              "src": "src/panels/GridPanel.vue:897"
+            },
+            {
+              "kind": "event",
+              "rel": 597,
+              "name": "mouseup:doc_bub"
+            },
+            {
+              "kind": "timeout",
+              "rel": 635.0000000000146,
+              "dur": 0,
+              "sched_rel": 230,
+              "delay": 150,
+              "src": "src/tmFuzzyStripState.ts:105"
+            },
+            {
+              "kind": "timeout",
+              "rel": 635.0000000000146,
+              "dur": 0.9999999999854481,
+              "sched_rel": 0,
+              "delay": 500,
+              "src": "src/panels/editorPanelState.ts:548"
+            },
+            {
+              "kind": "timeout",
+              "rel": 636,
+              "dur": 0,
+              "sched_rel": 594,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 636,
+              "dur": 0,
+              "sched_rel": 594,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:788"
+            },
+            {
+              "kind": "timeout",
+              "rel": 636,
+              "dur": 0,
+              "sched_rel": 597,
+              "delay": 0,
+              "src": "src/panels/GridPanel.vue:919"
+            },
+            {
+              "kind": "event",
+              "rel": 636,
+              "name": "selectionchange:doc_first"
+            },
+            {
+              "kind": "event",
+              "rel": 636,
+              "name": "selectionchange:doc_last"
+            }
+          ],
+          "evPairs": [
+            {
+              "type": "mousedown",
+              "rel": 0,
+              "end": 0,
+              "dur": 0
+            },
+            {
+              "type": "mouseup",
+              "rel": 594,
+              "end": 594,
+              "dur": 0
+            },
+            {
+              "type": "blur",
+              "rel": 594,
+              "end": 594,
+              "dur": 0
+            },
+            {
+              "type": "focusout",
+              "rel": 594,
+              "end": 594,
+              "dur": 0
+            },
+            {
+              "type": "focus",
+              "rel": 594,
+              "end": 594,
+              "dur": 0
+            },
+            {
+              "type": "focusin",
+              "rel": 594,
+              "end": 594,
+              "dur": 0
+            },
+            {
+              "type": "selectionchange",
+              "rel": 636,
+              "end": 636,
+              "dur": 0
+            }
+          ],
+          "consumers": {
+            "layout focus @ src/panels/GridPanel.vue:788": {
+              "ms": 2,
+              "n": 1
+            },
+            "raf cb scheduled @ src/panels/GridPanel.vue:897": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+              "ms": 0,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+              "ms": 0.9999999999854481,
+              "n": 1
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:788": {
+              "ms": 0,
+              "n": 2
+            },
+            "timeout cb scheduled @ src/panels/GridPanel.vue:919": {
+              "ms": 0,
+              "n": 1
+            }
+          },
+          "agg": {
+            "focus": {
+              "ms": 2,
+              "n": 1
+            }
+          },
+          "tSel": 636
+        }
+      ],
+      "totals": [
+        706,
+        720,
+        629,
+        703.9999999999854,
+        662.0000000000146
+      ],
+      "r1s": [
+        655,
+        652,
+        576,
+        638.9999999999854,
+        597
+      ],
+      "cov_medians": {
+        "r1": 638.9999999999854,
+        "total": 703.9999999999854,
+        "vue": 224,
+        "layout_union": 2,
+        "layout_sum_hits": 2,
+        "layout_sum_all_calls": 2,
+        "timers": 0,
+        "events": 0,
+        "ipc_handlers": 0,
+        "known_union": 226,
+        "uncovered": 387.00000000001455,
+        "blocks_union": 638.9999999999854,
+        "blocks_not_known": 387.00000000001455,
+        "n_ping": 170
+      },
+      "consumers": {
+        "layout focus @ src/panels/GridPanel.vue:788": {
+          "ms": 2,
+          "n": 1
+        },
+        "timeout cb scheduled @ src/panels/editorPanelState.ts:548": {
+          "ms": 0.9999999999854481,
+          "n": 1
+        },
+        "raf cb scheduled @ src/panels/GridPanel.vue:897": {
+          "ms": 0,
+          "n": 1
+        },
+        "timeout cb scheduled @ src/tmFuzzyStripState.ts:105": {
+          "ms": 0,
+          "n": 1
+        },
+        "timeout cb scheduled @ src/panels/GridPanel.vue:788": {
+          "ms": 0,
+          "n": 2
+        },
+        "timeout cb scheduled @ src/panels/GridPanel.vue:919": {
+          "ms": 0,
+          "n": 1
+        }
+      },
+      "agg_medians": {
+        "focus": {
+          "ms": 2,
+          "n": 1
+        }
+      },
+      "medians": {
+        "total": 703.9999999999854,
+        "r1": 638.9999999999854
+      }
+    }
+  ]
+}

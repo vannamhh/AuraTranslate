@@ -1,0 +1,754 @@
+{
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "tai_truoc": "22:44  up 2 days, 13:04, 20 users, load averages: 4.90 4.40 4.19",
+  "tai_sau": "22:49  up 2 days, 13:09, 20 users, load averages: 9.84 6.13 4.92",
+  "pha1": {
+    "canary_mutations_expected_2": 2,
+    "nhat_ky": [
+      {
+        "cell": 25,
+        "marks": {
+          "t0": 34548,
+          "t1": 34555,
+          "tLong": null,
+          "tR1": 35211,
+          "tR2": 35285.00000000001,
+          "tSel": 34825
+        },
+        "mutations": []
+      },
+      {
+        "cell": 3,
+        "marks": {
+          "t0": 36058,
+          "t1": 36062,
+          "tLong": null,
+          "tR1": 36668,
+          "tR2": 36753,
+          "tSel": 36296
+        },
+        "mutations": []
+      },
+      {
+        "cell": 25,
+        "marks": {
+          "t0": 37564,
+          "t1": 37567,
+          "tLong": null,
+          "tR1": 38246,
+          "tR2": 38376,
+          "tSel": 37846
+        },
+        "mutations": []
+      }
+    ],
+    "tom_tat": {
+      "dem_theo_kieu_ca_ba_luot": {},
+      "dem_theo_nhom": {},
+      "theo_luot": [
+        {
+          "move": 1,
+          "cell": 25,
+          "tong_mutation": 0,
+          "so_hang_khac_nhau": 0,
+          "theo_cot_hang": {},
+          "total_ms": 737
+        },
+        {
+          "move": 2,
+          "cell": 3,
+          "tong_mutation": 0,
+          "so_hang_khac_nhau": 0,
+          "theo_cot_hang": {},
+          "total_ms": 695
+        },
+        {
+          "move": 3,
+          "cell": 25,
+          "tong_mutation": 0,
+          "so_hang_khac_nhau": 0,
+          "theo_cot_hang": {},
+          "total_ms": 812
+        }
+      ]
+    }
+  },
+  "bien_the": [
+    {
+      "ten": "R0",
+      "replayed": "khong phat lai",
+      "selection": "tgt",
+      "filtro": null,
+      "n": 6,
+      "n_ops": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dom": {
+        "all": 49446,
+        "tgt": 9850,
+        "tgt_ce": 9850,
+        "vue_con": false
+      },
+      "marks": [
+        {
+          "n_ops": 0,
+          "t0": 39113,
+          "t1": 39116,
+          "tLong": 39127,
+          "tR1": 39116,
+          "tR2": 39138,
+          "tSel": 39116
+        },
+        {
+          "n_ops": 0,
+          "t0": 40667,
+          "t1": 40669.00000000001,
+          "tLong": 40669.00000000001,
+          "tR1": 40671,
+          "tR2": 40727.00000000001,
+          "tSel": 40669.00000000001
+        },
+        {
+          "n_ops": 0,
+          "t0": 42222,
+          "t1": 42225,
+          "tLong": 42252,
+          "tR1": 42225,
+          "tR2": 42288.00000000001,
+          "tSel": 42225
+        },
+        {
+          "n_ops": 0,
+          "t0": 43780,
+          "t1": 43783,
+          "tLong": 43787,
+          "tR1": 43788.00000000001,
+          "tR2": 43839,
+          "tSel": 43783
+        },
+        {
+          "n_ops": 0,
+          "t0": 45334,
+          "t1": 45337,
+          "tLong": 45365,
+          "tR1": 45339,
+          "tR2": 45387,
+          "tSel": 45337
+        },
+        {
+          "n_ops": 0,
+          "t0": 46889,
+          "t1": 46891,
+          "tLong": 46896,
+          "tR1": 46904,
+          "tR2": 46961,
+          "tSel": 46891
+        }
+      ],
+      "derived": [
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 22,
+          "total": 25,
+          "tLong": 14
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 4,
+          "frame1": 56,
+          "total": 60,
+          "tLong": 2
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 63,
+          "total": 66,
+          "tLong": 30
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 8,
+          "frame1": 51,
+          "total": 59,
+          "tLong": 7
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 5,
+          "frame1": 48,
+          "total": 53,
+          "tLong": 31
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 15,
+          "frame1": 57,
+          "total": 72,
+          "tLong": 7
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 5,
+        "frame1": 56,
+        "total": 60,
+        "tLong": 14
+      }
+    },
+    {
+      "ten": "R1",
+      "replayed": "tron bo",
+      "selection": "tgt",
+      "filtro": null,
+      "n": 6,
+      "n_ops": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dom": {
+        "all": 49446,
+        "tgt": 9850,
+        "tgt_ce": 9850,
+        "vue_con": false
+      },
+      "marks": [
+        {
+          "n_ops": 0,
+          "t0": 38796,
+          "t1": 38799,
+          "tLong": 38799,
+          "tR1": 38803,
+          "tR2": 38820,
+          "tSel": 38799
+        },
+        {
+          "n_ops": 0,
+          "t0": 40352.00000000001,
+          "t1": 40355.00000000001,
+          "tLong": 40390,
+          "tR1": 40355.00000000001,
+          "tR2": 40420,
+          "tSel": 40355.00000000001
+        },
+        {
+          "n_ops": 0,
+          "t0": 41910.00000000001,
+          "t1": 41913.00000000001,
+          "tLong": 41918,
+          "tR1": 41921,
+          "tR2": 41971,
+          "tSel": 41913.00000000001
+        },
+        {
+          "n_ops": 0,
+          "t0": 43465,
+          "t1": 43468,
+          "tLong": 43507,
+          "tR1": 43471,
+          "tR2": 43523,
+          "tSel": 43469
+        },
+        {
+          "n_ops": 0,
+          "t0": 45021,
+          "t1": 45024,
+          "tLong": 45051,
+          "tR1": 45024,
+          "tR2": 45073,
+          "tSel": 45024
+        },
+        {
+          "n_ops": 0,
+          "t0": 46576,
+          "t1": 46578,
+          "tLong": 46582,
+          "tR1": 46586,
+          "tR2": 46645,
+          "tSel": 46578
+        }
+      ],
+      "derived": [
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 7,
+          "frame1": 17,
+          "total": 24,
+          "tLong": 3
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 65,
+          "total": 68,
+          "tLong": 38
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 11,
+          "frame1": 50,
+          "total": 61,
+          "tLong": 8
+        },
+        {
+          "sync": 3,
+          "handlers": 4,
+          "toFrame1": 6,
+          "frame1": 52,
+          "total": 58,
+          "tLong": 42
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 49,
+          "total": 52,
+          "tLong": 30
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 10,
+          "frame1": 59,
+          "total": 69,
+          "tLong": 6
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 7,
+        "frame1": 52,
+        "total": 61,
+        "tLong": 30
+      }
+    },
+    {
+      "ten": "R2",
+      "replayed": "tron bo",
+      "selection": "src",
+      "filtro": null,
+      "n": 6,
+      "n_ops": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dom": {
+        "all": 49446,
+        "tgt": 9850,
+        "tgt_ce": 9850,
+        "vue_con": false
+      },
+      "marks": [
+        {
+          "n_ops": 0,
+          "t0": 39095,
+          "t1": 39095,
+          "tLong": 39095,
+          "tR1": 39095,
+          "tR2": 39117,
+          "tSel": 39095
+        },
+        {
+          "n_ops": 0,
+          "t0": 40648,
+          "t1": 40648,
+          "tLong": 40648,
+          "tR1": 40648,
+          "tR2": 40666.00000000001,
+          "tSel": 40648
+        },
+        {
+          "n_ops": 0,
+          "t0": 42200,
+          "t1": 42200,
+          "tLong": 42205,
+          "tR1": 42200,
+          "tR2": 42216,
+          "tSel": 42200
+        },
+        {
+          "n_ops": 0,
+          "t0": 43752,
+          "t1": 43752,
+          "tLong": 43756,
+          "tR1": 43752,
+          "tR2": 43767,
+          "tSel": 43752
+        },
+        {
+          "n_ops": 0,
+          "t0": 45305,
+          "t1": 45305,
+          "tLong": 45309,
+          "tR1": 45305,
+          "tR2": 45316,
+          "tSel": 45305
+        },
+        {
+          "n_ops": 0,
+          "t0": 46859,
+          "t1": 46859,
+          "tLong": 46864.00000000001,
+          "tR1": 46859,
+          "tR2": 46883,
+          "tSel": 46859
+        }
+      ],
+      "derived": [
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 22,
+          "total": 22,
+          "tLong": 0
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 18,
+          "total": 18,
+          "tLong": 0
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 16,
+          "total": 16,
+          "tLong": 5
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 15,
+          "total": 15,
+          "tLong": 4
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 11,
+          "total": 11,
+          "tLong": 4
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 24,
+          "total": 24,
+          "tLong": 5
+        }
+      ],
+      "medians": {
+        "sync": 0,
+        "handlers": 0,
+        "toFrame1": 0,
+        "frame1": 18,
+        "total": 18,
+        "tLong": 4
+      }
+    },
+    {
+      "ten": "R3",
+      "replayed": "tron bo",
+      "selection": "none",
+      "filtro": null,
+      "n": 6,
+      "n_ops": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dom": {
+        "all": 49446,
+        "tgt": 9850,
+        "tgt_ce": 9850,
+        "vue_con": false
+      },
+      "marks": [
+        {
+          "n_ops": 0,
+          "t0": 39206,
+          "t1": 39206,
+          "tLong": 39207,
+          "tR1": 39207,
+          "tR2": 39218,
+          "tSel": null
+        },
+        {
+          "n_ops": 0,
+          "t0": 40760,
+          "t1": 40760,
+          "tLong": 40760,
+          "tR1": 40760,
+          "tR2": 40783,
+          "tSel": null
+        },
+        {
+          "n_ops": 0,
+          "t0": 42312,
+          "t1": 42313,
+          "tLong": 42317,
+          "tR1": 42313,
+          "tR2": 42333,
+          "tSel": null
+        },
+        {
+          "n_ops": 0,
+          "t0": 43864.00000000001,
+          "t1": 43864.00000000001,
+          "tLong": 43869,
+          "tR1": 43864.00000000001,
+          "tR2": 43884,
+          "tSel": null
+        },
+        {
+          "n_ops": 0,
+          "t0": 45418,
+          "t1": 45418,
+          "tLong": 45422.00000000001,
+          "tR1": 45418,
+          "tR2": 45435,
+          "tSel": null
+        },
+        {
+          "n_ops": 0,
+          "t0": 46968,
+          "t1": 46968,
+          "tLong": 46973,
+          "tR1": 46968,
+          "tR2": 46983.00000000001,
+          "tSel": null
+        }
+      ],
+      "derived": [
+        {
+          "sync": 0,
+          "handlers": null,
+          "toFrame1": 1,
+          "frame1": 11,
+          "total": 12,
+          "tLong": 1
+        },
+        {
+          "sync": 0,
+          "handlers": null,
+          "toFrame1": 0,
+          "frame1": 23,
+          "total": 23,
+          "tLong": 0
+        },
+        {
+          "sync": 1,
+          "handlers": null,
+          "toFrame1": 1,
+          "frame1": 20,
+          "total": 21,
+          "tLong": 5
+        },
+        {
+          "sync": 0,
+          "handlers": null,
+          "toFrame1": 0,
+          "frame1": 20,
+          "total": 20,
+          "tLong": 5
+        },
+        {
+          "sync": 0,
+          "handlers": null,
+          "toFrame1": 0,
+          "frame1": 17,
+          "total": 17,
+          "tLong": 4
+        },
+        {
+          "sync": 0,
+          "handlers": null,
+          "toFrame1": 0,
+          "frame1": 15,
+          "total": 15,
+          "tLong": 5
+        }
+      ],
+      "medians": {
+        "sync": 0,
+        "handlers": null,
+        "toFrame1": 0,
+        "frame1": 20,
+        "total": 20,
+        "tLong": 5
+      }
+    },
+    {
+      "ten": "R-last",
+      "replayed": "khong phat lai (troi)",
+      "selection": "tgt",
+      "filtro": null,
+      "n": 6,
+      "n_ops": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "dom": {
+        "all": 49446,
+        "tgt": 9850,
+        "tgt_ce": 9850,
+        "vue_con": false
+      },
+      "marks": [
+        {
+          "n_ops": 0,
+          "t0": 39675.00000000001,
+          "t1": 39678.00000000001,
+          "tLong": 39680,
+          "tR1": 39678.00000000001,
+          "tR2": 39686,
+          "tSel": 39678.00000000001
+        },
+        {
+          "n_ops": 0,
+          "t0": 41230.00000000001,
+          "t1": 41232,
+          "tLong": 41232,
+          "tR1": 41236.00000000001,
+          "tR2": 41295,
+          "tSel": 41232
+        },
+        {
+          "n_ops": 0,
+          "t0": 42783,
+          "t1": 42786,
+          "tLong": 42811,
+          "tR1": 42786,
+          "tR2": 42831,
+          "tSel": 42786
+        },
+        {
+          "n_ops": 0,
+          "t0": 44337,
+          "t1": 44339,
+          "tLong": 44344,
+          "tR1": 44353,
+          "tR2": 44411,
+          "tSel": 44339
+        },
+        {
+          "n_ops": 0,
+          "t0": 45889,
+          "t1": 45891,
+          "tLong": 45896,
+          "tR1": 45903,
+          "tR2": 45948,
+          "tSel": 45892
+        },
+        {
+          "n_ops": 0,
+          "t0": 47445,
+          "t1": 47447,
+          "tLong": 47452,
+          "tR1": 47452,
+          "tR2": 47498,
+          "tSel": 47447
+        }
+      ],
+      "derived": [
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 8,
+          "total": 11,
+          "tLong": 5
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 6,
+          "frame1": 59,
+          "total": 65,
+          "tLong": 2
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 45,
+          "total": 48,
+          "tLong": 28
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 16,
+          "frame1": 58,
+          "total": 74,
+          "tLong": 7
+        },
+        {
+          "sync": 2,
+          "handlers": 3,
+          "toFrame1": 14,
+          "frame1": 45,
+          "total": 59,
+          "tLong": 7
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 7,
+          "frame1": 46,
+          "total": 53,
+          "tLong": 7
+        }
+      ],
+      "medians": {
+        "sync": 2,
+        "handlers": 3,
+        "toFrame1": 7,
+        "frame1": 46,
+        "total": 59,
+        "tLong": 7
+      }
+    }
+  ],
+  "nhom_bi_bo": []
+}

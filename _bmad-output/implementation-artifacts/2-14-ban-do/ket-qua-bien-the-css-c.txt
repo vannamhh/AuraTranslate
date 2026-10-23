@@ -1,0 +1,12 @@
+[2.14] quần thể: {"href":"http://localhost:1420/","so_cau":9850,"ua":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)"}
+[2.14] doi-chung: mousedown → 2 frame (ms): {"lan":[678,699,717,589,716],"trung_vi":699,"max":717}
+[2.14] doi-chung: vạch vẽ ra: {"before":"0px none static h=auto","slot":"3px solid","slot_h":"34.0","so_primary":1}
+[2.14] c-tuyet-doi: mousedown → 2 frame (ms): {"lan":[1016,1038,1033,1010,1036],"trung_vi":1033,"max":1038}
+[2.14] c-tuyet-doi: vạch vẽ ra: {"before":"3px solid absolute h=34px","slot":"0px none","slot_h":"34.0","so_primary":1}
+[2.14] vien-deu-3px: mousedown → 2 frame (ms): {"lan":[154,176,164,173,158],"trung_vi":164,"max":176}
+[2.14] vien-deu-3px: vạch vẽ ra: {"before":"0px none static h=auto","slot":"3px solid","slot_h":"34.0","so_primary":1}
+[2.14] c-tuyet-doi-lai: mousedown → 2 frame (ms): {"lan":[954,958,955,1050,905],"trung_vi":955,"max":1050}
+[2.14] c-tuyet-doi-lai: vạch vẽ ra: {"before":"3px solid absolute h=34px","slot":"0px none","slot_h":"34.0","so_primary":1}
+[2.14] doi-chung-lai: mousedown → 2 frame (ms): {"lan":[695,610,720,619,683],"trung_vi":683,"max":720}
+[2.14] doi-chung-lai: vạch vẽ ra: {"before":"0px none static h=auto","slot":"3px solid","slot_h":"34.0","so_primary":1}
+[webkit 605.1.15 macos #0-0] 5 passing (11m 45.8s)

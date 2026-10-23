@@ -396,6 +396,7 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 > ⚠️ Máng **22px** cũng hết đúng — cột vạch nay rộng **3px** và vạch lấy chiều cao từ **track hàng** của `subgrid`, không từ một phép đo `getClientRects()`.
 > 🔵 **2026-10-13 (D3, `change-hoan-thien-giao-dien-theo-mockup`):** cột nhãn trạng thái không còn hiện. Chữ trạng thái ở lại trong hàng, ẩn khỏi mắt, và là lý do vạch vẫn được `aria-hidden`. Vì vạch thành kênh thị giác duy nhất, các trạng thái của nó phải khác nhau **ngoài màu** (WCAG 1.4.1): hình nét (liền · đứt · chấm) hoặc độ dày, chọn trong story dựng lưới.
 > 🔵 **2026-10-14 (Ice chốt, `story-workspace-luoi-hai-cot-va-thanh-trang-thai`):** hình đã chọn — `confirmed` liền 2px · `draft` đứt 2px · `tm-rule` chấm 2px · `primary` liền 3px; `none` không vạch. Vạch dùng `border-left` (kiểu nét + màu token); 12.13 dùng lại bộ hình này.
+> 🔵 **2026-10-23 (Ice chốt, Story 2.14):** mọi vạch cùng dày 3px, chỉ khác kiểu nét và màu — `primary` liền · `confirmed` đôi · `draft` đứt · `tm-rule` chấm; `none` vẫn không vạch (ô giữ viền 3px trong suốt). Lý do: đổi độ dày vạch khi dời con trỏ buộc WebKit tính lại bố cục cả lưới (~700 → ~160 ms ở 9.850 câu, bản debug).
 
 **Ranh giới câu** — ký tự `⏐` màu `ornament`, `opacity: 0` mặc định, hiện ở `0.55` khi rê chuột hoặc khi con trỏ chạm.
 

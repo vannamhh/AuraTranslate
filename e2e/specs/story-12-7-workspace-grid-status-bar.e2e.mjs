@@ -62,9 +62,9 @@ describe('12.7 — lưới hai cột và thanh trạng thái', () => {
     expect(Object.keys(strokes).sort()).toEqual(['rule-confirmed', 'rule-draft', 'rule-primary'])
     expect(ruleCount).toBe(3)
     expect(new Set(Object.values(strokes)).size).toBe(3)
-    expect(strokes['rule-draft']).toMatch(/^dashed /)
+    expect(strokes['rule-draft']).toMatch(/^dashed 3px$/)
     expect(strokes['rule-primary']).toMatch(/^solid 3px$/)
-    expect(strokes['rule-confirmed']).toMatch(/^solid 2px$/)
+    expect(strokes['rule-confirmed']).toMatch(/^double 3px$/)
   })
 
   it('lưới còn bốn cột, không chữ trạng thái nhìn thấy, tên truy cập ô bản dịch mang số câu và trạng thái', async () => {

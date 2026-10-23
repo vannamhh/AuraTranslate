@@ -1,0 +1,2798 @@
+{
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "tai_truoc": "22:22  up 2 days, 12:42, 20 users, load averages: 4.61 4.16 4.19",
+  "tai_sau": "22:34  up 2 days, 12:54, 20 users, load averages: 4.54 4.20 4.13",
+  "bien_the": [
+    {
+      "ten": "0-in-app-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 35703,
+          "t1": 35705,
+          "tLong": 36287,
+          "tR1": 36239,
+          "tR2": 36313,
+          "tSel": 35915
+        },
+        {
+          "t0": 37206,
+          "t1": 37210,
+          "tLong": 38004,
+          "tR1": 37933,
+          "tR2": 38029,
+          "tSel": 37499
+        },
+        {
+          "t0": 38732,
+          "t1": 38735,
+          "tLong": 39456,
+          "tR1": 39409,
+          "tR2": 39480.00000000001,
+          "tSel": 39035.00000000001
+        },
+        {
+          "t0": 40236.00000000001,
+          "t1": 40240,
+          "tLong": 40878,
+          "tR1": 40824,
+          "tR2": 40896,
+          "tSel": 40481
+        },
+        {
+          "t0": 41741,
+          "t1": 41744,
+          "tLong": 42483.00000000001,
+          "tR1": 42426,
+          "tR2": 42512,
+          "tSel": 42035.00000000001
+        },
+        {
+          "t0": 43263,
+          "t1": 43266,
+          "tLong": 43946,
+          "tR1": 43887,
+          "tR2": 43962,
+          "tSel": 43524
+        }
+      ],
+      "derived": [
+        {
+          "sync": 2,
+          "handlers": 212,
+          "toFrame1": 536,
+          "frame1": 74,
+          "total": 610,
+          "tLong": 584
+        },
+        {
+          "sync": 4,
+          "handlers": 293,
+          "toFrame1": 727,
+          "frame1": 96,
+          "total": 823,
+          "tLong": 798
+        },
+        {
+          "sync": 3,
+          "handlers": 303,
+          "toFrame1": 677,
+          "frame1": 71,
+          "total": 748,
+          "tLong": 724
+        },
+        {
+          "sync": 4,
+          "handlers": 245,
+          "toFrame1": 588,
+          "frame1": 72,
+          "total": 660,
+          "tLong": 642
+        },
+        {
+          "sync": 3,
+          "handlers": 294,
+          "toFrame1": 685,
+          "frame1": 86,
+          "total": 771,
+          "tLong": 742
+        },
+        {
+          "sync": 3,
+          "handlers": 261,
+          "toFrame1": 624,
+          "frame1": 75,
+          "total": 699,
+          "tLong": 683
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 293,
+        "toFrame1": 677,
+        "frame1": 75,
+        "total": 748,
+        "tLong": 724
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "node_count": 49446
+    },
+    {
+      "ten": "1-clone-src",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 38278,
+          "t1": 38278,
+          "tLong": 38278,
+          "tR1": 38278,
+          "tR2": 38302,
+          "tSel": 38278
+        },
+        {
+          "t0": 39779,
+          "t1": 39780,
+          "tLong": 39780,
+          "tR1": 39780,
+          "tR2": 39801,
+          "tSel": 39780
+        },
+        {
+          "t0": 41282,
+          "t1": 41282,
+          "tLong": 41282,
+          "tR1": 41282,
+          "tR2": 41301,
+          "tSel": 41282
+        },
+        {
+          "t0": 42782,
+          "t1": 42782,
+          "tLong": 42782,
+          "tR1": 42782,
+          "tR2": 42801,
+          "tSel": 42782
+        },
+        {
+          "t0": 44283,
+          "t1": 44283,
+          "tLong": 44287,
+          "tR1": 44283,
+          "tR2": 44301,
+          "tSel": 44283
+        },
+        {
+          "t0": 45783,
+          "t1": 45784,
+          "tLong": 45788.00000000001,
+          "tR1": 45784,
+          "tR2": 45801,
+          "tSel": 45784
+        }
+      ],
+      "derived": [
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 24,
+          "total": 24,
+          "tLong": 0
+        },
+        {
+          "sync": 1,
+          "handlers": 1,
+          "toFrame1": 1,
+          "frame1": 21,
+          "total": 22,
+          "tLong": 1
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 19,
+          "total": 19,
+          "tLong": 0
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 19,
+          "total": 19,
+          "tLong": 0
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 18,
+          "total": 18,
+          "tLong": 4
+        },
+        {
+          "sync": 1,
+          "handlers": 1,
+          "toFrame1": 1,
+          "frame1": 17,
+          "total": 18,
+          "tLong": 5
+        }
+      ],
+      "medians": {
+        "sync": 0,
+        "handlers": 0,
+        "toFrame1": 0,
+        "frame1": 19,
+        "total": 19,
+        "tLong": 1
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": "",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49446,
+        "col_display": "grid",
+        "ghi_de_tag": false,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 63,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49446,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "1-clone-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 48803.00000000001,
+          "t1": 48806.00000000001,
+          "tLong": 48809,
+          "tR1": 48806.00000000001,
+          "tR2": 48834,
+          "tSel": 48806.00000000001
+        },
+        {
+          "t0": 50307,
+          "t1": 50309,
+          "tLong": 50342,
+          "tR1": 50310,
+          "tR2": 50368,
+          "tSel": 50310
+        },
+        {
+          "t0": 51811,
+          "t1": 51813,
+          "tLong": 51839,
+          "tR1": 51813,
+          "tR2": 51884,
+          "tSel": 51813
+        },
+        {
+          "t0": 53315,
+          "t1": 53318,
+          "tLong": 53356,
+          "tR1": 53318,
+          "tR2": 53384,
+          "tSel": 53318
+        },
+        {
+          "t0": 54819,
+          "t1": 54822,
+          "tLong": 54846,
+          "tR1": 54822,
+          "tR2": 54884,
+          "tSel": 54822
+        },
+        {
+          "t0": 56323,
+          "t1": 56326,
+          "tLong": 56366,
+          "tR1": 56326,
+          "tR2": 56401,
+          "tSel": 56326
+        }
+      ],
+      "derived": [
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 28,
+          "total": 31,
+          "tLong": 6
+        },
+        {
+          "sync": 2,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 58,
+          "total": 61,
+          "tLong": 35
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 71,
+          "total": 73,
+          "tLong": 28
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 66,
+          "total": 69,
+          "tLong": 41
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 62,
+          "total": 65,
+          "tLong": 27
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 75,
+          "total": 78,
+          "tLong": 43
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 3,
+        "frame1": 66,
+        "total": 69,
+        "tLong": 35
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": "",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49446,
+        "col_display": "grid",
+        "ghi_de_tag": false,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 63,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49446,
+      "mutations": {
+        "lateSel": 14,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-a-grid-block-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 39190,
+          "t1": 39192,
+          "tLong": 39223,
+          "tR1": 39193,
+          "tR2": 39258,
+          "tSel": 39193
+        },
+        {
+          "t0": 40695,
+          "t1": 40698,
+          "tLong": 40700,
+          "tR1": 40698,
+          "tR2": 40726,
+          "tSel": 40698
+        },
+        {
+          "t0": 42198,
+          "t1": 42201,
+          "tLong": 42225,
+          "tR1": 42201,
+          "tR2": 42259,
+          "tSel": 42201
+        },
+        {
+          "t0": 43702,
+          "t1": 43704,
+          "tLong": 43707,
+          "tR1": 43704,
+          "tR2": 43726,
+          "tSel": 43704
+        },
+        {
+          "t0": 45205,
+          "t1": 45208,
+          "tLong": 45229,
+          "tR1": 45209,
+          "tR2": 45259,
+          "tSel": 45209
+        },
+        {
+          "t0": 46710,
+          "t1": 46713,
+          "tLong": 46717,
+          "tR1": 46713,
+          "tR2": 46743,
+          "tSel": 46713
+        }
+      ],
+      "derived": [
+        {
+          "sync": 2,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 65,
+          "total": 68,
+          "tLong": 33
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 28,
+          "total": 31,
+          "tLong": 5
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 58,
+          "total": 61,
+          "tLong": 27
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 22,
+          "total": 24,
+          "tLong": 5
+        },
+        {
+          "sync": 3,
+          "handlers": 4,
+          "toFrame1": 4,
+          "frame1": 50,
+          "total": 54,
+          "tLong": 24
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 30,
+          "total": 33,
+          "tLong": 7
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 3,
+        "frame1": 50,
+        "total": 54,
+        "tLong": 24
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": ".grid, .col { display: block !important; grid-template-rows: none !important; grid-template-columns: none !important; }",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49447,
+        "col_display": "block",
+        "ghi_de_tag": true,
+        "grid_data_v_attrs": 1,
+        "grid_display": "block",
+        "style_tags_head": 64,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49447,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-a2-col-block-only-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 37597,
+          "t1": 37599.00000000001,
+          "tLong": 37602.00000000001,
+          "tR1": 37599.00000000001,
+          "tR2": 37615,
+          "tSel": 37599.00000000001
+        },
+        {
+          "t0": 39101,
+          "t1": 39104,
+          "tLong": 39106,
+          "tR1": 39104,
+          "tR2": 39133,
+          "tSel": 39104
+        },
+        {
+          "t0": 40607,
+          "t1": 40609,
+          "tLong": 40640,
+          "tR1": 40610,
+          "tR2": 40683,
+          "tSel": 40610
+        },
+        {
+          "t0": 42111.00000000001,
+          "t1": 42113,
+          "tLong": 42116,
+          "tR1": 42113,
+          "tR2": 42133,
+          "tSel": 42113
+        },
+        {
+          "t0": 43615,
+          "t1": 43617.00000000001,
+          "tLong": 43646,
+          "tR1": 43617.00000000001,
+          "tR2": 43683,
+          "tSel": 43617.00000000001
+        },
+        {
+          "t0": 45118,
+          "t1": 45120,
+          "tLong": 45125,
+          "tR1": 45120,
+          "tR2": 45150,
+          "tSel": 45120
+        }
+      ],
+      "derived": [
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 16,
+          "total": 18,
+          "tLong": 5
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 29,
+          "total": 32,
+          "tLong": 5
+        },
+        {
+          "sync": 2,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 73,
+          "total": 76,
+          "tLong": 33
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 20,
+          "total": 22,
+          "tLong": 5
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 66,
+          "total": 68,
+          "tLong": 31
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 30,
+          "total": 32,
+          "tLong": 7
+        }
+      ],
+      "medians": {
+        "sync": 2,
+        "handlers": 2,
+        "toFrame1": 2,
+        "frame1": 30,
+        "total": 32,
+        "tLong": 7
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": ".col { display: block !important; grid-template-rows: none !important; }",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49447,
+        "col_display": "block",
+        "ghi_de_tag": true,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 64,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49447,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-b-hide-other-cols-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 39333,
+          "t1": 39338,
+          "tLong": 39342,
+          "tR1": 39338,
+          "tR2": 39362,
+          "tSel": 39338
+        },
+        {
+          "t0": 40839,
+          "t1": 40844,
+          "tLong": 40846,
+          "tR1": 40844,
+          "tR2": 40864.00000000001,
+          "tSel": 40844
+        },
+        {
+          "t0": 42347,
+          "t1": 42351,
+          "tLong": 42354,
+          "tR1": 42351,
+          "tR2": 42380,
+          "tSel": 42351
+        },
+        {
+          "t0": 43854,
+          "t1": 43860,
+          "tLong": 43862,
+          "tR1": 43860,
+          "tR2": 43879,
+          "tSel": 43860
+        },
+        {
+          "t0": 45361.00000000001,
+          "t1": 45367.00000000001,
+          "tLong": 45371,
+          "tR1": 45368,
+          "tR2": 45397,
+          "tSel": 45368
+        },
+        {
+          "t0": 46871,
+          "t1": 46875,
+          "tLong": 46879,
+          "tR1": 46875,
+          "tR2": 46897,
+          "tSel": 46875
+        }
+      ],
+      "derived": [
+        {
+          "sync": 5,
+          "handlers": 5,
+          "toFrame1": 5,
+          "frame1": 24,
+          "total": 29,
+          "tLong": 9
+        },
+        {
+          "sync": 5,
+          "handlers": 5,
+          "toFrame1": 5,
+          "frame1": 20,
+          "total": 25,
+          "tLong": 7
+        },
+        {
+          "sync": 4,
+          "handlers": 4,
+          "toFrame1": 4,
+          "frame1": 29,
+          "total": 33,
+          "tLong": 7
+        },
+        {
+          "sync": 6,
+          "handlers": 6,
+          "toFrame1": 6,
+          "frame1": 19,
+          "total": 25,
+          "tLong": 8
+        },
+        {
+          "sync": 6,
+          "handlers": 7,
+          "toFrame1": 7,
+          "frame1": 29,
+          "total": 36,
+          "tLong": 10
+        },
+        {
+          "sync": 4,
+          "handlers": 4,
+          "toFrame1": 4,
+          "frame1": 22,
+          "total": 26,
+          "tLong": 8
+        }
+      ],
+      "medians": {
+        "sync": 5,
+        "handlers": 5,
+        "toFrame1": 5,
+        "frame1": 24,
+        "total": 29,
+        "tLong": 8
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": ".col-rule, .col-num, .col-src { display: none !important; }",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49447,
+        "col_display": "grid",
+        "ghi_de_tag": true,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 64,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49447,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-c1-scroll-visible-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 38008,
+          "t1": 38010,
+          "tLong": 38010,
+          "tR1": 38010,
+          "tR2": 38072,
+          "tSel": 38010
+        },
+        {
+          "t0": 39513,
+          "t1": 39516,
+          "tLong": 39516,
+          "tR1": 39516,
+          "tR2": 39572,
+          "tSel": 39516
+        },
+        {
+          "t0": 41018,
+          "t1": 41020,
+          "tLong": 41020,
+          "tR1": 41021,
+          "tR2": 41090,
+          "tSel": 41020
+        },
+        {
+          "t0": 42523,
+          "t1": 42525,
+          "tLong": 42525,
+          "tR1": 42525,
+          "tR2": 42588,
+          "tSel": 42525
+        },
+        {
+          "t0": 44028,
+          "t1": 44030,
+          "tLong": 44057,
+          "tR1": 44031,
+          "tR2": 44088,
+          "tSel": 44031
+        },
+        {
+          "t0": 45532,
+          "t1": 45535.00000000001,
+          "tLong": 45559,
+          "tR1": 45535.00000000001,
+          "tR2": 45589,
+          "tSel": 45535.00000000001
+        }
+      ],
+      "derived": [
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 62,
+          "total": 64,
+          "tLong": 2
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 56,
+          "total": 59,
+          "tLong": 3
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 3,
+          "frame1": 69,
+          "total": 72,
+          "tLong": 2
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 63,
+          "total": 65,
+          "tLong": 2
+        },
+        {
+          "sync": 2,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 57,
+          "total": 60,
+          "tLong": 29
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 54,
+          "total": 57,
+          "tLong": 27
+        }
+      ],
+      "medians": {
+        "sync": 2,
+        "handlers": 3,
+        "toFrame1": 3,
+        "frame1": 62,
+        "total": 64,
+        "tLong": 3
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": ".grid-scroll { overflow: visible !important; }",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49447,
+        "col_display": "grid",
+        "ghi_de_tag": true,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 64,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49447,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-c2-scroll-hidden-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 37755,
+          "t1": 37757,
+          "tLong": 37757,
+          "tR1": 37757,
+          "tR2": 37825,
+          "tSel": 37757
+        },
+        {
+          "t0": 39259,
+          "t1": 39261,
+          "tLong": 39261,
+          "tR1": 39261,
+          "tR2": 39326,
+          "tSel": 39261
+        },
+        {
+          "t0": 40762,
+          "t1": 40765,
+          "tLong": 40765,
+          "tR1": 40765,
+          "tR2": 40825,
+          "tSel": 40765
+        },
+        {
+          "t0": 42267,
+          "t1": 42270,
+          "tLong": 42270,
+          "tR1": 42270,
+          "tR2": 42342,
+          "tSel": 42270
+        },
+        {
+          "t0": 43771,
+          "t1": 43774,
+          "tLong": 43799,
+          "tR1": 43774,
+          "tR2": 43841,
+          "tSel": 43774
+        },
+        {
+          "t0": 45275,
+          "t1": 45277,
+          "tLong": 45303.00000000001,
+          "tR1": 45277,
+          "tR2": 45341,
+          "tSel": 45277
+        }
+      ],
+      "derived": [
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 68,
+          "total": 70,
+          "tLong": 2
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 65,
+          "total": 67,
+          "tLong": 2
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 60,
+          "total": 63,
+          "tLong": 3
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 72,
+          "total": 75,
+          "tLong": 3
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 67,
+          "total": 70,
+          "tLong": 28
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 64,
+          "total": 66,
+          "tLong": 28
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 3,
+        "frame1": 67,
+        "total": 70,
+        "tLong": 3
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": ".grid-scroll { overflow: hidden !important; }",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49447,
+        "col_display": "grid",
+        "ghi_de_tag": true,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 64,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49447,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-d-user-select-tgt-only-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 39376,
+          "t1": 39378,
+          "tLong": 39381,
+          "tR1": 39378,
+          "tR2": 39399,
+          "tSel": 39378
+        },
+        {
+          "t0": 40879,
+          "t1": 40882,
+          "tLong": 40926,
+          "tR1": 40882,
+          "tR2": 40950,
+          "tSel": 40882
+        },
+        {
+          "t0": 42383,
+          "t1": 42386,
+          "tLong": 42413.00000000001,
+          "tR1": 42386,
+          "tR2": 42450,
+          "tSel": 42386
+        },
+        {
+          "t0": 43888,
+          "t1": 43890,
+          "tLong": 43923,
+          "tR1": 43891,
+          "tR2": 43948,
+          "tSel": 43891
+        },
+        {
+          "t0": 45391,
+          "t1": 45394,
+          "tLong": 45420,
+          "tR1": 45394,
+          "tR2": 45450,
+          "tSel": 45394
+        },
+        {
+          "t0": 46895,
+          "t1": 46897,
+          "tLong": 46933,
+          "tR1": 46897,
+          "tR2": 46967,
+          "tSel": 46897
+        }
+      ],
+      "derived": [
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 21,
+          "total": 23,
+          "tLong": 5
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 68,
+          "total": 71,
+          "tLong": 47
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 64,
+          "total": 67,
+          "tLong": 30
+        },
+        {
+          "sync": 2,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 57,
+          "total": 60,
+          "tLong": 35
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 56,
+          "total": 59,
+          "tLong": 29
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 70,
+          "total": 72,
+          "tLong": 38
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 3,
+        "frame1": 64,
+        "total": 67,
+        "tLong": 35
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": "* { -webkit-user-select: none !important; user-select: none !important; } [data-col=\"tgt\"], [data-col=\"tgt\"] * { -webkit-user-select: text !important; user-select: text !important; }",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49447,
+        "col_display": "grid",
+        "ghi_de_tag": true,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 64,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49447,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-g-tgt-white-space-normal-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 38455,
+          "t1": 38458,
+          "tLong": 38460,
+          "tR1": 38458,
+          "tR2": 38485,
+          "tSel": 38458
+        },
+        {
+          "t0": 39958,
+          "t1": 39960,
+          "tLong": 39982,
+          "tR1": 39961,
+          "tR2": 40020,
+          "tSel": 39960
+        },
+        {
+          "t0": 41461,
+          "t1": 41464,
+          "tLong": 41489.00000000001,
+          "tR1": 41464,
+          "tR2": 41535.00000000001,
+          "tSel": 41464
+        },
+        {
+          "t0": 42965,
+          "t1": 42968,
+          "tLong": 42993,
+          "tR1": 42968,
+          "tR2": 43035.00000000001,
+          "tSel": 42968
+        },
+        {
+          "t0": 44469,
+          "t1": 44471,
+          "tLong": 44496,
+          "tR1": 44471,
+          "tR2": 44536,
+          "tSel": 44471
+        },
+        {
+          "t0": 45972,
+          "t1": 45975,
+          "tLong": 46002,
+          "tR1": 45975,
+          "tR2": 46035.00000000001,
+          "tSel": 45975
+        }
+      ],
+      "derived": [
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 27,
+          "total": 30,
+          "tLong": 5
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 3,
+          "frame1": 59,
+          "total": 62,
+          "tLong": 24
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 71,
+          "total": 74,
+          "tLong": 28
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 67,
+          "total": 70,
+          "tLong": 28
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 65,
+          "total": 67,
+          "tLong": 27
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 60,
+          "total": 63,
+          "tLong": 30
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 3,
+        "frame1": 65,
+        "total": 67,
+        "tLong": 28
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": ".cell-tgt { white-space: normal !important; }",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49447,
+        "col_display": "grid",
+        "ghi_de_tag": true,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 64,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49447,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-h-no-cell-borders-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 38342,
+          "t1": 38345,
+          "tLong": 38348,
+          "tR1": 38345,
+          "tR2": 38362,
+          "tSel": 38345
+        },
+        {
+          "t0": 39847,
+          "t1": 39849.00000000001,
+          "tLong": 39876,
+          "tR1": 39849.00000000001,
+          "tR2": 39912,
+          "tSel": 39849.00000000001
+        },
+        {
+          "t0": 41351,
+          "t1": 41354,
+          "tLong": 41382,
+          "tR1": 41354,
+          "tR2": 41428.00000000001,
+          "tSel": 41354
+        },
+        {
+          "t0": 42855.00000000001,
+          "t1": 42858.00000000001,
+          "tLong": 42885,
+          "tR1": 42858.00000000001,
+          "tR2": 42928.00000000001,
+          "tSel": 42858.00000000001
+        },
+        {
+          "t0": 44359,
+          "t1": 44362,
+          "tLong": 44387,
+          "tR1": 44362,
+          "tR2": 44428.00000000001,
+          "tSel": 44362
+        },
+        {
+          "t0": 45864.00000000001,
+          "t1": 45867.00000000001,
+          "tLong": 45894,
+          "tR1": 45867.00000000001,
+          "tR2": 45929,
+          "tSel": 45867.00000000001
+        }
+      ],
+      "derived": [
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 17,
+          "total": 20,
+          "tLong": 6
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 63,
+          "total": 65,
+          "tLong": 29
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 74,
+          "total": 77,
+          "tLong": 31
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 70,
+          "total": 73,
+          "tLong": 30
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 66,
+          "total": 69,
+          "tLong": 28
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 62,
+          "total": 65,
+          "tLong": 30
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 3,
+        "frame1": 66,
+        "total": 69,
+        "tLong": 30
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": ".cell { border: 0 !important; }",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49447,
+        "col_display": "grid",
+        "ghi_de_tag": true,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 64,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49447,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-i-panel-overflow-visible-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 38360,
+          "t1": 38363,
+          "tLong": 38363,
+          "tR1": 38363,
+          "tR2": 38430,
+          "tSel": 38363
+        },
+        {
+          "t0": 39866,
+          "t1": 39868,
+          "tLong": 39868,
+          "tR1": 39868,
+          "tR2": 39930,
+          "tSel": 39868
+        },
+        {
+          "t0": 41371,
+          "t1": 41374,
+          "tLong": 41374,
+          "tR1": 41374,
+          "tR2": 41429,
+          "tSel": 41374
+        },
+        {
+          "t0": 42874,
+          "t1": 42877,
+          "tLong": 42877,
+          "tR1": 42877,
+          "tR2": 42946,
+          "tSel": 42877
+        },
+        {
+          "t0": 44377,
+          "t1": 44380,
+          "tLong": 44405,
+          "tR1": 44380,
+          "tR2": 44446,
+          "tSel": 44380
+        },
+        {
+          "t0": 45882,
+          "t1": 45885,
+          "tLong": 45912,
+          "tR1": 45886,
+          "tR2": 45947,
+          "tSel": 45885
+        }
+      ],
+      "derived": [
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 67,
+          "total": 70,
+          "tLong": 3
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 62,
+          "total": 64,
+          "tLong": 2
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 55,
+          "total": 58,
+          "tLong": 3
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 69,
+          "total": 72,
+          "tLong": 3
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 66,
+          "total": 69,
+          "tLong": 28
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 4,
+          "frame1": 61,
+          "total": 65,
+          "tLong": 30
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 3,
+        "frame1": 66,
+        "total": 69,
+        "tLong": 3
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": ".panel, .grid-scroll { overflow: visible !important; }",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49447,
+        "col_display": "grid",
+        "ghi_de_tag": true,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 64,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49447,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-e-grid-alone-in-body-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 38746,
+          "t1": 38748,
+          "tLong": 38752,
+          "tR1": 38748,
+          "tR2": 38763,
+          "tSel": 38748
+        },
+        {
+          "t0": 40251,
+          "t1": 40253,
+          "tLong": 40257,
+          "tR1": 40253,
+          "tR2": 40281,
+          "tSel": 40253
+        },
+        {
+          "t0": 41755,
+          "t1": 41757,
+          "tLong": 41761,
+          "tR1": 41757,
+          "tR2": 41780,
+          "tSel": 41757
+        },
+        {
+          "t0": 43258,
+          "t1": 43260,
+          "tLong": 43265,
+          "tR1": 43260,
+          "tR2": 43280,
+          "tSel": 43260
+        },
+        {
+          "t0": 44761,
+          "t1": 44763,
+          "tLong": 44768,
+          "tR1": 44763,
+          "tR2": 44780,
+          "tSel": 44763
+        },
+        {
+          "t0": 46266,
+          "t1": 46268,
+          "tLong": 46273,
+          "tR1": 46268,
+          "tR2": 46297.00000000001,
+          "tSel": 46268
+        }
+      ],
+      "derived": [
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 15,
+          "total": 17,
+          "tLong": 6
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 28,
+          "total": 30,
+          "tLong": 6
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 23,
+          "total": 25,
+          "tLong": 6
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 20,
+          "total": 22,
+          "tLong": 7
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 17,
+          "total": 19,
+          "tLong": 7
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 29,
+          "total": 31,
+          "tLong": 7
+        }
+      ],
+      "medians": {
+        "sync": 2,
+        "handlers": 2,
+        "toFrame1": 2,
+        "frame1": 23,
+        "total": 25,
+        "tLong": 7
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": "",
+      "mode": "grid-rieng",
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49327,
+        "col_display": "grid",
+        "ghi_de_tag": false,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 63,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49327,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "2-e2-grid-scroll-alone-in-body-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 38722,
+          "t1": 38724.00000000001,
+          "tLong": 38728,
+          "tR1": 38725,
+          "tR2": 38748,
+          "tSel": 38724.00000000001
+        },
+        {
+          "t0": 40225,
+          "t1": 40227.00000000001,
+          "tLong": 40230.00000000001,
+          "tR1": 40227.00000000001,
+          "tR2": 40247,
+          "tSel": 40227.00000000001
+        },
+        {
+          "t0": 41729,
+          "t1": 41731,
+          "tLong": 41754,
+          "tR1": 41731,
+          "tR2": 41781,
+          "tSel": 41731
+        },
+        {
+          "t0": 43234,
+          "t1": 43237,
+          "tLong": 43240,
+          "tR1": 43237,
+          "tR2": 43264,
+          "tSel": 43237
+        },
+        {
+          "t0": 44739.00000000001,
+          "t1": 44741,
+          "tLong": 44769,
+          "tR1": 44741,
+          "tR2": 44797.00000000001,
+          "tSel": 44741
+        },
+        {
+          "t0": 46243,
+          "t1": 46246,
+          "tLong": 46251,
+          "tR1": 46246,
+          "tR2": 46265,
+          "tSel": 46246
+        }
+      ],
+      "derived": [
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 3,
+          "frame1": 23,
+          "total": 26,
+          "tLong": 6
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 20,
+          "total": 22,
+          "tLong": 5
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 50,
+          "total": 52,
+          "tLong": 25
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 27,
+          "total": 30,
+          "tLong": 6
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 56,
+          "total": 58,
+          "tLong": 30
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 19,
+          "total": 22,
+          "tLong": 8
+        }
+      ],
+      "medians": {
+        "sync": 2,
+        "handlers": 2,
+        "toFrame1": 3,
+        "frame1": 27,
+        "total": 30,
+        "tLong": 8
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": "",
+      "mode": "grid-scroll-rieng",
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49328,
+        "col_display": "grid",
+        "ghi_de_tag": false,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 63,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49328,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "3-clone-drift-src",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 38849.00000000001,
+          "t1": 38850,
+          "tLong": 38850,
+          "tR1": 38850,
+          "tR2": 38870,
+          "tSel": 38850
+        },
+        {
+          "t0": 40352.00000000001,
+          "t1": 40352.00000000001,
+          "tLong": 40353,
+          "tR1": 40353,
+          "tR2": 40371,
+          "tSel": 40353
+        },
+        {
+          "t0": 41855.00000000001,
+          "t1": 41855.00000000001,
+          "tLong": 41855.00000000001,
+          "tR1": 41855.00000000001,
+          "tR2": 41870,
+          "tSel": 41855.00000000001
+        },
+        {
+          "t0": 43357,
+          "t1": 43357,
+          "tLong": 43357,
+          "tR1": 43357,
+          "tR2": 43370,
+          "tSel": 43357
+        },
+        {
+          "t0": 44859,
+          "t1": 44859,
+          "tLong": 44863,
+          "tR1": 44859,
+          "tR2": 44871,
+          "tSel": 44859
+        },
+        {
+          "t0": 46361.00000000001,
+          "t1": 46361.00000000001,
+          "tLong": 46366,
+          "tR1": 46361.00000000001,
+          "tR2": 46387,
+          "tSel": 46361.00000000001
+        }
+      ],
+      "derived": [
+        {
+          "sync": 1,
+          "handlers": 1,
+          "toFrame1": 1,
+          "frame1": 20,
+          "total": 21,
+          "tLong": 1
+        },
+        {
+          "sync": 0,
+          "handlers": 1,
+          "toFrame1": 1,
+          "frame1": 18,
+          "total": 19,
+          "tLong": 1
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 15,
+          "total": 15,
+          "tLong": 0
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 13,
+          "total": 13,
+          "tLong": 0
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 12,
+          "total": 12,
+          "tLong": 4
+        },
+        {
+          "sync": 0,
+          "handlers": 0,
+          "toFrame1": 0,
+          "frame1": 26,
+          "total": 26,
+          "tLong": 5
+        }
+      ],
+      "medians": {
+        "sync": 0,
+        "handlers": 0,
+        "toFrame1": 0,
+        "frame1": 18,
+        "total": 19,
+        "tLong": 1
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": "",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49446,
+        "col_display": "grid",
+        "ghi_de_tag": false,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 63,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49446,
+      "mutations": {
+        "lateSel": 7,
+        "mut": 0
+      }
+    },
+    {
+      "ten": "3-clone-drift-tgt",
+      "n": 6,
+      "marks": [
+        {
+          "t0": 49383,
+          "t1": 49386,
+          "tLong": 49389,
+          "tR1": 49386,
+          "tR2": 49404,
+          "tSel": 49386
+        },
+        {
+          "t0": 50889,
+          "t1": 50892,
+          "tLong": 50927,
+          "tR1": 50892,
+          "tR2": 50953,
+          "tSel": 50892
+        },
+        {
+          "t0": 52395,
+          "t1": 52399,
+          "tLong": 52426,
+          "tR1": 52399,
+          "tR2": 52470,
+          "tSel": 52399
+        },
+        {
+          "t0": 53900,
+          "t1": 53902,
+          "tLong": 53936,
+          "tR1": 53902,
+          "tR2": 53970,
+          "tSel": 53902
+        },
+        {
+          "t0": 55403,
+          "t1": 55406,
+          "tLong": 55433,
+          "tR1": 55406,
+          "tR2": 55471,
+          "tSel": 55406
+        },
+        {
+          "t0": 56907,
+          "t1": 56910.00000000001,
+          "tLong": 56945,
+          "tR1": 56910.00000000001,
+          "tR2": 56988,
+          "tSel": 56910.00000000001
+        }
+      ],
+      "derived": [
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 18,
+          "total": 21,
+          "tLong": 6
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 61,
+          "total": 64,
+          "tLong": 38
+        },
+        {
+          "sync": 4,
+          "handlers": 4,
+          "toFrame1": 4,
+          "frame1": 71,
+          "total": 75,
+          "tLong": 31
+        },
+        {
+          "sync": 2,
+          "handlers": 2,
+          "toFrame1": 2,
+          "frame1": 68,
+          "total": 70,
+          "tLong": 36
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 65,
+          "total": 68,
+          "tLong": 30
+        },
+        {
+          "sync": 3,
+          "handlers": 3,
+          "toFrame1": 3,
+          "frame1": 78,
+          "total": 81,
+          "tLong": 38
+        }
+      ],
+      "medians": {
+        "sync": 3,
+        "handlers": 3,
+        "toFrame1": 3,
+        "frame1": 68,
+        "total": 70,
+        "tLong": 36
+      },
+      "anomalies": [
+        {
+          "i": 0,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 1,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 2,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 3,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 4,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        },
+        {
+          "i": 5,
+          "tSel_null": false,
+          "raf_null": false,
+          "raf_order_odd": false
+        }
+      ],
+      "css_chen": "",
+      "mode": null,
+      "dom_truoc": {
+        "all": 49446,
+        "col_display": "grid",
+        "grid_display": "grid",
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850
+      },
+      "dom_sau": {
+        "all": 49446,
+        "col_display": "grid",
+        "ghi_de_tag": false,
+        "grid_data_v_attrs": 1,
+        "grid_display": "grid",
+        "style_tags_head": 63,
+        "tgt_cell_data_v_attrs": 1,
+        "tgt_cells": 9850,
+        "tgt_contenteditable": 9850,
+        "vue_app_con": false
+      },
+      "node_count": 49446,
+      "mutations": {
+        "lateSel": 14,
+        "mut": 0
+      }
+    }
+  ]
+}

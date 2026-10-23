@@ -1,0 +1,567 @@
+{
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "tai_truoc": "22:06  up 2 days, 12:26, 20 users, load averages: 3.98 4.35 4.42",
+  "tai_sau": "22:07  up 2 days, 12:27, 20 users, load averages: 3.19 4.04 4.29",
+  "vue_app": true,
+  "bien_the": [
+    {
+      "ten": "1-tgt-setPosition",
+      "n": 6,
+      "marks": [
+        {
+          "entries": [
+            {
+              "dur": 0,
+              "name": "<StatusBar> render",
+              "start": 33283
+            },
+            {
+              "dur": 0,
+              "name": "<StatusBar> patch",
+              "start": 33283
+            },
+            {
+              "dur": 169.00000000000728,
+              "name": "<PanelFrame> render",
+              "start": 33317
+            },
+            {
+              "dur": 53,
+              "name": "<PanelFrame> patch",
+              "start": 33487
+            }
+          ],
+          "t0": 33279,
+          "tEnd": 33975,
+          "tSel": 33540
+        },
+        {
+          "entries": [
+            {
+              "dur": 0,
+              "name": "<StatusBar> render",
+              "start": 34786
+            },
+            {
+              "dur": 0,
+              "name": "<StatusBar> patch",
+              "start": 34786
+            },
+            {
+              "dur": 191,
+              "name": "<PanelFrame> render",
+              "start": 34809
+            },
+            {
+              "dur": 55,
+              "name": "<PanelFrame> patch",
+              "start": 35000
+            }
+          ],
+          "t0": 34783,
+          "tEnd": 35541.00000000001,
+          "tSel": 35056
+        },
+        {
+          "entries": [
+            {
+              "dur": 0,
+              "name": "<StatusBar> render",
+              "start": 36305
+            },
+            {
+              "dur": 0,
+              "name": "<StatusBar> patch",
+              "start": 36305
+            },
+            {
+              "dur": 160,
+              "name": "<PanelFrame> render",
+              "start": 36328
+            },
+            {
+              "dur": 54,
+              "name": "<PanelFrame> patch",
+              "start": 36488
+            }
+          ],
+          "t0": 36302,
+          "tEnd": 37025,
+          "tSel": 36542
+        },
+        {
+          "entries": [
+            {
+              "dur": 0,
+              "name": "<StatusBar> render",
+              "start": 37817
+            },
+            {
+              "dur": 0,
+              "name": "<StatusBar> patch",
+              "start": 37817
+            },
+            {
+              "dur": 155,
+              "name": "<PanelFrame> render",
+              "start": 37838
+            },
+            {
+              "dur": 46,
+              "name": "<PanelFrame> patch",
+              "start": 37993
+            }
+          ],
+          "t0": 37813,
+          "tEnd": 38442,
+          "tSel": 38040
+        },
+        {
+          "entries": [
+            {
+              "dur": 0,
+              "name": "<StatusBar> render",
+              "start": 39321
+            },
+            {
+              "dur": 0,
+              "name": "<StatusBar> patch",
+              "start": 39321
+            },
+            {
+              "dur": 171,
+              "name": "<PanelFrame> render",
+              "start": 39346
+            },
+            {
+              "dur": 52,
+              "name": "<PanelFrame> patch",
+              "start": 39517
+            }
+          ],
+          "t0": 39318,
+          "tEnd": 40058,
+          "tSel": 39570
+        },
+        {
+          "entries": [
+            {
+              "dur": 0,
+              "name": "<StatusBar> render",
+              "start": 40832
+            },
+            {
+              "dur": 0,
+              "name": "<StatusBar> patch",
+              "start": 40832
+            },
+            {
+              "dur": 189,
+              "name": "<PanelFrame> render",
+              "start": 40854
+            },
+            {
+              "dur": 76,
+              "name": "<PanelFrame> patch",
+              "start": 41043
+            }
+          ],
+          "t0": 40828,
+          "tEnd": 41642,
+          "tSel": 41119
+        }
+      ],
+      "derived": [
+        {
+          "total": 696,
+          "union": 222.00000000000728,
+          "gap": 473.9999999999927,
+          "tSel": 261,
+          "truocSel": 4,
+          "sauSel": 0,
+          "grid_render_rel": [],
+          "per": {
+            "<StatusBar>": {
+              "render_ms": 0,
+              "render_n": 1,
+              "patch_ms": 0,
+              "patch_n": 1
+            },
+            "<PanelFrame>": {
+              "render_ms": 169.00000000000728,
+              "render_n": 1,
+              "patch_ms": 53,
+              "patch_n": 1
+            }
+          },
+          "n_entries": 4
+        },
+        {
+          "total": 758.0000000000073,
+          "union": 246,
+          "gap": 512.0000000000073,
+          "tSel": 273,
+          "truocSel": 4,
+          "sauSel": 0,
+          "grid_render_rel": [],
+          "per": {
+            "<StatusBar>": {
+              "render_ms": 0,
+              "render_n": 1,
+              "patch_ms": 0,
+              "patch_n": 1
+            },
+            "<PanelFrame>": {
+              "render_ms": 191,
+              "render_n": 1,
+              "patch_ms": 55,
+              "patch_n": 1
+            }
+          },
+          "n_entries": 4
+        },
+        {
+          "total": 723,
+          "union": 214,
+          "gap": 509,
+          "tSel": 240,
+          "truocSel": 4,
+          "sauSel": 0,
+          "grid_render_rel": [],
+          "per": {
+            "<StatusBar>": {
+              "render_ms": 0,
+              "render_n": 1,
+              "patch_ms": 0,
+              "patch_n": 1
+            },
+            "<PanelFrame>": {
+              "render_ms": 160,
+              "render_n": 1,
+              "patch_ms": 54,
+              "patch_n": 1
+            }
+          },
+          "n_entries": 4
+        },
+        {
+          "total": 629,
+          "union": 201,
+          "gap": 428,
+          "tSel": 227,
+          "truocSel": 4,
+          "sauSel": 0,
+          "grid_render_rel": [],
+          "per": {
+            "<StatusBar>": {
+              "render_ms": 0,
+              "render_n": 1,
+              "patch_ms": 0,
+              "patch_n": 1
+            },
+            "<PanelFrame>": {
+              "render_ms": 155,
+              "render_n": 1,
+              "patch_ms": 46,
+              "patch_n": 1
+            }
+          },
+          "n_entries": 4
+        },
+        {
+          "total": 740,
+          "union": 223,
+          "gap": 517,
+          "tSel": 252,
+          "truocSel": 4,
+          "sauSel": 0,
+          "grid_render_rel": [],
+          "per": {
+            "<StatusBar>": {
+              "render_ms": 0,
+              "render_n": 1,
+              "patch_ms": 0,
+              "patch_n": 1
+            },
+            "<PanelFrame>": {
+              "render_ms": 171,
+              "render_n": 1,
+              "patch_ms": 52,
+              "patch_n": 1
+            }
+          },
+          "n_entries": 4
+        },
+        {
+          "total": 814,
+          "union": 265,
+          "gap": 549,
+          "tSel": 291,
+          "truocSel": 4,
+          "sauSel": 0,
+          "grid_render_rel": [],
+          "per": {
+            "<StatusBar>": {
+              "render_ms": 0,
+              "render_n": 1,
+              "patch_ms": 0,
+              "patch_n": 1
+            },
+            "<PanelFrame>": {
+              "render_ms": 189,
+              "render_n": 1,
+              "patch_ms": 76,
+              "patch_n": 1
+            }
+          },
+          "n_entries": 4
+        }
+      ],
+      "medians": {
+        "total": 740,
+        "union": 223,
+        "gap": 512.0000000000073,
+        "tSel": 261,
+        "truocSel": 4,
+        "sauSel": 0
+      },
+      "comp_median": {
+        "<StatusBar>": {
+          "render_ms": 0,
+          "render_n": 1,
+          "patch_ms": 0,
+          "patch_n": 1
+        },
+        "<PanelFrame>": {
+          "render_ms": 171,
+          "render_n": 1,
+          "patch_ms": 54,
+          "patch_n": 1
+        }
+      },
+      "top": [
+        [
+          "<PanelFrame>",
+          {
+            "render_ms": 171,
+            "render_n": 1,
+            "patch_ms": 54,
+            "patch_n": 1
+          }
+        ],
+        [
+          "<StatusBar>",
+          {
+            "render_ms": 0,
+            "render_n": 1,
+            "patch_ms": 0,
+            "patch_n": 1
+          }
+        ]
+      ]
+    },
+    {
+      "ten": "2-tgt-realClick",
+      "n": 3,
+      "marks": [
+        {
+          "entries": [
+            {
+              "dur": 0,
+              "name": "<StatusBar> render",
+              "start": 62983.00000000001
+            },
+            {
+              "dur": 0,
+              "name": "<StatusBar> patch",
+              "start": 62983.00000000001
+            },
+            {
+              "dur": 191,
+              "name": "<PanelFrame> render",
+              "start": 63006
+            },
+            {
+              "dur": 55,
+              "name": "<PanelFrame> patch",
+              "start": 63197
+            }
+          ],
+          "t0": 62982,
+          "tEnd": 63689,
+          "tSel": 63684.00000000001
+        },
+        {
+          "entries": [
+            {
+              "dur": 0,
+              "name": "<StatusBar> render",
+              "start": 65446
+            },
+            {
+              "dur": 0,
+              "name": "<StatusBar> patch",
+              "start": 65446
+            },
+            {
+              "dur": 187.99999999999272,
+              "name": "<PanelFrame> render",
+              "start": 65469.00000000001
+            },
+            {
+              "dur": 49,
+              "name": "<PanelFrame> patch",
+              "start": 65657
+            }
+          ],
+          "t0": 65445.00000000001,
+          "tEnd": 66092,
+          "tSel": 66078
+        },
+        {
+          "entries": [
+            {
+              "dur": 0,
+              "name": "<StatusBar> render",
+              "start": 67850
+            },
+            {
+              "dur": 0,
+              "name": "<StatusBar> patch",
+              "start": 67850
+            },
+            {
+              "dur": 210.00000000001455,
+              "name": "<PanelFrame> render",
+              "start": 67872
+            },
+            {
+              "dur": 56.99999999998545,
+              "name": "<PanelFrame> patch",
+              "start": 68082.00000000001
+            }
+          ],
+          "t0": 67850,
+          "tEnd": 68591.00000000001,
+          "tSel": 68567
+        }
+      ],
+      "derived": [
+        {
+          "total": 707,
+          "union": 246,
+          "gap": 461,
+          "tSel": 702.0000000000073,
+          "truocSel": 4,
+          "sauSel": 0,
+          "grid_render_rel": [],
+          "per": {
+            "<StatusBar>": {
+              "render_ms": 0,
+              "render_n": 1,
+              "patch_ms": 0,
+              "patch_n": 1
+            },
+            "<PanelFrame>": {
+              "render_ms": 191,
+              "render_n": 1,
+              "patch_ms": 55,
+              "patch_n": 1
+            }
+          },
+          "n_entries": 4
+        },
+        {
+          "total": 646.9999999999927,
+          "union": 236.99999999999272,
+          "gap": 410,
+          "tSel": 632.9999999999927,
+          "truocSel": 4,
+          "sauSel": 0,
+          "grid_render_rel": [],
+          "per": {
+            "<StatusBar>": {
+              "render_ms": 0,
+              "render_n": 1,
+              "patch_ms": 0,
+              "patch_n": 1
+            },
+            "<PanelFrame>": {
+              "render_ms": 187.99999999999272,
+              "render_n": 1,
+              "patch_ms": 49,
+              "patch_n": 1
+            }
+          },
+          "n_entries": 4
+        },
+        {
+          "total": 741.0000000000146,
+          "union": 267,
+          "gap": 474.00000000001455,
+          "tSel": 717,
+          "truocSel": 4,
+          "sauSel": 0,
+          "grid_render_rel": [],
+          "per": {
+            "<StatusBar>": {
+              "render_ms": 0,
+              "render_n": 1,
+              "patch_ms": 0,
+              "patch_n": 1
+            },
+            "<PanelFrame>": {
+              "render_ms": 210.00000000001455,
+              "render_n": 1,
+              "patch_ms": 56.99999999998545,
+              "patch_n": 1
+            }
+          },
+          "n_entries": 4
+        }
+      ],
+      "medians": {
+        "total": 707,
+        "union": 246,
+        "gap": 461,
+        "tSel": 702.0000000000073,
+        "truocSel": 4,
+        "sauSel": 0
+      },
+      "comp_median": {
+        "<StatusBar>": {
+          "render_ms": 0,
+          "render_n": 1,
+          "patch_ms": 0,
+          "patch_n": 1
+        },
+        "<PanelFrame>": {
+          "render_ms": 191,
+          "render_n": 1,
+          "patch_ms": 55,
+          "patch_n": 1
+        }
+      },
+      "top": [
+        [
+          "<PanelFrame>",
+          {
+            "render_ms": 191,
+            "render_n": 1,
+            "patch_ms": 55,
+            "patch_n": 1
+          }
+        ],
+        [
+          "<StatusBar>",
+          {
+            "render_ms": 0,
+            "render_n": 1,
+            "patch_ms": 0,
+            "patch_n": 1
+          }
+        ]
+      ]
+    }
+  ]
+}

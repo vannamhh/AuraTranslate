@@ -1,0 +1,138 @@
+{
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "tai_truoc": "21:50  up 2 days, 12:10, 20 users, load averages: 4.35 4.35 4.23",
+  "tai_sau": "21:57  up 2 days, 12:17, 20 users, load averages: 5.39 5.00 4.53",
+  "bien_the": [
+    {
+      "ten": "A",
+      "N": 9850,
+      "so_nut": 49256,
+      "setPosition": {
+        "lan": [
+          717,
+          883,
+          766,
+          651
+        ],
+        "trung_vi": 766,
+        "max": 883
+      },
+      "click_that": {
+        "lan": [
+          761,
+          657,
+          691,
+          694
+        ],
+        "trung_vi": 694,
+        "max": 761
+      }
+    },
+    {
+      "ten": "N500",
+      "N": 500,
+      "so_nut": 2506,
+      "removed": 37400,
+      "tgt_con_lai": 500,
+      "setPosition": {
+        "lan": [
+          387,
+          329,
+          417,
+          332
+        ],
+        "trung_vi": 387,
+        "max": 417
+      },
+      "click_that": {
+        "lan": [
+          275,
+          384,
+          306,
+          398
+        ],
+        "trung_vi": 384,
+        "max": 398
+      }
+    },
+    {
+      "ten": "N2000",
+      "N": 2000,
+      "so_nut": 10006,
+      "removed": 31400,
+      "tgt_con_lai": 2000,
+      "setPosition": {
+        "lan": [
+          467,
+          433,
+          487,
+          396
+        ],
+        "trung_vi": 467,
+        "max": 487
+      },
+      "click_that": {
+        "lan": [
+          361,
+          458,
+          365,
+          462
+        ],
+        "trung_vi": 458,
+        "max": 462
+      }
+    },
+    {
+      "ten": "N5000",
+      "N": 5000,
+      "so_nut": 25006,
+      "removed": 19400,
+      "tgt_con_lai": 5000,
+      "setPosition": {
+        "lan": [
+          564,
+          516,
+          597,
+          566
+        ],
+        "trung_vi": 566,
+        "max": 597
+      },
+      "click_that": {
+        "lan": [
+          531,
+          498,
+          547,
+          497
+        ],
+        "trung_vi": 531,
+        "max": 547
+      }
+    },
+    {
+      "ten": "B",
+      "N": 9850,
+      "so_nut": 49256,
+      "setPosition": {
+        "lan": [
+          684,
+          815,
+          681,
+          665
+        ],
+        "trung_vi": 684,
+        "max": 815
+      },
+      "click_that": {
+        "lan": [
+          712,
+          752,
+          683,
+          768
+        ],
+        "trung_vi": 752,
+        "max": 768
+      }
+    }
+  ]
+}
