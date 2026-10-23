@@ -1,0 +1,8 @@
+node memo-probe.cjs 9850 — Vue 3.5.40 vue.cjs.prod.js, happy-dom, Node v22.22.2, macOS, loadavg 13,6 / 11,2 / 12,8, 2026-10-23 18:43
+Mỗi hàng: một div, memo [s, caret === s.id]; 9.850 câu, khối 200; 8 lượt dời (trong khối và qua ranh giới khối)
+A flat (bố cục cũ)                     bodies/move: 2  ms median 18.2 (min 15.4, max 22.2)
+B nested (bản thử)                     bodies/move: 9850  ms median 52.9 (min 44.9, max 105.3)
+C1 component/khối, đọc caret chung     bodies/move: 2  ms median 16.6 (min 15.2, max 22.2)
+C2 component/khối, prop caretHere      bodies/move: 2  ms median 1.5 (min 0.8, max 1.8)
+D v-memo ở cấp khối                    bodies/move: 201,2,400  ms median 2.5 (min 0.9, max 4.5)
+ms là của Node + happy-dom, chỉ dùng để so các biến thể với nhau, không phải số WebKit.
