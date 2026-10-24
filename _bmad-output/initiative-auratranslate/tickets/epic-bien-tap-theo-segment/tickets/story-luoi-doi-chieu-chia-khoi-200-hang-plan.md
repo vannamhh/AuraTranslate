@@ -3,7 +3,7 @@ title: 'Lưới đối chiếu chia khối 200 hàng'
 type: 'feature'
 ticket: 16
 created: '2026-10-23'
-status: 'in-progress'
+status: 'built'
 baseline_revision: '5f25df6fac8287ff89d437c0c3dfe7a2b11443f0'
 route: 'full'
 route_source: 'auto'
