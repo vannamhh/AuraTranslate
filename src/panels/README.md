@@ -110,8 +110,8 @@ hôm nay **không có chữ**: một lượt đăng ký thiếu ở đó không 
 
 | Vai | Nghĩa | Ai mang *(🔵 đếm lại 2026-08-15)* |
 |---|---|---|
-| `'source'` | Bôi đen ở đây **PHÁT** một lượt tra | **cột nguyên văn của `GridPanel.vue`** *(`colSrc`)* — đúng **một** |
-| `'display'` | Bề mặt chữ **CỐ Ý không được** là nguồn | cột bản dịch *(`colTgt`)* · Panel Lookup · AI Translation · `SettingsOverlay` · `AttributionOverlay` — **năm** |
+| `'source'` | Bôi đen ở đây **PHÁT** một lượt tra | **cột nguyên văn của `GridPanel.vue`** *(gốc lưới, phạm vi `[data-col="src"]`)* — đúng **một** |
+| `'display'` | Bề mặt chữ **CỐ Ý không được** là nguồn | cột bản dịch *(gốc lưới, phạm vi `[data-col="tgt"]`)* · Panel Lookup · AI Translation · `SettingsOverlay` · `AttributionOverlay` — **năm** |
 
 🔵 **Bảng trên sửa 2026-08-15 (code review) — nó đang liệt kê BA cái tên đã chết.** Bản cũ ghi vai `'source'` cho *"Panel Source (`.original`) · `SourceHanViet` (`.hv-surface`) · AI Translation · Editor"*: `SourcePanel.vue` và `EditorPanel.vue` **đã bị xoá** ở Story 2.5b; `SourceHanViet` **nhượng** lượt đăng ký cho cột nên nó thôi mang vai nào; và AI Translation mang `'display'`, **không** `'source'` — bôi đen trong một bản dịch máy mà phát lượt tra là đúng Bẫy 1 mà Panel Lookup đã bắt. Số thật đọc thẳng từ cổng: `npm run check:commands` Kiểm F in **`6 bề mặt … — 1 nguồn · 5 hiển thị`**.
 

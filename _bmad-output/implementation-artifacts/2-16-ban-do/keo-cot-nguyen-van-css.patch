@@ -1,0 +1,39 @@
+--- a/src/panels/GridPanel.vue
++++ b/src/panels/GridPanel.vue
+@@ -1241,11 +1241,24 @@
+   setHoveredGlossaryTerm({ isConfirmed: span.isConfirmed, translation: span.translation })
+ }
+ 
++function onDocumentMouseDown(event: MouseEvent): void {
++  const from = event.target instanceof Element ? event.target : null
++  if (from?.closest('[data-col="src"]') == null) return
++  gridRoot.value?.setAttribute('data-drag-src', '')
++}
++function onDocumentMouseUp(): void {
++  gridRoot.value?.removeAttribute('data-drag-src')
++}
++
+ onMounted(() => {
++  document.addEventListener('mousedown', onDocumentMouseDown, true)
++  document.addEventListener('mouseup', onDocumentMouseUp, true)
+   document.addEventListener('selectionchange', onSelectionChange)
+   document.addEventListener('selectionchange', onSourceSelectionChange)
+ })
+ onBeforeUnmount(() => {
++  document.removeEventListener('mousedown', onDocumentMouseDown, true)
++  document.removeEventListener('mouseup', onDocumentMouseUp, true)
+   document.removeEventListener('selectionchange', onSelectionChange)
+   document.removeEventListener('selectionchange', onSourceSelectionChange)
+ })
+--- a/src/panels/GridBlock.vue
++++ b/src/panels/GridBlock.vue
+@@ -920,4 +920,9 @@
+   color: var(--color-error);
+   user-select: none;
+ }
++
++.grid[data-drag-src] .col:not(.col-src) {
++  -webkit-user-select: none;
++  user-select: none;
++}
+ </style>

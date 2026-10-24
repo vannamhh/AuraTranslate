@@ -114,6 +114,7 @@ describe('repaintProofreadHost after a typed edit in one segment', () => {
     for (const [id, text] of [[1, 'ab cd'], [2, 'ef gh']] as const) {
       const cell = cellOf(text)
       cell.setAttribute('data-segment-id', String(id))
+      cell.setAttribute('data-col', 'tgt')
       host.appendChild(cell)
     }
     return host

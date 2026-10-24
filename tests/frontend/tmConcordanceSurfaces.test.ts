@@ -80,6 +80,22 @@ describe('Vietnamese surface declaration through the real panels', () => {
     wrapper.unmount()
   })
 
+  it('GridPanel surfaces are scoped to their own column: a selection in the number column belongs to neither', async () => {
+    vi.resetModules()
+    const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
+    const editor = await import('../../src/panels/editorPanelState')
+    const contract = await import('../../src/panels/selectionContract')
+    const wrapper = mount(GridPanel, { props: { params: {} } as never, global: { stubs: STUBS }, attachTo: document.body })
+    await editor.ensureSegmentsLoaded()
+    await wrapper.vm.$nextTick()
+    const root = wrapper.element as unknown as Element
+
+    selectFirstText(root.querySelector('.col-num') as Element)
+    expect(contract.currentSelectionText()).toBe('')
+    expect(contract.currentSelectionTextForConcordance()).toBe('')
+    wrapper.unmount()
+  })
+
   it('AiTranslationPanel surface is Vietnamese', async () => {
     vi.resetModules()
     const Panel = (await import('../../src/panels/AiTranslationPanel.vue')).default

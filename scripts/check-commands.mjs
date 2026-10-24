@@ -227,7 +227,7 @@ const tsFiles = keep(tsAll)
  * bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const VUE_FLOOR = 48
+const VUE_FLOOR = 52
 const TS_FLOOR = 121
 
 /**
@@ -1831,6 +1831,8 @@ let anySurfaceCalls = 0
 // then the role is read from `masked` at that same offset, since `code` also blanks the
 // `'source'`/`'display'` literal — same split as Kiểm B's `DISPATCH_ANY_RE` + masked-slice.
 const SURFACE_CALL_AT_RE = new RegExp(`^${SURFACE_CALL_RE.source}`)
+const GRID_SCOPED_CALL_RE =
+  /^useSelectionSurface\s*\(\s*gridRoot\s*,\s*'(?:source|display)'\s*,\s*[^,)]+,\s*(?:true|false)\s*,\s*'\[data-col="(src|tgt)"\]'\s*\)/
 for (const p of parsed) {
   if (!p.file.endsWith('.vue')) continue
   const code = p.code ?? '' // `code` is optional only for vitest fixtures; always set here
@@ -1839,7 +1841,15 @@ for (const p of parsed) {
   while ((m = any.exec(code))) {
     anySurfaceCalls += 1
     const roleMatch = SURFACE_CALL_AT_RE.exec(p.masked.slice(m.index))
-    if (roleMatch) surfaceCalls.push({ file: posix(p.file), role: roleMatch[1], index: m.index })
+    if (roleMatch) {
+      const scopeMatch = GRID_SCOPED_CALL_RE.exec(p.masked.slice(m.index))
+      surfaceCalls.push({
+        file: posix(p.file),
+        role: roleMatch[1],
+        index: m.index,
+        scopeCol: scopeMatch === null ? null : scopeMatch[1],
+      })
+    }
   }
 }
 const nonLiteralSurfaceCalls = anySurfaceCalls - surfaceCalls.length
@@ -1917,10 +1927,15 @@ for (const want of DISPLAY_ONLY_FILES) {
 //    Đây là chỗ bịt khoảng hở mà lượt gộp panel vừa mở ra: ③ canh theo **tệp**, và hai vai
 //    nay ở **cùng một** tệp nên ③ không nói được gì về việc vai nào thuộc cột nào.
 //
-//    ⚠️ Cổng vẫn **không** đọc được *"cột nào là cột nào"* — nó chỉ đọc được rằng có đúng một
-//    lời gọi mỗi vai. Một lượt đảo `colSrc`/`colTgt` trong template đi qua được. Vế đó thuộc
-//    đường **e2e** (bấm vào cột bản dịch không được phát lượt tra) và
-//    `tests/frontend/editorAutoLookup.test.ts`. Ghi ra thay vì để người sau tưởng cổng phủ hết.
+//    Lưới chia khối nên không còn một phần tử cột duy nhất để truyền vào: cả hai lời gọi nhận
+//    gốc lưới `gridRoot` kèm bộ chọn cột, và bề mặt chỉ nhận vùng chọn có anchor nằm trong
+//    phần tử khớp bộ chọn. Cổng bắt buộc `source` ⇒ `[data-col="src"]`, `display` ⇒
+//    `[data-col="tgt"]`, viết literal; thiếu bộ chọn thì bề mặt phủ cả lưới và cột bản dịch
+//    thành nguồn tra.
+//
+//    ⚠️ Cổng chỉ đọc được lời gọi, không đọc được `data-col` trong template có đặt đúng cột
+//    hay không. Vế đó thuộc đường **e2e** (bấm vào cột bản dịch không được phát lượt tra) và
+//    `tests/frontend/editorAutoLookup.test.ts`.
 const GRID_VUE = 'src/panels/GridPanel.vue'
 const gridCalls = surfaceCalls.filter((c) => c.file.endsWith(GRID_VUE))
 if (gridCalls.length > 0) {
@@ -1931,6 +1946,15 @@ if (gridCalls.length > 0) {
       detail('🔴 Cột nguyên văn là `source`, cột bản dịch là `display`. Đảo hai vai mở lại đúng')
       detail('lỗi commit `1c7658d`: tra trong bản dịch tiếng Việt cho 0 hàng rồi THAY MẤT kết')
       detail('quả người dùng vừa tra từ cột nguyên văn — rỗng im lặng.')
+      fBad += 1
+    }
+  }
+  const wantScope = { source: 'src', display: 'tgt' }
+  for (const c of gridCalls) {
+    if (c.scopeCol !== wantScope[c.role]) {
+      fail(`${GRID_VUE} — lời gọi vai \`${c.role}\` thiếu bộ chọn \`[data-col="${wantScope[c.role]}"]\` trên \`gridRoot\``)
+      detail('Lưới chia thành nhiều khối nên bề mặt đặt ở gốc lưới và phải có phạm vi cột. Thiếu')
+      detail('phạm vi, bề mặt phủ cả lưới: vùng chọn ở cột bản dịch có thể được coi là nguồn tra.')
       fBad += 1
     }
   }
@@ -2068,7 +2092,7 @@ console.log('\nKiểm I — vạch lề segment: ĐÚNG NĂM giá trị, không 
 const EDITOR_SEGMENTS_TS = join(SRC_ROOT, 'panels', 'editorSegments.ts')
 // 🔵 2026-08-14 (Story 2.5b): `EditorPanel.vue` → `GridPanel.vue`. Bốn màu vạch chuyển sang
 // `<style scoped>` của lưới cùng lượt gộp hai panel; tên hằng giữ nguyên để diff đọc được.
-const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'GridPanel.vue')
+const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'GridBlock.vue')
 
 /** ⚠️ Bản chép ĐỘC LẬP của `DESIGN.md:380` — không `import` từ tệp đang bị kiểm. */
 // 🔵 2026-08-14 (Story 2.5b) — NĂM → SÁU. `draft` lấp một hàng vốn đã THIẾU trong bảng
@@ -2132,7 +2156,7 @@ if (typeof segmentsMod.resolveSegmentRule !== 'function') {
   }
 }
 
-// ③ Đối chiếu HAI CHIỀU với CSS của `GridPanel.vue`.
+// ③ Đối chiếu HAI CHIỀU với CSS của `GridBlock.vue`.
 const editorVue = parsed.find((p) => p.file === EDITOR_PANEL_VUE)
 if (editorVue === undefined) {
   fail(`\`${posix(EDITOR_PANEL_VUE)}\` không nằm trong quần thể quét — Kiểm I mất chiều thứ hai`)
@@ -2540,10 +2564,10 @@ const HANDLER_TABLE = {
   'src/modes/ReadingMode.vue::onMarksKeydown': {
     ids: ['reading.marks_next', 'reading.marks_prev', 'reading.marks_open', 'reading.marks_unmark'],
   },
-  'src/panels/GridPanel.vue::onSourceCellMouseUp': { nonCommand: R_SOURCE_CUT_EXEMPT },
-  'src/panels/GridPanel.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
-  'src/panels/GridPanel.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },
-  'src/panels/GridPanel.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'editor.merge_segments'] },
+  'src/panels/GridBlock.vue::onSourceCellMouseUp': { nonCommand: R_SOURCE_CUT_EXEMPT },
+  'src/panels/GridBlock.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
+  'src/panels/GridBlock.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },
+  'src/panels/GridBlock.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'editor.merge_segments'] },
   // 🔴 Mũi tên trên dải tab Hán Việt gọi hàm này TRỰC TIẾP (không `dispatch('<id>')` trần),
   // vì nó phải dời tiêu điểm DOM NGAY SAU lượt dispatch — xem doc-comment tại chỗ định nghĩa.
   'src/panels/GridPanel.vue::selectTabViaArrow': {
@@ -2558,15 +2582,19 @@ const HANDLER_TABLE = {
   'src/panels/LookupPanel.vue::aimLookupEntryFrom': { nonCommand: R_CURSOR_IMPORTED },
 }
 
+/** Template files whose handlers are defined in another file and arrive through `inject`. */
+const HANDLER_PROVIDER = { 'src/panels/GridBlock.vue': 'src/panels/GridPanel.vue' }
+
 /**
  * Judges a single attribute — shared by the real scan below and the self-check, so the
  * self-check always exercises the real function, not a copy.
  * @param {ParsedFile} p
  * @param {TemplateAttr} a
  * @param {Record<string, HandlerExpectation>} table
+ * @param {ParsedFile|null} [provider] file that defines the handlers the template receives by `inject`
  * @returns {{ key: string|null, problems: string[] }}
  */
-function judgeHandlerInventory(p, a, table) {
+function judgeHandlerInventory(p, a, table, provider = null) {
   const value = a.value.trim()
   if (DISPATCH_ONLY_RE.test(value)) return { key: null, problems: [] }
   const handlerValue = parseHandlerValue(value)
@@ -2590,12 +2618,16 @@ function judgeHandlerInventory(p, a, table) {
       ],
     }
   }
-  const code = p.code ?? ''
-  const range = functionBodyRange(code, handlerValue.ident)
+  let bodyFile = p
+  let range = functionBodyRange(p.code ?? '', handlerValue.ident)
+  if (range === null && provider !== null) {
+    range = functionBodyRange(provider.code ?? '', handlerValue.ident)
+    bodyFile = provider
+  }
   /** @type {string[]|null} */
   let actualIds = null
   if (range !== null) {
-    const body = p.masked.slice(range.start, range.end)
+    const body = bodyFile.masked.slice(range.start, range.end)
     const ids = new Set()
     const re = new RegExp(DISPATCH_CALL_RE.source, 'g')
     let m
@@ -2768,7 +2800,9 @@ const seenHandlerKeys = new Set()
 for (const { p, a } of scanVueAttrs(parsed)) {
   if (!HANDLER_ATTR_RE.test(a.name)) continue
   handlerAttrCount += 1
-  const { key, problems } = judgeHandlerInventory(p, a, HANDLER_TABLE)
+  const providerFile = HANDLER_PROVIDER[posix(p.file)]
+  const provider = providerFile === undefined ? null : (parsed.find((q) => posix(q.file).endsWith(providerFile)) ?? null)
+  const { key, problems } = judgeHandlerInventory(p, a, HANDLER_TABLE, provider)
   if (key !== null) seenHandlerKeys.add(key)
   for (const msg of problems) {
     fail(msg)

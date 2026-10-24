@@ -67,6 +67,14 @@ type Surface = {
   role: SelectionRole
   resolve: SelectionResolver | undefined
   vietnamese: boolean
+  scope: string | undefined
+}
+
+function ownsAnchor(surface: Surface, anchor: Node): boolean {
+  if (!surface.el.contains(anchor)) return false
+  if (surface.scope === undefined) return true
+  const scoped = anchor.parentElement?.closest(surface.scope) ?? null
+  return scoped !== null && surface.el.contains(scoped)
 }
 
 /**
@@ -91,14 +99,15 @@ export function registerSelectionSurface(
   role: SelectionRole,
   resolve?: SelectionResolver,
   vietnamese = false,
+  scope?: string,
 ): () => void {
-  const existing = surfaces.findIndex((s) => s.el === el)
-  const entry: Surface = { el, role, resolve, vietnamese }
+  const existing = surfaces.findIndex((s) => s.el === el && s.role === role)
+  const entry: Surface = { el, role, resolve, vietnamese, scope }
   if (existing === -1) surfaces.push(entry)
   else surfaces[existing] = entry
 
   return () => {
-    const at = surfaces.findIndex((s) => s.el === el)
+    const at = surfaces.findIndex((s) => s.el === el && s.role === role)
     // ⚠️ So sánh mục, không chỉ phần tử: nếu một lượt mount mới đã thay mục này rồi thì hàm
     // nhả của bản CŨ không được gỡ đăng ký của bản MỚI (thứ tự mount/unmount của dockview).
     if (at !== -1 && surfaces[at] === entry) surfaces.splice(at, 1)
@@ -124,13 +133,14 @@ export function useSelectionSurface(
   role: SelectionRole,
   resolve?: SelectionResolver,
   vietnamese = false,
+  scope?: string,
 ): void {
   let release: (() => void) | null = null
 
   const sync = (el: HTMLElement | null): void => {
     release?.()
     release = null
-    if (el !== null) release = registerSelectionSurface(el, role, resolve, vietnamese)
+    if (el !== null) release = registerSelectionSurface(el, role, resolve, vietnamese, scope)
   }
 
   watch(elRef, sync, { immediate: true, flush: 'sync' })
@@ -184,10 +194,10 @@ function surfaceFor(selection: Selection): Surface | null {
   // nguồn (chưa có hôm nay, nhưng Story 3.4 đánh dấu thuật ngữ Glossary NGAY TRONG Panel
   // Source) phải thắng, nếu không vòng tự thay thế mở lại ở đúng chỗ khó thấy nhất.
   for (const surface of surfaces) {
-    if (surface.role === 'display' && surface.el.contains(anchor)) return surface
+    if (surface.role === 'display' && ownsAnchor(surface, anchor)) return surface
   }
   for (const surface of surfaces) {
-    if (surface.role === 'source' && surface.el.contains(anchor)) return surface
+    if (surface.role === 'source' && ownsAnchor(surface, anchor)) return surface
   }
   return null
 }
@@ -453,18 +463,23 @@ export const selectionCommands = {
  * đầu nó, để `Selection.modify()` có chỗ bám.
  */
 export function focusSelectionSource(): boolean {
-  const source = surfaces.find((s) => s.role === 'source' && s.el.isConnected)
-  if (source === undefined) return false
+  let target: HTMLElement | null = null
+  for (const s of surfaces) {
+    if (s.role !== 'source' || !s.el.isConnected) continue
+    target = s.scope === undefined ? s.el : s.el.querySelector<HTMLElement>(s.scope)
+    if (target !== null) break
+  }
+  if (target === null) return false
 
   // Cùng kỷ luật với `modifySelection`: dựng `Range` là DOM, không phải nội bộ ta kiểm soát
   // hết — một lượt ném ở đây không được biến mất không dấu vết.
   try {
-    source.el.focus()
+    target.focus()
     const selection = window.getSelection()
     if (selection === null) return false
 
     const range = document.createRange()
-    range.selectNodeContents(source.el)
+    range.selectNodeContents(target)
     range.collapse(true)
     selection.removeAllRanges()
     selection.addRange(range)

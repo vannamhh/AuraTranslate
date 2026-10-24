@@ -77,7 +77,7 @@ describe('GridPanel margin rule column', () => {
   })
 
   it('every rule block keeps the empty slot border width, so a caret move changes no box size', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/panels/GridPanel.vue'), 'utf8')
+    const css = readFileSync(resolve(process.cwd(), 'src/panels/GridBlock.vue'), 'utf8')
     const widthOf = (selector: string) => {
       const block = new RegExp(`${selector.replace(/\./g, '\\.')}\\s*\\{([^}]*)\\}`).exec(css)
       return block === null ? null : (/border-left:\s*(\d+px)/.exec(block[1])?.[1] ?? null)

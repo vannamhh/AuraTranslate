@@ -150,3 +150,60 @@ Bản dựng: release, ký ad-hoc, WKWebView macOS 15.8.2, 9.850 câu, cửa s�
 - Vế dời con trỏ ≤ 50 ms: TRƯỢT ở cả hai; P3 bỏ gần hết phần JS (41–49 → 1–3 ms) nhưng phần sau JS tới hai frame (~55–65 ms) không đổi, và `segment.next` không đổi. Phần còn lại chưa quy nguồn: lượt này không có số style/layout/paint của chính frame đó.
 - Mỗi lượt chuột ở P3 đụng đúng 1 khối (`blocks=1`, 6 bản ghi DOM).
 - P3 phiên 1: gửi → 2 frame 385–388 ms trong khi handler → 2 frame 69–79 ms ⇒ trễ nằm trước handler (giao sự kiện), không phải app.
+
+# Giao việc Pha 3 (story 2-16) — Ice chọn hướng 1, 2026-10-24
+
+Ice nhận C2 dù vế dời con trỏ ≤ 50 ms trượt (`fd13e19`; plan §Implementation Notes, bullet cuối). Pha 3 đưa bản thử 3 vào `src/` và làm phần vùng chọn của plan. Pha 4 (agent sau) làm test mới, e2e và đối chứng gỡ.
+
+## Việc
+1. Đưa vào cây chính: `git apply _bmad-output/implementation-artifacts/2-16-ban-do/blocks-prototype-3.patch` (đã kiểm: áp sạch lên HEAD; `src/` và `tests/` không đổi từ `cc60020`). Đọc mục "Handoff Pha 2 lượt 3 -> Ice / phần 3" ở trên trước: giá trị đọc chung, 5 đỏ đã biết, rủi ro.
+2. Làm xanh vitest lưới: 5 đỏ đã biết (`gridPanelStripTrack` ×4, `gridPanelImages` ×1 đọc `style.gridTemplateRows` trên `.grid`) và các test plan §Code Map liệt kê là giả định một `.grid`/`.col-*`. Chỉ đổi cách tìm phần tử, không đổi điều kiện khẳng định (plan §Never). `gridTypingCost`, `gridCaretMoveCost` giữ nguyên điều kiện.
+3. Plan §Tasks, Pha 3: bề mặt vùng chọn có phạm vi trong `selectionContract.ts` (tham số tuỳ chọn là bộ chọn cột; khoá mục thành (el, role); `surfaceFor` đòi anchor trong `closest(scope)`; `focusSelectionSource` đặt caret ở đầu phần tử khớp đầu tiên). Lưới gọi hai lần trên gốc lưới với `[data-col="src"]` / `[data-col="tgt"]`, thay cho `colSrc`/`colTgt` chỉ gắn ở khối 0 của bản thử. Kiểm F của `scripts/check-commands.mjs` vẫn đếm 2; sửa lý do ở chỗ ghi lý do và bắt buộc hai lời gọi của lưới có phạm vi. Mọi chỗ khác còn coi `colSrc`/`colTgt` là host duy nhất (plan §Code Map) đổi sang gốc lưới + bộ chọn cột; bản thử đã đổi một phần, kiểm hết.
+4. Kéo chọn trong cột nguyên văn qua ranh giới khối chỉ tô cột nguyên văn (plan §Boundaries, quyết định tiêu chí 2; §Design Notes: hai cách, CSS `user-select: none` lên các cột khác khi lượt kéo bắt đầu trong `.col-src`, hoặc JS chặn đầu `focus` của vùng chọn trong `selectionchange`). Plan ghi ca e2e kéo chuột thật quyết định, và nếu cả hai đạt thì trình cả hai cho Ice. Vì vậy KHÔNG chọn: viết cả hai thành `keo-cot-nguyen-van-css.patch` và `keo-cot-nguyen-van-js.patch` trong `2-16-ban-do/`, mỗi patch áp riêng lên cây sau bước 3. Không đưa cách nào vào `src/`. Pha 4 viết ca e2e và chạy cả hai.
+5. Kiểm: `npx vue-tsc --noEmit` (hoặc lệnh kiểu của `package.json`), các tệp vitest lưới và vùng chọn đã đổi hay liên quan (`segmentSelection`, `selectionContract*`, `tmConcordanceSurfaces`, `proofreadHighlight`, `gridBlockRenderCost` và danh sách ở mục giao việc Pha 2 lượt 3), `npm run test:story 2-16`, `npm run check:commands && npm run check:layout`. Không chạy cả bộ (AGENTS.md §Tests). Phép gỡ cho phạm vi bề mặt: gỡ thật kiểm `closest(scope)` trong `surfaceFor`, giữ chữ ký, thấy một ca đỏ đúng lý do, rồi trả lại; chưa có ca nào đỏ thì thêm ca.
+
+## Ràng buộc
+- Làm trong cây chính. KHÔNG commit, KHÔNG push; để thay đổi trong cây cho người giao việc đọc và commit.
+- ⚠️ Không `git checkout`/`git stash`/`git restore` trên tệp có thay đổi chưa commit (mất việc). Lấy bản gốc bằng `git show HEAD:<path>` ra tệp tạm.
+- ⚠️ `rm` là alias `rm -i` và treo im lặng: dùng `/bin/rm`. Không gọi `cat` không đối số.
+- Comment theo AGENTS.md §Code comments; không ghi story id, số đo, lịch sử vào mã.
+- Không thêm phụ thuộc. Không đụng `src-tauri/`.
+
+## Đầu ra
+Mục `# Handoff Pha 3 -> Pha 4 (story 2-16)` nối vào cuối tệp này, ngắn: đã làm gì (theo tệp), Kiểm F đổi gì, hai patch kéo chọn và cách áp, test xanh/đỏ kèm phạm vi, phép gỡ và kết quả, việc để lại cho Pha 4 (e2e nào phải đổi cách tìm hàng, e2e nào cần thêm).
+
+# Handoff Pha 3 -> Pha 4 (story 2-16)
+
+Chưa commit. Cây chính = HEAD + `blocks-prototype-3.patch` + phần dưới.
+
+## Đã làm (theo tệp)
+- `src/panels/selectionContract.ts`: `Surface` có `scope`; `registerSelectionSurface`/`useSelectionSurface` nhận tham số cuối tuỳ chọn `scope` (bộ chọn cột); mục khoá theo (el, role); `surfaceFor` qua `ownsAnchor` đòi `closest(scope)` của anchor nằm trong `el`; `focusSelectionSource` đặt caret ở đầu phần tử khớp đầu tiên.
+- `GridPanel.vue`: hai lời gọi trên `gridRoot` với `'[data-col="src"]'` / `'[data-col="tgt"]'`; bỏ `colSrc`/`colTgt`/`setColSrcRef`/`setColTgtRef`. `GridBlock.vue`, `gridBlockContext.ts`: bỏ hai ref đó.
+- `tests/frontend/gridPanelStripTrack.test.ts`, `gridPanelImages.test.ts`: `.grid` -> `.grid-block` chỉ ở dòng đọc `gridTemplateRows`; điều kiện giữ nguyên. `tmConcordanceSurfaces.test.ts`: thêm ca "vùng chọn ở cột số không thuộc bề mặt nào".
+- `src/panels/README.md`: hai ô bảng vai bề mặt.
+
+## Cổng `scripts/check-commands.mjs`
+- Kiểm F: vẫn đếm 2 (`SELECTION_PANEL_FILES`); ⑤ nay còn đòi lời gọi `source` có `'[data-col="src"]'` và `display` có `'[data-col="tgt"]'` trên `gridRoot` (regex `GRID_SCOPED_CALL_RE`, trường `scopeCol`); lý do viết lại.
+- `VUE_FLOOR` 48 -> 52 (cổng tự báo `GridBlock.vue` làm sàn trôi, ceil(0.85 x 61)).
+- Kiểm I: `EDITOR_PANEL_VUE` trỏ `GridBlock.vue` (khối CSS `.rule-*` đã chuyển sang đó).
+- Kiểm K: bốn mục `GridPanel.vue::{onSourceCellMouseUp,onCellMouseDown,onCellMouseUp,onEditKeydown}` đổi sang `GridBlock.vue::`; thêm `HANDLER_PROVIDER` + tham số `provider` cho `judgeHandlerInventory` để thân hàm đọc ở `GridPanel.vue` (handler tới khối qua `inject`), vẫn đối chiếu bộ id `onEditKeydown` thật.
+
+## Hai patch kéo chọn (chưa vào `src/`; mỗi cái áp riêng lên cây hiện tại, `git apply --check` xanh, `vue-tsc` xanh khi áp)
+- `keo-cot-nguyen-van-css.patch`: mousedown/mouseup ở document (capture) đặt/gỡ `data-drag-src` trên `gridRoot` khi mousedown trong `[data-col="src"]`; `GridBlock.vue` thêm `.grid[data-drag-src] .col:not(.col-src) { user-select: none }` (kèm `-webkit-`).
+- `keo-cot-nguyen-van-js.patch`: cờ `draggingFromSource` và `confineSourceDrag` trên `selectionchange`: focus ra ngoài cột nguyên văn thì `selection.extend` về cuối/đầu ô nguyên văn gần nhất theo hướng kéo. ⚠️ Giới hạn đoán trước: Range vẫn chứa DOM của cột bản dịch/số nằm giữa hai ô nguyên văn khác khối nên các cột đó có thể vẫn được tô; chỉ e2e kéo chuột thật mới kết luận. Chưa ca nào chạy thật cho cả hai.
+- Áp: `git apply _bmad-output/implementation-artifacts/2-16-ban-do/keo-cot-nguyen-van-<css|js>.patch`; gỡ bằng `git apply -R`. Không áp cả hai cùng lúc (cả hai thêm `onDocumentMouseDown/Up` vào `GridPanel.vue`).
+
+## Test
+- Xanh: `vue-tsc --noEmit` 0 lỗi; `check:commands`, `check:layout`; `npm run test:story 2-16` (6 tệp, 36 ca); vitest 24 tệp lưới/vùng chọn/tm/glossary/proofread/editorAutoLookup lúc đầu: 166 xanh + đúng 5 đỏ đã biết, nay sửa xong (12 ca hai tệp xanh); 13 tệp (121 ca) gồm `checkCommandsScan`, `gridBlockRenderCost`, `gridTypingCost`, `gridCaretMoveCost`, `segmentSelection` xanh.
+- Không chạy: toàn bộ suite, e2e, build.
+
+## Phép gỡ
+- Bỏ nhánh `scope === undefined` -> `return true` trong `ownsAnchor` (mất kiểm `closest(scope)`, chữ ký giữ): đỏ 2 ca ở `tmConcordanceSurfaces` (ca mới về cột số, và ca nguyên văn/bản dịch cũ), 11 tệp còn lại xanh. Đã trả lại.
+- Bỏ bộ chọn `[data-col="tgt"]` khỏi lời gọi `display` trong `GridPanel.vue`: `check:commands` đỏ đúng một FAIL ⑤. Đã trả lại.
+
+## Việc cho Pha 4
+- Sửa cách tìm hàng 4 spec e2e ở Code Map (`story-12-9-strip-row-track:116`, `story-12-7-workspace-grid-status-bar:73-78` một `.grid`, `grid-image-row-alignment:60-75` ghép `.col-* > *` theo chỉ số, `hanviet-parallel-row-height:23`); các test vitest 5 ca đã sửa ở trên.
+- `tests/frontend/gridBlocks.test.ts` (mới) theo plan; thêm e2e: điều hướng qua ranh giới, Lookup ở khối 5, <=1 px quanh ranh giới, kéo chuột thật cột nguyên văn qua ranh giới chạy cho CẢ HAI patch, `Mod+Shift+↓` qua ranh giới.
+- Gỡ thật phần chia khối xác nhận ca hình dạng đỏ.
+- Bề mặt nguyên văn nay là `[data-col="src"]` từng ô (không còn cả cột): vùng chọn nằm ở ảnh/dải trong cột nguyên văn mà không trong ô sẽ không phát lượt tra; e2e nên có một ca.
+- Chú thích cũ nhắc `colSrc` còn ở `editorSegments.ts:466` và `tests/frontend/editorSourceCutGesture.test.ts:12` (không đụng).

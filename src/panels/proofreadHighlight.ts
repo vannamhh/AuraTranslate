@@ -121,7 +121,7 @@ export function repaintProofreadHost<K>(
 ): void {
   unwrapAllProofread(host)
   for (const [id, entry] of results) {
-    const cell = host.querySelector(`[data-segment-id="${String(id)}"]`)
+    const cell = host.querySelector(`[data-col="tgt"][data-segment-id="${String(id)}"]`)
     if (cell === null) continue
     wrapProofread(cell, entry.scannedText, entry.findings.map((f) => ({ start: f.start, end: f.end, meaning: isMeaning(f.kind) })))
   }

@@ -66,7 +66,7 @@ async function mountGrid() {
 describe('GridPanel strip track', () => {
   it('has N tracks and no padding cell while no strip anchors', async () => {
     const { root } = await mountGrid()
-    const grid = root.querySelector('.grid') as HTMLElement
+    const grid = root.querySelector('.grid-block') as HTMLElement
     expect(grid.style.gridTemplateRows).toBe('repeat(3, auto)')
     expect(root.querySelectorAll('.strip-pad')).toHaveLength(0)
     expect(root.querySelector('.strip-track')?.classList.contains('strip-track-off')).toBe(true)
@@ -76,7 +76,7 @@ describe('GridPanel strip track', () => {
     const { wrapper, root } = await mountGrid()
     anchor.value = 2
     await wrapper.vm.$nextTick()
-    const grid = root.querySelector('.grid') as HTMLElement
+    const grid = root.querySelector('.grid-block') as HTMLElement
     expect(grid.style.gridTemplateRows).toBe('repeat(4, auto)')
     for (const col of ['rule', 'num', 'src', 'tgt']) {
       const kids = Array.from(root.querySelector(`.col-${col}`)!.children)
@@ -95,7 +95,7 @@ describe('GridPanel strip track', () => {
     await wrapper.vm.$nextTick()
     anchor.value = null
     await wrapper.vm.$nextTick()
-    expect((root.querySelector('.grid') as HTMLElement).style.gridTemplateRows).toBe('repeat(3, auto)')
+    expect((root.querySelector('.grid-block') as HTMLElement).style.gridTemplateRows).toBe('repeat(3, auto)')
     expect(root.querySelectorAll('.strip-pad')).toHaveLength(0)
     expect(root.querySelector('.strip-track')?.classList.contains('strip-track-off')).toBe(true)
   })
@@ -104,7 +104,7 @@ describe('GridPanel strip track', () => {
     const { wrapper, root } = await mountGrid()
     anchor.value = 99
     await wrapper.vm.$nextTick()
-    expect((root.querySelector('.grid') as HTMLElement).style.gridTemplateRows).toBe('repeat(3, auto)')
+    expect((root.querySelector('.grid-block') as HTMLElement).style.gridTemplateRows).toBe('repeat(3, auto)')
     expect(root.querySelectorAll('.strip-pad')).toHaveLength(0)
     expect(root.querySelector('.strip-track')?.classList.contains('strip-track-off')).toBe(true)
   })

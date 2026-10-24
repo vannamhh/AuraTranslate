@@ -1,0 +1,60 @@
+--- a/src/panels/GridPanel.vue
++++ b/src/panels/GridPanel.vue
+@@ -1239,13 +1239,57 @@
+     return
+   }
+   setHoveredGlossaryTerm({ isConfirmed: span.isConfirmed, translation: span.translation })
++}
++
++let draggingFromSource = false
++
++function onDocumentMouseDown(event: MouseEvent): void {
++  const from = event.target instanceof Element ? event.target : null
++  draggingFromSource = from?.closest('[data-col="src"]') != null
++}
++function onDocumentMouseUp(): void {
++  draggingFromSource = false
++}
++
++function confineSourceDrag(): void {
++  if (!draggingFromSource || gridRoot.value === null) return
++  const selection = window.getSelection()
++  const anchor = selection?.anchorNode ?? null
++  const focus = selection?.focusNode ?? null
++  if (selection === null || anchor === null || focus === null) return
++  const focusEl = focus instanceof Element ? focus : focus.parentElement
++  if (focusEl?.closest('[data-col="src"]') != null) return
++
++  const cells = Array.from(gridRoot.value.querySelectorAll<HTMLElement>('[data-col="src"]'))
++  const forward = (anchor.compareDocumentPosition(focus) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
++  if (forward) {
++    for (let i = cells.length - 1; i >= 0; i -= 1) {
++      if ((cells[i].compareDocumentPosition(focus) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0) {
++        selection.extend(cells[i], cells[i].childNodes.length)
++        return
++      }
++    }
++  } else {
++    for (const cell of cells) {
++      if ((focus.compareDocumentPosition(cell) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0) {
++        selection.extend(cell, 0)
++        return
++      }
++    }
++  }
+ }
+ 
+ onMounted(() => {
++  document.addEventListener('mousedown', onDocumentMouseDown, true)
++  document.addEventListener('mouseup', onDocumentMouseUp, true)
++  document.addEventListener('selectionchange', confineSourceDrag)
+   document.addEventListener('selectionchange', onSelectionChange)
+   document.addEventListener('selectionchange', onSourceSelectionChange)
+ })
+ onBeforeUnmount(() => {
++  document.removeEventListener('mousedown', onDocumentMouseDown, true)
++  document.removeEventListener('mouseup', onDocumentMouseUp, true)
++  document.removeEventListener('selectionchange', confineSourceDrag)
+   document.removeEventListener('selectionchange', onSelectionChange)
+   document.removeEventListener('selectionchange', onSourceSelectionChange)
+ })

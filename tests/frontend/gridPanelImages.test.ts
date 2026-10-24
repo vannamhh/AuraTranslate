@@ -152,7 +152,7 @@ describe('GridPanel.vue — ảnh đúng vị trí + nhãn vai (Story 6.14)', ()
   it('🔴 mỗi trong bốn cột có đúng N phần tử con và `gridTemplateRows` đếm đúng N — ảnh không sinh thêm track nào', async () => {
     const wrapper = await mountGrid()
 
-    const grid = rootOf(wrapper).querySelector<HTMLElement>('.grid')
+    const grid = rootOf(wrapper).querySelector<HTMLElement>('.grid-block')
     expect(grid).not.toBeNull()
     expect(grid?.style.gridTemplateRows).toBe(`repeat(${SEGMENTS.length}, auto)`)
 
