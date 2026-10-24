@@ -6,11 +6,15 @@
  *
  *     TAURI_WEBDRIVER_PORT=4467 npm run test:e2e -- --spec _bmad-output/implementation-artifacts/2-16-ban-do/keo-cot-nguyen-van.e2e.mjs
  *
- * `DRAG_SOURCE_COLUMN` fails on the tree without a drag-confinement change.
+ * `DRAG_SOURCE_COLUMN` fails on the tree without `gridSourceSelection.ts` and the `[data-sel-src]`
+ * rule in `GridPanel.vue`. Paint is measured on two window screenshots (before and after the drag;
+ * `takeElementScreenshot` returns the whole window on this driver), compared inside the cell rects
+ * scaled by png width / innerWidth, so the device pixel ratio of the machine does not enter.
  */
 import { waitForGridRows } from '../../../e2e/support/gridWait.mjs'
 import { openWorkspaceWithWork } from '../../../e2e/support/workspace.mjs'
 import { calibrateOsMouse, osDrag } from './osMouse.mjs'
+import { decodePng, differingPixels } from './pngRegion.mjs'
 
 const SENTENCE_COUNT = 1200
 const TRANSLATED_ROWS = 1100
@@ -105,32 +109,93 @@ describe('Grid blocks: real OS mouse drags', () => {
     )
   })
 
-  it('DRAG_SOURCE_COLUMN: a real OS drag in the source column across the boundary selects nothing outside that column', async () => {
+  it('DRAG_SOURCE_COLUMN: a real OS drag in the source column across the boundary paints and reads only that column', async function () {
+    this.timeout(180_000)
     const from = BOUNDARY_ROW - 2
     const to = BOUNDARY_ROW + 2
     await scrollRowIntoView(from, 'src')
     await browser.execute(() => window.getSelection().removeAllRanges())
-    osDrag(osOffset, await textPointOf(from, 0), await textPointOf(to, 0.6))
     await browser.pause(300)
 
-    const result = await browser.execute((arg) => {
+    // Probes between the two dragged source cells: block 0 rows 198-199 (translation, number, rule)
+    // and block 1 rows 200-201 (number, rule). Pixel equality with the same cell before the drag
+    // means nothing was painted there; the source cells are the positive control.
+    await browser.execute(
+      (ids, boundary) => {
+        const mark = (el, name) => el.setAttribute('data-probe', name)
+        const blocks = document.querySelectorAll('.grid-block')
+        for (const [k, id] of ids.entries()) {
+          mark(document.querySelector(`[data-col="tgt"][data-segment-id="${id}"]`), `tgt${k}`)
+          mark(document.querySelector(`[data-col="src"][data-segment-id="${id}"]`), `src${k}`)
+        }
+        for (const k of [0, 1]) {
+          mark(blocks[0].querySelectorAll('.cell-num')[boundary - 2 + k], `num${k}`)
+          mark(blocks[0].querySelectorAll('.cell-rule')[boundary - 2 + k], `rule${k}`)
+          mark(blocks[1].querySelectorAll('.cell-num')[k], `num${k + 2}`)
+          mark(blocks[1].querySelectorAll('.cell-rule')[k], `rule${k + 2}`)
+        }
+      },
+      [segments[from].id, segments[from + 1].id],
+      BOUNDARY_ROW,
+    )
+    const names = ['tgt0', 'tgt1', 'num0', 'num1', 'num2', 'num3', 'rule0', 'rule1', 'rule2', 'rule3', 'src0', 'src1']
+    const rects = () =>
+      browser.execute(
+        (list) =>
+          Object.fromEntries(
+            list.map((n) => {
+              const r = document.querySelector(`[data-probe="${n}"]`).getBoundingClientRect()
+              return [n, { x: r.x, y: r.y, width: r.width, height: r.height }]
+            }),
+          ),
+        names,
+      )
+    const window1 = await browser.execute(() => window.innerWidth)
+    const quietRects = await rects()
+    const quiet = decodePng(await browser.takeScreenshot())
+    const scale = quiet.width / window1
+
+    osDrag(osOffset, await textPointOf(from, 0), await textPointOf(to, 0.6))
+    await browser.pause(400)
+
+    const draggedRects = await rects()
+    expect(draggedRects).toEqual(quietRects)
+    const dragged = decodePng(await browser.takeScreenshot())
+    const painted = {}
+    for (const name of names) painted[name] = differingPixels(quiet, dragged, quietRects[name], scale)
+    console.log(`PIXELS dpr=${scale} ${JSON.stringify(painted)}`)
+    const read = await browser.execute(async (arg) => {
+      const contract = await import('/src/panels/selectionContract.ts')
+      const text = contract.currentSelectionText()
       const sel = window.getSelection()
-      const touched = (selector) =>
-        [...document.querySelectorAll(selector)].filter((el) => sel.containsNode(el, true)).length
+      const copied = []
+      const onCopy = (e) => copied.push({ text: e.clipboardData.getData('text/plain'), prevented: e.defaultPrevented })
+      document.addEventListener('copy', onCopy)
+      const ok = document.execCommand('copy')
+      document.removeEventListener('copy', onCopy)
       return {
-        translationText: sel.toString().includes(arg),
-        src: touched('.cell-src'),
-        tgt: touched('.cell-tgt'),
-        num: touched('.cell-num'),
-        rule: touched('.cell-rule'),
+        lookupHasTranslation: text.includes(arg),
+        lookupText: text,
+        rangeHasTranslation: sel.toString().includes(arg),
+        copyOk: ok,
+        copied,
       }
     }, TRANSLATION)
-    expect(result.src).toBeGreaterThanOrEqual(3)
+
     expect({
-      translationText: result.translationText,
-      tgt: result.tgt,
-      num: result.num,
-      rule: result.rule,
-    }).toEqual({ translationText: false, tgt: 0, num: 0, rule: 0 })
+      outsideSourcePainted: names.filter((n) => !n.startsWith('src') && painted[n] > 0),
+      sourcePainted: [painted.src0 > 0, painted.src1 > 0],
+      lookupHasTranslation: read.lookupHasTranslation,
+      lookupHasSource: read.lookupText.includes('句子'),
+      copied: read.copied.map((c) => ({ prevented: c.prevented, hasTranslation: c.text.includes(TRANSLATION), hasSource: c.text.includes('句子') })),
+    }).toEqual({
+      outsideSourcePainted: [],
+      sourcePainted: [true, true],
+      lookupHasTranslation: false,
+      lookupHasSource: true,
+      copied: [{ prevented: true, hasTranslation: false, hasSource: true }],
+    })
+    // The Range itself still spans the other cells: only paint and readers are confined.
+    expect(read.rangeHasTranslation).toBe(true)
   })
 })

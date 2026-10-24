@@ -67,7 +67,7 @@
 // Story 1.6, và `'panel.grid'` có trong `FOCUS_OWNERS`. **Đừng** dựng vạch tiêu điểm panel
 // thứ hai — `.panel.focused::before` đã có, và nó là vạch của **panel** (UX-DR8), khác hẳn
 // vạch của **segment** (UX-DR19) mà tệp này dựng.
-import { computed, onBeforeUnmount, onMounted, provide, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { isMeaningKind } from '../config/proofread'
 import { GRID_BLOCK_ROWS, gridBlocksOf } from './gridBlocks'
 import { repaintProofreadHost, unwrapAllProofread, unwrapProofread } from './proofreadHighlight'
@@ -78,6 +78,7 @@ import { GRID_BLOCK_CONTEXT } from './gridBlockContext'
 import type { GridBlockContext, GridBlockView, SourcePieceInfo } from './gridBlockContext'
 import { useSelectionSurface } from './selectionContract'
 import { resolveHanVietSelection } from './hanVietSurfaces'
+import { isSourceColumnSelecting, sourceColumnText } from './gridSourceSelection'
 import type { DockviewPanelProps } from '../layout/panelProps'
 import type { ChapterAsset } from '../config/segment'
 import { t, tError } from '../i18n'
@@ -564,6 +565,7 @@ function onGlossaryPieceLeave(): void {
 // AC7 · B1 — HỢP ĐỒNG VÙNG CHỌN THEO **CỘT**, hai lời gọi, hai vai KHÔNG được đảo
 // ═════════════════════════════════════════════════════════════════════════════════
 const gridRoot = useTemplateRef<HTMLElement>('gridRoot')
+const sourceSelecting = ref(false)
 const stripTrack = shallowRef<HTMLElement | null>(null)
 const setStripTrackRef = (el: unknown): void => { stripTrack.value = el instanceof HTMLElement ? el : null }
 
@@ -630,7 +632,19 @@ function targetCellById(id: number): HTMLElement | null {
  */
 function resolveSourceSelection(selection: Selection): string | null {
   const mapped = resolveHanVietSelection(selection)
-  return mapped === undefined ? selection.toString() : mapped
+  if (mapped !== undefined) return mapped
+  const root = gridRoot.value
+  return root !== null && isSourceColumnSelecting(selection, root)
+    ? sourceColumnText(selection, root)
+    : selection.toString()
+}
+
+function onGridCopy(event: ClipboardEvent): void {
+  const selection = window.getSelection()
+  const root = gridRoot.value
+  if (selection === null || root === null || !isSourceColumnSelecting(selection, root)) return
+  event.clipboardData?.setData('text/plain', sourceColumnText(selection, root))
+  event.preventDefault()
 }
 
 // 🔴 **VAI VIẾT LITERAL, VÀ HAI VAI NÀY KHÔNG ĐƯỢC ĐẢO** (B1).
@@ -1208,6 +1222,7 @@ function onSelectionChange(): void {
  */
 function onSourceSelectionChange(): void {
   const selection = window.getSelection()
+  sourceSelecting.value = isSourceColumnSelecting(selection, gridRoot.value)
   const anchor = selection?.anchorNode ?? null
   const from = anchor === null ? null : anchor instanceof Element ? anchor : anchor.parentElement
   const cell = from?.closest<HTMLElement>('[data-col="src"]') ?? null
@@ -1830,7 +1845,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
         **không bao giờ** — Kiểm B của `check-tokens.mjs` đọc CSS, không đọc TypeScript, nên
         một màu bind qua `:style` đi qua cổng mà không một dòng nào được soi.
       -->
-      <div ref="gridRoot" class="grid">
+      <div ref="gridRoot" class="grid" :data-sel-src="sourceSelecting ? '' : null" @copy="onGridCopy">
         <GridBlock
           v-for="block in gridBlockViews"
           :key="block.index"
@@ -1846,6 +1861,11 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
 </template>
 
 <style scoped>
+.grid[data-sel-src] :deep(.col:not(.col-src)::selection),
+.grid[data-sel-src] :deep(.col:not(.col-src) *::selection) {
+  background: transparent;
+}
+
 .load-error {
   margin: 0;
   /*

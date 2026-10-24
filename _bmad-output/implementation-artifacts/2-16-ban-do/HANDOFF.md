@@ -300,3 +300,44 @@ Chưa commit. Cây ở trạng thái (a): không patch kéo chọn nào trong `s
 
 ## Đầu ra
 Mục `# Handoff Pha 4b -> Ice (story 2-16)` nối vào cuối tệp này, ngắn: tệp đã đổi, cơ chế trạng thái (khi bật, khi tắt), những chỗ đọc vùng chọn đã kiểm và kết quả, cách đo điểm ảnh, bảng đỏ/xanh của `DRAG_SOURCE_COLUMN` trước và sau bước 1, test xanh/đỏ kèm phạm vi, rủi ro.
+
+# Handoff Pha 4b -> Ice (story 2-16)
+
+Chưa commit. `src/` có thay đổi (cách thứ ba, không patch); hai patch cũ còn nguyên trong thư mục này.
+
+## Đã đổi/thêm
+- `src/panels/gridSourceSelection.ts` (mới): `isSourceColumnSelecting(selection, root)` (vùng chọn không thu gọn, anchor nằm trong `[data-col="src"]` của lưới) và `sourceColumnText(selection, root)` (chữ của từng ô nguồn mà Range chạm tới, cắt theo Range, nối bằng `\n` theo thứ tự hàng).
+- `src/panels/GridPanel.vue`: `sourceSelecting` (ref) cập nhật ở đầu `onSourceSelectionChange` (sự kiện `selectionchange` đã có, 0 API `window`/`document` mới); gốc lưới mang `data-sel-src` khi bật; CSS scoped `.grid[data-sel-src] :deep(.col:not(.col-src)::selection)` (và con cháu) `background: transparent`; `resolveSourceSelection` dùng `sourceColumnText` khi bật (sau nhánh Hán Việt, không đổi); `@copy` trên gốc lưới chặn bản sao gốc và đặt `text/plain` bằng cùng chữ.
+- Bật: anchor trong ô nguồn và vùng chọn chưa thu gọn. Tắt: ngay lượt `selectionchange` kế khi vùng chọn thu về caret, anchor rời cột nguyên văn, hoặc lượt chọn mới bắt đầu ở cột khác. Sống qua `mouseup` vì không gắn với chuột.
+- `tests/frontend/gridSourceSelection.test.ts` (mới, 7 ca): Range ô nguồn khối 0 sang khối 1 ⇒ `"BB\nCC"` dù `selection.toString()` chứa chữ dịch; mọi hàng; trong một ô; `isSourceColumnSelecting` đúng/sai (thu gọn, anchor ở cột dịch, ngoài lưới). Gỡ thật phần lọc (trả `selection.toString()`): đỏ 2/7 đúng lý do (`'BBtr-Atr-B12CC'`); đã trả lại.
+- `2-16-ban-do/keo-cot-nguyen-van.e2e.mjs`: `DRAG_SOURCE_COLUMN` đổi khẳng định (bỏ `containsNode`); `2-16-ban-do/pngRegion.mjs` (mới): giải PNG bằng `node:zlib` và đếm điểm ảnh khác trong một hình chữ nhật.
+
+## Chỗ đọc vùng chọn đã kiểm
+- Lượt tra (`currentSelectionText`), Glossary quick add (`currentSelectionTextForGlossaryQuickAdd`), Concordance (`currentSelectionTextForConcordance`): cả ba gọi `surface.resolve` của bề mặt nguồn = `resolveSourceSelection` ⇒ đã lọc; e2e đo `currentSelectionText()`. Hai cái sau không có ca e2e riêng (cùng đường `resolve`).
+- `⌘C`: đã chặn và thay; e2e đo bằng `execCommand('copy')` + listener ở `document`.
+- Không đổi: `currentSelectionSegmentIdForConcordance` (đọc anchor), `glossaryQuickAddState`/`glossaryConfirmStripState` (chỉ lưu/trả Range).
+- Chưa kiểm: kéo thả chữ đã chọn (drag-and-drop) và menu ngữ cảnh "Copy" của hệ điều hành vẫn dùng Range gốc, có thể mang chữ bản dịch.
+
+## Đo điểm ảnh
+Hai ảnh `browser.takeScreenshot()` toàn cửa sổ (trước/sau kéo OS từ hàng 198 tới 202), đếm điểm ảnh khác trong rect (CSS px × png.width/innerWidth) của các ô thăm dò; rect trước = rect sau được khẳng định. ⚠️ `takeElementScreenshot` trên driver này trả cả cửa sổ (360.800 byte, giống ảnh full) và treo ở trang 1.200 câu, nên không dùng. Máy Ice dpr=2 (đo ra `scale` = 2); phép so là trước/sau cùng máy nên dpr không vào kết quả.
+
+## Bảng `DRAG_SOURCE_COLUMN` (bản debug `--features wdio`, WebKit 605.1.15, Vite dev, ngoài sandbox, dpr 2)
+| Điểm ảnh khác | tgt h198 | tgt h199 | số h200 | số h201 | số/vạch h198-199, vạch h200-201 | nguồn h198 | nguồn h199 | Lookup có chữ dịch | copy |
+|---|---|---|---|---|---|---|---|---|---|
+| trước bước 1 (đảo `GridPanel.vue`) | 39.736 | 39.736 | 2.445 | 2.452 | 0 | 32.306 | 40.151 | có | không bị chặn |
+| sau bước 1 | 0 | 0 | 0 | 0 | 0 | 32.306 | 40.151 | không | chặn, chữ nguồn, không chữ dịch |
+- Trước: ĐỎ ở vế tô và vế đọc. Sau: XANH, ca Lookup bằng kéo thật ở khối 5 cùng tệp cũng xanh. Range vẫn chứa ô dịch (khẳng định `rangeHasTranslation`), đúng thiết kế.
+
+## Test (phạm vi)
+- Xanh: `npm run build` (gồm `vue-tsc` hai tsconfig), `npm run test:story 2-16` (20 ca), 20 tệp vitest tên chứa grid/selection/glossaryQuick (166 ca), `check:commands`, `check:layout`, eslint `e2e` + các tệp đã đổi; e2e `grid-blocks.e2e.mjs` 4/4, bàn `keo-cot-nguyen-van.e2e.mjs` 2/2.
+- ĐỎ có từ trước, không do Pha này: `npm run check:tokens` dừng ở "sàn `COMPONENT_FILE_FLOOR` = 164 đã trôi dưới 80% số thật 207" (`scripts/check-tokens.mjs`, không đổi; Pha này không thêm `.vue`) nên Kiểm B không chạy trên `background: transparent`; giá trị đó nằm trong `ALLOWED_COLOR_KEYWORDS`. Cần nâng sàn lên 176 riêng.
+- Không chạy: toàn bộ suite, spec e2e khác, nghiệm thu release.
+
+## Rủi ro
+- Tô bật sau `selectionchange` (bất đồng bộ): có thể một khung hình chữ dịch hiện tô khi kéo; chưa đo ảnh giữa lúc kéo, chỉ trạng thái nghỉ sau thả.
+- `sourceColumnText` quét mọi ô nguồn của lưới mỗi lượt đọc (9.850 câu ⇒ cỡ vạn `intersectsNode`) chỉ khi bật và chỉ lúc tra/chép, chưa đo thời gian.
+- Chữ ghép giữa các ô là `\n`; `toString()` cũ của vùng chọn trong một khối có thể ngắt dòng khác chút (khoảng trắng); chưa so với `cc60020` bằng chuột thật.
+
+## Sau Pha 4b (người giao việc, 2026-10-24)
+- `sourceColumnText` gọi `intersectsNode` trên mọi ô nguồn: ca Lookup khối 5 của `gridBlocks.test.ts` tốn 11 s trên happy-dom và hết trần 30 s khi chạy đủ bộ. Nay chỉ duyệt các ô nguồn từ ô chứa đầu khoảng chọn tới ô chứa cuối (khoảng chọn liền theo DOM), về cả danh sách khi một đầu không ở ô nguồn: 1,15 s. Chưa chạy lại bàn `keo-cot-nguyen-van.e2e.mjs` sau thay đổi này (bàn điều khiển chuột thật của máy).
+- `check:tokens` báo đỏ "có từ trước" là sai: ở `fd13e19` nó xanh, chính các tệp mới của story làm sàn trôi. `check:doc-refs` cũng vậy. `check:i18n` đỏ thật từ `043f3bc`. Cả ba đã sửa riêng; 14 cổng `pre-push` và vitest đủ bộ xanh.
