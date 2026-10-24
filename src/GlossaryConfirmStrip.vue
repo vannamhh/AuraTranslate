@@ -13,7 +13,7 @@
 // (thao tác người dùng VỪA yêu cầu) LẪN dải này cùng đủ điều kiện.
 //
 // Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — mọi văn bản qua `t()`/`tError()`.
-import { computed, nextTick, watch } from 'vue'
+import { computed, nextTick, toRaw, watch } from 'vue'
 import { useTemplateRef } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
@@ -60,7 +60,7 @@ import type { InlineStripKind } from './panels/inlineStripPriority'
 watch(
   [editorCaretSegmentId, editorSegments, glossaryMarks],
   ([segmentId, segments, marks]) => {
-    syncGlossaryConfirmStripTarget(segmentId, segments, glossaryMarksHaveLoaded(), marks)
+    syncGlossaryConfirmStripTarget(segmentId, toRaw(segments), glossaryMarksHaveLoaded(), marks)
   },
   { immediate: true },
 )

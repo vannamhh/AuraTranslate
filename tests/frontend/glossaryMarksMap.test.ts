@@ -156,3 +156,13 @@ describe('glossaryMarksBySegment — chia mark tuyệt đối về từng segmen
     expect(result.get(3)?.spans).toHaveLength(1)
   })
 })
+
+describe('glossaryMarksBySegment — dùng lại kết quả khi marks và chữ nguồn không đổi', () => {
+  it('cùng marks, segment đổi object nhưng giữ id và chữ nguồn ⇒ cùng Map; đổi chữ nguồn hoặc marks ⇒ Map mới', () => {
+    const marks = [mark(0, 1)]
+    const first = glossaryMarksBySegment([{ id: 1, source_text: '甲乙' }], marks)
+    expect(glossaryMarksBySegment([{ id: 1, source_text: '甲乙' }], marks)).toBe(first)
+    expect(glossaryMarksBySegment([{ id: 1, source_text: '甲丙' }], marks)).not.toBe(first)
+    expect(glossaryMarksBySegment([{ id: 1, source_text: '甲丙' }], [mark(0, 1)])).not.toBe(first)
+  })
+})

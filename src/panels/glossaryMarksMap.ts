@@ -136,6 +136,37 @@ export function glossaryMarksBySegment(
   segments: readonly GlossarySegmentSource[],
   marks: readonly GlossaryMark[],
 ): ReadonlyMap<number, SegmentGlossaryMarks> {
+  const cached = lastSplit
+  if (cached !== null && cached.marks === marks && sameSources(cached.sources, segments)) return cached.result
+  const result = splitMarks(segments, marks)
+  lastSplit = { marks, sources: segments.map((s) => ({ id: s.id, source_text: s.source_text })), result }
+  return result
+}
+
+let lastSplit: {
+  marks: readonly GlossaryMark[]
+  sources: readonly GlossarySegmentSource[]
+  result: ReadonlyMap<number, SegmentGlossaryMarks>
+} | null = null
+
+export function resetGlossaryMarksSplitCache(): void {
+  lastSplit = null
+}
+
+function sameSources(a: readonly GlossarySegmentSource[], b: readonly GlossarySegmentSource[]): boolean {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a.at(i)
+    const y = b.at(i)
+    if (x?.id !== y?.id || x?.source_text !== y?.source_text) return false
+  }
+  return true
+}
+
+function splitMarks(
+  segments: readonly GlossarySegmentSource[],
+  marks: readonly GlossaryMark[],
+): ReadonlyMap<number, SegmentGlossaryMarks> {
   const result = new Map<number, SegmentGlossaryMarks>()
   if (marks.length === 0 || segments.length === 0) return result
 

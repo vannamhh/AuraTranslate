@@ -39,7 +39,7 @@ import type { DeepReadonly, Ref } from 'vue'
 import { glossaryMarksForChapter } from '../config/glossary'
 import type { GlossaryMark } from '../config/glossary'
 import type { IpcError } from '../i18n'
-import { joinSegmentSourceText } from './glossaryMarksMap'
+import { joinSegmentSourceText, resetGlossaryMarksSplitCache } from './glossaryMarksMap'
 import type { GlossarySegmentSource } from './glossaryMarksMap'
 import { clearHoveredGlossaryTerm } from './glossaryTermHoverState'
 
@@ -146,5 +146,6 @@ export function resetGlossaryMarks(): void {
   marksError.value = null
   pending.value = false
   requestedForChapterId = null
+  resetGlossaryMarksSplitCache()
   clearHoveredGlossaryTerm() // cùng lý do đã ghi ở `loadMarksFor` — marks đổi thì hover phải dọn.
 }

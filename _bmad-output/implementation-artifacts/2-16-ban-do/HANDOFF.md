@@ -467,3 +467,37 @@ Cùng cách đo với mục "# Nghiệm thu"; loadavg 1 phút lúc bắt đầu 
 
 ## Đầu ra
 Mục `# Handoff Pha 6 -> người giao việc (story 2-16)` nối vào cuối tệp này, ngắn: bảng các việc chạy trong lượt `Mod+Enter` (việc, độ lớn, đã sửa hay không, vì sao), số đếm của ca test trước/sau ở hai cỡ, tệp đã đổi, phép gỡ, test xanh/đỏ kèm phạm vi, rủi ro.
+
+# Handoff Pha 6 -> người giao việc (story 2-16)
+
+Đo bằng vitest (dev, happy-dom, 1.050 và 2.100 câu, có Glossary mark và `GlossaryConfirmStrip` thật), một lượt `confirmCurrentSegment` + một `nextTick`. Cửa sổ lượt xác nhận ở 9.850 câu trong node: ~180–280 ms trước sửa (cả happy-dom) so với ~35–45 ms sau; máy loadavg 8–11 nên chỉ đọc là thứ tự độ lớn, không phải số WKWebView.
+
+| Việc trong lượt `Mod+Enter` | Độ lớn trước | Sau | Sửa |
+|---|---|---|---|
+| `repaintProofread` (watcher `editorSegments`) gọi `unwrapAllProofread` = `querySelectorAll` cả lưới, kể cả khi không có kết quả soát | O(DOM) mỗi lượt; phần lớn thời gian đo được trong happy-dom | 0 khi không có kết quả và chưa vẽ gì | cờ `proofreadPainted` |
+| `glossaryMarksBySegment` gọi từ `GridPanel` và từ watcher `GlossaryConfirmStrip` (2 chỗ), `Array.from` mọi `source_text` và duyệt mọi mark cho mọi câu | O(n x mark), 2n lần quét chuỗi | 0 (dùng lại khi marks cùng tham chiếu và id/chữ nguồn không đổi; so O(n) con trỏ) | cache một ô trong `glossaryMarksMap.ts` |
+| `gridBlockViews`: `restRulesOf` + `slice` mọi khối | n lần `resolveSegmentRule` | 200 (đúng một khối) | giữ khối khi slice cùng danh tính và không id nào đổi hình dạng/TM (so với ảnh chụp `rulesBasis`) |
+| `targetCellById` khi đặt caret sang câu kế: `querySelector` thuộc tính từ gốc lưới, quét tới hàng đích | O(vị trí hàng trong DOM) | O(khối) | tra khối theo `children[floor(chỉ số / GRID_BLOCK_ROWS)]`, rơi về gốc nếu không thấy |
+| `unlinkedIds`, `confirmedCounterText` (StatusBar): `filter`/`map` qua proxy readonly | O(n) cấp phát + proxy | O(n) vòng `for` trên mảng thô, không cấp phát | `toRaw` |
+| `caretIndex`, `stripAnchorIndex`, `positionInChapter`, `findIndex` ở `confirmCurrentSegmentUnguarded`, phép sao `[...segments]` | O(chỉ số) / O(n) so con trỏ | giữ O(n) nhỏ (tính bằng chục micro giây); caret/anchor/StatusBar dùng mảng thô | `toRaw`, không đổi cấu trúc |
+| `refreshWorkspaceCounts` (hai IPC đếm) | Rust: `tmCountPairs`, `countGlossaryEntries`, chạy nền, không chặn render | không đổi | chỉ ghi, không đọc sâu `src-tauri/` |
+| `segmentSelectionIds` | O(n) `map` nhưng chỉ khi đang có vùng chọn nhiều câu | không đổi | ngoài đường `Mod+Enter` thường |
+
+Số đếm của `tests/frontend/gridConfirmWorkCost.test.ts` (`resolveSegmentRule` / lần quét chuỗi nguồn / truy vấn DOM trên gốc lưới):
+- Trước: 1.050 câu 1050 / 2104 / 2; 2.100 câu 2100 / 4204 / 2.
+- Sau: 1.050 câu 200 / 4 / 0; 2.100 câu 200 / 4 / 0.
+
+Tệp đổi: `src/panels/GridPanel.vue`, `src/panels/glossaryMarksMap.ts` (cache + `resetGlossaryMarksSplitCache`), `src/panels/glossaryMarksState.ts` (gọi reset), `src/GlossaryConfirmStrip.vue` (`toRaw`), `src/StatusBar.vue`; test mới `tests/frontend/gridConfirmWorkCost.test.ts`, thêm một ca vào `tests/frontend/glossaryMarksMap.test.ts`.
+
+Phép gỡ (từng phép, giữ chữ ký, ca mới đỏ đúng lý do): cache Glossary tắt (4204 so với 2104 lần quét); bỏ dòng thoát sớm của `repaintProofread` (1 truy vấn trên gốc lưới); bỏ gợi ý khối của `targetCellById` (1 truy vấn); khối không bao giờ giữ lại (2100 so với 1050 lần phân giải vạch). Trả lại thì xanh.
+
+Kiểm: `npm run build` xanh; `test:story 2-16` xanh; 64 tệp vitest (lưới, StatusBar, soát lỗi, Glossary, mọi tệp chứa `confirm_segment`/`confirmCurrentSegment`/`GlossaryConfirmStrip`/`editorTmFilled`, ca mới) 800 ca xanh, gồm `gridBlockRenderCost`, `gridTypingCost`, `gridCaretMoveCost`; `check:commands`, `check:layout`, `check:tokens`, `check:i18n`, `check:lint`, `check:panel-refs` xanh. Không chạy toàn bộ suite, không release, không bàn đo.
+
+Rủi ro và việc còn lại:
+- Lần đầu `rulesBasis` so `editorEditedShape` theo nội dung (Map đổi tại chỗ rồi `triggerRef`; so tham chiếu làm 3 ca gõ đỏ, đã sửa bằng ảnh chụp `new Map`).
+- Khi TM-filled đổi (xác nhận câu đang `tm-rule`), so đối xứng hai Set là O(|tmFilled|), vẫn không gọi `resolveSegmentRule` ngoài khối đổi.
+- `repaintProofreadHost` khi CÓ kết quả soát vẫn `querySelector` từ gốc cho mỗi kết quả (O(kết quả x DOM)); chưa sửa, ngoài phạm vi vì không phải đường mặc định.
+- `restoreEditedText` gọi `targetCellById` không gợi ý cho từng ô đã gõ; chưa sửa.
+- Chưa đo ms thật trên WKWebView; test chỉ đếm việc. IPC xác nhận + Rust `confirm_segment` (ghi `SegmentVersion`) và hai IPC đếm không đọc/sửa ở đây: nếu bàn đo lại vẫn thấy phần 33–45 ms, nghi ngờ tiếp theo là Rust `Store::write` hàng đợi và flush.
+- Test không gắn `StatusBar` (thay đổi ở đó chỉ phủ bằng `statusBar*.test.ts` hiện có).
+- Chưa commit.

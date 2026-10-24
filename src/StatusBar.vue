@@ -28,7 +28,7 @@
 // khác** — nên tệp này không có nó. Trạng thái *"đang bay"* của một lô flush **không** hiện ra:
 // hợp đồng với người dùng là *"bạn không phải bận tâm về việc lưu"*, và một chỉ báo nhấp nháy
 // là đúng thứ bắt họ bận tâm.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 // 🔵 Story 4.12, Phase 3a (Decision 2) — điểm vào ngăn kéo Tra cứu. `lookupHasRetreated` là
@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
  * is hidden, never rendered as 0.
  */
 const positionInChapter = computed<number | null>(() => {
-  const segments = editorSegments.value
+  const segments = toRaw(editorSegments.value)
   const id = editorCaretSegmentId.value ?? editorLastCaretSegmentId.value
   if (id === null) return null
   const index = segments.findIndex((s) => s.id === id)
@@ -178,10 +178,15 @@ const positionText = computed<string | null>(() => {
 
 const confirmedCounterText = computed<string | null>(() => {
   if (!editorHasLoaded()) return null
-  const counted = editorSegments.value.filter((s) => !s.is_omitted)
-  if (counted.length === 0) return null
-  const confirmed = counted.filter(isSegmentConfirmed).length
-  return t('status.confirmed_counter', { confirmed: String(confirmed), total: String(counted.length) })
+  let counted = 0
+  let confirmed = 0
+  for (const s of toRaw(editorSegments.value)) {
+    if (s.is_omitted) continue
+    counted += 1
+    if (isSegmentConfirmed(s)) confirmed += 1
+  }
+  if (counted === 0) return null
+  return t('status.confirmed_counter', { confirmed: String(confirmed), total: String(counted) })
 })
 
 const shortcutHintText = computed<string | null>(() => {

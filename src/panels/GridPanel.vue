@@ -67,7 +67,7 @@
 // Story 1.6, và `'panel.grid'` có trong `FOCUS_OWNERS`. **Đừng** dựng vạch tiêu điểm panel
 // thứ hai — `.panel.focused::before` đã có, và nó là vạch của **panel** (UX-DR8), khác hẳn
 // vạch của **segment** (UX-DR19) mà tệp này dựng.
-import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { isMeaningKind } from '../config/proofread'
 import { GRID_BLOCK_ROWS, gridBlocksOf } from './gridBlocks'
 import { repaintProofreadHost, unwrapAllProofread, unwrapProofread } from './proofreadHighlight'
@@ -458,7 +458,7 @@ function cutCountOf(segmentId: number): number {
  * [`EMPTY_SEGMENT_GLOSSARY_MARKS`] làm mặc định, cùng khuôn `EMPTY_CUTS`.
  */
 const glossaryMarksPerSegment = computed<ReadonlyMap<number, SegmentGlossaryMarks>>((previous) => {
-  const next = glossaryMarksBySegment(editorSegments.value, glossaryMarks.value)
+  const next = glossaryMarksBySegment(toRaw(editorSegments.value), glossaryMarks.value)
   if (previous === undefined || previous.size !== next.size) return next
   for (const [id, marks] of next) {
     const before = previous.get(id)
@@ -588,28 +588,58 @@ const setStripTrackRef = (el: unknown): void => { stripTrack.value = el instance
 const stripAnchorSegmentId = computed(() => inlineStripAnchorSegmentId.value)
 const stripAnchorIndex = computed(() => {
   const id = stripAnchorSegmentId.value
-  return id === null ? -1 : editorSegments.value.findIndex((s) => s.id === id)
+  return id === null ? -1 : toRaw(editorSegments.value).findIndex((s) => s.id === id)
 })
 
+const rulesBasis = new WeakMap<
+  readonly GridBlockView[],
+  { shapes: ReadonlyMap<number, TextShape>; tmFilled: ReadonlySet<number> }
+>()
+
+function idsWithChangedRule(
+  basis: { shapes: ReadonlyMap<number, TextShape>; tmFilled: ReadonlySet<number> } | undefined,
+  shapes: ReadonlyMap<number, TextShape>,
+  tmFilled: ReadonlySet<number>,
+): ReadonlySet<number> | null {
+  if (basis === undefined) return null
+  const changed = new Set<number>()
+  for (const [id, shape] of shapes) if (basis.shapes.get(id) !== shape) changed.add(id)
+  for (const id of basis.shapes.keys()) if (!shapes.has(id)) changed.add(id)
+  if (basis.tmFilled !== tmFilled) {
+    for (const id of tmFilled) if (!basis.tmFilled.has(id)) changed.add(id)
+    for (const id of basis.tmFilled) if (!tmFilled.has(id)) changed.add(id)
+  }
+  return changed
+}
+
 const gridBlockViews = computed<readonly GridBlockView[]>((previous) => {
-  const segments = editorSegments.value
+  const segments = toRaw(editorSegments.value)
   const shapes = editorEditedShape.value
   const tmFilled = editorTmFilledSegmentIds.value
-  return gridBlocksOf(segments.length).map((b, index) => {
+  const changed = idsWithChangedRule(previous === undefined ? undefined : rulesBasis.get(previous), shapes, tmFilled)
+  const views = gridBlocksOf(segments.length).map((b, index) => {
+    const before = previous?.[index]
+    if (before !== undefined && before.start === b.start && before.segments.length === b.rows) {
+      let reusable = true
+      for (let i = 0; i < b.rows; i += 1) {
+        const s = segments.at(b.start + i)
+        if (s !== before.segments.at(i) || (changed === null ? true : s !== undefined && changed.has(s.id))) {
+          reusable = false
+          break
+        }
+      }
+      if (reusable) return before
+    }
     const slice = segments.slice(b.start, b.start + b.rows)
     const rules = restRulesOf(slice, shapes, tmFilled)
-    const before = previous?.[index]
-    if (
-      before !== undefined &&
-      before.start === b.start &&
-      before.segments.length === slice.length &&
-      before.segments.every((s, i) => s === slice[i]) &&
-      sameRules(before.rules, rules)
-    ) {
+    if (before !== undefined && before.start === b.start && before.segments.length === slice.length &&
+      before.segments.every((s, i) => s === slice[i]) && sameRules(before.rules, rules)) {
       return before
     }
     return { index, start: b.start, segments: slice, rules }
   })
+  rulesBasis.set(views, { shapes: new Map(shapes), tmFilled })
+  return views
 })
 
 function stripRowIn(block: GridBlockView): number {
@@ -623,7 +653,7 @@ function anchorIdIn(block: GridBlockView): number | null {
 
 const caretIndex = computed(() => {
   const id = editorCaretSegmentId.value
-  return id === null ? -1 : editorSegments.value.findIndex((s) => s.id === id)
+  return id === null ? -1 : toRaw(editorSegments.value).findIndex((s) => s.id === id)
 })
 
 function caretIdIn(block: GridBlockView): number | null {
@@ -641,8 +671,12 @@ function isInTargetColumn(node: Node): boolean {
   return from?.closest('.col-tgt') != null
 }
 
-function targetCellById(id: number): HTMLElement | null {
-  return gridRoot.value?.querySelector<HTMLElement>(`[data-col="tgt"][data-segment-id="${String(id)}"]`) ?? null
+function targetCellById(id: number, rowIndex: number = -1): HTMLElement | null {
+  const root = gridRoot.value
+  if (root === null) return null
+  const selector = `[data-col="tgt"][data-segment-id="${String(id)}"]`
+  const block = rowIndex < 0 ? undefined : root.children.item(Math.floor(rowIndex / GRID_BLOCK_ROWS))
+  return block?.querySelector<HTMLElement>(selector) ?? root.querySelector<HTMLElement>(selector)
 }
 
 /**
@@ -1150,8 +1184,12 @@ watch([() => editorSegments.value, gridRoot], restoreEditedText, { flush: 'post'
 function repaintProofread(): void {
   const host = gridRoot.value
   if (host === null || composing) return
+  if (proofreadResults.value.size === 0 && !proofreadPainted) return
   repaintProofreadHost(host, proofreadResults.value, isMeaningKind)
+  proofreadPainted = proofreadResults.value.size > 0
 }
+
+let proofreadPainted = false
 
 let composing = false
 let repaintTimer: ReturnType<typeof setTimeout> | null = null
@@ -1310,7 +1348,7 @@ watch(
   (id) => {
     if (id === null) return
     clearEditorCaretPlacement()
-    const target = targetCellById(id)
+    const target = targetCellById(id, caretIndex.value)
     if (target === null) return
     // 🔵 **STORY 2.10 · AC8 NỬA SAU — `focus()` LÀ VẾ CUỘN, và nó ĐÃ Ở ĐÂY TỪ TRƯỚC.**
     //
@@ -1747,7 +1785,8 @@ const rowErrorTextById = computed(() => {
 })
 
 const unlinkedIds = computed<ReadonlySet<number>>((previous) => {
-  const next = new Set(editorSegments.value.filter((s) => s.unlinked).map((s) => s.id))
+  const next = new Set<number>()
+  for (const s of toRaw(editorSegments.value)) if (s.unlinked) next.add(s.id)
   return previous !== undefined && previous.size === next.size && [...next].every((id) => previous.has(id))
     ? previous
     : next
