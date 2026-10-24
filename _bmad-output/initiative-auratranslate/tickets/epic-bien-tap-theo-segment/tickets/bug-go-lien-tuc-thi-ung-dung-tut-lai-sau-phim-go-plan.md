@@ -3,7 +3,7 @@ title: 'Gõ liên tục thì ứng dụng tụt lại sau phím gõ'
 type: 'bugfix'
 ticket: 15
 created: '2026-10-23'
-status: built
+status: done
 baseline_revision: '42f94abaa756c393d29ed141b5e8a7c176dca299'
 route: 'full'
 route_source: 'auto'
