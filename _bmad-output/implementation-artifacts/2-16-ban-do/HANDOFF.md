@@ -412,3 +412,20 @@ Phép gỡ (từng phép một, giữ chữ ký, ca đỏ đúng lý do "6 khố
 Kiểm: `npm run build` (vue-tsc + vite) xanh; 13 tệp `grid*.test.ts` 76 ca xanh; 29 tệp (gồm mọi tệp chứa `confirm_segment`/`confirmCurrentSegment`/`segmentSelection`/`proofreadHighlight`/`editorTypingZone` và `gridPanel*`) 319 ca xanh; `test:story 2-16` 19 ca xanh; `check:commands`, `check:layout`, `check:tokens`, `check:i18n` xanh. Không chạy toàn bộ suite, không dựng release, không bàn đo.
 
 Rủi ro: (1) chưa đo ms thật trên WKWebView ở 9.850 câu; ~100 ms còn lại của `Mod+Enter` có thể gồm phần khác ngoài render khối (IPC, flush, `findIndex` cả Chương ở `caretIndex`/`stripAnchorIndex`) và chưa quy nguồn. (2) Mỗi lượt `gridBlockViews` vẫn dựng lại vạch cả Chương (O(n), như trước) và so sánh từng khối. (3) Ca test dùng glossary rỗng; ca có mark thật chỉ qua `JSON.stringify`, một mark đổi ở đâu thì mọi khối render lại (hiếm, chấp nhận). (4) Khối đọc thẳng `editorEditedShape` (Map đổi tham chiếu ở `clear`/`triggerRef` khi gõ đổi hình dạng) không đổi trong lượt này. Chưa commit.
+
+# Nghiệm thu lần hai, sau Pha 5 (release `f62012f`, 2026-10-24 09:39 → 10:07)
+
+Cùng cách đo với mục "# Nghiệm thu"; loadavg 1 phút lúc bắt đầu phiên 2,9–4,4. Số thô `ket-qua-acc2-*.json` (9 phiên) và `ket-qua-ab-{pre5,p5}-9850-*.json` ở `2-15-ban-do/` (đo xen kẽ `24bb1e2` với `f62012f`).
+
+| Gõ, 9.850 câu | phím cuối | p50 / p95 | `Mod+Enter` → xác nhận |
+|---|---|---|---|
+| acc2 (`f62012f`) | 118 · 134 · 81 | 62/90 · 40/60 · 42/62 | 125 · 142 · 128 |
+| xen kẽ, `24bb1e2` (trước Pha 5) | 80 · 174 · 91 | 42/69 · 39/58 · 68/92 | 216 · 183 · 198 |
+| xen kẽ, `f62012f` (sau Pha 5) | 83 · 79 · 78 | 37/66 · 81/118 · 52/73 | 146 · 130 · 124 |
+
+- 122 câu (acc2): phím cuối 36–51, p95 32–59, `Mod+Enter` 43–48 ms; đạt mọi vế.
+- Không phiên nào còn phím chờ.
+- Pha 5 cắt `Mod+Enter` ở 9.850 câu khoảng 60 ms (183–216 → 124–146 ms, đo xen kẽ), vẫn trên trần 100 ms.
+- Độ trễ từng phím ở 9.850 câu lần này cao hơn lượt "# Nghiệm thu" (p50 19–35), nhưng đo xen kẽ thì hai bản chồng nhau (p50 39–68 so với 37–81), nên phần tăng không quy được cho Pha 5; máy chậm hơn lúc 08:51 ở cả bố cục đầu (4,04–4,19 s so với 3,70–3,82 s).
+- Dời con trỏ (acc2, 9.850 câu): chuột handler → 2 frame 62–100 ms, phần JS 2–5 ms, phần sau JS 49–77 ms, 1 khối mỗi lượt; `segment.next` gửi → 2 frame 72–109 ms.
+- Chưa tách được `Mod+Enter` thành phần JS và phần sau JS: bàn 2-15 không ghi profile như bàn 2-16.
