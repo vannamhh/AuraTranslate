@@ -429,3 +429,19 @@ Cùng cách đo với mục "# Nghiệm thu"; loadavg 1 phút lúc bắt đầu 
 - Độ trễ từng phím ở 9.850 câu lần này cao hơn lượt "# Nghiệm thu" (p50 19–35), nhưng đo xen kẽ thì hai bản chồng nhau (p50 39–68 so với 37–81), nên phần tăng không quy được cho Pha 5; máy chậm hơn lúc 08:51 ở cả bố cục đầu (4,04–4,19 s so với 3,70–3,82 s).
 - Dời con trỏ (acc2, 9.850 câu): chuột handler → 2 frame 62–100 ms, phần JS 2–5 ms, phần sau JS 49–77 ms, 1 khối mỗi lượt; `segment.next` gửi → 2 frame 72–109 ms.
 - Chưa tách được `Mod+Enter` thành phần JS và phần sau JS: bàn 2-15 không ghi profile như bàn 2-16.
+
+# Profile `Mod+Enter` (release `f62012f`, 2026-10-24 11:41 → 11:48)
+
+`bench-215.js` nay ghi, cho lượt `Mod+Enter`: lúc handler bắt sự kiện (capture), hết JS đồng bộ (`setTimeout 0`), `focusin` ô kế, lúc `MutationObserver` thấy `rule-confirmed` ở hàng vừa xác nhận, `setTimeout 0` sau lúc đó, hai frame kế, số bản ghi DOM và số khối bị đổi. Bọc `__TAURI_INTERNALS__.invoke` để đo IPC KHÔNG được: thuộc tính chỉ đọc (lượt đầu ném lỗi trong strict mode và làm mất cả số `Mod+Enter`; 5 tệp của lượt đó đã xoá). loadavg 4,4–8,7. Số thô `ket-qua-prof2-*.json` ở `2-15-ban-do/`.
+
+| ms, tính từ handler | chờ trước handler | JS đồng bộ | `focusin` / thấy `rule-confirmed` | xong task sau đó | frame 1 · frame 2 | `Mod+Enter` (cũ) |
+|---|---|---|---|---|---|---|
+| 122 · 1 | 31 | 1 | 6 / 7 | 8 | 11 · 28 | 41 |
+| 122 · 2 | 27 | 1 | 8 / 9 | 10 | 24 · 41 | 32 |
+| 9.850 · 1 | 60 | 4 | 42 / 43 | 64 | 66 · 69 | 107 |
+| 9.850 · 2 | 55 | 4 | 37 / 38 | 58 | 60 · 75 | 95 |
+| 9.850 · 3 | 71 | 6 | 49 / 50 | 74 | 77 · 91 | 129 |
+
+- Mỗi lượt đổi 10 bản ghi DOM trong đúng 1 khối.
+- Ở 9.850 câu có ba phần tăng theo số câu: (1) sự kiện `Mod+Enter` chờ 55–71 ms trước khi handler chạy (122 câu: 27–31), vì luồng chính còn bận với phím cuối gửi 20 ms trước đó; (2) từ hết JS đồng bộ tới lúc DOM có vạch mới và tiêu điểm sang câu kế: 33–45 ms (122 câu: 5–7), gồm IPC xác nhận và cập nhật Vue mà bàn không tách được; (3) task chạy tiếp sau lúc DOM đổi: 20–25 ms (122 câu: 1). Frame sau JS 3–17 ms, nhỏ hơn nhiều so với 53–67 ms của lượt dời con trỏ bằng chuột.
+- `Mod+Enter` đo theo cách cũ ở lượt này: 95 · 107 · 129 ms (lượt nghiệm thu lần hai: 124–146).

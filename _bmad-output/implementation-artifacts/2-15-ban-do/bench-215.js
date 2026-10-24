@@ -35,6 +35,55 @@
       }, 1500)
     })()
   }
+  var pidSeq = 0
+  function blockOf(node) {
+    var el = node && (node.nodeType === 1 ? node : node.parentElement)
+    el = el && el.closest ? el.closest('.grid-block') : null
+    if (el && !el.__pid) el.__pid = ++pidSeq
+    return el ? el.__pid : 0
+  }
+  function profileConfirm(c) {
+    var P = { h: c.h, task0: null, calls: [], seen: null, flushed: null, raf1: null, f: null, muts: 0, blocks: 0, focusin: null }
+    c.prof = P
+    var blocks = {}, done = false
+    var origInvoke = I().invoke
+    var wrapped = function (cmd, args) {
+      var rec = { cmd: cmd, start: performance.now(), end: null }
+      P.calls.push(rec)
+      var out = origInvoke.apply(this, arguments)
+      if (out && typeof out.then === 'function') out.then(function () { rec.end = performance.now() }, function () { rec.end = -performance.now() })
+      return out
+    }
+    try { I().invoke = wrapped; P.ipcWrap = I().invoke === wrapped } catch (err) { P.ipcWrap = 'throw ' + err }
+    var onFocus = function () { if (P.focusin === null) P.focusin = performance.now() }
+    document.addEventListener('focusin', onFocus, true)
+    setTimeout(function () { P.task0 = performance.now() }, 0)
+    var mo = new MutationObserver(function (recs) {
+      if (done) return
+      P.muts += recs.length
+      for (var i = 0; i < recs.length; i++) { var b = blockOf(recs[i].target); if (b) blocks[b] = 1 }
+      if (P.seen !== null) return
+      var slot = document.querySelectorAll('.cell-rule')[B.row]
+      if (slot && slot.querySelector('.rule-confirmed')) {
+        P.seen = performance.now()
+        setTimeout(function () {
+          P.flushed = performance.now()
+          requestAnimationFrame(function () {
+            P.raf1 = performance.now()
+            requestAnimationFrame(function () {
+              P.f = performance.now()
+              done = true
+              mo.disconnect()
+              P.blocks = Object.keys(blocks).length
+              if (P.ipcWrap === true) I().invoke = origInvoke
+              document.removeEventListener('focusin', onFocus, true)
+            })
+          })
+        }, 0)
+      }
+    })
+    mo.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true })
+  }
   function dumpNow() {
     put('__b215__', JSON.stringify({ ua: navigator.userAgent, nCells: B.nCells, keys: B.keys, confirm: B.confirm, origin: performance.timeOrigin }))
   }
@@ -49,6 +98,7 @@
       B.confirm = c
       var t0 = performance.now()
       setTimeout(dumpNow, 20000)
+      try { profileConfirm(c) } catch (err) { c.profErr = String(err) }
       ;(function poll() {
         var slot = document.querySelectorAll('.cell-rule')[B.row]
         var ok = slot && slot.querySelector('.rule-confirmed')
