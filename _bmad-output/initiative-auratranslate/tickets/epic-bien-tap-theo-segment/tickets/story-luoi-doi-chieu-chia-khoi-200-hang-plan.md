@@ -183,3 +183,42 @@ Mỗi pha một agent mới; bàn giao qua `_bmad-output/implementation-artifact
 - `npm run test:story 2-16` -- xanh; cùng các tệp vitest đã sửa.
 - `npm run check:commands && npm run check:layout` -- xanh.
 - Pha 4: các spec e2e của lưới, chạy ngoài sandbox -- xanh.
+
+## Code Review
+
+### 2026-10-24
+
+Code review (`fd13e19..HEAD`, src/tests/scripts/e2e; bốn lens): 0 `decision-needed`, 11 `patch`, 1 `defer`, 18 rejected.
+
+- [ ] [Review][Patch] Bề mặt có phạm vi không nhận anchor là chính phần tử khớp phạm vi, nên sau `focusSelectionSource` (`Mod+Alt+S`) không bề mặt nào sở hữu vùng chọn [src/panels/selectionContract.ts:73]
+- [ ] [Review][Patch] `check-i18n` lùi tìm thẻ mở bỏ qua thẻ đóng, nên miễn trừ trước `<b>` có thể phủ chữ sau `</b>` [scripts/check-i18n.mjs:openTagStart]
+- [ ] [Review][Patch] Vùng chọn nguồn qua ranh giới khối và `copy` chưa có ca đi qua `GridPanel` thật (cả chiều chọn ngược) [src/panels/GridPanel.vue:resolveSourceSelection]
+- [ ] [Review][Patch] Nhánh phạm vi của `focusSelectionSource` chưa có ca test [src/panels/selectionContract.ts:465]
+- [ ] [Review][Patch] Một phần tử đăng ký hai vai (khoá (el, role)) chưa có ca test [src/panels/selectionContract.ts:99]
+- [ ] [Review][Patch] `openTagStart` chỉ theo ngoặc kép, bỏ ngoặc đơn [scripts/check-i18n.mjs:openTagStart]
+- [ ] [Review][Patch] `sourceColumnText` quét tới cuối Chương khi một đầu khoảng chọn nằm ngoài ô nguồn [src/panels/gridSourceSelection.ts:sourceColumnText]
+- [ ] [Review][Patch] Comment chuyển sang `GridBlock.vue` nay nói sai (một bề mặt mỗi cột, khối đầu/cuối tệp) [src/panels/GridBlock.vue:145]
+- [ ] [Review][Patch] `console.log` sót trong test đếm việc [tests/frontend/gridConfirmWorkCost.test.ts:183]
+- [ ] [Review][Patch] `src/panels/README.md` chưa mô tả lưới chia khối [src/panels/README.md]
+- [ ] [Review][Patch] Ca e2e Lookup khối 5 không khẳng định chữ được tra [e2e/specs/grid-blocks.e2e.mjs]
+- [x] [Review][Defer] Ba dải remount khi neo dải đổi khối, có thể mất trạng thái cục bộ hoặc tiêu điểm [src/panels/GridBlock.vue:352] — deferred: chưa kiểm; một ca e2e đặt tiêu điểm trong dải rồi dời neo qua ranh giới khối sẽ trả lời
+
+Rejected:
+- GRID_SCOPED_CALL_RE cứng hình dạng lời gọi — low, hiếm gặp, nới regex thêm phức tạp.
+- Cache `lastSplit` chỉ reset qua `resetGlossaryMarks` — false: khoá theo tham chiếu marks và nội dung nguồn.
+- `restoreEditedText` tra từ gốc mỗi id đang sửa — low, ít id, sửa cần tra chỉ số.
+- `copy` khi anchor ở ô dịch / kéo thả / menu Copy — false cho ô dịch (mỗi ô là editing host); hai đường kia đã là nợ `Chủ: Epic 2`.
+- Lời khai "0 truy vấn gốc" chỉ đúng khi không có chữ đang sửa — low, gốc là mục `restoreEditedText` ở trên.
+- `isInTargetColumn` không giới hạn trong lưới — false: không có `.col-tgt` nào ngoài lưới.
+- Tách/gộp sớm dựng lại hàng ở ranh giới — false: thiết kế đã nhận ở §Design Notes, chữ đang sửa được trả lại.
+- Thành viên khối tính ở ba chỗ — low, cùng hằng hôm nay, lệch chỉ tốn hiệu năng.
+- `toRaw` mất phản ứng — false: `editorSegments` là `shallowRef` thay cả mảng.
+- `proofreadPainted` cũ, `lastSplit` giằng co — false: chỉ vẽ khi có kết quả, hai nơi gọi cùng mảng thô.
+- `defineExpose` né vue-tsc — low, cách vòng lỗi công cụ có comment, AGENTS.md cho phép.
+- Sàn cổng nâng không lý do — false: `d7fd6ae`, `c0284ea` ghi số thật.
+- `HANDLER_PROVIDER` thiếu tự kiểm — low, thêm tự kiểm là phức tạp hơn lỗi.
+- e2e dùng `pause` cố định, fixture 207 câu dựng hai lần, import đường Vite — low (hai cái đầu) và false (e2e chạy trên Vite dev).
+- Tiêu chí 1 dời con trỏ ≤ 50 ms trượt — quyết định của Ice 2026-10-24 ở §Implementation Notes; sửa là sửa intent.
+- Tiêu chí 2 nói kéo ô dịch — plan §Boundaries quyết định A của Ice.
+- ≤ 1 px so với bản hiện tại và bố cục đầu không có trong test — false: Pha 4 chạy ca trên worktree `baseline_revision`; bố cục đầu đo trên release.
+- Spec e2e đổi hơn helper — false: điều kiện cũ giữ nguyên, ca thêm là ca plan đòi.

@@ -13444,3 +13444,7 @@ chính nó.
 
 - **Lưới chia khối 200 hàng chưa ai dùng thật ở Chương lớn** (Story 2.16). Ở 9.850 câu: gõ, `Mod+Enter`, kéo chọn trong cột nguyên văn qua ranh giới khối (chỉ cột nguyên văn được tô), `Mod+Shift+↓` qua ranh giới, tra cứu từ khối xa. e2e và bàn release đã đo; mắt người chưa nhìn.
   Ba đường chưa kiểm: kéo thả đoạn chữ đã chọn và mục Copy của menu hệ điều hành vẫn dùng Range gốc nên có thể mang chữ bản dịch; vùng chọn bám vào phần tử (không phải nút chữ) trong ô nguồn không phát lượt tra, chưa so với trước chia khối. **Chủ: Epic 2.**
+
+## Deferred from: code review of story-luoi-doi-chieu-chia-khoi-200-hang-plan (2026-10-24)
+
+- **Ba dải trong lưới remount khi neo dải sang khối khác** (Story 2.16). `TmFuzzyStrip`, `GlossaryConfirmStrip`, `ProofreaderStrip` nằm trong `#strip-track` của khối chứa neo (`v-if`), nên đổi khối là gỡ rồi gắn lại; trạng thái cục bộ hay tiêu điểm trong dải có thể mất. Chưa kiểm; một ca e2e đặt tiêu điểm trong dải rồi dời neo qua ranh giới sẽ trả lời. **Chủ: Epic 2.**
