@@ -13441,3 +13441,6 @@ chính nó.
 
 - **Hình vạch lề mới chưa ai nhìn trong ứng dụng thật** (Story 2.14). Mọi vạch nay dày 3 px, `confirmed` thành nét đôi trong cột rộng 3 px; e2e chỉ đọc computed style, không xem nét đôi, đứt, chấm có còn phân biệt được bằng mắt ở dpr 1 và 2, sáng và tối.
   Nhìn một Chương có đủ bốn trạng thái trong lượt dùng thật trước khi Epic 2 đóng. **Chủ: Epic 2.**
+
+- **Lưới chia khối 200 hàng chưa ai dùng thật ở Chương lớn** (Story 2.16). Ở 9.850 câu: gõ, `Mod+Enter`, kéo chọn trong cột nguyên văn qua ranh giới khối (chỉ cột nguyên văn được tô), `Mod+Shift+↓` qua ranh giới, tra cứu từ khối xa. e2e và bàn release đã đo; mắt người chưa nhìn.
+  Ba đường chưa kiểm: kéo thả đoạn chữ đã chọn và mục Copy của menu hệ điều hành vẫn dùng Range gốc nên có thể mang chữ bản dịch; vùng chọn bám vào phần tử (không phải nút chữ) trong ô nguồn không phát lượt tra, chưa so với trước chia khối. **Chủ: Epic 2.**
