@@ -1949,6 +1949,7 @@ if (gridCalls.length > 0) {
       fBad += 1
     }
   }
+  /** @type {Record<string, string | undefined>} */
   const wantScope = { source: 'src', display: 'tgt' }
   for (const c of gridCalls) {
     if (c.scopeCol !== wantScope[c.role]) {
@@ -2582,7 +2583,10 @@ const HANDLER_TABLE = {
   'src/panels/LookupPanel.vue::aimLookupEntryFrom': { nonCommand: R_CURSOR_IMPORTED },
 }
 
-/** Template files whose handlers are defined in another file and arrive through `inject`. */
+/**
+ * Template files whose handlers are defined in another file and arrive through `inject`.
+ * @type {Record<string, string | undefined>}
+ */
 const HANDLER_PROVIDER = { 'src/panels/GridBlock.vue': 'src/panels/GridPanel.vue' }
 
 /**
