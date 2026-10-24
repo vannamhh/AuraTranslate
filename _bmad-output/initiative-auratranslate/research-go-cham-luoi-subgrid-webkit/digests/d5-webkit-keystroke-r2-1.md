@@ -1,0 +1,28 @@
+# D5 WebKit per-keystroke work, r2-1 (accessed 2026-10-24; 1 search + 8 fetches, 8 sources; WebKit files from raw.githubusercontent.com/WebKit/WebKit/main on access date, no commit hash; WebFetch summarises; FrameSelection.cpp read to 100k of 131k chars, CompositeEditCommand.cpp and Editor.cpp to 100k)
+
+## Claims
+1. Document `selectionchange` coalesced per task: `FrameSelection::setSelectionWithoutUpdatingAppearance`, `else if (!m_hasScheduledSelectionChangeEventOnDocument)` sets flag, `document->eventLoop()->queueTask(TaskSource::UserInteraction, ...)`; task resets flag, dispatches non-bubbling non-cancelable event ⇒ several changes in one task give one event; typing across tasks gives one per task | https://raw.githubusercontent.com/WebKit/WebKit/main/Source/WebCore/editing/FrameSelection.cpp | WebKit | main, read 2026-10-24 | 2026-10-24 | high mechanism / medium line context | engine-behavior
+2. Text controls use `textControl->scheduleSelectionChangeEvent()`; contenteditable takes document path | same | WebKit | main | 2026-10-24 | medium | engine-behavior
+3. Selection API spec silent on count; 2024-08-02 report: Chromium and WebKit fire multiple times, Gecko once — unreconciled with claim 1 (likely across tasks, unverified) | https://lists.w3.org/Archives/Public/public-webapps-github/2024Aug/0034.html | W3C public-webapps-github | 2024-08-02 | 2026-10-24 | medium | spec/bug-status
+4. `FrameSelection::setSelection` sets `m_pendingSelectionUpdate = true`; returns early without reveal if `document->hasPendingStyleRecalc()` or `layoutContext().isLayoutPending()`; else (user-triggered, per summary) `updateAndRevealSelection` → `updateAppearance()`, `revealSelection` | FrameSelection.cpp | WebKit | main | 2026-10-24 | medium | engine-behavior
+5. `FrameSelection::updateSelectionAppearanceNow` calls `document->updateLayoutIgnorePendingStylesheets()` under ENABLE(TEXT_CARET), else `updateStyleIfNeeded()`; only with render tree and `m_pendingSelectionUpdate`; `FrameSelection::modify`, `CaretBase::updateCaretRect` also force layout | FrameSelection.cpp | WebKit | main | 2026-10-24 | medium | engine-behavior
+6. `DOMSelection::setBaseAndExtent`, `collapse`, `setPosition`, `removeAllRanges` contain no `updateLayout`/`updateStyleIfNeeded`; go through `disassociateLiveRange()` + `moveTo(...)`; `removeAllRanges` → `frame->selection().clear()`; `addRange` acts only if `isNone()`, `associateLiveRange`; downstream `FrameSelection::moveTo` not read | https://raw.githubusercontent.com/WebKit/WebKit/main/Source/WebCore/page/DOMSelection.cpp | WebKit | main | 2026-10-24 | medium-high | engine-behavior
+7. `CompositeEditCommand::apply()` calls `document->updateLayoutIgnorePendingStylesheets()` at start, comment "Changes to the document may have been made since the last editing operation that require a layout"; every editing command incl. TypingCommand passes through ⇒ a typed character pays at least one synchronous layout if DOM/style dirty | https://raw.githubusercontent.com/WebKit/WebKit/main/Source/WebCore/editing/CompositeEditCommand.cpp | WebKit | main | 2026-10-24 | high | engine-behavior
+8. `Editor::appliedEditing(CompositeEditCommand&)` calls `document->updateLayout()` near top, before reading ending selection; then `changeSelectionAfterCommand`, input events, `respondToChangedContents`; called from `CompositeEditCommand::didApplyCommand()` ⇒ second forced layout per command, after DOM mutation | https://raw.githubusercontent.com/WebKit/WebKit/main/Source/WebCore/editing/Editor.cpp | WebKit | main | 2026-10-24 | medium-high | engine-behavior
+9. `TypingCommand.cpp`, `InsertTextCommand.cpp` no direct layout calls; `InsertTextCommand::doApply` builds `VisiblePosition` (needs layout-derived canonicalization); `Editor::insertTextWithoutSendingTextEvent`/`insertText` no layout calls | TypingCommand.cpp, InsertTextCommand.cpp, Editor.cpp | WebKit | main | 2026-10-24 | medium | engine-behavior
+10. Other layout-forcing paths in CompositeEditCommand: `deleteInsignificantText`, `appendBlockPlaceholder`, `addBlockPlaceholderIfNeeded`, `moveParagraphContentsToNewBlockIfNecessary`, `moveParagraphs`, `textNodeForRebalance` (style only) | CompositeEditCommand.cpp | WebKit | main | 2026-10-24 | medium | engine-behavior
+11. selectionchange async (Niwa 2011); bug 241366 (2022, r295711) scheduling for `select()`/`setRangeText()` — snippets, unread | https://lists.webkit.org/pipermail/webkit-dev/2010-October/014678.html ; https://auto-bugs.webkit.org/show_bug.cgi?id=241366 | webkit-dev / Bugzilla | 2010–2022 | 2026-10-24 | low | spec/bug-status
+
+## Assistant's answers
+1. selectionchange queued as a task with coalescing flag; at most one pending per task; not synchronous per character.
+2. DOM-side calls do not force layout themselves (normalize and text-node edits not read); `setSelection` skips reveal when style/layout pending; forced layout comes in the next editing command or `updateSelectionAppearanceNow`.
+3. Each typing command: `CompositeEditCommand::apply()` layout at start + `Editor::appliedEditing` layout again. Layout incremental; scaling with dirty subtree is assistant inference.
+
+## Leads
+- `FrameSelection::moveTo`, `updateAppearance`, `CaretBase::updateCaretRect`, `revealSelection`.
+- w3c/selection-api issue ~2024-08-02 test.
+- Safari Web Inspector timeline on the real grid.
+- `ContainerNode::normalize`, `Document::textNodesMerged`.
+
+## Looked for, not found
+- WebKit engineer statements on per-keystroke layout cost; source line making `normalize()`/text-node insert force layout (not read); commit hash of main; `scheduleSelectionchangeEvent` for document path (inline instead).

@@ -5105,6 +5105,8 @@ Ngay lượt đầu chạy tới, `macos-26` đỏ ở ca WAL. Hai lượt sửa
   này**; NFR18 hỏng ở **đường flush**. **Chủ: Ice** — hàng SPINE `:990` chưa được đóng, và dòng đóng
   nó bắt buộc phải khai sự thu hẹp đó kèm số (AC3).
   → 2026-09-24 (phiếu quyết #107) — Ice chọn: Winston đóng hàng đánh đổi wal_threshold_bytes ⟷ NFR18 trong spine kèm số đo (cặp đó không tồn tại ở tải này), rồi nối → Chủ: Story 10.9 cho đường flush; NFR18 được chấp nhận trượt tới lượt nghiệm thu cuối. **Chủ: Winston.**
+  → 🟡 2026-10-24 (plan-nfr18-duong-flush) — đo lại kill v2 ở 4 MiB trên bản release HEAD 99f3fc1, 122 câu, n=20 hợp lệ mỗi nhịp, loadavg 3–14 (máy KHÔNG rảnh): 40 phím/giây `window_s` 6,98–19,40 s, trung vị 12,24 s, 20/20 mẫu > 5 s; 10 phím/giây 0,34–7,83 s, trung vị 3,14 s, 7/20 mẫu > 5 s. NFR18 vẫn trượt sau chia khối 2-16; chưa tách phím chờ khỏi tới→commit, chưa có bản sửa. Số và nghi can: `_bmad-output/implementation-artifacts/nfr18-flush-ban-do/HANDOFF.md`. **Chủ: Story 2.4.**
+  → 🟡 2026-10-24 (plan-nfr18-duong-flush, `blocked`) — đường flush bị loại: `save_segment_targets` ≤ 1,1 ms, chờ khoá ≤ 0,1 ms; A/B chặn cơn flush (9–216 → 6–12 lượt mỗi mẫu) không rút `window_s` (trung vị 6,8 → 8,7 s, 5/6 mẫu mỗi bản > 5 s, 40 phím/giây, n=6, loadavg 4,7–12,8). Độ trễ là phím xếp hàng ở webview; Ice chọn giảm chi phí mỗi `input` của lưới (lớp 2-15) làm việc mới. Chưa giải thích: 7/20 mẫu > 5 s ở 10 phím/giây. Số: `nfr18-flush-ban-do/HANDOFF.md`. **Chủ: Story 2.4.**
 
 - 🔴 **Phiên NFR2 thật (30 phút × n=3) CHƯA CHẠY — Ice chốt 2026-08-19 KHÔNG chặn Epic 3 vì nó.**
   Bàn đo nay chạy trọn vòng và lặp lại được **5/5 phiên**, nên thứ còn thiếu là **thời gian máy**,

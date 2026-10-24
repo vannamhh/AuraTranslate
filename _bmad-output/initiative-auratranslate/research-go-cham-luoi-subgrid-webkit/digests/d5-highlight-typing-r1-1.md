@@ -1,0 +1,27 @@
+# D5 Highlight API, editor coalescing, typing rates, r1-1 (web only, accessed 2026-10-24; 8 searches, 6 fetches, 1 local pdftotext on a downloaded paper PDF; < 8 sources fully read)
+
+## Claims
+- Safari 17.2 first shipped CSS Custom Highlight API (Chrome/Edge 105, Firefox 140); WKWebView follows OS WebKit — not directly verified | https://developer.apple.com/documentation/safari-release-notes/safari-17_2-release-notes.md (snippet) ; https://web.dev/blog/web-platform-06-2025 | Apple; web.dev | 2023-12 / 2025-06 | 2026-10-24 | high (Safari) / low (WKWebView) | version-compat
+- MDN: Baseline 2025 "newly available" (June 2025) | https://developer.mozilla.org/en-US/docs/Web/API/CSS_Custom_Highlight_API | MDN | undated | 2026-10-24 | high | version-compat
+- Highlights do not change the DOM; `Highlight` holds Ranges, `CSS.highlights.set(name, hl)`, `::highlight(name)`; MDN examples only background-color and color | MDN | undated | 2026-10-24 | high | engine-behavior
+- Live `Range`s updated by the browser when DOM changes and highlight repainted; `StaticRange` not updated; spec says live-range updating has a cost, recommends StaticRange for authors who rebuild ranges themselves | https://drafts.csswg.org/css-highlight-api-1/ | CSSWG | draft | 2026-10-24 | high | engine-behavior
+- Allowed properties deferred to CSS Pseudo-Elements 4 §3.2; LogRocket snippet: limited to properties needing no relayout; no default styles | drafts.csswg.org ; https://blog.logrocket.com/getting-started-css-custom-highlight-api | CSSWG; LogRocket | undated | 2026-10-24 | medium | engine-behavior
+- Spec limits: collapsed ranges not rendered; overlapping ranges in one highlight merge; custom highlights paint below built-in; `priority` integer default 0; `type` highlight/spelling-error/grammar-error (a11y semantics only); endpoints inside grapheme odd; repaint asynchronous | drafts.csswg.org | CSSWG | draft | 2026-10-24 | high | engine-behavior
+- WebKit bug 323171: 421 ranges in 36 Highlights over 2,158-paragraph contenteditable (~790k chars): frame 16.9 → 42.3 ms (2.5×) in Safari TP 251 on macOS 26, Chrome 151 unchanged; Wikipedia syntax-highlight editor 32.8 → 245.7 ms (7.5×); cost scales with registered ranges, not text/doc size; cause O(n×m) text-box painting over every highlight; RESOLVED FIXED 324157@main 2026-10-19; related 323923 (several hundred highlights) NEW; fix may not be shipping | https://bugs.webkit.org/show_bug.cgi?id=323171 | WebKit Bugzilla | 2026-09-01 (fixed 2026-10-19) | 2026-10-24 | high (single report, confirmed by WebKit engineer) | perf-number
+- No measured comparison Highlight API vs span wrapping found.
+- CodeMirror 6 `requestMeasure`: read phase (no mutation) / write phase (no layout); same-key requests deduped, last wins; plugins should not read layout in `PluginValue.update`; `setState` redraws whole doc; `RangeSet.update` `filterFrom`/`filterTo` "can make updates cheaper" | https://codemirror.net/docs/ref/#view.EditorView.requestMeasure | CodeMirror | undated | 2026-10-24 | high | pattern
+- CM6 measure in animation frame — forum snippet only | https://discuss.codemirror.net/t/updates-not-synchronised-with-requestmeasure-and-viewplugin/4720 | CodeMirror forum | undated | 2026-10-24 | low | pattern
+- ProseMirror: map decoration set and redraw only changed range; maintainer: highlight around selection first, rest after idle; users blame large visible DOM and Chrome spellcheck; maintainer declines to disable spellcheck by default — snippets, threads not opened | https://discuss.prosemirror.net/t/responsivness-improvements-for-rendering-of-a-large-set-of-decorations/8834 ; https://discuss.prosemirror.net/t/performance-issues-with-prosemirror-and-chrome/2498 | ProseMirror forum | 2022–2025 | 2026-10-24 | medium | pattern
+- Dhakal et al. CHI 2018 (168,960 participants, 136M keystrokes): mean 51.56 WPM (SD 20.2), mean IKI 238.7 ms (SD 111.6); fast typists (> ~78 WPM) 89.56 WPM, ~121.7 ms IKI; slow 20.9 WPM, 481 ms; rollover 25% mean, 49.9% fast; fast alternating-hand IKI 108.6 ms, repeated-letter 144.8 ms; IKI means are per-user means, not minima | https://www.pokristensson.com/pubs/DhakalEtAlCHI2018.pdf (Table 3) | CHI 2018 | 2018 | 2026-10-24 | high | typing-rate
+- Same paper cites professional typists ~75 WPM, average IKI 140 ms | same | CHI 2018 | 2018 | 2026-10-24 | medium | typing-rate
+- macOS key repeat (community only): fastest GUI KeyRepeat=2 (~30 ms, ~33 keys/s), InitialKeyRepeat=15 (~225 ms); 15 ms units inferred; KeyRepeat=1 ~15 ms not in GUI; Apple documents sliders without numbers | https://til.vegardstikbakke.com/posts/macos-keyboard-rate ; https://support.apple.com/en-gb/guide/mac-help/mchl0311bdb4/15.0/mac/15.0 | community blog; Apple | undated | 2026-10-24 | low-medium | typing-rate
+
+## Leads
+- `defaults read -g KeyRepeat` / `InitialKeyRepeat` on target Mac (commonly cited default KeyRepeat=6 / 90 ms, InitialKeyRepeat=25 / 375 ms — unverified).
+- Dhakal dataset for per-keystroke minimum IKI and burst percentiles.
+- WebKit bug 323923; whether 324157@main reached shipping Safari/WKWebView.
+- Lexical, Slate, CM6 rAF scheduler, Monaco render scheduling sources.
+- Native spellchecker vs Highlight API conflict in WebKit.
+
+## Looked for, not found
+- Measured Highlight API vs span-wrapping comparison; WebKit-specific live-range update during contenteditable typing; Lexical/Slate/Monaco coalescing docs (budget); ProseMirror selectionchange debounce; official Apple key-repeat numbers; `::highlight()` allowed property list.

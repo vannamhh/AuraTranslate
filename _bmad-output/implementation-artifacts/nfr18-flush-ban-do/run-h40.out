@@ -1,0 +1,87 @@
+load0 { 9.12 8.00 8.28 }
+───── lượt bắn 1 · hợp lệ 0/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 34s rồi SIGKILL
+  VALID  cửa sổ=12.152s  wal(p/g)=799312/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 2 · hợp lệ 1/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 38s rồi SIGKILL
+  VALID  cửa sổ=13.392s  wal(p/g)=1742792/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 3 · hợp lệ 2/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 54s rồi SIGKILL
+  VALID  cửa sổ=15.201s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 4 · hợp lệ 3/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 51s rồi SIGKILL
+  VALID  cửa sổ=19.395s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 5 · hợp lệ 4/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 31s rồi SIGKILL
+  VALID  cửa sổ=9.651s  wal(p/g)=1310192/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 6 · hợp lệ 5/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 37s rồi SIGKILL
+  VALID  cửa sổ=15.781s  wal(p/g)=1343152/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 7 · hợp lệ 6/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 23s rồi SIGKILL
+  VALID  cửa sổ=6.980s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 8 · hợp lệ 7/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 25s rồi SIGKILL
+  VALID  cửa sổ=8.586s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 9 · hợp lệ 8/20 ─────
+  🔴 khong dat duoc con tro vao mot cau — bo luot
+───── lượt bắn 10 · hợp lệ 8/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 28s rồi SIGKILL
+  VALID  cửa sổ=8.443s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 11 · hợp lệ 9/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 44s rồi SIGKILL
+  VALID  cửa sổ=10.337s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 12 · hợp lệ 10/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 52s rồi SIGKILL
+  VALID  cửa sổ=10.999s  wal(p/g)=811672/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 13 · hợp lệ 11/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 39s rồi SIGKILL
+  VALID  cửa sổ=12.771s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 14 · hợp lệ 12/20 ─────
+  con tro vao duoc tai (+637,255)
+  gõ 22s rồi SIGKILL
+  VALID  cửa sổ=7.552s  wal(p/g)=889952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 15 · hợp lệ 13/20 ─────
+  🔴 không dựng được Tác phẩm — lượt bắn hỏng, KHÔNG tính vào mẫu
+───── lượt bắn 16 · hợp lệ 13/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 53s rồi SIGKILL
+  VALID  cửa sổ=13.895s  wal(p/g)=2579152/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 17 · hợp lệ 14/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 32s rồi SIGKILL
+  VALID  cửa sổ=8.284s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 18 · hợp lệ 15/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 43s rồi SIGKILL
+  VALID  cửa sổ=14.354s  wal(p/g)=824032/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 19 · hợp lệ 16/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 45s rồi SIGKILL
+  VALID  cửa sổ=14.615s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 20 · hợp lệ 17/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 35s rồi SIGKILL
+  VALID  cửa sổ=13.163s  wal(p/g)=1800472/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 21 · hợp lệ 18/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 30s rồi SIGKILL
+  VALID  cửa sổ=12.236s  wal(p/g)=1347272/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 22 · hợp lệ 19/20 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 50s rồi SIGKILL
+  VALID  cửa sổ=16.581s  wal(p/g)=2167152/296672  busy(p/g)=0/0  blur=0.0%  
+═══ xong · đã bắn 22 · hợp lệ 20/20 · /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/kill2-h40.tsv ═══
+SENTINEL_H40_DONE

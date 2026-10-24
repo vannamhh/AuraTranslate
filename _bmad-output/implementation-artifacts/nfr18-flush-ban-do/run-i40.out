@@ -1,0 +1,22 @@
+───── lượt bắn 1 · hợp lệ 0/5 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 40s rồi SIGKILL
+  VALID  cửa sổ=8.804s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 2 · hợp lệ 1/5 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 34s rồi SIGKILL
+  VALID  cửa sổ=8.598s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 3 · hợp lệ 2/5 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 53s rồi SIGKILL
+  VALID  cửa sổ=7.437s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 4 · hợp lệ 3/5 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 43s rồi SIGKILL
+  VALID  cửa sổ=6.487s  wal(p/g)=877592/296672  busy(p/g)=0/0  blur=0.0%  
+───── lượt bắn 5 · hợp lệ 4/5 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 34s rồi SIGKILL
+  VALID  cửa sổ=6.351s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+═══ xong · đã bắn 5 · hợp lệ 5/5 · /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/kill2-i40.tsv ═══
+DONE_I40

@@ -1,0 +1,3 @@
+round	kill_ts	max_n	last_n	inject_ts	window_s	wal_project	wal_global	class	busy_project	busy_global	passive_project	passive_global	thr_project	thr_global	blur_pct	note
+1	1792837642.165	17	36	1792837613.427	28.738	786952	296672	BLUR_FAIL	0	0	0	0	0	0	8.3	mất tiêu điểm 8.3% > 5% ⇒ bỏ lượt (AC21)
+2	1792837739.399	24	29	1792837730.256	9.143	786952	296672	VALID	0	0	0	0	0	0	0.0	

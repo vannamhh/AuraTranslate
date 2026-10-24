@@ -1,0 +1,2 @@
+round	kill_ts	max_n	last_n	inject_ts	window_s	wal_project	wal_global	class	busy_project	busy_global	passive_project	passive_global	thr_project	thr_global	blur_pct	note
+1	1792837828.269	21	25	1792837821.039	7.230	976472	296672	VALID	0	0	0	0	0	0	0.0	

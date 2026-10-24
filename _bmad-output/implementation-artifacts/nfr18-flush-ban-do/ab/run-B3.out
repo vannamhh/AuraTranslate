@@ -1,0 +1,9 @@
+───── lượt bắn 1 · hợp lệ 0/1 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 52s rồi SIGKILL
+  BLUR_FAIL  cửa sổ=28.738s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=8.3%  mất tiêu điểm 8.3% > 5% ⇒ bỏ lượt (AC21)
+───── lượt bắn 2 · hợp lệ 0/1 ─────
+  con tro vao duoc tai (+637,192)
+  gõ 43s rồi SIGKILL
+  VALID  cửa sổ=9.143s  wal(p/g)=786952/296672  busy(p/g)=0/0  blur=0.0%  
+═══ xong · đã bắn 2 · hợp lệ 1/1 · /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/kill2-abB3.tsv ═══
