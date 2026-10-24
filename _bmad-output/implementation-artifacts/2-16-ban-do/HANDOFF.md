@@ -207,3 +207,28 @@ Chưa commit. Cây chính = HEAD + `blocks-prototype-3.patch` + phần dưới.
 - Gỡ thật phần chia khối xác nhận ca hình dạng đỏ.
 - Bề mặt nguyên văn nay là `[data-col="src"]` từng ô (không còn cả cột): vùng chọn nằm ở ảnh/dải trong cột nguyên văn mà không trong ô sẽ không phát lượt tra; e2e nên có một ca.
 - Chú thích cũ nhắc `colSrc` còn ở `editorSegments.ts:466` và `tests/frontend/editorSourceCutGesture.test.ts:12` (không đụng).
+
+# Giao việc Pha 4 (story 2-16) — test và e2e, 2026-10-24
+
+Pha 3 đã commit ở `742096c`. Đọc mục "# Handoff Pha 3 -> Pha 4" ngay trên trước. Pha 4 làm plan §Tasks, Pha 4. KHÔNG làm mục "Nghiệm thu" (bàn release, tốn máy; Ice hẹn giờ riêng).
+
+## Việc
+1. `tests/frontend/gridBlocks.test.ts` (mới): các ca của plan §I/O & Edge-Case Matrix theo được ở vitest, cộng ca mount 450 câu ⇒ 3 `.grid-block`, mỗi khối ≤ `GRID_BLOCK_ROWS`, không cột nào trải cả Chương. Ca hình dạng phải đỏ khi gộp về một khối: gỡ thật phần chia khối trong `gridBlocks.ts`/template (giữ chữ ký), chạy lại đúng tệp đó, thấy đỏ đúng lý do, rồi trả lại.
+2. Thêm ca vitest cho thay đổi hành vi Pha 3 nêu: bề mặt nguồn nay là từng ô `[data-col="src"]`. Ghi bằng test hành vi hiện có (vùng chọn trong ô nguồn ở khối ≥ 1 phát lượt tra; vùng chọn bắt đầu ngoài ô thì không). Không đổi mã sản phẩm để ca xanh; nếu thấy đó là hồi quy thật so với `cc60020`, dừng và ghi vào handoff cho Ice.
+3. e2e: đổi cách tìm hàng ở 4 spec plan §Code Map liệt kê, không đổi điều kiện khẳng định (plan §Never). Thêm các ca e2e plan liệt kê (điều hướng qua ranh giới, Lookup ở khối 5, ≤ 1 px quanh ranh giới trong `grid-image-row-alignment` với ≥ 201 câu, `Mod+Shift+↓` qua ranh giới, kéo chuột thật trong cột nguyên văn qua ranh giới khẳng định không ô nào ngoài cột nguyên văn bị tô). Ca ≤ 1 px: plan đòi đối chiếu một lượt trên `baseline_revision`; làm bằng `git worktree add` vào scratchpad của bạn, đừng `checkout` trong cây chính.
+4. Kéo chọn cột nguyên văn: chạy ca kéo chuột thật trên (a) cây hiện tại, để thấy ca đỏ khi chưa có cách nào, (b) cây + `keo-cot-nguyen-van-css.patch`, (c) cây + `keo-cot-nguyen-van-js.patch`. Áp patch bằng `git apply`, gỡ bằng `git apply -R` (KHÔNG `git checkout`). Ghi kết quả từng biến thể. KHÔNG chọn và KHÔNG đưa patch nào vào `src/`: Ice quyết (plan §Design Notes). Để cây ở trạng thái (a) khi xong.
+5. Kiểm: `npx vue-tsc --noEmit`, `npm run test:story 2-16`, các tệp vitest đã đổi/thêm, `npm run check:commands && npm run check:layout`, `npx eslint` trên các tệp e2e đã đổi. e2e: chỉ chạy các spec đã đổi hoặc thêm, không chạy cả bộ.
+
+## Chạy e2e
+- `e2e/AGENTS.md` trước. Dựng một lần: `cargo build --locked --features wdio --manifest-path src-tauri/Cargo.toml`, rồi `npx wdio run e2e/wdio.conf.mjs --spec <tệp>` cho từng spec. `npm run build` trước nếu `dist/` thiếu hay cũ (cargo nhúng `dist/`); mỗi lần đổi mã webview phải dựng lại `dist/` và binary trước khi chạy e2e.
+- e2e phải chạy NGOÀI sandbox (trong sandbox webview đứng ở `tauri://localhost` và đỏ ở bước mount). Đặt trần mỗi lệnh dài: `perl -e 'alarm shift; exec @ARGV' <giây> <lệnh…>` (exit 142 = hết giờ).
+- Màn hình khoá thì rAF không chạy và ca đỏ ở `before`: đỏ kiểu đó ghi là môi trường, không sửa mã.
+
+## Ràng buộc
+- KHÔNG commit, KHÔNG push. Không sửa plan hay story.
+- ⚠️ Không `git checkout`/`git stash`/`git restore` trên tệp có thay đổi chưa commit. Bản gốc lấy bằng `git show <rev>:<path>`.
+- ⚠️ `rm` là alias `rm -i`, treo im lặng: dùng `/bin/rm`. Không gọi `cat` không đối số.
+- Comment theo AGENTS.md §Code comments. Không thêm phụ thuộc. Không đụng `src-tauri/`.
+
+## Đầu ra
+Mục `# Handoff Pha 4 -> Ice (story 2-16)` nối vào cuối tệp này, ngắn: tệp đã đổi/thêm, ca nào xanh/đỏ (kèm phạm vi chạy, bản dựng, lý do đỏ), phép gỡ, bảng ba biến thể kéo chọn, việc còn lại.
