@@ -40,3 +40,5 @@ Ba phiên mỗi cỡ (`ket-qua-base-<122|9850>-<1..3>.json`), `loadavg` 1 phút 
 - `mouseup` của `cliclick c:` hầu như không được ghi (bộ ghi chỉ thấy 1 trong 9 lượt ở một phiên thử), nên chỉ có số mousedown.
 - `segment.next` đổi ô trong cùng handler `keydown` (focusin ngay lúc `keydown`, `before` trong JSON đã là ô mới); đừng đọc `before` như ô cũ.
 - `sent→f` gồm thời gian khởi động `cliclick`/`osascript` (vài chục ms); `handler→f` bỏ hàng đợi sự kiện. Số thật nằm giữa.
+
+Nghiệm thu story 2-16 (release `24bb1e2`, 2026-10-24): số và bảng ở `HANDOFF.md` §Nghiệm thu; số thô `ket-qua-acc-*.json` ở thư mục này (dời con trỏ) và ở `../2-15-ban-do/` (gõ).

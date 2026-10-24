@@ -341,3 +341,30 @@ Hai ảnh `browser.takeScreenshot()` toàn cửa sổ (trước/sau kéo OS từ
 ## Sau Pha 4b (người giao việc, 2026-10-24)
 - `sourceColumnText` gọi `intersectsNode` trên mọi ô nguồn: ca Lookup khối 5 của `gridBlocks.test.ts` tốn 11 s trên happy-dom và hết trần 30 s khi chạy đủ bộ. Nay chỉ duyệt các ô nguồn từ ô chứa đầu khoảng chọn tới ô chứa cuối (khoảng chọn liền theo DOM), về cả danh sách khi một đầu không ở ô nguồn: 1,15 s. Chưa chạy lại bàn `keo-cot-nguyen-van.e2e.mjs` sau thay đổi này (bàn điều khiển chuột thật của máy).
 - `check:tokens` báo đỏ "có từ trước" là sai: ở `fd13e19` nó xanh, chính các tệp mới của story làm sàn trôi. `check:doc-refs` cũng vậy. `check:i18n` đỏ thật từ `043f3bc`. Cả ba đã sửa riêng; 14 cổng `pre-push` và vitest đủ bộ xanh.
+
+# Nghiệm thu (release, 2026-10-24 08:51 → 09:03)
+
+Bản dựng: release, ký ad-hoc, từ worktree sạch ở `24bb1e2`, WKWebView (WebKit 605.1.15) macOS 15.8.2, cửa sổ 1200×900. Gõ: `type-10hz.applescript` 300 ký tự trong một tiến trình rồi `Cmd+Return`; chuột: `cliclick`; `segment.next`: hợp âm qua `osascript`. loadavg 1 phút lúc bắt đầu phiên 2,4–4,7. Số thô: `ket-qua-acc-*.json` ở `2-15-ban-do/` (gõ, 122 và 9.850 câu) và `2-16-ban-do/` (dời con trỏ, 9.850 câu).
+
+| Gõ (bàn 2-15) | phím cuối | phím chờ | p50 / p95 / max | p95 theo 10 s | `Mod+Enter` → xác nhận |
+|---|---|---|---|---|---|
+| 122 · 1 | 33 | 0 | 31 / 57 / 75 | 36 · 58 · 57 | 43 |
+| 122 · 2 | 34 | 0 | 5 / 28 / 99 | 29 · 18 · 32 | 47 |
+| 122 · 3 | 38 | 0 | 78 / 152 / 213 | 163 · 107 · 50 | 29 |
+| 9.850 · 1 | 187 | 0 | 21 / 52 / 187 | 60 · 28 · 36 | 194 |
+| 9.850 · 2 | 77 | 0 | 19 / 44 / 165 | 48 · 33 · 39 | 174 |
+| 9.850 · 3 | 72 | 0 | 35 / 54 / 180 | 64 · 53 · 48 | 164 |
+
+(ms; "phím chờ" = phím có `input` chạy sau lúc phím cuối được gửi, trừ chính phím cuối.)
+
+| Dời con trỏ (bàn 2-16, 9.850 câu) | phiên 1 | phiên 2 | phiên 3 |
+|---|---|---|---|
+| chuột handler → 2 frame | 68 · 70 · 59 | 69 · 68 · 72 | 73 · 64 · 88 |
+| chuột gửi → 2 frame | 202 · 173 · 167 | 218 · 187 · 182 | 178 · 172 · 214 |
+| `segment.next` gửi → 2 frame | 76 · 62 · 72 | 85 · 76 · 75 | 71 · 72 · 89 |
+| bố cục đầu / ô đích đầu có mặt | 3.823 / 3.668 | 3.749 / 3.617 | 3.698 / 3.570 |
+
+- Profile chuột: JS sau handler 2–4 ms, style/layout ép tay 0 ms, phần sau JS tới frame 53–67 ms, mỗi lượt đụng 1 khối (6 bản ghi DOM).
+- Bug 2.15 tiêu chí 1 ở 122 câu: ĐẠT ở mọi vế. Ở 9.850 câu: không còn phím chờ; phím cuối ≤ 100 ms ở phiên 2 và 3, TRƯỢT ở phiên 1 (187 ms); `Mod+Enter` TRƯỢT ở cả ba phiên (164–194 ms). Ở phiên 1, phím cuối (187) gần bằng `Mod+Enter` (194), và `Mod+Enter` được gửi 20 ms sau phím cuối; tôi suy ra (chưa đo) là frame của phím cuối bị kéo theo công việc của `Mod+Enter`.
+- `Mod+Enter` ở 9.850 câu cũng đã 147–164 ms ở đợt đo bản thử 3 (`ket-qua-c2p3-9850-*.json`); báo cáo đợt đó chỉ đọc vế phím cuối và bỏ sót vế này.
+- Bug 2.14 tiêu chí 1 (≤ 50 ms): TRƯỢT ở cả hai đường, như đợt bản thử 3.
