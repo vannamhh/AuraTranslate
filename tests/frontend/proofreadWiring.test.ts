@@ -182,8 +182,9 @@ describe('proofread wiring in source', () => {
     const grid = codeLines('src/panels/GridPanel.vue').join('\n')
     expect(grid).toMatch(/if \(event\.isComposing\) return\s+if \(!composing\) \{[^}]*unwrapProofread\(typed, true\)\s+scheduleRepaintProofread\(\)/)
     expect(grid).toMatch(/if \(!composing && !event\.isComposing\) \{\s+unwrapProofread\(cell, event\.inputType === 'historyUndo' \|\| event\.inputType === 'historyRedo'\)/)
-    expect(grid).toContain('@compositionstart="onCompositionStart"')
-    expect(grid).toContain('@compositionend="onCompositionEnd"')
+    const block = codeLines('src/panels/GridBlock.vue').join('\n')
+    expect(block).toContain('@compositionstart="onCompositionStart"')
+    expect(block).toContain('@compositionend="onCompositionEnd"')
   })
 
   it('GridPanel redraws after a beforeinput that is cancelled without writing', () => {
@@ -209,8 +210,8 @@ describe('proofread wiring in source', () => {
     const keepAlive = app.match(/<KeepAlive[\s\S]*?<\/KeepAlive>/)
     expect(keepAlive).not.toBeNull()
     expect(keepAlive![0]).not.toContain('<ProofreaderStrip')
-    const grid = codeLines('src/panels/GridPanel.vue').join('\n')
-    const track = grid.match(/<div[^>]*class="strip-track"[\s\S]*?<\/div>/)
+    const block = codeLines('src/panels/GridBlock.vue').join('\n')
+    const track = block.match(/<div[^>]*class="strip-track"[\s\S]*?<\/div>/)
     expect(track).not.toBeNull()
     expect(track![0]).toContain('<ProofreaderStrip place="track" />')
   })
