@@ -368,3 +368,26 @@ Bản dựng: release, ký ad-hoc, từ worktree sạch ở `24bb1e2`, WKWebView
 - Bug 2.15 tiêu chí 1 ở 122 câu: ĐẠT ở mọi vế. Ở 9.850 câu: không còn phím chờ; phím cuối ≤ 100 ms ở phiên 2 và 3, TRƯỢT ở phiên 1 (187 ms); `Mod+Enter` TRƯỢT ở cả ba phiên (164–194 ms). Ở phiên 1, phím cuối (187) gần bằng `Mod+Enter` (194), và `Mod+Enter` được gửi 20 ms sau phím cuối; tôi suy ra (chưa đo) là frame của phím cuối bị kéo theo công việc của `Mod+Enter`.
 - `Mod+Enter` ở 9.850 câu cũng đã 147–164 ms ở đợt đo bản thử 3 (`ket-qua-c2p3-9850-*.json`); báo cáo đợt đó chỉ đọc vế phím cuối và bỏ sót vế này.
 - Bug 2.14 tiêu chí 1 (≤ 50 ms): TRƯỢT ở cả hai đường, như đợt bản thử 3.
+
+# Giao việc Pha 5 (story 2-16) — `Mod+Enter` ở 9.850 câu, 2026-10-24
+
+Nghiệm thu (mục ngay trên): `Mod+Enter` (`editor.confirm_segment`) tới lúc vạch lề có `rule-confirmed` tốn 164–194 ms ở 9.850 câu, 29–47 ms ở 122 câu; trần 2.15 tiêu chí 1 là 100 ms. Dời con trỏ thuần (chuột) tốn 2–4 ms JS + 53–67 ms sau JS, nên phần còn lại (~100 ms) chưa quy nguồn.
+
+Giả thuyết của người giao việc, CHƯA kiểm (đọc lướt mã): xác nhận câu thay `editorSegments`, nên `gridBlockViews` (`GridPanel.vue`) cắt lại cả 50 khối thành object mới và mọi `GridBlock` render lại; và `restRuleById` dựng lại một `Map` mới trên cả Chương, mà mọi khối đọc trong `ruleOf`. Tức một lượt xác nhận quay về chi phí cả lưới.
+
+## Việc
+1. Đo trước khi sửa, bằng vitest (dev, happy-dom), theo khuôn `tests/frontend/gridBlockRenderCost.test.ts`: ở ≥ 1.000 câu (≥ 5 khối), chạy đúng đường của `Mod+Enter` (dispatch `editor.confirm_segment` hoặc hàm nó gọi, kèm IPC giả như các test lưới khác) và đếm số khối `updated`. Ghi giá trị phản ứng nào được ghi trong lượt đó: `editorSegments` thay mảng hay sửa tại chỗ, đối tượng segment nào đổi danh tính, `restRuleById`/`gridBlockViews` có tính lại không, và lượt đó có dời con trỏ sang câu kế không.
+   - Nếu chỉ ≤ 2 khối render: giả thuyết sai. Dừng, ghi số và những gì đọc được vào handoff, không sửa.
+2. Nếu nhiều khối render: sửa để một lượt `Mod+Enter` chỉ render lại khối chứa câu vừa xác nhận và khối con trỏ tới (mục tiêu ≤ 2). Hai hướng nhìn thấy được, không bắt buộc: giữ danh tính object khối khi mọi segment của khối không đổi danh tính; và cho khối nhận vạch của riêng hàng mình thay vì đọc một `Map` của cả Chương mỗi lượt render. Giữ nguyên hành vi: vạch, `⌘Z`, điều hướng, vùng chọn. ⚠️ Prop object/mảng/hàm mới mỗi lượt render của cha làm mọi khối render lại (mục giao việc Pha 2 lượt 3).
+   - Nếu có hai cách hợp lệ mà khác nhau về hành vi hay rủi ro, trình cả hai với số trong handoff; không tự chọn.
+3. Ca test mới (hoặc ca thêm vào `gridBlockRenderCost`): `Mod+Enter` ở 1.050 câu render ≤ 2 khối. Phép gỡ thật phần sửa (giữ chữ ký) thì ca đỏ đúng lý do; rồi trả lại.
+4. Kiểm: `npm run build` (gồm `vue-tsc` cả hai tsconfig), `npm run test:story 2-16`, các tệp vitest lưới (`ls tests/frontend/grid*.test.ts`) và các tệp test của `editor.confirm_segment`/vạch lề (`grep -l confirm_segment tests/frontend`), `npm run check:commands && npm run check:layout && npm run check:tokens && npm run check:i18n`. KHÔNG dựng release, KHÔNG chạy bàn đo: người giao việc nghiệm thu lại.
+
+## Ràng buộc
+- KHÔNG commit, KHÔNG push. Không sửa plan hay story.
+- ⚠️ Không `git checkout`/`git stash`/`git restore` trên tệp có thay đổi chưa commit; bản gốc lấy bằng `git show <rev>:<path>`.
+- ⚠️ `rm` là alias `rm -i`: dùng `/bin/rm`. Không gọi `cat` không đối số. Trong zsh, biến chứa nhiều đường dẫn không tự tách từ: dùng `xargs`.
+- Comment theo AGENTS.md §Code comments. Không thêm phụ thuộc. Không đụng `src-tauri/`.
+
+## Đầu ra
+Mục `# Handoff Pha 5 -> người giao việc (story 2-16)` nối vào cuối tệp này, ngắn: số khối render trước/sau, giá trị phản ứng được ghi trong lượt `Mod+Enter`, tệp đã đổi, phép gỡ, test xanh/đỏ kèm phạm vi, rủi ro.

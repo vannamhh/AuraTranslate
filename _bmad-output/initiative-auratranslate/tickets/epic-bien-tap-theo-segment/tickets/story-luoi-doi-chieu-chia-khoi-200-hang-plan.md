@@ -156,6 +156,7 @@ Mỗi pha một agent mới; bàn giao qua `_bmad-output/implementation-artifact
 - Bản thử 3 trên release (`0b619fb` + `blocks-prototype-3.patch`, số ở `93bc97b`, 9.850 câu, xen kẽ 3 phiên mỗi bên): gõ đạt, phím cuối 65–72 ms; dời con trỏ trượt ≤ 50 ms ở cả hai bố cục, vì phần JS còn 1–3 ms (base 41–49) nhưng phần sau JS tới hai frame 53–66 ms không đổi, `segment.next` 58–76 ms. Quyết định 2026-10-24, Ice: nhận C2 dù vế dời con trỏ của tiêu chí 1 trượt, làm tiếp Pha 3 và Pha 4 trên mã bản thử 3; phần sau JS thuộc bug 2-14, bug ấy vẫn mở với số này.
 - Kéo chuột thật trong cột nguyên văn qua ranh giới khối (`7c9a3a4`): cả hai cách của §Design Notes đều trượt, vì vùng chọn là một khoảng liền theo DOM và cột bản dịch khối 0 nằm giữa hai cột nguyên văn. Quyết định 2026-10-24, Ice: cách thứ ba, chỉ tô và chỉ đọc cột nguyên văn (Range vẫn chứa ô khác); ca kéo dùng chuột hệ điều hành nằm ở bàn cục bộ `2-16-ban-do/`, không ở nightly.
 - Nghiệm thu (release `24bb1e2`, 9.850 câu trừ khi ghi khác, loadavg 2,4–4,7; bảng ở `2-16-ban-do/HANDOFF.md` §Nghiệm thu): gõ ở 122 câu đạt mọi vế của 2.15 tiêu chí 1; ở 9.850 câu không còn phím chờ, phím cuối 72 · 77 · 187 ms, p95 44–54 ms, nhưng `Mod+Enter` tới xác nhận 164–194 ms (> 100), và đợt bản thử 3 đã là 147–164 ms. Dời con trỏ: chuột handler → 2 frame 59–88 ms, `segment.next` gửi → 2 frame 62–89 ms; bố cục đầu 3,70–3,82 s.
+- Quyết định 2026-10-24, Ice: truy và sửa vế `Mod+Enter` ở 9.850 câu ngay trong story này, rồi nghiệm thu lại.
 
 ## Plan Change Log
 
