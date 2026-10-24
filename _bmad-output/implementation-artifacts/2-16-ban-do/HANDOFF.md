@@ -271,3 +271,32 @@ Chưa commit. Cây ở trạng thái (a): không patch kéo chọn nào trong `s
 - Hai ca dùng `cliclick` (Lookup bằng kéo thật ở khối 5, `DRAG_SOURCE_COLUMN`) chuyển sang `keo-cot-nguyen-van.e2e.mjs` cùng `osMouse.mjs` trong thư mục này; nightly không có `cliclick` hay quyền Trợ năng nên `before` của cả spec sẽ đỏ.
 - `e2e/specs/grid-blocks.e2e.mjs` còn 4 ca; ca Lookup ở khối 5 nay đặt vùng chọn bằng `Range` trên nút chữ rồi bắn `mouseup`: 4/4 xanh (bản debug `--features wdio`, Vite dev, ngoài sandbox). ⚠️ Cùng ca đó với `selectNodeContents(.src-piece)` (anchor là phần tử, không phải nút chữ) thì không có lượt tra; chưa kiểm hành vi này ở `cc60020`.
 - `npm run build` đỏ từ `742096c` ở `vue-tsc -p tsconfig.node.json` (hai bảng tra mới của `check-commands.mjs` thiếu kiểu); đã sửa riêng.
+
+# Giao việc Pha 4b (story 2-16) — kéo chọn cột nguyên văn, cách thứ ba, 2026-10-24
+
+Đã có ở `7c9a3a4`: ca `DRAG_SOURCE_COLUMN` trong `keo-cot-nguyen-van.e2e.mjs` đỏ ở cây hiện tại và ở hai patch `keo-cot-nguyen-van-{css,js}.patch` (bảng ở mục "Handoff Pha 4 -> Ice"). Vùng chọn của trình duyệt là một khoảng liền theo DOM; khi kéo từ cột nguyên văn khối 0 sang khối 1, ô bản dịch, ô số, ô vạch của khối 0 nằm trong khoảng ấy và không bỏ ra được. Ice chọn cách thứ ba: Range vẫn chứa các ô đó, nhưng người dùng chỉ THẤY tô ở cột nguyên văn và mọi thứ ĐỌC vùng chọn chỉ nhận chữ của cột nguyên văn.
+
+## Việc
+1. Mã sản phẩm (vào `src/`, không thành patch):
+   - Trạng thái "lượt chọn bắt đầu trong cột nguyên văn" trên gốc lưới. Nó phải sống qua lúc thả chuột (patch CSS hỏng chính vì gỡ cờ ở `mouseup`), và hết khi vùng chọn thu về caret, khi anchor rời cột nguyên văn, hoặc khi một lượt chọn mới bắt đầu ở cột khác.
+   - Khi trạng thái bật: `::selection` trong suốt ở mọi phần tử ngoài `[data-col="src"]` trong lưới (cột vạch, số, bản dịch, dải, ảnh nếu có). Không dùng `user-select: none`, vì nó đổi chính khoảng chọn.
+   - Đọc: `resolveSourceSelection` (`GridPanel.vue`) chỉ trả chữ nằm trong `[data-col="src"]` của khoảng chọn, theo thứ tự hàng, giữ đúng cách ghép giữa các ô như ở bố cục cũ khi kéo nhiều hàng (đọc `cc60020` bằng `git show` để so). Kiểm `copy` (`⌘C`): bố cục cũ chép chữ nguồn; nếu nay chép cả chữ bản dịch thì chặn `copy` khi trạng thái bật và đặt `clipboardData` bằng cùng chữ. Lượt tra tự động, Glossary quick add (`currentSelectionTextForGlossaryQuickAdd`) và mọi chỗ khác đọc vùng chọn từ lưới: liệt kê và kiểm từng chỗ.
+   - API `window`/`document` mới (nếu có) phải có mục ghi lý do ở `check-layout.mjs` Kiểm C. Không hạ ngưỡng, không thêm miễn trừ.
+2. Đổi khẳng định của `DRAG_SOURCE_COLUMN` cho đúng tiêu chí 2 ("chỉ tô cột nguyên văn"): đo phần ĐƯỢC TÔ bằng điểm ảnh (`browser.takeScreenshot()` hoặc `takeElementScreenshot` ở vài ô bản dịch, số, vạch giữa hai ranh giới, so với cùng ô khi không có vùng chọn), cộng chữ mà lượt tra và `⌘C` nhận không chứa chữ bản dịch. Bỏ khẳng định `containsNode`, vì cách thứ ba giữ các ô đó trong Range. Ghi hiệu chỉnh dpr nếu đo điểm ảnh (máy Ice dpr=2).
+   - Chạy ca trên cây chưa có thay đổi của bước 1 (phải đỏ ở vế tô) và trên cây đã có (phải xanh). Đó là phép gỡ thật của bước 1.
+   - Ca Lookup bằng kéo thật ở khối 5 trong cùng tệp vẫn phải xanh.
+3. vitest cho bộ đọc: một tệp hoặc ca mới cho `resolveSourceSelection` với một Range giả từ ô nguồn khối 0 sang ô nguồn khối 1 (happy-dom có `Range`): kết quả chỉ chứa chữ nguồn. Gỡ thật phần lọc thì ca đỏ đúng lý do.
+4. Kiểm: `npm run build` (gồm `vue-tsc` cả hai tsconfig; ⚠️ Pha 3 làm đỏ nó vì chỉ chạy cấu hình mặc định), `npm run test:story 2-16`, các tệp vitest lưới/vùng chọn/glossary đã đổi hay liên quan, `npm run check:commands && npm run check:layout`, `npx eslint e2e`, e2e `grid-blocks.e2e.mjs` (nightly, 4 ca) và bàn `keo-cot-nguyen-van.e2e.mjs`.
+
+## Chạy e2e
+- Như mục "Giao việc Pha 4" ở trên: dựng `cargo build --locked --features wdio --manifest-path src-tauri/Cargo.toml`; e2e nạp Vite dev nên đổi `src/` không cần dựng lại binary. Bàn cục bộ: `TAURI_WEBDRIVER_PORT=4467 npm run test:e2e -- --spec _bmad-output/implementation-artifacts/2-16-ban-do/keo-cot-nguyen-van.e2e.mjs` hoặc `npx wdio run e2e/wdio.conf.mjs --spec <tệp>`. NGOÀI sandbox, trần mỗi lệnh bằng `perl -e 'alarm shift; exec @ARGV' <giây> …`.
+- Bàn cục bộ dùng `cliclick` và cần màn hình mở khoá, cửa sổ lên trước. `[BÀN ĐO HỎNG]` là môi trường, không sửa mã.
+
+## Ràng buộc
+- KHÔNG commit, KHÔNG push. Không sửa plan hay story. Không xoá hai patch cũ.
+- ⚠️ Không `git checkout`/`git stash`/`git restore` trên tệp có thay đổi chưa commit; bản gốc lấy bằng `git show <rev>:<path>`. Để đo cây "chưa có bước 1", tạm lưu diff bước 1 ra patch và `git apply -R`, rồi `git apply` lại.
+- ⚠️ `rm` là alias `rm -i`: dùng `/bin/rm`. Không gọi `cat` không đối số.
+- Comment theo AGENTS.md §Code comments. Không thêm phụ thuộc. Không đụng `src-tauri/`.
+
+## Đầu ra
+Mục `# Handoff Pha 4b -> Ice (story 2-16)` nối vào cuối tệp này, ngắn: tệp đã đổi, cơ chế trạng thái (khi bật, khi tắt), những chỗ đọc vùng chọn đã kiểm và kết quả, cách đo điểm ảnh, bảng đỏ/xanh của `DRAG_SOURCE_COLUMN` trước và sau bước 1, test xanh/đỏ kèm phạm vi, rủi ro.
