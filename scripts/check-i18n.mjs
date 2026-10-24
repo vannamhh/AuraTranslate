@@ -261,7 +261,7 @@ const vueFiles = keep(vueAll)
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const RS_FLOOR = 123
-const VUE_FLOOR = 48
+const VUE_FLOOR = 52
 {
   const v1 = judgeFloor(RS_FLOOR, rsFiles.length, 'RS_FLOOR', 'tệp `.rs` sau miễn trừ')
   const v2 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` sau miễn trừ')
@@ -1127,6 +1127,63 @@ const AURA_ALLOW_TEXT_RE = /aura-allow-text\s*:\s*(?!-->)\S/
   }
 }
 
+/**
+ * The HTML comment that stands right before a text node, skipping whitespace and at most one
+ * opening tag; `''` when there is none.
+ * @param {string} text
+ * @param {number} start
+ * @returns {string}
+ */
+function commentBefore(text, start) {
+  let cut = start
+  const skipSpace = () => {
+    while (cut > 0 && /\s/.test(text[cut - 1])) cut -= 1
+  }
+  skipSpace()
+  if (text[cut - 1] === '>' && !text.startsWith('-->', cut - 3)) {
+    const open = openTagStart(text, cut - 1)
+    if (open !== -1) {
+      cut = open
+      skipSpace()
+    }
+  }
+  if (!text.startsWith('-->', cut - 3)) return ''
+  const open = text.lastIndexOf('<!--', cut)
+  return open === -1 ? '' : text.slice(open, cut)
+}
+
+/**
+ * Start of the opening tag that ends at `end`. A `<` inside a quoted attribute value
+ * (`:class="{ empty: n < 2 }"`) is an operator, not a tag.
+ * @param {string} text
+ * @param {number} end
+ * @returns {number}
+ */
+function openTagStart(text, end) {
+  let quoted = false
+  for (let i = end - 1; i >= 0; i -= 1) {
+    if (text[i] === '"') quoted = !quoted
+    else if (!quoted && text[i] === '<' && /[A-Za-z]/.test(text[i + 1] ?? '')) return i
+  }
+  return -1
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Tự kiểm `commentBefore`
+// ═════════════════════════════════════════════════════════════════════════════════
+{
+  const sample = '<!-- aura-allow-text: dữ liệu -->\n<div :class="{ empty: n < 2 }"\n>{{ v }}</div>'
+  const bare = '<p>x</p>\n<div :class="{ empty: n < 2 }"\n>{{ v }}</div>'
+  const exempt = AURA_ALLOW_TEXT_RE.test(commentBefore(sample, sample.indexOf('{{')))
+  const notExempt = AURA_ALLOW_TEXT_RE.test(commentBefore(bare, bare.indexOf('{{')))
+  if (!exempt || notExempt) {
+    fail('tự kiểm `commentBefore` — miễn trừ trước một thẻ có `<` trong giá trị thuộc tính bị đọc sai')
+    detail(`có miễn trừ: ${exempt} (phải true) · không miễn trừ: ${notExempt} (phải false)`)
+  } else {
+    pass('tự kiểm `commentBefore` — `<` trong giá trị thuộc tính không bị coi là đầu thẻ')
+  }
+}
+
 let a2Bad = 0
 let a2Checked = 0
 let a2Exempt = 0
@@ -1171,24 +1228,7 @@ for (const file of vueFiles) {
      * `>`. Bỏ vế này thì miễn trừ chỉ dùng được khi comment nằm BÊN TRONG thẻ — một chỗ
      * không ai viết comment cả.
      */
-    let cut = node.start
-    const skipSpace = () => {
-      while (cut > 0 && /\s/.test(text[cut - 1])) cut -= 1
-    }
-    skipSpace()
-    if (text[cut - 1] === '>' && !text.startsWith('-->', cut - 3)) {
-      const open = text.lastIndexOf('<', cut - 1)
-      if (open !== -1) {
-        cut = open
-        skipSpace()
-      }
-    }
-    let window = ''
-    if (text.startsWith('-->', cut - 3)) {
-      const open = text.lastIndexOf('<!--', cut)
-      if (open !== -1) window = text.slice(open, cut)
-    }
-    if (AURA_ALLOW_TEXT_RE.test(window)) {
+    if (AURA_ALLOW_TEXT_RE.test(commentBefore(text, node.start))) {
       pass(`${posix(file)}:${line}:${col} — text node có miễn trừ có tên`)
       a2Exempt += 1
       continue
