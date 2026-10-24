@@ -501,3 +501,18 @@ Rủi ro và việc còn lại:
 - Chưa đo ms thật trên WKWebView; test chỉ đếm việc. IPC xác nhận + Rust `confirm_segment` (ghi `SegmentVersion`) và hai IPC đếm không đọc/sửa ở đây: nếu bàn đo lại vẫn thấy phần 33–45 ms, nghi ngờ tiếp theo là Rust `Store::write` hàng đợi và flush.
 - Test không gắn `StatusBar` (thay đổi ở đó chỉ phủ bằng `statusBar*.test.ts` hiện có).
 - Chưa commit.
+
+# Nghiệm thu lần ba, sau Pha 6 (release `8260a92`, 2026-10-24 12:31 → 12:46)
+
+Cùng cách đo với mục "# Nghiệm thu", bàn 2-15 có profile `Mod+Enter`; loadavg 1 phút lúc bắt đầu phiên 2,9–5,4. Ở 9.850 câu đo xen kẽ với `f62012f` (bản trước Pha 6, cùng `bench-215.js`). Số thô `ket-qua-acc3-*.json` (cả hai bàn) và `ket-qua-ab6-f62-9850-*.json` (`2-15-ban-do/`).
+
+| Gõ | phím cuối | phím chờ | p50 / p95 | `Mod+Enter` → xác nhận | chờ trước handler · thấy vạch · frame 2 (từ handler) |
+|---|---|---|---|---|---|
+| 122 · `8260a92` | 52 · 32 · 33 | 0 | 18/35 · 11/28 · 7/29 | 41 · 41 · 41 | 30–35 · 7–13 · 29–39 |
+| 9.850 · `8260a92` | 56 · 77 · 68 | 0 | 38/75 · 20/44 · 24/43 | 68 · 97 · 90 | 51–65 · 12–17 · 36–47 |
+| 9.850 · `f62012f` (xen kẽ) | 62 · 75 · 83 | 0 | 40/57 · 42/65 · 39/69 | 102 · 124 · 140 | 54–70 · 43–59 · 70–93 |
+
+- Bug 2.15 tiêu chí 1: ĐẠT ở cả sáu phiên của `8260a92` (phím cuối ≤ 100 ms, không phím chờ, `Mod+Enter` ≤ 100 ms ở 122 và 9.850 câu). p95 theo 10 s ở 9.850 câu: 79/57/40 · 51/33/29 · 43/40/36.
+- Phần còn lại lớn nhất của `Mod+Enter` là thời gian sự kiện chờ trước handler (51–65 ms), tức phím cuối gửi 20 ms trước đó chưa xử lý xong.
+- Dời con trỏ (`8260a92`, 9.850 câu): chuột handler → 2 frame 57–88 ms, phần JS 2–4 ms, phần sau JS 54–64 ms, 1 khối; `segment.next` gửi → 2 frame 69–97 ms. Bug 2.14 tiêu chí 1 vẫn TRƯỢT.
+- Bố cục đầu 3,48–3,73 s; ô đích đầu có mặt 3,35–3,60 s.

@@ -158,6 +158,7 @@ Mỗi pha một agent mới; bàn giao qua `_bmad-output/implementation-artifact
 - Nghiệm thu (release `24bb1e2`, 9.850 câu trừ khi ghi khác, loadavg 2,4–4,7; bảng ở `2-16-ban-do/HANDOFF.md` §Nghiệm thu): gõ ở 122 câu đạt mọi vế của 2.15 tiêu chí 1; ở 9.850 câu không còn phím chờ, phím cuối 72 · 77 · 187 ms, p95 44–54 ms, nhưng `Mod+Enter` tới xác nhận 164–194 ms (> 100), và đợt bản thử 3 đã là 147–164 ms. Dời con trỏ: chuột handler → 2 frame 59–88 ms, `segment.next` gửi → 2 frame 62–89 ms; bố cục đầu 3,70–3,82 s.
 - Quyết định 2026-10-24, Ice: truy và sửa vế `Mod+Enter` ở 9.850 câu ngay trong story này, rồi nghiệm thu lại.
 - Pha 5 (`f62012f`): một lượt `Mod+Enter` từ 6 khối render xuống 1–2; release 9.850 câu 183–216 → 95–146 ms. Profile (`d6bb53f`): chờ phím cuối 55–71 ms, rồi ~55–70 ms JS tăng theo số câu, frame chỉ 3–17 ms. Quyết định 2026-10-24, Ice: cắt tiếp phần JS đó trong story này.
+- Nghiệm thu lần ba (release `8260a92`, loadavg 2,9–5,4, bảng ở `2-16-ban-do/HANDOFF.md` §Nghiệm thu lần ba): 2.15 tiêu chí 1 đạt ở cả sáu phiên — 9.850 câu phím cuối 56–77 ms, không phím chờ, `Mod+Enter` 68–97 ms (xen kẽ `f62012f`: 102–140); 122 câu phím cuối 32–52, `Mod+Enter` 41. 2.14 tiêu chí 1 vẫn trượt: chuột handler → 2 frame 57–88 ms, `segment.next` gửi → 2 frame 69–97 ms, phần sau JS 54–64 ms chưa quy nguồn.
 
 ## Plan Change Log
 
