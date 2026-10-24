@@ -130,3 +130,23 @@ Phép gỡ thật: `ruleOf` trong `GridBlock.vue` đọc `editorCaretSegmentId.v
 - 5 test đỏ ở trên cần sửa bộ chọn sang `.grid-block` nếu bản thử được nhận; tôi cố ý để nguyên vì giao việc ghi chúng là đỏ đã biết.
 - `selectedRowClassById`, `rowErrorTextById`, `unlinkedIds` đọc chung: khi chúng đổi (vùng chọn, lỗi), mọi khối đọc `.get`/`.has` sẽ chạy lại; chưa có ca test cho vùng chọn đa-segment qua nhiều khối.
 - Ca test không phủ `cutOffsetsOf` (điểm cắt đang chờ) khi dời con trỏ: chưa kiểm khối không-liên-quan có render lại khi `editorSourceCut` đổi cùng lượt dời con trỏ.
+
+# Kết quả Pha 2 lượt 3, phần 3 (đo release, 2026-10-23 23:50 → 2026-10-24 00:12)
+
+Bản dựng: release, ký ad-hoc, WKWebView macOS 15.8.2, 9.850 câu, cửa sổ 1200×900. Base = `0b619fb` (src = `cc60020`, bố cục cũ); P3 = `0b619fb` + `blocks-prototype-3.patch`. Xen kẽ base/P3, 3 phiên mỗi bên mỗi bàn; loadavg 1 phút lúc bắt đầu phiên 2,6–4,5 (Docker VM chạy nền). Số thô: `ket-qua-c2{base,p3}-9850-{1,2,3}.json` ở `2-16-ban-do/` (chuột/phím/bố cục) và `2-15-ban-do/` (gõ). Log điều phối giữ ngoài repo.
+
+| | Base | P3 |
+|---|---|---|
+| Gõ 10 phím/giây 30 s: phím cuối hiện sau | 122,0–128,4 s (phím chờ 241–244) | 65–72 ms (phím chờ 1) |
+| Gõ: trung vị / max độ trễ | 60–65 s / 122–128 s | 23–31 ms / 144–169 ms |
+| Chuột: mousedown → listener bubble (JS + Vue flush) | 41–49 ms | 1–3 ms |
+| Chuột: handler → 2 frame | 100–118 ms | 55–85 ms |
+| Chuột: raf1 → f (phần sau JS) | 55–65 ms | 53–66 ms |
+| Chuột: gửi → 2 frame | 202–230 ms | 159–207 ms (phiên 1: 385–388) |
+| `segment.next`: handler → f | 59–82 ms | 58–76 ms |
+| Bố cục đầu / ô đích đầu có mặt | 3,66–3,93 s / 2,80–2,94 s | 3,55–3,67 s / 3,42–3,54 s |
+
+- Vế gõ ≤ 100 ms ở phím cuối: ĐẠT ở P3; base vẫn xếp hàng phím như cũ.
+- Vế dời con trỏ ≤ 50 ms: TRƯỢT ở cả hai; P3 bỏ gần hết phần JS (41–49 → 1–3 ms) nhưng phần sau JS tới hai frame (~55–65 ms) không đổi, và `segment.next` không đổi. Phần còn lại chưa quy nguồn: lượt này không có số style/layout/paint của chính frame đó.
+- Mỗi lượt chuột ở P3 đụng đúng 1 khối (`blocks=1`, 6 bản ghi DOM).
+- P3 phiên 1: gửi → 2 frame 385–388 ms trong khi handler → 2 frame 69–79 ms ⇒ trễ nằm trước handler (giao sự kiện), không phải app.
