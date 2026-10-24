@@ -74,7 +74,7 @@ describe('12.7 — lưới hai cột và thanh trạng thái', () => {
       const labels = [...document.querySelectorAll('.col-tgt .cell-tgt')].map((c) => c.getAttribute('aria-label'))
       const gridText = grid.innerText
       return {
-        columns: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+        columns: getComputedStyle(grid.querySelector('.grid-block')).gridTemplateColumns.split(' ').length,
         labels,
         leaked: ['confirmed', 'draft', 'untranslated', 'editing', 'tm'].filter((k) => gridText.includes(t(`panel.grid.state_${k}`))),
         confirmed: t('panel.grid.state_confirmed'),

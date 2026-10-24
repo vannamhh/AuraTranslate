@@ -96,7 +96,11 @@ function buildStoreZip(entries) {
  * `core::docx::read_docx` anchors the image after the first paragraph's segment (same shape
  * as `fixtures_docx.rs::image_png`, proven in `docx_contract.rs`).
  */
-export function buildDocxWithImageAfterFirstParagraph() {
+export function buildDocxWithImageAfterFirstParagraph(extraParagraphs = 0) {
+  const extra = Array.from(
+    { length: extraParagraphs },
+    (_, i) => `    <w:p><w:r><w:t>Doan them ${i + 1}.</w:t></w:r></w:p>\n`,
+  ).join('')
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
             xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -105,7 +109,7 @@ export function buildDocxWithImageAfterFirstParagraph() {
     <w:p><w:r><w:t>Doan truoc anh.</w:t></w:r></w:p>
     <w:p><w:r><w:drawing><a:graphic><a:graphicData><a:blip r:embed="rId1"/></a:graphicData></a:graphic></w:drawing></w:r></w:p>
     <w:p><w:r><w:t>Doan sau anh.</w:t></w:r></w:p>
-  </w:body>
+${extra}  </w:body>
 </w:document>`
 
   const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

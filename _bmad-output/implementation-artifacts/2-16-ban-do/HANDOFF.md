@@ -232,3 +232,42 @@ Pha 3 đã commit ở `742096c`. Đọc mục "# Handoff Pha 3 -> Pha 4" ngay tr
 
 ## Đầu ra
 Mục `# Handoff Pha 4 -> Ice (story 2-16)` nối vào cuối tệp này, ngắn: tệp đã đổi/thêm, ca nào xanh/đỏ (kèm phạm vi chạy, bản dựng, lý do đỏ), phép gỡ, bảng ba biến thể kéo chọn, việc còn lại.
+
+# Handoff Pha 4 -> Ice (story 2-16)
+
+Chưa commit. Cây ở trạng thái (a): không patch kéo chọn nào trong `src/`. Không đụng `src/` hay `src-tauri/`.
+
+## Đã đổi/thêm
+- `tests/frontend/gridBlocks.test.ts` (mới, 13 ca): `gridBlocksOf` (20 câu, 450 ⇒ 200·200·50, đúng 200, 201), mount 20 câu ⇒ 1 khối, mount 450 ⇒ 3 `.grid-block` ≤ hằng và mỗi khối đúng 1 cột mỗi loại (không cột nào trải Chương), số hàng liên tục qua khối, `.strip-pad` neo hàng 199 nằm trong khối 0, tách ở hàng 199 (nạp lại có thêm 1 câu ⇒ 200·200·51, ô con trỏ vẫn là ô cũ), gộp bớt 1 hàng (200·200·49), `moveEditorCaretTo` tới khối 30 (6.100 câu), vùng chọn trong ô nguồn ở khối 5 phát lượt tra, vùng chọn bắt đầu ở `.col-src` ngoài ô thì không.
+- `e2e/specs/grid-blocks.e2e.mjs` (mới, 1.200 câu, 1.100 câu đã dịch): chia 6 khối × 200; `Mod+Alt+↓` từ khối 0 tới câu 1.100 ở khối 5 (ô nhận focus, nằm trong khung cuộn); kéo chuột HỆ ĐIỀU HÀNH trong ô nguồn khối 5 làm `currentQuery` của Lookup đổi; `Mod+Shift+↓` ×4 từ hàng 198 tô đúng 5 id ở cả bốn cột; ca `DRAG_SOURCE_COLUMN` kéo qua ranh giới.
+- `e2e/support/osMouse.mjs` (mới): kéo bằng `cliclick` + khung cửa sổ đặt/đọc qua System Events. ⚠️ Lý do: kéo bằng `browser.action('pointer')` KHÔNG tạo vùng chọn trên văn bản không sửa được (không có `selectstart`, đo được cả ô nguồn lẫn double-click); chỉ sự kiện hệ điều hành mới có. Hiệu chỉnh bằng một cú `cliclick c:` ở (400,300) trong khung nhìn. Cần màn hình mở khoá và cửa sổ lên trước.
+- Cách tìm hàng: `hanviet-parallel-row-height` ghi đè `.grid-block` (không còn `.grid`); `story-12-7` đọc cột của `.grid-block` đầu; `story-12-9` lấy hàng kế bằng id `segments[MATCH_ORDINAL]` thay cho `~ .cell-tgt`; `grid-image-row-alignment` giữ nguyên ca cũ (ghép theo chỉ số vẫn đúng qua khối) và thêm 2 ca với 207 câu: hàng thẳng + hàng 198..201 không đè nhau (≤ 1 px), và chia 200 + 7 khối; `miniDocx.mjs` nhận tham số số đoạn thêm.
+
+## Kết quả (bản dựng debug `--features wdio`, WebKit 605.1.15, e2e nạp từ Vite dev; từng spec một)
+- Xanh: `vue-tsc`, `npm run test:story 2-16`, `gridBlocks.test.ts` 13 ca, `check:commands`, `check:layout`, eslint `e2e` + `gridBlocks.test.ts`.
+- e2e xanh: `grid-image-row-alignment` 3/3, `story-12-9` 1/1, `story-12-7` 4/4, `hanviet-parallel-row-height` 4/4, `grid-blocks` 4/5 (đỏ đúng ca kéo, xem bảng).
+- Không chạy: toàn bộ suite, các spec e2e khác, nghiệm thu.
+
+## Phép gỡ
+- Thay thân `gridBlocksOf` bằng một khối duy nhất (giữ chữ ký): `gridBlocks.test.ts` đỏ 8/13 (cả 2 ca hàm thuần, ca mount 450, tách 199, gộp, khối 30, hai ca vùng chọn khối 5), đúng lý do "một khối 450 hàng". Đã trả lại (`git diff` sạch).
+- Đối chứng `baseline_revision` (5f25df6, worktree, nhị phân debug dùng chung): ca ≤ 1 px của `grid-image-row-alignment` XANH ở 207 câu (bố cục cũ), còn ca "chia 200 + 7 khối" đỏ (`[]`). Ca kéo `DRAG_SOURCE_COLUMN` (bỏ vế đếm khối) XANH trên baseline: ca có thể xanh, đỏ ở cây hiện tại là do chia khối. Worktree đã xoá.
+
+## Bảng ba biến thể kéo chọn cột nguyên văn (kéo OS từ hàng 198 tới 202, qua ranh giới 200; `Selection.containsNode(cell, true)` sau mouseup)
+| Biến thể | Ô nguồn | Ô dịch | Ô số | Ô vạch | Chữ bản dịch trong `toString()` | Kết quả |
+|---|---|---|---|---|---|---|
+| (a) cây hiện tại | >= 3 | 200 | 200 | 200 | có | ĐỎ |
+| (b) + `keo-cot-nguyen-van-css.patch` | >= 3 | 200 | 200 | 200 | có | ĐỎ, y hệt (a) |
+| (c) + `keo-cot-nguyen-van-js.patch` | >= 3 | 200 | 200 | 200 | có | ĐỎ, y hệt (a) |
+- (b) hỏng vì `data-drag-src` bị gỡ ở mouseup: `user-select: none` chỉ che lúc kéo, Range vẫn chứa cột khác nên hiện lại khi thả. (c) hỏng đúng như ⚠️ Pha 3 đoán: focus vẫn ở cột nguyên văn của khối 1 nên `confineSourceDrag` không làm gì, Range vẫn chứa cột dịch/số/vạch nằm giữa. Con số 200 = cả cột dịch của khối 0 + cột số và vạch của khối 1.
+- ⇒ Cả hai patch không đạt tiêu chí 2 ("kéo qua ranh giới chỉ tô cột nguyên văn"). Phép đo là trạng thái nghỉ sau thả (cái người dùng thấy); chưa đo ảnh chụp điểm ảnh. Tôi không chọn và không đưa patch nào vào `src/`.
+
+## Việc còn lại
+- Ice quyết cách kéo cột nguyên văn: cần cách thứ ba (ví dụ chặn `mousedown` trong `.col-src` rồi tự dựng vùng chọn theo từng ô nguồn, hoặc ranh giới khối không cho Range đi qua cột khác) hoặc nới tiêu chí 2; ca `DRAG_SOURCE_COLUMN` là tiêu chuẩn đo. Lệnh: `npx wdio run e2e/wdio.conf.mjs --spec e2e/specs/grid-blocks.e2e.mjs`.
+- `grid-blocks.e2e.mjs` đang ĐỎ 1/5 (ca kéo) cho tới khi có cách; đừng đẩy lên nightly như vậy. `osMouse.mjs` chưa chạy trên runner CI (Linux/Windows không có `cliclick`; spec này là macOS-only như nightly).
+- e2e chưa chạy: nghiệm thu bàn release (ngoài phạm vi Pha 4). Hàng tiêu đề e2e `before` tốn ~40 s cho 1.200 câu.
+
+## Sau Pha 4 (người giao việc, 2026-10-24)
+- Ice chọn: cách thứ ba cho kéo chọn (chỉ tô và chỉ đọc cột nguyên văn), và ca chuột hệ điều hành ở bàn cục bộ.
+- Hai ca dùng `cliclick` (Lookup bằng kéo thật ở khối 5, `DRAG_SOURCE_COLUMN`) chuyển sang `keo-cot-nguyen-van.e2e.mjs` cùng `osMouse.mjs` trong thư mục này; nightly không có `cliclick` hay quyền Trợ năng nên `before` của cả spec sẽ đỏ.
+- `e2e/specs/grid-blocks.e2e.mjs` còn 4 ca; ca Lookup ở khối 5 nay đặt vùng chọn bằng `Range` trên nút chữ rồi bắn `mouseup`: 4/4 xanh (bản debug `--features wdio`, Vite dev, ngoài sandbox). ⚠️ Cùng ca đó với `selectNodeContents(.src-piece)` (anchor là phần tử, không phải nút chữ) thì không có lượt tra; chưa kiểm hành vi này ở `cc60020`.
+- `npm run build` đỏ từ `742096c` ở `vue-tsc -p tsconfig.node.json` (hai bảng tra mới của `check-commands.mjs` thiếu kiểu); đã sửa riêng.

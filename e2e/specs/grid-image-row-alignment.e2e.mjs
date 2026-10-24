@@ -14,13 +14,17 @@ import { buildDocxWithImageAfterFirstParagraph } from '../support/miniDocx.mjs'
 
 const TOLERANCE_PX = 1
 
-function writeFixtureDocx() {
+const BOUNDARY_EXTRA_PARAGRAPHS = 205
+const BOUNDARY_ROW_COUNT = BOUNDARY_EXTRA_PARAGRAPHS + 2
+const BLOCK_ROWS = 200
+
+function writeFixtureDocx(extraParagraphs = 0) {
   const path = join(tmpdir(), `aura-e2e-grid-image-${Date.now()}-${Math.random().toString(36).slice(2)}.docx`)
-  writeFileSync(path, buildDocxWithImageAfterFirstParagraph())
+  writeFileSync(path, buildDocxWithImageAfterFirstParagraph(extraParagraphs))
   return path
 }
 
-async function openWorkFromDocx(name, path) {
+async function openWorkFromDocx(name, path, rowCount = 2) {
   await browser.waitUntil(
     async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined),
     { timeout: 30_000, interval: 250 },
@@ -51,7 +55,7 @@ async function openWorkFromDocx(name, path) {
 
   await resetPanelState()
   await browser.keys(['Meta', '2'])
-  await waitForGridRows(2)
+  await waitForGridRows(rowCount)
 }
 
 /** Bounding rects of every row's cell, one array per column, in DOM (== row) order.
@@ -99,6 +103,48 @@ describe('Lưới 4 cột giữ hàng thẳng khi một ảnh làm một hàng c
       const row0BottomMax = Math.max(...grid.bottoms[0])
       const row1TopMin = Math.min(...grid.tops[1])
       expect(row0BottomMax).toBeLessThanOrEqual(row1TopMin + TOLERANCE_PX)
+    } finally {
+      unlinkSync(path)
+    }
+  })
+
+  it('with more than one block, rows stay level and do not overlap across the block boundary', async () => {
+    const path = writeFixtureDocx(BOUNDARY_EXTRA_PARAGRAPHS)
+    try {
+      await openWorkFromDocx(`e2e-grid-image-blocks-${Date.now()}`, path, BOUNDARY_ROW_COUNT)
+
+      const grid = await browser.execute(measureGrid)
+
+      expect(grid.images).toBe(1)
+      expect(new Set(grid.columnCounts).size).toBe(1)
+      expect(grid.rowCount).toBe(BOUNDARY_ROW_COUNT)
+
+      for (const rowTops of grid.tops) {
+        expect(Math.max(...rowTops) - Math.min(...rowTops)).toBeLessThanOrEqual(TOLERANCE_PX)
+      }
+      expect(grid.srcHeights[0]).toBeGreaterThan(grid.srcHeights[1])
+
+      for (let row = BLOCK_ROWS - 2; row <= BLOCK_ROWS + 1; row += 1) {
+        const bottomMax = Math.max(...grid.bottoms[row])
+        const nextTopMin = Math.min(...grid.tops[row + 1])
+        expect(bottomMax).toBeLessThanOrEqual(nextTopMin + TOLERANCE_PX)
+      }
+    } finally {
+      unlinkSync(path)
+    }
+  })
+
+  it('a chapter above 200 rows is split into grid blocks of at most 200 rows', async () => {
+    const path = writeFixtureDocx(BOUNDARY_EXTRA_PARAGRAPHS)
+    try {
+      await openWorkFromDocx(`e2e-grid-image-split-${Date.now()}`, path, BOUNDARY_ROW_COUNT)
+
+      const blocks = await browser.execute(() =>
+        [...document.querySelectorAll('.grid-block')].map(
+          (block) => block.querySelectorAll(':scope > .col-tgt > .cell-tgt').length,
+        ),
+      )
+      expect(blocks).toEqual([BLOCK_ROWS, BOUNDARY_ROW_COUNT - BLOCK_ROWS])
     } finally {
       unlinkSync(path)
     }

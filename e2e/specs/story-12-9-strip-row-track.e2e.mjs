@@ -94,6 +94,7 @@ describe('Story 12-9 -- strip as a row track', () => {
     const matchId = segments[MATCH_ORDINAL - 1].id
     const otherId = segments[MATCH_ORDINAL - 2].id
     const otherId2 = segments[MATCH_ORDINAL - 3].id
+    const nextId = segments[MATCH_ORDINAL].id
 
     await invoke('save_segment_targets', {
       chapterId: loaded.chapter_id,
@@ -110,10 +111,10 @@ describe('Story 12-9 -- strip as a row track', () => {
     const grow = await focusAndSample(matchId, true)
     await expect(grow.firstExpected).toBeGreaterThanOrEqual(0)
 
-    const geometry = await browser.execute((id) => {
+    const geometry = await browser.execute((id, followingId) => {
       const cell = document.querySelector(`[data-col="tgt"][data-segment-id="${id}"]`)
       const strip = document.querySelector('.tm-fuzzy-strip')
-      const next = document.querySelector(`[data-col="tgt"][data-segment-id="${id}"] ~ .cell-tgt`)
+      const next = document.querySelector(`[data-col="tgt"][data-segment-id="${followingId}"]`)
       const c = cell.getBoundingClientRect()
       const s = strip.getBoundingClientRect()
       const n = next.getBoundingClientRect()
@@ -122,7 +123,7 @@ describe('Story 12-9 -- strip as a row track', () => {
         gapAboveNext: n.top - s.bottom,
         left: s.left - c.left,
       }
-    }, matchId)
+    }, matchId, nextId)
     await expect(Math.abs(geometry.gapBelowCell)).toBeLessThanOrEqual(2)
     await expect(Math.abs(geometry.gapAboveNext)).toBeLessThanOrEqual(2)
     await expect(Math.abs(geometry.left)).toBeLessThanOrEqual(2)

@@ -20,7 +20,7 @@ const TEXT =
   '这首协奏曲丰富的旋律与壮丽的气势，展现了作曲家深厚的功力，也考验着演奏者的技巧与音乐性。'
 
 const NARROW_COLUMNS =
-  '.grid { grid-template-columns: 3px 30px minmax(0,110px) minmax(0,110px) !important; }'
+  '.grid-block { grid-template-columns: 3px 30px minmax(0,110px) minmax(0,110px) !important; }'
 
 // Sai số làm tròn subpixel giữa hai `getBoundingClientRect()` độc lập — không phải biên độ
 // cho phép tràn thật.
