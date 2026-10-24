@@ -250,6 +250,12 @@ thở" như cờ nguồn — và đó là một phép đo, không một gu: năm
 nên một `padding-bottom` đặt riêng ở ô bản dịch kéo **cả hàng** cao lên *(đo: 38,00 → 46,00 px,
 ô nguyên văn cũng 46)*. Hai cấu trúc đoạn khác nhau **không** biểu diễn được bằng hai khoảng thở.
 
+## Lưới chia khối (Story 2-16) — `.grid` bọc các `.grid-block`
+
+`GridPanel.vue` chia Chương thành các khối `GRID_BLOCK_ROWS` (200) hàng (`gridBlocks.ts`); `.grid` bọc các `.grid-block`, mỗi khối là một `GridBlock.vue` với bốn cột. GridBlock không nhận props nặng: context dùng chung đi qua `provide`/`inject` (`gridBlockContext.ts`).
+
+Bề mặt vùng chọn đăng ký **một lần** trên gốc lưới, không trên từng khối hay từng cột: vai `'source'` với bộ chọn `[data-col="src"]`, vai `'display'` với `[data-col="tgt"]`. Vì cột không mang `data-col` còn ô thì có, một vùng chọn băng qua ranh khối chỉ lấy chữ của ô nguồn (`gridSourceSelection.ts`), và cờ `data-sel-src` trên gốc lưới ẩn màu tô vùng chọn ở các cột còn lại trong lúc kéo.
+
 ## Lịch sử phiên bản segment (Story 2.6) — bề mặt ở **App**, state ở đây
 
 Ba tệp của story này, và chỗ đặt từng tệp là một quyết định:

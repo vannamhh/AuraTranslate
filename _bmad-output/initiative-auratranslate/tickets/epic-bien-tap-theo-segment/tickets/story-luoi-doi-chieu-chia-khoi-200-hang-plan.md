@@ -190,17 +190,17 @@ Mỗi pha một agent mới; bàn giao qua `_bmad-output/implementation-artifact
 
 Code review (`fd13e19..HEAD`, src/tests/scripts/e2e; bốn lens): 0 `decision-needed`, 11 `patch`, 1 `defer`, 18 rejected.
 
-- [ ] [Review][Patch] Bề mặt có phạm vi không nhận anchor là chính phần tử khớp phạm vi, nên sau `focusSelectionSource` (`Mod+Alt+S`) không bề mặt nào sở hữu vùng chọn [src/panels/selectionContract.ts:73]
-- [ ] [Review][Patch] `check-i18n` lùi tìm thẻ mở bỏ qua thẻ đóng, nên miễn trừ trước `<b>` có thể phủ chữ sau `</b>` [scripts/check-i18n.mjs:openTagStart]
-- [ ] [Review][Patch] Vùng chọn nguồn qua ranh giới khối và `copy` chưa có ca đi qua `GridPanel` thật (cả chiều chọn ngược) [src/panels/GridPanel.vue:resolveSourceSelection]
-- [ ] [Review][Patch] Nhánh phạm vi của `focusSelectionSource` chưa có ca test [src/panels/selectionContract.ts:465]
-- [ ] [Review][Patch] Một phần tử đăng ký hai vai (khoá (el, role)) chưa có ca test [src/panels/selectionContract.ts:99]
-- [ ] [Review][Patch] `openTagStart` chỉ theo ngoặc kép, bỏ ngoặc đơn [scripts/check-i18n.mjs:openTagStart]
-- [ ] [Review][Patch] `sourceColumnText` quét tới cuối Chương khi một đầu khoảng chọn nằm ngoài ô nguồn [src/panels/gridSourceSelection.ts:sourceColumnText]
-- [ ] [Review][Patch] Comment chuyển sang `GridBlock.vue` nay nói sai (một bề mặt mỗi cột, khối đầu/cuối tệp) [src/panels/GridBlock.vue:145]
-- [ ] [Review][Patch] `console.log` sót trong test đếm việc [tests/frontend/gridConfirmWorkCost.test.ts:183]
-- [ ] [Review][Patch] `src/panels/README.md` chưa mô tả lưới chia khối [src/panels/README.md]
-- [ ] [Review][Patch] Ca e2e Lookup khối 5 không khẳng định chữ được tra [e2e/specs/grid-blocks.e2e.mjs]
+- [x] [Review][Patch] Bề mặt có phạm vi không nhận anchor là chính phần tử khớp phạm vi, nên sau `focusSelectionSource` (`Mod+Alt+S`) không bề mặt nào sở hữu vùng chọn [src/panels/selectionContract.ts:73] — 🔵 gốc thật là `focusSelectionSource` đặt caret ở (ô, 0) trong khi `surfaceFor` chỉ nhận anchor là nút chữ, có từ trước chia khối; nay đặt caret vào nút chữ đầu
+- [x] [Review][Patch] `check-i18n` lùi tìm thẻ mở bỏ qua thẻ đóng, nên miễn trừ trước `<b>` có thể phủ chữ sau `</b>` [scripts/check-i18n.mjs:openTagStart]
+- [x] [Review][Patch] Vùng chọn nguồn qua ranh giới khối và `copy` chưa có ca đi qua `GridPanel` thật (cả chiều chọn ngược) [src/panels/GridPanel.vue:resolveSourceSelection]
+- [x] [Review][Patch] Nhánh phạm vi của `focusSelectionSource` chưa có ca test [src/panels/selectionContract.ts:465]
+- [x] [Review][Patch] Một phần tử đăng ký hai vai (khoá (el, role)) chưa có ca test [src/panels/selectionContract.ts:99]
+- [x] [Review][Patch] `openTagStart` chỉ theo ngoặc kép, bỏ ngoặc đơn [scripts/check-i18n.mjs:openTagStart]
+- [x] [Review][Patch] `sourceColumnText` quét tới cuối Chương khi một đầu khoảng chọn nằm ngoài ô nguồn [src/panels/gridSourceSelection.ts:sourceColumnText]
+- [x] [Review][Patch] Comment chuyển sang `GridBlock.vue` nay nói sai (một bề mặt mỗi cột, khối đầu/cuối tệp) [src/panels/GridBlock.vue:145]
+- [x] [Review][Patch] `console.log` sót trong test đếm việc [tests/frontend/gridConfirmWorkCost.test.ts:183]
+- [x] [Review][Patch] `src/panels/README.md` chưa mô tả lưới chia khối [src/panels/README.md]
+- [x] [Review][Patch] Ca e2e Lookup khối 5 không khẳng định chữ được tra [e2e/specs/grid-blocks.e2e.mjs]
 - [x] [Review][Defer] Ba dải remount khi neo dải đổi khối, có thể mất trạng thái cục bộ hoặc tiêu điểm [src/panels/GridBlock.vue:352] — deferred: chưa kiểm; một ca e2e đặt tiêu điểm trong dải rồi dời neo qua ranh giới khối sẽ trả lời
 
 Rejected:

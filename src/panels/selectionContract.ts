@@ -73,7 +73,8 @@ type Surface = {
 function ownsAnchor(surface: Surface, anchor: Node): boolean {
   if (!surface.el.contains(anchor)) return false
   if (surface.scope === undefined) return true
-  const scoped = anchor.parentElement?.closest(surface.scope) ?? null
+  const from = anchor instanceof Element ? anchor : anchor.parentElement
+  const scoped = from?.closest(surface.scope) ?? null
   return scoped !== null && surface.el.contains(scoped)
 }
 
@@ -479,7 +480,9 @@ export function focusSelectionSource(): boolean {
     if (selection === null) return false
 
     const range = document.createRange()
-    range.selectNodeContents(target)
+    const firstText = document.createTreeWalker(target, NodeFilter.SHOW_TEXT).nextNode()
+    if (firstText !== null) range.setStart(firstText, 0)
+    else range.setStart(target, 0)
     range.collapse(true)
     selection.removeAllRanges()
     selection.addRange(range)

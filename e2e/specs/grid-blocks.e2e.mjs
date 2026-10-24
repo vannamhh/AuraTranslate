@@ -140,6 +140,11 @@ describe('Grid blocks in a real webview', () => {
         }).then((now) => now !== null && now !== before),
       { timeout: 15_000, timeoutMsg: 'the Lookup panel never took the block 5 selection' },
     )
+    const query = await browser.execute(async () => {
+      const mod = await import('/src/panels/lookupPanelState.ts')
+      return mod.currentQuery.value
+    })
+    expect(String(query)).toContain(selected)
   })
 
   it('Mod+Shift+ArrowDown across the block boundary selects every row id and paints them in all four columns', async () => {

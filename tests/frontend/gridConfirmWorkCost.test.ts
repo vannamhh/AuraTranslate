@@ -180,7 +180,6 @@ describe('GridPanel confirm work cost', { timeout: 60_000 }, () => {
   it('one confirm does work that does not grow with the number of segments', async () => {
     const small = await confirmWork(1050)
     const large = await confirmWork(2100)
-    console.log('confirm-work', JSON.stringify({ small, large }))
     expect(large.rules).toBe(small.rules)
     expect(large.sourceScans).toBe(small.sourceScans)
     expect(large.gridQueries).toBe(small.gridQueries)

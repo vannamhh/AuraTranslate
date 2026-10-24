@@ -2091,8 +2091,6 @@ console.log('\nKiểm I — vạch lề segment: ĐÚNG NĂM giá trị, không 
 //      im lặng, đúng lớp lỗi tệ nhất trên một panel mà trạng thái là toàn bộ nội dung.
 
 const EDITOR_SEGMENTS_TS = join(SRC_ROOT, 'panels', 'editorSegments.ts')
-// 🔵 2026-08-14 (Story 2.5b): `EditorPanel.vue` → `GridPanel.vue`. Bốn màu vạch chuyển sang
-// `<style scoped>` của lưới cùng lượt gộp hai panel; tên hằng giữ nguyên để diff đọc được.
 const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'GridBlock.vue')
 
 /** ⚠️ Bản chép ĐỘC LẬP của `DESIGN.md:380` — không `import` từ tệp đang bị kiểm. */

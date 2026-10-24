@@ -20,7 +20,12 @@ export function sourceColumnText(selection: Selection, root: Element): string {
   const range = selection.getRangeAt(0)
   const cells = [...root.querySelectorAll(SOURCE_CELL)]
   const indexOfCell = (node: Node, fallback: number): number => {
-    const cell = elementOf(node)?.closest(SOURCE_CELL) ?? null
+    const from = elementOf(node)
+    let cell = from?.closest(SOURCE_CELL) ?? null
+    if (cell === null) {
+      const id = from?.closest('[data-segment-id]')?.getAttribute('data-segment-id')
+      if (id != null) cell = root.querySelector(`${SOURCE_CELL}[data-segment-id="${CSS.escape(id)}"]`)
+    }
     const at = cell === null ? -1 : cells.indexOf(cell)
     return at === -1 ? fallback : at
   }

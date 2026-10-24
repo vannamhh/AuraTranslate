@@ -142,7 +142,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
           </template>
         </div>
 
-        <!-- Cột ③ — NGUYÊN VĂN. Một bề mặt vùng chọn duy nhất, vai `'source'` (AC7). -->
+        <!-- Cột ③ — NGUYÊN VĂN. Vùng chọn do gốc lưới sở hữu (vai `'source'`, bộ chọn cột, AC7). -->
         <div class="col col-src" :class="sourceTokenClass">
           <template
             v-for="s in block.segments"
@@ -263,10 +263,10 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
         </div>
 
         <!--
-          Cột ④ — BẢN DỊCH. Một bề mặt vùng chọn duy nhất, vai `'display'` (B1).
+          Cột ④ — BẢN DỊCH. Vùng chọn do gốc lưới sở hữu (vai `'display'`, bộ chọn cột, B1).
 
-          🔴 Ba handler sống ở **CỘT**, không ở từng ô: sự kiện nổi bọt, và N listener cho
-          9.850 hàng là N lượt đăng ký mà một lượt là đủ.
+          🔴 Các handler sống ở **CỘT**, không ở từng ô: sự kiện nổi bọt, một listener mỗi cột
+          thay vì một listener mỗi hàng.
         -->
         <div
           class="col col-tgt tok-editor"
@@ -295,8 +295,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
             `is_paragraph_end` của cột nguyên văn, và **không** suy từ vị trí các `\n` trong
             `target_text`. Hai phép suy đó đều chạy ra kết quả trông đúng, và cả hai rẽ khỏi
             đĩa đúng vào ngày người dùng đổi cờ đầu tiên.
-            ⚠️ Class đặt trên **từng ô**, vì một hàng KHÔNG phải một phần tử DOM — xem khối
-            đầu tệp. Cái giá hình học của lựa chọn này đã đo, ghi ở khối style cuối tệp.
+            ⚠️ Class đặt trên **từng ô**, vì một hàng KHÔNG phải một phần tử DOM.
 
             🔵 CẬP NHẬT 2026-08-16 (code review) — `empty` đo bằng `.trim()`, KHÔNG `=== ''`.
             Trước lượt vá này lưới hỏi `=== ''` còn Rust hỏi `target_text.trim().is_empty()`
@@ -892,7 +891,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
  * ─────────────────────────────────────────────────────────────────────────────
  * ⚠️ BỐN CỘT, KHÔNG NĂM — và cột bị bỏ ra là một quyết định
  * ─────────────────────────────────────────────────────────────────────────────
- * Không có phần tử nào là "một hàng" (xem khối đầu tệp), nên kiểu dáng cấp hàng phải nhân ra
+ * Không có phần tử nào là "một hàng", nên kiểu dáng cấp hàng phải nhân ra
  * **từng ô** — đúng khuôn `.para-end` đang lặp ở cả năm `v-for`. Ở đây chỉ **bốn** cột chữ
  * nhận `omitted`; **cột ① (vạch trạng thái) KHÔNG**.
  *

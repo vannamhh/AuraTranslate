@@ -1153,17 +1153,20 @@ function commentBefore(text, start) {
 }
 
 /**
- * Start of the opening tag that ends at `end`. A `<` inside a quoted attribute value
- * (`:class="{ empty: n < 2 }"`) is an operator, not a tag.
+ * Start of the tag (opening or closing) that ends at `end`. A `<` inside a quoted attribute
+ * value (`:class="{ empty: n < 2 }"`, either quote) is an operator, not a tag.
  * @param {string} text
  * @param {number} end
  * @returns {number}
  */
 function openTagStart(text, end) {
-  let quoted = false
+  let quote = ''
   for (let i = end - 1; i >= 0; i -= 1) {
-    if (text[i] === '"') quoted = !quoted
-    else if (!quoted && text[i] === '<' && /[A-Za-z]/.test(text[i + 1] ?? '')) return i
+    const ch = text[i]
+    if (quote !== '') {
+      if (ch === quote) quote = ''
+    } else if (ch === '"' || ch === "'") quote = ch
+    else if (ch === '<' && /[A-Za-z/]/.test(text[i + 1] ?? '')) return i
   }
   return -1
 }
@@ -1176,11 +1179,15 @@ function openTagStart(text, end) {
   const bare = '<p>x</p>\n<div :class="{ empty: n < 2 }"\n>{{ v }}</div>'
   const exempt = AURA_ALLOW_TEXT_RE.test(commentBefore(sample, sample.indexOf('{{')))
   const notExempt = AURA_ALLOW_TEXT_RE.test(commentBefore(bare, bare.indexOf('{{')))
-  if (!exempt || notExempt) {
-    fail('tự kiểm `commentBefore` — miễn trừ trước một thẻ có `<` trong giá trị thuộc tính bị đọc sai')
-    detail(`có miễn trừ: ${exempt} (phải true) · không miễn trừ: ${notExempt} (phải false)`)
+  const single = "<!-- aura-allow-text: dữ liệu -->\n<div :class='n <x'\n>{{ v }}</div>"
+  const singleExempt = AURA_ALLOW_TEXT_RE.test(commentBefore(single, single.indexOf('{{')))
+  const afterClose = '<!-- aura-allow-text: x -->\n<b>x</b>{{ y }}'
+  const afterCloseExempt = AURA_ALLOW_TEXT_RE.test(commentBefore(afterClose, afterClose.indexOf('{{')))
+  if (!exempt || notExempt || !singleExempt || afterCloseExempt) {
+    fail('tự kiểm `commentBefore` — miễn trừ trước một thẻ có `<` trong giá trị thuộc tính, hoặc sau thẻ đóng, bị đọc sai')
+    detail(`ngoặc kép có miễn trừ: ${exempt} (phải true) · không miễn trừ: ${notExempt} (phải false) · ngoặc đơn: ${singleExempt} (phải true) · sau thẻ đóng: ${afterCloseExempt} (phải false)`)
   } else {
-    pass('tự kiểm `commentBefore` — `<` trong giá trị thuộc tính không bị coi là đầu thẻ')
+    pass('tự kiểm `commentBefore` — `<` trong giá trị thuộc tính (cả hai loại ngoặc) không là đầu thẻ, và thẻ đóng chặn cửa sổ miễn trừ')
   }
 }
 

@@ -13443,7 +13443,7 @@ chính nó.
   Nhìn một Chương có đủ bốn trạng thái trong lượt dùng thật trước khi Epic 2 đóng. **Chủ: Epic 2.**
 
 - **Lưới chia khối 200 hàng chưa ai dùng thật ở Chương lớn** (Story 2.16). Ở 9.850 câu: gõ, `Mod+Enter`, kéo chọn trong cột nguyên văn qua ranh giới khối (chỉ cột nguyên văn được tô), `Mod+Shift+↓` qua ranh giới, tra cứu từ khối xa. e2e và bàn release đã đo; mắt người chưa nhìn.
-  Ba đường chưa kiểm: kéo thả đoạn chữ đã chọn và mục Copy của menu hệ điều hành vẫn dùng Range gốc nên có thể mang chữ bản dịch; vùng chọn bám vào phần tử (không phải nút chữ) trong ô nguồn không phát lượt tra, chưa so với trước chia khối. **Chủ: Epic 2.**
+  Hai đường chưa kiểm: kéo thả đoạn chữ đã chọn và mục Copy của menu hệ điều hành vẫn dùng Range gốc nên có thể mang chữ bản dịch. 🔵 2026-10-24 — đường thứ ba (vùng chọn bám vào phần tử trong ô nguồn không phát lượt tra) không phải hồi quy: `surfaceFor` loại anchor không phải nút chữ từ trước khi chia khối (`fd13e19`). **Chủ: Epic 2.**
 
 ## Deferred from: code review of story-luoi-doi-chieu-chia-khoi-200-hang-plan (2026-10-24)
 

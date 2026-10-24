@@ -268,3 +268,46 @@ describe('GridPanel source surface is per cell', { timeout: 30_000 }, () => {
     wrapper.unmount()
   })
 })
+
+describe('source selection across a block boundary through GridPanel', () => {
+  function sourceTextNode(root: Element, index: number): Text {
+    const cell = root.querySelectorAll('[data-col="src"]')[index]
+    const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT)
+    let node = walker.nextNode()
+    while (node !== null && (node.textContent ?? '').trim() === '') node = walker.nextNode()
+    return node as Text
+  }
+
+  function copyEvent(): { event: Event; data: Record<string, string> } {
+    const data: Record<string, string> = {}
+    const event = new Event('copy', { bubbles: true, cancelable: true })
+    Object.defineProperty(event, 'clipboardData', { value: { setData: (k: string, v: string) => (data[k] = v) } })
+    return { event, data }
+  }
+
+  const FROM = GRID_BLOCK_ROWS - 1
+  const TO = GRID_BLOCK_ROWS + 1
+  const EXPECTED_TEXT = `au ${FROM}.\nCau ${GRID_BLOCK_ROWS}.\nCau`
+
+  for (const backward of [false, true]) {
+    it(`a ${backward ? 'backward' : 'forward'} selection from block 0 into block 1 yields only source text and copy writes only source text`, { timeout: 60_000 }, async () => {
+      segmentCount = GRID_BLOCK_ROWS + 5
+      const { wrapper, contract, root } = await mountGrid()
+      const first = sourceTextNode(root, FROM)
+      const last = sourceTextNode(root, TO)
+      const selection = window.getSelection()!
+      if (backward) selection.setBaseAndExtent(last, 3, first, 1)
+      else selection.setBaseAndExtent(first, 1, last, 3)
+
+      const text = contract.currentSelectionText()
+      expect(selection.toString()).not.toBe(EXPECTED_TEXT)
+      expect(text).toBe(EXPECTED_TEXT)
+
+      const { event, data } = copyEvent()
+      root.querySelector('.grid')!.dispatchEvent(event)
+      expect(event.defaultPrevented).toBe(true)
+      expect(data['text/plain']).toBe(EXPECTED_TEXT)
+      wrapper.unmount()
+    })
+  }
+})
