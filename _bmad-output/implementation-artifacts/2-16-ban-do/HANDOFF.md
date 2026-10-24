@@ -445,3 +445,25 @@ Cùng cách đo với mục "# Nghiệm thu"; loadavg 1 phút lúc bắt đầu 
 - Mỗi lượt đổi 10 bản ghi DOM trong đúng 1 khối.
 - Ở 9.850 câu có ba phần tăng theo số câu: (1) sự kiện `Mod+Enter` chờ 55–71 ms trước khi handler chạy (122 câu: 27–31), vì luồng chính còn bận với phím cuối gửi 20 ms trước đó; (2) từ hết JS đồng bộ tới lúc DOM có vạch mới và tiêu điểm sang câu kế: 33–45 ms (122 câu: 5–7), gồm IPC xác nhận và cập nhật Vue mà bàn không tách được; (3) task chạy tiếp sau lúc DOM đổi: 20–25 ms (122 câu: 1). Frame sau JS 3–17 ms, nhỏ hơn nhiều so với 53–67 ms của lượt dời con trỏ bằng chuột.
 - `Mod+Enter` đo theo cách cũ ở lượt này: 95 · 107 · 129 ms (lượt nghiệm thu lần hai: 124–146).
+
+# Giao việc Pha 6 (story 2-16) — công việc O(n) sau `Mod+Enter`, 2026-10-24
+
+Đọc mục "# Profile `Mod+Enter`" ngay trên. Ở 9.850 câu, sau JS đồng bộ của handler còn ~33–45 ms tới lúc DOM có vạch xác nhận và ~20–25 ms task chạy tiếp; ở 122 câu hai phần đó chỉ ~5–7 ms và ~1 ms. Pha 5 (`f62012f`) đã làm lượt xác nhận chỉ render 1–2 khối; phần còn lại nằm ở công việc khác tăng theo số câu.
+
+## Việc
+1. Liệt kê, không sửa trước, mọi công việc chạy trong lượt `editor.confirm_segment` từ phím tới khi xong task sau lượt cập nhật DOM, ở cả `src/` (đọc) và lời gọi IPC (đọc `src-tauri/` để biết lệnh trả gì, KHÔNG sửa `src-tauri/`). Với mỗi việc: nó duyệt bao nhiêu phần tử ở n câu (O(1), O(khối), O(n)), và vì sao nó chạy. Chỗ nghi, chưa kiểm: thay mảng `editorSegments`; `gridBlockViews` tính lại vạch cả Chương (`restRulesOf` trên mọi khối, `sameRules`); `caretIndex`, `stripAnchorIndex` và `StatusBar` dùng `findIndex` cả Chương; `glossaryMarksPerSegment` so lại mọi mark bằng `JSON.stringify`; `unlinkedIds`, `rowErrorTextById`, `rowErrorLabelById`, `selectedRowClassById` dựng lại; watcher của các dải (`TmFuzzyStrip`, `GlossaryConfirmStrip`, `ProofreaderStrip`); `positionFlush`/`flushEditorNow`. Dùng `onTrack`/`onTrigger` hoặc đếm lượt gọi trong test để biết computed/watch nào thật sự chạy; không cài thiết bị đo vào mã sản phẩm.
+2. Ca test đếm công việc (không đo thời gian), theo tinh thần bug 2.15 tiêu chí 3: số phần tử được duyệt trong một lượt `Mod+Enter` (ví dụ số lần gọi `resolveSegmentRule`, hoặc số hàng mà các computed lưới đi qua) ở hai cỡ Chương, ví dụ 1.050 và 2.100 câu. Ca đỏ trên mã hiện tại vì số đó tăng theo số câu.
+3. Sửa những việc O(n) có thể đưa về O(1) hay O(khối) mà không đổi hành vi (vạch, điều hướng, `⌘Z`, vùng chọn, StatusBar, dải). Ưu tiên theo phần nào nhiều nhất. Nếu một việc O(n) đến từ IPC hay từ Rust, chỉ ghi lại, không sửa. Nếu có hai cách hợp lệ khác nhau về hành vi hay rủi ro, trình cả hai trong handoff.
+   - Sau sửa, ca ở bước 2 xanh. Phép gỡ thật từng phần sửa (giữ chữ ký) làm ca đỏ đúng lý do; rồi trả lại.
+   - Các ca `gridBlockRenderCost`, `gridTypingCost`, `gridCaretMoveCost` vẫn xanh, điều kiện giữ nguyên.
+4. Kiểm: `npm run build`, `npm run test:story 2-16`, các tệp vitest lưới, StatusBar, dải, `confirm_segment` liên quan, 14 cổng của `.githooks/pre-push` nếu đổi `scripts/`; ngoài ra `npm run check:commands && npm run check:layout && npm run check:tokens && npm run check:i18n`. KHÔNG dựng release, KHÔNG chạy bàn đo.
+
+## Ràng buộc
+- KHÔNG commit, KHÔNG push. Không sửa plan hay story. Không sửa `src-tauri/`.
+- ⚠️ Không `git checkout`/`git stash`/`git restore` trên tệp có thay đổi chưa commit; bản gốc lấy bằng `git show <rev>:<path>`.
+- ⚠️ `rm` là alias `rm -i`: dùng `/bin/rm`. Không gọi `cat` không đối số. zsh không tự tách biến nhiều đường dẫn: dùng `xargs`.
+- ⚠️ Prop object/mảng/hàm mới mỗi lượt render của cha làm mọi khối render lại (mục giao việc Pha 2 lượt 3).
+- Comment theo AGENTS.md §Code comments. Không thêm phụ thuộc.
+
+## Đầu ra
+Mục `# Handoff Pha 6 -> người giao việc (story 2-16)` nối vào cuối tệp này, ngắn: bảng các việc chạy trong lượt `Mod+Enter` (việc, độ lớn, đã sửa hay không, vì sao), số đếm của ca test trước/sau ở hai cỡ, tệp đã đổi, phép gỡ, test xanh/đỏ kèm phạm vi, rủi ro.
