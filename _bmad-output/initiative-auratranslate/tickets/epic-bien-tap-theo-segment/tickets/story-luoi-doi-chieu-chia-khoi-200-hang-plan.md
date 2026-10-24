@@ -3,7 +3,7 @@ title: 'Lưới đối chiếu chia khối 200 hàng'
 type: 'feature'
 ticket: 16
 created: '2026-10-23'
-status: 'blocked'
+status: 'in-progress'
 baseline_revision: '5f25df6fac8287ff89d437c0c3dfe7a2b11443f0'
 route: 'full'
 route_source: 'auto'
@@ -13,8 +13,8 @@ review_source: ''
 lenses_ran: []
 review_loop_iteration: 0
 context: []
-blocked_at: "2026-10-23"
-blocked_reason: "Cổng tiêu chí 1, lượt 2: danh sách khối ổn định không cứu vế dời con trỏ; chuột từ mousedown tới hết JS 174–356 ms so với 62–122 ms của bố cục cũ, cùng tải; chi phí là render/diff Vue của cả template lưới, không phải layout; chờ Ice quyết"
+blocked_at: ""
+blocked_reason: ""
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -153,6 +153,7 @@ Mỗi pha một agent mới; bàn giao qua `_bmad-output/implementation-artifact
 - Quyết định 2026-10-23, Ice: chọn B2, tức profile tay bằng Safari Web Inspector trên hai bản release unminified (Base và `blocks-prototype-2.patch`, bật tính năng `devtools` của tauri chỉ trong worktree). Sau đó Ice tạm dừng để điều tra lại gốc chi phí render trong một phiên khác. Bản dựng dừng giữa chừng, chưa có bản ghi timeline nào.
 - Gốc chi phí render (nghiên cứu mã `research-grid-render-on-caret-move/`, §3 và §Where the answers meet): bốn vòng hàng có `v-memo` nằm trong vòng khối nên 50 khối dùng chung bốn ô `_cache`; khối k nhận vnode của khối k−1, phép so khoá trượt, mọi hàng dựng lại mỗi lượt dời con trỏ. Mô hình Vue 3.5.40 prod trên happy-dom (`2-16-ban-do/memo-probe.cjs`, 9.850 câu): bản thử dựng lại 9.850 hàng mỗi lượt, bố cục cũ 2, mỗi khối một component nhận con trỏ qua prop 2 hàng.
 - Quyết định 2026-10-23, Ice: bản thử thứ ba là C2, mỗi khối một component, các giá trị đổi theo con trỏ (con trỏ, neo dải, vùng chọn) vào khối qua prop riêng cho khối; đo lại trên release bằng bàn 2-16 và 2-15, xen kẽ với cây gốc.
+- Bản thử 3 trên release (`0b619fb` + `blocks-prototype-3.patch`, số ở `93bc97b`, 9.850 câu, xen kẽ 3 phiên mỗi bên): gõ đạt, phím cuối 65–72 ms; dời con trỏ trượt ≤ 50 ms ở cả hai bố cục, vì phần JS còn 1–3 ms (base 41–49) nhưng phần sau JS tới hai frame 53–66 ms không đổi, `segment.next` 58–76 ms. Quyết định 2026-10-24, Ice: nhận C2 dù vế dời con trỏ của tiêu chí 1 trượt, làm tiếp Pha 3 và Pha 4 trên mã bản thử 3; phần sau JS thuộc bug 2-14, bug ấy vẫn mở với số này.
 
 ## Plan Change Log
 
