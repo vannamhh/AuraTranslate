@@ -16,10 +16,10 @@ export type GridBlockView = {
   readonly index: number
   readonly start: number
   readonly segments: readonly ChapterSegment[]
+  readonly rules: ReadonlyMap<number, SegmentRuleValue>
 }
 
 export type GridBlockContext = {
-  readonly restRuleById: Readonly<Ref<ReadonlyMap<number, SegmentRuleValue>>>
   readonly selectedRowClassById: Readonly<Ref<ReadonlyMap<number, string>>>
   readonly unlinkedIds: Readonly<Ref<ReadonlySet<number>>>
   readonly rowErrorLabelById: Readonly<Ref<ReadonlyMap<number, IpcError>>>

@@ -391,3 +391,24 @@ Giả thuyết của người giao việc, CHƯA kiểm (đọc lướt mã): x�
 
 ## Đầu ra
 Mục `# Handoff Pha 5 -> người giao việc (story 2-16)` nối vào cuối tệp này, ngắn: số khối render trước/sau, giá trị phản ứng được ghi trong lượt `Mod+Enter`, tệp đã đổi, phép gỡ, test xanh/đỏ kèm phạm vi, rủi ro.
+
+# Handoff Pha 5 -> người giao việc (story 2-16)
+
+Giả thuyết ĐÚNG, và có hai nguồn chứ không một. Đo bằng vitest (dev, happy-dom), 1.050 câu = 6 khối, `confirmCurrentSegment` (IPC `confirmSegment` giả) với con trỏ ở câu 250 (khối 1) rồi ở câu 399 (khối 1, con trỏ sang khối 2):
+- Trước: mọi 6 khối `updated` ở cả hai ca (mong đợi 1 và 2).
+- Sau: `[1]` và `[1, 2]`.
+
+Giá trị phản ứng ghi trong một lượt xác nhận: `segments` thay bằng mảng mới, chỉ phần tử câu vừa xác nhận là object mới (các câu khác giữ danh tính); `dropTmFilled` thay tập TM; con trỏ dời sang câu kế. Nguyên nhân tìm được (bằng `renderTriggered` + log tạm trên các computed, đã gỡ):
+1. `gridBlockViews` cắt lại mọi khối thành object mới ⇒ prop `block` đổi ở cả 6 khối.
+2. Ba giá trị cấp Chương mà khối đọc trong render đều là computed trả `Map`/`Set` mới mỗi lần `editorSegments` đổi: `restRuleById` (Map cả Chương), `unlinkedIds` (Set), `glossaryMarksPerSegment` (Map, kể cả rỗng). Một computed trả object mới thì mọi khối đọc nó chạy lại.
+
+Đã sửa (`src/panels/GridPanel.vue`, `GridBlock.vue`, `gridBlockContext.ts`):
+- `restRuleById` bỏ; vạch nghỉ tính theo khối (`restRulesOf`) và vào khối qua `block.rules` (trường mới của `GridBlockView`). `gridBlockViews` dùng `previous` của computed: giữ nguyên object khối khi mọi segment cùng danh tính VÀ `rules` bằng nhau (`sameRules`). Khối đọc `props.block.rules` thay vì Map cả Chương; `restRuleById` rời `GridBlockContext`.
+- `unlinkedIds` và `glossaryMarksPerSegment` trả lại giá trị cũ khi nội dung bằng nhau (so Set theo phần tử; so Map theo `JSON.stringify` từng mục).
+- Ca mới trong `tests/frontend/gridBlockRenderCost.test.ts`: xác nhận ở câu 399 ⇒ `[1, 2]` (kèm 1 vạch `rule-confirmed`, ô `editing` đúng câu 400); xác nhận trong một khối ⇒ `[1]`. Mock `confirmSegment` thêm vào mock `config/segment` của tệp.
+
+Phép gỡ (từng phép một, giữ chữ ký, ca đỏ đúng lý do "6 khối thay vì 1/2"): bỏ tái dùng khối (`before` luôn undefined); `sameRules` luôn false; `unlinkedIds` luôn trả `next`; `glossaryMarksPerSegment` luôn trả `next`. Cả bốn đỏ cả hai ca mới; trả lại thì xanh.
+
+Kiểm: `npm run build` (vue-tsc + vite) xanh; 13 tệp `grid*.test.ts` 76 ca xanh; 29 tệp (gồm mọi tệp chứa `confirm_segment`/`confirmCurrentSegment`/`segmentSelection`/`proofreadHighlight`/`editorTypingZone` và `gridPanel*`) 319 ca xanh; `test:story 2-16` 19 ca xanh; `check:commands`, `check:layout`, `check:tokens`, `check:i18n` xanh. Không chạy toàn bộ suite, không dựng release, không bàn đo.
+
+Rủi ro: (1) chưa đo ms thật trên WKWebView ở 9.850 câu; ~100 ms còn lại của `Mod+Enter` có thể gồm phần khác ngoài render khối (IPC, flush, `findIndex` cả Chương ở `caretIndex`/`stripAnchorIndex`) và chưa quy nguồn. (2) Mỗi lượt `gridBlockViews` vẫn dựng lại vạch cả Chương (O(n), như trước) và so sánh từng khối. (3) Ca test dùng glossary rỗng; ca có mark thật chỉ qua `JSON.stringify`, một mark đổi ở đâu thì mọi khối render lại (hiếm, chấp nhận). (4) Khối đọc thẳng `editorEditedShape` (Map đổi tham chiếu ở `clear`/`triggerRef` khi gõ đổi hình dạng) không đổi trong lượt này. Chưa commit.

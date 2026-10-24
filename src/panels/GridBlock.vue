@@ -25,7 +25,6 @@ const props = defineProps<{
 const ctx = inject(GRID_BLOCK_CONTEXT)
 if (ctx === undefined) throw new Error('GridBlock needs the grid block context')
 const {
-  restRuleById,
   selectedRowClassById,
   unlinkedIds,
   rowErrorLabelById,
@@ -73,7 +72,7 @@ function chapterAssetsOf(id: number) {
 }
 
 function ruleOf(id: number): SegmentRuleValue {
-  return props.caretId === id ? 'primary' : (restRuleById.value.get(id) ?? 'none')
+  return props.caretId === id ? 'primary' : (props.block.rules.get(id) ?? 'none')
 }
 
 function ruleClassForRow(id: number): string {

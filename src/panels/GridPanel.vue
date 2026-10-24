@@ -80,7 +80,7 @@ import { useSelectionSurface } from './selectionContract'
 import { resolveHanVietSelection } from './hanVietSurfaces'
 import { isSourceColumnSelecting, sourceColumnText } from './gridSourceSelection'
 import type { DockviewPanelProps } from '../layout/panelProps'
-import type { ChapterAsset } from '../config/segment'
+import type { ChapterAsset, ChapterSegment } from '../config/segment'
 import { t, tError } from '../i18n'
 import type { IpcError } from '../i18n'
 import { detectIsMac, dispatch } from '../commands'
@@ -92,7 +92,7 @@ import {
   selectedRowClassOf,
   sourceCutOffsetOf,
 } from './editorSegments'
-import type { SegmentRuleValue } from './editorSegments'
+import type { SegmentRuleValue, TextShape } from './editorSegments'
 import {
   activeTab,
   canUseParallelView,
@@ -133,7 +133,7 @@ import { inlineStripAnchorSegmentId } from '../inlineStripEligibility'
 import { ensureGlossaryMarksLoaded, glossaryMarks } from './glossaryMarksState'
 import { EMPTY_SEGMENT_GLOSSARY_MARKS, glossaryMarksBySegment } from './glossaryMarksMap'
 import { concordanceSourceHighlight } from './concordanceState'
-import type { SegmentTermSpan } from './glossaryMarksMap'
+import type { SegmentGlossaryMarks, SegmentTermSpan } from './glossaryMarksMap'
 import { clearHoveredGlossaryTerm, setHoveredGlossaryTerm } from './glossaryTermHoverState'
 // 🔵 Story 4.9 — vùng chọn nhiều-segment (Decision 1, batch input). `segmentSelectionIds`
 // là DANH SÁCH id theo thứ tự tài liệu; lưới chỉ cần biết hàng nào TRONG danh sách đó, xem
@@ -275,11 +275,13 @@ const showFrameStatus = computed(
  * chuỗi rỗng suốt phiên gõ. Không có vế thứ nhất, người dùng gõ xong một câu mà vạch vẫn nói
  * *"chưa dịch"* cho tới lượt nạp lại.
  */
-const restRuleById = computed(() => {
-  const shapes = editorEditedShape.value
-  const tmFilled = editorTmFilledSegmentIds.value
+function restRulesOf(
+  segments: readonly ChapterSegment[],
+  shapes: ReadonlyMap<number, TextShape>,
+  tmFilled: ReadonlySet<number>,
+): ReadonlyMap<number, SegmentRuleValue> {
   const map = new Map<number, SegmentRuleValue>()
-  for (const s of editorSegments.value) {
+  for (const s of segments) {
     const input = segmentRuleInputOf(s, null, tmFilled)
     const shape = shapes.get(s.id)
     map.set(
@@ -288,7 +290,13 @@ const restRuleById = computed(() => {
     )
   }
   return map
-})
+}
+
+function sameRules(a: ReadonlyMap<number, SegmentRuleValue>, b: ReadonlyMap<number, SegmentRuleValue>): boolean {
+  if (a.size !== b.size) return false
+  for (const [id, rule] of a) if (b.get(id) !== rule) return false
+  return true
+}
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔵 THÊM Story 4.9 — VÙNG CHỌN NHIỀU-SEGMENT (Decision 1). §Phase 1 Task 2: "a selection
@@ -449,7 +457,15 @@ function cutCountOf(segmentId: number): number {
  * `Map` THƯA: một segment không có mark nào **không có mục** trong `Map` — chỗ đọc dùng
  * [`EMPTY_SEGMENT_GLOSSARY_MARKS`] làm mặc định, cùng khuôn `EMPTY_CUTS`.
  */
-const glossaryMarksPerSegment = computed(() => glossaryMarksBySegment(editorSegments.value, glossaryMarks.value))
+const glossaryMarksPerSegment = computed<ReadonlyMap<number, SegmentGlossaryMarks>>((previous) => {
+  const next = glossaryMarksBySegment(editorSegments.value, glossaryMarks.value)
+  if (previous === undefined || previous.size !== next.size) return next
+  for (const [id, marks] of next) {
+    const before = previous.get(id)
+    if (before === undefined || JSON.stringify(before) !== JSON.stringify(marks)) return next
+  }
+  return previous
+})
 
 /** Biên cắt + span thuật ngữ của MỘT hàng — rỗng nếu hàng này không có dấu nào. */
 function glossaryTermsOf(segmentId: number) {
@@ -575,13 +591,25 @@ const stripAnchorIndex = computed(() => {
   return id === null ? -1 : editorSegments.value.findIndex((s) => s.id === id)
 })
 
-const gridBlockViews = computed(() => {
+const gridBlockViews = computed<readonly GridBlockView[]>((previous) => {
   const segments = editorSegments.value
-  return gridBlocksOf(segments.length).map((b, index) => ({
-    index,
-    start: b.start,
-    segments: segments.slice(b.start, b.start + b.rows),
-  }))
+  const shapes = editorEditedShape.value
+  const tmFilled = editorTmFilledSegmentIds.value
+  return gridBlocksOf(segments.length).map((b, index) => {
+    const slice = segments.slice(b.start, b.start + b.rows)
+    const rules = restRulesOf(slice, shapes, tmFilled)
+    const before = previous?.[index]
+    if (
+      before !== undefined &&
+      before.start === b.start &&
+      before.segments.length === slice.length &&
+      before.segments.every((s, i) => s === slice[i]) &&
+      sameRules(before.rules, rules)
+    ) {
+      return before
+    }
+    return { index, start: b.start, segments: slice, rules }
+  })
 })
 
 function stripRowIn(block: GridBlockView): number {
@@ -1718,9 +1746,12 @@ const rowErrorTextById = computed(() => {
   return map
 })
 
-const unlinkedIds = computed<ReadonlySet<number>>(
-  () => new Set(editorSegments.value.filter((s) => s.unlinked).map((s) => s.id)),
-)
+const unlinkedIds = computed<ReadonlySet<number>>((previous) => {
+  const next = new Set(editorSegments.value.filter((s) => s.unlinked).map((s) => s.id))
+  return previous !== undefined && previous.size === next.size && [...next].every((id) => previous.has(id))
+    ? previous
+    : next
+})
 
 const chapterId = computed(() => editorChapterId.value)
 
@@ -1744,7 +1775,6 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
   tabHanVietBtnRef.value?.focus()
 }
 const gridBlockContext: GridBlockContext = {
-  restRuleById,
   selectedRowClassById,
   unlinkedIds,
   rowErrorLabelById,

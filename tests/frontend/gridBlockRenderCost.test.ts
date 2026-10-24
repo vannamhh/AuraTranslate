@@ -31,6 +31,10 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return {
     ...actual,
+    confirmSegment: async (segmentId: number) => ({
+      outcome: { segment_id: segmentId, status: 'confirmed', version_created: true },
+      error: null,
+    }),
     readOpenChapterSegments: () =>
       Promise.resolve({
         loaded: {
@@ -136,6 +140,27 @@ describe('GridPanel block render cost', { timeout: 30_000 }, () => {
     anchor.value = idAt(850)
     const blocks = await settle(wrapper)
     expect(blocks).toEqual([1, 4])
+    wrapper.unmount()
+  })
+
+  it('confirming a segment renders the block that holds it and the block the caret enters', async () => {
+    const { wrapper, state, root } = await mountGrid()
+    state.setEditorCaret(idAt(399))
+    await settle(wrapper)
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+    const blocks = await settle(wrapper)
+    expect(blocks).toEqual([1, 2])
+    expect(root.querySelector('.cell-tgt.editing')?.getAttribute('data-segment-id')).toBe(String(idAt(400)))
+    expect(root.querySelectorAll('.rule-confirmed')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('confirming a segment inside one block renders that block only', async () => {
+    const { wrapper, state } = await mountGrid()
+    state.setEditorCaret(idAt(250))
+    await settle(wrapper)
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+    expect(await settle(wrapper)).toEqual([1])
     wrapper.unmount()
   })
 })
