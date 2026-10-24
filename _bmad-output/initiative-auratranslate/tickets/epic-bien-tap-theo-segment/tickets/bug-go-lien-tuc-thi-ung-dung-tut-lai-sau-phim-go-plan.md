@@ -3,7 +3,7 @@ title: 'Gõ liên tục thì ứng dụng tụt lại sau phím gõ'
 type: 'bugfix'
 ticket: 15
 created: '2026-10-23'
-status: blocked
+status: built
 baseline_revision: '42f94abaa756c393d29ed141b5e8a7c176dca299'
 route: 'full'
 route_source: 'auto'
@@ -13,8 +13,8 @@ review_source: ''
 lenses_ran: []
 review_loop_iteration: 0
 context: []
-blocked_at: "2026-10-23"
-blocked_reason: "Bản release 9.850 câu vẫn tụt 157–163 s sau 300 phím (trước 188–193 s); ~0,5 s mỗi phím chưa quy nguồn; chờ Ice quyết hướng"
+blocked_at: ""
+blocked_reason: ""
 ---
 
 <frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
@@ -88,6 +88,7 @@ blocked_reason: "Bản release 9.850 câu vẫn tụt 157–163 s sau 300 phím 
 - 122 câu, n=3 mỗi bên: phím cuối trước 37–40 ms, sau 39–55 ms; `Mod+Enter` tới `rule-confirmed` trước 49–53 ms, sau 40–52 ms; không phím chờ. Đã đạt ≤ 100 ms từ TRƯỚC khi sửa (tiêu chí 4 ở cỡ này).
 - 9.850 câu, n=3 mỗi bên: trước phím cuối hiện sau 188–193 s (một phiên rơi 10/300 phím), `Mod+Enter` 187–193 s, còn 251–260 phím chờ lúc phím cuối được gửi; sau 157–163 s và 157–163 s, còn 253–254 phím chờ. Mỗi phím ~0,5–0,65 s ở cả hai bản: bản sửa giảm ~20%, tiêu chí 1 KHÔNG đạt ⇒ `blocked`, trình Ice; không đổi cấu trúc lưới (Boundaries).
 - Chưa làm: lượt debug đếm render `PanelFrame` (Ice cắt phạm vi); nguồn ~0,5 s mỗi phím còn lại chưa tách. e2e `grid-empty-cell`, `story-12-7-workspace-grid-status-bar`, `segment-navigation` xanh (1, 4, 4 ca) trên cây làm việc, ngoài sandbox, không sửa điều kiện.
+- 🔵 2026-10-24 — đóng bằng story 2-16 (lưới chia khối 200 hàng, mỗi khối một component; `8260a92`), không bằng mã của vé này. Bàn đo của vé, release `8260a92`, loadavg 2,9–5,4, 3 phiên mỗi cỡ: 122 câu phím cuối 32–52 ms, `Mod+Enter` 41 ms; 9.850 câu phím cuối 56–77 ms, không phím chờ, p50 20–38 / p95 43–75 ms, `Mod+Enter` 68–97 ms (đo xen kẽ bản trước: 102–140). Tiêu chí 1 đạt; bảng đủ ở `2-16-ban-do/HANDOFF.md` §Nghiệm thu lần ba. e2e `segment-navigation` 4, `grid-empty-cell` 1, `story-12-7-workspace-grid-status-bar` 4 xanh trên `fa9250a`, bản debug, ngoài sandbox. Hai mục nợ đường gõ: phần xếp hàng ✅, mệnh đề một phím ≤ 50 ms của NFR2 🟡 `Chủ: Story 2.4`.
 
 ## Plan Change Log
 
