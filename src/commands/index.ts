@@ -27,7 +27,7 @@ import type { Binding, ChordOverrides, Keymap, KeymapGate } from './keys.ts'
 export type { CommandId, CommandSpec, Registry } from './registry.ts'
 export type { FocusEntry, FocusOwner, FocusRegistry } from './focus.ts'
 export type { Binding, ChordEvent, ChordOverrides, Keymap } from './keys.ts'
-export { chordFromEvent, formatChord } from './keys.ts'
+export { chordFromEvent, formatChord, isPrintableCode } from './keys.ts'
 
 /** Ba chế độ NGANG HÀNG trong MỘT cửa sổ hệ điều hành (AD-24, AC3). */
 export type ModeId = 'library' | 'workspace' | 'reading'

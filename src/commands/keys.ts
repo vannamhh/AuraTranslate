@@ -436,6 +436,10 @@ const lacksPrimaryMod = (m: Mods): boolean => !m.meta && !m.ctrl
 const NON_TEXT_INPUT_TYPE_RE = /^(?:range|checkbox|radio|button|submit|reset|color|file|image)$/
 const PRINTABLE_CODE_RE = /^(?:Key[A-Z]|Digit\d|Numpad\d|Minus|Equal|BracketLeft|BracketRight|Backslash|IntlBackslash|Semicolon|Quote|Backquote|Comma|Period|Slash)$/
 
+export function isPrintableCode(code: string): boolean {
+  return PRINTABLE_CODE_RE.test(code)
+}
+
 function isTypingZone(target: unknown, code?: string): boolean {
   if (typeof target !== 'object' || target === null) return false
   const el = target as { tagName?: unknown; isContentEditable?: unknown; type?: unknown }

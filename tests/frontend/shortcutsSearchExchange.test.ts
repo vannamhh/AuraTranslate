@@ -88,6 +88,13 @@ describe('tra ngược trong ô tìm', () => {
     }
     expect(state.handleSearchKey({ ...keydown('KeyM', { metaKey: true }), isComposing: true })).toBe(false)
 
+    state.setShortcutSearchText('tiê')
+    for (const key of ['\u1EBF', 'e\u0302\u0301', 'Unidentified']) {
+      expect(state.handleSearchKey(keydown('KeyA', { key }))).toBe(false)
+    }
+    expect(state.shortcutSearchChordDisplay.value).toBeNull()
+    expect(state.shortcutSearchText.value).toBe('tiê')
+
     state.setShortcutSearchText('gộp')
     expect(state.visibleShortcutRows.value.map((r) => r.id)).toContain('editor.merge_segments')
     expect(state.visibleShortcutRows.value.length).toBeLessThan(state.shortcutTotalCount.value)

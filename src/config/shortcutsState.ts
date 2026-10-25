@@ -44,6 +44,7 @@ import {
   effectiveBindings,
   effectiveUnbound,
   formatChord,
+  isPrintableCode,
   shortcutsDiskRejection,
 } from '../commands'
 import type { ChordEvent, ChordOverrides, CommandId, CommandSpec } from '../commands'
@@ -490,7 +491,8 @@ export function handleSearchKey(event: ChordEvent & { key?: string }): boolean {
   const key = event.key ?? ''
   if (isTextKey(key) || key === 'Process' || key === 'Dead') return false
   const hasMod = event.metaKey === true || event.ctrlKey === true || event.altKey === true
-  if (!hasMod && key.length === 1) return false
+  // A Vietnamese IME re-emits the diacritic edit as a non-composing keydown whose `key` is not one character.
+  if (!hasMod && (key.length === 1 || isPrintableCode(event.code))) return false
   const chord = chordFromEvent(event, platform)
   if (chord === null) return false
   searchChord.value = chord
