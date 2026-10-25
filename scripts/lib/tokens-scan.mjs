@@ -261,7 +261,7 @@ const BORDER_COLOR_PROP_RE = /^border(?:-(?:top|right|bottom|left|block|inline)(
 /**
  * Does this rule block recolour its own border with a token? Only then may it switch the
  * focus outline off: the border becomes the focus indicator.
- * @param {{ decls: { prop: string, value: string }[] }} block
+ * @param {{ prelude: string, decls: { prop: string, value: string }[] }} block
  * @returns {boolean}
  */
 export const blockRecoloursBorderWithToken = (block) =>
