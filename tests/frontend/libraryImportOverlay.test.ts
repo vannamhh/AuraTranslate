@@ -105,13 +105,12 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
   })
 
   it('opening focuses the first field; Escape closes and focus returns to the opener button', async () => {
-    const { commands, overlay, Overlay, Library } = await setup()
-    const page = mount(Library, { attachTo: document.body })
+    const { commands, overlay, Overlay } = await setup()
+    document.body.innerHTML = '<button data-library-import-open id="opener"></button>'
     const wrapper = mount(Overlay, { attachTo: document.body })
-    pages.push(page, wrapper)
+    pages.push(wrapper)
     await flush()
-    const opener = page.find<HTMLButtonElement>('[data-library-import-open]')
-    expect(opener.exists()).toBe(true)
+    const opener = { element: document.getElementById('opener') as HTMLButtonElement }
     opener.element.focus()
 
     commands.dispatch('library.import.open')

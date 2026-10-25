@@ -39,3 +39,14 @@ export function workCardMeta(work: Pick<WorkRow, 'source_lang' | 'genre' | 'upda
   if (updated !== null) parts.push(updated)
   return { langLabel: sourceLangLabel(work.source_lang), line: parts.length === 0 ? null : parts.join(' · ') }
 }
+
+export const COVER_TONE_COUNT = 6
+
+/** Stable tone `1..6` for a Work: renaming never recolours its cover. */
+export function workCoverTone(workId: string): number {
+  let hash = 0x811c9dc5
+  for (let index = 0; index < workId.length; index += 1) {
+    hash = Math.imul(hash ^ workId.charCodeAt(index), 0x01000193) >>> 0
+  }
+  return (hash % COVER_TONE_COUNT) + 1
+}

@@ -9,13 +9,11 @@
  * `exportContent.test.ts`.
  */
 import { realClick } from '../support/pointer.mjs'
+import { aimWork, openAimedWork, reloadWorks } from '../support/libraryGrid.mjs'
 
 const WORK_NAME = `e2e-export-options-${Date.now() % 1_000_000}`
 const SOURCE_TEXT = 'Cau mot。Cau hai。Cau ba。'
 
-const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
-const WORK_NEXT_BTN = '[data-library-work-next]'
-const OPEN_WORK_BTN = '[data-library-open-work]'
 const WORK_PAGE = '[data-library-work-page]'
 const ROW = '[data-library-chapters-list] [data-library-chapter-row]'
 const EXPORT_OPEN = '[data-export-open]'
@@ -57,21 +55,9 @@ async function checked(selector) {
 }
 
 async function openWorkPage() {
-  await realClick(await $(LIST_WORKS_BTN))
-  const next = await $(WORK_NEXT_BTN)
-  await browser.waitUntil(
-    async () => {
-      const current = await browser.execute(() => {
-        const name = document.querySelector('.works-grid .work-cell[aria-current="true"] .work-name')
-        return name === null ? '' : (name.textContent || '').trim()
-      })
-      if (current === WORK_NAME) return true
-      await realClick(next)
-      return false
-    },
-    { timeout: 30_000, timeoutMsg: `the grid cursor never reached "${WORK_NAME}"` },
-  )
-  await realClick(await $(OPEN_WORK_BTN))
+  await reloadWorks()
+  await aimWork(WORK_NAME)
+  await openAimedWork()
   await $(WORK_PAGE).waitForExist({ timeout: 20_000 })
   await $(ROW).waitForExist({ timeout: 20_000 })
 }

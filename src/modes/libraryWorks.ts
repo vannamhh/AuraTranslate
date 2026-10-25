@@ -175,7 +175,10 @@ export async function loadWorks(): Promise<void> {
     return
   }
 
+  const aimedWorkId = works.value.at(workCursor.value)?.work_id
   works.value = result.report.works
+  const aimedIndex = works.value.findIndex((work) => work.work_id === aimedWorkId)
+  if (aimedIndex !== -1) workCursor.value = aimedIndex
   worksTotal.value = result.report.total
   worksMatched.value = result.report.matched
   // Hai tập lựa chọn -- LUÔN chép nguyên vẹn từ Rust, không bao giờ suy từ `works.value`.
@@ -213,6 +216,11 @@ export function setSortKey(value: WorkSortKey): void {
 /** Chuyển con trỏ lưới xuống ô kế tiếp — không vòng (AC7). No-op trên danh sách rỗng. */
 export function nextWork(): void {
   if (workCursor.value < works.value.length - 1) workCursor.value += 1
+}
+
+/** Aims the grid cursor at `index`; out-of-range indices are ignored. */
+export function aimLibraryWork(index: number): void {
+  if (index >= 0 && index < works.value.length) workCursor.value = index
 }
 
 /** Points the grid cursor at the card of `workId`; no-op when that Work is not in the list. */

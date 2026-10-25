@@ -45,6 +45,9 @@ useSelectionSurface(panel, 'display')
 watch(libraryImportOverlayIsOpen, (open) => {
   if (open) {
     returnFocusTo = focusReturnTargetOnOpen('[data-library-import-open]')
+    if (returnFocusTo === null || returnFocusTo === document.body || returnFocusTo.matches('section.mode')) {
+      returnFocusTo = document.querySelector<HTMLElement>('[data-library-import-open]') ?? returnFocusTo
+    }
     void nextTick(() => {
       const first = panel.value?.querySelector<HTMLElement>(FIRST_FIELD)
       if (first !== null && first !== undefined) first.focus()

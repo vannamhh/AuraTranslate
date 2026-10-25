@@ -42,6 +42,7 @@ import {
   loadLibraryRebuiltAt,
 } from './libraryRescan'
 import {
+  aimLibraryWork,
   libraryFilterIsEmpty,
   libraryGenreFilter,
   libraryGenres,
@@ -98,7 +99,8 @@ import {
 import type { SearchScope } from '../config/library'
 import { t, tError } from '../i18n'
 import { shortcutRows } from '../config/shortcutsState'
-import { workCardMeta } from './libraryWorkCard'
+import { workCardMeta, workCoverTone } from './libraryWorkCard'
+import LibraryMenu from './LibraryMenu.vue'
 
 const root = useTemplateRef<HTMLElement>('root')
 
@@ -145,6 +147,7 @@ onBeforeUnmount(() => {
 // tiên Vue gọi `mounted` rồi `activated`, nên điểm vào đã khai xong trước khi dùng.
 onActivated(() => {
   void enterFocus('mode.library')
+  void nextTick(focusCurrentCard)
   // Story 5.4 — tải lại MỖI LẦN quay về Library: một Chương có thể vừa đổi trạng thái từ
   // Workspace (qua `lifecycle.set_chapter_done`), và danh sách/khối "Tác phẩm đang mở" phải
   // phản ánh giá trị mới nhất, không giữ ảnh chụp của lần hiện trước.
@@ -215,46 +218,105 @@ function progressPercent(work: WorkRow): number {
   return Math.min(100, Math.round((done / work.chapter_count) * 100))
 }
 
-/**
- * Story 5.6 — biểu diễn thay thế nhất quán cho khung bìa (AC6): chữ cái đầu của tên, viết
- * hoa. `name` rỗng/toàn khoảng trắng ⇒ `'?'` (§I/O Matrix "Tên rỗng/khoảng trắng") — KHÔNG
- * một ô trống, và KHÔNG chuỗi rỗng (một ô trống là chính điều AC6 cấm).
- */
-function coverInitial(name: string): string {
-  const trimmed = name.trim()
-  if (trimmed.length === 0) return '?'
-  return trimmed.charAt(0).toUpperCase()
+function lifecycleLabel(status: string): string | null {
+  if (status === 'not_started') return t('lifecycle.not_started')
+  if (status === 'in_progress') return t('lifecycle.in_progress')
+  if (status === 'paused') return t('lifecycle.paused')
+  if (status === 'done') return t('lifecycle.done')
+  return null
 }
 
-/**
- * Ba `<select>` (lĩnh vực · ngôn ngữ · sắp xếp) dùng `@change`, NGOÀI luật Kiểm A (§Design
- * Notes "Vì sao `<select>` chứ không thêm nút") — chúng gọi THẲNG các hàm mở tường của
- * `libraryWorks.ts`, không qua `dispatch()`. Chuỗi rỗng (`<option value="">`) ⇒ bỏ lọc,
- * đúng quy ước "mọi lĩnh vực"/"mọi ngôn ngữ".
- */
-function onGenreFilterChange(event: Event): void {
-  const value = (event.target as HTMLSelectElement).value
-  setGenreFilter(value === '' ? null : value)
+function statusText(work: WorkRow): string | null {
+  if (work.status === null) return null
+  return lifecycleLabel(work.status) ?? t('mode.library.works_status_invalid', { status: work.status })
 }
-function onSourceLangFilterChange(event: Event): void {
-  const value = (event.target as HTMLSelectElement).value
-  setSourceLangFilter(value === '' ? null : value)
+
+function progressText(work: WorkRow): string {
+  if (work.chapter_done_count === null) {
+    return t('mode.library.works_chapter_count', { total: String(work.chapter_count) })
+  }
+  return t('mode.library.works_progress_short', {
+    done: String(work.chapter_done_count),
+    total: String(work.chapter_count),
+  })
 }
-function onSortKeyChange(event: Event): void {
-  const value = (event.target as HTMLSelectElement).value as WorkSortKey
+
+const statusChipLabel = computed(() => {
+  const picked = Array.from(libraryStatusFilter.value)
+  if (picked.length === 0) return t('mode.library.filter_status_label')
+  if (picked.length === 1) return lifecycleLabel(picked[0]) ?? t('mode.library.filter_status_label')
+  return t('mode.library.filter_status_many', { count: String(picked.length) })
+})
+
+const sortChipLabel = computed(() =>
+  librarySortKey.value === 'name_asc' ? t('mode.library.sort_name_asc') : t('mode.library.sort_updated_desc'),
+)
+
+function onGenreChange(value: string | null): void {
+  setGenreFilter(value)
+}
+function onSourceLangChange(value: string | null): void {
+  setSourceLangFilter(value)
+}
+function onSortChange(value: WorkSortKey): void {
   setSortKey(value)
 }
 
-// AC7 — ô đang chọn phải LUÔN nhìn thấy được. `workCellRefs` gom MỌI `<li>` của lưới theo
-// đúng thứ tự `v-for` (Vue điền mảng này tự động khi `ref="workCellRefs"` sống trong
-// `v-for`); `flush: 'post'` để DOM đã cập nhật xong trước khi tính lại ô đích (con trỏ có
-// thể đổi CÙNG lượt danh sách rút ngắn, xem `clampWorkCursor` ở `libraryWorks.ts`).
-const workCellRefs = useTemplateRef<HTMLLIElement[]>('workCellRefs')
+function aimWork(index: number, event: Event): void {
+  aimLibraryWork(index)
+  // WebKit does not focus a tabindex ancestor when the press lands on a non-focusable child.
+  if (event.type !== 'mousedown' || !(event.currentTarget instanceof HTMLElement)) return
+  if (event.target instanceof Element && event.target.closest('button, summary, a, input') !== null) return
+  event.currentTarget.focus({ preventScroll: true })
+}
+
+// A v-for template ref array follows mount order, not list order, once a reload reorders the cards.
+function cardAt(index: number): HTMLElement | null {
+  return root.value?.querySelectorAll<HTMLElement>('[data-library-work-cell]')[index] ?? null
+}
+
+function currentCard(): HTMLElement | null {
+  return cardAt(libraryWorkCursor.value)
+}
+
+function focusCurrentCard(): void {
+  currentCard()?.focus({ preventScroll: true })
+}
+
+function gridColumnCount(): number {
+  const grid = root.value?.querySelector<HTMLElement>('[data-library-grid]')
+  if (grid === null || grid === undefined) return 1
+  const tracks = getComputedStyle(grid).gridTemplateColumns.split(' ').filter((track) => track !== '')
+  return Math.max(1, tracks.length)
+}
+
+function onGridKeydown(event: KeyboardEvent): void {
+  const target = event.target
+  if (!(target instanceof HTMLElement) || !target.matches('[data-library-work-cell]')) return
+  if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    dispatch('library.open_work')
+    return
+  }
+  const rowStep = event.key === 'ArrowDown' || event.key === 'ArrowUp' ? gridColumnCount() : 1
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+    event.preventDefault()
+    for (let step = 0; step < rowStep; step += 1) dispatch('library.work_next')
+  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    for (let step = 0; step < rowStep; step += 1) dispatch('library.work_prev')
+  } else {
+    return
+  }
+  void nextTick(focusCurrentCard)
+}
+
 watch(
   libraryWorkCursor,
   () => {
     void nextTick(() => {
-      const cell = workCellRefs.value?.[libraryWorkCursor.value]
+      const cell = currentCard()
       // `block: 'nearest'`/`inline: 'nearest'` — tức thì theo mặc định (không `behavior:
       // 'smooth'`), cùng chủ ý "không hiệu ứng" mà `GridPanel.vue` §AC8 đã ghi cho cuộn theo
       // con trỏ.
@@ -264,12 +326,12 @@ watch(
   { flush: 'post' },
 )
 
-// Closing the Work page returns focus to the card's open button (UX-DR17), else to the mode root.
+// Closing the Work page returns focus to the selected card (UX-DR17), else to the mode root.
 watch(libraryWorkPageIsOpen, (open, wasOpen) => {
   if (open || !wasOpen) return
   void nextTick(() => {
-    const opener = root.value?.querySelector<HTMLElement>('[data-library-open-work]') ?? null
-    if (opener !== null) opener.focus()
+    const card = currentCard()
+    if (card !== null) card.focus()
     else root.value?.focus()
   })
 })
@@ -287,21 +349,20 @@ const importScreenIsOpen = computed<boolean>(
     <LibraryWorkPage v-if="!importScreenIsOpen && libraryWorkPageIsOpen" />
     <template v-else-if="!importScreenIsOpen">
     <div class="top-bar">
-      <div class="top-row">
-        <div class="search-field">
-          <!-- aura-allow-text: decorative glyph, hidden from assistive tech. -->
-          <span class="search-icon" aria-hidden="true">⌕</span>
-          <input
-            v-model="librarySearchQuery"
-            type="text"
-            class="search-input"
-            autocomplete="off"
-            :placeholder="t('mode.library.search_placeholder')"
-            :aria-label="t('mode.library.search_placeholder')"
-            data-library-search-input
-            @keyup.enter="dispatch('library.search')"
-          />
-        </div>
+      <div class="search-field">
+        <!-- aura-allow-text: decorative glyph, hidden from assistive tech. -->
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <input
+          v-model="librarySearchQuery"
+          type="text"
+          class="search-input"
+          autocomplete="off"
+          :placeholder="t('mode.library.search_placeholder')"
+          :aria-label="t('mode.library.search_placeholder')"
+          data-library-search-input
+          @keyup.enter="dispatch('library.search')"
+        />
+      </div>
       <div class="segmented" role="group" :aria-label="t('mode.library.search_mode_heading')">
         <button
           type="button"
@@ -322,7 +383,12 @@ const importScreenIsOpen = computed<boolean>(
           {{ t('mode.library.search_mode_lenient') }}
         </button>
       </div>
-      <div class="segmented" role="radiogroup" :aria-label="t('mode.library.search_scope_heading')">
+      <div
+        v-if="librarySearchQuery.trim() !== ''"
+        class="segmented"
+        role="radiogroup"
+        :aria-label="t('mode.library.search_scope_heading')"
+      >
         <label class="segment" :class="{ 'segment--on': librarySearchScope === 'both' }">
           <input
             type="radio"
@@ -354,153 +420,175 @@ const importScreenIsOpen = computed<boolean>(
           {{ t('mode.library.search_scope_target') }}
         </label>
       </div>
-        <button type="button" class="btn btn-primary" data-library-import-open @click="dispatch('library.import.open')">
-          {{ t('command.library.import.open') }}
-        </button>
-      </div>
 
-
-      <!--
-        🔵 THÊM (2026-08-28) `data-lifecycle-filter`/`data-lifecycle-action` — MÓC ĐỊNH DANH
-        cho `e2e/specs/story-5-4-lifecycle.e2e.mjs`, cùng khuôn `data-shortcuts-open`
-        (`ShortcutsOverlay`) và `data-col` (lưới) đã có. Trước đó spec định vị bằng
-        `:nth-of-type(n)`: đổi thứ tự sáu nút làm spec bấm NHẦM nút và vẫn xanh, thay vì đỏ ở
-        đúng chỗ vừa đổi. Một móc đọc được là rẻ hơn một lượt đỏ sai nguyên nhân.
-      -->
-      <!--
-        🔴 BỐN nút RIÊNG, KHÔNG một `v-for` chọn id động — `check:commands` Kiểm A đòi mỗi
-        `@click` là ĐÚNG MỘT lời gọi `dispatch('<id>')` với id LITERAL, đọc TĨNH được từ mã
-        nguồn; một biểu thức ba ngôi chọn id lúc chạy không đọc tĩnh được (đã đo: Kiểm A đỏ).
-      -->
-      <div class="filter-actions">
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-filter="not_started"
-          :aria-pressed="libraryStatusFilter.has('not_started')"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.filter_not_started')"
+      <div class="chips">
+        <LibraryMenu
+          variant="chip"
+          :label="statusChipLabel"
+          :active="libraryStatusFilter.size > 0"
+          data-library-chip="status"
         >
-          {{ t('lifecycle.not_started') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-filter="in_progress"
-          :aria-pressed="libraryStatusFilter.has('in_progress')"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.filter_in_progress')"
-        >
-          {{ t('lifecycle.in_progress') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-filter="paused"
-          :aria-pressed="libraryStatusFilter.has('paused')"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.filter_paused')"
-        >
-          {{ t('lifecycle.paused') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-filter="done"
-          :aria-pressed="libraryStatusFilter.has('done')"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.filter_done')"
-        >
-          {{ t('lifecycle.done') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-action="clear_filter"
-          :disabled="libraryWorksBusy || libraryFilterIsEmpty"
-          @click="dispatch('library.filter_clear')"
-        >
-          {{ t('mode.library.clear_filter') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-lifecycle-action="list_works"
-          :disabled="libraryWorksBusy"
-          @click="dispatch('library.list_works')"
-        >
-          {{ t('mode.library.list_works') }}
-        </button>
-      </div>
-
-      <!--
-        Story 5.6 — ba `<select>` (lĩnh vực · ngôn ngữ · sắp xếp), tập-mở nên KHÔNG viết được
-        thành nút literal (§Design Notes "Vì sao `<select>` chứ không thêm nút"). `@change`
-        is outside both Kiểm A and Kiểm K (not one of Kiểm K's five event types).
-        `<option>` dựng từ hai mảng DO
-        RUST TRẢ VỀ (`libraryGenres`/`librarySourceLangs`, `DISTINCT` trên bảng CHƯA LỌC) —
-        KHÔNG BAO GIỜ suy từ `libraryWorks` đã lọc (AD-1, §Always).
-      -->
-      <div class="filter-selects">
-        <label class="field">
-          <span>{{ t('mode.library.filter_genre_label') }}</span>
-          <select
-            data-library-genre-filter
-            :value="libraryGenreFilter ?? ''"
+          <button
+            type="button"
+            class="menu-item"
+            data-lifecycle-filter="not_started"
+            :aria-pressed="libraryStatusFilter.has('not_started')"
             :disabled="libraryWorksBusy"
-            @change="onGenreFilterChange"
+            @click="dispatch('library.filter_not_started')"
           >
-            <option value="">{{ t('mode.library.filter_all_genres') }}</option>
+            {{ t('lifecycle.not_started') }}
+          </button>
+          <button
+            type="button"
+            class="menu-item"
+            data-lifecycle-filter="in_progress"
+            :aria-pressed="libraryStatusFilter.has('in_progress')"
+            :disabled="libraryWorksBusy"
+            @click="dispatch('library.filter_in_progress')"
+          >
+            {{ t('lifecycle.in_progress') }}
+          </button>
+          <button
+            type="button"
+            class="menu-item"
+            data-lifecycle-filter="paused"
+            :aria-pressed="libraryStatusFilter.has('paused')"
+            :disabled="libraryWorksBusy"
+            @click="dispatch('library.filter_paused')"
+          >
+            {{ t('lifecycle.paused') }}
+          </button>
+          <button
+            type="button"
+            class="menu-item"
+            data-lifecycle-filter="done"
+            :aria-pressed="libraryStatusFilter.has('done')"
+            :disabled="libraryWorksBusy"
+            @click="dispatch('library.filter_done')"
+          >
+            {{ t('lifecycle.done') }}
+          </button>
+          <button
+            type="button"
+            class="menu-item menu-item--rule"
+            data-lifecycle-action="clear_filter"
+            data-menu-close
+            :disabled="libraryWorksBusy || libraryFilterIsEmpty"
+            @click="dispatch('library.filter_clear')"
+          >
+            {{ t('mode.library.clear_filter') }}
+          </button>
+        </LibraryMenu>
+
+        <LibraryMenu
+          variant="chip"
+          :label="libraryGenreFilter ?? t('mode.library.filter_genre_label')"
+          :active="libraryGenreFilter !== null"
+          data-library-chip="genre"
+        >
+          <label class="menu-item">
+            <input
+              type="radio"
+              name="library-genre"
+              data-library-chip-option=""
+              :checked="libraryGenreFilter === null"
+              :disabled="libraryWorksBusy"
+              @change="onGenreChange(null)"
+            />
+            {{ t('mode.library.filter_all_genres') }}
+          </label>
+          <label v-for="genreOption in libraryGenres" :key="genreOption" class="menu-item">
+            <input
+              type="radio"
+              name="library-genre"
+              :data-library-chip-option="genreOption"
+              :checked="libraryGenreFilter === genreOption"
+              :disabled="libraryWorksBusy"
+              @change="onGenreChange(genreOption)"
+            />
             <!-- aura-allow-text: lĩnh vực là DỮ LIỆU người dùng gõ, không một câu UI. -->
-            <option v-for="genreOption in libraryGenres" :key="genreOption" :value="genreOption">
-              {{ genreOption }}
-            </option>
-          </select>
-        </label>
-        <label class="field">
-          <span>{{ t('mode.library.filter_source_lang_label') }}</span>
-          <select
-            data-library-source-lang-filter
-            :value="librarySourceLangFilter ?? ''"
-            :disabled="libraryWorksBusy"
-            @change="onSourceLangFilterChange"
-          >
-            <option value="">{{ t('mode.library.filter_all_source_langs') }}</option>
+            {{ genreOption }}
+          </label>
+        </LibraryMenu>
+
+        <LibraryMenu
+          variant="chip"
+          :label="librarySourceLangFilter ?? t('mode.library.filter_source_lang_label')"
+          :active="librarySourceLangFilter !== null"
+          data-library-chip="source_lang"
+        >
+          <label class="menu-item">
+            <input
+              type="radio"
+              name="library-source-lang"
+              data-library-chip-option=""
+              :checked="librarySourceLangFilter === null"
+              :disabled="libraryWorksBusy"
+              @change="onSourceLangChange(null)"
+            />
+            {{ t('mode.library.filter_all_source_langs') }}
+          </label>
+          <label v-for="langOption in librarySourceLangs" :key="langOption" class="menu-item">
+            <input
+              type="radio"
+              name="library-source-lang"
+              :data-library-chip-option="langOption"
+              :checked="librarySourceLangFilter === langOption"
+              :disabled="libraryWorksBusy"
+              @change="onSourceLangChange(langOption)"
+            />
             <!-- aura-allow-text: ngôn ngữ nguồn là DỮ LIỆU (mã ngôn ngữ), không một câu UI. -->
-            <option v-for="langOption in librarySourceLangs" :key="langOption" :value="langOption">
-              {{ langOption }}
-            </option>
-          </select>
-        </label>
-        <label class="field">
-          <span>{{ t('mode.library.sort_label') }}</span>
-          <select data-library-sort :value="librarySortKey" :disabled="libraryWorksBusy" @change="onSortKeyChange">
-            <option value="updated_desc">{{ t('mode.library.sort_updated_desc') }}</option>
-            <option value="name_asc">{{ t('mode.library.sort_name_asc') }}</option>
-          </select>
-        </label>
+            {{ langOption }}
+          </label>
+        </LibraryMenu>
+
+        <LibraryMenu variant="chip" :label="sortChipLabel" data-library-chip="sort">
+          <label class="menu-item">
+            <input
+              type="radio"
+              name="library-sort"
+              data-library-chip-option="updated_desc"
+              :checked="librarySortKey === 'updated_desc'"
+              :disabled="libraryWorksBusy"
+              @change="onSortChange('updated_desc')"
+            />
+            {{ t('mode.library.sort_updated_desc') }}
+          </label>
+          <label class="menu-item">
+            <input
+              type="radio"
+              name="library-sort"
+              data-library-chip-option="name_asc"
+              :checked="librarySortKey === 'name_asc'"
+              :disabled="libraryWorksBusy"
+              @change="onSortChange('name_asc')"
+            />
+            {{ t('mode.library.sort_name_asc') }}
+          </label>
+        </LibraryMenu>
+
+        <!-- aura-allow-text: KẾT QUẢ của `t()` với hai số đếm. -->
+        <span v-if="!libraryFilterIsEmpty && libraryWorksHaveLoaded" class="chips-count" data-library-filter-count>{{
+          t('mode.library.filter_count', { matched: String(libraryWorksMatched), total: String(libraryWorksTotal) })
+        }}</span>
       </div>
     </div>
 
     <LibrarySearchResults v-if="searchActive" />
     <template v-else>
-    <p class="status" role="status" data-library-search-status>{{ t('mode.library.search_not_typed') }}</p>
-
     <div class="works-block">
-      <p class="section-heading">{{ t('mode.library.works_heading') }}</p>
-      <!-- role="status" LUÔN có mặt (không v-if) -- cùng khuôn dải trạng thái của khối quét lại. -->
       <!-- aura-allow-text: ba nhánh đều qua t()/chuỗi rỗng -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
       <p class="status" role="status">
         {{
           !libraryWorksHaveLoaded
-            ? t('mode.library.works_not_loaded')
+            ? t('mode.library.works_loading')
             : libraryShowsFirstRunInvitation
               ? ''
               : libraryWorksTotal === 0
-              ? t('mode.library.works_empty')
-              : libraryWorksMatched === 0
-                ? t('mode.library.works_no_match', { total: String(libraryWorksTotal) })
-                : t('mode.library.works_result', { matched: String(libraryWorksMatched), total: String(libraryWorksTotal) })
+                ? t('mode.library.works_empty')
+                : libraryWorksMatched === 0
+                  ? t('mode.library.works_no_match', { total: String(libraryWorksTotal) })
+                  : ''
         }}
       </p>
       <!-- aura-allow-text: như trên, qua tError(). -->
@@ -522,149 +610,102 @@ const importScreenIsOpen = computed<boolean>(
         <p v-if="importChord !== ''" class="small">{{ t('mode.library.empty_shortcut_hint', { chord: importChord }) }}</p>
       </div>
 
-      <!--
-        Story 5.6 — lưới Tác phẩm (AC2/AC3/AC4/AC6/AC7), thay danh sách phẳng của Story 5.4.
-        Con trỏ (`libraryWorkCursor`) di chuyển bằng HAI NÚT thật (`‹`/`›`, `dispatch()` id
-        literal — Kiểm A) chứ không một `@keydown` tự chế trên từng ô: cùng khuôn
-        `library.orphan_next`/`orphan_prev` đã có trong chính tệp này.
-      -->
-      <div v-if="libraryWorks.length > 0" class="grid-nav">
-        <button
-          type="button"
-          class="btn"
-          data-library-work-prev
-          :aria-label="t('mode.library.work_prev')"
-          @click="dispatch('library.work_prev')"
-        >
-          ‹
-        </button>
-        <span class="grid-nav-position">{{ t('mode.library.work_position', { current: String(libraryWorkCursor + 1), total: String(libraryWorks.length) }) }}</span>
-        <button
-          type="button"
-          class="btn"
-          data-library-work-next
-          :aria-label="t('mode.library.work_next')"
-          @click="dispatch('library.work_next')"
-        >
-          ›
-        </button>
-      </div>
-
-      <ul v-if="libraryWorks.length > 0" class="works-grid" data-library-grid>
+      <ul v-if="libraryWorks.length > 0" class="works-grid" data-library-grid @keydown="onGridKeydown($event)">
         <li
           v-for="(work, workIndex) in libraryWorks"
-          ref="workCellRefs"
           :key="work.work_id"
           class="work-cell"
           :class="{ 'work-cell--current': workIndex === libraryWorkCursor }"
+          :tabindex="workIndex === libraryWorkCursor ? 0 : -1"
           :aria-current="workIndex === libraryWorkCursor ? 'true' : undefined"
           data-library-work-cell
+          @mousedown="aimWork(workIndex, $event)"
+          @focusin="aimWork(workIndex, $event)"
+          @dblclick="dispatch('library.open_work')"
         >
-          <div class="work-cover" role="img" :aria-label="t('mode.library.cover_placeholder_label', { name: work.name })">
-            <!-- aura-allow-text: biểu diễn thay thế là chữ cái đầu của TÊN, dữ liệu người dùng. -->
-            <span class="work-initial" data-library-work-initial>{{ coverInitial(work.name) }}</span>
+          <div
+            class="work-cover"
+            :class="'work-cover--tone-' + workCoverTone(work.work_id)"
+            data-library-work-cover
+            :data-cover-tone="workCoverTone(work.work_id)"
+          >
             <!-- aura-allow-text: nhãn ngôn ngữ nguồn qua t() hoặc chính mã ngôn ngữ (dữ liệu). -->
             <span v-if="workCards[workIndex].langLabel !== null" class="work-lang" data-library-work-lang>{{
               workCards[workIndex].langLabel
             }}</span>
+            <button
+              type="button"
+              class="work-go"
+              data-library-continue-translation
+              :disabled="libraryOpenWorkBusy"
+              @dblclick.stop
+              @click="dispatch('library.continue_translation')"
+            >
+              <!-- aura-allow-text: cả hai nhánh đi qua t(). -->
+              {{ work.status === 'not_started' ? t('mode.library.start_translation') : t('mode.library.continue_translation') }}
+            </button>
+            <div class="work-more" @dblclick.stop>
+              <LibraryMenu variant="more" label="⋯" :aria-label="t('mode.library.work_more_menu')" data-library-work-more>
+                <button
+                  type="button"
+                  class="menu-item"
+                  data-library-open-work-folder
+                  data-menu-close
+                  @click="dispatch('library.open_work_folder')"
+                >
+                  {{ t('mode.library.open_work_folder_button') }}
+                </button>
+                <button
+                  type="button"
+                  class="menu-item"
+                  data-library-work-reviewer-import
+                  data-reviewer-import-open
+                  data-menu-close
+                  :disabled="libraryOpenWorkBusy"
+                  @click="dispatch('library.open_work_reviewer_import')"
+                >
+                  {{ t('command.export.reviewer_import.open') }}
+                </button>
+              </LibraryMenu>
+            </div>
           </div>
-          <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
-          <span class="work-name">{{ work.name }}</span>
-          <!-- aura-allow-text: lĩnh vực là dữ liệu, nhãn thời gian qua t(). -->
-          <span v-if="workCards[workIndex].line !== null" class="work-meta" data-library-work-meta>{{
-            workCards[workIndex].line
-          }}</span>
-          <!--
-            aura-allow-text: mọi nhánh đều qua t().
-            🔵 SỬA (2026-08-28, lượt rà) — TÁCH nhánh cuối làm HAI. Bản trước cho `status = null`
-            (`meta.json` v1, thật sự CHƯA BIẾT) và một `status` mang giá trị NGOÀI danh mục bốn
-            (dữ liệu hỏng) đọc lên GIỐNG HỆT nhau, nên một hàng hỏng đội lốt một hàng chưa di
-            trú và không ai lần được. Hai câu khác nhau vì hai trạng thái khác nhau.
-          -->
-          <span class="work-status">
-            {{
-              work.status === 'not_started'
-                ? t('lifecycle.not_started')
-                : work.status === 'in_progress'
-                  ? t('lifecycle.in_progress')
-                  : work.status === 'paused'
-                    ? t('lifecycle.paused')
-                    : work.status === 'done'
-                      ? t('lifecycle.done')
-                      : work.status === null
-                        ? t('mode.library.works_status_unknown')
-                        : t('mode.library.works_status_invalid', { status: work.status })
-            }}
-          </span>
-          <span v-if="work.status_is_override" class="override-marker">{{ t('mode.library.override_marker') }}</span>
-          <!--
-            Story 5.5 — "Tiến độ Tác phẩm" (FR7). `chapter_done_count === null` ⇒ câu "chưa
-            biết" và KHÔNG vẽ thanh (§I/O Matrix: "không hiện 0 /") — một `meta.json` chưa
-            từng qua `WorkMeta::rebuild_from_store` không được phép trông như "0 Chương xong".
-            aura-allow-text: cả hai nhánh đi qua t() -- Kiểm A2 không đọc tĩnh được toán tử ba ngôi.
-          -->
-          <span class="work-progress">
-            {{
-              work.chapter_done_count === null
-                ? t('mode.library.works_progress_unknown')
-                : t('mode.library.works_progress', {
-                    done: String(work.chapter_done_count),
-                    total: String(work.chapter_count),
-                  })
-            }}
-          </span>
-          <div
-            v-if="work.chapter_done_count !== null"
-            class="work-progress-track"
-            role="progressbar"
-            :aria-valuemin="0"
-            :aria-valuemax="work.chapter_count"
-            :aria-valuenow="work.chapter_done_count"
-            :aria-valuetext="
-              t('mode.library.works_progress_aria', {
-                done: String(work.chapter_done_count),
-                total: String(work.chapter_count),
-              })
-            "
-          >
-            <div class="work-progress-fill" :style="{ width: progressPercent(work) + '%' }"></div>
+          <div class="work-body">
+            <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
+            <span class="work-name" data-library-work-name>{{ work.name }}</span>
+            <!-- aura-allow-text: lĩnh vực là dữ liệu, nhãn thời gian qua t(). -->
+            <span class="work-meta" data-library-work-meta>{{ workCards[workIndex].line ?? '' }}</span>
+            <div
+              v-if="work.chapter_done_count !== null"
+              class="work-progress-track"
+              role="progressbar"
+              :aria-valuemin="0"
+              :aria-valuemax="work.chapter_count"
+              :aria-valuenow="work.chapter_done_count"
+              :aria-valuetext="
+                t('mode.library.works_progress_aria', {
+                  done: String(work.chapter_done_count),
+                  total: String(work.chapter_count),
+                })
+              "
+            >
+              <div class="work-progress-fill" :style="{ width: progressPercent(work) + '%' }"></div>
+            </div>
+            <div class="work-stat">
+              <!-- aura-allow-text: KẾT QUẢ của `t()` với số đếm. -->
+              <span class="work-progress" data-library-work-progress>{{ progressText(work) }}</span>
+              <span class="work-stat-end">
+                <!-- aura-allow-text: KẾT QUẢ của `t()`; null (chưa biết) thì không có huy hiệu. -->
+                <span
+                  v-if="statusText(work) !== null"
+                  class="work-status"
+                  :class="'work-status--' + (work.status ?? 'unknown')"
+                  data-library-work-status
+                  >{{ statusText(work) }}</span
+                >
+                <span v-if="work.status_is_override" class="override-marker">{{ t('mode.library.override_marker') }}</span>
+              </span>
+            </div>
           </div>
-          <!--
-            Story 5.7 — "Mở Tác phẩm" (FR12). Cùng khuôn `library.forget_orphan`: thao tác
-            trên `currentLibraryWork` (con trỏ), không một tham số qua `dispatch()` — nên NÚT
-            chỉ hiện ở đúng ô đang chọn (`v-if`), tránh việc bấm nút ở một ô KHÁC ô cursor mà
-            lại mở đúng Tác phẩm cursor đang trỏ tới, một hành vi lệch trực quan.
-          -->
-          <button
-            v-if="workIndex === libraryWorkCursor"
-            type="button"
-            class="btn"
-            data-library-open-work
-            :disabled="libraryOpenWorkBusy"
-            @click="dispatch('library.open_work')"
-          >
-            {{ t('mode.library.open_work_button') }}
-          </button>
-          <button
-            v-if="workIndex === libraryWorkCursor"
-            type="button"
-            class="btn"
-            data-library-open-work-folder
-            @click="dispatch('library.open_work_folder')"
-          >
-            {{ t('mode.library.open_work_folder_button') }}
-          </button>
-          <button
-            v-if="workIndex === libraryWorkCursor"
-            type="button"
-            class="btn"
-            data-library-work-reviewer-import
-            data-reviewer-import-open
-            :disabled="libraryOpenWorkBusy"
-            @click="dispatch('library.open_work_reviewer_import')"
-          >
-            {{ t('command.export.reviewer_import.open') }}
-          </button>
         </li>
       </ul>
     </div>
@@ -952,9 +993,8 @@ const importScreenIsOpen = computed<boolean>(
 <style scoped>
 .mode {
   height: 100%;
-  padding: var(--space-panel-block) var(--space-panel-inline);
+  padding: var(--space-panel-block) 24px;
   overflow-y: auto;
-  container-type: inline-size;
 }
 
 /*
@@ -1176,187 +1216,269 @@ const importScreenIsOpen = computed<boolean>(
   color: var(--color-on-surface-variant);
 }
 
-/* Story 5.4 — "Bốn trạng thái vòng đời". Cùng khuôn token/cỡ chữ với `.root-block` ở trên. */
+.works-block .status:empty,
+.works-block .error:empty {
+  margin: 0;
+  min-height: 0;
+}
+
 .works-block {
   margin-bottom: var(--space-panel-block);
   padding-bottom: var(--space-panel-block);
   border-bottom: 1px solid var(--color-outline);
 }
 
-.filter-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-/*
- * Nút lọc đang BẬT phân biệt bằng `aria-pressed` (đọc được bằng trình đọc màn hình) VÀ
- * bằng token màu — cùng khuôn `.dropzone.over` ở trên: không dùng bóng đổ/gradient (AD-21).
- */
-.filter-actions .btn[aria-pressed='true'] {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-/*
- * Story 5.6 — ba `<select>` lọc/sắp, cùng khuôn `.field` (đã khai ở trên cho form nhập) —
- * không đúc thêm một kiểu ô nhập thứ hai cho cùng một vai.
- */
-.filter-selects {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.filter-selects .field {
-  min-width: 120px;
-}
-
-/* Story 5.6 — thanh điều hướng con trỏ lưới (AC7). Hai nút `‹`/`›` cộng vị trí "k / n". */
-.grid-nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0 0;
-}
-
-.grid-nav-position {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-/* Story 5.6 — lưới Tác phẩm, thay `.works-list` (danh sách phẳng) của Story 5.4. */
 .works-grid {
   list-style: none;
-  margin: 12px 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
 }
 
 .work-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px;
-  border: 1px solid var(--color-outline);
+  position: relative;
+  border: 1px solid var(--color-outline-faint);
   border-radius: 4px;
-  background: var(--color-surface-sunken);
+  background: var(--color-surface);
 }
 
-/*
- * Ô ĐANG CHỌN (AC7) — phân biệt bằng BỀ RỘNG viền (1px → 2px) CỘNG màu, không chỉ màu
- * (WCAG AA: một tín hiệu chỉ-màu không đủ cho người không phân biệt được màu sắc). Cùng
- * chủ ý `.filter-actions .btn[aria-pressed='true']` ở trên — `aria-current` đã tự nói phần
- * còn lại cho trình đọc màn hình.
- */
+.work-cell:hover {
+  border-color: var(--color-outline);
+}
+
+/* The selected card is told apart by a 2px primary ring, not by colour alone. */
 .work-cell--current {
-  border-width: 2px;
   border-color: var(--color-primary);
+  outline: 1px solid var(--color-primary);
 }
 
-/*
- * Khung bìa — biểu diễn thay thế NHẤT QUÁN (AC6): ô vuông, chữ cái đầu của tên trên nền
- * token. KHÔNG ảnh, KHÔNG gradient/bóng đổ (AD-21) — xem §Design Notes "Vì sao KHÔNG thêm
- * cột `cover`" của story: đây là TOÀN BỘ khung bìa hôm nay, không phải một trạng thái tạm.
- */
 .work-cover {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 1 / 1;
-  border-radius: 4px;
-  background: var(--color-surface-accent);
-  color: var(--color-primary);
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 112px;
+  padding: 12px;
+  border-radius: 3px 3px 0 0;
+  background: var(--color-cover-1-from);
+}
+
+.work-cover--tone-1 {
+  background: var(--color-cover-1-from);
+}
+.work-cover--tone-2 {
+  background: var(--color-cover-2-from);
+}
+.work-cover--tone-3 {
+  background: var(--color-cover-3-from);
+}
+.work-cover--tone-4 {
+  background: var(--color-cover-4-from);
+}
+.work-cover--tone-5 {
+  background: var(--color-cover-5-from);
+}
+.work-cover--tone-6 {
+  background: var(--color-cover-6-from);
+}
+
+.work-lang {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  padding: 0 8px;
+  border-radius: 2px;
+  font-family: var(--face-ui-label);
+  font-size: var(--font-ui-label);
+  font-weight: var(--weight-ui-label);
+  letter-spacing: var(--tracking-ui-label);
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
+  background: var(--color-surface);
+}
+
+.work-go,
+.work-more {
+  display: none;
+}
+
+.work-cell--current .work-go,
+.work-cell--current .work-more,
+.work-cell:hover .work-go,
+.work-cell:hover .work-more,
+.work-cell:focus-within .work-go,
+.work-cell:focus-within .work-more {
+  display: block;
+}
+
+.work-go {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
   font-weight: var(--weight-ui-md-strong);
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+}
+
+.work-cell:not(.work-cell--current) .work-go {
+  color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.work-go:disabled {
+  cursor: not-allowed;
+}
+
+.work-more {
+  margin-left: auto;
+}
+
+.work-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
 }
 
 .work-name {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  font-weight: var(--weight-ui-md-strong);
+  font-family: var(--face-read-sm);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-read-sm);
   color: var(--color-on-surface);
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
-.work-status {
+.work-meta {
+  min-height: 1.4em;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
 }
 
-/*
- * Dấu ghi đè thủ công — chữ, không ký hiệu đúc mới (§Never của story: "đúc ký hiệu mới cho
- * dấu 'ghi đè thủ công' -- dấu phân biệt viết thành CHỮ qua t()").
- */
-.override-marker {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-primary);
-}
-
-/* Story 5.5 — "Tiến độ Tác phẩm" (FR7). Chữ "k / n" hoặc "chưa biết", cùng cỡ `.work-status`. */
-.work-progress {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-/*
- * Thanh tiến độ — chỉ TOKEN, không màu viết thẳng/gradient/bóng đổ (§Always của story).
- * 🔵 SỬA (2026-08-28, Story 5.6) — gỡ `flex-basis: 100%`: `.work-cell` nay là
- * `flex-direction: column` (thay `.works-row` cũ, `flex-wrap: wrap` theo hàng ngang), nên
- * mọi con đã tự trải hết bề rộng theo mặc định `align-items: stretch` — không cần buộc nữa.
- */
 .work-progress-track {
-  height: 4px;
-  border-radius: var(--radius-full);
-  background: var(--color-outline);
+  height: 3px;
+  border-radius: 2px;
+  background: var(--color-surface-sunken);
   overflow: hidden;
 }
 
 .work-progress-fill {
   height: 100%;
-  background: var(--color-primary);
-  border-radius: var(--radius-full);
+  background: var(--color-confirmed);
 }
 
-@container (min-width: 800px) {
-  .works-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+.work-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
-@container (min-width: 1000px) {
-  .works-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
+.work-stat-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-status {
+  padding: 0 8px;
+  border-radius: 2px;
+  font-weight: var(--weight-ui-md-strong);
+  color: var(--color-on-surface-variant);
+  background: var(--color-surface-sunken);
+}
+
+.work-status--in_progress {
+  color: var(--color-primary);
+  background: var(--color-surface-accent);
+}
+
+.work-status--done {
+  color: var(--color-confirmed);
+  background: var(--color-surface-sunken);
+}
+
+.work-status--paused {
+  color: var(--color-tm-text);
+  background: var(--color-surface-tm);
+}
+
+.work-status--not_started {
+  font-weight: normal;
+}
+
+.override-marker {
+  color: var(--color-primary);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface);
+}
+
+.menu-item[aria-pressed='true'] {
+  color: var(--color-primary);
+  background: var(--color-surface-accent);
+}
+
+.menu-item:disabled {
+  color: var(--color-on-surface-variant);
+  cursor: not-allowed;
+}
+
+.menu-item--rule {
+  border-top: 1px solid var(--color-outline-faint);
 }
 
 .top-bar {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: var(--space-panel-block);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--color-outline);
 }
 
-.top-row {
+.chips {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.chips-count {
+  padding: 0 4px;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .search-field {
   display: flex;
   align-items: center;
   flex: 1;
+  max-width: 420px;
   min-width: 200px;
   gap: 8px;
   padding: 0 8px;
@@ -1420,38 +1542,10 @@ const importScreenIsOpen = computed<boolean>(
   border-color: var(--color-primary);
 }
 
-.filter-actions,
-.filter-selects {
-  margin-bottom: 0;
-}
-
 .empty-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
-}
-
-.work-cover {
-  position: relative;
-}
-
-.work-lang {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  padding: 0 4px;
-  border-radius: 2px;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  font-weight: var(--weight-ui-md-strong);
-  color: var(--color-on-surface);
-  background: var(--color-surface);
-}
-
-.work-meta {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
 }
 </style>

@@ -714,7 +714,8 @@ describe('modes/LibraryMode.vue — ba nhánh hiển thị tiến độ (mount t
 
     // Nhánh 3 — `null`: câu "chưa biết", VÀ không vẽ thanh (§I/O Matrix: "không hiện 0 /").
     const rowUnknown = rows[2]!
-    expect(rowUnknown.find('.work-progress').text()).toBe('Chưa biết tiến độ')
+    expect(rowUnknown.find('.work-progress').text()).toBe(`${WORK_PROGRESS_UNKNOWN.chapter_count} chương`)
+    expect(rowUnknown.text()).not.toContain('Chưa biết')
     expect(rowUnknown.find('.work-progress-track').exists()).toBe(false)
 
     // `chapter_count = 0`: thanh VẪN vẽ (chapter_done_count = Some(0), không phải None), ở
@@ -780,8 +781,8 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     expect(cell.find('.work-status').exists()).toBe(true)
   })
 
-  it('AC6 — tên rỗng/khoảng trắng dùng ký tự chốt "?", không ô trống và không chuỗi rỗng', async () => {
-    mockInvokeForMount([WORK_EMPTY_NAME])
+  it('bìa không còn chữ cái đầu; mỗi bìa mang một tông 1..6 ổn định theo work_id', async () => {
+    mockInvokeForMount([WORK_EMPTY_NAME, { ...WORK_ROW_A, name: 'zebra' }])
 
     const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
     const state = await import('../../src/modes/libraryWorks')
@@ -789,21 +790,13 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     await state.loadWorks()
     await wrapper.vm.$nextTick()
 
-    const cover = wrapper.find('.work-cover')
-    expect(cover.exists()).toBe(true)
-    expect(cover.find('.work-initial').text()).toBe('?')
-  })
-
-  it('AC6 — tên bình thường dùng chữ cái đầu VIẾT HOA', async () => {
-    mockInvokeForMount([{ ...WORK_ROW_A, name: 'zebra' }])
-
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    const state = await import('../../src/modes/libraryWorks')
-    wrapper = mount(LibraryMode)
-    await state.loadWorks()
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.find('.work-cover .work-initial').text()).toBe('Z')
+    expect(wrapper.find('.work-initial').exists()).toBe(false)
+    const covers = wrapper.findAll('[data-library-work-cover]')
+    expect(covers).toHaveLength(2)
+    for (const cover of covers) {
+      expect(cover.attributes('data-cover-tone')).toMatch(/^[1-6]$/)
+      expect(cover.classes()).toContain(`work-cover--tone-${cover.attributes('data-cover-tone')}`)
+    }
   })
 
   it('AC5 — khối giải thích hiện KHI VÀ CHỈ KHI đã tải xong VÀ total === 0', async () => {
@@ -887,7 +880,7 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     expect(wrapper.find('.works-block .error').text()).not.toBe('')
   })
 
-  it('AC7 — ô đang chọn mang `aria-current`, và nút `‹`/`›` di chuyển con trỏ qua `dispatch()`', async () => {
+  it('AC7 — ô đang chọn mang `aria-current`, và lệnh `library.work_next` di chuyển con trỏ qua `dispatch()`', async () => {
     mockInvokeForMount([WORK_ROW_A, WORK_ROW_B])
 
     const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
@@ -913,7 +906,7 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     expect(cellsAfter[1]!.attributes('aria-current')).toBe('true')
   })
 
-  it('genre/source_lang/sort selects dựng `<option>` từ `WorkListReport.genres`/`source_langs`, KHÔNG suy từ `works`', async () => {
+  it('chip Lĩnh vực/Ngôn ngữ/Sắp xếp dựng radio từ `WorkListReport.genres`/`source_langs`, KHÔNG suy từ `works`', async () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'library_list_works') {
         return Promise.resolve({
@@ -933,18 +926,195 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     await state.loadWorks()
     await wrapper.vm.$nextTick()
 
-    const genreSelect = wrapper.find('select[data-library-genre-filter]')
-    const genreOptionValues = genreSelect.findAll('option').map((o) => o.element.value)
-    // "" (mọi lĩnh vực) + hai giá trị THẬT — KHÔNG bị teo dần vì `works` chỉ mang một hàng.
-    expect(genreOptionValues).toEqual(['', 'Tien hiep', 'Do thi'])
+    const optionValues = (chip: string): string[] =>
+      wrapper!
+        .findAll(`[data-library-chip="${chip}"] [data-library-chip-option]`)
+        .map((o) => o.attributes('data-library-chip-option') ?? '')
+    expect(optionValues('genre')).toEqual(['', 'Tien hiep', 'Do thi'])
+    expect(optionValues('source_lang')).toEqual(['', 'zh', 'en'])
+    expect(optionValues('sort')).toEqual(['updated_desc', 'name_asc'])
+    expect(wrapper.find('select').exists()).toBe(false)
+  })
 
-    const langSelect = wrapper.find('select[data-library-source-lang-filter]')
-    const langOptionValues = langSelect.findAll('option').map((o) => o.element.value)
-    expect(langOptionValues).toEqual(['', 'zh', 'en'])
+  it('bấm một thẻ ngắm nó (con trỏ + aria-current + tabindex 0), bấm đúp dispatch library.open_work', async () => {
+    vi.resetModules()
+    mockInvokeForMount([WORK_ROW_A, WORK_ROW_B])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryWorks')
+    const { installCommands } = await import('../../src/commands')
+    const openLibraryWork = vi.fn()
+    installCommands({ openCurrentLibraryWork: openLibraryWork } as unknown as CommandDeps)
+    wrapper = mount(LibraryMode)
+    await state.loadWorks()
+    await wrapper.vm.$nextTick()
 
-    const sortSelect = wrapper.find('select[data-library-sort]')
-    const sortOptionValues = sortSelect.findAll('option').map((o) => o.element.value)
-    expect(sortOptionValues).toEqual(['updated_desc', 'name_asc'])
+    const cells = wrapper.findAll('.work-cell')
+    await cells[1]!.trigger('mousedown')
+    expect(state.libraryWorkCursor.value).toBe(1)
+    const after = wrapper.findAll('.work-cell')
+    expect(after[1]!.attributes('aria-current')).toBe('true')
+    expect(after[1]!.attributes('tabindex')).toBe('0')
+    expect(after[0]!.attributes('tabindex')).toBe('-1')
+
+    await after[1]!.trigger('dblclick')
+    expect(openLibraryWork).toHaveBeenCalledTimes(1)
+  })
+
+  it('mũi tên ±1 và Enter trên thẻ đi qua lệnh, kẹp ở hai đầu; Shift+Enter không bị lưới nuốt', async () => {
+    vi.resetModules()
+    mockInvokeForMount([WORK_ROW_A, WORK_ROW_B])
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryWorks')
+    const { installCommands } = await import('../../src/commands')
+    const openLibraryWork = vi.fn()
+    installCommands({
+      nextLibraryWork: state.nextWork,
+      prevLibraryWork: state.prevWork,
+      openCurrentLibraryWork: openLibraryWork,
+    } as unknown as CommandDeps)
+    wrapper = mount(LibraryMode, { attachTo: document.body })
+    await state.loadWorks()
+    await wrapper.vm.$nextTick()
+
+    const cellAt = (index: number) => wrapper!.findAll('.work-cell')[index]!
+    await cellAt(0).trigger('keydown', { key: 'ArrowRight' })
+    expect(state.libraryWorkCursor.value).toBe(1)
+    await cellAt(1).trigger('keydown', { key: 'ArrowRight' })
+    expect(state.libraryWorkCursor.value).toBe(1)
+    await cellAt(1).trigger('keydown', { key: 'ArrowLeft' })
+    expect(state.libraryWorkCursor.value).toBe(0)
+    await cellAt(0).trigger('keydown', { key: 'ArrowUp' })
+    expect(state.libraryWorkCursor.value).toBe(0)
+
+    await cellAt(0).trigger('keydown', { key: 'Enter' })
+    expect(openLibraryWork).toHaveBeenCalledTimes(1)
+    await cellAt(0).trigger('keydown', { key: 'Enter', shiftKey: true })
+    expect(openLibraryWork).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('modes/LibraryMode.vue — lưới rộng: mũi tên dọc, nhãn trạng thái, nút tiếp tục dịch', () => {
+  let wrapper: ReturnType<typeof mount> | null = null
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  async function mountGrid(rows: unknown[]) {
+    vi.resetModules()
+    mockInvokeForMount(rows)
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryWorks')
+    const { installCommands } = await import('../../src/commands')
+    installCommands({
+      nextLibraryWork: state.nextWork,
+      prevLibraryWork: state.prevWork,
+    } as unknown as CommandDeps)
+    wrapper = mount(LibraryMode, { attachTo: document.body })
+    await state.loadWorks()
+    await wrapper.vm.$nextTick()
+    return state
+  }
+
+  it('mũi tên lên/xuống đi một hàng theo số cột của lưới, kẹp ở hai đầu', async () => {
+    const rows = Array.from({ length: 11 }, (_, index) => ({
+      ...WORK_ROW_A,
+      work_id: `id-${index}`,
+      name: `W${index}`,
+    }))
+    const realGetComputedStyle = window.getComputedStyle.bind(window)
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element: Element, pseudo?: string | null) => {
+      if (element.hasAttribute('data-library-grid')) {
+        return { gridTemplateColumns: '262px 262px 262px 262px 262px' } as CSSStyleDeclaration
+      }
+      return realGetComputedStyle(element, pseudo)
+    })
+    const state = await mountGrid(rows)
+    const cellAt = (index: number) => wrapper!.findAll('.work-cell')[index]!
+
+    await cellAt(0).trigger('keydown', { key: 'ArrowDown' })
+    expect(state.libraryWorkCursor.value).toBe(5)
+    await cellAt(5).trigger('keydown', { key: 'ArrowUp' })
+    expect(state.libraryWorkCursor.value).toBe(0)
+    await cellAt(0).trigger('keydown', { key: 'ArrowDown' })
+    await cellAt(5).trigger('keydown', { key: 'ArrowDown' })
+    expect(state.libraryWorkCursor.value).toBe(10)
+    await cellAt(10).trigger('keydown', { key: 'ArrowDown' })
+    expect(state.libraryWorkCursor.value).toBe(10)
+  })
+
+  it('một status ngoài bốn giá trị vòng đời vẫn hiện chữ `works_status_invalid`, status null không hiện nhãn', async () => {
+    const { t } = await import('../../src/i18n')
+    await mountGrid([
+      { ...WORK_ROW_A, work_id: 'id-bogus', name: 'Bogus', status: 'bogus' },
+      { ...WORK_ROW_A, work_id: 'id-null', name: 'Null', status: null },
+    ])
+    const cells = wrapper!.findAll('.work-cell')
+    const badge = (index: number) => cells[index]!.find('[data-library-work-status]')
+
+    expect(badge(0).exists()).toBe(true)
+    expect(badge(0).text()).toBe(t('mode.library.works_status_invalid', { status: 'bogus' }))
+    expect(badge(1).exists()).toBe(false)
+  })
+
+  it('thẻ đang chọn của Tác phẩm chưa bắt đầu ghi "Bắt đầu dịch", đang dịch ghi "Tiếp tục dịch"', async () => {
+    const { t } = await import('../../src/i18n')
+    const state = await mountGrid([
+      { ...WORK_ROW_A, work_id: 'id-new', name: 'New', status: 'not_started' },
+      { ...WORK_ROW_A, work_id: 'id-going', name: 'Going', status: 'in_progress' },
+    ])
+    const labelOfCurrent = (): string =>
+      wrapper!
+        .findAll('.work-cell')
+        [state.libraryWorkCursor.value]!.find('[data-library-continue-translation]')
+        .text()
+
+    expect(labelOfCurrent()).toBe(t('mode.library.start_translation'))
+    await wrapper!.findAll('.work-cell')[1]!.trigger('mousedown')
+    expect(state.libraryWorkCursor.value).toBe(1)
+    expect(labelOfCurrent()).toBe(t('mode.library.continue_translation'))
+  })
+})
+
+describe('modes/libraryWorks.ts::loadWorks — con trỏ theo work_id khi tải lại', () => {
+  const rowsReply = (works: unknown[]) => ({
+    total: works.length,
+    matched: works.length,
+    works,
+    genres: [],
+    source_langs: [],
+  })
+
+  it('đổi thứ tự danh sách thì con trỏ đi theo Tác phẩm đã ngắm', async () => {
+    const state = await import('../../src/modes/libraryWorks')
+    mockInvokeForMount([WORK_ROW_A, WORK_ROW_B])
+    await state.loadWorks()
+    state.aimLibraryWork(1)
+    expect(state.currentLibraryWork.value?.work_id).toBe('id-b')
+
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'library_list_works' ? Promise.resolve(rowsReply([WORK_ROW_B, WORK_ROW_A])) : Promise.reject(new Error(cmd)),
+    )
+    await state.loadWorks()
+
+    expect(state.libraryWorkCursor.value).toBe(0)
+    expect(state.currentLibraryWork.value?.work_id).toBe('id-b')
+  })
+
+  it('Tác phẩm đã ngắm biến mất thì con trỏ kẹp về ô cuối', async () => {
+    const state = await import('../../src/modes/libraryWorks')
+    mockInvokeForMount([WORK_ROW_A, WORK_ROW_B])
+    await state.loadWorks()
+    state.aimLibraryWork(1)
+
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'library_list_works' ? Promise.resolve(rowsReply([WORK_ROW_A])) : Promise.reject(new Error(cmd)),
+    )
+    await state.loadWorks()
+
+    expect(state.libraryWorkCursor.value).toBe(0)
+    expect(state.currentLibraryWork.value?.work_id).toBe('id-a')
   })
 })
 
@@ -956,7 +1126,7 @@ describe('modes/LibraryMode.vue — nút Nhập bản reviewer trên ô Tác ph�
     wrapper = null
   })
 
-  it('chỉ ô đang chọn có nút, và nút mang dấu mở để tiêu điểm về đúng nó', async () => {
+  it('mỗi thẻ có nút trong menu ⋯, và nút mang dấu mở để tiêu điểm về đúng nó', async () => {
     mockInvokeForMount([WORK_ROW_A, WORK_ROW_B])
     const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
     const state = await import('../../src/modes/libraryWorks')
@@ -965,7 +1135,7 @@ describe('modes/LibraryMode.vue — nút Nhập bản reviewer trên ô Tác ph�
     await wrapper.vm.$nextTick()
 
     const buttons = wrapper.findAll('[data-library-work-reviewer-import]')
-    expect(buttons).toHaveLength(1)
+    expect(buttons).toHaveLength(2)
     expect(buttons[0]!.attributes('data-reviewer-import-open')).toBeDefined()
     expect(buttons[0]!.element.closest('.work-cell')?.querySelector('.work-name')?.textContent).toBe('A')
     expect(buttons[0]!.attributes('disabled')).toBeUndefined()

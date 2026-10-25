@@ -53,6 +53,7 @@
  */
 
 import { realClick } from '../support/pointer.mjs'
+import { aimWork, openChip, reloadWorks } from '../support/libraryGrid.mjs'
 
 // ⚠️ TÊN/GIÁ TRỊ NGẮN có chủ ý — mỗi ký tự gõ qua `setValue` là một lệnh WebDriver đi qua
 // `ensureActiveWindowFocus` (xem lý lẽ đo được ở `story-5-4-lifecycle.e2e.mjs:33-36`), và
@@ -69,11 +70,6 @@ const UNIQUE_GENRE = `E2eGrid${RUN_TAG}`
 const WORK_NAME_A = `e2e-grid-aaa-${RUN_TAG}`
 const WORK_NAME_B = `e2e-grid-zzz-${RUN_TAG}`
 
-const GENRE_SELECT = 'select[data-library-genre-filter]'
-const SORT_SELECT = 'select[data-library-sort]'
-const WORK_PREV_BTN = '[data-library-work-prev]'
-const WORK_NEXT_BTN = '[data-library-work-next]'
-const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
 
 /** Tạo một Tác phẩm qua cầu IPC thật — cùng khuôn `story-5-4-lifecycle.e2e.mjs::createWork`. */
 async function createWork(name, sourceLang, genre) {
@@ -110,30 +106,27 @@ async function gridProbe() {
     return {
       cellCount: cells.length,
       names: cells.map((cell) => (cell.querySelector('.work-name')?.textContent || '').trim()),
-      coverTexts: cells.map((cell) => (cell.querySelector('.work-cover .work-initial')?.textContent || '').trim()),
+      coverTones: cells.map((cell) => cell.querySelector('[data-library-work-cover]')?.getAttribute('data-cover-tone') ?? ''),
       currentIndex: cells.findIndex((cell) => cell.getAttribute('aria-current') === 'true'),
-      genreSelectValue: document.querySelector('select[data-library-genre-filter]')?.value ?? null,
-      sortSelectValue: document.querySelector('select[data-library-sort]')?.value ?? null,
+      genreValue:
+        document.querySelector('[data-library-chip="genre"] input:checked')?.getAttribute('data-library-chip-option') ?? null,
+      sortValue:
+        document.querySelector('[data-library-chip="sort"] input:checked')?.getAttribute('data-library-chip-option') ?? null,
     }
   })
 }
 
-/** Focus một phần tử BẰNG JS (không `.click()`, không chuột) — xem khối lý lẽ ở đầu tệp. */
-async function focusViaJs(element) {
-  await browser.execute((el) => el.focus(), element)
+/** Chọn một radio trong chip `chip` bằng cú bấm thật vào nhãn của nó. */
+async function pickChipOption(chip, option) {
+  await openChip(chip)
+  const radio = await $(`[data-library-chip="${chip}"] [data-library-chip-option="${option}"]`)
+  await realClick(await radio.$('..'))
+  await realClick(await $(`[data-library-chip="${chip}"] summary`))
 }
 
-/** Đổi giá trị <select> và kích hoạt sự kiện change — trong WKWebView WebDriver, native <select> menu do macOS UIProcess quản lý không nhận synthetic keys từ WebDriver. */
-async function changeSelectValue(selectElement, value) {
-  await browser.execute((el, val) => {
-    el.value = val
-    el.dispatchEvent(new Event('change', { bubbles: true }))
-  }, selectElement, value)
-}
-
-/** Bấm "Tải danh sách" rồi chờ CẢ HAI Tác phẩm của spec này xuất hiện trong lưới. */
+/** Tải lại danh sách rồi chờ CẢ HAI Tác phẩm của spec này xuất hiện trong lưới. */
 async function loadWorksUntilBothPresent() {
-  await realClick(await $(LIST_WORKS_BTN))
+  await reloadWorks()
   await browser.waitUntil(
     async () => {
       const probe = await gridProbe()
@@ -159,16 +152,15 @@ describe('Story 5.6 — lưới Tác phẩm, lọc và sắp xếp trong cửa s
     const beforeFilter = await gridProbe()
     const indexA = beforeFilter.names.indexOf(WORK_NAME_A)
     expect(indexA).toBeGreaterThanOrEqual(0)
-    expect(beforeFilter.coverTexts[indexA]).toBe('E') // chữ cái đầu của `e2e-grid-aaa-…`, viết hoa.
-    expect(beforeFilter.coverTexts.every((text) => text.length > 0)).toBe(true)
+    expect(beforeFilter.coverTones[indexA]).toMatch(/^[1-6]$/)
+    expect(beforeFilter.coverTones.every((tone) => /^[1-6]$/.test(tone))).toBe(true)
 
     // ── AC3/AC7 — lọc theo lĩnh vực: đổi giá trị <select> kích hoạt @change thật. ─────
-    const genreSelect = await $(GENRE_SELECT)
-    await changeSelectValue(genreSelect, UNIQUE_GENRE)
+    await pickChipOption('genre', UNIQUE_GENRE)
     await browser.waitUntil(
       async () => {
         const probe = await gridProbe()
-        return probe.genreSelectValue === UNIQUE_GENRE
+        return probe.genreValue === UNIQUE_GENRE
       },
       { timeout: 10_000, timeoutMsg: `lựa chọn "${UNIQUE_GENRE}" không được chọn sau 10 giây` },
     )
@@ -190,20 +182,19 @@ describe('Story 5.6 — lưới Tác phẩm, lọc và sắp xếp trong cửa s
     // ── AC7 — con trỏ chạy qua các ô (nút ‹/›), `aria-current` đúng ô. ──
     expect(afterFilter.currentIndex).toBe(0) // Ô đầu là ô đang chọn ngay sau một lượt tải/lọc.
 
-    const nextBtn = await $(WORK_NEXT_BTN)
-    await realClick(nextBtn)
+    await aimWork(afterFilter.names[0])
+    await browser.keys(['ArrowRight'])
     await browser.waitUntil(
       async () => (await gridProbe()).currentIndex === 1,
-      { timeout: 10_000, timeoutMsg: 'aria-current không chuyển sang ô kế tiếp sau khi bấm nút "›"' },
+      { timeout: 10_000, timeoutMsg: 'aria-current không chuyển sang ô kế tiếp sau khi bấm mũi tên phải' },
     )
     const afterNext = await gridProbe()
     expect(afterNext.names[afterNext.currentIndex]).toBe(WORK_NAME_A)
 
-    const prevBtn = await $(WORK_PREV_BTN)
-    await realClick(prevBtn)
+    await browser.keys(['ArrowLeft'])
     await browser.waitUntil(
       async () => (await gridProbe()).currentIndex === 0,
-      { timeout: 10_000, timeoutMsg: 'aria-current không chuyển về ô trước sau khi bấm nút "‹"' },
+      { timeout: 10_000, timeoutMsg: 'aria-current không chuyển về ô trước sau khi bấm mũi tên trái' },
     )
     const afterPrev = await gridProbe()
     expect(afterPrev.names[afterPrev.currentIndex]).toBe(WORK_NAME_B)
@@ -211,13 +202,12 @@ describe('Story 5.6 — lưới Tác phẩm, lọc và sắp xếp trong cửa s
     // ── AC4 — đổi khoá sắp BẰNG BÀN PHÍM (mũi tên), thứ tự tên đảo đúng. ────────────
     // Mặc định `updated_desc`: B (tạo SAU, mới hơn) đứng TRƯỚC A.
     const beforeSort = await gridProbe()
-    expect(beforeSort.sortSelectValue).toBe('updated_desc')
+    expect(beforeSort.sortValue).toBe('updated_desc')
     expect(beforeSort.names.indexOf(WORK_NAME_B)).toBeLessThan(beforeSort.names.indexOf(WORK_NAME_A))
 
-    const sortSelect = await $(SORT_SELECT)
-    await changeSelectValue(sortSelect, 'name_asc')
+    await pickChipOption('sort', 'name_asc')
     await browser.waitUntil(
-      async () => (await gridProbe()).sortSelectValue === 'name_asc',
+      async () => (await gridProbe()).sortValue === 'name_asc',
       { timeout: 10_000, timeoutMsg: 'không đổi khoá sắp sang "name_asc" sau 10 giây' },
     )
     await browser.waitUntil(

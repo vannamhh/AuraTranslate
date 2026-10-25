@@ -55,7 +55,7 @@ import {
 import { ensureChapterLoaded, resetSourcePanel } from '../panels/sourcePanelState'
 import { resetLookupPanel } from '../panels/lookupPanelState'
 import { resetSegmentHistory } from '../panels/segmentHistoryState'
-import { setMode } from './modeState'
+import { currentMode, setMode } from './modeState'
 import {
   applyOpenWorkLifecycleResult,
   currentLibraryWork,
@@ -434,6 +434,18 @@ export async function openCurrentLibraryWork(): Promise<void> {
   if (!opened) return
   workPageWork.value = { ...work }
   await loadOpenWorkLifecycle()
+}
+
+/** Opens the selected Work and moves to Workspace, which restores its last Chapter and sentence.
+ * Stays in Library (returns `false`) when the open is blocked or fails, or outside Library. */
+export async function continueCurrentLibraryTranslation(): Promise<boolean> {
+  if (currentMode.value !== 'library' || workPageWork.value !== null) return false
+  const work = currentLibraryWork.value
+  if (work === null) return false
+  const opened = await openWorkById(work.work_id)
+  if (!opened) return false
+  setMode('workspace')
+  return true
 }
 
 /** Opens the selected Work, then the reviewer-import file picker; a failed or blocked open stops before the picker. */

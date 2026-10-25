@@ -76,14 +76,10 @@ describe('Library top bar and cards', { timeout: 30_000 }, () => {
     expect(setLibrarySearchModeExact).toHaveBeenCalledTimes(1)
   })
 
-  it('Nhập tài liệu dispatches library.import.open exactly once and the page has no import form', async () => {
-    const openLibraryImportForm = vi.fn()
-    const p = await mountLibrary([row({})], { openLibraryImportForm })
+  it('the Library body has no import form and no Nhập tài liệu button (the button lives in the title bar)', async () => {
+    const p = await mountLibrary([row({})])
     expect(p.find('.import-form').exists()).toBe(false)
-    const open = p.find('[data-library-import-open]')
-    expect(open.text()).toBe('Nhập tài liệu')
-    await open.trigger('click')
-    expect(openLibraryImportForm).toHaveBeenCalledTimes(1)
+    expect(p.find('[data-library-import-open]').exists()).toBe(false)
   })
 
   it('a card shows the source language on the cover and the genre · edit line', async () => {
@@ -95,7 +91,7 @@ describe('Library top bar and cards', { timeout: 30_000 }, () => {
   it('a card with no genre and an unreadable date has no meta line and no stray text', async () => {
     const p = await mountLibrary([row({ genre: '', updated_at: 'hong', source_lang: '' })])
     const cell = p.find('.work-cell')
-    expect(cell.find('[data-library-work-meta]').exists()).toBe(false)
+    expect(cell.find('[data-library-work-meta]').text()).toBe('')
     expect(cell.find('[data-library-work-lang]').exists()).toBe(false)
     expect(cell.text()).not.toMatch(/Invalid|undefined|NaN/)
   })

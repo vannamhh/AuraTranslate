@@ -2401,6 +2401,7 @@ const R_CATEGORY_NAV = 'in-place list navigation (arrow/Enter selects a row) —
 const R_DISPATCH_VIA_PARAM =
   'dispatches an id received as a parameter, not a literal — already counted by ' +
   "Kiểm B's nonLiteralDispatchCalls"
+const R_MENU_CLOSE = 'closes a native `<details>` menu in place from Escape — view state, no dispatch'
 const R_SELECT_IN_PLACE = 'selects Chapter rows in place from a pointer press — selection is view state, no dispatch'
 const R_SOURCE_CUT_EXEMPT = 'calls `setEditorSourceCut(...)` directly — a named exemption, not a command'
 
@@ -2539,6 +2540,11 @@ const HANDLER_TABLE = {
   'src/modes/LibraryWorkPage.vue::onRowMouseDown': { nonCommand: R_SELECT_IN_PLACE },
   'src/modes/LibraryWorkPage.vue::onListKeydown': {
     ids: ['library.open_chapter', 'library.chapter_rename.begin', 'library.chapters.clear_selection'],
+  },
+  'src/modes/LibraryMenu.vue::onKeydown': { nonCommand: R_MENU_CLOSE },
+  'src/modes/LibraryMode.vue::aimWork': { nonCommand: R_CURSOR_IMPORTED },
+  'src/modes/LibraryMode.vue::onGridKeydown': {
+    ids: ['library.open_work', 'library.work_next', 'library.work_prev'],
   },
   'src/LibraryImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/LibraryImportOverlay.vue::recordImportOpener': { nonCommand: R_POINTER_FOCUS },

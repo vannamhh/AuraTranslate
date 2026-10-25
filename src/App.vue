@@ -7,7 +7,7 @@
 //
 // Self-check phạm vi asset protocol (Kiểm 3 của Task 8) chạy khi bật cờ
 // `VITE_SCOPE_SELFTEST=1`; xem `src/selftest/scopeCheck.ts`.
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import type { ScopeCheckReport } from './selftest/scopeCheck'
 // ⚠️ Import TĨNH có chủ ý, và chỉ hằng này thôi. `./selftest/eventName` là một module
 // rỗng ngoài một chuỗi, nên nó vào bundle chính mà không tốn gì — còn `./selftest/
@@ -27,6 +27,7 @@ import { emitFailureLine, fallbackReportText } from './selftest/fallbackReport'
 import { dispatch } from './commands'
 import { currentMode } from './modes/modeState'
 import { t, tError } from './i18n'
+import { shortcutRows } from './config/shortcutsState'
 // ── Story 1.8 — bề mặt hiển thị lỗi kho, đóng `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` ────────────────
 //
 // 🔴 `configError` chỉ khác `null` khi **Rust đã trả lời** bằng một lỗi thật. Một phiên
@@ -97,6 +98,10 @@ import { attributionIsOpen } from './panels/dictSourcesState'
 import LibraryMode from './modes/LibraryMode.vue'
 import WorkspaceMode from './modes/WorkspaceMode.vue'
 import ReadingMode from './modes/ReadingMode.vue'
+
+const importChord = computed(
+  () => shortcutRows.value.find((row) => row.id === 'library.import.open')?.display.join(' / ') ?? '',
+)
 
 const report = ref<ScopeCheckReport | null>(null)
 const selftestEnabled = import.meta.env.VITE_SCOPE_SELFTEST === '1'
@@ -262,6 +267,18 @@ onMounted(async () => {
             {{ t('titlebar.layout.b1') }}
           </button>
         </div>
+
+        <button
+          v-if="currentMode === 'library'"
+          type="button"
+          class="titlebar-import"
+          data-library-import-open
+          @click="dispatch('library.import.open')"
+        >
+          {{ t('command.library.import.open') }}
+          <!-- aura-allow-text: chord already formatted for the platform by shortcutRows. -->
+          <span v-if="importChord !== ''" class="titlebar-import-chord">{{ importChord }}</span>
+        </button>
 
         <TitlebarToolsMenu />
       </div>
@@ -430,6 +447,29 @@ onMounted(async () => {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.titlebar-import {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface-variant);
+}
+
+.titlebar-import-chord {
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  padding: 0 calc(var(--space-unit) * 1);
+  border: 1px solid var(--color-outline);
+  border-radius: 3px;
+  background: var(--color-surface);
 }
 
 .layout-switch {

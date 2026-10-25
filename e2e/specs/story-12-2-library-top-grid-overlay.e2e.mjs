@@ -1,11 +1,12 @@
 /**
- * Library top bar, four-column grid, import overlay and first-run empty state in
+ * Library top bar, auto-fill grid, import overlay and first-run empty state in
  * the real webview. Each spec file gets a fresh Library root, so the first case sees a truly
- * empty Library. Layout reads the container-query tier from computed grid columns, not from
- * pixel guesses, and requires 4, 3 and 2 columns to each be observed.
+ * empty Library. Layout reads the column count from computed grid columns, not from
+ * pixel guesses.
  */
 import { createWorkThroughForm } from '../support/importForm.mjs'
 import { realClick } from '../support/pointer.mjs'
+import { reloadWorks } from '../support/libraryGrid.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const FORM_WORK = `e2e-122-form-${RUN_TAG}`
@@ -13,7 +14,6 @@ const IPC_WORKS = [1, 2, 3, 4].map((n) => `e2e-122-ipc${n}-${RUN_TAG}`)
 
 const OPEN_BTN = '[data-library-import-open]'
 const PANEL = '.li-panel'
-const LIST_BTN = '[data-lifecycle-action="list_works"]'
 
 async function waitForLibrary() {
   await browser.waitUntil(async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined), {
@@ -71,10 +71,11 @@ async function gridShape() {
     const cs = getComputedStyle(mode)
     const content = mode.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
     const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter((c) => c !== '').length
-    const cover = document.querySelector('.works-grid .work-cover')
-    const rect = cover.getBoundingClientRect()
+    const cellWidths = Array.from(document.querySelectorAll('.works-grid .work-cell')).map(
+      (cell) => cell.getBoundingClientRect().width,
+    )
     const gridRect = grid.getBoundingClientRect()
-    return { cols, content, ratio: rect.width / rect.height, gridWidth: gridRect.width }
+    return { cols, content, cellWidths, gridWidth: gridRect.width }
   })
 }
 
@@ -124,40 +125,32 @@ describe('Story 12-2: Library top bar, grid and import overlay', () => {
     expect(card.text).not.toMatch(/Invalid|undefined|NaN/)
   })
 
-  it('grid is 4 columns at 1440 and narrows to 3 then 2; covers keep their ratio', async () => {
+  it('grid fills the width with auto-fill columns: wider window, never fewer columns, every card at least 240 px', async () => {
     for (const name of IPC_WORKS) await createViaIpc(name)
-    await realClick(await $(LIST_BTN))
+    await reloadWorks()
     await browser.waitUntil(async () => (await cardNames()).length >= 5, {
       timeout: 30_000,
       timeoutMsg: 'fewer than five cards after reload',
     })
 
     const seen = []
-    for (const [width, expected] of [
-      [1440, 4],
-      [1000, 3],
-      [800, 2],
-    ]) {
+    for (const width of [800, 1000, 1440]) {
       await resizeToLogicalWidth(width)
       let shape = null
-      try {
-        await browser.waitUntil(
-          async () => {
-            shape = await gridShape()
-            return shape.cols === expected
-          },
-          { timeout: 10_000 },
-        )
-      } catch {
-        throw new Error(`at logical width ${width} expected ${expected} columns, last read ${JSON.stringify(shape)}`)
-      }
-      const tier = shape.content >= 1000 ? 4 : shape.content >= 800 ? 3 : 2
-      expect(shape.cols).toBe(tier)
-      expect(Math.abs(shape.ratio - 1)).toBeLessThan(0.05)
+      await browser.waitUntil(
+        async () => {
+          shape = await gridShape()
+          return shape.cols >= 1 && shape.gridWidth > 0
+        },
+        { timeout: 10_000, timeoutMsg: `no grid shape at logical width ${width}` },
+      )
       expect(shape.gridWidth).toBeGreaterThan(shape.content - 2)
+      for (const cellWidth of shape.cellWidths) expect(cellWidth).toBeGreaterThanOrEqual(239)
       seen.push(shape.cols)
     }
-    expect(seen).toEqual([4, 3, 2])
+    expect(seen[0]).toBeLessThanOrEqual(seen[1])
+    expect(seen[1]).toBeLessThanOrEqual(seen[2])
+    expect(seen[2]).toBeGreaterThan(seen[0])
   })
 
   it('the old blocks sit below the grid in the old order', async () => {

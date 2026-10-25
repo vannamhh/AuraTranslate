@@ -164,6 +164,7 @@ describe('Story 12-5 — Library search: scope, groups, open in Reading', () => 
   })
 
   it('a status filter that excludes the Work blocks the hit and says how many Chapters were not searched', async () => {
+    await openChip('status')
     await realClick(await $('[data-lifecycle-filter="not_started"]'))
     await waitForHits(0, 'filter not_started')
     const blocked = await browser.execute(

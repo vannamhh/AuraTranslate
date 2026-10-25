@@ -59,6 +59,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
 async function freshStatusBar() {
   vi.resetModules()
   const state = await import('../../src/panels/editorPanelState')
+  ;(await import('../../src/modes/modeState')).setMode('workspace')
   const StatusBar = (await import('../../src/StatusBar.vue')).default
   return { state, StatusBar }
 }

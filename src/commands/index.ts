@@ -446,6 +446,8 @@ export type CommandDeps = {
   openCurrentLibraryWork?: () => void
   /** Handler of `library.open_work_reviewer_import`: opens the selected Work, then the reviewer-import picker. */
   openCurrentLibraryWorkThenReviewerImport?: () => void
+  /** Handler of `library.continue_translation`: opens the selected Work and moves to Workspace. */
+  continueCurrentLibraryTranslation?: () => void
   /** Liệt kê (hoặc tải lại) Chương của Tác phẩm ĐANG MỞ. Handler của
    * `library.list_chapters`. */
   loadLibraryChapters?: () => void
@@ -2179,6 +2181,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.open_work_reviewer_import', 'openCurrentLibraryWorkThenReviewerImport')
       }
       deps.openCurrentLibraryWorkThenReviewerImport()
+    },
+  })
+  target.register({
+    id: 'library.continue_translation',
+    labelKey: 'command.library.continue_translation',
+    keys: ['Shift+Enter'],
+    run: () => {
+      if (deps.continueCurrentLibraryTranslation === undefined) {
+        return portMissing('library.continue_translation', 'continueCurrentLibraryTranslation')
+      }
+      deps.continueCurrentLibraryTranslation()
     },
   })
   target.register({

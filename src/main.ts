@@ -163,6 +163,7 @@ import {
   moveCurrentChapterUp as moveCurrentLibraryChapterUp,
   nextChapter as nextLibraryChapter,
   openCurrentChapter as openCurrentLibraryChapter,
+  continueCurrentLibraryTranslation,
   openCurrentLibraryWork,
   openCurrentLibraryWorkThenReviewerImport,
   prevChapter as prevLibraryChapter,
@@ -694,6 +695,7 @@ async function boot(): Promise<void> {
       // Story 5.7 — "Danh sách Chương và mở Chương vào Workspace" (FR12).
       openCurrentLibraryWork,
       openCurrentLibraryWorkThenReviewerImport,
+      continueCurrentLibraryTranslation,
       loadLibraryChapters,
       nextLibraryChapter,
       prevLibraryChapter,

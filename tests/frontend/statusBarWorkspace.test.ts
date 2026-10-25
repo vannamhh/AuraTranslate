@@ -81,6 +81,7 @@ async function freshBar() {
   const chapters = await import('../../src/modes/libraryChapters')
   const commands = await import('../../src/commands')
   if (commands.commandRegistry.list().length === 0) commands.installCommands({ isMac: true, setMode: () => {} })
+  ;(await import('../../src/modes/modeState')).setMode('workspace')
   const StatusBar = (await import('../../src/StatusBar.vue')).default
   await chapters.loadChapters()
   await state.ensureSegmentsLoaded()

@@ -35,6 +35,7 @@
  */
 
 import { realClick, modifiedMouseDown } from '../support/pointer.mjs'
+import { aimWork, openAimedWork, reloadWorks } from '../support/libraryGrid.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `e2e-reorg-${RUN_TAG}`
@@ -43,9 +44,6 @@ const WORK_NAME = `e2e-reorg-${RUN_TAG}`
 // mọi phép khẳng định phía sau đỏ được.
 const SOURCE_TEXT = 'Cau mot。Cau hai。Cau ba。Cau bon。'
 
-const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
-const WORK_NEXT_BTN = '[data-library-work-next]'
-const OPEN_WORK_BTN = '[data-library-open-work]'
 const WORK_PAGE = '[data-library-work-page]'
 const WORK_PAGE_BACK_BTN = '[data-library-work-page-close]'
 const CHAPTER_ROWS = '[data-library-chapters-list] [data-library-chapter-row]'
@@ -121,44 +119,17 @@ async function chapterProbe() {
   }, CHAPTER_ROWS)
 }
 
-async function workGridProbe() {
-  return browser.execute(() => {
-    const cells = Array.from(document.querySelectorAll('.works-grid .work-cell'))
-    return {
-      names: cells.map((cell) => (cell.querySelector('.work-name')?.textContent || '').trim()),
-      currentIndex: cells.findIndex((cell) => cell.getAttribute('aria-current') === 'true'),
-    }
-  })
-}
-
-async function moveWorkCursorTo(name) {
-  await browser.waitUntil(async () => (await workGridProbe()).names.includes(name), {
-    timeout: 30_000,
-    timeoutMsg: `Tác phẩm "${name}" không xuất hiện trong lưới sau 30 giây`,
-  })
-  const nextBtn = await $(WORK_NEXT_BTN)
-  await browser.waitUntil(
-    async () => {
-      const probe = await workGridProbe()
-      if (probe.names[probe.currentIndex] === name) return true
-      await realClick(nextBtn)
-      return false
-    },
-    { timeout: 20_000, timeoutMsg: `con trỏ lưới không tới được ô "${name}" sau 20 giây` },
-  )
-}
-
 /** Nạp lại danh sách Chương qua đường SẢN PHẨM — bấm "Mở Tác phẩm" (`library.open_work`),
- * thứ đọc lại `.atproj` từ đĩa rồi `loadChapters()`. Nút đó chỉ có trên lưới
- * Library: đi qua nút về Library trước rồi mở lại. */
+ * thứ đọc lại `.atproj` từ đĩa rồi `loadChapters()`. Lệnh đó chạy từ thẻ
+ * trên lưới Library: đi qua nút về Library trước rồi mở lại. */
 async function reloadChaptersViaOpenWork() {
   const back = await $(WORK_PAGE_BACK_BTN)
   if (await back.isExisting()) {
     await realClick(back)
     await $(WORK_PAGE).waitForExist({ reverse: true, timeout: 10_000 })
-    await moveWorkCursorTo(WORK_NAME)
+    await aimWork(WORK_NAME)
   }
-  await realClick(await $(OPEN_WORK_BTN))
+  await openAimedWork()
   await $(WORK_PAGE).waitForExist({ timeout: 20_000 })
 }
 
@@ -188,9 +159,9 @@ describe('Story 5.8 — tổ chức lại Chương: tách, đổi tên, dời, g
     const textsGoc = before.segments.map((s) => s.source_text)
 
     // ── Đưa Tác phẩm này thành Tác phẩm đang chọn trong lưới. ───────────────────────
-    await realClick(await $(LIST_WORKS_BTN))
-    await moveWorkCursorTo(WORK_NAME)
-    await realClick(await $(OPEN_WORK_BTN))
+    await reloadWorks()
+    await aimWork(WORK_NAME)
+    await openAimedWork()
     await $(WORK_PAGE).waitForExist({ timeout: 20_000 })
 
     await browser.waitUntil(async () => (await chapterProbe()).length === 1, {

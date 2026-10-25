@@ -63,12 +63,12 @@
  * hồi quy" của `5-6-luoi-tac-pham-loc-va-sap-xep.md` đã nêu trước đúng lượt đỏ này.
  */
 
-import { realClick } from '../support/pointer.mjs'
 // 🔵 SỬA (2026-09-14, G2 `deferred-work.md §*Deferred from: 6-13-alt-text-va-caption-la-hai-segment-mang-truong-vai (2026-09-09)*`) — `createWorkThroughForm` chuyển
 // sang `e2e/support/importForm.mjs` (dùng CHUNG với `story-5-4-lifecycle.e2e.mjs`): Story 6.3
 // (`d20fe67`) chèn màn xem trước bảng mã giữa cú bấm nộp và lượt ghi thật, nên bản cũ (bấm
 // `form.$('button')` không tên) bấm trúng nút MỞ màn xem trước rồi coi như đã có Tác phẩm.
 import { createWorkThroughForm } from '../support/importForm.mjs'
+import { reloadWorks } from '../support/libraryGrid.mjs'
 
 // ⚠️ TÊN NGẮN có chủ ý — cùng lý lẽ đo được ở `story-5-4-lifecycle.e2e.mjs:33-36`: gõ qua
 // `setValue` trên form THẬT, mỗi ký tự là một lệnh WebDriver đi qua `ensureActiveWindowFocus`.
@@ -76,7 +76,6 @@ const WORK_NAME = `l5p${Date.now() % 1_000_000}`
 
 // Móc định danh, không `:nth-of-type` — cùng lý lẽ Story 5.4 (một lượt đổi thứ tự nút không
 // được phép làm spec bấm NHẦM nút mà vẫn xanh).
-const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
 
 /**
  * Chụp TOÀN BỘ thứ spec này cần, trong **đúng một** lệnh WebDriver — cùng lý lẽ đo được ở
@@ -106,9 +105,9 @@ async function screenProbe(name) {
   }, name)
 }
 
-/** Bấm "Tải danh sách" rồi chờ tới khi hàng của `name` xuất hiện, trả về ảnh chụp cuối. */
+/** Tải lại danh sách rồi chờ tới khi hàng của `name` xuất hiện, trả về ảnh chụp cuối. */
 async function loadWorksUntilPresent(name) {
-  await realClick(await $(LIST_WORKS_BTN))
+  await reloadWorks()
   let probe = null
   await browser.waitUntil(
     async () => {

@@ -7,14 +7,12 @@
  * vitest command-registry cases.
  */
 import { realClick, modifiedMouseDown } from '../support/pointer.mjs'
+import { aimWork, openAimedWork, reloadWorks } from '../support/libraryGrid.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `e2e-work-page-${RUN_TAG}`
 const SOURCE_TEXT = 'Cau mot。Cau hai。Cau ba。Cau bon。Cau nam。Cau sau。Cau bay。Cau tam。'
 
-const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
-const WORK_NEXT_BTN = '[data-library-work-next]'
-const OPEN_WORK_BTN = '[data-library-open-work]'
 const WORK_PAGE = '[data-library-work-page]'
 const ROWS = '[data-library-chapters-list] [data-library-chapter-row]'
 const FILTER = (key) => `[data-library-chapter-filter="${key}"]`
@@ -124,21 +122,9 @@ async function waitRows(count, message) {
 }
 
 async function openWorkPage() {
-  await realClick(await $(LIST_WORKS_BTN))
-  const next = await $(WORK_NEXT_BTN)
-  await browser.waitUntil(
-    async () => {
-      const current = await browser.execute(() => {
-        const name = document.querySelector('.works-grid .work-cell[aria-current="true"] .work-name')
-        return name === null ? '' : (name.textContent || '').trim()
-      })
-      if (current === WORK_NAME) return true
-      await realClick(next)
-      return false
-    },
-    { timeout: 30_000, timeoutMsg: `the grid cursor never reached "${WORK_NAME}"` },
-  )
-  await realClick(await $(OPEN_WORK_BTN))
+  await reloadWorks()
+  await aimWork(WORK_NAME)
+  await openAimedWork()
   await $(WORK_PAGE).waitForExist({ timeout: 20_000 })
   await browser.waitUntil(async () => (await probe()).rows.length > 0, {
     timeout: 20_000,
@@ -330,18 +316,18 @@ describe('Story 12-4 · Work page Chapter list', () => {
     expect(onButton).toBe(true)
   })
 
-  it('the back button returns focus to the open button of the same Work card', async () => {
+  it('the back button returns focus to the same Work card', async () => {
     await realClick(await $('[data-library-work-page-close]'))
     await $(WORK_PAGE).waitForExist({ reverse: true, timeout: 10_000 })
     await browser.waitUntil(
       async () =>
         browser.execute((name) => {
           const active = document.activeElement
-          if (active === null || !active.hasAttribute('data-library-open-work')) return false
+          if (active === null) return false
           const card = active.closest('.work-cell')
           return (card?.querySelector('.work-name')?.textContent || '').trim() === name
         }, WORK_NAME),
-      { timeout: 10_000, timeoutMsg: `focus did not return to the open button of "${WORK_NAME}"` },
+      { timeout: 10_000, timeoutMsg: `focus did not return to the card of "${WORK_NAME}"` },
     )
   })
 })

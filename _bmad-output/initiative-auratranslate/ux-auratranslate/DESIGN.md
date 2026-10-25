@@ -202,9 +202,9 @@ Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component
 
 ### Tông bìa Tác phẩm — **12 token mỗi theme** *(🔵 thêm 2026-10-25, Ice duyệt)*
 
-🔵 2026-10-25: tổng token màu mỗi theme thành 17 + 12 = 29; bảng 17 ở trên giữ nguyên. `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
+🔵 2026-10-25: tổng token màu mỗi theme thành 24 + 12 = 36 (số thật của `tokens.json`: đã có `diff-*` và `word-*` ngoài bảng 17); bảng 17 ở trên giữ nguyên. `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
 
-Bìa thẻ Tác phẩm ở Library là một dải chuyển `160deg` từ `cover-N-from` sang `cover-N-to`. Mỗi Tác phẩm một tông cố định, chọn theo `work_id`, nên đổi tên không đổi màu. Tông 1–3 lấy từ `mockups/library-and-import.html`; 4–6 thêm cho màn có nhiều Tác phẩm. Hình mẫu: `mockups/library-luoi-rong.html`.
+Bìa thẻ Tác phẩm ở Library là một màu đặc `cover-N-from` (Ice, 2026-10-25: không dải chuyển, giữ luật không gradient của Kiểm F); `cover-N-to` có sẵn nhưng chưa có chỗ dùng. Mỗi Tác phẩm một tông cố định, chọn theo `work_id`, nên đổi tên không đổi màu. Tông 1–3 lấy từ `mockups/library-and-import.html`; 4–6 thêm cho màn có nhiều Tác phẩm. Hình mẫu: `mockups/library-luoi-rong.html`.
 
 Đây là **mặt trang trí, không bao giờ là nền của chữ.** Nhãn ngôn ngữ, nút `Tiếp tục dịch` và nút `⋯` đặt trên bìa đều có nền đặc riêng (`surface` hoặc `primary`), nên chỉ dùng các cặp tương phản đã kiểm: **0 cặp mới**.
 

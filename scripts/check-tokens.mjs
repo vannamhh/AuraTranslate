@@ -167,6 +167,18 @@ const EXPECTED_COLORS_LIGHT = {
   'word-page': '#ffffff',
   'word-ink': '#1a1a1a',
   'word-rule': '#767676',
+  'cover-1-from': '#3d4f52',
+  'cover-2-from': '#5c4a3a',
+  'cover-3-from': '#4a4658',
+  'cover-4-from': '#4e5a3c',
+  'cover-5-from': '#6b4339',
+  'cover-6-from': '#3a4c64',
+  'cover-1-to': '#26312f',
+  'cover-2-to': '#3a2f26',
+  'cover-3-to': '#2e2c3a',
+  'cover-4-to': '#2f3725',
+  'cover-5-to': '#3f2823',
+  'cover-6-to': '#232f3f',
 }
 
 const EXPECTED_COLORS_DARK = {
@@ -195,6 +207,18 @@ const EXPECTED_COLORS_DARK = {
   'word-page': '#ffffff',
   'word-ink': '#1a1a1a',
   'word-rule': '#767676',
+  'cover-1-from': '#46595c',
+  'cover-2-from': '#66533f',
+  'cover-3-from': '#534e63',
+  'cover-4-from': '#57643f',
+  'cover-5-from': '#74493e',
+  'cover-6-from': '#42566f',
+  'cover-1-to': '#2f3b3a',
+  'cover-2-to': '#42362b',
+  'cover-3-to': '#363343',
+  'cover-4-to': '#37402b',
+  'cover-5-to': '#48302a',
+  'cover-6-to': '#2a3747',
 }
 
 /** Cỡ / giãn dòng / nét / kiểu / giãn chữ — nguyên văn §Bảng token typography. */
@@ -287,7 +311,7 @@ const EXPECTED_ROUNDED = {
  * `typography` lên lại 18 với `ui-sm-italic` — token nghiêng thật của ô xuất xứ Chương
  * rỗng, thay cho việc mượn `lookup-example`. Xem `tokens.deviations` trong `tokens.json`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 24, typography: 18, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 36, typography: 18, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -752,7 +776,7 @@ for (const theme of ['light', 'dark']) {
     }
   }
 }
-if (shapeBad === 0) pass('32 giá trị màu đều đúng hình dạng `#rrggbb`')
+if (shapeBad === 0) pass('72 giá trị màu đều đúng hình dạng `#rrggbb`')
 
 // Mọi deviation đã khai phải THẬT SỰ được dùng. Một mục thừa nghĩa là hoặc ai đó đã
 // lặng lẽ khôi phục giá trị gốc mà quên gỡ mục, hoặc mục được viết ra để chừa sẵn chỗ
@@ -1782,7 +1806,7 @@ function emittedVarNames(tok) {
 const emittedVars = emittedVarNames(tokens)
 
 /** `ceil(0.85 × live)`, qua `judgeFloor` — bắt một lượt tính RỖNG hoặc gãy nửa chừng. */
-const EMITTED_VAR_FLOOR = 147
+const EMITTED_VAR_FLOOR = 159
 {
   const v = judgeFloor(EMITTED_VAR_FLOOR, emittedVars.size, 'EMITTED_VAR_FLOOR', 'biến do `tokens/index.ts` phát')
   if (!v.ok) {

@@ -41,7 +41,9 @@ import { isSegmentConfirmed } from './config/segment'
 import { EDITOR_HARD_CAP_MS, EDITOR_IDLE_MS } from './panels/editorFlush'
 import { isMeaningKind } from './config/proofread'
 import { shortcutRows } from './config/shortcutsState'
-import { libraryChapters } from './modes/libraryChapters'
+import { libraryChapters, libraryOpenWorkError, libraryOpenWorkNotice } from './modes/libraryChapters'
+import { libraryRescanBusy, libraryRescanError } from './modes/libraryRescan'
+import { libraryWorksError, libraryWorksHaveLoaded, libraryWorksTotal } from './modes/libraryWorks'
 import { currentMode } from './modes/modeState'
 import { readingMarksWalkProgress } from './modes/readingState'
 import { groupedLookup, sensesByLayer } from './panels/lookupPanelState'
@@ -504,6 +506,17 @@ const glossaryHoverText = computed<string | null>(() => {
   if (err !== null && glossaryMarksErrorVisible.value) return tError(err)
   return null
 })
+
+const libraryWorksText = computed<string | null>(() =>
+  libraryWorksHaveLoaded.value ? t('status.library_works', { count: String(libraryWorksTotal.value) }) : null,
+)
+const libraryErrorText = computed<string | null>(() => {
+  const error = libraryOpenWorkError.value ?? libraryWorksError.value ?? libraryRescanError.value
+  if (error !== null) return tError(error)
+  if (libraryOpenWorkNotice.value === 'flush-failed') return t('mode.library.open_work_flush_failed')
+  if (libraryOpenWorkNotice.value === 'still-dirty') return t('mode.library.open_work_still_dirty')
+  return null
+})
 </script>
 
 <template>
@@ -513,6 +526,18 @@ const glossaryHoverText = computed<string | null>(() => {
     đọc màn hình đọc lại mỗi lần. `aria-live` để mặc định (`polite`).
   -->
   <footer class="status">
+    <template v-if="currentMode === 'library'">
+      <div class="status-info" data-status-info data-status-library>
+        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+        <span v-if="libraryWorksText !== null" class="info-item" data-status-library-works>{{ libraryWorksText }}</span>
+        <span v-if="libraryRescanBusy" class="info-item" data-status-library-scanning>{{ t('status.library_scanning') }}</span>
+      </div>
+      <div class="status-live" role="status" data-status-live>
+        <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+        <span v-if="libraryErrorText !== null" class="notice" data-status-library-error>{{ libraryErrorText }}</span>
+      </div>
+    </template>
+    <template v-else>
     <div class="status-info" data-status-info>
       <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
       <span v-if="positionText !== null" class="info-item" data-status-position>{{ positionText }}</span>
@@ -650,6 +675,7 @@ const glossaryHoverText = computed<string | null>(() => {
       {{ t('command.layout.lookup_drawer_open') }}
     </button>
     </div>
+    </template>
   </footer>
 </template>
 

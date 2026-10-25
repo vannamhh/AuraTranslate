@@ -93,6 +93,7 @@
  */
 
 import { realClick } from '../support/pointer.mjs'
+import { aimWork, openAimedWork, reloadWorks } from '../support/libraryGrid.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `e2e-open-chapter-${RUN_TAG}`
@@ -106,11 +107,8 @@ const SOURCE_TEXT = 'Cau thu nhat。Cau thu hai。'
 const WORK_NAME_B = `e2e-open-chapter-b-${RUN_TAG}`
 const SOURCE_TEXT_B = 'Chi mot cau。'
 
-const WORK_NEXT_BTN = '[data-library-work-next]'
-const OPEN_WORK_BTN = '[data-library-open-work]'
 const CHAPTER_ROWS = '[data-library-chapters-list] [data-library-chapter-row]'
 const OPEN_CHAPTER_BTN = '[data-library-open-chapter]'
-const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
 
 /** Tạo một Tác phẩm qua cầu IPC thật, cùng khuôn mọi spec Epic 5 khác. Trả về `work_id`. */
 async function createWork(name, text) {
@@ -163,35 +161,6 @@ async function saveChapterPositionViaIpc(chapterId, segmentId) {
     },
     chapterId,
     segmentId,
-  )
-}
-
-/** Chụp trạng thái lưới Tác phẩm cần cho spec này, trong đúng một lệnh WebDriver. */
-async function workGridProbe() {
-  return browser.execute(() => {
-    const cells = Array.from(document.querySelectorAll('.works-grid .work-cell'))
-    return {
-      names: cells.map((cell) => (cell.querySelector('.work-name')?.textContent || '').trim()),
-      currentIndex: cells.findIndex((cell) => cell.getAttribute('aria-current') === 'true'),
-    }
-  })
-}
-
-/** Di chuyển con trỏ lưới Tác phẩm (bằng phím `Enter` trên nút `›`) tới đúng ô mang `name`. */
-async function moveWorkCursorTo(name) {
-  await browser.waitUntil(
-    async () => (await workGridProbe()).names.includes(name),
-    { timeout: 30_000, timeoutMsg: `Tác phẩm "${name}" không xuất hiện trong lưới sau 30 giây` },
-  )
-  const nextBtn = await $(WORK_NEXT_BTN)
-  await browser.waitUntil(
-    async () => {
-      const probe = await workGridProbe()
-      if (probe.names[probe.currentIndex] === name) return true
-      await realClick(nextBtn)
-      return false
-    },
-    { timeout: 20_000, timeoutMsg: `con trỏ lưới không tới được ô "${name}" sau 20 giây` },
   )
 }
 
@@ -250,14 +219,13 @@ describe('Story 5.7 — mở lại một .atproj đã có trên đĩa và khôi 
 
     // ── Làm mới lưới Tác phẩm rồi đưa con trỏ tới Ô CỦA A. ──────────────────────────
     // `create_work` qua IPC trần KHÔNG đi qua `libraryImport.ts`, nên `watch(createdWork)`
-    // không bắn và lưới chưa biết về B. Bấm "Tải danh sách" là đường làm mới TƯỜNG MINH của
+    // không bắn và lưới chưa biết về B. Bật rồi tắt một bộ lọc trạng thái là đường làm mới TƯỜNG MINH còn lại của
     // sản phẩm — không một lượt đổi chế độ chỉ để kích `onActivated`.
-    await realClick(await $(LIST_WORKS_BTN))
-    await moveWorkCursorTo(WORK_NAME)
+    await reloadWorks()
+    await aimWork(WORK_NAME)
 
     // ── "Mở Tác phẩm" — `library.open_work`, đường MỞ LẠI thật. ─────────────────────
-    const openWorkBtn = await $(OPEN_WORK_BTN)
-    await realClick(openWorkBtn)
+    await openAimedWork()
 
     // 🔴 ĐỐI CHỨNG DƯƠNG của lượt mở lại: Chương đang mở phải QUAY VỀ của A, không còn của
     // B. Không một `loadChapters()` tự động nào dựng được mệnh đề này — nó chỉ đúng khi

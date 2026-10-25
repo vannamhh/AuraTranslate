@@ -44,6 +44,7 @@ import { realClick } from '../support/pointer.mjs'
 // trước, không sau cú bấm nộp; hàm dùng chung đi trọn cả hai bước đó trước khi trả về, nên
 // đối chứng cũ ("gỡ khối `watch` kia ⇒ ca đầu phải ĐỎ ở `waitEnabled`") vẫn đứng nguyên.
 import { createWorkThroughForm } from '../support/importForm.mjs'
+import { aimWork, openAimedWork, openChip, reloadWorks } from '../support/libraryGrid.mjs'
 
 // ⚠️ TÊN NGẮN có chủ ý: ca đầu gõ tên này qua `setValue` trên form THẬT, và mỗi ký tự là một
 // lệnh WebDriver đi qua `ensureActiveWindowFocus` — một tên 30 ký tự đủ làm ca đó vượt trần
@@ -55,14 +56,11 @@ const WORK_NAME_B = `e2e-lifecycle-b-${Date.now()}`
 // 🔵 SỬA (2026-08-28) — định vị bằng MÓC ĐỊNH DANH, không `:nth-of-type`. Bản trước đếm vị
 // trí nút, nên một lượt đổi thứ tự sáu nút trong `LibraryMode.vue` làm spec bấm NHẦM nút và
 // vẫn xanh — một lượt đỏ sai nguyên nhân là thứ đắt nhất trong bộ này (`e2e/AGENTS.md`).
-const LIST_WORKS_BTN = '[data-lifecycle-action="list_works"]'
 const FILTER_NOT_STARTED_BTN = '[data-lifecycle-filter="not_started"]'
 const FILTER_DONE_BTN = '[data-lifecycle-filter="done"]'
 const CLEAR_FILTER_BTN = '[data-lifecycle-action="clear_filter"]'
 const WORKS_ROWS = '.works-block .works-grid .work-cell'
 
-const WORK_NEXT_BTN = '[data-library-work-next]'
-const OPEN_WORK_BTN = '[data-library-open-work]'
 const WORK_PAGE = '[data-library-work-page]'
 const WORK_PAGE_BACK_BTN = '[data-library-work-page-close]'
 const STATUS_WHY = '[data-library-work-status-why]'
@@ -176,36 +174,19 @@ async function waitForWorkRows(check, timeoutMsg) {
   await browser.waitUntil(async () => check(await workRowNames()), { timeout: 30_000, timeoutMsg })
 }
 
-/** Bấm "Tải danh sách" rồi chờ tới khi `name` có mặt trong danh sách. */
+/** Tải lại danh sách (bật rồi tắt một bộ lọc trạng thái) rồi chờ tới khi `name` có mặt trong danh sách. */
 async function loadWorksUntilPresent(name) {
-  await realClick(await $(LIST_WORKS_BTN))
+  await reloadWorks()
   await waitForWorkRows(
     (names) => names.includes(name),
     `hàng của Tác phẩm "${name}" không xuất hiện trong danh sách sau 30 giây`,
   )
 }
 
-/** Moves the grid cursor to the card named `name` with the grid's next button. */
-async function moveWorkCursorTo(name) {
-  const nextBtn = await $(WORK_NEXT_BTN)
-  await browser.waitUntil(
-    async () => {
-      const current = await browser.execute(() => {
-        const cell = document.querySelector('.works-grid .work-cell[aria-current="true"] .work-name')
-        return cell === null ? '' : (cell.textContent || '').trim()
-      })
-      if (current === name) return true
-      await realClick(nextBtn)
-      return false
-    },
-    { timeout: 30_000, timeoutMsg: `the grid cursor never reached "${name}"` },
-  )
-}
-
 /** The lifecycle buttons now live on the Work page: select the card, open the page. */
 async function openWorkPageOf(name) {
-  await moveWorkCursorTo(name)
-  await realClick(await $(OPEN_WORK_BTN))
+  await aimWork(name)
+  await openAimedWork()
   await $(WORK_PAGE).waitForExist({ timeout: 20_000 })
 }
 
@@ -276,6 +257,7 @@ describe('Story 5.4 · FR5/FR6 — bốn trạng thái vòng đời trong cửa 
 
     // Lọc theo "Chưa bắt đầu" — Tác phẩm B (chưa từng đổi trạng thái) phải CÒN.
     // Bấm một nút lọc tự kéo theo một lượt `loadWorks()`, không cần bấm "Tải danh sách".
+    await openChip('status')
     await realClick(await $(FILTER_NOT_STARTED_BTN))
     await waitForWorkRows(
       (names) => names.includes(WORK_NAME_B),
@@ -284,7 +266,9 @@ describe('Story 5.4 · FR5/FR6 — bốn trạng thái vòng đời trong cửa 
 
     // Bỏ bộ lọc "Chưa bắt đầu", bật RIÊNG "Đã xong" — Tác phẩm B (chưa xong) KHÔNG được khớp.
     // Đây là vế "riêng rẽ": tắt một giá trị rồi bật một giá trị khác phải đổi HẲN tập kết quả.
+    await openChip('status')
     await realClick(await $(FILTER_NOT_STARTED_BTN))
+    await openChip('status')
     await realClick(await $(FILTER_DONE_BTN))
     await waitForWorkRows(
       (names) => !names.includes(WORK_NAME_B),
@@ -292,6 +276,7 @@ describe('Story 5.4 · FR5/FR6 — bốn trạng thái vòng đời trong cửa 
     )
 
     // Và bỏ lọc thì nó quay lại — chứng minh nó biến mất vì BỘ LỌC, không vì rơi khỏi chỉ mục.
+    await openChip('status')
     await realClick(await $(CLEAR_FILTER_BTN))
     await waitForWorkRows(
       (names) => names.includes(WORK_NAME_B),
