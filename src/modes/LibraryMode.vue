@@ -687,22 +687,7 @@ const importScreenIsOpen = computed<boolean>(
 
     <div class="created-block">
 
-      <!--
-        Bốn node LUÔN có mặt (không `v-if`) để trình đọc màn hình công bố được nội
-        dung ĐỔI — cùng lý lẽ với dải báo lỗi cấu hình của `App.vue`. `role="status"`,
-        không `role="alert"`: đây là kết quả một thao tác, không phải tình huống khẩn.
-      -->
-      <!-- aura-allow-text: cả hai nhánh đi qua t()/chuỗi rỗng, không chuỗi viết thẳng
-           nào — Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
-      <p class="status" role="status">
-        {{ createdWork ? t('mode.library.created', { name: createdWork.meta.name, folder: createdWork.folder }) : '' }}
-      </p>
-      <!--
-        `source_lang_mismatch` là một
-        CẢNH BÁO không chặn (script của văn bản không khớp `source_lang` đã khai): Rust vẫn
-        ghi, và dải này chỉ NÓI, không khoá gì. Đứng CẠNH `.status`, không lồng vào trong —
-        cùng khuôn ba node kia, mỗi node một câu độc lập.
-      -->
+      <!-- Always rendered (no `v-if`) so a screen reader announces the changed text. -->
       <!-- aura-allow-text: qua t()/chuỗi rỗng, Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
       <p class="notice source-lang-warning" role="status">
         {{ createdWork?.source_lang_mismatch === true ? t('mode.library.source_lang_mismatch_warning') : '' }}

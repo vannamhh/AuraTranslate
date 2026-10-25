@@ -44,6 +44,7 @@ import { shortcutRows } from './config/shortcutsState'
 import { libraryChapters, libraryOpenWorkError, libraryOpenWorkNotice } from './modes/libraryChapters'
 import { libraryRescanBusy, libraryRescanError } from './modes/libraryRescan'
 import { libraryWorksError, libraryWorksHaveLoaded, libraryWorksTotal } from './modes/libraryWorks'
+import { createdWork } from './modes/libraryImport'
 import { currentMode } from './modes/modeState'
 import { readingMarksWalkProgress } from './modes/readingState'
 import { groupedLookup, sensesByLayer } from './panels/lookupPanelState'
@@ -510,6 +511,10 @@ const glossaryHoverText = computed<string | null>(() => {
 const libraryWorksText = computed<string | null>(() =>
   libraryWorksHaveLoaded.value ? t('status.library_works', { count: String(libraryWorksTotal.value) }) : null,
 )
+const libraryCreatedText = computed<string | null>(() => {
+  const created = createdWork.value
+  return created === null ? null : t('mode.library.created', { name: created.meta.name, folder: created.folder })
+})
 const libraryErrorText = computed<string | null>(() => {
   const error = libraryOpenWorkError.value ?? libraryWorksError.value ?? libraryRescanError.value
   if (error !== null) return tError(error)
@@ -535,6 +540,14 @@ const libraryErrorText = computed<string | null>(() => {
       <div class="status-live" role="status" data-status-live>
         <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
         <span v-if="libraryErrorText !== null" class="notice" data-status-library-error>{{ libraryErrorText }}</span>
+        <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (tên và thư mục Tác phẩm). -->
+        <span
+          v-else-if="libraryCreatedText !== null"
+          class="notice"
+          :title="libraryCreatedText"
+          data-status-library-created
+          >{{ libraryCreatedText }}</span
+        >
       </div>
     </template>
     <template v-else>

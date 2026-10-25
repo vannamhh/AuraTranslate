@@ -887,7 +887,7 @@
   "mode.library.url_screen_open": "Nhập từ website…",
   "mode.library.field_bilingual_path": "Hoặc nhập đường dẫn tệp song ngữ (.csv/.tsv/.docx)",
   "mode.library.submit_bilingual": "Tạo Tác phẩm từ tệp song ngữ",
-  "mode.library.created": "Đã tạo Tác phẩm \"{name}\" tại thư mục {folder}. Copy thư mục đó đi đâu cũng mở lại được — nếu đang mở Tác phẩm, bản copy có thể thiếu tối đa 5 giây công việc cuối: cũ hơn, không hỏng.",
+  "mode.library.created": "Đã tạo Tác phẩm \"{name}\" — {folder}",
   "mode.library.source_lang_mismatch_warning": "Văn bản có vẻ không khớp ngôn ngữ nguồn đã chọn — vẫn đã ghi lại, kiểm tra lại lựa chọn ngôn ngữ nếu cần.",
   "mode.library.images_failed_warning": "{count} ảnh không tải được — vẫn đã tạo Tác phẩm, xem nhật ký domain để biết vì sao.",
   "mode.library.chapter_origin_apply_through_label": "Áp xuất xứ Chương này đến Chương số",

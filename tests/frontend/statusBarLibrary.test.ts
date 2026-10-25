@@ -94,4 +94,37 @@ describe('StatusBar — Library branch', () => {
     expect(wrapper.find('[data-status-library-error]').text()).toBe(t('mode.library.open_work_still_dirty'))
     wrapper.unmount()
   })
+
+  it('shows the short "created" line with the folder, and an error takes its place', async () => {
+    const { works, chapters, wrapper } = await setup('library')
+    const imp = await import('../../src/modes/libraryImport')
+    imp.createdWork.value = {
+      meta: {
+        meta_schema_version: 1,
+        work_id: 'id-b',
+        name: 'test 1',
+        source_lang: 'zh',
+        genre: '',
+        created_at: '2026-10-25T00:00:00.000Z',
+        updated_at: '2026-10-25T00:00:00.000Z',
+        chapter_count: 1,
+      },
+      folder: '/Users/x/Documents/AuraTranslate/test 1.atproj',
+      images_saved: 0,
+      images_failed: 0,
+      source_lang_mismatch: false,
+    }
+    await wrapper.vm.$nextTick()
+    const created = wrapper.find('[data-status-library-created]')
+    expect(created.text()).toBe('Đã tạo Tác phẩm "test 1" — /Users/x/Documents/AuraTranslate/test 1.atproj')
+    expect(created.attributes('title')).toBe(created.text())
+
+    await works.loadWorks()
+    expect(await chapters.openWorkById('id-a')).toBe(false)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-status-library-error]').exists()).toBe(true)
+    expect(wrapper.find('[data-status-library-created]').exists()).toBe(false)
+    imp.createdWork.value = null
+    wrapper.unmount()
+  })
 })
