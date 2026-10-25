@@ -44,6 +44,7 @@ Fully offline dictionary-lookup and translation workspace. Tauri v2 · Rust in `
 - A background watcher greps a sentinel the script really prints (emit it from `trap … EXIT`) and caps every step: `perl -e 'alarm shift; exec @ARGV' <secs> <cmd…>` (exit 142 = timeout). macOS has no `timeout`.
 - `tauri.conf.json` bundles only `fonts/` and `license/`, not `dict`; tests read dictionaries via `CARGO_MANIFEST_DIR`. A green Rust suite says nothing about dictionaries in a packaged app.
 - A measurement states its build and population. Never mark something passed by inference; what cannot be accepted now goes to `deferred-work.md` with an owner.
+- `npm run tauri dev` starts the app inactive (unified log: `ordered front from a non-active application`): for up to ~2 min every single click in every window of the process is swallowed, double clicks pass. Not a hang and not app code. `set_focus()` cannot activate it on macOS 15, and AD-58 Rule 7 keeps `acceptFirstMouse` off. Workaround: Cmd-Tab away and back (not yet measured).
 
 ## Code comments
 
