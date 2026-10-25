@@ -24,6 +24,7 @@ import {
   commitAiConfigField,
   runAiConfigTest,
   selectAiConfigProvider,
+  aiConfigPresetConfirm,
   aiConfigFieldWire,
   aiConfigViewTier,
   aiConfigWorkIsOpen,
@@ -413,6 +414,43 @@ function onDeleteAiConfigKey(): void {
                       {{ t(aiProviderLabelKey(provider)) }}
                     </button>
                   </form>
+                </div>
+                <div
+                  v-if="aiConfigPresetConfirm !== null"
+                  class="ai-preset-confirm"
+                  role="alertdialog"
+                  aria-labelledby="ai-preset-confirm-title"
+                  aria-describedby="ai-preset-confirm-body"
+                  data-ai-preset-confirm
+                  :data-ai-preset-provider="aiConfigPresetConfirm.provider"
+                >
+                  <p id="ai-preset-confirm-title" class="ai-preset-confirm-title">
+                    {{
+                      t('settings.ai_config.preset_confirm_title', {
+                        provider: t(aiProviderLabelKey(aiConfigPresetConfirm.provider)),
+                      })
+                    }}
+                  </p>
+                  <p id="ai-preset-confirm-body">{{ t('settings.ai_config.preset_confirm_body') }}</p>
+                  <ul class="ai-preset-confirm-list">
+                    <li v-for="change in aiConfigPresetConfirm.changes" :key="change.field" :data-ai-preset-change="change.field">
+                      <!-- aura-allow-text: giá trị cấu hình người dùng, không phải chuỗi giao diện. -->
+                      {{
+                        t(`settings.ai_config.preset_confirm_${change.field}`, {
+                          old: change.oldValue,
+                          new: change.newValue,
+                        })
+                      }}
+                    </li>
+                  </ul>
+                  <div class="ai-preset-confirm-actions">
+                    <button type="button" class="ai-pill" data-ai-preset-apply @click="dispatch('settings.ai_config.preset_apply')">
+                      {{ t('settings.ai_config.preset_apply') }}
+                    </button>
+                    <button type="button" class="ai-pill" data-ai-preset-cancel @click="dispatch('settings.ai_config.preset_cancel')">
+                      {{ t('settings.ai_config.preset_cancel') }}
+                    </button>
+                  </div>
                 </div>
                 <p class="ai-field-status">
                   <span :class="aiConfigIsOverridden('provider') ? 'mark-over' : 'mark-inh'">
@@ -1016,6 +1054,37 @@ function onDeleteAiConfigKey(): void {
   border-color: var(--color-primary);
   color: var(--color-primary);
   font-weight: var(--weight-ui-label);
+}
+
+.ai-preset-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 3);
+  border: 1px solid var(--color-outline);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+}
+
+.ai-preset-confirm p,
+.ai-preset-confirm-list {
+  margin: 0;
+}
+
+.ai-preset-confirm-title {
+  font-weight: var(--weight-ui-label);
+  color: var(--color-on-surface);
+}
+
+.ai-preset-confirm-list {
+  padding-left: calc(var(--space-unit) * 4);
+  word-break: break-all;
+}
+
+.ai-preset-confirm-actions {
+  display: flex;
+  gap: calc(var(--space-unit) * 2);
 }
 
 .ai-actions {

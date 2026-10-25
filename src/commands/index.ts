@@ -1128,6 +1128,10 @@ export type CommandDeps = {
   openSettingsToAiConfig?: () => void
   /** Trả mọi trường AI đang ghi đè ở tầng Tác phẩm về kế thừa. Handler của `settings.ai_config.clear_all_overrides`. */
   clearAllAiConfigOverrides?: () => void
+  /** Handler of `settings.ai_config.preset_apply`. */
+  confirmAiConfigPreset?: () => void
+  /** Handler of `settings.ai_config.preset_cancel`. */
+  cancelAiConfigPreset?: () => void
   /** Closes Settings and switches to Library mode, where the rescan report is drawn. Handler of `settings.data.open_report`. */
   openLibraryRescanReport?: () => void
   /** Đóng lớp phủ — KHÔNG dọn nhật ký đã tải. Handler của `settings.close`. */
@@ -4632,6 +4636,21 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.clearAllAiConfigOverrides()
     },
   })
+  for (const [id, port] of [
+    ['settings.ai_config.preset_apply', 'confirmAiConfigPreset'],
+    ['settings.ai_config.preset_cancel', 'cancelAiConfigPreset'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: undefined,
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
   target.register({
     id: 'settings.data.open_report',
     labelKey: 'command.settings.data.open_report',

@@ -27,6 +27,7 @@ context:
 **Decisions (agent, từ nguồn; Ice duyệt cùng plan):**
 - Thanh Phạm vi (a:197) thay radio "Tầng đang sửa"; ở mục không có tầng Tác phẩm (Phím tắt, Bố cục, Chế độ đọc, Dữ liệu, Cập nhật) thanh khoá ở Toàn cục kèm câu lý do của mockup. "N mục đang ghi đè" đếm trường AI có `tier === 'work'`; lệnh mới `settings.ai_config.clear_all_overrides` (`Mod+Shift+R`, đang trống) và nút "Trả toàn bộ mục về kế thừa" gọi cùng lệnh.
 - Chọn nhà cung cấp (a:206) ghi đúng trường `provider` (`anthropic|openai|ollama|lmstudio|custom`); giá trị cũ ngoài danh sách hiện là "Endpoint khác". Không tự ghi `endpoint`: địa chỉ mặc định của nhà cung cấp chỉ là placeholder (một lượt ghi chỉ chạm cột người dùng đồng ý đổi).
+  - 🔵 2026-10-25: Quyết định này bị thay bởi `plan-preset-cau-hinh-ai.md`: chọn một nhà cung cấp ghi cả `provider`, `endpoint` và `model` của preset, hỏi xác nhận trước khi ghi đè giá trị khác.
 - Thử kết nối dùng cấu hình ĐÃ LƯU của tầng đang xem (rời ô đã lưu trước khi bấm). 401/403 → khoá bị từ chối; 404 → endpoint hoặc mô hình không có; lỗi mạng → không tới được máy chủ; chưa cấu hình → lời mời, không phải lỗi (UX-DR27). Mỗi lỗi là message key riêng, có thể huỷ.
 - Tệp phím tắt là JSON có phiên bản, chỉ chứa các ghi đè (`{ "format": "auratranslate-shortcuts", "version": 1, "bindings": { id: [chord…] } }`, `[]` = bỏ gán). Nhập THAY TOÀN BỘ tập ghi đè; id lạ bị bỏ và đếm; chord sai hoặc va nhau sau khi áp ⇒ từ chối cả tệp, không ghi gì. Trả về mặc định hỏi một bước rồi xoá mọi hàng `shortcut`.
 - Ô tra ngược: phím in được không kèm Mod/Ctrl/Alt là chữ để tìm tên; tổ hợp có Mod/Ctrl/Alt hoặc phím không in được (trừ Tab, Esc, Backspace, Enter) là chord, lọc ra lệnh đang gán chord đó qua `resolveChord`.
@@ -116,6 +117,7 @@ Phase Tests:
 - Given tắt công tắc token, when một lượt dịch AI xong, then panel không hiện dòng token; bật lại thì hiện.
 - Given đã lưu một preset người dùng, when đổi tên, áp, rồi xoá nó, then danh sách Bố cục phản ánh từng bước và còn sau khi mở lại app.
 - Given chọn "Ollama" khi endpoint trống, then trường `provider` đổi, endpoint vẫn trống và hiện placeholder `http://localhost:11434/v1`.
+  - 🔵 2026-10-25: Ice đổi quyết định, xem `plan-preset-cau-hinh-ai.md`: chọn "Ollama" khi endpoint trống ghi `endpoint` = `http://localhost:11434/v1` cùng `provider`.
 
 ## Implementation Notes
 

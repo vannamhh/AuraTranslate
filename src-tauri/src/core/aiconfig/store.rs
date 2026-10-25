@@ -114,6 +114,30 @@ pub fn write_field(store: &Store, field: AiConfigField, value: &str) -> Result<(
     Ok(())
 }
 
+/// All rows or none: the caller has already validated every value.
+pub fn write_fields(store: &Store, fields: &[(AiConfigField, String)]) -> Result<(), StoreError> {
+    let rows: Vec<(String, String)> = fields
+        .iter()
+        .map(|(field, value)| (field.as_str().to_owned(), value.clone()))
+        .collect();
+
+    store.write(move |tx: &Transaction<'_>| {
+        for (key, value) in &rows {
+            tx.execute(
+                "INSERT INTO ai_config (key, value, updated_at)
+                 VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                 ON CONFLICT (key) DO UPDATE SET
+                   value      = excluded.value,
+                   updated_at = excluded.updated_at",
+                (key, value),
+            )?;
+        }
+        Ok(())
+    })?;
+
+    Ok(())
+}
+
 /// Xoá hàng của MỘT trường ở tầng `store` — "trả về kế thừa" (I/O Matrix: "Clear a Work
 /// override"). Xoá một khoá không tồn tại là **thành công**, cùng luật
 /// `core::scope::store::delete_value`: đường đọc phân biệt "chưa ghi đè" bằng SỰ CÓ MẶT của

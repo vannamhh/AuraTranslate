@@ -24,7 +24,7 @@
 use crate::commands::project::OpenWork;
 use crate::core::aiconfig::{
     AiConfigField, AiConfigKeyError, AiConfigStoreError, AiConfigTier, ResolvedField, clear_field,
-    keychain, resolve_two_tiers, validate_field, validate_key, write_field,
+    keychain, resolve_two_tiers, validate_field, validate_key, write_field, write_fields,
 };
 use crate::core::i18n::IpcError;
 use crate::core::scope::ScopeResolver;
@@ -260,6 +260,46 @@ pub fn ai_config_save_field(
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct AiConfigFieldValue {
+    pub field: AiConfigField,
+    pub value: String,
+}
+
+/// Writes every field at `tier` in one transaction; an empty list, a repeated field or one
+/// invalid value is `ai_config.invalid_value` with nothing written.
+pub fn ai_config_save_fields(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: AiConfigTier,
+    fields: &[AiConfigFieldValue],
+) -> Result<(), IpcError> {
+    if fields.is_empty() {
+        return Err(invalid_value_error("fields"));
+    }
+    let mut validated: Vec<(AiConfigField, String)> = Vec::with_capacity(fields.len());
+    for entry in fields {
+        if validated.iter().any(|(seen, _)| *seen == entry.field) {
+            return Err(invalid_value_error(entry.field.as_str()));
+        }
+        validated.push((entry.field, validate_field(entry.field, &entry.value)?));
+    }
+    let store = store_for_tier(tier, global, open)?;
+    write_fields(store, &validated)?;
+    Ok(())
+}
+
+fn invalid_value_error(field: &str) -> IpcError {
+    let mut params = std::collections::BTreeMap::new();
+    params.insert("field".to_owned(), field.to_owned());
+    IpcError::new(
+        "ai_config.invalid_value",
+        crate::core::i18n::MessageKey::AiConfigInvalidValue,
+        params,
+        false,
+    )
+}
+
 /// Trả một trường TẦNG TÁC PHẨM về kế thừa — **hàm thuần**. Xoá hàng Tác phẩm của `field`;
 /// trường sau đó phân giải lại từ Global (I/O Matrix "Clear a Work override"). Luôn nhắm
 /// tầng Tác phẩm — trả tầng Global về kế thừa không có nghĩa (không có tầng nào dưới nó).
@@ -308,7 +348,7 @@ pub(crate) fn provider_needs_key(provider: &str) -> bool {
     )
 }
 
-/// Năm vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
+/// Sáu vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 ///
 /// ⚠️ Tên command trên dây LÀ tên hàm — năm vỏ dưới đây mang ĐÚNG tên năm hàm thuần ở
 /// `super::`, không hậu tố. Chỗ gọi xuống dùng `super::tên_hàm(...)` đủ điều kiện.
@@ -357,6 +397,24 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::ai_config_save_field(global.as_deref(), guard.as_ref(), tier, field, &value)
+    }
+
+    #[tauri::command]
+    pub fn ai_config_save_fields(
+        app: tauri::AppHandle,
+        tier: AiConfigTier,
+        fields: Vec<super::AiConfigFieldValue>,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let global = app.try_state::<Store>();
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::ai_config_save_fields(global.as_deref(), None, tier, &fields);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::ai_config_save_fields(global.as_deref(), guard.as_ref(), tier, &fields)
     }
 
     #[tauri::command]

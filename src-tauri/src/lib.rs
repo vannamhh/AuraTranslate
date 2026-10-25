@@ -1353,6 +1353,7 @@ pub fn run() {
             // dich) · tra mot truong tang Tac pham ve ke thua.
             crate::commands::aiconfig::wire::ai_config_get,
             crate::commands::aiconfig::wire::ai_config_save_field,
+            crate::commands::aiconfig::wire::ai_config_save_fields,
             crate::commands::aiconfig::wire::ai_config_clear_override,
             // Story 4.3 -- khoa API trong keychain he dieu hanh (FR65/FR67, NFR11). Hai vo
             // them: ghi khoa (chi tang Global, gia tri khong bao gio doc lai qua IPC) · xoa

@@ -2237,6 +2237,7 @@ fn the_aiconfig_key_wires_are_registered() {
     for wire in [
         "crate::commands::aiconfig::wire::ai_config_save_key",
         "crate::commands::aiconfig::wire::ai_config_delete_key",
+        "crate::commands::aiconfig::wire::ai_config_save_fields,",
     ] {
         assert!(
             lib_src.contains(wire),

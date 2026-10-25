@@ -78,6 +78,7 @@ const UNKNOWN_IPC_ERROR: IpcError = {
 
 const CMD_GET = 'ai_config_get'
 const CMD_SAVE_FIELD = 'ai_config_save_field'
+const CMD_SAVE_FIELDS = 'ai_config_save_fields'
 const CMD_CLEAR_OVERRIDE = 'ai_config_clear_override'
 const CMD_SAVE_KEY = 'ai_config_save_key'
 const CMD_DELETE_KEY = 'ai_config_delete_key'
@@ -134,6 +135,25 @@ export async function aiConfigSaveField(
       return UNKNOWN_IPC_ERROR
     }
     console.info(`[aiconfig] không gọi được \`${CMD_SAVE_FIELD}\` — chạy ngoài Tauri? ${String(err)}`)
+    return null
+  }
+}
+
+/** Writes every field in one transaction, all or none. Never throws. */
+export async function aiConfigSaveFields(
+  tier: AiConfigTierWire,
+  fields: readonly { field: AiConfigField; value: string }[],
+): Promise<IpcError | null> {
+  try {
+    await invoke(CMD_SAVE_FIELDS, { tier, fields })
+    return null
+  } catch (err) {
+    if (isIpcError(err)) return err
+    if (hasIpcBridge()) {
+      console.error(`[aiconfig] \`${CMD_SAVE_FIELDS}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return UNKNOWN_IPC_ERROR
+    }
+    console.info(`[aiconfig] không gọi được \`${CMD_SAVE_FIELDS}\` — chạy ngoài Tauri? ${String(err)}`)
     return null
   }
 }

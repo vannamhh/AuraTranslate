@@ -7,6 +7,7 @@ import {
   aiConfigDeleteKey,
   aiConfigGet,
   aiConfigSaveField,
+  aiConfigSaveFields,
   aiConfigSaveKey,
   aiConfigTestConnection,
   aiConfigTestConnectionCancel,
@@ -24,16 +25,33 @@ export const AI_CONFIG_FIELDS: readonly AiConfigField[] = [
   'max_tokens',
 ]
 
-export const AI_PROVIDERS = ['anthropic', 'openai', 'ollama', 'lmstudio', 'custom'] as const
+export const AI_PROVIDERS = [
+  'anthropic',
+  'openai',
+  'gemini',
+  'openrouter',
+  'mistral',
+  'xai',
+  'ollama',
+  'lmstudio',
+  'custom',
+] as const
 export type AiProvider = (typeof AI_PROVIDERS)[number]
 
-/** The endpoint shown as a placeholder only: a save writes exactly the column the user changed. */
-const PROVIDER_ENDPOINT_PLACEHOLDER: Record<AiProvider, string> = {
-  anthropic: 'https://api.anthropic.com/v1',
-  openai: 'https://api.openai.com/v1',
-  ollama: 'http://localhost:11434/v1',
-  lmstudio: 'http://localhost:1234/v1',
-  custom: '',
+/** Picking a provider writes `provider` plus each non-empty value here; an empty value is never written. */
+export const AI_PROVIDER_PRESETS: Record<AiProvider, { endpoint: string; model: string }> = {
+  anthropic: { endpoint: 'https://api.anthropic.com/v1', model: 'claude-sonnet-5-5' },
+  openai: { endpoint: 'https://api.openai.com/v1', model: 'gpt-6.1-sol' },
+  gemini: {
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    model: 'gemini-flash-latest',
+  },
+  openrouter: { endpoint: 'https://openrouter.ai/api/v1', model: '' },
+  mistral: { endpoint: 'https://api.mistral.ai/v1', model: 'mistral-large-latest' },
+  xai: { endpoint: 'https://api.x.ai/v1', model: 'grok-4.7' },
+  ollama: { endpoint: 'http://localhost:11434/v1', model: '' },
+  lmstudio: { endpoint: 'http://localhost:1234/v1', model: '' },
+  custom: { endpoint: '', model: '' },
 }
 
 type FieldRecord<T> = Record<AiConfigField, T>
@@ -49,6 +67,11 @@ function emptyFlags(): FieldRecord<boolean> {
 function emptyErrors(): FieldRecord<IpcError | null> {
   return { provider: null, endpoint: null, model: null, temperature: null, max_tokens: null }
 }
+
+export type AiConfigPresetChange = { field: 'endpoint' | 'model'; oldValue: string; newValue: string }
+export type AiConfigPresetConfirm = { provider: AiProvider; changes: AiConfigPresetChange[] }
+
+const presetConfirm = ref<AiConfigPresetConfirm | null>(null)
 
 const resolvedFields = ref<AiConfigFieldWire[]>([])
 const drafts = ref<FieldRecord<string>>(emptyDrafts())
@@ -117,6 +140,7 @@ export function resetAiConfigViewTier(): void {
 }
 
 export function selectAiConfigViewTier(tier: AiConfigViewTier): void {
+  presetConfirm.value = null
   if (tier === 'work' && !workIsOpen.value) return
   tierChoice.value = tier
   drafts.value = draftsForTier(effectiveTier())
@@ -396,6 +420,7 @@ export function resetAiConfigSection(): void {
   keyBusy.value = false
   keyError.value = null
   inFlightSave = null
+  presetConfirm.value = null
   resetAiConfigTest()
 }
 
@@ -412,7 +437,7 @@ export function aiConfigProviderIsOther(): boolean {
 
 export function aiConfigEndpointPlaceholder(): string {
   const choice = aiConfigProviderChoice()
-  return choice === null ? '' : PROVIDER_ENDPOINT_PLACEHOLDER[choice]
+  return choice === null ? '' : AI_PROVIDER_PRESETS[choice].endpoint
 }
 
 let inFlightSave: Promise<void> | null = null
@@ -437,10 +462,59 @@ export function commitAiConfigField(field: AiConfigField): Promise<void> {
   return trackSave(saveAiConfigField(field))
 }
 
-/** Picks a provider chip: writes only the `provider` column. */
-export function selectAiConfigProvider(provider: AiProvider): Promise<void> {
-  setAiConfigDraft('provider', provider)
-  return trackSave(saveAiConfigField('provider'))
+/** Non-null while the in-page overwrite confirmation is open; nothing is written until it is applied. */
+export const aiConfigPresetConfirm: DeepReadonly<Ref<AiConfigPresetConfirm | null>> = readonly(presetConfirm)
+
+async function applyAiConfigPreset(provider: AiProvider): Promise<void> {
+  const preset = AI_PROVIDER_PRESETS[provider]
+  const fields: { field: AiConfigField; value: string }[] = [{ field: 'provider', value: provider }]
+  if (preset.endpoint !== '') fields.push({ field: 'endpoint', value: preset.endpoint })
+  if (preset.model !== '') fields.push({ field: 'model', value: preset.model })
+
+  for (const { field } of fields) {
+    saving.value = { ...saving.value, [field]: true }
+    saveErrors.value = { ...saveErrors.value, [field]: null }
+  }
+  const err = await aiConfigSaveFields(effectiveTier(), fields)
+  for (const { field } of fields) saving.value = { ...saving.value, [field]: false }
+  if (err !== null) {
+    saveErrors.value = { ...saveErrors.value, provider: err }
+    return
+  }
+  await loadAiConfigSection()
+}
+
+/**
+ * Picks a provider chip: writes `provider`, `endpoint` and `model` of its preset in one call.
+ * When a stored endpoint or model differs from the preset, opens the confirmation instead.
+ */
+export async function selectAiConfigProvider(provider: AiProvider): Promise<void> {
+  // Clicking a pill blurs the input first: its save must land before the overwrite check reads stored values.
+  if (inFlightSave !== null) await inFlightSave
+  const preset = AI_PROVIDER_PRESETS[provider]
+  const changes: AiConfigPresetChange[] = []
+  for (const field of ['endpoint', 'model'] as const) {
+    const newValue = preset[field]
+    const oldValue = aiConfigValueAtViewTier(field).trim()
+    if (newValue !== '' && oldValue !== '' && oldValue !== newValue) changes.push({ field, oldValue, newValue })
+  }
+  if (changes.length > 0) {
+    presetConfirm.value = { provider, changes }
+    return
+  }
+  presetConfirm.value = null
+  return trackSave(applyAiConfigPreset(provider))
+}
+
+export function confirmAiConfigPreset(): Promise<void> {
+  const pending = presetConfirm.value
+  if (pending === null) return Promise.resolve()
+  presetConfirm.value = null
+  return trackSave(applyAiConfigPreset(pending.provider))
+}
+
+export function cancelAiConfigPreset(): void {
+  presetConfirm.value = null
 }
 
 /** Commits every dirty text draft; called when Settings closes, before the inputs unmount. */

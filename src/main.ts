@@ -368,6 +368,7 @@ import {
 // Cùng lý do và cùng cửa với mọi state module Vue thật khác ở trên: `settingsState.ts` dùng
 // `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/project.ts`.
 import { installUnhandledRejectionLog } from './unhandledRejectionLog'
+import { cancelAiConfigPreset, confirmAiConfigPreset } from './aiConfigState'
 import {
   clearAiOverridesFromSettings,
   closeSettings,
@@ -1066,6 +1067,10 @@ async function boot(): Promise<void> {
       openSettingsToPrivacy,
       openSettingsToAiConfig,
       clearAllAiConfigOverrides: clearAiOverridesFromSettings,
+      confirmAiConfigPreset: () => {
+        void confirmAiConfigPreset()
+      },
+      cancelAiConfigPreset,
       openLibraryRescanReport: () => {
         closeSettings()
         setMode('library')

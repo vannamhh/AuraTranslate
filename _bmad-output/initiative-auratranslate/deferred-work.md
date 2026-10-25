@@ -13471,3 +13471,7 @@ chính nó.
 
 - **Chưa có ai nhìn thanh tiêu đề macOS trong app thật.** Vitest và `config_invariants` chỉ canh cấu hình, thuộc tính kéo và thứ tự listener; không canh được vị trí ba nút, kéo, bấm đúp, menu đóng khi bấm header, hay góc trên trái của 17 lớp phủ sau khi scrim đệm `--space-titlebar-height`. Ice chụp app thật cạnh `mockups/web-import.html`, chốt `trafficLightPosition` (`tauri.conf.json`, đang `{x:16,y:13}`) và `--space-traffic-light-inset` (đang 88px). **Chủ: Epic 12.**
 - **Windows chưa được xác nhận không đổi.** Story 12-25 chỉ bật vùng kéo, lề và đệm scrim sau `detectIsMac()` / `data-platform="mac"`, nhưng `drag.js` của Tauri chạy cả trên Windows và quyền `core:window` mới áp cho mọi nền tảng; không có test trên Windows. Kiểm: header không kéo được, không có lề, lớp phủ không đệm, menu đóng như cũ. Gộp vào bảng nghiệm thu Windows. **Chủ: B7.**
+
+## Deferred from: preset nhà cung cấp AI (2026-10-25, plan-preset-cau-hinh-ai)
+
+- **Chưa ai bấm Thử kết nối và dịch một câu trên từng preset có mạng.** Test chỉ canh giá trị ba cột được ghi; không canh endpoint, mã mô hình (OpenRouter để trống, Mistral UNVERIFIED), `stream_options`, Claude 5 từ chối nhiệt độ dưới 1, model suy luận OpenAI từ chối `max_tokens`, `/v1/models` Anthropic có cần `anthropic-version`. Ice chạy sáu preset có mạng với khoá thật. Con trỏ: `plan-preset-cau-hinh-ai.md` §Design Notes. **Chủ: Epic 12.**

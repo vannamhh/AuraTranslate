@@ -21,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const aiConfigGetMock = vi.fn()
 const aiConfigSaveFieldMock = vi.fn()
+const aiConfigSaveFieldsMock = vi.fn()
 const aiConfigClearOverrideMock = vi.fn()
 const aiConfigSaveKeyMock = vi.fn()
 const aiConfigDeleteKeyMock = vi.fn()
@@ -28,6 +29,7 @@ const aiConfigDeleteKeyMock = vi.fn()
 vi.mock('../../src/config/aiconfig', () => ({
   aiConfigGet: (...args: unknown[]) => aiConfigGetMock(...args),
   aiConfigSaveField: (...args: unknown[]) => aiConfigSaveFieldMock(...args),
+  aiConfigSaveFields: (...args: unknown[]) => aiConfigSaveFieldsMock(...args),
   aiConfigClearOverride: (...args: unknown[]) => aiConfigClearOverrideMock(...args),
   aiConfigSaveKey: (...args: unknown[]) => aiConfigSaveKeyMock(...args),
   aiConfigDeleteKey: (...args: unknown[]) => aiConfigDeleteKeyMock(...args),
@@ -49,6 +51,7 @@ function emptyFields() {
 beforeEach(() => {
   aiConfigGetMock.mockReset()
   aiConfigSaveFieldMock.mockReset()
+  aiConfigSaveFieldsMock.mockReset()
   aiConfigClearOverrideMock.mockReset()
   aiConfigSaveKeyMock.mockReset()
   aiConfigDeleteKeyMock.mockReset()
@@ -59,6 +62,7 @@ beforeEach(() => {
     error: null,
   })
   aiConfigSaveFieldMock.mockResolvedValue(null)
+  aiConfigSaveFieldsMock.mockResolvedValue(null)
   aiConfigClearOverrideMock.mockResolvedValue(null)
   aiConfigSaveKeyMock.mockResolvedValue(null)
   aiConfigDeleteKeyMock.mockResolvedValue(null)
@@ -783,11 +787,178 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'model', 'n')
   })
 
-  it('selectAiConfigProvider ghi đúng trường provider và không chạm endpoint', async () => {
+  const fieldsOf = (provider: string, endpoint = '', model = '') =>
+    fieldRows({
+      provider: { value: provider, tier: 'global' },
+      endpoint: { value: endpoint, tier: 'global' },
+      model: { value: model, tier: 'global' },
+      temperature: { value: '0.3', tier: 'global' },
+    })
+
+  it('bảng preset có đủ chín nhà cung cấp, "Endpoint khác" không mang endpoint hay mô hình', async () => {
+    const { AI_PROVIDERS, AI_PROVIDER_PRESETS } = await freshState()
+    expect([...AI_PROVIDERS]).toEqual([
+      'anthropic', 'openai', 'gemini', 'openrouter', 'mistral', 'xai', 'ollama', 'lmstudio', 'custom',
+    ])
+    expect(AI_PROVIDER_PRESETS.gemini).toEqual({
+      endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
+      model: 'gemini-flash-latest',
+    })
+    expect(AI_PROVIDER_PRESETS.custom).toEqual({ endpoint: '', model: '' })
+  })
+
+  it('bắt đầu trống: bấm Gemini ghi cả ba trường qua MỘT lời gọi, không hỏi, nạp lại đúng một lần', async () => {
     const state = await loaded(false)
+    aiConfigGetMock.mockClear()
+    await state.selectAiConfigProvider('gemini')
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [
+      { field: 'provider', value: 'gemini' },
+      { field: 'endpoint', value: 'https://generativelanguage.googleapis.com/v1beta/openai' },
+      { field: 'model', value: 'gemini-flash-latest' },
+    ])
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+    expect(aiConfigGetMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('ghi đè: endpoint đang là URL OpenAI, bấm Anthropic ⇒ hỏi, chưa có lượt IPC ghi nào', async () => {
+    const state = await loaded(false, fieldsOf('openai', 'https://api.openai.com/v1', 'gpt-6.1-sol'))
+    await state.selectAiConfigProvider('anthropic')
+    expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
+    expect(state.aiConfigPresetConfirm.value).toEqual({
+      provider: 'anthropic',
+      changes: [
+        { field: 'endpoint', oldValue: 'https://api.openai.com/v1', newValue: 'https://api.anthropic.com/v1' },
+        { field: 'model', oldValue: 'gpt-6.1-sol', newValue: 'claude-sonnet-5-5' },
+      ],
+    })
+  })
+
+  it('Áp dụng ghi cả ba trường rồi đóng hộp; Huỷ đóng hộp và không ghi gì, ba trường giữ giá trị đã lưu', async () => {
+    const state = await loaded(false, fieldsOf('openai', 'https://api.openai.com/v1', 'gpt-6.1-sol'))
+    await state.selectAiConfigProvider('anthropic')
+    state.cancelAiConfigPreset()
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
+    expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+    expect(state.aiConfigDraft('endpoint')).toBe('https://api.openai.com/v1')
+    expect(state.aiConfigDraft('model')).toBe('gpt-6.1-sol')
+
+    await state.selectAiConfigProvider('anthropic')
+    await state.confirmAiConfigPreset()
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [
+      { field: 'provider', value: 'anthropic' },
+      { field: 'endpoint', value: 'https://api.anthropic.com/v1' },
+      { field: 'model', value: 'claude-sonnet-5-5' },
+    ])
+  })
+
+  it('bấm nút ngay sau khi gõ endpoint: lượt lưu khi rời ô xong trước rồi mới so ⇒ hỏi, không ghi đè im lặng', async () => {
+    const state = await loaded(false, fieldsOf('openai'))
+    let releaseSave: (value: null) => void = () => undefined
+    aiConfigSaveFieldMock.mockImplementationOnce(
+      () =>
+        new Promise<null>((resolve) => {
+          releaseSave = resolve
+        }),
+    )
+    state.setAiConfigDraft('endpoint', 'https://proxy.local/v1')
+    void state.commitAiConfigField('endpoint')
+    const picked = state.selectAiConfigProvider('gemini')
+    aiConfigGetMock.mockResolvedValue({
+      fields: fieldsOf('openai', 'https://proxy.local/v1'),
+      workTierAvailable: false,
+      keyConfigured: false,
+      error: null,
+    })
+    releaseSave(null)
+    await picked
+    expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
+    expect(state.aiConfigPresetConfirm.value?.changes).toEqual([
+      { field: 'endpoint', oldValue: 'https://proxy.local/v1', newValue: 'https://generativelanguage.googleapis.com/v1beta/openai' },
+    ])
+  })
+
+  it('đã khớp: endpoint và model bằng giá trị preset ⇒ ghi, không hỏi', async () => {
+    const state = await loaded(false, fieldsOf('openai', 'https://api.anthropic.com/v1', 'claude-sonnet-5-5'))
+    await state.selectAiConfigProvider('anthropic')
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('preset không có mô hình: bấm Ollama giữ `qwen`, chỉ ghi provider và endpoint, không hỏi', async () => {
+    const state = await loaded(false, fieldsOf('openai', '', 'qwen'))
     await state.selectAiConfigProvider('ollama')
-    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'provider', 'ollama')
-    expect(state.aiConfigDraft('endpoint')).toBe('')
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [
+      { field: 'provider', value: 'ollama' },
+      { field: 'endpoint', value: 'http://localhost:11434/v1' },
+    ])
+  })
+
+  it('"Endpoint khác" chỉ ghi provider, kể cả khi endpoint và model đang có giá trị', async () => {
+    const state = await loaded(false, fieldsOf('openai', 'https://api.openai.com/v1', 'gpt-6.1-sol'))
+    await state.selectAiConfigProvider('custom')
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [{ field: 'provider', value: 'custom' }])
+  })
+
+  it('tầng Tác phẩm: bấm Mistral ghi ba trường ở tầng work', async () => {
+    const state = await loaded(true)
+    expect(state.aiConfigViewTier.value).toBe('work')
+    await state.selectAiConfigProvider('mistral')
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('work', [
+      { field: 'provider', value: 'mistral' },
+      { field: 'endpoint', value: 'https://api.mistral.ai/v1' },
+      { field: 'model', value: 'mistral-large-latest' },
+    ])
+  })
+
+  it('so với giá trị ở tầng đang xem: tầng Tác phẩm kế thừa endpoint Toàn cục khác preset ⇒ hỏi', async () => {
+    const state = await loaded(true, fieldsOf('openai', 'https://api.openai.com/v1', ''))
+    await state.selectAiConfigProvider('xai')
+    expect(state.aiConfigPresetConfirm.value?.changes.map((c) => c.field)).toEqual(['endpoint'])
+    expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
+  })
+
+  it('lượt ghi trượt: lỗi hiện ở dòng provider, không nạp lại, không thử lại', async () => {
+    const error = { code: 'store.write_failed', message: 'x', params: {} }
+    aiConfigSaveFieldsMock.mockResolvedValue(error)
+    const state = await loaded(false)
+    aiConfigGetMock.mockClear()
+    await state.selectAiConfigProvider('gemini')
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledTimes(1)
+    expect(aiConfigGetMock).not.toHaveBeenCalled()
+    expect(state.aiConfigSaveErrorFor('provider')).toEqual(error)
+    expect(state.aiConfigIsSaving('provider')).toBe(false)
+  })
+
+  it('áp dụng preset không chạm temperature: không có trường temperature trong lời gọi và giá trị vẫn 0.3', async () => {
+    const state = await loaded(false, fieldsOf('openai', '', ''))
+    expect(state.aiConfigDraft('temperature')).toBe('0.3')
+    for (const provider of state.AI_PROVIDERS) {
+      aiConfigSaveFieldsMock.mockClear()
+      await state.selectAiConfigProvider(provider)
+      await state.confirmAiConfigPreset()
+      const sent = aiConfigSaveFieldsMock.mock.calls.flatMap((c) => c[1] as { field: string }[])
+      expect(sent.map((f) => f.field)).not.toContain('temperature')
+      expect(sent.map((f) => f.field)).not.toContain('max_tokens')
+    }
+    expect(state.aiConfigDraft('temperature')).toBe('0.3')
+  })
+
+  it('đổi tầng xem hoặc đặt lại mục thì hộp xác nhận bị gỡ', async () => {
+    const state = await loaded(true, fieldsOf('openai', 'https://api.openai.com/v1', ''))
+    await state.selectAiConfigProvider('xai')
+    expect(state.aiConfigPresetConfirm.value).not.toBeNull()
+    state.selectAiConfigViewTier('global')
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
+
+    await state.selectAiConfigProvider('xai')
+    expect(state.aiConfigPresetConfirm.value).not.toBeNull()
+    state.resetAiConfigSection()
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
   })
 
   it('placeholder theo nhà cung cấp; giá trị lạ là "Endpoint khác" và không có placeholder', async () => {

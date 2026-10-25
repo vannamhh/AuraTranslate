@@ -18,8 +18,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, Once};
 
 use auratranslate_lib::commands::aiconfig::{
-    AiConfigTierWire, ai_config_clear_override, ai_config_delete_key, ai_config_get,
-    ai_config_save_field, ai_config_save_key,
+    AiConfigFieldValue, AiConfigTierWire, ai_config_clear_override, ai_config_delete_key,
+    ai_config_get, ai_config_save_field, ai_config_save_fields, ai_config_save_key,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work};
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, validate_field};
@@ -1363,5 +1363,177 @@ fn test_connection_without_endpoint_or_model_or_key_invites_configuration_and_op
         "an unconfigured check opened a socket"
     );
     drop(app);
+    cleanup_dir(&root);
+}
+
+fn fv(field: AiConfigField, value: &str) -> AiConfigFieldValue {
+    AiConfigFieldValue {
+        field,
+        value: value.to_owned(),
+    }
+}
+
+fn preset_fields(endpoint: &str) -> Vec<AiConfigFieldValue> {
+    vec![
+        fv(AiConfigField::Provider, "gemini"),
+        fv(AiConfigField::Endpoint, endpoint),
+        fv(AiConfigField::Model, "gemini-flash-latest"),
+    ]
+}
+
+#[test]
+fn saving_three_fields_writes_them_at_both_tiers_and_leaves_the_others_alone() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = temp_dir("save-fields");
+    let global = open_global(&root);
+    let opened = open_work_real(&root);
+
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::Temperature,
+        "0.3",
+    )
+    .expect("luu nhiet do");
+
+    ai_config_save_fields(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        &preset_fields(" https://global.example.com/v1 "),
+    )
+    .expect("luu ba truong global");
+    ai_config_save_fields(
+        Some(&global),
+        Some(&opened),
+        AiConfigTier::Work,
+        &preset_fields("https://work.example.com/v1"),
+    )
+    .expect("luu ba truong work");
+
+    let global_fields = ai_config_get(Some(&global), None)
+        .expect("doc global")
+        .fields;
+    assert_eq!(
+        field_wire(&global_fields, AiConfigField::Provider).value,
+        "gemini"
+    );
+    assert_eq!(
+        field_wire(&global_fields, AiConfigField::Endpoint).value,
+        "https://global.example.com/v1",
+        "gia tri phai duoc trim nhu ghi tung truong"
+    );
+    assert_eq!(
+        field_wire(&global_fields, AiConfigField::Temperature).value,
+        "0.3"
+    );
+
+    let work_fields = ai_config_get(Some(&global), Some(&opened))
+        .expect("doc work")
+        .fields;
+    let endpoint = field_wire(&work_fields, AiConfigField::Endpoint);
+    assert_eq!(endpoint.value, "https://work.example.com/v1");
+    assert_eq!(endpoint.tier, AiConfigTierWire::Work);
+    assert_eq!(
+        field_wire(&work_fields, AiConfigField::Temperature).tier,
+        AiConfigTierWire::Global,
+        "tang Tac pham khong duoc ghi de truong nhiet do"
+    );
+
+    drop(opened.store);
+    drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn one_invalid_value_among_the_fields_writes_nothing() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = temp_dir("save-fields-invalid");
+    let global = open_global(&root);
+
+    let err = ai_config_save_fields(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        &[
+            fv(AiConfigField::Provider, "gemini"),
+            fv(AiConfigField::Endpoint, "not a url"),
+            fv(AiConfigField::Model, "gemini-flash-latest"),
+        ],
+    )
+    .expect_err("mot gia tri hong phai bi tu choi");
+    assert_eq!(err.message_key(), MessageKey::AiConfigInvalidValue);
+
+    let fields = ai_config_get(Some(&global), None).expect("doc").fields;
+    for field in AiConfigField::ALL {
+        assert_eq!(field_wire(&fields, *field).value, "", "{}", field.as_str());
+    }
+
+    drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn an_empty_or_duplicated_field_list_is_invalid_and_writes_nothing() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = temp_dir("save-fields-shape");
+    let global = open_global(&root);
+
+    let empty = ai_config_save_fields(Some(&global), None, AiConfigTier::Global, &[])
+        .expect_err("danh sach rong");
+    assert_eq!(empty.message_key(), MessageKey::AiConfigInvalidValue);
+
+    let duplicated = ai_config_save_fields(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        &[
+            fv(AiConfigField::Model, "a"),
+            fv(AiConfigField::Provider, "openai"),
+            fv(AiConfigField::Model, "b"),
+        ],
+    )
+    .expect_err("trung truong");
+    assert_eq!(duplicated.message_key(), MessageKey::AiConfigInvalidValue);
+
+    let fields = ai_config_get(Some(&global), None).expect("doc").fields;
+    for field in AiConfigField::ALL {
+        assert_eq!(field_wire(&fields, *field).value, "", "{}", field.as_str());
+    }
+
+    drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn saving_fields_at_the_work_tier_with_no_work_open_is_refused_and_writes_nothing() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = temp_dir("save-fields-no-work");
+    let global = open_global(&root);
+
+    let err = ai_config_save_fields(
+        Some(&global),
+        None,
+        AiConfigTier::Work,
+        &preset_fields("https://x.example.com/v1"),
+    )
+    .expect_err("khong Tac pham nao dang mo");
+    assert_eq!(err.message_key(), MessageKey::AiConfigWorkTierUnavailable);
+
+    let fields = ai_config_get(Some(&global), None).expect("doc").fields;
+    for field in AiConfigField::ALL {
+        assert_eq!(field_wire(&fields, *field).value, "", "{}", field.as_str());
+    }
+
+    drop(global);
     cleanup_dir(&root);
 }

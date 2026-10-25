@@ -39,7 +39,7 @@ use std::fmt;
 
 pub use store::{
     AiConfigKeyError, AiConfigStoreError, ResolvedField, clear_field, resolve_two_tiers,
-    write_field,
+    write_field, write_fields,
 };
 
 /// Năm trường của cấu hình AI — FR68 ("nhà cung cấp, mô hình, tham số sinh"). Không trường

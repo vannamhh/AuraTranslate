@@ -2163,10 +2163,10 @@ type CommandFileCensusRow = (&'static str, usize, usize, usize, &'static str);
 const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
     (
         "src/commands/aiconfig.rs",
-        2,
         3,
         3,
-        "MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Hai vo (`ai_config_save_field`/`ai_config_clear_override`) ghi/xoa MOT hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev.",
+        3,
+        "MOT PHAN DA DO (Story 11.7 lo B). Ba vo cham keychain (`ai_config_get` do keychain, `ai_config_save_key`, `ai_config_delete_key`) da `(async)`. Ba vo (`ai_config_save_field`/`ai_config_save_fields`/`ai_config_clear_override`) ghi/xoa hang cau hinh, khong keychain; chua ai do chi phi cua chung -- chu: Dev.",
     ),
     (
         "src/commands/aiprompt.rs",
@@ -2435,9 +2435,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (106, 66),
+        (107, 66),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         106/66.\n\n\
+         107/66.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \
