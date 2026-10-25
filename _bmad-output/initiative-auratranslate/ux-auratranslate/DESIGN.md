@@ -405,7 +405,7 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 
 ## Components
 
-**Panel** — thanh tiêu đề 34px, tiêu đề `ui-md` màu `on-surface-variant`, tab bên phải. Panel có tiêu điểm: vạch dọc 2px `primary` ở mép trái + tiêu đề chuyển `primary` in đậm. Không dùng viền bao quanh để báo tiêu điểm.
+**Panel** — thanh tiêu đề 34px, tiêu đề `ui-md` màu `on-surface-variant`, tab bên phải. Panel có tiêu điểm: vạch dọc 2px `primary` ở mép trái + tiêu đề chuyển `primary` in đậm. Không dùng viền bao quanh để báo tiêu điểm. 🔵 2026-10-25 Ice bỏ vạch dọc 2px: panel sát mép cửa sổ khiến vạch chạy dọc cả cửa sổ như một đường kẻ thừa; còn tiêu đề tab `primary` in đậm (tab đang chọn, không phải focus DOM).
 
 **Bản ghi từ điển** — vạch trái 2px, thụt 13px. Nhãn nguồn `ui-label` màu `primary`. Từ loại `read` in nghiêng màu `on-surface-variant`. Nghĩa `lookup-gloss`. Ví dụ in nghiêng; trích dẫn có vạch trái `primary` để phân biệt với ví dụ. **Nhiều nguồn xếp chồng dọc, mỗi nguồn một khối — không bao giờ gộp.**
 

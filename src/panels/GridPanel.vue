@@ -64,9 +64,7 @@
 // `addRange`)* · đặt caret ở `mouseup` *(không `mousedown`)* · một lượt vá ở frame kế tiếp.
 //
 // ⚠️ Vỏ `PanelFrame` đã lo hợp đồng tiêu điểm (AD-34 §2): `declareFocus(owner, …)` chạy từ
-// Story 1.6, và `'panel.grid'` có trong `FOCUS_OWNERS`. **Đừng** dựng vạch tiêu điểm panel
-// thứ hai — `.panel.focused::before` đã có, và nó là vạch của **panel** (UX-DR8), khác hẳn
-// vạch của **segment** (UX-DR19) mà tệp này dựng.
+// Story 1.6, và `'panel.grid'` có trong `FOCUS_OWNERS`.
 import { computed, onBeforeUnmount, onMounted, provide, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { isMeaningKind } from '../config/proofread'
 import { GRID_BLOCK_ROWS, gridBlocksOf } from './gridBlocks'

@@ -231,7 +231,7 @@ Kéo chuột vẫn dùng được, nhưng nó là **đường thứ hai**. Mọi
 
 1. **Mọi thao tác đi qua `CommandRegistry`.** Handler chuột chỉ được `dispatch` một command đã đăng ký. Nhờ vậy "thao tác nào chưa gán được phím" là câu hỏi liệt kê được tự động. Command id dùng khoá chấm có tiền tố miền, cùng hình dạng khoá `vi.json`.
 2. **Mỗi chế độ và mỗi panel khai báo điểm vào focus.** Chuyển panel phải dời focus DOM tường minh. Không chế độ nào để focus rơi về `body`.
-3. **Tiêu điểm luôn nhìn thấy** — vạch dọc `primary` ở mép trái panel cộng tiêu đề đậm màu.
+3. **Tiêu điểm luôn nhìn thấy** — vạch dọc `primary` ở mép trái panel cộng tiêu đề đậm màu. 🔵 2026-10-25 Ice bỏ vạch dọc ở mép trái panel; chỉ còn tiêu đề tab đậm màu.
 4. **Màu chỉ đến từ token đã kiểm tương phản** ở cả hai theme. Xem bảng sàn tương phản trong `DESIGN.md` — ba màu đã bị loại vì trượt AA.
 
 **Tiêu chí nghiệm thu (NFR17):** dịch trọn một Chương từ đầu tới cuối — mở từ Library, tra cứu, gọi AI, đưa sang, sửa, gộp một câu, xác nhận, sang Chương kế — **không chạm chuột một lần nào**.
