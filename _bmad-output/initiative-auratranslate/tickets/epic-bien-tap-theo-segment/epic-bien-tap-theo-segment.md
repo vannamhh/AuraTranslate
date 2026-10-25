@@ -13,11 +13,11 @@ risk: medium
 
 ## Description
 
-Người dịch dịch trọn một Chương **bằng tay, không cần AI và không cần Glossary**: văn bản tách thành segment cấp câu, gộp hoặc tách khi máy tách sai, xác nhận từng câu với vạch lề đổi màu, điều hướng tới segment chưa dịch kế tiếp, chuyển Chương ngay trong Workspace. Sập ứng dụng giữa phiên gõ **mất tối đa 5 giây công việc**, và không frame nào vượt 50 ms trong lúc auto-save chạy. Mọi phiên bản cũ của một segment xem lại và khôi phục được.
+Người dịch dịch trọn một Chương **bằng tay, không cần AI và không cần Glossary**: văn bản tách thành segment cấp câu, gộp hoặc tách khi máy tách sai, xác nhận từng câu với vạch lề đổi màu, điều hướng tới segment chưa dịch kế tiếp, chuyển Chương ngay trong Workspace. Sập ứng dụng giữa phiên gõ **mất tối đa 10 giây công việc**, và không frame nào vượt 50 ms trong lúc auto-save chạy. Mọi phiên bản cũ của một segment xem lại và khôi phục được.
 
 ## Outcome
 
-Người dịch dịch trọn một Chương bằng tay mà không mất quá 5 giây công việc khi sập ứng dụng; tín hiệu là NFR18 và NFR2 đạt cùng lúc theo phép đo của Story 2.4.
+Người dịch dịch trọn một Chương bằng tay mà không mất quá 10 giây công việc khi sập ứng dụng; tín hiệu là NFR18 và NFR2 đạt cùng lúc theo phép đo của Story 2.4.
 
 ## Requirements
 
@@ -40,7 +40,7 @@ Nguồn: PRD (prd-auratranslate/prd-auratranslate.md); epics.md §Epic 2 (`FRs c
 ## Done when
 
 1. Dịch trọn một Chương bằng tay trong lưới đối chiếu mà không cần AI hay Glossary: văn bản tách segment cấp câu, xác nhận từng câu, điều hướng tới câu chưa dịch kế tiếp, chuyển Chương trong Workspace (FR23–FR26).
-2. Sập ứng dụng giữa lúc gõ mất tối đa 5 giây công việc và không frame nào vượt 50 ms khi auto-save chạy (FR100, NFR18, NFR2), có số đo từ mũi thăm dò Story 2.4.
+2. Sập ứng dụng giữa lúc gõ mất tối đa 10 giây công việc và không frame nào vượt 50 ms khi auto-save chạy (FR100, NFR18, NFR2), có số đo từ mũi thăm dò Story 2.4.
 3. Gộp và tách segment tường minh, gồm gộp bằng `Backspace`, cắt bỏ câu và ngắt đoạn của bản dịch (FR78, FR133, FR134).
 4. Mọi phiên bản cũ của một segment xem lại và khôi phục được; xuất xứ bản dịch cấp segment được ghi (FR101, FR117).
 5. Lưới hai cột đối chiếu nghiệm thu lại FR16, FR19, FR21 trên cùng một hàng nguồn và bản dịch.
@@ -61,5 +61,6 @@ Panel Editor và lưới đối chiếu của một Chương. Không gồm Gloss
 ## Notes
 
 - Retrospective: epic-bien-tap-theo-segment-retrospective.md
+- Decision: 2026-10-25, Ice — NFR18 nới từ 5 lên 10 giây công việc mất khi sập (PRD đã sửa). Lý do: trần buộc ghi 5 giây của AD-35 trùng đúng ngưỡng cũ nên không chừa dư; đo thật trên release `2357baf` (122 câu, 10 phím/giây, n=40) mất tối đa 5,49 s. Nghiệm thu ở nhịp gõ thật 10 phím/giây; 40 phím/giây chỉ là số chịu tải. Trần 5 giây của AD-35 giữ nguyên, spine không phải sửa.
 - Decision: 2026-10-23, Ice — Story 2.16 (lưới chia khối) đứng trước bug 2.14 và 2.15, vì cả hai bug dừng ở blocked: WebKit tính lại bố cục cả lưới khi một subgrid trải cả Chương, nên không vá nào trong lưới hiện tại đạt trần.
 - Decision: Story 2.2 và 2.5b thay đổi lời văn FR16, FR19, FR21; ba FR này nghiệm thu lại ở Story 2.5b (epics.md, 2026-08-14); FR20 đã rút.

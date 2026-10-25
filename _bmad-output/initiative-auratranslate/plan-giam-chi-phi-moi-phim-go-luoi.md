@@ -3,7 +3,7 @@ title: 'Giảm chi phí mỗi phím gõ trong lưới để NFR18 không trượ
 type: 'bugfix'
 ticket: ''
 created: '2026-10-24'
-status: 'in-progress'
+status: 'built'
 baseline_revision: 'e33d55536f573c5940c5b7fe49c4fd85659f3ca4'
 route: 'full'
 route_source: 'auto'
@@ -36,6 +36,8 @@ context:
 - Giữ hướng A trong mã, sau khi phép gỡ thật xác nhận ca e2e `grid-blocks` mới đỏ. Commit riêng `perf(grid)`.
 - 10 phím/giây: sửa thước đo trước. Ghi giờ từng phím và đếm phần chữ sau mốc `[n]` hoàn chỉnh cuối còn trong `project.db`, để tính mất mát thật thay cho `window_s` (đang báo dư tới một cụm 1,5–2,6 s). Chạy lại 20 mẫu trên bản hiện có. Nếu mất thật vẫn sát hoặc vượt 5 s thì chuyển trần cứng 5 s của AD-35 cho Winston viết AD, không tự đổi.
 - 40 phím/giây: đo cô lập lệnh sửa của WebKit (14 ms p50 mỗi phím) để biết phần nào tốn, chưa sửa mã sản phẩm. Trình số cho Ice trước khi chọn bản sửa kế.
+
+**Quyết định của Ice (2026-10-25), sau lượt đo mất mát thật và cô lập lệnh sửa:** nới NFR18 từ 5 lên 10 giây trong PRD và dừng tối ưu chi phí mỗi phím. Nghiệm thu ở nhịp gõ thật 10 phím/giây; 40 phím/giây chỉ ghi làm số chịu tải. Không viết AD đổi trần 5 giây, vì ngưỡng mới đã chừa dư.
 
 ## Boundaries & Constraints
 
@@ -75,8 +77,8 @@ context:
 - [x] `tests/frontend/gridTypingCost.test.ts` -- ca đếm việc của chặng đã sửa nếu chặng là JS; gỡ bản sửa thì đỏ đúng lý do. Nếu chặng nằm ở WebKit (CSS, cấu trúc ô) thì happy-dom không đo được, nên chọn ca e2e trong WKWebView cùng lúc với hướng sửa.
 - [x] `HANDOFF.md` và plan -- `kill-campaign-v2.sh` n=20 mỗi nhịp trên release mới, bảng `grid-table.sh`; mục 🟡 của #107 trong `deferred-work.md` được đóng hoặc ghi phần còn hở.
 
-- [ ] `_bmad-output/implementation-artifacts/nfr18-flush-ban-do/` -- thước đo mất mát thật ở 10 phím/giây (giờ từng phím, phần chữ sau mốc cuối trong kho), 20 mẫu trên release có hướng A; bảng vào `HANDOFF.md`. -- tách phần báo dư khỏi mất mát thật.
-- [ ] `_bmad-output/implementation-artifacts/nfr18-flush-ban-do/` -- biến thể tạm cô lập lệnh sửa WebKit ở 40 phím/giây, đo xen kẽ, kèm đối chứng; bảng vào `HANDOFF.md`, rồi CHECKPOINT trình Ice. -- tìm phần tốn trong 14 ms.
+- [x] `_bmad-output/implementation-artifacts/nfr18-flush-ban-do/` -- thước đo mất mát thật ở 10 phím/giây (giờ từng phím, phần chữ sau mốc cuối trong kho), 20 mẫu trên release có hướng A; bảng vào `HANDOFF.md`. -- tách phần báo dư khỏi mất mát thật.
+- [x] `_bmad-output/implementation-artifacts/nfr18-flush-ban-do/` -- biến thể tạm cô lập lệnh sửa WebKit ở 40 phím/giây, đo xen kẽ, kèm đối chứng; bảng vào `HANDOFF.md`, rồi CHECKPOINT trình Ice. -- tìm phần tốn trong 14 ms.
 
 **Acceptance Criteria:**
 - Given release mới, 122 câu, cả hai nhịp, when chạy `kill-campaign-v2.sh` 20 mẫu `VALID`, then 20/20 mẫu ≤ 5 s; nếu không đạt thì plan sang `blocked` kèm bảng.
@@ -87,6 +89,10 @@ context:
 
 - Phân bổ xong (HANDOFF §Pha phân bổ): JS sản phẩm ≤ 1 ms p95 mỗi phím; chặng trội ở WebKit (lệnh sửa 14 ms, đuôi layout/vẽ p95 ~80 ms). Ba biến thể CSS/thuộc tính cắt đuôi còn ~9 ms nhưng hàng đợi vẫn tăng; dừng ở CHECKPOINT chờ Ice chọn hướng.
 - Hướng A (`contain: layout style` trên `.cell-tgt`, `GridBlock.vue`) đã áp; kill n=20: 40 phím/giây 19/20 > 5 s (max 20,7), 10 phím/giây 4/20 > 5 s (max 5,99). AC1 trượt ⇒ `blocked`. Khoá bằng ca e2e `grid-blocks` (computed `contain` + hàng thẳng); vitest không đo được CSS WebKit. Bảng: HANDOFF §Kết quả hướng A.
+- Mất thật ở 10 phím/giây (HANDOFF §Mất mát thật): 40 mẫu, 5/40 vượt 5 s (max 5,49 s), trung vị 1,8–2,6 s; `window_s` báo dư trung vị ~1,3 s. Theo quyết định 2026-10-25 trần cứng AD-35 chuyển cho Winston viết AD, chưa đổi trong mã.
+- Cô lập lệnh sửa WebKit (HANDOFF §Cô lập): gõ vào `<div contenteditable>` ngoài lưới 0 / 1 ms và hàng đợi không tăng; liền kề ô thật 7 ms; ô thật 8 ms. Chi phí ở ngữ cảnh lưới quanh ô, không ở chữ hay JS. CHECKPOINT chờ Ice chọn bản sửa kế.
+- Bàn đo cũ: `VARIANT=n` cộng dồn biến thể 1..n, nên các cột "A" trong bảng biến thể cũ có thể lẫn `spellcheck`/`content-visibility`.
+- Kết thúc 2026-10-25: NFR18 nới lên 10 giây. Đo thật ở 10 phím/giây trên release `2357baf` mất tối đa 5,49 s (n=40), đạt. Bản sửa A giữ lại (`2357baf`). Không chạy bước review vì Ice dừng việc; chờ Ice ký `done`.
 
 ## Plan Change Log
 

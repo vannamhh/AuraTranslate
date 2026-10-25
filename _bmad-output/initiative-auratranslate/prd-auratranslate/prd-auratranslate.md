@@ -153,7 +153,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 | Tra cứu khi ngoại tuyến | **100%** hoạt động không cần mạng | Điều kiện tồn tại của sản phẩm |
 | Ghi nguồn định nghĩa | **100%** mục từ hiển thị nguồn | Nguyên tắc nền, xem FR28 |
 | Gián đoạn UI khi auto-save | Không có gai trễ cảm nhận được | Yêu cầu tường minh từ brief |
-| Mất dữ liệu khi ứng dụng sập | **≤ 5 giây** công việc | Quyết định 2026-08-02, xem NFR18 |
+| Mất dữ liệu khi ứng dụng sập | **≤ 10 giây** công việc | Quyết định 2026-08-02, xem NFR18. 🔵 2026-10-25 Ice nới từ 5 lên 10 giây. |
 | Thao tác hoàn toàn bằng bàn phím | Một vòng dịch trọn một Chương **không chạm chuột** | Quyết định 2026-08-02, xem NFR17 |
 | Khả năng mang dữ liệu đi | Xuất được **TMX** | Trụ định vị #3 |
 | Kích thước bản cài | Dưới trần **500.000.000 byte**, **không tải thêm sau khi cài** | 🔵 Đo 2026-10-21 trên build release thật: macOS **432.363.050 byte**, Windows **415.937.424 byte** *(trần nâng từ 400.000.000 cùng ngày — NFR6 sửa lần ba)* |
@@ -997,11 +997,11 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 | ID | Yêu cầu | Ngưỡng |
 |---|---|---|
 | **NFR17** | **Sàn khả năng tiếp cận** | Mọi thao tác của ứng dụng làm được **hoàn toàn bằng bàn phím** — nghiệm thu bằng một vòng dịch trọn một Chương không chạm chuột. Trạng thái focus luôn nhìn thấy rõ ở mọi panel và mọi chế độ. Tương phản văn bản đạt **WCAG AA** ở **cả hai** chế độ sáng và tối, kể cả Chế độ đọc (FR11) và phần bôi màu diff của Review Mode (FR93) |
-| **NFR18** | **Cửa sổ mất dữ liệu tối đa khi ứng dụng sập** | **≤ 5 giây** công việc. Auto-save (FR100) kích hoạt khi người dùng ngừng gõ khoảng 2 giây, kèm **trần thời gian 5 giây buộc ghi** dù đang gõ liên tục. Phải đạt được **đồng thời** với NFR2 — không frame nào vượt 50 ms |
+| **NFR18** | **Cửa sổ mất dữ liệu tối đa khi ứng dụng sập** | **≤ 10 giây** công việc. 🔵 2026-10-25 Ice nới ngưỡng từ 5 lên 10 giây: trần buộc ghi 5 giây trùng đúng ngưỡng cũ nên không chừa dư, đo thật trên release `2357baf` (122 câu, 10 phím/giây, n=40) mất tối đa 5,49 s. Auto-save (FR100) kích hoạt khi người dùng ngừng gõ khoảng 2 giây, kèm **trần thời gian 5 giây buộc ghi** dù đang gõ liên tục. Phải đạt được **đồng thời** với NFR2 — không frame nào vượt 50 ms |
 
 > **NFR17 giải thích:** áp từ **Giai đoạn 1**, cùng lý do với NFR16. FR22 đã bắt mọi thao tác lặp lại phải có phím tắt cấu hình lại được, nên keyboard-first gần như miễn phí nếu làm từ đầu và rất đắt nếu vá sau. **Hỗ trợ trình đọc màn hình không nằm trong v1** (§3.2) — editor theo segment trong webview là ca khó nhất của khả năng tiếp cận, và chưa có nhu cầu người dùng nào xác nhận. Đây là ranh giới có chủ ý.
 
-> **NFR18 giải thích:** NFR2 nói auto-save không được gây gai trễ, nhưng không nói **mất bao nhiêu là chấp nhận được** — mà đó mới là thứ người dùng cảm nhận. Ngưỡng 5 giây nghĩa là mất nhiều nhất **một câu đang dở**. Với người dịch dành nửa buổi cho một Chương, 30 giây gõ đã là mất mát thật; còn ghi liên tục mỗi thay đổi thì đẩy thẳng vào R9 và xung đột với NFR2.
+> **NFR18 giải thích:** NFR2 nói auto-save không được gây gai trễ, nhưng không nói **mất bao nhiêu là chấp nhận được** — mà đó mới là thứ người dùng cảm nhận. Ngưỡng 5 giây nghĩa là mất nhiều nhất **một câu đang dở**. 🔵 2026-10-25: ngưỡng nay là 10 giây; trần buộc ghi 5 giây giữ nguyên nên mức mất thường gặp không đổi, 10 giây là khoảng dư cho lần ghi trễ. Với người dịch dành nửa buổi cho một Chương, 30 giây gõ đã là mất mát thật; còn ghi liên tục mỗi thay đổi thì đẩy thẳng vào R9 và xung đột với NFR2.
 
 ---
 

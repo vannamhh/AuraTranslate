@@ -52,7 +52,7 @@ export const EDITOR_IDLE_MS = 2000
  *
  * ⚠️ **TẠM — chủ là Story 2.4**, cùng hàng Deferred với [`EDITOR_IDLE_MS`].
  *
- * Đây là con số mà NFR18 (*"mất tối đa 5 giây công việc"*) đứng trên. Vế *"không reset"* do
+ * Đây là con số mà NFR18 (*"mất tối đa 10 giây công việc"*) đứng trên. Vế *"không reset"* do
  * `createWriteSchedule` giữ: `firstChangeAt` không được gán lại cho tới khi `onWrite` chạy.
  *
  * ⚠️ **KHÔNG** đè lên `IDLE_MS`/`HARD_CAP_MS` của `../layout/writeSchedule`. Bố cục giữ

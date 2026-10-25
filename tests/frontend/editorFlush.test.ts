@@ -71,8 +71,8 @@ describe('nhịp flush của Editor — hợp đồng AD-35', () => {
     const writes = flushesAt(events, EDITOR_IDLE_MS, EDITOR_HARD_CAP_MS)
 
     const gaps = writes.slice(1).map((at, i) => at - writes[i])
-    // 🔴 Đây là mệnh đề mà NFR18 đứng trên: *"mất tối đa 5 giây công việc"*. Một khoảng
-    // cách > 5.000 ms là một cửa sổ mà một lần sập máy ăn nhiều hơn ngưỡng đã hứa.
+    // 🔴 Trần cứng AD-35, mệnh đề mà NFR18 (*"mất tối đa 10 giây công việc"*) đứng trên: hai lượt
+    // ghi liên tiếp không được cách nhau quá `EDITOR_HARD_CAP_MS` khi đang gõ liên tục.
     for (const gap of gaps) expect(gap).toBeLessThanOrEqual(EDITOR_HARD_CAP_MS)
     expect(gaps.length).toBeGreaterThan(0)
   })

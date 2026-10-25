@@ -27,7 +27,7 @@ Yêu cầu nằm ở PRD (FR1–FR152 trừ FR20 đã rút, NFR1–NFR19); mỗi
 
 1. Mọi yêu cầu chức năng còn hiệu lực (FR1–FR152 trừ FR20) và NFR1–NFR19 của PRD đạt ngưỡng nghiệm thu của chính nó, không còn nợ mang tên Ice mở ở epic cuối.
 2. Tra cứu hoạt động 100% khi ngoại tuyến, mọi mục từ hiển thị nguồn định nghĩa, và độ trễ Auto-Lookup đầu-cuối p95 dưới 100 ms (NFR1).
-3. Một vòng dịch trọn một Chương làm được không chạm chuột (NFR17), và sập ứng dụng mất không quá 5 giây công việc (NFR18).
+3. Một vòng dịch trọn một Chương làm được không chạm chuột (NFR17), và sập ứng dụng mất không quá 10 giây công việc (NFR18).
 4. Có thể mang dữ liệu đi: xuất được TMX; bản cài dưới trần 400.000.000 byte và không tải thêm sau khi cài.
 5. Chỉ số kết quả công việc (tuân thủ Glossary, mật độ lỗi reviewer sửa, consistency drift) đo được, và hai counter-metric (chấp nhận thẳng bản dịch AI, thời gian quản lý công cụ) được theo dõi, không có dấu hiệu trượt về auto-translate.
 6. Bản phát hành chạy được trên macOS và Windows không ký số, với đường dẫn vượt rào cản cài đặt được ghi rõ cho người dùng.
@@ -46,6 +46,7 @@ Yêu cầu nằm ở PRD (FR1–FR152 trừ FR20 đã rút, NFR1–NFR19); mỗi
 
 ## Notes
 
+- Decision: 2026-10-25, Ice — NFR18 nới từ 5 lên 10 giây công việc mất khi sập (PRD đã sửa). Lý do: trần buộc ghi 5 giây của AD-35 trùng đúng ngưỡng cũ nên không chừa dư; đo thật trên release `2357baf` (122 câu, 10 phím/giây, n=40) mất tối đa 5,49 s. Nghiệm thu ở nhịp gõ thật 10 phím/giây; 40 phím/giây chỉ là số chịu tải. Trần 5 giây của AD-35 giữ nguyên, spine không phải sửa.
 - Decision: FR20 (Sync Scrolling) bị rút 2026-08-14 qua đề xuất đổi hướng, Ice ký; vì vậy `covers` bỏ FR20.
 - Decision: thứ tự epic trong `tickets.toml` là thứ tự thực thi 1, 2, 3, 5, 6, 4, 11, 7, 8, 9, 10 (Ice chốt 2026-10-06, Q9); id epic giữ số v6.
 - Source conflict: bốn FR nghiệm thu chia đôi giữa hai epic (FR13 giữa Epic 1 và 6; FR44 và FR129 giữa Epic 6 và 7; FR70 giữa Epic 4 và 7); không ghi `after` cấp epic vì `epics.md` nêu thứ tự chạy chứ không nêu phụ thuộc (Q23).
