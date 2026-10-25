@@ -13456,3 +13456,5 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/plan-the-loai-chon-tu-danh-sach.md`
   summary: Đổi Thể loại cho Tác phẩm có sẵn — lệnh Rust ghi `work.genre` rồi dựng lại `meta.json` rồi reindex (khuôn `set_work_status_override`), ô chọn ở trang Tác phẩm, gọi lại hàm tự chọn bộ prompt sau khi đổi.
   evidence: Tách khỏi plan danh sách thể loại vì plan ba phần dài 2.886 token (tiktoken). Không có nó, 47/47 Tác phẩm của Ice giữ thể loại rỗng mãi và không bao giờ được tự chọn bộ prompt; Ice chọn làm ngay sau plan này. **Chủ: Ice.**
+
+- **Bẫy Tab của `GlossaryManageOverlay` có thể kẹt ở nút mở menu** (chưa đo). `focusableWithin` ở đó đếm cả radio nằm trong `<details>` đóng của hai SelectMenu; `focus()` lên chúng không có tác dụng trong WebKit, nên Tab từ nút mở menu có thể đứng yên. `LibraryImportOverlay.vue` đã lọc đúng chỗ này; một ca e2e bấm Tab qua menu ở Quản lý Glossary sẽ trả lời. **Chủ: Ice.**

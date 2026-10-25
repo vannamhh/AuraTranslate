@@ -141,6 +141,42 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     expect(labels).toHaveLength(31)
     expect(labels[0]).toBe('Chưa chọn')
     expect(labels[1]).toBe('Thời sự')
+    expect(field!.find('.select-options').classes()).toContain('select-options--cols-3')
+  })
+
+  it('source language is a row of chips; clicking one sets sourceLang and marks only that chip', async () => {
+    const { commands, imp, Overlay } = await setup()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    pages.push(wrapper)
+    commands.dispatch('library.import.open')
+    await flush()
+    const group = wrapper.find('[data-import-source-lang]')
+    expect(group.attributes('role')).toBe('radiogroup')
+    expect(group.attributes('aria-label')).toBe('Ngôn ngữ nguồn')
+    const chips = group.findAll('.lang-chip')
+    expect(chips.map((c) => c.text())).toEqual(['Tiếng Trung', 'Tiếng Anh'])
+
+    await chips[1]!.find('input').setValue(true)
+    expect(imp.sourceLang.value).toBe('en')
+    expect(group.findAll('.lang-chip--on').map((c) => c.text())).toEqual(['Tiếng Anh'])
+  })
+
+  it('Tab from the checked language chip skips the other chip and the radios of the closed genre menu', async () => {
+    const { commands, Overlay } = await setup()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    pages.push(wrapper)
+    commands.dispatch('library.import.open')
+    await flush()
+    const checked = wrapper.find<HTMLInputElement>('[data-import-source-lang] input:checked')
+    expect(checked.element.value).toBe('zh')
+    checked.element.focus()
+
+    await wrapper.find('.li-panel').trigger('keydown', { key: 'Tab' })
+    const genreField = wrapper.findAll('.import-form .field').find((f) => f.find('span').text() === 'Thể loại')!
+    expect(document.activeElement).toBe(genreField.find('summary').element)
+
+    await wrapper.find('.li-panel').trigger('keydown', { key: 'Tab' })
+    expect(document.activeElement?.tagName).toBe('TEXTAREA')
   })
 
   it('focus falls back to [data-library-import-open] when the opener node was replaced', async () => {

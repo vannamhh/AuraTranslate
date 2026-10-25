@@ -83,6 +83,19 @@ function focusableWithin(root: HTMLElement): HTMLElement[] {
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), summary:not([aria-disabled="true"]), ' +
         'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
+  ).filter((el) => !insideClosedMenu(el) && !isUncheckedRadioOfCheckedGroup(root, el))
+}
+
+// focus() on anything inside a closed <details> is a no-op in WebKit, so the trap would stall there.
+function insideClosedMenu(el: HTMLElement): boolean {
+  const details = el.closest('details')
+  return details !== null && !details.open && el.tagName !== 'SUMMARY'
+}
+
+function isUncheckedRadioOfCheckedGroup(root: HTMLElement, el: HTMLElement): boolean {
+  if (!(el instanceof HTMLInputElement) || el.type !== 'radio' || el.checked || el.name === '') return false
+  return Array.from(root.querySelectorAll<HTMLInputElement>('input[type="radio"]')).some(
+    (other) => other.name === el.name && other.checked,
   )
 }
 
@@ -183,13 +196,30 @@ function trapTab(event: KeyboardEvent): void {
 
         <div class="field">
           <span>{{ t('mode.library.field_source_lang') }}</span>
-          <SelectMenu
+          <div
             v-if="pickedDestinationWork === null"
-            v-model="sourceLang"
-            variant="field"
-            :options="sourceLangOptions"
-            :label="t('mode.library.field_source_lang')"
-          />
+            class="lang-chips"
+            role="radiogroup"
+            :aria-label="t('mode.library.field_source_lang')"
+            data-import-source-lang
+          >
+            <label
+              v-for="option in sourceLangOptions"
+              :key="option.value"
+              class="lang-chip"
+              :class="{ 'lang-chip--on': sourceLang === option.value }"
+            >
+              <input
+                v-model="sourceLang"
+                type="radio"
+                name="library-import-source-lang"
+                class="lang-chip-input"
+                :value="option.value"
+              />
+              <!-- aura-allow-text: option label is the output of t(). -->
+              <span>{{ option.label }}</span>
+            </label>
+          </div>
           <input
             v-else
             :value="sourceLangLabel(pickedDestinationWork.source_lang) ?? ''"
@@ -205,6 +235,7 @@ function trapTab(event: KeyboardEvent): void {
             v-if="pickedDestinationWork === null"
             v-model="genre"
             variant="field"
+            :columns="3"
             :options="genreOptions"
             :label="t('mode.library.field_genre')"
           />
@@ -381,6 +412,46 @@ function trapTab(event: KeyboardEvent): void {
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   padding: 8px 8px;
+}
+
+.lang-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lang-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+}
+
+.lang-chip--on {
+  border-color: var(--color-primary);
+  background: var(--color-surface-accent);
+  color: var(--color-primary);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.lang-chip:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.field .lang-chip-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .field-group {

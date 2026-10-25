@@ -168,6 +168,10 @@ onBeforeUnmount(() => {
   overflow-y: auto;
 }
 
+.menu--field.menu--columns .menu-panel {
+  max-height: min(480px, 60vh);
+}
+
 .menu-panel {
   position: absolute;
   top: 100%;
