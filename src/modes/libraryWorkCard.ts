@@ -45,7 +45,6 @@ const GENRE_IDS = [
   'wuxia',
   'urban',
   'romance',
-  'danmei',
   'historical',
   'scifi',
   'game',

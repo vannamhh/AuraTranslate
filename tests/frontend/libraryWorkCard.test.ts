@@ -96,7 +96,6 @@ describe('genre list', () => {
       'Kiếm hiệp',
       'Đô thị',
       'Ngôn tình',
-      'Đam mỹ',
       'Lịch sử – Cổ đại',
       'Khoa huyễn',
       'Võng du – Game',
