@@ -5,7 +5,7 @@ vi.mock('../../src/config/reviewerImport', async (importOriginal) => ({
   reviewerImportOpenPreview: async () => ({ outcome: 'ipc_unavailable' }),
 }))
 
-const NEW_WORK = { meta: { work_id: 'w-moi-nhap', name: 'Tac pham nhap moi', chapter_count: 1 } }
+const NEW_WORK = { meta: { work_id: 'w-moi-nhap', genre: '', name: 'Tac pham nhap moi', chapter_count: 1 } }
 
 vi.mock('../../src/config/project', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/project')>()),
@@ -18,7 +18,7 @@ vi.mock('../../src/config/project', async (importOriginal) => ({
 
 vi.mock('@tauri-apps/api/event', () => ({ listen: async () => () => {} }))
 
-const OPENED_WORK = { meta: { work_id: 'w-co-san' }, folder: '/tmp/w-co-san.atproj', chapter_id: 1 }
+const OPENED_WORK = { meta: { work_id: 'w-co-san', genre: '' }, folder: '/tmp/w-co-san.atproj', chapter_id: 1 }
 
 vi.mock('../../src/config/library', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/library')>()),

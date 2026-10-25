@@ -24,6 +24,27 @@ export function sourceLangChoices(): { value: string; label: string }[] {
   ]
 }
 
+const GENRE_IDS = ['xianxia', 'xuanhuan', 'wuxia', 'urban', 'romance', 'danmei', 'historical', 'scifi', 'game', 'horror', 'mystery', 'fanfic', 'literary', 'children', 'nonfiction', 'science', 'legal', 'news', 'business', 'other'] as const
+type GenreId = (typeof GENRE_IDS)[number]
+
+function isGenreId(raw: string): raw is GenreId {
+  return (GENRE_IDS as readonly string[]).includes(raw)
+}
+
+/** Empty is `null`; an id outside the list (older free-text value) is shown verbatim. */
+export function genreLabel(raw: string): string | null {
+  const genre = raw.trim()
+  if (genre === '') return null
+  return isGenreId(genre) ? t(`mode.library.genre_${genre}`) : genre
+}
+
+export function genreChoices(): { value: string; label: string }[] {
+  return [
+    { value: '', label: t('mode.library.genre_unset') },
+    ...GENRE_IDS.map((id) => ({ value: id, label: t(`mode.library.genre_${id}`) })),
+  ]
+}
+
 /** `null` when the timestamp is unreadable or lies in the future. */
 export function updatedLabel(updatedAt: string, now: Date): string | null {
   const stamp = Date.parse(updatedAt)
@@ -40,8 +61,8 @@ export function updatedLabel(updatedAt: string, now: Date): string | null {
 
 export function workCardMeta(work: Pick<WorkRow, 'source_lang' | 'genre' | 'updated_at'>, now: Date): WorkCardMeta {
   const parts: string[] = []
-  const genre = work.genre.trim()
-  if (genre !== '') parts.push(genre)
+  const genre = genreLabel(work.genre)
+  if (genre !== null) parts.push(genre)
   const updated = updatedLabel(work.updated_at, now)
   if (updated !== null) parts.push(updated)
   return { langLabel: sourceLangLabel(work.source_lang), line: parts.length === 0 ? null : parts.join(' · ') }

@@ -126,6 +126,23 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     expect(document.activeElement).toBe(opener.element)
   })
 
+  it('the genre field is a select menu listing "Chưa chọn" plus 20 genres, not a text box', async () => {
+    const { commands, Overlay } = await setup()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    pages.push(wrapper)
+    commands.dispatch('library.import.open')
+    await flush()
+    const field = wrapper
+      .findAll('.import-form .field')
+      .find((f) => f.find('span').text() === 'Thể loại')
+    expect(field).toBeDefined()
+    expect(field!.find('input[type="text"]').exists()).toBe(false)
+    const labels = field!.findAll('.select-item').map((n) => n.text())
+    expect(labels).toHaveLength(21)
+    expect(labels[0]).toBe('Chưa chọn')
+    expect(labels[1]).toBe('Tiên hiệp')
+  })
+
   it('focus falls back to [data-library-import-open] when the opener node was replaced', async () => {
     const { commands, overlay, Overlay } = await setup()
     document.body.innerHTML = '<button data-library-import-open id="a"></button>'

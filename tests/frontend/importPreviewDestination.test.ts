@@ -732,11 +732,11 @@ describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần kho�
     expect(textareas).toHaveLength(1)
     await textareas[0]?.setValue('mot doan van ban')
 
-    // Thứ tự tài liệu của bốn ô văn bản trần trong form: Tên, Thể loại, Đường dẫn tệp,
-    // Đường dẫn song ngữ (§Nguồn là một `<select>`, không nằm trong tập này).
+    // Thứ tự tài liệu của ba ô văn bản trần trong form: Tên, Đường dẫn tệp, Đường dẫn song
+    // ngữ (Ngôn ngữ nguồn và Thể loại là SelectMenu, không nằm trong tập này).
     const textInputs = wrapper.findAll('.import-form .field input[type="text"]')
-    expect(textInputs).toHaveLength(4)
-    const [nameInput, , filePathInput, bilingualPathInput] = textInputs
+    expect(textInputs).toHaveLength(3)
+    const [nameInput, filePathInput, bilingualPathInput] = textInputs
     await filePathInput.setValue('/tmp/mot-tep.txt')
     await nameInput.setValue('   ')
 

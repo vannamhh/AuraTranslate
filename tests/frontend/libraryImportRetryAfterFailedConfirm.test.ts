@@ -92,7 +92,7 @@ describe('🔴 lượt xác nhận TRƯỢT rồi THÀNH CÔNG — ô đường 
 
     // Lượt 2 — chọn lại GBK, THÀNH CÔNG.
     preview.selectImportPreviewCandidate('GBK')
-    const created = { meta: { work_id: 'w1', name: 'Ten' }, folder: '/tmp/Ten.atproj' }
+    const created = { meta: { work_id: 'w1', genre: '', name: 'Ten' }, folder: '/tmp/Ten.atproj' }
     confirmMock.mockResolvedValue({ created, error: null })
     const ok = await preview.confirmImportPreview()
     if (ok.created !== null || ok.error !== null) {

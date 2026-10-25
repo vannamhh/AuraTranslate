@@ -13452,3 +13452,7 @@ chính nó.
 ## Deferred from: code review of story-luoi-doi-chieu-chia-khoi-200-hang-plan (2026-10-24)
 
 - **Ba dải trong lưới remount khi neo dải sang khối khác** (Story 2.16). `TmFuzzyStrip`, `GlossaryConfirmStrip`, `ProofreaderStrip` nằm trong `#strip-track` của khối chứa neo (`v-if`), nên đổi khối là gỡ rồi gắn lại; trạng thái cục bộ hay tiêu điểm trong dải có thể mất. Chưa kiểm; một ca e2e đặt tiêu điểm trong dải rồi dời neo qua ranh giới sẽ trả lời. **Chủ: Epic 2.**
+
+- source_plan: `_bmad-output/initiative-auratranslate/plan-the-loai-chon-tu-danh-sach.md`
+  summary: Đổi Thể loại cho Tác phẩm có sẵn — lệnh Rust ghi `work.genre` rồi dựng lại `meta.json` rồi reindex (khuôn `set_work_status_override`), ô chọn ở trang Tác phẩm, gọi lại hàm tự chọn bộ prompt sau khi đổi.
+  evidence: Tách khỏi plan danh sách thể loại vì plan ba phần dài 2.886 token (tiktoken). Không có nó, 47/47 Tác phẩm của Ice giữ thể loại rỗng mãi và không bao giờ được tự chọn bộ prompt; Ice chọn làm ngay sau plan này. **Chủ: Ice.**

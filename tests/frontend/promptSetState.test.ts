@@ -543,3 +543,102 @@ describe('exportPromptSet — Story 4.5, mở hộp thoại LƯU trong Rust', ()
     setGlossaryExchangeBusy(false)
   })
 })
+
+function deferred() {
+  let resolve!: (value: unknown) => void
+  const promise = new Promise<unknown>((r) => {
+    resolve = r
+  })
+  return { promise, resolve }
+}
+
+describe('autoSelectPromptSetForGenre', () => {
+  function withSets(...names: string[]) {
+    promptSetListMock.mockResolvedValue({
+      sets: names.map((name, i) => makeSet({ id: i + 1, name })),
+      workTierAvailable: false,
+      variables: [],
+      error: null,
+    })
+  }
+
+  it('selects the set whose name matches the genre label (trim, case-insensitive)', async () => {
+    withSets(' TIÊN HIỆP ', 'Khác nữa')
+    const { autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
+    await autoSelectPromptSetForGenre('xianxia')
+    expect(selectedPromptSet()?.name).toBe(' TIÊN HIỆP ')
+  })
+
+  it('no match drops a selection made automatically', async () => {
+    withSets('Tiên hiệp')
+    const { autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
+    await autoSelectPromptSetForGenre('xianxia')
+    expect(selectedPromptSet()).not.toBeNull()
+    await autoSelectPromptSetForGenre('wuxia')
+    expect(selectedPromptSet()).toBeNull()
+  })
+
+  it('no match keeps a set chosen by hand, and a hand choice after auto is no longer automatic', async () => {
+    withSets('Tiên hiệp', 'Thủ công')
+    const { autoSelectPromptSetForGenre, selectedPromptSet, setSelectedPromptSetName } = await freshState()
+    await autoSelectPromptSetForGenre('')
+    setSelectedPromptSetName('Thủ công')
+    await autoSelectPromptSetForGenre('wuxia')
+    expect(selectedPromptSet()?.name).toBe('Thủ công')
+
+    await autoSelectPromptSetForGenre('xianxia')
+    expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+    setSelectedPromptSetName('Thủ công')
+    await autoSelectPromptSetForGenre('wuxia')
+    expect(selectedPromptSet()?.name).toBe('Thủ công')
+  })
+
+  it('a failed list load keeps the current selection', async () => {
+    withSets('Tiên hiệp')
+    const { autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
+    await autoSelectPromptSetForGenre('xianxia')
+    promptSetListMock.mockResolvedValue({ sets: null, workTierAvailable: false, variables: [], error: { code: 'x', message: 'x' } })
+    await autoSelectPromptSetForGenre('wuxia')
+    expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+  })
+
+  it('a newer load overtaking the auto-select load still applies the genre', async () => {
+    const first = deferred()
+    const panel = deferred()
+    promptSetListMock.mockReturnValueOnce(first.promise)
+    promptSetListMock.mockReturnValueOnce(panel.promise)
+    const { autoSelectPromptSetForGenre, loadPromptSets, selectedPromptSet } = await freshState()
+    const auto = autoSelectPromptSetForGenre('xianxia')
+    const panelLoad = loadPromptSets()
+    first.resolve({ sets: [], workTierAvailable: false, variables: [], error: null })
+    await auto
+    panel.resolve({ sets: [makeSet({ name: 'Tiên hiệp' })], workTierAvailable: false, variables: [], error: null })
+    await panelLoad
+    expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+  })
+
+  it('opens A then B leave B\'s match', async () => {
+    const slowA = deferred()
+    const sets = { sets: [makeSet({ id: 1, name: 'Tiên hiệp' }), makeSet({ id: 2, name: 'Kiếm hiệp' })], workTierAvailable: false, variables: [], error: null }
+    promptSetListMock.mockReturnValueOnce(slowA.promise)
+    promptSetListMock.mockResolvedValueOnce(sets)
+    const { autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
+    const a = autoSelectPromptSetForGenre('xianxia')
+    const b = autoSelectPromptSetForGenre('wuxia')
+    await b
+    slowA.resolve(sets)
+    await a
+    expect(selectedPromptSet()?.name).toBe('Kiếm hiệp')
+  })
+
+  it('a latest load that errors clears the pending genre and leaves the selection alone', async () => {
+    withSets('Tiên hiệp')
+    const { autoSelectPromptSetForGenre, loadPromptSets, selectedPromptSet } = await freshState()
+    await autoSelectPromptSetForGenre('xianxia')
+    promptSetListMock.mockResolvedValueOnce({ sets: null, workTierAvailable: false, variables: [], error: { code: 'x', message: 'x' } })
+    await autoSelectPromptSetForGenre('wuxia')
+    withSets('Tiên hiệp', 'Kiếm hiệp')
+    await loadPromptSets()
+    expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+  })
+})

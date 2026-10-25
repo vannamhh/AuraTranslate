@@ -39,7 +39,7 @@ const BAN_GHI_CU = {
 }
 
 /** Tác phẩm MỚI mà `open_work` trả về — chỉ cần qua được `isOpenedWork`. */
-const TAC_PHAM_MOI = { meta: { work_id: 'w-moi' }, folder: '/tmp/w-moi.atproj', chapter_id: 1 }
+const TAC_PHAM_MOI = { meta: { work_id: 'w-moi', genre: 'xianxia' }, folder: '/tmp/w-moi.atproj', chapter_id: 1 }
 
 vi.mock('../../src/config/library', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/library')>()
@@ -70,8 +70,15 @@ vi.mock('../../src/config/aiprompt', () => ({
   aiPromptReadRecord: async () => ({ value: null, error: null }),
 }))
 
+const autoSelectMock = vi.hoisted(() => vi.fn(async (_genre: string) => {}))
+vi.mock('../../src/promptSetState', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/promptSetState')>()
+  return { ...actual, autoSelectPromptSetForGenre: autoSelectMock }
+})
+
 beforeEach(() => {
   vi.resetModules()
+  autoSelectMock.mockClear()
 })
 
 describe('🔴 mở lại một Tác phẩm đã có ⇒ bản ghi prompt cuối cùng đã lắp KHÔNG sống sót', () => {
@@ -97,5 +104,13 @@ describe('🔴 mở lại một Tác phẩm đã có ⇒ bản ghi prompt cuối
     expect(aiPrompt.aiPromptAssembleBusy.value).toBe(false)
     expect(aiPrompt.aiPromptAssembleError.value).toBeNull()
     expect(aiPrompt.aiPromptReadError.value).toBeNull()
+  })
+
+  it('openWorkById() tự chọn bộ prompt theo genre của Tác phẩm vừa mở', async () => {
+    const chuong = await import('../../src/modes/libraryChapters')
+    await chuong.openWorkById('w-moi')
+    expect(chuong.libraryOpenWorkError.value).toBeNull()
+    expect(autoSelectMock).toHaveBeenCalledTimes(1)
+    expect(autoSelectMock).toHaveBeenCalledWith('xianxia')
   })
 })

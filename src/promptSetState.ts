@@ -39,6 +39,7 @@ import {
   promptSetUpdateBody,
 } from './config/promptset'
 import type { PromptSetExportFile, PromptSetTier, PromptSetWarningsWire, PromptSetWire } from './config/promptset'
+import { genreLabel } from './modes/libraryWorkCard'
 import { glossaryExchangeBusy, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 
 const resolvedSets = ref<PromptSetWire[]>([])
@@ -51,6 +52,8 @@ const actionError = ref<IpcError | null>(null)
  * thao tác đó không mang thân để mà cảnh báo) hoặc khi chưa có lượt Tạo/Sửa nào. */
 const actionWarnings = ref<PromptSetWarningsWire | null>(null)
 const selectedSetName = ref<string | null>(null)
+let selectionIsAutomatic = false
+let pendingGenre: string | null = null
 /** Từ vựng biến số ratify (`PromptVariable::ALL` phía Rust) — nguồn sự thật DUY NHẤT mà
  * `PromptLibraryOverlay.vue` render từ đó, cùng khối 🔴 đầu `PromptSetListWire::variables`
  * (`commands/promptset.rs`). Không đổi trên một lượt trượt — cùng lý do `resolvedSets` giữ
@@ -146,10 +149,14 @@ export async function loadPromptSets(): Promise<void> {
   loading.value = false
   if (result.error !== null) {
     loadError.value = result.error
+    pendingGenre = null
     return
   }
   loadError.value = null
-  if (result.sets === null) return
+  if (result.sets === null) {
+    pendingGenre = null
+    return
+  }
 
   workTierAvailable.value = result.workTierAvailable
   resolvedSets.value = result.sets
@@ -158,6 +165,12 @@ export async function loadPromptSets(): Promise<void> {
   // vào một tên không còn giải được (xem khối 🔵 đầu tệp).
   if (selectedSetName.value !== null && !result.sets.some((s) => s.name === selectedSetName.value)) {
     selectedSetName.value = null
+    selectionIsAutomatic = false
+  }
+  if (pendingGenre !== null) {
+    const genre = pendingGenre
+    pendingGenre = null
+    applyGenre(genre)
   }
 }
 
@@ -169,6 +182,25 @@ export async function loadPromptSets(): Promise<void> {
 export function setSelectedPromptSetName(name: string | null): void {
   if (name !== null && !resolvedSets.value.some((s) => s.name === name)) return
   selectedSetName.value = name
+  selectionIsAutomatic = false
+}
+
+function applyGenre(genre: string): void {
+  const label = genreLabel(genre)?.trim().toLowerCase() ?? null
+  const match = label === null ? undefined : resolvedSets.value.find((s) => s.name.trim().toLowerCase() === label)
+  if (match !== undefined) {
+    selectedSetName.value = match.name
+    selectionIsAutomatic = true
+  } else if (selectionIsAutomatic) {
+    selectedSetName.value = null
+    selectionIsAutomatic = false
+  }
+}
+
+/** A hand-picked set is never cleared by a genre without a matching set. */
+export async function autoSelectPromptSetForGenre(genre: string): Promise<void> {
+  pendingGenre = genre
+  await loadPromptSets()
 }
 
 /**
@@ -342,6 +374,8 @@ export function resetPromptSets(): void {
   actionError.value = null
   actionWarnings.value = null
   selectedSetName.value = null
+  selectionIsAutomatic = false
+  pendingGenre = null
   variableNames.value = []
   exportError.value = null
   exportManyError.value = null

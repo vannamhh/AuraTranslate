@@ -936,6 +936,40 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     expect(wrapper.find('select').exists()).toBe(false)
   })
 
+  it('chip Lĩnh vực hiện nhãn cho định danh trong danh sách và nguyên văn cho giá trị lạ, cả ở lựa chọn lẫn nút chip', async () => {
+    vi.resetModules()
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'library_list_works') {
+        return Promise.resolve({
+          total: 1,
+          matched: 1,
+          works: [WORK_ROW_A],
+          genres: ['xianxia', 'Huyền huyễn'],
+          source_langs: ['zh'],
+        })
+      }
+      return Promise.reject({ code: 'work.none_open', message_key: 'err.work.none_open', params: {}, retryable: false })
+    })
+    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const state = await import('../../src/modes/libraryWorks')
+    wrapper = mount(LibraryMode)
+    await state.loadWorks()
+    await wrapper.vm.$nextTick()
+
+    const chip = '[data-library-chip="genre"]'
+    const labels = wrapper.findAll(`${chip} .select-item`).map((o) => o.text())
+    expect(labels).toEqual(['Mọi lĩnh vực', 'Tiên hiệp', 'Huyền huyễn'])
+    const trigger = () => wrapper!.get(`${chip} .menu-label`).text()
+
+    await wrapper.get(`${chip} [data-library-chip-option="xianxia"]`).setValue(true)
+    await wrapper.vm.$nextTick()
+    expect(trigger()).toBe('Tiên hiệp')
+
+    await wrapper.get(`${chip} [data-library-chip-option="Huyền huyễn"]`).setValue(true)
+    await wrapper.vm.$nextTick()
+    expect(trigger()).toBe('Huyền huyễn')
+  })
+
   it('bấm một thẻ ngắm nó (con trỏ + aria-current + tabindex 0), bấm đúp dispatch library.open_work', async () => {
     vi.resetModules()
     mockInvokeForMount([WORK_ROW_A, WORK_ROW_B])

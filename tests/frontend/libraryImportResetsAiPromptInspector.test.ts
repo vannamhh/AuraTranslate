@@ -31,7 +31,7 @@ import { readFixture } from './support/segmentFixture'
 
 /** Tác phẩm mà lượt nhập giả lập trả về — chỉ cần khác `null` để `finishImportSubmission` đi
  * vào nhánh dọn. */
-const TAC_PHAM_MOI = { meta: { work_id: 'w-moi', name: 'Tac pham B', chapter_count: 1 } }
+const TAC_PHAM_MOI = { meta: { work_id: 'w-moi', name: 'Tac pham B', chapter_count: 1, genre: 'xianxia' } }
 
 /** Bản ghi prompt giả lập của Tác phẩm CŨ — chỉ cần đúng hình dạng `AssembledPromptWire` để
  * `isAssembledPromptWire` (tầng adapter) chấp nhận nó. */
@@ -77,8 +77,15 @@ vi.mock('../../src/config/aiprompt', () => ({
   aiPromptReadRecord: async () => ({ value: null, error: null }),
 }))
 
+const autoSelectMock = vi.hoisted(() => vi.fn(async (_genre: string) => {}))
+vi.mock('../../src/promptSetState', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/promptSetState')>()
+  return { ...actual, autoSelectPromptSetForGenre: autoSelectMock }
+})
+
 beforeEach(() => {
   vi.resetModules()
+  autoSelectMock.mockClear()
 })
 
 describe('🔴 đổi Tác phẩm (nhập mới) ⇒ bản ghi prompt cuối cùng đã lắp KHÔNG sống sót', () => {
@@ -114,5 +121,17 @@ describe('🔴 đổi Tác phẩm (nhập mới) ⇒ bản ghi prompt cuối cù
     expect(aiPrompt.aiPromptAssembleBusy.value).toBe(false)
     expect(aiPrompt.aiPromptAssembleError.value).toBeNull()
     expect(aiPrompt.aiPromptReadError.value).toBeNull()
+  })
+
+  it('finishImportSubmission tự chọn bộ prompt theo genre của Tác phẩm vừa tạo', async () => {
+    const nhap = await import('../../src/modes/libraryImport')
+    const preview = await import('../../src/importPreviewState')
+    nhap.pastedText.value = 'Cau nguyen van cua Tac pham moi.'
+    await nhap.submitPastedText()
+    const result = await preview.confirmImportPreview()
+    nhap.finishImportSubmission(result.created, result.error)
+    expect(nhap.createdWork.value).not.toBeNull()
+    expect(autoSelectMock).toHaveBeenCalledTimes(1)
+    expect(autoSelectMock).toHaveBeenCalledWith('xianxia')
   })
 })

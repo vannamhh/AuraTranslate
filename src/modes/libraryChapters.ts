@@ -114,6 +114,7 @@ import { resetAlignment } from '../alignmentState'
 import { resetReviewerImport } from '../reviewerImportState'
 import type { IpcError } from '../i18n'
 import { setOpenWorkId } from '../openWorkIdentity'
+import { autoSelectPromptSetForGenre } from '../promptSetState'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // State module-level — singleton của cả tiến trình, cùng khuôn `libraryWorks.ts`. Mỗi khai
@@ -358,6 +359,7 @@ export async function openWorkById(workId: string): Promise<boolean> {
   // cửa sổ ấy); ② danh sách Chương CŨ bị vứt **ngay** ở đây, nên kể cả khi một đường khác mở
   // được nút, `currentLibraryChapter` là `null` chứ không phải một hàng của Tác phẩm cũ.
   setOpenWorkId(opened.meta.work_id)
+  void autoSelectPromptSetForGenre(opened.meta.genre)
   chapters.value = []
   chaptersHaveLoaded.value = false
   chapterCursor.value = 0

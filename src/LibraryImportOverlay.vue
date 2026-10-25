@@ -32,7 +32,7 @@ import {
 } from './modes/libraryImport'
 import { bilingualImportPreviewIsOpen } from './bilingualImportPreviewState'
 import SelectMenu from './SelectMenu.vue'
-import { sourceLangChoices, sourceLangLabel } from './modes/libraryWorkCard'
+import { genreChoices, genreLabel, sourceLangChoices, sourceLangLabel } from './modes/libraryWorkCard'
 import { importPreviewIsOpen } from './importPreviewState'
 import { libraryImportOverlayIsOpen, libraryUrlImportScreenIsOpen } from './modes/libraryImportOverlayState'
 
@@ -46,6 +46,7 @@ const destinationOptions = computed(() =>
   destinationWorks.value.map((work) => ({ value: work.work_id, label: work.name })),
 )
 const sourceLangOptions = computed(() => sourceLangChoices())
+const genreOptions = computed(() => genreChoices())
 
 useSelectionSurface(panel, 'display')
 
@@ -198,11 +199,23 @@ function trapTab(event: KeyboardEvent): void {
           />
         </div>
 
-        <label class="field">
+        <div class="field">
           <span>{{ t('mode.library.field_genre') }}</span>
-          <input v-if="pickedDestinationWork === null" v-model="genre" type="text" autocomplete="off" />
-          <input v-else :value="pickedDestinationWork.genre" type="text" autocomplete="off" disabled />
-        </label>
+          <SelectMenu
+            v-if="pickedDestinationWork === null"
+            v-model="genre"
+            variant="field"
+            :options="genreOptions"
+            :label="t('mode.library.field_genre')"
+          />
+          <input
+            v-else
+            :value="genreLabel(pickedDestinationWork.genre) ?? ''"
+            type="text"
+            autocomplete="off"
+            disabled
+          />
+        </div>
 
         <label class="field">
           <span>{{ t('mode.library.field_paste') }}</span>

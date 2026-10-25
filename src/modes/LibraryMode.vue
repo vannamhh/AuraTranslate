@@ -99,7 +99,7 @@ import {
 import type { SearchScope } from '../config/library'
 import { t, tError } from '../i18n'
 import { shortcutRows } from '../config/shortcutsState'
-import { sourceLangLabel, workCardMeta, workCoverTone } from './libraryWorkCard'
+import { genreLabel, sourceLangLabel, workCardMeta, workCoverTone } from './libraryWorkCard'
 import DropdownMenu from '../DropdownMenu.vue'
 import SelectMenu from '../SelectMenu.vue'
 
@@ -255,7 +255,7 @@ const sortChipLabel = computed(() =>
 
 const genreOptions = computed(() => [
   { value: '', label: t('mode.library.filter_all_genres'), disabled: libraryWorksBusy.value },
-  ...libraryGenres.value.map((genre) => ({ value: genre, label: genre, disabled: libraryWorksBusy.value })),
+  ...libraryGenres.value.map((genre) => ({ value: genre, label: genreLabel(genre) ?? genre, disabled: libraryWorksBusy.value })),
 ])
 const sourceLangOptions = computed(() => [
   { value: '', label: t('mode.library.filter_all_source_langs'), disabled: libraryWorksBusy.value },
@@ -505,7 +505,11 @@ const importScreenIsOpen = computed<boolean>(
           :model-value="libraryGenreFilter ?? ''"
           :options="genreOptions"
           :label="t('mode.library.filter_genre_label')"
-          :trigger-text="libraryGenreFilter ?? t('mode.library.filter_genre_label')"
+          :trigger-text="
+            libraryGenreFilter === null
+              ? t('mode.library.filter_genre_label')
+              : (genreLabel(libraryGenreFilter) ?? libraryGenreFilter)
+          "
           :active="libraryGenreFilter !== null"
           data-library-chip="genre"
           @change="onGenreChange($event === '' ? null : $event)"

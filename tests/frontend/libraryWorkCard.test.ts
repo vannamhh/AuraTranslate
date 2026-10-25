@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { workCardMeta } from '../../src/modes/libraryWorkCard'
+import { genreChoices, genreLabel, workCardMeta } from '../../src/modes/libraryWorkCard'
 
 const NOW = new Date('2026-10-13T12:00:00.000Z')
 
@@ -68,5 +68,27 @@ describe('workCardMeta', () => {
     expect(workCardMeta(work({ source_lang: 'ko' }), NOW).langLabel).toBe('ko')
     expect(workCardMeta(work({ source_lang: '' }), NOW).langLabel).toBeNull()
     expect(workCardMeta(work({ source_lang: '  ' }), NOW).langLabel).toBeNull()
+  })
+})
+
+describe('genre list', () => {
+  it('offers "Chưa chọn" then the 20 genres in order, empty value first', () => {
+    const choices = genreChoices()
+    expect(choices).toHaveLength(21)
+    expect(choices[0]).toEqual({ value: '', label: 'Chưa chọn' })
+    expect(choices[1]).toEqual({ value: 'xianxia', label: 'Tiên hiệp' })
+    expect(choices[20]).toEqual({ value: 'other', label: 'Khác' })
+  })
+
+  it('maps an id to its label, shows a foreign value verbatim, and empty is null', () => {
+    expect(genreLabel('xianxia')).toBe('Tiên hiệp')
+    expect(genreLabel('Huyền huyễn')).toBe('Huyền huyễn')
+    expect(genreLabel('general')).toBe('general')
+    expect(genreLabel('  ')).toBeNull()
+  })
+
+  it('the card shows the label for an id and the raw text for a foreign value', () => {
+    expect(workCardMeta(work({ genre: 'xianxia' }), NOW).line).toBe('Tiên hiệp · sửa 3 giờ trước')
+    expect(workCardMeta(work({ genre: 'Huyền huyễn' }), NOW).line).toBe('Huyền huyễn · sửa 3 giờ trước')
   })
 })
