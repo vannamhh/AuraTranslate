@@ -86,6 +86,26 @@ describe('Grid blocks in a real webview', () => {
     expect(blocks).toEqual([200, 200, 200, 200, 200, 200])
   })
 
+  it('target cells are contained and still share row tops with the source cells', async () => {
+    const probe = await browser.execute(() => {
+      const tgt = [...document.querySelectorAll('.cell-tgt')].slice(0, 20)
+      return tgt.map((cell) => {
+        const src = document.querySelector(`[data-col="src"][data-segment-id="${cell.dataset.segmentId}"]`)
+        return {
+          contain: getComputedStyle(cell).contain,
+          offset: src === null ? null : Math.abs(src.getBoundingClientRect().top - cell.getBoundingClientRect().top),
+        }
+      })
+    })
+    expect(probe.length).toBeGreaterThan(0)
+    for (const row of probe) {
+      expect(row.contain).toContain('layout')
+      expect(row.contain).toContain('style')
+      expect(row.offset).not.toBeNull()
+      expect(row.offset).toBeLessThanOrEqual(1)
+    }
+  })
+
   it('next untranslated jumps from block 0 into block 5, lands in the cell and scrolls it into view', async () => {
     await realClick(await cellOf(0, 'tgt'))
     await browser.pause(300)

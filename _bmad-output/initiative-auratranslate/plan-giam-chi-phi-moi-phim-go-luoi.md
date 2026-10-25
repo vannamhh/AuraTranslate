@@ -3,7 +3,7 @@ title: 'Giảm chi phí mỗi phím gõ trong lưới để NFR18 không trượ
 type: 'bugfix'
 ticket: ''
 created: '2026-10-24'
-status: 'blocked'
+status: 'in-progress'
 baseline_revision: 'e33d55536f573c5940c5b7fe49c4fd85659f3ca4'
 route: 'full'
 route_source: 'auto'
@@ -31,6 +31,11 @@ context:
 - Agent chạy lượt GUI trong phiên, Ice rời máy. Mỗi bước có trần thời gian và sentinel phát từ `trap … EXIT`; agent báo trước thời gian máy bị chiếm.
 - Tải máy hiện có (Docker/VM chạy nền) là điều kiện nghiệm thu: không loại hay chạy lại phiên vì tải, không đòi máy rảnh.
 - Sau lượt phân bổ (`HANDOFF.md` §Pha phân bổ chi phí mỗi phím): sửa bằng hướng A, `contain: layout style` trên `.cell-tgt`, rồi chạy kill campaign 20 mẫu ở cả hai nhịp. Ở 10 phím/giây phím không xếp hàng; nếu nhịp này còn trượt thì thêm mốc tách cửa sổ (chờ hẹn giờ flush, lô bay, commit) và tìm nguyên nhân trong cùng plan.
+
+**Quyết định của Ice (2026-10-25), sau kill campaign hướng A (`HANDOFF.md` §Kết quả hướng A):**
+- Giữ hướng A trong mã, sau khi phép gỡ thật xác nhận ca e2e `grid-blocks` mới đỏ. Commit riêng `perf(grid)`.
+- 10 phím/giây: sửa thước đo trước. Ghi giờ từng phím và đếm phần chữ sau mốc `[n]` hoàn chỉnh cuối còn trong `project.db`, để tính mất mát thật thay cho `window_s` (đang báo dư tới một cụm 1,5–2,6 s). Chạy lại 20 mẫu trên bản hiện có. Nếu mất thật vẫn sát hoặc vượt 5 s thì chuyển trần cứng 5 s của AD-35 cho Winston viết AD, không tự đổi.
+- 40 phím/giây: đo cô lập lệnh sửa của WebKit (14 ms p50 mỗi phím) để biết phần nào tốn, chưa sửa mã sản phẩm. Trình số cho Ice trước khi chọn bản sửa kế.
 
 ## Boundaries & Constraints
 
@@ -69,6 +74,9 @@ context:
 - [x] mã sản phẩm theo hướng Ice chọn, trong các tệp ở Code Map -- sửa chặng trội.
 - [x] `tests/frontend/gridTypingCost.test.ts` -- ca đếm việc của chặng đã sửa nếu chặng là JS; gỡ bản sửa thì đỏ đúng lý do. Nếu chặng nằm ở WebKit (CSS, cấu trúc ô) thì happy-dom không đo được, nên chọn ca e2e trong WKWebView cùng lúc với hướng sửa.
 - [x] `HANDOFF.md` và plan -- `kill-campaign-v2.sh` n=20 mỗi nhịp trên release mới, bảng `grid-table.sh`; mục 🟡 của #107 trong `deferred-work.md` được đóng hoặc ghi phần còn hở.
+
+- [ ] `_bmad-output/implementation-artifacts/nfr18-flush-ban-do/` -- thước đo mất mát thật ở 10 phím/giây (giờ từng phím, phần chữ sau mốc cuối trong kho), 20 mẫu trên release có hướng A; bảng vào `HANDOFF.md`. -- tách phần báo dư khỏi mất mát thật.
+- [ ] `_bmad-output/implementation-artifacts/nfr18-flush-ban-do/` -- biến thể tạm cô lập lệnh sửa WebKit ở 40 phím/giây, đo xen kẽ, kèm đối chứng; bảng vào `HANDOFF.md`, rồi CHECKPOINT trình Ice. -- tìm phần tốn trong 14 ms.
 
 **Acceptance Criteria:**
 - Given release mới, 122 câu, cả hai nhịp, when chạy `kill-campaign-v2.sh` 20 mẫu `VALID`, then 20/20 mẫu ≤ 5 s; nếu không đạt thì plan sang `blocked` kèm bảng.

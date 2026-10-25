@@ -733,6 +733,8 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
  */
 .cell-tgt {
   white-space: pre-line;
+  /* Without containment WebKit relayouts and repaints beyond the edited cell on every keystroke. */
+  contain: layout style;
 }
 
 .cell-tgt :deep(.proofread-error),
