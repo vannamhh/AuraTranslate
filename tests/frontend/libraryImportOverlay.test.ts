@@ -126,7 +126,7 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     expect(document.activeElement).toBe(opener.element)
   })
 
-  it('the genre field is a select menu listing "Chưa chọn" plus 20 genres, not a text box', async () => {
+  it('the genre field is a select menu listing "Chưa chọn" plus 30 genres, not a text box', async () => {
     const { commands, Overlay } = await setup()
     const wrapper = mount(Overlay, { attachTo: document.body })
     pages.push(wrapper)
@@ -138,7 +138,7 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     expect(field).toBeDefined()
     expect(field!.find('input[type="text"]').exists()).toBe(false)
     const labels = field!.findAll('.select-item').map((n) => n.text())
-    expect(labels).toHaveLength(21)
+    expect(labels).toHaveLength(31)
     expect(labels[0]).toBe('Chưa chọn')
     expect(labels[1]).toBe('Tiên hiệp')
   })

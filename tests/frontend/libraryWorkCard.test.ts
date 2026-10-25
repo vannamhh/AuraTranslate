@@ -72,12 +72,26 @@ describe('workCardMeta', () => {
 })
 
 describe('genre list', () => {
-  it('offers "Chưa chọn" then the 20 genres in order, empty value first', () => {
+  it('offers "Chưa chọn" then the 30 genres in order, empty value first', () => {
     const choices = genreChoices()
-    expect(choices).toHaveLength(21)
+    expect(choices).toHaveLength(31)
     expect(choices[0]).toEqual({ value: '', label: 'Chưa chọn' })
     expect(choices[1]).toEqual({ value: 'xianxia', label: 'Tiên hiệp' })
-    expect(choices[20]).toEqual({ value: 'other', label: 'Khác' })
+    expect(choices.slice(18, 30).map((c) => c.label)).toEqual([
+      'Thời sự',
+      'Bình luận – Chính luận',
+      'Đông y',
+      'Sức khỏe – Dưỡng sinh',
+      'Ẩm thực',
+      'Giáo dục – Gia đình',
+      'Du lịch',
+      'Văn hóa truyền thống',
+      'Lịch sử – Nhân vật',
+      'Tâm linh – Kỳ văn',
+      'Nghệ thuật',
+      'Kinh tế – Kinh doanh',
+    ])
+    expect(choices[30]).toEqual({ value: 'other', label: 'Khác' })
   })
 
   it('maps an id to its label, shows a foreign value verbatim, and empty is null', () => {
