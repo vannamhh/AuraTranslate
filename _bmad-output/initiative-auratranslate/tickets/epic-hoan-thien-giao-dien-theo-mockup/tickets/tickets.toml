@@ -245,3 +245,27 @@ covers = []
 after = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
 hitl = false
 risk = "low"
+
+[[entry]]
+id = 23
+type = "bug"
+title = "Library: không Tác phẩm nào có tiến độ"
+description = "Cách tái hiện: mở app, `⌘1` vào Library với 47 Tác phẩm `test` có sẵn; mọi thẻ ghi \"Chưa biết tiến độ\" (ảnh Ice chụp 2026-10-25), tức `chapter_done_count` là `NULL` ở mọi hàng — lớp lỗi rỗng im lặng. Giả thuyết: `meta.json` bản v1/v2 không mang trường này, hoặc một đường ghi meta không bao giờ đặt nó. Bug ghi nguyên nhân thành một dòng `Decision:` trong plan của nó; nếu nguyên nhân là dữ liệu cũ thì không đổi mã. Story 24 chỉ giấu dòng chữ (L3 của phiếu) sau khi nguyên nhân này đã có."
+verify = "Một Tác phẩm có Chương đã xong cho `chapter_done_count` khác `NULL` qua đúng đường Library đọc (meta → chỉ mục → `library.list`); hoặc bằng chứng `NULL` đúng với dữ liệu của ảnh, kèm một ca chứng minh Tác phẩm tạo mới ghi ra số."
+covers = []
+after = []
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/library-nghiem-thu-thi-giac.md §Câu hỏi cho người dựng"]
+
+[[entry]]
+id = 24
+type = "story"
+title = "Library theo mockup lưới rộng"
+description = "Sửa Library theo mười bốn dòng L1–L14 của phiếu nghiệm thu thị giác và `mockups/library-luoi-rong.html`: bấm một lần chọn thẻ, nút Tiếp tục dịch, sáu tông bìa, lưới `auto-fill` thêm cột khi màn rộng. Ba điều buộc: (1) chỉ giấu \"Chưa biết tiến độ\" (L3) khi bug 23 đã ghi nguyên nhân; (2) cùng lượt thêm 12 token bìa mỗi theme (DESIGN.md §Tông bìa Tác phẩm) phải chép chúng vào bảng kỳ vọng đóng băng của `check-tokens.mjs`, không thì `check:tokens` đỏ; (3) chỉ `done` khi có ảnh app thật đặt cạnh `library-luoi-rong.html` và Ice đã tự chạy app một lượt. Story này dựng Library mẫu cho ảnh (tên, lĩnh vực, tiến độ thật). Viết lại thanh trạng thái Workspace và các màn ngoài Library là phiếu sau."
+verify = "Một spec e2e: `⌘1` → mũi tên tới thẻ thứ ba → `Mod+↵` vào Workspace đúng câu đang dở, quay lại Library thì tiêu điểm về đúng thẻ đó; ở 1150 px và 2560 px số cột tăng và thẻ rộng 240–305 px; `check:tokens` xanh. Người: ảnh app thật 1490×935, dpr=2, nền sáng và tối, trên Library mẫu (có thẻ thiếu lĩnh vực, chưa biết tiến độ, chưa bắt đầu, đã xong) đặt cạnh mockup cùng khổ, mỗi dòng L1–L14 ghi khớp hoặc lý do; Ice chạy app một lượt."
+covers = []
+after = [23]
+hitl = true
+risk = "medium"
+references = ["ux-auratranslate/library-nghiem-thu-thi-giac.md", "ux-auratranslate/mockups/library-luoi-rong.html", "ux-auratranslate/DESIGN.md §Tông bìa Tác phẩm", "architecture-auratranslate/architecture-auratranslate.md AD-34"]
