@@ -47,7 +47,7 @@ import type { DeepReadonly, Ref } from 'vue'
 import { searchLibrary } from '../config/library'
 import type { SearchHit, SearchMode, SearchScope, WorkSearchCount } from '../config/library'
 import { openChapterById } from '../panels/editorPanelState'
-import { libraryOpenWorkError, libraryOpenWorkNotice, openWorkById } from './libraryChapters'
+import { closeLibraryWorkPage, libraryOpenWorkError, libraryOpenWorkNotice, openWorkById } from './libraryChapters'
 import { librarySortKey, librarySourceLangFilter, libraryStatusFilter } from './libraryWorks'
 import { openSearchHitInReading } from './readingState'
 import { setMode } from './modeState'
@@ -97,6 +97,7 @@ const workCounts = ref<WorkSearchCount[]>([])
 const sourceCountsCapped = ref(false)
 const reportScope = ref<SearchScope>('both')
 const expandedWorks = ref<string[]>([])
+const focusPending = ref(false)
 
 /** Ghi được cho `v-model` của ô tìm — cùng khuôn `libraryImport.ts::pastedText` (export
  * TRẦN, không bọc `readonly()`). */
@@ -132,6 +133,7 @@ export const librarySearchChaptersTotal: DeepReadonly<Ref<number>> = readonly(ch
 export const librarySearchChaptersFilteredOut: DeepReadonly<Ref<number>> = readonly(chaptersFilteredOut)
 export const librarySearchSourceCountsCapped: DeepReadonly<Ref<boolean>> = readonly(sourceCountsCapped)
 export const librarySearchExpandedWorks: DeepReadonly<Ref<string[]>> = readonly(expandedWorks)
+export const librarySearchFocusPending: DeepReadonly<Ref<boolean>> = readonly(focusPending)
 
 export const SEARCH_GROUP_COLLAPSED_HITS = 3
 
@@ -344,6 +346,20 @@ export function librarySearchCoverageGap(
 export const librarySearchCoverageGapState = computed<{ missing: number; total: number } | null>(() =>
   librarySearchCoverageGap(worksTotal.value, worksWithText.value),
 )
+
+/** Handler of `library.focus_search`; `LibraryMode.vue` moves the caret once the field is on screen. */
+export function requestLibrarySearchFocus(): void {
+  setMode('library')
+  closeLibraryWorkPage()
+  focusPending.value = true
+}
+
+/** `true` once per request; the request is spent even when the field is not on screen. */
+export function takeLibrarySearchFocus(): boolean {
+  const pending = focusPending.value
+  focusPending.value = false
+  return pending
+}
 
 /**
  * Chạy một lượt tìm kiếm theo [`librarySearchQuery`] hiện thời — lệnh `library.search`.

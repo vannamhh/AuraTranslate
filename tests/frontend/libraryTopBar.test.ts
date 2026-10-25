@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
+import { KeepAlive, defineComponent, h } from 'vue'
 import type { VueWrapper } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
 
@@ -59,6 +60,67 @@ describe('Library top bar and cards', { timeout: 30_000 }, () => {
     expect(p.find('label[for], .search-block label').exists()).toBe(false)
     await p.find('[data-library-search-input]').trigger('keyup', { key: 'Enter' })
     expect(runLibrarySearch).toHaveBeenCalledTimes(1)
+  })
+
+  it('Mod+Alt+F belongs to library.focus_search, which dispatches its port; library.search has no default chord', async () => {
+    const focusLibrarySearch = vi.fn()
+    await mountLibrary([row({})], { focusLibrarySearch })
+    const commands = await import('../../src/commands')
+    expect(commands.defaultChordsFor('library.focus_search')).toEqual(['Mod+Alt+F'])
+    expect(commands.defaultChordsFor('library.search')).toEqual([])
+    commands.dispatch('library.focus_search')
+    expect(focusLibrarySearch).toHaveBeenCalledTimes(1)
+  })
+
+  it('in Library, a search-focus request moves the caret from the card into the field with the old text selected', async () => {
+    const p = await mountLibrary([row({})])
+    const search = await import('../../src/modes/librarySearch')
+    search.librarySearchQuery.value = 'tu tiên'
+    await p.vm.$nextTick()
+    p.find<HTMLElement>('[data-library-work-cell]').element.focus()
+    search.requestLibrarySearchFocus()
+    await p.vm.$nextTick()
+    await p.vm.$nextTick()
+    const input = p.find<HTMLInputElement>('[data-library-search-input]').element
+    expect(document.activeElement).toBe(input)
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 'tu tiên'.length])
+  })
+
+  it('with a Work page open, the request closes it and the caret lands in the field, not on the card the close focuses', async () => {
+    const p = await mountLibrary([row({})])
+    const listed = mockInvoke.getMockImplementation()
+    mockInvoke.mockImplementation((cmd: string, args?: unknown) => {
+      if (cmd === 'open_work') return Promise.resolve({ meta: { name: 'A' }, folder: '/tmp/A', chapter_id: 1 })
+      if (cmd === 'list_chapters') return Promise.resolve([])
+      return listed?.(cmd, args)
+    })
+    const chapters = await import('../../src/modes/libraryChapters')
+    await chapters.openCurrentLibraryWork()
+    await flushPromises()
+    expect(chapters.libraryWorkPageIsOpen.value).toBe(true)
+    const search = await import('../../src/modes/librarySearch')
+    search.requestLibrarySearchFocus()
+    await flushPromises()
+    expect(chapters.libraryWorkPageIsOpen.value).toBe(false)
+    expect(document.activeElement).toBe(p.find('[data-library-search-input]').element)
+  })
+
+  it('from another mode, the request switches to Library and the caret lands in the field, not on the card the activation focuses', async () => {
+    await mountLibrary([row({})])
+    page?.unmount()
+    const { currentMode, setMode } = await import('../../src/modes/modeState')
+    const Library = (await import('../../src/modes/LibraryMode.vue')).default
+    const search = await import('../../src/modes/librarySearch')
+    const Shell = defineComponent(() => () => h(KeepAlive, null, [currentMode.value === 'library' ? h(Library) : null]))
+    setMode('library')
+    page = mount(Shell, { attachTo: document.body })
+    await flushPromises()
+    setMode('workspace')
+    await flushPromises()
+    search.requestLibrarySearchFocus()
+    await flushPromises()
+    expect(currentMode.value).toBe('library')
+    expect(document.activeElement).toBe(page.find('[data-library-search-input]').element)
   })
 
   it('the two segments read Chính xác dấu | Không dấu and each dispatches its own mode command', async () => {

@@ -480,8 +480,10 @@ export type CommandDeps = {
   // `src/modes/librarySearch.ts`, một module Vue thật (`ref`) — import thẳng nó ở đây giết
   // Kiểm C/D/E cùng lý do `@tauri-apps/api` bị cấm.
 
-  /** Chạy một lượt tìm kiếm theo ô nhập hiện thời. Handler của `library.search` (có phím mặc
-   * định). ⚠️ Cài đặt thật là `async`; `() => void` khớp cùng khuôn `rescanLibraryFolder` —
+  /** Switches to Library and puts the caret in its search field. Handler of `library.focus_search`. */
+  focusLibrarySearch?: () => void
+  /** Chạy một lượt tìm kiếm theo ô nhập hiện thời. Handler của `library.search`.
+   * ⚠️ Cài đặt thật là `async`; `() => void` khớp cùng khuôn `rescanLibraryFolder` —
    * promise trả về bị bỏ qua có chủ ý, kết quả đi ra qua các `ref` ở tầng module. */
   runLibrarySearch?: () => void
   /** Chuyển con trỏ danh sách kết quả xuống ô kế tiếp. Handler của `library.search_next` —
@@ -2462,20 +2464,22 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   })
 
   /**
-   * ═══════════════════════════════════════════════════════════════════════════════
-   * 🔴 STORY 5.9 — "TÌM KIẾM FULL-TEXT XUYÊN LIBRARY" (FR8)
-   * ═══════════════════════════════════════════════════════════════════════════════
-   *
-   * `library.search` là điểm vào có phím mặc định — `Mod+Alt+F` (mnemonic "Find"). Đo
-   * 2026-08-29: `grep -oE "Mod\+Alt\+[A-Za-z0-9]+"` trên tệp này cho `Mod+Alt+F` = 0, còn
-   * trống. `library.open_search_hit` giữ 0 hợp âm mặc định, cùng chủ ý
-   * `library.open_work`/`library.open_chapter`: nút bấm và cú `realClick` xử lý bằng
-   * `dispatch('<id>')` từ `.vue`, không gọi thẳng.
+   * `library.focus_search` holds `Mod+Alt+F`; `library.search` runs the query from Enter and
+   * buttons only. `library.open_search_hit` has no default chord, like `library.open_work`.
    */
+  target.register({
+    id: 'library.focus_search',
+    labelKey: 'command.library.focus_search',
+    keys: ['Mod+Alt+F'],
+    run: () => {
+      if (deps.focusLibrarySearch === undefined) return portMissing('library.focus_search', 'focusLibrarySearch')
+      deps.focusLibrarySearch()
+    },
+  })
   target.register({
     id: 'library.search',
     labelKey: 'command.library.search',
-    keys: ['Mod+Alt+F'],
+    keys: undefined,
     run: () => {
       if (deps.runLibrarySearch === undefined) return portMissing('library.search', 'runLibrarySearch')
       deps.runLibrarySearch()

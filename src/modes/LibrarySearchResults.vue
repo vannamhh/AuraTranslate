@@ -30,7 +30,7 @@ import {
 import { librarySortKey, librarySourceLangFilter, libraryStatusFilter } from './libraryWorks'
 
 const searchChord = computed(
-  () => shortcutRows.value.find((row) => row.id === 'library.search')?.display.join(' / ') ?? '',
+  () => shortcutRows.value.find((row) => row.id === 'library.focus_search')?.display.join(' / ') ?? '',
 )
 
 const countText = computed(() => {

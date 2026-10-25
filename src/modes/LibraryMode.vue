@@ -89,12 +89,14 @@ import LibrarySearchResults from './LibrarySearchResults.vue'
 import {
   librarySearchBusy,
   librarySearchError,
+  librarySearchFocusPending,
   librarySearchHasLoaded,
   librarySearchMode,
   librarySearchQuery,
   librarySearchScope,
   rerunLibrarySearch,
   setLibrarySearchScope,
+  takeLibrarySearchFocus,
 } from './librarySearch'
 import type { SearchScope } from '../config/library'
 import { t, tError } from '../i18n'
@@ -104,6 +106,7 @@ import DropdownMenu from '../DropdownMenu.vue'
 import SelectMenu from '../SelectMenu.vue'
 
 const root = useTemplateRef<HTMLElement>('root')
+const searchInput = useTemplateRef<HTMLInputElement>('searchInput')
 
 const searchActive = computed(
   () => librarySearchHasLoaded.value || librarySearchBusy.value || librarySearchError.value !== null,
@@ -148,7 +151,7 @@ onBeforeUnmount(() => {
 // tiên Vue gọi `mounted` rồi `activated`, nên điểm vào đã khai xong trước khi dùng.
 onActivated(() => {
   void enterFocus('mode.library')
-  void nextTick(focusCurrentCard)
+  void nextTick(focusSearchOrCard)
   // Story 5.4 — tải lại MỖI LẦN quay về Library: một Chương có thể vừa đổi trạng thái từ
   // Workspace (qua `lifecycle.set_chapter_done`), và danh sách/khối "Tác phẩm đang mở" phải
   // phản ánh giá trị mới nhất, không giữ ảnh chụp của lần hiện trước.
@@ -301,6 +304,23 @@ function focusCurrentCard(): void {
   currentCard()?.focus({ preventScroll: true })
 }
 
+function focusRequestedSearch(): boolean {
+  if (!takeLibrarySearchFocus() || searchInput.value === null) return false
+  searchInput.value.focus()
+  searchInput.value.select()
+  return true
+}
+
+// The activation tick races the request's tick and must not take the caret back from the field.
+function focusSearchOrCard(): void {
+  if (focusRequestedSearch() || document.activeElement === searchInput.value) return
+  focusCurrentCard()
+}
+
+watch(librarySearchFocusPending, (pending) => {
+  if (pending) void nextTick(focusRequestedSearch)
+})
+
 function gridColumnCount(): number {
   const grid = root.value?.querySelector<HTMLElement>('[data-library-grid]')
   if (grid === null || grid === undefined) return 1
@@ -371,6 +391,7 @@ const importScreenIsOpen = computed<boolean>(
         <!-- aura-allow-text: decorative glyph, hidden from assistive tech. -->
         <span class="search-icon" aria-hidden="true">⌕</span>
         <input
+          ref="searchInput"
           v-model="librarySearchQuery"
           type="text"
           class="search-input"

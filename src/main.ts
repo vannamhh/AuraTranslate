@@ -178,6 +178,7 @@ import {
   openCurrentLibrarySearchHit,
   openCurrentLibrarySearchHitInReading,
   prevLibrarySearchHit,
+  requestLibrarySearchFocus,
   runLibrarySearch,
   seeAllLibrarySearchGroup,
   setLibrarySearchModeExact,
@@ -705,6 +706,7 @@ async function boot(): Promise<void> {
       moveCurrentLibraryChapterUp,
       moveCurrentLibraryChapterDown,
       // Story 5.9 — "Tim kiem full-text xuyen Library" (FR8).
+      focusLibrarySearch: requestLibrarySearchFocus,
       runLibrarySearch,
       nextLibrarySearchHit,
       prevLibrarySearchHit,
