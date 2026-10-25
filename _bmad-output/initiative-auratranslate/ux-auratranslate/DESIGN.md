@@ -200,13 +200,15 @@ Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component
 >
 > ⚠️ **`draft` MƯỢN ĐÚNG GIÁ TRỊ của `ornament` ở cả hai theme** *(Ice ký 2026-08-15)*, nên nó là **một cái tên mới cho một màu ĐÃ kiểm**, không một màu mới chưa ai đo — **0 cặp mới** cho `contrast.pairs`, và bảng cặp giữ nguyên **31** cặp mỗi theme. 🔴 Trùng giá trị **không** phải trùng nghĩa: `ornament` nói *đã về hưu*, `draft` nói *đã dịch tay, chưa ký*; hai vạch không bao giờ cùng xuất hiện trên một câu.
 
-### Tông bìa Tác phẩm — **12 token mỗi theme** *(🔵 thêm 2026-10-25, Ice duyệt)*
+### Tông bìa Tác phẩm — **13 token mỗi theme** *(🔵 thêm 2026-10-25, Ice duyệt)*
 
-🔵 2026-10-25: tổng token màu mỗi theme thành 24 + 12 = 36 (số thật của `tokens.json`: đã có `diff-*` và `word-*` ngoài bảng 17); bảng 17 ở trên giữ nguyên. `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
+🔵 2026-10-25: tổng token màu mỗi theme thành 24 + 12 = 36 (số thật của `tokens.json`: đã có `diff-*` và `word-*` ngoài bảng 17); bảng 17 ở trên giữ nguyên. 🔵 2026-10-25, lượt hai: thêm `on-cover` thành 37. `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
 
 Bìa thẻ Tác phẩm ở Library là một màu đặc `cover-N-from` (Ice, 2026-10-25: không dải chuyển, giữ luật không gradient của Kiểm F); `cover-N-to` có sẵn nhưng chưa có chỗ dùng. Mỗi Tác phẩm một tông cố định, chọn theo `work_id`, nên đổi tên không đổi màu. Tông 1–3 lấy từ `mockups/library-and-import.html`; 4–6 thêm cho màn có nhiều Tác phẩm. Hình mẫu: `mockups/library-luoi-rong.html`.
 
-Đây là **mặt trang trí, không bao giờ là nền của chữ.** Nhãn ngôn ngữ, nút `Tiếp tục dịch` và nút `⋯` đặt trên bìa đều có nền đặc riêng (`surface` hoặc `primary`), nên chỉ dùng các cặp tương phản đã kiểm: **0 cặp mới**.
+🔵 2026-10-25, lượt hai (Ice duyệt): **tên Tác phẩm in trên bìa**, vì app chưa có đường đặt ảnh bìa (FR3) và một khối màu trống không cho biết gì. Chữ nội dung (serif) 16 px, giãn dòng 1,35, cắt ở 3 dòng, góc trên trái; tên đầy đủ ở `aria-label`. Phần dưới thẻ không lặp lại tên. Bìa cao 136 px.
+
+Chữ trên bìa dùng token `on-cover` = `#fbfaf6` ở **cả hai theme**. Đây là **6 cặp mới** cho `contrast.pairs` mỗi theme (`on-cover` trên mỗi `cover-N-from`), thấp nhất 7,05:1 ở nền sáng và 6,09:1 ở nền tối, cả hai là tông 4 rêu. Nút `Tiếp tục dịch` và nút `⋯` trên bìa vẫn có nền đặc riêng (`primary` hoặc `surface`), không thêm cặp. Nếu sau này có ảnh bìa thì bìa in tên là biểu diễn thay thế cho Tác phẩm không có ảnh.
 
 | # | Tông | Sáng `from` → `to` | Tối `from` → `to` |
 |---|---|---|---|

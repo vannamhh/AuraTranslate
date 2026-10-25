@@ -13462,3 +13462,7 @@ chính nó.
 - source_plan: `_bmad-output/initiative-auratranslate/plan-tu-nhan-ngon-ngu-nguon.md`
   summary: Tự nhận ngôn ngữ nguồn cho đường nhập song ngữ — đoán trên các ô cột nguồn sau khi đọc hàng (`preview_bilingual_import`, `bilingual.rs:222`; `derive_row` tách theo `source_lang`).
   evidence: Đếm chữ Hán trên toàn tệp song ngữ bị cột dịch tiếng Việt làm loãng nên đoán sai; Ice chọn để sau, đường song ngữ tạm đòi chọn tay khi chip là Tự nhận. **Chủ: Ice.**
+
+## Deferred from: UX Library — tên trên bìa (2026-10-25)
+
+- **Ảnh bìa FR3 chưa có đường đặt.** PRD FR3 ghi "ảnh bìa *(tuỳ chọn)*" nhưng chưa story nào cho người dùng chọn ảnh; Story 5.6 không thêm cột và để Ice quyết (`src-tauri/src/core/store/schema.rs:2550`), chưa từng vào sổ này. Library tạm in tên Tác phẩm lên bìa màu (`ux-auratranslate/DESIGN.md` §Tông bìa Tác phẩm). Làm thì ảnh phải nằm trong thư mục Tác phẩm để vẫn mang đi được. **Chủ: Ice.**

@@ -25,8 +25,8 @@ Ice chọn (2026-10-25): mockup `mockups/library-and-import.html` đạt, sửa 
 
 | # | App thật | Cách sửa | Mã |
 |---|---|---|---|
-| L1 | Bìa vuông `aspect-ratio: 1/1`, cao khoảng 330 px, chữ cái đầu ở giữa | Bìa cao 112 px như mockup; bỏ chữ cái đầu (tên vẫn ở `aria-label`); nhãn ngôn ngữ chữ hoa nhỏ góc phải | `LibraryMode.vue:1271` |
-| L2 | Tên Tác phẩm chữ sans đậm nhỏ | Tên dùng chữ nội dung (serif); dòng phụ `lĩnh vực · sửa … trước` | `.work-name` |
+| L1 | Bìa vuông `aspect-ratio: 1/1`, cao khoảng 330 px, chữ cái đầu ở giữa | Bìa cao 112 px như mockup; bỏ chữ cái đầu (tên vẫn ở `aria-label`); nhãn ngôn ngữ chữ hoa nhỏ góc phải. 🔵 2026-10-25: bìa cao 136 px, mang tên Tác phẩm (L2); nhãn ngôn ngữ đã bỏ ở `640225b` | `LibraryMode.vue:1271` |
+| L2 | Tên Tác phẩm chữ sans đậm nhỏ | Tên dùng chữ nội dung (serif); dòng phụ `lĩnh vực · sửa … trước`. 🔵 2026-10-25: tên in TRÊN bìa, serif 16 px màu `on-cover`, cắt 3 dòng, góc trên trái; phần dưới thẻ chỉ còn dòng phụ và tiến độ (`DESIGN.md` §Tông bìa Tác phẩm) | `.work-name` |
 | L3 | "chưa biết", "Chưa biết tiến độ" in ra thẻ | `status = null` thì không có huy hiệu; `chapter_done_count = null` thì không có thanh, dòng tiến độ chỉ ghi `N chương`. Trạng thái ngoài danh mục (dữ liệu hỏng) vẫn hiện chữ | `LibraryMode.vue:595,609` |
 | L4 | Bấm thẻ không làm gì; "Mở Tác phẩm", "Mở thư mục" xếp dọc trong thẻ | Bấm thẻ ngắm con trỏ bằng `@mousedown`/`@focusin`, theo khuôn `SegmentHistoryOverlay.vue:293` (AD-34 giữ); `@dblclick` và `↵` gọi `library.open_work`. Thẻ đang chọn: viền `primary` 2 px. Bỏ hai nút trong thẻ | `LibraryMode.vue:552+` |
 | L5 | Bốn tầng điều khiển trên lưới | Một hàng: ô tìm · `Chính xác dấu \| Không dấu` · chip `Trạng thái ▾` · `Lĩnh vực ▾` · `Ngôn ngữ nguồn ▾` · `Sắp xếp ▾`. Chip đang lọc viền `primary` và mang tên giá trị (`Đang dịch ▾`); "Bỏ lọc" nằm trong menu của chip | — |
