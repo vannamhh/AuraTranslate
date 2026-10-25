@@ -82,9 +82,9 @@ describe('Library top bar and cards', { timeout: 30_000 }, () => {
     expect(p.find('[data-library-import-open]').exists()).toBe(false)
   })
 
-  it('a card shows the source language on the cover and the genre · edit line', async () => {
+  it('a card shows no source-language badge, only the genre · edit line', async () => {
     const p = await mountLibrary([row({ updated_at: new Date(Date.now() - 3 * 3600_000).toISOString() })])
-    expect(p.find('.work-cover [data-library-work-lang]').text()).toBe('Tiếng Trung')
+    expect(p.find('.work-cell').text()).not.toContain('Tiếng Trung')
     expect(p.find('[data-library-work-meta]').text()).toBe('Tiên hiệp · sửa 3 giờ trước')
   })
 
@@ -92,7 +92,6 @@ describe('Library top bar and cards', { timeout: 30_000 }, () => {
     const p = await mountLibrary([row({ genre: '', updated_at: 'hong', source_lang: '' })])
     const cell = p.find('.work-cell')
     expect(cell.find('[data-library-work-meta]').text()).toBe('')
-    expect(cell.find('[data-library-work-lang]').exists()).toBe(false)
     expect(cell.text()).not.toMatch(/Invalid|undefined|NaN/)
   })
 })

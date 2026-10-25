@@ -606,10 +606,6 @@ const importScreenIsOpen = computed<boolean>(
             data-library-work-cover
             :data-cover-tone="workCoverTone(work.work_id)"
           >
-            <!-- aura-allow-text: nhãn ngôn ngữ nguồn qua t() hoặc chính mã ngôn ngữ (dữ liệu). -->
-            <span v-if="workCards[workIndex].langLabel !== null" class="work-lang" data-library-work-lang>{{
-              workCards[workIndex].langLabel
-            }}</span>
             <button
               type="button"
               class="work-go"
@@ -1261,21 +1257,6 @@ const importScreenIsOpen = computed<boolean>(
 }
 .work-cover--tone-6 {
   background: var(--color-cover-6-from);
-}
-
-.work-lang {
-  position: absolute;
-  top: 9px;
-  right: 9px;
-  padding: 0 8px;
-  border-radius: 2px;
-  font-family: var(--face-ui-label);
-  font-size: var(--font-ui-label);
-  font-weight: var(--weight-ui-label);
-  letter-spacing: var(--tracking-ui-label);
-  text-transform: uppercase;
-  color: var(--color-on-surface-variant);
-  background: var(--color-surface);
 }
 
 .work-go,

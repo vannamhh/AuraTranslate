@@ -102,7 +102,7 @@ describe('Story 12-2: Library top bar, grid and import overlay', () => {
     expect(await browser.execute(() => document.querySelector('.import-form') === null)).toBe(true)
   })
 
-  it('creating a Work through the overlay closes it and puts a card with the source language in the grid', async () => {
+  it('creating a Work through the overlay closes it and puts a card in the grid', async () => {
     await createWorkThroughForm(FORM_WORK)
     await browser.waitUntil(async () => (await cardNames()).includes(FORM_WORK), {
       timeout: 30_000,
@@ -115,12 +115,10 @@ describe('Story 12-2: Library top bar, grid and import overlay', () => {
         (c) => (c.querySelector('.work-name')?.textContent || '').trim() === name,
       )
       return {
-        lang: (cell?.querySelector('[data-library-work-lang]')?.textContent || '').trim(),
         meta: (cell?.querySelector('[data-library-work-meta]')?.textContent || '').trim(),
         text: cell?.textContent || '',
       }
     }, FORM_WORK)
-    expect(card.lang).not.toBe('')
     expect(card.meta).toMatch(/^(vừa sửa|sửa )/)
     expect(card.text).not.toMatch(/Invalid|undefined|NaN/)
   })
