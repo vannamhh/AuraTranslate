@@ -557,6 +557,60 @@ fn setting_a_chapter_status_leaves_the_new_value_in_the_library_index() {
 }
 
 #[test]
+fn marking_a_chapter_done_leaves_the_done_count_in_the_library_index() {
+    let root = temp_dir("done-count-reaches-index");
+    let side = temp_dir("done-count-reaches-index-side");
+    let indexer = open_indexer(&side);
+    let global = open_global(&side);
+    let mut opened = open_work(&root, "Tac pham tien do");
+    let work_id = opened.meta.work_id.clone();
+    let chapter_id = opened.chapter_id;
+
+    let done_count = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
+        indexer
+            .list_works(auratranslate_lib::core::library::indexer::WorkQuery::default())
+            .unwrap_or_else(|e| panic!("list_works: {e}"))
+            .works
+            .into_iter()
+            .find(|w| w.work_id == work_id)
+            .map(|w| w.chapter_done_count)
+    };
+
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(
+        Some(&indexer),
+        Some(&global),
+        &root,
+    );
+    assert_eq!(
+        done_count(&indexer),
+        Some(Some(0)),
+        "truoc luot ghi, Tac pham moi phai mang tien do 0, khong phai NULL"
+    );
+
+    auratranslate_lib::commands::lifecycle::set_chapter_status_indexed(
+        Some(&mut opened),
+        Some(&indexer),
+        Some(&global),
+        &root,
+        chapter_id,
+        "done",
+    )
+    .unwrap_or_else(|e| panic!("set_chapter_status_indexed: {e:?}"));
+
+    assert_eq!(
+        done_count(&indexer),
+        Some(Some(1)),
+        "sau luot ghi, hang library_work phai mang chapter_done_count moi"
+    );
+
+    drop(opened);
+    indexer.close();
+    global.close();
+    cleanup(&root);
+    cleanup(&side);
+}
+
+#[test]
 fn overriding_the_work_status_leaves_both_the_value_and_the_override_flag_in_the_index() {
     let root = temp_dir("override-reaches-index");
     let side = temp_dir("override-reaches-index-side");
