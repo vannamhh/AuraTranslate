@@ -816,23 +816,18 @@ describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần kho�
 // the warning is shown and the write still happens."
 // ═════════════════════════════════════════════════════════════════════════════════
 
-describe('LibraryMode.vue — dải cảnh báo `source_lang_mismatch` (Rust phase, L847/L1916)', () => {
+describe('StatusBar.vue — cảnh báo sau khi tạo Tác phẩm (`source_lang_mismatch`, ảnh hỏng)', () => {
   let wrapper: ReturnType<typeof mount> | null = null
 
-  afterEach(() => {
+  afterEach(async () => {
     wrapper?.unmount()
     wrapper = null
+    const nhap = await import('../../src/modes/libraryImport')
+    nhap.createdWork.value = null
   })
 
-  it('`createdWork.source_lang_mismatch === true` ⇒ dải cảnh báo hiện, VÀ dải "đã tạo" vẫn hiện cùng lúc (ghi vẫn xảy ra)', async () => {
-    mockInvokeWithWorks([])
-    const nhap = await import('../../src/modes/libraryImport')
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
-    await flushPromises()
-    await wrapper.vm.$nextTick()
-
-    nhap.createdWork.value = {
+  function created(over: Partial<CreatedWork> = {}): CreatedWork {
+    return {
       meta: {
         meta_schema_version: 2,
         work_id: 'w-1',
@@ -846,119 +841,58 @@ describe('LibraryMode.vue — dải cảnh báo `source_lang_mismatch` (Rust pha
       folder: '/tmp/Truyen Tieng Viet.atproj',
       images_saved: 0,
       images_failed: 0,
-      source_lang_mismatch: true,
-    }
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.get('.source-lang-warning').text()).not.toBe('')
-    expect(wrapper.get('.created-block .status').text()).toContain('Truyen Tieng Viet') // lượt ghi vẫn có thật
-  })
-
-  it('`createdWork` là `null` (chưa nộp gì) ⇒ dải cảnh báo rỗng', async () => {
-    mockInvokeWithWorks([])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
-    await flushPromises()
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.get('.source-lang-warning').text()).toBe('')
-  })
-
-  it('`createdWork.source_lang_mismatch === false` (khớp ngôn ngữ) ⇒ dải cảnh báo rỗng dù đã tạo', async () => {
-    mockInvokeWithWorks([])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    const nhap = await import('../../src/modes/libraryImport')
-    wrapper = mount(LibraryMode)
-    await flushPromises()
-    await wrapper.vm.$nextTick()
-
-    nhap.createdWork.value = {
-      meta: {
-        meta_schema_version: 2,
-        work_id: 'w-2',
-        name: 'Truyen Trung Van',
-        source_lang: 'zh',
-        genre: '',
-        created_at: '2026-09-28T00:00:00.000Z',
-        updated_at: '2026-09-28T00:00:00.000Z',
-        chapter_count: 1,
-      },
-      folder: '/tmp/Truyen Trung Van.atproj',
-      images_saved: 0,
-      images_failed: 0,
       source_lang_mismatch: false,
-    }
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.get('.created-block .status').text()).toContain('Truyen Trung Van')
-    expect(wrapper.get('.source-lang-warning').text()).toBe('')
-  })
-})
-
-describe('LibraryMode.vue — dải "N ảnh không tải được"', () => {
-  let wrapper: ReturnType<typeof mount> | null = null
-
-  afterEach(() => {
-    wrapper?.unmount()
-    wrapper = null
-  })
-
-  function baseCreatedWork(imagesFailed: number): CreatedWork {
-    return {
-      meta: {
-        meta_schema_version: 2,
-        work_id: 'w-img',
-        name: 'Truyen Co Anh',
-        source_lang: 'zh',
-        genre: '',
-        created_at: '2026-09-28T00:00:00.000Z',
-        updated_at: '2026-09-28T00:00:00.000Z',
-        chapter_count: 1,
-      },
-      folder: '/tmp/Truyen Co Anh.atproj',
-      images_saved: 3,
-      images_failed: imagesFailed,
-      source_lang_mismatch: false,
+      ...over,
     }
   }
 
-  it('images_failed > 0 ⇒ dải hiện, kèm nút mở nhật ký domain', async () => {
+  async function mountStatusBar(): Promise<typeof import('../../src/modes/libraryImport')> {
     mockInvokeWithWorks([])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
+    const modes = await import('../../src/modes/modeState')
+    modes.setMode('library')
     const nhap = await import('../../src/modes/libraryImport')
-    wrapper = mount(LibraryMode)
+    const { default: StatusBar } = await import('../../src/StatusBar.vue')
+    wrapper = mount(StatusBar)
     await flushPromises()
-    await wrapper.vm.$nextTick()
+    return nhap
+  }
 
-    nhap.createdWork.value = baseCreatedWork(2)
-    await wrapper.vm.$nextTick()
-
-    const notices = wrapper.findAll('.notice').map((n) => n.text())
-    expect(notices.some((t) => t.includes('2'))).toBe(true)
-    expect(wrapper.find('.images-failed-domain-log-view').exists()).toBe(true)
+  it('mismatch === true ⇒ cảnh báo hiện, VÀ câu "đã tạo" vẫn hiện cùng lúc (ghi vẫn xảy ra)', async () => {
+    const nhap = await mountStatusBar()
+    nhap.createdWork.value = created({ source_lang_mismatch: true })
+    await wrapper!.vm.$nextTick()
+    expect(wrapper!.get('[data-status-library-mismatch]').text()).not.toBe('')
+    expect(wrapper!.get('[data-status-library-created]').text()).toContain('Truyen Tieng Viet')
   })
 
-  it('images_failed === 0 ⇒ dải KHÔNG hiện', async () => {
-    mockInvokeWithWorks([])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    const nhap = await import('../../src/modes/libraryImport')
-    wrapper = mount(LibraryMode)
-    await flushPromises()
-    await wrapper.vm.$nextTick()
-
-    nhap.createdWork.value = baseCreatedWork(0)
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.find('.images-failed-domain-log-view').exists()).toBe(false)
+  it('mismatch === false ⇒ không cảnh báo dù đã tạo', async () => {
+    const nhap = await mountStatusBar()
+    nhap.createdWork.value = created()
+    await wrapper!.vm.$nextTick()
+    expect(wrapper!.get('[data-status-library-created]').text()).toContain('Truyen Tieng Viet')
+    expect(wrapper!.find('[data-status-library-mismatch]').exists()).toBe(false)
   })
 
-  it('chưa tạo gì (`createdWork === null`) ⇒ dải KHÔNG hiện', async () => {
-    mockInvokeWithWorks([])
-    const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
-    wrapper = mount(LibraryMode)
-    await flushPromises()
-    await wrapper.vm.$nextTick()
+  it('chưa tạo gì (`createdWork === null`) ⇒ không câu nào', async () => {
+    await mountStatusBar()
+    expect(wrapper!.find('[data-status-library-mismatch]').exists()).toBe(false)
+    expect(wrapper!.find('[data-status-library-images-failed]').exists()).toBe(false)
+    expect(wrapper!.find('[data-status-library-created]').exists()).toBe(false)
+  })
 
-    expect(wrapper.find('.images-failed-domain-log-view').exists()).toBe(false)
+  it('images_failed > 0 ⇒ câu hiện số ảnh, kèm nút mở nhật ký domain', async () => {
+    const nhap = await mountStatusBar()
+    nhap.createdWork.value = created({ images_saved: 3, images_failed: 2 })
+    await wrapper!.vm.$nextTick()
+    expect(wrapper!.get('[data-status-library-images-failed]').text()).toContain('2')
+    expect(wrapper!.find('[data-status-library-domain-log]').exists()).toBe(true)
+  })
+
+  it('images_failed === 0 ⇒ không câu ảnh, không nút', async () => {
+    const nhap = await mountStatusBar()
+    nhap.createdWork.value = created({ images_saved: 3 })
+    await wrapper!.vm.$nextTick()
+    expect(wrapper!.find('[data-status-library-images-failed]').exists()).toBe(false)
+    expect(wrapper!.find('[data-status-library-domain-log]').exists()).toBe(false)
   })
 })

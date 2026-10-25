@@ -685,27 +685,6 @@ const importScreenIsOpen = computed<boolean>(
 
     </template>
 
-    <div class="created-block">
-
-      <!-- Always rendered (no `v-if`) so a screen reader announces the changed text. -->
-      <!-- aura-allow-text: qua t()/chuỗi rỗng, Kiểm A2 không đọc tĩnh được toán tử ba ngôi. -->
-      <p class="notice source-lang-warning" role="status">
-        {{ createdWork?.source_lang_mismatch === true ? t('mode.library.source_lang_mismatch_warning') : '' }}
-      </p>
-      <!--
-        `images_failed` — chỉ hiện khi CÓ ảnh không tải được (§Never: không hiện một dòng
-        "0 ảnh không tải được" vô nghĩa). Nút "xem" mở CÙNG màn Cài đặt > Quyền riêng tư mà
-        `ImportPreviewOverlay.vue` dùng cho nhật ký domain — không một màn riêng.
-      -->
-      <p v-if="(createdWork?.images_failed ?? 0) > 0" class="notice" role="status">
-        <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
-        {{ t('mode.library.images_failed_warning', { count: String(createdWork?.images_failed ?? 0) }) }}
-        <button type="button" class="images-failed-domain-log-view" @click="dispatch('settings.privacy.open')">
-          {{ t('mode.library.preview.domain_log_view') }}
-        </button>
-      </p>
-    </div>
-
     <!--
       Story 5.3 — "Quét lại thư mục" (FR99). Màn hình TỐI THIỂU CÓ CHỦ: chỉ thư mục gốc,
       nút quét lại, danh sách mục mồ côi (con trỏ một mục, cùng khuôn GlossaryQueueOverlay),
@@ -987,19 +966,6 @@ const importScreenIsOpen = computed<boolean>(
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
 }
-
-.images-failed-domain-log-view {
-  padding: 0;
-  margin-left: calc(var(--space-unit) * 1);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-  text-decoration: underline;
-}
-
 
 .rule {
   width: 34px;

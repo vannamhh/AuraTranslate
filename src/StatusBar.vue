@@ -540,14 +540,22 @@ const libraryErrorText = computed<string | null>(() => {
       <div class="status-live" role="status" data-status-live>
         <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
         <span v-if="libraryErrorText !== null" class="notice" data-status-library-error>{{ libraryErrorText }}</span>
-        <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (tên và thư mục Tác phẩm). -->
-        <span
-          v-else-if="libraryCreatedText !== null"
-          class="notice"
-          :title="libraryCreatedText"
-          data-status-library-created
-          >{{ libraryCreatedText }}</span
-        >
+        <template v-else-if="createdWork !== null">
+          <span v-if="createdWork.source_lang_mismatch" class="notice live-part" data-status-library-mismatch>{{
+            t('mode.library.source_lang_mismatch_warning')
+          }}</span>
+          <span v-if="createdWork.images_failed > 0" class="notice live-part" data-status-library-images-failed>
+            <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+            {{ t('mode.library.images_failed_warning', { count: String(createdWork.images_failed) }) }}
+            <button type="button" class="status-link" data-status-library-domain-log @click="dispatch('settings.privacy.open')">
+              {{ t('mode.library.preview.domain_log_view') }}
+            </button>
+          </span>
+          <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (tên và thư mục Tác phẩm). -->
+          <span class="notice live-part" :title="libraryCreatedText ?? undefined" data-status-library-created>{{
+            libraryCreatedText
+          }}</span>
+        </template>
       </div>
     </template>
     <template v-else>
@@ -778,6 +786,22 @@ const libraryErrorText = computed<string | null>(() => {
  * chưa xong"*, không *"dữ liệu hỏng"*; nhuộm đỏ chúng là dạy người dùng rằng thanh trạng thái
  * có một mức khẩn cấp, và mức đó sẽ phải lạm phát ở story sau. Chữ nói đủ.
  */
+.live-part + .live-part::before {
+  content: ' · ';
+}
+
+.status-link {
+  padding: 0;
+  margin-left: calc(var(--space-unit) * 1);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
+}
+
 .notice {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
