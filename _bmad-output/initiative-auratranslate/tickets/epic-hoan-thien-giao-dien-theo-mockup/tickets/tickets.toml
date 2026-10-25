@@ -254,7 +254,7 @@ description = "Cách tái hiện: mở app, `⌘1` vào Library với 47 Tác ph
 verify = "Một Tác phẩm có Chương đã xong cho `chapter_done_count` khác `NULL` qua đúng đường Library đọc (meta → chỉ mục → `library.list`); hoặc bằng chứng `NULL` đúng với dữ liệu của ảnh, kèm một ca chứng minh Tác phẩm tạo mới ghi ra số."
 covers = []
 after = []
-hitl = false
+hitl = true
 risk = "medium"
 references = ["ux-auratranslate/library-nghiem-thu-thi-giac.md §Câu hỏi cho người dựng"]
 
