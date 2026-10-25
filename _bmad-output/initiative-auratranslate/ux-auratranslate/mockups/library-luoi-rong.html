@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Library — lưới rộng, chọn thẻ, màu bìa</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --on-primary:#fbfaf6; --confirmed:#5a6b3f; --tm-text:#7a5d25;
+  --c1a:#3d4f52; --c1b:#26312f;
+  --c2a:#5c4a3a; --c2b:#3a2f26;
+  --c3a:#4a4658; --c3b:#2e2c3a;
+  --c4a:#4e5a3c; --c4b:#2f3725;
+  --c5a:#6b4339; --c5b:#3f2823;
+  --c6a:#3a4c64; --c6b:#232f3f;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Noto Serif CJK TC","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+.dark{
+  --bg:#201e1b; --surface:#26241f; --sunken:#1b1a17; --accent-bg:#2c3a3b; --tm-bg:#302b21;
+  --ink:#e8e3d8; --ink-2:#a29a8c; --orn:#6a6459;
+  --line:#3b382f; --line-2:#302d26;
+  --primary:#7fb3ba; --on-primary:#1b1a17; --confirmed:#9cb37a; --tm-text:#d3b276;
+  --c1a:#46595c; --c1b:#2f3b3a;
+  --c2a:#66533f; --c2b:#42362b;
+  --c3a:#534e63; --c3b:#363343;
+  --c4a:#57643f; --c4b:#37402b;
+  --c5a:#74493e; --c5b:#48302a;
+  --c6a:#42566f; --c6b:#2a3747;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{width:1490px;margin:0 auto 12px;color:#f4f1ea;line-height:1.6}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;opacity:.85;margin-top:4px;max-width:980px}
+.win{width:1490px;margin:0 auto 34px;background:var(--bg);color:var(--ink);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--orn)}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+.right{margin-left:auto;display:flex;align-items:center;gap:16px;font-size:11.5px;color:var(--ink-2)}
+
+.bar{padding:16px 22px 12px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)}
+.search{flex:1;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:7px 11px;display:flex;align-items:center;gap:9px;color:var(--ink-2)}
+.dia{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;font-size:11.5px}
+.dia span{padding:5px 11px;color:var(--ink-2);background:var(--surface)}
+.dia .on{background:var(--accent-bg);color:var(--primary);font-weight:600}
+.filters{margin-left:auto;display:flex;gap:9px;font-size:11.5px;color:var(--ink-2);align-items:center}
+.filters span{border:1px solid var(--line);border-radius:20px;padding:4px 12px;background:var(--surface)}
+.filters .on{border-color:var(--primary);color:var(--primary);font-weight:600}
+.filters .count{border:0;background:none;padding:0 4px}
+
+.grid{padding:20px 22px 26px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+.card{background:var(--surface);border-radius:4px;overflow:hidden;border:1px solid var(--line-2);position:relative}
+.card.sel{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary)}
+.card.hov{border-color:var(--line)}
+.cover{height:112px;display:flex;align-items:flex-end;justify-content:space-between;padding:10px;position:relative}
+.t1{background:linear-gradient(160deg,var(--c1a),var(--c1b))}
+.t2{background:linear-gradient(160deg,var(--c2a),var(--c2b))}
+.t3{background:linear-gradient(160deg,var(--c3a),var(--c3b))}
+.t4{background:linear-gradient(160deg,var(--c4a),var(--c4b))}
+.t5{background:linear-gradient(160deg,var(--c5a),var(--c5b))}
+.t6{background:linear-gradient(160deg,var(--c6a),var(--c6b))}
+.lang{position:absolute;top:9px;right:9px;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;background:var(--surface);color:var(--ink-2);border-radius:2px;padding:1px 6px}
+.go{font-size:11.5px;font-weight:600;background:var(--primary);color:var(--on-primary);border-radius:3px;padding:4px 10px}
+.more{font-size:13px;line-height:1;background:var(--surface);color:var(--ink-2);border-radius:3px;padding:3px 8px}
+.hov .go{background:var(--surface);color:var(--primary)}
+.cbody{padding:11px 12px 13px}
+.ctitle{font-family:var(--read);font-size:15px;line-height:1.35;margin-bottom:5px}
+.cmeta{font-size:11px;color:var(--ink-2);margin-bottom:9px;min-height:15px}
+.prog{height:3px;background:var(--sunken);border-radius:2px;overflow:hidden;margin-bottom:6px}
+.prog i{display:block;height:100%;background:var(--confirmed)}
+.prog.none{background:none}
+.cstat{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2)}
+.badge{font-size:10px;letter-spacing:.05em;border-radius:2px;padding:1px 6px;font-weight:600}
+.b-doing{background:var(--accent-bg);color:var(--primary)}
+.b-done{background:var(--sunken);color:var(--confirmed)}
+.b-pause{background:var(--tm-bg);color:var(--tm-text)}
+.b-new{background:var(--sunken);color:var(--ink-2);font-weight:400}
+.menu{position:absolute;top:104px;left:calc(100% - 172px);width:180px;background:var(--surface);border:1px solid var(--line);border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:12px;padding:4px 0;z-index:2}
+.menu div{padding:6px 12px;display:flex;justify-content:space-between}
+.menu div:first-child{background:var(--accent-bg);color:var(--primary)}
+.sb{height:26px;border-top:1px solid var(--line);display:flex;align-items:center;padding:0 16px;font-size:11px;color:var(--ink-2)}
+
+.notes{width:1490px;margin:0 auto 18px;display:grid;grid-template-columns:1fr 1fr;gap:20px;color:#f4f1ea;font-size:12.5px;line-height:1.6}
+.notes ol{margin:6px 0 0;padding-left:20px}
+.sw{display:flex;gap:10px;margin-top:8px}
+.sw div{width:96px}
+.sw i{display:block;height:46px;border-radius:3px}
+.sw span{display:block;font-size:11px;margin-top:4px}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <b>Library — lưới rộng, chọn thẻ, màu bìa</b>
+  <div class="sub">Bổ sung cho <code>library-and-import.html</code>, theo quyết định của Ice 2026-10-25. Cửa sổ 1490 px như ảnh app thật: thẻ giữ đúng bề rộng mockup gốc (~260 px), màn rộng thì thêm cột. Thẻ 1 đang được chọn, thẻ 6 đang có chuột rê qua, menu <code>⋯</code> của thẻ 1 đang mở.</div>
+</div>
+
+<div class="notes">
+  <div>
+    <b>Cách dùng thẻ</b>
+    <ol>
+      <li>Bấm một lần: chọn thẻ (viền <code>primary</code>). Mũi tên di chuyển lựa chọn.</li>
+      <li>Bấm đúp hoặc <span class="k">↵</span>: mở trang Tác phẩm (danh sách Chương).</li>
+      <li><b>Tiếp tục dịch</b>: vào thẳng Workspace, đúng Chương và đúng câu đang dở. Tác phẩm chưa bắt đầu thì nút ghi <b>Bắt đầu dịch</b>. Nút hiện trên thẻ đang chọn và thẻ có chuột rê qua.</li>
+      <li><code>⋯</code>: Mở thư mục · Nhập bản reviewer.</li>
+    </ol>
+  </div>
+  <div>
+    <b>Sáu tông bìa</b> — mỗi Tác phẩm một tông cố định, chọn theo <code>work_id</code>. 1–3 lấy từ mockup gốc, 4–6 thêm mới. Hàng trên: nền sáng · hàng dưới: nền tối.
+    <div class="sw">
+      <div><i class="t1"></i><span>1 đá lam</span></div>
+      <div><i class="t2"></i><span>2 gỗ</span></div>
+      <div><i class="t3"></i><span>3 mực tím</span></div>
+      <div><i class="t4"></i><span>4 rêu</span></div>
+      <div><i class="t5"></i><span>5 gạch trầm</span></div>
+      <div><i class="t6"></i><span>6 lam đêm</span></div>
+    </div>
+    <div class="sw dark">
+      <div><i class="t1"></i></div><div><i class="t2"></i></div><div><i class="t3"></i></div>
+      <div><i class="t4"></i></div><div><i class="t5"></i></div><div><i class="t6"></i></div>
+    </div>
+  </div>
+</div>
+
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>Nhập tài liệu <span class="k">⌘N</span></span><span>Công cụ ▾</span></div>
+  </div>
+  <div class="bar">
+    <div class="search">⌕ <span>Tìm một câu trong mọi Tác phẩm — nguyên văn lẫn bản dịch</span></div>
+    <div class="dia"><span class="on">Chính xác dấu</span><span>Không dấu</span></div>
+    <div class="filters">
+      <span>Trạng thái ▾</span><span>Lĩnh vực ▾</span><span>Ngôn ngữ nguồn ▾</span><span>Sửa gần nhất ↓</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card sel">
+      <div class="cover t1"><span class="lang">Trung</span><span class="go">Tiếp tục dịch →</span><span class="more">⋯</span></div>
+      <div class="cbody">
+        <div class="ctitle">Tuyết Trung Hãn Đao Hành</div>
+        <div class="cmeta">Tiên hiệp · sửa 2 giờ trước</div>
+        <div class="prog"><i style="width:6.4%"></i></div>
+        <div class="cstat"><span>128 / 2000 chương</span><span class="badge b-doing">Đang dịch</span></div>
+      </div>
+      <div class="menu"><div>Mở thư mục</div><div>Nhập bản reviewer</div></div>
+    </div>
+    <div class="card">
+      <div class="cover t2"><span class="lang">Anh</span></div>
+      <div class="cbody">
+        <div class="ctitle">The Pragmatic Programmer — bản dịch cộng đồng</div>
+        <div class="cmeta">Kỹ thuật · sửa hôm qua</div>
+        <div class="prog"><i style="width:71%"></i></div>
+        <div class="cstat"><span>27 / 38 chương</span><span class="badge b-doing">Đang dịch</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cover t4"><span class="lang">Anh</span></div>
+      <div class="cbody">
+        <div class="ctitle">Hợp đồng phân phối — Q3/2026</div>
+        <div class="cmeta">Pháp lý · sửa 3 ngày trước</div>
+        <div class="prog"><i style="width:100%"></i></div>
+        <div class="cstat"><span>1 / 1 chương</span><span class="badge b-done">Đã xong</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cover t3"><span class="lang">Trung</span></div>
+      <div class="cbody">
+        <div class="ctitle">Nhân Đạo Đại Thánh</div>
+        <div class="cmeta">Tiên hiệp · sửa 2 tháng trước</div>
+        <div class="prog"><i style="width:19%"></i></div>
+        <div class="cstat"><span>84 / 441 chương</span><span class="badge b-pause">Tạm ngưng</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cover t6"><span class="lang">Trung</span></div>
+      <div class="cbody">
+        <div class="ctitle">Quỷ Bí Chi Chủ</div>
+        <div class="cmeta">Huyền huyễn · sửa 5 ngày trước</div>
+        <div class="prog"><i style="width:0"></i></div>
+        <div class="cstat"><span>0 / 1394 chương</span><span class="badge b-new">Chưa bắt đầu</span></div>
+      </div>
+    </div>
+    <div class="card hov">
+      <div class="cover t5"><span class="lang">Anh</span><span class="go">Tiếp tục dịch →</span><span class="more">⋯</span></div>
+      <div class="cbody">
+        <div class="ctitle">Designing Data-Intensive Applications</div>
+        <div class="cmeta">Kỹ thuật · sửa 1 tuần trước</div>
+        <div class="prog"><i style="width:50%"></i></div>
+        <div class="cstat"><span>6 / 12 chương</span><span class="badge b-doing">Đang dịch</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cover t2"><span class="lang">Trung</span></div>
+      <div class="cbody">
+        <div class="ctitle">Toàn Chức Cao Thủ</div>
+        <div class="cmeta">sửa 3 tuần trước</div>
+        <div class="prog none"></div>
+        <div class="cstat"><span>1728 chương</span><span></span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cover t1"><span class="lang">Anh</span></div>
+      <div class="cbody">
+        <div class="ctitle">Tài liệu hướng dẫn SDK thanh toán</div>
+        <div class="cmeta">Kỹ thuật · sửa 1 tháng trước</div>
+        <div class="prog"><i style="width:100%"></i></div>
+        <div class="cstat"><span>2 / 2 chương</span><span class="badge b-done">Đã xong</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cover t4"><span class="lang">Trung</span></div>
+      <div class="cbody">
+        <div class="ctitle">Đấu Phá Thương Khung</div>
+        <div class="cmeta">Huyền huyễn · sửa 4 tháng trước</div>
+        <div class="prog"><i style="width:100%"></i></div>
+        <div class="cstat"><span>1648 / 1648 chương</span><span class="badge b-done">Đã xong</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="cover t3"><span class="lang">Anh</span></div>
+      <div class="cbody">
+        <div class="ctitle">Thư gửi người viết trẻ</div>
+        <div class="cmeta">Văn học · sửa 5 tháng trước</div>
+        <div class="prog"><i style="width:30%"></i></div>
+        <div class="cstat"><span>3 / 10 chương</span><span class="badge b-pause">Tạm ngưng</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="sb"><span>Library · 47 Tác phẩm</span></div>
+</div>
+
+<div class="hd"><b>Nền tối</b><div class="sub">Cùng sáu tông, sáng hơn một bậc để bìa tách khỏi <code>surface</code> tối. Nhãn ngôn ngữ dùng cặp <code>on-surface-variant</code> trên <code>surface</code> đã kiểm tương phản, không thêm cặp mới.</div></div>
+
+<div class="win dark">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></div>
+    <div class="right"><span>Nhập tài liệu <span class="k">⌘N</span></span><span>Công cụ ▾</span></div>
+  </div>
+  <div class="bar">
+    <div class="search">⌕ <span>Tìm một câu trong mọi Tác phẩm — nguyên văn lẫn bản dịch</span></div>
+    <div class="dia"><span class="on">Chính xác dấu</span><span>Không dấu</span></div>
+    <div class="filters">
+      <span class="on">Đang dịch ▾</span><span>Lĩnh vực ▾</span><span>Ngôn ngữ nguồn ▾</span><span>Sửa gần nhất ↓</span><span class="count">5 / 47</span>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="cover t1"><span class="lang">Trung</span></div>
+      <div class="cbody"><div class="ctitle">Tuyết Trung Hãn Đao Hành</div><div class="cmeta">Tiên hiệp · sửa 2 giờ trước</div><div class="prog"><i style="width:6.4%"></i></div><div class="cstat"><span>128 / 2000 chương</span><span class="badge b-doing">Đang dịch</span></div></div>
+    </div>
+    <div class="card sel">
+      <div class="cover t2"><span class="lang">Anh</span><span class="go">Tiếp tục dịch →</span><span class="more">⋯</span></div>
+      <div class="cbody"><div class="ctitle">The Pragmatic Programmer — bản dịch cộng đồng</div><div class="cmeta">Kỹ thuật · sửa hôm qua</div><div class="prog"><i style="width:71%"></i></div><div class="cstat"><span>27 / 38 chương</span><span class="badge b-doing">Đang dịch</span></div></div>
+    </div>
+    <div class="card">
+      <div class="cover t5"><span class="lang">Anh</span></div>
+      <div class="cbody"><div class="ctitle">Designing Data-Intensive Applications</div><div class="cmeta">Kỹ thuật · sửa 1 tuần trước</div><div class="prog"><i style="width:50%"></i></div><div class="cstat"><span>6 / 12 chương</span><span class="badge b-doing">Đang dịch</span></div></div>
+    </div>
+    <div class="card">
+      <div class="cover t6"><span class="lang">Trung</span></div>
+      <div class="cbody"><div class="ctitle">Kiếm Lai</div><div class="cmeta">Tiên hiệp · sửa 2 tuần trước</div><div class="prog"><i style="width:12%"></i></div><div class="cstat"><span>130 / 1100 chương</span><span class="badge b-doing">Đang dịch</span></div></div>
+    </div>
+    <div class="card">
+      <div class="cover t3"><span class="lang">Anh</span></div>
+      <div class="cbody"><div class="ctitle">Release notes — bản 4.2</div><div class="cmeta">Kỹ thuật · sửa 3 tuần trước</div><div class="prog"><i style="width:80%"></i></div><div class="cstat"><span>4 / 5 chương</span><span class="badge b-doing">Đang dịch</span></div></div>
+    </div>
+  </div>
+  <div class="sb"><span>Library · 47 Tác phẩm</span></div>
+</div>
+
+</body>
+</html>

@@ -200,6 +200,25 @@ Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component
 >
 > ⚠️ **`draft` MƯỢN ĐÚNG GIÁ TRỊ của `ornament` ở cả hai theme** *(Ice ký 2026-08-15)*, nên nó là **một cái tên mới cho một màu ĐÃ kiểm**, không một màu mới chưa ai đo — **0 cặp mới** cho `contrast.pairs`, và bảng cặp giữ nguyên **31** cặp mỗi theme. 🔴 Trùng giá trị **không** phải trùng nghĩa: `ornament` nói *đã về hưu*, `draft` nói *đã dịch tay, chưa ký*; hai vạch không bao giờ cùng xuất hiện trên một câu.
 
+### Tông bìa Tác phẩm — **12 token mỗi theme** *(🔵 thêm 2026-10-25, Ice duyệt)*
+
+🔵 2026-10-25: tổng token màu mỗi theme thành 17 + 12 = 29; bảng 17 ở trên giữ nguyên. `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
+
+Bìa thẻ Tác phẩm ở Library là một dải chuyển `160deg` từ `cover-N-from` sang `cover-N-to`. Mỗi Tác phẩm một tông cố định, chọn theo `work_id`, nên đổi tên không đổi màu. Tông 1–3 lấy từ `mockups/library-and-import.html`; 4–6 thêm cho màn có nhiều Tác phẩm. Hình mẫu: `mockups/library-luoi-rong.html`.
+
+Đây là **mặt trang trí, không bao giờ là nền của chữ.** Nhãn ngôn ngữ, nút `Tiếp tục dịch` và nút `⋯` đặt trên bìa đều có nền đặc riêng (`surface` hoặc `primary`), nên chỉ dùng các cặp tương phản đã kiểm: **0 cặp mới**.
+
+| # | Tông | Sáng `from` → `to` | Tối `from` → `to` |
+|---|---|---|---|
+| 1 | đá lam | `#3d4f52` → `#26312f` | `#46595c` → `#2f3b3a` |
+| 2 | gỗ | `#5c4a3a` → `#3a2f26` | `#66533f` → `#42362b` |
+| 3 | mực tím | `#4a4658` → `#2e2c3a` | `#534e63` → `#363343` |
+| 4 | rêu | `#4e5a3c` → `#2f3725` | `#57643f` → `#37402b` |
+| 5 | gạch trầm | `#6b4339` → `#3f2823` | `#74493e` → `#48302a` |
+| 6 | lam đêm | `#3a4c64` → `#232f3f` | `#42566f` → `#2a3747` |
+
+Nền tối dùng cùng sắc nhưng sáng hơn một bậc, để bìa tách khỏi `surface` `#26241f`.
+
 ### Sàn tương phản — đã kiểm, đừng hạ
 
 Ba màu trong bản dựng đầu **không đạt WCAG AA** và đã được sửa ở bảng token. Ghi lại để không ai khôi phục chúng:

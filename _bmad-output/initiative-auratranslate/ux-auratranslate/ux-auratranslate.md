@@ -12,6 +12,7 @@ Hai tài liệu UX của AuraTranslate và các bản dựng mẫu đi kèm. M�
 
 - `DESIGN.md` — diện mạo: màu, chữ, khoảng cách, thành phần (token là nguồn sự thật cho giao diện)
 - `EXPERIENCE.md` — hành vi: nguyên lý tương tác, luồng, trạng thái
+- `library-nghiem-thu-thi-giac.md` — phiếu đưa Library về mockup và nghiệm thu bằng ảnh app thật (2026-10-25, chờ Ice duyệt)
 - `mockups/` — 29 mockup HTML, mỗi tệp một màn hình hoặc một cơ chế (ví dụ `key-screen-workspace.html`, `reading-mode.html`, `tm-fuzzy-match.html`, `narrow-layout.html`); đây là tham chiếu để dựng
 - `.working/` — dấu vết quyết định thị giác, KHÔNG dựng theo thư mục này: `README.md` giải thích; `direction-*.html` và `layout-2x2-variants.html` ghi hướng đã chọn và đã loại; `superseded-*.html` là sáu bản cũ đã bị mockup hiện hành thay thế
 - `.memlog.md` — nhật ký phiên viết UX
