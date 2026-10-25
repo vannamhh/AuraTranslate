@@ -1,3 +1,7 @@
+<script lang="ts">
+const mountedMenus = new Set<HTMLDetailsElement>()
+</script>
+
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
 
@@ -23,8 +27,8 @@ function onToggle(): void {
     root.value.open = false
     return
   }
-  for (const other of document.querySelectorAll<HTMLDetailsElement>('details[data-dropdown-menu][open]')) {
-    if (other !== root.value) other.open = false
+  for (const other of mountedMenus) {
+    if (other !== root.value && other.open) other.open = false
   }
   emit('open')
 }
@@ -61,10 +65,12 @@ function onDocumentClick(event: MouseEvent): void {
 }
 
 onMounted(() => {
+  if (root.value !== null) mountedMenus.add(root.value)
   document.addEventListener('mousedown', onDocumentMouseDown)
   document.addEventListener('click', onDocumentClick)
 })
 onBeforeUnmount(() => {
+  if (root.value !== null) mountedMenus.delete(root.value)
   document.removeEventListener('mousedown', onDocumentMouseDown)
   document.removeEventListener('click', onDocumentClick)
 })

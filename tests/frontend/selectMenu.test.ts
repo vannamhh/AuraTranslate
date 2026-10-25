@@ -9,10 +9,13 @@ const OPTIONS = [
 ]
 
 let wrapper: ReturnType<typeof mount> | null = null
+let second: ReturnType<typeof mount> | null = null
 
 afterEach(() => {
   wrapper?.unmount()
   wrapper = null
+  second?.unmount()
+  second = null
 })
 
 function build(props: Record<string, unknown> = {}): ReturnType<typeof mount> {
@@ -90,6 +93,28 @@ describe('SelectMenu.vue', () => {
     radio('b').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
     expect(details().open).toBe(false)
     expect(document.activeElement).toBe(details().querySelector('summary'))
+  })
+
+  it('opening one menu closes the other open menu, and an unmounted menu is no longer tracked', async () => {
+    build()
+    second = mount(SelectMenu, {
+      attachTo: document.body,
+      props: { modelValue: 'a', options: OPTIONS, variant: 'field', label: 'Second' },
+    })
+    const [first, other] = Array.from(document.querySelectorAll<HTMLDetailsElement>('details[data-dropdown-menu]'))
+    first!.open = true
+    first!.dispatchEvent(new Event('toggle'))
+    other!.open = true
+    other!.dispatchEvent(new Event('toggle'))
+    await second.vm.$nextTick()
+    expect(first!.open).toBe(false)
+    expect(other!.open).toBe(true)
+
+    second.unmount()
+    second = null
+    first!.open = true
+    first!.dispatchEvent(new Event('toggle'))
+    expect(first!.open).toBe(true)
   })
 
   it('disabled blocks opening and marks the trigger', async () => {
