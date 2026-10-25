@@ -1746,11 +1746,6 @@ fn fetch_and_write_one_asset(
     write_local_asset_bytes(&bytes, &content_type, assets_dir)
 }
 
-/// Số ký tự CHỮ (CJK + Latin) tối đa lấy mẫu cho [`source_lang_looks_mismatched`] — một trần
-/// chi phí, không phải một ngưỡng độ chính xác: script-ratio hội tụ rất nhanh, không cần đọc
-/// hết một Chương dài để có tín hiệu đáng tin.
-const LANGUAGE_HEURISTIC_SAMPLE_CHARS: usize = 20_000;
-
 /// Danh mục ĐÓNG — `create_work`/`append_chapters_to_work` từ chối MỌI
 /// `source_lang` ngoài hai giá trị này, không ghi một byte nào. Trước bản vá này chỉ webview
 /// kiểm (`=== 'zh'`, `src/modes/libraryImport.ts`); một `.atproj` sửa tay hoặc một lời gọi
@@ -1768,41 +1763,13 @@ fn validate_source_lang(source_lang: &str) -> Result<(), IpcError> {
     }
 }
 
-/// `true` khi ký tự `c` thuộc một khối chữ Hán thường gặp trong văn bản Trung văn — thô, đủ
-/// cho một heuristic tỉ lệ chữ, KHÔNG phải một bảng Unicode đầy đủ (bỏ qua các khối hiếm như
-/// CJK Extension B+ — một heuristic CẢNH BÁO không cần phủ hết, chỉ cần không dương/âm tính
-/// giả trên văn bản Trung văn/Latin THƯỜNG GẶP).
-fn is_common_cjk_char(c: char) -> bool {
-    matches!(c as u32, 0x4E00..=0x9FFF | 0x3400..=0x4DBF | 0xF900..=0xFAFF)
-}
-
-/// Tỉ lệ CJK trên tổng số ký tự CHỮ (CJK + chữ cái ASCII) trong `LANGUAGE_HEURISTIC_SAMPLE_CHARS`
-/// ký tự đầu của `text` — `None` khi mẫu không có ký tự CHỮ nào (toàn số/khoảng trắng/dấu câu),
-/// ca mà một tỉ lệ không nói lên điều gì.
-fn cjk_ratio_sample(text: &str) -> Option<f64> {
-    let (mut cjk, mut latin) = (0usize, 0usize);
-    for c in text.chars().take(LANGUAGE_HEURISTIC_SAMPLE_CHARS) {
-        if is_common_cjk_char(c) {
-            cjk += 1;
-        } else if c.is_alphabetic() {
-            latin += 1;
-        }
-    }
-    let total = cjk + latin;
-    if total == 0 {
-        None
-    } else {
-        Some(cjk as f64 / total as f64)
-    }
-}
-
 /// Heuristic tỉ lệ chữ cho cảnh báo KHÔNG CHẶN — `true` khi nội dung trông như KHÁC hẳn
 /// `source_lang` đã khai. Không phải một bộ phát hiện ngôn
 /// ngữ đúng nghĩa (không phân biệt được tiếng Việt với tiếng Anh, ví dụ) — chỉ đủ bắt ca dán
 /// nhầm cả một Chương chữ Latin vào một Tác phẩm khai `zh`, hoặc ngược lại. `source_lang`
 /// ngoài `zh`/`en` (giá trị lạ) không có gì để so — luôn `false`.
 fn source_lang_looks_mismatched(source_lang: &str, text: &str) -> bool {
-    const CJK_MAJORITY: f64 = 0.5;
+    use crate::core::segment::source_lang::{CJK_MAJORITY, cjk_ratio_sample};
     let Some(ratio) = cjk_ratio_sample(text) else {
         return false;
     };

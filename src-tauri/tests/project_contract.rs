@@ -1090,7 +1090,12 @@ fn build_file_import_batch_wire_locks_confirm_on_one_failed_item_and_opens_it_wh
             },
         ],
     };
-    let (batch, all_ok) = build_file_import_batch_wire(&outcome_with_broken, "en", &[], None);
+    let (batch, all_ok) = build_file_import_batch_wire(
+        &outcome_with_broken,
+        &auratranslate_lib::commands::project::ResolvedSourceLang::manual("en"),
+        &[],
+        None,
+    );
     assert!(!all_ok, "mot muc hong phai lam all_ok = false");
     assert!(
         batch.encoding_preview.is_none(),
@@ -1126,7 +1131,12 @@ fn build_file_import_batch_wire_locks_confirm_on_one_failed_item_and_opens_it_wh
             },
         ],
     };
-    let (batch_ok, all_ok2) = build_file_import_batch_wire(&outcome_all_ok, "en", &[], None);
+    let (batch_ok, all_ok2) = build_file_import_batch_wire(
+        &outcome_all_ok,
+        &auratranslate_lib::commands::project::ResolvedSourceLang::manual("en"),
+        &[],
+        None,
+    );
     assert!(all_ok2, "khong muc nao hong phai lam all_ok = true");
     assert!(
         batch_ok.encoding_preview.is_some(),
@@ -7225,4 +7235,163 @@ fn chapter_row_updated_at_moves_with_the_last_sentence_confirmation_not_with_dra
     let dir = opened.dir.clone();
     drop(opened);
     cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Chip "Tự nhận" — `resolve_preview_source_lang` + `preview_import_encoding` + từ chối `auto`.
+// ═════════════════════════════════════════════════════════════════════════════════
+
+use auratranslate_lib::commands::project::ResolvedSourceLang;
+
+fn auto_resolve(
+    shape: &PipelineShape,
+) -> Result<ResolvedSourceLang, auratranslate_lib::core::i18n::IpcError> {
+    auratranslate_lib::commands::project::resolve_preview_source_lang(Some(shape), "auto")
+}
+
+fn resolved(lang: &str, auto: bool) -> ResolvedSourceLang {
+    ResolvedSourceLang {
+        lang: lang.to_owned(),
+        auto,
+    }
+}
+
+fn segment_count(text: &str, lang: &str) -> usize {
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned()));
+    run_import(PipelineInput::default_shaped(shape, lang))
+        .expect("run_import")
+        .chapters
+        .remove(0)
+        .segments
+        .len()
+}
+
+#[test]
+fn auto_guesses_zh_from_pasted_chinese_and_the_preview_splits_sentences_as_zh() {
+    let text = "他走进房间。她笑了！你好吗？";
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned()));
+    let resolved_lang = auto_resolve(&shape).expect("tieng Trung phai doan duoc");
+    assert_eq!(resolved_lang, resolved("zh", true));
+    let preview = auratranslate_lib::commands::project::preview_import_encoding_resolved(
+        &shape,
+        &resolved_lang,
+        &[],
+        None,
+        &[],
+        0,
+        &[],
+    );
+    assert_eq!(preview.source_lang, "zh");
+    assert!(preview.source_lang_auto);
+    assert_eq!(segment_count(text, &preview.source_lang), 3);
+}
+
+#[test]
+fn manual_en_over_chinese_passes_through_unflagged_and_splits_as_en() {
+    let text = "他走进房间。她笑了！你好吗？";
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText(text.to_owned()));
+    let resolved_lang =
+        auratranslate_lib::commands::project::resolve_preview_source_lang(Some(&shape), "en")
+            .unwrap();
+    assert_eq!(resolved_lang, resolved("en", false));
+    let preview = auratranslate_lib::commands::project::preview_import_encoding_resolved(
+        &shape,
+        &resolved_lang,
+        &[],
+        None,
+        &[],
+        0,
+        &[],
+    );
+    assert_eq!(preview.source_lang, "en");
+    assert!(!preview.source_lang_auto);
+    assert_ne!(segment_count(text, "en"), segment_count(text, "zh"));
+}
+
+#[test]
+fn auto_skips_an_unreadable_first_file_and_guesses_from_the_next() {
+    let (gbk, _, _) = encoding_rs::GBK.encode("他走进房间。她笑了！你好吗？");
+    let shape = PipelineShape::Files(vec![
+        ChapterInput::RawBytes {
+            bytes: b"123 456 ...".to_vec(),
+            label: "a.txt".to_owned(),
+        },
+        ChapterInput::RawBytes {
+            bytes: gbk.into_owned(),
+            label: "b.txt".to_owned(),
+        },
+    ]);
+    assert_eq!(auto_resolve(&shape).unwrap(), resolved("zh", true));
+}
+
+#[test]
+fn url_items_guess_from_fetched_html() {
+    let html = format!(
+        "<html><body><article><p>{}</p></article></body></html>",
+        "他走进房间。她笑了。你好吗？我们一起去吧。".repeat(30)
+    );
+    let items = vec![UrlImportItem {
+        url: "https://example.com/a".to_owned(),
+        raw: Some(html.into_bytes()),
+        error: None,
+    }];
+    let resolved_lang =
+        auratranslate_lib::commands::project::resolve_url_import_source_lang(&items, "auto")
+            .unwrap();
+    assert_eq!(resolved_lang, resolved("zh", true));
+}
+
+#[test]
+fn auto_guesses_en_from_latin_text() {
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText(
+        "He walked in. She smiled.".to_owned(),
+    ));
+    assert_eq!(auto_resolve(&shape).unwrap(), resolved("en", true));
+}
+
+#[test]
+fn auto_on_text_with_no_letters_is_an_error_not_a_guess() {
+    let shape = PipelineShape::Blob(ChapterInput::AlreadyText("123 456 ... !!!".to_owned()));
+    let err = auto_resolve(&shape).expect_err("khong co chu thi khong doan");
+    assert_eq!(err.message_key(), MessageKey::ImportSourceLangUndetectable);
+}
+
+#[test]
+fn auto_reads_decoded_gbk_bytes_for_file_shapes() {
+    let (bytes, _, _) = encoding_rs::GBK.encode("他走进房间。她笑了！你好吗？");
+    let shape = PipelineShape::Files(vec![ChapterInput::RawBytes {
+        bytes: bytes.into_owned(),
+        label: "a.txt".to_owned(),
+    }]);
+    assert_eq!(auto_resolve(&shape).unwrap(), resolved("zh", true));
+}
+
+#[test]
+fn auto_extracts_main_content_of_url_html_before_guessing() {
+    let html = format!(
+        "<html><head><title>t</title></head><body><nav><a href=\"/x\">home page link</a></nav><article><h1>标题</h1><p>{}</p></article></body></html>",
+        "他走进房间。她笑了。你好吗？我们一起去吧。".repeat(30)
+    );
+    let shape = PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+        bytes: html.into_bytes(),
+        label: "https://example.com/a".to_owned(),
+    }]);
+    assert_eq!(auto_resolve(&shape).unwrap(), resolved("zh", true));
+}
+
+#[test]
+fn auto_without_any_content_keeps_auto_and_never_guesses() {
+    let resolved_lang =
+        auratranslate_lib::commands::project::resolve_preview_source_lang(None, "auto").unwrap();
+    assert_eq!(resolved_lang, resolved("auto", false));
+}
+
+#[test]
+fn create_work_from_text_rejects_auto_and_writes_nothing() {
+    let root = temp_dir("reject-auto-create");
+    let err = create_work_from_text(&root, "Auto", "auto", "", "noi dung".to_owned())
+        .expect_err("auto khong duoc tao Tac pham");
+    assert_eq!(err.message_key(), MessageKey::ImportUnsupportedSourceLang);
+    assert!(fs::read_dir(&root).unwrap().next().is_none());
+    cleanup(&root);
 }

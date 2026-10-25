@@ -3,16 +3,20 @@ import { computed } from 'vue'
 import { t } from '../i18n'
 import { sourceLangChoices } from './libraryWorkCard'
 
-defineProps<{
-  modelValue: string
-  name: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: string
+    name: string
+    includeAuto?: boolean
+  }>(),
+  { includeAuto: true },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const options = computed(() => sourceLangChoices())
+const options = computed(() => sourceLangChoices().filter((o) => props.includeAuto || o.value !== 'auto'))
 </script>
 
 <template>

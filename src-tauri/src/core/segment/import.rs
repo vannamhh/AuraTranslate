@@ -308,6 +308,8 @@ pub enum ImportError {
         /// Giá trị đã nhận — dữ liệu, không phải câu.
         source_lang: String,
     },
+    /// "auto" was requested but no readable letters were found to guess from.
+    SourceLangUndetectable,
 }
 
 impl std::fmt::Display for ImportError {
@@ -410,6 +412,9 @@ impl std::fmt::Display for ImportError {
             }
             ImportError::BilingualTableNotChosen { count } => {
                 write!(f, "import[bilingual]: {count} tables, none chosen")
+            }
+            ImportError::SourceLangUndetectable => {
+                write!(f, "import: source language could not be detected")
             }
             ImportError::UnsupportedSourceLang { source_lang } => {
                 write!(
@@ -653,6 +658,12 @@ impl From<ImportError> for IpcError {
                     false,
                 )
             }
+            ImportError::SourceLangUndetectable => IpcError::new(
+                "import.source_lang_undetectable",
+                MessageKey::ImportSourceLangUndetectable,
+                BTreeMap::new(),
+                false,
+            ),
             ImportError::UnsupportedSourceLang { source_lang } => {
                 let mut params = BTreeMap::new();
                 params.insert("source_lang".to_owned(), source_lang);

@@ -111,6 +111,8 @@ function blocksWire(blocks: BlockWire[]): ChapterBlocksPreviewWire {
 /** Xem trước tối giản, ĐÚNG một ứng viên mang `blocks` — đủ cho các ca xoáy vào tầng 2. */
 function previewWithBlocks(blocks: BlockWire[]): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'self_declared',
     selected_encoding: 'UTF-8',
     candidates: [

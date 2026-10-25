@@ -459,14 +459,14 @@ pub(crate) fn sync_pending_from_url_items(
 /// đó, §Always spec 6.10).
 pub(crate) fn url_import_encoding_preview(
     items: &[UrlImportItem],
-    source_lang: &str,
+    source_lang: &ResolvedSourceLang,
     cleanup_rules: &[CleanupRule],
     block_overrides: &[Option<bool>],
     origin_overrides: &[Option<ChapterOriginOverride>],
 ) -> Option<ImportEncodingPreview> {
     let shape = chapters_shape_for_view(items)?;
     let broken_item_count = items.iter().filter(|it| it.error.is_some()).count();
-    Some(preview_import_encoding(
+    Some(preview_import_encoding_resolved(
         &shape,
         source_lang,
         cleanup_rules,
@@ -475,6 +475,13 @@ pub(crate) fn url_import_encoding_preview(
         broken_item_count,
         origin_overrides,
     ))
+}
+
+pub fn resolve_url_import_source_lang(
+    items: &[UrlImportItem],
+    requested: &str,
+) -> Result<ResolvedSourceLang, IpcError> {
+    resolve_preview_source_lang(chapters_shape_for_view(items).as_ref(), requested)
 }
 
 /// Dựng [`UrlImportBatchWire`] từ trạng thái HIỆN TẠI — dùng chung bởi cả ba lệnh
@@ -488,7 +495,7 @@ pub(crate) fn url_import_encoding_preview(
 /// nghĩa ở đây, nên đây CŨNG là chỗ DUY NHẤT override cần chảy vào lượt xem trước.
 pub(crate) fn url_import_batch_wire(
     items: &[UrlImportItem],
-    source_lang: &str,
+    source_lang: &ResolvedSourceLang,
     cleanup_rules: &[CleanupRule],
     block_overrides: &[Option<bool>],
     domain_log_domain_count: usize,

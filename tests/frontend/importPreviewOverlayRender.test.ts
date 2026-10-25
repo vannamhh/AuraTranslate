@@ -86,6 +86,8 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
 
 function preview(over: Partial<ImportEncodingPreview> = {}): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     selected_encoding: 'UTF-8',
     confidence: 'high',
     candidates: [candidate()],

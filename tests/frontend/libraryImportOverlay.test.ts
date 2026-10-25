@@ -154,9 +154,10 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     expect(group.attributes('role')).toBe('radiogroup')
     expect(group.attributes('aria-label')).toBe('Ngôn ngữ nguồn')
     const chips = group.findAll('.lang-chip')
-    expect(chips.map((c) => c.text())).toEqual(['Tiếng Trung', 'Tiếng Anh'])
+    expect(chips.map((c) => c.text())).toEqual(['Tự nhận', 'Tiếng Trung', 'Tiếng Anh'])
+    expect(group.findAll('.lang-chip--on').map((c) => c.text())).toEqual(['Tự nhận'])
 
-    await chips[1]!.find('input').setValue(true)
+    await chips[2]!.find('input').setValue(true)
     expect(imp.sourceLang.value).toBe('en')
     expect(group.findAll('.lang-chip--on').map((c) => c.text())).toEqual(['Tiếng Anh'])
   })
@@ -168,7 +169,7 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     commands.dispatch('library.import.open')
     await flush()
     const checked = wrapper.find<HTMLInputElement>('[data-import-source-lang] input:checked')
-    expect(checked.element.value).toBe('zh')
+    expect(checked.element.value).toBe('auto')
     checked.element.focus()
 
     await wrapper.find('.li-panel').trigger('keydown', { key: 'Tab' })

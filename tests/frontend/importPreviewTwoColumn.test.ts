@@ -69,6 +69,8 @@ function proseCandidate(chapterCount: number) {
 
 function proseFixture(chapterCount: number): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     selected_encoding: 'UTF-8',
     confidence: 'high',
     candidates: [proseCandidate(chapterCount)],

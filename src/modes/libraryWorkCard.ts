@@ -19,6 +19,7 @@ export function sourceLangLabel(code: string): string | null {
 
 export function sourceLangChoices(): { value: string; label: string }[] {
   return [
+    { value: 'auto', label: t('mode.library.lang_auto') },
     { value: 'zh', label: t('mode.library.lang_zh') },
     { value: 'en', label: t('mode.library.lang_en') },
   ]

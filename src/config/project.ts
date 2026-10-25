@@ -334,6 +334,10 @@ export type EncodingCandidateWire = {
 
 /** Kết quả một lượt xem trước bảng mã — khớp `commands::project::ImportEncodingPreview`. */
 export type ImportEncodingPreview = {
+  /** Ngôn ngữ nguồn cụ thể (`zh`/`en`) Rust đã dùng; với chip "Tự nhận" đây là giá trị đã đoán. */
+  source_lang: string
+  /** `true` khi `source_lang` do Rust tự nhận từ nội dung. */
+  source_lang_auto: boolean
   confidence: ImportConfidence
   selected_encoding: string
   candidates: EncodingCandidateWire[]
@@ -545,6 +549,8 @@ function isImportEncodingPreview(value: unknown): value is ImportEncodingPreview
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<ImportEncodingPreview>
   return (
+    typeof v.source_lang === 'string' &&
+    typeof v.source_lang_auto === 'boolean' &&
     (v.confidence === 'self_declared' || v.confidence === 'high' || v.confidence === 'low') &&
     typeof v.selected_encoding === 'string' &&
     Array.isArray(v.candidates) &&
@@ -1196,6 +1202,13 @@ export async function startUrlImport(
 /** Tải lại ĐÚNG MỘT mục hỏng ở vị trí `index` — đúng 1 lời gọi mạng. */
 export async function reloadUrlImportItem(index: number, sourceLang: string): Promise<UrlImportBatchResult> {
   return callUrlImportBatch(CMD_RELOAD_URL_IMPORT_ITEM, { index, sourceLang })
+}
+
+const CMD_REBUILD_URL_IMPORT_PREVIEW = 'rebuild_url_import_preview'
+
+/** Dựng lại xem trước của danh sách URL đã tải với ngôn ngữ nguồn khác — 0 lời gọi mạng. */
+export async function rebuildUrlImportPreview(sourceLang: string): Promise<UrlImportBatchResult> {
+  return callUrlImportBatch(CMD_REBUILD_URL_IMPORT_PREVIEW, { sourceLang })
 }
 
 /** Bỏ một mục ở vị trí `index` — 0 lời gọi mạng. */

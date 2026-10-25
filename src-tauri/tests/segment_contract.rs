@@ -10554,6 +10554,8 @@ fn create_work_with_utf8_encoding_behaves_identically_to_the_pre_story_default()
 #[test]
 fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
     let preview = ImportEncodingPreview {
+        source_lang: "en".to_owned(),
+        source_lang_auto: false,
         confidence: ConfidenceWire::Low,
         selected_encoding: "GBK".to_owned(),
         candidates: vec![
@@ -10603,6 +10605,8 @@ fn the_import_encoding_preview_wire_shape_keeps_snake_case_field_names() {
     assert_eq!(
         object.keys().collect::<std::collections::BTreeSet<_>>(),
         std::collections::BTreeSet::from([
+            &"source_lang".to_owned(),
+            &"source_lang_auto".to_owned(),
             &"confidence".to_owned(),
             &"selected_encoding".to_owned(),
             &"candidates".to_owned(),

@@ -93,6 +93,8 @@ function candidateChapters(chapterCount: number, needsReviewCount: number) {
 
 function fiveCandidatePreview(chapterCount: number, needsReviewCount = 0): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [

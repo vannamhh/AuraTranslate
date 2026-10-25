@@ -118,6 +118,38 @@ describe('Story 12-6: import preview screens', () => {
     await expectFocusOnAttribute('data-import-preview-open')
   })
 
+  it('"Tự nhận" is the default chip: pasted Chinese is detected, the label says so, and the preview chips re-run it with a manual language', async () => {
+    await realClick(await $(OPEN_BTN))
+    const form = await $(FORM)
+    await form.waitForDisplayed({ timeout: 10_000 })
+    expect(
+      await browser.execute(
+        () => document.querySelector('[data-import-source-lang] .lang-chip--on')?.textContent?.trim() ?? '',
+      ),
+    ).toBe('Tự nhận')
+    await (await fieldByLabel(form, 0)).setValue(`e2e-126-auto-${RUN_TAG}`)
+    await (await form.$('textarea')).setValue('他走进房间。她笑了！你好吗？')
+    await realClick((await form.$$('[data-import-preview-open]'))[0])
+    await $(SCREEN).waitForDisplayed({ timeout: 30_000 })
+
+    const langLine = () =>
+      browser.execute(
+        () => (document.querySelector('[data-ip-source-lang-label]')?.textContent || '').trim(),
+      )
+    expect(await langLine()).toContain('Tiếng Trung (tự nhận)')
+
+    const englishChip = await (await $('[data-ip-source-lang] input[type="radio"][value="en"]')).$('..')
+    await realClick(englishChip)
+    await browser.waitUntil(async () => !(await langLine()).includes('(tự nhận)'), {
+      timeout: 15_000,
+      timeoutMsg: 'label kept "(tự nhận)" after choosing a manual language',
+    })
+    expect(await langLine()).toContain('Tiếng Anh')
+
+    await realClick(await $(`${SCREEN} .ip-actions .ip-act:not(.ip-act-primary)`))
+    await $(SCREEN).waitForExist({ reverse: true, timeout: 10_000 })
+  })
+
   it('"Nhập từ website": count line, promise, submit label and Cancel returning focus to its opener', async () => {
     await browser.execute(() => document.querySelector('.li-panel textarea')?.focus())
     await realClick(await $('[data-library-url-screen-open]'))

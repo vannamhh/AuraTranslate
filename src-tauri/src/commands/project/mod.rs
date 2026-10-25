@@ -1477,7 +1477,13 @@ fn current_tier2_machine_kept(
     source_lang: &str,
     cleanup_rules: &[CleanupRule],
 ) -> Option<Vec<bool>> {
-    let preview = url_import_encoding_preview(items, source_lang, cleanup_rules, &[], &[])?;
+    let preview = url_import_encoding_preview(
+        items,
+        &ResolvedSourceLang::manual(source_lang),
+        cleanup_rules,
+        &[],
+        &[],
+    )?;
     let blocks = preview.candidates.iter().find_map(|c| c.blocks.as_ref())?;
     Some(blocks.blocks.iter().map(|b| b.kept).collect())
 }
@@ -1507,6 +1513,10 @@ impl From<Confidence> for ConfidenceWire {
 /// ⚠️ `#[serde(rename_all = ...)]` KHÔNG đặt.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ImportEncodingPreview {
+    /// Ngôn ngữ nguồn cụ thể (`zh`/`en`) mà lượt xem trước đã dùng để tách câu.
+    pub source_lang: String,
+    /// `true` khi `source_lang` do app tự nhận từ nội dung (chip "Tự nhận").
+    pub source_lang_auto: bool,
     pub confidence: ConfidenceWire,
     /// Bảng mã đang CHỌN — `EncodingCandidateWire::encoding` của ô mặc định.
     pub selected_encoding: String,
@@ -1604,13 +1614,13 @@ pub struct FileImportBatchWire {
 /// hai cách).
 pub fn build_file_import_batch_wire(
     outcome: &crate::core::segment::import::FilesImportOutcome,
-    source_lang: &str,
+    source_lang: &ResolvedSourceLang,
     cleanup_rules: &[CleanupRule],
     chapter_pattern: Option<&ChapterPattern>,
 ) -> (FileImportBatchWire, bool) {
     let all_ok = outcome.items.iter().all(|it| it.error.is_none());
     let encoding_preview = all_ok.then(|| {
-        preview_import_encoding(
+        preview_import_encoding_resolved(
             &outcome.shape,
             source_lang,
             cleanup_rules,
@@ -2056,6 +2066,62 @@ fn encoding_candidate_wire(
     }
 }
 
+/// Source language handed to the preview builders; `auto` marks a value guessed from content.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedSourceLang {
+    pub lang: String,
+    pub auto: bool,
+}
+
+impl ResolvedSourceLang {
+    pub fn manual(lang: &str) -> Self {
+        Self {
+            lang: lang.to_owned(),
+            auto: false,
+        }
+    }
+}
+
+pub fn preview_import_encoding_resolved(
+    shape: &PipelineShape,
+    source_lang: &ResolvedSourceLang,
+    cleanup_rules: &[CleanupRule],
+    chapter_pattern: Option<&ChapterPattern>,
+    block_overrides: &[Option<bool>],
+    broken_item_count: usize,
+    origin_overrides: &[Option<ChapterOriginOverride>],
+) -> ImportEncodingPreview {
+    build_import_encoding_preview(
+        shape,
+        source_lang,
+        cleanup_rules,
+        chapter_pattern,
+        block_overrides,
+        broken_item_count,
+        origin_overrides,
+    )
+}
+
+pub fn preview_import_encoding(
+    shape: &PipelineShape,
+    source_lang: &str,
+    cleanup_rules: &[CleanupRule],
+    chapter_pattern: Option<&ChapterPattern>,
+    block_overrides: &[Option<bool>],
+    broken_item_count: usize,
+    origin_overrides: &[Option<ChapterOriginOverride>],
+) -> ImportEncodingPreview {
+    build_import_encoding_preview(
+        shape,
+        &ResolvedSourceLang::manual(source_lang),
+        cleanup_rules,
+        chapter_pattern,
+        block_overrides,
+        broken_item_count,
+        origin_overrides,
+    )
+}
+
 /// **Hàm thuần** — dò bảng mã cho `shape` VỪA ĐỌC (không tự đọc gì, không tự lưu state —
 /// chỗ gọi ở `mod wire` chịu trách nhiệm cả hai việc đó, đúng khuôn hai lớp
 /// `src-tauri/AGENTS.md`).
@@ -2083,15 +2149,17 @@ fn encoding_candidate_wire(
 /// URL, xem doc-comment `PipelineInput::extract_main_content`). Chỗ gọi trên đường tệp/dán
 /// tay (`wire::preview_import_encoding_from_text`/`_from_file`) truyền `0`; đường URL
 /// (`url_import_encoding_preview`) truyền số mục `error.is_some()` của `UrlImportItemsState`.
-pub fn preview_import_encoding(
+fn build_import_encoding_preview(
     shape: &PipelineShape,
-    source_lang: &str,
+    resolved: &ResolvedSourceLang,
     cleanup_rules: &[CleanupRule],
     chapter_pattern: Option<&ChapterPattern>,
     block_overrides: &[Option<bool>],
     broken_item_count: usize,
     origin_overrides: &[Option<ChapterOriginOverride>],
 ) -> ImportEncodingPreview {
+    let source_lang = resolved.lang.as_str();
+    let source_lang_auto = resolved.auto;
     // 🔵 **SỬA 2026-09-08 (Story 6.10a) — bỏ tham số `label` riêng, thêm `shape` (hình dạng
     // GỐC nguyên vẹn).** `label` từng cần thiết vì hình dạng nạp vào pipeline bị GÓI LẠI
     // thành một đơn vị `Blob` bên trong `encoding_candidate_wire` (mất `label` gốc); nay hàm
@@ -2299,12 +2367,61 @@ pub fn preview_import_encoding(
     };
 
     ImportEncodingPreview {
+        source_lang: source_lang.to_owned(),
+        source_lang_auto,
         confidence: verdict.confidence.into(),
         selected_encoding: verdict.encoding.name().to_owned(),
         candidates,
         self_declared_normalized,
         self_declared_cleanup,
         self_declared_chapters,
+    }
+}
+
+pub const SOURCE_LANG_AUTO: &str = "auto";
+
+/// `None` when no unit yields a decodable text with letters to count.
+pub fn guess_shape_source_lang(shape: &PipelineShape) -> Option<&'static str> {
+    use crate::core::segment::source_lang::guess_source_lang;
+    fn unit_text(unit: &ChapterInput, extract_main_content: bool) -> Option<String> {
+        match unit {
+            ChapterInput::AlreadyText(text) => Some(text.clone()),
+            ChapterInput::RawBytes { bytes, label } => {
+                let encoding = encoding::detect(bytes).encoding;
+                encoding::text_for_language_guess(bytes, encoding, extract_main_content, label)
+            }
+        }
+    }
+    let guess_unit = |unit: &ChapterInput, extract: bool| {
+        unit_text(unit, extract).and_then(|text| guess_source_lang(&text))
+    };
+    match shape {
+        PipelineShape::Blob(unit) => guess_unit(unit, false),
+        PipelineShape::Chapters(chapters) => chapters.first().and_then(|u| guess_unit(u, true)),
+        PipelineShape::Files(units) => units.iter().find_map(|u| guess_unit(u, false)),
+        PipelineShape::Bilingual { .. }
+        | PipelineShape::BilingualTables { .. }
+        | PipelineShape::BilingualRows { .. } => None,
+    }
+}
+
+/// Keeps `"auto"` when `shape` is `None`; errors when `"auto"` cannot be guessed.
+pub fn resolve_preview_source_lang(
+    shape: Option<&PipelineShape>,
+    requested: &str,
+) -> Result<ResolvedSourceLang, IpcError> {
+    if requested != SOURCE_LANG_AUTO {
+        return Ok(ResolvedSourceLang::manual(requested));
+    }
+    let Some(shape) = shape else {
+        return Ok(ResolvedSourceLang::manual(requested));
+    };
+    match guess_shape_source_lang(shape) {
+        Some(lang) => Ok(ResolvedSourceLang {
+            lang: lang.to_owned(),
+            auto: true,
+        }),
+        None => Err(crate::core::segment::import::ImportError::SourceLangUndetectable.into()),
     }
 }
 

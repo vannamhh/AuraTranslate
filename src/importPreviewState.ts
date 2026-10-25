@@ -43,6 +43,7 @@ import {
   previewChapterDetail,
   previewImportEncodingFromFile,
   previewImportEncodingFromText,
+  rebuildUrlImportPreview,
   reloadUrlImportItem,
   removeUrlImportItem,
   setChapterOriginOverride,
@@ -139,6 +140,22 @@ async function withImportProgressListener<T>(
  * `ImportEncodingPreview` (Rust không lặp lại dữ liệu người dùng vừa gõ, AD-21). */
 const pendingName = ref('')
 const pendingSourceLang = ref('')
+const pendingSourceLangAuto = ref(false)
+const SOURCE_LANG_UNDETECTABLE_CODE = 'import.source_lang_undetectable'
+let undetectableLangError: IpcError | null = null
+
+function adoptPreviewSourceLang(p: { source_lang: string; source_lang_auto: boolean }): void {
+  if (!p.source_lang_auto && pendingSourceLang.value !== 'auto') return
+  pendingSourceLang.value = p.source_lang
+  pendingSourceLangAuto.value = p.source_lang_auto
+}
+
+/** Lỗi "không nhận ra ngôn ngữ nguồn" của lượt mở gần nhất (lớp phủ không mở); đọc một lần. */
+export function takeImportPreviewUndetectableLangError(): IpcError | null {
+  const err = undetectableLangError
+  undetectableLangError = null
+  return err
+}
 const pendingGenre = ref('')
 
 /**
@@ -424,6 +441,7 @@ export const importPreviewDestinationWorkId: DeepReadonly<Ref<string | null>> = 
  * ĐỌC LẠI ba ô này, không tính lại. */
 export const importPreviewPendingName: DeepReadonly<Ref<string>> = readonly(pendingName)
 export const importPreviewPendingSourceLang: DeepReadonly<Ref<string>> = readonly(pendingSourceLang)
+export const importPreviewSourceLangAuto: DeepReadonly<Ref<boolean>> = readonly(pendingSourceLangAuto)
 export const importPreviewPendingGenre: DeepReadonly<Ref<string>> = readonly(pendingGenre)
 export const importPreviewCleanupActionError: DeepReadonly<Ref<IpcError | null>> =
   readonly(cleanupActionError)
@@ -553,6 +571,7 @@ function scheduleGlossaryEstimate(): void {
   const encoding = selectedEncoding.value
   if (!overlayOpen.value || status.value !== 'loaded' || preview.value === null || encoding === null) return
   if (confirming.value) return
+  if (pendingSourceLang.value === 'auto') return
   const token = glossaryEstimateToken
   glossaryEstimate.value = { kind: 'running' }
   glossaryEstimateTimer = setTimeout(() => {
@@ -835,6 +854,7 @@ async function openWith(
   lastSubmittedFrom.value = from
   pendingName.value = name
   pendingSourceLang.value = sourceLang
+  pendingSourceLangAuto.value = false
   pendingGenre.value = genre
   // **THÊM (Story 6.7b)** — chốt CÙNG LÚC với ba ô trên, cùng khuôn: `libraryImport.ts` đã
   // tính đúng `name`/`sourceLang`/`genre`/`destinationWorkId` (giá trị gõ tay HOẶC giá trị
@@ -880,6 +900,11 @@ async function openWith(
   const result = await call()
   if (mySequence !== sequence) return // Một lượt mở/huỷ MỚI đã vượt mặt lượt này.
   opening.value = false
+  if (result.error?.code === SOURCE_LANG_UNDETECTABLE_CODE) {
+    resetImportPreview()
+    undetectableLangError = result.error
+    return
+  }
   overlayOpen.value = true
 
   if (result.error !== null) {
@@ -897,6 +922,7 @@ async function openWith(
     return
   }
 
+  adoptPreviewSourceLang(result.preview)
   preview.value = result.preview
   selectedEncoding.value = result.preview.selected_encoding
   status.value = 'loaded'
@@ -956,6 +982,7 @@ export async function openImportPreviewFromFile(
   lastSubmittedFrom.value = 'file'
   pendingName.value = name
   pendingSourceLang.value = sourceLang
+  pendingSourceLangAuto.value = false
   pendingGenre.value = genre
   pendingDestinationWorkId.value = destinationWorkId
   pendingText.value = null
@@ -1003,6 +1030,11 @@ export async function openImportPreviewFromFile(
   if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
 
   opening.value = false
+  if (result.error?.code === SOURCE_LANG_UNDETECTABLE_CODE) {
+    resetImportPreview()
+    undetectableLangError = result.error
+    return
+  }
   overlayOpen.value = true
 
   if (result.error !== null) {
@@ -1028,6 +1060,7 @@ export async function openImportPreviewFromFile(
     preview.value = null
     selectedEncoding.value = null
   } else {
+    adoptPreviewSourceLang(result.batch.encoding_preview)
     preview.value = result.batch.encoding_preview
     selectedEncoding.value = result.batch.encoding_preview.selected_encoding
   }
@@ -1069,6 +1102,7 @@ export async function openImportPreviewFromUrls(
   lastSubmittedFrom.value = 'urls'
   pendingName.value = name
   pendingSourceLang.value = sourceLang
+  pendingSourceLangAuto.value = false
   pendingGenre.value = genre
   pendingDestinationWorkId.value = destinationWorkId
   pendingText.value = null
@@ -1126,6 +1160,11 @@ export async function openImportPreviewFromUrls(
   if (mySequence !== sequence) return // một lượt mở/huỷ MỚI đã vượt mặt lượt này
 
   opening.value = false
+  if (result.error?.code === SOURCE_LANG_UNDETECTABLE_CODE) {
+    resetImportPreview()
+    undetectableLangError = result.error
+    return
+  }
   overlayOpen.value = true
 
   if (result.error !== null) {
@@ -1156,6 +1195,7 @@ export async function openImportPreviewFromUrls(
     preview.value = null
     selectedEncoding.value = null
   } else {
+    adoptPreviewSourceLang(result.batch.encoding_preview)
     preview.value = result.batch.encoding_preview
     selectedEncoding.value = result.batch.encoding_preview.selected_encoding
   }
@@ -1190,6 +1230,7 @@ function applyUrlImportBatch(batch: NonNullable<Awaited<ReturnType<typeof startU
     syncChapterCursorAfterBatchChange()
     return
   }
+  adoptPreviewSourceLang(batch.encoding_preview)
   preview.value = batch.encoding_preview
   selectedEncoding.value = batch.encoding_preview.candidates.some((c) => c.encoding === keepEncoding)
     ? keepEncoding
@@ -1711,6 +1752,7 @@ function applyFileImportBatch(batch: FileImportBatchWire): void {
     loadError.value = null
     return
   }
+  adoptPreviewSourceLang(batch.encoding_preview)
   preview.value = batch.encoding_preview
   selectedEncoding.value = batch.encoding_preview.candidates.some((c) => c.encoding === keepEncoding)
     ? keepEncoding
@@ -2157,6 +2199,7 @@ export async function confirmImportPreview(): Promise<{ created: CreatedWork | n
   confirmError.value = null
   pendingName.value = ''
   pendingSourceLang.value = ''
+  pendingSourceLangAuto.value = false
   pendingGenre.value = ''
   stripForcedOpen.value = false
   pendingText.value = null
@@ -2224,6 +2267,44 @@ export function cancelImportPreview(): void {
   resetImportPreview()
 }
 
+/** Re-runs the preview with a manual language; reverts the label if the rebuild fails. */
+export async function setImportPreviewSourceLang(lang: 'zh' | 'en'): Promise<void> {
+  if (confirming.value || opening.value || preview.value === null) return
+  if (pendingDestinationWorkId.value !== null) return
+  if (pendingSourceLang.value === lang && !pendingSourceLangAuto.value) return
+  const previousLang = pendingSourceLang.value
+  const previousAuto = pendingSourceLangAuto.value
+  pendingSourceLang.value = lang
+  pendingSourceLangAuto.value = false
+
+  if (lastSubmittedFrom.value === 'urls') {
+    sequence += 1
+    const mySequence = sequence
+    urlImportBusy.value = true
+    try {
+      const result = await rebuildUrlImportPreview(lang)
+      if (mySequence !== sequence) return
+      if (result.error !== null || result.batch === null) {
+        pendingSourceLang.value = previousLang
+        pendingSourceLangAuto.value = previousAuto
+        if (result.error !== null) urlImportError.value = result.error
+        return
+      }
+      urlImportError.value = null
+      applyUrlImportBatch(result.batch)
+    } finally {
+      urlImportBusy.value = false
+    }
+    return
+  }
+  const before = preview.value
+  await reloadImportPreviewAfterRuleChange()
+  if (preview.value === before) {
+    pendingSourceLang.value = previousLang
+    pendingSourceLangAuto.value = previousAuto
+  }
+}
+
 /**
  * Vứt toàn bộ state của lớp phủ — `check:panel-refs` đòi mọi ô nhớ cấp module có một đường
  * `reset*()`. Chỗ gọi sản phẩm DUY NHẤT là [`cancelImportPreview`] — cùng khuôn
@@ -2232,6 +2313,7 @@ export function cancelImportPreview(): void {
  */
 export function resetImportPreview(): void {
   sequence += 1
+  undetectableLangError = null
   glossaryEstimateToken += 1
   if (glossaryEstimateTimer !== null) clearTimeout(glossaryEstimateTimer)
   glossaryEstimateTimer = null
@@ -2254,6 +2336,7 @@ export function resetImportPreview(): void {
   imageDownloadCancelling.value = false
   pendingName.value = ''
   pendingSourceLang.value = ''
+  pendingSourceLangAuto.value = false
   pendingGenre.value = ''
   // **THÊM (Story 6.7b)** — 48ᵗʰ ô, cùng khuôn ba ô trên: quét bằng `resetImportPreview()`
   // như `check:panel-refs` đòi cho mọi ô nhớ cấp module mới.

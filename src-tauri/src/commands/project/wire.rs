@@ -649,6 +649,7 @@ pub fn preview_import_encoding_from_text(
     let pattern = super::resolve_chapter_pattern(chapter_pattern)?;
     let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
     let shape = super::import_text(text);
+    let source_lang = super::resolve_preview_source_lang(Some(&shape), &source_lang)?;
     // Story 6.9 — đường dán văn bản KHÔNG BAO GIỜ bóc nội dung chính (`extract_main_content
     // == false`), nên `&[]` không mất gì; dọn `Tier2BlockOverridesState` cho nhất quán
     // VÒNG ĐỜI của một lượt xem trước MỚI (xem doc-comment kiểu đó).
@@ -660,7 +661,7 @@ pub fn preview_import_encoding_from_text(
     // "Reset khi nào") — bốn ô của một Chương dán tay/tệp thật sự sẽ mang xuất xứ của một
     // lượt nhập URL đã bỏ, đúng lớp lỗi "rỗng/hỏng ngầm" mà AGENTS.md gọi tên là trung tâm.
     reset_chapter_origin_overrides(&app);
-    let preview = super::preview_import_encoding(
+    let preview = super::preview_import_encoding_resolved(
         &shape,
         &source_lang,
         &cleanup_rules,
@@ -749,6 +750,13 @@ pub fn preview_import_encoding_from_file(
     // 🔵 SỬA 2026-09-16 (phản biện) — quyết định "mọi mục OK / khoá / cất" nay sống trong
     // [`super::build_file_import_batch_wire`] (hàm THUẦN, `tests/**` gọi được không cần
     // `tauri::AppHandle`) thay vì chỉ ở đây.
+    let source_lang = match super::resolve_preview_source_lang(Some(&outcome.shape), &source_lang) {
+        Ok(resolved) => resolved,
+        Err(err) => {
+            cancel_import_preview(&state);
+            return Err(err);
+        }
+    };
     let (batch, all_ok) = super::build_file_import_batch_wire(
         &outcome,
         &source_lang,
@@ -1366,6 +1374,7 @@ pub fn start_url_import(
     let (items, log_entries) =
         super::fetch_url_import_items_with_progress(deduped_urls, &mut on_page_progress);
     append_domain_log(&app, log_entries);
+    let source_lang = super::resolve_url_import_source_lang(&items, &source_lang)?;
     // Phiên MỚI — đích là giá trị người dùng vừa chọn, cất ngay từ đây (Story 6.7b).
     super::sync_pending_from_url_items(&pending_state, &items, destination);
     // Story 6.9 — danh sách HOÀN TOÀN MỚI, dọn override CŨ trước khi dựng dây (xem
@@ -1439,6 +1448,8 @@ pub fn reload_url_import_item(
     append_domain_log(&app, log_entries);
     // Cùng đích ĐÃ ĐỌC ở trên — một lượt tải lại không đổi đích của phiên.
     super::sync_pending_from_url_items(&pending_state, items, destination);
+    let source_lang = super::resolve_url_import_source_lang(items, &source_lang)
+        .unwrap_or_else(|_| super::ResolvedSourceLang::manual(&source_lang));
     // Story 6.9 — CHỈ mục 0 (Chương tầng 2 đang hiển thị) làm override cũ SAI Ý NGHĨA khi
     // tải lại — xem doc-comment `Tier2BlockOverridesState` mục "Reset khi nào".
     if super::mutated_index_invalidates_tier2_blocks(index) {
@@ -1450,7 +1461,7 @@ pub fn reload_url_import_item(
     reset_chapter_origin_overrides(&app);
     let block_overrides = resolve_tier2_block_overrides(&app);
     let origin_overrides = resolve_chapter_origin_overrides(&app);
-    Ok(super::url_import_batch_wire(
+    let wire = super::url_import_batch_wire(
         items,
         &source_lang,
         &cleanup_rules,
@@ -1458,7 +1469,42 @@ pub fn reload_url_import_item(
         domain_log_domain_count(&app),
         &origin_overrides,
         0,
-    ))
+    );
+    Ok(wire)
+}
+
+/// Rebuilds the preview from already-fetched items; no network call.
+#[tauri::command(async)]
+pub fn rebuild_url_import_preview(
+    app: tauri::AppHandle,
+    source_lang: String,
+) -> Result<super::UrlImportBatchWire, IpcError> {
+    use tauri::Manager as _;
+
+    let Some(items_state) = app.try_state::<super::UrlImportItemsState>() else {
+        return Err(super::url_import_internal_error());
+    };
+    let destination = pending_destination(&app);
+    let cleanup_rules = resolve_cleanup_rules_for(&app, destination.as_deref());
+    let guard = items_state
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(items) = guard.as_ref() else {
+        return Err(super::url_import_internal_error());
+    };
+    let source_lang = super::resolve_url_import_source_lang(items, &source_lang)?;
+    let block_overrides = resolve_tier2_block_overrides(&app);
+    let origin_overrides = resolve_chapter_origin_overrides(&app);
+    let wire = super::url_import_batch_wire(
+        items,
+        &source_lang,
+        &cleanup_rules,
+        &block_overrides,
+        domain_log_domain_count(&app),
+        &origin_overrides,
+        0,
+    );
+    Ok(wire)
 }
 
 /// Vỏ IPC — bỏ MỘT mục khỏi danh sách (I/O Matrix spec 6.7: "N−1 link · N−1 Chương — hai
@@ -1508,7 +1554,9 @@ pub fn remove_url_import_item(
     reset_chapter_origin_overrides(&app);
     let block_overrides = resolve_tier2_block_overrides(&app);
     let origin_overrides = resolve_chapter_origin_overrides(&app);
-    Ok(super::url_import_batch_wire(
+    let source_lang = super::resolve_url_import_source_lang(items, &source_lang)
+        .unwrap_or_else(|_| super::ResolvedSourceLang::manual(&source_lang));
+    let wire = super::url_import_batch_wire(
         items,
         &source_lang,
         &cleanup_rules,
@@ -1516,7 +1564,8 @@ pub fn remove_url_import_item(
         domain_log_domain_count(&app),
         &origin_overrides,
         0,
-    ))
+    );
+    Ok(wire)
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1596,7 +1645,7 @@ pub fn tier2_block_set_kept(
     let origin_overrides = resolve_chapter_origin_overrides(&app);
     Ok(super::url_import_batch_wire(
         items,
-        &source_lang,
+        &super::ResolvedSourceLang::manual(&source_lang),
         &cleanup_rules,
         &block_overrides,
         domain_log_domain_count(&app),
@@ -1672,7 +1721,7 @@ pub fn tier2_block_confirm_range(
     let origin_overrides = resolve_chapter_origin_overrides(&app);
     Ok(super::url_import_batch_wire(
         items,
-        &source_lang,
+        &super::ResolvedSourceLang::manual(&source_lang),
         &cleanup_rules,
         &block_overrides,
         domain_log_domain_count(&app),

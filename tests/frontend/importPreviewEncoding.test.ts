@@ -80,6 +80,8 @@ function chaptersFor(title: string): ImportEncodingPreview['candidates'][number]
  * (trừ UTF-16) đọc ra CÙNG một chuỗi. */
 function highConfidencePreview(): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'high',
     selected_encoding: 'UTF-8',
     candidates: [
@@ -139,6 +141,8 @@ function highConfidencePreview(): ImportEncodingPreview {
 /** Vá vòng rà 1, mục 1 — nhánh TỰ KHAI (0 ứng viên) vẫn phải chở một bản chuẩn hoá THẬT. */
 function selfDeclaredPreview(): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'self_declared',
     selected_encoding: 'UTF-8',
     candidates: [],
@@ -150,6 +154,8 @@ function selfDeclaredPreview(): ImportEncodingPreview {
 
 function lowConfidencePreview(): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [

@@ -127,6 +127,8 @@ function sampleError(url: string): IpcError {
 /** Xem trước bảng mã tối giản — hợp lệ về HÌNH DẠNG, đủ cho các ca không xoáy vào tầng 1/3/4. */
 function minimalPreview(chapterCount: number): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'self_declared',
     selected_encoding: 'UTF-8',
     candidates: [],

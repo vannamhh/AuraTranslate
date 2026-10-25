@@ -34,6 +34,7 @@ import type { UnlistenFn } from '@tauri-apps/api/event'
 import { enterFocus } from '../commands'
 import {
   importPreviewIsOpen,
+  takeImportPreviewUndetectableLangError,
   importPreviewLastSubmittedFrom,
   openImportPreviewFromFile,
   openImportPreviewFromText,
@@ -104,9 +105,10 @@ export const name = ref('')
 
 /**
  * Ngôn ngữ nguồn — **bất biến sau khi tạo** (FR3, AD-18). Hai mã khớp `core::matching`
- * (`lang = 'zh'` / `lang = 'en'`, xem `tests/dict_boundary.rs`).
+ * (`lang = 'zh'` / `lang = 'en'`, xem `tests/dict_boundary.rs`); `'auto'` chỉ sống tới lượt xem
+ * trước đầu, nơi Rust đoán ra `zh`/`en`.
  */
-export const sourceLang = ref<'zh' | 'en'>('zh')
+export const sourceLang = ref<'zh' | 'en' | 'auto'>('auto')
 
 /** Thể loại — tự do, rỗng hợp lệ. */
 export const genre = ref('')
@@ -366,6 +368,18 @@ const FLUSH_FAILED_ERROR: IpcError = {
   retryable: true,
 }
 
+const BILINGUAL_NEEDS_SOURCE_LANG_ERROR: IpcError = {
+  code: 'import.bilingual_needs_source_lang',
+  message_key: 'err.import.bilingual_needs_source_lang',
+  params: {},
+  retryable: false,
+}
+
+function surfaceUndetectableLang(): void {
+  const error = takeImportPreviewUndetectableLangError()
+  if (error !== null) lastError.value = error
+}
+
 /** @returns `false` ⇒ lượt nộp bị DỪNG, chỗ gọi không được đi tiếp. */
 async function beginSubmit(): Promise<boolean> {
   busy.value = true
@@ -606,6 +620,7 @@ export async function submitPastedText(): Promise<void> {
     pastedText.value,
     destinationWorkId.value,
   )
+  surfaceUndetectableLang()
   busy.value = false
 }
 
@@ -630,6 +645,7 @@ export async function submitFilePath(): Promise<void> {
     paths,
     destinationWorkId.value,
   )
+  surfaceUndetectableLang()
   busy.value = false
 }
 
@@ -643,6 +659,11 @@ export async function submitBilingualFilePath(): Promise<void> {
   const path = bilingualFilePath.value.trim()
   if (path === '') return
   if (!(await beginSubmit())) return
+  if (sourceLang.value === 'auto') {
+    lastError.value = BILINGUAL_NEEDS_SOURCE_LANG_ERROR
+    busy.value = false
+    return
+  }
   await openBilingualImportPreview(name.value, sourceLang.value, genre.value, path)
   busy.value = false
 }
@@ -667,6 +688,7 @@ export async function submitPastedUrls(): Promise<void> {
     urls,
     destinationWorkId.value,
   )
+  surfaceUndetectableLang()
   busy.value = false
 }
 

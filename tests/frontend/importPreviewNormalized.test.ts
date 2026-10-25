@@ -60,6 +60,8 @@ function candidate(
  * để canh nhánh "undecodable" của tầng mới. */
 function fivecandidatePreview(): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
@@ -79,6 +81,8 @@ function fivecandidatePreview(): ImportEncodingPreview {
 /** Vá vòng rà 1, mục 1 — nhánh TỰ KHAI (0 ứng viên, đường DÁN VĂN BẢN TAY). */
 function selfDeclaredPreview(n: NormalizedPreviewWire): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'self_declared',
     selected_encoding: 'UTF-8',
     candidates: [],

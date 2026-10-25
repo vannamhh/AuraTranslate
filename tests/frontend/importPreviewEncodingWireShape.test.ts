@@ -81,6 +81,8 @@ function blocksFor(text: string): Record<string, unknown> {
  * `self_declared_chapters`, cùng luật đồng bộ `null`. */
 function validWirePreview(): Record<string, unknown> {
   return {
+    source_lang: 'zh',
+    source_lang_auto: false,
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [
@@ -155,6 +157,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // minh `isImportEncodingPreview` THẬT SỰ bác nó, không lặng lẽ chấp nhận.
   it('payload camelCase (mô phỏng một lượt Rust đổi rename_all) BỊ BÁC, không đi lọt', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'low',
       selectedEncoding: 'GBK', // camelCase -- sai hinh dang
       candidates: [],
@@ -172,6 +176,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // `undefined` hiện lên dải.
   it('một phần tử `candidates` thiếu trường (`encoding` vắng mặt) làm CẢ payload bị bác', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'low',
       selected_encoding: 'GBK',
       candidates: [{ label: 'UTF-8', preview: null }], // thieu `encoding`
@@ -186,6 +192,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
 
   it('`preview: undefined` (JSON.stringify sẽ bỏ hẳn trường) trong một phần tử bị bác', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [{ label: 'UTF-8', encoding: 'UTF-8' }], // thieu `preview` han
@@ -204,6 +212,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // `candidate.normalized.text` trên `undefined` rồi vỡ trắng màn hình.
   it('candidates[].normalized VẮNG MẶT (thiếu trường, không phải null) làm CẢ payload bị bác', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [{ label: 'UTF-8', encoding: 'UTF-8', preview: 'abc' }], // thieu `normalized` han
@@ -220,6 +230,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // cũng phải bác CẢ payload — cùng lý lẽ, một tầng sâu hơn.
   it('candidates[].normalized THIẾU trường con (`joined_lines` vắng mặt) làm CẢ payload bị bác', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [
@@ -257,6 +269,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // phải đi qua thật.
   it('payload TỰ KHAI (0 ứng viên) với self_declared_normalized hợp lệ đi qua thật', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'self_declared',
       selected_encoding: 'UTF-8',
       candidates: [],
@@ -363,6 +377,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // `null`) phải bác CẢ payload, không lọt qua thành `undefined` hiện lên `.vue`.
   it('candidates[].cleanup VẮNG MẶT (thiếu trường, không phải null) làm CẢ payload bị bác', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [
@@ -388,6 +404,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
 
   it('candidates[].cleanup.spans THIẾU một trường con (`end` vắng mặt) làm CẢ payload bị bác', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [
@@ -434,6 +452,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // không bị Kiểm TYPE cắt bớt trường nào.
   it('payload mang khối làm sạch KHÔNG rỗng (luật + span thật) đi qua nguyên vẹn', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [
@@ -484,6 +504,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // phải bác CẢ payload, không lọt qua thành `undefined` hiện lên `.vue`.
   it('candidates[].chapters VẮNG MẶT (thiếu trường, không phải null) làm CẢ payload bị bác', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [
@@ -524,6 +546,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // nguyên vẹn, không bị Kiểm TYPE cắt bớt trường nào.
   it('payload mang khối tách Chương N > 1 Chương đi qua nguyên vẹn', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [
@@ -593,6 +617,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // bác CẢ payload, không lọt qua thành `undefined` hiện lên `.vue`.
   it('candidates[].blocks VẮNG MẶT (thiếu trường, không phải null) làm CẢ payload bị bác', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [
@@ -620,6 +646,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
 
   it('candidates[].blocks[].body THIẾU `kind` làm CẢ payload bị bác', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [
@@ -650,6 +678,8 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
   // phía Rust (`segment_contract.rs`), cùng payload thật để hai bên không lệch nhau.
   it('payload mang dãy khối tầng 2 THẬT (ba nhánh thân, ba vạch lề) đi qua nguyên vẹn', async () => {
     mockInvoke.mockResolvedValue({
+      source_lang: 'zh',
+      source_lang_auto: false,
       confidence: 'high',
       selected_encoding: 'UTF-8',
       candidates: [

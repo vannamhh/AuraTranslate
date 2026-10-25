@@ -46,7 +46,7 @@ const CHAPTER_READ_FILE: &str = "commands/chapter.rs";
 const SRC_RS_FLOOR: usize = 122;
 
 /// Số tệp `.ts` + `.vue` tối thiểu dưới `src/**`.
-const WEBVIEW_FLOOR: usize = 167;
+const WEBVIEW_FLOOR: usize = 180;
 
 /// Bảng chữ cái kết câu tiếng Trung — AC1. **Chỉ** `core/segment/**` được mang nó.
 ///

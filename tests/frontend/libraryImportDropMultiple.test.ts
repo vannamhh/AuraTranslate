@@ -59,6 +59,8 @@ const DRAG_DROP_EVENT = 'aura://file-dropped'
 
 function preview(): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'high',
     selected_encoding: 'UTF-8',
     candidates: [],
@@ -130,7 +132,7 @@ describe('libraryImport — kéo-thả N tệp cùng lúc (Story 6.6b)', () => {
 
     await nhap.submitFilePath()
 
-    expect(previewFileMock).toHaveBeenCalledWith(['/tmp/a.txt', '/tmp/b.txt', '/tmp/c.txt'], 'zh', null, null)
+    expect(previewFileMock).toHaveBeenCalledWith(['/tmp/a.txt', '/tmp/b.txt', '/tmp/c.txt'], 'auto', null, null)
   })
 
   // ─────────────────────────────────────────────────────────────────────────────

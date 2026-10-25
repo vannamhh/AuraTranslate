@@ -8,6 +8,7 @@ import { groupThousands } from './importFormat'
 import { useSelectionSurface } from './panels/selectionContract'
 import ChapterOrigin from './ChapterOrigin.vue'
 import SelectMenu from './SelectMenu.vue'
+import SourceLangChips from './modes/SourceLangChips.vue'
 import {
   addImportPreviewCleanupRule,
   cancelImportPreviewCleanupDeletePending,
@@ -54,6 +55,8 @@ import {
   importPreviewPageProgress,
   importPreviewPendingName,
   importPreviewPendingSourceLang,
+  importPreviewSourceLangAuto,
+  setImportPreviewSourceLang,
   importPreviewSelectedBlocks,
   importPreviewSelectedCandidate,
   importPreviewSelectedChapters,
@@ -779,10 +782,18 @@ watch(importPreviewBlockFocusedIndex, (index) => {
  * `work.source_lang` chỉ nhận hai giá trị này, `LibraryMode.vue::sourceLang`) hiện NGUYÊN
  * VĂN thay vì rơi vào một khoá dịch sai. */
 const destinationSourceLangLabel = computed<string>(() => {
-  if (importPreviewPendingSourceLang.value === 'zh') return t('mode.library.lang_zh')
-  if (importPreviewPendingSourceLang.value === 'en') return t('mode.library.lang_en')
-  return importPreviewPendingSourceLang.value
+  const base =
+    importPreviewPendingSourceLang.value === 'zh'
+      ? t('mode.library.lang_zh')
+      : importPreviewPendingSourceLang.value === 'en'
+        ? t('mode.library.lang_en')
+        : importPreviewPendingSourceLang.value
+  return importPreviewSourceLangAuto.value ? t('mode.library.lang_auto_detected', { lang: base }) : base
 })
+
+function onPreviewSourceLangChange(value: string): void {
+  if (value === 'zh' || value === 'en') void setImportPreviewSourceLang(value)
+}
 
 const glossaryEstimateText = computed<string>(() => {
   const estimate = importPreviewGlossaryEstimate.value
@@ -1021,8 +1032,18 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             </div>
             <div class="ip-summary-line">
               <dt>{{ t('mode.library.preview.summary_source_lang') }}</dt>
-              <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn ngôn ngữ nguồn. -->
-              <dd>{{ destinationSourceLangLabel }}</dd>
+              <dd>
+                <!-- aura-allow-text: KẾT QUẢ của `t()`, nhãn ngôn ngữ nguồn. -->
+                <span data-ip-source-lang-label>{{ destinationSourceLangLabel }}</span>
+                <SourceLangChips
+                  v-if="importPreviewDestinationWorkId === null"
+                  :model-value="importPreviewSourceLangAuto ? '' : importPreviewPendingSourceLang"
+                  name="import-preview-source-lang"
+                  :include-auto="false"
+                  data-ip-source-lang
+                  @update:model-value="onPreviewSourceLangChange"
+                />
+              </dd>
             </div>
             <div class="ip-summary-line">
               <dt>{{ t('mode.library.preview.summary_initial_status') }}</dt>

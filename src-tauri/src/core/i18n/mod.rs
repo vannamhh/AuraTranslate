@@ -691,6 +691,10 @@ message_keys! {
     /// khoá này ném ra.
     ImportUnsupportedSourceLang => "err.import.unsupported_source_lang" ["source_lang"],
 
+    ImportBilingualNeedsSourceLang => "err.import.bilingual_needs_source_lang" [],
+
+    ImportSourceLangUndetectable => "err.import.source_lang_undetectable" [],
+
     /// Phím `Space`/`[`/`]` (sửa tầng 2 khối bóc) bị khoá khi con trỏ đứng ở một Chương khác
     /// Chương đầu — `Tier2BlockOverridesState` chỉ mang cấu trúc khối của Chương đầu, và
     /// không tách theo từng Chương (có chủ).

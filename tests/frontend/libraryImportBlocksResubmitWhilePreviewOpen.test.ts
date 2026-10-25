@@ -47,6 +47,8 @@ vi.mock('@tauri-apps/api/event', () => ({ listen: async () => () => {} }))
 
 function preview(): ImportEncodingPreview {
   return {
+    source_lang: 'en',
+    source_lang_auto: false,
     confidence: 'low',
     selected_encoding: 'GBK',
     candidates: [

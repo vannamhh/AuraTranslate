@@ -384,6 +384,22 @@ fn extracted_normalized_and_window(
     )
 }
 
+/// Decoded (and, for URL HTML, main-content-extracted) text; `None` when it cannot be decoded.
+pub fn text_for_language_guess(
+    bytes: &[u8],
+    encoding: &'static Encoding,
+    extract_main_content: bool,
+    url_label: &str,
+) -> Option<String> {
+    if !extract_main_content {
+        return pipeline_window_for_known_encoding(bytes, encoding).map(|(text, _)| text);
+    }
+    let decoded = encoding.decode_without_bom_handling_and_without_replacement(bytes)?;
+    let blocks = crate::core::webimport::extract(strip_leading_bom(&decoded), url_label).ok()?;
+    let effective_kept = super::pipeline::effective_kept_for_blocks(&blocks, &[]);
+    Some(super::pipeline::join_kept_blocks(&blocks, &effective_kept))
+}
+
 /// Cắt `U+FEFF` ở ĐẦU `s`, nếu có — bản riêng của tệp này (`&str → &str`) cùng luật
 /// [`super::pipeline::decode_unit`]'s `strip_bom` (`String → String`):
 /// [`extracted_normalized_and_window`] chỉ cần một lát cắt để nạp vào

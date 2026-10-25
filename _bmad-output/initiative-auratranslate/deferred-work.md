@@ -13458,3 +13458,7 @@ chính nó.
   evidence: Tách khỏi plan danh sách thể loại vì plan ba phần dài 2.886 token (tiktoken). Không có nó, 47/47 Tác phẩm của Ice giữ thể loại rỗng mãi và không bao giờ được tự chọn bộ prompt; Ice chọn làm ngay sau plan này. **Chủ: Ice.**
 
 - **Bẫy Tab của `GlossaryManageOverlay` có thể kẹt ở nút mở menu** (chưa đo). `focusableWithin` ở đó đếm cả radio nằm trong `<details>` đóng của hai SelectMenu; `focus()` lên chúng không có tác dụng trong WebKit, nên Tab từ nút mở menu có thể đứng yên. `LibraryImportOverlay.vue` đã lọc đúng chỗ này; một ca e2e bấm Tab qua menu ở Quản lý Glossary sẽ trả lời. **Chủ: Ice.**
+
+- source_plan: `_bmad-output/initiative-auratranslate/plan-tu-nhan-ngon-ngu-nguon.md`
+  summary: Tự nhận ngôn ngữ nguồn cho đường nhập song ngữ — đoán trên các ô cột nguồn sau khi đọc hàng (`preview_bilingual_import`, `bilingual.rs:222`; `derive_row` tách theo `source_lang`).
+  evidence: Đếm chữ Hán trên toàn tệp song ngữ bị cột dịch tiếng Việt làm loãng nên đoán sai; Ice chọn để sau, đường song ngữ tạm đòi chọn tay khi chip là Tự nhận. **Chủ: Ice.**

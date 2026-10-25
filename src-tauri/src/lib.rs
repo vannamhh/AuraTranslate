@@ -1142,6 +1142,7 @@ pub fn run() {
             crate::commands::project::wire::start_url_import,
             crate::commands::project::wire::reload_url_import_item,
             crate::commands::project::wire::remove_url_import_item,
+            crate::commands::project::wire::rebuild_url_import_preview,
             // Cancels an in-flight image-download pass. Not async -- just an AtomicU64,
             // no Store I/O.
             crate::commands::project::wire::cancel_image_download,
