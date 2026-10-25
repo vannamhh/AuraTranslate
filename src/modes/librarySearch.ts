@@ -632,4 +632,5 @@ export function resetLibrarySearch(): void {
   workCounts.value = []
   sourceCountsCapped.value = false
   expandedWorks.value = []
+  focusPending.value = false
 }
