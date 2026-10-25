@@ -521,6 +521,133 @@
 
   window.addEventListener('DOMContentLoaded', function () { paint('sẵn sàng') })
 
+  // ── ⑪ MỐC MỖI PHÍM — plan giảm-chi-phí-mỗi-phím-gõ-lưới ────────────────────────
+  // Chỉ ghi mốc `performance.now()` bằng listener ở HAI đầu cửa sổ dispatch (capture ở
+  // `window` chạy trước handler sản phẩm, bubble ở `window` chạy sau); không bọc hàm sản
+  // phẩm. Mốc `selectionchange` ra dùng listener đăng ký TRỄ (sau listener của sản phẩm).
+  // Phím điều khiển: Ctrl+Alt+Shift+8 đổ bảng qua `put_config` key `__bench_keys__`.
+  var K = { rows: [], cur: null, scOutArmed: false, lag: [], lastRaf: 0, rafPending: false, nKd: 0 }
+  B.K = K
+  function inTgt(t) { return t && t.nodeType === 1 && t.closest && t.closest('[data-col="tgt"]') }
+  function newRow(e) {
+    var now = performance.now()
+    return { ev: e.timeStamp, kdIn: now, q: now - e.timeStamp, kdOut: 0, biIn: 0, biOut: 0, inIn: 0, inOut: 0, scIn: 0, scOut: 0, raf: 0, ins: false }
+  }
+  window.addEventListener('keydown', function (e) {
+    if (e.ctrlKey && e.altKey && e.shiftKey) return
+    if (e.isComposing || !inTgt(e.target)) return
+    K.nKd++
+    K.cur = newRow(e)
+    K.rows.push(K.cur)
+  }, true)
+  window.addEventListener('keydown', function () { if (K.cur && !K.cur.kdOut) K.cur.kdOut = performance.now() }, false)
+  window.addEventListener('beforeinput', function (e) {
+    if (!inTgt(e.target)) return
+    if (!K.cur || K.cur.biIn) { K.cur = newRow(e); K.rows.push(K.cur) }
+    K.cur.biIn = performance.now()
+  }, true)
+  window.addEventListener('beforeinput', function () { if (K.cur) K.cur.biOut = performance.now() }, false)
+  window.addEventListener('input', function (e) {
+    if (!inTgt(e.target)) return
+    if (!K.cur) { K.cur = newRow(e); K.rows.push(K.cur) }
+    var r = K.cur
+    r.inIn = performance.now(); r.ins = true
+    if (e.data === ']') {
+      try {
+        var s = window.getSelection(), nd = s && s.anchorNode
+        var txt = nd && nd.nodeType === 3 ? nd.data.slice(0, s.anchorOffset) : ''
+        var m = /\[(\d+)\]$/.exec(txt)
+        if (m) K.lag.push([+m[1], performance.timeOrigin + r.inIn, r.q])
+      } catch (x) {}
+    }
+  }, true)
+  window.addEventListener('input', function (e) {
+    if (!inTgt(e.target) || !K.cur) return
+    var r = K.cur
+    r.inOut = performance.now()
+    K.cur = null
+    requestAnimationFrame(function (t) { r.raf = performance.now() })
+  }, false)
+  document.addEventListener('selectionchange', function () {
+    var r = K.rows[K.rows.length - 1]
+    if (r && !r.scIn) r.scIn = performance.now()
+    if (!K.scOutArmed) {
+      K.scOutArmed = true
+      document.addEventListener('selectionchange', function () {
+        var r2 = K.rows[K.rows.length - 1]
+        if (r2 && r2.scIn && !r2.scOut) r2.scOut = performance.now()
+      })
+    }
+  })
+  function pct(a, p) { if (!a.length) return null; a = a.slice().sort(function (x, y) { return x - y }); return +a[Math.min(a.length - 1, Math.floor(a.length * p))].toFixed(2) }
+  function stat(a) { return { n: a.length, p50: pct(a, 0.5), p95: pct(a, 0.95), max: pct(a, 1) } }
+  function keySummary() {
+    var rows = K.rows.filter(function (r) { return r.ins && r.inOut })
+    function seg(f) { return rows.map(f).filter(function (v) { return isFinite(v) && v >= 0 }) }
+    function stages(rs) {
+      function sg(f) { return rs.map(f).filter(function (v) { return isFinite(v) && v >= 0 }) }
+      return {
+        n: rs.length,
+        queue_ev_to_kdIn: stat(sg(function (r) { return r.q })),
+        keydown_handlers: stat(sg(function (r) { return r.kdOut && r.kdIn ? r.kdOut - r.kdIn : NaN })),
+        keydown_to_beforeinput: stat(sg(function (r) { return r.kdOut && r.biIn ? r.biIn - r.kdOut : NaN })),
+        beforeinput_handlers: stat(sg(function (r) { return r.biIn && r.biOut ? r.biOut - r.biIn : NaN })),
+        webkit_edit_bi_to_input: stat(sg(function (r) { return r.biOut && r.inIn ? r.inIn - r.biOut : NaN })),
+        input_handlers: stat(sg(function (r) { return r.inOut - r.inIn })),
+        selectionchange_handlers: stat(sg(function (r) { return r.scIn && r.scOut ? r.scOut - r.scIn : NaN })),
+        input_out_to_selectionchange: stat(sg(function (r) { return r.scIn ? r.scIn - r.inOut : NaN })),
+        input_out_to_raf: stat(sg(function (r) { return r.raf ? r.raf - r.inOut : NaN })),
+        ev_to_raf: stat(sg(function (r) { return r.raf ? r.raf - r.ev : NaN })),
+        js_handler_total: stat(sg(function (r) {
+          return (r.kdOut && r.kdIn ? r.kdOut - r.kdIn : 0) + (r.biOut && r.biIn ? r.biOut - r.biIn : 0) + (r.inOut - r.inIn) + (r.scIn && r.scOut ? r.scOut - r.scIn : 0)
+        })),
+      }
+    }
+    var third = Math.floor(rows.length / 3)
+    var lagS = K.lag.map(function (l) { return [l[0], Math.round(l[1]), +l[2].toFixed(1)] })
+    return {
+      build: B.build, variant: B.variant || 0, variantErr: B.variantErr || '', note: 'keys', nKeydown: K.nKd, nRows: rows.length,
+      all: stages(rows),
+      first_third: stages(rows.slice(0, third)),
+      last_third: stages(rows.slice(rows.length - third)),
+      lag_n_epoch_ms_q: lagS,
+      lagNEvery: K.lag.length,
+    }
+  }
+  window.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey && e.altKey && e.shiftKey) || e.code !== 'Digit8') return
+    e.preventDefault()
+    var payload = JSON.stringify(keySummary())
+    window.__TAURI_INTERNALS__.invoke('put_config', { kind: 'app_config', key: '__bench_keys__', value: payload })
+      .then(function () { paint('KEYS ĐÃ ĐỔ ' + payload.length) })
+      .catch(function (er) { paint('KEYS ĐỔ TRƯỢT ' + er) })
+  }, true)
+
+  // Biến thể THỬ phía WebKit (chỉ bàn đo, không đụng mã sản phẩm). Ctrl+Alt+Shift+9 bật biến thể
+  // kế tiếp (1..5); gọi trước khi gõ. Mỗi biến thể là CSS/thuộc tính chèn vào trang.
+  var variantNo = 0
+  function addCss(css) { var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st) }
+  function applyVariant(v) {
+    if (v === 1) {
+      var mark = function (n) { n.setAttribute('spellcheck', 'false'); n.setAttribute('autocorrect', 'off') }
+      document.querySelectorAll('[data-col="tgt"]').forEach(mark)
+      new MutationObserver(function () { document.querySelectorAll('[data-col="tgt"]:not([spellcheck])').forEach(mark) })
+        .observe(document.body, { childList: true, subtree: true })
+    } else if (v === 2) addCss('.cell{content-visibility:auto;contain-intrinsic-size:auto 48px}')
+    else if (v === 3) addCss('.cell-tgt{contain:layout style}')
+    else if (v === 4) addCss('.col-src,.col-num,.col-rule{display:none !important}')
+    else if (v === 5) addCss('.cell{contain:layout style paint}')
+    else if (v === 6) document.querySelectorAll('[data-col="tgt"]').forEach(function (n) { n.setAttribute('data-bench', '1') })
+    else if (v === 7) addCss('.zzz-inert{color:inherit}')
+  }
+  window.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey && e.altKey && e.shiftKey) || (e.code !== 'Digit9' && e.code !== 'Digit0' && e.code !== 'Minus')) return
+    e.preventDefault()
+    variantNo = e.code === 'Digit0' ? 6 : e.code === 'Minus' ? 7 : variantNo + 1; B.variant = variantNo
+    try { applyVariant(variantNo) } catch (x) { B.variantErr = String(x) }
+    paint('biến thể ' + variantNo)
+  }, true)
+
   // ── ⑩ DẤU SỐNG — cổng nghiệm thu BẰNG MÁY của lượt tiêm ────────────────────────
   // `strings` trên nhị phân là một cổng ÂM TÍNH GIẢ: `strip = true` và Tauri nén tài
   // nguyên nhúng, nên không tìm thấy chuỗi KHÔNG chứng minh được lượt tiêm trượt.

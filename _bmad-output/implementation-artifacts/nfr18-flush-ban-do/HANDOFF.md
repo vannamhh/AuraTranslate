@@ -8,6 +8,7 @@ Plan: `_bmad-output/initiative-auratranslate/plan-nfr18-duong-flush.md`. Lượt
 - Chương: `chapters/s122.txt`, 122 câu (122 segment trong `project.db`), nguồn Tiếng Trung, một Chương.
 - n=20 mẫu `VALID` mỗi nhịp, 22 lượt bắn (2 `RIG_FAIL`, đều do bàn đo). Hàng rào chiều âm `fence.sh` trước và sau: đứng.
 - loadavg ngay trước kill: 40 phím/giây 2,6–13,8 (trung vị ~4,2); 10 phím/giây 3,3–5,3 (đầu lượt 16,7). Máy KHÔNG rảnh (Orca và các tiến trình khác chạy nền); phán quyết "đạt" cần lượt lại trên máy rảnh, nhưng 20/20 trượt ở 40 phím/giây thì khó là tải nền.
+  🔵 2026-10-24 (Ice): câu "phán quyết đạt cần lượt lại trên máy rảnh" là sai. App phải đạt NFR18 và ngân sách mỗi phím dưới đúng tải nền này (Docker/VM, loadavg có lúc tới 80); tải máy không phải cớ để loại hay chạy lại phiên. Mỗi phiên vẫn ghi loadavg, A/B đo xen kẽ.
 
 ## Kết quả (`grid-table.sh`, `LABELS="h40 h10" PFX=`)
 
@@ -67,3 +68,56 @@ Hai bản release cùng mốc `99f3fc1`, cùng `eprintln!` tạm ở `save_segme
 | B | 7,74 · 10,66 · 9,14 · 10,05 · 8,21 · 5,92 | 8,7 | 9 · 12 · 10 · 10 · 11 · 6 | 4,9 · 8,1 · 6,3 · 5,1 · 4,6 · 2,5 |
 
 Đọc: B cắt số lượt flush từ 9–216 xuống 6–12 mà `window_s` không giảm (trung vị 6,8 -> 8,7; 5/6 mẫu B vẫn > 5 s, A 5/6 > 5 s). n=6, tải máy lệch, nên không kết luận B tệ hơn, chỉ kết luận B không tốt hơn. Cơn flush dồn dập tồn tại (A tới 216 lượt) nhưng không phải thứ giữ cửa sổ; khớp pha hai: phím xếp hàng ở webview. Hướng sửa vẫn là chi phí mỗi `input` ở `GridPanel.vue` (cùng lớp 2-15), chờ Ice chọn.
+
+## Pha phân bổ chi phí mỗi phím (plan `plan-giam-chi-phi-moi-phim-go-luoi`)
+
+Bàn đo: `bench.js` mục ⑪ (mốc `performance.now()` bằng listener capture/bubble ở `window`, không bọc hàm sản phẩm; Ctrl+Alt+Shift+8 đổ `__bench_keys__`; Ctrl+Alt+Shift+9/0/- bật biến thể WebKit tạm). Chạy: `keycost-session.sh <nhãn> <phiên> <giây>` (`RATE=10hz`, `VARIANT=n`, `CTRL=noop|attr|style|sleep`), lô `keycost-batch.sh`, `keycost-variants.sh`, `keycost-ctrl.sh`, `keycost-ctrl2.sh`; đọc bằng `keycost-summary.py` và `keycost-report.py`. Số liệu thô `keys-*.json`.
+
+Điều kiện: release HEAD `e33d555` + bench (build-bench.sh), Chương `s122.txt` 122 câu, một cột đích, 30 s mỗi phiên, 40 phím/giây = `type-driver.sh`, loadavg trước gõ 7,8–16 (không loại phiên nào vì tải). Một phiên `focus` RIG_FAIL, chạy lại ở vòng sau. Bản bench có cộng thêm mã biến thể nên bản "gốc" ở dưới là bản bench, không phải release trần.
+
+Chặng, p50/p95 ms, 40 phím/giây, n=2 phiên gốc (`base40`, ~850 phím mỗi phiên):
+
+| Chặng | p50 | p95 |
+|---|---|---|
+| keydown (keys.ts + onEditKeydown) | 0 | 1 |
+| beforeinput (onBeforeInput) | 0 | 0 |
+| input (reportEdit → noteEditorEdit) | 0 | 1 |
+| selectionchange (hai listener) | 0 | 0 |
+| WebKit: beforeinput xong → input | 14–15 | 26–29 |
+| input xong → frame kế (rAF) | 6–7 | 77–88 |
+| tổng JS handler mỗi phím | 0 | 1 (max 5) |
+| hàng đợi: `event.timeStamp` → keydown tới handler | 2,4 s (đầu) → 8–10 s (cuối) | 4,6 → 13 s |
+
+Đọc số:
+- Mã JS của sản phẩm trên đường phím tốn ≤ 1 ms p95 mỗi phím. Các nghi can JS (`unwrapProofread` ×2, `scheduleRepaintProofread`, `setEditorCaret`/position timer, `datThongBao`, `keys.ts handle`, `selectionchange`) không thể là chặng trội; gỡ thử chúng không thể rút quá 1 ms nên không dựng bản gỡ (số đo trực tiếp thay cho phép gỡ).
+- Chặng trội nằm ở WebKit: lệnh sửa 14 ms p50 và đuôi layout/vẽ sau `input` (p95 ~80 ms). Hàng đợi tăng đều suốt phiên (độ trễ `[n]` tới `noteEditorEdit`: quý đầu 0,9–1,7 s, quý cuối 9–10,4 s, `base40-1/2`), khớp phân tích trước đó.
+- 10 phím/giây (`base10`, n=3): hàng đợi 1–2 ms, `[n]` tới `noteEditorEdit` 0,02–0,05 s và không tăng, cùng đuôi frame p95 ~70 ms. ⇒ 7/20 mẫu trượt ở 10 phím/giây KHÔNG do phím xếp hàng ở webview; nguyên nhân khác (chưa giải thích, ngoài phạm vi các số trên).
+
+Biến thể WebKit tạm (CSS/thuộc tính chèn vào trang trước khi gõ, 40 phím/giây, xen kẽ, n=3 mỗi nhóm, `input→rAF` p95 ms / hàng đợi p50 phần ba cuối s / độ trễ `[n]` quý cuối s):
+
+| Nhóm | in→rAF p95 | hàng đợi cuối | độ trễ [n] cuối |
+|---|---|---|---|
+| gốc `dnone` | 72, 89, 71 (cộng `w0`/`cnone`: 52–74) | 10,3 · 13,0 · 13,2 | 10,7 · 14,0 · 13,6 |
+| đối chứng chỉ đổi thuộc tính ô (`dattr`) | 97, 72, 64 | 12,7 · 11,3 · 9,8 | 12,9 · 12,7 · 10,9 |
+| đối chứng thêm thẻ `<style>` rỗng (`dstyle`) | 82, 96, 69 | 13,1 · 13,2 · 9,9 | 14,3 · 13,3 · 10,6 |
+| đối chứng chỉ bấm phím / chỉ chờ (`cnoop`,`csleep`) | 55–65 / 49–55 | 7,9–10,6 / 4,4–7,6 | gần gốc |
+| `contain: layout style` trên `.cell-tgt` (`dv3`,`w3`) | 10, 9, 8 · 9, 9, 9 | 6,6 · 4,3 · 3,3 · 3,7 · 5,1 · 4,4 | 6,9 · 4,5 · 3,7 · 3,7 · 5,2 · 5,2 |
+| `content-visibility:auto` trên `.cell` (`w2`) | 9, 8, 9 | 3,2 · 2,6 · 2,8 | 3,2 · 3,1 · 2,6 |
+| `spellcheck=false` + `autocorrect=off` trên ô (`w1`) | 9, 9, 9 | 3,9 · 2,9 · 2,6 | 4,1 · 3,0 · 3,0 |
+
+Ba biến thể thật đều cắt đuôi `input→rAF` p95 từ 50–97 xuống 8–10 ms và rút hàng đợi cuối còn 2,6–6,9 s; ba đối chứng (đổi thuộc tính, thêm `<style>`, bấm phím/chờ) giữ nguyên số gốc ⇒ hiệu ứng không do chính việc chạm DOM. Bốn biến thể đầu được đo trong lượt hai (`w*`, `var*` đã xoá sau khi sót nhãn sai do `seq 1 0`; số còn lại ở bảng và ở `keys-w*`). Còn khoảng cách: `webkit_edit` vẫn 13–15 ms p50 ở mọi nhóm và hàng đợi VẪN tăng dần trong phiên ở cả ba biến thể (cuối phiên 2,6–6,9 s so với ≤ 5 s cần cho NFR18 sau cộng thời gian gõ câu) ⇒ riêng CSS chưa chắc đưa 40 phím/giây về dưới 5 s; chưa đo kill NFR18 với biến thể nào. Chưa hiểu vì sao ba cơ chế khác nhau (đặc biệt `spellcheck`) cho cùng đuôi 9 ms; trước khi chọn nên đo thêm một biến thể cô lập.
+
+Hàng rào `fence.sh` chiều âm trước/sau: đứng. Cây sản phẩm không đổi (chỉ `bench.js` và script bàn đo).
+
+Hướng chờ Ice chọn (số ở trên): (A) `contain: layout style` cho `.cell-tgt`; (B) `content-visibility:auto` + `contain-intrinsic-size` cho `.cell`; (C) `spellcheck="false"` (đổi hành vi người dùng: mất gạch chân chính tả); (D) kết hợp rồi đo kill NFR18. Cả (A)–(D) ở CSS/thuộc tính ô, không ở handler JS.
+
+## Kết quả hướng A (`contain: layout style` trên `.cell-tgt`)
+
+Build: release `npx tauri build --bundles app` (không bench) trên HEAD `e33d555` + bản sửa CSS ở `GridBlock.vue`; 122 câu `s122.txt`, n=20 mẫu `VALID` mỗi nhịp (20 lượt bắn, không RIG_FAIL), hàng rào `fence.sh` trước/sau: đứng. loadavg trước kill: 40 phím/giây 4,95–14,62; 10 phím/giây 2,63–6,96 (máy không rảnh, không loại phiên). Số thô: `kill2-n40.tsv`, `kill2-n10.tsv`, `load-n*.tsv`, `run-n40.out`, `run-n10.out`.
+
+| Nhịp | n | min | trung vị | max | mẫu > 5 s | trước (HEAD) |
+|---|---|---|---|---|---|---|
+| 40 phím/giây | 20 | 4,57 | 10,7 | 20,73 | 19/20 | 20/20, trung vị 12,24 |
+| 10 phím/giây | 20 | 1,67 | 3,14 | 5,99 | 4/20 | 7/20, trung vị 3,14 |
+
+⇒ AC1 KHÔNG đạt; plan sang `blocked`. Hướng A cắt đuôi layout/vẽ (xem bảng biến thể) nhưng hàng đợi 40 phím/giây vẫn tăng nên cửa sổ vẫn vượt trần. Chưa đo lại `[n]` tới `noteEditorEdit` bằng bench sau bản sửa (AC2 chưa kiểm). Hướng chờ Ice: B/C/D ở trên, hoặc giảm lệnh sửa WebKit 14 ms/phím.
