@@ -269,3 +269,15 @@ after = [23]
 hitl = true
 risk = "medium"
 references = ["ux-auratranslate/library-nghiem-thu-thi-giac.md", "ux-auratranslate/mockups/library-luoi-rong.html", "ux-auratranslate/DESIGN.md §Tông bìa Tác phẩm", "architecture-auratranslate/architecture-auratranslate.md AD-34"]
+
+[[entry]]
+id = 25
+type = "story"
+title = "Thanh tiêu đề macOS: ba tab cùng hàng với ba nút cửa sổ"
+description = "Trên macOS, ba tab Library · Workspace · Chế độ đọc nằm cùng hàng với ba nút đóng/thu nhỏ/phóng to như thanh `.tb` của `mockups/web-import.html`; dải tiêu đề 28pt của hệ điều hành và chữ \"AuraTranslate\" biến mất. Làm đúng AD-58: thanh tiêu đề phủ lên webview, hai quyền `core:window` mới (bộ quyền 3 → 5), vùng kéo duy nhất là thanh tiêu đề của app và chỉ trên macOS, bấm đúp phóng to, ba menu đóng khi bấm thanh tiêu đề, lớp phủ toàn cửa sổ chừa chỗ cho ba nút. Windows không đổi. Vị trí ba nút và token lề là số đo trên máy của Ice: story ghi một mục nợ để Ice kiểm một lượt app thật, và một mục B7 cho Windows."
+verify = "Các test AD-58 nêu tên đỏ khi gỡ phần chúng canh: khối cửa sổ và năm quyền trong `config_invariants.rs`, test vùng kéo đọc `App.vue` (đối chứng: dời thuộc tính lên phần tử bao ngoài), lề có trên macOS và vắng trên nền khác, mỗi menu đóng khi bấm thanh tiêu đề trống (đối chứng: bỏ capture); `check:tokens` xanh với token lề mới; spec e2e `titlebar-tools` xanh. Người: ảnh app thật cạnh `web-import.html`, Ice kéo, bấm đúp, mở một lớp phủ toàn cửa sổ và xem góc trên trái."
+covers = []
+after = []
+hitl = true
+risk = "medium"
+references = ["architecture-auratranslate/architecture-auratranslate.md AD-58", "ux-auratranslate/mockups/web-import.html .tb", "ux-auratranslate/EXPERIENCE.md §Thanh tiêu đề và lối vào", "ad-brief-keo-cua-so-thanh-tieu-de/ad-brief-keo-cua-so-thanh-tieu-de.md"]
