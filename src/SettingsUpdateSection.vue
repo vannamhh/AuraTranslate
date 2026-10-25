@@ -115,6 +115,11 @@ function onToggle(): void {
   color: var(--color-on-surface);
 }
 
+.su-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .su-btn:disabled {
   cursor: default;
   color: var(--color-on-surface-variant);

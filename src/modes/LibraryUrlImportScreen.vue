@@ -312,6 +312,15 @@ function onEscape(): void {
   background: var(--color-surface);
 }
 
+.us-paste:has(.us-textarea:focus-visible) {
+  border-color: var(--color-primary);
+}
+
+.us-textarea:focus-visible {
+  /* aura-allow-outline-none: frame .us-paste recolours its border on focus */
+  outline: none;
+}
+
 .us-gutter {
   margin: 0;
   padding: 8px 8px;
@@ -409,6 +418,12 @@ function onEscape(): void {
   padding: 8px 8px;
 }
 
+.us-field input:focus-visible,
+.us-field select:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .us-error {
   margin: 0;
   font-family: var(--face-ui-sm);
@@ -433,6 +448,11 @@ function onEscape(): void {
   border-radius: 4px;
   padding: 8px 12px;
   cursor: pointer;
+}
+
+.us-btn:not(.us-btn-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .us-btn:disabled {

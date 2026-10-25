@@ -800,6 +800,11 @@ onBeforeUnmount(() => {
   color: var(--color-on-surface-variant);
 }
 
+.lookup-sources-attr:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 /*
  * 🔴 STORY 1.18 · AC7 — `.lookup-body` **thôi cuộn**; vùng cuộn là `.lookup-scroll`.
  *
@@ -1125,6 +1130,11 @@ onBeforeUnmount(() => {
   color: var(--color-on-surface);
 }
 
+.lookup-char:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .lookup-char + .lookup-char::before {
   content: '·';
   margin-right: var(--space-panel-inline);
@@ -1167,6 +1177,11 @@ onBeforeUnmount(() => {
   padding: 0;
   border-bottom: 1px solid var(--color-outline);
   cursor: pointer;
+}
+
+.lookup-clear:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 /*
@@ -1274,6 +1289,11 @@ onBeforeUnmount(() => {
   color: var(--color-on-surface-variant);
 }
 
+.lookup-pin:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 /* Tiêu đề của một trạng thái rỗng — khai token `ui-md-strong`, cùng cấp với nhãn tab. */
 .lookup-empty-title {
   margin: var(--space-panel-block) 0 4px 0;
@@ -1345,5 +1365,10 @@ onBeforeUnmount(() => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.lookup-concordance-pointer:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 </style>

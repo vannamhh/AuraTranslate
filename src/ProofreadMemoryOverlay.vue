@@ -234,6 +234,11 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
+.pfmem-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .pfmem-head {
   display: flex;
   align-items: baseline;
@@ -259,6 +264,11 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.pfmem-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .pfmem-note {
@@ -299,6 +309,11 @@ function trapTab(event: KeyboardEvent): void {
   line-height: var(--leading-ui-md);
 }
 
+.pfmem-row:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .pfmem-row[aria-pressed='true'] {
   border-left: 3px solid var(--color-error);
 }
@@ -337,6 +352,11 @@ function trapTab(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
+}
+
+.pfmem-act:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .pfmem-act:disabled {

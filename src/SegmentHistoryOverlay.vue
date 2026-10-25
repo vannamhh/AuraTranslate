@@ -381,6 +381,11 @@ function aimRow(id: number): void {
   background: var(--color-surface);
 }
 
+.hist-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .hist-head {
   display: flex;
   align-items: baseline;
@@ -409,6 +414,12 @@ function aimRow(id: number): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.hist-close:focus-visible,
+.hist-act:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .hist-empty,

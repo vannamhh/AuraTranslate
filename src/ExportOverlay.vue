@@ -634,6 +634,11 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.ex-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .ex-head {
   display: flex;
   align-items: baseline;
@@ -661,6 +666,11 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.ex-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .ex-scope,
@@ -763,6 +773,11 @@ function trapTab(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.ex-act:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .ex-act:disabled {

@@ -757,6 +757,11 @@ function onDeleteAiConfigKey(): void {
   flex-direction: column;
 }
 
+.set-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .set-head {
   display: flex;
   align-items: center;
@@ -780,6 +785,11 @@ function onDeleteAiConfigKey(): void {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface);
+}
+
+.set-close:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .set-grid {
@@ -914,6 +924,15 @@ function onDeleteAiConfigKey(): void {
   border: 1px solid var(--color-outline);
 }
 
+.set-scope-seg:has(.set-scope-btn:focus-visible) {
+  border-color: var(--color-primary);
+}
+
+.set-scope-btn:focus-visible {
+  /* aura-allow-outline-none: frame .set-scope-seg recolours its border on focus */
+  outline: none;
+}
+
 .set-scope-form {
   margin: 0;
 }
@@ -984,6 +1003,11 @@ function onDeleteAiConfigKey(): void {
   color: var(--color-on-surface-variant);
 }
 
+.ai-pill:not([aria-pressed='true']):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .ai-pill[aria-pressed='true'] {
   border-color: var(--color-primary);
   color: var(--color-primary);
@@ -1039,6 +1063,11 @@ function onDeleteAiConfigKey(): void {
   color: var(--color-on-surface);
 }
 
+.ai-field-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .ai-field-save,
 .ai-field-clear {
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
@@ -1048,6 +1077,12 @@ function onDeleteAiConfigKey(): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.ai-field-save:focus-visible,
+.ai-field-clear:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .ai-field-clear-form {

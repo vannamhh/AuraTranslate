@@ -452,4 +452,9 @@ const usageText = computed<string | null>(() => {
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
   cursor: pointer;
 }
+
+.pfs-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
 </style>

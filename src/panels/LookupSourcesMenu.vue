@@ -148,6 +148,11 @@ onBeforeUnmount(() => {
   color: var(--color-primary);
 }
 
+.sources-trigger:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .sources-list {
   /* aura-allow-z-index: the list opens over the lookup head and body, which sit in their own stacking contexts. */
   z-index: 20;

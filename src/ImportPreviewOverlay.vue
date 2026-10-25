@@ -1830,6 +1830,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   border-bottom: 1px solid var(--color-outline);
 }
 
+.ip-tier:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .ip-tier-title {
   margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-ui-md);
@@ -1871,6 +1876,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   color: var(--color-on-surface-variant);
 }
 
+.ip-strip-open:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .ip-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -1884,6 +1894,10 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   padding: calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
   cursor: pointer;
+}
+
+.ip-candidate:not(.ip-candidate-selected):has(input:focus-visible) {
+  border-color: var(--color-primary);
 }
 
 .ip-candidate-selected {
@@ -1970,6 +1984,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   padding: 0;
   list-style: none;
   border: 1px solid var(--color-outline);
+}
+
+.ip-blocks:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 /* Story 6.15 — khối xuất xứ, ở ĐẦU Chương con trỏ, cùng khoảng cách dưới với `.ip-tier2-counts`. */
@@ -2188,6 +2207,14 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   color: var(--color-on-surface-variant);
 }
 
+.ip-cleanup-edit:focus-visible,
+.ip-cleanup-delete:focus-visible,
+.ip-cleanup-save:focus-visible,
+.ip-cleanup-cancel:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .ip-cleanup-edit:disabled,
 .ip-cleanup-delete:disabled,
 .ip-cleanup-save:disabled,
@@ -2227,6 +2254,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   padding: calc(var(--space-unit) * 1);
 }
 
+.ip-cleanup-edit-pattern:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .ip-cleanup-edit-kind,
 .ip-cleanup-add-kind {
   flex: none;
@@ -2251,6 +2283,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   padding: calc(var(--space-unit) * 1);
 }
 
+.ip-cleanup-add-pattern:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .ip-cleanup-add-submit {
   flex: none;
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
@@ -2260,6 +2297,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface);
+}
+
+.ip-cleanup-add-submit:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .ip-cleanup-add-submit:disabled {
@@ -2303,6 +2345,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   background: var(--color-background);
   border: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 1);
+}
+
+.ip-chapters-pattern-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .ip-chapters-pattern-kind {
@@ -2454,6 +2501,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   color: var(--color-on-surface-variant);
 }
 
+.ip-chapter-filter-chip:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 button.ip-chapter-filter-chip {
   cursor: pointer;
 }
@@ -2578,6 +2630,12 @@ button.ip-chapter-filter-chip:disabled {
   color: var(--color-on-surface-variant);
 }
 
+.ip-url-reload:focus-visible,
+.ip-url-remove:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .ip-url-reload:disabled,
 .ip-url-remove:disabled {
   cursor: default;
@@ -2630,6 +2688,11 @@ button.ip-chapter-filter-chip:disabled {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.ip-act:not(.ip-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .ip-act-primary {

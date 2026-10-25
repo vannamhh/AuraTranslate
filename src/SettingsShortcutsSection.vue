@@ -442,6 +442,11 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
+.sc-key:not(.sc-key-armed):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 /* Đang chờ một hợp âm — trạng thái ② của Quyết định #6. */
 .sc-key-armed {
   border-color: var(--color-primary);
@@ -481,6 +486,11 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
+.sc-act:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .sc-default {
   margin-left: 4px;
 }
@@ -500,6 +510,11 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.sc-search-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .sc-search-chord {
@@ -533,6 +548,11 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.sc-file-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .sc-file-ask {

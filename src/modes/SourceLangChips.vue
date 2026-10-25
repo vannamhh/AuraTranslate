@@ -70,7 +70,11 @@ const options = computed(() => sourceLangChoices().filter((o) => props.includeAu
   font-weight: var(--weight-ui-md-strong);
 }
 
-.lang-chip:has(input:focus-visible) {
+.lang-chip:not(.lang-chip--on):has(input:focus-visible) {
+  border-color: var(--color-primary);
+}
+
+.lang-chip--on:has(input:focus-visible) {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

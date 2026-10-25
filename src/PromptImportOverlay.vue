@@ -277,6 +277,11 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   background: var(--color-surface);
 }
 
+.pi-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .pi-head {
   display: flex;
   align-items: baseline;
@@ -304,6 +309,11 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.pi-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .pi-status {
@@ -450,6 +460,11 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.pi-act:not(.pi-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .pi-act-primary {

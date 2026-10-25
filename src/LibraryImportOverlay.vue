@@ -339,6 +339,11 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.li-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .li-head {
   display: flex;
   align-items: baseline;
@@ -368,6 +373,11 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
+.li-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .import-form {
   display: flex;
   flex-direction: column;
@@ -394,6 +404,13 @@ function trapTab(event: KeyboardEvent): void {
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   padding: 8px 8px;
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .field-group {
@@ -456,6 +473,11 @@ function trapTab(event: KeyboardEvent): void {
   border-radius: 4px;
   padding: 8px 12px;
   cursor: pointer;
+}
+
+.btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .btn:disabled {

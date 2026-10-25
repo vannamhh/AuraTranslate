@@ -921,6 +921,10 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   color: var(--color-on-surface);
 }
 
+.bip-candidate:has(input:focus-visible) {
+  border-color: var(--color-primary);
+}
+
 .bip-candidate-selected {
   border-color: var(--color-on-surface);
 }
@@ -983,6 +987,12 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   color: var(--color-on-surface);
 }
 
+.bip-swap:focus-visible,
+.bip-mismatch-action:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .bip-swap:disabled,
 .bip-mismatch-action:disabled {
   cursor: default;
@@ -1014,6 +1024,11 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.bip-chapter-filter-chip:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 button.bip-chapter-filter-chip {
@@ -1137,6 +1152,11 @@ button.bip-chapter-filter-chip:disabled {
   border: 1px solid var(--color-error);
 }
 
+.bip-mismatch-focus:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .bip-mismatch-heading {
   margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-ui-sm);
@@ -1224,6 +1244,11 @@ button.bip-chapter-filter-chip:disabled {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.bip-act:not(.bip-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .bip-act:disabled {

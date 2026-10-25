@@ -162,6 +162,11 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.ld-panel:focus-visible {
+  outline: none;
+  border-left-color: var(--color-primary);
+}
+
 .ld-head {
   flex: none;
   display: flex;
@@ -190,6 +195,11 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.ld-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 /* Thân co giãn, `LookupPanel.vue` tự lo cuộn/bố cục bên trong nó (`PanelFrame.vue::.panel`

@@ -835,6 +835,11 @@ const promoteBatchReportText = computed<string | null>(() => {
   color: var(--color-on-surface-variant);
 }
 
+.ai-prompt-open:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .ai-panel-head {
   flex: none;
   display: flex;
@@ -894,6 +899,11 @@ const promoteBatchReportText = computed<string | null>(() => {
   color: var(--color-on-surface-variant);
 }
 
+.ai-unconfigured-open:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 /* Story 4.7 — dòng tóm tắt Glossary + nút Lắp/Xem prompt. */
 .ai-inspector-bar {
   flex: none;
@@ -942,6 +952,12 @@ const promoteBatchReportText = computed<string | null>(() => {
   color: var(--color-on-surface-variant);
 }
 
+.ai-inspector-assemble:focus-visible,
+.ai-inspector-open:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .ai-inspector-assemble:disabled {
   cursor: default;
   color: var(--color-on-surface-variant);
@@ -986,6 +1002,18 @@ const promoteBatchReportText = computed<string | null>(() => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.ai-translate-run:focus-visible,
+.ai-translate-cancel:focus-visible,
+.ai-translate-promote:focus-visible,
+.ai-translate-batch-run:focus-visible,
+.ai-translate-retry:focus-visible,
+.ai-translate-batch-retry:focus-visible,
+.ai-translate-promote-batch:focus-visible,
+.ai-translate-batch-discard:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .ai-translate-run:disabled,
@@ -1156,5 +1184,10 @@ const promoteBatchReportText = computed<string | null>(() => {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.ai-promote-act:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 </style>

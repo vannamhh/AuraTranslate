@@ -925,6 +925,11 @@ async function onEscape(): Promise<void> {
   padding: var(--space-panel-inline);
 }
 
+.pl-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .pl-head {
   display: flex;
   align-items: baseline;
@@ -952,6 +957,11 @@ async function onEscape(): Promise<void> {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.pl-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .pl-note {
@@ -1149,6 +1159,11 @@ async function onEscape(): Promise<void> {
   color: var(--color-on-surface);
 }
 
+.pl-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .pl-textarea {
   padding: calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
@@ -1158,6 +1173,11 @@ async function onEscape(): Promise<void> {
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
   resize: vertical;
+}
+
+.pl-textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .pl-ta-wrap {
@@ -1249,6 +1269,10 @@ async function onEscape(): Promise<void> {
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
   cursor: pointer;
+}
+
+.pl-pill:not(.pl-pill-on):has(input:focus-visible) {
+  border-color: var(--color-primary);
 }
 
 .pl-pill-on {
@@ -1361,6 +1385,11 @@ async function onEscape(): Promise<void> {
   border: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
   cursor: pointer;
+}
+
+.pl-act:not(.pl-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .pl-act:disabled {

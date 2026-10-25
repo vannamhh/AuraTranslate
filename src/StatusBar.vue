@@ -833,4 +833,11 @@ const libraryErrorText = computed<string | null>(() => {
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
 }
+
+.lookup-entry:focus-visible,
+.walk-entry:focus-visible,
+.queue-entry:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
 </style>

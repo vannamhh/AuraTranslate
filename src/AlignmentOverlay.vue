@@ -315,6 +315,11 @@ function onKeydown(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.al-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .al-head {
   display: flex;
   align-items: baseline;
@@ -342,6 +347,11 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.al-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .al-status,
@@ -481,6 +491,11 @@ function onKeydown(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.al-act:not(.al-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .al-act-primary {

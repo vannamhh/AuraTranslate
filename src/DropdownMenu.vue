@@ -136,6 +136,11 @@ onBeforeUnmount(() => {
   font-weight: var(--weight-ui-md-strong);
 }
 
+.menu--chip:not(.menu--active) .menu-trigger:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .menu--field .menu-trigger {
   justify-content: space-between;
   padding: 8px 8px;
@@ -146,6 +151,11 @@ onBeforeUnmount(() => {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+}
+
+.menu--field .menu-trigger:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .menu--field .menu-label {

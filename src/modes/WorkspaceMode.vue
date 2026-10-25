@@ -198,6 +198,11 @@ const reviewNoticeOffersImport = computed(
   cursor: pointer;
 }
 
+.review-notice-act:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 /* Xem lý do đầy đủ ở `LibraryMode.vue` — chỉ gốc `tabindex="-1"`, không `*:focus`. */
 .mode:focus {
   outline: none;

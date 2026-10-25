@@ -306,6 +306,11 @@ watch(quickAddIsOpen, (open) => {
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
 }
 
+.gqa-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .gqa-group {
   border: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 2);
@@ -357,6 +362,11 @@ watch(quickAddIsOpen, (open) => {
   border: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
   cursor: pointer;
+}
+
+.gqa-act:not(.gqa-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .gqa-act:disabled {

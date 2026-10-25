@@ -480,6 +480,11 @@ function onKeydown(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.gq-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .gq-head {
   display: flex;
   align-items: baseline;
@@ -507,6 +512,11 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.gq-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .gq-empty {
@@ -846,6 +856,10 @@ function onKeydown(event: KeyboardEvent): void {
   cursor: pointer;
 }
 
+.gq-chip:not(.on):has(input:focus-visible) {
+  border-color: var(--color-primary);
+}
+
 .gq-chip.on {
   color: var(--color-on-surface);
   border-color: var(--color-primary);
@@ -878,6 +892,11 @@ function onKeydown(event: KeyboardEvent): void {
   border: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
   cursor: pointer;
+}
+
+.gq-act:not(.gq-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .gq-act-primary {

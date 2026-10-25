@@ -509,6 +509,11 @@ function seeAllText(count: number, lowerBound: boolean): string {
   cursor: pointer;
 }
 
+.btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .search-groups,
 .hit-rows {
   margin: 12px 0 0;

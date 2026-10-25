@@ -422,6 +422,11 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
+.attr-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .attr-intro,
 .attr-note,
 .attr-empty,
@@ -562,6 +567,11 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
+.attr-action:not(.attr-action-primary):focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .attr-action:disabled {
   cursor: default;
   border-color: var(--color-outline);
@@ -608,6 +618,11 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md-wrap);
   line-height: var(--leading-ui-md-wrap);
   color: var(--color-on-surface);
+}
+
+.attr-license-text:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .attr-legal {

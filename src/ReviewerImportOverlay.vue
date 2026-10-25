@@ -248,6 +248,11 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.ri-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .ri-head {
   display: flex;
   align-items: baseline;
@@ -275,6 +280,11 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.ri-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .ri-status {
@@ -367,6 +377,11 @@ function trapTab(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.ri-act:not(.ri-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .ri-act-primary {

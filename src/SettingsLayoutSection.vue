@@ -200,6 +200,11 @@ function onRenameInput(name: string, event: Event): void {
   color: var(--color-on-surface);
 }
 
+.sl-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .sl-btn {
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
   border: 1px solid var(--color-outline);
@@ -208,6 +213,11 @@ function onRenameInput(name: string, event: Event): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.sl-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .sl-note {

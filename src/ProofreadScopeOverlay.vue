@@ -134,6 +134,11 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
+.pfscope-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .pfscope-head {
   display: flex;
   align-items: baseline;
@@ -161,6 +166,11 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
+.pfscope-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .pfscope-cells {
   display: flex;
   gap: var(--space-panel-inline);
@@ -180,6 +190,11 @@ function trapTab(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
+}
+
+.pfscope-cell:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .pfscope-cell:disabled {

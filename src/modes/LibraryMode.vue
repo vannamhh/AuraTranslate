@@ -1034,6 +1034,13 @@ const importScreenIsOpen = computed<boolean>(
   padding: 8px 8px;
 }
 
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .btn {
   align-self: flex-start;
   font-family: var(--face-ui-md);
@@ -1045,6 +1052,11 @@ const importScreenIsOpen = computed<boolean>(
   border-radius: 4px;
   padding: 8px 12px;
   cursor: pointer;
+}
+
+.btn:not(.btn-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .btn:disabled {
@@ -1189,6 +1201,11 @@ const importScreenIsOpen = computed<boolean>(
   border: 1px solid var(--color-outline-faint);
   border-radius: 4px;
   background: var(--color-surface);
+}
+
+.work-cell:not(.work-cell--current):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .work-cell:hover {
@@ -1445,6 +1462,11 @@ const importScreenIsOpen = computed<boolean>(
   border-color: var(--color-primary);
 }
 
+.search-input:focus-visible {
+  /* aura-allow-outline-none: frame .search-field recolours its border on focus */
+  outline: none;
+}
+
 .segmented {
   display: flex;
   border: 1px solid var(--color-outline);
@@ -1460,6 +1482,15 @@ const importScreenIsOpen = computed<boolean>(
   background: var(--color-surface-sunken);
   border: none;
   cursor: pointer;
+}
+
+.segmented:has(.segment:focus-visible) {
+  border-color: var(--color-primary);
+}
+
+.segment:focus-visible {
+  /* aura-allow-outline-none: frame .segmented recolours its border on focus */
+  outline: none;
 }
 
 .segment + .segment {

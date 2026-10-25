@@ -142,6 +142,11 @@ function onLineHeightInput(event: Event): void {
   color: var(--color-on-surface);
 }
 
+.sr-btn:not([aria-pressed='true']):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .sr-btn[aria-pressed='true'] {
   border-color: var(--color-primary);
   color: var(--color-primary);

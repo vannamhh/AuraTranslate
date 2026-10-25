@@ -765,6 +765,11 @@ onMounted(() => {
   cursor: pointer;
 }
 
+.btn:not(.btn-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .btn:disabled {
   color: var(--color-on-surface-variant);
   cursor: not-allowed;
@@ -818,6 +823,11 @@ onMounted(() => {
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   padding: 8px 8px;
+}
+
+.field input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .wp-head {
@@ -996,6 +1006,11 @@ onMounted(() => {
   padding: 8px 12px;
 }
 
+.wp-search:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .wp-pill {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1005,6 +1020,11 @@ onMounted(() => {
   border-radius: 20px;
   padding: 4px 12px;
   cursor: pointer;
+}
+
+.wp-pill:not([aria-pressed='true']):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .wp-pill[aria-pressed='true'] {
@@ -1077,6 +1097,11 @@ onMounted(() => {
   padding: 8px 8px;
 }
 
+.wp-rename-field input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .chapters-block {
   display: flex;
   flex-direction: column;
@@ -1093,6 +1118,11 @@ onMounted(() => {
   background: var(--color-surface);
   border: 1px solid var(--color-outline);
   border-radius: 4px;
+}
+
+.chapters-list:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .chapters-pad {
@@ -1139,6 +1169,11 @@ onMounted(() => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.wp-group-toggle:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .wp-more {

@@ -93,6 +93,11 @@ function onInput(event: Event): void {
   color: var(--color-on-surface);
 }
 
+.ts-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .ts-alert,
 .ts-saved {
   margin: 0 0 var(--space-panel-block) 0;
@@ -123,5 +128,10 @@ function onInput(event: Event): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+}
+
+.ts-save:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 </style>

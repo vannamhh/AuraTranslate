@@ -997,6 +997,11 @@ function onKeydown(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.tm-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .tm-head {
   display: flex;
   align-items: baseline;
@@ -1024,6 +1029,11 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.tm-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .tm-note,
@@ -1161,6 +1171,10 @@ function onKeydown(event: KeyboardEvent): void {
   cursor: pointer;
 }
 
+.tm-pill:not(.tm-pill-on):has(input:focus-visible) {
+  border-color: var(--color-primary);
+}
+
 .tm-pill-on {
   border-color: var(--color-primary);
   background: var(--color-surface-accent);
@@ -1202,6 +1216,11 @@ function onKeydown(event: KeyboardEvent): void {
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
 }
 
+.tm-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .tm-empty {
   margin: 0;
   font-family: var(--face-ui-md-wrap);
@@ -1223,6 +1242,11 @@ function onKeydown(event: KeyboardEvent): void {
   max-height: 50vh;
   overflow: auto;
   border: 1px solid var(--color-outline);
+}
+
+.tm-list:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .tm-list-head,
@@ -1415,6 +1439,11 @@ function onKeydown(event: KeyboardEvent): void {
   cursor: pointer;
 }
 
+.tm-act:not(.tm-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .tm-act:disabled {
   cursor: default;
   color: var(--color-on-surface-variant);
@@ -1473,6 +1502,11 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-primary);
+}
+
+.tm-link:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .tm-hint {

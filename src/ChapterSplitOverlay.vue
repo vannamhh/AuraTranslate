@@ -169,6 +169,11 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.cs-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .cs-head {
   display: flex;
   align-items: baseline;
@@ -196,6 +201,11 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.cs-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .cs-note {
@@ -265,6 +275,11 @@ function trapTab(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.cs-act:not(.cs-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .cs-act-primary {

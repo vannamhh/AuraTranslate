@@ -11,6 +11,7 @@ import {
   parseCssBlocks,
   kebab,
   inlineStyleBlocks,
+  blockRecoloursBorderWithToken,
 } from '../../scripts/lib/tokens-scan.mjs'
 
 describe('blankRange — che bằng khoảng trắng, giữ nguyên `\\n`', () => {
@@ -146,5 +147,46 @@ describe('inlineStyleBlocks — `style="…"` / `:style="…"` trong markup', ()
     const src = '<div style="color: red"></div><span style="gap: 4px"></span>'
     const blocks = inlineStyleBlocks(src, 'fixture.vue')
     expect(blocks).toHaveLength(2)
+  })
+})
+
+describe('blockRecoloursBorderWithToken — tắt outline chỉ hợp lệ khi viền đổi màu bằng token', () => {
+  const blockOf = (css: string) => {
+    const { masked } = maskCommentsAndStrings(css, { cssRanges: [{ start: 0, end: css.length }] })
+    return parseCssBlocks(masked, 'x.css')[0]!
+  }
+
+  it('border-color bằng token ⇒ chấp nhận', () => {
+    const b = blockOf('.x:focus-visible { outline: none; border-color: var(--color-primary); }')
+    expect(blockRecoloursBorderWithToken(b)).toBe(true)
+  })
+
+  it('border-bottom-color bằng token ⇒ chấp nhận', () => {
+    const b = blockOf('.x:focus-visible { outline: none; border-bottom-color: var(--color-primary); }')
+    expect(blockRecoloursBorderWithToken(b)).toBe(true)
+  })
+
+  it('không đổi viền ⇒ từ chối', () => {
+    expect(blockRecoloursBorderWithToken(blockOf('.x:focus-visible { outline: none; }'))).toBe(false)
+  })
+
+  it('viền màu thô ⇒ từ chối', () => {
+    const b = blockOf('.x:focus-visible { outline: none; border-color: #2f5d63; }')
+    expect(blockRecoloursBorderWithToken(b)).toBe(false)
+  })
+
+  it.each(['*:focus-visible', 'button:focus-visible'])('selector %s không có lớp/thuộc tính ⇒ từ chối', (sel) => {
+    const b = blockOf(`${sel} { outline: none; border-color: var(--color-primary); }`)
+    expect(blockRecoloursBorderWithToken(b)).toBe(false)
+  })
+
+  it('giá trị hỗn hợp ⇒ từ chối', () => {
+    const b = blockOf('.x:focus-visible { outline: none; border-color: red var(--color-primary); }')
+    expect(blockRecoloursBorderWithToken(b)).toBe(false)
+  })
+
+  it('thuộc tính khác chứa token (color) ⇒ từ chối', () => {
+    const b = blockOf('.x:focus-visible { outline: none; color: var(--color-primary); }')
+    expect(blockRecoloursBorderWithToken(b)).toBe(false)
   })
 })

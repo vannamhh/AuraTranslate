@@ -140,6 +140,11 @@ onBeforeUnmount(() => registerReviewScroller('mine', null))
   color: var(--color-on-surface);
 }
 
+.review-act:not(.review-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .review-act-primary {
   background: var(--color-primary);
   color: var(--color-on-primary);

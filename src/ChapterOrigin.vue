@@ -152,6 +152,11 @@ function commitField(field: OriginField, event: Event): void {
   padding: 4px 8px;
 }
 
+.chapter-origin-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .chapter-origin-input::placeholder {
   font-size: var(--font-ui-sm-italic);
   color: var(--color-on-surface-variant);

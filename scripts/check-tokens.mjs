@@ -54,7 +54,13 @@
 import { readFileSync, readdirSync, lstatSync, existsSync, realpathSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, relative, sep } from 'node:path'
-import { maskCommentsAndStrings, lineOf, parseCssBlocks, inlineStyleBlocks } from './lib/tokens-scan.mjs'
+import {
+  maskCommentsAndStrings,
+  lineOf,
+  parseCssBlocks,
+  inlineStyleBlocks,
+  blockRecoloursBorderWithToken,
+} from './lib/tokens-scan.mjs'
 import { judgeFloor } from './lib/floor-judge.mjs'
 
 /** @typedef {import('./lib/tokens-scan.mjs').CssDecl} CssDecl */
@@ -1565,7 +1571,7 @@ for (const [name, text, shouldExempt] of F_SHADOW_EXEMPT_CASES) {
 if (fSelfBad === 0) pass(`tự kiểm Kiểm F — ${F_CLASSIFY_CASES.length + F_SHADOW_EXEMPT_CASES.length} ca`)
 
 // ═════════════════════════════════════════════════════════════════════════════════
-console.log('\nKiểm H — focus ring: `outline: none` CHỈ trên gốc `tabindex="-1"` (NFR17)')
+console.log('\nKiểm H — focus ring: `outline: none` chỉ trên gốc `tabindex="-1"` hoặc khi cùng khối đổi viền bằng token (NFR17)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // 🔴 ĐÓNG `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` — Story 1.14 · AC11.2.
@@ -1578,11 +1584,15 @@ console.log('\nKiểm H — focus ring: `outline: none` CHỈ trên gốc `tabin
 // ─────────────────────────────────────────────────────────────────────────────────
 // LUẬT — hẹp có chủ ý, và không phải một danh sách cấm
 // ─────────────────────────────────────────────────────────────────────────────────
-// `outline: none` *(hoặc `outline: 0`, hoặc `outline-style: none`)* HỢP LỆ khi và chỉ khi
-// selector của nó chọn **gốc `tabindex="-1"` của một chế độ hoặc một panel** — tức những
+// `outline: none` *(hoặc `outline: 0`, hoặc `outline-style: none`)* HỢP LỆ trong hai ca.
+// Ca 1: selector của nó chọn **gốc `tabindex="-1"` của một chế độ hoặc một panel** — tức những
 // phần tử KHÔNG nằm trong thứ tự Tab của trình duyệt và chỉ nhận focus qua `el.focus()`
 // của `focus.ts`. Vẽ một vòng focus quanh cả một chế độ là nhiễu thị giác cho một lượt dời
 // focus mà chính ứng dụng vừa thực hiện.
+//
+// Ca 2: CÙNG khối rule đổi màu viền bằng đúng một token (`border-color: var(--color-…)` hoặc
+// `border-<phía>-color`), mọi selector trong khối mang lớp hoặc thuộc tính và không có `*`
+// (bộ chọn hậu duệ được phép trên đường này) — viền thay cho vòng focus.
 //
 // Mọi ca khác đi qua **miễn trừ CÓ TÊN** `/* aura-allow-outline-none: <lý do> */`, cùng
 // khuôn `aura-allow-z-index` mà Kiểm F đã dùng và đã nghiệm thu.
@@ -1620,6 +1630,7 @@ function isFocusRootSelector(prelude) {
 let hBad = 0
 let hExempt = 0
 let hOk = 0
+let hBorder = 0
 for (const p of parsed) {
   for (const block of p.blocks) {
     for (const d of block.decls) {
@@ -1632,14 +1643,19 @@ for (const p of parsed) {
         hOk += 1
         continue
       }
+      if (blockRecoloursBorderWithToken(block)) {
+        hBorder += 1
+        continue
+      }
       if (exemptAt(p, d.index, 'outline-none')) {
         pass(`${rel(p.file)}:${line} — \`${d.prop}: ${d.value}\` có miễn trừ có tên`)
         hExempt += 1
         continue
       }
       fail(`${rel(p.file)}:${line} — \`${d.prop}: ${d.value}\` trên \`${block.prelude}\``)
-      detail(`Chỉ ${FOCUS_ROOT_CLASSES.join(' · ')} ở dạng \`<lớp>:focus\` được tắt focus ring.`)
-      detail('Nút, ô nhập và tab PHẢI giữ vòng focus của trình duyệt — đó là nửa còn lại của NFR17.')
+      detail(`Tắt focus ring chỉ hợp lệ trên ${FOCUS_ROOT_CLASSES.join(' · ')} ở dạng \`<lớp>:focus\`,`)
+      detail('hoặc khi CÙNG khối rule đổi màu viền bằng token (`border-color: var(--color-…)`).')
+      detail('Nút, ô nhập và tab không viền PHẢI giữ vòng focus của trình duyệt — đó là nửa còn lại của NFR17.')
       detail('Nếu đây thật sự là một gốc `tabindex="-1"`: thêm `/* aura-allow-outline-none: <lý do> */`.')
       hBad += 1
     }
@@ -1647,8 +1663,9 @@ for (const p of parsed) {
 }
 if (hBad === 0) {
   pass(
-    `${hOk} lượt tắt focus ring, tất cả trên gốc chế độ/panel (${hExempt} miễn trừ có tên) — ` +
-      'không `*:focus`, không bộ chọn hậu duệ',
+    `${hOk} lượt tắt focus ring trên gốc chế độ/panel, ${hBorder} khối thay bằng viền đổi màu token ` +
+      `(${hExempt} miễn trừ có tên) — ` +
+      'không `*:focus`, không selector trần (button:focus), hậu duệ chỉ qua đường đổi viền',
   )
 }
 

@@ -255,3 +255,19 @@ export function inlineStyleBlocks(text, file) {
   }
   return blocks
 }
+
+const BORDER_COLOR_PROP_RE = /^border(?:-(?:top|right|bottom|left|block|inline)(?:-(?:start|end))?)?-color$/
+
+/**
+ * Does this rule block recolour its own border with a token? Only then may it switch the
+ * focus outline off: the border becomes the focus indicator.
+ * @param {{ decls: { prop: string, value: string }[] }} block
+ * @returns {boolean}
+ */
+export const blockRecoloursBorderWithToken = (block) =>
+  block.prelude.split(',').every((sel) => /[.[]/.test(sel) && !sel.includes('*')) &&
+  block.decls.some(
+    (d) =>
+      BORDER_COLOR_PROP_RE.test(d.prop) &&
+      /^var\(--color-[a-z0-9-]+\)$/.test(d.value.replace(/!important\s*$/i, '').trim()),
+  )

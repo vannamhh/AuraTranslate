@@ -897,6 +897,11 @@ function onKeydown(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.gm-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .gm-head {
   display: flex;
   align-items: baseline;
@@ -924,6 +929,11 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.gm-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .gm-note {
@@ -973,6 +983,11 @@ function onKeydown(event: KeyboardEvent): void {
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
 }
 
+.gm-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .gm-status {
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-sm);
@@ -1002,6 +1017,11 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+}
+
+.gm-list:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .gm-list th {
@@ -1115,9 +1135,9 @@ function onKeydown(event: KeyboardEvent): void {
   border-color: var(--color-draft);
 }
 
-.gm-seg-opt:has(input:focus-visible),
+.gm-seg:has(input:focus-visible),
 .gm-pill:has(input:focus-visible) {
-  outline: 2px solid var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .gm-field-search {
@@ -1294,6 +1314,11 @@ function onKeydown(event: KeyboardEvent): void {
   border: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
   cursor: pointer;
+}
+
+.gm-act:not(.gm-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .gm-act:disabled {

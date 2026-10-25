@@ -273,6 +273,12 @@ const acceptErrorText = computed(() => {
   color: var(--color-on-surface);
 }
 
+.tm-fuzzy-strip:focus-visible {
+  outline: none;
+  border-top-color: var(--color-primary);
+  border-left-color: var(--color-primary);
+}
+
 .tmf-head {
   display: flex;
   flex-wrap: wrap;
@@ -415,6 +421,11 @@ const acceptErrorText = computed(() => {
   border: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
   cursor: pointer;
+}
+
+.tmf-btn:not(.tmf-btn-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .tmf-btn:disabled {

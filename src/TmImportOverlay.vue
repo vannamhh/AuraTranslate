@@ -174,6 +174,11 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-surface);
 }
 
+.ti-panel:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .ti-head {
   display: flex;
   align-items: baseline;
@@ -201,6 +206,11 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
+}
+
+.ti-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
 }
 
 .ti-status {
@@ -295,6 +305,11 @@ function trapTab(event: KeyboardEvent): void {
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
+}
+
+.ti-act:not(.ti-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .ti-act-primary {

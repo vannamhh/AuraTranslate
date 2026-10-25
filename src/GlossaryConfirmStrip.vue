@@ -333,6 +333,11 @@ watch(confirmStripFocusRequest, () => {
   color: var(--color-on-surface);
 }
 
+.glossary-confirm-strip:focus-visible {
+  outline: none;
+  border-top-color: var(--color-primary);
+}
+
 .gcs-fieldset {
   display: flex;
   flex-direction: column;
@@ -415,6 +420,11 @@ watch(confirmStripFocusRequest, () => {
   cursor: pointer;
 }
 
+.gcs-option:not(.gcs-option-aimed):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .gcs-option-aimed {
   border-color: var(--color-primary);
 }
@@ -447,6 +457,11 @@ watch(confirmStripFocusRequest, () => {
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
 }
 
+.gcs-input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .gcs-status {
   margin: 0;
   font-family: var(--face-ui-sm);
@@ -472,6 +487,11 @@ watch(confirmStripFocusRequest, () => {
   border: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
   cursor: pointer;
+}
+
+.gcs-act:not(.gcs-act-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .gcs-act:disabled {

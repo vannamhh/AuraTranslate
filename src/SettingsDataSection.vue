@@ -100,6 +100,11 @@ onMounted(() => {
   color: var(--color-on-surface);
 }
 
+.sd-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .sd-when,
 .sd-note {
   font-family: var(--face-ui-md-wrap);

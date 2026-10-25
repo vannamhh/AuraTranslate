@@ -617,6 +617,11 @@ const resultUsage = computed(() => {
   color: var(--color-on-surface-variant);
 }
 
+.aip-close:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .aip-efix {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -995,6 +1000,11 @@ const resultUsage = computed(() => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface);
+}
+
+.aip-btn:not(.aip-btn-primary):focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .aip-btn:disabled {
