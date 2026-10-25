@@ -135,6 +135,19 @@ function trapTab(event: KeyboardEvent): void {
       </header>
 
       <form class="import-form" @submit.prevent>
+        <button
+          type="button"
+          class="btn"
+          data-library-url-screen-open
+          :disabled="busy"
+          @pointerdown="recordImportOpener"
+          @mousedown="recordImportOpener"
+          @focus="recordImportOpener"
+          @click="dispatch('library.import_urls_open')"
+        >
+          {{ t('mode.library.url_screen_open') }}
+        </button>
+
         <fieldset class="field field-group" data-import-destination>
           <legend>{{ t('mode.library.field_destination') }}</legend>
 
@@ -311,19 +324,6 @@ function trapTab(event: KeyboardEvent): void {
           @click="dispatch('library.import_bilingual')"
         >
           {{ t('mode.library.submit_bilingual') }}
-        </button>
-
-        <button
-          type="button"
-          class="btn"
-          data-library-url-screen-open
-          :disabled="busy"
-          @pointerdown="recordImportOpener"
-          @mousedown="recordImportOpener"
-          @focus="recordImportOpener"
-          @click="dispatch('library.import_urls_open')"
-        >
-          {{ t('mode.library.url_screen_open') }}
         </button>
       </form>
 
