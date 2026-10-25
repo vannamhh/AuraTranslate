@@ -99,8 +99,9 @@ import {
 import type { SearchScope } from '../config/library'
 import { t, tError } from '../i18n'
 import { shortcutRows } from '../config/shortcutsState'
-import { workCardMeta, workCoverTone } from './libraryWorkCard'
-import LibraryMenu from './LibraryMenu.vue'
+import { sourceLangLabel, workCardMeta, workCoverTone } from './libraryWorkCard'
+import DropdownMenu from '../DropdownMenu.vue'
+import SelectMenu from '../SelectMenu.vue'
 
 const root = useTemplateRef<HTMLElement>('root')
 
@@ -251,6 +252,23 @@ const statusChipLabel = computed(() => {
 const sortChipLabel = computed(() =>
   librarySortKey.value === 'name_asc' ? t('mode.library.sort_name_asc') : t('mode.library.sort_updated_desc'),
 )
+
+const genreOptions = computed(() => [
+  { value: '', label: t('mode.library.filter_all_genres'), disabled: libraryWorksBusy.value },
+  ...libraryGenres.value.map((genre) => ({ value: genre, label: genre, disabled: libraryWorksBusy.value })),
+])
+const sourceLangOptions = computed(() => [
+  { value: '', label: t('mode.library.filter_all_source_langs'), disabled: libraryWorksBusy.value },
+  ...librarySourceLangs.value.map((lang) => ({
+    value: lang,
+    label: sourceLangLabel(lang) ?? lang,
+    disabled: libraryWorksBusy.value,
+  })),
+])
+const sortOptions = computed(() => [
+  { value: 'updated_desc', label: t('mode.library.sort_updated_desc'), disabled: libraryWorksBusy.value },
+  { value: 'name_asc', label: t('mode.library.sort_name_asc'), disabled: libraryWorksBusy.value },
+])
 
 function onGenreChange(value: string | null): void {
   setGenreFilter(value)
@@ -422,7 +440,7 @@ const importScreenIsOpen = computed<boolean>(
       </div>
 
       <div class="chips">
-        <LibraryMenu
+        <DropdownMenu
           variant="chip"
           :label="statusChipLabel"
           :active="libraryStatusFilter.size > 0"
@@ -478,94 +496,49 @@ const importScreenIsOpen = computed<boolean>(
           >
             {{ t('mode.library.clear_filter') }}
           </button>
-        </LibraryMenu>
+        </DropdownMenu>
 
-        <LibraryMenu
+        <SelectMenu
           variant="chip"
-          :label="libraryGenreFilter ?? t('mode.library.filter_genre_label')"
+          name="library-genre"
+          option-attr="data-library-chip-option"
+          :model-value="libraryGenreFilter ?? ''"
+          :options="genreOptions"
+          :label="t('mode.library.filter_genre_label')"
+          :trigger-text="libraryGenreFilter ?? t('mode.library.filter_genre_label')"
           :active="libraryGenreFilter !== null"
           data-library-chip="genre"
-        >
-          <label class="menu-item">
-            <input
-              type="radio"
-              name="library-genre"
-              data-library-chip-option=""
-              :checked="libraryGenreFilter === null"
-              :disabled="libraryWorksBusy"
-              @change="onGenreChange(null)"
-            />
-            {{ t('mode.library.filter_all_genres') }}
-          </label>
-          <label v-for="genreOption in libraryGenres" :key="genreOption" class="menu-item">
-            <input
-              type="radio"
-              name="library-genre"
-              :data-library-chip-option="genreOption"
-              :checked="libraryGenreFilter === genreOption"
-              :disabled="libraryWorksBusy"
-              @change="onGenreChange(genreOption)"
-            />
-            <!-- aura-allow-text: lĩnh vực là DỮ LIỆU người dùng gõ, không một câu UI. -->
-            {{ genreOption }}
-          </label>
-        </LibraryMenu>
+          @change="onGenreChange($event === '' ? null : $event)"
+        />
 
-        <LibraryMenu
+        <SelectMenu
           variant="chip"
-          :label="librarySourceLangFilter ?? t('mode.library.filter_source_lang_label')"
+          name="library-source-lang"
+          option-attr="data-library-chip-option"
+          :model-value="librarySourceLangFilter ?? ''"
+          :options="sourceLangOptions"
+          :label="t('mode.library.filter_source_lang_label')"
+          :trigger-text="
+            librarySourceLangFilter === null
+              ? t('mode.library.filter_source_lang_label')
+              : (sourceLangLabel(librarySourceLangFilter) ?? librarySourceLangFilter)
+          "
           :active="librarySourceLangFilter !== null"
           data-library-chip="source_lang"
-        >
-          <label class="menu-item">
-            <input
-              type="radio"
-              name="library-source-lang"
-              data-library-chip-option=""
-              :checked="librarySourceLangFilter === null"
-              :disabled="libraryWorksBusy"
-              @change="onSourceLangChange(null)"
-            />
-            {{ t('mode.library.filter_all_source_langs') }}
-          </label>
-          <label v-for="langOption in librarySourceLangs" :key="langOption" class="menu-item">
-            <input
-              type="radio"
-              name="library-source-lang"
-              :data-library-chip-option="langOption"
-              :checked="librarySourceLangFilter === langOption"
-              :disabled="libraryWorksBusy"
-              @change="onSourceLangChange(langOption)"
-            />
-            <!-- aura-allow-text: ngôn ngữ nguồn là DỮ LIỆU (mã ngôn ngữ), không một câu UI. -->
-            {{ langOption }}
-          </label>
-        </LibraryMenu>
+          @change="onSourceLangChange($event === '' ? null : $event)"
+        />
 
-        <LibraryMenu variant="chip" :label="sortChipLabel" data-library-chip="sort">
-          <label class="menu-item">
-            <input
-              type="radio"
-              name="library-sort"
-              data-library-chip-option="updated_desc"
-              :checked="librarySortKey === 'updated_desc'"
-              :disabled="libraryWorksBusy"
-              @change="onSortChange('updated_desc')"
-            />
-            {{ t('mode.library.sort_updated_desc') }}
-          </label>
-          <label class="menu-item">
-            <input
-              type="radio"
-              name="library-sort"
-              data-library-chip-option="name_asc"
-              :checked="librarySortKey === 'name_asc'"
-              :disabled="libraryWorksBusy"
-              @change="onSortChange('name_asc')"
-            />
-            {{ t('mode.library.sort_name_asc') }}
-          </label>
-        </LibraryMenu>
+        <SelectMenu
+          variant="chip"
+          name="library-sort"
+          option-attr="data-library-chip-option"
+          :model-value="librarySortKey"
+          :options="sortOptions"
+          :label="t('library.work_page.sort_label')"
+          :trigger-text="sortChipLabel"
+          data-library-chip="sort"
+          @change="onSortChange($event as WorkSortKey)"
+        />
 
         <!-- aura-allow-text: KẾT QUẢ của `t()` với hai số đếm. -->
         <span v-if="!libraryFilterIsEmpty && libraryWorksHaveLoaded" class="chips-count" data-library-filter-count>{{
@@ -645,7 +618,7 @@ const importScreenIsOpen = computed<boolean>(
               {{ work.status === 'not_started' ? t('mode.library.start_translation') : t('mode.library.continue_translation') }}
             </button>
             <div class="work-more" @dblclick.stop>
-              <LibraryMenu variant="more" label="⋯" :aria-label="t('mode.library.work_more_menu')" data-library-work-more>
+              <DropdownMenu variant="more" label="⋯" :aria-label="t('mode.library.work_more_menu')" data-library-work-more>
                 <button
                   type="button"
                   class="menu-item"
@@ -666,7 +639,7 @@ const importScreenIsOpen = computed<boolean>(
                 >
                   {{ t('command.export.reviewer_import.open') }}
                 </button>
-              </LibraryMenu>
+              </DropdownMenu>
             </div>
           </div>
           <div class="work-body">

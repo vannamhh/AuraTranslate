@@ -7,6 +7,7 @@ import { takeRecordedImportOpener } from './importOpener'
 import { groupThousands } from './importFormat'
 import { useSelectionSurface } from './panels/selectionContract'
 import ChapterOrigin from './ChapterOrigin.vue'
+import SelectMenu from './SelectMenu.vue'
 import {
   addImportPreviewCleanupRule,
   cancelImportPreviewCleanupDeletePending,
@@ -308,6 +309,11 @@ watch(importPreviewChapterPatternText, (value) => {
 watch(importPreviewChapterPatternKind, (value) => {
   chapterPatternKindDraft.value = value
 })
+
+const cleanupKindOptions = computed(() => [
+  { value: 'literal', label: t('mode.library.preview.cleanup_kind_literal') },
+  { value: 'regex', label: t('mode.library.preview.cleanup_kind_regex') },
+])
 
 function onChapterPatternChange(): void {
   void setImportPreviewChapterPattern(chapterPatternDraft.value, chapterPatternKindDraft.value)
@@ -622,7 +628,7 @@ function onTier2Keydown(event: KeyboardEvent): void {
   const isFormField =
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.tagName === 'SUMMARY') ||
     target instanceof HTMLButtonElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   if (isFormField) return
@@ -688,7 +694,7 @@ function onChapterCursorKeydown(event: KeyboardEvent): void {
   const isFormField =
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.tagName === 'SUMMARY') ||
     target instanceof HTMLButtonElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   if (isFormField) return
@@ -722,7 +728,7 @@ function onChapterFilterKeydown(event: KeyboardEvent): void {
   const isFormField =
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.tagName === 'SUMMARY') ||
     target instanceof HTMLButtonElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   if (isFormField) return
@@ -1051,15 +1057,15 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   @change="onChapterPatternChange"
                 />
               </label>
-              <select
+              <SelectMenu
                 v-model="chapterPatternKindDraft"
+                variant="field"
                 class="ip-chapters-pattern-kind"
+                :options="cleanupKindOptions"
+                :label="t('mode.library.preview.cleanup_kind_literal')"
                 :disabled="importPreviewConfirming || importPreviewChapterPatternSending"
                 @change="onChapterPatternChange"
-              >
-                <option value="literal">{{ t('mode.library.preview.cleanup_kind_literal') }}</option>
-                <option value="regex">{{ t('mode.library.preview.cleanup_kind_regex') }}</option>
-              </select>
+              />
             </form>
 
             <p v-if="importPreviewChapterPatternError !== null" class="ip-chapters-error" role="alert">
@@ -1303,10 +1309,14 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                       :disabled="importPreviewConfirming || importPreviewCleanupSavingEdit"
                     >
                       <input v-model="editPattern" type="text" class="ip-cleanup-edit-pattern" />
-                      <select v-model="editKind" class="ip-cleanup-edit-kind">
-                        <option value="literal">{{ t('mode.library.preview.cleanup_kind_literal') }}</option>
-                        <option value="regex">{{ t('mode.library.preview.cleanup_kind_regex') }}</option>
-                      </select>
+                      <SelectMenu
+                        v-model="editKind"
+                        variant="field"
+                        class="ip-cleanup-edit-kind"
+                        :options="cleanupKindOptions"
+                        :label="t('mode.library.preview.cleanup_kind_literal')"
+                        :disabled="importPreviewConfirming || importPreviewCleanupSavingEdit"
+                      />
                       <button type="submit" class="ip-cleanup-save" :disabled="editPattern.trim() === ''">
                         {{ t('mode.library.preview.cleanup_save_rule') }}
                       </button>
@@ -1385,10 +1395,14 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   class="ip-cleanup-add-pattern"
                   :placeholder="t('mode.library.preview.cleanup_add_pattern_placeholder')"
                 />
-                <select v-model="newRuleKind" class="ip-cleanup-add-kind">
-                  <option value="literal">{{ t('mode.library.preview.cleanup_kind_literal') }}</option>
-                  <option value="regex">{{ t('mode.library.preview.cleanup_kind_regex') }}</option>
-                </select>
+                <SelectMenu
+                  v-model="newRuleKind"
+                  variant="field"
+                  class="ip-cleanup-add-kind"
+                  :options="cleanupKindOptions"
+                  :label="t('mode.library.preview.cleanup_kind_literal')"
+                  :disabled="importPreviewConfirming || importPreviewCleanupAdding"
+                />
                 <button type="submit" class="ip-cleanup-add-submit" :disabled="newRulePattern.trim() === ''">
                   {{ t('mode.library.preview.cleanup_add_rule') }}
                 </button>
@@ -2195,11 +2209,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-cleanup-edit-kind,
 .ip-cleanup-add-kind {
   flex: none;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
 }
 
 .ip-cleanup-add {
@@ -2278,11 +2287,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-chapters-pattern-kind {
   flex: none;
   align-self: flex-end;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
 }
 
 .ip-chapters-error {

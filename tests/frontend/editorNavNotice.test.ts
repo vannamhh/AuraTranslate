@@ -80,6 +80,7 @@ async function tuoi() {
   vi.resetModules()
   const state = await import('../../src/panels/editorPanelState')
   const StatusBar = (await import('../../src/StatusBar.vue')).default
+  ;(await import('../../src/modes/modeState')).setMode('workspace')
   return { state, StatusBar }
 }
 

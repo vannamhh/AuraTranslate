@@ -21,6 +21,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
+import { pickSelectOption } from './support/selectMenu'
 
 const promptSetListMock = vi.fn()
 const promptSetCreateMock = vi.fn()
@@ -768,9 +769,9 @@ describe('AiTranslationPanel.vue — đổi bộ hiệu lực từ CHÍNH panel,
     expect(promptSetState.selectedPromptSetName.value).toBeNull()
     expect(wrapper.text()).toContain('Chưa chọn bộ nào')
 
-    const select = wrapper.find('select.ai-prompt-select')
+    const select = wrapper.find('.ai-prompt-select')
     expect(select.exists()).toBe(true)
-    await select.setValue('Bao chi')
+    await pickSelectOption(select, 'Bao chi')
 
     // 0 vòng IPC: `setSelectedPromptSetName` (`promptSetState.ts`) không gọi `invoke` —
     // đây chính là mệnh đề "effective set changes without opening Settings" đo được, vì
@@ -799,7 +800,7 @@ describe('AiTranslationPanel.vue — đổi bộ hiệu lực từ CHÍNH panel,
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('select.ai-prompt-select').exists()).toBe(false)
+    expect(wrapper.find('.ai-prompt-select').exists()).toBe(false)
     expect(wrapper.text()).toContain('Chưa có bộ prompt nào')
 
     wrapper.unmount()

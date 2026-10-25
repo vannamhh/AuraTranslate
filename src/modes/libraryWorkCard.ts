@@ -10,11 +10,18 @@ const MINUTE_MS = 60_000
 const HOUR_MS = 60 * MINUTE_MS
 const DAY_MS = 24 * HOUR_MS
 
-function sourceLangLabel(code: string): string | null {
+export function sourceLangLabel(code: string): string | null {
   if (code.trim() === '') return null
   if (code === 'zh') return t('mode.library.lang_zh')
   if (code === 'en') return t('mode.library.lang_en')
   return code
+}
+
+export function sourceLangChoices(): { value: string; label: string }[] {
+  return [
+    { value: 'zh', label: t('mode.library.lang_zh') },
+    { value: 'en', label: t('mode.library.lang_en') },
+  ]
 }
 
 /** `null` when the timestamp is unreadable or lies in the future. */

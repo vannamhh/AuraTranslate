@@ -142,7 +142,7 @@ watch(attributionLicenseView, (view, previous) => {
 function focusableWithin(root: HTMLElement): HTMLElement[] {
   return Array.from(
     root.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), summary:not([aria-disabled="true"]), ' +
         'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
   )

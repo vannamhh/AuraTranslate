@@ -21,6 +21,7 @@ import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
 import type { WorkRow } from '../../src/config/library'
 import type { CreatedWork } from '../../src/config/project'
+import { pickSelectOption } from './support/selectMenu'
 
 const previewTextMock = vi.fn()
 // 🔵 THÊM (vòng rà, mục B10/B11) — trước bản sửa này chỉ `previewImportEncodingFromText` có
@@ -188,7 +189,7 @@ describe('LibraryMode.vue — chọn Tác phẩm đã có khoá ba ô tên/ngu�
     await wrapper.vm.$nextTick()
 
     // Trước khi chọn — ba ô còn là ô gõ tay, KHÔNG disabled.
-    const before = wrapper.findAll('.import-form .field input[disabled], .import-form .field select[disabled]')
+    const before = wrapper.findAll('.import-form .field input[disabled], .import-form .field [data-dropdown-menu][aria-disabled]')
     expect(before).toHaveLength(0)
 
     const existingRadio = wrapper.get('[data-import-destination] input[value="existing"]')
@@ -196,15 +197,15 @@ describe('LibraryMode.vue — chọn Tác phẩm đã có khoá ba ô tên/ngu�
     await existingRadio.setValue(true)
     await wrapper.vm.$nextTick()
 
-    const picker = wrapper.get('[data-import-destination-picker] select')
-    await picker.setValue('w-1')
+    const picker = wrapper.get('[data-import-destination-picker] [data-dropdown-menu]')
+    await pickSelectOption(picker, 'w-1')
     await wrapper.vm.$nextTick()
 
     // Sau khi chọn — tên, nguồn, thể loại đều là input disabled mang ĐÚNG giá trị của đích.
     const disabledFields = wrapper.findAll('.import-form .field input[disabled]')
     const values = disabledFields.map((f) => (f.element as HTMLInputElement).value)
     expect(values).toContain('Truyen Da Co')
-    expect(values).toContain('zh')
+    expect(values).toContain('Tiếng Trung')
     expect(values).toContain('action')
   })
 
@@ -767,8 +768,8 @@ describe('LibraryMode.vue — bốn nút nộp khoá lại khi tên trần kho�
     const existingRadio = wrapper.get('[data-import-destination] input[value="existing"]')
     await existingRadio.setValue(true)
     await wrapper.vm.$nextTick()
-    const picker = wrapper.get('[data-import-destination-picker] select')
-    await picker.setValue('w-1')
+    const picker = wrapper.get('[data-import-destination-picker] [data-dropdown-menu]')
+    await pickSelectOption(picker, 'w-1')
     await wrapper.vm.$nextTick()
 
     await wrapper.get('.import-form textarea').setValue('mot doan van ban')

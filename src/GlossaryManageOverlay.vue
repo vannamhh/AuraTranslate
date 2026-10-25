@@ -27,6 +27,7 @@ import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
+import SelectMenu from './SelectMenu.vue'
 import { useSelectionSurface } from './panels/selectionContract'
 import type { GlossaryCategory, GlossaryEntry } from './config/glossary'
 import type { GlossaryTierWire } from './config/glossary'
@@ -181,7 +182,7 @@ watch(manageFilteredRows, () => {
 function focusableWithin(root: HTMLElement): HTMLElement[] {
   return Array.from(
     root.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), summary:not([aria-disabled="true"]), ' +
         'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
   )
@@ -318,10 +319,11 @@ function onCategoryChange(value: GlossaryCategory | 'all'): void {
   setGlossaryManageCategoryFilter(value)
 }
 
-function onOriginFilterChange(event: Event): void {
-  const target = event.target
-  if (!(target instanceof HTMLSelectElement)) return
-  setGlossaryManageOriginFilter(target.value as GlossaryManageOriginFilter)
+const originOptions = computed(() => ORIGIN_OPTIONS.map((opt) => ({ value: opt.value, label: t(opt.labelKey) })))
+const categoryOptions = computed(() => CATEGORY_OPTIONS.map((opt) => ({ value: opt.value, label: t(opt.labelKey) })))
+
+function onOriginFilterChange(value: string): void {
+  setGlossaryManageOriginFilter(value as GlossaryManageOriginFilter)
 }
 
 function onSortByFrequencyChange(event: Event): void {
@@ -371,7 +373,7 @@ function onKeydown(event: KeyboardEvent): void {
   const isFormField =
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.tagName === 'SUMMARY') ||
     target instanceof HTMLButtonElement
   if (isFormField) return
 
@@ -517,12 +519,16 @@ function onKeydown(event: KeyboardEvent): void {
           {{ t('glossary.manage.pending_pill', { count: String(managePendingCount) }) }}
         </label>
 
-        <label class="gm-field gm-field-origin">
-          <span class="gm-sr-only">{{ t('glossary.manage.origin_filter_label') }}</span>
-          <select class="gm-input" :value="manageOriginFilter" :disabled="manageEditing" @change="onOriginFilterChange">
-            <option v-for="opt in ORIGIN_OPTIONS" :key="opt.value" :value="opt.value">{{ t(opt.labelKey) }}</option>
-          </select>
-        </label>
+        <div class="gm-field gm-field-origin">
+          <SelectMenu
+            variant="chip"
+            :model-value="manageOriginFilter"
+            :options="originOptions"
+            :label="t('glossary.manage.origin_filter_label')"
+            :disabled="manageEditing"
+            @change="onOriginFilterChange"
+          />
+        </div>
 
         <!-- Not disabled while editing: sorting only reorders, it doesn't change the row set. -->
         <label class="gm-field gm-field-checkbox gm-sort">
@@ -655,16 +661,15 @@ function onKeydown(event: KeyboardEvent): void {
                 <span v-else class="gm-badge gm-badge-pending">{{ t('glossary.manage.pending_badge') }}</span>
               </td>
               <td>
-                <select
+                <SelectMenu
                   v-if="i === manageCursor && manageEditing"
                   v-model="manageEditCategory"
-                  form="gm-edit-form"
-                  class="gm-input gm-cell-input"
-                  :aria-label="t('glossary.quick_add.category_label')"
+                  variant="field"
+                  class="gm-cell-input"
+                  :options="categoryOptions"
+                  :label="t('glossary.quick_add.category_label')"
                   :disabled="manageSaving"
-                >
-                  <option v-for="opt in CATEGORY_OPTIONS" :key="opt.value" :value="opt.value">{{ t(opt.labelKey) }}</option>
-                </select>
+                />
                 <span v-else class="gm-category">{{ t(`glossary.manage.category_${row.category}`) }}</span>
               </td>
               <!-- aura-allow-text: KẾT QUẢ của `t()` hoặc DỮ LIỆU (xuất xứ lạ hiện nguyên giá trị). -->

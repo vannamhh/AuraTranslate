@@ -5,6 +5,8 @@ import { dispatch } from '../commands'
 import { focusReturnTargetOnOpen } from '../commands/focus'
 import { recordImportOpener, takeRecordedImportOpener } from '../importOpener'
 import { importPreviewIsOpen } from '../importPreviewState'
+import SelectMenu from '../SelectMenu.vue'
+import { sourceLangChoices, sourceLangLabel } from './libraryWorkCard'
 import {
   busy,
   destinationExistingWorkAvailable,
@@ -36,6 +38,11 @@ const lineNumbers = computed<number[]>(() => {
   const count = Math.max(1, pastedUrls.value.split('\n').length)
   return Array.from({ length: count }, (_, i) => i + 1)
 })
+
+const destinationOptions = computed(() =>
+  destinationWorks.value.map((work) => ({ value: work.work_id, label: work.name })),
+)
+const sourceLangOptions = computed(() => sourceLangChoices())
 
 const covered = computed<boolean>(() => importPreviewIsOpen.value)
 
@@ -155,17 +162,17 @@ function onEscape(): void {
             <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
             {{ tError(destinationWorksError) }}
           </p>
-          <label v-if="destinationMode === 'existing'" class="us-field">
+          <div v-if="destinationMode === 'existing'" class="us-field">
             <span>{{ t('mode.library.destination_pick_label') }}</span>
-            <select
-              :value="destinationWorkId ?? ''"
-              @change="setDestinationWorkId(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="" disabled>{{ t('mode.library.destination_pick_placeholder') }}</option>
-              <!-- aura-allow-text: DỮ LIỆU (tên Tác phẩm người dùng tự đặt). -->
-              <option v-for="w in destinationWorks" :key="w.work_id" :value="w.work_id">{{ w.name }}</option>
-            </select>
-          </label>
+            <SelectMenu
+              variant="field"
+              :model-value="destinationWorkId ?? ''"
+              :options="destinationOptions"
+              :label="t('mode.library.destination_pick_label')"
+              :placeholder="t('mode.library.destination_pick_placeholder')"
+              @change="setDestinationWorkId($event)"
+            />
+          </div>
         </fieldset>
 
         <label class="us-field">
@@ -174,14 +181,23 @@ function onEscape(): void {
           <input v-else :value="pickedDestinationWork.name" type="text" autocomplete="off" disabled />
         </label>
 
-        <label class="us-field">
+        <div class="us-field">
           <span>{{ t('mode.library.field_source_lang') }}</span>
-          <select v-if="pickedDestinationWork === null" v-model="sourceLang">
-            <option value="zh">{{ t('mode.library.lang_zh') }}</option>
-            <option value="en">{{ t('mode.library.lang_en') }}</option>
-          </select>
-          <input v-else :value="pickedDestinationWork.source_lang" type="text" autocomplete="off" disabled />
-        </label>
+          <SelectMenu
+            v-if="pickedDestinationWork === null"
+            v-model="sourceLang"
+            variant="field"
+            :options="sourceLangOptions"
+            :label="t('mode.library.field_source_lang')"
+          />
+          <input
+            v-else
+            :value="sourceLangLabel(pickedDestinationWork.source_lang) ?? ''"
+            type="text"
+            autocomplete="off"
+            disabled
+          />
+        </div>
       </form>
     </div>
 

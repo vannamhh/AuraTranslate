@@ -98,6 +98,7 @@ import type { AiTranslateUsageWire } from '../config/aitranslate'
 import { aiUsageSummaryLine, formatUsdParam } from '../aiUsageLine'
 import type { AiUsageSummary } from '../aiUsageLine'
 import { segmentSelectionCount } from './segmentSelectionState'
+import SelectMenu from '../SelectMenu.vue'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
 defineProps<DockviewPanelProps>()
@@ -137,10 +138,13 @@ watch([aiTranslateStateValue, aiTranslateBatchStateValue], ([single, batch], [pr
   if (finished) void refreshAiPromptRecord()
 })
 
-function onPromptSetSelectChange(event: Event): void {
-  const target = event.target
-  if (!(target instanceof HTMLSelectElement)) return
-  setSelectedPromptSetName(target.value === '' ? null : target.value)
+const promptSetOptions = computed(() => [
+  { value: '', label: t('panel.ai_translation.prompt_set_placeholder') },
+  ...promptSets.value.map((set) => ({ value: set.name, label: set.name })),
+])
+
+function onPromptSetSelectChange(value: string): void {
+  setSelectedPromptSetName(value === '' ? null : value)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -434,14 +438,17 @@ const promoteBatchReportText = computed<string | null>(() => {
     </p>
     <div class="ai-prompt-bar">
       <p v-if="promptSets.length === 0" class="ai-prompt-empty">{{ t('panel.ai_translation.prompt_set_empty') }}</p>
-      <label v-else class="ai-prompt-select-label">
+      <div v-else class="ai-prompt-select-label">
         <span>{{ t('panel.ai_translation.prompt_set_label') }}</span>
-        <select class="ai-prompt-select" :value="selectedPromptSetName ?? ''" @change="onPromptSetSelectChange">
-          <option value="">{{ t('panel.ai_translation.prompt_set_placeholder') }}</option>
-          <!-- aura-allow-text: DỮ LIỆU (tên bộ do người dùng đặt). -->
-          <option v-for="s in promptSets" :key="`${s.tier}-${s.id}`" :value="s.name">{{ s.name }}</option>
-        </select>
-      </label>
+        <SelectMenu
+          class="ai-prompt-select"
+          variant="field"
+          :model-value="selectedPromptSetName ?? ''"
+          :options="promptSetOptions"
+          :label="t('panel.ai_translation.prompt_set_label')"
+          @change="onPromptSetSelectChange"
+        />
+      </div>
       <p class="ai-prompt-status">
         <!-- aura-allow-text: KẾT QUẢ của `t()` (tên bộ nội suy qua tham số). -->
         {{
@@ -812,12 +819,8 @@ const promoteBatchReportText = computed<string | null>(() => {
 }
 
 .ai-prompt-select {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  flex: 1;
+  min-width: 0;
 }
 
 .ai-prompt-open {

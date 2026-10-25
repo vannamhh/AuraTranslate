@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
-import LibraryMenu from '../../src/modes/LibraryMenu.vue'
+import DropdownMenu from '../../src/DropdownMenu.vue'
 
 const Host = defineComponent({
   render() {
     return h('div', [
-      h(LibraryMenu, { variant: 'chip', label: 'one', 'data-id': 'one' }, () => [
+      h(DropdownMenu, { variant: 'chip', label: 'one', 'data-id': 'one' }, () => [
         h('button', { 'data-menu-close': '', 'data-item': 'close' }, 'close'),
         h('button', { 'data-item': 'stay' }, 'stay'),
       ]),
-      h(LibraryMenu, { variant: 'chip', label: 'two', 'data-id': 'two' }, () => [h('button', 'x')]),
+      h(DropdownMenu, { variant: 'chip', label: 'two', 'data-id': 'two' }, () => [h('button', 'x')]),
     ])
   },
 })
@@ -23,7 +23,7 @@ afterEach(() => {
 })
 
 function menus(): HTMLDetailsElement[] {
-  return Array.from(document.querySelectorAll<HTMLDetailsElement>('details[data-library-menu]'))
+  return Array.from(document.querySelectorAll<HTMLDetailsElement>('details[data-dropdown-menu]'))
 }
 
 async function open(menu: HTMLDetailsElement): Promise<void> {
@@ -32,7 +32,7 @@ async function open(menu: HTMLDetailsElement): Promise<void> {
   await wrapper!.vm.$nextTick()
 }
 
-describe('modes/LibraryMenu.vue', () => {
+describe('DropdownMenu.vue', () => {
   it('Escape closes an open menu and focuses its summary', async () => {
     wrapper = mount(Host, { attachTo: document.body })
     const [first] = menus()

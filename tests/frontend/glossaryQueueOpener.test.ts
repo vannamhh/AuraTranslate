@@ -25,6 +25,7 @@ async function mountWorkspace() {
     closeGlossaryQueue: () => queue.closeGlossaryQueue(),
   } as never)
   const StatusBar = (await import('../../src/StatusBar.vue')).default
+  ;(await import('../../src/modes/modeState')).setMode('workspace')
   const Overlay = (await import('../../src/GlossaryQueueOverlay.vue')).default
   const Host = defineComponent({ render: () => [h(StatusBar), h(Overlay)] })
   const wrapper = mount(Host, { attachTo: document.body })

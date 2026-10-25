@@ -121,7 +121,10 @@ async function pickChipOption(chip, option) {
   await openChip(chip)
   const radio = await $(`[data-library-chip="${chip}"] [data-library-chip-option="${option}"]`)
   await realClick(await radio.$('..'))
-  await realClick(await $(`[data-library-chip="${chip}"] summary`))
+  await browser.waitUntil(async () => !(await (await $(`[data-library-chip="${chip}"]`)).getProperty('open')), {
+    timeout: 5_000,
+    timeoutMsg: `chip ${chip} did not close after the pick`,
+  })
 }
 
 /** Tải lại danh sách rồi chờ CẢ HAI Tác phẩm của spec này xuất hiện trong lưới. */

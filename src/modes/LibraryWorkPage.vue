@@ -56,6 +56,7 @@ import {
   openWorkLifecycleStatus,
 } from './libraryWorks'
 import { updatedLabel, workCardMeta } from './libraryWorkCard'
+import SelectMenu from '../SelectMenu.vue'
 
 const root = useTemplateRef<HTMLElement>('root')
 const listRef = useTemplateRef<HTMLUListElement>('listRef')
@@ -184,8 +185,13 @@ function focusOnPointerDown(event: MouseEvent): void {
   if (target instanceof HTMLElement) target.focus()
 }
 
-function onSortChange(event: Event): void {
-  setChapterSort((event.target as HTMLSelectElement).value as ChapterSortKey)
+const chapterSortOptions = computed(() => [
+  { value: 'order', label: t('library.work_page.sort_order') },
+  { value: 'recent', label: t('library.work_page.sort_recent') },
+])
+
+function onSortChange(value: string): void {
+  setChapterSort(value as ChapterSortKey)
 }
 
 function syncScroll(next: number): void {
@@ -401,13 +407,17 @@ onMounted(() => {
         <!-- aura-allow-text: ghép từ t() với số đếm. -->
         {{ t('library.work_page.legend', { label: groupLabel('not_started'), count: String(counts.not_started) }) }}
       </button>
-      <label class="wp-sort">
+      <div class="wp-sort">
         <span>{{ t('library.work_page.sort_label') }}</span>
-        <select :value="libraryChapterSort" data-library-chapter-sort @change="onSortChange($event)">
-          <option value="order">{{ t('library.work_page.sort_order') }}</option>
-          <option value="recent">{{ t('library.work_page.sort_recent') }}</option>
-        </select>
-      </label>
+        <SelectMenu
+          variant="chip"
+          :model-value="libraryChapterSort"
+          :options="chapterSortOptions"
+          :label="t('library.work_page.sort_label')"
+          data-library-chapter-sort
+          @change="onSortChange"
+        />
+      </div>
     </div>
 
     <div class="wp-selbar" data-library-chapter-selbar>

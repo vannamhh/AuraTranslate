@@ -98,6 +98,7 @@ describe('a skipped TM pre-fill is a non-fatal notice', () => {
     await freshState()
     const { mount } = await import('@vue/test-utils')
     const StatusBar = (await import('../../src/StatusBar.vue')).default
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
     const wrapper = mount(StatusBar)
     expect(wrapper.find('.notice').text()).toContain('6')
     wrapper.unmount()
@@ -114,6 +115,7 @@ describe('a skipped TM pre-fill is a non-fatal notice', () => {
     await freshState()
     const { mount } = await import('@vue/test-utils')
     const StatusBar = (await import('../../src/StatusBar.vue')).default
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
     const wrapper = mount(StatusBar)
 
     expect(wrapper.find('.notice').text()).toBe((vi_json as Record<string, string>)['panel.grid.nav_tm_prefill_skipped'])

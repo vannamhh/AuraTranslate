@@ -4,6 +4,7 @@ import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { takeRecordedImportOpener } from './importOpener'
+import SelectMenu from './SelectMenu.vue'
 import {
   bilingualImportPreview,
   bilingualImportPreviewActiveCuts,
@@ -27,6 +28,7 @@ import {
   bilingualImportPreviewSelectedCandidate,
   bilingualImportPreviewSelectedEncoding,
   bilingualImportPreviewSkippedTargetSentenceCount,
+  bilingualImportPreviewChapterPatternKind,
   bilingualImportPreviewSourceColumn,
   bilingualImportPreviewStatus,
   bilingualImportPreviewTableIndex,
@@ -134,22 +136,43 @@ function reviewCauseMessageKey(cause: ReviewCauseWire): string {
   }
 }
 
-function onSourceColumnChange(event: Event): void {
-  const value = Number((event.target as HTMLSelectElement).value)
-  void setBilingualSourceColumn(value)
+const tableOptions = computed(() =>
+  (bilingualImportPreview.value?.source_tables ?? []).map((table) => ({
+    value: String(table.index),
+    label: t('mode.library.preview.bilingual_table_option', {
+      index: String(table.index + 1),
+      rows: String(table.row_count),
+      columns: String(table.column_count),
+      first: table.first_row.join(' | '),
+    }),
+  })),
+)
+
+const columnOptions = computed(() =>
+  Array.from({ length: bilingualImportPreview.value?.column_count ?? 0 }, (_, i) => ({
+    value: String(i),
+    label: t('mode.library.preview.bilingual_column_option', { index: String(i + 1), sample: sampleCellFor(i) }),
+  })),
+)
+
+const patternKindOptions = computed(() => [
+  { value: 'literal', label: t('mode.library.preview.cleanup_kind_literal') },
+  { value: 'regex', label: t('mode.library.preview.cleanup_kind_regex') },
+])
+
+function onSourceColumnChange(value: string): void {
+  void setBilingualSourceColumn(Number(value))
 }
 
-function onTargetColumnChange(event: Event): void {
-  const value = Number((event.target as HTMLSelectElement).value)
-  void setBilingualTargetColumn(value)
+function onTargetColumnChange(value: string): void {
+  void setBilingualTargetColumn(Number(value))
 }
 
 function onHasHeaderChange(event: Event): void {
   void setBilingualHasHeader((event.target as HTMLInputElement).checked)
 }
 
-function onTableChange(event: Event): void {
-  const raw = (event.target as HTMLSelectElement).value
+function onTableChange(raw: string): void {
   if (raw === '') return
   void setBilingualTableIndex(Number(raw))
 }
@@ -167,13 +190,14 @@ function onChapterPatternTextChange(event: Event): void {
 }
 
 function chapterPatternKindValue(): ChapterPatternKindWire {
-  const el = document.getElementById('bip-chapter-pattern-kind') as HTMLSelectElement | null
-  const value = el?.value
-  return chapterPatternKinds.includes(value as ChapterPatternKindWire) ? (value as ChapterPatternKindWire) : 'literal'
+  const value = bilingualImportPreviewChapterPatternKind.value
+  return chapterPatternKinds.includes(value) ? value : 'literal'
 }
 
-function onChapterPatternKindChange(event: Event): void {
-  const kind = (event.target as HTMLSelectElement).value as ChapterPatternKindWire
+function onChapterPatternKindChange(value: string): void {
+  const kind: ChapterPatternKindWire = chapterPatternKinds.includes(value as ChapterPatternKindWire)
+    ? (value as ChapterPatternKindWire)
+    : 'literal'
   const textEl = document.getElementById('bip-chapter-pattern-text') as HTMLInputElement | null
   void setBilingualChapterPattern(textEl?.value ?? '', kind)
 }
@@ -200,7 +224,7 @@ function onMismatchKeydown(event: KeyboardEvent): void {
   const isFormField =
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.tagName === 'SUMMARY') ||
     target instanceof HTMLButtonElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   if (isFormField) return
@@ -262,7 +286,7 @@ function onBilingualChapterFilterKeydown(event: KeyboardEvent): void {
   const isFormField =
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.tagName === 'SUMMARY') ||
     target instanceof HTMLButtonElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   if (isFormField) return
@@ -378,30 +402,19 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
           <h3 id="bip-tier-table-title" class="bip-tier-title">
             {{ t('mode.library.preview.bilingual_table_title') }}
           </h3>
-          <label class="bip-field">
+          <div class="bip-field">
             <span>{{ t('mode.library.preview.bilingual_table_label') }}</span>
-            <select
+            <SelectMenu
               id="bip-table-select"
-              :value="bilingualImportPreviewTableIndex === null ? '' : String(bilingualImportPreviewTableIndex)"
+              variant="field"
+              :model-value="bilingualImportPreviewTableIndex === null ? '' : String(bilingualImportPreviewTableIndex)"
+              :options="tableOptions"
+              :label="t('mode.library.preview.bilingual_table_label')"
+              :placeholder="t('mode.library.preview.bilingual_table_unchosen')"
               :disabled="bilingualImportPreviewConfirming"
               @change="onTableChange"
-            >
-              <option v-if="bilingualImportPreviewTableIndex === null" value="" disabled>
-                {{ t('mode.library.preview.bilingual_table_unchosen') }}
-              </option>
-              <option v-for="table in bilingualImportPreview.source_tables" :key="table.index" :value="String(table.index)">
-                <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU. -->
-                {{
-                  t('mode.library.preview.bilingual_table_option', {
-                    index: String(table.index + 1),
-                    rows: String(table.row_count),
-                    columns: String(table.column_count),
-                    first: table.first_row.join(' | '),
-                  })
-                }}
-              </option>
-            </select>
-          </label>
+            />
+          </div>
           <p v-if="bilingualImportPreview.table_choice_required" class="bip-status" role="status">
             {{ t('mode.library.preview.bilingual_table_choice_required') }}
           </p>
@@ -414,18 +427,16 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
           </h3>
 
           <div class="bip-columns">
-            <label class="bip-field">
+            <div class="bip-field">
               <span>{{ t('mode.library.preview.bilingual_source_column') }}</span>
-              <select :value="bilingualImportPreviewSourceColumn" @change="onSourceColumnChange">
-                <!-- 🔴 SỬA (vòng rà đối kháng) — nhãn hiện số 1-based (cùng khuôn Chương/hàng
-                     trên cùng màn hình: "Cột 1" chứ không "Cột 0"); `value` giữ NGUYÊN 0-based
-                     (chỉ số cột thật Rust nhận). -->
-                <option v-for="i in bilingualImportPreview.column_count" :key="i - 1" :value="i - 1">
-                  <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU. -->
-                  {{ t('mode.library.preview.bilingual_column_option', { index: String(i), sample: sampleCellFor(i - 1) }) }}
-                </option>
-              </select>
-            </label>
+              <SelectMenu
+                variant="field"
+                :model-value="String(bilingualImportPreviewSourceColumn)"
+                :options="columnOptions"
+                :label="t('mode.library.preview.bilingual_source_column')"
+                @change="onSourceColumnChange"
+              />
+            </div>
 
             <button
               type="button"
@@ -436,16 +447,16 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
               {{ t('command.import.preview.bilingual_swap_columns') }}
             </button>
 
-            <label class="bip-field">
+            <div class="bip-field">
               <span>{{ t('mode.library.preview.bilingual_target_column') }}</span>
-              <select :value="bilingualImportPreviewTargetColumn" @change="onTargetColumnChange">
-                <!-- Xem chú thích cột nguồn ở trên: nhãn 1-based, `value` 0-based. -->
-                <option v-for="i in bilingualImportPreview.column_count" :key="i - 1" :value="i - 1">
-                  <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU. -->
-                  {{ t('mode.library.preview.bilingual_column_option', { index: String(i), sample: sampleCellFor(i - 1) }) }}
-                </option>
-              </select>
-            </label>
+              <SelectMenu
+                variant="field"
+                :model-value="String(bilingualImportPreviewTargetColumn)"
+                :options="columnOptions"
+                :label="t('mode.library.preview.bilingual_target_column')"
+                @change="onTargetColumnChange"
+              />
+            </div>
           </div>
 
           <label class="bip-checkbox-field">
@@ -468,10 +479,14 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
                 @change="onChapterPatternTextChange"
               />
             </label>
-            <select id="bip-chapter-pattern-kind" @change="onChapterPatternKindChange">
-              <option value="literal">{{ t('mode.library.preview.cleanup_kind_literal') }}</option>
-              <option value="regex">{{ t('mode.library.preview.cleanup_kind_regex') }}</option>
-            </select>
+            <SelectMenu
+              id="bip-chapter-pattern-kind"
+              variant="field"
+              :model-value="bilingualImportPreviewChapterPatternKind"
+              :options="patternKindOptions"
+              :label="t('mode.library.preview.chapters_pattern_label')"
+              @change="onChapterPatternKindChange"
+            />
           </form>
         </section>
 

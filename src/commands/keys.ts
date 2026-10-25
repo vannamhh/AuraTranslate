@@ -443,7 +443,7 @@ function isTypingZone(target: unknown, code?: string): boolean {
   if (el.tagName === 'INPUT' && typeof el.type === 'string' && NON_TEXT_INPUT_TYPE_RE.test(el.type)) {
     return code === undefined || !PRINTABLE_CODE_RE.test(code)
   }
-  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.tagName === 'SUMMARY'
 }
 
 /**

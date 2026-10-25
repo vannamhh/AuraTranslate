@@ -451,6 +451,7 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
     const lookupDrawerStateMod = await import('../../src/layout/lookupDrawerState')
     const { default: FreshWorkspaceDock } = await import('../../src/layout/WorkspaceDock.vue')
     const { default: FreshStatusBar } = await import('../../src/StatusBar.vue')
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
     const { default: FreshLookupDrawer } = await import('../../src/layout/LookupDrawer.vue')
 
     // Cùng khuôn `App.vue`: ba component sống như ANH EM, nối qua state module-level
@@ -509,6 +510,7 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
     const lookupDrawerStateMod = await import('../../src/layout/lookupDrawerState')
     const { default: FreshWorkspaceDock } = await import('../../src/layout/WorkspaceDock.vue')
     const { default: FreshStatusBar } = await import('../../src/StatusBar.vue')
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
     const { default: FreshLookupDrawer } = await import('../../src/layout/LookupDrawer.vue')
 
     const Host = defineComponent({
@@ -600,6 +602,7 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
     const lookupDrawerStateMod = await import('../../src/layout/lookupDrawerState')
     const { default: FreshWorkspaceDock } = await import('../../src/layout/WorkspaceDock.vue')
     const { default: FreshStatusBar } = await import('../../src/StatusBar.vue')
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
     const { default: FreshLookupDrawer } = await import('../../src/layout/LookupDrawer.vue')
 
     const Host = defineComponent({

@@ -4,6 +4,7 @@ import { t, tError } from './i18n'
 import type { IpcError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
+import SelectMenu from './SelectMenu.vue'
 import { useSelectionSurface } from './panels/selectionContract'
 import { historyTimeLabel } from './panels/segmentHistoryTime'
 import type {
@@ -144,7 +145,7 @@ watch(tmManageEditing, (editing) => {
 function focusableWithin(root: HTMLElement): HTMLElement[] {
   return Array.from(
     root.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), summary:not([aria-disabled="true"]), ' +
         'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
   )
@@ -305,9 +306,10 @@ function onRowDelete(index: number): void {
   dispatch('tm.manage.delete')
 }
 
-function onSortChange(event: Event): void {
-  const target = event.target
-  if (target instanceof HTMLSelectElement) setTmManageSort(target.value as TmManageSort)
+const sortOptions = computed(() => SORT_OPTIONS.map((opt) => ({ value: opt.value, label: t(opt.labelKey) })))
+
+function onSortChange(value: string): void {
+  setTmManageSort(value as TmManageSort)
 }
 
 function onExportMineOnlyChange(event: Event): void {
@@ -441,7 +443,7 @@ function onKeydown(event: KeyboardEvent): void {
   const isFormField =
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
-    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.tagName === 'SUMMARY') ||
     target instanceof HTMLButtonElement
   if (isFormField) return
 
@@ -564,19 +566,17 @@ function onKeydown(event: KeyboardEvent): void {
           </label>
         </fieldset>
 
-        <label class="tm-field tm-field-sort">
+        <div class="tm-field tm-field-sort">
           <span class="tm-field-label">{{ t('tm.manage.sort_label') }}</span>
-          <select
-            class="tm-input"
-            :value="tmManageSort"
+          <SelectMenu
+            variant="chip"
+            :model-value="tmManageSort"
+            :options="sortOptions"
+            :label="t('tm.manage.sort_label')"
             :disabled="tmManageEditing || tmManageSaving"
             @change="onSortChange"
-          >
-            <option v-for="opt in SORT_OPTIONS" :key="opt.value" :value="opt.value">
-              {{ t(opt.labelKey) }}
-            </option>
-          </select>
-        </label>
+          />
+        </div>
       </div>
 
       <section v-if="tmManageStatus === 'loaded' && !tmManageTmEmpty" class="tm-health" :aria-label="t('tm.manage.health_label')">

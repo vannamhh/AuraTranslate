@@ -240,6 +240,7 @@ describe('Story 3.4b — IPC trả lỗi: KHÔNG đánh dấu gì, KHÔNG coi nh
     await mountGrid()
 
     const StatusBar = (await import('../../src/StatusBar.vue')).default
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
     const bar = mount(StatusBar)
     daMount.push(bar)
     await bar.vm.$nextTick()
@@ -270,6 +271,7 @@ describe('Story 3.4b — IPC trả lỗi: KHÔNG đánh dấu gì, KHÔNG coi nh
     const { editorState, wrapper } = await mountGrid()
 
     const StatusBar = (await import('../../src/StatusBar.vue')).default
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
     const glossaryMarksState = await import('../../src/panels/glossaryMarksState')
     const bar = mount(StatusBar)
     daMount.push(bar)

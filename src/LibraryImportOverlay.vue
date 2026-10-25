@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
@@ -31,6 +31,8 @@ import {
   destinationExistingWorkAvailable,
 } from './modes/libraryImport'
 import { bilingualImportPreviewIsOpen } from './bilingualImportPreviewState'
+import SelectMenu from './SelectMenu.vue'
+import { sourceLangChoices, sourceLangLabel } from './modes/libraryWorkCard'
 import { importPreviewIsOpen } from './importPreviewState'
 import { libraryImportOverlayIsOpen, libraryUrlImportScreenIsOpen } from './modes/libraryImportOverlayState'
 
@@ -40,6 +42,11 @@ const FIRST_FIELD =
 let returnFocusTo: HTMLElement | null = null
 
 const panel = useTemplateRef<HTMLElement>('panel')
+const destinationOptions = computed(() =>
+  destinationWorks.value.map((work) => ({ value: work.work_id, label: work.name })),
+)
+const sourceLangOptions = computed(() => sourceLangChoices())
+
 useSelectionSurface(panel, 'display')
 
 watch(libraryImportOverlayIsOpen, (open) => {
@@ -72,7 +79,7 @@ watch(libraryImportOverlayIsOpen, (open) => {
 function focusableWithin(root: HTMLElement): HTMLElement[] {
   return Array.from(
     root.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), summary:not([aria-disabled="true"]), ' +
         'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
   )
@@ -154,17 +161,17 @@ function trapTab(event: KeyboardEvent): void {
             {{ tError(destinationWorksError) }}
           </p>
 
-          <label v-if="destinationMode === 'existing'" class="field" data-import-destination-picker>
+          <div v-if="destinationMode === 'existing'" class="field" data-import-destination-picker>
             <span>{{ t('mode.library.destination_pick_label') }}</span>
-            <select
-              :value="destinationWorkId ?? ''"
-              @change="setDestinationWorkId(($event.target as HTMLSelectElement).value)"
-            >
-              <option value="" disabled>{{ t('mode.library.destination_pick_placeholder') }}</option>
-              <!-- aura-allow-text: DỮ LIỆU (tên Tác phẩm người dùng tự đặt). -->
-              <option v-for="w in destinationWorks" :key="w.work_id" :value="w.work_id">{{ w.name }}</option>
-            </select>
-          </label>
+            <SelectMenu
+              variant="field"
+              :model-value="destinationWorkId ?? ''"
+              :options="destinationOptions"
+              :label="t('mode.library.destination_pick_label')"
+              :placeholder="t('mode.library.destination_pick_placeholder')"
+              @change="setDestinationWorkId($event)"
+            />
+          </div>
         </fieldset>
 
         <label class="field">
@@ -173,14 +180,23 @@ function trapTab(event: KeyboardEvent): void {
           <input v-else :value="pickedDestinationWork.name" type="text" autocomplete="off" disabled />
         </label>
 
-        <label class="field">
+        <div class="field">
           <span>{{ t('mode.library.field_source_lang') }}</span>
-          <select v-if="pickedDestinationWork === null" v-model="sourceLang">
-            <option value="zh">{{ t('mode.library.lang_zh') }}</option>
-            <option value="en">{{ t('mode.library.lang_en') }}</option>
-          </select>
-          <input v-else :value="pickedDestinationWork.source_lang" type="text" autocomplete="off" disabled />
-        </label>
+          <SelectMenu
+            v-if="pickedDestinationWork === null"
+            v-model="sourceLang"
+            variant="field"
+            :options="sourceLangOptions"
+            :label="t('mode.library.field_source_lang')"
+          />
+          <input
+            v-else
+            :value="sourceLangLabel(pickedDestinationWork.source_lang) ?? ''"
+            type="text"
+            autocomplete="off"
+            disabled
+          />
+        </div>
 
         <label class="field">
           <span>{{ t('mode.library.field_genre') }}</span>

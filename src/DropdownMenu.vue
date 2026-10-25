@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
 
-defineProps<{
-  variant: 'chip' | 'more'
+const props = defineProps<{
+  variant: 'chip' | 'more' | 'field'
   label: string
   active?: boolean
   ariaLabel?: string
+  disabled?: boolean
 }>()
+
+const emit = defineEmits<{ open: [] }>()
 
 const root = useTemplateRef<HTMLDetailsElement>('root')
 
@@ -16,13 +19,26 @@ function closeMenu(): void {
 
 function onToggle(): void {
   if (root.value === null || !root.value.open) return
-  for (const other of document.querySelectorAll<HTMLDetailsElement>('details[data-library-menu][open]')) {
+  if (props.disabled === true) {
+    root.value.open = false
+    return
+  }
+  for (const other of document.querySelectorAll<HTMLDetailsElement>('details[data-dropdown-menu][open]')) {
     if (other !== root.value) other.open = false
   }
+  emit('open')
 }
 
 function onKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape' || root.value === null || !root.value.open) return
+  if (root.value === null) return
+  if (props.disabled === true && (event.key === 'Enter' || event.key === ' ') && event.target instanceof HTMLElement && event.target.tagName === 'SUMMARY') {
+    event.preventDefault()
+    return
+  }
+  if (!root.value.open) return
+  const closesOnEnter =
+    event.key === 'Enter' && event.target instanceof HTMLInputElement && event.target.type === 'radio'
+  if (event.key !== 'Escape' && !closesOnEnter) return
   event.preventDefault()
   event.stopPropagation()
   closeMenu()
@@ -39,7 +55,9 @@ function onDocumentMouseDown(event: MouseEvent): void {
 function onDocumentClick(event: MouseEvent): void {
   const target = event.target
   if (root.value === null || !root.value.open) return
-  if (target instanceof Element && root.value.contains(target) && target.closest('[data-menu-close]') !== null) closeMenu()
+  if (!(target instanceof Element) || !root.value.contains(target)) return
+  if (target instanceof HTMLInputElement && event.detail === 0) return
+  if (target.closest('[data-menu-close]') !== null) closeMenu()
 }
 
 onMounted(() => {
@@ -56,16 +74,21 @@ onBeforeUnmount(() => {
   <details
     ref="root"
     class="menu"
-    :class="['menu--' + variant, { 'menu--active': active === true }]"
-    data-library-menu
+    :class="['menu--' + variant, { 'menu--active': active === true, 'menu--disabled': disabled === true }]"
+    data-dropdown-menu
     @toggle="onToggle"
     @keydown="onKeydown"
   >
-    <summary class="menu-trigger" :aria-label="ariaLabel">
+    <summary
+      class="menu-trigger"
+      :aria-label="ariaLabel"
+      :aria-disabled="disabled === true ? 'true' : undefined"
+      :tabindex="disabled === true ? -1 : undefined"
+    >
       <!-- aura-allow-text: label is the output of t() or a user-typed filter value. -->
-      <span>{{ label }}</span>
+      <span class="menu-label">{{ label }}</span>
       <!-- aura-allow-text: decorative glyph, hidden from assistive tech. -->
-      <span v-if="variant === 'chip'" class="menu-caret" aria-hidden="true">▾</span>
+      <span v-if="variant !== 'more'" class="menu-caret" aria-hidden="true">▾</span>
     </summary>
     <div class="menu-panel">
       <slot />
@@ -107,10 +130,42 @@ onBeforeUnmount(() => {
   font-weight: var(--weight-ui-md-strong);
 }
 
+.menu--field .menu-trigger {
+  justify-content: space-between;
+  padding: 8px 8px;
+  border: 1px solid var(--color-outline);
+  border-radius: 4px;
+  background: var(--color-surface);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface);
+}
+
+.menu--field .menu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu--disabled .menu-trigger {
+  pointer-events: none;
+  cursor: not-allowed;
+  color: var(--color-on-surface-variant);
+}
+
 .menu--more .menu-trigger {
   padding: 4px 8px;
   border-radius: 3px;
   background: var(--color-surface);
+}
+
+.menu--field .menu-panel {
+  right: 0;
+  left: 0;
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .menu-panel {

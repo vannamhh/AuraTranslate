@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type { CommandDeps } from '../../src/commands'
 import type { TmManageListing, TmManageRow, TmPairOrigin } from '../../src/config/tm'
+import { pickSelectOption } from './support/selectMenu'
 
 const listMock = vi.fn()
 const updateMock = vi.fn()
@@ -857,7 +858,8 @@ describe('failed re-list and locks', () => {
     await settle(wrapper)
     expect(state.tmManageSaving.value).toBe(true)
     expect(wrapper.get('.tm-toolbar input').attributes('disabled')).toBeDefined()
-    expect(wrapper.findAll('.tm-toolbar select').every((el) => el.attributes('disabled') !== undefined)).toBe(true)
+    const sortMenu = wrapper.get('.tm-toolbar .tm-field-sort [data-dropdown-menu]')
+    expect(sortMenu.classes()).toContain('menu--disabled')
 
     release({ ok: true, error: null })
     await settle(wrapper)
@@ -1466,7 +1468,7 @@ describe('accessible names, button keys, Work-closed view and Tab wrap', () => {
     const panel = wrapper.get('.tm-panel').element as HTMLElement
     const stops = Array.from(
       panel.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), summary:not([aria-disabled="true"]), ' +
           'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       ),
     )
@@ -1508,8 +1510,7 @@ describe('tier counts, origin pills, sort and the TM-only-mine policy', () => {
 
   it('the sort control re-lists with the chosen axis as the fourth argument', async () => {
     const { wrapper } = await mountOpen(THREE_ROWS)
-    const select = wrapper.get('.tm-toolbar select')
-    await select.setValue('side')
+    await pickSelectOption(wrapper.get('.tm-toolbar .tm-field-sort [data-dropdown-menu]'), 'side')
     await vi.waitFor(() => expect(listMock).toHaveBeenLastCalledWith('all', 'both', '', 'side'))
     wrapper.unmount()
   })

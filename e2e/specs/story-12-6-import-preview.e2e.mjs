@@ -150,14 +150,9 @@ describe('Story 12-6: import preview screens', () => {
     const form = await $(FORM)
     await form.waitForDisplayed({ timeout: 10_000 })
     await (await fieldByLabel(form, 0)).setValue(BILINGUAL_WORK)
-    await browser.execute(() => {
-      for (const select of document.querySelectorAll('.li-panel .import-form select')) {
-        if (Array.from(select.options).some((o) => o.value === 'zh')) {
-          select.value = 'zh'
-          select.dispatchEvent(new Event('change', { bubbles: true }))
-        }
-      }
-    })
+    const langMenu = await form.$('[data-dropdown-menu]')
+    await realClick(await langMenu.$('summary'))
+    await realClick(await (await langMenu.$('input[type="radio"][value="zh"]')).$('..'))
     const inputs = await form.$$('.field input[type="text"]')
     await inputs[inputs.length - 1].setValue(csv)
     await realClick(await form.$('[data-bilingual-import-preview-open]'))

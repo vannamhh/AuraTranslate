@@ -20,6 +20,7 @@ import type {
   ChapterSplitPreviewEntryWire,
   ChapterSplitPreviewWire,
 } from '../../src/config/project'
+import { pickSelectOption } from './support/selectMenu'
 
 const previewMock = vi.fn()
 const rebuildMock = vi.fn()
@@ -599,7 +600,7 @@ describe('BilingualImportPreviewOverlay.vue — bảng .docx', () => {
 
     const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
     expect(wrapper.find('#bip-table-select').exists()).toBe(true)
-    expect(wrapper.findAll('#bip-table-select option')).toHaveLength(3)
+    expect(wrapper.findAll('#bip-table-select input[type="radio"]')).toHaveLength(2)
     expect(wrapper.find('.bip-strip').exists()).toBe(false)
     expect(wrapper.find('.bip-columns').exists()).toBe(false)
     expect(wrapper.find('.bip-act-primary').attributes('disabled')).toBeDefined()
@@ -615,7 +616,7 @@ describe('BilingualImportPreviewOverlay.vue — bảng .docx', () => {
     rebuildMock.mockResolvedValue({ preview: chosenPreview(0), error: null })
 
     const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
-    await wrapper.get('#bip-table-select').setValue('0')
+    await pickSelectOption(wrapper.get('#bip-table-select'), '0')
 
     expect(rebuildMock).toHaveBeenCalledWith('en', null, 0, 1, false, [], 0)
 
