@@ -9,7 +9,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-10-13'
+updated: '2026-10-25'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md'
@@ -771,6 +771,8 @@ graph TD
 
   1. **Gọi qua `DialogExt::dialog().file()` trong Rust.** Frontend `dispatch` một command đã đăng ký (AD-34); vỏ `wire` mỏng mở hộp thoại, nhận `PathBuf`, rồi gọi thẳng xuống `core/**`. Đường dẫn **không** đi ngược ra webview trừ khi có một lý do viết ra — nội dung tệp thì không bao giờ (AD-1/AD-16).
   2. **`capabilities/main.json` giữ ĐÚNG ba quyền.** Không `dialog:*`, không `fs:*`. 🔴 **Đây là cơ chế cưỡng chế thật, không phải một lời dặn:** thiếu quyền thì lệnh `dialog` **không tồn tại** với JavaScript — ACL của Tauri từ chối ở tầng dưới `invoke`. Và nó **đã có cổng canh sẵn**: `src-tauri/tests/config_invariants.rs::main_capability_grants_the_minimum_and_no_plugin_permission` khoá đúng ba chuỗi đó bằng `assert_eq!`, kèm câu *"Mọi quyền `<plugin>:…` ở đây là một bề mặt IPC mới — phải là một AD mới trước đã"*. `AD` này **không** nới cổng đó; nó xác nhận cổng đó đang canh đúng thứ, và một `AD` tương lai muốn nhánh JavaScript phải đi qua nó.
+
+     🔵 2026-10-25: *đúng ba* thành *đúng năm* theo AD-58 Rule 2 (thêm `core:window:allow-start-dragging` và `core:window:allow-internal-toggle-maximize` cho vùng kéo thanh tiêu đề). Vẫn không `dialog:*`, không `fs:*`; nhánh Rust-only của hộp thoại không đổi.
   3. **`tauri_plugin_fs::init()` KHÔNG được đăng ký.** `tauri-plugin-fs` vào cây phụ thuộc như một phụ thuộc **cứng** của `tauri-plugin-dialog` (`Cargo.toml`, không `optional`, không feature gate) — nhưng crate trong cây **không** bằng lệnh trên dây. `tauri-plugin-dialog-2.7.2/src/commands.rs:162` gọi `window.try_fs_scope()` trả `Option`: không đăng ký thì nó trả `None`, hộp thoại **vẫn chạy**, và **0** lệnh `fs:*` được phơi ra.
 
 - **Vì sao `tauri-plugin-dialog` chứ không `rfd` thẳng — và cái giá, ghi ra thay vì giấu.**
@@ -1134,6 +1136,39 @@ graph TD
 
   → bằng chứng: `.memlog.md` 2026-10-13 · `phan-loai-loai-5-c.md` hàng 9 · `reviews/review-ad-54-57-*-2026-10-13.md` · mã đọc: `core/store/schema.rs` (bảng `work`), `core/scope/kinds.rs`, `core/tm/mod.rs`, `core/tm/tmx.rs`, `core/ai/rag.rs`, `commands/tm.rs`.
 
+### AD-58 — Thanh tiêu đề macOS phủ lên webview; kéo cửa sổ qua đúng hai quyền `core:window`, một vùng kéo chỉ trên macOS
+
+- **Binds:** C1, C2 — cửa sổ `main` (AD-24): khối cửa sổ trong `tauri.conf.json`, `capabilities/main.json`, `<header class="titlebar">` của `src/App.vue`, mọi lớp phủ toàn cửa sổ, mọi listener bấm-ra-ngoài trên `document`; `src-tauri/tests/config_invariants.rs`, `src-tauri/SECURITY-NOTES.md`.
+- **Prevents:**
+  1. Bộ `core:window:default` (hay `core:default`) lọt vào vì đó là thứ hướng dẫn Tauri bảo dán, phơi hàng chục lệnh cửa sổ khi chỉ cần kéo.
+  2. Hai chỗ dựng vùng kéo theo hai cách: một chỗ dùng thuộc tính của Tauri, một chỗ tự gọi `startDragging()`, lệch nhau ở chuyện phần tử nào chặn kéo và bấm đúp xử lý ở `mousedown` hay `mouseup`.
+  3. Tắt `decorations` rồi tự vẽ ba nút cửa sổ: mất hành vi gốc của macOS (rê chuột hiện ký hiệu, giữ nút xanh để xếp ô), và Windows phải vẽ theo.
+  4. Lề chừa cho ba nút viết thành số cứng, hoặc áp cả trên Windows, nơi thanh tiêu đề hệ điều hành vẫn còn.
+  5. `drag.js` nuốt `mousedown` trên vùng kéo (`stopImmediatePropagation`), nên menu đóng bằng listener bubble trên `document` không đóng khi bấm vào thanh tiêu đề, và một phần tử bấm được kiểu `div @click` trong header biến thành tay kéo.
+  6. Lớp phủ trùm cả cửa sổ đặt nội dung ở góc trên trái, nằm dưới ba nút của macOS.
+- **Rule:**
+
+  1. **Hình dạng cửa sổ.** `main` giữ `decorations: true` và thêm `titleBarStyle: "Overlay"`, `hiddenTitle: true`, `trafficLightPosition`; không khai `acceptFirstMouse`. Ba khoá này chỉ có tác dụng trên macOS; Windows giữ thanh tiêu đề hệ điều hành. Một test trong `config_invariants.rs` khoá khối cửa sổ: đúng một cửa sổ `main`, `decorations` không `false`, `titleBarStyle` = `Overlay`, `hiddenTitle` = `true`, `trafficLightPosition` có mặt, `acceptFirstMouse` vắng hoặc `false`.
+  2. **Đúng năm quyền.** `capabilities/main.json` = ba quyền cũ + `core:window:allow-start-dragging` + `core:window:allow-internal-toggle-maximize`. Không quyền `core:window:*` nào khác, không bộ `default` nào. `config_invariants.rs::main_capability_grants_the_minimum_and_no_plugin_permission` khoá đúng năm chuỗi bằng `assert_eq!`, đổi cùng commit với `tauri.conf.json`. ACL này là cưỡng chế thật; các test frontend ở mục 3 chỉ là lưới phụ. Mọi chỗ còn ghi *ba* đổi cùng commit: thông điệp assert đó (câu *"quyền `<plugin>:…` là một bề mặt IPC mới — phải là một AD mới trước đã"* giữ nguyên, thêm một dòng nêu người cần mỗi quyền `core:window`), `description` của `main.json`, `SECURITY-NOTES.md` dòng *"đúng BA quyền"*, tiêu đề §`capabilities/main.json` và bảng của mục đó (thêm hai hàng).
+  3. **Một vùng kéo, một bên gọi, chỉ macOS.**
+     - Chỉ `<header class="titlebar">` của `App.vue` mang `data-tauri-drag-region="deep"`, và chỉ khi bộ dò nền tảng (`detectIsMac`, `src/commands/index.ts`) trả macOS. Trên Windows header không mang thuộc tính, nên không có vùng kéo thứ hai dưới thanh tiêu đề hệ điều hành.
+     - Bên gọi hai lệnh đó duy nhất là `drag.js` Tauri tự tiêm. Mã của app không chứa `plugin:window|`, không import `@tauri-apps/api/window` hay `@tauri-apps/api/webviewWindow`, không tự viết handler kéo.
+     - Mọi phần tử bấm được trong header là phần tử `drag.js` nhận là bấm được: thẻ `button`/`a`/`input`/`select`/`textarea`/`label`/`summary`, hoặc `role` trong danh sách của nó, hoặc `tabindex` khác `-1`. Không `div @click`. Header `user-select: none`, vì trên macOS bấm đúp không `preventDefault`.
+     - Test frontend (`tests/frontend/titlebarDragRegion.test.ts`): đọc `App.vue`, đúng một thuộc tính đó, giá trị `deep`, nằm trên `header.titlebar`, gắn theo nền tảng; quét `src/` không có ba mẫu bị cấm ở trên. Đối chứng đỏ: chuyển thuộc tính lên phần tử bao ngoài header.
+  4. **Listener bấm-ra-ngoài ở pha capture.** Mọi listener `mousedown`/`pointerdown` trên `document` dùng để đóng menu hay lớp nổi đăng ký với `capture: true`, để chạy trước `drag.js`. Hôm nay là ba chỗ: `TitlebarToolsMenu.vue`, `DropdownMenu.vue`, `panels/LookupSourcesMenu.vue`. Test của mỗi menu bấm vào header trống và thấy menu đóng; đối chứng đỏ bằng cách bỏ `capture`.
+  5. **Lề cho ba nút.** Lề trái của header, và phần đệm trên-trái của mọi lớp phủ toàn cửa sổ (`inset: 0`) có nội dung nằm trong dải `--space-titlebar-height` ở mép trái, dùng cùng một token khoảng cách mới, khoá trong `check-tokens.mjs` như `titlebar-height`, chỉ áp trên macOS. Lớp phủ vẫn trùm thanh tiêu đề; khi lớp phủ mở thì không kéo và không bấm đúp phóng to được, đúng như một hộp thoại modal. Một ca Vitest chạy `detectIsMac` cả hai chiều và thấy lề có trên macOS, vắng trên nền khác. Toàn màn hình giữ nguyên lề, vì biết đến lúc vào toàn màn hình phải nghe sự kiện cửa sổ, tức thêm quyền.
+  6. **Đo trên máy thật, ghi nợ.** Chiều cao dải tiêu đề của macOS đổi theo phiên bản (doc của `Overlay`), nên `trafficLightPosition` và token lề là số đo trên máy của Ice cho thanh 40px. Story thi hành ghi một mục nợ `Chủ:` epic của nó để Ice kiểm một lượt app thật: ba nút nằm giữa thanh, kéo, bấm đúp, menu đóng khi bấm thanh tiêu đề, góc trên trái của các lớp phủ. Windows: một mục `B7`, header không kéo và không đổi gì.
+  7. **Giới hạn chấp nhận.** Theo doc của Tauri, cửa sổ không được chọn thì cú bấm đầu chỉ chọn cửa sổ, chưa kéo (tauri issue #4316); chưa đo trên app này. `acceptFirstMouse` không bật, vì nó làm cú bấm vào cửa sổ ở nền kích hoạt luôn nút bên dưới. Bấm đúp luôn phóng to hoặc thu lại (`internal_toggle_maximize`), không theo lựa chọn *bấm đúp thanh tiêu đề* trong Cài đặt hệ thống của macOS, và chỉ chạy khi chuột không di giữa hai lần nhấn nhả.
+  8. **Đổi gì / không đổi gì.** AD-48 Rule 2 nhận một dòng cập nhật: ba thành năm, theo AD-58; nhánh Rust-only của hộp thoại và lệnh cấm `dialog:*`/`fs:*` không đổi. AD-24 (một cửa sổ, label `main`) không đổi; nhờ nó, tham số `label` của hai lệnh không chỉ được sang cửa sổ nào khác.
+
+- **Phương án bị loại:**
+  - **Lệnh riêng của app gọi `start_dragging` từ Rust (khuôn AD-48):** mở đúng cùng năng lực trên cùng cửa sổ, nên không giảm bề mặt; đổi lại phải tự viết lại logic của `drag.js`. Lý do của AD-48 là phạm vi đường dẫn của quyền `dialog` phía JS, không áp ở đây.
+  - **`titleBarStyle: "Transparent"`:** 0 quyền mới, nhưng tab vẫn ở hàng thứ hai, không đạt mockup.
+  - **`decorations: false` và tự vẽ nút:** Prevents 3.
+  - **Lớp phủ bắt đầu dưới thanh tiêu đề:** thanh tiêu đề còn bấm được sau một hộp thoại `aria-modal`; làm nó `inert` thì cũng chặn luôn kéo, nên không mua được gì.
+
+  → bằng chứng: `.memlog.md` 2026-10-25 · `ad-brief-keo-cua-so-thanh-tieu-de/` · `reviews/review-ad-58-*-2026-10-25.md` · mã đọc: `tauri-utils-2.9.3/src/config.rs:2060-2071`, `tauri-utils-2.9.3/src/lib.rs:160-180`, `tauri-2.11.5/src/window/scripts/drag.js`, `tauri-2.11.5/src/window/plugin.rs:220-262`, `src-tauri/gen/schemas/desktop-schema.json`, `src/TitlebarToolsMenu.vue:69`, `src/DropdownMenu.vue:69`, `src/panels/LookupSourcesMenu.vue:79`.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -1442,8 +1477,8 @@ AuraTranslate/
 
 | Nhóm năng lực | Lives in | Governed by |
 |---|---|---|
-| **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43 |
-| **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42, AD-55 |
+| **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43, AD-58 |
+| **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42, AD-55, AD-58 |
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
 | **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57 |
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51, AD-57 |
@@ -1485,4 +1520,4 @@ AuraTranslate/
 
 - `spine-evidence.md` — bằng chứng và lý do của từng AD, trỏ từ spine bằng `spine-evidence.md#…`
 - `.memlog.md` — nhật ký phiên viết spine
-- `reviews/` — các lượt review spine (`review-ad-44`, `review-ad-49-*`, `review-ad-50-*`, ba lượt `review-*-2026-08-03b`, và `review-ad-54-57-*-2026-10-13`)
+- `reviews/` — các lượt review spine (`review-ad-44`, `review-ad-49-*`, `review-ad-50-*`, ba lượt `review-*-2026-08-03b`, `review-ad-54-57-*-2026-10-13`, và `review-ad-58-*-2026-10-25`)
