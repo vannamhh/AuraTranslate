@@ -606,6 +606,8 @@ const importScreenIsOpen = computed<boolean>(
             data-library-work-cover
             :data-cover-tone="workCoverTone(work.work_id)"
           >
+            <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
+            <span class="work-name" :title="work.name" data-library-work-name>{{ work.name }}</span>
             <button
               type="button"
               class="work-go"
@@ -643,8 +645,6 @@ const importScreenIsOpen = computed<boolean>(
             </div>
           </div>
           <div class="work-body">
-            <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
-            <span class="work-name" data-library-work-name>{{ work.name }}</span>
             <!-- aura-allow-text: lĩnh vực là dữ liệu, nhãn thời gian qua t(). -->
             <span class="work-meta" data-library-work-meta>{{ workCards[workIndex].line ?? '' }}</span>
             <div
@@ -1183,9 +1183,11 @@ const importScreenIsOpen = computed<boolean>(
 .work-cover {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
+  align-content: space-between;
   align-items: flex-end;
   justify-content: space-between;
-  height: 112px;
+  height: 136px;
   padding: 12px;
   border-radius: 3px 3px 0 0;
   background: var(--color-cover-1-from);
@@ -1257,10 +1259,15 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .work-name {
+  flex: 0 0 100%;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
   font-family: var(--face-read-sm);
-  font-size: var(--font-ui-md);
+  font-size: var(--font-read-sm);
   line-height: var(--leading-read-sm);
-  color: var(--color-on-surface);
+  color: var(--color-on-cover);
   overflow-wrap: anywhere;
 }
 

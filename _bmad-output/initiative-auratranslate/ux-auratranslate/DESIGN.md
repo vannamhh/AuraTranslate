@@ -206,7 +206,7 @@ Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component
 
 Bìa thẻ Tác phẩm ở Library là một màu đặc `cover-N-from` (Ice, 2026-10-25: không dải chuyển, giữ luật không gradient của Kiểm F); `cover-N-to` có sẵn nhưng chưa có chỗ dùng. Mỗi Tác phẩm một tông cố định, chọn theo `work_id`, nên đổi tên không đổi màu. Tông 1–3 lấy từ `mockups/library-and-import.html`; 4–6 thêm cho màn có nhiều Tác phẩm. Hình mẫu: `mockups/library-luoi-rong.html`.
 
-🔵 2026-10-25, lượt hai (Ice duyệt): **tên Tác phẩm in trên bìa**, vì app chưa có đường đặt ảnh bìa (FR3) và một khối màu trống không cho biết gì. Chữ nội dung (serif) 16 px, giãn dòng 1,35, cắt ở 3 dòng, góc trên trái; tên đầy đủ ở `aria-label`. Phần dưới thẻ không lặp lại tên. Bìa cao 136 px.
+🔵 2026-10-25, lượt hai (Ice duyệt): **tên Tác phẩm in trên bìa**, vì app chưa có đường đặt ảnh bìa (FR3) và một khối màu trống không cho biết gì. Chữ nội dung (serif) 16 px, giãn dòng 1,35, cắt ở 3 dòng, góc trên trái; tên đầy đủ ở `aria-label`. Phần dưới thẻ không lặp lại tên. Bìa cao 136 px. 🔵 2026-10-25, lúc dựng (Ice chọn): giãn dòng 1,66 bằng token `read-sm` — tên xuống tới 3 dòng nên chịu §Giãn dòng 1.66 là sàn cứng, mà 1,35 nằm dưới sàn; 3 dòng cao 79,7 px, cộng nút đáy vẫn vừa lòng bìa 112 px. Tên đầy đủ nằm nguyên trong DOM (chỉ CSS cắt) và ở `title`.
 
 Chữ trên bìa dùng token `on-cover` = `#fbfaf6` ở **cả hai theme**. Đây là **6 cặp mới** cho `contrast.pairs` mỗi theme (`on-cover` trên mỗi `cover-N-from`), thấp nhất 7,05:1 ở nền sáng và 6,09:1 ở nền tối, cả hai là tông 4 rêu. Nút `Tiếp tục dịch` và nút `⋯` trên bìa vẫn có nền đặc riêng (`primary` hoặc `surface`), không thêm cặp. Nếu sau này có ảnh bìa thì bìa in tên là biểu diễn thay thế cho Tác phẩm không có ảnh.
 

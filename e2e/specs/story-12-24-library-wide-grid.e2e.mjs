@@ -280,6 +280,50 @@ describe('Story 12-24: Library theo mockup lưới rộng', () => {
     }
   })
 
+  it('a three-line name on the cover uses on-cover at 1.66 leading, clamps at three lines and clears the bottom buttons', async () => {
+    await resizeLogical(1150, 935)
+    await aimWork(names[1])
+    const LONG = 'Thượng Thiên Tục Ngã Đáo Thương Khung Chi Hậu Người Đọc Muốn Biết Đường Về Của Kiếm Khách Lãng Tử'
+    const m = await browser.execute((long) => {
+      const cell = document.querySelector('.works-grid .work-cell--current')
+      const name = cell?.querySelector('.work-cover .work-name')
+      const go = cell?.querySelector('.work-cover .work-go')
+      const cover = cell?.querySelector('.work-cover')
+      if (!(name instanceof HTMLElement) || !(go instanceof HTMLElement) || !(cover instanceof HTMLElement)) return null
+      const before = name.textContent
+      name.textContent = long
+      const style = getComputedStyle(name)
+      const fontSize = parseFloat(style.fontSize)
+      const lineHeight = parseFloat(style.lineHeight)
+      const n = name.getBoundingClientRect()
+      const g = go.getBoundingClientRect()
+      const c = cover.getBoundingClientRect()
+      const out = {
+        color: style.color,
+        fontSize,
+        ratio: lineHeight / fontSize,
+        lines: Math.round(n.height / lineHeight),
+        clipped: name.scrollHeight > name.clientHeight + 1,
+        nameBottom: n.bottom,
+        goTop: g.top,
+        goBottom: g.bottom,
+        coverBottom: c.bottom,
+        coverHeight: c.height,
+      }
+      name.textContent = before
+      return out
+    }, LONG)
+    expect(m).not.toBeNull()
+    expect(m.color).toBe('rgb(251, 250, 246)')
+    expect(m.fontSize).toBe(16)
+    expect(m.ratio).toBeGreaterThanOrEqual(1.66 - 0.01)
+    expect(m.lines).toBe(3)
+    expect(m.clipped).toBe(true)
+    expect(m.coverHeight).toBe(136)
+    expect(m.nameBottom).toBeLessThanOrEqual(m.goTop)
+    expect(m.goBottom).toBeLessThanOrEqual(m.coverBottom)
+  })
+
   it('saves 1490x935 light and dark screenshots of the sample Library', async () => {
     await resizeLogical(1490, 935)
     await aimWork(names[1])
