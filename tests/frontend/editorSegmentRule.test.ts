@@ -62,9 +62,9 @@ describe('resolveSegmentRule — nhánh `confirmed` nay có nguồn dữ liệu 
    * ⚠️ Đảo hai dòng ưu tiên trong `resolveSegmentRule` làm ca này ĐỎ. Đó là chủ đích: thứ tự
    * đó là một quyết định 🔴 có lý do ghi tại chỗ, không một chi tiết cài đặt.
    */
-  it('câu đã xác nhận MÀ con trỏ đang ở đó ⇒ `primary`, KHÔNG `confirmed`', () => {
+  it('câu đã xác nhận MÀ con trỏ đang ở đó ⇒ `caret-rule`, KHÔNG `confirmed`', () => {
     const s = segment({ id: 7, status: 'confirmed' })
-    expect(resolveSegmentRule(segmentRuleInputOf(s, 7, NO_TM_FILLED))).toBe('primary')
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 7, NO_TM_FILLED))).toBe('caret-rule')
   })
 
   /**
@@ -130,7 +130,7 @@ describe('hàng còn thiếu của bảng năm giá trị — nay ĐÃ CÓ giá 
   /** ⚠️ `primary` là mệnh đề về **hiện tại**, nó thắng `draft` như đã thắng `confirmed`. */
   it('con trỏ đang ở chính câu đó ⇒ `primary`, KHÔNG `draft`', () => {
     const s = segment({ id: 5, status: 'draft', target_text: 'Có chữ.' })
-    expect(resolveSegmentRule(segmentRuleInputOf(s, 5, NO_TM_FILLED))).toBe('primary')
+    expect(resolveSegmentRule(segmentRuleInputOf(s, 5, NO_TM_FILLED))).toBe('caret-rule')
   })
 })
 

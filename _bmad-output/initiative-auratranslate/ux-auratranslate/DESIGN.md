@@ -21,7 +21,8 @@ colors:
   primary: '#2f5d63'
   on-primary: '#fbfaf6'
   confirmed: '#5a6b3f'
-  tm-rule: '#b99a5e'
+  tm-rule: '#a38347'
+  caret-rule: '#25484d'
   tm-text: '#7a5d25'
   error: '#8f2f22'
 colors-dark:
@@ -38,7 +39,8 @@ colors-dark:
   primary: '#7fb3ba'
   on-primary: '#1b1a17'
   confirmed: '#9cb37a'
-  tm-rule: '#b99a5e'
+  tm-rule: '#92763f'
+  caret-rule: '#c7dee1'
   tm-text: '#d3b276'
   error: '#e5867a'
 typography:
@@ -187,10 +189,11 @@ Bảng màu lấy từ giấy và mực, không lấy từ màn hình.
 | 11 | `primary` | `#2f5d63` | `#7fb3ba` | Màu nhấn **duy nhất** — thuật ngữ đã chốt, nhãn nguồn, tiêu điểm |
 | 12 | `on-primary` | `#fbfaf6` | `#1b1a17` | Chữ trên nền `primary` |
 | 13 | `confirmed` | `#5a6b3f` | `#9cb37a` | Câu đã xác nhận |
-| 14 | `tm-rule` | `#b99a5e` | `#b99a5e` | Vạch gợi ý TM — **là vạch, không phải chữ** |
+| 14 | `tm-rule` | `#a38347` | `#92763f` | Vạch gợi ý TM — **là vạch, không phải chữ**. 🔵 2026-10-25: từ `#b99a5e` cả hai theme |
 | 15 | `tm-text` | `#7a5d25` | `#d3b276` | Chữ trong khối gợi ý TM |
 | 16 | `error` | `#8f2f22` | `#e5867a` | Lỗi |
-| 17 | `draft` | `#a9a196` | `#6a6459` | Vạch *đã dịch tay, chưa ai ký* — **là vạch, không phải chữ**. 🔵 Story 2.5b |
+| 17 | `draft` | `#b9b3aa` | `#575249` | Vạch *đã dịch tay, chưa ai ký* — **là vạch, không phải chữ**. 🔵 Story 2.5b. 🔵 2026-10-25: không còn mượn giá trị `ornament` |
+| 18 | `caret-rule` | `#25484d` | `#c7dee1` | Vạch lề câu đang sửa — **là vạch, không phải chữ**. 🔵 2026-10-25 |
 
 Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component** (AD-34) — thứ cần kiểm tra tập trung thì không được rải rác.
 
@@ -202,7 +205,7 @@ Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component
 
 ### Tông bìa Tác phẩm — **13 token mỗi theme** *(🔵 thêm 2026-10-25, Ice duyệt)*
 
-🔵 2026-10-25: tổng token màu mỗi theme thành 24 + 12 = 36 (số thật của `tokens.json`: đã có `diff-*` và `word-*` ngoài bảng 17); bảng 17 ở trên giữ nguyên. 🔵 2026-10-25, lượt hai: thêm `on-cover` thành 37. `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
+🔵 2026-10-25: tổng token màu mỗi theme thành 24 + 12 = 36 (số thật của `tokens.json`: đã có `diff-*` và `word-*` ngoài bảng 17); bảng 17 ở trên giữ nguyên. 🔵 2026-10-25, lượt hai: thêm `on-cover` thành 37. 🔵 2026-10-25, lượt ba: thêm `caret-rule` thành 38. `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
 
 Bìa thẻ Tác phẩm ở Library là một màu đặc `cover-N-from` (Ice, 2026-10-25: không dải chuyển, giữ luật không gradient của Kiểm F); `cover-N-to` có sẵn nhưng chưa có chỗ dùng. Mỗi Tác phẩm một tông cố định, chọn theo `work_id`, nên đổi tên không đổi màu. Tông 1–3 lấy từ `mockups/library-and-import.html`; 4–6 thêm cho màn có nhiều Tác phẩm. Hình mẫu: `mockups/library-luoi-rong.html`.
 
@@ -418,6 +421,7 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 > 🔵 **2026-10-13 (D3, `change-hoan-thien-giao-dien-theo-mockup`):** cột nhãn trạng thái không còn hiện. Chữ trạng thái ở lại trong hàng, ẩn khỏi mắt, và là lý do vạch vẫn được `aria-hidden`. Vì vạch thành kênh thị giác duy nhất, các trạng thái của nó phải khác nhau **ngoài màu** (WCAG 1.4.1): hình nét (liền · đứt · chấm) hoặc độ dày, chọn trong story dựng lưới.
 > 🔵 **2026-10-14 (Ice chốt, `story-workspace-luoi-hai-cot-va-thanh-trang-thai`):** hình đã chọn — `confirmed` liền 2px · `draft` đứt 2px · `tm-rule` chấm 2px · `primary` liền 3px; `none` không vạch. Vạch dùng `border-left` (kiểu nét + màu token); 12.13 dùng lại bộ hình này.
 > 🔵 **2026-10-23 (Ice chốt, Story 2.14):** mọi vạch cùng dày 3px, chỉ khác kiểu nét và màu — `primary` liền · `confirmed` đôi · `draft` đứt · `tm-rule` chấm; `none` vẫn không vạch (ô giữ viền 3px trong suốt). Lý do: đổi độ dày vạch khi dời con trỏ buộc WebKit tính lại bố cục cả lưới (~700 → ~160 ms ở 9.850 câu, bản debug).
+> 🔵 **2026-10-25 (Ice chốt):** mọi vạch là nét liền 3px, chỉ khác màu; bỏ nét đôi, đứt, chấm. Vạch câu đang sửa dùng token riêng `caret-rule` thay cho `primary`. WCAG 1.4.1 giữ bằng bậc độ sáng: trên `surface`, nháp 1,99 · TM 3,41 · đã xác nhận 5,57 · đang sửa 9,52 (sáng) và 2,00 · 3,61 · 6,75 · 11,05 (tối); hai vạch bất kỳ cách nhau ít nhất 1,63:1, `check:commands` Kiểm I đòi tối thiểu 1,5:1. `draft` và `tm-rule` đổi giá trị nên mọi nét khác dùng hai token này cũng đổi theo.
 
 **Ranh giới câu** — ký tự `⏐` màu `ornament`, `opacity: 0` mặc định, hiện ở `0.55` khi rê chuột hoặc khi con trỏ chạm.
 

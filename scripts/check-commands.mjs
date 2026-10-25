@@ -72,6 +72,7 @@ import {
   splitTopLevel,
 } from './lib/commands-scan.mjs'
 import { judgeFloor } from './lib/floor-judge.mjs'
+import { contrast } from './lib/contrast.mjs'
 
 /** @typedef {import('./lib/commands-scan.mjs').ParsedFile} ParsedFile */
 /** @typedef {import('./lib/commands-scan.mjs').TemplateRegion} TemplateRegion */
@@ -2092,6 +2093,8 @@ console.log('\nKiểm I — vạch lề segment: ĐÚNG NĂM giá trị, không 
 
 const EDITOR_SEGMENTS_TS = join(SRC_ROOT, 'panels', 'editorSegments.ts')
 const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'GridBlock.vue')
+const TOKENS_JSON = join(SRC_ROOT, 'tokens', 'tokens.json')
+const RULE_LIGHTNESS_FLOOR = 1.5
 
 /** ⚠️ Bản chép ĐỘC LẬP của `DESIGN.md:380` — không `import` từ tệp đang bị kiểm. */
 // 🔵 2026-08-14 (Story 2.5b) — NĂM → SÁU. `draft` lấp một hàng vốn đã THIẾU trong bảng
@@ -2101,7 +2104,7 @@ const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'GridBlock.vue')
 // 🔴 SÁU → NĂM. `'ornament'` rút khỏi danh mục: không đường sản phẩm nào cho một segment
 // về hưu còn SỐNG trong ảnh chụp khi phép phân giải chạy, nên nhánh đó chết theo cấu tạo
 // trước khi bị rút.
-const EXPECTED_RULE_VALUES = ['confirmed', 'primary', 'tm-rule', 'draft', 'none']
+const EXPECTED_RULE_VALUES = ['confirmed', 'caret-rule', 'tm-rule', 'draft', 'none']
 
 if (!existsSync(EDITOR_SEGMENTS_TS)) {
   abort(`\`${posix(EDITOR_SEGMENTS_TS)}\``, new Error('Tệp không tồn tại — Kiểm I KHÔNG chạy được.'))
@@ -2140,7 +2143,7 @@ if (typeof segmentsMod.resolveSegmentRule !== 'function') {
   // 🔴 Ca `'ornament'` đã GỠ cùng lúc với `retiredAt` khỏi `base`: `SegmentRuleInput`
   // không còn trường đó, và nhánh `'ornament'` không còn tồn tại để đo.
   const cases = [
-    ['primary', { ...base, hasCaret: true, isConfirmed: true, isTmFilled: true }],
+    ['caret-rule', { ...base, hasCaret: true, isConfirmed: true, isTmFilled: true }],
     ['confirmed', { ...base, isConfirmed: true, isTmFilled: true }],
     ['tm-rule', { ...base, isTmFilled: true, targetText: 'ban dich' }],
     ['none', { ...base }],
@@ -2210,30 +2213,36 @@ if (editorVue === undefined) {
       iBad += 1
     }
   }
-  // WCAG 1.4.1: the margin rule is the only visual channel of segment status, so the drawn
-  // values must differ pairwise in border style or width, not only in colour.
-  const strokeByValue = new Map()
+  // WCAG 1.4.1: the margin rule is the only visual channel of segment status. Every rule is
+  // the same 3px solid stroke, so the token colours must differ by lightness, not hue alone.
+  const ruleTokens = []
   for (const value of ruleValues) {
     if (value === 'none' || !declaredClasses.has(value)) continue
     const block = new RegExp(`\\.rule-${value.replace(/[.+^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(editorCss)
     const border = block === null ? null : /border-left:\s*([^;}]*)/.exec(block[1])
-    const width = border === null ? null : /(\d+(?:\.\d+)?px)/.exec(border[1])
-    const style = border === null ? null : /\b(solid|dashed|dotted|double)\b/.exec(border[1])
-    if (width === null || style === null) {
-      fail(`\`.rule-${value}\` không khai độ dày và kiểu nét trong \`border-left\` — vạch chỉ còn khác nhau bằng màu`)
+    if (border === null || !/^3px solid var\(--color-[a-z0-9-]+\)$/.test(border[1].trim())) {
+      fail(`\`.rule-${value}\` không khai \`border-left: 3px solid var(--color-…)\` — mọi vạch lề cùng một nét`)
       iBad += 1
       continue
     }
-    strokeByValue.set(value, `${width[1]} ${style[1]}`)
+    ruleTokens.push(value)
   }
-  const seenStroke = new Map()
-  for (const [value, stroke] of strokeByValue) {
-    const other = seenStroke.get(stroke)
-    if (other !== undefined) {
-      fail(`\`.rule-${other}\` và \`.rule-${value}\` cùng nét \`${stroke}\` — chỉ khác nhau bằng màu (WCAG 1.4.1)`)
-      iBad += 1
+  const tokensJson = JSON.parse(readFileSync(TOKENS_JSON, 'utf8'))
+  for (const theme of ['light', 'dark']) {
+    const colors = tokensJson.colors?.[theme] ?? {}
+    const names = ruleTokens
+    for (let a = 0; a < names.length; a += 1) {
+      for (let b = a + 1; b < names.length; b += 1) {
+        const ratio = contrast(colors[names[a]], colors[names[b]])
+        if (ratio < RULE_LIGHTNESS_FLOOR) {
+          fail(
+            `vạch \`${names[a]}\` và \`${names[b]}\` (${theme}) cách nhau ${ratio.toFixed(2)}:1 — ` +
+              `dưới ${RULE_LIGHTNESS_FLOOR}:1, chỉ còn khác nhau bằng sắc (WCAG 1.4.1)`,
+          )
+          iBad += 1
+        }
+      }
     }
-    seenStroke.set(stroke, value)
   }
   for (const cls of declaredClasses) {
     if (!ruleValues.includes(cls)) {

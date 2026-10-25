@@ -122,18 +122,18 @@ describe('GridPanel caret move cost', () => {
     wrapper.unmount()
   })
 
-  it('the caret value: editing class, aria-label and primary rule move to the new row, and leave the old one', async () => {
+  it('the caret value: editing class, aria-label and caret rule move to the new row, and leave the old one', async () => {
     const { wrapper, state, root } = await mountGrid()
     state.setEditorCaret(12)
     await wrapper.vm.$nextTick()
     expect(tgt(root, 12).classList.contains('editing')).toBe(true)
     expect(tgt(root, 12).getAttribute('aria-label')).toContain('Câu 2')
-    expect(slotClass(root, 1)).toContain('rule-primary')
+    expect(slotClass(root, 1)).toContain('rule-caret-rule')
     state.setEditorCaret(13)
     await wrapper.vm.$nextTick()
     expect(tgt(root, 12).classList.contains('editing')).toBe(false)
     expect(slotClass(root, 1)).toContain('rule-draft')
-    expect(slotClass(root, 2)).toContain('rule-primary')
+    expect(slotClass(root, 2)).toContain('rule-caret-rule')
     wrapper.unmount()
   })
 

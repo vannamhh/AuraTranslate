@@ -61,6 +61,7 @@ import {
   inlineStyleBlocks,
   blockRecoloursBorderWithToken,
 } from './lib/tokens-scan.mjs'
+import { HEX6_RE, contrast } from './lib/contrast.mjs'
 import { judgeFloor } from './lib/floor-judge.mjs'
 
 /** @typedef {import('./lib/tokens-scan.mjs').CssDecl} CssDecl */
@@ -148,22 +149,12 @@ const EXPECTED_COLORS_LIGHT = {
   outline: '#e2dccf',
   'outline-faint': '#efeade',
   ornament: '#a9a196',
-  // 🔵 2026-08-14 (Story 2.5b) — TOKEN THỨ 17, và nó MƯỢN ĐÚNG GIÁ TRỊ của `ornament`.
-  //
-  // 🔴 Vì sao một cái tên thứ hai cho một màu đã có: `check-commands.mjs` Kiểm I đối chiếu
-  // HAI CHIỀU giữa `SEGMENT_RULE_VALUES` và các khối `.rule-<giá trị>` trong CSS, và nó đòi
-  // đúng `background-color: var(--color-<giá trị>)`. Giá trị vạch thứ sáu (`draft`, UX-DR19)
-  // vì thế **phải** có một token mang đúng tên đó — một `var(--color-ornament)` ở khối
-  // `.rule-draft` làm cổng ĐỎ, và một bảng alias để cho lọt là đúng thứ §Miễn trừ cấm.
-  //
-  // ⚠️ Trùng giá trị KHÔNG phải trùng nghĩa: `ornament` = *đã về hưu* (Story 2.8),
-  // `draft` = *đã dịch tay, chưa ai ký*. Hai vạch không bao giờ cùng xuất hiện trên một câu.
-  // ⇒ Vì trùng giá trị, nó **không** mang một cặp tương phản mới nào vào bảng.
-  draft: '#a9a196',
+  draft: '#b9b3aa',
   primary: '#2f5d63',
   'on-primary': '#fbfaf6',
   confirmed: '#5a6b3f',
-  'tm-rule': '#b99a5e',
+  'tm-rule': '#a38347',
+  'caret-rule': '#25484d',
   'tm-text': '#7a5d25',
   error: '#8f2f22',
   'diff-add-bg': '#e7f0e4',
@@ -199,12 +190,12 @@ const EXPECTED_COLORS_DARK = {
   outline: '#3b382f',
   'outline-faint': '#302d26',
   ornament: '#6a6459',
-  // 🔵 Story 2.5b — xem khối lý do ở `EXPECTED_COLORS_LIGHT`.
-  draft: '#6a6459',
+  draft: '#575249',
   primary: '#7fb3ba',
   'on-primary': '#1b1a17',
   confirmed: '#9cb37a',
-  'tm-rule': '#b99a5e',
+  'tm-rule': '#92763f',
+  'caret-rule': '#c7dee1',
   'tm-text': '#d3b276',
   error: '#e5867a',
   'diff-add-bg': '#2b3a2a',
@@ -319,7 +310,7 @@ const EXPECTED_ROUNDED = {
  * `typography` lên lại 18 với `ui-sm-italic` — token nghiêng thật của ô xuất xứ Chương
  * rỗng, thay cho việc mượn `lookup-example`. Xem `tokens.deviations` trong `tokens.json`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 37, typography: 18, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 38, typography: 18, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -336,7 +327,7 @@ const LARGE_TEXT_MIN_PX = 24
 const EXPECTED_ROLES = {
   text: ['on-surface', 'on-surface-variant', 'primary', 'on-primary', 'confirmed', 'tm-text', 'error'],
   surface: ['background', 'surface', 'surface-sunken', 'surface-accent', 'surface-tm', 'primary'],
-  stroke: ['outline', 'outline-faint', 'ornament', 'draft', 'tm-rule'],
+  stroke: ['outline', 'outline-faint', 'ornament', 'draft', 'tm-rule', 'caret-rule'],
 }
 
 /**
@@ -596,33 +587,6 @@ function classifyCustomProp(prop) {
 // ═════════════════════════════════════════════════════════════════════════════════
 // Tương phản WCAG 2.x
 // ═════════════════════════════════════════════════════════════════════════════════
-const HEX6_RE = /^#[0-9a-fA-F]{6}$/
-/** @param {number} c */
-const srgbChannel = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
-
-/** @param {string} hex */
-function luminance(hex) {
-  const n = parseInt(hex.slice(1), 16)
-  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => srgbChannel(v / 255))
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b
-}
-
-/**
- * ⚠️ Ném thay vì trả `NaN`. `parseInt('#abc'.slice(1), 16)` cho 2748 — một số HỢP LỆ cho
- * một giá trị SAI; với `rgb(…)` hay tên màu thì ra `NaN`, và `NaN < 4.5` là `false`, tức
- * cặp được tuyên bố ĐẠT. Một phép so sánh im lặng nhận `NaN` là chỗ mà mọi phán quyết
- * của Kiểm C thành rác kèm hai chữ số thập phân trông rất thuyết phục.
- * @param {string} a
- * @param {string} b
- * @returns {number}
- */
-function contrast(a, b) {
-  if (!HEX6_RE.test(a) || !HEX6_RE.test(b)) {
-    throw new Error(`giá trị màu phải là \`#rrggbb\`; nhận \`${a}\` và \`${b}\``)
-  }
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
-  return (hi + 0.05) / (lo + 0.05)
-}
 
 // ⚠️ Tự kiểm công thức TRƯỚC khi tin bất cứ con số nào nó phát ra. `DESIGN.md §Sàn
 // tương phản` công bố 5,2:1 cho `on-surface-variant #6b6459` trên nền giấy `#f4f1ea`;

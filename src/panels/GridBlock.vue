@@ -56,7 +56,7 @@ const {
 
 const STATE_LABEL_KEYS: Readonly<Record<SegmentRuleValue, string>> = {
   confirmed: 'panel.grid.state_confirmed',
-  primary: 'panel.grid.state_editing',
+  'caret-rule': 'panel.grid.state_editing',
   draft: 'panel.grid.state_draft',
   'tm-rule': 'panel.grid.state_tm',
   none: 'panel.grid.state_untranslated',
@@ -72,7 +72,7 @@ function chapterAssetsOf(id: number) {
 }
 
 function ruleOf(id: number): SegmentRuleValue {
-  return props.caretId === id ? 'primary' : (props.block.rules.get(id) ?? 'none')
+  return props.caretId === id ? 'caret-rule' : (props.block.rules.get(id) ?? 'none')
 }
 
 function ruleClassForRow(id: number): string {
@@ -494,39 +494,27 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
  * hàm TS sẽ đi qua cổng mà không một dòng nào được soi. `check-commands.mjs` Kiểm I đối chiếu
  * năm khối này **hai chiều** với `SEGMENT_RULE_VALUES`.
  *
- * Every rule keeps the slot's 3px border width and differs only in style and colour: a width
- * change relayouts the whole subgrid on WebKit, once per caret move.
+ * Every rule is the slot's 3px solid border and differs only in colour: a width change
+ * relayouts the whole subgrid on WebKit, once per caret move. The colours are a lightness
+ * ladder (`check:commands` Kiểm I) so status stays readable without hue.
  *
  * ⚠️ Hai trong năm màu hôm nay **không đường nào tới được** trên dữ liệu thật — `tm-rule`
  * thuộc Epic 7 (`isTmFilled` còn là hằng `false`) và `ornament` thuộc Story 2.8.
  */
 .rule.rule-confirmed {
-  border-left: 3px double var(--color-confirmed);
+  border-left: 3px solid var(--color-confirmed);
 }
 
-.rule.rule-primary {
-  border-left: 3px solid var(--color-primary);
+.rule.rule-caret-rule {
+  border-left: 3px solid var(--color-caret-rule);
 }
 
 .rule.rule-tm-rule {
-  border-left: 3px dotted var(--color-tm-rule);
+  border-left: 3px solid var(--color-tm-rule);
 }
 
-/*
- * 🔵 Token thứ **17**, thêm ở Story 2.5b (Quyết định #2(a), Ice ký 2026-08-14).
- *
- * ⚠️ `draft` mượn **đúng giá trị** mà token `--color-ornament` mang ở cả hai theme, nên nó là
- * một **cái tên mới cho một màu đã kiểm** — không một màu mới chưa ai đo, và **0 cặp mới**
- * cho `contrast.pairs`.
- *
- * 🔴 Vạch `ornament` (câu về hưu) đã RÚT khỏi `resolveSegmentRule`/`SEGMENT_RULE_VALUES`;
- * khối `.rule.rule-ornament` từng đứng ngay
- * dưới đây bị GỠ theo (một class ngoài `SEGMENT_RULE_VALUES` làm `check:commands` Kiểm I ①
- * đỏ). Token `--color-ornament` KHÔNG bị xoá — nó còn được dùng ở nơi khác
- * (`LookupPanel.vue`, `ImportPreviewOverlay.vue`, `ReadingMode.vue`, dấu điểm cắt ngay dưới).
- */
 .rule.rule-draft {
-  border-left: 3px dashed var(--color-draft);
+  border-left: 3px solid var(--color-draft);
 }
 
 /*

@@ -78,7 +78,7 @@ import type { ChapterSegment } from '../config/segment'
  * ⚠️ `'none'` **là** một trong sáu, không phải "không có giá trị": *"chưa dịch ⇒ không vạch"*
  * là một mệnh đề hiển thị có chủ, và gộp nó vào `null` sẽ làm phép đếm của cổng đọc ra năm.
  */
-export const SEGMENT_RULE_VALUES = ['confirmed', 'primary', 'tm-rule', 'draft', 'none'] as const
+export const SEGMENT_RULE_VALUES = ['confirmed', 'caret-rule', 'tm-rule', 'draft', 'none'] as const
 
 /** Một trong năm giá trị vạch lề. */
 export type SegmentRuleValue = (typeof SEGMENT_RULE_VALUES)[number]
@@ -160,7 +160,7 @@ export type SegmentRuleInput = {
  * một trạng thái mới xin chỗ. Xem [`SEGMENT_RULE_VALUES`].
  */
 export function resolveSegmentRule(input: SegmentRuleInput): SegmentRuleValue {
-  if (input.hasCaret) return 'primary'
+  if (input.hasCaret) return 'caret-rule'
   if (input.isConfirmed) return 'confirmed'
   if (input.isTmFilled) return 'tm-rule'
   // 🔵 2026-08-14 (Story 2.5b) — NHÁNH MỚI, và nó lấp đúng khe hở ghi ở doc-comment trên.

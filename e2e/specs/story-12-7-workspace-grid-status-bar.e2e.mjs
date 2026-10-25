@@ -24,7 +24,7 @@ function readRuleStrokes() {
   for (const rule of document.querySelectorAll('.col-rule .rule')) {
     const cls = [...rule.classList].find((c) => c.startsWith('rule-'))
     const style = getComputedStyle(rule)
-    out[cls] = `${style.borderLeftStyle} ${style.borderLeftWidth}`
+    out[cls] = { stroke: `${style.borderLeftStyle} ${style.borderLeftWidth}`, color: style.borderLeftColor }
   }
   return { strokes: out, ruleCount: document.querySelectorAll('.col-rule .rule').length }
 }
@@ -56,15 +56,13 @@ describe('12.7 — lưới hai cột và thanh trạng thái', () => {
     await browser.pause(500)
   })
 
-  it('vạch lề: đã xác nhận · đang sửa · nháp khác nhau ở kiểu nét hoặc độ dày (computed style); chưa dịch không có vạch', async () => {
+  it('vạch lề: đã xác nhận · đang sửa · nháp cùng nét liền 3px, khác nhau ở màu (computed style); chưa dịch không có vạch', async () => {
     const { strokes, ruleCount } = await browser.execute(readRuleStrokes)
 
-    expect(Object.keys(strokes).sort()).toEqual(['rule-confirmed', 'rule-draft', 'rule-primary'])
+    expect(Object.keys(strokes).sort()).toEqual(['rule-caret-rule', 'rule-confirmed', 'rule-draft'])
     expect(ruleCount).toBe(3)
-    expect(new Set(Object.values(strokes)).size).toBe(3)
-    expect(strokes['rule-draft']).toMatch(/^dashed 3px$/)
-    expect(strokes['rule-primary']).toMatch(/^solid 3px$/)
-    expect(strokes['rule-confirmed']).toMatch(/^double 3px$/)
+    for (const { stroke } of Object.values(strokes)) expect(stroke).toBe('solid 3px')
+    expect(new Set(Object.values(strokes).map((s) => s.color)).size).toBe(3)
   })
 
   it('lưới còn bốn cột, không chữ trạng thái nhìn thấy, tên truy cập ô bản dịch mang số câu và trạng thái', async () => {

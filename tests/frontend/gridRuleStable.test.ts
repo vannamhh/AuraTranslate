@@ -40,7 +40,7 @@ function ruleStates(root: Element): (string | null)[] {
 }
 
 describe('GridPanel margin rule column', () => {
-  it('moving the caret adds and removes no element in the rule column, and the primary rule follows the caret', async () => {
+  it('moving the caret adds and removes no element in the rule column, and the caret rule follows the caret', async () => {
     const { wrapper, state, root } = await mountGrid()
     const col = root.querySelector('.col-rule')!
     const slots = Array.from(col.querySelectorAll('.margin-slot'))
@@ -55,7 +55,7 @@ describe('GridPanel margin rule column', () => {
       state.setEditorCaret(id)
       await wrapper.vm.$nextTick()
       const rest = ['rule-confirmed', 'rule-draft', null]
-      const expected = [11, 12, 13].map((rowId, i) => (rowId === id ? 'rule-primary' : rest[i]))
+      const expected = [11, 12, 13].map((rowId, i) => (rowId === id ? 'rule-caret-rule' : rest[i]))
       expect(ruleStates(root)).toEqual(expected)
     }
     await new Promise((resolve) => setTimeout(resolve, 20))

@@ -145,7 +145,7 @@ async function hangCoVach() {
   return browser.execute(() => {
     const o = document.querySelectorAll('.col-rule .cell-rule')
     for (let i = 0; i < o.length; i += 1) {
-      if (o[i].querySelector('.rule-primary') !== null) return i
+      if (o[i].querySelector('.rule-caret-rule') !== null) return i
     }
     return null
   })
