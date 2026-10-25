@@ -143,12 +143,19 @@ pub struct InvalidFieldValue {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InvalidKeyValue;
 
+/// Stored `temperature`/`max_tokens` meaning "leave it to the provider": the call omits the field.
+/// Not the same as a missing row, which at the Work tier inherits the Global value.
+pub const PROVIDER_DEFAULT: &str = "default";
+
 /// `temperature` — số thực hữu hạn trong `[0.0, 2.0]`. `"-1"`/`"3"`/`"abc"` đều bị từ chối
 /// (I/O Matrix spec 4.2). Trần trên 2.0 khớp giới hạn tham số sinh phổ biến nhất của các nhà
 /// cung cấp tương thích kiểu OpenAI — không có FR/mockup nào khai một trần khác, và một
 /// trần RỘNG hơn thực tế mọi nhà cung cấp chấp nhận không bảo vệ được gì.
 fn validate_temperature(raw: &str) -> Result<String, ()> {
     let trimmed = raw.trim();
+    if trimmed == PROVIDER_DEFAULT {
+        return Ok(trimmed.to_owned());
+    }
     let parsed: f64 = trimmed.parse().map_err(|_| ())?;
     if !parsed.is_finite() || !(0.0..=2.0).contains(&parsed) {
         return Err(());
@@ -160,6 +167,9 @@ fn validate_temperature(raw: &str) -> Result<String, ()> {
 /// (I/O Matrix spec 4.2) — `parse::<u32>()` tự chặn dấu trừ và phần thập phân.
 fn validate_max_tokens(raw: &str) -> Result<String, ()> {
     let trimmed = raw.trim();
+    if trimmed == PROVIDER_DEFAULT {
+        return Ok(trimmed.to_owned());
+    }
     match trimmed.parse::<u32>() {
         Ok(0) | Err(_) => Err(()),
         Ok(_) => Ok(trimmed.to_owned()),
@@ -261,6 +271,21 @@ mod tests {
         assert!(validate_field(AiConfigField::MaxTokens, "-5").is_err());
         assert!(validate_field(AiConfigField::MaxTokens, "1.5").is_err());
         assert!(validate_field(AiConfigField::MaxTokens, "abc").is_err());
+    }
+
+    #[test]
+    fn temperature_and_max_tokens_accept_the_explicit_provider_default_only_exactly() {
+        for field in [AiConfigField::Temperature, AiConfigField::MaxTokens] {
+            assert_eq!(validate_field(field, "default"), Ok("default".to_owned()));
+            assert_eq!(
+                validate_field(field, "  default  "),
+                Ok("default".to_owned())
+            );
+            assert!(validate_field(field, "Default").is_err());
+            assert!(validate_field(field, "defaults").is_err());
+        }
+        assert!(validate_field(AiConfigField::Endpoint, "default").is_err());
+        assert!(validate_field(AiConfigField::Model, "default").is_ok());
     }
 
     #[test]

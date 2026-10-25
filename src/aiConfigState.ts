@@ -15,6 +15,7 @@ import {
 import type { AiConfigField, AiConfigFieldWire } from './config/aiconfig'
 
 const MAX_TOKENS_LIMIT = 4294967295
+const PROVIDER_DEFAULT = 'default'
 
 /** Năm trường, ĐÚNG thứ tự hiển thị của form (`mockups/settings.html`). */
 export const AI_CONFIG_FIELDS: readonly AiConfigField[] = [
@@ -38,20 +39,99 @@ export const AI_PROVIDERS = [
 ] as const
 export type AiProvider = (typeof AI_PROVIDERS)[number]
 
-/** Picking a provider writes `provider` plus each non-empty value here; an empty value is never written. */
-export const AI_PROVIDER_PRESETS: Record<AiProvider, { endpoint: string; model: string }> = {
-  anthropic: { endpoint: 'https://api.anthropic.com/v1', model: 'claude-sonnet-5-5' },
-  openai: { endpoint: 'https://api.openai.com/v1', model: 'gpt-6.1-sol' },
+type AiProviderPreset = {
+  endpoint: string
+  model: string
+  temperature: string
+  maxTokens: string
+  keyPlaceholder: string
+}
+
+/**
+ * Picking a provider writes `provider` plus each non-empty value here; an empty value is never written.
+ * `temperature` / `maxTokens` hold a number or `default` (the field is then not sent to the provider).
+ */
+export const AI_PROVIDER_PRESETS: Record<AiProvider, AiProviderPreset> = {
+  anthropic: {
+    endpoint: 'https://api.anthropic.com/v1',
+    model: 'claude-sonnet-5-5',
+    temperature: 'default',
+    maxTokens: '8192',
+    keyPlaceholder: 'sk-ant-…',
+  },
+  openai: {
+    endpoint: 'https://api.openai.com/v1',
+    model: 'gpt-6.1-sol',
+    temperature: 'default',
+    maxTokens: 'default',
+    keyPlaceholder: 'sk-…',
+  },
   gemini: {
     endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
     model: 'gemini-flash-latest',
+    temperature: 'default',
+    maxTokens: 'default',
+    keyPlaceholder: 'AIza…',
   },
-  openrouter: { endpoint: 'https://openrouter.ai/api/v1', model: '' },
-  mistral: { endpoint: 'https://api.mistral.ai/v1', model: 'mistral-large-latest' },
-  xai: { endpoint: 'https://api.x.ai/v1', model: 'grok-4.7' },
-  ollama: { endpoint: 'http://localhost:11434/v1', model: '' },
-  lmstudio: { endpoint: 'http://localhost:1234/v1', model: '' },
-  custom: { endpoint: '', model: '' },
+  openrouter: {
+    endpoint: 'https://openrouter.ai/api/v1',
+    model: '',
+    temperature: 'default',
+    maxTokens: 'default',
+    keyPlaceholder: 'sk-or-…',
+  },
+  mistral: {
+    endpoint: 'https://api.mistral.ai/v1',
+    model: 'mistral-large-latest',
+    temperature: '0.2',
+    maxTokens: 'default',
+    keyPlaceholder: '',
+  },
+  xai: {
+    endpoint: 'https://api.x.ai/v1',
+    model: 'grok-4.7',
+    temperature: 'default',
+    maxTokens: 'default',
+    keyPlaceholder: 'xai-…',
+  },
+  ollama: {
+    endpoint: 'http://localhost:11434/v1',
+    model: '',
+    temperature: '0.2',
+    maxTokens: 'default',
+    keyPlaceholder: '',
+  },
+  lmstudio: {
+    endpoint: 'http://localhost:1234/v1',
+    model: '',
+    temperature: '0.2',
+    maxTokens: 'default',
+    keyPlaceholder: '',
+  },
+  custom: { endpoint: '', model: '', temperature: '', maxTokens: '', keyPlaceholder: '' },
+}
+
+export const AI_CHIP_FIELDS = ['temperature', 'max_tokens'] as const
+export type AiChipField = (typeof AI_CHIP_FIELDS)[number]
+export const AI_CHIP_VALUES = {
+  temperature: ['0.2', '0.5', '1'],
+  max_tokens: ['4096', '8192', '16384'],
+} as const satisfies Record<AiChipField, readonly string[]>
+export type AiChipChoice = 'default' | 'custom' | (typeof AI_CHIP_VALUES)[AiChipField][number]
+
+export function aiConfigChipChoices(field: AiChipField): readonly AiChipChoice[] {
+  return ['default', ...AI_CHIP_VALUES[field], 'custom']
+}
+
+const PRESET_KEY: Record<AiChipField, 'temperature' | 'maxTokens'> = {
+  temperature: 'temperature',
+  max_tokens: 'maxTokens',
+}
+
+const customOpen = ref<Record<AiChipField, boolean>>({ temperature: false, max_tokens: false })
+
+function closeCustom(): void {
+  customOpen.value = { temperature: false, max_tokens: false }
 }
 
 type FieldRecord<T> = Record<AiConfigField, T>
@@ -68,7 +148,11 @@ function emptyErrors(): FieldRecord<IpcError | null> {
   return { provider: null, endpoint: null, model: null, temperature: null, max_tokens: null }
 }
 
-export type AiConfigPresetChange = { field: 'endpoint' | 'model'; oldValue: string; newValue: string }
+export type AiConfigPresetChange = {
+  field: 'endpoint' | 'model' | 'temperature' | 'max_tokens'
+  oldValue: string
+  newValue: string
+}
 export type AiConfigPresetConfirm = { provider: AiProvider; changes: AiConfigPresetChange[] }
 
 const presetConfirm = ref<AiConfigPresetConfirm | null>(null)
@@ -136,6 +220,7 @@ export function aiConfigValueAtViewTier(field: AiConfigField): string {
 
 export function resetAiConfigViewTier(): void {
   tierChoice.value = null
+  closeCustom()
   drafts.value = draftsForTier(effectiveTier())
 }
 
@@ -143,6 +228,7 @@ export function selectAiConfigViewTier(tier: AiConfigViewTier): void {
   presetConfirm.value = null
   if (tier === 'work' && !workIsOpen.value) return
   tierChoice.value = tier
+  closeCustom()
   drafts.value = draftsForTier(effectiveTier())
   saveErrors.value = emptyErrors()
   if (testState.value !== 'running') resetAiConfigTest()
@@ -216,6 +302,7 @@ export function isAiConfigValueValid(field: AiConfigField, raw: string): boolean
     case 'model':
       return trimmed.length > 0
     case 'temperature': {
+      if (trimmed === PROVIDER_DEFAULT) return true
       // Cùng lưới cú pháp mà `f64::from_str` phía Rust chấp nhận cho một số thập phân thường
       // (dấu tuỳ chọn, số nguyên/thập phân/mũ) — `.5`/`5.`/`1e-1`/`+0.5` đều phải qua được ở
       // đây vì `core::aiconfig::validate_temperature` sẽ nhận chúng. KHÔNG khớp `Infinity`/
@@ -227,6 +314,7 @@ export function isAiConfigValueValid(field: AiConfigField, raw: string): boolean
       return Number.isFinite(n) && n >= 0 && n <= 2
     }
     case 'max_tokens': {
+      if (trimmed === PROVIDER_DEFAULT) return true
       if (!/^\+?[0-9]+$/.test(trimmed)) return false
       const n = Number(trimmed)
       return Number.isInteger(n) && n > 0 && n <= MAX_TOKENS_LIMIT
@@ -296,6 +384,7 @@ export async function loadAiConfigSection(): Promise<void> {
   workIsOpen.value = result.workTierAvailable
   keyConfigured.value = result.keyConfigured
   resolvedFields.value = result.fields
+  closeCustom()
   drafts.value = draftsForTier(effectiveTier())
   if (testState.value !== 'running') resetAiConfigTest()
 }
@@ -421,6 +510,7 @@ export function resetAiConfigSection(): void {
   keyError.value = null
   inFlightSave = null
   presetConfirm.value = null
+  closeCustom()
   resetAiConfigTest()
 }
 
@@ -438,6 +528,61 @@ export function aiConfigProviderIsOther(): boolean {
 export function aiConfigEndpointPlaceholder(): string {
   const choice = aiConfigProviderChoice()
   return choice === null ? '' : AI_PROVIDER_PRESETS[choice].endpoint
+}
+
+export function aiConfigKeyPlaceholder(): string {
+  const choice = aiConfigProviderChoice()
+  return choice === null ? '' : AI_PROVIDER_PRESETS[choice].keyPlaceholder
+}
+
+function sameChipValue(a: string, b: string): boolean {
+  const x = a.trim()
+  const y = b.trim()
+  if (x === y) return true
+  if (x === '' || y === '' || x === PROVIDER_DEFAULT || y === PROVIDER_DEFAULT) return false
+  return Number(x) === Number(y)
+}
+
+function isDefaultValue(stored: string): boolean {
+  const v = stored.trim()
+  return v === '' || v === PROVIDER_DEFAULT
+}
+
+function storedChip(field: AiChipField): AiChipChoice | null {
+  const stored = aiConfigValueAtViewTier(field).trim()
+  if (isDefaultValue(stored)) return 'default'
+  const hit = (AI_CHIP_VALUES[field] as readonly AiChipChoice[]).find((v) => sameChipValue(v, stored))
+  if (hit !== undefined) return hit
+  return isAiConfigValueValid(field, stored) ? 'custom' : null
+}
+
+export function aiConfigChipIsOn(field: AiChipField, chip: AiChipChoice): boolean {
+  if (customOpen.value[field]) return chip === 'custom'
+  return storedChip(field) === chip
+}
+
+export function aiConfigChipInputIsOpen(field: AiChipField): boolean {
+  return aiConfigChipIsOn(field, 'custom')
+}
+
+/** The draft shown in the free-entry input; the stored `default` is shown as an empty box. */
+export function aiConfigChipInputValue(field: AiChipField): string {
+  const draft = drafts.value[field]
+  return draft.trim() === PROVIDER_DEFAULT ? '' : draft
+}
+
+/** Picks a chip: `custom` only opens the input; any other chip saves its value at the viewed tier. */
+export async function selectAiConfigChip(field: AiChipField, chip: AiChipChoice): Promise<void> {
+  if (inFlightSave !== null) await inFlightSave
+  if (chip === 'custom') {
+    customOpen.value = { ...customOpen.value, [field]: true }
+    return
+  }
+  customOpen.value = { ...customOpen.value, [field]: false }
+  drafts.value = { ...drafts.value, [field]: aiConfigValueAtViewTier(field) }
+  if (aiConfigChipIsOn(field, chip)) return
+  drafts.value = { ...drafts.value, [field]: chip }
+  return trackSave(saveAiConfigField(field))
 }
 
 let inFlightSave: Promise<void> | null = null
@@ -470,6 +615,10 @@ async function applyAiConfigPreset(provider: AiProvider): Promise<void> {
   const fields: { field: AiConfigField; value: string }[] = [{ field: 'provider', value: provider }]
   if (preset.endpoint !== '') fields.push({ field: 'endpoint', value: preset.endpoint })
   if (preset.model !== '') fields.push({ field: 'model', value: preset.model })
+  for (const field of AI_CHIP_FIELDS) {
+    const value = preset[PRESET_KEY[field]]
+    if (value !== '') fields.push({ field, value })
+  }
 
   for (const { field } of fields) {
     saving.value = { ...saving.value, [field]: true }
@@ -485,8 +634,8 @@ async function applyAiConfigPreset(provider: AiProvider): Promise<void> {
 }
 
 /**
- * Picks a provider chip: writes `provider`, `endpoint` and `model` of its preset in one call.
- * When a stored endpoint or model differs from the preset, opens the confirmation instead.
+ * Picks a provider chip: writes `provider`, `endpoint`, `model`, `temperature` and `max_tokens` of its preset in one call.
+ * When a stored value of those four differs from the preset, opens the confirmation instead.
  */
 export async function selectAiConfigProvider(provider: AiProvider): Promise<void> {
   // Clicking a pill blurs the input first: its save must land before the overwrite check reads stored values.
@@ -497,6 +646,13 @@ export async function selectAiConfigProvider(provider: AiProvider): Promise<void
     const newValue = preset[field]
     const oldValue = aiConfigValueAtViewTier(field).trim()
     if (newValue !== '' && oldValue !== '' && oldValue !== newValue) changes.push({ field, oldValue, newValue })
+  }
+  for (const field of AI_CHIP_FIELDS) {
+    const newValue = preset[PRESET_KEY[field]]
+    const oldValue = aiConfigValueAtViewTier(field).trim()
+    if (newValue !== '' && oldValue !== '' && !sameChipValue(oldValue, newValue)) {
+      changes.push({ field, oldValue, newValue })
+    }
   }
   if (changes.length > 0) {
     presetConfirm.value = { provider, changes }

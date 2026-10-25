@@ -61,7 +61,8 @@ use crate::commands::aiprompt::{
 use crate::commands::project::OpenWork;
 use crate::core::ai::client::{OpenAiChatClient, OpenAiClientError};
 use crate::core::aiconfig::{
-    AiConfigField, AiConfigKeyError, AiConfigStoreError, AiConfigTier, keychain, resolve_two_tiers,
+    AiConfigField, AiConfigKeyError, AiConfigStoreError, AiConfigTier, PROVIDER_DEFAULT, keychain,
+    resolve_two_tiers,
 };
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::scope::ScopeResolver;
@@ -268,16 +269,20 @@ pub(crate) fn resolve_call_config<'a>(
         return Ok(None);
     }
 
-    let temperature: Option<f64> = resolved_field_value(&resolved, AiConfigField::Temperature)
-        .trim()
-        .parse()
-        .ok();
-    let max_tokens: Option<u32> = match resolved_field_value(&resolved, AiConfigField::MaxTokens)
-        .trim()
-        .parse()
-    {
-        Ok(0) | Err(_) => None,
-        Ok(v) => Some(v),
+    let raw_temperature = resolved_field_value(&resolved, AiConfigField::Temperature);
+    let temperature: Option<f64> = if raw_temperature.trim() == PROVIDER_DEFAULT {
+        None
+    } else {
+        raw_temperature.trim().parse().ok()
+    };
+    let raw_max_tokens = resolved_field_value(&resolved, AiConfigField::MaxTokens);
+    let max_tokens: Option<u32> = if raw_max_tokens.trim() == PROVIDER_DEFAULT {
+        None
+    } else {
+        match raw_max_tokens.trim().parse() {
+            Ok(0) | Err(_) => None,
+            Ok(v) => Some(v),
+        }
     };
 
     Ok(Some(ResolvedCallConfig {

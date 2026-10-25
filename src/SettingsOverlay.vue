@@ -14,6 +14,13 @@ import {
   AI_PROVIDERS,
   aiConfigDraft,
   aiConfigEndpointPlaceholder,
+  aiConfigKeyPlaceholder,
+  aiConfigChipInputIsOpen,
+  aiConfigChipInputValue,
+  aiConfigChipIsOn,
+  selectAiConfigChip,
+  AI_CHIP_FIELDS,
+  aiConfigChipChoices,
   aiConfigOverrideCount,
   aiConfigProviderChoice,
   aiConfigProviderIsOther,
@@ -46,6 +53,7 @@ import {
   setAiConfigDraft,
   setAiConfigKeyDraft,
 } from './aiConfigState'
+import type { AiChipChoice, AiChipField } from './aiConfigState'
 import type { AiConfigField } from './config/aiconfig'
 import { aiUsageVisible, aiUsageVisibleSaveError, setAiUsageVisible } from './aiUsageVisibleState'
 import { t, tError } from './i18n'
@@ -240,7 +248,23 @@ function aiUsageStateKey(): string {
   return aiUsageVisible.value ? 'settings.ai_config.usage_on' : 'settings.ai_config.usage_off'
 }
 
-const AI_TEXT_FIELDS: readonly AiConfigField[] = AI_CONFIG_FIELDS.filter((f) => f !== 'provider')
+const AI_TEXT_FIELDS: readonly AiConfigField[] = AI_CONFIG_FIELDS.filter(
+  (f) => f !== 'provider' && !(AI_CHIP_FIELDS as readonly AiConfigField[]).includes(f),
+)
+
+function onSelectAiChip(field: AiChipField, chip: AiChipChoice): void {
+  void selectAiConfigChip(field, chip)
+}
+
+function aiChipLabelKey(field: AiChipField, chip: AiChipChoice): string {
+  if (chip === 'default' || chip === 'custom') return `settings.ai_config.chip_${chip}`
+  return `settings.ai_config.chip_${field}_${chip.replace('.', '_')}`
+}
+
+function aiPresetChangeValue(field: AiConfigField, value: string): string {
+  const isChipField = field === 'temperature' || field === 'max_tokens'
+  return isChipField && value === 'default' ? t('settings.ai_config.chip_default') : value
+}
 
 function aiProviderLabelKey(provider: (typeof AI_PROVIDERS)[number]): string {
   return `settings.ai_config.provider_${provider}`
@@ -437,8 +461,8 @@ function onDeleteAiConfigKey(): void {
                       <!-- aura-allow-text: giá trị cấu hình người dùng, không phải chuỗi giao diện. -->
                       {{
                         t(`settings.ai_config.preset_confirm_${change.field}`, {
-                          old: change.oldValue,
-                          new: change.newValue,
+                          old: aiPresetChangeValue(change.field, change.oldValue),
+                          new: aiPresetChangeValue(change.field, change.newValue),
                         })
                       }}
                     </li>
@@ -526,6 +550,71 @@ function onDeleteAiConfigKey(): void {
                 </form>
               </div>
 
+              <div v-for="field in AI_CHIP_FIELDS" :key="field" class="ai-field" :data-ai-field="field">
+                <span class="ai-field-label-text">{{ t(aiConfigFieldLabelKey(field)) }}</span>
+                <div class="ai-pills" role="group" :aria-label="t(aiConfigFieldLabelKey(field))">
+                  <form
+                    v-for="chip in aiConfigChipChoices(field)"
+                    :key="chip"
+                    class="ai-pill-form"
+                    @submit.prevent="onSelectAiChip(field, chip)"
+                  >
+                    <button
+                      type="submit"
+                      class="ai-pill"
+                      :data-ai-chip="chip"
+                      :aria-pressed="aiConfigChipIsOn(field, chip)"
+                    >
+                      {{ t(aiChipLabelKey(field, chip)) }}
+                    </button>
+                  </form>
+                </div>
+
+                <form v-if="aiConfigChipInputIsOpen(field)" class="ai-field-form" @submit.prevent="onCommitAiConfigField(field)">
+                  <label class="ai-field-label">
+                    <span>{{ t('settings.ai_config.chip_custom') }}</span>
+                    <input
+                      class="ai-field-input"
+                      autocomplete="off"
+                      data-ai-chip-input
+                      :value="aiConfigChipInputValue(field)"
+                      :disabled="aiConfigIsSaving(field)"
+                      @input="onAiConfigInput(field, $event)"
+                      @blur="onCommitAiConfigField(field)"
+                    />
+                  </label>
+                </form>
+
+                <p class="ai-field-status">
+                  <span :class="aiConfigIsOverridden(field) ? 'mark-over' : 'mark-inh'">
+                    {{
+                      t(aiConfigStatusKey(field), {
+                        value: aiConfigFieldWire(field)?.shadowed ?? '',
+                      })
+                    }}
+                  </span>
+                </p>
+                <p
+                  v-if="aiConfigDraft(field) !== '' && !isAiConfigValueValid(field, aiConfigDraft(field))"
+                  class="ai-field-alert"
+                >
+                  {{ t(aiConfigFieldInvalidKey(field)) }}
+                </p>
+                <p v-else-if="aiConfigSaveErrorFor(field) !== null" class="ai-field-alert" role="alert">
+                  <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                  {{ tError(aiConfigSaveErrorFor(field)!) }}
+                </p>
+                <form
+                  v-if="aiConfigViewTier === 'work' && aiConfigFieldWire(field)?.tier === 'work'"
+                  class="ai-field-clear-form"
+                  @submit.prevent="onClearAiConfigOverride(field)"
+                >
+                  <button type="submit" class="ai-field-clear" :disabled="aiConfigIsSaving(field)">
+                    {{ t('settings.ai_config.clear_override') }}
+                  </button>
+                </form>
+              </div>
+
               <!-- The key keeps its own Save/Delete buttons: it has no field wire and never returns over IPC. -->
               <div class="ai-field ai-key-field">
                 <form class="ai-field-form" @submit.prevent="onSaveAiConfigKey">
@@ -535,6 +624,7 @@ function onDeleteAiConfigKey(): void {
                       class="ai-field-input"
                       type="password"
                       autocomplete="off"
+                      :placeholder="aiConfigKeyPlaceholder() || undefined"
                       :value="aiConfigKeyDraft()"
                       :disabled="aiConfigKeyBusy"
                       @input="onAiConfigKeyInput($event)"

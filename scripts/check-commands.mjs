@@ -2509,6 +2509,7 @@ const HANDLER_TABLE = {
   'src/SettingsOverlay.vue::onCommitAiConfigField': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onSelectAiConfigTier': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onSelectAiProvider': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onSelectAiChip': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onRunAiConfigTest': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onCancelAiConfigTest': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onToggleAiUsage': { nonCommand: R_SUBMIT_DIRECT },

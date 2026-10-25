@@ -27,7 +27,7 @@ context: []
 
 **Always:**
 - Quyết định của Ice (2026-10-25): chọn preset nghĩa là đồng ý đổi cả ba cột. Quyết định này thay dòng 29 của `tickets/epic-hoan-thien-giao-dien-theo-mockup/tickets/story-cai-at-bo-cuc-phim-tat-thu-ket-noi-khung-cap-nhat-plan.md`.
-- Preset chỉ chạm `provider`, `endpoint`, `model`; không bao giờ chạm `temperature`, `max_tokens` hay khoá API.
+- Preset chỉ chạm `provider`, `endpoint`, `model`; không bao giờ chạm `temperature`, `max_tokens` hay khoá API. 🔵 2026-10-26: Ice chọn phương án C, mặc định theo từng preset; preset nay ghi cả `temperature` và `max_tokens` (giá trị số hoặc `default`) và hộp xác nhận liệt kê hai trường đó, xem `plan-chip-nhiet-do-va-token.md`. Khoá API vẫn không bị chạm.
 - Một trường để trống trong preset nghĩa là không ghi trường đó (Ollama và LM Studio không có mô hình mặc định). "Endpoint khác" chỉ ghi `provider`, giữ nguyên như hiện nay.
 - Ghi ở `effectiveTier()`, đúng như mọi trường khác (AD-18).
 - Quyết định của Ice (2026-10-25, OQ1 → b): ba trường đi qua MỘT lệnh Rust mới `ai_config_save_fields`. Lệnh kiểm mọi giá trị trước (một giá trị hỏng ⇒ 0 lượt ghi) rồi ghi trong một transaction: được hoặc mất cả ba, không có cấu hình nửa mới nửa cũ.

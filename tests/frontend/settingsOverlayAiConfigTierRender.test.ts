@@ -162,7 +162,7 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
   const emptyRows = () =>
     ['provider', 'endpoint', 'model', 'temperature', 'max_tokens'].map((field) => ({
       field,
-      value: field === 'temperature' ? '0.3' : '',
+      value: '',
       tier: 'global',
       shadowed: null,
     }))
@@ -179,7 +179,7 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
     wrapper.unmount()
   })
 
-  it('chọn "Gemini" khi trống: một lời gọi ghi ba trường, không hỏi, ô hiện giá trị đã lưu và nút Gemini bật', async () => {
+  it('chọn "Gemini" khi trống: một lời gọi ghi năm trường, không hỏi, ô hiện giá trị đã lưu và nút Gemini bật', async () => {
     const { wrapper } = await open(false, emptyRows())
     aiConfigGetMock.mockResolvedValue({
       fields: [
@@ -200,6 +200,8 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
       { field: 'provider', value: 'gemini' },
       { field: 'endpoint', value: 'https://generativelanguage.googleapis.com/v1beta/openai' },
       { field: 'model', value: 'gemini-flash-latest' },
+      { field: 'temperature', value: 'default' },
+      { field: 'max_tokens', value: 'default' },
     ])
     expect(wrapper.find('[data-ai-provider="gemini"]').attributes('aria-pressed')).toBe('true')
     expect((wrapper.find('[data-ai-field="endpoint"] input').element as HTMLInputElement).value).toBe(
@@ -209,7 +211,7 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
     wrapper.unmount()
   })
 
-  it('chọn "Ollama" khi endpoint trống và model là `qwen`: ghi provider và endpoint, giữ `qwen`', async () => {
+  it('chọn "Ollama" khi endpoint trống và model là `qwen`: ghi provider, endpoint, nhiệt độ và số token, giữ `qwen`', async () => {
     const rows = emptyRows().map((r) => (r.field === 'model' ? { ...r, value: 'qwen' } : r))
     const { wrapper } = await open(false, rows)
     await pick(wrapper, 'ollama')
@@ -218,11 +220,13 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
     expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [
       { field: 'provider', value: 'ollama' },
       { field: 'endpoint', value: 'http://localhost:11434/v1' },
+      { field: 'temperature', value: '0.2' },
+      { field: 'max_tokens', value: 'default' },
     ])
     wrapper.unmount()
   })
 
-  it('endpoint đang khác preset: hộp alertdialog nêu giá trị cũ và mới; Huỷ không ghi gì, Áp dụng ghi cả ba', async () => {
+  it('endpoint đang khác preset: hộp alertdialog nêu giá trị cũ và mới; Huỷ không ghi gì, Áp dụng ghi cả năm', async () => {
     const { wrapper } = await open(false)
     await pick(wrapper, 'anthropic')
 
@@ -232,6 +236,9 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
     expect(dialog.find('[data-ai-preset-change="endpoint"]').text()).toContain('https://e.example.com')
     expect(dialog.find('[data-ai-preset-change="endpoint"]').text()).toContain('https://api.anthropic.com/v1')
     expect(dialog.find('[data-ai-preset-change="model"]').exists()).toBe(true)
+    expect(dialog.find('[data-ai-preset-change="temperature"]').exists()).toBe(false)
+    expect(dialog.find('[data-ai-preset-change="max_tokens"]').text()).toContain('100')
+    expect(dialog.find('[data-ai-preset-change="max_tokens"]').text()).toContain('8192')
     expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
 
     await dialog.find('[data-ai-preset-cancel]').trigger('click')
@@ -249,11 +256,13 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
       { field: 'provider', value: 'anthropic' },
       { field: 'endpoint', value: 'https://api.anthropic.com/v1' },
       { field: 'model', value: 'claude-sonnet-5-5' },
+      { field: 'temperature', value: 'default' },
+      { field: 'max_tokens', value: '8192' },
     ])
     wrapper.unmount()
   })
 
-  it('tầng Tác phẩm: bấm Mistral (endpoint và model khác preset) rồi Áp dụng ghi ba trường ở tầng work', async () => {
+  it('tầng Tác phẩm: bấm Mistral (endpoint và model khác preset) rồi Áp dụng ghi năm trường ở tầng work', async () => {
     const { wrapper } = await open(true)
     await pick(wrapper, 'mistral')
     await wrapper.find('[data-ai-preset-apply]').trigger('click')
@@ -262,6 +271,8 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
       { field: 'provider', value: 'mistral' },
       { field: 'endpoint', value: 'https://api.mistral.ai/v1' },
       { field: 'model', value: 'mistral-large-latest' },
+      { field: 'temperature', value: '0.2' },
+      { field: 'max_tokens', value: 'default' },
     ])
     wrapper.unmount()
   })
@@ -284,6 +295,203 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
       .filter((b) => b.attributes('aria-pressed') === 'true')
       .map((b) => b.attributes('data-ai-provider'))
     expect(on).toEqual(['custom'])
+    wrapper.unmount()
+  })
+})
+
+describe('SettingsOverlay.vue — hàng chip nhiệt độ và số token', () => {
+  const rowsWith = (temperature: string, maxTokens: string, tier = 'global') =>
+    ['provider', 'endpoint', 'model', 'temperature', 'max_tokens'].map((field) => ({
+      field,
+      value: field === 'temperature' ? temperature : field === 'max_tokens' ? maxTokens : '',
+      tier: field === 'temperature' ? tier : 'global',
+      shadowed: null,
+    }))
+  const pick = async (wrapper: ReturnType<typeof mount>, provider: string) => {
+    await wrapper.find(`[data-ai-provider="${provider}"]`).element.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }))
+    await flushPromises()
+  }
+  const chips = (wrapper: ReturnType<typeof mount>, field: string) =>
+    wrapper.findAll(`[data-ai-field="${field}"] [data-ai-chip]`).map((b) => b.attributes('data-ai-chip'))
+  const litChips = (wrapper: ReturnType<typeof mount>, field: string) =>
+    wrapper
+      .findAll(`[data-ai-field="${field}"] [data-ai-chip]`)
+      .filter((b) => b.attributes('aria-pressed') === 'true')
+      .map((b) => b.attributes('data-ai-chip'))
+  const click = async (wrapper: ReturnType<typeof mount>, field: string, chip: string) => {
+    await wrapper
+      .find(`[data-ai-field="${field}"] [data-ai-chip="${chip}"]`)
+      .element.closest('form')!
+      .dispatchEvent(new Event('submit', { cancelable: true }))
+    await flushPromises()
+  }
+
+  it('mỗi trường là một hàng chip theo thứ tự Mặc định · số · Tự nhập, không còn ô nhập thường', async () => {
+    const { wrapper } = await open(false, rowsWith('', ''))
+    expect(chips(wrapper, 'temperature')).toEqual(['default', '0.2', '0.5', '1', 'custom'])
+    expect(chips(wrapper, 'max_tokens')).toEqual(['default', '4096', '8192', '16384', 'custom'])
+    expect(wrapper.find('[data-ai-field="temperature"] [data-ai-chip="default"]').text()).toBe('Mặc định nhà cung cấp')
+    expect(wrapper.find('[data-ai-field="temperature"] [data-ai-chip="0.2"]').text()).toContain('Sát nghĩa')
+    expect(wrapper.find('[data-ai-field="temperature"] [data-ai-chip="0.5"]').text()).toContain('Cân bằng')
+    expect(wrapper.find('[data-ai-field="temperature"] [data-ai-chip="1"]').text()).toContain('Tự nhiên')
+    expect(wrapper.find('[data-ai-field="temperature"] [data-ai-chip="custom"]').text()).toBe('Tự nhập')
+    expect(wrapper.findAll('[data-ai-chip-input]')).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  it('AC: giá trị lưu là `default` hoặc không có hàng ⇒ chip Mặc định bật', async () => {
+    for (const stored of ['', 'default']) {
+      const { wrapper } = await open(false, rowsWith(stored, stored))
+      expect(litChips(wrapper, 'temperature')).toEqual(['default'])
+      expect(litChips(wrapper, 'max_tokens')).toEqual(['default'])
+      wrapper.unmount()
+    }
+    const { wrapper } = await open(false, [])
+    expect(litChips(wrapper, 'temperature')).toEqual(['default'])
+    wrapper.unmount()
+  })
+
+  it('giá trị khớp chip số thì chip đó bật; giá trị khác bật Tự nhập kèm ô nhập hiện giá trị', async () => {
+    const { wrapper } = await open(false, rowsWith('0.5', '5000'))
+    expect(litChips(wrapper, 'temperature')).toEqual(['0.5'])
+    expect(litChips(wrapper, 'max_tokens')).toEqual(['custom'])
+    expect((wrapper.find('[data-ai-field="max_tokens"] [data-ai-chip-input]').element as HTMLInputElement).value).toBe('5000')
+    expect(wrapper.find('[data-ai-field="temperature"] [data-ai-chip-input]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('I/O Matrix "Chọn chip số": bấm 0.5 lưu temperature = 0.5 ở tầng Toàn cục, chip 0.5 bật', async () => {
+    const { wrapper } = await open(false, rowsWith('', ''))
+    aiConfigGetMock.mockResolvedValue({
+      fields: rowsWith('0.5', ''),
+      workTierAvailable: false,
+      keyConfigured: false,
+      error: null,
+    })
+    await click(wrapper, 'temperature', '0.5')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'temperature', '0.5')
+    expect(litChips(wrapper, 'temperature')).toEqual(['0.5'])
+    wrapper.unmount()
+  })
+
+  it('AC tầng Tác phẩm: bấm chip chỉ ghi tầng work, và hàng ghi đè có nút "Trả về kế thừa"', async () => {
+    const { wrapper } = await open(true, rowsWith('0.3', ''))
+    expect(wrapper.findAll('[data-ai-field="temperature"] .ai-field-clear-form')).toHaveLength(0)
+    aiConfigGetMock.mockResolvedValue({
+      fields: rowsWith('default', '', 'work'),
+      workTierAvailable: true,
+      keyConfigured: false,
+      error: null,
+    })
+    await click(wrapper, 'temperature', 'default')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('work', 'temperature', 'default')
+    expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
+    expect(aiConfigClearOverrideMock).not.toHaveBeenCalled()
+    expect(litChips(wrapper, 'temperature')).toEqual(['default'])
+    expect(wrapper.findAll('[data-ai-field="temperature"] .ai-field-clear-form')).toHaveLength(1)
+    expect(wrapper.findAll('[data-ai-field="max_tokens"] .ai-field-clear-form')).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  it('I/O Matrix "Tự nhập": bấm Tự nhập mở ô không ghi; gõ 0.35 rời ô lưu 0.35; gõ 3 hiện câu từ chối, 0 lượt ghi', async () => {
+    const { wrapper } = await open(false, rowsWith('', ''))
+    await click(wrapper, 'temperature', 'custom')
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+    expect(litChips(wrapper, 'temperature')).toEqual(['custom'])
+
+    const input = wrapper.find('[data-ai-field="temperature"] [data-ai-chip-input]')
+    await input.setValue('3')
+    await input.trigger('blur')
+    await flushPromises()
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-ai-field="temperature"] .ai-field-alert').exists()).toBe(true)
+
+    aiConfigGetMock.mockResolvedValue({
+      fields: rowsWith('0.35', ''),
+      workTierAvailable: false,
+      keyConfigured: false,
+      error: null,
+    })
+    await input.setValue('0.35')
+    await input.trigger('blur')
+    await flushPromises()
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'temperature', '0.35')
+    expect(litChips(wrapper, 'temperature')).toEqual(['custom'])
+    expect((wrapper.find('[data-ai-field="temperature"] [data-ai-chip-input]').element as HTMLInputElement).value).toBe('0.35')
+    wrapper.unmount()
+  })
+
+  it('ô Tự nhập đang lưu khi rời ô thì các chip của trường vẫn bấm được, nên cú bấm làm rời ô không bị nuốt', async () => {
+    const { wrapper } = await open(false, rowsWith('', ''))
+    await click(wrapper, 'temperature', 'custom')
+    aiConfigSaveFieldMock.mockImplementationOnce(() => new Promise(() => undefined))
+    const input = wrapper.find('[data-ai-field="temperature"] [data-ai-chip-input]')
+    await input.setValue('0.35')
+    await input.trigger('blur')
+    await flushPromises()
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledOnce()
+    expect(wrapper.find('[data-ai-field="temperature"] [data-ai-chip="0.5"]').attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('đóng ô Tự nhập bằng chip đang bật thì câu từ chối của giá trị gõ dở biến mất', async () => {
+    const { wrapper } = await open(false, rowsWith('', ''))
+    await click(wrapper, 'temperature', 'custom')
+    const input = wrapper.find('[data-ai-field="temperature"] [data-ai-chip-input]')
+    await input.setValue('3')
+    await input.trigger('blur')
+    await flushPromises()
+    expect(wrapper.find('[data-ai-field="temperature"] .ai-field-alert').exists()).toBe(true)
+    await click(wrapper, 'temperature', 'default')
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-ai-field="temperature"] [data-ai-chip-input]').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-field="temperature"] .ai-field-alert').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('AC: placeholder ô khoá API theo nhà cung cấp, OpenAI là `sk-…`, Mistral không có', async () => {
+    const withProvider = (provider: string) =>
+      rowsWith('', '').map((r) => (r.field === 'provider' ? { ...r, value: provider } : r))
+    const keyInput = (w: ReturnType<typeof mount>) => w.find('.ai-key-field input').element as HTMLInputElement
+    const openai = await open(false, withProvider('openai'))
+    expect(keyInput(openai.wrapper).placeholder).toBe('sk-…')
+    openai.wrapper.unmount()
+    const mistral = await open(false, withProvider('mistral'))
+    expect(keyInput(mistral.wrapper).placeholder).toBe('')
+    mistral.wrapper.unmount()
+  })
+
+  it('I/O Matrix "Áp preset đè nhiệt độ": 0.3 rồi Anthropic ⇒ dòng "Nhiệt độ: 0.3 → Mặc định nhà cung cấp"; Huỷ không ghi gì', async () => {
+    const { wrapper } = await open(false, rowsWith('0.3', ''))
+    await pick(wrapper, 'anthropic')
+    const line = wrapper.find('[data-ai-preset-change="temperature"]')
+    expect(line.text()).toContain('0.3')
+    expect(line.text()).toContain('Mặc định nhà cung cấp')
+    await wrapper.find('[data-ai-preset-cancel]').trigger('click')
+    await flushPromises()
+    expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('I/O Matrix "Áp preset từ trống": Mistral ghi 0.2 và default cùng ba trường kia, không hỏi', async () => {
+    const { wrapper } = await open(false, rowsWith('', ''))
+    await pick(wrapper, 'mistral')
+    expect(wrapper.find('[data-ai-preset-confirm]').exists()).toBe(false)
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [
+      { field: 'provider', value: 'mistral' },
+      { field: 'endpoint', value: 'https://api.mistral.ai/v1' },
+      { field: 'model', value: 'mistral-large-latest' },
+      { field: 'temperature', value: '0.2' },
+      { field: 'max_tokens', value: 'default' },
+    ])
+    wrapper.unmount()
+  })
+
+  it('giá trị lưu `default` và preset cũng `default` ⇒ áp OpenAI không hỏi', async () => {
+    const { wrapper } = await open(false, rowsWith('default', 'default'))
+    await pick(wrapper, 'openai')
+    expect(wrapper.find('[data-ai-preset-confirm]').exists()).toBe(false)
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 })

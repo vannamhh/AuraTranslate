@@ -1011,6 +1011,80 @@ fn a_blank_temperature_and_max_tokens_does_not_yield_not_configured() {
     cleanup(&global_dir);
 }
 
+#[test]
+fn an_explicit_default_at_either_tier_leaves_temperature_and_max_tokens_unsent() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    reset_key_to_not_configured();
+    save_key("sk-explicit-default-test-key");
+
+    let global_dir = temp_dir("explicit-default-global");
+    let work_dir = temp_dir("explicit-default-work");
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, "ExplicitDefault", "en", "A dragon roared.");
+    write_field(
+        &global,
+        AiConfigField::Endpoint,
+        "https://api.example.invalid/v1/chat/completions",
+    )
+    .expect("ghi endpoint");
+    write_field(&global, AiConfigField::Model, "gpt-test").expect("ghi model");
+    write_field(&global, AiConfigField::Temperature, "0.3").expect("ghi temperature");
+    write_field(&global, AiConfigField::MaxTokens, "4096").expect("ghi max_tokens");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
+
+    let segment_id = first_segment_id(&open);
+    let record = fresh_record();
+    let prepared = |label: &str| match prepare_translate_call(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        segment_id,
+    )
+    .expect("prepare khong duoc loi")
+    {
+        PrepareOutcome::Ready(p) => (p.temperature, p.max_tokens),
+        PrepareOutcome::NotConfigured => panic!("{label}: khong duoc la chua cau hinh"),
+    };
+
+    assert_eq!(
+        prepared("doi chung so"),
+        (Some(0.3), Some(4096)),
+        "doi chung: so cua Toan cuc phai den duoc lenh goi"
+    );
+
+    write_field(&open.store, AiConfigField::Temperature, "default").expect("ghi default Work");
+    write_field(&open.store, AiConfigField::MaxTokens, "default").expect("ghi default Work");
+    assert_eq!(
+        prepared("default o tang Work"),
+        (None, None),
+        "default o tang Work phai de len so cua Toan cuc"
+    );
+
+    write_field(&open.store, AiConfigField::Temperature, "0.9").expect("ghi so Work");
+    write_field(&open.store, AiConfigField::MaxTokens, "512").expect("ghi so Work");
+    write_field(&global, AiConfigField::Temperature, "default").expect("ghi default Global");
+    write_field(&global, AiConfigField::MaxTokens, "default").expect("ghi default Global");
+    assert_eq!(
+        prepared("so o tang Work tren default Toan cuc"),
+        (Some(0.9), Some(512))
+    );
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // Quyết định 2 — hai producer, MỘT hàm ghi: assemble-only và translate phải viết một bản ghi
 // GIỐNG HỆT nhau cho cùng đầu vào, chỉ khác ở các sự thật ĐÃ GỬI.

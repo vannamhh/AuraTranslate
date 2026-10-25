@@ -255,6 +255,36 @@
       "field": "max_tokens",
       "input": " ",
       "valid": false
+    },
+    {
+      "field": "temperature",
+      "input": "default",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": " default ",
+      "valid": true
+    },
+    {
+      "field": "temperature",
+      "input": "Default",
+      "valid": false
+    },
+    {
+      "field": "max_tokens",
+      "input": "default",
+      "valid": true
+    },
+    {
+      "field": "max_tokens",
+      "input": " default ",
+      "valid": true
+    },
+    {
+      "field": "max_tokens",
+      "input": "Default",
+      "valid": false
     }
   ]
 }

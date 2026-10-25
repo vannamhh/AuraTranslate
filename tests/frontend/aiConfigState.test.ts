@@ -130,6 +130,18 @@ describe('isAiConfigValueValid — hàm THUẦN, đọc lại đúng ràng buộ
     expect(isAiConfigValueValid('max_tokens', '2048')).toBe(true)
   })
 
+  it('temperature và max_tokens: đúng `default` (sau trim) hợp lệ, `Default` và `defaults` thì không', async () => {
+    const { isAiConfigValueValid } = await freshState()
+    for (const field of ['temperature', 'max_tokens'] as const) {
+      expect(isAiConfigValueValid(field, 'default')).toBe(true)
+      expect(isAiConfigValueValid(field, '  default ')).toBe(true)
+      expect(isAiConfigValueValid(field, 'Default')).toBe(false)
+      expect(isAiConfigValueValid(field, 'defaults')).toBe(false)
+    }
+    expect(isAiConfigValueValid('model', 'default')).toBe(true)
+    expect(isAiConfigValueValid('endpoint', 'default')).toBe(false)
+  })
+
   it('endpoint: "localhost:11434" (không lược đồ) và chuỗi rỗng đều bị từ chối', async () => {
     const { isAiConfigValueValid } = await freshState()
     expect(isAiConfigValueValid('endpoint', 'localhost:11434')).toBe(false)
@@ -787,12 +799,12 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'model', 'n')
   })
 
-  const fieldsOf = (provider: string, endpoint = '', model = '') =>
+  const fieldsOf = (provider: string, endpoint = '', model = '', temperature = '0.3') =>
     fieldRows({
       provider: { value: provider, tier: 'global' },
       endpoint: { value: endpoint, tier: 'global' },
       model: { value: model, tier: 'global' },
-      temperature: { value: '0.3', tier: 'global' },
+      temperature: { value: temperature, tier: 'global' },
     })
 
   it('bảng preset có đủ chín nhà cung cấp, "Endpoint khác" không mang endpoint hay mô hình', async () => {
@@ -803,11 +815,34 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     expect(AI_PROVIDER_PRESETS.gemini).toEqual({
       endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
       model: 'gemini-flash-latest',
+      temperature: 'default',
+      maxTokens: 'default',
+      keyPlaceholder: 'AIza…',
     })
-    expect(AI_PROVIDER_PRESETS.custom).toEqual({ endpoint: '', model: '' })
+    expect(AI_PROVIDER_PRESETS.custom).toEqual({
+      endpoint: '',
+      model: '',
+      temperature: '',
+      maxTokens: '',
+      keyPlaceholder: '',
+    })
   })
 
-  it('bắt đầu trống: bấm Gemini ghi cả ba trường qua MỘT lời gọi, không hỏi, nạp lại đúng một lần', async () => {
+  it('bảng preset: nhiệt độ và số token theo Design Notes, khoá API đúng placeholder', async () => {
+    const { AI_PROVIDER_PRESETS: P } = await freshState()
+    const row = (k: keyof typeof P) => [P[k].temperature, P[k].maxTokens, P[k].keyPlaceholder]
+    expect(row('anthropic')).toEqual(['default', '8192', 'sk-ant-…'])
+    expect(row('openai')).toEqual(['default', 'default', 'sk-…'])
+    expect(row('gemini')).toEqual(['default', 'default', 'AIza…'])
+    expect(row('openrouter')).toEqual(['default', 'default', 'sk-or-…'])
+    expect(row('mistral')).toEqual(['0.2', 'default', ''])
+    expect(row('xai')).toEqual(['default', 'default', 'xai-…'])
+    expect(row('ollama')).toEqual(['0.2', 'default', ''])
+    expect(row('lmstudio')).toEqual(['0.2', 'default', ''])
+    expect(row('custom')).toEqual(['', '', ''])
+  })
+
+  it('bắt đầu trống: bấm Gemini ghi cả năm trường qua MỘT lời gọi, không hỏi, nạp lại đúng một lần', async () => {
     const state = await loaded(false)
     aiConfigGetMock.mockClear()
     await state.selectAiConfigProvider('gemini')
@@ -816,6 +851,8 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
       { field: 'provider', value: 'gemini' },
       { field: 'endpoint', value: 'https://generativelanguage.googleapis.com/v1beta/openai' },
       { field: 'model', value: 'gemini-flash-latest' },
+      { field: 'temperature', value: 'default' },
+      { field: 'max_tokens', value: 'default' },
     ])
     expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
     expect(aiConfigGetMock).toHaveBeenCalledTimes(1)
@@ -830,11 +867,12 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
       changes: [
         { field: 'endpoint', oldValue: 'https://api.openai.com/v1', newValue: 'https://api.anthropic.com/v1' },
         { field: 'model', oldValue: 'gpt-6.1-sol', newValue: 'claude-sonnet-5-5' },
+        { field: 'temperature', oldValue: '0.3', newValue: 'default' },
       ],
     })
   })
 
-  it('Áp dụng ghi cả ba trường rồi đóng hộp; Huỷ đóng hộp và không ghi gì, ba trường giữ giá trị đã lưu', async () => {
+  it('Áp dụng ghi cả năm trường rồi đóng hộp; Huỷ đóng hộp và không ghi gì, các trường giữ giá trị đã lưu', async () => {
     const state = await loaded(false, fieldsOf('openai', 'https://api.openai.com/v1', 'gpt-6.1-sol'))
     await state.selectAiConfigProvider('anthropic')
     state.cancelAiConfigPreset()
@@ -843,6 +881,7 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
     expect(state.aiConfigDraft('endpoint')).toBe('https://api.openai.com/v1')
     expect(state.aiConfigDraft('model')).toBe('gpt-6.1-sol')
+    expect(state.aiConfigDraft('temperature')).toBe('0.3')
 
     await state.selectAiConfigProvider('anthropic')
     await state.confirmAiConfigPreset()
@@ -851,11 +890,13 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
       { field: 'provider', value: 'anthropic' },
       { field: 'endpoint', value: 'https://api.anthropic.com/v1' },
       { field: 'model', value: 'claude-sonnet-5-5' },
+      { field: 'temperature', value: 'default' },
+      { field: 'max_tokens', value: '8192' },
     ])
   })
 
   it('bấm nút ngay sau khi gõ endpoint: lượt lưu khi rời ô xong trước rồi mới so ⇒ hỏi, không ghi đè im lặng', async () => {
-    const state = await loaded(false, fieldsOf('openai'))
+    const state = await loaded(false, fieldsOf('openai', '', '', ''))
     let releaseSave: (value: null) => void = () => undefined
     aiConfigSaveFieldMock.mockImplementationOnce(
       () =>
@@ -867,7 +908,7 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     void state.commitAiConfigField('endpoint')
     const picked = state.selectAiConfigProvider('gemini')
     aiConfigGetMock.mockResolvedValue({
-      fields: fieldsOf('openai', 'https://proxy.local/v1'),
+      fields: fieldsOf('openai', 'https://proxy.local/v1', '', ''),
       workTierAvailable: false,
       keyConfigured: false,
       error: null,
@@ -880,20 +921,22 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     ])
   })
 
-  it('đã khớp: endpoint và model bằng giá trị preset ⇒ ghi, không hỏi', async () => {
-    const state = await loaded(false, fieldsOf('openai', 'https://api.anthropic.com/v1', 'claude-sonnet-5-5'))
+  it('đã khớp: endpoint, model và nhiệt độ bằng giá trị preset ⇒ ghi, không hỏi', async () => {
+    const state = await loaded(false, fieldsOf('openai', 'https://api.anthropic.com/v1', 'claude-sonnet-5-5', 'default'))
     await state.selectAiConfigProvider('anthropic')
     expect(state.aiConfigPresetConfirm.value).toBeNull()
     expect(aiConfigSaveFieldsMock).toHaveBeenCalledTimes(1)
   })
 
-  it('preset không có mô hình: bấm Ollama giữ `qwen`, chỉ ghi provider và endpoint, không hỏi', async () => {
-    const state = await loaded(false, fieldsOf('openai', '', 'qwen'))
+  it('preset không có mô hình: bấm Ollama giữ `qwen`, không ghi model, không hỏi', async () => {
+    const state = await loaded(false, fieldsOf('openai', '', 'qwen', '0.2'))
     await state.selectAiConfigProvider('ollama')
     expect(state.aiConfigPresetConfirm.value).toBeNull()
     expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [
       { field: 'provider', value: 'ollama' },
       { field: 'endpoint', value: 'http://localhost:11434/v1' },
+      { field: 'temperature', value: '0.2' },
+      { field: 'max_tokens', value: 'default' },
     ])
   })
 
@@ -904,7 +947,7 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [{ field: 'provider', value: 'custom' }])
   })
 
-  it('tầng Tác phẩm: bấm Mistral ghi ba trường ở tầng work', async () => {
+  it('tầng Tác phẩm: bấm Mistral từ trống ghi năm trường ở tầng work, không hỏi', async () => {
     const state = await loaded(true)
     expect(state.aiConfigViewTier.value).toBe('work')
     await state.selectAiConfigProvider('mistral')
@@ -912,13 +955,15 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
       { field: 'provider', value: 'mistral' },
       { field: 'endpoint', value: 'https://api.mistral.ai/v1' },
       { field: 'model', value: 'mistral-large-latest' },
+      { field: 'temperature', value: '0.2' },
+      { field: 'max_tokens', value: 'default' },
     ])
   })
 
   it('so với giá trị ở tầng đang xem: tầng Tác phẩm kế thừa endpoint Toàn cục khác preset ⇒ hỏi', async () => {
     const state = await loaded(true, fieldsOf('openai', 'https://api.openai.com/v1', ''))
     await state.selectAiConfigProvider('xai')
-    expect(state.aiConfigPresetConfirm.value?.changes.map((c) => c.field)).toEqual(['endpoint'])
+    expect(state.aiConfigPresetConfirm.value?.changes.map((c) => c.field)).toEqual(['endpoint', 'temperature'])
     expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
   })
 
@@ -934,18 +979,94 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     expect(state.aiConfigIsSaving('provider')).toBe(false)
   })
 
-  it('áp dụng preset không chạm temperature: không có trường temperature trong lời gọi và giá trị vẫn 0.3', async () => {
-    const state = await loaded(false, fieldsOf('openai', '', ''))
-    expect(state.aiConfigDraft('temperature')).toBe('0.3')
+  it('mỗi preset ghi đúng nhiệt độ và số token của nó; Endpoint khác không ghi hai trường này', async () => {
+    const state = await loaded(false, fieldsOf('openai', '', '', ''))
     for (const provider of state.AI_PROVIDERS) {
       aiConfigSaveFieldsMock.mockClear()
       await state.selectAiConfigProvider(provider)
-      await state.confirmAiConfigPreset()
-      const sent = aiConfigSaveFieldsMock.mock.calls.flatMap((c) => c[1] as { field: string }[])
-      expect(sent.map((f) => f.field)).not.toContain('temperature')
-      expect(sent.map((f) => f.field)).not.toContain('max_tokens')
+      const preset = state.AI_PROVIDER_PRESETS[provider]
+      const sent = aiConfigSaveFieldsMock.mock.calls.flatMap((c) => c[1] as { field: string; value: string }[])
+      const valueOf = (f: string) => sent.find((x) => x.field === f)?.value
+      expect(valueOf('temperature')).toBe(preset.temperature === '' ? undefined : preset.temperature)
+      expect(valueOf('max_tokens')).toBe(preset.maxTokens === '' ? undefined : preset.maxTokens)
     }
-    expect(state.aiConfigDraft('temperature')).toBe('0.3')
+  })
+
+  it('xác nhận ghi đè liệt kê nhiệt độ và số token khác preset; trống hoặc cùng giá trị thì không liệt kê', async () => {
+    const rows = fieldRows({
+      provider: { value: 'mistral', tier: 'global' },
+      temperature: { value: '0.3', tier: 'global' },
+      max_tokens: { value: '4096', tier: 'global' },
+    })
+    const state = await loaded(false, rows)
+    await state.selectAiConfigProvider('anthropic')
+    expect(state.aiConfigPresetConfirm.value?.changes).toEqual([
+      { field: 'temperature', oldValue: '0.3', newValue: 'default' },
+      { field: 'max_tokens', oldValue: '4096', newValue: '8192' },
+    ])
+    state.cancelAiConfigPreset()
+
+    const equalNumeric = await loaded(
+      false,
+      fieldRows({ temperature: { value: '0.20', tier: 'global' }, max_tokens: { value: 'default', tier: 'global' } }),
+    )
+    await equalNumeric.selectAiConfigProvider('mistral')
+    expect(equalNumeric.aiConfigPresetConfirm.value).toBeNull()
+  })
+
+  it('I/O Matrix "Áp preset đè nhiệt độ": 0.3 rồi Anthropic ⇒ dòng 0.3 → default; Huỷ không ghi gì', async () => {
+    const state = await loaded(false, fieldsOf('openai', '', '', '0.3'))
+    await state.selectAiConfigProvider('anthropic')
+    expect(state.aiConfigPresetConfirm.value?.changes).toContainEqual({
+      field: 'temperature',
+      oldValue: '0.3',
+      newValue: 'default',
+    })
+    state.cancelAiConfigPreset()
+    expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+  })
+
+  it('I/O Matrix "Áp preset từ trống": Mistral ghi 0.2 và default cùng ba trường kia, không hỏi', async () => {
+    const state = await loaded(false)
+    await state.selectAiConfigProvider('mistral')
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [
+      { field: 'provider', value: 'mistral' },
+      { field: 'endpoint', value: 'https://api.mistral.ai/v1' },
+      { field: 'model', value: 'mistral-large-latest' },
+      { field: 'temperature', value: '0.2' },
+      { field: 'max_tokens', value: 'default' },
+    ])
+  })
+
+  it('giá trị lưu là `default` và preset cũng `default` ⇒ không hỏi; preset số thì VẪN hỏi', async () => {
+    const stored = fieldRows({
+      temperature: { value: 'default', tier: 'global' },
+      max_tokens: { value: 'default', tier: 'global' },
+    })
+    const state = await loaded(false, stored)
+    await state.selectAiConfigProvider('openai')
+    expect(state.aiConfigPresetConfirm.value).toBeNull()
+    expect(aiConfigSaveFieldsMock).toHaveBeenCalledTimes(1)
+
+    const other = await loaded(false, stored)
+    await other.selectAiConfigProvider('mistral')
+    expect(other.aiConfigPresetConfirm.value?.changes).toEqual([
+      { field: 'temperature', oldValue: 'default', newValue: '0.2' },
+    ])
+  })
+
+  it('placeholder khoá API theo nhà cung cấp; OpenAI là `sk-…`, nhà cung cấp lạ và chưa chọn là rỗng', async () => {
+    const openai = await loaded(false, fieldRows({ provider: { value: 'openai', tier: 'global' } }))
+    expect(openai.aiConfigKeyPlaceholder()).toBe('sk-…')
+    const anthropic = await loaded(false, fieldRows({ provider: { value: 'anthropic', tier: 'global' } }))
+    expect(anthropic.aiConfigKeyPlaceholder()).toBe('sk-ant-…')
+    const mistral = await loaded(false, fieldRows({ provider: { value: 'mistral', tier: 'global' } }))
+    expect(mistral.aiConfigKeyPlaceholder()).toBe('')
+    const unknown = await loaded(false, fieldRows({ provider: { value: 'groq', tier: 'global' } }))
+    expect(unknown.aiConfigKeyPlaceholder()).toBe('')
+    expect((await loaded(false)).aiConfigKeyPlaceholder()).toBe('')
   })
 
   it('đổi tầng xem hoặc đặt lại mục thì hộp xác nhận bị gỡ', async () => {
@@ -987,5 +1108,165 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     const closed = await loaded(false, rows)
     await closed.clearAllAiConfigOverrides()
     expect(aiConfigClearOverrideMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('chip nhiệt độ và số token — trạng thái bật, chọn chip, Tự nhập', () => {
+  const rows = (o: Partial<Record<string, { value: string; tier: 'global' | 'work' }>> = {}) =>
+    ['provider', 'endpoint', 'model', 'temperature', 'max_tokens'].map((field) => ({
+      field,
+      value: o[field]?.value ?? '',
+      tier: o[field]?.tier ?? 'global',
+      shadowed: null,
+    }))
+
+  async function loaded(workTierAvailable: boolean, r = rows()) {
+    aiConfigGetMock.mockResolvedValue({ fields: r, workTierAvailable, keyConfigured: false, error: null })
+    const state = await freshState()
+    await state.loadAiConfigSection()
+    return state
+  }
+
+  const lit = (state: Awaited<ReturnType<typeof freshState>>, field: 'temperature' | 'max_tokens') =>
+    state.aiConfigChipChoices(field).filter((c) => state.aiConfigChipIsOn(field, c))
+
+  it('bảng chip: ba giá trị số mỗi trường', async () => {
+    const { AI_CHIP_VALUES, AI_CHIP_FIELDS } = await freshState()
+    expect([...AI_CHIP_FIELDS]).toEqual(['temperature', 'max_tokens'])
+    expect(AI_CHIP_VALUES.temperature).toEqual(['0.2', '0.5', '1'])
+    expect(AI_CHIP_VALUES.max_tokens).toEqual(['4096', '8192', '16384'])
+  })
+
+  it('AC: giá trị lưu `default` hoặc không có hàng ⇒ chỉ chip Mặc định bật, ô Tự nhập đóng', async () => {
+    const empty = await loaded(false)
+    const stored = await loaded(
+      false,
+      rows({ temperature: { value: 'default', tier: 'global' }, max_tokens: { value: 'default', tier: 'global' } }),
+    )
+    for (const state of [empty, stored]) {
+      expect(lit(state, 'temperature')).toEqual(['default'])
+      expect(lit(state, 'max_tokens')).toEqual(['default'])
+      expect(state.aiConfigChipInputIsOpen('temperature')).toBe(false)
+    }
+    expect(stored.aiConfigChipInputValue('temperature')).toBe('')
+  })
+
+  it('giá trị khớp đúng một chip số thì chip đó bật, kể cả cách viết khác (`0.50`, `+4096`)', async () => {
+    const state = await loaded(
+      false,
+      rows({ temperature: { value: '0.50', tier: 'global' }, max_tokens: { value: '4096', tier: 'global' } }),
+    )
+    expect(lit(state, 'temperature')).toEqual(['0.5'])
+    expect(lit(state, 'max_tokens')).toEqual(['4096'])
+  })
+
+  it('giá trị hợp lệ không khớp chip nào ⇒ chip Tự nhập bật, ô nhập hiện giá trị đó', async () => {
+    const state = await loaded(
+      false,
+      rows({ temperature: { value: '0.35', tier: 'global' }, max_tokens: { value: '5000', tier: 'global' } }),
+    )
+    expect(lit(state, 'temperature')).toEqual(['custom'])
+    expect(state.aiConfigChipInputIsOpen('temperature')).toBe(true)
+    expect(state.aiConfigChipInputValue('temperature')).toBe('0.35')
+    expect(lit(state, 'max_tokens')).toEqual(['custom'])
+    expect(state.aiConfigChipInputValue('max_tokens')).toBe('5000')
+  })
+
+  it('giá trị lưu không hợp lệ ⇒ không chip nào bật', async () => {
+    const state = await loaded(false, rows({ temperature: { value: '7', tier: 'global' } }))
+    expect(lit(state, 'temperature')).toEqual([])
+  })
+
+  it('I/O Matrix "Chọn chip số": bấm 0.5 ⇒ một lượt aiConfigSaveField(global, temperature, 0.5), chip 0.5 bật sau khi nạp lại', async () => {
+    const state = await loaded(false)
+    aiConfigGetMock.mockResolvedValue({
+      fields: rows({ temperature: { value: '0.5', tier: 'global' } }),
+      workTierAvailable: false,
+      keyConfigured: false,
+      error: null,
+    })
+    await state.selectAiConfigChip('temperature', '0.5')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'temperature', '0.5')
+    expect(aiConfigSaveFieldsMock).not.toHaveBeenCalled()
+    expect(lit(state, 'temperature')).toEqual(['0.5'])
+  })
+
+  it('bấm chip Mặc định ghi đúng chuỗi `default`, không xoá hàng', async () => {
+    const state = await loaded(false, rows({ max_tokens: { value: '8192', tier: 'global' } }))
+    await state.selectAiConfigChip('max_tokens', 'default')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'max_tokens', 'default')
+    expect(aiConfigClearOverrideMock).not.toHaveBeenCalled()
+  })
+
+  it('bấm chip đang bật thì không ghi gì', async () => {
+    const state = await loaded(false, rows({ temperature: { value: '0.2', tier: 'global' } }))
+    await state.selectAiConfigChip('temperature', '0.2')
+    await state.selectAiConfigChip('max_tokens', 'default')
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+  })
+
+  it('I/O Matrix "Mặc định ở tầng Tác phẩm": Toàn cục 0.3, tầng work bấm Mặc định ⇒ chỉ ghi tầng work', async () => {
+    const state = await loaded(true, rows({ temperature: { value: '0.3', tier: 'global' } }))
+    expect(state.aiConfigViewTier.value).toBe('work')
+    await state.selectAiConfigChip('temperature', 'default')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('work', 'temperature', 'default')
+    expect(aiConfigClearOverrideMock).not.toHaveBeenCalled()
+  })
+
+  it('AC: bấm chip ở tầng Tác phẩm biến trường thành ghi đè (đếm ghi đè tăng) — Trả về kế thừa xoá đúng hàng đó', async () => {
+    const state = await loaded(true, rows({ temperature: { value: '0.5', tier: 'work' } }))
+    expect(state.aiConfigOverrideCount.value).toBe(1)
+    expect(lit(state, 'temperature')).toEqual(['0.5'])
+    await state.clearAiConfigOverride('temperature')
+    expect(aiConfigClearOverrideMock).toHaveBeenCalledExactlyOnceWith('temperature')
+  })
+
+  it('I/O Matrix "Tự nhập": bấm Tự nhập chỉ mở ô, không ghi; gõ 0.35 rồi rời ô lưu 0.35', async () => {
+    const state = await loaded(false)
+    await state.selectAiConfigChip('temperature', 'custom')
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+    expect(lit(state, 'temperature')).toEqual(['custom'])
+    expect(state.aiConfigChipInputIsOpen('temperature')).toBe(true)
+
+    state.setAiConfigDraft('temperature', '0.35')
+    await state.commitAiConfigField('temperature')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'temperature', '0.35')
+  })
+
+  it('Tự nhập: `3` bị từ chối, 0 lượt ghi', async () => {
+    const state = await loaded(false)
+    await state.selectAiConfigChip('temperature', 'custom')
+    state.setAiConfigDraft('temperature', '3')
+    await state.commitAiConfigField('temperature')
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+    expect(state.aiConfigChipInputIsOpen('temperature')).toBe(true)
+  })
+
+  it('Tự nhập đang mở, bấm chip khác thì ô đóng và chip đó được ghi', async () => {
+    const state = await loaded(false)
+    await state.selectAiConfigChip('max_tokens', 'custom')
+    await state.selectAiConfigChip('max_tokens', '16384')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'max_tokens', '16384')
+    expect(state.aiConfigChipInputIsOpen('max_tokens')).toBe(false)
+  })
+
+  it('ô Tự nhập đóng khi đổi tầng xem và khi đặt lại mục', async () => {
+    const state = await loaded(true)
+    await state.selectAiConfigChip('temperature', 'custom')
+    expect(state.aiConfigChipInputIsOpen('temperature')).toBe(true)
+    state.selectAiConfigViewTier('global')
+    expect(state.aiConfigChipInputIsOpen('temperature')).toBe(false)
+
+    await state.selectAiConfigChip('temperature', 'custom')
+    state.resetAiConfigSection()
+    expect(state.aiConfigChipInputIsOpen('temperature')).toBe(false)
+  })
+
+  it('lượt ghi chip trượt ⇒ lỗi hiện ở trường đó', async () => {
+    const error = { code: 'store.write_failed', message: 'x', params: {} }
+    aiConfigSaveFieldMock.mockResolvedValue(error)
+    const state = await loaded(false)
+    await state.selectAiConfigChip('max_tokens', '4096')
+    expect(state.aiConfigSaveErrorFor('max_tokens')).toEqual(error)
   })
 })
