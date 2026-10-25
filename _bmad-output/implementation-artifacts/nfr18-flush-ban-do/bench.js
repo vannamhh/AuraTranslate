@@ -639,11 +639,22 @@
     else if (v === 5) addCss('.cell{contain:layout style paint}')
     else if (v === 6) document.querySelectorAll('[data-col="tgt"]').forEach(function (n) { n.setAttribute('data-bench', '1') })
     else if (v === 7) addCss('.zzz-inert{color:inherit}')
+    else if (v >= 8 && v <= 10) {
+      var probe = document.createElement('div')
+      probe.setAttribute('contenteditable', 'true')
+      probe.setAttribute('data-col', 'tgt')
+      probe.setAttribute('data-bench-probe', String(v))
+      probe.style.cssText = 'min-width:200px;min-height:20px;white-space:pre-wrap;'
+      var real = document.querySelector('[data-col="tgt"]:not([data-bench-probe])')
+      if (v === 9 && real && real.parentNode) real.parentNode.insertBefore(probe, real.nextSibling)
+      else { probe.style.cssText += 'position:fixed;left:8px;bottom:8px;z-index:99999;background:#fff;color:#000;'; document.body.appendChild(probe) }
+      if (v !== 10) probe.focus()
+    }
   }
   window.addEventListener('keydown', function (e) {
-    if (!(e.ctrlKey && e.altKey && e.shiftKey) || (e.code !== 'Digit9' && e.code !== 'Digit0' && e.code !== 'Minus')) return
+    if (!(e.ctrlKey && e.altKey && e.shiftKey) || (e.code !== 'Digit9' && e.code !== 'Digit0' && e.code !== 'Minus' && e.code !== 'Equal' && e.code !== 'BracketRight' && e.code !== 'BracketLeft')) return
     e.preventDefault()
-    variantNo = e.code === 'Digit0' ? 6 : e.code === 'Minus' ? 7 : variantNo + 1; B.variant = variantNo
+    variantNo = e.code === 'Digit0' ? 6 : e.code === 'Minus' ? 7 : e.code === 'Equal' ? 8 : e.code === 'BracketRight' ? 9 : e.code === 'BracketLeft' ? 10 : variantNo + 1; B.variant = variantNo
     try { applyVariant(variantNo) } catch (x) { B.variantErr = String(x) }
     paint('biến thể ' + variantNo)
   }, true)

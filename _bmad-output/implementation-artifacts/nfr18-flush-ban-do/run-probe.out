@@ -1,0 +1,24 @@
+RIG_FAIL no work
+loadavg_before { 5.55 4.45 5.11 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb8-1.json
+loadavg_before { 5.96 5.15 5.33 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb9-1.json
+loadavg_before { 3.92 4.80 5.19 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb10-1.json
+loadavg_before { 4.77 5.01 5.24 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb0-2.json
+loadavg_before { 3.94 4.74 5.11 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb8-2.json
+loadavg_before { 4.41 4.77 5.08 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb9-2.json
+loadavg_before { 4.72 4.98 5.15 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb10-2.json
+loadavg_before { 4.83 5.01 5.14 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb0-3.json
+loadavg_before { 4.17 4.76 5.03 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb8-3.json
+loadavg_before { 4.41 4.85 5.05 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb9-3.json
+loadavg_before { 4.55 4.89 5.05 }
+OK /Users/hoangnam/LocalSites/addon/AuraTranslate/_bmad-output/implementation-artifacts/nfr18-flush-ban-do/keys-pb10-3.json
+SENTINEL_PROBE_DONE

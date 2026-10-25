@@ -35,7 +35,7 @@ PHRASES=(
 
 now() { perl -MTime::HiRes=time -e 'printf "%.3f\n", time' }
 
-: > "$LOG"
+: > "$LOG"; rm -f "$LOG.keys"
 echo "# type-driver bắt đầu $(now) · thời lượng ${DUR}s" >> "$LOG"
 
 if [ "${RATE:-40hz}" = "10hz" ]; then

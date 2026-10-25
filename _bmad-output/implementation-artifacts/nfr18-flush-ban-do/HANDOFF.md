@@ -121,3 +121,35 @@ Build: release `npx tauri build --bundles app` (không bench) trên HEAD `e33d55
 | 10 phím/giây | 20 | 1,67 | 3,14 | 5,99 | 4/20 | 7/20, trung vị 3,14 |
 
 ⇒ AC1 KHÔNG đạt; plan sang `blocked`. Hướng A cắt đuôi layout/vẽ (xem bảng biến thể) nhưng hàng đợi 40 phím/giây vẫn tăng nên cửa sổ vẫn vượt trần. Chưa đo lại `[n]` tới `noteEditorEdit` bằng bench sau bản sửa (AC2 chưa kiểm). Hướng chờ Ice: B/C/D ở trên, hoặc giảm lệnh sửa WebKit 14 ms/phím.
+
+## Mất mát thật ở 10 phím/giây (release có hướng A, HEAD `2357baf`)
+
+Build: `npx tauri build --bundles app`, không bench; Chương `s122.txt` 122 câu; `RATE=10hz`, 20 mẫu `VALID` mỗi lượt, hai lượt độc lập (`l10`, `l10b`); `fence.sh` trước/sau mỗi lượt: đứng. Thước đo: `type-10hz-indexed.applescript` ghi giờ từng phím (`<log>.keys`); `true-loss.py` neo vào `[n]` hoàn chỉnh lớn nhất còn trong `project.db`, đếm tiếp phần chữ sau `]` còn khớp luồng phím, mất mát thật = mốc kill − giờ phím đầu tiên không còn trong kho (0 nếu còn đủ). `loss-<nhãn>.tsv` có cả `window_s` cũ để so.
+
+| Lượt | n | loadavg trước kill | `window_s` min / trung vị / max (> 5 s) | mất thật min / trung vị / max (> 5 s) |
+|---|---|---|---|---|
+| `l10` (thước prefix, ghép cùng đợt máy bận) | 20 | 6,0–25,3 | 0,28 / 3,51 / 6,19 (5) | 0,00 / 2,59 / 5,49 (4) |
+| `l10b` (thước neo `[n]` + prefix, hai thước trùng 20/20) | 20 | 3,3–11,9 | 1,76 / 3,10 / 6,06 (2) | 0,77 / 1,77 / 5,18 (1) |
+
+- `l10` còn 1 `BLUR_FAIL` + 1 `RIG_FAIL` (bỏ khỏi mẫu); `l10b` không bỏ lượt nào. `l10` chỉ có thước prefix (thước neo thêm sau; `project.db` của lượt đã bị xoá), nhưng trên `l10b` hai thước trùng từng mẫu.
+- `window_s` báo dư so với mất thật trung vị 1,3–1,5 s (0,1–2,5 s mỗi mẫu), đúng cụm câu cuối chưa kịp gõ `]`. Ba mẫu `l10b` (14, 15, 20) mất thật ≥ `window_s` (chênh −0,04 / −0,13 / −0,06 s): sai số mốc kill, không phải phần dư.
+- Mất thật VẪN vượt 5 s: 5/40 mẫu (max 5,49 s), tức vượt trần cứng `EDITOR_HARD_CAP_MS` 5000 từ 0,2 đến 0,5 s. Quyết định 2026-10-25 (Ice): vượt hoặc sát 5 s ⇒ trần cứng 5 s của AD-35 chuyển cho Winston viết AD; KHÔNG tự đổi trong mã. Chưa giải thích tại sao hẹn giờ + lô bay còn trễ 0,2–0,5 s trên trần ở 10 phím/giây (lượt `l10` có loadavg cao hơn nên tỉ lệ vượt cũng cao hơn: 4/20 so với 1/20).
+
+## Cô lập lệnh sửa của WebKit ở 40 phím/giây (bench build HEAD + hướng A)
+
+Bench: `bench.js` biến thể 8–10 (phím `=` `]` `[` cùng Ctrl+Alt+Shift, địa chỉ trực tiếp, KHÔNG cộng dồn như `9`), `keycost-probe.sh 3` (xen kẽ), n=3 phiên mỗi nhóm (+1 phiên `pb0` chạy lại vì `RIG_FAIL no work`), 30 s, ~1100 phím mỗi phiên, 40 phím/giây `type-driver.sh`, loadavg trước gõ 3,9–6,0. `fence.sh`: đứng. Số thô `keys-pb*.json`.
+
+| Nhóm | Chỗ gõ | webkit_edit p50 / p95 ms | input→frame p95 ms | hàng đợi phần ba cuối s (3 phiên) | trễ `[n]` quý cuối s (3 phiên) |
+|---|---|---|---|---|---|
+| `pb0` | ô thật trong lưới | 8 / 15 | 41–42 | 4,5 · 1,8 · 2,3 | 4,4 · 1,5 · 2,1 |
+| `pb10` (đối chứng: có `<div>` probe trong `body` nhưng gõ ô thật) | ô thật | 8 / 15 | 42–47 | 2,4 · 5,5 · 2,3 | 1,8 · 5,5 · 1,8 |
+| `pb9` | `<div contenteditable>` liền kề ô thật, cùng cha | 7 / 10 | 44–47 | 1,3 · 1,4 · 1,1 | 1,1 · 0,8 · 0,8 |
+| `pb8` | `<div contenteditable>` `position:fixed` trong `body`, ngoài lưới | 0 / 1 | 53–56 | 0,5 · 0,5 · 0,5 | 0,36 · 0,32 · 0,31 |
+
+Đọc số:
+- Lệnh sửa của WebKit gần như bằng 0 khi gõ vào phần tử ngoài lưới (0 / 1 ms) và hàng đợi KHÔNG tăng (0,3–0,5 s ~ độ trễ bơm phím của `osascript`). Cùng số chữ, cùng trang, cùng webview. ⇒ 7–8 ms của 8 ms nằm ở NGỮ CẢNH lưới quanh ô, không ở bản thân `contenteditable`, kích thước chữ hay JS sản phẩm.
+- `pb9` (liền kề ô thật, cùng cha) vẫn 7 ms; `pb10` (probe có mặt nhưng không gõ vào) giữ nguyên số của `pb0` ⇒ chi phí không do thêm một phần tử vào DOM mà do chỗ ngồi của phần tử được sửa. Phần tổ tiên chung (khối `GridBlock` và các cha) là nghi can; chưa tách tới từng cha.
+- Hướng A (`contain: layout style` trên `.cell-tgt`) đã cắt đuôi layout/vẽ (xem bảng cũ) nhưng lệnh sửa còn 8 ms p50 trong ô thật; ở lượt phân bổ cũ báo 14 ms, nay 8 ms ở cùng hướng A, khác tải máy (3,9–6,0 so với 7,8–16) ⇒ không so hai con số này. Hàng đợi cuối phiên ở `pb0` vẫn 1,8–4,5 s và còn tăng ⇒ AC2 chưa đạt.
+- Lưu ý bàn đo cũ: `keycost-session.sh VARIANT=n` bấm `9` n lần, mà `9` chạy `applyVariant(1..n)` cộng dồn, nên nhóm `dv3`/`w3` ở bảng biến thể cũ có thể là A cộng `spellcheck` cộng `content-visibility`, không phải A riêng. Bản sửa A trong mã chỉ có `contain`; kill campaign hướng A (19/20 và 4/20) đo đúng A. Các cột "A" trong bảng biến thể cũ cần đọc với lưu ý này.
+
+Việc kế (CHECKPOINT, chờ Ice): chọn một trong (a) tách tổ tiên nào gây ra 7–8 ms (đo thêm vài probe: cùng cha ở các cấp, `GridBlock` có/không `v-memo`/`contain` cho cả khối), (b) thử cho ô gõ làm một lớp riêng ngoài lưới (cấu trúc DOM), (c) chấp nhận lệnh sửa 8 ms và giảm số phím vào webview ở 40 phím/giây (thuộc về cách đo, không phải mã), kèm AD cho trần 5 s nếu Ice giữ kết luận mất thật > 5 s. Không chọn thay Ice.

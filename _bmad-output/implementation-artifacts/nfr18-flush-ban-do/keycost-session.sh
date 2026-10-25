@@ -36,6 +36,9 @@ V="${VARIANT:-0}"
 for v in $( [ "$V" -gt 0 ] && seq 1 $V ); do
   osascript -e 'tell application "System Events" to key code 25 using {control down, option down, shift down}' >/dev/null 2>&1; sleep 0.7
 done
+for kc in ${=PROBE:-}; do
+  osascript -e "tell application \"System Events\" to key code $kc using {control down, option down, shift down}" >/dev/null 2>&1; sleep 0.7
+done
 if [ "${CTRL:-}" = "attr" ]; then
   osascript -e 'tell application "System Events" to key code 29 using {control down, option down, shift down}' >/dev/null 2>&1; sleep 0.7
 elif [ "${CTRL:-}" = "style" ]; then

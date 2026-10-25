@@ -209,6 +209,11 @@ while [ "$valid" -lt "$NEED" ] && [ "$shots" -lt "$CAP" ]; do
 
   case "$CLASS" in VALID|VALID_IDLE) valid=$((valid+1));; esac
 
+  if [ -f "$TYPELOG.keys" ]; then
+    [ -f "$SCRATCH/loss-$LABEL.tsv" ] || printf 'round\tclass\twindow_s\tkeys_kept\tkeys_total\tloss_s\tkeys_prefix\tloss_prefix_s\n' > "$SCRATCH/loss-$LABEL.tsv"
+    printf '%s\t%s\t%s\t%s\n' "$r" "$CLASS" "${WIN:-}" "$(python3 "$SCRATCH/true-loss.py" "$DB" "$TYPELOG.keys" "$KILL_TS" "$SCRATCH/textdump-$LABEL-$r.txt" | tr ' ' '\t')" >> "$SCRATCH/loss-$LABEL.tsv"
+  fi
+
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$r" "$KILL_TS" "$MAXN" "$LASTN" "${INJ:-}" "${WIN:-}" "$WALP" "$WALG" \
     "$CLASS" "$BUSYP" "$BUSYG" "$PASP" "$PASG" "$THRP" "$THRG" "$BLURPCT" "$NOTE" >> "$OUT"
