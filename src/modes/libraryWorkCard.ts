@@ -24,7 +24,38 @@ export function sourceLangChoices(): { value: string; label: string }[] {
   ]
 }
 
-const GENRE_IDS = ['xianxia', 'xuanhuan', 'wuxia', 'urban', 'romance', 'danmei', 'historical', 'scifi', 'game', 'horror', 'mystery', 'fanfic', 'literary', 'children', 'nonfiction', 'science', 'legal', 'news', 'commentary', 'tcm', 'health', 'cuisine', 'family', 'travel', 'culture', 'history_figures', 'spiritual', 'arts', 'business', 'other'] as const
+const GENRE_IDS = [
+  'news',
+  'commentary',
+  'tcm',
+  'health',
+  'cuisine',
+  'family',
+  'travel',
+  'culture',
+  'history_figures',
+  'spiritual',
+  'arts',
+  'business',
+  'science',
+  'legal',
+  'nonfiction',
+  'xianxia',
+  'xuanhuan',
+  'wuxia',
+  'urban',
+  'romance',
+  'danmei',
+  'historical',
+  'scifi',
+  'game',
+  'horror',
+  'mystery',
+  'fanfic',
+  'literary',
+  'children',
+  'other',
+] as const
 type GenreId = (typeof GENRE_IDS)[number]
 
 function isGenreId(raw: string): raw is GenreId {

@@ -140,7 +140,7 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     const labels = field!.findAll('.select-item').map((n) => n.text())
     expect(labels).toHaveLength(31)
     expect(labels[0]).toBe('Chưa chọn')
-    expect(labels[1]).toBe('Tiên hiệp')
+    expect(labels[1]).toBe('Thời sự')
   })
 
   it('focus falls back to [data-library-import-open] when the opener node was replaced', async () => {

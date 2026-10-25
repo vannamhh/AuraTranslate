@@ -72,12 +72,10 @@ describe('workCardMeta', () => {
 })
 
 describe('genre list', () => {
-  it('offers "Chưa chọn" then the 30 genres in order, empty value first', () => {
+  it('offers "Chưa chọn", then press genres, then specialist ones, then fiction, with "Khác" last', () => {
     const choices = genreChoices()
-    expect(choices).toHaveLength(31)
     expect(choices[0]).toEqual({ value: '', label: 'Chưa chọn' })
-    expect(choices[1]).toEqual({ value: 'xianxia', label: 'Tiên hiệp' })
-    expect(choices.slice(18, 30).map((c) => c.label)).toEqual([
+    expect(choices.slice(1).map((c) => c.label)).toEqual([
       'Thời sự',
       'Bình luận – Chính luận',
       'Đông y',
@@ -90,8 +88,26 @@ describe('genre list', () => {
       'Tâm linh – Kỳ văn',
       'Nghệ thuật',
       'Kinh tế – Kinh doanh',
+      'Khoa học – Kỹ thuật',
+      'Pháp lý',
+      'Phi hư cấu',
+      'Tiên hiệp',
+      'Huyền huyễn',
+      'Kiếm hiệp',
+      'Đô thị',
+      'Ngôn tình',
+      'Đam mỹ',
+      'Lịch sử – Cổ đại',
+      'Khoa huyễn',
+      'Võng du – Game',
+      'Linh dị – Kinh dị',
+      'Trinh thám',
+      'Đồng nhân',
+      'Văn học',
+      'Thiếu nhi',
+      'Khác',
     ])
-    expect(choices[30]).toEqual({ value: 'other', label: 'Khác' })
+    expect(choices[1].value).toBe('news')
   })
 
   it('maps an id to its label, shows a foreign value verbatim, and empty is null', () => {
