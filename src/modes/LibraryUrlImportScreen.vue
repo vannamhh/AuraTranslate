@@ -6,7 +6,8 @@ import { focusReturnTargetOnOpen } from '../commands/focus'
 import { recordImportOpener, takeRecordedImportOpener } from '../importOpener'
 import { importPreviewIsOpen } from '../importPreviewState'
 import SelectMenu from '../SelectMenu.vue'
-import { sourceLangChoices, sourceLangLabel } from './libraryWorkCard'
+import SourceLangChips from './SourceLangChips.vue'
+import { genreChoices, genreLabel, sourceLangLabel } from './libraryWorkCard'
 import {
   busy,
   destinationExistingWorkAvailable,
@@ -17,6 +18,7 @@ import {
   destinationWorks,
   destinationWorksError,
   effectiveName,
+  genre,
   lastError,
   name,
   pastedUrlCount,
@@ -42,7 +44,7 @@ const lineNumbers = computed<number[]>(() => {
 const destinationOptions = computed(() =>
   destinationWorks.value.map((work) => ({ value: work.work_id, label: work.name })),
 )
-const sourceLangOptions = computed(() => sourceLangChoices())
+const genreOptions = computed(() => genreChoices())
 
 const covered = computed<boolean>(() => importPreviewIsOpen.value)
 
@@ -183,16 +185,35 @@ function onEscape(): void {
 
         <div class="us-field">
           <span>{{ t('mode.library.field_source_lang') }}</span>
-          <SelectMenu
+          <SourceLangChips
             v-if="pickedDestinationWork === null"
             v-model="sourceLang"
-            variant="field"
-            :options="sourceLangOptions"
-            :label="t('mode.library.field_source_lang')"
+            name="library-url-import-source-lang"
+            data-url-import-source-lang
           />
           <input
             v-else
             :value="sourceLangLabel(pickedDestinationWork.source_lang) ?? ''"
+            type="text"
+            autocomplete="off"
+            disabled
+          />
+        </div>
+
+        <div class="us-field">
+          <span>{{ t('mode.library.field_genre') }}</span>
+          <SelectMenu
+            v-if="pickedDestinationWork === null"
+            v-model="genre"
+            variant="field"
+            :columns="3"
+            :options="genreOptions"
+            :label="t('mode.library.field_genre')"
+            data-url-import-genre
+          />
+          <input
+            v-else
+            :value="genreLabel(pickedDestinationWork.genre) ?? ''"
             type="text"
             autocomplete="off"
             disabled

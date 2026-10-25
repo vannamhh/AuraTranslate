@@ -32,7 +32,8 @@ import {
 } from './modes/libraryImport'
 import { bilingualImportPreviewIsOpen } from './bilingualImportPreviewState'
 import SelectMenu from './SelectMenu.vue'
-import { genreChoices, genreLabel, sourceLangChoices, sourceLangLabel } from './modes/libraryWorkCard'
+import SourceLangChips from './modes/SourceLangChips.vue'
+import { genreChoices, genreLabel, sourceLangLabel } from './modes/libraryWorkCard'
 import { importPreviewIsOpen } from './importPreviewState'
 import { libraryImportOverlayIsOpen, libraryUrlImportScreenIsOpen } from './modes/libraryImportOverlayState'
 
@@ -45,7 +46,6 @@ const panel = useTemplateRef<HTMLElement>('panel')
 const destinationOptions = computed(() =>
   destinationWorks.value.map((work) => ({ value: work.work_id, label: work.name })),
 )
-const sourceLangOptions = computed(() => sourceLangChoices())
 const genreOptions = computed(() => genreChoices())
 
 useSelectionSurface(panel, 'display')
@@ -209,30 +209,12 @@ function trapTab(event: KeyboardEvent): void {
 
         <div class="field">
           <span>{{ t('mode.library.field_source_lang') }}</span>
-          <div
+          <SourceLangChips
             v-if="pickedDestinationWork === null"
-            class="lang-chips"
-            role="radiogroup"
-            :aria-label="t('mode.library.field_source_lang')"
+            v-model="sourceLang"
+            name="library-import-source-lang"
             data-import-source-lang
-          >
-            <label
-              v-for="option in sourceLangOptions"
-              :key="option.value"
-              class="lang-chip"
-              :class="{ 'lang-chip--on': sourceLang === option.value }"
-            >
-              <input
-                v-model="sourceLang"
-                type="radio"
-                name="library-import-source-lang"
-                class="lang-chip-input"
-                :value="option.value"
-              />
-              <!-- aura-allow-text: option label is the output of t(). -->
-              <span>{{ option.label }}</span>
-            </label>
-          </div>
+          />
           <input
             v-else
             :value="sourceLangLabel(pickedDestinationWork.source_lang) ?? ''"
@@ -412,46 +394,6 @@ function trapTab(event: KeyboardEvent): void {
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   padding: 8px 8px;
-}
-
-.lang-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.lang-chip {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 12px;
-  border: 1px solid var(--color-outline);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  color: var(--color-on-surface-variant);
-  cursor: pointer;
-}
-
-.lang-chip--on {
-  border-color: var(--color-primary);
-  background: var(--color-surface-accent);
-  color: var(--color-primary);
-  font-weight: var(--weight-ui-md-strong);
-}
-
-.lang-chip:has(input:focus-visible) {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.field .lang-chip-input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  cursor: pointer;
 }
 
 .field-group {

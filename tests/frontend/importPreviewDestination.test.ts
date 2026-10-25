@@ -557,6 +557,37 @@ describe('LibraryMode.vue — chữ trên nút nộp đổi theo đích (mục B
     screen.unmount()
   })
 
+  it('màn Nhập từ website: ngôn ngữ là chip, Thể loại là menu ba cột, và cả hai đi tới lượt tải link', async () => {
+    mockInvokeWithWorks([workRow()])
+    const nhap = await import('../../src/modes/libraryImport')
+    startUrlMock.mockResolvedValue({ batch: null, error: null })
+    const screen = await mountUrlScreen()
+    await flushPromises()
+    nhap.destinationMode.value = 'new'
+    nhap.sourceLang.value = 'zh'
+    nhap.genre.value = ''
+    await screen.vm.$nextTick()
+
+    const chips = screen.get('[data-url-import-source-lang]')
+    expect(chips.attributes('role')).toBe('radiogroup')
+    expect(chips.findAll('.lang-chip').map((c) => c.text())).toEqual(['Tiếng Trung', 'Tiếng Anh'])
+    await chips.get('input[value="en"]').setValue(true)
+
+    const genreMenu = screen.get('[data-url-import-genre]')
+    expect(genreMenu.get('.select-options').classes()).toContain('select-options--cols-3')
+    await genreMenu.get('input[value="tcm"]').setValue(true)
+    expect(nhap.genre.value).toBe('tcm')
+
+    nhap.name.value = 'Ten'
+    nhap.pastedUrls.value = 'https://example.com/1'
+    await nhap.submitPastedUrls()
+    const [, sourceLangArg] = startUrlMock.mock.calls.at(-1) ?? []
+    expect(sourceLangArg).toBe('en')
+    expect(nhap.effectiveGenre.value).toBe('tcm')
+
+    screen.unmount()
+  })
+
   it('đích là một Tác phẩm đã có: hai nút đổi sang "Thêm Chương từ …", không còn nói "Tạo Tác phẩm"', async () => {
     mockInvokeWithWorks([workRow()])
     wrapper = await mountImportOverlay()
