@@ -18,6 +18,7 @@ import {
 import { resetLookupPanel, runLookup, sourceEntryCount } from '../../src/panels/lookupPanelState'
 import { resetLookupHistory } from '../../src/panels/lookupHistoryState'
 import { flushPromises } from './support/flushMicrotasks'
+import { installFakeDragJs, pressDragHeader } from './support/dragRegionPress'
 import { DA, NOT_FOUND, SOURCES, group, hit, response } from './support/lookupFixtures'
 
 const h = vi.hoisted(() => ({
@@ -95,6 +96,15 @@ describe('Nguồn N/M popup', () => {
     expect(trigger(w).attributes('aria-expanded')).toBe('true')
     expect(rows(w).map((r) => r.attributes('data-source-code'))).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
     expect(rows(w).map((r) => r.attributes('aria-checked'))).toEqual(['true', 'true', 'true'])
+  })
+
+  it('a press on a drag-region header closes the open list although drag.js swallows the bubble phase', async () => {
+    installFakeDragJs()
+    const w = await openPanel()
+    await trigger(w).trigger('click')
+    expect(sourcesMenuIsOpen.value).toBe(true)
+    pressDragHeader()
+    expect(sourcesMenuIsOpen.value).toBe(false)
   })
 
   it('ArrowDown twice then Space turns the second source off, re-runs the lookup and lowers N', async () => {

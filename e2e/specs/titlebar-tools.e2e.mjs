@@ -64,6 +64,34 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
     })
   }
 
+  it('trên macOS, thanh tiêu đề là vùng kéo có lề cho ba nút, và lớp phủ chừa dải thanh tiêu đề', async () => {
+    await openList()
+    await realClick(await $(ITEM('settings.open')))
+    await $('.set-panel').waitForDisplayed({ timeout: 10_000 })
+    let chrome
+    try {
+      chrome = await browser.execute(() => ({
+        platform: document.documentElement.dataset.platform ?? '',
+        drag: document.querySelector('.titlebar')?.getAttribute('data-tauri-drag-region') ?? '',
+        headerInset: getComputedStyle(document.querySelector('.titlebar')).paddingLeft,
+        scrimTop: getComputedStyle(document.querySelector('.set-scrim')).paddingTop,
+        titlebarHeight: getComputedStyle(document.documentElement).getPropertyValue('--space-titlebar-height').trim(),
+        inset: getComputedStyle(document.documentElement).getPropertyValue('--space-traffic-light-inset').trim(),
+      }))
+    } finally {
+      await browser.keys(['Escape'])
+      await $('.set-panel').waitForExist({ reverse: true, timeout: 10_000 })
+    }
+    expect(chrome).toEqual({
+      platform: 'mac',
+      drag: 'deep',
+      headerInset: chrome.inset,
+      scrimTop: chrome.titlebarHeight,
+      titlebarHeight: '40px',
+      inset: '88px',
+    })
+  })
+
   // Enter/Space on a focused button is not drivable here (manual check, deferred-work.md), so the
   // keyboard case covers only what the driver can send: arrows and Escape.
   it('mũi tên đi giữa các mục; Escape đóng danh sách và đưa tiêu điểm về Công cụ ▾', async () => {

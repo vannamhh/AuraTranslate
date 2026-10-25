@@ -1,7 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "Cửa sổ duy nhất. Không plugin filesystem — AD-1, AD-29. Ba tập quyền dưới đây là tập TỐI THIỂU thật, không phải bundle `core:default`: path (resolveResource), event (Channel/emit — AD-22), resources (dọn resource table). Xem src-tauri/SECURITY-NOTES.md.",
+  "description": "Cửa sổ duy nhất. Không plugin filesystem — AD-1, AD-29. Năm quyền dưới đây là tập TỐI THIỂU thật, không phải bundle `core:default`: path (resolveResource), event (Channel/emit — AD-22), resources (dọn resource table), start-dragging và internal-toggle-maximize (drag.js cho vùng kéo thanh tiêu đề macOS — AD-58). Xem src-tauri/SECURITY-NOTES.md.",
   "windows": ["main"],
-  "permissions": ["core:path:default", "core:event:default", "core:resources:default"]
+  "permissions": [
+    "core:path:default",
+    "core:event:default",
+    "core:resources:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize"
+  ]
 }

@@ -913,6 +913,10 @@ async function onEscape(): Promise<void> {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .pl-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .pl-panel {
   width: 100%;
   max-width: 960px;

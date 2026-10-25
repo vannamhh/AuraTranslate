@@ -329,6 +329,10 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .li-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .li-panel {
   width: 100%;
   max-width: 720px;

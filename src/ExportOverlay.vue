@@ -624,6 +624,10 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .ex-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .ex-panel {
   width: 100%;
   max-width: 720px;

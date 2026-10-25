@@ -244,6 +244,10 @@ function onKeydown(event: KeyboardEvent): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .gh-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .gh-panel {
   width: 100%;
   max-width: 720px;

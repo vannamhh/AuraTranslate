@@ -887,6 +887,10 @@ function onKeydown(event: KeyboardEvent): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .gm-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .gm-panel {
   width: 100%;
   max-width: 1100px;

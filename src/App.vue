@@ -24,7 +24,7 @@ import { emitFailureLine, fallbackReportText } from './selftest/fallbackReport'
 // ⚠️ `dispatch` là cửa DUY NHẤT mà một handler chuột được đi qua (AC1). Ba `@click` dưới
 // đây là **đúng một** lời gọi `dispatch('<id>')`, và `scripts/check-commands.mjs` Kiểm A
 // cưỡng chế điều đó bằng cú pháp trên mọi `.vue` của cây nguồn.
-import { dispatch } from './commands'
+import { detectIsMac, dispatch } from './commands'
 import { currentMode } from './modes/modeState'
 import { t, tError } from './i18n'
 import { shortcutRows } from './config/shortcutsState'
@@ -103,6 +103,7 @@ const importChord = computed(
   () => shortcutRows.value.find((row) => row.id === 'library.import.open')?.display.join(' / ') ?? '',
 )
 
+const titlebarDragRegion = detectIsMac() ? 'deep' : undefined
 const report = ref<ScopeCheckReport | null>(null)
 const selftestEnabled = import.meta.env.VITE_SCOPE_SELFTEST === '1'
 
@@ -203,7 +204,7 @@ onMounted(async () => {
       {{ tError(configError) }}
     </p>
 
-    <header class="titlebar">
+    <header class="titlebar" :data-tauri-drag-region="titlebarDragRegion">
       <nav class="modes">
         <button
           type="button"
@@ -428,6 +429,11 @@ onMounted(async () => {
   height: var(--space-titlebar-height);
   padding: 0 var(--space-panel-inline);
   border-bottom: 1px solid var(--color-outline);
+  user-select: none;
+}
+
+:root[data-platform='mac'] .titlebar {
+  padding-left: var(--space-traffic-light-inset);
 }
 
 .modes {

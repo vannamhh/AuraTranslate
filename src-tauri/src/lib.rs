@@ -1110,7 +1110,7 @@ pub fn run() {
         // ─────────────────────────────────────────────────────────────────────────
         // ⚠️ **Không** thêm mục ACL vào `capabilities/main.json` cho hai command này.
         // Trong Tauri v2, command do **chính ứng dụng** khai không cần quyền — ACL canh
-        // command của **plugin**. `tests/config_invariants.rs:333` khoá tệp đó ở đúng ba
+        // command của **plugin**. `tests/config_invariants.rs` khoá tệp đó ở đúng năm
         // quyền, và nới nó ra là nới đúng thứ AD-23 tồn tại để siết.
         //
         // ⚠️ Tên trên dây là tên hàm, nên đường dẫn trỏ vào module `wire` — xem
@@ -1990,7 +1990,7 @@ fn wire_drag_drop(app: &tauri::App) {
 /// ⚠️ Hạ tầng đã có nguyên vẹn và nó cần **ĐÚNG 0** permission ACL mới:
 /// `WebviewWindow::on_window_event` đăng ký callback **thẳng** trên dispatcher runtime, hoàn
 /// toàn không đi qua hệ thống invoke/ACL/capabilities. [`wire_drag_drop`] là tiền lệ, và
-/// `tests/config_invariants.rs:333` khoá `capabilities/main.json` ở đúng ba quyền — **đừng nới**.
+/// `tests/config_invariants.rs` khoá `capabilities/main.json` ở đúng năm quyền — **đừng nới**.
 /// `app.emit(...)` thì **có** đi qua hệ thống event, và đó là chỗ `core:event:default` (cấp từ
 /// Story 1.2) đã đủ.
 ///
@@ -2127,7 +2127,7 @@ fn wire_scope_selftest(handle: &tauri::AppHandle) {
 ///
 /// ⚠️ **Không** thêm mục ACL vào `capabilities/main.json`. Trong Tauri v2, command do **chính
 /// ứng dụng** khai không cần quyền — ACL canh command của **plugin**. `tests/config_invariants.rs`
-/// khoá tệp đó ở đúng ba quyền.
+/// khoá tệp đó ở đúng năm quyền.
 ///
 /// ⚠️ `try_state`, không `state()` — cùng lý do mọi vỏ `wire` khác: state có thể chưa từng được
 /// `app.manage` (lỗi cấu hình `setup()`), và `panic = "abort"` giết cả tiến trình nếu ta thẳng

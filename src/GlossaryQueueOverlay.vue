@@ -470,6 +470,10 @@ function onKeydown(event: KeyboardEvent): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .gq-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .gq-panel {
   width: 100%;
   max-width: 720px;

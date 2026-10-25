@@ -164,6 +164,10 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .ti-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .ti-panel {
   width: 100%;
   max-width: 720px;

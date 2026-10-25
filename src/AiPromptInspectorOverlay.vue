@@ -578,6 +578,10 @@ const resultUsage = computed(() => {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .aip-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .aip-panel {
   width: 100%;
   overflow: auto;

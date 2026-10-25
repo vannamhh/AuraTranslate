@@ -238,6 +238,10 @@ function trapTab(event: KeyboardEvent): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .ri-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .ri-panel {
   width: 100%;
   max-width: 720px;

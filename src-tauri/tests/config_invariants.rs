@@ -389,15 +389,53 @@ fn main_capability_grants_the_minimum_and_no_plugin_permission() {
         vec![
             "core:path:default",
             "core:event:default",
-            "core:resources:default"
+            "core:resources:default",
+            "core:window:allow-start-dragging",
+            "core:window:allow-internal-toggle-maximize"
         ],
-        "Tối thiểu THẬT, ba tập: path (resolveResource) · event (emit/Channel, AD-22) · \
-         resources (dọn resource table).\n\
+        "Tối thiểu THẬT, năm quyền: path (resolveResource) · event (emit/Channel, AD-22) · \
+         resources (dọn resource table) · hai quyền `core:window` cho `drag.js` của Tauri, \
+         vùng kéo thanh tiêu đề macOS (AD-58): start-dragging (kéo) và \
+         internal-toggle-maximize (bấm đúp).\n\
          Đừng quay lại `core:default`: nó là một BUNDLE kéo theo cả \
          `core:window:default`, `core:webview:default`, `core:menu:default`, \
          `core:tray:default`, `core:app:default` — dự án này dựng cả một script để cấm \
          `tauri-plugin-fs` vì bề mặt IPC, mở sẵn nhóm kia là tự mâu thuẫn.\n\
          Mọi quyền `<plugin>:…` ở đây là một bề mặt IPC mới — phải là một AD mới trước đã"
+    );
+}
+
+#[test]
+fn main_window_block_matches_ad_58() {
+    let conf = read_json("tauri.conf.json");
+    let windows = conf["app"]["windows"]
+        .as_array()
+        .expect("`app.windows` phải là mảng");
+    assert_eq!(windows.len(), 1, "AD-24: đúng một cửa sổ");
+    let main = &windows[0];
+    assert_eq!(main["label"], "main", "AD-24: label `main`");
+    assert_ne!(
+        main["decorations"],
+        serde_json::json!(false),
+        "AD-58 Rule 1: giữ `decorations`, ba nút cửa sổ là của hệ điều hành"
+    );
+    assert_eq!(
+        main["titleBarStyle"], "Overlay",
+        "AD-58 Rule 1: `titleBarStyle` phải là `Overlay`"
+    );
+    assert_eq!(
+        main["hiddenTitle"],
+        serde_json::json!(true),
+        "AD-58 Rule 1: `hiddenTitle` phải là `true`"
+    );
+    assert!(
+        main["trafficLightPosition"].is_object(),
+        "AD-58 Rule 1: `trafficLightPosition` phải có mặt"
+    );
+    assert!(
+        main.get("acceptFirstMouse")
+            .is_none_or(|v| v == &serde_json::json!(false)),
+        "AD-58 Rule 7: `acceptFirstMouse` vắng hoặc `false`"
     );
 }
 

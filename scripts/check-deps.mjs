@@ -177,7 +177,7 @@ try {
 // `tauri-plugin-fs` theo BẮC CẦU (`Cargo.lock`). Kiểm 1 ở đây canh MÃ CÓ MẶT TRONG CÂY —
 // tức bề mặt tấn công nhị phân (NFR6) — KHÁC HẲN bề mặt IPC ra JavaScript (NFR11), thứ
 // `src-tauri/tests/config_invariants.rs::main_capability_grants_the_minimum_and_no_
-// plugin_permission` canh bằng cách khoá `capabilities/main.json` ở đúng ba quyền. Hai
+// plugin_permission` canh bằng cách khoá `capabilities/main.json` ở đúng năm quyền. Hai
 // cổng, hai mệnh đề: một crate CÓ MẶT trong cây không đồng nghĩa nó có MỘT lệnh nào phơi
 // ra webview — `tauri_plugin_fs::init()` không được gọi ở bất kỳ đâu trong
 // `src-tauri/src/**` (`grep` rỗng, canh bởi `config_invariants.rs`), nên **0** lệnh

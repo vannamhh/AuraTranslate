@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { CommandDeps } from '../../src/commands'
+import { installFakeDragJs, pressDragHeader } from './support/dragRegionPress'
 
 async function setup(extra: Partial<CommandDeps> = {}) {
   vi.resetModules()
@@ -118,6 +119,18 @@ describe('Công cụ ▾ list', () => {
     wrapper.unmount()
   })
 
+  it('a press on a drag-region header closes the open list although drag.js swallows the bubble phase', async () => {
+    installFakeDragJs()
+    const { state, Menu } = await setup()
+    const wrapper = mount(Menu, { attachTo: document.body })
+    onTestFinished(() => wrapper.unmount())
+    state.toggleToolsMenu()
+    await flush()
+    expect(state.toolsMenuIsOpen.value).toBe(true)
+    pressDragHeader()
+    expect(state.toolsMenuIsOpen.value).toBe(false)
+  })
+
   it('the trigger opens and closes the list through titlebar.tools.toggle', async () => {
     const { state, Menu } = await setup()
     const wrapper = mount(Menu, { attachTo: document.body })
@@ -181,7 +194,7 @@ describe('openLibraryImportForm', () => {
 
 describe('title bar in App.vue', () => {
   const app = readFileSync(resolve(__dirname, '../../src/App.vue'), 'utf8')
-  const header = /<header class="titlebar">[\s\S]*?<\/header>/.exec(app)?.[0] ?? ''
+  const header = /<header class="titlebar"[^>]*>[\s\S]*?<\/header>/.exec(app)?.[0] ?? ''
 
   it('holds the three tabs, the layout switch and the Công cụ ▾ menu, and no loose entry buttons', () => {
     expect(header).not.toBe('')

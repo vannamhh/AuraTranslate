@@ -66,12 +66,12 @@ function onDocumentClick(event: MouseEvent): void {
 
 onMounted(() => {
   if (root.value !== null) mountedMenus.add(root.value)
-  document.addEventListener('mousedown', onDocumentMouseDown)
+  document.addEventListener('mousedown', onDocumentMouseDown, true)
   document.addEventListener('click', onDocumentClick)
 })
 onBeforeUnmount(() => {
   if (root.value !== null) mountedMenus.delete(root.value)
-  document.removeEventListener('mousedown', onDocumentMouseDown)
+  document.removeEventListener('mousedown', onDocumentMouseDown, true)
   document.removeEventListener('click', onDocumentClick)
 })
 </script>

@@ -13466,3 +13466,8 @@ chính nó.
 ## Deferred from: UX Library — tên trên bìa (2026-10-25)
 
 - **Ảnh bìa FR3 chưa có đường đặt.** PRD FR3 ghi "ảnh bìa *(tuỳ chọn)*" nhưng chưa story nào cho người dùng chọn ảnh; Story 5.6 không thêm cột và để Ice quyết (`src-tauri/src/core/store/schema.rs:2550`), chưa từng vào sổ này. Library tạm in tên Tác phẩm lên bìa màu (`ux-auratranslate/DESIGN.md` §Tông bìa Tác phẩm). Làm thì ảnh phải nằm trong thư mục Tác phẩm để vẫn mang đi được. **Chủ: Ice.**
+
+## Deferred from: thanh tiêu đề macOS phủ lên webview (2026-10-25, story 12-25)
+
+- **Chưa có ai nhìn thanh tiêu đề macOS trong app thật.** Vitest và `config_invariants` chỉ canh cấu hình, thuộc tính kéo và thứ tự listener; không canh được vị trí ba nút, kéo, bấm đúp, menu đóng khi bấm header, hay góc trên trái của 17 lớp phủ sau khi scrim đệm `--space-titlebar-height`. Ice chụp app thật cạnh `mockups/web-import.html`, chốt `trafficLightPosition` (`tauri.conf.json`, đang `{x:16,y:13}`) và `--space-traffic-light-inset` (đang 88px). **Chủ: Epic 12.**
+- **Windows chưa được xác nhận không đổi.** Story 12-25 chỉ bật vùng kéo, lề và đệm scrim sau `detectIsMac()` / `data-platform="mac"`, nhưng `drag.js` của Tauri chạy cả trên Windows và quyền `core:window` mới áp cho mọi nền tảng; không có test trên Windows. Kiểm: header không kéo được, không có lề, lớp phủ không đệm, menu đóng như cũ. Gộp vào bảng nghiệm thu Windows. **Chủ: B7.**

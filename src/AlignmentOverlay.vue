@@ -305,6 +305,10 @@ function onKeydown(event: KeyboardEvent): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .al-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .al-panel {
   width: 100%;
   max-width: 960px;

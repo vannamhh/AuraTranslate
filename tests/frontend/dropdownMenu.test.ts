@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import DropdownMenu from '../../src/DropdownMenu.vue'
+import { installFakeDragJs, pressDragHeader } from './support/dragRegionPress'
 
 const Host = defineComponent({
   render() {
@@ -58,6 +59,15 @@ describe('DropdownMenu.vue', () => {
     first!.querySelector<HTMLElement>('[data-item="stay"]')!.click()
     expect(first!.open).toBe(true)
     first!.querySelector<HTMLElement>('[data-menu-close]')!.click()
+    expect(first!.open).toBe(false)
+  })
+
+  it('a press on a drag-region header closes an open menu although drag.js swallows the bubble phase', async () => {
+    installFakeDragJs()
+    wrapper = mount(Host, { attachTo: document.body })
+    const [first] = menus()
+    await open(first!)
+    pressDragHeader()
     expect(first!.open).toBe(false)
   })
 })

@@ -267,6 +267,10 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .pi-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .pi-panel {
   width: 100%;
   max-width: 720px;

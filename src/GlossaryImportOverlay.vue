@@ -265,6 +265,10 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .gi-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .gi-panel {
   width: 100%;
   max-width: 720px;

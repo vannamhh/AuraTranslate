@@ -746,6 +746,10 @@ function onDeleteAiConfigKey(): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .set-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .set-panel {
   width: 100%;
   max-width: 920px;

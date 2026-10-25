@@ -76,12 +76,12 @@ function onFocusOut(event: FocusEvent) {
 }
 
 onMounted(() => {
-  document.addEventListener('mousedown', onDocumentMouseDown)
+  document.addEventListener('mousedown', onDocumentMouseDown, true)
   root.value?.addEventListener('focusout', onFocusOut)
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', onDocumentMouseDown)
+  document.removeEventListener('mousedown', onDocumentMouseDown, true)
   root.value?.removeEventListener('focusout', onFocusOut)
 })
 </script>

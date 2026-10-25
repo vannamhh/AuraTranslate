@@ -131,7 +131,7 @@ Plugin `tauri-plugin-dialog` kéo `tauri-plugin-fs` vào cây phụ thuộc **b�
 `src-tauri/src/**` — có mặt trong cây phụ thuộc khác hẳn có mặt trên bề mặt IPC. Không
 `init()` ⇒ `window.try_fs_scope()` (được chính `tauri-plugin-dialog` gọi nội bộ để đặt
 scope hộp thoại) trả `None`, và mã của plugin đã bọc `if let Some(...)` nên không panic
-⇒ **0** lệnh `fs:*` phơi ra webview. `capabilities/main.json` vẫn giữ đúng BA quyền —
+⇒ **0** lệnh `fs:*` phơi ra webview. `capabilities/main.json` vẫn giữ đúng NĂM quyền —
 lệnh do CHÍNH ứng dụng khai (`commands/glossary.rs::wire`) không cần ACL, chỉ lệnh của
 PLUGIN mới cần, và plugin dialog cũng không cần thêm gì vì JavaScript không bao giờ gọi
 thẳng vào nó (frontend chỉ `dispatch()` một command đã đăng ký, vỏ mỏng mở hộp thoại
@@ -154,19 +154,21 @@ không biết vì sao.
 
 Neo bằng test `csp_scheme_sources_are_pinned_to_the_directive_that_needs_them`.
 
-## `capabilities/main.json` — ba tập quyền, không phải `core:default`
+## `capabilities/main.json` — năm quyền, không phải `core:default`
 
 `core:default` là một **bundle**: nó kéo theo `core:window:default`, `core:webview:default`,
 `core:menu:default`, `core:tray:default`, `core:app:default`. Dự án này dựng cả một script
 để cấm `tauri-plugin-fs` vì lý do bề mặt IPC — mở sẵn nhóm kia là tự mâu thuẫn.
 
-Tập tối thiểu thật, mỗi cái có người dùng cụ thể:
+Tập tối thiểu thật, mỗi cái có người dùng cụ thể (AD-58 thêm hai hàng cuối):
 
 | Tập quyền | Ai cần |
 |---|---|
 | `core:path:default` | `resolveResource()` — đường nạp font của Story 1.4 |
 | `core:event:default` | `emit`/`listen` và Channel (AD-22) |
 | `core:resources:default` | dọn resource table của Channel |
+| `core:window:allow-start-dragging` | `drag.js` của Tauri, vùng kéo `header.titlebar` chỉ trên macOS (AD-58) |
+| `core:window:allow-internal-toggle-maximize` | `drag.js` của Tauri, bấm đúp vùng kéo phóng to hoặc thu lại (AD-58) |
 
 Thêm một tập nữa là mở một bề mặt IPC mới — **phải là một AD mới trước đã**. Neo bằng test
 `main_capability_grants_the_minimum_and_no_plugin_permission`, và bằng

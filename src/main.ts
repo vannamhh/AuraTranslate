@@ -23,7 +23,7 @@ import { loadFonts } from './tokens/fonts'
 // Story 5.11 — theme nay có một đường ĐỔI lúc chạy (`reading.toggle_theme`, `D`); state
 // module hoá thay `applyTheme()` gọi thẳng — xem doc-comment đầu `tokens/themeState.ts`.
 import { initTheme } from './tokens/themeState'
-import { attachKeyboard, dispatch, installCommands } from './commands'
+import { attachKeyboard, detectIsMac, dispatch, installCommands } from './commands'
 import type { ModeId } from './commands'
 import { currentMode, setMode } from './modes/modeState'
 import { bootstrapReadingPreferences, loadBootstrapConfig, putConfig } from './config/bootstrap'
@@ -1251,6 +1251,8 @@ async function boot(): Promise<void> {
       void openGlossaryHarvest()
     },
   })
+
+  if (detectIsMac()) document.documentElement.dataset.platform = 'mac'
 
   createApp(App).mount('#app')
 

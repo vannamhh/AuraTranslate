@@ -371,6 +371,10 @@ function aimRow(id: number): void {
   background: var(--color-background);
 }
 
+:root[data-platform='mac'] .hist-scrim {
+  padding-top: var(--space-titlebar-height);
+}
+
 .hist-panel {
   width: 100%;
   max-width: 1100px;
