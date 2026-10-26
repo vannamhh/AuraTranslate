@@ -9,7 +9,7 @@
  * segment là hai giao dịch trên writer **duy nhất, nối tiếp** của AD-11, và không một hiệu ứng
  * quan sát được nào phân biệt chúng với một lượt.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   failNextSave,
   FIXTURE_CHAPTER_ID,
@@ -37,6 +37,8 @@ const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve,
 beforeEach(() => {
   resetRecorder()
 })
+
+afterEach(settle)
 
 describe('rời segment = caret đổi câu (AC18)', () => {
   it('caret đi từ câu A sang câu B ⇒ ĐÚNG MỘT lượt flush, mang đúng câu A', async () => {
