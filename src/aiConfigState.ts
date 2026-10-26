@@ -558,6 +558,7 @@ export function resetAiConfigSection(): void {
   effectiveProvider.value = ''
   effectiveModel.value = ''
   resolvedFields.value = []
+  defaultSystemPrompt.value = ''
   drafts.value = emptyDrafts()
   saving.value = emptyFlags()
   saveErrors.value = emptyErrors()
