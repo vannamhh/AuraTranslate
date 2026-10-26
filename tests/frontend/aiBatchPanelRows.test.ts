@@ -124,11 +124,13 @@ function readyConfig(ready: boolean | null, provider = 'Ollama', model = 'qwen2.
     workTierAvailable: false,
     keyConfigured: ready,
     ready,
+    notReady: ready === false ? ['model_missing'] : [],
     error: null,
   }
 }
 
 const openSettingsMock = vi.fn()
+const openAiConfigMock = vi.fn()
 const openInspectorMock = vi.fn()
 
 async function freshPanel() {
@@ -139,6 +141,7 @@ async function freshPanel() {
   promoteMock.mockReset()
   aiConfigGetMock.mockReset()
   openSettingsMock.mockReset()
+  openAiConfigMock.mockReset()
   openInspectorMock.mockReset()
   aiConfigGetMock.mockResolvedValue(readyConfig(true))
   resetRecorder()
@@ -157,6 +160,7 @@ async function freshPanel() {
     confirmPendingPromote: editorState.confirmPendingPromote,
     cancelPendingPromote: editorState.cancelPendingPromote,
     openSettings: openSettingsMock,
+    openSettingsToAiConfig: openAiConfigMock,
     openAiPromptInspector: openInspectorMock,
   } as unknown as CommandDeps)
 
@@ -403,6 +407,7 @@ describe('đầu panel và trạng thái chưa cấu hình (matrix: "Đã cấu 
       workTierAvailable: false,
       keyConfigured: null,
       ready: null,
+      notReady: [],
       error: { code: 'x', message_key: 'err.unknown', params: {}, retryable: false },
     })
     const wrapper = await mountPanel(fresh.AiTranslationPanel)
@@ -424,8 +429,8 @@ describe('đầu panel và trạng thái chưa cấu hình (matrix: "Đã cấu 
     const block = wrapper.get('[data-ai-unconfigured]')
     expect(block.text()).toContain('Chưa cấu hình AI')
     expect(block.text()).toContain('Mọi năng lực khác vẫn chạy đầy đủ')
-    expect(block.text()).toContain('Ollama và LM Studio chạy trên máy này không cần khoá')
-    expect(block.text()).not.toContain('vẫn cần một khoá bất kỳ')
+    expect(block.text()).toContain('Chưa chọn mô hình.')
+    expect(block.text()).not.toContain('cần khoá API')
     expect(block.attributes('role')).toBeUndefined()
     expect(block.find('[role="alert"]').exists()).toBe(false)
     expect(block.classes().join(' ')).not.toContain('error')
@@ -433,7 +438,8 @@ describe('đầu panel và trạng thái chưa cấu hình (matrix: "Đã cấu 
     expect(wrapper.find('[data-ai-key-unchecked]').exists()).toBe(false)
 
     await block.get('[data-ai-unconfigured-open-settings]').trigger('click')
-    expect(openSettingsMock).toHaveBeenCalledTimes(1)
+    expect(openAiConfigMock).toHaveBeenCalledTimes(1)
+    expect(openSettingsMock).not.toHaveBeenCalled()
 
     fresh.editorState.setEditorCaret(101)
     await wrapper.vm.$nextTick()

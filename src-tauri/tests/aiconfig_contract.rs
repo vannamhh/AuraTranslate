@@ -18,8 +18,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, Once};
 
 use auratranslate_lib::commands::aiconfig::{
-    AiConfigFieldValue, AiConfigTierWire, ai_config_clear_override, ai_config_delete_key,
-    ai_config_get, ai_config_save_field, ai_config_save_fields, ai_config_save_key,
+    AiConfigFieldValue, AiConfigTierWire, AiNotReadyReason, ai_config_clear_override,
+    ai_config_delete_key, ai_config_get, ai_config_save_field, ai_config_save_fields,
+    ai_config_save_key,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work};
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, validate_field};
@@ -1283,6 +1284,98 @@ fn ready_is_true_false_or_none_by_endpoint_model_and_key() {
 
     drop(global);
     cleanup_dir(&root);
+}
+
+#[test]
+fn not_ready_lists_each_unmet_condition_and_agrees_with_ready() {
+    use AiNotReadyReason::{EndpointMissing, KeyMissing, ModelMissing};
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = temp_dir("not-ready-reasons");
+    let global = open_global(&root);
+    reset_key_to_not_configured();
+
+    let read = |global: &Store, open: Option<&OpenWork>| {
+        let wire = ai_config_get(Some(global), open).expect("doc ai_config");
+        assert_eq!(
+            wire.ready == Some(false),
+            !wire.not_ready.is_empty(),
+            "ready va not_ready phai di cung nhau"
+        );
+        (wire.ready, wire.not_ready)
+    };
+    let save = |field: AiConfigField, value: &str| {
+        ai_config_save_field(Some(&global), None, AiConfigTier::Global, field, value)
+            .expect("luu truong");
+    };
+
+    assert_eq!(
+        read(&global, None),
+        (Some(false), vec![EndpointMissing, ModelMissing])
+    );
+
+    save(AiConfigField::Provider, "ollama");
+    save(AiConfigField::Endpoint, "http://localhost:11434/v1");
+    assert_eq!(read(&global, None), (Some(false), vec![ModelMissing]));
+
+    save(AiConfigField::Model, "qwen2.5:14b");
+    assert_eq!(read(&global, None), (Some(true), vec![]));
+
+    save(AiConfigField::Provider, "groq");
+    assert_eq!(read(&global, None), (Some(false), vec![KeyMissing]));
+
+    let unset_root = temp_dir("not-ready-unset-provider");
+    let unset = open_global(&unset_root);
+    for (field, value) in [
+        (AiConfigField::Endpoint, "http://localhost:11434/v1"),
+        (AiConfigField::Model, "qwen2.5:14b"),
+    ] {
+        ai_config_save_field(Some(&unset), None, AiConfigTier::Global, field, value)
+            .expect("luu truong");
+    }
+    assert_eq!(read(&unset, None), (Some(false), vec![KeyMissing]));
+    drop(unset);
+    cleanup_dir(&unset_root);
+
+    inject_one_shot_keychain_error();
+    assert_eq!(read(&global, None), (None, vec![]));
+
+    ai_config_save_key(AiConfigTier::Global, "sk-not-ready").expect("luu khoa");
+    assert_eq!(read(&global, None), (Some(true), vec![]));
+    reset_key_to_not_configured();
+
+    save(AiConfigField::Provider, "ollama");
+    let work = open_work_real(&root);
+    ai_config_save_field(
+        Some(&global),
+        Some(&work),
+        AiConfigTier::Work,
+        AiConfigField::Provider,
+        "anthropic",
+    )
+    .expect("ghi de nha cung cap");
+    assert_eq!(read(&global, Some(&work)), (Some(false), vec![KeyMissing]));
+    ai_config_clear_override(Some(&work), AiConfigField::Provider).expect("tra ve ke thua");
+    assert_eq!(read(&global, Some(&work)), (Some(true), vec![]));
+
+    drop(work);
+    drop(global);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn not_ready_reasons_serialise_as_snake_case_strings() {
+    let json = serde_json::to_string(&[
+        AiNotReadyReason::EndpointMissing,
+        AiNotReadyReason::ModelMissing,
+        AiNotReadyReason::KeyMissing,
+    ])
+    .expect("serialise");
+    assert_eq!(
+        json,
+        r#"["endpoint_missing","model_missing","key_missing"]"#
+    );
 }
 
 #[test]

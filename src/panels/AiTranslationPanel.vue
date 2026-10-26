@@ -55,9 +55,13 @@ import {
   editorSegments,
 } from './editorPanelState'
 import {
+  AI_PROVIDERS,
   aiConfigEffectiveModel,
   aiConfigEffectiveProvider,
+  aiConfigNotReady,
   aiConfigReadiness,
+  aiConfigReadinessWorkIsOpen,
+  aiConfigWorkOverrides,
   refreshAiConfigReadiness,
 } from '../aiConfigState'
 import { aiUsageVisible } from '../aiUsageVisibleState'
@@ -403,6 +407,35 @@ const promoteBatchReportText = computed<string | null>(() => {
         skipped: String(report.skipped),
       })
 })
+const providerLabel = computed(() => {
+  const raw = aiConfigEffectiveProvider.value.trim()
+  const known = AI_PROVIDERS.find((p) => p === raw.toLowerCase())
+  return known === undefined ? raw : t(`settings.ai_config.provider_${known}`)
+})
+
+const notReadyLines = computed(() =>
+  aiConfigNotReady.value.map((reason) => {
+    if (reason === 'endpoint_missing') return { key: reason, text: t('panel.ai_translation.reason_endpoint_missing') }
+    if (reason === 'model_missing') return { key: reason, text: t('panel.ai_translation.reason_model_missing') }
+    const text =
+      providerLabel.value === ''
+        ? t('panel.ai_translation.reason_key_missing_no_provider')
+        : t('panel.ai_translation.reason_key_missing', { provider: providerLabel.value })
+    return { key: reason, text }
+  }),
+)
+
+const workOverrideText = computed(() => {
+  if (!aiConfigReadinessWorkIsOpen.value || aiConfigWorkOverrides.value.length === 0) return null
+  const names = aiConfigWorkOverrides.value.map((f) => t(`settings.ai_config.field_${f}`)).join(', ')
+  return t('panel.ai_translation.work_overrides', { fields: names })
+})
+
+const openSettingsLabel = computed(() =>
+  workOverrideText.value !== null
+    ? t('panel.ai_translation.unconfigured_open_work_settings')
+    : t('panel.ai_translation.unconfigured_open_settings'),
+)
 </script>
 
 <template>
@@ -423,14 +456,32 @@ const promoteBatchReportText = computed<string | null>(() => {
     <div v-if="aiConfigReadiness === 'unconfigured'" class="ai-unconfigured" data-ai-unconfigured>
       <p class="ai-unconfigured-title">{{ t('panel.ai_translation.unconfigured_title') }}</p>
       <p class="ai-unconfigured-text">{{ t('panel.ai_translation.unconfigured_other') }}</p>
-      <p class="ai-unconfigured-text">{{ t('panel.ai_translation.unconfigured_local') }}</p>
+      <!-- aura-allow-text: KẾT QUẢ của t() (câu lý do dựng trong notReadyLines). -->
+      <p
+        v-for="reason in notReadyLines"
+        :key="reason.key"
+        class="ai-unconfigured-text"
+        data-ai-unconfigured-reason
+        :data-ai-unconfigured-reason-kind="reason.key"
+      >
+        {{ reason.text }}
+      </p>
+      <!-- aura-allow-text: KẾT QUẢ của t() (dòng ghi đè dựng trong workOverrideText). -->
+      <p
+        v-if="workOverrideText !== null"
+        class="ai-unconfigured-text"
+        data-ai-unconfigured-overrides
+      >
+        {{ workOverrideText }}
+      </p>
+      <!-- aura-allow-text: KẾT QUẢ của t() (nhãn nút dựng trong openSettingsLabel). -->
       <button
         type="button"
         class="ai-unconfigured-open"
         data-ai-unconfigured-open-settings
-        @click="dispatch('settings.open')"
+        @click="dispatch('settings.ai_config.open')"
       >
-        {{ t('panel.ai_translation.unconfigured_open_settings') }}
+        {{ openSettingsLabel }}
       </button>
     </div>
     <p v-else-if="aiConfigReadiness === 'key_unchecked'" class="ai-translate-hint" data-ai-key-unchecked>

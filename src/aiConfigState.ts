@@ -12,7 +12,7 @@ import {
   aiConfigTestConnection,
   aiConfigTestConnectionCancel,
 } from './config/aiconfig'
-import type { AiConfigField, AiConfigFieldWire } from './config/aiconfig'
+import type { AiConfigField, AiConfigFieldWire, AiNotReadyReason } from './config/aiconfig'
 
 const MAX_TOKENS_LIMIT = 4294967295
 const PROVIDER_DEFAULT = 'default'
@@ -187,6 +187,9 @@ export type AiConfigReadiness = 'unknown' | 'ready' | 'unconfigured' | 'key_unch
 const readiness = ref<AiConfigReadiness>('unknown')
 const effectiveProvider = ref('')
 const effectiveModel = ref('')
+const notReady = ref<AiNotReadyReason[]>([])
+const workOverrides = ref<AiConfigField[]>([])
+const readinessWorkOpen = ref(false)
 
 /** Số thứ tự lượt đọc — chỉ lượt MỚI NHẤT được quyền ghi kết quả (khuôn `settingsState.ts`). */
 let sequence = 0
@@ -240,6 +243,11 @@ export const aiConfigWorkIsOpen: DeepReadonly<Ref<boolean>> = readonly(workIsOpe
 export const aiConfigKeyConfigured: DeepReadonly<Ref<boolean | null>> = readonly(keyConfigured)
 /** Rust's `ready` verdict: `unknown` = not read yet or the read failed; `key_unchecked` = endpoint and model set but the keychain cannot be asked. */
 export const aiConfigReadiness: DeepReadonly<Ref<AiConfigReadiness>> = readonly(readiness)
+/** Unmet conditions behind `unconfigured`, in Rust's order; empty otherwise. */
+export const aiConfigNotReady: DeepReadonly<Ref<AiNotReadyReason[]>> = readonly(notReady)
+/** Fields the open Work currently overrides; empty when no Work is open. */
+export const aiConfigWorkOverrides: DeepReadonly<Ref<AiConfigField[]>> = readonly(workOverrides)
+export const aiConfigReadinessWorkIsOpen: DeepReadonly<Ref<boolean>> = readonly(readinessWorkOpen)
 export const aiConfigEffectiveProvider: DeepReadonly<Ref<string>> = readonly(effectiveProvider)
 export const aiConfigEffectiveModel: DeepReadonly<Ref<string>> = readonly(effectiveModel)
 export const aiConfigKeyBusy: DeepReadonly<Ref<boolean>> = readonly(keyBusy)
@@ -345,8 +353,14 @@ type AiConfigGetResult = Awaited<ReturnType<typeof aiConfigGet>>
 function applyReadiness(result: AiConfigGetResult): void {
   if (result.error !== null || result.fields === null) {
     readiness.value = 'unknown'
+    notReady.value = []
+    workOverrides.value = []
+    readinessWorkOpen.value = false
     return
   }
+  notReady.value = result.notReady
+  workOverrides.value = result.fields.filter((f) => f.tier === 'work').map((f) => f.field)
+  readinessWorkOpen.value = result.workTierAvailable
   effectiveProvider.value = result.fields.find((f) => f.field === 'provider')?.value ?? ''
   effectiveModel.value = result.fields.find((f) => f.field === 'model')?.value ?? ''
   readiness.value = result.ready === true ? 'ready' : result.ready === false ? 'unconfigured' : 'key_unchecked'
@@ -494,6 +508,9 @@ export function resetAiConfigSection(): void {
   sequence += 1
   readinessSequence += 1
   readiness.value = 'unknown'
+  notReady.value = []
+  workOverrides.value = []
+  readinessWorkOpen.value = false
   effectiveProvider.value = ''
   effectiveModel.value = ''
   resolvedFields.value = []

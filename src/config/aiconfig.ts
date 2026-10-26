@@ -40,6 +40,8 @@ export type AiConfigFieldWire = {
  * `OpenWorkState` phía Rust vẫn `Some` — không IPC nào đóng một Tác phẩm ngoài
  * `RunEvent::Exit`).
  */
+export type AiNotReadyReason = 'endpoint_missing' | 'model_missing' | 'key_missing'
+
 type AiConfigGetWire = {
   work_tier_available: boolean
   fields: AiConfigFieldWire[]
@@ -50,6 +52,7 @@ type AiConfigGetWire = {
   key_configured: boolean | null
   /** Rust's verdict for a translate call: `null` only when the key cannot be asked. */
   ready: boolean | null
+  not_ready: AiNotReadyReason[]
 }
 
 function isIpcError(value: unknown): value is IpcError {
@@ -97,6 +100,7 @@ export async function aiConfigGet(): Promise<{
   workTierAvailable: boolean
   keyConfigured: boolean | null
   ready: boolean | null
+  notReady: AiNotReadyReason[]
   error: IpcError | null
 }> {
   try {
@@ -106,16 +110,17 @@ export async function aiConfigGet(): Promise<{
       workTierAvailable: wire.work_tier_available,
       keyConfigured: wire.key_configured,
       ready: wire.ready,
+      notReady: wire.not_ready,
       error: null,
     }
   } catch (err) {
-    if (isIpcError(err)) return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, error: err }
+    if (isIpcError(err)) return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, notReady: [], error: err }
     if (hasIpcBridge()) {
       console.error(`[aiconfig] \`${CMD_GET}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
-      return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, error: UNKNOWN_IPC_ERROR }
+      return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, notReady: [], error: UNKNOWN_IPC_ERROR }
     }
     console.info(`[aiconfig] không gọi được \`${CMD_GET}\` — chạy ngoài Tauri? ${String(err)}`)
-    return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, error: null }
+    return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, notReady: [], error: null }
   }
 }
 

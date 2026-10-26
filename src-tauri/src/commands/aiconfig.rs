@@ -139,9 +139,20 @@ pub struct AiConfigGetWire {
     /// hình". Khoá là Global-only nên trường này không đi qua [`AiConfigFieldWire`]/
     /// `shadowed` — nó không có khái niệm tầng để mà che.
     pub key_configured: Option<bool>,
-    /// Same verdict a translate call reaches (`aitranslate::call_ready`): `Some(false)` when
+    /// Same verdict a translate call reaches (`call_readiness`): `Some(false)` when
     /// endpoint or model is empty or the key is absent, `None` when the key cannot be asked.
     pub ready: Option<bool>,
+    /// Unmet conditions behind `ready`, in the order endpoint, model, key. Empty exactly when
+    /// `ready` is `Some(true)` or `None`.
+    pub not_ready: Vec<AiNotReadyReason>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiNotReadyReason {
+    EndpointMissing,
+    ModelMissing,
+    KeyMissing,
 }
 
 /// Đọc năm trường, hai tầng đã phân giải, cộng `work_tier_available` và `key_configured` —
@@ -191,7 +202,7 @@ pub fn ai_config_get(
             .map(|f| f.value.as_str())
             .unwrap_or_default()
     };
-    let ready = call_ready(
+    let (ready, not_ready) = call_readiness(
         resolved_value(AiConfigField::Provider),
         resolved_value(AiConfigField::Endpoint),
         resolved_value(AiConfigField::Model),
@@ -203,6 +214,7 @@ pub fn ai_config_get(
         fields,
         key_configured,
         ready,
+        not_ready,
     })
 }
 
@@ -322,21 +334,33 @@ pub(crate) fn endpoint_and_model_set(endpoint: &str, model: &str) -> bool {
     !endpoint.trim().is_empty() && !model.trim().is_empty()
 }
 
-/// Same predicate pair as a translate call: endpoint + model set, then a stored key.
-/// `None` only when both are set and the keychain cannot be asked.
-pub(crate) fn call_ready(
+/// One verdict and its reasons from the same predicates a translate call uses. A missing key
+/// is reported only once endpoint and model are set, and only when the keychain answered
+/// `Some(false)`; an unanswered keychain yields `ready = None` with no reasons.
+pub(crate) fn call_readiness(
     provider: &str,
     endpoint: &str,
     model: &str,
     key_configured: Option<bool>,
-) -> Option<bool> {
+) -> (Option<bool>, Vec<AiNotReadyReason>) {
+    let mut reasons = Vec::new();
     if !endpoint_and_model_set(endpoint, model) {
-        return Some(false);
+        if endpoint.trim().is_empty() {
+            reasons.push(AiNotReadyReason::EndpointMissing);
+        }
+        if model.trim().is_empty() {
+            reasons.push(AiNotReadyReason::ModelMissing);
+        }
+        return (Some(false), reasons);
     }
     if !provider_needs_key(provider) {
-        return Some(true);
+        return (Some(true), reasons);
     }
-    key_configured
+    match key_configured {
+        Some(true) => (Some(true), reasons),
+        Some(false) => (Some(false), vec![AiNotReadyReason::KeyMissing]),
+        None => (None, reasons),
+    }
 }
 
 /// Local runtimes (Ollama, LM Studio) run without an API key; every other provider, including
