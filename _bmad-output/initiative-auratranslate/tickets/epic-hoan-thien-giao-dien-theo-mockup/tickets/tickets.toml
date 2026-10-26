@@ -281,3 +281,15 @@ after = []
 hitl = true
 risk = "medium"
 references = ["architecture-auratranslate/architecture-auratranslate.md AD-58", "ux-auratranslate/mockups/web-import.html .tb", "ux-auratranslate/EXPERIENCE.md §Thanh tiêu đề và lối vào", "ad-brief-keo-cua-so-thanh-tieu-de/ad-brief-keo-cua-so-thanh-tieu-de.md"]
+
+[[entry]]
+id = 26
+type = "story"
+title = "Workspace tách được khối và nút: hệ nút ba bậc, biểu tượng, cỡ chữ"
+description = "Dựng Workspace theo các mục 🔵 2026-10-26 của DESIGN.md và `mockups/workspace-tinh-chinh.html` (commit c481518): token `control-rule` mỗi theme; `ui-label` và `ui-mono` lên 12px, chữ bấm được 13px; nút ba bậc (chính nền mực, phụ viền `control-rule`, chìm, khoá viền đứt) cho mọi nút của panel Đối chiếu, Tra cứu, Đề xuất AI, thanh trạng thái và thanh tiêu đề; \"Huỷ dịch\" thế chỗ \"Dịch câu này\" khi đang dịch; ba cấp điều khiển ba dáng (tab dock, tab con, nút phân đoạn Trung · Hán Việt); biểu tượng SVG vẽ tay thay chữ \"Ghim\" và nhãn `Ⓑ-2` · `Ⓑ-1`; dải đầu cho mỗi nguồn từ điển; khung kết quả AI; thanh trạng thái bỏ câu auto-save (xoá cả key) và rút câu TM vào `title`; nền `surface-accent` cho câu đang sửa. Ba điều buộc: (1) `control-rule` vào `tokens.json`, bảng đóng băng của `check-tokens.mjs` và 4 cặp `contrast.pairs` cùng lượt, không thì `check:tokens` đỏ; (2) nền câu đang sửa chỉ giữ khi thời gian dời con trỏ trên Chương 9.850 câu không tệ hơn trước, đo cùng bản dựng và cùng tải máy, ghi số; (3) chỉ `done` khi có ảnh app thật đặt cạnh mockup và Ice đã tự chạy app một lượt. Các lớp phủ và màn Library, Chế độ đọc không thuộc story này."
+verify = "`check:tokens` xanh với 39 token màu mỗi theme; `check:i18n` xanh sau khi xoá `status.autosave_hint`; test hiện có của nút Ghim, công tắc bố cục, Huỷ dịch và thanh trạng thái tìm nút qua `aria-label`/`aria-pressed` vẫn xanh, và một ca mới đỏ khi nút chỉ-biểu-tượng mất `aria-label` (đối chứng: gỡ thuộc tính); số đo dời con trỏ trên 9.850 câu trước/sau. Người: ảnh app thật 1490×935, dpr=2, sáng và tối, đặt cạnh `workspace-tinh-chinh.html` cùng khổ, mỗi mục 1–6 của mockup ghi khớp hoặc lý do; Ice chạy app một lượt."
+covers = []
+after = []
+hitl = true
+risk = "medium"
+references = ["ux-auratranslate/DESIGN.md §Components (Nút — ba bậc, Ba cấp điều khiển, Biểu tượng, Khối trong panel Tra cứu, Thanh trạng thái, Câu đang sửa)", "ux-auratranslate/DESIGN.md §Bảng token màu hàng 19, §Bảng token typography hàng 13–14", "ux-auratranslate/mockups/workspace-tinh-chinh.html", "architecture-auratranslate/architecture-auratranslate.md AD-34"]

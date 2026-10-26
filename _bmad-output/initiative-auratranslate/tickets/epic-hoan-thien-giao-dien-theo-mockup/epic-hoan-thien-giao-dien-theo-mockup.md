@@ -65,3 +65,4 @@ Hình dạng bề mặt webview và các chức năng loại 5 Ice nhận (D7). 
 - Decision: cắt thành bug 23 (vì sao không Tác phẩm nào có tiến độ) rồi story 24 (L1–L14), `after = [23]`, thay vì một story mở đầu bằng điều tra: chưa biết nguyên nhân ở Rust hay ở dữ liệu, nên tầng chưa chắc đi riêng trước (Ice chọn cắt bug rồi story, 2026-10-25).
 - Decision: quyết định 4 của phiếu (lưới `auto-fill`, thêm cột khi màn rộng) thay quyết định 1 của plan 12.2 (4 / 3 / 2 cột); plan 12.2 đã `done` nên giữ nguyên văn (Ice, 2026-10-25).
 - Decision: không thêm Refactor sweep thứ hai; 23 và 24 đứng sau sweep 22 đã xong, việc dọn của chúng nằm trong chính chúng (2026-10-25).
+- Decision: đợt tinh chỉnh Workspace (DESIGN.md 🔵 2026-10-26) là một story 26, không chia nền (token, nút, biểu tượng) và phân khối thành hai story như Sofia đề xuất (Ice, 2026-10-26).
