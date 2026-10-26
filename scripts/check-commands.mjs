@@ -2588,7 +2588,7 @@ const HANDLER_TABLE = {
   'src/panels/GridBlock.vue::onSourceCellMouseUp': { nonCommand: R_SOURCE_CUT_EXEMPT },
   'src/panels/GridBlock.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridBlock.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },
-  'src/panels/GridBlock.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'editor.merge_segments'] },
+  'src/panels/GridBlock.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'segment.selection.clear', 'editor.merge_segments'] },
   // 🔴 Mũi tên trên dải tab Hán Việt gọi hàm này TRỰC TIẾP (không `dispatch('<id>')` trần),
   // vì nó phải dời tiêu điểm DOM NGAY SAU lượt dispatch — xem doc-comment tại chỗ định nghĩa.
   'src/panels/GridPanel.vue::selectTabViaArrow': {

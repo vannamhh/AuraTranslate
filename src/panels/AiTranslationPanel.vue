@@ -31,27 +31,13 @@
 // Phần còn đúng của AC2 — và là phần đắt nhất — vẫn nguyên: hợp đồng KHÔNG phải sửa một
 // dòng nào khi Epic 4 đổ nội dung vào. Chỉ **vai** khai lúc đăng ký quyết định hành vi.
 //
-// ─────────────────────────────────────────────────────────────────────────────────
-// 🔴 STORY 4.4 — DÒNG "BỘ HIỆU LỰC" + BỘ CHUYỂN, KHÔNG CẦN MỞ CÀI ĐẶT (FR69)
-// ─────────────────────────────────────────────────────────────────────────────────
-// I/O Matrix spec 4.4: *"Switch effective set from AI panel — effective set changes
-// without opening Settings."* `<select>` dưới đây gọi THẲNG `setSelectedPromptSetName`
-// (`promptSetState.ts`) — 0 lượt `invoke`, khuôn Quyết định 🔵 đầu tệp đó. Đây là nửa màn
-// hình của mệnh đề I/O Matrix; nửa Rust (`resolve_two_tiers` đổi kết quả khi tầng đổi) đã
-// đóng ở Phase 3 (`prompt_set_contract.rs::switching_between_two_resolvable_sets_needs_no_
-// settings_reopen`).
 import { computed, onMounted, useTemplateRef, watch } from 'vue'
 import PanelFrame from './PanelFrame.vue'
 import { useSelectionSurface } from './selectionContract'
 import { dispatch } from '../commands'
 import { t, tError } from '../i18n'
-import {
-  loadPromptSets,
-  promptSetChoiceError,
-  promptSets,
-  selectedPromptSetName,
-  setSelectedPromptSetName,
-} from '../promptSetState'
+import { loadPromptSets, promptSets, selectedPromptSetName } from '../promptSetState'
+import { shortcutRows } from '../config/shortcutsState'
 import {
   editorActiveSegmentId,
   editorPendingPromote,
@@ -71,15 +57,7 @@ import {
   refreshAiConfigReadiness,
 } from '../aiConfigState'
 import { aiUsageVisible } from '../aiUsageVisibleState'
-import {
-  aiPromptGlossaryDelta,
-  aiPromptAssembleError,
-  aiPromptRecord,
-  aiPromptRecordIsStale,
-  clearAiPromptAssembleError,
-  glossaryInjectionSummary,
-  refreshAiPromptRecord,
-} from '../aiPromptInspectorState'
+import { clearAiPromptAssembleError, refreshAiPromptRecord } from '../aiPromptInspectorState'
 import {
   aiTranslateAccumulatedText,
   aiTranslateError,
@@ -107,7 +85,6 @@ import type { AiTranslateUsageWire } from '../config/aitranslate'
 import { aiUsageSummaryLine, formatUsdParam } from '../aiUsageLine'
 import type { AiUsageSummary } from '../aiUsageLine'
 import { segmentSelectionCount } from './segmentSelectionState'
-import SelectMenu from '../SelectMenu.vue'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
 defineProps<DockviewPanelProps>()
@@ -133,7 +110,7 @@ onMounted(() => {
 /**
  * ⚠️ **SỬA 2026-09-18, bắt được ở lượt rà soát build.** `aiPromptAssembleError` không mang
  * định danh câu — khác `aiPromptRecord` (§Always spec 4.7: bản ghi PHẢI mang định danh câu
- * tạo ra nó). Không có watcher này, một lỗi Lắp cho câu A đứng nguyên trên `.ai-inspector-alert`
+ * tạo ra nó). Không có watcher này, một lỗi Lắp cho câu A đứng nguyên trên màn Prompt
  * sau khi tiêu điểm dời sang câu B mà người dùng chưa bấm Lắp lại — đọc như "câu B đang lỗi",
  * dù lỗi đó thuộc về A. Xem doc-comment [`clearAiPromptAssembleError`] cho đối chứng.
  */
@@ -147,53 +124,20 @@ watch([aiTranslateStateValue, aiTranslateBatchStateValue], ([single, batch], [pr
   if (finished) void refreshAiPromptRecord()
 })
 
-const promptSetOptions = computed(() => [
-  { value: '', label: t('panel.ai_translation.prompt_set_placeholder') },
-  ...promptSets.value.map((set) => ({ value: set.name, label: set.name })),
-])
-
-function onPromptSetSelectChange(value: string): void {
-  setSelectedPromptSetName(value === '' ? null : value)
-}
-
-// ─────────────────────────────────────────────────────────────────────────────────
-// 🔴 STORY 4.7 — DÒNG TÓM TẮT + NÚT "XEM PROMPT" (FR71, AD-14)
-// ─────────────────────────────────────────────────────────────────────────────────
-// `EXPERIENCE.md:388` (KF-2 bước 4): dòng tóm tắt và "Xem prompt" sống ở panel này. Prompt tự
-// lắp khi dịch; `ai.prompt_inspector.open` chỉ lắp khi chưa có bản ghi nào. `hasActiveSegment`
-// đọc `editorActiveSegmentId`, nguồn duy nhất của "câu hiện tại" của luồng AI.
-const glossarySummary = computed(() => glossaryInjectionSummary(aiPromptRecord.value))
-
-const glossarySummaryText = computed<string>(() => {
-  const summary = glossarySummary.value
-  if (summary.kind === 'no_record') return ''
-  if (summary.kind === 'not_asked') {
-    return summary.tmCount === null
-      ? t('ai.prompt.summary_not_asked')
-      : t('ai.prompt.summary_not_asked_tm', { tm_count: String(summary.tmCount) })
-  }
-  const delta = aiPromptGlossaryDelta.value
-  if (delta !== null) {
-    const direction = delta > 0 ? 'up' : 'down'
-    const params = { count: String(summary.count), delta: String(Math.abs(delta)) }
-    return summary.tmCount === null
-      ? t(`ai.prompt.summary_asked_${direction}`, params)
-      : t(`ai.prompt.summary_asked_tm_${direction}`, { ...params, tm_count: String(summary.tmCount) })
-  }
-  return summary.tmCount === null
-    ? t('ai.prompt.summary_asked', { count: String(summary.count) })
-    : t('ai.prompt.summary_asked_tm', { count: String(summary.count), tm_count: String(summary.tmCount) })
+const promptSetHeadText = computed<string>(() => {
+  const name = selectedPromptSetName.value ?? ''
+  return providerModelText.value === null ? name : t('panel.ai_translation.head_set_after_provider', { name })
 })
 
-/**
- * 🔴 finding B6 (loop 1) — dòng tóm tắt phải TỰ ĐÁNH DẤU khi bản ghi nó đọc là CŨ (I/O Matrix
- * "Stale record"): trước bản sửa này, chỉ lớp phủ `AiPromptInspectorOverlay.vue` biết bản ghi
- * đang xem là cũ ([`aiPromptRecordIsStale`] chỉ được `import` ở đó) — dòng tóm tắt LUÔN HIỆN
- * ĐƯỢC ngay trên panel (không cần mở lớp phủ) vẫn đọc như "Đã chèn N thuật ngữ" cho câu ĐANG
- * focus dù bản ghi thật ra thuộc một câu khác. Cùng hàm thuần, cùng cách truyền tham số
- * (`editorActiveSegmentId`, xem `hasActiveSegment`), không một watcher/state thứ hai.
- */
-const isRecordStale = computed<boolean>(() => aiPromptRecordIsStale(aiPromptRecord.value, editorActiveSegmentId.value))
+const selectChordText = computed<string>(
+  () => shortcutRows.value.find((row) => row.id === 'segment.selection.extend_down')?.display.join(' / ') ?? '',
+)
+
+const batchRunLabel = computed<string>(() =>
+  segmentSelectionCount.value === 0
+    ? t('command.ai.translate.batch_run')
+    : t('panel.ai_translation.batch_run_count', { count: String(segmentSelectionCount.value) }),
+)
 
 /** `false` ⇔ không câu nào đang được chọn — chưa mở Tác phẩm, hoặc đã mở nhưng chưa đặt tiêu
  * điểm vào câu nào. Vô hiệu hoá nút Lắp ở ĐÂY (chỗ BIẾT trước), không dựa vào lưới phòng thủ
@@ -239,7 +183,7 @@ const canPromoteAiTranslate = computed<boolean>(() => {
   return caretId !== null && aiTranslateBatchTextForSegment(aiTranslateBatchRows.value, caretId) !== null
 })
 /** `true` ⇔ kết quả đang hiện được dịch cho một câu KHÁC câu đang có tiêu điểm bây giờ — cùng
- * khuôn [`isRecordStale`] ngay trên, hàm thuần của `aiTranslateState.ts`. */
+ * khuôn [`canRunAiTranslate`] ngay trên, hàm thuần của `aiTranslateState.ts`. */
 const isAiTranslateStale = computed<boolean>(() =>
   isAiTranslateResultStale(aiTranslateRunSegmentId.value, editorActiveSegmentId.value),
 )
@@ -443,9 +387,30 @@ const openSettingsLabel = computed(() =>
 <template>
   <PanelFrame owner="panel.ai_translation" status-key="panel.ai_translation.status" :show-status="false">
     <div class="ai-panel-head">
-      <span class="ai-panel-title">{{ t('panel.ai_translation.title') }}</span>
       <!-- aura-allow-text: KẾT QUẢ của t() (nhà cung cấp · mô hình đọc từ cấu hình). -->
       <span v-if="providerModelText !== null" class="ai-panel-provider" data-ai-panel-provider>{{ providerModelText }}</span>
+      <button
+        v-if="promptSets.length === 0"
+        type="button"
+        class="ai-translate-cancel"
+        data-ai-prompt-library-link
+        @click="dispatch('prompt.library.open')"
+      >
+        {{ t('panel.ai_translation.prompt_set_empty') }}
+      </button>
+      <!-- aura-allow-text: KẾT QUẢ của t() (tên bộ nội suy qua tham số). -->
+      <span v-else-if="selectedPromptSetName !== null" class="ai-panel-provider" data-ai-panel-set>{{ promptSetHeadText }}</span>
+      <template v-else>
+        <span class="ai-panel-provider" data-ai-panel-set-none>{{ t('panel.ai_translation.prompt_set_none') }}</span>
+        <button
+          type="button"
+          class="ai-translate-cancel"
+          data-ai-prompt-set-pick
+          @click="dispatch('ai.prompt_inspector.open')"
+        >
+          {{ t('panel.ai_translation.prompt_set_pick') }}
+        </button>
+      </template>
       <button
         type="button"
         class="ai-inspector-open"
@@ -489,51 +454,6 @@ const openSettingsLabel = computed(() =>
     <p v-else-if="aiConfigReadiness === 'key_unchecked'" class="ai-translate-hint" data-ai-key-unchecked>
       {{ t('panel.ai_translation.key_unchecked') }}
     </p>
-    <div class="ai-prompt-bar">
-      <p v-if="promptSets.length === 0" class="ai-prompt-empty">{{ t('panel.ai_translation.prompt_set_empty') }}</p>
-      <div v-else class="ai-prompt-select-label">
-        <span>{{ t('panel.ai_translation.prompt_set_label') }}</span>
-        <SelectMenu
-          class="ai-prompt-select"
-          variant="field"
-          :model-value="selectedPromptSetName ?? ''"
-          :options="promptSetOptions"
-          :columns="2"
-          :label="t('panel.ai_translation.prompt_set_label')"
-          @change="onPromptSetSelectChange"
-        />
-      </div>
-      <p v-if="promptSetChoiceError !== null" class="ai-inspector-alert" role="alert">
-        <!-- aura-allow-text: KẾT QUẢ của tError(). -->
-        {{ tError(promptSetChoiceError) }}
-      </p>
-      <p class="ai-prompt-status">
-        <!-- aura-allow-text: KẾT QUẢ của `t()` (tên bộ nội suy qua tham số). -->
-        {{
-          selectedPromptSetName === null
-            ? t('panel.ai_translation.prompt_set_none')
-            : t('panel.ai_translation.prompt_set_using', { name: selectedPromptSetName })
-        }}
-      </p>
-      <button type="button" class="ai-prompt-open" data-prompt-library-open @click="dispatch('prompt.library.open')">
-        {{ t('command.prompt.library.open') }}
-      </button>
-    </div>
-    <div class="ai-inspector-bar">
-      <!-- aura-allow-text: KẾT QUẢ của t() (ba-giá-trị: chưa lắp / not_asked / asked kèm số đếm). -->
-      <p
-        v-if="glossarySummary.kind !== 'no_record' && !isRecordStale"
-        class="ai-inspector-summary"
-        :data-ai-prompt-summary-kind="glossarySummary.kind"
-      >
-        {{ glossarySummaryText }}
-      </p>
-      <p v-if="aiPromptAssembleError !== null" class="ai-inspector-alert" role="alert">
-        <!-- aura-allow-text: KẾT QUẢ của tError(). -->
-        {{ tError(aiPromptAssembleError) }}
-      </p>
-      <p class="ai-inspector-hint" data-ai-prompt-auto-note>{{ t('panel.ai_translation.prompt_auto_note') }}</p>
-    </div>
     <div ref="surface" class="ai-surface">
       <div class="ai-translate-actions">
         <button
@@ -574,7 +494,7 @@ const openSettingsLabel = computed(() =>
           {{ t('command.ai.translate.retry') }}
         </button>
       </div>
-      <p v-if="!hasActiveSegment" class="ai-translate-hint">{{ t('panel.ai_translation.translate_no_segment_hint') }}</p>
+      <p v-if="!hasActiveSegment" class="ai-translate-hint" data-ai-no-segment-hint>{{ t('panel.ai_translation.translate_no_segment_hint') }}</p>
       <p
         v-if="aiTranslateStateValue === 'generating' && isAiTranslateStale"
         class="ai-translate-status"
@@ -685,11 +605,8 @@ const openSettingsLabel = computed(() =>
            AC1/AC2). Nút Huỷ và trạng thái LỖI dùng LẠI `.ai-translate-cancel`/`.ai-translate-alert`
            ngay trên (một nút, một khối lỗi cho CẢ HAI hình dạng lời gọi — §Tasks spec 4.9
            Phase 3: "reuse the existing cancel button"), khối dưới đây chỉ thêm phần LÔ
-           không có ở lượt đơn: đếm vùng chọn, nút chạy lô, tiến độ, và danh sách hàng. -->
+           không có ở lượt đơn: nút chạy lô, tiến độ, và danh sách hàng. -->
       <div class="ai-batch-bar">
-        <p v-if="segmentSelectionCount > 0" class="ai-batch-selection-hint" data-ai-translate-batch-selection-count>
-          {{ t('panel.ai_translation.batch_selection_count', { count: String(segmentSelectionCount) }) }}
-        </p>
         <button
           type="button"
           class="ai-translate-batch-run"
@@ -697,7 +614,21 @@ const openSettingsLabel = computed(() =>
           :disabled="!canRunAiTranslateBatch"
           @click="dispatch('ai.translate.batch_run')"
         >
-          {{ t('command.ai.translate.batch_run') }}
+          <!-- aura-allow-text: KẾT QUẢ của t() (hai nhãn: chưa chọn / đã chọn N câu). -->
+          {{ batchRunLabel }}
+        </button>
+        <!-- aura-allow-text: KẾT QUẢ của t() (phím đọc từ bảng phím tắt thật). -->
+        <span v-if="segmentSelectionCount === 0 && selectChordText !== ''" class="ai-translate-hint" data-ai-batch-select-hint>
+          {{ t('panel.ai_translation.batch_select_hint', { chord: selectChordText }) }}
+        </span>
+        <button
+          v-if="segmentSelectionCount > 0"
+          type="button"
+          class="ai-translate-cancel"
+          data-ai-selection-clear
+          @click="dispatch('segment.selection.clear')"
+        >
+          {{ t('panel.ai_translation.selection_clear') }}
         </button>
       </div>
       <template v-if="aiTranslateBatchTotalCount > 0">
@@ -821,70 +752,13 @@ const openSettingsLabel = computed(() =>
 </template>
 
 <style scoped>
-/* Story 4.4 — dòng "bộ hiệu lực" + bộ chuyển. `flex: none`: xem `PanelFrame.vue::.panel-body`
-   — mọi con KHÔNG-CUỘN của slot phải khai nó tường minh khi slot mang HƠN MỘT con. */
-.ai-prompt-bar {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
-  margin-bottom: var(--space-panel-block);
-}
-
-.ai-prompt-empty,
-.ai-prompt-status {
-  margin: 0;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ai-prompt-select-label {
-  display: flex;
-  align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
-  font-family: var(--face-ui-label);
-  font-size: var(--font-ui-label);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-ui-label);
-  color: var(--color-on-surface-variant);
-}
-
-.ai-prompt-select {
-  flex: 1;
-  min-width: 0;
-}
-
-.ai-prompt-open {
-  align-self: flex-start;
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ai-prompt-open:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
 .ai-panel-head {
   flex: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: calc(var(--space-unit) * 3);
   margin-bottom: var(--space-panel-block);
-}
-
-.ai-panel-title {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
 }
 
 .ai-panel-provider {
@@ -937,34 +811,6 @@ const openSettingsLabel = computed(() =>
   border-bottom-color: var(--color-primary);
 }
 
-/* Story 4.7 — dòng tóm tắt Glossary + nút Lắp/Xem prompt. */
-.ai-inspector-bar {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
-  margin-bottom: var(--space-panel-block);
-  padding-top: calc(var(--space-unit) * 1);
-  border-top: 1px solid var(--color-outline);
-}
-
-.ai-inspector-summary,
-.ai-inspector-hint {
-  margin: 0;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ai-inspector-alert {
-  margin: 0;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-error);
-}
-
 .ai-inspector-open {
   align-self: flex-start;
   padding: 0;
@@ -985,7 +831,7 @@ const openSettingsLabel = computed(() =>
 /*
  * `flex: 1; min-height: 0` thay `height: 100%` — bắt buộc từ khi `.panel-body` mang HAI con
  * (bar + bề mặt), xem doc-comment `PanelFrame.vue::.panel-body`: `height: 100%` sẽ tự đo
- * theo chiều cao `.panel-body`, cộng dồn với chiều cao `.ai-prompt-bar` mà tràn khỏi panel.
+ * theo chiều cao `.panel-body`, cộng dồn với chiều cao `.ai-panel-head` mà tràn khỏi panel.
  */
 .ai-surface {
   flex: 1;
@@ -1046,7 +892,6 @@ const openSettingsLabel = computed(() =>
 
 .ai-translate-hint,
 .ai-translate-status,
-.ai-batch-selection-hint,
 .ai-batch-progress,
 .ai-batch-running,
 .ai-translate-usage,
@@ -1087,11 +932,11 @@ const openSettingsLabel = computed(() =>
   align-items: center;
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 3);
-  padding-top: calc(var(--space-unit) * 1);
-  border-top: 1px solid var(--color-outline);
 }
 
 .ai-batch-rows {
+  max-height: calc(var(--space-unit) * 40);
+  overflow-y: auto;
   margin: 0;
   padding: 0;
   list-style: none;

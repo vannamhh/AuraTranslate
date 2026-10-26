@@ -1623,7 +1623,7 @@ function onEditKeydown(event: KeyboardEvent): void {
   // — code review 2026-08-16 sửa lại chỗ gọi tên này.
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // 🔵 STORY 2.9 · AC8 — `Esc` XOÁ TẬP ĐIỂM CẮT, và nó cần cửa NÀY chứ không chỉ registry
+  // 🔵 STORY 2.9 · AC8 — `Esc` XOÁ TẬP ĐIỂM CẮT (và cả vùng chọn câu), cần cửa NÀY chứ không chỉ registry
   // ═══════════════════════════════════════════════════════════════════════════════
   // `editor.clear_source_cuts` **đã đăng ký** với hợp âm `Escape` (`commands/index.ts`), và
   // lượt đăng ký đó không thừa: nó là thứ làm phím gán lại được (FR22) và hiện trong bảng
@@ -1632,7 +1632,7 @@ function onEditKeydown(event: KeyboardEvent): void {
   // `keys.ts:510` (`lacksPrimaryMod && isTypingZone`) **chặn** nó khi tiêu điểm nằm trong một
   // ô bản dịch — tức ở đúng chỗ người dùng đang đứng sau khi vừa gõ. Cùng cạm bẫy mà nhánh
   // `Backspace` ngay dưới đã phải đi vòng, ở một phím khác.
-  // ⇒ Bắt trực tiếp rồi `dispatch` **CHÍNH** id đã đăng ký. Hai cửa, **một** command — không
+  // ⇒ Bắt trực tiếp rồi `dispatch` **CHÍNH** id đã đăng ký. Hai cửa, **một** command xoá điểm cắt (Esc còn dispatch thêm `segment.selection.clear`) — không
   //   một đường xoá thứ hai.
   //
   // ⚠️ **KHÔNG** `preventDefault()`: `Esc` còn là phím đóng của các lớp phủ *(màn hình phím
@@ -1641,6 +1641,7 @@ function onEditKeydown(event: KeyboardEvent): void {
   // đóng lớp phủ — hai việc ở hai tầng.
   if (event.key === 'Escape') {
     dispatch('editor.clear_source_cuts')
+    dispatch('segment.selection.clear')
     return
   }
 

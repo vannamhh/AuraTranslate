@@ -185,7 +185,10 @@ async function freshPanel() {
   await editorState.ensureSegmentsLoaded()
 
   const { aiTranslateHandlers } = await import('../../src/aiTranslateHandlers')
-  commands.installCommands({ ...aiTranslateHandlers } as CommandDeps)
+  commands.installCommands({
+    ...aiTranslateHandlers,
+    clearSegmentSelection: selectionState.clearSegmentSelection,
+  } as CommandDeps)
 
   return { commands, editorState, selectionState, state, batchState, i18n, AiTranslationPanel }
 }
@@ -225,8 +228,8 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.batch_run") qua "fak
 
     const wrapper = mountPanel(AiTranslationPanel)
     await wrapper.vm.$nextTick()
-    expect(wrapper.get('[data-ai-translate-batch-selection-count]').text()).toBe(
-      i18n.t('panel.ai_translation.batch_selection_count', { count: '3' }),
+    expect(wrapper.get('[data-ai-translate-batch-run]').text()).toBe(
+      i18n.t('panel.ai_translation.batch_run_count', { count: '3' }),
     )
     expect(wrapper.get('[data-ai-translate-batch-run]').attributes('disabled')).toBeUndefined()
 
@@ -782,8 +785,8 @@ describe('I/O Matrix "Selection changes while a batch runs" — lô đang chạy
     await wrapper.vm.$nextTick()
 
     expect(selectionState.segmentSelectionIds.value).toEqual([11, 12, 13])
-    expect(wrapper.get('[data-ai-translate-batch-selection-count]').text()).toBe(
-      i18n.t('panel.ai_translation.batch_selection_count', { count: '3' }),
+    expect(wrapper.get('[data-ai-translate-batch-run]').text()).toBe(
+      i18n.t('panel.ai_translation.batch_run_count', { count: '3' }),
     )
 
     // 🔴 Mệnh đề trung tâm: lô ĐANG CHẠY không hay biết gì về vùng chọn vừa đổi — vẫn đúng
@@ -819,7 +822,7 @@ describe('I/O Matrix "Empty selection" — nút Dịch LÔ khoá, và dispatch K
     const wrapper = mountPanel(AiTranslationPanel)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('[data-ai-translate-batch-selection-count]').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-selection-clear]').exists()).toBe(false)
     expect(wrapper.get('[data-ai-translate-batch-run]').attributes('disabled')).toBeDefined()
 
     // Đo được (script riêng, happy-dom): một `<button disabled>` KHÔNG phát sự kiện `click` —
@@ -1171,6 +1174,75 @@ describe('thử lại lô giữ hàng đã xong (C1) và promote theo lượt b�
     expect(row12?.status).toBe('error')
     expect(row12?.text).toBe('Dang chay')
     expect(ctx.batchState.aiTranslateBatchRunningSegmentId.value).toBeNull()
+    wrapper.unmount()
+  })
+})
+
+describe('hàng nút dịch theo vùng chọn — ghi phím chọn câu và Bỏ chọn', () => {
+  async function chordOf(id: string): Promise<string> {
+    const { shortcutRows } = await import('../../src/config/shortcutsState')
+    return shortcutRows.value.find((row) => row.id === id)?.display.join(' / ') ?? ''
+  }
+
+  it('chưa chọn câu: nút khoá, ghi phím đọc từ bảng phím thật, không có "Bỏ chọn"', async () => {
+    const { i18n, AiTranslationPanel } = await freshPanel()
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+
+    const chord = await chordOf('segment.selection.extend_down')
+    expect(chord).not.toBe('')
+    expect(wrapper.get('[data-ai-batch-select-hint]').text()).toBe(i18n.t('panel.ai_translation.batch_select_hint', { chord }))
+    expect(wrapper.get('[data-ai-translate-batch-run]').text()).toBe(i18n.t('command.ai.translate.batch_run'))
+    expect(wrapper.get('[data-ai-translate-batch-run]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-ai-selection-clear]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('đã chọn 3 câu: nhãn có số, ẩn ghi phím, "Bỏ chọn" làm vùng chọn rỗng', async () => {
+    const { i18n, editorState, selectionState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState)
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-translate-batch-run]').text()).toBe(i18n.t('panel.ai_translation.batch_run_count', { count: '3' }))
+    expect(wrapper.find('[data-ai-batch-select-hint]').exists()).toBe(false)
+    expect(wrapper.get('[data-ai-selection-clear]').text()).toBe(i18n.t('panel.ai_translation.selection_clear'))
+
+    await wrapper.get('[data-ai-selection-clear]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(selectionState.segmentSelectionCount.value).toBe(0)
+    expect(wrapper.find('[data-ai-selection-clear]').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-batch-select-hint]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('dòng ghi phím đọc bảng phím sống: bỏ gán thì ẩn dòng, trả về mặc định thì hiện lại', async () => {
+    const { AiTranslationPanel } = await freshPanel()
+    const shortcuts = await import('../../src/config/shortcutsState')
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    const before = wrapper.get('[data-ai-batch-select-hint]').text()
+
+    const row = document.createElement('div')
+    row.dataset.commandId = 'segment.selection.extend_down'
+    document.body.appendChild(row)
+    shortcuts.aimRowFrom({ target: row } as unknown as Event)
+    shortcuts.unassignShortcut()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-batch-select-hint]').exists()).toBe(false)
+
+    shortcuts.resetShortcut()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-ai-batch-select-hint]').text()).toBe(before)
+
+    shortcuts.captureShortcut()
+    expect(shortcuts.handleCaptureKey({ code: 'KeyJ', metaKey: true, altKey: true, shiftKey: true })).toBe(true)
+    await wrapper.vm.$nextTick()
+    const rebound = shortcuts.shortcutDisplayFor('segment.selection.extend_down')
+    expect(rebound).not.toBe('')
+    expect(wrapper.get('[data-ai-batch-select-hint]').text()).not.toBe(before)
+    expect(wrapper.get('[data-ai-batch-select-hint]').text()).toContain(rebound)
     wrapper.unmount()
   })
 })

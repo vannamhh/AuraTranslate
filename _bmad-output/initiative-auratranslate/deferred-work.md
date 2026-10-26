@@ -13476,3 +13476,12 @@ chính nó.
 
 - **Chưa ai bấm Thử kết nối và dịch một câu trên từng preset có mạng.** Test chỉ canh giá trị ba cột được ghi; không canh endpoint, mã mô hình (OpenRouter để trống, Mistral UNVERIFIED), `stream_options`, Claude 5 từ chối nhiệt độ dưới 1, model suy luận OpenAI từ chối `max_tokens`, `/v1/models` Anthropic có cần `anthropic-version`. Ice chạy sáu preset có mạng với khoá thật. Con trỏ: `plan-preset-cau-hinh-ai.md` §Design Notes. **Chủ: Epic 12.**
   → 🔵 2026-10-26 (plan-chip-nhiet-do-va-token): mỗi preset nay còn ghi nhiệt độ và số token (`default` = lượt gọi không gửi trường; Mistral/Ollama/LM Studio 0.2; Anthropic 8192), nên lượt Ice kiểm có mạng cũng phải xem: Claude 5 không còn 400 vì nhiệt độ, Anthropic chạy được khi thiếu `max_tokens` (UNVERIFIED), model suy luận OpenAI nhận thân request không có hai trường. **Chủ: Epic 12.**
+
+## Deferred from: panel Đề xuất AI gọn (2026-10-26, tách khỏi plan-panel-de-xuat-ai-gon)
+
+- source_plan: none
+  summary: Nút "Dịch cả Chương (N chưa dịch)" trên panel Đề xuất AI — chỉ gửi câu `target_text` rỗng và không cắt bỏ, theo thứ tự tài liệu; N đúng bằng số câu gửi, khoá khi N = 0 hoặc chưa mở Tác phẩm; danh sách do Rust tính (AD-1), chạy qua `ai_translate_batch` có sẵn.
+  evidence: Ice duyệt qua Sally 2026-10-26; tách vì cần lệnh Rust mới và test riêng, còn phần giao diện gọn thuần webview. Plan kia dựng hàng nút thứ hai chừa chỗ cho nút này. **Chủ: Ice.**
+- source_plan: `plan-panel-de-xuat-ai-gon.md`
+  summary: Dòng đầu panel Đề xuất AI và màn Prompt báo "Chưa có bộ prompt nào" cả khi `loadPromptSets()` chưa về hoặc nạp lỗi (`promptSets.length === 0`, không đọc `promptSetLoading`/`promptSetLoadError`).
+  evidence: Có từ trước plan này (panel cũ cùng điều kiện); một lượt nạp lỗi bảo Ice đi tạo bộ mới thay vì báo lỗi — đúng lớp "im lặng rỗng" của AGENTS.md. **Chủ: Ice.**

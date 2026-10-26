@@ -760,8 +760,8 @@ describe('promptMarkers.splitPromptBody và duplicatePromptSetName', () => {
 // AiTranslationPanel.vue — đóng nửa CÒN LẠI của I/O Matrix "Switch effective set from AI
 // panel — effective set changes without opening Settings". Xem doc-comment đầu tệp.
 // ═══════════════════════════════════════════════════════════════════════════════════════
-describe('AiTranslationPanel.vue — đổi bộ hiệu lực từ CHÍNH panel, không mở Cài đặt (I/O Matrix spec 4.4)', () => {
-  it('chọn một bộ trong `<select>` của panel ⇒ `selectedPromptSetName` đổi ngay, 0 lượt `invoke` — và `SettingsOverlay.vue` không hề được nạp trong ca này', async () => {
+describe('AiPromptInspectorOverlay.vue — đổi bộ hiệu lực từ màn Prompt, không mở Cài đặt (I/O Matrix spec 4.4)', () => {
+  it('chọn một bộ trong ô chọn của màn Prompt ⇒ `selectedPromptSetName` đổi ngay, 0 lượt `invoke` — và `SettingsOverlay.vue` không hề được nạp trong ca này', async () => {
     vi.resetModules()
     resetMocks()
     promptSetListMock.mockResolvedValue({
@@ -774,19 +774,17 @@ describe('AiTranslationPanel.vue — đổi bộ hiệu lực từ CHÍNH panel,
     })
 
     const promptSetState = await import('../../src/promptSetState')
-    const AiTranslationPanel = (await import('../../src/panels/AiTranslationPanel.vue')).default
+    const inspector = await import('../../src/aiPromptInspectorState')
+    const Overlay = (await import('../../src/AiPromptInspectorOverlay.vue')).default
+    await promptSetState.loadPromptSets()
+    inspector.openAiPromptInspector()
 
-    const wrapper = mount(AiTranslationPanel, {
-      props: { params: { params: {} } },
-      attachTo: document.body,
-    })
+    const wrapper = mount(Overlay, { attachTo: document.body })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
     expect(promptSetState.selectedPromptSetName.value).toBeNull()
-    expect(wrapper.text()).toContain('Chưa chọn bộ nào')
-
-    const select = wrapper.find('.ai-prompt-select')
+    const select = wrapper.find('.aip-set-select')
     expect(select.exists()).toBe(true)
     await pickSelectOption(select, 'Bao chi')
 
@@ -796,7 +794,6 @@ describe('AiTranslationPanel.vue — đổi bộ hiệu lực từ CHÍNH panel,
     // sau lượt đổi lựa chọn.
     expect(promptSetListMock).toHaveBeenCalledTimes(1)
     expect(promptSetState.selectedPromptSetName.value).toBe('Bao chi')
-    expect(wrapper.text()).toContain('Đang dùng: Bao chi')
 
     wrapper.unmount()
     promptSetState.resetPromptSets()
@@ -808,16 +805,16 @@ describe('AiTranslationPanel.vue — đổi bộ hiệu lực từ CHÍNH panel,
     promptSetListMock.mockResolvedValue({ sets: [], workTierAvailable: false, error: null })
 
     const promptSetState = await import('../../src/promptSetState')
-    const AiTranslationPanel = (await import('../../src/panels/AiTranslationPanel.vue')).default
+    const inspector = await import('../../src/aiPromptInspectorState')
+    const Overlay = (await import('../../src/AiPromptInspectorOverlay.vue')).default
+    await promptSetState.loadPromptSets()
+    inspector.openAiPromptInspector()
 
-    const wrapper = mount(AiTranslationPanel, {
-      props: { params: { params: {} } },
-      attachTo: document.body,
-    })
+    const wrapper = mount(Overlay, { attachTo: document.body })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.ai-prompt-select').exists()).toBe(false)
+    expect(wrapper.find('.aip-set-select').exists()).toBe(false)
     expect(wrapper.text()).toContain('Chưa có bộ prompt nào')
 
     wrapper.unmount()

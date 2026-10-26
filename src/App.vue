@@ -80,8 +80,8 @@ import PromptLibraryOverlay from './PromptLibraryOverlay.vue'
 // HAI. Mở TỪ BÊN TRONG `PromptLibraryOverlay` (nút "Nhập từ file"), dựng ở cùng tầng gốc như
 // mọi lớp phủ khác — cùng khuôn `GlossaryImportOverlay`/`GlossaryManageOverlay`.
 import PromptImportOverlay from './PromptImportOverlay.vue'
-// Story 4.7 (FR71, AD-14) — lớp phủ "Xem prompt cuối cùng đã gửi", lớp phủ THỨ MƯỜI BA. Mở
-// TỪ Panel AI Translation (`AiTranslationPanel.vue`, nút "Xem prompt") — cùng khuôn
+// Story 4.7 (FR71, AD-14) — lớp phủ "Prompt", lớp phủ THỨ MƯỜI BA. Mở
+// TỪ Panel AI Translation (`AiTranslationPanel.vue`, nút "Prompt") — cùng khuôn
 // `PromptLibraryOverlay`: một lớp phủ tự quản `v-if`, dựng ở cùng tầng gốc.
 import AiPromptInspectorOverlay from './AiPromptInspectorOverlay.vue'
 // Story 4.12, Phase 3a (Decision 2, Ice ký) — NGĂN KÉO Tra cứu, không lớp phủ thứ mười bốn.

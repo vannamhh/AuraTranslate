@@ -26,13 +26,17 @@ beforeEach(() => {
   document.body.innerHTML = ''
 })
 
-describe('panel Đề xuất AI — ô Bộ prompt', () => {
+describe('màn Prompt — ô Bộ prompt', () => {
   it('trên 10 bộ: danh sách xếp hai cột và đủ 12 bộ cộng "Chưa chọn" đều có trong đó', async () => {
     vi.resetModules()
-    const Panel = (await import('../../src/panels/AiTranslationPanel.vue')).default
-    const wrapper = mount(Panel, { props: { params: { params: {} } }, attachTo: document.body })
+    const Overlay = (await import('../../src/AiPromptInspectorOverlay.vue')).default
+    const inspector = await import('../../src/aiPromptInspectorState')
+    const promptSetState = await import('../../src/promptSetState')
+    await promptSetState.loadPromptSets()
+    inspector.openAiPromptInspector()
+    const wrapper = mount(Overlay, { attachTo: document.body })
     await flushPromises()
-    const field = wrapper.find('.ai-prompt-select-label')
+    const field = wrapper.find('.aip-set-field')
     expect(field.exists()).toBe(true)
     const list = field.find('.select-options--cols-2')
     expect(list.exists()).toBe(true)

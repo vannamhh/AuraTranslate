@@ -32,7 +32,7 @@ import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
-import { promptLibraryOverlayIsOpen } from './promptLibraryState'
+import { promptLibraryOverInspector, promptLibraryOverlayIsOpen } from './promptLibraryState'
 import { splitPromptBody } from './promptMarkers'
 import PromptTemplatePicker from './PromptTemplatePicker.vue'
 // Story 4.5 review fix — kết quả lượt Nhập gần nhất (`prompt.import.confirm`) không được hiện
@@ -617,6 +617,7 @@ async function onEscape(): Promise<void> {
   <div
     v-if="promptLibraryOverlayIsOpen"
     class="pl-scrim"
+    :class="{ 'pl-scrim-above': promptLibraryOverInspector }"
     @keydown.esc="onEscape"
     @keydown.tab="trapTab($event)"
   >
@@ -936,6 +937,10 @@ async function onEscape(): Promise<void> {
   align-items: flex-start;
   padding: var(--space-panel-inline);
   background: var(--color-background);
+}
+
+.pl-scrim-above {
+  z-index: 11; /* aura-allow-z-index: opened from the Prompt screen, which renders after this overlay. */
 }
 
 :root[data-platform='mac'] .pl-scrim {

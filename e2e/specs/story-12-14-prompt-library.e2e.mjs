@@ -29,7 +29,9 @@ describe('Story 12-14 -- Prompt library', () => {
     await openWorkspaceWithWork('Story 12-14 -- prompt library')
     await invoke('prompt_set_create', { tier: 'global', name: NAME, body: longBody() })
 
+    await realClick(await $('[data-ai-prompt-inspector-open]'))
     const opener = await $('[data-prompt-library-open]')
+    await opener.waitForDisplayed({ timeout: 15_000 })
     await realClick(opener)
     await browser.waitUntil(async () => (await $('.pl-panel')).isExisting(), {
       timeout: 15_000,

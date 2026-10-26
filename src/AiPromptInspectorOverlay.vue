@@ -8,6 +8,8 @@ import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import { editorActiveSegmentId } from './panels/editorPanelState'
+import SelectMenu from './SelectMenu.vue'
+import { promptSets, selectedPromptSetName, setSelectedPromptSetName, promptSetChoiceError } from './promptSetState'
 import { confirmStripEntryId, confirmStripTier } from './glossaryConfirmStripState'
 import {
   aiPromptCharsByKind,
@@ -15,6 +17,7 @@ import {
   aiPromptAssembleError,
   aiPromptCopyState,
   aiPromptDynamicRatio,
+  aiPromptGlossaryDelta,
   aiPromptInspectorIsOpen,
   aiPromptInspectorTab,
   aiPromptReadError,
@@ -26,6 +29,7 @@ import {
   aiPromptTokenLine,
   formatPercentParam,
   formatSentAtClock,
+  glossaryInjectionSummary,
 } from './aiPromptInspectorState'
 import type { AiPromptTierBlockKind } from './aiPromptInspectorState'
 import {
@@ -120,6 +124,55 @@ const emptyKey = computed<string | null>(() => {
 })
 
 const isStale = computed<boolean>(() => aiPromptRecordIsStale(aiPromptRecord.value, editorActiveSegmentId.value))
+
+const isOtherSet = computed<boolean>(
+  () =>
+    aiPromptRecord.value !== null &&
+    selectedPromptSetName.value !== null &&
+    aiPromptRecord.value.prompt_set_name !== selectedPromptSetName.value,
+)
+
+const promptSetOptions = computed(() => [
+  { value: '', label: t('ai.prompt_inspector.set_placeholder') },
+  ...promptSets.value.map((set) => ({ value: set.name, label: set.name })),
+])
+
+function onPromptSetChange(value: string): void {
+  setSelectedPromptSetName(value === '' ? null : value)
+  if (value !== '' && aiPromptRecord.value === null && editorActiveSegmentId.value !== null) {
+    dispatch('ai.prompt.assemble')
+  }
+}
+
+const glossarySummary = computed(() => glossaryInjectionSummary(aiPromptRecord.value))
+
+const glossarySummaryText = computed<string>(() => {
+  const summary = glossarySummary.value
+  if (summary.kind === 'no_record') return ''
+  const stale = isStale.value ? ` ${t('ai.prompt_inspector.summary_other_segment')}` : ''
+  if (summary.kind === 'not_asked') {
+    return (
+      (summary.tmCount === null
+        ? t('ai.prompt.summary_not_asked')
+        : t('ai.prompt.summary_not_asked_tm', { tm_count: String(summary.tmCount) })) + stale
+    )
+  }
+  const delta = aiPromptGlossaryDelta.value
+  if (delta !== null) {
+    const direction = delta > 0 ? 'up' : 'down'
+    const params = { count: String(summary.count), delta: String(Math.abs(delta)) }
+    return (
+      (summary.tmCount === null
+        ? t(`ai.prompt.summary_asked_${direction}`, params)
+        : t(`ai.prompt.summary_asked_tm_${direction}`, { ...params, tm_count: String(summary.tmCount) })) + stale
+    )
+  }
+  return (
+    (summary.tmCount === null
+      ? t('ai.prompt.summary_asked', { count: String(summary.count) })
+      : t('ai.prompt.summary_asked_tm', { count: String(summary.count), tm_count: String(summary.tmCount) })) + stale
+  )
+})
 
 const glossaryAsked = computed(() => {
   const rec = aiPromptRecord.value
@@ -228,6 +281,38 @@ const resultUsage = computed(() => {
         </button>
       </header>
 
+      <div class="aip-setbar" data-aip-set-bar>
+        <p v-if="promptSets.length === 0" class="aip-note" data-aip-set-empty>{{ t('panel.ai_translation.prompt_set_empty') }}</p>
+        <div v-else class="aip-set-field">
+          <span class="aip-blabel">{{ t('ai.prompt_inspector.set_label') }}</span>
+          <SelectMenu
+            class="aip-set-select"
+            variant="field"
+            :model-value="selectedPromptSetName ?? ''"
+            :options="promptSetOptions"
+            :columns="2"
+            :label="t('ai.prompt_inspector.set_label')"
+            @change="onPromptSetChange"
+          />
+        </div>
+        <button type="button" class="aip-close" data-prompt-library-open @click="dispatch('prompt.library.open')">
+          {{ t('command.prompt.library.open') }}
+        </button>
+      </div>
+      <p v-if="promptSetChoiceError !== null" class="aip-read-error" role="alert" data-aip-set-choice-error>
+        <!-- aura-allow-text: KẾT QUẢ của tError(). -->
+        {{ tError(promptSetChoiceError) }}
+      </p>
+      <!-- aura-allow-text: KẾT QUẢ của t() (ba-giá-trị: not_asked / asked kèm số đếm, có dấu của câu khác). -->
+      <p
+        v-if="glossarySummary.kind !== 'no_record'"
+        class="aip-note"
+        :data-ai-prompt-summary-kind="glossarySummary.kind"
+        data-aip-summary
+      >
+        {{ glossarySummaryText }}
+      </p>
+
       <p v-if="aiPromptReadError !== null" class="aip-read-error" role="alert" data-aip-read-error="true">
         <!-- aura-allow-text: KẾT QUẢ của tError(). -->
         {{ tError(aiPromptReadError) }}
@@ -294,8 +379,17 @@ const resultUsage = computed(() => {
             })
           }}
         </p>
+        <p v-if="!isStale && isOtherSet" class="aip-other-set" role="status" data-aip-other-set>
+          <!-- aura-allow-text: KẾT QUẢ của t() (tên hai bộ). -->
+          {{
+            t('ai.prompt_inspector.set_mismatch_notice', {
+              record_name: aiPromptRecord.prompt_set_name,
+              selected_name: selectedPromptSetName ?? '',
+            })
+          }}
+        </p>
         <button
-          v-if="isStale"
+          v-if="isStale || isOtherSet"
           type="button"
           class="aip-close"
           data-aip-assemble-selected
@@ -678,6 +772,24 @@ const resultUsage = computed(() => {
   border-bottom-color: var(--color-primary);
 }
 
+.aip-setbar {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: calc(var(--space-unit) * 4);
+  margin-bottom: calc(var(--space-unit) * 2);
+}
+
+.aip-set-field {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 2);
+}
+
+.aip-set-select {
+  min-width: 0;
+}
+
 .aip-empty {
   margin: 0;
   font-family: var(--face-ui-md-wrap);
@@ -730,6 +842,7 @@ const resultUsage = computed(() => {
 }
 
 .aip-stale,
+.aip-other-set,
 .aip-read-error {
   margin: 0 0 calc(var(--space-unit) * 3) 0;
   padding: calc(var(--space-unit) * 2);

@@ -12,8 +12,13 @@
 import { readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { loadPromptSets } from './promptSetState'
+import { aiPromptInspectorIsOpen } from './aiPromptInspectorState'
 
 const overlayOpen = ref(false)
+const overInspector = ref(false)
+
+/** `true` while the library was opened on top of the Prompt screen, so it must stack above it. */
+export const promptLibraryOverInspector: DeepReadonly<Ref<boolean>> = readonly(overInspector)
 
 export const promptLibraryOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
 
@@ -23,6 +28,7 @@ export const promptLibraryOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(o
  * phiên trước, hoặc mở/đóng một Tác phẩm khác kể từ lần cuối màn hình này mở.
  */
 export function openPromptLibrary(): void {
+  overInspector.value = aiPromptInspectorIsOpen.value
   overlayOpen.value = true
   void loadPromptSets()
 }
@@ -31,9 +37,11 @@ export function openPromptLibrary(): void {
  * lại NGAY, cùng khuôn `closeGlossaryManage`/`closeSettings`. */
 export function closePromptLibrary(): void {
   overlayOpen.value = false
+  overInspector.value = false
 }
 
 /** `check:panel-refs` đòi mọi ô nhớ cấp module có một đường `reset*()` của CHÍNH tệp này. */
 export function resetPromptLibrary(): void {
   overlayOpen.value = false
+  overInspector.value = false
 }

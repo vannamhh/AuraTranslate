@@ -214,7 +214,7 @@ describe('AiTranslationPanel.vue — câu hiện tại của luồng AI khi tiê
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('[data-ai-translate-run]').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('.ai-translate-hint').text()).toBe(i18n.t('panel.ai_translation.translate_no_segment_hint'))
+    expect(wrapper.get('[data-ai-no-segment-hint]').text()).toBe(i18n.t('panel.ai_translation.translate_no_segment_hint'))
 
     wrapper.unmount()
   })
@@ -229,7 +229,7 @@ describe('AiTranslationPanel.vue — câu hiện tại của luồng AI khi tiê
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('[data-ai-translate-run]').attributes('disabled')).toBeUndefined()
-    expect(wrapper.find('.ai-translate-hint').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-no-segment-hint]').exists()).toBe(false)
 
     await wrapper.get('[data-ai-translate-run]').trigger('click')
     await flushPromises()

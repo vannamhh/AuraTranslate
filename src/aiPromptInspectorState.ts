@@ -184,7 +184,7 @@ export function closeAiPromptInspector(): void {
  * không mang định danh câu nào tạo ra nó — khác hẳn [`aiPromptRecord`], thứ §Always spec 4.7
  * đòi phải mang "the identity of what produced it… so a record from an earlier segment cannot
  * be read as describing the segment now focused". Không có định danh đó, một lỗi Lắp cho câu A
- * (ví dụ "chưa chọn bộ nào") đứng nguyên trên `.ai-inspector-alert` sau khi tiêu điểm đã dời
+ * (ví dụ "chưa chọn bộ nào") đứng nguyên trên màn Prompt sau khi tiêu điểm đã dời
  * sang câu B mà người dùng chưa hề bấm Lắp lại — đúng khuyết tật hạng "bản ghi cũ" §Always
  * cấm, chỉ khác đối tượng (lỗi, không phải bản ghi).
  *

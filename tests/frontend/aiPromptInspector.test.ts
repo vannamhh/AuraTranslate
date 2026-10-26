@@ -28,6 +28,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
+import { pickSelectOption } from './support/selectMenu'
 import { computed, ref, watch } from 'vue'
 import type { Ref } from 'vue'
 import type {
@@ -262,6 +263,16 @@ async function freshPanel() {
   } as CommandDeps)
 
   return { commands, state, i18n, promptSetState, AiTranslationPanel, caretSegmentId }
+}
+
+/** Mounts the Prompt screen on the module instances `freshPanel()` just imported. */
+async function openScreen() {
+  const state = await import('../../src/aiPromptInspectorState')
+  const Overlay = (await import('../../src/AiPromptInspectorOverlay.vue')).default
+  state.openAiPromptInspector()
+  const overlay = mount(Overlay, { attachTo: document.body })
+  await flushPromises()
+  return overlay
 }
 
 // Nạp trước cả hai nhánh `.vue` ở `beforeAll` (ngân sách `hookTimeout`, rộng hơn `testTimeout`)
@@ -1108,7 +1119,7 @@ describe('SỬA đua tranh sequence — assembleBusy không treo mãi khi một 
 // (verification-gap layer bắt được: nhịp GHI DUY NHẤT của Decision 2 không một dòng test)
 // ═══════════════════════════════════════════════════════════════════════════════════
 describe('AiTranslationPanel.vue — prompt tự lắp khi dịch; lệnh `ai.prompt.assemble` vẫn lắp cho câu hiện tại', () => {
-  it('không bản ghi: không nút Lắp, không dòng tóm tắt "chưa lắp", có dòng "Prompt tự lắp khi dịch" (AC3)', async () => {
+  it('không bản ghi: panel không nút Lắp, không dòng tóm tắt, không ghi chú tự lắp (AC3)', async () => {
     const { i18n, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 3
 
@@ -1118,8 +1129,8 @@ describe('AiTranslationPanel.vue — prompt tự lắp khi dịch; lệnh `ai.pr
 
     expect(wrapper.find('[data-ai-prompt-assemble]').exists()).toBe(false)
     expect(wrapper.find('.ai-inspector-summary').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-prompt-auto-note]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain(i18n.t('ai.prompt.summary_no_record'))
-    expect(wrapper.get('[data-ai-prompt-auto-note]').text()).toBe(i18n.t('panel.ai_translation.prompt_auto_note'))
 
     wrapper.unmount()
   })
@@ -1152,7 +1163,7 @@ describe('AiTranslationPanel.vue — prompt tự lắp khi dịch; lệnh `ai.pr
     expect(assembleMock).not.toHaveBeenCalled()
   })
 
-  it('lượt Lắp trượt (IpcError) ⇒ hiện `.ai-inspector-alert`, KHÔNG ghi đè aiPromptRecord, và cờ bận hạ về false', async () => {
+  it('lượt Lắp trượt (IpcError) ⇒ màn Prompt hiện lỗi lắp, panel không, KHÔNG ghi đè aiPromptRecord, và cờ bận hạ về false', async () => {
     const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 3
     const err: IpcError = {
@@ -1166,17 +1177,20 @@ describe('AiTranslationPanel.vue — prompt tự lắp khi dịch; lệnh `ai.pr
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await wrapper.vm.$nextTick()
 
-    readRecordMock.mockResolvedValueOnce(record({ segment_id: 3 }))
-    await state.refreshAiPromptRecord()
+    readRecordMock.mockResolvedValue(record({ segment_id: 3 }))
+    const overlay = await openScreen()
     expect(state.aiPromptRecord.value?.segment_id).toBe(3)
 
     await state.assembleCurrentAiPrompt(null, 3)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.ai-inspector-alert').exists()).toBe(true)
+    expect(overlay.find('[data-aip-assemble-error]').exists()).toBe(true)
+    expect(wrapper.find('[data-aip-assemble-error]').exists()).toBe(false)
+    expect(wrapper.find('.ai-inspector-alert').exists()).toBe(false)
     expect(state.aiPromptAssembleBusy.value).toBe(false)
     expect(state.aiPromptRecord.value?.segment_id).toBe(3)
 
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1194,18 +1208,22 @@ describe('AiTranslationPanel.vue — prompt tự lắp khi dịch; lệnh `ai.pr
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await wrapper.vm.$nextTick()
 
+    readRecordMock.mockResolvedValue(record({ segment_id: 3 }))
+    const overlay = await openScreen()
+
     await state.assembleCurrentAiPrompt(null, 3)
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.ai-inspector-alert').exists()).toBe(true)
+    expect(overlay.find('[data-aip-assemble-error]').exists()).toBe(true)
 
     caretSegmentId.value = null
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.ai-inspector-alert').exists()).toBe(true)
+    expect(overlay.find('[data-aip-assemble-error]').exists()).toBe(true)
 
     caretSegmentId.value = 4
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.ai-inspector-alert').exists()).toBe(false)
+    expect(overlay.find('[data-aip-assemble-error]').exists()).toBe(false)
 
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1360,40 +1378,22 @@ describe('một lượt Lắp CŨ (đã bị reset rồi một lượt Lắp m�
 // Loop 1 (2026-09-18) — finding B6: dòng tóm tắt của panel phải tự đánh dấu khi bản ghi
 // nó đọc là CŨ (I/O Matrix "Stale record"), không chỉ lớp phủ mới biết điều đó.
 // ═══════════════════════════════════════════════════════════════════════════════════
-describe('AiTranslationPanel.vue — tóm tắt prompt chỉ hiện cho câu con trỏ đang đứng', () => {
-  it('bản ghi thuộc câu 7, tiêu điểm ở câu 9 ⇒ không tóm tắt, không dòng cảnh báo', async () => {
-    const { AiTranslationPanel, caretSegmentId } = await freshPanel()
+describe('AiPromptInspectorOverlay.vue — tóm tắt Glossary đánh dấu bản ghi của câu khác', () => {
+  it('bản ghi thuộc câu 7, tiêu điểm ở câu 9 ⇒ tóm tắt mang dấu "của câu khác"; về câu 7 thì hết dấu', async () => {
+    const { i18n, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 9
     readRecordMock.mockResolvedValue(record({ segment_id: 7 }))
+    const overlay = await openScreen()
 
-    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
-    await flushPromises()
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.find('.ai-inspector-summary').exists()).toBe(false)
-    expect(wrapper.find('[data-ai-prompt-summary-stale-notice]').exists()).toBe(false)
-    expect(wrapper.find('.ai-inspector-stale').exists()).toBe(false)
+    const tag = i18n.t('ai.prompt_inspector.summary_other_segment')
+    expect(overlay.get('[data-aip-summary]').text()).toContain(tag)
 
     caretSegmentId.value = 7
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('.ai-inspector-summary').exists()).toBe(true)
+    await overlay.vm.$nextTick()
+    expect(overlay.get('[data-aip-summary]').text()).not.toBe('')
+    expect(overlay.get('[data-aip-summary]').text()).not.toContain(tag)
 
-    wrapper.unmount()
-  })
-
-  it('bản ghi và tiêu điểm CÙNG một câu ⇒ tóm tắt hiện, không đánh dấu cũ', async () => {
-    const { AiTranslationPanel, caretSegmentId } = await freshPanel()
-    caretSegmentId.value = 7
-    readRecordMock.mockResolvedValue(record({ segment_id: 7 }))
-
-    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
-    await flushPromises()
-    await wrapper.vm.$nextTick()
-
-    const summary = wrapper.get('.ai-inspector-summary')
-    expect(summary.text()).not.toBe('')
-
-    wrapper.unmount()
+    overlay.unmount()
   })
 })
 
@@ -1509,15 +1509,17 @@ describe('finding B2 — unknown_markers và source_segment_missing thật sự 
 // nhưng `.ai-inspector-summary` (panel) thì chưa — một phần tử KHÁC, một component KHÁC.
 // ═══════════════════════════════════════════════════════════════════════════════════
 describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả ba trạng thái', () => {
-  it('🔴 no_record ⇒ không dòng tóm tắt nào trong DOM (panel chỉ nói "Prompt tự lắp khi dịch")', async () => {
+  it('🔴 no_record ⇒ không dòng tóm tắt nào trong DOM (màn Prompt)', async () => {
     const { AiTranslationPanel } = await freshPanel()
     readRecordMock.mockResolvedValue(null)
 
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
+    const overlay = await openScreen()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.ai-inspector-summary').exists()).toBe(false)
+    expect(overlay.find('[data-aip-summary]').exists()).toBe(false)
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1527,10 +1529,12 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
 
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
+    const overlay = await openScreen()
     await wrapper.vm.$nextTick()
 
-    const summary = wrapper.get('.ai-inspector-summary')
+    const summary = overlay.get('[data-aip-summary]')
     expect(summary.attributes('data-ai-prompt-summary-kind')).toBe('not_asked')
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1542,11 +1546,13 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
 
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
+    const overlay = await openScreen()
     await wrapper.vm.$nextTick()
 
-    const summary = wrapper.get('.ai-inspector-summary')
+    const summary = overlay.get('[data-aip-summary]')
     expect(summary.attributes('data-ai-prompt-summary-kind')).toBe('asked')
     expect(summary.text()).toBe(i18n.t('ai.prompt.summary_asked', { count: '2' }))
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1564,11 +1570,13 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
 
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
+    const overlay = await openScreen()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.get('.ai-inspector-summary').text()).toBe(
+    expect(overlay.get('[data-aip-summary]').text()).toBe(
       i18n.t('ai.prompt.summary_asked_tm', { count: '1', tm_count: '2' }),
     )
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1578,6 +1586,7 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
 
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
+    const overlay = await openScreen()
     const readsBefore = readRecordMock.mock.calls.length
 
     readRecordMock.mockResolvedValue(
@@ -1589,9 +1598,10 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
     await wrapper.vm.$nextTick()
 
     expect(readRecordMock.mock.calls.length).toBeGreaterThan(readsBefore)
-    expect(wrapper.get('.ai-inspector-summary').text()).toBe(
+    expect(overlay.get('[data-aip-summary]').text()).toBe(
       i18n.t('ai.prompt.summary_asked_tm', { count: '0', tm_count: '1' }),
     )
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1601,7 +1611,8 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
 
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
-    expect(wrapper.get('.ai-inspector-summary').text()).toBe(i18n.t('ai.prompt.summary_asked', { count: '0' }))
+    const overlay = await openScreen()
+    expect(overlay.get('[data-aip-summary]').text()).toBe(i18n.t('ai.prompt.summary_asked', { count: '0' }))
     const readsBefore = readRecordMock.mock.calls.length
 
     readRecordMock.mockResolvedValue(
@@ -1619,9 +1630,10 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
     await wrapper.vm.$nextTick()
 
     expect(readRecordMock.mock.calls.length).toBeGreaterThan(readsBefore)
-    expect(wrapper.get('.ai-inspector-summary').text()).toBe(
+    expect(overlay.get('[data-aip-summary]').text()).toBe(
       i18n.t('ai.prompt.summary_asked_tm', { count: '0', tm_count: '1' }),
     )
+    overlay.unmount()
     wrapper.unmount()
   })
 })
@@ -1643,14 +1655,16 @@ describe('dòng tóm tắt Glossary so với câu trước (matrix: "Số liệu
     const fresh = await freshPanel()
     const wrapper = mount(fresh.AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
+    const overlay = await openScreen()
 
     await assembleAndMount(1, twoTerms, fresh)
-    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 2 thuật ngữ Glossary.')
+    expect(overlay.get('[data-aip-summary]').text()).toBe('Đã chèn 2 thuật ngữ Glossary.')
     await assembleAndMount(2, threeTerms, fresh)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 3 thuật ngữ Glossary — tăng 1 so với câu trước.')
+    expect(overlay.get('[data-aip-summary]').text()).toBe('Đã chèn 3 thuật ngữ Glossary — tăng 1 so với câu trước.')
     expect(fresh.state.aiPromptGlossaryDelta.value).toBe(1)
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1658,12 +1672,14 @@ describe('dòng tóm tắt Glossary so với câu trước (matrix: "Số liệu
     const fresh = await freshPanel()
     const wrapper = mount(fresh.AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
+    const overlay = await openScreen()
 
     await assembleAndMount(1, threeTerms, fresh)
     await assembleAndMount(2, twoTerms, fresh)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 2 thuật ngữ Glossary — giảm 1 so với câu trước.')
+    expect(overlay.get('[data-aip-summary]').text()).toBe('Đã chèn 2 thuật ngữ Glossary — giảm 1 so với câu trước.')
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1671,13 +1687,15 @@ describe('dòng tóm tắt Glossary so với câu trước (matrix: "Số liệu
     const fresh = await freshPanel()
     const wrapper = mount(fresh.AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
+    const overlay = await openScreen()
 
     await assembleAndMount(1, twoTerms, fresh)
     await assembleAndMount(1, threeTerms, fresh)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 3 thuật ngữ Glossary.')
+    expect(overlay.get('[data-aip-summary]').text()).toBe('Đã chèn 3 thuật ngữ Glossary.')
     expect(fresh.state.aiPromptGlossaryDelta.value).toBeNull()
+    overlay.unmount()
     wrapper.unmount()
   })
 
@@ -1685,16 +1703,147 @@ describe('dòng tóm tắt Glossary so với câu trước (matrix: "Số liệu
     const fresh = await freshPanel()
     const wrapper = mount(fresh.AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
+    const overlay = await openScreen()
 
     await assembleAndMount(2, threeTerms, fresh)
     await wrapper.vm.$nextTick()
-    expect(wrapper.get('.ai-inspector-summary').text()).toBe('Đã chèn 3 thuật ngữ Glossary.')
+    expect(overlay.get('[data-aip-summary]').text()).toBe('Đã chèn 3 thuật ngữ Glossary.')
 
     await assembleAndMount(3, twoTerms, fresh)
     expect(fresh.state.aiPromptGlossaryDelta.value).toBe(-1)
     fresh.state.resetAiPromptInspector()
     await assembleAndMount(4, threeTerms, fresh)
     expect(fresh.state.aiPromptGlossaryDelta.value).toBeNull()
+    overlay.unmount()
+    wrapper.unmount()
+  })
+})
+
+describe('panel Đề xuất AI gọn — dòng đầu theo bộ prompt (I/O Matrix)', () => {
+  it('đã chọn bộ: dòng đầu mang tên bộ, không ô chọn, không chữ "Đề xuất AI" trong panel', async () => {
+    const { i18n, promptSetState, AiTranslationPanel } = await freshPanel()
+    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+    promptSetState.setSelectedPromptSetName('Happy')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-panel-set]').text()).toContain('Happy')
+    expect(wrapper.find('[data-ai-prompt-set-pick]').exists()).toBe(false)
+    expect(wrapper.find('.ai-prompt-select').exists()).toBe(false)
+    expect(wrapper.find('[data-prompt-library-open]').exists()).toBe(false)
+    expect(wrapper.get('[data-ai-prompt-inspector-open]').text()).toBe(i18n.t('command.ai.prompt_inspector.open'))
+    expect(wrapper.text()).not.toContain(i18n.t('panel.ai_translation.title'))
+    wrapper.unmount()
+  })
+
+  it('có bộ nhưng chưa chọn: "Chọn bộ" mở màn Prompt', async () => {
+    const { i18n, state, AiTranslationPanel, commands } = await freshPanel()
+    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+
+    expect(wrapper.get('[data-ai-panel-set-none]').text()).toBe(i18n.t('panel.ai_translation.prompt_set_none'))
+    expect(state.aiPromptInspectorIsOpen.value).toBe(false)
+    await wrapper.get('[data-ai-prompt-set-pick]').trigger('click')
+    expect(state.aiPromptInspectorIsOpen.value).toBe(true)
+    commands.dispatch('ai.prompt_inspector.close')
+    wrapper.unmount()
+  })
+
+  it('không có bộ nào: một dòng trỏ Thư viện prompt', async () => {
+    const { i18n, AiTranslationPanel } = await freshPanel()
+    promptSetListMock.mockResolvedValue({ sets: [], workTierAvailable: false, variables: [], error: null })
+    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+
+    expect(wrapper.get('[data-ai-prompt-library-link]').text()).toBe(i18n.t('panel.ai_translation.prompt_set_empty'))
+    expect(wrapper.find('[data-ai-prompt-set-pick]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('màn Prompt — đổi bộ (I/O Matrix)', () => {
+  const noSetSelected: IpcError = {
+    code: 'ai_prompt.no_set_selected',
+    message_key: 'err.ai_prompt.no_set_selected',
+    params: {},
+    retryable: false,
+  }
+
+  it('đang báo no_set_selected, có câu hiện tại: chọn bộ xong thì tự lắp cho câu đó', async () => {
+    const { caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 3
+    assembleMock.mockResolvedValue({ value: null, error: noSetSelected })
+    const wrapper = mount((await import('../../src/panels/AiTranslationPanel.vue')).default, {
+      props: { params: { params: {} } },
+      attachTo: document.body,
+    })
+    const overlay = await openScreen()
+    assembleMock.mockClear()
+    assembleMock.mockResolvedValue({ value: record({ segment_id: 3, prompt_set_name: 'Happy' }), error: null })
+
+    await pickSelectOption(overlay.get('.aip-set-select'), 'Happy')
+    await flushPromises()
+
+    expect(assembleMock).toHaveBeenCalledTimes(1)
+    expect(assembleMock).toHaveBeenCalledWith('Happy', 3)
+    overlay.unmount()
+    wrapper.unmount()
+  })
+
+  it('chưa có câu nào: chọn bộ được, không lắp, hiện gợi ý no_segment_hint', async () => {
+    const { i18n } = await freshPanel()
+    const wrapper = mount((await import('../../src/panels/AiTranslationPanel.vue')).default, {
+      props: { params: { params: {} } },
+      attachTo: document.body,
+    })
+    const overlay = await openScreen()
+    await pickSelectOption(overlay.get('.aip-set-select'), 'Happy')
+    await flushPromises()
+
+    const promptSetState = await import('../../src/promptSetState')
+    expect(promptSetState.selectedPromptSetName.value).toBe('Happy')
+    expect(assembleMock).not.toHaveBeenCalled()
+    expect(overlay.text()).toContain(i18n.t('ai.prompt_inspector.no_segment_hint'))
+    expect(overlay.find('[data-prompt-library-open]').exists()).toBe(true)
+    overlay.unmount()
+    wrapper.unmount()
+  })
+
+  it('đã có bản ghi lắp bằng bộ khác: giữ nguyên bản ghi, hiện ghi chú và nút lắp, không tự lắp', async () => {
+    const { caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 3
+    readRecordMock.mockResolvedValue(record({ segment_id: 3, prompt_set_name: 'Tiên hiệp' }))
+    const wrapper = mount((await import('../../src/panels/AiTranslationPanel.vue')).default, {
+      props: { params: { params: {} } },
+      attachTo: document.body,
+    })
+    const overlay = await openScreen()
+    const promptSetState = await import('../../src/promptSetState')
+    promptSetState.setSelectedPromptSetName('Happy')
+    await overlay.vm.$nextTick()
+
+    expect(assembleMock).not.toHaveBeenCalled()
+    expect(overlay.find('[data-aip-other-set]').exists()).toBe(true)
+    expect(overlay.find('[data-aip-assemble-selected]').exists()).toBe(true)
+    const state = await import('../../src/aiPromptInspectorState')
+    expect(state.aiPromptRecord.value?.prompt_set_name).toBe('Tiên hiệp')
+    overlay.unmount()
+    wrapper.unmount()
+  })
+
+  it('chọn "— chưa chọn —" khi đã có bản ghi: không ghi chú bộ khác, không nút lắp', async () => {
+    const { caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 3
+    readRecordMock.mockResolvedValue(record({ segment_id: 3, prompt_set_name: 'Tiên hiệp' }))
+    const wrapper = mount((await import('../../src/panels/AiTranslationPanel.vue')).default, {
+      props: { params: { params: {} } },
+      attachTo: document.body,
+    })
+    const overlay = await openScreen()
+
+    expect(overlay.find('[data-aip-other-set]').exists()).toBe(false)
+    expect(overlay.find('[data-aip-assemble-selected]').exists()).toBe(false)
+    overlay.unmount()
     wrapper.unmount()
   })
 })

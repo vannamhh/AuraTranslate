@@ -73,6 +73,7 @@ async function mountEditor() {
   // `commands`/`editorClearSourceCuts`.
   const history = await import('../../src/panels/segmentHistoryState')
   const { clearSourceCuts } = await import('../../src/editorClearSourceCuts')
+  const selection = await import('../../src/panels/segmentSelectionState')
   // 🔴 **PHẢI gọi `installCommands` — `dispatch` NÉM với một id chưa đăng ký.** Ca ③ đi qua
   // `onEditKeydown` → `dispatch('editor.clear_source_cuts')`, tức **đúng đường sản phẩm**;
   // một bàn test không cài command sẽ đo một ứng dụng chưa khởi động xong.
@@ -85,6 +86,7 @@ async function mountEditor() {
     // không kiểm kiểu là một cây test sẽ mục)*.
     setMode: () => {},
     clearSourceCuts,
+    clearSegmentSelection: selection.clearSegmentSelection,
   })
   const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
   const wrapper = mount(GridPanel, {
@@ -95,7 +97,7 @@ async function mountEditor() {
   daMount.push(wrapper)
   await state.ensureSegmentsLoaded()
   await wrapper.vm.$nextTick()
-  return { state, commands, quickAdd, confirmStrip, history, wrapper }
+  return { state, commands, quickAdd, confirmStrip, history, selection, wrapper }
 }
 
 /** Chỉ NẠP (không `resetModules`, không mount) — trả giá dịch một lần của `GridPanel.vue` (nó
@@ -160,6 +162,23 @@ describe('Story 2.9 · AC8 — `Esc` xoá tập điểm cắt', () => {
     )
     await wrapper.vm.$nextTick()
 
+    expect(state.editorSourceCut.value).toBe(null)
+  })
+
+  it('`Esc` trong Ô BẢN DỊCH bỏ luôn vùng chọn câu, và vẫn xoá điểm cắt', async () => {
+    const { state, selection, wrapper } = await mountEditor()
+    state.setEditorCaret(11)
+    selection.extendSegmentSelectionDown()
+    state.setEditorSourceCut(11, 2)
+    expect(selection.segmentSelectionCount.value).toBe(2)
+
+    const o = document.querySelector<HTMLElement>('[data-col="tgt"][data-segment-id="11"]')
+    o?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }),
+    )
+    await wrapper.vm.$nextTick()
+
+    expect(selection.segmentSelectionCount.value).toBe(0)
     expect(state.editorSourceCut.value).toBe(null)
   })
 
