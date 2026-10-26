@@ -31,7 +31,7 @@ const hoisted = vi.hoisted(() => ({
 }))
 
 vi.mock('../../src/config/aiprompt', () => ({
-  aiPromptAssemble: vi.fn(),
+  aiPromptAssemble: vi.fn(async () => ({ value: null, error: null })),
   aiPromptReadRecord: async () => ({ value: await hoisted.readRecord(), error: null }),
 }))
 
