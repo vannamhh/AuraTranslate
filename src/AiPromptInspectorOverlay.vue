@@ -290,7 +290,7 @@ const resultUsage = computed(() => {
             variant="field"
             :model-value="selectedPromptSetName ?? ''"
             :options="promptSetOptions"
-            :columns="2"
+            :columns="3"
             :label="t('ai.prompt_inspector.set_label')"
             @change="onPromptSetChange"
           />
@@ -781,12 +781,15 @@ const resultUsage = computed(() => {
 }
 
 .aip-set-field {
+  flex: 0 1 50%;
+  min-width: 0;
   display: flex;
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
 }
 
 .aip-set-select {
+  flex: 1;
   min-width: 0;
 }
 

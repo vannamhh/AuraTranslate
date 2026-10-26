@@ -27,7 +27,7 @@ beforeEach(() => {
 })
 
 describe('màn Prompt — ô Bộ prompt', () => {
-  it('trên 10 bộ: danh sách xếp hai cột và đủ 12 bộ cộng "Chưa chọn" đều có trong đó', async () => {
+  it('trên 10 bộ: danh sách xếp ba cột và đủ 12 bộ cộng "Chưa chọn" đều có trong đó', async () => {
     vi.resetModules()
     const Overlay = (await import('../../src/AiPromptInspectorOverlay.vue')).default
     const inspector = await import('../../src/aiPromptInspectorState')
@@ -38,7 +38,7 @@ describe('màn Prompt — ô Bộ prompt', () => {
     await flushPromises()
     const field = wrapper.find('.aip-set-field')
     expect(field.exists()).toBe(true)
-    const list = field.find('.select-options--cols-2')
+    const list = field.find('.select-options--cols-3')
     expect(list.exists()).toBe(true)
     expect(list.findAll('input[data-select-option]')).toHaveLength(13)
     expect(field.find('.menu--columns').exists()).toBe(true)
