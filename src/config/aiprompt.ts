@@ -118,6 +118,8 @@ export type InjectionLedgerWire = {
  * (`assemble_prompt` không có mặt ở tệp này, và sẽ không bao giờ có).
  */
 export type AssembledPromptWire = {
+  /** The system message sent before `prompt`; `null` = none is sent. Verbatim, never trimmed. */
+  system: string | null
   prompt: string
   segment_id: number
   chapter_id: number
@@ -277,6 +279,7 @@ function isAssembledPromptWire(value: unknown): value is AssembledPromptWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<AssembledPromptWire>
   return (
+    (v.system === null || typeof v.system === 'string') &&
     typeof v.prompt === 'string' &&
     typeof v.segment_id === 'number' &&
     typeof v.chapter_id === 'number' &&

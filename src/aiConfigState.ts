@@ -17,13 +17,14 @@ import type { AiConfigField, AiConfigFieldWire, AiNotReadyReason } from './confi
 const MAX_TOKENS_LIMIT = 4294967295
 const PROVIDER_DEFAULT = 'default'
 
-/** Năm trường, ĐÚNG thứ tự hiển thị của form (`mockups/settings.html`). */
+/** Sáu trường, ĐÚNG thứ tự hiển thị của form (`mockups/settings.html`). */
 export const AI_CONFIG_FIELDS: readonly AiConfigField[] = [
   'provider',
   'endpoint',
   'model',
   'temperature',
   'max_tokens',
+  'system_prompt',
 ]
 
 export const AI_PROVIDERS = [
@@ -137,15 +138,15 @@ function closeCustom(): void {
 type FieldRecord<T> = Record<AiConfigField, T>
 
 function emptyDrafts(): FieldRecord<string> {
-  return { provider: '', endpoint: '', model: '', temperature: '', max_tokens: '' }
+  return { provider: '', endpoint: '', model: '', temperature: '', max_tokens: '', system_prompt: '' }
 }
 
 function emptyFlags(): FieldRecord<boolean> {
-  return { provider: false, endpoint: false, model: false, temperature: false, max_tokens: false }
+  return { provider: false, endpoint: false, model: false, temperature: false, max_tokens: false, system_prompt: false }
 }
 
 function emptyErrors(): FieldRecord<IpcError | null> {
-  return { provider: null, endpoint: null, model: null, temperature: null, max_tokens: null }
+  return { provider: null, endpoint: null, model: null, temperature: null, max_tokens: null, system_prompt: null }
 }
 
 export type AiConfigPresetChange = {
@@ -158,6 +159,7 @@ export type AiConfigPresetConfirm = { provider: AiProvider; changes: AiConfigPre
 const presetConfirm = ref<AiConfigPresetConfirm | null>(null)
 
 const resolvedFields = ref<AiConfigFieldWire[]>([])
+const defaultSystemPrompt = ref('')
 const drafts = ref<FieldRecord<string>>(emptyDrafts())
 const saving = ref<FieldRecord<boolean>>(emptyFlags())
 const saveErrors = ref<FieldRecord<IpcError | null>>(emptyErrors())
@@ -207,7 +209,8 @@ function effectiveTier(): AiConfigViewTier {
 export const aiConfigViewTier: ComputedRef<AiConfigViewTier> = computed(effectiveTier)
 
 function valueAtTier(wire: AiConfigFieldWire, tier: AiConfigViewTier): string {
-  return tier === 'work' || wire.tier !== 'work' ? wire.value : (wire.shadowed ?? '')
+  if (tier === 'work' || wire.tier !== 'work') return wire.value
+  return wire.shadowed ?? (wire.field === 'system_prompt' ? defaultSystemPrompt.value : '')
 }
 
 function draftsForTier(tier: AiConfigViewTier): FieldRecord<string> {
@@ -329,6 +332,8 @@ export function isAiConfigValueValid(field: AiConfigField, raw: string): boolean
     }
     case 'endpoint':
       return isAbsoluteHttpUrl(trimmed)
+    case 'system_prompt':
+      return true
   }
 }
 
@@ -398,6 +403,7 @@ export async function loadAiConfigSection(): Promise<void> {
   workIsOpen.value = result.workTierAvailable
   keyConfigured.value = result.keyConfigured
   resolvedFields.value = result.fields
+  defaultSystemPrompt.value = result.defaultSystemPrompt
   closeCustom()
   drafts.value = draftsForTier(effectiveTier())
   if (testState.value !== 'running') resetAiConfigTest()
@@ -417,7 +423,45 @@ export async function saveAiConfigField(field: AiConfigField): Promise<void> {
   saving.value = { ...saving.value, [field]: true }
   saveErrors.value = { ...saveErrors.value, [field]: null }
 
-  const err = await aiConfigSaveField(effectiveTier(), field, raw.trim())
+  const err = await aiConfigSaveField(effectiveTier(), field, field === 'system_prompt' ? raw : raw.trim())
+
+  saving.value = { ...saving.value, [field]: false }
+  if (err !== null) {
+    saveErrors.value = { ...saveErrors.value, [field]: err }
+    return
+  }
+
+  await loadAiConfigSection()
+}
+
+export type AiSystemPromptStatus = 'default' | 'edited' | 'off'
+
+/** The app's built-in system prompt text, shown beside the editable box. */
+export function aiConfigDefaultSystemPrompt(): string {
+  return defaultSystemPrompt.value
+}
+
+/** Status of the viewed tier's system prompt: blank = off, the app text = default, anything else = edited. */
+export function aiConfigSystemPromptStatus(): AiSystemPromptStatus {
+  const value = aiConfigValueAtViewTier('system_prompt')
+  if (value.trim() === '') return 'off'
+  return value === defaultSystemPrompt.value ? 'default' : 'edited'
+}
+
+/** Whether "Restore default" has anything to do at the viewed tier: a Global that is not the app text, or a Work row. */
+export function aiConfigSystemPromptCanRestore(): boolean {
+  if (effectiveTier() === 'work') return aiConfigFieldWire('system_prompt')?.tier === 'work'
+  return aiConfigSystemPromptStatus() !== 'default'
+}
+
+/** Deletes the viewed tier's `system_prompt` row: Global reads the app text again, Work inherits Global. */
+export async function restoreAiConfigSystemPrompt(): Promise<void> {
+  const field = 'system_prompt'
+  if (saving.value[field]) return
+  saving.value = { ...saving.value, [field]: true }
+  saveErrors.value = { ...saveErrors.value, [field]: null }
+
+  const err = await aiConfigClearOverride(field, effectiveTier())
 
   saving.value = { ...saving.value, [field]: false }
   if (err !== null) {
@@ -614,6 +658,10 @@ function trackSave(job: Promise<void>): Promise<void> {
 
 /** Saves `field` when the user leaves the box: a valid draft that differs from the displayed stored value. */
 export function commitAiConfigField(field: AiConfigField): Promise<void> {
+  if (field === 'system_prompt') {
+    if (drafts.value[field] === aiConfigValueAtViewTier(field)) return Promise.resolve()
+    return trackSave(saveAiConfigField(field))
+  }
   const raw = drafts.value[field].trim()
   if (raw === '') {
     drafts.value = { ...drafts.value, [field]: aiConfigValueAtViewTier(field) }

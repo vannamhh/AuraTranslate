@@ -2528,6 +2528,7 @@ const HANDLER_TABLE = {
   'src/SettingsShortcutsSection.vue::onConfirmResetAll': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsShortcutsSection.vue::onCancelResetAll': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onClearAiConfigOverride': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onRestoreAiSystemPrompt': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onSaveAiConfigKey': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onDeleteAiConfigKey': { nonCommand: R_SUBMIT_DIRECT },
   'src/TmFuzzyStrip.vue::onKeydown': {
@@ -2835,7 +2836,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 146
+const HANDLER_ATTR_FLOOR = 157
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

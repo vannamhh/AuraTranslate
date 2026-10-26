@@ -1501,6 +1501,7 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
         top_keys,
         std::collections::BTreeSet::from([
             "prompt",
+            "system",
             "segment_id",
             "chapter_id",
             "prompt_set_name",
@@ -1515,6 +1516,10 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
         ]),
         "TEN TRUONG cap AssembledPromptWire tren day that -- mot truong bi doi ten/them/bot \
          khong duoc mot ca nao khac trong tep nay bat, vi tat ca so tren gia tri Rust da giai ma"
+    );
+    assert_eq!(
+        json["system"],
+        serde_json::json!(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT)
     );
     assert_eq!(json["sent_at"], serde_json::json!(null));
     assert_eq!(json["sent_model"], serde_json::json!(null));
@@ -1769,4 +1774,106 @@ fn the_wire_reports_how_many_matching_tm_pairs_the_cap_cut_and_zero_is_not_null(
     drop(global);
     cleanup(&work_dir);
     cleanup(&global_dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// System prompt: tier resolution recorded with the assembled prompt
+// ═════════════════════════════════════════════════════════════════════════════════
+
+fn recorded_system_after_assembling(
+    tag: &str,
+    configure: impl FnOnce(&Store, &OpenWork),
+) -> Option<String> {
+    let global_dir = temp_dir(&format!("{tag}-global"));
+    let work_dir = temp_dir(&format!("{tag}-work"));
+    let global = open_global(&global_dir);
+    let open = open_work(&work_dir, tag, "en", "A dragon guards the castle.");
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "Dich: {{source_segment}}",
+    )
+    .expect("tao bo prompt");
+    configure(&global, &open);
+    let segment_id = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments[0]
+        .id;
+    let record = fresh_record();
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &record,
+        Some("Plain"),
+        segment_id,
+    )
+    .expect("lap rap khong duoc loi");
+    drop(open);
+    drop(global);
+    cleanup(&global_dir);
+    cleanup(&work_dir);
+    wire.system
+}
+
+#[test]
+fn the_record_carries_the_app_default_system_prompt_when_no_tier_has_a_row() {
+    let system = recorded_system_after_assembling("sys-default", |_, _| {});
+    assert_eq!(
+        system.as_deref(),
+        Some(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT)
+    );
+}
+
+#[test]
+fn a_global_system_prompt_is_recorded_verbatim_including_newlines_and_edge_spaces() {
+    use auratranslate_lib::core::aiconfig::{AiConfigField, write_field};
+    let typed = "  Dong 1\n\n  Dong 2 \n";
+    let system = recorded_system_after_assembling("sys-global", |global, _| {
+        write_field(global, AiConfigField::SystemPrompt, typed).expect("ghi");
+    });
+    assert_eq!(system.as_deref(), Some(typed));
+}
+
+#[test]
+fn a_work_system_prompt_overrides_global_and_clearing_it_falls_back_to_global() {
+    use auratranslate_lib::core::aiconfig::{AiConfigField, clear_field, write_field};
+    let overridden = recorded_system_after_assembling("sys-work", |global, open| {
+        write_field(global, AiConfigField::SystemPrompt, "A").expect("ghi global");
+        write_field(&open.store, AiConfigField::SystemPrompt, "B").expect("ghi work");
+    });
+    assert_eq!(overridden.as_deref(), Some("B"));
+
+    let inherited = recorded_system_after_assembling("sys-work-clear", |global, open| {
+        write_field(global, AiConfigField::SystemPrompt, "A").expect("ghi global");
+        write_field(&open.store, AiConfigField::SystemPrompt, "B").expect("ghi work");
+        clear_field(&open.store, AiConfigField::SystemPrompt).expect("xoa work");
+    });
+    assert_eq!(inherited.as_deref(), Some("A"));
+}
+
+#[test]
+fn a_blank_system_prompt_row_turns_it_off_only_at_the_tier_that_saved_it() {
+    use auratranslate_lib::core::aiconfig::{AiConfigField, write_field};
+    let off_global = recorded_system_after_assembling("sys-off-global", |global, _| {
+        write_field(global, AiConfigField::SystemPrompt, "").expect("ghi rong");
+    });
+    assert_eq!(off_global, None, "o rong khong sinh message system rong");
+
+    let off_blank = recorded_system_after_assembling("sys-off-blank", |global, _| {
+        write_field(global, AiConfigField::SystemPrompt, "  \n ").expect("ghi toan khoang trang");
+    });
+    assert_eq!(off_blank, None, "toan khoang trang cung la tat");
+
+    let off_in_work = recorded_system_after_assembling("sys-off-work", |global, open| {
+        write_field(global, AiConfigField::SystemPrompt, "A").expect("ghi global");
+        write_field(&open.store, AiConfigField::SystemPrompt, "").expect("ghi rong work");
+    });
+    assert_eq!(off_in_work, None);
+
+    let other_work = recorded_system_after_assembling("sys-off-other", |global, _| {
+        write_field(global, AiConfigField::SystemPrompt, "A").expect("ghi global");
+    });
+    assert_eq!(other_work.as_deref(), Some("A"));
 }

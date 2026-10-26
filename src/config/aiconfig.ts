@@ -10,8 +10,14 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { IpcError } from '../i18n'
 
-/** Năm trường — khớp NGUYÊN VĂN `AiConfigField::as_str()` phía Rust. */
-export type AiConfigField = 'provider' | 'endpoint' | 'model' | 'temperature' | 'max_tokens'
+/** Sáu trường — khớp NGUYÊN VĂN `AiConfigField::as_str()` phía Rust. */
+export type AiConfigField =
+  | 'provider'
+  | 'endpoint'
+  | 'model'
+  | 'temperature'
+  | 'max_tokens'
+  | 'system_prompt'
 
 /** Hai tầng (AD-18) — khớp NGUYÊN VĂN `AiConfigTierWire` phía Rust. */
 export type AiConfigTierWire = 'global' | 'work'
@@ -45,6 +51,8 @@ export type AiNotReadyReason = 'endpoint_missing' | 'model_missing' | 'key_missi
 type AiConfigGetWire = {
   work_tier_available: boolean
   fields: AiConfigFieldWire[]
+  /** The app's built-in system prompt text; what `system_prompt` reads as when no tier has a row. */
+  default_system_prompt: string
   /** `Option<bool>` phía Rust — `true`/`false` khi keychain trả lời được thăm dò
    * `configured`, `null` khi keychain TỪ CHỐI trả lời. Xem doc-comment
    * `commands/aiconfig.rs::AiConfigGetWire.key_configured`: `null` là một trạng thái THỨ BA,
@@ -97,6 +105,7 @@ const CMD_TEST_CONNECTION_CANCEL = 'ai_config_test_connection_cancel'
  */
 export async function aiConfigGet(): Promise<{
   fields: AiConfigFieldWire[] | null
+  defaultSystemPrompt: string
   workTierAvailable: boolean
   keyConfigured: boolean | null
   ready: boolean | null
@@ -107,6 +116,7 @@ export async function aiConfigGet(): Promise<{
     const wire = await invoke<AiConfigGetWire>(CMD_GET)
     return {
       fields: wire.fields,
+      defaultSystemPrompt: typeof wire.default_system_prompt === 'string' ? wire.default_system_prompt : '',
       workTierAvailable: wire.work_tier_available,
       keyConfigured: wire.key_configured,
       ready: wire.ready,
@@ -114,13 +124,13 @@ export async function aiConfigGet(): Promise<{
       error: null,
     }
   } catch (err) {
-    if (isIpcError(err)) return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, notReady: [], error: err }
+    if (isIpcError(err)) return { fields: null, defaultSystemPrompt: '', workTierAvailable: false, keyConfigured: null, ready: null, notReady: [], error: err }
     if (hasIpcBridge()) {
       console.error(`[aiconfig] \`${CMD_GET}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
-      return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, notReady: [], error: UNKNOWN_IPC_ERROR }
+      return { fields: null, defaultSystemPrompt: '', workTierAvailable: false, keyConfigured: null, ready: null, notReady: [], error: UNKNOWN_IPC_ERROR }
     }
     console.info(`[aiconfig] không gọi được \`${CMD_GET}\` — chạy ngoài Tauri? ${String(err)}`)
-    return { fields: null, workTierAvailable: false, keyConfigured: null, ready: null, notReady: [], error: null }
+    return { fields: null, defaultSystemPrompt: '', workTierAvailable: false, keyConfigured: null, ready: null, notReady: [], error: null }
   }
 }
 
@@ -163,10 +173,10 @@ export async function aiConfigSaveFields(
   }
 }
 
-/** Trả một trường TẦNG TÁC PHẨM về kế thừa. Không ném. */
-export async function aiConfigClearOverride(field: AiConfigField): Promise<IpcError | null> {
+/** Trả một trường về kế thừa; `tier` bỏ trống là tầng Tác phẩm, `'global'` xoá dòng Toàn cục. Không ném. */
+export async function aiConfigClearOverride(field: AiConfigField, tier?: AiConfigTierWire): Promise<IpcError | null> {
   try {
-    await invoke(CMD_CLEAR_OVERRIDE, { field })
+    await invoke(CMD_CLEAR_OVERRIDE, tier === undefined ? { field } : { field, tier })
     return null
   } catch (err) {
     if (isIpcError(err)) return err

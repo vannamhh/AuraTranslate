@@ -20,12 +20,15 @@ vi.mock('../../src/config/project', () => ({
   listDomainLog: async () => ({ entries: [], error: null }),
 }))
 
+const DEFAULT_SYSTEM = 'Mặc định của app.\nDòng hai.'
+
 const fields = [
   { field: 'provider', value: 'openai', tier: 'global', shadowed: null },
   { field: 'endpoint', value: 'https://e.example.com', tier: 'global', shadowed: null },
   { field: 'model', value: 'work-model', tier: 'work', shadowed: 'global-model' },
   { field: 'temperature', value: '0.5', tier: 'work', shadowed: null },
   { field: 'max_tokens', value: '100', tier: 'global', shadowed: null },
+  { field: 'system_prompt', value: DEFAULT_SYSTEM, tier: 'global', shadowed: null },
 ]
 
 async function open(workTierAvailable: boolean, rows: readonly object[] = fields) {
@@ -37,7 +40,7 @@ async function open(workTierAvailable: boolean, rows: readonly object[] = fields
   aiConfigSaveFieldsMock.mockResolvedValue(null)
   aiConfigClearOverrideMock.mockReset()
   aiConfigClearOverrideMock.mockResolvedValue(null)
-  aiConfigGetMock.mockResolvedValue({ fields: rows, workTierAvailable, keyConfigured: false, error: null })
+  aiConfigGetMock.mockResolvedValue({ fields: rows, defaultSystemPrompt: DEFAULT_SYSTEM, workTierAvailable, keyConfigured: false, error: null })
   const settingsState = await import('../../src/settingsState')
   const aiConfigState = await import('../../src/aiConfigState')
   const SettingsOverlay = (await import('../../src/SettingsOverlay.vue')).default
@@ -492,6 +495,125 @@ describe('SettingsOverlay.vue — hàng chip nhiệt độ và số token', () =
     await pick(wrapper, 'openai')
     expect(wrapper.find('[data-ai-preset-confirm]').exists()).toBe(false)
     expect(aiConfigSaveFieldsMock).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+})
+
+describe('SettingsOverlay.vue — ô System prompt', () => {
+  const base = fields.filter((f) => f.field !== 'system_prompt')
+  const rows = (system: object) => [...base, system]
+  const box = (wrapper: ReturnType<typeof mount>) => wrapper.get('textarea[data-ai-system-prompt]')
+  const boxValue = (wrapper: ReturnType<typeof mount>) => (box(wrapper).element as HTMLTextAreaElement).value
+  const status = (wrapper: ReturnType<typeof mount>) => wrapper.get('[data-ai-system-prompt-status]').text()
+  const restore = (wrapper: ReturnType<typeof mount>) => wrapper.find('[data-ai-system-prompt-restore]')
+  const submitRestore = async (wrapper: ReturnType<typeof mount>) => {
+    await restore(wrapper).element.closest('form')!.dispatchEvent(new Event('submit', { cancelable: true }))
+    await flushPromises()
+  }
+
+  it('I/O Matrix "Mặc định" + AC Khôi phục: không dòng nào ⇒ ô hiện văn bản của app, "Mặc định của app", không nút Khôi phục', async () => {
+    const { wrapper } = await open(false, rows({ field: 'system_prompt', value: DEFAULT_SYSTEM, tier: 'global', shadowed: null }))
+    expect(boxValue(wrapper)).toBe(DEFAULT_SYSTEM)
+    expect(status(wrapper)).toBe('Mặc định của app')
+    expect(restore(wrapper).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('I/O Matrix "Ice sửa": văn bản riêng ở Toàn cục ⇒ "Đã sửa"; Khôi phục xoá dòng ở tầng global rồi ô trở về văn bản của app', async () => {
+    const { wrapper } = await open(false, rows({ field: 'system_prompt', value: 'Của Ice', tier: 'global', shadowed: null }))
+    expect(boxValue(wrapper)).toBe('Của Ice')
+    expect(status(wrapper)).toBe('Đã sửa')
+    aiConfigGetMock.mockResolvedValue({
+      fields: rows({ field: 'system_prompt', value: DEFAULT_SYSTEM, tier: 'global', shadowed: null }),
+      defaultSystemPrompt: DEFAULT_SYSTEM,
+      workTierAvailable: false,
+      keyConfigured: false,
+      error: null,
+    })
+    await submitRestore(wrapper)
+    expect(aiConfigClearOverrideMock).toHaveBeenCalledExactlyOnceWith('system_prompt', 'global')
+    expect(boxValue(wrapper)).toBe(DEFAULT_SYSTEM)
+    expect(status(wrapper)).toBe('Mặc định của app')
+    expect(restore(wrapper).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('I/O Matrix "Tắt": ô rỗng lưu ở Toàn cục ⇒ trạng thái Tắt và vẫn có nút Khôi phục', async () => {
+    const { wrapper } = await open(false, rows({ field: 'system_prompt', value: '', tier: 'global', shadowed: null }))
+    expect(boxValue(wrapper)).toBe('')
+    expect(status(wrapper)).toContain('Tắt')
+    expect(restore(wrapper).exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('lưu khi rời ô giữ nguyên văn xuống dòng và khoảng trắng đầu/cuối, ghi đúng tầng đang xem', async () => {
+    const { wrapper } = await open(false)
+    const typed = '  Dòng một.\n\n  Dòng ba.  \n'
+    await box(wrapper).setValue(typed)
+    await box(wrapper).trigger('blur')
+    await flushPromises()
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'system_prompt', typed)
+    wrapper.unmount()
+  })
+
+  it('xoá hết ô rồi rời ô lưu chuỗi rỗng (Tắt), không bật lại giá trị cũ, và ô không đổi thì không ghi', async () => {
+    const { wrapper } = await open(false)
+    await box(wrapper).trigger('blur')
+    await flushPromises()
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+    await box(wrapper).setValue('')
+    await box(wrapper).trigger('blur')
+    await flushPromises()
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('global', 'system_prompt', '')
+    wrapper.unmount()
+  })
+
+  it('I/O Matrix "Lỗi lưu": ghi trượt ⇒ hiện lỗi và bản nháp giữ nguyên trong ô', async () => {
+    const { wrapper } = await open(false)
+    aiConfigSaveFieldMock.mockResolvedValue({ code: 'x.fail', message_key: 'err.unknown', params: {}, retryable: false })
+    await box(wrapper).setValue('Bản nháp\ndở dang')
+    await box(wrapper).trigger('blur')
+    await flushPromises()
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-ai-field="system_prompt"] [role="alert"]').exists()).toBe(true)
+    expect(boxValue(wrapper)).toBe('Bản nháp\ndở dang')
+    wrapper.unmount()
+  })
+
+  it('I/O Matrix "Ghi đè Tác phẩm" + "Tắt ở một Tác phẩm": Tác phẩm tắt ⇒ Tắt, Toàn cục vẫn "Đã sửa"; Khôi phục ở Tác phẩm xoá tầng work; lưu ghi tầng work', async () => {
+    const { wrapper, aiConfigState } = await open(
+      true,
+      rows({ field: 'system_prompt', value: '', tier: 'work', shadowed: 'Toàn cục A' }),
+    )
+    expect(boxValue(wrapper)).toBe('')
+    expect(status(wrapper)).toContain('Tắt')
+
+    aiConfigState.selectAiConfigViewTier('global')
+    await flushPromises()
+    expect(boxValue(wrapper)).toBe('Toàn cục A')
+    expect(status(wrapper)).toBe('Đã sửa')
+    aiConfigState.selectAiConfigViewTier('work')
+    await flushPromises()
+
+    await box(wrapper).setValue('Của Tác phẩm B')
+    await box(wrapper).trigger('blur')
+    await flushPromises()
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledExactlyOnceWith('work', 'system_prompt', 'Của Tác phẩm B')
+
+    await submitRestore(wrapper)
+    expect(aiConfigClearOverrideMock).toHaveBeenCalledExactlyOnceWith('system_prompt', 'work')
+    wrapper.unmount()
+  })
+
+  it('Toàn cục bị Tác phẩm che mà không có dòng Toàn cục ⇒ xem Toàn cục hiện văn bản của app', async () => {
+    const { wrapper, aiConfigState } = await open(
+      true,
+      rows({ field: 'system_prompt', value: 'Của Tác phẩm', tier: 'work', shadowed: null }),
+    )
+    aiConfigState.selectAiConfigViewTier('global')
+    await flushPromises()
+    expect(boxValue(wrapper)).toBe(DEFAULT_SYSTEM)
+    expect(status(wrapper)).toBe('Mặc định của app')
     wrapper.unmount()
   })
 })

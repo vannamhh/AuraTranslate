@@ -219,6 +219,7 @@ pub struct PreparedTranslateCall {
     pub max_tokens: Option<u32>,
     pub api_key: String,
     pub prompt: String,
+    pub system: Option<String>,
 }
 
 /// Kết quả [`prepare_translate_call`] — "chưa cấu hình" là một TRẠNG THÁI (I/O Matrix spec 4.8:
@@ -382,6 +383,7 @@ pub fn prepare_translate_call(
         max_tokens,
         api_key,
         prompt: assembled.prompt,
+        system: assembled.system,
     }))
 }
 
@@ -397,12 +399,12 @@ pub fn prepare_resend_call(
     open: Option<&OpenWork>,
     record: &LastAssembledPromptState,
 ) -> Result<(i64, PrepareOutcome), IpcError> {
-    let (segment_id, prompt) = {
+    let (segment_id, prompt, system) = {
         let guard = record
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         match guard.as_ref() {
-            Some(r) => (r.segment_id, r.prompt.clone()),
+            Some(r) => (r.segment_id, r.prompt.clone(), r.system.clone()),
             None => return Err(no_prompt_to_resend()),
         }
     };
@@ -429,6 +431,7 @@ pub fn prepare_resend_call(
             max_tokens,
             api_key,
             prompt,
+            system,
         }),
     ))
 }
@@ -561,6 +564,7 @@ pub fn prepare_batch_call(
                     .clone()
                     .expect("needs_translation == true keo theo mot hang khong-omitted da chay qua nhanh doc keychain o tren"),
                 prompt: assembled.prompt,
+                system: assembled.system,
             },
         });
     }
@@ -606,6 +610,7 @@ pub async fn run_translate_call<P: TranslationProvider>(
         max_tokens: prepared.max_tokens,
         api_key: &prepared.api_key,
         prompt: &prepared.prompt,
+        system: prepared.system.as_deref(),
     };
     let mut on_token = |text: &str| {
         // Kenh mat nguoi nhan (webview dong)/loi tam thoi -- token da nhan TRUOC do van o lai
@@ -956,6 +961,7 @@ pub async fn run_batch_call<P: TranslationProvider>(
             max_tokens: prepared.max_tokens,
             api_key: &prepared.api_key,
             prompt: &prepared.prompt,
+            system: prepared.system.as_deref(),
         };
         let mut on_token = |text: &str| {
             let _ = channel.send(AiTranslateBatchEventWire::Token {
@@ -1209,6 +1215,7 @@ pub mod wire {
         // `mark_prompt_as_sent`), nen day la moc so DUY NHAT dung de quyet co stamp hay khong.
         let model_sent = prepared.model.clone();
         let prompt_sent = prepared.prompt.clone();
+        let system_sent = prepared.system.clone();
         let outcome =
             send_prepared_translate_call(prepared, channel, generation_state, generation).await;
 
@@ -1224,6 +1231,7 @@ pub mod wire {
                         record_state.inner(),
                         segment_id,
                         &prompt_sent,
+                        system_sent.as_deref(),
                         &model_sent,
                         &sent_at,
                         usage.map(AiTranslateUsageWire::from),
@@ -1281,6 +1289,7 @@ pub mod wire {
 
         let model_sent = prepared.model.clone();
         let prompt_sent = prepared.prompt.clone();
+        let system_sent = prepared.system.clone();
         let outcome =
             send_prepared_translate_call(prepared, channel, generation_state, generation).await;
 
@@ -1296,6 +1305,7 @@ pub mod wire {
                         record_state.inner(),
                         segment_id,
                         &prompt_sent,
+                        system_sent.as_deref(),
                         &model_sent,
                         &sent_at,
                         usage.map(AiTranslateUsageWire::from),
@@ -1378,7 +1388,12 @@ pub mod wire {
             PreparedBatchItem::ToTranslate {
                 segment_id,
                 prepared,
-            } => Some((*segment_id, prepared.prompt.clone(), prepared.model.clone())),
+            } => Some((
+                *segment_id,
+                prepared.prompt.clone(),
+                prepared.system.clone(),
+                prepared.model.clone(),
+            )),
             PreparedBatchItem::Omitted { .. } => None,
         });
 
@@ -1387,7 +1402,7 @@ pub mod wire {
         match outcome {
             Ok(AiTranslateBatchOutcome::Cancelled) => Ok(AiTranslateOutcomeWire::Cancelled),
             Ok(AiTranslateBatchOutcome::Done) => {
-                if let Some((seg_id, prompt_sent, model_sent)) = last_sent
+                if let Some((seg_id, prompt_sent, system_sent, model_sent)) = last_sent
                     && let Some(global) = app.try_state::<Store>()
                     && let Some(sent_at) = super::now_utc_iso8601(&global)
                 {
@@ -1395,6 +1410,7 @@ pub mod wire {
                         record_state.inner(),
                         seg_id,
                         &prompt_sent,
+                        system_sent.as_deref(),
                         &model_sent,
                         &sent_at,
                         None,

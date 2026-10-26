@@ -45,7 +45,10 @@ import {
   aiConfigLoadError,
   aiConfigLoading,
   aiConfigSaveErrorFor,
+  aiConfigSystemPromptCanRestore,
+  aiConfigSystemPromptStatus,
   clearAiConfigOverride,
+  restoreAiConfigSystemPrompt,
   deleteAiConfigKey,
   isAiConfigKeyValueValid,
   isAiConfigValueValid,
@@ -220,7 +223,7 @@ function onSelectAiConfigTier(tier: 'global' | 'work'): void {
 
 function onAiConfigInput(field: AiConfigField, event: Event): void {
   const target = event.target
-  if (target instanceof HTMLInputElement) setAiConfigDraft(field, target.value)
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) setAiConfigDraft(field, target.value)
 }
 
 /** Leaving the box (or Enter) saves a valid, changed value: there is no per-field Save button. */
@@ -249,8 +252,16 @@ function aiUsageStateKey(): string {
 }
 
 const AI_TEXT_FIELDS: readonly AiConfigField[] = AI_CONFIG_FIELDS.filter(
-  (f) => f !== 'provider' && !(AI_CHIP_FIELDS as readonly AiConfigField[]).includes(f),
+  (f) => f !== 'provider' && f !== 'system_prompt' && !(AI_CHIP_FIELDS as readonly AiConfigField[]).includes(f),
 )
+
+function aiSystemPromptStatusKey(): string {
+  return `settings.ai_config.system_prompt_status_${aiConfigSystemPromptStatus()}`
+}
+
+function onRestoreAiSystemPrompt(): void {
+  void restoreAiConfigSystemPrompt()
+}
 
 function onSelectAiChip(field: AiChipField, chip: AiChipChoice): void {
   void selectAiConfigChip(field, chip)
@@ -611,6 +622,51 @@ function onDeleteAiConfigKey(): void {
                 >
                   <button type="submit" class="ai-field-clear" :disabled="aiConfigIsSaving(field)">
                     {{ t('settings.ai_config.clear_override') }}
+                  </button>
+                </form>
+              </div>
+
+              <div class="ai-field" data-ai-field="system_prompt">
+                <form class="ai-field-form" @submit.prevent="onCommitAiConfigField('system_prompt')">
+                  <label class="ai-field-label">
+                    <span>{{ t('settings.ai_config.field_system_prompt') }}</span>
+                    <textarea
+                      class="ai-field-input ai-field-textarea"
+                      rows="6"
+                      spellcheck="false"
+                      data-ai-system-prompt
+                      :value="aiConfigDraft('system_prompt')"
+                      :disabled="aiConfigIsSaving('system_prompt')"
+                      @input="onAiConfigInput('system_prompt', $event)"
+                      @blur="onCommitAiConfigField('system_prompt')"
+                    ></textarea>
+                  </label>
+                  <p class="ai-field-status">{{ t('settings.ai_config.system_prompt_note') }}</p>
+                  <p class="ai-field-status">
+                    <span
+                      :class="aiConfigIsOverridden('system_prompt') ? 'mark-over' : 'mark-inh'"
+                      data-ai-system-prompt-status
+                    >
+                      {{ t(aiSystemPromptStatusKey()) }}
+                    </span>
+                  </p>
+                  <p v-if="aiConfigSaveErrorFor('system_prompt') !== null" class="ai-field-alert" role="alert">
+                    <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                    {{ tError(aiConfigSaveErrorFor('system_prompt')!) }}
+                  </p>
+                </form>
+                <form
+                  v-if="aiConfigSystemPromptCanRestore()"
+                  class="ai-field-clear-form"
+                  @submit.prevent="onRestoreAiSystemPrompt()"
+                >
+                  <button
+                    type="submit"
+                    class="ai-field-clear"
+                    data-ai-system-prompt-restore
+                    :disabled="aiConfigIsSaving('system_prompt')"
+                  >
+                    {{ t('settings.ai_config.system_prompt_restore') }}
                   </button>
                 </form>
               </div>
@@ -1224,6 +1280,10 @@ function onDeleteAiConfigKey(): void {
   font-size: var(--font-ui-mono);
   line-height: var(--leading-ui-mono);
   color: var(--color-on-surface);
+}
+
+.ai-field-textarea {
+  resize: vertical;
 }
 
 .ai-field-input:focus-visible {

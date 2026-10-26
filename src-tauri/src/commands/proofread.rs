@@ -199,6 +199,7 @@ pub fn prepare_proofread_call(
                     max_tokens,
                     api_key: api_key.clone(),
                     prompt: assemble_proofread_batch_prompt(&blocks),
+                    system: None,
                 },
                 segments: group
                     .iter()
@@ -291,6 +292,7 @@ pub async fn run_proofread_call<P: TranslationProvider>(
             max_tokens: batch.call.max_tokens,
             api_key: &batch.call.api_key,
             prompt: &batch.call.prompt,
+            system: None,
         };
         let mut reply = String::new();
         let outcome = {

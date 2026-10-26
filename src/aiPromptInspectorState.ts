@@ -319,6 +319,12 @@ export function resetAiPromptInspector(): void {
   readError.value = null
 }
 
+/** The system prompt the record carries, verbatim; `null` when none is sent. */
+export function aiPromptSystemText(current: ReadonlyAssembledPromptWire | null): string | null {
+  if (current === null) return null
+  return current.system === '' ? null : current.system
+}
+
 export type AiPromptTierBlockKind = 'authored' | 'glossary' | 'tm' | 'source_segment'
 
 export type AiPromptTierBlock = { kind: AiPromptTierBlockKind; text: string; chars: number }

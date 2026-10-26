@@ -176,6 +176,7 @@ fn prepared_run(id: i64, text: &str) -> PreparedProofreadRun {
                 max_tokens: None,
                 api_key: "sk-fake".to_owned(),
                 prompt: "p".to_owned(),
+                system: None,
             },
             segments: vec![PreparedProofreadSegment {
                 segment_id: id,

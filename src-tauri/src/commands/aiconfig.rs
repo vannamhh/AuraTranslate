@@ -23,8 +23,9 @@
 
 use crate::commands::project::OpenWork;
 use crate::core::aiconfig::{
-    AiConfigField, AiConfigKeyError, AiConfigStoreError, AiConfigTier, ResolvedField, clear_field,
-    keychain, resolve_two_tiers, validate_field, validate_key, write_field, write_fields,
+    AiConfigField, AiConfigKeyError, AiConfigStoreError, AiConfigTier, DEFAULT_SYSTEM_PROMPT,
+    ResolvedField, clear_field, keychain, resolve_two_tiers, validate_field, validate_key,
+    write_field, write_fields,
 };
 use crate::core::i18n::IpcError;
 use crate::core::scope::ScopeResolver;
@@ -96,7 +97,11 @@ impl AiConfigFieldWire {
             },
             None => Self {
                 field: field.as_str().to_owned(),
-                value: String::new(),
+                value: if field == AiConfigField::SystemPrompt {
+                    DEFAULT_SYSTEM_PROMPT.to_owned()
+                } else {
+                    String::new()
+                },
                 tier: AiConfigTierWire::Global,
                 shadowed: None,
             },
@@ -124,9 +129,12 @@ pub struct AiConfigGetWire {
     /// `true` ⇔ có một Tác phẩm đang mở, tức tầng [`AiConfigTier::Work`] dùng được cho lượt
     /// `ai_config_save_field` tiếp theo.
     pub work_tier_available: bool,
-    /// Năm trường, hai tầng đã phân giải — luôn đủ [`AiConfigField::ALL`], kể cả trường chưa
+    /// Sáu trường, hai tầng đã phân giải — luôn đủ [`AiConfigField::ALL`], kể cả trường chưa
     /// ai cấu hình.
     pub fields: Vec<AiConfigFieldWire>,
+    /// App-shipped `system_prompt` text. A `system_prompt` field with no row at any tier reads
+    /// as this text; an empty `value` there means the user saved it blank (none is sent).
+    pub default_system_prompt: &'static str,
     /// `Some(true)`/`Some(false)` ⇔ keychain hệ điều hành trả lời được thăm dò — KHÔNG BAO
     /// GIỜ giá trị thật (§Always spec 4.3: "the frontend may learn only configured / not
     /// configured"). `None` ⇔ keychain TỪ CHỐI trả lời (khoá, quyền bị chặn, không có kho
@@ -156,7 +164,7 @@ pub enum AiNotReadyReason {
 }
 
 /// Đọc năm trường, hai tầng đã phân giải, cộng `work_tier_available` và `key_configured` —
-/// **hàm thuần**. Luôn trả đủ năm trường (`AiConfigField::ALL`), kể cả trường chưa ai cấu
+/// **hàm thuần**. Luôn trả đủ sáu trường (`AiConfigField::ALL`), kể cả trường chưa ai cấu
 /// hình — **kể cả khi keychain từ chối trả lời thăm dò `configured`.**
 ///
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -212,6 +220,7 @@ pub fn ai_config_get(
     Ok(AiConfigGetWire {
         work_tier_available: open.is_some(),
         fields,
+        default_system_prompt: DEFAULT_SYSTEM_PROMPT,
         key_configured,
         ready,
         not_ready,
@@ -325,7 +334,18 @@ pub fn ai_config_clear_override(
     // `global: None` — tầng đích ở đây LUÔN là Work (xem doc-comment), nên nhánh Global của
     // `store_for_tier` không bao giờ chạy; gọi qua nó thay vì chép lại nhánh Work tại chỗ để
     // một lượt sửa luật định tuyến sau này chỉ phải sửa MỘT nơi.
-    let store = store_for_tier(AiConfigTier::Work, None, open)?;
+    ai_config_clear_field(None, open, AiConfigTier::Work, field)
+}
+
+/// Removes `field`'s row at `tier`; the field then resolves from the tier below, or from the
+/// app default at Global. Clearing a row that does not exist succeeds.
+pub fn ai_config_clear_field(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    tier: AiConfigTier,
+    field: AiConfigField,
+) -> Result<(), IpcError> {
+    let store = store_for_tier(tier, global, open)?;
     clear_field(store, field)?;
     Ok(())
 }
@@ -445,16 +465,19 @@ pub mod wire {
     pub fn ai_config_clear_override(
         app: tauri::AppHandle,
         field: AiConfigField,
+        tier: Option<AiConfigTier>,
     ) -> Result<(), IpcError> {
         use tauri::Manager as _;
 
+        let tier = tier.unwrap_or(AiConfigTier::Work);
+        let global = app.try_state::<Store>();
         let Some(work_state) = app.try_state::<OpenWorkState>() else {
-            return super::ai_config_clear_override(None, field);
+            return super::ai_config_clear_field(global.as_deref(), None, tier, field);
         };
         let guard = work_state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        super::ai_config_clear_override(guard.as_ref(), field)
+        super::ai_config_clear_field(global.as_deref(), guard.as_ref(), tier, field)
     }
 
     /// Async: the OS keychain write can wait on an unlock prompt.

@@ -188,7 +188,7 @@ pub struct ChatCompletionsRequestBody<'a> {
     /// fields"). Không bọc `Option`/`skip_serializing_if` như hai trường trên -- đây không phải
     /// một lựa chọn của người dùng, nó là một phần CỐ ĐỊNH của mọi request từ client này.
     stream_options: StreamOptions,
-    messages: [ChatMessage<'a>; 1],
+    messages: Vec<ChatMessage<'a>>,
 }
 
 /// `{ "include_usage": true }` -- thân JSON tối thiểu để yêu cầu một khung `usage` cuối cùng
@@ -211,6 +211,17 @@ struct ChatMessage<'a> {
 /// đây là seam DUY NHẤT để một test đối chứng `skip_serializing_if` mà không cần mở cổng nghe
 /// nào. `request.prompt` đi NGUYÊN VĂN vào `content` -- không lắp lại, không nối thêm (AD-14).
 pub fn build_request_body<'a>(request: &TranslateRequest<'a>) -> ChatCompletionsRequestBody<'a> {
+    let mut messages = Vec::with_capacity(2);
+    if let Some(system) = request.system.filter(|s| !s.trim().is_empty()) {
+        messages.push(ChatMessage {
+            role: "system",
+            content: system,
+        });
+    }
+    messages.push(ChatMessage {
+        role: "user",
+        content: request.prompt,
+    });
     ChatCompletionsRequestBody {
         model: request.model,
         temperature: request.temperature,
@@ -219,10 +230,7 @@ pub fn build_request_body<'a>(request: &TranslateRequest<'a>) -> ChatCompletions
         stream_options: StreamOptions {
             include_usage: true,
         },
-        messages: [ChatMessage {
-            role: "user",
-            content: request.prompt,
-        }],
+        messages,
     }
 }
 

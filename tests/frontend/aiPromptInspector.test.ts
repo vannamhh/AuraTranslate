@@ -143,6 +143,7 @@ const DEFAULT_PIECES: PromptPieceWire[] = [
 function record(overrides: Partial<AssembledPromptWire> = {}): AssembledPromptWire {
   return {
     prompt: 'Terms: dragon → rong\nSentence: A dragon roared.',
+    system: null,
     segment_id: 1,
     chapter_id: 10,
     prompt_set_name: 'Happy',

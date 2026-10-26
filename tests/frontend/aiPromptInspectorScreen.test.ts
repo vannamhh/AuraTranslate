@@ -101,6 +101,7 @@ const PIECES: AssembledPromptWire['ledger']['pieces'] = [
 function record(overrides: Partial<AssembledPromptWire> = {}): AssembledPromptWire {
   return {
     prompt: 'AAAAGGAATTTTSSSSSSSSSS',
+    system: null,
     segment_id: 1,
     chapter_id: 10,
     prompt_set_name: 'Happy',
@@ -328,6 +329,44 @@ describe('màn: hàng "Sau một lượt dịch đơn" / "Bản ghi do lô lắp
     expect(wrapper.find('[data-aip-token-state="real"]').exists()).toBe(true)
     expect(wrapper.find('[data-aip-cost]').exists()).toBe(false)
     wrapper.unmount()
+  })
+})
+
+describe('khối System prompt trên các mảnh của thân bộ prompt', () => {
+  it('có system ⇒ khối present đứng TRƯỚC mọi khối tầng, giữ nguyên văn xuống dòng và khoảng trắng, đếm ký tự', async () => {
+    const screen = await freshScreen()
+    const system = '  Dòng một.\n\nDòng ba.  '
+    const wrapper = await openWith(screen, record({ system }))
+    const block = wrapper.get('[data-aip-system="present"]')
+    expect(block.get('.aip-piece-system').element.textContent).toBe(system)
+    expect(block.get('[data-aip-system-chars]').text()).toBe(
+      screen.i18n.t('ai.prompt_inspector.block_chars', { count: String(Array.from(system).length) }),
+    )
+    expect(wrapper.find('[data-aip-system="none"]').exists()).toBe(false)
+    const doc = wrapper.get('.aip-doc').element
+    const firstBlock = doc.querySelector('[data-aip-system], [data-aip-block-kind]')
+    expect(firstBlock?.getAttribute('data-aip-system')).toBe('present')
+    wrapper.unmount()
+  })
+
+  it('system null ⇒ dòng "Không gửi system prompt", không khối present', async () => {
+    const screen = await freshScreen()
+    const wrapper = await openWith(screen, record({ system: null }))
+    expect(wrapper.get('[data-aip-system="none"]').text()).toBe(screen.i18n.t('ai.prompt_inspector.system_none'))
+    expect(wrapper.find('[data-aip-system="present"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('system rỗng "" cũng đọc là không gửi, và khối system không lọt vào tỉ lệ chèn động', async () => {
+    const screen = await freshScreen()
+    const wrapper = await openWith(screen, record({ system: '' }))
+    expect(wrapper.find('[data-aip-system="none"]').exists()).toBe(true)
+    wrapper.unmount()
+    const withSystem = await openWith(screen, record({ system: 'x'.repeat(500), sent_at: SENT_AT, sent_model: 'm', sent_usage: USAGE }))
+    expect(withSystem.get('[data-aip-dynamic-ratio]').text()).toBe(
+      screen.i18n.t('ai.prompt_inspector.dynamic_ratio', { percent: '27,3' }),
+    )
+    withSystem.unmount()
   })
 })
 

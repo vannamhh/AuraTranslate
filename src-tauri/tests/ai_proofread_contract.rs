@@ -185,6 +185,7 @@ fn run_of(batch_sizes: &[usize]) -> PreparedProofreadRun {
                     max_tokens: None,
                     api_key: "sk-fake".to_owned(),
                     prompt: "p".to_owned(),
+                    system: None,
                 },
                 segments: (0..n)
                     .map(|_| {
@@ -822,4 +823,67 @@ fn a_repeated_context_phrase_reaches_the_wire_as_ambiguous_and_never_as_a_findin
             blocked: Vec::new()
         })
     );
+}
+
+struct SystemSpy {
+    seen: Mutex<Vec<Option<String>>>,
+}
+
+impl TranslationProvider for SystemSpy {
+    type Error = FakeError;
+
+    async fn translate(
+        &self,
+        request: TranslateRequest<'_>,
+        on_token: &mut dyn FnMut(&str),
+        _should_cancel: &dyn Fn() -> bool,
+    ) -> Result<TranslateOutcome, FakeError> {
+        self.seen
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(request.system.map(str::to_owned));
+        on_token("[]");
+        Ok(TranslateOutcome::Done(None))
+    }
+}
+
+#[test]
+fn a_proofread_request_carries_no_system_prompt_even_when_one_is_configured() {
+    let _g = KEYCHAIN_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let global =
+        Store::open(StoreSpec::global(temp_dir("g-sys").join("global.db"))).expect("global");
+    configure(&global);
+    write_field(&global, AiConfigField::Provider, "ollama").expect("provider");
+    write_field(
+        &global,
+        AiConfigField::SystemPrompt,
+        "Dich sang tieng Viet.",
+    )
+    .expect("system");
+    let open = chapter_of(2, &temp_dir("w-sys"));
+    let rows = segments(&open);
+    for row in &rows {
+        promote_ai_translation(Some(&open), row.id, "Mọi nguời đã đi", false).expect("promote");
+    }
+    let ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
+
+    let prepared = ready(prepare_proofread_call(Some(&global), Some(&open), &ids));
+    assert!(!prepared.batches.is_empty());
+    assert!(prepared.batches.iter().all(|b| b.call.system.is_none()));
+
+    let spy = SystemSpy {
+        seen: Mutex::new(Vec::new()),
+    };
+    let (channel, _received) = collecting_channel();
+    let _ =
+        tauri::async_runtime::block_on(run_proofread_call(&spy, &prepared, &channel, &|| false));
+    let seen = spy
+        .seen
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert_eq!(seen.len(), prepared.batches.len());
+    assert!(seen.iter().all(Option::is_none), "{seen:?}");
 }

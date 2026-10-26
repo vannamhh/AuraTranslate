@@ -18,9 +18,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, Once};
 
 use auratranslate_lib::commands::aiconfig::{
-    AiConfigFieldValue, AiConfigTierWire, AiNotReadyReason, ai_config_clear_override,
-    ai_config_delete_key, ai_config_get, ai_config_save_field, ai_config_save_fields,
-    ai_config_save_key,
+    AiConfigFieldValue, AiConfigTierWire, AiNotReadyReason, ai_config_clear_field,
+    ai_config_clear_override, ai_config_delete_key, ai_config_get, ai_config_save_field,
+    ai_config_save_fields, ai_config_save_key,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work};
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, validate_field};
@@ -214,6 +214,14 @@ fn open_work_real(documents_root: &Path) -> OpenWork {
     .expect("tao OpenWork that bai")
 }
 
+fn unset_value(field: AiConfigField) -> &'static str {
+    if field == AiConfigField::SystemPrompt {
+        auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT
+    } else {
+        ""
+    }
+}
+
 fn field_wire(
     fields: &[auratranslate_lib::commands::aiconfig::AiConfigFieldWire],
     field: AiConfigField,
@@ -252,10 +260,15 @@ fn no_configuration_anywhere_renders_every_field_empty_from_global() {
 
     for field in AiConfigField::ALL {
         let wire = field_wire(&fields, *field);
+        let expected = if *field == AiConfigField::SystemPrompt {
+            auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT
+        } else {
+            ""
+        };
         assert_eq!(
             wire.value,
-            "",
-            "truong {} phai rong khi chua ai cau hinh",
+            expected,
+            "truong {} phai rong (rieng system_prompt la mac dinh cua app) khi chua ai cau hinh",
             field.as_str()
         );
         assert_eq!(
@@ -289,6 +302,7 @@ fn global_only_every_field_resolves_from_global() {
             AiConfigField::Model => "claude",
             AiConfigField::Temperature => "0.7",
             AiConfigField::MaxTokens => "2048",
+            AiConfigField::SystemPrompt => "Dich sang tieng Viet.",
         };
         ai_config_save_field(Some(&global), None, AiConfigTier::Global, *field, value)
             .unwrap_or_else(|e| panic!("luu {} that bai: {e:?}", field.as_str()));
@@ -1119,7 +1133,7 @@ fn keychain_probe_failure_on_get_surfaces_as_none_not_a_false_configured_state()
     for field in AiConfigField::ALL {
         assert_eq!(
             field_wire(&result.fields, *field).value,
-            "",
+            unset_value(*field),
             "chua ai cau hinh field nay trong ca nay"
         );
     }
@@ -1564,7 +1578,12 @@ fn one_invalid_value_among_the_fields_writes_nothing() {
 
     let fields = ai_config_get(Some(&global), None).expect("doc").fields;
     for field in AiConfigField::ALL {
-        assert_eq!(field_wire(&fields, *field).value, "", "{}", field.as_str());
+        assert_eq!(
+            field_wire(&fields, *field).value,
+            unset_value(*field),
+            "{}",
+            field.as_str()
+        );
     }
 
     drop(global);
@@ -1598,7 +1617,12 @@ fn an_empty_or_duplicated_field_list_is_invalid_and_writes_nothing() {
 
     let fields = ai_config_get(Some(&global), None).expect("doc").fields;
     for field in AiConfigField::ALL {
-        assert_eq!(field_wire(&fields, *field).value, "", "{}", field.as_str());
+        assert_eq!(
+            field_wire(&fields, *field).value,
+            unset_value(*field),
+            "{}",
+            field.as_str()
+        );
     }
 
     drop(global);
@@ -1624,8 +1648,73 @@ fn saving_fields_at_the_work_tier_with_no_work_open_is_refused_and_writes_nothin
 
     let fields = ai_config_get(Some(&global), None).expect("doc").fields;
     for field in AiConfigField::ALL {
-        assert_eq!(field_wire(&fields, *field).value, "", "{}", field.as_str());
+        assert_eq!(
+            field_wire(&fields, *field).value,
+            unset_value(*field),
+            "{}",
+            field.as_str()
+        );
     }
+
+    drop(global);
+    cleanup_dir(&root);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// system_prompt — free text kept verbatim, blank is valid, restore deletes the row
+// ═════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn the_system_prompt_validator_keeps_the_text_verbatim_and_accepts_a_blank_one() {
+    for raw in [
+        "",
+        "  ",
+        " a\n\n b \t",
+        "Dich sang tieng Viet.\r\nKhong giai thich.",
+    ] {
+        assert_eq!(
+            validate_field(AiConfigField::SystemPrompt, raw),
+            Ok(raw.to_owned())
+        );
+    }
+}
+
+#[test]
+fn a_blank_saved_system_prompt_reads_back_blank_while_a_missing_row_reads_as_the_app_default() {
+    use auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT;
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let root = temp_dir("system-prompt-blank");
+    let global = open_global(&root);
+
+    let read = |global: &Store| {
+        let wire = ai_config_get(Some(global), None).expect("doc ai_config");
+        let field = field_wire(&wire.fields, AiConfigField::SystemPrompt).clone();
+        (field, wire.default_system_prompt)
+    };
+    let (unset, default_text) = read(&global);
+    assert_eq!(unset.value, DEFAULT_SYSTEM_PROMPT);
+    assert_eq!(default_text, DEFAULT_SYSTEM_PROMPT);
+
+    ai_config_save_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::SystemPrompt,
+        "",
+    )
+    .expect("luu rong");
+    assert_eq!(read(&global).0.value, "");
+
+    ai_config_clear_field(
+        Some(&global),
+        None,
+        AiConfigTier::Global,
+        AiConfigField::SystemPrompt,
+    )
+    .expect("khoi phuc mac dinh o Global");
+    assert_eq!(read(&global).0.value, DEFAULT_SYSTEM_PROMPT);
 
     drop(global);
     cleanup_dir(&root);

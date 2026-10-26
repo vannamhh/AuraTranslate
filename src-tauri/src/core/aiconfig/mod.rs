@@ -42,7 +42,7 @@ pub use store::{
     write_field, write_fields,
 };
 
-/// Năm trường của cấu hình AI — FR68 ("nhà cung cấp, mô hình, tham số sinh"). Không trường
+/// Sáu trường của cấu hình AI — FR68 ("nhà cung cấp, mô hình, tham số sinh"). Không trường
 /// khoá API: FR65/NFR11 đặt khoá trong keychain hệ điều hành, đó là Story 4.3 (§Intent).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Deserialize)]
 pub enum AiConfigField {
@@ -56,6 +56,8 @@ pub enum AiConfigField {
     Temperature,
     #[serde(rename = "max_tokens")]
     MaxTokens,
+    #[serde(rename = "system_prompt")]
+    SystemPrompt,
 }
 
 impl AiConfigField {
@@ -66,6 +68,7 @@ impl AiConfigField {
         AiConfigField::Model,
         AiConfigField::Temperature,
         AiConfigField::MaxTokens,
+        AiConfigField::SystemPrompt,
     ];
 
     /// Định danh máy đọc — khoá `ai_config.key` trên đĩa và trên dây. Không phải nhãn hiển
@@ -77,6 +80,7 @@ impl AiConfigField {
             AiConfigField::Model => "model",
             AiConfigField::Temperature => "temperature",
             AiConfigField::MaxTokens => "max_tokens",
+            AiConfigField::SystemPrompt => "system_prompt",
         }
     }
 }
@@ -222,6 +226,22 @@ fn validate_non_empty(raw: &str) -> Result<String, ()> {
     Ok(trimmed.to_owned())
 }
 
+/// App-shipped system prompt, sent when no tier holds a `system_prompt` row. Model-facing data,
+/// not UI text.
+pub const DEFAULT_SYSTEM_PROMPT: &str = include_str!("default_system_prompt.txt");
+
+/// The system prompt a translate call sends: the winning tier's row, else the app default. An
+/// blank row (empty or whitespace only) means none is sent. Non-blank text is never trimmed.
+pub fn resolve_system_prompt(
+    resolved: &std::collections::BTreeMap<String, ResolvedField>,
+) -> Option<String> {
+    let text = match resolved.get(AiConfigField::SystemPrompt.as_str()) {
+        Some(field) => field.value.as_str(),
+        None => DEFAULT_SYSTEM_PROMPT,
+    };
+    (!text.trim().is_empty()).then(|| text.to_owned())
+}
+
 /// Một hàm parse/validate THUẦN cho mỗi trường (§Code Map spec 4.2) — gọi được thẳng từ test
 /// mà không cần `Store`. Trả giá trị đã trim (dạng ghi xuống đĩa) hoặc [`InvalidFieldValue`].
 pub fn validate_field(field: AiConfigField, raw: &str) -> Result<String, InvalidFieldValue> {
@@ -230,6 +250,7 @@ pub fn validate_field(field: AiConfigField, raw: &str) -> Result<String, Invalid
         AiConfigField::Endpoint => validate_endpoint(raw),
         AiConfigField::Temperature => validate_temperature(raw),
         AiConfigField::MaxTokens => validate_max_tokens(raw),
+        AiConfigField::SystemPrompt => Ok(raw.to_owned()),
     };
     result.map_err(|()| InvalidFieldValue { field })
 }

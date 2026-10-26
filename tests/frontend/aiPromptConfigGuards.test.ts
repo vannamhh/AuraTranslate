@@ -54,6 +54,7 @@ function validLedgerWire(over: Record<string, unknown> = {}) {
 function validWire(over: Record<string, unknown> = {}) {
   return {
     prompt: 'Terms: dragon → rong',
+    system: null,
     segment_id: 1,
     chapter_id: 10,
     prompt_set_name: 'Happy',
@@ -285,6 +286,28 @@ describe('⑦ isInjectionLedgerWire — unknown_markers phải là mảng chuỗ
 // KHÁC `aiPromptAssemble`'s `error: null` cho cùng nhánh đó).
 // ═══════════════════════════════════════════════════════════════════════════════════
 describe('⑧ aiPromptReadRecord — bốn nhánh trả về', () => {
+  it('trường `system`: chuỗi (kể cả xuống dòng, khoảng trắng) và null được nhận nguyên văn; thiếu hẳn hoặc sai kiểu bị từ chối', async () => {
+    const adapter = await freshAdapter()
+    const assemble = async (wire: unknown) => {
+      mockInvoke.mockResolvedValueOnce(wire)
+      return adapter.aiPromptReadRecord()
+    }
+    const text = '  Dòng một.\n\nDòng ba.  '
+    const withText = await assemble(validWire({ system: text }))
+    expect(withText.error).toBeNull()
+    expect(withText.value?.system).toBe(text)
+    const withNull = await assemble(validWire({ system: null }))
+    expect(withNull.error).toBeNull()
+    expect(withNull.value?.system).toBeNull()
+    const { system: _omitted, ...noSystem } = validWire()
+    const missing = await assemble(noSystem)
+    expect(missing.value).toBeNull()
+    expect(missing.error).not.toBeNull()
+    const wrongType = await assemble(validWire({ system: 5 }))
+    expect(wrongType.value).toBeNull()
+    expect(wrongType.error).not.toBeNull()
+  })
+
   it('1) Rust trả null ⇒ { value: null, error: null } — "chưa lắp lần nào", KHÔNG một lỗi', async () => {
     const state = await freshAdapter()
     mockInvoke.mockResolvedValue(null)

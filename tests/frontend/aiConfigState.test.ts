@@ -1270,3 +1270,98 @@ describe('chip nhiệt độ và số token — trạng thái bật, chọn chip
     expect(state.aiConfigSaveErrorFor('max_tokens')).toEqual(error)
   })
 })
+
+describe('system_prompt — trạng thái, lưu nguyên văn, Khôi phục mặc định', () => {
+  const APP_TEXT = 'Văn bản của app.\nDòng hai.'
+  const row = (value: string, tier: 'global' | 'work' = 'global', shadowed: string | null = null) => ({
+    field: 'system_prompt',
+    value,
+    tier,
+    shadowed,
+  })
+
+  async function loaded(workTierAvailable: boolean, system: ReturnType<typeof row>) {
+    aiConfigGetMock.mockResolvedValue({
+      fields: [system],
+      defaultSystemPrompt: APP_TEXT,
+      workTierAvailable,
+      keyConfigured: false,
+      error: null,
+    })
+    const state = await freshState()
+    await state.loadAiConfigSection()
+    return state
+  }
+
+  it('AI_CONFIG_FIELDS có sáu trường, system_prompt cuối; isAiConfigValueValid luôn true, kể cả rỗng và toàn khoảng trắng', async () => {
+    const { AI_CONFIG_FIELDS, isAiConfigValueValid } = await freshState()
+    expect(AI_CONFIG_FIELDS).toHaveLength(6)
+    expect(AI_CONFIG_FIELDS[5]).toBe('system_prompt')
+    expect(isAiConfigValueValid('system_prompt', '')).toBe(true)
+    expect(isAiConfigValueValid('system_prompt', '  \n ')).toBe(true)
+  })
+
+  it('trạng thái: văn bản của app ⇒ default, văn bản khác ⇒ edited, rỗng ⇒ off', async () => {
+    expect((await loaded(false, row(APP_TEXT))).aiConfigSystemPromptStatus()).toBe('default')
+    expect((await loaded(false, row('Của Ice'))).aiConfigSystemPromptStatus()).toBe('edited')
+    expect((await loaded(false, row(''))).aiConfigSystemPromptStatus()).toBe('off')
+    expect((await loaded(false, row('  \n '))).aiConfigSystemPromptStatus()).toBe('off')
+    expect((await loaded(false, row(APP_TEXT))).aiConfigDefaultSystemPrompt()).toBe(APP_TEXT)
+  })
+
+  it('lưu giữ NGUYÊN văn xuống dòng và khoảng trắng đầu/cuối (không trim); ô rỗng lưu chuỗi rỗng', async () => {
+    const state = await loaded(false, row(APP_TEXT))
+    const typed = '  Một.\n\n Ba. \n'
+    state.setAiConfigDraft('system_prompt', typed)
+    await state.commitAiConfigField('system_prompt')
+    expect(aiConfigSaveFieldMock).toHaveBeenLastCalledWith('global', 'system_prompt', typed)
+
+    state.setAiConfigDraft('system_prompt', '')
+    await state.commitAiConfigField('system_prompt')
+    expect(aiConfigSaveFieldMock).toHaveBeenLastCalledWith('global', 'system_prompt', '')
+    expect(aiConfigSaveFieldMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('nháp bằng giá trị đang hiện ⇒ không ghi', async () => {
+    const state = await loaded(false, row(APP_TEXT))
+    await state.commitAiConfigField('system_prompt')
+    expect(aiConfigSaveFieldMock).not.toHaveBeenCalled()
+  })
+
+  it('Khôi phục: Toàn cục xoá dòng ở tầng global, Tác phẩm xoá ở tầng work, rồi đọc lại', async () => {
+    const global = await loaded(false, row('Của Ice'))
+    expect(global.aiConfigSystemPromptCanRestore()).toBe(true)
+    await global.restoreAiConfigSystemPrompt()
+    expect(aiConfigClearOverrideMock).toHaveBeenLastCalledWith('system_prompt', 'global')
+
+    const work = await loaded(true, row('Của Tác phẩm', 'work', 'Toàn cục'))
+    expect(work.aiConfigSystemPromptCanRestore()).toBe(true)
+    await work.restoreAiConfigSystemPrompt()
+    expect(aiConfigClearOverrideMock).toHaveBeenLastCalledWith('system_prompt', 'work')
+  })
+
+  it('Khôi phục không có việc để làm: Toàn cục đang là văn bản của app, hay Tác phẩm không có dòng riêng', async () => {
+    expect((await loaded(false, row(APP_TEXT))).aiConfigSystemPromptCanRestore()).toBe(false)
+    expect((await loaded(true, row('Của Ice', 'global'))).aiConfigSystemPromptCanRestore()).toBe(false)
+  })
+
+  it('xem Toàn cục khi Tác phẩm tắt (rỗng) và Toàn cục có văn bản: hiện văn bản Toàn cục, không phải rỗng', async () => {
+    const state = await loaded(true, row('', 'work', 'Toàn cục A'))
+    expect(state.aiConfigSystemPromptStatus()).toBe('off')
+    state.selectAiConfigViewTier('global')
+    expect(state.aiConfigDraft('system_prompt')).toBe('Toàn cục A')
+    expect(state.aiConfigSystemPromptStatus()).toBe('edited')
+  })
+
+  it('lưu trượt ⇒ lỗi hiện qua aiConfigSaveErrorFor, nháp giữ nguyên, không đọc lại', async () => {
+    const state = await loaded(false, row(APP_TEXT))
+    const err = { code: 'store.write_failed', message_key: 'err.unknown', params: {}, retryable: false }
+    aiConfigSaveFieldMock.mockResolvedValue(err)
+    const reads = aiConfigGetMock.mock.calls.length
+    state.setAiConfigDraft('system_prompt', 'Bản nháp\ndở')
+    await state.commitAiConfigField('system_prompt')
+    expect(state.aiConfigSaveErrorFor('system_prompt')).toEqual(err)
+    expect(state.aiConfigDraft('system_prompt')).toBe('Bản nháp\ndở')
+    expect(aiConfigGetMock.mock.calls.length).toBe(reads)
+  })
+})

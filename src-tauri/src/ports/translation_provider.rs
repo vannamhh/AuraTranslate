@@ -86,6 +86,8 @@ pub struct TranslateRequest<'a> {
     pub api_key: &'a str,
     /// Prompt 4.7's producer đã ghi — nguyên văn, không lắp lại (AD-14).
     pub prompt: &'a str,
+    /// Sent as a `system` message before `prompt`; `None` or empty sends none.
+    pub system: Option<&'a str>,
 }
 
 /// Số liệu sử dụng nhà cung cấp trả về cho MỘT lượt gọi, cộng ước tính chi phí đã tính sẵn —

@@ -19,6 +19,7 @@ import {
   aiPromptRecord,
   aiPromptRecordIsStale,
   aiPromptResultFor,
+  aiPromptSystemText,
   aiPromptTierBlocks,
   aiPromptTokenLine,
   formatPercentParam,
@@ -126,6 +127,8 @@ const tmSearched = computed(() => {
 })
 
 const blocks = computed(() => aiPromptTierBlocks(aiPromptRecord.value))
+const systemText = computed(() => aiPromptSystemText(aiPromptRecord.value))
+const systemChars = computed(() => Array.from(systemText.value ?? '').length)
 const charsByKind = computed(() => aiPromptCharsByKind(blocks.value))
 const totalChars = computed(() => {
   const c = charsByKind.value
@@ -322,6 +325,22 @@ const resultUsage = computed(() => {
 
         <div v-else class="aip-split" data-aip-tab-panel="prompt">
           <div class="aip-doc">
+            <section v-if="systemText !== null" class="aip-blk aip-blk-system" data-aip-system="present">
+              <div class="aip-bh">
+                <span class="aip-blabel">{{ t('ai.prompt_inspector.block_system') }}</span>
+                <span class="aip-bchars" data-aip-system-chars>
+                  <!-- aura-allow-text: KẾT QUẢ của t() (số ký tự). -->
+                  {{ t('ai.prompt_inspector.block_chars', { count: String(systemChars) }) }}
+                </span>
+              </div>
+              <div class="aip-txt">
+                <!-- aura-allow-text: DỮ LIỆU (văn bản system prompt đã gửi, không phải chữ giao diện). -->
+                <span class="aip-piece aip-piece-system">{{ systemText }}</span>
+              </div>
+            </section>
+            <p v-else class="aip-note" data-aip-system="none">
+              {{ t('ai.prompt_inspector.system_none') }}
+            </p>
             <p v-if="aiPromptRecord.prompt === ''" class="aip-note" data-aip-body-state="empty">
               {{ t('ai.prompt_inspector.body_empty_note') }}
             </p>
@@ -767,6 +786,10 @@ const resultUsage = computed(() => {
 
 .aip-blk-tm {
   border-left-color: var(--color-tm-rule);
+}
+
+.aip-blk-system {
+  border-left-color: var(--color-outline);
 }
 
 .aip-blk-source_segment {

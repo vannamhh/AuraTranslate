@@ -376,6 +376,8 @@ impl From<InjectionLedger> for InjectionLedgerWire {
 #[derive(Debug, Clone)]
 pub struct AssembledPromptRecord {
     pub prompt: String,
+    /// System prompt resolved when this record was assembled; `None` when none is sent.
+    pub system: Option<String>,
     pub ledger: InjectionLedger,
     pub segment_id: i64,
     pub chapter_id: i64,
@@ -405,6 +407,7 @@ pub type LastAssembledPromptState = std::sync::Mutex<Option<AssembledPromptRecor
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AssembledPromptWire {
     pub prompt: String,
+    pub system: Option<String>,
     pub segment_id: i64,
     pub chapter_id: i64,
     pub prompt_set_name: String,
@@ -423,6 +426,7 @@ impl From<AssembledPromptRecord> for AssembledPromptWire {
     fn from(r: AssembledPromptRecord) -> Self {
         Self {
             prompt: r.prompt,
+            system: r.system,
             segment_id: r.segment_id,
             chapter_id: r.chapter_id,
             prompt_set_name: r.prompt_set_name,
@@ -523,9 +527,13 @@ pub fn assemble_and_record_prompt_with_tm(
     let tm = gather_tm_context(tm_cache.0.as_ref(), &resolver, source_lang, sentence)
         .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?;
     let (prompt, ledger) = assemble_prompt(&set.body, sentence, glossary, tm.as_ref());
+    let system = crate::core::aiconfig::resolve_system_prompt(
+        &crate::core::aiconfig::resolve_two_tiers(&resolver, global_store, work_store)?,
+    );
 
     let record_value = AssembledPromptRecord {
         prompt,
+        system,
         ledger,
         segment_id,
         chapter_id: chapter.chapter_id,
@@ -604,6 +612,7 @@ pub fn mark_prompt_as_sent(
     record: &LastAssembledPromptState,
     segment_id: i64,
     sent_prompt: &str,
+    sent_system: Option<&str>,
     model: &str,
     sent_at: &str,
     usage: Option<AiTranslateUsageWire>,
@@ -614,6 +623,7 @@ pub fn mark_prompt_as_sent(
     if let Some(r) = guard.as_mut()
         && r.segment_id == segment_id
         && r.prompt == sent_prompt
+        && r.system.as_deref() == sent_system
     {
         r.sent_at = Some(sent_at.to_owned());
         r.sent_model = Some(model.to_owned());

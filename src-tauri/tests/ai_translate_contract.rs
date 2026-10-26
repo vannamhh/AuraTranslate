@@ -372,6 +372,7 @@ fn the_request_body_always_asks_for_usage_via_stream_options() {
         max_tokens: None,
         api_key: "sk-test",
         prompt: "Hello.",
+        system: None,
     };
     let json = serde_json::to_string(&build_request_body(&request)).expect("serialize");
     let value: serde_json::Value = serde_json::from_str(&json).expect("parse lai");
@@ -1151,6 +1152,7 @@ fn assemble_only_and_translate_write_an_identical_record_differing_only_in_the_s
         &record_translate,
         segment_id,
         &prepared.prompt,
+        prepared.system.as_deref(),
         "gpt-test",
         "2026-09-21T00:00:00.000Z",
         None,
@@ -1275,6 +1277,7 @@ fn a_record_replaced_mid_flight_by_a_newer_assemble_is_left_unstamped() {
         &record,
         segment_id,
         &sent_prompt,
+        prepared.system.as_deref(),
         "gpt-test",
         "2026-09-21T00:00:00.000Z",
         None,
@@ -1364,6 +1367,7 @@ fn dummy_prepared() -> PreparedTranslateCall {
         max_tokens: None,
         api_key: "sk-fake-provider-test".to_owned(),
         prompt: "Hello world.".to_owned(),
+        system: None,
     }
 }
 
@@ -1961,6 +1965,7 @@ fn the_request_body_omits_temperature_and_max_tokens_when_unset() {
         max_tokens: None,
         api_key: "sk-test",
         prompt: "Hello.",
+        system: None,
     };
     let json = serde_json::to_string(&build_request_body(&request)).expect("serialize");
     assert!(
@@ -1983,6 +1988,7 @@ fn the_request_body_includes_temperature_and_max_tokens_when_set() {
         max_tokens: Some(512),
         api_key: "sk-test",
         prompt: "Hello.",
+        system: None,
     };
     let json = serde_json::to_string(&build_request_body(&request)).expect("serialize");
     let value: serde_json::Value = serde_json::from_str(&json).expect("parse lai");
@@ -1992,7 +1998,7 @@ fn the_request_body_includes_temperature_and_max_tokens_when_set() {
 
 /// AD-14 tại điểm ra dây cuối cùng — `content` mang ĐÚNG `request.prompt`, không lắp lại.
 #[test]
-fn the_request_body_carries_the_prompt_verbatim_as_the_user_message_content() {
+fn a_request_with_a_system_prompt_sends_system_then_user_messages_verbatim() {
     let request = TranslateRequest {
         endpoint: "https://api.example.invalid/v1/chat/completions",
         model: "gpt-test",
@@ -2000,11 +2006,108 @@ fn the_request_body_carries_the_prompt_verbatim_as_the_user_message_content() {
         max_tokens: None,
         api_key: "sk-test",
         prompt: "Dịch câu này giúp tôi.",
+        system: Some("  Dòng một\n\nDòng hai  "),
     };
     let json = serde_json::to_string(&build_request_body(&request)).expect("serialize");
     let value: serde_json::Value = serde_json::from_str(&json).expect("parse lai");
-    assert_eq!(value["messages"][0]["content"], "Dịch câu này giúp tôi.");
-    assert_eq!(value["messages"][0]["role"], "user");
+    let messages = value["messages"].as_array().expect("messages la mang");
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0]["role"], "system");
+    assert_eq!(messages[0]["content"], "  Dòng một\n\nDòng hai  ");
+    assert_eq!(messages[1]["role"], "user");
+    assert_eq!(messages[1]["content"], "Dịch câu này giúp tôi.");
+}
+
+#[test]
+fn a_request_without_a_system_prompt_or_with_an_empty_one_sends_only_the_user_message() {
+    for system in [None, Some(""), Some("  \n ")] {
+        let request = TranslateRequest {
+            endpoint: "https://api.example.invalid/v1/chat/completions",
+            model: "gpt-test",
+            temperature: None,
+            max_tokens: None,
+            api_key: "sk-test",
+            prompt: "Dịch câu này giúp tôi.",
+            system,
+        };
+        let json = serde_json::to_string(&build_request_body(&request)).expect("serialize");
+        let value: serde_json::Value = serde_json::from_str(&json).expect("parse lai");
+        let messages = value["messages"].as_array().expect("messages la mang");
+        assert_eq!(messages.len(), 1, "system={system:?}");
+        assert_eq!(messages[0]["role"], "user");
+        assert_eq!(messages[0]["content"], "Dịch câu này giúp tôi.");
+    }
+}
+
+/// What the inspector shows is what the wire carries: the record's `system` and `prompt` flow
+/// through `prepare_translate_call` and `run_translate_call` into the request body unchanged.
+#[test]
+fn a_translate_call_sends_exactly_the_system_and_prompt_the_inspector_record_holds() {
+    let fx = resend_fixture("system-bytes", true);
+    write_field(&fx.global, AiConfigField::Provider, "ollama").expect("ghi provider");
+    let typed = " Dong 1\r\n\r\n  Dong 2\t ";
+    write_field(&fx.global, AiConfigField::SystemPrompt, typed).expect("ghi system");
+
+    let prepared = match prepare_translate_call(
+        Some(&fx.global),
+        Some(&fx.open),
+        &fx.record,
+        Some("Plain"),
+        fx.segment_id,
+    )
+    .expect("khong loi")
+    {
+        PrepareOutcome::Ready(p) => p,
+        PrepareOutcome::NotConfigured => panic!("phai san sang"),
+    };
+    let record = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
+    assert_eq!(record.system.as_deref(), Some(typed));
+    assert_eq!(prepared.system.as_deref(), Some(typed));
+    assert_eq!(prepared.prompt, record.prompt);
+
+    let request = TranslateRequest {
+        endpoint: &prepared.endpoint,
+        model: &prepared.model,
+        temperature: prepared.temperature,
+        max_tokens: prepared.max_tokens,
+        api_key: &prepared.api_key,
+        prompt: &prepared.prompt,
+        system: prepared.system.as_deref(),
+    };
+    let json = serde_json::to_string(&build_request_body(&request)).expect("serialize");
+    let value: serde_json::Value = serde_json::from_str(&json).expect("parse lai");
+    assert_eq!(value["messages"][0]["role"], "system");
+    assert_eq!(value["messages"][0]["content"], typed);
+    assert_eq!(value["messages"][1]["role"], "user");
+    assert_eq!(value["messages"][1]["content"], record.prompt.as_str());
+    fx.teardown();
+}
+
+#[test]
+fn a_resend_uses_the_system_prompt_recorded_with_the_first_send_not_the_current_config() {
+    let fx = resend_fixture("system-resend", true);
+    write_field(&fx.global, AiConfigField::Provider, "ollama").expect("ghi provider");
+    write_field(&fx.global, AiConfigField::SystemPrompt, "Ban dau").expect("ghi system");
+    assemble_and_record_prompt(
+        Some(&fx.global),
+        Some(&fx.open),
+        &fx.record,
+        Some("Plain"),
+        fx.segment_id,
+    )
+    .expect("lap rap");
+
+    write_field(&fx.global, AiConfigField::SystemPrompt, "Da sua sau do").expect("sua system");
+    let (_, outcome) =
+        prepare_resend_call(Some(&fx.global), Some(&fx.open), &fx.record).expect("khong loi");
+    let prepared = match outcome {
+        PrepareOutcome::Ready(p) => p,
+        PrepareOutcome::NotConfigured => panic!("phai san sang"),
+    };
+    assert_eq!(prepared.system.as_deref(), Some("Ban dau"));
+    let recorded = read_last_assembled_prompt(&fx.record).expect("ban ghi");
+    assert_eq!(recorded.system, prepared.system);
+    fx.teardown();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -2334,6 +2437,7 @@ fn dummy_batch_item(segment_id: i64, prompt: &str) -> PreparedBatchItem {
             max_tokens: None,
             api_key: "sk-fake-batch-provider-test".to_owned(),
             prompt: prompt.to_owned(),
+            system: None,
         },
     }
 }
@@ -3811,6 +3915,7 @@ fn resend_sends_the_recorded_prompt_byte_for_byte_writes_no_segment_and_stamps_t
         &fx.record,
         segment_id,
         &prepared.prompt,
+        prepared.system.as_deref(),
         &prepared.model,
         "2026-10-15T00:00:00.000Z",
         usage.map(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from),
@@ -3895,6 +4000,7 @@ fn a_send_whose_provider_returned_no_usage_stamps_sent_at_but_leaves_usage_none_
         &fx.record,
         fx.segment_id,
         &prompt,
+        Some(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT),
         "gpt-test",
         "2026-10-15T00:00:00.000Z",
         None,
@@ -3920,6 +4026,7 @@ fn stamped_usage_serializes_with_the_exact_field_names_the_webview_guard_reads()
         &fx.record,
         fx.segment_id,
         &prompt,
+        Some(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT),
         "gpt-test",
         "2026-10-15T00:00:00.000Z",
         Some(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(RESEND_USAGE)),
@@ -3948,6 +4055,7 @@ fn a_record_reassembled_after_a_send_carries_no_stale_sent_facts_and_a_late_stam
         &fx.record,
         fx.segment_id,
         &old_prompt,
+        Some(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT),
         "gpt-test",
         "2026-10-15T00:00:00.000Z",
         Some(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(RESEND_USAGE)),
@@ -3981,6 +4089,7 @@ fn a_record_reassembled_after_a_send_carries_no_stale_sent_facts_and_a_late_stam
         &fx.record,
         fx.segment_id,
         &old_prompt,
+        Some(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT),
         "gpt-test",
         "2026-10-15T00:01:00.000Z",
         Some(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(RESEND_USAGE)),
@@ -3988,5 +4097,65 @@ fn a_record_reassembled_after_a_send_carries_no_stale_sent_facts_and_a_late_stam
     let wire = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
     assert_eq!(wire.sent_at, None, "dau cham cua chuoi cu bi bo qua");
     assert!(wire.sent_usage.is_none());
+    fx.teardown();
+}
+
+struct BatchSystemSpy {
+    seen: Mutex<Vec<Option<String>>>,
+}
+
+impl TranslationProvider for BatchSystemSpy {
+    type Error = FakeProviderError;
+
+    async fn translate(
+        &self,
+        request: TranslateRequest<'_>,
+        on_token: &mut dyn FnMut(&str),
+        _should_cancel: &dyn Fn() -> bool,
+    ) -> Result<TranslateOutcome, Self::Error> {
+        self.seen
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(request.system.map(str::to_owned));
+        on_token("x");
+        Ok(TranslateOutcome::Done(None))
+    }
+}
+
+#[test]
+fn a_batch_sends_the_resolved_system_prompt_to_the_provider_for_each_sentence() {
+    let fx = resend_fixture("batch-system", true);
+    write_field(&fx.global, AiConfigField::Provider, "ollama").expect("ghi provider");
+    write_field(
+        &fx.global,
+        AiConfigField::SystemPrompt,
+        " Dich\n\nsang Viet ",
+    )
+    .expect("ghi system");
+
+    let items = match prepare_batch_call(
+        Some(&fx.global),
+        Some(&fx.open),
+        &fx.record,
+        Some("Plain"),
+        &[fx.segment_id],
+    )
+    .expect("khong loi")
+    {
+        PrepareBatchOutcome::Ready(items) => items,
+        PrepareBatchOutcome::NotConfigured => panic!("phai san sang"),
+    };
+    let spy = BatchSystemSpy {
+        seen: Mutex::new(Vec::new()),
+    };
+    let (channel, _received) = collecting_batch_channel();
+    tauri::async_runtime::block_on(run_batch_call(&spy, &items, &channel, &|| false))
+        .expect("khong duoc loi");
+    let seen = spy
+        .seen
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert_eq!(seen, vec![Some(" Dich\n\nsang Viet ".to_owned())]);
     fx.teardown();
 }
