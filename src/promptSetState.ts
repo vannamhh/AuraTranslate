@@ -40,6 +40,8 @@ import {
 } from './config/promptset'
 import type { PromptSetExportFile, PromptSetTier, PromptSetWarningsWire, PromptSetWire } from './config/promptset'
 import { genreLabel } from './modes/libraryWorkCard'
+import type { GenreId } from './modes/libraryWorkCard'
+import { PROMPT_TEMPLATES } from './promptTemplates'
 import { glossaryExchangeBusy, setGlossaryExchangeBusy } from './glossaryExchangeGate'
 
 const resolvedSets = ref<PromptSetWire[]>([])
@@ -54,6 +56,7 @@ const actionWarnings = ref<PromptSetWarningsWire | null>(null)
 const selectedSetName = ref<string | null>(null)
 let selectionIsAutomatic = false
 let pendingGenre: string | null = null
+let lastGenre: string | null = null
 /** Từ vựng biến số ratify (`PromptVariable::ALL` phía Rust) — nguồn sự thật DUY NHẤT mà
  * `PromptLibraryOverlay.vue` render từ đó, cùng khối 🔴 đầu `PromptSetListWire::variables`
  * (`commands/promptset.rs`). Không đổi trên một lượt trượt — cùng lý do `resolvedSets` giữ
@@ -199,6 +202,7 @@ function applyGenre(genre: string): void {
 
 /** A hand-picked set is never cleared by a genre without a matching set. */
 export async function autoSelectPromptSetForGenre(genre: string): Promise<void> {
+  lastGenre = genre
   pendingGenre = genre
   await loadPromptSets()
 }
@@ -227,6 +231,55 @@ export async function createPromptSet(tier: PromptSetTier, name: string, body: s
   actionWarnings.value = result.warnings
   await loadPromptSets()
   busy.value = false
+}
+
+/** `true` when a set named like the template's genre label already exists at `tier` (trimmed,
+ * case-insensitive). A Work row that shadows a Global one counts as Global too. */
+export function promptTemplateExists(tier: PromptSetTier, id: GenreId): boolean {
+  const label = genreLabel(id)?.trim().toLowerCase()
+  if (label === undefined) return false
+  return resolvedSets.value.some(
+    (s) =>
+      s.name.trim().toLowerCase() === label &&
+      (tier === 'work' ? s.tier === 'work' : s.tier === 'global' || s.shadowed_body !== null),
+  )
+}
+
+/**
+ * Creates one set per template id at `tier`, sequentially and without rollback, then reloads
+ * once and re-applies the latest genre (a hand-picked set still wins). Ids already present at
+ * the tier are skipped; a `prompt_set.name_taken` the list did not predict skips that id only.
+ * Returns how many sets were created.
+ */
+export async function addPromptTemplates(tier: PromptSetTier, ids: ReadonlyArray<GenreId>): Promise<number> {
+  if (busy.value) return 0
+
+  busy.value = true
+  actionError.value = null
+  actionWarnings.value = null
+
+  let created = 0
+  let attempted = 0
+  for (const id of ids) {
+    if (promptTemplateExists(tier, id)) continue
+    const name = genreLabel(id)
+    if (name === null) continue
+    attempted += 1
+    const result = await promptSetCreate(tier, name, PROMPT_TEMPLATES[id])
+    if (result.error !== null) {
+      if (result.error.code === 'prompt_set.name_taken') continue
+      actionError.value = result.error
+      break
+    }
+    created += 1
+  }
+
+  if (attempted > 0) {
+    pendingGenre = selectedSetName.value === null || selectionIsAutomatic ? lastGenre : null
+    await loadPromptSets()
+  }
+  busy.value = false
+  return created
 }
 
 /**
@@ -376,6 +429,7 @@ export function resetPromptSets(): void {
   selectedSetName.value = null
   selectionIsAutomatic = false
   pendingGenre = null
+  lastGenre = null
   variableNames.value = []
   exportError.value = null
   exportManyError.value = null

@@ -642,3 +642,100 @@ describe('autoSelectPromptSetForGenre', () => {
     expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
   })
 })
+
+describe('addPromptTemplates — ma trận I/O của thư viện mẫu', () => {
+  function listOf(...rows: Array<Parameters<typeof makeSet>[0]>) {
+    promptSetListMock.mockResolvedValue({
+      sets: rows.map((r, i) => makeSet({ id: i + 1, ...r })),
+      workTierAvailable: true,
+      variables: [],
+      error: null,
+    })
+  }
+  const ioError = { warnings: null, error: { code: 'io.write', message_key: 'err.unknown', params: {}, retryable: false } }
+
+  it('Thêm mẫu: tạo bộ mang nhãn thể loại và thân mẫu ở tầng đích', async () => {
+    const { addPromptTemplates } = await freshState()
+    const { PROMPT_TEMPLATES } = await import('../../src/promptTemplates')
+    expect(await addPromptTemplates('global', ['xianxia'])).toBe(1)
+    expect(promptSetCreateMock).toHaveBeenCalledWith('global', 'Tiên hiệp', PROMPT_TEMPLATES.xianxia)
+  })
+
+  it('Đã có bộ trùng tên khác hoa thường/khoảng trắng: không tạo bộ thứ hai, mẫu khác vẫn tạo', async () => {
+    listOf({ name: ' tiên hiệp ' })
+    const { addPromptTemplates, loadPromptSets, promptTemplateExists } = await freshState()
+    await loadPromptSets()
+    expect(promptTemplateExists('global', 'xianxia')).toBe(true)
+    expect(await addPromptTemplates('global', ['xianxia', 'wuxia'])).toBe(1)
+    expect(promptSetCreateMock.mock.calls.map((c) => c[1])).toEqual(['Kiếm hiệp'])
+  })
+
+  it('bộ Tác phẩm che bộ Toàn cục cùng tên tính là đã có ở Toàn cục; tầng Tác phẩm chỉ đếm bộ Tác phẩm', async () => {
+    listOf({ name: 'Tiên hiệp', tier: 'work', shadowed_body: 'x', shadowed_id: 9 }, { name: 'Kiếm hiệp', tier: 'global' })
+    const { loadPromptSets, promptTemplateExists } = await freshState()
+    await loadPromptSets()
+    expect(promptTemplateExists('global', 'xianxia')).toBe(true)
+    expect(promptTemplateExists('work', 'xianxia')).toBe(true)
+    expect(promptTemplateExists('global', 'wuxia')).toBe(true)
+    expect(promptTemplateExists('work', 'wuxia')).toBe(false)
+  })
+
+  it('name_taken ngoài dự kiến: bỏ qua mẫu đó, mẫu khác vẫn tạo, không báo lỗi', async () => {
+    promptSetCreateMock.mockResolvedValueOnce({ warnings: null, error: { code: 'prompt_set.name_taken', message_key: 'err.unknown', params: {}, retryable: false } })
+    const { addPromptTemplates, promptSetActionError } = await freshState()
+    expect(await addPromptTemplates('global', ['xianxia', 'wuxia'])).toBe(1)
+    expect(promptSetCreateMock).toHaveBeenCalledTimes(2)
+    expect(promptSetActionError.value).toBeNull()
+  })
+
+  it('Tác phẩm đang mở, chưa chọn bộ: thêm mẫu cùng thể loại thì tự chọn ngay', async () => {
+    const { addPromptTemplates, autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
+    await autoSelectPromptSetForGenre('wuxia')
+    expect(selectedPromptSet()).toBeNull()
+    listOf({ name: 'Kiếm hiệp' })
+    await addPromptTemplates('global', ['wuxia'])
+    expect(selectedPromptSet()?.name).toBe('Kiếm hiệp')
+  })
+
+  it('Ice đã chọn tay: thêm mẫu trùng thể loại giữ nguyên bộ đã chọn', async () => {
+    listOf({ name: 'X' })
+    const { addPromptTemplates, autoSelectPromptSetForGenre, setSelectedPromptSetName, selectedPromptSet } = await freshState()
+    await autoSelectPromptSetForGenre('wuxia')
+    setSelectedPromptSetName('X')
+    listOf({ name: 'X' }, { name: 'Kiếm hiệp' })
+    await addPromptTemplates('global', ['wuxia'])
+    expect(selectedPromptSet()?.name).toBe('X')
+  })
+
+  it('Lỗi ghi: báo lỗi, dừng, giữ các bộ đã tạo và vẫn nạp lại một lần', async () => {
+    promptSetCreateMock.mockResolvedValueOnce({ id: 1, warnings: null, error: null }).mockResolvedValueOnce(ioError)
+    const { addPromptTemplates, promptSetActionError } = await freshState()
+    expect(await addPromptTemplates('global', ['xianxia', 'wuxia', 'legal'])).toBe(1)
+    expect(promptSetCreateMock).toHaveBeenCalledTimes(2)
+    expect(promptSetActionError.value?.code).toBe('io.write')
+    expect(promptSetListMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('nạp lại đúng một lần cho nhiều mẫu; không tạo gì thì không nạp', async () => {
+    const { addPromptTemplates } = await freshState()
+    await addPromptTemplates('global', ['xianxia', 'wuxia', 'legal'])
+    expect(promptSetListMock).toHaveBeenCalledTimes(1)
+    await addPromptTemplates('global', [])
+    expect(promptSetListMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('Đã thêm mẫu "Pháp lý" ở Toàn cục: mở Tác phẩm Pháp lý sau đó thì bộ được chọn là "Pháp lý"', async () => {
+    const { addPromptTemplates, autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
+    listOf({ name: 'Pháp lý' })
+    await addPromptTemplates('global', ['legal'])
+    await autoSelectPromptSetForGenre('legal')
+    expect(selectedPromptSet()?.name).toBe('Pháp lý')
+  })
+
+  it('mọi lượt tạo đều name_taken: vẫn nạp lại đúng một lần', async () => {
+    promptSetCreateMock.mockResolvedValue({ warnings: null, error: { code: 'prompt_set.name_taken', message_key: 'err.unknown', params: {}, retryable: false } })
+    const { addPromptTemplates } = await freshState()
+    expect(await addPromptTemplates('global', ['xianxia', 'wuxia'])).toBe(0)
+    expect(promptSetListMock).toHaveBeenCalledTimes(1)
+  })
+})

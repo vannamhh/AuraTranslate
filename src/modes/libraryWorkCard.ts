@@ -25,7 +25,7 @@ export function sourceLangChoices(): { value: string; label: string }[] {
   ]
 }
 
-const GENRE_IDS = [
+export const GENRE_IDS = [
   'news',
   'commentary',
   'tcm',
@@ -56,7 +56,7 @@ const GENRE_IDS = [
   'children',
   'other',
 ] as const
-type GenreId = (typeof GENRE_IDS)[number]
+export type GenreId = (typeof GENRE_IDS)[number]
 
 function isGenreId(raw: string): raw is GenreId {
   return (GENRE_IDS as readonly string[]).includes(raw)

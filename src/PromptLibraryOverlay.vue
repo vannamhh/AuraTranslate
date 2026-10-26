@@ -34,6 +34,7 @@ import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import { promptLibraryOverlayIsOpen } from './promptLibraryState'
 import { splitPromptBody } from './promptMarkers'
+import PromptTemplatePicker from './PromptTemplatePicker.vue'
 // Story 4.5 review fix — kết quả lượt Nhập gần nhất (`prompt.import.confirm`) không được hiện
 // ở đâu cả: lớp phủ Xem trước tự đóng ngay khi thành công, nên đây (màn Thư viện, vẫn mở bên
 // dưới) là chỗ RẺ NHẤT để nói cho người dùng biết lượt nhập đã tạo/thay/không ghi gì.
@@ -163,6 +164,7 @@ const bodyDraft = ref('')
 const deletePending = ref(false)
 
 const createOpen = ref(false)
+const templateOpen = ref(false)
 const createTier = ref<PromptSetTier>('global')
 const createNameDraft = ref('')
 const createBodyDraft = ref('')
@@ -338,6 +340,7 @@ async function selectRow(row: DisplayRow): Promise<void> {
   bodyDraft.value = row.body
   deletePending.value = false
   createOpen.value = false
+  templateOpen.value = false
   clearPromptSetActionFeedback() // banner lỗi/cảnh báo của bộ TRƯỚC không được sống sót sang bộ này
 }
 
@@ -360,12 +363,21 @@ function onBodyInput(event: Event): void {
 async function onOpenCreate(): Promise<void> {
   if (bodyIsDirty() && !(await flushBody())) return
   createOpen.value = true
+  templateOpen.value = false
   createTier.value = promptSetWorkTierAvailable.value ? 'work' : 'global'
   createNameDraft.value = ''
   createBodyDraft.value = ''
   createShadowedNote.value = false
   clearSelection()
   clearPromptSetActionFeedback() // banner lỗi/cảnh báo của bộ ĐANG chọn không được sống sót sang form Tạo
+}
+
+async function onOpenTemplates(): Promise<void> {
+  if (bodyIsDirty() && !(await flushBody())) return
+  createOpen.value = false
+  templateOpen.value = true
+  clearSelection()
+  clearPromptSetActionFeedback()
 }
 
 function onCancelCreate(): void {
@@ -591,8 +603,9 @@ async function onEscape(): Promise<void> {
     deletePending.value = false
     return
   }
-  if (createOpen.value) {
+  if (createOpen.value || templateOpen.value) {
     createOpen.value = false
+    templateOpen.value = false
     return
   }
   if (await flushBody()) dispatch('prompt.library.close')
@@ -732,6 +745,11 @@ async function onEscape(): Promise<void> {
           <form class="pl-row-form" @submit.prevent="onOpenCreate">
             <button type="submit" class="pl-row pl-row-new">{{ t('prompt.library.new_set') }}</button>
           </form>
+          <form class="pl-row-form" @submit.prevent="onOpenTemplates">
+            <button type="submit" class="pl-row pl-row-import" data-prompt-template-open>
+              {{ t('prompt.library.template_open') }}
+            </button>
+          </form>
           <form class="pl-row-form" @submit.prevent="onOpenImport">
             <button type="submit" class="pl-row pl-row-import" data-prompt-import-open>
               {{ t('prompt.library.import_button') }}
@@ -741,7 +759,8 @@ async function onEscape(): Promise<void> {
         </nav>
 
         <div class="pl-ed">
-          <template v-if="createOpen">
+          <PromptTemplatePicker v-if="templateOpen" @close="templateOpen = false" />
+          <template v-else-if="createOpen">
             <h3 class="pl-h2">{{ t('prompt.library.create_title') }}</h3>
 
             <form class="pl-create-form" @submit.prevent="onSubmitCreate">
