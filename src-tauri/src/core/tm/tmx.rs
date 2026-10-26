@@ -244,13 +244,14 @@ pub fn decode_tmx_bytes(bytes: &[u8]) -> Result<String, TmxError> {
         if !rest.len().is_multiple_of(2) {
             return Err(TmxError::NotUtf8);
         }
-        let units: Vec<u16> = rest
-            .chunks_exact(2)
-            .map(|p| {
+        let (pairs, _) = rest.as_chunks::<2>();
+        let units: Vec<u16> = pairs
+            .iter()
+            .map(|&p| {
                 if le {
-                    u16::from_le_bytes([p[0], p[1]])
+                    u16::from_le_bytes(p)
                 } else {
-                    u16::from_be_bytes([p[0], p[1]])
+                    u16::from_be_bytes(p)
                 }
             })
             .collect();
