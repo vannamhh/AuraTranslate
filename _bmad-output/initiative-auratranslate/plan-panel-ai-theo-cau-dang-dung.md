@@ -3,7 +3,7 @@ title: 'Panel Đề xuất AI chỉ nói về câu con trỏ đang đứng; syst
 type: 'bugfix'
 ticket: ''
 created: '2026-10-26'
-status: 'built'
+status: 'done'
 baseline_revision: 'af68f23a1fdb1cd6e2751d06baa46266e9e4ac0d'
 route: 'full'
 route_source: 'auto'
