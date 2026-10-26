@@ -2094,7 +2094,7 @@ console.log('\nKiểm I — vạch lề segment: ĐÚNG NĂM giá trị, không 
 const EDITOR_SEGMENTS_TS = join(SRC_ROOT, 'panels', 'editorSegments.ts')
 const EDITOR_PANEL_VUE = join(SRC_ROOT, 'panels', 'GridBlock.vue')
 const TOKENS_JSON = join(SRC_ROOT, 'tokens', 'tokens.json')
-const RULE_LIGHTNESS_FLOOR = 1.5
+const RULE_MIN_CONTRAST_RATIO = 1.5
 
 /** ⚠️ Bản chép ĐỘC LẬP của `DESIGN.md:380` — không `import` từ tệp đang bị kiểm. */
 // 🔵 2026-08-14 (Story 2.5b) — NĂM → SÁU. `draft` lấp một hàng vốn đã THIẾU trong bảng
@@ -2234,10 +2234,10 @@ if (editorVue === undefined) {
     for (let a = 0; a < names.length; a += 1) {
       for (let b = a + 1; b < names.length; b += 1) {
         const ratio = contrast(colors[names[a]], colors[names[b]])
-        if (ratio < RULE_LIGHTNESS_FLOOR) {
+        if (ratio < RULE_MIN_CONTRAST_RATIO) {
           fail(
             `vạch \`${names[a]}\` và \`${names[b]}\` (${theme}) cách nhau ${ratio.toFixed(2)}:1 — ` +
-              `dưới ${RULE_LIGHTNESS_FLOOR}:1, chỉ còn khác nhau bằng sắc (WCAG 1.4.1)`,
+              `dưới ${RULE_MIN_CONTRAST_RATIO}:1, chỉ còn khác nhau bằng sắc (WCAG 1.4.1)`,
           )
           iBad += 1
         }
