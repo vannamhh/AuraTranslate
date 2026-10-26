@@ -47,7 +47,7 @@ import { dispatch } from '../commands'
 import { t, tError } from '../i18n'
 import { loadPromptSets, promptSets, selectedPromptSetName, setSelectedPromptSetName } from '../promptSetState'
 import {
-  editorCaretSegmentId,
+  editorActiveSegmentId,
   editorPendingPromote,
   editorPendingPromoteBatch,
   editorPromoteAiTranslationError,
@@ -67,7 +67,6 @@ import {
 import { aiUsageVisible } from '../aiUsageVisibleState'
 import {
   aiPromptGlossaryDelta,
-  aiPromptAssembleBusy,
   aiPromptAssembleError,
   aiPromptRecord,
   aiPromptRecordIsStale,
@@ -132,7 +131,7 @@ onMounted(() => {
  * sau khi tiêu điểm dời sang câu B mà người dùng chưa bấm Lắp lại — đọc như "câu B đang lỗi",
  * dù lỗi đó thuộc về A. Xem doc-comment [`clearAiPromptAssembleError`] cho đối chứng.
  */
-watch(editorCaretSegmentId, () => {
+watch(editorActiveSegmentId, () => {
   clearAiPromptAssembleError()
 })
 
@@ -152,20 +151,16 @@ function onPromptSetSelectChange(value: string): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
-// 🔴 STORY 4.7 — DÒNG TÓM TẮT + NÚT "LẮP PROMPT" + NÚT "XEM PROMPT" (FR71, AD-14)
+// 🔴 STORY 4.7 — DÒNG TÓM TẮT + NÚT "XEM PROMPT" (FR71, AD-14)
 // ─────────────────────────────────────────────────────────────────────────────────
-// `EXPERIENCE.md:388` (KF-2 bước 4): dòng tóm tắt và "Xem prompt" sống ở panel này. Nút Lắp
-// là bề mặt riêng của Decision 2 spec 4.7 — nó GHI bản ghi; nút Xem CHỈ mở lớp phủ ĐỌC bản
-// ghi đó (`ai.prompt_inspector.open` không bao giờ lắp ráp). `canAssemble` đọc
-// `editorCaretSegmentId` — panel này (và mọi bản dịch AI) vốn gắn với ĐÚNG MỘT câu tại một
-// thời điểm, và đó là nguồn DUY NHẤT của "câu đang có tiêu điểm" trong toàn kho (dùng lại
-// nguyên, không một ô nhớ "câu hiện tại" thứ hai — `GlossaryConfirmStrip.vue`/
-// `segmentHistoryState.ts`/`GridPanel.vue` đều đọc CHÍNH ref này).
+// `EXPERIENCE.md:388` (KF-2 bước 4): dòng tóm tắt và "Xem prompt" sống ở panel này. Prompt tự
+// lắp khi dịch; `ai.prompt_inspector.open` chỉ lắp khi chưa có bản ghi nào. `hasActiveSegment`
+// đọc `editorActiveSegmentId`, nguồn duy nhất của "câu hiện tại" của luồng AI.
 const glossarySummary = computed(() => glossaryInjectionSummary(aiPromptRecord.value))
 
 const glossarySummaryText = computed<string>(() => {
   const summary = glossarySummary.value
-  if (summary.kind === 'no_record') return t('ai.prompt.summary_no_record')
+  if (summary.kind === 'no_record') return ''
   if (summary.kind === 'not_asked') {
     return summary.tmCount === null
       ? t('ai.prompt.summary_not_asked')
@@ -190,15 +185,14 @@ const glossarySummaryText = computed<string>(() => {
  * đang xem là cũ ([`aiPromptRecordIsStale`] chỉ được `import` ở đó) — dòng tóm tắt LUÔN HIỆN
  * ĐƯỢC ngay trên panel (không cần mở lớp phủ) vẫn đọc như "Đã chèn N thuật ngữ" cho câu ĐANG
  * focus dù bản ghi thật ra thuộc một câu khác. Cùng hàm thuần, cùng cách truyền tham số
- * (`editorCaretSegmentId` — panel này đã là leaf đọc ref đó cho mục đích khác, xem
- * `canAssemble`), không một watcher/state thứ hai.
+ * (`editorActiveSegmentId`, xem `hasActiveSegment`), không một watcher/state thứ hai.
  */
-const isRecordStale = computed<boolean>(() => aiPromptRecordIsStale(aiPromptRecord.value, editorCaretSegmentId.value))
+const isRecordStale = computed<boolean>(() => aiPromptRecordIsStale(aiPromptRecord.value, editorActiveSegmentId.value))
 
 /** `false` ⇔ không câu nào đang được chọn — chưa mở Tác phẩm, hoặc đã mở nhưng chưa đặt tiêu
  * điểm vào câu nào. Vô hiệu hoá nút Lắp ở ĐÂY (chỗ BIẾT trước), không dựa vào lưới phòng thủ
  * "kêu, không ném" của `assembleCurrentAiPrompt` — hai lớp, không chỉ một. */
-const canAssemble = computed<boolean>(() => editorCaretSegmentId.value !== null)
+const hasActiveSegment = computed<boolean>(() => editorActiveSegmentId.value !== null)
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // 🔴 STORY 4.8 — DỊCH THẬT + HUỶ + ĐƯA SANG BẢN DỊCH (FR72/FR74, AD-22, AD-47①/③)
@@ -213,7 +207,7 @@ const canAssemble = computed<boolean>(() => editorCaretSegmentId.value !== null)
 // đang chạy, không chỉ lượt đơn.
 const canRunAiTranslate = computed<boolean>(
   () =>
-    editorCaretSegmentId.value !== null &&
+    editorActiveSegmentId.value !== null &&
     aiTranslateStateValue.value !== 'generating' &&
     aiTranslateBatchStateValue.value !== 'generating',
 )
@@ -234,13 +228,13 @@ const canPromoteAiTranslate = computed<boolean>(() => {
   ) {
     return true
   }
-  const caretId = editorCaretSegmentId.value
+  const caretId = editorActiveSegmentId.value
   return caretId !== null && aiTranslateBatchTextForSegment(aiTranslateBatchRows.value, caretId) !== null
 })
 /** `true` ⇔ kết quả đang hiện được dịch cho một câu KHÁC câu đang có tiêu điểm bây giờ — cùng
  * khuôn [`isRecordStale`] ngay trên, hàm thuần của `aiTranslateState.ts`. */
 const isAiTranslateStale = computed<boolean>(() =>
-  isAiTranslateResultStale(aiTranslateRunSegmentId.value, editorCaretSegmentId.value),
+  isAiTranslateResultStale(aiTranslateRunSegmentId.value, editorActiveSegmentId.value),
 )
 
 // ─────────────────────────────────────────────────────────────────────────────────
@@ -515,6 +509,7 @@ const openSettingsLabel = computed(() =>
     <div class="ai-inspector-bar">
       <!-- aura-allow-text: KẾT QUẢ của t() (ba-giá-trị: chưa lắp / not_asked / asked kèm số đếm). -->
       <p
+        v-if="glossarySummary.kind !== 'no_record'"
         class="ai-inspector-summary"
         :data-ai-prompt-summary-kind="glossarySummary.kind"
         :data-ai-prompt-summary-stale="isRecordStale ? 'true' : null"
@@ -529,7 +524,7 @@ const openSettingsLabel = computed(() =>
         {{
           t('ai.prompt_inspector.stale_notice', {
             record_segment_id: String(aiPromptRecord.segment_id),
-            focused_segment_id: String(editorCaretSegmentId ?? ''),
+            focused_segment_id: String(editorActiveSegmentId ?? ''),
           })
         }}
       </p>
@@ -537,19 +532,7 @@ const openSettingsLabel = computed(() =>
         <!-- aura-allow-text: KẾT QUẢ của tError(). -->
         {{ tError(aiPromptAssembleError) }}
       </p>
-      <p v-if="!canAssemble" class="ai-inspector-hint">{{ t('panel.ai_translation.assemble_no_segment_hint') }}</p>
-      <div class="ai-inspector-actions">
-        <button
-          type="button"
-          class="ai-inspector-assemble"
-          data-ai-prompt-assemble
-          :disabled="!canAssemble || aiPromptAssembleBusy"
-          @click="dispatch('ai.prompt.assemble')"
-        >
-          <!-- aura-allow-text: KẾT QUẢ của t() (hai nhãn, chọn theo cờ đang bận). -->
-          {{ aiPromptAssembleBusy ? t('panel.ai_translation.assemble_busy') : t('command.ai.prompt.assemble') }}
-        </button>
-      </div>
+      <p class="ai-inspector-hint" data-ai-prompt-auto-note>{{ t('panel.ai_translation.prompt_auto_note') }}</p>
     </div>
     <div ref="surface" class="ai-surface">
       <div class="ai-translate-actions">
@@ -591,7 +574,7 @@ const openSettingsLabel = computed(() =>
           {{ t('command.ai.translate.retry') }}
         </button>
       </div>
-      <p v-if="!canAssemble" class="ai-translate-hint">{{ t('panel.ai_translation.translate_no_segment_hint') }}</p>
+      <p v-if="!hasActiveSegment" class="ai-translate-hint">{{ t('panel.ai_translation.translate_no_segment_hint') }}</p>
       <p v-if="aiTranslateStateValue === 'generating'" class="ai-translate-status" data-ai-translate-state="generating">
         {{ t('panel.ai_translation.state_generating') }}
       </p>
@@ -680,7 +663,7 @@ const openSettingsLabel = computed(() =>
         {{
           t('ai.translate.stale_notice', {
             record_segment_id: String(aiTranslateRunSegmentId),
-            focused_segment_id: String(editorCaretSegmentId ?? ''),
+            focused_segment_id: String(editorActiveSegmentId ?? ''),
           })
         }}
       </p>
@@ -984,13 +967,6 @@ const openSettingsLabel = computed(() =>
   color: var(--color-error);
 }
 
-.ai-inspector-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
-}
-
-.ai-inspector-assemble,
 .ai-inspector-open {
   align-self: flex-start;
   padding: 0;
@@ -1003,15 +979,9 @@ const openSettingsLabel = computed(() =>
   color: var(--color-on-surface-variant);
 }
 
-.ai-inspector-assemble:focus-visible,
 .ai-inspector-open:focus-visible {
   outline: none;
   border-bottom-color: var(--color-primary);
-}
-
-.ai-inspector-assemble:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
 }
 
 /*

@@ -974,6 +974,31 @@ describe('dispatch("ai.translate.promote") — nhánh dự phòng LÔ của main
     wrapper.unmount()
   })
 
+  it('🔴 tiêu điểm đã rời lưới (caret null, câu cuối 11) ⇒ promote lô vẫn ghi đúng câu 11', async () => {
+    const { commands, editorState, selectionState, AiTranslationPanel } = await freshPanel()
+    selectAllThreeFixtureSegments(editorState, selectionState) // chọn 11/12/13, caret ở 11
+    const fake = pendingBatchRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-batch-run]').trigger('click')
+    await flushPromises()
+
+    fake.emit({ kind: 'token', segment_id: 11, text: 'Ket qua cau 1' })
+    fake.emit({ kind: 'done', segment_id: 11, usage: null })
+    await wrapper.vm.$nextTick()
+    editorState.setEditorCaret(null)
+    expect(editorState.editorCaretSegmentId.value).toBeNull()
+
+    commands.dispatch('ai.translate.promote')
+    await flushPromises()
+
+    expect(promoteMock).toHaveBeenCalledTimes(1)
+    expect(promoteMock).toHaveBeenCalledWith(11, 'Ket qua cau 1')
+
+    wrapper.unmount()
+  })
+
   it('caret NGOÀI lô (một segment_id không nằm trong vùng chọn đã chạy) ⇒ promoteAiTranslationToEditor KHÔNG được gọi — kêu, không ghi', async () => {
     const { commands, editorState, selectionState, AiTranslationPanel } = await freshPanel()
     selectAllThreeFixtureSegments(editorState, selectionState) // chọn 11/12/13

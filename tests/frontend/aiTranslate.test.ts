@@ -45,7 +45,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Component, Ref } from 'vue'
 import type { AiTranslateOutcomeWire } from '../../src/config/aitranslate'
 import type { CommandDeps } from '../../src/commands'
@@ -141,8 +141,11 @@ async function freshPanel() {
   promoteMock.mockReset()
 
   const caretSegmentId: Ref<number | null> = ref(null)
+  const lastCaretSegmentId: Ref<number | null> = ref(caretSegmentId.value)
+  watch(caretSegmentId, (id) => { if (id !== null) lastCaretSegmentId.value = id }, { flush: 'sync' })
   vi.doMock('../../src/panels/editorPanelState', () => ({
     editorCaretSegmentId: caretSegmentId,
+    editorActiveSegmentId: computed(() => caretSegmentId.value ?? lastCaretSegmentId.value),
     promoteAiTranslationToEditor: (...args: unknown[]) => promoteMock(...args),
     // 🔴 `AiTranslationPanel.vue` đọc thêm hai export này (lỗi PROMOTE qua `tError()`, câu
     // hỏi chống mất bản nháp). Factory này thay THẲNG cả module — thiếu một export ở đây là
@@ -198,6 +201,57 @@ describe('AiTranslationPanel.vue — giá trị nghỉ trước lượt dịch �
     expect(state.aiTranslateRunSegmentId.value).toBeNull()
     expect(wrapper.find('[data-ai-translate-state="not_configured"]').exists()).toBe(false)
     expect(runMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+})
+
+describe('AiTranslationPanel.vue — câu hiện tại của luồng AI khi tiêu điểm đã sang panel', () => {
+  it('chưa chạm câu nào ⇒ nút Dịch khoá, gợi ý đặt con trỏ vào ô dịch hiện', async () => {
+    const { i18n, AiTranslationPanel } = await freshPanel()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-translate-run]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.ai-translate-hint').text()).toBe(i18n.t('panel.ai_translation.translate_no_segment_hint'))
+
+    wrapper.unmount()
+  })
+
+  it('🔴 con trỏ ở câu 3 rồi về null (bấm vào panel) ⇒ nút Dịch không khoá, không gợi ý, bấm chuột dịch câu 3', async () => {
+    const { AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 3
+    caretSegmentId.value = null
+    runMock.mockResolvedValue({ value: { state: 'done', usage: null }, error: null })
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-ai-translate-run]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('.ai-translate-hint').exists()).toBe(false)
+
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+
+    expect(runMock).toHaveBeenCalledTimes(1)
+    expect(runMock).toHaveBeenCalledWith(3, null, expect.any(Function))
+
+    wrapper.unmount()
+  })
+
+  it('🔴 dispatch ai.translate.run với con trỏ null và câu cuối = 3 ⇒ dịch câu 3', async () => {
+    const { commands, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 3
+    caretSegmentId.value = null
+    runMock.mockResolvedValue({ value: { state: 'done', usage: null }, error: null })
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    commands.dispatch('ai.translate.run')
+    await flushPromises()
+
+    expect(runMock).toHaveBeenCalledWith(3, null, expect.any(Function))
 
     wrapper.unmount()
   })

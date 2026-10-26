@@ -20,6 +20,7 @@ const promoteError: Ref<IpcError | null> = ref(null)
 
 vi.mock('../../src/panels/editorPanelState', () => ({
   editorCaretSegmentId: ref<number | null>(null),
+  editorActiveSegmentId: ref<number | null>(null),
   editorPendingPromote: ref(null),
   editorPendingPromoteBatch: ref(null),
   editorPromoteBatchReport: ref(null),

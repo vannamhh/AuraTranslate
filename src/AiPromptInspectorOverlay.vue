@@ -7,10 +7,12 @@ import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
-import { editorCaretSegmentId } from './panels/editorPanelState'
+import { editorActiveSegmentId } from './panels/editorPanelState'
 import { confirmStripEntryId, confirmStripTier } from './glossaryConfirmStripState'
 import {
   aiPromptCharsByKind,
+  aiPromptAssembleBusy,
+  aiPromptAssembleError,
   aiPromptCopyState,
   aiPromptDynamicRatio,
   aiPromptInspectorIsOpen,
@@ -110,7 +112,14 @@ function tierLabel(tier: 'global' | 'work'): string {
   return t(tier === 'work' ? 'ai.prompt_inspector.tier_work' : 'ai.prompt_inspector.tier_global')
 }
 
-const isStale = computed<boolean>(() => aiPromptRecordIsStale(aiPromptRecord.value, editorCaretSegmentId.value))
+const emptyKey = computed<string | null>(() => {
+  if (aiPromptAssembleError.value !== null || aiPromptReadError.value !== null) return null
+  return aiPromptAssembleBusy.value || editorActiveSegmentId.value !== null
+    ? 'ai.prompt_inspector.assembling'
+    : 'ai.prompt_inspector.no_segment_hint'
+})
+
+const isStale = computed<boolean>(() => aiPromptRecordIsStale(aiPromptRecord.value, editorActiveSegmentId.value))
 
 const glossaryAsked = computed(() => {
   const rec = aiPromptRecord.value
@@ -224,8 +233,14 @@ const resultUsage = computed(() => {
         {{ tError(aiPromptReadError) }}
       </p>
 
+      <p v-if="aiPromptAssembleError !== null" class="aip-read-error" role="alert" data-aip-assemble-error>
+        <!-- aura-allow-text: KẾT QUẢ của tError(). -->
+        {{ tError(aiPromptAssembleError) }}
+      </p>
+
       <p v-if="aiPromptRecord === null" class="aip-empty" role="status" data-aip-record-state="none">
-        {{ t('ai.prompt.summary_no_record') }}
+        <!-- aura-allow-text: KẾT QUẢ của t() (hai nhãn: chưa lắp / chưa có câu). -->
+        {{ emptyKey === null ? '' : t(emptyKey) }}
       </p>
 
       <div v-else class="aip-body" data-aip-record-state="present">
@@ -275,10 +290,20 @@ const resultUsage = computed(() => {
           {{
             t('ai.prompt_inspector.stale_notice', {
               record_segment_id: String(aiPromptRecord.segment_id),
-              focused_segment_id: String(editorCaretSegmentId ?? ''),
+              focused_segment_id: String(editorActiveSegmentId ?? ''),
             })
           }}
         </p>
+        <button
+          v-if="isStale"
+          type="button"
+          class="aip-close"
+          data-aip-assemble-selected
+          :disabled="aiPromptAssembleBusy"
+          @click="dispatch('ai.prompt.assemble')"
+        >
+          {{ t('ai.prompt_inspector.assemble_selected') }}
+        </button>
 
         <div v-if="aiPromptInspectorTab === 'result'" class="aip-result" data-aip-tab-panel="result">
           <h3 class="aip-sh">

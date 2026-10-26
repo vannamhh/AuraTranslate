@@ -16,19 +16,19 @@
  * bị canh, không chỉ state phía sau nó.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 ĐỐI CHỨNG TRỰC TIẾP CHO DECISION 2 — "mở màn hình KHÔNG BAO GIỜ lắp ráp"
+ * 🔴 ĐỐI CHỨNG CHO DECISION 2 — mở màn chỉ lắp khi chưa có bản ghi nào
  * ─────────────────────────────────────────────────────────────────────────────
  * `describe('dispatch mo/dong...')` dưới đây dispatch qua ĐÚNG `CommandRegistry` thật
  * (`installCommands` + `dispatch`, không gọi tắt hàm state), với `deps.openAiPromptInspector`/
  * `closeAiPromptInspector` trỏ THẲNG vào hàm SẢN PHẨM của `aiPromptInspectorState.ts` — rồi
- * spy trên adapter `aiPromptAssemble` và khẳng định nó KHÔNG BAO GIỜ được gọi. Đây là phép gỡ
+ * spy trên adapter `aiPromptAssemble` và khẳng định nó không được gọi khi đã có bản ghi. Đây là phép gỡ
  * trực tiếp: nếu một lượt sửa sau này lỡ nối `openAiPromptInspector` sang
  * `assembleCurrentAiPrompt`, ca này đỏ ngay, nêu đích danh.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Ref } from 'vue'
 import type {
   AssembledPromptWire,
@@ -170,11 +170,14 @@ async function freshOverlay() {
   readRecordMock.mockReset()
 
   const caretSegmentId: Ref<number | null> = ref(null)
+  const lastCaretSegmentId: Ref<number | null> = ref(caretSegmentId.value)
+  watch(caretSegmentId, (id) => { if (id !== null) lastCaretSegmentId.value = id }, { flush: 'sync' })
   // 🔴 `AiTranslationPanel.vue` (mount ở `freshPanel()` bên dưới, cùng tệp) đọc thêm hai
   // export này; thiếu một trong hai làm component mount trượt ở `undefined.value`, nên cả
   // hai factory của tệp này phải giữ cùng hình dạng.
   vi.doMock('../../src/panels/editorPanelState', () => ({
     editorCaretSegmentId: caretSegmentId,
+    editorActiveSegmentId: computed(() => caretSegmentId.value ?? lastCaretSegmentId.value),
     editorPendingPromote: ref(null),
     editorPendingPromoteBatch: ref(null),
     editorPromoteBatchReport: ref(null),
@@ -229,10 +232,13 @@ async function freshPanel() {
   readRecordMock.mockResolvedValue(null)
 
   const caretSegmentId: Ref<number | null> = ref(null)
+  const lastCaretSegmentId: Ref<number | null> = ref(caretSegmentId.value)
+  watch(caretSegmentId, (id) => { if (id !== null) lastCaretSegmentId.value = id }, { flush: 'sync' })
   // 🔴 `AiTranslationPanel.vue` mount THẬT ở hàm này đọc thêm hai export này (lỗi PROMOTE
   // qua `tError()`, câu hỏi chống mất bản nháp).
   vi.doMock('../../src/panels/editorPanelState', () => ({
     editorCaretSegmentId: caretSegmentId,
+    editorActiveSegmentId: computed(() => caretSegmentId.value ?? lastCaretSegmentId.value),
     editorPendingPromote: ref(null),
     editorPendingPromoteBatch: ref(null),
     editorPromoteBatchReport: ref(null),
@@ -245,12 +251,13 @@ async function freshPanel() {
   const promptSetState = await import('../../src/promptSetState')
   const i18n = await import('../../src/i18n')
   const AiTranslationPanel = (await import('../../src/panels/AiTranslationPanel.vue')).default
+  const { editorActiveSegmentId } = await import('../../src/panels/editorPanelState')
 
   commands.installCommands({
     openAiPromptInspector: state.openAiPromptInspector,
     closeAiPromptInspector: state.closeAiPromptInspector,
     assembleAiPrompt: () => {
-      void state.assembleCurrentAiPrompt(promptSetState.selectedPromptSetName.value, caretSegmentId.value)
+      void state.assembleCurrentAiPrompt(promptSetState.selectedPromptSetName.value, editorActiveSegmentId.value)
     },
   } as CommandDeps)
 
@@ -681,13 +688,14 @@ describe('AiPromptInspectorOverlay.vue — bản ghi CŨ (Stale record)', () => 
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════════
-// Decision 2 — mở màn hình KHÔNG BAO GIỜ lắp ráp, qua ĐÚNG CommandRegistry thật
+// Decision 2 — mở màn không lắp đè bản ghi đã có, qua ĐÚNG CommandRegistry thật
 // ═══════════════════════════════════════════════════════════════════════════════════
 
-describe('dispatch("ai.prompt_inspector.open"/"close") — chỉ ĐỌC, không bao giờ lắp ráp', () => {
-  it('dispatch open ⇒ gọi ai_prompt_read_record ĐÚNG một lần, aiPromptAssemble KHÔNG BAO GIỜ được gọi', async () => {
-    const { commands, state } = await freshOverlay()
-    readRecordMock.mockResolvedValue(record())
+describe('dispatch("ai.prompt_inspector.open"/"close") — có bản ghi (hoặc không câu hiện tại) thì chỉ ĐỌC, không lắp', () => {
+  it('dispatch open với bản ghi sẵn có ⇒ gọi ai_prompt_read_record ĐÚNG một lần, aiPromptAssemble KHÔNG được gọi', async () => {
+    const { commands, state, caretSegmentId } = await freshOverlay()
+    caretSegmentId.value = 3
+    readRecordMock.mockResolvedValue(record({ segment_id: 3 }))
 
     expect(state.aiPromptInspectorIsOpen.value).toBe(false)
     commands.dispatch('ai.prompt_inspector.open')
@@ -727,6 +735,171 @@ describe('dispatch("ai.prompt_inspector.open"/"close") — chỉ ĐỌC, không 
 
     expect(readRecordMock).toHaveBeenCalledTimes(3)
     expect(assembleMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('mở màn Xem prompt — chưa có bản ghi thì tự lắp cho câu hiện tại', () => {
+  async function mountOverlay() {
+    const ctx = await freshPanel()
+    const OverlayComponent = (await import('../../src/AiPromptInspectorOverlay.vue')).default
+    const panel = mount(ctx.AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+    ctx.promptSetState.setSelectedPromptSetName('Happy')
+    await panel.vm.$nextTick()
+    return { ...ctx, OverlayComponent, panel }
+  }
+
+  it('🔴 không bản ghi + con trỏ ở câu 3 ⇒ lắp ĐÚNG một lần với (bộ đã chọn, 3) và hiện prompt câu 3', async () => {
+    const { commands, state, OverlayComponent, panel, caretSegmentId } = await mountOverlay()
+    caretSegmentId.value = 3
+    readRecordMock.mockResolvedValue(null)
+    assembleMock.mockResolvedValue({ value: record({ segment_id: 3 }), error: null })
+
+    const overlay = mount(OverlayComponent, { attachTo: document.body })
+    commands.dispatch('ai.prompt_inspector.open')
+    await flushPromises()
+    await flushPromises()
+
+    expect(assembleMock).toHaveBeenCalledTimes(1)
+    expect(assembleMock).toHaveBeenCalledWith('Happy', 3)
+    expect(state.aiPromptRecord.value?.segment_id).toBe(3)
+    expect(overlay.get('[data-aip-record-state]').attributes('data-aip-record-state')).toBe('present')
+    expect(overlay.get('.aip-identity').text()).toContain('3')
+
+    overlay.unmount()
+    panel.unmount()
+  })
+
+  it('không bản ghi + tiêu điểm đã rời lưới (chỉ còn câu cuối) ⇒ vẫn lắp cho câu cuối', async () => {
+    const { commands, OverlayComponent, panel, caretSegmentId } = await mountOverlay()
+    caretSegmentId.value = 3
+    caretSegmentId.value = null
+    readRecordMock.mockResolvedValue(null)
+    assembleMock.mockResolvedValue({ value: record({ segment_id: 3 }), error: null })
+
+    const overlay = mount(OverlayComponent, { attachTo: document.body })
+    commands.dispatch('ai.prompt_inspector.open')
+    await flushPromises()
+    await flushPromises()
+
+    expect(assembleMock).toHaveBeenCalledTimes(1)
+    expect(assembleMock).toHaveBeenCalledWith('Happy', 3)
+
+    overlay.unmount()
+    panel.unmount()
+  })
+
+  it('🔴 bản ghi của câu 1, con trỏ ở câu 3 ⇒ không lắp; ghi chú "của câu khác" + nút lắp cho câu đang chọn; bấm nút ⇒ lắp câu 3', async () => {
+    const { commands, state, OverlayComponent, panel, caretSegmentId } = await mountOverlay()
+    caretSegmentId.value = 3
+    readRecordMock.mockResolvedValue(record({ segment_id: 1 }))
+
+    const overlay = mount(OverlayComponent, { attachTo: document.body })
+    commands.dispatch('ai.prompt_inspector.open')
+    await flushPromises()
+    await flushPromises()
+
+    expect(assembleMock).not.toHaveBeenCalled()
+    expect(state.aiPromptRecord.value?.segment_id).toBe(1)
+    expect(overlay.find('[data-aip-stale="true"]').exists()).toBe(true)
+    const button = overlay.get('[data-aip-assemble-selected]')
+
+    assembleMock.mockResolvedValue({ value: record({ segment_id: 3 }), error: null })
+    await button.trigger('click')
+    await flushPromises()
+
+    expect(assembleMock).toHaveBeenCalledTimes(1)
+    expect(assembleMock).toHaveBeenCalledWith('Happy', 3)
+    expect(overlay.find('[data-aip-assemble-selected]').exists()).toBe(false)
+
+    overlay.unmount()
+    panel.unmount()
+  })
+
+  it('🔴 không bản ghi + không câu nào đã chạm ⇒ gợi ý đặt con trỏ vào ô dịch, không gọi lắp', async () => {
+    const { commands, i18n, OverlayComponent, panel } = await mountOverlay()
+    readRecordMock.mockResolvedValue(null)
+
+    const overlay = mount(OverlayComponent, { attachTo: document.body })
+    commands.dispatch('ai.prompt_inspector.open')
+    await flushPromises()
+    await flushPromises()
+
+    expect(assembleMock).not.toHaveBeenCalled()
+    expect(overlay.get('[data-aip-record-state="none"]').text()).toBe(i18n.t('ai.prompt_inspector.no_segment_hint'))
+
+    overlay.unmount()
+    panel.unmount()
+  })
+
+  it('🔴 đang lắp (lượt gọi chưa trả lời) ⇒ trạng thái rỗng nói "Đang lắp prompt", không nói "Chưa lắp ráp prompt nào"', async () => {
+    const { commands, i18n, OverlayComponent, panel, caretSegmentId } = await mountOverlay()
+    caretSegmentId.value = 3
+    readRecordMock.mockResolvedValue(null)
+    assembleMock.mockImplementation(() => new Promise(() => undefined))
+
+    const overlay = mount(OverlayComponent, { attachTo: document.body })
+    commands.dispatch('ai.prompt_inspector.open')
+    await flushPromises()
+    await flushPromises()
+
+    const text = overlay.get('[data-aip-record-state="none"]').text()
+    expect(text).toBe(i18n.t('ai.prompt_inspector.assembling'))
+    expect(text).not.toBe(i18n.t('ai.prompt.summary_no_record'))
+
+    overlay.unmount()
+    panel.unmount()
+  })
+
+  it('🔴 lỗi Lắp cũ bị xoá khi mở màn: bản ghi sẵn có ⇒ không còn [data-aip-assemble-error]', async () => {
+    const { commands, state, OverlayComponent, panel, caretSegmentId } = await mountOverlay()
+    caretSegmentId.value = 3
+    const err: IpcError = {
+      code: 'ai_prompt.no_set_selected',
+      message_key: 'err.ai_prompt.no_set_selected',
+      params: {},
+      retryable: false,
+    }
+    assembleMock.mockResolvedValue({ value: null, error: err })
+    await state.assembleCurrentAiPrompt(null, 3)
+    expect(state.aiPromptAssembleError.value).not.toBeNull()
+
+    readRecordMock.mockResolvedValue(record({ segment_id: 3 }))
+    const overlay = mount(OverlayComponent, { attachTo: document.body })
+    commands.dispatch('ai.prompt_inspector.open')
+    await flushPromises()
+    await flushPromises()
+
+    expect(state.aiPromptAssembleError.value).toBeNull()
+    expect(overlay.find('[data-aip-assemble-error]').exists()).toBe(false)
+
+    overlay.unmount()
+    panel.unmount()
+  })
+
+  it('🔴 không bản ghi + chưa chọn bộ prompt ⇒ lỗi no_set_selected hiện qua tError trong màn', async () => {
+    const { commands, promptSetState, OverlayComponent, panel, caretSegmentId } = await mountOverlay()
+    promptSetState.setSelectedPromptSetName(null)
+    caretSegmentId.value = 3
+    readRecordMock.mockResolvedValue(null)
+    const err: IpcError = {
+      code: 'ai_prompt.no_set_selected',
+      message_key: 'err.ai_prompt.no_set_selected',
+      params: {},
+      retryable: false,
+    }
+    assembleMock.mockResolvedValue({ value: null, error: err })
+
+    const overlay = mount(OverlayComponent, { attachTo: document.body })
+    commands.dispatch('ai.prompt_inspector.open')
+    await flushPromises()
+    await flushPromises()
+
+    expect(assembleMock).toHaveBeenCalledTimes(1)
+    expect(overlay.find('[data-aip-assemble-error]').exists()).toBe(true)
+
+    overlay.unmount()
+    panel.unmount()
   })
 })
 
@@ -934,58 +1107,53 @@ describe('SỬA đua tranh sequence — assembleBusy không treo mãi khi một 
 // `assembleCurrentAiPrompt`/`ai.prompt.assemble` không có ca nào canh trước bản sửa
 // (verification-gap layer bắt được: nhịp GHI DUY NHẤT của Decision 2 không một dòng test)
 // ═══════════════════════════════════════════════════════════════════════════════════
-describe('AiTranslationPanel.vue — nút "Lắp prompt cho câu này" (nhịp GHI của Decision 2)', () => {
-  it('🔴 click ⇒ gọi aiPromptAssemble ĐÚNG với bộ hiệu lực + câu đang focus, rồi ghi kết quả vào aiPromptRecord', async () => {
-    const { state, promptSetState, AiTranslationPanel, caretSegmentId } = await freshPanel()
+describe('AiTranslationPanel.vue — prompt tự lắp khi dịch; lệnh `ai.prompt.assemble` vẫn lắp cho câu hiện tại', () => {
+  it('không bản ghi: không nút Lắp, không dòng tóm tắt "chưa lắp", có dòng "Prompt tự lắp khi dịch" (AC3)', async () => {
+    const { i18n, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 3
+
+    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-ai-prompt-assemble]').exists()).toBe(false)
+    expect(wrapper.find('.ai-inspector-summary').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain(i18n.t('ai.prompt.summary_no_record'))
+    expect(wrapper.get('[data-ai-prompt-auto-note]').text()).toBe(i18n.t('panel.ai_translation.prompt_auto_note'))
+
+    wrapper.unmount()
+  })
+
+  it('🔴 dispatch ai.prompt.assemble ⇒ gọi aiPromptAssemble ĐÚNG với bộ hiệu lực + câu hiện tại, rồi ghi kết quả vào aiPromptRecord', async () => {
+    const { commands, state, promptSetState, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 7
     assembleMock.mockResolvedValue({ value: record({ segment_id: 7, prompt_set_name: 'Happy' }), error: null })
 
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await flushPromises()
     await wrapper.vm.$nextTick()
-    // `setSelectedPromptSetName` chỉ chấp nhận một tên ĐÃ CÓ trong `resolvedSets` — gọi SAU
-    // khi `onMounted`'s `loadPromptSets()` (đã mock `promptSetListMock` ở `freshPanel()`) trả
-    // lời, không trước (xem doc-comment `promptSetListMock`).
     promptSetState.setSelectedPromptSetName('Happy')
     await wrapper.vm.$nextTick()
 
-    const button = wrapper.get('[data-ai-prompt-assemble]')
-    expect(button.attributes('disabled')).toBeUndefined()
-    await button.trigger('click')
-    await wrapper.vm.$nextTick()
+    commands.dispatch('ai.prompt.assemble')
+    await flushPromises()
 
     expect(assembleMock).toHaveBeenCalledTimes(1)
     expect(assembleMock).toHaveBeenCalledWith('Happy', 7)
     expect(state.aiPromptRecord.value?.segment_id).toBe(7)
-    expect(state.aiPromptRecord.value?.prompt_set_name).toBe('Happy')
 
     wrapper.unmount()
   })
 
-  it('không câu nào đang focus ⇒ nút bị `disabled`, gợi ý "Chọn một câu" hiện, và click vẫn KHÔNG gọi aiPromptAssemble (lưới phòng thủ thứ hai)', async () => {
-    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
-    caretSegmentId.value = null
+  it('không câu nào ⇒ assembleCurrentAiPrompt(…, null) không gọi aiPromptAssemble (lưới phòng thủ)', async () => {
+    const { state } = await freshPanel()
 
-    const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
-    await wrapper.vm.$nextTick()
-
-    const button = wrapper.get('[data-ai-prompt-assemble]')
-    expect(button.attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.ai-inspector-hint').exists()).toBe(true)
-
-    // Đúng lưới phòng thủ HAI LỚP doc-comment `assembleCurrentAiPrompt` ghi: nút bị khoá là
-    // lớp THỨ NHẤT; gọi thẳng hàm THẬT (bỏ qua lớp khoá, cùng thể hiện module `state` mà
-    // `freshPanel()` đã nạp cho chính component này) để canh lớp THỨ HAI cũng không gọi
-    // xuống adapter.
     await state.assembleCurrentAiPrompt('Happy', null)
     expect(assembleMock).not.toHaveBeenCalled()
-
-    wrapper.unmount()
   })
 
   it('lượt Lắp trượt (IpcError) ⇒ hiện `.ai-inspector-alert`, KHÔNG ghi đè aiPromptRecord, và cờ bận hạ về false', async () => {
-    const { state, promptSetState, AiTranslationPanel, caretSegmentId } = await freshPanel()
-    promptSetState.setSelectedPromptSetName(null)
+    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 3
     const err: IpcError = {
       code: 'ai_prompt.no_set_selected',
@@ -998,29 +1166,22 @@ describe('AiTranslationPanel.vue — nút "Lắp prompt cho câu này" (nhịp G
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await wrapper.vm.$nextTick()
 
-    // 🔴 SỬA finding B3 (loop 1) — tên ca khẳng định "KHÔNG ghi đè aiPromptRecord" nhưng bản
-    // trước KHÔNG một lần đọc `state.aiPromptRecord` — không thể đỏ dù `assembleCurrentAiPrompt`
-    // có ghi `record.value = ...` ở nhánh lỗi hay không. Dựng SẴN một bản ghi TỐT trước khi
-    // click, để một lượt ghi đè (bug thật) có thứ để XOÁ mất — nếu không, "vẫn null sau khi
-    // lỗi" cũng xanh dù record CHƯA từng được bảo vệ khỏi ghi đè.
-    await state.refreshAiPromptRecord()
     readRecordMock.mockResolvedValueOnce(record({ segment_id: 3 }))
     await state.refreshAiPromptRecord()
     expect(state.aiPromptRecord.value?.segment_id).toBe(3)
 
-    await wrapper.get('[data-ai-prompt-assemble]').trigger('click')
+    await state.assembleCurrentAiPrompt(null, 3)
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('.ai-inspector-alert').exists()).toBe(true)
-    expect(wrapper.get('[data-ai-prompt-assemble]').attributes('disabled')).toBeUndefined()
+    expect(state.aiPromptAssembleBusy.value).toBe(false)
     expect(state.aiPromptRecord.value?.segment_id).toBe(3)
 
     wrapper.unmount()
   })
 
-  it('🔴 SỬA — lỗi Lắp của câu A vẫn hiện sau khi tiêu điểm dời sang câu B chưa hề Lắp ⇒ phải biến mất, không đọc như lỗi của câu B', async () => {
-    const { promptSetState, AiTranslationPanel, caretSegmentId } = await freshPanel()
-    promptSetState.setSelectedPromptSetName(null)
+  it('🔴 lỗi Lắp còn hiện khi tiêu điểm rời lưới (con trỏ về null, câu hiện tại không đổi); chỉ mất khi câu hiện tại đổi thật', async () => {
+    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 3
     const err: IpcError = {
       code: 'ai_prompt.no_set_selected',
@@ -1033,21 +1194,23 @@ describe('AiTranslationPanel.vue — nút "Lắp prompt cho câu này" (nhịp G
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await wrapper.vm.$nextTick()
 
-    await wrapper.get('[data-ai-prompt-assemble]').trigger('click')
+    await state.assembleCurrentAiPrompt(null, 3)
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.ai-inspector-alert').exists()).toBe(true)
 
-    // Tiêu điểm dời sang một câu KHÁC — người dùng chưa hề bấm Lắp lại cho câu này.
+    caretSegmentId.value = null
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.ai-inspector-alert').exists()).toBe(true)
+
     caretSegmentId.value = 4
     await wrapper.vm.$nextTick()
-
     expect(wrapper.find('.ai-inspector-alert').exists()).toBe(false)
 
     wrapper.unmount()
   })
 
-  it('cờ bận: nút đổi nhãn thành "Đang lắp ráp…" và bị `disabled` NGAY khi click, trước khi lượt gọi trả lời', async () => {
-    const { AiTranslationPanel, caretSegmentId, i18n } = await freshPanel()
+  it('cờ bận: dispatch ai.prompt.assemble giữ aiPromptAssembleBusy true tới khi lượt gọi trả lời', async () => {
+    const { commands, state, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 1
 
     type AssembleResult = { value: null; error: null }
@@ -1059,17 +1222,13 @@ describe('AiTranslationPanel.vue — nút "Lắp prompt cho câu này" (nhịp G
     const wrapper = mount(AiTranslationPanel, { props: { params: { params: {} } }, attachTo: document.body })
     await wrapper.vm.$nextTick()
 
-    await wrapper.get('[data-ai-prompt-assemble]').trigger('click')
-
-    const button = wrapper.get('[data-ai-prompt-assemble]')
-    expect(button.attributes('disabled')).toBeDefined()
-    expect(button.text()).toBe(i18n.t('panel.ai_translation.assemble_busy'))
+    commands.dispatch('ai.prompt.assemble')
+    await wrapper.vm.$nextTick()
+    expect(state.aiPromptAssembleBusy.value).toBe(true)
 
     resolveAssemble({ value: null, error: null })
-    await wrapper.vm.$nextTick()
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.get('[data-ai-prompt-assemble]').text()).toBe(i18n.t('command.ai.prompt.assemble'))
+    await flushPromises()
+    expect(state.aiPromptAssembleBusy.value).toBe(false)
 
     wrapper.unmount()
   })
@@ -1347,7 +1506,7 @@ describe('finding B2 — unknown_markers và source_segment_missing thật sự 
 // nhưng `.ai-inspector-summary` (panel) thì chưa — một phần tử KHÁC, một component KHÁC.
 // ═══════════════════════════════════════════════════════════════════════════════════
 describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả ba trạng thái', () => {
-  it('🔴 no_record ⇒ kind="no_record" + đúng văn bản summary_no_record', async () => {
+  it('🔴 no_record ⇒ không dòng tóm tắt nào trong DOM (panel chỉ nói "Prompt tự lắp khi dịch")', async () => {
     const { AiTranslationPanel } = await freshPanel()
     readRecordMock.mockResolvedValue(null)
 
@@ -1355,8 +1514,7 @@ describe('finding V5 — AiTranslationPanel.vue mount dòng tóm tắt qua cả 
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    const summary = wrapper.get('.ai-inspector-summary')
-    expect(summary.attributes('data-ai-prompt-summary-kind')).toBe('no_record')
+    expect(wrapper.find('.ai-inspector-summary').exists()).toBe(false)
     wrapper.unmount()
   })
 

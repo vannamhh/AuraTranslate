@@ -39,6 +39,7 @@ async function fresh() {
   }))
   vi.doMock('../../src/panels/editorPanelState', () => ({
     editorCaretSegmentId: caret,
+    editorActiveSegmentId: caret,
     editorSegments: segments,
     flushEditorBeforeDiscreteWrite: flush,
     promoteAiTranslationToEditor: vi.fn(),

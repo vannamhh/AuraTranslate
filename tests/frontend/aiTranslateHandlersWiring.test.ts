@@ -64,3 +64,23 @@ describe('main.ts nối các handler AI từ một module dùng chung', () => {
     ])
   })
 })
+
+describe('luồng AI đọc câu hiện tại từ một nguồn: editorActiveSegmentId, không phải con trỏ trần', () => {
+  const nonComment = (path: string): string[] =>
+    codeLines(path).filter((line) => !/^\s*(\*|\/\*)/.test(line))
+
+  it.each([
+    'src/aiTranslateHandlers.ts',
+    'src/panels/AiTranslationPanel.vue',
+    'src/AiPromptInspectorOverlay.vue',
+    'src/aiPromptInspectorState.ts',
+  ])('%s không đọc editorCaretSegmentId trong dòng mã', (path) => {
+    expect(nonComment(path).filter((line) => line.includes('editorCaretSegmentId'))).toEqual([])
+  })
+
+  it('lệnh ai.prompt.assemble của main.ts lắp cho editorActiveSegmentId', () => {
+    const lines = nonComment('src/main.ts').filter((line) => line.includes('assembleCurrentAiPrompt('))
+    expect(lines.length).toBe(1)
+    expect(lines[0]).toContain('editorActiveSegmentId.value')
+  })
+})

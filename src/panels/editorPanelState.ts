@@ -17,7 +17,7 @@
  * ⚠️ Bảng ánh xạ *trạng thái → vạch* **không** ở đây: nó sống ở `./editorSegments.ts`, một
  * module thuần mà cổng `import()` chạy được. Đừng kéo nó về đây cho gần.
  */
-import { nextTick, readonly, ref, shallowRef, triggerRef, watch } from 'vue'
+import { computed, nextTick, readonly, ref, shallowRef, triggerRef, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { textShapeOf } from './editorSegments'
 import type { TextShape } from './editorSegments'
@@ -177,6 +177,13 @@ export const editorPending: DeepReadonly<Ref<boolean>> = readonly(pending)
 export const editorCaretSegmentId: DeepReadonly<Ref<number | null>> = readonly(caretSegmentId)
 /** The last non-null caret: a pointer on a titlebar button blurs the grid and nulls the caret first. */
 export const editorLastCaretSegmentId: DeepReadonly<Ref<number | null>> = readonly(lastCaretSegmentId)
+
+/** The segment the AI flow acts on: the caret, else the last caret while it is still in the Chapter. */
+export const editorActiveSegmentId = computed<number | null>(() => {
+  if (caretSegmentId.value !== null) return caretSegmentId.value
+  const last = lastCaretSegmentId.value
+  return last !== null && segments.value.some((s) => s.id === last) ? last : null
+})
 
 /**
  * 🔴 Lượt nạp **đã trả lời và trả lời được** — điều kiện để một danh sách rỗng có nghĩa.

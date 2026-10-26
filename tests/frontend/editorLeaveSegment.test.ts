@@ -157,3 +157,42 @@ describe('editorLastCaretSegmentId', () => {
     expect(state.editorLastCaretSegmentId.value).toBe(null)
   })
 })
+
+describe('editorActiveSegmentId', () => {
+  it('the caret wins over the last caret', async () => {
+    const state = await freshState()
+    state.setEditorCaret(11)
+    state.setEditorCaret(12)
+    expect(state.editorActiveSegmentId.value).toBe(12)
+  })
+
+  it('a null caret falls back to the last caret while it is still in the Chapter', async () => {
+    const state = await freshState()
+    state.setEditorCaret(13)
+    state.setEditorCaret(null)
+    expect(state.editorCaretSegmentId.value).toBe(null)
+    expect(state.editorActiveSegmentId.value).toBe(13)
+  })
+
+  it('no segment has been touched yet ⇒ null', async () => {
+    const state = await freshState()
+    expect(state.editorActiveSegmentId.value).toBe(null)
+  })
+
+  it('a last caret whose id is no longer in the Chapter ⇒ null', async () => {
+    const state = await freshState()
+    state.setEditorCaret(999)
+    state.setEditorCaret(null)
+    expect(state.editorLastCaretSegmentId.value).toBe(999)
+    expect(state.editorActiveSegmentId.value).toBe(null)
+  })
+
+  it('switching Chapter (reset) drops the last caret', async () => {
+    const state = await freshState()
+    state.setEditorCaret(11)
+    state.setEditorCaret(null)
+    expect(state.editorActiveSegmentId.value).toBe(11)
+    state.resetEditorPanel()
+    expect(state.editorActiveSegmentId.value).toBe(null)
+  })
+})

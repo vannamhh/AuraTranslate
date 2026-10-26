@@ -35,7 +35,7 @@
  * đã đăng ký — không một lệnh thứ hai. Nhưng lệnh đó (`main.ts`) trước Story 4.9 chỉ biết đọc
  * `aiTranslateState.ts::runSegmentId`/`accumulatedText` (kết quả của MỘT lượt đơn); một kết
  * quả đến từ lô không có mặt ở đó. Hàm thuần này là cầu nối: `main.ts` truyền
- * `editorCaretSegmentId.value` (Decision 3: "each promote targets the caret segment") vào,
+ * `editorActiveSegmentId.value` (Decision 3: "each promote targets the caret segment") vào,
  * nhận về văn bản CHỐT của đúng hàng đó nếu hàng đang ở trạng thái `done` — `null` cho MỌI
  * trạng thái khác, kể cả `cancelled`/`error`/`running` (chưa chốt, không đáng ghi vào Editor).
  *

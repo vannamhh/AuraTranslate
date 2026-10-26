@@ -77,7 +77,7 @@ export const aiTranslateUsage: DeepReadonly<Ref<AiTranslateUsageWire | null>> = 
 /**
  * `true` ⇔ lượt dịch hiện tại/gần nhất được khởi cho một câu KHÁC câu đang có tiêu điểm bây
  * giờ — cùng khuôn [`aiPromptRecordIsStale`] (`aiPromptInspectorState.ts`). HÀM THUẦN — chỗ gọi
- * (`AiTranslationPanel.vue`) truyền `editorCaretSegmentId` vào, tệp này không tự `import` nó
+ * (`AiTranslationPanel.vue`) truyền `editorActiveSegmentId` vào, tệp này không tự `import` nó
  * (cùng lý lẽ `aiPromptInspectorState.ts` đã ghi).
  *
  * `runningSegmentId === null` (chưa lượt nào chạy) hoặc `focusedSegmentId === null` (không câu
@@ -102,7 +102,7 @@ export function isAiTranslateResultStale(
  */
 export async function runAiTranslate(promptSetName: string | null, segmentId: number | null): Promise<void> {
   if (segmentId === null) {
-    console.warn('[ai-translate] khong dich: khong co cau nao dang duoc chon (editorCaretSegmentId === null)')
+    console.warn('[ai-translate] khong dich: khong co cau nao dang duoc chon (editorActiveSegmentId === null)')
     return
   }
   await runTranslateWith(segmentId, (onToken) => runAiTranslateSegment(segmentId, promptSetName, onToken))

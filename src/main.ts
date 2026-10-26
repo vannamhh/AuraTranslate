@@ -34,7 +34,7 @@ import {
   cancelPendingPromote,
   confirmCurrentSegment,
   confirmPendingPromote,
-  editorCaretSegmentId,
+  editorActiveSegmentId,
   editorChapterId,
   editorSegments,
   goToNextChapter,
@@ -1091,13 +1091,13 @@ async function boot(): Promise<void> {
       },
       // Story 4.7 · FR71/AD-14 — "Xem prompt cuối cùng đã gửi". `openAiPromptInspector`/
       // `closeAiPromptInspector` là handler tĩnh (không tham số); `assembleAiPrompt` đọc CẢ
-      // câu đang có tiêu điểm (`editorCaretSegmentId`) LẪN bộ prompt hiệu lực
+      // câu đang có tiêu điểm (`editorActiveSegmentId`) LẪN bộ prompt hiệu lực
       // (`selectedPromptSetName`) TẠI THỜI ĐIỂM CHẠY — cùng khuôn `saveGlossaryConfirmStrip`
       // ở trên (đọc `editorChapterId`/`sourceChapter` lúc chạy, không qua tham số command).
       openAiPromptInspector,
       closeAiPromptInspector,
       assembleAiPrompt: () => {
-        void assembleCurrentAiPrompt(selectedPromptSetName.value, editorCaretSegmentId.value)
+        void assembleCurrentAiPrompt(selectedPromptSetName.value, editorActiveSegmentId.value)
       },
       ...aiTranslateHandlers,
       ...aiPromptInspectorHandlers,

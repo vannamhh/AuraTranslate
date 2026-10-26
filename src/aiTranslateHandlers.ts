@@ -24,7 +24,7 @@ import {
 import { aiPromptRecord, refreshAiPromptRecord, selectAiPromptInspectorTab } from './aiPromptInspectorState'
 import {
   cancelPendingPromote,
-  editorCaretSegmentId,
+  editorActiveSegmentId,
   editorPendingPromoteBatch,
   promoteAiTranslationBatchToEditor,
   promoteAiTranslationToEditor,
@@ -42,7 +42,7 @@ export const aiTranslateHandlers = {
       console.warn('[ai-translate] khong dich: mot lo dang chay')
       return
     }
-    void runAiTranslate(selectedPromptSetName.value, editorCaretSegmentId.value)
+    void runAiTranslate(selectedPromptSetName.value, editorActiveSegmentId.value)
   },
 
   resendAiPrompt: (): void => {
@@ -74,7 +74,7 @@ export const aiTranslateHandlers = {
     const text = aiTranslateAccumulatedText.value
     const singleUsable = (state === 'done' || state === 'cancelled') && segmentId !== null && text !== ''
 
-    const caretId = editorCaretSegmentId.value
+    const caretId = editorActiveSegmentId.value
     const batchText = caretId === null ? null : aiTranslateBatchTextForSegment(aiTranslateBatchRows.value, caretId)
     const batchUsable = batchText !== null && caretId !== null
 

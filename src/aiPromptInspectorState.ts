@@ -5,9 +5,8 @@
  * 🔴 HAI NHỊP, HAI HÀM — Decision 2 spec 4.7, và tệp này là nơi ranh giới đó SỐNG
  * ─────────────────────────────────────────────────────────────────────────────
  * [`assembleCurrentAiPrompt`] LẮP RÁP + GHI (gọi `ai_prompt_assemble`); [`openAiPromptInspector`]/
- * [`refreshAiPromptRecord`] chỉ ĐỌC (gọi `ai_prompt_read_record`). Không hàm nào ở tệp này gọi
- * hàm kia. Mở lớp phủ KHÔNG BAO GIỜ lắp ráp — nếu nó lắp, AC4 ("đúng chuỗi đã gửi, không phải
- * bản dựng lại") sai theo cấu tạo, dù `assemble_prompt` có thuần tới đâu (§Design Notes spec 4.7).
+ * [`refreshAiPromptRecord`] chỉ ĐỌC (gọi `ai_prompt_read_record`). Mở lớp phủ chỉ lắp khi Rust chưa
+ * giữ bản ghi nào; một bản ghi đã có (kể cả của câu khác) không bao giờ bị lắp đè khi mở.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔵 VÌ SAO CẢ HAI GHI VÀO CÙNG MỘT Ô `record` Ở ĐÂY
@@ -27,6 +26,8 @@ import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { aiPromptAssemble, aiPromptReadRecord } from './config/aiprompt'
 import type { AssembledPromptWire } from './config/aiprompt'
 import type { IpcError } from './i18n'
+import { editorActiveSegmentId } from './panels/editorPanelState'
+import { selectedPromptSetName } from './promptSetState'
 
 /** Hình dạng mà `aiPromptRecord.value` THẬT SỰ mang — `readonly()` của Vue làm sâu mọi mảng
  * lồng bên trong thành `readonly T[]`. Hai hàm thuần dưới đây nhận đúng hình dạng đó (không
@@ -157,13 +158,18 @@ export async function refreshAiPromptRecord(): Promise<void> {
   adoptRecord(result.value, false)
 }
 
-/** Handler thật của `ai.prompt_inspector.open` — chỉ ĐỌC (Decision 2), không đường nào ở đây
- * gọi lắp ráp. */
+/** Handler of `ai.prompt_inspector.open`: reads the record, and assembles for the current
+ * segment only when Rust holds no record at all. A record of another segment is left alone. */
 export function openAiPromptInspector(): void {
   overlayOpen.value = true
   tab.value = 'prompt'
   copyState.value = 'idle'
-  void refreshAiPromptRecord()
+  assembleError.value = null
+  void refreshAiPromptRecord().then(() => {
+    const segmentId = editorActiveSegmentId.value
+    if (record.value !== null || readError.value !== null || segmentId === null) return
+    return assembleCurrentAiPrompt(selectedPromptSetName.value, segmentId)
+  })
 }
 
 /** Handler thật của `ai.prompt_inspector.close`. KHÔNG dọn bản ghi đã đọc — mở lại không cần
@@ -182,7 +188,7 @@ export function closeAiPromptInspector(): void {
  * sang câu B mà người dùng chưa hề bấm Lắp lại — đúng khuyết tật hạng "bản ghi cũ" §Always
  * cấm, chỉ khác đối tượng (lỗi, không phải bản ghi).
  *
- * Gọi từ `AiTranslationPanel.vue` — nơi DUY NHẤT đọc `editorCaretSegmentId` cho mục này (cùng
+ * Gọi từ `AiTranslationPanel.vue` — nơi DUY NHẤT đọc `editorActiveSegmentId` cho mục này (cùng
  * lý lẽ `AiPromptInspectorOverlay.vue` không tự `import` state đó cho `aiPromptRecordIsStale`)
  * — mỗi khi câu đang tiêu điểm ĐỔI. Không đụng `record`/`overlayOpen`/`assembleBusy`: một lỗi
  * hết hạn không có nghĩa bản ghi ĐÃ GHI cũng hết hạn (đó là việc của `aiPromptRecordIsStale`,
@@ -207,7 +213,7 @@ export async function assembleCurrentAiPrompt(promptSetName: string | null, segm
   if (assembleBusy.value) return
   if (segmentId === null) {
     console.warn(
-      '[ai-prompt] khong lap rap: khong co cau nao dang duoc chon (editorCaretSegmentId === null)',
+      '[ai-prompt] khong lap rap: khong co cau nao dang duoc chon (editorActiveSegmentId === null)',
     )
     return
   }
@@ -287,9 +293,9 @@ export const aiPromptGlossaryDelta: ComputedRef<number | null> = computed(() => 
  * `true` ⇔ bản ghi hiện tại được lắp từ một câu KHÁC câu đang có tiêu điểm bây giờ — I/O
  * Matrix "Stale record": "Record was built from segment A; segment B is now focused ⇒ Screen
  * shows the record AND names the segment it belongs to". HÀM THUẦN — chỗ gọi
- * ([`AiPromptInspectorOverlay.vue`]) truyền `focusedSegmentId` từ `editorCaretSegmentId`
+ * ([`AiPromptInspectorOverlay.vue`]) truyền `focusedSegmentId` từ `editorActiveSegmentId`
  * (tệp này không tự `import` state đó — cùng lý lẽ `glossaryConfirmStripState.ts` đã ghi cho
- * việc KHÔNG `watch(editorCaretSegmentId, …)` trong một module core).
+ * việc KHÔNG `watch(editorActiveSegmentId, …)` trong một module core).
  *
  * `focusedSegmentId === null` ⇒ không so được gì (không câu nào đang chọn) ⇒ `false` —
  * không tự xưng "cũ" khi không có gì để đối chiếu.

@@ -9,7 +9,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { flushPromises } from './support/flushMicrotasks'
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Ref } from 'vue'
 import type {
   AssembledPromptWire,
@@ -137,8 +137,11 @@ async function freshScreen() {
   hoisted.segmentCalls.length = 0
 
   const caret: Ref<number | null> = ref(1)
+  const lastCaretSegmentId: Ref<number | null> = ref(caret.value)
+  watch(caret, (id) => { if (id !== null) lastCaretSegmentId.value = id }, { flush: 'sync' })
   vi.doMock('../../src/panels/editorPanelState', () => ({
     editorCaretSegmentId: caret,
+    editorActiveSegmentId: computed(() => caret.value ?? lastCaretSegmentId.value),
     editorPendingPromote: ref(null),
     editorPendingPromoteBatch: ref(null),
     editorPromoteBatchReport: ref(null),
