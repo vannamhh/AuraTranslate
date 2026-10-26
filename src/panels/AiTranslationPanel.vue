@@ -85,6 +85,7 @@ import type { AiTranslateUsageWire } from '../config/aitranslate'
 import { aiUsageSummaryLine, formatUsdParam } from '../aiUsageLine'
 import type { AiUsageSummary } from '../aiUsageLine'
 import { segmentSelectionCount } from './segmentSelectionState'
+import { chapterUntranslatedIds } from '../chapterTranslateScope'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
 defineProps<DockviewPanelProps>()
@@ -137,6 +138,14 @@ const batchRunLabel = computed<string>(() =>
   segmentSelectionCount.value === 0
     ? t('command.ai.translate.batch_run')
     : t('panel.ai_translation.batch_run_count', { count: String(segmentSelectionCount.value) }),
+)
+
+const chapterUntranslatedCount = computed<number>(() => chapterUntranslatedIds.value.length)
+
+const chapterRunLabel = computed<string>(() =>
+  chapterUntranslatedCount.value === 0
+    ? t('command.ai.translate.chapter_run')
+    : t('panel.ai_translation.chapter_run_count', { count: String(chapterUntranslatedCount.value) }),
 )
 
 /** `false` ⇔ không câu nào đang được chọn — chưa mở Tác phẩm, hoặc đã mở nhưng chưa đặt tiêu
@@ -261,6 +270,13 @@ const aiTranslateBatchUsageLineValue = computed<AiTranslateUsageLine | null>(() 
 // Cùng khuôn khối Story 4.8 ngay trên: vô hiệu hoá nút Ở ĐÂY (chỗ BIẾT TRƯỚC — vùng chọn
 // rỗng, hoặc một lượt ĐƠN/LÔ khác đang chạy), lớp phòng thủ thứ hai sống trong
 // `runAiTranslateBatch` chính nó (`aiTranslateBatchState.ts`, "kêu, không ném").
+const canRunAiTranslateChapter = computed<boolean>(
+  () =>
+    chapterUntranslatedCount.value > 0 &&
+    aiTranslateStateValue.value !== 'generating' &&
+    aiTranslateBatchStateValue.value !== 'generating',
+)
+
 const canRunAiTranslateBatch = computed<boolean>(
   () =>
     segmentSelectionCount.value > 0 &&
@@ -607,6 +623,16 @@ const openSettingsLabel = computed(() =>
            Phase 3: "reuse the existing cancel button"), khối dưới đây chỉ thêm phần LÔ
            không có ở lượt đơn: nút chạy lô, tiến độ, và danh sách hàng. -->
       <div class="ai-batch-bar">
+        <button
+          type="button"
+          class="ai-translate-batch-run"
+          data-ai-translate-chapter-run
+          :disabled="!canRunAiTranslateChapter"
+          @click="dispatch('ai.translate.chapter_run')"
+        >
+          <!-- aura-allow-text: KẾT QUẢ của t() (nhãn kèm số câu chưa dịch). -->
+          {{ chapterRunLabel }}
+        </button>
         <button
           type="button"
           class="ai-translate-batch-run"

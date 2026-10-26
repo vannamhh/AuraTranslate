@@ -2579,7 +2579,7 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
         normalize_param_list(&batch_params),
         normalize_param_list(
             "app: tauri::AppHandle<R>, segment_ids: Vec<i64>, prompt_set_name: Option<String>, \
-             channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,"
+             skip_translated: bool, channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,"
         ),
         "vo `ai_translate_batch` trong `pub mod wire` cua commands/aitranslate.rs khong con \
          dung danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \

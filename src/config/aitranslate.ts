@@ -209,6 +209,7 @@ export async function runAiTranslateBatchCall(
   segmentIds: number[],
   promptSetName: string | null,
   onEvent: (event: AiTranslateBatchEventWire) => void,
+  skipTranslated = false,
 ): Promise<{ value: AiTranslateOutcomeWire | null; error: IpcError | null }> {
   const channel = new Channel<unknown>()
   channel.onmessage = (raw) => {
@@ -222,7 +223,7 @@ export async function runAiTranslateBatchCall(
   }
 
   try {
-    const wire = await invoke<unknown>(CMD_TRANSLATE_BATCH, { segmentIds, promptSetName, channel })
+    const wire = await invoke<unknown>(CMD_TRANSLATE_BATCH, { segmentIds, promptSetName, skipTranslated, channel })
     if (!isAiTranslateOutcomeWire(wire)) {
       console.error(
         `[aitranslate] \`${CMD_TRANSLATE_BATCH}\` tra ve mot hinh dang khong dung AiTranslateOutcomeWire`,

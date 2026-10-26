@@ -981,6 +981,7 @@ mod nfr_bench {
                                 app.clone(),
                                 batch_ids.clone(),
                                 Some(E7_PROMPT_SET.to_owned()),
+                                false,
                                 Channel::new(|_| Ok(())),
                             ));
                         outcome_of(&result)

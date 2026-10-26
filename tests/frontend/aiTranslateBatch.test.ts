@@ -237,7 +237,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.batch_run") qua "fak
     await flushPromises()
 
     expect(runBatchMock).toHaveBeenCalledTimes(1)
-    expect(runBatchMock).toHaveBeenCalledWith([11, 12, 13], null, expect.any(Function))
+    expect(runBatchMock).toHaveBeenCalledWith([11, 12, 13], null, expect.any(Function), false)
 
     fake.emit({ kind: 'token', segment_id: 11, text: 'Mot.' })
     fake.emit({ kind: 'done', segment_id: 11, usage: null })
@@ -622,7 +622,7 @@ describe('AiTranslationPanel.vue — nút "Thử lại" LÔ (Story 4.10, §Alway
     // 🔴 Mệnh đề trung tâm: ĐÚNG [12, 13], KHÔNG [11, 12, 13] -- câu 11 đã "done" không bao giờ
     // được gọi lại.
     expect(runBatchMock).toHaveBeenCalledTimes(1)
-    expect(runBatchMock).toHaveBeenCalledWith([12, 13], null, expect.any(Function))
+    expect(runBatchMock).toHaveBeenCalledWith([12, 13], null, expect.any(Function), false)
     expect(batchState.aiTranslateBatchStateValue.value).toBe('generating')
     expect(batchState.aiTranslateBatchRows.value.map((r) => r.segmentId)).toEqual([11, 12, 13])
     expect(batchState.aiTranslateBatchRows.value.map((r) => r.status)).toEqual(['done', 'pending', 'pending'])
@@ -777,7 +777,7 @@ describe('I/O Matrix "Selection changes while a batch runs" — lô đang chạy
 
     // `runAiTranslateBatch` chụp một BẢN SAO (`ids = segmentIds.slice()`) NGAY tại lời gọi —
     // đây là mệnh đề trung tâm của ca này, không phải một chi tiết cài đặt.
-    expect(runBatchMock).toHaveBeenCalledWith([11, 12], null, expect.any(Function))
+    expect(runBatchMock).toHaveBeenCalledWith([11, 12], null, expect.any(Function), false)
     expect(batchState.aiTranslateBatchRows.value.map((r) => r.segmentId)).toEqual([11, 12])
 
     // Mở rộng vùng chọn thêm MỘT hàng — cùng hợp âm AC1 — trong khi lô vẫn đang chảy.
@@ -1081,7 +1081,7 @@ describe('thử lại lô giữ hàng đã xong (C1) và promote theo lượt b�
     ctx.commands.dispatch('ai.translate.batch_retry')
     await flushPromises()
 
-    expect(runBatchMock).toHaveBeenCalledWith([12, 13], null, expect.any(Function))
+    expect(runBatchMock).toHaveBeenCalledWith([12, 13], null, expect.any(Function), false)
     expect(ctx.batchState.aiTranslateBatchRows.value.map((r) => [r.segmentId, r.status, r.text])).toEqual([
       [11, 'done', 'Ket qua 1'],
       [12, 'pending', ''],

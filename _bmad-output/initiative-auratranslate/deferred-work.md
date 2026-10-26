@@ -13482,6 +13482,7 @@ chính nó.
 - source_plan: none
   summary: Nút "Dịch cả Chương (N chưa dịch)" trên panel Đề xuất AI — chỉ gửi câu `target_text` rỗng và không cắt bỏ, theo thứ tự tài liệu; N đúng bằng số câu gửi, khoá khi N = 0 hoặc chưa mở Tác phẩm; danh sách do Rust tính (AD-1), chạy qua `ai_translate_batch` có sẵn.
   evidence: Ice duyệt qua Sally 2026-10-26; tách vì cần lệnh Rust mới và test riêng, còn phần giao diện gọn thuần webview. Plan kia dựng hàng nút thứ hai chừa chỗ cho nút này. **Chủ: Ice.**
+  → ✅ ĐÃ ĐÓNG 2026-10-26 (plan-dich-ca-chuong) — nút gửi qua `ai_translate_batch` với `skip_translated`; Rust lọc lại theo DB.
 - source_plan: `plan-panel-de-xuat-ai-gon.md`
   summary: Dòng đầu panel Đề xuất AI và màn Prompt báo "Chưa có bộ prompt nào" cả khi `loadPromptSets()` chưa về hoặc nạp lỗi (`promptSets.length === 0`, không đọc `promptSetLoading`/`promptSetLoadError`).
   evidence: Có từ trước plan này (panel cũ cùng điều kiện); một lượt nạp lỗi bảo Ice đi tạo bộ mới thay vì báo lỗi — đúng lớp "im lặng rỗng" của AGENTS.md. **Chủ: Ice.**

@@ -246,6 +246,7 @@ function setRowAt(index: number, patch: Partial<AiTranslateBatchRow>): void {
 export async function runAiTranslateBatch(
   promptSetName: string | null,
   segmentIds: readonly number[],
+  skipTranslated = false,
 ): Promise<void> {
   if (state.value === 'generating') {
     console.warn('[ai-translate-batch] khong dich: mot lo khac dang chay')
@@ -257,6 +258,7 @@ export async function runAiTranslateBatch(
   }
 
   const ids = segmentIds.slice()
+  batchSkipsTranslated = skipTranslated
   rowIndexBySegmentId = new Map(ids.map((id, index) => [id, index]))
   rows.value = ids.map((id) => ({ segmentId: id, status: 'pending', text: '', usage: null }))
   await streamBatch(promptSetName, ids)
@@ -283,6 +285,8 @@ export async function retryAiTranslateBatch(
   await streamBatch(promptSetName, ids)
 }
 
+let batchSkipsTranslated = false
+
 async function streamBatch(promptSetName: string | null, ids: number[]): Promise<void> {
   const mine = ++sequence
   startStamp.value = nextAiTranslateRunStamp()
@@ -307,7 +311,7 @@ async function streamBatch(promptSetName: string | null, ids: number[]): Promise
     setRowAt(index, { status: 'skipped' })
   }
 
-  const result = await runAiTranslateBatchCall(ids, promptSetName, onEvent)
+  const result = await runAiTranslateBatchCall(ids, promptSetName, onEvent, batchSkipsTranslated)
   if (mine !== sequence) return // đã bị vượt mặt trong lúc lượt gọi này còn đang bay
 
   if (result.error !== null) {
@@ -383,4 +387,5 @@ export function resetAiTranslateBatch(): void {
   error.value = null
   startStamp.value = 0
   rowIndexBySegmentId = new Map()
+  batchSkipsTranslated = false
 }

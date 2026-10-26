@@ -1230,6 +1230,8 @@ export type CommandDeps = {
    * lực đang chọn, theo THỨ TỰ TÀI LIỆU. Handler của `ai.translate.batch_run`. Cùng cổng
    * loại-trừ-lẫn-nhau với `runAiTranslate` — xem doc-comment tại chỗ đăng ký lệnh. */
   runAiTranslateBatch?: () => void
+  /** Sends every untranslated, non-omitted segment of the open Chapter through the batch path. */
+  runAiTranslateChapter?: () => void
 
   // ── Story 4.10, Phase 2 — "Lỗi mạng và lỗi API": nút Thử lại (FR75, AD-22) ─────────
   /** Gọi lại lượt dịch MỘT segment cho ĐÚNG câu vừa lỗi (`aiTranslateRunSegmentId`, không phải
@@ -5184,6 +5186,18 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('ai.translate.batch_run', 'runAiTranslateBatch')
       }
       deps.runAiTranslateBatch()
+    },
+  })
+
+  target.register({
+    id: 'ai.translate.chapter_run',
+    labelKey: 'command.ai.translate.chapter_run',
+    keys: undefined,
+    run: () => {
+      if (deps.runAiTranslateChapter === undefined) {
+        return portMissing('ai.translate.chapter_run', 'runAiTranslateChapter')
+      }
+      deps.runAiTranslateChapter()
     },
   })
 

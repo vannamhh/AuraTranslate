@@ -183,6 +183,7 @@ async function freshOverlay() {
     editorPendingPromoteBatch: ref(null),
     editorPromoteBatchReport: ref(null),
     editorSegments: ref([]),
+    editorEditedShape: ref(new Map()),
     editorPromoteAiTranslationError: ref(null),
   }))
 
@@ -244,6 +245,7 @@ async function freshPanel() {
     editorPendingPromoteBatch: ref(null),
     editorPromoteBatchReport: ref(null),
     editorSegments: ref([]),
+    editorEditedShape: ref(new Map()),
     editorPromoteAiTranslationError: ref(null),
   }))
 

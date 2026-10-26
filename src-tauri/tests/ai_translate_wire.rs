@@ -20,7 +20,9 @@ use auratranslate_lib::commands::aitranslate::{
 };
 use auratranslate_lib::commands::project::{OpenWork, OpenWorkState, create_work_from_text};
 use auratranslate_lib::commands::promptset::prompt_set_create;
-use auratranslate_lib::commands::segment::{read_open_chapter_segments, set_segment_omitted};
+use auratranslate_lib::commands::segment::{
+    SegmentTargetEdit, read_open_chapter_segments, save_segment_targets, set_segment_omitted,
+};
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, write_field};
 use auratranslate_lib::core::promptset::PromptSetTier;
 use auratranslate_lib::core::store::{Store, StoreSpec};
@@ -315,6 +317,7 @@ fn a_batch_stamps_only_the_last_sentence_that_was_sent_and_never_an_omitted_tail
         h.app.handle().clone(),
         ids.clone(),
         Some("Plain".to_owned()),
+        false,
         channel,
     ))
     .expect("ai_translate_batch phai tra Ok");
@@ -347,6 +350,142 @@ fn a_batch_stamps_only_the_last_sentence_that_was_sent_and_never_an_omitted_tail
         "khoi last_sent cua lo phai danh dau ban ghi da gui"
     );
     assert_eq!(record.sent_model.as_deref(), Some("gpt-wire"));
+}
+
+fn run_batch_collecting_events(h: &Harness, ids: Vec<i64>, skip_translated: bool) -> Vec<String> {
+    let events = Arc::new(Mutex::new(Vec::<String>::new()));
+    let sink = Arc::clone(&events);
+    let channel = tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(move |body| {
+        if let tauri::ipc::InvokeResponseBody::Json(json) = body {
+            sink.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(json);
+        }
+        Ok(())
+    });
+    let outcome = tauri::async_runtime::block_on(wire::ai_translate_batch(
+        h.app.handle().clone(),
+        ids,
+        Some("Plain".to_owned()),
+        skip_translated,
+        channel,
+    ))
+    .expect("ai_translate_batch phai tra Ok");
+    assert!(
+        matches!(outcome, AiTranslateOutcomeWire::Done { .. }),
+        "ket qua: {outcome:?}"
+    );
+    let seen = events
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    seen.clone()
+}
+
+fn half_translated_chapter(tag: &str, connections: usize) -> (Harness, Vec<i64>) {
+    let h = Harness::new(tag, "One. Two. Three. Four. Five.", connections);
+    let ids = h.segment_ids();
+    assert_eq!(ids.len(), 5, "fixture phai co dung nam cau: {ids:?}");
+    h.with_open(|open, _| {
+        set_segment_omitted(Some(open), ids[2], true).expect("cat cau 3");
+        let chapter_id = read_open_chapter_segments(Some(open))
+            .expect("nap chuong")
+            .chapter_id;
+        save_segment_targets(
+            Some(open),
+            chapter_id,
+            &[
+                SegmentTargetEdit {
+                    id: ids[0],
+                    target_text: "Mot.".to_owned(),
+                },
+                SegmentTargetEdit {
+                    id: ids[1],
+                    target_text: "  ".to_owned(),
+                },
+            ],
+        )
+        .expect("ghi ban dich");
+    });
+    (h, ids)
+}
+
+#[test]
+fn a_skip_translated_batch_sends_only_empty_and_not_omitted_rows_in_document_order() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-chapter");
+    let (h, ids) = half_translated_chapter("chapter-run", 3);
+    let mut sent = ids.clone();
+    sent.reverse();
+
+    let seen = run_batch_collecting_events(&h, sent, true);
+
+    assert_eq!(
+        h.accepted.load(Ordering::SeqCst),
+        3,
+        "chi cau rong, cau toan khoang trang va khong bi cat moi toi provider: {seen:?}"
+    );
+    assert_eq!(
+        seen.iter().filter(|e| e.contains("\"done\"")).count(),
+        3,
+        "{seen:?}"
+    );
+    assert_eq!(
+        seen.iter().filter(|e| e.contains("\"skipped\"")).count(),
+        2,
+        "cau da dich va cau bi cat deu skipped: {seen:?}"
+    );
+    let order: Vec<i64> = seen
+        .iter()
+        .filter(|e| e.contains("\"done\"") || e.contains("\"skipped\""))
+        .map(|e| {
+            ids.iter()
+                .copied()
+                .find(|id| e.contains(&format!("\"segment_id\":{id}")))
+                .unwrap_or_else(|| panic!("khong tim thay segment_id trong {e}"))
+        })
+        .collect();
+    assert_eq!(order, ids, "thu tu tai lieu: {seen:?}");
+
+    let ids_of = |kind: &str| -> Vec<i64> {
+        seen.iter()
+            .filter(|e| e.contains(&format!("\"{kind}\"")))
+            .map(|e| {
+                ids.iter()
+                    .copied()
+                    .find(|id| e.contains(&format!("\"segment_id\":{id}")))
+                    .unwrap_or_else(|| panic!("khong tim thay segment_id trong {e}"))
+            })
+            .collect()
+    };
+    assert_eq!(
+        ids_of("skipped"),
+        vec![ids[0], ids[2]],
+        "skipped phai la cau da dich va cau bi cat: {seen:?}"
+    );
+    assert_eq!(
+        ids_of("done"),
+        vec![ids[1], ids[3], ids[4]],
+        "done phai la ba cau rong/khoang trang: {seen:?}"
+    );
+}
+
+#[test]
+fn a_selection_batch_still_sends_rows_that_already_have_a_translation() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-selection");
+    let (h, ids) = half_translated_chapter("selection-run", 4);
+
+    run_batch_collecting_events(&h, ids, false);
+
+    assert_eq!(
+        h.accepted.load(Ordering::SeqCst),
+        4,
+        "luot theo vung chon chi bo cau bi cat"
+    );
 }
 
 fn bare_app() -> tauri::App<MockRuntime> {
@@ -391,6 +530,7 @@ fn batch_without_prompt_record_state_fails_with_record_state_missing() {
         app.handle().clone(),
         vec![1],
         None,
+        false,
         channel,
     ))
     .expect_err("thieu state ghi prompt phai la Err");
@@ -429,6 +569,7 @@ fn batch_without_generation_state_fails_with_generation_state_missing() {
         h.app.handle().clone(),
         ids,
         Some("Plain".to_owned()),
+        false,
         channel,
     ))
     .expect_err("thieu state the he phai la Err");
@@ -494,6 +635,7 @@ fn a_cancel_arriving_during_batch_prepare_is_not_overwritten() {
             handle,
             ids,
             Some("Plain".to_owned()),
+            false,
             channel,
         ))
     })
@@ -549,6 +691,7 @@ fn batch_without_a_saved_key_returns_not_configured() {
         h.app.handle().clone(),
         ids,
         Some("Plain".to_owned()),
+        false,
         channel,
     ))
     .expect("ai_translate_batch phai tra Ok");
@@ -681,6 +824,7 @@ fn a_batch_stamps_no_usage_even_when_the_provider_reports_it() {
         h.app.handle().clone(),
         ids,
         Some("Plain".to_owned()),
+        false,
         channel,
     ))
     .expect("ai_translate_batch phai tra Ok");

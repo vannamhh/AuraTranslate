@@ -25,6 +25,7 @@ vi.mock('../../src/panels/editorPanelState', () => ({
   editorPendingPromoteBatch: ref(null),
   editorPromoteBatchReport: ref(null),
   editorSegments: ref([]),
+  editorEditedShape: ref(new Map()),
   editorPromoteAiTranslationError: promoteError,
   promoteAiTranslationToEditor: vi.fn(),
 }))

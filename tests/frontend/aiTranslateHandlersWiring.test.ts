@@ -25,6 +25,7 @@ describe('main.ts nối các handler AI từ một module dùng chung', () => {
       'cancelAiTranslate',
       'promoteAiTranslate',
       'runAiTranslateBatch',
+      'runAiTranslateChapter',
       'retryAiTranslate',
       'retryAiTranslateBatch',
       'resendAiPrompt',
@@ -36,7 +37,7 @@ describe('main.ts nối các handler AI từ một module dùng chung', () => {
     }
   })
 
-  it('module xuất đúng chín handler', async () => {
+  it('module xuất đúng mười handler', async () => {
     const { aiTranslateHandlers } = await import('../../src/aiTranslateHandlers')
     expect(Object.keys(aiTranslateHandlers).sort()).toEqual([
       'cancelAiTranslate',
@@ -48,6 +49,7 @@ describe('main.ts nối các handler AI từ một module dùng chung', () => {
       'retryAiTranslateBatch',
       'runAiTranslate',
       'runAiTranslateBatch',
+      'runAiTranslateChapter',
     ])
   })
 

@@ -1,3 +1,4 @@
+import { chapterUntranslatedIds } from './chapterTranslateScope'
 import {
   aiTranslateBatchError,
   aiTranslateBatchPromotableItems,
@@ -105,6 +106,14 @@ export const aiTranslateHandlers = {
       return
     }
     void runAiTranslateBatch(selectedPromptSetName.value, segmentSelectionIds.value)
+  },
+
+  runAiTranslateChapter: (): void => {
+    if (aiTranslateStateValue.value === 'generating') {
+      console.warn('[ai-translate-batch] khong dich ca Chuong: mot luot don dang chay')
+      return
+    }
+    void runAiTranslateBatch(selectedPromptSetName.value, chapterUntranslatedIds.value, true)
   },
 
   retryAiTranslate: (): void => {

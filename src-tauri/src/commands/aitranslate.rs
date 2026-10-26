@@ -496,6 +496,22 @@ pub fn prepare_batch_call(
     prompt_set_name: Option<&str>,
     segment_ids: &[i64],
 ) -> Result<PrepareBatchOutcome, IpcError> {
+    prepare_batch_call_with(global, open, record, prompt_set_name, segment_ids, false)
+}
+
+/// `skip_translated` sends rows whose `target_text` is non-empty after `trim` down the same
+/// branch as omitted rows, so they emit `Skipped` and never reach the provider.
+pub fn prepare_batch_call_with(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    record: &LastAssembledPromptState,
+    prompt_set_name: Option<&str>,
+    segment_ids: &[i64],
+    skip_translated: bool,
+) -> Result<PrepareBatchOutcome, IpcError> {
+    let skipped = |row: &crate::commands::segment::ChapterSegment| {
+        row.is_omitted || (skip_translated && !row.target_text.trim().is_empty())
+    };
     let Some(ResolvedCallConfig {
         global_store,
         open_work,
@@ -526,7 +542,7 @@ pub fn prepare_batch_call(
         return Err(segment_not_in_chapter(missing, chapter.chapter_id));
     }
 
-    let needs_translation = ordered_rows.iter().any(|row| !row.is_omitted);
+    let needs_translation = ordered_rows.iter().any(|row| !skipped(row));
     let api_key: Option<String> = if needs_translation {
         match read_api_key(&provider)? {
             Some(key) => Some(key),
@@ -539,7 +555,7 @@ pub fn prepare_batch_call(
     let mut tm_cache = TmRowsCache::default();
     let mut items = Vec::with_capacity(ordered_rows.len());
     for row in ordered_rows {
-        if row.is_omitted {
+        if skipped(row) {
             items.push(PreparedBatchItem::Omitted { segment_id: row.id });
             continue;
         }
@@ -1135,7 +1151,7 @@ pub mod wire {
     use super::{
         AiTranslateBatchEventWire, AiTranslateBatchOutcome, AiTranslateGeneration,
         AiTranslateOutcomeWire, BatchCallError, PrepareBatchOutcome, PrepareOutcome,
-        PreparedBatchItem, batch_panicked_error, batch_stopped_error, prepare_batch_call,
+        PreparedBatchItem, batch_panicked_error, batch_stopped_error, prepare_batch_call_with,
         prepare_resend_call, prepare_translate_call, send_prepared_batch_call,
         send_prepared_translate_call, single_run_outcome_wire, state_missing,
     };
@@ -1330,6 +1346,7 @@ pub mod wire {
         app: tauri::AppHandle<R>,
         segment_ids: Vec<i64>,
         prompt_set_name: Option<String>,
+        skip_translated: bool,
         channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,
     ) -> Result<AiTranslateOutcomeWire, IpcError> {
         use tauri::Manager as _;
@@ -1361,12 +1378,13 @@ pub mod wire {
                 .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
             let open = guard.as_ref().and_then(|g| g.as_ref());
 
-            prepare_batch_call(
+            prepare_batch_call_with(
                 global.as_deref(),
                 open,
                 record_state.inner(),
                 prompt_set_name.as_deref(),
                 &segment_ids,
+                skip_translated,
             )?
             // `guard`/`global` roi khoi pham vi o day -- khong khoa nao cua tien trinh con
             // song sang phia duoi.
