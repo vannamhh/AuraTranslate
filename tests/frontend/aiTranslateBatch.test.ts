@@ -1108,7 +1108,7 @@ describe('thử lại lô giữ hàng đã xong (C1) và promote theo lượt b�
     wrapper.unmount()
   })
 
-  it('C2 đơn mới hơn: lô 12-13 rồi dịch đơn 11, caret 13 ⇒ ghi T vào 11', async () => {
+  it('C2 đơn mới hơn: lô 12-13 rồi dịch đơn 11, caret 13 ⇒ ghi văn bản lô vào 13, không ghi T vì đơn 11 không thuộc câu dưới con trỏ', async () => {
     const ctx = await freshPanel()
     const { fake, wrapper } = await startBatch(ctx, ctx.AiTranslationPanel, 12, 1)
     await finishBatch(fake, [12, 13], 'B')
@@ -1117,11 +1117,12 @@ describe('thử lại lô giữ hàng đã xong (C1) và promote theo lượt b�
     ctx.editorState.setEditorCaret(13)
     ctx.commands.dispatch('ai.translate.promote')
     await flushPromises()
-    expect(promoteMock).toHaveBeenCalledWith(11, 'T')
+    expect(promoteMock).toHaveBeenCalledTimes(1)
+    expect(promoteMock).toHaveBeenCalledWith(13, 'B13')
     wrapper.unmount()
   })
 
-  it('C2 lùi về: dịch đơn 11 rồi lô 12-13, caret 14 ngoài lô ⇒ ghi T vào 11', async () => {
+  it('C2 lùi về: dịch đơn 11 rồi lô 12-13, caret 14 ngoài lô ⇒ không ghi gì', async () => {
     const ctx = await freshPanel()
     await finishSingle(ctx, 11, 'T')
     const { fake, wrapper } = await startBatch(ctx, ctx.AiTranslationPanel, 12, 1)
@@ -1130,15 +1131,20 @@ describe('thử lại lô giữ hàng đã xong (C1) và promote theo lượt b�
     ctx.editorState.setEditorCaret(14)
     ctx.commands.dispatch('ai.translate.promote')
     await flushPromises()
-    expect(promoteMock).toHaveBeenCalledWith(11, 'T')
+    expect(promoteMock).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
-  it('C2 không đổi: dịch đơn 11, caret dời sang 14, không có lô ⇒ vẫn ghi T vào 11', async () => {
+  it('C2 không đổi: dịch đơn 11, caret dời sang 14, không có lô ⇒ không ghi; quay lại 11 ⇒ ghi T vào 11', async () => {
     const ctx = await freshPanel()
     await finishSingle(ctx, 11, 'T')
 
     ctx.editorState.setEditorCaret(14)
+    ctx.commands.dispatch('ai.translate.promote')
+    await flushPromises()
+    expect(promoteMock).not.toHaveBeenCalled()
+
+    ctx.editorState.setEditorCaret(11)
     ctx.commands.dispatch('ai.translate.promote')
     await flushPromises()
     expect(promoteMock).toHaveBeenCalledWith(11, 'T')

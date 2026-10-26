@@ -223,6 +223,7 @@ const canCancelAiTranslate = computed<boolean>(
  * `main.ts` dùng, không một phép kiểm thứ hai có thể trôi khỏi nó. */
 const canPromoteAiTranslate = computed<boolean>(() => {
   if (
+    !isAiTranslateStale.value &&
     (aiTranslateStateValue.value === 'done' || aiTranslateStateValue.value === 'cancelled') &&
     aiTranslateAccumulatedText.value !== ''
   ) {
@@ -349,6 +350,7 @@ function aiTranslateBatchRowStatusKey(status: AiTranslateBatchRow['status']): st
 // trên: một lượt KHÁC (đơn hoặc lô) đang chạy thì cũng ẩn nút retry của module kia.
 const canRetryAiTranslate = computed<boolean>(
   () =>
+    !isAiTranslateStale.value &&
     aiTranslateStateValue.value === 'error' &&
     aiTranslateError.value !== null &&
     aiTranslateError.value.retryable === true &&
@@ -509,24 +511,11 @@ const openSettingsLabel = computed(() =>
     <div class="ai-inspector-bar">
       <!-- aura-allow-text: KẾT QUẢ của t() (ba-giá-trị: chưa lắp / not_asked / asked kèm số đếm). -->
       <p
-        v-if="glossarySummary.kind !== 'no_record'"
+        v-if="glossarySummary.kind !== 'no_record' && !isRecordStale"
         class="ai-inspector-summary"
         :data-ai-prompt-summary-kind="glossarySummary.kind"
-        :data-ai-prompt-summary-stale="isRecordStale ? 'true' : null"
       >
         {{ glossarySummaryText }}
-      </p>
-      <!-- finding B6 (loop 1) -- đánh dấu RIÊNG, tách khỏi dòng tóm tắt: cùng khoá
-           `ai.prompt_inspector.stale_notice` lớp phủ đã dùng, không đúc một khoá thứ hai cho
-           cùng một sự thật. -->
-      <p v-if="isRecordStale && aiPromptRecord !== null" class="ai-inspector-stale" role="status" data-ai-prompt-summary-stale-notice>
-        <!-- aura-allow-text: KẾT QUẢ của t() (nội suy số câu). -->
-        {{
-          t('ai.prompt_inspector.stale_notice', {
-            record_segment_id: String(aiPromptRecord.segment_id),
-            focused_segment_id: String(editorActiveSegmentId ?? ''),
-          })
-        }}
       </p>
       <p v-if="aiPromptAssembleError !== null" class="ai-inspector-alert" role="alert">
         <!-- aura-allow-text: KẾT QUẢ của tError(). -->
@@ -575,11 +564,19 @@ const openSettingsLabel = computed(() =>
         </button>
       </div>
       <p v-if="!hasActiveSegment" class="ai-translate-hint">{{ t('panel.ai_translation.translate_no_segment_hint') }}</p>
-      <p v-if="aiTranslateStateValue === 'generating'" class="ai-translate-status" data-ai-translate-state="generating">
+      <p
+        v-if="aiTranslateStateValue === 'generating' && isAiTranslateStale"
+        class="ai-translate-status"
+        data-ai-translate-state="generating-other"
+      >
+        <!-- aura-allow-text: KẾT QUẢ của t() (nội suy số câu đang dịch). -->
+        {{ t('panel.ai_translation.state_generating_other', { segment_id: String(aiTranslateRunSegmentId) }) }}
+      </p>
+      <p v-else-if="aiTranslateStateValue === 'generating'" class="ai-translate-status" data-ai-translate-state="generating">
         {{ t('panel.ai_translation.state_generating') }}
       </p>
       <p
-        v-else-if="aiTranslateStateValue === 'cancelled'"
+        v-else-if="aiTranslateStateValue === 'cancelled' && !isAiTranslateStale"
         class="ai-translate-status"
         data-ai-translate-state="cancelled"
       >
@@ -597,7 +594,7 @@ const openSettingsLabel = computed(() =>
         {{ t('panel.ai_translation.status') }}
       </p>
       <p
-        v-if="aiTranslateStateValue === 'error' && aiTranslateError !== null"
+        v-if="aiTranslateStateValue === 'error' && aiTranslateError !== null && !isAiTranslateStale"
         class="ai-translate-alert"
         role="alert"
         data-ai-translate-state="error"
@@ -658,21 +655,12 @@ const openSettingsLabel = computed(() =>
         <!-- aura-allow-text: KẾT QUẢ của t() (số câu đã ghi / bị bỏ). -->
         {{ promoteBatchReportText }}
       </p>
-      <p v-if="isAiTranslateStale && aiTranslateAccumulatedText !== ''" class="ai-translate-stale" role="status" data-ai-translate-stale-notice>
-        <!-- aura-allow-text: KẾT QUẢ của t() (nội suy hai số câu). -->
-        {{
-          t('ai.translate.stale_notice', {
-            record_segment_id: String(aiTranslateRunSegmentId),
-            focused_segment_id: String(editorActiveSegmentId ?? ''),
-          })
-        }}
-      </p>
-      <p v-if="aiTranslateAccumulatedText !== ''" class="ai-translate-text" data-ai-translate-text>
+      <p v-if="aiTranslateAccumulatedText !== '' && !isAiTranslateStale" class="ai-translate-text" data-ai-translate-text>
         <!-- aura-allow-text: DỮ LIỆU (văn bản do AI sinh ra, chảy dần qua Channel). -->
         {{ aiTranslateAccumulatedText }}
       </p>
       <p
-        v-if="aiUsageVisible && aiTranslateUsageLineValue !== null"
+        v-if="aiUsageVisible && aiTranslateUsageLineValue !== null && !isAiTranslateStale"
         class="ai-translate-usage"
         role="status"
         data-ai-translate-usage
@@ -958,8 +946,7 @@ const openSettingsLabel = computed(() =>
   color: var(--color-on-surface-variant);
 }
 
-.ai-inspector-alert,
-.ai-inspector-stale {
+.ai-inspector-alert {
   margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1060,8 +1047,7 @@ const openSettingsLabel = computed(() =>
   color: var(--color-on-surface-variant);
 }
 
-.ai-translate-alert,
-.ai-translate-stale {
+.ai-translate-alert {
   margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);

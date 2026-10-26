@@ -1719,3 +1719,10 @@ fn a_blank_saved_system_prompt_reads_back_blank_while_a_missing_row_reads_as_the
     drop(global);
     cleanup_dir(&root);
 }
+
+#[test]
+fn default_system_prompt_forbids_markdown() {
+    assert!(
+        auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT.contains("Không dùng Markdown")
+    );
+}

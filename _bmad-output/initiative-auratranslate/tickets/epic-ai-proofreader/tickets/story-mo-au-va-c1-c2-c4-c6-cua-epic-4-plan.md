@@ -25,6 +25,7 @@ context: []
 
 **Decisions (Ice, 2026-10-10):**
 - C2: giữ cả kết quả đơn lẫn kết quả lô; promote chọn kết quả của lượt BẮT ĐẦU sau cùng (một lần thử lại lô tính là một lượt lô mới). Kết quả mới hơn không dùng được (lô mới hơn nhưng con trỏ không ở hàng lô có text) thì lùi về kết quả kia. Không reset kết quả đơn khi lô bắt đầu.
+- 🔵 2026-10-26: kết quả đơn chỉ được đưa sang (và thử lại) khi nó thuộc câu con trỏ đang đứng; ba hàng "C2 đơn mới hơn", "C2 lùi về", "C2 không đổi" dưới đây không còn đúng (Ice; `plan-panel-ai-theo-cau-dang-dung.md`).
 - C4: vá ở webview — lỗi lô không có `segment_id` dùng được thì hàng đang `running` thành `error`, giữ text đã nhận; Rust không đổi.
 - C6: khoá lỗi mới `segment.not_in_open_chapter` (params `segment_id`, `chapter_id`), không dùng lại `ai_prompt.segment_not_in_chapter`.
 - Plan giữ nguyên độ dài (~2.050 token), không tách.

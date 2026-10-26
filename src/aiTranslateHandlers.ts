@@ -18,6 +18,7 @@ import {
   aiTranslateStartStamp,
   aiTranslateStateValue,
   cancelAiTranslate,
+  isAiTranslateResultStale,
   resendAiPrompt,
   runAiTranslate,
 } from './aiTranslateState'
@@ -72,9 +73,13 @@ export const aiTranslateHandlers = {
     const state = aiTranslateStateValue.value
     const segmentId = aiTranslateRunSegmentId.value
     const text = aiTranslateAccumulatedText.value
-    const singleUsable = (state === 'done' || state === 'cancelled') && segmentId !== null && text !== ''
-
     const caretId = editorActiveSegmentId.value
+    const singleUsable =
+      (state === 'done' || state === 'cancelled') &&
+      segmentId !== null &&
+      text !== '' &&
+      !isAiTranslateResultStale(segmentId, caretId)
+
     const batchText = caretId === null ? null : aiTranslateBatchTextForSegment(aiTranslateBatchRows.value, caretId)
     const batchUsable = batchText !== null && caretId !== null
 
@@ -119,6 +124,10 @@ export const aiTranslateHandlers = {
     const segmentId = aiTranslateRunSegmentId.value
     if (segmentId === null) {
       console.warn('[ai-translate] khong retry: khong biet cau nao da loi')
+      return
+    }
+    if (isAiTranslateResultStale(segmentId, editorActiveSegmentId.value)) {
+      console.warn('[ai-translate] khong retry: loi thuoc ve cau khac cau dang xem')
       return
     }
     void runAiTranslate(selectedPromptSetName.value, segmentId)

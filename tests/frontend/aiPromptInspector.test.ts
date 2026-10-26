@@ -1360,8 +1360,8 @@ describe('một lượt Lắp CŨ (đã bị reset rồi một lượt Lắp m�
 // Loop 1 (2026-09-18) — finding B6: dòng tóm tắt của panel phải tự đánh dấu khi bản ghi
 // nó đọc là CŨ (I/O Matrix "Stale record"), không chỉ lớp phủ mới biết điều đó.
 // ═══════════════════════════════════════════════════════════════════════════════════
-describe('finding B6 — AiTranslationPanel.vue đánh dấu dòng tóm tắt khi bản ghi CŨ', () => {
-  it('🔴 bản ghi thuộc câu 7, tiêu điểm đang ở câu 9 ⇒ data-ai-prompt-summary-stale="true" + dòng cảnh báo hiện', async () => {
+describe('AiTranslationPanel.vue — tóm tắt prompt chỉ hiện cho câu con trỏ đang đứng', () => {
+  it('bản ghi thuộc câu 7, tiêu điểm ở câu 9 ⇒ không tóm tắt, không dòng cảnh báo', async () => {
     const { AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 9
     readRecordMock.mockResolvedValue(record({ segment_id: 7 }))
@@ -1370,14 +1370,18 @@ describe('finding B6 — AiTranslationPanel.vue đánh dấu dòng tóm tắt kh
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    const summary = wrapper.get('.ai-inspector-summary')
-    expect(summary.attributes('data-ai-prompt-summary-stale')).toBe('true')
-    expect(wrapper.find('[data-ai-prompt-summary-stale-notice]').exists()).toBe(true)
+    expect(wrapper.find('.ai-inspector-summary').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-prompt-summary-stale-notice]').exists()).toBe(false)
+    expect(wrapper.find('.ai-inspector-stale').exists()).toBe(false)
+
+    caretSegmentId.value = 7
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.ai-inspector-summary').exists()).toBe(true)
 
     wrapper.unmount()
   })
 
-  it('bản ghi và tiêu điểm CÙNG một câu ⇒ không đánh dấu cũ, không dòng cảnh báo', async () => {
+  it('bản ghi và tiêu điểm CÙNG một câu ⇒ tóm tắt hiện, không đánh dấu cũ', async () => {
     const { AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 7
     readRecordMock.mockResolvedValue(record({ segment_id: 7 }))
@@ -1387,8 +1391,7 @@ describe('finding B6 — AiTranslationPanel.vue đánh dấu dòng tóm tắt kh
     await wrapper.vm.$nextTick()
 
     const summary = wrapper.get('.ai-inspector-summary')
-    expect(summary.attributes('data-ai-prompt-summary-stale')).toBeUndefined()
-    expect(wrapper.find('[data-ai-prompt-summary-stale-notice]').exists()).toBe(false)
+    expect(summary.text()).not.toBe('')
 
     wrapper.unmount()
   })

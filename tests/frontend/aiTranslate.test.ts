@@ -591,7 +591,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
 
 describe('AiTranslationPanel.vue — nút "Thử lại" lượt ĐƠN (Story 4.10, §Always: "retryable grants only the right to SHOW a button")', () => {
   it('lỗi retryable ⇒ `[data-ai-translate-retry]` hiện, click gọi lại ĐÚNG segmentId đã lỗi dù caret đã dời sang câu khác', async () => {
-    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    const { commands, state, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 3
     const fake = pendingRun()
 
@@ -612,7 +612,14 @@ describe('AiTranslationPanel.vue — nút "Thử lại" lượt ĐƠN (Story 4.1
     // retry phải gọi lại câu 3 (nơi lỗi thuộc về), KHÔNG gọi câu 99 (nơi caret đang đứng bây
     // giờ), cùng lý lẽ `promoteAiTranslate` đã dùng `aiTranslateRunSegmentId` thay vì caret.
     caretSegmentId.value = 99
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-translate-retry]').exists()).toBe(false)
+    commands.dispatch('ai.translate.retry')
+    await flushPromises()
+    expect(runMock).toHaveBeenCalledTimes(1)
 
+    caretSegmentId.value = 3
+    await wrapper.vm.$nextTick()
     const fake2 = pendingRun()
     await wrapper.get('[data-ai-translate-retry]').trigger('click')
     await flushPromises()
@@ -662,31 +669,67 @@ describe('AiTranslationPanel.vue — nút "Thử lại" lượt ĐƠN (Story 4.1
 // I/O Matrix "Caret moves during generation" — kết quả CŨ đánh dấu, không tự lặng câm
 // ═══════════════════════════════════════════════════════════════════════════════════
 
-describe('AiTranslationPanel.vue — caret dời câu trong lúc đang chảy (I/O Matrix "Caret moves during generation")', () => {
-  it('đã có văn bản nhận được, caret dời sang câu khác ⇒ panel đánh dấu kết quả CŨ, nêu tên cả hai câu', async () => {
-    const { i18n, AiTranslationPanel, caretSegmentId } = await freshPanel()
-    caretSegmentId.value = 7
+describe('AiTranslationPanel.vue — panel chỉ nói về câu con trỏ đang đứng', () => {
+  async function doneOnSegment(segmentId: number, text = 'Ban dich cau 1') {
+    const ctx = await freshPanel()
+    ctx.caretSegmentId.value = segmentId
     const fake = pendingRun()
-
-    const wrapper = mountPanel(AiTranslationPanel)
+    const wrapper = mountPanel(ctx.AiTranslationPanel)
     await wrapper.vm.$nextTick()
     await wrapper.get('[data-ai-translate-run]').trigger('click')
     await flushPromises()
+    fake.token(text)
+    return { ...ctx, fake, wrapper }
+  }
 
-    fake.token('mot phan')
+  it('Sang câu khác: đã dịch xong câu 1, con trỏ sang câu 2 ⇒ không bản dịch, không usage, không dòng đỏ; quay lại ⇒ hiện lại', async () => {
+    const { fake, wrapper, caretSegmentId } = await doneOnSegment(1)
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
     await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-ai-translate-text]').text()).toBe('Ban dich cau 1')
+
+    caretSegmentId.value = 2
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-translate-text]').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-translate-usage]').exists()).toBe(false)
     expect(wrapper.find('[data-ai-translate-stale-notice]').exists()).toBe(false)
+    expect(wrapper.find('.ai-translate-stale').exists()).toBe(false)
+    expect(wrapper.get('[data-ai-translate-run]').attributes('disabled')).toBeUndefined()
 
-    caretSegmentId.value = 8
+    caretSegmentId.value = 1
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-ai-translate-text]').text()).toBe('Ban dich cau 1')
+
+    wrapper.unmount()
+  })
+
+  it('Đang dịch câu khác: dòng trung tính nêu số câu, Huỷ bấm được, không hiện chữ đang stream', async () => {
+    const { i18n, wrapper, caretSegmentId } = await doneOnSegment(1, 'dang chay')
+    caretSegmentId.value = 2
     await wrapper.vm.$nextTick()
 
-    const notice = wrapper.get('[data-ai-translate-stale-notice]')
-    expect(notice.text()).toBe(
-      i18n.t('ai.translate.stale_notice', { record_segment_id: '7', focused_segment_id: '8' }),
+    expect(wrapper.get('[data-ai-translate-state="generating-other"]').text()).toBe(
+      i18n.t('panel.ai_translation.state_generating_other', { segment_id: '1' }),
     )
-    // Vẫn còn chảy — lượt dịch KHÔNG bị huỷ chỉ vì caret dời, đúng "the call keeps running and
-    // lands against the segment it started on".
-    expect(runMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-ai-translate-state="generating"]').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-translate-text]').exists()).toBe(false)
+    expect(wrapper.get('[data-ai-translate-cancel]').attributes('disabled')).toBeUndefined()
+
+    wrapper.unmount()
+  })
+
+  it('Lỗi của câu khác: dịch câu 1 lỗi, con trỏ sang câu 2 ⇒ không hiện lỗi, không nút Thử lại', async () => {
+    const { fake, wrapper, caretSegmentId } = await doneOnSegment(1)
+    fake.settle({ value: null, error: STREAM_ENDED_ERROR })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-translate-state="error"]').exists()).toBe(true)
+
+    caretSegmentId.value = 2
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-ai-translate-state="error"]').exists()).toBe(false)
+    expect(wrapper.find('[data-ai-translate-retry]').exists()).toBe(false)
 
     wrapper.unmount()
   })
@@ -738,7 +781,7 @@ describe('dispatch("ai.translate.promote") — hai lớp phòng thủ, và landi
     wrapper.unmount()
   })
 
-  it('done với văn bản không rỗng, caret ĐÃ DỜI sang câu khác trước khi bấm ⇒ promote ghi vào ĐÚNG câu lượt dịch bắt đầu, không câu caret hiện tại', async () => {
+  it('done, caret sang câu khác ⇒ nút Đưa sang bản dịch khoá; quay lại câu cũ ⇒ mở và ghi vào ĐÚNG câu lượt dịch bắt đầu', async () => {
     const { AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 21
     const fake = pendingRun()
@@ -753,15 +796,45 @@ describe('dispatch("ai.translate.promote") — hai lớp phòng thủ, và landi
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    // Caret dời sang câu 99 SAU khi lượt dịch đã xong — kết quả vẫn phải landing đúng câu 21.
     caretSegmentId.value = 99
     await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-ai-translate-promote]').attributes('disabled')).toBeDefined()
 
+    caretSegmentId.value = 21
+    await wrapper.vm.$nextTick()
     const promoteButton = wrapper.get('[data-ai-translate-promote]')
     expect(promoteButton.attributes('disabled')).toBeUndefined()
     await promoteButton.trigger('click')
 
     expect(promoteMock).toHaveBeenCalledTimes(1)
+    expect(promoteMock).toHaveBeenCalledWith(21, 'Ket qua AI')
+
+    wrapper.unmount()
+  })
+
+  it('done, caret sang câu khác ⇒ dispatch trực tiếp (chord) cũng không ghi; quay lại câu cũ ⇒ ghi vào câu đó', async () => {
+    const { commands, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 21
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    fake.token('Ket qua AI')
+    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    await flushPromises()
+
+    caretSegmentId.value = 99
+    await wrapper.vm.$nextTick()
+    commands.dispatch('ai.translate.promote')
+    await flushPromises()
+    expect(promoteMock).not.toHaveBeenCalled()
+
+    caretSegmentId.value = 21
+    await wrapper.vm.$nextTick()
+    commands.dispatch('ai.translate.promote')
+    await flushPromises()
     expect(promoteMock).toHaveBeenCalledWith(21, 'Ket qua AI')
 
     wrapper.unmount()
@@ -913,9 +986,9 @@ describe('AC "mỗi lệnh ... hoạt động khi được rebind qua màn hình
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    // Caret dời SAU khi lượt dịch xong, giống ca dispatch-theo-id tương ứng ở trên — vẫn phải
-    // landing đúng câu 21, không câu caret hiện tại, kể cả khi kích hoạt bằng bàn phím.
     caretSegmentId.value = 99
+    await wrapper.vm.$nextTick()
+    caretSegmentId.value = 21
     await wrapper.vm.$nextTick()
 
     const host = document.createElement('div')
