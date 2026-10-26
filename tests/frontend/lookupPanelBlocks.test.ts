@@ -17,7 +17,7 @@ import {
   singleCharsOf,
   toggleAimedSourceCollapse,
 } from '../../src/panels/lookupPanelState'
-import { resetLookupHistory, toggleLookupPin } from '../../src/panels/lookupHistoryState'
+import { loadPinnedEntries, resetLookupHistory, toggleLookupPin } from '../../src/panels/lookupHistoryState'
 import { shortcutRows } from '../../src/config/shortcutsState'
 import { flushPromises } from './support/flushMicrotasks'
 import { DA, NOT_FOUND, SOURCES, ZOULANG, group, hit, response, sense } from './support/lookupFixtures'
@@ -50,7 +50,15 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'list_pinned_entries') return []
     if (cmd === 'pin_entry') {
       h.pins.push(args)
-      return []
+      return (h.pins as { sourceCode: string; entryId: number; headword: string; gloss: string | null }[]).map((p, i) => ({
+        id: i + 1,
+        source_code: p.sourceCode,
+        entry_id: p.entryId,
+        headword: p.headword,
+        gloss: p.gloss,
+        pinned_at: '2026-10-26 00:00:00',
+        source_version: null,
+      }))
     }
     throw new Error(`lookupPanelBlocks.test.ts: unknown command "${cmd}"`)
   }),
@@ -106,15 +114,15 @@ describe('source blocks (Tra 打)', () => {
     expect(w.text()).not.toContain('Có nhiều hơn một nguồn')
   })
 
-  it('every block opens with name, sense count and the collapse glyph', async () => {
+  it('every block opens with name, sense count and the collapse button', async () => {
     const w = await lookedUp('打', DA)
     const heads = blocks(w).map((b) => {
       const head = b.get('.lookup-source-head')
-      return [head.get('.lookup-source-name').text(), head.get('.lookup-source-count').text(), head.get('.lookup-collapse').text()]
+      return [head.get('.lookup-source-name').text(), head.get('.lookup-source-count').text(), head.get('.lookup-collapse').attributes('aria-label')]
     })
     expect(heads).toEqual([
-      ['CVDICT', '3 nghĩa', '⌄'],
-      ['Vietphrase', '2 nghĩa', '⌄'],
+      ['CVDICT', '3 nghĩa', 'Thu gọn khối nguồn này'],
+      ['Vietphrase', '2 nghĩa', 'Thu gọn khối nguồn này'],
     ])
   })
 
@@ -190,6 +198,23 @@ describe('Pin', () => {
     expect(h.pins).toEqual([{ sourceCode: 'cvdict', entryId: 5, headword: '走廊', gloss: 'hành lang' }])
   })
 
+  it('pinning turns the hollow pin into a filled one and the button reads as pressed', async () => {
+    await loadPinnedEntries()
+    const w = await lookedUp('走廊', single)
+    const pin = () => blocks(w)[0]!.get('.lookup-pin')
+    expect(pin().attributes('aria-pressed')).toBe('false')
+    expect(pin().attributes('aria-label')).toBe('Ghim')
+    expect(pin().find('path[fill="currentColor"]').exists()).toBe(false)
+
+    await pin().trigger('mousedown')
+    await pin().trigger('click')
+    await flushPromises()
+
+    expect(pin().attributes('aria-pressed')).toBe('true')
+    expect(pin().attributes('aria-label')).toBe('Bỏ ghim')
+    expect(pin().find('path[fill="currentColor"]').exists()).toBe(true)
+  })
+
   it('with several entries the head button answers pin_no_target and pins nothing', async () => {
     const w = await lookedUp('打', DA)
     await w.get('.lookup-head-pin').trigger('mousedown')
@@ -215,7 +240,7 @@ describe('Pin', () => {
 })
 
 describe('collapse', () => {
-  it('⌄ folds the block to its head line, ⌃ opens it again, and the other block is untouched', async () => {
+  it('the chevron folds the block to its head line, then opens it again, and the other block is untouched', async () => {
     const w = await lookedUp('打', DA)
     const collapse = () => blocks(w)[0]!.get('.lookup-collapse')
 
@@ -223,14 +248,14 @@ describe('collapse', () => {
     await collapse().trigger('click')
     expect(blocks(w)[0]!.findAll('.lookup-entry')).toHaveLength(0)
     expect(blocks(w)[0]!.get('.lookup-source-count').text()).toBe('3 nghĩa')
-    expect(collapse().text()).toBe('⌃')
+    expect(collapse().attributes('aria-label')).toBe('Mở khối nguồn này')
     expect(collapse().attributes('aria-expanded')).toBe('false')
     expect(blocks(w)[1]!.findAll('.lookup-entry')).toHaveLength(1)
 
     await collapse().trigger('mousedown')
     await collapse().trigger('click')
     expect(blocks(w)[0]!.findAll('.lookup-entry')).toHaveLength(2)
-    expect(collapse().text()).toBe('⌄')
+    expect(collapse().attributes('aria-label')).toBe('Thu gọn khối nguồn này')
   })
 
   it('the folded state is remembered per source_code across a new lookup', async () => {

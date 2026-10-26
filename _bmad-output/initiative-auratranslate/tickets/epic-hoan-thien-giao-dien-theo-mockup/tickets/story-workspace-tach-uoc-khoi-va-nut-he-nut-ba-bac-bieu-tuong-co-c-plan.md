@@ -3,14 +3,14 @@ title: 'Workspace tách được khối và nút: hệ nút ba bậc, biểu tư
 type: 'feature'
 ticket: '26'
 created: '2026-10-26'
-status: 'in-progress'
+status: 'built'
 baseline_revision: 'cf30c50430e15069b0423db4927895d3312a7c3a'
 route: 'full'
 route_source: 'auto'
 risk: 'medium'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context:
   - '{project-root}/_bmad-output/initiative-auratranslate/ux-auratranslate/DESIGN.md'
@@ -82,15 +82,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution (phase 1 · nền):**
-- [ ] `src/tokens/tokens.json`, `scripts/check-tokens.mjs` -- `control-rule` (thêm cả vào `roles.stroke`), 39 màu, cỡ 12px.
-- [ ] `src/tokens/` -- lớp dùng chung: nút chính/phụ/chìm/khoá, cỡ nhỏ 24px, nút biểu tượng 26px, nút phân đoạn, chip phím.
-- [ ] `src/AppIcon.vue` -- component SVG `currentColor`: pin, pin-on, chevron, info, layout-left, layout-top (đường vẽ lấy từ mockup).
+- [x] `src/tokens/tokens.json`, `scripts/check-tokens.mjs` -- `control-rule` (thêm cả vào `roles.stroke`), 39 màu, cỡ 12px.
+- [x] `src/tokens/` -- lớp dùng chung: nút chính/phụ/chìm/khoá, cỡ nhỏ 24px, nút biểu tượng 26px, nút phân đoạn, chip phím.
+- [x] `src/AppIcon.vue` -- component SVG `currentColor`: pin, pin-on, chevron, info, layout-left, layout-top (đường vẽ lấy từ mockup).
 
 **Execution (phase 2 · áp):**
-- [ ] Từng tệp trong Code Map -- đổi sang lớp dùng chung, xoá rule gạch chân cục bộ trong dòng đang sửa; Huỷ thế chỗ Chạy; ghim, ⓘ, thu gọn, bố cục thành `AppIcon`; dải đầu nguồn; khung kết quả AI; thanh trạng thái.
+- [x] Từng tệp trong Code Map -- đổi sang lớp dùng chung, xoá rule gạch chân cục bộ trong dòng đang sửa; Huỷ thế chỗ Chạy; ghim, ⓘ, thu gọn, bố cục thành `AppIcon`; dải đầu nguồn; khung kết quả AI; thanh trạng thái.
 
 **Execution (phase 3 · test và đo):**
-- [ ] Sửa các test trong Code Map theo hành vi mới; thêm ca: nút chỉ-biểu-tượng thiếu `aria-label` thì đỏ (đối chứng: gỡ thuộc tính khỏi một nút thật); ca Huỷ thế chỗ Chạy.
+- [x] Sửa các test trong Code Map theo hành vi mới; thêm ca: nút chỉ-biểu-tượng thiếu `aria-label` thì đỏ (đối chứng: gỡ thuộc tính khỏi một nút thật); ca Huỷ thế chỗ Chạy.
 
 **Acceptance Criteria:**
 - Given Workspace mở, when nhìn bất kỳ nút nào của năm bề mặt, then nó thuộc đúng một bậc của DESIGN.md §Nút và không chữ giao diện nào dưới 12px.
@@ -99,9 +99,29 @@ context:
 
 ## Implementation Notes
 
+- Lớp dùng chung ở `src/tokens/controls.css` (nạp sau `reset.css`): `ui-btn` (+ `--primary`, `--quiet`, `--sm`), `ui-icon-btn`, `ui-seg`/`ui-seg__item`, `ui-kbd`. Trạng thái chọn của nút phân đoạn đọc `aria-pressed`/`aria-selected`, không lớp `.on`.
+- Lớp móc mà test và e2e đọc (`tools-trigger`, `layout-switch(-btn)`, `lookup-scope`, `lookup-pin`, `lookup-collapse`, `view-toggle`, `tab-chord`) giữ lại, không mang CSS.
+- Tab dock mở xuống thân panel: nét đáy dời từ `.dv-tabs-and-actions-container` xuống từng con và từng `.dv-tab`, `.dv-active-tab` bỏ nét đáy (`dockview-theme.css`). Chưa nhìn trong app thật.
+- ⚠️ Lượt xoá CSS nút cũ của agent dựng để lại selector `.ai-panel-head` treo trước một comment, biến `.ai-surface` thành selector con không áp vào đâu, và xoá oan kiểu của `.ai-unconfigured*` và `.lookup-section-count`. Không cổng, không test nào bắt; sửa tay ở bước dựng.
+- Thêm `AppIcon.vue` đẩy số `.vue` lên 66 nên `VUE_FLOOR` của `check-i18n`/`check-commands` lên 57 (`ceil(0.85 × 66)`).
+- Bỏ `▾` khỏi `titlebar.tools.label` và `panel.lookup.sources_button` (thay bằng biểu tượng chevron); xoá `panel.lookup.collapse_open/closed`, `titlebar.layout.b1/b2`, `status.autosave_hint`; thêm `status.tm_short`, `panel.ai_translation.chapter_group`.
+- Chưa chạy e2e (Ice đang mở `tauri dev` trên cổng 1420); chưa có ảnh app thật. Cả hai ở `deferred-work.md` §Story 12-26, Chủ: Epic 12.
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+Lượt 1 (quick): high 0 · medium 2 · low 2 · false 3 · maybe-false 0.
+
+| Verdict | Route | Finding | Evidence |
+|---|---|---|---|
+| medium | patch | `.ui-seg { overflow: hidden }` cắt vòng tiêu điểm `outline-offset: 1px` của ô phân đoạn | Đúng; vòng của `.ui-seg__item` dời vào trong (`outline-offset: -2px`) |
+| medium | patch | `.ui-seg__item:disabled` đứng sau rule chọn, cùng độ đặc hiệu, xoá nền ô bố cục đang chọn khi Review Mode/Attribution | Đúng; rule khoá dời lên trước rule chọn |
+| low | patch | Dịch ↔ Huỷ khác chiều rộng nên nút sau xê dịch | Đúng; hai nút chung lớp `ai-run-slot` `min-width: 8.5em` |
+| low | patch | `.ui-kbd` không ai dùng, `.tab-chord` khai lại cùng hình | Đúng; `.tab-chord` dùng `ui-kbd`, chỉ giữ lề và nét chữ |
+| false | — | `.ai-group-label` ghép `ui-sm` với `--weight-ui-md-strong` | Cùng khuôn đã có ở `GlossaryManageOverlay.vue:1034`, `ImportPreviewOverlay.vue:1912`, `BilingualImportPreviewOverlay.vue:1181`; DESIGN.md §Khối trong panel Tra cứu ghi nhãn nhóm `ui-sm` 600 |
+| false | — | `ui-label` `letterSpacing` 0.1em → 0.08em không có lý do | DESIGN.md §Bảng token typography hàng 13 (context của plan) ghi 0.08em, Ice duyệt 2026-10-26 |
+| false | — | Implementation Notes trống, thiếu ảnh app thật cho AC3 | Notes ghi ở bước review; AC3 là việc của Ice, mục nợ Chủ: Epic 12 |
 
 ## Verification
 

@@ -182,8 +182,24 @@
  * Thanh tab = thanh tiêu đề panel (§Quyết định #4A). Đường kẻ dưới nó là ranh giới giữa
  * tiêu đề và thân — cùng vai với `border-bottom` của `.titlebar` ở `App.vue`.
  */
-.dockview-theme-aura .dv-tabs-and-actions-container {
+.dockview-theme-aura .dv-tabs-and-actions-container > *,
+.dockview-theme-aura .dv-tabs-container > .dv-tab {
+  box-sizing: border-box;
   border-bottom: 1px solid var(--color-outline);
+}
+
+/* The bar's rule lives on its children so the visible tab can drop it and open into the panel body. */
+.dockview-theme-aura .dv-tabs-and-actions-container > .dv-tabs-container {
+  border-bottom: none;
+}
+
+.dockview-theme-aura .dv-tabs-container > .dv-tab.dv-active-tab {
+  border-bottom-color: transparent;
+  border-right: 1px solid var(--color-outline);
+}
+
+.dockview-theme-aura .dv-tabs-container > .dv-tab.dv-active-tab:not(:first-child) {
+  border-left: 1px solid var(--color-outline);
 }
 
 /*

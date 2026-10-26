@@ -276,7 +276,9 @@ describe('Huỷ lô (matrix: "Huỷ giữa lô")', () => {
     const fresh = await freshPanel()
     const fake = pendingBatchRun()
     const wrapper = await mountPanel(fresh.AiTranslationPanel)
-    expect(wrapper.get('[data-ai-translate-cancel]').text()).not.toBe('Huỷ lô')
+    expect(wrapper.find('[data-ai-translate-cancel]').exists()).toBe(false)
+    const runSlot = wrapper.get('[data-ai-translate-run]').element.parentElement!
+    const runIndex = Array.from(runSlot.children).indexOf(wrapper.get('[data-ai-translate-run]').element)
 
     void fresh.batchState.runAiTranslateBatch(null, BATCH_IDS)
     await flushPromises()
@@ -285,7 +287,9 @@ describe('Huỷ lô (matrix: "Huỷ giữa lô")', () => {
     fake.emit({ kind: 'token', segment_id: 102, text: 'Dang sinh dở' })
     await wrapper.vm.$nextTick()
 
+    expect(wrapper.find('[data-ai-translate-run]').exists()).toBe(false)
     expect(wrapper.get('[data-ai-translate-cancel]').text()).toBe('Huỷ lô')
+    expect(Array.from(runSlot.children).indexOf(wrapper.get('[data-ai-translate-cancel]').element)).toBe(runIndex)
     await wrapper.get('[data-ai-translate-cancel]').trigger('click')
     expect(cancelMock).toHaveBeenCalledTimes(1)
 

@@ -1,6 +1,7 @@
 import { createApp, nextTick, watch } from 'vue'
 import App from './App.vue'
 import './tokens/reset.css'
+import './tokens/controls.css'
 // ── Story 1.14 — dockview: MỘT lượt import CSS cho cả ứng dụng ──────────────────────
 //
 // ⚠️ Import ở đây chứ không trong `WorkspaceDock.vue`: một `<style>` scoped của Vue

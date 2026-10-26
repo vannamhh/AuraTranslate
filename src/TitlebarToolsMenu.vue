@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
 import { dispatch } from './commands'
 import { t } from './i18n'
+import AppIcon from './AppIcon.vue'
 import { shortcutRows } from './config/shortcutsState'
 import { closeToolsMenu, toolsMenuIsOpen } from './titlebarToolsState'
 import { attributionIsOpen } from './panels/dictSourcesState'
@@ -83,7 +84,7 @@ onBeforeUnmount(() => {
     <button
       ref="trigger"
       type="button"
-      class="tools-trigger"
+      class="tools-trigger ui-btn ui-btn--sm ui-btn--quiet"
       aria-haspopup="menu"
       :aria-expanded="toolsMenuIsOpen"
       :disabled="attributionIsOpen"
@@ -100,6 +101,7 @@ onBeforeUnmount(() => {
       @click="dispatch('titlebar.tools.toggle')"
     >
       {{ t('titlebar.tools.label') }}
+      <AppIcon name="chevron" />
     </button>
 
     <ul v-if="toolsMenuIsOpen" class="tools-list" role="menu" :aria-label="t('titlebar.tools.menu')">
@@ -196,18 +198,6 @@ onBeforeUnmount(() => {
 <style scoped>
 .tools {
   position: relative;
-}
-
-.tools-trigger {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
 }
 
 .tools-list {

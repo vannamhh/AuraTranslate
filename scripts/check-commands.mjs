@@ -228,7 +228,7 @@ const tsFiles = keep(tsAll)
  * bù bằng `CLICK_FLOOR`/`DISPATCH_FLOOR`/`COMMAND_FLOOR` ngay dưới (sàn NỘI DUNG).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const VUE_FLOOR = 52
+const VUE_FLOOR = 57
 const TS_FLOOR = 121
 
 /**

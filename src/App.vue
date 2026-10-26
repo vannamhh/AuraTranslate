@@ -25,6 +25,7 @@ import { emitFailureLine, fallbackReportText } from './selftest/fallbackReport'
 // đây là **đúng một** lời gọi `dispatch('<id>')`, và `scripts/check-commands.mjs` Kiểm A
 // cưỡng chế điều đó bằng cú pháp trên mọi `.vue` của cây nguồn.
 import { detectIsMac, dispatch } from './commands'
+import AppIcon from './AppIcon.vue'
 import { currentMode } from './modes/modeState'
 import { t, tError } from './i18n'
 import { shortcutRows } from './config/shortcutsState'
@@ -241,31 +242,31 @@ onMounted(async () => {
 
         <div
           v-if="currentMode === 'workspace'"
-          class="layout-switch"
+          class="layout-switch ui-seg ui-seg--icons"
           role="group"
           :aria-label="t('titlebar.layout.group')"
         >
           <button
             type="button"
-            class="layout-switch-btn"
-            :class="{ on: activeLayoutPreset === 'layout.preset_grid' }"
+            class="layout-switch-btn ui-seg__item"
             :aria-pressed="activeLayoutPreset === 'layout.preset_grid'"
             :disabled="reviewModeIsOpen || attributionIsOpen"
             :title="t('command.layout.preset_grid')"
+            :aria-label="t('command.layout.preset_grid')"
             @click="dispatch('layout.preset_grid')"
           >
-            {{ t('titlebar.layout.b2') }}
+            <AppIcon name="layout-left" />
           </button>
           <button
             type="button"
-            class="layout-switch-btn"
-            :class="{ on: activeLayoutPreset === 'layout.preset_columns' }"
+            class="layout-switch-btn ui-seg__item"
             :aria-pressed="activeLayoutPreset === 'layout.preset_columns'"
             :disabled="reviewModeIsOpen || attributionIsOpen"
             :title="t('command.layout.preset_columns')"
+            :aria-label="t('command.layout.preset_columns')"
             @click="dispatch('layout.preset_columns')"
           >
-            {{ t('titlebar.layout.b1') }}
+            <AppIcon name="layout-top" />
           </button>
         </div>
 
@@ -476,33 +477,6 @@ onMounted(async () => {
   border: 1px solid var(--color-outline);
   border-radius: 3px;
   background: var(--color-surface);
-}
-
-.layout-switch {
-  display: flex;
-  gap: calc(var(--space-unit) * 2);
-}
-
-.layout-switch-btn {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.layout-switch-btn.on {
-  color: var(--color-on-surface);
-  font-weight: var(--weight-ui-md-strong);
-  border-bottom-color: var(--color-primary);
-}
-
-.layout-switch-btn:disabled {
-  cursor: default;
 }
 
 /*

@@ -13486,3 +13486,7 @@ chính nó.
 - source_plan: `plan-panel-de-xuat-ai-gon.md`
   summary: Dòng đầu panel Đề xuất AI và màn Prompt báo "Chưa có bộ prompt nào" cả khi `loadPromptSets()` chưa về hoặc nạp lỗi (`promptSets.length === 0`, không đọc `promptSetLoading`/`promptSetLoadError`).
   evidence: Có từ trước plan này (panel cũ cùng điều kiện); một lượt nạp lỗi bảo Ice đi tạo bộ mới thay vì báo lỗi — đúng lớp "im lặng rỗng" của AGENTS.md. **Chủ: Ice.**
+
+## Deferred from: Story 12-26 Workspace tách được khối và nút (2026-10-26)
+
+- **Chưa ai nhìn hệ nút ba bậc trong app thật.** Vitest và cổng không thấy CSS: tab dock "mở" xuống thân panel (nét đáy chuyển từ khung thanh tab xuống từng tab), viền đứt của nút khoá, vòng tiêu điểm trong nút phân đoạn, `:has()` trong WKWebView, hàng nút AI không xê dịch khi Dịch đổi sang Huỷ. Ice chụp app thật 1490×935 dpr=2 sáng và tối cạnh `ux-auratranslate/mockups/workspace-tinh-chinh.html`, ghi khớp hoặc lý do cho mục 1–6, và chạy `npm run test:e2e -- --spec e2e/specs/titlebar-tools.e2e.mjs` khi không mở `tauri dev`. Con trỏ: plan story 12-26 §Implementation Notes. **Chủ: Epic 12.**

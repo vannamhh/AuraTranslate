@@ -148,6 +148,7 @@ const EXPECTED_COLORS_LIGHT = {
   'on-surface-variant': '#6b6459',
   outline: '#e2dccf',
   'outline-faint': '#efeade',
+  'control-rule': '#8a8276',
   ornament: '#a9a196',
   draft: '#b9b3aa',
   primary: '#2f5d63',
@@ -189,6 +190,7 @@ const EXPECTED_COLORS_DARK = {
   'on-surface-variant': '#a29a8c',
   outline: '#3b382f',
   'outline-faint': '#302d26',
+  'control-rule': '#807868',
   ornament: '#6a6459',
   draft: '#575249',
   primary: '#7fb3ba',
@@ -250,12 +252,12 @@ const EXPECTED_TYPOGRAPHY = {
   'ui-sm': { family: 'ui', fontSize: '12px', lineHeight: '1.5' },
   'ui-label': {
     family: 'ui',
-    fontSize: '11px',
+    fontSize: '12px',
     lineHeight: '1.4',
     fontWeight: '700',
-    letterSpacing: '0.1em',
+    letterSpacing: '0.08em',
   },
-  'ui-mono': { family: 'mono', fontSize: '11.5px', lineHeight: '1.4' },
+  'ui-mono': { family: 'mono', fontSize: '12px', lineHeight: '1.4' },
 }
 
 const EXPECTED_FAMILIES = {
@@ -310,7 +312,7 @@ const EXPECTED_ROUNDED = {
  * `typography` lên lại 18 với `ui-sm-italic` — token nghiêng thật của ô xuất xứ Chương
  * rỗng, thay cho việc mượn `lookup-example`. Xem `tokens.deviations` trong `tokens.json`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 38, typography: 18, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 18, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -327,7 +329,7 @@ const LARGE_TEXT_MIN_PX = 24
 const EXPECTED_ROLES = {
   text: ['on-surface', 'on-surface-variant', 'primary', 'on-primary', 'confirmed', 'tm-text', 'error'],
   surface: ['background', 'surface', 'surface-sunken', 'surface-accent', 'surface-tm', 'primary'],
-  stroke: ['outline', 'outline-faint', 'ornament', 'draft', 'tm-rule', 'caret-rule'],
+  stroke: ['outline', 'outline-faint', 'control-rule', 'ornament', 'draft', 'tm-rule', 'caret-rule'],
 }
 
 /**

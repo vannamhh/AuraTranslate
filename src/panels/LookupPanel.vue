@@ -13,6 +13,7 @@ import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 
 import PanelFrame from './PanelFrame.vue'
 import LookupRecord from './LookupRecord.vue'
 import LookupSourcesMenu from './LookupSourcesMenu.vue'
+import AppIcon from '../AppIcon.vue'
 import type { DockviewPanelProps } from '../layout/panelProps'
 import { t } from '../i18n'
 import { dispatch } from '../commands'
@@ -168,10 +169,11 @@ const headPinTarget = computed(() => {
   const only = groups.value.length === 1 && groups.value[0].entries.length === 1 ? groups.value[0].entries[0] : null
   return only
 })
-const headPinKey = computed(() => {
+const headPinned = computed(() => {
   const only = headPinTarget.value
-  return pinLabelKey(only !== null && entryIsPinned(only.source_code, only.entry_id))
+  return only !== null && entryIsPinned(only.source_code, only.entry_id)
 })
+const headPinKey = computed(() => pinLabelKey(headPinned.value))
 
 const notFoundChars = computed(() => singleCharsOf(currentQuery.value ?? ''))
 
@@ -431,11 +433,13 @@ onBeforeUnmount(() => {
         -->
         <button
           type="button"
-          class="lookup-sources-attr"
+          class="ui-icon-btn"
           data-attribution-open
+          :title="t('command.attribution.open')"
+          :aria-label="t('command.attribution.open')"
           @click="dispatch('attribution.open')"
         >
-          {{ t('command.attribution.open') }}
+          <AppIcon name="info" />
         </button>
       </div>
       </div>
@@ -464,10 +468,14 @@ onBeforeUnmount(() => {
           <button
             v-if="lookupDisplayable && groups.length > 0"
             type="button"
-            class="lookup-pin lookup-head-pin"
+            class="ui-icon-btn lookup-head-pin"
             :title="t('panel.lookup.head_pin_hint')"
+            :aria-label="t(headPinKey)"
+            :aria-pressed="headPinned"
             @click="dispatch('lookup.toggle_pin')"
-          >{{ t(headPinKey) }}</button>
+          >
+            <AppIcon :name="headPinned ? 'pin-on' : 'pin'" />
+          </button>
         </div>
         <div v-if="lookupDisplayable && groups.length > 0" class="lookup-spine">
           <!--
@@ -709,31 +717,36 @@ onBeforeUnmount(() => {
             <span class="lookup-row-count">{{ sessionLookupCount(entry.source_code, entry.entry_id) }}</span>
             <button
               type="button"
-              class="lookup-pin"
+              class="ui-icon-btn"
+              :title="t('panel.lookup.unpin')"
+              :aria-label="t('panel.lookup.unpin')"
+              aria-pressed="true"
               @click="dispatch('lookup.toggle_pin')"
-            >{{ t('panel.lookup.unpin') }}</button>
+            >
+              <AppIcon name="pin-on" />
+            </button>
           </div>
 
           <div class="lookup-section">
             <span class="lookup-section-label">{{ t('panel.lookup.section_recent') }}</span>
+            <span class="ui-seg">
+              <button
+                type="button"
+                class="lookup-scope ui-seg__item"
+                :aria-pressed="lookupHistoryScope === 'session'"
+                @click="dispatch('lookup.history_scope_session')"
+              >{{ t('panel.lookup.scope_session') }}</button>
+              <button
+                type="button"
+                class="lookup-scope ui-seg__item"
+                :disabled="lookupChapterId === null"
+                :aria-pressed="lookupHistoryScope === 'chapter'"
+                @click="dispatch('lookup.history_scope_chapter')"
+              >{{ t('panel.lookup.scope_chapter') }}</button>
+            </span>
             <button
               type="button"
-              class="lookup-scope"
-              :aria-pressed="lookupHistoryScope === 'session'"
-              :class="{ on: lookupHistoryScope === 'session' }"
-              @click="dispatch('lookup.history_scope_session')"
-            >{{ t('panel.lookup.scope_session') }}</button>
-            <button
-              type="button"
-              class="lookup-scope"
-              :disabled="lookupChapterId === null"
-              :aria-pressed="lookupHistoryScope === 'chapter'"
-              :class="{ on: lookupHistoryScope === 'chapter' }"
-              @click="dispatch('lookup.history_scope_chapter')"
-            >{{ t('panel.lookup.scope_chapter') }}</button>
-            <button
-              type="button"
-              class="lookup-clear"
+              class="ui-btn ui-btn--sm ui-btn--quiet lookup-clear"
               @click="dispatch('lookup.clear_history')"
             >{{ t('panel.lookup.clear_history') }}</button>
           </div>
@@ -785,26 +798,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* A secondary action: it takes the secondary text colour, not `primary`. */
-.lookup-sources-attr {
-  padding: 0;
-  flex: none;
-  white-space: nowrap;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.lookup-sources-attr:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
 /*
  * 🔴 STORY 1.18 · AC7 — `.lookup-body` **thôi cuộn**; vùng cuộn là `.lookup-scroll`.
  *
@@ -1058,48 +1051,23 @@ onBeforeUnmount(() => {
   margin-left: auto;
 }
 
-/* Cùng khai token với `.tab` của `GridPanel.vue` — một dải tab, một hình dạng. */
 .lookup-tab {
   appearance: none;
   border: none;
+  border-bottom: 2px solid transparent;
   background: none;
   padding: 0;
   cursor: pointer;
-  font-family: var(--face-ui-md-strong);
-  font-size: var(--font-ui-md-strong);
-  font-weight: var(--weight-ui-md-strong);
-  line-height: var(--leading-ui-md-strong);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
   color: var(--color-on-surface-variant);
 }
 
-/* `primary` cho tab đang chọn — **tiêu điểm bàn phím** là một trong đúng ba việc mà
- * `DESIGN.md` §Do's dành cho màu này, và một tab đang chọn là chỗ tiêu điểm đang ở. */
 .lookup-tab.active {
-  color: var(--color-primary);
-}
-
-/* A chip is a pressed button, drawn by a rule under the label, not by a filled box. */
-.lookup-scope {
-  appearance: none;
-  border: none;
-  background: none;
-  padding: 0;
-  border-bottom: 1px solid transparent;
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.lookup-scope.on {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
-}
-
-.lookup-scope:disabled {
-  cursor: default;
-  text-decoration: line-through;
+  color: var(--color-on-surface);
+  font-weight: var(--weight-ui-md-strong);
+  border-bottom-color: var(--color-on-surface);
 }
 
 .lookup-chars {
@@ -1164,24 +1132,13 @@ onBeforeUnmount(() => {
 .lookup-section-count,
 .lookup-clear {
   margin-left: auto;
+}
+
+.lookup-section-count {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.lookup-clear {
-  appearance: none;
-  border: none;
-  background: none;
-  padding: 0;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-}
-
-.lookup-clear:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 /*
@@ -1272,26 +1229,6 @@ onBeforeUnmount(() => {
 
 .lookup-row-when {
   min-width: 56px;
-}
-
-/* Nút bỏ ghim trên một hàng ghim — cùng hình dạng nút ghim của `LookupRecord.vue`. */
-.lookup-pin {
-  flex: none;
-  padding: 0;
-  white-space: nowrap;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.lookup-pin:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 /* Tiêu đề của một trạng thái rỗng — khai token `ui-md-strong`, cùng cấp với nhãn tab. */

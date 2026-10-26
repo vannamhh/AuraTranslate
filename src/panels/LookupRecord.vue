@@ -19,6 +19,7 @@
 // khuôn `deps.toggleDictSource` của Story 1.19. Việc NHẮM do `@mousedown` uỷ quyền ở
 // `LookupPanel.vue` làm; ở đây chỉ có cái tên để nhắm vào.
 import { computed } from 'vue'
+import AppIcon from '../AppIcon.vue'
 import { t } from '../i18n'
 import { dispatch } from '../commands'
 import { entryIsPinned, entryKey, pinLabelKey } from './lookupHistoryState'
@@ -109,13 +110,17 @@ const senseTotalKey = computed(() =>
       <!-- `data-collapse-code` is the seam `aimSourceCollapseFrom` and `lookup.toggle_source_collapse` read. -->
       <button
         type="button"
-        class="lookup-collapse"
+        class="ui-icon-btn lookup-collapse"
+        :class="{ 'lookup-collapse--closed': collapsed }"
         :data-collapse-code="group.source.code"
         :aria-expanded="!collapsed"
         :aria-label="t(collapsed ? 'panel.lookup.expand_label' : 'panel.lookup.collapse_label')"
+        :title="t(collapsed ? 'panel.lookup.expand_label' : 'panel.lookup.collapse_label')"
         @mousedown="aimSourceCollapseFrom($event)"
         @click="dispatch('lookup.toggle_source_collapse')"
-      >{{ t(collapsed ? 'panel.lookup.collapse_closed' : 'panel.lookup.collapse_open') }}</button>
+      >
+        <AppIcon name="chevron" />
+      </button>
     </div>
 
     <!--
@@ -149,11 +154,14 @@ const senseTotalKey = computed(() =>
         -->
         <button
           type="button"
-          class="lookup-pin"
-          :class="{ on: cluster.pinned }"
+          class="ui-icon-btn lookup-pin"
+          :title="t(pinLabelKey(cluster.pinned))"
+          :aria-label="t(pinLabelKey(cluster.pinned))"
           :aria-pressed="cluster.pinned"
           @click="dispatch('lookup.toggle_pin')"
-        >{{ t(pinLabelKey(cluster.pinned)) }}</button>
+        >
+          <AppIcon :name="cluster.pinned ? 'pin-on' : 'pin'" />
+        </button>
       </div>
 
       <p v-if="sensesFailed" class="lookup-senses-failed">{{ t('panel.lookup.senses_failed') }}</p>
@@ -215,11 +223,13 @@ const senseTotalKey = computed(() =>
 
 .lookup-source-head {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-panel-inline);
-  padding-bottom: 4px;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  height: calc(var(--space-unit) * 8);
+  padding: 0 calc(var(--space-unit) * 2) 0 var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
-  border-bottom: 1px solid var(--color-outline-faint);
+  background: var(--color-surface-sunken);
+  border-bottom: 1px solid var(--color-outline);
 }
 
 /* AC2 — nhãn nguồn khai token `ui-label`/`primary`, không đường nào làm nó biến mất. */
@@ -243,14 +253,10 @@ const senseTotalKey = computed(() =>
 
 .lookup-collapse {
   margin-left: auto;
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
+}
+
+.lookup-collapse--closed {
+  transform: rotate(-90deg);
 }
 
 .lookup-entry-reading {
@@ -292,7 +298,7 @@ const senseTotalKey = computed(() =>
  */
 .lookup-entry-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-panel-inline);
   margin-bottom: 4px;
 }
@@ -311,34 +317,8 @@ const senseTotalKey = computed(() =>
   border-top: 1px solid var(--color-outline-faint);
 }
 
-/*
- * 🔴 Nút ghim — một thao tác PHỤ, nên nó mang màu chữ phụ chứ không `primary`.
- * `DESIGN.md` §Do's dành `primary` cho đúng ba việc (thuật ngữ Glossary, nhãn nguồn từ
- * điển, tiêu điểm bàn phím), và một nút ghim không nằm trong ba việc đó.
- *
- * ⚠️ Trạng thái ĐANG GHIM phân biệt bằng **màu + nét gạch chân**, không bằng `opacity` —
- * UX-DR6 cấm làm mờ chữ ở trạng thái nghỉ, và một mục đã ghim là một trạng thái nghỉ.
- *
- * KHÔNG `outline: none` — focus ring của trình duyệt là nửa còn lại của NFR17.
- */
 .lookup-pin {
-  padding: 0;
-  flex: none;
   margin-left: auto;
-  white-space: nowrap;
-  background: none;
-  border: none;
-  border-bottom: 1px solid transparent;
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.lookup-pin.on {
-  color: var(--color-tm-text);
-  border-bottom-color: var(--color-tm-rule);
 }
 
 .lookup-sense {

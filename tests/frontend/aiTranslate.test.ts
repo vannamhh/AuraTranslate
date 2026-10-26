@@ -302,7 +302,8 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     expect(wrapper.get('[data-ai-translate-state="generating"]').text()).toBe(
       i18n.t('panel.ai_translation.state_generating'),
     )
-    expect(wrapper.get('[data-ai-translate-run]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-ai-translate-run]').exists()).toBe(false)
+    expect(wrapper.get('[data-ai-translate-cancel]').text()).toBe(i18n.t('command.ai.translate.cancel'))
     expect(wrapper.get('[data-ai-translate-cancel]').attributes('disabled')).toBeUndefined()
 
     fake.token('Xin ')

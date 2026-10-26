@@ -1,0 +1,144 @@
+/* Shared control classes: primary / secondary / quiet / locked buttons, icon button, segmented control, key chip. */
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  height: 28px;
+  padding: 0 calc(var(--space-unit) * 3);
+  border-radius: var(--radius-default);
+  background: var(--color-surface);
+  border: 1px solid var(--color-control-rule);
+  color: var(--color-on-surface);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ui-btn--sm {
+  height: 24px;
+  padding: 0 calc(var(--space-unit) * 2);
+}
+
+.ui-btn--primary {
+  background: var(--color-on-surface);
+  border-color: var(--color-on-surface);
+  color: var(--color-surface);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.ui-btn--quiet {
+  background: none;
+  border-color: transparent;
+  color: var(--color-on-surface-variant);
+}
+
+.ui-btn:disabled {
+  background: none;
+  border: 1px dashed var(--color-outline);
+  color: var(--color-on-surface-variant);
+  font-weight: inherit;
+  cursor: default;
+}
+
+.ui-btn:focus-visible,
+.ui-icon-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* `.ui-seg` clips its children, so the ring sits inside the item. */
+.ui-seg__item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.ui-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: var(--radius-default);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+}
+
+.ui-icon-btn:hover {
+  border-color: var(--color-control-rule);
+}
+
+.ui-icon-btn[aria-pressed='true'] {
+  color: var(--color-on-surface);
+}
+
+.ui-icon-btn:disabled {
+  border: 1px dashed var(--color-outline);
+  cursor: default;
+}
+
+.ui-seg {
+  display: inline-flex;
+  border: 1px solid var(--color-control-rule);
+  border-radius: var(--radius-default);
+  overflow: hidden;
+}
+
+.ui-seg__item {
+  display: inline-grid;
+  place-items: center;
+  height: 24px;
+  padding: 0 calc(var(--space-unit) * 3);
+  border: none;
+  background: none;
+  color: var(--color-on-surface-variant);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  cursor: pointer;
+}
+
+.ui-seg__item + .ui-seg__item {
+  border-left: 1px solid var(--color-control-rule);
+}
+
+.ui-seg__item:disabled {
+  background: none;
+  color: var(--color-on-surface-variant);
+  border-left-style: dashed;
+  border-left-color: var(--color-outline);
+  cursor: default;
+}
+
+.ui-seg__item[aria-pressed='true'],
+.ui-seg__item[aria-selected='true'] {
+  background: var(--color-on-surface);
+  color: var(--color-surface);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.ui-seg--icons .ui-seg__item {
+  padding: 0 calc(var(--space-unit) * 2);
+}
+
+.ui-kbd {
+  display: inline-block;
+  padding: 0 calc(var(--space-unit) * 1);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-default);
+  background: var(--color-surface);
+  color: var(--color-on-surface-variant);
+  font-family: var(--face-ui-mono);
+  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-mono);
+}
+
+.ui-seg:not(:has(.ui-seg__item:not(:disabled))) {
+  border-style: dashed;
+  border-color: var(--color-outline);
+}

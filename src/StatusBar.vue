@@ -36,9 +36,8 @@ import { dispatch } from './commands'
 // applyTier` ĐỒNG BỘ qua `syncLayoutTier` (sửa 2026-09-23 — bản đầu thăm dò DOM mỗi 200ms;
 // xem doc-comment đầu tệp đó). `StatusBar` chỉ ĐỌC nó qua `v-if`, không còn vòng đời nào để
 // bắt đầu/dừng ở đây.
-import { lookupHasRetreated, workspaceLayoutTier } from './layout/lookupDrawerState'
+import { lookupHasRetreated } from './layout/lookupDrawerState'
 import { isSegmentConfirmed } from './config/segment'
-import { EDITOR_HARD_CAP_MS, EDITOR_IDLE_MS } from './panels/editorFlush'
 import { isMeaningKind } from './config/proofread'
 import { shortcutRows } from './config/shortcutsState'
 import { libraryChapters, libraryOpenWorkError, libraryOpenWorkNotice } from './modes/libraryChapters'
@@ -222,6 +221,12 @@ const glossaryCountText = computed<string | null>(() => {
 const tmCountText = computed<string | null>(() => {
   const counts = workspaceTmPairCounts.value
   if (counts === null) return null
+  return t('status.tm_short', { total: String(counts.total), threshold: String(tmFuzzyThresholdInUse.value) })
+})
+
+const tmTitleText = computed<string | null>(() => {
+  const counts = workspaceTmPairCounts.value
+  if (counts === null) return null
   return t('status.tm_summary', {
     total: String(counts.total),
     mine: String(counts.mine),
@@ -236,15 +241,6 @@ function focusOnPointerDown(event: MouseEvent): void {
   const target = event.currentTarget
   if (target instanceof HTMLElement) target.focus()
 }
-
-const showAutoSave = computed(() => workspaceLayoutTier.value === 'full')
-
-const autoSaveHintText = computed(() =>
-  t('status.autosave_hint', {
-    idle_seconds: String(EDITOR_IDLE_MS / 1000),
-    cap_seconds: String(EDITOR_HARD_CAP_MS / 1000),
-  }),
-)
 
 const lookupLineText = computed<string | null>(() => {
   const group = groupedLookup.value?.groups[0]
@@ -647,9 +643,7 @@ const libraryErrorText = computed<string | null>(() => {
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
         <span v-if="glossaryCountText !== null" class="info-item" data-status-glossary>{{ glossaryCountText }}</span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-        <span v-if="tmCountText !== null" class="info-item" data-status-tm>{{ tmCountText }}</span>
-        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-        <span v-if="showAutoSave" class="info-item" data-status-autosave-hint>{{ autoSaveHintText }}</span>
+        <span v-if="tmCountText !== null" class="info-item" data-status-tm :title="tmTitleText ?? undefined">{{ tmCountText }}</span>
       </template>
       <!-- aura-allow-text: nghĩa đầu của nguồn đầu — DỮ LIỆU từ điển, không chuỗi giao diện. -->
       <span v-else-if="lookupLineText !== null" class="info-item lookup-line" data-status-lookup-line>{{ lookupLineText }}</span>
@@ -670,7 +664,7 @@ const libraryErrorText = computed<string | null>(() => {
     <button
       v-if="currentMode === 'workspace' && readingMarksWalkProgress !== null"
       type="button"
-      class="walk-entry"
+      class="ui-btn ui-btn--sm"
       data-reading-walk-next
       @mousedown="focusOnPointerDown($event)"
       @click="dispatch('reading.marks_walk_next')"
@@ -679,7 +673,7 @@ const libraryErrorText = computed<string | null>(() => {
     </button>
     <button
       type="button"
-      class="queue-entry"
+      class="ui-btn ui-btn--sm"
       data-glossary-queue-open
       @mousedown="focusOnPointerDown($event)"
       @click="dispatch('glossary.queue.open')"
@@ -689,7 +683,7 @@ const libraryErrorText = computed<string | null>(() => {
     <button
       v-if="lookupHasRetreated"
       type="button"
-      class="lookup-entry"
+      class="ui-btn ui-btn--sm"
       data-lookup-drawer-open
       @click="dispatch('layout.lookup_drawer_open')"
     >
@@ -755,6 +749,7 @@ const libraryErrorText = computed<string | null>(() => {
 .status-end {
   flex: 0 1 auto;
   margin-left: auto;
+  gap: calc(var(--space-unit) * 3);
 }
 
 .info-item {
@@ -809,35 +804,12 @@ const libraryErrorText = computed<string | null>(() => {
   color: var(--color-on-surface-variant);
 }
 
-/*
- * 🔵 Story 4.12, Phase 3a — điểm vào ngăn kéo Tra cứu. `margin-left: auto` trên một flex
- * container đẩy nó về cạnh PHẢI bất kể nhánh câu nào (hoặc không nhánh nào) đang chiếm phần
- * còn lại — cùng cơ chế `justify-content: space-between` mà `.attr-head`/`.sc-head` dùng,
- * chỉ viết ở phía item thay vì ở container vì `.status` còn năm anh em khác không cần dời.
- *
- * Không một vai chữ RIÊNG: `ui-sm` là vai của `.saved`/`.notice` ngay trên — một nút chữ
- * cùng cỡ với phần còn lại của thanh, không phải một huy hiệu nổi bật hơn (Kiểm F của
- * `check:tokens` cấm bóng đổ; nổi bật bằng token màu KHÔNG bằng elevation).
- */
-.lookup-entry,
-.walk-entry,
-.queue-entry {
+.status .ui-btn {
   flex: none;
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
 }
 
-.lookup-entry:focus-visible,
-.walk-entry:focus-visible,
-.queue-entry:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
+.status-end > .info-item + .info-item {
+  padding-left: calc(var(--space-unit) * 3);
+  border-left: 1px solid var(--color-outline);
 }
 </style>

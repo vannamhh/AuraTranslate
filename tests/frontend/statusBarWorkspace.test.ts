@@ -234,7 +234,8 @@ describe('thanh trạng thái — số Glossary và TM', () => {
   it('0 thật vẫn hiện là 0 (khác "chưa biết")', async () => {
     tmCount.mockResolvedValue({ total: 0, mine: 0, others: 0 })
     const { wrapper } = await freshBar()
-    expect(info(wrapper, 'data-status-tm')).toBe('TM: 0 cặp · 0 của tôi · 0 của người khác · ngưỡng gợi ý 65%')
+    expect(info(wrapper, 'data-status-tm')).toBe('TM 0 · 65%')
+    expect(wrapper.get('[data-status-tm]').attributes('title')).toBe('TM: 0 cặp · 0 của tôi · 0 của người khác · ngưỡng gợi ý 65%')
     wrapper.unmount()
   })
 
@@ -243,7 +244,8 @@ describe('thanh trạng thái — số Glossary và TM', () => {
     state.setEditorCaret(12)
     await flushPromises()
     expect(info(wrapper, 'data-status-confirmed')).toBe('1/3 đã xác nhận')
-    expect(info(wrapper, 'data-status-tm')).toBe('TM: 12 cặp · 9 của tôi · 3 của người khác · ngưỡng gợi ý 65%')
+    expect(info(wrapper, 'data-status-tm')).toBe('TM 12 · 65%')
+    expect(wrapper.get('[data-status-tm]').attributes('title')).toBe('TM: 12 cặp · 9 của tôi · 3 của người khác · ngưỡng gợi ý 65%')
     const callsBefore = tmCount.mock.calls.length
     tmCount.mockResolvedValue({ total: 13, mine: 10, others: 3 })
 
@@ -251,7 +253,8 @@ describe('thanh trạng thái — số Glossary và TM', () => {
     await flushPromises()
 
     expect(tmCount.mock.calls.length).toBeGreaterThan(callsBefore)
-    expect(info(wrapper, 'data-status-tm')).toBe('TM: 13 cặp · 10 của tôi · 3 của người khác · ngưỡng gợi ý 65%')
+    expect(info(wrapper, 'data-status-tm')).toBe('TM 13 · 65%')
+    expect(wrapper.get('[data-status-tm]').attributes('title')).toBe('TM: 13 cặp · 10 của tôi · 3 của người khác · ngưỡng gợi ý 65%')
     expect(info(wrapper, 'data-status-confirmed')).toBe('2/3 đã xác nhận')
     wrapper.unmount()
   })
@@ -264,27 +267,22 @@ describe('thanh trạng thái — số Glossary và TM', () => {
     settings.tmSettingsThresholdInput.value = '80'
     await settings.saveTmSettings()
     await flushPromises()
-    expect(info(wrapper, 'data-status-tm')).toBe('TM: 12 cặp · 9 của tôi · 3 của người khác · ngưỡng gợi ý 80%')
+    expect(info(wrapper, 'data-status-tm')).toBe('TM 12 · 80%')
+    expect(wrapper.get('[data-status-tm]').attributes('title')).toBe('TM: 12 cặp · 9 của tôi · 3 của người khác · ngưỡng gợi ý 80%')
     wrapper.unmount()
   })
 })
 
 describe('thanh trạng thái — tầng bố cục', () => {
-  it('tầng rộng: câu nhắc auto-save nằm ngoài vùng sống; tầng khác không có nó', async () => {
+  it('mọi tầng: thanh không còn câu giải thích auto-save', async () => {
     const { wrapper } = await freshBar()
     const layout = await import('../../src/layout/lookupDrawerState')
 
-    expect(wrapper.find('[data-status-autosave-hint]').exists()).toBe(false)
-    layout.syncLayoutTier('full')
-    await flushPromises()
-    const hint = wrapper.get('[data-status-autosave-hint]')
-    expect(hint.text()).toContain('~2 giây')
-    expect(hint.text()).toContain('5 giây')
-    expect(wrapper.get('[data-status-live]').element.contains(hint.element)).toBe(false)
-
-    layout.syncLayoutTier('short')
-    await flushPromises()
-    expect(wrapper.find('[data-status-autosave-hint]').exists()).toBe(false)
+    for (const tier of ['full', 'short', 'narrow'] as const) {
+      layout.syncLayoutTier(tier)
+      await flushPromises()
+      expect(wrapper.find('[data-status-autosave-hint]').exists(), tier).toBe(false)
+    }
     wrapper.unmount()
   })
 
@@ -304,7 +302,7 @@ describe('thanh trạng thái — tầng bố cục', () => {
       shortcuts.shortcutRows.value.find((r) => r.id === 'layout.lookup_drawer_open')?.display.join(' / '),
     )
     expect(wrapper.find('[data-lookup-drawer-open]').exists()).toBe(true)
-    for (const attr of ['data-status-glossary', 'data-status-tm', 'data-status-autosave-hint', 'data-status-lookup-offline']) {
+    for (const attr of ['data-status-glossary', 'data-status-tm', 'data-status-lookup-offline']) {
       expect(wrapper.find(`[${attr}]`).exists(), attr).toBe(false)
     }
     wrapper.unmount()

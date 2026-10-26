@@ -89,7 +89,7 @@ onBeforeUnmount(() => {
   <span class="tab" :class="{ current }">
     {{ t(props.params.params.titleKey ?? '') }}
     <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-    <span v-if="chord !== ''" class="tab-chord">{{ chord }}</span>
+    <span v-if="chord !== ''" class="tab-chord ui-kbd">{{ chord }}</span>
   </span>
 </template>
 
@@ -113,9 +113,8 @@ onBeforeUnmount(() => {
 }
 
 .tab-chord {
-  margin-left: var(--space-panel-inline);
+  margin-left: calc(var(--space-unit) * 2);
   font-weight: var(--weight-ui-md);
-  color: var(--color-on-surface-variant);
 }
 
 /*

@@ -1866,11 +1866,12 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
       tồn tại (bắt ở code review 2026-08-06).
     -->
     <div v-if="hasSegments && isChinese" class="tabs" role="tablist">
+      <span class="ui-seg">
       <button
         id="grid-tab-original"
         ref="tabOriginalBtn"
         type="button"
-        class="tab"
+        class="tab ui-seg__item"
         role="tab"
         aria-controls="grid-tabpanel"
         :aria-selected="activeTab === 'original'"
@@ -1884,7 +1885,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
         id="grid-tab-han-viet"
         ref="tabHanVietBtn"
         type="button"
-        class="tab"
+        class="tab ui-seg__item"
         role="tab"
         aria-controls="grid-tabpanel"
         :aria-selected="activeTab === 'han_viet'"
@@ -1894,12 +1895,13 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
         @keydown.right.prevent="selectTabViaArrow('original')"
         @keydown.left.prevent="selectTabViaArrow('original')"
       >{{ t('panel.source.tab_han_viet') }}</button>
+      </span>
       <!-- aura-allow-text: cả hai nhánh đi qua t(), không chuỗi viết thẳng nào — Kiểm A2
            không đọc tĩnh được toán tử ba ngôi (cùng khuôn `LibraryMode.vue:143`). -->
       <button
         v-if="activeTab === 'han_viet' && (viewMode === 'parallel' || canUseParallelView)"
         type="button"
-        class="view-toggle"
+        class="view-toggle ui-btn ui-btn--sm ui-btn--quiet"
         @click="dispatch('source.toggle_han_viet_view')"
       >{{ viewMode === 'switch' ? t('panel.source.view_mode_parallel') : t('panel.source.view_mode_switch') }}</button>
     </div>
@@ -1981,25 +1983,9 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
    * là ca DUY NHẤT của toàn cây. Bốn khoá khai mà không dùng: `gutter-width` · ba `read-measure-*`.)*
    */
   gap: var(--space-panel-inline);
-  align-items: baseline;
+  align-items: center;
   flex: none;
   margin-bottom: var(--space-panel-block);
-}
-
-.tab,
-.view-toggle {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.tab.active {
-  color: var(--color-on-surface);
 }
 
 .view-toggle {

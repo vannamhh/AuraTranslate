@@ -408,7 +408,7 @@ const openSettingsLabel = computed(() =>
       <button
         v-if="promptSets.length === 0"
         type="button"
-        class="ai-translate-cancel"
+        class="ui-btn ui-btn--sm"
         data-ai-prompt-library-link
         @click="dispatch('prompt.library.open')"
       >
@@ -420,7 +420,7 @@ const openSettingsLabel = computed(() =>
         <span class="ai-panel-provider" data-ai-panel-set-none>{{ t('panel.ai_translation.prompt_set_none') }}</span>
         <button
           type="button"
-          class="ai-translate-cancel"
+          class="ui-btn ui-btn--sm"
           data-ai-prompt-set-pick
           @click="dispatch('ai.prompt_inspector.open')"
         >
@@ -429,7 +429,7 @@ const openSettingsLabel = computed(() =>
       </template>
       <button
         type="button"
-        class="ai-inspector-open"
+        class="ai-inspector-open ui-btn ui-btn--sm ui-btn--quiet"
         data-ai-prompt-inspector-open
         @click="dispatch('ai.prompt_inspector.open')"
       >
@@ -460,7 +460,7 @@ const openSettingsLabel = computed(() =>
       <!-- aura-allow-text: KẾT QUẢ của t() (nhãn nút dựng trong openSettingsLabel). -->
       <button
         type="button"
-        class="ai-unconfigured-open"
+        class="ui-btn"
         data-ai-unconfigured-open-settings
         @click="dispatch('settings.ai_config.open')"
       >
@@ -473,8 +473,9 @@ const openSettingsLabel = computed(() =>
     <div ref="surface" class="ai-surface">
       <div class="ai-translate-actions">
         <button
+          v-if="!canCancelAiTranslate"
           type="button"
-          class="ai-translate-run"
+          class="ui-btn ui-btn--primary ai-run-slot"
           data-ai-translate-run
           :disabled="!canRunAiTranslate"
           @click="dispatch('ai.translate.run')"
@@ -482,10 +483,10 @@ const openSettingsLabel = computed(() =>
           {{ t('command.ai.translate.run') }}
         </button>
         <button
+          v-else
           type="button"
-          class="ai-translate-cancel"
+          class="ui-btn ui-btn--primary ai-run-slot"
           data-ai-translate-cancel
-          :disabled="!canCancelAiTranslate"
           @click="dispatch('ai.translate.cancel')"
         >
           <!-- aura-allow-text: KẾT QUẢ của t() (hai nhãn: Huỷ dịch / Huỷ lô). -->
@@ -493,7 +494,7 @@ const openSettingsLabel = computed(() =>
         </button>
         <button
           type="button"
-          class="ai-translate-promote"
+          class="ui-btn"
           data-ai-translate-promote
           :disabled="!canPromoteAiTranslate"
           @click="dispatch('ai.translate.promote')"
@@ -503,7 +504,7 @@ const openSettingsLabel = computed(() =>
         <button
           v-if="canRetryAiTranslate"
           type="button"
-          class="ai-translate-retry"
+          class="ui-btn"
           data-ai-translate-retry
           @click="dispatch('ai.translate.retry')"
         >
@@ -574,10 +575,10 @@ const openSettingsLabel = computed(() =>
         <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — chính bản dịch họ vừa gõ, không một chuỗi giao diện. -->
         <p class="ai-promote-draft">{{ editorPendingPromote.draft }}</p>
         <div class="ai-promote-confirm-acts">
-          <button type="button" class="ai-promote-act" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
+          <button type="button" class="ui-btn ui-btn--sm" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
             {{ t('panel.ai_translation.promote_confirm_accept') }}
           </button>
-          <button type="button" class="ai-promote-act" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
+          <button type="button" class="ui-btn ui-btn--sm" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
             {{ t('panel.ai_translation.promote_confirm_cancel') }}
           </button>
         </div>
@@ -590,10 +591,10 @@ const openSettingsLabel = computed(() =>
         <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — các bản dịch họ vừa gõ, không một chuỗi giao diện. -->
         <p v-for="item in editorPendingPromoteBatch.items" :key="item.segmentId" class="ai-promote-draft">{{ item.draft }}</p>
         <div class="ai-promote-confirm-acts">
-          <button type="button" class="ai-promote-act" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
+          <button type="button" class="ui-btn ui-btn--sm" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
             {{ t('panel.ai_translation.promote_confirm_accept') }}
           </button>
-          <button type="button" class="ai-promote-act" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
+          <button type="button" class="ui-btn ui-btn--sm" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
             {{ t('panel.ai_translation.promote_confirm_cancel') }}
           </button>
         </div>
@@ -602,19 +603,25 @@ const openSettingsLabel = computed(() =>
         <!-- aura-allow-text: KẾT QUẢ của t() (số câu đã ghi / bị bỏ). -->
         {{ promoteBatchReportText }}
       </p>
-      <p v-if="aiTranslateAccumulatedText !== '' && !isAiTranslateStale" class="ai-translate-text" data-ai-translate-text>
-        <!-- aura-allow-text: DỮ LIỆU (văn bản do AI sinh ra, chảy dần qua Channel). -->
-        {{ aiTranslateAccumulatedText }}
-      </p>
-      <p
-        v-if="aiUsageVisible && aiTranslateUsageLineValue !== null && !isAiTranslateStale"
-        class="ai-translate-usage"
-        role="status"
-        data-ai-translate-usage
+      <div
+        v-if="(aiTranslateAccumulatedText !== '' || (aiUsageVisible && aiTranslateUsageLineValue !== null)) && !isAiTranslateStale"
+        class="ai-result-card"
+        data-ai-result-card
       >
-        <!-- aura-allow-text: KẾT QUẢ của t() (Story 4.11: số token + ước tính chi phí). -->
-        {{ t(aiTranslateUsageLineValue.key, aiTranslateUsageLineValue.params) }}
-      </p>
+        <p v-if="aiTranslateAccumulatedText !== '' && !isAiTranslateStale" class="ai-translate-text" data-ai-translate-text>
+          <!-- aura-allow-text: DỮ LIỆU (văn bản do AI sinh ra, chảy dần qua Channel). -->
+          {{ aiTranslateAccumulatedText }}
+        </p>
+        <p
+          v-if="aiUsageVisible && aiTranslateUsageLineValue !== null && !isAiTranslateStale"
+          class="ai-translate-usage"
+          role="status"
+          data-ai-translate-usage
+        >
+          <!-- aura-allow-text: KẾT QUẢ của t() (Story 4.11: số token + ước tính chi phí). -->
+          {{ t(aiTranslateUsageLineValue.key, aiTranslateUsageLineValue.params) }}
+        </p>
+      </div>
 
       <!-- ─────────────────────────────────────────────────────────────────────────────
            Story 4.9, Phase 3 — "Dịch theo LÔ với tiến độ và huỷ giữa chừng" (FR73, AD-22,
@@ -622,10 +629,11 @@ const openSettingsLabel = computed(() =>
            ngay trên (một nút, một khối lỗi cho CẢ HAI hình dạng lời gọi — §Tasks spec 4.9
            Phase 3: "reuse the existing cancel button"), khối dưới đây chỉ thêm phần LÔ
            không có ở lượt đơn: nút chạy lô, tiến độ, và danh sách hàng. -->
+      <p class="ai-group-label" data-ai-chapter-group>{{ t('panel.ai_translation.chapter_group') }}</p>
       <div class="ai-batch-bar">
         <button
           type="button"
-          class="ai-translate-batch-run"
+          class="ui-btn"
           data-ai-translate-chapter-run
           :disabled="!canRunAiTranslateChapter"
           @click="dispatch('ai.translate.chapter_run')"
@@ -635,7 +643,7 @@ const openSettingsLabel = computed(() =>
         </button>
         <button
           type="button"
-          class="ai-translate-batch-run"
+          class="ui-btn"
           data-ai-translate-batch-run
           :disabled="!canRunAiTranslateBatch"
           @click="dispatch('ai.translate.batch_run')"
@@ -650,7 +658,7 @@ const openSettingsLabel = computed(() =>
         <button
           v-if="segmentSelectionCount > 0"
           type="button"
-          class="ai-translate-cancel"
+          class="ui-btn ui-btn--sm ui-btn--quiet"
           data-ai-selection-clear
           @click="dispatch('segment.selection.clear')"
         >
@@ -718,7 +726,7 @@ const openSettingsLabel = computed(() =>
           <button
             v-if="canRetryAiTranslateBatch"
             type="button"
-            class="ai-translate-batch-retry"
+            class="ui-btn"
             data-ai-translate-batch-retry
             @click="dispatch('ai.translate.batch_retry')"
           >
@@ -731,7 +739,7 @@ const openSettingsLabel = computed(() =>
           </button>
           <button
             type="button"
-            class="ai-translate-promote-batch"
+            class="ui-btn"
             data-ai-translate-promote-batch
             :disabled="!canPromoteAiTranslateBatch"
             @click="dispatch('ai.translate.promote_batch')"
@@ -740,7 +748,7 @@ const openSettingsLabel = computed(() =>
           </button>
           <button
             type="button"
-            class="ai-translate-batch-discard"
+            class="ui-btn ui-btn--quiet"
             data-ai-translate-batch-discard
             @click="dispatch('ai.translate.batch_discard')"
           >
@@ -820,38 +828,8 @@ const openSettingsLabel = computed(() =>
   color: var(--color-on-surface-variant);
 }
 
-.ai-unconfigured-open {
+.ai-unconfigured .ui-btn {
   align-self: flex-start;
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ai-unconfigured-open:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
-.ai-inspector-open {
-  align-self: flex-start;
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ai-inspector-open:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 /*
@@ -873,47 +851,8 @@ const openSettingsLabel = computed(() =>
   flex: none;
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
-}
-
-.ai-translate-run,
-.ai-translate-cancel,
-.ai-translate-promote,
-.ai-translate-batch-run,
-.ai-translate-retry,
-.ai-translate-batch-retry,
-.ai-translate-promote-batch,
-.ai-translate-batch-discard {
-  align-self: flex-start;
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ai-translate-run:focus-visible,
-.ai-translate-cancel:focus-visible,
-.ai-translate-promote:focus-visible,
-.ai-translate-batch-run:focus-visible,
-.ai-translate-retry:focus-visible,
-.ai-translate-batch-retry:focus-visible,
-.ai-translate-promote-batch:focus-visible,
-.ai-translate-batch-discard:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
-.ai-translate-run:disabled,
-.ai-translate-cancel:disabled,
-.ai-translate-promote:disabled,
-.ai-translate-promote-batch:disabled,
-.ai-translate-batch-run:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
 }
 
 .ai-translate-hint,
@@ -941,6 +880,39 @@ const openSettingsLabel = computed(() =>
    (DESIGN.md: "Bản dịch trong Editor", 15px/1,95): đây LÀ một bản dịch, chỉ chưa được đưa vào
    Editor. Giữ nguyên xuống dòng của chính nó (AD-16: không `v-html`, đây vẫn là một text node
    thuần, chỉ CSS đổi cách trình bày khoảng trắng). */
+/* Run and its Cancel share one slot; a common minimum keeps the buttons after it still. */
+.ai-run-slot {
+  min-width: 8.5em;
+  justify-content: center;
+}
+
+.ai-result-card {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 3);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-default);
+}
+
+.ai-result-card .ai-translate-usage {
+  padding-top: calc(var(--space-unit) * 2);
+  border-top: 1px solid var(--color-outline);
+}
+
+.ai-group-label {
+  flex: none;
+  margin: calc(var(--space-unit) * 1) 0 0;
+  padding-top: calc(var(--space-unit) * 3);
+  border-top: 1px solid var(--color-outline-faint);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  font-weight: var(--weight-ui-md-strong);
+  color: var(--color-on-surface-variant);
+}
+
 .ai-translate-text {
   margin: 0;
   font-family: var(--face-editor);
@@ -1061,22 +1033,5 @@ const openSettingsLabel = computed(() =>
 .ai-promote-confirm-acts {
   display: flex;
   gap: var(--space-panel-inline);
-}
-
-.ai-promote-act {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.ai-promote-act:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 </style>

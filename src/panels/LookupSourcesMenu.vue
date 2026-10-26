@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { dispatch } from '../commands'
+import AppIcon from '../AppIcon.vue'
 import { t } from '../i18n'
 import {
   aimDictSourceFrom,
@@ -91,13 +92,16 @@ onBeforeUnmount(() => {
     <button
       ref="trigger"
       type="button"
-      class="sources-trigger"
+      class="ui-btn ui-btn--sm sources-trigger"
       aria-haspopup="menu"
       :aria-expanded="sourcesMenuIsOpen"
       data-sources-trigger
       @mousedown="focusOnPointerDown($event)"
       @click="dispatch('lookup.toggle_sources_menu')"
-    >{{ t('panel.lookup.sources_button', { n: String(enabledSourceCount), m: String(dictSources.length) }) }}</button>
+    >
+      {{ t('panel.lookup.sources_button', { n: String(enabledSourceCount), m: String(dictSources.length) }) }}
+      <AppIcon name="chevron" />
+    </button>
 
     <ul
       v-if="sourcesMenuIsOpen"
@@ -133,24 +137,6 @@ onBeforeUnmount(() => {
 <style scoped>
 .sources-menu {
   position: relative;
-}
-
-.sources-trigger {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  white-space: nowrap;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-primary);
-}
-
-.sources-trigger:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .sources-list {

@@ -86,7 +86,7 @@ afterEach(() => {
 describe('Nguồn N/M popup', () => {
   it('the trigger reads enabled/total, the list is closed until the command runs and rows carry the source code', async () => {
     const w = await openPanel()
-    expect(trigger(w).text()).toBe('Nguồn 3/3 ▾')
+    expect(trigger(w).text()).toBe('Nguồn 3/3')
     expect(trigger(w).attributes('aria-haspopup')).toBe('menu')
     expect(trigger(w).attributes('aria-expanded')).toBe('false')
     expect(rows(w)).toHaveLength(0)
@@ -125,7 +125,7 @@ describe('Nguồn N/M popup', () => {
 
     expect(h.puts).toHaveLength(1)
     expect(h.lookups).toEqual(['打'])
-    expect(trigger(w).text()).toBe('Nguồn 2/3 ▾')
+    expect(trigger(w).text()).toBe('Nguồn 2/3')
     expect(rows(w).map((r) => r.attributes('aria-checked'))).toEqual(['true', 'false', 'true'])
     expect(sourcesMenuIsOpen.value).toBe(true)
   })
@@ -161,7 +161,7 @@ describe('Nguồn N/M popup', () => {
     await flushPromises()
 
     expect(rows(w).map((r) => r.attributes('aria-checked'))).toEqual(['true', 'true', 'true'])
-    expect(trigger(w).text()).toBe('Nguồn 3/3 ▾')
+    expect(trigger(w).text()).toBe('Nguồn 3/3')
     warn.mockRestore()
   })
 
