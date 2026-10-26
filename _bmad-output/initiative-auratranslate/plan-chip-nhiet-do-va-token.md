@@ -3,7 +3,7 @@ title: 'Nhiệt độ và số token tối đa: chip, kèm mặc định theo t�
 type: 'feature'
 ticket: ''
 created: '2026-10-25'
-status: 'built'
+status: 'done'
 baseline_revision: '376f1cfe86fb556412d9b292a463383d225e4cf1'
 route: 'full'
 route_source: 'auto'
