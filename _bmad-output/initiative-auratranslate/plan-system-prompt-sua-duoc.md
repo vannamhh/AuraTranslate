@@ -3,7 +3,7 @@ title: 'System prompt cố định, sửa được, gửi trước thân bộ pr
 type: 'feature'
 ticket: ''
 created: '2026-10-26'
-status: 'built'
+status: 'done'
 baseline_revision: 'd4c3c71a80b1eebeb5f232e8310b571d4200ff25'
 route: 'full'
 route_source: 'auto'
