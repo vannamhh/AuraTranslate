@@ -16,13 +16,14 @@
  * nhập trên cả bốn thao tác là đúng, không phải một giản lược.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 🔵 `selectedPromptSetName` — trạng thái CỤC BỘ, KHÔNG một trường Rust
+ * 🔵 `selectedPromptSetName` — trạng thái phiên, lựa chọn TAY nhớ theo Tác phẩm
  * ─────────────────────────────────────────────────────────────────────────────
- * Quyết định #4 spec 4.4: một bộ là TÊN + THÂN, không trường "đang dùng"/"mặc định" nào được
- * lưu. "Bộ hiệu lực" mà bảng AI Translation hiển thị vì thế là một lựa chọn HIỂN THỊ thuần
- * phía webview, không một lượt `invoke` nào đứng sau [`setSelectedPromptSetName`] — module
- * này chỉ giữ TÊN đang chọn và tự xoá nó nếu tên đó không còn giải được sau một lượt
- * [`loadPromptSets`] (bộ vừa bị xoá/đổi tên ở nơi khác), để không trỏ vào một bộ đã biến mất.
+ * Quyết định #4 spec 4.4: một bộ là TÊN + THÂN, bảng `prompt_set` không có trường "đang dùng".
+ * Tên Ice chọn TAY được nhớ riêng ở `work.chosen_prompt_set_name` (`prompt_set_choice_*`):
+ * [`setSelectedPromptSetName`] ghi cột đó khi có Tác phẩm mở, [`restorePromptSetForWork`] đọc
+ * lại lúc mở Tác phẩm (bộ đã lưu ⇒ thể loại ⇒ không chọn). Tự chọn theo thể loại KHÔNG ghi.
+ * Module này tự xoá tên đang chọn nếu nó không còn giải được sau một lượt [`loadPromptSets`]
+ * (bộ vừa bị xoá/đổi tên ở nơi khác), không sửa tên đã lưu.
  *
  * ⚠️ Cùng luật mọi state Vue khác: tệp này KHÔNG được `import` vào `src/commands/index.ts`.
  */
@@ -30,6 +31,8 @@ import { readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import type { IpcError } from './i18n'
 import {
+  promptSetChoiceGet,
+  promptSetChoiceSet,
   promptSetCreate,
   promptSetDelete,
   promptSetExport,
@@ -56,6 +59,7 @@ const actionWarnings = ref<PromptSetWarningsWire | null>(null)
 const selectedSetName = ref<string | null>(null)
 let selectionIsAutomatic = false
 let pendingGenre: string | null = null
+let pendingRestore = false
 let lastGenre: string | null = null
 /** Từ vựng biến số ratify (`PromptVariable::ALL` phía Rust) — nguồn sự thật DUY NHẤT mà
  * `PromptLibraryOverlay.vue` render từ đó, cùng khối 🔴 đầu `PromptSetListWire::variables`
@@ -66,6 +70,7 @@ const variableNames = ref<string[]>([])
  * Sửa thân/Xoá): một lỗi xuất không phải một lỗi soạn, và không nên xoá banner của form đang
  * mở. `null` khi chưa xuất lần nào, hoặc lượt gần nhất thành công/bị huỷ. */
 const exportError = ref<IpcError | null>(null)
+const choiceError = ref<IpcError | null>(null)
 const exportManyError = ref<IpcError | null>(null)
 const exportFiles = ref<PromptSetExportFile[] | null>(null)
 
@@ -83,6 +88,7 @@ export const selectedPromptSetName: DeepReadonly<Ref<string | null>> = readonly(
 export const promptSetVariables: DeepReadonly<Ref<string[]>> = readonly(variableNames)
 export const promptSetExportManyError: DeepReadonly<Ref<IpcError | null>> = readonly(exportManyError)
 export const promptSetExportFiles: DeepReadonly<Ref<PromptSetExportFile[] | null>> = readonly(exportFiles)
+export const promptSetChoiceError: DeepReadonly<Ref<IpcError | null>> = readonly(choiceError)
 export const promptSetExportError: DeepReadonly<Ref<IpcError | null>> = readonly(exportError)
 /** Cờ dùng CHUNG với lượt Nhập (`promptSetImportState.ts`) và với Xuất/Nhập Glossary — cả
  * ba đều mở một hộp thoại hệ điều hành của Rust; xem doc-comment đã cập nhật của
@@ -153,11 +159,13 @@ export async function loadPromptSets(): Promise<void> {
   if (result.error !== null) {
     loadError.value = result.error
     pendingGenre = null
+    pendingRestore = false
     return
   }
   loadError.value = null
   if (result.sets === null) {
     pendingGenre = null
+    pendingRestore = false
     return
   }
 
@@ -172,20 +180,47 @@ export async function loadPromptSets(): Promise<void> {
   }
   if (pendingGenre !== null) {
     const genre = pendingGenre
-    pendingGenre = null
+    if (pendingRestore) {
+      const choice = await promptSetChoiceGet()
+      if (mine !== sequence) return
+      pendingGenre = null
+      pendingRestore = false
+      if (choice.error !== null) choiceError.value = choice.error
+      const saved = choice.name === null ? null : findSetByTrimmedName(choice.name)
+      if (saved !== null) {
+        selectedSetName.value = saved.name
+        selectionIsAutomatic = false
+        return
+      }
+      selectedSetName.value = null
+      selectionIsAutomatic = false
+    } else {
+      pendingGenre = null
+    }
     applyGenre(genre)
   }
 }
 
+function findSetByTrimmedName(name: string): PromptSetWire | null {
+  const wanted = name.trim().toLowerCase()
+  return resolvedSets.value.find((s) => s.name.trim().toLowerCase() === wanted) ?? null
+}
+
 /**
- * Chọn bộ hiệu lực cho AI Translation — trạng thái CỤC BỘ, 0 lượt IPC (xem khối 🔵 đầu tệp).
- * `name` phải khớp một bộ ĐANG có trong danh sách đã nạp; một tên lạ bị bỏ qua thay vì trỏ
- * vào một bộ không tồn tại. `null` bỏ chọn.
+ * Chọn bộ hiệu lực cho AI Translation bằng TAY (xem khối 🔵 đầu tệp). `name` phải khớp một bộ
+ * ĐANG có trong danh sách đã nạp; một tên lạ bị bỏ qua. `null` bỏ chọn. Khi có Tác phẩm mở,
+ * lựa chọn được ghi xuống `project.db` (lỗi ghi vào [`promptSetChoiceError`], lựa chọn trong
+ * phiên vẫn giữ).
  */
 export function setSelectedPromptSetName(name: string | null): void {
   if (name !== null && !resolvedSets.value.some((s) => s.name === name)) return
   selectedSetName.value = name
   selectionIsAutomatic = false
+  if (!workTierAvailable.value) return
+  choiceError.value = null
+  void promptSetChoiceSet(name).then((err) => {
+    choiceError.value = err
+  })
 }
 
 function applyGenre(genre: string): void {
@@ -200,10 +235,12 @@ function applyGenre(genre: string): void {
   }
 }
 
-/** A hand-picked set is never cleared by a genre without a matching set. */
-export async function autoSelectPromptSetForGenre(genre: string): Promise<void> {
+/** On opening a Work: its saved hand-picked set, else the genre's set, else none. */
+export async function restorePromptSetForWork(genre: string): Promise<void> {
   lastGenre = genre
   pendingGenre = genre
+  pendingRestore = true
+  choiceError.value = null
   await loadPromptSets()
 }
 
@@ -429,9 +466,11 @@ export function resetPromptSets(): void {
   selectedSetName.value = null
   selectionIsAutomatic = false
   pendingGenre = null
+  pendingRestore = false
   lastGenre = null
   variableNames.value = []
   exportError.value = null
   exportManyError.value = null
   exportFiles.value = null
+  choiceError.value = null
 }

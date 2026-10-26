@@ -50,6 +50,7 @@ import {
   promptSetActionError,
   promptSetActionWarnings,
   promptSetBusy,
+  promptSetChoiceError,
   promptSetExchangeBusy,
   promptSetExportError,
   promptSetExportManyError,
@@ -655,6 +656,11 @@ async function onEscape(): Promise<void> {
         <!-- aura-allow-text: result of t() computed in the script. -->
         <span class="pl-bar-use" data-prompt-in-use>{{ inUseLine }}</span>
       </div>
+
+      <p v-if="promptSetChoiceError !== null" class="pl-alert" role="alert" data-prompt-choice-error>
+        <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+        {{ tError(promptSetChoiceError) }}
+      </p>
 
       <p v-if="!promptSetWorkTierAvailable" class="pl-note">
         {{ t('prompt.library.work_tier_unavailable_note') }}

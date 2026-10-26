@@ -46,7 +46,8 @@ pub mod vars;
 
 pub use store::{
     ImportOutcome, PromptSetError, ResolvedPromptSet, create, delete, import_into_tier, load_one,
-    load_prompt_set_tier, rename, resolve_two_tiers, update_body,
+    load_prompt_set_tier, read_chosen_name, rename, resolve_two_tiers, update_body,
+    write_chosen_name,
 };
 pub use vars::{MarkerWarnings, PromptVariable, scan_markers};
 

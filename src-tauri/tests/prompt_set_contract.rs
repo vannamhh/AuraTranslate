@@ -24,8 +24,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use auratranslate_lib::commands::project::{OpenWork, create_work};
 use auratranslate_lib::commands::promptset::{
-    PromptSetListWire, PromptSetTierWire, PromptSetWire, prompt_set_create, prompt_set_delete,
-    prompt_set_list, prompt_set_rename, prompt_set_update_body,
+    PromptSetListWire, PromptSetTierWire, PromptSetWire, prompt_set_choice_get,
+    prompt_set_choice_set, prompt_set_create, prompt_set_delete, prompt_set_list,
+    prompt_set_rename, prompt_set_update_body,
 };
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::promptset::{PromptSetTier, PromptVariable};
@@ -780,4 +781,127 @@ fn scan_markers_agrees_with_the_shared_marker_fixture() {
             "{name}: tm_similar_segments"
         );
     }
+}
+
+fn reopen_work(open: OpenWork) -> OpenWork {
+    let indexed = auratranslate_lib::core::library::indexer::IndexedWork {
+        work_id: open.meta.work_id.clone(),
+        atproj_path: open.dir.clone(),
+        name: open.meta.name.clone(),
+        source_lang: open.meta.source_lang.clone(),
+        genre: open.meta.genre.clone(),
+        created_at: open.meta.created_at.clone(),
+        updated_at: open.meta.updated_at.clone(),
+        chapter_count: open.meta.chapter_count,
+        status: open.meta.status.clone(),
+        status_is_override: open.meta.status_is_override,
+        chapter_done_count: open.meta.chapter_done_count,
+    };
+    drop(open);
+    auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+        .expect("mo lai tac pham")
+}
+
+fn work_updated_at(open: &OpenWork) -> String {
+    open.store
+        .read(|conn| conn.query_row("SELECT updated_at FROM work WHERE id = 1", [], |r| r.get(0)))
+        .expect("doc updated_at")
+}
+
+#[test]
+fn the_chosen_prompt_set_name_round_trips_survives_a_reopen_and_is_per_work() {
+    let root = temp_dir("choice-roundtrip");
+    let a = open_work_real(&root);
+    let b = create_work(
+        &root,
+        "Work Hai",
+        "en",
+        "",
+        PipelineShape::Blob(ChapterInput::AlreadyText("noi dung".to_owned())),
+        encoding_rs::UTF_8,
+        Vec::new(),
+        None,
+        Vec::new(),
+        0,
+        1,
+        false,
+        &[],
+        &std::sync::Mutex::new(Vec::new()),
+        None,
+        &[],
+    )
+    .expect("tao Tac pham thu hai");
+
+    assert_eq!(prompt_set_choice_get(Some(&a)).expect("doc"), None);
+    prompt_set_choice_set(Some(&a), Some("Thoi su")).expect("ghi A");
+    prompt_set_choice_set(Some(&b), Some("Phap ly")).expect("ghi B");
+    assert_eq!(
+        prompt_set_choice_get(Some(&a)).expect("doc A"),
+        Some("Thoi su".to_owned())
+    );
+    assert_eq!(
+        prompt_set_choice_get(Some(&b)).expect("doc B"),
+        Some("Phap ly".to_owned())
+    );
+
+    let a = reopen_work(a);
+    assert_eq!(
+        prompt_set_choice_get(Some(&a)).expect("doc A sau khi mo lai"),
+        Some("Thoi su".to_owned())
+    );
+
+    prompt_set_choice_set(Some(&a), None).expect("bo chon");
+    assert_eq!(prompt_set_choice_get(Some(&a)).expect("doc"), None);
+    prompt_set_choice_set(Some(&a), Some("   ")).expect("ten trang");
+    assert_eq!(prompt_set_choice_get(Some(&a)).expect("doc"), None);
+
+    drop(a);
+    drop(b);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn setting_the_chosen_prompt_set_name_leaves_updated_at_and_meta_json_alone() {
+    let root = temp_dir("choice-no-touch");
+    let open = open_work_real(&root);
+    let updated_before = work_updated_at(&open);
+    let meta_path = open.dir.join("meta.json");
+    let meta_before = fs::read(&meta_path).ok();
+
+    prompt_set_choice_set(Some(&open), Some("Thoi su")).expect("ghi");
+
+    assert_eq!(work_updated_at(&open), updated_before);
+    assert_eq!(fs::read(&meta_path).ok(), meta_before);
+    drop(open);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn a_project_database_from_step_40_gains_the_chosen_name_column_as_null() {
+    let root = temp_dir("choice-migration");
+    let open = open_work_real(&root);
+    open.store
+        .write(|tx: &auratranslate_lib::core::store::Transaction<'_>| {
+            tx.execute_batch(
+                "ALTER TABLE work DROP COLUMN chosen_prompt_set_name; \
+                 DELETE FROM schema_migration_log WHERE version = 41; \
+                 PRAGMA user_version = 40;",
+            )
+        })
+        .expect("ha ve buoc 40");
+
+    let open = reopen_work(open);
+
+    assert_eq!(open.store.schema_version(), 41);
+    assert_eq!(prompt_set_choice_get(Some(&open)).expect("doc"), None);
+    drop(open);
+    cleanup_dir(&root);
+}
+
+#[test]
+fn the_chosen_prompt_set_name_without_an_open_work_is_work_tier_unavailable() {
+    let get = prompt_set_choice_get(None).expect_err("khong co tac pham");
+    assert_eq!(get.code(), "prompt_set.work_tier_unavailable");
+    let set = prompt_set_choice_set(None, Some("x")).expect_err("khong co tac pham");
+    assert_eq!(set.code(), "prompt_set.work_tier_unavailable");
 }

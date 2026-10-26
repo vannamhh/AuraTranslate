@@ -13,6 +13,8 @@ const promptSetRenameMock = vi.fn()
 const promptSetUpdateBodyMock = vi.fn()
 const promptSetDeleteMock = vi.fn()
 const promptSetExportMock = vi.fn()
+const promptSetChoiceGetMock = vi.fn()
+const promptSetChoiceSetMock = vi.fn()
 
 vi.mock('../../src/config/promptset', () => ({
   promptSetList: (...args: unknown[]) => promptSetListMock(...args),
@@ -21,6 +23,8 @@ vi.mock('../../src/config/promptset', () => ({
   promptSetUpdateBody: (...args: unknown[]) => promptSetUpdateBodyMock(...args),
   promptSetDelete: (...args: unknown[]) => promptSetDeleteMock(...args),
   promptSetExport: (...args: unknown[]) => promptSetExportMock(...args),
+  promptSetChoiceGet: (...args: unknown[]) => promptSetChoiceGetMock(...args),
+  promptSetChoiceSet: (...args: unknown[]) => promptSetChoiceSetMock(...args),
 }))
 
 /** Nạp lại module mỗi ca — state là module-level singleton, cùng lý do `freshState` của
@@ -62,12 +66,16 @@ beforeEach(() => {
   promptSetUpdateBodyMock.mockReset()
   promptSetDeleteMock.mockReset()
   promptSetExportMock.mockReset()
+  promptSetChoiceGetMock.mockReset()
+  promptSetChoiceSetMock.mockReset()
   promptSetListMock.mockResolvedValue({ sets: emptySets(), workTierAvailable: false, variables: [], error: null })
   promptSetCreateMock.mockResolvedValue({ id: 1, warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
   promptSetRenameMock.mockResolvedValue(null)
   promptSetUpdateBodyMock.mockResolvedValue({ warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null })
   promptSetDeleteMock.mockResolvedValue(null)
   promptSetExportMock.mockResolvedValue({ outcome: 'done', path: '/tmp/x.prompt.md' })
+  promptSetChoiceGetMock.mockResolvedValue({ name: null, error: null })
+  promptSetChoiceSetMock.mockResolvedValue(null)
 })
 
 afterEach(() => {
@@ -552,63 +560,184 @@ function deferred() {
   return { promise, resolve }
 }
 
-describe('autoSelectPromptSetForGenre', () => {
-  function withSets(...names: string[]) {
+describe('restorePromptSetForWork — bộ đã lưu ⇒ thể loại ⇒ không chọn', () => {
+  function withSets(workTierAvailable: boolean, ...names: string[]) {
     promptSetListMock.mockResolvedValue({
       sets: names.map((name, i) => makeSet({ id: i + 1, name })),
-      workTierAvailable: false,
+      workTierAvailable,
       variables: [],
       error: null,
     })
   }
+  function saved(name: string | null) {
+    promptSetChoiceGetMock.mockResolvedValue({ name, error: null })
+  }
+
+  it('Nhớ qua khởi động lại: bộ đã lưu được chọn sẵn, không tự chọn', async () => {
+    withSets(true, 'Tiên hiệp', 'Thời sự')
+    saved('Thời sự')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('')
+    expect(promptSetChoiceGetMock).toHaveBeenCalledTimes(1)
+    expect(selectedPromptSet()?.name).toBe('Thời sự')
+  })
+
+  it('Đè thể loại: Tác phẩm Tiên hiệp có bộ "Tiên hiệp" nhưng đã lưu "Thời sự" ⇒ "Thời sự"', async () => {
+    withSets(true, 'Tiên hiệp', 'Thời sự')
+    saved('Thời sự')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('xianxia')
+    expect(selectedPromptSet()?.name).toBe('Thời sự')
+  })
+
+  it('bộ đã lưu được chọn như lựa chọn tay: thêm mẫu cùng thể loại không đè nó', async () => {
+    withSets(true, 'Thời sự')
+    saved('Thời sự')
+    const { restorePromptSetForWork, addPromptTemplates, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('xianxia')
+    withSets(true, 'Thời sự', 'Tiên hiệp')
+    await addPromptTemplates('global', ['xianxia'])
+    expect(selectedPromptSet()?.name).toBe('Thời sự')
+  })
+
+  it('tên đã lưu khớp sau trim, không phân biệt hoa thường', async () => {
+    withSets(true, 'Thời Sự')
+    saved('  thời sự ')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('')
+    expect(selectedPromptSet()?.name).toBe('Thời Sự')
+  })
+
+  it('Chưa từng chọn tay: cột NULL ⇒ tự chọn theo thể loại và KHÔNG ghi xuống đĩa', async () => {
+    withSets(true, 'Pháp lý')
+    saved(null)
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('legal')
+    expect(selectedPromptSet()?.name).toBe('Pháp lý')
+    expect(promptSetChoiceSetMock).not.toHaveBeenCalled()
+  })
+
+  it('Mỗi Tác phẩm riêng: đổi qua lại A/B ⇒ mỗi bên đúng bộ của mình', async () => {
+    withSets(true, 'Thời sự', 'Pháp lý')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    saved('Thời sự')
+    await restorePromptSetForWork('')
+    expect(selectedPromptSet()?.name).toBe('Thời sự')
+    saved('Pháp lý')
+    await restorePromptSetForWork('')
+    expect(selectedPromptSet()?.name).toBe('Pháp lý')
+    saved('Thời sự')
+    await restorePromptSetForWork('')
+    expect(selectedPromptSet()?.name).toBe('Thời sự')
+  })
+
+  it('lựa chọn tay của Tác phẩm A không rò sang Tác phẩm B chưa lưu gì', async () => {
+    withSets(true, 'Thời sự', 'Pháp lý')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    saved('Thời sự')
+    await restorePromptSetForWork('')
+    saved(null)
+    await restorePromptSetForWork('')
+    expect(selectedPromptSet()).toBeNull()
+    await restorePromptSetForWork('legal')
+    expect(selectedPromptSet()?.name).toBe('Pháp lý')
+  })
+
+  it('Bộ đã lưu bị xoá: theo thể loại, không lỗi, không sửa tên đã lưu', async () => {
+    withSets(true, 'Tiên hiệp')
+    saved('Cũ')
+    const { restorePromptSetForWork, selectedPromptSet, promptSetChoiceError, promptSetLoadError } = await freshState()
+    await restorePromptSetForWork('xianxia')
+    expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+    expect(promptSetChoiceError.value).toBeNull()
+    expect(promptSetLoadError.value).toBeNull()
+    expect(promptSetChoiceSetMock).not.toHaveBeenCalled()
+  })
+
+  it('đọc cột lỗi: coi như chưa lưu, theo thể loại', async () => {
+    withSets(true, 'Tiên hiệp')
+    promptSetChoiceGetMock.mockResolvedValue({ name: null, error: { code: 'store.read_failed' } })
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('xianxia')
+    expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+  })
+
+  it('đọc cột lỗi: báo qua promptSetChoiceError rồi theo thể loại', async () => {
+    withSets(true, 'Tiên hiệp')
+    const err = { code: 'store.read_failed', message_key: 'err.store.read_failed', params: {}, retryable: false }
+    promptSetChoiceGetMock.mockResolvedValue({ name: null, error: err })
+    const { restorePromptSetForWork, selectedPromptSet, promptSetChoiceError } = await freshState()
+    await restorePromptSetForWork('xianxia')
+    expect(promptSetChoiceError.value).toEqual(err)
+    expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+  })
+
+  it('một lượt tải khác bắt đầu trong lúc đọc cột: lượt mới vẫn khôi phục bộ đã lưu', async () => {
+    withSets(true, 'Tiên hiệp', 'Thời sự')
+    const read = deferred()
+    promptSetChoiceGetMock.mockReturnValueOnce(read.promise)
+    saved('Thời sự')
+    const { restorePromptSetForWork, loadPromptSets, selectedPromptSet } = await freshState()
+    const restore = restorePromptSetForWork('xianxia')
+    await vi.waitFor(() => expect(promptSetChoiceGetMock).toHaveBeenCalledTimes(1))
+    const panelLoad = loadPromptSets()
+    read.resolve({ name: 'Thời sự', error: null })
+    await restore
+    await panelLoad
+    expect(selectedPromptSet()?.name).toBe('Thời sự')
+  })
+
+  it('không có Tác phẩm (workTierAvailable false): cột không đọc được vẫn theo thể loại', async () => {
+    withSets(false, 'Tiên hiệp')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('xianxia')
+    expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+  })
 
   it('selects the set whose name matches the genre label (trim, case-insensitive)', async () => {
-    withSets(' TIÊN HIỆP ', 'Khác nữa')
-    const { autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
-    await autoSelectPromptSetForGenre('xianxia')
+    withSets(true, ' TIÊN HIỆP ', 'Khác nữa')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('xianxia')
     expect(selectedPromptSet()?.name).toBe(' TIÊN HIỆP ')
   })
 
   it('no match drops a selection made automatically', async () => {
-    withSets('Tiên hiệp')
-    const { autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
-    await autoSelectPromptSetForGenre('xianxia')
+    withSets(true, 'Tiên hiệp')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('xianxia')
     expect(selectedPromptSet()).not.toBeNull()
-    await autoSelectPromptSetForGenre('wuxia')
+    await restorePromptSetForWork('wuxia')
     expect(selectedPromptSet()).toBeNull()
   })
 
-  it('no match keeps a set chosen by hand, and a hand choice after auto is no longer automatic', async () => {
-    withSets('Tiên hiệp', 'Thủ công')
-    const { autoSelectPromptSetForGenre, selectedPromptSet, setSelectedPromptSetName } = await freshState()
-    await autoSelectPromptSetForGenre('')
+  it('chưa lưu: thể loại vẫn đè lựa chọn tay của phiên (Tác phẩm khác); không khớp thì bỏ chọn', async () => {
+    withSets(true, 'Tiên hiệp', 'Thủ công')
+    const { restorePromptSetForWork, selectedPromptSet, setSelectedPromptSetName } = await freshState()
+    await restorePromptSetForWork('')
     setSelectedPromptSetName('Thủ công')
-    await autoSelectPromptSetForGenre('wuxia')
-    expect(selectedPromptSet()?.name).toBe('Thủ công')
-
-    await autoSelectPromptSetForGenre('xianxia')
+    await restorePromptSetForWork('xianxia')
     expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
     setSelectedPromptSetName('Thủ công')
-    await autoSelectPromptSetForGenre('wuxia')
-    expect(selectedPromptSet()?.name).toBe('Thủ công')
+    await restorePromptSetForWork('wuxia')
+    expect(selectedPromptSet()).toBeNull()
   })
 
   it('a failed list load keeps the current selection', async () => {
-    withSets('Tiên hiệp')
-    const { autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
-    await autoSelectPromptSetForGenre('xianxia')
+    withSets(true, 'Tiên hiệp')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('xianxia')
     promptSetListMock.mockResolvedValue({ sets: null, workTierAvailable: false, variables: [], error: { code: 'x', message: 'x' } })
-    await autoSelectPromptSetForGenre('wuxia')
+    await restorePromptSetForWork('wuxia')
     expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
   })
 
-  it('a newer load overtaking the auto-select load still applies the genre', async () => {
+  it('a newer load overtaking the restore load still applies the genre', async () => {
     const first = deferred()
     const panel = deferred()
     promptSetListMock.mockReturnValueOnce(first.promise)
     promptSetListMock.mockReturnValueOnce(panel.promise)
-    const { autoSelectPromptSetForGenre, loadPromptSets, selectedPromptSet } = await freshState()
-    const auto = autoSelectPromptSetForGenre('xianxia')
+    const { restorePromptSetForWork, loadPromptSets, selectedPromptSet } = await freshState()
+    const auto = restorePromptSetForWork('xianxia')
     const panelLoad = loadPromptSets()
     first.resolve({ sets: [], workTierAvailable: false, variables: [], error: null })
     await auto
@@ -622,9 +751,9 @@ describe('autoSelectPromptSetForGenre', () => {
     const sets = { sets: [makeSet({ id: 1, name: 'Tiên hiệp' }), makeSet({ id: 2, name: 'Kiếm hiệp' })], workTierAvailable: false, variables: [], error: null }
     promptSetListMock.mockReturnValueOnce(slowA.promise)
     promptSetListMock.mockResolvedValueOnce(sets)
-    const { autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
-    const a = autoSelectPromptSetForGenre('xianxia')
-    const b = autoSelectPromptSetForGenre('wuxia')
+    const { restorePromptSetForWork, selectedPromptSet } = await freshState()
+    const a = restorePromptSetForWork('xianxia')
+    const b = restorePromptSetForWork('wuxia')
     await b
     slowA.resolve(sets)
     await a
@@ -632,14 +761,88 @@ describe('autoSelectPromptSetForGenre', () => {
   })
 
   it('a latest load that errors clears the pending genre and leaves the selection alone', async () => {
-    withSets('Tiên hiệp')
-    const { autoSelectPromptSetForGenre, loadPromptSets, selectedPromptSet } = await freshState()
-    await autoSelectPromptSetForGenre('xianxia')
+    withSets(true, 'Tiên hiệp')
+    const { restorePromptSetForWork, loadPromptSets, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('xianxia')
     promptSetListMock.mockResolvedValueOnce({ sets: null, workTierAvailable: false, variables: [], error: { code: 'x', message: 'x' } })
-    await autoSelectPromptSetForGenre('wuxia')
-    withSets('Tiên hiệp', 'Kiếm hiệp')
+    await restorePromptSetForWork('wuxia')
+    withSets(true, 'Tiên hiệp', 'Kiếm hiệp')
     await loadPromptSets()
     expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+  })
+})
+
+describe('setSelectedPromptSetName — lượt chọn tay ghi cột của Tác phẩm đang mở', () => {
+  function withSets(workTierAvailable: boolean, ...names: string[]) {
+    promptSetListMock.mockResolvedValue({
+      sets: names.map((name, i) => makeSet({ id: i + 1, name })),
+      workTierAvailable,
+      variables: [],
+      error: null,
+    })
+  }
+
+  it('chọn tay khi có Tác phẩm ⇒ ghi đúng tên đó', async () => {
+    withSets(true, 'Thời sự')
+    const { loadPromptSets, setSelectedPromptSetName } = await freshState()
+    await loadPromptSets()
+    setSelectedPromptSetName('Thời sự')
+    expect(promptSetChoiceSetMock).toHaveBeenCalledTimes(1)
+    expect(promptSetChoiceSetMock).toHaveBeenCalledWith('Thời sự')
+  })
+
+  it('Bỏ chọn tay ("— Chưa chọn —") ⇒ ghi null; lần mở sau theo thể loại', async () => {
+    withSets(true, 'Thời sự', 'Tiên hiệp')
+    const { loadPromptSets, setSelectedPromptSetName, restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await loadPromptSets()
+    setSelectedPromptSetName('Thời sự')
+    setSelectedPromptSetName(null)
+    expect(promptSetChoiceSetMock).toHaveBeenLastCalledWith(null)
+    promptSetChoiceGetMock.mockResolvedValue({ name: null, error: null })
+    await restorePromptSetForWork('xianxia')
+    expect(selectedPromptSet()?.name).toBe('Tiên hiệp')
+  })
+
+  it('không có Tác phẩm ⇒ không ghi', async () => {
+    withSets(false, 'Thời sự')
+    const { loadPromptSets, setSelectedPromptSetName, selectedPromptSet } = await freshState()
+    await loadPromptSets()
+    setSelectedPromptSetName('Thời sự')
+    expect(promptSetChoiceSetMock).not.toHaveBeenCalled()
+    expect(selectedPromptSet()?.name).toBe('Thời sự')
+  })
+
+  it('tên lạ bị bỏ qua và không ghi', async () => {
+    withSets(true, 'Thời sự')
+    const { loadPromptSets, setSelectedPromptSetName, selectedPromptSet } = await freshState()
+    await loadPromptSets()
+    setSelectedPromptSetName('Không có')
+    expect(promptSetChoiceSetMock).not.toHaveBeenCalled()
+    expect(selectedPromptSet()).toBeNull()
+  })
+
+  it('Lỗi ghi: báo qua promptSetChoiceError, lựa chọn trong phiên giữ, không thử lại', async () => {
+    withSets(true, 'Thời sự')
+    const err = { code: 'store.write_failed', message_key: 'err.store.write_failed', params: {}, retryable: false }
+    promptSetChoiceSetMock.mockResolvedValue(err)
+    const { loadPromptSets, setSelectedPromptSetName, selectedPromptSet, promptSetChoiceError } = await freshState()
+    await loadPromptSets()
+    setSelectedPromptSetName('Thời sự')
+    await vi.waitFor(() => expect(promptSetChoiceError.value).toEqual(err))
+    expect(selectedPromptSet()?.name).toBe('Thời sự')
+    expect(promptSetChoiceSetMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('một lượt chọn tay thành công sau lỗi xoá lỗi cũ', async () => {
+    withSets(true, 'Thời sự')
+    const err = { code: 'store.write_failed', message_key: 'err.store.write_failed', params: {}, retryable: false }
+    promptSetChoiceSetMock.mockResolvedValueOnce(err)
+    const { loadPromptSets, setSelectedPromptSetName, promptSetChoiceError } = await freshState()
+    await loadPromptSets()
+    setSelectedPromptSetName('Thời sự')
+    await vi.waitFor(() => expect(promptSetChoiceError.value).toEqual(err))
+    setSelectedPromptSetName(null)
+    await vi.waitFor(() => expect(promptSetChoiceError.value).toBeNull())
   })
 })
 
@@ -689,8 +892,8 @@ describe('addPromptTemplates — ma trận I/O của thư viện mẫu', () => {
   })
 
   it('Tác phẩm đang mở, chưa chọn bộ: thêm mẫu cùng thể loại thì tự chọn ngay', async () => {
-    const { addPromptTemplates, autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
-    await autoSelectPromptSetForGenre('wuxia')
+    const { addPromptTemplates, restorePromptSetForWork, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('wuxia')
     expect(selectedPromptSet()).toBeNull()
     listOf({ name: 'Kiếm hiệp' })
     await addPromptTemplates('global', ['wuxia'])
@@ -699,8 +902,8 @@ describe('addPromptTemplates — ma trận I/O của thư viện mẫu', () => {
 
   it('Ice đã chọn tay: thêm mẫu trùng thể loại giữ nguyên bộ đã chọn', async () => {
     listOf({ name: 'X' })
-    const { addPromptTemplates, autoSelectPromptSetForGenre, setSelectedPromptSetName, selectedPromptSet } = await freshState()
-    await autoSelectPromptSetForGenre('wuxia')
+    const { addPromptTemplates, restorePromptSetForWork, setSelectedPromptSetName, selectedPromptSet } = await freshState()
+    await restorePromptSetForWork('wuxia')
     setSelectedPromptSetName('X')
     listOf({ name: 'X' }, { name: 'Kiếm hiệp' })
     await addPromptTemplates('global', ['wuxia'])
@@ -725,10 +928,10 @@ describe('addPromptTemplates — ma trận I/O của thư viện mẫu', () => {
   })
 
   it('Đã thêm mẫu "Pháp lý" ở Toàn cục: mở Tác phẩm Pháp lý sau đó thì bộ được chọn là "Pháp lý"', async () => {
-    const { addPromptTemplates, autoSelectPromptSetForGenre, selectedPromptSet } = await freshState()
+    const { addPromptTemplates, restorePromptSetForWork, selectedPromptSet } = await freshState()
     listOf({ name: 'Pháp lý' })
     await addPromptTemplates('global', ['legal'])
-    await autoSelectPromptSetForGenre('legal')
+    await restorePromptSetForWork('legal')
     expect(selectedPromptSet()?.name).toBe('Pháp lý')
   })
 

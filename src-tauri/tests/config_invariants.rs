@@ -2262,10 +2262,10 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
     ),
     (
         "src/commands/promptset.rs",
-        7,
+        9,
         3,
         3,
-        "MOT PHAN DA DO (Story 4.5, Story 11.7 lo B). Nam vo Story 4.4 (liet ke/tao/doi ten/sua than/xoa) VAN CHUA DO -- chu: Dev, chua ai do chi phi cua chung tren mot thu vien prompt lon. Hai vo Story 4.5 (`prompt_set_confirm_import`/`prompt_set_cancel_import`) khong `(async)` co chu -- mot giao dich MOT hang la tuc thoi. Ba `(async)` (`prompt_set_export`, `prompt_set_export_many`, `prompt_set_open_import_preview`) mo hop thoai he dieu hanh, cung lop voi cac vo Glossary o tren.",
+        "Hai vo `prompt_set_choice_get`/`prompt_set_choice_set` doc/ghi MOT cot cua `work` -- tuc thoi, khong `(async)`. MOT PHAN DA DO (Story 4.5, Story 11.7 lo B). Nam vo Story 4.4 (liet ke/tao/doi ten/sua than/xoa) VAN CHUA DO -- chu: Dev, chua ai do chi phi cua chung tren mot thu vien prompt lon. Hai vo Story 4.5 (`prompt_set_confirm_import`/`prompt_set_cancel_import`) khong `(async)` co chu -- mot giao dich MOT hang la tuc thoi. Ba `(async)` (`prompt_set_export`, `prompt_set_export_many`, `prompt_set_open_import_preview`) mo hop thoai he dieu hanh, cung lop voi cac vo Glossary o tren.",
     ),
     // `segment/wire.rs` -- o ghi chu DE TRONG co chu dinh (D5, va Task list AI-4 noi ro "the
     // `segment.rs` note dropped"). Ly do nam o doc-comment cua bang, khong o day: chinh nhom
@@ -2435,9 +2435,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (107, 66),
+        (109, 66),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         107/66.\n\n\
+         109/66.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

@@ -352,6 +352,33 @@ pub fn delete(
     Ok(())
 }
 
+/// `work.chosen_prompt_set_name` of a Work store; `None` is no hand pick.
+pub fn read_chosen_name(work: &Store) -> Result<Option<String>, StoreError> {
+    work.read(|conn| {
+        conn.query_row(
+            "SELECT chosen_prompt_set_name FROM work WHERE id = 1",
+            [],
+            |r| r.get(0),
+        )
+    })
+}
+
+/// Sets `work.chosen_prompt_set_name` and nothing else: no `updated_at`, no `meta.json`.
+/// A blank name is stored as `NULL`.
+pub fn write_chosen_name(work: &Store, name: Option<&str>) -> Result<(), StoreError> {
+    let value = name
+        .map(str::trim)
+        .filter(|n| !n.is_empty())
+        .map(str::to_owned);
+    work.write(move |tx: &Transaction<'_>| {
+        tx.execute(
+            "UPDATE work SET chosen_prompt_set_name = ?1 WHERE id = 1",
+            [value],
+        )
+    })?;
+    Ok(())
+}
+
 /// Nạp MỘT hàng bằng `id` trực tiếp — Story 4.5: xuất một bộ thao tác trên hàng THẬT người
 /// dùng chọn (kể cả một hàng Global đang bị che, Quyết định #3), không trên hàng "đang
 /// thắng" mà [`resolve_two_tiers`] tính ra.

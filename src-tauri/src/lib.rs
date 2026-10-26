@@ -1374,6 +1374,8 @@ pub fn run() {
             crate::commands::promptset::wire::prompt_set_rename,
             crate::commands::promptset::wire::prompt_set_update_body,
             crate::commands::promptset::wire::prompt_set_delete,
+            crate::commands::promptset::wire::prompt_set_choice_get,
+            crate::commands::promptset::wire::prompt_set_choice_set,
             // Story 4.5 -- xuat/nhap mot bo prompt qua tep `.prompt.md` (FR79, NFR9, AD-48).
             // Bon vo: xuat (mot nhip, mo hop thoai LUU) · mo-va-xem-truoc mot luot nhap (nhip
             // mot, mo hop thoai CHON -- KHONG hoi tang truoc, phan loai san cho CA HAI tang,

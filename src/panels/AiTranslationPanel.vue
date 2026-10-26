@@ -45,7 +45,13 @@ import PanelFrame from './PanelFrame.vue'
 import { useSelectionSurface } from './selectionContract'
 import { dispatch } from '../commands'
 import { t, tError } from '../i18n'
-import { loadPromptSets, promptSets, selectedPromptSetName, setSelectedPromptSetName } from '../promptSetState'
+import {
+  loadPromptSets,
+  promptSetChoiceError,
+  promptSets,
+  selectedPromptSetName,
+  setSelectedPromptSetName,
+} from '../promptSetState'
 import {
   editorActiveSegmentId,
   editorPendingPromote,
@@ -492,10 +498,15 @@ const openSettingsLabel = computed(() =>
           variant="field"
           :model-value="selectedPromptSetName ?? ''"
           :options="promptSetOptions"
+          :columns="2"
           :label="t('panel.ai_translation.prompt_set_label')"
           @change="onPromptSetSelectChange"
         />
       </div>
+      <p v-if="promptSetChoiceError !== null" class="ai-inspector-alert" role="alert">
+        <!-- aura-allow-text: KẾT QUẢ của tError(). -->
+        {{ tError(promptSetChoiceError) }}
+      </p>
       <p class="ai-prompt-status">
         <!-- aura-allow-text: KẾT QUẢ của `t()` (tên bộ nội suy qua tham số). -->
         {{

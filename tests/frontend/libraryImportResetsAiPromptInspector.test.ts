@@ -77,15 +77,15 @@ vi.mock('../../src/config/aiprompt', () => ({
   aiPromptReadRecord: async () => ({ value: null, error: null }),
 }))
 
-const autoSelectMock = vi.hoisted(() => vi.fn(async (_genre: string) => {}))
+const restoreMock = vi.hoisted(() => vi.fn(async (_genre: string) => {}))
 vi.mock('../../src/promptSetState', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/promptSetState')>()
-  return { ...actual, autoSelectPromptSetForGenre: autoSelectMock }
+  return { ...actual, restorePromptSetForWork: restoreMock }
 })
 
 beforeEach(() => {
   vi.resetModules()
-  autoSelectMock.mockClear()
+  restoreMock.mockClear()
 })
 
 describe('🔴 đổi Tác phẩm (nhập mới) ⇒ bản ghi prompt cuối cùng đã lắp KHÔNG sống sót', () => {
@@ -131,7 +131,7 @@ describe('🔴 đổi Tác phẩm (nhập mới) ⇒ bản ghi prompt cuối cù
     const result = await preview.confirmImportPreview()
     nhap.finishImportSubmission(result.created, result.error)
     expect(nhap.createdWork.value).not.toBeNull()
-    expect(autoSelectMock).toHaveBeenCalledTimes(1)
-    expect(autoSelectMock).toHaveBeenCalledWith('xianxia')
+    expect(restoreMock).toHaveBeenCalledTimes(1)
+    expect(restoreMock).toHaveBeenCalledWith('xianxia')
   })
 })

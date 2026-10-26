@@ -272,7 +272,8 @@ fn a_work_from_before_step_38_has_no_decisions_even_with_remembered_findings() {
         .store
         .write(|tx: &Transaction<'_>| {
             tx.execute_batch(
-                "DROP TABLE proof_decision; \
+                "ALTER TABLE work DROP COLUMN chosen_prompt_set_name; \
+                 DROP TABLE proof_decision; \
                  DROP TRIGGER segment_version_requires_translation_origin; \
                  ALTER TABLE segment_version DROP COLUMN translation_origin; \
                  DROP TRIGGER glossary_entry_edit_clears_unconfirm; \
@@ -281,7 +282,7 @@ fn a_work_from_before_step_38_has_no_decisions_even_with_remembered_findings() {
                  CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry \
                  WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL \
                  BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; \
-                 DELETE FROM schema_migration_log WHERE version IN (38, 39, 40); \
+                 DELETE FROM schema_migration_log WHERE version IN (38, 39, 40, 41); \
                  PRAGMA user_version = 37;",
             )
         })

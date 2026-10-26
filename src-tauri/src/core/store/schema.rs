@@ -1067,6 +1067,12 @@ ALTER TABLE proof_ignore ADD COLUMN blocked_count INTEGER CHECK (blocked_count >
 pub const WORK_TM_ONLY_MINE_DDL: &str = "\
 ALTER TABLE work ADD COLUMN tm_only_mine INTEGER NOT NULL DEFAULT 0 CHECK (tm_only_mine IN (0, 1));";
 
+/// Step 41: name of the prompt set the user picked by hand for this Work. `NULL` is no hand
+/// pick (the Genre rule applies); the name is resolved at read time and never rewritten when a
+/// set is renamed or deleted.
+pub const WORK_CHOSEN_PROMPT_SET_NAME_DDL: &str =
+    "ALTER TABLE work ADD COLUMN chosen_prompt_set_name TEXT;";
+
 /// Step 39 (AD-55): who translated the text a `segment_version` row holds. `NULL` is a row that
 /// predates this step (unknown, never inferred); the trigger keeps a new row from being `NULL`.
 pub const SEGMENT_VERSION_ORIGIN_DDL: &str = "\
@@ -2083,7 +2089,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Ba mươi chín bước, và đích là phiên bản 40.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Bốn mươi bước, và đích là phiên bản 41.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2471,6 +2477,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 40,
         sql: GLOSSARY_ENTRY_PENDING_CONFIRMED_AT_DDL,
+    },
+    Migration {
+        to_version: 41,
+        sql: WORK_CHOSEN_PROMPT_SET_NAME_DDL,
     },
 ];
 

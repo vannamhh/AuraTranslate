@@ -94,6 +94,8 @@ const CMD_CREATE = 'prompt_set_create'
 const CMD_RENAME = 'prompt_set_rename'
 const CMD_UPDATE_BODY = 'prompt_set_update_body'
 const CMD_DELETE = 'prompt_set_delete'
+const CMD_CHOICE_GET = 'prompt_set_choice_get'
+const CMD_CHOICE_SET = 'prompt_set_choice_set'
 
 /**
  * Liệt kê mọi bộ prompt, hai tầng đã phân giải (Quyết định #1: cả bộ, theo tên — bộ Global bị
@@ -205,6 +207,44 @@ export async function promptSetDelete(tier: PromptSetTier, id: number): Promise<
       return UNKNOWN_IPC_ERROR
     }
     console.info(`[promptset] không gọi được \`${CMD_DELETE}\` — chạy ngoài Tauri? ${String(err)}`)
+    return null
+  }
+}
+
+/** Tên bộ prompt Ice đã chọn tay cho Tác phẩm đang mở. Không ném. `name: null` khi chưa chọn
+ * tay hoặc khi lượt gọi trượt — chỗ gọi kiểm `error`. */
+export async function promptSetChoiceGet(): Promise<{ name: string | null; error: IpcError | null }> {
+  try {
+    const wire = await invoke<unknown>(CMD_CHOICE_GET)
+    if (wire === null) return { name: null, error: null }
+    if (typeof wire !== 'string') {
+      console.error(`[promptset] \`${CMD_CHOICE_GET}\` tra ve mot hinh dang khong dung: ${JSON.stringify(wire)}`)
+      return { name: null, error: UNKNOWN_IPC_ERROR }
+    }
+    return { name: wire, error: null }
+  } catch (err) {
+    if (isIpcError(err)) return { name: null, error: err }
+    if (hasIpcBridge()) {
+      console.error(`[promptset] \`${CMD_CHOICE_GET}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return { name: null, error: UNKNOWN_IPC_ERROR }
+    }
+    console.info(`[promptset] không gọi được \`${CMD_CHOICE_GET}\` — chạy ngoài Tauri? ${String(err)}`)
+    return { name: null, error: null }
+  }
+}
+
+/** Ghi (hoặc xoá, `name: null`) bộ prompt đã chọn tay của Tác phẩm đang mở. Không ném. */
+export async function promptSetChoiceSet(name: string | null): Promise<IpcError | null> {
+  try {
+    await invoke(CMD_CHOICE_SET, { name })
+    return null
+  } catch (err) {
+    if (isIpcError(err)) return err
+    if (hasIpcBridge()) {
+      console.error(`[promptset] \`${CMD_CHOICE_SET}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      return UNKNOWN_IPC_ERROR
+    }
+    console.info(`[promptset] không gọi được \`${CMD_CHOICE_SET}\` — chạy ngoài Tauri? ${String(err)}`)
     return null
   }
 }

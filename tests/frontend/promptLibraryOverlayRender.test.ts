@@ -30,6 +30,8 @@ const promptSetUpdateBodyMock = vi.fn()
 const promptSetDeleteMock = vi.fn()
 const promptSetExportMock = vi.fn()
 
+const promptSetChoiceSetMock = vi.fn(async (..._args: unknown[]) => null as unknown)
+
 vi.mock('../../src/config/promptset', () => ({
   promptSetList: (...args: unknown[]) => promptSetListMock(...args),
   promptSetCreate: (...args: unknown[]) => promptSetCreateMock(...args),
@@ -37,6 +39,8 @@ vi.mock('../../src/config/promptset', () => ({
   promptSetUpdateBody: (...args: unknown[]) => promptSetUpdateBodyMock(...args),
   promptSetDelete: (...args: unknown[]) => promptSetDeleteMock(...args),
   promptSetExport: (...args: unknown[]) => promptSetExportMock(...args),
+  promptSetChoiceGet: async () => ({ name: null, error: null }),
+  promptSetChoiceSet: (...args: unknown[]) => promptSetChoiceSetMock(...args),
 }))
 
 type WireRow = {
@@ -568,6 +572,19 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     promptSetState.setSelectedPromptSetName('Cu')
     await flushPromises()
     expect(wrapper.get('[data-prompt-in-use]').text()).toBe(i18n.t('prompt.library.in_use_line', { name: 'Cu' }))
+    wrapper.unmount()
+  })
+
+  it('Dùng bộ này mà ghi lựa chọn lỗi: lỗi hiện qua role=alert', async () => {
+    const err = { code: 'store.write_failed', message_key: 'err.store.write_failed', params: {}, retryable: false }
+    promptSetChoiceSetMock.mockResolvedValueOnce(err)
+    const { wrapper, promptSetState, i18n } = await openLibrary([row({ id: 3, name: 'Cu', body: 'x' })])
+    expect(wrapper.find('[data-prompt-choice-error]').exists()).toBe(false)
+    promptSetState.setSelectedPromptSetName('Cu')
+    await flushPromises()
+    const alert = wrapper.get('[data-prompt-choice-error]')
+    expect(alert.attributes('role')).toBe('alert')
+    expect(alert.text()).toBe(i18n.tError(err))
     wrapper.unmount()
   })
 

@@ -2295,6 +2295,8 @@ fn the_prompt_set_wires_are_registered() {
         "crate::commands::promptset::wire::prompt_set_rename",
         "crate::commands::promptset::wire::prompt_set_update_body",
         "crate::commands::promptset::wire::prompt_set_delete",
+        "crate::commands::promptset::wire::prompt_set_choice_get",
+        "crate::commands::promptset::wire::prompt_set_choice_set",
         // Story 4.5 -- xuat/nhap mot bo prompt qua tep `.prompt.md` (FR79, NFR9, AD-48).
         "crate::commands::promptset::wire::prompt_set_export",
         "crate::commands::promptset::wire::prompt_set_export_many",

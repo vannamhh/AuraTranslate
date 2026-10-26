@@ -25,7 +25,8 @@ use crate::core::promptset::exchange::{ConflictDecision, ParsedPromptSet, PlanKi
 use crate::core::promptset::{
     ImportOutcome, MarkerWarnings, PromptSetError, PromptSetTier, PromptVariable,
     ResolvedPromptSet, create, delete, exchange, exchange_io, import_into_tier, load_one,
-    load_prompt_set_tier, rename, resolve_two_tiers, update_body,
+    load_prompt_set_tier, read_chosen_name, rename, resolve_two_tiers, update_body,
+    write_chosen_name,
 };
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
@@ -181,6 +182,27 @@ pub fn prompt_set_list(
         sets,
         variables,
     })
+}
+
+/// Name of the prompt set the user picked by hand for the open Work; `None` is no hand pick.
+///
+/// # Lỗi
+/// - chưa mở Tác phẩm nào ⇒ `prompt_set.work_tier_unavailable`;
+/// - đường đọc trượt ⇒ `store.read_failed`.
+pub fn prompt_set_choice_get(open: Option<&OpenWork>) -> Result<Option<String>, IpcError> {
+    let open = open.ok_or(PromptSetError::WorkTierUnavailable)?;
+    Ok(read_chosen_name(&open.store).map_err(PromptSetError::from)?)
+}
+
+/// Stores the hand pick of the open Work (`None` clears it); touches no other column.
+///
+/// # Lỗi
+/// - chưa mở Tác phẩm nào ⇒ `prompt_set.work_tier_unavailable`;
+/// - đường ghi trượt ⇒ `store.write_failed`.
+pub fn prompt_set_choice_set(open: Option<&OpenWork>, name: Option<&str>) -> Result<(), IpcError> {
+    let open = open.ok_or(PromptSetError::WorkTierUnavailable)?;
+    write_chosen_name(&open.store, name).map_err(PromptSetError::from)?;
+    Ok(())
 }
 
 /// Phong bì trả lời của [`prompt_set_create`] — `id` của hàng mới CỘNG cảnh báo dấu ngoặc
@@ -758,6 +780,35 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::prompt_set_delete(global.as_deref(), guard.as_ref(), tier, id)
+    }
+
+    #[tauri::command]
+    pub fn prompt_set_choice_get(app: tauri::AppHandle) -> Result<Option<String>, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::prompt_set_choice_get(None);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::prompt_set_choice_get(guard.as_ref())
+    }
+
+    #[tauri::command]
+    pub fn prompt_set_choice_set(
+        app: tauri::AppHandle,
+        name: Option<String>,
+    ) -> Result<(), IpcError> {
+        use tauri::Manager as _;
+
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::prompt_set_choice_set(None, name.as_deref());
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::prompt_set_choice_set(guard.as_ref(), name.as_deref())
     }
 
     // ── Story 4.5 — hộp thoại chọn tệp nối vào xuất/nhập bộ prompt (AD-48) ──────────
