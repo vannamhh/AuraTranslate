@@ -176,7 +176,7 @@ export async function aiConfigSaveFields(
 /** Trả một trường về kế thừa; `tier` bỏ trống là tầng Tác phẩm, `'global'` xoá dòng Toàn cục. Không ném. */
 export async function aiConfigClearOverride(field: AiConfigField, tier?: AiConfigTierWire): Promise<IpcError | null> {
   try {
-    await invoke(CMD_CLEAR_OVERRIDE, tier === undefined ? { field } : { field, tier })
+    await invoke(CMD_CLEAR_OVERRIDE, { field, tier })
     return null
   } catch (err) {
     if (isIpcError(err)) return err
