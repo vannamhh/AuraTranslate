@@ -445,6 +445,10 @@ Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng th
 
 **Khối trong panel Tra cứu** *(🔵 2026-10-26)*. Mỗi nguồn từ điển mở bằng một dải đầu cao 32px nền `surface-sunken`, nét đáy `outline`: nhãn nguồn `ui-label` `primary`, số nghĩa `ui-sm`, nút thu gọn bên phải. Mục từ trong nguồn cách nhau 12px và nét `outline-faint`. **Khối kết quả AI** là một khung nền `surface-sunken`, viền `outline`, bo `3px`; dòng token nằm trong khung, dưới nét `outline`. Nhóm hành động cho cả Chương tách bằng nhãn nhóm `ui-sm` 600 và nét `outline-faint`.
 
+🔵 2026-10-26, lượt hai (Ice: "tiết kiệm lại"): vùng đầu mục Tra cứu còn **một hàng**: đầu mục · âm đọc · "N nguồn · M nghĩa" · nút ghim. Vẫn cao cố định (§Motion), nay 40px thay 76px; dải nguồn đầu tiên nằm sát ngay dưới nét đáy, không khoảng trống.
+
+**Thanh cuộn** *(🔵 2026-10-26, Ice)*. Vùng cuộn của panel kéo ra sát mép panel, nên thanh cuộn nằm sát lề, không thụt theo đệm panel. Thanh mảnh 10px, không rãnh; con chạy bo tròn màu `ornament` (nét, không chữ), rê chuột thì `control-rule`. Một kiểu chung cho mọi vùng cuộn của app.
+
 **Thanh trạng thái** *(🔵 2026-10-26, Ice)*. Chỉ nói trạng thái, không giải thích. Nhóm trái: vị trí và tiến độ; nhóm phải: dịch vụ và lối mở; giữa các mục là nét `outline`. Câu giải thích auto-save **bỏ hẳn** (Ice: thừa). Câu TM rút thành "TM {total} · {threshold}%", câu đầy đủ ở `title`.
 
 **Câu đang sửa** *(🔵 2026-10-26)*. Ngoài vạch `caret-rule`, **ô bản dịch** của câu đang sửa có nền `surface-accent`, như mã đã làm từ trước. Mockup tô cả hàng, nhưng Ice giữ phạm vi ô (plan 12.26): lưới không có phần tử "cả hàng", tô đủ các cột phải thêm điều kiện con trỏ vào từng cột.

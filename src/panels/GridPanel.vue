@@ -2028,6 +2028,8 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
   flex: 1;
   min-height: 0;
   overflow: auto;
+  margin: 0 calc(-1 * var(--space-panel-inline)) calc(-1 * var(--space-panel-block));
+  padding: 0 var(--space-panel-inline) var(--space-panel-block);
 }
 
 /*

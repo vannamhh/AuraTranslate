@@ -1992,6 +1992,7 @@ const GRID_PROPS = new Set([
 ])
 const GRID_KEYWORDS = new Set(['auto', 'inherit', 'initial', 'unset', 'revert', 'revert-layer', 'normal'])
 const SPACE_VAR_TOKEN_RE = /^var\(\s*--space-[a-z0-9-]+\s*(?:,[\s\S]*)?\)$/i
+const NEG_SPACE_VAR_RE = /^calc\(\s*-1\s*\*\s*var\(\s*--space-[a-z0-9-]+\s*\)\s*\)$/i
 const PX_TOKEN_RE = /^(-?\d+(?:\.\d+)?)px$/
 const SPACE_UNIT_CALC_RE = /^calc\(\s*var\(\s*--space-unit\s*\)\s*\*\s*(-?\d+(?:\.\d+)?)\s*\)$/i
 
@@ -2032,6 +2033,7 @@ function isOnGridToken(tok) {
   if (GRID_KEYWORDS.has(low)) return true
   if (tok === '0' || tok === '0px') return true
   if (SPACE_VAR_TOKEN_RE.test(tok)) return true
+  if (NEG_SPACE_VAR_RE.test(tok)) return true
   const calcM = SPACE_UNIT_CALC_RE.exec(tok)
   if (calcM) return Number.isInteger(parseFloat(calcM[1]))
   const pxM = PX_TOKEN_RE.exec(tok)
@@ -2078,6 +2080,9 @@ const K_CASES = [
   ['calc(var(--space-unit) * 2.75) lẻ lưới — đỏ', 'calc(var(--space-unit) * 2.75)', false],
   ['calc(var(--space-unit) * 3) đúng lưới — xanh', 'calc(var(--space-unit) * 3)', true],
   ['var(--space-panel-inline) — xanh', 'var(--space-panel-inline)', true],
+  ['calc(-1 * var(--space-panel-inline)) — xanh', 'calc(-1 * var(--space-panel-inline))', true],
+  ['calc(-1 * var(--radius-default)) không phải token khoảng cách — đỏ', 'calc(-1 * var(--radius-default))', false],
+  ['calc(-2 * var(--space-panel-inline)) hình dạng khác — đỏ', 'calc(-2 * var(--space-panel-inline))', false],
   ['12px (bội số 4) — xanh', '12px', true],
   ['0 — xanh', '0', true],
   ['8px 12px (shorthand, cả hai đúng lưới) — xanh', '8px 12px', true],

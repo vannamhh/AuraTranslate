@@ -221,6 +221,10 @@ const senseTotalKey = computed(() =>
   margin-top: var(--space-panel-block);
 }
 
+.lookup-source:first-child {
+  margin-top: 0;
+}
+
 .lookup-source-head {
   display: flex;
   align-items: center;

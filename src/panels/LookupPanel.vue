@@ -465,6 +465,20 @@ onBeforeUnmount(() => {
           <p class="lookup-headword">{{ currentQuery }}</p>
           <!-- aura-allow-text: shared reading key of every entry that has one — DỮ LIỆU từ điển. -->
           <span v-if="headReading !== null" class="lookup-head-reading">{{ headReading }}</span>
+          <span v-if="lookupDisplayable && groups.length > 0" class="lookup-spine">
+            <!--
+              🔴 AC12 — thanh nhịp không **khẳng định một con số nó không biết**. Khi trần `LIMIT`
+              đã cắt, `senseCountAtLeast` bật và số đọc ra như một CẬN DƯỚI (`≥`). Số nguồn
+              thì luôn ĐẦY ĐỦ — nguồn bị cắt sạch vẫn được đếm qua `hidden_sources`.
+            -->
+            <span class="lookup-spine-count">
+              <!-- aura-allow-text: số đếm dẫn xuất từ dữ liệu, không chuỗi giao diện tĩnh. -->
+              {{ spine.sourceCount }} {{ t('panel.lookup.unit_sources') }} ·
+              <span v-if="spine.senseCountAtLeast">{{ t('panel.lookup.at_least') }} </span
+              ><!-- aura-allow-text: số nghĩa — DỮ LIỆU dẫn xuất. -->{{ spine.senseCount }}
+              {{ t('panel.lookup.unit_senses') }}
+            </span>
+          </span>
           <button
             v-if="lookupDisplayable && groups.length > 0"
             type="button"
@@ -476,20 +490,6 @@ onBeforeUnmount(() => {
           >
             <AppIcon :name="headPinned ? 'pin-on' : 'pin'" />
           </button>
-        </div>
-        <div v-if="lookupDisplayable && groups.length > 0" class="lookup-spine">
-          <!--
-            🔴 AC12 — thanh nhịp không **khẳng định một con số nó không biết**. Khi trần `LIMIT`
-            đã cắt, `senseCountAtLeast` bật và số đọc ra như một CẬN DƯỚI (`≥`). Số nguồn
-            thì luôn ĐẦY ĐỦ — nguồn bị cắt sạch vẫn được đếm qua `hidden_sources`.
-          -->
-          <span class="lookup-spine-count">
-            <!-- aura-allow-text: số đếm dẫn xuất từ dữ liệu, không chuỗi giao diện tĩnh. -->
-            {{ spine.sourceCount }} {{ t('panel.lookup.unit_sources') }} ·
-            <span v-if="spine.senseCountAtLeast">{{ t('panel.lookup.at_least') }} </span
-            ><!-- aura-allow-text: số nghĩa — DỮ LIỆU dẫn xuất. -->{{ spine.senseCount }}
-            {{ t('panel.lookup.unit_senses') }}
-          </span>
         </div>
 
         <!--
@@ -829,6 +829,8 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  margin: 0 calc(-1 * var(--space-panel-inline)) calc(-1 * var(--space-panel-block));
+  padding: 0 var(--space-panel-inline) var(--space-panel-block);
 }
 
 /*
@@ -942,7 +944,7 @@ onBeforeUnmount(() => {
  * bất biến thay vì để nội dung tự ý đẩy khung xuống.
  */
 .lookup-head {
-  --lookup-head-height: 76px;
+  --lookup-head-height: 40px;
   flex: none;
   height: var(--lookup-head-height);
   overflow: hidden;
@@ -954,8 +956,7 @@ onBeforeUnmount(() => {
    * `--lookup-head-height` giữ NGUYÊN giá trị **và** vai trò; `overflow: hidden` ở lại.
    */
   position: relative;
-  padding-bottom: var(--space-panel-block);
-  margin-bottom: var(--space-panel-block);
+  padding-bottom: calc(var(--space-unit) * 2);
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -990,10 +991,8 @@ onBeforeUnmount(() => {
 }
 
 .lookup-spine {
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
 }
 
 .lookup-spine-count {

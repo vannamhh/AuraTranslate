@@ -844,6 +844,8 @@ const openSettingsLabel = computed(() =>
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
   overflow-y: auto;
+  margin: 0 calc(-1 * var(--space-panel-inline)) calc(-1 * var(--space-panel-block));
+  padding: 0 var(--space-panel-inline) var(--space-panel-block);
 }
 
 /* Story 4.8 — nút Dịch/Huỷ/Đưa sang bản dịch. */
