@@ -208,7 +208,7 @@ Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component
 
 ### Tông bìa Tác phẩm — **13 token mỗi theme** *(🔵 thêm 2026-10-25, Ice duyệt)*
 
-🔵 2026-10-25: tổng token màu mỗi theme thành 24 + 12 = 36 (số thật của `tokens.json`: đã có `diff-*` và `word-*` ngoài bảng 17); bảng 17 ở trên giữ nguyên. 🔵 2026-10-25, lượt hai: thêm `on-cover` thành 37. 🔵 2026-10-25, lượt ba: thêm `caret-rule` thành 38. 🔵 2026-10-26: thêm `control-rule` thành 39 (4 cặp mới cho `contrast.pairs`: trên `surface` và `surface-sunken`, mỗi theme hai cặp, ngưỡng 3:1). `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
+🔵 2026-10-25: tổng token màu mỗi theme thành 24 + 12 = 36 (số thật của `tokens.json`: đã có `diff-*` và `word-*` ngoài bảng 17); bảng 17 ở trên giữ nguyên. 🔵 2026-10-25, lượt hai: thêm `on-cover` thành 37. 🔵 2026-10-25, lượt ba: thêm `caret-rule` thành 38. 🔵 2026-10-26: thêm `control-rule` thành 39. Không cặp mới cho `contrast.pairs`: bảng đó chỉ kiểm chữ, và Ice chọn không thêm ngưỡng 3:1 cho nét (2026-10-26, plan 12.26); số đo ở hàng 19 là bằng chứng duy nhất. `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
 
 Bìa thẻ Tác phẩm ở Library là một màu đặc `cover-N-from` (Ice, 2026-10-25: không dải chuyển, giữ luật không gradient của Kiểm F); `cover-N-to` có sẵn nhưng chưa có chỗ dùng. Mỗi Tác phẩm một tông cố định, chọn theo `work_id`, nên đổi tên không đổi màu. Tông 1–3 lấy từ `mockups/library-and-import.html`; 4–6 thêm cho màn có nhiều Tác phẩm. Hình mẫu: `mockups/library-luoi-rong.html`.
 
@@ -447,7 +447,7 @@ Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng th
 
 **Thanh trạng thái** *(🔵 2026-10-26, Ice)*. Chỉ nói trạng thái, không giải thích. Nhóm trái: vị trí và tiến độ; nhóm phải: dịch vụ và lối mở; giữa các mục là nét `outline`. Câu giải thích auto-save **bỏ hẳn** (Ice: thừa). Câu TM rút thành "TM {total} · {threshold}%", câu đầy đủ ở `title`.
 
-**Câu đang sửa** *(🔵 2026-10-26)*. Ngoài vạch `caret-rule`, hàng đang sửa có nền `surface-accent`. Chỉ đổi `background`, không đổi kích thước nên không buộc tính lại bố cục lưới (xem Story 2.14). Chưa đo trên lưới 9.850 câu.
+**Câu đang sửa** *(🔵 2026-10-26)*. Ngoài vạch `caret-rule`, **ô bản dịch** của câu đang sửa có nền `surface-accent`, như mã đã làm từ trước. Mockup tô cả hàng, nhưng Ice giữ phạm vi ô (plan 12.26): lưới không có phần tử "cả hàng", tô đủ các cột phải thêm điều kiện con trỏ vào từng cột.
 
 **Ranh giới câu** — ký tự `⏐` màu `ornament`, `opacity: 0` mặc định, hiện ở `0.55` khi rê chuột hoặc khi con trỏ chạm.
 
