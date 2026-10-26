@@ -23,6 +23,7 @@ colors:
   confirmed: '#5a6b3f'
   tm-rule: '#a38347'
   caret-rule: '#25484d'
+  control-rule: '#8a8276'
   tm-text: '#7a5d25'
   error: '#8f2f22'
 colors-dark:
@@ -41,6 +42,7 @@ colors-dark:
   confirmed: '#9cb37a'
   tm-rule: '#92763f'
   caret-rule: '#c7dee1'
+  control-rule: '#807868'
   tm-text: '#d3b276'
   error: '#e5867a'
 typography:
@@ -90,7 +92,7 @@ typography:
     lineHeight: '1.6'
   ui-md:
     fontFamily: ui
-    fontSize: 12px
+    fontSize: 13px
     lineHeight: '1.5'
   ui-sm:
     fontFamily: ui
@@ -98,13 +100,13 @@ typography:
     lineHeight: '1.5'
   ui-label:
     fontFamily: ui
-    fontSize: 10px
+    fontSize: 12px
     fontWeight: '700'
     lineHeight: '1.4'
-    letterSpacing: 0.1em
+    letterSpacing: 0.08em
   ui-mono:
     fontFamily: mono
-    fontSize: 10.5px
+    fontSize: 12px
     lineHeight: '1.4'
 families:
   read: '"Source Serif 4", "Noto Serif CJK TC", serif'
@@ -194,6 +196,7 @@ Bảng màu lấy từ giấy và mực, không lấy từ màn hình.
 | 16 | `error` | `#8f2f22` | `#e5867a` | Lỗi |
 | 17 | `draft` | `#b9b3aa` | `#575249` | Vạch *đã dịch tay, chưa ai ký* — **là vạch, không phải chữ**. 🔵 Story 2.5b. 🔵 2026-10-25: không còn mượn giá trị `ornament` |
 | 18 | `caret-rule` | `#25484d` | `#c7dee1` | Vạch lề câu đang sửa — **là vạch, không phải chữ**. 🔵 2026-10-25 |
+| 19 | `control-rule` | `#8a8276` | `#807868` | Viền nút phụ, nút phân đoạn — **là nét, không phải chữ**. 🔵 2026-10-26 (Ice duyệt): 3,63:1 trên `surface`, 3,21:1 trên `surface-sunken` (sáng); 3,55:1 và 3,98:1 (tối). Đạt 3:1 của WCAG 1.4.11; `outline` chỉ 1,31:1 và `ornament` 2,44:1 |
 
 Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component** (AD-34) — thứ cần kiểm tra tập trung thì không được rải rác.
 
@@ -205,7 +208,7 @@ Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component
 
 ### Tông bìa Tác phẩm — **13 token mỗi theme** *(🔵 thêm 2026-10-25, Ice duyệt)*
 
-🔵 2026-10-25: tổng token màu mỗi theme thành 24 + 12 = 36 (số thật của `tokens.json`: đã có `diff-*` và `word-*` ngoài bảng 17); bảng 17 ở trên giữ nguyên. 🔵 2026-10-25, lượt hai: thêm `on-cover` thành 37. 🔵 2026-10-25, lượt ba: thêm `caret-rule` thành 38. `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
+🔵 2026-10-25: tổng token màu mỗi theme thành 24 + 12 = 36 (số thật của `tokens.json`: đã có `diff-*` và `word-*` ngoài bảng 17); bảng 17 ở trên giữ nguyên. 🔵 2026-10-25, lượt hai: thêm `on-cover` thành 37. 🔵 2026-10-25, lượt ba: thêm `caret-rule` thành 38. 🔵 2026-10-26: thêm `control-rule` thành 39 (4 cặp mới cho `contrast.pairs`: trên `surface` và `surface-sunken`, mỗi theme hai cặp, ngưỡng 3:1). `scripts/check-tokens.mjs` chép bảng này vào bảng đóng băng của nó cùng lượt dựng.
 
 Bìa thẻ Tác phẩm ở Library là một màu đặc `cover-N-from` (Ice, 2026-10-25: không dải chuyển, giữ luật không gradient của Kiểm F); `cover-N-to` có sẵn nhưng chưa có chỗ dùng. Mỗi Tác phẩm một tông cố định, chọn theo `work_id`, nên đổi tên không đổi màu. Tông 1–3 lấy từ `mockups/library-and-import.html`; 4–6 thêm cho màn có nhiều Tác phẩm. Hình mẫu: `mockups/library-luoi-rong.html`.
 
@@ -306,8 +309,10 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 | 10 | `lookup-example` | 12.5px / italic / 1.6 | `read` | Ví dụ và trích dẫn |
 | 11 | `ui-md` | 13px / 1.5 | `ui` | Tiêu đề panel |
 | 12 | `ui-sm` | 12px / 1.5 | `ui` | Nhãn phụ |
-| 13 | `ui-label` | 11px / 700 / 1.4 / `0.1em` | `ui` | Nhãn nguồn từ điển |
-| 14 | `ui-mono` | 11.5px / 1.4 | `mono` | Phím tắt, số liệu |
+| 13 | `ui-label` | 12px / 700 / 1.4 / `0.08em` | `ui` | Nhãn nguồn từ điển, số thứ tự câu. 🔵 2026-10-26 (Ice): từ 11px / `0.1em` |
+| 14 | `ui-mono` | 12px / 1.4 | `mono` | Phím tắt, số liệu. 🔵 2026-10-26 (Ice): từ 11.5px |
+
+🔵 2026-10-26 (Ice): **mọi chữ bấm được** — nút, tab con, nút phân đoạn — dùng `ui-md` 13px, bằng cỡ giao diện hệ thống macOS. `ui-sm` 12px chỉ còn cho số đếm và dòng phụ không bấm được. Không chữ giao diện nào dưới 12px.
 
 ### Bảng token khoảng cách và hình dạng
 
@@ -321,7 +326,7 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 
 > 🔴 **TẦNG VỎ GIAO DIỆN NÂNG MỘT BẬC — Ice chốt 2026-08-12, và nó LẬT một quyết định của chính tài liệu này.**
 >
-> Bảng trên đọc **13 / 12 / 11 / 11,5px**; trước 2026-08-12 nó là **12 / 11,5 / 10 / 10,5px**. Ba
+> Bảng trên đọc **13 / 12 / 12 / 12px** (🔵 2026-10-26: `ui-label` và `ui-mono` nâng thêm một bậc); từ 2026-08-12 tới 2026-10-26 là **13 / 12 / 11 / 11,5px**; trước 2026-08-12 là **12 / 11,5 / 10 / 10,5px**. Ba
 > thanh nâng theo để giữ tỉ lệ khoảng thở: `head` 34→**36**, `titlebar` 38→**40**, `status` 32→**34**.
 >
 > **Lý do, và nó là một phép đối chiếu chứ không một khẩu vị:** giao diện hệ thống macOS chạy ở
@@ -422,6 +427,27 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 > 🔵 **2026-10-14 (Ice chốt, `story-workspace-luoi-hai-cot-va-thanh-trang-thai`):** hình đã chọn — `confirmed` liền 2px · `draft` đứt 2px · `tm-rule` chấm 2px · `primary` liền 3px; `none` không vạch. Vạch dùng `border-left` (kiểu nét + màu token); 12.13 dùng lại bộ hình này.
 > 🔵 **2026-10-23 (Ice chốt, Story 2.14):** mọi vạch cùng dày 3px, chỉ khác kiểu nét và màu — `primary` liền · `confirmed` đôi · `draft` đứt · `tm-rule` chấm; `none` vẫn không vạch (ô giữ viền 3px trong suốt). Lý do: đổi độ dày vạch khi dời con trỏ buộc WebKit tính lại bố cục cả lưới (~700 → ~160 ms ở 9.850 câu, bản debug).
 > 🔵 **2026-10-25 (Ice chốt):** mọi vạch là nét liền 3px, chỉ khác màu; bỏ nét đôi, đứt, chấm. Vạch câu đang sửa dùng token riêng `caret-rule` thay cho `primary`. WCAG 1.4.1 giữ bằng bậc độ sáng: trên `surface`, nháp 1,99 · TM 3,41 · đã xác nhận 5,57 · đang sửa 9,52 (sáng) và 2,00 · 3,61 · 6,75 · 11,05 (tối); hai vạch bất kỳ cách nhau ít nhất 1,63:1, `check:commands` Kiểm I đòi tối thiểu 1,5:1. `draft` và `tm-rule` đổi giá trị nên mọi nét khác dùng hai token này cũng đổi theo.
+
+**Nút — ba bậc** *(🔵 2026-10-26, Ice duyệt; hình mẫu `mockups/workspace-tinh-chinh.html`)*. Trước đó mọi nút là chữ 12px gạch chân bằng `outline` (1,31:1), nên mắt không tách được nút khỏi chữ và nút khoá trông như nút bấm được.
+
+| Bậc | Dáng | Dùng khi |
+|---|---|---|
+| Chính | Nền `on-surface`, chữ `surface` 600, viền cùng màu nền (14,19:1) | Tối đa **một** mỗi panel: hành động người dùng đến panel để làm ("Dịch câu này") |
+| Phụ | Nền `surface`, viền 1px `control-rule`, chữ `on-surface` | Hành động khác ("Đưa sang bản dịch", "Nguồn 8/10 ▾", "Bảng chờ Glossary") |
+| Chìm | Không nền, không viền, chữ `on-surface-variant` | Lối mở phụ ít dùng ("Prompt", "Công cụ") |
+| Khoá | Không nền, viền **đứt** 1px `outline`, chữ `on-surface-variant` | Mọi bậc khi `disabled` — khác dáng, không chỉ khác màu |
+
+Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng thái), bo `3px`, chữ `ui-md`. Nút chính **không** dùng `primary`: màu nhấn giữ đúng ba việc ở §Colors. Một hành động có cặp huỷ ("Dịch câu này" / "Huỷ dịch") hiện **một** nút ở **cùng một chỗ**, đổi theo trạng thái, để hàng nút không nhảy bố cục.
+
+**Ba cấp điều khiển, ba dáng** *(🔵 2026-10-26)*. Tab dock: nền `surface-sunken`, nét đáy `outline`, tab đang chọn nền `surface` "mở" xuống thân panel. Tab con trong panel (Từ điển · Concordance · Lịch sử): chữ `ui-md`, tab chọn gạch chân 2px `on-surface` và 600. Công tắc chế độ xem (Trung · Hán Việt; bố cục Workspace): **nút phân đoạn** viền `control-rule`, ô đang chọn nền `on-surface`. Chỉ dẫn phím tắt cạnh tên panel là **chip phím** (`ui-mono`, viền `outline`), không đứng trơn như một tab.
+
+**Biểu tượng** *(🔵 2026-10-26)*. SVG vẽ tay trong mã, nét `currentColor`, ô 16px trong vùng bấm 26px — **không** thêm thư viện biểu tượng. Mọi nút chỉ có biểu tượng mang `aria-label` và `title` lấy từ i18n. Trạng thái bật/tắt nói bằng **hình** (nét rỗng · tô đặc), không bằng màu (WCAG 1.4.1). Đã dùng: Ghim (rỗng = chưa ghim, đặc = đã ghim; thay chữ "Ghim" ở đầu mục và từng mục từ), thu gọn/mở nguồn, Nguồn dữ liệu (ⓘ), hai preset bố cục (sơ đồ "Lưới bên trái" và "Lưới trên đỉnh", thay nhãn `Ⓑ-2` · `Ⓑ-1`).
+
+**Khối trong panel Tra cứu** *(🔵 2026-10-26)*. Mỗi nguồn từ điển mở bằng một dải đầu cao 32px nền `surface-sunken`, nét đáy `outline`: nhãn nguồn `ui-label` `primary`, số nghĩa `ui-sm`, nút thu gọn bên phải. Mục từ trong nguồn cách nhau 12px và nét `outline-faint`. **Khối kết quả AI** là một khung nền `surface-sunken`, viền `outline`, bo `3px`; dòng token nằm trong khung, dưới nét `outline`. Nhóm hành động cho cả Chương tách bằng nhãn nhóm `ui-sm` 600 và nét `outline-faint`.
+
+**Thanh trạng thái** *(🔵 2026-10-26, Ice)*. Chỉ nói trạng thái, không giải thích. Nhóm trái: vị trí và tiến độ; nhóm phải: dịch vụ và lối mở; giữa các mục là nét `outline`. Câu giải thích auto-save **bỏ hẳn** (Ice: thừa). Câu TM rút thành "TM {total} · {threshold}%", câu đầy đủ ở `title`.
+
+**Câu đang sửa** *(🔵 2026-10-26)*. Ngoài vạch `caret-rule`, hàng đang sửa có nền `surface-accent`. Chỉ đổi `background`, không đổi kích thước nên không buộc tính lại bố cục lưới (xem Story 2.14). Chưa đo trên lưới 9.850 câu.
 
 **Ranh giới câu** — ký tự `⏐` màu `ornament`, `opacity: 0` mặc định, hiện ở `0.55` khi rê chuột hoặc khi con trỏ chạm.
 

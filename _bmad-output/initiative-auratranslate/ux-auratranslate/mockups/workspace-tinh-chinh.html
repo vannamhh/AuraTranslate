@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Workspace — tinh chỉnh phân khối và nút</title>
+<style>
+@font-face{font-family:"Source Serif 4";src:url("../../../../src-tauri/resources/fonts/SourceSerif4[opsz,wght].ttf");font-weight:200 900}
+@font-face{font-family:"Source Sans 3";src:url("../../../../src-tauri/resources/fonts/SourceSans3[wght].ttf");font-weight:200 900}
+@font-face{font-family:"Noto Serif CJK TC";src:url("../../../../src-tauri/resources/fonts/NotoSerifCJKtc-Regular.otf")}
+
+/* Token thật của src/tokens/tokens.json; `control-rule` là token MỚI đề xuất (§1). */
+:root{
+  --background:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee;
+  --ink:#2b2723; --ink-2:#6b6459; --outline:#e2dccf; --faint:#efeade; --ornament:#a9a196;
+  --primary:#2f5d63; --on-primary:#fbfaf6; --confirmed:#5a6b3f; --draft:#b9b3aa; --caret:#25484d; --tm-rule:#a38347;
+  --control-rule:#8a8276;
+  --ui:"Source Sans 3",-apple-system,system-ui,sans-serif;
+  --read:"Source Serif 4","Noto Serif CJK TC",Georgia,serif;
+  --cjk:"Noto Serif CJK TC","Source Serif 4",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  /* cỡ chữ: ui-label 11→12, ui-mono 11.5→12 (§3); còn lại giữ nguyên */
+  --ui-md:13px; --ui-sm:12px; --ui-label:12px; --ui-mono:12px;
+}
+:root[data-theme="dark"]{
+  --background:#201e1b; --surface:#26241f; --sunken:#1b1a17; --accent-bg:#2c3a3b;
+  --ink:#e8e3d8; --ink-2:#a29a8c; --outline:#3b382f; --faint:#302d26; --ornament:#6a6459;
+  --primary:#7fb3ba; --on-primary:#1b1a17; --confirmed:#9cb37a; --draft:#575249; --caret:#c7dee1; --tm-rule:#92763f;
+  --control-rule:#807868;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#5f5a52;font-family:var(--ui);color:var(--ink);padding:20px}
+button{font:inherit;color:inherit}
+
+/* ---------- khung trình bày mockup (không thuộc thiết kế) ---------- */
+.deck{max-width:1490px;margin:0 auto 14px;color:#f4f1ea;display:flex;gap:18px;align-items:center;flex-wrap:wrap;font-size:13px}
+.deck b{font-size:15px}
+.deck .sw{display:inline-flex;border:1px solid #a9a196;border-radius:3px;overflow:hidden}
+.deck .sw button{background:none;border:0;color:#f4f1ea;padding:4px 10px;cursor:pointer}
+.deck .sw button.on{background:#f4f1ea;color:#2b2723}
+.notes{max-width:1490px;margin:14px auto 0;color:#efeade;font-size:13px;line-height:1.6;columns:2;column-gap:32px}
+.notes p{margin:0 0 8px;break-inside:avoid}
+.notes i{font-style:normal;display:inline-block;min-width:22px;height:18px;border-radius:9px;background:#f4f1ea;color:#2b2723;text-align:center;font-weight:700;font-size:11px;line-height:18px;margin-right:6px}
+.n{display:inline-block;min-width:18px;height:18px;border-radius:9px;background:#c2410c;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;margin-left:6px;font-family:var(--ui)}
+:root.clean .n{display:none}
+
+/* ---------- ứng dụng ---------- */
+.app{max-width:1490px;margin:0 auto;background:var(--background);border-radius:9px;overflow:hidden;height:900px;display:flex;flex-direction:column}
+.titlebar{height:40px;flex:none;display:flex;align-items:center;padding:0 16px;gap:8px;border-bottom:1px solid var(--outline);background:var(--sunken)}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--ornament)}
+.modes{margin-left:22px;display:flex;gap:4px}
+.modes span{font-size:var(--ui-md);color:var(--ink-2);padding:5px 10px;border-radius:3px}
+.modes .on{color:var(--ink);font-weight:600;background:var(--surface);box-shadow:inset 0 0 0 1px var(--outline)}
+.tb-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+.main{flex:1;display:grid;grid-template-columns:1fr 541px;gap:1px;background:var(--outline);min-height:0}
+:root[data-theme="dark"] .main{gap:2px;background:var(--background);padding:0 2px}
+.col{display:flex;flex-direction:column;gap:1px;background:var(--outline);min-height:0}
+:root[data-theme="dark"] .col{gap:2px;background:var(--background)}
+.panel{background:var(--surface);display:flex;flex-direction:column;min-height:0;min-width:0}
+:root[data-theme="dark"] .panel{border-radius:3px}
+
+/* thanh tab dock: nền lùi + nét đáy — ranh giới panel đọc được */
+.ptabs{height:36px;flex:none;display:flex;align-items:stretch;background:var(--sunken);border-bottom:1px solid var(--outline);padding-left:4px}
+.ptab{display:flex;align-items:center;gap:8px;padding:0 14px;font-size:var(--ui-md);color:var(--ink-2)}
+.ptab.on{background:var(--surface);color:var(--primary);font-weight:600;margin-bottom:-1px;border-left:1px solid var(--outline);border-right:1px solid var(--outline)}
+.ptab:first-child.on{border-left:0}
+
+/* hàng điều khiển thứ hai của panel */
+.pbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--faint)}
+.pbar .sp{flex:1}
+
+/* ---------- hệ nút ba bậc (§1) ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:3px;font-size:var(--ui-md);
+  background:var(--surface);border:1px solid var(--control-rule);color:var(--ink);cursor:pointer;white-space:nowrap}
+.btn.sm{height:24px;padding:0 8px}
+.btn.primary{font-weight:600}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.btn.ghost{border-color:transparent;background:none;color:var(--ink-2)}
+.btn:disabled{background:none;border:1px dashed var(--outline);color:var(--ink-2);cursor:default}
+.icon-btn{width:26px;height:26px;display:inline-grid;place-items:center;border-radius:3px;border:1px solid transparent;background:none;color:var(--ink-2);cursor:pointer;flex:none}
+.icon-btn:hover{border-color:var(--control-rule)}
+.icon-btn svg{width:16px;height:16px}
+.icon-btn.on{color:var(--ink)}
+.kbd{font-family:var(--mono);font-size:var(--ui-mono);color:var(--ink-2);border:1px solid var(--outline);border-radius:3px;padding:1px 5px;background:var(--surface)}
+
+/* điều khiển phân đoạn: chọn chế độ xem */
+.seg{display:inline-flex;border:1px solid var(--control-rule);border-radius:3px;overflow:hidden}
+.seg span{font-size:var(--ui-md);padding:3px 12px;color:var(--ink-2)}
+.seg span+span{border-left:1px solid var(--control-rule)}
+.seg .on{background:var(--ink);color:var(--surface);font-weight:600}
+.seg.icons span{padding:3px 8px;display:grid;place-items:center}
+.seg.icons svg{width:18px;height:14px}
+
+/* tab con: gạch chân dày, khác hẳn tab dock */
+.subtabs{display:flex;gap:18px;align-self:stretch;margin:-8px 0}
+.subtabs span{display:flex;align-items:center;font-size:var(--ui-md);color:var(--ink-2);border-bottom:2px solid transparent}
+.subtabs .on{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+
+/* ---------- lưới Đối chiếu ---------- */
+.grid{flex:1;overflow:hidden;padding:0 12px 0 0}
+.row{display:grid;grid-template-columns:44px 1fr 1fr;border-bottom:1px solid var(--faint)}
+.num{font-size:var(--ui-label);color:var(--ink-2);text-align:right;padding:14px 10px 0 0;border-left:3px solid var(--draft);font-variant-numeric:tabular-nums}
+.row.cur .num{border-left-color:var(--caret);color:var(--ink);font-weight:600}
+.row.cur{background:var(--accent-bg)}
+.zh{font-family:var(--cjk);font-size:16.5px;line-height:2.05;padding:10px 16px 10px 4px}
+.vi{font-family:var(--read);font-size:15px;line-height:1.95;padding:10px 16px}
+
+/* ---------- Tra cứu ---------- */
+.lk{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+.head{flex:none;display:flex;align-items:flex-start;gap:12px;padding:12px 16px 12px}
+.hw{font-family:var(--cjk);font-size:24px;line-height:1.3}
+.py{font-family:var(--read);font-size:16px;color:var(--ink-2);margin-left:10px}
+.spine{font-size:var(--ui-sm);color:var(--ink-2);margin-top:2px}
+.head .sp{flex:1}
+.srcs{flex:1;overflow:hidden;border-top:1px solid var(--outline)}
+.src-hd{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px 0 16px;background:var(--sunken);border-bottom:1px solid var(--outline)}
+.src-name{font-size:var(--ui-label);font-weight:700;letter-spacing:.08em;color:var(--primary)}
+.cnt{font-size:var(--ui-sm);color:var(--ink-2)}
+.src-hd .sp{flex:1}
+.entry{padding:12px 10px 12px 16px;border-bottom:1px solid var(--faint)}
+.entry-hd{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.entry-hw{font-family:var(--cjk);font-size:18px}
+.entry-py{font-family:var(--read);font-size:15px;color:var(--ink-2)}
+.entry-hd .sp{flex:1}
+.gloss{font-family:var(--read);font-size:14.5px;line-height:1.66;margin:0;padding:0 0 0 14px;list-style:none;border-left:2px solid var(--outline)}
+.gloss li{padding:1px 0}
+.gloss li::before{content:counter(g) ". ";counter-increment:g;font-family:var(--ui);font-size:var(--ui-sm);color:var(--ink-2)}
+.gloss{counter-reset:g}
+
+/* ---------- Đề xuất AI ---------- */
+.ai{flex:1;padding:12px 16px 14px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.ai-meta{display:flex;align-items:center;gap:6px;font-size:var(--ui-sm);color:var(--ink-2)}
+.ai-meta .sp{flex:1}
+.chip{border:1px solid var(--outline);border-radius:3px;padding:1px 6px;background:var(--sunken);color:var(--ink-2);font-size:var(--ui-sm)}
+.card{background:var(--sunken);border:1px solid var(--outline);border-radius:3px;padding:12px 14px}
+.card p{margin:0;font-family:var(--read);font-size:15px;line-height:1.95}
+.card .usage{margin-top:8px;padding-top:8px;border-top:1px solid var(--outline);font-size:var(--ui-sm);color:var(--ink-2);line-height:1.66}
+.acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.group-lb{font-size:var(--ui-sm);color:var(--ink-2);font-weight:600;margin-top:4px;padding-top:10px;border-top:1px solid var(--faint)}
+
+/* ---------- thanh trạng thái (§5) ---------- */
+.status{height:34px;flex:none;display:flex;align-items:center;gap:0;padding:0 8px 0 16px;border-top:1px solid var(--outline);background:var(--sunken);font-size:var(--ui-sm);color:var(--ink-2)}
+.status .it{padding:0 12px;border-left:1px solid var(--outline);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.status .it:first-child{padding-left:0;border-left:0}
+.status b{color:var(--ink);font-weight:600}
+.status .sp{flex:1}
+.ok{width:7px;height:7px;border-radius:50%;background:var(--confirmed);display:inline-block}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="pin" viewBox="0 0 16 16"><path d="M6 1.75h4M6.6 1.75l-.5 4.1-2.35 2.4v1.15h8.5V8.25L9.9 5.85l-.5-4.1M8 9.4v4.85" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="pin-on" viewBox="0 0 16 16"><path d="M6.6 1.75h2.8l.5 4.1 2.35 2.4v1.15h-8.5V8.25L6.1 5.85z" fill="currentColor"/><path d="M8 9.4v4.85" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  <symbol id="lay-left" viewBox="0 0 18 14"><rect x=".75" y=".75" width="16.5" height="12.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 1v12M10.5 7h6.5" stroke="currentColor" stroke-width="1.3"/></symbol>
+  <symbol id="lay-top" viewBox="0 0 18 14"><rect x=".75" y=".75" width="16.5" height="12.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M1 8h16M9 8v5" stroke="currentColor" stroke-width="1.3"/></symbol>
+  <symbol id="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 7.2v4M8 4.9v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="deck">
+  <b>Workspace — tinh chỉnh</b>
+  <span>Theme:</span>
+  <span class="sw" id="sw-theme"><button data-v="light" class="on">Sáng</button><button data-v="dark">Tối</button></span>
+  <span class="sw" id="sw-notes"><button data-v="on" class="on">Hiện số chú thích</button><button data-v="off">Ẩn</button></span>
+</div>
+
+<div class="app">
+  <div class="titlebar">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <div class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></div>
+    <div class="tb-right"><span class="seg icons" role="group" aria-label="Bố cục Workspace"><span class="on" title="Lưới bên trái"><svg><use href="#lay-left"/></svg></span><span title="Lưới trên đỉnh"><svg><use href="#lay-top"/></svg></span></span><span class="n">6</span><button class="btn sm ghost">Công cụ <svg width="14" height="14"><use href="#chev"/></svg></button></div>
+  </div>
+
+  <div class="main">
+    <!-- ===== Đối chiếu ===== -->
+    <section class="panel">
+      <div class="ptabs"><span class="ptab on">Đối chiếu</span></div>
+      <div class="pbar">
+        <span class="seg"><span class="on">Trung</span><span>Hán Việt</span></span><span class="n">4</span>
+      </div>
+      <div class="grid">
+        <div class="row"><div class="num">1</div><div class="zh">【大纪元2022年05月03日讯】布拉姆斯的小提琴协奏曲是小提琴最受欢迎的演奏曲目之一。</div><div class="vi">Đài Loan, ngày 3 tháng 5 năm 2022 – Bản concerto violin của Brahms là một trong những tác phẩm violin được trình diễn phổ biến nhất.</div></div>
+        <div class="row"><div class="num">2</div><div class="zh">这首协奏曲丰富的色彩变化及独奏的旋律线条使其充满了无与伦比的美感，并成为布拉姆斯重要的代表作之一。</div><div class="vi">Thứ nhất, bản concerto này có sự thay đổi màu sắc phong phú và đường nét giai điệu độc tấu khiến nó tràn đầy vẻ đẹp không thể sánh bằng.</div></div>
+        <div class="row"><div class="num">3</div><div class="zh">在1878年这首作品完成之时，布拉姆斯已是德意志音乐传统代表的一部分，这首作品更加深了他对音乐界的影响。</div><div class="vi">Tại thời điểm bản nhạc này được hoàn thành năm 1878, Brahms đã trở thành một phần của truyền thống âm nhạc Đức.</div></div>
+        <div class="row"><div class="num">4</div><div class="zh">他将这首作品题赠给他平生的挚友姚阿幸，并与其一同首演了这首曲子。</div><div class="vi">Ông đã khắc tặng tác phẩm này cho người bạn thân thiết nhất trong cuộc đời, ông Yiǎo Āxīnkē.</div></div>
+        <div class="row"><div class="num">5</div><div class="zh">布拉姆斯不会在曲子中使用华丽空洞，只为炫技而毫无内涵可言的创作手法。</div><div class="vi">Brahms không sử dụng kỹ thuật lấp lánh, chỉ để khoe khoang mà không có nội dung trong các tác phẩm của mình.</div></div>
+        <div class="row cur"><div class="num">6</div><div class="zh">第一乐章，时而高潮迭起，时而如梦似幻，极具张力的色彩变化，犹如置身一场冒险。</div><div class="vi">Chương đầu tiên, lúc nào cũng có những đỉnh điểm cao trào, lúc nào cũng như mộng ảo, sự thay đổi màu sắc vô cùng căng thẳng.</div></div>
+      </div>
+    </section>
+
+    <!-- ===== cột phải ===== -->
+    <div class="col">
+      <section class="panel" style="flex:1.35">
+        <div class="ptabs"><span class="ptab on">Tra cứu <span class="kbd">⌥⌘L</span></span><span class="n" style="align-self:center">2</span></div>
+        <div class="pbar">
+          <div class="subtabs"><span class="on">Từ điển</span><span>Concordance</span><span>Lịch sử</span></div><span class="n">4</span>
+          <span class="sp"></span>
+          <button class="btn sm">Nguồn 8/10 <svg width="14" height="14"><use href="#chev"/></svg></button>
+          <button class="icon-btn" title="Nguồn dữ liệu" aria-label="Nguồn dữ liệu"><svg><use href="#info"/></svg></button>
+        </div>
+        <div class="lk">
+          <div class="head">
+            <div>
+              <div><span class="hw">布</span><span class="py">bù</span></div>
+              <div class="spine">5 nguồn · 16 nghĩa</div>
+            </div>
+            <span class="sp"></span>
+            <button class="icon-btn" title="Ghim" aria-label="Ghim" aria-pressed="false"><svg><use href="#pin"/></svg></button><span class="n">3</span>
+          </div>
+          <div class="srcs">
+            <div class="src-hd"><span class="src-name">CVDICT</span><span class="cnt">8 nghĩa</span><span class="n">2</span><span class="sp"></span><button class="icon-btn" aria-label="Thu gọn"><svg><use href="#chev"/></svg></button></div>
+            <div class="entry">
+              <div class="entry-hd"><span class="entry-hw">佈</span><span class="entry-py">bù</span><span class="cnt">3 nghĩa</span><span class="sp"></span><button class="icon-btn on" title="Bỏ ghim" aria-label="Bỏ ghim" aria-pressed="true"><svg><use href="#pin-on"/></svg></button></div>
+              <ol class="gloss"><li>biến thể của 布[bu4]</li><li>thông báo</li><li>lan truyền</li></ol>
+            </div>
+            <div class="entry">
+              <div class="entry-hd"><span class="entry-hw">布</span><span class="entry-py">bù</span><span class="cnt">5 nghĩa</span><span class="sp"></span><button class="icon-btn" title="Ghim" aria-label="Ghim" aria-pressed="false"><svg><use href="#pin"/></svg></button></div>
+              <ol class="gloss"><li>vải</li><li>tuyên bố, công bố</li></ol>
+            </div>
+            <div class="src-hd"><span class="src-name">THIỀU CHỬU</span><span class="cnt">4 nghĩa</span><span class="sp"></span><button class="icon-btn" aria-label="Mở rộng" style="transform:rotate(-90deg)"><svg><use href="#chev"/></svg></button></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" style="flex:1">
+        <div class="ptabs"><span class="ptab on">Đề xuất AI</span></div>
+        <div class="ai">
+          <div class="ai-meta"><span class="chip">ollama</span><span class="chip">gemma3:4b-it-qat</span><span class="chip">Thời sự</span><span class="sp"></span><button class="btn sm ghost">Prompt</button></div>
+          <div class="acts">
+            <button class="btn primary">Dịch câu này</button><span class="n">1</span>
+            <button class="btn">Đưa sang bản dịch</button>
+          </div>
+          <div class="card">
+            <p>Đài Loan, ngày 3 tháng 5 năm 2022 – Bản concerto violin của Brahms là một trong những tác phẩm violin được trình diễn phổ biến nhất.</p>
+            <div class="usage">308 token — mô hình này chưa có giá trong bảng giá, không hiện số tiền</div>
+          </div>
+          <div class="group-lb">Cả Chương</div>
+          <div class="acts">
+            <button class="btn">Dịch cả Chương (1 chưa dịch)</button>
+            <button class="btn" disabled>Dịch câu đã chọn</button>
+            <span class="kbd">⇧⌘↓</span><span class="cnt">chọn câu</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="status">
+    <span class="it"><b>Chương 1</b> · câu 6/7</span>
+    <span class="it">0/7 đã xác nhận</span>
+    <span class="sp"></span>
+    <span class="it" title="Tra cứu chạy hoàn toàn trên máy"><span class="ok"></span>Ngoại tuyến</span>
+    <span class="it" title="Glossary 0 mục">Glossary 0</span>
+    <span class="it" title="TM: 0 cặp · 0 của tôi · 0 của người khác · ngưỡng gợi ý 65%">TM 0 · 65%</span>
+    <span class="n">5</span>
+    <span class="it"><button class="btn sm">Bảng chờ Glossary</button></span>
+  </div>
+</div>
+
+<div class="notes">
+  <p><i>1</i><b>Hệ nút ba bậc</b> (Ice chọn A · Mực, 2026-10-26). Hôm nay mọi nút là chữ 12px gạch chân bằng nét <code>outline</code> — 1,31:1 trên <code>surface</code>, dưới ngưỡng 3:1 của WCAG 1.4.11, nên mắt không nhận ra đâu là nút. Đề xuất: nút chính (tối đa một mỗi panel) nền đặc · nút phụ viền <code>control-rule</code> · nút chìm không viền. Nút khoá đổi sang viền đứt, không giữ nguyên dáng nút đang bấm được. "Huỷ dịch" chỉ hiện khi đang dịch, thế chỗ "Dịch câu này".</p>
+  <p><i>2</i><b>Ranh giới khối.</b> Thanh tab dock giữ nền <code>surface-sunken</code> nhưng thêm nét đáy và tab đang chọn "mở" xuống thân panel. Mỗi nguồn từ điển có dải đầu riêng trên nền lùi, nên CVDICT, Thiều Chửu… đọc thành từng khối. Phím tắt <code>⌥⌘L</code> thành chip phím, không còn trông như một tab thứ hai.</p>
+  <p><i>3</i><b>Ghim thành biểu tượng.</b> Ghim một nét (chưa ghim) và ghim đặc (đã ghim): trạng thái nói bằng hình, không bằng màu (WCAG 1.4.1). Chữ "Ghim"/"Bỏ ghim" ở <code>aria-label</code> và <code>title</code>. Vẽ tay bằng SVG trong mã, không thêm thư viện biểu tượng.</p>
+  <p><i>4</i><b>Ba cấp điều khiển, ba dáng.</b> Tab dock (nền) · tab con Từ điển/Concordance/Lịch sử (gạch chân 2px) · công tắc Trung/Hán Việt (nút phân đoạn có viền). Hôm nay cả ba là chữ trơn 12–13px nên trông như cùng một thứ.</p>
+  <p><i>5</i><b>Thanh trạng thái chỉ nói trạng thái.</b> Câu auto-save bỏ hẳn (Ice, 2026-10-26: thừa). Câu TM vào <code>title</code>, thanh chỉ còn "TM 0 · 65%". Nhóm trái là vị trí và tiến độ, nhóm phải là dịch vụ.</p>
+  <p><i>6</i><b>Công tắc bố cục.</b> "Ⓑ-2 / Ⓑ-1" thành nút phân đoạn hai biểu tượng vẽ chính bố cục: lưới bên trái, lưới trên đỉnh. Tên preset ở <code>title</code>, nhóm giữ <code>aria-label</code> "Bố cục Workspace".</p>
+  <p><b>Cỡ chữ.</b> <code>ui-label</code> 11 → 12px và <code>ui-mono</code> 11,5 → 12px (nhãn nguồn, số thứ tự câu, chip phím). Mọi chữ bấm được dùng <code>ui-md</code> 13px, bằng cỡ giao diện hệ thống macOS; <code>ui-sm</code> 12px chỉ còn cho số đếm và dòng phụ.</p>
+</div>
+
+<script>
+function bind(id, apply){
+  const sw=document.getElementById(id);
+  sw.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    sw.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    apply(b.dataset.v);
+  });
+}
+bind('sw-theme',v=>document.documentElement.dataset.theme=v);
+bind('sw-notes',v=>document.documentElement.classList.toggle('clean',v==='off'));
+</script>
+</body>
+</html>
