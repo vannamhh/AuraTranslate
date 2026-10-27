@@ -170,6 +170,10 @@ pub trait TranslationProvider {
         on_token: &mut dyn FnMut(&str),
         should_cancel: &dyn Fn() -> bool,
     ) -> Result<TranslateOutcome, Self::Error>;
+
+    fn is_empty_reply(_err: &Self::Error) -> bool {
+        false
+    }
 }
 
 /// One connection check: the saved endpoint and model, and a key only when the provider needs

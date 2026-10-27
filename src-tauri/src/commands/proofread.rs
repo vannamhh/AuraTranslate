@@ -302,7 +302,8 @@ pub async fn run_proofread_call<P: TranslationProvider>(
                 .await
         };
 
-        let usage = match outcome {
+        let (usage, reply_is_empty) = match outcome {
+            Err(err) if P::is_empty_reply(&err) => (None, true),
             Err(err) => {
                 return Err(ProofreadRunError::Provider {
                     err,
@@ -310,7 +311,7 @@ pub async fn run_proofread_call<P: TranslationProvider>(
                 });
             }
             Ok(TranslateOutcome::Cancelled) => return Ok(cancelled(remaining())),
-            Ok(TranslateOutcome::Done(usage)) => usage,
+            Ok(TranslateOutcome::Done(usage)) => (usage, false),
         };
 
         let texts: Vec<(&str, bool)> = batch
@@ -318,7 +319,12 @@ pub async fn run_proofread_call<P: TranslationProvider>(
             .iter()
             .map(|s| (s.scanned_text.as_str(), s.has_source))
             .collect();
-        match locate_batch_findings(&reply, &texts) {
+        let located = if reply_is_empty {
+            Err(ProofreadReplyError::Malformed)
+        } else {
+            locate_batch_findings(&reply, &texts)
+        };
+        match located {
             Err(ProofreadReplyError::Malformed) => {
                 not_scanned += batch.segments.len();
                 let _ = channel.send(AiProofreadEventWire::Batch {

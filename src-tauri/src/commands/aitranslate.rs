@@ -165,6 +165,15 @@ fn openai_client_error_family(err: &OpenAiClientError) -> (&'static str, Message
             MessageKey::AiTranslateReplyUnreadable,
             false,
         ),
+        OpenAiClientError::EmptyReply { finish_reason } => (
+            "ai_translate.reply_empty",
+            if finish_reason.is_some() {
+                MessageKey::AiTranslateReplyEmptyWithReason
+            } else {
+                MessageKey::AiTranslateReplyEmpty
+            },
+            false,
+        ),
         OpenAiClientError::ClientBuildFailed { .. } => (
             "ai_translate.client_build_failed",
             MessageKey::AiTranslateClientBuildFailed,
@@ -218,6 +227,12 @@ fn insert_status_params(
     params: &mut std::collections::BTreeMap<String, String>,
     err: &OpenAiClientError,
 ) {
+    if let OpenAiClientError::EmptyReply {
+        finish_reason: Some(reason),
+    } = err
+    {
+        params.insert("finish_reason".to_owned(), reason.clone());
+    }
     if let OpenAiClientError::NonSuccessStatus {
         status,
         provider_message,
@@ -854,7 +869,8 @@ fn connection_check_error(err: OpenAiClientError) -> IpcError {
         }
         other @ (OpenAiClientError::ClientBuildFailed { .. }
         | OpenAiClientError::ApiKeyHeaderInvalid { .. }
-        | OpenAiClientError::StreamEndedWithoutDone) => IpcError::from(other),
+        | OpenAiClientError::StreamEndedWithoutDone
+        | OpenAiClientError::EmptyReply { .. }) => IpcError::from(other),
     }
 }
 

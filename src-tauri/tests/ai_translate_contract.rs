@@ -66,8 +66,8 @@ use auratranslate_lib::commands::segment::{
     set_segment_omitted,
 };
 use auratranslate_lib::core::ai::client::{
-    ChunkUsage, OpenAiClientError, SseEventOutcome, build_request_body, enforce_sse_buffer_cap,
-    interpret_sse_event, split_sse_frames,
+    ChunkUsage, OpenAiClientError, SseChunk, SseEventOutcome, build_request_body,
+    enforce_sse_buffer_cap, interpret_sse_event, split_sse_frames,
 };
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, write_field};
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
@@ -384,7 +384,7 @@ fn the_request_body_always_asks_for_usage_via_stream_options() {
 
 /// 🔴 Counter-check trực tiếp cho khuyết tật nêu ở §Code Map spec 4.11 — một khung `usage`
 /// mang `choices: []` (hình dạng THẬT của khung usage cuối của một provider tương thích
-/// OpenAI, `stream_options.include_usage == true`) phải cho ra [`SseEventOutcome::Usage`],
+/// OpenAI, `stream_options.include_usage == true`) phải cho ra một `SseEventOutcome::Chunk` mang `usage`,
 /// KHÔNG [`SseEventOutcome::Ignore`]. Trước bản sửa của story này, `ChatCompletionsChunk`
 /// không đọc trường `usage` nên đúng khung này rơi vào `Ignore` một cách im lặng — gỡ nhánh
 /// `if let Some(usage) = chunk.usage { ... }` khỏi `interpret_sse_event` (`core/ai/client.rs`)
@@ -395,10 +395,14 @@ fn a_usage_only_final_chunk_with_empty_choices_is_read_as_usage_not_ignored() {
     let outcome = interpret_sse_event(usage_chunk).expect("khung usage hop le khong duoc la Err");
     assert_eq!(
         outcome,
-        SseEventOutcome::Usage(ChunkUsage {
-            prompt_tokens: Some(100),
-            completion_tokens: Some(312),
-            total_tokens: Some(412),
+        SseEventOutcome::Chunk(SseChunk {
+            text: None,
+            usage: Some(ChunkUsage {
+                prompt_tokens: Some(100),
+                completion_tokens: Some(312),
+                total_tokens: Some(412),
+            }),
+            finish_reason: None,
         }),
         "khung usage voi choices RONG phai doc thanh Usage, khong phai Ignore"
     );
@@ -431,10 +435,14 @@ fn a_usage_frame_reporting_only_total_tokens_is_read_as_usage_with_the_other_two
     let outcome = interpret_sse_event(partial_usage_chunk).expect("khong duoc la Err");
     assert_eq!(
         outcome,
-        SseEventOutcome::Usage(ChunkUsage {
-            prompt_tokens: None,
-            completion_tokens: None,
-            total_tokens: Some(412)
+        SseEventOutcome::Chunk(SseChunk {
+            text: None,
+            usage: Some(ChunkUsage {
+                prompt_tokens: None,
+                completion_tokens: None,
+                total_tokens: Some(412)
+            }),
+            finish_reason: None,
         }),
         "usage MOT PHAN van la Usage that -- total_tokens=412 co nghia, hai truong con lai None"
     );
@@ -486,33 +494,104 @@ fn into_translate_usage_computes_a_cost_and_falls_back_to_the_sum_when_total_tok
     );
 }
 
-/// 🔴 Rà soát coordinator — GHIM đúng lời doc-comment `SseEventOutcome::Usage` khẳng định:
-/// một khung mang CẢ `usage` LẪN `delta.content` thì `usage` THẮNG, nội dung bị bỏ — trước ca
-/// này, mệnh đề đó chỉ đứng trong doc-comment, không ai đối chứng được nó THẬT SỰ đúng hay chỉ
-/// tình cờ đúng vì chưa ai gieo đúng hình dạng JSON hiếm này.
+/// Hình Gemini: một khung mang CẢ `delta.content` LẪN `usage` phải giữ cả hai trong cùng một
+/// `Chunk`, chữ không bị bỏ.
 #[test]
-fn a_frame_carrying_both_usage_and_delta_content_reads_as_usage_and_discards_the_content() {
+fn a_frame_carrying_both_usage_and_delta_content_keeps_the_text_and_the_usage() {
     let both = r#"{"choices":[{"delta":{"content":"Xin"}}],"usage":{"total_tokens":412}}"#;
     let outcome = interpret_sse_event(both).expect("khong duoc la Err");
     assert_eq!(
         outcome,
-        SseEventOutcome::Usage(ChunkUsage {
-            prompt_tokens: None,
-            completion_tokens: None,
-            total_tokens: Some(412)
+        SseEventOutcome::Chunk(SseChunk {
+            text: Some("Xin".to_owned()),
+            usage: Some(ChunkUsage {
+                prompt_tokens: None,
+                completion_tokens: None,
+                total_tokens: Some(412)
+            }),
+            finish_reason: None,
         }),
-        "usage phai THANG khi mot khung mang ca hai -- dung nhu doc-comment SseEventOutcome::Usage khang dinh"
+        "khung co ca chu lan usage phai giu CA HAI"
     );
 }
 
-/// Một khung PHIÊN BẢN giữa dòng (không usage, `delta.content` có mặt) vẫn phải đọc như
-/// `Token` như trước — bản sửa thêm trường `usage` không được đổi hành vi của khung KHÔNG
-/// mang `usage` (ca ÂM cạnh ca trên).
+/// Nhiều khung Gemini liên tiếp (mỗi khung chữ + usage) cho ra từng đoạn chữ đúng thứ tự, mỗi
+/// khung kèm usage của nó.
 #[test]
-fn a_token_chunk_without_usage_still_reads_as_token() {
+fn consecutive_gemini_frames_each_yield_their_own_text_in_order_with_usage() {
+    let frames = [
+        (
+            r#"{"choices":[{"delta":{"content":"Xin "}}],"usage":{"total_tokens":10}}"#,
+            "Xin ",
+            10,
+        ),
+        (
+            r#"{"choices":[{"delta":{"content":"chao"}}],"usage":{"total_tokens":11}}"#,
+            "chao",
+            11,
+        ),
+        (
+            r#"{"choices":[{"delta":{"content":"!"}}],"usage":{"total_tokens":12}}"#,
+            "!",
+            12,
+        ),
+    ];
+    let mut joined = String::new();
+    let mut last_total = None;
+    for (frame, text, total) in frames {
+        match interpret_sse_event(frame).expect("khung hop le") {
+            SseEventOutcome::Chunk(chunk) => {
+                assert_eq!(chunk.text.as_deref(), Some(text));
+                joined.push_str(&chunk.text.expect("text"));
+                last_total = chunk.usage.and_then(|u| u.total_tokens);
+                assert_eq!(last_total, Some(total));
+            }
+            other => panic!("mong Chunk, nhan {other:?}"),
+        }
+    }
+    assert_eq!(joined, "Xin chao!");
+    assert_eq!(last_total, Some(12));
+}
+
+/// `finish_reason` nằm ở khung KHÔNG có chữ (khung cuối) vẫn được đọc ra, cùng `text: None`.
+#[test]
+fn a_finish_reason_on_a_frame_without_text_is_read_with_no_text() {
+    let frame = r#"{"choices":[{"delta":{},"finish_reason":"content_filter"}]}"#;
+    let outcome = interpret_sse_event(frame).expect("khong duoc la Err");
+    assert_eq!(
+        outcome,
+        SseEventOutcome::Chunk(SseChunk {
+            text: None,
+            usage: None,
+            finish_reason: Some("content_filter".to_owned()),
+        })
+    );
+}
+
+/// Khung `role` thuần (không chữ, không usage, không lý do) vẫn là `Ignore`.
+#[test]
+fn a_role_only_frame_is_still_ignored() {
+    let frame = r#"{"choices":[{"delta":{"role":"assistant"}}]}"#;
+    assert_eq!(
+        interpret_sse_event(frame).expect("khong duoc la Err"),
+        SseEventOutcome::Ignore
+    );
+}
+
+/// Một khung giữa dòng (không usage, `delta.content` có mặt) vẫn cho `Chunk` chỉ có chữ như
+/// trước.
+#[test]
+fn a_token_chunk_without_usage_still_reads_as_text_only() {
     let token_chunk = r#"{"choices":[{"delta":{"content":"Xin"}}]}"#;
     let outcome = interpret_sse_event(token_chunk).expect("khung token hop le khong duoc la Err");
-    assert_eq!(outcome, SseEventOutcome::Token("Xin".to_owned()));
+    assert_eq!(
+        outcome,
+        SseEventOutcome::Chunk(SseChunk {
+            text: Some("Xin".to_owned()),
+            usage: None,
+            finish_reason: None,
+        })
+    );
 }
 
 /// `core::ai::pricing::estimate_cost_usd` — mô hình CÓ hàng trong bảng giá trả `Some`, tính
@@ -1935,6 +2014,35 @@ fn stream_ended_without_done_maps_to_a_retryable_ipc_error() {
         err.retryable(),
         "rot ket noi GIUA CHUNG co the thu lai o luot bam lai"
     );
+}
+
+/// `EmptyReply` đi qua họ lỗi riêng: không thử lại; `finish_reason` chỉ làm tham số và đổi khoá
+/// khi có.
+#[test]
+fn empty_reply_maps_to_a_non_retryable_ipc_error_with_finish_reason_only_when_present() {
+    let without: IpcError = OpenAiClientError::EmptyReply {
+        finish_reason: None,
+    }
+    .into();
+    assert_eq!(without.code(), "ai_translate.reply_empty");
+    assert_eq!(without.message_key(), MessageKey::AiTranslateReplyEmpty);
+    assert!(without.params().get("finish_reason").is_none());
+    assert!(!without.retryable());
+
+    let with: IpcError = OpenAiClientError::EmptyReply {
+        finish_reason: Some("content_filter".to_owned()),
+    }
+    .into();
+    assert_eq!(with.code(), "ai_translate.reply_empty");
+    assert_eq!(
+        with.message_key(),
+        MessageKey::AiTranslateReplyEmptyWithReason
+    );
+    assert_eq!(
+        with.params().get("finish_reason"),
+        Some(&"content_filter".to_owned())
+    );
+    assert!(!with.retryable());
 }
 
 /// Đối chứng ĐỦ TÁM biến thể (7 cũ + `ApiKeyHeaderInvalid` tách khỏi `RequestFailed` ở Task 1

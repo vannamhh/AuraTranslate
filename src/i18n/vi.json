@@ -129,6 +129,8 @@
   "err.ai_proofread.scan_record_rejected": "Chưa ghi được số liệu lượt quét này: Tác phẩm đã đổi hoặc số liệu không hợp lệ.",
   "err.ai_proofread.text_would_be_empty": "Áp gợi ý này sẽ làm câu số {segment_id} trống nên chưa có gì được ghi.",
   "err.ai_translate.reply_unreadable": "Phản hồi của nhà cung cấp AI không đọc được — dữ liệu trả về không đúng định dạng mong đợi.",
+  "err.ai_translate.reply_empty": "Mô hình đã trả lời xong nhưng không có chữ nào — chưa có bản dịch.",
+  "err.ai_translate.reply_empty_with_reason": "Mô hình đã trả lời xong nhưng không có chữ nào (lý do dừng: {finish_reason}) — chưa có bản dịch.",
   "err.ai_translate.client_build_failed": "Máy này không dựng được kết nối tới nhà cung cấp AI — chưa có yêu cầu nào được gửi đi.",
   "err.ai_translate.api_key_header_invalid": "Khoá API đã lưu không dùng được để gửi yêu cầu — kiểm lại khoá đã lưu trong cấu hình AI.",
   "ai.translate.usage_with_cost": "{token_count} token · ước tính ~{cost_usd} USD",

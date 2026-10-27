@@ -82,7 +82,9 @@ fn expect_err(result: Result<ProofreadPrepareOutcome, IpcError>) -> IpcError {
 }
 
 #[derive(Debug, Clone)]
-struct FakeError;
+struct FakeError {
+    empty: bool,
+}
 impl std::fmt::Display for FakeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "fake")
@@ -93,6 +95,7 @@ impl std::error::Error for FakeError {}
 enum Step {
     Reply(&'static str, Option<TranslateUsage>),
     Fail,
+    EmptyReply,
     CancelInside,
 }
 
@@ -131,6 +134,10 @@ impl ScriptedProvider {
 impl TranslationProvider for ScriptedProvider {
     type Error = FakeError;
 
+    fn is_empty_reply(err: &FakeError) -> bool {
+        err.empty
+    }
+
     async fn translate(
         &self,
         _request: TranslateRequest<'_>,
@@ -146,7 +153,8 @@ impl TranslationProvider for ScriptedProvider {
             )
         });
         match step {
-            Step::Fail => Err(FakeError),
+            Step::Fail => Err(FakeError { empty: false }),
+            Step::EmptyReply => Err(FakeError { empty: true }),
             Step::CancelInside => Ok(TranslateOutcome::Cancelled),
             Step::Reply(text, usage) => {
                 on_token(text);
@@ -409,6 +417,25 @@ fn a_malformed_reply_loses_only_its_own_batch() {
         !ids.contains(&103),
         "the segments of the malformed batch draw nothing"
     );
+}
+
+#[test]
+fn an_empty_reply_error_loses_only_its_own_batch_and_the_run_continues() {
+    let provider = ScriptedProvider::new(vec![Step::EmptyReply, Step::Reply(ONE_SPELLING, None)]);
+    let (out, events) = run(&provider, &run_of(&[2, 3]));
+    assert_eq!(provider.call_count(), 2);
+    assert_eq!(
+        out.ok(),
+        Some(AiProofreadOutcomeWire::Done {
+            not_scanned: 2,
+            filtered: 0,
+            blocked: Vec::new()
+        })
+    );
+    let batches = batch_events(&events);
+    assert_eq!(batches.len(), 2);
+    assert_eq!(batches[0]["segments"].as_array().map(Vec::len), Some(0));
+    assert_eq!(batches[1]["segments"].as_array().map(Vec::len), Some(3));
 }
 
 #[test]

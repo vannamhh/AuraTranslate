@@ -1011,6 +1011,183 @@ fn a_batch_stopped_by_a_429_names_the_sentence_the_status_and_the_provider_messa
     );
 }
 
+fn sse_body(frames: &[&str]) -> String {
+    let mut out = String::new();
+    for f in frames {
+        out.push_str("data: ");
+        out.push_str(f);
+        out.push_str("\n\n");
+    }
+    out.push_str("data: [DONE]\n\n");
+    out
+}
+
+const GEMINI_FRAMES: [&str; 4] = [
+    r#"{"choices":[{"delta":{"content":"Con rong ","role":"assistant"},"index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":2,"prompt_tokens":11,"total_tokens":13}}"#,
+    r#"{"choices":[{"delta":{"content":"gam ","role":"assistant"},"index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":3,"prompt_tokens":11,"total_tokens":14}}"#,
+    r#"{"choices":[{"delta":{"content":"len.","role":"assistant"},"index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":7,"prompt_tokens":11,"total_tokens":18}}"#,
+    r#"{"choices":[{"delta":{"extra_content":{"google":{"thought_signature":"abc"}},"role":"assistant"},"finish_reason":"stop","index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":7,"prompt_tokens":11,"total_tokens":18}}"#,
+];
+
+const GEMINI_EMPTY_FRAMES: [&str; 2] = [
+    r#"{"choices":[{"delta":{"role":"assistant","extra_content":{"google":{"thought_signature":"abc"}}}}],"usage":{"prompt_tokens":11,"completion_tokens":0,"total_tokens":11}}"#,
+    r#"{"choices":[{"delta":{},"finish_reason":"content_filter"}],"usage":{"prompt_tokens":11,"completion_tokens":0,"total_tokens":11}}"#,
+];
+
+#[test]
+fn a_gemini_stream_with_usage_on_every_frame_delivers_all_text_and_the_final_usage() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-gemini");
+    let h = Harness::with_error_reply(
+        "gemini-ok",
+        "A dragon roared.",
+        1,
+        "200 OK",
+        &sse_body(&GEMINI_FRAMES),
+    );
+    let segment_id = h.segment_ids()[0];
+    let tokens = Arc::new(Mutex::new(Vec::<String>::new()));
+    let sink = Arc::clone(&tokens);
+    let channel = tauri::ipc::Channel::<String>::new(move |body| {
+        if let tauri::ipc::InvokeResponseBody::Json(json) = body {
+            sink.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(json);
+        }
+        Ok(())
+    });
+    let outcome = tauri::async_runtime::block_on(wire::ai_translate_segment(
+        h.app.handle().clone(),
+        segment_id,
+        Some("Plain".to_owned()),
+        channel,
+    ))
+    .expect("luong Gemini co chu phai tra Ok");
+    assert!(
+        matches!(outcome, AiTranslateOutcomeWire::Done { usage: Some(_) }),
+        "ket qua: {outcome:?}"
+    );
+    let seen = tokens
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert_eq!(
+        seen,
+        vec![
+            "\"Con rong \"".to_owned(),
+            "\"gam \"".to_owned(),
+            "\"len.\"".to_owned()
+        ],
+        "tung doan chu qua kenh dung thu tu"
+    );
+    assert_usage_18(h.record().sent_usage);
+}
+
+#[test]
+fn a_stream_that_ends_with_no_text_fails_with_empty_reply_and_the_finish_reason() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-empty");
+    let h = Harness::with_error_reply(
+        "gemini-empty",
+        "A dragon roared.",
+        1,
+        "200 OK",
+        &sse_body(&GEMINI_EMPTY_FRAMES),
+    );
+    let err = single_run_error(&h);
+    assert_eq!(err.code(), "ai_translate.reply_empty");
+    assert_eq!(
+        err.message_key(),
+        auratranslate_lib::core::i18n::MessageKey::AiTranslateReplyEmptyWithReason
+    );
+    assert_eq!(
+        err.params().get("finish_reason"),
+        Some(&"content_filter".to_owned())
+    );
+    assert!(!err.retryable());
+    assert!(target_texts(&h).iter().all(String::is_empty));
+}
+
+#[test]
+fn a_stream_with_only_done_fails_with_empty_reply_without_a_reason() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-empty-bare");
+    let h = Harness::with_error_reply(
+        "empty-bare",
+        "A dragon roared.",
+        1,
+        "200 OK",
+        &sse_body(&[]),
+    );
+    let err = single_run_error(&h);
+    assert_eq!(
+        err.message_key(),
+        auratranslate_lib::core::i18n::MessageKey::AiTranslateReplyEmpty
+    );
+    assert!(err.params().get("finish_reason").is_none());
+}
+
+#[test]
+fn a_stream_of_only_whitespace_text_fails_with_empty_reply() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-empty-blank");
+    let h = Harness::with_error_reply(
+        "empty-blank",
+        "A dragon roared.",
+        1,
+        "200 OK",
+        &sse_body(&[
+            r#"{"choices":[{"delta":{"content":"\n","role":"assistant"}}],"usage":{"prompt_tokens":11,"completion_tokens":1,"total_tokens":12}}"#,
+            r#"{"choices":[{"delta":{"content":"  \n"},"finish_reason":"stop"}],"usage":{"prompt_tokens":11,"completion_tokens":2,"total_tokens":13}}"#,
+        ]),
+    );
+    let err = single_run_error(&h);
+    assert_eq!(err.code(), "ai_translate.reply_empty");
+    assert_eq!(err.params().get("finish_reason"), Some(&"stop".to_owned()));
+    assert!(target_texts(&h).iter().all(String::is_empty));
+}
+
+#[test]
+fn a_batch_whose_first_sentence_gets_an_empty_reply_stops_there_naming_the_sentence() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-empty-batch");
+    let h = Harness::with_error_reply(
+        "empty-batch",
+        "A dragon roared. The knight fled.",
+        1,
+        "200 OK",
+        &sse_body(&GEMINI_EMPTY_FRAMES),
+    );
+    let ids = h.segment_ids();
+    let first = ids[0];
+    let err = tauri::async_runtime::block_on(wire::ai_translate_batch(
+        h.app.handle().clone(),
+        ids,
+        Some("Plain".to_owned()),
+        false,
+        tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(|_| Ok(())),
+    ))
+    .expect_err("lo phai dung voi Err");
+    assert_eq!(err.code(), "ai_translate.reply_empty");
+    assert_eq!(err.params().get("segment_id"), Some(&first.to_string()));
+    assert_eq!(
+        err.params().get("finish_reason"),
+        Some(&"content_filter".to_owned())
+    );
+    assert_eq!(h.accepted.load(Ordering::SeqCst), 1, "dung ngay o cau dau");
+    assert!(target_texts(&h).iter().all(String::is_empty));
+}
+
 mod provider_message_pure {
     use auratranslate_lib::core::ai::client::{extract_provider_message, redact_api_key};
 

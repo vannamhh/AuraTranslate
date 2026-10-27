@@ -919,6 +919,11 @@ message_keys! {
     /// (`OpenAiClientError::MalformedEvent`/`BufferOverflow`). KHÔNG retryable — thử lại cùng
     /// một endpoint hỏng hình cho cùng một kết quả.
     AiTranslateReplyUnreadable => "err.ai_translate.reply_unreadable" [],
+    /// Luồng kết thúc sạch nhưng không có chữ nào (`OpenAiClientError::EmptyReply`), nhà cung cấp
+    /// không nêu lý do dừng. KHÔNG retryable.
+    AiTranslateReplyEmpty => "err.ai_translate.reply_empty" [],
+    /// Như `AiTranslateReplyEmpty`, kèm `finish_reason` nguyên văn của nhà cung cấp.
+    AiTranslateReplyEmptyWithReason => "err.ai_translate.reply_empty_with_reason" ["finish_reason"],
     /// MÁY NÀY không dựng được client HTTP (`OpenAiClientError::ClientBuildFailed`) — câu nêu
     /// tên máy này, không phải provider (§Always spec 4.10: "Copy names the provider or this
     /// machine, never the user"). KHÔNG retryable.

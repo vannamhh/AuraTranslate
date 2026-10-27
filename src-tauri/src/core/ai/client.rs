@@ -127,6 +127,9 @@ pub enum OpenAiClientError {
     /// SINH ra nằm trong `data:` của TỪNG sự kiện đã tách xong, không nằm trong phần dư CHƯA
     /// tách được).
     BufferOverflow { size: usize },
+    /// Luồng kết thúc sạch (`[DONE]`) mà không có chữ nào ngoài khoảng trắng. `finish_reason`
+    /// là giá trị nhà cung cấp gửi, nguyên văn.
+    EmptyReply { finish_reason: Option<String> },
 }
 
 impl std::fmt::Display for OpenAiClientError {
@@ -156,6 +159,9 @@ impl std::fmt::Display for OpenAiClientError {
             }
             OpenAiClientError::BufferOverflow { size } => {
                 write!(f, "ai_client[buffer_overflow] size={size}")
+            }
+            OpenAiClientError::EmptyReply { finish_reason } => {
+                write!(f, "ai_client[empty_reply] finish_reason={finish_reason:?}")
             }
         }
     }
@@ -192,6 +198,10 @@ impl std::fmt::Debug for OpenAiClientError {
             OpenAiClientError::BufferOverflow { size } => f
                 .debug_struct("BufferOverflow")
                 .field("size", size)
+                .finish(),
+            OpenAiClientError::EmptyReply { finish_reason } => f
+                .debug_struct("EmptyReply")
+                .field("finish_reason", finish_reason)
                 .finish(),
         }
     }
@@ -253,17 +263,10 @@ pub fn extract_provider_message(body: &[u8]) -> Option<String> {
         .collect();
     let collapsed = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
     let cut: String = collapsed.chars().take(MAX_PROVIDER_MESSAGE_CHARS).collect();
-    if cut.is_empty() {
-        None
-    } else {
-        Some(cut)
-    }
+    if cut.is_empty() { None } else { Some(cut) }
 }
 
-async fn read_provider_message(
-    response: &mut reqwest::Response,
-    api_key: &str,
-) -> Option<String> {
+async fn read_provider_message(response: &mut reqwest::Response, api_key: &str) -> Option<String> {
     let mut body: Vec<u8> = Vec::new();
     loop {
         let chunk = response.chunk().await.ok()?;
@@ -372,6 +375,8 @@ struct ChatCompletionsChunk {
 struct ChunkChoice {
     #[serde(default)]
     delta: ChunkDelta,
+    #[serde(default)]
+    finish_reason: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -384,7 +389,7 @@ struct ChunkDelta {
 /// `cost_usd` (đòi `model_id`, thứ hàm THUẦN `interpret_sse_event` không biết và không nên
 /// biết — nó chỉ đọc MỘT sự kiện). `OpenAiChatClient::translate` gắn giá qua
 /// `core::ai::pricing::estimate_cost_usd` ngay khi khung `Done` tới, dùng `request.model` nó
-/// đã có sẵn trong tay — xem [`SseEventOutcome::Usage`].
+/// đã có sẵn trong tay — xem [`SseChunk`].
 ///
 /// 🔴 **SỬA (rà soát coordinator, Story 4.11)** — ba trường đổi từ `u32` sang `Option<u32>`.
 /// Bản trước dùng `u32` với `#[serde(default)]`: một trường VẮNG MẶT trong JSON (không phải
@@ -456,6 +461,10 @@ impl ChunkUsage {
 impl TranslationProvider for OpenAiChatClient {
     type Error = OpenAiClientError;
 
+    fn is_empty_reply(err: &Self::Error) -> bool {
+        matches!(err, OpenAiClientError::EmptyReply { .. })
+    }
+
     async fn translate(
         &self,
         request: TranslateRequest<'_>,
@@ -523,6 +532,8 @@ impl TranslationProvider for OpenAiChatClient {
         // toi khi (neu) mot khung usage that su toi -- day la trang thai "nha cung cap chua
         // tung gui usage" ma I/O Matrix spec 4.11 doi phan biet voi mot `0` gia.
         let mut last_usage: Option<ChunkUsage> = None;
+        let mut last_finish_reason: Option<String> = None;
+        let mut has_text = false;
         loop {
             // `should_cancel` duoc hoi GIUA moi khung nhan duoc -- ca truoc khi doc khung ke
             // tiep tu mang (o day) LAN truoc khi phat tung su kien da tach duoc trong khung do
@@ -556,11 +567,28 @@ impl TranslationProvider for OpenAiChatClient {
                 }
                 match interpret_sse_event(&event)? {
                     SseEventOutcome::Done => {
+                        if !has_text {
+                            return Err(OpenAiClientError::EmptyReply {
+                                finish_reason: last_finish_reason,
+                            });
+                        }
                         let usage = last_usage.map(|u| u.into_translate_usage(request.model));
                         return Ok(TranslateOutcome::Done(usage));
                     }
-                    SseEventOutcome::Token(text) => on_token(&text),
-                    SseEventOutcome::Usage(usage) => last_usage = Some(usage),
+                    SseEventOutcome::Chunk(frame) => {
+                        if let Some(text) = &frame.text {
+                            on_token(text);
+                            if !text.trim().is_empty() {
+                                has_text = true;
+                            }
+                        }
+                        if let Some(usage) = frame.usage {
+                            last_usage = Some(usage);
+                        }
+                        if let Some(reason) = frame.finish_reason {
+                            last_finish_reason = Some(reason);
+                        }
+                    }
                     SseEventOutcome::Ignore => {}
                 }
             }
@@ -727,16 +755,16 @@ pub enum SseEventOutcome {
     Ignore,
     /// `"[DONE]"` — luồng kết thúc SẠCH.
     Done,
-    /// Văn bản để gọi `on_token`.
-    Token(String),
-    /// **THÊM Story 4.11.** Một khung mang trường JSON `usage` (thường là khung CUỐI, với
-    /// `choices: []`, gửi TRƯỚC `[DONE]` khi `stream_options.include_usage == true`) — số liệu
-    /// THÔ, chưa gắn giá (xem doc-comment [`ChunkUsage`]). Khi một khung mang CẢ `usage` LẪN
-    /// `delta.content` (chưa từng đo được ở nhà cung cấp nào, nhưng không cấm về mặt hình
-    /// dạng JSON), `usage` thắng — `interpret_sse_event` không đánh rơi số liệu sử dụng để đổi
-    /// lấy một đoạn văn bản mà chỗ gọi đã ngừng chờ (xem `translate()`'s vòng lặp: `Usage` chỉ
-    /// GHI LẠI, `Done` mới thật sự kết thúc lượt gọi).
-    Usage(ChunkUsage),
+    /// Một khung mang ít nhất một trong: chữ, `usage` (có số token), `finish_reason`.
+    Chunk(SseChunk),
+}
+
+/// Mọi thứ một khung `data:` mang, đọc cùng lúc: Gemini gửi `usage` kèm mọi khung có chữ.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct SseChunk {
+    pub text: Option<String>,
+    pub usage: Option<ChunkUsage>,
+    pub finish_reason: Option<String>,
 }
 
 pub fn interpret_sse_event(event: &str) -> Result<SseEventOutcome, OpenAiClientError> {
@@ -750,24 +778,19 @@ pub fn interpret_sse_event(event: &str) -> Result<SseEventOutcome, OpenAiClientE
         serde_json::from_str(event).map_err(|e| OpenAiClientError::MalformedEvent {
             detail: e.to_string(),
         })?;
-    if let Some(usage) = chunk.usage {
-        // `{"usage":{}}` (hoặc tương đương) -- trường `usage` có mặt nhưng không báo được một
-        // số token nào -- KHÔNG được đọc như một `Usage` mang toàn số `0` giả (xem doc-comment
-        // `ChunkUsage::has_any_token_count`); rơi xuống nhánh `choices` bên dưới như thể chunk
-        // này chưa từng mang `usage`.
-        if usage.has_any_token_count() {
-            return Ok(SseEventOutcome::Usage(usage));
-        }
+    // `{"usage":{}}` (không trường token nào) không phải một `Usage` mang toàn số `0` giả.
+    let usage = chunk.usage.filter(ChunkUsage::has_any_token_count);
+    let choice = chunk.choices.into_iter().next().unwrap_or_default();
+    let text = choice.delta.content.filter(|t| !t.is_empty());
+    let finish_reason = choice.finish_reason.filter(|r| !r.is_empty());
+    if text.is_none() && usage.is_none() && finish_reason.is_none() {
+        return Ok(SseEventOutcome::Ignore);
     }
-    match chunk
-        .choices
-        .into_iter()
-        .next()
-        .and_then(|c| c.delta.content)
-    {
-        Some(text) if !text.is_empty() => Ok(SseEventOutcome::Token(text)),
-        _ => Ok(SseEventOutcome::Ignore),
-    }
+    Ok(SseEventOutcome::Chunk(SseChunk {
+        text,
+        usage,
+        finish_reason,
+    }))
 }
 
 /// Tách MỌI sự kiện SSE TRỌN VẸN hiện có trong `buf`, theo đúng thứ tự tới — HÀM THUẦN, không
