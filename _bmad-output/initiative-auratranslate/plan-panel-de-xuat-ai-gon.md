@@ -3,7 +3,7 @@ title: 'Panel Đề xuất AI gọn: chọn bộ prompt vào màn Prompt, ghi c�
 type: 'feature'
 ticket: ''
 created: '2026-10-26'
-status: 'built'
+status: 'done'
 baseline_revision: 'f6f66826c8984c8de13be85efc85527cfd412f9d'
 route: 'full'
 route_source: 'auto'

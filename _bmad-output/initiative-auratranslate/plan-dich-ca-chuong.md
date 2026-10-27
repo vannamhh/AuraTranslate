@@ -3,7 +3,7 @@ title: 'Dịch cả Chương: một nút gửi mọi câu chưa dịch của Ch�
 type: 'feature'
 ticket: ''
 created: '2026-10-26'
-status: 'built'
+status: 'done'
 baseline_revision: 'a20e17a5fb489f816ecc46808b4e15fa0267ebdf'
 route: 'full'
 route_source: 'auto'
