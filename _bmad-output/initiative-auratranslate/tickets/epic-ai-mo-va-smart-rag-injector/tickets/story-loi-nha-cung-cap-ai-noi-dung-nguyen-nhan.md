@@ -22,7 +22,7 @@ Khi nhà cung cấp AI từ chối một lượt dịch hay một lượt kiểm
 1. **Câu chính theo mã trạng thái** (FR75)
    **Given** nhà cung cấp trả một mã không phải 2xx cho lượt dịch một câu, lượt dịch lô, hoặc lượt kiểm tra kết nối
    **When** lỗi hiện ra
-   **Then** câu tiếng Việt nêu đúng họ nguyên nhân của mã đó: 401/403 khoá bị từ chối, 402 thanh toán hoặc số dư, 404 endpoint hoặc mô hình, 429 hạn mức hoặc tốc độ gọi, 5xx sự cố phía nhà cung cấp, mã khác câu chung kèm mã
+   **Then** câu tiếng Việt nêu đúng họ nguyên nhân của mã đó: 401/403 khoá bị từ chối, 402 thanh toán hoặc số dư, 404 endpoint hoặc mô hình, 429 hạn mức hoặc tốc độ gọi, 5xx sự cố phía nhà cung cấp, mã khác (như 400, 422) câu chung kèm mã; cùng bảng này cho cả ba đường
    **And** lượt dịch lô vẫn nêu câu đã dừng, công việc đang làm không mất, và không có lượt thử lại tự động (AD-22)
 2. **Lời nhà cung cấp hiện nguyên văn** (FR75)
    **Given** thân phản hồi lỗi là JSON ở một trong ba hình dạng của AD-59 Rule 2, gồm dạng mảng một phần tử của Gemini
@@ -37,7 +37,8 @@ Khi nhà cung cấp AI từ chối một lượt dịch hay một lượt kiểm
 4. **Có test canh, và test đỏ được** (FR67, FR75)
    **Given** bộ test
    **When** nó chạy
-   **Then** có đủ bốn ca của AD-59 Rule 6, trong đó ca endpoint giả trả 402 kèm khoá đi qua đường dịch thật, không gọi thẳng hàm che
+   **Then** có đủ bốn ca của AD-59 Rule 6: hàm che (khoá đầy đủ, khoá lặp, đoạn sót, khoá rỗng); endpoint giả trả 402 kèm khoá; endpoint giả trả HTML 502; thân lỗi dạng mảng của Gemini
+   **And** ca 402 kèm khoá đi qua đường dịch thật, không gọi thẳng hàm che
    **And** gỡ thật lời gọi hàm che trên đường dịch làm ca đó đỏ, vì đúng lý do khoá lộ
 5. **Preset Gemini ghi cố định mô hình** (FR65)
    **Given** màn Cài đặt AI
@@ -51,7 +52,7 @@ Khi nhà cung cấp AI từ chối một lượt dịch hay một lượt kiểm
 7. **Ghi lại những gì chưa đo** (FR75)
    **Given** mục nợ "Chưa ai bấm Thử kết nối và dịch một câu trên từng preset có mạng" trong sổ nợ
    **When** story xong
-   **Then** mục đó có thêm một dòng 🔵 nêu các điểm của lượt rà 2026-10-27 ở Notes; mục nợ mới cho lượt dùng thật của story có `Chủ: Epic 4`
+   **Then** mục đó có thêm một dòng 🔵 nêu các điểm của lượt rà 2026-10-27 ở Notes, giữ `Chủ: Epic 12`; mục nợ mới cho lượt dùng thật của story có `Chủ: Epic 4`
 
 ## Boundaries
 
@@ -73,5 +74,5 @@ Khi nhà cung cấp AI từ chối một lượt dịch hay một lượt kiểm
 - Decision: 2026-10-27, Ice — hiện lời nhà cung cấp (phương án b), không chỉ đổi câu theo mã; AD-59 do Winston soạn cùng ngày.
 - Decision: 2026-10-27, Ice — preset Gemini ghi cố định `gemini-3.8-flash`, không dùng bí danh `gemini-flash-latest`.
 - Lượt rà 2026-10-27 (nội dung cho dòng 🔵 của tiêu chí 7): tài liệu xAI nói mô hình suy luận không hỗ trợ `stream_options` và `max_tokens`, trong khi app luôn gửi `stream_options`, nên mọi lượt dịch qua xAI có thể đỏ; tài liệu OpenAI về `max_tokens` không đọc được (403); `/models` của lớp tương thích Anthropic không có trong tài liệu; Mistral không còn nêu bí danh `mistral-large-latest`; LM Studio không nói gì về `stream_options`. Đã đo bằng khoá Gemini: 402 `RESOURCE_EXHAUSTED` trên cả đường tương thích OpenAI lẫn đường gốc, `/models` trả id tiền tố `models/`.
-- Lượt dùng thật cho mục nợ `Chủ: Epic 4`: Ice gọi dịch một câu bằng khoá Gemini khi tài khoản còn hết tiền nạp trước, thấy câu 402 và lời của Google; rồi kiểm tra kết nối với `gemini-3.8-flash`.
+- Lượt dùng thật cho mục nợ `Chủ: Epic 4` (không chặn story xong): Ice gọi dịch một câu bằng khoá Gemini khi tài khoản còn hết tiền nạp trước, thấy câu 402 và lời của Google; rồi kiểm tra kết nối với `gemini-3.8-flash`.
 - Risk medium vì story mở một đường cho chữ do bên ngoài viết đi qua IPC, ngay cạnh khoá API.
