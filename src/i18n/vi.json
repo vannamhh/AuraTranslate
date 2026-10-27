@@ -395,6 +395,7 @@
   "command.layout.toggle_grid": "Ẩn hoặc hiện Đối chiếu",
   "command.layout.toggle_lookup": "Ẩn hoặc hiện Tra cứu",
   "command.layout.toggle_ai_translation": "Ẩn hoặc hiện Đề xuất AI",
+  "command.layout.toggle_panel_headers": "Sắp xếp panel",
   "command.layout.lookup_drawer_open": "Tra cứu",
   "command.layout.lookup_drawer_close": "Đóng ngăn kéo Tra cứu",
   "command.library.import.open": "Nhập tài liệu",

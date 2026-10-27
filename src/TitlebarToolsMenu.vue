@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
 import { dispatch } from './commands'
-import { t } from './i18n'
+import { t, tError } from './i18n'
 import AppIcon from './AppIcon.vue'
 import { shortcutRows } from './config/shortcutsState'
 import { closeToolsMenu, toolsMenuIsOpen } from './titlebarToolsState'
+import { panelHeadersSaveError, panelHeadersShown } from './layout/panelHeadersState'
 import { attributionIsOpen } from './panels/dictSourcesState'
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -21,7 +22,7 @@ function chordOf(id: string): string {
 }
 
 function menuItems(): HTMLElement[] {
-  return Array.from(root.value?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
+  return Array.from(root.value?.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemcheckbox"]') ?? [])
 }
 
 // WKWebView does not focus a <button> on mouse click; without this the overlay saves the previously
@@ -58,7 +59,7 @@ function onDocumentMouseDown(event: MouseEvent) {
 
 function onRootClick(event: MouseEvent) {
   const target = event.target
-  if (target instanceof Element && target.closest('[role="menuitem"]') !== null) closeToolsMenu()
+  if (target instanceof Element && target.closest('[role="menuitem"], [role="menuitemcheckbox"]') !== null) closeToolsMenu()
 }
 
 function onFocusOut(event: FocusEvent) {
@@ -191,6 +192,23 @@ onBeforeUnmount(() => {
           <span class="tools-chord">{{ chordOf('glossary.harvest.open') }}</span>
         </button>
       </li>
+      <li role="none">
+        <button
+          type="button"
+          role="menuitemcheckbox"
+          tabindex="-1"
+          class="tools-item"
+          :aria-checked="panelHeadersShown"
+          data-tools-item="layout.toggle_panel_headers"
+          @click="dispatch('layout.toggle_panel_headers')"
+        >
+          <span>{{ t('command.layout.toggle_panel_headers') }}</span>
+          <span class="tools-switch" :class="{ on: panelHeadersShown }" aria-hidden="true"></span>
+        </button>
+      </li>
+      <li v-if="panelHeadersSaveError !== null" role="none">
+        <p class="tools-alert" role="alert">{{ tError(panelHeadersSaveError) }}</p>
+      </li>
     </ul>
   </div>
 </template>
@@ -233,6 +251,27 @@ onBeforeUnmount(() => {
 .tools-item:hover,
 .tools-item:focus-visible {
   background: var(--color-surface-sunken);
+}
+
+/* On and off differ by fill, not by colour alone. */
+.tools-switch {
+  flex: none;
+  align-self: center;
+  width: calc(var(--space-unit) * 4);
+  height: calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-control-rule);
+  border-radius: var(--radius-sm);
+}
+
+.tools-switch.on {
+  border-color: var(--color-on-surface);
+  background: var(--color-on-surface);
+}
+
+.tools-alert {
+  margin: 0;
+  padding: var(--space-unit) calc(var(--space-unit) * 3);
+  color: var(--color-error);
 }
 
 .tools-chord {

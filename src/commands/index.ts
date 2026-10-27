@@ -204,6 +204,8 @@ export type CommandDeps = {
   applyPreset?: (presetId: string) => boolean
   /** Ẩn/hiện một panel. Handler của bốn `layout.toggle_*` (AC3). */
   togglePanel?: (panelId: string) => boolean
+  /** Bật/tắt chế độ Sắp xếp panel. Handler của `layout.toggle_panel_headers`. */
+  togglePanelHeaders?: () => void
 
   // ── Story 1.15 — nộp form nhập Tác phẩm ở Library ───────────────────────────────
   //
@@ -1374,6 +1376,16 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       },
     })
   }
+
+  target.register({
+    id: 'layout.toggle_panel_headers',
+    labelKey: 'command.layout.toggle_panel_headers',
+    keys: undefined,
+    run: () => {
+      if (deps.togglePanelHeaders === undefined) return portMissing('layout.toggle_panel_headers', 'togglePanelHeaders')
+      deps.togglePanelHeaders()
+    },
+  })
 
   /**
    * ═══════════════════════════════════════════════════════════════════════════════

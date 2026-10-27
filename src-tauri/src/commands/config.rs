@@ -116,6 +116,8 @@ pub struct BootstrapConfig {
     pub ai_usage_visible: String,
     /// `false` only when the saved switch is `"off"`; the update check is on by default.
     pub update_check_enabled: bool,
+    /// `true` only when the saved arrange-mode switch is `"on"`; dock tab bars are hidden by default.
+    pub panel_headers_shown: bool,
     /// `CARGO_PKG_VERSION` of the running build.
     pub app_version: String,
 }
@@ -165,6 +167,7 @@ pub fn bootstrap_config(store: Option<&Store>) -> Result<BootstrapConfig, IpcErr
         tm_fuzzy_threshold: config.tm_fuzzy_threshold(),
         ai_usage_visible: config.ai_usage_visible().to_owned(),
         update_check_enabled: config.update_check_enabled(),
+        panel_headers_shown: config.panel_headers_shown(),
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
     })
 }

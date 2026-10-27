@@ -258,6 +258,11 @@ const EXEMPT = new Map([
       'AppConfig là GlobalOnly, nên "đổi Tác phẩm" không phải một sự kiện của nó.',
   ],
   [
+    'src/config/bootstrap.ts::panelHeadersShown',
+    'Công tắc Sắp xếp panel đã nạp lúc khởi động — cùng loại "chỉ toàn cục" với `aiUsageVisible`: ' +
+      'AppConfig là GlobalOnly, nên "đổi Tác phẩm" không phải một sự kiện của nó.',
+  ],
+  [
     'src/config/bootstrap.ts::appVersion',
     'Phiên bản ứng dụng đọc một lần lúc khởi động — thuộc tiến trình, không thuộc Tác phẩm nào.',
   ],

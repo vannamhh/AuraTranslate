@@ -12,6 +12,7 @@ const ITEM_IDS = [
   'export.reviewer_import.open',
   'export.alignment.open',
   'glossary.harvest.open',
+  'layout.toggle_panel_headers',
 ]
 
 const OVERLAYS = [
@@ -46,7 +47,7 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
 
     await openList()
     const ids = await browser.execute(() =>
-      Array.from(document.querySelectorAll('[role="menuitem"]')).map((el) => el.getAttribute('data-tools-item')),
+      Array.from(document.querySelectorAll('[role="menuitem"], [role="menuitemcheckbox"]')).map((el) => el.getAttribute('data-tools-item')),
     )
     expect(ids).toEqual(ITEM_IDS)
     await browser.keys(['Escape'])
@@ -101,7 +102,7 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
     expect(at).toBe('tm.manage.open')
     await browser.keys(['ArrowUp', 'ArrowUp'])
     const wrapped = await browser.execute(() => document.activeElement?.getAttribute('data-tools-item') ?? '')
-    expect(wrapped).toBe('glossary.harvest.open')
+    expect(wrapped).toBe('layout.toggle_panel_headers')
     await browser.keys(['Escape'])
     await $(ITEM('settings.open')).waitForExist({ reverse: true, timeout: 10_000 })
     expect(await activeIsTrigger()).toBe(true)

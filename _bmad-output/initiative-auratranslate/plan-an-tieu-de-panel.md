@@ -3,14 +3,14 @@ title: 'Ẩn tiêu đề panel một-panel, bật lại bằng "Sắp xếp pane
 type: 'feature'
 ticket: ''
 created: '2026-10-26'
-status: 'in-progress'
+status: 'built'
 baseline_revision: '233ba4ec88ac97e921e598363fda35701812f3e3'
 route: 'full'
 route_source: 'auto'
 risk: 'medium'
-review: ''
-review_source: ''
-lenses_ran: []
+review: 'quick'
+review_source: 'pinned'
+lenses_ran: ['quick']
 review_loop_iteration: 0
 context:
   - '{project-root}/src/AGENTS.md'
@@ -77,15 +77,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution (phase Rust):**
-- [ ] `store.rs`, `config.rs`, `ipc_contract.rs` -- khoá `panel_headers_shown` theo khuôn `update_check_enabled`.
+- [x] `store.rs`, `config.rs`, `ipc_contract.rs` -- khoá `panel_headers_shown` theo khuôn `update_check_enabled`.
 
 **Execution (phase webview):**
-- [ ] `bootstrap.ts`, `panelHeadersState.ts`, `check-panel-refs.mjs` -- đọc/ghi khoá.
-- [ ] `WorkspaceDock.vue` -- hàm đồng bộ `group.header.hidden = !shown && group.panels.length < 2` cho mọi nhóm; gọi sau restore/preset/layoutJson/merge/undoMerge, trong listener `onDidLayoutChange` riêng, và khi chế độ đổi; `jsonForPersist` xoá `hideHeader`.
-- [ ] `commands/index.ts`, `main.ts`, `vi.json`, `TitlebarToolsMenu.vue` -- lệnh và mục menu checkbox.
+- [x] `bootstrap.ts`, `panelHeadersState.ts`, `check-panel-refs.mjs` -- đọc/ghi khoá.
+- [x] `WorkspaceDock.vue` -- hàm đồng bộ `group.header.hidden = !shown && group.panels.length < 2` cho mọi nhóm; gọi sau restore/preset/layoutJson/merge/undoMerge, trong listener `onDidLayoutChange` riêng, và khi chế độ đổi; `jsonForPersist` xoá `hideHeader`.
+- [x] `commands/index.ts`, `main.ts`, `vi.json`, `TitlebarToolsMenu.vue` -- lệnh và mục menu checkbox.
 
 **Execution (phase test):**
-- [ ] Ca cho từng hàng của Matrix (vitest mount `WorkspaceDock` hoặc test hàm đồng bộ với group giả + một ca nối dây qua dock thật); sửa test menu và e2e `titlebar-tools` cho mục mới; ca `jsonForPersist` không có `hideHeader`. Đối chứng: gỡ lời gọi đồng bộ khỏi đường `applyMerge` ⇒ ca Tầng hẹp đỏ.
+- [x] Ca cho từng hàng của Matrix (vitest mount `WorkspaceDock` hoặc test hàm đồng bộ với group giả + một ca nối dây qua dock thật); sửa test menu và e2e `titlebar-tools` cho mục mới; ca `jsonForPersist` không có `hideHeader`. Đối chứng: gỡ lời gọi đồng bộ khỏi đường `applyMerge` ⇒ ca Tầng hẹp đỏ.
 
 **Acceptance Criteria:**
 - Given Workspace vừa mở, when nhìn ba panel, then không thanh tab nào và chiều cao nội dung mỗi panel tăng đúng chiều cao thanh tab.
@@ -93,9 +93,30 @@ context:
 
 ## Implementation Notes
 
+- Hiện/ẩn thanh tab là trạng thái dẫn xuất: `syncPanelHeaders()` trong `WorkspaceDock.vue` chạy sau preset, `applyLayoutJson`, gộp/tách tầng hẹp, cuối `onReady`, trong một listener `onDidLayoutChange` riêng và khi chế độ đổi. `withoutHideHeader` (`dockTree.ts`) gỡ cờ khỏi JSON ghi đĩa; `currentLayoutJson` đi qua cùng `jsonForPersist`.
+- 🔵 2026-10-27 (Ice, sau khi plan duyệt): kéo thả panel chưa từng chạy trong app thật. Tauri 2.11.4 đăng ký handler kéo-thả trả `true`, wry 0.55.1 macOS khi đó không gọi `super` ở cả bốn pha nên webview không nhận `dragover`/`drop`; trên Windows wry chỉ phát sự kiện khi có HDROP. ⇒ `<DockviewVue dnd-strategy="pointer">`: dockview kéo bằng sự kiện con trỏ, không phiên NSDragging, kéo tệp vào Library giữ nguyên. Test: `.dv-tab` không `draggable` (đối chứng: gỡ thuộc tính ⇒ đỏ).
+- Mục menu là `menuitemcheckbox`; `TitlebarToolsMenu` nay chọn cả hai vai cho phím mũi tên và đóng-khi-bấm. Công tắc nhìn thấy `.tools-switch` khác nhau bằng nền đặc/rỗng.
+- Lỗi ghi khoá hiện trong danh sách Công cụ, nên chỉ thấy khi mở lại menu.
+- Full vitest lần một thoát 1 vì `EnvironmentTeardownError` ở `editorConfirmSegment.test.ts` (tệp không đổi) lúc máy chạy song song agent review; chạy riêng hai lần thoát 0, full lần hai thoát 0 (236 tệp, 3.367 ca).
+- Chưa thử trong app thật: thanh tab ẩn, bật/tắt Sắp xếp panel, kéo AI vào nhóm Tra cứu bằng pointer, khởi động lại giữ chế độ. Mục nợ Chủ: Epic 12.
+
 ## Plan Change Log
 
 ## Review Triage Log
+
+Lượt 1 (quick): high 0 · medium 1 · low 4 · false 4 · maybe-false 0.
+
+| Verdict | Route | Finding | Evidence |
+|---|---|---|---|
+| medium | patch | Mục "Sắp xếp panel" không có dấu bật/tắt nhìn thấy | Đúng; thêm `.tools-switch` nền đặc khi bật, test đọc lớp `on` theo `aria-checked` |
+| false | — | `header.hidden` không bắn `onDidLayoutChange` nên không đánh dấu bố cục bẩn | Đó là ý định (Boundaries: bật/tắt không ghi); setter chỉ đặt `style.display` |
+| false | — | Đường lưu bố cục tự đặt tên có thể không qua `jsonForPersist` | `currentLayoutJson()` gọi `jsonForPersist()` |
+| false | — | Đối chứng `applyMerge` có thể không đỏ | Agent dựng đã gỡ lời gọi khỏi `applyMerge`: ca Tầng hẹp đỏ, ca khác xanh |
+| false | — | `check:commands`/`check:layout` chưa chạy | Đã chạy, xanh |
+| low | defer | Kéo bằng pointer chưa được thử trong app thật, có thể vẽ lớp nổi | Mục nợ Chủ: Epic 12; lớp kéo là của dockview, không component của app |
+| low | reject | Accessor Rust `panel_headers_shown` không có test riêng như `update_check_contract.rs` | Hàm ba dòng, khoá chỉ đọc; thêm test là thêm phạm vi |
+| low | reject | Hai lần bật/tắt nhanh có thể để lỗi cũ đè trạng thái mới | Cần `putConfig` chậm và trượt xen kẽ; sửa đòi thêm bộ đếm lượt |
+| low | reject | Ca ghi lỗi phụ thuộc thứ tự `beforeEach` | `beforeEach` đặt lại trạng thái, là khuôn chung của các test state |
 
 ## Verification
 

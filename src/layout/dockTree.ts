@@ -260,3 +260,17 @@ export function unmergeForPersist(dock: SerializedDockJSON, panelId: string, spo
   }
   return cloned
 }
+
+/** A copy of the serialized dock without any `hideHeader` flag: tab-bar visibility is derived, never persisted. */
+export function withoutHideHeader(dock: SerializedDockJSON): SerializedDockJSON {
+  const cloned = JSON.parse(JSON.stringify(dock)) as SerializedDockJSON
+  const visit = (node: GridNode): void => {
+    if (node.type === 'leaf') {
+      delete (node.data as { hideHeader?: boolean }).hideHeader
+      return
+    }
+    for (const kid of node.data as GridNode[]) visit(kid)
+  }
+  visit(cloned.grid.root)
+  return cloned
+}

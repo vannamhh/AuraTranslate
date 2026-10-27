@@ -98,6 +98,8 @@ export type BootstrapConfig = {
   ai_usage_visible: string
   /** Rust applies the rule: absent or empty is on, only a stored `off` is off. */
   update_check_enabled: boolean
+  /** Panel-arrange mode: `true` only when the saved switch is `on`. */
+  panel_headers_shown: boolean
   /** `CARGO_PKG_VERSION` of the running app. */
   app_version: string
 }
@@ -222,6 +224,8 @@ export const KEY_TM_FUZZY_THRESHOLD = 'tm_fuzzy_threshold'
 export const KEY_AI_USAGE_VISIBLE = 'ai_usage_visible'
 /** Matches `core::scope::store::KEY_UPDATE_CHECK_ENABLED`. */
 export const KEY_UPDATE_CHECK_ENABLED = 'update_check_enabled'
+/** Matches `core::scope::store::KEY_PANEL_HEADERS_SHOWN`. */
+export const KEY_PANEL_HEADERS_SHOWN = 'panel_headers_shown'
 
 /** Mặc định khi chưa đọc được cấu hình — khớp `DEFAULT_GLOSSARY_SCAN_THRESHOLD` phía Rust. */
 export const DEFAULT_GLOSSARY_SCAN_THRESHOLD = 5
@@ -236,6 +240,7 @@ const readingPreferences = ref('')
 const tmFuzzyThreshold = ref(DEFAULT_TM_FUZZY_THRESHOLD)
 const aiUsageVisible = ref('')
 const updateCheckEnabled = ref(true)
+const panelHeadersShown = ref(false)
 const appVersion = ref('')
 const shortcutRowIds = ref<string[]>([])
 
@@ -289,6 +294,9 @@ export const bootstrapAiUsageVisible: DeepReadonly<Ref<string>> = readonly(aiUsa
 /** Update-check switch read once at startup; `updateCheckState.ts` owns later changes. */
 export const bootstrapUpdateCheckEnabled: DeepReadonly<Ref<boolean>> = readonly(updateCheckEnabled)
 
+/** Panel-arrange switch read once at startup; `layout/panelHeadersState.ts` owns later changes. */
+export const bootstrapPanelHeadersShown: DeepReadonly<Ref<boolean>> = readonly(panelHeadersShown)
+
 /** Version of the running app, empty until the bootstrap read succeeds. */
 export const bootstrapAppVersion: DeepReadonly<Ref<string>> = readonly(appVersion)
 
@@ -330,6 +338,8 @@ export async function loadBootstrapConfig(): Promise<BootstrapResult> {
     aiUsageVisible.value = typeof config?.ai_usage_visible === 'string' ? config.ai_usage_visible : ''
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field
     updateCheckEnabled.value = typeof config?.update_check_enabled === 'boolean' ? config.update_check_enabled : true
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field
+    panelHeadersShown.value = typeof config?.panel_headers_shown === 'boolean' ? config.panel_headers_shown : false
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field
     appVersion.value = typeof config?.app_version === 'string' ? config.app_version : ''
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- IPC value, an older Rust build lacks the field

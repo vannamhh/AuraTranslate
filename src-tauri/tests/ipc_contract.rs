@@ -181,6 +181,7 @@ fn ipc_error_wire_shape() {
         tm_fuzzy_threshold: 65,
         ai_usage_visible: String::new(),
         update_check_enabled: true,
+        panel_headers_shown: false,
         app_version: "0.1.0".to_owned(),
     })
     .expect("BootstrapConfig phải serialize được");
@@ -204,6 +205,7 @@ fn ipc_error_wire_shape() {
             "glossary_scan_threshold",
             "layout_presets",
             "mode",
+            "panel_headers_shown",
             "reading_preferences",
             "shortcuts",
             "theme",

@@ -25,7 +25,7 @@
 //   2. ẩn/hiện panel kèm **sổ vị trí đã nhớ** (AC3, §Quyết định #3A);
 //   3. vòng xoay focus theo **thứ tự bố cục** + dời focus DOM tường minh (AC9, AD-34 §2);
 //   4. lưu/khôi phục bố cục qua các phiên, có nhịp ghi (AC4, §Quyết định #5A).
-import { onActivated, onBeforeUnmount, onDeactivated, onMounted, shallowRef } from 'vue'
+import { onActivated, onBeforeUnmount, onDeactivated, onMounted, shallowRef, watch } from 'vue'
 import { DockviewVue } from 'dockview-vue'
 import { setActiveLayoutPreset } from './layoutPresetState'
 import type { DockviewApi, DockviewReadyEvent, IDockviewPanel, VueComponent } from 'dockview-vue'
@@ -54,7 +54,8 @@ import {
   SACRIFICE_ORDER,
 } from './workspaceLayout'
 import type { LayoutTier, PanelId, PlacementDirection, PresetId, WorkArea } from './workspaceLayout'
-import { findTreeSpot, unmergeForPersist } from './dockTree'
+import { findTreeSpot, unmergeForPersist, withoutHideHeader } from './dockTree'
+import { panelHeadersShown } from './panelHeadersState'
 import type { SerializedDockJSON, SerializedGrid } from './dockTree'
 
 const props = defineProps<{
@@ -286,6 +287,7 @@ function applyPreset(presetId: string): boolean {
   // trên), nên tầng "đang áp" cũ không còn mô tả đúng gì cả, kể cả khi tên tầng trùng nhau.
   currentTier.value = null
   measureAndApplyTier()
+  syncPanelHeaders()
   return true
 }
 
@@ -658,6 +660,7 @@ function applyMerge(): void {
   endSuppressPersist()
   mergedSpot = spot
   tierMerged.value = true
+  syncPanelHeaders()
 }
 
 /** Gỡ gộp — trả `panel.ai_translation` về đúng chỗ TRƯỚC lượt gộp ([`mergedSpot`]). */
@@ -690,6 +693,7 @@ function undoMerge(): void {
   }
   endSuppressPersist()
   mergedSpot = null
+  syncPanelHeaders()
 }
 
 /**
@@ -783,12 +787,23 @@ let timer: ReturnType<typeof setTimeout> | null = null
  * [`unmergeForPersist`] nhận cả `within`, nên không còn nhánh nào ghi hình dạng đã gộp.
  */
 function jsonForPersist(api: DockviewApi): unknown {
-  const json = api.toJSON() as unknown as SerializedDockJSON
+  const json = withoutHideHeader(api.toJSON() as unknown as SerializedDockJSON)
   if (tierMerged.value && mergedSpot !== null) {
     return unmergeForPersist(json, 'panel.ai_translation', mergedSpot)
   }
   return json
 }
+
+function syncPanelHeaders(): void {
+  const api = dock.value
+  if (api === null) return
+  for (const group of api.groups) {
+    const hide = !panelHeadersShown.value && group.panels.length < 2
+    if (group.header.hidden !== hide) group.header.hidden = hide
+  }
+}
+
+watch(panelHeadersShown, syncPanelHeaders)
 
 /** The layout as it would be persisted now, for "save the current layout as a preset". */
 function currentLayoutJson(): string | null {
@@ -838,6 +853,7 @@ function applyLayoutJson(json: string): boolean {
   }
   onLayoutChange()
   measureAndApplyTier()
+  syncPanelHeaders()
   return true
 }
 
@@ -1028,6 +1044,7 @@ function onReady(event: DockviewReadyEvent): void {
     }),
   )
   disposables.push(api.onDidLayoutChange(onLayoutChange))
+  disposables.push(api.onDidLayoutChange(syncPanelHeaders))
 
   setDockController({
     applyPreset,
@@ -1043,6 +1060,7 @@ function onReady(event: DockviewReadyEvent): void {
   // phủ cả hai nhánh — lượt gọi thứ hai (khi `restore()` đã đi qua `applyPreset` và tự đo
   // rồi) là một no-op rẻ, vì `measureAndApplyTier` tự so `tier === currentTier.value`.
   measureAndApplyTier()
+  syncPanelHeaders()
 }
 
 /**
@@ -1153,6 +1171,7 @@ onBeforeUnmount(() => {
       :components="components"
       :tab-components="tabComponents"
       single-tab-mode="fullwidth"
+      dnd-strategy="pointer"
       @ready="onReady"
     />
   </div>

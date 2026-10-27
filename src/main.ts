@@ -66,6 +66,7 @@ import {
 // để Kiểm C/D/E của `npm run check:commands` chạy trên chính bộ command của sản phẩm. Cùng
 // cửa mà `setMode` và `bindings` đã đi qua từ Story 1.6 / 1.8.
 import { applyPreset, panelRing, togglePanel } from './layout/dockController'
+import { panelHeadersShown, setPanelHeadersShown } from './layout/panelHeadersState'
 // ── Story 4.12, Phase 3a — ngăn kéo Tra cứu (Decision 2) ────────────────────────────
 //
 // ⚠️ Cùng lý do và cùng cửa với ba cổng bố cục ngay trên: `lookupDrawerState.ts` dùng `ref`
@@ -582,6 +583,7 @@ async function boot(): Promise<void> {
       // `src/layout/dockController.ts`.
       applyPreset,
       togglePanel,
+      togglePanelHeaders: () => void setPanelHeadersShown(!panelHeadersShown.value),
       panelRing,
       // Story 4.12, Phase 3a · Decision 2 — ngăn kéo Tra cứu, điểm vào ở `<StatusBar />`.
       openLookupDrawer,
