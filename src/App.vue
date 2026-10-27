@@ -452,6 +452,8 @@ onMounted(async () => {
   margin-left: calc(var(--space-unit) * 4);
   padding-left: calc(var(--space-unit) * 4);
   border-left: 1px solid var(--color-outline);
+  /* Same box as `.mode-tab`'s underline so both texts centre on one line. */
+  border-bottom: 2px solid transparent;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -459,6 +461,10 @@ onMounted(async () => {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+}
+
+.layout-switch {
+  border-width: 0;
 }
 
 .titlebar-right {

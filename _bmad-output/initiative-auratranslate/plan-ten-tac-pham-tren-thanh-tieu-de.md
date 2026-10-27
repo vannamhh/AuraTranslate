@@ -39,6 +39,7 @@ Route oneshot: khoảng 80 dòng ở 6 tệp. App chưa có lệnh đổi tên h
 - `App.vue`: `<span class="titlebar-work">` giữa `</nav>` và `.titlebar-right`, vạch ngăn trái, `min-width: 0` + ellipsis; `.titlebar-right` thêm `padding-left` để tên dài không dính cụm phải.
 - `isOpenedWork` không kiểm `meta.name` trên dây; Rust `WorkMeta.name: String` luôn có. Thêm kiểm sẽ làm đỏ các fixture mở Work không có `name`, nên không làm ở đây. Không phía nào chặn tên rỗng (`sanitize_name` chỉ thay tên thư mục), nên tên trống coi như không có.
 - Đối chứng: gỡ dòng `setOpenWork` ở `libraryChapters.ts` ⇒ 2 ca đỏ (mở từ Library, nhập lỗi giữ tên); gỡ ở `libraryImport.ts` ⇒ ca nhập đỏ; gỡ vế `name.trim() === ''` ⇒ ca tên trống đỏ.
+- 🔵 2026-10-27 (Ice xem app thật): tên thấp hơn chữ tab 1px vì `.mode-tab` có gạch chân trong suốt 2px; `.titlebar-work` nay mang cùng `border-bottom: 2px solid transparent` (`margin-bottom: 2px` bị Kiểm K lưới 4px chặn). Bỏ khung ngoài của cụm nút Bố cục (`.layout-switch { border-width: 0 }`), vạch giữa hai nút giữ.
 - Chưa thử trong app thật: tên hiện, cắt ba chấm khi cửa sổ hẹp, kéo cửa sổ qua vùng tên trên macOS. Mục nợ Chủ: Epic 12.
 
 ## Review Triage Log
