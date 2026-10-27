@@ -113,7 +113,7 @@ import { resetGlossaryQueue } from '../glossaryQueueState'
 import { resetAlignment } from '../alignmentState'
 import { resetReviewerImport } from '../reviewerImportState'
 import type { IpcError } from '../i18n'
-import { setOpenWorkId } from '../openWorkIdentity'
+import { setOpenWork } from '../openWorkIdentity'
 import { restorePromptSetForWork } from '../promptSetState'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -358,7 +358,7 @@ export async function openWorkById(workId: string): Promise<boolean> {
   // ⇒ Hai vế, và cần **cả hai**: ① `openWorkBusy` giữ tới khi mọi lượt nạp xong (nút tắt suốt
   // cửa sổ ấy); ② danh sách Chương CŨ bị vứt **ngay** ở đây, nên kể cả khi một đường khác mở
   // được nút, `currentLibraryChapter` là `null` chứ không phải một hàng của Tác phẩm cũ.
-  setOpenWorkId(opened.meta.work_id)
+  setOpenWork(opened.meta.work_id, opened.meta.name)
   void restorePromptSetForWork(opened.meta.genre)
   chapters.value = []
   chaptersHaveLoaded.value = false

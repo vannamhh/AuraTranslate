@@ -73,7 +73,7 @@ import { resetReviewMode } from '../reviewModeState'
 import { resetGlossaryQueue } from '../glossaryQueueState'
 import { resetAlignment } from '../alignmentState'
 import { resetReviewerImport } from '../reviewerImportState'
-import { setOpenWorkId } from '../openWorkIdentity'
+import { setOpenWork } from '../openWorkIdentity'
 import { restorePromptSetForWork } from '../promptSetState'
 import type { CreatedWork } from '../config/project'
 import { listLibraryWorks } from '../config/library'
@@ -455,7 +455,7 @@ export function finishImportSubmission(created: CreatedWork | null, error: IpcEr
   // đều đi qua (xem `resetSourcePanel`/`resetLookupPanel`) — Story 1.17 CÙNG LƯỢT, không
   // một lời gọi thứ hai rải ra.
   if (created !== null) {
-    setOpenWorkId(created.meta.work_id)
+    setOpenWork(created.meta.work_id, created.meta.name)
     void restorePromptSetForWork(created.meta.genre)
     resetSourcePanel()
     resetLookupPanel()

@@ -93,6 +93,7 @@ import LookupDrawer from './layout/LookupDrawer.vue'
 import TitlebarToolsMenu from './TitlebarToolsMenu.vue'
 import { proofreadStatusText } from './titlebarProofreadStatus'
 import { importSourceStatusText } from './titlebarImportSource'
+import { titlebarWorkName } from './titlebarWorkName'
 import { activeLayoutPreset } from './layout/layoutPresetState'
 import { reviewModeIsOpen } from './reviewModeState'
 import { attributionIsOpen } from './panels/dictSourcesState'
@@ -232,6 +233,9 @@ onMounted(async () => {
           {{ t('command.mode.reading') }}
         </button>
       </nav>
+
+      <!-- aura-allow-text: `titlebarWorkName` is the Work name the user typed, not interface text. -->
+      <span v-if="titlebarWorkName !== null" class="titlebar-work" data-titlebar-work-name :title="titlebarWorkName">{{ titlebarWorkName }}</span>
 
       <div class="titlebar-right">
         <!-- aura-allow-text: `proofreadStatusText` is the output of t() with the chapter label and sentence count. -->
@@ -442,11 +446,27 @@ onMounted(async () => {
   gap: calc(var(--space-unit) * 4);
 }
 
+.titlebar-work {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: calc(var(--space-unit) * 4);
+  padding-left: calc(var(--space-unit) * 4);
+  border-left: 1px solid var(--color-outline);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  color: var(--color-on-surface);
+}
+
 .titlebar-right {
   display: flex;
   align-items: center;
   gap: calc(var(--space-unit) * 4);
   margin-left: auto;
+  padding-left: calc(var(--space-unit) * 4);
 }
 
 .titlebar-status {

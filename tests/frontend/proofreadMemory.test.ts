@@ -126,7 +126,7 @@ describe('the scan record', () => {
 
   it('is written once after Done with the Work, the scope, the findings that arrived and the filtered total', async () => {
     const { state, identity } = await fresh()
-    identity.setOpenWorkId('work-1')
+    identity.setOpenWork('work-1', 'Tác phẩm 1')
     await scanOne(state, 'chapter', DONE(2), [FINDING, { ...FINDING, start: 0, end: 3 }])
     await vi.waitFor(() => {
       expect(calls('ai_proofread_scan_record')).toHaveLength(1)
@@ -137,7 +137,7 @@ describe('the scan record', () => {
 
   it('counts the findings that reached the strip even if the user dismissed them', async () => {
     const { state, identity } = await fresh()
-    identity.setOpenWorkId('work-1')
+    identity.setOpenWork('work-1', 'Tác phẩm 1')
     await scanOne(state, 'segment', DONE(0))
     expect(calls('ai_proofread_scan_record')[0]).toMatchObject({ reported: 1 })
   })
@@ -148,7 +148,7 @@ describe('the scan record', () => {
     ['no AI configured', { value: { state: 'not_configured' }, error: null }],
   ])('is not written after %s', async (_name, outcome) => {
     const { state, identity } = await fresh()
-    identity.setOpenWorkId('work-1')
+    identity.setOpenWork('work-1', 'Tác phẩm 1')
     await scanOne(state, 'segment', outcome)
     expect(calls('ai_proofread_scan_record')).toHaveLength(0)
   })
@@ -163,7 +163,7 @@ describe('the scan record', () => {
 
   it('a rejected record does not disturb the scan result', async () => {
     const { state, identity } = await fresh()
-    identity.setOpenWorkId('work-1')
+    identity.setOpenWork('work-1', 'Tác phẩm 1')
     invokeMock.mockImplementation((cmd: string) =>
       cmd === 'ai_proofread_scan_record'
         ? Promise.reject({ code: 'ai_proofread.scan_record_rejected', message_key: 'k', params: {}, retryable: false })
@@ -395,9 +395,12 @@ describe('openWorkIdentity', () => {
   it('is null until a Work is created or opened, and can be forgotten', async () => {
     const { identity } = await fresh()
     expect(identity.openWorkId.value).toBeNull()
-    identity.setOpenWorkId('w')
+    expect(identity.openWorkName.value).toBeNull()
+    identity.setOpenWork('w', 'Tên')
     expect(identity.openWorkId.value).toBe('w')
+    expect(identity.openWorkName.value).toBe('Tên')
     identity.resetOpenWorkId()
     expect(identity.openWorkId.value).toBeNull()
+    expect(identity.openWorkName.value).toBeNull()
   })
 })
