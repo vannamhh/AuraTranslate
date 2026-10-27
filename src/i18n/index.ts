@@ -112,3 +112,9 @@ export function tError(err: IpcError, params?: MessageParams): string {
 export function hasMessageKey(key: string): boolean {
   return Object.prototype.hasOwnProperty.call(catalog, key)
 }
+
+export function providerMessageOf(err: IpcError | null): string | null {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- params arrives over IPC and may be absent
+  const value: unknown = err?.params?.provider_message
+  return typeof value === 'string' && value !== '' ? value : null
+}

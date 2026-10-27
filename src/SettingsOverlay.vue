@@ -59,7 +59,7 @@ import {
 import type { AiChipChoice, AiChipField } from './aiConfigState'
 import type { AiConfigField } from './config/aiconfig'
 import { aiUsageVisible, aiUsageVisibleSaveError, setAiUsageVisible } from './aiUsageVisibleState'
-import { t, tError } from './i18n'
+import { providerMessageOf, t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { cancelCapture, captureIsArmed, shortcutDisplayFor, unboundShortcutIds, shortcutTotalCount } from './config/shortcutsState'
@@ -793,6 +793,10 @@ function onDeleteAiConfigKey(): void {
               >
                 <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
                 {{ tError(aiConfigTestError) }}
+                <template v-if="providerMessageOf(aiConfigTestError) !== null">
+                  <br />
+                  {{ t('ai.error.provider_message', { message: providerMessageOf(aiConfigTestError)! }) }}
+                </template>
               </p>
             </template>
           </template>

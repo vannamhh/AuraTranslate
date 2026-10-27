@@ -71,6 +71,7 @@ const USAGE_CHUNK: &str = "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":11
 fn spawn_counted_sse_server(
     connections: usize,
     with_usage: bool,
+    fixed_reply: Option<(String, String)>,
 ) -> (String, Arc<AtomicUsize>, Arc<Mutex<Vec<String>>>) {
     let bodies = Arc::new(Mutex::new(Vec::<String>::new()));
     let body_sink = Arc::clone(&bodies);
@@ -113,6 +114,15 @@ fn spawn_counted_sse_server(
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .push(String::from_utf8_lossy(&received[header_end..]).into_owned());
+            if let Some((status_line, error_body)) = &fixed_reply {
+                let response = format!(
+                    "HTTP/1.1 {status_line}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{error_body}",
+                    error_body.len()
+                );
+                let _ = stream.write_all(response.as_bytes());
+                let _ = stream.flush();
+                continue;
+            }
             let body = format!(
                 "data: {{\"choices\":[{{\"delta\":{{\"content\":\"Xin chao\"}}}}]}}\n\n{}data: [DONE]\n\n",
                 if with_usage { USAGE_CHUNK } else { "" }
@@ -140,11 +150,28 @@ struct Harness {
 
 impl Harness {
     fn new(tag: &str, text: &str, connections: usize) -> Self {
-        Self::build(tag, text, connections, true, false)
+        Self::build(tag, text, connections, true, false, None)
     }
 
     fn with_usage(tag: &str, text: &str, connections: usize) -> Self {
-        Self::build(tag, text, connections, true, true)
+        Self::build(tag, text, connections, true, true, None)
+    }
+
+    fn with_error_reply(
+        tag: &str,
+        text: &str,
+        connections: usize,
+        status_line: &str,
+        body: &str,
+    ) -> Self {
+        Self::build(
+            tag,
+            text,
+            connections,
+            true,
+            false,
+            Some((status_line.to_owned(), body.to_owned())),
+        )
     }
 
     fn build(
@@ -153,12 +180,14 @@ impl Harness {
         connections: usize,
         manage_generation: bool,
         with_usage: bool,
+        fixed_reply: Option<(String, String)>,
     ) -> Self {
         let global_dir = temp_dir(&format!("{tag}-global"));
         let work_dir = temp_dir(&format!("{tag}-work"));
         let global =
             Store::open(StoreSpec::global(global_dir.join("global.db"))).expect("mo global.db");
-        let (endpoint, accepted, bodies) = spawn_counted_sse_server(connections, with_usage);
+        let (endpoint, accepted, bodies) =
+            spawn_counted_sse_server(connections, with_usage, fixed_reply);
         write_field(&global, AiConfigField::Endpoint, &endpoint).expect("ghi endpoint");
         write_field(&global, AiConfigField::Model, "gpt-wire").expect("ghi model");
 
@@ -543,7 +572,7 @@ fn single_run_without_generation_state_fails_with_generation_state_missing() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     save_key("sk-wire-nogen-single");
-    let h = Harness::build("nogen-single", "A dragon roared.", 0, false, false);
+    let h = Harness::build("nogen-single", "A dragon roared.", 0, false, false, None);
     let segment_id = h.segment_ids()[0];
     let channel = tauri::ipc::Channel::<String>::new(|_| Ok(()));
     let err = tauri::async_runtime::block_on(wire::ai_translate_segment(
@@ -562,7 +591,7 @@ fn batch_without_generation_state_fails_with_generation_state_missing() {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     save_key("sk-wire-nogen-batch");
-    let h = Harness::build("nogen-batch", "A dragon roared.", 0, false, false);
+    let h = Harness::build("nogen-batch", "A dragon roared.", 0, false, false, None);
     let ids = h.segment_ids();
     let channel = tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(|_| Ok(()));
     let err = tauri::async_runtime::block_on(wire::ai_translate_batch(
@@ -831,4 +860,228 @@ fn a_batch_stamps_no_usage_even_when_the_provider_reports_it() {
     let record = h.record();
     assert!(record.sent_at.is_some());
     assert!(record.sent_usage.is_none(), "lo khong dong dau usage");
+}
+
+const WIRE_LEAKY_KEY: &str = "sk-wire-leaky-0123456789abcdef";
+
+fn single_run_error(h: &Harness) -> auratranslate_lib::core::i18n::IpcError {
+    let segment_id = h.segment_ids()[0];
+    tauri::async_runtime::block_on(wire::ai_translate_segment(
+        h.app.handle().clone(),
+        segment_id,
+        Some("Plain".to_owned()),
+        sink_channel(),
+    ))
+    .expect_err("loi nha cung cap phai tra Err")
+}
+
+#[test]
+fn a_402_whose_message_echoes_the_key_reaches_the_ipc_error_with_the_key_redacted() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key(WIRE_LEAKY_KEY);
+    let body = format!(
+        r#"{{"error":{{"code":"payment_required","message":"Key {WIRE_LEAKY_KEY} has no balance."}}}}"#
+    );
+    let h = Harness::with_error_reply(
+        "err-402",
+        "A dragon roared.",
+        1,
+        "402 Payment Required",
+        &body,
+    );
+    let err = single_run_error(&h);
+    assert_eq!(err.code(), "ai_translate.provider_payment_required");
+    assert_eq!(err.params().get("status"), Some(&"402".to_owned()));
+    assert_eq!(
+        err.params().get("provider_message"),
+        Some(&"Key *** has no balance.".to_owned())
+    );
+    assert!(!err.retryable());
+    assert!(!format!("{err:?}").contains(WIRE_LEAKY_KEY));
+    assert!(!format!("{err:?}").contains("sk-wire-leak"));
+    assert_eq!(h.accepted.load(Ordering::SeqCst), 1, "khong tu thu lai");
+}
+
+#[test]
+fn a_message_that_leaks_a_long_key_fragment_the_redaction_cannot_cover_is_dropped() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key(WIRE_LEAKY_KEY);
+    let body = r#"{"error":{"message":"Bad key ending ...ky-0123456789ab"}}"#;
+    let h = Harness::with_error_reply("err-frag", "A dragon roared.", 1, "401 Unauthorized", body);
+    let err = single_run_error(&h);
+    assert_eq!(err.code(), "ai_translate.provider_key_rejected");
+    assert!(err.params().get("provider_message").is_none());
+    assert!(!format!("{err:?}").contains("0123456789ab"));
+}
+
+#[test]
+fn a_502_with_an_html_body_gives_the_server_error_key_and_no_provider_message() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-502");
+    let h = Harness::with_error_reply(
+        "err-502",
+        "A dragon roared.",
+        1,
+        "502 Bad Gateway",
+        "<html><body>Bad gateway</body></html>",
+    );
+    let err = single_run_error(&h);
+    assert_eq!(err.code(), "ai_translate.provider_server_error");
+    assert_eq!(err.params().get("status"), Some(&"502".to_owned()));
+    assert!(err.params().get("provider_message").is_none());
+    assert!(err.retryable());
+}
+
+#[test]
+fn a_gemini_style_array_body_yields_its_message_through_the_real_path() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-gemini");
+    let body = r#"[{"error":{"code":402,"message":"Prepayment depleted.","status":"RESOURCE_EXHAUSTED"}}]"#;
+    let h = Harness::with_error_reply(
+        "err-arr",
+        "A dragon roared.",
+        1,
+        "402 Payment Required",
+        body,
+    );
+    let err = single_run_error(&h);
+    assert_eq!(err.code(), "ai_translate.provider_payment_required");
+    assert_eq!(
+        err.params().get("provider_message"),
+        Some(&"Prepayment depleted.".to_owned())
+    );
+}
+
+#[test]
+fn an_error_body_over_the_cap_is_ignored_and_the_status_key_still_applies() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-huge");
+    let body = format!(r#"{{"error":{{"message":"{}"}}}}"#, "x".repeat(40 * 1024));
+    let h = Harness::with_error_reply(
+        "err-huge",
+        "A dragon roared.",
+        1,
+        "429 Too Many Requests",
+        &body,
+    );
+    let err = single_run_error(&h);
+    assert_eq!(err.code(), "ai_translate.provider_rate_limited");
+    assert!(err.params().get("provider_message").is_none());
+}
+
+#[test]
+fn a_batch_stopped_by_a_429_names_the_sentence_the_status_and_the_provider_message() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-batch-429");
+    let h = Harness::with_error_reply(
+        "err-batch",
+        "A dragon roared. The knight fled.",
+        1,
+        "429 Too Many Requests",
+        r#"{"error":{"message":"Slow down"}}"#,
+    );
+    let ids = h.segment_ids();
+    let first = ids[0];
+    let err = tauri::async_runtime::block_on(wire::ai_translate_batch(
+        h.app.handle().clone(),
+        ids,
+        Some("Plain".to_owned()),
+        false,
+        tauri::ipc::Channel::<AiTranslateBatchEventWire>::new(|_| Ok(())),
+    ))
+    .expect_err("lo phai dung voi Err");
+    assert_eq!(err.code(), "ai_translate.provider_rate_limited");
+    assert_eq!(err.params().get("segment_id"), Some(&first.to_string()));
+    assert_eq!(err.params().get("status"), Some(&"429".to_owned()));
+    assert_eq!(
+        err.params().get("provider_message"),
+        Some(&"Slow down".to_owned())
+    );
+}
+
+mod provider_message_pure {
+    use auratranslate_lib::core::ai::client::{extract_provider_message, redact_api_key};
+
+    const KEY: &str = "sk-abcdefghijklmnop";
+
+    #[test]
+    fn redaction_replaces_every_full_key_occurrence() {
+        assert_eq!(
+            redact_api_key(&format!("a {KEY} b {KEY}"), KEY).as_deref(),
+            Some("a *** b ***")
+        );
+    }
+
+    #[test]
+    fn redaction_drops_the_message_when_a_twelve_char_key_run_survives() {
+        assert_eq!(redact_api_key("tail abcdefghijkl", KEY), None);
+        assert_eq!(
+            redact_api_key("tail abcdefghijk", KEY).as_deref(),
+            Some("tail abcdefghijk")
+        );
+    }
+
+    #[test]
+    fn redaction_ignores_an_empty_key() {
+        assert_eq!(redact_api_key("hello", "").as_deref(), Some("hello"));
+        assert_eq!(redact_api_key("hello", "   ").as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn redaction_treats_a_short_key_as_one_whole_fragment() {
+        assert_eq!(redact_api_key("pw=abc!", "abc").as_deref(), Some("pw=***!"));
+    }
+
+    #[test]
+    fn extraction_reads_the_three_accepted_shapes() {
+        assert_eq!(
+            extract_provider_message(br#"{"error":{"message":"one"}}"#).as_deref(),
+            Some("one")
+        );
+        assert_eq!(
+            extract_provider_message(br#"[{"error":{"message":"two"}}]"#).as_deref(),
+            Some("two")
+        );
+        assert_eq!(
+            extract_provider_message(br#"{"error":"three"}"#).as_deref(),
+            Some("three")
+        );
+    }
+
+    #[test]
+    fn extraction_rejects_other_shapes_and_empty_messages() {
+        for body in [
+            &b"<html>x</html>"[..],
+            b"{}",
+            br#"{"error":{"message":42}}"#,
+            br#"{"error":{"message":"   "}}"#,
+            br#"[{"error":{"message":"a"}},{"error":{"message":"b"}}]"#,
+            br#"{"error":null}"#,
+        ] {
+            assert_eq!(extract_provider_message(body), None, "{body:?}");
+        }
+    }
+
+    #[test]
+    fn extraction_strips_control_characters_collapses_whitespace_and_cuts_at_300() {
+        let got = extract_provider_message(br#"{"error":{"message":"a\u0007b\n\n  c\td"}}"#);
+        assert_eq!(got.as_deref(), Some("ab c d"));
+        let long = format!(r#"{{"error":{{"message":"{}"}}}}"#, "\u{e9}".repeat(500));
+        assert_eq!(
+            extract_provider_message(long.as_bytes()).map(|m| m.chars().count()),
+            Some(300)
+        );
+    }
 }

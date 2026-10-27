@@ -747,6 +747,12 @@ message_keys! {
     AiConfigTestModelMissing => "err.ai_config.test_model_missing" ["model"],
     /// Connection check: no answer from the server (DNS, refused, timeout).
     AiConfigTestUnreachable => "err.ai_config.test_unreachable" [],
+    /// Connection check: the provider answered 402.
+    AiConfigTestPaymentRequired => "err.ai_config.test_payment_required" ["status"],
+    /// Connection check: the provider answered 429.
+    AiConfigTestRateLimited => "err.ai_config.test_rate_limited" ["status"],
+    /// Connection check: the provider answered 5xx.
+    AiConfigTestServerError => "err.ai_config.test_server_error" ["status"],
     /// Connection check: any other non-2xx status.
     AiConfigTestRefused => "err.ai_config.test_refused" ["status"],
     /// Connection check: a 2xx answer that is not a model list.
@@ -895,6 +901,16 @@ message_keys! {
     /// Provider TỪ CHỐI yêu cầu bằng một mã KHÔNG phải 2xx (`OpenAiClientError::
     /// NonSuccessStatus`) — KHÔNG retryable, câu nêu tên sự từ chối cộng `status`.
     AiTranslateProviderRefused => "err.ai_translate.provider_refused" ["status"],
+    /// Provider answered 401 or 403 (AD-59 Rule 5).
+    AiTranslateProviderKeyRejected => "err.ai_translate.provider_key_rejected" ["status"],
+    /// Provider answered 402 (AD-59 Rule 5).
+    AiTranslateProviderPaymentRequired => "err.ai_translate.provider_payment_required" ["status"],
+    /// Provider answered 404 (AD-59 Rule 5).
+    AiTranslateProviderEndpointNotFound => "err.ai_translate.provider_endpoint_not_found" ["status"],
+    /// Provider answered 429 (AD-59 Rule 5).
+    AiTranslateProviderRateLimited => "err.ai_translate.provider_rate_limited" ["status"],
+    /// Provider answered 5xx (AD-59 Rule 5).
+    AiTranslateProviderServerError => "err.ai_translate.provider_server_error" ["status"],
     /// Luồng ĐÓNG trước khi thấy khung `[DONE]` (`OpenAiClientError::StreamEndedWithoutDone`) —
     /// lỗi tường minh, token đã nhận vẫn ở lại màn hình (AD-22). Retryable.
     AiTranslateStreamEndedWithoutDone => "err.ai_translate.stream_ended_without_done" [],
@@ -1036,7 +1052,9 @@ impl Serialize for MessageKey {
 ///   frontend (cùng nguyên tắc với *"lưu ISO-8601 UTC, định dạng hiển thị chỉ ở
 ///   frontend"* của Consistency Conventions).
 ///
-/// **`params` cũng không được mang văn bản hiển thị.** Một
+/// **`params` cũng không được mang văn bản hiển thị**, ngoại lệ DUY NHẤT có tên là tham số
+/// không bắt buộc `provider_message` của các khoá `AiTranslateProvider*` và `AiConfigTest*`
+/// theo mã trạng thái (AD-59): lời nhà cung cấp đã che khoá, hiện nguyên văn. Một
 /// `params: {"reason": "Nhà cung cấp không phản hồi"}` là AD-21 bị thủng qua cửa sau.
 /// Tham số mang **dữ liệu** (đường dẫn, số đếm, tên nhà cung cấp), không mang **câu**.
 ///

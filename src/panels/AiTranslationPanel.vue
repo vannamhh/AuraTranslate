@@ -35,7 +35,7 @@ import { computed, onMounted, useTemplateRef, watch } from 'vue'
 import PanelFrame from './PanelFrame.vue'
 import { useSelectionSurface } from './selectionContract'
 import { dispatch } from '../commands'
-import { t, tError } from '../i18n'
+import { providerMessageOf, t, tError } from '../i18n'
 import { loadPromptSets, promptSets, selectedPromptSetName } from '../promptSetState'
 import { shortcutRows } from '../config/shortcutsState'
 import {
@@ -549,6 +549,10 @@ const openSettingsLabel = computed(() =>
       >
         <!-- aura-allow-text: KẾT QUẢ của tError(). -->
         {{ tError(aiTranslateError) }}
+        <template v-if="providerMessageOf(aiTranslateError) !== null">
+          <br />
+          {{ t('ai.error.provider_message', { message: providerMessageOf(aiTranslateError)! }) }}
+        </template>
       </p>
       <!--
         🔴 `editorPromoteAiTranslationError` được export mà không component nào đọc: một
@@ -721,6 +725,13 @@ const openSettingsLabel = computed(() =>
             <!-- aura-allow-text: KẾT QUẢ của tError(). -->
             {{ tError(aiTranslateBatchError) }}
           </template>
+          <p
+            v-if="providerMessageOf(aiTranslateBatchError) !== null"
+            class="ai-batch-error-line"
+            data-ai-batch-error-provider-message
+          >
+            {{ t('ai.error.provider_message', { message: providerMessageOf(aiTranslateBatchError)! }) }}
+          </p>
         </div>
         <div class="ai-batch-actions" data-ai-translate-batch-actions>
           <button

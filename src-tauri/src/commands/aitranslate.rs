@@ -123,11 +123,38 @@ fn openai_client_error_family(err: &OpenAiClientError) -> (&'static str, Message
             MessageKey::AiTranslateProviderUnreachable,
             true,
         ),
-        OpenAiClientError::NonSuccessStatus { .. } => (
-            "ai_translate.provider_refused",
-            MessageKey::AiTranslateProviderRefused,
-            false,
-        ),
+        OpenAiClientError::NonSuccessStatus { status, .. } => match status {
+            401 | 403 => (
+                "ai_translate.provider_key_rejected",
+                MessageKey::AiTranslateProviderKeyRejected,
+                false,
+            ),
+            402 => (
+                "ai_translate.provider_payment_required",
+                MessageKey::AiTranslateProviderPaymentRequired,
+                false,
+            ),
+            404 => (
+                "ai_translate.provider_endpoint_not_found",
+                MessageKey::AiTranslateProviderEndpointNotFound,
+                false,
+            ),
+            429 => (
+                "ai_translate.provider_rate_limited",
+                MessageKey::AiTranslateProviderRateLimited,
+                false,
+            ),
+            500..=599 => (
+                "ai_translate.provider_server_error",
+                MessageKey::AiTranslateProviderServerError,
+                true,
+            ),
+            _ => (
+                "ai_translate.provider_refused",
+                MessageKey::AiTranslateProviderRefused,
+                false,
+            ),
+        },
         OpenAiClientError::StreamEndedWithoutDone => (
             "ai_translate.stream_ended_without_done",
             MessageKey::AiTranslateStreamEndedWithoutDone,
@@ -158,9 +185,7 @@ fn openai_client_error_family(err: &OpenAiClientError) -> (&'static str, Message
 impl From<OpenAiClientError> for IpcError {
     fn from(err: OpenAiClientError) -> Self {
         let mut params = std::collections::BTreeMap::new();
-        if let OpenAiClientError::NonSuccessStatus { status } = &err {
-            params.insert("status".to_owned(), status.to_string());
-        }
+        insert_status_params(&mut params, &err);
         let (code, message_key, retryable) = openai_client_error_family(&err);
         IpcError::new(code, message_key, params, retryable)
     }
@@ -184,11 +209,25 @@ impl From<OpenAiClientError> for IpcError {
 pub fn batch_stopped_error(segment_id: i64, err: OpenAiClientError) -> IpcError {
     let mut params = std::collections::BTreeMap::new();
     params.insert("segment_id".to_owned(), segment_id.to_string());
-    if let OpenAiClientError::NonSuccessStatus { status } = &err {
-        params.insert("status".to_owned(), status.to_string());
-    }
+    insert_status_params(&mut params, &err);
     let (code, message_key, retryable) = openai_client_error_family(&err);
     IpcError::new(code, message_key, params, retryable)
+}
+
+fn insert_status_params(
+    params: &mut std::collections::BTreeMap<String, String>,
+    err: &OpenAiClientError,
+) {
+    if let OpenAiClientError::NonSuccessStatus {
+        status,
+        provider_message,
+    } = err
+    {
+        params.insert("status".to_owned(), status.to_string());
+        if let Some(message) = provider_message {
+            params.insert("provider_message".to_owned(), message.clone());
+        }
+    }
 }
 
 pub fn batch_panicked_error() -> IpcError {
@@ -748,23 +787,53 @@ pub enum ConnectionCheckWire {
 
 fn connection_check_error(err: OpenAiClientError) -> IpcError {
     let no_params = std::collections::BTreeMap::new;
+    let mut status_params = std::collections::BTreeMap::new();
+    insert_status_params(&mut status_params, &err);
+    let message_only = || {
+        let mut params = std::collections::BTreeMap::new();
+        if let Some(message) = status_params.get("provider_message") {
+            params.insert("provider_message".to_owned(), message.clone());
+        }
+        params
+    };
+    let with_status = |code: &str, key: MessageKey, retryable: bool| {
+        IpcError::new(code, key, status_params.clone(), retryable)
+    };
     match err {
-        OpenAiClientError::NonSuccessStatus { status: 401 | 403 } => IpcError::new(
+        OpenAiClientError::NonSuccessStatus {
+            status: 401 | 403, ..
+        } => IpcError::new(
             "ai_config.test_key_rejected",
             MessageKey::AiConfigTestKeyRejected,
-            no_params(),
+            message_only(),
             false,
         ),
-        OpenAiClientError::NonSuccessStatus { status: 404 } => IpcError::new(
+        OpenAiClientError::NonSuccessStatus { status: 404, .. } => IpcError::new(
             "ai_config.test_endpoint_not_found",
             MessageKey::AiConfigTestEndpointNotFound,
-            no_params(),
+            message_only(),
             false,
         ),
-        OpenAiClientError::NonSuccessStatus { status } => IpcError::new(
+        OpenAiClientError::NonSuccessStatus { status: 402, .. } => with_status(
+            "ai_config.test_payment_required",
+            MessageKey::AiConfigTestPaymentRequired,
+            false,
+        ),
+        OpenAiClientError::NonSuccessStatus { status: 429, .. } => with_status(
+            "ai_config.test_rate_limited",
+            MessageKey::AiConfigTestRateLimited,
+            false,
+        ),
+        OpenAiClientError::NonSuccessStatus {
+            status: 500..=599, ..
+        } => with_status(
+            "ai_config.test_server_error",
+            MessageKey::AiConfigTestServerError,
+            true,
+        ),
+        OpenAiClientError::NonSuccessStatus { .. } => with_status(
             "ai_config.test_refused",
             MessageKey::AiConfigTestRefused,
-            std::collections::BTreeMap::from([("status".to_owned(), status.to_string())]),
             false,
         ),
         OpenAiClientError::RequestFailed { .. } | OpenAiClientError::ReadFailed { .. } => {

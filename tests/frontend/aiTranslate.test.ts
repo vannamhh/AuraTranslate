@@ -94,7 +94,7 @@ const STREAM_ENDED_ERROR: IpcError = {
 const PROVIDER_REFUSED_ERROR: IpcError = {
   code: 'ai_translate.provider_refused',
   message_key: 'err.ai_translate.provider_refused',
-  params: { status: '401' },
+  params: { status: '418' },
   retryable: false,
 }
 
@@ -574,11 +574,11 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
 
     expect(state.aiTranslateStateValue.value).toBe('error')
     const alert = wrapper.get('.ai-translate-alert')
-    // 🔴 CHUỖI LITERAL với `401` ĐÃ THAY vào chỗ `{status}` — cùng khuôn ca "stream lỗi giữa
+    // 🔴 CHUỖI LITERAL với `418` ĐÃ THAY vào chỗ `{status}` — cùng khuôn ca "stream lỗi giữa
     // chừng" ngay trên, KHÔNG gọi lại `i18n.tError(...)`. Chép NGUYÊN VĂN từ `src/i18n/vi.json`
-    // (`err.ai_translate.provider_refused`) rồi thay tay `{status}` -> `401`.
+    // (`err.ai_translate.provider_refused`) rồi thay tay `{status}` -> `418`.
     expect(alert.text()).toBe(
-      'Nhà cung cấp AI từ chối yêu cầu này (mã trạng thái 401) — kiểm lại endpoint và khoá API đã cấu hình rồi thử lại.',
+      'Nhà cung cấp AI từ chối yêu cầu này (mã 418).',
     )
 
     wrapper.unmount()

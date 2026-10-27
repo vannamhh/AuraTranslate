@@ -188,7 +188,7 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
       fields: [
         { field: 'provider', value: 'gemini', tier: 'global', shadowed: null },
         { field: 'endpoint', value: 'https://generativelanguage.googleapis.com/v1beta/openai', tier: 'global', shadowed: null },
-        { field: 'model', value: 'gemini-flash-latest', tier: 'global', shadowed: null },
+        { field: 'model', value: 'gemini-3.8-flash', tier: 'global', shadowed: null },
         ...emptyRows().slice(3),
       ],
       workTierAvailable: false,
@@ -202,7 +202,7 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
     expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [
       { field: 'provider', value: 'gemini' },
       { field: 'endpoint', value: 'https://generativelanguage.googleapis.com/v1beta/openai' },
-      { field: 'model', value: 'gemini-flash-latest' },
+      { field: 'model', value: 'gemini-3.8-flash' },
       { field: 'temperature', value: 'default' },
       { field: 'max_tokens', value: 'default' },
     ])
@@ -210,7 +210,7 @@ describe('SettingsOverlay.vue — thanh Phạm vi của mục AI', () => {
     expect((wrapper.find('[data-ai-field="endpoint"] input').element as HTMLInputElement).value).toBe(
       'https://generativelanguage.googleapis.com/v1beta/openai',
     )
-    expect((wrapper.find('[data-ai-field="model"] input').element as HTMLInputElement).value).toBe('gemini-flash-latest')
+    expect((wrapper.find('[data-ai-field="model"] input').element as HTMLInputElement).value).toBe('gemini-3.8-flash')
     wrapper.unmount()
   })
 

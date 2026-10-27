@@ -69,7 +69,7 @@ export const AI_PROVIDER_PRESETS: Record<AiProvider, AiProviderPreset> = {
   },
   gemini: {
     endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    model: 'gemini-flash-latest',
+    model: 'gemini-3.8-flash',
     temperature: 'default',
     maxTokens: 'default',
     keyPlaceholder: 'AIza…',

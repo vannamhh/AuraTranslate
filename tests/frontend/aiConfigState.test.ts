@@ -814,7 +814,7 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     ])
     expect(AI_PROVIDER_PRESETS.gemini).toEqual({
       endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai',
-      model: 'gemini-flash-latest',
+      model: 'gemini-3.8-flash',
       temperature: 'default',
       maxTokens: 'default',
       keyPlaceholder: 'AIza…',
@@ -850,7 +850,7 @@ describe('lưu khi rời ô, chuỗi nhà cung cấp, trả toàn bộ về kế
     expect(aiConfigSaveFieldsMock).toHaveBeenCalledExactlyOnceWith('global', [
       { field: 'provider', value: 'gemini' },
       { field: 'endpoint', value: 'https://generativelanguage.googleapis.com/v1beta/openai' },
-      { field: 'model', value: 'gemini-flash-latest' },
+      { field: 'model', value: 'gemini-3.8-flash' },
       { field: 'temperature', value: 'default' },
       { field: 'max_tokens', value: 'default' },
     ])

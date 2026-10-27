@@ -125,6 +125,19 @@ fn the_model_list_decides_connected_or_model_missing() {
         check_model_list(body, "gpt-4o").unwrap(),
         ConnectionCheckOutcome::ModelMissing
     );
+    let prefixed = br#"{"data":[{"id":"models/gemini-3.8-flash"}]}"#;
+    assert_eq!(
+        check_model_list(prefixed, "gemini-3.8-flash").unwrap(),
+        ConnectionCheckOutcome::Connected { model_count: 1 }
+    );
+    assert_eq!(
+        check_model_list(prefixed, "models/gemini-3.8-flash").unwrap(),
+        ConnectionCheckOutcome::Connected { model_count: 1 }
+    );
+    assert_eq!(
+        check_model_list(prefixed, "gemini-9").unwrap(),
+        ConnectionCheckOutcome::ModelMissing
+    );
     assert!(check_model_list(b"<html>", "x").is_err());
     assert!(check_model_list(br#"{"models":[]}"#, "x").is_err());
 }
@@ -133,19 +146,52 @@ fn the_model_list_decides_connected_or_model_missing() {
 fn every_failure_family_has_its_own_message_key() {
     let key_of = |r| run(r).expect_err("loi").message_key();
     assert_eq!(
-        key_of(Err(OpenAiClientError::NonSuccessStatus { status: 401 })),
+        key_of(Err(OpenAiClientError::NonSuccessStatus {
+            status: 401,
+            provider_message: None
+        })),
         MessageKey::AiConfigTestKeyRejected
     );
     assert_eq!(
-        key_of(Err(OpenAiClientError::NonSuccessStatus { status: 403 })),
+        key_of(Err(OpenAiClientError::NonSuccessStatus {
+            status: 403,
+            provider_message: None
+        })),
         MessageKey::AiConfigTestKeyRejected
     );
     assert_eq!(
-        key_of(Err(OpenAiClientError::NonSuccessStatus { status: 404 })),
+        key_of(Err(OpenAiClientError::NonSuccessStatus {
+            status: 404,
+            provider_message: None
+        })),
         MessageKey::AiConfigTestEndpointNotFound
     );
     assert_eq!(
-        key_of(Err(OpenAiClientError::NonSuccessStatus { status: 500 })),
+        key_of(Err(OpenAiClientError::NonSuccessStatus {
+            status: 402,
+            provider_message: None
+        })),
+        MessageKey::AiConfigTestPaymentRequired
+    );
+    assert_eq!(
+        key_of(Err(OpenAiClientError::NonSuccessStatus {
+            status: 429,
+            provider_message: None
+        })),
+        MessageKey::AiConfigTestRateLimited
+    );
+    assert_eq!(
+        key_of(Err(OpenAiClientError::NonSuccessStatus {
+            status: 500,
+            provider_message: None
+        })),
+        MessageKey::AiConfigTestServerError
+    );
+    assert_eq!(
+        key_of(Err(OpenAiClientError::NonSuccessStatus {
+            status: 418,
+            provider_message: None
+        })),
         MessageKey::AiConfigTestRefused
     );
     assert_eq!(
@@ -342,12 +388,88 @@ fn http_404_500_and_html_each_get_their_own_family() {
 
     let server = FakeServer::start(reply("500 Internal Server Error", "{}"));
     let err = check_against(&server.base_url, None, &|| false).expect_err("500");
-    assert_eq!(err.message_key(), MessageKey::AiConfigTestRefused);
+    assert_eq!(err.message_key(), MessageKey::AiConfigTestServerError);
+    assert!(err.retryable());
+    assert_eq!(err.params().get("status"), Some(&"500".to_owned()));
     server.finish();
 
     let server = FakeServer::start(reply("200 OK", "<html>login</html>"));
     let err = check_against(&server.base_url, None, &|| false).expect_err("html");
     assert_eq!(err.message_key(), MessageKey::AiConfigTestReplyUnreadable);
+    server.finish();
+}
+
+#[test]
+fn http_402_and_429_get_their_own_family_and_carry_the_redacted_provider_message() {
+    let key = "sk-live-0123456789abcdef";
+    let body = format!(r#"[{{"error":{{"message":"Out of credit for {key}. Top up."}}}}]"#);
+    let server = FakeServer::start(reply("402 Payment Required", &body));
+    let err = check_against(&server.base_url, Some(key), &|| false).expect_err("402");
+    assert_eq!(err.message_key(), MessageKey::AiConfigTestPaymentRequired);
+    assert_eq!(
+        err.params().get("provider_message"),
+        Some(&"Out of credit for ***. Top up.".to_owned())
+    );
+    assert_eq!(err.params().get("status"), Some(&"402".to_owned()));
+    assert!(!err.retryable());
+    server.finish();
+
+    let server = FakeServer::start(reply("429 Too Many Requests", "{}"));
+    let err = check_against(&server.base_url, None, &|| false).expect_err("429");
+    assert_eq!(err.message_key(), MessageKey::AiConfigTestRateLimited);
+    assert!(err.params().get("provider_message").is_none());
+    assert!(!err.retryable());
+    server.finish();
+}
+
+#[test]
+fn http_a_401_message_reaches_the_params_though_its_sentence_has_no_status() {
+    let server = FakeServer::start(reply(
+        "401 Unauthorized",
+        r#"{"error":{"message":"bad key"}}"#,
+    ));
+    let err = check_against(&server.base_url, Some("zq-secret-1"), &|| false).expect_err("401");
+    assert_eq!(err.message_key(), MessageKey::AiConfigTestKeyRejected);
+    assert_eq!(
+        err.params().get("provider_message"),
+        Some(&"bad key".to_owned())
+    );
+    assert!(err.params().get("status").is_none());
+    server.finish();
+}
+
+#[test]
+fn http_a_models_prefixed_id_matches_the_configured_model_and_a_missing_one_is_still_missing() {
+    let body = r#"{"data":[{"id":"models/gemini-3.8-flash"},{"id":"models/other"}]}"#;
+    let server = FakeServer::start(reply("200 OK", body));
+    let prepared = PreparedConnectionCheck {
+        endpoint: server.base_url.clone(),
+        model: "gemini-3.8-flash".to_owned(),
+        api_key: None,
+    };
+    let run_check = |p: &PreparedConnectionCheck| {
+        tauri::async_runtime::block_on(run_connection_check(
+            &auratranslate_lib::core::ai::client::OpenAiChatClient::new(),
+            p,
+            &|| false,
+        ))
+    };
+    assert_eq!(
+        run_check(&prepared).unwrap(),
+        ConnectionCheckWire::Connected { model_count: 2 }
+    );
+    server.finish();
+
+    let server = FakeServer::start(reply("200 OK", body));
+    let missing = PreparedConnectionCheck {
+        endpoint: server.base_url.clone(),
+        model: "gemini-9".to_owned(),
+        api_key: None,
+    };
+    assert_eq!(
+        run_check(&missing).expect_err("missing").message_key(),
+        MessageKey::AiConfigTestModelMissing
+    );
     server.finish();
 }
 

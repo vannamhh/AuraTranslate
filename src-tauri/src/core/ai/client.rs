@@ -94,7 +94,7 @@ impl OpenAiChatClient {
 /// lẫn khoá API (xem doc-comment đầu tệp). Cấu trúc đủ để tầng lệnh (Phase 2 của story này,
 /// `commands::aitranslate`, NGOÀI phạm vi Phase 2 hiện tại) đóng gói thành `IpcError` (AD-21)
 /// mà không cần biết chi tiết bên trong.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum OpenAiClientError {
     /// Dựng `reqwest::Client` thất bại (backend TLS thiếu, …) — chưa từng đo được trên máy
     /// nào, nhưng `Result` không được bỏ qua.
@@ -108,7 +108,11 @@ pub enum OpenAiClientError {
     /// hình dạng header thất bại GIỐNG HỆT mỗi lần thử lại, không phải một sự cố mạng tạm thời.
     ApiKeyHeaderInvalid { detail: String },
     /// Máy chủ trả một mã KHÔNG phải 2xx — I/O Matrix spec 4.8 "Provider returns a non-2xx".
-    NonSuccessStatus { status: u16 },
+    /// `provider_message` đã qua [`redact_api_key`] (AD-59 Rule 3); không bao giờ vào `Display`/`Debug`.
+    NonSuccessStatus {
+        status: u16,
+        provider_message: Option<String>,
+    },
     /// Đọc thân phản hồi lỗi GIỮA CHỪNG, sau khi đã nhận 2xx.
     ReadFailed { detail: String },
     /// Kết nối ĐÓNG lại trước khi thấy khung kết thúc `[DONE]` — I/O Matrix spec 4.8 "Stream
@@ -138,7 +142,7 @@ impl std::fmt::Display for OpenAiClientError {
             OpenAiClientError::ApiKeyHeaderInvalid { detail } => {
                 write!(f, "ai_client[api_key_header_invalid] detail={detail}")
             }
-            OpenAiClientError::NonSuccessStatus { status } => {
+            OpenAiClientError::NonSuccessStatus { status, .. } => {
                 write!(f, "ai_client[non_success_status] status={status}")
             }
             OpenAiClientError::ReadFailed { detail } => {
@@ -157,7 +161,120 @@ impl std::fmt::Display for OpenAiClientError {
     }
 }
 
+impl std::fmt::Debug for OpenAiClientError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OpenAiClientError::ClientBuildFailed { detail } => f
+                .debug_struct("ClientBuildFailed")
+                .field("detail", detail)
+                .finish(),
+            OpenAiClientError::RequestFailed { detail } => f
+                .debug_struct("RequestFailed")
+                .field("detail", detail)
+                .finish(),
+            OpenAiClientError::ApiKeyHeaderInvalid { detail } => f
+                .debug_struct("ApiKeyHeaderInvalid")
+                .field("detail", detail)
+                .finish(),
+            OpenAiClientError::NonSuccessStatus { status, .. } => f
+                .debug_struct("NonSuccessStatus")
+                .field("status", status)
+                .finish_non_exhaustive(),
+            OpenAiClientError::ReadFailed { detail } => f
+                .debug_struct("ReadFailed")
+                .field("detail", detail)
+                .finish(),
+            OpenAiClientError::StreamEndedWithoutDone => f.write_str("StreamEndedWithoutDone"),
+            OpenAiClientError::MalformedEvent { detail } => f
+                .debug_struct("MalformedEvent")
+                .field("detail", detail)
+                .finish(),
+            OpenAiClientError::BufferOverflow { size } => f
+                .debug_struct("BufferOverflow")
+                .field("size", size)
+                .finish(),
+        }
+    }
+}
+
 impl std::error::Error for OpenAiClientError {}
+
+const MAX_ERROR_BODY_BYTES: usize = 16 * 1024;
+const MAX_PROVIDER_MESSAGE_CHARS: usize = 300;
+const KEY_FRAGMENT_CHARS: usize = 12;
+
+/// Replaces every full occurrence of `api_key` with `***`; `None` when a run of
+/// [`KEY_FRAGMENT_CHARS`] or more characters of the key still remains. An empty key redacts nothing.
+pub fn redact_api_key(text: &str, api_key: &str) -> Option<String> {
+    let key = api_key.trim();
+    if key.is_empty() {
+        return Some(text.to_owned());
+    }
+    let redacted = text.replace(key, "***");
+    let chars: Vec<char> = key.chars().collect();
+    if chars.len() >= KEY_FRAGMENT_CHARS {
+        for window in chars.windows(KEY_FRAGMENT_CHARS) {
+            let fragment: String = window.iter().collect();
+            if redacted.contains(&fragment) {
+                return None;
+            }
+        }
+    } else if redacted.contains(key) {
+        return None;
+    }
+    Some(redacted)
+}
+
+/// Reads `error.message` from the three accepted error shapes: `{"error":{"message":..}}`, the
+/// same wrapped in a one-element array, and `{"error":".."}`. Anything else yields `None`.
+pub fn extract_provider_message(body: &[u8]) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_slice(body).ok()?;
+    let object = match &value {
+        serde_json::Value::Array(items) if items.len() == 1 => &items[0],
+        other => other,
+    };
+    let error = object.get("error")?;
+    let raw = match error {
+        serde_json::Value::String(text) => text.as_str(),
+        serde_json::Value::Object(map) => map.get("message")?.as_str()?,
+        _ => return None,
+    };
+    let cleaned: String = raw
+        .chars()
+        .filter_map(|c| {
+            if c.is_whitespace() {
+                Some(' ')
+            } else if c.is_control() {
+                None
+            } else {
+                Some(c)
+            }
+        })
+        .collect();
+    let collapsed = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+    let cut: String = collapsed.chars().take(MAX_PROVIDER_MESSAGE_CHARS).collect();
+    if cut.is_empty() {
+        None
+    } else {
+        Some(cut)
+    }
+}
+
+async fn read_provider_message(
+    response: &mut reqwest::Response,
+    api_key: &str,
+) -> Option<String> {
+    let mut body: Vec<u8> = Vec::new();
+    loop {
+        let chunk = response.chunk().await.ok()?;
+        let Some(bytes) = chunk else { break };
+        body.extend_from_slice(&bytes);
+        if body.len() > MAX_ERROR_BODY_BYTES {
+            return None;
+        }
+    }
+    redact_api_key(&extract_provider_message(&body)?, api_key)
+}
 
 /// Thân JSON gửi đi — MỘT tin nhắn `user` mang `request.prompt` NGUYÊN VĂN (AD-14, §Always
 /// spec 4.8: *"never a second assembly, never a concatenation at the call site"*). `content`
@@ -393,8 +510,11 @@ impl TranslationProvider for OpenAiChatClient {
             })?;
 
         if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let provider_message = read_provider_message(&mut response, request.api_key).await;
             return Err(OpenAiClientError::NonSuccessStatus {
-                status: response.status().as_u16(),
+                status,
+                provider_message,
             });
         }
 
@@ -483,7 +603,8 @@ struct ModelEntry {
     id: String,
 }
 
-/// Reads an OpenAI-style `{"data":[{"id":..}]}` model list. A model saved without a tag matches
+/// Reads an OpenAI-style `{"data":[{"id":..}]}` model list. Gemini lists ids as `models/<id>`; the
+/// prefix is ignored. A model saved without a tag matches
 /// the same id with `:latest` (Ollama lists untagged pulls that way).
 pub fn check_model_list(
     body: &[u8],
@@ -494,8 +615,12 @@ pub fn check_model_list(
             detail: e.to_string(),
         })?;
     let wanted = model.trim();
+    let wanted = wanted.strip_prefix("models/").unwrap_or(wanted);
     let tagged = format!("{wanted}:latest");
-    let found = list.data.iter().any(|m| m.id == wanted || m.id == tagged);
+    let found = list.data.iter().any(|m| {
+        let id = m.id.strip_prefix("models/").unwrap_or(&m.id);
+        id == wanted || id == tagged
+    });
     Ok(if found {
         ConnectionCheckOutcome::Connected {
             model_count: list.data.len(),
@@ -542,8 +667,12 @@ impl ConnectionCheck for OpenAiChatClient {
                 detail: e.to_string(),
             })?;
         if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let provider_message =
+                read_provider_message(&mut response, request.api_key.unwrap_or("")).await;
             return Err(OpenAiClientError::NonSuccessStatus {
-                status: response.status().as_u16(),
+                status,
+                provider_message,
             });
         }
 

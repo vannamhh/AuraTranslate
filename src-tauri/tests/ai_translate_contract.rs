@@ -1833,12 +1833,87 @@ fn the_command_file_carries_zero_emit_or_listen_calls_on_the_translate_path() {
 /// NHẤT (`AiTranslateProviderCallFailed`) cho cả bảy biến thể; Quyết định 2 spec 4.10 tách sáu
 /// khoá họ nguyên nhân, và non-2xx là khoá `AiTranslateProviderRefused` (`["status"]` bắt buộc).
 #[test]
-fn provider_returns_a_non_2xx_maps_to_a_non_retryable_ipc_error_naming_the_status() {
-    let err: IpcError = OpenAiClientError::NonSuccessStatus { status: 401 }.into();
-    assert_eq!(err.code(), "ai_translate.provider_refused");
-    assert_eq!(err.message_key(), MessageKey::AiTranslateProviderRefused);
-    assert_eq!(err.params().get("status"), Some(&"401".to_owned()));
-    assert!(!err.retryable(), "non-2xx khong duoc thu lai");
+fn provider_returns_a_non_2xx_maps_to_the_key_of_its_status_and_names_the_status() {
+    let table: [(u16, &str, MessageKey, bool); 7] = [
+        (
+            401,
+            "ai_translate.provider_key_rejected",
+            MessageKey::AiTranslateProviderKeyRejected,
+            false,
+        ),
+        (
+            403,
+            "ai_translate.provider_key_rejected",
+            MessageKey::AiTranslateProviderKeyRejected,
+            false,
+        ),
+        (
+            402,
+            "ai_translate.provider_payment_required",
+            MessageKey::AiTranslateProviderPaymentRequired,
+            false,
+        ),
+        (
+            404,
+            "ai_translate.provider_endpoint_not_found",
+            MessageKey::AiTranslateProviderEndpointNotFound,
+            false,
+        ),
+        (
+            429,
+            "ai_translate.provider_rate_limited",
+            MessageKey::AiTranslateProviderRateLimited,
+            false,
+        ),
+        (
+            503,
+            "ai_translate.provider_server_error",
+            MessageKey::AiTranslateProviderServerError,
+            true,
+        ),
+        (
+            418,
+            "ai_translate.provider_refused",
+            MessageKey::AiTranslateProviderRefused,
+            false,
+        ),
+    ];
+    for (status, code, key, retryable) in table {
+        let err: IpcError = OpenAiClientError::NonSuccessStatus {
+            status,
+            provider_message: None,
+        }
+        .into();
+        assert_eq!(err.code(), code, "status {status}");
+        assert_eq!(err.message_key(), key, "status {status}");
+        assert_eq!(
+            err.params().get("status"),
+            Some(&status.to_string()),
+            "status {status}"
+        );
+        assert!(
+            err.params().get("provider_message").is_none(),
+            "status {status}"
+        );
+        assert_eq!(err.retryable(), retryable, "status {status}");
+    }
+}
+
+#[test]
+fn provider_message_rides_in_params_only_when_present_on_both_translate_paths() {
+    let with = || OpenAiClientError::NonSuccessStatus {
+        status: 402,
+        provider_message: Some("het tien".to_owned()),
+    };
+    let single: IpcError = with().into();
+    let batch = batch_stopped_error(7, with());
+    for err in [single, batch] {
+        assert_eq!(
+            err.params().get("provider_message"),
+            Some(&"het tien".to_owned())
+        );
+        assert_eq!(err.params().get("status"), Some(&"402".to_owned()));
+    }
 }
 
 /// I/O Matrix "Stream ends without [DONE]" — `IpcError` retryable, KHÔNG tự động thử lại ở
@@ -1891,10 +1966,13 @@ fn every_openai_client_error_variant_maps_to_its_own_family_key_with_the_documen
             true,
         ),
         (
-            OpenAiClientError::NonSuccessStatus { status: 500 },
-            "ai_translate.provider_refused",
-            MessageKey::AiTranslateProviderRefused,
-            false,
+            OpenAiClientError::NonSuccessStatus {
+                status: 500,
+                provider_message: None,
+            },
+            "ai_translate.provider_server_error",
+            MessageKey::AiTranslateProviderServerError,
+            true,
         ),
         (
             OpenAiClientError::ReadFailed {
@@ -3523,10 +3601,13 @@ fn batch_stopped_error_names_the_sentence_and_maps_the_documented_retryable_flag
             true,
         ),
         (
-            OpenAiClientError::NonSuccessStatus { status: 500 },
-            "ai_translate.provider_refused",
-            MessageKey::AiTranslateProviderRefused,
-            false,
+            OpenAiClientError::NonSuccessStatus {
+                status: 500,
+                provider_message: None,
+            },
+            "ai_translate.provider_server_error",
+            MessageKey::AiTranslateProviderServerError,
+            true,
         ),
         (
             OpenAiClientError::ReadFailed {
