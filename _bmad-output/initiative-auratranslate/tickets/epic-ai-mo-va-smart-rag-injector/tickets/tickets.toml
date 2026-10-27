@@ -155,3 +155,15 @@ after = []
 hitl = false
 risk = "medium"
 refine = true
+
+[[entry]]
+id = 14
+type = "bug"
+title = "Dịch bằng Gemini ra kết quả trống, không báo lỗi"
+description = "Gemini gửi `usage` kèm mọi khung có chữ; bộ đọc luồng đọc khung có `usage` thành số token và bỏ `content` cùng khung, nên panel chỉ hiện số token, ô kết quả trống, không báo lỗi."
+verify = "Với luồng khung mang cả `delta.content` lẫn `usage` như Gemini, khi dịch một câu thì thấy đủ chữ; luồng `[DONE]` không chữ thì thấy câu báo rỗng."
+covers = ["FR74", "FR75", "FR76"]
+after = []
+hitl = false
+risk = "medium"
+refine = true
