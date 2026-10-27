@@ -27,6 +27,7 @@ vi.mock('../../src/config/aitranslate', () => ({
   runAiTranslateSegment: (...args: unknown[]) => runSegmentMock(...args),
   cancelAiTranslateCall: (...args: unknown[]) => cancelMock(...args),
   runAiTranslateBatchCall: (...args: unknown[]) => runBatchMock(...args),
+  resendAiCall: vi.fn(),
 }))
 
 vi.mock('../../src/config/aiconfig', async (importOriginal) => {
@@ -80,14 +81,14 @@ type OnEvent = (event: AiTranslateBatchEventWire) => void
 const PROVIDER_UNREACHABLE_ON_106: IpcError = {
   code: 'ai_translate.provider_unreachable',
   message_key: 'err.ai_translate.provider_unreachable',
-  params: { segment_id: '106' },
+  params: { call_index: '2', first_segment_id: '109', last_segment_id: '116' },
   retryable: true,
 }
 
 const PROVIDER_REFUSED_ON_106: IpcError = {
   code: 'ai_translate.provider_refused',
   message_key: 'err.ai_translate.provider_refused',
-  params: { segment_id: '106', status: '500' },
+  params: { call_index: '2', first_segment_id: '109', last_segment_id: '116', status: '500' },
   retryable: false,
 }
 
@@ -101,13 +102,23 @@ function pendingBatchRun(): { emit: OnEvent; settle: (result: RunResult) => void
   let resolve: (result: RunResult) => void = () => {
     throw new Error('resolve chưa được gán')
   }
-  runBatchMock.mockImplementation((_ids: number[], _set: string | null, onEvent: OnEvent) => {
+  runBatchMock.mockImplementation((_scope: unknown, _set: string | null, onEvent: OnEvent) => {
     capturedOnEvent = onEvent
     return new Promise<RunResult>((res) => {
       resolve = res
     })
   })
   return { emit: (e) => capturedOnEvent(e), settle: (r) => resolve(r) }
+}
+
+const CALLS = [
+  { call_index: 1, segment_ids: BATCH_IDS.slice(0, 8) },
+  { call_index: 2, segment_ids: BATCH_IDS.slice(8, 16) },
+  { call_index: 3, segment_ids: BATCH_IDS.slice(16) },
+]
+
+function received(callIndex: number, id: number, text: string): AiTranslateBatchEventWire {
+  return { kind: 'received', call_index: callIndex, segment_id: id, text, has_han: false, source_hash: `h${id}` }
 }
 
 function usage(total: number) {
@@ -177,17 +188,23 @@ async function mountPanel(AiTranslationPanel: Component) {
 type Fresh = Awaited<ReturnType<typeof freshPanel>>
 
 /** Lô 20 câu: 5 câu đầu xong (token 10..50), câu 6 đang chảy dở rồi lỗi, 14 câu chưa gọi. */
-async function startBatchFailingAtSix(fresh: Fresh, error: IpcError) {
+async function startBatchFailingInCallTwo(fresh: Fresh, error: IpcError) {
   const fake = pendingBatchRun()
   const wrapper = await mountPanel(fresh.AiTranslationPanel)
   void fresh.batchState.runAiTranslateBatch(null, BATCH_IDS)
   await flushPromises()
-  for (let i = 0; i < 5; i += 1) {
-    const id = BATCH_IDS[i]
-    fake.emit({ kind: 'token', segment_id: id, text: `Dich ${i + 1}` })
-    fake.emit({ kind: 'done', segment_id: id, usage: usage((i + 1) * 10) })
+  fake.emit({ kind: 'planned', calls: CALLS })
+  fake.emit({ kind: 'call_started', call_index: 1 })
+  for (let i = 0; i < 8; i += 1) fake.emit(received(1, BATCH_IDS[i], `Dich ${i + 1}`))
+  fake.emit({ kind: 'call_done', call_index: 1, finish_reason: 'stop', usage: usage(80) })
+  fake.emit({ kind: 'call_started', call_index: 2 })
+  fake.emit({ kind: 'token', call_index: 2, segment_id: BATCH_IDS[8], text: 'Dich 9' })
+  fake.emit(received(2, BATCH_IDS[8], 'Dich 9'))
+  fake.emit(received(2, BATCH_IDS[9], 'Dich 10'))
+  for (let i = 10; i < 16; i += 1) {
+    fake.emit({ kind: 'discarded', call_index: 2, segment_id: BATCH_IDS[i], reason: 'interrupted' })
   }
-  fake.emit({ kind: 'token', segment_id: BATCH_IDS[5], text: 'Dich dở' })
+  fake.emit({ kind: 'call_done', call_index: 2, finish_reason: null, usage: null })
   fake.settle({ value: null, error })
   await flushPromises()
   await wrapper.vm.$nextTick()
@@ -206,52 +223,45 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('hàng lô 20 câu, lỗi ở câu 6 (matrix: "Lô chạy dở có một lỗi")', () => {
-  it('mỗi hàng nêu số câu · chữ · token (chỉ hàng xong) · chữ trạng thái; hàng chưa gọi hiện câu nguồn', async () => {
+describe('hàng lô 20 câu, lỗi ở lượt 2 (matrix: "Lô chạy dở có một lỗi")', () => {
+  it('mỗi hàng nêu số câu · chữ · chữ trạng thái; hàng thiếu và chưa gửi hiện câu nguồn, nhãn khác nhau', async () => {
     const fresh = await freshPanel()
-    const { wrapper } = await startBatchFailingAtSix(fresh, PROVIDER_UNREACHABLE_ON_106)
+    const { wrapper } = await startBatchFailingInCallTwo(fresh, PROVIDER_UNREACHABLE_ON_106)
 
     const rows = wrapper.findAll('[data-ai-translate-batch-rows] li')
     expect(rows).toHaveLength(BATCH_SIZE)
 
-    const first = rows[0]
-    expect(first.get('[data-ai-translate-batch-row-no]').text()).toBe('1')
-    expect(first.get('[data-ai-translate-batch-row-text]').text()).toBe('Dich 1')
-    expect(first.get('[data-ai-translate-batch-row-tokens]').text()).toBe('10 token')
-    expect(first.text()).toContain('Xong')
-    expect(rows[4].get('[data-ai-translate-batch-row-tokens]').text()).toBe('50 token')
+    expect(rows[0].get('[data-ai-translate-batch-row-no]').text()).toBe('1')
+    expect(rows[0].get('[data-ai-translate-batch-row-text]').text()).toBe('Dich 1')
+    expect(rows[0].attributes('data-ai-translate-batch-row-status')).toBe('received')
+    expect(rows[0].text()).toContain('Đã nhận')
+    expect(rows[9].attributes('data-ai-translate-batch-row-status')).toBe('received')
 
-    const failed = rows[5]
-    expect(failed.attributes('data-ai-translate-batch-row-status')).toBe('error')
-    expect(failed.attributes('data-ai-translate-batch-row-segment-id')).toBe('106')
-    expect(failed.get('[data-ai-translate-batch-row-text]').text()).toBe('Dich dở')
-    expect(failed.find('[data-ai-translate-batch-row-tokens]').exists()).toBe(false)
-    expect(failed.text()).toContain('Lỗi')
-
-    for (let i = 6; i < BATCH_SIZE; i += 1) {
-      expect(rows[i].attributes('data-ai-translate-batch-row-status')).toBe('pending')
-      expect(rows[i].get('[data-ai-translate-batch-row-no]').text()).toBe(String(i + 1))
+    for (let i = 10; i < 16; i += 1) {
+      expect(rows[i].attributes('data-ai-translate-batch-row-status')).toBe('missing')
       expect(rows[i].get('[data-ai-translate-batch-row-text]').text()).toBe(`Nguon cau ${i + 1}`)
-      expect(rows[i].find('[data-ai-translate-batch-row-tokens]').exists()).toBe(false)
-      expect(rows[i].text()).toContain('Chưa tới lượt')
+      expect(rows[i].text()).toContain('Thiếu kết quả AI')
+    }
+    for (let i = 16; i < BATCH_SIZE; i += 1) {
+      expect(rows[i].attributes('data-ai-translate-batch-row-status')).toBe('not_sent')
+      expect(rows[i].text()).toContain('Chưa gửi')
     }
     wrapper.unmount()
   })
 
-  it('khối lỗi ba dòng đúng chữ, ba nút Thử lại từ câu 6 · Đưa 5 câu · Bỏ lô, và Bản dịch không đổi', async () => {
+  it('khối lỗi nêu lượt và khoảng câu, nút Thử lại đếm câu thiếu + chưa gửi, Đưa 10 câu, Bỏ lô; Bản dịch không đổi', async () => {
     const fresh = await freshPanel()
     const before = targetsSnapshot(fresh)
-    const { wrapper } = await startBatchFailingAtSix(fresh, PROVIDER_UNREACHABLE_ON_106)
+    const { wrapper } = await startBatchFailingInCallTwo(fresh, PROVIDER_UNREACHABLE_ON_106)
 
     const alert = wrapper.get('[data-ai-translate-batch-alert]')
     expect(alert.attributes('role')).toBe('alert')
-    expect(alert.get('[data-ai-batch-error-stopped]').text()).toBe('Lô dừng ở câu 6.')
-    expect(alert.get('[data-ai-batch-error-intact]').text()).toBe('Câu 1–5 còn nguyên trong panel này.')
-    expect(alert.get('[data-ai-batch-error-cause]').text()).toBe(`Câu 6: ${UNREACHABLE_TEXT}`)
-    expect(alert.get('[data-ai-batch-error-not-called]').text()).toBe('Câu 7–20 chưa gọi, chưa tính phí.')
+    expect(alert.get('[data-ai-batch-error-stopped]').text()).toBe('Lô dừng ở lượt 2 (câu 9–16).')
+    expect(alert.get('[data-ai-batch-error-cause]').text()).toBe(UNREACHABLE_TEXT)
+    expect(wrapper.get('[data-ai-translate-batch-gaps]').text()).toBe('6 câu thiếu kết quả AI · 4 câu chưa gửi')
 
-    expect(wrapper.get('[data-ai-translate-batch-retry]').text()).toBe('Thử lại từ câu 6')
-    expect(wrapper.get('[data-ai-translate-promote-batch]').text()).toBe('Đưa 5 câu đã xong sang Bản dịch')
+    expect(wrapper.get('[data-ai-translate-batch-retry]').text()).toBe('Thử lại 10 câu thiếu hoặc chưa gửi')
+    expect(wrapper.get('[data-ai-translate-promote-batch]').text()).toBe('Đưa 10 câu đã xong sang Bản dịch')
     expect(wrapper.get('[data-ai-translate-promote-batch]').attributes('disabled')).toBeUndefined()
     expect(wrapper.get('[data-ai-translate-batch-discard]').text()).toBe('Bỏ lô')
 
@@ -262,11 +272,31 @@ describe('hàng lô 20 câu, lỗi ở câu 6 (matrix: "Lô chạy dở có mộ
 
   it('lỗi KHÔNG retryable ⇒ ẩn Thử lại, còn Đưa sang và Bỏ lô', async () => {
     const fresh = await freshPanel()
-    const { wrapper } = await startBatchFailingAtSix(fresh, PROVIDER_REFUSED_ON_106)
+    const { wrapper } = await startBatchFailingInCallTwo(fresh, PROVIDER_REFUSED_ON_106)
 
     expect(wrapper.find('[data-ai-translate-batch-retry]').exists()).toBe(false)
     expect(wrapper.find('[data-ai-translate-promote-batch]').exists()).toBe(true)
     expect(wrapper.find('[data-ai-translate-batch-discard]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('cờ has_han hiện trên hàng nhận được mà vẫn đưa sang được', async () => {
+    const fresh = await freshPanel()
+    const fake = pendingBatchRun()
+    const wrapper = await mountPanel(fresh.AiTranslationPanel)
+    void fresh.batchState.runAiTranslateBatch(null, BATCH_IDS.slice(0, 2))
+    await flushPromises()
+    fake.emit({ kind: 'planned', calls: [{ call_index: 1, segment_ids: BATCH_IDS.slice(0, 2) }] })
+    fake.emit({ ...received(1, BATCH_IDS[0], 'Con 字'), has_han: true } as AiTranslateBatchEventWire)
+    fake.emit(received(1, BATCH_IDS[1], 'Sach'))
+    fake.settle({ value: { state: 'done', usage: null, maybe_truncated: false }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    const rows = wrapper.findAll('[data-ai-translate-batch-rows] li')
+    expect(rows[0].find('[data-ai-translate-batch-row-han]').exists()).toBe(true)
+    expect(rows[1].find('[data-ai-translate-batch-row-han]').exists()).toBe(false)
+    expect(wrapper.get('[data-ai-translate-promote-batch]').attributes('disabled')).toBeUndefined()
     wrapper.unmount()
   })
 })
@@ -282,9 +312,10 @@ describe('Huỷ lô (matrix: "Huỷ giữa lô")', () => {
 
     void fresh.batchState.runAiTranslateBatch(null, BATCH_IDS)
     await flushPromises()
-    fake.emit({ kind: 'token', segment_id: 101, text: 'Xong mot' })
-    fake.emit({ kind: 'done', segment_id: 101, usage: usage(30) })
-    fake.emit({ kind: 'token', segment_id: 102, text: 'Dang sinh dở' })
+    fake.emit({ kind: 'planned', calls: CALLS })
+    fake.emit({ kind: 'call_started', call_index: 1 })
+    fake.emit(received(1, 101, 'Xong mot'))
+    fake.emit({ kind: 'token', call_index: 1, segment_id: 102, text: 'Dang sinh dở' })
     await wrapper.vm.$nextTick()
 
     expect(wrapper.find('[data-ai-translate-run]').exists()).toBe(false)
@@ -293,39 +324,37 @@ describe('Huỷ lô (matrix: "Huỷ giữa lô")', () => {
     await wrapper.get('[data-ai-translate-cancel]').trigger('click')
     expect(cancelMock).toHaveBeenCalledTimes(1)
 
+    fake.emit({ kind: 'discarded', call_index: 1, segment_id: 102, reason: 'interrupted' })
     fake.settle({ value: { state: 'cancelled' }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
     const rows = wrapper.findAll('[data-ai-translate-batch-rows] li')
-    expect(rows[0].attributes('data-ai-translate-batch-row-status')).toBe('done')
+    expect(rows[0].attributes('data-ai-translate-batch-row-status')).toBe('received')
     expect(rows[0].get('[data-ai-translate-batch-row-text]').text()).toBe('Xong mot')
-    expect(rows[0].get('[data-ai-translate-batch-row-tokens]').text()).toBe('30 token')
-    expect(rows[1].attributes('data-ai-translate-batch-row-status')).toBe('cancelled')
+    expect(rows[1].attributes('data-ai-translate-batch-row-status')).toBe('missing')
     expect(rows[1].get('[data-ai-translate-batch-row-text]').text()).toBe('Nguon cau 2')
+    expect(rows[19].attributes('data-ai-translate-batch-row-status')).toBe('not_sent')
     wrapper.unmount()
   })
 })
 
 describe('công tắc "Hiện token và ước tính chi phí"', () => {
-  it('tắt ⇒ dòng tổng token của lô và token từng hàng biến mất; bật lại ⇒ hiện lại; số liệu không mất', async () => {
+  it('tắt ⇒ dòng tổng token của lô biến mất; bật lại ⇒ hiện lại; số liệu không mất', async () => {
     const fresh = await freshPanel()
     const visibility = await import('../../src/aiUsageVisibleState')
-    const { wrapper } = await startBatchFailingAtSix(fresh, PROVIDER_UNREACHABLE_ON_106)
+    const { wrapper } = await startBatchFailingInCallTwo(fresh, PROVIDER_UNREACHABLE_ON_106)
 
-    expect(wrapper.find('[data-ai-translate-batch-usage]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-ai-translate-batch-row-tokens]')).toHaveLength(5)
+    expect(wrapper.get('[data-ai-translate-batch-usage]').text()).toContain('80')
 
     await visibility.setAiUsageVisible(false)
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-ai-translate-batch-usage]').exists()).toBe(false)
-    expect(wrapper.find('[data-ai-translate-batch-row-tokens]').exists()).toBe(false)
     expect(wrapper.find('[data-ai-translate-batch-rows]').exists()).toBe(true)
 
     await visibility.setAiUsageVisible(true)
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-ai-translate-batch-usage]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-ai-translate-batch-row-tokens]')).toHaveLength(5)
+    expect(wrapper.get('[data-ai-translate-batch-usage]').text()).toContain('80')
     wrapper.unmount()
   })
 })
@@ -346,8 +375,10 @@ describe('Bỏ lô (matrix: "Bỏ lô")', () => {
 
     void fresh.batchState.runAiTranslateBatch(null, BATCH_IDS)
     await flushPromises()
-    fake.emit({ kind: 'token', segment_id: 101, text: 'Mot' })
-    fake.emit({ kind: 'done', segment_id: 101, usage: usage(30) })
+    fake.emit({ kind: 'planned', calls: CALLS })
+    fake.emit({ kind: 'call_started', call_index: 1 })
+    fake.emit(received(1, 101, 'Mot'))
+    fake.emit({ kind: 'call_done', call_index: 1, finish_reason: 'stop', usage: usage(30) })
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-ai-translate-batch-progress]').exists()).toBe(true)
     expect(wrapper.find('[data-ai-translate-batch-usage]').exists()).toBe(true)
@@ -365,7 +396,7 @@ describe('Bỏ lô (matrix: "Bỏ lô")', () => {
     expect(fresh.batchState.aiTranslateBatchRows.value).toEqual([])
 
     // Khung và lời đáp đến muộn của lượt đã bỏ không được dựng lại hàng nào.
-    fake.emit({ kind: 'token', segment_id: 102, text: 'Muon' })
+    fake.emit({ kind: 'token', call_index: 1, segment_id: 102, text: 'Muon' })
     fake.settle({ value: { state: 'cancelled' }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
@@ -378,7 +409,7 @@ describe('Bỏ lô (matrix: "Bỏ lô")', () => {
 
   it('lô đã lỗi ⇒ Bỏ lô xoá khối lỗi và mọi hàng, không gọi huỷ (không còn gì đang bay)', async () => {
     const fresh = await freshPanel()
-    const { wrapper } = await startBatchFailingAtSix(fresh, PROVIDER_UNREACHABLE_ON_106)
+    const { wrapper } = await startBatchFailingInCallTwo(fresh, PROVIDER_UNREACHABLE_ON_106)
 
     await wrapper.get('[data-ai-translate-batch-discard]').trigger('click')
     await wrapper.vm.$nextTick()
@@ -504,11 +535,11 @@ describe('đưa cả lô sang Bản dịch (matrix: "Đưa cả lô sang", "Đư
     const wrapper = await mountPanel(fresh.AiTranslationPanel)
     void fresh.batchState.runAiTranslateBatch(null, BATCH_IDS.slice(0, 5))
     await flushPromises()
-    for (let i = 0; i < 5; i += 1) {
-      fake.emit({ kind: 'token', segment_id: BATCH_IDS[i], text: `Moi ${i + 1}` })
-      fake.emit({ kind: 'done', segment_id: BATCH_IDS[i], usage: usage(10) })
-    }
-    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    fake.emit({ kind: 'planned', calls: [{ call_index: 1, segment_ids: BATCH_IDS.slice(0, 5) }] })
+    fake.emit({ kind: 'call_started', call_index: 1 })
+    for (let i = 0; i < 5; i += 1) fake.emit(received(1, BATCH_IDS[i], `Moi ${i + 1}`))
+    fake.emit({ kind: 'call_done', call_index: 1, finish_reason: 'stop', usage: usage(10) })
+    fake.settle({ value: { state: 'done', usage: null, maybe_truncated: false }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
     return wrapper
@@ -526,11 +557,11 @@ describe('đưa cả lô sang Bản dịch (matrix: "Đưa cả lô sang", "Đư
     await wrapper.vm.$nextTick()
 
     expect(promoteMock.mock.calls).toEqual([
-      [101, 'Moi 1', false],
-      [102, 'Moi 2', false],
-      [103, 'Moi 3', false],
-      [104, 'Moi 4', false],
-      [105, 'Moi 5', false],
+      [101, 'Moi 1', false, 'h101'],
+      [102, 'Moi 2', false, 'h102'],
+      [103, 'Moi 3', false, 'h103'],
+      [104, 'Moi 4', false, 'h104'],
+      [105, 'Moi 5', false, 'h105'],
     ])
     expect(wrapper.findAll('[data-ai-translate-promote-batch-confirm]')).toHaveLength(1)
     expect(wrapper.findAll('.ai-promote-confirm')).toHaveLength(1)
@@ -552,8 +583,8 @@ describe('đưa cả lô sang Bản dịch (matrix: "Đưa cả lô sang", "Đư
     await wrapper.vm.$nextTick()
 
     expect(promoteMock.mock.calls.slice(5)).toEqual([
-      [103, 'Moi 3', true],
-      [104, 'Moi 4', true],
+      [103, 'Moi 3', true, 'h103'],
+      [104, 'Moi 4', true, 'h104'],
     ])
     for (const id of [101, 102, 103, 104, 105]) {
       const segment = fresh.editorState.editorSegments.value.find((s) => s.id === id)
@@ -665,22 +696,25 @@ describe('đưa cả lô sang Bản dịch (matrix: "Đưa cả lô sang", "Đư
     const wrapper = await mountPanel(fresh.AiTranslationPanel)
     void fresh.batchState.runAiTranslateBatch(null, BATCH_IDS.slice(0, 3))
     await flushPromises()
+    fake.emit({ kind: 'planned', calls: [{ call_index: 1, segment_ids: BATCH_IDS.slice(0, 3) }] })
     await wrapper.vm.$nextTick()
 
     expect(wrapper.get('[data-ai-translate-promote-batch]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-ai-translate-promote-batch]').text()).toBe('Đưa 0 câu đã xong sang Bản dịch')
 
-    fake.emit({ kind: 'token', segment_id: 101, text: 'Mot' })
-    fake.emit({ kind: 'done', segment_id: 101, usage: usage(5) })
+    fake.emit({ kind: 'call_started', call_index: 1 })
+    fake.emit({ kind: 'token', call_index: 1, segment_id: 101, text: 'Mot' })
     await wrapper.vm.$nextTick()
     expect(wrapper.get('[data-ai-translate-promote-batch]').attributes('disabled')).toBeDefined()
+    fake.emit(received(1, 101, 'Mot'))
+    fake.emit({ kind: 'call_done', call_index: 1, finish_reason: 'stop', usage: usage(5) })
 
     const { aiTranslateHandlers } = await import('../../src/aiTranslateHandlers')
     aiTranslateHandlers.promoteAiTranslateBatch()
     await flushPromises()
     expect(promoteMock).not.toHaveBeenCalled()
 
-    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    fake.settle({ value: { state: 'done', usage: null, maybe_truncated: false }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
     expect(wrapper.get('[data-ai-translate-promote-batch]').attributes('disabled')).toBeUndefined()

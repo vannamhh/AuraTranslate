@@ -2368,7 +2368,10 @@ fn the_ai_prompt_wires_are_registered_and_keep_their_parameter_names() {
             "ai_prompt_assemble",
             "app: tauri::AppHandle, prompt_set_name: Option<String>, segment_id: i64,",
         ),
-        ("ai_prompt_read_record", "app: tauri::AppHandle"),
+        (
+            "ai_prompt_read_record",
+            "app: tauri::AppHandle, segment_id: Option<i64>,",
+        ),
     ] {
         let params = fn_param_list(&aiprompt_src, fn_name);
         assert_eq!(
@@ -2523,6 +2526,7 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
         "crate::commands::segment::wire::promote_ai_translation",
         "crate::commands::aitranslate::wire::ai_translate_batch",
         "crate::commands::aitranslate::wire::ai_translate_resend",
+        "crate::commands::aitranslate::wire::ai_translate_resend_call",
     ] {
         assert!(
             lib_src.contains(wire),
@@ -2580,12 +2584,23 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     assert_eq!(
         normalize_param_list(&batch_params),
         normalize_param_list(
-            "app: tauri::AppHandle<R>, segment_ids: Vec<i64>, prompt_set_name: Option<String>, \
-             skip_translated: bool, channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,"
+            "app: tauri::AppHandle<R>, scope: AiTranslateScope, prompt_set_name: Option<String>, \
+             channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,"
         ),
         "vo `ai_translate_batch` trong `pub mod wire` cua commands/aitranslate.rs khong con \
          dung danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \
          `src/config/aitranslate.ts` la cho duy nhat go lai theo dung ten/thu tu do."
+    );
+
+    let resend_call_params = fn_param_list_async(&aitranslate_src, "ai_translate_resend_call");
+    assert_eq!(
+        normalize_param_list(&resend_call_params),
+        normalize_param_list(
+            "app: tauri::AppHandle<R>, operation_id: u64, call_index: u32, \
+             channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,"
+        ),
+        "`ai_translate_resend_call` names the recorded call by (operation_id, call_index) and \
+         takes no prompt from the webview"
     );
 
     // `promote_ai_translation` mang HAI khối `pub fn` cùng tên: hàm thuần ở
@@ -2604,7 +2619,8 @@ fn the_ai_translate_wires_are_registered_and_keep_their_parameter_names() {
     assert_eq!(
         normalize_param_list(&promote_params),
         normalize_param_list(
-            "app: tauri::AppHandle<R>, segment_id: i64, target_text: String, force: bool,"
+            "app: tauri::AppHandle<R>, segment_id: i64, target_text: String, force: bool, \
+             source_hash: Option<String>,"
         ),
         "vo `promote_ai_translation` trong `commands/segment/wire.rs` khong con \
          dung danh sach tham so mong doi -- doi ten/thu tu tham so la doi DAY, va \

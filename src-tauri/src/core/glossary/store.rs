@@ -1588,6 +1588,48 @@ fn resolve_and_match(
     text: &str,
     lang: MatchLang,
 ) -> Result<(Vec<(GlossaryTier, GlossaryEntry)>, Vec<TermMatch>), GlossaryError> {
+    let snapshot = load_resolved_glossary(scope, global)?;
+    let raw_matches = find_terms(text, &snapshot.term_keys(), lang);
+    Ok((snapshot.payload, raw_matches))
+}
+
+/// The resolved two-tier Glossary (AD-18 override applied, nothing filtered), read once so many
+/// sentences can be matched against one read.
+pub struct GlossarySnapshot {
+    keys: Vec<String>,
+    payload: Vec<(GlossaryTier, GlossaryEntry)>,
+}
+
+impl GlossarySnapshot {
+    /// Reads both tiers once. Same Work-context check as [`confirmed_terms_for_injection`].
+    pub fn load(
+        resolver: &ScopeResolver,
+        global: &Store,
+        work: Option<&Store>,
+    ) -> Result<Self, GlossaryError> {
+        if resolver.has_work_tier() != work.is_some() {
+            return Err(GlossaryError::WorkContextMismatch);
+        }
+        let scope = WorkContext::new(work.map(|w| (resolver, w)))?;
+        load_resolved_glossary(&scope, global)
+    }
+
+    /// The matching half of [`confirmed_terms_for_injection`] over this snapshot: the same
+    /// confirmed-only filter and pending-overlap rules, no store read.
+    pub fn confirmed_terms(&self, text: &str, lang: MatchLang) -> GlossaryInjectionOutcome {
+        confirmed_terms_in_snapshot(self, text, lang)
+    }
+
+    fn term_keys(&self) -> Vec<&str> {
+        self.keys.iter().map(String::as_str).collect()
+    }
+}
+
+/// Reads both tiers and applies the override; the read half of [`confirmed_terms_for_injection`].
+fn load_resolved_glossary(
+    scope: &WorkContext<'_>,
+    global: &Store,
+) -> Result<GlossarySnapshot, GlossaryError> {
     let resolver = scope.resolver();
     let work = scope.work();
 
@@ -1611,11 +1653,9 @@ fn resolve_and_match(
             (tier, resolved_entry.value().clone())
         })
         .collect();
-    let terms: Vec<&str> = resolved.keys().map(String::as_str).collect();
+    let keys: Vec<String> = resolved.keys().cloned().collect();
 
-    let raw_matches = find_terms(text, &terms, lang);
-
-    Ok((payload, raw_matches))
+    Ok(GlossarySnapshot { keys, payload })
 }
 
 /// **Hàm phơi ra THỨ TƯ** của `core::glossary` — Story 3.4, FR50/FR51. Tra hai tầng qua
@@ -1830,12 +1870,17 @@ pub fn confirmed_terms_for_injection(
     text: &str,
     lang: MatchLang,
 ) -> Result<GlossaryInjectionOutcome, GlossaryError> {
-    // Same reason as `marks_for_source_text` above.
-    if resolver.has_work_tier() != work.is_some() {
-        return Err(GlossaryError::WorkContextMismatch);
-    }
-    let scope = WorkContext::new(work.map(|w| (resolver, w)))?;
-    let (payload, raw_matches) = resolve_and_match(&scope, global, text, lang)?;
+    let snapshot = GlossarySnapshot::load(resolver, global, work)?;
+    Ok(snapshot.confirmed_terms(text, lang))
+}
+
+fn confirmed_terms_in_snapshot(
+    snapshot: &GlossarySnapshot,
+    text: &str,
+    lang: MatchLang,
+) -> GlossaryInjectionOutcome {
+    let payload = &snapshot.payload;
+    let raw_matches = find_terms(text, &snapshot.term_keys(), lang);
     let selected = resolve_overlaps(raw_matches.clone());
     let boundaries = codepoint_boundaries(text);
 
@@ -1927,11 +1972,11 @@ pub fn confirmed_terms_for_injection(
         }
     }
 
-    Ok(GlossaryInjectionOutcome {
+    GlossaryInjectionOutcome {
         injected,
         suppressed_by_pending_overlap: suppressed,
         pending_matched,
-    })
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

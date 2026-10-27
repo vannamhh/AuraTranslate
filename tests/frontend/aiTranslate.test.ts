@@ -224,7 +224,7 @@ describe('AiTranslationPanel.vue — câu hiện tại của luồng AI khi tiê
     const { AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 3
     caretSegmentId.value = null
-    runMock.mockResolvedValue({ value: { state: 'done', usage: null }, error: null })
+    runMock.mockResolvedValue({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
 
     const wrapper = mountPanel(AiTranslationPanel)
     await wrapper.vm.$nextTick()
@@ -245,7 +245,7 @@ describe('AiTranslationPanel.vue — câu hiện tại của luồng AI khi tiê
     const { commands, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 3
     caretSegmentId.value = null
-    runMock.mockResolvedValue({ value: { state: 'done', usage: null }, error: null })
+    runMock.mockResolvedValue({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
 
     const wrapper = mountPanel(AiTranslationPanel)
     await wrapper.vm.$nextTick()
@@ -316,6 +316,35 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     wrapper.unmount()
   })
 
+  it('done với maybe_truncated: cờ hiện, kết quả vẫn đưa sang được; lượt sau xoá cờ', async () => {
+    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 42
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    fake.token('Nửa câu')
+    fake.settle({ value: { state: 'done', maybe_truncated: true, usage: null }, error: null })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(state.aiTranslateMaybeTruncated.value).toBe(true)
+    expect(wrapper.find('[data-ai-translate-maybe-truncated]').exists()).toBe(true)
+    expect(wrapper.get('[data-ai-translate-promote]').attributes('disabled')).toBeUndefined()
+
+    const second = pendingRun()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+    expect(state.aiTranslateMaybeTruncated.value).toBe(false)
+    second.settle({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
+    await flushPromises()
+    expect(wrapper.find('[data-ai-translate-maybe-truncated]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
   it('done: state chảy generating → done, văn bản cuối cùng đứng nguyên, nút Dịch mở lại và Đưa-sang-bản-dịch mở', async () => {
     const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 42
@@ -330,7 +359,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     fake.token('day du.')
     await wrapper.vm.$nextTick()
 
-    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    fake.settle({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -361,7 +390,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     fake.token('Ket qua.')
     fake.settle({
       value: {
-        state: 'done',
+        state: 'done', maybe_truncated: false,
         usage: { prompt_tokens: 100, completion_tokens: 312, total_tokens: 412, cost_usd: 0.004 },
       },
       error: null,
@@ -386,7 +415,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     await flushPromises()
     fake.token('Ket qua.')
     fake.settle({
-      value: { state: 'done', usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3, cost_usd: null } },
+      value: { state: 'done', maybe_truncated: false, usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3, cost_usd: null } },
       error: null,
     })
     await flushPromises()
@@ -416,7 +445,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     fake.token('Ket qua.')
     fake.settle({
       value: {
-        state: 'done',
+        state: 'done', maybe_truncated: false,
         usage: { prompt_tokens: 4, completion_tokens: 6, total_tokens: 10, cost_usd: null },
       },
       error: null,
@@ -442,7 +471,7 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
     await wrapper.get('[data-ai-translate-run]').trigger('click')
     await flushPromises()
     fake.token('Ket qua.')
-    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    fake.settle({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -630,7 +659,7 @@ describe('AiTranslationPanel.vue — nút "Thử lại" lượt ĐƠN (Story 4.1
     expect(runMock).toHaveBeenLastCalledWith(3, null, expect.any(Function))
     expect(state.aiTranslateStateValue.value).toBe('generating')
 
-    fake2.settle({ value: { state: 'done', usage: null }, error: null })
+    fake2.settle({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
     await flushPromises()
 
     wrapper.unmount()
@@ -686,7 +715,7 @@ describe('AiTranslationPanel.vue — panel chỉ nói về câu con trỏ đang 
 
   it('Sang câu khác: đã dịch xong câu 1, con trỏ sang câu 2 ⇒ không bản dịch, không usage, không dòng đỏ; quay lại ⇒ hiện lại', async () => {
     const { fake, wrapper, caretSegmentId } = await doneOnSegment(1)
-    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    fake.settle({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
     expect(wrapper.get('[data-ai-translate-text]').text()).toBe('Ban dich cau 1')
@@ -768,7 +797,7 @@ describe('dispatch("ai.translate.promote") — hai lớp phòng thủ, và landi
   it('done VỚI văn bản rỗng (0 token nào tới) ⇒ nút vẫn `disabled`, không đủ theo I/O Matrix "panel text non-empty"', async () => {
     const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
     caretSegmentId.value = 21
-    runMock.mockResolvedValue({ value: { state: 'done', usage: null }, error: null })
+    runMock.mockResolvedValue({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
 
     const wrapper = mountPanel(AiTranslationPanel)
     await wrapper.vm.$nextTick()
@@ -794,7 +823,7 @@ describe('dispatch("ai.translate.promote") — hai lớp phòng thủ, và landi
     await flushPromises()
 
     fake.token('Ket qua AI')
-    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    fake.settle({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -824,7 +853,7 @@ describe('dispatch("ai.translate.promote") — hai lớp phòng thủ, và landi
     await wrapper.get('[data-ai-translate-run]').trigger('click')
     await flushPromises()
     fake.token('Ket qua AI')
-    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    fake.settle({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
     await flushPromises()
 
     caretSegmentId.value = 99
@@ -924,7 +953,7 @@ describe('AC "mỗi lệnh ... hoạt động khi được rebind qua màn hình
     expect(runMock).toHaveBeenCalledWith(42, null, expect.any(Function))
     expect(state.aiTranslateStateValue.value).toBe('generating')
 
-    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    fake.settle({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
     await flushPromises()
     wrapper.unmount()
   })
@@ -984,7 +1013,7 @@ describe('AC "mỗi lệnh ... hoạt động khi được rebind qua màn hình
     await wrapper.get('[data-ai-translate-run]').trigger('click')
     await flushPromises()
     fake.token('Ket qua AI')
-    fake.settle({ value: { state: 'done', usage: null }, error: null })
+    fake.settle({ value: { state: 'done', maybe_truncated: false, usage: null }, error: null })
     await flushPromises()
     await wrapper.vm.$nextTick()
 

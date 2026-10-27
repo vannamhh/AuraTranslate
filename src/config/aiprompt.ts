@@ -117,6 +117,15 @@ export type InjectionLedgerWire = {
  * the segment now focused". Màn hình đọc CHÍNH bản ghi này, không bao giờ lắp lại
  * (`assemble_prompt` không có mặt ở tệp này, và sẽ không bao giờ có).
  */
+export type AssembledPromptCallWire = {
+  operation_id: number
+  call_index: number
+  segment_ids: number[]
+  context_segment_ids: number[]
+  requested_role: 'translate' | 'context'
+  block_number: number | null
+}
+
 export type AssembledPromptWire = {
   /** The system message sent before `prompt`; `null` = none is sent. Verbatim, never trimmed. */
   system: string | null
@@ -131,6 +140,8 @@ export type AssembledPromptWire = {
   sent_model: string | null
   /** Provider-reported usage; `null` when unsent, not reported, or sent by a batch. Never a stand-in 0. */
   sent_usage: AiTranslateUsageWire | null
+  /** Set when the record is one call of a grouped batch; `null` for a one-sentence record. */
+  call: AssembledPromptCallWire | null
 }
 
 function isIpcError(value: unknown): value is IpcError {
@@ -275,6 +286,23 @@ function isInjectionLedgerWire(value: unknown): value is InjectionLedgerWire {
   )
 }
 
+function isNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((n) => typeof n === 'number')
+}
+
+function isAssembledPromptCallWire(value: unknown): value is AssembledPromptCallWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<AssembledPromptCallWire>
+  return (
+    typeof v.operation_id === 'number' &&
+    typeof v.call_index === 'number' &&
+    isNumberArray(v.segment_ids) &&
+    isNumberArray(v.context_segment_ids) &&
+    (v.requested_role === 'translate' || v.requested_role === 'context') &&
+    (v.block_number === null || typeof v.block_number === 'number')
+  )
+}
+
 function isAssembledPromptWire(value: unknown): value is AssembledPromptWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<AssembledPromptWire>
@@ -288,7 +316,8 @@ function isAssembledPromptWire(value: unknown): value is AssembledPromptWire {
     isInjectionLedgerWire(v.ledger) &&
     (v.sent_at === null || typeof v.sent_at === 'string') &&
     (v.sent_model === null || typeof v.sent_model === 'string') &&
-    (v.sent_usage === null || isAiTranslateUsageWire(v.sent_usage))
+    (v.sent_usage === null || isAiTranslateUsageWire(v.sent_usage)) &&
+    (v.call === null || isAssembledPromptCallWire(v.call))
   )
 }
 
@@ -343,9 +372,14 @@ export async function aiPromptAssemble(
  * `Result`-mang khác dùng cho ca đó: ở ĐÂY không có tín hiệu nào khác để chỗ gọi biết "lượt Đọc
  * này không đáng tin" — `UNKNOWN_IPC_ERROR` đóng vai đó).
  */
-export async function aiPromptReadRecord(): Promise<{ value: AssembledPromptWire | null; error: IpcError | null }> {
+export async function aiPromptReadRecord(
+  segmentId?: number,
+): Promise<{ value: AssembledPromptWire | null; error: IpcError | null }> {
   try {
-    const wire = await invoke<unknown>(CMD_READ_RECORD)
+    const wire =
+      segmentId === undefined
+        ? await invoke<unknown>(CMD_READ_RECORD)
+        : await invoke<unknown>(CMD_READ_RECORD, { segmentId })
     if (wire === null) return { value: null, error: null }
     if (!isAssembledPromptWire(wire)) {
       console.error(`[aiprompt] \`${CMD_READ_RECORD}\` tra ve mot hinh dang khong dung AssembledPromptWire`)

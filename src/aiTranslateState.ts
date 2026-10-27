@@ -57,6 +57,7 @@ const startStamp = ref(0)
  * mặt nhưng `cost_usd` bên trong nó là `null`).
  */
 const usage = shallowRef<AiTranslateUsageWire | null>(null)
+const maybeTruncated = ref(false)
 
 /**
  * Số thứ tự lượt dịch — cùng cơ chế và cùng lý do `sequence` của `aiPromptInspectorState.ts`:
@@ -72,6 +73,7 @@ export const aiTranslateAccumulatedText: DeepReadonly<Ref<string>> = readonly(ac
 export const aiTranslateError: DeepReadonly<Ref<IpcError | null>> = readonly(error)
 export const aiTranslateRunSegmentId: DeepReadonly<Ref<number | null>> = readonly(runSegmentId)
 export const aiTranslateStartStamp: DeepReadonly<Ref<number>> = readonly(startStamp)
+export const aiTranslateMaybeTruncated: DeepReadonly<Ref<boolean>> = readonly(maybeTruncated)
 export const aiTranslateUsage: DeepReadonly<Ref<AiTranslateUsageWire | null>> = readonly(usage)
 
 /**
@@ -134,6 +136,7 @@ async function runTranslateWith(segmentId: number, call: TranslateCall): Promise
   accumulatedText.value = ''
   error.value = null
   usage.value = null
+  maybeTruncated.value = false
 
   const onToken = (text: string): void => {
     // Một lượt MỚI (hoặc một lượt reset) đã vượt mặt lượt này — token trễ không được cộng
@@ -164,6 +167,7 @@ async function runTranslateWith(segmentId: number, call: TranslateCall): Promise
   // trường đó ở kiểu Rust (xem doc-comment `AiTranslateOutcomeWire`), nên `usage` PHẢI về `null`
   // ở hai nhánh kia -- không giữ lại số liệu của một lượt dịch TRƯỚC đó.
   usage.value = result.value.state === 'done' ? result.value.usage : null
+  maybeTruncated.value = result.value.state === 'done' && result.value.maybe_truncated
 }
 
 /**
@@ -203,4 +207,5 @@ export function resetAiTranslate(): void {
   runSegmentId.value = null
   startStamp.value = 0
   usage.value = null
+  maybeTruncated.value = false
 }

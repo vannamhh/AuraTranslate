@@ -358,6 +358,7 @@ export type PendingPromote = {
   segmentId: number
   /** Văn bản AI sắp ghi — chỗ gọi lại `promoteAiTranslationToEditor` với chính nó + `force`. */
   text: string
+  sourceHash: string | undefined
   /** Bản nháp SẮP MẤT, để HIỆN nó ra chứ không chỉ nói "có thứ sẽ mất". */
   draft: string
 }
@@ -390,6 +391,7 @@ export async function promoteAiTranslationToEditor(
   segmentId: number,
   text: string,
   force = false,
+  sourceHash?: string,
 ): Promise<PromoteAiTranslationToEditorResult> {
   // Flush first, same shape as `restoreVersion`: Rust only reads what is on disk already.
   const flushed = await flushEditorBeforeDiscreteWrite()
@@ -401,7 +403,7 @@ export async function promoteAiTranslationToEditor(
     return 'refused'
   }
 
-  const { outcome, error } = await promoteAiTranslation(segmentId, text, force)
+  const { outcome, error } = await promoteAiTranslation(segmentId, text, force, sourceHash)
   if (outcome === null) {
     // ⚠️ `error === null` cũng vào đây: ca "không có cầu IPC" (`npm run dev` ngoài Tauri).
     promoteAiTranslationError.value = error
@@ -414,7 +416,7 @@ export async function promoteAiTranslationToEditor(
     // 🔴 KHÔNG một byte nào đã được ghi. `unsigned_draft` khác `null` là một bất biến của
     //    hợp đồng dây; `null` ở đây là một payload sai, và một chuỗi rỗng hiện ra vẫn tốt
     //    hơn một câu hỏi về một thứ không ai thấy — cùng khuôn `restoreVersion`.
-    pendingPromote.value = { segmentId, text, draft: outcome.unsigned_draft ?? '' }
+    pendingPromote.value = { segmentId, text, sourceHash, draft: outcome.unsigned_draft ?? '' }
     return 'needs-confirmation'
   }
   pendingPromote.value = null
@@ -426,11 +428,11 @@ export async function promoteAiTranslationToEditor(
   return 'promoted'
 }
 
-export type PromoteBatchItem = { segmentId: number; text: string }
+export type PromoteBatchItem = { segmentId: number; text: string; sourceHash: string }
 export type PromoteBatchReport = { written: number; skipped: number }
 export type PendingPromoteBatch = {
   /** Items whose target holds an unsigned draft; nothing has been written for them yet. */
-  items: { segmentId: number; text: string; draft: string }[]
+  items: { segmentId: number; text: string; sourceHash: string; draft: string }[]
   written: number
   skipped: number
 }
@@ -470,7 +472,7 @@ export async function promoteAiTranslationBatchToEditor(
     let written = 0
     let skipped = 0
     for (const item of items) {
-      const { outcome, error } = await promoteAiTranslation(item.segmentId, item.text, false)
+      const { outcome, error } = await promoteAiTranslation(item.segmentId, item.text, false, item.sourceHash)
       if (mine !== sequence) return 'refused'
       if (outcome === null) {
         skipped += 1
@@ -520,7 +522,7 @@ async function settlePendingPromoteBatch(force: boolean): Promise<void> {
       return
     }
     for (const item of waiting.items) {
-      const { outcome, error } = await promoteAiTranslation(item.segmentId, item.text, true)
+      const { outcome, error } = await promoteAiTranslation(item.segmentId, item.text, true, item.sourceHash)
       if (mine !== sequence) return
       if (outcome === null || outcome.needs_confirmation) {
         skipped += 1
@@ -555,7 +557,7 @@ export function confirmPendingPromote(): void {
   }
   const waiting = pendingPromote.value
   if (waiting === null) return
-  void promoteAiTranslationToEditor(waiting.segmentId, waiting.text, true)
+  void promoteAiTranslationToEditor(waiting.segmentId, waiting.text, true, waiting.sourceHash)
 }
 
 /**

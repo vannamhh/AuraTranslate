@@ -161,7 +161,10 @@ impl TranslationProvider for ScriptedProvider {
                 if self.raise_flag_after_call == Some(idx + 1) {
                     self.cancel_flag.store(true, Ordering::SeqCst);
                 }
-                Ok(TranslateOutcome::Done(*usage))
+                Ok(TranslateOutcome::Done {
+                    usage: *usage,
+                    finish_reason: None,
+                })
             }
         }
     }
@@ -870,7 +873,10 @@ impl TranslationProvider for SystemSpy {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(request.system.map(str::to_owned));
         on_token("[]");
-        Ok(TranslateOutcome::Done(None))
+        Ok(TranslateOutcome::Done {
+            usage: None,
+            finish_reason: None,
+        })
     }
 }
 

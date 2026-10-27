@@ -1117,6 +1117,8 @@ export async function restoreSegmentVersion(
  * thành công (`needs_confirmation = false`) — đó là nửa còn lại của AD-47①(a), không phải
  * việc của adapter này (cùng khuôn `restoreSegmentVersion`/`segmentHistoryState.ts::restoreVersion`).
  *
+ * `sourceHash` (batch results only): Rust recomputes it from the current source and refuses with
+ * `segment.source_changed` on a mismatch.
  * `force`: call with `false` first. `needs_confirmation = true` means nothing was written yet;
  * `unsigned_draft` carries the draft about to be lost — ask, then call again with `force = true`.
  */
@@ -1124,12 +1126,14 @@ export async function promoteAiTranslation(
   segmentId: number,
   targetText: string,
   force: boolean,
+  sourceHash?: string,
 ): Promise<PromoteAiTranslationResult> {
   try {
     const outcome = await invoke<unknown>(CMD_PROMOTE_AI_TRANSLATION, {
       segmentId,
       targetText,
       force,
+      sourceHash: sourceHash ?? null,
     })
     if (!isPromoteAiTranslationOutcome(outcome)) {
       console.error(

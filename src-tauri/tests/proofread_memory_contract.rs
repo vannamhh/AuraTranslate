@@ -132,7 +132,10 @@ impl TranslationProvider for Replying {
         _should_cancel: &dyn Fn() -> bool,
     ) -> Result<TranslateOutcome, FakeError> {
         on_token(&self.0);
-        Ok(TranslateOutcome::Done(None))
+        Ok(TranslateOutcome::Done {
+            usage: None,
+            finish_reason: None,
+        })
     }
 }
 

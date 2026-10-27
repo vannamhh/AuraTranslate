@@ -63,7 +63,7 @@ use boundary_scan::{code_lines, rel_posix, src_root};
 const AI_DIR: &str = "core/ai";
 
 /// Số tệp `.rs` tối thiểu dưới `core/ai/**` để phép quét là thật.
-const AI_FLOOR: usize = 4;
+const AI_FLOOR: usize = 6;
 
 /// Số tệp `.rs` tối thiểu dưới `src-tauri/src/**` để phép đếm toàn cây là thật.
 const SRC_RS_FLOOR: usize = 122;
@@ -218,7 +218,7 @@ fn line_with_marker_occurrences_removed(code: &str, marker: &str) -> String {
     code.replace(marker, "")
 }
 
-/// Đúng MƯỜI BỐN tên được phép xuất hiện sau `ai::rag::` bên trong seam ① — Decision 1's control
+/// Đúng MƯỜI SÁU tên được phép xuất hiện sau `ai::rag::` bên trong seam ① — Decision 1's control
 /// ②: hai hàm AD-14 đã đóng băng ở `core/ai/rag.rs` (`assemble_prompt`, `gather_glossary_context`),
 /// hai hàm gom TM của Story 7.11 (`load_tm_rows`, `gather_tm_context`) và kiểu `TmRows` mang
 /// hàng đã đọc, CỘNG chín kiểu mirror-type mà tệp này phải ĐẶT TÊN để viết `impl From<…> for …Wire` (không
@@ -226,9 +226,13 @@ fn line_with_marker_occurrences_removed(code: &str, marker: &str) -> String {
 /// khác của `core::ai::rag` (không `expand_prompt_body`, không `render_glossary_pairs`, không
 /// bất kỳ hàm/hằng nội bộ nào khác). Bất kỳ tên nào khác lọt qua là một lối vào `core::ai` THỨ
 /// HAI mà Decision 1 không hề mở.
-const ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM: [&str; 14] = [
+const ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM: [&str; 18] = [
     "assemble_prompt",
+    "assemble_call_prompt",
+    "CallPromptEntry",
     "gather_glossary_context",
+    "gather_glossary_context_from_snapshot",
+    "load_glossary_snapshot",
     "gather_tm_context",
     "load_tm_rows",
     "TmRows",
@@ -407,7 +411,11 @@ const ALLOWED_AI_CLIENT_NAMES_IN_COMMAND_SEAM: [&str; 2] =
 /// khác chuỗi neo. Xem doc-comment của hàm đó cho các giới hạn thật đã ghi (không theo dõi
 /// `use … as alias`, comment đuôi dòng vẫn còn trong `joined`, nhóm LỒNG dừng ở `}` đầu tiên).
 fn ai_client_names_named(joined: &str) -> Vec<String> {
-    let anchor = AI_TRANSLATE_SEAM_COMMAND_FILE_MARKER;
+    names_after_anchor(joined, AI_TRANSLATE_SEAM_COMMAND_FILE_MARKER)
+}
+
+/// Names that follow `anchor` in `joined`: a single name, a `{a, b}` group, or `*`.
+fn names_after_anchor(joined: &str, anchor: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut search_from = 0usize;
     let bytes = joined.as_bytes();
@@ -503,6 +511,61 @@ fn commands_aitranslate_rs_names_nothing_beyond_the_allowed_ai_client_surface() 
         violations.len(),
         violations
     );
+}
+
+/// Second import prefix of the third seam: the pure batch module (AD-60). The names the command
+/// layer may take from it are frozen below, so it cannot grow a second path into `core::ai`.
+const AI_TRANSLATE_BATCH_MARKER: &str = "crate::core::ai::batch::";
+
+const ALLOWED_AI_BATCH_NAMES_IN_COMMAND_SEAM: [&str; 12] = [
+    "BlockStream",
+    "CallEntry",
+    "DiscardReason",
+    "PlanScope",
+    "PlanSegment",
+    "PlannedCall",
+    "StreamEnd",
+    "Verdict",
+    "has_han",
+    "plan_calls",
+    "reconcile",
+    "system_with_block_format",
+];
+
+fn line_is_the_approved_ai_batch_import_in_command_file(rel: &str, code: &str) -> bool {
+    is_the_approved_ai_translate_command_file(rel) && code.contains(AI_TRANSLATE_BATCH_MARKER)
+}
+
+#[test]
+fn commands_aitranslate_rs_names_nothing_beyond_the_allowed_ai_batch_surface() {
+    let files = all_rust_sources();
+    let Some((_, text)) = files
+        .iter()
+        .find(|(rel, _)| is_the_approved_ai_translate_command_file(rel))
+    else {
+        panic!("`{AI_TRANSLATE_SEAM_COMMAND_FILE}` is missing from the scanned tree");
+    };
+    let names = names_after_anchor(&joined_code(text), AI_TRANSLATE_BATCH_MARKER);
+    assert!(
+        !names.is_empty(),
+        "the scan found no `core::ai::batch` name in `{AI_TRANSLATE_SEAM_COMMAND_FILE}`: a blind scan, not a clean tree"
+    );
+    let violations: Vec<&String> = names
+        .iter()
+        .filter(|name| !ALLOWED_AI_BATCH_NAMES_IN_COMMAND_SEAM.contains(&name.as_str()))
+        .collect();
+    assert!(
+        violations.is_empty(),
+        "names outside {ALLOWED_AI_BATCH_NAMES_IN_COMMAND_SEAM:?} taken from `core::ai::batch`: {violations:?}"
+    );
+}
+
+#[test]
+fn the_batch_names_scan_reads_a_group_and_catches_a_seeded_forbidden_name() {
+    let seeded = "use crate::core::ai::batch::{BlockStream, TRANSLATE_CALL_MAX_SEGMENTS};\n";
+    let names = names_after_anchor(&joined_code(seeded), AI_TRANSLATE_BATCH_MARKER);
+    assert_eq!(names, vec!["BlockStream", "TRANSLATE_CALL_MAX_SEGMENTS"]);
+    assert!(!ALLOWED_AI_BATCH_NAMES_IN_COMMAND_SEAM.contains(&"TRANSLATE_CALL_MAX_SEGMENTS"));
 }
 
 /// Đối chứng dương + âm cho [`ai_client_names_named`] trên văn bản DỰNG TAY — độc lập với
@@ -882,6 +945,14 @@ fn no_file_outside_core_ai_names_a_bare_dependency_on_the_ai_module() {
                 }
                 continue;
             }
+            if line_is_the_approved_ai_batch_import_in_command_file(rel, &code) {
+                let remainder =
+                    line_with_marker_occurrences_removed(&code, AI_TRANSLATE_BATCH_MARKER);
+                if let Some(needle) = line_names_a_forbidden_ai_dependency(&remainder) {
+                    violations.push(format!("{rel}:{line}  {needle}  |  {code}"));
+                }
+                continue;
+            }
             if line_is_the_approved_ai_proofread_import_in_command_file(rel, &code) {
                 let remainder = line_with_marker_occurrences_removed(
                     &code,
@@ -1197,8 +1268,9 @@ fn the_three_predicates_anchor_on_boundaries_and_do_not_fire_on_prefix_neighbour
 /// nào khác — kể cả nằm TRONG một nhóm `use …glossary::{` nhiều dòng, kể cả chỉ xuất hiện
 /// trong chính lời `use` mà không có lời gọi bare nào theo sau, kể cả một glob `glossary::*`
 /// — là một đường thứ hai vào dữ liệu Glossary, đúng thứ Decision 5 cấm.
-const ALLOWED_GLOSSARY_NAMES_UNDER_AI: [&str; 5] = [
+const ALLOWED_GLOSSARY_NAMES_UNDER_AI: [&str; 6] = [
     "confirmed_terms_for_injection",
+    "GlossarySnapshot",
     "GlossaryInjectionOutcome",
     "GlossaryError",
     "match_lang_for_source_lang",
@@ -1297,7 +1369,7 @@ fn glossary_names_named(joined: &str) -> Vec<String> {
     out
 }
 
-/// 🔴 Cổng THẬT — chỉ năm tên trong [`ALLOWED_GLOSSARY_NAMES_UNDER_AI`] được phép xuất hiện
+/// 🔴 Cổng THẬT — chỉ sáu tên trong [`ALLOWED_GLOSSARY_NAMES_UNDER_AI`] được phép xuất hiện
 /// sau `glossary::` dưới `core/ai/**`.
 #[test]
 fn no_core_ai_file_names_a_core_glossary_identifier_outside_the_allowed_four() {
@@ -1339,7 +1411,7 @@ fn no_core_ai_file_names_a_core_glossary_identifier_outside_the_allowed_four() {
 
     assert!(
         violations.is_empty(),
-        "{} tên `core::glossary` NGOÀI năm tên được phép xuất hiện dưới `core/ai/**`:\n{}\n\n\
+        "{} tên `core::glossary` NGOÀI sáu tên được phép xuất hiện dưới `core/ai/**`:\n{}\n\n\
          Decision 5 của spec 4.6: `core::ai::rag` chỉ được gọi ĐÚNG MỘT cửa vào Glossary \
          (`confirmed_terms_for_injection`), kiểu nó trả về (`GlossaryInjectionOutcome`), \
          `GlossaryError`, `match_lang_for_source_lang`, và `GlossaryTier`. Bất kỳ tên nào \
@@ -1397,7 +1469,7 @@ fn the_glossary_names_scan_does_not_flag_allowed_names_or_unrelated_code() {
 }
 
 /// Đối chứng dương — glob `use crate::core::glossary::*;` phải bị bắt là một vi phạm (tên
-/// `"*"`, không khớp bất kỳ tên nào trong năm tên hợp lệ).
+/// `"*"`, không khớp bất kỳ tên nào trong sáu tên hợp lệ).
 #[test]
 fn a_glob_import_of_the_glossary_module_is_flagged_as_a_violation() {
     let joined = joined_code("use crate::core::glossary::*;\n");

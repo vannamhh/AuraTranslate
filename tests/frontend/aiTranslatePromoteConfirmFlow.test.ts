@@ -98,7 +98,7 @@ describe('Decision 14 — promote giữ lượt ghi khi cần hỏi, rồi gọi
     await wrapper.vm.$nextTick()
 
     expect(promoteAiTranslationMock).toHaveBeenCalledTimes(1)
-    expect(promoteAiTranslationMock).toHaveBeenNthCalledWith(1, 5, 'Kết quả AI', false)
+    expect(promoteAiTranslationMock).toHaveBeenNthCalledWith(1, 5, 'Kết quả AI', false, undefined)
     expect(editorPanelState.editorPendingPromote.value).toEqual({
       segmentId: 5,
       text: 'Kết quả AI',
@@ -117,7 +117,7 @@ describe('Decision 14 — promote giữ lượt ghi khi cần hỏi, rồi gọi
     await wrapper.vm.$nextTick()
 
     expect(promoteAiTranslationMock).toHaveBeenCalledTimes(2)
-    expect(promoteAiTranslationMock).toHaveBeenNthCalledWith(2, 5, 'Kết quả AI', true)
+    expect(promoteAiTranslationMock).toHaveBeenNthCalledWith(2, 5, 'Kết quả AI', true, undefined)
     expect(editorPanelState.editorPendingPromote.value).toBeNull()
     expect(wrapper.find('.ai-promote-confirm').exists()).toBe(false)
 
@@ -196,9 +196,9 @@ describe('flush TRƯỚC lượt PROMOTE — bản đang soạn chưa xuống đ
 
 describe('đổi Tác phẩm giữa lô PROMOTE — lô dừng, không ghi id trùng số vào Tác phẩm mới', () => {
   const batch = [
-    { segmentId: 11, text: 'Một' },
-    { segmentId: 12, text: 'Hai' },
-    { segmentId: 13, text: 'Ba' },
+    { segmentId: 11, text: 'Một', sourceHash: 'h11' },
+    { segmentId: 12, text: 'Hai', sourceHash: 'h12' },
+    { segmentId: 13, text: 'Ba', sourceHash: 'h13' },
   ]
 
   function deferred<T>() {
@@ -240,12 +240,12 @@ describe('đổi Tác phẩm giữa lô PROMOTE — lô dừng, không ghi id tr
 
     const newFirst = deferred<ReturnType<typeof outcomeOf>>()
     promoteAiTranslationMock.mockReturnValueOnce(newFirst.promise)
-    const newRun = editorPanelState.promoteAiTranslationBatchToEditor([{ segmentId: 11, text: 'Mới' }])
+    const newRun = editorPanelState.promoteAiTranslationBatchToEditor([{ segmentId: 11, text: 'Mới', sourceHash: 'h11' }])
     await flushPromises()
 
     oldFirst.resolve(outcomeOf({ target_text: 'Một' }))
     await oldRun
-    expect(await editorPanelState.promoteAiTranslationBatchToEditor([{ segmentId: 12, text: 'Chen' }])).toBe('refused')
+    expect(await editorPanelState.promoteAiTranslationBatchToEditor([{ segmentId: 12, text: 'Chen', sourceHash: 'h12' }])).toBe('refused')
 
     newFirst.resolve(outcomeOf({ target_text: 'Mới' }))
     expect(await newRun).toBe('done')
@@ -267,7 +267,7 @@ describe('đổi Tác phẩm giữa lô PROMOTE — lô dừng, không ghi id tr
     editorPanelState.confirmPendingPromote()
     await flushPromises()
     expect(promoteAiTranslationMock).toHaveBeenCalledTimes(1)
-    expect(promoteAiTranslationMock).toHaveBeenNthCalledWith(1, 11, 'Một', true)
+    expect(promoteAiTranslationMock).toHaveBeenNthCalledWith(1, 11, 'Một', true, 'h11')
 
     editorPanelState.resetEditorPanel()
     firstForced.resolve(outcomeOf({ target_text: 'Một' }))

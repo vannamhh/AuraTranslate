@@ -116,13 +116,18 @@ pub struct TranslateUsage {
 /// này phân biệt hai lượt dừng SẠCH khỏi một `Err` (một lượt dừng KHÔNG sạch, vd. kết nối rớt
 /// giữa chừng hay một mã trạng thái non-2xx — I/O Matrix spec 4.8's "Stream ends without
 /// `[DONE]`"/"Provider returns a non-2xx").
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TranslateOutcome {
     /// Provider gửi khung kết thúc hợp lệ (`[DONE]`, hoặc kết nối đóng sau khi đã nhận đủ).
     /// Mang [`TranslateUsage`] khi VÀ CHỈ KHI provider thật sự gửi một khung `usage` trước khi
     /// kết thúc (Story 4.11) — `None` là trạng thái "nhà cung cấp không trả về số liệu", không
     /// một `0` giả.
-    Done(Option<TranslateUsage>),
+    ///
+    /// `finish_reason` is the last one the provider sent, unjudged: `None` when it sent none.
+    Done {
+        usage: Option<TranslateUsage>,
+        finish_reason: Option<String>,
+    },
     /// `should_cancel` trả `true` giữa chừng — không khung nào gửi thêm sau thời điểm đó
     /// (I/O Matrix spec 4.8's "Cancel mid-stream": *"received tokens stay visible, no further
     /// Channel message arrives"*).

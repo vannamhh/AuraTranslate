@@ -61,6 +61,7 @@ import { clearAiPromptAssembleError, refreshAiPromptRecord } from '../aiPromptIn
 import {
   aiTranslateAccumulatedText,
   aiTranslateError,
+  aiTranslateMaybeTruncated,
   aiTranslateRunSegmentId,
   aiTranslateStateValue,
   aiTranslateUsage,
@@ -70,11 +71,15 @@ import {
 import {
   aiTranslateBatchDoneCount,
   aiTranslateBatchError,
-  aiTranslateBatchErrorBlock,
+  aiTranslateBatchErrorSpan,
+  aiTranslateBatchMayRetry,
+  aiTranslateBatchMissingCount,
+  aiTranslateBatchNotSentCount,
   aiTranslateBatchPromotableCount,
   aiTranslateBatchRemainingCount,
+  aiTranslateBatchRetryIds,
   aiTranslateBatchRows,
-  aiTranslateBatchRunningSegmentId,
+  aiTranslateBatchRunningCall,
   aiTranslateBatchStateValue,
   aiTranslateBatchTextForSegment,
   aiTranslateBatchTotalCount,
@@ -82,10 +87,10 @@ import {
 } from '../aiTranslateBatchState'
 import type { AiTranslateBatchRow } from '../aiTranslateBatchState'
 import type { AiTranslateUsageWire } from '../config/aitranslate'
+import { chapterUntranslatedIds } from '../chapterTranslateScope'
 import { aiUsageSummaryLine, formatUsdParam } from '../aiUsageLine'
 import type { AiUsageSummary } from '../aiUsageLine'
 import { segmentSelectionCount } from './segmentSelectionState'
-import { chapterUntranslatedIds } from '../chapterTranslateScope'
 import type { DockviewPanelProps } from '../layout/panelProps'
 
 defineProps<DockviewPanelProps>()
@@ -134,12 +139,6 @@ const selectChordText = computed<string>(
   () => shortcutRows.value.find((row) => row.id === 'segment.selection.extend_down')?.display.join(' / ') ?? '',
 )
 
-const batchRunLabel = computed<string>(() =>
-  segmentSelectionCount.value === 0
-    ? t('command.ai.translate.batch_run')
-    : t('panel.ai_translation.batch_run_count', { count: String(segmentSelectionCount.value) }),
-)
-
 const chapterUntranslatedCount = computed<number>(() => chapterUntranslatedIds.value.length)
 
 const chapterRunLabel = computed<string>(() =>
@@ -147,6 +146,13 @@ const chapterRunLabel = computed<string>(() =>
     ? t('command.ai.translate.chapter_run')
     : t('panel.ai_translation.chapter_run_count', { count: String(chapterUntranslatedCount.value) }),
 )
+
+const batchRunLabel = computed<string>(() =>
+  segmentSelectionCount.value === 0
+    ? t('command.ai.translate.batch_run')
+    : t('panel.ai_translation.batch_run_count', { count: String(segmentSelectionCount.value) }),
+)
+
 
 /** `false` ⇔ không câu nào đang được chọn — chưa mở Tác phẩm, hoặc đã mở nhưng chưa đặt tiêu
  * điểm vào câu nào. Vô hiệu hoá nút Lắp ở ĐÂY (chỗ BIẾT trước), không dựa vào lưới phòng thủ
@@ -288,20 +294,18 @@ const canRunAiTranslateBatch = computed<boolean>(
  * `aiTranslateBatchState.ts`) — hàm THUẦN, một `switch` đóng thay vì nối chuỗi trong template
  * (Kiểm A2 của `check:i18n` chỉ chấp nhận `{{ t(...) }}`/`{{ tError(...) }}`, việc nối chuỗi
  * key nằm ở ĐÂY, không ở template). */
-function aiTranslateBatchRowStatusKey(status: AiTranslateBatchRow['status']): string {
-  switch (status) {
-    case 'pending':
-      return 'panel.ai_translation.batch_row_status_pending'
-    case 'running':
-      return 'panel.ai_translation.batch_row_status_running'
-    case 'done':
-      return 'panel.ai_translation.batch_row_status_done'
-    case 'skipped':
-      return 'panel.ai_translation.batch_row_status_skipped'
-    case 'cancelled':
-      return 'panel.ai_translation.batch_row_status_cancelled'
-    case 'error':
-      return 'panel.ai_translation.batch_row_status_error'
+function aiTranslateBatchRowStatusKey(row: AiTranslateBatchRow): string {
+  switch (row.status) {
+    case 'queued':
+      return 'panel.ai_translation.batch_row_status_queued'
+    case 'streaming':
+      return 'panel.ai_translation.batch_row_status_streaming'
+    case 'received':
+      return 'panel.ai_translation.batch_row_status_received'
+    case 'missing':
+      return 'panel.ai_translation.batch_row_status_missing'
+    case 'not_sent':
+      return 'panel.ai_translation.batch_row_status_not_sent'
   }
 }
 
@@ -324,10 +328,12 @@ const canRetryAiTranslate = computed<boolean>(
 )
 const canRetryAiTranslateBatch = computed<boolean>(
   () =>
-    aiTranslateBatchStateValue.value === 'error' &&
-    aiTranslateBatchError.value !== null &&
-    aiTranslateBatchError.value.retryable === true &&
-    aiTranslateStateValue.value !== 'generating',
+    aiTranslateStateValue.value !== 'generating' &&
+    aiTranslateBatchMayRetry(
+      aiTranslateBatchStateValue.value,
+      aiTranslateBatchError.value,
+      aiTranslateBatchRetryIds(aiTranslateBatchRows.value),
+    ),
 )
 const providerModelText = computed<string | null>(() => {
   if (aiConfigReadiness.value !== 'ready') return null
@@ -351,12 +357,14 @@ const batchRowTexts = computed<string[]>(() => {
   return aiTranslateBatchRows.value.map((row) => (row.text !== '' ? row.text : (sourceById.get(row.segmentId) ?? '')))
 })
 
-const batchErrorBlock = computed(() =>
-  aiTranslateBatchStateValue.value === 'error' ? aiTranslateBatchErrorBlock(aiTranslateBatchRows.value) : null,
+const batchErrorSpan = computed(() =>
+  aiTranslateBatchStateValue.value === 'error'
+    ? aiTranslateBatchErrorSpan(aiTranslateBatchRows.value, aiTranslateBatchError.value)
+    : null,
 )
 
-function formatRange(range: { from: number; to: number }): string {
-  return range.from === range.to ? String(range.from) : `${range.from}–${range.to}`
+function formatRange(first: number, last: number): string {
+  return first === last ? String(first) : `${first}–${last}`
 }
 
 const promoteBatchReportText = computed<string | null>(() => {
@@ -608,13 +616,16 @@ const openSettingsLabel = computed(() =>
         {{ promoteBatchReportText }}
       </p>
       <div
-        v-if="(aiTranslateAccumulatedText !== '' || (aiUsageVisible && aiTranslateUsageLineValue !== null)) && !isAiTranslateStale"
+        v-if="(aiTranslateAccumulatedText !== '' || aiTranslateMaybeTruncated || (aiUsageVisible && aiTranslateUsageLineValue !== null)) && !isAiTranslateStale"
         class="ai-result-card"
         data-ai-result-card
       >
         <p v-if="aiTranslateAccumulatedText !== '' && !isAiTranslateStale" class="ai-translate-text" data-ai-translate-text>
           <!-- aura-allow-text: DỮ LIỆU (văn bản do AI sinh ra, chảy dần qua Channel). -->
           {{ aiTranslateAccumulatedText }}
+        </p>
+        <p v-if="aiTranslateMaybeTruncated" class="ai-translate-usage" role="status" data-ai-translate-maybe-truncated>
+          {{ t('panel.ai_translation.flag_maybe_truncated') }}
         </p>
         <p
           v-if="aiUsageVisible && aiTranslateUsageLineValue !== null && !isAiTranslateStale"
@@ -642,7 +653,6 @@ const openSettingsLabel = computed(() =>
           :disabled="!canRunAiTranslateChapter"
           @click="dispatch('ai.translate.chapter_run')"
         >
-          <!-- aura-allow-text: KẾT QUẢ của t() (nhãn kèm số câu chưa dịch). -->
           {{ chapterRunLabel }}
         </button>
         <button
@@ -689,11 +699,24 @@ const openSettingsLabel = computed(() =>
           {{ t(aiTranslateBatchUsageLineValue.key, aiTranslateBatchUsageLineValue.params) }}
         </p>
         <p
-          v-if="aiTranslateBatchRunningSegmentId !== null"
+          v-if="aiTranslateBatchRunningCall !== null"
           class="ai-batch-running"
           data-ai-translate-batch-running
         >
-          {{ t('panel.ai_translation.batch_running', { segment_id: String(aiTranslateBatchRunningSegmentId) }) }}
+          {{ t('panel.ai_translation.batch_running', { call_index: String(aiTranslateBatchRunningCall) }) }}
+        </p>
+        <p
+          v-if="aiTranslateBatchMissingCount > 0 || aiTranslateBatchNotSentCount > 0"
+          class="ai-batch-gaps"
+          role="status"
+          data-ai-translate-batch-gaps
+        >
+          {{
+            t('panel.ai_translation.batch_gaps', {
+              missing_count: String(aiTranslateBatchMissingCount),
+              not_sent_count: String(aiTranslateBatchNotSentCount),
+            })
+          }}
         </p>
         <div
           v-if="aiTranslateBatchStateValue === 'error' && aiTranslateBatchError !== null"
@@ -701,24 +724,18 @@ const openSettingsLabel = computed(() =>
           role="alert"
           data-ai-translate-batch-alert
         >
-          <template v-if="batchErrorBlock !== null">
+          <template v-if="batchErrorSpan !== null">
             <p class="ai-batch-error-line" data-ai-batch-error-stopped>
-              {{ t('panel.ai_translation.batch_error_stopped', { index: String(batchErrorBlock.stoppedAt) }) }}
-            </p>
-            <p v-if="batchErrorBlock.intact !== null" class="ai-batch-error-line" data-ai-batch-error-intact>
-              {{ t('panel.ai_translation.batch_error_intact', { range: formatRange(batchErrorBlock.intact) }) }}
-            </p>
-            <p class="ai-batch-error-line" data-ai-batch-error-cause>
-              <!-- aura-allow-text: KẾT QUẢ của tError() trong t(). -->
               {{
-                t('panel.ai_translation.batch_error_cause', {
-                  index: String(batchErrorBlock.stoppedAt),
-                  cause: tError(aiTranslateBatchError),
+                t('panel.ai_translation.batch_error_stopped', {
+                  call_index: String(batchErrorSpan.callIndex),
+                  range: formatRange(batchErrorSpan.first, batchErrorSpan.last),
                 })
               }}
             </p>
-            <p v-if="batchErrorBlock.notCalled !== null" class="ai-batch-error-line" data-ai-batch-error-not-called>
-              {{ t('panel.ai_translation.batch_error_not_called', { range: formatRange(batchErrorBlock.notCalled) }) }}
+            <p class="ai-batch-error-line" data-ai-batch-error-cause>
+              <!-- aura-allow-text: KẾT QUẢ của tError() trong t(). -->
+              {{ t('panel.ai_translation.batch_error_cause', { cause: tError(aiTranslateBatchError) }) }}
             </p>
           </template>
           <template v-else>
@@ -741,11 +758,11 @@ const openSettingsLabel = computed(() =>
             data-ai-translate-batch-retry
             @click="dispatch('ai.translate.batch_retry')"
           >
-            <!-- aura-allow-text: KẾT QUẢ của t() (nội suy số câu dừng). -->
+            <!-- aura-allow-text: KẾT QUẢ của t() (số câu thiếu/chưa gửi). -->
             {{
-              batchErrorBlock !== null
-                ? t('panel.ai_translation.batch_retry_from', { index: String(batchErrorBlock.stoppedAt) })
-                : t('command.ai.translate.batch_retry')
+              t('panel.ai_translation.batch_retry_count', {
+                count: String(aiTranslateBatchMissingCount + aiTranslateBatchNotSentCount),
+              })
             }}
           </button>
           <button
@@ -782,12 +799,12 @@ const openSettingsLabel = computed(() =>
               <!-- aura-allow-text: DỮ LIỆU (bản dịch AI, hoặc câu nguồn khi chưa có bản dịch). -->
               {{ batchRowTexts[index] }}
             </span>
-            <span v-if="aiUsageVisible && row.usage !== null" class="ai-batch-row-tokens" data-ai-translate-batch-row-tokens>
-              {{ t('panel.ai_translation.batch_row_tokens', { token_count: String(row.usage.total_tokens) }) }}
+            <span v-if="row.hasHan" class="ai-batch-row-flag" data-ai-translate-batch-row-han>
+              {{ t('panel.ai_translation.flag_has_han') }}
             </span>
-            <span class="ai-batch-row-status" :class="{ 'ai-batch-row-status-error': row.status === 'error' }">
+            <span class="ai-batch-row-status" :class="{ 'ai-batch-row-status-error': row.status === 'missing' }">
               <!-- aura-allow-text: KẾT QUẢ của t() (nhãn theo trạng thái hàng). -->
-              {{ t(aiTranslateBatchRowStatusKey(row.status)) }}
+              {{ t(aiTranslateBatchRowStatusKey(row)) }}
             </span>
           </li>
         </ul>
@@ -810,6 +827,10 @@ const openSettingsLabel = computed(() =>
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
+}
+
+.ai-batch-row-flag {
+  color: var(--color-error);
 }
 
 .ai-panel-head .ai-inspector-open {

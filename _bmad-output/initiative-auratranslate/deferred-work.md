@@ -13497,3 +13497,7 @@ chính nó.
 ## Deferred from: lỗi nhà cung cấp AI nói đúng nguyên nhân (2026-10-27, story 4-13)
 
 - **Chưa ai thấy câu 402 kèm lời của Google và Kiểm tra kết nối với `gemini-3.8-flash` trong app thật.** Test chạy máy chủ giả và Vitest; không thấy lời thật của Google, định dạng mảng thật, hay id `models/` thật. Ice: dịch một câu bằng khoá Gemini khi tài khoản hết tiền nạp trước, thấy câu 402 và dòng "Lời nhà cung cấp"; rồi bấm Kiểm tra kết nối với `gemini-3.8-flash`, thấy đã kết nối. Con trỏ: `story-loi-nha-cung-cap-ai-noi-dung-nguyen-nhan.md` §Notes. **Chủ: Epic 4.**
+
+## Deferred from: dịch lô gom câu liền nhau thành lượt gọi (2026-10-27, story 4-15)
+
+- **Chưa đo ba việc của AD-60 ngoài khoá Gemini flash-lite.** (1) Đo lại với `gemini-3.8-flash`; (2) đo Ollama và LM Studio xem có gửi `finish_reason` không; (3) Ice dùng thật một lượt dịch cả Chương từ 300 câu trở lên bằng khoá thật, đếm câu *thiếu kết quả AI* và đối chiếu tổng tiền với bảng điều khiển nhà cung cấp. Test chạy máy chủ SSE giả khung viết tay. Con trỏ: `story-dich-lo-gom-cau-thanh-luot.md` tiêu chí 13, AD-60 mục 14. **Chủ: Epic 4.**

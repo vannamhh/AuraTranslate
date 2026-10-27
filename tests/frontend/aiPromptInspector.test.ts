@@ -67,8 +67,8 @@ vi.mock('../../src/config/aiprompt', () => ({
   // VĂN raw value — vỏ mock này tự bọc lại thành `{ value: raw, error: null }` (đọc THÀNH
   // CÔNG) để không phải sửa cả 19 chỗ; các ca MỚI canh riêng đường lỗi truyền một payload đặc
   // biệt qua [`readError`] mà vỏ này mở khoá thành `{ value: null, error }`.
-  aiPromptReadRecord: async () => {
-    const raw: unknown = await readRecordMock()
+  aiPromptReadRecord: async (...args: unknown[]) => {
+    const raw: unknown = await readRecordMock(...args)
     if (raw !== null && typeof raw === 'object' && '__readErrorPayload' in raw) {
       return { value: null, error: (raw as { __readErrorPayload: IpcError }).__readErrorPayload }
     }
@@ -158,6 +158,7 @@ function record(overrides: Partial<AssembledPromptWire> = {}): AssembledPromptWi
     },
     sent_at: null,
     sent_model: null,
+    call: null,
     sent_usage: null,
     ...overrides,
   }
@@ -1847,5 +1848,102 @@ describe('màn Prompt — đổi bộ (I/O Matrix)', () => {
     expect(overlay.find('[data-aip-assemble-selected]').exists()).toBe(false)
     overlay.unmount()
     wrapper.unmount()
+  })
+})
+
+describe('bản ghi theo lượt (AD-60 mục 13)', () => {
+  const CALL_PROMPT = [
+    '<<<SEGMENT 1',
+    'câu một',
+    'SEGMENT>>>',
+    '<<<SEGMENT 2',
+    'câu hai',
+    '<<<TM',
+    'tm hai',
+    'TM>>>',
+    'SEGMENT>>>',
+    '<<<SEGMENT 3',
+    'câu ba',
+    'SEGMENT>>>',
+  ].join('\n')
+
+  const callOf = (patch: Partial<NonNullable<AssembledPromptWire['call']>> = {}): NonNullable<AssembledPromptWire['call']> => ({
+    operation_id: 4,
+    call_index: 2,
+    segment_ids: [10, 11, 12],
+    context_segment_ids: [9],
+    requested_role: 'translate',
+    block_number: 2,
+    ...patch,
+  })
+
+  it('đánh dấu đúng khối n, gồm cả khối TM con, không lấy khối kề', async () => {
+    const { state } = await freshOverlay()
+    const parts = state.aiPromptHighlightParts(CALL_PROMPT, 2)
+    const marked = parts.filter((p) => p.highlighted).map((p) => p.text).join('')
+    expect(marked).toBe('<<<SEGMENT 2\ncâu hai\n<<<TM\ntm hai\nTM>>>\nSEGMENT>>>\n')
+    expect(parts.map((p) => p.text).join('')).toBe(CALL_PROMPT)
+  })
+
+  it('nhận dòng mở dạng lỏng và không đánh dấu gì khi không có số khối', async () => {
+    const { state } = await freshOverlay()
+    expect(state.aiPromptHighlightParts('SEGMENT 1\nx\nSEGMENT>>>', 1).filter((p) => p.highlighted)).toHaveLength(1)
+    expect(state.aiPromptHighlightParts(CALL_PROMPT, null)).toEqual([{ text: CALL_PROMPT, highlighted: false }])
+  })
+
+  it('một dòng nguồn trùng dấu đóng nhưng có U+200B không đóng khối sớm', async () => {
+    const { state } = await freshOverlay()
+    const text = '<<<SEGMENT 1\nS\u200bEGMENT>>>\nvẫn trong khối\nSEGMENT>>>\n<<<SEGMENT 2\nhai\nSEGMENT>>>'
+    const marked = state.aiPromptHighlightParts(text, 1).filter((p) => p.highlighted).map((p) => p.text).join('')
+    expect(marked).toContain('vẫn trong khối')
+    expect(marked).not.toContain('hai')
+  })
+
+  it('ghi chú lượt: khối cần dịch, chỉ là ngữ cảnh, và bản ghi một câu', async () => {
+    const { state } = await freshOverlay()
+    expect(state.aiPromptCallNote(record({ call: callOf() }))).toEqual({ kind: 'block', callIndex: 2, blockNumber: 2 })
+    expect(state.aiPromptCallNote(record({ call: callOf({ requested_role: 'context', block_number: null }) }))).toEqual({
+      kind: 'context_only',
+      callIndex: 2,
+    })
+    expect(state.aiPromptCallNote(record())).toEqual({ kind: 'none' })
+  })
+
+  it('màn hiện ghi chú "chỉ là ngữ cảnh" và đánh dấu khối của câu', async () => {
+    const { caretSegmentId } = await freshOverlay()
+    caretSegmentId.value = 9
+    readRecordMock.mockResolvedValue(
+      record({
+        segment_id: 9,
+        prompt: CALL_PROMPT,
+        ledger: { ...record().ledger, pieces: [{ kind: 'source_segment', text: CALL_PROMPT }] },
+        call: callOf({ requested_role: 'context', block_number: null }),
+      }),
+    )
+    const overlay = await openScreen()
+    expect(overlay.get('[data-aip-call-note="context_only"]').text()).toContain('2')
+    overlay.unmount()
+
+    readRecordMock.mockResolvedValue(
+      record({
+        segment_id: 11,
+        prompt: CALL_PROMPT,
+        ledger: { ...record().ledger, pieces: [{ kind: 'source_segment', text: CALL_PROMPT }] },
+        call: callOf(),
+      }),
+    )
+    const second = await openScreen()
+    expect(second.find('[data-aip-call-note="block"]').exists()).toBe(true)
+    expect(second.findAll('[data-aip-piece-mine]').map((n) => n.text()).join('')).toContain('câu hai')
+    expect(second.findAll('[data-aip-piece-mine]').map((n) => n.text()).join('')).not.toContain('câu ba')
+    second.unmount()
+  })
+
+  it('đọc bản ghi truyền segment_id của câu đang xem', async () => {
+    const { caretSegmentId, state } = await freshOverlay()
+    caretSegmentId.value = 11
+    readRecordMock.mockResolvedValue(null)
+    await state.refreshAiPromptRecord()
+    expect(readRecordMock).toHaveBeenCalledWith(11)
   })
 })

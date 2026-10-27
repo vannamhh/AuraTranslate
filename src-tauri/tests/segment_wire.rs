@@ -107,7 +107,7 @@ impl Harness {
         auratranslate_lib::commands::segment::PromoteAiTranslationOutcome,
         auratranslate_lib::core::i18n::IpcError,
     > {
-        wire::promote_ai_translation(self.app.handle().clone(), id, text.to_owned(), force)
+        wire::promote_ai_translation(self.app.handle().clone(), id, text.to_owned(), force, None)
     }
 }
 

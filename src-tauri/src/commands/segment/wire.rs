@@ -344,7 +344,8 @@ pub fn restore_segment_version(
 /// Vỏ IPC của [`super::promote_ai_translation`]. Story 4.8 · FR72 · AD-47①/③; `force`
 /// theo khuôn AD-49 iii.
 ///
-/// ⚠️ Ba tham số đi trên dây dưới tên **`segmentId`** · **`targetText`** · **`force`** —
+/// ⚠️ Bốn tham số đi trên dây dưới tên **`segmentId`** · **`targetText`** · **`force`** ·
+/// **`sourceHash`** (tuỳ chọn; có thì nguồn hiện tại phải còn khớp) —
 /// `invoke()` gửi tham số ở dạng camelCase. Trường của [`PromoteAiTranslationOutcome`]
 /// **trả về** giữ `snake_case`.
 ///
@@ -365,16 +366,29 @@ pub fn promote_ai_translation<R: tauri::Runtime>(
     segment_id: i64,
     target_text: String,
     force: bool,
+    source_hash: Option<String>,
 ) -> Result<PromoteAiTranslationOutcome, IpcError> {
     use tauri::Manager as _;
 
     let Some(state) = app.try_state::<OpenWorkState>() else {
-        return super::promote_ai_translation(None, segment_id, &target_text, force);
+        return super::promote_inner(
+            None,
+            segment_id,
+            &target_text,
+            force,
+            source_hash.as_deref(),
+        );
     };
     let guard = state
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    super::promote_ai_translation(guard.as_ref(), segment_id, &target_text, force)
+    super::promote_inner(
+        guard.as_ref(),
+        segment_id,
+        &target_text,
+        force,
+        source_hash.as_deref(),
+    )
 }
 
 /// Wire shell of [`super::tm_fuzzy_matches`]; `segmentId` on the wire. Async so the scan

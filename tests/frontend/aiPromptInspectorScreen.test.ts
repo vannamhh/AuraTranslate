@@ -115,6 +115,7 @@ function record(overrides: Partial<AssembledPromptWire> = {}): AssembledPromptWi
     },
     sent_at: null,
     sent_model: null,
+    call: null,
     sent_usage: null,
     ...overrides,
   }
@@ -397,7 +398,7 @@ describe('Gửi lại', () => {
     expect(wrapper.get('[data-aip-result-text]').text()).toBe('Xin chào')
     expect(wrapper.find('[data-aip-result-state="generating"]').exists()).toBe(true)
 
-    run.finish({ value: { state: 'done', usage: USAGE }, error: null })
+    run.finish({ value: { state: 'done', maybe_truncated: false, usage: USAGE }, error: null })
     await flushPromises()
     expect(screen.translate.aiTranslateStateValue.value).toBe('done')
     expect(screen.translate.aiTranslateAccumulatedText.value).toBe('Xin chào')
@@ -433,7 +434,7 @@ describe('Gửi lại', () => {
     const screen = await freshScreen()
     hoisted.resend.mockImplementation(async (onToken: (t: string) => void) => {
       onToken('ket qua')
-      return { value: { state: 'done', usage: null }, error: null }
+      return { value: { state: 'done', maybe_truncated: false, usage: null }, error: null }
     })
     const wrapper = await openWith(screen, record({ segment_id: 7 }))
     screen.caret.value = 9
@@ -547,7 +548,7 @@ describe('tab Kết quả theo segment_id của bản ghi', () => {
     const screen = await freshScreen()
     hoisted.runSegment.mockImplementation(async (_id: number, _set: string | null, onToken: (t: string) => void) => {
       onToken('cua cau chin')
-      return { value: { state: 'done', usage: null }, error: null }
+      return { value: { state: 'done', maybe_truncated: false, usage: null }, error: null }
     })
     const wrapper = await openWith(screen, record({ segment_id: 3 }))
     screen.commands.dispatch('ai.prompt_inspector.tab_result')
@@ -565,12 +566,11 @@ describe('tab Kết quả theo segment_id của bản ghi', () => {
   it('kết quả lô của câu bản ghi hiện; hàng lô của câu khác không hiện', async () => {
     const screen = await freshScreen()
     hoisted.runBatch.mockImplementation(
-      async (_ids: number[], _set: string | null, onEvent: (e: unknown) => void) => {
-        onEvent({ kind: 'token', segment_id: 3, text: 'lo ba' })
-        onEvent({ kind: 'done', segment_id: 3, usage: null })
-        onEvent({ kind: 'token', segment_id: 4, text: 'lo bon' })
-        onEvent({ kind: 'done', segment_id: 4, usage: null })
-        return { value: { state: 'done' }, error: null }
+      async (_scope: unknown, _set: string | null, onEvent: (e: unknown) => void) => {
+        onEvent({ kind: 'planned', calls: [{ call_index: 1, segment_ids: [3, 4] }] })
+        onEvent({ kind: 'received', call_index: 1, segment_id: 3, text: 'lo ba', has_han: false, source_hash: 'h3' })
+        onEvent({ kind: 'received', call_index: 1, segment_id: 4, text: 'lo bon', has_han: false, source_hash: 'h4' })
+        return { value: { state: 'done', usage: null, maybe_truncated: false }, error: null }
       },
     )
     const wrapper = await openWith(screen, record({ segment_id: 3 }))

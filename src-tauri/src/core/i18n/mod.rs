@@ -277,6 +277,7 @@ message_keys! {
     /// được biên dịch.
     SegmentRetired => "err.segment.retired" ["segment_id"],
     SegmentNotInOpenChapter => "err.segment.not_in_open_chapter" ["segment_id", "chapter_id"],
+    SegmentSourceChanged => "err.segment.source_changed" ["segment_id"],
     /// Xác nhận một câu **chưa dịch** (`target_text` rỗng) ⇒ từ chối — Quyết định #7,
     /// Ice ký 2026-08-14.
     ///

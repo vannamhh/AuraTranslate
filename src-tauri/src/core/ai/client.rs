@@ -573,7 +573,10 @@ impl TranslationProvider for OpenAiChatClient {
                             });
                         }
                         let usage = last_usage.map(|u| u.into_translate_usage(request.model));
-                        return Ok(TranslateOutcome::Done(usage));
+                        return Ok(TranslateOutcome::Done {
+                            usage,
+                            finish_reason: last_finish_reason,
+                        });
                     }
                     SseEventOutcome::Chunk(frame) => {
                         if let Some(text) = &frame.text {

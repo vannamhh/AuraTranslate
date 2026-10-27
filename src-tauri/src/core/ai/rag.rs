@@ -37,9 +37,13 @@
 //! `{{source_segment}}` vẫn đi vào prompt NGUYÊN VĂN — nó không bao giờ được coi là một
 //! marker thứ hai, vì con trỏ quét đã đi QUA điểm chèn đó trước khi nội dung được đặt vào.
 
+use super::batch::{
+    CONTEXT_CLOSE, CONTEXT_OPEN, SEGMENT_CLOSE, SEGMENT_OPEN, TM_BLOCK_LEAD, TM_CLOSE, TM_OPEN,
+    guard_text,
+};
 use crate::core::glossary::{
-    GlossaryError, GlossaryInjectionOutcome, GlossaryTier, confirmed_terms_for_injection,
-    match_lang_for_source_lang,
+    GlossaryError, GlossaryInjectionOutcome, GlossarySnapshot, GlossaryTier,
+    confirmed_terms_for_injection, match_lang_for_source_lang,
 };
 use crate::core::promptset::{PromptVariable, scan_markers};
 use crate::core::scope::ScopeResolver;
@@ -238,13 +242,46 @@ pub fn gather_glossary_context(
     }
 
     let lang = match_lang_for_source_lang(source_lang);
+    let outcome = confirmed_terms_for_injection(resolver, global, work, sentence, lang)?;
+    Ok(asked_status(outcome))
+}
+
+/// [`gather_glossary_context`] over a Glossary read once per operation: no store read, the same
+/// matching and confirmed-only rules.
+pub fn gather_glossary_context_from_snapshot(
+    body: &str,
+    snapshot: Option<&GlossarySnapshot>,
+    source_lang: &str,
+    sentence: &str,
+) -> GlossaryInjectionStatus {
+    let Some(snapshot) = snapshot.filter(|_| !scan_markers(body).glossary_terms_missing) else {
+        return GlossaryInjectionStatus::NotAsked;
+    };
+    let lang = match_lang_for_source_lang(source_lang);
+    asked_status(snapshot.confirmed_terms(sentence, lang))
+}
+
+/// Reads the resolved Glossary once; `None` without touching a store when `body` has no
+/// `{{glossary_terms}}` marker.
+pub fn load_glossary_snapshot(
+    body: &str,
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: Option<&Store>,
+) -> Result<Option<GlossarySnapshot>, GlossaryError> {
+    if scan_markers(body).glossary_terms_missing {
+        return Ok(None);
+    }
+    GlossarySnapshot::load(resolver, global, work).map(Some)
+}
+
+fn asked_status(outcome: GlossaryInjectionOutcome) -> GlossaryInjectionStatus {
     let GlossaryInjectionOutcome {
         injected,
         suppressed_by_pending_overlap,
         pending_matched,
-    } = confirmed_terms_for_injection(resolver, global, work, sentence, lang)?;
-
-    Ok(GlossaryInjectionStatus::Asked {
+    } = outcome;
+    GlossaryInjectionStatus::Asked {
         injected: injected
             .into_iter()
             .map(|t| InjectedGlossaryTerm {
@@ -275,7 +312,7 @@ pub fn gather_glossary_context(
                 tier: t.tier,
             })
             .collect(),
-    })
+    }
 }
 
 /// Most TM pairs one prompt carries.
@@ -763,6 +800,133 @@ pub fn assemble_prompt(
     (prompt, ledger)
 }
 
+/// One element of a grouped call, in block order.
+#[derive(Debug, Clone)]
+pub enum CallPromptEntry<'a> {
+    /// A translated neighbour shown for context only; it is not numbered.
+    Context {
+        source_text: &'a str,
+        target_text: &'a str,
+    },
+    /// A sentence to translate; its Glossary and TM were gathered for this sentence alone.
+    Segment {
+        source_text: &'a str,
+        glossary: GlossaryInjectionStatus,
+        tm: Option<TmContext>,
+    },
+}
+
+/// The grouped counterpart of [`assemble_prompt`]: the same body expansion, with
+/// `{{source_segment}}` replaced by the call's blocks. The ledger is the sum over the call's
+/// sentences. A body without the marker gets the blocks after it.
+pub fn assemble_call_prompt(
+    body: &str,
+    entries: &[CallPromptEntry<'_>],
+) -> (String, InjectionLedger) {
+    let mut blocks: Vec<String> = Vec::new();
+    let mut number = 0usize;
+    let mut injected: Vec<InjectedGlossaryTerm> = Vec::new();
+    let mut suppressed: Vec<SuppressedGlossaryTerm> = Vec::new();
+    let mut pending: Vec<PendingGlossaryTerm> = Vec::new();
+    let mut glossary_asked = false;
+    let mut tm_pairs: Vec<InjectedTmPair> = Vec::new();
+    let mut tm_omitted = 0usize;
+    let mut tm_hidden = 0usize;
+    let mut tm_asked = false;
+
+    for entry in entries {
+        match entry {
+            CallPromptEntry::Context {
+                source_text,
+                target_text,
+            } => blocks.push(format!(
+                "{CONTEXT_OPEN}\n{}\n{CONTEXT_CLOSE}",
+                guard_text(&format!("{source_text} → {target_text}"))
+            )),
+            CallPromptEntry::Segment {
+                source_text,
+                glossary,
+                tm,
+            } => {
+                number += 1;
+                if let GlossaryInjectionStatus::Asked {
+                    injected: i,
+                    suppressed_by_pending_overlap: s,
+                    pending_matched: p,
+                } = glossary
+                {
+                    glossary_asked = true;
+                    injected.extend(i.iter().cloned());
+                    suppressed.extend(s.iter().cloned());
+                    pending.extend(p.iter().cloned());
+                }
+                let mut block = format!("{SEGMENT_OPEN} {number}\n{}", guard_text(source_text));
+                if let Some(context) = tm.as_ref() {
+                    tm_asked = true;
+                    let (pairs, omitted) = select_tm_pairs(&context.segments, source_text);
+                    tm_omitted += omitted;
+                    tm_hidden += context.hidden_count;
+                    if !pairs.is_empty() {
+                        block.push_str(&format!(
+                            "\n{TM_OPEN}\n{}\n{TM_CLOSE}",
+                            guard_text(&render_tm_pairs(&pairs))
+                        ));
+                    }
+                    tm_pairs.extend(pairs);
+                }
+                block.push_str(&format!("\n{SEGMENT_CLOSE}"));
+                blocks.push(block);
+            }
+        }
+    }
+
+    let glossary_block = render_glossary_pairs(&injected);
+    let tm_block = if tm_asked { TM_BLOCK_LEAD } else { "" };
+    let blocks_text = blocks.join("\n");
+    let (mut prompt, source_segment_seen, mut pieces) =
+        expand_prompt_body(body, &blocks_text, &glossary_block, tm_block);
+    if !source_segment_seen {
+        if !prompt.is_empty() && !prompt.ends_with('\n') {
+            push_piece(&mut prompt, &mut pieces, PromptPieceKind::Authored, "\n");
+        }
+        push_piece(
+            &mut prompt,
+            &mut pieces,
+            PromptPieceKind::SourceSegment,
+            &blocks_text,
+        );
+    }
+    debug_assert_eq!(
+        pieces.iter().map(|p| p.text.as_str()).collect::<String>(),
+        prompt
+    );
+
+    let ledger = InjectionLedger {
+        glossary: if glossary_asked {
+            GlossaryInjectionStatus::Asked {
+                injected,
+                suppressed_by_pending_overlap: suppressed,
+                pending_matched: pending,
+            }
+        } else {
+            GlossaryInjectionStatus::NotAsked
+        },
+        tm: if tm_asked {
+            TmInjectionStatus::Searched {
+                pairs: tm_pairs,
+                omitted_count: tm_omitted,
+                hidden_count: tm_hidden,
+            }
+        } else {
+            TmInjectionStatus::NotAsked
+        },
+        unknown_markers: scan_markers(body).unknown_markers,
+        source_segment_missing: !source_segment_seen,
+        pieces,
+    };
+    (prompt, ledger)
+}
+
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_INSTRUCTION: &str = "Find spelling and grammar errors in the translations. Each SEGMENT block holds one translation between its TEXT markers.";
 // aura-allow-text: prompt text sent to the model, not UI text
@@ -778,10 +942,6 @@ const PROOFREAD_KIND_RULE_WITH_SOURCE: &str = "kind is \"spelling\", \"grammar\"
 const PROOFREAD_QUOTE_RULE: &str = "quote is the shortest wrong span copied exactly from the TEXT of that segment, never an offset and never from the original.";
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_EXPLANATION_RULE: &str = "explanation is one short sentence in the language of the translation; suggestion is the corrected span.";
-// aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_SEGMENT_OPEN: &str = "<<<SEGMENT";
-// aura-allow-text: prompt text sent to the model, not UI text
-const PROOFREAD_SEGMENT_CLOSE: &str = "SEGMENT>>>";
 // aura-allow-text: prompt text sent to the model, not UI text
 const PROOFREAD_SOURCE_OPEN: &str = "<<<SOURCE";
 // aura-allow-text: prompt text sent to the model, not UI text
@@ -816,7 +976,7 @@ pub fn assemble_proofread_batch_prompt(blocks: &[ProofreadBlock<'_>]) -> String 
         "{instruction}\n{PROOFREAD_FORMAT}\n{kind_rule}\n{PROOFREAD_QUOTE_RULE}\n{PROOFREAD_EXPLANATION_RULE}"
     );
     for (i, block) in blocks.iter().enumerate() {
-        prompt.push_str(&format!("\n{PROOFREAD_SEGMENT_OPEN} {}\n", i + 1));
+        prompt.push_str(&format!("\n{SEGMENT_OPEN} {}\n", i + 1));
         if !block.source_text.trim().is_empty() {
             prompt.push_str(&format!(
                 "{PROOFREAD_SOURCE_OPEN}\n{}\n{PROOFREAD_SOURCE_CLOSE}\n",
@@ -824,7 +984,7 @@ pub fn assemble_proofread_batch_prompt(blocks: &[ProofreadBlock<'_>]) -> String 
             ));
         }
         prompt.push_str(&format!(
-            "{PROOFREAD_TEXT_OPEN}\n{}\n{PROOFREAD_TEXT_CLOSE}\n{PROOFREAD_SEGMENT_CLOSE}",
+            "{PROOFREAD_TEXT_OPEN}\n{}\n{PROOFREAD_TEXT_CLOSE}\n{SEGMENT_CLOSE}",
             block.target_text
         ));
     }

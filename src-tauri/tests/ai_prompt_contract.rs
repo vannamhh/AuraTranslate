@@ -1513,6 +1513,7 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
             "sent_at",
             "sent_model",
             "sent_usage",
+            "call",
         ]),
         "TEN TRUONG cap AssembledPromptWire tren day that -- mot truong bi doi ten/them/bot \
          khong duoc mot ca nao khac trong tep nay bat, vi tat ca so tren gia tri Rust da giai ma"
@@ -1524,6 +1525,7 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
     assert_eq!(json["sent_at"], serde_json::json!(null));
     assert_eq!(json["sent_model"], serde_json::json!(null));
     assert_eq!(json["sent_usage"], serde_json::json!(null));
+    assert_eq!(json["call"], serde_json::json!(null));
     assert_eq!(json["prompt_set_tier"], serde_json::json!("global"));
 
     let ledger = &json["ledger"];

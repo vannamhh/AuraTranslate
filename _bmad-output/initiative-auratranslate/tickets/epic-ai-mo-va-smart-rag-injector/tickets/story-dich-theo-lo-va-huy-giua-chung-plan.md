@@ -67,6 +67,7 @@ between sentences, and stops at the first error naming the sentence it stopped o
   reached are never called and therefore never charged.
 - The first error **stops** the batch and names the sentence. Never skip a failed sentence and carry
   on. No automatic retry anywhere — with BYOK every call is the user's money.
+  🔵 2026-10-27 (story 4-15): the rule now follows AD-60 rules 7–8. The first error stops the operation and names the call (`call_index`) with its first and last sentence, not one sentence; results of closed blocks of the calls already done stay.
 - Results stay in the AI Translation panel. Nothing auto-writes into the Editor.
 - A segment carrying `is_omitted` is skipped **before** any provider call and before the keychain is
   read, the same order 4.8 established (`aitranslate.rs:223-235`).

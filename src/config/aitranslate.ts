@@ -62,7 +62,7 @@ export function isAiTranslateUsageWire(value: unknown): value is AiTranslateUsag
  */
 export type AiTranslateOutcomeWire =
   | { state: 'not_configured' }
-  | { state: 'done'; usage: AiTranslateUsageWire | null }
+  | { state: 'done'; usage: AiTranslateUsageWire | null; maybe_truncated: boolean }
   | { state: 'cancelled' }
 
 export function isIpcError(value: unknown): value is IpcError {
@@ -91,15 +91,18 @@ export const UNKNOWN_IPC_ERROR: IpcError = {
 
 function isAiTranslateOutcomeWire(value: unknown): value is AiTranslateOutcomeWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { state?: unknown; usage?: unknown }
+  const v = value as { state?: unknown; usage?: unknown; maybe_truncated?: unknown }
   if (v.state === 'not_configured' || v.state === 'cancelled') return true
-  if (v.state === 'done') return v.usage === null || isAiTranslateUsageWire(v.usage)
+  if (v.state === 'done') {
+    return (v.usage === null || isAiTranslateUsageWire(v.usage)) && typeof v.maybe_truncated === 'boolean'
+  }
   return false
 }
 
 const CMD_TRANSLATE = 'ai_translate_segment'
 const CMD_TRANSLATE_BATCH = 'ai_translate_batch'
 const CMD_TRANSLATE_RESEND = 'ai_translate_resend'
+const CMD_TRANSLATE_RESEND_CALL = 'ai_translate_resend_call'
 const CMD_CANCEL = 'ai_translate_cancel'
 
 /**
@@ -167,79 +170,139 @@ export async function runAiTranslateResendCall(
   }
 }
 
-/**
- * Một khung của `Channel` lô — Story 4.9, Phase 3 (FR73). Khớp NGUYÊN VĂN
- * `AiTranslateBatchEventWire` phía Rust (`commands/aitranslate.rs`,
- * `#[serde(tag = "kind", rename_all = "snake_case")]`) — BA biến thể, mỗi khung mang
- * `segment_id` của CHÍNH câu nó thuộc về, vì một `Channel` DUY NHẤT chở token của TOÀN lô
- * (§Never spec 4.9: "no second `Channel` per sentence").
- */
-export type AiTranslateBatchEventWire =
-  | { kind: 'token'; segment_id: number; text: string }
-  | { kind: 'done'; segment_id: number; usage: AiTranslateUsageWire | null }
-  | { kind: 'skipped'; segment_id: number }
+export type AiPlannedCallWire = { call_index: number; segment_ids: number[] }
 
-/**
- * Kiểm hình dạng LÚC CHẠY — cùng luật `src/AGENTS.md`: "luôn kiểu-kiểm dữ liệu qua IPC lúc
- * chạy". Khác `onmessage` của lượt dịch MỘT segment (chỉ một `string` trần, không cần kiểm
- * hình dạng), mỗi khung ở đây là MỘT OBJECT — `Channel<T>` không tự kiểm `T` lúc chạy, nó chỉ
- * là một khai TypeScript phía webview.
- */
-function isAiTranslateBatchEventWire(value: unknown): value is AiTranslateBatchEventWire {
+export type AiTranslateDiscardReason =
+  | 'duplicate_index'
+  | 'unclosed'
+  | 'empty'
+  | 'missing'
+  | 'no_finish'
+  | 'interrupted'
+  | 'retired'
+
+const DISCARD_REASONS: readonly string[] = [
+  'duplicate_index',
+  'unclosed',
+  'empty',
+  'missing',
+  'no_finish',
+  'interrupted',
+  'retired',
+]
+
+/** Matches `AiTranslateBatchEventWire` in `commands/aitranslate.rs` (AD-60 section 5). */
+export type AiTranslateBatchEventWire =
+  | { kind: 'planned'; calls: AiPlannedCallWire[] }
+  | { kind: 'call_started'; call_index: number }
+  | { kind: 'token'; call_index: number; segment_id: number; text: string }
+  | {
+      kind: 'received'
+      call_index: number
+      segment_id: number
+      text: string
+      has_han: boolean
+      source_hash: string
+    }
+  | { kind: 'discarded'; call_index: number; segment_id: number; reason: AiTranslateDiscardReason }
+  | {
+      kind: 'call_done'
+      call_index: number
+      finish_reason: string | null
+      usage: AiTranslateUsageWire | null
+    }
+
+export type AiTranslateScopeWire = { kind: 'selection'; segment_ids: number[] } | { kind: 'chapter' }
+
+function isPlannedCallWire(value: unknown): value is AiPlannedCallWire {
   if (typeof value !== 'object' || value === null) return false
-  const v = value as { kind?: unknown; segment_id?: unknown; text?: unknown; usage?: unknown }
-  if (typeof v.segment_id !== 'number') return false
-  if (v.kind === 'token') return typeof v.text === 'string'
-  if (v.kind === 'done') return v.usage === null || isAiTranslateUsageWire(v.usage)
-  return v.kind === 'skipped'
+  const v = value as Partial<AiPlannedCallWire>
+  return (
+    typeof v.call_index === 'number' &&
+    Array.isArray(v.segment_ids) &&
+    v.segment_ids.every((id) => typeof id === 'number')
+  )
 }
 
-/**
- * Chạy MỘT lượt dịch theo LÔ cho `segmentIds` (đúng thứ tự tài liệu — chỗ gọi truyền
- * `segmentSelectionIds.value`, tệp này không sắp lại gì) bằng bộ prompt hiệu lực
- * `promptSetName`, gọi `onEvent` cho MỖI khung chảy tới qua `Channel` — cùng khuôn
- * [`runAiTranslateSegment`] (một `invoke`, không bao giờ ném, `{ value, error }`), chỉ khác
- * hình dạng khung mang thêm `segment_id`/`kind`.
- *
- * ⚠️ Một khung sai hình dạng bị BỎ QUA (chẩn đoán ra console), không làm sập lượt gọi —
- * cùng mức độ nghiêm khắc mà [`isAiTranslateOutcomeWire`] áp cho kết quả cuối, nhưng ở đây
- * bỏ một khung không ném vì các khung KHÁC của cùng lô vẫn còn ý nghĩa.
- */
-export async function runAiTranslateBatchCall(
-  segmentIds: number[],
-  promptSetName: string | null,
-  onEvent: (event: AiTranslateBatchEventWire) => void,
-  skipTranslated = false,
-): Promise<{ value: AiTranslateOutcomeWire | null; error: IpcError | null }> {
+function isAiTranslateBatchEventWire(value: unknown): value is AiTranslateBatchEventWire {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  if (v.kind === 'planned') return Array.isArray(v.calls) && v.calls.every(isPlannedCallWire)
+  if (typeof v.call_index !== 'number') return false
+  if (v.kind === 'call_started') return true
+  if (v.kind === 'call_done') {
+    return (
+      (v.finish_reason === null || typeof v.finish_reason === 'string') &&
+      (v.usage === null || isAiTranslateUsageWire(v.usage))
+    )
+  }
+  if (typeof v.segment_id !== 'number') return false
+  if (v.kind === 'token') return typeof v.text === 'string'
+  if (v.kind === 'received') {
+    return typeof v.text === 'string' && typeof v.has_han === 'boolean' && typeof v.source_hash === 'string'
+  }
+  return v.kind === 'discarded' && typeof v.reason === 'string' && DISCARD_REASONS.includes(v.reason)
+}
+
+function batchChannel(command: string, onEvent: (event: AiTranslateBatchEventWire) => void): Channel<unknown> {
   const channel = new Channel<unknown>()
   channel.onmessage = (raw) => {
     if (!isAiTranslateBatchEventWire(raw)) {
-      console.error(
-        `[aitranslate] \`${CMD_TRANSLATE_BATCH}\` gui mot khung Channel khong dung AiTranslateBatchEventWire`,
-      )
+      console.error(`[aitranslate] \`${command}\` gui mot khung Channel khong dung AiTranslateBatchEventWire`)
       return
     }
     onEvent(raw)
   }
+  return channel
+}
 
+async function finishBatchCommand(
+  command: string,
+  call: () => Promise<unknown>,
+): Promise<{ value: AiTranslateOutcomeWire | null; error: IpcError | null }> {
   try {
-    const wire = await invoke<unknown>(CMD_TRANSLATE_BATCH, { segmentIds, promptSetName, skipTranslated, channel })
+    const wire = await call()
     if (!isAiTranslateOutcomeWire(wire)) {
-      console.error(
-        `[aitranslate] \`${CMD_TRANSLATE_BATCH}\` tra ve mot hinh dang khong dung AiTranslateOutcomeWire`,
-      )
+      console.error(`[aitranslate] \`${command}\` tra ve mot hinh dang khong dung AiTranslateOutcomeWire`)
       return { value: null, error: UNKNOWN_IPC_ERROR }
     }
     return { value: wire, error: null }
   } catch (err) {
     if (isIpcError(err)) return { value: null, error: err }
     if (hasIpcBridge()) {
-      console.error(`[aitranslate] \`${CMD_TRANSLATE_BATCH}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
+      console.error(`[aitranslate] \`${command}\` trượt bằng một lỗi không phải IpcError: ${String(err)}`)
       return { value: null, error: UNKNOWN_IPC_ERROR }
     }
-    console.info(`[aitranslate] không gọi được \`${CMD_TRANSLATE_BATCH}\` — chạy ngoài Tauri? ${String(err)}`)
+    console.info(`[aitranslate] không gọi được \`${command}\` — chạy ngoài Tauri? ${String(err)}`)
     return { value: null, error: null }
   }
+}
+
+/**
+ * Runs one batch operation; Rust plans the calls. A malformed frame is skipped with a
+ * diagnostic, never thrown. Never throws.
+ */
+export function runAiTranslateBatchCall(
+  scope: AiTranslateScopeWire,
+  promptSetName: string | null,
+  onEvent: (event: AiTranslateBatchEventWire) => void,
+): Promise<{ value: AiTranslateOutcomeWire | null; error: IpcError | null }> {
+  const channel = batchChannel('ai_translate_batch', onEvent)
+  return finishBatchCommand('ai_translate_batch', () =>
+    invoke<unknown>(CMD_TRANSLATE_BATCH, { scope, promptSetName, channel }),
+  )
+}
+
+/** Replays the recorded prompt of one call; events are those of a one-call operation. */
+export function resendAiCall(
+  operationId: number,
+  callIndex: number,
+  onEvent: (event: AiTranslateBatchEventWire) => void,
+): Promise<{ value: AiTranslateOutcomeWire | null; error: IpcError | null }> {
+  const channel = batchChannel('ai_translate_resend_call', onEvent)
+  return finishBatchCommand('ai_translate_resend_call', () =>
+    invoke<unknown>(CMD_TRANSLATE_RESEND_CALL, { operationId, callIndex, channel }),
+  )
 }
 
 /**

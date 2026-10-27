@@ -14,6 +14,7 @@ vi.mock('../../src/config/aitranslate', () => ({
   runAiTranslateSegment: (...args: unknown[]) => runSegmentMock(...args),
   cancelAiTranslateCall: vi.fn(),
   runAiTranslateBatchCall: (...args: unknown[]) => runBatchMock(...args),
+  resendAiCall: vi.fn(),
 }))
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
@@ -85,6 +86,12 @@ describe('AiTranslationPanel chapter run button', () => {
     expect(button().attributes('disabled')).toBeDefined()
   })
 
+  it('no sentence loaded: disabled', async () => {
+    rows = []
+    const { button } = await mountedPanel()
+    expect(button().attributes('disabled')).toBeDefined()
+  })
+
   it('no Work open: disabled', async () => {
     rows = [row(0, { target_text: '' })]
     openWork = false
@@ -108,7 +115,7 @@ describe('AiTranslationPanel chapter run button', () => {
     rows = [row(0, { target_text: '' }), row(1, { target_text: '' })]
     const { button, batch } = await mountedPanel()
     runBatchMock.mockImplementation(() => new Promise(() => {}))
-    void batch.runAiTranslateBatch(null, [100], false)
+    void batch.runAiTranslateBatch(null, [100])
     await flushPromises()
     expect(batch.aiTranslateBatchStateValue.value).toBe('generating')
     expect(button().attributes('disabled')).toBeDefined()

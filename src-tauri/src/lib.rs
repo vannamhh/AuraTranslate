@@ -979,9 +979,10 @@ mod nfr_bench {
                         let result =
                             tauri::async_runtime::block_on(aitranslate::wire::ai_translate_batch(
                                 app.clone(),
-                                batch_ids.clone(),
+                                aitranslate::AiTranslateScope::Selection {
+                                    segment_ids: batch_ids.clone(),
+                                },
                                 Some(E7_PROMPT_SET.to_owned()),
-                                false,
                                 Channel::new(|_| Ok(())),
                             ));
                         outcome_of(&result)
@@ -1412,6 +1413,7 @@ pub fn run() {
             // dich mot segment o tren -- mot bo dem cho ca tien trinh, bat dau lo nay SUPERSEDE
             // mot luot don dang chay va nguoc lai.
             crate::commands::aitranslate::wire::ai_translate_batch,
+            crate::commands::aitranslate::wire::ai_translate_resend_call,
             crate::commands::proofread::wire::ai_proofread_segments,
             crate::commands::proofread::wire::ai_proofread_cancel,
             crate::commands::proofread::wire::ai_proofread_ignore_add,
@@ -1716,6 +1718,7 @@ fn open_work_slot(app: &tauri::App) {
     // dang chay, dung hinh dang ImportScanGeneration o tren (Arc<AtomicU64>, `.manage` MOT
     // LAN cho ca PHIEN, khong theo Tac pham dang mo -- mot luot dich con dang chay khi nguoi
     // dung dong Tac pham van phai huy duoc sach, khong phai mot rang buoc voi OpenWorkState).
+    app.manage(crate::commands::aiprompt::AiCallRecordsState::default());
     app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());
     app.manage(crate::commands::aitranslate::ConnectionCheckGeneration::default());
     app.manage(crate::commands::proofread::ProofreadGeneration::default());
@@ -1889,6 +1892,9 @@ fn close_open_work(handle: &tauri::AppHandle) {
     if let Some(record) = handle.try_state::<crate::commands::aiprompt::LastAssembledPromptState>()
     {
         crate::commands::aiprompt::clear_last_assembled_prompt_on_work_close(&record);
+    }
+    if let Some(records) = handle.try_state::<crate::commands::aiprompt::AiCallRecordsState>() {
+        crate::commands::aiprompt::clear_call_records_on_work_close(&records);
     }
 
     if let Some(state) = handle.try_state::<crate::commands::project::OpenWorkState>() {

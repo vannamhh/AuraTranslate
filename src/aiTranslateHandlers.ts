@@ -1,13 +1,15 @@
 import { chapterUntranslatedIds } from './chapterTranslateScope'
 import {
   aiTranslateBatchError,
+  aiTranslateBatchMayRetry,
   aiTranslateBatchPromotableItems,
   aiTranslateBatchRetryIds,
   aiTranslateBatchRows,
   aiTranslateBatchStartStamp,
   aiTranslateBatchStateValue,
-  aiTranslateBatchTextForSegment,
+  aiTranslateBatchResultForSegment,
   cancelAiTranslateBatch,
+  resendAiTranslateCall,
   resetAiTranslateBatch,
   retryAiTranslateBatch,
   runAiTranslateBatch,
@@ -62,6 +64,10 @@ export const aiTranslateHandlers = {
       return
     }
     selectAiPromptInspectorTab('result')
+    if (record.call !== null) {
+      void resendAiTranslateCall(record.call.operation_id, record.call.call_index).then(() => refreshAiPromptRecord())
+      return
+    }
     void resendAiPrompt(record.segment_id).then(() => refreshAiPromptRecord())
   },
 
@@ -81,12 +87,12 @@ export const aiTranslateHandlers = {
       text !== '' &&
       !isAiTranslateResultStale(segmentId, caretId)
 
-    const batchText = caretId === null ? null : aiTranslateBatchTextForSegment(aiTranslateBatchRows.value, caretId)
-    const batchUsable = batchText !== null && caretId !== null
+    const batchResult = caretId === null ? null : aiTranslateBatchResultForSegment(aiTranslateBatchRows.value, caretId)
+    const batchUsable = batchResult !== null && caretId !== null
 
     const batchIsNewer = aiTranslateBatchStartStamp.value > aiTranslateStartStamp.value
     if (batchUsable && (batchIsNewer || !singleUsable)) {
-      void promoteAiTranslationToEditor(caretId, batchText)
+      void promoteAiTranslationToEditor(caretId, batchResult.text, false, batchResult.sourceHash)
       return
     }
     if (singleUsable) {
@@ -113,7 +119,11 @@ export const aiTranslateHandlers = {
       console.warn('[ai-translate-batch] khong dich ca Chuong: mot luot don dang chay')
       return
     }
-    void runAiTranslateBatch(selectedPromptSetName.value, chapterUntranslatedIds.value, true)
+    if (chapterUntranslatedIds.value.length === 0) {
+      console.warn('[ai-translate-batch] khong dich ca Chuong: khong con cau nao chua dich')
+      return
+    }
+    void runAiTranslateBatch(selectedPromptSetName.value, null)
   },
 
   retryAiTranslate: (): void => {
@@ -151,14 +161,9 @@ export const aiTranslateHandlers = {
       console.warn('[ai-translate-batch] khong retry: mot lo khac dang chay')
       return
     }
-    const err = aiTranslateBatchError.value
-    if (aiTranslateBatchStateValue.value !== 'error' || err === null || err.retryable !== true) {
-      console.warn('[ai-translate-batch] khong retry: khong co loi retryable nao dang cho')
-      return
-    }
     const ids = aiTranslateBatchRetryIds(aiTranslateBatchRows.value)
-    if (ids.length === 0) {
-      console.warn('[ai-translate-batch] khong retry: khong con cau nao chua chay')
+    if (!aiTranslateBatchMayRetry(aiTranslateBatchStateValue.value, aiTranslateBatchError.value, ids)) {
+      console.warn('[ai-translate-batch] khong retry: khong co cau thieu/chua gui, hoac loi khong retryable')
       return
     }
     void retryAiTranslateBatch(selectedPromptSetName.value, ids)

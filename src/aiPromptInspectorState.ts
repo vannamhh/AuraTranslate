@@ -148,7 +148,7 @@ export const aiPromptReadError: DeepReadonly<Ref<IpcError | null>> = readonly(re
  */
 export async function refreshAiPromptRecord(): Promise<void> {
   const mine = ++sequence
-  const result = await aiPromptReadRecord()
+  const result = await aiPromptReadRecord(editorActiveSegmentId.value ?? undefined)
   if (mine !== sequence) return // một lượt Lắp/Đọc MỚI đã vượt mặt lượt này
   if (result.error !== null) {
     readError.value = result.error
@@ -437,4 +437,39 @@ export function aiPromptResultFor(input: AiPromptResultInput): AiPromptResult {
   if (mine && input.singleState === 'error') return { kind: 'error' }
   if (mine && input.singleState === 'not_configured') return { kind: 'not_configured' }
   return { kind: 'empty' }
+}
+
+export type AiPromptCallNote =
+  | { kind: 'none' }
+  | { kind: 'context_only'; callIndex: number }
+  | { kind: 'block'; callIndex: number; blockNumber: number }
+
+export function aiPromptCallNote(current: ReadonlyAssembledPromptWire | null): AiPromptCallNote {
+  if (current === null || current.call === null) return { kind: 'none' }
+  if (current.call.requested_role === 'context' || current.call.block_number === null) {
+    return { kind: 'context_only', callIndex: current.call.call_index }
+  }
+  return { kind: 'block', callIndex: current.call.call_index, blockNumber: current.call.block_number }
+}
+
+export type AiPromptTextPart = { text: string; highlighted: boolean }
+
+const BLOCK_OPEN = /^(?:<<<)?SEGMENT\s+(\d+)$/
+const BLOCK_CLOSE = 'SEGMENT>>>'
+
+export function aiPromptHighlightParts(text: string, blockNumber: number | null): AiPromptTextPart[] {
+  if (blockNumber === null) return [{ text, highlighted: false }]
+  const parts: AiPromptTextPart[] = []
+  let inside = false
+  for (const line of text.split(/(?<=\n)/)) {
+    const trimmed = line.trim()
+    const opened = BLOCK_OPEN.exec(trimmed)
+    const highlighted = inside || (opened !== null && Number(opened[1]) === blockNumber)
+    if (!inside && opened !== null && Number(opened[1]) === blockNumber) inside = true
+    else if (inside && trimmed === BLOCK_CLOSE) inside = false
+    const last = parts.length > 0 ? parts[parts.length - 1] : undefined
+    if (last !== undefined && last.highlighted === highlighted) last.text += line
+    else parts.push({ text: line, highlighted })
+  }
+  return parts
 }

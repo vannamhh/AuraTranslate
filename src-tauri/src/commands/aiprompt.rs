@@ -31,11 +31,12 @@ use crate::commands::aitranslate::AiTranslateUsageWire;
 use crate::commands::project::OpenWork;
 use crate::commands::promptset::PromptSetTierWire;
 use crate::core::ai::rag::{
-    GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair, InjectionLedger,
-    PendingGlossaryTerm, PromptPiece, PromptPieceKind, SuppressedGlossaryTerm, TmInjectionStatus,
-    TmRows, assemble_prompt, gather_glossary_context, gather_tm_context, load_tm_rows,
+    CallPromptEntry, GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair,
+    InjectionLedger, PendingGlossaryTerm, PromptPiece, PromptPieceKind, SuppressedGlossaryTerm,
+    TmInjectionStatus, TmRows, assemble_call_prompt, assemble_prompt, gather_glossary_context,
+    gather_glossary_context_from_snapshot, gather_tm_context, load_glossary_snapshot, load_tm_rows,
 };
-use crate::core::glossary::GlossaryTier;
+use crate::core::glossary::{GlossarySnapshot, GlossaryTier};
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::promptset::{PromptSetTier, resolve_two_tiers};
 use crate::core::scope::ScopeResolver;
@@ -393,6 +394,14 @@ pub struct AssembledPromptRecord {
     /// Provider-reported usage of the send that stamped `sent_at`; `None` when the provider
     /// returned none or the send was a batch. Never a zero stand-in.
     pub sent_usage: Option<AiTranslateUsageWire>,
+    /// Shared clock with [`AiCallRecord::stamp`]: the newer record wins when both name a segment.
+    pub stamp: u64,
+}
+
+static RECORD_CLOCK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn next_record_stamp() -> u64 {
+    RECORD_CLOCK.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1
 }
 
 /// Kiểu state Tauri quản lý cho [`AssembledPromptRecord`] — `None` == chưa lắp prompt nào
@@ -420,6 +429,22 @@ pub struct AssembledPromptWire {
     pub sent_model: Option<String>,
     /// Xem [`AssembledPromptRecord::sent_usage`].
     pub sent_usage: Option<AiTranslateUsageWire>,
+    /// `Some` when the record is a grouped call's, `None` for a one-sentence record.
+    pub call: Option<AiCallInfoWire>,
+}
+
+/// Which grouped call a record belongs to and what the requested segment is in it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct AiCallInfoWire {
+    pub operation_id: u64,
+    pub call_index: u32,
+    /// Segments the call translates, in block order (block `n` is element `n - 1`).
+    pub segment_ids: Vec<i64>,
+    pub context_segment_ids: Vec<i64>,
+    /// `"translate"` or `"context"`: what the requested segment is in this call.
+    pub requested_role: &'static str,
+    /// The block number of the requested segment; `None` for `"context"`.
+    pub block_number: Option<u32>,
 }
 
 impl From<AssembledPromptRecord> for AssembledPromptWire {
@@ -435,6 +460,7 @@ impl From<AssembledPromptRecord> for AssembledPromptWire {
             sent_at: r.sent_at,
             sent_model: r.sent_model,
             sent_usage: r.sent_usage,
+            call: None,
         }
     }
 }
@@ -544,6 +570,7 @@ pub fn assemble_and_record_prompt_with_tm(
         sent_at: None,
         sent_model: None,
         sent_usage: None,
+        stamp: next_record_stamp(),
     };
 
     let mut guard = record
@@ -631,6 +658,283 @@ pub fn mark_prompt_as_sent(
     }
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════
+// Grouped calls (AD-60): one prompt per call, records keyed by (operation, call)
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/// Everything an operation reads once and reuses for every call: the effective prompt set, the
+/// system message, the resolved Glossary, the TM rows under the Work's current "only mine" switch.
+pub struct OperationPromptContext {
+    resolver: ScopeResolver,
+    body: String,
+    prompt_set_name: String,
+    prompt_set_tier: PromptSetTier,
+    system: Option<String>,
+    source_lang: String,
+    tm_rows: Option<TmRows>,
+    glossary: Option<GlossarySnapshot>,
+}
+
+impl OperationPromptContext {
+    /// The system prompt resolved from Work, Global, default; `None` when none is sent.
+    pub fn resolved_system(&self) -> Option<&str> {
+        self.system.as_deref()
+    }
+
+    pub fn prompt_set_name(&self) -> &str {
+        &self.prompt_set_name
+    }
+
+    pub fn prompt_set_tier(&self) -> PromptSetTier {
+        self.prompt_set_tier
+    }
+}
+
+/// Reads the prompt set, the system prompt, the Glossary and the TM rows, once per operation.
+pub fn prepare_operation_prompt(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    prompt_set_name: Option<&str>,
+) -> Result<OperationPromptContext, IpcError> {
+    let global_store = global.ok_or_else(store_is_missing)?;
+    let resolver = open
+        .map(|w| w.scope.clone())
+        .unwrap_or_else(ScopeResolver::global_only);
+    let work_store = open.map(|w| &w.store);
+    let mut resolved = resolve_two_tiers(&resolver, global_store, work_store)?;
+
+    let Some(name) = prompt_set_name.map(str::trim).filter(|n| !n.is_empty()) else {
+        return Err(no_set_selected());
+    };
+    let Some(set) = resolved.remove(name) else {
+        return Err(no_set_selected());
+    };
+    let open_work = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+
+    let tm_rows = load_tm_rows(&set.body, global_store, work_store)
+        .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?;
+    let glossary = load_glossary_snapshot(&set.body, &resolver, global_store, work_store)?;
+    let resolved_system = crate::core::aiconfig::resolve_system_prompt(
+        &crate::core::aiconfig::resolve_two_tiers(&resolver, global_store, work_store)?,
+    );
+    Ok(OperationPromptContext {
+        system: resolved_system,
+        source_lang: open_work.meta.source_lang.clone(),
+        resolver,
+        body: set.body,
+        prompt_set_name: set.name,
+        prompt_set_tier: set.tier,
+        tm_rows,
+        glossary,
+    })
+}
+
+/// One element of a call, as the planner and the chapter snapshot name it.
+#[derive(Debug, Clone, Copy)]
+pub enum CallSpec<'a> {
+    Context {
+        source_text: &'a str,
+        target_text: &'a str,
+    },
+    Segment {
+        source_text: &'a str,
+    },
+}
+
+/// Assembles one call's prompt from the operation context, matching each sentence against the
+/// operation's Glossary and TM snapshots.
+pub fn assemble_call(
+    context: &OperationPromptContext,
+    specs: &[CallSpec<'_>],
+) -> Result<(String, InjectionLedger), IpcError> {
+    let mut entries: Vec<CallPromptEntry<'_>> = Vec::with_capacity(specs.len());
+    for spec in specs {
+        entries.push(match *spec {
+            CallSpec::Context {
+                source_text,
+                target_text,
+            } => CallPromptEntry::Context {
+                source_text,
+                target_text,
+            },
+            CallSpec::Segment { source_text } => CallPromptEntry::Segment {
+                source_text,
+                glossary: gather_glossary_context_from_snapshot(
+                    &context.body,
+                    context.glossary.as_ref(),
+                    &context.source_lang,
+                    source_text,
+                ),
+                tm: gather_tm_context(
+                    context.tm_rows.as_ref(),
+                    &context.resolver,
+                    &context.source_lang,
+                    source_text,
+                )
+                .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?,
+            },
+        });
+    }
+    Ok(assemble_call_prompt(&context.body, &entries))
+}
+
+#[derive(Debug, Clone)]
+pub struct RecordedSegment {
+    pub segment_id: i64,
+    pub source_text: String,
+    pub source_hash: String,
+}
+
+/// What one grouped call sent, keyed by `(operation_id, call_index)`.
+#[derive(Debug, Clone)]
+pub struct AiCallRecord {
+    pub operation_id: u64,
+    pub call_index: u32,
+    pub stamp: u64,
+    pub prompt: String,
+    pub system: String,
+    /// The segments the call translates, in block order.
+    pub segments: Vec<RecordedSegment>,
+    pub context_segment_ids: Vec<i64>,
+    pub ledger: InjectionLedger,
+    pub chapter_id: i64,
+    pub prompt_set_name: String,
+    pub prompt_set_tier: PromptSetTier,
+    pub model: String,
+    pub sent_at: Option<String>,
+    pub sent_usage: Option<AiTranslateUsageWire>,
+}
+
+pub fn next_call_record_stamp() -> u64 {
+    next_record_stamp()
+}
+
+const MAX_CALL_RECORDS: usize = 64;
+
+#[derive(Debug, Default)]
+pub struct AiCallRecords {
+    records: std::collections::VecDeque<AiCallRecord>,
+}
+
+impl AiCallRecords {
+    pub fn put(&mut self, record: AiCallRecord) {
+        self.records
+            .retain(|r| (r.operation_id, r.call_index) != (record.operation_id, record.call_index));
+        self.records.push_back(record);
+        while self.records.len() > MAX_CALL_RECORDS {
+            self.records.pop_front();
+        }
+    }
+
+    pub fn get(&self, operation_id: u64, call_index: u32) -> Option<&AiCallRecord> {
+        self.records
+            .iter()
+            .find(|r| (r.operation_id, r.call_index) == (operation_id, call_index))
+    }
+
+    pub fn mark_sent(
+        &mut self,
+        operation_id: u64,
+        call_index: u32,
+        sent_at: &str,
+        usage: Option<AiTranslateUsageWire>,
+    ) {
+        if let Some(r) = self
+            .records
+            .iter_mut()
+            .find(|r| (r.operation_id, r.call_index) == (operation_id, call_index))
+        {
+            r.sent_at = Some(sent_at.to_owned());
+            r.sent_usage = usage;
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.records.clear();
+    }
+}
+
+pub type AiCallRecordsState = std::sync::Mutex<AiCallRecords>;
+
+fn call_record_wire(record: &AiCallRecord, segment_id: i64) -> AssembledPromptWire {
+    let position = record
+        .segments
+        .iter()
+        .position(|s| s.segment_id == segment_id);
+    AssembledPromptWire {
+        prompt: record.prompt.clone(),
+        system: Some(record.system.clone()),
+        segment_id,
+        chapter_id: record.chapter_id,
+        prompt_set_name: record.prompt_set_name.clone(),
+        prompt_set_tier: record.prompt_set_tier.into(),
+        ledger: record.ledger.clone().into(),
+        sent_at: record.sent_at.clone(),
+        sent_model: record.sent_at.as_ref().map(|_| record.model.clone()),
+        sent_usage: record.sent_usage,
+        call: Some(AiCallInfoWire {
+            operation_id: record.operation_id,
+            call_index: record.call_index,
+            segment_ids: record.segments.iter().map(|s| s.segment_id).collect(),
+            context_segment_ids: record.context_segment_ids.clone(),
+            requested_role: if position.is_some() {
+                "translate"
+            } else {
+                "context"
+            },
+            block_number: position.and_then(|i| u32::try_from(i + 1).ok()),
+        }),
+    }
+}
+
+/// The newest record that names `segment_id` as a sentence to translate, whether it is a
+/// grouped call's or the one-sentence record; failing that the newest call that only shows it
+/// as context; failing that the one-sentence record as it stands.
+pub fn read_prompt_record_for_segment(
+    single: &LastAssembledPromptState,
+    calls: &AiCallRecordsState,
+    segment_id: i64,
+) -> Option<AssembledPromptWire> {
+    let single_guard = single
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let calls_guard = calls
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+    let single_hit = single_guard
+        .as_ref()
+        .filter(|r| r.segment_id == segment_id)
+        .map(|r| r.stamp);
+    let call_hit = calls_guard
+        .records
+        .iter()
+        .filter(|r| r.segments.iter().any(|s| s.segment_id == segment_id))
+        .max_by_key(|r| r.stamp);
+
+    match (single_hit, call_hit) {
+        (Some(single_stamp), Some(call)) if call.stamp > single_stamp => {
+            Some(call_record_wire(call, segment_id))
+        }
+        (Some(_), _) => single_guard.clone().map(AssembledPromptWire::from),
+        (None, Some(call)) => Some(call_record_wire(call, segment_id)),
+        (None, None) => calls_guard
+            .records
+            .iter()
+            .filter(|r| r.context_segment_ids.contains(&segment_id))
+            .max_by_key(|r| r.stamp)
+            .map(|r| call_record_wire(r, segment_id))
+            .or_else(|| single_guard.clone().map(AssembledPromptWire::from)),
+    }
+}
+
+pub fn clear_call_records_on_work_close(records: &AiCallRecordsState) {
+    records
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clear();
+}
+
 /// Xoá bản ghi phiên khi Tác phẩm đang mở ĐÓNG — `segment_id`/`chapter_id` là khoá hàng của
 /// CHÍNH `project.db` sắp đóng; mở một Tác phẩm KHÁC có thể trùng số đó NGẪU NHIÊN (hai
 /// `.atproj` khác nhau đều đánh số lại từ 1), nên để bản ghi sống qua lượt mở sẽ đọc sai
@@ -654,7 +958,10 @@ pub fn clear_last_assembled_prompt_on_work_close(record: &LastAssembledPromptSta
 
 /// Hai vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**
 pub mod wire {
-    use super::{AssembledPromptWire, LastAssembledPromptState};
+    use super::{
+        AiCallRecordsState, AssembledPromptWire, LastAssembledPromptState,
+        read_prompt_record_for_segment,
+    };
     use crate::commands::project::OpenWorkState;
     use crate::core::i18n::IpcError;
     use crate::core::store::Store;
@@ -704,11 +1011,23 @@ pub mod wire {
     /// Không `Result`: "chưa có bản ghi nào" là một TRẠNG THÁI, không một lỗi (I/O Matrix).
     /// `LastAssembledPromptState` chưa được quản lý đọc y hệt "chưa có bản ghi nào" — cùng
     /// khuôn `prompt_set_list` đọc `OpenWorkState` vắng mặt y hệt "chưa mở Tác phẩm nào".
+    ///
+    /// With `segment_id` the newest record that translates that segment wins, grouped call or
+    /// one-sentence; without it the one-sentence record is returned as before.
     #[tauri::command]
-    pub fn ai_prompt_read_record(app: tauri::AppHandle) -> Option<AssembledPromptWire> {
+    pub fn ai_prompt_read_record(
+        app: tauri::AppHandle,
+        segment_id: Option<i64>,
+    ) -> Option<AssembledPromptWire> {
         use tauri::Manager as _;
 
         let record_state = app.try_state::<LastAssembledPromptState>();
+        if let Some(segment_id) = segment_id
+            && let Some(record) = record_state.as_deref()
+            && let Some(calls) = app.try_state::<AiCallRecordsState>()
+        {
+            return read_prompt_record_for_segment(record, calls.inner(), segment_id);
+        }
         super::read_record_or_report_unmanaged(record_state.as_deref(), |msg| eprintln!("{msg}"))
     }
 }

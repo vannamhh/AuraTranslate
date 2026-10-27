@@ -12,7 +12,9 @@ import SelectMenu from './SelectMenu.vue'
 import { promptSets, selectedPromptSetName, setSelectedPromptSetName, promptSetChoiceError } from './promptSetState'
 import { confirmStripEntryId, confirmStripTier } from './glossaryConfirmStripState'
 import {
+  aiPromptCallNote,
   aiPromptCharsByKind,
+  aiPromptHighlightParts,
   aiPromptAssembleBusy,
   aiPromptAssembleError,
   aiPromptCopyState,
@@ -189,6 +191,10 @@ const tmSearched = computed(() => {
 })
 
 const blocks = computed(() => aiPromptTierBlocks(aiPromptRecord.value))
+const callNote = computed(() => aiPromptCallNote(aiPromptRecord.value))
+const highlightBlockNumber = computed<number | null>(() =>
+  callNote.value.kind === 'block' ? callNote.value.blockNumber : null,
+)
 const systemText = computed(() => aiPromptSystemText(aiPromptRecord.value))
 const systemChars = computed(() => Array.from(systemText.value ?? '').length)
 const charsByKind = computed(() => aiPromptCharsByKind(blocks.value))
@@ -460,6 +466,12 @@ const resultUsage = computed(() => {
             <p v-else class="aip-note" data-aip-system="none">
               {{ t('ai.prompt_inspector.system_none') }}
             </p>
+            <p v-if="callNote.kind === 'context_only'" class="aip-note" data-aip-call-note="context_only">
+              {{ t('ai.prompt_inspector.call_context_only', { call_index: String(callNote.callIndex) }) }}
+            </p>
+            <p v-else-if="callNote.kind === 'block'" class="aip-note" data-aip-call-note="block">
+              {{ t('ai.prompt_inspector.call_block', { call_index: String(callNote.callIndex), block_number: String(callNote.blockNumber) }) }}
+            </p>
             <p v-if="aiPromptRecord.prompt === ''" class="aip-note" data-aip-body-state="empty">
               {{ t('ai.prompt_inspector.body_empty_note') }}
             </p>
@@ -483,7 +495,14 @@ const resultUsage = computed(() => {
                 </div>
                 <div class="aip-txt">
                   <!-- aura-allow-text: DỮ LIỆU (văn bản của khối prompt đã lắp, không phải chữ giao diện). -->
-                  <span :class="['aip-piece', `aip-piece-${block.kind}`]" :data-aip-piece-kind="block.kind">{{ block.text }}</span>
+                  <span
+                    v-for="(part, pi) in aiPromptHighlightParts(block.text, block.kind === 'source_segment' ? highlightBlockNumber : null)"
+                    :key="`part-${pi}`"
+                    :class="['aip-piece', `aip-piece-${block.kind}`, { 'aip-piece-mine': part.highlighted }]"
+                    :data-aip-piece-kind="block.kind"
+                    :data-aip-piece-mine="part.highlighted ? '' : undefined"
+                    >{{ part.text }}</span
+                  >
                 </div>
               </section>
             </div>
@@ -1001,6 +1020,10 @@ const resultUsage = computed(() => {
 
 .aip-piece-tm {
   background: var(--color-surface-tm);
+}
+
+.aip-piece-mine {
+  background: var(--color-surface-accent);
 }
 
 .aip-markers {

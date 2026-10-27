@@ -42,6 +42,7 @@ vi.mock('../../src/config/aitranslate', () => ({
   runAiTranslateSegment: (...args: unknown[]) => runSegmentMock(...args),
   cancelAiTranslateCall: (...args: unknown[]) => cancelMock(...args),
   runAiTranslateBatchCall: (...args: unknown[]) => runBatchMock(...args),
+  resendAiCall: vi.fn(),
 }))
 
 /** Chương KẾ mà lượt chuyển giả trả về — id KHÁC `FIXTURE_CHAPTER_ID` nên "đã đổi Chương" là

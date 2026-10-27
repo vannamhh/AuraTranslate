@@ -43,6 +43,7 @@
 //! (kể cả `commands::aitranslate`) gọi thẳng `pricing`, đúng lý do `AI_TRANSLATE_SEAM_COMMAND_FILE_MARKER`'s
 //! ghi chú "⚠️ GIỚI HẠN THẬT" ở `tests/ai_boundary.rs` không cần mở rộng cho module này.
 
+pub mod batch;
 pub mod client;
 pub mod pricing;
 pub mod proofread;

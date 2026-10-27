@@ -63,6 +63,7 @@ function validWire(over: Record<string, unknown> = {}) {
     sent_at: null,
     sent_model: null,
     sent_usage: null,
+    call: null,
     ...over,
   }
 }
@@ -466,5 +467,28 @@ describe('⑨ trường của màn Xem prompt đầy đủ — sent_*, pending_m
     expect(badAt.value).toBeNull()
     const badModel = await assemble(validWire({ sent_model: 5 }))
     expect(badModel.value).toBeNull()
+  })
+
+  it('call: bản ghi theo lượt đủ trường ⇒ nhận; sai hình dạng hoặc thiếu hẳn ⇒ bị từ chối', async () => {
+    const call = {
+      operation_id: 3,
+      call_index: 2,
+      segment_ids: [1, 2],
+      context_segment_ids: [9],
+      requested_role: 'translate',
+      block_number: 1,
+    }
+    const ok = await assemble(validWire({ call }))
+    expect(ok.error).toBeNull()
+    expect(ok.value?.call).toEqual(call)
+
+    const contextOnly = await assemble(validWire({ call: { ...call, requested_role: 'context', block_number: null } }))
+    expect(contextOnly.error).toBeNull()
+
+    expect((await assemble(validWire({ call: { ...call, requested_role: 'other' } }))).value).toBeNull()
+    expect((await assemble(validWire({ call: { ...call, segment_ids: ['1'] } }))).value).toBeNull()
+
+    const { call: _omitted, ...withoutCall } = validWire()
+    expect((await assemble(withoutCall)).value).toBeNull()
   })
 })

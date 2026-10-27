@@ -2177,11 +2177,11 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
     ),
     (
         "src/commands/aitranslate.rs",
-        6,
+        7,
         0,
         0,
-        "CHUA DO -- chu: Dev. Bon vo (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12): \
-         `ai_translate_segment`, `ai_translate_batch` va `ai_translate_resend` deu la `async fn` LITERAL -- than moi \
+        "CHUA DO -- chu: Dev. Nam vo dich (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12, mot gui lai mot luot da ghi o Story 4-15): \
+         `ai_translate_segment`, `ai_translate_batch`, `ai_translate_resend` va `ai_translate_resend_call` deu la `async fn` LITERAL -- than moi \
          ham tu spawn mot luong cua ho boi blocking roi `Handle::block_on` BEN TRONG luong do \
          (xem doc-comment dau `commands/aitranslate.rs`), nen khong ham nao giu `OpenWorkState` \
          xuyen mot luot goi mang co the dai hang chuc giay; `ai_translate_cancel` chi bom mot \
@@ -2435,9 +2435,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (109, 66),
+        (110, 66),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         109/66.\n\n\
+         110/66.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

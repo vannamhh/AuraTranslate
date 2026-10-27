@@ -55,10 +55,16 @@
 
 use crate::commands::aiconfig::{endpoint_and_model_set, provider_needs_key};
 use crate::commands::aiprompt::{
-    AssembledPromptWire, LastAssembledPromptState, TmRowsCache, assemble_and_record_prompt,
-    assemble_and_record_prompt_with_tm, segment_not_in_chapter,
+    AiCallRecord, AiCallRecordsState, AssembledPromptWire, CallSpec, LastAssembledPromptState,
+    OperationPromptContext, RecordedSegment, assemble_and_record_prompt, assemble_call,
+    next_call_record_stamp, prepare_operation_prompt, segment_not_in_chapter,
 };
-use crate::commands::project::OpenWork;
+use crate::commands::project::{OpenWork, OpenWorkState};
+use crate::commands::segment::source_text_hash;
+use crate::core::ai::batch::{
+    BlockStream, CallEntry, DiscardReason, PlanScope, PlanSegment, PlannedCall, StreamEnd, Verdict,
+    has_han, plan_calls, reconcile, system_with_block_format,
+};
 use crate::core::ai::client::{OpenAiChatClient, OpenAiClientError};
 use crate::core::aiconfig::{
     AiConfigField, AiConfigKeyError, AiConfigStoreError, AiConfigTier, PROVIDER_DEFAULT, keychain,
@@ -200,24 +206,19 @@ impl From<OpenAiClientError> for IpcError {
     }
 }
 
-/// Provider dừng GIỮA một lô (Story 4.9, I/O Matrix "Error mid-batch") — dùng ĐÚNG cùng sáu
-/// NHÃN họ nguyên nhân mà lượt dịch MỘT segment dùng ([`openai_client_error_family`]), không một
-/// nhãn `batch_stopped` chung nữa (Quyết định 2, spec 4.10: "One `IpcError` carries exactly one
-/// `message_key` ... No per-path duplicate of the family" — cái phân biệt hai đường là
-/// `segment_id`, không phải một khoá thứ hai). `segment_id` của đúng câu batch dừng ở đó vẫn đi
-/// kèm `params` (§Always spec 4.9: "the first error stops the batch and names the sentence"),
-/// và `status` (ca non-2xx) không còn bị rớt như bản trước Story 4.10 — cả hai cùng SURPLUS, vì
-/// `AiTranslateProviderRefused` khai `status` bắt buộc còn `segment_id` thì không, để cùng khoá
-/// đó vẫn dựng được từ lượt dịch MỘT segment, nơi không có `segment_id` nào để mang.
-///
-/// `pub` (Story 4.9, Phase 4b) — cùng tiền lệ [`prepare_translate_call`]/[`run_translate_call`]
-/// (Story 4.8): hàng "Error mid-batch" của I/O Matrix có cột Error-Handling nêu ĐÚNG bốn
-/// trường của `IpcError` mà hàm này đúc (`code`, `message_key`, `param segment_id`,
-/// `retryable`) — `tests/**` là một crate RIÊNG, không với tới một `fn` private của
-/// `commands::aitranslate`.
-pub fn batch_stopped_error(segment_id: i64, err: OpenAiClientError) -> IpcError {
+/// Provider stops in the middle of a grouped operation: the same six cause families as a
+/// one-sentence call, with `call_index` and the first and last sentence of the call that stopped
+/// as data params (AD-60 rule 8).
+pub fn batch_stopped_error(
+    call_index: u32,
+    first_segment_id: i64,
+    last_segment_id: i64,
+    err: OpenAiClientError,
+) -> IpcError {
     let mut params = std::collections::BTreeMap::new();
-    params.insert("segment_id".to_owned(), segment_id.to_string());
+    params.insert("call_index".to_owned(), call_index.to_string());
+    params.insert("first_segment_id".to_owned(), first_segment_id.to_string());
+    params.insert("last_segment_id".to_owned(), last_segment_id.to_string());
     insert_status_params(&mut params, &err);
     let (code, message_key, retryable) = openai_client_error_family(&err);
     IpcError::new(code, message_key, params, retryable)
@@ -490,156 +491,152 @@ pub fn prepare_resend_call(
     ))
 }
 
-/// Một hàng ĐÃ PHÂN LOẠI của [`prepare_batch_call`] — hoặc bị cắt (`is_omitted`, không gọi
-/// provider, không đọc keychain) hoặc sẵn sàng gửi (mang [`PreparedTranslateCall`] của riêng
-/// nó, cùng hình dạng `prepare_translate_call` trả cho lượt dịch MỘT segment — batch không đúc
-/// một kiểu request thứ hai). Thứ tự các hàng trong `Vec` mà [`prepare_batch_call`] trả LÀ thứ
-/// tự tài liệu (§Always spec 4.9: "the batch is exactly the user's selection, translated in
-/// document order") — không phải thứ tự `segment_ids` được gửi lên.
-pub enum PreparedBatchItem {
-    Omitted {
-        segment_id: i64,
-    },
-    ToTranslate {
-        segment_id: i64,
-        prepared: PreparedTranslateCall,
-    },
+/// What a grouped operation translates: exactly some segments, or every untranslated one of the
+/// open chapter.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AiTranslateScope {
+    Selection { segment_ids: Vec<i64> },
+    Chapter,
 }
 
-/// Kết quả [`prepare_batch_call`] — cùng khuôn [`PrepareOutcome`], "chưa cấu hình" là một
-/// TRẠNG THÁI cho cả lô, không một nhánh của `Result::Err`.
-pub enum PrepareBatchOutcome {
+/// A segment as the plan saw it. Sources, hashes and context text of every call come from here.
+#[derive(Debug, Clone)]
+pub struct SnapshotRow {
+    pub id: i64,
+    pub source_text: String,
+    pub target_text: String,
+    pub is_omitted: bool,
+}
+
+/// Endpoint settings and the key of one operation. Not `Debug`: `api_key` is a bare secret.
+pub struct CallSettings {
+    pub endpoint: String,
+    pub model: String,
+    pub temperature: Option<f64>,
+    pub max_tokens: Option<u32>,
+    pub api_key: String,
+}
+
+impl CallSettings {
+    fn request(&self, prompt: String, system: Option<String>) -> PreparedTranslateCall {
+        PreparedTranslateCall {
+            endpoint: self.endpoint.clone(),
+            model: self.model.clone(),
+            temperature: self.temperature,
+            max_tokens: self.max_tokens,
+            api_key: self.api_key.clone(),
+            prompt,
+            system,
+        }
+    }
+}
+
+/// Everything read once at the start of an operation. `context` is `None` only when the plan
+/// has no call.
+pub struct PreparedOperation {
+    pub settings: CallSettings,
+    pub context: Option<OperationPromptContext>,
+    pub snapshot: Vec<SnapshotRow>,
+    pub chapter_id: i64,
+    pub plan: Vec<PlannedCall>,
+}
+
+pub enum PrepareOperationOutcome {
     NotConfigured,
-    Ready(Vec<PreparedBatchItem>),
+    Ready(Box<PreparedOperation>),
 }
 
-/// **Lớp ĐỒNG BỘ của batch** — cùng kỷ luật [`prepare_translate_call`] (sync, mượn
-/// `Option<&Store>`/`Option<&OpenWork>` đúng lúc chạy rồi trả dữ liệu SỞ HỮU), mở rộng cho một
-/// DANH SÁCH `segment_id` thay vì một. **Hàm thuần, đây là thứ test gọi.**
+/// **Sync layer of a grouped operation.** Reads the chapter once, plans every call, and reads
+/// the key, the prompt set, the system prompt and the TM policy once for all calls.
 ///
-/// # Thứ tự kiểm
-/// Tác phẩm đang mở, rồi cấu hình (`endpoint`/`model` rỗng ⇒ [`PrepareBatchOutcome::NotConfigured`]
-/// cho CẢ LÔ — cùng Quyết định của lượt dịch một segment: một `temperature`/`max_tokens` chưa
-/// đặt không phải "chưa cấu hình", xem Quyết định 6 ở `prepare_translate_call`), rồi đọc Chương
-/// đang mở MỘT LẦN (`read_open_chapter_segments` — Code Map spec 4.9: "the row list already
-/// carries `is_omitted` and the ordering, so both the selection and the omitted-skip cost one
-/// field access, not a query") để vừa SẮP LẠI `segment_ids` theo đúng thứ tự tài liệu vừa từ
-/// chối bất kỳ id nào không thuộc Chương này (`ai_prompt.segment_not_in_chapter`, tái dùng ĐÚNG
-/// khoá của Story 4.7 — không một khoá thứ hai cho cùng câu). Chỉ SAU đó mới tới khoá API: đọc
-/// **MỘT LẦN cho cả lô** (Code Map: "the batch performs this once for the whole run, not per
-/// sentence") và CHỈ KHI ít nhất một hàng cần dịch thật — một lô toàn câu đã cắt không đáng một
-/// lượt chạm keychain hệ điều hành thật, cùng lý lẽ đã chốt cho lượt dịch một segment. Cuối
-/// cùng, với mỗi hàng CẦN dịch (theo thứ tự tài liệu), gọi lại 4.7's producer
-/// ([`assemble_and_record_prompt`]) để lắp VÀ GHI bản ghi phiên — N lần, ghi đè N lần, đúng
-/// Quyết định 2 (spec 4.7) không đổi vì đây là batch; xem doc-comment [`super::wire::ai_translate_batch`]
-/// cho vì sao bản ghi cuối cùng vẫn kể đúng chuyện "câu nào ĐÃ GỬI".
-///
-/// # Lỗi
-/// - `global.db` vắng mặt ⇒ `store.open_failed`;
-/// - chưa có Tác phẩm nào đang mở ⇒ `work.none_open`;
-/// - một `segment_id` trong `segment_ids` không có trong Chương đang mở ⇒
-///   `ai_prompt.segment_not_in_chapter`;
-/// - keychain từ chối trả lời (chỉ khi cần dịch ít nhất một câu) ⇒ `ai_config.keychain_unavailable`;
-/// - đường đọc Store/Glossary trượt lúc lắp một prompt nào đó ⇒ lỗi truyền từ
-///   [`assemble_and_record_prompt`] (dừng NGAY ở hàng đó, đúng "0 lượt ghi một phần" — không
-///   hàng nào SAU nó được lắp).
-pub fn prepare_batch_call(
+/// # Errors
+/// `global.db` missing; no Work open; a selected id outside the open chapter
+/// (`ai_prompt.segment_not_in_chapter`); keychain refusing to answer; a Store/Glossary/TM
+/// read failing.
+pub fn prepare_translate_operation(
     global: Option<&Store>,
     open: Option<&OpenWork>,
-    record: &LastAssembledPromptState,
     prompt_set_name: Option<&str>,
-    segment_ids: &[i64],
-) -> Result<PrepareBatchOutcome, IpcError> {
-    prepare_batch_call_with(global, open, record, prompt_set_name, segment_ids, false)
-}
-
-/// `skip_translated` sends rows whose `target_text` is non-empty after `trim` down the same
-/// branch as omitted rows, so they emit `Skipped` and never reach the provider.
-pub fn prepare_batch_call_with(
-    global: Option<&Store>,
-    open: Option<&OpenWork>,
-    record: &LastAssembledPromptState,
-    prompt_set_name: Option<&str>,
-    segment_ids: &[i64],
-    skip_translated: bool,
-) -> Result<PrepareBatchOutcome, IpcError> {
-    let skipped = |row: &crate::commands::segment::ChapterSegment| {
-        row.is_omitted || (skip_translated && !row.target_text.trim().is_empty())
-    };
+    scope: &AiTranslateScope,
+) -> Result<PrepareOperationOutcome, IpcError> {
     let Some(ResolvedCallConfig {
-        global_store,
         open_work,
         provider,
         endpoint,
         model,
         temperature,
         max_tokens,
+        ..
     }) = resolve_call_config(global, open)?
     else {
-        return Ok(PrepareBatchOutcome::NotConfigured);
+        return Ok(PrepareOperationOutcome::NotConfigured);
     };
 
     let chapter = crate::commands::segment::read_open_chapter_segments(Some(open_work))?;
-
-    // Sap lai theo dung THU TU TAI LIEU (chapter.segments da o dung thu tu), khong theo thu
-    // tu `segment_ids` gui len -- cung luc bat bat ky id la nao khong thuoc Chuong nay.
-    let requested: std::collections::BTreeSet<i64> = segment_ids.iter().copied().collect();
-    let mut ordered_rows: Vec<&crate::commands::segment::ChapterSegment> = Vec::new();
-    let mut found: std::collections::BTreeSet<i64> = std::collections::BTreeSet::new();
-    for row in &chapter.segments {
-        if requested.contains(&row.id) {
-            ordered_rows.push(row);
-            found.insert(row.id);
+    let selected: std::collections::BTreeSet<i64> = match scope {
+        AiTranslateScope::Selection { segment_ids } => segment_ids.iter().copied().collect(),
+        AiTranslateScope::Chapter => std::collections::BTreeSet::new(),
+    };
+    if let AiTranslateScope::Selection { .. } = scope {
+        let known: std::collections::BTreeSet<i64> =
+            chapter.segments.iter().map(|s| s.id).collect();
+        if let Some(&missing) = selected.difference(&known).next() {
+            return Err(segment_not_in_chapter(missing, chapter.chapter_id));
         }
     }
-    if let Some(&missing) = requested.difference(&found).next() {
-        return Err(segment_not_in_chapter(missing, chapter.chapter_id));
-    }
+    let plan_segments: Vec<PlanSegment> = chapter
+        .segments
+        .iter()
+        .map(|s| PlanSegment {
+            id: s.id,
+            is_omitted: s.is_omitted,
+            translated: !s.target_text.trim().is_empty(),
+        })
+        .collect();
+    let plan = plan_calls(
+        &plan_segments,
+        match scope {
+            AiTranslateScope::Selection { .. } => PlanScope::Selection(&selected),
+            AiTranslateScope::Chapter => PlanScope::Chapter,
+        },
+    );
+    let snapshot: Vec<SnapshotRow> = chapter
+        .segments
+        .iter()
+        .map(|s| SnapshotRow {
+            id: s.id,
+            source_text: s.source_text.clone(),
+            target_text: s.target_text.clone(),
+            is_omitted: s.is_omitted,
+        })
+        .collect();
 
-    let needs_translation = ordered_rows.iter().any(|row| !skipped(row));
-    let api_key: Option<String> = if needs_translation {
-        match read_api_key(&provider)? {
-            Some(key) => Some(key),
-            None => return Ok(PrepareBatchOutcome::NotConfigured),
-        }
+    let (api_key, context) = if plan.is_empty() {
+        (String::new(), None)
     } else {
-        None
+        let Some(api_key) = read_api_key(&provider)? else {
+            return Ok(PrepareOperationOutcome::NotConfigured);
+        };
+        let context = prepare_operation_prompt(global, Some(open_work), prompt_set_name)?;
+        (api_key, Some(context))
     };
 
-    let mut tm_cache = TmRowsCache::default();
-    let mut items = Vec::with_capacity(ordered_rows.len());
-    for row in ordered_rows {
-        if skipped(row) {
-            items.push(PreparedBatchItem::Omitted { segment_id: row.id });
-            continue;
-        }
-
-        let assembled: AssembledPromptWire = assemble_and_record_prompt_with_tm(
-            Some(global_store),
-            Some(open_work),
-            record,
-            prompt_set_name,
-            row.id,
-            &mut tm_cache,
-        )?;
-
-        items.push(PreparedBatchItem::ToTranslate {
-            segment_id: row.id,
-            prepared: PreparedTranslateCall {
-                endpoint: endpoint.clone(),
-                model: model.clone(),
+    Ok(PrepareOperationOutcome::Ready(Box::new(
+        PreparedOperation {
+            settings: CallSettings {
+                endpoint,
+                model,
                 temperature,
                 max_tokens,
-                api_key: api_key
-                    .clone()
-                    .expect("needs_translation == true keo theo mot hang khong-omitted da chay qua nhanh doc keychain o tren"),
-                prompt: assembled.prompt,
-                system: assembled.system,
+                api_key,
             },
-        });
-    }
-
-    Ok(PrepareBatchOutcome::Ready(items))
+            context,
+            snapshot,
+            chapter_id: chapter.chapter_id,
+            plan,
+        },
+    )))
 }
 
 /// Bộ đếm thế hệ dùng cho huỷ giữa chừng — đúng hình dạng
@@ -952,141 +949,256 @@ impl From<TranslateUsage> for AiTranslateUsageWire {
     }
 }
 
-/// Một sự kiện của lô — MỖI khung gửi qua `Channel` của [`super::wire::ai_translate_batch`]
-/// mang `segment_id` của CHÍNH câu nó thuộc về (§Always spec 4.9: "streaming events carrying
-/// their own `segment_id`"). MỘT `Channel` duy nhất cho TOÀN lô (§Never spec 4.9: "no second
-/// `Channel` per sentence and no loose Tauri events") — đây là hình dạng PHẦN TỬ của channel
-/// đó, không phải một channel thứ hai.
+/// One planned call as the webview first learns of it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct PlannedCallWire {
+    pub call_index: u32,
+    pub segment_ids: Vec<i64>,
+}
+
+/// One event of a grouped operation on its single `Channel` (AD-22, AD-60 rule 5). Every event
+/// except `Planned` carries its `call_index`.
 ///
-/// Ba biến thể, đúng ba sự thật I/O Matrix spec 4.9 cần phân biệt được ở webview (Phase 3):
-/// - `Token` — một đoạn văn bản của câu `segment_id` vừa tới, cùng nhịp `on_token` của lượt
-///   dịch MỘT segment (Story 4.8), chỉ thêm `segment_id` để webview biết đoạn này thuộc câu
-///   nào — nhiều câu chảy dần TRÊN CÙNG một `Channel`, không tách được nếu thiếu trường này.
-/// - `Done` — câu `segment_id` đã dịch xong SẠCH (provider gửi khung kết thúc hợp lệ cho đúng
-///   câu này). Webview cần biết chính xác câu nào đã "chốt" để giữ kết quả của nó qua lượt
-///   huỷ/lỗi tiếp theo (I/O Matrix "Cancel mid-batch": "sentences 1–5 keep their results") —
-///   không có sự kiện này, webview không phân biệt được "câu đã xong" với "câu đang chảy dở".
-/// - `Skipped` — câu `segment_id` mang `is_omitted == true`, bị bỏ qua TRƯỚC khi có bất kỳ lượt
-///   gọi provider hay lượt đọc keychain nào (I/O Matrix "Omitted segment inside the selection":
-///   "Skipped with no provider call and no keychain read; its row shows skipped").
-///
-/// KHÔNG một biến thể lỗi ở đây — lỗi giữa lô đi qua `Result::Err(IpcError)` của chính lệnh
-/// ([`batch_stopped_error`], một trong sáu nhãn họ nguyên nhân — Quyết định 2, spec 4.10), đúng
-/// khuôn `AiTranslateOutcomeWire` không mang biến thể `error` (nó cũng đi qua `Result::Err`).
+/// `Token` only shows progress. A sentence has text solely from `Received`, sent after its
+/// call's stream ended; `Discarded` says why it has none. Errors are not events: they leave
+/// through the command's `Err`.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AiTranslateBatchEventWire {
+    Planned {
+        calls: Vec<PlannedCallWire>,
+    },
+    CallStarted {
+        call_index: u32,
+    },
     Token {
+        call_index: u32,
         segment_id: i64,
         text: String,
     },
-    /// `usage` — Story 4.11: số liệu CỦA RIÊNG câu này, `None` khi provider không trả về gì
-    /// cho câu này (I/O Matrix spec 4.11 "Provider sends no usage"). Tổng của cả lô, và việc
-    /// phân biệt "mọi câu đã báo số" khỏi "chỉ một phần đã báo số", là việc CỘNG DỒN của
-    /// webview (`aiTranslateBatchState.ts`) trên những `usage` này — Rust không tự cộng, mỗi
-    /// khung chỉ mang sự thật CỦA CHÍNH NÓ.
-    Done {
+    Received {
+        call_index: u32,
         segment_id: i64,
-        usage: Option<AiTranslateUsageWire>,
+        text: String,
+        has_han: bool,
+        source_hash: String,
     },
-    Skipped {
+    Discarded {
+        call_index: u32,
         segment_id: i64,
+        reason: &'static str,
+    },
+    /// `usage` is the call's own, `None` when the provider sent none. The operation total is the
+    /// webview's sum over `call_index`.
+    CallDone {
+        call_index: u32,
+        finish_reason: Option<String>,
+        usage: Option<AiTranslateUsageWire>,
     },
 }
 
-/// Kết quả CỦA VÒNG LẶP [`run_batch_call`] — chỉ hai giá trị, KHÔNG ba: `AiTranslateOutcomeWire`
-/// (đóng băng, tái dùng ở `mod wire`) là nơi `NotConfigured` sống, và nó không bao giờ tới được
-/// tầng này (batch đã `NotConfigured` từ [`prepare_batch_call`], trước khi có gì để lặp).
-///
-/// `pub` vì [`run_batch_call`] là `pub` (seam Phase 4 gọi trực tiếp) — một kiểu private trong
-/// chữ ký hàm public không biên dịch được. Derive cùng bộ [`TranslateOutcome`] (cổng
-/// `ports::translation_provider`) để một ca test so sánh được bằng `assert_eq!`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AiTranslateBatchOutcome {
     Done,
     Cancelled,
 }
 
-/// **Hàm THUẦN-ASYNC, seam mà `tests/**` (Phase 4) thay THẬT một `TranslationProvider` giả vào**
-/// — cùng khuôn [`run_translate_call`] (§Never spec 4.9: "the batch loop wraps [`run_translate_call`],
-/// it does not replace it" — đây LÀ cái vòng lặp đó, gọi `provider.translate(...)` cho từng câu
-/// theo đúng cách `run_translate_call` gọi cho MỘT câu, chỉ khác channel mang `segment_id` và có
-/// một vòng `for` bọc ngoài). Generic trên `P`, không `Store`, không `spawn_blocking`, không
-/// `AppHandle` — một test gọi thẳng hàm này qua `tauri::async_runtime::block_on(...)` ở tầng
-/// NGOÀI CÙNG với một `Channel::new(closure)` (không cần dựng cổng nghe nào, AD-45).
-///
-/// # Huỷ giữa chừng
-/// `should_cancel` được hỏi lại HAI NHỊP khác nhau, và cả hai đều cần thiết: BÊN TRONG
-/// `provider.translate(...)` (giữa mỗi khung SSE của câu ĐANG chảy — cơ chế đã có của cổng,
-/// không đổi ở đây) VÀ GIỮA HAI CÂU LIÊN TIẾP của vòng `for` này (không khung SSE nào đang chảy
-/// lúc đó để mà hỏi lại "giữa mỗi khung" — nếu vòng lặp không tự hỏi, một lượt huỷ đúng lúc câu
-/// N vừa `Done` và câu N+1 chưa bắt đầu sẽ không có chỗ nào bắt được nó, và câu N+1 vẫn bị gọi
-/// dù người dùng đã bấm huỷ). Khi `should_cancel()` trả `true` TRƯỚC một câu, câu đó "chưa bao
-/// giờ được gọi" (I/O Matrix "sentences not yet reached are never called and therefore never
-/// charged") — không một `Token`/`Done` nào gửi cho nó.
-///
-/// # Dừng vì lỗi
-/// Provider trả `Err` cho câu `segment_id` ⇒ vòng lặp dừng NGAY, trả `Err((segment_id, err))` —
-/// KHÔNG câu nào sau nó được gọi (§Always spec 4.9: "no automatic retry ... never skip a failed
-/// sentence and carry on"). Câu bị lỗi mang `err: P::Error` NGUYÊN VĂN — chỗ gọi (cầu nối riêng
-/// của `mod wire`) đóng gói nó thành `IpcError` qua [`batch_stopped_error`], không phải hàm này
-/// (hàm này KHÔNG `Store`/`IpcError`, cùng kỷ luật `run_translate_call`).
-pub async fn run_batch_call<P: TranslationProvider>(
+/// A sentence of a call about to be sent, with the snapshot facts its events carry.
+#[derive(Debug, Clone)]
+pub struct SentSegment {
+    pub segment_id: i64,
+    pub source_text: String,
+    pub source_hash: String,
+}
+
+/// One call ready to send. `segments` are the live sentences in block order (block `n` is
+/// element `n - 1`); `retired` are planned sentences that no longer exist, never sent. With no
+/// live sentence nothing is sent.
+pub struct CallToSend {
+    pub request: PreparedTranslateCall,
+    pub segments: Vec<SentSegment>,
+    pub retired: Vec<i64>,
+}
+
+/// Where `run_translate_operation` gets each call, assembled just before it is sent.
+pub trait CallSource {
+    fn prepare_call(&mut self, call: &PlannedCall) -> Result<CallToSend, IpcError>;
+    fn call_sent(&mut self, call_index: u32, usage: Option<&AiTranslateUsageWire>);
+}
+
+pub enum OperationError<E> {
+    Provider {
+        call_index: u32,
+        first_segment_id: i64,
+        last_segment_id: i64,
+        err: E,
+    },
+    Prepare(IpcError),
+}
+
+/// **Async seam tests substitute a real `TranslationProvider` at.** Runs the planned calls one
+/// after another on one `Channel`: `Planned` once, then per call `CallStarted`, `Token`s, one
+/// `Received` or `Discarded` per planned sentence once the call's stream is over, and
+/// `CallDone`. Cancel is asked before every call and between frames. A provider error ends the
+/// operation after the failed call's valid blocks were kept; nothing is retried.
+pub async fn run_translate_operation<P: TranslationProvider, S: CallSource>(
     provider: &P,
-    items: &[PreparedBatchItem],
+    plan: &[PlannedCall],
+    source: &mut S,
     channel: &tauri::ipc::Channel<AiTranslateBatchEventWire>,
     should_cancel: &dyn Fn() -> bool,
-) -> Result<AiTranslateBatchOutcome, (i64, P::Error)> {
-    for item in items {
-        let segment_id = match item {
-            PreparedBatchItem::Omitted { segment_id } => *segment_id,
-            PreparedBatchItem::ToTranslate { segment_id, .. } => *segment_id,
-        };
+) -> Result<AiTranslateBatchOutcome, OperationError<P::Error>> {
+    let _ = channel.send(AiTranslateBatchEventWire::Planned {
+        calls: plan
+            .iter()
+            .map(|call| PlannedCallWire {
+                call_index: call.call_index,
+                segment_ids: call.segment_ids(),
+            })
+            .collect(),
+    });
 
+    for call in plan {
         if should_cancel() {
             return Ok(AiTranslateBatchOutcome::Cancelled);
         }
-
-        let PreparedBatchItem::ToTranslate { prepared, .. } = item else {
-            // `is_omitted` -- khong mot loi goi provider, khong mot lot doc keychain nao o
-            // day (da doc mot lan, hoac khong doc gi, o `prepare_batch_call`) -- chi mot su
-            // kien BAO câu nay bi bo qua (I/O Matrix spec 4.9 "Omitted segment").
-            let _ = channel.send(AiTranslateBatchEventWire::Skipped { segment_id });
+        let planned_ids = call.segment_ids();
+        let (Some(&first), Some(&last)) = (planned_ids.first(), planned_ids.last()) else {
             continue;
         };
+        let call_index = call.call_index;
+        let to_send = source.prepare_call(call).map_err(OperationError::Prepare)?;
+        let live_ids: Vec<i64> = to_send.segments.iter().map(|s| s.segment_id).collect();
 
-        let request = TranslateRequest {
-            endpoint: &prepared.endpoint,
-            model: &prepared.model,
-            temperature: prepared.temperature,
-            max_tokens: prepared.max_tokens,
-            api_key: &prepared.api_key,
-            prompt: &prepared.prompt,
-            system: prepared.system.as_deref(),
-        };
-        let mut on_token = |text: &str| {
-            let _ = channel.send(AiTranslateBatchEventWire::Token {
-                segment_id,
-                text: text.to_owned(),
+        if to_send.segments.is_empty() {
+            let _ = channel.send(AiTranslateBatchEventWire::CallStarted { call_index });
+            emit_verdicts(channel, call_index, &planned_ids, &to_send, &[]);
+            let _ = channel.send(AiTranslateBatchEventWire::CallDone {
+                call_index,
+                finish_reason: None,
+                usage: None,
             });
-        };
+            continue;
+        }
 
-        match provider
-            .translate(request, &mut on_token, should_cancel)
-            .await
-        {
-            Ok(TranslateOutcome::Done(usage)) => {
-                let _ = channel.send(AiTranslateBatchEventWire::Done {
-                    segment_id,
-                    usage: usage.map(AiTranslateUsageWire::from),
-                });
-            }
-            Ok(TranslateOutcome::Cancelled) => return Ok(AiTranslateBatchOutcome::Cancelled),
-            Err(err) => return Err((segment_id, err)),
+        let _ = channel.send(AiTranslateBatchEventWire::CallStarted { call_index });
+        let request = TranslateRequest {
+            endpoint: &to_send.request.endpoint,
+            model: &to_send.request.model,
+            temperature: to_send.request.temperature,
+            max_tokens: to_send.request.max_tokens,
+            api_key: &to_send.request.api_key,
+            prompt: &to_send.request.prompt,
+            system: to_send.request.system.as_deref(),
+        };
+        let mut reader = BlockStream::new();
+        let result = {
+            let mut on_token = |text: &str| {
+                for piece in reader.push(text) {
+                    let Some(&segment_id) = usize::try_from(piece.index)
+                        .ok()
+                        .and_then(|n| n.checked_sub(1))
+                        .and_then(|i| live_ids.get(i))
+                    else {
+                        continue;
+                    };
+                    let _ = channel.send(AiTranslateBatchEventWire::Token {
+                        call_index,
+                        segment_id,
+                        text: piece.text,
+                    });
+                }
+            };
+            provider
+                .translate(request, &mut on_token, should_cancel)
+                .await
+        };
+        let blocks = reader.finish();
+
+        let (end, usage, finish_reason, stop) = match result {
+            Ok(TranslateOutcome::Done {
+                usage,
+                finish_reason,
+            }) => (
+                Some(finish_reason.clone()),
+                usage.map(AiTranslateUsageWire::from),
+                finish_reason,
+                None,
+            ),
+            Ok(TranslateOutcome::Cancelled) => (
+                None,
+                None,
+                None,
+                Some(Ok(AiTranslateBatchOutcome::Cancelled)),
+            ),
+            Err(err) if P::is_empty_reply(&err) => (Some(None), None, None, None),
+            Err(err) => (
+                None,
+                None,
+                None,
+                Some(Err(OperationError::Provider {
+                    call_index,
+                    first_segment_id: first,
+                    last_segment_id: last,
+                    err,
+                })),
+            ),
+        };
+        let stream_end = match &end {
+            Some(reason) => StreamEnd::Finished {
+                finish_reason: reason.as_deref(),
+            },
+            None => StreamEnd::Interrupted,
+        };
+        let verdicts = reconcile(live_ids.len(), &blocks, &stream_end);
+        emit_verdicts(channel, call_index, &planned_ids, &to_send, &verdicts);
+        let _ = channel.send(AiTranslateBatchEventWire::CallDone {
+            call_index,
+            finish_reason,
+            usage,
+        });
+        source.call_sent(call_index, usage.as_ref());
+        if let Some(stopped) = stop {
+            return stopped;
         }
     }
 
     Ok(AiTranslateBatchOutcome::Done)
+}
+
+fn emit_verdicts(
+    channel: &tauri::ipc::Channel<AiTranslateBatchEventWire>,
+    call_index: u32,
+    planned_ids: &[i64],
+    sent: &CallToSend,
+    verdicts: &[Verdict],
+) {
+    for &segment_id in planned_ids {
+        let live = sent
+            .segments
+            .iter()
+            .position(|s| s.segment_id == segment_id);
+        let event = match live.and_then(|i| verdicts.get(i).map(|v| (&sent.segments[i], v))) {
+            Some((segment, Verdict::Received { text })) => AiTranslateBatchEventWire::Received {
+                call_index,
+                segment_id,
+                text: text.clone(),
+                has_han: has_han(&segment.source_text, text),
+                source_hash: segment.source_hash.clone(),
+            },
+            Some((_, Verdict::Discarded { reason })) => AiTranslateBatchEventWire::Discarded {
+                call_index,
+                segment_id,
+                reason: reason.as_str(),
+            },
+            None => AiTranslateBatchEventWire::Discarded {
+                call_index,
+                segment_id,
+                reason: DiscardReason::Retired.as_str(),
+            },
+        };
+        let _ = channel.send(event);
+    }
 }
 
 /// **Cầu nối riêng của `mod wire`** — cài đặt DUY NHẤT hôm nay (`OpenAiChatClient`, đóng cứng,
@@ -1122,50 +1234,285 @@ async fn send_prepared_translate_call(
     }
 }
 
-/// Lý do [`send_prepared_batch_call`] không trả về `Ok` — TÁCH ca "provider dừng ở một câu cụ
-/// thể" (mang `segment_id` để [`batch_stopped_error`] dựng đúng tham số) khỏi ca "tác vụ blocking
-/// panic/bị huỷ" (không câu nào để mà nêu tên — cùng khuôn `send_prepared_translate_call` xử lý
-/// ca đó, rơi về họ "provider không tới được", không mang `segment_id`: một panic không phải
-/// "provider trả lỗi trên câu N", nó là một sự cố hạ tầng của chính lượt gọi).
-enum BatchCallError {
-    Provider {
-        segment_id: i64,
-        err: OpenAiClientError,
-    },
-    Panicked,
+/// Endpoint settings and key for resending a recorded call; `None` when not configured.
+pub fn resolve_call_settings(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+) -> Result<Option<CallSettings>, IpcError> {
+    let Some(ResolvedCallConfig {
+        provider,
+        endpoint,
+        model,
+        temperature,
+        max_tokens,
+        ..
+    }) = resolve_call_config(global, open)?
+    else {
+        return Ok(None);
+    };
+    let Some(api_key) = read_api_key(&provider)? else {
+        return Ok(None);
+    };
+    Ok(Some(CallSettings {
+        endpoint,
+        model,
+        temperature,
+        max_tokens,
+        api_key,
+    }))
 }
 
-/// **Cầu nối riêng của `mod wire`, cùng khuôn [`send_prepared_translate_call`]** — cài đặt DUY
-/// NHẤT hôm nay (`OpenAiChatClient`), chạy [`run_batch_call`] BÊN TRONG một luồng của hồ bơi
-/// blocking (xem doc-comment đầu tệp §"vì sao tự spawn một luồng chặn" — cùng lý do `Send`:
-/// `on_token`/`should_cancel` của [`ports::translation_provider::TranslationProvider::translate`]
-/// không mang cận `Send`). KHÔNG phải seam test thay được — đó là [`run_batch_call`] ở trên;
-/// hàm này chỉ tồn tại để giải bài toán `Future: Send` mà riêng CƠ CHẾ điều phối lệnh của Tauri
-/// đòi. `items` di chuyển NGUYÊN VẸN vào luồng blocking — mỗi `PreparedBatchItem::ToTranslate`
-/// mang `api_key` CỦA RIÊNG NÓ (sao chép Ở `prepare_batch_call`, đọc keychain đúng một lần), nên
-/// không có tham chiếu nào sống sót qua ranh giới `spawn_blocking`.
-async fn send_prepared_batch_call(
-    items: Vec<PreparedBatchItem>,
+/// How the operation reaches the managed stores. The app implements it with a fresh lock per
+/// call, so no `OpenWorkState` guard lives across a network wait; tests may pass fixed stores.
+pub trait StoreAccess {
+    fn with_stores<T>(&self, f: impl FnOnce(Option<&Store>, Option<&OpenWork>) -> T) -> T;
+    fn with_records<T>(&self, f: impl FnOnce(&AiCallRecordsState) -> T) -> Option<T>;
+}
+
+pub struct AppStores<R: tauri::Runtime>(pub tauri::AppHandle<R>);
+
+impl<R: tauri::Runtime> StoreAccess for AppStores<R> {
+    fn with_stores<T>(&self, f: impl FnOnce(Option<&Store>, Option<&OpenWork>) -> T) -> T {
+        use tauri::Manager as _;
+
+        let global = self.0.try_state::<Store>();
+        let work_state = self.0.try_state::<OpenWorkState>();
+        let guard = work_state
+            .as_ref()
+            .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+        let open = guard.as_ref().and_then(|g| g.as_ref());
+        f(global.as_deref(), open)
+    }
+
+    fn with_records<T>(&self, f: impl FnOnce(&AiCallRecordsState) -> T) -> Option<T> {
+        use tauri::Manager as _;
+
+        self.0
+            .try_state::<AiCallRecordsState>()
+            .map(|state| f(state.inner()))
+    }
+}
+
+fn mark_call_record_sent<A: StoreAccess>(
+    access: &A,
+    operation_id: u64,
+    call_index: u32,
+    usage: Option<&AiTranslateUsageWire>,
+) {
+    let Some(sent_at) = access.with_stores(|global, _| global.and_then(now_utc_iso8601)) else {
+        return;
+    };
+    let usage = usage.copied();
+    access.with_records(|records| {
+        records
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .mark_sent(operation_id, call_index, &sent_at, usage);
+    });
+}
+
+/// Assembles each call of a fresh operation from its snapshot just before it is sent, so a
+/// sentence retired in the meantime is left out and the blocks stay numbered without a gap.
+pub struct OperationCallSource<A: StoreAccess> {
+    pub access: A,
+    pub operation_id: u64,
+    pub settings: CallSettings,
+    pub context: OperationPromptContext,
+    pub snapshot: std::collections::BTreeMap<i64, SnapshotRow>,
+    pub chapter_id: i64,
+}
+
+impl<A: StoreAccess> CallSource for OperationCallSource<A> {
+    fn prepare_call(&mut self, call: &PlannedCall) -> Result<CallToSend, IpcError> {
+        let chapter = self
+            .access
+            .with_stores(|_, open| crate::commands::segment::read_open_chapter_segments(open))?;
+        let alive: std::collections::BTreeSet<i64> = if chapter.chapter_id == self.chapter_id {
+            chapter
+                .segments
+                .iter()
+                .filter(|s| !s.is_omitted)
+                .map(|s| s.id)
+                .collect()
+        } else {
+            std::collections::BTreeSet::new()
+        };
+
+        let mut specs: Vec<CallSpec<'_>> = Vec::new();
+        let mut segments: Vec<SentSegment> = Vec::new();
+        let mut context_ids: Vec<i64> = Vec::new();
+        let mut retired: Vec<i64> = Vec::new();
+        for entry in &call.entries {
+            match *entry {
+                CallEntry::Context(id) => {
+                    if let Some(row) = self.snapshot.get(&id) {
+                        context_ids.push(id);
+                        specs.push(CallSpec::Context {
+                            source_text: &row.source_text,
+                            target_text: &row.target_text,
+                        });
+                    }
+                }
+                CallEntry::Translate(id) => match self.snapshot.get(&id) {
+                    Some(row) if alive.contains(&id) => {
+                        specs.push(CallSpec::Segment {
+                            source_text: &row.source_text,
+                        });
+                        segments.push(SentSegment {
+                            segment_id: id,
+                            source_text: row.source_text.clone(),
+                            source_hash: source_text_hash(&row.source_text),
+                        });
+                    }
+                    _ => retired.push(id),
+                },
+            }
+        }
+
+        let system = system_with_block_format(self.context.resolved_system());
+        let (prompt, ledger) = if segments.is_empty() {
+            (String::new(), None)
+        } else {
+            let (prompt, ledger) = assemble_call(&self.context, &specs)?;
+            (prompt, Some(ledger))
+        };
+        if let Some(ledger) = ledger {
+            let record = AiCallRecord {
+                operation_id: self.operation_id,
+                call_index: call.call_index,
+                stamp: next_call_record_stamp(),
+                prompt: prompt.clone(),
+                system: system.clone(),
+                segments: segments
+                    .iter()
+                    .map(|s| RecordedSegment {
+                        segment_id: s.segment_id,
+                        source_text: s.source_text.clone(),
+                        source_hash: s.source_hash.clone(),
+                    })
+                    .collect(),
+                context_segment_ids: context_ids,
+                ledger,
+                chapter_id: self.chapter_id,
+                prompt_set_name: self.context.prompt_set_name().to_owned(),
+                prompt_set_tier: self.context.prompt_set_tier(),
+                model: self.settings.model.clone(),
+                sent_at: None,
+                sent_usage: None,
+            };
+            self.access.with_records(|records| {
+                records
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .put(record);
+            });
+        }
+        Ok(CallToSend {
+            request: self.settings.request(prompt, Some(system)),
+            segments,
+            retired,
+        })
+    }
+
+    fn call_sent(&mut self, call_index: u32, usage: Option<&AiTranslateUsageWire>) {
+        mark_call_record_sent(&self.access, self.operation_id, call_index, usage);
+    }
+}
+
+/// Sends a recorded call again, byte for byte (FR145): the prompt and system come from the
+/// record, nothing is assembled.
+pub struct ResendCallSource<A: StoreAccess> {
+    pub access: A,
+    pub operation_id: u64,
+    pub settings: CallSettings,
+    pub record: AiCallRecord,
+}
+
+impl<A: StoreAccess> CallSource for ResendCallSource<A> {
+    fn prepare_call(&mut self, _call: &PlannedCall) -> Result<CallToSend, IpcError> {
+        Ok(CallToSend {
+            request: self
+                .settings
+                .request(self.record.prompt.clone(), Some(self.record.system.clone())),
+            segments: self
+                .record
+                .segments
+                .iter()
+                .map(|s| SentSegment {
+                    segment_id: s.segment_id,
+                    source_text: s.source_text.clone(),
+                    source_hash: s.source_hash.clone(),
+                })
+                .collect(),
+            retired: Vec::new(),
+        })
+    }
+
+    fn call_sent(&mut self, call_index: u32, usage: Option<&AiTranslateUsageWire>) {
+        mark_call_record_sent(&self.access, self.operation_id, call_index, usage);
+    }
+}
+
+/// The plan of a resent call: the recorded call alone, under its original `call_index`.
+pub fn resend_plan(record: &AiCallRecord) -> Vec<PlannedCall> {
+    vec![PlannedCall {
+        call_index: record.call_index,
+        entries: record
+            .segments
+            .iter()
+            .map(|s| CallEntry::Translate(s.segment_id))
+            .collect(),
+    }]
+}
+
+/// Maps the end of an operation to what the command returns.
+pub fn operation_result_wire(
+    result: Result<AiTranslateBatchOutcome, OperationError<OpenAiClientError>>,
+) -> Result<AiTranslateOutcomeWire, IpcError> {
+    match result {
+        Ok(AiTranslateBatchOutcome::Cancelled) => Ok(AiTranslateOutcomeWire::Cancelled),
+        Ok(AiTranslateBatchOutcome::Done) => Ok(AiTranslateOutcomeWire::Done {
+            usage: None,
+            maybe_truncated: false,
+        }),
+        Err(OperationError::Provider {
+            call_index,
+            first_segment_id,
+            last_segment_id,
+            err,
+        }) => Err(batch_stopped_error(
+            call_index,
+            first_segment_id,
+            last_segment_id,
+            err,
+        )),
+        Err(OperationError::Prepare(err)) => Err(err),
+    }
+}
+
+/// Runs the operation on a blocking-pool thread (the translate future is not `Send`, see the
+/// file header).
+async fn send_prepared_operation<S: CallSource + Send + 'static>(
+    mut source: S,
+    plan: Vec<PlannedCall>,
     channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,
     generation_state: AiTranslateGeneration,
     generation: u64,
-) -> Result<AiTranslateBatchOutcome, BatchCallError> {
+) -> Result<AiTranslateOutcomeWire, IpcError> {
     let join = tauri::async_runtime::spawn_blocking(move || {
         let provider = OpenAiChatClient::new();
         let should_cancel = || !generation_state.is_current(generation);
-
-        tauri::async_runtime::handle().block_on(run_batch_call(
+        tauri::async_runtime::handle().block_on(run_translate_operation(
             &provider,
-            &items,
+            &plan,
+            &mut source,
             &channel,
             &should_cancel,
         ))
     });
-
     match join.await {
-        Ok(Ok(outcome)) => Ok(outcome),
-        Ok(Err((segment_id, err))) => Err(BatchCallError::Provider { segment_id, err }),
-        Err(_join_err) => Err(BatchCallError::Panicked),
+        Ok(result) => operation_result_wire(result),
+        Err(_join_err) => Err(batch_panicked_error()),
     }
 }
 
@@ -1203,7 +1550,13 @@ pub enum AiTranslateOutcomeWire {
     /// paths carry it differently"). Lượt LÔ (`wire::ai_translate_batch`) LUÔN đặt `None` ở
     /// đây — tổng của lô đi qua từng [`AiTranslateBatchEventWire::Done`], không qua giá trị cuối
     /// dùng chung này (hai wire khác hình dạng, không nên đọc `usage` ở đây cho một lô).
-    Done { usage: Option<AiTranslateUsageWire> },
+    ///
+    /// `maybe_truncated`: the provider sent no `finish_reason` or one other than `"stop"`; only
+    /// the one-sentence path can set it.
+    Done {
+        usage: Option<AiTranslateUsageWire>,
+        maybe_truncated: bool,
+    },
     /// Huỷ giữa chừng — token đã nhận ở lại trên màn hình webview, không khung nào gửi thêm.
     Cancelled,
 }
@@ -1222,8 +1575,12 @@ pub enum AiTranslateOutcomeWire {
 pub fn single_run_outcome_wire(outcome: TranslateOutcome) -> AiTranslateOutcomeWire {
     match outcome {
         TranslateOutcome::Cancelled => AiTranslateOutcomeWire::Cancelled,
-        TranslateOutcome::Done(usage) => AiTranslateOutcomeWire::Done {
+        TranslateOutcome::Done {
+            usage,
+            finish_reason,
+        } => AiTranslateOutcomeWire::Done {
             usage: usage.map(AiTranslateUsageWire::from),
+            maybe_truncated: finish_reason.as_deref() != Some("stop"),
         },
     }
 }
@@ -1234,17 +1591,19 @@ pub fn single_run_outcome_wire(outcome: TranslateOutcome) -> AiTranslateOutcomeW
 pub mod wire {
     use super::AiTranslateUsageWire;
     use super::{
-        AiTranslateBatchEventWire, AiTranslateBatchOutcome, AiTranslateGeneration,
-        AiTranslateOutcomeWire, BatchCallError, PrepareBatchOutcome, PrepareOutcome,
-        PreparedBatchItem, batch_panicked_error, batch_stopped_error, prepare_batch_call_with,
-        prepare_resend_call, prepare_translate_call, send_prepared_batch_call,
-        send_prepared_translate_call, single_run_outcome_wire, state_missing,
+        AiTranslateBatchEventWire, AiTranslateGeneration, AiTranslateOutcomeWire, AiTranslateScope,
+        AppStores, OperationCallSource, PrepareOperationOutcome, PrepareOutcome, ResendCallSource,
+        StoreAccess, prepare_resend_call, prepare_translate_call, prepare_translate_operation,
+        resend_plan, send_prepared_operation, send_prepared_translate_call,
+        single_run_outcome_wire, state_missing,
     };
     use super::{
         ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire,
         prepare_connection_check, send_prepared_connection_check,
     };
-    use crate::commands::aiprompt::{LastAssembledPromptState, mark_prompt_as_sent};
+    use crate::commands::aiprompt::{
+        AiCallRecordsState, LastAssembledPromptState, mark_prompt_as_sent,
+    };
     use crate::commands::project::OpenWorkState;
     use crate::core::aiconfig::AiConfigTier;
     use crate::core::i18n::IpcError;
@@ -1324,7 +1683,10 @@ pub mod wire {
             Ok(TranslateOutcome::Cancelled) => {
                 Ok(single_run_outcome_wire(TranslateOutcome::Cancelled))
             }
-            Ok(TranslateOutcome::Done(usage)) => {
+            Ok(TranslateOutcome::Done {
+                usage,
+                finish_reason,
+            }) => {
                 if let Some(global) = app.try_state::<Store>()
                     && let Some(sent_at) = super::now_utc_iso8601(&global)
                 {
@@ -1338,7 +1700,10 @@ pub mod wire {
                         usage.map(AiTranslateUsageWire::from),
                     );
                 }
-                Ok(single_run_outcome_wire(TranslateOutcome::Done(usage)))
+                Ok(single_run_outcome_wire(TranslateOutcome::Done {
+                    usage,
+                    finish_reason,
+                }))
             }
             Err(err) => Err(err),
         }
@@ -1398,7 +1763,10 @@ pub mod wire {
             Ok(TranslateOutcome::Cancelled) => {
                 Ok(single_run_outcome_wire(TranslateOutcome::Cancelled))
             }
-            Ok(TranslateOutcome::Done(usage)) => {
+            Ok(TranslateOutcome::Done {
+                usage,
+                finish_reason,
+            }) => {
                 if let Some(global) = app.try_state::<Store>()
                     && let Some(sent_at) = super::now_utc_iso8601(&global)
                 {
@@ -1412,37 +1780,38 @@ pub mod wire {
                         usage.map(AiTranslateUsageWire::from),
                     );
                 }
-                Ok(single_run_outcome_wire(TranslateOutcome::Done(usage)))
+                Ok(single_run_outcome_wire(TranslateOutcome::Done {
+                    usage,
+                    finish_reason,
+                }))
             }
             Err(err) => Err(err),
         }
     }
 
-    /// Vỏ IPC của lượt dịch theo LÔ — Story 4.9, Phase 2 (FR73, AD-22, Decision 1/2). `async fn`
-    /// LITERAL, cùng cơ chế `Future: Send` của [`ai_translate_segment`] (xem doc-comment đầu
-    /// tệp). `try_state`, không `state()`. Cùng MỘT `AiTranslateGeneration` với lượt dịch một
-    /// segment (`lib.rs`, một bộ đếm cho cả tiến trình — Decision "one `AiTranslateGeneration`
-    /// and it stays one": bắt đầu một lô SUPERSEDE một lượt đơn đang chạy và ngược lại).
+    /// Grouped translation of a selection or of the open chapter (AD-60): Rust plans the calls,
+    /// sends them one after another and reports on one `Channel`. Same `Future: Send`
+    /// mechanism and lock discipline as [`ai_translate_segment`]; one `AiTranslateGeneration`
+    /// for every translate run, so starting an operation supersedes a running one.
     ///
-    /// 🔴 Khoá `OpenWorkState` được mở và THẢ trong khối `{ ... }` dưới đây, TRƯỚC bất kỳ
-    /// `.await` nào — xem doc-comment đầu tệp.
+    /// `scope` travels as `{ kind: "selection", segment_ids: [..] }` or `{ kind: "chapter" }`;
+    /// the keys inside it are `snake_case`.
     #[tauri::command]
     pub async fn ai_translate_batch<R: tauri::Runtime>(
         app: tauri::AppHandle<R>,
-        segment_ids: Vec<i64>,
+        scope: AiTranslateScope,
         prompt_set_name: Option<String>,
-        skip_translated: bool,
         channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,
     ) -> Result<AiTranslateOutcomeWire, IpcError> {
         use tauri::Manager as _;
 
-        let Some(record_state) = app.try_state::<LastAssembledPromptState>() else {
+        if app.try_state::<AiCallRecordsState>().is_none() {
             return Err(state_missing(
                 "batch",
-                "LastAssembledPromptState",
+                "AiCallRecordsState",
                 "ai_translate.record_state_missing",
             ));
-        };
+        }
 
         // Taken before the slow prepare so a cancel arriving during it is not overwritten.
         let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {
@@ -1455,81 +1824,86 @@ pub mod wire {
         let generation_state = generation_state.inner().clone();
         let generation = generation_state.next();
 
-        let prepared = {
-            let global = app.try_state::<Store>();
-            let work_state = app.try_state::<OpenWorkState>();
-            let guard = work_state
-                .as_ref()
-                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
-            let open = guard.as_ref().and_then(|g| g.as_ref());
+        let prepared = AppStores(app.clone()).with_stores(|global, open| {
+            prepare_translate_operation(global, open, prompt_set_name.as_deref(), &scope)
+        })?;
 
-            prepare_batch_call_with(
-                global.as_deref(),
-                open,
-                record_state.inner(),
-                prompt_set_name.as_deref(),
-                &segment_ids,
-                skip_translated,
-            )?
-            // `guard`/`global` roi khoi pham vi o day -- khong khoa nao cua tien trinh con
-            // song sang phia duoi.
+        let prepared = match prepared {
+            PrepareOperationOutcome::NotConfigured => {
+                return Ok(AiTranslateOutcomeWire::NotConfigured);
+            }
+            PrepareOperationOutcome::Ready(p) => *p,
+        };
+        let Some(context) = prepared.context else {
+            let _ = channel.send(AiTranslateBatchEventWire::Planned { calls: Vec::new() });
+            return Ok(AiTranslateOutcomeWire::Done {
+                usage: None,
+                maybe_truncated: false,
+            });
         };
 
-        let items = match prepared {
-            PrepareBatchOutcome::NotConfigured => return Ok(AiTranslateOutcomeWire::NotConfigured),
-            PrepareBatchOutcome::Ready(items) => items,
+        let source = OperationCallSource {
+            access: AppStores(app.clone()),
+            operation_id: generation,
+            settings: prepared.settings,
+            context,
+            snapshot: prepared.snapshot.into_iter().map(|r| (r.id, r)).collect(),
+            chapter_id: prepared.chapter_id,
+        };
+        send_prepared_operation(source, prepared.plan, channel, generation_state, generation).await
+    }
+
+    /// Sends one recorded call of an earlier operation again, unchanged (FR145), and reads the
+    /// reply by the same rules. The events are those of a one-call operation that keeps the
+    /// original `call_index`.
+    #[tauri::command]
+    pub async fn ai_translate_resend_call<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        operation_id: u64,
+        call_index: u32,
+        channel: tauri::ipc::Channel<AiTranslateBatchEventWire>,
+    ) -> Result<AiTranslateOutcomeWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(records) = app.try_state::<AiCallRecordsState>() else {
+            return Err(state_missing(
+                "resend_call",
+                "AiCallRecordsState",
+                "ai_translate.record_state_missing",
+            ));
+        };
+        let Some(generation_state) = app.try_state::<AiTranslateGeneration>() else {
+            return Err(state_missing(
+                "resend_call",
+                "AiTranslateGeneration",
+                "ai_translate.generation_state_missing",
+            ));
+        };
+        let generation_state = generation_state.inner().clone();
+        let generation = generation_state.next();
+
+        let record = records
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(operation_id, call_index)
+            .cloned();
+        let Some(record) = record else {
+            return Err(super::no_prompt_to_resend());
         };
 
-        // Cau CUOI CUNG can dich trong `items` (dung thu tu tai lieu `prepare_batch_call` da
-        // sap) la cau ma ban ghi phien (LastAssembledPromptState) con giu SAU khi prepare xong
-        // -- moi lot lap rap TRUOC do trong CHINH lo nay da bi GHI DE (Quyet dinh 2, spec 4.7,
-        // khong doi vi day la batch). `mark_prompt_as_sent` vi vay chi co the THANH CONG cho
-        // DUNG cau nay (so `segment_id` LAN `prompt`, xem doc-comment cua no) -- moi cau khac
-        // trong lo, du dich xong, se la mot no-op AN TOAN, dung nhu khi nguoi dung doi segment
-        // giua chung o lot dich MOT cau. Xem doc-comment `prepare_batch_call` cho ly le day du.
-        let last_sent = items.iter().rev().find_map(|item| match item {
-            PreparedBatchItem::ToTranslate {
-                segment_id,
-                prepared,
-            } => Some((
-                *segment_id,
-                prepared.prompt.clone(),
-                prepared.system.clone(),
-                prepared.model.clone(),
-            )),
-            PreparedBatchItem::Omitted { .. } => None,
-        });
+        let settings = AppStores(app.clone()).with_stores(super::resolve_call_settings)?;
+        let Some(settings) = settings else {
+            return Ok(AiTranslateOutcomeWire::NotConfigured);
+        };
 
-        let outcome = send_prepared_batch_call(items, channel, generation_state, generation).await;
-
-        match outcome {
-            Ok(AiTranslateBatchOutcome::Cancelled) => Ok(AiTranslateOutcomeWire::Cancelled),
-            Ok(AiTranslateBatchOutcome::Done) => {
-                if let Some((seg_id, prompt_sent, system_sent, model_sent)) = last_sent
-                    && let Some(global) = app.try_state::<Store>()
-                    && let Some(sent_at) = super::now_utc_iso8601(&global)
-                {
-                    mark_prompt_as_sent(
-                        record_state.inner(),
-                        seg_id,
-                        &prompt_sent,
-                        system_sent.as_deref(),
-                        &model_sent,
-                        &sent_at,
-                        None,
-                    );
-                }
-                // Story 4.11 -- lô KHÔNG mang một số tổng ở giá trị cuối dùng chung này (xem
-                // doc-comment `AiTranslateOutcomeWire::Done`): tổng của lô đã đi qua từng
-                // `AiTranslateBatchEventWire::Done` phía trên, webview (`aiTranslateBatchState.ts`)
-                // tự cộng dồn từ những khung đó.
-                Ok(AiTranslateOutcomeWire::Done { usage: None })
-            }
-            Err(BatchCallError::Provider { segment_id, err }) => {
-                Err(batch_stopped_error(segment_id, err))
-            }
-            Err(BatchCallError::Panicked) => Err(batch_panicked_error()),
-        }
+        let plan = resend_plan(&record);
+        let source = ResendCallSource {
+            access: AppStores(app.clone()),
+            operation_id,
+            settings,
+            record,
+        };
+        send_prepared_operation(source, plan, channel, generation_state, generation).await
     }
 
     /// Vỏ IPC huỷ lượt dịch đang chạy — bơm thế hệ lên MỘT, làm thế hệ đang chạy (nếu có)

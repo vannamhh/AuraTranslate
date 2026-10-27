@@ -272,6 +272,15 @@ pub(super) fn write_non_user_target(
     Ok(())
 }
 
+pub(super) fn segment_source_changed(segment_id: i64) -> IpcError {
+    IpcError::new(
+        "segment.source_changed",
+        MessageKey::SegmentSourceChanged,
+        BTreeMap::from([("segment_id".to_owned(), segment_id.to_string())]),
+        false,
+    )
+}
+
 /// Ghi một kết quả AI vào `target_text` **và** đặt `translation_origin = TRANSLATION_ORIGIN_OTHER`
 /// trong **MỘT** câu `UPDATE` — Story 4.8, AD-47①. Đây là chỗ ghi RIÊNG của đường promote
 /// (§Code Map spec 4.8: "the promote path therefore needs its own write, not a reuse of
@@ -298,21 +307,43 @@ pub fn promote_ai_translation(
     target_text: &str,
     force: bool,
 ) -> Result<PromoteAiTranslationOutcome, IpcError> {
+    promote_inner(open, segment_id, target_text, force, None)
+}
+
+/// Stable within one app session only: it is `std`'s default hasher, never persisted.
+pub fn source_text_hash(source_text: &str) -> String {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    source_text.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+/// [`promote_ai_translation`] that, given `expected_source_hash`, refuses and writes nothing
+/// when the segment's current `source_text` no longer hashes to it.
+pub fn promote_inner(
+    open: Option<&OpenWork>,
+    segment_id: i64,
+    target_text: &str,
+    force: bool,
+    expected_source_hash: Option<&str>,
+) -> Result<PromoteAiTranslationOutcome, IpcError> {
     let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
 
     enum Promoted {
         Missing,
         Retired,
         OtherChapter,
+        SourceChanged,
         Row(String, String, String, bool),
     }
 
     let open_chapter_id = open.chapter_id;
     let payload = target_text.to_owned();
+    let expected_hash = expected_source_hash.map(str::to_owned);
     let outcome = open.store.write(move |tx: &Transaction<'_>| {
         let found = tx.query_row(
-            "SELECT target_text, translation_origin, retired_at IS NOT NULL, status, chapter_id \
-             FROM segment WHERE id = ?1",
+            "SELECT target_text, translation_origin, retired_at IS NOT NULL, status, chapter_id, \
+             source_text FROM segment WHERE id = ?1",
             [segment_id],
             |row| {
                 Ok((
@@ -321,20 +352,32 @@ pub fn promote_ai_translation(
                     row.get::<_, bool>(2)?,
                     row.get::<_, String>(3)?,
                     row.get::<_, i64>(4)?,
+                    row.get::<_, String>(5)?,
                 ))
             },
         );
-        let (current_text, current_origin, retired, current_status, segment_chapter_id) =
-            match found {
-                Ok(value) => value,
-                Err(SqlError::QueryReturnedNoRows) => return Ok(Promoted::Missing),
-                Err(err) => return Err(err),
-            };
+        let (
+            current_text,
+            current_origin,
+            retired,
+            current_status,
+            segment_chapter_id,
+            current_source,
+        ) = match found {
+            Ok(value) => value,
+            Err(SqlError::QueryReturnedNoRows) => return Ok(Promoted::Missing),
+            Err(err) => return Err(err),
+        };
         if retired {
             return Ok(Promoted::Retired);
         }
         if segment_chapter_id != open_chapter_id {
             return Ok(Promoted::OtherChapter);
+        }
+        if let Some(expected) = &expected_hash
+            && source_text_hash(&current_source) != *expected
+        {
+            return Ok(Promoted::SourceChanged);
         }
 
         if !force && is_unsigned_draft(tx, segment_id, &current_text)? {
@@ -366,6 +409,7 @@ pub fn promote_ai_translation(
     let (target_text, translation_origin, status, needs_confirmation) = match outcome {
         Promoted::Missing => return Err(segment_not_found(segment_id)),
         Promoted::Retired => return Err(segment_retired(segment_id)),
+        Promoted::SourceChanged => return Err(segment_source_changed(segment_id)),
         Promoted::OtherChapter => {
             return Err(segment_not_in_open_chapter(segment_id, open_chapter_id));
         }

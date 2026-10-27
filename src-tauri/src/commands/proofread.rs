@@ -311,7 +311,7 @@ pub async fn run_proofread_call<P: TranslationProvider>(
                 });
             }
             Ok(TranslateOutcome::Cancelled) => return Ok(cancelled(remaining())),
-            Ok(TranslateOutcome::Done(usage)) => (usage, false),
+            Ok(TranslateOutcome::Done { usage, .. }) => (usage, false),
         };
 
         let texts: Vec<(&str, bool)> = batch
