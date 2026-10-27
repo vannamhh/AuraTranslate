@@ -1,14 +1,14 @@
 ---
 type: ad-brief
 title: "Hồ sơ cho `AD-60`: **dịch lô gửi các câu liền nhau trong một lượt gọi, tối đa 100 câu, và mọi lượt đều đối chiếu chỉ số từng câu**"
-status: draft
+status: done
 created: 2026-10-27
 skill: bmad-architecture
 ---
 # Hồ sơ cho `AD-60`: dịch lô gom các câu liền nhau, tối đa 100 câu mỗi lượt gọi
 
 **Ngày:** 2026-10-27 · **Người soạn:** Winston · **Người ký:** Ice
-> 🔵 2026-10-27: AD-60 đã viết vào spine (§AD-60), đã qua Reviewer Gate và một lượt kiểm lại (`architecture-auratranslate/reviews/review-ad-60-*-2026-10-27.md`), đang chờ Ice ký. Sau gate, Ice đổi một điểm: câu `is_omitted` không bao giờ được gửi lên nhà cung cấp, kể cả làm ngữ cảnh (khác Q1 ở dưới). Đường dịch một câu thì gắn cờ `maybe_truncated`. Spine là bản có hiệu lực; các mục bên dưới là bản nháp trước gate.
+> 🔵 2026-10-27: AD-60 đã viết vào spine (§AD-60), đã qua Reviewer Gate và một lượt kiểm lại (`architecture-auratranslate/reviews/review-ad-60-*-2026-10-27.md`), Ice đã ký ngày 2026-10-27. Sau gate, Ice đổi một điểm: câu `is_omitted` không bao giờ được gửi lên nhà cung cấp, kể cả làm ngữ cảnh (khác Q1 ở dưới). Đường dịch một câu thì gắn cờ `maybe_truncated`. Spine là bản có hiệu lực; các mục bên dưới là bản nháp trước gate.
 **Nguồn gốc:** FR70, FR71, FR73, FR74, FR75, FR76; khuyến nghị R2 (phương án P) trong `../research-llm-translation-cost-and-quality/research-llm-translation-cost-and-quality.md`. Mã hiện tại: `../research-ai-translation-pipeline/research-ai-translation-pipeline.md` §2, §3, §5, §7.
 **Bằng chứng đo:** `do-m2.md`, cùng script và JSON trong `do-m2/`.
 **Mốc cây nguồn:** `7bd1f90ca2ccd15b661850f3cfd60359df6bdc66`. **Số AD trống kế tiếp: 60.** Spine dừng ở AD-59; các hồ sơ `ad-brief-*` chỉ dùng tới AD-58.

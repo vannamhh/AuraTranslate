@@ -114,7 +114,7 @@ Vì vậy một câu chỉ có bản dịch khi khối của nó đóng đúng. 
 ## Notes
 
 - Decision: 2026-10-27, Ice — gom câu (phương án P), trần 100 câu mỗi lượt, tự chia lượt, đoạn chọn rời đi lượt riêng, câu đã dịch làm ngữ cảnh, câu `is_omitted` không bao giờ gửi đi, dịch một câu chỉ gắn cờ `maybe_truncated`.
-- Unknown: AD-60 chưa được Ice ký; story không bắt đầu trước khi ký.
+- Decision: 2026-10-27, Ice — ký AD-60.
 - Kiểm thêm ngoài tiêu chí, vì risk high: Ice dùng thật một lượt dịch cả Chương từ 300 câu trở lên bằng khoá thật, đếm câu *thiếu kết quả AI* và đối chiếu tổng tiền với bảng điều khiển của nhà cung cấp. Đây là mục nợ ở tiêu chí 13, không chặn story xong.
 - ⚠️ Khớp theo chỉ số không bắt được trường hợp mô hình bỏ một câu rồi đánh lại số cho câu sau (AD-60 mục 7); người duyệt là lớp canh.
 - Risk high vì story đổi đường chữ AI đi vào Editor và đổi cách tính tiền của người dùng; hỏng ở đây im lặng và nằm trên dữ liệu thật.
