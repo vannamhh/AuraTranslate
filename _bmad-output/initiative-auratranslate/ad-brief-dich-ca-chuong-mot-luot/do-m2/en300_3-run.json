@@ -1,0 +1,35 @@
+{
+ "tag": "en300_3-run",
+ "model": "gemini-3.5-flash-lite",
+ "effort": "default",
+ "text": "en300_3",
+ "status": 200,
+ "error": null,
+ "segments_sent": 67,
+ "blocks_returned": 67,
+ "blocks_strict": 64,
+ "missing": [],
+ "duplicates": [],
+ "out_of_range": [],
+ "out_of_order": false,
+ "empty": [],
+ "han_left": null,
+ "same_as_source": [],
+ "finish_reason": "stop",
+ "done": true,
+ "last_events": [
+  "{\"choices\":[{\"delta\":{\"content\":\" danh xưng đầy kính trọng là — vị nữ nhân ấy.\\nSEGMENT>>>\",\"role\":\"assistant\"},\"index\":0}],\"created\":1793089312,\"id\":\"GV_gaqDSNqKgvr0P0PKX0AU\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":2207,\"prompt_tokens\":2074,\"total_tokens\":4281}}",
+  "{\"choices\":[{\"delta\":{\"extra_content\":{\"google\":{\"thought_signature\":\"EmAKXgFpFH0T6Q6e8h4tkUTdVHeXCVYnD8eGnvH1zk1OiYUVcn8SMZdVnVGNtxZDl808nZq+Z0aKtQ/a+y2dETr2/P1OzIFSsfHSJ6tdP0P3DoGPulN0O/JdeKuNyGMu1Y4=\"}},\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"index\":0}],\"created\":1793089312,\"id\":\"GV_gaqDSNqKgvr0P0PKX0AU\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":2207,\"prompt_tokens\":2074,\"total_tokens\":4281}}",
+  "[DONE]"
+ ],
+ "usage": {
+  "completion_tokens": 2207,
+  "prompt_tokens": 2074,
+  "total_tokens": 4281
+ },
+ "seconds_first_token": 1.816294937976636,
+ "seconds_first_segment": 1.8163840599590912,
+ "seconds_total": 7.329878656950314,
+ "chars_out": 6450,
+ "unparsed_tail": ""
+}

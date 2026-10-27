@@ -1,0 +1,37 @@
+{
+ "tag": "en200_3-run",
+ "model": "gemini-3.5-flash-lite",
+ "effort": "default",
+ "text": "en200_3",
+ "status": 200,
+ "error": null,
+ "segments_sent": 200,
+ "blocks_returned": 200,
+ "blocks_strict": 200,
+ "missing": [],
+ "duplicates": [],
+ "out_of_range": [],
+ "out_of_order": false,
+ "empty": [],
+ "han_left": null,
+ "same_as_source": [
+  167
+ ],
+ "finish_reason": "stop",
+ "done": true,
+ "last_events": [
+  "{\"choices\":[{\"delta\":{\"content\":\" tôi đáp, nhìn bà ta với ánh mắt đầy vẻ thăm dò và có phần kinh ngạc.\\nSEGMENT>>>\",\"role\":\"assistant\"},\"index\":0}],\"created\":1793089183,\"id\":\"il7gapy4DdS3vr0Putu6mAQ\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":6407,\"prompt_tokens\":5724,\"total_tokens\":12131}}",
+  "{\"choices\":[{\"delta\":{\"extra_content\":{\"google\":{\"thought_signature\":\"EmAKXgFpFH0TvrGjHQVM8K67+JP7Z+qmb7j0UFXvJJ3eCtpI4L1X0oRi874rM4d+l/28AYzhG/5dvWjxXp3cz1pLKsa7+Uh5+56c3FIirpb2ANyEbPBV6nwXUKfBlJzmfuo=\"}},\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"index\":0}],\"created\":1793089183,\"id\":\"il7gapy4DdS3vr0Putu6mAQ\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":6407,\"prompt_tokens\":5724,\"total_tokens\":12131}}",
+  "[DONE]"
+ ],
+ "usage": {
+  "completion_tokens": 6407,
+  "prompt_tokens": 5724,
+  "total_tokens": 12131
+ },
+ "seconds_first_token": 1.7022835480165668,
+ "seconds_first_segment": 1.702365056029521,
+ "seconds_total": 22.367535322031472,
+ "chars_out": 18634,
+ "unparsed_tail": ""
+}

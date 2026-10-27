@@ -1,0 +1,35 @@
+{
+ "tag": "en100_7-run",
+ "model": "gemini-3.5-flash-lite",
+ "effort": "default",
+ "text": "en100_7",
+ "status": 200,
+ "error": null,
+ "segments_sent": 67,
+ "blocks_returned": 67,
+ "blocks_strict": 67,
+ "missing": [],
+ "duplicates": [],
+ "out_of_range": [],
+ "out_of_order": false,
+ "empty": [],
+ "han_left": null,
+ "same_as_source": [],
+ "finish_reason": "stop",
+ "done": true,
+ "last_events": [
+  "{\"choices\":[{\"delta\":{\"content\":\" hay khi đề cập đến bức ảnh của nàng, ông luôn dùng danh xưng kính trọng là Nàng.\\nSEGMENT>>>\",\"role\":\"assistant\"},\"index\":0}],\"created\":1793089092,\"id\":\"Pl7gau3CPLSNvr0PxvWB6Q4\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":2125,\"prompt_tokens\":2074,\"total_tokens\":4199}}",
+  "{\"choices\":[{\"delta\":{\"extra_content\":{\"google\":{\"thought_signature\":\"EmAKXgFpFH0TResdMfjsB8U+21VUBsK2ILe2lWKN3/erjz+T77sTzqNIZnTSZdadwAPIi9VxRkmv/7vWiYAayRsMoc4QkaK5tmPDzqaRDZ2RVboq9m0Zvo6U+GSpHaoWyuU=\"}},\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"index\":0}],\"created\":1793089093,\"id\":\"Pl7gau3CPLSNvr0PxvWB6Q4\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":2125,\"prompt_tokens\":2074,\"total_tokens\":4199}}",
+  "[DONE]"
+ ],
+ "usage": {
+  "completion_tokens": 2125,
+  "prompt_tokens": 2074,
+  "total_tokens": 4199
+ },
+ "seconds_first_token": 1.51347025699215,
+ "seconds_first_segment": 1.5135652120225132,
+ "seconds_total": 6.600036442978308,
+ "chars_out": 6246,
+ "unparsed_tail": ""
+}

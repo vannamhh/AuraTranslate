@@ -9,7 +9,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-10-25'
+updated: '2026-10-27'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md'
@@ -208,6 +208,8 @@ graph TD
 - **Binds:** C6, C7
 - **Prevents:** FR71 (xem prompt cuối cùng đã gửi) trở thành công việc đắt và không bao giờ chính xác 100% — mà đó lại là công cụ chẩn đoán duy nhất khi AI không tuân thủ Glossary.
 - **Rule:** Smart RAG Injector là một hàm thuần nhận (câu nguồn, scope, Glossary, TM) và trả về **prompt đã lắp hoàn chỉnh**. Lời gọi AI nhận prompt đã lắp làm đầu vào. Không nối chuỗi rải rác ở chỗ gọi.
+
+  🔵 2026-10-27: dịch lô lắp **một** prompt cho cả lượt nhiều câu (AD-60 mục 3). Hàm vẫn thuần; đầu vào là danh sách câu của lượt, cộng khối ngữ cảnh và Glossary/TM quét theo từng câu.
 
 ### AD-15 — Đúng ba điểm ra mạng trong toàn bộ ứng dụng
 
@@ -759,6 +761,8 @@ graph TD
 
   → chi tiết & bằng chứng: `spine-evidence.md#AD-47`
 
+  🔵 2026-10-27: với dịch lô, "đưa đề xuất AI sang Editor" chỉ nhận chữ của sự kiện `Received`, và chỉ khi `source_text` vẫn khớp ảnh chụp của lượt (AD-60 mục 10).
+
 ### AD-48 — Hộp thoại chọn tệp gọi TỪ RUST; không một quyền plugin nào ra JavaScript
 
 - **Binds:** C4, C8 — mọi năng lực cần một đường dẫn do NGƯỜI DÙNG chọn (Glossary CSV/TSV FR49; xuất bản cho reviewer qua `core/export/`).
@@ -1196,6 +1200,147 @@ graph TD
 
   → bằng chứng: lượt đo 2026-10-27 bằng khoá Gemini của Ice: ba lời gọi (`/v1beta/openai/chat/completions` với `gemini-2.5-flash`, `gemini-flash-latest`, và `generateContent` gốc) cùng trả 402 `RESOURCE_EXHAUSTED` "Your prepayment credits are depleted…", thân đường tương thích OpenAI là mảng một phần tử, câu không chứa khoá · https://ai.google.dev/gemini-api/docs/api-errors · https://ai.google.dev/gemini-api/docs/billing · https://developers.openai.com/api/docs/guides/error-codes · mã đọc: `src-tauri/src/core/ai/client.rs:395`, `:544`, `src-tauri/src/commands/aitranslate.rs:126`, `:752`, `src-tauri/src/core/i18n/mod.rs:1039`.
 
+  🔵 2026-10-27: với dịch lô theo lượt, `batch_stopped_error` mang `call_index`, `first_segment_id` và `last_segment_id` thay cho một `segment_id` đơn (AD-60 mục 8).
+
+### AD-60 — Dịch lô gom các câu liền nhau thành lượt gọi tối đa 100 câu; chữ chỉ được nhận khi khối của nó đóng đúng, câu thiếu thành *thiếu kết quả AI* chờ người dùng thử lại
+
+- **Binds:** C6, C7. Các chỗ trong mã:
+  - `core/ai/`: hàm thuần lập kế hoạch lượt, hàm lắp prompt của lượt (gọi lại phần mở rộng thân của `assemble_prompt`), bộ đọc khối, và các hằng số `TRANSLATE_CALL_MAX_SEGMENTS = 100`, `CONTEXT_GAP_MAX = 3`, `TM_PAIRS_PER_SEGMENT = 3`, cùng hằng định nghĩa dấu khối.
+  - `core/ai/client.rs`: `translate` trả `finish_reason: Option<String>` ra ngoài và không tự phán.
+  - `commands/aitranslate.rs`: lệnh dịch lô, `AiTranslateBatchEventWire`, `batch_stopped_error`.
+  - `commands/aiprompt.rs`: `AssembledPromptRecord`.
+  - `commands/segment/targets.rs`: `promote_ai_translation`.
+  - Frontend: `src/config/aitranslate.ts`, `src/aiTranslateBatchState.ts`.
+- **Prevents:**
+  1. **Cắt ngang im lặng.** Đo ngày 2026-10-27 với `gemini-3.5-flash-lite` qua endpoint tương thích OpenAI có streaming. Gửi cả Chương 667 câu trong một lượt thì cả 3/3 lần chạy đều kết thúc giữa câu mà không có `finish_reason`, mất 292–525 câu. Lần thứ ba, lần duy nhất script có ghi `[DONE]`, xác nhận luồng có `[DONE]`. Đây là hành vi đo được, không phải điều nhà cung cấp cam kết: trang tài liệu của Google không nói gì về `finish_reason` trên đường này. `translate` ở `7bd1f90` coi "`[DONE]` có chữ" là xong, nên các câu đó biến mất mà không có lỗi nào.
+  2. **Rơi câu khi mô hình báo `stop`.** Mỗi lượt zh 356 câu rơi 1–2 câu (đếm cả khối thiếu `<<<` là đã nhận). Lượt en 200 câu cuối cùng có `stop` mà vẫn thiếu câu cuối Chương. Lỗi này hiện ra thành "lô đã xong".
+  3. **Chữ không đáng tin lọt vào Editor.** Rủi ro này suy ra, chưa đo. Nửa câu đã stream trước chỗ bị cắt, hoặc hai khối dính nhau vì trùng chỉ số, được đưa sang Editor với xuất xứ `other` (AD-47) mà không cổng nào đỏ.
+  4. **Tự gửi lại câu thiếu.** Mỗi lượt gọi là tiền của người dùng (AD-22, FR75).
+  5. **Ngữ cảnh giả.** Hai đoạn chọn rời nhau được gửi đi như một văn bản liền mạch; câu người dùng đã đánh dấu bỏ qua bị gửi ra ngoài.
+  6. **Lệch nhau giữa các tầng.** Hai tầng cùng chia lượt, cùng cộng usage, hoặc cùng mở rộng marker theo hai cách khác nhau.
+  7. **Mất phần định dạng.** Người dùng sửa system prompt (FR69) và xoá mất phần dặn định dạng khối mà bộ đọc cần.
+- **Rule:**
+
+  1. **Rust lập kế hoạch lượt và là chủ vòng lặp.**
+     - Một lệnh nhận thao tác (vùng chọn, hoặc cả Chương) và một Channel. Một hàm thuần trong `core/ai/` lập kế hoạch lượt **một lần** ở đầu thao tác, trên ảnh chụp các câu của Chương. Webview không biết ranh giới lượt cho tới khi nhận sự kiện.
+     - *Cần dịch*: với cả Chương, là câu có `target_text` rỗng sau khi cắt khoảng trắng và không `is_omitted`. Với vùng chọn, là mọi câu đã chọn không `is_omitted`; câu đã có bản dịch vẫn được dịch lại.
+     - Câu `is_omitted` vô hình với kế hoạch: không bao giờ được gửi, và không làm đứt tính liền nhau.
+     - Một lượt là một khoảng liền nhau trong thứ tự `ord` của các câu không `is_omitted` trong một Chương, chứa tối đa `TRANSLATE_CALL_MAX_SEGMENTS` câu cần dịch.
+     - Vùng chọn gồm nhiều đoạn rời thì mỗi đoạn đi một hoặc nhiều lượt, và không có khối ngữ cảnh nào bắc qua chỗ rời.
+     - Các lượt chạy tuần tự. Huỷ được kiểm trước mỗi lượt và giữa các khung SSE.
+     - `segment_id` đã về hưu khi tới lượt của nó thì không được gửi, và thành *thiếu kết quả AI*.
+  2. **Khối ngữ cảnh (chỉ ở chế độ cả Chương).**
+     - Câu đã dịch nằm giữa hai câu cần dịch của cùng lượt thì đi kèm thành khối ngữ cảnh chỉ đọc: nguồn, cộng `target_text` đã lưu.
+     - Khối ngữ cảnh không đánh số, không phát sự kiện, và không tính vào trần.
+     - Một đoạn liền dài hơn `CONTEXT_GAP_MAX` câu đã dịch thì cắt sang lượt mới. Lượt mới mang theo tối đa `CONTEXT_GAP_MAX` câu đã dịch đứng ngay trước làm ngữ cảnh.
+     - Chỉ trường hợp cắt ở trên mới có khối ngữ cảnh ở đầu lượt. Lượt đầu tiên của Chương, và lượt bị cắt vì chạm trần câu cần dịch, không mang khối ngữ cảnh ở đầu.
+  3. **Lắp prompt (AD-14 🔵).**
+     - Glossary đã phân giải (AD-18, AD-36) và chính sách TM của Tác phẩm (AD-57) được đọc **một lần mỗi thao tác** và dùng cho mọi lượt. Mỗi câu cần dịch được quét Glossary và TM riêng, theo đúng đường hiện có.
+     - Thân bộ prompt mở rộng một lần bằng khâu mở rộng thân của `assemble_prompt`. Không có hàm thứ hai viết lại khâu này. Ba marker của bộ prompt (`glossary_terms`, `tm_similar_segments`, `source_segment`, viết trong hai cặp ngoặc nhọn) giữ nghĩa cũ:
+       - Marker `glossary_terms` thành Glossary đã gộp của lượt: đi qua phân giải ghi đè hai tầng trước, rồi bỏ trùng theo thuật ngữ nguồn.
+       - Marker `tm_similar_segments` bật TM. Mỗi câu mang tối đa `TM_PAIRS_PER_SEGMENT` cặp, nằm **trong khối của chính câu đó**, giữ thứ tự ưu tiên của AD-18. Chỗ của marker trong thân là một dòng dẫn cố định.
+       - Marker `source_segment` thành chuỗi khối của lượt.
+       - Thân thiếu marker nào thì phần của marker đó không được chèn, và sổ chèn ghi "không hỏi" cho phần đó (FR69, FR70). Thân không có marker `source_segment` thì chuỗi khối đi sau thân và cờ `source_segment_missing` được bật như hiện nay.
+     - Sổ chèn là sổ của lượt: đếm theo từng câu rồi cộng lại.
+     - Phần dặn định dạng khối là hằng số trong `core/ai/`, nối sau system prompt đã phân giải (Work, rồi Global, rồi mặc định) trong cùng message system. Khi system prompt trống, nó là toàn bộ message system. System prompt mặc định không đổi.
+  4. **Ngữ pháp khối là một đặc tả đóng, đặt ở một nơi.** Prompt và bộ đọc dùng chung một hằng định nghĩa dấu.
+     - Tập dấu gồm: mở `<<<SEGMENT n` (bộ đọc nhận cả dạng lỏng `SEGMENT n`), đóng `SEGMENT>>>`; khối ngữ cảnh `<<<CONTEXT` … `CONTEXT>>>`; khối TM con `<<<TM` … `TM>>>`, nằm bên trong khối của câu.
+     - Chữ nằm trong khối TM con mà mô hình chép lại thì bị bỏ, không tính vào bản dịch.
+     - Một dòng chỉ là dấu khi nó là **toàn bộ** nội dung dòng đó, sau khi cắt khoảng trắng hai đầu.
+     - Chữ của khối là mọi thứ giữa dòng mở và dòng đóng, cắt khoảng trắng hai đầu. Chữ nằm ngoài mọi khối SEGMENT bị bỏ, kể cả khối ngữ cảnh mà mô hình chép lại.
+     - Gặp dấu mở n+1 khi khối n chưa đóng thì khối n bị loại với lý do `unclosed`.
+     - Lúc lắp prompt, một dòng của nguồn, của ngữ cảnh hoặc của cặp TM mà trùng một dấu trong tập trên (kể cả dạng lỏng) thì được chèn U+200B vào giữa dấu.
+     - Bộ đọc bỏ U+200B chỉ ở những dòng mà sau khi bỏ nó thì dòng đó trùng một dấu. Dòng đó vẫn được giữ là chữ, không phải dấu. U+200B ở mọi chỗ khác được giữ nguyên.
+  5. **Sự kiện trên dây (AD-22: một Channel cho cả thao tác).** Mọi sự kiện mang `call_index`, đếm từ 1:
+     - `Planned { calls: [{ call_index, segment_ids }] }`: phát một lần ở đầu thao tác, mang toàn bộ kế hoạch. Webview đặt hàng thành `queued` từ sự kiện này và không bao giờ tự tính ranh giới lượt.
+     - `CallStarted { call_index }`.
+     - `Token { call_index, segment_id, text }`: chỉ để hiển thị tiến trình (FR74).
+     - `Received { call_index, segment_id, text, has_han, source_hash }` và `Discarded { call_index, segment_id, reason }`: phát **sau khi luồng của lượt kết thúc**, ngay trước `CallDone`, mỗi câu của lượt đúng một sự kiện. Lúc đó mới biết một chỉ số có bị trùng hay không. `source_hash` là hash của `source_text` trong ảnh chụp của kế hoạch.
+     - `reason` thuộc: `duplicate_index`, `unclosed`, `empty`, `missing`, `no_finish`, `interrupted`, `retired`. Khối chưa đóng khi luồng kết thúc lấy `no_finish` nếu `finish_reason` vắng mặt hoặc khác `"stop"`, ngược lại lấy `unclosed`.
+     - `CallDone { call_index, finish_reason, usage }`: luôn được phát khi lượt kết thúc, kể cả khi bị huỷ hoặc hỏng, với usage nếu có.
+     - Usage là của lượt. Tổng của thao tác cộng theo `call_index`, mỗi lượt một lần (FR76).
+     - Thao tác kết thúc khi lệnh trả kết quả: `Ok` khi xong hoặc bị huỷ, `Err` mang `params` của mục 8 khi nhà cung cấp lỗi.
+  6. **Trạng thái một hàng lô** (dữ liệu phiên của panel, AD-21; không bao giờ ghi vào `target_text`):
+     - `queued` → `streaming` → `received`, hoặc `missing(reason)`. Câu thuộc lượt chưa từng được gửi khi thao tác dừng thì thành `not_sent`.
+     - Nút đưa sang Editor của một hàng chỉ bật khi hàng đó ở `received`.
+     - Nhãn hiển thị của `missing` là *thiếu kết quả AI*, không dùng chữ "chưa dịch" của Editor.
+     - Khi nhận `Discarded`, webview xoá chữ đã stream của hàng đó. Chữ của hàng chỉ lấy từ `Received.text`.
+  7. **Đối chiếu, ở mọi lượt.** Bộ chạy lô phán; `translate` không phán.
+     - Một khối được nhận khi và chỉ khi: nó đã đóng, chỉ số nằm trong 1..k, chỉ số đó chỉ xuất hiện một lần, và chữ khác rỗng.
+     - Chỉ số trùng thì không lần nào được giữ. Chỉ số ngoài khoảng 1..k thì bị bỏ.
+     - Lượt kết thúc với `finish_reason == "stop"` (so khớp đúng chuỗi viết thường của endpoint tương thích OpenAI): mọi câu không được nhận thành `missing`.
+     - `finish_reason` vắng mặt hoặc khác `"stop"` (kể cả `length`, chưa đo thấy): khối đã nhận được giữ, câu còn lại thành `missing(no_finish)`. Với nhà cung cấp cục bộ không gửi `finish_reason`, mục này giữ được mọi khối đã đóng.
+     - Khớp **chỉ theo chỉ số**, không bao giờ theo độ dài hay nội dung.
+     - ⚠️ Mô hình bỏ câu 5 rồi đánh số 5 cho bản dịch câu 6, đủ chỉ số và có `stop`: luật này **không** bắt được. Người duyệt ở FR72 là lớp canh, và lượt đo chưa thấy ca này.
+  8. **Khi hỏng và khi huỷ.**
+     - Lỗi từ nhà cung cấp (non-2xx theo AD-59, hoặc luồng đóng mà không có `[DONE]`) dừng thao tác. Khối hợp lệ đã đóng của lượt đó được giữ; câu còn lại của lượt đó thành `missing(interrupted)`; mọi lượt sau thành `not_sent`.
+     - Lỗi mang `params` dạng dữ liệu `call_index`, `first_segment_id`, `last_segment_id` (AD-59 🔵).
+     - Huỷ giữ các khối hợp lệ đã đóng; câu còn lại của lượt đang chạy thành `missing(interrupted)`; các lượt sau thành `not_sent`.
+     - `missing` không dừng thao tác.
+  9. **Không tự thử lại (AD-22, FR75).** Thử lại chỉ chạy khi người dùng bấm. Đó luôn là một thao tác **chế độ vùng chọn** trên tập `missing` ∪ `not_sent`, kể cả khi thao tác gốc là cả Chương, nên câu đã có bản dịch trong tập vẫn được dịch lại.
+  10. **Đưa sang Editor (AD-47 🔵).**
+      - Chỉ chữ của `Received` mới được đưa sang.
+      - Lệnh đưa sang nhận `segment_id`, chữ và `source_hash`, rồi tính lại hash từ `source_text` hiện tại phía Rust. `segment_id` đã về hưu, hoặc hash không khớp, thì từ chối và không ghi gì, như AD-53 làm với Proofreader.
+      - Bản nháp chưa ký mà người dùng gõ sau khi lượt bắt đầu đi qua đúng phép hỏi ghi đè `needs_confirmation` hiện có của `promote_ai_translation`.
+      - Hai cờ `has_han` và `maybe_truncated` không chặn lượt đưa sang.
+  11. **Cờ chữ Hán theo hình dạng chuỗi (AD-44).** `has_han` bật khi bản dịch chứa ít nhất một ký tự mà `core/dict::is_han` nhận, *và* nguồn của câu đó cũng chứa ký tự như vậy. Định nghĩa duy nhất của *ký tự Hán* là của AD-44; AD-60 không định nghĩa lại. Cờ không bao giờ loại câu.
+  12. **Đường dịch một câu và Proofreader.**
+      - Dịch một câu tại con trỏ giữ `assemble_prompt` và luồng hiện có. Khi `finish_reason` vắng mặt hoặc khác `"stop"`, kết quả mang cờ dữ liệu `maybe_truncated` (Ice 2026-10-27).
+      - Mọi lô, kể cả lô chỉ có một câu, đi đường khối.
+      - Proofreader không đổi và không phán `finish_reason`.
+  13. **FR71, FR145.**
+      - Bản ghi prompt khoá theo `(thao tác, call_index)`: prompt, system, `segment_ids` theo thứ tự n, `sent_usage` của lượt, và sổ chèn của lượt.
+      - Màn xem prompt của một câu hiện bản ghi mới nhất có câu đó là khối cần dịch, đánh dấu khối của nó. Nếu câu chỉ là ngữ cảnh thì màn ghi rõ điều đó.
+      - Gửi lại (FR145) gửi đúng prompt của lượt và đọc kết quả theo các mục 4–8.
+  14. **Test canh.** Mọi ca đi qua cổng nghe cục bộ với các khung viết tay; mỗi ca đỏ có đối chứng bằng phép GỠ thật nêu trong ngoặc:
+      - (a) Luồng có `[DONE]` mà không có `finish_reason`, dừng giữa khối k ⇒ câu k..n là `missing(no_finish)`, ô k rỗng, nút đưa sang tắt. (Gỡ phép kiểm `finish_reason`.)
+      - (b) `finish_reason: length` ⇒ giống (a).
+      - (c) Có `stop` nhưng thiếu khối k ⇒ chỉ câu k thành `missing`, và lượt sau vẫn được gửi.
+      - (d) Hai khối cùng chỉ số ⇒ không lần nào được giữ, không chữ nào của k được đưa sang. (Gỡ phép kiểm trùng.)
+      - (e) Khối rỗng ⇒ `empty`.
+      - (f) Dòng mở thiếu `<<<` ⇒ khối vẫn được nhận.
+      - (g) Nguồn có một dòng `SEGMENT>>>` ⇒ không khối nào đóng sớm. (Gỡ bước chèn U+200B.)
+      - (h) Huỷ giữa hai lượt ⇒ đúng k lượt đã gửi, và `CallDone` của lượt đang chạy vẫn được phát.
+      - (h2) Khối k đóng sớm rồi một khối k thứ hai xuất hiện sau ⇒ không có `Received` nào cho k, và chưa từng có sự kiện nào cho phép đưa k sang Editor. (Gỡ việc hoãn `Received` tới cuối luồng.)
+      - (i) Vùng chọn gồm hai đoạn rời ⇒ hai lượt, không có khối ngữ cảnh bắc qua.
+      - (j) 250 câu cần dịch ⇒ ba lượt: 100, 100, 50.
+      - (k) Đoạn 4 câu đã dịch nằm giữa ⇒ cắt lượt, lượt mới mang 3 câu ngữ cảnh.
+      - (l) Câu `is_omitted` không có trong prompt nào.
+      - (m) Câu ngữ cảnh có trong prompt, nhưng không có sự kiện nào mang `segment_id` của nó.
+      - (n) Có ký tự Hán trong bản dịch ⇒ `has_han` bật, câu vẫn `received`.
+      - (o) System prompt không rỗng ⇒ phần dặn định dạng đứng **sau** nó; system prompt rỗng ⇒ phần dặn là toàn bộ message system.
+      - (p) Thân không có marker `glossary_terms` ⇒ không có Glossary nào trong prompt lượt, sổ chèn ghi "không hỏi". (Gỡ phép kiểm marker.)
+      - (q) Lỗi non-2xx ở lượt 2 ⇒ thao tác dừng, lượt 1 được giữ, `params` mang `call_index = 2`.
+      - (r) Thử lại chỉ gửi các câu `missing` và `not_sent`; một câu đã có bản dịch trong tập vẫn được dịch lại, không thành khối ngữ cảnh.
+      - (s) Người dùng sửa nguồn của câu k giữa chừng ⇒ lệnh đưa sang từ chối k. (Gỡ phép so hash.)
+      - (s2) `Planned` mang đủ mọi lượt, và webview không chứa hằng số trần lượt nào.
+      - (t) Tổng usage của thao tác bằng tổng các `CallDone`.
+      - (u) Chính sách TM được đọc đúng một lần mỗi thao tác.
+  15. **Đổi gì, không đổi gì.**
+      - Đổi: AD-14, AD-47 và AD-59 mỗi chỗ nhận một dòng 🔵 trỏ về đây. Quy tắc "lỗi đầu tiên dừng lô và nêu tên câu" của spec 4.9 nhường chỗ cho mục 7 và 8; story thi hành ghi 🔵 vào spec đó.
+      - Không đổi: system prompt mặc định; AD-15, AD-22, AD-29, AD-36. AD-57 được áp theo đúng "một lần mỗi thao tác". Proofreader giữ khuôn của nó (commit `dc8b39d`).
+
+- **Phương án bị loại:**
+  - **Cả Chương trong một lượt:** 0/3 lần chạy trọn ở Chương 667 câu.
+  - **Trần 200 hoặc 300 câu:** đều cho `stop` ở 7/7 lượt, cùng tiền và cùng thời gian; lượt 200 thiếu câu cuối. Ice chọn 100 ngày 2026-10-27.
+  - **Webview chia lượt:** logic miền lọt sang Vue (AD-1), và hai tầng có thể chia lệch nhau.
+  - **Phát chữ vào hàng mà không có `Received` / `Discarded`:** Prevents 3.
+  - **Gửi câu `is_omitted` làm ngữ cảnh:** Ice chọn không gửi ngày 2026-10-27.
+  - **Mỗi câu một request, thêm câu kề vào prompt (phương án C):** Ice chọn gom câu.
+  - **Batch API:** không hợp khi người dùng đang chờ, và cần thêm một điểm mạng (AD-15).
+  - **Để phần dặn định dạng trong text người dùng sửa được:** Prevents 7.
+
+  → bằng chứng:
+  - Lượt đo 2026-10-27 với một mô hình (`gemini-3.5-flash-lite`), mỗi cấu hình chạy một lần, trên văn bản công cộng: `_bmad-output/initiative-auratranslate/ad-brief-dich-ca-chuong-mot-luot/do-m2.md`, gồm script và JSON từng lượt.
+    - zh 356 câu một lượt: rơi 1–2 câu, có `stop`.
+    - en 667 câu một lượt: cắt 3/3.
+    - en chia lượt 100, 200 và 300 câu: 14/14 lượt có `stop`, thiếu 0, 1 và 0 câu; mỗi cách khoảng $0,06 và 100–114 giây.
+  - `gemini-3.8-flash` (preset của app) và nhà cung cấp cục bộ chưa được đo.
+  - Hồ sơ: `ad-brief-dich-ca-chuong-mot-luot.md`.
+  - Review: `reviews/review-ad-60-{rubric,reality,adversary}-2026-10-27.md`.
+  - Mã đọc: `src-tauri/src/core/ai/client.rs:468 (translate) @ 7bd1f90`, `src-tauri/src/commands/aitranslate.rs:1034 (run_batch_call) @ 7bd1f90`.
+  - Lịch sử: `915f1af` (dịch lô mỗi câu một request), `dc8b39d` (Proofreader gom câu).
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -1220,7 +1365,7 @@ graph TD
 | **Ghi dữ liệu** | Mọi ghi qua `store::Writer` của kho tương ứng (AD-11). `.atproj` ghi trước, `library-index.db` ghi sau (AD-8) |
 | **Tra cứu** | Kết quả luôn mang `source`; không hợp nhất giữa nguồn (AD-19). Đường zh hay en chọn theo **hình dạng chuỗi truy vấn**, không theo ngôn ngữ Tác phẩm; mọi nhánh lọc `dict_entry.lang` tường minh (AD-44) |
 | **Phân giải hai tầng** | Luôn qua `ScopeResolver`; ngữ nghĩa ghi đè hay hợp nhất tra ở AD-18 |
-| **Gọi AI** | Luôn qua prompt đã lắp bởi `RagInjector` (AD-14); luôn huỷ được; không bao giờ tự thử lại |
+| **Gọi AI** | Luôn qua prompt đã lắp bởi `RagInjector` (AD-14); luôn huỷ được; không bao giờ tự thử lại. Dịch lô chia thành các lượt tối đa 100 câu; chữ chỉ được nhận khi khối của nó đóng đúng, và thử lại chỉ gửi câu thiếu (AD-60) |
 | **Nội dung ngoài** | Luôn phân tích thành mô hình dữ liệu trước khi render (AD-16) |
 | **Giấy phép** | Mỗi phụ thuộc mới phải rà tương thích GPLv3 **trước khi** thêm vào (NFR15) và ghi vào bảng Stack |
 

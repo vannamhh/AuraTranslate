@@ -1,0 +1,40 @@
+{
+ "tag": "zh-minimal-1",
+ "model": "gemini-3.5-flash-lite",
+ "effort": "minimal",
+ "text": "zh",
+ "status": 200,
+ "error": null,
+ "segments_sent": 356,
+ "blocks_returned": 355,
+ "blocks_strict": 353,
+ "missing": [
+  22
+ ],
+ "duplicates": [],
+ "out_of_range": [],
+ "out_of_order": false,
+ "empty": [],
+ "han_left": [
+  3,
+  104,
+  332,
+  333,
+  335,
+  336
+ ],
+ "same_as_source": [],
+ "finish_reason": "stop",
+ "usage": {
+  "completion_tokens": 13011,
+  "prompt_tokens": 11168,
+  "prompt_tokens_details": {
+   "cached_tokens": 8165
+  },
+  "total_tokens": 24179
+ },
+ "seconds_first_token": 2.3478707590256818,
+ "seconds_first_segment": 2.347922415006906,
+ "seconds_total": 37.80706642300356,
+ "chars_out": 35664
+}

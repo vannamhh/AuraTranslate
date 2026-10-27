@@ -1,0 +1,37 @@
+{
+ "tag": "en200_2-run",
+ "model": "gemini-3.5-flash-lite",
+ "effort": "default",
+ "text": "en200_2",
+ "status": 200,
+ "error": null,
+ "segments_sent": 200,
+ "blocks_returned": 200,
+ "blocks_strict": 200,
+ "missing": [],
+ "duplicates": [],
+ "out_of_range": [],
+ "out_of_order": false,
+ "empty": [],
+ "han_left": null,
+ "same_as_source": [
+  83
+ ],
+ "finish_reason": "stop",
+ "done": true,
+ "last_events": [
+  "{\"choices\":[{\"delta\":{\"content\":\" rồi sao nữa?\\nSEGMENT>>>\",\"role\":\"assistant\"},\"index\":0}],\"created\":1793089160,\"id\":\"d17gaprqDrrLrfcP1OifiQs\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":6424,\"prompt_tokens\":5865,\"total_tokens\":12289}}",
+  "{\"choices\":[{\"delta\":{\"extra_content\":{\"google\":{\"thought_signature\":\"EmAKXgFpFH0T5zKzu4WN/OLJ3Mv+2WuwIbGGS4o0ayxqqrTWpVRSabGGd74RdI7vnaie8RRHIQvHk51t7F7oyq0LOVgz/aCBtGG4o0Ldzm2pdsQFzcrP0vRQFKQv6+F5xgQ=\"}},\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"index\":0}],\"created\":1793089161,\"id\":\"d17gaprqDrrLrfcP1OifiQs\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":6424,\"prompt_tokens\":5865,\"total_tokens\":12289}}",
+  "[DONE]"
+ ],
+ "usage": {
+  "completion_tokens": 6424,
+  "prompt_tokens": 5865,
+  "total_tokens": 12289
+ },
+ "seconds_first_token": 1.6355069340206683,
+ "seconds_first_segment": 1.6356546000461094,
+ "seconds_total": 18.374919584020972,
+ "chars_out": 18944,
+ "unparsed_tail": ""
+}

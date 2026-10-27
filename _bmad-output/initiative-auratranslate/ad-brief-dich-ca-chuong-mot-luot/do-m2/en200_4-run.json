@@ -1,0 +1,37 @@
+{
+ "tag": "en200_4-run",
+ "model": "gemini-3.5-flash-lite",
+ "effort": "default",
+ "text": "en200_4",
+ "status": 200,
+ "error": null,
+ "segments_sent": 67,
+ "blocks_returned": 66,
+ "blocks_strict": 66,
+ "missing": [
+  67
+ ],
+ "duplicates": [],
+ "out_of_range": [],
+ "out_of_order": false,
+ "empty": [],
+ "han_left": null,
+ "same_as_source": [],
+ "finish_reason": "stop",
+ "done": true,
+ "last_events": [
+  "{\"choices\":[{\"delta\":{\"content\":\"MENT>>>\",\"role\":\"assistant\"},\"index\":0}],\"created\":1793089196,\"id\":\"oF7gar3xMo-Cvr0Py7LE0AM\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":2181,\"prompt_tokens\":2074,\"total_tokens\":4255}}",
+  "{\"choices\":[{\"delta\":{\"extra_content\":{\"google\":{\"thought_signature\":\"EmAKXgFpFH0T52yZ0+tuUIlPELkYO/gNoJ0c1W/ONDnfscoUIORSunek/wOkNlmd5HgqSYzOkfxMzA45q8ukd39Sej/hCJDZQtlbVVPGcH2nyAmXaYIXhG/sAfOf8hn5t1k=\"}},\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"index\":0}],\"created\":1793089197,\"id\":\"oF7gar3xMo-Cvr0Py7LE0AM\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":2181,\"prompt_tokens\":2074,\"total_tokens\":4255}}",
+  "[DONE]"
+ ],
+ "usage": {
+  "completion_tokens": 2181,
+  "prompt_tokens": 2074,
+  "total_tokens": 4255
+ },
+ "seconds_first_token": 2.5105149330338463,
+ "seconds_first_segment": 2.510738635028247,
+ "seconds_total": 12.895857755036559,
+ "chars_out": 6451,
+ "unparsed_tail": "MENT 65\nTrước đây ông vẫn thường hay giễu cợt sự khôn ngoan của đàn bà, nhưng dạo gần đây tôi không còn nghe thấy ông làm thế nữa.\nSEGMENT>>>\n<<<SEGMENT 66\nVà mỗi khi nhắc đến Irene Adler, hay khi nhắc đến bức ảnh của cô ấy, ông luôn gọi bằng một danh xưng đầy kính trọng: người phụ nữ ấy.\nSEGMENT>>>"
+}

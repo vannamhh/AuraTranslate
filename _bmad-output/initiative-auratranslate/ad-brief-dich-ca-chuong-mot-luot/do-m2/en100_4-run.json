@@ -1,0 +1,35 @@
+{
+ "tag": "en100_4-run",
+ "model": "gemini-3.5-flash-lite",
+ "effort": "default",
+ "text": "en100_4",
+ "status": 200,
+ "error": null,
+ "segments_sent": 100,
+ "blocks_returned": 100,
+ "blocks_strict": 100,
+ "missing": [],
+ "duplicates": [],
+ "out_of_range": [],
+ "out_of_order": false,
+ "empty": [],
+ "han_left": null,
+ "same_as_source": [],
+ "finish_reason": "stop",
+ "done": true,
+ "last_events": [
+  "{\"choices\":[{\"delta\":{\"content\":\"0\\nRồi sau đó thế nào?\\nSEGMENT>>>\",\"role\":\"assistant\"},\"index\":0}],\"created\":1793089044,\"id\":\"Cl7gat-YINHf9tMPp6XuqAU\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":3493,\"prompt_tokens\":3316,\"total_tokens\":6809}}",
+  "{\"choices\":[{\"delta\":{\"extra_content\":{\"google\":{\"thought_signature\":\"EmAKXgFpFH0TWN41h8rxEgHJcdqaiZ7rYu2k9KSFn7S/BC7eb77D9ZSMk1aillFJtNC5B8St1GPJVPasGNn+bGX3EcPej3hG2e1CrR1bp6t/cIxzN80K69z4IOr13nHNySI=\"}},\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"index\":0}],\"created\":1793089044,\"id\":\"Cl7gat-YINHf9tMPp6XuqAU\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":3493,\"prompt_tokens\":3316,\"total_tokens\":6809}}",
+  "[DONE]"
+ ],
+ "usage": {
+  "completion_tokens": 3493,
+  "prompt_tokens": 3316,
+  "total_tokens": 6809
+ },
+ "seconds_first_token": 2.256898124993313,
+ "seconds_first_segment": 2.2569722079788335,
+ "seconds_total": 10.854215340979863,
+ "chars_out": 10640,
+ "unparsed_tail": ""
+}

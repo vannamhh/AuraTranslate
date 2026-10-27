@@ -1,0 +1,35 @@
+{
+ "tag": "en100_5-run",
+ "model": "gemini-3.5-flash-lite",
+ "effort": "default",
+ "text": "en100_5",
+ "status": 200,
+ "error": null,
+ "segments_sent": 100,
+ "blocks_returned": 100,
+ "blocks_strict": 99,
+ "missing": [],
+ "duplicates": [],
+ "out_of_range": [],
+ "out_of_order": false,
+ "empty": [],
+ "han_left": null,
+ "same_as_source": [],
+ "finish_reason": "stop",
+ "done": true,
+ "last_events": [
+  "{\"choices\":[{\"delta\":{\"content\":\" đến cô ấy đâu.\\nSEGMENT>>>\",\"role\":\"assistant\"},\"index\":0}],\"created\":1793089067,\"id\":\"FV7gaoyQIbKXvr0P15iE8QU\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":3336,\"prompt_tokens\":3067,\"total_tokens\":6403}}",
+  "{\"choices\":[{\"delta\":{\"extra_content\":{\"google\":{\"thought_signature\":\"EmAKXgFpFH0TIOg8UuhTxJhRech5wndmHB6STpVwu4Vfv7FnmZQMft+OuEQ0U7Jk1Tzn6mBjxfjk2tckhEOJAq9cyn4W54Kao/a//OYas6yrlSqfmATIZ8cmnYtI24ZCrAo=\"}},\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"index\":0}],\"created\":1793089068,\"id\":\"FV7gaoyQIbKXvr0P15iE8QU\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":3336,\"prompt_tokens\":3067,\"total_tokens\":6403}}",
+  "[DONE]"
+ ],
+ "usage": {
+  "completion_tokens": 3336,
+  "prompt_tokens": 3067,
+  "total_tokens": 6403
+ },
+ "seconds_first_token": 2.9901626119972207,
+ "seconds_first_segment": 2.9902452909736894,
+ "seconds_total": 23.114026130002458,
+ "chars_out": 10063,
+ "unparsed_tail": ""
+}

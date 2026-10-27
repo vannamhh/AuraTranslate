@@ -1,0 +1,37 @@
+{
+ "tag": "en100_6-run",
+ "model": "gemini-3.5-flash-lite",
+ "effort": "default",
+ "text": "en100_6",
+ "status": 200,
+ "error": null,
+ "segments_sent": 100,
+ "blocks_returned": 100,
+ "blocks_strict": 99,
+ "missing": [],
+ "duplicates": [],
+ "out_of_range": [],
+ "out_of_order": false,
+ "empty": [],
+ "han_left": null,
+ "same_as_source": [
+  67
+ ],
+ "finish_reason": "stop",
+ "done": true,
+ "last_events": [
+  "{\"choices\":[{\"delta\":{\"content\":\" phần kinh ngạc.\\nSEGMENT>>>\",\"role\":\"assistant\"},\"index\":0}],\"created\":1793089085,\"id\":\"LF7gatiAOZK2vr0P_LTRwQU\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":2946,\"prompt_tokens\":2798,\"total_tokens\":5744}}",
+  "{\"choices\":[{\"delta\":{\"extra_content\":{\"google\":{\"thought_signature\":\"EmAKXgFpFH0TDud1JuK8NsAHIQy6hhYH8oys0xTDsZIBbhWXK5F93vh0W682paFW7uiboowxvUp3hH7ashnfgyiUUQS8wuE4f4ARPcqdqjD6wAf1UEqbC4YluY4Yuw5ubSk=\"}},\"role\":\"assistant\"},\"finish_reason\":\"stop\",\"index\":0}],\"created\":1793089085,\"id\":\"LF7gatiAOZK2vr0P_LTRwQU\",\"model\":\"gemini-3.5-flash-lite\",\"object\":\"chat.completion.chunk\",\"usage\":{\"completion_tokens\":2946,\"prompt_tokens\":2798,\"total_tokens\":5744}}",
+  "[DONE]"
+ ],
+ "usage": {
+  "completion_tokens": 2946,
+  "prompt_tokens": 2798,
+  "total_tokens": 5744
+ },
+ "seconds_first_token": 2.6092051590094343,
+ "seconds_first_segment": 2.6093285650131293,
+ "seconds_total": 17.357660124020185,
+ "chars_out": 8525,
+ "unparsed_tail": ""
+}
