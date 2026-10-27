@@ -3,7 +3,7 @@ title: 'Bug 4.14 — Dịch bằng Gemini ra kết quả trống, không báo l�
 type: 'bugfix'
 ticket: 14
 created: '2026-10-27'
-status: 'built'
+status: 'done'
 baseline_revision: '356340e10c83f86a7aada168334b681ab278a4f0'
 route: 'full'
 route_source: 'auto'

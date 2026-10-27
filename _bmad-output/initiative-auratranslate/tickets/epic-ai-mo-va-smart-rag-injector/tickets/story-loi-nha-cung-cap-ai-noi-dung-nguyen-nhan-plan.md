@@ -3,7 +3,7 @@ title: 'Story 4.13 — Lỗi nhà cung cấp AI nói đúng nguyên nhân'
 type: 'feature'
 ticket: 13
 created: '2026-10-27'
-status: 'built'
+status: 'done'
 baseline_revision: '67c46a2db49971c1cfaee372a04fe30a7b668c81'
 route: 'full'
 route_source: 'auto'
