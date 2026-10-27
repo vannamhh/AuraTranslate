@@ -66,15 +66,8 @@ pub fn review_accept_change(
         if !live {
             return Ok(Accepted::GroupChanged);
         }
-        if !force && !current_text.is_empty() {
-            let has_copy: i64 = tx.query_row(
-                "SELECT EXISTS(SELECT 1 FROM segment_version WHERE segment_id = ?1 AND target_text = ?2)",
-                (segment_id, &current_text),
-                |row| row.get(0),
-            )?;
-            if has_copy == 0 {
-                return Ok(Accepted::Row(current_text, current_origin, current_status, true));
-            }
+        if !force && is_unsigned_draft(tx, segment_id, &current_text)? {
+            return Ok(Accepted::Row(current_text, current_origin, current_status, true));
         }
         if !mark_accepted(tx, change.review_chapter_id, group_id, segment_id, change.row_id)? {
             return Ok(Accepted::GroupChanged);

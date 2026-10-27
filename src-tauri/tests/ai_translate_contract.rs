@@ -72,7 +72,7 @@ use auratranslate_lib::core::ai::client::{
 use auratranslate_lib::core::aiconfig::{AiConfigField, AiConfigTier, write_field};
 use auratranslate_lib::core::i18n::{IpcError, MessageKey};
 use auratranslate_lib::core::promptset::PromptSetTier;
-use auratranslate_lib::core::store::{Store, StoreSpec};
+use auratranslate_lib::core::store::{Store, StoreSpec, Transaction};
 use auratranslate_lib::ports::translation_provider::{
     TranslateOutcome, TranslateRequest, TranslateUsage, TranslationProvider,
 };
@@ -2207,6 +2207,32 @@ fn promoting_over_an_unsigned_draft_holds_the_write_until_the_caller_confirms() 
     assert_eq!(forced.target_text, "Ban nhap AI thu hai.");
     assert_eq!(read_origin(&open, segment_id), TRANSLATION_ORIGIN_OTHER);
 
+    drop(open);
+    cleanup(&work_dir);
+}
+
+#[test]
+fn promoting_over_a_target_that_is_only_whitespace_writes_without_asking() {
+    let work_dir = temp_dir("promote-blank");
+    let open = open_work(&work_dir, "PromoteBlank", "en", "A dragon roared.");
+    let segment_id = first_segment_id(&open);
+    open.store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1 WHERE id = ?2",
+                ("\n \t", segment_id),
+            )
+        })
+        .expect("xoa trang");
+
+    let outcome = promote_ai_translation(Some(&open), segment_id, "Con rồng gầm.", false)
+        .expect("promote khong duoc loi");
+
+    assert!(
+        !outcome.needs_confirmation,
+        "o chi con khoang trang la chua dich -- khong co gi de mat"
+    );
+    assert_eq!(outcome.target_text, "Con rồng gầm.");
     drop(open);
     cleanup(&work_dir);
 }

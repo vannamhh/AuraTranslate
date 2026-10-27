@@ -5453,6 +5453,33 @@ fn restoring_over_an_unsigned_draft_holds_the_write_until_the_caller_confirms() 
     cleanup(&root);
 }
 
+#[test]
+fn restoring_over_a_draft_that_is_only_whitespace_writes_without_asking() {
+    let root = temp_dir("restore-blank");
+    let opened = create_work_from_text(&root, "Xoa Trang", "zh", "", "一。二。".to_owned())
+        .expect("tao tac pham that bai");
+    let (id, chapter_id) = sign_repeatedly(&opened, &["Ban da ky."]);
+    unconfirm_edited_segments(Some(&opened), chapter_id, &[edit(id, "\n")])
+        .expect("ha trang thai that bai");
+    save_segment_targets(Some(&opened), chapter_id, &[edit(id, "\n")]).expect("lo ghi that bai");
+    let history = read_segment_history(Some(&opened), id)
+        .expect("doc lich su that bai")
+        .versions;
+
+    let outcome = restore_segment_version(Some(&opened), id, history[0].id, false)
+        .expect("khoi phuc that bai");
+
+    assert!(
+        !outcome.needs_confirmation,
+        "o chi con xuong dong la chua dich"
+    );
+    assert!(outcome.restored);
+    let dir = opened.dir.clone();
+    drop(opened);
+    cleanup(&dir);
+    cleanup(&root);
+}
+
 /// 🔴 **Phép so là "văn bản này có bản sao không", KHÔNG một cờ `dirty` — hợp đồng phụ AD-31.**
 ///
 /// Ca phân biệt hai cách: người dùng gõ một thứ khác rồi **hoàn tác về đúng một bản đã ký**.

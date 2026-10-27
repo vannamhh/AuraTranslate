@@ -1282,6 +1282,27 @@ fn accepting_an_empty_segment_needs_no_confirmation() {
 }
 
 #[test]
+fn accepting_a_segment_that_is_only_whitespace_needs_no_confirmation() {
+    let (mine, reviewer) = one_changed("accept-blank");
+    let (group, segment, _) = changed_group(&mine);
+    mine.open
+        .store
+        .write(move |tx: &Transaction<'_>| {
+            tx.execute(
+                "UPDATE segment SET target_text = ?1 WHERE id = ?2",
+                ("\n", segment),
+            )
+        })
+        .expect("xoa trang");
+    let outcome = review_accept_change(Some(&mine.open), mine.chapters[0], group, "\n", false)
+        .expect("chap nhan");
+    assert!(!outcome.needs_confirmation);
+    assert_eq!(segment_row(&mine, segment).0, "dich bon");
+    mine.finish();
+    reviewer.finish();
+}
+
+#[test]
 fn skipping_keeps_the_segment_and_the_decision_survives_a_fresh_read() {
     let (mine, reviewer) = one_changed("skip");
     let (group, segment, _) = changed_group(&mine);

@@ -366,34 +366,12 @@ pub fn restore_segment_version(
         // ⑤ 🔴 CHOT CHONG MAT BAN NHAP CHUA KY — chu ky #2(a).
         //    "Chua tung duoc ky" = van ban hien tai KHONG co ban sao nao trong `segment_version`.
         //    Day la phep so VAN BAN (AD-31 §Hop dong phu), khong mot co `dirty`.
-        //
-        // 🔵 VE `!current_text.is_empty()` LA MOT MIEN TRU CO CHU DICH — ghi ra 2026-08-16
-        //    (code review), vi ban dau no khong mang mot dong ly do nao.
-        //    Mot `target_text` RONG khong co gi de mat: chot nay ton tai de chan viec ghi de len
-        //    chu ma nguoi dung da go, va chuoi rong khong phai chu ai go. Bo ve nay di thi moi
-        //    cau CHUA DICH deu hoi mot cau vo nghia o luot khoi phuc dau tien -- "ban duoi day
-        //    se mat" tro toi mot o trong -- va mot hop thoai hoi thua la thu lam nguoi dung bam
-        //    "dong y" theo phan xa, tuc lam chot THAT mat tac dung. Cung ly do da ghi cho phep
-        //    so "co ban sao chua" thay vi mot co `dirty`.
-        //    ⚠️ GIOI HAN THAT: mot nguoi dung XOA SACH mot ban dich roi khoi phuc se khong duoc
-        //    hoi. Ho khong mat mot ky tu nao (o da rong), nhung ho cung khong duoc bao rang
-        //    luot xoa vua roi khong con duong ve. Vo hai hom nay; neu Story 2.8 hay Review Mode
-        //    lam "rong" mang mot nghia RIENG (khac "chua dich"), doc lai cho nay.
-        if !force && !current_text.is_empty() {
-            let has_copy: i64 = tx.query_row(
-                "SELECT EXISTS(SELECT 1 FROM segment_version \
-                 WHERE segment_id = ?1 AND target_text = ?2)",
-                (segment_id, &current_text),
-                |row| row.get(0),
-            )?;
-            if has_copy == 0 {
-                *held_in
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                    Some(current_text.clone());
-                // KHONG ghi mot byte nao. Day KHONG phai mot loi -- xem `needs_confirmation`.
-                return Ok((false, true, current_status));
-            }
+        if !force && is_unsigned_draft(tx, segment_id, &current_text)? {
+            *held_in
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(current_text.clone());
+            // KHONG ghi mot byte nao. Day KHONG phai mot loi -- xem `needs_confirmation`.
+            return Ok((false, true, current_status));
         }
 
         // ⑥ Ghi. HAI cot, MOT giao dich: van ban va trang thai (AC2).

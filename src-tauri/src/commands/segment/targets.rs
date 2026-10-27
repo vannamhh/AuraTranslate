@@ -228,6 +228,25 @@ pub struct PromoteAiTranslationOutcome {
     pub unsigned_draft: Option<String>,
 }
 
+/// `true` when overwriting `current_text` would lose text the user never signed: it is not blank
+/// (a whitespace-only target counts as untranslated, as everywhere else) and `segment_version`
+/// holds no copy of it. Every non-user write asks before overwriting such a draft (AD-49 iii).
+pub(super) fn is_unsigned_draft(
+    tx: &Transaction<'_>,
+    segment_id: i64,
+    current_text: &str,
+) -> SqlResult<bool> {
+    if current_text.trim().is_empty() {
+        return Ok(false);
+    }
+    let has_copy: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM segment_version WHERE segment_id = ?1 AND target_text = ?2)",
+        (segment_id, current_text),
+        |row| row.get(0),
+    )?;
+    Ok(!has_copy)
+}
+
 /// The single non-user write of `target_text` (AD-50 rule 3): text, both baseline columns,
 /// `translation_origin` and `status` in one statement. `translation_origin = None` leaves the
 /// stored origin untouched (restore, AD-47 ⑤); the baseline origin is always set.
@@ -318,25 +337,14 @@ pub fn promote_ai_translation(
             return Ok(Promoted::OtherChapter);
         }
 
-        // Cùng phép so VĂN BẢN của `restore_segment_version` — "chưa từng được ký" nghĩa là
-        // KHÔNG có bản sao trong `segment_version`, không một cờ `dirty`. Cùng miễn trừ
-        // `!current_text.is_empty()`: một `target_text` RỖNG không có gì để mất.
-        if !force && !current_text.is_empty() {
-            let has_copy: i64 = tx.query_row(
-                "SELECT EXISTS(SELECT 1 FROM segment_version \
-                 WHERE segment_id = ?1 AND target_text = ?2)",
-                (segment_id, &current_text),
-                |row| row.get(0),
-            )?;
-            if has_copy == 0 {
-                // KHONG ghi mot byte nao. Day KHONG phai mot loi -- xem `needs_confirmation`.
-                return Ok(Promoted::Row(
-                    current_text,
-                    current_origin,
-                    current_status,
-                    true,
-                ));
-            }
+        if !force && is_unsigned_draft(tx, segment_id, &current_text)? {
+            // KHONG ghi mot byte nao. Day KHONG phai mot loi -- xem `needs_confirmation`.
+            return Ok(Promoted::Row(
+                current_text,
+                current_origin,
+                current_status,
+                true,
+            ));
         }
 
         write_non_user_target(

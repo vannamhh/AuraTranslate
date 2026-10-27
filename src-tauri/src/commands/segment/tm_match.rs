@@ -401,21 +401,13 @@ pub fn accept_tm_exact(
         if source != pair_source {
             return Ok(Picked::SourceChanged);
         }
-        if !force && !current_text.is_empty() && current_text != baseline {
-            let has_copy: i64 = tx.query_row(
-                "SELECT EXISTS(SELECT 1 FROM segment_version \
-                 WHERE segment_id = ?1 AND target_text = ?2)",
-                (segment_id, &current_text),
-                |row| row.get(0),
-            )?;
-            if has_copy == 0 {
-                return Ok(Picked::Row(
-                    current_text,
-                    current_origin,
-                    current_status,
-                    true,
-                ));
-            }
+        if !force && current_text != baseline && is_unsigned_draft(tx, segment_id, &current_text)? {
+            return Ok(Picked::Row(
+                current_text,
+                current_origin,
+                current_status,
+                true,
+            ));
         }
         write_non_user_target(tx, segment_id, &target, pair_origin, Some(pair_origin))?;
         Ok(Picked::Row(

@@ -1910,6 +1910,23 @@ fn accepting_over_an_unsigned_draft_writes_nothing_until_forced() {
 }
 
 #[test]
+fn accepting_over_a_draft_that_is_only_whitespace_writes_without_asking() {
+    let w = wired("fz-blank", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    let m = fuzzy(&w, id).matches.remove(0);
+    w.with_open(|open| {
+        let chapter_id = segment_ids(open).0;
+        type_text(open, chapter_id, id, "\n");
+    });
+
+    let outcome = accept(&w, id, &m, false).expect("nhan");
+
+    assert!(!outcome.needs_confirmation);
+    assert_eq!(w.with_open(|o| w_target(o, id)), "near");
+}
+
+#[test]
 fn accepting_a_pair_that_no_longer_exists_writes_nothing_and_errors() {
     let w = wired("fz-gone", FUZZY_CURRENT, true);
     w.seed_work(FUZZY_NEAR, "near", "self");
