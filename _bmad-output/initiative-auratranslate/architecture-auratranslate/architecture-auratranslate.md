@@ -306,6 +306,7 @@ graph TD
 - **Binds:** tất cả
 - **Prevents:** NFR16 (*chuỗi giao diện ngoài mã nguồn ngay từ dòng code đầu tiên*) bị thủng ở tầng lỗi — chỗ dễ quên nhất và đắt nhất để sửa sau.
 - **Rule:** mọi lỗi và thông báo qua IPC có hình dạng `{ code, message_key, params, retryable }`. Frontend phân giải `message_key` trong file tài nguyên chuỗi. Không có chuỗi tiếng Việt nào trong mã Rust hay mã Vue.
+- 🔵 2026-10-27: một ngoại lệ có tên cho câu "`params` không mang câu": tham số `provider_message` của hai họ lỗi AI, xem AD-59.
 
 ### AD-22 — Streaming AI qua Channel, không tự kết nối lại
 
@@ -1168,6 +1169,32 @@ graph TD
   - **Lớp phủ bắt đầu dưới thanh tiêu đề:** thanh tiêu đề còn bấm được sau một hộp thoại `aria-modal`; làm nó `inert` thì cũng chặn luôn kéo, nên không mua được gì.
 
   → bằng chứng: `.memlog.md` 2026-10-25 · `ad-brief-keo-cua-so-thanh-tieu-de/` · `reviews/review-ad-58-*-2026-10-25.md` · mã đọc: `tauri-utils-2.9.3/src/config.rs:2060-2071`, `tauri-utils-2.9.3/src/lib.rs:160-180`, `tauri-2.11.5/src/window/scripts/drag.js`, `tauri-2.11.5/src/window/plugin.rs:220-262`, `src-tauri/gen/schemas/desktop-schema.json`, `src/TitlebarToolsMenu.vue:69`, `src/DropdownMenu.vue:69`, `src/panels/LookupSourcesMenu.vue:79`.
+
+### AD-59 — Lời từ chối của nhà cung cấp AI đi tới người dùng nguyên văn, sau khi che khoá, ở đúng một tham số
+
+- **Binds:** C6 — `core/ai/client.rs` (`OpenAiClientError::NonSuccessStatus`, `translate`, `check_connection`), `commands/aitranslate.rs` (`openai_client_error_family`, `From<OpenAiClientError> for IpcError`, `batch_stopped_error`, `connection_check_error`), `core/i18n/mod.rs` (doc-comment của `IpcError`), `src/i18n/vi.json`, mọi chỗ frontend hiện lỗi `ai_translate.*` / `ai_config.test_*`.
+- **Prevents:**
+  1. Người dùng nhận một câu đổ lỗi sai chỗ. Hôm nay `translate()` vứt thân phản hồi non-2xx, nên 402 (hết tiền), 429 (hết hạn mức hoặc gọi quá nhanh) và 5xx đều ra câu "kiểm lại endpoint và khoá API", trong khi nhà cung cấp đã gửi đúng nguyên nhân.
+  2. Rẽ nhánh theo `error.code` của nhà cung cấp. Mã này không ổn định giữa các nhà và giữa tài liệu với thực tế: tài liệu Gemini ghi chuỗi `payment_required`, phản hồi đo được là số `402` cộng `status: "RESOURCE_EXHAUSTED"`; OpenAI báo hết tiền bằng 429.
+  3. Khoá API quay lại qua IPC (AD-29) khi một endpoint tự dựng lặp lại khoá trong câu lỗi.
+  4. Một trang HTML của proxy, hay một thân lỗi vài MB, lên màn hình hoặc nằm trong bộ nhớ.
+- **Rule:**
+
+  1. **Một tham số, hai họ lỗi.** Ngoại lệ duy nhất cho câu "`params` không mang câu" của AD-21 là tham số `provider_message`, chỉ đi kèm hai khoá `AiTranslateProviderRefused` và `AiConfigTestRefused` (cùng các khoá tách ra từ chúng theo mã trạng thái). Tham số này **không bắt buộc**: thiếu nó, câu tiếng Việt vẫn đủ nghĩa. Mọi khoá khác vẫn chỉ mang dữ liệu.
+  2. **Chỉ đọc từ JSON, có trần.** Client đọc tối đa 16 KiB thân phản hồi non-2xx. Chấp nhận đúng ba hình dạng: `{"error":{"message":"…"}}`, mảng một phần tử bọc chính nó (Gemini tương thích OpenAI trả `[{"error":…}]`, đo 2026-10-27), và `{"error":"…"}`. Mọi hình dạng khác, JSON hỏng hay vượt trần ⇒ `None`, không bao giờ dùng thân thô. Chuỗi lấy được bỏ ký tự điều khiển, gộp khoảng trắng, cắt ở 300 ký tự Unicode.
+  3. **Che khoá trong `ai/`, trước khi rời client.** `client.rs` là nơi duy nhất cầm khoá lúc gọi, nên phép che nằm ở đó, trong một hàm thuần: thay mọi lần xuất hiện của khoá đầy đủ bằng `***`; sau đó nếu chuỗi vẫn còn một đoạn con dài từ 12 ký tự trở lên của khoá thì bỏ cả câu (`None`). Khoá rỗng (Ollama, LM Studio) thì bỏ qua bước che. `OpenAiClientError::NonSuccessStatus` mang `status` và `provider_message: Option<String>` đã che; không biến thể nào khác mang thân phản hồi.
+  4. **Không vào log.** `Display`/`Debug` của `OpenAiClientError` không in `provider_message`; không `eprintln!` nào in nó. Đường duy nhất của nó là `IpcError.params`.
+  5. **Câu tiếng Việt quyết nghĩa, lời nhà cung cấp là trích dẫn.** Câu chính chọn theo mã trạng thái: 401/403 khoá, 402 thanh toán, 404 endpoint hoặc mô hình, 429 hạn mức, 5xx phía nhà cung cấp, còn lại câu chung. Frontend hiện `provider_message` ở một dòng riêng dưới câu chính, nguyên văn, không dịch, chỉ bằng nội suy văn bản (không `v-html`), dưới một nhãn i18n cho biết đây là lời của nhà cung cấp.
+  6. **Test canh.** (a) Test thuần của hàm che: khoá đầy đủ, khoá lặp hai lần, đoạn 12 ký tự còn sót ⇒ `None`, khoá rỗng. (b) Test qua cổng nghe cục bộ: một endpoint giả trả 402 với câu chứa khoá đã cấu hình ⇒ `IpcError` không chứa khoá ở bất kỳ trường nào; đối chứng đỏ bằng cách GỠ lời gọi hàm che trong `translate()`. (c) Endpoint giả trả HTML 502 ⇒ không có `provider_message`. (d) Một ca cho hình dạng mảng của Gemini.
+  7. **Đổi gì / không đổi gì.** AD-21 nhận một dòng 🔵 trỏ về đây; hình dạng `{ code, message_key, params, retryable }` không đổi. Doc-comment "`params` cũng không được mang văn bản hiển thị" của `IpcError` nêu ngoại lệ này theo tên. AD-29 không đổi: khoá vẫn không qua IPC, Rule 3 là thứ giữ điều đó. AD-22 không đổi: `retryable` chỉ bật nút thử lại do người dùng bấm.
+
+- **Phương án bị loại:**
+  - **(a) Chỉ đổi câu theo mã trạng thái:** không cần ngoại lệ AD-21, nhưng cùng một nguyên nhân mang mã khác nhau giữa các nhà (hết tiền: Gemini 402, OpenAI 429), nên người dùng lại nhận câu chung. Ice chọn (b) ngày 2026-10-27.
+  - **Đưa thân phản hồi thô:** HTML của proxy, kích thước không chặn, và không có ranh giới để che khoá.
+  - **Rẽ nhánh theo `error.code`:** Prevents 2.
+  - **Dịch lời nhà cung cấp sang tiếng Việt:** cần thêm một lượt gọi AI ngay khi gọi AI vừa thất bại.
+
+  → bằng chứng: lượt đo 2026-10-27 bằng khoá Gemini của Ice: ba lời gọi (`/v1beta/openai/chat/completions` với `gemini-2.5-flash`, `gemini-flash-latest`, và `generateContent` gốc) cùng trả 402 `RESOURCE_EXHAUSTED` "Your prepayment credits are depleted…", thân đường tương thích OpenAI là mảng một phần tử, câu không chứa khoá · https://ai.google.dev/gemini-api/docs/api-errors · https://ai.google.dev/gemini-api/docs/billing · https://developers.openai.com/api/docs/guides/error-codes · mã đọc: `src-tauri/src/core/ai/client.rs:395`, `:544`, `src-tauri/src/commands/aitranslate.rs:126`, `:752`, `src-tauri/src/core/i18n/mod.rs:1039`.
 
 ## Consistency Conventions
 
