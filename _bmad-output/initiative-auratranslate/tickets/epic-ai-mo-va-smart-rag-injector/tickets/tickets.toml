@@ -167,3 +167,16 @@ after = []
 hitl = false
 risk = "medium"
 refine = true
+
+[[entry]]
+id = 15
+type = "story"
+title = "Dịch lô gom các câu liền nhau thành lượt gọi, chữ chỉ được nhận khi khối của nó đóng đúng"
+description = "Thi hành AD-60: dịch vùng chọn và dịch cả Chương gom câu liền nhau thành lượt tối đa 100 câu thay vì mỗi câu một request; một câu chỉ có bản dịch khi khối của nó đóng đúng, vì lượt đo 2026-10-27 thấy cả Chương một lượt bị cắt im lặng và mô hình báo stop vẫn rơi câu."
+verify = "Với cổng nghe cục bộ phát luồng có [DONE] nhưng không có finish_reason, dừng giữa khối k, khi dịch cả Chương thì câu k trở đi thành thiếu kết quả AI và không đưa sang Editor được; gỡ phép kiểm finish_reason thì ca đó đỏ."
+covers = ["FR69", "FR70", "FR71", "FR72", "FR73", "FR74", "FR75", "FR76"]
+after = []
+hitl = false
+risk = "high"
+refine = true
+unknown = "AD-60 chưa được Ice ký"
