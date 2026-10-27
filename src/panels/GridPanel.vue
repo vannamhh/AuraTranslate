@@ -770,6 +770,31 @@ function setCaret(node: Node, offset: number): boolean {
   return selection.type === 'Caret'
 }
 
+/** A non-collapsed selection the mouse just made inside `cell`, copied before focus can move it. */
+function draggedRangeIn(cell: HTMLElement): Range | null {
+  const selection = window.getSelection()
+  if (selection === null || selection.rangeCount === 0 || selection.isCollapsed) return null
+  const range = selection.getRangeAt(0)
+  return cell.contains(range.startContainer) && cell.contains(range.endContainer) ? range.cloneRange() : null
+}
+
+function selectRange(range: Range): void {
+  const selection = window.getSelection()
+  if (selection === null) return
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+function holdsRange(range: Range): boolean {
+  const selection = window.getSelection()
+  if (selection === null || selection.rangeCount === 0) return false
+  const current = selection.getRangeAt(0)
+  return (
+    current.compareBoundaryPoints(Range.START_TO_START, range) === 0 &&
+    current.compareBoundaryPoints(Range.END_TO_END, range) === 0
+  )
+}
+
 /**
  * Đặt caret vào **đúng điểm vừa bấm**.
  *
@@ -982,7 +1007,13 @@ function onCellMouseUp(event: MouseEvent): void {
   // ⚠️ `EditorPanel.vue:481-488` ghi rằng `el.focus()` trên `<span contenteditable>` **không**
   // giữ được tiêu điểm. Mệnh đề đó **không mâu thuẫn**: một `<span>` inline rỗng khác một
   // `<div>` khối có `min-height`. Đo lại ở hình dạng mới thay vì mượn kết luận cũ.
+  const dragged = draggedRangeIn(cell)
   cell.focus()
+  if (dragged !== null) {
+    selectRange(dragged)
+    ensureCaretNextFrame(cell, dragged)
+    return
+  }
 
   // Không phân giải được điểm bấm vào TRONG ô ⇒ neo vào **CUỐI** ô.
   //
@@ -1085,11 +1116,12 @@ let caretTarget: HTMLElement | null = null
  */
 let insertingLineBreak = false
 
-function ensureCaretNextFrame(cell: HTMLElement): void {
+function ensureCaretNextFrame(cell: HTMLElement, dragged: Range | null = null): void {
   caretTarget = cell
 
   const settled = (): boolean =>
-    document.activeElement === cell && window.getSelection()?.type === 'Caret'
+    document.activeElement === cell &&
+    (dragged === null ? window.getSelection()?.type === 'Caret' : holdsRange(dragged))
 
   const reassert = (): void => {
     if (!cell.isConnected) return
@@ -1097,7 +1129,11 @@ function ensureCaretNextFrame(cell: HTMLElement): void {
     if (caretTarget !== cell) return
     if (settled()) return
     cell.focus()
-    setCaret(cell, cell.childNodes.length)
+    if (dragged !== null && cell.contains(dragged.startContainer) && cell.contains(dragged.endContainer)) {
+      selectRange(dragged)
+    } else {
+      setCaret(cell, cell.childNodes.length)
+    }
   }
 
   requestAnimationFrame(() => {
