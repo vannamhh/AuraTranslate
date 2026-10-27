@@ -35,6 +35,12 @@ function typeInto(id: number, text: string): void {
   cell.dispatchEvent(new Event('input', { bubbles: true }))
 }
 
+function clearByTyping(id: number): void {
+  const cell = targetCell(id)
+  cell.replaceChildren()
+  cell.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
 beforeEach(() => {
   resetRecorder()
   document.body.innerHTML = ''
@@ -70,6 +76,19 @@ describe('restoreEditedText — đặt lại chữ đang gõ dở sau một lư�
     const wholeColumnScans = scan.mock.calls.filter(([selector]) => selector === '[data-segment-id]')
     expect(wholeColumnScans).toHaveLength(0)
     expect(targetCell(12).textContent).toBe('Gió thổi tới từ đầu hành lang.')
+    wrapper.unmount()
+  })
+
+  it('ô đã xoá trắng rồi ghi xuống nhường cho một lượt ghi không qua gõ phím: ô hiện văn bản mới', async () => {
+    const { state, wrapper } = await mountEditor()
+    clearByTyping(12)
+    await state.flushEditorNow()
+
+    state.replaceEditorSegment(12, { target_text: 'Kết quả AI vừa ghi.' })
+    await wrapper.vm.$nextTick()
+
+    expect(targetCell(12).textContent).toBe('Kết quả AI vừa ghi.')
+    expect(state.editorEditedText.value.get(12)).toBe('Kết quả AI vừa ghi.')
     wrapper.unmount()
   })
 })

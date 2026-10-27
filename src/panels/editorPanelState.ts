@@ -328,6 +328,17 @@ export function replaceEditorSegment(
   if (index < 0) return
   const next = [...segments.value]
   next[index] = { ...next[index], ...patch }
+  // The grid copies `editedText` over unfocused cells on every `segments` change; a flushed entry
+  // left behind would hide what this write just put on disk. Unflushed typing still wins.
+  if (patch.target_text !== undefined && editedText.value.has(id) && !flush.pending().has(id)) {
+    editedText.value.set(id, patch.target_text)
+    const shapes = editedShape.value
+    const shape = textShapeOf(patch.target_text)
+    if (shapes.get(id) !== shape) {
+      shapes.set(id, shape)
+      triggerRef(editedShape)
+    }
+  }
   segments.value = next
 }
 
