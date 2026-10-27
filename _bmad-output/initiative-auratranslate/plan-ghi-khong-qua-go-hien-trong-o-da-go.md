@@ -3,7 +3,7 @@ title: 'Lượt ghi không qua gõ phím hiện ra trong ô đã gõ ở phiên 
 type: 'bugfix'
 ticket: ''
 created: '2026-10-27'
-status: 'built'
+status: 'done'
 baseline_revision: 'b0a8e00b3c09c30fd74b6918e4e17cd0a89694dd'
 route: 'oneshot'
 route_source: 'auto'
