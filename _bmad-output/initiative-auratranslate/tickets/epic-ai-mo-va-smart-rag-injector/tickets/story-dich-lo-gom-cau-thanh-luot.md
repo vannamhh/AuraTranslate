@@ -34,22 +34,27 @@ Vì vậy một câu chỉ có bản dịch khi khối của nó đóng đúng. 
    **And** panel biết trước toàn bộ kế hoạch lượt từ Rust, không tự tính ranh giới lượt
    **And** vùng chọn gồm các đoạn rời thì mỗi đoạn đi lượt riêng
    **And** câu đánh dấu bỏ qua (`is_omitted`) không có mặt trong bất kỳ prompt nào
+   **And** dịch cả Chương chỉ lấy câu có bản dịch rỗng; dịch vùng chọn lấy mọi câu đã chọn, kể cả câu đã có bản dịch
+   **And** câu đã bị gộp hoặc tách trước khi tới lượt của nó thì không được gửi, và thành *thiếu kết quả AI*
 2. **Câu ngăn làm ngữ cảnh** (FR70, FR73)
    **Given** dịch cả Chương, và có câu đã dịch nằm giữa các câu cần dịch
    **When** lượt được lắp
    **Then** câu đã dịch đi kèm thành ngữ cảnh chỉ đọc, không được dịch lại, và không hàng nào của panel đổi vì nó
    **And** một đoạn liền dài hơn 3 câu đã dịch thì cắt sang lượt mới, lượt mới mang theo 3 câu đã dịch đứng ngay trước
+   **And** lượt đầu tiên của Chương, lượt bị cắt vì chạm trần 100 câu, và mọi lượt của thao tác vùng chọn không mang ngữ cảnh ở đầu; câu ngữ cảnh không tính vào trần (AD-60 mục 2)
 3. **Prompt giữ nghĩa bộ prompt** (FR69, FR70)
    **Given** một bộ prompt có hoặc không có từng marker Glossary, TM và câu nguồn
    **When** lượt được lắp
    **Then** marker nào vắng thì phần của nó không được chèn, và màn Xem prompt ghi phần đó là "không hỏi"
    **And** Glossary chỉ gồm mục đã chốt có mặt trong các câu của lượt; mỗi câu mang tối đa 3 cặp TM, đặt ngay trong khối của câu đó
    **And** phần dặn định dạng khối luôn đứng sau system prompt của người dùng, kể cả khi system prompt rỗng
+   **And** bộ prompt không có marker câu nguồn thì các câu của lượt đi sau thân bộ prompt, và màn Xem prompt báo thiếu marker đó như hiện nay (AD-60 mục 3)
 4. **Chữ chỉ được nhận khi khối đóng đúng** (FR72, FR74)
    **Given** một lượt đang chạy
    **When** mô hình trả chữ
    **Then** chữ hiện dần trên hàng của câu đó
-   **And** chỉ khi lượt đã kết thúc thì từng câu mới thành *đã nhận*, hoặc *thiếu kết quả AI* nếu khối trùng chỉ số, rỗng, hay chưa đóng
+   **And** chỉ khi lượt đã kết thúc thì từng câu mới thành *đã nhận*, hoặc *thiếu kết quả AI* nếu khối trùng chỉ số, rỗng, hay chưa đóng; khối mang chỉ số ngoài lượt bị bỏ (AD-60 mục 7)
+   **And** dòng mở khối viết thiếu `<<<` vẫn được nhận; chữ nằm ngoài mọi khối, kể cả phần TM hay ngữ cảnh mà mô hình chép lại, bị bỏ; một dòng nguồn trùng dấu khối không làm khối nào đóng sớm (AD-60 mục 4)
    **And** hàng thành *thiếu kết quả AI* thì phần chữ đã hiện bị xoá, và không đưa được sang Editor
 5. **Cắt ngang im lặng thành câu thiếu** (FR75)
    **Given** luồng kết thúc mà không có `finish_reason`, hoặc với `finish_reason` khác `stop`
@@ -59,8 +64,9 @@ Vì vậy một câu chỉ có bản dịch khi khối của nó đóng đúng. 
 6. **Lỗi và huỷ giữ phần đã có** (FR73, FR75)
    **Given** nhà cung cấp lỗi ở lượt k, hoặc người dùng huỷ giữa chừng
    **When** thao tác dừng
-   **Then** bản dịch đã nhận của các lượt trước, và các khối đã đóng đúng của lượt k, được giữ; các câu còn lại không mất chỗ trong panel
-   **And** khi nhà cung cấp lỗi, câu lỗi theo AD-59 nêu lượt đã dừng bằng câu đầu và câu cuối của lượt đó
+   **Then** bản dịch đã nhận của các lượt trước, và các khối đã đóng đúng của lượt k, được giữ
+   **And** các câu còn lại của lượt k thành *thiếu kết quả AI*; các câu thuộc lượt chưa từng gửi mang nhãn *chưa gửi*, nhìn thấy trên hàng, với nút đưa sang Editor tắt
+   **And** luồng đóng mà không có `[DONE]` được tính là lỗi nhà cung cấp; câu lỗi theo AD-59 nêu lượt đã dừng bằng số thứ tự lượt, câu đầu và câu cuối của lượt đó
 7. **Thử lại chỉ gửi câu thiếu** (FR75)
    **Given** một thao tác đã kết thúc còn câu *thiếu kết quả AI* hoặc câu chưa từng được gửi
    **When** người dùng bấm thử lại
@@ -81,14 +87,14 @@ Vì vậy một câu chỉ có bản dịch khi khối của nó đóng đúng. 
     **Then** màn hiện prompt của lượt mới nhất có câu đó là câu cần dịch, đánh dấu khối của nó; câu chỉ là ngữ cảnh thì màn ghi rõ điều đó
     **And** gửi lại prompt của lượt đi qua đúng các phép kiểm ở tiêu chí 4–6
 11. **Hai cờ cảnh báo không chặn** (FR72, FR75)
-    **Given** bản dịch của một câu còn ký tự Hán trong khi nguồn của nó có chữ Hán, hoặc một lượt dịch MỘT câu kết thúc không có `finish_reason`
+    **Given** bản dịch của một câu còn ký tự Hán trong khi nguồn của nó có chữ Hán, hoặc lượt dịch MỘT câu tại con trỏ kết thúc không có `finish_reason`, hoặc với `finish_reason` khác `stop`
     **When** kết quả hiện ra
     **Then** câu mang cờ cảnh báo tương ứng, và vẫn đưa sang Editor được
 12. **Test canh đỏ được** (FR73, FR75)
     **Given** bộ test
     **When** nó chạy
-    **Then** có đủ các ca (a)–(u) của AD-60 mục 14, mọi ca đi qua cổng nghe cục bộ với khung viết tay
-    **And** mỗi ca canh một luật có một phép gỡ thật ghi trong plan, và phép gỡ đó làm ca đỏ đúng vì lý do được đo
+    **Then** có đủ các ca (a)–(u) của AD-60 mục 14, kể cả (h2) và (s2), mọi ca đi qua cổng nghe cục bộ với khung viết tay
+    **And** mỗi ca canh một luật có một phép gỡ thật ghi trong plan, kể cả những ca AD-60 chưa nêu phép gỡ (plan tự chọn); phép gỡ đó làm ca đỏ đúng vì lý do được đo
 13. **Ghi lại những gì chưa đo** (FR75)
     **Given** sổ nợ
     **When** story xong
@@ -100,7 +106,8 @@ Vì vậy một câu chỉ có bản dịch khi khối của nó đóng đúng. 
 - Must not change: Proofreader, cả cách gom câu lẫn cách bỏ qua lô rỗng.
 - Must not change: system prompt mặc định; hình dạng lỗi qua IPC `{ code, message_key, params, retryable }` (AD-21); không thêm điểm ra mạng nào (AD-15).
 - Must not change: một lượt dịch lô không ghi gì vào `target_text`; chỉ thao tác đưa sang của người dùng mới ghi (FR72, AD-47).
-- Must not change: mục Glossary chờ chốt vẫn không vào prompt (AD-36); chính sách TM của Tác phẩm đọc đúng một lần mỗi thao tác (AD-57).
+- Must not change: mục Glossary chờ chốt vẫn không vào prompt (AD-36); Glossary đã phân giải và chính sách TM của Tác phẩm đọc đúng một lần mỗi thao tác (AD-57), thân bộ prompt mở rộng bằng đúng khâu hiện có, không có hàm thứ hai.
+- Must not change: một Channel cho cả thao tác, không tự thử lại (AD-22); khoá API không qua IPC (AD-29).
 
 ## References
 
@@ -113,8 +120,10 @@ Vì vậy một câu chỉ có bản dịch khi khối của nó đóng đúng. 
 
 ## Notes
 
-- Decision: 2026-10-27, Ice — gom câu (phương án P), trần 100 câu mỗi lượt, tự chia lượt, đoạn chọn rời đi lượt riêng, câu đã dịch làm ngữ cảnh, câu `is_omitted` không bao giờ gửi đi, dịch một câu chỉ gắn cờ `maybe_truncated`.
+- Decision: 2026-10-27, Ice — gom nhiều câu vào một lượt (phương án P của R2 trong báo cáo research-llm-translation-cost-and-quality; phương án C bị loại), trần 100 câu mỗi lượt, tự chia lượt, đoạn chọn rời đi lượt riêng, câu đã dịch làm ngữ cảnh, câu `is_omitted` không bao giờ gửi đi, dịch một câu chỉ gắn cờ `maybe_truncated`.
 - Decision: 2026-10-27, Ice — ký AD-60.
 - Kiểm thêm ngoài tiêu chí, vì risk high: Ice dùng thật một lượt dịch cả Chương từ 300 câu trở lên bằng khoá thật, đếm câu *thiếu kết quả AI* và đối chiếu tổng tiền với bảng điều khiển của nhà cung cấp. Đây là mục nợ ở tiêu chí 13, không chặn story xong.
+- Khi story xong, spec của Story 4.9 nhận một dòng 🔵: quy tắc "lỗi đầu tiên dừng lô và nêu tên câu" nay theo AD-60 mục 7–8. Các dòng 🔵 dưới AD-14, AD-47 và AD-59 đã có sẵn.
+- Decision: 2026-10-27, Sofia (bước kiểm ticket) — tiêu chí 12 gồm cả (h2) và (s2); plan tự chọn phép gỡ cho những ca AD-60 chưa nêu.
 - ⚠️ Khớp theo chỉ số không bắt được trường hợp mô hình bỏ một câu rồi đánh lại số cho câu sau (AD-60 mục 7); người duyệt là lớp canh.
 - Risk high vì story đổi đường chữ AI đi vào Editor và đổi cách tính tiền của người dùng; hỏng ở đây im lặng và nằm trên dữ liệu thật.
