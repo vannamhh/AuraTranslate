@@ -143,3 +143,15 @@ after = []
 hitl = false
 risk = "low"
 v6_key = "4-12-bố-cục-màn-hình-hẹp-và-hiệu-chỉnh-ngưỡng"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Lỗi nhà cung cấp AI nói đúng nguyên nhân"
+description = "Nhà cung cấp AI từ chối thì người dùng thấy câu tiếng Việt theo đúng mã trạng thái cộng nguyên văn lời nhà cung cấp đã che khoá (AD-59), vì hôm nay một tài khoản Gemini hết tiền nạp trước (402) bị báo như sai endpoint hoặc khoá; kèm preset Gemini `gemini-3.8-flash` và Kiểm tra kết nối nhận id tiền tố `models/`."
+verify = "Với một endpoint giả trả 402 kèm khoá trong lời lỗi, khi dịch một câu thì thấy câu thanh toán và lời nhà cung cấp, không có khoá ở trường nào; gỡ lời gọi che khoá thì ca đó đỏ."
+covers = ["FR65", "FR66", "FR67", "FR75"]
+after = []
+hitl = false
+risk = "medium"
+refine = true
