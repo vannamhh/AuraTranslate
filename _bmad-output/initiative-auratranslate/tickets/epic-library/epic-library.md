@@ -13,7 +13,7 @@ status: in-progress
 
 ## Description
 
-Mở ứng dụng là vào Library, không phải vào màn hình dịch. Người dịch **nắm được mình đang có những gì**: lưới Tác phẩm với bìa, tiến độ và bốn trạng thái vòng đời; lọc theo trạng thái, lĩnh vực, ngôn ngữ nguồn, ngày sửa; **tìm full-text xuyên toàn thư viện phân biệt dấu**. Mở một Chương đưa thẳng vào Workspace **đúng câu đang dở lần trước**. Và Chế độ đọc để người dịch quay lại **thưởng thức thành quả**: đọc liên tục qua các Chương đã xong, dừng ở biên tường minh, đánh dấu chỗ cần sửa bằng một phím rồi **đọc tiếp ngay**. Xoá chỉ mục Library rồi quét lại phục hồi đầy đủ, không mất một byte dữ liệu nào.
+Mở ứng dụng là vào Library, không phải vào màn hình dịch. Người dịch **nắm được mình đang có những gì**: lưới Tác phẩm với bìa, tiến độ và bốn trạng thái vòng đời; lọc theo trạng thái, lĩnh vực, ngôn ngữ nguồn, ngày sửa; **tìm full-text xuyên toàn thư viện phân biệt dấu**. Mở một Chương đưa thẳng vào Workspace **đúng câu đang dở lần trước**. Và Chế độ đọc để người dịch quay lại **thưởng thức thành quả**: đọc liên tục qua các Chương đã dịch, dừng ở biên tường minh tại Chương chưa bắt đầu, đánh dấu chỗ cần sửa bằng một phím rồi **đọc tiếp ngay**. Xoá chỉ mục Library rồi quét lại phục hồi đầy đủ, không mất một byte dữ liệu nào.
 
 ## Outcome
 
@@ -25,7 +25,7 @@ Người dịch mở ứng dụng là nắm được mình đang có gì, tìm l
 - FR2: Tài liệu đơn lẻ = Tác phẩm một Chương (epics.md, FR Coverage Map)
 - FR3: Metadata Tác phẩm (epics.md, FR Coverage Map)
 - FR4: Glossary/TM gắn tầng Tác phẩm (epics.md, FR Coverage Map)
-- FR5: Bốn trạng thái vòng đời (epics.md, FR Coverage Map)
+- FR5: Bốn trạng thái vòng đời; Chương tự chuyển Chưa bắt đầu → Đang dịch ở lần ghi bản dịch đầu tiên do người dùng, Đã xong chỉ do người đặt, đặt được trong Workspace, có gợi ý khi câu cuối được xác nhận (PRD FR5 🔵 2026-10-27)
 - FR6: Suy ra tự động + ghi đè tay (epics.md, FR Coverage Map)
 - FR7: Tiến độ Tác phẩm (epics.md, FR Coverage Map)
 - FR8: Full-text search xuyên Library (epics.md, FR Coverage Map)
@@ -37,7 +37,7 @@ Người dịch mở ứng dụng là nắm được mình đang có gì, tìm l
 - FR98: Chỉ mục Library dựng lại được (epics.md, FR Coverage Map)
 - FR99: Quét lại thư mục, mục mồ côi (epics.md, FR Coverage Map)
 - FR119: Đánh dấu chỗ cần sửa khi đang đọc (epics.md, FR Coverage Map)
-- FR120: Chỉ đọc phần đã xong, dừng ở biên (epics.md, FR Coverage Map)
+- FR120: Chỉ đọc phần đã dịch (Chương Đã xong, Đang dịch, Tạm ngưng), dừng ở biên tại Chương Chưa bắt đầu, câu chưa dịch thành một dòng mờ ghi số câu (PRD FR120 🔵 2026-10-27)
 
 ## Done when
 
@@ -45,7 +45,7 @@ Người dịch mở ứng dụng là nắm được mình đang có gì, tìm l
 2. Xoá chỉ mục Library rồi quét lại phục hồi đầy đủ, không mất dữ liệu; thư mục `.atproj` thả vào được nhận (FR98, FR99).
 3. Mở một Chương đưa thẳng vào Workspace đúng câu đang dở, và đổi tên, sắp xếp, gộp, tách Chương giữ nguyên mọi tham chiếu (FR12, FR15).
 4. Tìm full-text xuyên Library trên cả nguyên văn lẫn bản dịch, có hai chế độ dấu (FR8, FR9).
-5. Chế độ đọc đọc liên tục qua các Chương đã xong, dừng ở biên tường minh, đánh dấu chỗ cần sửa bằng một phím và đọc tiếp (FR11, FR119, FR120).
+5. Chế độ đọc đọc liên tục qua các Chương đã dịch, dừng ở biên tường minh tại Chương chưa bắt đầu, đánh dấu chỗ cần sửa bằng một phím và đọc tiếp (FR11, FR119, FR120).
 6. NFR3, NFR4, NFR5 có số đo thật kèm quy mô thư viện, và trạng thái ba ngưỡng tạm được ghi lại.
 
 ## Boundaries
@@ -61,3 +61,7 @@ Epic theo năng lực người dùng thấy được. Phần nghiệm thu chia �
 
 - Retrospective: `epic-library-retrospective.md` (verdict ở frontmatter của tệp đó).
 - Story 5.14 là `done` theo `sprint-status`; bản ghi v6 ghi `review`, plan lấy theo sprint (Q12 của kế hoạch di trú).
+- Decision: 2026-10-27, Ice — trạng thái Chương theo phương án A: Workspace có nút đặt Chương đang mở thành Đã xong; xác nhận câu cuối chưa xác nhận (không tính `is_omitted`) chỉ hiện gợi ý, không tự đặt Done; lần ghi bản dịch đầu tiên do người dùng tự chuyển Chưa bắt đầu → Đang dịch; một migration `project.db` sửa một lần Chương cũ đã có bản dịch mà vẫn ghi Chưa bắt đầu; gỡ nút "Đặt Chương này là Đã xong" ở trang Tác phẩm Library vì thanh hành động Đổi trạng thái đã phủ. Lý do: gõ, xác nhận và dịch AI không đổi trạng thái Chương nên tiến độ FR7 đứng 0 và Chế độ đọc không có gì để đọc; món nợ "Workspace không có nút đổi trạng thái Chương" chỉ ghi chủ Story 5.7 trong chú thích hai e2e, chưa từng vào `deferred-work.md`, nên không ai theo dõi khi 5.7 đóng. Thành entry 18.
+- Decision: 2026-10-27, Ice — FR120 mở phạm vi: Chế độ đọc đọc Chương Đã xong, Đang dịch và Tạm ngưng, dừng tại Chương Chưa bắt đầu đầu tiên; mỗi dãy câu chưa dịch liền nhau là một dòng mờ ghi số câu dẫn sang Workspace câu đầu dãy, không hiện nguyên văn; dấu câu chưa xác nhận giữ ở mọi Chương được đọc. PRD FR120 sửa kèm 🔵. Thành entry 19, sau entry 18 vì thiếu bước tự chuyển Đang dịch thì không Chương nào được đọc thêm.
+- Assumption: điền sẵn TM khớp 100% (FR58) không tính là lần ghi bản dịch đầu tiên — nó chạy ngay khi mở Chương (`commands/segment/chapter_read.rs`), tính nó thì mở Chương là đổi trạng thái.
+- Source conflict: `ux-auratranslate/EXPERIENCE.md` KF-2 bước 7 ghi "Hết Chương, trạng thái Chương tự chuyển Đã xong", trái PRD FR5/FR6 và quyết định 2026-10-27; đoạn §Phạm vi và thao tác — FR119, FR120 còn ghi chỉ đọc Chương Đã xong. Sửa qua `bmad-ux` (Sally); entry 18 và 19 theo PRD.

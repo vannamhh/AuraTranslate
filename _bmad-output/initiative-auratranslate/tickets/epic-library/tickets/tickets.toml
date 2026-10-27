@@ -203,3 +203,27 @@ after = []
 hitl = false
 risk = "low"
 v6_key = "spec-e2e-g2-tao-tac-pham-qua-lop-xem-truoc"
+
+[[entry]]
+id = 18
+type = "story"
+title = "Đặt trạng thái Chương ngay trong Workspace"
+description = "Dịch xong một Chương mà không phải quay về Library để báo nó xong (PRD FR5 🔵 2026-10-27, Decision 2026-10-27 của epic). Năm phần: (1) Workspace có nút đặt Chương đang mở thành Đã xong, dùng lệnh `lifecycle.set_chapter_done` đã có ở `src/commands/index.ts`, nút theo hệ nút ba bậc của 12.26; (2) xác nhận câu cuối chưa xác nhận của Chương (không tính `is_omitted`) hiện một gợi ý không chặn \"Đánh dấu Chương Đã xong?\" — chỉ người bấm mới đặt, hệ thống không tự đặt Done; (3) lần đầu một câu của Chương Chưa bắt đầu được lưu bản dịch không rỗng do người dùng (gõ qua flush, nhận bản AI, dịch lô), Chương chuyển Đang dịch trong cùng giao dịch rồi chạy `Indexer::rebuild`; điền sẵn TM không tính; Tạm ngưng và Đã xong không bị đổi; (4) một migration `project.db` tiến một chiều chuyển Chưa bắt đầu → Đang dịch cho Chương có câu không `is_omitted` mang bản dịch không rỗng; (5) gỡ nút \"Đặt Chương này là Đã xong\" ở `src/modes/LibraryWorkPage.vue` cùng khoá i18n `mode.library.set_chapter_done` (giữ lệnh `lifecycle.set_chapter_done`, nút Workspace dùng nó), và sửa hai e2e `story-5-5-progress` và `story-5-12-reading-frontier` — hai spec đặt Đã xong qua cầu IPC trần vì \"Workspace chưa có nút đổi trạng thái Chương\" (ghi chủ Story 5.7, chưa từng vào `deferred-work.md`) — sang bấm nút Workspace. Entry 19 dựa vào trạng thái Đang dịch do phần (3) và (4) đặt. Gợi ý ở phần (2) móc vào lượt xác nhận câu của lưới, cùng vùng mã với 2.14 đang làm: đọc `epic-bien-tap-theo-segment/tickets/bug-doi-con-tro-cham-o-chuong-lon-plan.md` trước khi sửa. Phần (3) không thêm lượt khứ hồi IPC hay lượt đọc trạng thái ngoài giao dịch của flush (AD-35). Chương nhập song ngữ đã khởi tạo Đang dịch (`work_creation.rs`), migration (4) chỉ chạm Chương Chưa bắt đầu."
+verify = "`cargo test --test lifecycle_contract` có ca: lượt ghi đầu chuyển Chưa bắt đầu → Đang dịch đúng một lần; Chương Tạm ngưng hoặc Đã xong nhận lượt ghi vẫn giữ trạng thái; điền sẵn TM không đổi trạng thái; migration chuyển Chương có bản dịch và không chạm Chương rỗng hoặc chỉ có câu `is_omitted` — mỗi ca đỏ khi gỡ thật câu `UPDATE` hoặc nhánh tương ứng. Vitest (tệp đặt tên trong plan, chạy bằng `npm run test:story 5-18`): gợi ý hiện khi xác nhận câu cuối chưa xác nhận, không hiện khi còn câu chưa xác nhận. `npm run test:e2e -- --spec e2e/specs/story-5-5-progress.e2e.mjs`: bấm nút Đã xong trong Workspace rồi về Library thấy tiến độ tăng."
+covers = ["FR5", "FR6", "FR7"]
+after = []
+hitl = false
+risk = "medium"
+references = ["prd-auratranslate/prd-auratranslate.md FR5 🔵 2026-10-27", "architecture-auratranslate/architecture-auratranslate.md AD-31, AD-35", "ux-auratranslate/DESIGN.md §Components (Nút — ba bậc)", "src-tauri/AGENTS.md §Derived stores (đường ghi mới vào chapter chạy Indexer::rebuild)"]
+
+[[entry]]
+id = 19
+type = "story"
+title = "Chế độ đọc đọc cả Chương đang dịch và tạm ngưng"
+description = "Đọc lại phần đã dịch mà không phải đặt Chương thành Đã xong trước (PRD FR120 🔵 2026-10-27). Dãy đọc đi qua các Chương Đã xong, Đang dịch, Tạm ngưng liên tiếp và dừng ở mốc biên tại Chương Chưa bắt đầu đầu tiên, thay luật dừng ở Chương chưa `Done` đầu tiên trong `src-tauri/src/commands/segment/reading.rs`; trong Chương chưa xong, mỗi dãy câu liền nhau chưa có bản dịch thành một dòng mờ \"… N câu chưa dịch\" dẫn sang Workspace đúng câu đầu dãy, không bao giờ mang nguyên văn; dấu nhẹ câu chưa xác nhận giữ nguyên và áp dụng ở mọi Chương được đọc. Đổi theo cả kiểu `NextNotDone`/\"mọi Chương đều Done\" và doc-comment của `reading.rs`, hình dạng dây `next-not-done` mà `src-tauri/tests/ipc_contract.rs` ghim, và phần dựng trang ở `src/modes/ReadingMode.vue` + `readingState.ts`; trạng thái lạ (ngoài bốn giá trị) vẫn dừng dãy, không đoán. Dựa vào entry 18 đặt Đang dịch ở lần ghi đầu và sửa dữ liệu cũ; thiếu nó, Chương đã dịch vẫn ghi Chưa bắt đầu và dãy đọc dừng ngay."
+verify = "`cargo test --test segment_contract` (ca frontier của lệnh đọc) và `cargo test --test ipc_contract` có ca: dãy đi qua Đang dịch và Tạm ngưng, dừng tại Chưa bắt đầu; dãy câu chưa dịch gộp thành một khoảng mang đúng số câu và id câu đầu; câu `is_omitted` không tính vào khoảng; không trường nào mang `source_text` của câu chưa dịch — mỗi ca đỏ khi gỡ thật nhánh tương ứng. E2e `story-5-12-reading-frontier` sửa theo luật mới và xanh."
+covers = ["FR120"]
+after = [18]
+hitl = false
+risk = "medium"
+references = ["prd-auratranslate/prd-auratranslate.md FR120 🔵 2026-10-27", "ux-auratranslate/EXPERIENCE.md §Phạm vi và thao tác — FR119, FR120 (ghi luật cũ, xem Source conflict trong Notes của epic)"]

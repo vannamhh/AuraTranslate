@@ -46,6 +46,7 @@ Yêu cầu nằm ở PRD (FR1–FR152 trừ FR20 đã rút, NFR1–NFR19); mỗi
 
 ## Notes
 
+- Decision: 2026-10-27, Ice — PRD FR5 và FR120 sửa kèm 🔵: Chương tự chuyển Chưa bắt đầu → Đang dịch ở lần ghi bản dịch đầu tiên do người dùng, Đã xong chỉ do người đặt và đặt được trong Workspace; Chế độ đọc đọc cả Chương Đang dịch và Tạm ngưng, dừng ở Chương Chưa bắt đầu. Lý do: không lượt ghi câu nào đổi trạng thái Chương nên tiến độ FR7 đứng 0 và Chế độ đọc trống. Thành entry 5.18 và 5.19; spine không phải sửa (AD-31 chỉ chi phối trạng thái câu). `ux-auratranslate/EXPERIENCE.md` KF-2 bước 7 còn ghi tự chuyển Đã xong — chờ `bmad-ux`.
 - Decision: 2026-10-25, Ice — NFR18 nới từ 5 lên 10 giây công việc mất khi sập (PRD đã sửa). Lý do: trần buộc ghi 5 giây của AD-35 trùng đúng ngưỡng cũ nên không chừa dư; đo thật trên release `2357baf` (122 câu, 10 phím/giây, n=40) mất tối đa 5,49 s. Nghiệm thu ở nhịp gõ thật 10 phím/giây; 40 phím/giây chỉ là số chịu tải. Trần 5 giây của AD-35 giữ nguyên, spine không phải sửa.
 - Decision: FR20 (Sync Scrolling) bị rút 2026-08-14 qua đề xuất đổi hướng, Ice ký; vì vậy `covers` bỏ FR20.
 - Decision: thứ tự epic trong `tickets.toml` là thứ tự thực thi 1, 2, 3, 5, 6, 4, 11, 7, 8, 9, 10 (Ice chốt 2026-10-06, Q9); id epic giữ số v6.

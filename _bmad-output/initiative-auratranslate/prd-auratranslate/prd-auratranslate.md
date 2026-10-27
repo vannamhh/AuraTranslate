@@ -244,7 +244,9 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 
 #### Trạng thái & tiến độ
 
-**FR5.** Trạng thái vòng đời có ở cả hai tầng, **bốn giá trị**: **Chưa bắt đầu / Đang dịch / Tạm ngưng / Đã xong**. Chương mới nhập mặc định là *Chưa bắt đầu*.
+**FR5.** Trạng thái vòng đời có ở cả hai tầng, **bốn giá trị**: **Chưa bắt đầu / Đang dịch / Tạm ngưng / Đã xong**. Chương mới nhập mặc định là *Chưa bắt đầu*. Chương tự chuyển *Chưa bắt đầu → Đang dịch* ở lần đầu một câu của nó được lưu bản dịch không rỗng do thao tác của người dùng (gõ, nhận bản AI, dịch lô); điền sẵn từ TM (FR58) không tính. Không có chuyển tiếp tự động nào khác: *Đã xong* chỉ do người đặt, đặt được ngay trong Workspace, và khi câu cuối chưa xác nhận của Chương (không tính câu đã cắt bỏ) được xác nhận, hệ thống **gợi ý** đặt *Đã xong* chứ không tự đặt.
+
+> 🔵 2026-10-27, Ice: thêm câu chuyển tiếp tự động *Chưa bắt đầu → Đang dịch* và đường đặt *Đã xong* trong Workspace. Trước đó không lượt ghi câu nào đổi trạng thái Chương, nên Chương đã dịch trọn vẫn ở *Chưa bắt đầu*, tiến độ FR7 đứng 0 và Chế độ đọc FR120 không có gì để đọc.
 
 > **Vì sao bốn chứ không phải ba:** brief nêu ba trạng thái, nhưng khi nhập một Tác phẩm 2000 chương thì 1999 chương chưa hề được đụng tới. Xếp chúng vào *Tạm ngưng* làm mất nghĩa của chính trạng thái đó — *Tạm ngưng* phải giữ nguyên nghĩa **"đã làm dở rồi bỏ"**, vì đó mới là nhóm cần quay lại.
 
@@ -274,7 +276,7 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 
 **FR11.** **Chế độ đọc (Reading Mode):** đọc bản dịch đã hoàn thành, đọc liên tục qua nhiều Chương, **không hiển thị công cụ biên tập**. Mặc định chỉ hiển thị bản dịch tiếng Việt; có **công tắc bật chế độ song ngữ** khi người dùng muốn đối chiếu.
 
-Phạm vi và thao tác của Chế độ đọc: xem FR119 (đánh dấu chỗ cần sửa) và FR120 (chỉ đọc phần đã xong, dừng ở biên).
+Phạm vi và thao tác của Chế độ đọc: xem FR119 (đánh dấu chỗ cần sửa) và FR120 (chỉ đọc phần đã dịch, dừng ở biên).
 
 Bound tối thiểu cho "tối ưu cho việc đọc dài":
 - **Độ rộng dòng giới hạn** (không kéo hết chiều ngang màn hình)
@@ -293,10 +295,12 @@ Bound tối thiểu cho "tối ưu cho việc đọc dài":
 
 > **Đây không phải "công cụ biên tập" theo nghĩa FR11 cấm.** FR11 cấm Chế độ đọc mang bộ máy biên tập — vạch lề trạng thái, nút xác nhận, panel. Một dấu và một đường điều hướng không sửa gì cả. Ràng buộc kèm theo: affordance **không hiện thường trực**, chỉ hiện khi con trỏ chuột hoặc tiêu điểm bàn phím chạm tới câu.
 
-**FR120.** **Chế độ đọc chỉ đọc phần đã xong, và dừng ở biên một cách tường minh.**
-- Đọc liên tục qua các Chương ở trạng thái **Đã xong**; chạm Chương chưa xong thì dừng lại ở một **mốc rõ ràng** báo đã hết phần đã dịch, kèm đường sang Workspace để dịch tiếp.
-- Chương chưa dịch **không hiển thị nguyên văn** — nguyên văn tiếng Trung xen giữa một trang đọc tiếng Việt là phá vỡ trải nghiệm, không phải bổ sung thông tin.
-- Câu **chưa xác nhận** nằm trong một Chương đã xong **vẫn hiện**, nhưng **có dấu nhẹ phân biệt được**.
+**FR120.** **Chế độ đọc chỉ đọc phần đã dịch, và dừng ở biên một cách tường minh.**
+- Đọc liên tục qua các Chương ở trạng thái **Đã xong**, **Đang dịch** và **Tạm ngưng**; chạm Chương **Chưa bắt đầu** thì dừng lại ở một **mốc rõ ràng** báo đã hết phần đã dịch, kèm đường sang Workspace để dịch tiếp.
+- Câu và Chương chưa dịch **không hiển thị nguyên văn** — nguyên văn tiếng Trung xen giữa một trang đọc tiếng Việt là phá vỡ trải nghiệm, không phải bổ sung thông tin. Trong Chương chưa xong, mỗi dãy câu liền nhau chưa có bản dịch hiện thành **một dòng mờ ghi số câu**, dẫn sang Workspace đúng câu đầu dãy — không giấu chỗ thiếu trong im lặng.
+- Câu **chưa xác nhận** trong mọi Chương được đọc **vẫn hiện**, nhưng **có dấu nhẹ phân biệt được**.
+
+> 🔵 2026-10-27, Ice: phạm vi đọc mở từ chỉ Chương *Đã xong* sang cả *Đang dịch* và *Tạm ngưng*, mốc biên dời tới Chương *Chưa bắt đầu* đầu tiên, thêm dòng mờ cho câu chưa dịch. Lý do: người dịch muốn đọc lại phần đã dịch mà không phải đặt Chương *Đã xong* trước.
 
 > **Vì sao câu chưa xác nhận phải có dấu:** Chương có thể được đánh dấu *Đã xong* bằng tay (FR6) trong khi vẫn còn câu chưa xác nhận. Hiện chúng như thể đã hoàn chỉnh là **nói dối về trạng thái công việc** — trái tinh thần FR5 và FR58, vốn rất cẩn thận về việc không tự coi thứ gì là đã xong.
 
