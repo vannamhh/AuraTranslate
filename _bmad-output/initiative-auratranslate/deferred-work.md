@@ -13550,6 +13550,7 @@ chính nó.
   Chủ: Story 12.33. Trỏ: `plan-glossary-dieu-khien-cung-chieu-cao.md`, DESIGN.md §Điều khiển.
   → 🟡 2026-10-28: TM đã đo trong trình duyệt (cổng 1420, dpr 2, IPC không có, cửa sổ rộng 1440/960/700/560px). Thanh lọc thẳng hàng ở 28px, kể cả khi nhãn và chip xuống dòng (`plan-tm-dieu-khien-cung-chieu-cao.md`). Còn năm nơi chưa đo: GridPanel, LookupPanel, Library, Cài đặt (phạm vi, Đọc), Prompt. Chủ: Story 12.33.
   → 🟡 2026-10-28: Cài đặt (phạm vi) bị lỗi thật, Ice phát hiện: mỗi ô nằm trong một `<form>` khối nên không giãn theo khung, chỉ cao bằng dòng chữ. Đã sửa (`.set-scope-form` thành flex), đo trên bản dựng tay mang thuộc tính scoped: ô cao 26 trong khung 28. Còn năm nơi chưa đo: GridPanel, LookupPanel, Library, Cài đặt (Đọc), Prompt. Năm nơi này đặt ô con trực tiếp trong `ui-seg`. Chủ: Story 12.33.
+  → ✅ ĐÃ ĐÓNG 2026-10-28 (ngoài cây vé): đo năm nơi còn lại ở cổng 1420, dpr 2. Ba nơi đo trên màn thật: Library (ô Tìm, ô phân đoạn, 4 bộ lọc đều 28, cùng `top`), Cài đặt Đọc (ô phân đoạn đứng một mình, ô 26 trong khung 28), Prompt (ô phân đoạn cùng tâm với hai dòng chữ). Hai nơi đo trên bản dựng tay mang thuộc tính scoped, vì cần dữ liệu: Grid và Lookup lệch (ô phân đoạn 28 cạnh nút 24), đã gắn `ui-seg--sm`, đo lại cả hàng 24, cùng `top`.
 
 ## Deferred from: nút trên bìa thẻ Library theo mockup (2026-10-28, ngoài cây vé)
 

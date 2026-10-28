@@ -86,6 +86,17 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
     expect(form, '.set-scope-form rule').toMatch(/display:\s*flex/)
   })
 
+  it('a segmented control that shares a row with sm buttons takes the sm tier', () => {
+    for (const [file, row] of [
+      ['../../src/panels/GridPanel.vue', /<div[^>]*class="tabs"[\s\S]*?<\/div>/g],
+      ['../../src/panels/LookupPanel.vue', /<div class="lookup-section">[\s\S]*?<\/div>/g],
+    ] as const) {
+      const block = [...readFileSync(join(__dirname, file), 'utf8').matchAll(row)].map((m) => m[0]).find((b) => b.includes('ui-seg')) ?? ''
+      expect(block, `${file} row`).toMatch(/ui-btn--sm/)
+      expect(block, file).toMatch(/class="ui-seg ui-seg--sm"/)
+    }
+  })
+
   it('an sm segmented control is 24px tall including its border, the same tier as sm buttons', () => {
     expect(declarations('.ui-seg--sm')).toMatch(/(^|;)\s*height:\s*24px/)
     expect(declarations('.ui-btn--sm')).toMatch(/(^|;)\s*height:\s*24px/)

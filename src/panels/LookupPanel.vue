@@ -729,7 +729,7 @@ onBeforeUnmount(() => {
 
           <div class="lookup-section">
             <span class="lookup-section-label">{{ t('panel.lookup.section_recent') }}</span>
-            <span class="ui-seg">
+            <span class="ui-seg ui-seg--sm">
               <button
                 type="button"
                 class="lookup-scope ui-seg__item"

@@ -1902,7 +1902,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
       tồn tại (bắt ở code review 2026-08-06).
     -->
     <div v-if="hasSegments && isChinese" class="tabs" role="tablist">
-      <span class="ui-seg">
+      <span class="ui-seg ui-seg--sm">
       <button
         id="grid-tab-original"
         ref="tabOriginalBtn"
