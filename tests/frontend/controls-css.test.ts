@@ -76,6 +76,10 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
     expect(declarations('.ui-field')).toMatch(/(^|;)\s*height:\s*28px/)
   })
 
+  it('a segment zeroes its border width, so the locked rule\'s dashed style cannot draw a medium-width left border on the first segment', () => {
+    expect(declarations('.ui-seg__item')).toMatch(/(^|;)\s*border:\s*0\s*(;|$)/)
+  })
+
   it('an sm segmented control is 24px tall including its border, the same tier as sm buttons', () => {
     expect(declarations('.ui-seg--sm')).toMatch(/(^|;)\s*height:\s*24px/)
     expect(declarations('.ui-btn--sm')).toMatch(/(^|;)\s*height:\s*24px/)

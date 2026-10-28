@@ -893,6 +893,21 @@ describe('failed re-list and locks', () => {
     }
     wrapper.unmount()
   })
+
+  it('every chip on the filter bar, the sort trigger included, takes the md tier like the search field and segmented control', async () => {
+    const { state, Overlay } = await freshOverlay()
+    listMock.mockResolvedValue(loaded(THREE_ROWS))
+    await state.openTmManage()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await settle(wrapper)
+    const chips = wrapper.findAll('.tm-toolbar .ui-chip')
+    expect(chips.length).toBe(6)
+    expect(wrapper.find('.tm-toolbar summary.ui-chip').exists()).toBe(true)
+    for (const chip of chips) expect(chip.classes(), chip.text()).toContain('ui-chip--md')
+    expect(wrapper.get('.tm-toolbar .ui-seg').classes()).not.toContain('ui-seg--sm')
+    expect(wrapper.get('.tm-toolbar input[type="text"]').classes()).not.toContain('ui-field--sm')
+    wrapper.unmount()
+  })
 })
 
 describe('collapsed row', () => {

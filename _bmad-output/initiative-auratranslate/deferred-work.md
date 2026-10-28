@@ -13548,3 +13548,4 @@ chính nó.
 
 - `ui-seg` nay cao 28px tính cả viền (trước là 26px, không trùng bậc nào). Thanh tiêu đề và Chế độ đọc mang `ui-seg--sm` 24px, đã đo khớp hàng xóm. Sáu nơi cần IPC nên chưa đo trong trình duyệt: GridPanel, LookupPanel, Library, Cài đặt (phạm vi, Đọc), TM, Prompt. Mỗi nơi phải có cùng `top`/`height` với hàng xóm; hàng nào toàn bậc `sm` thì gắn `ui-seg--sm`.
   Chủ: Story 12.33. Trỏ: `plan-glossary-dieu-khien-cung-chieu-cao.md`, DESIGN.md §Điều khiển.
+  → 🟡 2026-10-28: TM đã đo trong trình duyệt (cổng 1420, dpr 2, IPC không có, cửa sổ rộng 1440/960/700/560px). Thanh lọc thẳng hàng ở 28px, kể cả khi nhãn và chip xuống dòng (`plan-tm-dieu-khien-cung-chieu-cao.md`). Còn năm nơi chưa đo: GridPanel, LookupPanel, Library, Cài đặt (phạm vi, Đọc), Prompt. Chủ: Story 12.33.

@@ -538,7 +538,7 @@ function onKeydown(event: KeyboardEvent): void {
           <label
             v-for="opt in ORIGIN_PILLS"
             :key="opt.value"
-            class="tm-pill ui-chip"
+            class="tm-pill ui-chip ui-chip--md"
             :class="{ 'tm-pill-other': opt.value === 'others' }"
           >
             <input
@@ -555,7 +555,7 @@ function onKeydown(event: KeyboardEvent): void {
           <label
             v-for="opt in EXACT_ORIGIN_PILLS"
             :key="opt.value"
-            class="tm-pill tm-pill-minor ui-chip"
+            class="tm-pill tm-pill-minor ui-chip ui-chip--md"
           >
             <input
               type="radio"
@@ -574,6 +574,7 @@ function onKeydown(event: KeyboardEvent): void {
           <span class="tm-field-label">{{ t('tm.manage.sort_label') }}</span>
           <SelectMenu
             variant="chip"
+            size="md"
             :model-value="tmManageSort"
             :options="sortOptions"
             :label="t('tm.manage.sort_label')"
@@ -1135,6 +1136,7 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-toolbar {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   gap: calc(var(--space-unit) * 4);
   margin-bottom: var(--space-panel-block);
 }
@@ -1163,6 +1165,10 @@ function onKeydown(event: KeyboardEvent): void {
   margin: 0;
   padding: 0;
   border: none;
+}
+
+.tm-seg > .tm-field-label {
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .tm-field-search {
