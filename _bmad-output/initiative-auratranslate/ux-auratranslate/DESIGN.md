@@ -87,7 +87,7 @@ typography:
     lineHeight: '1.6'
   lookup-example:
     fontFamily: read
-    fontSize: 12.5px
+    fontSize: 13px
     fontStyle: italic
     lineHeight: '1.6'
   ui-md:
@@ -96,17 +96,17 @@ typography:
     lineHeight: '1.5'
   ui-sm:
     fontFamily: ui
-    fontSize: 12px
+    fontSize: 13px
     lineHeight: '1.5'
   ui-label:
     fontFamily: ui
-    fontSize: 12px
+    fontSize: 13px
     fontWeight: '700'
     lineHeight: '1.4'
     letterSpacing: 0.08em
   ui-mono:
     fontFamily: mono
-    fontSize: 12px
+    fontSize: 13px
     lineHeight: '1.4'
 families:
   read: '"Source Serif 4", "Noto Serif CJK TC", serif'
@@ -307,13 +307,13 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 | 7 | `editor` | 15px / 1.95 | `read` | Bản dịch trong Editor |
 | 8 | `lookup-headword` | 24px / 1.3 | `read` | Đầu mục Panel Lookup |
 | 9 | `lookup-gloss` | 14.5px / 1.6 | `read` | Nghĩa |
-| 10 | `lookup-example` | 12.5px / italic / 1.6 | `read` | Ví dụ và trích dẫn |
+| 10 | `lookup-example` | 13px / italic / 1.6 | `read` | Ví dụ và trích dẫn. 🔵 2026-10-28 (Ice): từ 12.5px |
 | 11 | `ui-md` | 13px / 1.5 | `ui` | Tiêu đề panel |
-| 12 | `ui-sm` | 12px / 1.5 | `ui` | Nhãn phụ |
-| 13 | `ui-label` | 12px / 700 / 1.4 / `0.08em` | `ui` | Nhãn nguồn từ điển, số thứ tự câu. 🔵 2026-10-26 (Ice): từ 11px / `0.1em` |
-| 14 | `ui-mono` | 12px / 1.4 | `mono` | Phím tắt, số liệu. 🔵 2026-10-26 (Ice): từ 11.5px |
+| 12 | `ui-sm` | 13px / 1.5 | `ui` | Nhãn phụ. 🔵 2026-10-28 (Ice): từ 12px |
+| 13 | `ui-label` | 13px / 700 / 1.4 / `0.08em` | `ui` | Nhãn nguồn từ điển, số thứ tự câu. 🔵 2026-10-26 (Ice): từ 11px / `0.1em`. 🔵 2026-10-28 (Ice): từ 12px |
+| 14 | `ui-mono` | 13px / 1.4 | `mono` | Phím tắt, số liệu. 🔵 2026-10-26 (Ice): từ 11.5px. 🔵 2026-10-28 (Ice): từ 12px |
 
-🔵 2026-10-26 (Ice): **mọi chữ bấm được** — nút, tab con, nút phân đoạn — dùng `ui-md` 13px, bằng cỡ giao diện hệ thống macOS. `ui-sm` 12px chỉ còn cho số đếm và dòng phụ không bấm được. Không chữ giao diện nào dưới 12px.
+🔵 2026-10-26 (Ice): **mọi chữ bấm được** — nút, tab con, nút phân đoạn — dùng `ui-md` 13px, bằng cỡ giao diện hệ thống macOS. `ui-sm` 12px chỉ còn cho số đếm và dòng phụ không bấm được. Không chữ giao diện nào dưới 12px. 🔵 2026-10-28 (Ice): chữ nhỏ nhất toàn app là 13px; `ui-sm`, `ui-sm-italic`, `ui-label`, `ui-mono` và `lookup-example` cùng 13px, nên chữ phụ bằng cỡ `ui-md` và tách khỏi chữ thường bằng màu, độ đậm, chữ hoa.
 
 ### Bảng token khoảng cách và hình dạng
 
@@ -327,7 +327,7 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 
 > 🔴 **TẦNG VỎ GIAO DIỆN NÂNG MỘT BẬC — Ice chốt 2026-08-12, và nó LẬT một quyết định của chính tài liệu này.**
 >
-> Bảng trên đọc **13 / 12 / 12 / 12px** (🔵 2026-10-26: `ui-label` và `ui-mono` nâng thêm một bậc); từ 2026-08-12 tới 2026-10-26 là **13 / 12 / 11 / 11,5px**; trước 2026-08-12 là **12 / 11,5 / 10 / 10,5px**. Ba
+> 🔵 2026-10-28 (Ice): bảng trên nay đọc **13 / 13 / 13 / 13px**, chữ nhỏ nhất toàn app là 13px. Bảng trên từng đọc **13 / 12 / 12 / 12px** (🔵 2026-10-26: `ui-label` và `ui-mono` nâng thêm một bậc); từ 2026-08-12 tới 2026-10-26 là **13 / 12 / 11 / 11,5px**; trước 2026-08-12 là **12 / 11,5 / 10 / 10,5px**. Ba
 > thanh nâng theo để giữ tỉ lệ khoảng thở: `head` 34→**36**, `titlebar` 38→**40**, `status` 32→**34**.
 >
 > **Lý do, và nó là một phép đối chiếu chứ không một khẩu vị:** giao diện hệ thống macOS chạy ở

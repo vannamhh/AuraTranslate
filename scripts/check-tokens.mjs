@@ -238,7 +238,7 @@ const EXPECTED_TYPOGRAPHY = {
   editor: { family: 'read', fontSize: '15px', lineHeight: '1.95' },
   'lookup-headword': { family: 'read', fontSize: '24px', lineHeight: '1.3' },
   'lookup-gloss': { family: 'read', fontSize: '14.5px', lineHeight: '1.6' },
-  'lookup-example': { family: 'read', fontSize: '12.5px', lineHeight: '1.6', fontStyle: 'italic' },
+  'lookup-example': { family: 'read', fontSize: '13px', lineHeight: '1.6', fontStyle: 'italic' },
   'ui-md': { family: 'ui', fontSize: '13px', lineHeight: '1.5' },
   /*
    * ⚠️ `ui-md-strong` (Story 1.14 · AC10) CỐ Ý VẮNG MẶT ở đây.
@@ -249,15 +249,15 @@ const EXPECTED_TYPOGRAPHY = {
    * phải có `question` + `reason` không rỗng. Xem lý lẽ đầy đủ ở phần `extra` của
    * `compare()`. Đừng "sửa" bằng cách thêm một hàng vào đây.
    */
-  'ui-sm': { family: 'ui', fontSize: '12px', lineHeight: '1.5' },
+  'ui-sm': { family: 'ui', fontSize: '13px', lineHeight: '1.5' },
   'ui-label': {
     family: 'ui',
-    fontSize: '12px',
+    fontSize: '13px',
     lineHeight: '1.4',
     fontWeight: '700',
     letterSpacing: '0.08em',
   },
-  'ui-mono': { family: 'mono', fontSize: '12px', lineHeight: '1.4' },
+  'ui-mono': { family: 'mono', fontSize: '13px', lineHeight: '1.4' },
 }
 
 const EXPECTED_FAMILIES = {
