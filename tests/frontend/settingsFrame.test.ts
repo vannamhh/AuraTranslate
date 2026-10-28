@@ -2,6 +2,8 @@
  * The Settings frame: one nav of sections that have a body, `⌘,` opens it, and the Glossary
  * threshold and Shortcuts screens live inside it instead of in overlays of their own.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { watch } from 'vue'
@@ -128,6 +130,8 @@ describe('Settings nav', () => {
     expect(body.findAll('button[data-update-toggle], button[data-update-check]')).toHaveLength(2)
     expect(body.findAll('input, a')).toHaveLength(0)
     expect(wrapper.find('[data-settings-scope-global]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-settings-scope-global]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('[data-settings-scope-global]').classes()).toContain('ui-seg__item')
     expect(wrapper.find('[data-settings-scope-work]').attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-settings-scope-msg]').text()).toBe(t('settings.scope.locked_update'))
 
@@ -254,9 +258,11 @@ describe('Settings › Shortcuts', () => {
 
     const cell = await armCapture(wrapper, 'mode.reading')
     expect(shortcutsState.captureIsArmed.value).toBe(true)
+    expect(cell.classes()).toEqual(expect.arrayContaining(['sc-key-armed', 'ui-btn']))
     await cell.trigger('keydown', { code: 'Escape' })
     await flushPromises()
 
+    expect(cell.classes()).not.toContain('sc-key-armed')
     expect(shortcutsState.captureIsArmed.value).toBe(false)
     expect(shortcutsState.shortcutNotice.value).toBeNull()
     expect(commands.effectiveBindings().map((b) => `${b.id}=${b.chord}`)).toEqual(before)
@@ -273,5 +279,22 @@ describe('Settings › Shortcuts', () => {
     await flushPromises()
 
     expect(shortcutsState.captureIsArmed.value).toBe(false)
+  })
+})
+
+describe('Settings control states drawn by ui-*', () => {
+  const read = (path: string) => readFileSync(join(__dirname, '../..', path), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+
+  it('a locked scope segment that is pressed keeps the chosen fill: the pressed rule follows the disabled rule', () => {
+    const css = read('src/tokens/controls.css')
+    const disabled = css.indexOf('.ui-seg__item:disabled')
+    const pressed = css.indexOf(".ui-seg__item[aria-pressed='true']")
+    expect(disabled).toBeGreaterThan(-1)
+    expect(pressed).toBeGreaterThan(disabled)
+  })
+
+  it('an armed key cell changes only its text colour, to primary', () => {
+    const rule = /\.sc-key-armed\s*\{([^}]*)\}/.exec(read('src/SettingsShortcutsSection.vue'))
+    expect(rule?.[1]?.split(';').map((d) => d.trim()).filter(Boolean)).toEqual(['color: var(--color-primary)'])
   })
 })

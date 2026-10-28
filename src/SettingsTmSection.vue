@@ -34,7 +34,7 @@ function onInput(event: Event): void {
         <span class="ts-field-label">{{ t('tm.settings.threshold_label') }}</span>
         <input
           type="number"
-          class="ts-input"
+          class="ts-input ui-field ui-field--lg ui-field--short"
           :min="TM_FUZZY_THRESHOLD_MIN"
           :max="TM_FUZZY_THRESHOLD_MAX"
           step="1"
@@ -55,7 +55,7 @@ function onInput(event: Event): void {
       </p>
 
       <div class="ts-actions">
-        <button type="submit" class="ts-save" :disabled="parsedTmFuzzyThreshold(tmSettingsThresholdInput) === null">
+        <button type="submit" class="ts-save ui-btn ui-btn--lg" :disabled="parsedTmFuzzyThreshold(tmSettingsThresholdInput) === null">
           {{ t('command.tm.settings.save') }}
         </button>
       </div>
@@ -91,22 +91,6 @@ function onInput(event: Event): void {
   color: var(--color-on-surface-variant);
 }
 
-.ts-input {
-  width: 8em;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  line-height: var(--leading-ui-mono);
-  color: var(--color-on-surface);
-}
-
-.ts-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .ts-alert,
 .ts-saved {
   margin: 0 0 var(--space-panel-block) 0;
@@ -126,21 +110,5 @@ function onInput(event: Event): void {
 .ts-actions {
   display: flex;
   gap: var(--space-panel-inline);
-}
-
-.ts-save {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-}
-
-.ts-save:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 </style>

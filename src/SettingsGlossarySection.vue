@@ -34,7 +34,7 @@ function onInput(event: Event): void {
         <span class="gs-field-label">{{ t('glossary.settings.threshold_label') }}</span>
         <input
           type="number"
-          class="gs-input"
+          class="gs-input ui-field ui-field--lg ui-field--short"
           min="1"
           step="1"
           autocomplete="off"
@@ -56,7 +56,7 @@ function onInput(event: Event): void {
       <div class="gs-actions">
         <button
           type="submit"
-          class="gs-save"
+          class="gs-save ui-btn ui-btn--lg"
           :disabled="parsedGlossaryScanThreshold(glossarySettingsThresholdInput) === null"
         >
           {{ t('command.glossary.settings.save') }}
@@ -94,22 +94,6 @@ function onInput(event: Event): void {
   color: var(--color-on-surface-variant);
 }
 
-.gs-input {
-  width: 8em;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  line-height: var(--leading-ui-mono);
-  color: var(--color-on-surface);
-}
-
-.gs-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .gs-alert,
 .gs-saved {
   margin: 0 0 var(--space-panel-block) 0;
@@ -129,21 +113,5 @@ function onInput(event: Event): void {
 .gs-actions {
   display: flex;
   gap: var(--space-panel-inline);
-}
-
-.gs-save {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-}
-
-.gs-save:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 </style>

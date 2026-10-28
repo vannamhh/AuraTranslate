@@ -151,7 +151,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
       <div class="sc-search">
         <input
-          class="sc-search-input"
+          class="sc-search-input ui-field ui-field--lg"
           type="text"
           autocomplete="off"
           data-shortcut-search
@@ -252,7 +252,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
               -->
               <button
                 type="button"
-                class="sc-key"
+                class="sc-key ui-btn ui-btn--sm"
                 data-key-cell
                 :class="{ 'sc-key-armed': captureIsArmed && aimedShortcutRow === row.id }"
                 @click="dispatch('shortcuts.capture')"
@@ -275,13 +275,13 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
                 ⚠️ Mỗi `@click` là đúng MỘT `dispatch('<id>')` với id **literal** (Kiểm A) —
                 hàng đang nhắm đi bằng `@mousedown` ở vùng chứa, không bằng một tham số.
               -->
-              <button type="button" class="sc-act" @click="dispatch('shortcuts.unassign')">
+              <button type="button" class="sc-act ui-btn ui-btn--quiet ui-btn--sm" @click="dispatch('shortcuts.unassign')">
                 {{ t('shortcuts.act_unassign') }}
               </button>
               <button
                 v-if="row.overridden"
                 type="button"
-                class="sc-act"
+                class="sc-act ui-btn ui-btn--quiet ui-btn--sm"
                 @click="dispatch('shortcuts.reset')"
               >
                 {{ t('shortcuts.act_reset') }}
@@ -309,23 +309,23 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
       <div class="sc-file-row">
         <form class="sc-file-form" @submit.prevent="onExportShortcuts()">
-          <button type="submit" class="sc-file-btn" data-shortcut-export>{{ t('shortcuts.export') }}</button>
+          <button type="submit" class="sc-file-btn ui-btn ui-btn--lg" data-shortcut-export>{{ t('shortcuts.export') }}</button>
         </form>
         <form class="sc-file-form" @submit.prevent="onImportShortcuts()">
-          <button type="submit" class="sc-file-btn" data-shortcut-import>{{ t('shortcuts.import') }}</button>
+          <button type="submit" class="sc-file-btn ui-btn ui-btn--lg" data-shortcut-import>{{ t('shortcuts.import') }}</button>
         </form>
         <form v-if="!shortcutResetAllPending" class="sc-file-form" @submit.prevent="onAskResetAll()">
-          <button type="submit" class="sc-file-btn" data-shortcut-reset-all>{{ t('shortcuts.reset_all') }}</button>
+          <button type="submit" class="sc-file-btn ui-btn ui-btn--lg" data-shortcut-reset-all>{{ t('shortcuts.reset_all') }}</button>
         </form>
         <template v-else>
           <span class="sc-file-ask" role="alert" data-shortcut-reset-all-ask>{{ t('shortcuts.reset_all_ask') }}</span>
           <form class="sc-file-form" @submit.prevent="onConfirmResetAll()">
-            <button type="submit" class="sc-file-btn" data-shortcut-reset-all-confirm>
+            <button type="submit" class="sc-file-btn ui-btn ui-btn--lg" data-shortcut-reset-all-confirm>
               {{ t('shortcuts.reset_all_confirm') }}
             </button>
           </form>
           <form class="sc-file-form" @submit.prevent="onCancelResetAll()">
-            <button type="submit" class="sc-file-btn" data-shortcut-reset-all-cancel>
+            <button type="submit" class="sc-file-btn ui-btn ui-btn--lg" data-shortcut-reset-all-cancel>
               {{ t('shortcuts.reset_all_cancel') }}
             </button>
           </form>
@@ -431,25 +431,8 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
   white-space: nowrap;
 }
 
-.sc-key {
-  padding: 4px 8px;
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  line-height: var(--leading-ui-mono);
-  color: var(--color-on-surface);
-}
-
-.sc-key:not(.sc-key-armed):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 /* Đang chờ một hợp âm — trạng thái ② của Quyết định #6. */
 .sc-key-armed {
-  border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
@@ -475,20 +458,6 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
 .sc-act {
   margin-right: 8px;
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.sc-act:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .sc-default {
@@ -503,18 +472,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 }
 
 .sc-search-input {
-  flex: 0 1 320px;
-  padding: 4px 8px;
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.sc-search-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+  flex: 1 1 auto;
 }
 
 .sc-search-chord {
@@ -538,21 +496,6 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
 .sc-file-form {
   margin: 0;
-}
-
-.sc-file-btn {
-  padding: 4px 12px;
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.sc-file-btn:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .sc-file-ask {

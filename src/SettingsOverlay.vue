@@ -342,18 +342,18 @@ function onDeleteAiConfigKey(): void {
     >
       <header class="set-head">
         <h2 id="settings-title" class="set-title">{{ t('settings.title') }}</h2>
-        <button type="button" class="set-close" @click="dispatch('settings.close')">
+        <button type="button" class="set-close ui-btn ui-btn--quiet" @click="dispatch('settings.close')">
           {{ t('command.settings.close') }}
         </button>
       </header>
 
       <div v-if="scopeIsShown" class="set-scope" data-settings-scope>
         <span class="set-scope-label">{{ t('settings.scope.label') }}</span>
-        <span class="set-scope-seg" role="group" :aria-label="t('settings.scope.label')">
+        <span class="set-scope-seg ui-seg" role="group" :aria-label="t('settings.scope.label')">
           <form class="set-scope-form" @submit.prevent="onSelectAiConfigTier('global')">
             <button
               type="submit"
-              class="set-scope-btn"
+              class="set-scope-btn ui-seg__item"
               data-settings-scope-global
               :disabled="scopeIsLocked"
               :aria-pressed="scopeIsLocked || aiConfigViewTier === 'global'"
@@ -364,7 +364,7 @@ function onDeleteAiConfigKey(): void {
           <form class="set-scope-form" @submit.prevent="onSelectAiConfigTier('work')">
             <button
               type="submit"
-              class="set-scope-btn"
+              class="set-scope-btn ui-seg__item"
               data-settings-scope-work
               :disabled="scopeIsLocked || !aiConfigWorkIsOpen"
               :aria-pressed="!scopeIsLocked && aiConfigViewTier === 'work'"
@@ -442,7 +442,7 @@ function onDeleteAiConfigKey(): void {
                   >
                     <button
                       type="submit"
-                      class="ai-pill"
+                      class="ai-pill ui-chip"
                       :data-ai-provider="provider"
                       :aria-pressed="aiProviderIsOn(provider)"
                       :disabled="aiConfigIsSaving('provider')"
@@ -480,10 +480,10 @@ function onDeleteAiConfigKey(): void {
                     </li>
                   </ul>
                   <div class="ai-preset-confirm-actions">
-                    <button type="button" class="ui-btn" data-ai-preset-apply @click="dispatch('settings.ai_config.preset_apply')">
+                    <button type="button" class="ui-btn ui-btn--lg" data-ai-preset-apply @click="dispatch('settings.ai_config.preset_apply')">
                       {{ t('settings.ai_config.preset_apply') }}
                     </button>
-                    <button type="button" class="ui-btn ui-btn--quiet" data-ai-preset-cancel @click="dispatch('settings.ai_config.preset_cancel')">
+                    <button type="button" class="ui-btn ui-btn--quiet ui-btn--lg" data-ai-preset-cancel @click="dispatch('settings.ai_config.preset_cancel')">
                       {{ t('settings.ai_config.preset_cancel') }}
                     </button>
                   </div>
@@ -506,7 +506,7 @@ function onDeleteAiConfigKey(): void {
                   class="ai-field-clear-form"
                   @submit.prevent="onClearAiConfigOverride('provider')"
                 >
-                  <button type="submit" class="ui-btn ui-btn--quiet ai-field-clear" :disabled="aiConfigIsSaving('provider')">
+                  <button type="submit" class="ui-btn ui-btn--quiet ai-field-clear ui-btn--lg" :disabled="aiConfigIsSaving('provider')">
                     {{ t('settings.ai_config.clear_override') }}
                   </button>
                 </form>
@@ -517,7 +517,8 @@ function onDeleteAiConfigKey(): void {
                   <label class="ai-field-label">
                     <span>{{ t(aiConfigFieldLabelKey(field)) }}</span>
                     <input
-                      class="ai-field-input"
+                      class="ai-field-input ui-field ui-field--lg"
+                      :class="field === 'endpoint' ? 'ui-field--full' : 'ui-field--medium'"
                       autocomplete="off"
                       :placeholder="field === 'endpoint' ? aiConfigEndpointPlaceholder() : undefined"
                       :value="aiConfigDraft(field)"
@@ -556,7 +557,7 @@ function onDeleteAiConfigKey(): void {
                   class="ai-field-clear-form"
                   @submit.prevent="onClearAiConfigOverride(field)"
                 >
-                  <button type="submit" class="ui-btn ui-btn--quiet ai-field-clear" :disabled="aiConfigIsSaving(field)">
+                  <button type="submit" class="ui-btn ui-btn--quiet ai-field-clear ui-btn--lg" :disabled="aiConfigIsSaving(field)">
                     {{ t('settings.ai_config.clear_override') }}
                   </button>
                 </form>
@@ -573,7 +574,7 @@ function onDeleteAiConfigKey(): void {
                   >
                     <button
                       type="submit"
-                      class="ai-pill"
+                      class="ai-pill ui-chip"
                       :data-ai-chip="chip"
                       :aria-pressed="aiConfigChipIsOn(field, chip)"
                     >
@@ -586,7 +587,7 @@ function onDeleteAiConfigKey(): void {
                   <label class="ai-field-label">
                     <span>{{ t('settings.ai_config.chip_custom') }}</span>
                     <input
-                      class="ai-field-input"
+                      class="ai-field-input ui-field ui-field--lg ui-field--short"
                       autocomplete="off"
                       data-ai-chip-input
                       :value="aiConfigChipInputValue(field)"
@@ -621,7 +622,7 @@ function onDeleteAiConfigKey(): void {
                   class="ai-field-clear-form"
                   @submit.prevent="onClearAiConfigOverride(field)"
                 >
-                  <button type="submit" class="ui-btn ui-btn--quiet ai-field-clear" :disabled="aiConfigIsSaving(field)">
+                  <button type="submit" class="ui-btn ui-btn--quiet ai-field-clear ui-btn--lg" :disabled="aiConfigIsSaving(field)">
                     {{ t('settings.ai_config.clear_override') }}
                   </button>
                 </form>
@@ -632,7 +633,7 @@ function onDeleteAiConfigKey(): void {
                   <label class="ai-field-label">
                     <span>{{ t('settings.ai_config.field_system_prompt') }}</span>
                     <textarea
-                      class="ai-field-input ai-field-textarea"
+                      class="ai-field-input ai-field-textarea ui-field ui-field--full"
                       rows="6"
                       spellcheck="false"
                       data-ai-system-prompt
@@ -663,7 +664,7 @@ function onDeleteAiConfigKey(): void {
                 >
                   <button
                     type="submit"
-                    class="ui-btn ui-btn--quiet ai-field-clear"
+                    class="ui-btn ui-btn--quiet ai-field-clear ui-btn--lg"
                     data-ai-system-prompt-restore
                     :disabled="aiConfigIsSaving('system_prompt')"
                   >
@@ -678,7 +679,7 @@ function onDeleteAiConfigKey(): void {
                   <label class="ai-field-label">
                     <span>{{ t('settings.ai_config.key_label') }}</span>
                     <input
-                      class="ai-field-input"
+                      class="ai-field-input ui-field ui-field--lg ui-field--medium"
                       type="password"
                       autocomplete="off"
                       :placeholder="aiConfigKeyPlaceholder() || undefined"
@@ -717,7 +718,7 @@ function onDeleteAiConfigKey(): void {
                   <button
                     type="submit"
                     form="ai-key-form"
-                    class="ui-btn ai-field-save"
+                    class="ui-btn ai-field-save ui-btn--lg"
                     :disabled="!isAiConfigKeyValueValid(aiConfigKeyDraft()) || aiConfigKeyBusy"
                   >
                     {{ t('settings.ai_config.key_save') }}
@@ -727,7 +728,7 @@ function onDeleteAiConfigKey(): void {
                     class="ai-field-clear-form"
                     @submit.prevent="onDeleteAiConfigKey"
                   >
-                    <button type="submit" class="ui-btn ui-btn--danger ai-field-clear" :disabled="aiConfigKeyBusy">
+                    <button type="submit" class="ui-btn ui-btn--danger ai-field-clear ui-btn--lg" :disabled="aiConfigKeyBusy">
                       {{ t('settings.ai_config.key_delete') }}
                     </button>
                   </form>
@@ -742,7 +743,7 @@ function onDeleteAiConfigKey(): void {
               <div class="ai-field" data-ai-usage-switch>
                 <span class="ai-field-label-text">{{ t('settings.ai_config.usage_label') }}</span>
                 <form class="ai-field-form" @submit.prevent="onToggleAiUsage()">
-                  <button type="submit" class="ui-btn ai-field-save" :aria-pressed="aiUsageVisible" data-ai-usage-toggle>
+                  <button type="submit" class="ui-btn ai-field-save ui-btn--lg" :aria-pressed="aiUsageVisible" data-ai-usage-toggle>
                     {{ t(aiUsageStateKey()) }}
                   </button>
                 </form>
@@ -757,7 +758,7 @@ function onDeleteAiConfigKey(): void {
                 <form class="ai-field-clear-form" @submit.prevent="onRunAiConfigTest()">
                   <button
                     type="submit"
-                    class="ui-btn ai-field-save"
+                    class="ui-btn ai-field-save ui-btn--lg"
                     data-ai-test-connection
                     :disabled="aiConfigTestStatus === 'running'"
                   >
@@ -765,13 +766,13 @@ function onDeleteAiConfigKey(): void {
                   </button>
                 </form>
                 <form v-if="aiConfigTestStatus === 'running'" class="ai-field-clear-form" @submit.prevent="onCancelAiConfigTest()">
-                  <button type="submit" class="ui-btn ai-field-clear" data-ai-test-cancel>
+                  <button type="submit" class="ui-btn ai-field-clear ui-btn--lg" data-ai-test-cancel>
                     {{ t('settings.ai_config.test_cancel') }}
                   </button>
                 </form>
                 <button
                   type="button"
-                  class="ui-btn ai-field-clear"
+                  class="ui-btn ai-field-clear ui-btn--lg"
                   data-ai-clear-all
                   :disabled="aiConfigViewTier !== 'work' || aiConfigOverrideCount === 0"
                   @click="dispatch('settings.ai_config.clear_all_overrides')"
@@ -817,7 +818,7 @@ function onDeleteAiConfigKey(): void {
             -->
             <h3 class="set-h2">{{ t('settings.nav.prompt') }}</h3>
             <p class="set-h2s">{{ t('settings.prompt.intro') }}</p>
-            <button type="button" class="set-open-library" data-prompt-library-open @click="dispatch('prompt.library.open')">
+            <button type="button" class="set-open-library ui-btn ui-btn--lg" data-prompt-library-open @click="dispatch('prompt.library.open')">
               {{ t('command.prompt.library.open') }}
             </button>
           </template>
@@ -976,21 +977,6 @@ function onDeleteAiConfigKey(): void {
   color: var(--color-on-surface);
 }
 
-.set-close {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-}
-
-.set-close:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .set-grid {
   display: grid;
   grid-template-columns: 200px 1fr;
@@ -1118,41 +1104,18 @@ function onDeleteAiConfigKey(): void {
   text-transform: uppercase;
 }
 
-.set-scope-seg {
-  display: inline-flex;
-  border: 1px solid var(--color-outline);
-}
-
-.set-scope-seg:has(.set-scope-btn:focus-visible) {
-  border-color: var(--color-primary);
-}
-
-.set-scope-btn:focus-visible {
-  /* aura-allow-outline-none: frame .set-scope-seg recolours its border on focus */
-  outline: none;
-}
-
 .set-scope-form {
   margin: 0;
 }
 
-.set-scope-btn {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
+/* Each segment sits in its own <form>, so `.ui-seg__item + .ui-seg__item` never matches. */
+.set-scope-form + .set-scope-form {
+  border-left: 1px solid var(--color-control-rule);
 }
 
-.set-scope-btn[aria-pressed='true'] {
-  color: var(--color-primary);
-  font-weight: var(--weight-ui-label);
-}
-
-.set-scope-btn:disabled {
-  cursor: default;
+.set-scope-form + .set-scope-form:has(:disabled) {
+  border-left-style: dashed;
+  border-left-color: var(--color-outline);
 }
 
 .set-scope-right {
@@ -1190,27 +1153,6 @@ function onDeleteAiConfigKey(): void {
 
 .ai-pill-form {
   margin: 0;
-}
-
-.ai-pill {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ai-pill:not([aria-pressed='true']):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.ai-pill[aria-pressed='true'] {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  font-weight: var(--weight-ui-label);
 }
 
 .ai-preset-confirm {
@@ -1283,23 +1225,8 @@ function onDeleteAiConfigKey(): void {
   color: var(--color-on-surface-variant);
 }
 
-.ai-field-input {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  line-height: var(--leading-ui-mono);
-  color: var(--color-on-surface);
-}
-
 .ai-field-textarea {
   resize: vertical;
-}
-
-.ai-field-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .ai-field-clear-form {
@@ -1347,16 +1274,5 @@ function onDeleteAiConfigKey(): void {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-error);
-}
-
-/* Story 4.4 — nút mở lớp phủ Thư viện prompt (mục `prompt` không soạn tại chỗ). */
-.set-open-library {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-primary);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
 }
 </style>

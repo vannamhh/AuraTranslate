@@ -75,7 +75,7 @@ function onRenameInput(name: string, event: Event): void {
         <!-- aura-allow-text: hợp âm đã định dạng — DỮ LIỆU. -->
         <span class="sl-chord">{{ shortcutDisplayFor(preset.id) }}</span>
         <form class="sl-form" @submit.prevent="onApplyBuiltin(preset.id)">
-          <button type="submit" class="sl-btn" :disabled="!dockIsLive">{{ t('settings.layout.apply') }}</button>
+          <button type="submit" class="sl-btn ui-btn ui-btn--lg" :disabled="!dockIsLive">{{ t('settings.layout.apply') }}</button>
         </form>
       </li>
     </ul>
@@ -89,13 +89,13 @@ function onRenameInput(name: string, event: Event): void {
         <!-- aura-allow-text: tên preset do người dùng đặt — DỮ LIỆU. -->
         <span class="sl-name">{{ preset.name }}</span>
         <form class="sl-form" @submit.prevent="onApplyUser(preset.name)">
-          <button type="submit" class="sl-btn" :disabled="!dockIsLive" data-layout-apply>
+          <button type="submit" class="sl-btn ui-btn ui-btn--lg" :disabled="!dockIsLive" data-layout-apply>
             {{ t('settings.layout.apply') }}
           </button>
         </form>
         <form class="sl-form" @submit.prevent="onRenamePreset(preset.name)">
           <input
-            class="sl-input"
+            class="sl-input ui-field ui-field--lg ui-field--medium"
             autocomplete="off"
             data-layout-rename-input
             :aria-label="t('settings.layout.rename_label')"
@@ -103,17 +103,17 @@ function onRenameInput(name: string, event: Event): void {
             :value="renameDraft[preset.name] ?? ''"
             @input="onRenameInput(preset.name, $event)"
           />
-          <button type="submit" class="sl-btn" data-layout-rename>{{ t('settings.layout.rename') }}</button>
+          <button type="submit" class="sl-btn ui-btn ui-btn--lg" data-layout-rename>{{ t('settings.layout.rename') }}</button>
         </form>
         <form class="sl-form" @submit.prevent="onDeletePreset(preset.name)">
-          <button type="submit" class="sl-btn" data-layout-delete>{{ t('settings.layout.delete') }}</button>
+          <button type="submit" class="sl-btn ui-btn ui-btn--lg" data-layout-delete>{{ t('settings.layout.delete') }}</button>
         </form>
       </li>
     </ul>
 
     <form class="sl-save" @submit.prevent="onSavePreset()">
       <input
-        class="sl-input"
+        class="sl-input ui-field ui-field--lg ui-field--medium"
         autocomplete="off"
         data-layout-new-name
         :aria-label="t('settings.layout.new_name_label')"
@@ -121,7 +121,7 @@ function onRenameInput(name: string, event: Event): void {
         :value="newName"
         @input="onNewNameInput($event)"
       />
-      <button type="submit" class="sl-btn" :disabled="!dockIsLive" data-layout-save>
+      <button type="submit" class="sl-btn ui-btn ui-btn--lg" :disabled="!dockIsLive" data-layout-save>
         {{ t('settings.layout.save_current') }}
       </button>
     </form>
@@ -189,35 +189,6 @@ function onRenameInput(name: string, event: Event): void {
 
 .sl-save {
   margin-top: var(--space-panel-block);
-}
-
-.sl-input {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.sl-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.sl-btn {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.sl-btn:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .sl-note {

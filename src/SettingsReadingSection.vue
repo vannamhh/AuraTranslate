@@ -34,40 +34,42 @@ function onLineHeightInput(event: Event): void {
   <div class="sr-body" data-settings-reading>
     <div class="sr-row" role="group" :aria-label="t('mode.reading.level_group')">
       <span class="sr-label">{{ t('mode.reading.level_group') }}</span>
-      <button
-        type="button"
-        class="sr-btn"
-        data-settings-reading-level="lg"
-        :aria-pressed="currentReadingLevel === 'lg'"
-        @click="dispatch('reading.level_airy')"
-      >
-        {{ t('mode.reading.level_airy') }}
-      </button>
-      <button
-        type="button"
-        class="sr-btn"
-        data-settings-reading-level="md"
-        :aria-pressed="currentReadingLevel === 'md'"
-        @click="dispatch('reading.level_balanced')"
-      >
-        {{ t('mode.reading.level_balanced') }}
-      </button>
-      <button
-        type="button"
-        class="sr-btn"
-        data-settings-reading-level="sm"
-        :aria-pressed="currentReadingLevel === 'sm'"
-        @click="dispatch('reading.level_dense')"
-      >
-        {{ t('mode.reading.level_dense') }}
-      </button>
+      <span class="ui-seg">
+        <button
+          type="button"
+          class="sr-btn ui-seg__item"
+          data-settings-reading-level="lg"
+          :aria-pressed="currentReadingLevel === 'lg'"
+          @click="dispatch('reading.level_airy')"
+        >
+          {{ t('mode.reading.level_airy') }}
+        </button>
+        <button
+          type="button"
+          class="sr-btn ui-seg__item"
+          data-settings-reading-level="md"
+          :aria-pressed="currentReadingLevel === 'md'"
+          @click="dispatch('reading.level_balanced')"
+        >
+          {{ t('mode.reading.level_balanced') }}
+        </button>
+        <button
+          type="button"
+          class="sr-btn ui-seg__item"
+          data-settings-reading-level="sm"
+          :aria-pressed="currentReadingLevel === 'sm'"
+          @click="dispatch('reading.level_dense')"
+        >
+          {{ t('mode.reading.level_dense') }}
+        </button>
+      </span>
     </div>
 
     <div class="sr-row">
       <span class="sr-label">{{ t('mode.reading.bilingual') }}</span>
       <button
         type="button"
-        class="sr-btn"
+        class="sr-btn ui-btn ui-btn--lg"
         data-settings-reading-bilingual
         :aria-pressed="readingBilingual"
         @click="dispatch('reading.toggle_bilingual')"
@@ -130,26 +132,6 @@ function onLineHeightInput(event: Event): void {
   letter-spacing: var(--tracking-ui-label);
   text-transform: uppercase;
   color: var(--color-on-surface-variant);
-}
-
-.sr-btn {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.sr-btn:not([aria-pressed='true']):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.sr-btn[aria-pressed='true'] {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
 }
 
 .sr-range {

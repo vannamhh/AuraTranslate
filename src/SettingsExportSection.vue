@@ -31,7 +31,7 @@ function onInput(event: Event): void {
         <span class="ts-field-label">{{ t('export.settings.translator_label') }}</span>
         <input
           type="text"
-          class="ts-input"
+          class="ts-input ui-field ui-field--lg ui-field--medium"
           autocomplete="off"
           data-export-translator-input
           :value="exportSettingsNameInput"
@@ -48,7 +48,7 @@ function onInput(event: Event): void {
       </p>
 
       <div class="ts-actions">
-        <button type="submit" class="ts-save">{{ t('export.settings.save') }}</button>
+        <button type="submit" class="ts-save ui-btn ui-btn--lg">{{ t('export.settings.save') }}</button>
       </div>
     </fieldset>
   </form>
@@ -82,22 +82,6 @@ function onInput(event: Event): void {
   color: var(--color-on-surface-variant);
 }
 
-.ts-input {
-  width: 24em;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  line-height: var(--leading-ui-mono);
-  color: var(--color-on-surface);
-}
-
-.ts-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .ts-alert,
 .ts-saved {
   margin: 0 0 var(--space-panel-block) 0;
@@ -117,21 +101,5 @@ function onInput(event: Event): void {
 .ts-actions {
   display: flex;
   gap: var(--space-panel-inline);
-}
-
-.ts-save {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-}
-
-.ts-save:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 </style>

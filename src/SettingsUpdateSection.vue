@@ -28,7 +28,7 @@ function onToggle(): void {
     <div class="su-row">
       <span class="su-label">{{ t('settings.update.switch_label') }}</span>
       <form class="su-form" @submit.prevent="onToggle()">
-        <button type="submit" class="su-btn" :aria-pressed="updateCheckEnabled" data-update-toggle>
+        <button type="submit" class="su-btn ui-btn ui-btn--lg" :aria-pressed="updateCheckEnabled" data-update-toggle>
           {{ t(updateCheckEnabled ? 'settings.update.switch_on' : 'settings.update.switch_off') }}
         </button>
       </form>
@@ -39,7 +39,7 @@ function onToggle(): void {
     </p>
 
     <form class="su-form su-row" @submit.prevent="runUpdateCheck()">
-      <button type="submit" class="su-btn" :disabled="!updateCheckEnabled || updateChecking" data-update-check>
+      <button type="submit" class="su-btn ui-btn ui-btn--lg" :disabled="!updateCheckEnabled || updateChecking" data-update-check>
         {{ t(updateChecking ? 'settings.update.checking' : 'settings.update.check') }}
       </button>
     </form>
@@ -58,7 +58,7 @@ function onToggle(): void {
       <template v-else>
         <p class="su-result">{{ t('settings.update.available', { version: updateOutcome.latest }) }}</p>
         <form class="su-form" @submit.prevent="openUpdateReleasePage()">
-          <button type="submit" class="su-btn" data-update-open>{{ t('settings.update.open_page') }}</button>
+          <button type="submit" class="su-btn ui-btn ui-btn--lg" data-update-open>{{ t('settings.update.open_page') }}</button>
         </form>
         <p class="su-hint" data-update-checksum>{{ t('settings.update.checksum_hint') }}</p>
         <p v-if="updateOpenError !== null" class="su-alert" role="alert">
@@ -103,26 +103,6 @@ function onToggle(): void {
 
 .su-result {
   margin: 0;
-}
-
-.su-btn {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.su-btn:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.su-btn:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
 }
 
 .su-alert {

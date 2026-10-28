@@ -27,15 +27,15 @@ onMounted(() => {
       }}</span>
     </div>
     <div class="sd-actions">
-      <button type="button" class="sd-btn" data-settings-data-choose :disabled="libraryRescanBusy" @click="dispatch('library.choose_root')">
+      <button type="button" class="sd-btn ui-btn ui-btn--lg" data-settings-data-choose :disabled="libraryRescanBusy" @click="dispatch('library.choose_root')">
         {{ t('mode.library.choose_root') }}
       </button>
-      <button type="button" class="sd-btn" data-settings-data-rescan :disabled="libraryRescanBusy" @click="dispatch('library.rescan')">
+      <button type="button" class="sd-btn ui-btn ui-btn--lg" data-settings-data-rescan :disabled="libraryRescanBusy" @click="dispatch('library.rescan')">
         {{ t('mode.library.rescan') }}
       </button>
     </div>
     <div class="sd-actions">
-      <button type="button" class="sd-btn" data-settings-data-report @click="dispatch('settings.data.open_report')">
+      <button type="button" class="sd-btn ui-btn ui-btn--lg" data-settings-data-report @click="dispatch('settings.data.open_report')">
         {{ t('command.settings.data.open_report') }}
       </button>
     </div>
@@ -43,7 +43,7 @@ onMounted(() => {
 
     <div class="sd-row">
       <span class="sd-label">{{ t('settings.data.index_label') }}</span>
-      <button type="button" class="sd-btn" data-settings-data-rebuild :disabled="libraryRescanBusy" @click="dispatch('library.rebuild_index')">
+      <button type="button" class="sd-btn ui-btn ui-btn--lg" data-settings-data-rebuild :disabled="libraryRescanBusy" @click="dispatch('library.rebuild_index')">
         {{ t('mode.library.rebuild_index') }}
       </button>
       <span v-if="libraryRebuiltAtLabel !== null" class="sd-when" data-settings-data-rebuilt-at>
@@ -88,21 +88,6 @@ onMounted(() => {
 .sd-actions {
   display: flex;
   gap: var(--space-panel-inline);
-}
-
-.sd-btn {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.sd-btn:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .sd-when,

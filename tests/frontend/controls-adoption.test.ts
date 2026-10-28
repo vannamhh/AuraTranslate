@@ -33,6 +33,15 @@ const FILES = [
   'src/AttributionOverlay.vue',
   'src/ChapterOrigin.vue',
   'src/modes/SourceLangChips.vue',
+  'src/SettingsOverlay.vue',
+  'src/SettingsDataSection.vue',
+  'src/SettingsExportSection.vue',
+  'src/SettingsGlossarySection.vue',
+  'src/SettingsTmSection.vue',
+  'src/SettingsLayoutSection.vue',
+  'src/SettingsReadingSection.vue',
+  'src/SettingsShortcutsSection.vue',
+  'src/SettingsUpdateSection.vue',
 ]
 
 const CONTROL_TAGS = new Set(['button', 'input', 'textarea', 'summary'])
@@ -53,6 +62,8 @@ const NOT_A_CONTROL: Record<string, string> = {
   'src/ProofreadScopeOverlay.vue .pfscope-cell': 'two-line scope card (mockup proofreader.html .sc); DESIGN §Điều khiển has no card control',
   'src/ImportPreviewOverlay.vue .ip-candidate': 'encoding candidate card keeping the mockup web-import.html .candrow shape; DESIGN §Điều khiển has no card control, the label only adds ui-check so the radio is token-drawn',
   'src/BilingualImportPreviewOverlay.vue .bip-candidate': 'encoding candidate card keeping the mockup web-import.html .candrow shape; DESIGN §Điều khiển has no card control, the label only adds ui-check so the radio is token-drawn',
+  'src/SettingsOverlay.vue .set-nav-item': 'section navigation row with a left-edge mark (mockup settings.html .nav a); DESIGN §Điều khiển has no navigation row control',
+  'src/SettingsReadingSection.vue .sr-range': 'native range slider; DESIGN §Điều khiển has no slider control',
 }
 
 const LABEL_EXEMPT: Record<string, string> = {
