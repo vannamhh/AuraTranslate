@@ -227,3 +227,15 @@ after = [18]
 hitl = false
 risk = "medium"
 references = ["prd-auratranslate/prd-auratranslate.md FR120 🔵 2026-10-27", "ux-auratranslate/EXPERIENCE.md §Phạm vi và thao tác — FR119, FR120 (ghi luật cũ, xem Source conflict trong Notes của epic)"]
+
+[[entry]]
+id = 20
+type = "story"
+title = "Tìm kiếm Library suy chế độ dấu từ cách gõ"
+description = "Tìm được cả có dấu lẫn không dấu mà không phải chọn chế độ trước (PRD FR9 🔵 2026-10-28, AD-61). Phạm vi, hành vi và các test canh là AD-61 mục 1–9; story không chép lại. Bốn phần: (1) Rust: hàm phân loại truy vấn, bỏ tham số `mode` của hai lệnh tìm, ở lượt khoan dung hit khớp đúng chữ đứng trước và không bị trần cắt; (2) Webview: bỏ nút \"Chính xác dấu | Không dấu\", hai lệnh `library.search_mode_*` cùng khoá i18n của chúng, thêm hai trạng thái \"khoan dung vì gõ không dấu\" (có kết quả / không kết quả), câu đề xuất: \"{total} kết quả — gõ không dấu nên đã tìm cả các biến thể dấu; kết quả khớp đúng chữ đứng trước.\"; (3) Tests theo AD-61 mục 6; (4) đo hai ca NFR3 mới của AD-61 mục 7 trong bộ `6-18-ban-do`, chỉ chạy các ca NFR3. Story 5.10 đã done: spec của nó nhận dòng 🔵 trỏ về đây. Kiểm tay trong app thật (gõ có dấu, không dấu, chữ Hán; đọc dòng trạng thái) là một mục nợ `Chủ: Epic 5` trong `deferred-work.md`."
+verify = "`cargo test --test library_index_contract`: bảng phân loại của AD-61 mục 6a; ca qua lệnh `search_library` với fixture có cả \"chi\" lẫn \"chỉ\" (truy vấn `chi` ra cả hai, hit đúng chữ đứng trước; `chỉ` chỉ ra \"chỉ\"), đỏ khi gỡ thật lời gọi phân loại; ca trần giữ hit đúng chữ, đỏ khi trả lại danh sách `_nd` trần. Vitest (tệp đặt tên trong plan, `npm run test:story 5-20`): không còn nút chế độ; hai trạng thái mới có câu riêng; một phím tắt đã gán cho `library.search_mode_exact` không làm hỏng lượt nạp Cài đặt. Bộ đo `6-18-ban-do`: hai ca mới đạt p95 < 500 ms (NFR3), ghi build và quần thể."
+covers = ["FR9"]
+after = []
+hitl = false
+risk = "medium"
+references = ["architecture-auratranslate/architecture-auratranslate.md AD-61, AD-27 🔵 2026-10-28", "prd-auratranslate/prd-auratranslate.md FR9 🔵 2026-10-28, NFR8 🔵 2026-10-28", "ux-auratranslate/library-nghiem-thu-thi-giac.md L5 🔵 2026-10-28"]
