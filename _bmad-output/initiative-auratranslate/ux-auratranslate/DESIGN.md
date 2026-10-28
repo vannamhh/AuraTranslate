@@ -457,6 +457,8 @@ Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng th
 
 Chữ luôn `ui-md`, bo `3px`, viền 1px. Nút chỉ có biểu tượng là ô vuông cạnh bằng chiều cao của bậc (thay ô 26px cố định). Chip lọc dùng bậc `sm`, bo `2px` (§Shapes), không bo tròn viên thuốc.
 
+🔵 2026-10-28, Ice chọn: thanh lọc Quản lý Glossary chạy trọn bậc `md` 28px, chip ở đó mang `ui-chip--md`. Nút phân đoạn `ui-seg` cao 28px tính cả viền; hàng toàn bậc `sm` (thanh tiêu đề, Chế độ đọc) dùng `ui-seg--sm` 24px.
+
 **Chiều rộng.** Nút ôm chữ; riêng cặp nút ở chân lớp phủ dùng chung `min-width: 8.5em` để Huỷ và Xác nhận bằng nhau. Ô nhập đo bằng `ch` như thước đọc: **ngắn 8ch** (số, ngưỡng %), **vừa 24ch** (tên, khoá), **kín hàng 100%** (tìm, đường dẫn, mẫu luật). Ô chọn dạng field rộng bằng nhãn dài nhất của nó, tối thiểu 12ch.
 
 **Các loại.**

@@ -1479,6 +1479,20 @@ describe('GlossaryManageOverlay.vue — bảng mockup (tầng, vạch lề, xu�
     wrapper.unmount()
   })
 
+  it('mọi control trên thanh lọc chạy bậc md 28px: chip mang ui-chip--md, ô Tìm không mang bậc sm', async () => {
+    const fresh = await freshOverlay({})
+    const wrapper = await open(fresh)
+
+    const chips = wrapper.findAll('.gm-toolbar .ui-chip')
+    expect(chips.map((chip) => chip.text())).toEqual(expect.arrayContaining(['Tất cả', 'Khác']))
+    expect(wrapper.find('.gm-toolbar .gm-pill-pending').exists()).toBe(true)
+    expect(wrapper.find('.gm-toolbar summary.ui-chip').exists()).toBe(true)
+    for (const chip of chips) expect(chip.classes(), chip.text()).toContain('ui-chip--md')
+    expect(wrapper.get('.gm-toolbar .ui-seg').classes()).not.toContain('ui-seg--sm')
+    expect(wrapper.get('.gm-toolbar input[type="text"]').classes()).not.toContain('ui-field--sm')
+    wrapper.unmount()
+  })
+
   it('Esc trong ô sửa tại chỗ huỷ phép sửa và không đóng lớp phủ', async () => {
     const fresh = await freshOverlay({
       beginGlossaryManageEdit: () => fresh.state.beginGlossaryManageEdit(),

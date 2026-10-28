@@ -14,6 +14,7 @@ const props = defineProps<{
   modelValue: string
   options: SelectOption[]
   variant: 'chip' | 'field'
+  size?: 'md'
   label: string
   placeholder?: string
   triggerText?: string
@@ -62,6 +63,7 @@ async function focusPicked(): Promise<void> {
   <DropdownMenu
     ref="menu"
     :variant="variant"
+    :size="size"
     :label="shownText === '' && variant === 'field' ? ' ' : shownText"
     :aria-label="triggerAria"
     :active="active"

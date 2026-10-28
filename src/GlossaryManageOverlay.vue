@@ -473,7 +473,7 @@ function onKeydown(event: KeyboardEvent): void {
         </label>
 
         <fieldset class="gm-pills" role="radiogroup" :aria-label="t('glossary.manage.category_filter_label')">
-          <label class="gm-pill ui-chip" :class="{ 'gm-pill-on': manageCategoryFilter === 'all' }">
+          <label class="gm-pill ui-chip ui-chip--md" :class="{ 'gm-pill-on': manageCategoryFilter === 'all' }">
             <input
               type="radio"
               name="gm-category"
@@ -487,7 +487,7 @@ function onKeydown(event: KeyboardEvent): void {
           <label
             v-for="opt in CATEGORY_OPTIONS"
             :key="opt.value"
-            class="gm-pill ui-chip"
+            class="gm-pill ui-chip ui-chip--md"
             :class="{ 'gm-pill-on': manageCategoryFilter === opt.value }"
           >
             <input
@@ -504,7 +504,7 @@ function onKeydown(event: KeyboardEvent): void {
 
         <label
           v-if="manageStatus === 'loaded'"
-          class="gm-pill gm-pill-pending ui-chip"
+          class="gm-pill gm-pill-pending ui-chip ui-chip--md"
           :class="{ 'gm-pill-on': manageConfirmedFilter === 'pending' }"
           :title="t('glossary.manage.pending_pill_title')"
         >
@@ -522,6 +522,7 @@ function onKeydown(event: KeyboardEvent): void {
         <div class="gm-field gm-field-origin">
           <SelectMenu
             variant="chip"
+            size="md"
             :model-value="manageOriginFilter"
             :options="originOptions"
             :label="t('glossary.manage.origin_filter_label')"
@@ -934,6 +935,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-toolbar {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: calc(var(--space-unit) * 4);
   margin-bottom: var(--space-panel-block);
 }

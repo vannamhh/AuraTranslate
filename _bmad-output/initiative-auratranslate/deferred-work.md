@@ -13543,3 +13543,8 @@ chính nó.
   Chủ: Epic 5. Trỏ: `story-tim-kiem-library-suy-che-o-dau-tu-cach-go-plan.md`, AD-61.
 - NFR3 chưa đo ca truy vấn không dấu có ít hit đúng chữ (chưa chạm trần) mà nhiều biến thể dấu: lượt `_nd` vẫn chạy, nên tốn như ca `quick brown fox` trước khi bỏ `_nd` (p95 625–878 ms). Thư viện 6.18 không có dữ liệu dạng này. Số đo: `6-18-ban-do/nfr3-ad61-raw.tsv` (probe A/B).
   Chủ: Epic 5. Trỏ: `story-tim-kiem-library-suy-che-o-dau-tu-cach-go-plan.md`, AD-61 Rule 7.
+
+## Deferred from: thanh lọc Quản lý Glossary cùng bậc chiều cao (2026-10-28, ngoài cây vé)
+
+- `ui-seg` nay cao 28px tính cả viền (trước là 26px, không trùng bậc nào). Thanh tiêu đề và Chế độ đọc mang `ui-seg--sm` 24px, đã đo khớp hàng xóm. Sáu nơi cần IPC nên chưa đo trong trình duyệt: GridPanel, LookupPanel, Library, Cài đặt (phạm vi, Đọc), TM, Prompt. Mỗi nơi phải có cùng `top`/`height` với hàng xóm; hàng nào toàn bậc `sm` thì gắn `ui-seg--sm`.
+  Chủ: Story 12.33. Trỏ: `plan-glossary-dieu-khien-cung-chieu-cao.md`, DESIGN.md §Điều khiển.

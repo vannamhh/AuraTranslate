@@ -497,7 +497,7 @@ function paragraphRuns(
       </button>
       <span class="level-group" role="group" :aria-label="t('mode.reading.level_group')">
         <span class="level-label">{{ t('mode.reading.level_group') }}</span>
-        <span class="ui-seg">
+        <span class="ui-seg ui-seg--sm">
           <button
             type="button"
             class="btn ui-seg__item"

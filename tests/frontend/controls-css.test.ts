@@ -69,6 +69,22 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
     expect(box).toMatch(/height:\s*14px/)
   })
 
+  it('a segmented control is 28px tall including its border, so it lines up with md buttons and fields', () => {
+    expect(declarations('.ui-seg')).toMatch(/(^|;)\s*height:\s*28px/)
+    expect(declarations('.ui-seg__item')).not.toMatch(/(^|;)\s*height:/)
+    expect(declarations('.ui-btn')).toMatch(/(^|;)\s*height:\s*28px/)
+    expect(declarations('.ui-field')).toMatch(/(^|;)\s*height:\s*28px/)
+  })
+
+  it('an sm segmented control is 24px tall including its border, the same tier as sm buttons', () => {
+    expect(declarations('.ui-seg--sm')).toMatch(/(^|;)\s*height:\s*24px/)
+    expect(declarations('.ui-btn--sm')).toMatch(/(^|;)\s*height:\s*24px/)
+  })
+
+  it('an md chip is 28px tall, the same tier as md buttons and fields', () => {
+    expect(declarations('.ui-chip--md')).toMatch(/(^|;)\s*height:\s*28px/)
+  })
+
   it('locked filters wrapped in a label take the dashed locked shape', () => {
     expect(declarations('.ui-chip:has(input:disabled)')).toMatch(/border-style:\s*dashed/)
     expect(declarations('.ui-seg__item:has(input:disabled)')).toMatch(/border-left-style:\s*dashed/)
@@ -100,7 +116,7 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
 
   it('the prompt editor mirror declares the same box and font as textarea.ui-field', () => {
     const overlay = readFileSync(join(__dirname, '../../src/PromptLibraryOverlay.vue'), 'utf8')
-    const mirror = (overlay.match(/\.pl-ta-mirror\s*\{([^{}]*)\}/) ?? [])[1] ?? ''
+    const mirror = overlay.match(/\.pl-ta-mirror\s*\{([^{}]*)\}/)?.[1] ?? ''
     expect(mirror, '.pl-ta-mirror rule').not.toBe('')
     const both = `${declarations('.ui-field')};${declarations('textarea.ui-field')}`
     const value = (body: string, prop: string): string | undefined =>

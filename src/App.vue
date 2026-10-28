@@ -246,7 +246,7 @@ onMounted(async () => {
 
         <div
           v-if="currentMode === 'workspace'"
-          class="layout-switch ui-seg ui-seg--icons"
+          class="layout-switch ui-seg ui-seg--sm ui-seg--icons"
           role="group"
           :aria-label="t('titlebar.layout.group')"
         >

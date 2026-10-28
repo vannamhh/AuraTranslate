@@ -474,6 +474,10 @@ summary.ui-field {
   cursor: pointer;
 }
 
+.ui-chip--md {
+  height: 28px;
+}
+
 .ui-chip:hover {
   border-color: var(--color-on-surface-variant);
 }
@@ -513,15 +517,19 @@ summary.ui-field {
 
 .ui-seg {
   display: inline-flex;
+  height: 28px;
   border: 1px solid var(--color-control-rule);
   border-radius: var(--radius-default);
   overflow: hidden;
 }
 
+.ui-seg--sm {
+  height: 24px;
+}
+
 .ui-seg__item {
   display: inline-grid;
   place-items: center;
-  height: 24px;
   padding: 0 calc(var(--space-unit) * 3);
   border: none;
   background: none;

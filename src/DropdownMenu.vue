@@ -7,6 +7,7 @@ import { onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
 
 const props = defineProps<{
   variant: 'chip' | 'more' | 'field'
+  size?: 'md'
   label: string
   active?: boolean
   ariaLabel?: string
@@ -87,7 +88,7 @@ onBeforeUnmount(() => {
   >
     <summary
       class="menu-trigger"
-      :class="variant === 'chip' ? ['ui-chip', { 'ui-chip--on': active === true }] : variant === 'field' ? 'ui-field ui-field--full' : 'ui-btn ui-btn--quiet'"
+      :class="variant === 'chip' ? ['ui-chip', { 'ui-chip--on': active === true, 'ui-chip--md': size === 'md' }] : variant === 'field' ? 'ui-field ui-field--full' : 'ui-btn ui-btn--quiet'"
       :aria-label="ariaLabel"
       :aria-disabled="disabled === true ? 'true' : undefined"
       :tabindex="disabled === true ? -1 : undefined"
