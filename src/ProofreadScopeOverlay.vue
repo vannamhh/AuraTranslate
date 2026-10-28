@@ -65,7 +65,7 @@ function trapTab(event: KeyboardEvent): void {
     <section ref="panel" class="pfscope-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="pfscope-title">
       <header class="pfscope-head">
         <h2 id="pfscope-title" class="pfscope-title">{{ t('proofread.scope.title') }}</h2>
-        <button type="button" class="pfscope-close" @click="dispatch('ai.proofread.scope.close')">
+        <button type="button" class="pfscope-close ui-btn ui-btn--quiet" @click="dispatch('ai.proofread.scope.close')">
           {{ t('command.ai.proofread.scope.close') }}
         </button>
       </header>
@@ -152,23 +152,6 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   font-weight: var(--weight-ui-md-strong);
   line-height: var(--leading-ui-md);
-}
-
-.pfscope-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.pfscope-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .pfscope-cells {

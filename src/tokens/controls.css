@@ -1,4 +1,4 @@
-/* Shared control classes: buttons, icon button, field, check, switch, menu, segmented control, chip, key chip. */
+/* Shared control classes: buttons, icon button, field, check, switch, menu, segmented control, tab, chip, key chip. */
 
 .ui-btn {
   display: inline-flex;
@@ -568,6 +568,34 @@ summary.ui-field {
   padding: 0 calc(var(--space-unit) * 2);
 }
 
+.ui-tab {
+  appearance: none;
+  padding: 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-on-surface-variant);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  cursor: pointer;
+}
+
+.ui-tab:hover {
+  color: var(--color-on-surface);
+}
+
+.ui-tab[aria-selected='true'] {
+  color: var(--color-on-surface);
+  font-weight: var(--weight-ui-md-strong);
+  border-bottom-color: var(--color-on-surface);
+}
+
+.ui-tab:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-primary);
+}
+
 .ui-kbd {
   display: inline-block;
   padding: 0 calc(var(--space-unit) * 1);
@@ -616,6 +644,7 @@ summary.ui-field {
   .ui-chip--on:focus-visible,
   .ui-check input:focus-visible,
   .ui-switch:focus-visible > .ui-switch__track,
+  .ui-tab:focus-visible,
   .ui-menu-item:focus-visible {
     outline: 2px solid Highlight;
     outline-offset: 1px;

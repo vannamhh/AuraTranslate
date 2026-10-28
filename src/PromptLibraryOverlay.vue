@@ -632,7 +632,7 @@ async function onEscape(): Promise<void> {
       <header class="pl-head">
         <h2 id="pl-title" class="pl-title">{{ t('prompt.library.title') }}</h2>
         <form @submit.prevent="onClose">
-          <button type="submit" class="pl-close">
+          <button type="submit" class="pl-close ui-btn ui-btn--quiet">
             {{ t('command.prompt.library.close') }}
           </button>
         </form>
@@ -641,17 +641,20 @@ async function onEscape(): Promise<void> {
       <div v-if="promptSetLoadError === null && !promptSetLoading" class="pl-bar">
         <fieldset class="pl-seg" role="radiogroup" :aria-label="t('prompt.library.scope_label')">
           <legend class="pl-seg-legend">{{ t('prompt.library.scope_label') }}</legend>
-          <label v-for="opt in SCOPE_OPTIONS" :key="opt.value" class="pl-pill" :class="{ 'pl-pill-on': scope === opt.value }">
-            <input
-              type="radio"
-              name="pl-scope"
-              :value="opt.value"
-              :checked="scope === opt.value"
-              @change="onScopeChange(opt.value, $event)"
-            />
-            <!-- aura-allow-text: result of t() computed in the script. -->
-            {{ scopeLabel(opt) }}
-          </label>
+          <div class="ui-seg">
+            <label v-for="opt in SCOPE_OPTIONS" :key="opt.value" class="pl-pill ui-seg__item">
+              <input
+                type="radio"
+                class="pl-sr-only"
+                name="pl-scope"
+                :value="opt.value"
+                :checked="scope === opt.value"
+                @change="onScopeChange(opt.value, $event)"
+              />
+              <!-- aura-allow-text: result of t() computed in the script. -->
+              {{ scopeLabel(opt) }}
+            </label>
+          </div>
         </fieldset>
         <span class="pl-bar-msg">{{ t('prompt.library.scope_msg') }}</span>
         <!-- aura-allow-text: result of t() computed in the script. -->
@@ -722,7 +725,7 @@ async function onEscape(): Promise<void> {
           >
             <fieldset class="pl-export-set">
             <legend class="pl-group-h">{{ t('prompt.library.export_many_title') }}</legend>
-            <label v-for="row in [...workRows, ...globalRows]" :key="'x' + row.key" class="pl-radio-label">
+            <label v-for="row in [...workRows, ...globalRows]" :key="'x' + row.key" class="pl-radio-label ui-check">
               <input
                 type="checkbox"
                 :checked="exportPicked.includes(exportKey(row))"
@@ -733,7 +736,7 @@ async function onEscape(): Promise<void> {
               <span class="pl-badge">{{ t(row.tier === 'work' ? 'prompt.library.tier_work' : 'prompt.library.tier_global') }}</span>
             </label>
             </fieldset>
-            <button type="submit" class="pl-act" :disabled="promptSetExchangeBusy || pickedRows.length === 0">
+            <button type="submit" class="pl-act ui-btn" :disabled="promptSetExchangeBusy || pickedRows.length === 0">
               {{ t('prompt.library.export_many_button', { count: String(pickedRows.length) }) }}
             </button>
             <p v-if="promptSetExportManyError !== null" class="pl-status pl-alert" role="alert">
@@ -750,15 +753,15 @@ async function onEscape(): Promise<void> {
           </form>
 
           <form class="pl-row-form" @submit.prevent="onOpenCreate">
-            <button type="submit" class="pl-row pl-row-new">{{ t('prompt.library.new_set') }}</button>
+            <button type="submit" class="pl-row-new ui-btn ui-btn--quiet">{{ t('prompt.library.new_set') }}</button>
           </form>
           <form class="pl-row-form" @submit.prevent="onOpenTemplates">
-            <button type="submit" class="pl-row pl-row-import" data-prompt-template-open>
+            <button type="submit" class="pl-row-import ui-btn ui-btn--quiet" data-prompt-template-open>
               {{ t('prompt.library.template_open') }}
             </button>
           </form>
           <form class="pl-row-form" @submit.prevent="onOpenImport">
-            <button type="submit" class="pl-row pl-row-import" data-prompt-import-open>
+            <button type="submit" class="pl-row-import ui-btn ui-btn--quiet" data-prompt-import-open>
               {{ t('prompt.library.import_button') }}
             </button>
           </form>
@@ -773,11 +776,11 @@ async function onEscape(): Promise<void> {
             <form class="pl-create-form" @submit.prevent="onSubmitCreate">
               <fieldset class="pl-tier" role="radiogroup" :aria-label="t('prompt.library.tier_label')">
                 <legend class="pl-field-label">{{ t('prompt.library.tier_label') }}</legend>
-                <label class="pl-radio-label">
+                <label class="pl-radio-label ui-check">
                   <input type="radio" name="pl-create-tier" :checked="createTier === 'global'" @change="onCreateTierChange('global', $event)" />
                   {{ t('prompt.library.tier_global') }}
                 </label>
-                <label class="pl-radio-label">
+                <label class="pl-radio-label ui-check">
                   <input
                     type="radio"
                     name="pl-create-tier"
@@ -791,7 +794,7 @@ async function onEscape(): Promise<void> {
 
               <label class="pl-field">
                 <span class="pl-field-label">{{ t('prompt.library.name_label') }}</span>
-                <input class="pl-input" autocomplete="off" :value="createNameDraft" :disabled="promptSetBusy" @input="onCreateNameInput" />
+                <input class="pl-input ui-field ui-field--lg ui-field--medium" autocomplete="off" :value="createNameDraft" :disabled="promptSetBusy" @input="onCreateNameInput" />
               </label>
               <p v-if="createNameDraft !== '' && !isPromptSetNameValid(createNameDraft)" class="pl-alert">
                 {{ t('err.prompt_set.invalid_name') }}
@@ -799,7 +802,7 @@ async function onEscape(): Promise<void> {
 
               <label class="pl-field">
                 <span class="pl-field-label">{{ t('prompt.library.body_label') }}</span>
-                <textarea class="pl-textarea" rows="10" :value="createBodyDraft" :disabled="promptSetBusy" @input="onCreateBodyInput"></textarea>
+                <textarea class="pl-textarea ui-field ui-field--full" rows="10" :value="createBodyDraft" :disabled="promptSetBusy" @input="onCreateBodyInput"></textarea>
               </label>
 
               <p v-if="promptSetActionError !== null" class="pl-alert" role="alert">
@@ -811,7 +814,7 @@ async function onEscape(): Promise<void> {
               </p>
 
               <div class="pl-actions">
-                <button type="submit" class="pl-act pl-act-primary" :disabled="!isPromptSetNameValid(createNameDraft) || promptSetBusy">
+                <button type="submit" class="pl-act pl-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair" :disabled="!isPromptSetNameValid(createNameDraft) || promptSetBusy">
                   {{ t('prompt.library.create_button') }}
                 </button>
               </div>
@@ -819,7 +822,7 @@ async function onEscape(): Promise<void> {
             <!-- `<form>` THỨ HAI, ĐỨNG CẠNH — `<form>` không lồng nhau được trong HTML, khuôn
                  `SettingsOverlay.vue::ai-field-clear-form`. -->
             <form class="pl-actions" @submit.prevent="onCancelCreate">
-              <button type="submit" class="pl-act" :disabled="promptSetBusy">
+              <button type="submit" class="pl-act ui-btn ui-btn--lg ui-btn--pair" :disabled="promptSetBusy">
                 {{ t('prompt.library.create_cancel') }}
               </button>
             </form>
@@ -835,12 +838,12 @@ async function onEscape(): Promise<void> {
             <form class="pl-rename-form" @submit.prevent="onSubmitRename">
               <label class="pl-field">
                 <span class="pl-field-label">{{ t('prompt.library.name_label') }}</span>
-                <input class="pl-input" autocomplete="off" :value="nameDraft" :disabled="promptSetBusy" @input="onNameInput" />
+                <input class="pl-input ui-field ui-field--lg ui-field--medium" autocomplete="off" :value="nameDraft" :disabled="promptSetBusy" @input="onNameInput" />
               </label>
               <p v-if="nameDraft !== '' && !isPromptSetNameValid(nameDraft)" class="pl-alert">
                 {{ t('err.prompt_set.invalid_name') }}
               </p>
-              <button type="submit" class="pl-act" :disabled="!isPromptSetNameValid(nameDraft) || promptSetBusy">
+              <button type="submit" class="pl-act ui-btn ui-btn--lg" :disabled="!isPromptSetNameValid(nameDraft) || promptSetBusy">
                 {{ t('prompt.library.rename_button') }}
               </button>
             </form>
@@ -862,7 +865,7 @@ async function onEscape(): Promise<void> {
                   <pre ref="mirror" class="pl-ta-mirror" aria-hidden="true"><template v-for="(seg, i) in bodySegments" :key="i"><!-- aura-allow-text: prompt body text, user data. --><span v-if="seg.kind === 'plain'">{{ seg.text }}</span><!-- aura-allow-text: prompt body text, user data. --><span v-else class="pl-var" :class="{ 'pl-var-unknown': seg.kind === 'unknown' }">{{ seg.text }}</span></template></pre>
                   <textarea
                     id="pl-body-input"
-                    class="pl-textarea pl-ta-input"
+                    class="pl-textarea pl-ta-input ui-field ui-field--full"
                     rows="12"
                     :value="bodyDraft"
                     :disabled="promptSetBusy"
@@ -887,27 +890,27 @@ async function onEscape(): Promise<void> {
 
             <div class="pl-actions">
               <form class="pl-use-form" @submit.prevent="onUseSelected">
-                <button type="submit" class="pl-act" :disabled="selectedRow.name === selectedPromptSetName">
+                <button type="submit" class="pl-act ui-btn" :disabled="selectedRow.name === selectedPromptSetName">
                   {{ t('prompt.library.use_button') }}
                 </button>
               </form>
               <form class="pl-inspect-form" @submit.prevent="onOpenInspector">
-                <button ref="inspectorButton" type="submit" class="pl-act" data-prompt-inspector-open>
+                <button ref="inspectorButton" type="submit" class="pl-act ui-btn" data-prompt-inspector-open>
                   {{ t('prompt.library.inspect_button') }}
                 </button>
               </form>
               <form class="pl-dup-form" @submit.prevent="onDuplicate">
-                <button type="submit" class="pl-act">
+                <button type="submit" class="pl-act ui-btn">
                   {{ t('prompt.library.duplicate_button') }}
                 </button>
               </form>
               <form class="pl-export-form" @submit.prevent="onExportSelected">
-                <button type="submit" class="pl-act" :disabled="promptSetExchangeBusy">
+                <button type="submit" class="pl-act ui-btn" :disabled="promptSetExchangeBusy">
                   {{ t('prompt.library.export_button') }}
                 </button>
               </form>
               <form class="pl-delete-form" @submit.prevent="onDeleteSubmit">
-                <button type="submit" class="pl-act" :class="{ 'pl-act-danger': deletePending }">
+                <button type="submit" class="pl-act ui-btn" :class="{ 'pl-act-danger': deletePending, 'ui-btn--danger': deletePending }">
                   {{ t(deletePending ? 'prompt.library.delete_confirm_button' : 'prompt.library.delete_button') }}
                 </button>
               </form>
@@ -979,23 +982,6 @@ async function onEscape(): Promise<void> {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.pl-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.pl-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .pl-note {
@@ -1076,12 +1062,6 @@ async function onEscape(): Promise<void> {
   color: var(--color-primary);
   border-left-color: var(--color-primary);
   background: var(--color-surface-accent);
-}
-
-.pl-row-new,
-.pl-row-import {
-  font-family: var(--face-ui-md);
-  color: var(--color-on-surface-variant);
 }
 
 .pl-row-shadowed .pl-row-name {
@@ -1183,56 +1163,26 @@ async function onEscape(): Promise<void> {
   color: var(--color-on-surface-variant);
 }
 
-.pl-input {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  line-height: var(--leading-ui-mono);
-  color: var(--color-on-surface);
-}
-
-.pl-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.pl-textarea {
-  padding: calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  font-family: var(--family-read);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  resize: vertical;
-}
-
-.pl-textarea:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .pl-ta-wrap {
   position: relative;
-  background: var(--color-background);
+  border-radius: var(--radius-default);
+  background: var(--color-surface-sunken);
 }
 
 .pl-ta-mirror {
   position: absolute;
   inset: 0;
   margin: 0;
-  padding: calc(var(--space-unit) * 2);
+  padding: 6px calc(var(--space-unit) * 2); /* aura-allow-spacing: matches textarea.ui-field so mirror and textarea text coincide */
   border: 1px solid transparent;
   overflow: hidden;
   scrollbar-gutter: stable;
   pointer-events: none;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  font-family: var(--family-read);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
   color: var(--color-on-surface);
 }
 
@@ -1242,9 +1192,12 @@ async function onEscape(): Promise<void> {
   width: 100%;
   box-sizing: border-box;
   scrollbar-gutter: stable;
+  caret-color: var(--color-on-surface);
+}
+
+.pl-ta-wrap .pl-ta-input {
   background: transparent;
   color: transparent;
-  caret-color: var(--color-on-surface);
 }
 
 .pl-ta-mirror::after {
@@ -1292,28 +1245,19 @@ async function onEscape(): Promise<void> {
 }
 
 .pl-pill {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 1);
-  padding: 0 calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-  cursor: pointer;
+  position: relative;
 }
 
-.pl-pill:not(.pl-pill-on):has(input:focus-visible) {
-  border-color: var(--color-primary);
-}
-
-.pl-pill-on {
-  border-color: var(--color-primary);
-  background: var(--color-surface-accent);
-  color: var(--color-primary);
-  font-weight: var(--weight-ui-md-strong);
+.pl-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px; /* aura-allow-spacing: geometry of the sr-only hiding technique, not a grid gap */
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .pl-bar-msg {
@@ -1378,8 +1322,6 @@ async function onEscape(): Promise<void> {
   display: flex;
   align-items: center;
   gap: calc(var(--space-unit) * 1);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
   color: var(--color-on-surface);
   cursor: pointer;
 }
@@ -1408,37 +1350,6 @@ async function onEscape(): Promise<void> {
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 2);
   margin-top: calc(var(--space-unit) * 2);
-}
-
-.pl-act {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: none;
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.pl-act:not(.pl-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.pl-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
-
-.pl-act-primary {
-  color: var(--color-on-surface);
-  border-color: var(--color-primary);
-}
-
-.pl-act-danger {
-  color: var(--color-error);
-  border-color: var(--color-error);
 }
 
 .pl-hint {

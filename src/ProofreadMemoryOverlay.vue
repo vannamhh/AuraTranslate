@@ -139,7 +139,7 @@ function trapTab(event: KeyboardEvent): void {
     <section ref="panel" class="pfmem-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="pfmem-title">
       <header class="pfmem-head">
         <h2 id="pfmem-title" class="pfmem-title">{{ t('proofread.memory.title') }}</h2>
-        <button type="button" class="pfmem-close" @click="dispatch('ai.proofread.memory.close')">
+        <button type="button" class="pfmem-close ui-btn ui-btn--quiet" @click="dispatch('ai.proofread.memory.close')">
           {{ t('command.ai.proofread.memory.close') }}
         </button>
       </header>
@@ -187,7 +187,7 @@ function trapTab(event: KeyboardEvent): void {
       <div class="pfmem-actions">
         <button
           type="button"
-          class="pfmem-act"
+          class="pfmem-act ui-btn"
           data-proofread-memory-forget
           :disabled="proofreadMemoryBusy || proofreadMemorySelectedId === null"
           @click="dispatch('ai.proofread.memory.forget')"
@@ -196,7 +196,7 @@ function trapTab(event: KeyboardEvent): void {
         </button>
         <button
           type="button"
-          class="pfmem-act"
+          class="pfmem-act ui-btn"
           data-proofread-memory-clear
           :disabled="proofreadMemoryBusy || lines.length === 0"
           @click="dispatch('ai.proofread.memory.clear')"
@@ -252,23 +252,6 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-md);
   font-weight: var(--weight-ui-md-strong);
   line-height: var(--leading-ui-md);
-}
-
-.pfmem-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.pfmem-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .pfmem-note {
@@ -343,24 +326,4 @@ function trapTab(event: KeyboardEvent): void {
   gap: calc(var(--space-unit) * 2);
 }
 
-.pfmem-act {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  color: var(--color-on-surface);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-}
-
-.pfmem-act:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.pfmem-act:disabled {
-  color: var(--color-on-surface-variant);
-  cursor: default;
-}
 </style>

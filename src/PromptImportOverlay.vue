@@ -119,7 +119,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
     >
       <header class="pi-head">
         <h2 id="pi-title" class="pi-title">{{ t('prompt.import.title') }}</h2>
-        <button type="button" class="pi-close" @click="dispatch('prompt.import.cancel')">
+        <button type="button" class="pi-close ui-btn ui-btn--quiet" @click="dispatch('prompt.import.cancel')">
           {{ t('command.prompt.import.cancel') }}
         </button>
       </header>
@@ -165,7 +165,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 
         <fieldset class="pi-tier" role="radiogroup" :aria-label="t('prompt.import.tier_label')">
           <legend class="pi-field-label">{{ t('prompt.import.tier_label') }}</legend>
-          <label class="pi-radio-label">
+          <label class="pi-radio-label ui-check">
             <input
               type="radio"
               name="pi-tier"
@@ -174,7 +174,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
             />
             {{ t('prompt.import.tier_global') }}
           </label>
-          <label class="pi-radio-label">
+          <label class="pi-radio-label ui-check">
             <input
               type="radio"
               name="pi-tier"
@@ -208,7 +208,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
             </div>
           </dl>
           <div class="pi-conflict-choice" role="radiogroup" :aria-label="t('prompt.import.status_conflict')">
-            <label class="pi-radio-label">
+            <label class="pi-radio-label ui-check">
               <input
                 type="radio"
                 name="pi-decision"
@@ -217,7 +217,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
               />
               {{ t('prompt.import.keep_mine') }}
             </label>
-            <label class="pi-radio-label">
+            <label class="pi-radio-label ui-check">
               <input
                 type="radio"
                 name="pi-decision"
@@ -240,13 +240,13 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
         <div class="pi-actions">
           <button
             type="button"
-            class="pi-act pi-act-primary"
+            class="pi-act pi-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair"
             :disabled="promptImportConfirming"
             @click="dispatch('prompt.import.confirm')"
           >
             {{ t('prompt.import.confirm_button') }}
           </button>
-          <button type="button" class="pi-act" :disabled="promptImportConfirming" @click="dispatch('prompt.import.cancel')">
+          <button type="button" class="pi-act ui-btn ui-btn--lg ui-btn--pair" :disabled="promptImportConfirming" @click="dispatch('prompt.import.cancel')">
             {{ t('command.prompt.import.cancel') }}
           </button>
         </div>
@@ -301,23 +301,6 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.pi-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.pi-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .pi-status {
@@ -431,8 +414,6 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   display: flex;
   align-items: center;
   gap: calc(var(--space-unit) * 1);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
   color: var(--color-on-surface);
   cursor: pointer;
 }
@@ -456,29 +437,4 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   gap: calc(var(--space-unit) * 2);
 }
 
-.pi-act {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.pi-act:not(.pi-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.pi-act-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
-}
-
-.pi-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
 </style>

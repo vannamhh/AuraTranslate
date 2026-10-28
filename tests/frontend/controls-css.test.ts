@@ -55,7 +55,7 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
   it('forced-colors mode draws a Highlight ring on every focusable control', () => {
     const block = forcedColorsBlock()
     expect(block).toMatch(/outline:\s*2px solid Highlight/)
-    for (const selector of ['.ui-btn:focus-visible', '.ui-icon-btn:focus-visible', '.ui-field:focus-visible', '.ui-chip:focus-visible', '.ui-chip:has(input:focus-visible)', '.ui-check input:focus-visible', '.ui-menu-item:focus-visible']) {
+    for (const selector of ['.ui-btn:focus-visible', '.ui-icon-btn:focus-visible', '.ui-field:focus-visible', '.ui-chip:focus-visible', '.ui-chip:has(input:focus-visible)', '.ui-check input:focus-visible', '.ui-tab:focus-visible', '.ui-menu-item:focus-visible']) {
       expect(block, selector).toContain(selector)
     }
   })
@@ -85,5 +85,49 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
     expect(declarations('.ui-switch:disabled > .ui-switch__track')).toMatch(/border:\s*1px dashed/)
     expect(declarations('.ui-switch:disabled:hover > .ui-switch__track')).toMatch(/border:\s*1px dashed/)
     expect(declarations('.ui-switch:disabled')).toMatch(/cursor:\s*default/)
+  })
+
+  it('a selected tab takes the on-surface underline and strong weight, and focus recolours the underline to primary after hover', () => {
+    const selected = declarations(".ui-tab[aria-selected='true']")
+    expect(selected).toMatch(/border-bottom-color:\s*var\(--color-on-surface\)/)
+    expect(selected).toMatch(/font-weight:\s*var\(--weight-ui-md-strong\)/)
+    const focus = declarations('.ui-tab:focus-visible')
+    expect(focus).toMatch(/outline:\s*none/)
+    expect(focus).toMatch(/border-bottom-color:\s*var\(--color-primary\)/)
+    expect(CSS.indexOf('.ui-tab:focus-visible')).toBeGreaterThan(CSS.indexOf('.ui-tab:hover'))
+    expect(CSS.indexOf('.ui-tab:focus-visible')).toBeGreaterThan(CSS.indexOf(".ui-tab[aria-selected='true']"))
+  })
+
+  it('the prompt editor mirror declares the same box and font as textarea.ui-field', () => {
+    const overlay = readFileSync(join(__dirname, '../../src/PromptLibraryOverlay.vue'), 'utf8')
+    const mirror = (overlay.match(/\.pl-ta-mirror\s*\{([^{}]*)\}/) ?? [])[1] ?? ''
+    expect(mirror, '.pl-ta-mirror rule').not.toBe('')
+    const both = `${declarations('.ui-field')};${declarations('textarea.ui-field')}`
+    const value = (body: string, prop: string): string | undefined =>
+      [...body.matchAll(new RegExp(`(?:^|[;\\s])${prop}\\s*:\\s*([^;]+)`, 'g'))].map((m) => m[1]!.trim().replace(/\s+/g, ' ')).at(-1)
+    for (const prop of ['padding', 'font-family', 'font-size', 'line-height']) {
+      const expected = value(both, prop)
+      expect(expected, `ui-field ${prop}`).toBeDefined()
+      const actual = value(mirror, prop)
+      expect(actual, `.pl-ta-mirror ${prop}`).toBe(expected)
+    }
+    expect(value(both, 'border')).toMatch(/^1px /)
+    expect(value(mirror, 'border')).toMatch(/^1px /)
+  })
+
+  it('the prompt editor stays transparent over its mirror even when locked, outranking .ui-field:disabled', () => {
+    const overlay = readFileSync(join(__dirname, '../../src/PromptLibraryOverlay.vue'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const transparent = rulesOf(overlay).filter(
+      (rule) => rule.selectors.some((sel) => sel.includes('.pl-ta-input')) && /(^|[;\s])color:\s*transparent/.test(rule.body),
+    )
+    expect(transparent.length, 'no rule makes .pl-ta-input text transparent').toBeGreaterThan(0)
+    const lockedClasses = ('.ui-field:disabled'.match(/[.:][\w-]+/g) ?? []).length
+    for (const rule of transparent) {
+      for (const sel of rule.selectors.filter((s) => s.includes('.pl-ta-input'))) {
+        expect((sel.match(/[.:][\w-]+/g) ?? []).length + 1, `${sel} must outrank .ui-field:disabled with the scoped attribute`).toBeGreaterThan(lockedClasses)
+        expect(sel, sel).not.toMatch(/:(disabled|hover|focus)/)
+      }
+    }
+    expect(declarations('.ui-field:disabled')).toMatch(/(^|[;\s])color:/)
   })
 })

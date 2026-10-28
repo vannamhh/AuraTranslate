@@ -15,6 +15,13 @@ const FILES = [
   'src/GlossaryQuickAdd.vue',
   'src/TmManageOverlay.vue',
   'src/TmImportOverlay.vue',
+  'src/PromptLibraryOverlay.vue',
+  'src/PromptImportOverlay.vue',
+  'src/PromptTemplatePicker.vue',
+  'src/AiPromptInspectorOverlay.vue',
+  'src/ProofreadMemoryOverlay.vue',
+  'src/ProofreadScopeOverlay.vue',
+  'src/SegmentHistoryOverlay.vue',
 ]
 
 const CONTROL_TAGS = new Set(['button', 'input', 'textarea', 'summary'])
@@ -25,6 +32,13 @@ const SHAPE_EXCEPTIONS: Record<string, string> = {
   'src/GlossaryManageOverlay.vue .gm-sr-only': 'visually hidden native radio/checkbox; its wrapping label carries the ui-* shape',
   'src/GlossaryQueueOverlay.vue .gq-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/TmManageOverlay.vue .tm-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
+  'src/PromptLibraryOverlay.vue .pl-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
+}
+
+const NOT_A_CONTROL: Record<string, string> = {
+  'src/PromptLibraryOverlay.vue .pl-row': 'selectable two-line list row with a left-edge mark (mockup prompt-library.html .it); DESIGN §Điều khiển has no row control and ui-menu-item is a fixed 28px nowrap line',
+  'src/ProofreadMemoryOverlay.vue .pfmem-row': 'selectable wrapping list row with a left-edge mark; ui-menu-item is a fixed 28px nowrap line and would clip the wrapped text',
+  'src/ProofreadScopeOverlay.vue .pfscope-cell': 'two-line scope card (mockup proofreader.html .sc); DESIGN §Điều khiển has no card control',
 }
 
 const LABEL_EXEMPT: Record<string, string> = {
@@ -66,6 +80,11 @@ function walk(node: Node, ancestors: Node[], visit: (node: Node, ancestors: Node
   for (const child of node.children ?? []) walk(child, node.type === 1 ? [...ancestors, node] : ancestors, visit)
 }
 
+const notAControl = (file: string, node: Node): boolean =>
+  classText(node)
+    .split(/[^\w-]+/)
+    .some((cls) => cls !== '' && Object.hasOwn(NOT_A_CONTROL, `${file} .${cls}`))
+
 const hasUi = (text: string): boolean => /(^|[\s'"])ui-[a-z]/.test(text)
 
 function inspect(file: string) {
@@ -73,6 +92,7 @@ function inspect(file: string) {
   const controls: { node: Node; ancestors: Node[] }[] = []
   const shaped: Node[] = []
   walk(descriptor.template!.ast as unknown as Node, [], (node, ancestors) => {
+    if (notAControl(file, node)) return
     if (hasUi(classText(node))) shaped.push(node)
     if (!CONTROL_TAGS.has(node.tag ?? '')) return
     if (node.tag === 'input' && attr(node, 'type') === 'hidden') return
@@ -125,6 +145,21 @@ describe('controls adopt the ui-* layer', () => {
       expect(offences).toEqual([])
     })
   }
+
+  it('every NOT_A_CONTROL key still names a control in its file', () => {
+    const live = new Set<string>()
+    for (const file of FILES) {
+      const { descriptor } = parse(readFileSync(join(__dirname, '../..', file), 'utf8'), { filename: file })
+      walk(descriptor.template!.ast as unknown as Node, [], (node) => {
+        if (CONTROL_TAGS.has(node.tag ?? '') && notAControl(file, node)) {
+          for (const key of Object.keys(NOT_A_CONTROL)) {
+            if (key.startsWith(`${file} `) && classText(node).split(/[^\w-]+/).includes(key.slice(file.length + 2))) live.add(key)
+          }
+        }
+      })
+    }
+    expect(Object.keys(NOT_A_CONTROL).filter((key) => !live.has(key))).toEqual([])
+  })
 
   it('reaches every listed file with at least one control, and the overlay with many', () => {
     const counts = FILES.map((file) => inspect(file).controls.length)

@@ -68,11 +68,11 @@ function onCloseTemplates(): void {
 
     <fieldset v-if="promptSetWorkTierAvailable" class="pt-tier" role="radiogroup" :aria-label="t('prompt.library.tier_label')">
       <legend class="pt-label">{{ t('prompt.library.tier_label') }}</legend>
-      <label class="pt-radio">
+      <label class="pt-radio ui-check">
         <input type="radio" name="pt-tier" data-template-tier="global" :checked="tier === 'global'" @change="onTierChange('global')" />
         {{ t('prompt.library.tier_global') }}
       </label>
-      <label class="pt-radio">
+      <label class="pt-radio ui-check">
         <input type="radio" name="pt-tier" data-template-tier="work" :checked="tier === 'work'" @change="onTierChange('work')" />
         {{ t('prompt.library.tier_work') }}
       </label>
@@ -80,7 +80,7 @@ function onCloseTemplates(): void {
 
     <ul class="pt-list">
       <li v-for="row in rows" :key="row.id" class="pt-item" :data-template-id="row.id">
-        <label class="pt-radio">
+        <label class="pt-radio ui-check">
           <input
             type="checkbox"
             data-template-check
@@ -93,7 +93,7 @@ function onCloseTemplates(): void {
           <span v-if="row.exists" class="pt-badge" data-template-exists>{{ t('prompt.library.template_exists_badge') }}</span>
         </label>
         <form class="pt-inline" @submit.prevent="onPreview(row.id)">
-          <button type="submit" class="pt-act" data-template-preview :aria-pressed="previewId === row.id">
+          <button type="submit" class="pt-act ui-btn ui-btn--sm" data-template-preview :aria-pressed="previewId === row.id">
             {{ t('prompt.library.template_preview_button') }}
           </button>
         </form>
@@ -109,17 +109,17 @@ function onCloseTemplates(): void {
 
     <div class="pt-actions">
       <form class="pt-inline" @submit.prevent="onPickAllMissing">
-        <button type="submit" class="pt-act" data-template-pick-missing :disabled="missingIds.length === 0 || promptSetBusy">
+        <button type="submit" class="pt-act ui-btn ui-btn--lg" data-template-pick-missing :disabled="missingIds.length === 0 || promptSetBusy">
           {{ t('prompt.library.template_pick_missing') }}
         </button>
       </form>
       <form class="pt-inline" @submit.prevent="onSubmitAdd">
-        <button type="submit" class="pt-act pt-act-primary" data-template-add :disabled="pickedMissing.length === 0 || promptSetBusy">
+        <button type="submit" class="pt-act pt-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair" data-template-add :disabled="pickedMissing.length === 0 || promptSetBusy">
           {{ t('prompt.library.template_add_button', { count: String(pickedMissing.length) }) }}
         </button>
       </form>
       <form class="pt-inline" @submit.prevent="onCloseTemplates">
-        <button type="submit" class="pt-act" data-template-close>{{ t('prompt.library.template_close') }}</button>
+        <button type="submit" class="pt-act ui-btn ui-btn--lg ui-btn--pair" data-template-close>{{ t('prompt.library.template_close') }}</button>
       </form>
     </div>
     <p v-if="missingIds.length === 0" class="pt-status" role="status" data-template-all-present>
@@ -201,8 +201,6 @@ function onCloseTemplates(): void {
   display: flex;
   align-items: center;
   gap: calc(var(--space-unit) * 1);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
   color: var(--color-on-surface);
   cursor: pointer;
 }
@@ -224,31 +222,6 @@ function onCloseTemplates(): void {
   display: flex;
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 2);
-}
-
-.pt-act {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: none;
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.pt-act:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.pt-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
-
-.pt-act-primary {
-  border-color: var(--color-primary);
 }
 
 .pt-pre {

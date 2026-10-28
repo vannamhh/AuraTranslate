@@ -196,7 +196,7 @@ function aimRow(id: number): void {
     <section ref="panel" class="hist-panel" tabindex="-1" role="dialog" aria-modal="true">
       <header class="hist-head">
         <h2 class="hist-title">{{ t('history.title') }}</h2>
-        <button type="button" class="hist-close" @click="dispatch('history.close')">
+        <button type="button" class="hist-close ui-btn ui-btn--quiet" @click="dispatch('history.close')">
           {{ t('history.close') }}
         </button>
       </header>
@@ -235,10 +235,10 @@ function aimRow(id: number): void {
         <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — chính bản dịch họ vừa gõ, không một chuỗi giao diện. Nó phải hiện NGUYÊN VĂN; đẩy nó qua `t()` là vô nghĩa và sẽ hỏng ở ký tự `{`. -->
         <p class="hist-draft">{{ historyPendingRestore.draft }}</p>
         <div class="hist-confirm-acts">
-          <button type="button" class="hist-act" @click="dispatch('history.confirm_restore')">
+          <button type="button" class="hist-act ui-btn ui-btn--lg ui-btn--pair" @click="dispatch('history.confirm_restore')">
             {{ t('history.confirm_accept') }}
           </button>
-          <button type="button" class="hist-act" @click="dispatch('history.cancel_restore')">
+          <button type="button" class="hist-act ui-btn ui-btn--lg ui-btn--pair" @click="dispatch('history.cancel_restore')">
             {{ t('history.confirm_cancel') }}
           </button>
         </div>
@@ -335,13 +335,13 @@ function aimRow(id: number): void {
             <div class="hist-confirm-acts">
               <button
                 type="button"
-                class="hist-act"
+                class="hist-act ui-btn"
                 :disabled="historyPending || historyPendingRestore !== null"
                 @click="dispatch('history.restore')"
               >
                 {{ t('history.act_restore_version') }}
               </button>
-              <button type="button" class="hist-act" @click="dispatch('history.toggle_compare')">
+              <button type="button" class="hist-act ui-btn" @click="dispatch('history.toggle_compare')">
                 {{ t('history.act_compare') }}
               </button>
             </div>
@@ -405,25 +405,6 @@ function aimRow(id: number): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.hist-close,
-.hist-act {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.hist-close:focus-visible,
-.hist-act:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .hist-empty,

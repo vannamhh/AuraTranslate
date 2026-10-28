@@ -282,7 +282,7 @@ const resultUsage = computed(() => {
     >
       <header class="aip-head">
         <h2 id="aip-title" class="aip-title">{{ t('ai.prompt_inspector.title') }}</h2>
-        <button type="button" class="aip-close" @click="dispatch('ai.prompt_inspector.close')">
+        <button type="button" class="aip-close ui-btn ui-btn--quiet" @click="dispatch('ai.prompt_inspector.close')">
           {{ t('command.ai.prompt_inspector.close') }}
         </button>
       </header>
@@ -301,7 +301,7 @@ const resultUsage = computed(() => {
             @change="onPromptSetChange"
           />
         </div>
-        <button type="button" class="aip-close" data-prompt-library-open @click="dispatch('prompt.library.open')">
+        <button type="button" class="aip-close ui-btn ui-btn--quiet" data-prompt-library-open @click="dispatch('prompt.library.open')">
           {{ t('command.prompt.library.open') }}
         </button>
       </div>
@@ -339,8 +339,7 @@ const resultUsage = computed(() => {
           <button
             type="button"
             role="tab"
-            class="aip-tab"
-            :class="{ 'aip-tab-on': aiPromptInspectorTab === 'result' }"
+            class="aip-tab ui-tab"
             :aria-selected="aiPromptInspectorTab === 'result'"
             data-aip-tab="result"
             @click="dispatch('ai.prompt_inspector.tab_result')"
@@ -350,8 +349,7 @@ const resultUsage = computed(() => {
           <button
             type="button"
             role="tab"
-            class="aip-tab"
-            :class="{ 'aip-tab-on': aiPromptInspectorTab === 'prompt' }"
+            class="aip-tab ui-tab"
             :aria-selected="aiPromptInspectorTab === 'prompt'"
             data-aip-tab="prompt"
             @click="dispatch('ai.prompt_inspector.tab_prompt')"
@@ -397,7 +395,7 @@ const resultUsage = computed(() => {
         <button
           v-if="isStale || isOtherSet"
           type="button"
-          class="aip-close"
+          class="aip-close ui-btn ui-btn--quiet"
           data-aip-assemble-selected
           :disabled="aiPromptAssembleBusy"
           @click="dispatch('ai.prompt.assemble')"
@@ -438,7 +436,7 @@ const resultUsage = computed(() => {
           <div class="aip-acts">
             <button
               type="button"
-              class="aip-btn"
+              class="aip-btn ui-btn"
               :disabled="!canResend"
               data-aip-resend
               @click="dispatch('ai.prompt_inspector.resend')"
@@ -599,7 +597,7 @@ const resultUsage = computed(() => {
                     <button
                       v-if="canConfirmNow(term)"
                       type="button"
-                      class="aip-efix"
+                      class="aip-efix ui-btn ui-btn--sm ui-btn--quiet"
                       data-aip-fix="confirm_now"
                       @click="dispatch('ai.prompt_inspector.confirm_now')"
                     >
@@ -608,7 +606,7 @@ const resultUsage = computed(() => {
                     <button
                       v-else
                       type="button"
-                      class="aip-efix"
+                      class="aip-efix ui-btn ui-btn--sm ui-btn--quiet"
                       data-aip-fix="glossary_entry"
                       @click="dispatch('ai.prompt_inspector.open_glossary_entry')"
                     >
@@ -630,7 +628,7 @@ const resultUsage = computed(() => {
                     <span class="aip-ewhy">
                       {{ t('ai.prompt_inspector.glossary_suppressed_reason_pending_overlap') }}
                     </span>
-                    <button type="button" class="aip-efix" @click="dispatch('ai.prompt_inspector.open_glossary_entry')">
+                    <button type="button" class="aip-efix ui-btn ui-btn--sm ui-btn--quiet" @click="dispatch('ai.prompt_inspector.open_glossary_entry')">
                       {{ t('command.ai.prompt_inspector.open_glossary_entry') }}
                     </button>
                   </li>
@@ -645,7 +643,7 @@ const resultUsage = computed(() => {
                     {{ t('ai.prompt_inspector.excluded_tm_label', { count: String(tmSearched.omitted_count) }) }}
                   </span>
                   <span class="aip-ewhy">{{ t('ai.prompt_inspector.excluded_tm_why') }}</span>
-                  <button type="button" class="aip-efix" @click="dispatch('ai.prompt_inspector.tm_concordance')">
+                  <button type="button" class="aip-efix ui-btn ui-btn--sm ui-btn--quiet" @click="dispatch('ai.prompt_inspector.tm_concordance')">
                     <!-- aura-allow-text: KẾT QUẢ của t() (số câu TM). -->
                     {{ t('ai.prompt_inspector.tm_see_all', { count: String(tmSearched.omitted_count) }) }}
                   </button>
@@ -696,7 +694,7 @@ const resultUsage = computed(() => {
             <div class="aip-acts">
               <button
                 type="button"
-                class="aip-btn aip-btn-primary"
+                class="aip-btn aip-btn-primary ui-btn ui-btn--primary"
                 data-aip-copy
                 :data-aip-copy-state="aiPromptCopyState"
                 @click="dispatch('ai.prompt_inspector.copy')"
@@ -705,14 +703,14 @@ const resultUsage = computed(() => {
               </button>
               <button
                 type="button"
-                class="aip-btn"
+                class="aip-btn ui-btn"
                 :disabled="!canResend"
                 data-aip-resend
                 @click="dispatch('ai.prompt_inspector.resend')"
               >
                 {{ t('command.ai.prompt_inspector.resend') }}
               </button>
-              <button type="button" class="aip-btn" @click="dispatch('ai.prompt_inspector.open_work_prompts')">
+              <button type="button" class="aip-btn ui-btn" @click="dispatch('ai.prompt_inspector.open_work_prompts')">
                 {{ t('command.ai.prompt_inspector.open_work_prompts') }}
               </button>
             </div>
@@ -765,32 +763,6 @@ const resultUsage = computed(() => {
   color: var(--color-on-surface);
 }
 
-.aip-close,
-.aip-efix {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.aip-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
-.aip-efix {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
-}
-
 .aip-setbar {
   display: flex;
   align-items: baseline;
@@ -827,24 +799,6 @@ const resultUsage = computed(() => {
   padding-bottom: calc(var(--space-unit) * 1);
   margin-bottom: calc(var(--space-unit) * 3);
   border-bottom: 1px solid var(--color-outline);
-}
-
-.aip-tab {
-  padding: 0 0 calc(var(--space-unit) * 1) 0;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.aip-tab-on {
-  color: var(--color-primary);
-  font-weight: var(--weight-read-title);
-  border-bottom-color: var(--color-primary);
 }
 
 .aip-meta {
@@ -1180,33 +1134,6 @@ const resultUsage = computed(() => {
   flex-direction: column;
   gap: calc(var(--space-unit) * 2);
   margin-top: calc(var(--space-unit) * 4);
-}
-
-.aip-btn {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface);
-}
-
-.aip-btn:not(.aip-btn-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.aip-btn:disabled {
-  cursor: not-allowed;
-  color: var(--color-on-surface-variant);
-}
-
-.aip-btn-primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-on-primary);
 }
 
 .aip-exact {
