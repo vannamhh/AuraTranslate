@@ -391,7 +391,7 @@
   "status.position_sentence_only": "Câu {n}/{total}",
   "status.confirmed_counter": "{confirmed}/{total} đã xác nhận",
   "status.regroup_hint": "{merge_chord} gộp · {split_chord} tách",
-  "status.proofread_counts": "{spelling_count} chính tả · {meaning_count} nghi nghĩa",
+  "status.proofread_counts": "{spelling_count} lỗi chính tả · {meaning_count} chỗ nghi sai nghĩa",
   "status.lookup_offline": "Tra cứu ngoại tuyến",
   "status.library_works": "Library · {count} Tác phẩm",
   "status.library_scanning": "Đang quét thư mục…",
