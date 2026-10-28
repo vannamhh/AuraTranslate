@@ -40,7 +40,7 @@ Hình dạng bề mặt webview và các chức năng loại 5 Ice nhận (D7). 
 - change — _bmad-output/initiative-auratranslate/change-hoan-thien-giao-dien-theo-mockup/change-hoan-thien-giao-dien-theo-mockup.md, đề xuất 1–7
 - decisions — _bmad-output/initiative-auratranslate/change-hoan-thien-giao-dien-theo-mockup/handoff-buoc-1-bang-lech.md, D1–D13
 - rows — _bmad-output/initiative-auratranslate/change-hoan-thien-giao-dien-theo-mockup/bang-lech-{a,b,c}.md, phan-loai-loai-5-{a,b,c}.md; ảnh app thật ở `anh/`
-- design — _bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md §Information Architecture, §Component Patterns, §Bề mặt nhập; DESIGN.md §Vạch lề segment; mockups/
+- design — _bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md §Information Architecture, §Component Patterns, §Bề mặt nhập; DESIGN.md §Vạch lề segment, §Điều khiển; mockups/
 - constraint — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, AD-20, AD-34, AD-36, AD-47, AD-49, AD-53, AD-54, AD-55, AD-56, AD-57; UX-DR17
 
 ## Notes
@@ -66,3 +66,9 @@ Hình dạng bề mặt webview và các chức năng loại 5 Ice nhận (D7). 
 - Decision: quyết định 4 của phiếu (lưới `auto-fill`, thêm cột khi màn rộng) thay quyết định 1 của plan 12.2 (4 / 3 / 2 cột); plan 12.2 đã `done` nên giữ nguyên văn (Ice, 2026-10-25).
 - Decision: không thêm Refactor sweep thứ hai; 23 và 24 đứng sau sweep 22 đã xong, việc dọn của chúng nằm trong chính chúng (2026-10-25).
 - Decision: đợt tinh chỉnh Workspace (DESIGN.md 🔵 2026-10-26) là một story 26, không chia nền (token, nút, biểu tượng) và phân khối thành hai story như Sofia đề xuất (Ice, 2026-10-26).
+- Decision: hệ điều khiển (DESIGN.md §Điều khiển, Ice duyệt 2026-10-28, commit 2deb8857) vào epic này thành entry 27–33, không mở epic mới, theo tiền lệ story 24 và 26 (Ice, 2026-10-28).
+- Decision: entry 27 là tracer bullet: lớp chung trong `controls.css`, bốn component menu dùng chung và trọn một lớp phủ có đủ mọi loại control (`GlossaryManageOverlay`), để mỗi tệp chỉ bị sửa một lần; không chọn thứ tự Sally gợi ý (đổi trước 21 nút Đóng và 14 nút chính ở ~22 lớp phủ) vì các tệp đó sẽ bị sửa lần hai ở 28–30 (Ice theo Sofia, 2026-10-28).
+- Decision: 28–33 chia theo nhóm tệp không giao nhau nhưng xếp nối tiếp (`after` = entry ngay trước), vì cả sáu cùng sửa danh sách tệp của ca vitest canh chuyển đổi do 27 dựng; 33 đổi ca đó sang đọc mọi `.vue` (2026-10-28).
+- Decision: chỉ entry 27 là hitl (màu checkbox thật, font `<button>`, ảnh cạnh mockup); 28–33 mỗi entry ghi một mục nợ `Chủ: Epic 12`, Ice kiểm gộp trong lượt Done when 5 (Ice theo Sofia, 2026-10-28).
+- Decision: không thêm Refactor sweep sau 33; cả chuỗi là việc dọn, và epic đã không nhận sweep thứ hai ngày 2026-10-25 (Ice theo Sofia, 2026-10-28).
+- Open question: biến ca vitest canh chuyển đổi thành cổng chặn khối scoped khai lại dáng control hay không — Ice và Winston quyết sau entry 33.

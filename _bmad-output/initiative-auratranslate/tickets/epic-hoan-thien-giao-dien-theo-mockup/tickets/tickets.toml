@@ -293,3 +293,87 @@ after = []
 hitl = true
 risk = "medium"
 references = ["ux-auratranslate/DESIGN.md §Components (Nút — ba bậc, Ba cấp điều khiển, Biểu tượng, Khối trong panel Tra cứu, Thanh trạng thái, Câu đang sửa)", "ux-auratranslate/DESIGN.md §Bảng token màu hàng 19, §Bảng token typography hàng 13–14", "ux-auratranslate/mockups/workspace-tinh-chinh.html", "architecture-auratranslate/architecture-auratranslate.md AD-34"]
+
+[[entry]]
+id = 27
+type = "story"
+title = "Hệ điều khiển: lớp chung, menu dùng chung và lớp phủ Quản lý Glossary"
+description = "Dựng §Điều khiển của DESIGN.md (commit 2deb8857) trong `src/tokens/controls.css`: `ui-btn` thêm bậc `--lg` và hover/nhấn cho năm bậc, `ui-icon-btn` theo ba bậc, `ui-field` (ô nhập, ô nhiều dòng, nút mở dạng field, trạng thái lỗi), `ui-check`, `ui-switch`, `ui-menu-item`, `ui-chip`; `reset.css` cho control `font: inherit`; `DropdownMenu`, `SelectMenu`, `TitlebarToolsMenu`, `LookupSourcesMenu` và trọn `GlossaryManageOverlay` dùng các lớp đó và bỏ khối scoped khai lại chiều cao, viền, hover, focus, dáng khoá. Story này dựng ca vitest canh việc chuyển đổi `tests/frontend/controls-adoption.test.ts`: đọc template của một danh sách tệp, đỏ khi một `<button>`/`<input>`/`<textarea>`/`<summary>` không mang lớp `ui-*` hoặc khối scoped khai lại chiều cao, viền, hover; story 28–33 thêm tệp của mình vào danh sách đó. Luật focus của Kiểm H giữ nguyên; không token màu mới. Khi xong: mở Quản lý Glossary thấy nút, ô tìm, ô chọn loại, checkbox, radio đúng dáng mockup ở cả hai theme."
+verify = "`tests/frontend/controls-adoption.test.ts` xanh trên năm tệp của story, và đỏ khi gỡ lớp `ui-btn` khỏi một nút của `GlossaryManageOverlay` (đối chứng thật, rồi trả lại); `check:tokens` (Kiểm H) và `check:i18n` xanh; test hiện có của `DropdownMenu`, `SelectMenu`, `TitlebarToolsMenu` vẫn xanh. Người: ảnh app thật lớp phủ Quản lý Glossary và menu Công cụ, sáng và tối, đặt cạnh `mockups/he-dieu-khien.html`; ghi màu checkbox thật (token hay màu nhấn macOS) và font thật của `<button>` trước và sau `font: inherit`."
+covers = []
+after = [26]
+hitl = true
+risk = "medium"
+references = ["ux-auratranslate/DESIGN.md §Điều khiển", "ux-auratranslate/mockups/he-dieu-khien.html", "plan-vien-doi-mau-khi-focus.md", "architecture-auratranslate/architecture-auratranslate.md AD-34"]
+
+[[entry]]
+id = 28
+type = "story"
+title = "Hệ điều khiển: các lớp phủ Glossary và TM còn lại"
+description = "Chuyển trọn `GlossaryQueueOverlay`, `GlossaryHarvestOverlay`, `GlossaryImportOverlay`, `GlossaryQuickAdd`, `TmManageOverlay` (gồm công tắc `role=switch` sang `ui-switch`), `TmImportOverlay` sang lớp `ui-*` của story 27 theo DESIGN.md §Điều khiển: form trong lớp phủ dùng bậc `lg`, nút Đóng thành nút Chìm, nút chính thôi tô `primary`, checkbox/radio dùng `ui-check`; bỏ khối scoped khai lại chiều cao, viền, hover, focus, dáng khoá; thêm sáu tệp vào danh sách của ca vitest canh chuyển đổi (story 27). Ghi một mục nợ `Chủ: Epic 12` cho lượt nhìn app thật."
+verify = "`tests/frontend/controls-adoption.test.ts` xanh với sáu tệp mới trong danh sách, và đỏ khi gỡ lớp `ui-*` khỏi một nút của `TmManageOverlay` (đối chứng thật); test hiện có của sáu lớp phủ vẫn xanh; `check:tokens` và `check:i18n` xanh."
+covers = []
+after = [27]
+hitl = false
+risk = "low"
+references = ["ux-auratranslate/DESIGN.md §Điều khiển", "ux-auratranslate/mockups/he-dieu-khien.html"]
+
+[[entry]]
+id = 29
+type = "story"
+title = "Hệ điều khiển: các lớp phủ Prompt, AI, Soát và Lịch sử"
+description = "Chuyển trọn `PromptLibraryOverlay`, `PromptImportOverlay`, `PromptTemplatePicker`, `AiPromptInspectorOverlay`, `ProofreadMemoryOverlay`, `ProofreadScopeOverlay`, `SegmentHistoryOverlay` sang lớp `ui-*` của story 27 theo DESIGN.md §Điều khiển (form bậc `lg`, nút Đóng thành Chìm, nút chính thôi tô `primary`, ô nhiều dòng `ui-field` giãn 1.66, giữ gương `.pl-ta-mirror` trùng khớp ô soạn); bỏ khối scoped khai lại chiều cao, viền, hover, focus, dáng khoá; thêm bảy tệp vào danh sách của ca vitest canh chuyển đổi. Ghi một mục nợ `Chủ: Epic 12` cho lượt nhìn app thật."
+verify = "`tests/frontend/controls-adoption.test.ts` xanh với bảy tệp mới, và đỏ khi gỡ lớp `ui-*` khỏi một nút của `PromptLibraryOverlay` (đối chứng thật); test hiện có của bảy tệp vẫn xanh, kể cả ca gương ô soạn prompt; `check:tokens` và `check:i18n` xanh."
+covers = []
+after = [28]
+hitl = false
+risk = "low"
+references = ["ux-auratranslate/DESIGN.md §Điều khiển", "ux-auratranslate/mockups/he-dieu-khien.html"]
+
+[[entry]]
+id = 30
+type = "story"
+title = "Hệ điều khiển: các lớp phủ Nhập và Xuất"
+description = "Chuyển trọn `ImportPreviewOverlay`, `BilingualImportPreviewOverlay`, `LibraryImportOverlay`, `ReviewerImportOverlay`, `ExportOverlay`, `AlignmentOverlay`, `ChapterMergeOverlay`, `ChapterSplitOverlay`, `AttributionOverlay` cùng hai component con chúng nhúng `ChapterOrigin` và `modes/SourceLangChips` (Library của entry 32 cũng nhúng hai tệp này và hưởng luôn) sang lớp `ui-*` của story 27 theo DESIGN.md §Điều khiển (form bậc `lg`, nút Đóng thành Chìm, nút chính thôi tô `primary`, chip lọc `ui-chip` bo 2px thay viên thuốc, checkbox/radio `ui-check`; radio ẩn của thẻ ứng viên giữ nguyên vai trò); bỏ khối scoped khai lại chiều cao, viền, hover, focus, dáng khoá; thêm mười một tệp vào danh sách của ca vitest canh chuyển đổi. Ghi một mục nợ `Chủ: Epic 12` cho lượt nhìn app thật."
+verify = "`tests/frontend/controls-adoption.test.ts` xanh với mười một tệp mới, và đỏ khi gỡ lớp `ui-*` khỏi một nút của `ImportPreviewOverlay` (đối chứng thật); test hiện có của chín tệp vẫn xanh; `check:tokens` và `check:i18n` xanh."
+covers = []
+after = [29]
+hitl = false
+risk = "low"
+references = ["ux-auratranslate/DESIGN.md §Điều khiển", "ux-auratranslate/mockups/he-dieu-khien.html"]
+
+[[entry]]
+id = 31
+type = "story"
+title = "Hệ điều khiển: Cài đặt"
+description = "Chuyển trọn `SettingsOverlay` và tám mục `Settings*Section.vue` sang lớp `ui-*` của story 27 theo DESIGN.md §Điều khiển: ô nhập và ô chọn bậc `lg`, chiều rộng theo `ch` (ngắn 8ch cho số và ngưỡng, vừa 24ch, kín hàng), nút Nguy hiểm \"Xoá khoá\" giữ bậc của nó, thanh trượt giữ nguyên; bỏ khối scoped khai lại chiều cao, viền, hover, focus, dáng khoá; thêm chín tệp vào danh sách của ca vitest canh chuyển đổi. Ghi một mục nợ `Chủ: Epic 12` cho lượt nhìn app thật."
+verify = "`tests/frontend/controls-adoption.test.ts` xanh với chín tệp mới, và đỏ khi gỡ lớp `ui-*` khỏi nút Lưu khoá của `SettingsOverlay` (đối chứng thật); test hiện có của Cài đặt vẫn xanh, kể cả ca không giật màn khi lưu; `check:tokens` và `check:i18n` xanh."
+covers = []
+after = [30]
+hitl = false
+risk = "low"
+references = ["ux-auratranslate/DESIGN.md §Điều khiển", "ux-auratranslate/mockups/he-dieu-khien.html", "ux-auratranslate/mockups/settings.html"]
+
+[[entry]]
+id = 32
+type = "story"
+title = "Hệ điều khiển: Library và Chế độ đọc"
+description = "Chuyển trọn `LibraryMode`, `LibraryWorkPage`, `LibrarySearchResults`, `LibraryUrlImportScreen` và `ReadingMode` sang lớp `ui-*` của story 27 theo DESIGN.md §Điều khiển (nút chính thôi tô `primary`, ô tìm `ui-field`, ô chọn bộ lọc dạng field, chip lọc `ui-chip`); giữ nguyên bố cục lưới, thẻ và tông bìa của story 24; bỏ khối scoped khai lại chiều cao, viền, hover, focus, dáng khoá; thêm năm tệp vào danh sách của ca vitest canh chuyển đổi. Ghi một mục nợ `Chủ: Epic 12` cho lượt nhìn app thật."
+verify = "`tests/frontend/controls-adoption.test.ts` xanh với năm tệp mới, và đỏ khi gỡ lớp `ui-*` khỏi một nút của `LibraryWorkPage` (đối chứng thật); test hiện có của Library và Chế độ đọc vẫn xanh; `check:tokens` và `check:i18n` xanh."
+covers = []
+after = [31]
+hitl = false
+risk = "low"
+references = ["ux-auratranslate/DESIGN.md §Điều khiển", "ux-auratranslate/mockups/he-dieu-khien.html", "ux-auratranslate/mockups/library-luoi-rong.html"]
+
+[[entry]]
+id = 33
+type = "story"
+title = "Hệ điều khiển: phần Workspace còn sót và danh sách canh đủ"
+description = "Chuyển trọn các tệp còn lại có nút tự vẽ: `ProofreaderStrip`, `TmFuzzyStrip`, `GlossaryConfirmStrip` (dải gợi ý bậc `sm`), `LookupPanel`, `ReviewMinePanel`, `AiTranslationPanel`, `PanelTab`, `LookupDrawer`, `ReviewDock`, `WorkspaceMode`, `App.vue`, `StatusBar` sang lớp `ui-*` của story 27 theo DESIGN.md §Điều khiển; bỏ khối scoped khai lại chiều cao, viền, hover, focus, dáng khoá. Danh sách của ca vitest canh chuyển đổi thôi là danh sách: ca đọc mọi `.vue` dưới `src/`, mỗi ngoại lệ còn lại có tên và lý do. Ghi một mục nợ `Chủ: Epic 12` cho lượt nhìn app thật."
+verify = "`tests/frontend/controls-adoption.test.ts` đọc mọi `.vue` dưới `src/` và xanh, mỗi ngoại lệ còn lại liệt kê trong test kèm lý do; thêm một `<button>` không lớp vào một tệp bất kỳ chưa từng nằm trong danh sách thì đỏ (đối chứng thật); test hiện có của các panel, dải gợi ý và thanh trạng thái vẫn xanh; `check:tokens` và `check:i18n` xanh."
+covers = []
+after = [32]
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/DESIGN.md §Điều khiển", "ux-auratranslate/mockups/he-dieu-khien.html", "ux-auratranslate/mockups/workspace-tinh-chinh.html"]
