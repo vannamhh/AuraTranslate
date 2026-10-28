@@ -8,6 +8,7 @@
  *   the search index when the chapter status change rebuilds it.
  */
 
+import { openChip } from '../support/libraryGrid.mjs'
 import { realClick } from '../support/pointer.mjs'
 import { markFlushBaseline, waitForFlushAfter } from '../support/flushWait.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
