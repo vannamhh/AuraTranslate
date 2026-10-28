@@ -443,7 +443,7 @@ Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng th
 
 ### Điều khiển — một hệ cho mọi nút, ô nhập, ô chọn
 
-*(🔵 2026-10-28, Ice duyệt. Ba điểm Ice chọn giữa hai phương án: hover nhẹ, focus đổi màu viền, thang 32/28/24. Phần còn lại Ice duyệt trên mockup `mockups/he-dieu-khien.html`. 🔵 2026-10-28, lượt soi lại: nút Chính rê chuột giữ nền và hiện viền trong (Ice chọn, thay cho nền `on-surface-variant` trông như mờ đi); nút Chìm rê chuột hiện viền thay cho nền 1,13:1; mục menu nền `outline`; vùng bấm checkbox 24px; dự phòng `forced-colors`.)*
+*(🔵 2026-10-28, Ice duyệt. Ba điểm Ice chọn giữa hai phương án: hover nhẹ, focus đổi màu viền, thang 32/28/24. Phần còn lại Ice duyệt trên mockup `mockups/he-dieu-khien.html`. 🔵 2026-10-28, lượt soi lại: nút Chính rê chuột đổi nền sang `on-surface-variant` (Ice: viền trong 1px quá nhỏ, không thấy); nút Chìm rê chuột hiện viền thay cho nền 1,13:1; mục menu nền `outline`; vùng bấm checkbox 24px; dự phòng `forced-colors`.)*
 
 **Vì sao.** Rà 2026-10-28 trên 66 tệp `.vue`: 356 `<button>`, chỉ 47 dùng lớp chung của `src/tokens/controls.css`; 309 nút còn lại tự vẽ bằng 148 lớp riêng trong 51 tệp. Chiều cao ước từ CSS rải 24 · 26 · 28 · ~29,5 · ~37,5px. 14 nút chính tô `primary`, 34 nút còn kiểu chữ gạch chân `outline` (1,31:1), 49 nút Phụ viền `outline` thay `control-rule`. Checkbox/radio chạy dáng gốc của hệ điều hành. Hover có ở 2/148 lớp nút tự vẽ.
 
@@ -476,7 +476,7 @@ Chữ luôn `ui-md`, bo `3px`, viền 1px. Nút chỉ có biểu tượng là ô
 
 | Trạng thái | Nút Phụ · Nguy hiểm | Nút Chính | Nút Chìm · mục menu | Ô nhập · ô chọn · checkbox |
 |---|---|---|---|---|
-| Rê chuột | Viền `on-surface-variant` (3,63 → 5,60:1) | Giữ nền mực, viền đổi sang `control-rule` thành một viền trong (3,91:1 sáng · 3,42:1 tối trên nền mực) | Nút Chìm: viền `control-rule` (3,63 · 3,55:1), như `ui-icon-btn`. Mục menu: nền `outline` (1,31:1; chữ 10,85 · 9,15:1) | Viền `on-surface-variant` |
+| Rê chuột | Viền `on-surface-variant` (3,63 → 5,60:1) | Nền và viền `on-surface-variant` (chênh 2,53:1 sáng · 2,18:1 tối so với nền mực), chữ `surface` 5,60 · 5,56:1. Token trung tính duy nhất giữ chữ ≥ 4,5:1: `control-rule` chỉ 3,63:1; `confirmed`, `tm-text`, `caret-rule` mang nghĩa trạng thái | Nút Chìm: viền `control-rule` (3,63 · 3,55:1), như `ui-icon-btn`. Mục menu: nền `outline` (1,31:1; chữ 10,85 · 9,15:1) | Viền `on-surface-variant` |
 | Nhấn | Nền `surface-sunken` | Như rê chuột | Nút Chìm: nền `surface-sunken`, chữ `on-surface`. Mục menu: như rê chuột | — |
 | Focus bàn phím | Viền `primary`, không vòng ngoài | Giữ vòng 2px `primary` cách mép 1px | Mục menu: vòng 2px `primary` thụt vào trong (như ô phân đoạn); nút Chìm: viền trong suốt thành `primary` | Viền `primary`, không vòng ngoài |
 | Khoá | §Nút bậc Khoá: viền đứt `outline`, chữ `on-surface-variant`, con trỏ mặc định, không hover | ← | ← | Viền đứt `outline`, nền không, chữ `on-surface-variant` |
