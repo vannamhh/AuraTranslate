@@ -13505,3 +13505,7 @@ chính nó.
 ## Deferred from: đặt trạng thái Chương ngay trong Workspace (2026-10-28, story 5-18)
 
 - **Chưa ai thấy Chương tự sang Đang dịch, migration 42 và nút Đã xong trong app thật.** Test Rust, Vitest và e2e 5-5 không bấm nút Workspace (giữ lời gọi IPC có chủ ý). Ice: mở một Tác phẩm cũ có Chương đã dịch mà ghi Chưa bắt đầu ⇒ thấy Đang dịch; gõ câu đầu ở một Chương mới, về Library thấy Đang dịch không cần Quét lại; xác nhận câu cuối, bấm gợi ý "Đánh dấu Chương Đã xong?", về Library thấy tiến độ tăng. Con trỏ: `story-at-trang-thai-chuong-ngay-trong-workspace-plan.md` §Verification. **Chủ: Epic 5.**
+
+## Deferred from: trạng thái nút rõ ràng và đồng nhất (2026-10-28, ngoài story — Ice yêu cầu ở màn Cài đặt AI)
+
+- **64 họ class nút tự vẽ chưa theo năm bậc nút của DESIGN.md §Nút.** Đếm 65 họ trong 53 tệp `.vue` (đếm bằng `class="…"` đầu tiên của `<button>`); chỉ `.ui-btn` theo bậc, và mục AI của Cài đặt đã chuyển xong. Ice muốn cả app đồng nhất và theo ngữ cảnh, nút có chữ Xoá dùng `.ui-btn--danger`. Còn lại: Sofia cắt story, Sally duyệt ánh xạ bậc cho từng màn và quyết có thêm trạng thái hover hay không. Con trỏ: `src/tokens/controls.css`, DESIGN.md §Nút (dòng Nguy hiểm). **Chủ: Sally.**

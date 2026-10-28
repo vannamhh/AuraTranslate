@@ -1,4 +1,4 @@
-/* Shared control classes: primary / secondary / quiet / locked buttons, icon button, segmented control, key chip. */
+/* Shared control classes: primary / secondary / quiet / danger / locked buttons, icon button, segmented control, key chip. */
 
 .ui-btn {
   display: inline-flex;
@@ -33,6 +33,11 @@
   background: none;
   border-color: transparent;
   color: var(--color-on-surface-variant);
+}
+
+.ui-btn--danger {
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 .ui-btn:disabled {

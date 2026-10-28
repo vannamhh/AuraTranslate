@@ -435,6 +435,7 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 | Chính | Nền `on-surface`, chữ `surface` 600, viền cùng màu nền (14,19:1) | Tối đa **một** mỗi panel: hành động người dùng đến panel để làm ("Dịch câu này") |
 | Phụ | Nền `surface`, viền 1px `control-rule`, chữ `on-surface` | Hành động khác ("Đưa sang bản dịch", "Nguồn 8/10 ▾", "Bảng chờ Glossary") |
 | Chìm | Không nền, không viền, chữ `on-surface-variant` | Lối mở phụ ít dùng ("Prompt", "Công cụ") |
+| Nguy hiểm | Nền `surface`, viền 1px và chữ `error` (7,74:1 sáng · 5,92:1 tối) | Hành động có chữ **Xoá** làm mất thứ không lấy lại được trong app ("Xoá khoá"). 🔵 2026-10-28 (Ice duyệt): bậc thứ năm; `error` thêm đúng việc này, ngoài câu lỗi |
 | Khoá | Không nền, viền **đứt** 1px `outline`, chữ `on-surface-variant` | Mọi bậc khi `disabled` — khác dáng, không chỉ khác màu |
 
 Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng thái), bo `3px`, chữ `ui-md`. Nút chính **không** dùng `primary`: màu nhấn giữ đúng ba việc ở §Colors. Một hành động có cặp huỷ ("Dịch câu này" / "Huỷ dịch") hiện **một** nút ở **cùng một chỗ**, đổi theo trạng thái, để hàng nút không nhảy bố cục.

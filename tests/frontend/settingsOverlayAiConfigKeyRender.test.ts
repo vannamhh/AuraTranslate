@@ -198,6 +198,9 @@ describe('SettingsOverlay.vue — hàng Khoá API, ba trạng thái đọc đư�
     const actions = wrapper.find('.ai-key-field .ai-key-actions')
     expect(actions.find('.ai-field-save').text()).toBe('Lưu khoá')
     expect(actions.find('.ai-field-clear').text()).toBe('Xoá khoá')
+    expect(actions.find('.ai-field-save').classes()).toEqual(expect.arrayContaining(['ui-btn']))
+    expect(actions.find('.ai-field-save').classes()).not.toContain('ui-btn--danger')
+    expect(actions.find('.ai-field-clear').classes()).toEqual(expect.arrayContaining(['ui-btn', 'ui-btn--danger']))
     expect(wrapper.find('[data-ai-key-outcome]').text()).toBe('')
 
     await wrapper.find('.ai-key-field input[type="password"]').setValue('sk-test-fake-key-value')

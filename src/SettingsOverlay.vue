@@ -480,10 +480,10 @@ function onDeleteAiConfigKey(): void {
                     </li>
                   </ul>
                   <div class="ai-preset-confirm-actions">
-                    <button type="button" class="ai-pill" data-ai-preset-apply @click="dispatch('settings.ai_config.preset_apply')">
+                    <button type="button" class="ui-btn" data-ai-preset-apply @click="dispatch('settings.ai_config.preset_apply')">
                       {{ t('settings.ai_config.preset_apply') }}
                     </button>
-                    <button type="button" class="ai-pill" data-ai-preset-cancel @click="dispatch('settings.ai_config.preset_cancel')">
+                    <button type="button" class="ui-btn ui-btn--quiet" data-ai-preset-cancel @click="dispatch('settings.ai_config.preset_cancel')">
                       {{ t('settings.ai_config.preset_cancel') }}
                     </button>
                   </div>
@@ -506,7 +506,7 @@ function onDeleteAiConfigKey(): void {
                   class="ai-field-clear-form"
                   @submit.prevent="onClearAiConfigOverride('provider')"
                 >
-                  <button type="submit" class="ai-field-clear" :disabled="aiConfigIsSaving('provider')">
+                  <button type="submit" class="ui-btn ui-btn--quiet ai-field-clear" :disabled="aiConfigIsSaving('provider')">
                     {{ t('settings.ai_config.clear_override') }}
                   </button>
                 </form>
@@ -556,7 +556,7 @@ function onDeleteAiConfigKey(): void {
                   class="ai-field-clear-form"
                   @submit.prevent="onClearAiConfigOverride(field)"
                 >
-                  <button type="submit" class="ai-field-clear" :disabled="aiConfigIsSaving(field)">
+                  <button type="submit" class="ui-btn ui-btn--quiet ai-field-clear" :disabled="aiConfigIsSaving(field)">
                     {{ t('settings.ai_config.clear_override') }}
                   </button>
                 </form>
@@ -621,7 +621,7 @@ function onDeleteAiConfigKey(): void {
                   class="ai-field-clear-form"
                   @submit.prevent="onClearAiConfigOverride(field)"
                 >
-                  <button type="submit" class="ai-field-clear" :disabled="aiConfigIsSaving(field)">
+                  <button type="submit" class="ui-btn ui-btn--quiet ai-field-clear" :disabled="aiConfigIsSaving(field)">
                     {{ t('settings.ai_config.clear_override') }}
                   </button>
                 </form>
@@ -663,7 +663,7 @@ function onDeleteAiConfigKey(): void {
                 >
                   <button
                     type="submit"
-                    class="ai-field-clear"
+                    class="ui-btn ui-btn--quiet ai-field-clear"
                     data-ai-system-prompt-restore
                     :disabled="aiConfigIsSaving('system_prompt')"
                   >
@@ -717,7 +717,7 @@ function onDeleteAiConfigKey(): void {
                   <button
                     type="submit"
                     form="ai-key-form"
-                    class="ai-field-save"
+                    class="ui-btn ai-field-save"
                     :disabled="!isAiConfigKeyValueValid(aiConfigKeyDraft()) || aiConfigKeyBusy"
                   >
                     {{ t('settings.ai_config.key_save') }}
@@ -727,7 +727,7 @@ function onDeleteAiConfigKey(): void {
                     class="ai-field-clear-form"
                     @submit.prevent="onDeleteAiConfigKey"
                   >
-                    <button type="submit" class="ai-field-clear" :disabled="aiConfigKeyBusy">
+                    <button type="submit" class="ui-btn ui-btn--danger ai-field-clear" :disabled="aiConfigKeyBusy">
                       {{ t('settings.ai_config.key_delete') }}
                     </button>
                   </form>
@@ -742,7 +742,7 @@ function onDeleteAiConfigKey(): void {
               <div class="ai-field" data-ai-usage-switch>
                 <span class="ai-field-label-text">{{ t('settings.ai_config.usage_label') }}</span>
                 <form class="ai-field-form" @submit.prevent="onToggleAiUsage()">
-                  <button type="submit" class="ai-field-save" :aria-pressed="aiUsageVisible" data-ai-usage-toggle>
+                  <button type="submit" class="ui-btn ai-field-save" :aria-pressed="aiUsageVisible" data-ai-usage-toggle>
                     {{ t(aiUsageStateKey()) }}
                   </button>
                 </form>
@@ -757,7 +757,7 @@ function onDeleteAiConfigKey(): void {
                 <form class="ai-field-clear-form" @submit.prevent="onRunAiConfigTest()">
                   <button
                     type="submit"
-                    class="ai-field-save"
+                    class="ui-btn ai-field-save"
                     data-ai-test-connection
                     :disabled="aiConfigTestStatus === 'running'"
                   >
@@ -765,13 +765,13 @@ function onDeleteAiConfigKey(): void {
                   </button>
                 </form>
                 <form v-if="aiConfigTestStatus === 'running'" class="ai-field-clear-form" @submit.prevent="onCancelAiConfigTest()">
-                  <button type="submit" class="ai-field-clear" data-ai-test-cancel>
+                  <button type="submit" class="ui-btn ai-field-clear" data-ai-test-cancel>
                     {{ t('settings.ai_config.test_cancel') }}
                   </button>
                 </form>
                 <button
                   type="button"
-                  class="ai-field-clear"
+                  class="ui-btn ai-field-clear"
                   data-ai-clear-all
                   :disabled="aiConfigViewTier !== 'work' || aiConfigOverrideCount === 0"
                   @click="dispatch('settings.ai_config.clear_all_overrides')"
@@ -1298,23 +1298,6 @@ function onDeleteAiConfigKey(): void {
 }
 
 .ai-field-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.ai-field-save,
-.ai-field-clear {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.ai-field-save:focus-visible,
-.ai-field-clear:focus-visible {
   outline: none;
   border-color: var(--color-primary);
 }
