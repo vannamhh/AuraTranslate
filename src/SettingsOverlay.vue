@@ -39,6 +39,7 @@ import {
   selectAiConfigViewTier,
   aiConfigIsSaving,
   aiConfigKeyBusy,
+  aiConfigKeyOutcome,
   aiConfigKeyConfigured,
   aiConfigKeyDraft,
   aiConfigKeyError,
@@ -673,7 +674,7 @@ function onDeleteAiConfigKey(): void {
 
               <!-- The key keeps its own Save/Delete buttons: it has no field wire and never returns over IPC. -->
               <div class="ai-field ai-key-field">
-                <form class="ai-field-form" @submit.prevent="onSaveAiConfigKey">
+                <form id="ai-key-form" class="ai-field-form" @submit.prevent="onSaveAiConfigKey">
                   <label class="ai-field-label">
                     <span>{{ t('settings.ai_config.key_label') }}</span>
                     <input
@@ -686,49 +687,55 @@ function onDeleteAiConfigKey(): void {
                       @input="onAiConfigKeyInput($event)"
                     />
                   </label>
+                </form>
 
-                  <p class="ai-field-status">
-                    <span
-                      :class="{
-                        'mark-over': aiConfigKeyConfigured === true,
-                        'mark-inh': aiConfigKeyConfigured === false,
-                        'mark-unknown': aiConfigKeyConfigured === null,
-                      }"
-                    >
-                      {{ t(aiConfigKeyStatusKey()) }}
-                    </span>
-                  </p>
-                  <p class="ai-field-status">{{ t('settings.ai_config.key_note') }}</p>
-
-                  <p
-                    v-if="aiConfigKeyDraft() !== '' && !isAiConfigKeyValueValid(aiConfigKeyDraft())"
-                    class="ai-field-alert"
+                <p class="ai-field-status">
+                  <span
+                    :class="{
+                      'mark-over': aiConfigKeyConfigured === true,
+                      'mark-inh': aiConfigKeyConfigured === false,
+                      'mark-unknown': aiConfigKeyConfigured === null,
+                    }"
                   >
-                    {{ t('settings.ai_config.key_invalid') }}
-                  </p>
-                  <p v-else-if="aiConfigKeyError !== null" class="ai-field-alert" role="alert">
-                    <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
-                    {{ tError(aiConfigKeyError) }}
-                  </p>
+                    {{ t(aiConfigKeyStatusKey()) }}
+                  </span>
+                </p>
+                <p class="ai-field-status">{{ t('settings.ai_config.key_note') }}</p>
 
+                <p
+                  v-if="aiConfigKeyDraft() !== '' && !isAiConfigKeyValueValid(aiConfigKeyDraft())"
+                  class="ai-field-alert"
+                >
+                  {{ t('settings.ai_config.key_invalid') }}
+                </p>
+                <p v-else-if="aiConfigKeyError !== null" class="ai-field-alert" role="alert">
+                  <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                  {{ tError(aiConfigKeyError) }}
+                </p>
+
+                <div class="ai-key-actions">
                   <button
                     type="submit"
+                    form="ai-key-form"
                     class="ai-field-save"
                     :disabled="!isAiConfigKeyValueValid(aiConfigKeyDraft()) || aiConfigKeyBusy"
                   >
                     {{ t('settings.ai_config.key_save') }}
                   </button>
-                </form>
-
-                <form
-                  v-if="aiConfigKeyConfigured !== false"
-                  class="ai-field-clear-form"
-                  @submit.prevent="onDeleteAiConfigKey"
-                >
-                  <button type="submit" class="ai-field-clear" :disabled="aiConfigKeyBusy">
-                    {{ t('settings.ai_config.key_delete') }}
-                  </button>
-                </form>
+                  <form
+                    v-if="aiConfigKeyConfigured !== false"
+                    class="ai-field-clear-form"
+                    @submit.prevent="onDeleteAiConfigKey"
+                  >
+                    <button type="submit" class="ai-field-clear" :disabled="aiConfigKeyBusy">
+                      {{ t('settings.ai_config.key_delete') }}
+                    </button>
+                  </form>
+                  <span class="ai-key-outcome mark-over" role="status" data-ai-key-outcome>
+                    <template v-if="aiConfigKeyOutcome === 'saved'">{{ t('settings.ai_config.key_saved') }}</template>
+                    <template v-else-if="aiConfigKeyOutcome === 'deleted'">{{ t('settings.ai_config.key_deleted') }}</template>
+                  </span>
+                </div>
               </div>
 
               <h4 class="ai-sh">{{ t('settings.ai_config.group_cost') }}</h4>
@@ -1314,6 +1321,18 @@ function onDeleteAiConfigKey(): void {
 
 .ai-field-clear-form {
   margin: 0;
+}
+
+.ai-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-panel-inline);
+}
+
+.ai-key-outcome {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
 }
 
 .ai-field-status {

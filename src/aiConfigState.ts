@@ -183,6 +183,8 @@ const keyDraft = ref('')
  * trong hai thao tác chạy tại một thời điểm, và cả hai nút cùng khoá khi cờ này bật. */
 const keyBusy = ref(false)
 const keyError = ref<IpcError | null>(null)
+export type AiConfigKeyOutcome = 'saved' | 'deleted' | null
+const keyOutcome = ref<AiConfigKeyOutcome>(null)
 
 export type AiConfigReadiness = 'unknown' | 'ready' | 'unconfigured' | 'key_unchecked'
 
@@ -255,6 +257,8 @@ export const aiConfigEffectiveProvider: DeepReadonly<Ref<string>> = readonly(eff
 export const aiConfigEffectiveModel: DeepReadonly<Ref<string>> = readonly(effectiveModel)
 export const aiConfigKeyBusy: DeepReadonly<Ref<boolean>> = readonly(keyBusy)
 export const aiConfigKeyError: DeepReadonly<Ref<IpcError | null>> = readonly(keyError)
+/** Outcome of the last successful Save/Delete of the key; cleared by typing or by the next Save/Delete. */
+export const aiConfigKeyOutcome: DeepReadonly<Ref<AiConfigKeyOutcome>> = readonly(keyOutcome)
 
 /** Trường đã phân giải, hoặc `null` nếu chưa đọc xong lần nào. */
 export function aiConfigFieldWire(field: AiConfigField): AiConfigFieldWire | null {
@@ -287,6 +291,7 @@ export function aiConfigKeyDraft(): string {
 /** Handler của `@input` trên ô nhập khoá API. */
 export function setAiConfigKeyDraft(value: string): void {
   keyDraft.value = value
+  keyOutcome.value = null
 }
 
 /**
@@ -526,6 +531,7 @@ export async function saveAiConfigKey(): Promise<void> {
 
   keyBusy.value = true
   keyError.value = null
+  keyOutcome.value = null
 
   const err = await aiConfigSaveKey(raw.trim())
 
@@ -535,6 +541,7 @@ export async function saveAiConfigKey(): Promise<void> {
     return
   }
 
+  keyOutcome.value = 'saved'
   keyDraft.value = ''
   await reloadAiConfigSection([])
 }
@@ -548,6 +555,7 @@ export async function deleteAiConfigKey(): Promise<void> {
   if (keyBusy.value) return
   keyBusy.value = true
   keyError.value = null
+  keyOutcome.value = null
 
   const err = await aiConfigDeleteKey()
 
@@ -556,6 +564,7 @@ export async function deleteAiConfigKey(): Promise<void> {
     keyError.value = err
     return
   }
+  keyOutcome.value = 'deleted'
 
   await reloadAiConfigSection([])
 }
@@ -590,6 +599,7 @@ export function resetAiConfigSection(): void {
   keyDraft.value = ''
   keyBusy.value = false
   keyError.value = null
+  keyOutcome.value = null
   inFlightSave = null
   presetConfirm.value = null
   closeCustom()

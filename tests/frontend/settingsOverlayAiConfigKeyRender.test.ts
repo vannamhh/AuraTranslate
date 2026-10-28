@@ -188,6 +188,57 @@ describe('SettingsOverlay.vue — hàng Khoá API, ba trạng thái đọc đư�
     aiConfigState.resetAiConfigSection()
   })
 
+  it('Lưu khoá và Xoá khoá cùng một hàng; Lưu xong hiện câu xác nhận, gõ lại thì câu đó mất; Xoá xong hiện câu riêng', async () => {
+    const { settingsState, aiConfigState, SettingsOverlay } = await freshOverlay()
+    aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), workTierAvailable: false, keyConfigured: true, error: null })
+    await openToAiAndModel(settingsState, aiConfigState)
+
+    const wrapper = mount(SettingsOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const actions = wrapper.find('.ai-key-field .ai-key-actions')
+    expect(actions.find('.ai-field-save').text()).toBe('Lưu khoá')
+    expect(actions.find('.ai-field-clear').text()).toBe('Xoá khoá')
+    expect(wrapper.find('[data-ai-key-outcome]').text()).toBe('')
+
+    await wrapper.find('.ai-key-field input[type="password"]').setValue('sk-test-fake-key-value')
+    await wrapper.find('#ai-key-form').trigger('submit')
+    await flushPromises()
+    expect(aiConfigSaveKeyMock).toHaveBeenCalledWith('sk-test-fake-key-value')
+    expect(wrapper.find('[data-ai-key-outcome]').text()).toBe('Đã lưu khoá vào keychain.')
+
+    await wrapper.find('.ai-key-field input[type="password"]').setValue('sk-')
+    expect(wrapper.find('[data-ai-key-outcome]').text()).toBe('')
+
+    await wrapper.find('.ai-key-actions .ai-field-clear-form').trigger('submit')
+    await flushPromises()
+    expect(aiConfigDeleteKeyMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('[data-ai-key-outcome]').text()).toBe('Đã xoá khoá khỏi keychain.')
+
+    wrapper.unmount()
+    settingsState.resetSettings()
+    aiConfigState.resetAiConfigSection()
+  })
+
+  it('Lưu khoá trượt ⇒ không có câu xác nhận, chỉ có câu lỗi', async () => {
+    const { settingsState, aiConfigState, SettingsOverlay } = await freshOverlay()
+    aiConfigGetMock.mockResolvedValue({ fields: emptyFields(), workTierAvailable: false, keyConfigured: false, error: null })
+    aiConfigSaveKeyMock.mockResolvedValue({ code: 'KEYCHAIN_UNAVAILABLE', message_key: 'err.ai_config.keychain_unavailable', params: {}, retryable: true })
+    await openToAiAndModel(settingsState, aiConfigState)
+
+    const wrapper = mount(SettingsOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.ai-key-field input[type="password"]').setValue('sk-test-fake-key-value')
+    await wrapper.find('#ai-key-form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.find('[data-ai-key-outcome]').text()).toBe('')
+    expect(wrapper.find('.ai-key-field .ai-field-alert[role="alert"]').text()).toContain('Keychain của hệ điều hành không trả lời')
+
+    wrapper.unmount()
+    settingsState.resetSettings()
+    aiConfigState.resetAiConfigSection()
+  })
+
   it('key_configured: null dựng một câu THỨ BA — không phải câu "chưa cấu hình" của `false`', async () => {
     const { settingsState, aiConfigState, SettingsOverlay } = await freshOverlay()
     aiConfigGetMock.mockResolvedValue({

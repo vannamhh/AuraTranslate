@@ -2059,6 +2059,8 @@
   "settings.ai_config.key_invalid": "Không được để trống hoặc chỉ có khoảng trắng.",
   "settings.ai_config.key_save": "Lưu khoá",
   "settings.ai_config.key_delete": "Xoá khoá",
+  "settings.ai_config.key_saved": "Đã lưu khoá vào keychain.",
+  "settings.ai_config.key_deleted": "Đã xoá khoá khỏi keychain.",
   "settings.ai_config.group_connection": "Kết nối",
   "settings.ai_config.group_cost": "Chi phí",
   "settings.layout.intro": "Panel kéo thả để dock, gộp thành tab và đổi kích thước; mỗi panel ẩn được hoàn toàn. Hai bố cục đầu là điểm khởi đầu của sản phẩm, preset tự lưu thì thêm, đổi tên và xoá được.",
