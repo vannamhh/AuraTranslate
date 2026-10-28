@@ -269,8 +269,9 @@ describe('GridPanel caret move cost', () => {
 
   it('the strip-anchor value: the padding cell follows the anchor in every column', async () => {
     vi.resetModules()
-    const anchor = (await import('vue')).ref<number | null>(null)
-    vi.doMock('../../src/inlineStripEligibility', () => ({ inlineStripAnchorSegmentId: anchor }))
+    const { ref } = await import('vue')
+    const anchor = ref<number | null>(null)
+    vi.doMock('../../src/inlineStripEligibility', () => ({ inlineStripAnchorSegmentId: anchor, stripTrackFloats: ref(false) }))
     const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
     const state = await import('../../src/panels/editorPanelState')
     const wrapper = mount(GridPanel, {

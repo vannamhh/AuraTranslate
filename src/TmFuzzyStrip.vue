@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Fuzzy TM strip, a grid track under the anchor row of GridPanel. It shows only when
+// Fuzzy TM popup, floating over the rows under the anchor row of GridPanel. It shows only when
 // `topmostStrip` says `tm_fuzzy` wins, so a Glossary strip always takes the slot first.
 import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { dispatch } from './commands'
@@ -164,16 +164,11 @@ const acceptErrorText = computed(() => {
         :aria-current="i === tmFuzzyAimedIndex ? 'true' : undefined"
         @mouseenter="aimTmFuzzyRow(i)"
       >
-        <span class="tmf-pct tmf-date">
-          <!-- aura-allow-text: result of t(). -->
-          {{ item.date }}
-        </span>
-        <div class="tmf-body">
-          <!-- aura-allow-text: TM target text, user data. -->
-          <p class="tmf-target">{{ item.row.target_text }}</p>
-          <p v-if="item.inUse" class="tmf-in-use">{{ t('tm.exact.in_use') }}</p>
-        </div>
         <div class="tmf-meta">
+          <span class="tmf-date">
+            <!-- aura-allow-text: result of t(). -->
+            {{ item.date }}
+          </span>
           <span class="tmf-side">
             <!-- aura-allow-text: result of t(). -->
             {{ item.row.side === 'mine' ? t('tm.fuzzy.side_mine') : t('tm.fuzzy.side_others') }}
@@ -182,16 +177,23 @@ const acceptErrorText = computed(() => {
             <!-- aura-allow-text: result of t(). -->
             {{ item.row.tier === 'work' ? t('tm.fuzzy.tier_work') : t('tm.fuzzy.tier_global') }}
           </span>
-          <button
-            type="button"
-            class="tmf-btn"
-            :disabled="tmFuzzyAccepting || tmFuzzyPendingAccept !== null"
-            @focus="aimTmFuzzyRow(i)"
-            @mousedown="aimTmFuzzyRow(i)"
-            @click="dispatch('tm.fuzzy.accept')"
-          >
-            {{ t('tm.fuzzy.accept', { n: String(i + 1) }) }}
-          </button>
+          <span v-if="item.inUse" class="tmf-in-use">{{ t('tm.exact.in_use') }}</span>
+          <span class="tmf-meta-actions">
+            <button
+              type="button"
+              class="tmf-btn"
+              :disabled="tmFuzzyAccepting || tmFuzzyPendingAccept !== null"
+              @focus="aimTmFuzzyRow(i)"
+              @mousedown="aimTmFuzzyRow(i)"
+              @click="dispatch('tm.fuzzy.accept')"
+            >
+              {{ t('tm.fuzzy.accept', { n: String(i + 1) }) }}
+            </button>
+          </span>
+        </div>
+        <div class="tmf-body">
+          <!-- aura-allow-text: TM target text, user data. -->
+          <p class="tmf-target">{{ item.row.target_text }}</p>
         </div>
       </li>
     </ol>
@@ -205,22 +207,11 @@ const acceptErrorText = computed(() => {
         :aria-current="i === tmFuzzyAimedIndex ? 'true' : undefined"
         @mouseenter="aimTmFuzzyRow(i)"
       >
-        <span class="tmf-pct">
-          {{ t('tm.fuzzy.percent', { percent: String(match.percent) }) }}
-          <small class="tmf-pct-word">{{ t('tm.fuzzy.match_word') }}</small>
-        </span>
-        <div class="tmf-body">
-          <p class="tmf-source">
-            <template v-for="(span, k) in match.diff" :key="k">
-              <del v-if="span.kind === 'delete'" class="tmf-del"><!-- aura-allow-text: TM source text, user data. -->{{ span.text }}</del>
-              <ins v-else-if="span.kind === 'insert'" class="tmf-ins"><!-- aura-allow-text: TM source text, user data. -->{{ span.text }}</ins>
-              <span v-else><!-- aura-allow-text: TM source text, user data. -->{{ span.text }}</span>
-            </template>
-          </p>
-          <!-- aura-allow-text: TM target text, user data. -->
-          <p class="tmf-target">{{ match.target_text }}</p>
-        </div>
         <div class="tmf-meta">
+          <span class="tmf-pct">
+            {{ t('tm.fuzzy.percent', { percent: String(match.percent) }) }}
+            <small class="tmf-pct-word">{{ t('tm.fuzzy.match_word') }}</small>
+          </span>
           <span class="tmf-side">
             <!-- aura-allow-text: result of t(). -->
             {{ match.side === 'mine' ? t('tm.fuzzy.side_mine') : t('tm.fuzzy.side_others') }}
@@ -231,27 +222,40 @@ const acceptErrorText = computed(() => {
           </span>
           <!-- aura-allow-text: dd-MM computed from the pair's creation time. -->
           <span v-if="date !== null" class="tmf-date-meta">{{ date }}</span>
-          <button
-            type="button"
-            class="tmf-btn"
-            :disabled="tmFuzzyAccepting || tmFuzzyPendingAccept !== null"
-            @focus="aimTmFuzzyRow(i)"
-            @mousedown="aimTmFuzzyRow(i)"
-            @click="dispatch('tm.fuzzy.accept')"
-          >
-            {{ t('tm.fuzzy.accept', { n: String(i + 1) }) }}
-          </button>
-          <button
-            type="button"
-            class="tmf-btn"
-            :aria-expanded="expanded"
-            @focus="aimTmFuzzyRow(i)"
-            @mousedown="aimTmFuzzyRow(i)"
-            @click="dispatch('tm.fuzzy.toggle_full')"
-          >
-            <!-- aura-allow-text: result of t(). -->
-            {{ expanded ? t('tm.fuzzy.collapse_sentence') : t('tm.fuzzy.full_sentence') }}
-          </button>
+          <span class="tmf-meta-actions">
+            <button
+              type="button"
+              class="tmf-btn"
+              :disabled="tmFuzzyAccepting || tmFuzzyPendingAccept !== null"
+              @focus="aimTmFuzzyRow(i)"
+              @mousedown="aimTmFuzzyRow(i)"
+              @click="dispatch('tm.fuzzy.accept')"
+            >
+              {{ t('tm.fuzzy.accept', { n: String(i + 1) }) }}
+            </button>
+            <button
+              type="button"
+              class="tmf-btn"
+              :aria-expanded="expanded"
+              @focus="aimTmFuzzyRow(i)"
+              @mousedown="aimTmFuzzyRow(i)"
+              @click="dispatch('tm.fuzzy.toggle_full')"
+            >
+              <!-- aura-allow-text: result of t(). -->
+              {{ expanded ? t('tm.fuzzy.collapse_sentence') : t('tm.fuzzy.full_sentence') }}
+            </button>
+          </span>
+        </div>
+        <div class="tmf-body">
+          <p class="tmf-source">
+            <template v-for="(span, k) in match.diff" :key="k">
+              <del v-if="span.kind === 'delete'" class="tmf-del"><!-- aura-allow-text: TM source text, user data. -->{{ span.text }}</del>
+              <ins v-else-if="span.kind === 'insert'" class="tmf-ins"><!-- aura-allow-text: TM source text, user data. -->{{ span.text }}</ins>
+              <span v-else><!-- aura-allow-text: TM source text, user data. -->{{ span.text }}</span>
+            </template>
+          </p>
+          <!-- aura-allow-text: TM target text, user data. -->
+          <p class="tmf-target">{{ match.target_text }}</p>
         </div>
       </li>
     </ol>
@@ -264,8 +268,9 @@ const acceptErrorText = computed(() => {
   flex-direction: column;
   gap: calc(var(--space-unit) * 2);
   padding: var(--space-panel-inline);
-  border-top: 1px solid var(--color-outline);
+  border: 1px solid var(--color-control-rule);
   border-left: 3px solid var(--color-tm-rule);
+  border-radius: var(--radius-default);
   background: var(--color-surface-tm);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
@@ -275,8 +280,7 @@ const acceptErrorText = computed(() => {
 
 .tm-fuzzy-strip:focus-visible {
   outline: none;
-  border-top-color: var(--color-primary);
-  border-left-color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .tmf-head {
@@ -319,10 +323,9 @@ const acceptErrorText = computed(() => {
 }
 
 .tmf-row {
-  display: grid;
-  grid-template-columns: 4em 1fr auto;
-  gap: calc(var(--space-unit) * 3);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 1);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border: 1px solid transparent;
 }
@@ -336,7 +339,6 @@ const acceptErrorText = computed(() => {
   font-size: var(--font-ui-mono);
   line-height: var(--leading-ui-mono);
   color: var(--color-tm-text);
-  text-align: right;
 }
 
 .tmf-body p {
@@ -353,7 +355,6 @@ const acceptErrorText = computed(() => {
 
 .tmf-pct-word,
 .tmf-date-meta {
-  display: block;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -369,15 +370,9 @@ const acceptErrorText = computed(() => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-  text-align: left;
-}
-
-.tmf-exact-row {
-  grid-template-columns: 8em 1fr auto;
 }
 
 .tmf-in-use {
-  margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -397,9 +392,15 @@ const acceptErrorText = computed(() => {
 
 .tmf-meta {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: calc(var(--space-unit) * 1);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
+}
+
+.tmf-meta-actions {
+  display: flex;
+  gap: calc(var(--space-unit) * 2);
+  margin-left: auto;
 }
 
 .tmf-draft {

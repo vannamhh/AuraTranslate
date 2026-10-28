@@ -68,7 +68,7 @@ beforeEach(() => {
 
 async function mountGrid() {
   vi.resetModules()
-  vi.doMock('../../src/inlineStripEligibility', () => ({ inlineStripAnchorSegmentId: anchor }))
+  vi.doMock('../../src/inlineStripEligibility', () => ({ inlineStripAnchorSegmentId: anchor, stripTrackFloats: ref(false) }))
   const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
   const state = await import('../../src/panels/editorPanelState')
   const mixin = {

@@ -102,7 +102,7 @@ Mọi chuỗi ở trên là khoá trong `vi.json`. Không chuỗi hiển thị n
 
 **Bảng chờ Glossary** — danh sách ứng viên xếp theo tần suất, mỗi dòng có số lần xuất hiện và một ví dụ ngữ cảnh. Duyệt và bỏ bằng **một phím**, không gõ (FR53). Không mục nào rời bảng chờ sang Glossary mà không qua thao tác của người dùng (FR55, AD-20).
 
-**Dải mọc dưới câu đang sửa** — mẫu chung cho mọi thứ cần hỏi người dùng *về câu này*, thay cho hộp thoại: chốt bản dịch Glossary lần đầu gặp (FR114), phát hiện Proofreader (FR83), và gợi ý TM khớp mờ (FR59). Dải đẩy văn bản xuống chứ không phủ lên nó, và thu lại ngay khi xong. 🔵 2026-10-13 (D8): slot chung trên thanh trạng thái mà Story 3.6 dựng (Ice ký 2026-08-22) bị thay; dải là một track hàng ngay dưới hàng đang sửa trong lưới. `GlossaryQuickAdd` không gắn với câu nào nên ở lại chân cửa sổ. Vị trí đáy panel trong `glossary-confirm-inline.html` không còn hiệu lực.
+**Dải mọc dưới câu đang sửa** — mẫu chung cho mọi thứ cần hỏi người dùng *về câu này*, thay cho hộp thoại: chốt bản dịch Glossary lần đầu gặp (FR114), phát hiện Proofreader (FR83), và gợi ý TM khớp mờ (FR59). Dải đẩy văn bản xuống chứ không phủ lên nó, và thu lại ngay khi xong. 🔵 2026-10-13 (D8): slot chung trên thanh trạng thái mà Story 3.6 dựng (Ice ký 2026-08-22) bị thay; dải là một track hàng ngay dưới hàng đang sửa trong lưới. `GlossaryQuickAdd` không gắn với câu nào nên ở lại chân cửa sổ. Vị trí đáy panel trong `glossary-confirm-inline.html` không còn hiệu lực. 🔵 2026-10-28 (Ice chọn): gợi ý TM không còn là dải đẩy văn bản xuống mà là popup bám ngay dưới ô bản dịch của câu đó, rộng bằng cột nguồn cộng cột bản dịch, phủ lên các câu bên dưới. Lý do: trong cột bản dịch hẹp, các cột ngày, bản dịch và nút của danh sách TM ép bản dịch thành một cột chữ vài từ mỗi dòng. Chốt Glossary và Proofreader vẫn là dải đẩy văn bản xuống.
 
 **Chỉ một dải mọc tại một thời điểm** *(quyết định 2026-08-03)*. Một câu có thể kích hoạt cả ba. Nguyên tắc xếp thứ tự: **cái nào chặn thì thắng, cái nào chỉ gợi ý thì nhường.**
 
@@ -110,7 +110,7 @@ Mọi chuỗi ở trên là khoá trong `vi.json`. Không chuỗi hiển thị n
 2. **Proofreader.** Không chặn hệ thống, nhưng **đang chờ một quyết định về chính câu này**, và bỏ qua thì nó **tích lại**.
 3. **Gợi ý TM.** Nhường cả hai. Bỏ qua chỉ tốn công gõ lại một câu, và câu đó vẫn nằm nguyên trong TM cho lần sau.
 
-Xử lý xong dải trên thì dải dưới mọc ngay tại chỗ vừa thu — không thao tác nào, và vị trí không nhảy vì cả ba cùng chiều cao đầu mục.
+Xử lý xong dải trên thì dải dưới mọc ngay tại chỗ vừa thu — không thao tác nào, và vị trí không nhảy vì cả ba cùng chiều cao đầu mục. 🔵 2026-10-28: khi dải dưới là gợi ý TM, dải trên thu lại (văn bản bên dưới dịch lên) và popup TM mở ngay dưới ô bản dịch.
 
 > **Va chạm này không có trong PRD.** `FR59`, `FR83` và `FR114` được viết độc lập, không FR nào nhắc tới FR kia; nó chỉ lộ ra khi cả ba dùng chung một mẫu thị giác trên cùng một dòng văn bản. Đây là **quyết định ở tầng thiết kế** — sai thì sửa ở đây, không phải mở lại PRD.
 
@@ -503,7 +503,7 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 
 | Bề mặt | File | Neo tới |
 |---|---|---|
-| **Khớp mờ TM** — dải mọc dưới câu đang sửa, phần trăm và diff hai phía, thuật toán theo ngôn ngữ | [`mockups/tm-fuzzy-match.html`](mockups/tm-fuzzy-match.html) | FR58 · FR59 · FR61 · FR40 |
+| **Khớp mờ TM** — dải mọc dưới câu đang sửa, phần trăm và diff hai phía, thuật toán theo ngôn ngữ | [`mockups/tm-fuzzy-match.html`](mockups/tm-fuzzy-match.html) | FR58 · FR59 · FR61 · FR40. 🔵 2026-10-28: vị trí dải trong mockup này không còn hiệu lực, gợi ý TM là popup (xem §Dải mọc dưới câu đang sửa) |
 | **Quản lý Translation Memory** — xuất xứ, nhiều bản dịch, TMX, dải sức khoẻ TM | [`mockups/tm-manage.html`](mockups/tm-manage.html) | FR56 · FR57 · FR62 · FR63 · FR64 · FR117 · FR118 |
 
 ### Bổ sung 2026-08-03 — bề mặt của Giai đoạn 5

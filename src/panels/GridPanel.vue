@@ -123,7 +123,7 @@ import {
 // 🔴 Ba nhánh từ chối của lượt khôi phục FR101 vào CHUNG một bề mặt với lỗi xác nhận/flush
 // (cột nhãn trạng thái của hàng).
 import { historyRestoreError } from './segmentHistoryState'
-import { inlineStripAnchorSegmentId } from '../inlineStripEligibility'
+import { inlineStripAnchorSegmentId, stripTrackFloats } from '../inlineStripEligibility'
 // 🔵 Story 3.4b — tiêu thụ bề mặt IPC `glossary_marks_for_chapter` (Story 3.4). `glossaryMarks`
 // là mảng TUYỆT ĐỐI (offset vào chuỗi Chương nối bằng `\n`); `glossaryMarksBySegment` chia nó
 // về từng hàng — xem doc-comment của cả hai tệp cho lý do chất nối và lý do KHÔNG gộp tập biên
@@ -1960,6 +1960,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
           :anchor-id="anchorIdIn(block)"
           :strip-row="stripRowIn(block)"
           :has-strip-track="block.index === stripBlockIndex"
+          :strip-floats="block.index === stripBlockIndex && stripTrackFloats"
         />
       </div>
     </div>

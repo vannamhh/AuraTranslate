@@ -26,7 +26,7 @@ vi.mock('../../src/proofreadState', () => ({
   proofreadStripHidden: ref(false),
 }))
 
-const { inlineStripAnchorSegmentId, proofreaderStripPlace } = await import('../../src/inlineStripEligibility')
+const { inlineStripAnchorSegmentId, proofreaderStripPlace, stripTrackFloats } = await import('../../src/inlineStripEligibility')
 
 afterEach(() => {
   tmEligible.value = false
@@ -127,5 +127,24 @@ describe('inlineStripAnchorSegmentId', () => {
     proofreadState.value = 'scanning'
     quickAddOpen.value = true
     expect(proofreaderStripPlace.value).toBeNull()
+  })
+})
+
+describe('stripTrackFloats', () => {
+  it('floats the track only while the TM strip wins', () => {
+    expect(stripTrackFloats.value).toBe(false)
+    tmEligible.value = true
+    tmSegmentId.value = 5
+    expect(stripTrackFloats.value).toBe(true)
+    confirmOpen.value = true
+    caret.value = 9
+    expect(stripTrackFloats.value).toBe(false)
+  })
+
+  it('keeps a Proofreader strip on the caret sentence in flow', () => {
+    proofreadState.value = 'done'
+    runIds.value = [3]
+    caret.value = 3
+    expect(stripTrackFloats.value).toBe(false)
   })
 })

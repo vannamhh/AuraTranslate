@@ -20,6 +20,7 @@ const props = defineProps<{
   anchorId: number | null
   stripRow: number
   hasStripTrack: boolean
+  stripFloats: boolean
 }>()
 
 const ctx = inject(GRID_BLOCK_CONTEXT)
@@ -352,7 +353,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
           id="strip-track"
           :ref="setStripTrackRef"
           class="strip-track"
-          :class="{ 'strip-track-off': stripRow < 0 }"
+          :class="{ 'strip-track-off': stripRow < 0, 'strip-track-float': stripFloats }"
           :style="stripRow < 0 ? undefined : { gridRow: stripRow + 2 }"
           @focusout="onStripFocusOut"
         >
@@ -404,6 +405,20 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
 
 .strip-track-off {
   display: none;
+}
+
+.strip-track-float {
+  grid-column: 3 / 5;
+  position: relative;
+}
+
+.strip-track-float > * {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* aura-allow-z-index: every `.cell-tgt` below is its own stacking context (`contain: layout`), so DOM order alone leaves the popup under the next rows. */
+  z-index: 1;
 }
 
 @keyframes strip-track-in {

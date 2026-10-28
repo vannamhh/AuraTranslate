@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import type { ChapterSegment } from '../../src/config/segment'
 
 const anchor = ref<number | null>(null)
+const floats = ref(false)
 
 const SEGMENTS: ChapterSegment[] = [1, 2, 3].map((id) => ({
   id,
@@ -50,11 +51,12 @@ const STUBS = {
 beforeEach(() => {
   document.body.innerHTML = ''
   anchor.value = null
+  floats.value = false
 })
 
 async function mountGrid() {
   vi.resetModules()
-  vi.doMock('../../src/inlineStripEligibility', () => ({ inlineStripAnchorSegmentId: anchor }))
+  vi.doMock('../../src/inlineStripEligibility', () => ({ inlineStripAnchorSegmentId: anchor, stripTrackFloats: floats }))
   const GridPanel = (await import('../../src/panels/GridPanel.vue')).default
   const state = await import('../../src/panels/editorPanelState')
   const wrapper = mount(GridPanel, { props: { params: {} } as never, global: { stubs: STUBS }, attachTo: document.body })
@@ -107,6 +109,21 @@ describe('GridPanel strip track', () => {
     expect((root.querySelector('.grid-block') as HTMLElement).style.gridTemplateRows).toBe('repeat(3, auto)')
     expect(root.querySelectorAll('.strip-pad')).toHaveLength(0)
     expect(root.querySelector('.strip-track')?.classList.contains('strip-track-off')).toBe(true)
+  })
+
+  it('spans the source and translation columns as a floating track only while the TM strip wins', async () => {
+    const { wrapper, root } = await mountGrid()
+    anchor.value = 2
+    await wrapper.vm.$nextTick()
+    const track = root.querySelector('.strip-track') as HTMLElement
+    expect(track.classList.contains('strip-track-float')).toBe(false)
+    floats.value = true
+    await wrapper.vm.$nextTick()
+    expect(track.classList.contains('strip-track-float')).toBe(true)
+    expect(track.style.gridRow).toBe('3')
+    floats.value = false
+    await wrapper.vm.$nextTick()
+    expect(track.classList.contains('strip-track-float')).toBe(false)
   })
 
   it('points aria-details at the strip track from the anchor translation cell only', async () => {

@@ -57,6 +57,9 @@ export const proofreaderStripPlace = computed<ProofreaderStripPlace | null>(() =
   return editorCaretSegmentId.value === null ? null : 'track'
 })
 
+/** The TM strip floats over the rows below its anchor instead of pushing them down. */
+export const stripTrackFloats = computed(() => topmostStrip(eligibleInlineStrips.value) === 'tm_fuzzy')
+
 /** Segment whose row the winning strip grows under; `null` when no strip takes a grid track. */
 export const inlineStripAnchorSegmentId = computed<number | null>(() => {
   switch (topmostStrip(eligibleInlineStrips.value)) {
