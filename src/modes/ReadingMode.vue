@@ -18,7 +18,7 @@
 // (`read_reading_run`) — không một `v-if="!s.is_omitted"` nào ở đây (không CÓ `is_omitted`
 // để mà lọc), và không một đường nào ở tệp này hỏi `chapter.status` để quyết định hiển thị
 // hay không (§Always của Story 5.12): trang chỉ render thứ Rust ĐÃ gửi.
-import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useTemplateRef, watch } from 'vue'
 import type { DeepReadonly } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
 import { hasMessageKey, t, tError } from '../i18n'
@@ -194,6 +194,27 @@ onDeactivated(() => {
   // kế tiếp nạp lại THẬT, không phải một no-op đọc từ bộ nhớ đã vứt.
   resetReading({ preserveAnchor: true })
 })
+
+const markChipSide = ref<{ segmentId: number; bridge: number } | null>(null)
+
+watch(readingAimedSegmentId, (segmentId) => {
+  markChipSide.value = segmentId === null ? null : measureMarkChipSide(segmentId)
+}, { flush: 'post' })
+
+/** `null` keeps the chip right after the last glyph: the page has no right margin wide enough for it. */
+function measureMarkChipSide(segmentId: number): { segmentId: number; bridge: number } | null {
+  const segment = root.value?.querySelector<HTMLElement>(`[data-reading-segment="${String(segmentId)}"]`)
+  const column = segment?.closest<HTMLElement>('.column')
+  const page = column?.parentElement
+  const chip = segment?.querySelector<HTMLElement>('.mark-actions')
+  const lines = segment?.querySelector('.segment-text')?.getClientRects()
+  const lastLine = lines?.item(lines.length - 1) ?? null
+  if (!(column instanceof HTMLElement) || !(page instanceof HTMLElement) || !(chip instanceof HTMLElement) || lastLine === null) return null
+  const gap = parseFloat(getComputedStyle(chip).marginInlineStart)
+  const columnRight = column.getBoundingClientRect().right
+  if (page.getBoundingClientRect().right - columnRight < chip.offsetWidth + 2 * gap) return null
+  return { segmentId, bridge: Math.round(columnRight + gap - lastLine.right) }
+}
 
 function onSegmentFocusOut(event: FocusEvent, segmentId: number): void {
   const wrapper = event.currentTarget as HTMLElement
@@ -712,7 +733,9 @@ function paragraphRuns(
                       unconfirmed: !segment.is_confirmed,
                       marked: segment.is_marked,
                       aimed: readingAimedSegmentId === segment.id,
+                      'mark-side': markChipSide?.segmentId === segment.id,
                     }"
+                    :style="markChipSide?.segmentId === segment.id ? { '--mark-bridge': `${String(markChipSide.bridge)}px` } : undefined"
                     :data-reading-segment="segment.id"
                     tabindex="0"
                     @mouseenter="setReadingAim(segment.id)"
@@ -1013,6 +1036,7 @@ function paragraphRuns(
   font-family: var(--family-read);
   font-size: var(--reading-font-size);
   line-height: var(--reading-line-height);
+  position: relative;
 }
 
 .chapter-title {
@@ -1058,7 +1082,6 @@ function paragraphRuns(
 
 .reading-segment {
   display: inline;
-  position: relative;
   border-radius: var(--radius-default);
 }
 
@@ -1071,8 +1094,8 @@ function paragraphRuns(
   background: var(--color-surface-tm);
 }
 
-/* Insets stay auto so the static position follows the last glyph; on a wrapped inline parent a
-   set inset resolves against the first line's top and lands over the sentence's own text. */
+/* The block inset stays auto so the chip sits on the sentence's last line; a set block inset
+   resolves against the first line and lands over the sentence's own text. */
 .mark-actions {
   display: none;
   position: absolute;
@@ -1084,14 +1107,18 @@ function paragraphRuns(
   background: var(--color-surface);
 }
 
-/* Pointer bridge over the margin gap and the full reading line: without it the path from the last
-   glyph to the chip crosses the next sentence, which takes the aim and hides the chip. */
+.reading-segment.mark-side .mark-actions {
+  inset-inline-start: 100%;
+}
+
+/* Pointer bridge from the last glyph to the chip over the full reading line: without it the path
+   crosses the next sentence, which takes the aim and hides the chip. */
 .mark-actions::before {
   content: '';
   position: absolute;
   inset-block-start: 0;
   block-size: 1lh;
-  inset-inline-start: calc(-1 * var(--space-panel-inline));
+  inset-inline-start: calc(-1 * var(--mark-bridge, var(--space-panel-inline)));
   inset-inline-end: 0;
   /* aura-allow-z-index: kept under the buttons inside the chip's own stacking context so it never takes their clicks */
   z-index: -1;

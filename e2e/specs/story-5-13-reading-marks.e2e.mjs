@@ -48,6 +48,46 @@ async function focusReadingSegment(segmentId) {
   await expect(focused).toBe(true)
 }
 
+async function measureMarkChip(segmentId) {
+  return browser.execute((id) => {
+    const node = document.querySelector(`[data-reading-segment="${id}"]`)
+    const text = node?.querySelector('.segment-text')
+    const chip = node?.querySelector('.mark-actions')
+    if (!(text instanceof HTMLElement) || !(chip instanceof HTMLElement)) return null
+    const lines = [...text.getClientRects()]
+    const box = chip.getBoundingClientRect()
+    const last = lines[lines.length - 1]
+    const geometry = {
+      lines: lines.length,
+      onLastLine: box.bottom > last.top && box.top < last.bottom,
+      gapAfterLastGlyph: box.left - last.right,
+      gapAfterColumn: box.left - (node.closest('.column')?.getBoundingClientRect().right ?? Infinity),
+    }
+    // Hit-testing needs the last line on screen; scroll there and restore before yielding,
+    // so no pointer event sees the moved layout.
+    const scrolled = []
+    for (let el = chip.parentElement; el !== null; el = el.parentElement) scrolled.push([el, el.scrollTop])
+    chip.scrollIntoView({ block: 'center' })
+    const tail = [...text.getClientRects()].at(-1)
+    const shown = chip.getBoundingClientRect()
+    const path = []
+    for (const y of [tail.top + 2, (tail.top + tail.bottom) / 2, tail.bottom - 2]) {
+      for (let x = tail.right - 2; x <= shown.left + 6; x += 2) {
+        const hit = document.elementFromPoint(x, y)
+        path.push(hit !== null && node.contains(hit))
+      }
+    }
+    const button = document.elementFromPoint(shown.left + shown.width / 4, (shown.top + shown.bottom) / 2)
+    for (const [el, top] of scrolled) el.scrollTop = top
+    return {
+      ...geometry,
+      pathPoints: path.length,
+      pathOffSentence: path.filter((own) => !own).length,
+      buttonHit: button instanceof Element && button.closest('.mark-affordance') !== null,
+    }
+  }, segmentId)
+}
+
 describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () => {
   it('ẩn/hiện affordance, M giữ nhịp, Enter mở exact, marker retired sống qua hai regroup và neo ID cuộn trở lại', async () => {
     await openWorkspaceWithWork(WORK_NAME, SOURCE_TEXT)
@@ -130,49 +170,36 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     )
     await expect(await affordance.getAttribute('tabindex')).toBe('-1')
 
-    const wrappedChip = await browser.execute((id) => {
-      const node = document.querySelector(`[data-reading-segment="${id}"]`)
-      const text = node?.querySelector('.segment-text')
-      const chip = node?.querySelector('.mark-actions')
-      if (!(text instanceof HTMLElement) || !(chip instanceof HTMLElement)) return null
-      const lines = [...text.getClientRects()]
-      const box = chip.getBoundingClientRect()
-      const last = lines[lines.length - 1]
-      const geometry = {
-        lines: lines.length,
-        onLastLine: box.bottom > last.top && box.top < last.bottom,
-        gapAfterLastGlyph: box.left - last.right,
-      }
-      // Hit-testing needs the last line on screen; scroll there and restore before yielding,
-      // so no pointer event sees the moved layout.
-      const scrolled = []
-      for (let el = chip.parentElement; el !== null; el = el.parentElement) scrolled.push([el, el.scrollTop])
-      chip.scrollIntoView({ block: 'center' })
-      const tail = [...text.getClientRects()].at(-1)
-      const shown = chip.getBoundingClientRect()
-      const path = []
-      for (const y of [tail.top + 2, (tail.top + tail.bottom) / 2, tail.bottom - 2]) {
-        for (let x = tail.right - 2; x <= shown.left + 6; x += 2) {
-          const hit = document.elementFromPoint(x, y)
-          path.push(hit !== null && node.contains(hit))
-        }
-      }
-      const button = document.elementFromPoint(shown.left + shown.width / 4, (shown.top + shown.bottom) / 2)
-      for (const [el, top] of scrolled) el.scrollTop = top
-      return {
-        ...geometry,
-        pathPoints: path.length,
-        pathOffSentence: path.filter((own) => !own).length,
-        buttonHit: button instanceof Element && button.closest('.mark-affordance') !== null,
-      }
+    const sideChip = await measureMarkChip(originalMarkedId)
+    await expect(sideChip?.lines).toBeGreaterThan(1)
+    await expect(sideChip?.onLastLine).toBe(true)
+    await expect(sideChip?.gapAfterColumn).toBeGreaterThanOrEqual(0)
+    await expect(sideChip?.gapAfterColumn).toBeLessThan(32)
+    await expect(sideChip?.pathPoints).toBeGreaterThan(0)
+    await expect(sideChip?.pathOffSentence).toBe(0)
+    await expect(sideChip?.buttonHit).toBe(true)
+
+    const narrowed = await browser.execute((id) => {
+      const column = document.querySelector(`[data-reading-segment="${id}"]`)?.closest('.column')
+      const page = column?.parentElement
+      if (!(column instanceof HTMLElement) || !(page instanceof HTMLElement)) return false
+      page.style.width = `${String(column.getBoundingClientRect().width + 40)}px`
+      return true
     }, originalMarkedId)
-    await expect(wrappedChip?.lines).toBeGreaterThan(1)
-    await expect(wrappedChip?.onLastLine).toBe(true)
-    await expect(wrappedChip?.gapAfterLastGlyph).toBeGreaterThanOrEqual(0)
-    await expect(wrappedChip?.gapAfterLastGlyph).toBeLessThan(32)
-    await expect(wrappedChip?.pathPoints).toBeGreaterThan(0)
-    await expect(wrappedChip?.pathOffSentence).toBe(0)
-    await expect(wrappedChip?.buttonHit).toBe(true)
+    await expect(narrowed).toBe(true)
+    await focusReadingSegment(initial.segments[0].id)
+    await focusReadingSegment(originalMarkedId)
+    const inlineChip = await measureMarkChip(originalMarkedId)
+    await browser.execute((id) => {
+      const page = document.querySelector(`[data-reading-segment="${id}"]`)?.closest('.column')?.parentElement
+      if (page instanceof HTMLElement) page.style.width = ''
+    }, originalMarkedId)
+    await expect(inlineChip?.onLastLine).toBe(true)
+    await expect(inlineChip?.gapAfterColumn).toBeLessThan(0)
+    await expect(inlineChip?.gapAfterLastGlyph).toBeGreaterThanOrEqual(0)
+    await expect(inlineChip?.gapAfterLastGlyph).toBeLessThan(32)
+    await expect(inlineChip?.pathOffSentence).toBe(0)
+    await expect(inlineChip?.buttonHit).toBe(true)
 
     const beforeMark = await browser.execute((id) => {
       const node = document.querySelector(`[data-reading-segment="${id}"]`)
