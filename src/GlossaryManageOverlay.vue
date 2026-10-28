@@ -419,7 +419,7 @@ function onKeydown(event: KeyboardEvent): void {
     <section ref="panel" class="gm-panel" tabindex="-1" role="dialog" aria-modal="true">
       <header class="gm-head">
         <h2 class="gm-title">{{ t('glossary.manage.title') }}</h2>
-        <button type="button" class="gm-close" @click="dispatch('glossary.manage.close')">
+        <button type="button" class="gm-close ui-btn ui-btn--quiet" @click="dispatch('glossary.manage.close')">
           {{ t('command.glossary.manage.close') }}
         </button>
       </header>
@@ -436,11 +436,11 @@ function onKeydown(event: KeyboardEvent): void {
       </p>
 
       <div class="gm-toolbar">
-        <fieldset class="gm-seg" role="radiogroup" :aria-label="t('glossary.manage.tier_label')">
+        <fieldset class="gm-seg ui-seg" role="radiogroup" :aria-label="t('glossary.manage.tier_label')">
           <label
             v-for="opt in TIER_OPTIONS"
             :key="opt.value"
-            class="gm-seg-opt"
+            class="gm-seg-opt ui-seg__item"
             :class="{ 'gm-seg-on': manageTierFilter === opt.value }"
           >
             <input
@@ -463,7 +463,7 @@ function onKeydown(event: KeyboardEvent): void {
           <span class="gm-sr-only">{{ t('glossary.manage.search_label') }}</span>
           <input
             type="text"
-            class="gm-input"
+            class="gm-input ui-field"
             autocomplete="off"
             :placeholder="t('glossary.manage.search_label')"
             :value="manageSearchQuery"
@@ -473,7 +473,7 @@ function onKeydown(event: KeyboardEvent): void {
         </label>
 
         <fieldset class="gm-pills" role="radiogroup" :aria-label="t('glossary.manage.category_filter_label')">
-          <label class="gm-pill" :class="{ 'gm-pill-on': manageCategoryFilter === 'all' }">
+          <label class="gm-pill ui-chip" :class="{ 'gm-pill-on': manageCategoryFilter === 'all' }">
             <input
               type="radio"
               name="gm-category"
@@ -487,7 +487,7 @@ function onKeydown(event: KeyboardEvent): void {
           <label
             v-for="opt in CATEGORY_OPTIONS"
             :key="opt.value"
-            class="gm-pill"
+            class="gm-pill ui-chip"
             :class="{ 'gm-pill-on': manageCategoryFilter === opt.value }"
           >
             <input
@@ -504,7 +504,7 @@ function onKeydown(event: KeyboardEvent): void {
 
         <label
           v-if="manageStatus === 'loaded'"
-          class="gm-pill gm-pill-pending"
+          class="gm-pill gm-pill-pending ui-chip"
           :class="{ 'gm-pill-on': manageConfirmedFilter === 'pending' }"
           :title="t('glossary.manage.pending_pill_title')"
         >
@@ -531,7 +531,7 @@ function onKeydown(event: KeyboardEvent): void {
         </div>
 
         <!-- Not disabled while editing: sorting only reorders, it doesn't change the row set. -->
-        <label class="gm-field gm-field-checkbox gm-sort">
+        <label class="gm-field gm-field-checkbox gm-sort ui-check">
           <input
             type="checkbox"
             :aria-label="t('glossary.manage.sort_by_frequency_label')"
@@ -650,7 +650,7 @@ function onKeydown(event: KeyboardEvent): void {
                   v-model="manageEditTranslation"
                   form="gm-edit-form"
                   type="text"
-                  class="gm-input gm-cell-input"
+                  class="gm-input gm-cell-input ui-field ui-field--sm"
                   autocomplete="off"
                   data-gm-edit-translation
                   :aria-label="t('glossary.manage.translation_label')"
@@ -686,7 +686,7 @@ function onKeydown(event: KeyboardEvent): void {
                   v-model="manageEditNote"
                   form="gm-edit-form"
                   type="text"
-                  class="gm-input gm-cell-input"
+                  class="gm-input gm-cell-input ui-field ui-field--sm"
                   autocomplete="off"
                   :aria-label="t('glossary.manage.note_label')"
                   :disabled="manageSaving"
@@ -719,10 +719,10 @@ function onKeydown(event: KeyboardEvent): void {
         @keydown.esc.prevent.stop="dispatch('glossary.manage.cancel')"
       >
         <div class="gm-edit-actions">
-          <button type="submit" class="gm-act gm-act-primary" :disabled="manageSaving">
+          <button type="submit" class="gm-act gm-act-primary ui-btn ui-btn--primary" :disabled="manageSaving">
             {{ t('glossary.manage.save') }}
           </button>
-          <button type="button" class="gm-act" :disabled="manageSaving" @click="dispatch('glossary.manage.cancel')">
+          <button type="button" class="gm-act ui-btn" :disabled="manageSaving" @click="dispatch('glossary.manage.cancel')">
             {{ t('glossary.manage.cancel') }}
           </button>
         </div>
@@ -759,25 +759,25 @@ function onKeydown(event: KeyboardEvent): void {
       </p>
 
       <div v-if="!manageEditing" class="gm-actions">
-        <button type="button" class="gm-act" :disabled="manageCurrentRow === null" @click="dispatch('glossary.manage.edit')">
+        <button type="button" class="gm-act ui-btn" :disabled="manageCurrentRow === null" @click="dispatch('glossary.manage.edit')">
           {{ t('glossary.manage.edit') }}
         </button>
         <button
           type="button"
-          class="gm-act"
-          :class="{ 'gm-act-danger': manageDeletePending }"
+          class="gm-act ui-btn"
+          :class="{ 'gm-act-danger': manageDeletePending, 'ui-btn--danger': manageDeletePending }"
           :disabled="manageCurrentRow === null"
           @click="dispatch('glossary.manage.delete')"
         >
           {{ t(manageDeletePending ? 'glossary.manage.delete_confirm_button' : 'glossary.manage.delete') }}
         </button>
-        <button type="button" class="gm-act" :disabled="manageCurrentRow === null" @click="dispatch('glossary.manage.promote')">
+        <button type="button" class="gm-act ui-btn" :disabled="manageCurrentRow === null" @click="dispatch('glossary.manage.promote')">
           {{ t('glossary.manage.promote') }}
         </button>
-        <button type="button" class="gm-act" @click="dispatch('glossary.manage.prev')">
+        <button type="button" class="gm-act ui-btn" @click="dispatch('glossary.manage.prev')">
           {{ t('glossary.manage.prev') }}
         </button>
-        <button type="button" class="gm-act" @click="dispatch('glossary.manage.next')">
+        <button type="button" class="gm-act ui-btn" @click="dispatch('glossary.manage.next')">
           {{ t('glossary.manage.next') }}
         </button>
       </div>
@@ -790,7 +790,7 @@ function onKeydown(event: KeyboardEvent): void {
       <div class="gm-exchange">
         <fieldset class="gm-exchange-tier" role="radiogroup" :aria-label="t('glossary.manage.exchange_tier_label')">
           <legend class="gm-field-label">{{ t('glossary.manage.exchange_tier_label') }}</legend>
-          <label class="gm-radio-label">
+          <label class="gm-radio-label ui-check">
             <input
               type="radio"
               name="gm-exchange-tier"
@@ -799,7 +799,7 @@ function onKeydown(event: KeyboardEvent): void {
             />
             {{ t('glossary.quick_add.tier_global') }}
           </label>
-          <label class="gm-radio-label">
+          <label class="gm-radio-label ui-check">
             <input
               type="radio"
               name="gm-exchange-tier"
@@ -820,7 +820,7 @@ function onKeydown(event: KeyboardEvent): void {
           -->
           <button
             type="button"
-            class="gm-act"
+            class="gm-act ui-btn"
             :disabled="glossaryExchangeBusy"
             @click="dispatch('glossary.manage.export_csv')"
           >
@@ -828,7 +828,7 @@ function onKeydown(event: KeyboardEvent): void {
           </button>
           <button
             type="button"
-            class="gm-act"
+            class="gm-act ui-btn"
             data-glossary-import-open
             :disabled="glossaryExchangeBusy"
             @click="dispatch('glossary.manage.import_csv')"
@@ -866,7 +866,7 @@ function onKeydown(event: KeyboardEvent): void {
       </div>
 
       <div class="gm-foot">
-        <button type="button" class="gm-act gm-act-primary" @click="dispatch('glossary.manage.add_term')">
+        <button type="button" class="gm-act gm-act-primary ui-btn ui-btn--primary" @click="dispatch('glossary.manage.add_term')">
           {{ t('glossary.manage.add_term') }}
         </button>
         <span class="gm-foot-hint">{{ t('glossary.manage.foot_hint') }}</span>
@@ -923,23 +923,6 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
-.gm-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.gm-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
 .gm-note {
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-sm);
@@ -975,21 +958,6 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.gm-input {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-}
-
-.gm-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .gm-status {
@@ -1091,35 +1059,19 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gm-seg {
-  display: flex;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--color-outline);
 }
 
-.gm-seg-opt,
-.gm-pill {
+.gm-seg-opt {
   position: relative;
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-  cursor: pointer;
 }
 
-.gm-seg-opt + .gm-seg-opt {
-  border-left: 1px solid var(--color-outline);
-}
-
-.gm-seg-on,
-.gm-pill-on {
-  background: var(--color-surface-accent);
-  color: var(--color-primary);
-  font-weight: var(--weight-ui-md-strong);
+.gm-pill {
+  position: relative;
 }
 
 .gm-pills {
@@ -1129,19 +1081,6 @@ function onKeydown(event: KeyboardEvent): void {
   margin: 0;
   padding: 0;
   border: none;
-}
-
-.gm-pill {
-  border: 1px solid var(--color-outline);
-}
-
-.gm-pill-pending.gm-pill-on {
-  border-color: var(--color-draft);
-}
-
-.gm-seg:has(input:focus-visible),
-.gm-pill:has(input:focus-visible) {
-  border-color: var(--color-primary);
 }
 
 .gm-field-search {
@@ -1309,39 +1248,6 @@ function onKeydown(event: KeyboardEvent): void {
   gap: var(--space-panel-inline);
 }
 
-.gm-act {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: none;
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.gm-act:not(.gm-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.gm-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
-
-.gm-act-primary {
-  color: var(--color-on-surface);
-  border-color: var(--color-primary);
-}
-
-/* Cụm D vá — nút Xoá ở nhịp HAI (chờ xác nhận): viền + chữ token màu lỗi, cộng nhãn nút đã
- * đổi chữ ở template. Không `opacity`, không màu viết thẳng (§Always của spec). */
-.gm-act-danger {
-  color: var(--color-error);
-  border-color: var(--color-error);
-}
-
 /* Story 3.10b (AD-48) — hộp thoại chọn tệp. */
 .gm-exchange {
   display: flex;
@@ -1360,16 +1266,6 @@ function onKeydown(event: KeyboardEvent): void {
   margin: 0;
   padding: 0;
   border: none;
-}
-
-.gm-radio-label {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 1);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-  cursor: pointer;
 }
 
 .gm-exchange-actions {

@@ -73,7 +73,7 @@ async function focusPicked(): Promise<void> {
       <label
         v-for="option in options"
         :key="option.value"
-        class="select-item"
+        class="select-item ui-menu-item ui-check"
         :class="{ 'select-item--disabled': option.disabled === true }"
         :data-menu-close="option.disabled === true ? undefined : ''"
       >
@@ -119,20 +119,7 @@ async function focusPicked(): Promise<void> {
   break-inside: avoid;
 }
 
-.select-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-}
-
 .select-item--disabled {
-  color: var(--color-on-surface-variant);
   cursor: not-allowed;
 }
 </style>

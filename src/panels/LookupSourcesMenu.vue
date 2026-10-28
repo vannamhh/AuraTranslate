@@ -105,7 +105,7 @@ onBeforeUnmount(() => {
 
     <ul
       v-if="sourcesMenuIsOpen"
-      class="sources-list"
+      class="sources-list ui-menu"
       role="menu"
       :aria-label="t('panel.lookup.sources_menu')"
       :style="{ maxHeight: listMaxHeight }"
@@ -116,13 +116,13 @@ onBeforeUnmount(() => {
           type="button"
           role="menuitemcheckbox"
           tabindex="-1"
-          class="sources-item"
+          class="sources-item ui-menu-item"
           :class="{ off: row.off }"
           :aria-checked="!row.off"
           :data-source-code="row.code"
           @click="dispatch('lookup.toggle_source')"
         >
-          <span class="sources-switch" aria-hidden="true"></span>
+          <span class="sources-switch ui-switch__track" aria-hidden="true"></span>
           <!-- aura-allow-text: tên nguồn — DỮ LIỆU (`display_name` của chính tệp, FR31). -->
           <span class="sources-name">{{ row.name }}</span>
           <span v-if="row.off" class="sources-count">{{ t('panel.lookup.source_off') }}</span>
@@ -146,52 +146,13 @@ onBeforeUnmount(() => {
   top: 100%;
   right: 0;
   min-width: calc(var(--space-unit) * 56);
-  margin: var(--space-unit) 0 0 0;
-  padding: var(--space-unit) 0;
-  list-style: none;
+  margin-top: var(--space-unit);
   overflow-y: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-}
-
-.sources-item {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 3);
-  width: 100%;
-  padding: var(--space-unit) calc(var(--space-unit) * 3);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-}
-
-.sources-item:hover,
-.sources-item:focus-visible {
-  background: var(--color-surface-sunken);
 }
 
 .sources-item.off .sources-name {
   color: var(--color-on-surface-variant);
   text-decoration: line-through;
-}
-
-/* The switch reads on/off by fill and by position, not by opacity. */
-.sources-switch {
-  flex: none;
-  width: calc(var(--space-unit) * 4);
-  height: calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-primary);
-  background: var(--color-primary);
-}
-
-.sources-item.off .sources-switch {
-  border-color: var(--color-outline);
-  background: none;
 }
 
 .sources-name {

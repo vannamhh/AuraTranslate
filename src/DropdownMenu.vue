@@ -87,6 +87,7 @@ onBeforeUnmount(() => {
   >
     <summary
       class="menu-trigger"
+      :class="variant === 'chip' ? ['ui-chip', { 'ui-chip--on': active === true }] : variant === 'field' ? 'ui-field ui-field--full' : 'ui-btn ui-btn--quiet'"
       :aria-label="ariaLabel"
       :aria-disabled="disabled === true ? 'true' : undefined"
       :tabindex="disabled === true ? -1 : undefined"
@@ -94,9 +95,9 @@ onBeforeUnmount(() => {
       <!-- aura-allow-text: label is the output of t() or a user-typed filter value. -->
       <span class="menu-label">{{ label }}</span>
       <!-- aura-allow-text: decorative glyph, hidden from assistive tech. -->
-      <span v-if="variant !== 'more'" class="menu-caret" aria-hidden="true">▾</span>
+      <span v-if="variant !== 'more'" class="menu-caret" :class="{ 'ui-field__caret': variant === 'field' }" aria-hidden="true">▾</span>
     </summary>
-    <div class="menu-panel">
+    <div class="menu-panel ui-menu">
       <slot />
     </div>
   </details>
@@ -109,53 +110,10 @@ onBeforeUnmount(() => {
 
 .menu-trigger {
   list-style: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 1);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
 }
 
 .menu-trigger::-webkit-details-marker {
   display: none;
-}
-
-.menu--chip .menu-trigger {
-  padding: 4px 12px;
-  border: 1px solid var(--color-outline);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-}
-
-.menu--chip.menu--active .menu-trigger {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  font-weight: var(--weight-ui-md-strong);
-}
-
-.menu--chip:not(.menu--active) .menu-trigger:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.menu--field .menu-trigger {
-  justify-content: space-between;
-  padding: 8px 8px;
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  background: var(--color-surface);
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-}
-
-.menu--field .menu-trigger:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .menu--field .menu-label {
@@ -167,14 +125,6 @@ onBeforeUnmount(() => {
 
 .menu--disabled .menu-trigger {
   pointer-events: none;
-  cursor: not-allowed;
-  color: var(--color-on-surface-variant);
-}
-
-.menu--more .menu-trigger {
-  padding: 4px 8px;
-  border-radius: 3px;
-  background: var(--color-surface);
 }
 
 .menu--field .menu-panel {
@@ -194,12 +144,6 @@ onBeforeUnmount(() => {
   right: 0;
   min-width: 180px;
   margin-top: 4px;
-  padding: 4px 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
   /* aura-allow-z-index: the panel must float above the grid cards below it. */
   z-index: 2;
 }

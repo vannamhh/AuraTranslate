@@ -105,23 +105,23 @@ onBeforeUnmount(() => {
       <AppIcon name="chevron" />
     </button>
 
-    <ul v-if="toolsMenuIsOpen" class="tools-list" role="menu" :aria-label="t('titlebar.tools.menu')">
+    <ul v-if="toolsMenuIsOpen" class="tools-list ui-menu" role="menu" :aria-label="t('titlebar.tools.menu')">
       <li role="none">
-        <button type="button" role="menuitem" tabindex="-1" class="tools-item" data-tools-item="glossary.manage.open" @click="dispatch('glossary.manage.open')">
+        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="glossary.manage.open" @click="dispatch('glossary.manage.open')">
           <span>{{ t('command.glossary.manage.open') }}</span>
           <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
           <span class="tools-chord">{{ chordOf('glossary.manage.open') }}</span>
         </button>
       </li>
       <li role="none">
-        <button type="button" role="menuitem" tabindex="-1" class="tools-item" data-tools-item="tm.manage.open" @click="dispatch('tm.manage.open')">
+        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="tm.manage.open" @click="dispatch('tm.manage.open')">
           <span>{{ t('command.tm.manage.open') }}</span>
           <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
           <span class="tools-chord">{{ chordOf('tm.manage.open') }}</span>
         </button>
       </li>
       <li role="none">
-        <button type="button" role="menuitem" tabindex="-1" class="tools-item" data-tools-item="settings.open" @click="dispatch('settings.open')">
+        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="settings.open" @click="dispatch('settings.open')">
           <span>{{ t('command.settings.open') }}</span>
           <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
           <span class="tools-chord">{{ chordOf('settings.open') }}</span>
@@ -132,7 +132,7 @@ onBeforeUnmount(() => {
           type="button"
           role="menuitem"
           tabindex="-1"
-          class="tools-item"
+          class="tools-item ui-menu-item"
           data-tools-item="ai.proofread.scope.open" @click="dispatch('ai.proofread.scope.open')"
         >
           <span>{{ t('command.ai.proofread.scope.open') }}</span>
@@ -145,7 +145,7 @@ onBeforeUnmount(() => {
           type="button"
           role="menuitem"
           tabindex="-1"
-          class="tools-item"
+          class="tools-item ui-menu-item"
           data-tools-item="ai.proofread.memory.open" @click="dispatch('ai.proofread.memory.open')"
         >
           <span>{{ t('command.ai.proofread.memory.open') }}</span>
@@ -158,7 +158,7 @@ onBeforeUnmount(() => {
           type="button"
           role="menuitem"
           tabindex="-1"
-          class="tools-item"
+          class="tools-item ui-menu-item"
           data-tools-item="export.reviewer_import.open" @click="dispatch('export.reviewer_import.open')"
         >
           <span>{{ t('command.export.reviewer_import.open') }}</span>
@@ -171,7 +171,7 @@ onBeforeUnmount(() => {
           type="button"
           role="menuitem"
           tabindex="-1"
-          class="tools-item"
+          class="tools-item ui-menu-item"
           data-tools-item="export.alignment.open" @click="dispatch('export.alignment.open')"
         >
           <span>{{ t('command.export.alignment.open') }}</span>
@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
           type="button"
           role="menuitem"
           tabindex="-1"
-          class="tools-item"
+          class="tools-item ui-menu-item"
           data-tools-item="glossary.harvest.open" @click="dispatch('glossary.harvest.open')"
         >
           <span>{{ t('command.glossary.harvest.open') }}</span>
@@ -197,13 +197,13 @@ onBeforeUnmount(() => {
           type="button"
           role="menuitemcheckbox"
           tabindex="-1"
-          class="tools-item"
+          class="tools-item ui-menu-item"
           :aria-checked="panelHeadersShown"
           data-tools-item="layout.toggle_panel_headers"
           @click="dispatch('layout.toggle_panel_headers')"
         >
           <span>{{ t('command.layout.toggle_panel_headers') }}</span>
-          <span class="tools-switch" :class="{ on: panelHeadersShown }" aria-hidden="true"></span>
+          <span class="tools-switch ui-switch__track" :class="{ on: panelHeadersShown }" aria-hidden="true"></span>
         </button>
       </li>
       <li v-if="panelHeadersSaveError !== null" role="none">
@@ -225,47 +225,10 @@ onBeforeUnmount(() => {
   top: 100%;
   right: 0;
   min-width: calc(var(--space-unit) * 56);
-  margin: 0;
-  padding: var(--space-unit) 0;
-  list-style: none;
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
 }
 
 .tools-item {
-  display: flex;
   justify-content: space-between;
-  gap: calc(var(--space-unit) * 4);
-  width: 100%;
-  padding: var(--space-unit) calc(var(--space-unit) * 3);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-}
-
-.tools-item:hover,
-.tools-item:focus-visible {
-  background: var(--color-surface-sunken);
-}
-
-/* On and off differ by fill, not by colour alone. */
-.tools-switch {
-  flex: none;
-  align-self: center;
-  width: calc(var(--space-unit) * 4);
-  height: calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-control-rule);
-  border-radius: var(--radius-sm);
-}
-
-.tools-switch.on {
-  border-color: var(--color-on-surface);
-  background: var(--color-on-surface);
 }
 
 .tools-alert {

@@ -28,6 +28,13 @@ body {
   padding: 0;
 }
 
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
 /*
  * ⚠️ Bốn khai báo dưới đây mang GIÁ TRỊ DỰ PHÒNG trong chính `var()`.
  *

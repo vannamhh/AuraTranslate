@@ -1,4 +1,4 @@
-/* Shared control classes: primary / secondary / quiet / danger / locked buttons, icon button, segmented control, key chip. */
+/* Shared control classes: buttons, icon button, field, check, switch, menu, segmented control, chip, key chip. */
 
 .ui-btn {
   display: inline-flex;
@@ -15,6 +15,10 @@
   line-height: var(--leading-ui-md);
   cursor: pointer;
   white-space: nowrap;
+}
+
+.ui-btn--lg {
+  height: 32px;
 }
 
 .ui-btn--sm {
@@ -40,7 +44,51 @@
   color: var(--color-error);
 }
 
-.ui-btn:disabled {
+.ui-btn--pair {
+  min-width: 8.5em;
+  justify-content: center;
+}
+
+.ui-btn:hover {
+  border-color: var(--color-on-surface-variant);
+}
+
+.ui-btn--primary:hover {
+  background: var(--color-on-surface-variant);
+}
+
+.ui-btn--quiet:hover {
+  border-color: var(--color-control-rule);
+}
+
+.ui-btn:active {
+  background: var(--color-surface-sunken);
+}
+
+.ui-btn--primary:active {
+  background: var(--color-on-surface-variant);
+  border-color: var(--color-on-surface-variant);
+}
+
+.ui-btn--quiet:active {
+  color: var(--color-on-surface);
+}
+
+.ui-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.ui-btn--primary:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+  border-color: var(--color-on-surface);
+}
+
+.ui-btn:disabled,
+.ui-btn:disabled:hover,
+.ui-btn[aria-disabled='true'],
+.ui-btn[aria-disabled='true']:hover {
   background: none;
   border: 1px dashed var(--color-outline);
   color: var(--color-on-surface-variant);
@@ -48,24 +96,12 @@
   cursor: default;
 }
 
-.ui-btn:focus-visible,
-.ui-icon-btn:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
-}
-
-/* `.ui-seg` clips its children, so the ring sits inside the item. */
-.ui-seg__item:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
-}
-
 .ui-icon-btn {
   display: inline-grid;
   place-items: center;
   flex: none;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border-radius: var(--radius-default);
   border: 1px solid transparent;
@@ -74,8 +110,23 @@
   cursor: pointer;
 }
 
+.ui-icon-btn--sm {
+  width: 24px;
+  height: 24px;
+}
+
+.ui-icon-btn--lg {
+  width: 32px;
+  height: 32px;
+}
+
 .ui-icon-btn:hover {
   border-color: var(--color-control-rule);
+}
+
+.ui-icon-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
 .ui-icon-btn[aria-pressed='true'] {
@@ -84,6 +135,364 @@
 
 .ui-icon-btn:disabled {
   border: 1px dashed var(--color-outline);
+  cursor: default;
+}
+
+.ui-field {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  min-width: 0;
+  height: 28px;
+  padding: 0 calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-control-rule);
+  border-radius: var(--radius-default);
+  background: var(--color-surface-sunken);
+  color: var(--color-on-surface);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+}
+
+.ui-field--lg {
+  height: 32px;
+}
+
+.ui-field--sm {
+  height: 24px;
+  padding: 0 6px; /* aura-allow-spacing: 6px keeps the 24px field's text aligned with the 8px-padded 28px one */
+}
+
+.ui-field--short {
+  flex: none;
+  width: 8ch;
+}
+
+.ui-field--medium {
+  flex: none;
+  width: 24ch;
+}
+
+.ui-field--full {
+  width: 100%;
+}
+
+.ui-field--on-sunken {
+  background: var(--color-surface);
+}
+
+.ui-field::placeholder {
+  color: var(--color-on-surface-variant);
+}
+
+.ui-field:hover {
+  border-color: var(--color-on-surface-variant);
+}
+
+.ui-field.is-invalid {
+  border-color: var(--color-error);
+}
+
+.ui-field:focus,
+.ui-field:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.ui-field:disabled,
+.ui-field[aria-disabled='true'] {
+  border-style: dashed;
+  border-color: var(--color-outline);
+  background: none;
+  color: var(--color-on-surface-variant);
+  cursor: default;
+}
+
+.ui-field-error {
+  margin: calc(var(--space-unit) * 1) 0 0;
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  color: var(--color-error);
+}
+
+textarea.ui-field {
+  display: block;
+  height: auto;
+  min-height: calc(var(--space-unit) * 21);
+  padding: 6px calc(var(--space-unit) * 2); /* aura-allow-spacing: 6px matches the field's vertical rhythm in the mockup */
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
+  resize: vertical;
+}
+
+button.ui-field,
+summary.ui-field {
+  justify-content: space-between;
+  min-width: 12ch;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-field__caret {
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-ui-sm);
+}
+
+.ui-check {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  min-height: 24px;
+  color: var(--color-on-surface);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  cursor: pointer;
+}
+
+.ui-check input {
+  display: grid;
+  place-items: center;
+  flex: none;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--color-control-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.ui-check input[type='radio'] {
+  border-radius: var(--radius-full);
+}
+
+.ui-check:hover input {
+  border-color: var(--color-on-surface-variant);
+}
+
+.ui-check input:checked {
+  background: var(--color-on-surface);
+  border-color: var(--color-on-surface);
+}
+
+.ui-check input[type='checkbox']:checked::after {
+  content: '';
+  width: 8px;
+  height: 4px;
+  margin-top: -2px; /* aura-allow-spacing: optical centring of the tick inside the 14px box */
+  border-left: 2px solid var(--color-surface);
+  border-bottom: 2px solid var(--color-surface);
+  transform: rotate(-45deg);
+}
+
+.ui-check input[type='radio']:checked::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.ui-check--bare {
+  justify-content: center;
+  gap: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.ui-check input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.ui-check input:checked:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.ui-check input:disabled {
+  border-style: dashed;
+  border-color: var(--color-outline);
+  background: none;
+  cursor: default;
+}
+
+.ui-check:has(input:disabled) {
+  color: var(--color-on-surface-variant);
+  cursor: default;
+}
+
+.ui-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-on-surface);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  cursor: pointer;
+}
+
+.ui-switch__track {
+  position: relative;
+  flex: none;
+  align-self: center;
+  width: 28px;
+  height: 16px;
+  border: 1px solid var(--color-control-rule);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+.ui-switch__track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-on-surface-variant);
+}
+
+[aria-checked='true'] > .ui-switch__track {
+  background: var(--color-on-surface);
+  border-color: var(--color-on-surface);
+}
+
+[aria-checked='true'] > .ui-switch__track::after {
+  left: 14px;
+  background: var(--color-surface);
+}
+
+:hover > .ui-switch__track {
+  border-color: var(--color-on-surface-variant);
+}
+
+[aria-checked='true']:hover > .ui-switch__track {
+  border-color: var(--color-on-surface);
+}
+
+.ui-switch:focus-visible {
+  outline: none; /* aura-allow-outline-none: the ring moves to the track, the switch's only drawn shape */
+}
+
+.ui-switch:focus-visible > .ui-switch__track {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.ui-menu {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 200px;
+  margin: 0;
+  padding: calc(var(--space-unit) * 1) 0;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-control-rule);
+  border-radius: var(--radius-default);
+}
+
+.ui-menu-item {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2);
+  width: 100%;
+  height: 28px;
+  padding: 0 calc(var(--space-unit) * 3);
+  border: 0;
+  background: none;
+  color: var(--color-on-surface);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ui-menu-item:hover {
+  background: var(--color-outline);
+}
+
+.ui-menu-item:focus-visible,
+.ui-menu-item:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.ui-menu-item:disabled,
+.ui-menu-item:has(input:disabled) {
+  background: none;
+  color: var(--color-on-surface-variant);
+  cursor: default;
+}
+
+.ui-menu-sep {
+  height: 1px;
+  margin: calc(var(--space-unit) * 1) 0;
+  background: var(--color-outline-faint);
+}
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  height: 24px;
+  padding: 0 calc(var(--space-unit) * 2);
+  border: 1px solid var(--color-control-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-on-surface-variant);
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+  cursor: pointer;
+}
+
+.ui-chip:hover {
+  border-color: var(--color-on-surface-variant);
+}
+
+.ui-chip:focus-visible,
+.ui-chip:has(input:focus-visible) {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.ui-chip--on,
+.ui-chip[aria-pressed='true'],
+.ui-chip:has(input:checked) {
+  background: var(--color-on-surface);
+  border-color: var(--color-on-surface);
+  color: var(--color-surface);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.ui-chip--on:focus-visible,
+.ui-chip[aria-pressed='true']:focus-visible,
+.ui-chip:has(input:checked):has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.ui-chip:disabled,
+.ui-chip[aria-disabled='true'],
+.ui-chip:has(input:disabled) {
+  background: var(--color-surface);
+  border-style: dashed;
+  border-color: var(--color-outline);
+  color: var(--color-on-surface-variant);
+  font-weight: inherit;
   cursor: default;
 }
 
@@ -112,7 +521,12 @@
   border-left: 1px solid var(--color-control-rule);
 }
 
-.ui-seg__item:disabled {
+.ui-seg__item:hover {
+  background: var(--color-surface-sunken);
+}
+
+.ui-seg__item:disabled,
+.ui-seg__item:has(input:disabled) {
   background: none;
   color: var(--color-on-surface-variant);
   border-left-style: dashed;
@@ -121,10 +535,18 @@
 }
 
 .ui-seg__item[aria-pressed='true'],
-.ui-seg__item[aria-selected='true'] {
+.ui-seg__item[aria-selected='true'],
+.ui-seg__item:has(input:checked) {
   background: var(--color-on-surface);
   color: var(--color-surface);
   font-weight: var(--weight-ui-md-strong);
+}
+
+/* `.ui-seg` clips its children, so the ring sits inside the item. */
+.ui-seg__item:focus-visible,
+.ui-seg__item:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .ui-seg--icons .ui-seg__item {
@@ -143,7 +565,7 @@
   line-height: var(--leading-ui-mono);
 }
 
-.ui-seg:not(:has(.ui-seg__item:not(:disabled))) {
+.ui-seg:not(:has(.ui-seg__item:not(:disabled):not(:has(input:disabled)))) {
   border-style: dashed;
   border-color: var(--color-outline);
 }
@@ -168,4 +590,19 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-control-rule);
+}
+
+@media (forced-colors: active) {
+  .ui-btn:focus-visible,
+  .ui-icon-btn:focus-visible,
+  .ui-field:focus-visible,
+  .ui-chip:focus-visible,
+  .ui-chip:has(input:focus-visible),
+  .ui-chip--on:focus-visible,
+  .ui-check input:focus-visible,
+  .ui-switch:focus-visible > .ui-switch__track,
+  .ui-menu-item:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 1px;
+  }
 }

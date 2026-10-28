@@ -475,6 +475,7 @@ describe('Nhịp xác nhận xoá — hai nhịp trong CÙNG lớp phủ (cụm 
     const deleteButton = wrapper.get('.gm-actions button:nth-of-type(2)')
     expect(deleteButton.text()).toBe(i18n.t('glossary.manage.delete'))
     expect(deleteButton.classes()).not.toContain('gm-act-danger')
+    expect(deleteButton.classes()).not.toContain('ui-btn--danger')
   }
 
   /** Khẳng định "ĐANG ở nhịp chờ" NHÌN THẤY được — badge, câu hint, nhãn nút đổi, class nguy
@@ -486,6 +487,7 @@ describe('Nhịp xác nhận xoá — hai nhịp trong CÙNG lớp phủ (cụm 
     const deleteButton = wrapper.get('.gm-actions button:nth-of-type(2)')
     expect(deleteButton.text()).toBe(i18n.t('glossary.manage.delete_confirm_button'))
     expect(deleteButton.classes()).toContain('gm-act-danger')
+    expect(deleteButton.classes()).toContain('ui-btn--danger')
   }
 
   it('⑪ nhịp MỘT ngay sau khi mở lớp phủ: hàng vào trạng thái chờ xác nhận, 0 lượt IPC, VÀ giao diện đổi đúng', async () => {
@@ -1447,6 +1449,33 @@ describe('GlossaryManageOverlay.vue — bảng mockup (tầng, vạch lề, xu�
     expect(fresh.state.manageCursor.value).toBe(2)
     expect(fresh.state.manageEditing.value).toBe(true)
     expect(target.find('input[data-gm-edit-translation]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('khi đang sửa một hàng, mọi bộ lọc khoá trong lớp ui-* mang dáng khoá', async () => {
+    const fresh = await freshOverlay({ beginGlossaryManageEdit: () => fresh.state.beginGlossaryManageEdit() })
+    const wrapper = await open(fresh)
+
+    const target = wrapper.get('#gm-option-work-11')
+    await target.trigger('mousedown')
+    await target.trigger('dblclick')
+    await wrapper.vm.$nextTick()
+
+    const tier = wrapper.findAll('input[name="gm-tier"]')
+    const category = wrapper.findAll('input[name="gm-category"]')
+    expect(tier.length).toBeGreaterThan(0)
+    expect(category.length).toBeGreaterThan(0)
+    for (const radio of tier) {
+      expect(radio.attributes('disabled')).toBeDefined()
+      expect(radio.element.closest('label')?.classList.contains('ui-seg__item')).toBe(true)
+    }
+    for (const radio of category) {
+      expect(radio.attributes('disabled')).toBeDefined()
+      expect(radio.element.closest('label')?.classList.contains('ui-chip')).toBe(true)
+    }
+    const search = wrapper.get('.gm-toolbar input[type="text"]')
+    expect(search.attributes('disabled')).toBeDefined()
+    expect(search.classes()).toContain('ui-field')
     wrapper.unmount()
   })
 

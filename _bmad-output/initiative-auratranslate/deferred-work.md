@@ -13509,3 +13509,8 @@ chính nó.
 ## Deferred from: trạng thái nút rõ ràng và đồng nhất (2026-10-28, ngoài story — Ice yêu cầu ở màn Cài đặt AI)
 
 - **64 họ class nút tự vẽ chưa theo năm bậc nút của DESIGN.md §Nút.** Đếm 65 họ trong 53 tệp `.vue` (đếm bằng `class="…"` đầu tiên của `<button>`); chỉ `.ui-btn` theo bậc, và mục AI của Cài đặt đã chuyển xong. Ice muốn cả app đồng nhất và theo ngữ cảnh, nút có chữ Xoá dùng `.ui-btn--danger`. Còn lại: Sofia cắt story, Sally duyệt ánh xạ bậc cho từng màn và quyết có thêm trạng thái hover hay không. Con trỏ: `src/tokens/controls.css`, DESIGN.md §Nút (dòng Nguy hiểm). **Chủ: Sally.**
+
+## Deferred from: hệ điều khiển lớp chung, menu dùng chung và Quản lý Glossary (2026-10-28, ticket 27 của Epic 12)
+
+- **Chưa ai thấy vòng focus `forced-colors` trên Windows.** Khối `@media (forced-colors: active)` cuối `src/tokens/controls.css` đặt `outline: 2px solid Highlight`; Vitest không có chế độ tương phản cao. Kiểm: bật Tương phản cao, Tab qua nút, ô nhập, chip, checkbox, switch, mục menu Công cụ ⇒ mỗi cái có vòng. **Chủ: B7.**
+- **Chưa ai so ảnh app thật với `he-dieu-khien.html`.** Lớp phủ Quản lý Glossary và menu Công cụ, sáng và tối; màu checkbox thật (token hay màu nhấn macOS); font `<button>` trước và sau `font: inherit` ở `reset.css`; thanh lọc Glossary lẫn 28px (ô tìm) với 24px (`ui-seg`, chip). **Chủ: Epic 12.**
