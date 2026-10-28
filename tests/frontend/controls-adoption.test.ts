@@ -9,6 +9,12 @@ const FILES = [
   'src/TitlebarToolsMenu.vue',
   'src/panels/LookupSourcesMenu.vue',
   'src/GlossaryManageOverlay.vue',
+  'src/GlossaryQueueOverlay.vue',
+  'src/GlossaryHarvestOverlay.vue',
+  'src/GlossaryImportOverlay.vue',
+  'src/GlossaryQuickAdd.vue',
+  'src/TmManageOverlay.vue',
+  'src/TmImportOverlay.vue',
 ]
 
 const CONTROL_TAGS = new Set(['button', 'input', 'textarea', 'summary'])
@@ -17,6 +23,13 @@ const STATE_PSEUDO = /:(hover|focus|focus-visible|focus-within|active|disabled)\
 
 const SHAPE_EXCEPTIONS: Record<string, string> = {
   'src/GlossaryManageOverlay.vue .gm-sr-only': 'visually hidden native radio/checkbox; its wrapping label carries the ui-* shape',
+  'src/GlossaryQueueOverlay.vue .gq-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
+  'src/TmManageOverlay.vue .tm-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
+}
+
+const LABEL_EXEMPT: Record<string, string> = {
+  'src/GlossaryQueueOverlay.vue input[name="gq-row-cursor"]':
+    'the ancestor label .gq-row-label is the whole row (display: contents); the radio is hidden and the row is the hit area',
 }
 
 interface Node {
@@ -77,6 +90,7 @@ describe('controls adopt the ui-* layer', () => {
       const bare = controls
         .filter(({ node, ancestors }) => {
           if (hasUi(classText(node))) return false
+          if (Object.hasOwn(LABEL_EXEMPT, `${file} ${node.tag}[name="${attr(node, 'name')}"]`)) return false
           const label = [...ancestors].reverse().find((a) => a.tag === 'label')
           return label === undefined || !hasUi(classText(label))
         })

@@ -492,7 +492,7 @@ function onKeydown(event: KeyboardEvent): void {
         <h2 id="tm-manage-title" class="tm-title">
           {{ t('tm.manage.title') }}
         </h2>
-        <button type="button" class="tm-close" @click="dispatch('tm.manage.close')">
+        <button type="button" class="tm-close ui-btn ui-btn--quiet" @click="dispatch('tm.manage.close')">
           {{ t('command.tm.manage.close') }}
         </button>
       </header>
@@ -506,7 +506,7 @@ function onKeydown(event: KeyboardEvent): void {
           <span class="tm-field-label">{{ t('tm.manage.search_label') }}</span>
           <input
             type="text"
-            class="tm-input"
+            class="tm-input ui-field"
             autocomplete="off"
             :value="tmManageSearchQuery"
             :disabled="tmManageEditing || tmManageSaving"
@@ -516,18 +516,21 @@ function onKeydown(event: KeyboardEvent): void {
 
         <fieldset class="tm-seg" :disabled="tmManageEditing || tmManageSaving">
           <legend class="tm-field-label">{{ t('tm.manage.tier_filter_label') }}</legend>
-          <label v-for="opt in TIER_OPTIONS" :key="opt.value" class="tm-pill" :class="{ 'tm-pill-on': tmManageTierFilter === opt.value }">
-            <input
-              type="radio"
-              name="tm-tier-filter"
-              :value="opt.value"
-              :checked="tmManageTierFilter === opt.value"
-              :disabled="opt.value === 'work' && tmManageStatus === 'loaded' && !tmManageWorkOpen"
-              @change="onTierRadio(opt.value, $event)"
-            />
-            <!-- aura-allow-text: result of t() computed in the script. -->
-            {{ tierPillLabel(opt.value, opt.labelKey) }}
-          </label>
+          <div class="ui-seg">
+            <label v-for="opt in TIER_OPTIONS" :key="opt.value" class="tm-pill ui-seg__item">
+              <input
+                type="radio"
+                name="tm-tier-filter"
+                class="tm-sr-only"
+                :value="opt.value"
+                :checked="tmManageTierFilter === opt.value"
+                :disabled="opt.value === 'work' && tmManageStatus === 'loaded' && !tmManageWorkOpen"
+                @change="onTierRadio(opt.value, $event)"
+              />
+              <!-- aura-allow-text: result of t() computed in the script. -->
+              {{ tierPillLabel(opt.value, opt.labelKey) }}
+            </label>
+          </div>
         </fieldset>
 
         <fieldset class="tm-seg" :disabled="tmManageEditing || tmManageSaving">
@@ -535,12 +538,13 @@ function onKeydown(event: KeyboardEvent): void {
           <label
             v-for="opt in ORIGIN_PILLS"
             :key="opt.value"
-            class="tm-pill"
-            :class="{ 'tm-pill-on': tmManagePairOriginFilter === opt.value, 'tm-pill-other': opt.value === 'others' }"
+            class="tm-pill ui-chip"
+            :class="{ 'tm-pill-other': opt.value === 'others' }"
           >
             <input
               type="radio"
               name="tm-origin-filter"
+              class="tm-sr-only"
               :value="opt.value"
               :checked="tmManagePairOriginFilter === opt.value"
               @change="onOriginRadio(opt.value, $event)"
@@ -551,12 +555,12 @@ function onKeydown(event: KeyboardEvent): void {
           <label
             v-for="opt in EXACT_ORIGIN_PILLS"
             :key="opt.value"
-            class="tm-pill tm-pill-minor"
-            :class="{ 'tm-pill-on': tmManagePairOriginFilter === opt.value }"
+            class="tm-pill tm-pill-minor ui-chip"
           >
             <input
               type="radio"
               name="tm-origin-filter"
+              class="tm-sr-only"
               :value="opt.value"
               :checked="tmManagePairOriginFilter === opt.value"
               @change="onOriginRadio(opt.value, $event)"
@@ -623,7 +627,7 @@ function onKeydown(event: KeyboardEvent): void {
         <p class="tm-empty">{{ t('tm.manage.empty_tm') }}</p>
         <p class="tm-empty">
           {{ t('tm.manage.empty_import_prompt') }}
-          <button type="button" class="tm-link" :disabled="glossaryExchangeBusy" @click="dispatch('tm.manage.import_tmx')">
+          <button type="button" class="tm-link ui-btn ui-btn--sm ui-btn--quiet" :disabled="glossaryExchangeBusy" @click="dispatch('tm.manage.import_tmx')">
             {{ t('tm.exchange.import_tmx') }}
           </button>
         </p>
@@ -716,15 +720,15 @@ function onKeydown(event: KeyboardEvent): void {
                 </span>
                 <span role="gridcell" class="tm-row-acts tm-cell">
                   <form @submit.prevent="onRowEdit(i)">
-                    <button type="submit" class="tm-act" :disabled="tmManageSaving || tmManageEditing">
+                    <button type="submit" class="tm-act ui-btn ui-btn--sm" :disabled="tmManageSaving || tmManageEditing">
                       {{ t('tm.manage.edit') }}
                     </button>
                   </form>
                   <form @submit.prevent="onRowDelete(i)">
                     <button
                       type="submit"
-                      class="tm-act"
-                      :class="{ 'tm-act-danger': i === tmManageCursor && tmManageDeletePending }"
+                      class="tm-act ui-btn ui-btn--sm"
+                      :class="{ 'tm-act-danger ui-btn--danger': i === tmManageCursor && tmManageDeletePending }"
                       :disabled="tmManageSaving || tmManageEditing"
                     >
                       {{ t(i === tmManageCursor && tmManageDeletePending ? 'tm.manage.delete_confirm_button' : 'tm.manage.delete') }}
@@ -751,7 +755,7 @@ function onKeydown(event: KeyboardEvent): void {
             ref="editInput"
             v-model="tmManageEditTarget"
             type="text"
-            class="tm-input"
+            class="tm-input ui-field ui-field--lg"
             autocomplete="off"
             :disabled="tmManageSaving"
           />
@@ -763,10 +767,10 @@ function onKeydown(event: KeyboardEvent): void {
           {{ t('tm.manage.hidden_copies_note', { count: String(hiddenCopiesCount) }) }}
         </p>
         <div class="tm-edit-actions">
-          <button type="submit" class="tm-act tm-act-primary" :disabled="tmManageSaving">
+          <button type="submit" class="tm-act tm-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair" :disabled="tmManageSaving">
             {{ t('tm.manage.save') }}
           </button>
-          <button type="button" class="tm-act" :disabled="tmManageSaving" @click="dispatch('tm.manage.cancel')">
+          <button type="button" class="tm-act ui-btn ui-btn--lg ui-btn--pair" :disabled="tmManageSaving" @click="dispatch('tm.manage.cancel')">
             {{ t('tm.manage.cancel') }}
           </button>
         </div>
@@ -816,7 +820,7 @@ function onKeydown(event: KeyboardEvent): void {
       <div v-if="!tmManageEditing" class="tm-actions">
         <button
           type="button"
-          class="tm-act"
+          class="tm-act ui-btn"
           :disabled="
             tmManageCurrentRow === null ||
             tmManageCurrentRow.copies.some((c) => c.tier === 'global') ||
@@ -829,17 +833,17 @@ function onKeydown(event: KeyboardEvent): void {
         <!-- aura-allow-text: result of t() computed in the script. -->
         <button
           type="button"
-          class="tm-act"
-          :class="{ 'tm-act-danger': tmManageBulkPending }"
+          class="tm-act ui-btn"
+          :class="{ 'tm-act-danger ui-btn--danger': tmManageBulkPending }"
           :disabled="tmManageOthersCount === 0"
           @click="dispatch('tm.manage.delete_others')"
         >
           {{ bulkButtonLabel }}
         </button>
-        <button type="button" class="tm-act" @click="dispatch('tm.manage.prev')">
+        <button type="button" class="tm-act ui-btn" @click="dispatch('tm.manage.prev')">
           {{ t('tm.manage.prev') }}
         </button>
-        <button type="button" class="tm-act" @click="dispatch('tm.manage.next')">
+        <button type="button" class="tm-act ui-btn" @click="dispatch('tm.manage.next')">
           {{ t('tm.manage.next') }}
         </button>
         <span class="tm-hint">{{ t('tm.manage.keys_hint') }}</span>
@@ -850,12 +854,13 @@ function onKeydown(event: KeyboardEvent): void {
         <div class="tm-policy-row">
           <button
             type="button"
-            class="tm-act tm-switch"
+            class="tm-switch ui-switch"
             role="switch"
             :aria-checked="tmPolicyOnlyMine === true"
             :disabled="tmPolicyOnlyMine === null || !tmManageWorkOpen || tmPolicyBusy"
             @click="dispatch('tm.manage.only_mine_toggle')"
           >
+            <span class="ui-switch__track" aria-hidden="true"></span>
             {{ t('tm.policy.switch_label') }}
             <!-- aura-allow-text: result of t() computed in the script. -->
             <b class="tm-switch-state">{{ policyStateLabel }}</b>
@@ -871,7 +876,7 @@ function onKeydown(event: KeyboardEvent): void {
       <div v-if="!tmManageEditing" class="tm-exchange">
         <fieldset class="tm-exchange-tier" role="radiogroup" :aria-label="t('tm.exchange.tier_label')">
           <legend class="tm-field-label">{{ t('tm.exchange.tier_label') }}</legend>
-          <label class="tm-radio-label">
+          <label class="tm-radio-label ui-check">
             <input
               type="radio"
               name="tm-exchange-tier"
@@ -882,7 +887,7 @@ function onKeydown(event: KeyboardEvent): void {
             <!-- aura-allow-text: result of t() computed in the script. -->
             {{ exchangeTierLabel('work') }}
           </label>
-          <label class="tm-radio-label">
+          <label class="tm-radio-label ui-check">
             <input
               type="radio"
               name="tm-exchange-tier"
@@ -893,7 +898,7 @@ function onKeydown(event: KeyboardEvent): void {
             {{ exchangeTierLabel('global') }}
           </label>
         </fieldset>
-        <label class="tm-radio-label">
+        <label class="tm-radio-label ui-check">
           <input
             type="checkbox"
             :checked="tmManageExportMineOnly"
@@ -911,7 +916,7 @@ function onKeydown(event: KeyboardEvent): void {
         <div class="tm-exchange-actions">
           <button
             type="button"
-            class="tm-act"
+            class="tm-act ui-btn"
             :disabled="glossaryExchangeBusy || tmManageExportCount === 0"
             @click="dispatch('tm.manage.export_tmx')"
           >
@@ -920,7 +925,7 @@ function onKeydown(event: KeyboardEvent): void {
           </button>
           <button
             type="button"
-            class="tm-act"
+            class="tm-act ui-btn"
             :disabled="glossaryExchangeBusy || tmManageExportMineCount === null || tmManageExportMineCount === 0"
             @click="dispatch('tm.manage.export_mine')"
           >
@@ -929,7 +934,7 @@ function onKeydown(event: KeyboardEvent): void {
           </button>
           <button
             type="button"
-            class="tm-act"
+            class="tm-act ui-btn"
             data-tm-import-open
             :disabled="glossaryExchangeBusy"
             @click="dispatch('tm.manage.import_tmx')"
@@ -1021,23 +1026,6 @@ function onKeydown(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.tm-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.tm-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .tm-note,
@@ -1151,6 +1139,22 @@ function onKeydown(event: KeyboardEvent): void {
   margin-bottom: var(--space-panel-block);
 }
 
+.tm-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px; /* aura-allow-spacing: geometric size of the sr-only hiding technique, not a grid gap */
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.tm-pill {
+  position: relative;
+}
+
 .tm-seg {
   display: flex;
   flex-wrap: wrap;
@@ -1159,35 +1163,6 @@ function onKeydown(event: KeyboardEvent): void {
   margin: 0;
   padding: 0;
   border: none;
-}
-
-.tm-pill {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 1);
-  padding: 0 calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-surface);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-  cursor: pointer;
-}
-
-.tm-pill:not(.tm-pill-on):has(input:focus-visible) {
-  border-color: var(--color-primary);
-}
-
-.tm-pill-on {
-  border-color: var(--color-primary);
-  background: var(--color-surface-accent);
-  color: var(--color-primary);
-  font-weight: var(--weight-ui-md-strong);
-}
-
-.tm-pill-other {
-  border-color: var(--color-tm-rule);
 }
 
 .tm-field-search {
@@ -1208,21 +1183,6 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.tm-input {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-}
-
-.tm-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .tm-empty {
@@ -1380,10 +1340,6 @@ function onKeydown(event: KeyboardEvent): void {
   display: contents;
 }
 
-.tm-row-acts .tm-act {
-  padding: 0 calc(var(--space-unit) * 2);
-}
-
 .tm-source {
   font-weight: var(--weight-ui-md-strong);
 }
@@ -1432,36 +1388,6 @@ function onKeydown(event: KeyboardEvent): void {
   gap: var(--space-panel-inline);
 }
 
-.tm-act {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: none;
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.tm-act:not(.tm-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.tm-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
-
-.tm-act-primary {
-  border-color: var(--color-primary);
-}
-
-.tm-act-danger {
-  color: var(--color-error);
-  border-color: var(--color-error);
-}
-
 .tm-exchange {
   display: flex;
   flex-direction: column;
@@ -1481,36 +1407,9 @@ function onKeydown(event: KeyboardEvent): void {
   border: none;
 }
 
-.tm-radio-label {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 1);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-  cursor: pointer;
-}
-
 .tm-exchange-actions {
   display: flex;
   gap: calc(var(--space-unit) * 2);
-}
-
-.tm-link {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-primary);
-}
-
-.tm-link:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .tm-hint {

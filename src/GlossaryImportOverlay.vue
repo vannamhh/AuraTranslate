@@ -119,7 +119,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
     >
       <header class="gi-head">
         <h2 id="gi-title" class="gi-title">{{ t('glossary.import.title') }}</h2>
-        <button type="button" class="gi-close" @click="dispatch('glossary.import.cancel')">
+        <button type="button" class="gi-close ui-btn ui-btn--quiet" @click="dispatch('glossary.import.cancel')">
           {{ t('command.glossary.import.cancel') }}
         </button>
       </header>
@@ -199,7 +199,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
               {{ t('glossary.import.conflict_file', { value: row.file_translation ?? '' }) }}
             </span>
             <div class="gi-conflict-choice" role="radiogroup" :aria-label="row.source_term">
-              <label class="gi-radio-label">
+              <label class="gi-radio-label ui-check">
                 <input
                   type="radio"
                   :name="`gi-decision-${row.source_term}`"
@@ -208,7 +208,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
                 />
                 {{ t('glossary.import.keep_mine') }}
               </label>
-              <label class="gi-radio-label">
+              <label class="gi-radio-label ui-check">
                 <input
                   type="radio"
                   :name="`gi-decision-${row.source_term}`"
@@ -232,7 +232,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
         <div class="gi-actions">
           <button
             type="button"
-            class="gi-act gi-act-primary"
+            class="gi-act gi-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair"
             :disabled="importConfirming"
             @click="dispatch('glossary.import.confirm')"
           >
@@ -244,7 +244,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
               })
             }}
           </button>
-          <button type="button" class="gi-act" :disabled="importConfirming" @click="dispatch('glossary.import.cancel')">
+          <button type="button" class="gi-act ui-btn ui-btn--lg ui-btn--pair" :disabled="importConfirming" @click="dispatch('glossary.import.cancel')">
             {{ t('command.glossary.import.cancel') }}
           </button>
         </div>
@@ -299,23 +299,6 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.gi-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.gi-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .gi-status {
@@ -424,16 +407,6 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   margin-left: auto;
 }
 
-.gi-radio-label {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 1);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-  cursor: pointer;
-}
-
 .gi-hint {
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-sm);
@@ -447,29 +420,4 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   gap: calc(var(--space-unit) * 2);
 }
 
-.gi-act {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.gi-act:not(.gi-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.gi-act-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
-}
-
-.gi-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
 </style>

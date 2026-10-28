@@ -129,7 +129,7 @@ watch(quickAddIsOpen, (open) => {
         <input
           ref="sourceInput"
           type="text"
-          class="gqa-input"
+          class="gqa-input ui-field ui-field--sm"
           autocomplete="off"
           :disabled="quickAddSaving"
           :value="quickAddSourceTerm"
@@ -142,7 +142,7 @@ watch(quickAddIsOpen, (open) => {
         <input
           v-model="quickAddTranslation"
           type="text"
-          class="gqa-input"
+          class="gqa-input ui-field ui-field--sm"
           autocomplete="off"
           :disabled="quickAddSaving"
         />
@@ -153,7 +153,7 @@ watch(quickAddIsOpen, (open) => {
         <input
           v-model="quickAddNote"
           type="text"
-          class="gqa-input"
+          class="gqa-input ui-field ui-field--sm"
           autocomplete="off"
           :disabled="quickAddSaving"
         />
@@ -171,7 +171,7 @@ watch(quickAddIsOpen, (open) => {
     <div class="gqa-row gqa-groups">
       <fieldset class="gqa-group" :disabled="quickAddSaving" @keydown="onCategoryKeydown">
         <legend>{{ t('glossary.quick_add.category_label') }}</legend>
-        <label v-for="opt in CATEGORY_OPTIONS" :key="opt.value" class="gqa-radio">
+        <label v-for="opt in CATEGORY_OPTIONS" :key="opt.value" class="gqa-radio ui-check">
           <input v-model="quickAddCategory" type="radio" name="gqa-category" :value="opt.value" />
           {{ t(opt.labelKey) }}
         </label>
@@ -179,7 +179,7 @@ watch(quickAddIsOpen, (open) => {
 
       <fieldset class="gqa-group" :disabled="quickAddSaving">
         <legend>{{ t('glossary.quick_add.tier_label') }}</legend>
-        <label class="gqa-radio">
+        <label class="gqa-radio ui-check">
           <input
             type="radio"
             name="gqa-tier"
@@ -190,7 +190,7 @@ watch(quickAddIsOpen, (open) => {
           />
           {{ t('glossary.quick_add.tier_global') }}
         </label>
-        <label class="gqa-radio">
+        <label class="gqa-radio ui-check">
           <input
             type="radio"
             name="gqa-tier"
@@ -234,14 +234,14 @@ watch(quickAddIsOpen, (open) => {
     <div class="gqa-row gqa-actions">
       <button
         type="submit"
-        class="gqa-act gqa-act-primary"
+        class="gqa-act gqa-act-primary ui-btn ui-btn--sm ui-btn--primary"
         :disabled="
           quickAddSaving || quickAddMode === 'unknown' || quickAddSourceTerm.trim() === '' || quickAddWorkTierBlocked
         "
       >
         {{ t('glossary.quick_add.save') }}
       </button>
-      <button type="button" class="gqa-act" @click="dispatch('glossary.close_quick_add')">
+      <button type="button" class="gqa-act ui-btn ui-btn--sm ui-btn--quiet" @click="dispatch('glossary.close_quick_add')">
         {{ t('glossary.quick_add.cancel') }}
       </button>
     </div>
@@ -296,21 +296,6 @@ watch(quickAddIsOpen, (open) => {
   color: var(--color-on-surface-variant);
 }
 
-.gqa-input {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-}
-
-.gqa-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .gqa-group {
   border: 1px solid var(--color-outline);
   padding: calc(var(--space-unit) * 2);
@@ -353,29 +338,4 @@ watch(quickAddIsOpen, (open) => {
   gap: calc(var(--space-unit) * 2);
 }
 
-.gqa-act {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.gqa-act:not(.gqa-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.gqa-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
-
-.gqa-act-primary {
-  color: var(--color-on-surface);
-  border-color: var(--color-primary);
-}
 </style>

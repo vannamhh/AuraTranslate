@@ -876,6 +876,23 @@ describe('failed re-list and locks', () => {
     expect(values).toEqual(['all', 'self', 'others', 'other', 'bilingual_import'])
     wrapper.unmount()
   })
+
+  it('filter radios are hidden inside a ui-* label, which alone shows the chosen state', async () => {
+    const { state, Overlay } = await freshOverlay()
+    listMock.mockResolvedValue(loaded(THREE_ROWS))
+    await state.openTmManage()
+    const wrapper = mount(Overlay, { attachTo: document.body })
+    await settle(wrapper)
+    for (const [name, shape] of [['tm-tier-filter', 'ui-seg__item'], ['tm-origin-filter', 'ui-chip']] as const) {
+      const radios = wrapper.findAll(`input[name="${name}"]`)
+      expect(radios.length).toBeGreaterThan(1)
+      for (const radio of radios) {
+        expect(radio.classes()).toContain('tm-sr-only')
+        expect(radio.element.closest('label')?.classList.contains(shape)).toBe(true)
+      }
+    }
+    wrapper.unmount()
+  })
 })
 
 describe('collapsed row', () => {

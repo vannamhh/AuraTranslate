@@ -13514,3 +13514,7 @@ chính nó.
 
 - **Chưa ai thấy vòng focus `forced-colors` trên Windows.** Khối `@media (forced-colors: active)` cuối `src/tokens/controls.css` đặt `outline: 2px solid Highlight`; Vitest không có chế độ tương phản cao. Kiểm: bật Tương phản cao, Tab qua nút, ô nhập, chip, checkbox, switch, mục menu Công cụ ⇒ mỗi cái có vòng. **Chủ: B7.**
 - **Chưa ai so ảnh app thật với `he-dieu-khien.html`.** Lớp phủ Quản lý Glossary và menu Công cụ, sáng và tối; màu checkbox thật (token hay màu nhấn macOS); font `<button>` trước và sau `font: inherit` ở `reset.css`; thanh lọc Glossary lẫn 28px (ô tìm) với 24px (`ui-seg`, chip). **Chủ: Epic 12.**
+
+## Deferred from: hệ điều khiển các lớp phủ Glossary và TM còn lại (2026-10-28, ticket 28 của Epic 12)
+
+- **Chưa ai thấy sáu bề mặt Glossary/TM chuyển sang `ui-*` trong app thật.** `GlossaryQueueOverlay`, `GlossaryHarvestOverlay`, `GlossaryImportOverlay`, `GlossaryQuickAdd`, `TmManageOverlay`, `TmImportOverlay`, sáng và tối, cạnh `he-dieu-khien.html`; Tab qua `TmManageOverlay` và `GlossaryQuickAdd` xem dấu focus. Hai điểm cần mắt: `ui-kbd` (viền `outline`, chữ `on-surface-variant`) trong nút Chính Queue "Chấp nhận" trên nền `on-surface`; chip "nguồn khác" của TM mất viền `tm-rule` (quyết định 4). e2e `glossary-quick-add.e2e.mjs` chưa chạy sau thay đổi (cổng 1420 bận); đọc lượt e2e nightly kế tiếp. Con trỏ: `story-he-ieu-khien-cac-lop-phu-glossary-va-tm-con-lai-plan.md`. **Chủ: Epic 12.**

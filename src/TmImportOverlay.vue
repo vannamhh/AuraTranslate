@@ -79,7 +79,7 @@ function trapTab(event: KeyboardEvent): void {
     <section ref="panel" class="ti-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="ti-title">
       <header class="ti-head">
         <h2 id="ti-title" class="ti-title">{{ t('tm.import.title') }}</h2>
-        <button type="button" class="ti-close" @click="dispatch('tm.import.cancel')">
+        <button type="button" class="ti-close ui-btn ui-btn--quiet" @click="dispatch('tm.import.cancel')">
           {{ t('command.tm.import.cancel') }}
         </button>
       </header>
@@ -110,7 +110,7 @@ function trapTab(event: KeyboardEvent): void {
           </div>
         </dl>
         <p v-if="tmImportPreview.tier === 'global'" class="ti-note">{{ t('tm.exchange.global_note') }}</p>
-        <label class="ti-own">
+        <label class="ti-own ui-check">
           <input v-model="tmImportFileIsMine" type="checkbox" :disabled="tmImportConfirming" />
           <span>{{ t('tm.import.file_is_mine_label') }}</span>
         </label>
@@ -136,14 +136,14 @@ function trapTab(event: KeyboardEvent): void {
         <div class="ti-actions">
           <button
             type="button"
-            class="ti-act ti-act-primary"
+            class="ti-act ti-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair"
             :disabled="tmImportConfirming"
             @click="dispatch('tm.import.confirm')"
           >
             <!-- aura-allow-text: result of t() with the count interpolated. -->
             {{ t('tm.import.confirm_button', { count: String(tmImportPreview.new_count) }) }}
           </button>
-          <button type="button" class="ti-act" :disabled="tmImportConfirming" @click="dispatch('tm.import.cancel')">
+          <button type="button" class="ti-act ui-btn ui-btn--lg ui-btn--pair" :disabled="tmImportConfirming" @click="dispatch('tm.import.cancel')">
             {{ t('command.tm.import.cancel') }}
           </button>
         </div>
@@ -198,23 +198,6 @@ function trapTab(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.ti-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.ti-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .ti-status {
@@ -301,29 +284,4 @@ function trapTab(event: KeyboardEvent): void {
   gap: calc(var(--space-unit) * 2);
 }
 
-.ti-act {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.ti-act:not(.ti-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.ti-act-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
-}
-
-.ti-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
 </style>

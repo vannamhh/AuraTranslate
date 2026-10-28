@@ -73,5 +73,17 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
     expect(declarations('.ui-chip:has(input:disabled)')).toMatch(/border-style:\s*dashed/)
     expect(declarations('.ui-seg__item:has(input:disabled)')).toMatch(/border-left-style:\s*dashed/)
     expect(declarations('.ui-field:disabled')).toMatch(/border-style:\s*dashed/)
+    expect(declarations('.ui-btn:disabled')).toMatch(/border:\s*1px dashed/)
+  })
+
+  it('a label wrapping a checked hidden radio takes the chosen fill', () => {
+    expect(declarations('.ui-chip:has(input:checked)')).toMatch(/background:\s*var\(--color-on-surface\)/)
+    expect(declarations('.ui-seg__item:has(input:checked)')).toMatch(/background:\s*var\(--color-on-surface\)/)
+  })
+
+  it('a locked switch takes the dashed track and ignores hover', () => {
+    expect(declarations('.ui-switch:disabled > .ui-switch__track')).toMatch(/border:\s*1px dashed/)
+    expect(declarations('.ui-switch:disabled:hover > .ui-switch__track')).toMatch(/border:\s*1px dashed/)
+    expect(declarations('.ui-switch:disabled')).toMatch(/cursor:\s*default/)
   })
 })

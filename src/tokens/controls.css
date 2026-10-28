@@ -390,6 +390,21 @@ summary.ui-field {
   outline-offset: 1px;
 }
 
+.ui-switch:disabled {
+  color: var(--color-on-surface-variant);
+  cursor: default;
+}
+
+.ui-switch:disabled > .ui-switch__track,
+.ui-switch:disabled:hover > .ui-switch__track {
+  border: 1px dashed var(--color-outline);
+  background: none;
+}
+
+.ui-switch:disabled > .ui-switch__track::after {
+  background: var(--color-on-surface-variant);
+}
+
 .ui-menu {
   display: inline-flex;
   flex-direction: column;

@@ -251,7 +251,7 @@ function onKeydown(event: KeyboardEvent): void {
     <section ref="panel" class="gq-panel" tabindex="-1" role="dialog" aria-modal="true">
       <header class="gq-head">
         <h2 class="gq-title">{{ t('glossary.queue.title') }}</h2>
-        <button type="button" class="gq-close" @click="dispatch('glossary.queue.close')">
+        <button type="button" class="gq-close ui-btn ui-btn--quiet" @click="dispatch('glossary.queue.close')">
           {{ t('command.glossary.queue.close') }}
         </button>
       </header>
@@ -395,10 +395,10 @@ function onKeydown(event: KeyboardEvent): void {
                 <label
                   v-for="opt in CATEGORY_OPTIONS"
                   :key="opt.value"
-                  class="gq-chip"
+                  class="gq-chip ui-chip"
                   :class="{ on: row.category === opt.value }"
                 >
-                  <input v-model="currentCategoryModel" type="radio" name="gq-category" :value="opt.value" />
+                  <input v-model="currentCategoryModel" type="radio" name="gq-category" class="gq-sr-only" :value="opt.value" />
                   {{ t(opt.labelKey) }}
                   <!-- aura-allow-text: chữ số phím tắt. -->
                   <sup class="gq-chip-digit">{{ opt.digit }}</sup>
@@ -433,20 +433,20 @@ function onKeydown(event: KeyboardEvent): void {
         <p v-else-if="queueSaving" class="gq-status" role="status">{{ t('glossary.queue.saving') }}</p>
 
         <div class="gq-actions">
-          <button type="button" class="gq-act gq-act-primary" @click="dispatch('glossary.queue.accept')">
-            <!-- aura-allow-text: tên phím. --><kbd>N</kbd>{{ t('glossary.queue.accept') }}
+          <button type="button" class="gq-act gq-act-primary ui-btn ui-btn--primary" @click="dispatch('glossary.queue.accept')">
+            <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">N</kbd>{{ t('glossary.queue.accept') }}
           </button>
-          <button type="button" class="gq-act" @click="dispatch('glossary.queue.reject')">
-            <!-- aura-allow-text: tên phím. --><kbd>B</kbd>{{ t('glossary.queue.reject') }}
+          <button type="button" class="gq-act ui-btn" @click="dispatch('glossary.queue.reject')">
+            <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">B</kbd>{{ t('glossary.queue.reject') }}
           </button>
-          <button type="button" class="gq-act" @click="dispatch('glossary.queue.leave')">
-            <!-- aura-allow-text: tên phím. --><kbd>Space</kbd>{{ t('glossary.queue.key_leave') }}
+          <button type="button" class="gq-act ui-btn" @click="dispatch('glossary.queue.leave')">
+            <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">Space</kbd>{{ t('glossary.queue.key_leave') }}
           </button>
-          <button type="button" class="gq-act" @click="dispatch('glossary.queue.prev')">
-            <!-- aura-allow-text: tên phím. --><kbd>↑</kbd>{{ t('glossary.queue.prev') }}
+          <button type="button" class="gq-act ui-btn" @click="dispatch('glossary.queue.prev')">
+            <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">↑</kbd>{{ t('glossary.queue.prev') }}
           </button>
-          <button type="button" class="gq-act" @click="dispatch('glossary.queue.next')">
-            <!-- aura-allow-text: tên phím. --><kbd>↓</kbd>{{ t('glossary.queue.next') }}
+          <button type="button" class="gq-act ui-btn" @click="dispatch('glossary.queue.next')">
+            <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">↓</kbd>{{ t('glossary.queue.next') }}
           </button>
         </div>
         <p class="gq-hint gq-stop">{{ t('glossary.queue.stop_note') }}</p>
@@ -504,23 +504,6 @@ function onKeydown(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.gq-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.gq-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .gq-empty {
@@ -722,17 +705,13 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
+.gq-chip {
+  position: relative;
+}
+
 .gq-chip-digit {
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-mono);
-}
-
-.gq-act kbd {
-  margin-right: calc(var(--space-unit) * 2);
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  line-height: var(--leading-ui-mono);
-  color: var(--color-on-surface-variant);
 }
 
 .gq-stop,
@@ -847,28 +826,6 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
-.gq-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-  cursor: pointer;
-}
-
-.gq-chip:not(.on):has(input:focus-visible) {
-  border-color: var(--color-primary);
-}
-
-.gq-chip.on {
-  color: var(--color-on-surface);
-  border-color: var(--color-primary);
-}
-
 .gq-status {
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-sm);
@@ -887,24 +844,4 @@ function onKeydown(event: KeyboardEvent): void {
   gap: var(--space-panel-inline);
 }
 
-.gq-act {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: none;
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.gq-act:not(.gq-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.gq-act-primary {
-  color: var(--color-on-surface);
-  border-color: var(--color-primary);
-}
 </style>

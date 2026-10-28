@@ -424,6 +424,29 @@ describe('overlays', () => {
     wrapper.unmount()
   })
 
+  it('while confirming, both footer buttons are disabled and carry the ui-btn classes', async () => {
+    const { manage, imp, ImportOverlay } = await fresh()
+    await manage.openTmManage()
+    openPreviewMock.mockResolvedValue({
+      outcome: 'loaded',
+      preview: preview({ tier: 'work', new_count: 2, already_count: 0, skipped_count: 0 }),
+    })
+    await imp.openTmImportPreviewOverlay('work')
+    const wrapper = mount(ImportOverlay, { attachTo: document.body })
+    await settle(wrapper)
+    let release!: (value: unknown) => void
+    confirmMock.mockReturnValue(new Promise((resolve) => (release = resolve)))
+    const pending = imp.confirmTmImportPreview()
+    await settle(wrapper)
+    const buttons = wrapper.findAll('.ti-actions button')
+    expect(buttons.map((b) => (b.element as HTMLButtonElement).disabled)).toEqual([true, true])
+    expect(buttons[0]!.classes()).toEqual(expect.arrayContaining(['ui-btn', 'ui-btn--primary']))
+    expect(buttons[1]!.classes()).toContain('ui-btn')
+    release({ summary: { inserted: 2, already_count: 0, future_dated_count: 0 }, error: null })
+    await pending
+    wrapper.unmount()
+  })
+
   it('error codes map to their own copy, with the line of a malformed file', async () => {
     const { manage, i18n, imp, ImportOverlay } = await fresh()
     await manage.openTmManage()

@@ -130,7 +130,7 @@ function onKeydown(event: KeyboardEvent): void {
     <section ref="panel" class="gh-panel" tabindex="-1" role="dialog" aria-modal="true">
       <header class="gh-head">
         <h2 class="gh-title">{{ t('glossary.harvest.title') }}</h2>
-        <button type="button" class="gh-close" @click="dispatch('glossary.harvest.close')">
+        <button type="button" class="gh-close ui-btn ui-btn--quiet" @click="dispatch('glossary.harvest.close')">
           {{ t('command.glossary.queue.close') }}
         </button>
       </header>
@@ -163,14 +163,16 @@ function onKeydown(event: KeyboardEvent): void {
             @mousedown="aimRow(i)"
             @focusin="aimRow(i)"
           >
-            <input
-              type="checkbox"
-              class="gh-check"
-              :checked="row.selected"
-              :disabled="row.outcome !== null || harvestBusy"
-              :aria-label="t('glossary.harvest.select_row', { term: row.candidate.replaced_translation ?? row.candidate.source_term })"
-              @change="onToggle(i, $event)"
-            />
+            <label class="ui-check ui-check--bare">
+              <input
+                type="checkbox"
+                class="gh-check"
+                :checked="row.selected"
+                :disabled="row.outcome !== null || harvestBusy"
+                :aria-label="t('glossary.harvest.select_row', { term: row.candidate.replaced_translation ?? row.candidate.source_term })"
+                @change="onToggle(i, $event)"
+              />
+            </label>
             <!-- aura-allow-text: DỮ LIỆU (X → Y của chính hàng). -->
             <span class="gh-term">{{ row.candidate.replaced_translation ?? row.candidate.source_term }}</span>
             <span class="gh-arrow" aria-hidden="true">→</span>
@@ -186,14 +188,14 @@ function onKeydown(event: KeyboardEvent): void {
             <span v-if="row.outcome === null" class="gh-keys">
               <button
                 type="button"
-                class="gh-mini gh-mini-primary"
+                class="gh-mini gh-mini-primary ui-btn ui-btn--sm"
                 :disabled="harvestBusy"
                 @click="dispatch('glossary.harvest.accept')"
               >
-                {{ t('glossary.harvest.accept_row') }} <!-- aura-allow-text: tên phím. --><kbd>N</kbd>
+                {{ t('glossary.harvest.accept_row') }} <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">N</kbd>
               </button>
-              <button type="button" class="gh-mini" :disabled="harvestBusy" @click="dispatch('glossary.harvest.reject')">
-                {{ t('glossary.harvest.reject_row') }} <!-- aura-allow-text: tên phím. --><kbd>B</kbd>
+              <button type="button" class="gh-mini ui-btn ui-btn--sm" :disabled="harvestBusy" @click="dispatch('glossary.harvest.reject')">
+                {{ t('glossary.harvest.reject_row') }} <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">B</kbd>
               </button>
             </span>
             <!-- aura-allow-text: dấu ✓/✕ trang trí, trạng thái bằng chữ đã có ở span sr-only. -->
@@ -215,14 +217,14 @@ function onKeydown(event: KeyboardEvent): void {
         <div class="gh-actions">
           <button
             type="button"
-            class="gh-act gh-act-primary"
+            class="gh-act gh-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair"
             :disabled="harvestBusy || harvestSelectedCount === 0"
             @click="dispatch('glossary.harvest.accept_selected')"
           >
             <!-- aura-allow-text: KẾT QUẢ của `t()` cộng một con số đếm. -->
             {{ t('glossary.harvest.accept_selected', { count: String(harvestSelectedCount) }) }}
           </button>
-          <button type="button" class="gh-act" @click="dispatch('glossary.harvest.close')">
+          <button type="button" class="gh-act ui-btn ui-btn--lg ui-btn--pair" @click="dispatch('glossary.harvest.close')">
             {{ t('glossary.harvest.leave') }}
           </button>
         </div>
@@ -278,23 +280,6 @@ function onKeydown(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.gh-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.gh-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .gh-subtitle,
@@ -386,32 +371,6 @@ function onKeydown(event: KeyboardEvent): void {
   margin-left: auto;
 }
 
-.gh-mini {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  background: none;
-  border: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface);
-}
-
-.gh-mini:not(.gh-mini-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.gh-mini-primary {
-  border-color: var(--color-primary);
-}
-
-.gh-mini kbd {
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  color: var(--color-on-surface-variant);
-}
-
 .gh-mark {
   margin-left: auto;
   font-family: var(--face-ui-mono);
@@ -432,26 +391,6 @@ function onKeydown(event: KeyboardEvent): void {
   flex-wrap: wrap;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
-}
-
-.gh-act {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: none;
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.gh-act:not(.gh-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.gh-act-primary {
-  border-color: var(--color-primary);
 }
 
 .gh-sr-only {
