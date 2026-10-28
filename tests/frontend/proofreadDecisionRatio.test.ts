@@ -26,6 +26,7 @@ async function fresh() {
         status: 'draft',
         needs_confirmation: false,
         unsigned_draft: null,
+        chapter_started: false,
         decision_id: row.id,
       })
     }
@@ -33,7 +34,7 @@ async function fresh() {
       const at = rows.findIndex((r) => r.id === args?.decisionId && r.outcome === 'accepted')
       if (at < 0) return Promise.reject({ code: 'ai_proofread.decision_missing', message_key: 'err.ai_proofread.decision_missing', params: {}, retryable: false })
       rows.splice(at, 1)
-      return Promise.resolve({ segment_id: 5, target_text: TEXT, translation_origin: 'self', status: 'draft', needs_confirmation: false, unsigned_draft: null })
+      return Promise.resolve({ segment_id: 5, target_text: TEXT, translation_origin: 'self', status: 'draft', needs_confirmation: false, unsigned_draft: null, chapter_started: false })
     }
     if (cmd === 'ai_proofread_decision_skip') {
       rows.push({ id: nextId++, kind: String(args?.kind), outcome: 'skipped' })

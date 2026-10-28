@@ -23,6 +23,9 @@ pub struct SaveOutcome {
     pub chapter_id: i64,
     /// Số hàng `segment` thật sự được `UPDATE`. **0 là hợp lệ** — một lô rỗng.
     pub saved: usize,
+    /// `true` when this write moved the Chapter `not_started` -> `in_progress`; the webview
+    /// then calls `refresh_after_chapter_started`.
+    pub chapter_started: bool,
 }
 
 /// Một `segment.id` trong lô không thuộc Chương được chỉ ⇒ **từ chối trọn lô**.
@@ -104,6 +107,7 @@ pub fn save_segment_targets(
         return Ok(SaveOutcome {
             chapter_id,
             saved: 0,
+            chapter_started: false,
         });
     }
 
@@ -167,11 +171,16 @@ pub fn save_segment_targets(
             return Err(SqlError::QueryReturnedNoRows);
         }
 
-        Ok(touched)
+        let chapter_started = crate::commands::lifecycle::mark_chapter_started(tx, chapter_id)?;
+        Ok((touched, chapter_started))
     });
 
     match outcome {
-        Ok(saved) => Ok(SaveOutcome { chapter_id, saved }),
+        Ok((saved, chapter_started)) => Ok(SaveOutcome {
+            chapter_id,
+            saved,
+            chapter_started,
+        }),
         Err(err) => {
             let taken = reject
                 .lock()
@@ -226,6 +235,9 @@ pub struct PromoteAiTranslationOutcome {
     pub needs_confirmation: bool,
     /// Bản nháp sắp bị ghi đè. `Some` khi và chỉ khi `needs_confirmation`.
     pub unsigned_draft: Option<String>,
+    /// `true` when this write moved the Chapter `not_started` -> `in_progress`; the webview
+    /// then calls `refresh_after_chapter_started`.
+    pub chapter_started: bool,
 }
 
 /// `true` when overwriting `current_text` would lose text the user never signed: it is not blank
@@ -334,7 +346,7 @@ pub fn promote_inner(
         Retired,
         OtherChapter,
         SourceChanged,
-        Row(String, String, String, bool),
+        Row(String, String, String, bool, bool),
     }
 
     let open_chapter_id = open.chapter_id;
@@ -387,6 +399,7 @@ pub fn promote_inner(
                 current_origin,
                 current_status,
                 true,
+                false,
             ));
         }
 
@@ -397,26 +410,34 @@ pub fn promote_inner(
             TRANSLATION_ORIGIN_OTHER,
             Some(TRANSLATION_ORIGIN_OTHER),
         )?;
+        let chapter_started =
+            crate::commands::lifecycle::mark_chapter_started(tx, segment_chapter_id)?;
 
         Ok(Promoted::Row(
             payload,
             TRANSLATION_ORIGIN_OTHER.to_owned(),
             SEGMENT_STATUS_DRAFT.to_owned(),
             false,
+            chapter_started,
         ))
     })?;
 
-    let (target_text, translation_origin, status, needs_confirmation) = match outcome {
-        Promoted::Missing => return Err(segment_not_found(segment_id)),
-        Promoted::Retired => return Err(segment_retired(segment_id)),
-        Promoted::SourceChanged => return Err(segment_source_changed(segment_id)),
-        Promoted::OtherChapter => {
-            return Err(segment_not_in_open_chapter(segment_id, open_chapter_id));
-        }
-        Promoted::Row(text, pair_origin, status, needs_confirmation) => {
-            (text, pair_origin, status, needs_confirmation)
-        }
-    };
+    let (target_text, translation_origin, status, needs_confirmation, chapter_started) =
+        match outcome {
+            Promoted::Missing => return Err(segment_not_found(segment_id)),
+            Promoted::Retired => return Err(segment_retired(segment_id)),
+            Promoted::SourceChanged => return Err(segment_source_changed(segment_id)),
+            Promoted::OtherChapter => {
+                return Err(segment_not_in_open_chapter(segment_id, open_chapter_id));
+            }
+            Promoted::Row(text, pair_origin, status, needs_confirmation, chapter_started) => (
+                text,
+                pair_origin,
+                status,
+                needs_confirmation,
+                chapter_started,
+            ),
+        };
     // `target_text` already holds the draft when `needs_confirmation`: that branch of the
     // write closure above returns `current_text` unchanged (see the struct field doc).
     let unsigned_draft = needs_confirmation.then(|| target_text.clone());
@@ -428,5 +449,6 @@ pub fn promote_inner(
         status,
         needs_confirmation,
         unsigned_draft,
+        chapter_started,
     })
 }

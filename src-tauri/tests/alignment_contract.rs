@@ -1531,3 +1531,25 @@ fn merging_the_chapter_removes_its_decisions_with_the_reviewer_copy() {
     work.finish();
     rev.finish();
 }
+
+#[test]
+fn accepting_a_reviewer_change_starts_a_not_started_chapter() {
+    let (mine, reviewer) = one_changed("accept-starts");
+    let (group, segment, _row) = changed_group(&mine);
+    give_copy(&mine, segment, "dich hai");
+    mine.open
+        .store
+        .write(|tx: &Transaction<'_>| tx.execute("UPDATE chapter SET status = 'not_started'", []))
+        .expect("dat Chuong ve Chua bat dau");
+
+    let outcome =
+        review_accept_change(Some(&mine.open), mine.chapters[0], group, "dich hai", false)
+            .expect("chap nhan");
+
+    assert!(outcome.chapter_started);
+    assert_eq!(
+        mine.scalar("SELECT COUNT(*) FROM chapter WHERE id = (SELECT chapter_id FROM segment WHERE id = (SELECT MIN(id) FROM segment)) AND status = 'in_progress'"),
+        1
+    );
+    drop(reviewer);
+}

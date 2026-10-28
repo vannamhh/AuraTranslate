@@ -1176,3 +1176,111 @@ describe('modes/LibraryMode.vue — nút Nhập bản reviewer trên ô Tác ph�
     expect(buttons[0]!.attributes('disabled')).toBeUndefined()
   })
 })
+
+describe('config adapters: chapter_started refresh', () => {
+  const LIFECYCLE = { status: 'in_progress', status_is_override: false, derived_status: 'in_progress' }
+  const PROMOTE = {
+    segment_id: 5,
+    target_text: 'x',
+    translation_origin: 'self',
+    status: 'draft',
+    needs_confirmation: false,
+    unsigned_draft: null,
+  }
+  const RANGE = { segmentId: 5, expectedText: 'a', start: 0, end: 1, expectedPhrase: 'a', replacement: 'b', kind: 'spelling' as const }
+
+  type Case = { name: string; wire: Record<string, unknown>; run: () => Promise<unknown> }
+  const CASES: Case[] = [
+    {
+      name: 'save_segment_targets',
+      wire: { chapter_id: 7, saved: 1 },
+      run: async () => (await import('../../src/config/segment')).saveSegmentTargets(7, []),
+    },
+    {
+      name: 'restore_segment_version',
+      wire: { segment_id: 5, status: 'draft', restored: true, needs_confirmation: false, unsigned_draft: null },
+      run: async () => (await import('../../src/config/segment')).restoreSegmentVersion(5, 1, false),
+    },
+    {
+      name: 'promote_ai_translation',
+      wire: PROMOTE,
+      run: async () => (await import('../../src/config/segment')).promoteAiTranslation(5, 'x', false),
+    },
+    {
+      name: 'confirm_segment',
+      wire: { segment_id: 5, status: 'confirmed', version_created: true },
+      run: async () => (await import('../../src/config/segment')).confirmSegment(5),
+    },
+    {
+      name: 'accept_tm_fuzzy',
+      wire: PROMOTE,
+      run: async () => (await import('../../src/config/segment')).acceptTmFuzzy(5, 'global', 1, 'x', false),
+    },
+    {
+      name: 'accept_tm_exact',
+      wire: PROMOTE,
+      run: async () => (await import('../../src/config/segment')).acceptTmExact(5, 'global', 1, 'x', false),
+    },
+    {
+      name: 'review_accept_change',
+      wire: PROMOTE,
+      run: async () => (await import('../../src/config/alignment')).reviewAcceptChange(7, 1, 'x', false),
+    },
+    {
+      name: 'ai_proofread_accept',
+      wire: { ...PROMOTE, decision_id: 3 },
+      run: async () => (await import('../../src/config/proofread')).acceptProofreadSuggestion(RANGE),
+    },
+    {
+      name: 'ai_proofread_revert',
+      wire: PROMOTE,
+      run: async () => (await import('../../src/config/proofread')).revertProofreadSuggestion({ ...RANGE, decisionId: 3 }),
+    },
+  ]
+
+  function wireInvoke(cmd: string, wire: Record<string, unknown>, started: boolean, refresh: () => unknown) {
+    mockInvoke.mockImplementation(async (name: string) => {
+      if (name === cmd) return { ...wire, chapter_started: started }
+      if (name === 'refresh_after_chapter_started') return refresh()
+      if (name === 'list_chapters') return []
+      throw new Error(`unexpected invoke ${name}`)
+    })
+  }
+  const calls = (): string[] => mockInvoke.mock.calls.map((c) => String(c[0]))
+
+  for (const c of CASES) {
+    it(`${c.name}: chapter_started true refreshes once, then reloads the chapter list`, async () => {
+      wireInvoke(c.name, c.wire, true, () => LIFECYCLE)
+      await c.run()
+      await vi.waitFor(() => expect(calls()).toEqual([c.name, 'refresh_after_chapter_started', 'list_chapters']))
+    })
+
+    it(`${c.name}: chapter_started false never refreshes`, async () => {
+      wireInvoke(c.name, c.wire, false, () => LIFECYCLE)
+      await c.run()
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(calls()).toEqual([c.name])
+    })
+  }
+
+  it('a failed refresh skips the reload and never throws into the writer', async () => {
+    const error = { code: 'work.create_failed', message_key: 'err.work.create_failed', params: {}, retryable: false }
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    wireInvoke('save_segment_targets', { chapter_id: 7, saved: 1 }, true, () => {
+      throw error
+    })
+    const result = (await CASES[0]!.run()) as { outcome: unknown; error: unknown }
+    expect(result.error).toBeNull()
+    await vi.waitFor(() => expect(calls()).toEqual(['save_segment_targets', 'refresh_after_chapter_started']))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(calls()).toEqual(['save_segment_targets', 'refresh_after_chapter_started'])
+  })
+
+  it('an outcome without the flag is a malformed shape, not a silent false', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockInvoke.mockResolvedValue({ chapter_id: 7, saved: 1 })
+    const result = (await CASES[0]!.run()) as { outcome: unknown; error: { code: string } | null }
+    expect(result.outcome).toBeNull()
+    expect(result.error?.code).toBe('ipc.unknown')
+  })
+})

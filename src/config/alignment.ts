@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { IpcError } from '../i18n'
+import { noteChapterStarted } from './lifecycle'
 import type { PromoteAiTranslationOutcome } from './segment'
 
 export type AlignmentRowKind = 'text' | 'alt' | 'caption'
@@ -253,7 +254,8 @@ function isAcceptOutcome(value: unknown): value is PromoteAiTranslationOutcome {
     typeof value.translation_origin === 'string' &&
     (value.status === 'draft' || value.status === 'confirmed') &&
     typeof value.needs_confirmation === 'boolean' &&
-    (typeof value.unsigned_draft === 'string' || value.unsigned_draft === null)
+    (typeof value.unsigned_draft === 'string' || value.unsigned_draft === null) &&
+    typeof value.chapter_started === 'boolean'
   )
 }
 
@@ -274,6 +276,7 @@ export async function reviewAcceptChange(
       console.error(`[alignment] \`${CMD_ACCEPT_CHANGE}\` returned an unexpected shape: ${String(wire)}`)
       return { outcome: null, error: UNKNOWN_IPC_ERROR }
     }
+    void noteChapterStarted(wire)
     return { outcome: wire, error: null }
   } catch (err) {
     return { outcome: null, error: failureOf(err, CMD_ACCEPT_CHANGE) }

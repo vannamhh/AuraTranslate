@@ -36,7 +36,7 @@ pub fn review_accept_change(
         Retired,
         GroupChanged,
         TextChanged,
-        Row(String, String, String, bool),
+        Row(String, String, String, bool, bool),
     }
 
     let segment_id = change.segment_id;
@@ -67,26 +67,30 @@ pub fn review_accept_change(
             return Ok(Accepted::GroupChanged);
         }
         if !force && is_unsigned_draft(tx, segment_id, &current_text)? {
-            return Ok(Accepted::Row(current_text, current_origin, current_status, true));
+            return Ok(Accepted::Row(current_text, current_origin, current_status, true, false));
         }
         if !mark_accepted(tx, change.review_chapter_id, group_id, segment_id, change.row_id)? {
             return Ok(Accepted::GroupChanged);
         }
         write_non_user_target(tx, segment_id, &theirs, TRANSLATION_ORIGIN_OTHER, Some(TRANSLATION_ORIGIN_OTHER))?;
-        Ok(Accepted::Row(theirs, TRANSLATION_ORIGIN_OTHER.to_owned(), SEGMENT_STATUS_DRAFT.to_owned(), false))
+        let chapter_started = crate::commands::lifecycle::mark_segment_chapter_started(tx, segment_id)?;
+        Ok(Accepted::Row(theirs, TRANSLATION_ORIGIN_OTHER.to_owned(), SEGMENT_STATUS_DRAFT.to_owned(), false, chapter_started))
     })?;
 
-    let (target_text, translation_origin, status, needs_confirmation) = match outcome {
-        Accepted::Missing => return Err(segment_not_found(segment_id)),
-        Accepted::Retired => return Err(segment_retired(segment_id)),
-        Accepted::GroupChanged => {
-            return Err(alignment_error(
-                crate::core::export::AlignmentError::NotAcceptable,
-            ));
-        }
-        Accepted::TextChanged => return Err(change_text_changed(segment_id)),
-        Accepted::Row(text, written_origin, status, ask) => (text, written_origin, status, ask),
-    };
+    let (target_text, translation_origin, status, needs_confirmation, chapter_started) =
+        match outcome {
+            Accepted::Missing => return Err(segment_not_found(segment_id)),
+            Accepted::Retired => return Err(segment_retired(segment_id)),
+            Accepted::GroupChanged => {
+                return Err(alignment_error(
+                    crate::core::export::AlignmentError::NotAcceptable,
+                ));
+            }
+            Accepted::TextChanged => return Err(change_text_changed(segment_id)),
+            Accepted::Row(text, written_origin, status, ask, started) => {
+                (text, written_origin, status, ask, started)
+            }
+        };
     let unsigned_draft = needs_confirmation.then(|| target_text.clone());
     Ok(PromoteAiTranslationOutcome {
         segment_id,
@@ -95,5 +99,6 @@ pub fn review_accept_change(
         status,
         needs_confirmation,
         unsigned_draft,
+        chapter_started,
     })
 }

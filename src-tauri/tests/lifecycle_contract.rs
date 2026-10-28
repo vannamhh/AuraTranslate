@@ -19,6 +19,9 @@ use auratranslate_lib::commands::lifecycle::{
     read_work_lifecycle, set_chapter_status, set_chapters_status, set_work_status_override,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
+use auratranslate_lib::commands::segment::{
+    SegmentTargetEdit, confirm_segment, flush_segment_targets, promote_ai_translation,
+};
 use auratranslate_lib::core::library::meta::WorkMeta;
 use auratranslate_lib::core::lifecycle::LifecycleStatus;
 
@@ -727,4 +730,271 @@ fn chapter_statuses(open: &OpenWork) -> Vec<String> {
             mapped.collect()
         })
         .expect("doc status Chuong")
+}
+
+fn first_segment(open: &OpenWork, chapter_id: i64) -> i64 {
+    open.store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT id FROM segment WHERE chapter_id = ?1 ORDER BY ord LIMIT 1",
+                [chapter_id],
+                |row| row.get(0),
+            )
+        })
+        .expect("doc cau dau")
+}
+
+fn chapter_row(open: &OpenWork, chapter_id: i64) -> (String, String) {
+    open.store
+        .read(move |conn| {
+            conn.query_row(
+                "SELECT status, updated_at FROM chapter WHERE id = ?1",
+                [chapter_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+        })
+        .expect("doc Chuong")
+}
+
+fn flush_one(open: &OpenWork, chapter_id: i64, segment_id: i64, text: &str) -> bool {
+    let edits = [SegmentTargetEdit {
+        id: segment_id,
+        target_text: text.to_owned(),
+    }];
+    flush_segment_targets(Some(open), chapter_id, &edits)
+        .unwrap_or_else(|e| panic!("flush: {e:?}"))
+        .1
+        .chapter_started
+}
+
+fn sql(open: &OpenWork, statement: &'static str) {
+    open.store
+        .write(
+            move |tx: &auratranslate_lib::core::store::Transaction<'_>| tx.execute_batch(statement),
+        )
+        .unwrap_or_else(|e| panic!("sql: {e}"));
+}
+
+#[test]
+fn the_first_flush_moves_the_chapter_to_in_progress_and_reports_it() {
+    let root = temp_dir("flush-starts");
+    let opened = open_work(&root, "Flush bat dau");
+    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+
+    assert!(flush_one(&opened, chapter, segment, "Xin chao"));
+
+    assert_eq!(chapter_row(&opened, chapter).0, "in_progress");
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn a_later_flush_reports_nothing_and_leaves_the_chapter_row_alone() {
+    let root = temp_dir("flush-later");
+    let opened = open_work(&root, "Flush sau");
+    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    assert!(flush_one(&opened, chapter, segment, "Xin chao"));
+    sql(
+        &opened,
+        "UPDATE chapter SET updated_at = '2000-01-01T00:00:00.000Z'",
+    );
+
+    assert!(!flush_one(&opened, chapter, segment, "Xin chao ban"));
+
+    assert_eq!(
+        chapter_row(&opened, chapter),
+        (
+            "in_progress".to_owned(),
+            "2000-01-01T00:00:00.000Z".to_owned()
+        )
+    );
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn a_flush_that_leaves_the_translation_blank_keeps_the_chapter_not_started() {
+    let root = temp_dir("flush-blank");
+    let opened = open_work(&root, "Flush trong");
+    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+
+    for blank in ["", "   ", "\u{3000}\t\u{2009}\n"] {
+        assert!(!flush_one(&opened, chapter, segment, blank), "{blank:?}");
+        assert_eq!(chapter_row(&opened, chapter).0, "not_started", "{blank:?}");
+    }
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn a_flush_never_moves_a_paused_or_done_chapter() {
+    let root = temp_dir("flush-paused-done");
+    let mut opened = open_work(&root, "Flush tam ngung");
+    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+
+    for status in ["paused", "done"] {
+        set_chapter_status(Some(&mut opened), chapter, status).expect("dat trang thai");
+        assert!(!flush_one(&opened, chapter, segment, "Xin chao"));
+        assert_eq!(chapter_row(&opened, chapter).0, status);
+    }
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn text_on_an_omitted_or_retired_segment_does_not_start_the_chapter() {
+    let root = temp_dir("flush-omitted");
+    let opened = open_work(&root, "Flush cat bo");
+    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+
+    sql(&opened, "UPDATE segment SET is_omitted = 1");
+    assert!(!flush_one(&opened, chapter, segment, "Xin chao"));
+    sql(
+        &opened,
+        "UPDATE segment SET is_omitted = 0; \
+         INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, target_text, is_omitted, retired_at, created_at, updated_at) \
+         SELECT chapter_id, 999, 's', 1, 'chu', 0, '2026-01-01T00:00:00.000Z', 't', 't' FROM segment LIMIT 1;",
+    );
+    assert!(!flush_one(&opened, chapter, segment, ""));
+
+    assert_eq!(chapter_row(&opened, chapter).0, "not_started");
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn promoting_an_ai_translation_starts_the_chapter() {
+    let root = temp_dir("promote-starts");
+    let opened = open_work(&root, "Promote bat dau");
+    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+
+    let outcome =
+        promote_ai_translation(Some(&opened), segment, "Ban dich AI", false).expect("promote");
+
+    assert!(outcome.chapter_started);
+    assert_eq!(chapter_row(&opened, chapter).0, "in_progress");
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn refreshing_after_a_start_rewrites_meta_and_reaches_the_library_index() {
+    let root = temp_dir("refresh-after-start");
+    let side = temp_dir("refresh-after-start-side");
+    let indexer = open_indexer(&side);
+    let global = open_global(&side);
+    let mut opened = open_work(&root, "Lam moi sau khi bat dau");
+    let work_id = opened.meta.work_id.clone();
+    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    auratranslate_lib::commands::lifecycle::reindex_after_lifecycle_write(
+        Some(&indexer),
+        Some(&global),
+        &root,
+    );
+    assert!(flush_one(&opened, chapter, segment, "Xin chao"));
+    assert_eq!(
+        read_meta_from_disk(&opened.dir).status.as_deref(),
+        Some("not_started")
+    );
+
+    auratranslate_lib::commands::lifecycle::refresh_after_chapter_started_indexed(
+        Some(&mut opened),
+        Some(&indexer),
+        Some(&global),
+        &root,
+    )
+    .expect("refresh");
+
+    assert_eq!(
+        read_meta_from_disk(&opened.dir).status.as_deref(),
+        Some("in_progress")
+    );
+    assert_eq!(
+        status_in_index(&indexer, &work_id),
+        Some((Some("in_progress".to_owned()), false))
+    );
+    drop(opened);
+    indexer.close();
+    global.close();
+    cleanup(&root);
+    cleanup(&side);
+}
+
+#[test]
+fn confirming_a_prefilled_sentence_starts_the_chapter_once() {
+    let root = temp_dir("confirm-starts");
+    let opened = open_work(&root, "Confirm bat dau");
+    let (chapter, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    sql(
+        &opened,
+        "UPDATE segment SET target_text = 'Ban dich dien san' WHERE id = (SELECT id FROM segment ORDER BY ord LIMIT 1)",
+    );
+    assert_eq!(chapter_row(&opened, chapter).0, "not_started");
+
+    let first = confirm_segment(Some(&opened), segment).expect("confirm");
+    assert!(first.version_created);
+    assert!(first.chapter_started);
+    assert_eq!(chapter_row(&opened, chapter).0, "in_progress");
+
+    let again = confirm_segment(Some(&opened), segment).expect("confirm lai");
+    assert!(!again.version_created);
+    assert!(!again.chapter_started);
+    drop(opened);
+    cleanup(&root);
+}
+
+#[test]
+fn migration_42_starts_only_chapters_that_hold_a_translation_and_opening_refreshes_meta() {
+    let root = temp_dir("migration-42");
+    let opened = open_work(&root, "Di tru 42");
+    let (translated, segment) = (opened.chapter_id, first_segment(&opened, opened.chapter_id));
+    let omitted_only = add_chapter(&opened, 2, "not_started");
+    let empty = add_chapter(&opened, 3, "not_started");
+    let paused = add_chapter(&opened, 4, "paused");
+    sql(
+        &opened,
+        "INSERT INTO segment (chapter_id, ord, source_text, is_paragraph_end, target_text, is_omitted, created_at, updated_at) \
+         VALUES (2, 1, 's', 1, 'chu', 1, 't', 't'), (4, 1, 's', 1, 'chu', 0, 't', 't');",
+    );
+    assert!(flush_one(&opened, translated, segment, "Xin chao"));
+    sql(
+        &opened,
+        "UPDATE chapter SET status = 'not_started' WHERE id = 1; \
+         DELETE FROM schema_migration_log WHERE version = 42; PRAGMA user_version = 41;",
+    );
+    assert_eq!(
+        read_meta_from_disk(&opened.dir).status.as_deref(),
+        Some("not_started")
+    );
+    let indexed = auratranslate_lib::core::library::indexer::IndexedWork {
+        work_id: opened.meta.work_id.clone(),
+        atproj_path: opened.dir.clone(),
+        name: opened.meta.name.clone(),
+        source_lang: opened.meta.source_lang.clone(),
+        genre: opened.meta.genre.clone(),
+        created_at: opened.meta.created_at.clone(),
+        updated_at: opened.meta.updated_at.clone(),
+        chapter_count: opened.meta.chapter_count,
+        status: opened.meta.status.clone(),
+        status_is_override: opened.meta.status_is_override,
+        chapter_done_count: opened.meta.chapter_done_count,
+    };
+    let dir = opened.dir.clone();
+    drop(opened);
+
+    let reopened =
+        auratranslate_lib::commands::project::open_work(&indexed.work_id, Some(&indexed))
+            .expect("mo lai");
+
+    assert_eq!(
+        chapter_statuses(&reopened),
+        ["in_progress", "not_started", "not_started", "paused"]
+    );
+    assert_eq!(
+        read_meta_from_disk(&dir).status.as_deref(),
+        Some("in_progress")
+    );
+    let _ = (omitted_only, empty, paused);
+    drop(reopened);
+    cleanup(&root);
 }

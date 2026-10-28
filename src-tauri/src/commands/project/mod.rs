@@ -3391,6 +3391,20 @@ pub fn open_work(
         return Err(err.into());
     }
 
+    let meta = if (1..crate::core::store::schema::CHAPTER_STARTED_BACKFILL_VERSION)
+        .contains(&store.opened_from_version())
+    {
+        match crate::commands::lifecycle::refresh_meta_after_backfill(&store, &dir, meta) {
+            Ok(meta) => meta,
+            Err(err) => {
+                store.close();
+                return Err(err);
+            }
+        }
+    } else {
+        meta
+    };
+
     // Mở lại đúng `work.last_chapter_id` nếu hàng đó CÒN SỐNG trong `chapter` (một Chương đã
     // bị xoá/gộp sau khi được lưu ở đó để lại một giá trị "cũ", đọc được nhưng không hợp lệ --
     // xem doc-comment `WORK_LAST_CHAPTER_ID_DDL`); `NULL` hoặc cũ ⇒ rơi về Chương đầu theo

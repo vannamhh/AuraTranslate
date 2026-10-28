@@ -525,6 +525,7 @@ describe('đưa cả lô sang Bản dịch (matrix: "Đưa cả lô sang", "Đư
         status: 'draft',
         needs_confirmation: draft,
         unsigned_draft: draft ? `Nhap chua ky ${segmentId}` : null,
+        chapter_started: false,
       },
       error: null,
     }

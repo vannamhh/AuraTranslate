@@ -211,6 +211,8 @@ fn splice_proofread_range(
             declared_origin,
             Some(declared_origin),
         )?;
+        let chapter_started =
+            crate::commands::lifecycle::mark_segment_chapter_started(tx, segment_id)?;
         let decision_id = if matches!(step, DecisionStep::Accept) {
             tx.execute(
                 "INSERT INTO proof_decision (kind, outcome, decided_at) \
@@ -221,10 +223,15 @@ fn splice_proofread_range(
         } else {
             None
         };
-        Ok(Ok((new_text, declared_origin, decision_id)))
+        Ok(Ok((
+            new_text,
+            declared_origin,
+            decision_id,
+            chapter_started,
+        )))
     })?;
 
-    let (target_text, declared_origin, decision_id) = outcome?;
+    let (target_text, declared_origin, decision_id, chapter_started) = outcome?;
     Ok((
         PromoteAiTranslationOutcome {
             segment_id,
@@ -233,6 +240,7 @@ fn splice_proofread_range(
             status: SEGMENT_STATUS_DRAFT.to_owned(),
             needs_confirmation: false,
             unsigned_draft: None,
+            chapter_started,
         },
         decision_id,
     ))

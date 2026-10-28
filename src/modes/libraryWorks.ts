@@ -28,9 +28,9 @@ import { computed, readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { listLibraryWorks } from '../config/library'
 import type { WorkRow, WorkSortKey } from '../config/library'
-import { readWorkLifecycle, setChapterStatus, setWorkStatusOverride } from '../config/lifecycle'
+import { readWorkLifecycle, reloadChapterList, setChapterStatus, setWorkStatusOverride } from '../config/lifecycle'
 import type { WorkLifecycle } from '../config/lifecycle'
-import { editorChapterId } from '../panels/editorPanelState'
+import { dismissChapterDoneSuggestion, editorChapterId } from '../panels/editorPanelState'
 import type { IpcError } from '../i18n'
 
 /** Bốn giá trị trên dây — khớp `LifecycleStatus::ALL` phía Rust (`core/lifecycle/mod.rs`). */
@@ -73,6 +73,7 @@ const openWorkDerived = ref<string | null>(null)
 const openWorkLifecycleHasLoaded = ref(false)
 const openWorkBusy = ref(false)
 const openWorkError = ref<IpcError | null>(null)
+const chapterDoneError = ref<IpcError | null>(null)
 
 /** Chặn một lượt CŨ ghi đè lên state của một lượt MỚI hơn — cùng khuôn `libraryRescan.ts`.
  * Hai bộ đếm RIÊNG: khối "Tác phẩm" và khối "Tác phẩm đang mở" là hai luồng IPC độc lập. */
@@ -105,6 +106,7 @@ export const openWorkLifecycleStatus: DeepReadonly<Ref<string | null>> = readonl
 export const openWorkLifecycleDerivedStatus: DeepReadonly<Ref<string | null>> = readonly(openWorkDerived)
 export const openWorkLifecycleIsOverride: DeepReadonly<Ref<boolean>> = readonly(openWorkIsOverride)
 export const openWorkLifecycleLoaded: DeepReadonly<Ref<boolean>> = readonly(openWorkLifecycleHasLoaded)
+export const openChapterDoneError: DeepReadonly<Ref<IpcError | null>> = readonly(chapterDoneError)
 export const openWorkLifecycleBusy: DeepReadonly<Ref<boolean>> = readonly(openWorkBusy)
 export const openWorkLifecycleError: DeepReadonly<Ref<IpcError | null>> = readonly(openWorkError)
 
@@ -356,7 +358,7 @@ export async function setOpenChapterStatus(): Promise<void> {
   if (chapterId === null) return
 
   openWorkBusy.value = true
-  openWorkError.value = null
+  chapterDoneError.value = null
   const mySequence = ++lifecycleSequence
 
   const result = await setChapterStatus(chapterId, 'done')
@@ -364,10 +366,12 @@ export async function setOpenChapterStatus(): Promise<void> {
 
   openWorkBusy.value = false
   if (result.error !== null) {
-    openWorkError.value = result.error
+    chapterDoneError.value = result.error
     return
   }
   applyOpenWorkLifecycleResult(result.lifecycle)
+  dismissChapterDoneSuggestion()
+  await reloadChapterList()
 }
 
 /**
@@ -399,4 +403,5 @@ export function resetLibraryWorks(): void {
   openWorkLifecycleHasLoaded.value = false
   openWorkBusy.value = false
   openWorkError.value = null
+  chapterDoneError.value = null
 }

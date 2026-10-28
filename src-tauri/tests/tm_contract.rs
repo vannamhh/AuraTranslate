@@ -775,7 +775,7 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
                  DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN chosen_prompt_set_name; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_decision; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP TRIGGER segment_version_requires_translation_origin; ALTER TABLE segment_version DROP COLUMN translation_origin; \
-                 DROP TRIGGER glossary_entry_edit_clears_unconfirm; DROP TRIGGER glossary_entry_lifecycle_is_one_way; ALTER TABLE glossary_entry DROP COLUMN pending_confirmed_at; CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41); \
+                 DROP TRIGGER glossary_entry_edit_clears_unconfirm; DROP TRIGGER glossary_entry_lifecycle_is_one_way; ALTER TABLE glossary_entry DROP COLUMN pending_confirmed_at; CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42); \
                  PRAGMA user_version = 27;",
             )
         })
@@ -783,8 +783,8 @@ fn a_row_typed_before_step_28_is_mine_after_migration_when_confirmed_unchanged()
     let open = reopen(open);
     assert_eq!(
         open.store.schema_version(),
-        41,
-        "mo lai phai chay buoc 28 den 41 that"
+        42,
+        "mo lai phai chay buoc 28 den 42 that"
     );
 
     confirm_segment(Some(&open), ids[0]).expect("xac nhan");
@@ -814,13 +814,13 @@ fn the_step_28_backfill_copies_target_and_origin_into_the_baseline_of_every_row_
                  ALTER TABLE segment DROP COLUMN baseline_translation_origin; \
                  DROP INDEX tm_unit_source_text; \
                  DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN chosen_prompt_set_name; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_decision; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP TRIGGER segment_version_requires_translation_origin; ALTER TABLE segment_version DROP COLUMN translation_origin; \
-                 DROP TRIGGER glossary_entry_edit_clears_unconfirm; DROP TRIGGER glossary_entry_lifecycle_is_one_way; ALTER TABLE glossary_entry DROP COLUMN pending_confirmed_at; CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41); \
+                 DROP TRIGGER glossary_entry_edit_clears_unconfirm; DROP TRIGGER glossary_entry_lifecycle_is_one_way; ALTER TABLE glossary_entry DROP COLUMN pending_confirmed_at; CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; DELETE FROM schema_migration_log WHERE version IN (28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42); \
                  PRAGMA user_version = 27;",
             )
         })
         .expect("ha ve buoc 27");
     let open = reopen(open);
-    assert_eq!(open.store.schema_version(), 41);
+    assert_eq!(open.store.schema_version(), 42);
 
     let rows: Vec<(i64, String, String, String, String)> = open
         .store
@@ -1217,7 +1217,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
     let (root, open) = work("index-upgrade", "一。");
     open.store
         .write(|tx: &Transaction<'_>| {
-            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN chosen_prompt_set_name; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_decision; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DROP TRIGGER segment_version_requires_translation_origin; ALTER TABLE segment_version DROP COLUMN translation_origin; DROP TRIGGER glossary_entry_edit_clears_unconfirm; DROP TRIGGER glossary_entry_lifecycle_is_one_way; ALTER TABLE glossary_entry DROP COLUMN pending_confirmed_at; CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41); PRAGMA user_version = 28;")
+            tx.execute_batch("DROP INDEX idx_glossary_candidate_import_scan; DROP INDEX idx_glossary_candidate_review_harvest; CREATE UNIQUE INDEX idx_glossary_candidate_source_term ON glossary_candidate (source_term); ALTER TABLE glossary_candidate DROP COLUMN seen_count; ALTER TABLE glossary_candidate DROP COLUMN changed_count; ALTER TABLE glossary_candidate DROP COLUMN proposed_translation; ALTER TABLE glossary_candidate DROP COLUMN replaced_translation; ALTER TABLE work DROP COLUMN chosen_prompt_set_name; ALTER TABLE work DROP COLUMN tm_only_mine; DROP TABLE segment_unlinked; DROP TABLE proof_decision; DROP TABLE proof_scan; DROP TABLE proof_ignore; DROP TABLE review_decision; DROP TABLE alignment_member; DROP TABLE alignment_group; DROP TABLE review_row; DROP TABLE review_chapter; DROP INDEX tm_unit_source_text; DROP TRIGGER segment_version_requires_translation_origin; ALTER TABLE segment_version DROP COLUMN translation_origin; DROP TRIGGER glossary_entry_edit_clears_unconfirm; DROP TRIGGER glossary_entry_lifecycle_is_one_way; ALTER TABLE glossary_entry DROP COLUMN pending_confirmed_at; CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; DELETE FROM schema_migration_log WHERE version IN (29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42); PRAGMA user_version = 28;")
         })
         .expect("ha ve buoc 28");
     let open = reopen(open);
@@ -1231,7 +1231,7 @@ fn a_project_db_at_step_28_gains_the_source_index_at_step_29() {
             )
         })
         .expect("doc master");
-    assert_eq!((open.store.schema_version(), has_index), (41, 1));
+    assert_eq!((open.store.schema_version(), has_index), (42, 1));
     drop(open);
     let _ = fs::remove_dir_all(root);
 }
@@ -1246,7 +1246,7 @@ fn a_work_row_from_step_36_gains_the_switch_off_and_keeps_its_other_columns() {
                  ALTER TABLE work DROP COLUMN chosen_prompt_set_name; ALTER TABLE work DROP COLUMN tm_only_mine; \
                  DROP TRIGGER segment_version_requires_translation_origin; \
                  ALTER TABLE segment_version DROP COLUMN translation_origin; \
-                 DROP TRIGGER glossary_entry_edit_clears_unconfirm; DROP TRIGGER glossary_entry_lifecycle_is_one_way; ALTER TABLE glossary_entry DROP COLUMN pending_confirmed_at; CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; DELETE FROM schema_migration_log WHERE version IN (37, 38, 39, 40, 41); \
+                 DROP TRIGGER glossary_entry_edit_clears_unconfirm; DROP TRIGGER glossary_entry_lifecycle_is_one_way; ALTER TABLE glossary_entry DROP COLUMN pending_confirmed_at; CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; DELETE FROM schema_migration_log WHERE version IN (37, 38, 39, 40, 41, 42); \
                  PRAGMA user_version = 36;",
             )
         })
@@ -1266,7 +1266,7 @@ fn a_work_row_from_step_36_gains_the_switch_off_and_keeps_its_other_columns() {
             )
         })
         .expect("doc work");
-    assert_eq!((open.store.schema_version(), rows, switch), (41, 1, 0));
+    assert_eq!((open.store.schema_version(), rows, switch), (42, 1, 0));
     assert_eq!(name, name_before);
     drop(open);
     let _ = fs::remove_dir_all(root);
@@ -4046,4 +4046,54 @@ fn the_count_wire_splits_both_tiers_by_side() {
         serde_json::to_value(counted).expect("json"),
         serde_json::json!({"total": 4, "mine": 2, "others": 2})
     );
+}
+
+fn chapter_status_of(w: &Wired) -> String {
+    w.with_open(|open| {
+        open.store
+            .read(|conn| conn.query_row("SELECT status FROM chapter LIMIT 1", [], |r| r.get(0)))
+            .expect("doc trang thai Chuong")
+    })
+}
+
+#[test]
+fn picking_an_exact_target_starts_the_chapter_and_reports_it() {
+    let (w, id, got) = two_targets("ex-starts");
+    let b = got
+        .exact
+        .iter()
+        .find(|x| x.target_text == "B")
+        .expect("hang B");
+    assert_eq!(chapter_status_of(&w), "not_started");
+
+    let out = pick(&w, id, b.tier, b.unit_id, &b.target_text, false).expect("chon");
+
+    assert!(out.chapter_started);
+    assert_eq!(chapter_status_of(&w), "in_progress");
+}
+
+#[test]
+fn accepting_a_fuzzy_row_starts_the_chapter_and_reports_it() {
+    let w = wired("fz-starts", FUZZY_CURRENT, true);
+    w.seed_work(FUZZY_NEAR, "near", "self");
+    let id = w.first_id();
+    let m = fuzzy(&w, id).matches.remove(0);
+
+    let out = accept(&w, id, &m, false).expect("nhan");
+
+    assert!(out.chapter_started);
+    assert_eq!(chapter_status_of(&w), "in_progress");
+}
+
+#[test]
+fn the_exact_tm_prefill_on_load_leaves_the_chapter_not_started() {
+    let w = wired("ex-prefill-keeps", "A dragon roared.", true);
+    let id = w.first_id();
+    let source = w.source(id);
+    w.seed_work_dated(&source, "A", "self", "2026-06-28T00:00:00.000Z");
+
+    w.load();
+
+    assert_eq!(w.with_open(|o| w_target(o, id)), "A");
+    assert_eq!(chapter_status_of(&w), "not_started");
 }

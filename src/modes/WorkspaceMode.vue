@@ -21,6 +21,7 @@ import { t } from '../i18n'
 import ReviewDock from '../layout/ReviewDock.vue'
 import WorkspaceDock from '../layout/WorkspaceDock.vue'
 import { reviewModeIsOpen, reviewModeStatus } from '../reviewModeState'
+import { libraryChapterDoneSuggestionVisible } from './libraryChapters'
 import type { LayoutTier } from '../layout/workspaceLayout'
 
 const root = useTemplateRef<HTMLElement>('root')
@@ -130,6 +131,15 @@ const reviewNoticeOffersImport = computed(
       </button>
       <button type="button" class="review-notice-act" data-review-notice-dismiss @click="dispatch('review.close')">
         {{ t('review.notice.dismiss') }}
+      </button>
+    </p>
+    <p v-if="libraryChapterDoneSuggestionVisible" class="narrow-notice review-notice" role="status" data-chapter-done-suggestion>
+      {{ t('mode.workspace.chapter_done_suggestion') }}
+      <button type="button" class="review-notice-act" data-chapter-done-suggestion-accept @click="dispatch('lifecycle.set_chapter_done')">
+        {{ t('status.chapter_done') }}
+      </button>
+      <button type="button" class="review-notice-act" data-chapter-done-suggestion-dismiss @click="dispatch('lifecycle.dismiss_chapter_done_suggestion')">
+        {{ t('mode.workspace.chapter_done_suggestion_dismiss') }}
       </button>
     </p>
     <div class="stage">

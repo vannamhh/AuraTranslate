@@ -57,6 +57,7 @@ describe('acceptTmFuzzy', () => {
       status: 'draft',
       needs_confirmation: false,
       unsigned_draft: null,
+      chapter_started: false,
     })
     const { acceptTmFuzzy } = await import('../../src/config/segment')
     const result = await acceptTmFuzzy(9, 'global', 4, 'Hắn đẩy cửa ra.', true)
@@ -119,7 +120,7 @@ describe('Story 7.8 wire', () => {
 
   it('acceptTmExact sends the pair identity and force to accept_tm_exact', async () => {
     mockInvoke.mockResolvedValueOnce({
-      segment_id: 9, target_text: 'x', translation_origin: 'self', status: 'draft', needs_confirmation: false, unsigned_draft: null,
+      segment_id: 9, target_text: 'x', translation_origin: 'self', status: 'draft', needs_confirmation: false, unsigned_draft: null, chapter_started: false,
     })
     const { acceptTmExact } = await import('../../src/config/segment')
     const result = await acceptTmExact(9, 'work', 3, 'Bản mới', false)

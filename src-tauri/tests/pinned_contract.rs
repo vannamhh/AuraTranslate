@@ -260,18 +260,18 @@ fn the_pin_table_lives_in_the_global_store_not_the_project_one() {
     // Steps 24 -> 25, target 25 -> 26 (work.last_chapter_id), then step 27, target 27 (tm_unit).
     assert_eq!(
         PROJECT_MIGRATIONS.len(),
-        40,
-        "`PROJECT_MIGRATIONS` phai co bon muoi buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
+        41,
+        "`PROJECT_MIGRATIONS` phai co bon muoi mot buoc — 1/2/3 cua Story 1.15, 5 cua Story 2.1, \
          6 cua Story 2.2, 7 cua Story 2.5, 8 cua Story 2.5c, 9 cua Story 2.5d, \
          10 cua Story 2.6, 11 cua Story 2.7, 12 cua Story 3.1, 13 cua Story 3.2, \
          14 cua Story 3.5, 15 cua Story 3.10, 16 cua Story 5.4, 17 cua Story 5.7, 18 cua Story \
          5.13, 19 cua Story 6.5, 20 cua Story 6.11, 21 cua Story 6.13, 22 cua Story 6.15, 23 \
-         cua Story 4.2, 24 cua Story 4.4, 25 cua Story 11.4, 26 them work.last_chapter_id, 27 them tm_unit, 28 them hai cot moc so xuat xu, 29 them chi muc tm_unit, 30 them review_chapter/review_row, 31 them alignment, 32 them cot thu hoach cho glossary_candidate, 33 them bang review_decision, 34 them proof_ignore/proof_scan, 35 them segment_unlinked, 36 them proof_ignore.blocked_count, 37 them work.tm_only_mine, 38 them proof_decision, 39 them segment_version.translation_origin, 40 them glossary_entry.pending_confirmed_at, 41 them work.chosen_prompt_set_name"
+         cua Story 4.2, 24 cua Story 4.4, 25 cua Story 11.4, 26 them work.last_chapter_id, 27 them tm_unit, 28 them hai cot moc so xuat xu, 29 them chi muc tm_unit, 30 them review_chapter/review_row, 31 them alignment, 32 them cot thu hoach cho glossary_candidate, 33 them bang review_decision, 34 them proof_ignore/proof_scan, 35 them segment_unlinked, 36 them proof_ignore.blocked_count, 37 them work.tm_only_mine, 38 them proof_decision, 39 them segment_version.translation_origin, 40 them glossary_entry.pending_confirmed_at, 41 them work.chosen_prompt_set_name, 42 dua Chuong da co ban dich sang Dang dich"
     );
     assert_eq!(
         opened.store.schema_version(),
-        41,
-        "mot `project.db` moi phai dung o phien ban 41 (so 4 da chay)"
+        42,
+        "mot `project.db` moi phai dung o phien ban 42 (so 4 da chay)"
     );
 
     let has_table: i64 = opened

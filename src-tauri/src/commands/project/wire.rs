@@ -1319,8 +1319,21 @@ pub fn open_work<R: tauri::Runtime>(
     // `library.work_not_indexed`"* thật sự sống (xem doc-comment của hàm đó).
     let indexed = indexer.find_work(&work_id)?;
     let opened = super::open_work(&work_id, indexed.as_ref())?;
+    let index_stale = indexed.as_ref().is_some_and(|row| {
+        row.status != opened.meta.status
+            || row.status_is_override != opened.meta.status_is_override
+            || row.chapter_done_count != opened.meta.chapter_done_count
+    });
     let result = OpenedWork::from_open(&opened);
     replace_open_work(&app, opened);
+    if index_stale {
+        match resolve_library_root(&app, app.try_state::<Store>().as_deref()) {
+            Ok(root) => reindex_library(&app, &root),
+            Err(err) => {
+                eprintln!("project[open] khong giai quyet duoc thu muc goc Library: {err:?}")
+            }
+        }
+    }
     Ok(result)
 }
 

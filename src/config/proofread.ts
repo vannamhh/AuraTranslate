@@ -7,6 +7,7 @@ import {
   UNKNOWN_IPC_ERROR,
 } from './aitranslate'
 import type { AiTranslateUsageWire } from './aitranslate'
+import { noteChapterStarted } from './lifecycle'
 import type { PromoteAiTranslationOutcome } from './segment'
 
 export const PROOFREAD_FINDING_KINDS = ['spelling', 'grammar', 'mistranslation', 'too_loose', 'obscure'] as const
@@ -189,7 +190,8 @@ function isWriteOutcome(value: unknown): value is PromoteAiTranslationOutcome {
     typeof v.translation_origin === 'string' &&
     (v.status === 'draft' || v.status === 'confirmed') &&
     typeof v.needs_confirmation === 'boolean' &&
-    (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null)
+    (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null) &&
+    typeof v.chapter_started === 'boolean'
   )
 }
 
@@ -210,6 +212,7 @@ function checkedOutcome(which: WriteWhich, wire: unknown): ProofreadWriteResult 
     console.error(`[proofread] \`${command}\` returned a shape that is not a write outcome`)
     return { outcome: null, decisionId: null, error: UNKNOWN_IPC_ERROR }
   }
+  void noteChapterStarted(wire)
   if (which === 'revert') return { outcome: wire, decisionId: null, error: null }
   const decisionId = (wire as { decision_id?: unknown }).decision_id
   if (!isCount(decisionId)) {

@@ -20,6 +20,7 @@
  * tên `chapterId`. Đây là chỗ duy nhất trong kho gõ cái tên đó.
  */
 import { invoke } from '@tauri-apps/api/core'
+import { noteChapterStarted } from './lifecycle'
 import type { IpcError } from '../i18n'
 
 /**
@@ -291,6 +292,7 @@ export type SaveOutcome = {
   chapter_id: number
   /** Số hàng thật sự được `UPDATE`. **0 là hợp lệ** — một lô rỗng. */
   saved: number
+  chapter_started: boolean
 }
 
 /**
@@ -301,7 +303,9 @@ export type SaveOutcome = {
 function isSaveOutcome(value: unknown): value is SaveOutcome {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<SaveOutcome>
-  return typeof v.chapter_id === 'number' && typeof v.saved === 'number'
+  return (
+    typeof v.chapter_id === 'number' && typeof v.saved === 'number' && typeof v.chapter_started === 'boolean'
+  )
 }
 
 /** Ba trạng thái, cùng khuôn `SplitChapterResult`. */
@@ -336,6 +340,8 @@ export type ConfirmOutcome = {
    * trường này, và Story 2.7 (xuất xứ) cùng Epic 7 (cặp TM) móc vào **chuyển tiếp**.
    */
   version_created: boolean
+  /** `true` khi lượt ghi này chuyển Chương `not_started` -> `in_progress`. */
+  chapter_started: boolean
 }
 
 /**
@@ -348,7 +354,8 @@ function isConfirmOutcome(value: unknown): value is ConfirmOutcome {
   return (
     typeof v.segment_id === 'number' &&
     typeof v.status === 'string' &&
-    typeof v.version_created === 'boolean'
+    typeof v.version_created === 'boolean' &&
+    typeof v.chapter_started === 'boolean'
   )
 }
 
@@ -467,6 +474,7 @@ export type RestoreOutcome = {
    * `null` khi `needs_confirmation` là `false`.
    */
   unsigned_draft: string | null
+  chapter_started: boolean
 }
 
 /**
@@ -481,7 +489,8 @@ function isRestoreOutcome(value: unknown): value is RestoreOutcome {
     typeof v.status === 'string' &&
     typeof v.restored === 'boolean' &&
     typeof v.needs_confirmation === 'boolean' &&
-    (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null)
+    (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null) &&
+    typeof v.chapter_started === 'boolean'
   )
 }
 
@@ -594,6 +603,8 @@ export type PromoteAiTranslationOutcome = {
   needs_confirmation: boolean
   /** Bản nháp sắp bị ghi đè. `Some` khi và chỉ khi `needs_confirmation`. */
   unsigned_draft: string | null
+  /** `true` chỉ ở lượt ghi đã chuyển Chương từ Chưa bắt đầu sang Đang dịch. */
+  chapter_started: boolean
 }
 
 /** Ba trạng thái, cùng khuôn `ConfirmSegmentResult`. */
@@ -616,7 +627,8 @@ function isPromoteAiTranslationOutcome(value: unknown): value is PromoteAiTransl
     typeof v.translation_origin === 'string' &&
     (v.status === 'draft' || v.status === 'confirmed') &&
     typeof v.needs_confirmation === 'boolean' &&
-    (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null)
+    (typeof v.unsigned_draft === 'string' || v.unsigned_draft === null) &&
+    typeof v.chapter_started === 'boolean'
   )
 }
 
@@ -766,6 +778,7 @@ export async function saveSegmentTargets(
       )
       return { outcome: null, error: UNKNOWN_IPC_ERROR }
     }
+    void noteChapterStarted(outcome)
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -857,6 +870,7 @@ export async function confirmSegment(
       )
       return { outcome: null, error: UNKNOWN_IPC_ERROR }
     }
+    void noteChapterStarted(outcome)
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -1078,6 +1092,7 @@ export async function restoreSegmentVersion(
       )
       return { outcome: null, error: UNKNOWN_IPC_ERROR }
     }
+    void noteChapterStarted(outcome)
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -1141,6 +1156,7 @@ export async function promoteAiTranslation(
       )
       return { outcome: null, error: UNKNOWN_IPC_ERROR }
     }
+    void noteChapterStarted(outcome)
     return { outcome, error: null }
   } catch (err) {
     if (isIpcError(err)) return { outcome: null, error: err }
@@ -1299,6 +1315,7 @@ export async function acceptTmFuzzy(
       )
       return { outcome: null, error: UNKNOWN_IPC_ERROR }
     }
+    void noteChapterStarted(outcome)
     return { outcome, error: null }
   } catch (err) {
     return { outcome: null, error: failureOf(err, CMD_ACCEPT_TM_FUZZY) }
@@ -1324,6 +1341,7 @@ export async function acceptTmExact(
       )
       return { outcome: null, error: UNKNOWN_IPC_ERROR }
     }
+    void noteChapterStarted(outcome)
     return { outcome, error: null }
   } catch (err) {
     return { outcome: null, error: failureOf(err, CMD_ACCEPT_TM_EXACT) }

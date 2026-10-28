@@ -35,6 +35,50 @@ use rusqlite::Connection;
 
 use super::{StoreError, StoreKind, pragmas};
 
+/// SQL expression listing the 25 `White_Space` code points `str::trim` strips, for the
+/// two-argument `trim(X, <set>)`.
+macro_rules! unicode_white_space_sql {
+    () => {
+        concat!(
+            "' ' || char(9) || char(10) || char(11) || char(12) || char(13) ",
+            "|| char(133) || char(160) || char(5760) ",
+            "|| char(8192) || char(8193) || char(8194) || char(8195) ",
+            "|| char(8196) || char(8197) || char(8198) || char(8199) ",
+            "|| char(8200) || char(8201) || char(8202) ",
+            "|| char(8232) || char(8233) || char(8239) || char(8287) ",
+            "|| char(12288)"
+        )
+    };
+}
+pub(crate) use unicode_white_space_sql;
+
+/// Predicate over a `segment` row aliased `s`: kept, live, translation non-blank. The one
+/// statement of the rule shared by the backfill below and `mark_chapter_started`.
+macro_rules! segment_has_translation_sql {
+    () => {
+        concat!(
+            "s.is_omitted = 0 AND s.retired_at IS NULL AND trim(s.target_text, ",
+            $crate::core::store::schema::unicode_white_space_sql!(),
+            ") <> ''"
+        )
+    };
+}
+pub(crate) use segment_has_translation_sql;
+
+/// Moves a `not_started` Chapter that already holds a translation to `in_progress`; the same
+/// rule `commands::lifecycle::mark_chapter_started` applies per write.
+pub const CHAPTER_STARTED_BACKFILL_DDL: &str = concat!(
+    "UPDATE chapter SET status = 'in_progress', ",
+    "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') ",
+    "WHERE status = 'not_started' AND EXISTS (SELECT 1 FROM segment s ",
+    "WHERE s.chapter_id = chapter.id AND ",
+    segment_has_translation_sql!(),
+    ");"
+);
+
+/// First `project.db` version that carries [`CHAPTER_STARTED_BACKFILL_DDL`].
+pub const CHAPTER_STARTED_BACKFILL_VERSION: u32 = 42;
+
 /// Lược đồ của bảng nhật ký di trú — **bước 1 của `global.db`**.
 ///
 /// Vì sao một bảng nhật ký chứ không phải một bảng nghiệp vụ: `global.db` **chưa có**
@@ -2089,7 +2133,7 @@ ALTER TABLE chapter ADD COLUMN origin_published_at TEXT;";
 /// ghi ở đầu đoạn ⚠️ kế tiếp: một dòng tiêu đề nói một số khác bảng hằng là đúng thứ rot mà
 /// chính đoạn đó gọi tên.
 ///
-/// 🔴 **Bốn mươi bước, và đích là phiên bản 41.** Số **4** bị **bỏ trống có chủ ý** — xem
+/// 🔴 **Bốn mươi mốt bước, và đích là phiên bản 42.** Số **4** bị **bỏ trống có chủ ý** — xem
 /// vết sẹo ở cuối doc-comment này. `validate_strictly_increasing` chấp nhận một lỗ hổng số
 /// (`[1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]`
 /// tăng dần nghiêm ngặt), và [`migrate`] lọc theo `to_version > from` nên một lỗ hổng không
@@ -2481,6 +2525,10 @@ pub const PROJECT_MIGRATIONS: &[Migration] = &[
     Migration {
         to_version: 41,
         sql: WORK_CHOSEN_PROMPT_SET_NAME_DDL,
+    },
+    Migration {
+        to_version: 42,
+        sql: CHAPTER_STARTED_BACKFILL_DDL,
     },
 ];
 

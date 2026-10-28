@@ -49,7 +49,7 @@ async function recordConfirm(segmentId: number, ...rest: unknown[]) {
     }
   }
   return {
-    outcome: { segment_id: segmentId, status: 'confirmed', version_created: true },
+    outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false },
     error: null,
   }
 }
@@ -78,6 +78,7 @@ async function recordSaveOrdered(
 }
 
 const unlinkedIds = new Set<number>()
+const omittedIds = new Set<number>()
 
 async function readFixtureWithUnlinked() {
   const result = await readFixture()
@@ -86,7 +87,11 @@ async function readFixtureWithUnlinked() {
     ...result,
     loaded: {
       ...result.loaded,
-      segments: result.loaded.segments.map((s) => ({ ...s, unlinked: unlinkedIds.has(s.id) })),
+      segments: result.loaded.segments.map((s) => ({
+        ...s,
+        unlinked: unlinkedIds.has(s.id),
+        is_omitted: s.is_omitted || omittedIds.has(s.id),
+      })),
     },
   }
 }
@@ -98,6 +103,10 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
     readOpenChapterSegments: readFixtureWithUnlinked,
     saveSegmentTargets: recordSaveOrdered,
     confirmSegment: recordConfirm,
+    setSegmentOmitted: async (segmentId: number, omitted: boolean) => ({
+      outcome: { segment_id: segmentId, is_omitted: omitted },
+      error: null,
+    }),
   }
 })
 
@@ -115,6 +124,7 @@ beforeEach(() => {
   confirmArgs.length = 0
   failNextConfirm.value = false
   unlinkedIds.clear()
+  omittedIds.clear()
   midFlightHooks.length = 0
   saveIndex = 0
 })
@@ -383,5 +393,72 @@ describe('⑤ dấu chưa nối mất ngay khi ký thành công', () => {
 
     expect(state.editorSegments.value.find((s) => s.id === 12)?.unlinked).toBe(false)
     expect(state.editorSegments.value.find((s) => s.id === 13)?.unlinked).toBe(true)
+  })
+})
+
+describe('⑥ gợi ý đánh dấu Chương Đã xong', () => {
+  it('chỉ bật khi lượt ký làm hết câu chưa cắt bỏ thành đã ký', async () => {
+    const state = await freshState()
+    state.setEditorCaret(12)
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+    expect(state.editorChapterDoneSuggested.value).toBe(false)
+
+    state.setEditorCaret(13)
+    state.noteEditorEdit(13, 'Câu cuối đã dịch.')
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+    expect(state.editorChapterDoneSuggested.value).toBe(true)
+  })
+
+  it('câu đã cắt bỏ không cản gợi ý', async () => {
+    omittedIds.add(13)
+    const state = await freshState()
+    state.setEditorCaret(12)
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+    expect(state.editorChapterDoneSuggested.value).toBe(true)
+  })
+
+  it('cắt bỏ câu chưa ký cuối cùng không bật gợi ý', async () => {
+    const state = await freshState()
+    state.setEditorCaret(12)
+    await state.confirmCurrentSegment()
+    state.setEditorCaret(13)
+    expect(await state.setCurrentSegmentOmitted(true)).toBe('omitted')
+    expect(state.editorChapterDoneSuggested.value).toBe(false)
+  })
+
+  it('lượt ký bị từ chối không bật gợi ý', async () => {
+    omittedIds.add(13)
+    const state = await freshState()
+    state.setEditorCaret(12)
+    failNextConfirm.value = true
+    expect(await state.confirmCurrentSegment()).toBe('refused')
+    expect(state.editorChapterDoneSuggested.value).toBe(false)
+  })
+
+  it('một câu quay lại chưa ký thì gợi ý tắt', async () => {
+    omittedIds.add(13)
+    const state = await freshState()
+    state.setEditorCaret(12)
+    await state.confirmCurrentSegment()
+    expect(state.editorChapterDoneSuggested.value).toBe(true)
+
+    state.replaceEditorSegment(12, { status: 'draft' })
+    expect(state.editorChapterDoneSuggested.value).toBe(false)
+  })
+
+  it('đóng gợi ý và resetEditorPanel đều tắt nó', async () => {
+    omittedIds.add(13)
+    const state = await freshState()
+    state.setEditorCaret(12)
+    await state.confirmCurrentSegment()
+    expect(state.editorChapterDoneSuggested.value).toBe(true)
+
+    state.dismissChapterDoneSuggestion()
+    expect(state.editorChapterDoneSuggested.value).toBe(false)
+
+    state.setEditorCaret(12)
+    await state.confirmCurrentSegment()
+    state.resetEditorPanel()
+    expect(state.editorChapterDoneSuggested.value).toBe(false)
   })
 })

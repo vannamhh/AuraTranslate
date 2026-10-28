@@ -26,18 +26,15 @@
  * (`onActivated`) — hai cơ chế khác nhau, và bản đầu đo nhầm cơ chế.
  *
  * ⇒ Ca dưới đây đổi trạng thái Chương BẰNG MỘT LỜI GỌI IPC TRẦN (`set_chapter_status`) trong
- * lúc app đang ở `workspace`, KHÔNG qua `dispatch('lifecycle.set_chapter_done')` của Library —
+ * lúc app đang ở `workspace`, KHÔNG qua `dispatch('lifecycle.set_chapter_done')` —
  * lệnh đó mới là thứ kéo theo `applyOpenWorkLifecycleResult`. Gọi trần xong, chuyển VỀ
  * `library` bằng đúng hợp âm sản phẩm (`Mod+1`) rồi mới đọc tiến độ: nếu `onActivated` không
  * tự tải lại, `works` (state module-level, sống sót qua việc đổi chế độ vì `LibraryMode.vue`
  * nằm trong `<KeepAlive>`) vẫn giữ ảnh chụp CŨ (`0 / 1`) — con số sẽ KHÔNG đổi, và ca này ĐỎ.
  *
- * ⚠️ **NỬA CÒN HỞ, GHI RA THAY VÌ ĐỂ NGƯỜI SAU TƯỞNG ĐÃ PHỦ** — Workspace hôm nay KHÔNG có
- * một nút/bề mặt sản phẩm nào đổi trạng thái Chương (nút đó chỉ tồn tại ở khối "Tác phẩm đang
- * mở" của chính Library). Lời gọi IPC trần ở ca này là một GIÁ ĐỠ đứng thay cho bề mặt đó,
- * không phải bằng chứng bề mặt đó đã tồn tại. **Chủ: Story 5.7** (danh sách Chương và mở
- * Chương vào Workspace — nơi tự nhiên nhất để đặt một điều khiển đổi trạng thái Chương ngay
- * tại Workspace).
+ * ⚠️ Nút Workspace `[data-chapter-done]` cũng đi qua `dispatch('lifecycle.set_chapter_done')`, nên
+ * bấm nó sẽ tải lại `works` ngay và ca này xanh dù `onActivated` hỏng. Lời gọi IPC trần ở đây là
+ * cố ý; nút Workspace có test ở `tests/frontend/statusBarWorkspace.test.ts`.
  *
  * ═════════════════════════════════════════════════════════════════════════════════
  * §Giới hạn — ghi ra thay vì để người sau tưởng đã phủ
@@ -161,8 +158,7 @@ async function readOpenChapterIdViaIpc() {
 
 /**
  * Đổi trạng thái một Chương qua cầu IPC trần (`set_chapter_status`) — KHÔNG qua
- * `dispatch('lifecycle.set_chapter_done')`. Xem khối §AC5 ở đầu tệp: đây là GIÁ ĐỠ đứng thay
- * cho một điều khiển Workspace chưa tồn tại (chủ Story 5.7), cố ý ĐỘC LẬP với
+ * `dispatch('lifecycle.set_chapter_done')`. Xem khối §AC5 ở đầu tệp: cố ý ĐỘC LẬP với
  * `applyOpenWorkLifecycleResult()` để phép chờ ở `switchToLibrary()` sau đó chỉ có thể xanh
  * nhờ `onActivated` — không nhờ đường tải lại tức thời của Library.
  */

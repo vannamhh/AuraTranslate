@@ -332,15 +332,6 @@ onMounted(() => {
               >
                 {{ t('mode.library.clear_override') }}
               </button>
-              <button
-                type="button"
-                class="btn"
-                data-lifecycle-action="set_chapter_done"
-                :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded"
-                @click="dispatch('lifecycle.set_chapter_done')"
-              >
-                {{ t('mode.library.set_chapter_done') }}
-              </button>
             </div>
           </div>
         </div>

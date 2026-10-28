@@ -43,8 +43,9 @@ import type { ChapterDirection, ChapterOriginEdit, ChapterRow } from '../config/
 import type { ChapterOriginEditFields } from '../config/project'
 import { openWork } from '../config/library'
 import type { WorkRow } from '../config/library'
-import { setChaptersStatus } from '../config/lifecycle'
+import { registerChapterStartedReload, setChaptersStatus } from '../config/lifecycle'
 import {
+  editorChapterDoneSuggested,
   editorChapterId,
   ensureSegmentsLoaded,
   flushEditorBeforeDiscreteWrite,
@@ -166,6 +167,13 @@ const chapterOriginError = ref<IpcError | null>(null)
 const chapterOriginApplyThroughOrd = ref<number | null>(null)
 
 export const libraryChapters: DeepReadonly<Ref<ChapterRow[]>> = readonly(chapters)
+
+export const libraryOpenChapterIsDone = computed(
+  () => chapters.value.find((row) => row.chapter_id === editorChapterId.value)?.status === 'done',
+)
+export const libraryChapterDoneSuggestionVisible = computed(
+  () => editorChapterDoneSuggested.value && !libraryOpenChapterIsDone.value,
+)
 export const libraryChaptersHaveLoaded: DeepReadonly<Ref<boolean>> = readonly(chaptersHaveLoaded)
 export const libraryChaptersBusy: DeepReadonly<Ref<boolean>> = readonly(chaptersBusy)
 export const libraryChaptersError: DeepReadonly<Ref<IpcError | null>> = readonly(chaptersError)
@@ -282,6 +290,8 @@ export async function loadChapters(): Promise<void> {
   clampChapterCursor()
   await runPendingChaptersReload()
 }
+
+registerChapterStartedReload(loadChapters)
 
 async function runPendingChaptersReload(): Promise<void> {
   if (!chaptersReloadPending) return

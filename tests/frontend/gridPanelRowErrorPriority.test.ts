@@ -38,7 +38,7 @@ async function recordConfirm(segmentId: number) {
       },
     }
   }
-  return { outcome: { segment_id: segmentId, status: 'confirmed', version_created: true }, error: null }
+  return { outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false }, error: null }
 }
 
 /** `null` ⇒ lượt khôi phục kế tiếp THÀNH CÔNG; khác `null` ⇒ nó bị từ chối với đúng khoá này. */

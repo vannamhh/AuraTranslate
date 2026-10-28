@@ -1198,6 +1198,7 @@ pub fn run() {
             crate::commands::lifecycle::wire::read_work_lifecycle,
             crate::commands::lifecycle::wire::set_chapter_status,
             crate::commands::lifecycle::wire::set_chapters_status,
+            crate::commands::lifecycle::wire::refresh_after_chapter_started,
             crate::commands::lifecycle::wire::set_work_status_override,
             crate::commands::chapter::wire::read_open_chapter,
             // Story 2.11 — chuyen Chuong trong Workspace (FR26). RUST quyet Chuong ke

@@ -244,9 +244,11 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 
 #### Trạng thái & tiến độ
 
-**FR5.** Trạng thái vòng đời có ở cả hai tầng, **bốn giá trị**: **Chưa bắt đầu / Đang dịch / Tạm ngưng / Đã xong**. Chương mới nhập mặc định là *Chưa bắt đầu*. Chương tự chuyển *Chưa bắt đầu → Đang dịch* ở lần đầu một câu của nó được lưu bản dịch không rỗng do thao tác của người dùng (gõ, nhận bản AI, dịch lô); điền sẵn từ TM (FR58) không tính. Không có chuyển tiếp tự động nào khác: *Đã xong* chỉ do người đặt, đặt được ngay trong Workspace, và khi câu cuối chưa xác nhận của Chương (không tính câu đã cắt bỏ) được xác nhận, hệ thống **gợi ý** đặt *Đã xong* chứ không tự đặt.
+**FR5.** Trạng thái vòng đời có ở cả hai tầng, **bốn giá trị**: **Chưa bắt đầu / Đang dịch / Tạm ngưng / Đã xong**. Chương mới nhập mặc định là *Chưa bắt đầu*. Chương tự chuyển *Chưa bắt đầu → Đang dịch* ở lần đầu một câu của nó được lưu bản dịch không rỗng do thao tác của người dùng (gõ, nhận bản AI, dịch lô, xác nhận câu); riêng lượt điền sẵn từ TM (FR58) không tính. Không có chuyển tiếp tự động nào khác: *Đã xong* chỉ do người đặt, đặt được ngay trong Workspace, và khi câu cuối chưa xác nhận của Chương (không tính câu đã cắt bỏ) được xác nhận, hệ thống **gợi ý** đặt *Đã xong* chứ không tự đặt.
 
 > 🔵 2026-10-27, Ice: thêm câu chuyển tiếp tự động *Chưa bắt đầu → Đang dịch* và đường đặt *Đã xong* trong Workspace. Trước đó không lượt ghi câu nào đổi trạng thái Chương, nên Chương đã dịch trọn vẫn ở *Chưa bắt đầu*, tiến độ FR7 đứng 0 và Chế độ đọc FR120 không có gì để đọc.
+
+> 🔵 2026-10-28, Ice: xác nhận câu cũng tính là thao tác của người dùng. Lý do: Chương chỉ có chữ do TM điền sẵn rồi được xác nhận từng câu sẽ ở mãi *Chưa bắt đầu*, nên Chế độ đọc dừng ở Chương đó.
 
 > **Vì sao bốn chứ không phải ba:** brief nêu ba trạng thái, nhưng khi nhập một Tác phẩm 2000 chương thì 1999 chương chưa hề được đụng tới. Xếp chúng vào *Tạm ngưng* làm mất nghĩa của chính trạng thái đó — *Tạm ngưng* phải giữ nguyên nghĩa **"đã làm dở rồi bỏ"**, vì đó mới là nhóm cần quay lại.
 

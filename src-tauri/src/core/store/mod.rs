@@ -664,6 +664,7 @@ pub struct Store {
     kind: StoreKind,
     path: PathBuf,
     schema_version: u32,
+    opened_from_version: u32,
     writer: writer::Writer,
     readers: reader::ReaderPool,
     checkpoint: checkpoint::Checkpointer,
@@ -759,6 +760,7 @@ impl Store {
             kind,
             path,
             schema_version,
+            opened_from_version: found,
             writer,
             readers,
             checkpoint,
@@ -842,6 +844,11 @@ impl Store {
     /// Phiên bản lược đồ **sau** khi di trú xong.
     pub const fn schema_version(&self) -> u32 {
         self.schema_version
+    }
+
+    /// Version found on disk before this open migrated it (`0` for a fresh file).
+    pub const fn opened_from_version(&self) -> u32 {
+        self.opened_from_version
     }
 
     /// Số đếm của luồng checkpoint.

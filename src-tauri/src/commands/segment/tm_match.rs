@@ -370,7 +370,7 @@ pub fn accept_tm_exact(
         Missing,
         Retired,
         SourceChanged,
-        Row(String, String, String, bool),
+        Row(String, String, String, bool, bool),
     }
 
     let outcome = work.store.write(move |tx: &Transaction<'_>| {
@@ -407,23 +407,30 @@ pub fn accept_tm_exact(
                 current_origin,
                 current_status,
                 true,
+                false,
             ));
         }
         write_non_user_target(tx, segment_id, &target, pair_origin, Some(pair_origin))?;
+        let chapter_started =
+            crate::commands::lifecycle::mark_segment_chapter_started(tx, segment_id)?;
         Ok(Picked::Row(
             target,
             pair_origin.to_owned(),
             SEGMENT_STATUS_DRAFT.to_owned(),
             false,
+            chapter_started,
         ))
     })?;
 
-    let (target_text, translation_origin, status, needs_confirmation) = match outcome {
-        Picked::Missing => return Err(segment_not_found(segment_id)),
-        Picked::Retired => return Err(segment_retired(segment_id)),
-        Picked::SourceChanged => return Err(tm_pair_not_found(tier, unit_id)),
-        Picked::Row(text, pair_origin, status, ask) => (text, pair_origin, status, ask),
-    };
+    let (target_text, translation_origin, status, needs_confirmation, chapter_started) =
+        match outcome {
+            Picked::Missing => return Err(segment_not_found(segment_id)),
+            Picked::Retired => return Err(segment_retired(segment_id)),
+            Picked::SourceChanged => return Err(tm_pair_not_found(tier, unit_id)),
+            Picked::Row(text, pair_origin, status, ask, started) => {
+                (text, pair_origin, status, ask, started)
+            }
+        };
     let unsigned_draft = needs_confirmation.then(|| target_text.clone());
     Ok(PromoteAiTranslationOutcome {
         segment_id,
@@ -432,5 +439,6 @@ pub fn accept_tm_exact(
         status,
         needs_confirmation,
         unsigned_draft,
+        chapter_started,
     })
 }

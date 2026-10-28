@@ -23,7 +23,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
     }),
     saveSegmentTargets: recordSave,
     confirmSegment: async (segmentId: number) => ({
-      outcome: { segment_id: segmentId, status: 'confirmed', version_created: true },
+      outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false },
       error: null,
     }),
   }

@@ -28,7 +28,8 @@ use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::library::WorkMeta;
 use crate::core::library::indexer::Indexer;
 use crate::core::lifecycle::LifecycleStatus;
-use crate::core::store::{Store, Transaction};
+use crate::core::store::schema::segment_has_translation_sql;
+use crate::core::store::{SqlResult, Store, Transaction};
 
 /// Trạng thái vòng đời của Tác phẩm đang mở — thứ đi ra qua dây cho cả ba lệnh của tệp này.
 ///
@@ -147,6 +148,78 @@ pub fn read_work_lifecycle(open: Option<&OpenWork>) -> Result<WorkLifecycle, Ipc
         &open.meta,
         derived_status_of(&open.store)?,
     ))
+}
+
+/// Rewrites `meta.json` when the Chapter-started backfill migration changed the derived
+/// status or progress; otherwise hands `meta` back untouched.
+pub(crate) fn refresh_meta_after_backfill(
+    store: &Store,
+    dir: &Path,
+    meta: WorkMeta,
+) -> Result<WorkMeta, IpcError> {
+    let rebuilt = WorkMeta::rebuild_from_store(store)?;
+    if rebuilt.status == meta.status
+        && rebuilt.status_is_override == meta.status_is_override
+        && rebuilt.chapter_done_count == meta.chapter_done_count
+    {
+        return Ok(meta);
+    }
+    rebuilt
+        .write_atomic(dir)
+        .map_err(crate::core::library::WorkError::from)?;
+    Ok(rebuilt)
+}
+
+/// Moves the Chapter `not_started` -> `in_progress` inside the caller's write transaction when
+/// it holds at least one kept, live segment whose translation is non-blank after `str::trim`.
+/// Returns whether the row changed; `paused`, `done` and `in_progress` are never touched.
+/// Callers that persist user-authored text call this; pre-fills, import and regrouping do not.
+pub fn mark_chapter_started(tx: &Transaction<'_>, chapter_id: i64) -> SqlResult<bool> {
+    let touched = tx.execute(
+        concat!(
+            "UPDATE chapter SET status = ?1, ",
+            "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') ",
+            "WHERE id = ?2 AND status = ?3 AND EXISTS (SELECT 1 FROM segment s ",
+            "WHERE s.chapter_id = chapter.id AND ",
+            segment_has_translation_sql!(),
+            ")"
+        ),
+        (
+            LifecycleStatus::InProgress.as_str(),
+            chapter_id,
+            LifecycleStatus::NotStarted.as_str(),
+        ),
+    )?;
+    Ok(touched > 0)
+}
+
+/// Same as [`mark_chapter_started`] for the Chapter that owns `segment_id`.
+pub fn mark_segment_chapter_started(tx: &Transaction<'_>, segment_id: i64) -> SqlResult<bool> {
+    let chapter_id: i64 = tx.query_row(
+        "SELECT chapter_id FROM segment WHERE id = ?1",
+        [segment_id],
+        |row| row.get(0),
+    )?;
+    mark_chapter_started(tx, chapter_id)
+}
+
+/// Brings `meta.json` up to date after a write that reported `chapter_started`; changes no
+/// Chapter row (the transition already committed with the write).
+pub fn refresh_after_chapter_started(
+    open: Option<&mut OpenWork>,
+) -> Result<WorkLifecycle, IpcError> {
+    let open = open.ok_or_else(no_work_open)?;
+    write_lifecycle_after_change(open)
+}
+
+/// [`refresh_after_chapter_started`] plus the library reindex.
+pub fn refresh_after_chapter_started_indexed(
+    open: Option<&mut OpenWork>,
+    indexer: Option<&Indexer>,
+    global: Option<&Store>,
+    root: &Path,
+) -> Result<WorkLifecycle, IpcError> {
+    finish_lifecycle_write(refresh_after_chapter_started(open), indexer, global, root)
 }
 
 /// Đặt trạng thái vòng đời của MỘT Chương — hàm thuần, đây là thứ test gọi. Story 5.4, FR5.
@@ -452,6 +525,24 @@ pub mod wire {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             super::set_chapter_status(guard.as_mut(), chapter_id, &status)
+        };
+        finish_with_reindex(&app, result)
+    }
+
+    /// Wire shell of [`super::refresh_after_chapter_started`]; no arguments. Async because the
+    /// reindex scans the whole Library root.
+    #[tauri::command(async)]
+    pub fn refresh_after_chapter_started(app: tauri::AppHandle) -> Result<WorkLifecycle, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(state) = app.try_state::<OpenWorkState>() else {
+            return super::refresh_after_chapter_started(None);
+        };
+        let result = {
+            let mut guard = state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            super::refresh_after_chapter_started(guard.as_mut())
         };
         finish_with_reindex(&app, result)
     }

@@ -40,9 +40,15 @@ import { lookupHasRetreated } from './layout/lookupDrawerState'
 import { isSegmentConfirmed } from './config/segment'
 import { isMeaningKind } from './config/proofread'
 import { shortcutRows } from './config/shortcutsState'
-import { libraryChapters, libraryOpenWorkError, libraryOpenWorkNotice } from './modes/libraryChapters'
+import { libraryChapters, libraryOpenChapterIsDone, libraryOpenWorkError, libraryOpenWorkNotice } from './modes/libraryChapters'
 import { libraryRescanBusy, libraryRescanError } from './modes/libraryRescan'
-import { libraryWorksError, libraryWorksHaveLoaded, libraryWorksTotal } from './modes/libraryWorks'
+import {
+  libraryWorksError,
+  libraryWorksHaveLoaded,
+  libraryWorksTotal,
+  openChapterDoneError,
+  openWorkLifecycleBusy,
+} from './modes/libraryWorks'
 import { createdWork } from './modes/libraryImport'
 import { currentMode } from './modes/modeState'
 import { readingMarksWalkProgress } from './modes/readingState'
@@ -670,6 +676,21 @@ const libraryErrorText = computed<string | null>(() => {
       @click="dispatch('reading.marks_walk_next')"
     >
       {{ t('status.reading_walk_next', { next: String(readingMarksWalkProgress.next), total: String(readingMarksWalkProgress.total) }) }}
+    </button>
+    <span v-if="currentMode === 'workspace' && openChapterDoneError !== null" class="notice" role="alert" data-status-chapter-done-error>
+      <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+      {{ tError(openChapterDoneError) }}
+    </span>
+    <button
+      v-if="currentMode === 'workspace' && editorChapterId !== null"
+      type="button"
+      class="ui-btn ui-btn--sm"
+      data-chapter-done
+      :disabled="libraryOpenChapterIsDone || openWorkLifecycleBusy"
+      @mousedown="focusOnPointerDown($event)"
+      @click="dispatch('lifecycle.set_chapter_done')"
+    >
+      {{ t(libraryOpenChapterIsDone ? 'status.chapter_done_already' : 'status.chapter_done') }}
     </button>
     <button
       type="button"

@@ -18,10 +18,8 @@
  *    `source_text` PHÂN BIỆT được để đo "không có mặt", không cần đo hành vi dịch của nó.
  * 2. Lượt bấm *Dịch tiếp* đi qua `realClick()` (chuột thật) — cùng giới hạn "làm được bằng
  *    bàn phím" mà `story-5-8-reorganise-chapters.e2e.mjs` đã ghi cho `Tab`/`Enter` (chủ Ice).
- * 3. Trạng thái Chương đặt qua cầu IPC trần (`set_chapter_status`), không qua một điều
- *    khiển UI — Workspace hôm nay chưa có nút đổi trạng thái Chương NGOÀI Library
- *    (`lifecycle.set_chapter_done`, chủ Story 5.7 nói riêng cho ca đó). Đây là GIÁ ĐỠ đứng
- *    thay, cùng khuôn `story-5-5-progress.e2e.mjs`.
+ * 3. Trạng thái Chương đặt qua cầu IPC trần (`set_chapter_status`) cho nhanh: Chương 1 không phải
+ *    Chương đang mở nên nút Workspace `[data-chapter-done]` không áp dụng cho nó.
  */
 
 import { realClick } from '../support/pointer.mjs'

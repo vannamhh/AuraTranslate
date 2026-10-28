@@ -10,7 +10,7 @@ const tmCount = vi.fn<() => Promise<{ total: number; mine: number; others: numbe
 const glossaryCount = vi.fn<() => Promise<number | null>>()
 
 async function confirmOk(segmentId: number) {
-  return { outcome: { segment_id: segmentId, status: 'confirmed', version_created: true }, error: null }
+  return { outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false }, error: null }
 }
 
 const CHAPTERS = [
@@ -18,6 +18,7 @@ const CHAPTERS = [
 ]
 let chaptersOnDisk: unknown[] = CHAPTERS
 let omittedSegmentId: number | null = null
+const setChapterStatusWire = vi.fn<(args: unknown) => Promise<unknown>>()
 
 vi.mock('../../src/config/segment', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/segment')>()),
@@ -44,7 +45,7 @@ vi.mock('../../src/config/glossary', async (importOriginal) => ({
 }))
 vi.mock('@tauri-apps/api/core', () => ({
   convertFileSrc: (path: string) => path,
-  invoke: vi.fn(async (cmd: string) => {
+  invoke: vi.fn(async (cmd: string, args?: unknown) => {
     if (cmd === 'lookup_dictionary') {
       return {
         grouped: {
@@ -71,6 +72,7 @@ vi.mock('@tauri-apps/api/core', () => ({
       }
     }
     if (cmd === 'put_config') return null
+    if (cmd === 'set_chapter_status') return setChapterStatusWire(args)
     throw new Error(`statusBarWorkspace.test.ts: unexpected invoke "${cmd}"`)
   }),
 }))
@@ -80,14 +82,22 @@ async function freshBar() {
   const state = await import('../../src/panels/editorPanelState')
   const chapters = await import('../../src/modes/libraryChapters')
   const commands = await import('../../src/commands')
-  if (commands.commandRegistry.list().length === 0) commands.installCommands({ isMac: true, setMode: () => {} })
+  const works = await import('../../src/modes/libraryWorks')
+  if (commands.commandRegistry.list().length === 0) {
+    commands.installCommands({
+      isMac: true,
+      setMode: () => {},
+      setOpenChapterDone: () => void works.setOpenChapterStatus(),
+      dismissChapterDoneSuggestion: state.dismissChapterDoneSuggestion,
+    })
+  }
   ;(await import('../../src/modes/modeState')).setMode('workspace')
   const StatusBar = (await import('../../src/StatusBar.vue')).default
   await chapters.loadChapters()
   await state.ensureSegmentsLoaded()
   const wrapper = mount(StatusBar, { attachTo: document.body })
   await flushPromises()
-  return { state, wrapper, commands }
+  return { state, wrapper, commands, works, chapters }
 }
 
 function assignChord(shortcuts: typeof import('../../src/config/shortcutsState'), id: string, code: string): void {
@@ -115,6 +125,7 @@ beforeEach(() => {
   glossaryCount.mockReset().mockResolvedValue(7)
   chaptersOnDisk = CHAPTERS
   omittedSegmentId = null
+  setChapterStatusWire.mockReset().mockResolvedValue({ status: null, status_is_override: false, derived_status: 'in_progress' })
 })
 
 afterEach(() => {
@@ -317,5 +328,119 @@ describe('thanh trạng thái — tầng bố cục', () => {
     expect(wrapper.find('[data-status-lookup-line]').exists()).toBe(false)
     expect(wrapper.find('[data-lookup-drawer-open]').exists()).toBe(true)
     wrapper.unmount()
+  })
+})
+
+describe('thanh trạng thái — nút đặt Chương Đã xong', () => {
+  const doneButton = (w: { find: (s: string) => { exists: () => boolean; attributes: (n: string) => string | undefined; text: () => string; trigger: (e: string) => Promise<void> } }) =>
+    w.find('[data-chapter-done]')
+
+  it('bấm nút gửi set_chapter_status done cho Chương đang mở rồi tải lại danh sách Chương', async () => {
+    const { wrapper, chapters } = await freshBar()
+    expect(doneButton(wrapper).attributes('disabled')).toBeUndefined()
+    expect(doneButton(wrapper).text()).toBe('Đặt Chương là Đã xong')
+
+    chaptersOnDisk = [{ ...(CHAPTERS[0] as object), status: 'done' }]
+    await doneButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(setChapterStatusWire).toHaveBeenCalledTimes(1)
+    expect(setChapterStatusWire).toHaveBeenCalledWith({ chapterId: 7, status: 'done' })
+    expect(chapters.libraryChapters.value[0]?.status).toBe('done')
+    expect(doneButton(wrapper).attributes('disabled')).toBeDefined()
+    expect(doneButton(wrapper).text()).toBe('Chương đã xong')
+    wrapper.unmount()
+  })
+
+  it('Chương đã xong thì nút khoá và không gọi IPC', async () => {
+    chaptersOnDisk = [{ ...(CHAPTERS[0] as object), status: 'done' }]
+    const { wrapper } = await freshBar()
+    expect(doneButton(wrapper).attributes('disabled')).toBeDefined()
+    await doneButton(wrapper).trigger('click')
+    expect(setChapterStatusWire).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('lỗi hiện ngay ở Workspace, nút bật lại và danh sách Chương không đổi', async () => {
+    setChapterStatusWire.mockRejectedValue({ code: 'work.create_failed', message_key: 'err.work.create_failed', params: {}, retryable: false })
+    const { wrapper, chapters } = await freshBar()
+
+    await doneButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-status-chapter-done-error]').exists()).toBe(true)
+    expect(wrapper.get('[data-status-chapter-done-error]').text()).not.toBe('')
+    expect(doneButton(wrapper).attributes('disabled')).toBeUndefined()
+    expect(chapters.libraryChapters.value[0]?.status).toBe('draft')
+    wrapper.unmount()
+  })
+
+  it('thành công sau lỗi xoá câu lỗi', async () => {
+    setChapterStatusWire.mockRejectedValueOnce({ code: 'work.create_failed', message_key: 'err.work.create_failed', params: {}, retryable: false })
+    const { wrapper } = await freshBar()
+    await doneButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-status-chapter-done-error]').exists()).toBe(true)
+
+    await doneButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-status-chapter-done-error]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('gợi ý hiện khi xác nhận câu cuối, ẩn khi Chương đã xong, và đặt xong thì tắt', async () => {
+    omittedSegmentId = 13
+    const { state, wrapper, chapters } = await freshBar()
+    expect(chapters.libraryChapterDoneSuggestionVisible.value).toBe(false)
+
+    state.setEditorCaret(12)
+    await state.confirmCurrentSegment()
+    expect(chapters.libraryChapterDoneSuggestionVisible.value).toBe(true)
+
+    chaptersOnDisk = [{ ...(CHAPTERS[0] as object), status: 'done' }]
+    await chapters.loadChapters()
+    expect(chapters.libraryChapterDoneSuggestionVisible.value).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('đặt Đã xong từ nút tắt gợi ý đang bật', async () => {
+    omittedSegmentId = 13
+    const { state, wrapper } = await freshBar()
+    state.setEditorCaret(12)
+    await state.confirmCurrentSegment()
+    expect(state.editorChapterDoneSuggested.value).toBe(true)
+
+    await doneButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(state.editorChapterDoneSuggested.value).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('dải gợi ý ở Workspace: hiện khi xác nhận câu cuối; "Để sau" đóng, nút đặt dùng cùng lệnh với nút thanh trạng thái', async () => {
+    omittedSegmentId = 13
+    const { state, wrapper: bar } = await freshBar()
+    const WorkspaceMode = (await import('../../src/modes/WorkspaceMode.vue')).default
+    const mode = mount(WorkspaceMode, { global: { stubs: { WorkspaceDock: true, ReviewDock: true } } })
+    await flushPromises()
+    expect(mode.find('[data-chapter-done-suggestion]').exists()).toBe(false)
+
+    state.setEditorCaret(12)
+    await state.confirmCurrentSegment()
+    await flushPromises()
+    expect(mode.get('[data-chapter-done-suggestion]').text()).toContain('Đánh dấu Chương Đã xong?')
+
+    await mode.get('[data-chapter-done-suggestion-dismiss]').trigger('click')
+    expect(mode.find('[data-chapter-done-suggestion]').exists()).toBe(false)
+    expect(setChapterStatusWire).not.toHaveBeenCalled()
+
+    state.setEditorCaret(12)
+    await state.confirmCurrentSegment()
+    await flushPromises()
+    await mode.get('[data-chapter-done-suggestion-accept]').trigger('click')
+    await flushPromises()
+    expect(setChapterStatusWire).toHaveBeenCalledWith({ chapterId: 7, status: 'done' })
+    expect(mode.find('[data-chapter-done-suggestion]').exists()).toBe(false)
+    mode.unmount()
+    bar.unmount()
   })
 })

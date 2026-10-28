@@ -417,6 +417,8 @@ export type CommandDeps = {
   clearOpenWorkOverride?: () => void
   /** Đặt Chương đang mở thành *Đã xong*. Handler của `lifecycle.set_chapter_done`. */
   setOpenChapterDone?: () => void
+  /** Đóng gợi ý "Đánh dấu Chương Đã xong?". Handler của `lifecycle.dismiss_chapter_done_suggestion`. */
+  dismissChapterDoneSuggestion?: () => void
 
   // ── Story 5.6 — "Lưới Tác phẩm, lọc và sắp xếp" ─────────────────────────────────
   //
@@ -2817,6 +2819,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.setOpenChapterDone === undefined) return portMissing('lifecycle.set_chapter_done', 'setOpenChapterDone')
       deps.setOpenChapterDone()
+    },
+  })
+  target.register({
+    id: 'lifecycle.dismiss_chapter_done_suggestion',
+    labelKey: 'command.lifecycle.dismiss_chapter_done_suggestion',
+    keys: undefined,
+    run: () => {
+      if (deps.dismissChapterDoneSuggestion === undefined) {
+        return portMissing('lifecycle.dismiss_chapter_done_suggestion', 'dismissChapterDoneSuggestion')
+      }
+      deps.dismissChapterDoneSuggestion()
     },
   })
 

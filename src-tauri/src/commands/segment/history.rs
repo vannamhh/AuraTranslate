@@ -205,6 +205,9 @@ pub struct RestoreOutcome {
     /// Bản nháp sắp bị ghi đè, để webview **hiện ra** thay vì chỉ nói *"có thứ sẽ mất"*.
     /// `Some` khi và chỉ khi `needs_confirmation`.
     pub unsigned_draft: Option<String>,
+    /// `true` when this write moved the Chapter `not_started` -> `in_progress`; the webview
+    /// then calls `refresh_after_chapter_started`.
+    pub chapter_started: bool,
 }
 
 /// **Khôi phục văn bản đích của một segment về một phiên bản cũ** — hàm thuần, đây là thứ
@@ -360,7 +363,7 @@ pub fn restore_segment_version(
         //    cua `confirm_segment`. Xem doc-comment: ha mot chu ky ma khong doi lay gi la
         //    mot luot huy cong cua nguoi dung.
         if current_text == version_text {
-            return Ok((false, false, current_status));
+            return Ok((false, false, current_status, false));
         }
 
         // ⑤ 🔴 CHOT CHONG MAT BAN NHAP CHUA KY — chu ky #2(a).
@@ -371,7 +374,7 @@ pub fn restore_segment_version(
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(current_text.clone());
             // KHONG ghi mot byte nao. Day KHONG phai mot loi -- xem `needs_confirmation`.
-            return Ok((false, true, current_status));
+            return Ok((false, true, current_status, false));
         }
 
         // ⑥ Ghi. HAI cot, MOT giao dich: van ban va trang thai (AC2).
@@ -403,12 +406,19 @@ pub fn restore_segment_version(
                 crate::core::tm::PairOrigin::as_str,
             );
         write_non_user_target(tx, segment_id, &version_text, baseline_origin, None)?;
+        let chapter_started =
+            crate::commands::lifecycle::mark_segment_chapter_started(tx, segment_id)?;
 
-        Ok((true, false, SEGMENT_STATUS_DRAFT.to_owned()))
+        Ok((
+            true,
+            false,
+            SEGMENT_STATUS_DRAFT.to_owned(),
+            chapter_started,
+        ))
     });
 
     match outcome {
-        Ok((restored, needs_confirmation, status)) => {
+        Ok((restored, needs_confirmation, status, chapter_started)) => {
             let unsigned_draft = held
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -419,6 +429,7 @@ pub fn restore_segment_version(
                 restored,
                 needs_confirmation,
                 unsigned_draft,
+                chapter_started,
             })
         }
         Err(err) => {

@@ -52,6 +52,7 @@ import {
   splitSegment,
   acceptTmExact,
   acceptTmFuzzy,
+  isSegmentConfirmed,
 } from '../config/segment'
 import type {
   ChapterAsset,
@@ -160,6 +161,18 @@ function dropTmFilled(segmentId: number): void {
   tmFilledSegmentIds.value = next
 }
 
+const chapterDoneSuggested = ref(false)
+/** `true` after a confirm left no unconfirmed, non-omitted sentence in the open Chapter, until one turns unconfirmed again. */
+export const editorChapterDoneSuggested = computed(() => chapterDoneSuggested.value && everySegmentSigned())
+
+function everySegmentSigned(): boolean {
+  return segments.value.every((s) => s.is_omitted || isSegmentConfirmed(s))
+}
+
+export function dismissChapterDoneSuggestion(): void {
+  chapterDoneSuggested.value = false
+}
+
 /** Segment của Chương đang mở, **theo `ord`** — thứ tự do Rust quyết, không sắp lại ở đây. */
 export const editorSegments: DeepReadonly<Ref<readonly ChapterSegment[]>> = readonly(segments)
 /** `chapter.id` của Chương đang hiện. `null` trước lượt nạp đầu tiên hoặc khi nạp trượt. */
@@ -231,6 +244,7 @@ export async function ensureSegmentsLoaded(): Promise<void> {
   segments.value = loaded?.segments ?? []
   tmFilledSegmentIds.value = new Set(loaded?.tm_filled_segment_ids ?? [])
   chapterId.value = loaded?.chapter_id ?? null
+  chapterDoneSuggested.value = false
   loadError.value = error
   if (loaded?.tm_prefill.kind === 'skipped') {
     console.error(`[editor] TM pre-fill skipped: ${loaded.tm_prefill.code}`)
@@ -999,6 +1013,7 @@ export function resetEditorPanel(): void {
   segments.value = []
   tmFilledSegmentIds.value = new Set()
   chapterId.value = null
+  chapterDoneSuggested.value = false
   loadError.value = null
   pending.value = false
   caretSegmentId.value = null
@@ -1449,6 +1464,7 @@ export async function confirmCurrentSegment(): Promise<ConfirmResult> {
     if (result === 'confirmed') {
       void refreshWorkspaceCounts()
       datThongBao({ nav: kyTrungCauCuoi ? 'confirmed-last' : null })
+      if (everySegmentSigned()) chapterDoneSuggested.value = true
     }
     else datThongBao({ confirm: result === 'refused' ? null : result })
     return result

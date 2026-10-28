@@ -282,7 +282,7 @@ fn a_work_from_before_step_38_has_no_decisions_even_with_remembered_findings() {
                  CREATE TRIGGER glossary_entry_lifecycle_is_one_way BEFORE UPDATE OF translation ON glossary_entry \
                  WHEN OLD.translation IS NOT NULL AND NEW.translation IS NULL \
                  BEGIN SELECT RAISE(ABORT, 'glossary lifecycle is one-way'); END; \
-                 DELETE FROM schema_migration_log WHERE version IN (38, 39, 40, 41); \
+                 DELETE FROM schema_migration_log WHERE version IN (38, 39, 40, 41, 42); \
                  PRAGMA user_version = 37;",
             )
         })
@@ -322,4 +322,54 @@ fn the_users_own_typing_restoring_the_phrase_leaves_the_accepted_decision() {
         .expect("target");
     assert_eq!(target, SCANNED, "the typing write put the phrase back");
     assert_eq!(f.counts(), (1, 0, 0));
+}
+
+#[test]
+fn accepting_and_reverting_a_suggestion_start_a_not_started_chapter() {
+    let f = fixture();
+    let chapter_status = |f: &Fixture| -> String {
+        f.open
+            .store
+            .read(|conn| conn.query_row("SELECT status FROM chapter LIMIT 1", [], |r| r.get(0)))
+            .expect("chapter status")
+    };
+    let reset = |f: &Fixture| {
+        f.open
+            .store
+            .write(|tx: &auratranslate_lib::core::store::Transaction<'_>| {
+                tx.execute("UPDATE chapter SET status = 'not_started'", [])
+            })
+            .expect("reset chapter");
+    };
+    reset(&f);
+    let accepted = accept_proofread_range(
+        Some(&f.open),
+        f.segment_id,
+        SCANNED,
+        START,
+        END,
+        PHRASE,
+        SUGGESTION,
+        ProofreadKind::Spelling,
+    )
+    .expect("accept");
+    assert!(accepted.write.chapter_started);
+    assert_eq!(chapter_status(&f), "in_progress");
+
+    reset(&f);
+    let text = accepted.write.target_text.clone();
+    let reverted = auratranslate_lib::commands::segment::revert_proofread_range(
+        Some(&f.open),
+        f.segment_id,
+        &text,
+        START,
+        END,
+        SUGGESTION,
+        PHRASE,
+        ProofreadKind::Spelling,
+        accepted.decision_id,
+    )
+    .expect("revert");
+    assert!(reverted.chapter_started);
+    assert_eq!(chapter_status(&f), "in_progress");
 }

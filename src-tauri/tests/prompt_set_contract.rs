@@ -884,7 +884,7 @@ fn a_project_database_from_step_40_gains_the_chosen_name_column_as_null() {
         .write(|tx: &auratranslate_lib::core::store::Transaction<'_>| {
             tx.execute_batch(
                 "ALTER TABLE work DROP COLUMN chosen_prompt_set_name; \
-                 DELETE FROM schema_migration_log WHERE version = 41; \
+                 DELETE FROM schema_migration_log WHERE version IN (41, 42); \
                  PRAGMA user_version = 40;",
             )
         })
@@ -892,7 +892,7 @@ fn a_project_database_from_step_40_gains_the_chosen_name_column_as_null() {
 
     let open = reopen_work(open);
 
-    assert_eq!(open.store.schema_version(), 41);
+    assert_eq!(open.store.schema_version(), 42);
     assert_eq!(prompt_set_choice_get(Some(&open)).expect("doc"), None);
     drop(open);
     cleanup_dir(&root);

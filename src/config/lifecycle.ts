@@ -59,6 +59,7 @@ const CMD_READ = 'read_work_lifecycle'
 const CMD_SET_CHAPTER_STATUS = 'set_chapter_status'
 const CMD_SET_CHAPTERS_STATUS = 'set_chapters_status'
 const CMD_SET_WORK_OVERRIDE = 'set_work_status_override'
+const CMD_REFRESH_AFTER_CHAPTER_STARTED = 'refresh_after_chapter_started'
 
 /** Cùng khuôn `config/chapter.ts::hasIpcBridge`. */
 function hasIpcBridge(): boolean {
@@ -107,6 +108,11 @@ export async function setChapterStatus(chapterId: number, status: string): Promi
   return callLifecycle(CMD_SET_CHAPTER_STATUS, { chapterId, status })
 }
 
+/** Viết lại `meta.json` và chỉ mục Library sau khi một lượt ghi báo `chapter_started` — lệnh `refresh_after_chapter_started`. */
+export async function refreshAfterChapterStarted(): Promise<WorkLifecycleResult> {
+  return callLifecycle(CMD_REFRESH_AFTER_CHAPTER_STARTED)
+}
+
 /** Đặt trạng thái cho nhiều Chương trong MỘT giao dịch — lệnh `set_chapters_status`. */
 export async function setChaptersStatus(chapterIds: number[], status: string): Promise<WorkLifecycleResult> {
   return callLifecycle(CMD_SET_CHAPTERS_STATUS, { chapterIds, status })
@@ -118,4 +124,45 @@ export async function setChaptersStatus(chapterIds: number[], status: string): P
  */
 export async function setWorkStatusOverride(status: string | null): Promise<WorkLifecycleResult> {
   return callLifecycle(CMD_SET_WORK_OVERRIDE, { status })
+}
+
+type ReloadChapters = () => Promise<void>
+
+let reloadChapters: ReloadChapters | null = null
+
+/** Library registers its chapter-list reload here so write adapters need not import the Library modes. */
+export function registerChapterStartedReload(reload: ReloadChapters): void {
+  reloadChapters = reload
+}
+
+export function resetChapterStartedReload(): void {
+  reloadChapters = null
+}
+
+/** Reloads the Library chapter list; a no-op until Library has registered itself. */
+export async function reloadChapterList(): Promise<void> {
+  await reloadChapters?.()
+}
+
+/**
+ * Called by every adapter whose write can move a Chapter from "not started" to "in progress".
+ * Rust reports the move with `chapter_started`; the webview never derives it from text. Never throws
+ * and is not awaited by the writer, so a flush pays no extra round trip.
+ */
+export function noteChapterStarted(outcome: { chapter_started: boolean }): Promise<void> {
+  if (!outcome.chapter_started) return Promise.resolve()
+  return refreshThenReload()
+}
+
+async function refreshThenReload(): Promise<void> {
+  const { error } = await refreshAfterChapterStarted()
+  if (error !== null) {
+    console.error(`[chapter-started] refresh failed: ${error.code}`)
+    return
+  }
+  try {
+    await reloadChapterList()
+  } catch (err) {
+    console.error(`[chapter-started] chapter reload failed: ${String(err)}`)
+  }
 }

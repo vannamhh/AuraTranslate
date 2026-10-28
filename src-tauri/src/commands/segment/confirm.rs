@@ -20,6 +20,8 @@ pub struct ConfirmOutcome {
     /// Lượt gọi này có **chuyển tiếp** hay không. `false` ⇒ segment đã ở đích từ trước
     /// (AC13), và **không** hàng `segment_version` nào được sinh.
     pub version_created: bool,
+    /// `true` when this write moved the Chapter `not_started` -> `in_progress`; the webview then calls `refresh_after_chapter_started`.
+    pub chapter_started: bool,
 }
 
 /// `segment_id` không có trong `project.db` của Tác phẩm đang mở.
@@ -246,7 +248,7 @@ pub fn confirm_segment(
 
         // ③ AC13 — DA o dich thi KHONG chuyen tiep. Khong ghi mot byte nao.
         if status == SEGMENT_STATUS_CONFIRMED {
-            return Ok(false);
+            return Ok((false, false));
         }
 
         // ④ Transition: the origin is the single AD-50 arbitration, status and origin in one UPDATE.
@@ -286,14 +288,18 @@ pub fn confirm_segment(
         )?;
         crate::core::tm::insert_pair(tx, &source_text, &target_text, confirmed_origin)?;
 
-        Ok(true)
+        let chapter_started =
+            crate::commands::lifecycle::mark_segment_chapter_started(tx, segment_id)?;
+
+        Ok((true, chapter_started))
     });
 
     match outcome {
-        Ok(version_created) => Ok(ConfirmOutcome {
+        Ok((version_created, chapter_started)) => Ok(ConfirmOutcome {
             segment_id,
             status: SEGMENT_STATUS_CONFIRMED.to_owned(),
             version_created,
+            chapter_started,
         }),
         Err(err) => {
             let taken = reject

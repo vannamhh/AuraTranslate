@@ -46,6 +46,7 @@ function outcomeOf(patch: Partial<PromoteAiTranslationOutcome>): { outcome: Prom
       status: 'draft',
       needs_confirmation: false,
       unsigned_draft: null,
+      chapter_started: false,
       ...patch,
     },
     error: null,
