@@ -30,8 +30,13 @@ context: []
 - Đi đường oneshot vì chỉ bỏ hai inset trong `.mark-actions` (`src/modes/ReadingMode.vue`) và thêm một phép đo hình học vào `e2e/specs/story-5-13-reading-marks.e2e.mjs`.
 - `.mark-actions` vẫn là con của `<span class="reading-segment">`, nên `onSegmentMouseLeave` và `:focus-within` không đổi; chuột đi thẳng từ chữ cuối sang nhãn mà không rời câu. Vị trí không phụ thuộc vào việc nhãn hiện ra qua `:hover`, `.aimed` hay `:focus-within`, vì ba đường chỉ đổi `display`.
 - Fixture của spec (`.repeat(12)`) cho câu 12 dòng; ca mới đòi số dòng > 1, nhãn nằm trên dòng cuối và mép trái nhãn cách chữ cuối trong khoảng [0, 32) px.
+- Ca e2e còn đòi mọi điểm trên đường đi ngang từ chữ cuối sang nhãn (ba độ cao) thuộc câu đang chọn và điểm giữa nhãn trúng nút; xoá `::before` ⇒ đỏ, 24 điểm rơi ra ngoài câu.
 - Bất ngờ: trong fixture này mọi dòng, kể cả dòng cuối, chạy hết bề rộng cột (mép phải 592), nên nhãn cũ nằm ở dòng 1 nhưng ngoài lề (x=608), diện tích giao = 0. Vì vậy assert diện tích giao không thể đỏ ở đây và đã bị bỏ; `onLastLine` là assert bắt được mã cũ.
 - Lượt e2e đầu tiên sau build đỏ ở bước `M` lặp (3 dấu thay vì 2), sau phần đã sửa; chạy lại đúng binary hai lần đều xanh, lượt cuối cũng xanh. Không tìm nguyên nhân thêm.
+
+## Plan Change Log
+
+- 2026-10-28, Ice dùng thử: nhãn ở cuối câu rất khó bấm, vừa rê chuột là mất. Khe `margin-inline-start` giữa chữ cuối và nhãn, cùng phần dòng chữ cao hơn nhãn 24px, nằm trên câu kế tiếp, nên câu kế lấy mất câu đang chọn. Đo WebKit: chỉ 4/10 điểm (nửa trên, giữa) và 1/10 (đáy dòng) trên đường từ chữ cuối sang nhãn thuộc câu đang chọn. Bổ sung: `.mark-actions::before` trong suốt phủ khe và trọn `1lh` của dòng đọc, `z-index: -1` để không chặn cú bấm vào nút ⇒ 10/10 ở cả ba độ cao. GIỮ: vị trí nhãn theo phương án A.
 
 ## Review Triage Log
 

@@ -138,16 +138,41 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
       const lines = [...text.getClientRects()]
       const box = chip.getBoundingClientRect()
       const last = lines[lines.length - 1]
-      return {
+      const geometry = {
         lines: lines.length,
         onLastLine: box.bottom > last.top && box.top < last.bottom,
         gapAfterLastGlyph: box.left - last.right,
+      }
+      // Hit-testing needs the last line on screen; scroll there and restore before yielding,
+      // so no pointer event sees the moved layout.
+      const scrolled = []
+      for (let el = chip.parentElement; el !== null; el = el.parentElement) scrolled.push([el, el.scrollTop])
+      chip.scrollIntoView({ block: 'center' })
+      const tail = [...text.getClientRects()].at(-1)
+      const shown = chip.getBoundingClientRect()
+      const path = []
+      for (const y of [tail.top + 2, (tail.top + tail.bottom) / 2, tail.bottom - 2]) {
+        for (let x = tail.right - 2; x <= shown.left + 6; x += 2) {
+          const hit = document.elementFromPoint(x, y)
+          path.push(hit !== null && node.contains(hit))
+        }
+      }
+      const button = document.elementFromPoint(shown.left + shown.width / 4, (shown.top + shown.bottom) / 2)
+      for (const [el, top] of scrolled) el.scrollTop = top
+      return {
+        ...geometry,
+        pathPoints: path.length,
+        pathOffSentence: path.filter((own) => !own).length,
+        buttonHit: button instanceof Element && button.closest('.mark-affordance') !== null,
       }
     }, originalMarkedId)
     await expect(wrappedChip?.lines).toBeGreaterThan(1)
     await expect(wrappedChip?.onLastLine).toBe(true)
     await expect(wrappedChip?.gapAfterLastGlyph).toBeGreaterThanOrEqual(0)
     await expect(wrappedChip?.gapAfterLastGlyph).toBeLessThan(32)
+    await expect(wrappedChip?.pathPoints).toBeGreaterThan(0)
+    await expect(wrappedChip?.pathOffSentence).toBe(0)
+    await expect(wrappedChip?.buttonHit).toBe(true)
 
     const beforeMark = await browser.execute((id) => {
       const node = document.querySelector(`[data-reading-segment="${id}"]`)

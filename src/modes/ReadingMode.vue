@@ -1084,6 +1084,19 @@ function paragraphRuns(
   background: var(--color-surface);
 }
 
+/* Pointer bridge over the margin gap and the full reading line: without it the path from the last
+   glyph to the chip crosses the next sentence, which takes the aim and hides the chip. */
+.mark-actions::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  block-size: 1lh;
+  inset-inline-start: calc(-1 * var(--space-panel-inline));
+  inset-inline-end: 0;
+  /* aura-allow-z-index: kept under the buttons inside the chip's own stacking context so it never takes their clicks */
+  z-index: -1;
+}
+
 .reading-segment:hover .mark-actions,
 .reading-segment.aimed .mark-actions,
 .reading-segment:focus-within .mark-actions {
