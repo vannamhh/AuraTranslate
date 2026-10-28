@@ -1365,3 +1365,117 @@ describe('system_prompt — trạng thái, lưu nguyên văn, Khôi phục mặc
     expect(aiConfigGetMock.mock.calls.length).toBe(reads)
   })
 })
+
+describe('đọc lại sau mỗi lượt ghi KHÔNG bật aiConfigLoading — Cài đặt thay cả mục bằng dòng đang tải theo cờ đó', () => {
+  type State = Awaited<ReturnType<typeof freshState>>
+  const workModelRow = {
+    fields: [{ field: 'model', value: '', tier: 'work', shadowed: null }],
+    workTierAvailable: true,
+    keyConfigured: true,
+    error: null,
+  }
+  const writes: ReadonlyArray<[string, (s: State) => Promise<unknown>]> = [
+    [
+      'saveAiConfigField',
+      (s) => {
+        s.setAiConfigDraft('model', 'new-model')
+        return s.saveAiConfigField('model')
+      },
+    ],
+    ['restoreAiConfigSystemPrompt', (s) => s.restoreAiConfigSystemPrompt()],
+    ['clearAiConfigOverride', (s) => s.clearAiConfigOverride('model')],
+    [
+      'saveAiConfigKey',
+      (s) => {
+        s.setAiConfigKeyDraft('sk-test')
+        return s.saveAiConfigKey()
+      },
+    ],
+    ['deleteAiConfigKey', (s) => s.deleteAiConfigKey()],
+    ['selectAiConfigProvider', (s) => s.selectAiConfigProvider('openai')],
+    ['clearAllAiConfigOverrides', (s) => s.clearAllAiConfigOverrides()],
+  ]
+
+  it.each(writes)('%s', async (_name, write) => {
+    const state = await freshState()
+    aiConfigGetMock.mockResolvedValue(workModelRow)
+    await state.loadAiConfigSection()
+
+    let finishReload: (value: unknown) => void = () => {}
+    aiConfigGetMock.mockReturnValueOnce(new Promise((resolve) => (finishReload = resolve)))
+    const pending = write(state)
+    await vi.waitFor(() => expect(aiConfigGetMock).toHaveBeenCalledTimes(2))
+
+    expect(state.aiConfigLoading.value).toBe(false)
+    finishReload(workModelRow)
+    await pending
+    expect(state.aiConfigLoading.value).toBe(false)
+  })
+
+  it('loadAiConfigSection vẫn bật cờ trong lúc nạp', async () => {
+    const state = await freshState()
+    let finishLoad: (value: unknown) => void = () => {}
+    aiConfigGetMock.mockReturnValueOnce(new Promise((resolve) => (finishLoad = resolve)))
+    const pending = state.loadAiConfigSection()
+    expect(state.aiConfigLoading.value).toBe(true)
+    finishLoad(workModelRow)
+    await pending
+    expect(state.aiConfigLoading.value).toBe(false)
+  })
+})
+
+describe('đọc lại sau một lượt ghi chỉ làm mới ô VỪA GHI — chữ đang gõ ở ô khác không bị ghi đè', () => {
+  function stored(model: string, endpoint: string) {
+    return {
+      fields: [
+        { field: 'endpoint', value: endpoint, tier: 'global', shadowed: null },
+        { field: 'model', value: model, tier: 'global', shadowed: null },
+      ],
+      workTierAvailable: false,
+      keyConfigured: true,
+      error: null,
+    }
+  }
+
+  it('gõ ô Model và mở Tự nhập của nhiệt độ trong lúc đọc lại sau khi lưu Endpoint ⇒ cả hai còn nguyên', async () => {
+    const state = await freshState()
+    aiConfigGetMock.mockResolvedValue(stored('old-model', 'http://old'))
+    await state.loadAiConfigSection()
+
+    let finishReload: (value: unknown) => void = () => {}
+    aiConfigGetMock.mockReturnValueOnce(new Promise((resolve) => (finishReload = resolve)))
+    state.setAiConfigDraft('endpoint', '  http://new  ')
+    const pending = state.saveAiConfigField('endpoint')
+    await vi.waitFor(() => expect(aiConfigGetMock).toHaveBeenCalledTimes(2))
+
+    state.setAiConfigDraft('model', 'typing-now')
+    await state.selectAiConfigChip('temperature', 'custom')
+    finishReload(stored('old-model', 'http://new'))
+    await pending
+
+    expect(state.aiConfigDraft('endpoint')).toBe('http://new')
+    expect(state.aiConfigDraft('model')).toBe('typing-now')
+    expect(state.aiConfigChipInputIsOpen('temperature')).toBe(true)
+  })
+
+  it('lượt đọc của lần ghi trước bị lượt sau vượt mặt ⇒ ô của lần ghi trước vẫn được làm mới', async () => {
+    const state = await freshState()
+    aiConfigGetMock.mockResolvedValue(stored('old-model', 'http://old'))
+    await state.loadAiConfigSection()
+
+    let finishFirst: (value: unknown) => void = () => {}
+    aiConfigGetMock.mockReturnValueOnce(new Promise((resolve) => (finishFirst = resolve)))
+    state.setAiConfigDraft('endpoint', '  http://new  ')
+    const first = state.saveAiConfigField('endpoint')
+    await vi.waitFor(() => expect(aiConfigGetMock).toHaveBeenCalledTimes(2))
+
+    aiConfigGetMock.mockResolvedValueOnce(stored('new-model', 'http://new'))
+    state.setAiConfigDraft('model', 'new-model')
+    await state.saveAiConfigField('model')
+    finishFirst(stored('old-model', 'http://new'))
+    await first
+
+    expect(state.aiConfigDraft('endpoint')).toBe('http://new')
+    expect(state.aiConfigDraft('model')).toBe('new-model')
+  })
+})

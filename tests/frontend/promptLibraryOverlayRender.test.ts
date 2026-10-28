@@ -337,6 +337,44 @@ describe('PromptLibraryOverlay.vue — dựng thật (Story 4.4)', () => {
     promptSetState.resetPromptSets()
   })
 
+  it('đọc lại sau một lượt ghi KHÔNG thay danh sách và ô soạn bằng dòng "đang tải" — cùng nút DOM ở lại suốt lượt đọc', async () => {
+    const { promptSetState, promptLibraryState, PromptLibraryOverlay } = await freshOverlay()
+    promptSetListMock.mockResolvedValueOnce({
+      sets: [row({ id: 3, name: 'Cu', body: 'than cu' })],
+      workTierAvailable: false,
+      error: null,
+    })
+    promptLibraryState.openPromptLibrary()
+    await flushPromises()
+
+    const wrapper = mount(PromptLibraryOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    await wrapper.findAll('.pl-row-form')[0].trigger('submit')
+    await wrapper.vm.$nextTick()
+    const colsBefore = wrapper.find('.pl-cols').element
+
+    let finishReload: (value: unknown) => void = () => {}
+    promptSetListMock.mockReturnValueOnce(new Promise((resolve) => (finishReload = resolve)))
+    promptSetRenameMock.mockResolvedValue(null)
+    await wrapper.find('.pl-rename-form input').setValue('Moi')
+    await wrapper.find('.pl-rename-form').trigger('submit')
+    await flushPromises()
+
+    expect(promptSetListMock).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('.pl-empty[role="status"]').exists()).toBe(false)
+    expect(wrapper.find('.pl-bar').exists()).toBe(true)
+    expect(wrapper.find('.pl-cols').element).toBe(colsBefore)
+
+    finishReload({ sets: [row({ id: 3, name: 'Moi', body: 'than cu' })], workTierAvailable: false, error: null })
+    await flushPromises()
+    expect(wrapper.find('.pl-cols').element).toBe(colsBefore)
+    expect(wrapper.findAll('.pl-row-name').map((n) => n.text())).toContain('Moi')
+
+    wrapper.unmount()
+    promptLibraryState.resetPromptLibrary()
+    promptSetState.resetPromptSets()
+  })
+
   it('sửa thân ⇒ cảnh báo dấu ngoặc CỦA RUST hiện đúng câu, GỌI TÊN token lạ (Quyết định #3)', async () => {
     const { promptSetState, promptLibraryState, PromptLibraryOverlay } = await freshOverlay()
     promptSetListMock.mockResolvedValueOnce({

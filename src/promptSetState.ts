@@ -143,15 +143,15 @@ export function isPromptSetNameValid(raw: string): boolean {
   return raw.trim().length > 0
 }
 
-/**
- * Đọc lại toàn bộ danh sách, hai tầng đã phân giải — gọi mỗi lần màn hình đọc bộ prompt trở
- * thành màn ĐANG CHỌN, và sau MỖI lượt Tạo/Đổi tên/Sửa thân/Xoá thành công (cùng lý do
- * `glossaryManageState.ts` nạp lại TRỌN sau một lượt Xoá/Đẩy tầng: `shadowed_body` của các
- * hàng KHÁC có thể đổi theo một thao tác vừa làm, và chỉ Rust mới tính lại đúng cờ đó).
- */
+/** Entry load (screen opened, Work opened): shows the loading line. Writes re-read through `reloadPromptSets`. */
 export async function loadPromptSets(): Promise<void> {
-  const mine = ++sequence
   loading.value = true
+  await reloadPromptSets()
+}
+
+/** Re-reads without raising `loading`: the library hides its list and editor on that flag. */
+async function reloadPromptSets(): Promise<void> {
+  const mine = ++sequence
   const result = await promptSetList()
   if (mine !== sequence) return // một lượt tải MỚI đã vượt mặt lượt này
 
@@ -266,7 +266,7 @@ export async function createPromptSet(tier: PromptSetTier, name: string, body: s
     return
   }
   actionWarnings.value = result.warnings
-  await loadPromptSets()
+  await reloadPromptSets()
   busy.value = false
 }
 
@@ -313,7 +313,7 @@ export async function addPromptTemplates(tier: PromptSetTier, ids: ReadonlyArray
 
   if (attempted > 0) {
     pendingGenre = selectedSetName.value === null || selectionIsAutomatic ? lastGenre : null
-    await loadPromptSets()
+    await reloadPromptSets()
   }
   busy.value = false
   return created
@@ -340,7 +340,7 @@ export async function renamePromptSet(tier: PromptSetTier, id: number, newName: 
     actionError.value = err
     return
   }
-  await loadPromptSets()
+  await reloadPromptSets()
   busy.value = false
 }
 
@@ -364,13 +364,13 @@ export async function updatePromptSetBody(tier: PromptSetTier, id: number, body:
     return
   }
   actionWarnings.value = result.warnings
-  await loadPromptSets()
+  await reloadPromptSets()
   busy.value = false
 }
 
 /**
  * Xoá bộ `(tier, id)`. Xoá một bộ Work đang che một bộ Global cùng tên làm bộ Global đó hiệu
- * lực trở lại ngay ở lượt [`loadPromptSets`] mà hàm này gọi sau khi thành công (I/O Matrix
+ * lực trở lại ngay ở lượt [`reloadPromptSets`] mà hàm này gọi sau khi thành công (I/O Matrix
  * spec 4.4 "Delete a shadowing Work set").
  */
 export async function deletePromptSet(tier: PromptSetTier, id: number): Promise<void> {
@@ -387,7 +387,7 @@ export async function deletePromptSet(tier: PromptSetTier, id: number): Promise<
     actionError.value = err
     return
   }
-  await loadPromptSets()
+  await reloadPromptSets()
   busy.value = false
 }
 

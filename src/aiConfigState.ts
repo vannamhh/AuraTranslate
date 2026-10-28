@@ -385,8 +385,19 @@ export async function refreshAiConfigReadiness(): Promise<void> {
  * `result.workTierAvailable` của chính lượt `aiConfigGet` này.
  */
 export async function loadAiConfigSection(): Promise<void> {
-  const mine = ++sequence
   loading.value = true
+  await reloadAiConfigSection(AI_CONFIG_FIELDS)
+}
+
+let writtenSinceRead = new Set<AiConfigField>()
+
+/**
+ * Re-reads without raising `loading`: the template swaps the whole section for a loading line on that flag.
+ * Only `written` drafts are refreshed, so text typed in another box during the read survives.
+ */
+async function reloadAiConfigSection(written: readonly AiConfigField[]): Promise<void> {
+  for (const field of written) writtenSinceRead.add(field)
+  const mine = ++sequence
   const result = await aiConfigGet()
   if (mine !== sequence) return // một lượt tải MỚI đã vượt mặt lượt này
   loading.value = false
@@ -404,8 +415,16 @@ export async function loadAiConfigSection(): Promise<void> {
   keyConfigured.value = result.keyConfigured
   resolvedFields.value = result.fields
   defaultSystemPrompt.value = result.defaultSystemPrompt
-  closeCustom()
-  drafts.value = draftsForTier(effectiveTier())
+  const stored = draftsForTier(effectiveTier())
+  const nextDrafts = { ...drafts.value }
+  const nextCustom = { ...customOpen.value }
+  for (const field of writtenSinceRead) {
+    nextDrafts[field] = stored[field]
+    if (field === 'temperature' || field === 'max_tokens') nextCustom[field] = false
+  }
+  writtenSinceRead = new Set()
+  drafts.value = nextDrafts
+  customOpen.value = nextCustom
   if (testState.value !== 'running') resetAiConfigTest()
 }
 
@@ -431,7 +450,7 @@ export async function saveAiConfigField(field: AiConfigField): Promise<void> {
     return
   }
 
-  await loadAiConfigSection()
+  await reloadAiConfigSection([field])
 }
 
 export type AiSystemPromptStatus = 'default' | 'edited' | 'off'
@@ -469,7 +488,7 @@ export async function restoreAiConfigSystemPrompt(): Promise<void> {
     return
   }
 
-  await loadAiConfigSection()
+  await reloadAiConfigSection([field])
 }
 
 /**
@@ -490,7 +509,7 @@ export async function clearAiConfigOverride(field: AiConfigField): Promise<void>
     return
   }
 
-  await loadAiConfigSection()
+  await reloadAiConfigSection([field])
 }
 
 /**
@@ -517,7 +536,7 @@ export async function saveAiConfigKey(): Promise<void> {
   }
 
   keyDraft.value = ''
-  await loadAiConfigSection()
+  await reloadAiConfigSection([])
 }
 
 /**
@@ -538,7 +557,7 @@ export async function deleteAiConfigKey(): Promise<void> {
     return
   }
 
-  await loadAiConfigSection()
+  await reloadAiConfigSection([])
 }
 
 /**
@@ -550,6 +569,7 @@ export async function deleteAiConfigKey(): Promise<void> {
  */
 export function resetAiConfigSection(): void {
   sequence += 1
+  writtenSinceRead = new Set()
   readinessSequence += 1
   readiness.value = 'unknown'
   notReady.value = []
@@ -696,7 +716,7 @@ async function applyAiConfigPreset(provider: AiProvider): Promise<void> {
     saveErrors.value = { ...saveErrors.value, provider: err }
     return
   }
-  await loadAiConfigSection()
+  await reloadAiConfigSection(fields.map((f) => f.field))
 }
 
 /**
@@ -764,7 +784,7 @@ export async function clearAllAiConfigOverrides(): Promise<void> {
     saving.value = { ...saving.value, [field]: false }
     if (err !== null) saveErrors.value = { ...saveErrors.value, [field]: err }
   }
-  await loadAiConfigSection()
+  await reloadAiConfigSection(overridden)
 }
 
 export type AiConfigTestState = 'idle' | 'running' | 'connected' | 'not_configured' | 'cancelled' | 'error'

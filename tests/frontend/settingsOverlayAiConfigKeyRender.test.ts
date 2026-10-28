@@ -155,6 +155,39 @@ describe('SettingsOverlay.vue — hàng Khoá API, ba trạng thái đọc đư�
     aiConfigState.resetAiConfigSection()
   })
 
+  it('Lưu khoá ⇒ lượt đọc lại KHÔNG thay mục bằng dòng "đang tải" — hàng Khoá API là cùng nút DOM suốt lượt đọc', async () => {
+    const { settingsState, aiConfigState, SettingsOverlay } = await freshOverlay()
+    aiConfigGetMock.mockResolvedValue({
+      fields: emptyFields(),
+      workTierAvailable: false,
+      keyConfigured: true,
+      error: null,
+    })
+    await openToAiAndModel(settingsState, aiConfigState)
+
+    const wrapper = mount(SettingsOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    const keyFieldBefore = wrapper.find('.ai-key-field').element
+
+    let finishReload: (value: unknown) => void = () => {}
+    aiConfigGetMock.mockReturnValueOnce(new Promise((resolve) => (finishReload = resolve)))
+    await wrapper.find('.ai-key-field input[type="password"]').setValue('sk-test-fake-key-value')
+    await wrapper.find('.ai-key-field form').trigger('submit')
+    await flushPromises()
+
+    expect(aiConfigSaveKeyMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.set-main .set-empty[role="status"]').exists()).toBe(false)
+    expect(wrapper.find('.ai-key-field').element).toBe(keyFieldBefore)
+
+    finishReload({ fields: emptyFields(), workTierAvailable: false, keyConfigured: true, error: null })
+    await flushPromises()
+    expect(wrapper.find('.ai-key-field').element).toBe(keyFieldBefore)
+
+    wrapper.unmount()
+    settingsState.resetSettings()
+    aiConfigState.resetAiConfigSection()
+  })
+
   it('key_configured: null dựng một câu THỨ BA — không phải câu "chưa cấu hình" của `false`', async () => {
     const { settingsState, aiConfigState, SettingsOverlay } = await freshOverlay()
     aiConfigGetMock.mockResolvedValue({

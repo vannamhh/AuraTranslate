@@ -942,3 +942,41 @@ describe('addPromptTemplates — ma trận I/O của thư viện mẫu', () => {
     expect(promptSetListMock).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('đọc lại sau mỗi lượt ghi KHÔNG bật promptSetLoading — lớp phủ ẩn danh sách và ô soạn theo cờ đó', () => {
+  type State = Awaited<ReturnType<typeof freshState>>
+  const writes: ReadonlyArray<[string, (s: State) => Promise<unknown>]> = [
+    ['createPromptSet', (s) => s.createPromptSet('global', 'Moi', 'than')],
+    ['addPromptTemplates', (s) => s.addPromptTemplates('global', ['news'])],
+    ['renamePromptSet', (s) => s.renamePromptSet('global', 1, 'Moi')],
+    ['updatePromptSetBody', (s) => s.updatePromptSetBody('global', 1, 'than moi')],
+    ['deletePromptSet', (s) => s.deletePromptSet('global', 1)],
+  ]
+
+  it.each(writes)('%s', async (_name, write) => {
+    const state = await freshState()
+    promptSetListMock.mockResolvedValueOnce({ sets: [makeSet()], workTierAvailable: false, variables: [], error: null })
+    await state.loadPromptSets()
+
+    let finishReload: (value: unknown) => void = () => {}
+    promptSetListMock.mockReturnValueOnce(new Promise((resolve) => (finishReload = resolve)))
+    const pending = write(state)
+    await vi.waitFor(() => expect(promptSetListMock).toHaveBeenCalledTimes(2))
+
+    expect(state.promptSetLoading.value).toBe(false)
+    finishReload({ sets: [makeSet()], workTierAvailable: false, variables: [], error: null })
+    await pending
+    expect(state.promptSetLoading.value).toBe(false)
+  })
+
+  it('loadPromptSets vẫn bật cờ trong lúc nạp', async () => {
+    const state = await freshState()
+    let finishLoad: (value: unknown) => void = () => {}
+    promptSetListMock.mockReturnValueOnce(new Promise((resolve) => (finishLoad = resolve)))
+    const pending = state.loadPromptSets()
+    expect(state.promptSetLoading.value).toBe(true)
+    finishLoad({ sets: [], workTierAvailable: false, variables: [], error: null })
+    await pending
+    expect(state.promptSetLoading.value).toBe(false)
+  })
+})
