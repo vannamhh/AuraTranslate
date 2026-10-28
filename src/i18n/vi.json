@@ -1997,7 +1997,6 @@
   "settings.title": "Cài đặt",
   "settings.nav.ai_and_model": "AI và mô hình",
   "settings.nav.prompt": "Prompt",
-  "settings.prompt.intro": "Bộ prompt theo thể loại, hai tầng Toàn cục và Tác phẩm. Soạn, đổi tên và xoá ở lớp phủ Thư viện prompt.",
   "settings.nav.glossary": "Glossary",
   "settings.nav.tm": "Bộ nhớ dịch (TM)",
   "settings.nav.export": "Xuất",

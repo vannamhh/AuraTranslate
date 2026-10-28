@@ -161,6 +161,10 @@ function onEscape(): void {
 }
 
 function onSelectSection(section: SettingsSection): void {
+  if (section === 'prompt') {
+    dispatch('prompt.library.open')
+    return
+  }
   selectSettingsSection(section)
 }
 
@@ -807,20 +811,6 @@ function onDeleteAiConfigKey(): void {
                 </template>
               </p>
             </template>
-          </template>
-          <template v-else-if="settingsActiveSection === 'prompt'">
-            <!--
-              ═══════════════════ Prompt (FR69, Story 4.4) ═══════════════════
-              🔴 KHÔNG soạn prompt TẠI ĐÂY — §Never spec 4.4: "A big screen is the 11th
-              overlay, not a fourth mode." Thân của mục này là một nút MỞ lớp phủ Thư viện
-              prompt (`PromptLibraryOverlay.vue`), cùng khuôn nút "xem" ở chân
-              `ImportPreviewOverlay.vue` mở thẳng Cài đặt → Quyền riêng tư.
-            -->
-            <h3 class="set-h2">{{ t('settings.nav.prompt') }}</h3>
-            <p class="set-h2s">{{ t('settings.prompt.intro') }}</p>
-            <button type="button" class="set-open-library ui-btn ui-btn--lg" data-prompt-library-open @click="dispatch('prompt.library.open')">
-              {{ t('command.prompt.library.open') }}
-            </button>
           </template>
           <template v-else-if="settingsActiveSection === 'glossary'">
             <h3 class="set-h2">{{ t('glossary.settings.title') }}</h3>

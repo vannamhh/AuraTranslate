@@ -2510,7 +2510,7 @@ const HANDLER_TABLE = {
   'src/SettingsExportSection.vue::saveExportSettings': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onEscape': { ids: ['settings.close'] },
   'src/SettingsOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
-  'src/SettingsOverlay.vue::onSelectSection': { nonCommand: R_SUBMIT_DIRECT },
+  'src/SettingsOverlay.vue::onSelectSection': { ids: ['prompt.library.open'] },
   'src/SettingsOverlay.vue::onCommitAiConfigField': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onSelectAiConfigTier': { nonCommand: R_SUBMIT_DIRECT },
   'src/SettingsOverlay.vue::onSelectAiProvider': { nonCommand: R_SUBMIT_DIRECT },

@@ -87,7 +87,26 @@ describe('Settings nav', () => {
     wrapper.unmount()
   })
 
-  it('every nav entry opens a body, never an empty frame', async () => {
+  it('the Prompt entry opens the Prompt library straight away and keeps the section shown', async () => {
+    const openPromptLibrary = vi.fn()
+    await freshCommands({ openPromptLibrary })
+    const { settings, SettingsOverlay } = await freshFrame()
+    settings.openSettings()
+    settings.selectSettingsSection('glossary')
+    const wrapper = mount(SettingsOverlay, { attachTo: document.body })
+    await flushPromises()
+
+    await wrapper.get('[data-settings-section="prompt"]').element.closest('form')!.dispatchEvent(new Event('submit'))
+    await flushPromises()
+
+    expect(openPromptLibrary).toHaveBeenCalledTimes(1)
+    expect(settings.settingsActiveSection.value).toBe('glossary')
+    expect(wrapper.find('[data-prompt-library-open]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('every nav entry other than Prompt opens a body, never an empty frame', async () => {
+    await freshCommands({ openPromptLibrary: () => {} })
     const { settings, SettingsOverlay, t } = await freshFrame()
     settings.openSettings()
     const wrapper = mount(SettingsOverlay, { attachTo: document.body })
@@ -95,7 +114,6 @@ describe('Settings nav', () => {
 
     const bodyMarkers: Record<string, (root: typeof wrapper) => boolean> = {
       ai_and_model: (root) => root.find('.ai-key-field').exists(),
-      prompt: (root) => root.find('[data-prompt-library-open]').exists(),
       glossary: (root) => root.find('input.gs-input').exists(),
       export: (root) => root.find('[data-export-translator-input]').exists(),
       shortcuts: (root) => root.find('table.sc-table').exists(),
@@ -108,6 +126,7 @@ describe('Settings nav', () => {
     const forms = wrapper.findAll('.set-nav-form')
     expect(forms).toHaveLength(EXPECTED_SECTIONS.length)
     for (const [index, section] of EXPECTED_SECTIONS.entries()) {
+      if (section === 'prompt') continue
       await forms[index].trigger('submit')
       await flushPromises()
       expect(settings.settingsActiveSection.value).toBe(section)
