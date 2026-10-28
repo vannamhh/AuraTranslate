@@ -268,6 +268,8 @@ Library là **màn hình mở đầu**. Luồng vào ứng dụng là `Mở app 
 
 > **Căn cứ:** Giai đoạn 0 phát hiện `unicode61` mặc định xoá dấu, gộp `má / ma / mà / mả / mã / mạ` thành một kết quả. Với công cụ dịch tiếng Việt đây là lỗi phá vỡ độ chính xác. Nhưng người dùng vẫn thường gõ không dấu cho nhanh — nên cần cả hai, không phải chọn một.
 
+> 🔵 2026-10-28, Ice: bỏ nút chọn chế độ. Hai chế độ vẫn còn, nhưng hệ thống suy chế độ từ truy vấn: truy vấn có ít nhất một chữ Latin và không mang dấu nào được coi là *người dùng yêu cầu* khoan dung, và kết quả khớp đúng chữ đứng trước. Truy vấn có dấu hoặc chữ Hán chạy chính xác, vẫn tự nới khi không có kết quả. Lý do: người dùng phải biết có nút và bấm trước khi tìm, trong khi cách gõ đã nói họ muốn gì. Hệ quả chấp nhận: không còn cách tìm *chỉ* đúng chữ không dấu. Kiến trúc: AD-61.
+
 **FR10.** Lọc và sắp xếp Library theo trạng thái, lĩnh vực, ngôn ngữ nguồn và ngày sửa gần nhất.
 
 **FR139.** Tìm kiếm xuyên Library **thu hẹp phạm vi** (nguyên văn · bản dịch · cả hai) và **lọc** theo trạng thái Tác phẩm và hướng dịch.
@@ -931,7 +933,7 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 |---|---|---|
 | **NFR6** | Kích thước bản cài kèm toàn bộ từ điển | **[A2]** Trần **500.000.000 byte** *(500 MB thập phân)* cho **payload sản phẩm** — mã, font, dữ liệu từ điển — **không có cơ chế tải thêm sau khi cài**. 🔵 *(Nâng từ 400.000.000 ngày 2026-10-21, thay đổi tầng PRD do Ice ký — xem sửa lần ba. Đo trên build release thật cùng ngày: macOS **432.363.050 byte**, Windows **415.937.424 byte** — ĐẠT.)* **Bản WebView2 Runtime nhúng trên Windows nằm NGOÀI trần này**; xem giải thích dưới bảng |
 | **NFR7** | Tra cứu khi ngoại tuyến | **100%** hoạt động không cần mạng |
-| **NFR8** | Độ chính xác dấu tiếng Việt | Chỉ mục tìm kiếm **chính** phải **phân biệt dấu**. Chế độ xoá dấu chỉ được tồn tại như một chỉ mục **phụ**, không bao giờ là mặc định |
+| **NFR8** | Độ chính xác dấu tiếng Việt | Chỉ mục tìm kiếm **chính** phải **phân biệt dấu**. Chế độ xoá dấu chỉ được tồn tại như một chỉ mục **phụ**, không bao giờ là mặc định. 🔵 2026-10-28 (AD-61, FR9): "mặc định" nghĩa là chỉ mục chính quyết kết quả cho mọi truy vấn có dấu, và một truy vấn có dấu không bao giờ bị gấp dấu trừ khi tìm chính xác ra 0 kết quả. Chỉ mục phụ chạy ngay từ đầu chỉ khi truy vấn không mang dấu nào, nơi không còn dấu để phân biệt. NFR8 giữ nguyên |
 | **NFR9** | Khả năng mang dữ liệu đi | TM xuất được TMX; Glossary và prompt xuất được định dạng văn bản mở; `.atproj` tự chứa và mở được trên máy khác |
 | **NFR10** | Toàn vẹn dữ liệu | Mất chỉ mục Library **không được** làm mất dữ liệu — chỉ mục dựng lại được hoàn toàn từ `.atproj` |
 

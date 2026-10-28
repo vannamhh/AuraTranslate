@@ -52,6 +52,8 @@ Ba chế độ là **ngang hàng**, không phân cấp. Chuyển giữa chúng b
 
 🔵 2026-10-13 (D1, D10, D11, D13b của `change-hoan-thien-giao-dien-theo-mockup`): thanh tiêu đề chỉ mang ba tab chế độ, công tắc bố cục và một nút `Công cụ ▾`; các lối vào khác rời thanh tiêu đề về chỗ theo ngữ cảnh.
 
+🔵 2026-10-28 (AD-61, FR9): tìm kiếm xuyên thư viện vẫn có hai chế độ dấu, nhưng không còn nút chọn; cách gõ quyết chế độ. Gõ không dấu thì tìm cả các biến thể dấu, kết quả khớp đúng chữ đứng trước; gõ có dấu hoặc chữ Hán thì tìm chính xác.
+
 ```
 Thanh tiêu đề
 ├── trái   Library · Workspace · Chế độ đọc        ⌘1 ⌘2 ⌘3
@@ -493,7 +495,7 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 
 | Bề mặt | File | Neo tới |
 |---|---|---|
-| **Tìm kiếm xuyên Library** — hai chế độ dấu, và màu khớp đổi theo độ chắc chắn | [`mockups/library-search-results.html`](mockups/library-search-results.html) | FR8 · FR9 · FR10 · NFR8 |
+| **Tìm kiếm xuyên Library** — hai chế độ dấu, và màu khớp đổi theo độ chắc chắn | [`mockups/library-search-results.html`](mockups/library-search-results.html) | FR8 · FR9 · FR10 · NFR8. 🔵 2026-10-28: nút `Chính xác dấu \| Khoan dung không dấu` vẽ trong mockup này đã bỏ (AD-61); dải trạng thái và màu khớp theo độ chắc chắn vẫn giữ |
 | **Danh sách Chương** — bốn trạng thái ở quy mô 2000 Chương, ghi đè trạng thái, gộp/tách | [`mockups/chapter-list.html`](mockups/chapter-list.html) | FR5 · FR6 · FR7 · FR12 · FR15 |
 | **Tầng dữ liệu** — quét lại, mục mồ côi, lịch sử phiên bản, sao lưu bằng copy thư mục | [`mockups/data-integrity.html`](mockups/data-integrity.html) | FR96–FR102 · FR63 · NFR18 |
 

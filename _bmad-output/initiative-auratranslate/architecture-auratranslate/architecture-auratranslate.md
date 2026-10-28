@@ -353,6 +353,7 @@ graph TD
 - **Binds:** C1, C3
 - **Prevents:** `unicode61` mặc định gộp `má / ma / mà / mả / mã / mạ` thành một kết quả — lỗi phá vỡ độ chính xác của toàn bộ tìm kiếm trong một công cụ dịch tiếng Việt.
 - **Rule:** chỉ mục FTS **chính** dùng `remove_diacritics 0`. Chỉ mục xoá dấu chỉ tồn tại như chỉ mục **phụ** cho chế độ khoan dung (FR9), **không bao giờ là mặc định**. Hệ thống thử chế độ chính xác trước, chỉ nới lỏng khi không có kết quả hoặc người dùng yêu cầu. Chi phí đã biết: ~17 MB mỗi chỉ mục.
+- 🔵 2026-10-28: ở tìm kiếm Library, "người dùng yêu cầu" nay là gõ một truy vấn không mang dấu nào, không còn nút chọn (AD-61). Quy tắc chỉ mục chính và phần C3 không đổi.
 
 ### AD-28 — Tác phẩm mang UUID; Chương và Segment mang id cục bộ
 
@@ -1341,6 +1342,48 @@ graph TD
   - Mã đọc: `src-tauri/src/core/ai/client.rs:468 (translate) @ 7bd1f90`, `src-tauri/src/commands/aitranslate.rs:1034 (run_batch_call) @ 7bd1f90`.
   - Lịch sử: `915f1af` (dịch lô mỗi câu một request), `dc8b39d` (Proofreader gom câu).
 
+### AD-61 — Tìm kiếm Library suy chế độ dấu từ truy vấn: gõ không dấu thì khoan dung, gõ có dấu hoặc chữ Hán thì chính xác; không còn nút chọn
+
+- **Binds:** C1. Các chỗ trong mã:
+  - `core/library/indexer.rs`: `Indexer::search`, `SearchMode`, `SearchReport`, hàm thuần phân loại truy vấn, `fold_diacritics_case_preserving`.
+  - `commands/library.rs`: `search_library`, `search_library_scoped`.
+  - Frontend: `src/config/library.ts` (`searchLibrary`, `SearchReport`), `src/modes/librarySearch.ts`, `src/modes/LibraryMode.vue`, `src/commands/index.ts`, `src/main.ts`, `src/i18n/vi.json`.
+- **Prevents:**
+  1. Người dùng phải biết có hai chế độ và bấm đúng nút trước khi tìm. Gõ "chi" mà chỉ mục có một chữ "chi" thì hôm nay không ra "chỉ/chí/chì", và không có gì báo rằng còn kết quả khác.
+  2. Gõ có dấu mà nhận lẫn mọi biến thể dấu ("má" ra cả ma/mà/mả): đúng lỗi AD-27 sinh ra để chặn.
+  3. Hai tầng cùng phân loại truy vấn theo hai cách khác nhau.
+  4. Một hit khớp đúng chữ rơi khỏi danh sách vì trần cắt danh sách khoan dung theo thứ hạng của chỉ mục `_nd`.
+  5. Chạy thêm một lượt trigram `_nd` cho truy vấn chữ Hán: phép gấp dấu không đổi chữ Hán, nên lượt đó ra đúng tập kết quả của lượt chính xác mà tốn thêm thời gian.
+- **Rule:**
+
+  1. **Một chỗ phân loại, ở Rust.** Một hàm thuần trong `core/library/indexer.rs` nhận truy vấn đã cắt khoảng trắng và trả `SearchMode`. Kết quả là `Lenient` khi và chỉ khi truy vấn có ít nhất một chữ ASCII `[A-Za-z]` **và** `fold_diacritics_case_preserving(q) == q`, tức không có `đ`/`Đ` và không có dấu nào, dù ở dạng dựng sẵn (NFC) hay dấu tổ hợp (NFD). Mọi truy vấn khác cho `Exact`: có dấu, chữ Hán, hoặc chỉ có số và dấu câu. `search_library` và `search_library_scoped` bỏ tham số `mode`. Webview không phân loại và không gửi chế độ. `SearchMode::from_wire` và khoá `err.library.unknown_search_mode` mất người dùng nên bị xoá.
+  2. **Chính xác vẫn chạy trước, tự nới giữ nguyên.** Lượt chính xác luôn chạy trước, kể cả khi phân loại ra `Lenient`; tập rowid của nó vẫn là nguồn duy nhất cho nhãn `match_kind`. Phân loại ra `Exact`, lượt chính xác trả 0 hàng, chỉ mục không rỗng thì tự nới như hôm nay (`widened = true`).
+  3. **Hit khớp đúng chữ đứng trước và không bị trần cắt.** Ở lượt khoan dung, mỗi nửa (bản dịch, nguyên văn) trả các hit của lượt chính xác theo thứ tự của nó, rồi mới tới các hit `_nd` có rowid ngoài tập đó, tất cả cắt chung ở trần của nửa đó. Hôm nay danh sách `_nd` thay hẳn danh sách chính xác, nên một hit khớp đúng chữ có thể bị cắt mất (Prevents 4).
+  4. **Báo cáo nói được vì sao.** `SearchReport.mode` nay mang chế độ phân loại từ truy vấn, không còn là chế độ người dùng chọn. `effective_mode`, `widened` và bất biến `widened == (mode == Exact && effective_mode == Lenient)` không đổi. Dòng trạng thái tách ba trường hợp, mỗi trường hợp một khoá i18n riêng: chính xác; khoan dung vì gõ không dấu (câu nói rõ đã tìm cả các biến thể dấu); khoan dung vì tự nới (câu có sẵn). Tám trạng thái của `librarySearch.ts` thêm hai giá trị cho trường hợp thứ hai, cả lúc có kết quả lẫn lúc không có; story thi hành đặt tên.
+  5. **Bỏ nút chọn.** Bỏ khối `ui-seg` "Chế độ dấu" ở `LibraryMode.vue`, hai lệnh `library.search_mode_exact` và `library.search_mode_lenient` (đăng ký, cổng tiêm, handler), cùng các khoá i18n của chúng. Một phím tắt người dùng đã gán cho hai id này không được làm hỏng lượt nạp Cài đặt; một ca test canh việc đó.
+  6. **Test canh.**
+     - (a) Bảng phân loại thuần: `ma cua toi` cho `Lenient`; `má` cho `Exact`; `di` cho `Lenient`; `đi` cho `Exact`; `a` + U+0301 (NFD) cho `Exact`; `分久必合` cho `Exact`; `brown fox` cho `Lenient`; `2500` cho `Exact`; `分久 ab` cho `Lenient`.
+     - (b) Ca qua lệnh `search_library`, không gọi thẳng hàm phân loại. Fixture có **cả** một segment chứa đúng chữ "chi" **và** một segment chứa "chỉ". Truy vấn `chi` ra cả hai, hit "chi" mang `Exact` và đứng trước. Truy vấn `chỉ` chỉ ra "chỉ". ⚠️ Nếu thiếu segment "chi" đúng chữ, lượt chính xác ra 0 và tự nới cũng ra kết quả y hệt, nên ca đó xanh ở cả hai nhánh và không canh gì. Đối chứng đỏ: GỠ lời gọi phân loại trong `Indexer::search` (chế độ cố định `Exact`) thì ca `chi` đỏ vì thiếu "chỉ".
+     - (c) Trần: trần nhỏ, hit đúng chữ có thứ hạng thấp trong `_nd` vẫn có mặt. Đối chứng đỏ: trả lại danh sách `_nd` trần.
+  7. **Đo.** Truy vấn chữ Hán không đổi đường đi (đo 10.9: p95 ≤ 183,9 ms). Story thi hành thêm vào bộ đo `6-18-ban-do` hai ca chưa từng đo: một truy vấn Latin không dấu làm cắt trần ở nửa nguyên văn tiếng Anh, chế độ khoan dung, và một truy vấn trộn Hán với Latin. Cả hai phải đạt NFR3 (p95 < 500 ms); đỏ thì quay lại AD này, không nới ngưỡng.
+  8. **Đổi gì, không đổi gì.**
+     - Đổi: AD-27 nhận một dòng 🔵 trỏ về đây. Spec Story 5.10 nhận 🔵 do story thi hành ghi. FR9 ("hai chế độ… chỉ nới lỏng khi… người dùng yêu cầu") cần John sửa qua correct-course: hai chế độ vẫn còn, nhưng "người dùng yêu cầu" nay là gõ không dấu, không phải bấm nút. Mục L5 của `ux-auratranslate/library-nghiem-thu-thi-giac.md` (hàng điều khiển có `Chính xác dấu | Không dấu`) cần Sally sửa.
+     - NFR8, cách đọc của AD này, chờ John xác nhận: NFR8 đứng nguyên. Chỉ mục chính vẫn phân biệt dấu, và là chỉ mục duy nhất quyết kết quả cho mọi truy vấn có dấu. Chỉ mục phụ chỉ chạy cho truy vấn không mang dấu nào, nơi không có dấu để phân biệt. Lỗi NFR8 chặn ("má" gộp với ma/mà) không thể xảy ra.
+     - 🔵 2026-10-28: John đã sửa FR9 và xác nhận cách đọc NFR8, mỗi chỗ một dòng 🔵 trong PRD. Còn lại mục L5 (Sally).
+     - Không đổi: hai chỉ mục `_nd`, các cột `*_text_fold`, phép gấp dấu, sàn 3 ký tự của nửa nguyên văn, AD-27 ở C3 (tra từ điển).
+  9. **Giới hạn chấp nhận.** Không còn cách tìm *chỉ* đúng chữ không dấu: gõ "chi" luôn ra cả "chỉ/chí". Hit đúng chữ đứng trước và mang nhãn, nên vẫn tìm được, nhưng danh sách dài hơn. Trên thư viện của Ice, 9 trong 59 từ không dấu có hit đúng chữ bị ảnh hưởng.
+
+- **Phương án bị loại:**
+  - **(A) Luôn chạy cả hai, gấp cả truy vấn có dấu:** gõ "má" ra mọi biến thể (Prevents 2), và mọi truy vấn chữ Hán trả thêm một lượt trigram trùng (Prevents 5). Ice chọn (B) ngày 2026-10-28.
+  - **Giữ hai nút (hiện trạng):** Prevents 1.
+  - **Webview phân loại truy vấn:** Prevents 3; logic miền lọt sang Vue (AD-1).
+  - **Coi mọi truy vấn có `fold(q) == q` là không dấu, kể cả chữ Hán:** Prevents 5. Ca Hán ở chế độ khoan dung chưa đo; ước lượng thô là gấp đôi lượt nguyên văn, p95 khoảng 360 ms.
+
+  → bằng chứng:
+  - Bộ đo NFR3 của Story 10.9 (`_bmad-output/implementation-artifacts/6-18-ban-do/nfr3-raw.tsv`, bản release, macOS, 5.000 Chương / 50.000 segment, 3 phiên × 200 mẫu), p95 theo phiên: chính xác `má của tôi` 102,0–103,3 ms; tự nới `ma cua toi` 100,6–103,6 ms; khoan dung chọn tay `ma cua toi` 102,5–103,6 ms; chữ Hán chính xác `分久必合` 180,4–183,9 ms.
+  - Thư viện thật của Ice ngày 2026-10-28 (`library-index.db`, 103 segment, 14 Tác phẩm, 306 từ trong chỉ mục bản dịch, đọc qua `fts5vocab`, chỉ đọc): 59 từ ASCII có hit đúng chữ; 9 từ có thêm hit ở `_nd` (`hoan` 1→5, `chi` 1→4, `cung` 2→5, `bang` 1→3, `phong` 3→5, `ba` 2→3, `du` 2→3, `dung` 1→2, `quan` 2→3). Bảy truy vấn có dấu (`là`, `có`, `của`, `một`, `người`, `mà`, `đã`) cho số hit chính xác bằng số hit khoan dung.
+  - Mã đọc: `src-tauri/src/core/library/indexer.rs:1084` (tự nới), `:1111-1145` (lượt khoan dung thay danh sách), `:1251` (`fold_diacritics_case_preserving`), `:1402` (`SearchMode`), `src-tauri/src/commands/library.rs:828`, `:848`, `src/modes/LibraryMode.vue:405-422`, `src/commands/index.ts:2579-2595`.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -1649,7 +1692,7 @@ AuraTranslate/
 
 | Nhóm năng lực | Lives in | Governed by |
 |---|---|---|
-| **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43, AD-58 |
+| **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43, AD-58, AD-61 |
 | **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42, AD-55, AD-58 |
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
 | **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57 |
