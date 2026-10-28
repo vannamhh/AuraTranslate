@@ -44,6 +44,26 @@
   color: var(--color-error);
 }
 
+.ui-btn--cover {
+  background: var(--color-surface);
+  border-color: var(--color-surface);
+  color: var(--color-primary);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.ui-btn--cover-plain {
+  background: var(--color-surface);
+  border-color: var(--color-surface);
+  color: var(--color-on-surface-variant);
+}
+
+.ui-btn--cover-on {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--weight-ui-md-strong);
+}
+
 .ui-btn--pair {
   min-width: 8.5em;
   justify-content: center;
@@ -79,6 +99,11 @@
   border-color: var(--color-primary);
 }
 
+.ui-btn--cover-on:focus-visible {
+  outline: 2px solid var(--color-on-cover);
+  outline-offset: 1px;
+}
+
 .ui-btn--primary:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 1px;
@@ -94,6 +119,28 @@
   color: var(--color-on-surface-variant);
   font-weight: inherit;
   cursor: default;
+}
+
+/* Cover buttons sit on a dark cover, where the shared pressed and locked shapes would hide the label. */
+.ui-btn--cover:active,
+.ui-btn--cover:disabled,
+.ui-btn--cover-plain:active,
+.ui-btn--cover-plain:disabled {
+  background: var(--color-surface);
+  border: 1px solid var(--color-surface);
+}
+
+.ui-btn--cover:disabled {
+  color: var(--color-primary);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.ui-btn--cover-on:active,
+.ui-btn--cover-on:disabled {
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: var(--weight-ui-md-strong);
 }
 
 .ui-icon-btn {

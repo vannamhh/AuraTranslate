@@ -34,6 +34,15 @@ async function open(menu: HTMLDetailsElement): Promise<void> {
 }
 
 describe('DropdownMenu.vue', () => {
+  it('a more trigger is a quiet button unless the caller names its own trigger classes', () => {
+    const quiet = mount(DropdownMenu, { props: { variant: 'more', label: '⋯' } })
+    expect(quiet.get('summary').classes()).toEqual(['menu-trigger', 'ui-btn', 'ui-btn--quiet'])
+    quiet.unmount()
+    const cover = mount(DropdownMenu, { props: { variant: 'more', label: '⋯', triggerClass: 'ui-btn--sm ui-btn--cover-plain' } })
+    expect(cover.get('summary').classes()).toEqual(['menu-trigger', 'ui-btn', 'ui-btn--sm', 'ui-btn--cover-plain'])
+    cover.unmount()
+  })
+
   it('Escape closes an open menu and focuses its summary', async () => {
     wrapper = mount(Host, { attachTo: document.body })
     const [first] = menus()

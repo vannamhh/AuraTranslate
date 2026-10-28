@@ -612,7 +612,8 @@ const importScreenIsOpen = computed<boolean>(
             <div class="work-go-slot">
               <button
                 type="button"
-                class="work-go ui-btn ui-btn--sm ui-btn--primary"
+                class="work-go ui-btn ui-btn--sm"
+                :class="workIndex === libraryWorkCursor ? 'ui-btn--cover-on' : 'ui-btn--cover'"
                 data-library-continue-translation
                 :disabled="libraryOpenWorkBusy"
                 @dblclick.stop
@@ -623,7 +624,13 @@ const importScreenIsOpen = computed<boolean>(
               </button>
             </div>
             <div class="work-more" @dblclick.stop>
-              <DropdownMenu variant="more" label="⋯" :aria-label="t('mode.library.work_more_menu')" data-library-work-more>
+              <DropdownMenu
+                variant="more"
+                trigger-class="ui-btn--sm ui-btn--cover-plain"
+                label="⋯"
+                :aria-label="t('mode.library.work_more_menu')"
+                data-library-work-more
+              >
                 <button
                   type="button"
                   class="menu-item ui-menu-item"

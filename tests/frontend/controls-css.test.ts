@@ -85,6 +85,30 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
     expect(declarations('.ui-btn--sm')).toMatch(/(^|;)\s*height:\s*24px/)
   })
 
+  it('cover buttons take the Library mockup fills: surface with primary text, or primary with on-primary text', () => {
+    const cover = declarations('.ui-btn--cover')
+    expect(cover).toMatch(/background:\s*var\(--color-surface\)/)
+    expect(cover).toMatch(/(^|;)\s*color:\s*var\(--color-primary\)/)
+    const plain = declarations('.ui-btn--cover-plain')
+    expect(plain).toMatch(/background:\s*var\(--color-surface\)/)
+    expect(plain).toMatch(/(^|;)\s*color:\s*var\(--color-on-surface-variant\)/)
+    const on = declarations('.ui-btn--cover-on')
+    expect(on).toMatch(/background:\s*var\(--color-primary\)/)
+    expect(on).toMatch(/(^|;)\s*color:\s*var\(--color-on-primary\)/)
+  })
+
+  it('cover buttons keep their fill when pressed or locked, so the label never sinks into the cover', () => {
+    for (const cls of ['.ui-btn--cover', '.ui-btn--cover-plain', '.ui-btn--cover-on']) {
+      for (const state of [':active', ':disabled']) {
+        const body = declarations(cls + state)
+        expect(body, cls + state).toMatch(/background:\s*var\(--color-(surface|primary)\)/)
+        expect(body, cls + state).not.toMatch(/dashed/)
+      }
+      expect(CSS.indexOf(`${cls}:disabled`), `${cls}:disabled after .ui-btn:disabled`).toBeGreaterThan(CSS.indexOf('.ui-btn:disabled'))
+    }
+    expect(declarations('.ui-btn--cover-on:focus-visible')).toMatch(/outline:\s*2px solid var\(--color-on-cover\)/)
+  })
+
   it('an md chip is 28px tall, the same tier as md buttons and fields', () => {
     expect(declarations('.ui-chip--md')).toMatch(/(^|;)\s*height:\s*28px/)
   })

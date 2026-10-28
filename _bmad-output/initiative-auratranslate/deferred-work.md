@@ -13549,3 +13549,8 @@ chính nó.
 - `ui-seg` nay cao 28px tính cả viền (trước là 26px, không trùng bậc nào). Thanh tiêu đề và Chế độ đọc mang `ui-seg--sm` 24px, đã đo khớp hàng xóm. Sáu nơi cần IPC nên chưa đo trong trình duyệt: GridPanel, LookupPanel, Library, Cài đặt (phạm vi, Đọc), TM, Prompt. Mỗi nơi phải có cùng `top`/`height` với hàng xóm; hàng nào toàn bậc `sm` thì gắn `ui-seg--sm`.
   Chủ: Story 12.33. Trỏ: `plan-glossary-dieu-khien-cung-chieu-cao.md`, DESIGN.md §Điều khiển.
   → 🟡 2026-10-28: TM đã đo trong trình duyệt (cổng 1420, dpr 2, IPC không có, cửa sổ rộng 1440/960/700/560px). Thanh lọc thẳng hàng ở 28px, kể cả khi nhãn và chip xuống dòng (`plan-tm-dieu-khien-cung-chieu-cao.md`). Còn năm nơi chưa đo: GridPanel, LookupPanel, Library, Cài đặt (phạm vi, Đọc), Prompt. Chủ: Story 12.33.
+
+## Deferred from: nút trên bìa thẻ Library theo mockup (2026-10-28, ngoài cây vé)
+
+- Màu và chiều cao của "Tiếp tục dịch"/"⋯" mới đo trên hai thẻ dựng tay, mang thuộc tính scoped của `LibraryMode`, ở cổng 1420, chưa đo trên thẻ do app render. Cần mắt trong app thật, cả theme sáng và tối: thẻ đang chọn, thẻ rê chuột, focus bàn phím (vòng `on-cover`), mở menu `⋯`.
+  Chủ: Epic 12. Trỏ: `plan-nut-tren-bia-library-theo-mockup.md`.

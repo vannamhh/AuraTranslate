@@ -439,7 +439,7 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 | Nguy hiểm | Nền `surface`, viền 1px và chữ `error` (7,74:1 sáng · 5,92:1 tối) | Hành động có chữ **Xoá** làm mất thứ không lấy lại được trong app ("Xoá khoá"). 🔵 2026-10-28 (Ice duyệt): bậc thứ năm; `error` thêm đúng việc này, ngoài câu lỗi |
 | Khoá | Không nền, viền **đứt** 1px `outline`, chữ `on-surface-variant` | Mọi bậc khi `disabled` — khác dáng, không chỉ khác màu |
 
-Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng thái), bo `3px`, chữ `ui-md`. 🔵 2026-10-28: chiều cao theo thang ba bậc ở §Điều khiển (thêm 32px cho form). Nút chính **không** dùng `primary`: màu nhấn giữ đúng ba việc ở §Colors. Một hành động có cặp huỷ ("Dịch câu này" / "Huỷ dịch") hiện **một** nút ở **cùng một chỗ**, đổi theo trạng thái, để hàng nút không nhảy bố cục.
+Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng thái), bo `3px`, chữ `ui-md`. 🔵 2026-10-28: chiều cao theo thang ba bậc ở §Điều khiển (thêm 32px cho form). Nút chính **không** dùng `primary`: màu nhấn giữ đúng ba việc ở §Colors. 🔵 2026-10-28, Ice chọn giữ dáng mockup `library-luoi-rong.html` cho nút trên bìa thẻ Library: "Tiếp tục dịch" nền `primary` ở thẻ đang chọn (`ui-btn--cover-on`), nền `surface` chữ `primary` ở thẻ rê chuột (`ui-btn--cover`), `⋯` nền `surface` chữ `on-surface-variant` (`ui-btn--cover-plain`). Một hành động có cặp huỷ ("Dịch câu này" / "Huỷ dịch") hiện **một** nút ở **cùng một chỗ**, đổi theo trạng thái, để hàng nút không nhảy bố cục.
 
 ### Điều khiển — một hệ cho mọi nút, ô nhập, ô chọn
 
