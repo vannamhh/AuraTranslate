@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { KeepAlive, defineComponent, h } from 'vue'
@@ -25,6 +27,8 @@ function row(over: Record<string, unknown>) {
     ...over,
   }
 }
+
+const LIBRARY_STYLE = readFileSync(join(__dirname, '../../src/modes/LibraryMode.vue'), 'utf8').split('<style scoped>')[1] ?? ''
 
 let page: VueWrapper | null = null
 
@@ -155,5 +159,43 @@ describe('Library top bar and cards', { timeout: 30_000 }, () => {
     const cell = p.find('.work-cell')
     expect(cell.find('[data-library-work-meta]').text()).toBe('')
     expect(cell.text()).not.toMatch(/Invalid|undefined|NaN/)
+  })
+
+  it('two selected status filter items are pressed ui-menu-items under a "Trạng thái (2)" field, tinted surface-accent', async () => {
+    const p = await mountLibrary([row({})])
+    const works = await import('../../src/modes/libraryWorks')
+    works.toggleStatusFilter('done')
+    works.toggleStatusFilter('not_started')
+    await p.vm.$nextTick()
+    for (const status of ['done', 'not_started']) {
+      const item = p.find(`[data-lifecycle-filter="${status}"]`)
+      expect(item.classes()).toContain('ui-menu-item')
+      expect(item.attributes('aria-pressed')).toBe('true')
+    }
+    expect(p.find('[data-lifecycle-filter="paused"]').attributes('aria-pressed')).toBe('false')
+    const trigger = p.find('[data-library-chip="status"] summary')
+    expect(trigger.classes()).toContain('ui-field')
+    expect(trigger.text()).toContain('Trạng thái (2)')
+    const pressedRule = LIBRARY_STYLE.match(/\.menu-item\[aria-pressed='true'\]\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(pressedRule).toContain('var(--color-surface-accent)')
+    expect(pressedRule).not.toContain('primary')
+  })
+
+  it('the chosen search scope radio stays checked inside a ui-seg__item label', async () => {
+    const p = await mountLibrary([row({})])
+    const search = await import('../../src/modes/librarySearch')
+    search.librarySearchQuery.value = 'khoang'
+    search.setLibrarySearchScope('target')
+    await p.vm.$nextTick()
+    const radio = p.find<HTMLInputElement>('[data-library-search-scope="target"]')
+    expect(radio.element.checked).toBe(true)
+    expect(radio.element.closest('label')?.classList.contains('ui-seg__item')).toBe(true)
+    expect(p.find<HTMLInputElement>('[data-library-search-scope="both"]').element.checked).toBe(false)
+    const names = p.findAll<HTMLInputElement>('[data-library-search-scope]').map((r) => r.element.name)
+    expect(new Set(names)).toEqual(new Set(['library-search-scope']))
+    expect(radio.classes()).toContain('lib-sr-only')
+    const hiddenRule = LIBRARY_STYLE.match(/\.lib-sr-only\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(hiddenRule).toContain('clip: rect(0, 0, 0, 0)')
+    expect(hiddenRule).not.toMatch(/display:\s*none|visibility:\s*hidden/)
   })
 })

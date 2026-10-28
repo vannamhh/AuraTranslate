@@ -108,7 +108,7 @@ function onEscape(): void {
             id="us-urls"
             ref="textarea"
             v-model="pastedUrls"
-            class="us-textarea"
+            class="us-textarea ui-field ui-field--full"
             wrap="off"
             rows="12"
             autocomplete="off"
@@ -132,7 +132,7 @@ function onEscape(): void {
       <form class="us-side" @submit.prevent>
         <fieldset class="us-group" data-import-destination>
           <legend>{{ t('mode.library.field_destination') }}</legend>
-          <label class="us-radio">
+          <label class="us-radio ui-check">
             <input
               type="radio"
               name="us-destination-mode"
@@ -144,7 +144,7 @@ function onEscape(): void {
               <span class="us-radio-desc">{{ t('mode.library.destination_new_work_desc') }}</span>
             </span>
           </label>
-          <label class="us-radio">
+          <label class="us-radio ui-check">
             <input
               type="radio"
               name="us-destination-mode"
@@ -179,8 +179,8 @@ function onEscape(): void {
 
         <label class="us-field">
           <span>{{ t('mode.library.field_name') }}</span>
-          <input v-if="pickedDestinationWork === null" v-model="name" type="text" autocomplete="off" />
-          <input v-else :value="pickedDestinationWork.name" type="text" autocomplete="off" disabled />
+          <input v-if="pickedDestinationWork === null" v-model="name" type="text" class="ui-field ui-field--full" autocomplete="off" />
+          <input v-else class="ui-field ui-field--full" :value="pickedDestinationWork.name" type="text" autocomplete="off" disabled />
         </label>
 
         <div class="us-field">
@@ -195,6 +195,7 @@ function onEscape(): void {
             v-else
             :value="sourceLangLabel(pickedDestinationWork.source_lang) ?? ''"
             type="text"
+            class="ui-field ui-field--full"
             autocomplete="off"
             disabled
           />
@@ -215,6 +216,7 @@ function onEscape(): void {
             v-else
             :value="genreLabel(pickedDestinationWork.genre) ?? ''"
             type="text"
+            class="ui-field ui-field--full"
             autocomplete="off"
             disabled
           />
@@ -228,12 +230,12 @@ function onEscape(): void {
     </p>
 
     <div class="us-actions">
-      <button type="button" class="us-btn" :disabled="busy" @click="dispatch('library.import_urls_close')">
+      <button type="button" class="us-btn ui-btn" :disabled="busy" @click="dispatch('library.import_urls_close')">
         {{ t('command.library.import_urls_close') }}
       </button>
       <button
         type="button"
-        class="us-btn us-btn-primary"
+        class="us-btn us-btn-primary ui-btn ui-btn--primary"
         data-import-preview-open
         :disabled="busy || pastedUrlCount === 0 || destinationPending || effectiveName.trim() === ''"
         @pointerdown="recordImportOpener"
@@ -307,31 +309,19 @@ function onEscape(): void {
 .us-paste {
   display: flex;
   height: 260px;
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  background: var(--color-surface);
-}
-
-.us-paste:has(.us-textarea:focus-visible) {
-  border-color: var(--color-primary);
-}
-
-.us-textarea:focus-visible {
-  /* aura-allow-outline-none: frame .us-paste recolours its border on focus */
-  outline: none;
 }
 
 .us-gutter {
   margin: 0;
-  padding: 8px 8px;
+  padding: 7px 8px; /* aura-allow-spacing: 1px border + 6px padding of textarea.ui-field so numbers meet the text lines */
   list-style: none;
   overflow: hidden;
   box-sizing: border-box;
   height: 100%;
   text-align: right;
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  line-height: var(--leading-ui-mono);
+  font-family: var(--face-ui-md-wrap);
+  font-size: var(--font-ui-md-wrap);
+  line-height: var(--leading-ui-md-wrap);
   color: var(--color-on-surface-variant);
   border-right: 1px solid var(--color-outline);
   background: var(--color-surface-sunken);
@@ -340,17 +330,8 @@ function onEscape(): void {
 .us-textarea {
   flex: 1;
   min-width: 0;
-  box-sizing: border-box;
-  height: 100%;
-  padding: 8px 8px;
-  border: none;
   resize: none;
   overflow: auto;
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  line-height: var(--leading-ui-mono);
-  color: var(--color-on-surface);
-  background: var(--color-surface);
 }
 
 .us-count {
@@ -407,23 +388,6 @@ function onEscape(): void {
   gap: 4px;
 }
 
-.us-field input,
-.us-field select {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 8px;
-}
-
-.us-field input:focus-visible,
-.us-field select:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .us-error {
   margin: 0;
   font-family: var(--face-ui-sm);
@@ -437,37 +401,5 @@ function onEscape(): void {
   justify-content: flex-end;
   gap: calc(var(--space-unit) * 2);
   margin-top: var(--space-panel-block);
-}
-
-.us-btn {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-  background: none;
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.us-btn:not(.us-btn-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.us-btn:disabled {
-  color: var(--color-on-surface-variant);
-  cursor: not-allowed;
-}
-
-.us-btn-primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.us-btn-primary:disabled {
-  background: var(--color-surface-sunken);
-  color: var(--color-on-surface-variant);
 }
 </style>

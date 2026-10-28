@@ -486,7 +486,7 @@ function paragraphRuns(
     <div class="toolbar">
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-reading-toggle-bilingual
         :aria-pressed="readingBilingual"
         @click="dispatch('reading.toggle_bilingual')"
@@ -497,39 +497,41 @@ function paragraphRuns(
       </button>
       <span class="level-group" role="group" :aria-label="t('mode.reading.level_group')">
         <span class="level-label">{{ t('mode.reading.level_group') }}</span>
-        <button
-          type="button"
-          class="btn"
-          data-reading-level="lg"
-          :aria-pressed="currentReadingLevel === 'lg'"
-          @click="dispatch('reading.level_airy')"
-        >
-          {{ t('mode.reading.level_airy') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-reading-level="md"
-          :aria-pressed="currentReadingLevel === 'md'"
-          @click="dispatch('reading.level_balanced')"
-        >
-          {{ t('mode.reading.level_balanced') }}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          data-reading-level="sm"
-          :aria-pressed="currentReadingLevel === 'sm'"
-          @click="dispatch('reading.level_dense')"
-        >
-          {{ t('mode.reading.level_dense') }}
-        </button>
+        <span class="ui-seg">
+          <button
+            type="button"
+            class="btn ui-seg__item"
+            data-reading-level="lg"
+            :aria-pressed="currentReadingLevel === 'lg'"
+            @click="dispatch('reading.level_airy')"
+          >
+            {{ t('mode.reading.level_airy') }}
+          </button>
+          <button
+            type="button"
+            class="btn ui-seg__item"
+            data-reading-level="md"
+            :aria-pressed="currentReadingLevel === 'md'"
+            @click="dispatch('reading.level_balanced')"
+          >
+            {{ t('mode.reading.level_balanced') }}
+          </button>
+          <button
+            type="button"
+            class="btn ui-seg__item"
+            data-reading-level="sm"
+            :aria-pressed="currentReadingLevel === 'sm'"
+            @click="dispatch('reading.level_dense')"
+          >
+            {{ t('mode.reading.level_dense') }}
+          </button>
+        </span>
         <!-- aura-allow-text: chord displays from the shortcut registry. -->
         <span class="kbd">{{ [chordOf('reading.level_airy'), chordOf('reading.level_balanced'), chordOf('reading.level_dense')].join(' ') }}</span>
       </span>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-reading-toggle-tuner
         :aria-pressed="readingTunerOpen"
         @click="dispatch('reading.toggle_tuner')"
@@ -538,7 +540,7 @@ function paragraphRuns(
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-reading-toggle-theme
         :aria-pressed="currentTheme === 'dark'"
         @click="dispatch('reading.toggle_theme')"
@@ -548,12 +550,12 @@ function paragraphRuns(
         <!-- aura-allow-text: chord display from the shortcut registry. -->
         <span v-if="chordOf('reading.toggle_theme') !== ''" class="kbd">{{ chordOf('reading.toggle_theme') }}</span>
       </button>
-      <button type="button" class="btn" data-reading-toc :aria-expanded="readingTocOpen" @click="dispatch('reading.toc')">
+      <button type="button" class="btn ui-btn ui-btn--sm" data-reading-toc :aria-expanded="readingTocOpen" @click="dispatch('reading.toc')">
         {{ t('mode.reading.toc') }}
         <!-- aura-allow-text: chord display from the shortcut registry. -->
         <span v-if="chordOf('reading.toc') !== ''" class="kbd">{{ chordOf('reading.toc') }}</span>
       </button>
-      <button type="button" class="btn" data-reading-marks :aria-expanded="readingMarksOpen" @click="dispatch('reading.marks')">
+      <button type="button" class="btn ui-btn ui-btn--sm" data-reading-marks :aria-expanded="readingMarksOpen" @click="dispatch('reading.marks')">
         <!-- aura-allow-text: marksButtonText is a computed that goes through t(). -->
         {{ marksButtonText }}
         <!-- aura-allow-text: chord display from the shortcut registry. -->
@@ -577,6 +579,7 @@ function paragraphRuns(
         <span>{{ t('mode.reading.tuner_font_size') }}</span>
         <input
           type="range"
+          class="tuner-range"
           data-reading-tuner-font-size
           min="14"
           max="28"
@@ -589,6 +592,7 @@ function paragraphRuns(
         <span>{{ t('mode.reading.tuner_line_height') }}</span>
         <input
           type="range"
+          class="tuner-range"
           data-reading-tuner-line-height
           :min="READING_LINE_HEIGHT_FLOOR"
           max="2.4"
@@ -722,14 +726,14 @@ function paragraphRuns(
                       <button
                         type="button"
                         tabindex="-1"
-                        class="mark-affordance"
+                        class="mark-affordance ui-btn ui-btn--quiet ui-btn--sm"
                         :aria-disabled="segment.is_marked ? 'true' : undefined"
                         @click="dispatch('reading.mark_aimed')"
                       ><!-- aura-allow-text: cả hai nhánh đều đi qua t(). -->{{ segment.is_marked ? t('mode.reading.marked') : t('mode.reading.mark_action') }}</button>
                       <button
                         type="button"
                         tabindex="-1"
-                        class="mark-affordance"
+                        class="mark-affordance ui-btn ui-btn--quiet ui-btn--sm"
                         @click="dispatch('reading.open_aimed')"
                       >{{ t('mode.reading.edit_action') }}</button>
                     </span></span
@@ -771,7 +775,7 @@ function paragraphRuns(
       <button
         v-if="readingRun.frontier.kind === 'next-not-done'"
         type="button"
-        class="btn"
+        class="btn ui-btn"
         data-reading-frontier-continue
         @click="dispatch('reading.continue_in_workspace')"
       >
@@ -781,14 +785,14 @@ function paragraphRuns(
       <button
         v-if="readingMarksTotal !== null && readingMarksTotal > 0"
         type="button"
-        class="btn"
+        class="btn ui-btn"
         data-reading-frontier-marks
         @click="dispatch('reading.marks')"
       >
         <!-- aura-allow-text: frontierMarksText goes through t(). -->
         {{ frontierMarksText }}
       </button>
-      <button type="button" class="btn" data-reading-frontier-work-start @click="dispatch('reading.work_start')">
+      <button type="button" class="btn ui-btn" data-reading-frontier-work-start @click="dispatch('reading.work_start')">
         {{ t('mode.reading.frontier_work_start') }}
       </button>
     </div>
@@ -825,7 +829,7 @@ function paragraphRuns(
             <span v-if="mark.is_retired" class="retired-note">{{ t('mode.reading.marks_retired') }}</span>
             <button
               type="button"
-              class="btn"
+              class="btn ui-btn ui-btn--sm"
               :disabled="readingMarksBusy"
               @pointerdown="setReadingMarksCursor(index)"
               @focus="setReadingMarksCursor(index)"
@@ -833,7 +837,7 @@ function paragraphRuns(
             >{{ t('mode.reading.marks_row_edit') }}</button>
             <button
               type="button"
-              class="btn"
+              class="btn ui-btn ui-btn--sm"
               :disabled="readingMarksBusy"
               @pointerdown="setReadingMarksCursor(index)"
               @focus="setReadingMarksCursor(index)"
@@ -842,13 +846,13 @@ function paragraphRuns(
           </li>
         </ul>
         <div class="toc-actions">
-          <button type="button" class="btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_walk')">
+          <button type="button" class="btn ui-btn" :disabled="readingMarksBusy || readingMarks.length === 0" @click="dispatch('reading.marks_walk')">
             <!-- aura-allow-text: marksWalkText goes through t(). -->
             {{ marksWalkText }}
           </button>
           <button
             type="button"
-            class="btn"
+            class="btn ui-btn"
             data-reading-marks-clear
             :disabled="readingMarksBusy || readingMarks.length === 0"
             @click="dispatch('reading.marks_clear')"
@@ -856,7 +860,7 @@ function paragraphRuns(
             <!-- aura-allow-text: marksClearText goes through t(). -->
             {{ marksClearText }}
           </button>
-          <button type="button" class="btn" @click="dispatch('reading.marks_close')">{{ t('mode.reading.marks_close') }}</button>
+          <button type="button" class="btn ui-btn" @click="dispatch('reading.marks_close')">{{ t('mode.reading.marks_close') }}</button>
         </div>
         <p class="marks-hint">{{ t('mode.reading.marks_keys') }}</p>
       </div>
@@ -906,16 +910,16 @@ function paragraphRuns(
           </li>
         </ul>
         <div class="toc-actions">
-          <button type="button" class="btn" :disabled="readingTocBusy" @click="dispatch('reading.toc_prev')">
+          <button type="button" class="btn ui-btn" :disabled="readingTocBusy" @click="dispatch('reading.toc_prev')">
             {{ t('mode.reading.toc_prev') }}
           </button>
-          <button type="button" class="btn" :disabled="readingTocBusy" @click="dispatch('reading.toc_next')">
+          <button type="button" class="btn ui-btn" :disabled="readingTocBusy" @click="dispatch('reading.toc_next')">
             {{ t('mode.reading.toc_next') }}
           </button>
-          <button type="button" class="btn" :disabled="readingTocBusy" @click="dispatch('reading.toc_open')">
+          <button type="button" class="btn ui-btn" :disabled="readingTocBusy" @click="dispatch('reading.toc_open')">
             {{ t('mode.reading.toc_open_button') }}
           </button>
-          <button type="button" class="btn" @click="dispatch('reading.toc_close')">
+          <button type="button" class="btn ui-btn" @click="dispatch('reading.toc_close')">
             {{ t('mode.reading.toc_close_button') }}
           </button>
         </div>
@@ -1078,13 +1082,6 @@ function paragraphRuns(
   gap: var(--space-panel-inline);
   margin-inline-start: var(--space-panel-inline);
   background: var(--color-surface);
-}
-
-.mark-affordance {
-  color: var(--color-tm-text);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  font-family: var(--face-ui-sm);
 }
 
 .reading-segment:hover .mark-actions,
@@ -1251,7 +1248,7 @@ function paragraphRuns(
 
 .level-group {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0;
 }
 

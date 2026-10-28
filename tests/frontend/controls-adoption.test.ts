@@ -42,6 +42,11 @@ const FILES = [
   'src/SettingsReadingSection.vue',
   'src/SettingsShortcutsSection.vue',
   'src/SettingsUpdateSection.vue',
+  'src/modes/LibraryMode.vue',
+  'src/modes/LibraryWorkPage.vue',
+  'src/modes/LibrarySearchResults.vue',
+  'src/modes/LibraryUrlImportScreen.vue',
+  'src/modes/ReadingMode.vue',
 ]
 
 const CONTROL_TAGS = new Set(['button', 'input', 'textarea', 'summary'])
@@ -54,6 +59,7 @@ const SHAPE_EXCEPTIONS: Record<string, string> = {
   'src/TmManageOverlay.vue .tm-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/PromptLibraryOverlay.vue .pl-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/AlignmentOverlay.vue .al-sr-only': 'visually hidden native radio; its wrapping label carries the row hit area',
+  'src/modes/LibraryMode.vue .lib-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
 }
 
 const NOT_A_CONTROL: Record<string, string> = {
@@ -64,6 +70,7 @@ const NOT_A_CONTROL: Record<string, string> = {
   'src/BilingualImportPreviewOverlay.vue .bip-candidate': 'encoding candidate card keeping the mockup web-import.html .candrow shape; DESIGN §Điều khiển has no card control, the label only adds ui-check so the radio is token-drawn',
   'src/SettingsOverlay.vue .set-nav-item': 'section navigation row with a left-edge mark (mockup settings.html .nav a); DESIGN §Điều khiển has no navigation row control',
   'src/SettingsReadingSection.vue .sr-range': 'native range slider; DESIGN §Điều khiển has no slider control',
+  'src/modes/ReadingMode.vue .tuner-range': 'native range slider; DESIGN §Điều khiển has no slider control',
 }
 
 const LABEL_EXEMPT: Record<string, string> = {

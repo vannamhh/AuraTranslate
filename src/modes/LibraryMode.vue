@@ -394,7 +394,7 @@ const importScreenIsOpen = computed<boolean>(
           ref="searchInput"
           v-model="librarySearchQuery"
           type="text"
-          class="search-input"
+          class="search-input ui-field ui-field--full"
           autocomplete="off"
           :placeholder="t('mode.library.search_placeholder')"
           :aria-label="t('mode.library.search_placeholder')"
@@ -402,10 +402,10 @@ const importScreenIsOpen = computed<boolean>(
           @keyup.enter="dispatch('library.search')"
         />
       </div>
-      <div class="segmented" role="group" :aria-label="t('mode.library.search_mode_heading')">
+      <div class="segmented ui-seg" role="group" :aria-label="t('mode.library.search_mode_heading')">
         <button
           type="button"
-          class="segment"
+          class="segment ui-seg__item"
           data-library-search-mode="exact"
           :aria-pressed="librarySearchMode === 'exact'"
           @click="dispatch('library.search_mode_exact')"
@@ -414,7 +414,7 @@ const importScreenIsOpen = computed<boolean>(
         </button>
         <button
           type="button"
-          class="segment"
+          class="segment ui-seg__item"
           data-library-search-mode="lenient"
           :aria-pressed="librarySearchMode === 'lenient'"
           @click="dispatch('library.search_mode_lenient')"
@@ -424,13 +424,14 @@ const importScreenIsOpen = computed<boolean>(
       </div>
       <div
         v-if="librarySearchQuery.trim() !== ''"
-        class="segmented"
+        class="segmented ui-seg"
         role="radiogroup"
         :aria-label="t('mode.library.search_scope_heading')"
       >
-        <label class="segment" :class="{ 'segment--on': librarySearchScope === 'both' }">
+        <label class="segment ui-seg__item">
           <input
             type="radio"
+            class="lib-sr-only"
             name="library-search-scope"
             data-library-search-scope="both"
             :checked="librarySearchScope === 'both'"
@@ -438,9 +439,10 @@ const importScreenIsOpen = computed<boolean>(
           />
           {{ t('mode.library.search_scope_both') }}
         </label>
-        <label class="segment" :class="{ 'segment--on': librarySearchScope === 'source' }">
+        <label class="segment ui-seg__item">
           <input
             type="radio"
+            class="lib-sr-only"
             name="library-search-scope"
             data-library-search-scope="source"
             :checked="librarySearchScope === 'source'"
@@ -448,9 +450,10 @@ const importScreenIsOpen = computed<boolean>(
           />
           {{ t('mode.library.search_scope_source') }}
         </label>
-        <label class="segment" :class="{ 'segment--on': librarySearchScope === 'target' }">
+        <label class="segment ui-seg__item">
           <input
             type="radio"
+            class="lib-sr-only"
             name="library-search-scope"
             data-library-search-scope="target"
             :checked="librarySearchScope === 'target'"
@@ -462,14 +465,14 @@ const importScreenIsOpen = computed<boolean>(
 
       <div class="chips">
         <DropdownMenu
-          variant="chip"
+          variant="field"
           :label="statusChipLabel"
           :active="libraryStatusFilter.size > 0"
           data-library-chip="status"
         >
           <button
             type="button"
-            class="menu-item"
+            class="menu-item ui-menu-item"
             data-lifecycle-filter="not_started"
             :aria-pressed="libraryStatusFilter.has('not_started')"
             :disabled="libraryWorksBusy"
@@ -479,7 +482,7 @@ const importScreenIsOpen = computed<boolean>(
           </button>
           <button
             type="button"
-            class="menu-item"
+            class="menu-item ui-menu-item"
             data-lifecycle-filter="in_progress"
             :aria-pressed="libraryStatusFilter.has('in_progress')"
             :disabled="libraryWorksBusy"
@@ -489,7 +492,7 @@ const importScreenIsOpen = computed<boolean>(
           </button>
           <button
             type="button"
-            class="menu-item"
+            class="menu-item ui-menu-item"
             data-lifecycle-filter="paused"
             :aria-pressed="libraryStatusFilter.has('paused')"
             :disabled="libraryWorksBusy"
@@ -499,7 +502,7 @@ const importScreenIsOpen = computed<boolean>(
           </button>
           <button
             type="button"
-            class="menu-item"
+            class="menu-item ui-menu-item"
             data-lifecycle-filter="done"
             :aria-pressed="libraryStatusFilter.has('done')"
             :disabled="libraryWorksBusy"
@@ -507,9 +510,10 @@ const importScreenIsOpen = computed<boolean>(
           >
             {{ t('lifecycle.done') }}
           </button>
+          <div class="ui-menu-sep" aria-hidden="true"></div>
           <button
             type="button"
-            class="menu-item menu-item--rule"
+            class="menu-item ui-menu-item"
             data-lifecycle-action="clear_filter"
             data-menu-close
             :disabled="libraryWorksBusy || libraryFilterIsEmpty"
@@ -520,7 +524,7 @@ const importScreenIsOpen = computed<boolean>(
         </DropdownMenu>
 
         <SelectMenu
-          variant="chip"
+          variant="field"
           name="library-genre"
           option-attr="data-library-chip-option"
           :model-value="libraryGenreFilter ?? ''"
@@ -537,7 +541,7 @@ const importScreenIsOpen = computed<boolean>(
         />
 
         <SelectMenu
-          variant="chip"
+          variant="field"
           name="library-source-lang"
           option-attr="data-library-chip-option"
           :model-value="librarySourceLangFilter ?? ''"
@@ -554,7 +558,7 @@ const importScreenIsOpen = computed<boolean>(
         />
 
         <SelectMenu
-          variant="chip"
+          variant="field"
           name="library-sort"
           option-attr="data-library-chip-option"
           :model-value="librarySortKey"
@@ -597,10 +601,10 @@ const importScreenIsOpen = computed<boolean>(
         <p class="big">{{ t('mode.library.status') }}</p>
         <p class="small">{{ t('mode.library.empty_body') }}</p>
         <div class="empty-actions">
-          <button type="button" class="btn btn-primary" data-library-empty-invite="paste" @click="dispatch('library.import.open')">
+          <button type="button" class="btn btn-primary ui-btn ui-btn--primary" data-library-empty-invite="paste" @click="dispatch('library.import.open')">
             {{ t('mode.library.empty_invite_paste') }}
           </button>
-          <button type="button" class="btn" data-library-empty-invite="file" @click="dispatch('library.import.open')">
+          <button type="button" class="btn ui-btn" data-library-empty-invite="file" @click="dispatch('library.import.open')">
             {{ t('mode.library.empty_invite_file') }}
           </button>
         </div>
@@ -629,22 +633,24 @@ const importScreenIsOpen = computed<boolean>(
           >
             <!-- aura-allow-text: tên Tác phẩm là DỮ LIỆU người dùng gõ, không một câu UI. -->
             <span class="work-name" :title="work.name" data-library-work-name>{{ work.name }}</span>
-            <button
-              type="button"
-              class="work-go"
-              data-library-continue-translation
-              :disabled="libraryOpenWorkBusy"
-              @dblclick.stop
-              @click="dispatch('library.continue_translation')"
-            >
-              <!-- aura-allow-text: cả hai nhánh đi qua t(). -->
-              {{ work.status === 'not_started' ? t('mode.library.start_translation') : t('mode.library.continue_translation') }}
-            </button>
+            <div class="work-go-slot">
+              <button
+                type="button"
+                class="work-go ui-btn ui-btn--sm ui-btn--primary"
+                data-library-continue-translation
+                :disabled="libraryOpenWorkBusy"
+                @dblclick.stop
+                @click="dispatch('library.continue_translation')"
+              >
+                <!-- aura-allow-text: cả hai nhánh đi qua t(). -->
+                {{ work.status === 'not_started' ? t('mode.library.start_translation') : t('mode.library.continue_translation') }}
+              </button>
+            </div>
             <div class="work-more" @dblclick.stop>
               <DropdownMenu variant="more" label="⋯" :aria-label="t('mode.library.work_more_menu')" data-library-work-more>
                 <button
                   type="button"
-                  class="menu-item"
+                  class="menu-item ui-menu-item"
                   data-library-open-work-folder
                   data-menu-close
                   @click="dispatch('library.open_work_folder')"
@@ -653,7 +659,7 @@ const importScreenIsOpen = computed<boolean>(
                 </button>
                 <button
                   type="button"
-                  class="menu-item"
+                  class="menu-item ui-menu-item"
                   data-library-work-reviewer-import
                   data-reviewer-import-open
                   data-menu-close
@@ -743,7 +749,7 @@ const importScreenIsOpen = computed<boolean>(
       <div class="root-actions">
         <button
           type="button"
-          class="btn"
+          class="btn ui-btn"
           :disabled="libraryRescanBusy"
           @click="dispatch('library.choose_root')"
         >
@@ -751,7 +757,7 @@ const importScreenIsOpen = computed<boolean>(
         </button>
         <button
           type="button"
-          class="btn"
+          class="btn ui-btn"
           :disabled="libraryRescanBusy"
           @click="dispatch('library.rescan')"
         >
@@ -876,7 +882,7 @@ const importScreenIsOpen = computed<boolean>(
           -->
           <button
             type="button"
-            class="btn"
+            class="btn ui-icon-btn"
             :disabled="libraryOrphanCursor === 0"
             :aria-label="t('mode.library.orphan_prev')"
             @click="dispatch('library.orphan_prev')"
@@ -887,7 +893,7 @@ const importScreenIsOpen = computed<boolean>(
           <span class="orphan-position">{{ libraryOrphanCursor + 1 }} / {{ libraryOrphans.length }}</span>
           <button
             type="button"
-            class="btn"
+            class="btn ui-icon-btn"
             :disabled="libraryOrphanCursor >= libraryOrphans.length - 1"
             :aria-label="t('mode.library.orphan_next')"
             @click="dispatch('library.orphan_next')"
@@ -896,7 +902,7 @@ const importScreenIsOpen = computed<boolean>(
           </button>
           <button
             type="button"
-            class="btn"
+            class="btn ui-btn"
             :disabled="libraryRescanBusy"
             @click="dispatch('library.forget_orphan')"
           >
@@ -904,7 +910,7 @@ const importScreenIsOpen = computed<boolean>(
           </button>
           <button
             type="button"
-            class="btn"
+            class="btn ui-btn"
             data-library-relocate-orphan
             :disabled="libraryRescanBusy"
             @click="dispatch('library.relocate_orphan')"
@@ -918,7 +924,7 @@ const importScreenIsOpen = computed<boolean>(
     <div class="rebuild-block">
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn"
         data-library-rebuild-index
         :disabled="libraryRescanBusy"
         @click="dispatch('library.rebuild_index')"
@@ -1012,56 +1018,8 @@ const importScreenIsOpen = computed<boolean>(
   color: var(--color-on-surface-variant);
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.field input,
-.field select,
-.field textarea {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 8px;
-}
-
-.field input:focus-visible,
-.field select:focus-visible,
-.field textarea:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .btn {
   align-self: flex-start;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  font-weight: var(--weight-ui-md-strong);
-  color: var(--color-primary);
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.btn:not(.btn-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.btn:disabled {
-  color: var(--color-on-surface-variant);
-  cursor: not-allowed;
 }
 
 /*
@@ -1250,39 +1208,18 @@ const importScreenIsOpen = computed<boolean>(
   background: var(--color-cover-6-from);
 }
 
-.work-go,
+.work-go-slot,
 .work-more {
   display: none;
 }
 
-.work-cell--current .work-go,
+.work-cell--current .work-go-slot,
 .work-cell--current .work-more,
-.work-cell:hover .work-go,
+.work-cell:hover .work-go-slot,
 .work-cell:hover .work-more,
-.work-cell:focus-within .work-go,
+.work-cell:focus-within .work-go-slot,
 .work-cell:focus-within .work-more {
   display: block;
-}
-
-.work-go {
-  padding: 4px 12px;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  font-weight: var(--weight-ui-md-strong);
-  color: var(--color-on-primary);
-  background: var(--color-primary);
-}
-
-.work-cell:not(.work-cell--current) .work-go {
-  color: var(--color-primary);
-  background: var(--color-surface);
-}
-
-.work-go:disabled {
-  cursor: not-allowed;
 }
 
 .work-more {
@@ -1375,32 +1312,8 @@ const importScreenIsOpen = computed<boolean>(
   color: var(--color-primary);
 }
 
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-}
-
 .menu-item[aria-pressed='true'] {
-  color: var(--color-primary);
   background: var(--color-surface-accent);
-}
-
-.menu-item:disabled {
-  color: var(--color-on-surface-variant);
-  cursor: not-allowed;
-}
-
-.menu-item--rule {
-  border-top: 1px solid var(--color-outline-faint);
 }
 
 .top-bar {
@@ -1429,19 +1342,18 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .search-field {
+  position: relative;
   display: flex;
   align-items: center;
   flex: 1;
   max-width: 420px;
   min-width: 200px;
-  gap: 8px;
-  padding: 0 8px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
 }
 
 .search-icon {
+  position: absolute;
+  left: 8px;
+  pointer-events: none;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface-variant);
@@ -1450,64 +1362,23 @@ const importScreenIsOpen = computed<boolean>(
 .search-input {
   flex: 1;
   min-width: 0;
-  padding: 8px 0;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-  background: none;
-  border: none;
-}
-
-.search-field:focus-within {
-  border-color: var(--color-primary);
-}
-
-.search-input:focus-visible {
-  /* aura-allow-outline-none: frame .search-field recolours its border on focus */
-  outline: none;
-}
-
-.segmented {
-  display: flex;
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  overflow: hidden;
+  padding-left: 28px;
 }
 
 .segment {
-  padding: 8px 12px;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface-variant);
-  background: var(--color-surface-sunken);
-  border: none;
-  cursor: pointer;
+  position: relative;
 }
 
-.segmented:has(.segment:focus-visible) {
-  border-color: var(--color-primary);
-}
-
-.segment:focus-visible {
-  /* aura-allow-outline-none: frame .segmented recolours its border on focus */
-  outline: none;
-}
-
-.segment + .segment {
-  border-left: 1px solid var(--color-outline);
-}
-
-.segment[aria-pressed='true'],
-.segment--on {
-  color: var(--color-primary);
-  background: var(--color-surface-accent);
-  font-weight: var(--weight-ui-md-strong);
-}
-
-.btn-primary {
-  color: var(--color-on-primary);
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+.lib-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px; /* aura-allow-spacing: sr-only geometry, not grid spacing */
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .empty-actions {

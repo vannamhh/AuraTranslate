@@ -223,7 +223,7 @@ onMounted(() => {
 <template>
   <section ref="root" class="wp" tabindex="-1" data-library-work-page>
     <div class="wp-back">
-      <button type="button" class="btn" data-library-work-page-close @click="dispatch('library.work_page.close')">
+      <button type="button" class="btn ui-btn" data-library-work-page-close @click="dispatch('library.work_page.close')">
         {{ t('command.library.work_page.close') }}
       </button>
     </div>
@@ -316,7 +316,7 @@ onMounted(() => {
             <div class="wp-status-actions">
               <button
                 type="button"
-                class="btn"
+                class="btn ui-btn"
                 data-lifecycle-action="set_override_paused"
                 :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded"
                 @click="dispatch('lifecycle.set_work_override_paused')"
@@ -325,7 +325,7 @@ onMounted(() => {
               </button>
               <button
                 type="button"
-                class="btn"
+                class="btn ui-btn"
                 data-lifecycle-action="clear_override"
                 :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded || !openWorkLifecycleIsOverride"
                 @click="dispatch('lifecycle.clear_work_override')"
@@ -342,7 +342,7 @@ onMounted(() => {
       <input
         v-model="libraryChapterSearch"
         type="text"
-        class="wp-search"
+        class="wp-search ui-field ui-field--sm ui-field--on-sunken"
         autocomplete="off"
         :placeholder="t('library.work_page.search_placeholder')"
         :aria-label="t('library.work_page.search_placeholder')"
@@ -350,7 +350,7 @@ onMounted(() => {
       />
       <button
         type="button"
-        class="wp-pill"
+        class="wp-pill ui-chip"
         data-library-chapter-filter="all"
         :aria-pressed="libraryChapterFilter === 'all'"
         @click="dispatch('library.chapter_filter.all')"
@@ -360,7 +360,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="wp-pill"
+        class="wp-pill ui-chip"
         data-library-chapter-filter="in_progress"
         :aria-pressed="libraryChapterFilter === 'in_progress'"
         @click="dispatch('library.chapter_filter.in_progress')"
@@ -370,7 +370,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="wp-pill"
+        class="wp-pill ui-chip"
         data-library-chapter-filter="paused"
         :aria-pressed="libraryChapterFilter === 'paused'"
         @click="dispatch('library.chapter_filter.paused')"
@@ -380,7 +380,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="wp-pill"
+        class="wp-pill ui-chip"
         data-library-chapter-filter="done"
         :aria-pressed="libraryChapterFilter === 'done'"
         @click="dispatch('library.chapter_filter.done')"
@@ -390,7 +390,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="wp-pill"
+        class="wp-pill ui-chip"
         data-library-chapter-filter="not_started"
         :aria-pressed="libraryChapterFilter === 'not_started'"
         @click="dispatch('library.chapter_filter.not_started')"
@@ -420,7 +420,7 @@ onMounted(() => {
       }}</span>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-library-open-chapter
         :disabled="!libraryChapterRules.open || writesBlocked"
         @click="dispatch('library.open_chapter')"
@@ -429,7 +429,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn btn-primary"
+        class="btn btn-primary ui-btn ui-btn--sm ui-btn--primary"
         data-library-chapter-merge-open
         :disabled="!libraryChapterRules.merge || writesBlocked"
         @mousedown="focusOnPointerDown($event)"
@@ -439,7 +439,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-library-chapter-split-open
         :disabled="!libraryChapterRules.split || writesBlocked"
         @mousedown="focusOnPointerDown($event)"
@@ -449,7 +449,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-library-chapter-rename-begin
         :disabled="!libraryChapterRules.rename || writesBlocked"
         @click="dispatch('library.chapter_rename.begin')"
@@ -458,7 +458,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-library-chapter-move-up
         :disabled="!libraryChapterRules.moveUp || writesBlocked"
         @click="dispatch('library.chapter_move_up')"
@@ -467,7 +467,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-library-chapter-move-down
         :disabled="!libraryChapterRules.moveDown || writesBlocked"
         @click="dispatch('library.chapter_move_down')"
@@ -476,7 +476,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-library-chapters-status-menu
         :aria-expanded="libraryChapterStatusMenuOpen"
         :disabled="!libraryChapterRules.status || writesBlocked"
@@ -486,7 +486,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-export-open
         :disabled="!libraryChapterRules.export"
         @mousedown="focusOnPointerDown($event)"
@@ -496,7 +496,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn ui-btn--sm"
         data-library-chapters-reviewer-import
         data-reviewer-import-open
         @mousedown="focusOnPointerDown($event)"
@@ -510,7 +510,7 @@ onMounted(() => {
     <div v-if="libraryChapterStatusMenuOpen" class="wp-status-menu" data-library-chapters-status-menu-list>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn"
         data-library-chapters-status-set="in_progress"
         :disabled="writesBlocked"
         @click="dispatch('library.chapters.status_set.in_progress')"
@@ -519,7 +519,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn"
         data-library-chapters-status-set="paused"
         :disabled="writesBlocked"
         @click="dispatch('library.chapters.status_set.paused')"
@@ -528,7 +528,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn"
         data-library-chapters-status-set="done"
         :disabled="writesBlocked"
         @click="dispatch('library.chapters.status_set.done')"
@@ -537,7 +537,7 @@ onMounted(() => {
       </button>
       <button
         type="button"
-        class="btn"
+        class="btn ui-btn"
         data-library-chapters-status-set="not_started"
         :disabled="writesBlocked"
         @click="dispatch('library.chapters.status_set.not_started')"
@@ -553,6 +553,7 @@ onMounted(() => {
           ref="renameInput"
           v-model="chapterRenameDraft"
           type="text"
+          class="ui-field ui-field--medium"
           autocomplete="off"
           data-library-chapter-rename-input
           @keydown.enter="dispatch('library.chapter_rename')"
@@ -561,14 +562,14 @@ onMounted(() => {
       </label>
       <button
         type="button"
-        class="btn btn-primary"
+        class="btn btn-primary ui-btn ui-btn--primary"
         data-library-chapter-rename
         :disabled="writesBlocked || soleSelectedLibraryChapter === null"
         @click="dispatch('library.chapter_rename')"
       >
         {{ t('mode.library.chapter_rename_button') }}
       </button>
-      <button type="button" class="btn" data-library-chapter-rename-cancel @click="dispatch('library.chapter_rename.cancel')">
+      <button type="button" class="btn ui-btn" data-library-chapter-rename-cancel @click="dispatch('library.chapter_rename.cancel')">
         {{ t('command.library.chapter_rename.cancel') }}
       </button>
     </div>
@@ -631,7 +632,7 @@ onMounted(() => {
             <button
               v-if="item.key === 'not_started' && foldToggleVisible"
               type="button"
-              class="wp-group-toggle"
+              class="wp-group-toggle ui-btn ui-btn--quiet ui-btn--sm"
               data-library-chapter-group-toggle
               :aria-expanded="libraryChapterNotStartedExpanded"
               @click="dispatch('library.chapter_group.toggle_not_started')"
@@ -711,6 +712,7 @@ onMounted(() => {
       <span>{{ t('mode.library.chapter_origin_apply_through_label') }}</span>
       <input
         type="number"
+        class="ui-field ui-field--short"
         :value="libraryChapterOriginApplyThroughOrd ?? ''"
         :disabled="libraryChapterOriginBusy"
         data-library-chapter-origin-apply-through
@@ -745,37 +747,6 @@ onMounted(() => {
 
 .btn {
   align-self: flex-start;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  font-weight: var(--weight-ui-md-strong);
-  color: var(--color-primary);
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.btn:not(.btn-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.btn:disabled {
-  color: var(--color-on-surface-variant);
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  color: var(--color-on-primary);
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.btn-primary:disabled {
-  color: var(--color-on-surface-variant);
-  background: var(--color-surface-sunken);
-  border-color: var(--color-outline);
 }
 
 .status {
@@ -804,21 +775,6 @@ onMounted(() => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.field input {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 8px;
-}
-
-.field input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .wp-head {
@@ -988,42 +944,6 @@ onMounted(() => {
 
 .wp-search {
   min-width: 200px;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 12px;
-}
-
-.wp-search:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.wp-pill {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 20px;
-  padding: 4px 12px;
-  cursor: pointer;
-}
-
-.wp-pill:not([aria-pressed='true']):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.wp-pill[aria-pressed='true'] {
-  border-color: var(--color-primary);
-  border-width: 2px;
-  color: var(--color-primary);
-  background: var(--color-surface-accent);
-  font-weight: var(--weight-ui-md-strong);
 }
 
 .wp-sort {
@@ -1076,21 +996,6 @@ onMounted(() => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.wp-rename-field input {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 8px;
-}
-
-.wp-rename-field input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .chapters-block {
@@ -1152,19 +1057,6 @@ onMounted(() => {
 
 .wp-group-toggle {
   margin-left: auto;
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.wp-group-toggle:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .wp-more {
