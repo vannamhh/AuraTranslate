@@ -13501,3 +13501,7 @@ chính nó.
 ## Deferred from: dịch lô gom câu liền nhau thành lượt gọi (2026-10-27, story 4-15)
 
 - **Chưa đo ba việc của AD-60 ngoài khoá Gemini flash-lite.** (1) Đo lại với `gemini-3.8-flash`; (2) đo Ollama và LM Studio xem có gửi `finish_reason` không; (3) Ice dùng thật một lượt dịch cả Chương từ 300 câu trở lên bằng khoá thật, đếm câu *thiếu kết quả AI* và đối chiếu tổng tiền với bảng điều khiển nhà cung cấp. Test chạy máy chủ SSE giả khung viết tay. Con trỏ: `story-dich-lo-gom-cau-thanh-luot.md` tiêu chí 13, AD-60 mục 14. **Chủ: Epic 4.**
+
+## Deferred from: đặt trạng thái Chương ngay trong Workspace (2026-10-28, story 5-18)
+
+- **Chưa ai thấy Chương tự sang Đang dịch, migration 42 và nút Đã xong trong app thật.** Test Rust, Vitest và e2e 5-5 không bấm nút Workspace (giữ lời gọi IPC có chủ ý). Ice: mở một Tác phẩm cũ có Chương đã dịch mà ghi Chưa bắt đầu ⇒ thấy Đang dịch; gõ câu đầu ở một Chương mới, về Library thấy Đang dịch không cần Quét lại; xác nhận câu cuối, bấm gợi ý "Đánh dấu Chương Đã xong?", về Library thấy tiến độ tăng. Con trỏ: `story-at-trang-thai-chuong-ngay-trong-workspace-plan.md` §Verification. **Chủ: Epic 5.**
