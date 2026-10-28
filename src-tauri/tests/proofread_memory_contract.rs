@@ -228,6 +228,7 @@ fn remembered_of(
     let _g = KEYCHAIN_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
+    assert!(keyring::Entry::store_status().is_ok());
     keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
     ai_config_save_key(AiConfigTier::Global, "sk-memory").expect("save key");
     let global =

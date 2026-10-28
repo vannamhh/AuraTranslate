@@ -42,6 +42,7 @@ fn temp_dir(tag: &str) -> PathBuf {
 fn install_mock_keychain_once() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
+        assert!(keyring::Entry::store_status().is_ok());
         keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
     });
 }
