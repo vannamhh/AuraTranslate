@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Hệ điều khiển — nút, ô nhập, ô chọn, checkbox</title>
+<style>
+@font-face{font-family:"Source Sans 3";src:url("../../../../src-tauri/resources/fonts/SourceSans3[wght].ttf");font-weight:200 900}
+
+/* Token thật của src/tokens/tokens.json. */
+.t-light{
+  --background:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1;
+  --ink:#2b2723; --ink-2:#6b6459; --outline:#e2dccf; --faint:#efeade; --ornament:#a9a196;
+  --primary:#2f5d63; --control-rule:#8a8276; --error:#8f2f22;
+}
+.t-dark{
+  --background:#201e1b; --surface:#26241f; --sunken:#1b1a17;
+  --ink:#e8e3d8; --ink-2:#a29a8c; --outline:#3b382f; --faint:#302d26; --ornament:#6a6459;
+  --primary:#7fb3ba; --control-rule:#807868; --error:#e5867a;
+}
+:root{
+  --ui:"Source Sans 3",-apple-system,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ui-md:13px; --ui-sm:12px; --ui-label:12px;
+  --h-lg:32px; --h-md:28px; --h-sm:24px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#5f5a52;font-family:var(--ui);color:#f4f1ea;padding:20px}
+button,input,textarea{font:inherit;color:inherit;margin:0}
+
+/* ---------- khung trình bày mockup (không thuộc thiết kế) ---------- */
+.deck{max-width:1500px;margin:0 auto 14px;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;font-size:13px}
+.deck b{font-size:15px}
+.deck label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.cols{max-width:1500px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(700px,1fr));gap:16px}
+.sheet{background:var(--surface);color:var(--ink);border-radius:9px;padding:20px 24px 28px}
+.sheet h2{font-size:15px;margin:0 0 4px;color:var(--ink)}
+.sheet h3{font-size:var(--ui-label);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:28px 0 10px;font-weight:700}
+.sheet h3:first-of-type{margin-top:18px}
+.note{font-size:var(--ui-sm);color:var(--ink-2);line-height:1.66;margin:6px 0 0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row + .row{margin-top:10px}
+.tag{font-family:var(--mono);font-size:11px;color:var(--ink-2);width:56px;flex:none}
+.baseline{background-image:linear-gradient(to bottom,transparent calc(50% - .5px),rgba(194,65,12,.35) calc(50% - .5px),rgba(194,65,12,.35) calc(50% + .5px),transparent calc(50% + .5px))}
+.grid{display:grid;grid-template-columns:88px repeat(5,1fr);gap:8px 10px;align-items:center}
+.grid .hd{font-size:11px;font-family:var(--mono);color:var(--ink-2)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cmp > div{border:1px dashed var(--outline);border-radius:3px;padding:12px}
+.cmp .cap{font-size:11px;font-family:var(--mono);color:var(--ink-2);margin-bottom:8px}
+.overlay-foot{display:flex;justify-content:flex-end;gap:8px;padding-top:12px;border-top:1px solid var(--faint)}
+.form{display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:center}
+.form > label{font-size:var(--ui-md);color:var(--ink-2)}
+.statusbar{height:34px;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--sunken);border-top:1px solid var(--outline);font-size:var(--ui-sm);color:var(--ink-2);margin:0 -24px -28px;border-radius:0 0 9px 9px}
+.statusbar .sep{width:1px;height:14px;background:var(--outline)}
+
+/* ===================== HỆ ĐIỀU KHIỂN (đề xuất cho controls.css) ===================== */
+
+.ui-btn{
+  display:inline-flex;align-items:center;gap:8px;height:var(--h-md);padding:0 12px;
+  border-radius:3px;background:var(--surface);border:1px solid var(--control-rule);color:var(--ink);
+  font-size:var(--ui-md);line-height:1.5;cursor:pointer;white-space:nowrap;
+}
+.ui-btn--lg{height:var(--h-lg)}
+.ui-btn--sm{height:var(--h-sm);padding:0 8px}
+.ui-btn--primary{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
+.ui-btn--quiet{background:none;border-color:transparent;color:var(--ink-2)}
+.ui-btn--danger{border-color:var(--error);color:var(--error)}
+.ui-btn--pair{min-width:8.5em;justify-content:center}
+
+.ui-btn:hover,.ui-btn.is-hover{border-color:var(--ink-2)}
+.ui-btn--primary:hover,.ui-btn--primary.is-hover{background:var(--ink-2);border-color:var(--ink-2)}
+.ui-btn--quiet:hover,.ui-btn--quiet.is-hover{background:var(--sunken);border-color:transparent}
+.ui-btn--danger:hover,.ui-btn--danger.is-hover{border-color:var(--error);background:var(--sunken)}
+.ui-btn:active,.ui-btn.is-active{background:var(--sunken)}
+.ui-btn--primary:active,.ui-btn--primary.is-active{background:var(--ink-2)}
+.ui-btn--quiet:active,.ui-btn--quiet.is-active{color:var(--ink)}
+
+.ui-btn:focus-visible,.ui-btn.is-focus{outline:none;border-color:var(--primary)}
+.ui-btn--primary:focus-visible,.ui-btn--primary.is-focus{outline:2px solid var(--primary);outline-offset:1px;border-color:var(--ink)}
+
+.ui-btn:disabled,.ui-btn:disabled:hover{background:none;border:1px dashed var(--outline);color:var(--ink-2);font-weight:inherit;cursor:default}
+
+.ui-icon-btn{display:inline-grid;place-items:center;flex:none;width:var(--h-md);height:var(--h-md);padding:0;border-radius:3px;border:1px solid transparent;background:none;color:var(--ink-2);cursor:pointer}
+.ui-icon-btn--sm{width:var(--h-sm);height:var(--h-sm)}
+.ui-icon-btn--lg{width:var(--h-lg);height:var(--h-lg)}
+.ui-icon-btn:hover,.ui-icon-btn.is-hover{border-color:var(--control-rule)}
+.ui-icon-btn:focus-visible,.ui-icon-btn.is-focus{outline:none;border-color:var(--primary)}
+.ui-icon-btn:disabled{border:1px dashed var(--outline);cursor:default}
+.ui-icon-btn svg{width:16px;height:16px}
+
+.ui-field{
+  display:inline-flex;align-items:center;gap:8px;height:var(--h-md);padding:0 8px;
+  border:1px solid var(--control-rule);border-radius:3px;background:var(--sunken);color:var(--ink);
+  font-size:var(--ui-md);line-height:1.5;min-width:0;
+}
+.ui-field--lg{height:var(--h-lg)}
+.ui-field--sm{height:var(--h-sm);padding:0 6px}
+.ui-field--short{width:8ch;flex:none}
+.ui-field--medium{width:24ch;flex:none}
+.ui-field--full{width:100%}
+.ui-field::placeholder{color:var(--ink-2)}
+.ui-field:hover,.ui-field.is-hover{border-color:var(--ink-2)}
+.ui-field:focus-visible,.ui-field:focus,.ui-field.is-focus{outline:none;border-color:var(--primary)}
+.ui-field:disabled,.ui-field.is-disabled{border-style:dashed;border-color:var(--outline);background:none;color:var(--ink-2);cursor:default}
+.ui-field.is-invalid{border-color:var(--error)}
+.ui-field-error{font-size:var(--ui-sm);line-height:1.66;color:var(--error);margin:4px 0 0}
+textarea.ui-field{height:auto;min-height:calc(var(--h-md) * 3);padding:6px 8px;line-height:1.66;resize:vertical;display:block}
+
+button.ui-field{cursor:pointer;justify-content:space-between;text-align:left;min-width:12ch}
+button.ui-field .caret{color:var(--ink-2);font-size:11px}
+
+.ui-check{display:inline-flex;align-items:center;gap:8px;font-size:var(--ui-md);cursor:pointer;color:var(--ink)}
+.ui-check input{appearance:none;-webkit-appearance:none;width:14px;height:14px;flex:none;margin:0;border:1px solid var(--control-rule);border-radius:2px;background:var(--surface);display:grid;place-items:center;cursor:pointer}
+.ui-check input[type=radio]{border-radius:9999px}
+.ui-check:hover input,.ui-check.is-hover input{border-color:var(--ink-2)}
+.ui-check input:checked{background:var(--ink);border-color:var(--ink)}
+.ui-check input[type=checkbox]:checked::after{content:"";width:8px;height:4px;border-left:2px solid var(--surface);border-bottom:2px solid var(--surface);transform:translateY(-1px) rotate(-45deg)}
+.ui-check input[type=radio]:checked::after{content:"";width:6px;height:6px;border-radius:9999px;background:var(--surface)}
+.ui-check input:focus-visible,.ui-check.is-focus input{outline:none;border-color:var(--primary)}
+.ui-check input:checked:focus-visible,.ui-check.is-focus input:checked{outline:2px solid var(--primary);outline-offset:1px}
+.ui-check input:disabled{border-style:dashed;border-color:var(--outline);background:none;cursor:default}
+.ui-check:has(input:disabled){color:var(--ink-2);cursor:default}
+
+.ui-switch{display:inline-flex;align-items:center;gap:8px;background:none;border:0;padding:0;cursor:pointer;font-size:var(--ui-md);color:var(--ink)}
+.ui-switch .track{width:28px;height:16px;border:1px solid var(--control-rule);border-radius:9999px;position:relative;flex:none;background:var(--surface)}
+.ui-switch .track::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:9999px;background:var(--ink-2)}
+.ui-switch[aria-checked=true] .track{background:var(--ink);border-color:var(--ink)}
+.ui-switch[aria-checked=true] .track::after{left:14px;background:var(--surface)}
+.ui-switch:hover .track,.ui-switch.is-hover .track{border-color:var(--ink-2)}
+.ui-switch[aria-checked=true]:hover .track{border-color:var(--ink)}
+.ui-switch:focus-visible{outline:none}
+.ui-switch:focus-visible .track,.ui-switch.is-focus .track{outline:2px solid var(--primary);outline-offset:1px}
+.ui-switch b{font-weight:600}
+
+.ui-menu{display:inline-flex;flex-direction:column;min-width:200px;padding:4px 0;background:var(--surface);border:1px solid var(--control-rule);border-radius:3px}
+.ui-menu-item{white-space:nowrap;display:flex;align-items:center;gap:8px;height:var(--h-md);padding:0 12px;border:0;background:none;text-align:left;font-size:var(--ui-md);color:var(--ink);cursor:pointer}
+.ui-menu-item:hover,.ui-menu-item.is-hover{background:var(--sunken)}
+.ui-menu-item:focus-visible,.ui-menu-item.is-focus{outline:2px solid var(--primary);outline-offset:-2px}
+.ui-menu-item:disabled{color:var(--ink-2);cursor:default;background:none}
+.ui-menu-sep{height:1px;background:var(--faint);margin:4px 0}
+
+.ui-seg{display:inline-flex;border:1px solid var(--control-rule);border-radius:3px;overflow:hidden}
+.ui-seg button{height:calc(var(--h-sm) - 2px);padding:0 12px;border:0;background:none;color:var(--ink-2);font-size:var(--ui-md);cursor:pointer}
+.ui-seg button + button{border-left:1px solid var(--control-rule)}
+.ui-seg button:hover{background:var(--sunken)}
+.ui-seg button[aria-pressed=true]{background:var(--ink);color:var(--surface);font-weight:600}
+
+.ui-chip{display:inline-flex;align-items:center;height:var(--h-sm);padding:0 8px;border:1px solid var(--control-rule);border-radius:2px;background:var(--surface);color:var(--ink-2);font-size:var(--ui-md);cursor:pointer}
+.ui-chip:hover{border-color:var(--ink-2)}
+.ui-chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
+
+/* ---------- dáng hiện tại trong mã (để so) ---------- */
+.old-close{background:none;border:0;border-bottom:1px solid var(--outline);padding:0;font-size:var(--ui-md);color:var(--ink-2);cursor:pointer}
+.old-act{padding:4px 12px;border:1px solid var(--outline);background:var(--background);font-size:var(--ui-md);color:var(--ink);cursor:pointer}
+.old-primary{padding:4px 12px;border:1px solid var(--primary);background:var(--primary);color:var(--surface);font-size:var(--ui-md);cursor:pointer}
+.old-input{padding:4px 8px;border:1px solid var(--outline);background:var(--background);font-size:var(--ui-md);color:var(--ink)}
+.old-select{display:inline-flex;justify-content:space-between;gap:8px;min-width:140px;padding:8px;border:1px solid var(--outline);border-radius:4px;background:var(--surface);font-size:var(--ui-md);color:var(--ink)}
+.old-chip{padding:4px 12px;border:1px solid var(--outline);border-radius:9999px;background:var(--surface);font-size:var(--ui-sm);color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<div class="deck">
+  <b>Hệ điều khiển</b>
+  <span>DESIGN.md §Điều khiển · 2026-10-28 · trái sáng, phải tối · hàng "trạng thái" ép trạng thái bằng lớp, các hàng khác rê và Tab thật được</span>
+  <label><input type="checkbox" id="base"> vạch canh giữa (kiểm thẳng hàng)</label>
+</div>
+
+<div class="cols">
+  <section class="sheet t-light">
+  <h2>Thang kích thước — mỗi hàng một bậc, mọi control cùng cao</h2>
+  <p class="note">lg 32px cho form trong lớp phủ và Cài đặt · md 28px trong panel · sm 24px cho hàng điều khiển, thanh trạng thái, dải gợi ý. Chữ luôn ui-md 13px.</p>
+
+  <h3>Ba bậc</h3>
+  <div class="row line"><span class="tag">lg 32</span>
+    <input class="ui-field ui-field--lg ui-field--medium" placeholder="Tên Tác phẩm">
+    <button class="ui-field ui-field--lg">Tiếng Trung <span class="caret">▾</span></button>
+    <button class="ui-btn ui-btn--lg ui-btn--primary">Nhập</button>
+    <button class="ui-btn ui-btn--lg">Xem trước</button>
+    <button class="ui-btn ui-btn--lg ui-btn--quiet">Huỷ</button>
+    <button class="ui-icon-btn ui-icon-btn--lg" aria-label="Ghim"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 2h4l-.5 4 2.5 2.5H4L6.5 6z M8 8.5V14"/></svg></button>
+  </div>
+  <div class="row line"><span class="tag">md 28</span>
+    <input class="ui-field ui-field--medium" placeholder="Tìm trong Glossary">
+    <button class="ui-field">Mọi loại <span class="caret">▾</span></button>
+    <button class="ui-btn ui-btn--primary">Dịch câu này</button>
+    <button class="ui-btn">Đưa sang bản dịch</button>
+    <button class="ui-btn ui-btn--quiet">Prompt</button>
+    <button class="ui-icon-btn" aria-label="Ghim"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 2h4l-.5 4 2.5 2.5H4L6.5 6z M8 8.5V14"/></svg></button>
+  </div>
+  <div class="row line"><span class="tag">sm 24</span>
+    <input class="ui-field ui-field--sm ui-field--short" value="75">
+    <button class="ui-field ui-field--sm">Nguồn 8/10 <span class="caret">▾</span></button>
+    <button class="ui-btn ui-btn--sm ui-btn--primary">Nhận</button>
+    <button class="ui-btn ui-btn--sm">Bỏ qua</button>
+    <span class="ui-seg"><button aria-pressed="true">Trung</button><button aria-pressed="false">Hán Việt</button></span>
+    <button class="ui-chip" aria-pressed="true">Cần xem</button>
+    <button class="ui-chip" aria-pressed="false">Đã sửa</button>
+  </div>
+
+  <h3>Trạng thái (bậc md, ép bằng lớp)</h3>
+  <div class="grid">
+    <span></span><span class="hd">mặc định</span><span class="hd">rê chuột</span><span class="hd">nhấn</span><span class="hd">focus phím</span><span class="hd">khoá</span>
+    <span class="hd">Chính</span>
+    <span><button class="ui-btn ui-btn--primary">Lưu</button></span>
+    <span><button class="ui-btn ui-btn--primary is-hover">Lưu</button></span>
+    <span><button class="ui-btn ui-btn--primary is-active">Lưu</button></span>
+    <span><button class="ui-btn ui-btn--primary is-focus">Lưu</button></span>
+    <span><button class="ui-btn ui-btn--primary" disabled>Lưu</button></span>
+    <span class="hd">Phụ</span>
+    <span><button class="ui-btn">Xem trước</button></span>
+    <span><button class="ui-btn is-hover">Xem trước</button></span>
+    <span><button class="ui-btn is-active">Xem trước</button></span>
+    <span><button class="ui-btn is-focus">Xem trước</button></span>
+    <span><button class="ui-btn" disabled>Xem trước</button></span>
+    <span class="hd">Chìm</span>
+    <span><button class="ui-btn ui-btn--quiet">Công cụ</button></span>
+    <span><button class="ui-btn ui-btn--quiet is-hover">Công cụ</button></span>
+    <span><button class="ui-btn ui-btn--quiet is-active">Công cụ</button></span>
+    <span><button class="ui-btn ui-btn--quiet is-focus">Công cụ</button></span>
+    <span><button class="ui-btn ui-btn--quiet" disabled>Công cụ</button></span>
+    <span class="hd">Nguy hiểm</span>
+    <span><button class="ui-btn ui-btn--danger">Xoá khoá</button></span>
+    <span><button class="ui-btn ui-btn--danger is-hover">Xoá khoá</button></span>
+    <span><button class="ui-btn ui-btn--danger is-active">Xoá khoá</button></span>
+    <span><button class="ui-btn ui-btn--danger is-focus">Xoá khoá</button></span>
+    <span><button class="ui-btn ui-btn--danger" disabled>Xoá khoá</button></span>
+    <span class="hd">Ô nhập</span>
+    <span><input class="ui-field ui-field--full" placeholder="Tìm"></span>
+    <span><input class="ui-field ui-field--full is-hover" placeholder="Tìm"></span>
+    <span class="note">—</span>
+    <span><input class="ui-field ui-field--full is-focus" value="gõ"></span>
+    <span><input class="ui-field ui-field--full" placeholder="Tìm" disabled></span>
+    <span class="hd">Ô chọn</span>
+    <span><button class="ui-field ui-field--full">Mọi loại <span class="caret">▾</span></button></span>
+    <span><button class="ui-field ui-field--full is-hover">Mọi loại <span class="caret">▾</span></button></span>
+    <span class="note">—</span>
+    <span><button class="ui-field ui-field--full is-focus">Mọi loại <span class="caret">▾</span></button></span>
+    <span><button class="ui-field ui-field--full" disabled>Mọi loại <span class="caret">▾</span></button></span>
+    <span class="hd">Checkbox</span>
+    <span><label class="ui-check"><input type="checkbox" checked>Ghi đè</label></span>
+    <span><label class="ui-check is-hover"><input type="checkbox">Ghi đè</label></span>
+    <span class="note">—</span>
+    <span><label class="ui-check is-focus"><input type="checkbox" checked>Ghi đè</label></span>
+    <span><label class="ui-check"><input type="checkbox" disabled>Ghi đè</label></span>
+    <span class="hd">Mục menu</span>
+    <span><button class="ui-menu-item">Sắp xếp panel</button></span>
+    <span><button class="ui-menu-item is-hover">Sắp xếp panel</button></span>
+    <span class="note">—</span>
+    <span><button class="ui-menu-item is-focus">Sắp xếp panel</button></span>
+    <span><button class="ui-menu-item" disabled>Sắp xếp panel</button></span>
+  </div>
+  <p class="note">Focus thắng rê chuột. Viền focus primary so với viền thường control-rule: 1,93:1 (sáng) · 1,89:1 (tối), đạt AA, dưới AAA.</p>
+
+  <h3>Form trong lớp phủ (bậc lg)</h3>
+  <div class="form">
+    <label>Tên</label><input class="ui-field ui-field--lg ui-field--medium" value="Phàm nhân tu tiên">
+    <label>Ngôn ngữ nguồn</label><button class="ui-field ui-field--lg" style="justify-self:start">Tiếng Trung <span class="caret">▾</span></button>
+    <label>Ngưỡng TM</label><span class="row"><input class="ui-field ui-field--lg ui-field--short" value="75"><span class="note" style="margin:0">%</span></span>
+    <label>Khoá API</label><div><input class="ui-field ui-field--lg ui-field--full is-invalid" value="sk-12"><p class="ui-field-error">Khoá quá ngắn — cần ít nhất 20 ký tự.</p></div>
+    <label>Ghi chú</label><textarea class="ui-field ui-field--full">Giữ xưng hô huynh – đệ trong toàn bộ Tác phẩm.</textarea>
+    <label></label><div class="row"><label class="ui-check"><input type="checkbox" checked>Ghi đè mục trùng</label><label class="ui-check"><input type="radio" name="t-light-r" checked>Tác phẩm này</label><label class="ui-check"><input type="radio" name="t-light-r">Toàn cục</label></div>
+    <label></label><button class="ui-switch" role="switch" aria-checked="true"><span class="track"></span>Chỉ dùng TM của tôi <b>Bật</b></button>
+  </div>
+  <div class="overlay-foot" style="margin-top:16px">
+    <button class="ui-btn ui-btn--lg ui-btn--quiet ui-btn--pair">Huỷ</button>
+    <button class="ui-btn ui-btn--lg ui-btn--primary ui-btn--pair">Nhập</button>
+  </div>
+
+  <h3>Menu</h3>
+  <div class="row" style="align-items:flex-start">
+    <span class="ui-menu">
+      <button class="ui-menu-item">Nhập tệp…</button>
+      <button class="ui-menu-item">Xuất…</button>
+      <span class="ui-menu-sep"></span>
+      <button class="ui-menu-item">Sắp xếp panel</button>
+      <button class="ui-menu-item" disabled>Gộp Chương</button>
+    </span>
+    <span class="ui-menu">
+      <label class="ui-menu-item ui-check"><input type="radio" name="t-light-m" checked>Mọi loại</label>
+      <label class="ui-menu-item ui-check"><input type="radio" name="t-light-m">Nhân vật</label>
+      <label class="ui-menu-item ui-check"><input type="radio" name="t-light-m">Địa danh</label>
+    </span>
+  </div>
+
+  <h3>Hiện tại → đề xuất</h3>
+  <div class="cmp">
+    <div><div class="cap">mã hiện tại</div>
+      <div class="row"><button class="old-close">Đóng</button><button class="old-act">Xem trước</button><button class="old-primary">Nhập</button></div>
+      <div class="row"><input class="old-input" placeholder="Tìm"><span class="old-select">Mọi loại <span>▾</span></span><span class="old-chip">Cần xem</span></div>
+      <div class="row"><label style="font-size:13px"><input type="checkbox" checked> Ghi đè</label><label style="font-size:13px"><input type="radio" checked> Tác phẩm này</label></div>
+    </div>
+    <div><div class="cap">đề xuất</div>
+      <div class="row"><button class="ui-btn ui-btn--quiet">Đóng</button><button class="ui-btn">Xem trước</button><button class="ui-btn ui-btn--primary">Nhập</button></div>
+      <div class="row"><input class="ui-field ui-field--medium" placeholder="Tìm" style="width:14ch"><button class="ui-field">Mọi loại <span class="caret">▾</span></button><button class="ui-chip" aria-pressed="false">Cần xem</button></div>
+      <div class="row"><label class="ui-check"><input type="checkbox" checked>Ghi đè</label><label class="ui-check"><input type="radio" name="t-light-c" checked>Tác phẩm này</label></div>
+    </div>
+  </div>
+
+  <div style="height:40px"></div>
+  <div class="statusbar">Chương 12 · 48/210 câu <span class="sep"></span> TM 3.412 · 75% <span style="flex:1"></span><button class="ui-btn ui-btn--sm ui-btn--quiet">AI: Sẵn sàng</button><span class="sep"></span><button class="ui-btn ui-btn--sm ui-btn--quiet">Bảng chờ Glossary</button></div>
+  </section>
+  <section class="sheet t-dark">
+  <h2>Thang kích thước — mỗi hàng một bậc, mọi control cùng cao</h2>
+  <p class="note">lg 32px cho form trong lớp phủ và Cài đặt · md 28px trong panel · sm 24px cho hàng điều khiển, thanh trạng thái, dải gợi ý. Chữ luôn ui-md 13px.</p>
+
+  <h3>Ba bậc</h3>
+  <div class="row line"><span class="tag">lg 32</span>
+    <input class="ui-field ui-field--lg ui-field--medium" placeholder="Tên Tác phẩm">
+    <button class="ui-field ui-field--lg">Tiếng Trung <span class="caret">▾</span></button>
+    <button class="ui-btn ui-btn--lg ui-btn--primary">Nhập</button>
+    <button class="ui-btn ui-btn--lg">Xem trước</button>
+    <button class="ui-btn ui-btn--lg ui-btn--quiet">Huỷ</button>
+    <button class="ui-icon-btn ui-icon-btn--lg" aria-label="Ghim"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 2h4l-.5 4 2.5 2.5H4L6.5 6z M8 8.5V14"/></svg></button>
+  </div>
+  <div class="row line"><span class="tag">md 28</span>
+    <input class="ui-field ui-field--medium" placeholder="Tìm trong Glossary">
+    <button class="ui-field">Mọi loại <span class="caret">▾</span></button>
+    <button class="ui-btn ui-btn--primary">Dịch câu này</button>
+    <button class="ui-btn">Đưa sang bản dịch</button>
+    <button class="ui-btn ui-btn--quiet">Prompt</button>
+    <button class="ui-icon-btn" aria-label="Ghim"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 2h4l-.5 4 2.5 2.5H4L6.5 6z M8 8.5V14"/></svg></button>
+  </div>
+  <div class="row line"><span class="tag">sm 24</span>
+    <input class="ui-field ui-field--sm ui-field--short" value="75">
+    <button class="ui-field ui-field--sm">Nguồn 8/10 <span class="caret">▾</span></button>
+    <button class="ui-btn ui-btn--sm ui-btn--primary">Nhận</button>
+    <button class="ui-btn ui-btn--sm">Bỏ qua</button>
+    <span class="ui-seg"><button aria-pressed="true">Trung</button><button aria-pressed="false">Hán Việt</button></span>
+    <button class="ui-chip" aria-pressed="true">Cần xem</button>
+    <button class="ui-chip" aria-pressed="false">Đã sửa</button>
+  </div>
+
+  <h3>Trạng thái (bậc md, ép bằng lớp)</h3>
+  <div class="grid">
+    <span></span><span class="hd">mặc định</span><span class="hd">rê chuột</span><span class="hd">nhấn</span><span class="hd">focus phím</span><span class="hd">khoá</span>
+    <span class="hd">Chính</span>
+    <span><button class="ui-btn ui-btn--primary">Lưu</button></span>
+    <span><button class="ui-btn ui-btn--primary is-hover">Lưu</button></span>
+    <span><button class="ui-btn ui-btn--primary is-active">Lưu</button></span>
+    <span><button class="ui-btn ui-btn--primary is-focus">Lưu</button></span>
+    <span><button class="ui-btn ui-btn--primary" disabled>Lưu</button></span>
+    <span class="hd">Phụ</span>
+    <span><button class="ui-btn">Xem trước</button></span>
+    <span><button class="ui-btn is-hover">Xem trước</button></span>
+    <span><button class="ui-btn is-active">Xem trước</button></span>
+    <span><button class="ui-btn is-focus">Xem trước</button></span>
+    <span><button class="ui-btn" disabled>Xem trước</button></span>
+    <span class="hd">Chìm</span>
+    <span><button class="ui-btn ui-btn--quiet">Công cụ</button></span>
+    <span><button class="ui-btn ui-btn--quiet is-hover">Công cụ</button></span>
+    <span><button class="ui-btn ui-btn--quiet is-active">Công cụ</button></span>
+    <span><button class="ui-btn ui-btn--quiet is-focus">Công cụ</button></span>
+    <span><button class="ui-btn ui-btn--quiet" disabled>Công cụ</button></span>
+    <span class="hd">Nguy hiểm</span>
+    <span><button class="ui-btn ui-btn--danger">Xoá khoá</button></span>
+    <span><button class="ui-btn ui-btn--danger is-hover">Xoá khoá</button></span>
+    <span><button class="ui-btn ui-btn--danger is-active">Xoá khoá</button></span>
+    <span><button class="ui-btn ui-btn--danger is-focus">Xoá khoá</button></span>
+    <span><button class="ui-btn ui-btn--danger" disabled>Xoá khoá</button></span>
+    <span class="hd">Ô nhập</span>
+    <span><input class="ui-field ui-field--full" placeholder="Tìm"></span>
+    <span><input class="ui-field ui-field--full is-hover" placeholder="Tìm"></span>
+    <span class="note">—</span>
+    <span><input class="ui-field ui-field--full is-focus" value="gõ"></span>
+    <span><input class="ui-field ui-field--full" placeholder="Tìm" disabled></span>
+    <span class="hd">Ô chọn</span>
+    <span><button class="ui-field ui-field--full">Mọi loại <span class="caret">▾</span></button></span>
+    <span><button class="ui-field ui-field--full is-hover">Mọi loại <span class="caret">▾</span></button></span>
+    <span class="note">—</span>
+    <span><button class="ui-field ui-field--full is-focus">Mọi loại <span class="caret">▾</span></button></span>
+    <span><button class="ui-field ui-field--full" disabled>Mọi loại <span class="caret">▾</span></button></span>
+    <span class="hd">Checkbox</span>
+    <span><label class="ui-check"><input type="checkbox" checked>Ghi đè</label></span>
+    <span><label class="ui-check is-hover"><input type="checkbox">Ghi đè</label></span>
+    <span class="note">—</span>
+    <span><label class="ui-check is-focus"><input type="checkbox" checked>Ghi đè</label></span>
+    <span><label class="ui-check"><input type="checkbox" disabled>Ghi đè</label></span>
+    <span class="hd">Mục menu</span>
+    <span><button class="ui-menu-item">Sắp xếp panel</button></span>
+    <span><button class="ui-menu-item is-hover">Sắp xếp panel</button></span>
+    <span class="note">—</span>
+    <span><button class="ui-menu-item is-focus">Sắp xếp panel</button></span>
+    <span><button class="ui-menu-item" disabled>Sắp xếp panel</button></span>
+  </div>
+  <p class="note">Focus thắng rê chuột. Viền focus primary so với viền thường control-rule: 1,93:1 (sáng) · 1,89:1 (tối), đạt AA, dưới AAA.</p>
+
+  <h3>Form trong lớp phủ (bậc lg)</h3>
+  <div class="form">
+    <label>Tên</label><input class="ui-field ui-field--lg ui-field--medium" value="Phàm nhân tu tiên">
+    <label>Ngôn ngữ nguồn</label><button class="ui-field ui-field--lg" style="justify-self:start">Tiếng Trung <span class="caret">▾</span></button>
+    <label>Ngưỡng TM</label><span class="row"><input class="ui-field ui-field--lg ui-field--short" value="75"><span class="note" style="margin:0">%</span></span>
+    <label>Khoá API</label><div><input class="ui-field ui-field--lg ui-field--full is-invalid" value="sk-12"><p class="ui-field-error">Khoá quá ngắn — cần ít nhất 20 ký tự.</p></div>
+    <label>Ghi chú</label><textarea class="ui-field ui-field--full">Giữ xưng hô huynh – đệ trong toàn bộ Tác phẩm.</textarea>
+    <label></label><div class="row"><label class="ui-check"><input type="checkbox" checked>Ghi đè mục trùng</label><label class="ui-check"><input type="radio" name="t-dark-r" checked>Tác phẩm này</label><label class="ui-check"><input type="radio" name="t-dark-r">Toàn cục</label></div>
+    <label></label><button class="ui-switch" role="switch" aria-checked="true"><span class="track"></span>Chỉ dùng TM của tôi <b>Bật</b></button>
+  </div>
+  <div class="overlay-foot" style="margin-top:16px">
+    <button class="ui-btn ui-btn--lg ui-btn--quiet ui-btn--pair">Huỷ</button>
+    <button class="ui-btn ui-btn--lg ui-btn--primary ui-btn--pair">Nhập</button>
+  </div>
+
+  <h3>Menu</h3>
+  <div class="row" style="align-items:flex-start">
+    <span class="ui-menu">
+      <button class="ui-menu-item">Nhập tệp…</button>
+      <button class="ui-menu-item">Xuất…</button>
+      <span class="ui-menu-sep"></span>
+      <button class="ui-menu-item">Sắp xếp panel</button>
+      <button class="ui-menu-item" disabled>Gộp Chương</button>
+    </span>
+    <span class="ui-menu">
+      <label class="ui-menu-item ui-check"><input type="radio" name="t-dark-m" checked>Mọi loại</label>
+      <label class="ui-menu-item ui-check"><input type="radio" name="t-dark-m">Nhân vật</label>
+      <label class="ui-menu-item ui-check"><input type="radio" name="t-dark-m">Địa danh</label>
+    </span>
+  </div>
+
+  <h3>Hiện tại → đề xuất</h3>
+  <div class="cmp">
+    <div><div class="cap">mã hiện tại</div>
+      <div class="row"><button class="old-close">Đóng</button><button class="old-act">Xem trước</button><button class="old-primary">Nhập</button></div>
+      <div class="row"><input class="old-input" placeholder="Tìm"><span class="old-select">Mọi loại <span>▾</span></span><span class="old-chip">Cần xem</span></div>
+      <div class="row"><label style="font-size:13px"><input type="checkbox" checked> Ghi đè</label><label style="font-size:13px"><input type="radio" checked> Tác phẩm này</label></div>
+    </div>
+    <div><div class="cap">đề xuất</div>
+      <div class="row"><button class="ui-btn ui-btn--quiet">Đóng</button><button class="ui-btn">Xem trước</button><button class="ui-btn ui-btn--primary">Nhập</button></div>
+      <div class="row"><input class="ui-field ui-field--medium" placeholder="Tìm" style="width:14ch"><button class="ui-field">Mọi loại <span class="caret">▾</span></button><button class="ui-chip" aria-pressed="false">Cần xem</button></div>
+      <div class="row"><label class="ui-check"><input type="checkbox" checked>Ghi đè</label><label class="ui-check"><input type="radio" name="t-dark-c" checked>Tác phẩm này</label></div>
+    </div>
+  </div>
+
+  <div style="height:40px"></div>
+  <div class="statusbar">Chương 12 · 48/210 câu <span class="sep"></span> TM 3.412 · 75% <span style="flex:1"></span><button class="ui-btn ui-btn--sm ui-btn--quiet">AI: Sẵn sàng</button><span class="sep"></span><button class="ui-btn ui-btn--sm ui-btn--quiet">Bảng chờ Glossary</button></div>
+  </section>
+</div>
+
+<script>
+document.querySelectorAll('.ui-switch').forEach((s) => s.addEventListener('click', () => {
+  const on = s.getAttribute('aria-checked') !== 'true'
+  s.setAttribute('aria-checked', String(on))
+  s.querySelector('b').textContent = on ? 'Bật' : 'Tắt'
+}))
+document.getElementById('base').addEventListener('change', (e) => {
+  document.querySelectorAll('.line').forEach((l) => l.classList.toggle('baseline', e.target.checked))
+})
+</script>
+</body>
+</html>

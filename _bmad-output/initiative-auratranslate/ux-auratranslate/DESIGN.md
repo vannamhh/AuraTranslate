@@ -150,6 +150,7 @@ components:
   grid-state-col: { width: 108px, typography: ui-label, color: on-surface-variant }
   grid-empty-cell: { min-height: 1.95em, border-bottom: 1px dashed outline }
   grid-row-omitted: { color: on-surface-variant, decoration: line-through }
+  control: { height-lg: 32px, height-md: 28px, height-sm: 24px, radius: 3px, border: control-rule, field-background: surface-sunken, check-size: 14px }
 ---
 
 ## Brand & Style
@@ -438,7 +439,52 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 | Nguy hiểm | Nền `surface`, viền 1px và chữ `error` (7,74:1 sáng · 5,92:1 tối) | Hành động có chữ **Xoá** làm mất thứ không lấy lại được trong app ("Xoá khoá"). 🔵 2026-10-28 (Ice duyệt): bậc thứ năm; `error` thêm đúng việc này, ngoài câu lỗi |
 | Khoá | Không nền, viền **đứt** 1px `outline`, chữ `on-surface-variant` | Mọi bậc khi `disabled` — khác dáng, không chỉ khác màu |
 
-Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng thái), bo `3px`, chữ `ui-md`. Nút chính **không** dùng `primary`: màu nhấn giữ đúng ba việc ở §Colors. Một hành động có cặp huỷ ("Dịch câu này" / "Huỷ dịch") hiện **một** nút ở **cùng một chỗ**, đổi theo trạng thái, để hàng nút không nhảy bố cục.
+Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng thái), bo `3px`, chữ `ui-md`. 🔵 2026-10-28: chiều cao theo thang ba bậc ở §Điều khiển (thêm 32px cho form). Nút chính **không** dùng `primary`: màu nhấn giữ đúng ba việc ở §Colors. Một hành động có cặp huỷ ("Dịch câu này" / "Huỷ dịch") hiện **một** nút ở **cùng một chỗ**, đổi theo trạng thái, để hàng nút không nhảy bố cục.
+
+### Điều khiển — một hệ cho mọi nút, ô nhập, ô chọn
+
+*(🔵 2026-10-28, Ice duyệt. Ba điểm Ice chọn giữa hai phương án: hover nhẹ, focus đổi màu viền, thang 32/28/24. Phần còn lại Ice duyệt trên mockup `mockups/he-dieu-khien.html`.)*
+
+**Vì sao.** Rà 2026-10-28 trên 66 tệp `.vue`: 356 `<button>`, chỉ 47 dùng lớp chung của `src/tokens/controls.css`; 309 nút còn lại tự vẽ bằng 148 lớp riêng trong 51 tệp. Chiều cao ước từ CSS rải 24 · 26 · 28 · ~29,5 · ~37,5px. 14 nút chính tô `primary`, 34 nút còn kiểu chữ gạch chân `outline` (1,31:1), 49 nút Phụ viền `outline` thay `control-rule`. Checkbox/radio chạy dáng gốc của hệ điều hành. Hover có ở 2/148 lớp nút tự vẽ.
+
+**Thang kích thước.** Mọi control trên cùng một hàng dùng cùng một bậc, nên nút, ô nhập và ô chọn đứng thẳng hàng.
+
+| Bậc | Cao | Đệm ngang (nút · ô nhập) | Dùng ở |
+|---|---|---|---|
+| `lg` | 32px | 12px · 8px | Form trong lớp phủ và Cài đặt |
+| `md` | 28px | 12px · 8px | Thân panel (mặc định) |
+| `sm` | 24px | 8px · 6px | Hàng điều khiển, thanh trạng thái, dải gợi ý (TM, Glossary, Soát) |
+
+Chữ luôn `ui-md`, bo `3px`, viền 1px. Nút chỉ có biểu tượng là ô vuông cạnh bằng chiều cao của bậc (thay ô 26px cố định). Chip lọc dùng bậc `sm`, bo `2px` (§Shapes), không bo tròn viên thuốc.
+
+**Chiều rộng.** Nút ôm chữ; riêng cặp nút ở chân lớp phủ dùng chung `min-width: 8.5em` để Huỷ và Xác nhận bằng nhau. Ô nhập đo bằng `ch` như thước đọc: **ngắn 8ch** (số, ngưỡng %), **vừa 24ch** (tên, khoá), **kín hàng 100%** (tìm, đường dẫn, mẫu luật). Ô chọn dạng field rộng bằng nhãn dài nhất của nó, tối thiểu 12ch.
+
+**Các loại.**
+
+| Loại | Dáng mặc định |
+|---|---|
+| Nút | Năm bậc ở §Nút (Chính · Phụ · Chìm · Nguy hiểm · Khoá) |
+| Ô nhập · ô nhiều dòng | Nền `surface-sunken`, viền `control-rule` (3,21:1 sáng · 3,98:1 tối — đạt sàn 3:1 của WCAG 1.4.11; viền `outline` 1,31:1 thì không), chữ `on-surface`, gợi ý `on-surface-variant`. Ô nhiều dòng giãn dòng 1.66 |
+| Ô chọn (`SelectMenu`, `DropdownMenu` dạng field) | Dáng y như ô nhập, nhãn trái, dấu `▾` phải màu `on-surface-variant` |
+| Nút mở menu (Công cụ ▾, Nguồn 8/10 ▾) | Một nút Phụ hoặc Chìm có dấu `▾` — không phải một dáng thứ ba |
+| Mục trong menu | Cao bằng bậc `md`, đệm ngang 12px, không viền |
+| Checkbox · radio | Vẽ bằng token, ô 14px: viền `control-rule`, checkbox bo `2px`, radio tròn. Đang chọn: nền `on-surface`, dấu tick/chấm `surface`, như nút Chính và ô phân đoạn đang chọn. Không dùng `primary`, không để màu nhấn của hệ điều hành |
+| Công tắc (`role="switch"`) | Rãnh 28×16px viền `control-rule`, núm `on-surface-variant`; bật: rãnh nền `on-surface`, núm `surface`. Chữ trạng thái vẫn đứng cạnh |
+| Nút phân đoạn · tab con · chip phím | Như §Ba cấp điều khiển |
+
+**Trạng thái.** Mỗi trạng thái đổi **một** thuộc tính và không đổi độ dày viền, đệm hay cỡ chữ, để không xô bố cục.
+
+| Trạng thái | Nút Phụ · Nguy hiểm | Nút Chính | Nút Chìm · mục menu | Ô nhập · ô chọn · checkbox |
+|---|---|---|---|---|
+| Rê chuột | Viền `on-surface-variant` (3,63 → 5,60:1) | Nền và viền `on-surface-variant`, chữ `surface` 5,60:1 | Nền `surface-sunken` | Viền `on-surface-variant` |
+| Nhấn | Nền `surface-sunken` | Như rê chuột | Nền `surface-sunken`, chữ `on-surface` | — |
+| Focus bàn phím | Viền `primary`, không vòng ngoài | Giữ vòng 2px `primary` cách mép 1px | Mục menu: vòng 2px `primary` thụt vào trong (như ô phân đoạn); nút Chìm: viền trong suốt thành `primary` | Viền `primary`, không vòng ngoài |
+| Khoá | §Nút bậc Khoá: viền đứt `outline`, chữ `on-surface-variant`, con trỏ mặc định, không hover | ← | ← | Viền đứt `outline`, nền không, chữ `on-surface-variant` |
+| Lỗi | — | — | — | Viền `error`, câu lỗi `ui-sm` màu `error` ngay dưới, giãn 1.66 |
+
+Focus thắng rê chuột: rule `:focus-visible` đứng sau `:hover` trong cùng tệp. ⚠️ Viền `primary` và viền rê chuột `on-surface-variant` chỉ cách nhau 1,25:1 (sáng) · 1,20:1 (tối) về độ sáng; hai màu khác nhau ở sắc độ, nên hai trạng thái không được đè nhau. Chênh lệch giữa viền thường `control-rule` và viền focus `primary` là 1,93:1 (sáng) · 1,89:1 (tối). Mức này đạt WCAG 2.4.11 (AA) và đạt 3:1 so với nền (7,01 · 6,69:1), nhưng dưới mức 3:1 mà 2.4.13 (AAA) đòi cho chính sự thay đổi. Ice đã chọn mức này có biết con số; ai muốn lên AAA thì đó là một lượt quyết mới, không phải một lỗi.
+
+**Một nguồn.** Mọi dáng ở mục này nằm trong `src/tokens/controls.css` dưới dạng lớp `ui-*` (`ui-btn`, `ui-icon-btn`, `ui-seg`, `ui-field`, `ui-check`, `ui-switch`, `ui-menu-item`, bổ nghĩa `--lg`/`--sm`). Component không khai lại chiều cao, viền, hover, focus hay dáng khoá trong `<style scoped>`; nó chỉ đặt bố cục (khoảng cách, chiều rộng). Luật focus "có viền thì đổi màu viền" (Kiểm H) giữ nguyên, nay chỉ cần đúng ở một tệp.
 
 **Ba cấp điều khiển, ba dáng** *(🔵 2026-10-26)*. Tab dock: nền `surface-sunken`, nét đáy `outline`, tab đang chọn nền `surface` "mở" xuống thân panel. Tab con trong panel (Từ điển · Concordance · Lịch sử): chữ `ui-md`, tab chọn gạch chân 2px `on-surface` và 600. Công tắc chế độ xem (Trung · Hán Việt; bố cục Workspace): **nút phân đoạn** viền `control-rule`, ô đang chọn nền `on-surface`. Chỉ dẫn phím tắt cạnh tên panel là **chip phím** (`ui-mono`, viền `outline`), không đứng trơn như một tab.
 
