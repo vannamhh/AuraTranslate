@@ -80,6 +80,12 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
     expect(declarations('.ui-seg__item')).toMatch(/(^|;)\s*border:\s*0\s*(;|$)/)
   })
 
+  it('a segment wrapped in its own form still fills the segmented control, because the form is a flex container', () => {
+    const settings = readFileSync(join(__dirname, '../../src/SettingsOverlay.vue'), 'utf8')
+    const form = settings.match(/\.set-scope-form\s*\{([^{}]*)\}/)?.[1] ?? ''
+    expect(form, '.set-scope-form rule').toMatch(/display:\s*flex/)
+  })
+
   it('an sm segmented control is 24px tall including its border, the same tier as sm buttons', () => {
     expect(declarations('.ui-seg--sm')).toMatch(/(^|;)\s*height:\s*24px/)
     expect(declarations('.ui-btn--sm')).toMatch(/(^|;)\s*height:\s*24px/)

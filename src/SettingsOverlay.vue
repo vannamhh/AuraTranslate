@@ -679,7 +679,7 @@ function onDeleteAiConfigKey(): void {
                   <label class="ai-field-label">
                     <span>{{ t('settings.ai_config.key_label') }}</span>
                     <input
-                      class="ai-field-input ui-field ui-field--lg ui-field--medium"
+                      class="ai-field-input ui-field ui-field--lg ui-field--full"
                       type="password"
                       autocomplete="off"
                       :placeholder="aiConfigKeyPlaceholder() || undefined"
@@ -1105,6 +1105,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .set-scope-form {
+  display: flex;
   margin: 0;
 }
 

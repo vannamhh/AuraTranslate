@@ -103,6 +103,7 @@ describe('SettingsOverlay.vue — hàng Khoá API, ba trạng thái đọc đư�
     expect(keyField.text()).toContain('Chưa cấu hình — không có khoá nào trong keychain.')
     // Không được đọc như trạng thái THỨ BA — hai câu phải phân biệt được.
     expect(keyField.text()).not.toContain('Không kiểm tra được')
+    expect(keyField.get('input[type="password"]').classes()).toContain('ui-field--full')
 
     wrapper.unmount()
     settingsState.resetSettings()
