@@ -67,12 +67,12 @@ button,input,textarea{font:inherit;color:inherit;margin:0}
 .ui-btn--pair{min-width:8.5em;justify-content:center}
 
 .ui-btn:hover,.ui-btn.is-hover{border-color:var(--ink-2)}
-.ui-btn--primary:hover,.ui-btn--primary.is-hover{background:var(--ink-2);border-color:var(--ink-2)}
-.ui-btn--quiet:hover,.ui-btn--quiet.is-hover{background:var(--sunken);border-color:transparent}
+.ui-btn--primary:hover,.ui-btn--primary.is-hover{border-color:var(--control-rule)}
+.ui-btn--quiet:hover,.ui-btn--quiet.is-hover{border-color:var(--control-rule)}
 .ui-btn--danger:hover,.ui-btn--danger.is-hover{border-color:var(--error);background:var(--sunken)}
 .ui-btn:active,.ui-btn.is-active{background:var(--sunken)}
-.ui-btn--primary:active,.ui-btn--primary.is-active{background:var(--ink-2)}
-.ui-btn--quiet:active,.ui-btn--quiet.is-active{color:var(--ink)}
+.ui-btn--primary:active,.ui-btn--primary.is-active{background:var(--ink);border-color:var(--control-rule)}
+.ui-btn--quiet:active,.ui-btn--quiet.is-active{background:var(--sunken);color:var(--ink)}
 
 .ui-btn:focus-visible,.ui-btn.is-focus{outline:none;border-color:var(--primary)}
 .ui-btn--primary:focus-visible,.ui-btn--primary.is-focus{outline:2px solid var(--primary);outline-offset:1px;border-color:var(--ink)}
@@ -108,12 +108,13 @@ textarea.ui-field{height:auto;min-height:calc(var(--h-md) * 3);padding:6px 8px;l
 button.ui-field{cursor:pointer;justify-content:space-between;text-align:left;min-width:12ch}
 button.ui-field .caret{color:var(--ink-2);font-size:11px}
 
-.ui-check{display:inline-flex;align-items:center;gap:8px;font-size:var(--ui-md);cursor:pointer;color:var(--ink)}
+.ui-check{display:inline-flex;align-items:center;gap:8px;min-height:24px;font-size:var(--ui-md);cursor:pointer;color:var(--ink)}
 .ui-check input{appearance:none;-webkit-appearance:none;width:14px;height:14px;flex:none;margin:0;border:1px solid var(--control-rule);border-radius:2px;background:var(--surface);display:grid;place-items:center;cursor:pointer}
 .ui-check input[type=radio]{border-radius:9999px}
 .ui-check:hover input,.ui-check.is-hover input{border-color:var(--ink-2)}
 .ui-check input:checked{background:var(--ink);border-color:var(--ink)}
-.ui-check input[type=checkbox]:checked::after{content:"";width:8px;height:4px;border-left:2px solid var(--surface);border-bottom:2px solid var(--surface);transform:translateY(-1px) rotate(-45deg)}
+.ui-check input[type=checkbox]:checked::after{content:"";width:8px;height:4px;margin-top:-2px;border-left:2px solid var(--surface);border-bottom:2px solid var(--surface);transform:rotate(-45deg)}
+.ui-check--bare{width:24px;height:24px;justify-content:center;gap:0}
 .ui-check input[type=radio]:checked::after{content:"";width:6px;height:6px;border-radius:9999px;background:var(--surface)}
 .ui-check input:focus-visible,.ui-check.is-focus input{outline:none;border-color:var(--primary)}
 .ui-check input:checked:focus-visible,.ui-check.is-focus input:checked{outline:2px solid var(--primary);outline-offset:1px}
@@ -133,8 +134,9 @@ button.ui-field .caret{color:var(--ink-2);font-size:11px}
 
 .ui-menu{display:inline-flex;flex-direction:column;min-width:200px;padding:4px 0;background:var(--surface);border:1px solid var(--control-rule);border-radius:3px}
 .ui-menu-item{white-space:nowrap;display:flex;align-items:center;gap:8px;height:var(--h-md);padding:0 12px;border:0;background:none;text-align:left;font-size:var(--ui-md);color:var(--ink);cursor:pointer}
-.ui-menu-item:hover,.ui-menu-item.is-hover{background:var(--sunken)}
+.ui-menu-item:hover,.ui-menu-item.is-hover{background:var(--outline)}
 .ui-menu-item:focus-visible,.ui-menu-item.is-focus{outline:2px solid var(--primary);outline-offset:-2px}
+@media (forced-colors: active){.ui-btn:focus-visible,.ui-icon-btn:focus-visible,.ui-field:focus-visible,.ui-check input:focus-visible,.ui-switch:focus-visible{outline:2px solid Highlight;outline-offset:1px}}
 .ui-menu-item:disabled{color:var(--ink-2);cursor:default;background:none}
 .ui-menu-sep{height:1px;background:var(--faint);margin:4px 0}
 
@@ -249,6 +251,7 @@ button.ui-field .caret{color:var(--ink-2);font-size:11px}
     <span><button class="ui-menu-item is-focus">Sắp xếp panel</button></span>
     <span><button class="ui-menu-item" disabled>Sắp xếp panel</button></span>
   </div>
+  <div class="row" style="margin-top:10px"><span class="tag">đứng riêng</span><label class="ui-check ui-check--bare" style="outline:1px dashed var(--outline)"><input type="checkbox" checked aria-label="Bật luật"></label><span class="note" style="margin:0">checkbox không nhãn bọc: ô 14px, vùng bấm 24×24 (khung đứt chỉ để minh hoạ)</span></div>
   <p class="note">Focus thắng rê chuột. Viền focus primary so với viền thường control-rule: 1,93:1 (sáng) · 1,89:1 (tối), đạt AA, dưới AAA.</p>
 
   <h3>Form trong lớp phủ (bậc lg)</h3>
@@ -382,6 +385,7 @@ button.ui-field .caret{color:var(--ink-2);font-size:11px}
     <span><button class="ui-menu-item is-focus">Sắp xếp panel</button></span>
     <span><button class="ui-menu-item" disabled>Sắp xếp panel</button></span>
   </div>
+  <div class="row" style="margin-top:10px"><span class="tag">đứng riêng</span><label class="ui-check ui-check--bare" style="outline:1px dashed var(--outline)"><input type="checkbox" checked aria-label="Bật luật"></label><span class="note" style="margin:0">checkbox không nhãn bọc: ô 14px, vùng bấm 24×24 (khung đứt chỉ để minh hoạ)</span></div>
   <p class="note">Focus thắng rê chuột. Viền focus primary so với viền thường control-rule: 1,93:1 (sáng) · 1,89:1 (tối), đạt AA, dưới AAA.</p>
 
   <h3>Form trong lớp phủ (bậc lg)</h3>
