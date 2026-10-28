@@ -130,6 +130,25 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     )
     await expect(await affordance.getAttribute('tabindex')).toBe('-1')
 
+    const wrappedChip = await browser.execute((id) => {
+      const node = document.querySelector(`[data-reading-segment="${id}"]`)
+      const text = node?.querySelector('.segment-text')
+      const chip = node?.querySelector('.mark-actions')
+      if (!(text instanceof HTMLElement) || !(chip instanceof HTMLElement)) return null
+      const lines = [...text.getClientRects()]
+      const box = chip.getBoundingClientRect()
+      const last = lines[lines.length - 1]
+      return {
+        lines: lines.length,
+        onLastLine: box.bottom > last.top && box.top < last.bottom,
+        gapAfterLastGlyph: box.left - last.right,
+      }
+    }, originalMarkedId)
+    await expect(wrappedChip?.lines).toBeGreaterThan(1)
+    await expect(wrappedChip?.onLastLine).toBe(true)
+    await expect(wrappedChip?.gapAfterLastGlyph).toBeGreaterThanOrEqual(0)
+    await expect(wrappedChip?.gapAfterLastGlyph).toBeLessThan(32)
+
     const beforeMark = await browser.execute((id) => {
       const node = document.querySelector(`[data-reading-segment="${id}"]`)
       return {

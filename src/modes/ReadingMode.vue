@@ -1071,11 +1071,11 @@ function paragraphRuns(
   background: var(--color-surface-tm);
 }
 
+/* Insets stay auto so the static position follows the last glyph; on a wrapped inline parent a
+   set inset resolves against the first line's top and lands over the sentence's own text. */
 .mark-actions {
   display: none;
   position: absolute;
-  inset-inline-start: 100%;
-  inset-block-start: 0;
   /* aura-allow-z-index: thứ tự sơn trong cùng dòng để nút tuyệt đối không nằm dưới chữ câu kế, không elevation */
   z-index: 1;
   white-space: nowrap;
