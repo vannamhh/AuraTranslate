@@ -338,6 +338,8 @@ cũng chọn thẳng chế độ khoan dung được bằng hai nút. Mỗi hit 
 
 ## Spec Change Log
 
+- 🔵 **2026-10-28 — Story 5.20 (AD-61) gỡ nút chọn chế độ dấu và hai lệnh `library.search_mode_*`.** Chế độ nay suy từ truy vấn trong `Indexer::search`, nên mọi câu "người dùng chọn tường minh bằng nút" và `aria-pressed` của hai nút ở spec này không còn đúng; `LibrarySearchStatus` có mười giá trị. Lượt tự nới (truy vấn có dấu, 0 hit chính xác) giữ nguyên.
+
 - 🔵 **2026-08-29 — Task 6/AC3 "bảy giá trị" đã SỬA thành "tám" tại chỗ trong mã, không sửa
   spec này (đúng luật "năng lực chưa dựng ≠ lệch spec", nhưng chiều ngược: đây là spec đếm sai
   trên một tiền đề cũ, không phải mã lệch đích).** `LibrarySearchStatus` TRƯỚC story này thật sự

@@ -6473,11 +6473,7 @@ fn appending_through_the_indexed_confirm_path_updates_the_library_indexs_chapter
     let marker = "unikatni_tu_khoa_chuong_moi_them_6_7b";
     let search_marker = |indexer: &auratranslate_lib::core::library::indexer::Indexer| {
         indexer
-            .search(
-                marker,
-                20,
-                auratranslate_lib::core::library::indexer::SearchMode::Exact,
-            )
+            .search(marker, 20)
             .unwrap_or_else(|e| panic!("search: {e}"))
     };
     assert_eq!(
@@ -6604,11 +6600,7 @@ fn skipping_step_four_after_an_append_leaves_the_library_index_stale_on_both_mea
     );
 
     let after = indexer
-        .search(
-            marker,
-            20,
-            auratranslate_lib::core::library::indexer::SearchMode::Exact,
-        )
+        .search(marker, 20)
         .unwrap_or_else(|e| panic!("search: {e}"));
     assert_eq!(
         after.total, 0,

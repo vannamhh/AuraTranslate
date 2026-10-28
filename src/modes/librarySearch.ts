@@ -1,35 +1,24 @@
 /**
  * State + thao tác của khối "Tìm kiếm" ở Library — Story 5.9, FR8: tìm một câu từng dịch ở
- * bất kỳ đâu trong cả thư viện, đồng thời trên nguyên văn và bản dịch. Story 5.10 (FR9) thêm
- * hai chế độ dấu: chính xác (mặc định) và khoan dung, cộng lượt TỰ NỚI khi chính xác trả 0
- * hàng trên một chỉ mục KHÔNG rỗng.
+ * bất kỳ đâu trong cả thư viện, đồng thời trên nguyên văn và bản dịch. The diacritic mode is
+ * derived by Rust from the query and comes back as `SearchReport.mode`.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * ⚠️ VÌ SAO MỘT MODULE THUẦN RIÊNG, KHÔNG VIẾT THẲNG TRONG `LibraryMode.vue`
  * ─────────────────────────────────────────────────────────────────────────────
  * Cùng lý do `libraryWorks.ts`/`libraryChapters.ts`: AD-34 §1 đòi mọi `@click` là đúng một
- * `dispatch('<id>')`, và các thao tác mới (`library.search` · `library.open_search_hit` ·
- * `library.search_mode_exact` · `library.search_mode_lenient`) đăng ký ở
+ * `dispatch('<id>')`, và các thao tác mới (`library.search` · `library.open_search_hit`) đăng ký ở
  * `src/commands/index.ts` như các `CommandDeps` TIÊM VÀO — `src/main.ts` nối chúng vào
  * `installCommands`. Module này là phía CUNG CẤP.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 TÁM TRẠNG THÁI PHÂN BIỆT ĐƯỢC — §Always của story, không gộp
+ * 🔴 TEN DISTINCT STATUSES — never merge
  * ─────────────────────────────────────────────────────────────────────────────
  * ① chưa gõ gì · ② đang tìm · ③ chỉ mục chưa có dòng nào · ④ truy vấn dưới 3 ký tự (VÀ `hits`
  * rỗng — một truy vấn ngắn VẪN có thể khớp ở nửa bản dịch, xem [`runLibrarySearch`]) · ⑤ không
- * khớp · ⑥ không khớp SAU KHI ĐÃ NỚI · ⑦ có kết quả · ⑧ có kết quả SAU KHI ĐÃ NỚI.
- * `LibraryMode.vue` đọc đúng thứ tự ưu tiên đó, không suy luận lại.
- *
- * 🔵 **Vì sao "tám", không "bảy" như §Tasks của story đọc lướt qua.** §Tasks 6 nói "bảy giá
- * trị" — con số đó phái sinh từ một chú thích CŨ (`Story 5.9`) tự xưng "năm giá trị" trong khi
- * `LibrarySearchStatus` thật đã có SÁU (`not_typed`/`searching`/`index_empty`/`short_query`/
- * `no_match`/`result`, đếm trực tiếp trên khai báo). Story này CỘNG THÊM đúng hai giá trị
- * (`no_match_widened`/`result_widened`, tách khỏi `no_match`/`result` khi một lượt tự nới xảy
- * ra) ⇒ 6 + 2 = **8**, không phải 7. Bảy ca của AC3 là bảy KỊCH BẢN được nêu tên để DEMO —
- * chúng không loại `result` (ca "có kết quả, KHÔNG nới" đã có từ Story 5.9 và không đổi ở đây)
- * khỏi danh mục. Sửa tại chỗ theo luật "một tiền đề sai không làm kết luận sai" — kết luận
- * đúng ("tám giá trị phân biệt được") vẫn đứng, chỉ số đến từ §Tasks bị lệch.
+ * khớp · ⑥ không khớp SAU KHI ĐÃ NỚI · ⑦ có kết quả · ⑧ có kết quả SAU KHI ĐÃ NỚI · ⑨ no match
+ * when typed unaccented (`no_match_lenient_typed`) · ⑩ results when typed unaccented
+ * (`result_lenient_typed`). `LibraryMode.vue` reads them in that priority order.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔴 `openCurrentLibrarySearchHit` — KHÔNG BAO GIỜ mở Chương TRƯỚC KHI mở Tác phẩm đã XONG
@@ -74,14 +63,10 @@ const busy = ref(false)
 const error = ref<IpcError | null>(null)
 // Con trỏ ô đang chọn trong danh sách kết quả — chép khuôn `workCursor` của `libraryWorks.ts`.
 const cursor = ref(0)
-// **THÊM Story 5.10.** Chế độ NGƯỜI DÙNG đang chọn (mặc định `'exact'`, AD-27 · AC4) — cờ này
-// dẫn tham số `mode` gửi xuống `searchLibrary`, KHÔNG suy ra từ `effectiveMode` của lượt tìm
-// gần nhất.
-const mode = ref<SearchMode>('exact')
+const classifiedMode = ref<SearchMode>('exact')
 // Chế độ THỰC SỰ đã chạy ở lượt tìm gần nhất — chép nguyên `SearchReport.effective_mode`.
 const effectiveMode = ref<SearchMode>('exact')
-// `true` ⇔ lượt tìm gần nhất là một lượt TỰ NỚI (`mode === 'exact'` nhưng chính xác trả 0
-// hàng trên một chỉ mục KHÔNG rỗng) — chép nguyên `SearchReport.widened`.
+// `true` when the latest search widened itself (exact pass found nothing on a non-empty index).
 const widened = ref(false)
 // Một lượt `runLibrarySearch()` bị chặn vì đang bận, ghi nhớ để chạy lại — cùng khuôn
 // `worksReloadPending`. Không phải `ref`: không khối template nào đọc nó.
@@ -118,8 +103,7 @@ export const librarySearchHasLoaded: DeepReadonly<Ref<boolean>> = readonly(hasLo
 export const librarySearchBusy: DeepReadonly<Ref<boolean>> = readonly(busy)
 export const librarySearchError: DeepReadonly<Ref<IpcError | null>> = readonly(error)
 export const librarySearchCursor: DeepReadonly<Ref<number>> = readonly(cursor)
-/** Chế độ NGƯỜI DÙNG đang chọn — hai nút chế độ đọc cờ này để tô `aria-pressed`. */
-export const librarySearchMode: DeepReadonly<Ref<SearchMode>> = readonly(mode)
+export const librarySearchClassifiedMode: DeepReadonly<Ref<SearchMode>> = readonly(classifiedMode)
 /** Chế độ THỰC SỰ đã chạy ở lượt tìm gần nhất (AC4: "đọc được chế độ đang có hiệu lực trên
  * màn hình mà không phải suy ra từ số kết quả"). */
 export const librarySearchEffectiveMode: DeepReadonly<Ref<SearchMode>> = readonly(effectiveMode)
@@ -258,9 +242,7 @@ function clampCursor(): void {
   if (cursor.value < 0) cursor.value = 0
 }
 
-/** Danh mục ĐÓNG, TÁM giá trị — khớp ĐÚNG tám trạng thái phân biệt được của §I/O Matrix
- * (Story 5.9 + Story 5.10), theo thứ tự ưu tiên đã ghi ở khối doc-comment đầu tệp. Xem khối
- * 🔵 đầu tệp cho lý do "tám", không "bảy". */
+/** Closed set of ten statuses, in the priority order of the file header. */
 export type LibrarySearchStatus =
   | 'not_typed'
   | 'searching'
@@ -268,11 +250,13 @@ export type LibrarySearchStatus =
   | 'short_query'
   | 'no_match'
   | 'no_match_widened'
+  | 'no_match_lenient_typed'
   | 'result'
   | 'result_widened'
+  | 'result_lenient_typed'
 
 /**
- * **Hàm THUẦN** — suy trạng thái hiển thị từ năm dữ kiện thô, tách khỏi mọi `ref` để vitest
+ * **Hàm THUẦN** — derive the display status from seven raw facts, tách khỏi mọi `ref` để vitest
  * kiểm được TẤT ĐỊNH mà không cần mount `LibraryMode.vue` (cùng lý do `chapterWindow` của
  * `libraryChapters.ts` là một hàm thuần: `tests/AGENTS.md`, "hành vi của module thuần").
  *
@@ -292,6 +276,7 @@ export function librarySearchStatus(
   hitCount: number,
   shortQueryValue: boolean,
   widenedValue: boolean,
+  classifiedModeValue: SearchMode,
 ): LibrarySearchStatus {
   // 🔴 **`busy` thắng TRƯỚC, không chỉ khi chưa nạp lần nào.** Bản đầu viết
   // `if (!hasLoaded) return busy ? 'searching' : 'not_typed'` rồi mới xét các nhánh dưới — nên
@@ -305,8 +290,10 @@ export function librarySearchStatus(
   if (indexedSegmentsValue === 0) return 'index_empty'
   if (hitCount === 0 && widenedValue) return 'no_match_widened'
   if (hitCount === 0 && shortQueryValue) return 'short_query'
+  if (hitCount === 0 && classifiedModeValue === 'lenient') return 'no_match_lenient_typed'
   if (hitCount === 0) return 'no_match'
   if (widenedValue) return 'result_widened'
+  if (classifiedModeValue === 'lenient') return 'result_lenient_typed'
   return 'result'
 }
 
@@ -319,6 +306,7 @@ export const librarySearchStatusKey = computed<LibrarySearchStatus>(() =>
     hits.value.length,
     shortQuery.value,
     widened.value,
+    classifiedMode.value,
   ),
 )
 
@@ -404,9 +392,8 @@ async function executeLibrarySearch(): Promise<void> {
     busy.value = false
     error.value = null
     cursor.value = 0
-    // 🔵 THÊM Story 5.10 — hai trường mô tả LƯỢT TÌM gần nhất, không phải lựa chọn của người
-    // dùng (`mode` giữ nguyên): ô tìm rỗng nghĩa là "chưa có lượt tìm nào để mô tả".
-    effectiveMode.value = mode.value
+    classifiedMode.value = 'exact'
+    effectiveMode.value = 'exact'
     widened.value = false
     reloadPending = false
     return
@@ -422,7 +409,7 @@ async function executeLibrarySearch(): Promise<void> {
   const mySequence = ++sequence
 
   const startedAt = performance.now()
-  const result = await searchLibrary(trimmed, undefined, mode.value, {
+  const result = await searchLibrary(trimmed, undefined, {
     scope: scope.value,
     status: Array.from(libraryStatusFilter.value),
     sourceLang: librarySourceLangFilter.value,
@@ -466,6 +453,7 @@ async function executeLibrarySearch(): Promise<void> {
   worksWithText.value = result.report.works_with_text
   shortQuery.value = result.report.short_query
   truncated.value = result.report.truncated
+  classifiedMode.value = result.report.mode
   effectiveMode.value = result.report.effective_mode
   widened.value = result.report.widened
   hasLoaded.value = true
@@ -479,32 +467,6 @@ async function runPendingSearchReload(): Promise<void> {
   if (!reloadPending) return
   reloadPending = false
   await executeLibrarySearch()
-}
-
-/**
- * Đặt cờ chế độ rồi chạy LẠI lượt tìm — **chỉ khi** ô tìm không rỗng (§Always: "cả hai nút chế
- * độ chạy lại lượt tìm nếu đã có truy vấn"; §I/O Matrix "Đổi chế độ khi ô tìm rỗng ⇒ 0 lượt
- * IPC; chỉ cờ chế độ đổi"). Dùng CHUNG bởi hai hàm export ngay dưới — chúng chỉ khác giá trị
- * gán cho `mode`.
- *
- * 🔴 Một danh sách kết quả CŨ nằm dưới một nhãn chế độ MỚI là đúng lỗi mà `librarySearchStatus`
- * đã phải sửa một lần ở vòng rà 5.9 (`busy` thắng trước) — `runLibrarySearch()` tự đặt `busy`
- * NGAY khi bắt đầu, nên không có cửa sổ nào để người dùng thấy hit cũ dưới nhãn mới.
- */
-function setLibrarySearchMode(next: SearchMode): void {
-  mode.value = next
-  if (query.value.trim().length === 0) return
-  void executeLibrarySearch()
-}
-
-/** Handler của `library.search_mode_exact`. */
-export function setLibrarySearchModeExact(): void {
-  setLibrarySearchMode('exact')
-}
-
-/** Handler của `library.search_mode_lenient`. */
-export function setLibrarySearchModeLenient(): void {
-  setLibrarySearchMode('lenient')
 }
 
 export function setLibrarySearchScope(next: SearchScope): void {
@@ -620,7 +582,7 @@ export function resetLibrarySearch(): void {
   reloadPending = false
   error.value = null
   cursor.value = 0
-  mode.value = 'exact'
+  classifiedMode.value = 'exact'
   effectiveMode.value = 'exact'
   widened.value = false
   scope.value = 'both'

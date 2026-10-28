@@ -624,8 +624,8 @@ export type SearchField = 'target' | 'source'
 
 /**
  * **THÊM Story 5.10 (FR9).** Chế độ dấu của một lượt tìm kiếm — danh mục ĐÓNG, khớp
- * `core::library::indexer::SearchMode::as_str()`/`from_wire()` phía Rust. Union ĐÓNG, cùng mức
- * chặt `WorkSortKey`. `'exact'` là mặc định — khoan dung KHÔNG BAO GIỜ là mặc định (AD-27).
+ * `core::library::indexer::SearchMode::as_str()` phía Rust. Union ĐÓNG, cùng mức
+ * chặt `WorkSortKey`. Read-only: the Webview never sends a mode.
  */
 export type SearchMode = 'exact' | 'lenient'
 
@@ -694,7 +694,7 @@ export type SearchReport = {
    * hàng khớp"*. Giao diện PHẢI nói ra điều đó: một trần cắt trong im lặng biến một con số
    * thành một lời khai sai. */
   truncated: boolean
-  /** **THÊM Story 5.10.** Chế độ NGƯỜI DÙNG (hoặc chỗ gọi) đã yêu cầu. */
+  /** Mode classified by Rust from the query (AD-61): `lenient` means typed unaccented. */
   mode: SearchMode
   /** **THÊM Story 5.10.** Chế độ THỰC SỰ đã chạy — khác `mode` khi [`Self.widened`] là
    * `true`. */
@@ -815,24 +815,19 @@ function isSearchReport(value: unknown): value is SearchReport {
 }
 
 /**
- * Tìm kiếm full-text xuyên TOÀN BỘ Library — lệnh `library.search` (FR8), mở rộng Story 5.10
- * (FR9, `mode`). Không ném — cùng lý do và cùng khuôn [`listLibraryWorks`]. `query` KHÔNG được
- * `trim()` ở đây — chỗ gọi (`src/modes/librarySearch.ts`) quyết định khi nào PHÁT lượt IPC này
- * (§I/O Matrix: "truy vấn rỗng ⇒ 0 lượt IPC"). `mode` KHÔNG mặc định ở tầng adapter này — chỗ
- * gọi truyền `undefined` để Rust tự áp `SearchMode::default()` (`exact`, §Always), không đoán
- * ở TypeScript.
+ * Full-text search across the whole Library (`library_search`). Never throws, like
+ * [`listLibraryWorks`]. `query` is not trimmed here; the caller decides when to fire the IPC.
+ * The diacritic mode is derived by Rust from the query.
  */
 export async function searchLibrary(
   query: string,
   limit?: number,
-  mode?: SearchMode,
   options: SearchLibraryOptions = {},
 ): Promise<SearchLibraryResult> {
   try {
     const report = await invoke<unknown>(CMD_SEARCH, {
       query,
       limit: limit ?? null,
-      mode: mode ?? null,
       scope: options.scope ?? null,
       status: options.status ?? null,
       sourceLang: options.sourceLang ?? null,

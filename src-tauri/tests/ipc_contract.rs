@@ -1666,12 +1666,10 @@ fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
     let library_src = fs::read_to_string(&library_rs)
         .unwrap_or_else(|err| panic!("khong doc duoc {}: {err}", library_rs.display()));
 
-    // Ten tham so tren day. `invoke()` gui `query`/`limit`/`mode` (mot tu don, hai chieu trung
-    // nhau o day) -- `src/config/library.ts` la cho duy nhat go ca ba. `mode` THEM o Story 5.10.
+    // `src/config/library.ts` is the only place that types `query` and `limit`.
     for param in [
         "query: String",
         "limit: Option<u32>",
-        "mode: Option<String>",
         "scope: Option<String>",
         "status: Option<Vec<String>>",
         "source_lang: Option<String>",
@@ -1684,6 +1682,10 @@ fn the_library_search_wire_is_registered_and_keeps_its_parameter_names() {
              so la doi DAY, va `src/config/library.ts` gui theo ten cu."
         );
     }
+    assert!(
+        !library_src.contains("mode: Option<String>"),
+        "vo IPC `library_search` khong con tham so `mode`: Rust suy che do dau tu truy van (AD-61)"
+    );
 }
 
 /// **SỬA TẠI CHỖ Story 5.12** (trước: `reading_wire_structs_keep_snake_case_field_names`,

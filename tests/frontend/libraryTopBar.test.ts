@@ -127,19 +127,10 @@ describe('Library top bar and cards', { timeout: 30_000 }, () => {
     expect(document.activeElement).toBe(page.find('[data-library-search-input]').element)
   })
 
-  it('the two segments read Chính xác dấu | Không dấu and each dispatches its own mode command', async () => {
-    const setLibrarySearchModeExact = vi.fn()
-    const setLibrarySearchModeLenient = vi.fn()
-    const p = await mountLibrary([row({})], { setLibrarySearchModeExact, setLibrarySearchModeLenient })
-    const exact = p.find('[data-library-search-mode="exact"]')
-    const lenient = p.find('[data-library-search-mode="lenient"]')
-    expect(exact.text()).toBe('Chính xác dấu')
-    expect(lenient.text()).toBe('Không dấu')
-    await lenient.trigger('click')
-    expect(setLibrarySearchModeLenient).toHaveBeenCalledTimes(1)
-    expect(setLibrarySearchModeExact).not.toHaveBeenCalled()
-    await exact.trigger('click')
-    expect(setLibrarySearchModeExact).toHaveBeenCalledTimes(1)
+  it('the top bar has no diacritic-mode segments', async () => {
+    const p = await mountLibrary([row({})])
+    expect(p.find('[data-library-search-mode]').exists()).toBe(false)
+    expect(p.text()).not.toContain('Chính xác dấu')
   })
 
   it('the Library body has no import form and no Nhập tài liệu button (the button lives in the title bar)', async () => {

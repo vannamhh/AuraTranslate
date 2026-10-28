@@ -51,3 +51,23 @@ describe('dispatch — spec.run() ném KHÔNG được thoát ra ngoài (§I/O M
     expect(() => registry.dispatch('test.unregistered')).toThrow(/chưa đăng ký/)
   })
 })
+
+describe('phím tắt mồ côi của lệnh đã gỡ', () => {
+  it('🔴 override cho `library.search_mode_exact` không ném, không bị từ chối, các override khác vẫn có hiệu lực', async () => {
+    vi.resetModules()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const commands = await import('../../src/commands')
+    commands.installCommands({
+      isMac: true,
+      setMode: () => {},
+      bindings: { 'library.search_mode_exact': ['Mod+Shift+E'], 'mode.library': ['Mod+Alt+Shift+9'] },
+    })
+
+    expect(commands.shortcutsDiskRejection()).toBeNull()
+    expect(errorSpy).not.toHaveBeenCalled()
+    expect(commands.commandRegistry.list().some((spec) => spec.id === 'library.search_mode_exact')).toBe(false)
+    expect(commands.commandRegistry.list().some((spec) => spec.id === 'library.search_mode_lenient')).toBe(false)
+    expect(commands.effectiveBindings().find((b) => b.id === 'mode.library')?.chord).toBe('Mod+Alt+Shift+9')
+    errorSpy.mockRestore()
+  })
+})

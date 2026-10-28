@@ -352,9 +352,7 @@ fn every_library_command_reports_a_missing_indexer_instead_of_panicking() {
     // 🔵 THÊM (2026-08-29, Story 5.9) — cùng khuôn ba lệnh trên: `search_library` không được
     // panic khi `Indexer` chưa quản lý, và nó tái dùng ĐÚNG khoá `library.indexer_missing`
     // (danh mục MessageKey ĐÓNG của story — không đúc khoá thứ ba).
-    // 🔵 SỬA (2026-08-29, Story 5.10) — chữ ký `search_library` thêm tham số thứ TƯ (`mode:
-    // Option<&str>`); `None` ⇒ mặc định `exact`, không đổi phán quyết của ca này.
-    let search_err = search_library(None, "bat ky truy van nao", None, None)
+    let search_err = search_library(None, "bat ky truy van nao", None)
         .expect_err("không có Indexer thì không tìm được");
     assert_eq!(search_err.code(), "library.indexer_missing");
 
@@ -788,12 +786,9 @@ fn no_sort_key_defaults_to_updated_desc() {
     cleanup(&dir);
 }
 
-/// **THÊM Story 5.10 (FR9)** — khuôn TRỰC TIẾP của
-/// `an_unknown_sort_key_at_the_command_layer_is_refused_not_silently_defaulted` ngay trên,
-/// cho tham số `mode`: một chuỗi lạ trên dây phải bị TỪ CHỐI, không âm thầm rơi về `exact`.
 #[test]
-fn an_unknown_search_mode_at_the_command_layer_is_refused_not_silently_defaulted() {
-    let dir = temp_dir("search-unknown-mode");
+fn the_search_mode_on_the_wire_is_derived_from_the_query() {
+    let dir = temp_dir("search-derived-mode");
     let root = library_root(&dir);
     fs::create_dir_all(&root).expect("tạo thư mục gốc");
     let indexer = open_indexer(&dir);
@@ -801,40 +796,47 @@ fn an_unknown_search_mode_at_the_command_layer_is_refused_not_silently_defaulted
     write_atproj(&root, "Mot", "11111111-1111-4111-8111-111111111111", "Mot");
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
-    let err = search_library(Some(&indexer), "bat ky truy van nao", None, Some("fuzzy"))
-        .expect_err("mot che do la phai bi tu choi");
-    assert_eq!(
-        err.code(),
-        "library.unknown_search_mode",
-        "mot che do la phai noi ten no, khong duoc am tham roi ve mac dinh"
-    );
+    let typed = search_library(Some(&indexer), "bat ky truy van nao", None).expect("khong dau");
+    assert_eq!(typed.mode, "lenient");
+    assert_eq!(typed.effective_mode, "lenient");
+    assert!(!typed.widened);
+
+    let accented = search_library(Some(&indexer), "bất kỳ", None).expect("co dau");
+    assert_eq!(accented.mode, "exact");
+    assert_eq!(accented.effective_mode, "exact");
+    assert!(!accented.widened);
 
     indexer.close();
     global.close();
     cleanup(&dir);
 }
 
-/// §I/O Matrix "`mode` vắng mặt": `mode=None` ⇒ chạy như `exact` — mặc định không bao giờ là
-/// khoan dung (AD-27 · AC4). Ca này chỉ canh KHÔNG lỗi nào ném và `mode`/`effective_mode` trả
-/// về đúng `"exact"`; nội dung hit thuộc `library_index_contract.rs`.
+/// The fixture holds both "chi" and "chỉ": without "chi" the exact pass would find 0, widen,
+/// and return the same result, so the case would pass on both branches.
 #[test]
-fn no_search_mode_defaults_to_exact() {
-    let dir = temp_dir("search-default-mode");
+fn typing_chi_finds_both_with_the_exact_word_first_while_typing_chi_with_hook_finds_only_it() {
+    let dir = temp_dir("search-chi-vs-chi-hoi");
     let root = library_root(&dir);
     fs::create_dir_all(&root).expect("tạo thư mục gốc");
     let indexer = open_indexer(&dir);
     let global = open_global(&dir);
-    write_atproj(&root, "Mot", "11111111-1111-4111-8111-111111111111", "Mot");
+    write_atproj_with_one_real_segment(&root, "A", "id-a", "A", "irrelevant", "đi chỉ đường");
+    write_atproj_with_one_real_segment(&root, "B", "id-b", "B", "irrelevant", "đi chi phí");
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
-    let report =
-        search_library(Some(&indexer), "bat ky truy van nao", None, None).expect("search mac dinh");
-    assert_eq!(
-        report.mode, "exact",
-        "mode=None phai duoc doc la exact, khong doan mo"
-    );
-    assert_eq!(report.effective_mode, "exact");
-    assert!(!report.widened);
+    let typed = search_library(Some(&indexer), "chi", None).expect("chi");
+    assert_eq!(typed.hits.len(), 2, "hit: {:?}", typed.hits);
+    assert_eq!(typed.mode, "lenient");
+    assert!(!typed.widened);
+    assert_eq!(typed.hits[0].match_kind, "exact");
+    assert_eq!(typed.hits[0].work_id, "id-b");
+    assert_eq!(typed.hits[1].match_kind, "lenient");
+    assert_eq!(typed.hits[1].work_id, "id-a");
+
+    let accented = search_library(Some(&indexer), "chỉ", None).expect("chỉ");
+    assert_eq!(accented.mode, "exact");
+    assert_eq!(accented.hits.len(), 1, "hit: {:?}", accented.hits);
+    assert_eq!(accented.hits[0].work_id, "id-a");
 
     indexer.close();
     global.close();
@@ -870,8 +872,7 @@ fn search_library_carries_a_lenient_match_kind_through_to_the_wire_struct() {
     );
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
-    let report =
-        search_library(Some(&indexer), "khoang", None, Some("lenient")).expect("search lenient");
+    let report = search_library(Some(&indexer), "khoang", None).expect("search lenient");
     assert_eq!(report.hits.len(), 1, "hit: {:?}", report.hits);
     assert_eq!(
         report.hits[0].match_kind, "lenient",
@@ -968,8 +969,8 @@ fn rescan_and_search_library_report_the_two_new_wire_fields_through_the_real_con
     );
 
     // ── Lời khẳng định 2: `search_library()` THẬT, cùng chỉ mục vừa `rescan()` dựng ──
-    let search = search_library(Some(&indexer), "uniquefreshtargettext", None, None)
-        .expect("search_library");
+    let search =
+        search_library(Some(&indexer), "uniquefreshtargettext", None).expect("search_library");
     assert_eq!(
         search.hits.len(),
         1,
@@ -1318,7 +1319,7 @@ fn unknown_scope_status_sort_and_source_lang_are_refused_at_the_command_layer() 
     indexer.rebuild(&root, Some(&global)).expect("lập chỉ mục");
 
     let run = |args: SearchArgs<'_>| {
-        search_library_scoped(Some(&indexer), "bat ky truy van nao", None, None, &args)
+        search_library_scoped(Some(&indexer), "bat ky truy van nao", None, &args)
             .expect_err("gia tri la phai bi tu choi")
             .code()
             .to_owned()
@@ -1358,7 +1359,6 @@ fn unknown_scope_status_sort_and_source_lang_are_refused_at_the_command_layer() 
         Some(&indexer),
         "bat ky truy van nao",
         None,
-        None,
         &SearchArgs {
             scope: Some("target"),
             status: Some(&empty),
@@ -1397,7 +1397,6 @@ fn search_library_scoped_carries_the_new_hit_fields_counts_and_scope_to_the_wire
     let report = search_library_scoped(
         Some(&indexer),
         "wiretargetword",
-        None,
         None,
         &SearchArgs {
             scope: Some("target"),

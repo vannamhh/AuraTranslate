@@ -1,0 +1,85 @@
+# AD-61 / 5-20, 2026-10-28. build=bench-release (cargo test --profile bench-release --locked), rustc Homebrew, macOS Darwin 24.6.0 may Ice. Quan the: thu vien Story 6.18 (50 Tac pham x 100 Chuong x 10 segment = 50.000 segment), dung lai bang story_6_18_library. Tai may khong ranh: load 7-82 (Blender, Docker, Metal), cot calibration so 5 ca cu voi nfr3-raw.tsv cua 6.18. Phien 1: ham 5 ca khong in ket qua (log mat). Phien 5 khong hop le.
+session	record	case	query	warmups	samples	p50_ms	p95_ms	p99_ms	worst_ms	calibration_5_ca_6_18
+1	case	source_latin_ceiling_truncated	quick brown fox	10	200	588.508952	879.333666	1117.545614	1156.849871	khong_co_hieu_chuan(5_ca_phien_nay_mat)
+1	case	source_han_latin_mixed	分久必合5, the quick	10	200	271.714624	417.887477	626.340903	810.449397	khong_co_hieu_chuan(5_ca_phien_nay_mat)
+2	case	target_exact_truncated	má của tôi	10	200	113.010286	170.942449	229.007579	321.848244	nhieu(tai_11-36)
+2	case	source_han_truncated	分久必合	10	200	178.889811	230.656551	275.667529	284.739804	nhieu(tai_11-36)
+2	case	source_latin_unique	brown fox number 2500-5	10	200	10.886596	40.012500	82.663471	238.760139	nhieu(tai_11-36)
+2	case	target_auto_widen_truncated	mả của tôi	10	200	104.831844	312.960010	566.458424	604.667886	nhieu(tai_11-36)
+2	case	target_typed_lenient_truncated	ma cua toi	10	200	342.064495	492.841381	591.371417	650.604708	nhieu(tai_11-36)
+2	case	source_latin_ceiling_truncated	quick brown fox	10	200	464.450030	2160.721264	2853.617239	3383.862893	nhieu(tai_11-36)
+2	case	source_han_latin_mixed	分久必合5, the quick	10	200	230.238495	348.822175	440.129239	877.579057	nhieu(tai_11-36)
+3	case	target_exact_truncated	má của tôi	10	200	86.349814	108.544660	118.931907	166.350795	hop_le(5_ca_khop_6-18)
+3	case	source_han_truncated	分久必合	10	200	158.490763	178.264817	195.096988	239.544671	hop_le(5_ca_khop_6-18)
+3	case	source_latin_unique	brown fox number 2500-5	10	200	6.682192	8.301457	8.420942	8.972140	hop_le(5_ca_khop_6-18)
+3	case	target_auto_widen_truncated	mả của tôi	10	200	86.782699	124.688911	233.838966	359.465280	hop_le(5_ca_khop_6-18)
+3	case	target_typed_lenient_truncated	ma cua toi	10	200	90.794974	124.596065	133.121873	172.258252	hop_le(5_ca_khop_6-18)
+3	case	source_latin_ceiling_truncated	quick brown fox	10	200	551.741234	1820.789887	2445.645808	2571.031096	hop_le(5_ca_khop_6-18)
+3	case	source_han_latin_mixed	分久必合5, the quick	10	200	644.827936	1196.701444	1397.492874	1555.378029	hop_le(5_ca_khop_6-18)
+4	case	source_latin_ceiling_truncated	quick brown fox	10	200	562.744744	1023.215280	2943.804255	4961.944976	hop_le(5_ca_khop_6-18)
+4	case	source_han_latin_mixed	分久必合5, the quick	10	200	261.020787	317.325835	455.541750	781.307403	hop_le(5_ca_khop_6-18)
+4	case	target_exact_truncated	má của tôi	10	200	103.813339	133.535320	193.804963	249.319879	hop_le(5_ca_khop_6-18)
+4	case	source_han_truncated	分久必合	10	200	187.327833	212.020261	264.164094	300.232840	hop_le(5_ca_khop_6-18)
+4	case	source_latin_unique	brown fox number 2500-5	10	200	8.378233	10.307167	12.161211	13.054615	hop_le(5_ca_khop_6-18)
+4	case	target_auto_widen_truncated	mả của tôi	10	200	99.452991	111.573105	132.941173	153.883582	hop_le(5_ca_khop_6-18)
+4	case	target_typed_lenient_truncated	ma cua toi	10	200	103.256712	129.036843	183.688624	225.829393	hop_le(5_ca_khop_6-18)
+5	case	source_latin_ceiling_truncated	quick brown fox	10	200	576.237259	712.448950	1003.489964	1384.943614	khong_hop_le(5_ca_cham_gap_4-5_lan)
+5	case	source_han_latin_mixed	分久必合5, the quick	10	200	315.723885	1032.207083	1188.025521	1447.784993	khong_hop_le(5_ca_cham_gap_4-5_lan)
+5	case	target_exact_truncated	má của tôi	10	200	156.339493	429.550688	530.446644	724.539834	khong_hop_le(5_ca_cham_gap_4-5_lan)
+5	case	source_han_truncated	分久必合	10	200	474.414053	992.538101	1137.475902	1148.025653	khong_hop_le(5_ca_cham_gap_4-5_lan)
+5	case	source_latin_unique	brown fox number 2500-5	10	200	32.475897	61.314692	80.560285	83.793502	khong_hop_le(5_ca_cham_gap_4-5_lan)
+5	case	target_auto_widen_truncated	mả của tôi	10	200	552.974955	885.710587	1160.476596	1219.369576	khong_hop_le(5_ca_cham_gap_4-5_lan)
+5	case	target_typed_lenient_truncated	ma cua toi	10	200	659.278058	937.489838	1191.356124	1383.538716	khong_hop_le(5_ca_cham_gap_4-5_lan)
+# Probe 2026-10-28 20:01-20:30: binary bench-release da ky ad-hoc, chay thang ngoai deps; cung thu vien 6.18; 100 mau/ca, 5 lan khoi dong; tai may 8-15. base = aeaeaa17 (truoc AD-61), ad61 = AD-61 truoc khi bo _nd, skip = AD-61 bo _nd khi nua chinh xac da cham tran (ban duoc chon). Dong ho tung ham, mean ms/luot.
+probe_session	build	case	query	samples	p50_ms	p95_ms	mean_src_ms	mean_src_nd_ms	mean_count_ms	shape
+A1	base	base_exact_quick	quick brown fox	100	411.7	574.9	260.1	0.0	162.2	hits=50 truncated=true eff=Exact widened=false
+A1	base	base_lenient_quick	quick brown fox	100	698.0	993.0	269.0	255.9	210.2	hits=50 truncated=true eff=Lenient widened=false
+A1	base	base_exact_mixed	分久必合5, the quick	100	158.0	223.9	101.7	0.0	54.9	hits=50 truncated=true eff=Exact widened=false
+A1	base	base_lenient_mixed	分久必合5, the quick	100	295.6	340.3	101.4	109.0	88.9	hits=50 truncated=true eff=Lenient widened=false
+A1	base	base_han	分久必合	100	236.0	275.4	158.1	0.0	78.2	hits=50 truncated=true eff=Exact widened=false
+A1	ad61	ad61_quick	quick brown fox	100	693.7	877.5	225.7	299.6	175.9	hits=50 truncated=true eff=Lenient widened=false
+A1	ad61	ad61_mixed	分久必合5, the quick	100	326.7	375.7	98.7	141.1	88.5	hits=50 truncated=true eff=Lenient widened=false
+A1	ad61	ad61_han	分久必合	100	241.8	279.0	161.1	0.0	79.3	hits=50 truncated=true eff=Exact widened=false
+A2	base	base_exact_quick	quick brown fox	100	357.5	432.7	220.8	0.0	140.3	hits=50 truncated=true eff=Exact widened=false
+A2	base	base_lenient_quick	quick brown fox	100	604.9	771.9	221.3	213.0	177.4	hits=50 truncated=true eff=Lenient widened=false
+A2	base	base_exact_mixed	分久必合5, the quick	100	150.1	170.0	95.4	0.0	51.4	hits=50 truncated=true eff=Exact widened=false
+A2	base	base_lenient_mixed	分久必合5, the quick	100	289.4	335.5	97.8	104.9	87.0	hits=50 truncated=true eff=Lenient widened=false
+A2	base	base_han	分久必合	100	252.1	314.0	169.5	0.0	84.0	hits=50 truncated=true eff=Exact widened=false
+A2	ad61	ad61_quick	quick brown fox	100	669.3	800.9	221.6	286.5	174.2	hits=50 truncated=true eff=Lenient widened=false
+A2	ad61	ad61_mixed	分久必合5, the quick	100	315.8	393.8	97.7	137.1	84.8	hits=50 truncated=true eff=Lenient widened=false
+A2	ad61	ad61_han	分久必合	100	244.8	274.9	161.9	0.0	80.4	hits=50 truncated=true eff=Exact widened=false
+B1	ad61	ad61_quick	quick brown fox	100	609.4	679.4	197.8	255.3	158.8	hits=50 truncated=true eff=Lenient widened=false
+B1	ad61	ad61_mixed	分久必合5, the quick	100	287.4	310.9	85.4	123.7	76.5	hits=50 truncated=true eff=Lenient widened=false
+B1	ad61	ad61_han	分久必合	100	219.2	278.3	148.3	0.0	71.5	hits=50 truncated=true eff=Exact widened=false
+B1	skip	ad61_quick	quick brown fox	100	340.4	391.5	186.6	0.0	149.9	hits=50 truncated=true eff=Lenient widened=false
+B1	skip	ad61_mixed	分久必合5, the quick	100	156.5	170.6	80.0	0.0	72.8	hits=50 truncated=true eff=Lenient widened=false
+B1	skip	ad61_han	分久必合	100	206.4	219.5	135.9	0.0	68.2	hits=50 truncated=true eff=Exact widened=false
+B2	ad61	ad61_quick	quick brown fox	100	572.4	624.6	184.5	241.0	145.6	hits=50 truncated=true eff=Lenient widened=false
+B2	ad61	ad61_mixed	分久必合5, the quick	100	280.4	306.9	83.3	119.2	76.2	hits=50 truncated=true eff=Lenient widened=false
+B2	ad61	ad61_han	分久必合	100	203.9	227.8	134.2	0.0	66.4	hits=50 truncated=true eff=Exact widened=false
+B2	skip	ad61_quick	quick brown fox	100	329.3	356.1	180.6	0.0	146.9	hits=50 truncated=true eff=Lenient widened=false
+B2	skip	ad61_mixed	分久必合5, the quick	100	160.4	175.3	81.8	0.0	75.2	hits=50 truncated=true eff=Lenient widened=false
+B2	skip	ad61_han	分久必合	100	199.7	215.5	131.0	0.0	66.1	hits=50 truncated=true eff=Exact widened=false
+# Ban giao 2026-10-28 20:53-21:14: ham bench da commit, build bench-release library_index_contract-443ecc97978deca6 tu cay aeaeaa17 + thay doi chua commit (diff sha1 23bba4a9, co bo _nd khi cham tran), binary ky ad-hoc chay thang; thu vien 6.18 (50.000 segment); tai may 5-9; 5 ca cu khop 6.18 nen ca ba phien hop le.
+session	record	case	query	warmups	samples	p50_ms	p95_ms	p99_ms	worst_ms	calibration_5_ca_6_18
+R1	case	source_latin_ceiling_truncated	quick brown fox	10	200	319.899725	367.085257	436.548406	563.310988	hop_le(5_ca_khop_6-18)
+R1	case	source_han_latin_mixed	分久必合5, the quick	10	200	132.014760	142.170184	169.125565	173.571802	hop_le(5_ca_khop_6-18)
+R1	case	target_exact_truncated	má của tôi	10	200	97.212769	109.052170	149.854253	160.350793	hop_le(5_ca_khop_6-18)
+R1	case	source_han_truncated	分久必合	10	200	187.931694	203.115332	236.430268	267.242873	hop_le(5_ca_khop_6-18)
+R1	case	source_latin_unique	brown fox number 2500-5	10	200	7.694653	8.659337	10.005138	11.256341	hop_le(5_ca_khop_6-18)
+R1	case	target_auto_widen_truncated	mả của tôi	10	200	98.953978	111.203300	132.926916	144.012008	hop_le(5_ca_khop_6-18)
+R1	case	target_typed_lenient_truncated	ma cua toi	10	200	99.951329	109.768876	138.620437	143.715982	hop_le(5_ca_khop_6-18)
+R2	case	source_latin_ceiling_truncated	quick brown fox	10	200	297.571044	373.641193	436.973338	460.880114	hop_le(5_ca_khop_6-18)
+R2	case	source_han_latin_mixed	分久必合5, the quick	10	200	155.542947	194.137697	286.802391	318.348774	hop_le(5_ca_khop_6-18)
+R2	case	target_exact_truncated	má của tôi	10	200	97.889083	107.146316	121.965365	127.136036	hop_le(5_ca_khop_6-18)
+R2	case	source_han_truncated	分久必合	10	200	173.112664	192.809965	216.088620	273.913844	hop_le(5_ca_khop_6-18)
+R2	case	source_latin_unique	brown fox number 2500-5	10	200	7.723953	8.168775	8.351816	9.013943	hop_le(5_ca_khop_6-18)
+R2	case	target_auto_widen_truncated	mả của tôi	10	200	103.538314	131.619416	260.334589	496.752667	hop_le(5_ca_khop_6-18)
+R2	case	target_typed_lenient_truncated	ma cua toi	10	200	102.522048	113.786198	147.694486	166.018673	hop_le(5_ca_khop_6-18)
+R3	case	source_latin_ceiling_truncated	quick brown fox	10	200	301.817134	331.176696	375.783992	386.226092	hop_le(5_ca_khop_6-18)
+R3	case	source_han_latin_mixed	分久必合5, the quick	10	200	145.052084	162.515079	185.141048	186.936509	hop_le(5_ca_khop_6-18)
+R3	case	target_exact_truncated	má của tôi	10	200	103.848195	117.402421	147.225951	226.393107	hop_le(5_ca_khop_6-18)
+R3	case	source_han_truncated	分久必合	10	200	181.033272	226.280780	380.310773	444.171424	hop_le(5_ca_khop_6-18)
+R3	case	source_latin_unique	brown fox number 2500-5	10	200	7.780936	10.722698	12.407257	32.523304	hop_le(5_ca_khop_6-18)
+R3	case	target_auto_widen_truncated	mả của tôi	10	200	96.774719	107.100089	122.874255	146.875012	hop_le(5_ca_khop_6-18)
+R3	case	target_typed_lenient_truncated	ma cua toi	10	200	94.385376	114.905690	158.511164	197.342624	hop_le(5_ca_khop_6-18)

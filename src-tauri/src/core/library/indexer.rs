@@ -932,7 +932,7 @@ impl Indexer {
     /// ─────────────────────────────────────────────────────────────────────────────
     /// 🔴 STORY 5.10 — HAI CHẾ ĐỘ DẤU (FR9), VÀ VÌ SAO CHÍNH XÁC LUÔN CHẠY TRƯỚC
     /// ─────────────────────────────────────────────────────────────────────────────
-    /// `mode` quyết định chỉ mục CHÍNH có đủ hay cần thêm hai chỉ mục PHỤ khoan dung dấu —
+    /// The mode comes from [`classify_query`] (AD-61); `Lenient` adds two diacritic-folded indexes:
     /// `library_target_fts_nd` (`unicode61 remove_diacritics 2`, nửa bản dịch) và
     /// `library_source_fts_nd` (`trigram`, nửa nguyên văn). Cả hai đọc một cột ĐÃ GẤP riêng cho
     /// mình (`target_text_fold`/`source_text_fold`) — `đ`/`Đ` không tokenizer nào gấp được, và
@@ -945,7 +945,7 @@ impl Indexer {
     /// làm MẤT một hit đã có (§Always).
     ///
     /// `effective_mode` là [`SearchMode::Lenient`] khi và chỉ khi:
-    /// - `mode == Lenient` (người dùng chọn tường minh bằng nút), HOẶC
+    /// - `mode == Lenient` (the query carries no diacritics), OR
     /// - `mode == Exact` **và** lượt chính xác trả 0 hàng (`target` VÀ `source` đều rỗng)
     ///   **và** `indexed_segments > 0` — tự NỚI, `widened = true`. Nới trên một chỉ mục RỖNG
     ///   sẽ khai *"đã nới sang khoan dung"* cho một kho chưa có dòng nào — một câu đúng hình
@@ -954,35 +954,26 @@ impl Indexer {
     /// `widened == (mode == Exact && effective_mode == Lenient)` là một BẤT BIẾN của hàm này,
     /// đúng theo cấu tạo (không một nhánh nào gán `widened` ngoài định nghĩa `widened` ở trên).
     ///
-    /// Khi `effective_mode == Lenient`, CẢ HAI nửa đổi nguồn sang chỉ mục `_nd` của mình — vì
-    /// `_nd` gấp dấu trên CẢ NỘI DUNG lẫn TRUY VẤN nên tập kết quả của nó là TẬP CHA của tập
-    /// chính xác tương ứng (mọi hit chính xác cũng khớp `_nd`). ⇒ Không cộng gộp `target +
-    /// nd_target` (hay `source + nd_source`) — sẽ đúp mọi hit chính xác; output mỗi nửa ở chế
-    /// độ khoan dung là ĐÚNG MỘT truy vấn trên `_nd` của nó, dán nhãn theo tập rowid của lượt
-    /// chính xác tương ứng (§Always: *"nhãn `match_kind` phải đến từ một phép đo CÙNG VỊ TỪ,
-    /// không từ một phép so chuỗi thứ hai"*) — rowid nằm trong tập đó ⇒ `Exact`, ngoài ⇒
-    /// `Lenient`. Ở lượt TỰ NỚI, lượt chính xác vừa đo được RỖNG (đó là lý do nới), nên tập
-    /// rowid rỗng và mọi hit `_nd` là `Lenient` theo cấu tạo — không cần một phép so thứ hai.
+    /// When `effective_mode == Lenient` both halves also run their `_nd` index. `_nd` is a
+    /// superset of the exact set, so each half is its exact hits in order, then the `_nd` hits
+    /// whose rowid is outside that set, cut together at `limit` (AD-61 section 3). Labels follow
+    /// the exact pass's rowid set: inside it is `Exact`, outside is `Lenient`. On a widened
+    /// pass the exact set is empty, so every `_nd` hit is `Lenient` by construction.
     /// Nửa nguyên văn vẫn tôn trọng sàn [`MIN_SUBSTRING_QUERY_CHARS`] của `trigram` ở CẢ hai chỉ
     /// mục của nó (chính xác lẫn `_nd`) — một truy vấn ngắn không chạy nhánh nguyên văn nào.
-    pub fn search(
-        &self,
-        query: &str,
-        limit: usize,
-        mode: SearchMode,
-    ) -> Result<SearchReport, StoreError> {
-        self.search_filtered(query, limit, mode, SearchFilter::default())
+    pub fn search(&self, query: &str, limit: usize) -> Result<SearchReport, StoreError> {
+        self.search_filtered(query, limit, SearchFilter::default())
     }
 
     pub fn search_filtered(
         &self,
         query: &str,
         limit: usize,
-        mode: SearchMode,
         filter: SearchFilter,
     ) -> Result<SearchReport, StoreError> {
         let limit = limit.clamp(1, MAX_SEARCH_LIMIT);
         let trimmed = query.trim().to_owned();
+        let mode = classify_query(&trimmed);
         let short_query = trimmed.chars().count() < MIN_SUBSTRING_QUERY_CHARS;
         let scope = filter.scope;
         let runs_source = scope.runs_source() && !short_query;
@@ -1108,40 +1099,24 @@ impl Indexer {
                     ));
                 }
 
-                // ── Lượt KHOAN DUNG — CẢ HAI nửa đổi nguồn sang `_nd` của mình. Xem khối
-                // doc-comment ở trên cho lý lẽ dán nhãn theo tập rowid.
-                let exact_target_rowids: std::collections::HashSet<i64> =
-                    target.iter().map(|hit| hit.rowid).collect();
-                let mut nd_target = Vec::new();
-                let mut nd_target_truncated = false;
-                if runs_target {
-                    nd_target = search_target_text_nd(&conn, &trimmed, limit + 1, &filter)?;
-                    nd_target_truncated = nd_target.len() > limit;
-                    nd_target.truncate(limit);
-                    for hit in &mut nd_target {
-                        hit.match_kind = if exact_target_rowids.contains(&hit.rowid) {
-                            MatchKind::Exact
-                        } else {
-                            MatchKind::Lenient
-                        };
-                    }
+                // Lenient pass: per half, exact hits first, then `_nd` hits outside that set.
+                let mut nd_target_truncated = target_truncated;
+                let mut merged_target = target;
+                // An exact half that overflowed the cap already fills it; `_nd` could only add cost.
+                if runs_target && !target_truncated {
+                    let exact_count = merged_target.len();
+                    let nd =
+                        search_target_text_nd(&conn, &trimmed, limit + 1 + exact_count, &filter)?;
+                    nd_target_truncated |= merge_exact_first(&mut merged_target, nd, limit);
                 }
 
-                let exact_source_rowids: std::collections::HashSet<i64> =
-                    source.iter().map(|hit| hit.rowid).collect();
-                let mut nd_source = Vec::new();
-                let mut nd_source_truncated = false;
-                if runs_source {
-                    nd_source = search_source_text_nd(&conn, &trimmed, limit + 1, &filter)?;
-                    nd_source_truncated = nd_source.len() > limit;
-                    nd_source.truncate(limit);
-                    for hit in &mut nd_source {
-                        hit.match_kind = if exact_source_rowids.contains(&hit.rowid) {
-                            MatchKind::Exact
-                        } else {
-                            MatchKind::Lenient
-                        };
-                    }
+                let mut nd_source_truncated = source_truncated;
+                let mut merged_source = source;
+                if runs_source && !source_truncated {
+                    let exact_count = merged_source.len();
+                    let nd =
+                        search_source_text_nd(&conn, &trimmed, limit + 1 + exact_count, &filter)?;
+                    nd_source_truncated |= merge_exact_first(&mut merged_source, nd, limit);
                 }
 
                 let counts = count_per_work(
@@ -1152,8 +1127,8 @@ impl Indexer {
                     runs_target,
                     runs_source,
                 )?;
-                let mut hits = nd_target;
-                hits.extend(nd_source);
+                let mut hits = merged_target;
+                hits.extend(merged_source);
                 Ok(report(
                     hits,
                     nd_target_truncated || nd_source_truncated,
@@ -1396,16 +1371,16 @@ impl SearchField {
     }
 }
 
-/// Chế độ một lượt [`Indexer::search`] — danh mục ĐÓNG, hai giá trị. Story 5.10 (FR9). Khuôn
-/// TRỰC TIẾP của [`WorkSortKey`]: `as_str`/`from_wire`/`Default`.
+/// Chế độ một lượt [`Indexer::search`] — danh mục ĐÓNG, hai giá trị, suy từ truy vấn bởi
+/// [`classify_query`] (AD-61).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SearchMode {
     /// Chỉ chạy hai chỉ mục CHÍNH (`library_target_fts`/`library_source_fts`), PHÂN BIỆT dấu
-    /// tiếng Việt ở cả hai (AD-27). **Mặc định** — khoan dung KHÔNG BAO GIỜ là mặc định.
+    /// tiếng Việt ở cả hai (AD-27).
     Exact,
     /// Nửa BẢN DỊCH đọc thêm `library_target_fts_nd` (`unicode61 remove_diacritics 2`) và nửa
-    /// NGUYÊN VĂN đọc thêm `library_source_fts_nd` (`trigram`) — do người dùng chọn tường
-    /// minh, HOẶC do một lượt tự nới (xem [`SearchReport::widened`]). Cả hai chỉ mục PHỤ đọc
+    /// NGUYÊN VĂN đọc thêm `library_source_fts_nd` (`trigram`) — do truy vấn không dấu
+    /// (AD-61), HOẶC do một lượt tự nới (xem [`SearchReport::widened`]). Cả hai chỉ mục PHỤ đọc
     /// một cột ĐÃ GẤP riêng cho mình trước khi đưa vào tokenizer — [`fold_dd_letter`] (chỉ
     /// `đ/Đ`) cho nửa bản dịch, [`fold_diacritics_case_preserving`] (thêm dấu tổ hợp) cho nửa
     /// nguyên văn.
@@ -1413,11 +1388,6 @@ pub enum SearchMode {
 }
 
 impl SearchMode {
-    /// **THÊM (vòng rà bốn lớp, mục 9)** — danh mục ĐÓNG, cùng khuôn [`WorkSortKey::ALL`]: chỗ
-    /// kiểm khứ hồi (`as_str` ⇄ `from_wire`) chạy TRÊN hằng số này, không viết tay một danh
-    /// sách song song sẽ trôi khỏi enum thật.
-    pub const ALL: &'static [SearchMode] = &[SearchMode::Exact, SearchMode::Lenient];
-
     /// Định danh máy đọc — thứ đi trên dây. Không phải nhãn hiển thị (AD-21).
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -1425,24 +1395,31 @@ impl SearchMode {
             SearchMode::Lenient => "lenient",
         }
     }
+}
 
-    /// Phân giải một giá trị đến từ dây IPC. `None` ⇒ giá trị ngoài danh mục đóng, chỗ gọi tự
-    /// dựng lỗi (không đoán, không rơi về mặc định) — cùng khuôn [`WorkSortKey::from_wire`].
-    pub fn from_wire(raw: &str) -> Option<SearchMode> {
-        match raw {
-            "exact" => Some(SearchMode::Exact),
-            "lenient" => Some(SearchMode::Lenient),
-            _ => None,
-        }
+/// Phân loại truy vấn (AD-61 mục 1) — chỗ DUY NHẤT suy chế độ dấu. `Lenient` khi và chỉ khi có
+/// ít nhất một chữ ASCII `[A-Za-z]` và không có `đ`/`Đ` hay dấu nào (dựng sẵn lẫn tổ hợp).
+pub fn classify_query(query: &str) -> SearchMode {
+    let query = query.trim();
+    let has_latin = query.chars().any(|c| c.is_ascii_alphabetic());
+    let has_combining_mark = query
+        .chars()
+        .any(|c| ('\u{0300}'..='\u{036f}').contains(&c));
+    if has_latin && !has_combining_mark && fold_diacritics_case_preserving(query) == query {
+        SearchMode::Lenient
+    } else {
+        SearchMode::Exact
     }
 }
 
-impl Default for SearchMode {
-    /// §Always: "khoan dung KHÔNG BAO GIỜ là mặc định" (AD-27 · AC4) — `mode = None` trên dây
-    /// ⇒ `Exact`.
-    fn default() -> Self {
-        SearchMode::Exact
-    }
+/// Appends the `_nd` hits whose rowid is not already in `exact`, then cuts to `limit`.
+/// Returns whether anything was left over.
+fn merge_exact_first(exact: &mut Vec<SearchHit>, nd: Vec<SearchHit>, limit: usize) -> bool {
+    let seen: std::collections::HashSet<i64> = exact.iter().map(|hit| hit.rowid).collect();
+    exact.extend(nd.into_iter().filter(|hit| !seen.contains(&hit.rowid)));
+    let truncated = exact.len() > limit;
+    exact.truncate(limit);
+    truncated
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

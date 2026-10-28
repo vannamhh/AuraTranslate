@@ -80,9 +80,6 @@ import { importPreviewIsOpen } from '../importPreviewState'
 import { bilingualImportPreviewIsOpen } from '../bilingualImportPreviewState'
 import { libraryUrlImportScreenIsOpen } from './libraryImportOverlayState'
 // ── Story 5.9 — "Tìm kiếm full-text xuyên Library" (FR8) ─────────────────────────────
-// 🔵 SỬA (2026-08-29, Story 5.10) — thêm `librarySearchMode` cho hai nút chế độ + đọc thêm
-// `match_kind` của mỗi hit; `role="status"` mở rộng tám nhánh (đọc thẳng `librarySearchStatusKey`,
-// không cần một export mới cho `widened` — tám giá trị của nó đã chở đủ thông tin).
 // 🔵 SỬA (retro Epic 5, AI-3 — 2026-09-03) — thêm `librarySearchCoverageGapState`, bề mặt ĐỘC
 // LẬP với `librarySearchStatusKey` (§Always: "phải hiện cả khi có kết quả").
 import LibrarySearchResults from './LibrarySearchResults.vue'
@@ -91,7 +88,6 @@ import {
   librarySearchError,
   librarySearchFocusPending,
   librarySearchHasLoaded,
-  librarySearchMode,
   librarySearchQuery,
   librarySearchScope,
   rerunLibrarySearch,
@@ -401,26 +397,6 @@ const importScreenIsOpen = computed<boolean>(
           data-library-search-input
           @keyup.enter="dispatch('library.search')"
         />
-      </div>
-      <div class="segmented ui-seg" role="group" :aria-label="t('mode.library.search_mode_heading')">
-        <button
-          type="button"
-          class="segment ui-seg__item"
-          data-library-search-mode="exact"
-          :aria-pressed="librarySearchMode === 'exact'"
-          @click="dispatch('library.search_mode_exact')"
-        >
-          {{ t('mode.library.search_mode_exact') }}
-        </button>
-        <button
-          type="button"
-          class="segment ui-seg__item"
-          data-library-search-mode="lenient"
-          :aria-pressed="librarySearchMode === 'lenient'"
-          @click="dispatch('library.search_mode_lenient')"
-        >
-          {{ t('mode.library.search_mode_lenient') }}
-        </button>
       </div>
       <div
         v-if="librarySearchQuery.trim() !== ''"

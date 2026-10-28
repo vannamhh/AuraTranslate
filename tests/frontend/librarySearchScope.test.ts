@@ -425,9 +425,9 @@ describe('LibrarySearchResults.vue trên DOM mount thật', () => {
     expect(view.find('[data-library-search-mode-note]').classes()).toContain('mode-note--relax')
   })
 
-  it('chế độ chính xác ⇒ dòng chế độ không có lớp nới', async () => {
+  it('tìm chính xác ⇒ ghi chú chế độ vắng', async () => {
     const { view } = await mountWith(() => report([hit()], { work_counts: [count('id-a', 1)] }))
-    expect(view.find('[data-library-search-mode-note]').classes()).not.toContain('mode-note--relax')
+    expect(view.find('[data-library-search-mode-note]').exists()).toBe(false)
   })
 })
 
@@ -465,7 +465,7 @@ describe('config/library.ts::searchLibrary — guard của trường wire mới'
   it('gửi đủ scope/status/sourceLang/sort/workId, null khi không đặt', async () => {
     mockInvoke.mockResolvedValue(report([hit()]))
     const { searchLibrary } = await import('../../src/config/library')
-    await searchLibrary('x', undefined, 'exact', { scope: 'source', status: ['done'], sourceLang: 'en', sort: 'name_asc', workId: 'w' })
+    await searchLibrary('x', undefined, { scope: 'source', status: ['done'], sourceLang: 'en', sort: 'name_asc', workId: 'w' })
     expect(mockInvoke.mock.calls[0]?.[1]).toMatchObject({
       scope: 'source',
       status: ['done'],
@@ -473,6 +473,7 @@ describe('config/library.ts::searchLibrary — guard của trường wire mới'
       sort: 'name_asc',
       workId: 'w',
     })
+    expect(Object.keys(mockInvoke.mock.calls[0]?.[1] as object)).not.toContain('mode')
   })
 })
 

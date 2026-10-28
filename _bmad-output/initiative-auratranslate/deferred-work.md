@@ -13536,3 +13536,10 @@ chính nó.
 - Cần mắt: ảnh app thật Library (lưới, trang Tác phẩm, kết quả tìm, Nhập URL) và Chế độ đọc, sáng và tối, cạnh `he-dieu-khien.html`, `library-luoi-rong.html`. Điểm nghi: `ui-seg` 24px giữa thanh trên `md`; mục Trạng thái đang chọn chỉ tô `surface-accent`; cột số dòng nằm ngoài ô dán URL có khớp dòng; nút `aria-pressed` của thanh Chế độ đọc không có dáng bấm. Con trỏ: `story-he-ieu-khien-library-va-che-o-oc-plan.md`. **Chủ: Epic 12.**
 - e2e `story-12-5-library-search-scope` đỏ một ca ("a status filter that excludes the Work…") với `ReferenceError: openChip is not defined`: commit `03e3d8c008ab9dd6b935b8521b65597634f64bb8` (12-24) thêm lời gọi `openChip('status')` mà không import từ `e2e/support/libraryGrid.mjs`. Năm ca còn lại xanh trên máy Ice 2026-10-28. Ca này không chạy tới phần lọc trạng thái, nên lượt e2e đêm của macOS không canh nó. **Chủ: Epic 12.**
   → ✅ ĐÃ ĐÓNG 2026-10-28 (Story 12.32): thêm `import { openChip } from '../support/libraryGrid.mjs'`; spec xanh 6/6 trên máy Ice.
+
+## Deferred from: tìm kiếm Library suy chế độ dấu từ cách gõ (2026-10-28, ticket 20 của Epic 5)
+
+- Cần mắt trong app thật: gõ `chi`, `chỉ`, `分久必合`, `zzqq`; đọc dòng trạng thái và ghi chú (hit "chi" đứng trước "chỉ"; truy vấn có dấu không hiện ghi chú; không còn nút "Chính xác dấu | Không dấu"). Windows chưa có lượt e2e nào.
+  Chủ: Epic 5. Trỏ: `story-tim-kiem-library-suy-che-o-dau-tu-cach-go-plan.md`, AD-61.
+- NFR3 chưa đo ca truy vấn không dấu có ít hit đúng chữ (chưa chạm trần) mà nhiều biến thể dấu: lượt `_nd` vẫn chạy, nên tốn như ca `quick brown fox` trước khi bỏ `_nd` (p95 625–878 ms). Thư viện 6.18 không có dữ liệu dạng này. Số đo: `6-18-ban-do/nfr3-ad61-raw.tsv` (probe A/B).
+  Chủ: Epic 5. Trỏ: `story-tim-kiem-library-suy-che-o-dau-tu-cach-go-plan.md`, AD-61 Rule 7.

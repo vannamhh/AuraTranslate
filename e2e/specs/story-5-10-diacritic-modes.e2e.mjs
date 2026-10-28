@@ -4,11 +4,9 @@
  * ═════════════════════════════════════════════════════════════════════════════════
  * VÌ SAO SPEC NÀY TỒN TẠI
  * ═════════════════════════════════════════════════════════════════════════════════
- * `library_index_contract.rs` chứng minh `Indexer::search(mode)`/`SearchMode`/`MatchKind` là
- * hàm THUẦN trên dữ liệu dựng tay — nó không chứng minh một cú CLICK "Khoan dung dấu" thật vào
- * webview có thật sự phát `library_search` với `mode: "lenient"` trên dây hay không, và không
- * chứng minh lượt TỰ NỚI (không người dùng bấm gì) chạy TRỌN qua cầu IPC thật khi chính xác
- * trả 0 hàng. `tests/frontend/librarySearch.test.ts` chạy trên `happy-dom` với `invoke` GIẢ.
+ * `library_index_contract.rs` proves the index logic on hand-built data, and
+ * `tests/frontend/librarySearch.test.ts` runs on `happy-dom` with a fake `invoke`. Neither shows
+ * the real webview rendering the "typed unaccented" sentence or the absence of the mode button.
  * Hai mệnh đề dưới đây là đúng lớp "hành vi trong engine thật không có chủ ở ba đường kia".
  *
  * ═════════════════════════════════════════════════════════════════════════════════
@@ -24,8 +22,7 @@
  *    dựng tay qua `project.db` THẬT). Hai ca ở đây đo phần CHỈ webview thật mới lộ ra:
  *      ① một truy vấn không khớp gì chạy TRỌN đường tự nới qua IPC thật (trạng thái đổi đúng
  *         câu "đã thử cả hai chế độ" trên DOM thật, không phải trên một report giả);
- *      ② bật khoan dung KHÔNG làm một hit ở nửa NGUYÊN VĂN (thứ DỰNG ĐƯỢC ở đây) biến mất —
- *         đúng §Always "chuyển chế độ không được làm mất kết quả", đo qua đúng nút bấm thật.
+ *      ② an unaccented query still hits the source half, and the mode button is absent.
  * 2. Ô nhập truy vấn đặt giá trị bằng `value = …` cộng một `InputEvent` phát tay (cùng lý do
  *    §Giới hạn mục 1 của `story-5-9-library-search.e2e.mjs`).
  * 3. Thư mục gốc Library là MỘT thư mục TẠM DÙNG CHUNG cho cả lượt chạy (`wdio.conf.mjs`
@@ -34,8 +31,6 @@
  * 4. `story-5-6-library-grid.e2e.mjs` đỏ từ baseline (`6b2cb24`, trước Epic 5 hiện tại) — đỏ đó
  *    không đọc thành hồi quy của story này.
  */
-
-import { realClick } from '../support/pointer.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `e2e-diacritic-modes-${RUN_TAG}`
@@ -53,8 +48,8 @@ const SOURCE_TEXT = `Cau khong lien quan gi ca。Cau chua tu khoa ${SOURCE_MARKE
 const SEARCH_INPUT = '[data-library-search-input]'
 const SEARCH_STATUS = '[data-library-search-status]'
 const SEARCH_HITS = '[data-library-search-hit]'
-const MODE_LENIENT_BTN = '[data-library-search-mode="lenient"]'
-const MODE_EXACT_BTN = '[data-library-search-mode="exact"]'
+const MODE_BTN = '[data-library-search-mode]'
+const TYPED_LENIENT_PHRASE = 'gõ không dấu'
 
 /** Tạo một Tác phẩm qua cầu IPC thật, cùng khuôn `story-5-9-library-search.e2e.mjs`. */
 async function createWork(name, text) {
@@ -124,7 +119,7 @@ async function hitTexts() {
   ).join(' ')
 }
 
-describe('Story 5.10 — hai chế độ dấu (FR9)', () => {
+describe('Story 5.10 / 5.20 — chế độ dấu suy từ cách gõ (FR9)', () => {
   before(async () => {
     // ── Chờ cầu IPC — cùng khuôn mọi spec Epic 5 khác. ──────────────────────────────
     await browser.waitUntil(async () => browser.execute(() => window.__TAURI_INTERNALS__ !== undefined), {
@@ -145,24 +140,22 @@ describe('Story 5.10 — hai chế độ dấu (FR9)', () => {
   // Ca ① — một truy vấn không khớp gì trên một chỉ mục CÓ dữ liệu ⇒ lượt TỰ NỚI chạy TRỌN
   // qua IPC thật, và trạng thái nói ra đúng câu "đã thử cả hai chế độ" (§I/O Matrix "Nới vẫn 0").
   // ═══════════════════════════════════════════════════════════════════════════════
-  it('truy vấn không khớp gì ⇒ tự nới chạy qua IPC thật, trạng thái nói "đã thử cả hai chế độ"', async () => {
+  it('truy vấn không dấu không khớp gì ⇒ trạng thái nói "gõ không dấu nên đã tìm cả các biến thể dấu"', async () => {
     await typeSearchQuery(NONSENSE_QUERY)
 
-    // ⚠️ Chờ trên NỘI DUNG trạng thái, không trên số hàng: 0 hit là ĐÍCH của ca này, nên
-    // `searchHitCount() === 0` xanh NGAY LẬP TỨC (kể cả trước khi lượt tìm chạy) — hàng rào
-    // đúng là chờ câu trạng thái chứa "khoan dung" (chỉ `search_no_match_widened` mang cụm
-    // đó — xem `vi.json`; `search_not_typed`/`search_no_match` thường thì không).
+    // Wait on the status text: zero hits is the goal, so a hit count of 0 is true before the
+    // search even runs.
     await browser.waitUntil(
       async () => {
         const status = await searchStatusText()
-        if (status.includes('khoan dung')) return true
+        if (status.includes(TYPED_LENIENT_PHRASE)) return true
         await submitSearch()
         return false
       },
       {
         timeout: 20_000,
         interval: 500,
-        timeoutMsg: `trạng thái không đổi thành "đã thử cả hai chế độ" sau 20 giây cho truy vấn ${NONSENSE_QUERY}`,
+        timeoutMsg: `trạng thái không đổi thành câu "gõ không dấu" sau 20 giây cho truy vấn ${NONSENSE_QUERY}`,
       },
     )
 
@@ -170,25 +163,15 @@ describe('Story 5.10 — hai chế độ dấu (FR9)', () => {
     // thường (không tự nới) lẫn với "chưa gõ gì".
     expect(await searchHitCount()).toBe(0)
     const statusText = await searchStatusText()
-    expect(statusText).toContain('khoan dung')
-
-    // Chế độ NGƯỜI DÙNG vẫn là "Chính xác" — lượt tự nới KHÔNG đổi lựa chọn của người dùng,
-    // chỉ đổi CHẾ ĐỘ ĐÃ CHẠY (AD-27 · AC4: mặc định không bao giờ là khoan dung).
-    const exactPressed = await browser.execute(
-      (sel) => document.querySelector(sel)?.getAttribute('aria-pressed'),
-      MODE_EXACT_BTN,
-    )
-    expect(exactPressed).toBe('true')
+    expect(statusText).toContain(TYPED_LENIENT_PHRASE)
   })
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // Ca ② — bật khoan dung rồi tìm một chuỗi ở nửa NGUYÊN VĂN ⇒ hit VẪN còn (§Always: "chuyển
-  // chế độ không được làm mất kết quả"). §Giới hạn mục 1: nửa bản dịch không dựng được ở đây.
+  // Case 2: an unaccented source-half query still hits, and there is no mode button.
   // ═══════════════════════════════════════════════════════════════════════════════
-  it('bật khoan dung dấu rồi tìm một chuỗi ở nửa nguyên văn ⇒ hit vẫn còn', async () => {
+  it('tìm một chuỗi không dấu ở nửa nguyên văn ⇒ hit có mặt và không còn nút chế độ dấu', async () => {
     await typeSearchQuery(SOURCE_MARKER)
 
-    // ── Trước: tìm ở chế độ CHÍNH XÁC (mặc định), hit phải có mặt. ──────────────────────
     await browser.waitUntil(
       async () => {
         if ((await hitTexts()).includes(SOURCE_MARKER)) return true
@@ -198,35 +181,11 @@ describe('Story 5.10 — hai chế độ dấu (FR9)', () => {
       {
         timeout: 20_000,
         interval: 500,
-        timeoutMsg: `truy vấn "${SOURCE_MARKER}" không cho ra hàng kết quả nào ở chế độ chính xác sau 20 giây`,
+        timeoutMsg: `truy vấn "${SOURCE_MARKER}" không cho ra hàng kết quả nào sau 20 giây`,
       },
     )
     expect(await searchHitCount()).toBe(1)
 
-    // ── Bật "Khoan dung dấu" — §Always: "cả hai nút chế độ chạy lại lượt tìm nếu đã có
-    //    truy vấn". Không tự gõ lại, không bấm "Tìm" lần hai. ───────────────────────────
-    const lenientBtn = await $(MODE_LENIENT_BTN)
-    await realClick(lenientBtn)
-
-    await browser.waitUntil(
-      async () => browser.execute((sel) => document.querySelector(sel)?.getAttribute('aria-pressed'), MODE_LENIENT_BTN),
-      {
-        timeout: 10_000,
-        timeoutMsg: 'nút "Khoan dung dấu" không chuyển sang aria-pressed="true" sau 10 giây',
-      },
-    )
-    const lenientPressed = await browser.execute(
-      (sel) => document.querySelector(sel)?.getAttribute('aria-pressed'),
-      MODE_LENIENT_BTN,
-    )
-    expect(lenientPressed).toBe('true')
-
-    // ── Sau: hit ở nửa NGUYÊN VĂN vẫn phải còn — chuyển chế độ KHÔNG được làm nó biến mất.
-    await browser.waitUntil(async () => (await hitTexts()).includes(SOURCE_MARKER), {
-      timeout: 20_000,
-      interval: 500,
-      timeoutMsg: `hit ở nửa nguyên văn "${SOURCE_MARKER}" biến mất sau khi bật khoan dung dấu`,
-    })
-    expect(await searchHitCount()).toBe(1)
+    expect(await browser.execute((sel) => document.querySelector(sel) !== null, MODE_BTN)).toBe(false)
   })
 })

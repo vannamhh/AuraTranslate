@@ -10,7 +10,7 @@ import {
   librarySearchChaptersTotal,
   librarySearchCoverageGapState,
   librarySearchCursor,
-  librarySearchEffectiveMode,
+  librarySearchClassifiedMode,
   librarySearchElapsedMs,
   librarySearchError,
   librarySearchFilterActive,
@@ -18,6 +18,7 @@ import {
   librarySearchHits,
   librarySearchReportScope,
   librarySearchResultCount,
+  librarySearchWidened,
   librarySearchStatusKey,
   librarySearchTruncated,
   librarySearchVisibleHits,
@@ -56,17 +57,19 @@ const showsEmpty = computed(
     !showsResults.value &&
     (librarySearchStatusKey.value === 'no_match' ||
       librarySearchStatusKey.value === 'no_match_widened' ||
+      librarySearchStatusKey.value === 'no_match_lenient_typed' ||
       librarySearchStatusKey.value === 'short_query'),
 )
-const showsModeNote = computed(
-  () =>
-    showsResults.value ||
-    librarySearchStatusKey.value === 'no_match' ||
-    librarySearchStatusKey.value === 'no_match_widened',
-)
-const modeIsRelaxed = computed(
-  () => librarySearchEffectiveMode.value === 'lenient' || librarySearchStatusKey.value === 'result_widened',
-)
+// Exact search draws no note; the two relaxed cases each draw their own.
+const modeNoteKind = computed<'widened' | 'lenient_typed' | null>(() => {
+  if (librarySearchError.value !== null) return null
+  if (librarySearchWidened.value && (showsResults.value || librarySearchStatusKey.value === 'no_match_widened')) {
+    return 'widened'
+  }
+  if (librarySearchClassifiedMode.value === 'lenient' && showsResults.value) return 'lenient_typed'
+  return null
+})
+const showsModeNote = computed(() => modeNoteKind.value !== null)
 const truncatedNote = computed(() => {
   const { count } = librarySearchResultCount.value
   const shown = librarySearchHits.value.length
@@ -86,6 +89,8 @@ function statusText(): string {
       return t('mode.library.search_short_query')
     case 'no_match_widened':
       return t('mode.library.search_no_match_widened')
+    case 'no_match_lenient_typed':
+      return t('mode.library.search_no_match_lenient_typed')
     case 'no_match':
       return t('mode.library.search_no_match')
     default:
@@ -94,12 +99,9 @@ function statusText(): string {
 }
 
 function modeNoteText(): string {
-  if (librarySearchStatusKey.value === 'result_widened' || librarySearchStatusKey.value === 'no_match_widened') {
-    return t('mode.library.search_note_widened')
-  }
-  return librarySearchEffectiveMode.value === 'lenient'
-    ? t('mode.library.search_note_lenient')
-    : t('mode.library.search_note_exact')
+  return modeNoteKind.value === 'widened'
+    ? t('mode.library.search_note_widened')
+    : t('mode.library.search_note_lenient_typed')
 }
 
 function emptyScopeText(): string {
@@ -204,8 +206,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
     <!-- aura-allow-text: mọi nhánh của modeNoteText() đều qua t(). -->
     <p
       v-if="showsModeNote"
-      class="mode-note"
-      :class="{ 'mode-note--relax': modeIsRelaxed }"
+      class="mode-note mode-note--relax"
       data-library-search-mode-note
     >
       {{ modeNoteText() }}

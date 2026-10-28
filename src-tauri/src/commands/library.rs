@@ -31,9 +31,8 @@ use std::path::Path;
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::library::indexer::{
     AppearedWork, DEFAULT_SEARCH_LIMIT, IndexError, IndexedWork, Indexer, MovedWork,
-    RebuildOutcome, SearchFilter, SearchHit as CoreSearchHit, SearchMode,
-    SearchReport as CoreSearchReport, SearchScope, TextHarvestSkipped, WorkIdConflict, WorkQuery,
-    WorkSortKey,
+    RebuildOutcome, SearchFilter, SearchHit as CoreSearchHit, SearchReport as CoreSearchReport,
+    SearchScope, TextHarvestSkipped, WorkIdConflict, WorkQuery, WorkSortKey,
 };
 use crate::core::library::orphan_store::OrphanRecord;
 use crate::core::lifecycle::LifecycleStatus;
@@ -585,20 +584,6 @@ fn unknown_sort(sort: &str) -> IpcError {
     )
 }
 
-/// Giá trị chế độ tìm kiếm ngoài danh mục hai giá trị đóng của
-/// [`crate::core::library::indexer::SearchMode`] — chép khuôn [`unknown_sort`] ngay trên.
-/// Story 5.10 (§Always: "một chuỗi lạ trên dây ⇒ IpcError, không im lặng rơi về mặc định").
-fn unknown_search_mode(mode: &str) -> IpcError {
-    let mut params = BTreeMap::new();
-    params.insert("mode".to_owned(), mode.to_owned());
-    IpcError::new(
-        "library.unknown_search_mode",
-        MessageKey::LibraryUnknownSearchMode,
-        params,
-        false,
-    )
-}
-
 fn unknown_search_scope(scope: &str) -> IpcError {
     let mut params = BTreeMap::new();
     params.insert("scope".to_owned(), scope.to_owned());
@@ -816,22 +801,18 @@ impl From<CoreSearchReport> for SearchReport {
 ///
 /// `limit = None` ⇒ [`DEFAULT_SEARCH_LIMIT`] — chỗ gọi (webview) không phải biết con số đó.
 ///
-/// **THÊM Story 5.10 (FR9).** `mode: Option<&str>` — `None` ⇒ [`SearchMode::default()`]
-/// (`Exact`, §Always: "khoan dung KHÔNG BAO GIỜ là mặc định"); `Some(raw)` phải khớp một trong
-/// hai giá trị đóng của [`SearchMode::from_wire`], KHÔNG rơi về mặc định khi lạ.
+/// The diacritic mode is derived from the query (AD-61); there is no `mode` parameter.
 ///
 /// # Lỗi
 /// `indexer = None` ⇒ `library.indexer_missing` (tái dùng [`indexer_is_missing`], cùng khuôn
 /// mọi lệnh khác của tệp này — danh mục `MessageKey` ĐÓNG của story chỉ tái dùng khoá đã có,
-/// không đúc khoá mới). `mode` ngoài danh mục hai giá trị đóng ⇒ `err.library.unknown_search_mode`
-/// `{mode}` (qua [`unknown_search_mode`]) — **0** truy vấn SQL chạy trước khi lỗi này được trả.
+/// không đúc khoá mới).
 pub fn search_library(
     indexer: Option<&Indexer>,
     query: &str,
     limit: Option<u32>,
-    mode: Option<&str>,
 ) -> Result<SearchReport, IpcError> {
-    search_library_scoped(indexer, query, limit, mode, &SearchArgs::default())
+    search_library_scoped(indexer, query, limit, &SearchArgs::default())
 }
 
 #[derive(Debug, Clone, Default)]
@@ -849,15 +830,10 @@ pub fn search_library_scoped(
     indexer: Option<&Indexer>,
     query: &str,
     limit: Option<u32>,
-    mode: Option<&str>,
     args: &SearchArgs<'_>,
 ) -> Result<SearchReport, IpcError> {
     let indexer = indexer.ok_or_else(indexer_is_missing)?;
     let limit = limit.map(|l| l as usize).unwrap_or(DEFAULT_SEARCH_LIMIT);
-    let parsed_mode = match mode {
-        None => SearchMode::default(),
-        Some(raw) => SearchMode::from_wire(raw).ok_or_else(|| unknown_search_mode(raw))?,
-    };
     let scope = match args.scope {
         None => SearchScope::default(),
         Some(raw) => SearchScope::from_wire(raw).ok_or_else(|| unknown_search_scope(raw))?,
@@ -898,7 +874,7 @@ pub fn search_library_scoped(
         sort,
         work_id: args.work_id.map(str::to_owned),
     };
-    let report = indexer.search_filtered(query, limit, parsed_mode, filter)?;
+    let report = indexer.search_filtered(query, limit, filter)?;
     let mut wire = SearchReport::from(report);
     wire.scope = scope.as_str().to_owned();
     Ok(wire)
@@ -1123,8 +1099,6 @@ pub mod wire {
         app: tauri::AppHandle,
         query: String,
         limit: Option<u32>,
-        // 🔵 THÊM (2026-08-29, Story 5.10, FR9) — chế độ dấu; `None` ⇒ `exact` (§Always).
-        mode: Option<String>,
         scope: Option<String>,
         status: Option<Vec<String>>,
         source_lang: Option<String>,
@@ -1139,6 +1113,6 @@ pub mod wire {
             sort: sort.as_deref(),
             work_id: work_id.as_deref(),
         };
-        super::search_library_scoped(indexer.as_deref(), &query, limit, mode.as_deref(), &args)
+        super::search_library_scoped(indexer.as_deref(), &query, limit, &args)
     }
 }
