@@ -3,7 +3,7 @@ title: 'Hệ điều khiển: lớp chung, menu dùng chung và lớp phủ Qu�
 type: 'feature'
 ticket: '27'
 created: '2026-10-28'
-status: 'built'
+status: 'done'
 baseline_revision: '999419a3c676bdb0f2877244375d9e7a74a64f08'
 route: 'full'
 route_source: 'auto'

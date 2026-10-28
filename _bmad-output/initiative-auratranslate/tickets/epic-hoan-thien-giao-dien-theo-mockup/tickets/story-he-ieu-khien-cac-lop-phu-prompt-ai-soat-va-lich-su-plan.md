@@ -3,7 +3,7 @@ title: 'Hệ điều khiển: các lớp phủ Prompt, AI, Soát và Lịch sử
 type: 'refactor'
 ticket: '29'
 created: '2026-10-28'
-status: 'built'
+status: 'done'
 baseline_revision: '448f09cbc2744e953db2530d29e389d208e6dcab'
 route: 'full'
 route_source: 'auto'
