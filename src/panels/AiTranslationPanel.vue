@@ -653,6 +653,7 @@ const openSettingsLabel = computed(() =>
           :disabled="!canRunAiTranslateChapter"
           @click="dispatch('ai.translate.chapter_run')"
         >
+          <!-- aura-allow-text: KẾT QUẢ của t() (hai nhãn: cả Chương / N câu chưa dịch). -->
           {{ chapterRunLabel }}
         </button>
         <button
