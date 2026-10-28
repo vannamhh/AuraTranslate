@@ -484,6 +484,7 @@ describe('ImportPreviewOverlay.vue — tầng 3 dựng đúng span/luật, và b
     await forms[1]?.trigger('submit')
     expect(cleanupDeleteRuleMock).not.toHaveBeenCalled()
     expect(wrapper.find('.ip-cleanup-delete-pending').exists()).toBe(true)
+    expect(wrapper.find('.ip-cleanup-delete-pending').classes()).toContain('ui-btn--danger')
 
     // Nộp lần HAI, CÙNG hàng — xác nhận: ghi thật.
     await forms[1]?.trigger('submit')

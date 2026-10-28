@@ -129,7 +129,7 @@ function trapTab(event: KeyboardEvent): void {
     <section ref="panel" class="li-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="li-title">
       <header class="li-head">
         <h2 id="li-title" class="li-title">{{ t('mode.library.import_title') }}</h2>
-        <button type="button" class="li-close" @click="dispatch('library.import.close')">
+        <button type="button" class="li-close ui-btn ui-btn--quiet" @click="dispatch('library.import.close')">
           {{ t('command.library.import.close') }}
         </button>
       </header>
@@ -137,7 +137,7 @@ function trapTab(event: KeyboardEvent): void {
       <form class="import-form" @submit.prevent>
         <button
           type="button"
-          class="btn"
+          class="btn ui-btn"
           data-library-url-screen-open
           :disabled="busy"
           @pointerdown="recordImportOpener"
@@ -151,7 +151,7 @@ function trapTab(event: KeyboardEvent): void {
         <fieldset class="field field-group" data-import-destination>
           <legend>{{ t('mode.library.field_destination') }}</legend>
 
-          <label class="radio-field">
+          <label class="radio-field ui-check">
             <input
               type="radio"
               name="import-destination-mode"
@@ -165,7 +165,7 @@ function trapTab(event: KeyboardEvent): void {
             </span>
           </label>
 
-          <label class="radio-field">
+          <label class="radio-field ui-check">
             <input
               type="radio"
               name="import-destination-mode"
@@ -203,8 +203,8 @@ function trapTab(event: KeyboardEvent): void {
 
         <label class="field">
           <span>{{ t('mode.library.field_name') }}</span>
-          <input v-if="pickedDestinationWork === null" v-model="name" type="text" autocomplete="off" />
-          <input v-else :value="pickedDestinationWork.name" type="text" autocomplete="off" disabled />
+          <input v-if="pickedDestinationWork === null" v-model="name" class="ui-field ui-field--lg ui-field--full" type="text" autocomplete="off" />
+          <input v-else :value="pickedDestinationWork.name" class="ui-field ui-field--lg ui-field--full" type="text" autocomplete="off" disabled />
         </label>
 
         <div class="field">
@@ -217,6 +217,7 @@ function trapTab(event: KeyboardEvent): void {
           />
           <input
             v-else
+            class="ui-field ui-field--lg ui-field--full"
             :value="sourceLangLabel(pickedDestinationWork.source_lang) ?? ''"
             type="text"
             autocomplete="off"
@@ -236,6 +237,7 @@ function trapTab(event: KeyboardEvent): void {
           />
           <input
             v-else
+            class="ui-field ui-field--lg ui-field--full"
             :value="genreLabel(pickedDestinationWork.genre) ?? ''"
             type="text"
             autocomplete="off"
@@ -245,11 +247,11 @@ function trapTab(event: KeyboardEvent): void {
 
         <label class="field">
           <span>{{ t('mode.library.field_paste') }}</span>
-          <textarea v-model="pastedText" rows="6"></textarea>
+          <textarea v-model="pastedText" class="ui-field ui-field--full" rows="6"></textarea>
         </label>
         <button
           type="button"
-          class="btn"
+          class="btn ui-btn ui-btn--lg"
           data-import-preview-open
           :disabled="busy || pastedText.trim() === '' || destinationPending || effectiveName.trim() === ''"
           @pointerdown="recordImportOpener"
@@ -270,6 +272,7 @@ function trapTab(event: KeyboardEvent): void {
         <label class="field">
           <span>{{ t('mode.library.field_path') }}</span>
           <input
+            class="ui-field ui-field--lg ui-field--full"
             :value="filePath"
             type="text"
             autocomplete="off"
@@ -278,7 +281,7 @@ function trapTab(event: KeyboardEvent): void {
         </label>
         <button
           type="button"
-          class="btn"
+          class="btn ui-btn ui-btn--lg"
           data-import-preview-open
           :disabled="busy || effectiveFilePaths.length === 0 || destinationPending || effectiveName.trim() === ''"
           @pointerdown="recordImportOpener"
@@ -293,11 +296,11 @@ function trapTab(event: KeyboardEvent): void {
 
         <label class="field">
           <span>{{ t('mode.library.field_bilingual_path') }}</span>
-          <input v-model="bilingualFilePath" type="text" autocomplete="off" />
+          <input v-model="bilingualFilePath" class="ui-field ui-field--lg ui-field--full" type="text" autocomplete="off" />
         </label>
         <button
           type="button"
-          class="btn"
+          class="btn ui-btn ui-btn--lg"
           data-bilingual-import-preview-open
           :disabled="busy || bilingualFilePath.trim() === '' || name.trim() === ''"
           @pointerdown="recordImportOpener"
@@ -365,23 +368,6 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
-.li-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.li-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
 .import-form {
   display: flex;
   flex-direction: column;
@@ -396,25 +382,6 @@ function trapTab(event: KeyboardEvent): void {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.field input,
-.field select,
-.field textarea {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-surface);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 8px;
-}
-
-.field input:focus-visible,
-.field select:focus-visible,
-.field textarea:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .field-group {
@@ -468,25 +435,6 @@ function trapTab(event: KeyboardEvent): void {
 
 .btn {
   align-self: flex-start;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  font-weight: var(--weight-ui-md-strong);
-  color: var(--color-primary);
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-outline);
-  border-radius: 4px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.btn:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.btn:disabled {
-  color: var(--color-on-surface-variant);
-  cursor: not-allowed;
 }
 
 .dropzone {

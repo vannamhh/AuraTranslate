@@ -22,6 +22,17 @@ const FILES = [
   'src/ProofreadMemoryOverlay.vue',
   'src/ProofreadScopeOverlay.vue',
   'src/SegmentHistoryOverlay.vue',
+  'src/ImportPreviewOverlay.vue',
+  'src/BilingualImportPreviewOverlay.vue',
+  'src/LibraryImportOverlay.vue',
+  'src/ReviewerImportOverlay.vue',
+  'src/ExportOverlay.vue',
+  'src/AlignmentOverlay.vue',
+  'src/ChapterMergeOverlay.vue',
+  'src/ChapterSplitOverlay.vue',
+  'src/AttributionOverlay.vue',
+  'src/ChapterOrigin.vue',
+  'src/modes/SourceLangChips.vue',
 ]
 
 const CONTROL_TAGS = new Set(['button', 'input', 'textarea', 'summary'])
@@ -33,17 +44,22 @@ const SHAPE_EXCEPTIONS: Record<string, string> = {
   'src/GlossaryQueueOverlay.vue .gq-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/TmManageOverlay.vue .tm-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/PromptLibraryOverlay.vue .pl-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
+  'src/AlignmentOverlay.vue .al-sr-only': 'visually hidden native radio; its wrapping label carries the row hit area',
 }
 
 const NOT_A_CONTROL: Record<string, string> = {
   'src/PromptLibraryOverlay.vue .pl-row': 'selectable two-line list row with a left-edge mark (mockup prompt-library.html .it); DESIGN §Điều khiển has no row control and ui-menu-item is a fixed 28px nowrap line',
   'src/ProofreadMemoryOverlay.vue .pfmem-row': 'selectable wrapping list row with a left-edge mark; ui-menu-item is a fixed 28px nowrap line and would clip the wrapped text',
   'src/ProofreadScopeOverlay.vue .pfscope-cell': 'two-line scope card (mockup proofreader.html .sc); DESIGN §Điều khiển has no card control',
+  'src/ImportPreviewOverlay.vue .ip-candidate': 'encoding candidate card keeping the mockup web-import.html .candrow shape; DESIGN §Điều khiển has no card control, the label only adds ui-check so the radio is token-drawn',
+  'src/BilingualImportPreviewOverlay.vue .bip-candidate': 'encoding candidate card keeping the mockup web-import.html .candrow shape; DESIGN §Điều khiển has no card control, the label only adds ui-check so the radio is token-drawn',
 }
 
 const LABEL_EXEMPT: Record<string, string> = {
   'src/GlossaryQueueOverlay.vue input[name="gq-row-cursor"]':
     'the ancestor label .gq-row-label is the whole row (display: contents); the radio is hidden and the row is the hit area',
+  'src/AlignmentOverlay.vue input[name="al-row-cursor"]':
+    'the ancestor label .al-row-label is the whole row; the radio is hidden and the row is the hit area',
 }
 
 interface Node {
@@ -84,6 +100,9 @@ const notAControl = (file: string, node: Node): boolean =>
   classText(node)
     .split(/[^\w-]+/)
     .some((cls) => cls !== '' && Object.hasOwn(NOT_A_CONTROL, `${file} .${cls}`))
+
+const holdsControl = (node: Node): boolean =>
+  (node.children ?? []).some((child) => child.type === 1 && (CONTROL_TAGS.has(child.tag ?? '') || holdsControl(child)))
 
 const hasUi = (text: string): boolean => /(^|[\s'"])ui-[a-z]/.test(text)
 
@@ -146,12 +165,12 @@ describe('controls adopt the ui-* layer', () => {
     })
   }
 
-  it('every NOT_A_CONTROL key still names a control in its file', () => {
+  it('every NOT_A_CONTROL key still names a control, or a label wrapping one, in its file', () => {
     const live = new Set<string>()
     for (const file of FILES) {
       const { descriptor } = parse(readFileSync(join(__dirname, '../..', file), 'utf8'), { filename: file })
       walk(descriptor.template!.ast as unknown as Node, [], (node) => {
-        if (CONTROL_TAGS.has(node.tag ?? '') && notAControl(file, node)) {
+        if ((CONTROL_TAGS.has(node.tag ?? '') || (node.tag === 'label' && holdsControl(node))) && notAControl(file, node)) {
           for (const key of Object.keys(NOT_A_CONTROL)) {
             if (key.startsWith(`${file} `) && classText(node).split(/[^\w-]+/).includes(key.slice(file.length + 2))) live.add(key)
           }

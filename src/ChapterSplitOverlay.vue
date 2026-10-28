@@ -88,7 +88,7 @@ function trapTab(event: KeyboardEvent): void {
               : t('library.chapter_split.title', { name: chapterTitleLabel(chapterSplitChapter) })
           }}
         </h2>
-        <button type="button" class="cs-close" data-library-chapter-split-close @click="dispatch('library.chapter_split.close')">
+        <button type="button" class="cs-close ui-btn ui-btn--quiet" data-library-chapter-split-close @click="dispatch('library.chapter_split.close')">
           {{ t('command.library.chapter_split.close') }}
         </button>
       </header>
@@ -100,7 +100,7 @@ function trapTab(event: KeyboardEvent): void {
         <p class="cs-note">{{ t('library.chapter_split.first_note') }}</p>
         <ul class="cs-list" data-library-chapter-split-list>
           <li v-for="(sentence, index) in chapterSplitSentences" :key="sentence.id" class="cs-row">
-            <label class="cs-label">
+            <label class="cs-label ui-check">
               <input
                 type="radio"
                 name="chapter-split-at"
@@ -135,7 +135,7 @@ function trapTab(event: KeyboardEvent): void {
       <div class="cs-actions">
         <button
           type="button"
-          class="cs-act cs-act-primary"
+          class="cs-act cs-act-primary ui-btn ui-btn--lg ui-btn--primary"
           data-library-chapter-split-confirm
           :disabled="chapterSplitLoadStatus !== 'loaded' || !chapterSplitCanConfirm()"
           @click="dispatch('library.chapter_split.confirm')"
@@ -195,23 +195,6 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
-.cs-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.cs-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
 .cs-note {
   margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-ui-sm);
@@ -238,10 +221,6 @@ function trapTab(event: KeyboardEvent): void {
   align-items: baseline;
   gap: calc(var(--space-unit) * 3);
   padding: calc(var(--space-unit) * 2);
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
 }
 
 .cs-ord {
@@ -271,29 +250,4 @@ function trapTab(event: KeyboardEvent): void {
   justify-content: flex-end;
 }
 
-.cs-act {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.cs-act:not(.cs-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.cs-act-primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.cs-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
 </style>

@@ -24,7 +24,7 @@ const options = computed(() => sourceLangChoices().filter((o) => props.includeAu
     <label
       v-for="option in options"
       :key="option.value"
-      class="lang-chip"
+      class="lang-chip ui-chip"
       :class="{ 'lang-chip--on': modelValue === option.value }"
     >
       <input
@@ -50,33 +50,6 @@ const options = computed(() => sourceLangChoices().filter((o) => props.includeAu
 
 .lang-chip {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 12px;
-  border: 1px solid var(--color-outline);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-  cursor: pointer;
-}
-
-.lang-chip--on {
-  border-color: var(--color-primary);
-  background: var(--color-surface-accent);
-  color: var(--color-primary);
-  font-weight: var(--weight-ui-md-strong);
-}
-
-.lang-chip:not(.lang-chip--on):has(input:focus-visible) {
-  border-color: var(--color-primary);
-}
-
-.lang-chip--on:has(input:focus-visible) {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
 }
 
 .lang-chip-input {

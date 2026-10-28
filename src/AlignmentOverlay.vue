@@ -161,7 +161,7 @@ function onKeydown(event: KeyboardEvent): void {
     <section ref="panel" class="al-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="al-title">
       <header class="al-head">
         <h2 id="al-title" class="al-title">{{ t('alignment.title') }}</h2>
-        <button type="button" class="al-close" @click="dispatch('export.alignment.close')">
+        <button type="button" class="al-close ui-btn ui-btn--quiet" @click="dispatch('export.alignment.close')">
           <!-- aura-allow-text: result of t() chosen in the template. -->
           {{ hasNextChapter ? t('alignment.next_chapter') : t('command.export.alignment.close') }}
         </button>
@@ -265,21 +265,21 @@ function onKeydown(event: KeyboardEvent): void {
         <p v-else-if="alignmentActionUnavailable" class="al-status" role="status">{{ t('alignment.action_unavailable') }}</p>
         <p v-else-if="alignmentBusy" class="al-status" role="status">{{ t('alignment.saving') }}</p>
         <div class="al-actions">
-          <button type="button" class="al-act al-act-primary" @click="dispatch('export.alignment.join')">
+          <button type="button" class="al-act al-act-primary ui-btn ui-btn--primary" @click="dispatch('export.alignment.join')">
             <!-- aura-allow-text: result of t() with the selection count interpolated. -->
             {{ markedCount > 0 ? t('alignment.join_n', { count: String(markedCount) }) : t('alignment.join_none') }}
           </button>
-          <button type="button" class="al-act" @click="dispatch('export.alignment.skip')">
+          <button type="button" class="al-act ui-btn" @click="dispatch('export.alignment.skip')">
             {{ t('alignment.skip_this') }}
           </button>
-          <button v-if="remainingAfterCursor > 0" type="button" class="al-act" @click="dispatch('export.alignment.next')">
+          <button v-if="remainingAfterCursor > 0" type="button" class="al-act ui-btn" @click="dispatch('export.alignment.next')">
             <!-- aura-allow-text: result of t() with the count interpolated. -->
             {{ t('alignment.see_remaining', { count: String(remainingAfterCursor) }) }}
           </button>
-          <button type="button" class="al-act" @click="dispatch('export.alignment.toggle')">
+          <button type="button" class="al-act ui-btn" @click="dispatch('export.alignment.toggle')">
             {{ t('command.export.alignment.toggle') }}
           </button>
-          <button type="button" class="al-act" @click="dispatch('export.alignment.unjoin')">
+          <button type="button" class="al-act ui-btn" @click="dispatch('export.alignment.unjoin')">
             {{ t('command.export.alignment.unjoin') }}
           </button>
           <span v-if="pendingCount > 0" class="al-hint">
@@ -341,23 +341,6 @@ function onKeydown(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
-.al-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.al-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
 .al-status,
 .al-note,
 .al-hint {
@@ -399,6 +382,10 @@ function onKeydown(event: KeyboardEvent): void {
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
   cursor: pointer;
+}
+
+.al-row-label {
+  position: relative;
 }
 
 .al-cols,
@@ -487,24 +474,4 @@ function onKeydown(event: KeyboardEvent): void {
   gap: calc(var(--space-unit) * 2);
 }
 
-.al-act {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.al-act:not(.al-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.al-act-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
-}
 </style>

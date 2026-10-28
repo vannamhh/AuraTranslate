@@ -81,7 +81,7 @@ function trapTab(event: KeyboardEvent): void {
         <h2 id="ri-title" class="ri-title">{{ t('reviewer.import.title') }}</h2>
         <button
           type="button"
-          class="ri-close"
+          class="ri-close ui-btn ui-btn--quiet"
           :disabled="reviewerImportConfirming"
           @click="dispatch('export.reviewer_import.cancel')"
         >
@@ -205,7 +205,7 @@ function trapTab(event: KeyboardEvent): void {
         <div class="ri-actions">
           <button
             type="button"
-            class="ri-act ri-act-primary"
+            class="ri-act ri-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair"
             :disabled="reviewerImportConfirming"
             @click="dispatch('export.reviewer_import.confirm')"
           >
@@ -214,7 +214,7 @@ function trapTab(event: KeyboardEvent): void {
           </button>
           <button
             type="button"
-            class="ri-act"
+            class="ri-act ui-btn ui-btn--lg ui-btn--pair"
             :disabled="reviewerImportConfirming"
             @click="dispatch('export.reviewer_import.cancel')"
           >
@@ -272,23 +272,6 @@ function trapTab(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.ri-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.ri-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .ri-status {
@@ -373,29 +356,4 @@ function trapTab(event: KeyboardEvent): void {
   gap: calc(var(--space-unit) * 2);
 }
 
-.ri-act {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.ri-act:not(.ri-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.ri-act-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
-}
-
-.ri-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
 </style>

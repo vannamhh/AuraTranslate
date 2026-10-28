@@ -200,7 +200,7 @@ function trapTab(event: KeyboardEvent): void {
     >
       <header class="attr-head">
         <h2 id="attr-title" class="attr-title">{{ t('attribution.title') }}</h2>
-        <button type="button" class="attr-close" @click="dispatch('attribution.close')">
+        <button type="button" class="attr-close ui-btn ui-btn--quiet" @click="dispatch('attribution.close')">
           {{ t('command.attribution.close') }}
         </button>
       </header>
@@ -326,7 +326,7 @@ function trapTab(event: KeyboardEvent): void {
           </p>
           <!-- aura-allow-text: licence text — DATA read from the file at click time. -->
           <pre v-else class="attr-license-text" tabindex="0">{{ attributionLicenseView.text }}</pre>
-          <button type="button" class="attr-action" @click="dispatch('attribution.close_license')">
+          <button type="button" class="attr-action ui-btn" @click="dispatch('attribution.close_license')">
             {{ t('command.attribution.close_license') }}
           </button>
         </section>
@@ -349,7 +349,7 @@ function trapTab(event: KeyboardEvent): void {
       <div v-if="dictSourcesError === null" class="attr-foot">
         <button
           type="button"
-          class="attr-action attr-action-primary"
+          class="attr-action attr-action-primary ui-btn ui-btn--primary"
           data-license-open
           :disabled="!canOpenLicense"
           @click="dispatch('attribution.open_license')"
@@ -358,7 +358,7 @@ function trapTab(event: KeyboardEvent): void {
         </button>
         <button
           type="button"
-          class="attr-action"
+          class="attr-action ui-btn"
           :disabled="aimedSource === undefined"
           @click="dispatch('attribution.copy_credit')"
         >
@@ -366,7 +366,7 @@ function trapTab(event: KeyboardEvent): void {
         </button>
         <span class="attr-hint">
           {{ t('attribution.hint_licenses_bundled') }} ·
-          <!-- aura-allow-text: tên phím. --><kbd>Tab</kbd> {{ t('attribution.hint_browse') }}
+          <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">Tab</kbd> {{ t('attribution.hint_browse') }}
         </span>
         <p v-if="attributionCopyFailedCode !== null && attributionCopyFailedCode === attributionAimedCode" class="attr-error" role="alert">
           {{ t('attribution.copy_failed') }}
@@ -408,23 +408,6 @@ function trapTab(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.attr-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.attr-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .attr-intro,
@@ -544,46 +527,9 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface-variant);
 }
 
-.attr-hint kbd {
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  color: var(--color-on-surface-variant);
-}
-
 .attr-foot .attr-error {
   flex-basis: 100%;
   margin: 0;
-}
-
-.attr-action {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.attr-action:not(.attr-action-primary):focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
-.attr-action:disabled {
-  cursor: default;
-  border-color: var(--color-outline);
-  background: none;
-  color: var(--color-on-surface-variant);
-}
-
-.attr-action-primary:not(:disabled) {
-  padding: 4px 12px;
-  border: 1px solid var(--color-primary);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
 }
 
 .attr-error {

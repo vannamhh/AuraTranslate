@@ -440,7 +440,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
             <button
               type="button"
-              class="bip-swap"
+              class="bip-swap ui-btn"
               :disabled="bilingualImportPreviewConfirming"
               @click="dispatch('import.preview.bilingual_swap_columns')"
             >
@@ -459,7 +459,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
             </div>
           </div>
 
-          <label class="bip-checkbox-field">
+          <label class="bip-checkbox-field ui-check">
             <input
               type="checkbox"
               :checked="bilingualImportPreviewHasHeader"
@@ -473,6 +473,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
               <span>{{ t('mode.library.preview.chapters_pattern_label') }}</span>
               <input
                 id="bip-chapter-pattern-text"
+                class="ui-field ui-field--full"
                 type="text"
                 autocomplete="off"
                 :placeholder="t('mode.library.preview.chapters_pattern_placeholder')"
@@ -505,7 +506,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
             <label
               v-for="candidate in bilingualImportPreview.candidates"
               :key="candidate.encoding"
-              class="bip-candidate"
+              class="bip-candidate ui-check"
               :class="{ 'bip-candidate-selected': bilingualImportPreviewSelectedEncoding === candidate.encoding }"
             >
               <input
@@ -555,8 +556,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
               <template v-if="bilingualChaptersWire.any_signal_participated">
                 <button
                   type="button"
-                  class="bip-chapter-filter-chip bip-chapter-filter-chip-needs-review"
-                  :class="{ 'bip-chapter-filter-chip-active': bilingualImportPreviewChapterFilterActive }"
+                  class="bip-chapter-filter-chip bip-chapter-filter-chip-needs-review ui-chip"
                   :aria-pressed="bilingualImportPreviewChapterFilterActive"
                   :disabled="bilingualChaptersWire.needs_review_count === 0 && !bilingualImportPreviewChapterFilterActive"
                   @click="dispatch('import.preview.bilingual_chapter_filter_toggle')"
@@ -568,7 +568,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
                     })
                   }}
                 </button>
-                <span class="bip-chapter-filter-chip bip-chapter-filter-chip-clean">
+                <span class="bip-chapter-filter-chip-clean">
                   {{
                     t('mode.library.preview.chapter_filter_chip_clean', {
                       count: String(bilingualChaptersWire.clean_count),
@@ -577,7 +577,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
                 </span>
                 <!-- aura-allow-text: hợp âm bàn phím CỐ ĐỊNH (⌥W) — DỮ LIỆU ký hiệu phím, không
                      phải câu văn cần dịch, cùng khuôn `ImportPreviewOverlay.vue`. -->
-                <kbd class="bip-chapter-filter-key" aria-hidden="true">⌥W</kbd>
+                <kbd class="bip-chapter-filter-key ui-kbd" aria-hidden="true">⌥W</kbd>
                 <p v-if="bilingualChaptersWire.needs_review_count === 0" class="bip-chapter-filter-note">
                   {{ t('mode.library.preview.chapter_filter_none_needs_review') }}
                 </p>
@@ -691,7 +691,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
               <div class="bip-mismatch-row-actions">
                 <button
                   type="button"
-                  class="bip-mismatch-action"
+                  class="bip-mismatch-action ui-btn ui-btn--sm"
                   :disabled="bilingualImportPreviewConfirming"
                   @click="dispatch('import.preview.bilingual_accept_all_proposals')"
                 >
@@ -700,7 +700,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
                 <button
                   v-if="bilingualImportPreviewCanSkipActiveRow"
                   type="button"
-                  class="bip-mismatch-action"
+                  class="bip-mismatch-action ui-btn ui-btn--sm"
                   :disabled="bilingualImportPreviewConfirming"
                   @click="dispatch('import.preview.bilingual_skip_row')"
                 >
@@ -729,7 +729,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
         <button
           v-if="bilingualImportPreviewMismatches.length > 0"
           type="button"
-          class="bip-act"
+          class="bip-act ui-btn ui-btn--lg"
           :disabled="bilingualImportPreviewConfirming"
           @click="dispatch('import.preview.bilingual_focus_mismatch')"
         >
@@ -738,7 +738,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
         <button
           v-if="bilingualImportPreviewMismatches.length > 0"
           type="button"
-          class="bip-act"
+          class="bip-act ui-btn ui-btn--lg"
           data-bilingual-import-unlinked
           :disabled="bilingualImportPreviewConfirming || !bilingualImportPreviewCanImportUnlinked"
           @click="dispatch('import.preview.bilingual_confirm_unlinked')"
@@ -747,7 +747,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
         </button>
         <button
           type="button"
-          class="bip-act bip-act-primary"
+          class="bip-act bip-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair"
           :disabled="bilingualImportPreviewConfirming || !bilingualImportPreviewCanConfirm"
           @click="dispatch('import.preview.bilingual_confirm')"
         >
@@ -755,7 +755,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
         </button>
         <button
           type="button"
-          class="bip-act"
+          class="bip-act ui-btn ui-btn--lg ui-btn--pair"
           :disabled="bilingualImportPreviewConfirming"
           @click="dispatch('import.preview.bilingual_cancel')"
         >
@@ -975,29 +975,6 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   color: var(--color-on-surface);
 }
 
-.bip-swap,
-.bip-mismatch-action {
-  height: fit-content;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-}
-
-.bip-swap:focus-visible,
-.bip-mismatch-action:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.bip-swap:disabled,
-.bip-mismatch-action:disabled {
-  cursor: default;
-}
-
 .bip-counts {
   margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-ui-sm);
@@ -1016,43 +993,11 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   margin: 0 0 calc(var(--space-unit) * 2) 0;
 }
 
-.bip-chapter-filter-chip {
+.bip-chapter-filter-chip-clean {
   margin: 0;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: none;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.bip-chapter-filter-chip:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-button.bip-chapter-filter-chip {
-  cursor: pointer;
-}
-
-button.bip-chapter-filter-chip:disabled {
-  cursor: default;
-}
-
-.bip-chapter-filter-chip-needs-review {
-  border-color: var(--color-error);
-  color: var(--color-error);
-}
-
-.bip-chapter-filter-chip-active {
-  border-width: 2px;
-}
-
-.bip-chapter-filter-key {
-  padding: 0 calc(var(--space-unit) * 1);
-  border: 1px solid var(--color-outline);
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
 }
 
@@ -1234,32 +1179,6 @@ button.bip-chapter-filter-chip:disabled {
   align-items: center;
   gap: calc(var(--space-unit) * 2);
   margin-top: var(--space-panel-block);
-}
-
-.bip-act {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: none;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.bip-act:not(.bip-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.bip-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
-
-.bip-act-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
 }
 
 .bip-tier-empty-reason {

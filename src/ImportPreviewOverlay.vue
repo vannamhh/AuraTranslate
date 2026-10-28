@@ -900,7 +900,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   <button
                     v-if="!item.ok"
                     type="submit"
-                    class="ip-url-reload"
+                    class="ip-url-reload ui-btn ui-btn--sm"
                     :disabled="importPreviewConfirming || importPreviewUrlImportBusy"
                   >
                     {{ t('mode.library.preview.url_item_reload') }}
@@ -909,7 +909,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                 <form class="ip-url-action-form" @submit.prevent="onRemoveUrlItem(i)">
                   <button
                     type="submit"
-                    class="ip-url-remove"
+                    class="ip-url-remove ui-btn ui-btn--sm"
                     :disabled="importPreviewConfirming || importPreviewUrlImportBusy"
                     :aria-label="t('mode.library.preview.url_item_remove_aria_label', { url: item.url })"
                   >
@@ -994,7 +994,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                 <form class="ip-url-action-form" @submit.prevent="onRemoveFileItem(i)">
                   <button
                     type="submit"
-                    class="ip-url-remove"
+                    class="ip-url-remove ui-btn ui-btn--sm"
                     :disabled="importPreviewConfirming || importPreviewFileImportBusy"
                     :aria-label="t('mode.library.preview.file_item_remove_aria_label', { path: item.path })"
                   >
@@ -1072,7 +1072,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                 <input
                   v-model="chapterPatternDraft"
                   type="text"
-                  class="ip-chapters-pattern-input"
+                  class="ip-chapters-pattern-input ui-field ui-field--full"
                   :placeholder="t('mode.library.preview.chapters_pattern_placeholder')"
                   :disabled="importPreviewConfirming || importPreviewChapterPatternSending"
                   @change="onChapterPatternChange"
@@ -1125,7 +1125,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             class="ip-strip-hint"
           >
             {{ t('mode.library.preview.strip_open_hint') }}
-            <button type="button" class="ip-strip-open" @click="dispatch('import.preview.open_picker')">
+            <button type="button" class="ip-strip-open ui-btn ui-btn--quiet ui-btn--sm" @click="dispatch('import.preview.open_picker')">
               {{ t('command.import.preview.open_picker') }}
             </button>
           </p>
@@ -1136,7 +1136,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               <label
                 v-for="candidate in importPreview.candidates"
                 :key="candidate.encoding"
-                class="ip-candidate"
+                class="ip-candidate ui-check"
                 :class="{ 'ip-candidate-selected': importPreviewSelectedEncoding === candidate.encoding }"
               >
                 <input
@@ -1329,7 +1329,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                       class="ip-cleanup-fieldset-inline"
                       :disabled="importPreviewConfirming || importPreviewCleanupSavingEdit"
                     >
-                      <input v-model="editPattern" type="text" class="ip-cleanup-edit-pattern" />
+                      <input v-model="editPattern" type="text" class="ip-cleanup-edit-pattern ui-field" />
                       <SelectMenu
                         v-model="editKind"
                         variant="field"
@@ -1338,10 +1338,10 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                         :label="t('mode.library.preview.cleanup_kind_literal')"
                         :disabled="importPreviewConfirming || importPreviewCleanupSavingEdit"
                       />
-                      <button type="submit" class="ip-cleanup-save" :disabled="editPattern.trim() === ''">
+                      <button type="submit" class="ip-cleanup-save ui-btn" :disabled="editPattern.trim() === ''">
                         {{ t('mode.library.preview.cleanup_save_rule') }}
                       </button>
-                      <button type="reset" class="ip-cleanup-cancel">
+                      <button type="reset" class="ip-cleanup-cancel ui-btn ui-btn--quiet">
                         {{ t('mode.library.preview.cleanup_cancel_edit') }}
                       </button>
                     </fieldset>
@@ -1352,15 +1352,17 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                     type="checkbox">` trần đọc ra trợ năng là "checkbox", không nói bật/tắt
                     LUẬT NÀO khi trang có nhiều hàng. `id`/`for` không dùng được ở đây (mẫu
                     luật không phải một định danh HTML hợp lệ), nên gắn thẳng `aria-label` lên
-                    chính ô tick — khuôn tối thiểu, không cần một `<label>` bọc ngoài. -->
-                  <input
-                    type="checkbox"
-                    class="ip-cleanup-tick"
-                    :checked="rule.enabled"
-                    :disabled="importPreviewConfirming || importPreviewCleanupToggling"
-                    :aria-label="t('mode.library.preview.cleanup_toggle_aria_label', { pattern: rule.pattern })"
-                    @change="onToggleCleanupRule(rule, $event)"
-                  />
+                    chính ô tick; `<label>` bọc ngoài chỉ để vẽ ô theo `ui-check`. -->
+                  <label class="ui-check ui-check--bare">
+                    <input
+                      type="checkbox"
+                      class="ip-cleanup-tick"
+                      :checked="rule.enabled"
+                      :disabled="importPreviewConfirming || importPreviewCleanupToggling"
+                      :aria-label="t('mode.library.preview.cleanup_toggle_aria_label', { pattern: rule.pattern })"
+                      @change="onToggleCleanupRule(rule, $event)"
+                    />
+                  </label>
                   <div class="ip-cleanup-rule-body">
                     <!-- aura-allow-text: DỮ LIỆU (mẫu luật do người dùng tự soạn). -->
                     <p class="ip-cleanup-pattern">{{ rule.pattern }}</p>
@@ -1377,7 +1379,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   <form class="ip-cleanup-action-form" @submit.prevent="onStartEditCleanupRule(rule)">
                     <button
                       type="submit"
-                      class="ip-cleanup-edit"
+                      class="ip-cleanup-edit ui-btn ui-btn--sm"
                       :disabled="importPreviewConfirming || importPreviewCleanupDeleting"
                     >
                       {{ t('mode.library.preview.cleanup_edit_rule') }}
@@ -1391,8 +1393,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   <form class="ip-cleanup-action-form" @submit.prevent="onDeleteCleanupRule(rule)">
                     <button
                       type="submit"
-                      class="ip-cleanup-delete"
-                      :class="{ 'ip-cleanup-delete-pending': isDeletePending(rule) }"
+                      class="ip-cleanup-delete ui-btn ui-btn--sm"
+                      :class="{
+                        'ip-cleanup-delete-pending': isDeletePending(rule),
+                        'ui-btn--danger': isDeletePending(rule),
+                      }"
                       :disabled="importPreviewConfirming || importPreviewCleanupDeleting"
                       :aria-label="t(cleanupDeleteAriaLabelKey(isDeletePending(rule)), { pattern: rule.pattern })"
                     >
@@ -1413,7 +1418,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                 <input
                   v-model="newRulePattern"
                   type="text"
-                  class="ip-cleanup-add-pattern"
+                  class="ip-cleanup-add-pattern ui-field"
                   :placeholder="t('mode.library.preview.cleanup_add_pattern_placeholder')"
                 />
                 <SelectMenu
@@ -1424,7 +1429,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   :label="t('mode.library.preview.cleanup_kind_literal')"
                   :disabled="importPreviewConfirming || importPreviewCleanupAdding"
                 />
-                <button type="submit" class="ip-cleanup-add-submit" :disabled="newRulePattern.trim() === ''">
+                <button type="submit" class="ip-cleanup-add-submit ui-btn" :disabled="newRulePattern.trim() === ''">
                   {{ t('mode.library.preview.cleanup_add_rule') }}
                 </button>
               </fieldset>
@@ -1459,8 +1464,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                    `needs_review_count` drops to 0 after a reload/removal. -->
               <button
                 type="button"
-                class="ip-chapter-filter-chip ip-chapter-filter-chip-needs-review"
-                :class="{ 'ip-chapter-filter-chip-active': importPreviewChapterFilterActive }"
+                class="ip-chapter-filter-chip ip-chapter-filter-chip-needs-review ui-chip"
                 :aria-pressed="importPreviewChapterFilterActive"
                 :disabled="importPreviewSelectedChapters.needs_review_count === 0 && !importPreviewChapterFilterActive"
                 @click="dispatch('import.preview.chapter_filter_toggle')"
@@ -1474,7 +1478,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               </button>
               <span
                 v-if="importPreviewSelectedChapters.any_signal_participated"
-                class="ip-chapter-filter-chip ip-chapter-filter-chip-clean"
+                class="ip-chapter-filter-chip-clean"
               >
                 {{
                   t('mode.library.preview.chapter_filter_chip_clean', {
@@ -1485,7 +1489,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               <!-- aura-allow-text: hợp âm bàn phím CỐ ĐỊNH (⌥W) — DỮ LIỆU ký hiệu phím, không
                    phải câu văn cần dịch, cùng khuôn `ShortcutsOverlay.vue` (hợp âm đã định
                    dạng). -->
-              <kbd class="ip-chapter-filter-key" aria-hidden="true">⌥W</kbd>
+              <kbd class="ip-chapter-filter-key ui-kbd" aria-hidden="true">⌥W</kbd>
               <p v-if="importPreviewSelectedChapters.needs_review_count === 0" class="ip-chapter-filter-note">
                 {{ t('mode.library.preview.chapter_filter_none_needs_review') }}
               </p>
@@ -1510,7 +1514,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               </p>
             </div>
 
-            <label class="ip-chapters-sort-toggle">
+            <label class="ip-chapters-sort-toggle ui-check">
               <input
                 type="checkbox"
                 :checked="chapterSortByLength"
@@ -1651,7 +1655,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
         }}
         <button
           type="button"
-          class="ip-act"
+          class="ip-act ui-btn ui-btn--sm"
           :disabled="importPreviewImageDownloadCancelling"
           @click="dispatch('import.preview.cancel_image_download')"
         >
@@ -1674,7 +1678,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
       -->
       <p v-if="importPreviewDomainLogDomainCount > 0" class="ip-domain-log-summary" role="status">
         {{ t('mode.library.preview.domain_log_summary', { count: String(importPreviewDomainLogDomainCount) }) }}
-        <button type="button" class="ip-domain-log-view" @click="dispatch('settings.privacy.open')">
+        <button type="button" class="ip-domain-log-view ui-btn ui-btn--quiet ui-btn--sm" @click="dispatch('settings.privacy.open')">
           {{ t('mode.library.preview.domain_log_view') }}
         </button>
       </p>
@@ -1687,7 +1691,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
       <div class="ip-actions">
         <button
           type="button"
-          class="ip-act ip-act-primary"
+          class="ip-act ip-act-primary ui-btn ui-btn--lg ui-btn--primary ui-btn--pair"
           :disabled="
             importPreviewConfirming ||
             !importPreviewCanConfirm ||
@@ -1701,7 +1705,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
         </button>
         <button
           type="button"
-          class="ip-act"
+          class="ip-act ui-btn ui-btn--lg ui-btn--pair"
           :disabled="importPreviewConfirming"
           @click="dispatch('import.preview.cancel')"
         >
@@ -1866,19 +1870,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-strip-open {
   margin-left: calc(var(--space-unit) * 1);
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ip-strip-open:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .ip-strip {
@@ -2146,11 +2137,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   background: var(--color-surface-sunken);
 }
 
-.ip-cleanup-tick {
-  margin-top: calc(var(--space-unit) * 1);
-  flex: none;
-}
-
 .ip-cleanup-rule-body {
   flex: 1;
   min-width: 0;
@@ -2197,36 +2183,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-cleanup-save,
 .ip-cleanup-cancel {
   flex: none;
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ip-cleanup-edit:focus-visible,
-.ip-cleanup-delete:focus-visible,
-.ip-cleanup-save:focus-visible,
-.ip-cleanup-cancel:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
-.ip-cleanup-edit:disabled,
-.ip-cleanup-delete:disabled,
-.ip-cleanup-save:disabled,
-.ip-cleanup-cancel:disabled {
-  cursor: default;
-}
-
-/* Nhịp HAI của xoá (khuôn `GlossaryManageOverlay.vue::gm-act-danger`) — cùng token báo lỗi
-   cho một thao tác không hoàn tác được, đang chờ bấm lại để xác nhận. */
-.ip-cleanup-delete-pending {
-  color: var(--color-error);
-  border-color: var(--color-error);
 }
 
 /* `<fieldset>` bọc nhóm điều khiển của mỗi form CRUD (khuôn `GlossaryQuickAdd.vue` —
@@ -2246,17 +2202,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-cleanup-edit-pattern {
   flex: 1;
   min-width: 0;
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1);
-}
-
-.ip-cleanup-edit-pattern:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .ip-cleanup-edit-kind,
@@ -2275,38 +2220,10 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-cleanup-add-pattern {
   flex: 1;
   min-width: 12ch;
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1);
-}
-
-.ip-cleanup-add-pattern:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .ip-cleanup-add-submit {
   flex: none;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-}
-
-.ip-cleanup-add-submit:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.ip-cleanup-add-submit:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
 }
 
 .ip-cleanup-error {
@@ -2336,20 +2253,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.ip-chapters-pattern-input {
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1);
-}
-
-.ip-chapters-pattern-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 .ip-chapters-pattern-kind {
@@ -2491,43 +2394,11 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   margin: 0 0 calc(var(--space-unit) * 2) 0;
 }
 
-.ip-chapter-filter-chip {
+.ip-chapter-filter-chip-clean {
   margin: 0;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 1px solid var(--color-outline);
-  background: none;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ip-chapter-filter-chip:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-button.ip-chapter-filter-chip {
-  cursor: pointer;
-}
-
-button.ip-chapter-filter-chip:disabled {
-  cursor: default;
-}
-
-.ip-chapter-filter-chip-needs-review {
-  border-color: var(--color-error);
-  color: var(--color-error);
-}
-
-.ip-chapter-filter-chip-active {
-  border-width: 2px;
-}
-
-.ip-chapter-filter-key {
-  padding: 0 calc(var(--space-unit) * 1);
-  border: 1px solid var(--color-outline);
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
+  line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
 }
 
@@ -2620,25 +2491,6 @@ button.ip-chapter-filter-chip:disabled {
 .ip-url-reload,
 .ip-url-remove {
   flex: none;
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface-variant);
-}
-
-.ip-url-reload:focus-visible,
-.ip-url-remove:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
-.ip-url-reload:disabled,
-.ip-url-remove:disabled {
-  cursor: default;
 }
 
 .ip-url-locked-reason {
@@ -2661,18 +2513,8 @@ button.ip-chapter-filter-chip:disabled {
   color: var(--color-on-surface-variant);
 }
 
-/* Khuôn mockup `web-import.html:393` — "xem" gạch chân, KHÔNG một màu nhấn thứ hai
-   (`check:tokens` Kiểm D cấm màu phân loại/`opacity` trung gian, không miễn trừ). */
 .ip-domain-log-view {
-  padding: 0;
   margin-left: calc(var(--space-unit) * 1);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-  text-decoration: underline;
 }
 
 .ip-actions {
@@ -2680,29 +2522,4 @@ button.ip-chapter-filter-chip:disabled {
   gap: calc(var(--space-unit) * 2);
 }
 
-.ip-act {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.ip-act:not(.ip-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.ip-act-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
-}
-
-.ip-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
 </style>

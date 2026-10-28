@@ -81,7 +81,7 @@ function trapTab(event: KeyboardEvent): void {
         <h2 id="cm-title" class="cm-title">
           {{ t('library.chapter_merge.title', { count: String(chapterMergeRows.length) }) }}
         </h2>
-        <button type="button" class="cm-close" data-library-chapter-merge-close @click="dispatch('library.chapter_merge.close')">
+        <button type="button" class="cm-close ui-btn ui-btn--quiet" data-library-chapter-merge-close @click="dispatch('library.chapter_merge.close')">
           {{ t('command.library.chapter_merge.close') }}
         </button>
       </header>
@@ -140,7 +140,7 @@ function trapTab(event: KeyboardEvent): void {
       <div class="cm-actions">
         <button
           type="button"
-          class="cm-act cm-act-primary"
+          class="cm-act cm-act-primary ui-btn ui-btn--lg ui-btn--primary"
           data-library-chapter-merge-confirm
           :disabled="libraryChapterReorgBusy"
           @click="dispatch('library.chapter_merge.confirm')"
@@ -198,23 +198,6 @@ function trapTab(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.cm-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.cm-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 .cm-card {
@@ -299,29 +282,4 @@ function trapTab(event: KeyboardEvent): void {
   justify-content: flex-end;
 }
 
-.cm-act {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.cm-act:not(.cm-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.cm-act-primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.cm-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
 </style>

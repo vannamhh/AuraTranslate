@@ -206,7 +206,7 @@ function trapTab(event: KeyboardEvent): void {
     <section ref="panel" class="ex-panel" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="ex-title">
       <header class="ex-head">
         <h2 id="ex-title" class="ex-title">{{ t('export.title') }}</h2>
-        <button type="button" class="ex-close" @click="dispatch('export.close')">
+        <button type="button" class="ex-close ui-btn ui-btn--quiet" @click="dispatch('export.close')">
           {{ t('command.export.close') }}
         </button>
       </header>
@@ -220,7 +220,7 @@ function trapTab(event: KeyboardEvent): void {
       <template v-else>
         <fieldset class="ex-scope">
           <legend class="ex-legend">{{ t('export.scope.legend') }}</legend>
-          <label v-for="choice in scopeChoices" :key="choice.kind" class="ex-choice">
+          <label v-for="choice in scopeChoices" :key="choice.kind" class="ex-choice ui-check">
             <input
               type="radio"
               name="export-scope"
@@ -236,7 +236,7 @@ function trapTab(event: KeyboardEvent): void {
           <fieldset v-else class="ex-chapters">
             <legend class="ex-legend">{{ t('export.scope.chapter_list_label') }}</legend>
             <template v-if="exportScopeKind === 'chapter'">
-              <label v-for="row in exportChapters" :key="row.chapter_id" class="ex-choice">
+              <label v-for="row in exportChapters" :key="row.chapter_id" class="ex-choice ui-check">
                 <input
                   type="radio"
                   name="export-chapter"
@@ -250,7 +250,7 @@ function trapTab(event: KeyboardEvent): void {
               </label>
             </template>
             <template v-else>
-              <label v-for="row in exportChapters" :key="row.chapter_id" class="ex-choice">
+              <label v-for="row in exportChapters" :key="row.chapter_id" class="ex-choice ui-check">
                 <input
                   type="checkbox"
                   :checked="exportSelectedChapterIds.includes(row.chapter_id)"
@@ -315,7 +315,7 @@ function trapTab(event: KeyboardEvent): void {
 
         <fieldset class="ex-format">
           <legend class="ex-legend">{{ t('export.format.legend') }}</legend>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="radio"
               name="export-format"
@@ -327,7 +327,7 @@ function trapTab(event: KeyboardEvent): void {
           <p v-if="exportFormat === 'docx_two_column'" class="ex-note" data-export-reimportable>
             {{ t('export.format.reimportable') }}
           </p>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="radio"
               name="export-format"
@@ -339,7 +339,7 @@ function trapTab(event: KeyboardEvent): void {
           <p v-if="exportFormat === 'docx_one_block'" class="ex-note" data-export-not-reimportable>
             {{ t('export.format.not_reimportable') }}
           </p>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="radio"
               name="export-format"
@@ -348,7 +348,7 @@ function trapTab(event: KeyboardEvent): void {
             />
             <span>{{ t('export.format.markdown') }}</span>
           </label>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="radio"
               name="export-format"
@@ -364,7 +364,7 @@ function trapTab(event: KeyboardEvent): void {
 
         <fieldset class="ex-format" data-export-content>
           <legend class="ex-legend">{{ t('export.content.legend') }}</legend>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="checkbox"
               data-export-number-toggle
@@ -374,7 +374,7 @@ function trapTab(event: KeyboardEvent): void {
             <span>{{ t('export.content.number_segments') }}</span>
           </label>
           <p class="ex-note">{{ t('export.content.number_segments_desc') }}</p>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="checkbox"
               data-export-appendix-toggle
@@ -394,7 +394,7 @@ function trapTab(event: KeyboardEvent): void {
             class="ex-note" data-export-appendix-empty>
             {{ t('export.content.glossary_appendix_empty') }}
           </p>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="checkbox"
               data-export-mark-toggle
@@ -419,7 +419,7 @@ function trapTab(event: KeyboardEvent): void {
           <legend class="ex-legend">{{ t('export.images.legend') }}</legend>
           <!-- aura-allow-text: result of t() with the count interpolated. -->
           <p class="ex-note" data-export-image-count>{{ t('export.images.count', { count: String(exportCounts.image_count) }) }}</p>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="radio"
               name="export-image-mode"
@@ -429,7 +429,7 @@ function trapTab(event: KeyboardEvent): void {
             />
             <span>{{ t('export.images.file') }}</span>
           </label>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="radio"
               name="export-image-mode"
@@ -457,7 +457,7 @@ function trapTab(event: KeyboardEvent): void {
 
         <fieldset class="ex-format" data-export-attribution>
           <legend class="ex-legend">{{ t('export.attribution.legend') }}</legend>
-          <label class="ex-choice">
+          <label class="ex-choice ui-check">
             <input
               type="checkbox"
               data-export-attribution-toggle
@@ -499,7 +499,7 @@ function trapTab(event: KeyboardEvent): void {
           <!-- aura-allow-text: data (folder path chosen by the user). -->
           <span v-if="exportFolder !== null" class="ex-path" data-export-folder>{{ exportFolder }}</span>
           <span v-else class="ex-note">{{ t('export.folder.none') }}</span>
-          <button type="button" class="ex-act" :disabled="exportChoosingFolder" @click="dispatch('export.choose_folder')">
+          <button type="button" class="ex-act ui-btn" :disabled="exportChoosingFolder" @click="dispatch('export.choose_folder')">
             {{ t('command.export.choose_folder') }}
           </button>
         </div>
@@ -597,10 +597,10 @@ function trapTab(event: KeyboardEvent): void {
             <!-- aura-allow-text: data (file name Rust would write, before de-duplication). -->
             <span class="ex-path">{{ exportPreviewData.file_name }}</span>
           </span>
-          <button type="button" class="ex-act" data-export-cancel @click="dispatch('export.close')">
+          <button type="button" class="ex-act ui-btn ui-btn--lg ui-btn--pair" data-export-cancel @click="dispatch('export.close')">
             {{ t('export.run.cancel') }}
           </button>
-          <button type="button" class="ex-act" data-export-run :disabled="!canRun" @click="dispatch('export.run')">
+          <button type="button" class="ex-act ui-btn ui-btn--lg ui-btn--primary ui-btn--pair" data-export-run :disabled="!canRun" @click="dispatch('export.run')">
             <!-- aura-allow-text: result of t() with chapter count and extension interpolated. -->
             {{ runLabel }}
           </button>
@@ -660,23 +660,6 @@ function trapTab(event: KeyboardEvent): void {
   color: var(--color-on-surface);
 }
 
-.ex-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.ex-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
-}
-
 .ex-scope,
 .ex-format,
 .ex-chapters {
@@ -699,10 +682,6 @@ function trapTab(event: KeyboardEvent): void {
   display: flex;
   align-items: center;
   gap: calc(var(--space-unit) * 2);
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
 }
 
 .ex-badge {
@@ -767,26 +746,6 @@ function trapTab(event: KeyboardEvent): void {
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface);
   overflow-wrap: anywhere;
-}
-
-.ex-act {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.ex-act:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.ex-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
 }
 
 .ex-meta {

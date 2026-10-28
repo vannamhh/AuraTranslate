@@ -155,6 +155,7 @@ describe('Library import overlay', { timeout: 30_000 }, () => {
     expect(group.attributes('aria-label')).toBe('Ngôn ngữ nguồn')
     const chips = group.findAll('.lang-chip')
     expect(chips.map((c) => c.text())).toEqual(['Tự nhận', 'Tiếng Trung', 'Tiếng Anh'])
+    expect(chips.every((c) => c.classes('ui-chip'))).toBe(true)
     expect(group.findAll('.lang-chip--on').map((c) => c.text())).toEqual(['Tự nhận'])
 
     await chips[2]!.find('input').setValue(true)

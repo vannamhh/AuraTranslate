@@ -13522,3 +13522,7 @@ chính nó.
 ## Deferred from: hệ điều khiển các lớp phủ Prompt, AI, Soát và Lịch sử (2026-10-28, ticket 29 của Epic 12)
 
 - **Chưa ai thấy bảy bề mặt chuyển sang `ui-*` trong app thật.** `PromptLibraryOverlay`, `PromptImportOverlay`, `PromptTemplatePicker`, `AiPromptInspectorOverlay`, `ProofreadMemoryOverlay`, `ProofreadScopeOverlay`, `SegmentHistoryOverlay`, sáng và tối, cạnh `he-dieu-khien.html`; Tab qua Inspector và Thư viện prompt xem tab con đổi nét đáy sang `primary`. Cần mắt: gương ô soạn prompt khớp chữ khi gõ và cuộn; ba lớp hàng/thẻ giữ dáng mockup màn (`pl-row`, `pfmem-row`, `pfscope-cell`, quyết định 3) cần Ice xác nhận. e2e `story-12-14-prompt-library` chưa chạy (cổng 1420 bận); đọc lượt nightly. Con trỏ: `story-he-ieu-khien-cac-lop-phu-prompt-ai-soat-va-lich-su-plan.md`. **Chủ: Epic 12.**
+
+## Deferred from: hệ điều khiển các lớp phủ Nhập và Xuất (2026-10-28, ticket 30 của Epic 12)
+
+- **Chưa ai thấy chín lớp phủ Nhập/Xuất và hai component con chuyển sang `ui-*` trong app thật.** `ImportPreviewOverlay`, `BilingualImportPreviewOverlay`, `LibraryImportOverlay`, `ReviewerImportOverlay`, `ExportOverlay`, `AlignmentOverlay`, `ChapterMergeOverlay`, `ChapterSplitOverlay`, `AttributionOverlay`, `ChapterOrigin`, `SourceLangChips` (cả trong Library), sáng và tối, cạnh `he-dieu-khien.html`. Cần mắt: thẻ ứng viên mã hoá giữ dáng mockup màn (quyết định 4); ô `md` cạnh ô chọn (quyết định 1). e2e `story-12-6-import-preview` chưa chạy (cổng 1420 bận); đọc lượt nightly. Con trỏ: `story-he-ieu-khien-cac-lop-phu-nhap-va-xuat-plan.md`. **Chủ: Epic 12.**

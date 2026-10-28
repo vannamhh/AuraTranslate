@@ -692,6 +692,9 @@ describe('ImportPreviewOverlay.vue — radio `.ip-candidate-radio` qua `@change`
     await wrapper.vm.$nextTick()
     expect((radios[0]?.element as HTMLInputElement).checked).toBe(false)
     expect((radios[1]?.element as HTMLInputElement).checked).toBe(true)
+    const cards = wrapper.findAll('label.ip-candidate')
+    expect(cards.map((c) => c.classes('ui-check'))).toEqual([true, true])
+    expect(cards.map((c) => c.classes('ip-candidate-selected'))).toEqual([false, true])
 
     wrapper.unmount()
     state.resetImportPreview()

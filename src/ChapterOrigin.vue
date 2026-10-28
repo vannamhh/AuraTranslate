@@ -62,7 +62,7 @@ function commitField(field: OriginField, event: Event): void {
       <label class="chapter-origin-field">
         <span class="chapter-origin-label">{{ t('chapter.origin.author_label') }}</span>
         <input
-          class="chapter-origin-input"
+          class="chapter-origin-input ui-field ui-field--full"
           type="text"
           :value="author ?? ''"
           :placeholder="t('chapter.origin.empty')"
@@ -73,7 +73,7 @@ function commitField(field: OriginField, event: Event): void {
       <label class="chapter-origin-field">
         <span class="chapter-origin-label">{{ t('chapter.origin.site_name_label') }}</span>
         <input
-          class="chapter-origin-input"
+          class="chapter-origin-input ui-field ui-field--full"
           type="text"
           :value="siteName ?? ''"
           :placeholder="t('chapter.origin.empty')"
@@ -84,7 +84,7 @@ function commitField(field: OriginField, event: Event): void {
       <label class="chapter-origin-field">
         <span class="chapter-origin-label">{{ t('chapter.origin.url_label') }}</span>
         <input
-          class="chapter-origin-input"
+          class="chapter-origin-input ui-field ui-field--full"
           type="text"
           :value="url ?? ''"
           :placeholder="t('chapter.origin.empty')"
@@ -95,7 +95,7 @@ function commitField(field: OriginField, event: Event): void {
       <label class="chapter-origin-field">
         <span class="chapter-origin-label">{{ t('chapter.origin.published_at_label') }}</span>
         <input
-          class="chapter-origin-input"
+          class="chapter-origin-input ui-field ui-field--full"
           type="text"
           :value="publishedAt ?? ''"
           :placeholder="t('chapter.origin.empty')"
@@ -141,30 +141,9 @@ function commitField(field: OriginField, event: Event): void {
   color: var(--color-on-surface-variant);
 }
 
-.chapter-origin-input {
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface);
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-outline-faint);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-}
-
-.chapter-origin-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .chapter-origin-input::placeholder {
   font-size: var(--font-ui-sm-italic);
   color: var(--color-on-surface-variant);
   font-style: var(--style-ui-sm-italic);
-}
-
-.chapter-origin-input:disabled {
-  color: var(--color-on-surface-variant);
-  background-color: var(--color-surface-sunken);
 }
 </style>
