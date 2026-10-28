@@ -3,7 +3,7 @@ title: 'Workspace tách được khối và nút: hệ nút ba bậc, biểu tư
 type: 'feature'
 ticket: '26'
 created: '2026-10-26'
-status: 'built'
+status: 'done'
 baseline_revision: 'cf30c50430e15069b0423db4927895d3312a7c3a'
 route: 'full'
 route_source: 'auto'

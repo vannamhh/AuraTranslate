@@ -3,7 +3,7 @@ title: 'Dịch lô gom câu liền nhau thành lượt gọi (AD-60)'
 type: 'feature'
 ticket: 15
 created: '2026-10-27'
-status: 'built'
+status: 'done'
 baseline_revision: 'fd7fec3a7505cefd675de90d7744c88d0237c5c8'
 route: 'full'
 route_source: 'auto'
