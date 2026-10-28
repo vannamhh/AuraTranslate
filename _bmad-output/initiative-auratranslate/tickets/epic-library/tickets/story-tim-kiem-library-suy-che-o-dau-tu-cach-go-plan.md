@@ -3,7 +3,7 @@ title: 'Story 5.20: Tìm kiếm Library suy chế độ dấu từ cách gõ'
 type: 'feature'
 ticket: 20
 created: '2026-10-28'
-status: built
+status: 'done'
 baseline_revision: 'aeaeaa1779bf6ea1ed6a8774b35c917b89e2bd6d'
 route: 'full'
 route_source: 'auto'
