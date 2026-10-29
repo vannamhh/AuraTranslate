@@ -160,27 +160,15 @@ describe('Story 5.11 — Chế độ đọc: typography và bố cục đọc d�
 
     await expect(afterTune.fontSize).toBeGreaterThan(beforeTune.fontSize)
 
-    // 🔴 **ĐO SỐ KÝ TỰ MỖI DÒNG, KHÔNG ĐO "hai tỉ lệ bằng nhau" — 2026-08-30, sửa sau một lượt
-    // ĐỎ đã đo được.** Bản đầu của bàn đo này khẳng định *"bề rộng và cỡ chữ đổi CÙNG TỈ LỆ"* và
-    // nó ĐỎ hai lượt liên tiếp (lệch 3,72 % rồi 3,33 %). Số đo lấy ra từ chính WKWebView giải
-    // thích vì sao, và nó KHÔNG phải một khuyết tật sản phẩm:
-    //
-    // | | cỡ chữ | bề rộng cột | `1ch` | bề rộng / `1ch` |
-    // |---|---|---|---|---|
-    // | trước | 17,5px | 609,375px | 8,96141px | **68,000** |
-    // | sau   | 22px   | 745,750px | 10,96688px | **68,000** |
-    //
-    // ⇒ Số ký tự mỗi dòng đứng yên ở **68** — đúng nguyên văn AC. Thứ KHÔNG đứng yên là tỉ lệ
-    // `ch`/`px`: **0,51208** rồi **0,49849**. WebKit làm tròn bề ngang glyph theo TỪNG cỡ chữ
-    // (hinting), nên `1ch` không tuyến tính theo `font-size` — và vì thế *"hai tỉ lệ bằng nhau"*
-    // là một mệnh đề SAI về engine, không một mệnh đề về sản phẩm. Bàn đo cũ đo nhầm bất biến.
-    //
-    // Bất biến ĐÚNG, và nó là chữ của AC: **bề rộng cột chia cho `1ch` giữ nguyên**.
+    // Chars per line (column width / 1ch) stay in [68, 68 + 7/1ch) at each font size: the
+    // column is round(up, 68ch, 7px) and 1ch is not linear in font-size.
     const charsPerLineBefore = beforeTune.width / beforeTune.chPx
     const charsPerLineAfter = afterTune.width / afterTune.chPx
-    await expect(Math.abs(charsPerLineBefore - charsPerLineAfter)).toBeLessThan(0.5)
-    // Và con số ấy phải là chính thước đo của mức Cân (68ch), không một con số tình cờ nào.
-    await expect(Math.abs(charsPerLineBefore - 68)).toBeLessThan(0.5)
+    await expect(Math.abs(charsPerLineBefore - charsPerLineAfter)).toBeLessThan(7 / Math.min(beforeTune.chPx, afterTune.chPx))
+    await expect(charsPerLineBefore).toBeGreaterThanOrEqual(68 - 0.01)
+    await expect(charsPerLineBefore).toBeLessThan(68 + 7 / beforeTune.chPx)
+    await expect(charsPerLineAfter).toBeGreaterThanOrEqual(68 - 0.01)
+    await expect(charsPerLineAfter).toBeLessThan(68 + 7 / afterTune.chPx)
 
     // Đóng khối tinh chỉnh lại — không để nó che phần còn lại của trang cho các mệnh đề sau.
     await realClick(await $('[data-reading-toggle-tuner]'))

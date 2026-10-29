@@ -222,12 +222,12 @@
 
 .ui-field--short {
   flex: none;
-  width: 8ch;
+  width: round(up, 8ch, 7px);
 }
 
 .ui-field--medium {
   flex: none;
-  width: 24ch;
+  width: round(up, 24ch, 7px);
 }
 
 .ui-field--full {
@@ -287,7 +287,7 @@ textarea.ui-field {
 button.ui-field,
 summary.ui-field {
   justify-content: space-between;
-  min-width: 12ch;
+  min-width: round(up, 12ch, 7px);
   text-align: left;
   cursor: pointer;
 }

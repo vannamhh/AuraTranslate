@@ -783,7 +783,7 @@ const libraryErrorText = computed<string | null>(() => {
 }
 
 .lookup-line {
-  max-width: 40ch;
+  max-width: round(up, 40ch, 7px);
 }
 
 .saved {

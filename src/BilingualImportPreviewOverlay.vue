@@ -1046,7 +1046,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
 .bip-chapters-ord {
   flex: none;
-  min-width: 3ch;
+  min-width: round(up, 3ch, 7px);
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-mono);
   color: var(--color-on-surface-variant);

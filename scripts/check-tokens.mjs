@@ -2114,6 +2114,7 @@ const GRID_PROPS = new Set([
 /**
  * Thuộc tính kích thước: chỉ xét số `px`, kể cả bên trong `min()`/`minmax()`/`repeat()`;
  * `%` `fr` `vh` `ch` `em` `auto` `fit-content` `var()` cho qua. 0–3px là bề dày nét nên hợp lệ.
+ * `ch` passes only inside `round(up, …, 7px)`.
  */
 const SIZE_PROPS = new Set([
   'height',
@@ -2197,6 +2198,46 @@ function offGridSizePx(value) {
   })
 }
 
+const ROUND_UP_TO_UNIT_RE = /^round\(\s*up\s*,[\s\S]+,\s*7px\s*\)$/i
+const CH_RE = /(?<![\w.-])-?(?:\d+\.?\d*|\.\d+)ch(?![\w-])/gi
+
+/**
+ * `ch` widths not wrapped in a balanced `round(up, …, 7px)`.
+ * @param {string} value
+ * @returns {string[]}
+ */
+function offGridSizeCh(value) {
+  let rest = ''
+  for (let i = 0; i < value.length; ) {
+    const head = /^round\(/i.exec(value.slice(i))
+    if (!head || (i > 0 && /[\w-]/.test(value[i - 1]))) {
+      rest += value[i]
+      i += 1
+      continue
+    }
+    let depth = 0
+    let end = -1
+    for (let j = i + head[0].length - 1; j < value.length; j += 1) {
+      if (value[j] === '(') depth += 1
+      else if (value[j] === ')') {
+        depth -= 1
+        if (depth === 0) {
+          end = j
+          break
+        }
+      }
+    }
+    if (end < 0 || !ROUND_UP_TO_UNIT_RE.test(value.slice(i, end + 1))) {
+      rest += value[i]
+      i += 1
+      continue
+    }
+    rest += ' '
+    i = end + 1
+  }
+  return rest.match(CH_RE) ?? []
+}
+
 /**
  * @param {number} n
  * @returns {number}
@@ -2212,7 +2253,7 @@ function nearestMultipleOfUnit(n) {
  * @returns {string[]}
  */
 function declOffGrid(prop, value) {
-  if (SIZE_PROPS.has(prop)) return offGridSizePx(value)
+  if (SIZE_PROPS.has(prop)) return [...offGridSizePx(value), ...offGridSizeCh(value)]
   if (GRID_PROPS.has(prop)) return splitTopLevelSpace(value).filter((t) => !isOnGridToken(t))
   return []
 }
@@ -2237,7 +2278,7 @@ for (const p of parsed) {
       fail(`${where({ ...d, file: p.file, text: p.text })} — \`${d.prop}: ${d.value}\` lệch lưới 7px — \`${offGrid.join(', ')}\``)
       detail(
         isSize
-          ? `Bội 7 gần nhất: ${offGrid.map((t) => `${nearestMultipleOfUnit(parseFloat(t))}px`).join(', ')}. Bề dày nét 0–${STROKE_PX_MAX}px không cần miễn trừ.`
+          ? `Bội 7 gần nhất: ${offGrid.map((t) => (/ch$/i.test(t) ? `round(up, ${t}, 7px)` : `${nearestMultipleOfUnit(parseFloat(t))}px`)).join(', ')}. Bề dày nét 0–${STROKE_PX_MAX}px không cần miễn trừ.`
           : 'Làm tròn tới bội số 7 gần nhất (hoà làm tròn lên), hoặc dùng một token `var(--space-*)`.',
       )
       detail('Nếu đây chỉ bù đúng một bề dày viền: thêm `/* aura-allow-spacing: <lý do> */` ngay trên khai báo.')
@@ -2287,7 +2328,15 @@ const K_SIZE_CASES = [
   ['grid-template-columns: minmax(0, 1fr) 301px — xanh', 'grid-template-columns', 'minmax(0, 1fr) 301px', true],
   ['calc(100% - 30px) — đỏ', 'width', 'calc(100% - 30px)', false],
   ['min(100%, 280px) — xanh', 'max-width', 'min(100%, 280px)', true],
-  ['% fr vh ch em auto fit-content var() — xanh', 'min-width', '50% 1fr 100vh 24ch 8.5em auto fit-content var(--x)', true],
+  ['% fr vh em auto fit-content var() — xanh', 'min-width', '50% 1fr 100vh 8.5em auto fit-content var(--x)', true],
+  ['width: 24ch — đỏ', 'width', '24ch', false],
+  ['min-width: 12ch — đỏ', 'min-width', '12ch', false],
+  ['grid-template-columns: minmax(12ch, 1fr) — đỏ', 'grid-template-columns', 'minmax(12ch, 1fr)', false],
+  ['width: round(up, 24ch, 7px) — xanh', 'width', 'round(up, 24ch, 7px)', true],
+  ['width: round(up, var(--reading-measure), 7px) — xanh', 'width', 'round(up, var(--reading-measure), 7px)', true],
+  ['width: round(24ch, 7px) mặc định gần nhất — đỏ', 'width', 'round(24ch, 7px)', false],
+  ['width: round(down, 24ch, 7px) — đỏ', 'width', 'round(down, 24ch, 7px)', false],
+  ['width: round(up, 24ch, 4px) — đỏ', 'width', 'round(up, 24ch, 4px)', false],
   ['-1px (bề dày nét) — xanh', 'top', '-1px', true],
   ['top: -10px — đỏ', 'top', '-10px', false],
 ]

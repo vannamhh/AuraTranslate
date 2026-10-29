@@ -737,16 +737,14 @@ function paragraphRuns(
           scoped bên dưới. Giá trị HIỆU LỰC (token thuần, hoặc override từ thanh trượt) đi qua
           HAI biến CSS riêng (`--reading-font-size`/`--reading-line-height`, không nằm trong
           danh sách thuộc tính Kiểm B2 canh) rồi khối kiểu đó đọc lại bằng `var(...)`.
-          🔵 SỬA (rà 2026-08-30) — câu cũ nói `max-width` đi thẳng. Thước nay là `width` (xem khối
-          🔵 của `readingStyle`); `width` cũng không nằm trong danh sách Kiểm B2 canh, nên nó vẫn
-          đi thẳng, và giá trị vẫn LUÔN là token `ch`.
+          The measure goes through `--reading-measure` so Kiểm K sees the rounding and `ch` resolves on `.column`.
         -->
         <div
           class="column"
           :style="{
             '--reading-font-size': readingStyle.fontSize,
             '--reading-line-height': readingStyle.lineHeight,
-            width: readingStyle.measure,
+            '--reading-measure': readingStyle.measure,
           }"
         >
           <!-- aura-allow-text: `chapterLabel()` trả tên Chương (dữ liệu) hoặc gọi `untitled()`
@@ -1074,7 +1072,7 @@ function paragraphRuns(
 
 /* `.page` carries the source-note font so `ch` in its grid track measures the same width as the note. */
 .page {
-  --source-note-inline: 30ch;
+  --source-note-inline: round(up, 30ch, 7px);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
   font-size: var(--font-read-lg);
@@ -1108,8 +1106,9 @@ function paragraphRuns(
   /* `max-width` only guards narrow windows; the measure is `width`, since a `max-width` measure
      lets the `auto` grid track shrink the column to its content. */
   max-width: 100%;
-  /* Ba mức Thoáng/Cân/Đặc đều khai `family: read` — họ chữ không đổi theo mức, chỉ cỡ
-     chữ/giãn dòng/thước đo đổi (qua hai biến CSS đặt ở `:style`, xem chú thích template). */
+  width: round(up, var(--reading-measure), 7px);
+  /* All three levels share `family: read`; only size, leading and measure change, through the
+     three CSS variables set in `:style`. */
   font-family: var(--family-read);
   font-size: var(--reading-font-size);
   line-height: var(--reading-line-height);
@@ -1260,7 +1259,7 @@ function paragraphRuns(
 .toc-panel {
   background: var(--color-surface);
   padding: var(--space-panel-block) var(--space-panel-inline);
-  max-width: 60ch;
+  max-width: round(up, 60ch, 7px);
   max-height: 80vh;
   overflow: auto;
   border-radius: var(--radius-default);
@@ -1303,7 +1302,7 @@ function paragraphRuns(
 .marks-panel {
   background: var(--color-surface);
   padding: var(--space-panel-block) var(--space-panel-inline);
-  max-width: 72ch;
+  max-width: round(up, 72ch, 7px);
   max-height: 80vh;
   overflow: auto;
   border-radius: var(--radius-default);

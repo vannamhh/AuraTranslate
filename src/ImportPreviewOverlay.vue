@@ -2219,7 +2219,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-cleanup-add-pattern {
   flex: 1;
-  min-width: 12ch;
+  min-width: round(up, 12ch, 7px);
 }
 
 .ip-cleanup-add-submit {
@@ -2247,7 +2247,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-chapters-pattern-label {
   display: flex;
   flex: 1;
-  min-width: 12ch;
+  min-width: round(up, 12ch, 7px);
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
@@ -2305,7 +2305,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-chapters-ord {
   flex: none;
-  min-width: 3ch;
+  min-width: round(up, 3ch, 7px);
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-mono);
   color: var(--color-on-surface-variant);
@@ -2452,7 +2452,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-url-position {
   flex: none;
-  min-width: 3ch;
+  min-width: round(up, 3ch, 7px);
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-mono);
   color: var(--color-on-surface-variant);
@@ -2461,7 +2461,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-url-address {
   flex: 1;
-  min-width: 20ch;
+  min-width: round(up, 20ch, 7px);
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-mono);
   color: var(--color-on-surface);
