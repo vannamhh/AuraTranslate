@@ -10,6 +10,8 @@ import { installCommands } from '../../src/commands'
 import type { CommandDeps } from '../../src/commands'
 import {
   loadDictSources,
+  moveFocusedDictSourceDown,
+  moveFocusedDictSourceUp,
   resetDictSources,
   sourcesMenuIsOpen,
   toggleFocusedDictSource,
@@ -26,14 +28,20 @@ const h = vi.hoisted(() => ({
   puts: [] as unknown[],
   putFails: false,
   answer: null as unknown,
+  order: [] as string[],
 }))
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(async (cmd: string, args: { query?: string }) => {
-    if (cmd === 'list_dict_sources') return { sources: SOURCES, skipped: [] }
+    if (cmd === 'list_dict_sources') {
+      const rank = (code: string) => (h.order.includes(code) ? h.order.indexOf(code) : h.order.length)
+      return { sources: [...SOURCES].sort((a, b) => rank(a.code) - rank(b.code)), skipped: [] }
+    }
     if (cmd === 'put_config') {
       h.puts.push(args)
       if (h.putFails) throw { code: 'config.write', message_key: 'err.unknown', params: {}, retryable: false }
+      const put = args as unknown as { key: string; value: string }
+      if (put.key === 'dict_sources_order') h.order = put.value.split(',')
       return undefined
     }
     if (cmd === 'lookup_dictionary') {
@@ -51,6 +59,8 @@ beforeAll(() => {
     isMac: true,
     setMode: () => {},
     toggleDictSource: toggleFocusedDictSource,
+    moveDictSourceUp: moveFocusedDictSourceUp,
+    moveDictSourceDown: moveFocusedDictSourceDown,
     toggleLookupSourcesMenu: toggleSourcesMenu,
   } as CommandDeps)
 })
@@ -73,6 +83,7 @@ beforeEach(() => {
   h.lookups = []
   h.puts = []
   h.putFails = false
+  h.order = []
 })
 
 afterEach(() => {
@@ -180,6 +191,90 @@ describe('Nguồn N/M popup', () => {
     await flushPromises()
     expect(rows(w)[1]!.classes()).toContain('off')
     expect(rows(w)[1]!.find('.sources-count').text()).toBe('tắt')
+  })
+})
+
+describe('source order buttons', () => {
+  const codes = (w: VueWrapper) => rows(w).map((r) => r.attributes('data-source-code'))
+  const up = (w: VueWrapper, i: number) => w.findAll('.sources-row')[i]!.findAll('button')[1]!
+  const down = (w: VueWrapper, i: number) => w.findAll('.sources-row')[i]!.findAll('button')[2]!
+
+  it('the up button of the first row and the down button of the last row are disabled', async () => {
+    const w = await openPanel()
+    await trigger(w).trigger('click')
+    expect(up(w, 0).attributes('disabled')).toBeDefined()
+    expect(down(w, 0).attributes('disabled')).toBeUndefined()
+    expect(up(w, 2).attributes('disabled')).toBeUndefined()
+    expect(down(w, 2).attributes('disabled')).toBeDefined()
+    expect(up(w, 0).attributes('aria-label')).toBe('Đưa nguồn lên trên')
+  })
+
+  it('down on the first row swaps it with the second, stores the full order, re-runs the lookup and keeps the menu open', async () => {
+    const w = await openPanel()
+    await runLookup('打')
+    await flushPromises()
+    h.lookups = []
+    await trigger(w).trigger('click')
+
+    await down(w, 0).trigger('mousedown')
+    await down(w, 0).trigger('click')
+    await flushPromises()
+
+    expect(codes(w)).toEqual(['cc-cedict', 'cvdict', 'vietphrase'])
+    expect(h.puts).toEqual([{ kind: 'app_config', key: 'dict_sources_order', value: 'cc-cedict,cvdict,vietphrase' }])
+    expect(h.lookups).toEqual(['打'])
+    expect(sourcesMenuIsOpen.value).toBe(true)
+  })
+
+  it('the Alt+Shift+Arrow handler moves the focused row and focus stays on that row', async () => {
+    const w = await openPanel()
+    await trigger(w).trigger('click')
+    await w.get('.sources-menu').trigger('keydown', { key: 'ArrowDown' })
+    await w.get('.sources-menu').trigger('keydown', { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(rows(w)[1]!.element)
+
+    moveFocusedDictSourceUp()
+    await flushPromises()
+    expect(codes(w)).toEqual(['cc-cedict', 'cvdict', 'vietphrase'])
+    expect(document.activeElement).toBe(rows(w)[0]!.element)
+    expect(rows(w)[0]!.attributes('data-source-code')).toBe('cc-cedict')
+
+    moveFocusedDictSourceDown()
+    await flushPromises()
+    expect(codes(w)).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
+    expect(document.activeElement).toBe(rows(w)[1]!.element)
+  })
+
+  it('arrow keys with a modifier do not move focus between rows', async () => {
+    const w = await openPanel()
+    await trigger(w).trigger('click')
+    await w.get('.sources-menu').trigger('keydown', { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(rows(w)[0]!.element)
+    await w.get('.sources-menu').trigger('keydown', { key: 'ArrowDown', altKey: true, shiftKey: true })
+    expect(document.activeElement).toBe(rows(w)[0]!.element)
+  })
+
+  it('a move at the edge or with no focused row does nothing', async () => {
+    const w = await openPanel()
+    await trigger(w).trigger('click')
+    moveFocusedDictSourceUp()
+    await w.get('.sources-menu').trigger('keydown', { key: 'ArrowDown' })
+    moveFocusedDictSourceUp()
+    await flushPromises()
+    expect(h.puts).toHaveLength(0)
+    expect(codes(w)).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
+  })
+
+  it('a failed config write puts the rows back in their previous order', async () => {
+    const w = await openPanel()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    h.putFails = true
+    await trigger(w).trigger('click')
+    await down(w, 0).trigger('mousedown')
+    await down(w, 0).trigger('click')
+    await flushPromises()
+    expect(codes(w)).toEqual(['cvdict', 'cc-cedict', 'vietphrase'])
+    warn.mockRestore()
   })
 })
 

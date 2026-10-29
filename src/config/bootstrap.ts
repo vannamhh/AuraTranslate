@@ -193,6 +193,7 @@ export const KEY_THEME = 'theme'
  * Khớp `KEY_DICT_DISABLED` ở `src-tauri/src/core/scope/store.rs`.
  */
 export const KEY_DICT_DISABLED = 'dict_sources_disabled'
+export const KEY_DICT_ORDER = 'dict_sources_order'
 /**
  * Loại thứ hai đi qua cửa này — Story 1.21 · AC2 · AC4.
  *

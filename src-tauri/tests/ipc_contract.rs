@@ -242,7 +242,7 @@ fn ipc_error_wire_shape() {
 #[test]
 fn lookup_response_wire_shape_carries_senses_failed() {
     let response =
-        auratranslate_lib::commands::dict::lookup(None, "khong quan trong", &BTreeSet::new());
+        auratranslate_lib::commands::dict::lookup(None, "khong quan trong", &BTreeSet::new(), &[]);
 
     let value = serde_json::to_value(&response).expect("LookupResponse phải serialize được");
     let object = value

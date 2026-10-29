@@ -1259,3 +1259,35 @@ fn the_tm_fuzzy_threshold_accepts_50_to_99_and_falls_back_to_65_otherwise() {
         assert_eq!(parse_tm_fuzzy_threshold(Some(bad)), 65, "{bad:?}");
     }
 }
+
+#[test]
+fn the_dict_source_order_survives_a_write_and_a_reopen() {
+    let dir = temp_dir("dict-source-order-roundtrip");
+    {
+        let store = open_store(&dir);
+        assert!(
+            load_global_config(&store)
+                .expect("config")
+                .source_order_codes()
+                .is_empty()
+        );
+        put_config(
+            Some(&store),
+            "app_config",
+            "dict_sources_order",
+            "thieu-chuu,cvdict",
+        )
+        .expect("ghi thứ tự");
+        drop(store);
+    }
+
+    let store = open_store(&dir);
+    assert_eq!(
+        load_global_config(&store)
+            .expect("config sau khi mở lại")
+            .source_order_codes(),
+        vec!["thieu-chuu".to_owned(), "cvdict".to_owned()]
+    );
+    drop(store);
+    cleanup(&dir);
+}

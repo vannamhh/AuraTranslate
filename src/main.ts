@@ -218,6 +218,8 @@ import {
   closeLicenseText,
   copyAimedCredit,
   loadDictSources,
+  moveFocusedDictSourceDown,
+  moveFocusedDictSourceUp,
   openAimedLicenseText,
   openAttribution,
   toggleFocusedDictSource,
@@ -929,6 +931,8 @@ async function boot(): Promise<void> {
       clearSegmentSelection,
       // Story 1.19 · AC2 · AC7 · AC11 — ba handler tĩnh, không một command cho mỗi nguồn.
       toggleDictSource: toggleFocusedDictSource,
+      moveDictSourceUp: moveFocusedDictSourceUp,
+      moveDictSourceDown: moveFocusedDictSourceDown,
       openAttribution,
       closeAttribution,
       openLicenseText: () => void openAimedLicenseText(),

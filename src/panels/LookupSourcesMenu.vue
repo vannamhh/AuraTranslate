@@ -35,6 +35,7 @@ const rows = computed(() =>
     return { code: src.code, name: src.display_name, off, count: sourceEntryCount(groupedLookup.value, src, off) }
   }),
 )
+const lastRow = computed(() => rows.value.length - 1)
 
 function menuItems(): HTMLElement[] {
   return Array.from(root.value?.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]') ?? [])
@@ -55,6 +56,7 @@ function onKeydown(event: KeyboardEvent) {
     return
   }
   if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.defaultPrevented) return
   const items = menuItems()
   if (items.length === 0) return
   event.preventDefault()
@@ -111,7 +113,7 @@ onBeforeUnmount(() => {
       :style="{ maxHeight: listMaxHeight }"
       @mousedown="aimDictSourceFrom($event)"
     >
-      <li v-for="row in rows" :key="row.code" role="none">
+      <li v-for="(row, index) in rows" :key="row.code" role="none" class="sources-row">
         <button
           type="button"
           role="menuitemcheckbox"
@@ -128,6 +130,28 @@ onBeforeUnmount(() => {
           <span v-if="row.off" class="sources-count">{{ t('panel.lookup.source_off') }}</span>
           <!-- aura-allow-text: số mục của chữ đang tra — DỮ LIỆU dẫn xuất. -->
           <span v-else-if="row.count !== null" class="sources-count">{{ row.count }}</span>
+        </button>
+        <button
+          type="button"
+          tabindex="-1"
+          class="ui-icon-btn ui-icon-btn--sm"
+          :data-source-code="row.code"
+          :disabled="index === 0"
+          :aria-label="t('panel.lookup.source_move_up')"
+          @click="dispatch('lookup.move_source_up')"
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          tabindex="-1"
+          class="ui-icon-btn ui-icon-btn--sm"
+          :data-source-code="row.code"
+          :disabled="index === lastRow"
+          :aria-label="t('panel.lookup.source_move_down')"
+          @click="dispatch('lookup.move_source_down')"
+        >
+          ↓
         </button>
       </li>
     </ul>
@@ -148,6 +172,16 @@ onBeforeUnmount(() => {
   min-width: calc(var(--space-unit) * 56);
   margin-top: var(--space-unit);
   overflow-y: auto;
+}
+
+.sources-row {
+  display: flex;
+  align-items: center;
+}
+
+.sources-row .sources-item {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .sources-item.off .sources-name {

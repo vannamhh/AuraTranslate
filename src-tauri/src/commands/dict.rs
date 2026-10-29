@@ -56,6 +56,29 @@ pub(crate) fn disabled_sources(store: Option<&Store>) -> BTreeSet<String> {
     }
 }
 
+/// User-chosen source order from the Global layer; absent store or failed read means no order.
+pub(crate) fn source_order(store: Option<&Store>) -> Vec<String> {
+    let Some(store) = store else {
+        return Vec::new();
+    };
+    match crate::core::scope::load_global_config(store) {
+        Ok(config) => config.source_order_codes(),
+        Err(err) => {
+            eprintln!("dict[commands] cannot read the source order: {err}");
+            Vec::new()
+        }
+    }
+}
+
+/// Stable reorder: rows whose key is in `order` follow its index; the rest keep their
+/// relative order after them. Codes in `order` with no row are ignored.
+pub fn order_by_user<T>(items: &mut [T], key: impl Fn(&T) -> &str, order: &[String]) {
+    items.sort_by_key(|item| {
+        let code = key(item);
+        order.iter().position(|c| c == code).unwrap_or(usize::MAX)
+    });
+}
+
 /// Đọc âm Hán Việt cho `chars` — **hàm thuần, đây là thứ test gọi**.
 ///
 /// `layers = None` đối xử **giống hệt** một tập lớp rỗng — `DictLayers` luôn được
@@ -88,9 +111,11 @@ pub fn read_han_viet(
 /// đây biến mất.
 ///
 /// `skipped` distinguishes an empty result from a dictionary layer that failed to read.
-pub fn list_sources(layers: Option<&DictLayers>) -> SourceAttributions {
+pub fn list_sources(layers: Option<&DictLayers>, order: &[String]) -> SourceAttributions {
     let empty = DictLayers::empty();
-    list_source_attributions(layers.unwrap_or(&empty))
+    let mut attributions = list_source_attributions(layers.unwrap_or(&empty));
+    order_by_user(&mut attributions.sources, |s| s.code.as_str(), order);
+    attributions
 }
 
 /// Pure core of `wire::read_dict_license_text`: maps `LicenseTextError` to `IpcError`.
@@ -220,6 +245,7 @@ pub fn lookup(
     layers: Option<&DictLayers>,
     query: &str,
     disabled: &BTreeSet<String>,
+    order: &[String],
 ) -> LookupResponse {
     let empty = DictLayers::empty();
     let layers = layers.unwrap_or(&empty);
@@ -256,6 +282,9 @@ pub fn lookup(
         } else {
             exact
         };
+
+    let mut grouped = grouped;
+    order_by_user(&mut grouped.groups, |g| g.source.code.as_str(), order);
 
     let mut entry_ids_by_layer: BTreeMap<&str, Vec<i64>> = BTreeMap::new();
     for group in &grouped.groups {
@@ -325,7 +354,8 @@ pub mod wire {
         let managed = app.try_state::<DictLayers>();
         let store = app.try_state::<Store>();
         let disabled = super::disabled_sources(store.as_deref());
-        super::lookup(managed.as_deref(), &query, &disabled)
+        let order = super::source_order(store.as_deref());
+        super::lookup(managed.as_deref(), &query, &disabled, &order)
     }
 
     /// Vỏ IPC của [`super::list_sources`] — Story 1.19, AC1 · AC7.
@@ -337,7 +367,9 @@ pub mod wire {
         use tauri::Manager as _;
 
         let managed = app.try_state::<DictLayers>();
-        super::list_sources(managed.as_deref())
+        let store = app.try_state::<Store>();
+        let order = super::source_order(store.as_deref());
+        super::list_sources(managed.as_deref(), &order)
     }
 
     /// IPC shell of [`super::license_text_for_ipc`]; read on click, one source at a time.

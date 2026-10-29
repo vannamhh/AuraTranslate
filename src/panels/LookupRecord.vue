@@ -165,7 +165,13 @@ const senseTotalKey = computed(() =>
       </div>
 
       <p v-if="sensesFailed" class="lookup-senses-failed">{{ t('panel.lookup.senses_failed') }}</p>
-      <div v-else v-for="sense in cluster.senses" :key="sense.sense_id" class="lookup-sense">
+      <ol
+        v-else
+        class="lookup-senses"
+        :class="{ 'lookup-senses--numbered': cluster.senses.length >= 2 }"
+        :style="{ '--sense-digits': String(String(cluster.senses.length).length) }"
+      >
+        <li v-for="sense in cluster.senses" :key="sense.sense_id" class="lookup-sense">
         <!-- AC3 — từ loại vắng mặt (`pos = null`) ⇒ không render một hàng rỗng nào. -->
         <p v-if="sense.pos !== null" class="lookup-pos">
           <!-- aura-allow-text: nhãn từ loại — DỮ LIỆU từ điển. -->
@@ -210,7 +216,8 @@ const senseTotalKey = computed(() =>
 
         <!-- aura-allow-text: ghi chú — DỮ LIỆU từ điển, phần thứ sáu của FR28. -->
         <p v-if="sense.note !== null" class="lookup-note">{{ sense.note }}</p>
-      </div>
+        </li>
+      </ol>
     </div>
 
   </section>
@@ -325,10 +332,27 @@ const senseTotalKey = computed(() =>
   margin-left: auto;
 }
 
+.lookup-senses {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--face-lookup-gloss);
+  font-size: var(--font-lookup-gloss);
+  line-height: var(--leading-lookup-gloss);
+}
+
+.lookup-senses--numbered {
+  list-style: decimal;
+  padding-inline-start: calc(var(--sense-digits) * 1ch + 1.5ch);
+}
+
 .lookup-sense {
-  padding-left: 12px;
-  border-left: 2px solid var(--color-outline-faint);
   margin-bottom: var(--space-panel-block);
+}
+
+.lookup-sense::marker {
+  color: var(--color-on-surface-variant);
+  font-variant-numeric: tabular-nums;
 }
 
 /* AC3 — "từ loại: họ read in nghiêng màu on-surface-variant" — khai token `lookup-example`. */

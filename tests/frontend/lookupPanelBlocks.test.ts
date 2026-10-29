@@ -105,6 +105,29 @@ afterEach(() => {
 })
 
 describe('source blocks (Tra 打)', () => {
+  it('numbers the senses of an entry with two or more, leaves a single sense bare, and carries no left bar', async () => {
+    const w = await lookedUp('打', DA)
+    const lists = w.findAll('.lookup-senses')
+    const numbered = lists.filter((l) => l.classes().includes('lookup-senses--numbered'))
+    expect(lists.map((l) => l.findAll('.lookup-sense').length)).toEqual([1, 2, 2])
+    expect(numbered.map((l) => l.findAll('.lookup-sense').length)).toEqual([2, 2])
+    expect(lists[0]!.classes()).not.toContain('lookup-senses--numbered')
+    expect(lists[1]!.attributes('style')).toContain('--sense-digits: 1')
+    expect(lists[1]!.element.tagName).toBe('OL')
+  })
+
+  it('sizes the hanging indent of a 138-sense entry for three digits', async () => {
+    const many = Array.from({ length: 138 }, (_, i) => sense(1, 1000 + i, `nghĩa ${i + 1}`))
+    const w = await lookedUp(
+      '打',
+      response([group('layer-cv', 'cvdict', 'CVDICT', [hit('cvdict', 1, '打', 'da3')])], { 'layer-cv': many }),
+    )
+    const list = w.get('.lookup-senses')
+    expect(list.classes()).toContain('lookup-senses--numbered')
+    expect(list.findAll('.lookup-sense')).toHaveLength(138)
+    expect(list.attributes('style')).toContain('--sense-digits: 3')
+  })
+
   it('stacks one block per source with no lead-in line and no per-source chips', async () => {
     const w = await lookedUp('打', DA)
     expect(blocks(w)).toHaveLength(2)

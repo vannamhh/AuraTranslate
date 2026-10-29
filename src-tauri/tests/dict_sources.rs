@@ -78,7 +78,7 @@ fn command_lookup(
     layers: Option<&DictLayers>,
     query: &str,
 ) -> auratranslate_lib::commands::dict::LookupResponse {
-    auratranslate_lib::commands::dict::lookup(layers, query, &BTreeSet::new())
+    auratranslate_lib::commands::dict::lookup(layers, query, &BTreeSet::new(), &[])
 }
 
 /// Đường sản phẩm tab Hán Việt (`commands::dict::read_han_viet`), **không tắt nguồn nào**.
@@ -4722,7 +4722,8 @@ fn the_substring_fallback_honours_the_filter_too() {
     let layers = DictLayers::open(&dir);
 
     // `國` không khớp `Exact` ở đâu cả nhưng khớp `Substring` (`中國`) — đúng ca đường lui.
-    let before = auratranslate_lib::commands::dict::lookup(Some(&layers), "國", &BTreeSet::new());
+    let before =
+        auratranslate_lib::commands::dict::lookup(Some(&layers), "國", &BTreeSet::new(), &[]);
     let codes_before = group_codes(&before.grouped);
     assert!(
         !codes_before.is_empty(),
@@ -4730,7 +4731,8 @@ fn the_substring_fallback_honours_the_filter_too() {
     );
 
     let target = codes_before[0].clone();
-    let after = auratranslate_lib::commands::dict::lookup(Some(&layers), "國", &off(&[&target]));
+    let after =
+        auratranslate_lib::commands::dict::lookup(Some(&layers), "國", &off(&[&target]), &[]);
     assert!(
         !group_codes(&after.grouped).contains(&target),
         "nguồn đã tắt không được sống lại ở lượt tra thứ hai"
@@ -4738,6 +4740,85 @@ fn the_substring_fallback_honours_the_filter_too() {
 
     layers.close();
     cleanup(&dir);
+}
+
+fn order_of(codes: &[&str]) -> Vec<String> {
+    codes.iter().map(|c| (*c).to_owned()).collect()
+}
+
+#[test]
+fn user_order_puts_chosen_sources_first_and_keeps_default_for_the_rest() {
+    let dir = temp_dir("user-order");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+    let lookup = |order: &[String], disabled: &BTreeSet<String>| {
+        auratranslate_lib::commands::dict::lookup(Some(&layers), "中國", disabled, order)
+    };
+
+    let default = lookup(&[], &BTreeSet::new());
+    let default_codes = group_codes(&default.grouped);
+    assert!(
+        default_codes.len() >= 2,
+        "need two groups: {default_codes:?}"
+    );
+
+    let last = default_codes.last().unwrap().clone();
+    let ordered = lookup(&order_of(&[&last]), &BTreeSet::new());
+    let ordered_codes = group_codes(&ordered.grouped);
+    assert_eq!(ordered_codes[0], last);
+    assert_eq!(
+        ordered_codes[1..],
+        default_codes[..default_codes.len() - 1],
+        "unlisted sources keep their default relative order"
+    );
+    assert_eq!(ordered.senses_by_layer.len(), default.senses_by_layer.len());
+
+    let orphan = lookup(
+        &order_of(&["khong-co", &last, "khong-co"]),
+        &BTreeSet::new(),
+    );
+    assert_eq!(group_codes(&orphan.grouped), ordered_codes);
+
+    let disabled = lookup(&order_of(&[&last]), &off(&[&last]));
+    assert!(!group_codes(&disabled.grouped).contains(&last));
+
+    layers.close();
+    cleanup(&dir);
+}
+
+#[test]
+fn user_order_applies_to_the_source_list_too() {
+    let dir = temp_dir("user-order-list");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+    let list = |order: &[String]| -> Vec<String> {
+        auratranslate_lib::commands::dict::list_sources(Some(&layers), order)
+            .sources
+            .into_iter()
+            .map(|s| s.code)
+            .collect()
+    };
+
+    let default = list(&[]);
+    assert!(default.len() >= 2);
+    let last = default.last().unwrap().clone();
+    let ordered = list(&order_of(&["khong-co", &last]));
+    assert_eq!(ordered[0], last);
+    assert_eq!(ordered[1..], default[..default.len() - 1]);
+
+    layers.close();
+    cleanup(&dir);
+}
+
+#[test]
+fn source_order_parsing_keeps_order_and_drops_blanks_and_repeats() {
+    use auratranslate_lib::core::scope::parse_source_order;
+    assert!(parse_source_order("").is_empty());
+    assert!(parse_source_order(" , ,").is_empty());
+    assert_eq!(
+        parse_source_order("b, a,,b ,c,a"),
+        order_of(&["b", "a", "c"])
+    );
 }
 
 /// 🔴 **STORY 1.19 · AC12 — ĐO LẠI NFR1 VỚI BỘ LỌC, KHÔNG SUY TỪ SỐ CŨ.**
@@ -4874,7 +4955,7 @@ fn bench_the_source_filter_on_the_real_dictionaries() {
             for q in &queries {
                 let start = std::time::Instant::now();
                 let response =
-                    auratranslate_lib::commands::dict::lookup(Some(&layers), q, disabled);
+                    auratranslate_lib::commands::dict::lookup(Some(&layers), q, disabled, &[]);
                 samples.push(start.elapsed().as_secs_f64() * 1000.0);
                 if !response.grouped.truncated_layers.is_empty() {
                     truncated += 1;
@@ -4905,7 +4986,7 @@ fn bench_the_source_filter_on_the_real_dictionaries() {
         let mut samples: Vec<f64> = Vec::with_capacity(RUNS);
         for _ in 0..RUNS {
             let start = std::time::Instant::now();
-            let _ = auratranslate_lib::commands::dict::lookup(Some(&layers), "山", disabled);
+            let _ = auratranslate_lib::commands::dict::lookup(Some(&layers), "山", disabled, &[]);
             samples.push(start.elapsed().as_secs_f64() * 1000.0);
         }
         samples.sort_by(|a, b| a.partial_cmp(b).expect("không NaN"));

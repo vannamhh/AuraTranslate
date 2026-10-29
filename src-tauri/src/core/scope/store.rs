@@ -86,6 +86,20 @@ const KEY_LAYOUT: &str = "workspace_layout";
 /// *"rỗng im lặng"* mà AD-44 ④ cấm.
 const KEY_DICT_DISABLED: &str = "dict_sources_disabled";
 
+const KEY_DICT_ORDER: &str = "dict_sources_order";
+
+/// Splits the on-disk `dict_sources_order` into codes, keeping order: trims, drops empties and
+/// repeats (first position wins). A set would lose the order, which is the whole value.
+pub fn parse_source_order(raw: &str) -> Vec<String> {
+    let mut seen = BTreeSet::new();
+    raw.split(',')
+        .map(str::trim)
+        .filter(|code| !code.is_empty())
+        .filter(|code| seen.insert(*code))
+        .map(str::to_owned)
+        .collect()
+}
+
 /// Tách chuỗi trên đĩa thành tập `code` bị tắt — **hàm thuần, đây là thứ test gọi**.
 ///
 /// Mã hoá: các `code` ngăn nhau bằng `,`, khoảng trắng thừa bị cắt, phần rỗng bị bỏ — cùng
@@ -285,6 +299,17 @@ impl GlobalConfig {
         self.app
             .get(KEY_DICT_DISABLED)
             .map_or("", |r| r.value().as_str())
+    }
+
+    /// User-chosen source order as stored (comma-joined codes); empty when never set.
+    pub fn dict_sources_order(&self) -> &str {
+        self.app
+            .get(KEY_DICT_ORDER)
+            .map_or("", |r| r.value().as_str())
+    }
+
+    pub fn source_order_codes(&self) -> Vec<String> {
+        parse_source_order(self.dict_sources_order())
     }
 
     /// Cùng giá trị, đã tách thành tập — thứ mà đường tra cứu nhận (§Quyết định #2a).

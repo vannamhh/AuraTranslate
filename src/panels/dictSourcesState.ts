@@ -23,11 +23,11 @@
  * khớp truy vấn hiện tại cũng không có nhóm, nên dải chip sẽ nhấp nháy theo từng lượt tra.
  * Danh sách phải đến từ **tập lớp đang gắn**, đọc **một lần** lúc khởi động.
  */
-import { computed, readonly, ref, shallowRef } from 'vue'
+import { computed, nextTick, readonly, ref, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import { listDictSources, readDictLicenseText } from '../config/dict'
 import type { QueryRoute, SourceAttribution } from '../config/dict'
-import { KEY_DICT_DISABLED, SCOPE_APP_CONFIG, putConfig } from '../config/bootstrap'
+import { KEY_DICT_DISABLED, KEY_DICT_ORDER, SCOPE_APP_CONFIG, putConfig } from '../config/bootstrap'
 import type { IpcError } from '../i18n'
 import { currentQuery, runLookup } from './lookupPanelState'
 import { refreshHanViet } from './sourcePanelState'
@@ -371,6 +371,78 @@ export function toggleFocusedDictSource(): void {
   toggleDictSource(code)
 }
 
+let moveSequence = 0
+
+/** Swaps the row at once, stores the full order, then reloads list and lookup so Rust's sort shows.
+ * A failed write restores the previous order, but only for the latest press. */
+export function moveDictSource(code: string, step: 1 | -1): void {
+  const previous = sources.value
+  const from = previous.findIndex((s) => s.code === code)
+  const to = from + step
+  if (from === -1 || to < 0 || to >= previous.length) return
+
+  const next = [...previous]
+  ;[next[from], next[to]] = [previous[to], previous[from]]
+  sources.value = next
+  void refocusSourceRow(code)
+
+  const mine = ++moveSequence
+  const encoded = next.map((s) => s.code).join(',')
+  writeQueue = writeQueue
+    .then(async () => {
+      const err = await putConfig(SCOPE_APP_CONFIG, KEY_DICT_ORDER, encoded)
+      if (err !== null) {
+        console.warn(`[dict] không lưu được thứ tự nguồn (\`${err.code}\`).`)
+        if (mine === moveSequence) {
+          sources.value = previous
+          void refocusSourceRow(code)
+        }
+        return
+      }
+      if (mine !== moveSequence) return
+
+      const { sources: loaded, skipped, error } = await listDictSources()
+      if (mine !== moveSequence) return
+      sourcesError.value = error
+      if (loaded !== null) sources.value = loaded
+      sourcesSkipped.value = skipped ?? []
+      void refocusSourceRow(code)
+
+      const query = currentQuery.value
+      if (query !== null) void runLookup(query)
+    })
+    .catch((err: unknown) => {
+      console.warn(`[dict] hàng đợi lưu thứ tự nguồn ném ngoài dự kiến: ${String(err)}`)
+    })
+}
+
+// Vue reorders the keyed rows by moving DOM nodes, which drops focus from the moved row.
+async function refocusSourceRow(code: string): Promise<void> {
+  if (typeof document === 'undefined') return
+  const hadFocus = focusedChipCode() === code
+  await nextTick()
+  if (!hadFocus) return
+  const row = Array.from(
+    document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"][data-source-code]'),
+  ).find((el) => el.dataset.sourceCode === code)
+  row?.focus()
+}
+
+function moveFocusedDictSource(step: 1 | -1): void {
+  const code = aimedCode ?? focusedChipCode()
+  aimedCode = null
+  if (code === null) return
+  moveDictSource(code, step)
+}
+
+export function moveFocusedDictSourceUp(): void {
+  moveFocusedDictSource(-1)
+}
+
+export function moveFocusedDictSourceDown(): void {
+  moveFocusedDictSource(1)
+}
+
 /** Handler thật của `attribution.open` — AC11. */
 export function openAttribution(): void {
   attributionOpen.value = true
@@ -394,6 +466,7 @@ export function openAttribution(): void {
  */
 export function resetDictSources(): void {
   toggleSequence += 1
+  moveSequence += 1
   sources.value = []
   sourcesError.value = null
   sourcesSkipped.value = []

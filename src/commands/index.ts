@@ -715,6 +715,10 @@ export type CommandDeps = {
    * thái quanh nó, đúng khuôn `deps.currentSelection` của `lookup.lookup_selection`.
    */
   toggleDictSource?: () => void
+  /** Moves the aimed source up one row in the Nguồn menu. Handler of `lookup.move_source_up`. */
+  moveDictSourceUp?: () => void
+  /** Moves the aimed source down one row. Handler of `lookup.move_source_down`. */
+  moveDictSourceDown?: () => void
   /** Mở bề mặt ghi công. Handler của `attribution.open` (AC7, AC11). */
   openAttribution?: () => void
   /** Đóng bề mặt ghi công. Handler của `attribution.close` (AC11). */
@@ -3040,6 +3044,22 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       id,
       labelKey: `command.${id}`,
       keys: undefined,
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
+
+  for (const [id, port, chord] of [
+    ['lookup.move_source_up', 'moveDictSourceUp', 'Alt+Shift+ArrowUp'],
+    ['lookup.move_source_down', 'moveDictSourceDown', 'Alt+Shift+ArrowDown'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey: `command.${id}`,
+      keys: [chord],
       run: () => {
         const handler = deps[port]
         if (handler === undefined) return portMissing(id, port)

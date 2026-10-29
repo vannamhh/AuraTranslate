@@ -13568,3 +13568,8 @@ chính nó.
 
 - Popup tra cứu mới được kiểm bằng vitest và e2e (driver phát `dblclick` trên vùng chọn dựng tay, sự kiện có `isTrusted: false`). Cần mắt người trong app thật: WebKit tách từ chữ Hán thế nào khi double-click thật, bóng `--shadow-popover` ở cả theme sáng và tối, popup lật lên trên ở cuối trang, và dòng Concordance ở bố cục Workspace hẹp (mở ngăn kéo Lookup).
   Chủ: Ice. Trỏ: `plan-tra-cuu-double-click-che-do-doc.md`.
+
+## Deferred from: thứ tự nguồn và đánh số nghĩa (2026-10-29, ngoài cây vé)
+
+- Thứ tự nguồn và số nghĩa mới được kiểm bằng `cargo test` và vitest (happy-dom không dàn trang, không có keymap thật). Cần mắt người trong app thật: `Alt+Shift+↑/↓` có chạy khi focus ở một hàng menu Nguồn không, menu có đóng khi bấm ↑↓ không, thứ tự còn giữ sau khi mở lại app không, và số `::marker` ba chữ số (en-wiktionary, khoảng 138 nghĩa) có tràn ra ngoài cột không.
+  Chủ: Ice. Trỏ: `plan-thu-tu-nguon-va-danh-so-nghia.md`.
