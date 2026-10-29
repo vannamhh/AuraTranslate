@@ -166,6 +166,7 @@ import {
   moveCurrentChapterUp as moveCurrentLibraryChapterUp,
   nextChapter as nextLibraryChapter,
   openCurrentChapter as openCurrentLibraryChapter,
+  openCurrentChapterInReading as openCurrentLibraryChapterInReading,
   continueCurrentLibraryTranslation,
   openCurrentLibraryWork,
   openCurrentLibraryWorkThenReviewerImport,
@@ -707,6 +708,9 @@ async function boot(): Promise<void> {
       nextLibraryChapter,
       prevLibraryChapter,
       openCurrentLibraryChapter,
+      openCurrentLibraryChapterInReading: () => {
+        void openCurrentLibraryChapterInReading()
+      },
       // Story 5.8 — "Tổ chức lại Chương sau khi nhập" (FR15, AD-32).
       renameCurrentLibraryChapter,
       moveCurrentLibraryChapterUp,

@@ -490,6 +490,17 @@ export async function openCurrentChapter(): Promise<void> {
   if (moved) setMode('workspace')
 }
 
+/** Opens the selected Chapter in Reading mode; a Chapter that is not Done is ignored. */
+export async function openCurrentChapterInReading(): Promise<void> {
+  const row = currentLibraryChapter.value
+  if (row === null || row.status !== 'done') return
+  const moved = await openChapterById(row.chapter_id)
+  if (!moved) return
+  resetReading()
+  resetReadingToc()
+  setMode('reading')
+}
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 STORY 5.8 — BỐN THAO TÁC TỔ CHỨC (đổi tên · dời lên · dời xuống · gộp vào Chương trước)
 // ═════════════════════════════════════════════════════════════════════════════════

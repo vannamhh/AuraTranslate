@@ -509,6 +509,64 @@ describe('modes/readingState — mở một Chương từ mục lục (nhánh TH
   })
 })
 
+describe('modes/libraryChapters — openCurrentChapterInReading (library.open_chapter_reading)', () => {
+  async function prepare(statuses: string[]) {
+    const rows = statuses.map((status, i) => chapterRow({ chapter_id: i + 1, ord: i + 1, status }))
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'list_chapters') return Promise.resolve(rows)
+      if (cmd === 'open_chapter') return Promise.resolve({ chapter_id: 2, source_text: 'x', source_lang: 'zh' })
+      return Promise.resolve(null)
+    })
+    const chapters = await import('../../src/modes/libraryChapters')
+    const modeState = await import('../../src/modes/modeState')
+    chapters.resetLibraryChapters()
+    await chapters.loadChapters()
+    modeState.setMode('library')
+    return { chapters, modeState }
+  }
+
+  it('Chương Đã xong đang chọn ⇒ mở Chương đó, vào Chế độ đọc, con trỏ danh sách ở yên, Tác phẩm không mở lại', async () => {
+    const { chapters, modeState } = await prepare(['in_progress', 'done', 'done'])
+    chapters.selectLibraryChapter(2, { toggle: false, range: false })
+    const cursorBefore = chapters.libraryChapterCursor.value
+    expect(cursorBefore).toBe(1)
+    mockInvoke.mockClear()
+
+    await chapters.openCurrentChapterInReading()
+
+    const opened = mockInvoke.mock.calls.filter((c) => c[0] === 'open_chapter')
+    expect(opened).toHaveLength(1)
+    expect(opened[0]?.[1]).toMatchObject({ chapterId: 2 })
+    expect(mockInvoke.mock.calls.some((c) => c[0] === 'open_work')).toBe(false)
+    expect(modeState.currentMode.value).toBe('reading')
+    expect(chapters.libraryChapterCursor.value).toBe(cursorBefore)
+    expect(chapters.libraryWorkPageWork.value).toBeNull()
+  })
+
+  it('Chương chưa xong hoặc trạng thái lạ ⇒ không phát IPC, không đổi Chế độ', async () => {
+    const { chapters, modeState } = await prepare(['in_progress', 'archived'])
+    for (const id of [1, 2]) {
+      chapters.selectLibraryChapter(id, { toggle: false, range: false })
+      mockInvoke.mockClear()
+      await chapters.openCurrentChapterInReading()
+      expect(mockInvoke.mock.calls.some((c) => c[0] === 'open_chapter')).toBe(false)
+      expect(modeState.currentMode.value).toBe('library')
+    }
+  })
+
+  it('lỗi mở Chương ⇒ giữ ở Library', async () => {
+    const { chapters, modeState } = await prepare(['done'])
+    chapters.selectLibraryChapter(1, { toggle: false, range: false })
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'open_chapter'
+        ? Promise.reject({ code: 'chapter.not_found', message_key: 'err.chapter.not_found', params: {}, retryable: false })
+        : Promise.resolve(null),
+    )
+    await chapters.openCurrentChapterInReading()
+    expect(modeState.currentMode.value).toBe('library')
+  })
+})
+
 // ═════════════════════════════════════════════════════════════════════════════════
 // `onDeactivated` vứt mảng đoạn/câu, giữ neo vị trí
 // ═════════════════════════════════════════════════════════════════════════════════

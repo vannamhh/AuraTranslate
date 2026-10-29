@@ -32,6 +32,7 @@ export type ChapterActionRules = {
   moveUp: boolean
   moveDown: boolean
   open: boolean
+  read: boolean
   status: boolean
   export: boolean
 }
@@ -169,6 +170,7 @@ export function chapterActionRules(rows: readonly ChapterRow[], selected: Readon
     moveUp: only !== null,
     moveDown: only !== null,
     open: only !== null,
+    read: only !== null && only.status === 'done',
     status: count >= 1,
     export: count >= 1,
   }

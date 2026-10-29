@@ -499,6 +499,7 @@ export type CommandDeps = {
    * `openCurrentLibraryWork` (đọc con trỏ hiện thời, không tham số). */
   openCurrentLibrarySearchHit?: () => void
   openCurrentLibrarySearchHitInReading?: () => void
+  openCurrentLibraryChapterInReading?: () => void
   seeAllLibrarySearchGroup?: () => void
   toggleCurrentLibrarySearchGroup?: () => void
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
@@ -2252,6 +2253,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.open_chapter', 'openCurrentLibraryChapter')
       }
       deps.openCurrentLibraryChapter()
+    },
+  })
+  target.register({
+    id: 'library.open_chapter_reading',
+    labelKey: 'command.library.open_chapter_reading',
+    keys: undefined,
+    run: () => {
+      if (deps.openCurrentLibraryChapterInReading === undefined) {
+        return portMissing('library.open_chapter_reading', 'openCurrentLibraryChapterInReading')
+      }
+      deps.openCurrentLibraryChapterInReading()
     },
   })
   // Story 5.8 — bốn thao tác tổ chức lại Chương (FR15, AD-32). `keys: undefined` cho ba lệnh

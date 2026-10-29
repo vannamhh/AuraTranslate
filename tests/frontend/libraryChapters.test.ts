@@ -455,7 +455,7 @@ describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chươ
     wrapper = null
   })
 
-  it('chưa chọn Chương nào ⇒ mọi nút ghi TẮT (không có nút nào để bấm nhầm)', async () => {
+  it('chưa chọn Chương nào ⇒ không có khung phải và không còn thanh chọn ngang', async () => {
     ketQuaFlush.value = 'clean'
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
     const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
@@ -464,18 +464,11 @@ describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chươ
     await state.loadChapters()
     await wrapper.vm.$nextTick()
 
-    for (const attr of [
-      'data-library-chapter-rename-begin',
-      'data-library-chapter-move-up',
-      'data-library-chapter-move-down',
-      'data-library-chapter-merge-open',
-      'data-library-chapter-split-open',
-      'data-library-chapters-status-menu',
-    ]) {
-      const nut = wrapper.find(`[${attr}]`)
-      expect(nut.exists()).toBe(true)
-      expect(nut.attributes('disabled')).toBeDefined()
-    }
+    expect(wrapper.find('[data-library-chapter-panel]').exists()).toBe(false)
+    expect(wrapper.find('[data-library-chapter-selbar]').exists()).toBe(false)
+    expect(wrapper.find('aside.wp-panel').exists()).toBe(false)
+    expect(wrapper.find('.wp-body').classes()).not.toContain('wp-body--with-panel')
+    expect(wrapper.find('[data-library-chapter-selected-count]').exists()).toBe(true)
   })
 
   it('row sentence total is the in-translation count, not the count that includes omitted sentences', async () => {
@@ -490,7 +483,7 @@ describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chươ
     expect(wrapper.find('.chapter-segment-count').text()).toBe('9 câu')
   })
 
-  it('chọn đúng một Chương ⇒ đổi tên · dời lên · dời xuống · tách SÁNG; gộp vẫn tắt', async () => {
+  it('chọn đúng một Chương ⇒ khung có đủ bảy lệnh sáng, khối xuất xứ, Gộp vắng', async () => {
     ketQuaFlush.value = 'clean'
     mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
     const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
@@ -500,15 +493,115 @@ describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chươ
     await chonHang(0)
     await wrapper.vm.$nextTick()
 
+    const panel = wrapper.find('[data-library-chapter-panel]')
+    expect(panel.exists()).toBe(true)
+    expect(panel.attributes('data-library-chapter-panel-batch')).toBeUndefined()
     for (const attr of [
       'data-library-chapter-rename-begin',
+      'data-library-chapter-split-open',
+      'data-library-chapters-status-menu',
+      'data-export-open',
+      'data-reviewer-import-open',
+    ]) {
+      expect(panel.find(`[${attr}]`).exists()).toBe(true)
+    }
+    for (const attr of ['data-library-chapter-move-up', 'data-library-chapter-move-down']) {
+      expect(panel.find(`[${attr}]`).exists()).toBe(true)
+    }
+    for (const attr of ['data-library-chapter-rename-begin', 'data-library-chapter-split-open']) {
+      expect(panel.find(`[${attr}]`).attributes('disabled')).toBeUndefined()
+    }
+    expect(panel.find('.chapter-origin-input').exists()).toBe(true)
+    expect(panel.find('[data-library-chapter-origin-apply-through]').exists()).toBe(true)
+    expect(wrapper.find('[data-library-chapter-merge-open]').exists()).toBe(false)
+    expect(wrapper.find('[data-library-chapter-selbar]').exists()).toBe(false)
+  })
+
+  it('chọn hai Chương ⇒ thẻ hàng loạt có Gộp, Xuất, Đổi trạng thái; Tách, Dời, Nhập reviewer vắng', async () => {
+    ketQuaFlush.value = 'clean'
+    mockInvoke.mockResolvedValue([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED])
+    const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    const selection = await import('../../src/modes/libraryChapterSelection')
+    wrapper = mount(WorkPage)
+    await state.loadChapters()
+    selection.setChapterSelection(new Set([1, 2]), 1)
+    await wrapper.vm.$nextTick()
+
+    const panel = wrapper.find('[data-library-chapter-panel-batch]')
+    expect(panel.exists()).toBe(true)
+    expect(panel.find('[data-library-chapter-merge-open]').exists()).toBe(true)
+    expect(panel.find('[data-library-chapters-status-menu]').exists()).toBe(true)
+    expect(panel.find('[data-export-open]').exists()).toBe(true)
+    for (const attr of [
+      'data-library-chapter-split-open',
       'data-library-chapter-move-up',
       'data-library-chapter-move-down',
-      'data-library-chapter-split-open',
+      'data-reviewer-import-open',
+      'data-library-chapter-origin-apply-through',
     ]) {
-      expect(wrapper.find(`[${attr}]`).attributes('disabled')).toBeUndefined()
+      expect(wrapper.find(`[${attr}]`).exists()).toBe(false)
     }
+    expect(wrapper.find('[data-library-chapter-selbar]').exists()).toBe(false)
+  })
+
+  it('hai Chương rời nhau ⇒ Gộp khoá', async () => {
+    ketQuaFlush.value = 'clean'
+    const rows = [1, 2, 3].map((n) => ({ ...CHAPTER_ROW_A, chapter_id: n, ord: n, title: `C${n}` }))
+    mockInvoke.mockResolvedValue(rows)
+    const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    const selection = await import('../../src/modes/libraryChapterSelection')
+    wrapper = mount(WorkPage)
+    await state.loadChapters()
+    selection.setChapterSelection(new Set([1, 3]), 1)
+    await wrapper.vm.$nextTick()
+
     expect(wrapper.find('[data-library-chapter-merge-open]').attributes('disabled')).toBeDefined()
+  })
+
+  it('nút Đọc: hàng Đã xong có, hàng chưa xong không; khung chưa xong khoá kèm lý do; trạng thái lạ không có Đọc ở đâu', async () => {
+    ketQuaFlush.value = 'clean'
+    const rows = [
+      { ...CHAPTER_ROW_A, chapter_id: 1, ord: 1, status: 'done' },
+      { ...CHAPTER_ROW_A, chapter_id: 2, ord: 2, status: 'in_progress' },
+      { ...CHAPTER_ROW_A, chapter_id: 3, ord: 3, status: 'archived' },
+    ]
+    mockInvoke.mockResolvedValue(rows)
+    const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(WorkPage)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+
+    const rowOf = (id: number) => wrapper!.get(`[data-chapter-id="${id}"]`)
+    expect(rowOf(1).find('[data-library-row-read]').exists()).toBe(true)
+    expect(rowOf(1).find('[data-library-row-read]').attributes('aria-label')).toBe('Mở Chương 1 ở Chế độ đọc')
+    expect(rowOf(2).find('[data-library-row-read]').exists()).toBe(false)
+    expect(rowOf(3).find('[data-library-row-read]').exists()).toBe(false)
+
+    await chonHang(1)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-library-panel-read]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-library-panel-read-locked]').exists()).toBe(true)
+
+    await chonHang(0)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-library-panel-read]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('[data-library-panel-read-locked]').exists()).toBe(false)
+
+    await chonHang(2)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-library-panel-read]').exists()).toBe(false)
+    expect(wrapper.find('[data-library-panel-read-locked]').exists()).toBe(false)
+  })
+
+  it('không ghi đè ⇒ không có nút Bỏ ghi đè', async () => {
+    mockInvokeForChaptersMount([CHAPTER_ROW_A])
+    const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
+    wrapper = mount(WorkPage)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).not.toContain('Bỏ ghi đè')
   })
 })
 
@@ -943,6 +1036,30 @@ describe('modes/LibraryMode.vue — khối xuất xứ (mount thật, Story 6.15
     expect(state.libraryChapterOriginApplyThroughOrd.value).toBeNull()
     expect((input.element as HTMLInputElement).value).toBe('')
   })
+
+  it('ord đích trong dải ⇒ câu hệ quả nêu dải và số Chương; ngoài dải ⇒ không có câu', async () => {
+    mockInvokeForChaptersMount(CHAPTERS_ORD_1_TO_5)
+
+    const { default: LibraryMode } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    wrapper = mount(LibraryMode)
+    await state.loadChapters()
+    await chonHang(0)
+    await wrapper.vm.$nextTick()
+
+    const input = wrapper.get('[data-library-chapter-origin-apply-through]')
+    ;(input.element as HTMLInputElement).value = '3'
+    await input.trigger('change')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-library-chapter-origin-apply-effect]').text()).toBe(
+      'Chương 1 → 3 · 3 Chương nhận cùng xuất xứ',
+    )
+
+    ;(input.element as HTMLInputElement).value = '99'
+    await input.trigger('change')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-library-chapter-origin-apply-effect]').exists()).toBe(false)
+  })
 })
 
 describe('modes/libraryChapters.ts::openCurrentLibraryWorkThenReviewerImport', () => {
@@ -1013,11 +1130,16 @@ describe('modes/libraryChapters.ts::openCurrentLibraryWorkThenReviewerImport', (
   })
 })
 
-describe('modes/LibraryWorkPage.vue — nút Nhập bản reviewer của thanh hành động', () => {
-  it('mang dấu mở để tiêu điểm về đúng nút khi đóng màn nhập', async () => {
+describe('modes/LibraryWorkPage.vue — nút Nhập bản reviewer của khung phải', () => {
+  it('chỉ có khi chọn đúng một Chương, và mang dấu mở để tiêu điểm về đúng nút khi đóng màn nhập', async () => {
     mockInvokeForChaptersMount([CHAPTER_ROW_A])
     const { default: Page } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
     const wrapper = mount(Page)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-library-chapters-reviewer-import]').exists()).toBe(false)
+    await chonHang(0)
     await wrapper.vm.$nextTick()
     const button = wrapper.find('[data-library-chapters-reviewer-import]')
     expect(button.exists()).toBe(true)

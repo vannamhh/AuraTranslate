@@ -13594,3 +13594,11 @@ chính nó.
 - Ca canh `shapeOffences` của `controls-adoption.test.ts` chỉ tra lớp control ĐẦU TIÊN trong mỗi selector (`classes.find`, có từ trước ticket 33): một selector như `.<khoá SHAPE_EXCEPTIONS> .<lớp control khác> { border: … }` được miễn trọn, lớp sau không bị kiểm dáng. Đo 2026-10-29 trên 67 `.vue`: 0 selector bị che, nên đây là chỗ mù tiềm ẩn, chưa có hại.
   Cần: duyệt mọi lớp control trong selector, chỉ miễn đúng lớp có khoá.
   Chủ: Epic 12. Trỏ: review lần hai của `story-he-ieu-khien-phan-workspace-con-sot-va-danh-sach-canh-u-plan.md`.
+
+## Deferred from: trang Tác phẩm theo mockup, khung phải và nút Dịch · Đọc (2026-10-29, ticket 34 của Epic 12)
+
+- Chưa ai đặt ảnh app thật cạnh `trang-tac-pham.html` cùng khổ để ghi từng khung 1–5 (đầu trang, hai ô Dịch · Đọc, khung phải 320px, số đếm, đầu nhóm dính) là khớp hay vì sao lệch; chưa nhìn dưới 1.100px (khung trượt, `Esc` hai bước, ẩn cột "sửa lúc" rồi cột số câu). e2e `story-12-34`, `story-12-4`, `story-5-8`, `story-5-7`, `story-5-4` chưa chạy (cổng 1420 bận), nên đối chứng thật của AC (gỡ `dispatch('library.open_chapter_reading')` khỏi nút hàng ⇒ spec đỏ, trả lại ⇒ `cmp` trùng byte) cũng chưa làm.
+  Chủ: Epic 12. Trỏ: `story-trang-tac-pham-theo-mockup-khung-phai-va-nut-dich-oc-moi-chu-plan.md`.
+- Mockup có "Đổi tên hàng loạt" cho nhiều Chương nhưng chưa có lệnh nào làm việc đó, nên trang không dựng; thẻ hàng loạt chỉ có Gộp, Đổi trạng thái, Xuất.
+  Cần: Ice quyết có làm lệnh đổi tên hàng loạt không.
+  Chủ: Ice. Trỏ: `story-trang-tac-pham-theo-mockup-khung-phai-va-nut-dich-oc-moi-chu-plan.md`.

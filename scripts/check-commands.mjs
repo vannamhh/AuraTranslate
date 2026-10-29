@@ -244,8 +244,8 @@ const COMMAND_FLOOR = 269
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 237
-const DISPATCH_FLOOR = 334
+const CLICK_FLOOR = 253
+const DISPATCH_FLOOR = 360
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
