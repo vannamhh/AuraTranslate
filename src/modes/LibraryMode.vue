@@ -612,7 +612,7 @@ const importScreenIsOpen = computed<boolean>(
             <div class="work-go-slot">
               <button
                 type="button"
-                class="work-go ui-btn ui-btn--sm"
+                class="work-go ui-btn"
                 :class="workIndex === libraryWorkCursor ? 'ui-btn--cover-on' : 'ui-btn--cover'"
                 data-library-continue-translation
                 :disabled="libraryOpenWorkBusy"
@@ -626,7 +626,7 @@ const importScreenIsOpen = computed<boolean>(
             <div class="work-more" @dblclick.stop>
               <DropdownMenu
                 variant="more"
-                trigger-class="ui-btn--sm ui-btn--cover-plain"
+                trigger-class="ui-btn--cover-plain"
                 label="⋯"
                 :aria-label="t('mode.library.work_more_menu')"
                 data-library-work-more
@@ -940,7 +940,7 @@ const importScreenIsOpen = computed<boolean>(
 <style scoped>
 .mode {
   height: 100%;
-  padding: var(--space-panel-block) 24px;
+  padding: var(--space-panel-block) 21px;
   overflow-y: auto;
 }
 
@@ -960,7 +960,7 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .status {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   min-height: 1em;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -969,7 +969,7 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .notice {
-  margin: 4px 0 0;
+  margin: 7px 0 0;
   min-height: 1em;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -978,7 +978,7 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .rule {
-  width: 34px;
+  width: 35px;
   height: 2px;
   background: var(--color-ornament);
   border-radius: 1px;
@@ -986,7 +986,7 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .big {
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   font-weight: var(--weight-ui-md-strong);
@@ -994,7 +994,7 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .small {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1015,7 +1015,7 @@ const importScreenIsOpen = computed<boolean>(
  */
 
 .error {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   min-height: 1em;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1031,7 +1031,7 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .section-heading {
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   font-weight: var(--weight-ui-md-strong);
@@ -1039,7 +1039,7 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .root-value {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1048,7 +1048,7 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .root-missing {
-  margin: 4px 0 0;
+  margin: 7px 0 0;
   min-height: 1em;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1058,7 +1058,7 @@ const importScreenIsOpen = computed<boolean>(
 
 .root-actions {
   display: flex;
-  gap: 8px;
+  gap: 7px;
 }
 
 /**
@@ -1069,7 +1069,7 @@ const importScreenIsOpen = computed<boolean>(
  * kế thừa. Toàn bộ màu/cỡ chữ qua token — `check:tokens` cấm viết thẳng.
  */
 .conflict-warning {
-  margin: 8px 0 0;
+  margin: 7px 0 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1078,15 +1078,15 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .orphan-row {
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: 14px;
+  padding: 14px;
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   background: var(--color-surface-sunken);
 }
 
 .orphan-name {
-  margin: 0 0 4px;
+  margin: 0 0 7px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   font-weight: var(--weight-ui-md-strong);
@@ -1094,7 +1094,7 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .orphan-path {
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1105,7 +1105,7 @@ const importScreenIsOpen = computed<boolean>(
 .orphan-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
 .orphan-position {
@@ -1131,8 +1131,8 @@ const importScreenIsOpen = computed<boolean>(
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+  gap: 21px;
 }
 
 .work-cell {
@@ -1166,8 +1166,8 @@ const importScreenIsOpen = computed<boolean>(
   align-content: space-between;
   align-items: flex-end;
   justify-content: space-between;
-  height: 136px;
-  padding: 12px;
+  height: 133px;
+  padding: 14px;
   border-radius: 3px 3px 0 0;
   background: var(--color-cover-1-from);
 }
@@ -1212,8 +1212,8 @@ const importScreenIsOpen = computed<boolean>(
 .work-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px;
+  gap: 7px;
+  padding: 14px;
 }
 
 .work-name {
@@ -1252,7 +1252,7 @@ const importScreenIsOpen = computed<boolean>(
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
@@ -1261,11 +1261,11 @@ const importScreenIsOpen = computed<boolean>(
 .work-stat-end {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
 .work-status {
-  padding: 0 8px;
+  padding: 0 7px;
   border-radius: 2px;
   font-weight: var(--weight-ui-md-strong);
   color: var(--color-on-surface-variant);
@@ -1303,9 +1303,9 @@ const importScreenIsOpen = computed<boolean>(
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  padding-bottom: 12px;
-  margin-bottom: 20px;
+  gap: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 21px;
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1313,12 +1313,12 @@ const importScreenIsOpen = computed<boolean>(
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   margin-left: auto;
 }
 
 .chips-count {
-  padding: 0 4px;
+  padding: 0 7px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
@@ -1330,12 +1330,12 @@ const importScreenIsOpen = computed<boolean>(
   align-items: center;
   flex: 1;
   max-width: 420px;
-  min-width: 200px;
+  min-width: 203px;
 }
 
 .search-icon {
   position: absolute;
-  left: 8px;
+  left: 7px;
   pointer-events: none;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
@@ -1367,7 +1367,7 @@ const importScreenIsOpen = computed<boolean>(
 .empty-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 7px;
+  margin-bottom: 14px;
 }
 </style>

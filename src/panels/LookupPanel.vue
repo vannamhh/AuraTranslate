@@ -696,7 +696,7 @@ onBeforeUnmount(() => {
 
           <div class="lookup-section">
             <span class="lookup-section-label">{{ t('panel.lookup.section_recent') }}</span>
-            <span class="ui-seg ui-seg--sm">
+            <span class="ui-seg">
               <button
                 type="button"
                 class="lookup-scope ui-seg__item"
@@ -713,7 +713,7 @@ onBeforeUnmount(() => {
             </span>
             <button
               type="button"
-              class="ui-btn ui-btn--sm ui-btn--quiet lookup-clear"
+              class="ui-btn ui-btn--quiet lookup-clear"
               @click="dispatch('lookup.clear_history')"
             >{{ t('panel.lookup.clear_history') }}</button>
           </div>
@@ -911,7 +911,7 @@ onBeforeUnmount(() => {
  * bất biến thay vì để nội dung tự ý đẩy khung xuống.
  */
 .lookup-head {
-  --lookup-head-height: 40px;
+  --lookup-head-height: 42px;
   flex: none;
   height: var(--lookup-head-height);
   overflow: hidden;
@@ -923,7 +923,7 @@ onBeforeUnmount(() => {
    * `--lookup-head-height` giữ NGUYÊN giá trị **và** vai trò; `overflow: hidden` ở lại.
    */
   position: relative;
-  padding-bottom: calc(var(--space-unit) * 2);
+  padding-bottom: calc(var(--space-unit) * 1);
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1062,7 +1062,7 @@ onBeforeUnmount(() => {
   align-items: baseline;
   gap: var(--space-panel-inline);
   margin: var(--space-panel-block) 0 var(--space-panel-block) 0;
-  padding-bottom: 4px;
+  padding-bottom: 7px;
   border-bottom: 1px solid var(--color-outline-faint);
 }
 
@@ -1103,7 +1103,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: baseline;
   gap: var(--space-panel-inline);
-  padding: 4px 0 4px 12px;
+  padding: 7px 0 7px 14px;
   border-left: 2px solid transparent;
 }
 
@@ -1120,7 +1120,7 @@ onBeforeUnmount(() => {
 /* Đầu mục — họ `read`, và nó KHÔNG co lại khi nghĩa dài. */
 .lookup-row-word {
   flex: none;
-  min-width: 74px;
+  min-width: 77px;
   font-family: var(--face-lookup-gloss);
   font-size: var(--font-lookup-gloss);
   line-height: var(--leading-lookup-gloss);
@@ -1171,7 +1171,7 @@ onBeforeUnmount(() => {
 }
 
 .lookup-row-count {
-  min-width: 34px;
+  min-width: 35px;
 }
 
 .lookup-row-when {
@@ -1180,7 +1180,7 @@ onBeforeUnmount(() => {
 
 /* Tiêu đề của một trạng thái rỗng — khai token `ui-md-strong`, cùng cấp với nhãn tab. */
 .lookup-empty-title {
-  margin: var(--space-panel-block) 0 4px 0;
+  margin: var(--space-panel-block) 0 7px 0;
   font-family: var(--face-ui-md-strong);
   font-size: var(--font-ui-md-strong);
   font-weight: var(--weight-ui-md-strong);
@@ -1207,8 +1207,8 @@ onBeforeUnmount(() => {
 .concordance-hit {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 0 4px 12px;
+  gap: 7px;
+  padding: 7px 0 7px 14px;
   border-left: 2px solid transparent;
 }
 

@@ -782,7 +782,7 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     expect(cell.find('.work-status').exists()).toBe(true)
   })
 
-  it('nút trên bìa theo mockup: ô đang chọn mang ui-btn--cover-on, ô khác ui-btn--cover, "⋯" cùng bậc sm', async () => {
+  it('nút trên bìa theo mockup: ô đang chọn mang ui-btn--cover-on, ô khác ui-btn--cover, "⋯" cùng bậc md', async () => {
     mockInvokeForMount([WORK_ROW_A, { ...WORK_ROW_A, work_id: 'w-b', name: 'B' }])
 
     const { default: LibraryMode } = await import('../../src/modes/LibraryMode.vue')
@@ -796,12 +796,12 @@ describe('modes/LibraryMode.vue — lưới Tác phẩm (mount thật), Story 5.
     const current = state.libraryWorkCursor.value
     cells.forEach((cell, i) => {
       const go = cell.get('[data-library-continue-translation]').classes()
-      expect(go).toContain('ui-btn--sm')
+      expect(go).not.toContain('ui-btn--sm')
       expect(go).not.toContain('ui-btn--primary')
       expect(go).toContain(i === current ? 'ui-btn--cover-on' : 'ui-btn--cover')
       expect(go).not.toContain(i === current ? 'ui-btn--cover' : 'ui-btn--cover-on')
       const more = cell.get('[data-library-work-more] summary').classes()
-      expect(more).toEqual(expect.arrayContaining(['ui-btn', 'ui-btn--sm', 'ui-btn--cover-plain']))
+      expect(more).toEqual(expect.arrayContaining(['ui-btn', 'ui-btn--cover-plain']))
       expect(more).not.toContain('ui-btn--quiet')
     })
   })

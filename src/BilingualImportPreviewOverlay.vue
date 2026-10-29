@@ -691,7 +691,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
               <div class="bip-mismatch-row-actions">
                 <button
                   type="button"
-                  class="bip-mismatch-action ui-btn ui-btn--sm"
+                  class="bip-mismatch-action ui-btn"
                   :disabled="bilingualImportPreviewConfirming"
                   @click="dispatch('import.preview.bilingual_accept_all_proposals')"
                 >
@@ -700,7 +700,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
                 <button
                   v-if="bilingualImportPreviewCanSkipActiveRow"
                   type="button"
-                  class="bip-mismatch-action ui-btn ui-btn--sm"
+                  class="bip-mismatch-action ui-btn"
                   :disabled="bilingualImportPreviewConfirming"
                   @click="dispatch('import.preview.bilingual_skip_row')"
                 >
@@ -816,8 +816,8 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
 .bip-two {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
-  gap: calc(var(--space-unit) * 5);
+  grid-template-columns: 287px minmax(0, 1fr);
+  gap: calc(var(--space-unit) * 3);
   align-items: start;
 }
 
@@ -834,7 +834,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   display: flex;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  padding: calc(var(--space-unit) * 2) 0;
+  padding: calc(var(--space-unit) * 1) 0;
   border-top: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -895,7 +895,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 }
 
 .bip-tier-title {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   font-weight: var(--weight-ui-md-strong, var(--weight-ui-md));
@@ -912,7 +912,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-candidate {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   padding: calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
@@ -943,15 +943,15 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-columns {
   display: flex;
   align-items: flex-end;
-  gap: calc(var(--space-unit) * 2);
-  margin-bottom: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .bip-field {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  margin-bottom: calc(var(--space-unit) * 2);
+  margin-bottom: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -961,14 +961,14 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-chapters-pattern-row {
   display: flex;
   align-items: flex-end;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .bip-checkbox-field {
   display: flex;
   align-items: center;
   gap: calc(var(--space-unit) * 1);
-  margin-bottom: calc(var(--space-unit) * 2);
+  margin-bottom: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -976,7 +976,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 }
 
 .bip-counts {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -989,8 +989,8 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
 
 .bip-chapter-filter-chip-clean {
@@ -1009,8 +1009,8 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 }
 
 .bip-chapter-filter-low-confidence {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   border: 1px solid var(--color-error);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1024,7 +1024,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   padding: 0;
   list-style: none;
 }
@@ -1032,8 +1032,8 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-chapters-entry {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
   border-left: 2px solid transparent;
 }
@@ -1093,7 +1093,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 }
 
 .bip-mismatch-focus {
-  padding: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1);
   border: 1px solid var(--color-error);
 }
 
@@ -1103,7 +1103,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 }
 
 .bip-mismatch-heading {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1112,8 +1112,8 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
 .bip-mismatch-columns {
   display: flex;
-  gap: calc(var(--space-unit) * 3);
-  margin-bottom: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 2);
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .bip-mismatch-column {
@@ -1131,7 +1131,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
 .bip-sentence-list {
   margin: 0;
-  padding: 0 0 0 calc(var(--space-unit) * 3);
+  padding: 0 0 0 calc(var(--space-unit) * 2);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1152,7 +1152,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 }
 
 .bip-mismatch-proposal {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1161,8 +1161,8 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
 .bip-mismatch-row-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
-  margin-bottom: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .bip-mismatch-hint {
@@ -1177,7 +1177,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);
 }
 

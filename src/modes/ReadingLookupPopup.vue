@@ -196,7 +196,7 @@ onBeforeUnmount(() => {
   position: absolute;
   /* aura-allow-z-index: the popup floats over the reading page and the absolutely placed mark chips (z-index 1). */
   z-index: 2;
-  inline-size: min(calc(var(--space-unit) * 100), 100%);
+  inline-size: min(calc(var(--space-unit) * 57), 100%);
   overflow: auto;
   padding: var(--space-panel-block) var(--space-panel-inline);
   background: var(--color-surface);

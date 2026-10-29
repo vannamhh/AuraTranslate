@@ -170,7 +170,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ti-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -226,7 +226,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ti-summary-row {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -253,7 +253,7 @@ function trapTab(event: KeyboardEvent): void {
 .ti-own {
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
@@ -281,7 +281,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ti-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 </style>

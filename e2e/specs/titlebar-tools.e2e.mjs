@@ -88,8 +88,8 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
       drag: 'deep',
       headerInset: chrome.inset,
       scrimTop: chrome.titlebarHeight,
-      titlebarHeight: '40px',
-      inset: '88px',
+      titlebarHeight: '42px',
+      inset: '91px',
     })
   })
 

@@ -146,7 +146,7 @@ function onLineHeightInput(event: Event): void {
 
 .sr-note {
   margin: var(--space-panel-block) 0 0 0;
-  padding-left: 12px;
+  padding-left: 14px;
   border-left: 2px solid var(--color-tm-rule);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);

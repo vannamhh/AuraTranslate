@@ -38,8 +38,8 @@ describe('DropdownMenu.vue', () => {
     const quiet = mount(DropdownMenu, { props: { variant: 'more', label: '⋯' } })
     expect(quiet.get('summary').classes()).toEqual(['menu-trigger', 'ui-btn', 'ui-btn--quiet'])
     quiet.unmount()
-    const cover = mount(DropdownMenu, { props: { variant: 'more', label: '⋯', triggerClass: 'ui-btn--sm ui-btn--cover-plain' } })
-    expect(cover.get('summary').classes()).toEqual(['menu-trigger', 'ui-btn', 'ui-btn--sm', 'ui-btn--cover-plain'])
+    const cover = mount(DropdownMenu, { props: { variant: 'more', label: '⋯', triggerClass: 'ui-btn--cover-plain' } })
+    expect(cover.get('summary').classes()).toEqual(['menu-trigger', 'ui-btn', 'ui-btn--cover-plain'])
     cover.unmount()
   })
 

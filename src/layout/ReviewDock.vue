@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
       <button
         v-if="reviewModeUnresolvedCount > 0"
         type="button"
-        class="review-align-link ui-btn ui-btn--quiet ui-btn--sm"
+        class="review-align-link ui-btn ui-btn--quiet"
         data-alignment-open
         data-review-align-link
         @click="dispatch('export.alignment.open')"
@@ -118,12 +118,12 @@ onBeforeUnmount(() => {
 .review-bar {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .diff-stats {
   margin: 0;
-  padding: calc(var(--space-unit) * 1) 0 calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) 0 calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -133,7 +133,7 @@ onBeforeUnmount(() => {
 
 .diff-status {
   margin: 0;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   min-height: var(--leading-ui-sm);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -143,7 +143,7 @@ onBeforeUnmount(() => {
 
 .review-footnote {
   margin: 0 0 0 auto;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

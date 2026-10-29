@@ -109,11 +109,11 @@ async function focusPicked(): Promise<void> {
 }
 
 .select-options--cols-2 {
-  columns: 2 176px;
+  columns: 2 175px;
 }
 
 .select-options--cols-3 {
-  columns: 3 176px;
+  columns: 3 175px;
 }
 
 .select-options--cols-2 .select-item,

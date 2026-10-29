@@ -377,7 +377,7 @@ function aimRow(id: number): void {
 
 .hist-panel {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1099px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -455,7 +455,7 @@ function aimRow(id: number): void {
 
 .hist-two {
   display: grid;
-  grid-template-columns: 270px 1fr;
+  grid-template-columns: 273px 1fr;
   gap: var(--space-panel-inline);
 }
 

@@ -271,7 +271,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
 
 .gi-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -327,7 +327,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
 
 .gi-summary-row {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -361,7 +361,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
 
 .gi-read-title,
 .gi-conflicts-title {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   font-weight: var(--weight-ui-md-strong, var(--weight-ui-md));
@@ -375,15 +375,15 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .gi-conflict-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
 }
 
@@ -403,7 +403,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
 
 .gi-conflict-choice {
   display: flex;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   margin-left: auto;
 }
 
@@ -417,7 +417,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
 
 .gi-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 </style>

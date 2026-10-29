@@ -188,13 +188,13 @@ function onKeydown(event: KeyboardEvent): void {
             <span v-if="row.outcome === null" class="gh-keys">
               <button
                 type="button"
-                class="gh-mini gh-mini-primary ui-btn ui-btn--sm"
+                class="gh-mini gh-mini-primary ui-btn"
                 :disabled="harvestBusy"
                 @click="dispatch('glossary.harvest.accept')"
               >
                 {{ t('glossary.harvest.accept_row') }} <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">N</kbd>
               </button>
-              <button type="button" class="gh-mini ui-btn ui-btn--sm" :disabled="harvestBusy" @click="dispatch('glossary.harvest.reject')">
+              <button type="button" class="gh-mini ui-btn" :disabled="harvestBusy" @click="dispatch('glossary.harvest.reject')">
                 {{ t('glossary.harvest.reject_row') }} <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">B</kbd>
               </button>
             </span>
@@ -252,7 +252,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gh-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -311,8 +311,8 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
   border-bottom: 1px solid var(--color-outline);
   border-left: 2px solid transparent;
   font-family: var(--face-ui-md);
@@ -367,7 +367,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gh-keys {
   display: inline-flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-left: auto;
 }
 

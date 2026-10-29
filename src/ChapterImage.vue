@@ -92,8 +92,8 @@ function onImageError(): void {
 .chapter-image-missing {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 8px;
+  gap: 7px;
+  padding: 7px 7px;
   border: 1px solid var(--color-outline-faint);
   border-radius: var(--radius-sm);
   background-color: var(--color-surface-sunken);

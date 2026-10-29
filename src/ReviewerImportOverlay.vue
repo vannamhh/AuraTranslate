@@ -244,7 +244,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ri-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -300,7 +300,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ri-summary-row {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -353,7 +353,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ri-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 </style>

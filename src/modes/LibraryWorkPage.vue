@@ -1032,7 +1032,7 @@ onBeforeUnmount(() => {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1056,8 +1056,8 @@ onBeforeUnmount(() => {
 
 .wp-head {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 300px;
-  gap: calc(var(--space-unit) * 5);
+  grid-template-columns: 70px minmax(0, 1fr) 301px;
+  gap: calc(var(--space-unit) * 3);
   align-items: start;
   padding-bottom: var(--space-panel-block);
   border-bottom: 1px solid var(--color-outline);
@@ -1067,7 +1067,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 96px;
+  height: 98px;
   border-radius: 4px;
   background: var(--color-surface-accent);
   color: var(--color-primary);
@@ -1090,7 +1090,7 @@ onBeforeUnmount(() => {
 }
 
 .wp-sub {
-  margin: 0 0 calc(var(--space-unit) * 3) 0;
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1103,7 +1103,7 @@ onBeforeUnmount(() => {
 
 .wp-track {
   display: flex;
-  height: 6px;
+  height: 7px;
   overflow: hidden;
   border-radius: 3px;
   background: var(--color-surface-sunken);
@@ -1129,15 +1129,15 @@ onBeforeUnmount(() => {
 .wp-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 4);
-  margin-top: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 2);
+  margin-top: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
 }
 
 .wp-status {
-  padding-left: calc(var(--space-unit) * 4);
+  padding-left: calc(var(--space-unit) * 2);
   border-left: 1px solid var(--color-outline);
 }
 
@@ -1152,7 +1152,7 @@ onBeforeUnmount(() => {
 .wp-status-value {
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin: 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
@@ -1160,7 +1160,7 @@ onBeforeUnmount(() => {
 }
 
 .wp-badge {
-  padding: 0 calc(var(--space-unit) * 2);
+  padding: 0 calc(var(--space-unit) * 1);
   border-radius: 2px;
   background: var(--color-surface-accent);
   color: var(--color-primary);
@@ -1189,21 +1189,21 @@ onBeforeUnmount(() => {
 .wp-status-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: calc(var(--space-unit) * 2);
+  gap: 7px;
+  margin-top: calc(var(--space-unit) * 1);
 }
 
 .wp-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 2) 0;
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) 0;
   border-bottom: 1px solid var(--color-outline);
 }
 
 .wp-search {
-  min-width: 200px;
+  min-width: 203px;
 }
 
 .wp-seg-label {
@@ -1219,7 +1219,7 @@ onBeforeUnmount(() => {
 .wp-sort {
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-left: auto;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1230,7 +1230,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .wp-sel-count {
@@ -1249,20 +1249,20 @@ onBeforeUnmount(() => {
 .wp-status-menu {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .wp-rename {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 8px;
+  gap: 7px;
 }
 
 .wp-rename-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
@@ -1272,27 +1272,27 @@ onBeforeUnmount(() => {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  min-height: 520px;
+  min-height: 518px;
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   background: var(--color-surface);
 }
 
 .wp-body--with-panel {
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 322px;
 }
 
 .chapters-block {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
   min-width: 0;
-  padding: calc(var(--space-unit) * 2) 0 calc(var(--space-unit) * 2) 0;
+  padding: calc(var(--space-unit) * 1) 0 calc(var(--space-unit) * 1) 0;
 }
 
 .chapters-block > .status,
 .chapters-block > .wp-foot {
-  padding: 0 calc(var(--space-unit) * 4);
+  padding: 0 calc(var(--space-unit) * 2);
 }
 
 /* `max-height` must match VIEWPORT_HEIGHT_PX: `@scroll` only fires when the element scrolls. */
@@ -1300,7 +1300,7 @@ onBeforeUnmount(() => {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 440px;
+  max-height: 441px;
   overflow-y: auto;
   background: var(--color-surface);
   border-top: 1px solid var(--color-outline-faint);
@@ -1319,11 +1319,11 @@ onBeforeUnmount(() => {
 
 .wp-item {
   box-sizing: border-box;
-  height: 44px;
+  height: 42px;
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
-  padding: 0 calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
+  padding: 0 calc(var(--space-unit) * 2);
   border-bottom: 1px solid var(--color-outline-faint);
 }
 
@@ -1331,7 +1331,7 @@ onBeforeUnmount(() => {
 .wp-group {
   position: sticky;
   top: 0;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   background: var(--color-background);
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -1362,12 +1362,12 @@ onBeforeUnmount(() => {
 
 .chapter-row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 170px 96px 128px 140px;
-  column-gap: calc(var(--space-unit) * 3);
+  grid-template-columns: 42px minmax(0, 1fr) 168px 98px 126px 140px;
+  column-gap: calc(var(--space-unit) * 2);
   cursor: default;
   user-select: none;
   border-left: 3px solid transparent;
-  padding-left: calc(var(--space-unit) * 3);
+  padding-left: calc(var(--space-unit) * 2);
 }
 
 .chapter-row--in_progress {
@@ -1388,7 +1388,7 @@ onBeforeUnmount(() => {
 }
 
 .chapter-ord {
-  padding-right: calc(var(--space-unit) * 3);
+  padding-right: calc(var(--space-unit) * 2);
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
@@ -1399,7 +1399,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .chapter-title {
@@ -1414,7 +1414,7 @@ onBeforeUnmount(() => {
 .chapter-mini {
   display: block;
   flex: none;
-  width: 48px;
+  width: 49px;
   height: 3px;
   overflow: hidden;
   border-radius: 2px;
@@ -1444,7 +1444,7 @@ onBeforeUnmount(() => {
 }
 
 .chapter-chip {
-  padding: 0 calc(var(--space-unit) * 2);
+  padding: 0 calc(var(--space-unit) * 1);
   border-radius: 2px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -1474,8 +1474,8 @@ onBeforeUnmount(() => {
 
 .chapter-act {
   display: grid;
-  grid-template-columns: 54px 48px 28px;
-  gap: 4px;
+  grid-template-columns: 56px 49px 28px;
+  gap: 7px;
   justify-content: end;
 }
 
@@ -1493,8 +1493,8 @@ onBeforeUnmount(() => {
 .wp-card {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 4);
-  padding: calc(var(--space-unit) * 4) calc(var(--space-unit) * 5);
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
 }
 
 .wp-card-close {
@@ -1514,7 +1514,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin: calc(var(--space-unit) * 1) 0 0 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1525,7 +1525,7 @@ onBeforeUnmount(() => {
 
 .wp-note {
   margin: 0;
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border-radius: 3px;
   background: var(--color-surface-sunken);
   font-family: var(--face-ui-sm);
@@ -1537,8 +1537,8 @@ onBeforeUnmount(() => {
 .wp-sect {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
-  padding-top: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 1);
+  padding-top: calc(var(--space-unit) * 2);
   border-top: 1px solid var(--color-outline);
 }
 
@@ -1553,7 +1553,7 @@ onBeforeUnmount(() => {
 .wp-grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .wp-grid2 .ui-btn {
@@ -1574,12 +1574,12 @@ onBeforeUnmount(() => {
     top: 0;
     right: 0;
     bottom: 0;
-    width: 320px;
+    width: 322px;
     overflow-y: auto;
   }
 
   .chapter-row {
-    grid-template-columns: 44px minmax(0, 1fr) 170px 96px 140px;
+    grid-template-columns: 42px minmax(0, 1fr) 168px 98px 140px;
   }
 
   .chapter-when {
@@ -1589,7 +1589,7 @@ onBeforeUnmount(() => {
 
 @container wp (max-width: 899px) {
   .chapter-row {
-    grid-template-columns: 44px minmax(0, 1fr) 96px 140px;
+    grid-template-columns: 42px minmax(0, 1fr) 98px 140px;
   }
 
   .chapter-seg {

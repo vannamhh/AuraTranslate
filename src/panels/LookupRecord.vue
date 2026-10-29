@@ -235,9 +235,9 @@ const senseTotalKey = computed(() =>
 .lookup-source-head {
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
-  height: calc(var(--space-unit) * 8);
-  padding: 0 calc(var(--space-unit) * 2) 0 var(--space-panel-inline);
+  gap: calc(var(--space-unit) * 1);
+  height: calc(var(--space-unit) * 5);
+  padding: 0 calc(var(--space-unit) * 1) 0 var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
   background: var(--color-surface-sunken);
   border-bottom: 1px solid var(--color-outline);
@@ -298,7 +298,7 @@ const senseTotalKey = computed(() =>
  * ĐỎ, đúng thứ AD-34 tồn tại để chặn. `ornament` là màu của nét (UX-DR5), không của chữ.
  */
 .lookup-entry-headword {
-  margin: 0 0 4px 0;
+  margin: 0 0 7px 0;
   font-family: var(--face-lookup-gloss);
   font-size: var(--font-lookup-gloss);
   line-height: var(--leading-lookup-gloss);
@@ -317,7 +317,7 @@ const senseTotalKey = computed(() =>
   display: flex;
   align-items: center;
   gap: var(--space-panel-inline);
-  margin-bottom: 4px;
+  margin-bottom: 7px;
 }
 
 /*
@@ -363,7 +363,7 @@ const senseTotalKey = computed(() =>
 
 /* AC3 — "từ loại: họ read in nghiêng màu on-surface-variant" — khai token `lookup-example`. */
 .lookup-pos {
-  margin: 0 0 4px 0;
+  margin: 0 0 7px 0;
   font-family: var(--face-lookup-example);
   font-size: var(--font-lookup-example);
   font-style: var(--style-lookup-example);
@@ -386,7 +386,7 @@ const senseTotalKey = computed(() =>
  * TIÊU THỤ THỨ HAI của nó (`source-hanviet` đã đóng ở 1.16, `deferred-work.md §*Deferred from: 1-4-bo-token-mau-va-chu-hai-theme-co-kiem-tuong-phan-tu-dong (2026-08-03)*`).
  */
 .lookup-example {
-  margin: 4px 0 0 0;
+  margin: 7px 0 0 0;
   font-family: var(--face-lookup-example);
   font-size: var(--font-lookup-example);
   font-style: var(--style-lookup-example);
@@ -397,8 +397,8 @@ const senseTotalKey = computed(() =>
 
 /* AC3 — vạch trái `primary`, PHÂN BIỆT với vạch `--color-outline-faint` của khối nghĩa. */
 .lookup-citation {
-  margin: 4px 0 0 12px;
-  padding-left: 12px;
+  margin: 7px 0 0 14px;
+  padding-left: 14px;
   border-left: 2px solid var(--color-primary);
   font-family: var(--face-lookup-example);
   font-size: var(--font-lookup-example);
@@ -409,7 +409,7 @@ const senseTotalKey = computed(() =>
 }
 
 .lookup-note {
-  margin: 4px 0 0 0;
+  margin: 7px 0 0 0;
   font-family: var(--face-lookup-example);
   font-size: var(--font-lookup-example);
   font-style: var(--style-lookup-example);
@@ -431,7 +431,7 @@ const senseTotalKey = computed(() =>
 
 /* AC4 — dấu hiệu ngoại ngữ khai `ui-label`, tách biệt màu để "đánh dấu RÕ". */
 .lookup-foreign-flag {
-  margin-left: 8px;
+  margin-left: 7px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   font-weight: var(--weight-ui-label);

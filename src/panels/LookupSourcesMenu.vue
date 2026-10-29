@@ -94,7 +94,7 @@ onBeforeUnmount(() => {
     <button
       ref="trigger"
       type="button"
-      class="ui-btn ui-btn--sm sources-trigger"
+      class="ui-btn sources-trigger"
       aria-haspopup="menu"
       :aria-expanded="sourcesMenuIsOpen"
       data-sources-trigger
@@ -134,7 +134,7 @@ onBeforeUnmount(() => {
         <button
           type="button"
           tabindex="-1"
-          class="ui-icon-btn ui-icon-btn--sm"
+          class="ui-icon-btn"
           :data-source-code="row.code"
           :disabled="index === 0"
           :aria-label="t('panel.lookup.source_move_up')"
@@ -145,7 +145,7 @@ onBeforeUnmount(() => {
         <button
           type="button"
           tabindex="-1"
-          class="ui-icon-btn ui-icon-btn--sm"
+          class="ui-icon-btn"
           :data-source-code="row.code"
           :disabled="index === lastRow"
           :aria-label="t('panel.lookup.source_move_down')"
@@ -169,7 +169,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 100%;
   right: 0;
-  min-width: calc(var(--space-unit) * 56);
+  min-width: calc(var(--space-unit) * 32);
   margin-top: var(--space-unit);
   overflow-y: auto;
 }

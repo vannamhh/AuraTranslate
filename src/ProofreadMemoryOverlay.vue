@@ -225,7 +225,7 @@ function trapTab(event: KeyboardEvent): void {
   display: flex;
   flex-direction: column;
   gap: var(--space-panel-block);
-  min-width: 360px;
+  min-width: 357px;
   max-width: 560px;
   max-height: 80vh;
   padding: var(--space-panel-inline);
@@ -279,9 +279,9 @@ function trapTab(event: KeyboardEvent): void {
 .pfmem-row {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   width: 100%;
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   color: var(--color-on-surface);
@@ -323,7 +323,7 @@ function trapTab(event: KeyboardEvent): void {
 .pfmem-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 </style>

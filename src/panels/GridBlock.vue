@@ -445,7 +445,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
  * được**. Cùng luật cho `.para-end` bên dưới.
  */
 .cell {
-  padding: 4px 8px;
+  padding: var(--space-grid-cell-block) var(--space-grid-cell-inline);
   border-bottom: 1px solid var(--color-outline-faint);
   min-width: 0;
 }
@@ -470,13 +470,13 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
  * bộ e2e đếm đúng thứ đó. Một `padding-bottom` không sinh phần tử nào.
  */
 .cell.para-end {
-  padding-bottom: 16px;
+  padding-bottom: var(--space-grid-para-end);
   border-bottom-color: var(--color-outline);
 }
 
 /* Cột ① — vạch. `padding: 0` để vạch cao đúng bằng track hàng. */
 .cell-rule {
-  padding: 4px 0;
+  padding: var(--space-grid-cell-block) 0;
   border-bottom: none;
 }
 
@@ -631,7 +631,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
  * `ChapterImage.vue` — phòng khi `<figure>` tự thêm `min-width` mặc định của UA.
  */
 .grid-image {
-  margin: 4px 0;
+  margin: var(--space-grid-cell-block) 0;
   max-width: 100%;
 }
 

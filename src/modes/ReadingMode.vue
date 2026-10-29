@@ -590,7 +590,7 @@ function paragraphRuns(
     <div class="toolbar">
       <button
         type="button"
-        class="btn ui-btn ui-btn--sm"
+        class="btn ui-btn"
         data-reading-toggle-bilingual
         :aria-pressed="readingBilingual"
         @click="dispatch('reading.toggle_bilingual')"
@@ -601,7 +601,7 @@ function paragraphRuns(
       </button>
       <span class="level-group" role="group" :aria-label="t('mode.reading.level_group')">
         <span class="level-label">{{ t('mode.reading.level_group') }}</span>
-        <span class="ui-seg ui-seg--sm">
+        <span class="ui-seg">
           <button
             type="button"
             class="btn ui-seg__item"
@@ -635,7 +635,7 @@ function paragraphRuns(
       </span>
       <button
         type="button"
-        class="btn ui-btn ui-btn--sm"
+        class="btn ui-btn"
         data-reading-toggle-tuner
         :aria-pressed="readingTunerOpen"
         @click="dispatch('reading.toggle_tuner')"
@@ -644,7 +644,7 @@ function paragraphRuns(
       </button>
       <button
         type="button"
-        class="btn ui-btn ui-btn--sm"
+        class="btn ui-btn"
         data-reading-toggle-theme
         :aria-pressed="currentTheme === 'dark'"
         @click="dispatch('reading.toggle_theme')"
@@ -654,12 +654,12 @@ function paragraphRuns(
         <!-- aura-allow-text: chord display from the shortcut registry. -->
         <span v-if="chordOf('reading.toggle_theme') !== ''" class="kbd">{{ chordOf('reading.toggle_theme') }}</span>
       </button>
-      <button type="button" class="btn ui-btn ui-btn--sm" data-reading-toc :aria-expanded="readingTocOpen" @click="dispatch('reading.toc')">
+      <button type="button" class="btn ui-btn" data-reading-toc :aria-expanded="readingTocOpen" @click="dispatch('reading.toc')">
         {{ t('mode.reading.toc') }}
         <!-- aura-allow-text: chord display from the shortcut registry. -->
         <span v-if="chordOf('reading.toc') !== ''" class="kbd">{{ chordOf('reading.toc') }}</span>
       </button>
-      <button type="button" class="btn ui-btn ui-btn--sm" data-reading-marks :aria-expanded="readingMarksOpen" @click="dispatch('reading.marks')">
+      <button type="button" class="btn ui-btn" data-reading-marks :aria-expanded="readingMarksOpen" @click="dispatch('reading.marks')">
         <!-- aura-allow-text: marksButtonText is a computed that goes through t(). -->
         {{ marksButtonText }}
         <!-- aura-allow-text: chord display from the shortcut registry. -->
@@ -823,14 +823,14 @@ function paragraphRuns(
                       <button
                         type="button"
                         tabindex="-1"
-                        class="mark-affordance ui-btn ui-btn--quiet ui-btn--sm"
+                        class="mark-affordance ui-btn ui-btn--quiet"
                         :aria-disabled="segment.is_marked ? 'true' : undefined"
                         @click="dispatch('reading.mark_aimed')"
                       ><!-- aura-allow-text: cả hai nhánh đều đi qua t(). -->{{ segment.is_marked ? t('mode.reading.marked') : t('mode.reading.mark_action') }}</button>
                       <button
                         type="button"
                         tabindex="-1"
-                        class="mark-affordance ui-btn ui-btn--quiet ui-btn--sm"
+                        class="mark-affordance ui-btn ui-btn--quiet"
                         @click="dispatch('reading.open_aimed')"
                       >{{ t('mode.reading.edit_action') }}</button>
                     </span></span
@@ -926,7 +926,7 @@ function paragraphRuns(
             <span v-if="mark.is_retired" class="retired-note">{{ t('mode.reading.marks_retired') }}</span>
             <button
               type="button"
-              class="btn ui-btn ui-btn--sm"
+              class="btn ui-btn"
               :disabled="readingMarksBusy"
               @pointerdown="setReadingMarksCursor(index)"
               @focus="setReadingMarksCursor(index)"
@@ -934,7 +934,7 @@ function paragraphRuns(
             >{{ t('mode.reading.marks_row_edit') }}</button>
             <button
               type="button"
-              class="btn ui-btn ui-btn--sm"
+              class="btn ui-btn"
               :disabled="readingMarksBusy"
               @pointerdown="setReadingMarksCursor(index)"
               @focus="setReadingMarksCursor(index)"
@@ -1142,7 +1142,7 @@ function paragraphRuns(
  * vai với khung giữ chỗ ảnh thiếu ở `ChapterImage.vue`), căn giữa dưới ảnh.
  */
 .reading-figure-caption {
-  margin: 4px 0 0 0;
+  margin: 7px 0 0 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

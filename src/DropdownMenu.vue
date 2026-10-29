@@ -132,20 +132,20 @@ onBeforeUnmount(() => {
 .menu--field .menu-panel {
   right: 0;
   left: 0;
-  max-height: 240px;
+  max-height: 238px;
   overflow-y: auto;
 }
 
 .menu--field.menu--columns .menu-panel {
-  max-height: min(480px, 60vh);
+  max-height: min(483px, 60vh);
 }
 
 .menu-panel {
   position: absolute;
   top: 100%;
   right: 0;
-  min-width: 180px;
-  margin-top: 4px;
+  min-width: 182px;
+  margin-top: 7px;
   /* aura-allow-z-index: the panel must float above the grid cards below it. */
   z-index: 2;
 }

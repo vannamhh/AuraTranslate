@@ -111,7 +111,7 @@ function commitField(field: OriginField, event: Event): void {
 .chapter-origin {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 
 .chapter-origin-heading {
@@ -124,14 +124,14 @@ function commitField(field: OriginField, event: Event): void {
 
 .chapter-origin-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px 12px;
+  grid-template-columns: repeat(auto-fit, minmax(182px, 1fr));
+  gap: 7px 14px;
 }
 
 .chapter-origin-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
 }
 
 .chapter-origin-label {

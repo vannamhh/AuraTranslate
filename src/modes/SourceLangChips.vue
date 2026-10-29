@@ -45,7 +45,7 @@ const options = computed(() => sourceLangChoices().filter((o) => props.includeAu
 .lang-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
 }
 
 .lang-chip {

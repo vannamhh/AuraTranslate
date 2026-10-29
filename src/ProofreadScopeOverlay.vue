@@ -127,7 +127,7 @@ function trapTab(event: KeyboardEvent): void {
   display: flex;
   flex-direction: column;
   gap: var(--space-panel-block);
-  min-width: 320px;
+  min-width: 322px;
   padding: var(--space-panel-inline);
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
@@ -165,7 +165,7 @@ function trapTab(event: KeyboardEvent): void {
   flex-direction: column;
   align-items: flex-start;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 3);
+  padding: calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   color: var(--color-on-surface);

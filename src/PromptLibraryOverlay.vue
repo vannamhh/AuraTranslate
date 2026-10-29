@@ -952,7 +952,7 @@ async function onEscape(): Promise<void> {
 
 .pl-panel {
   width: 100%;
-  max-width: 960px;
+  max-width: 959px;
   max-height: 100%;
   overflow: auto;
   background: var(--color-surface);
@@ -1002,7 +1002,7 @@ async function onEscape(): Promise<void> {
 
 .pl-cols {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 259px 1fr;
   gap: var(--space-panel-inline);
   min-height: 0;
 }
@@ -1017,7 +1017,7 @@ async function onEscape(): Promise<void> {
 }
 
 .pl-group-h {
-  margin: calc(var(--space-unit) * 3) 0 calc(var(--space-unit) * 1) 0;
+  margin: calc(var(--space-unit) * 2) 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   text-transform: uppercase;
@@ -1044,10 +1044,10 @@ async function onEscape(): Promise<void> {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   width: 100%;
   text-align: left;
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   background: none;
   border: none;
   border-left: 2px solid transparent;
@@ -1099,7 +1099,7 @@ async function onEscape(): Promise<void> {
 }
 
 .pl-h2s {
-  margin: 0 0 calc(var(--space-unit) * 3) 0;
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1112,19 +1112,19 @@ async function onEscape(): Promise<void> {
   text-transform: uppercase;
   letter-spacing: var(--tracking-ui-label);
   color: var(--color-on-surface-variant);
-  margin: calc(var(--space-unit) * 3) 0 calc(var(--space-unit) * 2) 0;
+  margin: calc(var(--space-unit) * 2) 0 calc(var(--space-unit) * 1) 0;
   padding-bottom: calc(var(--space-unit) * 1);
   border-bottom: 1px solid var(--color-outline);
 }
 
 .pl-vars {
-  margin-bottom: calc(var(--space-unit) * 3);
+  margin-bottom: calc(var(--space-unit) * 2);
 }
 
 .pl-vrow {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   padding: calc(var(--space-unit) * 1) 0;
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
@@ -1140,7 +1140,7 @@ async function onEscape(): Promise<void> {
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-mono);
   color: var(--color-primary);
-  min-width: 200px;
+  min-width: 203px;
 }
 
 .pl-vd {
@@ -1152,15 +1152,15 @@ async function onEscape(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  margin-bottom: calc(var(--space-unit) * 2);
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .pl-rename-form {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2) var(--space-panel-inline);
-  margin-bottom: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1) var(--space-panel-inline);
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .pl-rename-form .pl-field {
@@ -1193,7 +1193,7 @@ async function onEscape(): Promise<void> {
   position: absolute;
   inset: 0;
   margin: 0;
-  padding: 6px calc(var(--space-unit) * 2); /* aura-allow-spacing: matches textarea.ui-field so mirror and textarea text coincide */
+  padding: 6px calc(var(--space-unit) * 1); /* aura-allow-spacing: matches textarea.ui-field so mirror and textarea text coincide */
   border: 1px solid transparent;
   overflow: hidden;
   scrollbar-gutter: stable;
@@ -1240,9 +1240,9 @@ async function onEscape(): Promise<void> {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   margin-bottom: var(--space-panel-block);
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
   background: var(--color-surface-sunken);
   border-bottom: 1px solid var(--color-outline);
 }
@@ -1311,7 +1311,7 @@ async function onEscape(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  margin: calc(var(--space-unit) * 3) 0;
+  margin: calc(var(--space-unit) * 2) 0;
 }
 
 .pl-export-set {
@@ -1322,7 +1322,7 @@ async function onEscape(): Promise<void> {
 
 .pl-export-files {
   margin: 0;
-  padding-left: calc(var(--space-unit) * 4);
+  padding-left: calc(var(--space-unit) * 2);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface);
@@ -1332,8 +1332,8 @@ async function onEscape(): Promise<void> {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
-  margin: 0 0 calc(var(--space-unit) * 3) 0;
+  gap: calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
   padding: 0;
   border: none;
 }
@@ -1347,14 +1347,14 @@ async function onEscape(): Promise<void> {
 }
 
 .pl-alert {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-error);
 }
 
 .pl-warn {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1362,14 +1362,14 @@ async function onEscape(): Promise<void> {
 }
 
 .pl-status {
-  margin: calc(var(--space-unit) * 2) 0 0 0;
+  margin: calc(var(--space-unit) * 1) 0 0 0;
 }
 
 .pl-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
-  margin-top: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
+  margin-top: calc(var(--space-unit) * 1);
 }
 
 .pl-hint {

@@ -423,7 +423,7 @@ function trapTab(event: KeyboardEvent): void {
 
 /* Câu "tắt ≠ gỡ" là một mệnh đề pháp lý, không một chú thích — nó mang một nét dẫn. */
 .attr-note {
-  padding-left: 12px;
+  padding-left: 14px;
   border-left: 2px solid var(--color-tm-rule);
   color: var(--color-tm-text);
 }
@@ -436,7 +436,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .attr-table th {
-  padding: 0 8px var(--space-panel-block) 0;
+  padding: 0 7px var(--space-panel-block) 0;
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -454,7 +454,7 @@ function trapTab(event: KeyboardEvent): void {
  * dòng ở ít nhất một nguồn thật, và một ô cắt bằng `ellipsis` giấu đúng nửa quan trọng.
  */
 .attr-table td {
-  padding: var(--space-panel-block) 8px var(--space-panel-block) 0;
+  padding: var(--space-panel-block) 7px var(--space-panel-block) 0;
   border-bottom: 1px solid var(--color-outline);
   vertical-align: top;
   font-family: var(--face-ui-md-wrap);
@@ -477,7 +477,7 @@ function trapTab(event: KeyboardEvent): void {
 .attr-layer,
 .attr-off {
   display: inline-block;
-  margin-left: 8px;
+  margin-left: 7px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   font-weight: var(--weight-ui-label);
@@ -490,13 +490,13 @@ function trapTab(event: KeyboardEvent): void {
 .attr-layer,
 .attr-role {
   margin-left: 0;
-  margin-right: 8px;
+  margin-right: 7px;
 }
 
 .attr-conversion,
 .attr-provenance,
 .attr-card p {
-  margin: 4px 0 0 0;
+  margin: 7px 0 0 0;
 }
 
 .attr-table td:first-child {
@@ -515,7 +515,7 @@ function trapTab(event: KeyboardEvent): void {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: var(--space-panel-block);
 }
 
@@ -533,7 +533,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .attr-error {
-  margin: 4px 0 0 0;
+  margin: 7px 0 0 0;
   color: var(--color-on-surface);
 }
 

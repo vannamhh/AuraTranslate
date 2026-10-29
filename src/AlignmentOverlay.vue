@@ -311,7 +311,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .al-panel {
   width: 100%;
-  max-width: 960px;
+  max-width: 959px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -375,7 +375,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .al-row {
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
@@ -393,7 +393,7 @@ function onKeydown(event: KeyboardEvent): void {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 3rem minmax(0, 1fr);
   align-items: baseline;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .al-cols {
@@ -407,7 +407,7 @@ function onKeydown(event: KeyboardEvent): void {
 .al-cell {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .al-cell-empty {
@@ -471,7 +471,7 @@ function onKeydown(event: KeyboardEvent): void {
 .al-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 </style>

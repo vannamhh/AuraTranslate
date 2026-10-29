@@ -103,7 +103,7 @@ function onInput(event: Event): void {
 .gs-alert,
 .gs-saved {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-left: calc(var(--space-unit) * 3);
+  padding-left: calc(var(--space-unit) * 2);
   border-left: 2px solid var(--color-error);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);

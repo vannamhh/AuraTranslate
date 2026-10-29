@@ -549,7 +549,7 @@ const libraryErrorText = computed<string | null>(() => {
           <span v-if="createdWork.images_failed > 0" class="notice live-part" data-status-library-images-failed>
             <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
             {{ t('mode.library.images_failed_warning', { count: String(createdWork.images_failed) }) }}
-            <button type="button" class="status-link ui-btn ui-btn--quiet ui-btn--sm" data-status-library-domain-log @click="dispatch('settings.privacy.open')">
+            <button type="button" class="status-link ui-btn ui-btn--quiet" data-status-library-domain-log @click="dispatch('settings.privacy.open')">
               {{ t('mode.library.preview.domain_log_view') }}
             </button>
           </span>
@@ -670,7 +670,7 @@ const libraryErrorText = computed<string | null>(() => {
     <button
       v-if="currentMode === 'workspace' && readingMarksWalkProgress !== null"
       type="button"
-      class="ui-btn ui-btn--sm"
+      class="ui-btn"
       data-reading-walk-next
       @mousedown="focusOnPointerDown($event)"
       @click="dispatch('reading.marks_walk_next')"
@@ -684,7 +684,7 @@ const libraryErrorText = computed<string | null>(() => {
     <button
       v-if="currentMode === 'workspace' && editorChapterId !== null"
       type="button"
-      class="ui-btn ui-btn--sm"
+      class="ui-btn"
       data-chapter-done
       :disabled="libraryOpenChapterIsDone || openWorkLifecycleBusy"
       @mousedown="focusOnPointerDown($event)"
@@ -694,7 +694,7 @@ const libraryErrorText = computed<string | null>(() => {
     </button>
     <button
       type="button"
-      class="ui-btn ui-btn--sm"
+      class="ui-btn"
       data-glossary-queue-open
       @mousedown="focusOnPointerDown($event)"
       @click="dispatch('glossary.queue.open')"
@@ -704,7 +704,7 @@ const libraryErrorText = computed<string | null>(() => {
     <button
       v-if="lookupHasRetreated"
       type="button"
-      class="ui-btn ui-btn--sm"
+      class="ui-btn"
       data-lookup-drawer-open
       @click="dispatch('layout.lookup_drawer_open')"
     >
@@ -770,7 +770,7 @@ const libraryErrorText = computed<string | null>(() => {
 .status-end {
   flex: 0 1 auto;
   margin-left: auto;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .info-item {
@@ -822,7 +822,7 @@ const libraryErrorText = computed<string | null>(() => {
 }
 
 .status-end > .info-item + .info-item {
-  padding-left: calc(var(--space-unit) * 3);
+  padding-left: calc(var(--space-unit) * 2);
   border-left: 1px solid var(--color-outline);
 }
 </style>

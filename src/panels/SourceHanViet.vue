@@ -1019,11 +1019,11 @@ onBeforeUnmount(() => {
  * chữ, đó là cả lý do `selfSpacing()` tồn tại.
  */
 .hv-syl + .hv-syl {
-  margin-inline-start: var(--space-unit);
+  margin-inline-start: var(--space-grid-hv-gap);
 }
 
 .hv-word + .hv-word {
-  margin-inline-start: var(--space-unit);
+  margin-inline-start: var(--space-grid-hv-gap);
 }
 
 /*
@@ -1149,11 +1149,8 @@ rt {
      đây: gạch chân là dấu cho CHỮ HÁN (base), không cho âm đọc đã có màu `on-surface-variant`
      riêng của chính nó ngay dưới. */
   text-decoration-line: none;
-  /* 🔴 Khoảng cách giữa hai ô ruby liền nhau — xem khối trên. `--space-unit` (4px) là
-     đơn vị nền của bộ token và đúng bằng con số đã đo, nên KHÔNG khai một token mới:
-     `EXPECTED_SPACING` là bảng ĐÓNG BĂNG, thêm hàng vào đó cần một mục `deviations`
-     cho một thứ mà token sẵn có đã phục vụ đúng. Khe thị giác = 2× giá trị này. */
-  padding-inline: var(--space-unit);
+  /* Gap between adjacent ruby cells; the visual gap is twice this value. */
+  padding-inline: var(--space-grid-hv-gap);
   /* 🔴 AC7 — người tiêu thụ ĐẦU TIÊN của `source-hanviet`. Năm biến, không chỉ synthesis. */
   font-family: var(--face-source-hanviet);
   font-size: var(--font-source-hanviet);

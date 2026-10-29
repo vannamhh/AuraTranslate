@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
 }
 
 .tab-chord {
-  margin-left: calc(var(--space-unit) * 2);
+  margin-left: calc(var(--space-unit) * 1);
   font-weight: var(--weight-ui-md);
 }
 

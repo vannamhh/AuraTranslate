@@ -246,7 +246,7 @@ onMounted(async () => {
 
         <div
           v-if="currentMode === 'workspace'"
-          class="layout-switch ui-seg ui-seg--sm ui-seg--icons"
+          class="layout-switch ui-seg ui-seg--icons"
           role="group"
           :aria-label="t('titlebar.layout.group')"
         >
@@ -277,7 +277,7 @@ onMounted(async () => {
         <button
           v-if="currentMode === 'library'"
           type="button"
-          class="titlebar-import ui-btn ui-btn--quiet ui-btn--sm"
+          class="titlebar-import ui-btn ui-btn--quiet"
           data-library-import-open
           @click="dispatch('library.import.open')"
         >
@@ -443,14 +443,14 @@ onMounted(async () => {
 
 .modes {
   display: flex;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .titlebar-work {
   flex: 0 1 auto;
   min-width: 0;
-  margin-left: calc(var(--space-unit) * 4);
-  padding-left: calc(var(--space-unit) * 4);
+  margin-left: calc(var(--space-unit) * 2);
+  padding-left: calc(var(--space-unit) * 2);
   border-left: 1px solid var(--color-outline);
   /* Same box as `.mode-tab`'s underline so both texts centre on one line. */
   border-bottom: 2px solid transparent;
@@ -470,9 +470,9 @@ onMounted(async () => {
 .titlebar-right {
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
   margin-left: auto;
-  padding-left: calc(var(--space-unit) * 4);
+  padding-left: calc(var(--space-unit) * 2);
 }
 
 .titlebar-status {

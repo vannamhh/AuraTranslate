@@ -118,7 +118,7 @@ onBeforeUnmount(() => registerReviewScroller('mine', null))
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-top: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -139,7 +139,7 @@ onBeforeUnmount(() => registerReviewScroller('mine', null))
 
 .review-kind,
 .review-empty {
-  margin-right: calc(var(--space-unit) * 2);
+  margin-right: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);

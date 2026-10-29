@@ -252,7 +252,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
               -->
               <button
                 type="button"
-                class="sc-key ui-btn ui-btn--sm"
+                class="sc-key ui-btn"
                 data-key-cell
                 :class="{ 'sc-key-armed': captureIsArmed && aimedShortcutRow === row.id }"
                 @click="dispatch('shortcuts.capture')"
@@ -275,13 +275,13 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
                 ⚠️ Mỗi `@click` là đúng MỘT `dispatch('<id>')` với id **literal** (Kiểm A) —
                 hàng đang nhắm đi bằng `@mousedown` ở vùng chứa, không bằng một tham số.
               -->
-              <button type="button" class="sc-act ui-btn ui-btn--quiet ui-btn--sm" @click="dispatch('shortcuts.unassign')">
+              <button type="button" class="sc-act ui-btn ui-btn--quiet" @click="dispatch('shortcuts.unassign')">
                 {{ t('shortcuts.act_unassign') }}
               </button>
               <button
                 v-if="row.overridden"
                 type="button"
-                class="sc-act ui-btn ui-btn--quiet ui-btn--sm"
+                class="sc-act ui-btn ui-btn--quiet"
                 @click="dispatch('shortcuts.reset')"
               >
                 {{ t('shortcuts.act_reset') }}
@@ -347,7 +347,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 /* Câu "một tầng" là một mệnh đề kiến trúc, không một chú thích — nó mang một nét dẫn. */
 .sc-note {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-left: 12px;
+  padding-left: 14px;
   border-left: 2px solid var(--color-tm-rule);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
@@ -361,7 +361,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
  */
 .sc-alert {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-left: 12px;
+  padding-left: 14px;
   border-left: 2px solid var(--color-error);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
@@ -377,7 +377,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 }
 
 .sc-table th {
-  padding: 0 8px var(--space-panel-block) 0;
+  padding: 0 7px var(--space-panel-block) 0;
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -389,7 +389,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 }
 
 .sc-table td {
-  padding: var(--space-panel-block) 8px var(--space-panel-block) 0;
+  padding: var(--space-panel-block) 7px var(--space-panel-block) 0;
   border-bottom: 1px solid var(--color-outline);
   vertical-align: top;
   font-family: var(--face-ui-md-wrap);
@@ -408,7 +408,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
  */
 .sc-table td:first-child {
   border-left: 2px solid transparent;
-  padding-left: 8px;
+  padding-left: 7px;
 }
 
 .sc-aimed td:first-child {
@@ -442,7 +442,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
 .sc-aimed-tag {
   display: inline-block;
-  margin-left: 8px;
+  margin-left: 7px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   font-weight: var(--weight-ui-label);
@@ -457,11 +457,11 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 }
 
 .sc-act {
-  margin-right: 8px;
+  margin-right: 7px;
 }
 
 .sc-default {
-  margin-left: 4px;
+  margin-left: 7px;
 }
 
 .sc-search {

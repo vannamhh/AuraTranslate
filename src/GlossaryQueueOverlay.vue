@@ -476,7 +476,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -529,8 +529,8 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
   border-bottom: 1px solid var(--color-outline);
   border-left: 2px solid transparent;
   font-family: var(--face-ui-md);
@@ -568,14 +568,14 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-card {
   display: block;
-  padding-block: calc(var(--space-unit) * 4);
+  padding-block: calc(var(--space-unit) * 2);
 }
 
 .gq-card .gq-row-label {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .gq-card .gq-term {
@@ -593,15 +593,15 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-card-body {
-  margin-top: calc(var(--space-unit) * 3);
+  margin-top: calc(var(--space-unit) * 2);
   cursor: default;
 }
 
 .gq-guess {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
-  margin-bottom: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .gq-guess-label,
@@ -613,8 +613,8 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-ctx {
-  margin-bottom: calc(var(--space-unit) * 3);
-  padding-left: calc(var(--space-unit) * 3);
+  margin-bottom: calc(var(--space-unit) * 2);
+  padding-left: calc(var(--space-unit) * 2);
   border-left: 2px solid var(--color-outline-faint);
 }
 
@@ -626,8 +626,8 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-notrans {
-  margin-bottom: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  margin-bottom: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border-left: 2px solid var(--color-tm-rule);
   background: var(--color-surface-tm);
   font-family: var(--face-ui-md-wrap);
@@ -637,7 +637,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-subtitle {
-  margin: 0 0 calc(var(--space-unit) * 3) 0;
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
   line-height: var(--leading-ui-md-wrap);
@@ -678,8 +678,8 @@ function onKeydown(event: KeyboardEvent): void {
 .gq-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 4);
-  margin-top: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 2);
+  margin-top: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -688,8 +688,8 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-sw {
   display: inline-block;
-  width: calc(var(--space-unit) * 2);
-  height: calc(var(--space-unit) * 2);
+  width: calc(var(--space-unit) * 1);
+  height: calc(var(--space-unit) * 1);
   margin-right: calc(var(--space-unit) * 1);
 }
 
@@ -716,7 +716,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-stop,
 .gq-footer {
-  margin: calc(var(--space-unit) * 3) 0 0 0;
+  margin: calc(var(--space-unit) * 2) 0 0 0;
 }
 
 /*
@@ -807,7 +807,7 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-bottom: var(--space-panel-block);
 }
 

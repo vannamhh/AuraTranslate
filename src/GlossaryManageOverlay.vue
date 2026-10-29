@@ -651,7 +651,7 @@ function onKeydown(event: KeyboardEvent): void {
                   v-model="manageEditTranslation"
                   form="gm-edit-form"
                   type="text"
-                  class="gm-input gm-cell-input ui-field ui-field--sm"
+                  class="gm-input gm-cell-input ui-field"
                   autocomplete="off"
                   data-gm-edit-translation
                   :aria-label="t('glossary.manage.translation_label')"
@@ -687,7 +687,7 @@ function onKeydown(event: KeyboardEvent): void {
                   v-model="manageEditNote"
                   form="gm-edit-form"
                   type="text"
-                  class="gm-input gm-cell-input ui-field ui-field--sm"
+                  class="gm-input gm-cell-input ui-field"
                   autocomplete="off"
                   :aria-label="t('glossary.manage.note_label')"
                   :disabled="manageSaving"
@@ -894,7 +894,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-panel {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1099px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -936,7 +936,7 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
   margin-bottom: var(--space-panel-block);
 }
 
@@ -999,7 +999,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gm-list th {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   text-align: left;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1010,7 +1010,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gm-row > td {
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   vertical-align: top;
   border-bottom: 1px solid var(--color-outline);
 }
@@ -1033,14 +1033,14 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gm-row-shadowed > td:first-child {
-  padding-left: calc(var(--space-unit) * 8);
+  padding-left: calc(var(--space-unit) * 5);
 }
 
 .gm-term-flex {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .gm-cell-input {
@@ -1101,7 +1101,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-box {
   margin: 0 0 var(--space-panel-block) 0;
-  padding: calc(var(--space-unit) * 3) var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1120,7 +1120,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-foot {
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   margin-top: var(--space-panel-block);
 }
 
@@ -1231,7 +1231,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-edit-form {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
   align-items: flex-end;
   margin-bottom: var(--space-panel-block);
   padding: var(--space-panel-inline);
@@ -1241,7 +1241,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-edit-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .gm-actions {
@@ -1254,7 +1254,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-exchange {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);
   padding-top: var(--space-panel-block);
   border-top: 1px solid var(--color-outline);
@@ -1264,7 +1264,7 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   margin: 0;
   padding: 0;
   border: none;
@@ -1272,6 +1272,6 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-exchange-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 </style>

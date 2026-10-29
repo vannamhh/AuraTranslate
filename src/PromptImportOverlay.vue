@@ -273,7 +273,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 
 .pi-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -329,7 +329,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 
 .pi-summary-row {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -359,12 +359,12 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   text-transform: uppercase;
   letter-spacing: var(--tracking-ui-label);
   color: var(--color-on-surface-variant);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
 
 .pi-body {
   margin: 0 0 var(--space-panel-block) 0;
-  padding: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   font-family: var(--face-ui-mono);
@@ -396,8 +396,8 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  gap: calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   padding: 0;
   border: none;
 }
@@ -420,7 +420,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 
 .pi-conflict-choice {
   display: flex;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   margin: 0 0 var(--space-panel-block) 0;
 }
 
@@ -434,7 +434,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 
 .pi-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 </style>

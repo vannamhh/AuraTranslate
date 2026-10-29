@@ -82,7 +82,7 @@ const errorText = computed<string | null>(() =>
 
 .pfr-track {
   display: flex;
-  height: calc(var(--space-unit) * 2);
+  height: calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
   background: var(--color-background);
 }
@@ -107,6 +107,6 @@ const errorText = computed<string | null>(() =>
 .pfr-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 </style>

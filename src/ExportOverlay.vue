@@ -630,7 +630,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -670,7 +670,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-legend {
   padding: 0;
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -681,11 +681,11 @@ function trapTab(event: KeyboardEvent): void {
 .ex-choice {
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .ex-badge {
-  margin-left: calc(var(--space-unit) * 2);
+  margin-left: calc(var(--space-unit) * 1);
   padding: 0 calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-label);
@@ -729,14 +729,14 @@ function trapTab(event: KeyboardEvent): void {
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
   border-left: 2px solid var(--color-tm-rule);
-  padding-left: calc(var(--space-unit) * 2);
+  padding-left: calc(var(--space-unit) * 1);
 }
 
 .ex-folder {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin: 0 0 var(--space-panel-block) 0;
 }
 
@@ -757,7 +757,7 @@ function trapTab(event: KeyboardEvent): void {
 .ex-fields {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -784,7 +784,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-mono {
   margin: 0;
-  padding: calc(var(--space-unit) * 4);
+  padding: calc(var(--space-unit) * 2);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: var(--face-ui-md);
@@ -798,7 +798,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .ex-word {
-  padding: calc(var(--space-unit) * 4);
+  padding: calc(var(--space-unit) * 2);
   background-color: var(--color-word-page);
   border: 1px solid var(--color-word-rule);
 }
@@ -813,7 +813,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-word-table td {
   border: 1px solid var(--color-word-rule);
-  padding: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1);
   text-align: left;
   vertical-align: top;
 }

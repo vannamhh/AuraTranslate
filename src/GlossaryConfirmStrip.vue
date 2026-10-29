@@ -184,7 +184,7 @@ watch(confirmStripFocusRequest, () => {
       </span>
       <button
         type="button"
-        class="gcs-act gcs-undo ui-btn ui-btn--quiet ui-btn--sm"
+        class="gcs-act gcs-undo ui-btn ui-btn--quiet"
         :disabled="confirmStripUndoing"
         @click="dispatch('glossary.confirm.undo')"
       >
@@ -253,7 +253,7 @@ watch(confirmStripFocusRequest, () => {
           ref="translationInputEl"
           v-model="confirmStripTranslationInput"
           type="text"
-          class="gcs-input ui-field ui-field--sm"
+          class="gcs-input ui-field"
           autocomplete="off"
           :placeholder="t('glossary.confirm.type_other_placeholder')"
           :aria-describedby="statusMessageId"
@@ -284,8 +284,8 @@ watch(confirmStripFocusRequest, () => {
       </p>
 
       <div class="gcs-row gcs-actions">
-        <button type="submit" class="gcs-act gcs-act-primary ui-btn ui-btn--sm ui-btn--primary">{{ t('glossary.confirm.save') }}</button>
-        <button type="button" class="gcs-act ui-btn ui-btn--sm" @click="dispatch('glossary.confirm.defer')">
+        <button type="submit" class="gcs-act gcs-act-primary ui-btn ui-btn--primary">{{ t('glossary.confirm.save') }}</button>
+        <button type="button" class="gcs-act ui-btn" @click="dispatch('glossary.confirm.defer')">
           {{ t('glossary.confirm.defer') }}
         </button>
         <span class="gcs-status">{{ t('glossary.confirm.defer_hint') }}</span>
@@ -301,7 +301,7 @@ watch(confirmStripFocusRequest, () => {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   padding: var(--space-panel-inline);
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface);
@@ -323,7 +323,7 @@ watch(confirmStripFocusRequest, () => {
 .glossary-confirm-strip {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   padding: var(--space-panel-inline);
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface);
@@ -341,7 +341,7 @@ watch(confirmStripFocusRequest, () => {
 .gcs-fieldset {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   border: none;
   margin: 0;
   padding: 0;
@@ -351,7 +351,7 @@ watch(confirmStripFocusRequest, () => {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .gcs-title {
@@ -407,7 +407,7 @@ watch(confirmStripFocusRequest, () => {
 .gcs-option {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   width: 100%;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
@@ -415,7 +415,7 @@ watch(confirmStripFocusRequest, () => {
   color: var(--color-on-surface);
   background: var(--color-background);
   border: 1px solid transparent;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   text-align: left;
   cursor: pointer;
 }
@@ -460,6 +460,6 @@ watch(confirmStripFocusRequest, () => {
 }
 
 .gcs-actions {
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 </style>

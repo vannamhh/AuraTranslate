@@ -146,10 +146,10 @@ const acceptErrorText = computed(() => {
       <!-- aura-allow-text: the user's own draft text, shown so the overwrite is an informed choice. -->
       <p class="tmf-draft">{{ tmFuzzyPendingAccept.draft }}</p>
       <div class="tmf-actions">
-        <button type="button" class="tmf-btn tmf-btn-primary ui-btn ui-btn--sm ui-btn--primary" @click="dispatch('tm.fuzzy.confirm_overwrite')">
+        <button type="button" class="tmf-btn tmf-btn-primary ui-btn ui-btn--primary" @click="dispatch('tm.fuzzy.confirm_overwrite')">
           {{ t('tm.fuzzy.overwrite_confirm') }}
         </button>
-        <button type="button" class="tmf-btn ui-btn ui-btn--sm" @click="dispatch('tm.fuzzy.hide')">
+        <button type="button" class="tmf-btn ui-btn" @click="dispatch('tm.fuzzy.hide')">
           {{ t('tm.fuzzy.overwrite_keep') }}
         </button>
       </div>
@@ -181,7 +181,7 @@ const acceptErrorText = computed(() => {
           <span class="tmf-meta-actions">
             <button
               type="button"
-              class="tmf-btn ui-btn ui-btn--sm"
+              class="tmf-btn ui-btn"
               :disabled="tmFuzzyAccepting || tmFuzzyPendingAccept !== null"
               @focus="aimTmFuzzyRow(i)"
               @mousedown="aimTmFuzzyRow(i)"
@@ -225,7 +225,7 @@ const acceptErrorText = computed(() => {
           <span class="tmf-meta-actions">
             <button
               type="button"
-              class="tmf-btn ui-btn ui-btn--sm"
+              class="tmf-btn ui-btn"
               :disabled="tmFuzzyAccepting || tmFuzzyPendingAccept !== null"
               @focus="aimTmFuzzyRow(i)"
               @mousedown="aimTmFuzzyRow(i)"
@@ -235,7 +235,7 @@ const acceptErrorText = computed(() => {
             </button>
             <button
               type="button"
-              class="tmf-btn ui-btn ui-btn--sm"
+              class="tmf-btn ui-btn"
               :aria-expanded="expanded"
               @focus="aimTmFuzzyRow(i)"
               @mousedown="aimTmFuzzyRow(i)"
@@ -266,7 +266,7 @@ const acceptErrorText = computed(() => {
 .tm-fuzzy-strip {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   padding: var(--space-panel-inline);
   border: 1px solid var(--color-control-rule);
   border-left: 3px solid var(--color-tm-rule);
@@ -287,7 +287,7 @@ const acceptErrorText = computed(() => {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .tmf-title {
@@ -326,7 +326,7 @@ const acceptErrorText = computed(() => {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   border: 1px solid transparent;
 }
 
@@ -394,12 +394,12 @@ const acceptErrorText = computed(() => {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
 }
 
 .tmf-meta-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-left: auto;
 }
 
@@ -410,6 +410,6 @@ const acceptErrorText = computed(() => {
 
 .tmf-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 </style>

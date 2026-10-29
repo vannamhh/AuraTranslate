@@ -628,7 +628,7 @@ function onKeydown(event: KeyboardEvent): void {
         <p class="tm-empty">{{ t('tm.manage.empty_tm') }}</p>
         <p class="tm-empty">
           {{ t('tm.manage.empty_import_prompt') }}
-          <button type="button" class="tm-link ui-btn ui-btn--sm ui-btn--quiet" :disabled="glossaryExchangeBusy" @click="dispatch('tm.manage.import_tmx')">
+          <button type="button" class="tm-link ui-btn ui-btn--quiet" :disabled="glossaryExchangeBusy" @click="dispatch('tm.manage.import_tmx')">
             {{ t('tm.exchange.import_tmx') }}
           </button>
         </p>
@@ -721,14 +721,14 @@ function onKeydown(event: KeyboardEvent): void {
                 </span>
                 <span role="gridcell" class="tm-row-acts tm-cell">
                   <form @submit.prevent="onRowEdit(i)">
-                    <button type="submit" class="tm-act ui-btn ui-btn--sm" :disabled="tmManageSaving || tmManageEditing">
+                    <button type="submit" class="tm-act ui-btn" :disabled="tmManageSaving || tmManageEditing">
                       {{ t('tm.manage.edit') }}
                     </button>
                   </form>
                   <form @submit.prevent="onRowDelete(i)">
                     <button
                       type="submit"
-                      class="tm-act ui-btn ui-btn--sm"
+                      class="tm-act ui-btn"
                       :class="{ 'tm-act-danger ui-btn--danger': i === tmManageCursor && tmManageDeletePending }"
                       :disabled="tmManageSaving || tmManageEditing"
                     >
@@ -999,7 +999,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-panel {
   width: 100%;
-  max-width: 880px;
+  max-width: 882px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -1042,7 +1042,7 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
   margin: 0 0 var(--space-panel-block) 0;
 }
 
@@ -1080,8 +1080,8 @@ function onKeydown(event: KeyboardEvent): void {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
-  margin: calc(var(--space-unit) * 2) 0 0 0;
+  gap: calc(var(--space-unit) * 2);
+  margin: calc(var(--space-unit) * 1) 0 0 0;
   padding: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1097,8 +1097,8 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-swatch {
   display: inline-block;
-  width: calc(var(--space-unit) * 2);
-  height: calc(var(--space-unit) * 2);
+  width: calc(var(--space-unit) * 1);
+  height: calc(var(--space-unit) * 1);
 }
 
 .tm-hnote {
@@ -1113,7 +1113,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-box {
   margin: 0 0 var(--space-panel-block) 0;
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
   border-left: 2px solid var(--color-primary);
   background: var(--color-surface-accent);
   font-family: var(--face-ui-sm);
@@ -1137,7 +1137,7 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
   margin-bottom: var(--space-panel-block);
 }
 
@@ -1222,7 +1222,7 @@ function onKeydown(event: KeyboardEvent): void {
   display: grid;
   grid-template-columns: 1fr 1fr 9rem 6rem;
   gap: var(--space-panel-inline);
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline) calc(var(--space-unit) * 2) calc(var(--space-unit) * 7);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline) calc(var(--space-unit) * 1) calc(var(--space-unit) * 4);
   align-items: start;
 }
 
@@ -1240,8 +1240,8 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline) calc(var(--space-unit) * 1) calc(var(--space-unit) * 7);
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline) calc(var(--space-unit) * 1) calc(var(--space-unit) * 4);
   background: var(--color-surface-tm);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
@@ -1262,8 +1262,8 @@ function onKeydown(event: KeyboardEvent): void {
   content: '';
   position: absolute;
   left: var(--space-panel-inline);
-  top: calc(var(--space-unit) * 2);
-  bottom: calc(var(--space-unit) * 2);
+  top: calc(var(--space-unit) * 1);
+  bottom: calc(var(--space-unit) * 1);
   width: 2px;
   background: var(--color-primary);
 }
@@ -1373,7 +1373,7 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-edit-form {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
   align-items: flex-end;
   margin-bottom: var(--space-panel-block);
   padding: var(--space-panel-inline);
@@ -1383,7 +1383,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-edit-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .tm-actions {
@@ -1395,7 +1395,7 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-exchange {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);
   padding-top: var(--space-panel-block);
   border-top: 1px solid var(--color-outline);
@@ -1405,7 +1405,7 @@ function onKeydown(event: KeyboardEvent): void {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   margin: 0;
   padding: 0;
   border: none;
@@ -1413,7 +1413,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-exchange-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .tm-hint {
@@ -1437,7 +1437,7 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-policy {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);
   padding-top: var(--space-panel-block);
   border-top: 1px solid var(--color-outline);
@@ -1445,16 +1445,16 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-policy-row {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .tm-switch-state {
-  margin-left: calc(var(--space-unit) * 2);
+  margin-left: calc(var(--space-unit) * 1);
 }
 
 .tm-mono {
   margin: 0;
-  padding: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
   overflow-x: auto;
   border: 1px solid var(--color-outline);
   background: var(--color-background);

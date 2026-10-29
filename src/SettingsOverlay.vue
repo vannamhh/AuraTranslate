@@ -938,7 +938,7 @@ function onDeleteAiConfigKey(): void {
 
 .set-panel {
   width: 100%;
-  max-width: 920px;
+  max-width: 917px;
   max-height: 100%;
   overflow: auto;
   background: var(--color-surface);
@@ -956,7 +956,7 @@ function onDeleteAiConfigKey(): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(var(--space-unit) * 3) calc(var(--space-unit) * 4);
+  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 2);
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -969,13 +969,13 @@ function onDeleteAiConfigKey(): void {
 
 .set-grid {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: 203px 1fr;
   min-height: 0;
 }
 
 .set-nav {
   border-right: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 2) 0;
+  padding: calc(var(--space-unit) * 1) 0;
 }
 
 .set-nav-form {
@@ -986,7 +986,7 @@ function onDeleteAiConfigKey(): void {
   display: block;
   width: 100%;
   text-align: left;
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   background: none;
   border: none;
   border-left: 2px solid transparent;
@@ -1002,7 +1002,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .set-main {
-  padding: calc(var(--space-unit) * 4);
+  padding: calc(var(--space-unit) * 2);
   min-width: 0;
 }
 
@@ -1014,7 +1014,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .set-h2s {
-  margin: 0 0 calc(var(--space-unit) * 3) 0;
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1036,7 +1036,7 @@ function onDeleteAiConfigKey(): void {
 
 .set-table th {
   text-align: left;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2) calc(var(--space-unit) * 1) 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 0;
   border-bottom: 1px solid var(--color-outline);
   color: var(--color-on-surface-variant);
   font-family: var(--face-ui-label);
@@ -1046,7 +1046,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .set-table td {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2) calc(var(--space-unit) * 1) 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 0;
   border-bottom: 1px solid var(--color-outline);
   color: var(--color-on-surface);
 }
@@ -1068,7 +1068,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .set-note {
-  margin: calc(var(--space-unit) * 2) 0 0 0;
+  margin: calc(var(--space-unit) * 1) 0 0 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
@@ -1078,8 +1078,8 @@ function onDeleteAiConfigKey(): void {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1119,7 +1119,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .ai-sh {
-  margin: calc(var(--space-unit) * 3) 0 calc(var(--space-unit) * 2) 0;
+  margin: calc(var(--space-unit) * 2) 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   font-weight: var(--weight-ui-label);
@@ -1139,7 +1139,7 @@ function onDeleteAiConfigKey(): void {
 .ai-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .ai-pill-form {
@@ -1149,8 +1149,8 @@ function onDeleteAiConfigKey(): void {
 .ai-preset-confirm {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 2);
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1168,28 +1168,28 @@ function onDeleteAiConfigKey(): void {
 }
 
 .ai-preset-confirm-list {
-  padding-left: calc(var(--space-unit) * 4);
+  padding-left: calc(var(--space-unit) * 2);
   word-break: break-all;
 }
 
 .ai-preset-confirm-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .ai-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
-  margin-top: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
+  margin-top: calc(var(--space-unit) * 2);
 }
 
 .ai-field {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 2) 0;
+  padding: calc(var(--space-unit) * 1) 0;
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1208,7 +1208,7 @@ function onDeleteAiConfigKey(): void {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  flex: 1 1 260px;
+  flex: 1 1 259px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   text-transform: uppercase;

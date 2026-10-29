@@ -85,7 +85,7 @@ onBeforeUnmount(() => {
     <button
       ref="trigger"
       type="button"
-      class="tools-trigger ui-btn ui-btn--sm ui-btn--quiet"
+      class="tools-trigger ui-btn ui-btn--quiet"
       aria-haspopup="menu"
       :aria-expanded="toolsMenuIsOpen"
       :disabled="attributionIsOpen"
@@ -224,7 +224,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 100%;
   right: 0;
-  min-width: calc(var(--space-unit) * 56);
+  min-width: calc(var(--space-unit) * 32);
 }
 
 .tools-item {
@@ -233,7 +233,7 @@ onBeforeUnmount(() => {
 
 .tools-alert {
   margin: 0;
-  padding: var(--space-unit) calc(var(--space-unit) * 3);
+  padding: var(--space-unit) calc(var(--space-unit) * 2);
   color: var(--color-error);
 }
 

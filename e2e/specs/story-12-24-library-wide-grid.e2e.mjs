@@ -319,7 +319,7 @@ describe('Story 12-24: Library theo mockup lưới rộng', () => {
     expect(m.ratio).toBeGreaterThanOrEqual(1.66 - 0.01)
     expect(m.lines).toBe(3)
     expect(m.clipped).toBe(true)
-    expect(m.coverHeight).toBe(136)
+    expect(m.coverHeight).toBe(133)
     expect(m.nameBottom).toBeLessThanOrEqual(m.goTop)
     expect(m.goBottom).toBeLessThanOrEqual(m.coverBottom)
   })

@@ -197,7 +197,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
       <span class="search-chip">{{ sortLabel() }}</span>
       <template v-if="librarySearchWorkId !== null">
         <span class="search-chip search-chip--on">{{ t('mode.library.search_chip_work_only') }}</span>
-        <button type="button" class="btn ui-btn ui-btn--sm" data-library-search-work-clear @click="dispatch('library.search')">
+        <button type="button" class="btn ui-btn" data-library-search-work-clear @click="dispatch('library.search')">
           {{ t('mode.library.search_chip_work_clear') }}
         </button>
       </template>
@@ -227,7 +227,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
     <div v-if="librarySearchVisibleHits.length > 0" class="grid-nav">
       <button
         type="button"
-        class="btn ui-icon-btn ui-icon-btn--sm"
+        class="btn ui-icon-btn"
         data-library-search-prev
         :aria-label="t('mode.library.search_prev')"
         @click="dispatch('library.search_prev')"
@@ -242,7 +242,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
       }}</span>
       <button
         type="button"
-        class="btn ui-icon-btn ui-icon-btn--sm"
+        class="btn ui-icon-btn"
         data-library-search-next
         :aria-label="t('mode.library.search_next')"
         @click="dispatch('library.search_next')"
@@ -312,7 +312,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
             <div class="hit-actions">
               <button
                 type="button"
-                class="btn ui-btn ui-btn--sm"
+                class="btn ui-btn"
                 data-library-search-open
                 @pointerdown="setLibrarySearchCursor(groupOffsets[groupIndex] + hitIndex)"
                 @focus="setLibrarySearchCursor(groupOffsets[groupIndex] + hitIndex)"
@@ -322,7 +322,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
               </button>
               <button
                 type="button"
-                class="btn ui-btn ui-btn--sm"
+                class="btn ui-btn"
                 data-library-search-open-reading
                 @pointerdown="setLibrarySearchCursor(groupOffsets[groupIndex] + hitIndex)"
                 @focus="setLibrarySearchCursor(groupOffsets[groupIndex] + hitIndex)"
@@ -337,7 +337,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
           <button
             v-if="!group.expanded && group.hits.length > SEARCH_GROUP_COLLAPSED_HITS"
             type="button"
-            class="btn ui-btn ui-btn--sm"
+            class="btn ui-btn"
             data-library-search-group-expand
             @pointerdown="selectLibrarySearchGroup(group.workId)"
             @focus="selectLibrarySearchGroup(group.workId)"
@@ -349,7 +349,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
           <button
             v-if="group.expanded"
             type="button"
-            class="btn ui-btn ui-btn--sm"
+            class="btn ui-btn"
             data-library-search-group-collapse
             @pointerdown="selectLibrarySearchGroup(group.workId)"
             @focus="selectLibrarySearchGroup(group.workId)"
@@ -364,7 +364,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
               (group.expanded || group.hits.length <= SEARCH_GROUP_COLLAPSED_HITS)
             "
             type="button"
-            class="btn ui-btn ui-btn--sm"
+            class="btn ui-btn"
             data-library-search-group-see-all
             @pointerdown="selectLibrarySearchGroup(group.workId)"
             @focus="selectLibrarySearchGroup(group.workId)"
@@ -393,14 +393,14 @@ function seeAllText(count: number, lowerBound: boolean): string {
       </p>
       <div class="sugg">
         <p v-if="librarySearchFilterActive" class="small">
-          <button type="button" class="btn ui-btn ui-btn--sm" data-library-search-clear-filters @click="dispatch('library.filter_clear')">
+          <button type="button" class="btn ui-btn" data-library-search-clear-filters @click="dispatch('library.filter_clear')">
             {{ t('mode.library.clear_filter') }}
           </button>
           {{ t('mode.library.search_empty_step_clear_filter', { total: String(librarySearchChaptersTotal) }) }}
         </p>
         <p class="small">{{ t('mode.library.search_empty_step_concordance') }}</p>
         <p class="small">
-          <button type="button" class="btn ui-btn ui-btn--sm" data-library-search-rescan @click="dispatch('library.rescan')">
+          <button type="button" class="btn ui-btn" data-library-search-rescan @click="dispatch('library.rescan')">
             {{ t('mode.library.rescan') }}
           </button>
           {{ t('mode.library.search_empty_step_rescan') }}
@@ -420,7 +420,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
 }
 
 .status {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   min-height: 1em;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -429,7 +429,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
 }
 
 .error {
-  margin: 4px 0 0;
+  margin: 7px 0 0;
   min-height: 1em;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -444,13 +444,13 @@ function seeAllText(count: number, lowerBound: boolean): string {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
 .search-summary,
 .search-chips,
 .grid-nav {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
 }
 
 .search-extent,
@@ -462,11 +462,11 @@ function seeAllText(count: number, lowerBound: boolean): string {
 }
 
 .key-hint {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
 }
 
 .search-chip {
-  padding: 4px 12px;
+  padding: 7px 14px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
@@ -483,8 +483,8 @@ function seeAllText(count: number, lowerBound: boolean): string {
 }
 
 .mode-note {
-  margin: 12px 0 0;
-  padding: 8px 12px;
+  margin: 14px 0 0;
+  padding: 7px 14px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -500,21 +500,21 @@ function seeAllText(count: number, lowerBound: boolean): string {
 
 .search-groups,
 .hit-rows {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   padding: 0;
   list-style: none;
 }
 
 .search-group {
   border-top: 1px solid var(--color-outline-faint);
-  padding-bottom: 8px;
+  padding-bottom: 7px;
 }
 
 .wk {
   display: flex;
   align-items: baseline;
-  gap: 12px;
-  padding: 12px 0 4px;
+  gap: 14px;
+  padding: 14px 0 7px;
 }
 
 .wk-title {
@@ -542,9 +542,9 @@ function seeAllText(count: number, lowerBound: boolean): string {
 .hitrow {
   position: relative;
   display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 4px 16px;
-  padding: 8px 0 8px 16px;
+  grid-template-columns: 161px 1fr;
+  gap: 7px 14px;
+  padding: 7px 0 7px 14px;
   border-bottom: 1px solid var(--color-outline-faint);
 }
 
@@ -552,8 +552,8 @@ function seeAllText(count: number, lowerBound: boolean): string {
   content: '';
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
+  top: 7px;
+  bottom: 7px;
   width: 2px;
   border-radius: 2px;
   background: var(--color-outline-faint);
@@ -599,7 +599,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
 }
 
 mark {
-  padding: 0 4px;
+  padding: 0 7px;
   border-radius: 2px;
   color: var(--color-primary);
   background: var(--color-surface-accent);
@@ -616,23 +616,23 @@ mark {
 }
 
 .group-foot {
-  margin-top: 8px;
+  margin-top: 7px;
 }
 
 .empty {
-  padding: 24px 0;
+  padding: 21px 0;
 }
 
 .rule {
-  width: 34px;
+  width: 35px;
   height: 2px;
   background: var(--color-ornament);
   border-radius: 1px;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
 .small {
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -640,6 +640,6 @@ mark {
 }
 
 .sugg {
-  margin-top: 16px;
+  margin-top: 14px;
 }
 </style>

@@ -416,7 +416,7 @@ const openSettingsLabel = computed(() =>
       <button
         v-if="promptSets.length === 0"
         type="button"
-        class="ui-btn ui-btn--sm"
+        class="ui-btn"
         data-ai-prompt-library-link
         @click="dispatch('prompt.library.open')"
       >
@@ -428,7 +428,7 @@ const openSettingsLabel = computed(() =>
         <span class="ai-panel-provider" data-ai-panel-set-none>{{ t('panel.ai_translation.prompt_set_none') }}</span>
         <button
           type="button"
-          class="ui-btn ui-btn--sm"
+          class="ui-btn"
           data-ai-prompt-set-pick
           @click="dispatch('ai.prompt_inspector.open')"
         >
@@ -437,7 +437,7 @@ const openSettingsLabel = computed(() =>
       </template>
       <button
         type="button"
-        class="ai-inspector-open ui-btn ui-btn--sm ui-btn--quiet"
+        class="ai-inspector-open ui-btn ui-btn--quiet"
         data-ai-prompt-inspector-open
         @click="dispatch('ai.prompt_inspector.open')"
       >
@@ -587,10 +587,10 @@ const openSettingsLabel = computed(() =>
         <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — chính bản dịch họ vừa gõ, không một chuỗi giao diện. -->
         <p class="ai-promote-draft">{{ editorPendingPromote.draft }}</p>
         <div class="ai-promote-confirm-acts">
-          <button type="button" class="ui-btn ui-btn--sm" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
+          <button type="button" class="ui-btn" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
             {{ t('panel.ai_translation.promote_confirm_accept') }}
           </button>
-          <button type="button" class="ui-btn ui-btn--sm" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
+          <button type="button" class="ui-btn" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
             {{ t('panel.ai_translation.promote_confirm_cancel') }}
           </button>
         </div>
@@ -603,10 +603,10 @@ const openSettingsLabel = computed(() =>
         <!-- aura-allow-text: DỮ LIỆU NGƯỜI DÙNG — các bản dịch họ vừa gõ, không một chuỗi giao diện. -->
         <p v-for="item in editorPendingPromoteBatch.items" :key="item.segmentId" class="ai-promote-draft">{{ item.draft }}</p>
         <div class="ai-promote-confirm-acts">
-          <button type="button" class="ui-btn ui-btn--sm" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
+          <button type="button" class="ui-btn" data-ai-translate-promote-confirm @click="dispatch('ai.translate.confirm_promote')">
             {{ t('panel.ai_translation.promote_confirm_accept') }}
           </button>
-          <button type="button" class="ui-btn ui-btn--sm" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
+          <button type="button" class="ui-btn" data-ai-translate-promote-cancel @click="dispatch('ai.translate.cancel_promote')">
             {{ t('panel.ai_translation.promote_confirm_cancel') }}
           </button>
         </div>
@@ -673,7 +673,7 @@ const openSettingsLabel = computed(() =>
         <button
           v-if="segmentSelectionCount > 0"
           type="button"
-          class="ui-btn ui-btn--sm ui-btn--quiet"
+          class="ui-btn ui-btn--quiet"
           data-ai-selection-clear
           @click="dispatch('segment.selection.clear')"
         >
@@ -820,7 +820,7 @@ const openSettingsLabel = computed(() =>
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   margin-bottom: var(--space-panel-block);
 }
 
@@ -887,7 +887,7 @@ const openSettingsLabel = computed(() =>
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .ai-translate-hint,
@@ -925,22 +925,22 @@ const openSettingsLabel = computed(() =>
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 2);
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-default);
 }
 
 .ai-result-card .ai-translate-usage {
-  padding-top: calc(var(--space-unit) * 2);
+  padding-top: calc(var(--space-unit) * 1);
   border-top: 1px solid var(--color-outline);
 }
 
 .ai-group-label {
   flex: none;
   margin: calc(var(--space-unit) * 1) 0 0;
-  padding-top: calc(var(--space-unit) * 3);
+  padding-top: calc(var(--space-unit) * 2);
   border-top: 1px solid var(--color-outline-faint);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -964,11 +964,11 @@ const openSettingsLabel = computed(() =>
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .ai-batch-rows {
-  max-height: calc(var(--space-unit) * 40);
+  max-height: calc(var(--space-unit) * 23);
   overflow-y: auto;
   margin: 0;
   padding: 0;
@@ -981,7 +981,7 @@ const openSettingsLabel = computed(() =>
 .ai-batch-row {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -991,7 +991,7 @@ const openSettingsLabel = computed(() =>
 .ai-batch-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .ai-batch-error {

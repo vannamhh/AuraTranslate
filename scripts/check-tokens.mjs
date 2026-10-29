@@ -35,7 +35,7 @@
  *           `App.vue:37-38` là bằng chứng có sẵn trong cây nguồn lúc story bắt đầu.
  *   C (AC3) tương phản WCAG 2.x cho MỌI cặp đã khai, cả hai theme. Kèm kiểm ĐẦY ĐỦ.
  *   D (AC4) MỌI `opacity` trung gian trong `src/**`, có miễn trừ có tên.
- *   E (AC5) sàn giãn dòng 1.66 cho token `wraps: true`.
+ *   E (AC5) giãn dòng bội 7px (trừ bốn token thân lưới) và sàn 1.6 cho token `wraps: true`.
  *   F (AC7) không bóng đổ, không gradient, không lớp nổi.
  *   G (AC6) hai theme phải khai HAI cơ chế phân tách panel khác nhau.
  *
@@ -224,10 +224,10 @@ const EXPECTED_COLORS_DARK = {
 
 /** Cỡ / giãn dòng / nét / kiểu / giãn chữ — nguyên văn §Bảng token typography. */
 const EXPECTED_TYPOGRAPHY = {
-  'read-lg': { family: 'read', fontSize: '19px', lineHeight: '1.95', letterSpacing: '0.004em' },
-  'read-md': { family: 'read', fontSize: '17.5px', lineHeight: '1.8' },
-  'read-sm': { family: 'read', fontSize: '16px', lineHeight: '1.66' },
-  'read-title': { family: 'read', fontSize: '23px', lineHeight: '1.3', fontWeight: '600' },
+  'read-lg': { family: 'read', fontSize: '19px', lineHeight: '2.210526315789474', letterSpacing: '0.004em' },
+  'read-md': { family: 'read', fontSize: '17.5px', lineHeight: '2' },
+  'read-sm': { family: 'read', fontSize: '16px', lineHeight: '1.75' },
+  'read-title': { family: 'read', fontSize: '23px', lineHeight: '1.5217391304347827', fontWeight: '600' },
   'source-cjk': { family: 'read-cjk', fontSize: '16.5px', lineHeight: '2.05' },
   'source-hanviet': {
     family: 'read',
@@ -236,10 +236,10 @@ const EXPECTED_TYPOGRAPHY = {
     fontStyle: 'italic',
   },
   editor: { family: 'read', fontSize: '15px', lineHeight: '1.95' },
-  'lookup-headword': { family: 'read', fontSize: '24px', lineHeight: '1.3' },
-  'lookup-gloss': { family: 'read', fontSize: '14.5px', lineHeight: '1.6' },
-  'lookup-example': { family: 'read', fontSize: '13px', lineHeight: '1.6', fontStyle: 'italic' },
-  'ui-md': { family: 'ui', fontSize: '13px', lineHeight: '1.5' },
+  'lookup-headword': { family: 'read', fontSize: '24px', lineHeight: '1.4583333333333333' },
+  'lookup-gloss': { family: 'read', fontSize: '14.5px', lineHeight: '1.9310344827586208' },
+  'lookup-example': { family: 'read', fontSize: '13px', lineHeight: '1.6153846153846154', fontStyle: 'italic' },
+  'ui-md': { family: 'ui', fontSize: '13px', lineHeight: '1.6153846153846154' },
   /*
    * ⚠️ `ui-md-strong` (Story 1.14 · AC10) CỐ Ý VẮNG MẶT ở đây.
    *
@@ -249,15 +249,15 @@ const EXPECTED_TYPOGRAPHY = {
    * phải có `question` + `reason` không rỗng. Xem lý lẽ đầy đủ ở phần `extra` của
    * `compare()`. Đừng "sửa" bằng cách thêm một hàng vào đây.
    */
-  'ui-sm': { family: 'ui', fontSize: '13px', lineHeight: '1.5' },
+  'ui-sm': { family: 'ui', fontSize: '13px', lineHeight: '1.6153846153846154' },
   'ui-label': {
     family: 'ui',
     fontSize: '13px',
-    lineHeight: '1.4',
+    lineHeight: '1.6153846153846154',
     fontWeight: '700',
     letterSpacing: '0.08em',
   },
-  'ui-mono': { family: 'mono', fontSize: '13px', lineHeight: '1.4' },
+  'ui-mono': { family: 'mono', fontSize: '13px', lineHeight: '1.6153846153846154' },
 }
 
 const EXPECTED_FAMILIES = {
@@ -268,16 +268,21 @@ const EXPECTED_FAMILIES = {
 }
 
 const EXPECTED_SPACING = {
-  unit: '4px',
-  'panel-inline': '16px',
-  'panel-block': '12px',
-  'head-height': '36px',
-  'titlebar-height': '40px',
-  'status-height': '34px',
-  'gutter-width': '22px',
+  unit: '7px',
+  'panel-inline': '14px',
+  'panel-block': '14px',
+  'head-height': '35px',
+  'titlebar-height': '42px',
+  'status-height': '35px',
+  'gutter-width': '21px',
   'read-measure-lg': '62ch',
   'read-measure-md': '68ch',
   'read-measure-sm': '76ch',
+  // DESIGN.md §Lưới 7px — Ngoại lệ: thân lưới Workspace giữ số đo cũ qua token `--space-grid-*`.
+  'grid-cell-block': '4px',
+  'grid-cell-inline': '8px',
+  'grid-para-end': '16px',
+  'grid-hv-gap': '4px',
 }
 
 const EXPECTED_ROUNDED = {
@@ -1385,48 +1390,94 @@ if (dBad === 0) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-console.log('\nKiểm E — sàn giãn dòng 1.66 cho chữ có xuống dòng (AC5)')
+console.log('\nKiểm E — giãn dòng: bội 7px và sàn 1.6 cho chữ có xuống dòng (AC5)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// 🔴 AC5 KHÔNG được cài thành "mọi token họ `read` ≥ 1.66". `read-title` và
-// `lookup-headword` đều họ `read` và đều ở 1.3 ĐÚNG ĐẶC TẢ — một cổng cài theo chữ của
-// AC5 sẽ làm hai token đúng đỏ oan, và phản ứng tự nhiên là sửa bảng token cho khớp
-// cổng: hỏng đúng chiều tệ nhất.
+// 🔴 AC5 KHÔNG được cài thành "mọi token họ `read` ≥ sàn". `read-title` và
+// `lookup-headword` đều họ `read` và là tiêu đề một dòng — không có dòng dưới để dấu `ườ`
+// chạm vào dấu `ộ`. Nên sàn áp theo cờ `wraps`, bất kể họ.
 //
-// Ranh giới thật (`DESIGN.md §Giãn dòng 1.66 là sàn cứng`) là chữ có CHẠY THÀNH ĐOẠN
-// hay không — tiêu đề một dòng không có dòng dưới để dấu `ườ` chạm vào dấu `ộ`. Nên sàn
-// áp theo cờ `wraps`, bất kể họ. Đó cũng là cách phủ được mệnh đề thứ hai của AC5.
+// DESIGN.md §Lưới 7px: giãn dòng ngoài thân lưới Workspace là bội 7px. Token lưu tỉ số không
+// đơn vị, nên cổng nhân `fontSize × lineHeight` rồi đòi kết quả cách bội 7 không quá 0,01px.
+// Bốn token thân lưới được miễn có tên và có lý do — không có danh sách tệp loại trừ.
 
-const LINE_HEIGHT_FLOOR = 1.66
-let eBad = 0
-for (const [name, t] of entriesOf(tokens.typography)) {
-  // ⚠️ Giãn dòng phải KHÔNG ĐƠN VỊ. `parseFloat('20px')` là 20, vượt sàn 1.66 trong khi
+const LINE_HEIGHT_FLOOR = 1.6
+const LEADING_GRID_PX = 7
+const LEADING_TOLERANCE_PX = 0.01
+/** Thân lưới Workspace giữ giãn dòng cũ (DESIGN.md §Lưới 7px — Ngoại lệ). */
+const LEADING_GRID_BODY_EXEMPT = new Map([
+  ['source-cjk', 'nguyên văn tiếng Trung ở thân lưới Workspace'],
+  ['source-latin', 'nguyên văn tiếng Anh ở thân lưới Workspace'],
+  ['source-hanviet', 'dòng Hán Việt ở thân lưới Workspace'],
+  ['editor', 'bản dịch trong ô đang sửa ở thân lưới Workspace'],
+])
+
+/**
+ * @param {string} name
+ * @param {{ fontSize?: unknown, lineHeight?: unknown, wraps?: unknown }} t
+ * @returns {string[]} lý do đỏ; rỗng nghĩa là xanh
+ */
+function leadingProblems(name, t) {
+  // ⚠️ Giãn dòng phải KHÔNG ĐƠN VỊ. `parseFloat('20px')` là 20, vượt sàn trong khi
   // 20px trên chữ 16px là tỉ lệ 1,25 — con số qua sàn mà chữ vẫn chật.
   const lhRaw = String(t.lineHeight)
   if (!/^\d+(?:\.\d+)?$/.test(lhRaw)) {
-    fail(`typography.${name}.lineHeight = \`${lhRaw}\` — phải là một tỉ lệ KHÔNG ĐƠN VỊ`)
-    detail('Giãn dòng có đơn vị không co theo cỡ chữ, và `parseFloat` nuốt đơn vị nên sàn 1.66 mất nghĩa.')
-    eBad += 1
-    continue
+    return [`typography.${name}.lineHeight = \`${lhRaw}\` — phải là một tỉ lệ KHÔNG ĐƠN VỊ`]
   }
   if (typeof t.wraps !== 'boolean') {
-    fail(`typography.${name} thiếu cờ \`wraps\` — không quyết được sàn giãn dòng`)
-    detail('Mọi token mới phải trả lời: chuỗi này có bao giờ dài quá một dòng không?')
-    eBad += 1
-    continue
+    return [`typography.${name} thiếu cờ \`wraps\` — không quyết được sàn giãn dòng`]
   }
-  if (!t.wraps) continue
-  if (!(parseFloat(lhRaw) >= LINE_HEIGHT_FLOOR)) {
-    fail(`typography.${name} — \`wraps: true\` nhưng lineHeight ${lhRaw} < ${LINE_HEIGHT_FLOOR}`)
-    eBad += 1
+  /** @type {string[]} */
+  const out = []
+  const lh = parseFloat(lhRaw)
+  if (t.wraps && !(lh >= LINE_HEIGHT_FLOOR)) {
+    out.push(`typography.${name} — \`wraps: true\` nhưng lineHeight ${lhRaw} < ${LINE_HEIGHT_FLOOR}`)
   }
+  const fs = parseFloat(String(t.fontSize))
+  if (!LEADING_GRID_BODY_EXEMPT.has(name) && Number.isFinite(fs)) {
+    const px = fs * lh
+    const nearest = LEADING_GRID_PX * Math.round(px / LEADING_GRID_PX)
+    if (Math.abs(px - nearest) > LEADING_TOLERANCE_PX) {
+      out.push(`typography.${name} — ${fs}px × ${lhRaw} = ${px.toFixed(3)}px, không phải bội ${LEADING_GRID_PX} (gần nhất ${nearest}px)`)
+    }
+  }
+  return out
+}
+
+let eBad = 0
+for (const [name, t] of entriesOf(tokens.typography)) {
+  const problems = leadingProblems(name, t)
+  for (const m of problems) fail(m)
+  eBad += problems.length
 }
 if (eBad === 0) {
   const wrapping = entriesOf(tokens.typography).filter(([, t]) => t.wraps)
   const single = entriesOf(tokens.typography).filter(([, t]) => !t.wraps)
   pass(`${wrapping.length} token \`wraps: true\` đều ≥ ${LINE_HEIGHT_FLOOR}, và đều không đơn vị`)
   pass(`${single.length} token nhãn một dòng được ghìm dưới sàn hợp lệ: ${single.map(([n]) => n).join(', ')}`)
+  pass(`mọi giãn dòng là bội ${LEADING_GRID_PX}px, trừ ${LEADING_GRID_BODY_EXEMPT.size} token thân lưới có tên: ${[...LEADING_GRID_BODY_EXEMPT.keys()].join(', ')}`)
 }
+
+/** @type {[string, string, { fontSize: string, lineHeight: string, wraps: boolean }, boolean][]} */
+const E_CASES = [
+  ['ui-md 13px × 21/13 — xanh', 'ui-md', { fontSize: '13px', lineHeight: String(21 / 13), wraps: false }, true],
+  ['ui-md đổi cỡ chữ mà giữ tỉ số — đỏ', 'ui-md', { fontSize: '14px', lineHeight: String(21 / 13), wraps: false }, false],
+  ['ui-md 13px × 1.5 = 19,5px — đỏ', 'ui-md', { fontSize: '13px', lineHeight: '1.5', wraps: false }, false],
+  ['wraps ở 1.59 — đỏ', 'ui-md-wrap', { fontSize: '14px', lineHeight: '1.59', wraps: true }, false],
+  ['wraps ở 1.6 trên bội 7 — xanh', 'ui-md-wrap', { fontSize: '17.5px', lineHeight: '1.6', wraps: true }, true],
+  ['source-cjk 16.5 × 2.05 miễn thân lưới — xanh', 'source-cjk', { fontSize: '16.5px', lineHeight: '2.05', wraps: true }, true],
+  ['cùng 16.5 × 2.05 ở token không miễn — đỏ', 'read-sm', { fontSize: '16.5px', lineHeight: '2.05', wraps: true }, false],
+  ['giãn dòng có đơn vị — đỏ', 'ui-md', { fontSize: '13px', lineHeight: '21px', wraps: false }, false],
+]
+let eSelfBad = 0
+for (const [name, tokenName, t, shouldPass] of E_CASES) {
+  const ok = leadingProblems(tokenName, t).length === 0
+  if (ok !== shouldPass) {
+    fail(`tự kiểm Kiểm E — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${ok ? 'XANH' : 'ĐỎ'}`)
+    eSelfBad += 1
+  }
+}
+if (eSelfBad === 0) pass(`tự kiểm Kiểm E — ${E_CASES.length} ca`)
 
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('\nKiểm F — bóng đổ chỉ từ token, không gradient, `z-index` có miễn trừ có tên')
@@ -2034,17 +2085,17 @@ for (const [name, css, shouldPass] of J_CASES) {
 if (jSelfBad === 0) pass(`tự kiểm Kiểm J — ${J_CASES.length} ca (smooth đỏ · auto xanh · comment không tính · vắng mặt xanh)`)
 
 // ═════════════════════════════════════════════════════════════════════════════════
-console.log('\nKiểm K — lưới 4px cho padding/margin/gap (deferred-work.md L6724)')
+console.log('\nKiểm K — lưới 7px cho khoảng cách và kích thước cố định (DESIGN.md §Lưới 7px)')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
 // Mọi giá trị `padding`/`margin`/`gap` (kể cả các biến thể theo cạnh) phải là một token
-// khoảng cách (`var(--space-*)`) hoặc một bội số NGUYÊN của `--space-unit` (4px, đã kiểm
-// ở Kiểm A qua `EXPECTED_SPACING.unit`). Một giá trị lẻ (`7px`, `calc(var(--space-unit) *
+// khoảng cách (`var(--space-*)`) hoặc một bội số NGUYÊN của `--space-unit` (7px, đã kiểm
+// ở Kiểm A qua `EXPECTED_SPACING.unit`). Một giá trị lẻ (`8px`, `calc(var(--space-unit) *
 // 2.75)`) là ĐỎ — trừ khi nó chỉ bù đúng một bề dày viền và mang miễn trừ có tên
 // `/* aura-allow-spacing: <lý do> */` trong phạm vi một dòng (cùng khuôn `exemptAt` mà
 // Kiểm D/F/H đã dùng).
 
-const SPACE_UNIT_PX = 4 // `tokens.json` → `spacing.unit` = "4px", đã đối chiếu ở Kiểm A.
+const SPACE_UNIT_PX = 7 // `tokens.json` → `spacing.unit` = "7px", đã đối chiếu ở Kiểm A.
 const GRID_PROPS = new Set([
   'padding',
   'padding-top',
@@ -2060,6 +2111,29 @@ const GRID_PROPS = new Set([
   'row-gap',
   'column-gap',
 ])
+/**
+ * Thuộc tính kích thước: chỉ xét số `px`, kể cả bên trong `min()`/`minmax()`/`repeat()`;
+ * `%` `fr` `vh` `ch` `em` `auto` `fit-content` `var()` cho qua. 0–3px là bề dày nét nên hợp lệ.
+ */
+const SIZE_PROPS = new Set([
+  'height',
+  'min-height',
+  'max-height',
+  'width',
+  'min-width',
+  'max-width',
+  'flex-basis',
+  'grid-template-columns',
+  'grid-template-rows',
+  'grid-auto-rows',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'inset',
+])
+const STROKE_PX_MAX = 3
+const SIZE_PX_RE = /(?<![\w.])-?(?:\d+\.?\d*|\.\d+)px/g
 const GRID_KEYWORDS = new Set(['auto', 'inherit', 'initial', 'unset', 'revert', 'revert-layer', 'normal'])
 const SPACE_VAR_TOKEN_RE = /^var\(\s*--space-[a-z0-9-]+\s*(?:,[\s\S]*)?\)$/i
 const NEG_SPACE_VAR_RE = /^calc\(\s*-1\s*\*\s*var\(\s*--space-[a-z0-9-]+\s*\)\s*\)$/i
@@ -2092,7 +2166,7 @@ function splitTopLevelSpace(value) {
 }
 
 /**
- * Một token đơn (sau khi tách shorthand) có nằm trên lưới 4px không.
+ * Một token đơn (sau khi tách shorthand) có nằm trên lưới 7px không.
  * Cú pháp không nhận ra được (`%`, `calc()` hình dạng khác, `var()` không phải `--space-*`)
  * ⇒ ĐỎ — cú pháp lạ không được coi là xanh mặc định (`scripts/AGENTS.md`).
  * @param {string} tok
@@ -2111,25 +2185,61 @@ function isOnGridToken(tok) {
   return false
 }
 
+/**
+ * Các số `px` lệch lưới trong giá trị của một thuộc tính kích thước.
+ * @param {string} value
+ * @returns {string[]}
+ */
+function offGridSizePx(value) {
+  return (value.match(SIZE_PX_RE) ?? []).filter((m) => {
+    const n = Math.abs(parseFloat(m))
+    return n > STROKE_PX_MAX && !Number.isInteger(n / SPACE_UNIT_PX)
+  })
+}
+
+/**
+ * @param {number} n
+ * @returns {number}
+ */
+function nearestMultipleOfUnit(n) {
+  return SPACE_UNIT_PX * Math.round(n / SPACE_UNIT_PX)
+}
+
+/**
+ * Phán quyết của một khai báo: các token lệch lưới 7px; rỗng nghĩa là xanh.
+ * @param {string} prop
+ * @param {string} value
+ * @returns {string[]}
+ */
+function declOffGrid(prop, value) {
+  if (SIZE_PROPS.has(prop)) return offGridSizePx(value)
+  if (GRID_PROPS.has(prop)) return splitTopLevelSpace(value).filter((t) => !isOnGridToken(t))
+  return []
+}
+
 let kChecked = 0
 let kBad = 0
 let kExempted = 0
 for (const p of parsed) {
   for (const b of p.blocks) {
     for (const d of b.decls) {
-      if (!GRID_PROPS.has(d.prop)) continue
+      const isSize = SIZE_PROPS.has(d.prop)
+      if (!isSize && !GRID_PROPS.has(d.prop)) continue
       const value = stripImportant(d.value)
-      const toks = splitTopLevelSpace(value)
-      if (toks.length === 0) continue
+      if (!isSize && splitTopLevelSpace(value).length === 0) continue
       kChecked += 1
-      const offGrid = toks.filter((t) => !isOnGridToken(t))
+      const offGrid = declOffGrid(d.prop, value)
       if (offGrid.length === 0) continue
       if (exemptAt(p, d.index, 'spacing')) {
         kExempted += 1
         continue
       }
-      fail(`${where({ ...d, file: p.file, text: p.text })} — \`${d.prop}: ${d.value}\` lệch lưới 4px — \`${offGrid.join(', ')}\``)
-      detail('Làm tròn tới bội số 4 gần nhất (hoà làm tròn lên), hoặc dùng một token `var(--space-*)`.')
+      fail(`${where({ ...d, file: p.file, text: p.text })} — \`${d.prop}: ${d.value}\` lệch lưới 7px — \`${offGrid.join(', ')}\``)
+      detail(
+        isSize
+          ? `Bội 7 gần nhất: ${offGrid.map((t) => `${nearestMultipleOfUnit(parseFloat(t))}px`).join(', ')}. Bề dày nét 0–${STROKE_PX_MAX}px không cần miễn trừ.`
+          : 'Làm tròn tới bội số 7 gần nhất (hoà làm tròn lên), hoặc dùng một token `var(--space-*)`.',
+      )
       detail('Nếu đây chỉ bù đúng một bề dày viền: thêm `/* aura-allow-spacing: <lý do> */` ngay trên khai báo.')
       kBad += 1
     }
@@ -2137,30 +2247,52 @@ for (const p of parsed) {
 }
 if (kBad === 0) {
   pass(
-    `${kChecked} khai báo \`padding\`/\`margin\`/\`gap\` (kể cả biến thể theo cạnh) đều trên lưới 4px` +
+    `${kChecked} khai báo khoảng cách (\`padding\`/\`margin\`/\`gap\`, kể cả biến thể theo cạnh) và kích thước (${SIZE_PROPS.size} thuộc tính) đều trên lưới 7px` +
       (kExempted ? ` (${kExempted} miễn trừ có tên)` : ''),
   )
 }
 
 // Tự kiểm K — đúng bốn hàng I/O Matrix liên quan (spec L49-50) qua ĐÚNG hàm sản xuất dùng
 // (`isOnGridToken`/`splitTopLevelSpace`), không một bản chép riêng cho tự kiểm.
-/** @type {[string, string, boolean][]} */
+/** @type {[string, string, string, boolean][]} */
 const K_CASES = [
-  ['7px lẻ lưới — đỏ', '7px', false],
-  ['calc(var(--space-unit) * 2.75) lẻ lưới — đỏ', 'calc(var(--space-unit) * 2.75)', false],
-  ['calc(var(--space-unit) * 3) đúng lưới — xanh', 'calc(var(--space-unit) * 3)', true],
-  ['var(--space-panel-inline) — xanh', 'var(--space-panel-inline)', true],
-  ['calc(-1 * var(--space-panel-inline)) — xanh', 'calc(-1 * var(--space-panel-inline))', true],
-  ['calc(-1 * var(--radius-default)) không phải token khoảng cách — đỏ', 'calc(-1 * var(--radius-default))', false],
-  ['calc(-2 * var(--space-panel-inline)) hình dạng khác — đỏ', 'calc(-2 * var(--space-panel-inline))', false],
-  ['12px (bội số 4) — xanh', '12px', true],
-  ['0 — xanh', '0', true],
-  ['8px 12px (shorthand, cả hai đúng lưới) — xanh', '8px 12px', true],
-  ['8px 7px (shorthand, một cạnh lệch) — đỏ', '8px 7px', false],
+  ['8px lẻ lưới — đỏ', 'padding', '8px', false],
+  ['calc(var(--space-unit) * 2.75) lẻ lưới — đỏ', 'padding', 'calc(var(--space-unit) * 2.75)', false],
+  ['calc(var(--space-unit) * 3) đúng lưới — xanh', 'padding', 'calc(var(--space-unit) * 3)', true],
+  ['var(--space-panel-inline) — xanh', 'padding', 'var(--space-panel-inline)', true],
+  ['calc(-1 * var(--space-panel-inline)) — xanh', 'padding', 'calc(-1 * var(--space-panel-inline))', true],
+  ['calc(-1 * var(--radius-default)) không phải token khoảng cách — đỏ', 'padding', 'calc(-1 * var(--radius-default))', false],
+  ['calc(-2 * var(--space-panel-inline)) hình dạng khác — đỏ', 'padding', 'calc(-2 * var(--space-panel-inline))', false],
+  ['14px (bội số 7) — xanh', 'padding', '14px', true],
+  ['0 — xanh', 'padding', '0', true],
+  ['7px 14px (shorthand, cả hai đúng lưới) — xanh', 'padding', '7px 14px', true],
+  ['7px 8px (shorthand, một cạnh lệch) — đỏ', 'padding', '7px 8px', false],
+  ['4px của lưới cũ — đỏ', 'padding', '4px', false],
 ]
 let kSelfBad = 0
-for (const [name, value, shouldPass] of K_CASES) {
-  const ok = splitTopLevelSpace(value).every(isOnGridToken)
+for (const [name, prop, value, shouldPass] of K_CASES) {
+  const ok = declOffGrid(prop, value).length === 0
+  if (ok !== shouldPass) {
+    fail(`tự kiểm Kiểm K — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${ok ? 'XANH' : 'ĐỎ'}`)
+    kSelfBad += 1
+  }
+}
+/** @type {[string, string, string, boolean][]} */
+const K_SIZE_CASES = [
+  ['width: 200px — đỏ', 'width', '200px', false],
+  ['width: 203px — xanh', 'width', '203px', true],
+  ['height: 4px — đỏ', 'height', '4px', false],
+  ['height: 1px — xanh', 'height', '1px', true],
+  ['grid-template-columns: 300px 1fr — đỏ', 'grid-template-columns', '300px 1fr', false],
+  ['grid-template-columns: minmax(0, 1fr) 301px — xanh', 'grid-template-columns', 'minmax(0, 1fr) 301px', true],
+  ['calc(100% - 30px) — đỏ', 'width', 'calc(100% - 30px)', false],
+  ['min(100%, 280px) — xanh', 'max-width', 'min(100%, 280px)', true],
+  ['% fr vh ch em auto fit-content var() — xanh', 'min-width', '50% 1fr 100vh 24ch 8.5em auto fit-content var(--x)', true],
+  ['-1px (bề dày nét) — xanh', 'top', '-1px', true],
+  ['top: -10px — đỏ', 'top', '-10px', false],
+]
+for (const [name, prop, value, shouldPass] of K_SIZE_CASES) {
+  const ok = declOffGrid(prop, value).length === 0
   if (ok !== shouldPass) {
     fail(`tự kiểm Kiểm K — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${ok ? 'XANH' : 'ĐỎ'}`)
     kSelfBad += 1
@@ -2181,7 +2313,7 @@ for (const [name, text, shouldExempt] of K_EXEMPT_CASES) {
     kSelfBad += 1
   }
 }
-if (kSelfBad === 0) pass(`tự kiểm Kiểm K — ${K_CASES.length + K_EXEMPT_CASES.length} ca`)
+if (kSelfBad === 0) pass(`tự kiểm Kiểm K — ${K_CASES.length + K_SIZE_CASES.length + K_EXEMPT_CASES.length} ca`)
 
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('')
@@ -2204,14 +2336,12 @@ console.log('     minh khe 2px hiện ra đúng trên màn hình.')
 console.log('  2. Kiểm C kiểm DANH SÁCH ĐÃ KHAI, không phải những cặp tình cờ tồn tại trong mã.')
 console.log('     Khi Story 1.14 dựng panel thật, cặp mới phải được thêm vào `contrast.pairs` —')
 console.log('     phép kiểm đầy đủ (C1) là thứ bắt việc quên thêm.')
-console.log('  3. CHÍN deviation khỏi bảng DESIGN.md đang được áp — ba cái Ice PHÊ CHUẨN 2026-08-03,')
-console.log('     cái thứ tư (`typography.ui-md-strong`, token NGOÀI bảng) là Story 1.14 · AC10,')
-console.log('     cái thứ năm (`typography.source-latin`, token NGOÀI bảng) là Story 1.16 · QĐ #6,')
-console.log('     cái thứ sáu (`typography.ui-md-wrap`, token NGOÀI bảng) là Story 1.17 · QĐ #7,')
-console.log('     hai cái tiếp (`source-hanviet.fontSize` 12,5→14,5px · `.fontStyle` nghiêng→thường)')
-console.log('     là Ice chốt trực tiếp 2026-08-07 — âm Hán Việt quá nhỏ và khó đọc khi in nghiêng,')
-console.log('     cái thứ chín (`typography.ui-sm-italic`, token NGOÀI bảng) là ô xuất xứ Chương')
-console.log('     rỗng — token nghiêng thật, thay cho việc mượn `lookup-example`.')
+console.log('  3. MƯỜI deviation khỏi bảng DESIGN.md đang được áp: `spacing.traffic-light-inset`,')
+console.log('     `typography.ui-md-strong` (Story 1.14 · AC10), `colors.dark.surface-accent` (Ice phê chuẩn')
+console.log('     2026-08-03), `typography.source-latin` (Story 1.16 · QĐ #6), `typography.ui-md-wrap`')
+console.log('     (Story 1.17 · QĐ #7), hai mục `source-hanviet` (`fontSize` 12,5→14,5px · `fontStyle`')
+console.log('     nghiêng→thường; Ice chốt 2026-08-07 vì âm Hán Việt quá nhỏ và khó đọc khi in nghiêng),')
+console.log('     `typography.ui-sm-italic` (ô xuất xứ Chương rỗng) và hai bóng `shadows.*.popover`.')
 console.log('     `DESIGN.md` chưa được sửa cho khớp — đó là một lượt riêng của Ice, không phải')
 console.log('     của dev. Xem `deviations` trong `tokens.json`.')
 console.log('  4. Cờ `wraps` là mệnh đề về NỘI DUNG sẽ chạy qua token; không phép kiểm tĩnh nào')

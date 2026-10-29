@@ -93,7 +93,7 @@ function onCloseTemplates(): void {
           <span v-if="row.exists" class="pt-badge" data-template-exists>{{ t('prompt.library.template_exists_badge') }}</span>
         </label>
         <form class="pt-inline" @submit.prevent="onPreview(row.id)">
-          <button type="submit" class="pt-act ui-btn ui-btn--sm" data-template-preview :aria-pressed="previewId === row.id">
+          <button type="submit" class="pt-act ui-btn" data-template-preview :aria-pressed="previewId === row.id">
             {{ t('prompt.library.template_preview_button') }}
           </button>
         </form>
@@ -139,7 +139,7 @@ function onCloseTemplates(): void {
 .pt-root {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   min-width: 0;
 }
 
@@ -177,7 +177,7 @@ function onCloseTemplates(): void {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   margin: 0;
   padding: 0;
   border: none;
@@ -193,7 +193,7 @@ function onCloseTemplates(): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   padding: var(--space-unit) 0;
 }
 
@@ -221,7 +221,7 @@ function onCloseTemplates(): void {
 .pt-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .pt-pre {
@@ -232,6 +232,6 @@ function onCloseTemplates(): void {
   line-height: var(--leading-ui-mono);
   color: var(--color-on-surface);
   border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1);
 }
 </style>

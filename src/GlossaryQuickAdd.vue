@@ -129,7 +129,7 @@ watch(quickAddIsOpen, (open) => {
         <input
           ref="sourceInput"
           type="text"
-          class="gqa-input ui-field ui-field--sm"
+          class="gqa-input ui-field"
           autocomplete="off"
           :disabled="quickAddSaving"
           :value="quickAddSourceTerm"
@@ -142,7 +142,7 @@ watch(quickAddIsOpen, (open) => {
         <input
           v-model="quickAddTranslation"
           type="text"
-          class="gqa-input ui-field ui-field--sm"
+          class="gqa-input ui-field"
           autocomplete="off"
           :disabled="quickAddSaving"
         />
@@ -153,7 +153,7 @@ watch(quickAddIsOpen, (open) => {
         <input
           v-model="quickAddNote"
           type="text"
-          class="gqa-input ui-field ui-field--sm"
+          class="gqa-input ui-field"
           autocomplete="off"
           :disabled="quickAddSaving"
         />
@@ -234,14 +234,14 @@ watch(quickAddIsOpen, (open) => {
     <div class="gqa-row gqa-actions">
       <button
         type="submit"
-        class="gqa-act gqa-act-primary ui-btn ui-btn--sm ui-btn--primary"
+        class="gqa-act gqa-act-primary ui-btn ui-btn--primary"
         :disabled="
           quickAddSaving || quickAddMode === 'unknown' || quickAddSourceTerm.trim() === '' || quickAddWorkTierBlocked
         "
       >
         {{ t('glossary.quick_add.save') }}
       </button>
-      <button type="button" class="gqa-act ui-btn ui-btn--sm ui-btn--quiet" @click="dispatch('glossary.close_quick_add')">
+      <button type="button" class="gqa-act ui-btn ui-btn--quiet" @click="dispatch('glossary.close_quick_add')">
         {{ t('glossary.quick_add.cancel') }}
       </button>
     </div>
@@ -259,7 +259,7 @@ watch(quickAddIsOpen, (open) => {
   display: flex;
   flex-direction: column;
   flex: none;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   padding: var(--space-panel-inline);
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface);
@@ -277,7 +277,7 @@ watch(quickAddIsOpen, (open) => {
 .gqa-row {
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .gqa-field {
@@ -298,7 +298,7 @@ watch(quickAddIsOpen, (open) => {
 
 .gqa-group {
   border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1);
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
@@ -335,7 +335,7 @@ watch(quickAddIsOpen, (open) => {
 }
 
 .gqa-actions {
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 </style>

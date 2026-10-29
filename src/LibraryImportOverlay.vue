@@ -338,7 +338,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .li-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -371,13 +371,13 @@ function trapTab(event: KeyboardEvent): void {
 .import-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -385,7 +385,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .field-group {
-  gap: 8px;
+  gap: 7px;
   border: none;
   margin: 0;
   padding: 0;
@@ -400,14 +400,14 @@ function trapTab(event: KeyboardEvent): void {
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  gap: 8px;
+  gap: 7px;
   cursor: pointer;
 }
 
 .radio-copy {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
 }
 
 .radio-title {
@@ -440,7 +440,7 @@ function trapTab(event: KeyboardEvent): void {
 .dropzone {
   border: 1px dashed var(--color-outline);
   border-radius: 4px;
-  padding: 16px;
+  padding: 14px;
   text-align: center;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -455,7 +455,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .notice {
-  margin: 4px 0 0;
+  margin: 7px 0 0;
   min-height: 1em;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -464,7 +464,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .error {
-  margin: 12px 0 0;
+  margin: 14px 0 0;
   min-height: 1em;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);

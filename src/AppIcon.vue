@@ -48,13 +48,13 @@ defineProps<{ name: AppIconName }>()
 
 <style scoped>
 .app-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   flex: none;
 }
 
 .app-icon--wide {
-  width: 18px;
+  width: 21px;
   height: 14px;
 }
 </style>

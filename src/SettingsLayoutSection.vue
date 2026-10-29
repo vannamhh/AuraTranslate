@@ -183,7 +183,7 @@ function onRenameInput(name: string, event: Event): void {
 .sl-save {
   display: flex;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin: 0;
 }
 
@@ -193,7 +193,7 @@ function onRenameInput(name: string, event: Event): void {
 
 .sl-note {
   margin: var(--space-panel-block) 0 0 0;
-  padding-left: 12px;
+  padding-left: 14px;
   border-left: 2px solid var(--color-tm-rule);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);

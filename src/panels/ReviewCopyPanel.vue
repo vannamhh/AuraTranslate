@@ -80,7 +80,7 @@ onBeforeUnmount(() => registerReviewScroller('copy', null))
 
 .review-kind,
 .review-empty {
-  margin-right: calc(var(--space-unit) * 2);
+  margin-right: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);

@@ -285,15 +285,15 @@ function onEscape(): void {
 
 .us-two {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: calc(var(--space-unit) * 5);
+  grid-template-columns: minmax(0, 1fr) 301px;
+  gap: calc(var(--space-unit) * 3);
   align-items: start;
 }
 
 .us-list {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   min-width: 0;
 }
 
@@ -308,12 +308,12 @@ function onEscape(): void {
 
 .us-paste {
   display: flex;
-  height: 260px;
+  height: 259px;
 }
 
 .us-gutter {
   margin: 0;
-  padding: 7px 8px; /* aura-allow-spacing: 1px border + 6px padding of textarea.ui-field so numbers meet the text lines */
+  padding: 7px; /* 1px border + 6px padding of textarea.ui-field so numbers meet the text lines */
   list-style: none;
   overflow: hidden;
   box-sizing: border-box;
@@ -341,13 +341,13 @@ function onEscape(): void {
 .us-side {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
 }
 
 .us-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
   border: none;
   margin: 0;
   padding: 0;
@@ -360,14 +360,14 @@ function onEscape(): void {
 .us-radio {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 7px;
   cursor: pointer;
 }
 
 .us-radio-copy {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
 }
 
 .us-radio-title {
@@ -385,7 +385,7 @@ function onEscape(): void {
 .us-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
 }
 
 .us-error {
@@ -399,7 +399,7 @@ function onEscape(): void {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);
 }
 </style>

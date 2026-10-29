@@ -170,7 +170,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .cm-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -207,7 +207,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .cm-card-title {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
@@ -216,14 +216,14 @@ function trapTab(event: KeyboardEvent): void {
 
 .cm-list {
   list-style: none;
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   padding: 0;
 }
 
 .cm-row {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 3);
+  gap: calc(var(--space-unit) * 2);
   padding: calc(var(--space-unit) * 1) 0;
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-md);
@@ -233,7 +233,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .cm-ord {
-  min-width: calc(var(--space-unit) * 8);
+  min-width: calc(var(--space-unit) * 5);
   color: var(--color-on-surface-variant);
 }
 
@@ -252,7 +252,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .cm-result {
-  margin: calc(var(--space-unit) * 2) 0;
+  margin: calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
@@ -261,7 +261,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .cm-note {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

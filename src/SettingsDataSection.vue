@@ -87,7 +87,7 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-panel-inline);
-  margin-bottom: calc(var(--space-unit) * 2);
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .sd-when,

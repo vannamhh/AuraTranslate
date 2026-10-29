@@ -1902,7 +1902,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
       tồn tại (bắt ở code review 2026-08-06).
     -->
     <div v-if="hasSegments && isChinese" class="tabs" role="tablist">
-      <span class="ui-seg ui-seg--sm">
+      <span class="ui-seg">
       <button
         id="grid-tab-original"
         ref="tabOriginalBtn"
@@ -1937,7 +1937,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
       <button
         v-if="activeTab === 'han_viet' && (viewMode === 'parallel' || canUseParallelView)"
         type="button"
-        class="view-toggle ui-btn ui-btn--sm ui-btn--quiet"
+        class="view-toggle ui-btn ui-btn--quiet"
         @click="dispatch('source.toggle_han_viet_view')"
       >{{ viewMode === 'switch' ? t('panel.source.view_mode_parallel') : t('panel.source.view_mode_switch') }}</button>
     </div>

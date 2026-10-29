@@ -165,7 +165,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .cs-panel {
   width: 100%;
-  max-width: 720px;
+  max-width: 721px;
   max-height: 100%;
   overflow: auto;
   padding: var(--space-panel-inline);
@@ -196,7 +196,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .cs-note {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -219,12 +219,12 @@ function trapTab(event: KeyboardEvent): void {
 .cs-label {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 3);
-  padding: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1);
 }
 
 .cs-ord {
-  min-width: calc(var(--space-unit) * 8);
+  min-width: calc(var(--space-unit) * 5);
   color: var(--color-on-surface-variant);
 }
 

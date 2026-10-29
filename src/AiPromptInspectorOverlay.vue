@@ -597,7 +597,7 @@ const resultUsage = computed(() => {
                     <button
                       v-if="canConfirmNow(term)"
                       type="button"
-                      class="aip-efix ui-btn ui-btn--sm ui-btn--quiet"
+                      class="aip-efix ui-btn ui-btn--quiet"
                       data-aip-fix="confirm_now"
                       @click="dispatch('ai.prompt_inspector.confirm_now')"
                     >
@@ -606,7 +606,7 @@ const resultUsage = computed(() => {
                     <button
                       v-else
                       type="button"
-                      class="aip-efix ui-btn ui-btn--sm ui-btn--quiet"
+                      class="aip-efix ui-btn ui-btn--quiet"
                       data-aip-fix="glossary_entry"
                       @click="dispatch('ai.prompt_inspector.open_glossary_entry')"
                     >
@@ -628,7 +628,7 @@ const resultUsage = computed(() => {
                     <span class="aip-ewhy">
                       {{ t('ai.prompt_inspector.glossary_suppressed_reason_pending_overlap') }}
                     </span>
-                    <button type="button" class="aip-efix ui-btn ui-btn--sm ui-btn--quiet" @click="dispatch('ai.prompt_inspector.open_glossary_entry')">
+                    <button type="button" class="aip-efix ui-btn ui-btn--quiet" @click="dispatch('ai.prompt_inspector.open_glossary_entry')">
                       {{ t('command.ai.prompt_inspector.open_glossary_entry') }}
                     </button>
                   </li>
@@ -643,7 +643,7 @@ const resultUsage = computed(() => {
                     {{ t('ai.prompt_inspector.excluded_tm_label', { count: String(tmSearched.omitted_count) }) }}
                   </span>
                   <span class="aip-ewhy">{{ t('ai.prompt_inspector.excluded_tm_why') }}</span>
-                  <button type="button" class="aip-efix ui-btn ui-btn--sm ui-btn--quiet" @click="dispatch('ai.prompt_inspector.tm_concordance')">
+                  <button type="button" class="aip-efix ui-btn ui-btn--quiet" @click="dispatch('ai.prompt_inspector.tm_concordance')">
                     <!-- aura-allow-text: KẾT QUẢ của t() (số câu TM). -->
                     {{ t('ai.prompt_inspector.tm_see_all', { count: String(tmSearched.omitted_count) }) }}
                   </button>
@@ -767,8 +767,8 @@ const resultUsage = computed(() => {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 4);
-  margin-bottom: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 2);
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .aip-set-field {
@@ -776,7 +776,7 @@ const resultUsage = computed(() => {
   min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .aip-set-select {
@@ -795,9 +795,9 @@ const resultUsage = computed(() => {
 .aip-tabs {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 5);
+  gap: calc(var(--space-unit) * 3);
   padding-bottom: calc(var(--space-unit) * 1);
-  margin-bottom: calc(var(--space-unit) * 3);
+  margin-bottom: calc(var(--space-unit) * 2);
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -810,7 +810,7 @@ const resultUsage = computed(() => {
 }
 
 .aip-identity {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -820,8 +820,8 @@ const resultUsage = computed(() => {
 .aip-stale,
 .aip-other-set,
 .aip-read-error {
-  margin: 0 0 calc(var(--space-unit) * 3) 0;
-  padding: calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  padding: calc(var(--space-unit) * 1);
   border: 1px solid var(--color-error);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -831,8 +831,8 @@ const resultUsage = computed(() => {
 
 .aip-split {
   display: grid;
-  grid-template-columns: 1fr 310px;
-  gap: calc(var(--space-unit) * 5);
+  grid-template-columns: 1fr 308px;
+  gap: calc(var(--space-unit) * 3);
 }
 
 .aip-doc {
@@ -840,7 +840,7 @@ const resultUsage = computed(() => {
 }
 
 .aip-side {
-  padding-left: calc(var(--space-unit) * 4);
+  padding-left: calc(var(--space-unit) * 2);
   border-left: 1px solid var(--color-outline);
 }
 
@@ -850,7 +850,7 @@ const resultUsage = computed(() => {
   text-transform: uppercase;
   letter-spacing: var(--tracking-ui-label);
   color: var(--color-on-surface-variant);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
 
 .aip-sh2 {
@@ -859,7 +859,7 @@ const resultUsage = computed(() => {
   text-transform: uppercase;
   letter-spacing: var(--tracking-ui-label);
   color: var(--color-on-surface-variant);
-  margin: calc(var(--space-unit) * 3) 0 calc(var(--space-unit) * 1) 0;
+  margin: calc(var(--space-unit) * 2) 0 calc(var(--space-unit) * 1) 0;
 }
 
 .aip-note,
@@ -877,7 +877,7 @@ const resultUsage = computed(() => {
 }
 
 .aip-warn {
-  margin: calc(var(--space-unit) * 2) 0 0 0;
+  margin: calc(var(--space-unit) * 1) 0 0 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -889,9 +889,9 @@ const resultUsage = computed(() => {
 }
 
 .aip-blk {
-  padding-left: calc(var(--space-unit) * 3);
+  padding-left: calc(var(--space-unit) * 2);
   border-left: 2px solid var(--color-outline-faint);
-  margin-bottom: calc(var(--space-unit) * 4);
+  margin-bottom: calc(var(--space-unit) * 2);
 }
 
 .aip-blk-glossary {
@@ -913,7 +913,7 @@ const resultUsage = computed(() => {
 .aip-bh {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   margin-bottom: calc(var(--space-unit) * 1);
 }
 
@@ -981,7 +981,7 @@ const resultUsage = computed(() => {
 }
 
 .aip-markers {
-  margin-top: calc(var(--space-unit) * 2);
+  margin-top: calc(var(--space-unit) * 1);
 }
 
 .aip-marker-list {
@@ -990,7 +990,7 @@ const resultUsage = computed(() => {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .aip-marker-list code {
@@ -1000,8 +1000,8 @@ const resultUsage = computed(() => {
 }
 
 .aip-excl {
-  margin-top: calc(var(--space-unit) * 5);
-  padding-top: calc(var(--space-unit) * 4);
+  margin-top: calc(var(--space-unit) * 3);
+  padding-top: calc(var(--space-unit) * 2);
   border-top: 1px solid var(--color-outline);
 }
 
@@ -1015,7 +1015,7 @@ const resultUsage = computed(() => {
 }
 
 .aip-term-list {
-  margin: calc(var(--space-unit) * 2) 0 0 0;
+  margin: calc(var(--space-unit) * 1) 0 0 0;
   padding: 0;
   list-style: none;
 }
@@ -1024,8 +1024,8 @@ const resultUsage = computed(() => {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 2) 0;
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) 0;
   border-bottom: 1px solid var(--color-outline-faint);
   font-family: var(--family-read);
   font-size: var(--font-ui-md);
@@ -1067,7 +1067,7 @@ const resultUsage = computed(() => {
   height: calc(var(--space-unit) * 1);
   overflow: hidden;
   background: var(--color-surface-sunken);
-  margin-bottom: calc(var(--space-unit) * 2);
+  margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .aip-bar i {
@@ -1094,7 +1094,7 @@ const resultUsage = computed(() => {
 .aip-brow {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
   padding: calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1104,8 +1104,8 @@ const resultUsage = computed(() => {
 
 .aip-sw {
   flex: none;
-  width: calc(var(--space-unit) * 2);
-  height: calc(var(--space-unit) * 2);
+  width: calc(var(--space-unit) * 1);
+  height: calc(var(--space-unit) * 1);
 }
 
 .aip-bn {
@@ -1116,8 +1116,8 @@ const resultUsage = computed(() => {
 }
 
 .aip-total {
-  margin-top: calc(var(--space-unit) * 2);
-  padding-top: calc(var(--space-unit) * 2);
+  margin-top: calc(var(--space-unit) * 1);
+  padding-top: calc(var(--space-unit) * 1);
   border-top: 1px solid var(--color-outline);
 }
 
@@ -1132,13 +1132,13 @@ const resultUsage = computed(() => {
 .aip-acts {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
-  margin-top: calc(var(--space-unit) * 4);
+  gap: calc(var(--space-unit) * 1);
+  margin-top: calc(var(--space-unit) * 2);
 }
 
 .aip-exact {
-  margin-top: calc(var(--space-unit) * 3);
-  padding-top: calc(var(--space-unit) * 2);
+  margin-top: calc(var(--space-unit) * 2);
+  padding-top: calc(var(--space-unit) * 1);
   border-top: 1px solid var(--color-outline);
 }
 </style>

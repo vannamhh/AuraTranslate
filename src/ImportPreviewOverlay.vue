@@ -900,7 +900,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   <button
                     v-if="!item.ok"
                     type="submit"
-                    class="ip-url-reload ui-btn ui-btn--sm"
+                    class="ip-url-reload ui-btn"
                     :disabled="importPreviewConfirming || importPreviewUrlImportBusy"
                   >
                     {{ t('mode.library.preview.url_item_reload') }}
@@ -909,7 +909,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                 <form class="ip-url-action-form" @submit.prevent="onRemoveUrlItem(i)">
                   <button
                     type="submit"
-                    class="ip-url-remove ui-btn ui-btn--sm"
+                    class="ip-url-remove ui-btn"
                     :disabled="importPreviewConfirming || importPreviewUrlImportBusy"
                     :aria-label="t('mode.library.preview.url_item_remove_aria_label', { url: item.url })"
                   >
@@ -994,7 +994,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                 <form class="ip-url-action-form" @submit.prevent="onRemoveFileItem(i)">
                   <button
                     type="submit"
-                    class="ip-url-remove ui-btn ui-btn--sm"
+                    class="ip-url-remove ui-btn"
                     :disabled="importPreviewConfirming || importPreviewFileImportBusy"
                     :aria-label="t('mode.library.preview.file_item_remove_aria_label', { path: item.path })"
                   >
@@ -1125,7 +1125,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             class="ip-strip-hint"
           >
             {{ t('mode.library.preview.strip_open_hint') }}
-            <button type="button" class="ip-strip-open ui-btn ui-btn--quiet ui-btn--sm" @click="dispatch('import.preview.open_picker')">
+            <button type="button" class="ip-strip-open ui-btn ui-btn--quiet" @click="dispatch('import.preview.open_picker')">
               {{ t('command.import.preview.open_picker') }}
             </button>
           </p>
@@ -1379,7 +1379,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   <form class="ip-cleanup-action-form" @submit.prevent="onStartEditCleanupRule(rule)">
                     <button
                       type="submit"
-                      class="ip-cleanup-edit ui-btn ui-btn--sm"
+                      class="ip-cleanup-edit ui-btn"
                       :disabled="importPreviewConfirming || importPreviewCleanupDeleting"
                     >
                       {{ t('mode.library.preview.cleanup_edit_rule') }}
@@ -1393,7 +1393,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   <form class="ip-cleanup-action-form" @submit.prevent="onDeleteCleanupRule(rule)">
                     <button
                       type="submit"
-                      class="ip-cleanup-delete ui-btn ui-btn--sm"
+                      class="ip-cleanup-delete ui-btn"
                       :class="{
                         'ip-cleanup-delete-pending': isDeletePending(rule),
                         'ui-btn--danger': isDeletePending(rule),
@@ -1655,7 +1655,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
         }}
         <button
           type="button"
-          class="ip-act ui-btn ui-btn--sm"
+          class="ip-act ui-btn"
           :disabled="importPreviewImageDownloadCancelling"
           @click="dispatch('import.preview.cancel_image_download')"
         >
@@ -1678,7 +1678,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
       -->
       <p v-if="importPreviewDomainLogDomainCount > 0" class="ip-domain-log-summary" role="status">
         {{ t('mode.library.preview.domain_log_summary', { count: String(importPreviewDomainLogDomainCount) }) }}
-        <button type="button" class="ip-domain-log-view ui-btn ui-btn--quiet ui-btn--sm" @click="dispatch('settings.privacy.open')">
+        <button type="button" class="ip-domain-log-view ui-btn ui-btn--quiet" @click="dispatch('settings.privacy.open')">
           {{ t('mode.library.preview.domain_log_view') }}
         </button>
       </p>
@@ -1736,8 +1736,8 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-two {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: calc(var(--space-unit) * 5);
+  grid-template-columns: 301px minmax(0, 1fr);
+  gap: calc(var(--space-unit) * 3);
   align-items: start;
 }
 
@@ -1758,7 +1758,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: flex;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  padding: calc(var(--space-unit) * 2) 0;
+  padding: calc(var(--space-unit) * 1) 0;
   border-top: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1840,7 +1840,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 }
 
 .ip-tier-title {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   font-weight: var(--weight-ui-md-strong, var(--weight-ui-md));
@@ -1851,8 +1851,8 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-confidence-chip {
   display: inline-flex;
   gap: calc(var(--space-unit) * 1);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1861,7 +1861,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 }
 
 .ip-strip-hint {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1875,14 +1875,14 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 .ip-candidate {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
   cursor: pointer;
 }
@@ -1924,7 +1924,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
    nhánh "text rỗng" (cùng cỡ chữ, cùng vai trò: một dòng chú thích phụ dưới hai số đếm). */
 .ip-normalized-counts,
 .ip-normalized-window-note {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1945,7 +1945,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 /* ── Story 6.9 — tầng 2, dãy khối cả trang (FR123) ──────────────────────────────── */
 
 .ip-tier2-counts {
-  margin: calc(var(--space-unit) * -1) 0 calc(var(--space-unit) * 2) 0;
+  margin: calc(var(--space-unit) * -1) 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1953,7 +1953,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 }
 
 .ip-tier2-range-notice {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1963,7 +1963,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 /* Story 6.10a — vị trí con trỏ Chương, cùng vai trò/cỡ chữ với `.ip-tier2-counts` ngay trên
    (một dòng chú thích phụ, không phải một cảnh báo). */
 .ip-chapter-cursor-note {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1984,14 +1984,14 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 /* Story 6.15 — khối xuất xứ, ở ĐẦU Chương con trỏ, cùng khoảng cách dưới với `.ip-tier2-counts`. */
 .ip-chapter-origin {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
 
 /* Mốc `[` — vạch "Đầu vùng giữ" (mục 9, vòng rà bước 4). Cùng chữ `.ip-tier2-range-notice`
    (một cảnh báo/hướng dẫn tầng 2), khác MÀU — đây KHÔNG phải lỗi, dùng `primary` (cùng tông
    tiêu điểm bàn phím `.ip-block-focused`) thay `error`. */
 .ip-block-range-marker {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -2025,7 +2025,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
      khoá `spacing.gutter-width` của `tokens.json` KHÔNG được `check:tokens` đối chiếu với
      `var()` thật (một tham chiếu sai tên là CSS CHẾT ÂM THẦM, 0 cổng canh) — dùng thẳng
      `--space-unit` đã xác nhận CÓ tồn tại thay vì tin một tên chưa ai kiểm. */
-  width: calc(var(--space-unit) * 2);
+  width: calc(var(--space-unit) * 1);
   background-color: var(--color-tm-rule);
 }
 
@@ -2040,7 +2040,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-block-body {
   flex: 1 1 auto;
   min-width: 0;
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 3);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
 }
 
 /* §Always spec 6.9 — "phân biệt bằng ĐỘ LÙI, không màu nhấn thứ hai" (EXPERIENCE.md:95):
@@ -2082,7 +2082,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 /* ── Story 6.5 — tầng 3, luật làm sạch ──────────────────────────────────────────── */
 
 .ip-cleanup-window-note {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -2091,7 +2091,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 /* 🔴 §Always spec 6.5 — cùng luật tầng bảng mã/chuẩn hoá: mẫu chữ ở CỠ `read`. */
 .ip-cleanup-text {
-  margin: 0 0 calc(var(--space-unit) * 3) 0;
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
   font-family: var(--face-read-md);
   font-size: var(--font-read-md);
   line-height: var(--leading-read-md);
@@ -2113,15 +2113,15 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-cleanup-rules {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 2);
-  margin: 0 0 calc(var(--space-unit) * 3) 0;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0 0 calc(var(--space-unit) * 2) 0;
 }
 
 .ip-cleanup-rule {
   display: flex;
   align-items: flex-start;
-  gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
 }
 
@@ -2213,8 +2213,8 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
 
 .ip-cleanup-add-pattern {
@@ -2227,7 +2227,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 }
 
 .ip-cleanup-error {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -2240,8 +2240,8 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
 
 .ip-chapters-pattern-label {
@@ -2261,7 +2261,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 }
 
 .ip-chapters-error {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -2272,7 +2272,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: inline-flex;
   align-items: center;
   gap: calc(var(--space-unit) * 1);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
@@ -2291,8 +2291,8 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-chapters-entry {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
   border-left: 2px solid transparent;
 }
@@ -2390,8 +2390,8 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: calc(var(--space-unit) * 2);
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
 
 .ip-chapter-filter-chip-clean {
@@ -2412,7 +2412,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-chapter-filter-low-confidence {
   margin: 0;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   border: 1px solid var(--color-error);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -2441,8 +2441,8 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);
 }
 
@@ -2506,7 +2506,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 }
 
 .ip-domain-log-summary {
-  margin: 0 0 calc(var(--space-unit) * 2) 0;
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -2519,7 +2519,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-actions {
   display: flex;
-  gap: calc(var(--space-unit) * 2);
+  gap: calc(var(--space-unit) * 1);
 }
 
 </style>
