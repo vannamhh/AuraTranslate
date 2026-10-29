@@ -181,6 +181,29 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     await expect(inlineChip?.gapAfterLastGlyph).toBeLessThan(32)
     await expect(inlineChip?.buttonHit).toBe(true)
 
+    // A press on the focused sentence moves its chip under the pressed line, at the pointer.
+    const pressed = await browser.execute(async (id) => {
+      const text = document.querySelector(`[data-reading-segment="${id}"] .segment-text`)
+      const chip = text?.parentElement?.querySelector('.mark-actions')
+      const column = text?.closest('.column')
+      if (!(text instanceof HTMLElement) || !(chip instanceof HTMLElement) || !(column instanceof HTMLElement)) return null
+      const scrolled = []
+      for (let el = text.parentElement; el !== null; el = el.parentElement) scrolled.push([el, el.scrollTop])
+      text.scrollIntoView({ block: 'start' })
+      const line = text.getClientRects()[1]
+      const x = line.left + line.width / 3
+      text.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, clientX: x, clientY: (line.top + line.bottom) / 2 }))
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const box = chip.getBoundingClientRect()
+      const shown = { top: box.top - line.bottom, left: box.left - x, shadow: getComputedStyle(chip).boxShadow }
+      for (const [el, top] of scrolled) el.scrollTop = top
+      return shown
+    }, originalMarkedId)
+    await expect(pressed?.top).toBeGreaterThanOrEqual(0)
+    await expect(pressed?.top).toBeLessThan(16)
+    await expect(Math.abs(pressed?.left ?? Infinity)).toBeLessThan(1)
+    await expect(pressed?.shadow).not.toBe('none')
+
     const beforeMark = await browser.execute((id) => {
       const node = document.querySelector(`[data-reading-segment="${id}"]`)
       return {

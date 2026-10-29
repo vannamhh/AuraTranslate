@@ -22,6 +22,7 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMoun
 import type { DeepReadonly } from 'vue'
 import { declareFocus, dispatch, enterFocus, releaseFocus } from '../commands'
 import { hasMessageKey, t, tError } from '../i18n'
+import { tokens } from '../tokens'
 import { currentTheme } from '../tokens/themeState'
 import {
   currentReadingLevel,
@@ -214,6 +215,7 @@ onDeactivated(() => {
   resetReadingLookup()
   clearReadingAim()
   focusedSegmentId.value = null
+  markChipPress.value = null
   // `<KeepAlive>` giữ subtree của BA chế độ sống, nhưng `readingRun` (Chương + đoạn + câu của
   // TOÀN BỘ lượt đọc đang mở) sống
   // ở module-level `readingState.ts`, không theo vòng đời component — không dọn ở đây thì
@@ -228,10 +230,50 @@ onDeactivated(() => {
 
 const focusedSegmentId = ref<number | null>(null)
 const markChipSideId = ref<number | null>(null)
+const MARK_CHIP_GAP_PX = Number.parseFloat(tokens.spacing.unit)
 
-watch(focusedSegmentId, (segmentId) => {
-  markChipSideId.value = segmentId !== null && markChipFitsRightMargin(segmentId) ? segmentId : null
+/** Column-relative, so a scroll between the press and the focus does not move the anchor. */
+type MarkChipPress = { segmentId: number; x: number; lineTop: number; lineBottom: number }
+const markChipPress = ref<MarkChipPress | null>(null)
+const markChipAtPress = ref<{ segmentId: number; top: number; left: number } | null>(null)
+
+watch([focusedSegmentId, markChipPress], ([segmentId, press]) => {
+  markChipAtPress.value = segmentId !== null && press?.segmentId === segmentId ? placeMarkChipAtPress(press) : null
+  markChipSideId.value =
+    segmentId !== null && markChipAtPress.value === null && markChipFitsRightMargin(segmentId) ? segmentId : null
 }, { flush: 'post' })
+
+function onSegmentTextMouseDown(event: MouseEvent, segmentId: number): void {
+  if (event.button !== 0) return
+  const text = event.currentTarget as HTMLElement
+  const column = text.closest<HTMLElement>('.column')
+  if (column === null) return
+  const origin = column.getBoundingClientRect()
+  const line = [...text.getClientRects()].find((rect) => event.clientY >= rect.top && event.clientY <= rect.bottom)
+  markChipPress.value = {
+    segmentId,
+    x: event.clientX - origin.left,
+    lineTop: (line?.top ?? event.clientY) - origin.top,
+    lineBottom: (line?.bottom ?? event.clientY) - origin.top,
+  }
+}
+
+/** Below the pressed line, above it when the scroll host would clip the chip; kept inside the column. */
+function placeMarkChipAtPress(press: MarkChipPress): { segmentId: number; top: number; left: number } | null {
+  const segment = root.value?.querySelector<HTMLElement>(`[data-reading-segment="${String(press.segmentId)}"]`)
+  const column = segment?.closest<HTMLElement>('.column')
+  const chip = segment?.querySelector<HTMLElement>('.mark-actions')
+  const host = root.value
+  if (!(column instanceof HTMLElement) || !(chip instanceof HTMLElement) || host === null) return null
+  const columnTop = column.getBoundingClientRect().top
+  const hostBox = host.getBoundingClientRect()
+  const below = press.lineBottom + MARK_CHIP_GAP_PX
+  const above = press.lineTop - MARK_CHIP_GAP_PX - chip.offsetHeight
+  const clippedBelow = columnTop + below + chip.offsetHeight > hostBox.bottom
+  const top = clippedBelow && columnTop + above >= hostBox.top ? above : below
+  const left = Math.max(0, Math.min(press.x, column.clientWidth - chip.offsetWidth))
+  return { segmentId: press.segmentId, top, left }
+}
 
 /** `false` keeps the chip right after the last glyph: the page has no right margin wide enough for it. */
 function markChipFitsRightMargin(segmentId: number): boolean {
@@ -260,6 +302,7 @@ function onSegmentFocusOut(event: FocusEvent, segmentId: number): void {
   if (next instanceof Node && wrapper.contains(next)) return
   clearReadingAim(segmentId)
   if (focusedSegmentId.value === segmentId) focusedSegmentId.value = null
+  if (markChipPress.value?.segmentId === segmentId) markChipPress.value = null
 }
 
 function onSegmentMouseLeave(event: MouseEvent, segmentId: number): void {
@@ -760,6 +803,7 @@ function paragraphRuns(
                       unconfirmed: !segment.is_confirmed,
                       marked: segment.is_marked,
                       'mark-side': markChipSideId === segment.id,
+                      'mark-at-press': markChipAtPress?.segmentId === segment.id,
                     }"
                     :data-reading-segment="segment.id"
                     tabindex="0"
@@ -769,8 +813,13 @@ function paragraphRuns(
                     @focusout="onSegmentFocusOut($event, segment.id)"
                     @keydown.enter="onReadingSegmentEnter"
                     ><!-- aura-allow-text: bản dịch là DỮ LIỆU Tác phẩm; biểu thức đầu chỉ ngăn câu. -->
-                    <span class="segment-text">{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span>
-                    <span class="mark-actions">
+                    <span class="segment-text" @mousedown="onSegmentTextMouseDown($event, segment.id)">{{ i === 0 ? '' : ' ' }}{{ segment.target_text }}</span>
+                    <span
+                      class="mark-actions"
+                      :style="markChipAtPress?.segmentId === segment.id
+                        ? { insetBlockStart: `${String(markChipAtPress.top)}px`, insetInlineStart: `${String(markChipAtPress.left)}px` }
+                        : undefined"
+                    >
                       <button
                         type="button"
                         tabindex="-1"
@@ -1122,8 +1171,8 @@ function paragraphRuns(
   background: var(--color-surface-tm);
 }
 
-/* The block inset stays auto so the chip sits on the sentence's last line; a set block inset
-   resolves against the first line and lands over the sentence's own text. */
+/* Without a press anchor the block inset stays auto so the chip sits on the sentence's last line;
+   a percentage block inset resolves against the first line and lands over the sentence's own text. */
 .mark-actions {
   display: none;
   position: absolute;
@@ -1133,10 +1182,16 @@ function paragraphRuns(
   gap: var(--space-panel-inline);
   margin-inline-start: var(--space-panel-inline);
   background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
 }
 
 .reading-segment.mark-side .mark-actions {
   inset-inline-start: 100%;
+}
+
+.reading-segment.mark-at-press .mark-actions {
+  margin-inline-start: 0;
 }
 
 .reading-segment:focus-within .mark-actions {
