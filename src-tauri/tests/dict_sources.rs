@@ -3618,6 +3618,17 @@ fn the_product_page_size_is_pinned_by_behaviour_not_only_by_a_constant() {
         &SUPPORTED_SCHEMA_VERSION.to_string(),
         SUPPORTED_SCHEMA_VERSION,
     );
+    // The product path hides an entry with no sense, so every row needs one to be counted.
+    {
+        let conn = rusqlite::Connection::open(dir.join(PAGE_SIZE_LAYER.file))
+            .unwrap_or_else(|e| panic!("mo page-size.db: {e}"));
+        conn.execute_batch(
+            "INSERT INTO dict_sense (entry_id, source_id, gloss, ord) \
+             SELECT id, source_id, 'trang', 0 FROM dict_entry;",
+        )
+        .unwrap_or_else(|e| panic!("them nghia: {e}"));
+        conn.close().unwrap_or_else(|(_, e)| panic!("dong: {e}"));
+    }
     let layers = DictLayers::open(&dir);
 
     let result = command_lookup(Some(&layers), "頁");
@@ -5843,4 +5854,45 @@ fn the_source_list_of_a_real_directory_is_exactly_what_its_db_files_carry() {
     assert_eq!(listed, expected);
 
     layers.close();
+}
+
+#[test]
+fn a_source_whose_matched_entries_carry_no_sense_is_left_out_of_the_lookup() {
+    let dir = temp_dir("no-sense-group");
+    build_all_layers(&dir);
+    let layers = DictLayers::open(&dir);
+
+    let matched = lookup_grouped(&layers, "國", LookupMode::Exact, 100);
+    assert!(
+        matched
+            .groups
+            .iter()
+            .any(|g| g.source.code == "fx-core-b" && g.entries.iter().any(|h| h.entry_id == 6)),
+        "the grouping layer itself must still match the sense-less entry 6"
+    );
+
+    let result = command_lookup(Some(&layers), "國");
+    assert!(
+        !result
+            .grouped
+            .groups
+            .iter()
+            .any(|g| g.source.code == "fx-core-b"),
+        "a source with no sense to show has no block: {:?}",
+        group_codes(&result.grouped)
+    );
+    for group in &result.grouped.groups {
+        let senses = result.senses_by_layer.get(&group.layer);
+        assert!(
+            group
+                .entries
+                .iter()
+                .any(|hit| senses.is_some_and(|s| s.iter().any(|x| x.entry_id == hit.entry_id))),
+            "every block left has at least one sense: {}",
+            group.source.code
+        );
+    }
+
+    layers.close();
+    cleanup(&dir);
 }

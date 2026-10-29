@@ -256,6 +256,15 @@ describe('Pin', () => {
     expect(h.pins).toEqual([{ sourceCode: 'cvdict', entryId: 2, headword: '打', gloss: 'đánh' }])
   })
 
+  it('a press that lands on the pin icon still pins that entry', async () => {
+    const w = await lookedUp('打', DA)
+    const first = blocks(w)[0]!.findAll('.lookup-entry')[0]!
+    await first.get('.lookup-pin svg').trigger('mousedown')
+    await first.get('.lookup-pin').trigger('click')
+    await flushPromises()
+    expect(h.pins).toEqual([{ sourceCode: 'cvdict', entryId: 1, headword: '打', gloss: 'đánh nhau' }])
+  })
+
   it('the head button is absent when there is no result to pin', async () => {
     const w = await lookedUp('鐵鏽', NOT_FOUND)
     expect(w.find('.lookup-head-pin').exists()).toBe(false)
@@ -279,6 +288,13 @@ describe('collapse', () => {
     await collapse().trigger('click')
     expect(blocks(w)[0]!.findAll('.lookup-entry')).toHaveLength(2)
     expect(collapse().attributes('aria-label')).toBe('Thu gọn khối nguồn này')
+  })
+
+  it('a press that lands on the chevron icon folds the block', async () => {
+    const w = await lookedUp('打', DA)
+    await blocks(w)[0]!.get('.lookup-collapse svg').trigger('mousedown')
+    await blocks(w)[0]!.get('.lookup-collapse').trigger('click')
+    expect(blocks(w)[0]!.findAll('.lookup-entry')).toHaveLength(0)
   })
 
   it('the folded state is remembered per source_code across a new lookup', async () => {

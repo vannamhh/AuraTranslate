@@ -112,7 +112,7 @@ export function sourceIsCollapsed(code: string): boolean {
 
 export function aimSourceCollapseFrom(event: Event): void {
   const target = event.target
-  if (!(target instanceof HTMLElement)) return
+  if (!(target instanceof Element)) return
   aimedCollapseCode = target.closest<HTMLElement>('[data-collapse-code]')?.dataset.collapseCode ?? null
 }
 
@@ -134,7 +134,7 @@ export function toggleAimedSourceCollapse(): void {
 
 export function aimLookupCharFrom(event: Event): void {
   const target = event.target
-  if (!(target instanceof HTMLElement)) return
+  if (!(target instanceof Element)) return
   aimedChar = target.closest<HTMLElement>('[data-lookup-char]')?.dataset.lookupChar ?? null
 }
 

@@ -257,35 +257,58 @@ pub fn lookup(
 
     // 🔴 **HAI LƯỢT, VÀ LƯỢT THỨ HAI CHỈ CHẠY KHI LƯỢT ĐẦU KHÔNG TÌM THẤY GÌ** — Story 1.18,
     // Ice chốt 2026-08-07. Xem [`SUBSTRING_FALLBACK_CEILING`] cho lý lẽ đầy đủ.
-    let exact = lookup_grouped(
+    let exact = with_senses(
         layers,
-        &truncated_query,
-        LookupMode::Exact,
-        LOOKUP_PAGE_LIMIT,
-        disabled,
+        lookup_grouped(
+            layers,
+            &truncated_query,
+            LookupMode::Exact,
+            LOOKUP_PAGE_LIMIT,
+            disabled,
+        ),
     );
 
     // ⚠️ `layers_loaded` phải được hỏi: với **0 lớp gắn** (trạng thái của mọi bản dựng
     // trong git — `.gitignore: *.db`, AD-25) `groups` luôn rỗng, và một lượt tra thứ hai ở
     // đó chỉ tốn công để trả về đúng một tập rỗng thứ hai. Rỗng-vì-không-có-từ-điển không phải
     // rỗng-vì-không-khớp; AD-44 ④ phân biệt hai thứ đó, nên chỗ này cũng phải.
-    let grouped =
-        if exact.layers_loaded && exact.groups.is_empty() && should_try_substring(&truncated_query)
-        {
+    let (mut grouped, senses_by_layer, senses_failed) = if exact.0.layers_loaded
+        && exact.0.groups.is_empty()
+        && should_try_substring(&truncated_query)
+    {
+        with_senses(
+            layers,
             lookup_grouped(
                 layers,
                 &truncated_query,
                 LookupMode::Substring,
                 LOOKUP_PAGE_LIMIT,
                 disabled,
-            )
-        } else {
-            exact
-        };
+            ),
+        )
+    } else {
+        exact
+    };
 
-    let mut grouped = grouped;
     order_by_user(&mut grouped.groups, |g| g.source.code.as_str(), order);
 
+    LookupResponse {
+        grouped,
+        senses_by_layer,
+        query_truncated,
+        senses_failed,
+    }
+}
+
+/// Hydrates the senses of `grouped` and drops every group none of whose entries has a sense.
+fn with_senses(
+    layers: &DictLayers,
+    mut grouped: GroupedLookup,
+) -> (
+    GroupedLookup,
+    BTreeMap<String, Vec<SenseRecord>>,
+    Vec<String>,
+) {
     let mut entry_ids_by_layer: BTreeMap<&str, Vec<i64>> = BTreeMap::new();
     for group in &grouped.groups {
         entry_ids_by_layer
@@ -316,12 +339,22 @@ pub fn lookup(
         }
     }
 
-    LookupResponse {
-        grouped,
-        senses_by_layer,
-        query_truncated,
-        senses_failed,
-    }
+    // A layer absent from `senses_by_layer` failed to hydrate: its groups stay so the panel can name the failure.
+    let sensed: BTreeMap<&str, BTreeSet<i64>> = senses_by_layer
+        .iter()
+        .map(|(layer, senses)| {
+            let ids = senses.iter().map(|s| s.entry_id).collect();
+            (layer.as_str(), ids)
+        })
+        .collect();
+    grouped
+        .groups
+        .retain(|group| match sensed.get(group.layer.as_str()) {
+            Some(ids) => group.entries.iter().any(|hit| ids.contains(&hit.entry_id)),
+            None => true,
+        });
+
+    (grouped, senses_by_layer, senses_failed)
 }
 
 /// Một vỏ `#[tauri::command]`. **Không một quy tắc nào sống ở đây.**

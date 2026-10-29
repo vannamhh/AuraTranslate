@@ -443,7 +443,7 @@ export async function loadPinnedEntries(): Promise<void> {
  */
 export function aimLookupEntryFrom(event: Event): void {
   const target = event.target
-  if (!(target instanceof HTMLElement)) return
+  if (!(target instanceof Element)) return
   const host = target.closest<HTMLElement>('[data-entry-key]')
   aimedKey = host?.dataset.entryKey ?? null
 }

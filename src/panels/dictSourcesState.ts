@@ -340,7 +340,7 @@ function focusedChipCode(): string | null {
  */
 export function aimDictSourceFrom(event: Event): void {
   const target = event.target
-  if (!(target instanceof HTMLElement)) return
+  if (!(target instanceof Element)) return
   const chip = target.closest<HTMLElement>('[data-source-code]')
   aimedCode = chip?.dataset.sourceCode ?? null
 }

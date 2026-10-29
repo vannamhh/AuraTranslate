@@ -209,7 +209,7 @@ export function defaultDisplayFor(id: CommandId): readonly string[] {
  */
 export function aimRowFrom(event: Event): void {
   const target = event.target
-  if (!(target instanceof HTMLElement)) return
+  if (!(target instanceof Element)) return
   const row = target.closest<HTMLElement>('[data-command-id]')
   const id = row?.dataset.commandId
   if (id === undefined) return

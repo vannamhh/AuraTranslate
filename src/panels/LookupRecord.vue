@@ -260,6 +260,8 @@ const senseTotalKey = computed(() =>
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
+  flex: none;
+  white-space: nowrap;
 }
 
 .lookup-collapse {
