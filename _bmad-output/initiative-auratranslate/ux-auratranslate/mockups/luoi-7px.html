@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lưới 7px và baseline</title>
+<style>
+@font-face{font-family:"Source Sans 3";src:url("../../../../src-tauri/resources/fonts/SourceSans3[wght].ttf");font-weight:200 900}
+@font-face{font-family:"Source Serif 4";src:url("../../../../src-tauri/resources/fonts/SourceSerif4[opsz,wght].ttf");font-weight:200 900;font-style:normal}
+@font-face{font-family:"Source Serif 4";src:url("../../../../src-tauri/resources/fonts/SourceSerif4-Italic[opsz,wght].ttf");font-weight:200 900;font-style:italic}
+@font-face{font-family:"Noto Serif CJK TC";src:url("../../../../src-tauri/resources/fonts/NotoSerifCJKtc-Regular.otf")}
+
+/* Token màu thật (DESIGN.md front-matter). */
+.t-light{
+  --bg:#f4f1ea;--surface:#fbfaf6;--sunken:#f0ece1;--accent:#e6eeee;--surface-tm:#faf6ee;
+  --ink:#2b2723;--ink-2:#6b6459;--outline:#e2dccf;--faint:#efeade;--ornament:#a9a196;
+  --primary:#2f5d63;--confirmed:#5a6b3f;--tm-rule:#a38347;--caret-rule:#25484d;--control-rule:#8a8276;--tm-text:#7a5d25;
+}
+.t-dark{
+  --bg:#201e1b;--surface:#26241f;--sunken:#1b1a17;--accent:#2c3a3b;--surface-tm:#302b21;
+  --ink:#e8e3d8;--ink-2:#a29a8c;--outline:#3b382f;--faint:#302d26;--ornament:#6a6459;
+  --primary:#7fb3ba;--confirmed:#9cb37a;--tm-rule:#92763f;--caret-rule:#c7dee1;--control-rule:#807868;--tm-text:#d3b276;
+}
+:root{
+  --ui:"Source Sans 3",-apple-system,system-ui,sans-serif;
+  --read:"Source Serif 4","Noto Serif CJK TC",serif;
+  --cjk:"Noto Serif CJK TC",serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+
+/* Hai bộ số. Mỗi biến là một vị trí trong bảng chuyển của plan-luoi-7px-va-canh-baseline.md. */
+.v4{
+  --u:4px;--s1:4px;--s2:8px;--s3:12px;--s4:16px;
+  --title:40px;--tl:88px;--head:36px;--status:34px;
+  --c-sm:24px;--c-md:28px;--c-lg:32px;--bpad:12px;--bpad-sm:8px;--fpad:8px;
+  --icon:16px;--chk:24px;--sw-h:16px;--chip-h:20px;
+  --lh-ui:19.5px;--lh-label:18.2px;--lh-wrap:21.58px;
+  --lk-head:40px;--lk-strip:32px;--lk-hw:31.2px;--lk-gloss:23.2px;--lk-ex:20.8px;--rec-pad:13px;
+  --g1:4px;--g2:8px;--align:center;--edge:0px;
+}
+.v7{
+  --u:7px;--s1:7px;--s2:7px;--s3:14px;--s4:14px;
+  --title:42px;--tl:91px;--head:35px;--status:35px;
+  --c-sm:28px;--c-md:28px;--c-lg:35px;--bpad:14px;--bpad-sm:14px;--fpad:7px;
+  --icon:14px;--chk:28px;--sw-h:14px;--chip-h:21px;
+  --lh-ui:21px;--lh-label:21px;--lh-wrap:21px;
+  --lk-head:42px;--lk-strip:35px;--lk-hw:35px;--lk-gloss:28px;--lk-ex:21px;--rec-pad:12px;
+  --g1:7px;--g2:7px;--align:baseline;--edge:1px;
+}
+.v7.d2{--g2:14px}
+
+*{box-sizing:border-box}
+body{margin:0;background:#58534b;color:#f4f1ea;font-family:var(--ui);font-size:13px;line-height:21px;padding:21px}
+button{font:inherit;color:inherit;margin:0}
+
+/* ---------- khung trình bày (không thuộc thiết kế) ---------- */
+.deck{max-width:1540px;margin:0 auto 28px;display:flex;flex-wrap:wrap;gap:14px 28px;align-items:baseline}
+.deck h1{font-size:20px;line-height:28px;margin:0;font-weight:600}
+.deck label{display:inline-flex;gap:7px;align-items:center;cursor:pointer}
+.deck select{font:inherit}
+.intro{max-width:1540px;margin:-14px auto 28px;color:#e2dccf}
+.intro p{margin:0 0 7px;max-width:120ch}
+section.spec{max-width:1540px;margin:0 auto 42px}
+section.spec h2{font-size:16px;line-height:28px;margin:0;font-weight:600}
+section.spec .lead{color:#e2dccf;max-width:120ch;margin:0 0 14px}
+section.spec .lead b{color:#fff}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:21px;align-items:start}
+.cols.three{grid-template-columns:repeat(auto-fit,minmax(380px,1fr))}
+.cap{font:12px/21px var(--mono);color:#e2dccf;margin-bottom:7px}
+.cap b{font-family:var(--ui);font-size:13px;color:#fff}
+.meas{font:12px/21px var(--mono);color:#cfc8ba;margin-top:7px;white-space:pre-wrap}
+.meas .off{color:#ffb4a6}
+.frame{position:relative;background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:13px;line-height:var(--lh-ui);border-radius:9px;overflow:hidden}
+body.grid .frame::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:5;
+  background-image:linear-gradient(to right,rgba(214,72,30,.16) 1px,transparent 1px),linear-gradient(to bottom,rgba(214,72,30,.16) 1px,transparent 1px);
+  background-size:var(--u) var(--u)}
+.guide{position:absolute;height:0;border-top:1px solid #e0301e;pointer-events:none;z-index:6}
+.guide.icon{border-top-color:#1e6fe0}
+.v4 .only7{display:none}
+
+/* ---------- thành phần dùng chung ---------- */
+.row{display:flex;align-items:var(--align);gap:var(--s2);min-width:0}
+.grow{flex:1}
+.v7 .row.line{height:var(--lh-ui)}
+.v7 .row.ctl{height:var(--c-md)}
+.bar{display:flex;align-items:center}
+.bar > .row{flex:1}
+.ico{width:var(--icon);height:var(--icon);flex:none;display:block}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-2)}
+.label{font-weight:700;letter-spacing:.08em;text-transform:uppercase;line-height:var(--lh-label)}
+.kbd{display:inline-block;height:var(--chip-h);line-height:calc(var(--chip-h) - 2px);padding:0 var(--s1);border:1px solid var(--outline);border-radius:2px;font-family:var(--mono);color:var(--ink-2)}
+.sep{width:1px;height:14px;background:var(--outline);align-self:center;flex:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;height:var(--c-md);padding:0 var(--bpad);border:1px solid var(--control-rule);border-radius:3px;background:var(--surface);color:var(--ink);line-height:var(--lh-ui);white-space:nowrap;cursor:pointer;flex:none}
+.btn > .in{display:inline-flex;align-items:var(--align);gap:var(--s1)}
+.btn.sm{height:var(--c-sm);padding:0 var(--bpad-sm)}
+.btn.lg{height:var(--c-lg);min-width:8.5em}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
+.btn.sunk{background:none;border-color:transparent;color:var(--ink-2)}
+.ibtn{display:inline-flex;align-items:center;justify-content:center;width:var(--c-md);height:var(--c-md);padding:0;border:1px solid transparent;border-radius:3px;background:none;color:var(--ink-2);cursor:pointer;flex:none}
+.ibtn.sm{width:var(--c-sm);height:var(--c-sm)}
+.ibtn.boxed{border-color:var(--control-rule)}
+/* Đề xuất cho controls.css: nút chỉ có biểu tượng mang một hộp dòng rỗng để có baseline. */
+.v7 .ibtn::before{content:"\200b";width:0;overflow:hidden;line-height:var(--lh-ui)}
+.v7 .ibtn.nofix::before{content:none}
+.seg{display:inline-flex;height:var(--c-sm);border:1px solid var(--control-rule);border-radius:3px;overflow:hidden;flex:none}
+.seg > span{display:flex;align-items:center;padding:0 var(--bpad-sm);color:var(--ink)}
+.seg > span.on{background:var(--ink);color:var(--surface);font-weight:600}
+
+/* ---------- Workspace ---------- */
+.titlebar{position:relative;height:var(--title);padding:0 var(--s3) 0 var(--tl);background:var(--sunken);border-bottom:1px solid var(--outline)}
+.lights{position:absolute;left:16px;top:calc((var(--title) - 12px) / 2);display:flex;gap:8px}
+.lights i{width:12px;height:12px;border-radius:50%;background:#ec6a5e}
+.lights i:nth-child(2){background:#f4bf4f}.lights i:nth-child(3){background:#61c554}
+.workname{font-family:var(--read);font-size:13px;font-weight:600;line-height:var(--lh-ui)}
+.panel{background:var(--surface)}
+.phead{height:var(--head);background:var(--sunken);border-bottom:1px solid var(--outline);padding-right:var(--s4)}
+.tabs{display:flex;align-self:stretch}
+.tab{display:flex;align-items:center;padding:0 var(--s3);color:var(--ink-2)}
+.tab.on{background:var(--surface);color:var(--primary);font-weight:600;margin-bottom:-1px}
+.tool{padding:var(--s2) var(--s4) calc(var(--s2) - var(--edge));border-bottom:1px solid var(--faint)}
+.gb{position:relative;outline:1px dashed var(--tm-rule);outline-offset:-1px}
+.gb .badge{display:block;font:11px/21px var(--mono);color:var(--tm-text);background:var(--surface-tm);padding:0 16px;border-bottom:1px solid var(--faint)}
+/* Thân lưới: số hiện tại, cố ý không đọc biến của bộ số. */
+.gb .r{display:grid;grid-template-columns:3px 34px 1fr 1fr;column-gap:12px;padding:8px 16px 8px 0;border-bottom:1px solid var(--faint)}
+.gb .r > .rule{border-left:3px solid var(--confirmed)}
+.gb .r.cur > .rule{border-left-color:var(--caret-rule)}
+.gb .r.tm > .rule{border-left-color:var(--tm-rule)}
+.gb .n{font:13px/1.4 var(--mono);color:var(--ink-2);text-align:right;padding-top:9px}
+.gb .src{font:16.5px/2.05 var(--cjk)}
+.gb .hv{font:italic 12.5px/1.95 var(--read);color:var(--ink-2);font-synthesis:none}
+.gb .tgt{font:15px/1.95 var(--read);padding:0 8px}
+.gb .r.cur .tgt{background:var(--accent)}
+.strip{background:var(--surface-tm);border-top:1px solid var(--outline);padding:calc(var(--s1) - var(--edge)) var(--s4) var(--s1)}
+.strip .label{color:var(--tm-text)}
+.strip .match{font-family:var(--read);font-size:14px}
+.status{height:var(--status);background:var(--sunken);border-top:1px solid var(--outline);padding:0 var(--s3);color:var(--ink-2)}
+.status .row{gap:var(--s3)}
+
+/* ---------- Tra cứu ---------- */
+.lk{background:var(--surface)}
+.lkhead{height:var(--lk-head);border-bottom:1px solid var(--outline);padding:0 var(--s2) 0 var(--s4)}
+.hw{font-family:var(--cjk);font-size:24px;line-height:var(--lk-hw)}
+.lksrc{height:var(--lk-strip);background:var(--sunken);border-bottom:1px solid var(--outline);padding:0 var(--s2) 0 var(--s4)}
+.lksrc .label{color:var(--primary)}
+.recs{padding:var(--s3) var(--s4)}
+.ent{border-left:2px solid var(--faint);padding-left:var(--rec-pad)}
+.ent + .ent{margin-top:var(--s3)}
+.ent .pos{font:italic 13px/var(--lh-ui) var(--read);color:var(--ink-2);font-synthesis:none}
+.ent ol{margin:var(--g1) 0 0;padding-left:1.4em}
+.ent li{font:14.5px/var(--lk-gloss) var(--read)}
+.ent .ex{font:italic 13px/var(--lk-ex) var(--read);color:var(--ink-2);margin-top:var(--g1);font-synthesis:none}
+
+/* ---------- Cài đặt ---------- */
+.set{background:var(--surface);padding:var(--s4) var(--s4) 0}
+.set h3{margin:0;color:var(--ink-2);font-size:13px}
+.srow{display:grid;grid-template-columns:1fr auto;column-gap:var(--s4);align-items:var(--align);padding:var(--s3) 0 calc(var(--s3) - var(--edge));border-bottom:1px solid var(--faint)}
+.srow .name{font-weight:600}
+.srow .desc{color:var(--ink-2);line-height:var(--lh-wrap);margin-top:var(--g1);max-width:46ch}
+.sw{position:relative;width:28px;height:var(--sw-h);border:1px solid var(--control-rule);border-radius:999px;background:var(--ink);border-color:var(--ink);flex:none}
+.sw::after{content:"";position:absolute;top:1px;right:1px;width:calc(var(--sw-h) - 4px);height:calc(var(--sw-h) - 4px);border-radius:50%;background:var(--surface)}
+.field{display:inline-flex;align-items:center;gap:var(--s2);height:var(--c-lg);padding:0 var(--fpad);min-width:16ch;border:1px solid var(--control-rule);border-radius:3px;background:var(--sunken)}
+.field .grow{min-width:0}
+.chk{display:inline-flex;align-items:center;justify-content:center;width:var(--chk);height:var(--chk);flex:none}
+.chk i{width:14px;height:14px;border-radius:2px;background:var(--ink);display:grid;place-items:center}
+.chk svg{width:10px;height:10px;color:var(--surface)}
+.foot{display:flex;justify-content:flex-end;gap:var(--s2);padding:calc(var(--s3) - var(--edge)) var(--s4) var(--s3);border-top:1px solid var(--faint);background:var(--surface)}
+
+/* ---------- Library ---------- */
+.lib{padding:var(--s4);background:var(--bg)}
+.card{display:grid;grid-template-columns:84px 1fr;column-gap:var(--s3);padding:calc(var(--s3) - var(--edge));background:var(--surface);border:1px solid var(--outline);border-radius:3px}
+.cover{height:126px;border-radius:2px;background:#2f5d63;color:#fbfaf6;font:600 13px/21px var(--read);padding:7px;display:flex;align-items:flex-end}
+.card .ttl{font:600 15px/var(--lh-ui) var(--read)}
+.card .who{color:var(--ink-2);margin-top:var(--g1)}
+.card .grp{margin-top:var(--g2)}
+.card .grp + .grp .row + .row,.card .grp .row + .row{margin-top:var(--g1)}
+.prog{flex:1;height:4px;border-radius:2px;background:var(--outline);align-self:center;position:relative;overflow:hidden}
+.prog::after{content:"";position:absolute;inset:0 70% 0 0;background:var(--confirmed)}
+
+/* ---------- Chế độ đọc ---------- */
+.rd{background:var(--surface);padding:var(--s4) 21px 28px}
+.rd h4{margin:0 0 var(--rd-gap);font:600 23px/var(--rd-title) var(--read)}
+.rd p{margin:0;font:var(--rd-fs)/var(--rd-lh) var(--read);max-width:36ch}
+.rd p + p{margin-top:var(--rd-gap)}
+</style>
+</head>
+<body class="t-light">
+
+<div class="deck">
+  <h1>Lưới 7px và canh baseline</h1>
+  <label><input type="checkbox" id="opt-dark"> Nền tối</label>
+  <label><input type="checkbox" id="opt-grid" checked> Vẽ lưới (4px ở cột Trước, 7px ở cột Sau)</label>
+  <label><input type="checkbox" id="opt-bl" checked> Vẽ baseline (đỏ: chữ và số · xanh: đáy biểu tượng)</label>
+</div>
+<div class="intro">
+  <p>Mỗi mục đặt cùng một mẫu hai lần: <b>Trước</b> là số đang chạy (đơn vị 4px), <b>Sau</b> là đề xuất của <code>plan-luoi-7px-va-canh-baseline.md</code> với bốn điều Ice đã chốt: chỉ thân lưới Workspace giữ nguyên · điều khiển 28/28/35 · chữ giao diện giãn 21px · đáy biểu tượng trên baseline.</p>
+  <p>Dòng số đo dưới mỗi khung là chiều cao đo thật bằng <code>getBoundingClientRect()</code> sau khi font nạp xong. Bật lưới để thấy mép nào rơi đúng vạch 7.</p>
+</div>
+
+<section class="spec">
+  <h2>1 · Workspace: khung quanh lưới</h2>
+  <p class="lead">Thanh tiêu đề 40 → <b>42</b>, thanh panel 36 → <b>35</b>, thanh trạng thái 34 → <b>35</b>. Hàng công cụ và dải TM giữ viền <b>trong</b> ô lưới: đệm dưới trừ 1px cho nét kẻ, nên cả khối cao 42 thay vì 43. Thân lưới (khung đứt màu TM) dùng số cố định, giống hệt ở hai cột.</p>
+  <div class="cols" data-tpl="tpl-ws" data-variants="v4|v7"></div>
+</section>
+
+<section class="spec">
+  <h2>2 · Canh baseline, cận cảnh</h2>
+  <p class="lead">Cột Trước canh giữa: chữ <code>ui</code>, số <code>mono</code> và nhãn chữ hoa đứng lệch nhau vài phần px, biểu tượng 16px lơ lửng. Cột Sau canh baseline: vạch đỏ liền một đường, đáy biểu tượng 14px (vạch xanh) nằm trên chính đường đó. Hàng cuối cột Sau là <b>cái bẫy</b>: nút chỉ có biểu tượng mà không có hộp dòng rỗng thì đáy cả nút rơi xuống baseline và nút nhô lên 7px.</p>
+  <div class="cols" data-tpl="tpl-bl" data-variants="v4|v7"></div>
+</section>
+
+<section class="spec">
+  <h2>3 · Tra cứu</h2>
+  <p class="lead">Vùng đầu mục 40 → <b>42</b>, dải nguồn 32 → <b>35</b>, vạch bản ghi 2 + thụt 13 → 2 + <b>12</b> = 14. Nghĩa 23,2 → <b>28px</b> (giống nhau ở cả hai luật D1; ở 21px tỉ số chỉ còn 1.45), ví dụ 20,8 → <b>21px</b>. Panel này thưa hơn rõ: cùng ba nghĩa và một ví dụ, khối bản ghi cao thêm khoảng 20%.</p>
+  <div class="cols" data-tpl="tpl-lk" data-variants="v4|v7"></div>
+</section>
+
+<section class="spec">
+  <h2>4 · Chế độ đọc: D1, chọn luật giãn dòng</h2>
+  <p class="lead">Cùng một đoạn dày dấu. <b>(a)</b> bội 7 nhỏ nhất không chật hơn hôm nay. <b>(b)</b> bội 7 nhỏ nhất có tỉ số ≥ 1.6 (mức Ice nhận ở Q3). Hai luật chỉ khác nhau ở mức Thoáng và Cân. Thước đọc rút còn 36ch để ba cột đứng cạnh nhau.
+  <label style="margin-left:14px">Mức đọc
+    <select id="rd-level">
+      <option value="md" selected>Cân 17,5px (mặc định)</option>
+      <option value="lg">Thoáng 19px</option>
+      <option value="sm">Đặc 16px</option>
+    </select></label></p>
+  <div class="cols three" id="rd-cols"></div>
+</section>
+
+<section class="spec">
+  <h2>5 · Cài đặt và chân lớp phủ</h2>
+  <p class="lead">Ô chọn trong form 32 → <b>35</b>, vùng bấm checkbox 24 → <b>28</b>, công tắc 28×16 → <b>28×14</b>. Mô tả xuống dòng 21,58 → <b>21px</b> (1.615): soi cặp <code>ườ</code> trên <code>ộ</code> ở dòng hai và ba.</p>
+  <div class="cols" data-tpl="tpl-set" data-variants="v4|v7"></div>
+</section>
+
+<section class="spec">
+  <h2>6 · Library: D2, khoảng trong nhóm và giữa nhóm</h2>
+  <p class="lead">Hôm nay 4px nối các dòng trong một nhóm (tên · tác giả), 8px tách các nhóm (tiến độ, hành động). Chuyển máy móc đưa cả hai về <b>7</b>, nên mắt mất ranh giới nhóm. Cột thứ ba đẩy khoảng giữa nhóm lên <b>14</b>. Câu hỏi D2: những chỗ như thế này dùng 7/14.</p>
+  <div class="cols three" data-tpl="tpl-lib" data-variants="v4|v7|v7 d2"></div>
+</section>
+
+<!-- ======================= mẫu ======================= -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-pin" viewBox="0 0 16 16"><path d="M6 1.5h4l-.6 4.2 2.6 2.3v1.2H4V8l2.6-2.3z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 9.2v5.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 7.2v4M8 4.9v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 10 10"><path d="M2 5.2l2 2 4-4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<template id="tpl-ws">
+  <header class="titlebar bar" data-m="thanh tiêu đề">
+    <span class="lights"><i></i><i></i><i></i></span>
+    <div class="row bl-row">
+      <span class="seg"><span>Library</span><span class="on">Workspace</span><span>Đọc</span></span>
+      <span class="workname">Gió qua rặng trúc</span>
+      <span class="muted">· Chương 3</span>
+      <span class="grow"></span>
+      <button class="btn sunk sm"><span class="in"><span>Công cụ</span><svg class="ico"><use href="#i-chev"/></svg></span></button>
+      <button class="ibtn sm" aria-label="Cài đặt"><svg class="ico"><use href="#i-gear"/></svg></button>
+    </div>
+  </header>
+  <div class="panel">
+    <div class="phead bar" data-m="thanh panel">
+      <div class="tabs"><span class="tab on">Nguyên văn</span><span class="tab">Bản dịch</span></div>
+      <div class="row bl-row" style="padding-left:var(--s3)">
+        <span class="grow"></span>
+        <span class="kbd">⌘1</span>
+        <span class="muted">Câu</span><span class="num">12/248</span>
+      </div>
+    </div>
+    <div class="tool" data-m="hàng công cụ">
+      <div class="row bl-row">
+        <button class="btn primary"><span>Dịch câu này</span></button>
+        <button class="btn"><span class="in"><span>Nguồn 8/10</span><svg class="ico"><use href="#i-chev"/></svg></span></button>
+        <button class="ibtn" aria-label="Ghim"><svg class="ico"><use href="#i-pin"/></svg></button>
+        <span class="grow"></span>
+        <span class="muted">Đã xác nhận</span><span class="num">112</span>
+      </div>
+    </div>
+    <div class="gb">
+      <span class="badge">ngoại lệ · giữ nguyên</span>
+      <div class="r"><span class="rule"></span><span class="n">11</span><div><div class="src">竹影搖窗，風過無聲。</div><div class="hv">trúc ảnh dao song, phong quá vô thanh.</div></div><div class="tgt">Bóng trúc lay bên song cửa, gió qua mà chẳng một tiếng động.</div></div>
+      <div class="r cur"><span class="rule"></span><span class="n">12</span><div><div class="src">他獨立溪邊，久久不語。</div><div class="hv">tha độc lập khê biên, cửu cửu bất ngữ.</div></div><div class="tgt">Hắn đứng lặng một mình bên bờ suối, rất lâu chẳng nói</div></div>
+      <div class="r tm"><span class="rule"></span><span class="n">13</span><div><div class="src">往事如潮，一湧而來。</div><div class="hv">vãng sự như triều, nhất dũng nhi lai.</div></div><div class="tgt">Chuyện cũ như thuỷ triều, ùa về một lượt.</div></div>
+    </div>
+    <div class="strip" data-m="dải TM">
+      <div class="row bl-row">
+        <span class="label">TM 92%</span>
+        <span class="match grow">Hắn đứng lặng bên bờ suối, rất lâu không nói.</span>
+        <button class="btn sm"><span>Dùng</span></button>
+        <button class="ibtn sm" aria-label="Đóng"><svg class="ico"><use href="#i-x"/></svg></button>
+      </div>
+    </div>
+  </div>
+  <footer class="status bar" data-m="thanh trạng thái">
+    <div class="row bl-row">
+      <span>Chương</span><span class="num">3/40</span>
+      <span class="sep"></span>
+      <span class="num">112/248</span><span>câu</span>
+      <span class="sep"></span>
+      <span>TM</span><span class="num">1.204 · 75%</span>
+      <span class="grow"></span>
+      <span>AI sẵn sàng</span>
+      <button class="ibtn sm" aria-label="Nguồn dữ liệu"><svg class="ico"><use href="#i-info"/></svg></button>
+    </div>
+  </footer>
+</template>
+
+<template id="tpl-bl">
+  <div style="background:var(--surface);padding:var(--s4)">
+    <div class="row bl-row line" data-m="hàng nhãn">
+      <svg class="ico"><use href="#i-pin"/></svg>
+      <span>Đã ghim</span>
+      <span class="num">12</span>
+      <span class="label" style="color:var(--primary)">HVTĐTD</span>
+      <span class="kbd">⌘P</span>
+      <span class="muted">mục từ</span>
+    </div>
+    <div class="row bl-row" style="margin-top:var(--s3)" data-m="hàng điều khiển">
+      <span class="muted">Nguồn</span>
+      <button class="btn"><span class="in"><span>Nguồn 8/10</span><svg class="ico"><use href="#i-chev"/></svg></span></button>
+      <button class="btn"><span class="in"><svg class="ico"><use href="#i-pin"/></svg><span>Ghim</span></span></button>
+      <button class="ibtn boxed" aria-label="Nguồn dữ liệu"><svg class="ico"><use href="#i-info"/></svg></button>
+      <span class="num">3/10</span>
+    </div>
+    <div class="row bl-row only7" style="margin-top:var(--s3)" data-m="bẫy: nút biểu tượng không baseline">
+      <span class="muted">Nguồn</span>
+      <button class="btn"><span class="in"><span>Nguồn 8/10</span><svg class="ico"><use href="#i-chev"/></svg></span></button>
+      <button class="ibtn boxed nofix" aria-label="Nguồn dữ liệu"><svg class="ico"><use href="#i-info"/></svg></button>
+      <span class="num">3/10</span>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-lk">
+  <div class="lk">
+    <div class="lkhead bar" data-m="đầu mục">
+      <div class="row bl-row">
+        <span class="hw">風流</span>
+        <span class="muted">fēngliú · phong lưu</span>
+        <span class="grow"></span>
+        <span class="muted">3 nguồn · 9 nghĩa</span>
+        <button class="ibtn" aria-label="Ghim"><svg class="ico"><use href="#i-pin"/></svg></button>
+      </div>
+    </div>
+    <div class="lksrc bar" data-m="dải nguồn">
+      <div class="row bl-row">
+        <span class="label">Thiều Chửu</span>
+        <span class="muted">3 nghĩa</span>
+        <span class="grow"></span>
+        <button class="ibtn sm" aria-label="Thu gọn"><svg class="ico"><use href="#i-chev"/></svg></button>
+      </div>
+    </div>
+    <div class="recs" data-m="khối bản ghi">
+      <div class="ent">
+        <div class="pos">tính từ</div>
+        <ol>
+          <li>Phong nhã, tài hoa mà phóng khoáng, không bị lễ giáo trói buộc.</li>
+          <li>Dấu vết, phong thái còn lưu lại của người đời trước.</li>
+          <li>Chuyện tình ái nam nữ.</li>
+        </ol>
+        <div class="ex">風流人物 — nhân vật phong lưu, tài hoa xuất chúng một thời.</div>
+      </div>
+      <div class="ent">
+        <div class="pos">danh từ</div>
+        <ol><li>Người tài hoa, nổi tiếng một thời.</li></ol>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-set">
+  <div class="set">
+    <h3 class="label">Tra cứu</h3>
+    <div class="srow">
+      <div><div class="name">Tự tra khi dừng con trỏ</div>
+        <div class="desc">Khi bật, ứng dụng tự tra từ dưới con trỏ mỗi lần bạn dừng lại; muốn tắt hẳn thì chọn “Không bao giờ” ở ô bên dưới. Tuỳ chọn được nhớ qua những lần mở, kể cả khi đường dẫn thư mục đã đổi.</div></div>
+      <span class="sw" role="switch" aria-checked="true"></span>
+    </div>
+    <div class="srow">
+      <div><div class="name">Mức đọc mặc định</div>
+        <div class="desc">Áp cho chương mới mở ở Chế độ đọc.</div></div>
+      <span class="field"><span class="grow">Cân (mặc định)</span><svg class="ico"><use href="#i-chev"/></svg></span>
+    </div>
+    <div class="srow" style="border-bottom:0">
+      <div class="row bl-row ctl">
+        <span class="chk"><i><svg><use href="#i-check"/></svg></i></span>
+        <span>Ghi nguồn từ điển khi xuất</span>
+        <span class="num muted">7/10</span>
+      </div>
+    </div>
+  </div>
+  <div class="foot" data-m="chân lớp phủ">
+    <button class="btn lg"><span>Huỷ</span></button>
+    <button class="btn lg primary"><span>Lưu thay đổi</span></button>
+  </div>
+</template>
+
+<template id="tpl-lib">
+  <div class="lib">
+    <div class="card" data-m="thẻ">
+      <div class="cover">Gió qua rặng trúc</div>
+      <div>
+        <div class="ttl">Gió qua rặng trúc</div>
+        <div class="who">Vô danh · tiếng Trung</div>
+        <div class="grp">
+          <div class="row line"><span class="num">12/40</span><span class="muted">chương</span><span class="prog"></span></div>
+          <div class="row line"><span class="muted">Mở lần cuối hôm qua</span></div>
+        </div>
+        <div class="grp">
+          <div class="row bl-row"><button class="btn primary"><span>Tiếp tục dịch</span></button><button class="ibtn boxed" aria-label="Thêm"><span>⋯</span></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+const CAPS = {
+  'v4': '<b>Trước</b> · lưới 4px, số đang chạy',
+  'v7': '<b>Sau</b> · lưới 7px',
+  'v7 d2': '<b>Sau + D2</b> · trong nhóm 7, giữa nhóm 14',
+}
+const LIB_CAPS = { 'v7': '<b>Sau, chuyển máy móc</b> · 4 và 8 cùng thành 7' }
+
+for (const host of document.querySelectorAll('[data-tpl]')) {
+  const tpl = document.getElementById(host.dataset.tpl)
+  for (const variant of host.dataset.variants.split('|')) {
+    const col = document.createElement('div')
+    const cap = document.createElement('div')
+    cap.className = 'cap'
+    cap.innerHTML = (host.dataset.tpl === 'tpl-lib' && LIB_CAPS[variant]) || CAPS[variant]
+    const frame = document.createElement('div')
+    frame.className = 'frame ' + variant
+    frame.append(tpl.content.cloneNode(true))
+    const meas = document.createElement('div')
+    meas.className = 'meas'
+    col.append(cap, frame, meas)
+    host.append(col)
+  }
+}
+
+const RD = {
+  md: { fs: '17.5px', today: 1.8, a: 35, b: 28 },
+  lg: { fs: '19px', today: 1.95, a: 42, b: 35 },
+  sm: { fs: '16px', today: 1.66, a: 28, b: 28 },
+}
+const RD_TEXT = `<h4>Chương ba — Gió qua rặng trúc</h4>
+<p>Trường Phong đứng lặng bên bờ suối, nghe tiếng gió lướt qua rặng trúc. Những chuyện cũ tưởng đã ngủ yên bỗng thức dậy, dồn dập như cơn mưa rào đầu hạ, khiến hắn chẳng thể nào dứt ra được.</p>
+<p>Thuở ấy đường xá gập ghềnh, người người lặn lội đội nắng dầm sương mà vẫn cười nói rộn ràng. Người thầy già từng dặn: muốn hiểu chữ thì trước hết phải hiểu lòng người viết ra nó.</p>`
+
+function buildReading() {
+  const lv = RD[document.getElementById('rd-level').value]
+  const fs = parseFloat(lv.fs)
+  const cols = [
+    { cls: 'v4', cap: '<b>Hôm nay</b> · tỉ số', lh: String(lv.today), gap: lv.today + 'em', title: '1.3' },
+    { cls: 'v7', cap: '<b>(a)</b> bội 7 không chật hơn hôm nay', lh: lv.a + 'px', gap: lv.a + 'px', title: '35px' },
+    { cls: 'v7', cap: '<b>(b)</b> bội 7, tỉ số ≥ 1.6', lh: lv.b + 'px', gap: lv.b + 'px', title: '35px' },
+  ]
+  const host = document.getElementById('rd-cols')
+  host.innerHTML = ''
+  for (const c of cols) {
+    const px = c.lh.endsWith('px') ? parseFloat(c.lh) : fs * parseFloat(c.lh)
+    const col = document.createElement('div')
+    col.innerHTML = `<div class="cap">${c.cap} · ${px.toFixed(2).replace(/\.?0+$/, '')}px = ${(px / fs).toFixed(3)}</div>`
+    const frame = document.createElement('div')
+    frame.className = 'frame ' + c.cls
+    frame.innerHTML = `<div class="rd" data-m="trang đọc" style="--rd-fs:${lv.fs};--rd-lh:${c.lh};--rd-gap:${c.gap};--rd-title:${c.title}">${RD_TEXT}</div>`
+    const meas = document.createElement('div')
+    meas.className = 'meas'
+    col.append(frame, meas)
+    host.append(col)
+  }
+  refresh()
+}
+
+function textBaseline(el) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => (n.textContent.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+  })
+  const t = walker.nextNode()
+  if (!t || t.parentNode.closest('svg')) return null
+  const probe = document.createElement('span')
+  probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline'
+  t.parentNode.insertBefore(probe, t)
+  const y = probe.getBoundingClientRect().bottom
+  probe.remove()
+  return y
+}
+
+function drawGuides() {
+  document.querySelectorAll('.guide').forEach((g) => g.remove())
+  if (!document.getElementById('opt-bl').checked) return
+  for (const row of document.querySelectorAll('.bl-row')) {
+    if (!row.offsetParent) continue
+    for (const ch of row.children) {
+      if (ch.classList.contains('grow') || ch.classList.contains('sep')) continue
+      let y = textBaseline(ch)
+      let icon = false
+      if (y == null) {
+        const svg = ch.matches('svg') ? ch : ch.querySelector('svg')
+        if (!svg) continue
+        y = svg.getBoundingClientRect().bottom
+        icon = true
+      }
+      const r = ch.getBoundingClientRect()
+      const g = document.createElement('div')
+      g.className = 'guide' + (icon ? ' icon' : '')
+      g.style.left = r.left + scrollX - 2 + 'px'
+      g.style.top = y + scrollY + 'px'
+      g.style.width = r.width + 4 + 'px'
+      document.body.append(g)
+    }
+  }
+}
+
+function measure() {
+  for (const frame of document.querySelectorAll('.frame')) {
+    const unit = frame.classList.contains('v7') ? 7 : 4
+    const out = []
+    for (const el of frame.querySelectorAll('[data-m]')) {
+      if (!el.offsetParent) continue
+      const h = Math.round(el.getBoundingClientRect().height * 100) / 100
+      const ok = Math.abs(h / unit - Math.round(h / unit)) < 0.01
+      out.push(`${el.dataset.m} ${String(h).replace('.', ',')}` + (ok ? '' : `<span class="off"> (lệch lưới ${unit})</span>`))
+    }
+    frame.nextElementSibling.innerHTML = out.join(' · ')
+  }
+}
+
+function refresh() {
+  document.body.className = (document.getElementById('opt-dark').checked ? 't-dark' : 't-light') +
+    (document.getElementById('opt-grid').checked ? ' grid' : '')
+  measure()
+  drawGuides()
+}
+
+for (const id of ['opt-dark', 'opt-grid', 'opt-bl']) document.getElementById(id).addEventListener('change', refresh)
+document.getElementById('rd-level').addEventListener('change', buildReading)
+addEventListener('resize', () => requestAnimationFrame(refresh))
+buildReading()
+document.fonts.ready.then(refresh)
+</script>
+</body>
+</html>

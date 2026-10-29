@@ -46,24 +46,25 @@ colors-dark:
   tm-text: '#d3b276'
   error: '#e5867a'
 typography:
+  # 🔵 2026-10-29 (Ice): giãn dòng là bội 7px, trừ source-cjk · source-hanviet · editor của thân lưới Workspace. Xem §Layout & Spacing.
   read-lg:
     fontFamily: read
     fontSize: 19px
-    lineHeight: '1.95'
+    lineHeight: '42px'
     letterSpacing: 0.004em
   read-md:
     fontFamily: read
     fontSize: 17.5px
-    lineHeight: '1.8'
+    lineHeight: '35px'
   read-sm:
     fontFamily: read
     fontSize: 16px
-    lineHeight: '1.66'
+    lineHeight: '28px'
   read-title:
     fontFamily: read
     fontSize: 23px
     fontWeight: '600'
-    lineHeight: '1.3'
+    lineHeight: '35px'
   source-cjk:
     fontFamily: read
     fontSize: 16.5px
@@ -80,34 +81,34 @@ typography:
   lookup-headword:
     fontFamily: read
     fontSize: 24px
-    lineHeight: '1.3'
+    lineHeight: '35px'
   lookup-gloss:
     fontFamily: read
     fontSize: 14.5px
-    lineHeight: '1.6'
+    lineHeight: '28px'
   lookup-example:
     fontFamily: read
     fontSize: 13px
     fontStyle: italic
-    lineHeight: '1.6'
+    lineHeight: '21px'
   ui-md:
     fontFamily: ui
     fontSize: 13px
-    lineHeight: '1.5'
+    lineHeight: '21px'
   ui-sm:
     fontFamily: ui
     fontSize: 13px
-    lineHeight: '1.5'
+    lineHeight: '21px'
   ui-label:
     fontFamily: ui
     fontSize: 13px
     fontWeight: '700'
-    lineHeight: '1.4'
+    lineHeight: '21px'
     letterSpacing: 0.08em
   ui-mono:
     fontFamily: mono
     fontSize: 13px
-    lineHeight: '1.4'
+    lineHeight: '21px'
 families:
   read: '"Source Serif 4", "Noto Serif CJK TC", serif'
   read-cjk: '"Noto Serif CJK TC", serif'
@@ -128,29 +129,30 @@ rounded:
   window: 9px
   full: 9999px
 spacing:
-  unit: 4px
-  panel-inline: 16px
-  panel-block: 12px
-  head-height: 34px
-  titlebar-height: 40px
-  status-height: 34px
-  gutter-width: 22px
+  # 🔵 2026-10-29 (Ice): lưới 7px, trước là đơn vị 4px · 16 · 12 · 36 · 40 · 34 · 22.
+  unit: 7px
+  panel-inline: 14px
+  panel-block: 14px
+  head-height: 35px
+  titlebar-height: 42px
+  status-height: 35px
+  gutter-width: 21px
   read-measure-lg: 62ch
   read-measure-md: 68ch
   read-measure-sm: 76ch
 components:
-  panel-head: { height: 34px, typography: ui-md, color: on-surface-variant }
+  panel-head: { height: 35px, typography: ui-md, color: on-surface-variant }
   panel-focus-rule: { width: 2px, color: primary }
   segment-gutter-rule: { width: 2px, radius: sm, inset-left: 8px }
   source-chip: { typography: ui-label, color: primary }
-  record-rule: { width: 2px, color: outline-faint, padding-left: 13px }
+  record-rule: { width: 2px, color: outline-faint, padding-left: 12px }
   grid-row-divider: { height: 1px, color: outline-faint }
   grid-para-divider: { height: 1px, color: outline, space-block: 16px }
   grid-num-col: { width: 34px, typography: ui-mono, color: on-surface-variant, align: right }
   grid-state-col: { width: 108px, typography: ui-label, color: on-surface-variant }
   grid-empty-cell: { min-height: 1.95em, border-bottom: 1px dashed outline }
   grid-row-omitted: { color: on-surface-variant, decoration: line-through }
-  control: { height-lg: 32px, height-md: 28px, height-sm: 24px, radius: 3px, border: control-rule, field-background: surface-sunken, check-size: 14px }
+  control: { height-lg: 35px, height-md: 28px, radius: 3px, border: control-rule, field-background: surface-sunken, check-size: 14px }
 ---
 
 ## Brand & Style
@@ -298,30 +300,30 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 
 | # | Token | Cỡ / giãn dòng / khác | Họ | Dùng ở |
 |---|---|---|---|---|
-| 1 | `read-lg` | 19px / 1.95 / `0.004em` | `read` | Chế độ đọc — mức **Thoáng** (62ch) |
-| 2 | `read-md` | 17.5px / 1.8 | `read` | Chế độ đọc — mức **Cân** (68ch, mặc định) |
-| 3 | `read-sm` | 16px / 1.66 | `read` | Chế độ đọc — mức **Đặc** (76ch) |
-| 4 | `read-title` | 23px / 600 / 1.3 | `read` | Tiêu đề Chương |
-| 5 | `source-cjk` | 16.5px / 2.05 | `read-cjk` | Nguyên văn tiếng Trung ở Panel Source |
-| 6 | `source-hanviet` | 12.5px / italic / 1.95 | `read` | Âm Hán Việt |
-| 7 | `editor` | 15px / 1.95 | `read` | Bản dịch trong Editor |
-| 8 | `lookup-headword` | 24px / 1.3 | `read` | Đầu mục Panel Lookup |
-| 9 | `lookup-gloss` | 14.5px / 1.6 | `read` | Nghĩa |
-| 10 | `lookup-example` | 13px / italic / 1.6 | `read` | Ví dụ và trích dẫn. 🔵 2026-10-28 (Ice): từ 12.5px |
-| 11 | `ui-md` | 13px / 1.5 | `ui` | Tiêu đề panel |
-| 12 | `ui-sm` | 13px / 1.5 | `ui` | Nhãn phụ. 🔵 2026-10-28 (Ice): từ 12px |
-| 13 | `ui-label` | 13px / 700 / 1.4 / `0.08em` | `ui` | Nhãn nguồn từ điển, số thứ tự câu. 🔵 2026-10-26 (Ice): từ 11px / `0.1em`. 🔵 2026-10-28 (Ice): từ 12px |
-| 14 | `ui-mono` | 13px / 1.4 | `mono` | Phím tắt, số liệu. 🔵 2026-10-26 (Ice): từ 11.5px. 🔵 2026-10-28 (Ice): từ 12px |
+| 1 | `read-lg` | 19px / 42px / `0.004em` | `read` | Chế độ đọc — mức **Thoáng** (62ch). 🔵 2026-10-29 (Ice): giãn 42px, từ 1.95 |
+| 2 | `read-md` | 17.5px / 35px | `read` | Chế độ đọc — mức **Cân** (68ch, mặc định). 🔵 2026-10-29 (Ice): giãn 35px, từ 1.8 |
+| 3 | `read-sm` | 16px / 28px | `read` | Chế độ đọc — mức **Đặc** (76ch). 🔵 2026-10-29 (Ice): giãn 28px, từ 1.66 |
+| 4 | `read-title` | 23px / 600 / 35px | `read` | Tiêu đề Chương. 🔵 2026-10-29 (Ice): giãn 35px, từ 1.3 |
+| 5 | `source-cjk` | 16.5px / 2.05 | `read-cjk` | Nguyên văn tiếng Trung ở Panel Source. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace) |
+| 6 | `source-hanviet` | 12.5px / italic / 1.95 | `read` | Âm Hán Việt. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace) |
+| 7 | `editor` | 15px / 1.95 | `read` | Bản dịch trong Editor. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace) |
+| 8 | `lookup-headword` | 24px / 35px | `read` | Đầu mục Panel Lookup. 🔵 2026-10-29 (Ice): giãn 35px, từ 1.3 |
+| 9 | `lookup-gloss` | 14.5px / 28px | `read` | Nghĩa. 🔵 2026-10-29 (Ice): giãn 28px, từ 1.6 (mã chạy 1.66, sổ deviation của `tokens.json`) |
+| 10 | `lookup-example` | 13px / italic / 21px | `read` | Ví dụ và trích dẫn. 🔵 2026-10-28 (Ice): từ 12.5px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.6 (mã chạy 1.66, sổ deviation của `tokens.json`) |
+| 11 | `ui-md` | 13px / 21px | `ui` | Tiêu đề panel. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.5 |
+| 12 | `ui-sm` | 13px / 21px | `ui` | Nhãn phụ. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.5 |
+| 13 | `ui-label` | 13px / 700 / 21px / `0.08em` | `ui` | Nhãn nguồn từ điển, số thứ tự câu. 🔵 2026-10-26 (Ice): từ 11px / `0.1em`. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.4 |
+| 14 | `ui-mono` | 13px / 21px | `mono` | Phím tắt, số liệu. 🔵 2026-10-26 (Ice): từ 11.5px. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.4 |
 
 🔵 2026-10-26 (Ice): **mọi chữ bấm được** — nút, tab con, nút phân đoạn — dùng `ui-md` 13px, bằng cỡ giao diện hệ thống macOS. `ui-sm` 12px chỉ còn cho số đếm và dòng phụ không bấm được. Không chữ giao diện nào dưới 12px. 🔵 2026-10-28 (Ice): chữ nhỏ nhất toàn app là 13px; `ui-sm`, `ui-sm-italic`, `ui-label`, `ui-mono` và `lookup-example` cùng 13px, nên chữ phụ bằng cỡ `ui-md` và tách khỏi chữ thường bằng màu, độ đậm, chữ hoa.
 
 ### Bảng token khoảng cách và hình dạng
 
-Đơn vị **4px**.
+Đơn vị **7px**. 🔵 2026-10-29 (Ice): từ 4px; luật ở §Lưới 7px.
 
 | Nhóm | Token |
 |---|---|
-| **Spacing** | `panel-inline 16px` · `panel-block 12px` · `head-height 36px` · `titlebar-height 40px` · `status-height 34px` · `gutter-width 22px` |
+| **Spacing** | `panel-inline 14px` · `panel-block 14px` · `head-height 35px` · `titlebar-height 42px` · `status-height 35px` · `gutter-width 21px`. 🔵 2026-10-29 (Ice): từ 16 · 12 · 36 · 40 · 34 · 22 |
 | **Thước đọc** | `read-measure-lg 62ch` · `read-measure-md 68ch` · `read-measure-sm 76ch` |
 | **Bo góc** | `none 0` · `sm 2px` · **mặc định `3px`** · `md 4px` · `window 9px` · `full 9999px` |
 
@@ -345,6 +347,8 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 
 ### Giãn dòng 1.66 là sàn cứng — của chữ nội dung
 
+> 🔵 2026-10-29 (Ice): giãn dòng nay là một bội 7px, không còn là tỉ số (§Lưới 7px). Chữ nội dung ngoài thân lưới Workspace lấy bội 7 nhỏ nhất không chật hơn giãn dòng cũ của nó, trừ `lookup-example` (21px, xem dưới). Chữ giao diện, một dòng lẫn xuống dòng, giãn 21px: ở 13px là 1.615. 🔵 2026-10-29 (Ice): **sàn của chữ xuống dòng hạ từ 1.66 xuống 1.6**, một sàn chung cho cả họ `read` lẫn `ui`; Ice chọn có biết con số, để `ui-md-wrap` và `lookup-example` cùng 21px ở 13px (chật hơn trước 0,58px mỗi dòng). Bốn token thân lưới (`source-cjk`, `source-latin`, `source-hanviet`, `editor`) giữ tỉ số cũ. Phần dưới đây là lý lẽ của các sàn, vẫn dùng khi kiểm bằng mắt.
+
 **Dấu tiếng Việt chồng cả trên lẫn dưới** (`ế` `ộ` `ữ` `ẳ` `ườ`). Giãn dòng 1.5 — mức mặc định quen thuộc và ổn thoả với chữ Latin — làm dấu `ườ` ở dòng trên chạm dấu `ộ` ở dòng dưới.
 
 Không token họ `read` nào được xuống dưới **1.66**. Đây là ràng buộc của ngôn ngữ, không phải khẩu vị thiết kế, và nó vô hình nếu chỉ thử bằng chữ Latin. Mọi lần kiểm bằng mắt phải dùng chuỗi dày dấu.
@@ -365,11 +369,77 @@ Ba mức đọc: `read-lg` **Thoáng** (62ch) · `read-md` **Cân** (68ch, **m�
 
 ## Layout & Spacing
 
-Đơn vị 4px. Khoảng cách chặt ở phần bộ máy, rộng ở phần nội dung — panel chỉ cao 34px cho thanh tiêu đề, nhưng văn bản bên trong thở thoải mái.
+Đơn vị 7px (🔵 2026-10-29 (Ice): từ 4px, §Lưới 7px). Khoảng cách chặt ở phần bộ máy, rộng ở phần nội dung — panel chỉ cao 35px cho thanh tiêu đề, nhưng văn bản bên trong thở thoải mái.
 
 Workspace là lưới **2×2** mặc định: hàng trên `Nguyên văn | Bản dịch`, hàng dưới `Tra cứu | Đề xuất AI`. Bố cục 4 cột là preset thay thế. Ranh giới giữa panel là một đường kẻ 1px `outline`, không phải khe hở, không phải bóng.
 
 Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `px` — thước đo đúng là số ký tự mỗi dòng, và nó phải giữ nguyên khi người dùng đổi cỡ chữ.
+
+### Lưới 7px
+
+*(🔵 2026-10-29, Ice chốt. Hình mẫu `mockups/luoi-7px.html`; lộ trình `plan-luoi-7px-va-canh-baseline.md`.)*
+
+**Luật.** Mọi khoảng cách và mọi kích thước cố định là bội số của **7px**: 7 · 14 · 21 · 28 · 35 · 42 … Khoảng nhỏ nhất khác 0 là 7px. Luật áp cho **cả chiều dọc lẫn chiều ngang**: đệm trên/dưới và trái/phải, khe giữa các mục trong hàng, lề, thụt, chiều cao thanh và hàng, bề rộng cột và mọi bề rộng cố định.
+
+**Ngoại lệ — thân lưới Workspace giữ nguyên số hiện tại:** chữ nguyên văn (cả dòng Hán Việt), chữ bản dịch, ô đang sửa, đệm của các ô đó và các cột trong hàng (`grid-*` ở front-matter). Khung quanh lưới theo luật: thanh panel, hàng công cụ, dải TM · Glossary · Soát, thanh trạng thái. Chế độ đọc và panel Tra cứu **không** được miễn. Ngoại lệ đi qua token có tên `--space-grid-*`, không qua danh sách tệp loại trừ.
+
+**Thang.** Chuyển từ đơn vị 4px:
+
+| Cũ | Mới |
+|---|---|
+| 2 · 4 · 6 · 8 | **7** |
+| 12 · 16 | **14** |
+| 20 · 24 | **21** |
+| 28 | 28 |
+| 32 · 36 | **35** |
+| 40 | **42** |
+
+**Trong nhóm 7, giữa nhóm 14.** Chỗ nào thang cũ dùng 4 để nối các dòng trong một nhóm và 8 để tách các nhóm (tên · tác giả, rồi tiến độ, rồi hàng nút), thang mới dùng **7 và 14**. Chuyển máy móc đưa cả hai về 7 và mắt mất ranh giới nhóm.
+
+**Nét kẻ nằm trong ô lưới.** Viền và nét kẻ không cộng thêm vào lưới: khối có viền 1px trừ 1px ở đệm cùng phía, theo cả hai chiều. Hàng công cụ: đệm 7 + nút 28 + đệm 6 + nét đáy 1 = 42. Thẻ Library: viền 1 + đệm 13 mỗi phía.
+
+**Bề rộng.**
+
+- Bề rộng cố định bằng px là bội 7 (cột, ô vuông biểu tượng, lề cho ba nút cửa sổ).
+- Bề rộng đo bằng `ch` (thước đọc, ô nhập ngắn 8ch và vừa 24ch) giữ nghĩa số ký tự nhưng làm tròn lên bội 7: `round(up, 24ch, 7px)`. ⚠️ Hàm `round()` của CSS phải được kiểm trên WKWebView của macOS và trên WebView2 trước khi dùng.
+- `min-width: 8.5em` của cặp nút chân lớp phủ thành **112px**.
+- Bề rộng ôm chữ (nút, nhãn, số) không ép được: CSS chưa làm tròn được kích thước theo nội dung trên WebKit. Mép trái của mục đầu hàng và mọi khe đều đúng lưới; mục đứng sau một mục ôm chữ lệch khỏi vạch lưới dọc, khe giữa hai mục vẫn là bội 7.
+
+**Kích thước cố định.**
+
+| Thành phần | Cũ | Mới |
+|---|---|---|
+| Thanh tiêu đề | 40 | **42** — đo lại `trafficLightPosition` trên máy Ice (AD-58 mục 6) |
+| Lề cho ba nút cửa sổ (`traffic-light-inset`) | 88 | **91** |
+| Thanh panel | 36 | **35** |
+| Thanh trạng thái | 34 | **35** |
+| Đệm panel ngang · dọc | 16 · 12 | **14 · 14** |
+| Điều khiển | 24 / 28 / 32 | **28 / 28 / 35** (§Điều khiển) |
+| Biểu tượng · vùng bấm | 16 · 26 | **14 · 28** |
+| Vùng bấm checkbox · công tắc | 24 · 28×16 | **28 · 28×14** |
+| Vùng đầu mục Tra cứu · dải đầu nguồn | 40 · 32 | **42 · 35** |
+| Vạch + thụt bản ghi từ điển | 2 + 13 | **2 + 12** |
+
+**Giãn dòng.**
+
+- Chữ giao diện (`ui-*`), một dòng lẫn xuống dòng: **21px**.
+- Chữ nội dung ngoài thân lưới Workspace: bội 7 nhỏ nhất không chật hơn giãn dòng cũ — `read-lg` 42 · `read-md` 35 · `read-sm` 28 · `read-title` 35 · `lookup-headword` 35 · `lookup-gloss` 28. Ice chọn luật này thay cho luật "tỉ số ≥ 1.6", vốn làm mức Cân mặc định chật hơn hôm nay 11%.
+- Ngoại lệ có tên của luật trên: `lookup-example` 21px (1.615), chật hơn giãn dòng cũ 21,58px; Ice chọn để ví dụ cùng nhịp với chữ giao diện 13px thay vì 28px (2.15).
+- Sàn của mọi chữ xuống dòng là **1.6** (trước là 1.66), chung cho họ `read` và `ui`.
+- Token lưu giãn dòng là **tỉ số không đơn vị** bằng bội 7 chia cỡ chữ (21/13 = 1.6153846…), không lưu `px`: tỉ số giữ nguyên khi phần tử con đổi cỡ chữ, còn `px` thừa hưởng nguyên giá trị. Đo trên Chrome: tỉ số đầy đủ cho đúng 21,000px mỗi dòng ở bảy cỡ chữ; WKWebView chưa đo.
+- Thanh trượt giãn dòng của Chế độ đọc: giá trị lưu vẫn là tỉ số như trước, không đổi dữ liệu đã lưu; giãn dòng hiển thị là bội 7 nhỏ nhất ≥ cỡ chữ × tỉ số, nên thanh trượt nhảy theo bậc 7px và không bao giờ xuống dưới sàn của nó.
+- Thân lưới Workspace giữ `source-cjk` · `source-latin` · `source-hanviet` · `editor` như cũ.
+
+**Canh baseline.**
+
+- Hàng ngang có chữ, số, biểu tượng hoặc điều khiển canh theo **baseline**. Hàng trong thanh cao cố định canh baseline giữa các mục, rồi cả nhóm nằm giữa thanh. Biểu tượng và chữ bên trong một nút cũng canh baseline, nhóm nằm giữa nút.
+- Biểu tượng 14px: **đáy biểu tượng đặt trên baseline** của chữ cạnh nó, như một chữ hoa.
+- ⚠️ Nút chỉ có biểu tượng không có baseline, nên đáy cả nút rơi xuống baseline của hàng và nút nhô lên 7px so với nút chữ cùng cao. Nó phải mang một hộp dòng rỗng để có baseline đúng chỗ của nút chữ cùng bậc.
+- Hàng baseline đứng tự do khai chiều cao bằng bội 7: 21 cho hàng chữ, 28 cho hàng điều khiển. Chữ `ui`, số `mono` và chip phím canh baseline thành hàng 21,5px, vì mỗi font nhô trên baseline một khác.
+- Phần tử không mang chữ và không phải biểu tượng (nét ngăn ở thanh trạng thái, thanh tiến độ) canh giữa hàng.
+- ⚠️ Cách flexbox tự sinh baseline cho phần tử không có chữ khác nhau giữa WebKit và WebView2. Phần Windows chỉ kiểm được ở `B7`.
+
+**Không theo lưới.** Bề dày viền và vạch (1 · 2 · 3px), bo góc, cỡ chữ, hình học của ba nút cửa sổ do hệ điều hành vẽ, và thanh cuộn 10px. Thanh cuộn nằm ở mép panel, ngoài mọi đệm, nên nó không đẩy mép trái của nội dung nào; thu xuống 7px thì khó bắt chuột hơn.
 
 ## Elevation & Depth
 
@@ -414,9 +484,9 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 
 ## Components
 
-**Panel** — thanh tiêu đề 34px, tiêu đề `ui-md` màu `on-surface-variant`, tab bên phải. Panel có tiêu điểm: vạch dọc 2px `primary` ở mép trái + tiêu đề chuyển `primary` in đậm. Không dùng viền bao quanh để báo tiêu điểm. 🔵 2026-10-25 Ice bỏ vạch dọc 2px: panel sát mép cửa sổ khiến vạch chạy dọc cả cửa sổ như một đường kẻ thừa; còn tiêu đề tab `primary` in đậm (tab đang chọn, không phải focus DOM).
+**Panel** — thanh tiêu đề 35px (🔵 2026-10-29 (Ice): từ 34px), tiêu đề `ui-md` màu `on-surface-variant`, tab bên phải. Panel có tiêu điểm: vạch dọc 2px `primary` ở mép trái + tiêu đề chuyển `primary` in đậm. Không dùng viền bao quanh để báo tiêu điểm. 🔵 2026-10-25 Ice bỏ vạch dọc 2px: panel sát mép cửa sổ khiến vạch chạy dọc cả cửa sổ như một đường kẻ thừa; còn tiêu đề tab `primary` in đậm (tab đang chọn, không phải focus DOM).
 
-**Bản ghi từ điển** — vạch trái 2px, thụt 13px. Nhãn nguồn `ui-label` màu `primary`. Từ loại `read` in nghiêng màu `on-surface-variant`. Nghĩa `lookup-gloss`. Ví dụ in nghiêng; trích dẫn có vạch trái `primary` để phân biệt với ví dụ. **Nhiều nguồn xếp chồng dọc, mỗi nguồn một khối — không bao giờ gộp.**
+**Bản ghi từ điển** — vạch trái 2px, thụt 12px (🔵 2026-10-29 (Ice): từ 13px, để vạch + thụt = 14). Nhãn nguồn `ui-label` màu `primary`. Từ loại `read` in nghiêng màu `on-surface-variant`. Nghĩa `lookup-gloss`. Ví dụ in nghiêng; trích dẫn có vạch trái `primary` để phân biệt với ví dụ. **Nhiều nguồn xếp chồng dọc, mỗi nguồn một khối — không bao giờ gộp.**
 
 **Vạch lề segment** — vạch dọc trong cột vạch bên trái lưới, cao đúng bằng **hàng** tương ứng. `confirmed` đã xác nhận · `primary` đang sửa · `draft` đã dịch tay chưa ký · `tm-rule` gợi ý TM chờ xác nhận · `ornament` đã về hưu. 🔵 **2026-09-24 (Ice chốt, phiếu quyết #65):** giá trị *về hưu* rút khỏi vạch trạng thái — hàng về hưu không còn hiện trong lưới (AD-5), nên không đường nào tới nó. Token màu `ornament` vẫn sống cho `draft` và cho khối bị loại ở màn xem trước nhập.
 
@@ -439,7 +509,7 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 | Nguy hiểm | Nền `surface`, viền 1px và chữ `error` (7,74:1 sáng · 5,92:1 tối) | Hành động có chữ **Xoá** làm mất thứ không lấy lại được trong app ("Xoá khoá"). 🔵 2026-10-28 (Ice duyệt): bậc thứ năm; `error` thêm đúng việc này, ngoài câu lỗi |
 | Khoá | Không nền, viền **đứt** 1px `outline`, chữ `on-surface-variant` | Mọi bậc khi `disabled` — khác dáng, không chỉ khác màu |
 
-Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng thái), bo `3px`, chữ `ui-md`. 🔵 2026-10-28: chiều cao theo thang ba bậc ở §Điều khiển (thêm 32px cho form). Nút chính **không** dùng `primary`: màu nhấn giữ đúng ba việc ở §Colors. 🔵 2026-10-28, Ice chọn giữ dáng mockup `library-luoi-rong.html` cho nút trên bìa thẻ Library: "Tiếp tục dịch" nền `primary` ở thẻ đang chọn (`ui-btn--cover-on`), nền `surface` chữ `primary` ở thẻ rê chuột (`ui-btn--cover`), `⋯` nền `surface` chữ `on-surface-variant` (`ui-btn--cover-plain`). Một hành động có cặp huỷ ("Dịch câu này" / "Huỷ dịch") hiện **một** nút ở **cùng một chỗ**, đổi theo trạng thái, để hàng nút không nhảy bố cục.
+Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng thái), bo `3px`, chữ `ui-md`. 🔵 2026-10-29 (Ice): dạng nhỏ bỏ, mọi nút trong hàng điều khiển và thanh trạng thái cao 28px; form 35px. 🔵 2026-10-28: chiều cao theo thang ba bậc ở §Điều khiển (thêm 32px cho form). Nút chính **không** dùng `primary`: màu nhấn giữ đúng ba việc ở §Colors. 🔵 2026-10-28, Ice chọn giữ dáng mockup `library-luoi-rong.html` cho nút trên bìa thẻ Library: "Tiếp tục dịch" nền `primary` ở thẻ đang chọn (`ui-btn--cover-on`), nền `surface` chữ `primary` ở thẻ rê chuột (`ui-btn--cover`), `⋯` nền `surface` chữ `on-surface-variant` (`ui-btn--cover-plain`). Một hành động có cặp huỷ ("Dịch câu này" / "Huỷ dịch") hiện **một** nút ở **cùng một chỗ**, đổi theo trạng thái, để hàng nút không nhảy bố cục.
 
 ### Điều khiển — một hệ cho mọi nút, ô nhập, ô chọn
 
@@ -451,15 +521,16 @@ Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng th
 
 | Bậc | Cao | Đệm ngang (nút · ô nhập) | Dùng ở |
 |---|---|---|---|
-| `lg` | 32px | 12px · 8px | Form trong lớp phủ và Cài đặt |
-| `md` | 28px | 12px · 8px | Thân panel (mặc định) |
-| `sm` | 24px | 8px · 6px | Hàng điều khiển, thanh trạng thái, dải gợi ý (TM, Glossary, Soát) |
+| `lg` | 35px | 14px · 7px | Form trong lớp phủ và Cài đặt |
+| `md` | 28px | 14px · 7px | Thân panel (mặc định), hàng điều khiển, thanh trạng thái, dải gợi ý (TM, Glossary, Soát) |
+
+🔵 2026-10-29 (Ice): thang 32/28/24 thành **28/28/35**: bậc `sm` 24px bỏ, chỗ nào dùng `sm` chuyển sang `md`; `lg` 32 → 35; đệm ngang 12 · 8 → 14 · 7. Chip lọc, `ui-seg--sm` và nút biểu tượng `--sm` cũng thành 28px. Bậc 28px trong thanh trạng thái 35px còn 3,5px mỗi bên; các mục canh baseline, cả nhóm nằm giữa thanh.
 
 Chữ luôn `ui-md`, bo `3px`, viền 1px. Nút chỉ có biểu tượng là ô vuông cạnh bằng chiều cao của bậc (thay ô 26px cố định). Chip lọc dùng bậc `sm`, bo `2px` (§Shapes), không bo tròn viên thuốc.
 
-🔵 2026-10-28, Ice chọn: thanh lọc Quản lý Glossary chạy trọn bậc `md` 28px, chip ở đó mang `ui-chip--md`. Nút phân đoạn `ui-seg` cao 28px tính cả viền; hàng toàn bậc `sm` (thanh tiêu đề, Chế độ đọc) dùng `ui-seg--sm` 24px.
+🔵 2026-10-28, Ice chọn: thanh lọc Quản lý Glossary chạy trọn bậc `md` 28px, chip ở đó mang `ui-chip--md`. Nút phân đoạn `ui-seg` cao 28px tính cả viền; hàng toàn bậc `sm` (thanh tiêu đề, Chế độ đọc) dùng `ui-seg--sm` 24px. 🔵 2026-10-29 (Ice): `ui-seg--sm` cao 28px như bậc `md`.
 
-**Chiều rộng.** Nút ôm chữ; riêng cặp nút ở chân lớp phủ dùng chung `min-width: 8.5em` để Huỷ và Xác nhận bằng nhau. Ô nhập đo bằng `ch` như thước đọc: **ngắn 8ch** (số, ngưỡng %), **vừa 24ch** (tên, khoá), **kín hàng 100%** (tìm, đường dẫn, mẫu luật). 🔵 2026-10-28, Ice chọn: ô Khoá API ở Cài đặt kín hàng như ô Endpoint ngay trên nó. Ô chọn dạng field rộng bằng nhãn dài nhất của nó, tối thiểu 12ch.
+**Chiều rộng.** 🔵 2026-10-29 (Ice): bề rộng theo §Lưới 7px — ô nhập đo bằng `ch` làm tròn lên bội 7, `min-width: 8.5em` thành 112px. Nút ôm chữ; riêng cặp nút ở chân lớp phủ dùng chung `min-width: 8.5em` để Huỷ và Xác nhận bằng nhau. Ô nhập đo bằng `ch` như thước đọc: **ngắn 8ch** (số, ngưỡng %), **vừa 24ch** (tên, khoá), **kín hàng 100%** (tìm, đường dẫn, mẫu luật). 🔵 2026-10-28, Ice chọn: ô Khoá API ở Cài đặt kín hàng như ô Endpoint ngay trên nó. Ô chọn dạng field rộng bằng nhãn dài nhất của nó, tối thiểu 12ch.
 
 **Các loại.**
 
@@ -469,9 +540,9 @@ Chữ luôn `ui-md`, bo `3px`, viền 1px. Nút chỉ có biểu tượng là ô
 | Ô nhập · ô nhiều dòng | Nền `surface-sunken`, viền `control-rule` (3,21:1 sáng · 3,98:1 tối — đạt sàn 3:1 của WCAG 1.4.11; viền `outline` 1,31:1 thì không), chữ `on-surface`, gợi ý `on-surface-variant`. Ô nhiều dòng giãn dòng 1.66 |
 | Ô chọn (`SelectMenu`, `DropdownMenu` dạng field) | Dáng y như ô nhập, nhãn trái, dấu `▾` phải màu `on-surface-variant` |
 | Nút mở menu (Công cụ ▾, Nguồn 8/10 ▾) | Một nút Phụ hoặc Chìm có dấu `▾` — không phải một dáng thứ ba |
-| Mục trong menu | Cao bằng bậc `md`, đệm ngang 12px, không viền |
-| Checkbox · radio | Vẽ bằng token, ô 14px trong vùng bấm tối thiểu 24×24px (WCAG 2.5.8; đệm trong suốt khi ô đứng riêng không có nhãn bọc, như `gh-check`, `ip-cleanup-tick`): viền `control-rule`, checkbox bo `2px`, radio tròn. Đang chọn: nền `on-surface`, dấu tick/chấm `surface`, như nút Chính và ô phân đoạn đang chọn. Không dùng `primary`, không để màu nhấn của hệ điều hành |
-| Công tắc (`role="switch"`) | Rãnh 28×16px viền `control-rule`, núm `on-surface-variant`; bật: rãnh nền `on-surface`, núm `surface`. Chữ trạng thái vẫn đứng cạnh |
+| Mục trong menu | Cao bằng bậc `md`, đệm ngang 14px (🔵 2026-10-29 (Ice): từ 12px), không viền |
+| Checkbox · radio | Vẽ bằng token, ô 14px trong vùng bấm 28×28px (🔵 2026-10-29 (Ice): từ 24×24px) (WCAG 2.5.8; đệm trong suốt khi ô đứng riêng không có nhãn bọc, như `gh-check`, `ip-cleanup-tick`): viền `control-rule`, checkbox bo `2px`, radio tròn. Đang chọn: nền `on-surface`, dấu tick/chấm `surface`, như nút Chính và ô phân đoạn đang chọn. Không dùng `primary`, không để màu nhấn của hệ điều hành |
+| Công tắc (`role="switch"`) | Rãnh 28×14px (🔵 2026-10-29 (Ice): từ 28×16px) viền `control-rule`, núm `on-surface-variant`; bật: rãnh nền `on-surface`, núm `surface`. Chữ trạng thái vẫn đứng cạnh |
 | Nút phân đoạn · tab con · chip phím | Như §Ba cấp điều khiển |
 
 **Trạng thái.** Mỗi trạng thái đổi **một** thuộc tính và không đổi độ dày viền, đệm hay cỡ chữ, để không xô bố cục.
@@ -496,11 +567,11 @@ Focus thắng rê chuột: rule `:focus-visible` đứng sau `:hover` trong cùn
 
 🔵 2026-10-27 (Ice): nhóm dock chỉ có một panel **ẩn thanh tab**; nhóm từ hai panel vẫn hiện để không panel nào bị giấu. "Sắp xếp panel" trong `Công cụ ▾` hiện lại mọi thanh tab để kéo thả và lưu bố cục, nhớ qua các phiên. Kéo thả dùng sự kiện con trỏ của dockview (`dndStrategy: 'pointer'`).
 
-**Biểu tượng** *(🔵 2026-10-26)*. SVG vẽ tay trong mã, nét `currentColor`, ô 16px trong vùng bấm 26px — **không** thêm thư viện biểu tượng. Mọi nút chỉ có biểu tượng mang `aria-label` và `title` lấy từ i18n. Trạng thái bật/tắt nói bằng **hình** (nét rỗng · tô đặc), không bằng màu (WCAG 1.4.1). Đã dùng: Ghim (rỗng = chưa ghim, đặc = đã ghim; thay chữ "Ghim" ở đầu mục và từng mục từ), thu gọn/mở nguồn, Nguồn dữ liệu (ⓘ), hai preset bố cục (sơ đồ "Lưới bên trái" và "Lưới trên đỉnh", thay nhãn `Ⓑ-2` · `Ⓑ-1`).
+**Biểu tượng** *(🔵 2026-10-26)*. SVG vẽ tay trong mã, nét `currentColor`, ô 16px trong vùng bấm 26px — **không** thêm thư viện biểu tượng. 🔵 2026-10-29 (Ice): ô 14px trong vùng bấm 28px; trong hàng, đáy biểu tượng đặt trên baseline của chữ (§Lưới 7px). Mọi nút chỉ có biểu tượng mang `aria-label` và `title` lấy từ i18n. Trạng thái bật/tắt nói bằng **hình** (nét rỗng · tô đặc), không bằng màu (WCAG 1.4.1). Đã dùng: Ghim (rỗng = chưa ghim, đặc = đã ghim; thay chữ "Ghim" ở đầu mục và từng mục từ), thu gọn/mở nguồn, Nguồn dữ liệu (ⓘ), hai preset bố cục (sơ đồ "Lưới bên trái" và "Lưới trên đỉnh", thay nhãn `Ⓑ-2` · `Ⓑ-1`).
 
-**Khối trong panel Tra cứu** *(🔵 2026-10-26)*. Mỗi nguồn từ điển mở bằng một dải đầu cao 32px nền `surface-sunken`, nét đáy `outline`: nhãn nguồn `ui-label` `primary`, số nghĩa `ui-sm`, nút thu gọn bên phải. Mục từ trong nguồn cách nhau 12px và nét `outline-faint`. **Khối kết quả AI** là một khung nền `surface-sunken`, viền `outline`, bo `3px`; dòng token nằm trong khung, dưới nét `outline`. Nhóm hành động cho cả Chương tách bằng nhãn nhóm `ui-sm` 600 và nét `outline-faint`.
+**Khối trong panel Tra cứu** *(🔵 2026-10-26)*. Mỗi nguồn từ điển mở bằng một dải đầu cao 35px (🔵 2026-10-29 (Ice): từ 32px) nền `surface-sunken`, nét đáy `outline`: nhãn nguồn `ui-label` `primary`, số nghĩa `ui-sm`, nút thu gọn bên phải. Mục từ trong nguồn cách nhau 14px (🔵 2026-10-29 (Ice): từ 12px) và nét `outline-faint`. **Khối kết quả AI** là một khung nền `surface-sunken`, viền `outline`, bo `3px`; dòng token nằm trong khung, dưới nét `outline`. Nhóm hành động cho cả Chương tách bằng nhãn nhóm `ui-sm` 600 và nét `outline-faint`.
 
-🔵 2026-10-26, lượt hai (Ice: "tiết kiệm lại"): vùng đầu mục Tra cứu còn **một hàng**: đầu mục · âm đọc · "N nguồn · M nghĩa" · nút ghim. Vẫn cao cố định (§Motion), nay 40px thay 76px; dải nguồn đầu tiên nằm sát ngay dưới nét đáy, không khoảng trống.
+🔵 2026-10-26, lượt hai (Ice: "tiết kiệm lại"): vùng đầu mục Tra cứu còn **một hàng**: đầu mục · âm đọc · "N nguồn · M nghĩa" · nút ghim. Vẫn cao cố định (§Motion), nay 40px thay 76px (🔵 2026-10-29 (Ice): 42px); dải nguồn đầu tiên nằm sát ngay dưới nét đáy, không khoảng trống.
 
 **Thanh cuộn** *(🔵 2026-10-26, Ice)*. Vùng cuộn của panel kéo ra sát mép panel, nên thanh cuộn nằm sát lề, không thụt theo đệm panel. Thanh mảnh 10px, không rãnh; con chạy bo tròn màu `ornament` (nét, không chữ), rê chuột thì `control-rule`. Một kiểu chung cho mọi vùng cuộn của app.
 

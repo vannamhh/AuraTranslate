@@ -73,3 +73,9 @@ slug = "epic-phat-hanh-va-tin-cay"
 title = "Phát hành & tin cậy — vượt rào cản không ký số"
 covers = ["FR105", "FR106", "FR107", "FR108", "FR109", "FR110", "FR111", "FR112"]
 after = [{ epic = 12, needs = "giao diện cuối cho 10.6 và 10.9 (12.22), khung mục Cập nhật cho 10.7 (12.18)" }]
+
+[[epic]]
+id = 13
+slug = "epic-luoi-7px-va-canh-baseline"
+title = "Lưới 7px và canh baseline cho toàn app"
+covers = []

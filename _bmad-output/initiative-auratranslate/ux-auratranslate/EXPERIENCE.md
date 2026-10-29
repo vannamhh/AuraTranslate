@@ -388,7 +388,7 @@ PRD bàn giao mục này có chủ ý. Bound đã chốt:
 
 **Giãn dòng 1.66 là sàn cứng** — dấu tiếng Việt chồng cả trên lẫn dưới, dưới mức đó `ườ` chạm `ộ`. Lý do đầy đủ ở `DESIGN.md`.
 
-Điều khiển hai tầng: **ba preset trên thanh công cụ**, thanh trượt cỡ chữ và giãn dòng chi tiết **sau một lần bấm**. Người dịch chỉnh một lần rồi dùng mãi — nhưng FR11 bắt buộc chỉnh được nên không được giấu hẳn.
+Điều khiển hai tầng: **ba preset trên thanh công cụ**, thanh trượt cỡ chữ và giãn dòng chi tiết **sau một lần bấm**. Người dịch chỉnh một lần rồi dùng mãi — nhưng FR11 bắt buộc chỉnh được nên không được giấu hẳn. 🔵 2026-10-29 (Ice): giãn dòng hiển thị nhảy theo bậc 7px (bội 7 nhỏ nhất ≥ cỡ chữ × tỉ số đã lưu, `DESIGN.md` §Lưới 7px); giá trị lưu không đổi.
 
 Mặc định **chỉ hiển thị bản dịch tiếng Việt**; công tắc song ngữ đặt nguyên văn **ở lề trái**, cỡ nhỏ, màu `on-surface-variant` — **không chen giữa dòng đọc**, vì một khối chữ Hán trên mỗi đoạn làm gãy nhịp đọc tiếng Việt. Hình nhúng hiển thị **đúng vị trí trong văn bản** (FR43). **Chú thích hiện dưới ảnh là `caption` đã dịch (FR129) — không phải alt-text.** Alt-text (FR44) cũng được dịch nhưng **không hiện trên trang**: nó là thứ trình đọc màn hình đọc lên, không phải thứ mắt nhìn. Ảnh không có caption thì **không chừa chỗ trống** dưới ảnh. Cuối trang là chuyển Chương liền mạch — đọc nhiều Chương không phải quay về Library.
 
@@ -580,7 +580,7 @@ Hệ quả cho thiết kế đã áp vào mockup: thẻ quyết định hiện *
   **Ảnh hưởng tới giao diện: không.** Màn xem trước song ngữ đã có sẵn trường mẫu phân tách và dòng *"N Chương nhận ra"*.
 
   > *(Mục này từng được ghi là 🟡 còn mở với việc cần làm **"PRD nên phê chuẩn lựa chọn này thành chữ"**. Việc đó đã xong ở cả PRD lẫn Architecture trước khi mục này được rà lại; đánh dấu đóng ngày 2026-08-03 trong đợt rà mức sẵn sàng triển khai.)*
-- ~~**Mâu thuẫn giãn dòng `ui` trong `DESIGN.md`**~~ — ✅ **đóng 2026-08-03.** Sàn 1.66 áp cho **chữ nội dung họ `read`**; họ `ui` được phép ở **1.4 và 1.5** cho nhãn một dòng, nhưng **quay lại 1.66 khi chuỗi có khả năng xuống dòng** (mô tả dưới ô thiết lập, câu trạng thái, hộp giải thích). Ranh giới là *chữ có chạy thành đoạn hay không*, không phải cỡ chữ. Xem `DESIGN.md § Giãn dòng`.
+- ~~**Mâu thuẫn giãn dòng `ui` trong `DESIGN.md`**~~ — ✅ **đóng 2026-08-03.** Sàn 1.66 áp cho **chữ nội dung họ `read`**; họ `ui` được phép ở **1.4 và 1.5** cho nhãn một dòng, nhưng **quay lại 1.66 khi chuỗi có khả năng xuống dòng** (mô tả dưới ô thiết lập, câu trạng thái, hộp giải thích). Ranh giới là *chữ có chạy thành đoạn hay không*, không phải cỡ chữ. Xem `DESIGN.md § Giãn dòng`. 🔵 2026-10-29: giãn dòng nay là bội 7px, chữ `ui` 21px (`DESIGN.md` §Lưới 7px).
 
 ### ✅ Bề mặt theo bản đồ năng lực — đã phủ kín 2026-08-03
 

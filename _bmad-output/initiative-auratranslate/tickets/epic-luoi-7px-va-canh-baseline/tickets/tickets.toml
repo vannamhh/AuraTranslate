@@ -1,0 +1,108 @@
+# tickets.toml — epic-luoi-7px-va-canh-baseline. One [[entry]] per story; table order is the build order.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Nền token, cổng và chuyển máy móc sang lưới 7px"
+description = "`tokens.json` (khoảng cách, tỉ số giãn dòng, token `--space-grid-*` cho thân lưới), `controls.css` hai bậc 28/35, các token thanh (tiêu đề 42, `traffic-light-inset` 91, panel 35, trạng thái 35), Kiểm E và Kiểm K theo plan §Cổng, và phép chuyển mọi hệ số `--space-unit`, px trơn và kích thước theo bảng ở DESIGN.md §Lưới 7px, trong một commit vì cổng đổi đơn vị cùng lúc với mã. Sau story này cả app chạy trên lưới 7; tinh chỉnh từng bề mặt là entry 6–8."
+verify = "`npm run check:tokens` xanh với các ca tự kiểm mới của Kiểm E và Kiểm K, đối chứng gỡ thật một luật cho đỏ; một spec e2e đo trên WKWebView dòng chữ `ui` cao 21px và thanh panel 35px; token `--space-grid-*` mang đúng số cũ của thân lưới."
+covers = ["R1", "R2", "R3", "R5"]
+after = []
+hitl = false
+risk = "high"
+references = ["plan-luoi-7px-va-canh-baseline.md §Cổng", "ux-auratranslate/DESIGN.md §Lưới 7px"]
+
+[[entry]]
+id = 2
+type = "story"
+title = "Bề rộng `ch` theo lưới 7px"
+description = "Đo `round(up, Nch, 7px)` trên WKWebView, rồi đưa mọi bề rộng `ch` (ô nhập 8ch · 24ch, thước đọc) về dạng đó và gắn Kiểm K cho bề rộng `ch` trần. Nếu WKWebView không hỗ trợ `round()`, story dừng và trình Ice hai đường thay thế có số đo. Phần WebView2 nằm ở mục `B7`."
+verify = "Một spec e2e trên WKWebView: ô nhập 24ch và thước đọc có bề rộng là bội 7; Kiểm K đỏ với `width: 24ch` trần."
+covers = ["R6"]
+after = [1]
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/DESIGN.md §Lưới 7px", "ux-auratranslate/mockups/luoi-7px.html mục 5"]
+
+[[entry]]
+id = 4
+type = "story"
+title = "Canh baseline cho mọi hàng ngang"
+description = "`ui-icon-btn` mang hộp dòng rỗng để có baseline, biểu tượng 14px đặt đáy trên baseline, các thanh cố định canh baseline rồi nằm giữa thanh, hàng đứng riêng khai chiều cao bội 7; rà 91 hàng `align-items: center` theo DESIGN.md §Lưới 7px — Canh baseline."
+verify = "Một spec e2e: trong thanh tiêu đề, thanh panel và thanh trạng thái, baseline các mục chữ và số lệch nhau không quá 0,5px, và nút chỉ có biểu tượng cùng đỉnh với nút chữ cùng bậc."
+covers = ["R4"]
+after = [1, 2]
+hitl = false
+risk = "high"
+references = ["ux-auratranslate/DESIGN.md §Lưới 7px", "ux-auratranslate/mockups/luoi-7px.html mục 2"]
+
+[[entry]]
+id = 3
+type = "story"
+title = "Thanh tiêu đề 42px và ba nút cửa sổ macOS"
+description = "Entry 1 đã đặt thanh tiêu đề 42px và `traffic-light-inset` 91px; story này đo lại `trafficLightPosition` của `tauri.conf.json` trên máy Ice theo AD-58 mục 6 và chỉnh lề nếu số đo đòi. Mục nợ kiểm app thật đã có (`Chủ: Epic 13`)."
+verify = "Một spec e2e đo thanh tiêu đề 42px; Ice nhìn ba nút cửa sổ nằm giữa thanh trên máy mình."
+covers = ["R8"]
+after = [1, 4]
+hitl = true
+risk = "medium"
+references = ["architecture-auratranslate/architecture-auratranslate.md AD-58 mục 6"]
+
+[[entry]]
+id = 5
+type = "story"
+title = "Chế độ đọc: giãn dòng nhảy bậc 7px"
+description = "Giãn dòng hiển thị ở Chế độ đọc là bội 7 nhỏ nhất ≥ cỡ chữ × tỉ số đã lưu, ở cả ba mức và khi kéo thanh trượt; giá trị lưu và sàn của thanh trượt không đổi."
+verify = "Một ca vitest: với mọi tỉ số đã lưu và mọi cỡ chữ của thanh trượt, giãn dòng hiển thị là bội 7 nhỏ nhất không nhỏ hơn cỡ × tỉ số, và giá trị lưu không đổi."
+covers = ["R7"]
+after = [1, 2]
+hitl = false
+risk = "low"
+references = ["ux-auratranslate/DESIGN.md §Lưới 7px", "ux-auratranslate/EXPERIENCE.md Chế độ đọc (🔵 2026-10-29)", "ux-auratranslate/mockups/luoi-7px.html mục 4"]
+
+[[entry]]
+id = 6
+type = "story"
+title = "Rà bề mặt Workspace, Tra cứu và thanh trạng thái theo lưới 7px"
+description = "Áp khoảng trong nhóm 7, giữa nhóm 14 và bề rộng theo lưới cho khung quanh lưới Workspace, panel Tra cứu, Đề xuất AI, các dải gợi ý và thanh trạng thái, đối chiếu mockup `luoi-7px.html` mục 1 và 3."
+verify = "Một spec e2e đo các khối của mockup mục 1 và 3 (hàng công cụ, dải TM, đầu mục, dải nguồn, khối bản ghi) ra bội 7."
+covers = ["R1", "R6"]
+after = [2, 4]
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/DESIGN.md §Lưới 7px", "ux-auratranslate/mockups/luoi-7px.html mục 1 và 3"]
+
+[[entry]]
+id = 7
+type = "story"
+title = "Rà bề mặt Library, trang Tác phẩm và Chế độ đọc theo lưới 7px"
+description = "Áp khoảng trong nhóm 7, giữa nhóm 14 và bề rộng theo lưới cho Library, trang Tác phẩm và khung Chế độ đọc, đối chiếu mockup `luoi-7px.html` mục 4 và 6."
+verify = "Một spec e2e đo thẻ Library, hàng trang Tác phẩm và trang đọc ra bội 7."
+covers = ["R1", "R6"]
+after = [2, 4, 5]
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/DESIGN.md §Lưới 7px", "ux-auratranslate/mockups/luoi-7px.html mục 4 và 6"]
+
+[[entry]]
+id = 8
+type = "story"
+title = "Rà bề mặt Cài đặt và 22 lớp phủ theo lưới 7px"
+description = "Áp khoảng trong nhóm 7, giữa nhóm 14, bề rộng theo lưới và chân lớp phủ `min-width` 112px cho Cài đặt và 22 tệp `*Overlay.vue`, đối chiếu mockup `luoi-7px.html` mục 5."
+verify = "Một spec e2e mở Cài đặt và ba lớp phủ đại diện, đo hàng thiết lập và chân lớp phủ ra bội 7."
+covers = ["R1", "R6"]
+after = [2, 4]
+hitl = false
+risk = "medium"
+references = ["ux-auratranslate/DESIGN.md §Lưới 7px", "ux-auratranslate/mockups/luoi-7px.html mục 5"]
+
+[[entry]]
+id = 9
+type = "story"
+title = "Refactor sweep"
+description = "Chỉ dọn dẹp, phạm vi chốt lúc bắt đầu từ plan và phát hiện review mà các story của epic đã hoãn; việc bị đẩy ra từ story khác là một story mới."
+verify = "Mỗi mục trong phạm vi chốt lúc bắt đầu đã đóng hoặc ghi lý do không làm, và bộ test đầy đủ xanh."
+covers = []
+after = [1, 2, 3, 4, 5, 6, 7, 8]
+hitl = false
+risk = "low"

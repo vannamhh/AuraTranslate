@@ -13602,3 +13602,12 @@ chính nó.
 - Mockup có "Đổi tên hàng loạt" cho nhiều Chương nhưng chưa có lệnh nào làm việc đó, nên trang không dựng; thẻ hàng loạt chỉ có Gộp, Đổi trạng thái, Xuất.
   Cần: Ice quyết có làm lệnh đổi tên hàng loạt không.
   Chủ: Ice. Trỏ: `story-trang-tac-pham-theo-mockup-khung-phai-va-nut-dich-oc-moi-chu-plan.md`.
+
+## Deferred from: mở Epic 13, lưới 7px và canh baseline (2026-10-29)
+
+- Lưới 7px chỉ máy đo được từng khối; độ đều nhịp trên màn thật, và ba nút cửa sổ macOS nằm giữa thanh tiêu đề 42px (AD-58 mục 6, `trafficLightPosition` đo lại), chỉ người nhìn được.
+  Cần: một lượt dùng thật của Ice trên sáu bề mặt của mockup `luoi-7px.html` và thanh tiêu đề sau khi entry 1–8 xong.
+  Chủ: Epic 13. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/epic-luoi-7px-va-canh-baseline.md` §Done when 3.
+- Bốn điều lưới 7px dựa vào chỉ kiểm được trên WebView2: baseline tự sinh cho phần tử không có chữ trong hàng flex, `round(up, Nch, 7px)`, tỉ số giãn dòng ra đúng bội 7, và viền focus `forced-colors` không đổi sau khi đổi thang điều khiển.
+  Cần: một lượt trên máy Windows.
+  Chủ: B7. Trỏ: `ux-auratranslate/DESIGN.md` §Lưới 7px.
