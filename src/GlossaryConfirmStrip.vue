@@ -184,7 +184,7 @@ watch(confirmStripFocusRequest, () => {
       </span>
       <button
         type="button"
-        class="gcs-act gcs-undo"
+        class="gcs-act gcs-undo ui-btn ui-btn--quiet ui-btn--sm"
         :disabled="confirmStripUndoing"
         @click="dispatch('glossary.confirm.undo')"
       >
@@ -253,7 +253,7 @@ watch(confirmStripFocusRequest, () => {
           ref="translationInputEl"
           v-model="confirmStripTranslationInput"
           type="text"
-          class="gcs-input"
+          class="gcs-input ui-field ui-field--sm"
           autocomplete="off"
           :placeholder="t('glossary.confirm.type_other_placeholder')"
           :aria-describedby="statusMessageId"
@@ -284,8 +284,8 @@ watch(confirmStripFocusRequest, () => {
       </p>
 
       <div class="gcs-row gcs-actions">
-        <button type="submit" class="gcs-act gcs-act-primary">{{ t('glossary.confirm.save') }}</button>
-        <button type="button" class="gcs-act" @click="dispatch('glossary.confirm.defer')">
+        <button type="submit" class="gcs-act gcs-act-primary ui-btn ui-btn--sm ui-btn--primary">{{ t('glossary.confirm.save') }}</button>
+        <button type="button" class="gcs-act ui-btn ui-btn--sm" @click="dispatch('glossary.confirm.defer')">
           {{ t('glossary.confirm.defer') }}
         </button>
         <span class="gcs-status">{{ t('glossary.confirm.defer_hint') }}</span>
@@ -447,21 +447,6 @@ watch(confirmStripFocusRequest, () => {
   margin: 0;
 }
 
-.gcs-input {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-}
-
-.gcs-input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .gcs-status {
   margin: 0;
   font-family: var(--face-ui-sm);
@@ -476,31 +461,5 @@ watch(confirmStripFocusRequest, () => {
 
 .gcs-actions {
   gap: calc(var(--space-unit) * 2);
-}
-
-.gcs-act {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.gcs-act:not(.gcs-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.gcs-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
-
-.gcs-act-primary {
-  color: var(--color-on-surface);
-  border-color: var(--color-primary);
 }
 </style>

@@ -13586,3 +13586,8 @@ chính nó.
 - Story 12.32 lên `done` khi chưa có lượt CI nào chạy trên nó: `master` đi trước `origin` 134 commit chưa push, lượt CI cuối chạy trên `97bcb587`. Nửa Windows và lượt UTC chỉ chạy ở CI.
   Cần: sau lần push kế tiếp, đọc lượt CI và lượt e2e đêm; đỏ thì ghi vì sao.
   Chủ: Epic 12. Trỏ: commit `8d4c4081`.
+
+## Deferred from: hệ điều khiển phần Workspace còn sót (2026-10-29, ticket 33 của Epic 12)
+
+- Chưa ai nhìn Workspace thật sau khi ba dải gợi ý, tab Tra cứu, ngăn kéo, thanh trạng thái và thanh tiêu đề chuyển sang `ui-*` (sáng và tối), cạnh `he-dieu-khien.html` và `workspace-tinh-chinh.html`; dải gợi ý đổi từ nền `background` sang `surface-sunken`; thanh bố cục `.layout-switch` không viền. Chưa chuyển: bốn liên kết trong câu còn gạch chân `outline` 1,31:1 (`lookup-char`, `lookup-concordance-pointer`, `rl-char`, `rl-concordance`) và ba `mode-tab` ở `App.vue`. e2e `story-12-10`, `story-12-20`, `titlebar-tools` chưa chạy (cổng 1420 bận); đọc lượt nightly.
+  Chủ: Epic 12. Trỏ: `story-he-ieu-khien-phan-workspace-con-sot-va-danh-sach-canh-u-plan.md`.

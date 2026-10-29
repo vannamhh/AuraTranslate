@@ -1,53 +1,17 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse } from 'vue/compiler-sfc'
 import { describe, expect, it } from 'vitest'
 
-const FILES = [
-  'src/DropdownMenu.vue',
-  'src/SelectMenu.vue',
-  'src/TitlebarToolsMenu.vue',
-  'src/panels/LookupSourcesMenu.vue',
-  'src/GlossaryManageOverlay.vue',
-  'src/GlossaryQueueOverlay.vue',
-  'src/GlossaryHarvestOverlay.vue',
-  'src/GlossaryImportOverlay.vue',
-  'src/GlossaryQuickAdd.vue',
-  'src/TmManageOverlay.vue',
-  'src/TmImportOverlay.vue',
-  'src/PromptLibraryOverlay.vue',
-  'src/PromptImportOverlay.vue',
-  'src/PromptTemplatePicker.vue',
-  'src/AiPromptInspectorOverlay.vue',
-  'src/ProofreadMemoryOverlay.vue',
-  'src/ProofreadScopeOverlay.vue',
-  'src/SegmentHistoryOverlay.vue',
-  'src/ImportPreviewOverlay.vue',
-  'src/BilingualImportPreviewOverlay.vue',
-  'src/LibraryImportOverlay.vue',
-  'src/ReviewerImportOverlay.vue',
-  'src/ExportOverlay.vue',
-  'src/AlignmentOverlay.vue',
-  'src/ChapterMergeOverlay.vue',
-  'src/ChapterSplitOverlay.vue',
-  'src/AttributionOverlay.vue',
-  'src/ChapterOrigin.vue',
-  'src/modes/SourceLangChips.vue',
-  'src/SettingsOverlay.vue',
-  'src/SettingsDataSection.vue',
-  'src/SettingsExportSection.vue',
-  'src/SettingsGlossarySection.vue',
-  'src/SettingsTmSection.vue',
-  'src/SettingsLayoutSection.vue',
-  'src/SettingsReadingSection.vue',
-  'src/SettingsShortcutsSection.vue',
-  'src/SettingsUpdateSection.vue',
-  'src/modes/LibraryMode.vue',
-  'src/modes/LibraryWorkPage.vue',
-  'src/modes/LibrarySearchResults.vue',
-  'src/modes/LibraryUrlImportScreen.vue',
-  'src/modes/ReadingMode.vue',
-]
+function vueFiles(dir: string): string[] {
+  return readdirSync(join(__dirname, '../..', dir), { withFileTypes: true })
+    .flatMap((entry) =>
+      entry.isDirectory() ? vueFiles(`${dir}/${entry.name}`) : entry.name.endsWith('.vue') ? [`${dir}/${entry.name}`] : [],
+    )
+    .sort()
+}
+
+const FILES = vueFiles('src')
 
 const CONTROL_TAGS = new Set(['button', 'input', 'textarea', 'summary'])
 const SHAPE_PROPERTY = /^(height|min-height|border(-[a-z-]+)?|outline(-[a-z-]+)?)$/
@@ -60,6 +24,7 @@ const SHAPE_EXCEPTIONS: Record<string, string> = {
   'src/PromptLibraryOverlay.vue .pl-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/AlignmentOverlay.vue .al-sr-only': 'visually hidden native radio; its wrapping label carries the row hit area',
   'src/modes/LibraryMode.vue .lib-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
+  'src/App.vue .layout-switch': 'layout switch on the title bar is borderless',
 }
 
 const NOT_A_CONTROL: Record<string, string> = {
@@ -71,6 +36,12 @@ const NOT_A_CONTROL: Record<string, string> = {
   'src/SettingsOverlay.vue .set-nav-item': 'section navigation row with a left-edge mark (mockup settings.html .nav a); DESIGN §Điều khiển has no navigation row control',
   'src/SettingsReadingSection.vue .sr-range': 'native range slider; DESIGN §Điều khiển has no slider control',
   'src/modes/ReadingMode.vue .tuner-range': 'native range slider; DESIGN §Điều khiển has no slider control',
+  'src/GlossaryConfirmStrip.vue .gcs-option': 'multi-part suggestion row with key hint, source label and a left-edge mark; precedent pfmem-row and pl-row, ui-btn is nowrap and would clip the text',
+  'src/panels/LookupPanel.vue .lookup-char': 'inline link inside a sentence; DESIGN §Điều khiển has no link control',
+  'src/panels/LookupPanel.vue .lookup-concordance-pointer': 'inline link inside a sentence; DESIGN §Điều khiển has no link control',
+  'src/modes/ReadingLookupPopup.vue .rl-char': 'inline link inside a sentence; DESIGN §Điều khiển has no link control',
+  'src/modes/ReadingLookupPopup.vue .rl-concordance': 'inline link inside a sentence; DESIGN §Điều khiển has no link control',
+  'src/App.vue .mode-tab': 'mode tab on the title bar; DESIGN §Điều khiển has no mode-tab control and mockup workspace-tinh-chinh.html draws it unlike ui-tab',
 }
 
 const LABEL_EXEMPT: Record<string, string> = {
@@ -128,7 +99,7 @@ function inspect(file: string) {
   const { descriptor } = parse(readFileSync(join(__dirname, '../..', file), 'utf8'), { filename: file })
   const controls: { node: Node; ancestors: Node[] }[] = []
   const shaped: Node[] = []
-  walk(descriptor.template!.ast as unknown as Node, [], (node, ancestors) => {
+  if (descriptor.template) walk(descriptor.template.ast as unknown as Node, [], (node, ancestors) => {
     if (notAControl(file, node)) return
     if (hasUi(classText(node))) shaped.push(node)
     if (!CONTROL_TAGS.has(node.tag ?? '')) return
@@ -138,12 +109,44 @@ function inspect(file: string) {
   return { descriptor, controls, shaped }
 }
 
+function shapeOffences(file: string): { offences: string[]; exempted: Set<string> } {
+  const { descriptor, controls, shaped } = inspect(file)
+  const onControls = new Set<string>()
+  for (const node of [...controls.map((c) => c.node), ...shaped]) {
+    for (const match of classText(node).matchAll(/(?:^|[\s'"])([a-z][\w-]*)(?=$|[\s'"])/g)) {
+      onControls.add(`.${match[1]}`)
+    }
+  }
+  const offences: string[] = []
+  const exempted = new Set<string>()
+  for (const style of descriptor.styles.filter((s) => s.scoped)) {
+    const css = style.content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const line = style.loc.start.line + css.slice(0, rule.index! + rule[1]!.search(/\S/)).split('\n').length - 1
+      for (const selector of rule[1]!.split(',').map((s) => s.trim())) {
+        const classes = [...selector.matchAll(/\.[\w-]+/g)].map((m) => m[0])
+        const hit = classes.find((cls) => onControls.has(cls))
+        if (hit === undefined) continue
+        if (Object.hasOwn(SHAPE_EXCEPTIONS, `${file} ${hit}`)) {
+          exempted.add(`${file} ${hit}`)
+          continue
+        }
+        if (STATE_PSEUDO.test(selector)) offences.push(`${file}:${line} ${selector} styles a state`)
+        for (const decl of rule[2]!.split(';')) {
+          const prop = decl.split(':')[0]!.trim()
+          if (SHAPE_PROPERTY.test(prop)) offences.push(`${file}:${line} ${selector} declares ${prop}`)
+        }
+      }
+    }
+  }
+  return { offences, exempted }
+}
+
 describe('controls adopt the ui-* layer', () => {
   for (const file of FILES) {
-    const { descriptor, controls, shaped } = inspect(file)
+    const { controls } = inspect(file)
 
     it(`${file}: every control carries ui-* or sits in a label that does`, () => {
-      expect(controls.length, `${file} has no control to guard`).toBeGreaterThan(0)
       const bare = controls
         .filter(({ node, ancestors }) => {
           if (hasUi(classText(node))) return false
@@ -156,38 +159,20 @@ describe('controls adopt the ui-* layer', () => {
     })
 
     it(`${file}: scoped rules on a control's or a ui-* element's classes leave shape and state to ui-*`, () => {
-      const onControls = new Set<string>()
-      for (const node of [...controls.map((c) => c.node), ...shaped]) {
-        for (const match of classText(node).matchAll(/(?:^|[\s'"])([a-z][\w-]*)(?=$|[\s'"])/g)) {
-          onControls.add(`.${match[1]}`)
-        }
-      }
-      const offences: string[] = []
-      for (const style of descriptor.styles.filter((s) => s.scoped)) {
-        const css = style.content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-        for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-          const line = style.loc.start.line + css.slice(0, rule.index! + rule[1]!.search(/\S/)).split('\n').length - 1
-          for (const selector of rule[1]!.split(',').map((s) => s.trim())) {
-            const classes = [...selector.matchAll(/\.[\w-]+/g)].map((m) => m[0])
-            const hit = classes.find((cls) => onControls.has(cls))
-            if (hit === undefined || Object.hasOwn(SHAPE_EXCEPTIONS, `${file} ${hit}`)) continue
-            if (STATE_PSEUDO.test(selector)) offences.push(`${file}:${line} ${selector} styles a state`)
-            for (const decl of rule[2]!.split(';')) {
-              const prop = decl.split(':')[0]!.trim()
-              if (SHAPE_PROPERTY.test(prop)) offences.push(`${file}:${line} ${selector} declares ${prop}`)
-            }
-          }
-        }
-      }
-      expect(offences).toEqual([])
+      expect(shapeOffences(file).offences).toEqual([])
     })
   }
+
+  it('every SHAPE_EXCEPTIONS key still exempts a scoped rule in its file', () => {
+    const live = new Set(FILES.flatMap((file) => [...shapeOffences(file).exempted]))
+    expect(Object.keys(SHAPE_EXCEPTIONS).filter((key) => !live.has(key))).toEqual([])
+  })
 
   it('every NOT_A_CONTROL key still names a control, or a label wrapping one, in its file', () => {
     const live = new Set<string>()
     for (const file of FILES) {
       const { descriptor } = parse(readFileSync(join(__dirname, '../..', file), 'utf8'), { filename: file })
-      walk(descriptor.template!.ast as unknown as Node, [], (node) => {
+      if (descriptor.template) walk(descriptor.template.ast as unknown as Node, [], (node) => {
         if ((CONTROL_TAGS.has(node.tag ?? '') || (node.tag === 'label' && holdsControl(node))) && notAControl(file, node)) {
           for (const key of Object.keys(NOT_A_CONTROL)) {
             if (key.startsWith(`${file} `) && classText(node).split(/[^\w-]+/).includes(key.slice(file.length + 2))) live.add(key)
@@ -198,9 +183,14 @@ describe('controls adopt the ui-* layer', () => {
     expect(Object.keys(NOT_A_CONTROL).filter((key) => !live.has(key))).toEqual([])
   })
 
-  it('reaches every listed file with at least one control, and the overlay with many', () => {
+  it('reads every .vue under src and reaches controls, the overlay with many', () => {
+    const listed = readdirSync(join(__dirname, '../../src'), { recursive: true, encoding: 'utf8' })
+      .filter((path) => path.endsWith('.vue'))
+      .map((path) => `src/${path.split('\\').join('/')}`)
+      .sort()
+    expect(FILES).toEqual(listed)
     const counts = FILES.map((file) => inspect(file).controls.length)
-    expect(Math.min(...counts)).toBeGreaterThanOrEqual(1)
+    expect(counts.reduce((a, b) => a + b, 0)).toBeGreaterThan(0)
     expect(counts[FILES.indexOf('src/GlossaryManageOverlay.vue')]).toBeGreaterThanOrEqual(20)
   })
 })

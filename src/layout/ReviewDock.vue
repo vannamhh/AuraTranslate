@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
       <button
         v-if="reviewModeUnresolvedCount > 0"
         type="button"
-        class="review-align-link"
+        class="review-align-link ui-btn ui-btn--quiet ui-btn--sm"
         data-alignment-open
         data-review-align-link
         @click="dispatch('export.alignment.open')"
@@ -139,18 +139,6 @@ onBeforeUnmount(() => {
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
-}
-
-.review-align-link {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  border: 0;
-  background: none;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-on-surface);
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 .review-footnote {

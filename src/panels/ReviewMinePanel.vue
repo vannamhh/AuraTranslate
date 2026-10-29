@@ -50,14 +50,14 @@ onBeforeUnmount(() => registerReviewScroller('mine', null))
             <button
               v-if="item.pair.acceptable"
               type="button"
-              class="review-act review-act-primary"
+              class="review-act review-act-primary ui-btn ui-btn--primary"
               :disabled="reviewModeBusy"
               data-review-accept
               @click="dispatch('review.accept_change')"
             >
               {{ t('review.accept') }}
             </button>
-            <button type="button" class="review-act" :disabled="reviewModeBusy" data-review-skip @click="dispatch('review.skip_change')">
+            <button type="button" class="review-act ui-btn" :disabled="reviewModeBusy" data-review-skip @click="dispatch('review.skip_change')">
               {{ t('review.skip') }}
             </button>
           </span>
@@ -70,10 +70,10 @@ onBeforeUnmount(() => registerReviewScroller('mine', null))
             <span>{{ t('review.overwrite_prompt') }}</span>
             <!-- aura-allow-text: DỮ LIỆU (bản nháp của người dùng sắp bị ghi đè). -->
             <span class="review-draft">{{ reviewModePendingAccept.draft }}</span>
-            <button type="button" class="review-act review-act-primary" :disabled="reviewModeBusy" data-review-overwrite @click="dispatch('review.accept_overwrite')">
+            <button type="button" class="review-act review-act-primary ui-btn ui-btn--primary" :disabled="reviewModeBusy" data-review-overwrite @click="dispatch('review.accept_overwrite')">
               {{ t('review.overwrite_confirm') }}
             </button>
-            <button type="button" class="review-act" data-review-keep @click="dispatch('review.accept_keep')">
+            <button type="button" class="review-act ui-btn" data-review-keep @click="dispatch('review.accept_keep')">
               {{ t('review.overwrite_keep') }}
             </button>
           </span>
@@ -128,32 +128,6 @@ onBeforeUnmount(() => registerReviewScroller('mine', null))
 .review-draft {
   white-space: pre-wrap;
   color: var(--color-on-surface);
-}
-
-.review-act {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  border: 1px solid var(--color-outline);
-  background: var(--color-background);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  color: var(--color-on-surface);
-}
-
-.review-act:not(.review-act-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.review-act-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
-}
-
-.review-act:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
 }
 
 .review-bar-label {

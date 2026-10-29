@@ -196,14 +196,14 @@ const usageText = computed<string | null>(() => {
       <button
         v-if="proofreadStateValue === 'scanning'"
         type="button"
-        class="pfs-btn"
+        class="pfs-btn ui-btn ui-btn--sm"
         @click="dispatch('ai.proofread.cancel')"
       >
         {{ t('proofread.strip.cancel') }}
       </button>
       <button
         type="button"
-        class="pfs-link"
+        class="pfs-link ui-btn ui-btn--quiet ui-btn--sm"
         data-proofread-strip-memory
         @mousedown="focusOnPointerDown($event)"
         @click="dispatch('ai.proofread.memory.open')"
@@ -215,7 +215,7 @@ const usageText = computed<string | null>(() => {
     <div class="pfs-scopes" role="group" :aria-label="t('proofread.scope.title')">
       <button
         type="button"
-        class="pfs-btn pfs-scope"
+        class="pfs-btn pfs-scope ui-btn ui-btn--sm"
         data-proofread-strip-scope="segment"
         :disabled="proofreadStateValue === 'scanning' || proofreadScopeCounts.segment === 0"
         @click="dispatch('ai.proofread.run')"
@@ -227,7 +227,7 @@ const usageText = computed<string | null>(() => {
       </button>
       <button
         type="button"
-        class="pfs-btn pfs-scope"
+        class="pfs-btn pfs-scope ui-btn ui-btn--sm"
         data-proofread-strip-scope="selection"
         :disabled="proofreadStateValue === 'scanning' || proofreadScopeCounts.selection === 0"
         @click="dispatch('ai.proofread.run_selection')"
@@ -239,7 +239,7 @@ const usageText = computed<string | null>(() => {
       </button>
       <button
         type="button"
-        class="pfs-btn pfs-scope"
+        class="pfs-btn pfs-scope ui-btn ui-btn--sm"
         data-proofread-strip-scope="chapter"
         :disabled="proofreadStateValue === 'scanning' || proofreadScopeCounts.chapter === 0"
         @click="dispatch('ai.proofread.run_chapter')"
@@ -265,20 +265,20 @@ const usageText = computed<string | null>(() => {
       <!-- aura-allow-text: result of t() computed in the script. -->
       <p class="pfs-status pfs-suggestion">{{ card.suggestion }}</p>
       <div class="pfs-actions">
-        <button type="button" class="pfs-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.accept')">
+        <button type="button" class="pfs-btn ui-btn ui-btn--sm" :disabled="proofreadBusy" @click="dispatch('ai.proofread.accept')">
           {{ t('proofread.strip.accept') }}
         </button>
-        <button type="button" class="pfs-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.dismiss')">
+        <button type="button" class="pfs-btn ui-btn ui-btn--sm" :disabled="proofreadBusy" @click="dispatch('ai.proofread.dismiss')">
           {{ t('proofread.strip.dismiss') }}
         </button>
-        <button type="button" class="pfs-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.ignore')">
+        <button type="button" class="pfs-btn ui-btn ui-btn--sm" :disabled="proofreadBusy" @click="dispatch('ai.proofread.ignore')">
           {{ t('proofread.strip.ignore') }}
         </button>
         <template v-if="card.many">
-          <button type="button" class="pfs-btn" @click="dispatch('ai.proofread.prev')">
+          <button type="button" class="pfs-btn ui-btn ui-btn--sm" @click="dispatch('ai.proofread.prev')">
             {{ t('command.ai.proofread.prev') }}
           </button>
-          <button type="button" class="pfs-btn" @click="dispatch('ai.proofread.next')">
+          <button type="button" class="pfs-btn ui-btn ui-btn--sm" @click="dispatch('ai.proofread.next')">
             {{ t('command.ai.proofread.next') }}
           </button>
         </template>
@@ -286,7 +286,7 @@ const usageText = computed<string | null>(() => {
     </div>
     <div v-if="isJob && proofreadRevertible" class="pfs-actions">
       <span class="pfs-status">{{ t('proofread.strip.reverted_hint') }}</span>
-      <button type="button" class="pfs-btn" :disabled="proofreadBusy" @click="dispatch('ai.proofread.revert')">
+      <button type="button" class="pfs-btn ui-btn ui-btn--sm" :disabled="proofreadBusy" @click="dispatch('ai.proofread.revert')">
         {{ t('command.ai.proofread.revert') }}
       </button>
     </div>
@@ -366,15 +366,6 @@ const usageText = computed<string | null>(() => {
 
 .pfs-link {
   margin-left: auto;
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  color: var(--color-primary);
-  background: none;
-  border: none;
-  padding: 0;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 .pfs-scopes {
@@ -435,26 +426,5 @@ const usageText = computed<string | null>(() => {
 
 .pfs-error {
   color: var(--color-error);
-}
-
-.pfs-btn:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
-
-.pfs-btn {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.pfs-btn:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 </style>

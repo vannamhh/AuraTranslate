@@ -277,7 +277,7 @@ onMounted(async () => {
         <button
           v-if="currentMode === 'library'"
           type="button"
-          class="titlebar-import"
+          class="titlebar-import ui-btn ui-btn--quiet ui-btn--sm"
           data-library-import-open
           @click="dispatch('library.import.open')"
         >
@@ -476,20 +476,6 @@ onMounted(async () => {
 }
 
 .titlebar-status {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.titlebar-import {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--space-unit) * 2);
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);

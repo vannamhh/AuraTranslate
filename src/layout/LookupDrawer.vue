@@ -126,7 +126,7 @@ function trapTab(event: KeyboardEvent): void {
     <section ref="panel" class="ld-panel" tabindex="-1" role="dialog" aria-modal="true">
       <header class="ld-head">
         <h2 class="ld-title">{{ t('panel.lookup.title') }}</h2>
-        <button type="button" class="ld-close" @click="dispatch('layout.lookup_drawer_close')">
+        <button type="button" class="ld-close ui-btn ui-btn--quiet" @click="dispatch('layout.lookup_drawer_close')">
           {{ t('command.layout.lookup_drawer_close') }}
         </button>
       </header>
@@ -183,23 +183,6 @@ function trapTab(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
-}
-
-.ld-close {
-  padding: 0;
-  background: none;
-  border: none;
-  border-bottom: 1px solid var(--color-outline);
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.ld-close:focus-visible {
-  outline: none;
-  border-bottom-color: var(--color-primary);
 }
 
 /* Thân co giãn, `LookupPanel.vue` tự lo cuộn/bố cục bên trong nó (`PanelFrame.vue::.panel`

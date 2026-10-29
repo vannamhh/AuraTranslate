@@ -355,7 +355,7 @@ onBeforeUnmount(() => {
         <button
           id="lookup-tab-record"
           type="button"
-          class="lookup-tab"
+          class="lookup-tab ui-tab"
           role="tab"
           aria-controls="lookup-tabpanel"
           :aria-selected="lookupTab === 'record'"
@@ -368,7 +368,7 @@ onBeforeUnmount(() => {
         <button
           id="lookup-tab-concordance"
           type="button"
-          class="lookup-tab"
+          class="lookup-tab ui-tab"
           role="tab"
           aria-controls="lookup-tabpanel"
           :aria-selected="lookupTab === 'concordance'"
@@ -381,7 +381,7 @@ onBeforeUnmount(() => {
         <button
           id="lookup-tab-history"
           type="button"
-          class="lookup-tab"
+          class="lookup-tab ui-tab"
           role="tab"
           aria-controls="lookup-tabpanel"
           :aria-selected="lookupTab === 'history'"
@@ -1015,25 +1015,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-panel-inline);
   margin-left: auto;
-}
-
-.lookup-tab {
-  appearance: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface-variant);
-}
-
-.lookup-tab.active {
-  color: var(--color-on-surface);
-  font-weight: var(--weight-ui-md-strong);
-  border-bottom-color: var(--color-on-surface);
 }
 
 .lookup-chars {

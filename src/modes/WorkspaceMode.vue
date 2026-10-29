@@ -123,22 +123,22 @@ const reviewNoticeOffersImport = computed(
       <button
         v-if="reviewNoticeOffersImport"
         type="button"
-        class="review-notice-act"
+        class="review-notice-act ui-btn ui-btn--sm"
         data-review-notice-import
         @click="dispatch('export.reviewer_import.open')"
       >
         {{ t('command.export.reviewer_import.open') }}
       </button>
-      <button type="button" class="review-notice-act" data-review-notice-dismiss @click="dispatch('review.close')">
+      <button type="button" class="review-notice-act ui-btn ui-btn--sm" data-review-notice-dismiss @click="dispatch('review.close')">
         {{ t('review.notice.dismiss') }}
       </button>
     </p>
     <p v-if="libraryChapterDoneSuggestionVisible" class="narrow-notice review-notice" role="status" data-chapter-done-suggestion>
       {{ t('mode.workspace.chapter_done_suggestion') }}
-      <button type="button" class="review-notice-act" data-chapter-done-suggestion-accept @click="dispatch('lifecycle.set_chapter_done')">
+      <button type="button" class="review-notice-act ui-btn ui-btn--sm" data-chapter-done-suggestion-accept @click="dispatch('lifecycle.set_chapter_done')">
         {{ t('status.chapter_done') }}
       </button>
-      <button type="button" class="review-notice-act" data-chapter-done-suggestion-dismiss @click="dispatch('lifecycle.dismiss_chapter_done_suggestion')">
+      <button type="button" class="review-notice-act ui-btn ui-btn--sm" data-chapter-done-suggestion-dismiss @click="dispatch('lifecycle.dismiss_chapter_done_suggestion')">
         {{ t('mode.workspace.chapter_done_suggestion_dismiss') }}
       </button>
     </p>
@@ -199,18 +199,6 @@ const reviewNoticeOffersImport = computed(
 
 .review-notice-act {
   margin-left: calc(var(--space-unit) * 2);
-  font-family: var(--face-ui-sm);
-  font-size: var(--font-ui-sm);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
-  cursor: pointer;
-}
-
-.review-notice-act:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
 }
 
 /* Xem lý do đầy đủ ở `LibraryMode.vue` — chỉ gốc `tabindex="-1"`, không `*:focus`. */

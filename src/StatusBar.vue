@@ -549,7 +549,7 @@ const libraryErrorText = computed<string | null>(() => {
           <span v-if="createdWork.images_failed > 0" class="notice live-part" data-status-library-images-failed>
             <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
             {{ t('mode.library.images_failed_warning', { count: String(createdWork.images_failed) }) }}
-            <button type="button" class="status-link" data-status-library-domain-log @click="dispatch('settings.privacy.open')">
+            <button type="button" class="status-link ui-btn ui-btn--quiet ui-btn--sm" data-status-library-domain-log @click="dispatch('settings.privacy.open')">
               {{ t('mode.library.preview.domain_log_view') }}
             </button>
           </span>
@@ -807,15 +807,7 @@ const libraryErrorText = computed<string | null>(() => {
 }
 
 .status-link {
-  padding: 0;
   margin-left: calc(var(--space-unit) * 1);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-  text-decoration: underline;
 }
 
 .notice {

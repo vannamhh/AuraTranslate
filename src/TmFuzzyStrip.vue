@@ -146,10 +146,10 @@ const acceptErrorText = computed(() => {
       <!-- aura-allow-text: the user's own draft text, shown so the overwrite is an informed choice. -->
       <p class="tmf-draft">{{ tmFuzzyPendingAccept.draft }}</p>
       <div class="tmf-actions">
-        <button type="button" class="tmf-btn tmf-btn-primary" @click="dispatch('tm.fuzzy.confirm_overwrite')">
+        <button type="button" class="tmf-btn tmf-btn-primary ui-btn ui-btn--sm ui-btn--primary" @click="dispatch('tm.fuzzy.confirm_overwrite')">
           {{ t('tm.fuzzy.overwrite_confirm') }}
         </button>
-        <button type="button" class="tmf-btn" @click="dispatch('tm.fuzzy.hide')">
+        <button type="button" class="tmf-btn ui-btn ui-btn--sm" @click="dispatch('tm.fuzzy.hide')">
           {{ t('tm.fuzzy.overwrite_keep') }}
         </button>
       </div>
@@ -181,7 +181,7 @@ const acceptErrorText = computed(() => {
           <span class="tmf-meta-actions">
             <button
               type="button"
-              class="tmf-btn"
+              class="tmf-btn ui-btn ui-btn--sm"
               :disabled="tmFuzzyAccepting || tmFuzzyPendingAccept !== null"
               @focus="aimTmFuzzyRow(i)"
               @mousedown="aimTmFuzzyRow(i)"
@@ -225,7 +225,7 @@ const acceptErrorText = computed(() => {
           <span class="tmf-meta-actions">
             <button
               type="button"
-              class="tmf-btn"
+              class="tmf-btn ui-btn ui-btn--sm"
               :disabled="tmFuzzyAccepting || tmFuzzyPendingAccept !== null"
               @focus="aimTmFuzzyRow(i)"
               @mousedown="aimTmFuzzyRow(i)"
@@ -235,7 +235,7 @@ const acceptErrorText = computed(() => {
             </button>
             <button
               type="button"
-              class="tmf-btn"
+              class="tmf-btn ui-btn ui-btn--sm"
               :aria-expanded="expanded"
               @focus="aimTmFuzzyRow(i)"
               @mousedown="aimTmFuzzyRow(i)"
@@ -411,30 +411,5 @@ const acceptErrorText = computed(() => {
 .tmf-actions {
   display: flex;
   gap: calc(var(--space-unit) * 2);
-}
-
-.tmf-btn {
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
-  line-height: var(--leading-ui-md);
-  color: var(--color-on-surface);
-  background: var(--color-background);
-  border: 1px solid var(--color-outline);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 3);
-  cursor: pointer;
-}
-
-.tmf-btn:not(.tmf-btn-primary):focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.tmf-btn:disabled {
-  cursor: default;
-  color: var(--color-on-surface-variant);
-}
-
-.tmf-btn-primary {
-  border-color: var(--color-primary);
 }
 </style>
