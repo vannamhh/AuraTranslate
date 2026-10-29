@@ -52,7 +52,7 @@ Khi cổng đỏ oan, đường ra là **viết một câu giải thích**, khô
 | Comment | Cho phép gì | Vì sao có |
 |---|---|---|
 | `/* aura-allow-opacity: <lý do> */` | một `opacity` trung gian | Kiểm D đỏ với **mọi** `opacity` khác 0 và khác 1 trong `src/**` (Ice chốt 2026-08-03) — kể cả trên thẻ bọc, kể cả `var()`/`calc()` không tĩnh. Nét và nền thật thì khai ra. |
-| `/* aura-allow-z-index: <lý do> */` | một `z-index` | Ngữ cảnh xếp lớp là nhu cầu **cơ học** (dropdown, tooltip, dockview), khác với bóng đổ là quyết định thị giác mà AC7 cấm thẳng. `box-shadow`/`text-shadow` **không** có đường này. |
+| `/* aura-allow-z-index: <lý do> */` | một `z-index` | Ngữ cảnh xếp lớp là nhu cầu **cơ học** (dropdown, tooltip, dockview), không phải đường thoát cho bóng đổ. `box-shadow`/`text-shadow` **không** có đường này: chúng chỉ hợp lệ khi giá trị là đúng một `var(--shadow-…)` của token `shadows` (Kiểm F). |
 | `/* aura-allow-literal: <lý do> */` | một chuỗi hình dạng hex trong mã | `#dad`, `#decade`, `href="#face"` là hex hợp lệ mà không phải màu. Đừng nới regex — một cổng chỉ đường sai sẽ bị người sau thêm ngoại lệ cho tới khi nó không bắt được gì. |
 
 Miễn trừ phải nằm trong phạm vi **một dòng** của khai báo, và phần `<lý do>` không được rỗng.

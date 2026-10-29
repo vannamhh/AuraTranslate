@@ -16,7 +16,7 @@ The frontend only renders and holds UI state. No business rule in TypeScript (AD
 - A function run from a keyboard chord never throws: it logs the cause and returns `false`.
 - An `⌥` chord compares `event.code`, never `event.key`.
 - ⚠️ `check:commands` does not see `@change`, and does not judge whether a chord is safe. A bare `Space` global chord is unsafe (`isTypingZone` skips `<button>`).
-- Colour and font size come only from tokens; no shadows, gradients or floating layers. An intermediate `opacity` needs a named exemption.
+- Colour, font size and shadows come only from tokens (`box-shadow: var(--shadow-…)`); no gradients. A floating layer's `z-index` and an intermediate `opacity` each need a named exemption.
 - A directory carrying a concept has a `README.md` (missing in `src/config/` and `src/selftest/`).
 
 ## Known pitfalls

@@ -110,6 +110,11 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
     if (isToken(name)) style.setProperty(`--radius-${cssName(name)}`, String(value))
   }
 
+  // ── Shadows ───────────────────────────────────────────────────────────────────
+  for (const [name, value] of Object.entries(tokens.shadows[theme] as unknown as PlainRecord)) {
+    if (isToken(name)) style.setProperty(`--shadow-${name}`, String(value))
+  }
+
   // ── Phân tách panel (AC6) ──────────────────────────────────────────────────────
   //
   // ⚠️ Hai theme khai HAI cơ chế khác nhau, và đó là điều kiện nghiệm thu chứ không

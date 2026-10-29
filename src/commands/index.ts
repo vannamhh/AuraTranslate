@@ -1298,6 +1298,11 @@ export type CommandDeps = {
   cancelReadingMarksClear?: () => void
   walkReadingMarks?: () => void
   walkNextReadingMark?: () => void
+  /** Anchors the reading lookup popup at the selection; `false` when it is not in a bilingual source note. */
+  openReadingLookup?: () => boolean
+  closeReadingLookup?: () => void
+  /** Closes the popup, switches to Workspace and opens the Concordance tab for the looked-up word. */
+  openReadingLookupConcordance?: () => void
   openReadingWorkStart?: () => void
 }
 
@@ -2736,6 +2741,34 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     ['reading.marks_walk', 'command.reading.marks_walk', 'walkReadingMarks'],
     ['reading.marks_walk_next', 'command.reading.marks_walk_next', 'walkNextReadingMark'],
     ['reading.work_start', 'command.reading.work_start', 'openReadingWorkStart'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey,
+      keys: undefined,
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
+
+  // Double-click on a bilingual source note: the lookup itself still goes through
+  // `lookup.lookup_selection`, so history, pins and enabled sources share the Workspace path.
+  target.register({
+    id: 'reading.lookup_open',
+    labelKey: 'command.reading.lookup_open',
+    keys: undefined,
+    run: () => {
+      if (deps.openReadingLookup === undefined) return portMissing('reading.lookup_open', 'openReadingLookup')
+      if (!deps.openReadingLookup()) return
+      target.dispatch('lookup.lookup_selection')
+    },
+  })
+  for (const [id, labelKey, port] of [
+    ['reading.lookup_close', 'command.reading.lookup_close', 'closeReadingLookup'],
+    ['reading.lookup_concordance', 'command.reading.lookup_concordance', 'openReadingLookupConcordance'],
   ] as const) {
     target.register({
       id,

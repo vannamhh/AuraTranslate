@@ -229,7 +229,7 @@ const tsFiles = keep(tsAll)
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const VUE_FLOOR = 57
-const TS_FLOOR = 121
+const TS_FLOOR = 131
 
 /**
  * SÀN NỘI DUNG — bộ đăng ký command. Một bộ đăng ký rỗng làm Kiểm B, D và E xanh mà
@@ -1810,7 +1810,7 @@ const SELECTION_PANEL_FILES = {
  * rỗng)*, không canh số bề mặt đúng. Story 1.20/3.4 sẽ THÊM bề mặt, không bớt.
  */
 /** `ceil(0.85 × live)`, qua `judgeFloor`. */
-const SELECTION_SURFACE_FLOOR = 19
+const SELECTION_SURFACE_FLOOR = 21
 
 const SURFACE_CALL_RE = /useSelectionSurface\s*\(\s*[^,)]+,\s*'(source|display)'/g
 
@@ -2601,6 +2601,8 @@ const HANDLER_TABLE = {
   'src/panels/LookupRecord.vue::aimSourceCollapseFrom': { nonCommand: R_CURSOR_IMPORTED },
   'src/panels/LookupPanel.vue::moveTabFocus': { nonCommand: R_DISPATCH_VIA_PARAM },
   'src/panels/LookupPanel.vue::aimLookupEntryFrom': { nonCommand: R_CURSOR_IMPORTED },
+  'src/modes/ReadingLookupPopup.vue::aimLookupEntryFrom': { nonCommand: R_CURSOR_IMPORTED },
+  'src/modes/ReadingLookupPopup.vue::aimLookupCharFrom': { nonCommand: R_CURSOR_IMPORTED },
 }
 
 /**

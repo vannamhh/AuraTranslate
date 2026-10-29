@@ -65,10 +65,23 @@ import { readingOriginLabel } from './readingOrigin'
 import { shortcutRows } from '../config/shortcutsState'
 import type { ReadingChapter, ReadingFrontierChapter, ReadingImage, ReadingParagraph, ReadingSegment } from '../config/reading'
 import ChapterImage from '../ChapterImage.vue'
+import ReadingLookupPopup from './ReadingLookupPopup.vue'
+import { readingLookupAnchor, resetReadingLookup } from './readingLookupState'
+import { useSelectionSurface } from '../panels/selectionContract'
 
 const root = useTemplateRef<HTMLElement>('root')
 const tocPanel = useTemplateRef<HTMLElement>('tocPanel')
 const marksPanel = useTemplateRef<HTMLElement>('marksPanel')
+
+useSelectionSurface(root, 'source', undefined, false, '[data-reading-source-note]', false)
+
+watch(readingBilingual, (on) => {
+  if (!on) resetReadingLookup()
+})
+// The popup keeps content coordinates, so any reflow of the text under it closes it.
+watch([readingStyle, readingRun], () => {
+  resetReadingLookup()
+})
 let readingModeActive = false
 
 /**
@@ -198,6 +211,7 @@ onActivated(() => {
 onDeactivated(() => {
   rememberReadingViewportAnchor()
   readingModeActive = false
+  resetReadingLookup()
   clearReadingAim()
   focusedSegmentId.value = null
   // `<KeepAlive>` giữ subtree của BA chế độ sống, nhưng `readingRun` (Chương + đoạn + câu của
@@ -715,7 +729,7 @@ function paragraphRuns(
           <template v-if="chapter.paragraphs.length > 0">
             <div v-for="(paragraph, index) in chapter.paragraphs" :key="index" class="reading-paragraph">
               <!-- aura-allow-text: nguyên văn là DỮ LIỆU của Tác phẩm, không câu giao diện. -->
-              <p v-if="readingBilingual" class="source-note">{{ paragraph.segments.map((s) => s.source_text).join(' ') }}</p>
+              <p v-if="readingBilingual" class="source-note" data-reading-source-note @dblclick="dispatch('reading.lookup_open')">{{ paragraph.segments.map((s) => s.source_text).join(' ') }}</p>
               <!--
                 🔵 Story 6.14 — MỘT đoạn Rust có thể vẽ thành NHIỀU `<p>` liền kề khi một ảnh
                 chen giữa hai câu của nó (§I/O Matrix "ảnh giữa hai câu ⇒ hiện sau câu k ở CẢ
@@ -959,11 +973,13 @@ function paragraphRuns(
         </div>
       </div>
     </div>
+    <ReadingLookupPopup v-if="readingLookupAnchor !== null && readingBilingual" :host="root" />
   </section>
 </template>
 
 <style scoped>
 .mode {
+  position: relative;
   height: 100%;
   padding: var(--space-panel-block) var(--space-panel-inline);
   overflow: auto;

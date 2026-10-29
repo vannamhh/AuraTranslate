@@ -13563,3 +13563,8 @@ chính nó.
   summary: `check:tokens` Kiểm K (`GRID_PROPS` trong `scripts/check-tokens.mjs`) chỉ đọc `margin`, `margin-top/right/bottom/left`, `padding*` và `gap`, không đọc `margin-block*`/`margin-inline*`/`padding-block*`/`padding-inline*`.
   evidence: review bắt `margin-block: 0 1em` mang `aura-allow-spacing` mà cổng không bao giờ xét, và `margin-inline-start` âm, lệch lưới 4px, lọt qua. Ở plan này hai dòng đó đã gộp thành `margin` để cổng đọc được: gỡ miễn trừ thì cổng đỏ. Thuộc tính logic ở các tệp khác vẫn lọt.
   Chủ: Ice.
+
+## Deferred from: tra cứu double-click ở Chế độ đọc (2026-10-29, ngoài cây vé)
+
+- Popup tra cứu mới được kiểm bằng vitest và e2e (driver phát `dblclick` trên vùng chọn dựng tay, sự kiện có `isTrusted: false`). Cần mắt người trong app thật: WebKit tách từ chữ Hán thế nào khi double-click thật, bóng `--shadow-popover` ở cả theme sáng và tối, popup lật lên trên ở cuối trang, và dòng Concordance ở bố cục Workspace hẹp (mở ngăn kéo Lookup).
+  Chủ: Ice. Trỏ: `plan-tra-cuu-double-click-che-do-doc.md`.

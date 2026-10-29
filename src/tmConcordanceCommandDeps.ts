@@ -12,6 +12,9 @@ import { editorCaretSegmentId, editorChapterId, editorSegments } from './panels/
 import { glossaryMarks } from './panels/glossaryMarksState'
 import { glossaryMarksBySegment } from './panels/glossaryMarksMap'
 import { currentQuery } from './panels/lookupPanelState'
+import { lookupHasRetreated, openLookupDrawer } from './layout/lookupDrawerState'
+import { setMode } from './modes/modeState'
+import { resetReadingLookup } from './modes/readingLookupState'
 import { selectLookupTab } from './panels/lookupHistoryState'
 import {
   currentSelectionIsVietnameseForConcordance,
@@ -62,13 +65,27 @@ export function openConcordanceFromSelection(): void {
     return
   }
 
-  const fallback = currentQuery.value?.trim() ?? ''
+  openConcordanceForQuery(currentQuery.value ?? '')
+}
+
+/** Concordance tab for a query already known, without reading the selection. */
+function openConcordanceForQuery(query: string): void {
+  selectLookupTab('concordance')
   setConcordanceSourceHighlight(null)
-  if (fallback === '') {
+  const trimmed = query.trim()
+  if (trimmed === '') {
     showConcordanceNotSearched()
     return
   }
-  void runConcordance(fallback)
+  void runConcordance(trimmed)
+}
+
+/** Leaves Reading mode for the Workspace Concordance tab of the word the reading lookup popup shows. */
+export function openReadingLookupConcordance(): void {
+  resetReadingLookup()
+  setMode('workspace')
+  if (lookupHasRetreated.value) openLookupDrawer()
+  openConcordanceForQuery(currentQuery.value ?? '')
 }
 
 /** The `CommandDeps` handler of `tm.concordance`; `main.ts` spreads this. */

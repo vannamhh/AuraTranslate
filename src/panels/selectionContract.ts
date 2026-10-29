@@ -68,6 +68,7 @@ type Surface = {
   resolve: SelectionResolver | undefined
   vietnamese: boolean
   scope: string | undefined
+  autoLookup: boolean
 }
 
 function ownsAnchor(surface: Surface, anchor: Node): boolean {
@@ -101,9 +102,10 @@ export function registerSelectionSurface(
   resolve?: SelectionResolver,
   vietnamese = false,
   scope?: string,
+  autoLookup = true,
 ): () => void {
   const existing = surfaces.findIndex((s) => s.el === el && s.role === role)
-  const entry: Surface = { el, role, resolve, vietnamese, scope }
+  const entry: Surface = { el, role, resolve, vietnamese, scope, autoLookup }
   if (existing === -1) surfaces.push(entry)
   else surfaces[existing] = entry
 
@@ -135,13 +137,14 @@ export function useSelectionSurface(
   resolve?: SelectionResolver,
   vietnamese = false,
   scope?: string,
+  autoLookup = true,
 ): void {
   let release: (() => void) | null = null
 
   const sync = (el: HTMLElement | null): void => {
     release?.()
     release = null
-    if (el !== null) release = registerSelectionSurface(el, role, resolve, vietnamese, scope)
+    if (el !== null) release = registerSelectionSurface(el, role, resolve, vietnamese, scope, autoLookup)
   }
 
   watch(elRef, sync, { immediate: true, flush: 'sync' })
@@ -213,6 +216,11 @@ function surfaceFor(selection: Selection): Surface | null {
  * chỗ để cắm lịch sử vào.
  */
 export function currentSelectionText(): string {
+  return sourceSelectionText(false)
+}
+
+/** A surface registered with `autoLookup = false` answers an explicit command, never a released mouse. */
+function sourceSelectionText(forAutoLookup: boolean): string {
   const selection = window.getSelection()
   if (selection === null) return ''
 
@@ -220,6 +228,7 @@ export function currentSelectionText(): string {
   // không nguồn nào nhận vùng chọn này (Panel Lookup, ô nhập Library, một bề mặt chưa đăng
   // ký) ⇒ rỗng ⇒ command không phát lượt tra. AC3.
   if (surface === null || surface.role !== 'source') return ''
+  if (forAutoLookup && !surface.autoLookup) return ''
 
   if (surface.resolve === undefined) return selection.toString()
 
@@ -350,7 +359,7 @@ export function attachSelectionWatcher(target: Document, dispatchLookup: () => v
     text !== '' && text !== currentQuery.value && text !== lastAutoDispatched
 
   const onSelectionSettled = (): void => {
-    const text = currentSelectionText()
+    const text = sourceSelectionText(true)
 
     // 🔴 **Bẫy 5 — vùng chọn RỖNG ⇒ không LÀM GÌ, không xoá panel.** Một cú **bấm** (không kéo) cũng
     // bắn `mouseup` và thu vùng chọn về một caret. Xoá panel ở đó nghĩa là kết quả biến

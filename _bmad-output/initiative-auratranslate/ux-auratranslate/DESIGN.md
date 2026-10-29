@@ -155,7 +155,7 @@ components:
 
 ## Brand & Style
 
-AuraTranslate là **bàn viết**, không phải bảng điều khiển. Người dùng ngồi với nó nửa buổi liền cho một Chương, nên phần mềm phải chịu lùi lại phía sau văn bản. Khung viền tan thành đường kẻ mảnh; thanh công cụ chỉ giữ những gì đang thật sự dùng; không có gradient, không có bóng đổ trang trí, không có màu nào chỉ để cho vui mắt.
+AuraTranslate là **bàn viết**, không phải bảng điều khiển. Người dùng ngồi với nó nửa buổi liền cho một Chương, nên phần mềm phải chịu lùi lại phía sau văn bản. Khung viền tan thành đường kẻ mảnh; thanh công cụ chỉ giữ những gì đang thật sự dùng; không có gradient, không có bóng đổ trang trí, không có màu nào chỉ để cho vui mắt. 🔵 2026-10-29 (Ice): bóng đổ được dùng ở nơi cần tạo chiều sâu cho một lớp nổi, giá trị lấy từ token `shadows`; gradient vẫn cấm.
 
 Phong cách là **Editorial trầm** với kỷ luật của một **nhạc cụ nghề nghiệp**. Nó kế thừa sự quen tay của QuickTranslator ở mô hình tra cứu và bố cục panel, nhưng thay ngôn ngữ thị giác tiện ích bằng ngôn ngữ của trang sách. Mọi thay đổi trạng thái nói khẽ: một vạch lề đổi màu, một nhãn nguồn hiện ra — không hộp thoại, không nhấp nháy.
 
@@ -373,9 +373,9 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 
 ## Elevation & Depth
 
-**Không có elevation.** Không bóng đổ, không lớp nổi, không z-index trang trí. Chiều sâu duy nhất là **sắc độ**: `surface-sunken` cho vùng lùi, `surface` cho mặt phẳng làm việc.
+~~**Không có elevation.** Không bóng đổ, không lớp nổi, không z-index trang trí.~~ 🔵 2026-10-29 (Ice): **bóng đổ và lớp nổi được dùng ở nơi cần tạo chiều sâu.** Lớp nổi dùng khi nội dung phải bám ngay cạnh chỗ người dùng vừa chọn (popup tra cứu ở Chế độ đọc); bóng đổ chỉ lấy giá trị từ token `shadows` trong `tokens.json` (`box-shadow: var(--shadow-…)`, `check:tokens` Kiểm F), mỗi theme một giá trị. Gradient vẫn cấm; `z-index` vẫn cần miễn trừ có tên, không z-index trang trí. Chiều sâu của mặt phẳng làm việc vẫn là **sắc độ**: `surface-sunken` cho vùng lùi, `surface` cho mặt phẳng làm việc.
 
-Ngoại lệ duy nhất là bóng của chính cửa sổ ứng dụng, do hệ điều hành vẽ.
+~~Ngoại lệ duy nhất là bóng của chính cửa sổ ứng dụng, do hệ điều hành vẽ.~~ 🔵 2026-10-29: không còn là ngoại lệ duy nhất (xem trên); bóng cửa sổ vẫn do hệ điều hành vẽ.
 
 ### Phân tách panel đảo ngược giữa hai theme
 
@@ -524,6 +524,6 @@ Focus thắng rê chuột: rule `:focus-visible` đứng sau `:hover` trong cùn
 - Không viết giá trị màu thẳng trong component — mọi màu đến từ token đã kiểm tương phản (AD-34).
 - Không dùng `ornament` hay `tm-rule` làm màu chữ.
 - Không hạ giãn dòng văn bản xuống dưới 1.66.
-- Không thêm bóng đổ, gradient hay lớp nổi.
+- Không thêm gradient. 🔵 2026-10-29 (Ice): bóng đổ và lớp nổi không còn bị cấm; bóng chỉ lấy từ token `shadows`, không viết tay.
 - Không dùng trắng tinh làm nền hay đen tuyền làm chữ, ở cả hai theme.
 - Không chia Editor thành ô hay bảng — điều đó phá đúng thứ người dùng đã chọn.

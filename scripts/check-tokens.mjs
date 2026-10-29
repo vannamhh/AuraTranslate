@@ -726,6 +726,15 @@ compare('typography', EXPECTED_TYPOGRAPHY, tokens.typography)
 compare('families', EXPECTED_FAMILIES, tokens.families)
 compare('spacing', EXPECTED_SPACING, tokens.spacing)
 compare('rounded', EXPECTED_ROUNDED, tokens.rounded)
+// DESIGN.md has no shadow table: every shadow token is an extra that the `deviations` ledger signs.
+compare('shadows.light', {}, tokens.shadows?.light)
+compare('shadows.dark', {}, tokens.shadows?.dark)
+{
+  const light = keysOf(tokens.shadows?.light).join(',')
+  const dark = keysOf(tokens.shadows?.dark).join(',')
+  if (light === dark) pass(`shadows: hai theme khai cùng ${keysOf(tokens.shadows?.light).length} token`)
+  else fail(`shadows: theme sáng khai [${light}], theme tối khai [${dark}] — phải cùng một tập`)
+}
 
 // Đếm tường minh — mệnh đề 16/16/14/4 của AC1.
 const counts = [
@@ -1420,37 +1429,59 @@ if (eBad === 0) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
-console.log('\nKiểm F — không elevation (AC7)')
+console.log('\nKiểm F — bóng đổ chỉ từ token, không gradient, `z-index` có miễn trừ có tên')
 // ═════════════════════════════════════════════════════════════════════════════════
 //
-// Chiều sâu duy nhất của sản phẩm là SẮC ĐỘ (`surface-sunken`). Ngoại lệ duy nhất là
-// bóng của chính cửa sổ ứng dụng, do hệ điều hành vẽ — không mã nào ở đây vẽ nó.
+// A real `box-shadow`/`text-shadow` passes only as exactly one `var(--shadow-<name>)` with `<name>`
+// in `SHADOW_TOKEN_NAMES`; handwritten values, `drop-shadow()` and gradients stay red.
 //
-// ⚠️ `z-index` có miễn trừ CÓ TÊN, `box-shadow`/`text-shadow` THẬT (không `--`) thì không.
-// Lý do bất đối xứng: bóng đổ là quyết định thị giác mà AC7 cấm thẳng, còn ngữ cảnh xếp lớp
-// là nhu cầu CƠ HỌC — panel của Story 1.14, dropdown, tooltip và chính dockview đều cần.
-// Không có đường thoát có tên thì cái `z-index` hợp lệ đầu tiên sẽ được "sửa" bằng cách xoá
-// nó khỏi `BANNED_PROPS`, và hai lệnh cấm bóng đổ dùng chung tập đó mất theo.
+// ⚠️ `z-index` có miễn trừ CÓ TÊN; `box-shadow`/`text-shadow` thì không có đường thoát
+// ngoài token. Không có đường thoát có tên thì cái `z-index` hợp lệ đầu tiên sẽ được "sửa"
+// bằng cách xoá nó khỏi `BANNED_PROPS`, và luật bóng dùng chung tập đó mất theo.
 //
 // Chỉ một biến TUỲ CHỈNH được `classifyCustomProp` gộp vào lớp `box-shadow`/
 // `text-shadow` (`--dv-floating-box-shadow`, …) MỚI được phép qua `aura-allow-shadow: <lý
 // do>` — thuộc tính THẬT vẫn không có đường thoát, đúng bất đối xứng ở trên.
 const BANNED_PROPS = new Set(['box-shadow', 'text-shadow'])
+const SHADOW_TOKEN_NAMES = new Set(['popover'])
+const SHADOW_TOKEN_VALUE_RE = /^var\(\s*--shadow-([a-z0-9-]+)\s*\)$/
+/**
+ * @param {string} prop
+ * @param {string} value
+ * @returns {boolean}
+ */
+const shadowFromToken = (prop, value) => {
+  if (prop.startsWith('--')) return false
+  const m = SHADOW_TOKEN_VALUE_RE.exec(value.trim())
+  return m !== null && SHADOW_TOKEN_NAMES.has(m[1])
+}
 const EXEMPTABLE_PROPS = new Map([['z-index', 'z-index']])
 const BANNED_VALUE_RE =
   /\b(?:drop-shadow|linear-gradient|radial-gradient|conic-gradient|repeating-linear-gradient|repeating-radial-gradient|repeating-conic-gradient)\s*\(/
 let fBad = 0
 let fExempt = 0
+let fShadowTokens = 0
+for (const theme of ['light', 'dark']) {
+  const declared = keysOf(tokens.shadows?.[theme]).sort().join(', ')
+  const frozen = [...SHADOW_TOKEN_NAMES].sort().join(', ')
+  if (declared !== frozen) {
+    fail(`tokens.shadows.${theme} khai [${declared}] — SHADOW_TOKEN_NAMES của Kiểm F ghìm [${frozen}]`)
+    detail('Thêm hay bớt một token bóng là sửa cả `tokens.json` lẫn `SHADOW_TOKEN_NAMES` trong cùng một lượt.')
+    fBad += 1
+  }
+}
 for (const d of allDecls) {
   const p = parsed.find((x) => x.file === d.file)
   const eff = classifyCustomProp(d.prop)
   const isCustom = d.prop.startsWith('--')
   if (BANNED_PROPS.has(eff)) {
-    if (isCustom && p && exemptAt(p, d.index, 'shadow')) {
+    if (shadowFromToken(d.prop, d.value)) {
+      fShadowTokens += 1
+    } else if (isCustom && p && exemptAt(p, d.index, 'shadow')) {
       pass(`${where(d)} — \`${d.prop}\` có miễn trừ có tên (aura-allow-shadow)`)
       fExempt += 1
     } else {
-      fail(`${where(d)} — \`${d.prop}\` bị cấm (không bóng đổ, không lớp nổi)`)
+      fail(`${where(d)} — \`${d.prop}: ${d.value}\` — bóng đổ chỉ được là đúng một \`var(--shadow-<tên>)\` của \`tokens.shadows\``)
       if (isCustom) detail('Nếu đây là giá trị vô hiệu hoá bóng của thư viện: thêm `/* aura-allow-shadow: <lý do> */`.')
       fBad += 1
     }
@@ -1460,7 +1491,7 @@ for (const d of allDecls) {
       pass(`${where(d)} — \`${d.prop}\` có miễn trừ có tên`)
       fExempt += 1
     } else {
-      fail(`${where(d)} — \`${d.prop}\` bị cấm (không lớp nổi)`)
+      fail(`${where(d)} — \`${d.prop}\` cần miễn trừ có tên`)
       detail(`Nếu đây là ngữ cảnh xếp lớp cơ học: thêm \`/* aura-allow-${EXEMPTABLE_PROPS.get(eff)}: <lý do> */\`.`)
       fBad += 1
     }
@@ -1471,7 +1502,10 @@ for (const d of allDecls) {
   }
 }
 if (fBad === 0) {
-  pass(`không \`box-shadow\` · \`text-shadow\` · \`drop-shadow\` · gradient · \`z-index\` (${fExempt} miễn trừ có tên)`)
+  pass(
+    `${fShadowTokens} bóng đổ lấy từ token · không bóng viết tay · \`drop-shadow\` · gradient · ` +
+      `\`z-index\` không tên (${fExempt} miễn trừ có tên)`,
+  )
 }
 
 // Tự kiểm F — phân loại hậu tố của biến tuỳ chỉnh và miễn trừ `aura-allow-shadow` (spec
@@ -1509,6 +1543,16 @@ const F_SHADOW_EXEMPT_CASES = [
     false,
   ],
 ]
+/** @type {[string, string, boolean][]} */
+const F_SHADOW_TOKEN_CASES = [
+  ['box-shadow: var(--shadow-popover) — xanh', '.x {\n  box-shadow: var(--shadow-popover);\n}', true],
+  ['text-shadow: var(--shadow-popover) — xanh', '.x {\n  text-shadow: var(--shadow-popover);\n}', true],
+  ['box-shadow viết tay — đỏ', '.x {\n  box-shadow: 0 1px 2px black;\n}', false],
+  ['token cộng giá trị viết tay — đỏ', '.x {\n  box-shadow: var(--shadow-popover), 0 1px 2px black;\n}', false],
+  ['token không có trong tokens.shadows — đỏ', '.x {\n  box-shadow: var(--shadow-nope);\n}', false],
+  ['biến không phải bóng — đỏ', '.x {\n  box-shadow: var(--color-outline);\n}', false],
+  ['biến tuỳ chỉnh mang token — vẫn đi đường miễn trừ', '.x {\n  --x-box-shadow: var(--shadow-popover);\n}', false],
+]
 /**
  * Đi qua ĐÚNG đường ống Kiểm F thật dùng (`maskCommentsAndStrings` → `parseCssBlocks`) rồi
  * áp ĐÚNG phán quyết từng khai báo của Kiểm F — canh cả phần NỐI DÂY từ parser tới phán
@@ -1534,7 +1578,32 @@ for (const [name, text, shouldExempt] of F_SHADOW_EXEMPT_CASES) {
     fSelfBad += 1
   }
 }
-if (fSelfBad === 0) pass(`tự kiểm Kiểm F — ${F_CLASSIFY_CASES.length + F_SHADOW_EXEMPT_CASES.length} ca`)
+/**
+ * Same pipeline as `fShadowVerdictThroughPipeline`, asking the token verdict Kiểm F applies first.
+ * @param {string} text
+ * @returns {boolean}
+ */
+function fShadowTokenVerdictThroughPipeline(text) {
+  const cssRanges = [{ start: 0, end: text.length }]
+  const { masked } = maskCommentsAndStrings(text, { cssRanges })
+  const decls = parseCssBlocks(masked, 'fixture.css').flatMap((b) => b.decls)
+  const d = decls.find((x) => BANNED_PROPS.has(classifyCustomProp(x.prop)))
+  return d !== undefined && shadowFromToken(d.prop, d.value)
+}
+if (!SHADOW_TOKEN_NAMES.has('popover')) {
+  fail('tự kiểm Kiểm F — `tokens.shadows.light.popover` không còn; các ca dưới mất điểm tựa')
+  fSelfBad += 1
+}
+for (const [name, text, shouldPass] of F_SHADOW_TOKEN_CASES) {
+  const got = fShadowTokenVerdictThroughPipeline(text) && !BANNED_VALUE_RE.test(text)
+  if (got !== shouldPass) {
+    fail(`tự kiểm Kiểm F — ca \`${name}\`: mong ${shouldPass ? 'XANH' : 'ĐỎ'}, nhận ${got ? 'XANH' : 'ĐỎ'}`)
+    fSelfBad += 1
+  }
+}
+if (fSelfBad === 0) {
+  pass(`tự kiểm Kiểm F — ${F_CLASSIFY_CASES.length + F_SHADOW_EXEMPT_CASES.length + F_SHADOW_TOKEN_CASES.length} ca`)
+}
 
 // ═════════════════════════════════════════════════════════════════════════════════
 console.log('\nKiểm H — focus ring: `outline: none` chỉ trên gốc `tabindex="-1"` hoặc khi cùng khối đổi viền bằng token (NFR17)')
@@ -1785,6 +1854,7 @@ function emittedVarNames(tok) {
   }
   for (const k of keysOf(tok.spacing)) names.add(`--space-${k}`)
   for (const k of keysOf(tok.rounded)) names.add(`--radius-${k === 'DEFAULT' ? 'default' : k}`)
+  for (const k of keysOf(tok.shadows?.light)) names.add(`--shadow-${k}`)
   for (const name of EMITTED_PANEL_VARS) names.add(name)
   return names
 }

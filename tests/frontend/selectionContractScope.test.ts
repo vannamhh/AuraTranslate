@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  attachSelectionWatcher,
   currentSelectionText,
   currentSelectionTextForConcordance,
   focusSelectionSource,
@@ -88,5 +89,47 @@ describe('one element registered under two roles with different scopes', () => {
 
     releaseDisplay()
     expect(currentSelectionTextForConcordance()).toBe('')
+  })
+})
+
+describe('a source surface registered with Auto-Lookup off', () => {
+  function selectAll(el: HTMLElement): void {
+    const node = el.firstChild as Text
+    const range = document.createRange()
+    range.setStart(node, 0)
+    range.setEnd(node, node.length)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+  }
+
+  function mountTwo(): { quiet: HTMLElement; auto: HTMLElement } {
+    const quiet = document.createElement('p')
+    quiet.textContent = '控制'
+    const auto = document.createElement('p')
+    auto.textContent = '局面'
+    document.body.append(quiet, auto)
+    return { quiet, auto }
+  }
+
+  it('a released mouse does not look up there, while an explicit command still reads its text', () => {
+    const { quiet, auto } = mountTwo()
+    const releaseQuiet = registerSelectionSurface(quiet, 'source', undefined, false, undefined, false)
+    const releaseAuto = registerSelectionSurface(auto, 'source')
+    const fired: string[] = []
+    const detach = attachSelectionWatcher(document, () => fired.push(currentSelectionText()))
+
+    selectAll(quiet)
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift', bubbles: true }))
+    expect(fired).toEqual([])
+    expect(currentSelectionText()).toBe('控制')
+
+    selectAll(auto)
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+    expect(fired).toEqual(['局面'])
+
+    detach()
+    releaseQuiet()
+    releaseAuto()
   })
 })

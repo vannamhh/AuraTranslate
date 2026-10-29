@@ -17,9 +17,8 @@ import AppIcon from '../AppIcon.vue'
 import type { DockviewPanelProps } from '../layout/panelProps'
 import { t } from '../i18n'
 import { dispatch } from '../commands'
-import { dictSources, enabledSourceCount, everySourceOffForRoute } from './dictSourcesState'
+import { dictSources, enabledSourceCount } from './dictSourcesState'
 import { shortcutRows } from '../config/shortcutsState'
-import { sharedReadingText } from './pinyin'
 import { useSelectionSurface } from './selectionContract'
 import { markPainted } from './lookupTiming'
 import {
@@ -28,19 +27,14 @@ import {
   currentQuery,
   groupedLookup,
   layerSensesFailed,
-  layersLoaded,
   lookupDisplayable,
-  lookupError,
   lookupPending,
   lookupResolved,
-  lookupRoute,
   neverLookedUp,
   notFound,
-  queryTooShort,
   queryWasTruncated,
   sensesByLayer,
   someLayerFailed,
-  singleCharsOf,
   someLayerTruncated,
 } from './lookupPanelState'
 import { historyTimeLabel } from './segmentHistoryTime'
@@ -52,13 +46,11 @@ import type { TmConcordanceHit } from '../config/segment'
 // sống sót qua lượt tháo/dựng đó — một `ref` cục bộ làm tab tự nhảy về mặc định.
 import {
   aimLookupEntryFrom,
-  entryIsPinned,
   entryKey,
   historyIsEmpty,
   lookupChapterId,
   lookupHistoryScope,
   lookupTab,
-  pinLabelKey,
   pinNoticeKey,
   pinWriteError,
   pinnedEntries,
@@ -79,7 +71,15 @@ import {
   concordanceView,
   probeConcordanceCount,
 } from './concordanceState'
-import type { SenseRecord, SourceGroup } from '../config/dict'
+import {
+  lookupGroups as groups,
+  lookupHeadPinKey as headPinKey,
+  lookupHeadPinned as headPinned,
+  lookupHeadReading as headReading,
+  lookupBody,
+  lookupNotFoundChars as notFoundChars,
+  lookupSensesFor as sensesFor,
+} from './lookupView'
 
 defineProps<DockviewPanelProps>()
 
@@ -157,41 +157,8 @@ function sourceLabel(code: string): string {
   return dictSources.value.find((s) => s.code === code)?.display_name ?? code
 }
 
-const groups = computed<readonly SourceGroup[]>(() => groupedLookup.value?.groups ?? [])
 const hiddenSources = computed(() => groupedLookup.value?.hidden_sources ?? [])
 const spine = computed(() => computeSpine(groups.value, sensesByLayer.value, hiddenSources.value))
-
-const headReading = computed(() =>
-  sharedReadingText(groups.value.flatMap((g) => g.entries.map((hit) => hit.reading))),
-)
-
-const headPinTarget = computed(() => {
-  const only = groups.value.length === 1 && groups.value[0].entries.length === 1 ? groups.value[0].entries[0] : null
-  return only
-})
-const headPinned = computed(() => {
-  const only = headPinTarget.value
-  return only !== null && entryIsPinned(only.source_code, only.entry_id)
-})
-const headPinKey = computed(() => pinLabelKey(headPinned.value))
-
-const notFoundChars = computed(() => singleCharsOf(currentQuery.value ?? ''))
-
-/**
- * 🔴 AC6 — **một lượt tra TRƯỢT phải nói ra**. `lookupError` từng là một export không ai tiêu
- * thụ, nên một lỗi IPC cho ra thân panel TRẮNG CÂM: `neverLookedUp` đã `false` (tắt câu
- * mặc định của `PanelFrame`) còn `lookupResolved` `false` (tắt cả kết quả lẫn bốn chuỗi
- * rỗng). Đúng khuyết tật code review 1.16 đã bắt ở Panel Nguyên văn *(tệp đó gỡ ở Story
- * 2.5b — bề mặt nay là cột nguyên văn của `GridPanel.vue`)* — tái phát nguyên
- * văn ở 1.17, bắt lại 2026-08-07.
- */
-const showLookupError = computed(() => lookupError.value !== null)
-
-/** Nghĩa đã hydrate CỦA RIÊNG một nhóm — lọc theo `entry_id` khỏi danh sách chung của lớp. */
-function sensesFor(group: SourceGroup): SenseRecord[] {
-  const entryIds = new Set(group.entries.map((hit) => hit.entry_id))
-  return (sensesByLayer.value[group.layer] ?? []).filter((sense) => entryIds.has(sense.entry_id))
-}
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 STORY 1.18 — AC2/AC3 · ĐĂNG KÝ VỚI VAI `display`, không `source`
@@ -541,9 +508,9 @@ onBeforeUnmount(() => {
 
         <template v-if="lookupTab === 'record'">
         <!-- 🔴 AC6 — một lượt tra TRƯỢT phải nói ra, không để lại một vùng trắng câm. -->
-        <p v-if="showLookupError" class="lookup-empty">{{ t('panel.lookup.lookup_failed') }}</p>
+        <p v-if="lookupBody === 'error'" class="lookup-empty">{{ t('panel.lookup.lookup_failed') }}</p>
 
-        <p v-else-if="neverLookedUp" class="lookup-empty">{{ t(neverLookedUpKey, { chord: lookupChord }) }}</p>
+        <p v-else-if="lookupBody === 'never'" class="lookup-empty">{{ t(neverLookedUpKey, { chord: lookupChord }) }}</p>
 
         <template v-else>
           <p v-if="someLayerFailed" class="lookup-banner">{{ t('panel.lookup.some_layer_failed') }}</p>
@@ -556,8 +523,8 @@ onBeforeUnmount(() => {
             và thanh nhịp đọc `lookupDisplayable` (không chớp trắng). Hai vị từ, hai câu hỏi khác
             nhau — xem `lookupPanelState.ts`.
           -->
-          <p v-if="lookupResolved && !layersLoaded" class="lookup-empty">{{ t('panel.lookup.no_layers') }}</p>
-          <p v-else-if="lookupResolved && queryTooShort" class="lookup-empty">
+          <p v-if="lookupBody === 'no_layers'" class="lookup-empty">{{ t('panel.lookup.no_layers') }}</p>
+          <p v-else-if="lookupBody === 'too_short'" class="lookup-empty">
             {{ t('panel.lookup.query_too_short') }}
           </p>
           <!--
@@ -575,10 +542,10 @@ onBeforeUnmount(() => {
             SAI mà nhánh này tồn tại để chặn. `lookupRoute` đọc `grouped.route` do Rust trả về,
             không tính lại phía webview.
           -->
-          <p v-else-if="lookupResolved && lookupRoute !== null && everySourceOffForRoute(lookupRoute)" class="lookup-empty">
+          <p v-else-if="lookupBody === 'all_sources_off'" class="lookup-empty">
             {{ t('panel.lookup.all_sources_off') }}
           </p>
-          <template v-else-if="lookupResolved && notFound">
+          <template v-else-if="lookupBody === 'not_found'">
             <!-- aura-allow-text: not-found title — the query is user DATA passed to t(). -->
             <p class="lookup-empty-title">{{ t('panel.lookup.not_found', { query: currentQuery ?? '' }) }}</p>
             <p class="lookup-empty">{{ t('panel.lookup.not_found_checked', { n: String(enabledSourceCount) }) }}</p>
@@ -603,7 +570,7 @@ onBeforeUnmount(() => {
               @click="dispatch('tm.concordance')"
             >{{ t('tm.concordance.pointer', { n: String(probeTotal) }) }}</button>
           </template>
-          <template v-else-if="lookupDisplayable">
+          <template v-else-if="lookupBody === 'results'">
             <LookupRecord
               v-for="group in groups"
               :key="`${group.layer}:${group.source.code}`"

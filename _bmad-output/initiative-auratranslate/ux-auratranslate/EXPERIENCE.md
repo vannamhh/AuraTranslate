@@ -396,6 +396,8 @@ Mặc định **chỉ hiển thị bản dịch tiếng Việt**; công tắc so
 
 Chiều rộng đo bằng `ch` chứ không bằng `px`, nên số ký tự mỗi dòng giữ nguyên khi đổi cỡ chữ.
 
+🔵 2026-10-29 (Ice): **tra cứu bằng popup ở Chế độ đọc.** Khi song ngữ bật, double-click một từ trong nguyên văn chữ Hán ở lề thì tra từ đó; kết quả hiện trong một popup bám ngay cạnh từ, lật lên trên khi bên dưới thiếu chỗ. Popup có từ được tra, âm đọc, nghĩa theo từng từ điển, tra từng chữ khi không thấy cả từ, nút ghim, và dòng mở Concordance (chuyển sang Workspace, tab Concordance của từ đó). Không có dải tab, menu chọn nguồn hay lịch sử. Lượt tra đi chung đường với Workspace (`lookup.lookup_selection`), nên vẫn vào Lịch sử và Đã ghim của Panel Lookup. Kéo chuột bôi đen nguyên văn không tra (Auto-Lookup tắt ở đây); double-click bản dịch tiếng Việt cũng không tra, vì từ điển chỉ có đầu mục chữ Hán và tiếng Anh. Popup đóng bằng `Esc`, bấm ra ngoài, tắt song ngữ (`B`) hoặc rời Chế độ đọc. Chế độ đọc vẫn không có Panel Lookup (FR11).
+
 ## Key Flows
 
 ### KF-1 · Ice nhập một bộ truyện 2000 chương

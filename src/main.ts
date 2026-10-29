@@ -289,7 +289,8 @@ import type { InlineStripKind } from './panels/inlineStripPriority'
 // ⚠️ Cùng lý do và cùng cửa với `glossaryQuickAddState.ts`: `glossarySettingsState.ts` dùng
 // `ref` của Vue và gọi `@tauri-apps/api` xuyên qua `config/bootstrap.ts`.
 import { saveGlossarySettings } from './glossarySettingsState'
-import { tmConcordanceCommandDeps } from './tmConcordanceCommandDeps'
+import { openReadingLookupConcordance, tmConcordanceCommandDeps } from './tmConcordanceCommandDeps'
+import { openReadingLookup, resetReadingLookup } from './modes/readingLookupState'
 import { tmFuzzyCommandDeps } from './tmFuzzyCommandDeps'
 import { exportCommandDeps } from './exportCommandDeps'
 import { libraryWorkPageCommandDeps } from './libraryWorkPageCommandDeps'
@@ -773,6 +774,9 @@ async function boot(): Promise<void> {
       openReadingWorkStart: () => {
         void openReadingWorkStart()
       },
+      openReadingLookup,
+      closeReadingLookup: resetReadingLookup,
+      openReadingLookupConcordance,
       setOpenWorkOverridePaused: setOpenWorkOverride,
       clearOpenWorkOverride,
       setOpenChapterDone: setOpenChapterStatus,

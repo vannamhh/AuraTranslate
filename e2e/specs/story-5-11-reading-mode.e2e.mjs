@@ -31,6 +31,8 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
 const TYPED_ONE = 'Ban dich cau mot cho Story 5.11.'
 const TYPED_TWO = 'Ban dich cau hai cho Story 5.11.'
+const SOURCE_TEXT = '他控制了局面。我们走吧。'
+const LOOKUP_WORD = '控制'
 
 async function typeInto(cell, text) {
   await realClick(cell)
@@ -41,7 +43,7 @@ async function typeInto(cell, text) {
 
 describe('Story 5.11 — Chế độ đọc: typography và bố cục đọc dài', () => {
   it('gõ bản dịch thật, vào Chế độ đọc, và năm mệnh đề hình học đo được trong WKWebView thật', async () => {
-    await openWorkspaceWithWork('Story 5.11 — Che do doc', 'Cau mot。Cau hai。')
+    await openWorkspaceWithWork('Story 5.11 — Che do doc', SOURCE_TEXT)
 
     const cells = await $$('[data-col="tgt"]')
     await expect(cells.length).toBe(2)
@@ -285,5 +287,88 @@ describe('Story 5.11 — Chế độ đọc: typography và bố cục đọc d�
       },
       { timeout: 5_000, timeoutMsg: 'theme khong tro ve trang thai dau sau luot bam D thu hai' },
     )
+  })
+
+  // Runs after the case above, which leaves Reading mode open on the same Work with bilingual off.
+  it('double-click on a source-note word opens the lookup popup beside it with real results; Esc closes it', async function () {
+    const sourceCount = await browser.execute(async () => {
+      try {
+        const res = await window.__TAURI_INTERNALS__.invoke('list_dict_sources')
+        return Array.isArray(res?.sources) ? res.sources.length : -1
+      } catch {
+        return -1
+      }
+    })
+    if (sourceCount < 0) throw new Error('[BÀN ĐO HỎNG] `list_dict_sources` ném hoặc trả hình dạng lạ; mệnh đề chưa được đo.')
+    if (sourceCount === 0) {
+      console.warn('[BÀN ĐO KHÔNG DỰNG ĐƯỢC] 0 nguồn từ điển: popup không có kết quả thật để đo. Dựng dữ liệu rồi chạy lại.')
+      this.skip()
+    }
+
+    const bilingualOn = await browser.execute(() => document.querySelector('[data-reading-source-note]') !== null)
+    if (!bilingualOn) await browser.keys(['b'])
+    await browser.waitUntil(async () => browser.execute(() => document.querySelector('[data-reading-source-note]') !== null), {
+      timeout: 5_000,
+      timeoutMsg: 'le song ngu khong hien sau khi bam B',
+    })
+
+    // Driver mouse events carry `isTrusted: false` and select nothing, so the word is selected
+    // the way WebKit does on a real double-click before `dblclick` is fired.
+    const range = await browser.execute((word) => {
+      const note = document.querySelector('[data-reading-source-note]')
+      const text = note.firstChild
+      const at = text.data.indexOf(word)
+      if (at === -1) return null
+      const r = document.createRange()
+      r.setStart(text, at)
+      r.setEnd(text, at + word.length)
+      const selection = window.getSelection()
+      selection.removeAllRanges()
+      selection.addRange(r)
+      note.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+      const box = r.getBoundingClientRect()
+      return { top: box.top, bottom: box.bottom, left: box.left, right: box.right }
+    }, LOOKUP_WORD)
+    await expect(range).not.toBe(null)
+
+    await browser.waitUntil(
+      async () => browser.execute(() => document.querySelector('[data-reading-lookup] .lookup-source') !== null),
+      { timeout: 10_000, timeoutMsg: 'popup tra cuu khong hien ket qua that sau double-click' },
+    )
+
+    const shown = await browser.execute(() => {
+      const box = document.querySelector('[data-reading-lookup]')
+      const host = document.querySelector('section.mode').getBoundingClientRect()
+      const r = box.getBoundingClientRect()
+      return {
+        headword: box.querySelector('[data-reading-lookup-headword]')?.textContent ?? '',
+        records: box.querySelectorAll('.lookup-source').length,
+        top: r.top,
+        bottom: r.bottom,
+        left: r.left,
+        right: r.right,
+        host: { top: host.top, bottom: host.bottom, left: host.left, right: host.right },
+        shadow: getComputedStyle(box).boxShadow,
+      }
+    })
+    console.log('[reading lookup DIAG] range =', JSON.stringify(range), 'popup =', JSON.stringify(shown))
+    await expect(shown.headword).toBe(LOOKUP_WORD)
+    await expect(shown.records).toBeGreaterThan(0)
+    await expect(shown.shadow).not.toBe('none')
+    const below = Math.abs(shown.top - range.bottom)
+    const above = Math.abs(range.top - shown.bottom)
+    await expect(Math.min(below, above)).toBeLessThan(8)
+    await expect(shown.top).toBeGreaterThanOrEqual(shown.host.top - 1)
+    await expect(shown.bottom).toBeLessThanOrEqual(shown.host.bottom + 1)
+    await expect(shown.left).toBeGreaterThanOrEqual(shown.host.left - 1)
+    await expect(shown.right).toBeLessThanOrEqual(shown.host.right + 1)
+
+    await browser.keys(['Escape'])
+    await browser.waitUntil(async () => browser.execute(() => document.querySelector('[data-reading-lookup]') === null), {
+      timeout: 5_000,
+      timeoutMsg: 'Esc khong dong popup tra cuu',
+    })
+
+    await browser.keys(['b'])
   })
 })
