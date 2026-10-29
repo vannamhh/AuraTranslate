@@ -13470,6 +13470,7 @@ chính nó.
 ## Deferred from: thanh tiêu đề macOS phủ lên webview (2026-10-25, story 12-25)
 
 - **Chưa có ai nhìn thanh tiêu đề macOS trong app thật.** Vitest và `config_invariants` chỉ canh cấu hình, thuộc tính kéo và thứ tự listener; không canh được vị trí ba nút, kéo, bấm đúp, menu đóng khi bấm header, hay góc trên trái của 17 lớp phủ sau khi scrim đệm `--space-titlebar-height`. Ice chụp app thật cạnh `mockups/web-import.html`, chốt `trafficLightPosition` (`tauri.conf.json`, đang `{x:16,y:13}`) và `--space-traffic-light-inset` (đang 88px). **Chủ: Epic 12.**
+  → 🔵 2026-10-29 (Story 13-3): thanh tiêu đề nay 42px; `trafficLightPosition` đo lại thành `{x:17,y:19}` (vòng nút 12px cách đỉnh và đáy thanh 15px, cách nội dung ở lề 91px 21px). Phần nhìn ba nút trên app thật nằm ở mục `Chủ: Epic 13`; kéo, bấm đúp, menu và góc lớp phủ vẫn ở đây. **Chủ: Epic 12.**
 - **Windows chưa được xác nhận không đổi.** Story 12-25 chỉ bật vùng kéo, lề và đệm scrim sau `detectIsMac()` / `data-platform="mac"`, nhưng `drag.js` của Tauri chạy cả trên Windows và quyền `core:window` mới áp cho mọi nền tảng; không có test trên Windows. Kiểm: header không kéo được, không có lề, lớp phủ không đệm, menu đóng như cũ. Gộp vào bảng nghiệm thu Windows. **Chủ: B7.**
 
 ## Deferred from: preset nhà cung cấp AI (2026-10-25, plan-preset-cau-hinh-ai)
@@ -13620,3 +13621,9 @@ chính nó.
 - e2e `story-12-34-work-page-read-chapter` đỏ cả 3 ca, kể cả chạy riêng: bước gieo IPC nhận `segment_count` `[1,1,1,1,1]` thay vì `[1,1,1,1,4]`, trước mọi bước DOM. Diff 13.4 chỉ đổi CSS/template, `src-tauri` không đổi từ `5af8d0e4`; mục Epic 12 ở trên ghi spec này chưa từng chạy (cổng 1420 bận), nên rất có thể chưa bao giờ xanh. Chưa chạy trên cây sạch.
   Cần: chạy spec trên cây không có diff 13.4, tìm vì sao `create_work_from_text` + bốn lần `split_chapter_at_segment` ra năm Chương một câu.
   Chủ: Epic 12. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-canh-baseline-cho-moi-hang-ngang-plan.md` §Review Triage Log.
+
+## Deferred from: Story 13.3, thanh tiêu đề 42px (2026-10-30)
+
+- `cargo test --test naming_boundary` (`the_real_source_tree_has_no_bare_origin_identifier`) đỏ trên master từ `02305186`: `src/modes/ReadingMode.vue:251–257` đặt tên biến `origin` trần (`const origin = column.getBoundingClientRect()`), nên `pre-push` sẽ chặn mọi lần push.
+  Cần: đổi tên theo chủ thể (vd. `columnBox`), chạy lại `naming_boundary`. Không phải lỗi của diff 13.3; chạy đủ bộ `--no-fail-fast` chỉ đỏ ca này.
+  Chủ: Ice. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-thanh-tieu-e-42px-va-ba-nut-cua-so-macos-plan.md` §Implementation Notes.
