@@ -87,9 +87,11 @@ onBeforeUnmount(() => {
     `WorkspaceDock.vue` — MỘT chỗ nghe cho cả bốn tab, thay vì bốn handler rời.
   -->
   <span class="tab" :class="{ current }">
-    {{ t(props.params.params.titleKey ?? '') }}
-    <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-    <span v-if="chord !== ''" class="tab-chord ui-kbd">{{ chord }}</span>
+    <span class="ui-row">
+      {{ t(props.params.params.titleKey ?? '') }}
+      <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+      <span v-if="chord !== ''" class="tab-chord ui-kbd">{{ chord }}</span>
+    </span>
   </span>
 </template>
 
@@ -113,7 +115,6 @@ onBeforeUnmount(() => {
 }
 
 .tab-chord {
-  margin-left: calc(var(--space-unit) * 1);
   font-weight: var(--weight-ui-md);
 }
 

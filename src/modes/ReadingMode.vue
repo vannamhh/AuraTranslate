@@ -595,9 +595,11 @@ function paragraphRuns(
         :aria-pressed="readingBilingual"
         @click="dispatch('reading.toggle_bilingual')"
       >
-        {{ t('mode.reading.bilingual') }}
-        <!-- aura-allow-text: chord display from the shortcut registry. -->
-        <span v-if="chordOf('reading.toggle_bilingual') !== ''" class="kbd">{{ chordOf('reading.toggle_bilingual') }}</span>
+        <span class="ui-row">
+          {{ t('mode.reading.bilingual') }}
+          <!-- aura-allow-text: chord display from the shortcut registry. -->
+          <span v-if="chordOf('reading.toggle_bilingual') !== ''" class="kbd">{{ chordOf('reading.toggle_bilingual') }}</span>
+        </span>
       </button>
       <span class="level-group" role="group" :aria-label="t('mode.reading.level_group')">
         <span class="level-label">{{ t('mode.reading.level_group') }}</span>
@@ -649,21 +651,27 @@ function paragraphRuns(
         :aria-pressed="currentTheme === 'dark'"
         @click="dispatch('reading.toggle_theme')"
       >
-        <!-- aura-allow-text: themeText is a computed that goes through t(). -->
-        {{ themeText }}
-        <!-- aura-allow-text: chord display from the shortcut registry. -->
-        <span v-if="chordOf('reading.toggle_theme') !== ''" class="kbd">{{ chordOf('reading.toggle_theme') }}</span>
+        <span class="ui-row">
+          <!-- aura-allow-text: themeText is a computed that goes through t(). -->
+          {{ themeText }}
+          <!-- aura-allow-text: chord display from the shortcut registry. -->
+          <span v-if="chordOf('reading.toggle_theme') !== ''" class="kbd">{{ chordOf('reading.toggle_theme') }}</span>
+        </span>
       </button>
       <button type="button" class="btn ui-btn" data-reading-toc :aria-expanded="readingTocOpen" @click="dispatch('reading.toc')">
-        {{ t('mode.reading.toc') }}
-        <!-- aura-allow-text: chord display from the shortcut registry. -->
-        <span v-if="chordOf('reading.toc') !== ''" class="kbd">{{ chordOf('reading.toc') }}</span>
+        <span class="ui-row">
+          {{ t('mode.reading.toc') }}
+          <!-- aura-allow-text: chord display from the shortcut registry. -->
+          <span v-if="chordOf('reading.toc') !== ''" class="kbd">{{ chordOf('reading.toc') }}</span>
+        </span>
       </button>
       <button type="button" class="btn ui-btn" data-reading-marks :aria-expanded="readingMarksOpen" @click="dispatch('reading.marks')">
-        <!-- aura-allow-text: marksButtonText is a computed that goes through t(). -->
-        {{ marksButtonText }}
-        <!-- aura-allow-text: chord display from the shortcut registry. -->
-        <span v-if="chordOf('reading.mark_aimed') !== ''" class="kbd">{{ chordOf('reading.mark_aimed') }}</span>
+        <span class="ui-row">
+          <!-- aura-allow-text: marksButtonText is a computed that goes through t(). -->
+          {{ marksButtonText }}
+          <!-- aura-allow-text: chord display from the shortcut registry. -->
+          <span v-if="chordOf('reading.mark_aimed') !== ''" class="kbd">{{ chordOf('reading.mark_aimed') }}</span>
+        </span>
       </button>
     </div>
 
@@ -1054,7 +1062,7 @@ function paragraphRuns(
 
 .tuner-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1356,7 +1364,7 @@ function paragraphRuns(
 
 .level-group {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0;
 }
 
@@ -1370,6 +1378,10 @@ function paragraphRuns(
 
 .level-group .kbd {
   margin-inline-start: var(--space-panel-inline);
+}
+
+.ui-row > .kbd {
+  margin-inline-start: 0;
 }
 
 .kbd {

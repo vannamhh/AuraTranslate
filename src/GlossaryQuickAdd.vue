@@ -306,7 +306,7 @@ watch(quickAddIsOpen, (open) => {
 
 .gqa-radio {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);

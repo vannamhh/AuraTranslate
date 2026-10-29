@@ -395,7 +395,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 .pi-tier {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin: 0 0 calc(var(--space-unit) * 1) 0;
   padding: 0;
@@ -412,7 +412,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 
 .pi-radio-label {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   color: var(--color-on-surface);
   cursor: pointer;

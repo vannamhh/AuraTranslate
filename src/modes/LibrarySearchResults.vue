@@ -443,7 +443,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
 .group-foot {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: 7px;
 }
 

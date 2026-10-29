@@ -466,7 +466,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
 .sc-search {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
   margin: 0 0 var(--space-panel-block) 0;
 }
@@ -490,7 +490,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 .sc-file-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
 }
 

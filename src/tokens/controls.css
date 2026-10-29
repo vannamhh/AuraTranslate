@@ -156,9 +156,28 @@
   font-weight: var(--weight-ui-md-strong);
 }
 
+.ui-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 1);
+  min-width: 0;
+}
+
+.ui-icon-btn::before,
+.ui-seg--icons .ui-seg__item::before,
+.ui-check::before {
+  content: '\200b';
+  width: 0;
+  overflow: hidden;
+  font-family: var(--face-ui-md);
+  font-size: var(--font-ui-md);
+  line-height: var(--leading-ui-md);
+}
+
 .ui-icon-btn {
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
   width: 28px;
   height: 28px;
@@ -309,9 +328,18 @@ summary.ui-field {
   cursor: pointer;
 }
 
+.ui-check::before {
+  margin-right: calc(var(--space-unit) * -1);
+}
+
+.ui-check--bare::before {
+  margin-right: 0;
+}
+
 .ui-check input {
   display: grid;
   place-items: center;
+  align-self: center;
   flex: none;
   appearance: none;
   -webkit-appearance: none;
@@ -386,7 +414,7 @@ summary.ui-field {
 
 .ui-switch {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   padding: 0;
   border: 0;
@@ -626,6 +654,9 @@ summary.ui-field {
 }
 
 .ui-seg--icons .ui-seg__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 calc(var(--space-unit) * 1);
 }
 

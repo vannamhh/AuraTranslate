@@ -61,7 +61,7 @@ onMounted(() => {
 .sd-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
   padding: var(--space-panel-block) 0;
 }

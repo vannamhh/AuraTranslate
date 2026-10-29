@@ -1158,14 +1158,14 @@ async function onEscape(): Promise<void> {
 .pl-rename-form {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1) var(--space-panel-inline);
   margin-bottom: calc(var(--space-unit) * 1);
 }
 
 .pl-rename-form .pl-field {
   flex-direction: row;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
   margin-bottom: 0;
 }
@@ -1239,7 +1239,7 @@ async function onEscape(): Promise<void> {
 .pl-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin-bottom: var(--space-panel-block);
   padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
@@ -1249,7 +1249,7 @@ async function onEscape(): Promise<void> {
 
 .pl-seg {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: 0;
   padding: 0;
@@ -1331,7 +1331,7 @@ async function onEscape(): Promise<void> {
 .pl-tier {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin: 0 0 calc(var(--space-unit) * 2) 0;
   padding: 0;
@@ -1340,7 +1340,7 @@ async function onEscape(): Promise<void> {
 
 .pl-radio-label {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   color: var(--color-on-surface);
   cursor: pointer;

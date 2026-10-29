@@ -954,7 +954,7 @@ function onDeleteAiConfigKey(): void {
 
 .set-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 2);
   border-bottom: 1px solid var(--color-outline);
@@ -1077,7 +1077,7 @@ function onDeleteAiConfigKey(): void {
 .set-scope {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
   border-bottom: 1px solid var(--color-outline);
@@ -1180,7 +1180,7 @@ function onDeleteAiConfigKey(): void {
 .ai-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin-top: calc(var(--space-unit) * 2);
 }
@@ -1227,7 +1227,7 @@ function onDeleteAiConfigKey(): void {
 .ai-key-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
 }
 

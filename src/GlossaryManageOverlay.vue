@@ -935,7 +935,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin-bottom: var(--space-panel-block);
 }
@@ -951,7 +951,7 @@ function onKeydown(event: KeyboardEvent): void {
 /* Checkbox and label on one row, unlike `.gm-field`'s column layout. */
 .gm-field-checkbox {
   flex-direction: row;
-  align-items: center;
+  align-items: baseline;
   flex: 0 0 auto;
 }
 
@@ -1068,7 +1068,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-seg-opt {
   position: relative;
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
 }
 
@@ -1119,7 +1119,8 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-foot {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  height: 28px;
   gap: calc(var(--space-unit) * 2);
   margin-top: var(--space-panel-block);
 }
@@ -1263,7 +1264,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-exchange-tier {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin: 0;
   padding: 0;

@@ -101,30 +101,38 @@ onBeforeUnmount(() => {
       @mousedown="focusOnPointerDown($event)"
       @click="dispatch('titlebar.tools.toggle')"
     >
-      {{ t('titlebar.tools.label') }}
-      <AppIcon name="chevron" />
+      <span class="ui-row">
+        {{ t('titlebar.tools.label') }}
+        <AppIcon name="chevron" />
+      </span>
     </button>
 
     <ul v-if="toolsMenuIsOpen" class="tools-list ui-menu" role="menu" :aria-label="t('titlebar.tools.menu')">
       <li role="none">
         <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="glossary.manage.open" @click="dispatch('glossary.manage.open')">
-          <span>{{ t('command.glossary.manage.open') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="tools-chord">{{ chordOf('glossary.manage.open') }}</span>
+          <span class="ui-row">
+            <span>{{ t('command.glossary.manage.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('glossary.manage.open') }}</span>
+          </span>
         </button>
       </li>
       <li role="none">
         <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="tm.manage.open" @click="dispatch('tm.manage.open')">
-          <span>{{ t('command.tm.manage.open') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="tools-chord">{{ chordOf('tm.manage.open') }}</span>
+          <span class="ui-row">
+            <span>{{ t('command.tm.manage.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('tm.manage.open') }}</span>
+          </span>
         </button>
       </li>
       <li role="none">
         <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="settings.open" @click="dispatch('settings.open')">
-          <span>{{ t('command.settings.open') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="tools-chord">{{ chordOf('settings.open') }}</span>
+          <span class="ui-row">
+            <span>{{ t('command.settings.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('settings.open') }}</span>
+          </span>
         </button>
       </li>
       <li role="none">
@@ -135,9 +143,11 @@ onBeforeUnmount(() => {
           class="tools-item ui-menu-item"
           data-tools-item="ai.proofread.scope.open" @click="dispatch('ai.proofread.scope.open')"
         >
-          <span>{{ t('command.ai.proofread.scope.open') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="tools-chord">{{ chordOf('ai.proofread.scope.open') }}</span>
+          <span class="ui-row">
+            <span>{{ t('command.ai.proofread.scope.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('ai.proofread.scope.open') }}</span>
+          </span>
         </button>
       </li>
       <li role="none">
@@ -148,9 +158,11 @@ onBeforeUnmount(() => {
           class="tools-item ui-menu-item"
           data-tools-item="ai.proofread.memory.open" @click="dispatch('ai.proofread.memory.open')"
         >
-          <span>{{ t('command.ai.proofread.memory.open') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="tools-chord">{{ chordOf('ai.proofread.memory.open') }}</span>
+          <span class="ui-row">
+            <span>{{ t('command.ai.proofread.memory.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('ai.proofread.memory.open') }}</span>
+          </span>
         </button>
       </li>
       <li role="none">
@@ -161,9 +173,11 @@ onBeforeUnmount(() => {
           class="tools-item ui-menu-item"
           data-tools-item="export.reviewer_import.open" @click="dispatch('export.reviewer_import.open')"
         >
-          <span>{{ t('command.export.reviewer_import.open') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="tools-chord">{{ chordOf('export.reviewer_import.open') }}</span>
+          <span class="ui-row">
+            <span>{{ t('command.export.reviewer_import.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('export.reviewer_import.open') }}</span>
+          </span>
         </button>
       </li>
       <li role="none">
@@ -174,9 +188,11 @@ onBeforeUnmount(() => {
           class="tools-item ui-menu-item"
           data-tools-item="export.alignment.open" @click="dispatch('export.alignment.open')"
         >
-          <span>{{ t('command.export.alignment.open') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="tools-chord">{{ chordOf('export.alignment.open') }}</span>
+          <span class="ui-row">
+            <span>{{ t('command.export.alignment.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('export.alignment.open') }}</span>
+          </span>
         </button>
       </li>
       <li role="none">
@@ -187,9 +203,11 @@ onBeforeUnmount(() => {
           class="tools-item ui-menu-item"
           data-tools-item="glossary.harvest.open" @click="dispatch('glossary.harvest.open')"
         >
-          <span>{{ t('command.glossary.harvest.open') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="tools-chord">{{ chordOf('glossary.harvest.open') }}</span>
+          <span class="ui-row">
+            <span>{{ t('command.glossary.harvest.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('glossary.harvest.open') }}</span>
+          </span>
         </button>
       </li>
       <li role="none">
@@ -202,8 +220,10 @@ onBeforeUnmount(() => {
           data-tools-item="layout.toggle_panel_headers"
           @click="dispatch('layout.toggle_panel_headers')"
         >
-          <span>{{ t('command.layout.toggle_panel_headers') }}</span>
-          <span class="tools-switch ui-switch__track" :class="{ on: panelHeadersShown }" aria-hidden="true"></span>
+          <span class="ui-row">
+            <span>{{ t('command.layout.toggle_panel_headers') }}</span>
+            <span class="tools-switch ui-switch__track" :class="{ on: panelHeadersShown }" aria-hidden="true"></span>
+          </span>
         </button>
       </li>
       <li v-if="panelHeadersSaveError !== null" role="none">
@@ -227,7 +247,8 @@ onBeforeUnmount(() => {
   min-width: calc(var(--space-unit) * 32);
 }
 
-.tools-item {
+.tools-item > .ui-row {
+  flex: 1;
   justify-content: space-between;
 }
 

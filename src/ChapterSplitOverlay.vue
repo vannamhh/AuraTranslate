@@ -216,6 +216,10 @@ function trapTab(event: KeyboardEvent): void {
   border-bottom: 1px solid var(--color-outline);
 }
 
+.cs-label::before {
+  margin-right: calc(var(--space-unit) * -2);
+}
+
 .cs-label {
   display: flex;
   align-items: baseline;

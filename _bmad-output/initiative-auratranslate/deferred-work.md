@@ -13614,3 +13614,9 @@ chính nó.
 - Bốn điều lưới 7px dựa vào chỉ kiểm được trên WebView2: baseline tự sinh cho phần tử không có chữ trong hàng flex, `round(up, Nch, 7px)`, tỉ số giãn dòng ra đúng bội 7, và viền focus `forced-colors` không đổi sau khi đổi thang điều khiển.
   Cần: một lượt trên máy Windows.
   Chủ: B7. Trỏ: `ux-auratranslate/DESIGN.md` §Lưới 7px.
+
+## Deferred from: Story 13.4, canh baseline cho mọi hàng ngang (2026-10-29)
+
+- e2e `story-12-34-work-page-read-chapter` đỏ cả 3 ca, kể cả chạy riêng: bước gieo IPC nhận `segment_count` `[1,1,1,1,1]` thay vì `[1,1,1,1,4]`, trước mọi bước DOM. Diff 13.4 chỉ đổi CSS/template, `src-tauri` không đổi từ `5af8d0e4`; mục Epic 12 ở trên ghi spec này chưa từng chạy (cổng 1420 bận), nên rất có thể chưa bao giờ xanh. Chưa chạy trên cây sạch.
+  Cần: chạy spec trên cây không có diff 13.4, tìm vì sao `create_work_from_text` + bốn lần `split_chapter_at_segment` ra năm Chương một câu.
+  Chủ: Epic 12. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-canh-baseline-cho-moi-hang-ngang-plan.md` §Review Triage Log.

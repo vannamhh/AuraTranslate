@@ -79,14 +79,14 @@ function onInput(event: Event): void {
 .gs-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
 }
 
 .gs-field {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
 }
 

@@ -101,8 +101,10 @@ onBeforeUnmount(() => {
       @mousedown="focusOnPointerDown($event)"
       @click="dispatch('lookup.toggle_sources_menu')"
     >
-      {{ t('panel.lookup.sources_button', { n: String(enabledSourceCount), m: String(dictSources.length) }) }}
-      <AppIcon name="chevron" />
+      <span class="ui-row">
+        {{ t('panel.lookup.sources_button', { n: String(enabledSourceCount), m: String(dictSources.length) }) }}
+        <AppIcon name="chevron" />
+      </span>
     </button>
 
     <ul
@@ -176,7 +178,7 @@ onBeforeUnmount(() => {
 
 .sources-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
 }
 
 .sources-row .sources-item {

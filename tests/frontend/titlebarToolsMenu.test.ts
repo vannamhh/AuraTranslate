@@ -40,7 +40,7 @@ describe('Công cụ ▾ list', () => {
     state.toggleToolsMenu()
     await flush()
 
-    const rows = wrapper.findAll('[role="menuitem"]').map((item) => item.findAll('span').map((s) => s.text()))
+    const rows = wrapper.findAll('[role="menuitem"]').map((item) => item.findAll('.ui-row > span').map((s) => s.text()))
     expect(rows.map((r) => r[0])).toEqual(
       [
         'command.glossary.manage.open',

@@ -533,185 +533,187 @@ const libraryErrorText = computed<string | null>(() => {
     đọc màn hình đọc lại mỗi lần. `aria-live` để mặc định (`polite`).
   -->
   <footer class="status">
-    <template v-if="currentMode === 'library'">
-      <div class="status-info" data-status-info data-status-library>
+    <div class="status-line ui-row">
+      <template v-if="currentMode === 'library'">
+        <div class="status-info" data-status-info data-status-library>
+          <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+          <span v-if="libraryWorksText !== null" class="info-item" data-status-library-works>{{ libraryWorksText }}</span>
+          <span v-if="libraryRescanBusy" class="info-item" data-status-library-scanning>{{ t('status.library_scanning') }}</span>
+        </div>
+        <div class="status-live" role="status" data-status-live>
+          <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+          <span v-if="libraryErrorText !== null" class="notice" data-status-library-error>{{ libraryErrorText }}</span>
+          <template v-else-if="createdWork !== null">
+            <span v-if="createdWork.source_lang_mismatch" class="notice live-part" data-status-library-mismatch>{{
+              t('mode.library.source_lang_mismatch_warning')
+            }}</span>
+            <span v-if="createdWork.images_failed > 0" class="notice live-part" data-status-library-images-failed>
+              <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
+              {{ t('mode.library.images_failed_warning', { count: String(createdWork.images_failed) }) }}
+              <button type="button" class="status-link ui-btn ui-btn--quiet" data-status-library-domain-log @click="dispatch('settings.privacy.open')">
+                {{ t('mode.library.preview.domain_log_view') }}
+              </button>
+            </span>
+            <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (tên và thư mục Tác phẩm). -->
+            <span class="notice live-part" :title="libraryCreatedText ?? undefined" data-status-library-created>{{
+              libraryCreatedText
+            }}</span>
+          </template>
+        </div>
+      </template>
+      <template v-else>
+      <div class="status-info" data-status-info>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-        <span v-if="libraryWorksText !== null" class="info-item" data-status-library-works>{{ libraryWorksText }}</span>
-        <span v-if="libraryRescanBusy" class="info-item" data-status-library-scanning>{{ t('status.library_scanning') }}</span>
+        <span v-if="positionText !== null" class="info-item" data-status-position>{{ positionText }}</span>
+        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+        <span v-if="confirmedCounterText !== null" class="info-item" data-status-confirmed>{{ confirmedCounterText }}</span>
+        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+        <span v-if="shortcutHintText !== null" class="info-item" data-status-hint>{{ shortcutHintText }}</span>
+        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+        <span v-if="proofreadCountsText !== null" class="info-item" data-status-proofread>{{ proofreadCountsText }}</span>
       </div>
       <div class="status-live" role="status" data-status-live>
-        <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
-        <span v-if="libraryErrorText !== null" class="notice" data-status-library-error>{{ libraryErrorText }}</span>
-        <template v-else-if="createdWork !== null">
-          <span v-if="createdWork.source_lang_mismatch" class="notice live-part" data-status-library-mismatch>{{
-            t('mode.library.source_lang_mismatch_warning')
-          }}</span>
-          <span v-if="createdWork.images_failed > 0" class="notice live-part" data-status-library-images-failed>
-            <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
-            {{ t('mode.library.images_failed_warning', { count: String(createdWork.images_failed) }) }}
-            <button type="button" class="status-link ui-btn ui-btn--quiet" data-status-library-domain-log @click="dispatch('settings.privacy.open')">
-              {{ t('mode.library.preview.domain_log_view') }}
-            </button>
-          </span>
-          <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (tên và thư mục Tác phẩm). -->
-          <span class="notice live-part" :title="libraryCreatedText ?? undefined" data-status-library-created>{{
-            libraryCreatedText
-          }}</span>
-        </template>
+      <!--
+        aura-allow-text: KẾT QUẢ của `t()`. 🔵 2026-08-15 — câu báo của lượt xác nhận đứng **TRƯỚC**
+        mốc *"Đã lưu"* và **thay** chỗ nó (`v-if`/`v-else-if`, không hai `v-if` rời). Lý do ở
+        [`CONFIRM_NOTICE_KEYS`]: thanh cao 34px chỉ đủ một mệnh đề, và *"chưa lưu được bản dịch"*
+        khẩn hơn *"đã lưu 12 giây trước"*. Câu này tự tắt khi người dùng gõ tiếp — dọn bằng SỰ KIỆN
+        ở `noteEditorEdit`, không bằng một hẹn giờ.
+      -->
+      <span v-if="confirmNoticeKey !== null" class="notice">{{ t(confirmNoticeKey) }}</span>
+      <!--
+        aura-allow-text: KẾT QUẢ của `t()`/`tError()`. 🔵 Story 2.9, AC4 — câu của lượt gộp/tách.
+
+        🔴 Nó đứng **SAU** câu xác nhận và **TRƯỚC** mốc *"Đã lưu"*, và thứ tự đó là một quyết
+        định: một lượt `⌘Enter` bị từ chối nói *"chưa lưu được bản dịch"* — khẩn hơn *"đã gộp
+        hai câu"*, vì một cái nói dữ liệu chưa an toàn còn cái kia nói một thao tác đã xong.
+        Và cả hai đều khẩn hơn *"đã lưu 12 giây trước"*.
+
+        🔵 **2026-08-17 — mệnh đề cũ ở đây ĐÃ HẾT ĐÚNG, và nó sai ngay từ lượt viết ra.** Bản cũ
+        khẳng định *"hai ô nhớ không bao giờ cùng mang giá trị trong một lượt dùng thật: cả hai được
+        dọn ở `noteEditorEdit`"*. Code review ba tầng bác nó bằng số đo, và **hai tầng độc lập tái
+        hiện bằng vitest**: `confirmNotice` chỉ bị dọn ở **ba** cửa, `regroup()` không là một trong
+        ba, và cử chỉ `Backspace` **không** đi qua `noteEditorEdit` *(`preventDefault()` cắt hẳn
+        chuỗi `beforeinput`→`input`→`reportEdit`)*. ⇒ Một `⌘Enter` hụt rồi một lượt gộp **thành
+        công** để thanh này hiện câu của lượt hụt, tức AC4 không đạt.
+
+        ✅ **Nay mệnh đề ấy đúng theo CẤU TẠO, không theo một lời hứa.** Bất biến sống ở
+        `editorPanelState.ts::ghiRegroupNotice` — *"thao tác vừa xảy ra sở hữu thanh trạng thái"*:
+        ai ghi một ô thì dọn ô còn lại, và vế đối xứng nằm ở cửa có khoá của `confirmCurrentSegment`.
+        🔴 Vì thế thứ tự `v-if`/`v-else-if` ở đây **không còn quan sát được** — nó là hàng rào cho ca
+        không lường trước, và **đừng** đọc nó thành một luật ưu tiên đang làm việc. Sửa thứ tự khi
+        thấy một câu sai chỉ dời chỗ nói dối sang ô nhớ kia; chỗ phải sửa là bất biến ở tệp trạng thái.
+      -->
+      <span v-else-if="regroupNoticeText !== null" class="notice">{{ regroupNoticeText }}</span>
+      <!--
+        aura-allow-text: KẾT QUẢ của `t()`/`tError()`. 🔵 Story 5.8 — câu của lượt tách CHƯƠNG.
+
+        Đứng NGAY SAU câu gộp/tách segment và TRƯỚC câu điều hướng, cùng thang ưu tiên đã ghi ở
+        hai nhánh trên: một thao tác GHI (tách Chương) khẩn hơn một câu chỉ trả lời một phím điều
+        hướng vừa bấm.
+
+        🔴 Y như ba nhánh trên: thứ tự ở đây **không quan sát được** khi bất biến của
+        `datThongBao` đứng — nó nay gán CẢ BỐN ô ở mọi lời gọi. Thấy một câu sai thì sửa bất biến,
+        đừng sửa thứ tự.
+      -->
+      <span v-else-if="splitChapterNoticeText !== null" class="notice">{{ splitChapterNoticeText }}</span>
+      <!--
+        aura-allow-text: KẾT QUẢ của `t()`. 🔵 Story 2.10, AC6 · AC7 — câu của lượt điều hướng.
+
+        Nó đứng **SAU** hai câu kia và **TRƯỚC** mốc *"Đã lưu"*, cùng thang ưu tiên: một câu nói
+        *"dữ liệu chưa an toàn"* khẩn hơn một câu nói *"một thao tác đã xong"*, và cả hai khẩn hơn
+        *"đã ở câu cuối Chương"* — vế cuối này chỉ trả lời một phím vừa bấm, không cảnh báo gì.
+
+        🔴 Y như hai nhánh trên: thứ tự ở đây **không quan sát được** khi bất biến của
+        `datThongBao` đứng. Thấy một câu sai thì sửa **bất biến**, đừng sửa thứ tự — đổi thứ tự
+        chỉ dời chỗ nói dối sang một ô nhớ khác.
+      -->
+      <span v-else-if="navNoticeKey !== null" class="notice">{{ t(navNoticeKey, { count: String(editorTmPrefillHiddenCount) }) }}</span>
+      <!--
+        aura-allow-text: KẾT QUẢ của `t()` cộng (ca đã chốt) một chuỗi DỮ LIỆU của Tác phẩm —
+        bản dịch một thuật ngữ Glossary do người dùng chốt. 🔵 Story 3.4b — nhánh THỨ NĂM, dưới
+        ba thông báo khẩn hơn và TRÊN mốc "Đã lưu" (thứ tự ưu tiên của story: lỗi xác nhận >
+        gộp/tách > điều hướng > bản dịch thuật ngữ > "Đã lưu N giây trước").
+
+        role="status" của `<footer>` xướng câu này qua trình đọc màn hình khi nó xuất hiện —
+        I/O Matrix: "Thanh hiện bản dịch của thuật ngữ, xướng qua role=status".
+      -->
+      <span v-else-if="glossaryHoverText !== null" class="notice">{{ glossaryHoverText }}</span>
+      <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+      <span v-else-if="secondsSinceSave !== null" class="saved" data-status-saved>{{
+        t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
+      }}</span>
       </div>
-    </template>
-    <template v-else>
-    <div class="status-info" data-status-info>
-      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-      <span v-if="positionText !== null" class="info-item" data-status-position>{{ positionText }}</span>
-      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-      <span v-if="confirmedCounterText !== null" class="info-item" data-status-confirmed>{{ confirmedCounterText }}</span>
-      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-      <span v-if="shortcutHintText !== null" class="info-item" data-status-hint>{{ shortcutHintText }}</span>
-      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-      <span v-if="proofreadCountsText !== null" class="info-item" data-status-proofread>{{ proofreadCountsText }}</span>
-    </div>
-    <div class="status-live" role="status" data-status-live>
-    <!--
-      aura-allow-text: KẾT QUẢ của `t()`. 🔵 2026-08-15 — câu báo của lượt xác nhận đứng **TRƯỚC**
-      mốc *"Đã lưu"* và **thay** chỗ nó (`v-if`/`v-else-if`, không hai `v-if` rời). Lý do ở
-      [`CONFIRM_NOTICE_KEYS`]: thanh cao 34px chỉ đủ một mệnh đề, và *"chưa lưu được bản dịch"*
-      khẩn hơn *"đã lưu 12 giây trước"*. Câu này tự tắt khi người dùng gõ tiếp — dọn bằng SỰ KIỆN
-      ở `noteEditorEdit`, không bằng một hẹn giờ.
-    -->
-    <span v-if="confirmNoticeKey !== null" class="notice">{{ t(confirmNoticeKey) }}</span>
-    <!--
-      aura-allow-text: KẾT QUẢ của `t()`/`tError()`. 🔵 Story 2.9, AC4 — câu của lượt gộp/tách.
-
-      🔴 Nó đứng **SAU** câu xác nhận và **TRƯỚC** mốc *"Đã lưu"*, và thứ tự đó là một quyết
-      định: một lượt `⌘Enter` bị từ chối nói *"chưa lưu được bản dịch"* — khẩn hơn *"đã gộp
-      hai câu"*, vì một cái nói dữ liệu chưa an toàn còn cái kia nói một thao tác đã xong.
-      Và cả hai đều khẩn hơn *"đã lưu 12 giây trước"*.
-
-      🔵 **2026-08-17 — mệnh đề cũ ở đây ĐÃ HẾT ĐÚNG, và nó sai ngay từ lượt viết ra.** Bản cũ
-      khẳng định *"hai ô nhớ không bao giờ cùng mang giá trị trong một lượt dùng thật: cả hai được
-      dọn ở `noteEditorEdit`"*. Code review ba tầng bác nó bằng số đo, và **hai tầng độc lập tái
-      hiện bằng vitest**: `confirmNotice` chỉ bị dọn ở **ba** cửa, `regroup()` không là một trong
-      ba, và cử chỉ `Backspace` **không** đi qua `noteEditorEdit` *(`preventDefault()` cắt hẳn
-      chuỗi `beforeinput`→`input`→`reportEdit`)*. ⇒ Một `⌘Enter` hụt rồi một lượt gộp **thành
-      công** để thanh này hiện câu của lượt hụt, tức AC4 không đạt.
-
-      ✅ **Nay mệnh đề ấy đúng theo CẤU TẠO, không theo một lời hứa.** Bất biến sống ở
-      `editorPanelState.ts::ghiRegroupNotice` — *"thao tác vừa xảy ra sở hữu thanh trạng thái"*:
-      ai ghi một ô thì dọn ô còn lại, và vế đối xứng nằm ở cửa có khoá của `confirmCurrentSegment`.
-      🔴 Vì thế thứ tự `v-if`/`v-else-if` ở đây **không còn quan sát được** — nó là hàng rào cho ca
-      không lường trước, và **đừng** đọc nó thành một luật ưu tiên đang làm việc. Sửa thứ tự khi
-      thấy một câu sai chỉ dời chỗ nói dối sang ô nhớ kia; chỗ phải sửa là bất biến ở tệp trạng thái.
-    -->
-    <span v-else-if="regroupNoticeText !== null" class="notice">{{ regroupNoticeText }}</span>
-    <!--
-      aura-allow-text: KẾT QUẢ của `t()`/`tError()`. 🔵 Story 5.8 — câu của lượt tách CHƯƠNG.
-
-      Đứng NGAY SAU câu gộp/tách segment và TRƯỚC câu điều hướng, cùng thang ưu tiên đã ghi ở
-      hai nhánh trên: một thao tác GHI (tách Chương) khẩn hơn một câu chỉ trả lời một phím điều
-      hướng vừa bấm.
-
-      🔴 Y như ba nhánh trên: thứ tự ở đây **không quan sát được** khi bất biến của
-      `datThongBao` đứng — nó nay gán CẢ BỐN ô ở mọi lời gọi. Thấy một câu sai thì sửa bất biến,
-      đừng sửa thứ tự.
-    -->
-    <span v-else-if="splitChapterNoticeText !== null" class="notice">{{ splitChapterNoticeText }}</span>
-    <!--
-      aura-allow-text: KẾT QUẢ của `t()`. 🔵 Story 2.10, AC6 · AC7 — câu của lượt điều hướng.
-
-      Nó đứng **SAU** hai câu kia và **TRƯỚC** mốc *"Đã lưu"*, cùng thang ưu tiên: một câu nói
-      *"dữ liệu chưa an toàn"* khẩn hơn một câu nói *"một thao tác đã xong"*, và cả hai khẩn hơn
-      *"đã ở câu cuối Chương"* — vế cuối này chỉ trả lời một phím vừa bấm, không cảnh báo gì.
-
-      🔴 Y như hai nhánh trên: thứ tự ở đây **không quan sát được** khi bất biến của
-      `datThongBao` đứng. Thấy một câu sai thì sửa **bất biến**, đừng sửa thứ tự — đổi thứ tự
-      chỉ dời chỗ nói dối sang một ô nhớ khác.
-    -->
-    <span v-else-if="navNoticeKey !== null" class="notice">{{ t(navNoticeKey, { count: String(editorTmPrefillHiddenCount) }) }}</span>
-    <!--
-      aura-allow-text: KẾT QUẢ của `t()` cộng (ca đã chốt) một chuỗi DỮ LIỆU của Tác phẩm —
-      bản dịch một thuật ngữ Glossary do người dùng chốt. 🔵 Story 3.4b — nhánh THỨ NĂM, dưới
-      ba thông báo khẩn hơn và TRÊN mốc "Đã lưu" (thứ tự ưu tiên của story: lỗi xác nhận >
-      gộp/tách > điều hướng > bản dịch thuật ngữ > "Đã lưu N giây trước").
-
-      role="status" của `<footer>` xướng câu này qua trình đọc màn hình khi nó xuất hiện —
-      I/O Matrix: "Thanh hiện bản dịch của thuật ngữ, xướng qua role=status".
-    -->
-    <span v-else-if="glossaryHoverText !== null" class="notice">{{ glossaryHoverText }}</span>
-    <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
-    <span v-else-if="secondsSinceSave !== null" class="saved" data-status-saved>{{
-      t('status.saved_seconds_ago', { seconds: String(secondsSinceSave) })
-    }}</span>
-    </div>
-    <div class="status-end" data-status-end>
-      <template v-if="!lookupHasRetreated">
-        <span class="info-item" data-status-lookup-offline>{{ t('status.lookup_offline') }}</span>
+      <div class="status-end" data-status-end>
+        <template v-if="!lookupHasRetreated">
+          <span class="info-item" data-status-lookup-offline>{{ t('status.lookup_offline') }}</span>
+          <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+          <span v-if="glossaryCountText !== null" class="info-item" data-status-glossary>{{ glossaryCountText }}</span>
+          <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
+          <span v-if="tmCountText !== null" class="info-item" data-status-tm :title="tmTitleText ?? undefined">{{ tmCountText }}</span>
+        </template>
+        <!-- aura-allow-text: nghĩa đầu của nguồn đầu — DỮ LIỆU từ điển, không chuỗi giao diện. -->
+        <span v-else-if="lookupLineText !== null" class="info-item lookup-line" data-status-lookup-line>{{ lookupLineText }}</span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-        <span v-if="glossaryCountText !== null" class="info-item" data-status-glossary>{{ glossaryCountText }}</span>
-        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-        <span v-if="tmCountText !== null" class="info-item" data-status-tm :title="tmTitleText ?? undefined">{{ tmCountText }}</span>
+        <span v-if="lookupHasRetreated && lookupChordText !== ''" class="info-item" data-status-lookup-chord>{{ lookupChordText }}</span>
+      <!--
+        🔵 Story 4.12, Phase 3a (Decision 2) — điểm vào ngăn kéo Tra cứu.
+
+        🔴 KHÔNG một nhánh của chuỗi `v-if`/`v-else-if` ở trên: nó không phải một THÔNG BÁO
+        tranh chỗ với "Đã lưu N giây trước" và bốn nhóm câu khẩn hơn — nó là một LỐI VÀO,
+        phải còn bấm được bất kể thanh đang nói câu gì khác. `margin-left: auto` đẩy nó về
+        cạnh phải, tách khỏi luồng của năm nhánh câu (xem `.lookup-entry` ở style).
+
+        `data-lookup-drawer-open` là mối nối UX-DR17 mà `LookupDrawer.vue` đọc lại để trả tiêu
+        điểm về đây lúc đóng — một thuộc tính `data-`, không một tên lớp CSS (tên lớp là trình
+        bày, đổi được tự do).
+      -->
+      <button
+        v-if="currentMode === 'workspace' && readingMarksWalkProgress !== null"
+        type="button"
+        class="ui-btn"
+        data-reading-walk-next
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('reading.marks_walk_next')"
+      >
+        {{ t('status.reading_walk_next', { next: String(readingMarksWalkProgress.next), total: String(readingMarksWalkProgress.total) }) }}
+      </button>
+      <span v-if="currentMode === 'workspace' && openChapterDoneError !== null" class="notice" role="alert" data-status-chapter-done-error>
+        <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+        {{ tError(openChapterDoneError) }}
+      </span>
+      <button
+        v-if="currentMode === 'workspace' && editorChapterId !== null"
+        type="button"
+        class="ui-btn"
+        data-chapter-done
+        :disabled="libraryOpenChapterIsDone || openWorkLifecycleBusy"
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('lifecycle.set_chapter_done')"
+      >
+        {{ t(libraryOpenChapterIsDone ? 'status.chapter_done_already' : 'status.chapter_done') }}
+      </button>
+      <button
+        type="button"
+        class="ui-btn"
+        data-glossary-queue-open
+        @mousedown="focusOnPointerDown($event)"
+        @click="dispatch('glossary.queue.open')"
+      >
+        {{ t('command.glossary.queue.open') }}
+      </button>
+      <button
+        v-if="lookupHasRetreated"
+        type="button"
+        class="ui-btn"
+        data-lookup-drawer-open
+        @click="dispatch('layout.lookup_drawer_open')"
+      >
+        {{ t('command.layout.lookup_drawer_open') }}
+      </button>
+      </div>
       </template>
-      <!-- aura-allow-text: nghĩa đầu của nguồn đầu — DỮ LIỆU từ điển, không chuỗi giao diện. -->
-      <span v-else-if="lookupLineText !== null" class="info-item lookup-line" data-status-lookup-line>{{ lookupLineText }}</span>
-      <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-      <span v-if="lookupHasRetreated && lookupChordText !== ''" class="info-item" data-status-lookup-chord>{{ lookupChordText }}</span>
-    <!--
-      🔵 Story 4.12, Phase 3a (Decision 2) — điểm vào ngăn kéo Tra cứu.
-
-      🔴 KHÔNG một nhánh của chuỗi `v-if`/`v-else-if` ở trên: nó không phải một THÔNG BÁO
-      tranh chỗ với "Đã lưu N giây trước" và bốn nhóm câu khẩn hơn — nó là một LỐI VÀO,
-      phải còn bấm được bất kể thanh đang nói câu gì khác. `margin-left: auto` đẩy nó về
-      cạnh phải, tách khỏi luồng của năm nhánh câu (xem `.lookup-entry` ở style).
-
-      `data-lookup-drawer-open` là mối nối UX-DR17 mà `LookupDrawer.vue` đọc lại để trả tiêu
-      điểm về đây lúc đóng — một thuộc tính `data-`, không một tên lớp CSS (tên lớp là trình
-      bày, đổi được tự do).
-    -->
-    <button
-      v-if="currentMode === 'workspace' && readingMarksWalkProgress !== null"
-      type="button"
-      class="ui-btn"
-      data-reading-walk-next
-      @mousedown="focusOnPointerDown($event)"
-      @click="dispatch('reading.marks_walk_next')"
-    >
-      {{ t('status.reading_walk_next', { next: String(readingMarksWalkProgress.next), total: String(readingMarksWalkProgress.total) }) }}
-    </button>
-    <span v-if="currentMode === 'workspace' && openChapterDoneError !== null" class="notice" role="alert" data-status-chapter-done-error>
-      <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
-      {{ tError(openChapterDoneError) }}
-    </span>
-    <button
-      v-if="currentMode === 'workspace' && editorChapterId !== null"
-      type="button"
-      class="ui-btn"
-      data-chapter-done
-      :disabled="libraryOpenChapterIsDone || openWorkLifecycleBusy"
-      @mousedown="focusOnPointerDown($event)"
-      @click="dispatch('lifecycle.set_chapter_done')"
-    >
-      {{ t(libraryOpenChapterIsDone ? 'status.chapter_done_already' : 'status.chapter_done') }}
-    </button>
-    <button
-      type="button"
-      class="ui-btn"
-      data-glossary-queue-open
-      @mousedown="focusOnPointerDown($event)"
-      @click="dispatch('glossary.queue.open')"
-    >
-      {{ t('command.glossary.queue.open') }}
-    </button>
-    <button
-      v-if="lookupHasRetreated"
-      type="button"
-      class="ui-btn"
-      data-lookup-drawer-open
-      @click="dispatch('layout.lookup_drawer_open')"
-    >
-      {{ t('command.layout.lookup_drawer_open') }}
-    </button>
     </div>
-    </template>
   </footer>
 </template>
 
@@ -745,10 +747,16 @@ const libraryErrorText = computed<string | null>(() => {
  * Permanent items truncate with an ellipsis before they can push the live notice out; the
  * notice keeps its own width, so the row never overflows the 34px bar.
  */
+.status-line {
+  flex: 1;
+  min-width: 0;
+  gap: var(--space-panel-inline);
+}
+
 .status-info,
 .status-end {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
   min-width: 0;
   white-space: nowrap;

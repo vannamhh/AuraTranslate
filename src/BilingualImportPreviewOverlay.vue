@@ -966,7 +966,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
 .bip-checkbox-field {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin-bottom: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
@@ -988,7 +988,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-chapter-filter-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
@@ -1078,7 +1078,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-chapters-needs-review-badge {
   display: inline-flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   flex: none;
   padding: 0 calc(var(--space-unit) * 1);
@@ -1176,7 +1176,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);
 }

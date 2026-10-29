@@ -381,7 +381,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
 .gi-conflict-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   padding: calc(var(--space-unit) * 1);
   border: 1px solid var(--color-outline);

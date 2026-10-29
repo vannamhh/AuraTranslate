@@ -176,7 +176,7 @@ function onCloseTemplates(): void {
 .pt-tier {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin: 0;
   padding: 0;
@@ -191,7 +191,7 @@ function onCloseTemplates(): void {
 
 .pt-item {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: calc(var(--space-unit) * 1);
   padding: var(--space-unit) 0;
@@ -199,7 +199,7 @@ function onCloseTemplates(): void {
 
 .pt-radio {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   color: var(--color-on-surface);
   cursor: pointer;

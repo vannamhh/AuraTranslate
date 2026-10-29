@@ -1104,7 +1104,8 @@ const importScreenIsOpen = computed<boolean>(
 
 .orphan-actions {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  height: 28px;
   gap: 7px;
 }
 
@@ -1251,7 +1252,7 @@ const importScreenIsOpen = computed<boolean>(
 .work-stat {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   gap: 7px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1260,7 +1261,7 @@ const importScreenIsOpen = computed<boolean>(
 
 .work-stat-end {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 7px;
 }
 
@@ -1302,7 +1303,7 @@ const importScreenIsOpen = computed<boolean>(
 .top-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: 14px;
   padding-bottom: 14px;
   margin-bottom: 21px;
@@ -1312,7 +1313,7 @@ const importScreenIsOpen = computed<boolean>(
 .chips {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: 7px;
   margin-left: auto;
 }
@@ -1327,7 +1328,7 @@ const importScreenIsOpen = computed<boolean>(
 .search-field {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   flex: 1;
   max-width: 420px;
   min-width: 203px;

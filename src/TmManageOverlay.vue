@@ -1041,7 +1041,7 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-health {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin: 0 0 var(--space-panel-block) 0;
 }
@@ -1091,12 +1091,13 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-legend-item {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
 }
 
 .tm-swatch {
   display: inline-block;
+  align-self: center;
   width: calc(var(--space-unit) * 1);
   height: calc(var(--space-unit) * 1);
 }
@@ -1160,7 +1161,7 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-seg {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: 0;
   padding: 0;
@@ -1404,7 +1405,7 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-exchange-tier {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin: 0;
   padding: 0;

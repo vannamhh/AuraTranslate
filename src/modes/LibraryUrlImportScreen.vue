@@ -397,7 +397,8 @@ function onEscape(): void {
 
 .us-actions {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  height: 28px;
   justify-content: flex-end;
   gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);

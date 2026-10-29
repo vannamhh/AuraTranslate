@@ -76,14 +76,14 @@ function onInput(event: Event): void {
 .ts-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
 }
 
 .ts-field {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
 }
 

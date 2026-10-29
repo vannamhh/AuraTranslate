@@ -207,86 +207,90 @@ onMounted(async () => {
     </p>
 
     <header class="titlebar" :data-tauri-drag-region="titlebarDragRegion">
-      <nav class="modes">
-        <button
-          type="button"
-          class="mode-tab"
-          :class="{ on: currentMode === 'library' }"
-          @click="dispatch('mode.library')"
-        >
-          {{ t('command.mode.library') }}
-        </button>
-        <button
-          type="button"
-          class="mode-tab"
-          :class="{ on: currentMode === 'workspace' }"
-          @click="dispatch('mode.workspace')"
-        >
-          {{ t('command.mode.workspace') }}
-        </button>
-        <button
-          type="button"
-          class="mode-tab"
-          :class="{ on: currentMode === 'reading' }"
-          @click="dispatch('mode.reading')"
-        >
-          {{ t('command.mode.reading') }}
-        </button>
-      </nav>
-
-      <!-- aura-allow-text: `titlebarWorkName` is the Work name the user typed, not interface text. -->
-      <span v-if="titlebarWorkName !== null" class="titlebar-work" data-titlebar-work-name :title="titlebarWorkName">{{ titlebarWorkName }}</span>
-
-      <div class="titlebar-right">
-        <!-- aura-allow-text: `proofreadStatusText` is the output of t() with the chapter label and sentence count. -->
-        <span v-if="proofreadStatusText !== null" class="titlebar-status" role="status">{{ proofreadStatusText }}</span>
-        <!-- aura-allow-text: `importSourceStatusText` is the output of t() with the file name and size. -->
-        <span v-if="importSourceStatusText !== null" class="titlebar-status" data-titlebar-import-source>{{ importSourceStatusText }}</span>
-        <span v-if="attributionIsOpen" class="titlebar-status" data-titlebar-attribution>{{ t('titlebar.attribution_label') }}</span>
-
-        <div
-          v-if="currentMode === 'workspace'"
-          class="layout-switch ui-seg ui-seg--icons"
-          role="group"
-          :aria-label="t('titlebar.layout.group')"
-        >
+      <div class="titlebar-line ui-row">
+        <nav class="modes">
           <button
             type="button"
-            class="layout-switch-btn ui-seg__item"
-            :aria-pressed="activeLayoutPreset === 'layout.preset_grid'"
-            :disabled="reviewModeIsOpen || attributionIsOpen"
-            :title="t('command.layout.preset_grid')"
-            :aria-label="t('command.layout.preset_grid')"
-            @click="dispatch('layout.preset_grid')"
+            class="mode-tab"
+            :class="{ on: currentMode === 'library' }"
+            @click="dispatch('mode.library')"
           >
-            <AppIcon name="layout-left" />
+            {{ t('command.mode.library') }}
           </button>
           <button
             type="button"
-            class="layout-switch-btn ui-seg__item"
-            :aria-pressed="activeLayoutPreset === 'layout.preset_columns'"
-            :disabled="reviewModeIsOpen || attributionIsOpen"
-            :title="t('command.layout.preset_columns')"
-            :aria-label="t('command.layout.preset_columns')"
-            @click="dispatch('layout.preset_columns')"
+            class="mode-tab"
+            :class="{ on: currentMode === 'workspace' }"
+            @click="dispatch('mode.workspace')"
           >
-            <AppIcon name="layout-top" />
+            {{ t('command.mode.workspace') }}
           </button>
+          <button
+            type="button"
+            class="mode-tab"
+            :class="{ on: currentMode === 'reading' }"
+            @click="dispatch('mode.reading')"
+          >
+            {{ t('command.mode.reading') }}
+          </button>
+        </nav>
+
+        <!-- aura-allow-text: `titlebarWorkName` is the Work name the user typed, not interface text. -->
+        <span v-if="titlebarWorkName !== null" class="titlebar-work" data-titlebar-work-name :title="titlebarWorkName">{{ titlebarWorkName }}</span>
+
+        <div class="titlebar-right">
+          <!-- aura-allow-text: `proofreadStatusText` is the output of t() with the chapter label and sentence count. -->
+          <span v-if="proofreadStatusText !== null" class="titlebar-status" role="status">{{ proofreadStatusText }}</span>
+          <!-- aura-allow-text: `importSourceStatusText` is the output of t() with the file name and size. -->
+          <span v-if="importSourceStatusText !== null" class="titlebar-status" data-titlebar-import-source>{{ importSourceStatusText }}</span>
+          <span v-if="attributionIsOpen" class="titlebar-status" data-titlebar-attribution>{{ t('titlebar.attribution_label') }}</span>
+
+          <div
+            v-if="currentMode === 'workspace'"
+            class="layout-switch ui-seg ui-seg--icons"
+            role="group"
+            :aria-label="t('titlebar.layout.group')"
+          >
+            <button
+              type="button"
+              class="layout-switch-btn ui-seg__item"
+              :aria-pressed="activeLayoutPreset === 'layout.preset_grid'"
+              :disabled="reviewModeIsOpen || attributionIsOpen"
+              :title="t('command.layout.preset_grid')"
+              :aria-label="t('command.layout.preset_grid')"
+              @click="dispatch('layout.preset_grid')"
+            >
+              <AppIcon name="layout-left" />
+            </button>
+            <button
+              type="button"
+              class="layout-switch-btn ui-seg__item"
+              :aria-pressed="activeLayoutPreset === 'layout.preset_columns'"
+              :disabled="reviewModeIsOpen || attributionIsOpen"
+              :title="t('command.layout.preset_columns')"
+              :aria-label="t('command.layout.preset_columns')"
+              @click="dispatch('layout.preset_columns')"
+            >
+              <AppIcon name="layout-top" />
+            </button>
+          </div>
+
+          <button
+            v-if="currentMode === 'library'"
+            type="button"
+            class="titlebar-import ui-btn ui-btn--quiet"
+            data-library-import-open
+            @click="dispatch('library.import.open')"
+          >
+            <span class="ui-row">
+              {{ t('command.library.import.open') }}
+              <!-- aura-allow-text: chord already formatted for the platform by shortcutRows. -->
+              <span v-if="importChord !== ''" class="titlebar-import-chord">{{ importChord }}</span>
+            </span>
+          </button>
+
+          <TitlebarToolsMenu />
         </div>
-
-        <button
-          v-if="currentMode === 'library'"
-          type="button"
-          class="titlebar-import ui-btn ui-btn--quiet"
-          data-library-import-open
-          @click="dispatch('library.import.open')"
-        >
-          {{ t('command.library.import.open') }}
-          <!-- aura-allow-text: chord already formatted for the platform by shortcutRows. -->
-          <span v-if="importChord !== ''" class="titlebar-import-chord">{{ importChord }}</span>
-        </button>
-
-        <TitlebarToolsMenu />
       </div>
     </header>
 
@@ -441,6 +445,11 @@ onMounted(async () => {
   padding-left: var(--space-traffic-light-inset);
 }
 
+.titlebar-line {
+  flex: 1;
+  min-width: 0;
+}
+
 .modes {
   display: flex;
   gap: calc(var(--space-unit) * 2);
@@ -469,7 +478,7 @@ onMounted(async () => {
 
 .titlebar-right {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin-left: auto;
   padding-left: calc(var(--space-unit) * 2);

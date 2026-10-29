@@ -600,20 +600,22 @@ onBeforeUnmount(() => {
           <li class="chapters-pad" :style="{ height: padTopPx + 'px' }" aria-hidden="true"></li>
           <template v-for="item in visibleItems" :key="itemKey(item)">
             <li v-if="item.kind === 'group'" class="wp-item wp-group" :data-library-chapter-group="item.key" role="presentation">
-              <!-- aura-allow-text: nhãn nhóm qua t(). -->
-              <span class="wp-group-label">{{ groupLabel(item.key) }}</span>
-              <!-- aura-allow-text: ghép từ t() với số đếm. -->
-              <span class="wp-group-count">{{ t('library.work_page.group_count', { count: String(item.total) }) }}</span>
-              <button
-                v-if="item.key === 'not_started' && foldToggleVisible"
-                type="button"
-                class="wp-group-toggle ui-btn ui-btn--quiet"
-                data-library-chapter-group-toggle
-                :aria-expanded="libraryChapterNotStartedExpanded"
-                @click="dispatch('library.chapter_group.toggle_not_started')"
-              >
-                {{ t('command.library.chapter_group.toggle_not_started') }}
-              </button>
+              <div class="wp-line ui-row">
+                <!-- aura-allow-text: nhãn nhóm qua t(). -->
+                <span class="wp-group-label">{{ groupLabel(item.key) }}</span>
+                <!-- aura-allow-text: ghép từ t() với số đếm. -->
+                <span class="wp-group-count">{{ t('library.work_page.group_count', { count: String(item.total) }) }}</span>
+                <button
+                  v-if="item.key === 'not_started' && foldToggleVisible"
+                  type="button"
+                  class="wp-group-toggle ui-btn ui-btn--quiet"
+                  data-library-chapter-group-toggle
+                  :aria-expanded="libraryChapterNotStartedExpanded"
+                  @click="dispatch('library.chapter_group.toggle_not_started')"
+                >
+                  {{ t('command.library.chapter_group.toggle_not_started') }}
+                </button>
+              </div>
             </li>
             <li
               v-else-if="item.kind === 'chapter'"
@@ -1041,7 +1043,8 @@ onBeforeUnmount(() => {
 
 .wp-crumb {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  height: 28px;
   gap: calc(var(--space-unit) * 1);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1151,7 +1154,7 @@ onBeforeUnmount(() => {
 
 .wp-status-value {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: 0;
   font-family: var(--face-ui-md);
@@ -1196,7 +1199,7 @@ onBeforeUnmount(() => {
 .wp-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   padding: calc(var(--space-unit) * 1) 0;
   border-bottom: 1px solid var(--color-outline);
@@ -1218,7 +1221,7 @@ onBeforeUnmount(() => {
 
 .wp-sort {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin-left: auto;
   font-family: var(--face-ui-sm);
@@ -1229,7 +1232,7 @@ onBeforeUnmount(() => {
 .wp-foot {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
 }
 
@@ -1317,6 +1320,12 @@ onBeforeUnmount(() => {
   list-style: none;
 }
 
+.wp-item > .wp-line {
+  flex: 1;
+  min-width: 0;
+  gap: inherit;
+}
+
 .wp-item {
   box-sizing: border-box;
   height: 42px;
@@ -1362,6 +1371,8 @@ onBeforeUnmount(() => {
 
 .chapter-row {
   display: grid;
+  align-items: baseline;
+  align-content: center;
   grid-template-columns: 42px minmax(0, 1fr) 168px 98px 126px 140px;
   column-gap: calc(var(--space-unit) * 2);
   cursor: default;
@@ -1398,7 +1409,7 @@ onBeforeUnmount(() => {
 .chapter-name {
   min-width: 0;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 2);
 }
 
@@ -1413,6 +1424,7 @@ onBeforeUnmount(() => {
 
 .chapter-mini {
   display: block;
+  align-self: center;
   flex: none;
   width: 49px;
   height: 3px;
@@ -1513,7 +1525,7 @@ onBeforeUnmount(() => {
 .wp-card-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: calc(var(--space-unit) * 1) 0 0 0;
   font-family: var(--face-ui-sm);

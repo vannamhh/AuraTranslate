@@ -997,13 +997,13 @@ onBeforeUnmount(() => {
  */
 .lookup-tabs {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
 }
 
 .lookup-tabrow {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   flex: none;
   flex-wrap: wrap;
   gap: var(--space-panel-inline);
@@ -1012,7 +1012,7 @@ onBeforeUnmount(() => {
 
 .lookup-tools {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
   margin-left: auto;
 }

@@ -101,26 +101,28 @@ const senseTotalKey = computed(() =>
 <template>
   <section class="lookup-source">
     <div class="lookup-source-head">
-      <!-- aura-allow-text: `display_name` là DỮ LIỆU đọc từ `dict_source` của chính tệp
-           .db (AC2, FR31) — không chuỗi giao diện của vi.json. -->
-      <span class="lookup-source-name" :title="group.source.display_name">{{ group.source.display_name }}</span>
-      <span v-if="senseTotal !== null" class="lookup-source-count">{{
-        t(senseTotalKey, { n: String(senseTotal) })
-      }}</span>
-      <!-- `data-collapse-code` is the seam `aimSourceCollapseFrom` and `lookup.toggle_source_collapse` read. -->
-      <button
-        type="button"
-        class="ui-icon-btn lookup-collapse"
-        :class="{ 'lookup-collapse--closed': collapsed }"
-        :data-collapse-code="group.source.code"
-        :aria-expanded="!collapsed"
-        :aria-label="t(collapsed ? 'panel.lookup.expand_label' : 'panel.lookup.collapse_label')"
-        :title="t(collapsed ? 'panel.lookup.expand_label' : 'panel.lookup.collapse_label')"
-        @mousedown="aimSourceCollapseFrom($event)"
-        @click="dispatch('lookup.toggle_source_collapse')"
-      >
-        <AppIcon name="chevron" />
-      </button>
+      <div class="lookup-source-line ui-row">
+        <!-- aura-allow-text: `display_name` là DỮ LIỆU đọc từ `dict_source` của chính tệp
+             .db (AC2, FR31) — không chuỗi giao diện của vi.json. -->
+        <span class="lookup-source-name" :title="group.source.display_name">{{ group.source.display_name }}</span>
+        <span v-if="senseTotal !== null" class="lookup-source-count">{{
+          t(senseTotalKey, { n: String(senseTotal) })
+        }}</span>
+        <!-- `data-collapse-code` is the seam `aimSourceCollapseFrom` and `lookup.toggle_source_collapse` read. -->
+        <button
+          type="button"
+          class="ui-icon-btn lookup-collapse"
+          :class="{ 'lookup-collapse--closed': collapsed }"
+          :data-collapse-code="group.source.code"
+          :aria-expanded="!collapsed"
+          :aria-label="t(collapsed ? 'panel.lookup.expand_label' : 'panel.lookup.collapse_label')"
+          :title="t(collapsed ? 'panel.lookup.expand_label' : 'panel.lookup.collapse_label')"
+          @mousedown="aimSourceCollapseFrom($event)"
+          @click="dispatch('lookup.toggle_source_collapse')"
+        >
+          <AppIcon name="chevron" />
+        </button>
+      </div>
     </div>
 
     <!--
@@ -268,6 +270,12 @@ const senseTotalKey = computed(() =>
   white-space: nowrap;
 }
 
+.lookup-source-line {
+  flex: 1;
+  min-width: 0;
+  gap: inherit;
+}
+
 .lookup-collapse {
   margin-left: auto;
 }
@@ -315,7 +323,7 @@ const senseTotalKey = computed(() =>
  */
 .lookup-entry-head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-panel-inline);
   margin-bottom: 7px;
 }

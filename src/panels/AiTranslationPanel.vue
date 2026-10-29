@@ -886,7 +886,7 @@ const openSettingsLabel = computed(() =>
   flex: none;
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
 }
 
@@ -962,7 +962,7 @@ const openSettingsLabel = computed(() =>
 .ai-batch-bar {
   flex: none;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 2);
 }

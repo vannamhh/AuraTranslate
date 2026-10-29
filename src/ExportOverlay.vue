@@ -680,7 +680,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-choice {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
 }
 

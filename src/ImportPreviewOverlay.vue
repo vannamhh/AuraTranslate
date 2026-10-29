@@ -2212,7 +2212,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-cleanup-add {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
@@ -2239,7 +2239,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-chapters-pattern-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: 0 0 calc(var(--space-unit) * 1) 0;
 }
@@ -2270,7 +2270,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-chapters-sort-toggle {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: 0 0 calc(var(--space-unit) * 1) 0;
   font-family: var(--face-ui-sm);
@@ -2371,7 +2371,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-chapters-needs-review-badge {
   display: inline-flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   flex: none;
   padding: 0 calc(var(--space-unit) * 1);
@@ -2389,7 +2389,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-chapter-filter-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: 0 0 calc(var(--space-unit) * 1) 0;
 }

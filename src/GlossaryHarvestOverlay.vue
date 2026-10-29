@@ -192,10 +192,14 @@ function onKeydown(event: KeyboardEvent): void {
                 :disabled="harvestBusy"
                 @click="dispatch('glossary.harvest.accept')"
               >
-                {{ t('glossary.harvest.accept_row') }} <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">N</kbd>
+                <span class="ui-row">
+                  {{ t('glossary.harvest.accept_row') }} <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">N</kbd>
+                </span>
               </button>
               <button type="button" class="gh-mini ui-btn" :disabled="harvestBusy" @click="dispatch('glossary.harvest.reject')">
-                {{ t('glossary.harvest.reject_row') }} <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">B</kbd>
+                <span class="ui-row">
+                  {{ t('glossary.harvest.reject_row') }} <!-- aura-allow-text: tên phím. --><kbd class="ui-kbd">B</kbd>
+                </span>
               </button>
             </span>
             <!-- aura-allow-text: dấu ✓/✕ trang trí, trạng thái bằng chữ đã có ở span sr-only. -->

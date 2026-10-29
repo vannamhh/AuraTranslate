@@ -252,7 +252,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ti-own {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-md);

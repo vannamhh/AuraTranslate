@@ -806,7 +806,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gq-category {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   margin-bottom: var(--space-panel-block);
 }
