@@ -30,18 +30,27 @@ function onInput(event: Event): void {
        be a second dispatch path that Check A cannot see. -->
   <form class="gs-form" @submit.prevent="dispatch('glossary.settings.save')">
     <fieldset class="gs-fieldset" :disabled="glossarySettingsSaving">
-      <label class="gs-field">
-        <span class="gs-field-label">{{ t('glossary.settings.threshold_label') }}</span>
-        <input
-          type="number"
-          class="gs-input ui-field ui-field--lg ui-field--short"
-          min="1"
-          step="1"
-          autocomplete="off"
-          :value="glossarySettingsThresholdInput"
-          @input="onInput"
-        />
-      </label>
+      <div class="gs-row">
+        <label class="gs-field">
+          <span class="gs-field-label">{{ t('glossary.settings.threshold_label') }}</span>
+          <input
+            type="number"
+            class="gs-input ui-field ui-field--lg ui-field--short"
+            min="1"
+            step="1"
+            autocomplete="off"
+            :value="glossarySettingsThresholdInput"
+            @input="onInput"
+          />
+        </label>
+        <button
+          type="submit"
+          class="gs-save ui-btn ui-btn--lg"
+          :disabled="parsedGlossaryScanThreshold(glossarySettingsThresholdInput) === null"
+        >
+          {{ t('command.glossary.settings.save') }}
+        </button>
+      </div>
 
       <p v-if="parsedGlossaryScanThreshold(glossarySettingsThresholdInput) === null" class="gs-alert">
         {{ t('glossary.settings.threshold_invalid') }}
@@ -52,16 +61,6 @@ function onInput(event: Event): void {
       <p v-else-if="glossarySettingsSaved" class="gs-saved" role="status">
         {{ t('glossary.settings.saved') }}
       </p>
-
-      <div class="gs-actions">
-        <button
-          type="submit"
-          class="gs-save ui-btn ui-btn--lg"
-          :disabled="parsedGlossaryScanThreshold(glossarySettingsThresholdInput) === null"
-        >
-          {{ t('command.glossary.settings.save') }}
-        </button>
-      </div>
     </fieldset>
   </form>
 </template>
@@ -77,11 +76,18 @@ function onInput(event: Event): void {
   border: none;
 }
 
+.gs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-panel-inline);
+  margin-bottom: var(--space-panel-block);
+}
+
 .gs-field {
   display: flex;
-  flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
-  margin-bottom: var(--space-panel-block);
+  align-items: center;
+  gap: var(--space-panel-inline);
 }
 
 .gs-field-label {
@@ -108,10 +114,5 @@ function onInput(event: Event): void {
 .gs-saved {
   border-left-color: var(--color-outline);
   color: var(--color-on-surface-variant);
-}
-
-.gs-actions {
-  display: flex;
-  gap: var(--space-panel-inline);
 }
 </style>

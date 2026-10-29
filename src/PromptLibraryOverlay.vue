@@ -840,12 +840,12 @@ async function onEscape(): Promise<void> {
                 <span class="pl-field-label">{{ t('prompt.library.name_label') }}</span>
                 <input class="pl-input ui-field ui-field--lg ui-field--medium" autocomplete="off" :value="nameDraft" :disabled="promptSetBusy" @input="onNameInput" />
               </label>
-              <p v-if="nameDraft !== '' && !isPromptSetNameValid(nameDraft)" class="pl-alert">
-                {{ t('err.prompt_set.invalid_name') }}
-              </p>
               <button type="submit" class="pl-act ui-btn ui-btn--lg" :disabled="!isPromptSetNameValid(nameDraft) || promptSetBusy">
                 {{ t('prompt.library.rename_button') }}
               </button>
+              <p v-if="nameDraft !== '' && !isPromptSetNameValid(nameDraft)" class="pl-alert">
+                {{ t('err.prompt_set.invalid_name') }}
+              </p>
             </form>
 
             <h4 class="pl-sh">{{ t('prompt.library.vars_heading') }}</h4>
@@ -1153,6 +1153,26 @@ async function onEscape(): Promise<void> {
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
   margin-bottom: calc(var(--space-unit) * 2);
+}
+
+.pl-rename-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--space-unit) * 2) var(--space-panel-inline);
+  margin-bottom: calc(var(--space-unit) * 2);
+}
+
+.pl-rename-form .pl-field {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-panel-inline);
+  margin-bottom: 0;
+}
+
+.pl-rename-form .pl-alert {
+  flex-basis: 100%;
+  margin: 0;
 }
 
 .pl-field-label {

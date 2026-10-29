@@ -27,17 +27,20 @@ function onInput(event: Event): void {
 <template>
   <form class="ts-form" @submit.prevent="saveExportSettings">
     <fieldset class="ts-fieldset" :disabled="exportSettingsSaving">
-      <label class="ts-field">
-        <span class="ts-field-label">{{ t('export.settings.translator_label') }}</span>
-        <input
-          type="text"
-          class="ts-input ui-field ui-field--lg ui-field--medium"
-          autocomplete="off"
-          data-export-translator-input
-          :value="exportSettingsNameInput"
-          @input="onInput"
-        />
-      </label>
+      <div class="ts-row">
+        <label class="ts-field">
+          <span class="ts-field-label">{{ t('export.settings.translator_label') }}</span>
+          <input
+            type="text"
+            class="ts-input ui-field ui-field--lg ui-field--medium"
+            autocomplete="off"
+            data-export-translator-input
+            :value="exportSettingsNameInput"
+            @input="onInput"
+          />
+        </label>
+        <button type="submit" class="ts-save ui-btn ui-btn--lg">{{ t('export.settings.save') }}</button>
+      </div>
 
       <p v-if="exportSettingsSaveError !== null" class="ts-alert" role="alert">
         <!-- aura-allow-text: result of tError() on the IPC error. -->
@@ -46,10 +49,6 @@ function onInput(event: Event): void {
       <p v-else-if="exportSettingsSaved" class="ts-saved" role="status">
         {{ t('export.settings.saved') }}
       </p>
-
-      <div class="ts-actions">
-        <button type="submit" class="ts-save ui-btn ui-btn--lg">{{ t('export.settings.save') }}</button>
-      </div>
     </fieldset>
   </form>
 </template>
@@ -65,11 +64,18 @@ function onInput(event: Event): void {
   border: none;
 }
 
+.ts-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-panel-inline);
+  margin-bottom: var(--space-panel-block);
+}
+
 .ts-field {
   display: flex;
-  flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
-  margin-bottom: var(--space-panel-block);
+  align-items: center;
+  gap: var(--space-panel-inline);
 }
 
 .ts-field-label {
@@ -96,10 +102,5 @@ function onInput(event: Event): void {
 .ts-saved {
   border-left-color: var(--color-outline);
   color: var(--color-on-surface-variant);
-}
-
-.ts-actions {
-  display: flex;
-  gap: var(--space-panel-inline);
 }
 </style>

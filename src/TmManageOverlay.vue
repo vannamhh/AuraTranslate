@@ -1209,8 +1209,6 @@ function onKeydown(event: KeyboardEvent): void {
   padding: 0;
   display: flex;
   flex-direction: column;
-  max-height: 50vh;
-  overflow: auto;
   border: 1px solid var(--color-outline);
 }
 

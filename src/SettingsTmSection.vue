@@ -30,19 +30,24 @@ function onInput(event: Event): void {
 <template>
   <form class="ts-form" @submit.prevent="dispatch('tm.settings.save')">
     <fieldset class="ts-fieldset" :disabled="tmSettingsSaving">
-      <label class="ts-field">
-        <span class="ts-field-label">{{ t('tm.settings.threshold_label') }}</span>
-        <input
-          type="number"
-          class="ts-input ui-field ui-field--lg ui-field--short"
-          :min="TM_FUZZY_THRESHOLD_MIN"
-          :max="TM_FUZZY_THRESHOLD_MAX"
-          step="1"
-          autocomplete="off"
-          :value="tmSettingsThresholdInput"
-          @input="onInput"
-        />
-      </label>
+      <div class="ts-row">
+        <label class="ts-field">
+          <span class="ts-field-label">{{ t('tm.settings.threshold_label') }}</span>
+          <input
+            type="number"
+            class="ts-input ui-field ui-field--lg ui-field--short"
+            :min="TM_FUZZY_THRESHOLD_MIN"
+            :max="TM_FUZZY_THRESHOLD_MAX"
+            step="1"
+            autocomplete="off"
+            :value="tmSettingsThresholdInput"
+            @input="onInput"
+          />
+        </label>
+        <button type="submit" class="ts-save ui-btn ui-btn--lg" :disabled="parsedTmFuzzyThreshold(tmSettingsThresholdInput) === null">
+          {{ t('command.tm.settings.save') }}
+        </button>
+      </div>
 
       <p v-if="parsedTmFuzzyThreshold(tmSettingsThresholdInput) === null" class="ts-alert">
         {{ t('tm.settings.threshold_invalid', { min: String(TM_FUZZY_THRESHOLD_MIN), max: String(TM_FUZZY_THRESHOLD_MAX) }) }}
@@ -53,12 +58,6 @@ function onInput(event: Event): void {
       <p v-else-if="tmSettingsSaved" class="ts-saved" role="status">
         {{ t('tm.settings.saved') }}
       </p>
-
-      <div class="ts-actions">
-        <button type="submit" class="ts-save ui-btn ui-btn--lg" :disabled="parsedTmFuzzyThreshold(tmSettingsThresholdInput) === null">
-          {{ t('command.tm.settings.save') }}
-        </button>
-      </div>
     </fieldset>
   </form>
 </template>
@@ -74,11 +73,18 @@ function onInput(event: Event): void {
   border: none;
 }
 
+.ts-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-panel-inline);
+  margin-bottom: var(--space-panel-block);
+}
+
 .ts-field {
   display: flex;
-  flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
-  margin-bottom: var(--space-panel-block);
+  align-items: center;
+  gap: var(--space-panel-inline);
 }
 
 .ts-field-label {
@@ -105,10 +111,5 @@ function onInput(event: Event): void {
 .ts-saved {
   border-left-color: var(--color-outline);
   color: var(--color-on-surface-variant);
-}
-
-.ts-actions {
-  display: flex;
-  gap: var(--space-panel-inline);
 }
 </style>

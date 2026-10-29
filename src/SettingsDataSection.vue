@@ -33,8 +33,6 @@ onMounted(() => {
       <button type="button" class="sd-btn ui-btn ui-btn--lg" data-settings-data-rescan :disabled="libraryRescanBusy" @click="dispatch('library.rescan')">
         {{ t('mode.library.rescan') }}
       </button>
-    </div>
-    <div class="sd-actions">
       <button type="button" class="sd-btn ui-btn ui-btn--lg" data-settings-data-report @click="dispatch('settings.data.open_report')">
         {{ t('command.settings.data.open_report') }}
       </button>
@@ -87,7 +85,9 @@ onMounted(() => {
 
 .sd-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-panel-inline);
+  margin-bottom: calc(var(--space-unit) * 2);
 }
 
 .sd-when,
