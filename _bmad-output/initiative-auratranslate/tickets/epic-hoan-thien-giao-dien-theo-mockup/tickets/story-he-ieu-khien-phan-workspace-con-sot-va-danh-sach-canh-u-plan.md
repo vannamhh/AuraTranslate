@@ -3,7 +3,7 @@ title: 'Hệ điều khiển: phần Workspace còn sót và danh sách canh đ�
 type: 'refactor'
 ticket: '33'
 created: '2026-10-29'
-status: 'built'
+status: 'done'
 baseline_revision: '8473b0bb2fc22825666f9d4b632a00e79efa03cd'
 route: 'full'
 route_source: 'auto'
