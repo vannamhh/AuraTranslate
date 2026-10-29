@@ -422,10 +422,9 @@ async function refocusSourceRow(code: string): Promise<void> {
   const hadFocus = focusedChipCode() === code
   await nextTick()
   if (!hadFocus) return
-  const row = Array.from(
-    document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"][data-source-code]'),
-  ).find((el) => el.dataset.sourceCode === code)
-  row?.focus()
+  document
+    .querySelector<HTMLElement>(`[role="menuitemcheckbox"][data-source-code=${JSON.stringify(code)}]`)
+    ?.focus()
 }
 
 function moveFocusedDictSource(step: 1 | -1): void {
