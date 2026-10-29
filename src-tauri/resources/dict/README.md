@@ -11,7 +11,7 @@ Dữ liệu từ điển ở dạng `dict-core.db` (lớp nền) + **mỗi lớp
 | `dict-vietphrase.db` | GỠ RỜI | VietPhrase *(Story 1.10)* |
 | `dict-tran-van-chanh.db` | GỠ RỜI | Trần Văn Chánh — Hán Việt Từ Điển *(Story 1.10c)* |
 
-Checksum + URL thật ghi ở `../../dict-manifest.toml` (`[base]` + ba khối `[[detachable]]`). Bốn tệp nằm ở release `dict-v2` (xem `dict-manifest.toml`). Hai lớp gỡ rời còn lại (HVTĐTD · Cổ hán văn) **chưa tồn tại** — chưa có nguồn thô, xem `deferred-work.md`.
+Checksum + URL thật ghi ở `../../dict-manifest.toml` (`[base]` + ba khối `[[detachable]]`). Bốn tệp nằm ở release `dict-v3` (xem `dict-manifest.toml`). Hai lớp gỡ rời còn lại (HVTĐTD · Cổ hán văn) **chưa tồn tại** — chưa có nguồn thô, xem `deferred-work.md`.
 
 🔴 **`dict-core.db` đã đổi LẦN HAI ở Story 1.10b** — `154.464.256` → **`194.998.272` byte**, sha `741e1666…` → **`2145c7ae…`**. Nguồn nền thứ sáu `viwiktionary-en` mang **119.039 đầu mục tiếng Anh** *(FR34)*; trước đó tệp này **100% `lang='zh'`**. Nếu bản cũ đã được tải lên release, cần `--clobber` **cả ba** tệp để ba checksum thuộc **một thế hệ dữ liệu**.
 

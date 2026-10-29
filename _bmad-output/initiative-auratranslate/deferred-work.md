@@ -13579,3 +13579,4 @@ chính nó.
 - `dict-tran-van-chanh.db` dựng lại (`SOURCE_DATE_EPOCH=1754352000`, sha `0940a59705b8e8003f1eaa03fbcabb933dc2f764f73278c09ac2e9db9ddef484`, 47 806 nghĩa) mới chỉ nằm trên máy Ice. `dict-manifest.toml` vẫn trỏ bản `dict-v2` (sha `3eb98410…`) nên mọi máy khác, kể cả bản phát hành, còn thấy nghĩa dính một khối, và `fetch-dicts` trên máy Ice báo sha lệch cho tệp này.
   Cần: tải tệp lên một GitHub Release dữ liệu mới, rồi đổi `url` và `sha256` của mục `tran-van-chanh` trong manifest.
   Chủ: Ice. Trỏ: commit `feat(dict-build)` tách nghĩa Trần Văn Chánh.
+  → ✅ ĐÃ ĐÓNG 2026-10-29 — release `dict-v3` (bốn tệp, digest GitHub khớp manifest, `v0.1.0` vẫn Latest); `dict-manifest.toml` trỏ `dict-v3`.
