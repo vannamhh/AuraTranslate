@@ -3,7 +3,7 @@ title: 'Panel Lookup: thứ tự nguồn do người dùng đặt, nghĩa đánh
 type: 'feature'
 ticket: ''
 created: '2026-10-29'
-status: 'built'
+status: 'done'
 baseline_revision: 'e06f4a4f3bb1ec68c3fe15bf6d50a271101e535f'
 route: 'full'
 route_source: 'auto'
