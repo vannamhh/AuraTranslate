@@ -498,7 +498,7 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 | Bề mặt | File | Neo tới |
 |---|---|---|
 | **Tìm kiếm xuyên Library** — hai chế độ dấu, và màu khớp đổi theo độ chắc chắn | [`mockups/library-search-results.html`](mockups/library-search-results.html) | FR8 · FR9 · FR10 · NFR8. 🔵 2026-10-28: nút `Chính xác dấu \| Khoan dung không dấu` vẽ trong mockup này đã bỏ (AD-61); dải trạng thái và màu khớp theo độ chắc chắn vẫn giữ |
-| **Danh sách Chương** — bốn trạng thái ở quy mô 2000 Chương, ghi đè trạng thái, gộp/tách | [`mockups/chapter-list.html`](mockups/chapter-list.html) | FR5 · FR6 · FR7 · FR12 · FR15 |
+| **Danh sách Chương** — bốn trạng thái ở quy mô 2000 Chương, ghi đè trạng thái, gộp/tách | [`mockups/chapter-list.html`](mockups/chapter-list.html) | FR5 · FR6 · FR7 · FR12 · FR15. 🔵 2026-10-29 (Ice duyệt): bố cục trang Tác phẩm thay bằng [`mockups/trang-tac-pham.html`](mockups/trang-tac-pham.html): khung phải cho hành động một Chương và xuất xứ, nút Dịch · Đọc trên mỗi hàng, Đọc ẩn ở Chương chưa xong. Bốn nhóm trạng thái và hộp gộp ở mockup này vẫn giữ |
 | **Tầng dữ liệu** — quét lại, mục mồ côi, lịch sử phiên bản, sao lưu bằng copy thư mục | [`mockups/data-integrity.html`](mockups/data-integrity.html) | FR96–FR102 · FR63 · NFR18 |
 
 ### Bổ sung 2026-08-03 — bề mặt của Giai đoạn 4

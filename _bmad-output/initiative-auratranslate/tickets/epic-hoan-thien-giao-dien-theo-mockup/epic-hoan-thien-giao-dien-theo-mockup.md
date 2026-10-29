@@ -72,3 +72,4 @@ Hình dạng bề mặt webview và các chức năng loại 5 Ice nhận (D7). 
 - Decision: chỉ entry 27 là hitl (màu checkbox thật, font `<button>`, ảnh cạnh mockup); 28–33 mỗi entry ghi một mục nợ `Chủ: Epic 12`, Ice kiểm gộp trong lượt Done when 5 (Ice theo Sofia, 2026-10-28).
 - Decision: không thêm Refactor sweep sau 33; cả chuỗi là việc dọn, và epic đã không nhận sweep thứ hai ngày 2026-10-25 (Ice theo Sofia, 2026-10-28).
 - Open question: biến ca vitest canh chuyển đổi thành cổng chặn khối scoped khai lại dáng control hay không — Ice và Winston quyết sau entry 33.
+- Decision: trang Tác phẩm theo `ux-auratranslate/mockups/trang-tac-pham.html` (Sally, Ice duyệt 2026-10-29) vào epic này thành entry 34, không mở epic mới, theo tiền lệ story 24; `after = [33]` để ca vitest đọc mọi `.vue` của 33 canh luôn trang mới; hitl như story 24 (Ice theo Sofia, 2026-10-29).

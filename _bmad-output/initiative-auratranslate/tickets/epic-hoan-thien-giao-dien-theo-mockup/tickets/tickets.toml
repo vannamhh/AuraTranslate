@@ -377,3 +377,15 @@ after = [32]
 hitl = false
 risk = "medium"
 references = ["ux-auratranslate/DESIGN.md §Điều khiển", "ux-auratranslate/mockups/he-dieu-khien.html", "ux-auratranslate/mockups/workspace-tinh-chinh.html"]
+
+[[entry]]
+id = 34
+type = "story"
+title = "Trang Tác phẩm theo mockup: khung phải và nút Dịch · Đọc mỗi Chương"
+description = "Dựng lại trang Tác phẩm theo `mockups/trang-tac-pham.html` (Ice duyệt 2026-10-29). (1) Đầu trang: đường dẫn `Library / tên` thay nút có viền, cùng lệnh `library.work_page.close`; ô trạng thái Tác phẩm thành cột phải ngăn bằng nét dọc; \"Bỏ ghi đè\" chỉ hiện khi đang ghi đè. (2) Mỗi hàng Chương có hai ô cố định Dịch · Đọc: lúc nghỉ là nút Chìm, rê chuột là nút Phụ; hàng đang chọn có một nút Chính (Đã xong thì Đọc, còn lại thì Dịch). Hàng chưa xong không có nút Đọc, nhưng ô vẫn giữ chỗ (phương án A). (3) Lệnh mới `library.open_chapter_reading` đi theo đường `library.open_search_hit_reading`: Chương thành Chương đang mở, rồi chuyển sang Chế độ đọc. Nhãn trên hàng là \"Đọc\", trong khung phải là \"Đọc từ Chương này\". (4) Khung phải 320px thay thanh chọn ngang. Chọn một Chương: tên, Dịch/Đọc, nhóm Sắp xếp Chương, Xuất xứ tài liệu, ô \"Áp cho các Chương đến số\" kèm câu hệ quả. Chọn từ hai Chương: thẻ hàng loạt với Gộp là nút Chính. Dưới 1.100px khung trượt vào từ phải. (5) Số đếm vào thanh công cụ, đầu nhóm thành dải dính, hàng chọn dùng nền `surface-accent` và vạch trái `caret-rule`. Giữ `ITEM_HEIGHT_PX` 44 và mọi id `dispatch` hiện có. Bước của người: Ice đặt ảnh app thật cạnh mockup cùng khổ và chạy trang một lượt trước khi story lên `done`."
+verify = "Một spec e2e ở 1280×860: hàng Đã xong có nút Đọc, hàng Đang dịch thì không; bấm Đọc trên Chương N mở Chế độ đọc với Chương N đứng đầu lượt đọc; `⌘1` quay lại thì con trỏ danh sách đứng đúng hàng N. Vitest: chọn một Chương thì khung phải có đủ mọi lệnh của thanh chọn cũ (đổi tên, tách, dời lên, dời xuống, đổi trạng thái, xuất, nhập bản reviewer) và khối xuất xứ; chọn hai thì có Gộp và không còn thanh chọn ngang; một Chương có trạng thái ngoài bốn giá trị thì không có nút Đọc. Đối chứng thật: gỡ `dispatch('library.open_chapter_reading')` khỏi nút thì ca e2e đỏ. `check:commands`, `check:tokens`, `check:i18n` xanh. Người: ảnh app thật cạnh mockup cùng khổ, mỗi khung 1–5 ghi khớp hoặc lý do."
+covers = []
+after = [33]
+hitl = true
+risk = "medium"
+references = ["ux-auratranslate/mockups/trang-tac-pham.html", "ux-auratranslate/EXPERIENCE.md §Mockups (🔵 2026-10-29)", "ux-auratranslate/DESIGN.md §Nút, §Điều khiển", "ux-auratranslate/mockups/chapter-list.html"]

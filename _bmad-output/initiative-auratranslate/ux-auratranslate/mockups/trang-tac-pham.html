@@ -1,0 +1,341 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Trang Tác phẩm — thiết kế lại, nút Đọc mỗi Chương — FR5 · FR6 · FR7 · FR15 · FR120</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196; --ctl:#8a8276;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --caret:#25484d; --confirmed:#5a6b3f; --tm:#a38347; --tm-text:#7a5d25; --error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Noto Serif CJK TC","Iowan Old Style",Palatino,Georgia,serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#d9d4c8;font:13px/1.5 var(--ui);color:var(--ink);padding:24px 16px 80px}
+.hd{max-width:1280px;margin:0 auto 18px}
+.hd b{font-size:17px}
+.hd .sub{color:var(--ink-2);margin-top:6px;max-width:880px}
+.rowlab{max-width:1280px;margin:34px auto 10px;font-weight:600;font-size:14px}
+.rowlab span{font-weight:400;color:var(--ink-2);margin-left:8px}
+.win{max-width:1280px;margin:0 auto;background:var(--bg);border-radius:10px;overflow:hidden;
+  box-shadow:0 18px 40px rgba(0,0,0,.18)}
+.tb{display:flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-bottom:1px solid var(--line)}
+.dot{width:12px;height:12px;border-radius:50%;background:#e0dbd0}
+.dot:nth-child(1){background:#ee6a5f}.dot:nth-child(2){background:#f5be4f}.dot:nth-child(3){background:#62c554}
+.modes{display:flex;gap:18px;margin-left:24px}
+.modes span{color:var(--ink-2)} .modes .on{color:var(--ink);font-weight:600;box-shadow:inset 0 -2px var(--ink);padding-bottom:6px;margin-bottom:-6px}
+.tb .right{margin-left:auto;color:var(--ink-2);display:flex;gap:16px}
+.k{display:inline-block;font:11px var(--ui);border:1px solid var(--line);border-radius:3px;padding:0 4px;background:var(--surface);color:var(--ink-2)}
+
+/* nút ba bậc — DESIGN.md §Nút */
+.btn{height:28px;padding:0 10px;border-radius:3px;font:500 13px var(--ui);border:1px solid var(--ctl);background:var(--surface);color:var(--ink);white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.btn.sm{height:24px;padding:0 8px;font-size:12px}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
+.btn.quiet{background:none;border-color:transparent;color:var(--ink-2)}
+.btn.lock{background:none;border:1px dashed var(--line);color:var(--ink-2)}
+.btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:1.6}
+
+/* đầu Tác phẩm */
+.crumb{padding:12px 24px 0;color:var(--ink-2);font-size:12px}
+.crumb a{color:var(--ink-2);text-decoration:none;border-bottom:1px solid var(--line)}
+.wh{display:grid;grid-template-columns:72px 1fr 300px;gap:20px;padding:12px 24px 18px;border-bottom:1px solid var(--line);align-items:start}
+.cov{width:72px;height:96px;border-radius:3px;background:var(--accent-bg);display:grid;place-items:center;font:600 24px var(--read);color:var(--primary)}
+.wt{font:600 24px/1.2 var(--read)}
+.wsub{color:var(--ink-2);margin-top:4px}
+.track{height:6px;background:var(--line-2);border-radius:3px;display:flex;overflow:hidden;margin-top:14px;max-width:560px}
+.track i{display:block;height:100%}
+.lg{display:flex;gap:16px;margin-top:8px;color:var(--ink-2);font-size:12px}
+.lg b{color:var(--ink);font-weight:600}
+.sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
+.sw.done{background:var(--confirmed)}.sw.doing{background:var(--primary)}.sw.pause{background:var(--tm)}.sw.new{background:var(--line)}
+.wstat{border-left:1px solid var(--line);padding-left:18px}
+.wstat .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.wstat .v{display:flex;gap:8px;align-items:center;margin-top:6px}
+.wstat .why{color:var(--ink-2);font-size:12px;margin:6px 0 10px}
+
+.chip{display:inline-block;font-size:12px;padding:1px 8px;border-radius:3px;white-space:nowrap}
+.c-done{background:#e9eddf;color:var(--confirmed)}.c-doing{background:var(--accent-bg);color:var(--primary)}
+.c-pause{background:var(--tm-bg);color:var(--tm-text);box-shadow:inset 0 0 0 1px #eadcbd}.c-new{background:var(--sunken);color:var(--ink-2)}
+
+/* thanh công cụ — dính trên đầu khi cuộn */
+.bar{display:flex;align-items:center;gap:8px;padding:10px 24px;border-bottom:1px solid var(--line);background:var(--bg)}
+.field{height:28px;border:1px solid var(--ctl);border-radius:3px;background:var(--sunken);padding:0 10px;display:flex;align-items:center;color:var(--ink-2);width:240px}
+.seg{display:flex;border:1px solid var(--ctl);border-radius:3px;overflow:hidden;margin-left:6px}
+.seg span{padding:0 10px;height:26px;display:flex;align-items:center;border-left:1px solid var(--line);color:var(--ink)}
+.seg span:first-child{border-left:0}
+.seg .on{background:var(--ink);color:var(--surface);font-weight:600}
+.seg em{font-style:normal;color:var(--ink-2);margin-left:5px;font-size:12px}
+.seg .on em{color:var(--surface);opacity:.8}
+.bar .r{margin-left:auto;display:flex;gap:10px;align-items:center;color:var(--ink-2)}
+
+/* thân: danh sách + khung Chương */
+.body{display:grid;grid-template-columns:1fr 320px;min-height:520px}
+.list{border-right:1px solid var(--line);background:var(--surface)}
+.grp{height:44px;display:flex;align-items:center;gap:8px;padding:0 24px;background:var(--bg);border-bottom:1px solid var(--line-2);
+  font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.grp .n{text-transform:none;letter-spacing:0;font-weight:400}
+.grp .tog{margin-left:auto;text-transform:none;letter-spacing:0}
+.row{height:44px;display:grid;grid-template-columns:44px 1fr 170px 104px 84px 128px;align-items:center;padding:0 16px 0 24px;
+  border-bottom:1px solid var(--line-2);position:relative}
+.row .no{color:var(--ink-2);font-variant-numeric:tabular-nums;text-align:right;padding-right:14px}
+.row .nm{font:15px var(--read);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:10px}
+.mini{display:inline-block;width:48px;height:3px;background:var(--line-2);border-radius:2px;flex:none}
+.mini i{display:block;height:100%;background:var(--primary);border-radius:2px}
+.row .sg{color:var(--ink-2);font-size:12px;font-variant-numeric:tabular-nums}
+.row .sg b{color:var(--tm-text);font-weight:600}
+.row .wn{color:var(--ink-2);font-size:12px}
+.row .act{display:grid;grid-template-columns:54px 48px;gap:4px;justify-content:end}
+.row .slot{display:inline-block;width:46px}
+.row.sel{background:var(--accent-bg)}
+.row.sel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--caret)}
+.row.hov{background:#f6f3ec}
+.more{height:44px;display:flex;align-items:center;padding:0 24px;color:var(--ink-2);font-size:12px;border-bottom:1px solid var(--line-2)}
+
+.insp{padding:18px 20px;display:flex;flex-direction:column;gap:16px}
+.insp h3{margin:0;font:600 18px/1.3 var(--read)}
+.insp .meta{color:var(--ink-2);font-size:12px;margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.insp .go{display:flex;gap:8px}
+.insp .go .btn{flex:1;justify-content:center;height:32px}
+.sect{border-top:1px solid var(--line);padding-top:12px}
+.sect .t{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:600;margin-bottom:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.grid2 .btn{justify-content:flex-start}
+.f{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;font-size:12px;color:var(--ink-2)}
+.f .in{height:28px;border:1px solid var(--ctl);border-radius:3px;background:var(--sunken);padding:0 8px;display:flex;align-items:center;color:var(--ink);font-size:13px}
+.f .in.ph{color:var(--ink-2);font-style:italic}
+.thru{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+.thru .in{width:64px}
+.note{font-size:12px;color:var(--ink-2);background:var(--sunken);border-radius:3px;padding:8px 10px}
+.note b{color:var(--ink)}
+.status{display:flex;gap:18px;padding:6px 16px;border-top:1px solid var(--line);color:var(--ink-2);font-size:12px;background:var(--bg)}
+.status .r{margin-left:auto}
+
+/* chú giải thiết kế */
+.box{max-width:1280px;margin:12px auto 0;padding:12px 16px;border-radius:6px;background:var(--surface);border-left:3px solid var(--primary)}
+.box.warn{border-left-color:var(--tm)}
+.box b{font-weight:600}
+table.audit{max-width:1280px;margin:0 auto;border-collapse:collapse;background:var(--surface);width:100%;font-size:13px;border-radius:6px;overflow:hidden}
+table.audit th,table.audit td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+table.audit th{background:var(--sunken);font-weight:600}
+table.audit td:first-child{width:28px;color:var(--ink-2)}
+.two{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.opt{background:var(--surface);border-radius:6px;overflow:hidden}
+.opt h4{margin:0;padding:10px 16px;background:var(--sunken);font-size:13px}
+.opt p{margin:0;padding:10px 16px;color:var(--ink-2)}
+.opt .row{grid-template-columns:44px 1fr 104px 128px}
+</style>
+
+<div class="hd">
+  <b>Trang Tác phẩm — thiết kế lại, thêm nút Đọc cho mỗi Chương</b>
+  <div class="sub">Nền là <code>chapter-list.html</code> (FR5 · FR6 · FR7 · FR15), dựng bằng hệ điều khiển ba bậc của DESIGN.md §Nút.
+  Trang này làm ba việc: <b>nhìn</b> tiến độ, <b>đi</b> tới một Chương (đọc hoặc dịch), <b>sửa</b> cấu trúc Chương.
+  Bản đang chạy trộn ba việc vào một chồng thanh ngang. Bản này tách chúng ra ba chỗ cố định: đầu trang để nhìn,
+  hàng Chương để đi, khung bên phải để sửa.</div>
+</div>
+
+<div class="rowlab">0 · Trang hiện tại vướng ở đâu <span>đọc từ ảnh app thật 1280×860, Tác phẩm "test", 1 Chương</span></div>
+<table class="audit">
+  <tr><th></th><th>Thấy gì</th><th>Vì sao nó cản người dùng</th><th>Bản mới</th></tr>
+  <tr><td>1</td><td>"Về Library" là một nút có viền, đứng riêng một hàng</td><td>Tốn một hàng cho lối ra ít dùng, và nó nặng ngang nút hành động thật</td><td>Đường dẫn chìm <i>Library / tên Tác phẩm</i> phía trên tiêu đề, cùng lệnh <code>library.work_page.close</code></td></tr>
+  <tr><td>2</td><td>Ô trạng thái Tác phẩm là thẻ nổi, cao lệch khối tiến độ; "Bỏ ghi đè" luôn hiện ở dáng khoá</td><td>Nút khoá cho một việc chưa thể xảy ra là nhiễu; mắt đọc thẻ nổi như một hộp thoại</td><td>Cột phải của đầu trang, ngăn bằng một nét dọc. "Bỏ ghi đè" chỉ hiện khi đang ghi đè (đúng mockup gốc, khung 2)</td></tr>
+  <tr><td>3</td><td>Thanh chọn chín nút luôn hiện, kể cả khi chỉ một Chương; "Gộp" khoá</td><td>Chín nút ngang hàng không nói nút nào quan trọng; việc hay làm nhất (mở, đọc) chìm giữa việc hiếm (dời, tách)</td><td>Hành động cho một Chương nằm ở khung phải; thanh chọn biến mất. Chọn từ hai Chương thì khung phải đổi sang dạng hàng loạt</td></tr>
+  <tr><td>4</td><td>Dòng "1 Chương" lơ lửng giữa thanh chọn và danh sách, kèm khoảng trống 40px</td><td>Một con số không gắn với cái gì</td><td>Số đếm về cuối thanh công cụ ("1 / 2.014 Chương" khi đang lọc). Vẫn là <code>role="status"</code> nói vì sao danh sách rỗng</td></tr>
+  <tr><td>5</td><td>Đầu nhóm "ĐÃ XONG" là hộp trắng tách rời hàng bên dưới</td><td>Trông như một hàng Chương khác</td><td>Dải nền <code>background</code>, chữ hoa nhỏ, dính đầu khi cuộn</td></tr>
+  <tr><td>6</td><td>Hàng đang chọn có viền 2px đen bao quanh</td><td>Viền hộp đọc như ô nhập đang focus</td><td>Nền <code>surface-accent</code> + vạch trái 3px <code>caret-rule</code>, cùng ngôn ngữ với câu đang sửa ở Workspace</td></tr>
+  <tr><td>7</td><td>Khối "Xuất xứ tài liệu" bốn cột trải ngang toàn trang, dưới danh sách</td><td>Không nói nó thuộc Chương nào; với 2.014 Chương nó nằm dưới đáy danh sách ảo, xa khỏi hàng đang chọn</td><td>Vào khung phải, dưới tên Chương nó thuộc về</td></tr>
+  <tr><td>8</td><td>"Áp xuất xứ Chương này đến Chương số" và một ô số 50px không đơn vị</td><td>Người dùng không biết hậu quả trước khi gõ</td><td>Ô số kèm câu hệ quả: "Chương 47 → 60 · 14 Chương nhận cùng xuất xứ"</td></tr>
+  <tr><td>9</td><td>Không có đường từ một Chương sang Chế độ đọc</td><td>Muốn đọc Chương 12 phải mở nó ở Workspace rồi bấm <span class="k">⌘3</span></td><td>Nút <b>Đọc</b> trên mỗi hàng và trong khung phải</td></tr>
+</table>
+
+<div class="rowlab">1 · Một Chương đang dịch được chọn <span>hàng Chương để đi · khung phải để sửa · Tác phẩm 2.014 Chương</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span class="on">Library</span><span>Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Nhập tài liệu <span class="k">⌘N</span></span><span>Công cụ ▾</span></span>
+  </div>
+  <div class="crumb"><a>Library</a> &nbsp;/&nbsp; Tuyết Trung Hãn Đao Hành</div>
+  <div class="wh">
+    <div class="cov">T</div>
+    <div>
+      <div class="wt">Tuyết Trung Hãn Đao Hành</div>
+      <div class="wsub">Tiếng Trung · sửa 12 phút trước · 2.014 Chương</div>
+      <div class="track">
+        <i style="width:2.3%;background:var(--confirmed)"></i>
+        <i style="width:.4%;background:var(--primary)"></i>
+        <i style="width:.6%;background:var(--tm)"></i>
+      </div>
+      <div class="lg">
+        <span><i class="sw done"></i>Đã xong <b>47</b></span>
+        <span><i class="sw doing"></i>Đang dịch <b>8</b></span>
+        <span><i class="sw pause"></i>Tạm ngưng <b>12</b></span>
+        <span><i class="sw new"></i>Chưa bắt đầu <b>1.947</b></span>
+      </div>
+    </div>
+    <div class="wstat">
+      <div class="l">Trạng thái Tác phẩm</div>
+      <div class="v"><span class="chip c-doing">Đang dịch</span><span style="font-size:12px;color:var(--ink-2)">suy ra tự động</span></div>
+      <div class="why">Có Chương đang dịch nên Tác phẩm đang dịch.</div>
+      <button class="btn sm">Tạm ngưng Tác phẩm này</button>
+    </div>
+  </div>
+  <div class="bar">
+    <span class="field">Tìm Chương theo tên hoặc số…</span>
+    <span class="seg">
+      <span class="on">Tất cả<em>2.014</em></span><span>Đang dịch<em>8</em></span><span>Tạm ngưng<em>12</em></span><span>Đã xong<em>47</em></span><span>Chưa bắt đầu<em>1.947</em></span>
+    </span>
+    <span class="r">Sắp theo <span class="btn sm">Thứ tự Chương ▾</span></span>
+  </div>
+  <div class="body">
+    <div class="list">
+      <div class="grp">Đang dịch <span class="n">· 8 Chương</span></div>
+      <div class="row sel">
+        <span class="no">47</span>
+        <span class="nm">Ngói vỡ trên nóc Thính Triều Các<span class="mini"><i style="width:48%"></i></span></span>
+        <span class="sg">88 / 184 câu</span>
+        <span><span class="chip c-doing">Đang dịch</span></span>
+        <span class="wn">12 ph trước</span>
+        <span class="act"><button class="btn sm pri">Dịch</button><span class="slot"></span></span>
+      </div>
+      <div class="row">
+        <span class="no">48</span>
+        <span class="nm">Người quét sân<span class="mini"><i style="width:11%"></i></span></span>
+        <span class="sg">19 / 167 câu</span>
+        <span><span class="chip c-doing">Đang dịch</span></span>
+        <span class="wn">hôm qua</span>
+        <span class="act"><button class="btn sm quiet">Dịch</button><span class="slot"></span></span>
+      </div>
+      <div class="grp">Tạm ngưng <span class="n">· 12 Chương · đã làm dở rồi bỏ</span></div>
+      <div class="row">
+        <span class="no">31</span>
+        <span class="nm">Ba nghìn dặm cưỡi ngựa<span class="mini"><i style="width:71%"></i></span></span>
+        <span class="sg">131 / 184 câu</span>
+        <span><span class="chip c-pause">Tạm ngưng</span></span>
+        <span class="wn">18-07</span>
+        <span class="act"><button class="btn sm quiet">Dịch</button><span class="slot"></span></span>
+      </div>
+      <div class="grp">Đã xong <span class="n">· 47 Chương</span></div>
+      <div class="row hov">
+        <span class="no">1</span>
+        <span class="nm">Thiếu niên rời thành</span>
+        <span class="sg">156 câu</span>
+        <span><span class="chip c-done">Đã xong</span></span>
+        <span class="wn">03-08</span>
+        <span class="act"><button class="btn sm">Dịch</button><button class="btn sm">Đọc</button></span>
+      </div>
+      <div class="row">
+        <span class="no">2</span>
+        <span class="nm">Gió cuối hành lang</span>
+        <span class="sg">143 câu · <b>4 chưa xác nhận</b></span>
+        <span><span class="chip c-done">Đã xong</span></span>
+        <span class="wn">03-08</span>
+        <span class="act"><button class="btn sm quiet">Dịch</button><button class="btn sm quiet">Đọc</button></span>
+      </div>
+      <div class="row">
+        <span class="no">3</span>
+        <span class="nm">Rượu Lục Nghĩ</span>
+        <span class="sg">171 câu</span>
+        <span><span class="chip c-done">Đã xong</span></span>
+        <span class="wn">04-08</span>
+        <span class="act"><button class="btn sm quiet">Dịch</button><button class="btn sm quiet">Đọc</button></span>
+      </div>
+      <div class="grp">Chưa bắt đầu <span class="n">· 1.947 Chương</span><span class="tog btn sm quiet">Mở nhóm</span></div>
+      <div class="more">1.947 Chương chưa bắt đầu — gấp lại theo mặc định.</div>
+    </div>
+    <div class="insp">
+      <div>
+        <h3>Chương 47 · Ngói vỡ trên nóc Thính Triều Các</h3>
+        <div class="meta"><span class="chip c-doing">Đang dịch</span>88 / 184 câu · sửa 12 phút trước</div>
+      </div>
+      <div class="go">
+        <button class="btn pri">Dịch Chương này</button>
+        <button class="btn lock">Đọc</button>
+      </div>
+      <div class="note" style="margin-top:-8px">Chế độ đọc chỉ đọc Chương <b>Đã xong</b>. Đánh dấu xong ở <i>Đổi trạng thái</i> để đọc được.</div>
+      <div class="sect">
+        <div class="t">Sắp xếp Chương</div>
+        <div class="grid2">
+          <button class="btn sm">Đổi tên…</button><button class="btn sm">Tách…</button>
+          <button class="btn sm">Dời lên</button><button class="btn sm">Dời xuống</button>
+          <button class="btn sm">Đổi trạng thái ▾</button><button class="btn sm">Xuất…</button>
+          <button class="btn sm">Nhập bản reviewer</button>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="t">Xuất xứ tài liệu</div>
+        <label class="f">Tác giả bài gốc<span class="in ph">Không tìm thấy</span></label>
+        <label class="f">Tên báo / website nguồn<span class="in">Khởi Điểm</span></label>
+        <label class="f">URL bài gốc<span class="in">qidian.com/chapter/…/47</span></label>
+        <label class="f">Ngày đăng<span class="in ph">Không tìm thấy</span></label>
+        <div class="thru">Áp cho các Chương đến số <span class="f" style="margin:0"><span class="in">60</span></span></div>
+        <div class="thru" style="margin-top:4px">Chương 47 → 60 · 14 Chương nhận cùng xuất xứ</div>
+      </div>
+    </div>
+  </div>
+  <div class="status"><span>Library · 48 Tác phẩm</span><span class="r"><span class="k">↵</span> Dịch · <span class="k">Shift</span>+bấm chọn dải · <span class="k">Esc</span> bỏ chọn</span></div>
+</div>
+<div class="box"><b>Hai ô cố định trên mỗi hàng: Dịch · Đọc.</b> Lúc nghỉ cả hai là nút Chìm, để 20 hàng nhìn thấy không thành 40 khối viền.
+Hàng rê chuột đổi sang dạng Phụ. Hàng đang chọn có một nút Chính theo trạng thái Chương: <i>Đã xong</i> thì <b>Đọc</b>, còn lại thì <b>Dịch</b>.
+Ô Đọc giữ chỗ ngay cả khi trống, nên cột nút thẳng hàng và danh sách không nhảy bố cục. Khung này vẽ theo phương án A (khung 4).
+Chiều cao giữ 44px: <code>ITEM_HEIGHT_PX</code> trong <code>LibraryWorkPage.vue</code> là một chiều cao chung cho đầu nhóm, hàng Chương và dòng "còn N Chương", để danh sách ảo tính được. Hai nút 24px vừa trong 44px nên không cần đổi hằng số.
+Bấm đúp vào hàng vẫn mở Workspace như hiện nay.</div>
+<div class="box"><b>Vì sao nhãn là "Đọc" chứ không phải "Xem".</b> Mockup gốc đã dành <span class="k">Space</span> cho <i>xem trước</i>
+một Chương. Hai nghĩa "xem" trên một trang buộc người dùng đoán. "Đọc" khớp đúng tên tab <i>Chế độ đọc</i> và khớp
+nút "Mở ở Chế độ đọc" bên kết quả tìm kiếm Library. <code>aria-label</code> đầy đủ: "Mở Chương 1 ở Chế độ đọc".</div>
+
+<div class="rowlab">2 · Một Chương đã xong còn câu chưa xác nhận <span>Đọc thành nút Chính</span></div>
+<div class="two">
+  <div class="opt" style="padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+    <div>
+      <h3 style="margin:0;font:600 18px/1.3 var(--read)">Chương 2 · Gió cuối hành lang</h3>
+      <div class="meta" style="color:var(--ink-2);font-size:12px;margin-top:4px"><span class="chip c-done">Đã xong</span> 143 câu · <b style="color:var(--tm-text)">4 chưa xác nhận</b></div>
+    </div>
+    <div style="display:flex;gap:8px"><button class="btn pri" style="flex:1;justify-content:center;height:32px">Đọc từ Chương này</button><button class="btn" style="flex:1;justify-content:center;height:32px">Dịch</button></div>
+    <div class="note">4 câu chưa xác nhận sẽ được gạch chấm nhẹ khi đọc. Lượt đọc chạy tiếp qua các Chương <b>Đã xong</b> liền sau, dừng ở Chương đầu tiên chưa xong.</div>
+  </div>
+  <div class="box" style="margin:0">Nhãn trong khung phải là <b>"Đọc từ Chương này"</b>: Chế độ đọc (Story 5.12) đọc một <i>lượt</i> các Chương
+  <i>Đã xong</i> liên tiếp bắt đầu tại Chương được mở, không chỉ một Chương. Nhãn nói đúng điều sẽ xảy ra.
+  Trên hàng, chỗ hẹp, nhãn rút còn "Đọc". Bấm Đọc ⇒ Chương đó thành Chương đang mở của Tác phẩm, rồi chuyển sang tab Chế độ đọc,
+  giống đường <code>library.open_search_hit_reading</code> đã có. <span class="k">⌘1</span> quay về, con trỏ danh sách đứng lại đúng hàng vừa bấm.</div>
+</div>
+
+<div class="rowlab">3 · Chọn từ hai Chương <span>khung phải đổi sang dạng hàng loạt, thanh chọn chín nút biến mất</span></div>
+<div class="two">
+  <div class="opt" style="padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+    <div><h3 style="margin:0;font:600 18px/1.3 var(--read)">3 Chương đang chọn</h3>
+    <div style="color:var(--ink-2);font-size:12px;margin-top:4px">Chương 88 → 90 · 249 câu</div></div>
+    <button class="btn pri" style="height:32px;justify-content:center">Gộp thành một Chương</button>
+    <div class="grid2"><button class="btn sm">Đổi trạng thái ▾</button><button class="btn sm">Xuất…</button><button class="btn sm">Đổi tên hàng loạt…</button></div>
+    <div style="color:var(--ink-2);font-size:12px"><span class="k">Esc</span> bỏ chọn · <span class="k">Shift</span>+bấm chọn dải</div>
+  </div>
+  <div class="box" style="margin:0">Một chỗ cố định cho mọi hành động: khung phải. Một Chương thì nó là thẻ Chương, nhiều Chương thì nó là thẻ hàng loạt.
+  Việc không áp được cho nhiều Chương (Tách, Dời, Xuất xứ, Nhập bản reviewer) <b>vắng hẳn</b> thay vì hiện dáng khoá.
+  Mọi lệnh giữ nguyên id <code>dispatch</code> hiện tại, phím tắt không đổi.</div>
+</div>
+
+<div class="rowlab">4 · Nút Đọc trên hàng Chương chưa xong <span>Ice chọn A, 2026-10-29</span></div>
+<div class="box">Ice chốt ngày 2026-10-29: <b>A · Ẩn</b>; nhãn <b>"Đọc"</b>, không dùng "Xem"; hành động cho một Chương nằm ở <b>khung phải 320px</b> thay cho thanh chọn ngang.</div>
+<div class="two">
+  <div class="opt">
+    <h4>A · Ẩn: hàng chưa xong không có nút Đọc</h4>
+    <div class="row"><span class="no">47</span><span class="nm">Ngói vỡ trên nóc Thính Triều Các</span><span><span class="chip c-doing">Đang dịch</span></span><span class="act"><button class="btn sm quiet">Dịch</button><span class="slot"></span></span></div>
+    <div class="row"><span class="no">1</span><span class="nm">Thiếu niên rời thành</span><span><span class="chip c-done">Đã xong</span></span><span class="act"><button class="btn sm quiet">Dịch</button><button class="btn sm quiet">Đọc</button></span></div>
+    <p>Tác phẩm mẫu: 47 hàng có Đọc, 1.967 hàng không. Danh sách sạch, nút Đọc tự nói "Chương này đọc được".
+    Cái giá: người dùng mới không biết vì sao Chương 47 thiếu nút. Câu giải thích chỉ có trong khung phải.</p>
+  </div>
+  <div class="opt">
+    <h4>B · Khoá: nút Đọc viền đứt, rê chuột ra lý do</h4>
+    <div class="row"><span class="no">47</span><span class="nm">Ngói vỡ trên nóc Thính Triều Các</span><span><span class="chip c-doing">Đang dịch</span></span><span class="act"><button class="btn sm quiet">Dịch</button><button class="btn sm lock">Đọc</button></span></div>
+    <div class="row"><span class="no">1</span><span class="nm">Thiếu niên rời thành</span><span><span class="chip c-done">Đã xong</span></span><span class="act"><button class="btn sm quiet">Dịch</button><button class="btn sm quiet">Đọc</button></span></div>
+    <p>Mọi hàng cùng hai nút, cùng chỗ. Lý do nằm ngay tại nút. Cái giá: 1.967 nút khoá trên Tác phẩm mẫu, tức 97,7% số nút Đọc
+    không bấm được. Mắt phải lọc nhiễu ở đúng nhóm người dùng nhìn nhiều nhất (Đang dịch, Tạm ngưng).</p>
+  </div>
+</div>
+<div class="box warn">Phương án thứ ba đã loại: cho Đọc bấm được ở mọi hàng, mở Chế độ đọc ra trang
+"Chương đang mở chưa dịch xong nên lượt đọc này không có nội dung nào". Đó là một cú nhảy màn hình chỉ để nhận một câu từ chối.
+Khung phải dùng cùng một dáng ở cả A và B: nút khoá kèm câu lý do, vì ở đó có chỗ cho câu.</div>
+
+<div class="rowlab">5 · Cửa sổ hẹp <span>dưới 1.100px</span></div>
+<div class="box">Khung phải 320px không còn chỗ. Danh sách chiếm hết bề ngang; chọn một Chương thì khung trượt vào từ phải, phủ lên danh sách,
+<span class="k">Esc</span> đóng khung trước rồi mới bỏ chọn. Nút Đọc và Dịch trên hàng vẫn ở đó nên hai việc hay làm nhất không cần mở khung.
+Cột "sửa lúc" ẩn trước tiên, rồi đến cột số câu.</div>
