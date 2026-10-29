@@ -13591,3 +13591,6 @@ chính nó.
 
 - Chưa ai nhìn Workspace thật sau khi ba dải gợi ý, tab Tra cứu, ngăn kéo, thanh trạng thái và thanh tiêu đề chuyển sang `ui-*` (sáng và tối), cạnh `he-dieu-khien.html` và `workspace-tinh-chinh.html`; dải gợi ý đổi từ nền `background` sang `surface-sunken`; thanh bố cục `.layout-switch` không viền. Chưa chuyển: bốn liên kết trong câu còn gạch chân `outline` 1,31:1 (`lookup-char`, `lookup-concordance-pointer`, `rl-char`, `rl-concordance`) và ba `mode-tab` ở `App.vue`. e2e `story-12-10`, `story-12-20`, `titlebar-tools` chưa chạy (cổng 1420 bận); đọc lượt nightly.
   Chủ: Epic 12. Trỏ: `story-he-ieu-khien-phan-workspace-con-sot-va-danh-sach-canh-u-plan.md`.
+- Ca canh `shapeOffences` của `controls-adoption.test.ts` chỉ tra lớp control ĐẦU TIÊN trong mỗi selector (`classes.find`, có từ trước ticket 33): một selector như `.<khoá SHAPE_EXCEPTIONS> .<lớp control khác> { border: … }` được miễn trọn, lớp sau không bị kiểm dáng. Đo 2026-10-29 trên 67 `.vue`: 0 selector bị che, nên đây là chỗ mù tiềm ẩn, chưa có hại.
+  Cần: duyệt mọi lớp control trong selector, chỉ miễn đúng lớp có khoá.
+  Chủ: Epic 12. Trỏ: review lần hai của `story-he-ieu-khien-phan-workspace-con-sot-va-danh-sach-canh-u-plan.md`.

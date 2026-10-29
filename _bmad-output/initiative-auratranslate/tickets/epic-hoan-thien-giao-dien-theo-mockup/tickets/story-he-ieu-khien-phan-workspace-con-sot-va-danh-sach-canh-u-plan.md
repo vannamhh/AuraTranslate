@@ -105,6 +105,10 @@ Số dòng ở mốc `8473b0bb`. Mẫu chuyển và quy tắc xoá: Code Map c�
 - low · patch — ca "đọc mọi .vue" so `FILES` với chính nó, lỗi đệ quy bỏ sót thư mục vẫn xanh; đổi sang so với một liệt kê `src/**/*.vue` độc lập.
 - false · reject — sáu khoá `*-sr-only` có thể chết làm ca khoá chết `SHAPE_EXCEPTIONS` đỏ: ca chạy xanh 137/137, cả bảy khoá còn che rule.
 - reject — checkbox và Implementation Notes trống: sửa là sửa plan, điền ở bước trình bày.
+- false · reject — `status-link` đổi sang `ui-btn--quiet` mất màu thông báo lỗi: `.notice` của `StatusBar.vue` vốn là `on-surface-variant`, trùng màu `ui-btn--quiet`, và chú thích ở đó cấm tô màu lỗi trên thanh trạng thái; bỏ gạch chân là quyết định của Design Notes.
+- false · reject — `.titlebar-import-chord` còn viền và bo góc trong nút đã `ui-*`: đó là chip phím tắt chép `.kbd` của `workspace-tinh-chinh.html:84` (viền `outline` 1px, bo 3px), không phải dáng control.
+- low · defer — `shapeOffences` chỉ tra lớp control đầu tiên của selector nên lớp thứ hai sau một khoá `SHAPE_EXCEPTIONS` không bị kiểm; logic có từ mốc `8473b0bb`, bản sao duyệt mọi lớp chạy trên 67 tệp ra 0 selector bị che.
+- carried false · reject — mục `HANDLER_TABLE` của `onSegmentTextMouseDown` trong `scripts/check-commands.mjs`: commit riêng `69ce0401`, như dòng đầu bảng.
 
 ## Design Notes
 
