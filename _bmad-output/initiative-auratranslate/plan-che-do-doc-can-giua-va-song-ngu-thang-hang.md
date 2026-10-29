@@ -21,7 +21,7 @@ context: ['{project-root}/_bmad-output/initiative-auratranslate/ux-auratranslate
 
 **Problem:** Ở Chế độ đọc, `.page` là flex không căn giữa, nên cột chữ dính lề trái thay vì nằm giữa như `mockups/reading-mode.html` (`.page{justify-content:center}`). Khi bật song ngữ, nguyên văn là một cột `.margin` riêng chạy từ đỉnh trang, nên đoạn nguyên văn thứ n không ngang với đoạn bản dịch thứ n. Trong ảnh Ice chụp, đoạn 2 lệch khoảng 32px, và độ lệch cộng dồn qua từng đoạn.
 
-**Approach:** Cột chữ nằm giữa trang. Mỗi đoạn nguyên văn nằm ở lề trái, ngang đỉnh đoạn bản dịch của nó, và không bao giờ đè lên đoạn nguyên văn kế tiếp. Khi nguyên văn cao hơn bản dịch, đoạn bản dịch kế tiếp lùi xuống cho đủ chỗ. Khi cửa sổ hẹp, cột chữ dịch sang phải nhường chỗ cho nguyên văn trước, rồi mới co lại. Ice chọn bề rộng lề nguyên văn 30ch, thay cho 22ch (2026-10-29). Đo trên văn bản trong ảnh, khoảng lùi giữa hai đoạn bản dịch là: Thoáng 19px (không lùi), Cân 28–33px, Đặc 53–80px. Với 22ch các số tương ứng là 54–80, 108–113 và 133–159px.
+**Approach:** Cột chữ nằm giữa trang. Mỗi đoạn nguyên văn nằm ở lề trái, ngang đỉnh đoạn bản dịch của nó, và không bao giờ đè lên đoạn nguyên văn kế tiếp. Khi nguyên văn cao hơn bản dịch, đoạn bản dịch kế tiếp lùi xuống cho đủ chỗ. Khi cửa sổ hẹp, cột chữ dịch sang phải nhường chỗ cho nguyên văn trước, rồi mới co lại. Ice chọn bề rộng lề nguyên văn 30ch, thay cho 22ch (2026-10-29). Đo trên văn bản trong ảnh, khoảng lùi giữa hai đoạn bản dịch là: Thoáng 19px (không lùi), Cân 28–33px, Đặc 53–80px. Với 22ch các số tương ứng là 54–80, 108–113 và 133–159px. 🔵 2026-10-29: các số đó đo khi ghi chú chưa có lề dưới; bản đã dựng (lề dưới 1em) cho Thoáng 19px, Cân 44–49px, Đặc 69–96px. Sau đó Ice thấy chữ nguyên văn nhỏ khó đọc và chọn tăng hai bậc thang chữ đọc, từ 16px lên 19px (token `read-lg`). Khoảng lùi lúc đó: Thoáng 56–93px, Cân 115–121px, Đặc 135–172px; lề rộng 285px.
 
 </frozen-after-approval>
 
@@ -38,6 +38,10 @@ context: ['{project-root}/_bmad-output/initiative-auratranslate/ux-auratranslate
 - Đối chứng trên e2e 5-11: mã HEAD ⇒ đỏ (cột lệch 502px khi tắt song ngữ); bỏ `flow-root` ⇒ đỏ (ghi chú dài thò khỏi khung đoạn 663px); bỏ rãnh `.page.bilingual` ⇒ đỏ (ghi chú tràn khỏi mép trang).
 - Bấm `B` nay làm các đoạn cao thêm, nên trước khi vẽ lại `ReadingMode.vue` ghi câu đầu vùng nhìn và vị trí của nó, sau khi vẽ lại thì cuộn bù phần chênh (hai `watch(readingBilingual)`, `flush: 'pre'` và `'post'`). Đổi mức chữ 1/2/3 cũng làm trang chảy lại mà không giữ chỗ, nhưng chuyện đó có từ trước và không nằm trong plan này.
 - Theo mockup: nguyên văn căn phải, sát cột chữ (`text-align: end`); khối "Điểm dừng của lượt đọc" căn giữa.
+
+## Plan Change Log
+
+- 2026-10-29, Ice: "tăng size của chữ tiếng trung lên 2 size nữa, chữ nhỏ khó đọc". Đo hai cách trên văn bản trong ảnh (WebKit 27.2, 1460px): 19px/1,95 (`read-lg`, hai bậc 16 → 17,5 → 19, không cần token mới) và 18px/1,66 (cần token mới, ký trong `deviations` theo AD-34). Ice chọn 19px. `.page` và `.source-note` đổi từ `source-latin` sang `read-lg`, nên rãnh 30ch nở theo (mỗi dòng vẫn 15 chữ Hán). Các ca e2e đo vị trí tính rãnh từ kích thước thật nên không phải sửa. GIỮ: lề 30ch, cách thả nổi trong `flow-root`.
 
 ## Review Triage Log
 

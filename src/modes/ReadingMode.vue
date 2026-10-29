@@ -1012,9 +1012,9 @@ function paragraphRuns(
   --source-note-inline: 30ch;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
-  font-size: var(--font-source-latin);
-  line-height: var(--leading-source-latin);
-  font-family: var(--face-source-latin);
+  font-size: var(--font-read-lg);
+  line-height: var(--leading-read-lg);
+  font-family: var(--face-read-lg);
 }
 
 .page.bilingual {
@@ -1032,9 +1032,9 @@ function paragraphRuns(
   inline-size: var(--source-note-inline);
   margin: 0 0 1em calc(-1 * (var(--source-note-inline) + var(--space-panel-inline))); /* aura-allow-spacing: nhịp đoạn theo em; lề trái âm bằng đúng bề rộng ghi chú (ch) cộng khe, không phải khoảng cách lưới */
   text-align: end;
-  font-size: var(--font-source-latin);
-  line-height: var(--leading-source-latin);
-  font-family: var(--face-source-latin);
+  font-size: var(--font-read-lg);
+  line-height: var(--leading-read-lg);
+  font-family: var(--face-read-lg);
   color: var(--color-on-surface-variant);
 }
 
