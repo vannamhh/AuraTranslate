@@ -22,9 +22,8 @@
 //! tách thứ HAI dùng dấu phẩy trong cùng lược đồ nhưng ở một NGUỒN khác `en-wiktionary-vi`
 //! — cả hai đều "giữ nguyên", không được chuẩn hoá về nhau ở đây (Bẫy 4 của story).
 //!
-//! Toàn bộ phần sau `]` là MỘT `gloss` — tệp không mang cấu trúc `<br>`/số thứ tự thống
-//! nhất như Thiều Chửu (một số dòng dùng số khoanh tròn ①②③, một số khác không), nên
-//! Task 5 của story không đòi tách nhiều nghĩa; xem Testing standards.
+//! Phần sau `]` tách thành nhiều nghĩa tại số khoanh tròn ①②③ kế tiếp; dòng
+//! không có số khoanh là MỘT nghĩa. Xem [`split_at_circled_ordinals`].
 //!
 //! # Review Findings — headword nhiều ký tự KHÔNG bị lọc, có chủ ý
 //!
@@ -130,16 +129,47 @@ pub fn parse<R: BufRead>(reader: R) -> impl Iterator<Item = Result<RawEntry, Par
             reading: None,
             han_viet: Some(han_viet_raw.to_string()),
             nom_reading: None,
-            senses: vec![RawSense {
-                pos: None,
-                pos_lang: None,
-                gloss: definition.to_string(),
-                note: None,
-                examples: Vec::new(),
-                citations: Vec::new(),
-            }],
+            senses: split_at_circled_ordinals(definition)
+                .into_iter()
+                .map(|gloss| RawSense {
+                    pos: None,
+                    pos_lang: None,
+                    gloss,
+                    note: None,
+                    examples: Vec::new(),
+                    citations: Vec::new(),
+                })
+                .collect(),
         }))
     })
+}
+
+/// Value of a circled ordinal: `①`–`⑳`, `㉑`–`㉟`, `㊱`–`㊿`.
+fn circled_ordinal(c: char) -> Option<u32> {
+    match c as u32 {
+        n @ 0x2460..=0x2473 => Some(n - 0x2460 + 1),
+        n @ 0x3251..=0x325F => Some(n - 0x3251 + 21),
+        n @ 0x32B1..=0x32BF => Some(n - 0x32B1 + 36),
+        _ => None,
+    }
+}
+
+/// Cuts only at the ordinal equal to the next one expected, the rule `thieu_chuu.rs` uses:
+/// some source lines repeat a number (`① ② ②`), and the repeat stays inside its sense.
+fn split_at_circled_ordinals(definition: &str) -> Vec<String> {
+    let mut pieces = Vec::new();
+    let mut expected = 1;
+    let mut start = 0;
+    for (at, c) in definition.char_indices() {
+        if circled_ordinal(c) == Some(expected) {
+            pieces.push(definition[start..at].trim().to_string());
+            start = at + c.len_utf8();
+            expected += 1;
+        }
+    }
+    pieces.push(definition[start..].trim().to_string());
+    pieces.retain(|p| !p.is_empty());
+    pieces
 }
 
 #[cfg(test)]
@@ -159,7 +189,60 @@ mod tests {
         assert_eq!(e.headword, "躄");
         assert_eq!(e.han_viet.as_deref(), Some("tích"));
         assert_eq!(e.senses.len(), 1);
-        assert!(e.senses[0].gloss.starts_with("① Khoèo cả hai chân"));
+        assert!(e.senses[0].gloss.starts_with("Khoèo cả hai chân"));
+    }
+
+    fn glosses(text: &str) -> Vec<String> {
+        let entries: Vec<_> = parse(Cursor::new(text.as_bytes()))
+            .collect::<Result<_, _>>()
+            .unwrap();
+        entries[0].senses.iter().map(|s| s.gloss.clone()).collect()
+    }
+
+    #[test]
+    fn circled_ordinals_split_the_definition_into_senses_without_the_marker() {
+        assert_eq!(
+            glosses("及\t[cập] ① Kịp, đến. ② Bằng, như bất cập nhân 不及人. ③ Cùng.\n"),
+            vec!["Kịp, đến.", "Bằng, như bất cập nhân 不及人.", "Cùng."]
+        );
+    }
+
+    #[test]
+    fn only_the_next_expected_ordinal_cuts_so_a_repeated_one_stays_in_its_sense() {
+        assert_eq!(
+            glosses("氐\t[để] ① Nền, gốc. ② Một âm là đê. ② Sao đê 氐. ③ Tên.\n"),
+            vec!["Nền, gốc.", "Một âm là đê. ② Sao đê 氐.", "Tên."]
+        );
+    }
+
+    #[test]
+    fn text_before_the_first_ordinal_is_its_own_sense() {
+        assert_eq!(
+            glosses("乃\t[nãi] Như 迺. ① Bèn. ② Là.\n"),
+            vec!["Như 迺.", "Bèn.", "Là."]
+        );
+    }
+
+    #[test]
+    fn ordinals_past_twenty_use_the_enclosed_cjk_block() {
+        let mut line = String::from("字\t[tự]");
+        for n in 1..=21 {
+            let marker = if n <= 20 {
+                char::from_u32(0x2460 + n - 1).unwrap()
+            } else {
+                char::from_u32(0x3251 + n - 21).unwrap()
+            };
+            line.push_str(&format!(" {marker} n{n}."));
+        }
+        line.push('\n');
+        let senses = glosses(&line);
+        assert_eq!(senses.len(), 21);
+        assert_eq!(senses[20], "n21.");
+    }
+
+    #[test]
+    fn a_definition_without_ordinals_stays_one_sense() {
+        assert_eq!(glosses("行\t[hạnh] Phẩm hạnh.\n"), vec!["Phẩm hạnh."]);
     }
 
     /// Task 5: hình dạng thật `[đáng, đương]` — NHIỀU âm, giữ nguyên dấu phẩy + khoảng

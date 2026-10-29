@@ -13573,3 +13573,9 @@ chính nó.
 
 - Thứ tự nguồn và số nghĩa mới được kiểm bằng `cargo test` và vitest (happy-dom không dàn trang, không có keymap thật). Cần mắt người trong app thật: `Alt+Shift+↑/↓` có chạy khi focus ở một hàng menu Nguồn không, menu có đóng khi bấm ↑↓ không, thứ tự còn giữ sau khi mở lại app không, và số `::marker` ba chữ số (en-wiktionary, khoảng 138 nghĩa) có tràn ra ngoài cột không.
   Chủ: Ice. Trỏ: `plan-thu-tu-nguon-va-danh-so-nghia.md`.
+
+## Deferred from: tách nghĩa Trần Văn Chánh theo số khoanh (2026-10-29, ngoài cây vé)
+
+- `dict-tran-van-chanh.db` dựng lại (`SOURCE_DATE_EPOCH=1754352000`, sha `0940a59705b8e8003f1eaa03fbcabb933dc2f764f73278c09ac2e9db9ddef484`, 47 806 nghĩa) mới chỉ nằm trên máy Ice. `dict-manifest.toml` vẫn trỏ bản `dict-v2` (sha `3eb98410…`) nên mọi máy khác, kể cả bản phát hành, còn thấy nghĩa dính một khối, và `fetch-dicts` trên máy Ice báo sha lệch cho tệp này.
+  Cần: tải tệp lên một GitHub Release dữ liệu mới, rồi đổi `url` và `sha256` của mục `tran-van-chanh` trong manifest.
+  Chủ: Ice. Trỏ: commit `feat(dict-build)` tách nghĩa Trần Văn Chánh.
