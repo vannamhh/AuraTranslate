@@ -3,7 +3,7 @@ title: 'Hệ điều khiển: Library và Chế độ đọc'
 type: 'refactor'
 ticket: '32'
 created: '2026-10-28'
-status: 'built'
+status: done
 baseline_revision: 'a9b3d7d0b32f9683462eb468b58df356f5860aad'
 route: 'full'
 route_source: 'auto'

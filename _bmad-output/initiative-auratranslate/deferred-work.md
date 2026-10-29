@@ -13580,3 +13580,9 @@ chính nó.
   Cần: tải tệp lên một GitHub Release dữ liệu mới, rồi đổi `url` và `sha256` của mục `tran-van-chanh` trong manifest.
   Chủ: Ice. Trỏ: commit `feat(dict-build)` tách nghĩa Trần Văn Chánh.
   → ✅ ĐÃ ĐÓNG 2026-10-29 — release `dict-v3` (bốn tệp, digest GitHub khớp manifest, `v0.1.0` vẫn Latest); `dict-manifest.toml` trỏ `dict-v3`.
+
+## Deferred from: Ice ký Story 12.32 khi chưa có lượt CI (2026-10-29)
+
+- Story 12.32 lên `done` khi chưa có lượt CI nào chạy trên nó: `master` đi trước `origin` 134 commit chưa push, lượt CI cuối chạy trên `97bcb587`. Nửa Windows và lượt UTC chỉ chạy ở CI.
+  Cần: sau lần push kế tiếp, đọc lượt CI và lượt e2e đêm; đỏ thì ghi vì sao.
+  Chủ: Epic 12. Trỏ: commit `8d4c4081`.
