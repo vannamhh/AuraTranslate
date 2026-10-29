@@ -545,12 +545,12 @@ Chữ luôn `ui-md`, bo `3px`, viền 1px. Nút chỉ có biểu tượng là ô
 | Công tắc (`role="switch"`) | Rãnh 28×14px (🔵 2026-10-29 (Ice): từ 28×16px) viền `control-rule`, núm `on-surface-variant`; bật: rãnh nền `on-surface`, núm `surface`. Chữ trạng thái vẫn đứng cạnh |
 | Nút phân đoạn · tab con · chip phím | Như §Ba cấp điều khiển |
 
-**Trạng thái.** Mỗi trạng thái đổi **một** thuộc tính và không đổi độ dày viền, đệm hay cỡ chữ, để không xô bố cục.
+**Trạng thái.** Mỗi trạng thái đổi **một** thuộc tính và không đổi độ dày viền, đệm hay cỡ chữ, để không xô bố cục. 🔵 2026-10-29, Ice sau lượt nhìn trang Tác phẩm: hover và nhấn của nút Phụ quá nhạt (viền đổi 1,54:1, nền nhấn 1,13:1) nên nay đổi cả nền lẫn màu viền; vẫn không đổi độ dày viền, đệm hay cỡ chữ. Nút đang mở thứ nó điều khiển (`aria-expanded`) hay đang là giá trị hiện hành (`aria-pressed`) mang dáng Nhấn.
 
 | Trạng thái | Nút Phụ · Nguy hiểm | Nút Chính | Nút Chìm · mục menu | Ô nhập · ô chọn · checkbox |
 |---|---|---|---|---|
-| Rê chuột | Viền `on-surface-variant` (3,63 → 5,60:1) | Nền và viền `on-surface-variant` (chênh 2,53:1 sáng · 2,18:1 tối so với nền mực), chữ `surface` 5,60 · 5,56:1. Token trung tính duy nhất giữ chữ ≥ 4,5:1: `control-rule` chỉ 3,63:1; `confirmed`, `tm-text`, `caret-rule` mang nghĩa trạng thái | Nút Chìm: viền `control-rule` (3,63 · 3,55:1), như `ui-icon-btn`. Mục menu: nền `outline` (1,31:1; chữ 10,85 · 9,15:1) | Viền `on-surface-variant` |
-| Nhấn | Nền `surface-sunken` | Như rê chuột | Nút Chìm: nền `surface-sunken`, chữ `on-surface`. Mục menu: như rê chuột | — |
+| Rê chuột | Viền `on-surface-variant` (3,63 → 5,60:1), nền `surface-sunken` (🔵 2026-10-29) | Nền và viền `on-surface-variant` (chênh 2,53:1 sáng · 2,18:1 tối so với nền mực), chữ `surface` 5,60 · 5,56:1. Token trung tính duy nhất giữ chữ ≥ 4,5:1: `control-rule` chỉ 3,63:1; `confirmed`, `tm-text`, `caret-rule` mang nghĩa trạng thái | Nút Chìm: viền `control-rule` (3,63 · 3,55:1), như `ui-icon-btn`. Mục menu: nền `outline` (1,31:1; chữ 10,85 · 9,15:1) | Viền `on-surface-variant` |
+| Nhấn · đang mở · đang chọn (🔵 2026-10-29) | Nền `outline` (1,31:1 so với `surface`), viền `on-surface` | Như rê chuột | Nút Chìm và `ui-icon-btn`: nền `outline`, chữ `on-surface`; nút Chìm rê chuột vẫn chỉ hiện viền. Mục menu: như rê chuột | — |
 | Focus bàn phím | Viền `primary`, không vòng ngoài | Giữ vòng 2px `primary` cách mép 1px | Mục menu: vòng 2px `primary` thụt vào trong (như ô phân đoạn); nút Chìm: viền trong suốt thành `primary` | Viền `primary`, không vòng ngoài |
 | Khoá | §Nút bậc Khoá: viền đứt `outline`, chữ `on-surface-variant`, con trỏ mặc định, không hover | ← | ← | Viền đứt `outline`, nền không, chữ `on-surface-variant` |
 | Lỗi | — | — | — | Viền `error`, câu lỗi `ui-sm` màu `error` ngay dưới, giãn 1.66 |

@@ -500,6 +500,8 @@ export type CommandDeps = {
   openCurrentLibrarySearchHit?: () => void
   openCurrentLibrarySearchHitInReading?: () => void
   openCurrentLibraryChapterInReading?: () => void
+  openLibraryChapterPanel?: () => void
+  closeLibraryChapterPanel?: () => void
   seeAllLibrarySearchGroup?: () => void
   toggleCurrentLibrarySearchGroup?: () => void
   // ── Story 1.16 — dải tab và kiểu xem của Panel Source ───────────────────────────
@@ -2264,6 +2266,28 @@ function registerAll(target: Registry, deps: CommandDeps): void {
         return portMissing('library.open_chapter_reading', 'openCurrentLibraryChapterInReading')
       }
       deps.openCurrentLibraryChapterInReading()
+    },
+  })
+  target.register({
+    id: 'library.chapter_panel.open',
+    labelKey: 'command.library.chapter_panel.open',
+    keys: undefined,
+    run: () => {
+      if (deps.openLibraryChapterPanel === undefined) {
+        return portMissing('library.chapter_panel.open', 'openLibraryChapterPanel')
+      }
+      deps.openLibraryChapterPanel()
+    },
+  })
+  target.register({
+    id: 'library.chapter_panel.close',
+    labelKey: 'command.library.chapter_panel.close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeLibraryChapterPanel === undefined) {
+        return portMissing('library.chapter_panel.close', 'closeLibraryChapterPanel')
+      }
+      deps.closeLibraryChapterPanel()
     },
   })
   // Story 5.8 — bốn thao tác tổ chức lại Chương (FR15, AD-32). `keys: undefined` cho ba lệnh

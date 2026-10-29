@@ -114,6 +114,27 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
     expect(on).toMatch(/(^|;)\s*color:\s*var\(--color-on-primary\)/)
   })
 
+  it('Secondary hover fills surface-sunken; pressed, open and current share the outline fill with an on-surface border', () => {
+    expect(declarations('.ui-btn:hover')).toMatch(/background:\s*var\(--color-surface-sunken\)/)
+    for (const selector of ['.ui-btn:active', ".ui-btn[aria-pressed='true']", ".ui-btn[aria-expanded='true']"]) {
+      const body = declarations(selector)
+      expect(body, selector).toMatch(/background:\s*var\(--color-outline\)/)
+      expect(body, selector).toMatch(/border-color:\s*var\(--color-on-surface\)/)
+    }
+    for (const selector of ['.ui-btn--quiet:active', ".ui-btn--quiet[aria-pressed='true']", ".ui-icon-btn[aria-pressed='true']", ".ui-icon-btn[aria-expanded='true']"]) {
+      expect(declarations(selector), selector).toMatch(/background:\s*var\(--color-outline\)/)
+    }
+    expect(declarations('.ui-btn--quiet:hover')).toMatch(/background:\s*none/)
+  })
+
+  it('cover buttons keep their fill on hover and while their menu is open', () => {
+    for (const cls of ['.ui-btn--cover', '.ui-btn--cover-plain', '.ui-btn--cover-on']) {
+      expect(declarations(`${cls}:hover`), `${cls}:hover`).toMatch(/background:\s*var\(--color-(surface|primary)\)/)
+      expect(CSS.indexOf(`${cls}:hover`), `${cls}:hover after .ui-btn:hover`).toBeGreaterThan(CSS.indexOf('.ui-btn:hover'))
+    }
+    expect(declarations(".ui-btn--cover-plain[aria-expanded='true']")).toMatch(/background:\s*var\(--color-surface\)/)
+  })
+
   it('cover buttons keep their fill when pressed or locked, so the label never sinks into the cover', () => {
     for (const cls of ['.ui-btn--cover', '.ui-btn--cover-plain', '.ui-btn--cover-on']) {
       for (const state of [':active', ':disabled']) {

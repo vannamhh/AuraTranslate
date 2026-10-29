@@ -71,6 +71,7 @@ describe('Story 12-17 -- export content options', () => {
     await ipcValue('create_work_from_text', { name: WORK_NAME, sourceLang: 'zh', genre: 'general', text: SOURCE_TEXT })
     await openWorkPage()
     await realClick(await $(ROW))
+    await realClick(await $(`${ROW} [data-library-row-edit]`))
     await $(`${EXPORT_OPEN}:not([disabled])`).waitForExist({ timeout: 10_000 })
     await realClick(await $(EXPORT_OPEN))
     await $(PANEL).waitForDisplayed({ timeout: 10_000 })

@@ -13602,6 +13602,9 @@ chính nó.
 - Mockup có "Đổi tên hàng loạt" cho nhiều Chương nhưng chưa có lệnh nào làm việc đó, nên trang không dựng; thẻ hàng loạt chỉ có Gộp, Đổi trạng thái, Xuất.
   Cần: Ice quyết có làm lệnh đổi tên hàng loạt không.
   Chủ: Ice. Trỏ: `story-trang-tac-pham-theo-mockup-khung-phai-va-nut-dich-oc-moi-chu-plan.md`.
+- Sau lượt nhìn app 2026-10-29, Ice đổi trang Tác phẩm khác mockup `trang-tac-pham.html`: bấm hàng chỉ chọn, khung phải mở bằng nút "⋯" trên hàng (có nút Đóng), khung bỏ "Dịch Chương này"/"Đọc từ Chương này", nút Dịch · Đọc trên hàng luôn Chìm, mọi control 28px, hàng chọn không viền. Mockup và DESIGN chưa ghi các thay đổi này.
+  Cần: cập nhật khung 2 và 4 của mockup theo trang hiện tại.
+  Chủ: Sally. Trỏ: dòng 🔵 2026-10-29 trong `story-trang-tac-pham-theo-mockup-khung-phai-va-nut-dich-oc-moi-chu-plan.md`.
 
 ## Deferred from: mở Epic 13, lưới 7px và canh baseline (2026-10-29)
 

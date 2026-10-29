@@ -127,6 +127,7 @@ const chaptersBusy = ref(false)
 const chaptersError = ref<IpcError | null>(null)
 // Con trỏ ô đang chọn trong danh sách — chép khuôn `workCursor` của `libraryWorks.ts`.
 const chapterCursor = ref(0)
+const chapterPanelOpen = ref(false)
 // Một lượt `loadChapters()` bị chặn vì đang bận, ghi nhớ để chạy lại — cùng khuôn
 // `worksReloadPending`. Không phải `ref`: không khối template nào đọc nó.
 let chaptersReloadPending = false
@@ -166,6 +167,7 @@ const chapterOriginError = ref<IpcError | null>(null)
  * Đọc bởi [`saveCurrentChapterOrigin`]; `LibraryMode.vue` ghi qua [`setChapterOriginApplyThroughOrd`]. */
 const chapterOriginApplyThroughOrd = ref<number | null>(null)
 
+export const libraryChapterPanelOpen: DeepReadonly<Ref<boolean>> = readonly(chapterPanelOpen)
 export const libraryChapters: DeepReadonly<Ref<ChapterRow[]>> = readonly(chapters)
 
 export const libraryOpenChapterIsDone = computed(
@@ -374,6 +376,7 @@ export async function openWorkById(workId: string): Promise<boolean> {
   chaptersHaveLoaded.value = false
   chapterCursor.value = 0
   resetLibraryChapterSelection()
+  chapterPanelOpen.value = false
   chapterRenameEditing.value = false
   workPageWork.value = null
 
@@ -487,15 +490,18 @@ export async function openCurrentChapter(): Promise<void> {
   const row = currentLibraryChapter.value
   if (row === null) return
   const moved = await openChapterById(row.chapter_id)
-  if (moved) setMode('workspace')
+  if (!moved) return
+  setChapterSelection(new Set([row.chapter_id]), row.chapter_id)
+  setMode('workspace')
 }
 
-/** Opens the selected Chapter in Reading mode; a Chapter that is not Done is ignored. */
+/** Opens the Chapter under the list cursor in Reading mode; a Chapter that is not Done is ignored. */
 export async function openCurrentChapterInReading(): Promise<void> {
   const row = currentLibraryChapter.value
   if (row === null || row.status !== 'done') return
   const moved = await openChapterById(row.chapter_id)
   if (!moved) return
+  setChapterSelection(new Set([row.chapter_id]), row.chapter_id)
   resetReading()
   resetReadingToc()
   setMode('reading')
@@ -655,6 +661,11 @@ function syncCursorToChapter(chapterId: number): void {
   if (index !== -1) chapterCursor.value = index
 }
 
+/** Moves the list cursor to a Chapter without touching the selection. */
+export function aimLibraryChapter(chapterId: number): void {
+  syncCursorToChapter(chapterId)
+}
+
 function syncCursorToSoleSelection(): void {
   const only = soleSelectedLibraryChapter.value
   if (only !== null) syncCursorToChapter(only.chapter_id)
@@ -692,6 +703,27 @@ export function toggleLibraryChapterAtCursor(): void {
   if (row === undefined) return
   selectLibraryChapter(row.chapter_id, { toggle: true, range: false })
 }
+
+/** Makes the Chapter under the list cursor the sole selection and opens the right pane on it. */
+export function openLibraryChapterPanel(): void {
+  const row = chapters.value.at(chapterCursor.value)
+  if (row === undefined) return
+  setChapterSelection(new Set([row.chapter_id]), row.chapter_id)
+  closeChapterStatusMenu()
+  chapterPanelOpen.value = true
+}
+
+export function closeLibraryChapterPanel(): void {
+  chapterPanelOpen.value = false
+}
+
+watch(
+  libraryChapterSelectedIds,
+  (ids) => {
+    if (ids.size === 0) chapterPanelOpen.value = false
+  },
+  { flush: 'sync' },
+)
 
 export function clearLibraryChapterSelection(): void {
   clearChapterSelection()
@@ -787,6 +819,7 @@ export function resetLibraryChapters(): void {
   chapterRenameEditing.value = false
   workPageWork.value = null
   resetLibraryChapterSelection()
+  chapterPanelOpen.value = false
   chapterReorgBusy.value = false
   chapterReorgNotice.value = null
   chapterReorgError.value = null

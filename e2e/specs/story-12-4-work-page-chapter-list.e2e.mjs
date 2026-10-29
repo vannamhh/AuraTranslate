@@ -20,6 +20,7 @@ const SEARCH = '[data-library-chapter-search]'
 const MERGE_OPEN = '[data-library-chapter-merge-open]'
 const MERGE_OVERLAY = '[data-library-chapter-merge-overlay]'
 const MERGE_CONFIRM = '[data-library-chapter-merge-confirm]'
+const ROW_EDIT = '[data-library-row-edit]'
 const SPLIT_OPEN = '[data-library-chapter-split-open]'
 const SPLIT_OVERLAY = '[data-library-chapter-split-overlay]'
 const SPLIT_CONFIRM = '[data-library-chapter-split-confirm]'
@@ -247,6 +248,7 @@ describe('Story 12-4 · Work page Chapter list', () => {
 
   it('the split box lists the source sentences, keeps the first off, and splits at the picked one', async () => {
     await realClick(await rowEl(ids[4]))
+    await realClick(await (await rowEl(ids[4])).$(ROW_EDIT))
     await $(`${SPLIT_OPEN}:not([disabled])`).waitForExist({ timeout: 10_000 })
     await realClick(await $(SPLIT_OPEN))
     await $(SPLIT_OVERLAY).waitForDisplayed({ timeout: 10_000 })
@@ -307,6 +309,7 @@ describe('Story 12-4 · Work page Chapter list', () => {
   it('the Export button opens the export screen and Escape returns focus to that same button', async () => {
     const shot = await probe()
     await realClick(await rowEl(shot.rows[0].id))
+    await realClick(await (await rowEl(shot.rows[0].id)).$(ROW_EDIT))
     await $(`${EXPORT_OPEN}:not([disabled])`).waitForExist({ timeout: 10_000 })
     await realClick(await $(EXPORT_OPEN))
     await $('.ex-panel').waitForDisplayed({ timeout: 10_000 })

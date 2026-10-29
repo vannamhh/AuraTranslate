@@ -190,6 +190,7 @@ describe('Story 5.8 — tổ chức lại Chương: tách, đổi tên, dời, g
     // ═══════════════════════════════════════════════════════════════════════════════
     const TEN_MOI = 'Hoi Mot'
     await selectRow(0)
+    await realClick(await (await $$(CHAPTER_ROWS))[0].$('[data-library-row-edit]'))
     await realClick(await $(RENAME_BEGIN_BTN))
     await $(RENAME_INPUT).waitForDisplayed({ timeout: 10_000 })
     await browser.execute(

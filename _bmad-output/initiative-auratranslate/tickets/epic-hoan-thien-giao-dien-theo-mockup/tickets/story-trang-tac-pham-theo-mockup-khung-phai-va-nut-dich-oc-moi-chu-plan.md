@@ -3,7 +3,7 @@ title: 'Trang Tác phẩm theo mockup: khung phải và nút Dịch · Đọc m�
 type: 'feature'
 ticket: '34'
 created: '2026-10-29'
-status: 'built'
+status: 'done'
 baseline_revision: '0bd90d0fd9eefe452834f01cae4a58a7d58c3802'
 route: 'full'
 route_source: 'auto'
@@ -48,6 +48,8 @@ context:
 - Giữ trọn plan dù quá 1.600 token; chia ba pha như Design Notes.
 - Ngoại lệ của dòng Never về `check-*.mjs`: nâng `CLICK_FLOOR` 237 → 253 và `DISPATCH_FLOOR` 334 → 360 trong `scripts/check-commands.mjs` đúng số cổng in ra (`ceil(0.85 × live)`, live 297 và 423); trang thêm 9 `@click` và 9 `dispatch`, phần trôi còn lại tích từ các story trước. Không đổi logic cổng.
 - Ở bề rộng ≥ 1.100px, chưa chọn Chương nào thì cột 320px thu hẳn, danh sách chiếm trọn bề ngang; Ice chấp nhận cú bấm đầu lên nút hàng của một hàng chưa chọn có thể trượt vì danh sách hẹp lại dưới con trỏ.
+- 🔵 2026-10-29, Ice sau lượt nhìn app chạy dev: mọi control của trang cao 28px (bỏ cỡ `--sm`, nút `--lg` của khung giữ 32px); hàng Chương đang chọn không còn viền, chỉ nền và vạch caret; hai nút Dịch · Đọc trên hàng luôn Chìm, chỉ hiện viền khi rê lên chính nút (thay quyết định "hàng rê chuột ⇒ Phụ" và "hàng chọn có một nút Chính"); khung phải bỏ "Dịch Chương này", "Đọc từ Chương này" và câu lý do khoá, `data-library-open-chapter` chuyển sang nút Dịch trên hàng.
+- 🔵 2026-10-29, Ice: khung phải ít dùng nên bấm hàng chỉ chọn (để Shift/⌘ và bàn phím), không mở khung; mỗi hàng thêm nút "⋯" mở khung cho Chương đó (lệnh `library.chapter_panel.open`), khung có nút Đóng (`library.chapter_panel.close`); chọn từ hai Chương thì thẻ hàng loạt tự hiện. Lệch mockup `trang-tac-pham.html` khung 4.
 
 ## I/O & Edge-Case Matrix
 
@@ -95,6 +97,7 @@ context:
 - Lệnh `library.open_chapter_reading` chỉ ở webview: `openCurrentChapterInReading` đọc con trỏ như `openCurrentChapter`, không gọi `openWorkById`; Chương chưa Đã xong thì bỏ qua.
 - Dải dính làm ở trang (`stickyHead` chèn đầu nhóm của hàng trên cùng, trừ 44px khỏi đệm trên), không ở `chapterWindow` như Code Map; cuộn theo con trỏ lùi một hàng để hàng không nằm dưới dải dính.
 - Nút Dịch · Đọc trên hàng là `tabindex="-1"`: lệnh đọc vùng chọn, chỉ `@mousedown` của hàng chọn đúng hàng; bàn phím đi qua Enter của danh sách và nút trong khung.
+- 🔵 2026-10-29: bấm nút trên hàng chưa chọn từng chỉ hiện khung phải (chọn hàng ⇒ cột 320px mở ⇒ nút trượt khỏi con trỏ trước `click`). Nay `@mousedown.stop` của vùng nút chỉ dời con trỏ (`aimLibraryChapter`), lệnh mở đọc con trỏ rồi chọn Chương vừa mở; đối chứng gỡ `.stop` ⇒ ca vitest đỏ.
 - `data-library-open-chapter` chỉ còn ở nút "Dịch Chương này" của khung; nút hàng mang `data-library-row-translate`/`-read`.
 - Số đếm trong bộ lọc là text node dữ liệu dưới `aura-allow-text`, không qua một khoá i18n rỗng `{count}`.
 - Menu trạng thái lặp ở thẻ một Chương và thẻ hàng loạt vì mỗi `dispatch` phải là literal.

@@ -2412,6 +2412,7 @@ const R_DISPATCH_VIA_PARAM =
   "Kiểm B's nonLiteralDispatchCalls"
 const R_MENU_CLOSE = 'closes a native `<details>` menu in place from Escape or Enter on an option — view state, no dispatch'
 const R_SELECT_IN_PLACE = 'selects Chapter rows in place from a pointer press — selection is view state, no dispatch'
+const R_AIM_CHAPTER = 'moves the Chapter list cursor from a press on a row button, selection untouched — view state, no dispatch'
 const R_SOURCE_CUT_EXEMPT = 'calls `setEditorSourceCut(...)` directly — a named exemption, not a command'
 
 /**
@@ -2554,8 +2555,14 @@ const HANDLER_TABLE = {
   'src/ChapterSplitOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/modes/LibraryWorkPage.vue::focusOnPointerDown': { nonCommand: R_POINTER_FOCUS },
   'src/modes/LibraryWorkPage.vue::onRowMouseDown': { nonCommand: R_SELECT_IN_PLACE },
+  'src/modes/LibraryWorkPage.vue::onRowActionMouseDown': { nonCommand: R_AIM_CHAPTER },
   'src/modes/LibraryWorkPage.vue::onListKeydown': {
-    ids: ['library.open_chapter', 'library.chapter_rename.begin', 'library.chapters.clear_selection'],
+    ids: [
+      'library.open_chapter',
+      'library.chapter_rename.begin',
+      'library.chapters.clear_selection',
+      'library.chapter_panel.close',
+    ],
   },
   'src/DropdownMenu.vue::onKeydown': { nonCommand: R_MENU_CLOSE },
   'src/modes/LibraryMode.vue::aimWork': { nonCommand: R_CURSOR_IMPORTED },

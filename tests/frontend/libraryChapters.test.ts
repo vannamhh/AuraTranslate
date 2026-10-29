@@ -198,13 +198,34 @@ describe('modes/libraryChapters.ts::loadChapters', () => {
 // `modes/LibraryMode.vue` — mount THẬT, khối "Chương".
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/** Selecting a row is how a single-Chapter write picks its target; no row at `index` is a no-op. */
-async function chonHang(index: number): Promise<void> {
+async function chonHangKhongMoKhung(index: number): Promise<void> {
   const state = await import('../../src/modes/libraryChapters')
   const row = state.libraryChapters.value.at(index)
   if (row === undefined) return
   state.selectLibraryChapter(row.chapter_id, { toggle: false, range: false })
   await Promise.resolve()
+}
+
+/** Selects the row and opens the single-Chapter pane the way the row's ⋯ button does; no row at `index` is a no-op. */
+async function chonHang(index: number): Promise<void> {
+  await chonHangKhongMoKhung(index)
+  const state = await import('../../src/modes/libraryChapters')
+  state.openLibraryChapterPanel()
+  await Promise.resolve()
+}
+
+let commandsInstalled = false
+async function installChapterCommandsOnce(openReviewerImportPreview?: () => void): Promise<void> {
+  if (commandsInstalled) return
+  const commands = await import('../../src/commands')
+  const state = await import('../../src/modes/libraryChapters')
+  commands.installCommands({
+    openReviewerImportPreview,
+    openLibraryChapterPanel: state.openLibraryChapterPanel,
+    closeLibraryChapterPanel: state.closeLibraryChapterPanel,
+    clearLibraryChapterSelection: state.clearLibraryChapterSelection,
+  } as never)
+  commandsInstalled = true
 }
 
 function mockInvokeForChaptersMount(chapters: unknown[] | 'none-open'): void {
@@ -560,7 +581,7 @@ describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chươ
     expect(wrapper.find('[data-library-chapter-merge-open]').attributes('disabled')).toBeDefined()
   })
 
-  it('nút Đọc: hàng Đã xong có, hàng chưa xong không; khung chưa xong khoá kèm lý do; trạng thái lạ không có Đọc ở đâu', async () => {
+  it('nút Đọc: hàng Đã xong có, hàng chưa xong và trạng thái lạ không; khung phải không có nút Dịch/Đọc', async () => {
     ketQuaFlush.value = 'clean'
     const rows = [
       { ...CHAPTER_ROW_A, chapter_id: 1, ord: 1, status: 'done' },
@@ -580,20 +601,61 @@ describe('modes/LibraryMode.vue — nút tổ chức tắt khi KHÔNG có Chươ
     expect(rowOf(2).find('[data-library-row-read]').exists()).toBe(false)
     expect(rowOf(3).find('[data-library-row-read]').exists()).toBe(false)
 
-    await chonHang(1)
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-library-panel-read]').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('[data-library-panel-read-locked]').exists()).toBe(true)
-
     await chonHang(0)
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-library-panel-read]').attributes('disabled')).toBeUndefined()
-    expect(wrapper.find('[data-library-panel-read-locked]').exists()).toBe(false)
+    const panel = wrapper.get('[data-library-chapter-panel]')
+    expect(panel.find('[data-library-open-chapter]').exists()).toBe(false)
+    expect(panel.find('[data-library-row-read]').exists()).toBe(false)
+    expect(rowOf(1).find('[data-library-row-read]').classes()).toContain('ui-btn--quiet')
+    expect(rowOf(1).find('[data-library-open-chapter]').classes()).toContain('ui-btn--quiet')
+  })
 
-    await chonHang(2)
+  it('bấm nút Dịch/Đọc trên hàng chưa chọn ⇒ không chọn hàng, không mở khung phải, con trỏ về hàng đó', async () => {
+    ketQuaFlush.value = 'clean'
+    const rows = [
+      { ...CHAPTER_ROW_A, chapter_id: 1, ord: 1, status: 'done' },
+      { ...CHAPTER_ROW_A, chapter_id: 2, ord: 2, status: 'done' },
+    ]
+    mockInvoke.mockResolvedValue(rows)
+    const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    const selection = await import('../../src/modes/libraryChapterSelection')
+    wrapper = mount(WorkPage)
+    await state.loadChapters()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-library-panel-read]').exists()).toBe(false)
-    expect(wrapper.find('[data-library-panel-read-locked]').exists()).toBe(false)
+
+    for (const button of ['[data-library-row-read]', '[data-library-row-translate]']) {
+      await wrapper.get(`[data-chapter-id="2"] ${button}`).trigger('mousedown', { button: 0 })
+      await wrapper.vm.$nextTick()
+      expect(selection.libraryChapterSelectedIds.value.size).toBe(0)
+      expect(wrapper.find('aside.wp-panel').exists()).toBe(false)
+      expect(state.currentLibraryChapter.value?.chapter_id).toBe(2)
+    }
+  })
+
+  it('⋯ của hàng đang mở khung và trạng thái hiện hành của Chương mang aria-pressed', async () => {
+    ketQuaFlush.value = 'clean'
+    const rows = [
+      { ...CHAPTER_ROW_A, chapter_id: 1, ord: 1, status: 'done' },
+      { ...CHAPTER_ROW_A, chapter_id: 2, ord: 2, status: 'in_progress' },
+    ]
+    mockInvoke.mockResolvedValue(rows)
+    const { default: WorkPage } = await import('../../src/modes/LibraryWorkPage.vue')
+    const state = await import('../../src/modes/libraryChapters')
+    const selection = await import('../../src/modes/libraryChapterSelection')
+    wrapper = mount(WorkPage)
+    await state.loadChapters()
+    await chonHang(0)
+    selection.toggleChapterStatusMenu()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-chapter-id="1"] [data-library-row-edit]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-chapter-id="2"] [data-library-row-edit]').attributes('aria-pressed')).toBe('false')
+    const panel = wrapper.get('[data-library-chapter-panel]')
+    expect(panel.get('[data-library-chapters-status-set="done"]').attributes('aria-pressed')).toBe('true')
+    expect(panel.get('[data-library-chapters-status-set="in_progress"]').attributes('aria-pressed')).toBe('false')
+    expect(panel.get('[data-library-chapters-status-menu]').attributes('aria-expanded')).toBe('true')
+    selection.closeChapterStatusMenu()
   })
 
   it('không ghi đè ⇒ không có nút Bỏ ghi đè', async () => {
@@ -1092,8 +1154,7 @@ describe('modes/libraryChapters.ts::openCurrentLibraryWorkThenReviewerImport', (
       return Promise.reject(WORK_NONE_OPEN_ERROR)
     })
     if (!pickerInstalled) {
-      const commands = await import('../../src/commands')
-      commands.installCommands({ openReviewerImportPreview: openPicker } as never)
+      await installChapterCommandsOnce(openPicker)
       pickerInstalled = true
     }
     openPicker.mockClear()
@@ -1144,6 +1205,75 @@ describe('modes/LibraryWorkPage.vue — nút Nhập bản reviewer của khung p
     const button = wrapper.find('[data-library-chapters-reviewer-import]')
     expect(button.exists()).toBe(true)
     expect(button.attributes('data-reviewer-import-open')).toBeDefined()
+    wrapper.unmount()
+  })
+})
+
+describe('modes/LibraryWorkPage.vue — khung phải chỉ mở bằng nút ⋯', () => {
+  const CHAPTER_ROW_C = { ...CHAPTER_ROW_A, chapter_id: 3, ord: 3, title: 'Chuong Ba' }
+
+  async function mountPage() {
+    mockInvokeForChaptersMount([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED, CHAPTER_ROW_C])
+    await installChapterCommandsOnce()
+    const state = await import('../../src/modes/libraryChapters')
+    const { default: Page } = await import('../../src/modes/LibraryWorkPage.vue')
+    const wrapper = mount(Page)
+    await state.loadChapters()
+    await wrapper.vm.$nextTick()
+    return { wrapper, state }
+  }
+
+  it('một lượt bấm hàng chỉ chọn, không dựng aside.wp-panel', async () => {
+    const { wrapper } = await mountPage()
+    await wrapper.findAll('[data-library-chapter-row]')[0].trigger('mousedown', { button: 0 })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-library-chapter-row][aria-selected="true"]').exists()).toBe(true)
+    expect(wrapper.find('aside.wp-panel').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('⋯ trên hàng chưa chọn ⇒ hàng đó thành vùng chọn duy nhất và khung hiện thẻ của nó', async () => {
+    const { wrapper } = await mountPage()
+    const selection = await import('../../src/modes/libraryChapterSelection')
+    await wrapper.findAll('[data-library-chapter-row]')[0].trigger('mousedown', { button: 0 })
+    const rows = wrapper.findAll('[data-library-chapter-row]')
+    await rows[2].find('[data-library-row-edit]').trigger('mousedown', { button: 0 })
+    await rows[2].find('[data-library-row-edit]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect([...selection.libraryChapterSelectedIds.value]).toEqual([3])
+    expect(wrapper.find('aside.wp-panel [data-library-chapter-panel]').exists()).toBe(true)
+    expect(wrapper.find('aside.wp-panel .wp-card-title').text()).toContain('Chuong Ba')
+    wrapper.unmount()
+  })
+
+  it('hai Chương được chọn ⇒ thẻ nhiều Chương tự hiện, không cần ⋯', async () => {
+    const { wrapper, state } = await mountPage()
+    await state.loadChapters()
+    const rows = wrapper.findAll('[data-library-chapter-row]')
+    await rows[0].trigger('mousedown', { button: 0 })
+    await rows[1].trigger('mousedown', { button: 0, metaKey: true })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-library-chapter-panel-batch]').exists()).toBe(true)
+    expect(wrapper.find('aside.wp-panel [data-library-row-edit]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('Esc khi khung mở ⇒ đóng khung, giữ vùng chọn; Esc lần nữa ⇒ bỏ chọn', async () => {
+    const { wrapper } = await mountPage()
+    const selection = await import('../../src/modes/libraryChapterSelection')
+    const rows = wrapper.findAll('[data-library-chapter-row]')
+    await rows[1].find('[data-library-row-edit]').trigger('mousedown', { button: 0 })
+    await rows[1].find('[data-library-row-edit]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('aside.wp-panel').exists()).toBe(true)
+    const list = wrapper.find('[data-library-chapters-list]')
+    await list.trigger('keydown', { key: 'Escape' })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('aside.wp-panel').exists()).toBe(false)
+    expect(selection.libraryChapterSelectedIds.value.size).toBe(1)
+    await list.trigger('keydown', { key: 'Escape' })
+    await wrapper.vm.$nextTick()
+    expect(selection.libraryChapterSelectedIds.value.size).toBe(0)
     wrapper.unmount()
   })
 })

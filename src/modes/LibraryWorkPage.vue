@@ -22,6 +22,7 @@ import {
   libraryChapterSelectedRows,
   libraryChapterView,
   libraryChapters,
+  libraryChapterPanelOpen,
   libraryChaptersBusy,
   libraryChaptersError,
   libraryChaptersHaveLoaded,
@@ -30,6 +31,7 @@ import {
   moveLibraryChapterSelection,
   saveCurrentChapterOrigin,
   selectLibraryChapter,
+  aimLibraryChapter,
   setChapterOriginApplyThroughOrd,
   soleSelectedLibraryChapter,
   toggleLibraryChapterAtCursor,
@@ -96,14 +98,16 @@ const padTopPx = computed(() =>
 const NARROW_PX = 1100
 const narrow = ref(false)
 const panelDismissed = ref(false)
-const hoveredChapterId = ref<number | null>(null)
 let sizeObserver: ResizeObserver | null = null
 
 const work = computed(() => libraryWorkPageWork.value)
 const total = computed(() => libraryChapters.value.length)
 const counts = computed(() => libraryChapterGroupCounts.value)
 const selectedCount = computed(() => libraryChapterSelectedIds.value.size)
-const panelVisible = computed(() => selectedCount.value > 0 && !(narrow.value && panelDismissed.value))
+const panelVisible = computed(() => {
+  if (selectedCount.value >= 2) return !(narrow.value && panelDismissed.value)
+  return selectedCount.value === 1 && libraryChapterPanelOpen.value
+})
 const sole = computed(() => soleSelectedLibraryChapter.value)
 const batchSummary = computed(() => {
   const rows = libraryChapterSelectedRows.value
@@ -176,15 +180,9 @@ function itemKey(item: ChapterViewItem): string {
   return 'more'
 }
 
-const KNOWN_STATUSES: readonly string[] = ['in_progress', 'paused', 'done', 'not_started']
-
-function hasKnownStatus(row: ChapterRow): boolean {
-  return KNOWN_STATUSES.includes(row.status)
-}
-
-function rowButtonTier(row: ChapterRow, kind: 'read' | 'translate'): string {
-  if (isSelected(row) && (row.status === 'done') === (kind === 'read')) return 'ui-btn--primary'
-  return hoveredChapterId.value === row.chapter_id || isSelected(row) ? '' : 'ui-btn--quiet'
+function statusIsCurrent(status: string): boolean {
+  const rows = libraryChapterSelectedRows.value
+  return rows.length > 0 && rows.every((row) => row.status === status)
 }
 
 function isSelected(row: ChapterRow): boolean {
@@ -193,6 +191,12 @@ function isSelected(row: ChapterRow): boolean {
 
 function onScroll(event: Event): void {
   scrollTop.value = (event.target as HTMLElement).scrollTop
+}
+
+// Selecting here would open the right column and slide the row's buttons from under the pointer before the click.
+function onRowActionMouseDown(row: ChapterRow, event: MouseEvent): void {
+  if (event.button !== 0) return
+  aimLibraryChapter(row.chapter_id)
 }
 
 function onRowMouseDown(row: ChapterRow, event: MouseEvent): void {
@@ -229,7 +233,11 @@ function onListKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && selectedCount.value > 0) {
     event.preventDefault()
     event.stopPropagation()
-    if (narrow.value && !panelDismissed.value) {
+    if (panelVisible.value && selectedCount.value === 1) {
+      dispatch('library.chapter_panel.close')
+      return
+    }
+    if (panelVisible.value && narrow.value) {
       panelDismissed.value = true
       return
     }
@@ -300,7 +308,7 @@ onBeforeUnmount(() => {
     <nav class="wp-crumb" :aria-label="t('command.library.work_page.close')">
       <button
         type="button"
-        class="ui-btn ui-btn--quiet ui-btn--sm"
+        class="ui-btn ui-btn--quiet"
         data-library-work-page-close
         :aria-label="t('command.library.work_page.close')"
         @click="dispatch('library.work_page.close')"
@@ -394,7 +402,7 @@ onBeforeUnmount(() => {
         <div class="wp-status-actions">
           <button
             type="button"
-            class="ui-btn ui-btn--sm"
+            class="ui-btn"
             data-lifecycle-action="set_override_paused"
             :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded"
             @click="dispatch('lifecycle.set_work_override_paused')"
@@ -404,7 +412,7 @@ onBeforeUnmount(() => {
           <button
             v-if="openWorkLifecycleIsOverride"
             type="button"
-            class="ui-btn ui-btn--sm"
+            class="ui-btn"
             data-lifecycle-action="clear_override"
             :disabled="openWorkLifecycleBusy || !openWorkLifecycleLoaded"
             @click="dispatch('lifecycle.clear_work_override')"
@@ -419,13 +427,13 @@ onBeforeUnmount(() => {
       <input
         v-model="libraryChapterSearch"
         type="text"
-        class="wp-search ui-field ui-field--sm ui-field--on-sunken"
+        class="wp-search ui-field ui-field--on-sunken"
         autocomplete="off"
         :placeholder="t('library.work_page.search_placeholder')"
         :aria-label="t('library.work_page.search_placeholder')"
         data-library-chapter-search
       />
-      <div class="ui-seg ui-seg--sm" role="group" :aria-label="t('library.work_page.filter_aria')">
+      <div class="ui-seg" role="group" :aria-label="t('library.work_page.filter_aria')">
         <button
           type="button"
           class="ui-seg__item"
@@ -433,10 +441,12 @@ onBeforeUnmount(() => {
           :aria-pressed="libraryChapterFilter === 'all'"
           @click="dispatch('library.chapter_filter.all')"
         >
-          <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
-          {{ t('library.work_page.filter_all') }}
-          <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
-          <em class="wp-seg-count">{{ total }}</em>
+          <span class="wp-seg-label">
+            <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
+            {{ t('library.work_page.filter_all') }}
+            <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
+            <em class="wp-seg-count">{{ total }}</em>
+          </span>
         </button>
         <button
           type="button"
@@ -445,10 +455,12 @@ onBeforeUnmount(() => {
           :aria-pressed="libraryChapterFilter === 'in_progress'"
           @click="dispatch('library.chapter_filter.in_progress')"
         >
-          <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
-          {{ groupLabel('in_progress') }}
-          <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
-          <em class="wp-seg-count">{{ counts.in_progress }}</em>
+          <span class="wp-seg-label">
+            <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
+            {{ groupLabel('in_progress') }}
+            <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
+            <em class="wp-seg-count">{{ counts.in_progress }}</em>
+          </span>
         </button>
         <button
           type="button"
@@ -457,10 +469,12 @@ onBeforeUnmount(() => {
           :aria-pressed="libraryChapterFilter === 'paused'"
           @click="dispatch('library.chapter_filter.paused')"
         >
-          <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
-          {{ groupLabel('paused') }}
-          <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
-          <em class="wp-seg-count">{{ counts.paused }}</em>
+          <span class="wp-seg-label">
+            <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
+            {{ groupLabel('paused') }}
+            <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
+            <em class="wp-seg-count">{{ counts.paused }}</em>
+          </span>
         </button>
         <button
           type="button"
@@ -469,10 +483,12 @@ onBeforeUnmount(() => {
           :aria-pressed="libraryChapterFilter === 'done'"
           @click="dispatch('library.chapter_filter.done')"
         >
-          <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
-          {{ groupLabel('done') }}
-          <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
-          <em class="wp-seg-count">{{ counts.done }}</em>
+          <span class="wp-seg-label">
+            <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
+            {{ groupLabel('done') }}
+            <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
+            <em class="wp-seg-count">{{ counts.done }}</em>
+          </span>
         </button>
         <button
           type="button"
@@ -481,16 +497,19 @@ onBeforeUnmount(() => {
           :aria-pressed="libraryChapterFilter === 'not_started'"
           @click="dispatch('library.chapter_filter.not_started')"
         >
-          <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
-          {{ groupLabel('not_started') }}
-          <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
-          <em class="wp-seg-count">{{ counts.not_started }}</em>
+          <span class="wp-seg-label">
+            <!-- aura-allow-text: nhãn nhóm qua t()/lifecycleStatusLabel(). -->
+            {{ groupLabel('not_started') }}
+            <!-- aura-allow-text: số Chương của nhóm là dữ liệu đếm. -->
+            <em class="wp-seg-count">{{ counts.not_started }}</em>
+          </span>
         </button>
       </div>
       <div class="wp-sort">
         <span>{{ t('library.work_page.sort_label') }}</span>
         <SelectMenu
           variant="chip"
+          size="md"
           :model-value="libraryChapterSort"
           :options="chapterSortOptions"
           :label="t('library.work_page.sort_label')"
@@ -588,7 +607,7 @@ onBeforeUnmount(() => {
               <button
                 v-if="item.key === 'not_started' && foldToggleVisible"
                 type="button"
-                class="wp-group-toggle ui-btn ui-btn--quiet ui-btn--sm"
+                class="wp-group-toggle ui-btn ui-btn--quiet"
                 data-library-chapter-group-toggle
                 :aria-expanded="libraryChapterNotStartedExpanded"
                 @click="dispatch('library.chapter_group.toggle_not_started')"
@@ -609,8 +628,6 @@ onBeforeUnmount(() => {
               :data-chapter-id="item.row.chapter_id"
               :data-chapter-status="item.row.status"
               @mousedown="onRowMouseDown(item.row, $event)"
-              @mouseenter="hoveredChapterId = item.row.chapter_id"
-              @mouseleave="hoveredChapterId = null"
               @dblclick="dispatch('library.open_chapter')"
             >
               <!-- aura-allow-text: thứ tự Chương là SỐ ĐẾM (dữ liệu), không một câu UI. -->
@@ -646,12 +663,12 @@ onBeforeUnmount(() => {
               }}</span>
               <!-- aura-allow-text: nhãn thời gian qua t() hoặc dấu gạch. -->
               <span class="chapter-when">{{ whenText(item.row) }}</span>
-              <span class="chapter-act" @dblclick.stop>
+              <span class="chapter-act" @mousedown.stop="onRowActionMouseDown(item.row, $event)" @dblclick.stop>
                 <button
                   type="button"
-                  class="ui-btn ui-btn--sm"
-                  :class="rowButtonTier(item.row, 'translate')"
+                  class="ui-btn ui-btn--quiet"
                   data-library-row-translate
+                  data-library-open-chapter
                   tabindex="-1"
                   :aria-label="t('library.work_page.row_translate_aria', { ord: String(item.row.ord) })"
                   :disabled="writesBlocked"
@@ -662,8 +679,7 @@ onBeforeUnmount(() => {
                 <button
                   v-if="item.row.status === 'done'"
                   type="button"
-                  class="ui-btn ui-btn--sm"
-                  :class="rowButtonTier(item.row, 'read')"
+                  class="ui-btn ui-btn--quiet"
                   data-library-row-read
                   tabindex="-1"
                   :aria-label="t('library.work_page.row_read_aria', { ord: String(item.row.ord) })"
@@ -673,6 +689,17 @@ onBeforeUnmount(() => {
                   {{ t('library.work_page.row_read') }}
                 </button>
                 <span v-else class="chapter-act-slot" aria-hidden="true"></span>
+                <button
+                  type="button"
+                  class="ui-icon-btn"
+                  data-library-row-edit
+                  :aria-pressed="libraryChapterPanelOpen && sole?.chapter_id === item.row.chapter_id"
+                  tabindex="-1"
+                  :aria-label="t('library.work_page.row_edit_aria', { ord: String(item.row.ord) })"
+                  @click="dispatch('library.chapter_panel.open')"
+                >
+                  {{ t('library.work_page.row_edit') }}
+                </button>
               </span>
             </li>
             <li v-else class="wp-item wp-more" data-library-chapter-more>
@@ -696,6 +723,14 @@ onBeforeUnmount(() => {
 
       <aside v-if="panelVisible" class="wp-panel" :aria-label="t('library.work_page.panel_arrange')">
         <div v-if="sole !== null" class="wp-card" data-library-chapter-panel>
+          <button
+            type="button"
+            class="ui-btn ui-btn--quiet wp-card-close"
+            data-library-chapter-panel-close
+            @click="dispatch('library.chapter_panel.close')"
+          >
+            {{ t('library.work_page.panel_close') }}
+          </button>
           <div>
             <!-- aura-allow-text: ghép từ t() với dữ liệu Chương. -->
             <h3 class="wp-card-title">{{ t('library.work_page.panel_title', { ord: String(sole.ord), title: chapterTitleLabel(sole) }) }}</h3>
@@ -707,39 +742,12 @@ onBeforeUnmount(() => {
             </p>
           </div>
 
-          <div class="wp-go">
-            <button
-              type="button"
-              class="ui-btn ui-btn--lg"
-              :class="{ 'ui-btn--primary': sole.status !== 'done' }"
-              data-library-open-chapter
-              :disabled="!libraryChapterRules.open || writesBlocked"
-              @click="dispatch('library.open_chapter')"
-            >
-              {{ t('library.work_page.panel_translate') }}
-            </button>
-            <button
-              v-if="hasKnownStatus(sole)"
-              type="button"
-              class="ui-btn ui-btn--lg"
-              :class="{ 'ui-btn--primary': sole.status === 'done' }"
-              data-library-panel-read
-              :disabled="!libraryChapterRules.read || writesBlocked"
-              @click="dispatch('library.open_chapter_reading')"
-            >
-              {{ t('library.work_page.panel_read') }}
-            </button>
-          </div>
-          <p v-if="hasKnownStatus(sole) && sole.status !== 'done'" class="wp-note" data-library-panel-read-locked>
-            {{ t('library.work_page.panel_read_locked') }}
-          </p>
-
           <div class="wp-sect">
             <p class="wp-sect-title">{{ t('library.work_page.panel_arrange') }}</p>
             <div class="wp-grid2">
               <button
                 type="button"
-                class="ui-btn ui-btn--sm"
+                class="ui-btn"
                 data-library-chapter-rename-begin
                 :disabled="!libraryChapterRules.rename || writesBlocked"
                 @click="dispatch('library.chapter_rename.begin')"
@@ -748,7 +756,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 type="button"
-                class="ui-btn ui-btn--sm"
+                class="ui-btn"
                 data-library-chapter-split-open
                 :disabled="!libraryChapterRules.split || writesBlocked"
                 @mousedown="focusOnPointerDown($event)"
@@ -758,7 +766,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 type="button"
-                class="ui-btn ui-btn--sm"
+                class="ui-btn"
                 data-library-chapter-move-up
                 :disabled="!libraryChapterRules.moveUp || writesBlocked"
                 @click="dispatch('library.chapter_move_up')"
@@ -767,7 +775,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 type="button"
-                class="ui-btn ui-btn--sm"
+                class="ui-btn"
                 data-library-chapter-move-down
                 :disabled="!libraryChapterRules.moveDown || writesBlocked"
                 @click="dispatch('library.chapter_move_down')"
@@ -776,7 +784,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 type="button"
-                class="ui-btn ui-btn--sm"
+                class="ui-btn"
                 data-library-chapters-status-menu
                 :aria-expanded="libraryChapterStatusMenuOpen"
                 :disabled="!libraryChapterRules.status || writesBlocked"
@@ -786,7 +794,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 type="button"
-                class="ui-btn ui-btn--sm"
+                class="ui-btn"
                 data-export-open
                 :disabled="!libraryChapterRules.export"
                 @mousedown="focusOnPointerDown($event)"
@@ -796,7 +804,7 @@ onBeforeUnmount(() => {
               </button>
               <button
                 type="button"
-                class="ui-btn ui-btn--sm"
+                class="ui-btn"
                 data-library-chapters-reviewer-import
                 data-reviewer-import-open
                 @mousedown="focusOnPointerDown($event)"
@@ -810,8 +818,9 @@ onBeforeUnmount(() => {
           <div v-if="libraryChapterStatusMenuOpen" class="wp-status-menu" data-library-chapters-status-menu-list>
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-library-chapters-status-set="in_progress"
+              :aria-pressed="statusIsCurrent('in_progress')"
               :disabled="writesBlocked"
               @click="dispatch('library.chapters.status_set.in_progress')"
             >
@@ -819,8 +828,9 @@ onBeforeUnmount(() => {
             </button>
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-library-chapters-status-set="paused"
+              :aria-pressed="statusIsCurrent('paused')"
               :disabled="writesBlocked"
               @click="dispatch('library.chapters.status_set.paused')"
             >
@@ -828,8 +838,9 @@ onBeforeUnmount(() => {
             </button>
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-library-chapters-status-set="done"
+              :aria-pressed="statusIsCurrent('done')"
               :disabled="writesBlocked"
               @click="dispatch('library.chapters.status_set.done')"
             >
@@ -837,8 +848,9 @@ onBeforeUnmount(() => {
             </button>
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-library-chapters-status-set="not_started"
+              :aria-pressed="statusIsCurrent('not_started')"
               :disabled="writesBlocked"
               @click="dispatch('library.chapters.status_set.not_started')"
             >
@@ -918,7 +930,7 @@ onBeforeUnmount(() => {
           <div class="wp-grid2">
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-library-chapters-status-menu
               :aria-expanded="libraryChapterStatusMenuOpen"
               :disabled="!libraryChapterRules.status || writesBlocked"
@@ -928,7 +940,7 @@ onBeforeUnmount(() => {
             </button>
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-export-open
               :disabled="!libraryChapterRules.export"
               @mousedown="focusOnPointerDown($event)"
@@ -940,8 +952,9 @@ onBeforeUnmount(() => {
           <div v-if="libraryChapterStatusMenuOpen" class="wp-status-menu" data-library-chapters-status-menu-list>
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-library-chapters-status-set="in_progress"
+              :aria-pressed="statusIsCurrent('in_progress')"
               :disabled="writesBlocked"
               @click="dispatch('library.chapters.status_set.in_progress')"
             >
@@ -949,8 +962,9 @@ onBeforeUnmount(() => {
             </button>
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-library-chapters-status-set="paused"
+              :aria-pressed="statusIsCurrent('paused')"
               :disabled="writesBlocked"
               @click="dispatch('library.chapters.status_set.paused')"
             >
@@ -958,8 +972,9 @@ onBeforeUnmount(() => {
             </button>
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-library-chapters-status-set="done"
+              :aria-pressed="statusIsCurrent('done')"
               :disabled="writesBlocked"
               @click="dispatch('library.chapters.status_set.done')"
             >
@@ -967,8 +982,9 @@ onBeforeUnmount(() => {
             </button>
             <button
               type="button"
-              class="ui-btn ui-btn--sm"
+              class="ui-btn"
               data-library-chapters-status-set="not_started"
+              :aria-pressed="statusIsCurrent('not_started')"
               :disabled="writesBlocked"
               @click="dispatch('library.chapters.status_set.not_started')"
             >
@@ -1190,6 +1206,10 @@ onBeforeUnmount(() => {
   min-width: 200px;
 }
 
+.wp-seg-label {
+  white-space: nowrap;
+}
+
 .wp-seg-count {
   margin-left: calc(var(--space-unit) * 1);
   font-style: normal;
@@ -1342,8 +1362,8 @@ onBeforeUnmount(() => {
 
 .chapter-row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 170px 96px 84px 108px;
-  gap: 0;
+  grid-template-columns: 44px minmax(0, 1fr) 170px 96px 128px 140px;
+  column-gap: calc(var(--space-unit) * 3);
   cursor: default;
   user-select: none;
   border-left: 3px solid transparent;
@@ -1365,11 +1385,6 @@ onBeforeUnmount(() => {
 .chapter-row--selected {
   background: var(--color-surface-accent);
   border-left-color: var(--color-caret-rule);
-}
-
-.chapter-row--current {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
 }
 
 .chapter-ord {
@@ -1459,7 +1474,7 @@ onBeforeUnmount(() => {
 
 .chapter-act {
   display: grid;
-  grid-template-columns: 54px 48px;
+  grid-template-columns: 54px 48px 28px;
   gap: 4px;
   justify-content: end;
 }
@@ -1482,6 +1497,10 @@ onBeforeUnmount(() => {
   padding: calc(var(--space-unit) * 4) calc(var(--space-unit) * 5);
 }
 
+.wp-card-close {
+  align-self: flex-end;
+}
+
 .wp-card-title {
   margin: 0;
   font-family: var(--face-read-title);
@@ -1502,15 +1521,7 @@ onBeforeUnmount(() => {
   color: var(--color-on-surface-variant);
 }
 
-.wp-go {
-  display: flex;
-  gap: calc(var(--space-unit) * 2);
-}
 
-.wp-go .ui-btn {
-  flex: 1;
-  justify-content: center;
-}
 
 .wp-note {
   margin: 0;
@@ -1568,7 +1579,7 @@ onBeforeUnmount(() => {
   }
 
   .chapter-row {
-    grid-template-columns: 44px minmax(0, 1fr) 170px 96px 108px;
+    grid-template-columns: 44px minmax(0, 1fr) 170px 96px 140px;
   }
 
   .chapter-when {
@@ -1578,7 +1589,7 @@ onBeforeUnmount(() => {
 
 @container wp (max-width: 899px) {
   .chapter-row {
-    grid-template-columns: 44px minmax(0, 1fr) 96px 108px;
+    grid-template-columns: 44px minmax(0, 1fr) 96px 140px;
   }
 
   .chapter-seg {
