@@ -714,7 +714,7 @@ export const effectiveLineHeight: ComputedRef<number> = computed(
  * ký tự mỗi dòng tự giữ nguyên khi cỡ chữ đổi — không một phép quy đổi px nào ở đây.
  *
  * 🔵 **SỬA 2026-08-30 — thước đọc phải là `width`, KHÔNG `max-width`; tên `maxWidth` cũ nói sai
- * thứ nó là.** `.column` mang `flex: 0 0 auto`, nên với `max-width` nó co về bề rộng **NỘI
+ * thứ nó là.** `.column` nằm trong rãnh grid `auto`, nên với `max-width` nó co về bề rộng **NỘI
  * DUNG** và thước chỉ còn là một cái trần không bao giờ chạm tới.
  *
  * 🔴 **Đo bằng một phép GỠ THẬT trong WKWebView (2026-08-30, mức Cân = 68ch)** — hoàn nguyên

@@ -227,6 +227,36 @@ describe('modes/ReadingMode.vue — wrapper focus và affordance', () => {
     wrapper.unmount()
   })
 
+  it('B giữ câu đầu vùng nhìn đứng yên khi ghi chú nguyên văn đổi chiều cao đoạn', async () => {
+    mockInvoke.mockResolvedValue(undefined)
+    mockInvoke.mockResolvedValueOnce(RUN)
+    const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
+    const state = await import('../../src/modes/readingState')
+    const wrapper = mount(ReadingMode, { attachTo: document.body })
+    await state.ensureReadingLoaded()
+    await wrapper.vm.$nextTick()
+
+    const host = wrapper.get('section.mode').element as HTMLElement
+    let scrollTop = 0
+    Object.defineProperty(host, 'scrollTop', { configurable: true, get: () => scrollTop, set: (v: number) => { scrollTop = v } })
+    // jsdom has no layout: the sentence sits 60px lower once a source note is rendered.
+    const segment = wrapper.get('[data-reading-segment="12"]').element as HTMLElement
+    vi.spyOn(segment, 'getBoundingClientRect').mockImplementation(() => {
+      const top = document.querySelector('.source-note') === null ? 100 : 160
+      return { top, bottom: top + 20, left: 0, right: 0, width: 0, height: 20, x: 0, y: top, toJSON: () => ({}) }
+    })
+    const wasBilingual = state.readingBilingual.value
+
+    state.toggleBilingual()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.source-note').exists()).toBe(!wasBilingual)
+    expect(scrollTop).toBe(wasBilingual ? -60 : 60)
+    state.toggleBilingual()
+    await wrapper.vm.$nextTick()
+    expect(scrollTop).toBe(0)
+    wrapper.unmount()
+  })
+
   it('aim không tự cuộn và nút đang focus không bị thay node sau lượt mark', async () => {
     const scrollIntoView = vi.fn()
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {

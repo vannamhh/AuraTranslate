@@ -13556,3 +13556,10 @@ chính nó.
 
 - Màu và chiều cao của "Tiếp tục dịch"/"⋯" mới đo trên hai thẻ dựng tay, mang thuộc tính scoped của `LibraryMode`, ở cổng 1420, chưa đo trên thẻ do app render. Cần mắt trong app thật, cả theme sáng và tối: thẻ đang chọn, thẻ rê chuột, focus bàn phím (vòng `on-cover`), mở menu `⋯`.
   Chủ: Epic 12. Trỏ: `plan-nut-tren-bia-library-theo-mockup.md`.
+
+## Deferred from: Chế độ đọc căn giữa, song ngữ thẳng hàng (2026-10-29, ngoài cây vé)
+
+- source_plan: `plan-che-do-doc-can-giua-va-song-ngu-thang-hang.md`
+  summary: `check:tokens` Kiểm K (`GRID_PROPS` trong `scripts/check-tokens.mjs`) chỉ đọc `margin`, `margin-top/right/bottom/left`, `padding*` và `gap`, không đọc `margin-block*`/`margin-inline*`/`padding-block*`/`padding-inline*`.
+  evidence: review bắt `margin-block: 0 1em` mang `aura-allow-spacing` mà cổng không bao giờ xét, và `margin-inline-start` âm, lệch lưới 4px, lọt qua. Ở plan này hai dòng đó đã gộp thành `margin` để cổng đọc được: gỡ miễn trừ thì cổng đỏ. Thuộc tính logic ở các tệp khác vẫn lọt.
+  Chủ: Ice.

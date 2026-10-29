@@ -140,6 +140,23 @@ watch(readingRun, (loaded, previous) => {
   if (loaded !== null && previous === null) void restoreReadingAnchor()
 })
 
+let bilingualAnchor: { node: HTMLElement; top: number } | null = null
+
+/** Source notes change paragraph heights, so `B` keeps the first visible sentence where it was on screen. */
+watch(readingBilingual, () => {
+  const host = root.value
+  if (host === null) return
+  const boundary = host.getBoundingClientRect().top
+  const node = [...host.querySelectorAll<HTMLElement>('[data-reading-segment]')].find((el) => el.getBoundingClientRect().bottom > boundary)
+  bilingualAnchor = node === undefined ? null : { node, top: node.getBoundingClientRect().top }
+}, { flush: 'pre' })
+
+watch(readingBilingual, () => {
+  const host = root.value
+  if (host !== null && bilingualAnchor !== null) host.scrollTop += bilingualAnchor.node.getBoundingClientRect().top - bilingualAnchor.top
+  bilingualAnchor = null
+}, { flush: 'post' })
+
 /**
  * Chụp câu gần mép trên vùng đọc nhất NGAY TRƯỚC khi `<KeepAlive>` deactive component.
  * Đây là phép đo hình học nhất thời để chọn một ID; `DOMRect.top` không đi vào state hay
@@ -656,22 +673,7 @@ function paragraphRuns(
       giữ `<h2>` NGANG HÀNG — đúng thứ tự đọc tuyến tính "Chương 1, Chương 2, …, Mốc biên".
     -->
     <template v-for="chapter in runChapters" :key="chapter.chapter_id">
-      <section class="page">
-        <!--
-          🔵 SỬA (rà 2026-08-30) — GỠ `aria-hidden="true"`. Nguyên văn là NỘI DUNG người dùng
-          bật lên có chủ ý (`B`), không một hoạ tiết trang trí; ẩn nó khỏi trình đọc màn hình là
-          dựng đúng một cột chữ mà người dùng bàn phím/AT không với tới được — ngược NFR17.
-          🔵 SỬA cùng lượt — ngăn câu bằng MỘT DẤU CÁCH, không `join('')`: hai câu dán liền nhau
-          là một lỗi đọc thật. ⚠️ Dấu cách hơi thừa với nguyên văn tiếng Trung (`。` đã tự chở
-          khoảng nghỉ), và ta KHÔNG rẽ nhánh theo ngôn ngữ ở đây vì `ReadingChapter` không chở
-          `source_lang` trên dây — món nợ có chủ ở `deferred-work.md`, không một phép đoán tại chỗ.
-        -->
-        <div v-if="readingBilingual" class="margin">
-          <!-- aura-allow-text: nguyên văn là DỮ LIỆU của Tác phẩm, không câu giao diện. -->
-          <p v-for="(paragraph, index) in chapter.paragraphs" :key="index" class="source-note">
-            {{ paragraph.segments.map((s) => s.source_text).join(' ') }}
-          </p>
-        </div>
+      <section class="page" :class="{ bilingual: readingBilingual }">
         <!--
           🔴 `font-size`/`line-height` KHÔNG đi thẳng vào `:style` — `check:tokens` Kiểm B2 đòi
           hai thuộc tính đó luôn là `var(--font-…)`/`var(--leading-…)` LITERAL trong khối kiểu
@@ -711,7 +713,9 @@ function paragraphRuns(
             <figcaption v-if="image.caption_text !== null && image.caption_text !== ''" class="reading-figure-caption">{{ image.caption_text }}</figcaption>
           </figure>
           <template v-if="chapter.paragraphs.length > 0">
-            <template v-for="(paragraph, index) in chapter.paragraphs" :key="index">
+            <div v-for="(paragraph, index) in chapter.paragraphs" :key="index" class="reading-paragraph">
+              <!-- aura-allow-text: nguyên văn là DỮ LIỆU của Tác phẩm, không câu giao diện. -->
+              <p v-if="readingBilingual" class="source-note">{{ paragraph.segments.map((s) => s.source_text).join(' ') }}</p>
               <!--
                 🔵 Story 6.14 — MỘT đoạn Rust có thể vẽ thành NHIỀU `<p>` liền kề khi một ảnh
                 chen giữa hai câu của nó (§I/O Matrix "ảnh giữa hai câu ⇒ hiện sau câu k ở CẢ
@@ -781,7 +785,7 @@ function paragraphRuns(
                   <figcaption v-if="run.image.caption_text !== null && run.image.caption_text !== ''" class="reading-figure-caption">{{ run.image.caption_text }}</figcaption>
                 </figure>
               </template>
-            </template>
+            </div>
           </template>
           <!-- aura-allow-text: `chapterEmptyNote()` tự đi qua t() bên trong. -->
           <p v-else class="chapter-note">{{ chapterEmptyNote(chapter) }}</p>
@@ -1003,40 +1007,41 @@ function paragraphRuns(
   font-family: var(--face-ui-md-wrap);
 }
 
+/* `.page` carries the source-note font so `ch` in its grid track measures the same width as the note. */
 .page {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-panel-inline);
+  --source-note-inline: 30ch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+  font-size: var(--font-source-latin);
+  line-height: var(--leading-source-latin);
+  font-family: var(--face-source-latin);
 }
 
-/*
- * ⚠️ KHÔNG một token mới cho ghi chú song ngữ — `source-latin` đã tồn tại đúng cho vai
- * "nguyên văn" (Panel Source), và AD-34 đòi mọi token mới qua sổ `deviations` của
- * `check-tokens.mjs` kèm chữ ký Ice. `ReadingChapter` không mang `source_lang` (hình dạng
- * dây đã CHỐT ở bốn trường của `commands::segment::ReadingChapter`), nên không có tín
- * hiệu nào để chọn `source-cjk` thay `source-latin` — dùng một token DUY NHẤT cho cả
- * hai kịch bản là lựa chọn hẹp hơn, không phải một token thứ mười bảy.
- */
-.margin {
-  flex: 0 0 auto;
-  max-width: 22ch;
+.page.bilingual {
+  grid-template-columns: minmax(calc(var(--source-note-inline) + var(--space-panel-inline)), 1fr) minmax(0, auto) minmax(0, 1fr);
+}
+
+.reading-paragraph {
+  display: flow-root;
+}
+
+/* Hangs into the left track beside its own paragraph; the flow-root paragraph grows to hold a long
+   note, so it pushes the next paragraph down instead of overlapping the next note. */
+.source-note {
+  float: inline-start;
+  inline-size: var(--source-note-inline);
+  margin: 0 0 1em calc(-1 * (var(--source-note-inline) + var(--space-panel-inline))); /* aura-allow-spacing: nhịp đoạn theo em; lề trái âm bằng đúng bề rộng ghi chú (ch) cộng khe, không phải khoảng cách lưới */
+  text-align: end;
   font-size: var(--font-source-latin);
   line-height: var(--leading-source-latin);
   font-family: var(--face-source-latin);
   color: var(--color-on-surface-variant);
 }
 
-.source-note {
-  margin: 0 0 1em 0; /* aura-allow-spacing: khoảng cách đoạn văn theo em, tỉ lệ cỡ chữ đang áp — không phải khoảng cách lưới cố định */
-}
-
 .column {
-  flex: 0 0 auto;
-  /* 🔴 `max-width: 100%` là RÀO cửa sổ hẹp, KHÔNG phải thước đọc. Thước là `width` (`ch`), đặt
-     ở `:style`. Dùng `max-width` làm thước cho phép cột (`flex: 0 0 auto`) co về bề rộng NỘI
-     DUNG, và lúc đó số ký tự mỗi dòng không còn do thước quyết: đo bằng một phép GỠ thật trong
-     WKWebView (2026-08-30) cho **57,27 ch** thay vì **68,00 ch**. Lý lẽ và bảng số đầy đủ ở
-     khối 🔵 của `readingStyle` trong `readingState.ts`. */
+  grid-column: 2;
+  /* `max-width` only guards narrow windows; the measure is `width`, since a `max-width` measure
+     lets the `auto` grid track shrink the column to its content. */
   max-width: 100%;
   /* Ba mức Thoáng/Cân/Đặc đều khai `family: read` — họ chữ không đổi theo mức, chỉ cỡ
      chữ/giãn dòng/thước đo đổi (qua hai biến CSS đặt ở `:style`, xem chú thích template). */
@@ -1145,6 +1150,7 @@ function paragraphRuns(
 /* Mốc biên (Story 5.12) — chỉ token đã có: vạch ngăn dùng `--color-outline`, chữ phụ dùng
    `--color-on-surface-variant`. Không `box-shadow`, không gradient, không `opacity` lùi chữ. */
 .frontier {
+  text-align: center;
   margin-top: var(--space-panel-block);
   padding-top: var(--space-panel-block);
   border-top: 1px solid var(--color-outline);

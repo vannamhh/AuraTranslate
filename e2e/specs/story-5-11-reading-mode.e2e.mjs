@@ -183,26 +183,81 @@ describe('Story 5.11 — Chế độ đọc: typography và bố cục đọc d�
     // Đóng khối tinh chỉnh lại — không để nó che phần còn lại của trang cho các mệnh đề sau.
     await realClick(await $('[data-reading-toggle-tuner]'))
 
-    // ── ④ Song ngữ: nguyên văn ở lề TRÁI, cột đọc GIỮ NGUYÊN bề rộng ─────────────────
+    // ── ④ Song ngữ: nguyên văn ở lề TRÁI, cột đọc GIỮ NGUYÊN bề rộng khi đủ chỗ ─────────────────
     const widthBeforeBilingual = await browser.execute(() => document.querySelector('.column').getBoundingClientRect().width)
+    const sidesOf = () => browser.execute(() => {
+      const col = document.querySelector('.column').getBoundingClientRect()
+      const page = document.querySelector('.page').getBoundingClientRect()
+      return { left: col.left - page.left, right: page.right - col.right }
+    })
+    const sidesPlain = await sidesOf()
+    await expect(Math.abs(sidesPlain.left - sidesPlain.right)).toBeLessThan(2)
 
     await browser.keys(['b'])
-    await browser.waitUntil(async () => browser.execute(() => document.querySelector('.margin') !== null), {
+    await browser.waitUntil(async () => browser.execute(() => document.querySelector('.source-note') !== null), {
       timeout: 5_000,
       timeoutMsg: 'le song ngu khong hien sau khi bam B',
     })
 
     const bilingual = await browser.execute(() => {
-      const margin = document.querySelector('.margin')
+      const note = document.querySelector('.source-note')
       const col = document.querySelector('.column')
+      const paragraph = note.closest('.reading-paragraph')
+      const noteBox = note.getBoundingClientRect()
+      const text = paragraph.querySelector('.paragraph').getBoundingClientRect()
+      // The fixture has one paragraph; a cloned second one shows that a note taller than its
+      // paragraph stays inside it and the next paragraph and its note start below, still level.
+      const original = note.textContent
+      const next = paragraph.cloneNode(true)
+      paragraph.after(next)
+      note.textContent = original.repeat(40)
+      const nextNote = next.querySelector('.source-note').getBoundingClientRect()
+      const nextText = next.querySelector('.paragraph').getBoundingClientRect()
+      const tall = { note: note.getBoundingClientRect().bottom, paragraph: paragraph.getBoundingClientRect().bottom }
+      note.textContent = original
+      next.remove()
       return {
-        marginLeft: margin.getBoundingClientRect().left,
+        noteLeft: noteBox.left,
+        noteRight: noteBox.right,
+        noteTopToText: noteBox.top - text.top,
+        tallNoteOverhang: tall.note - tall.paragraph,
+        nextTopBelowTallNote: nextText.top - tall.note,
+        nextNoteTopToText: nextNote.top - nextText.top,
+        pageLeft: document.querySelector('.page').getBoundingClientRect().left,
         colLeft: col.getBoundingClientRect().left,
         colWidth: col.getBoundingClientRect().width,
       }
     })
-    await expect(bilingual.marginLeft).toBeLessThan(bilingual.colLeft)
+    await expect(bilingual.noteRight).toBeLessThanOrEqual(bilingual.colLeft)
+    await expect(bilingual.noteLeft).toBeGreaterThanOrEqual(bilingual.pageLeft)
+    await expect(Math.abs(bilingual.noteTopToText)).toBeLessThan(1)
+    await expect(bilingual.tallNoteOverhang).toBeLessThanOrEqual(0)
+    await expect(bilingual.nextTopBelowTallNote).toBeGreaterThanOrEqual(0)
+    await expect(Math.abs(bilingual.nextNoteTopToText)).toBeLessThan(1)
     await expect(bilingual.colWidth).toBe(widthBeforeBilingual)
+    // Centred when both sides can hold the note track; otherwise the left side keeps exactly the
+    // note track and the column moves right (the tuner above has widened the column).
+    const sidesBilingual = await sidesOf()
+    const noteTrack = bilingual.noteRight - bilingual.noteLeft + (bilingual.colLeft - bilingual.noteRight)
+    const halfFree = (sidesBilingual.left + sidesBilingual.right) / 2
+    await expect(Math.abs(sidesBilingual.left - Math.max(noteTrack, halfFree))).toBeLessThan(2)
+
+    // Too narrow even for the shifted column: the left side keeps the note track, the column shrinks.
+    const narrow = await browser.execute((track) => {
+      const page = document.querySelector('.page')
+      const col = document.querySelector('.column')
+      page.style.width = `${String(col.getBoundingClientRect().width + track - 100)}px`
+      const result = {
+        colWidth: col.getBoundingClientRect().width,
+        colLeft: col.getBoundingClientRect().left - page.getBoundingClientRect().left,
+        noteLeft: document.querySelector('.source-note').getBoundingClientRect().left - page.getBoundingClientRect().left,
+      }
+      page.style.width = ''
+      return result
+    }, noteTrack)
+    await expect(Math.abs(narrow.colWidth - (widthBeforeBilingual - 100))).toBeLessThan(2)
+    await expect(Math.abs(narrow.colLeft - noteTrack)).toBeLessThan(2)
+    await expect(narrow.noteLeft).toBeGreaterThanOrEqual(0)
 
     // Tắt song ngữ lại — dọn trạng thái cho spec kế tiếp trong cùng phiên app.
     await browser.keys(['b'])

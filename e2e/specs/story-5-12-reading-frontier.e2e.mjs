@@ -137,7 +137,7 @@ describe('Story 5.12 — Chế độ đọc chỉ đọc phần đã xong', () =
     await expect(bodyTextClosed).not.toContain(SOURCE_TWO)
 
     await browser.keys(['b'])
-    await browser.waitUntil(async () => browser.execute(() => document.querySelector('.margin') !== null), {
+    await browser.waitUntil(async () => browser.execute(() => document.querySelector('.source-note') !== null), {
       timeout: 5_000,
       timeoutMsg: 'le song ngu khong hien sau khi bam B',
     })

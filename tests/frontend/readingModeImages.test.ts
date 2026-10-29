@@ -165,11 +165,10 @@ describe('ReadingMode.vue — ảnh đúng vị trí (Story 6.14)', () => {
 
     const column = rootOf(w).querySelector('.column')
     expect(column).not.toBeNull()
-    const children = Array.from(column?.children ?? [])
     const tagOf = (el: Element) => (el.tagName === 'FIGURE' ? 'figure' : el.tagName === 'P' ? 'p' : el.tagName)
 
-    // Thứ tự: tiêu đề Chương, figure(lead), p(câu 1), figure(mid), p(câu 2).
-    const relevant = children.filter((el) => el.tagName === 'FIGURE' || el.classList.contains('paragraph'))
+    // Thứ tự tài liệu: figure(lead), p(câu 1), figure(mid), p(câu 2).
+    const relevant = Array.from(column?.querySelectorAll('figure, .paragraph') ?? [])
     expect(relevant.map(tagOf)).toEqual(['figure', 'p', 'figure', 'p'])
 
     const [leadFigure, firstP, midFigure, secondP] = relevant
