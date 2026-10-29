@@ -89,7 +89,9 @@ về hưu. Không thêm dependency, box-shadow, màu/cỡ chữ viết cứng, h
   đổi mode có chủ ý.
 - `src/modes/ReadingMode.vue:76-85,365-476` — wrapper câu, root focus và overlay TOC. Wrapper là một
   tab stop; local `keydown Enter` dispatch command keyless; affordance chỉ hiện `:hover`/
-  `:focus-within`; marker list dùng cùng kỷ luật focus của TOC.
+  `:focus-within`; marker list dùng cùng kỷ luật focus của TOC. 🔵 2026-10-29: Ice đổi, affordance chỉ hiện
+  khi câu có focus (bấm chuột hoặc Tab), không hiện khi hover; xem
+  `_bmad-output/initiative-auratranslate/plan-nhan-danh-dau-doc-khong-de-chu.md`.
 - `src/panels/editorPanelState.ts:1766` — `openChapterById(chapterId, segmentId?)` đã flush, nạp và
   đặt caret đúng segment; tái dùng nguyên, không dựng đường điều hướng thứ hai.
 - `src/commands/index.ts:1362-1505` · `src/main.ts:250-470` — đăng ký `reading.mark_aimed` với bare
@@ -131,7 +133,7 @@ về hưu. Không thêm dependency, box-shadow, màu/cỡ chữ viết cứng, h
    mark aimed, không mở list; Enter chỉ cục bộ. Nút mở list và các nút overlay dùng đúng một
    `dispatch('<id>')`.
 9. `tests/**` + `e2e/specs/story-5-13-reading-marks.e2e.mjs` — test adapter/state/DOM và bề mặt
-   WebKit: hover/focus visibility, M không đổi mode/vị trí, Enter exact, list nhiều Chương, retired
+   WebKit: hover/focus visibility (🔵 2026-10-29: hover không hiện, focus hiện), M không đổi mode/vị trí, Enter exact, list nhiều Chương, retired
    qua regroup lặp và neo cuộn trở lại.
 10. `_bmad-output/initiative-auratranslate/deferred-work.md` + story/sprint tracking — đóng FR119 và
     món nợ vị trí đọc bằng chữ, chỉ sau khi có bằng chứng; không xoá lịch sử.

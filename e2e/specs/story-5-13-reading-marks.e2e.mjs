@@ -63,26 +63,16 @@ async function measureMarkChip(segmentId) {
       gapAfterLastGlyph: box.left - last.right,
       gapAfterColumn: box.left - (node.closest('.column')?.getBoundingClientRect().right ?? Infinity),
     }
-    // Hit-testing needs the last line on screen; scroll there and restore before yielding,
+    // Hit-testing needs the chip on screen; scroll there and restore before yielding,
     // so no pointer event sees the moved layout.
     const scrolled = []
     for (let el = chip.parentElement; el !== null; el = el.parentElement) scrolled.push([el, el.scrollTop])
     chip.scrollIntoView({ block: 'center' })
-    const tail = [...text.getClientRects()].at(-1)
     const shown = chip.getBoundingClientRect()
-    const path = []
-    for (const y of [tail.top + 2, (tail.top + tail.bottom) / 2, tail.bottom - 2]) {
-      for (let x = tail.right - 2; x <= shown.left + 6; x += 2) {
-        const hit = document.elementFromPoint(x, y)
-        path.push(hit !== null && node.contains(hit))
-      }
-    }
     const button = document.elementFromPoint(shown.left + shown.width / 4, (shown.top + shown.bottom) / 2)
     for (const [el, top] of scrolled) el.scrollTop = top
     return {
       ...geometry,
-      pathPoints: path.length,
-      pathOffSentence: path.filter((own) => !own).length,
       buttonHit: button instanceof Element && button.closest('.mark-affordance') !== null,
     }
   }, segmentId)
@@ -129,12 +119,8 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     await expect(await affordance.isExisting()).toBe(true)
     await expect(await browser.execute((button) => button.getClientRects().length, affordance)).toBe(0)
 
-    // Embedded WebDriver của WKWebView không sinh `:hover` từ Actions `move`: bàn đo
-    // 2026-08-31 đã nhắm đúng `ClientRect` (elementFromPoint = `.segment-text`) nhưng
-    // `document.querySelectorAll(':hover')` vẫn rỗng, cùng lớp giới hạn đã đo cho text
-    // selection ở `glossary-quick-add.e2e.mjs`. Phát `mouseenter` trên engine thật để
-    // nghiệm thu đường SẢN PHẨM (`@mouseenter` → aim → Vue render); CSS `:hover` vẫn là
-    // đường bổ sung cho con trỏ người dùng thật.
+    // The embedded WKWebView driver never produces `:hover` from Actions `move`; `mouseenter`
+    // drives the product path instead: the pointer aims the sentence for `M` but shows no chip.
     const entered = await browser.execute((id) => {
       const node = document.querySelector(`[data-reading-segment="${id}"]`)
       if (!(node instanceof HTMLElement)) return false
@@ -142,32 +128,29 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
       return true
     }, originalMarkedId)
     await expect(entered).toBe(true)
-    await browser.waitUntil(
-      async () => browser.execute((id) => {
-        const button = document.querySelector(`[data-reading-segment="${id}"] .mark-affordance`)
-        return button instanceof HTMLElement && button.getClientRects().length > 0
-      }, originalMarkedId),
-      { timeout: 5_000, timeoutMsg: 'affordance marker không hiện khi hover' },
-    )
+    await browser.pause(100)
+    await expect(await browser.execute((button) => button.getClientRects().length, affordance)).toBe(0)
     await browser.execute((id) => {
       const node = document.querySelector(`[data-reading-segment="${id}"]`)
       if (node instanceof HTMLElement) node.dispatchEvent(new MouseEvent('mouseleave'))
     }, originalMarkedId)
-    await browser.waitUntil(
-      async () => browser.execute((id) => {
-        const button = document.querySelector(`[data-reading-segment="${id}"] .mark-affordance`)
-        return button instanceof HTMLElement && button.getClientRects().length === 0
-      }, originalMarkedId),
-      { timeout: 5_000, timeoutMsg: 'affordance marker không ẩn sau khi chuột rời câu' },
-    )
+
+    // The driver's pointer events arrive with `isTrusted: false`, so a click never moves focus
+    // here; focus the wrapper the way a trusted click on a `tabindex` element does.
     await focusReadingSegment(originalMarkedId)
     await browser.waitUntil(
       async () => browser.execute((id) => {
         const button = document.querySelector(`[data-reading-segment="${id}"] .mark-affordance`)
         return button instanceof HTMLElement && button.getClientRects().length > 0
       }, originalMarkedId),
-      { timeout: 5_000, timeoutMsg: 'affordance marker không hiện khi wrapper nhận focus' },
+      { timeout: 5_000, timeoutMsg: 'affordance marker không hiện khi câu nhận focus' },
     )
+    // The pointer crossing another sentence leaves the focused sentence's chip shown and in the margin.
+    await browser.execute((id) => {
+      const node = document.querySelector(`[data-reading-segment="${id}"]`)
+      node?.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true, composed: true }))
+    }, initial.segments[0].id)
+    await browser.pause(100)
     await expect(await affordance.getAttribute('tabindex')).toBe('-1')
 
     const sideChip = await measureMarkChip(originalMarkedId)
@@ -175,8 +158,6 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     await expect(sideChip?.onLastLine).toBe(true)
     await expect(sideChip?.gapAfterColumn).toBeGreaterThanOrEqual(0)
     await expect(sideChip?.gapAfterColumn).toBeLessThan(32)
-    await expect(sideChip?.pathPoints).toBeGreaterThan(0)
-    await expect(sideChip?.pathOffSentence).toBe(0)
     await expect(sideChip?.buttonHit).toBe(true)
 
     const narrowed = await browser.execute((id) => {
@@ -198,7 +179,6 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
     await expect(inlineChip?.gapAfterColumn).toBeLessThan(0)
     await expect(inlineChip?.gapAfterLastGlyph).toBeGreaterThanOrEqual(0)
     await expect(inlineChip?.gapAfterLastGlyph).toBeLessThan(32)
-    await expect(inlineChip?.pathOffSentence).toBe(0)
     await expect(inlineChip?.buttonHit).toBe(true)
 
     const beforeMark = await browser.execute((id) => {

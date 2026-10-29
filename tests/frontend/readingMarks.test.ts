@@ -258,6 +258,33 @@ describe('modes/ReadingMode.vue — wrapper focus và affordance', () => {
     wrapper.unmount()
   })
 
+  it('chuột đặt aim khi chưa câu nào có focus; câu đang focus giữ aim khi chuột đi qua câu khác', async () => {
+    const twoSegments = structuredClone(RUN)
+    twoSegments.chapters[0].paragraphs = [{ segments: [SEGMENT, { ...SEGMENT, id: 13 }] }]
+    twoSegments.chapters[0].segment_count = 2
+    mockInvoke.mockResolvedValueOnce(twoSegments)
+    const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
+    const state = await import('../../src/modes/readingState')
+    const wrapper = mount(ReadingMode, { attachTo: document.body })
+    await state.ensureReadingLoaded()
+    await wrapper.vm.$nextTick()
+
+    const first = wrapper.get('[data-reading-segment="12"]')
+    const second = wrapper.get('[data-reading-segment="13"]')
+    await first.trigger('mouseenter')
+    expect(state.readingAimedSegmentId.value).toBe(12)
+    await first.trigger('mouseleave')
+    expect(state.readingAimedSegmentId.value).toBeNull()
+
+    ;(second.element as HTMLElement).focus()
+    await wrapper.vm.$nextTick()
+    expect(state.readingAimedSegmentId.value).toBe(13)
+    await first.trigger('mouseenter')
+    await first.trigger('mouseleave')
+    expect(state.readingAimedSegmentId.value).toBe(13)
+    wrapper.unmount()
+  })
+
   it('overlay marker có tên và giữ Tab ở trong chuỗi nút của nó', async () => {
     mockInvoke.mockResolvedValueOnce(RUN)
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')

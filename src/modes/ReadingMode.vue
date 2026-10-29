@@ -34,7 +34,6 @@ import {
   readingChaptersDone,
   readingCurrentChapter,
   readingAnchorSegmentId,
-  readingAimedSegmentId,
   readingRun,
   readingLoadError,
   readingMarkerError,
@@ -183,6 +182,7 @@ onDeactivated(() => {
   rememberReadingViewportAnchor()
   readingModeActive = false
   clearReadingAim()
+  focusedSegmentId.value = null
   // `<KeepAlive>` giữ subtree của BA chế độ sống, nhưng `readingRun` (Chương + đoạn + câu của
   // TOÀN BỘ lượt đọc đang mở) sống
   // ở module-level `readingState.ts`, không theo vòng đời component — không dọn ở đây thì
@@ -195,31 +195,40 @@ onDeactivated(() => {
   resetReading({ preserveAnchor: true })
 })
 
-const markChipSide = ref<{ segmentId: number; bridge: number } | null>(null)
+const focusedSegmentId = ref<number | null>(null)
+const markChipSideId = ref<number | null>(null)
 
-watch(readingAimedSegmentId, (segmentId) => {
-  markChipSide.value = segmentId === null ? null : measureMarkChipSide(segmentId)
+watch(focusedSegmentId, (segmentId) => {
+  markChipSideId.value = segmentId !== null && markChipFitsRightMargin(segmentId) ? segmentId : null
 }, { flush: 'post' })
 
-/** `null` keeps the chip right after the last glyph: the page has no right margin wide enough for it. */
-function measureMarkChipSide(segmentId: number): { segmentId: number; bridge: number } | null {
+/** `false` keeps the chip right after the last glyph: the page has no right margin wide enough for it. */
+function markChipFitsRightMargin(segmentId: number): boolean {
   const segment = root.value?.querySelector<HTMLElement>(`[data-reading-segment="${String(segmentId)}"]`)
   const column = segment?.closest<HTMLElement>('.column')
   const page = column?.parentElement
   const chip = segment?.querySelector<HTMLElement>('.mark-actions')
-  const lines = segment?.querySelector('.segment-text')?.getClientRects()
-  const lastLine = lines?.item(lines.length - 1) ?? null
-  if (!(column instanceof HTMLElement) || !(page instanceof HTMLElement) || !(chip instanceof HTMLElement) || lastLine === null) return null
+  if (!(column instanceof HTMLElement) || !(page instanceof HTMLElement) || !(chip instanceof HTMLElement)) return false
   const gap = parseFloat(getComputedStyle(chip).marginInlineStart)
-  const columnRight = column.getBoundingClientRect().right
-  if (page.getBoundingClientRect().right - columnRight < chip.offsetWidth + 2 * gap) return null
-  return { segmentId, bridge: Math.round(columnRight + gap - lastLine.right) }
+  return page.getBoundingClientRect().right - column.getBoundingClientRect().right >= chip.offsetWidth + 2 * gap
+}
+
+/** A focused sentence's chip is the visible target of `M` and Enter, so the pointer must not move the aim off it. */
+function onSegmentMouseEnter(segmentId: number): void {
+  if (focusedSegmentId.value === null) setReadingAim(segmentId)
+}
+
+function onSegmentFocusIn(segmentId: number): void {
+  setReadingAim(segmentId)
+  focusedSegmentId.value = segmentId
 }
 
 function onSegmentFocusOut(event: FocusEvent, segmentId: number): void {
   const wrapper = event.currentTarget as HTMLElement
   const next = event.relatedTarget
-  if (!(next instanceof Node) || !wrapper.contains(next)) clearReadingAim(segmentId)
+  if (next instanceof Node && wrapper.contains(next)) return
+  clearReadingAim(segmentId)
+  if (focusedSegmentId.value === segmentId) focusedSegmentId.value = null
 }
 
 function onSegmentMouseLeave(event: MouseEvent, segmentId: number): void {
@@ -732,15 +741,13 @@ function paragraphRuns(
                     :class="{
                       unconfirmed: !segment.is_confirmed,
                       marked: segment.is_marked,
-                      aimed: readingAimedSegmentId === segment.id,
-                      'mark-side': markChipSide?.segmentId === segment.id,
+                      'mark-side': markChipSideId === segment.id,
                     }"
-                    :style="markChipSide?.segmentId === segment.id ? { '--mark-bridge': `${String(markChipSide.bridge)}px` } : undefined"
                     :data-reading-segment="segment.id"
                     tabindex="0"
-                    @mouseenter="setReadingAim(segment.id)"
+                    @mouseenter="onSegmentMouseEnter(segment.id)"
                     @mouseleave="onSegmentMouseLeave($event, segment.id)"
-                    @focusin="setReadingAim(segment.id)"
+                    @focusin="onSegmentFocusIn(segment.id)"
                     @focusout="onSegmentFocusOut($event, segment.id)"
                     @keydown.enter="onReadingSegmentEnter"
                     ><!-- aura-allow-text: bản dịch là DỮ LIỆU Tác phẩm; biểu thức đầu chỉ ngăn câu. -->
@@ -1111,21 +1118,6 @@ function paragraphRuns(
   inset-inline-start: 100%;
 }
 
-/* Pointer bridge from the last glyph to the chip over the full reading line: without it the path
-   crosses the next sentence, which takes the aim and hides the chip. */
-.mark-actions::before {
-  content: '';
-  position: absolute;
-  inset-block-start: 0;
-  block-size: 1lh;
-  inset-inline-start: calc(-1 * var(--mark-bridge, var(--space-panel-inline)));
-  inset-inline-end: 0;
-  /* aura-allow-z-index: kept under the buttons inside the chip's own stacking context so it never takes their clicks */
-  z-index: -1;
-}
-
-.reading-segment:hover .mark-actions,
-.reading-segment.aimed .mark-actions,
 .reading-segment:focus-within .mark-actions {
   display: inline-flex;
 }
