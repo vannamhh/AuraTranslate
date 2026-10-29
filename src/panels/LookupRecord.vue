@@ -103,7 +103,7 @@ const senseTotalKey = computed(() =>
     <div class="lookup-source-head">
       <!-- aura-allow-text: `display_name` là DỮ LIỆU đọc từ `dict_source` của chính tệp
            .db (AC2, FR31) — không chuỗi giao diện của vi.json. -->
-      <span class="lookup-source-name">{{ group.source.display_name }}</span>
+      <span class="lookup-source-name" :title="group.source.display_name">{{ group.source.display_name }}</span>
       <span v-if="senseTotal !== null" class="lookup-source-count">{{
         t(senseTotalKey, { n: String(senseTotal) })
       }}</span>
@@ -252,6 +252,10 @@ const senseTotalKey = computed(() =>
   letter-spacing: var(--tracking-ui-label);
   color: var(--color-primary);
   text-transform: uppercase;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lookup-source-count,
