@@ -923,11 +923,14 @@ onBeforeUnmount(() => {
    * `--lookup-head-height` giữ NGUYÊN giá trị **và** vai trò; `overflow: hidden` ở lại.
    */
   position: relative;
-  padding-bottom: calc(var(--space-unit) * 1);
+  display: flex;
+  align-items: center;
   border-bottom: 1px solid var(--color-outline);
 }
 
 .lookup-head-row {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: baseline;
   gap: var(--space-panel-inline);
