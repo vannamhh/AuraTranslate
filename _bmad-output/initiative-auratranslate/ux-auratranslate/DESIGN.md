@@ -133,6 +133,7 @@ spacing:
   unit: 7px
   panel-inline: 14px
   panel-block: 14px
+  screen-inline: 21px
   head-height: 35px
   titlebar-height: 42px
   status-height: 35px
@@ -323,7 +324,7 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 
 | Nhóm | Token |
 |---|---|
-| **Spacing** | `panel-inline 14px` · `panel-block 14px` · `head-height 35px` · `titlebar-height 42px` · `status-height 35px` · `gutter-width 21px`. 🔵 2026-10-29 (Ice): từ 16 · 12 · 36 · 40 · 34 · 22 |
+| **Spacing** | `panel-inline 14px` · `panel-block 14px` · `screen-inline 21px` · `head-height 35px` · `titlebar-height 42px` · `status-height 35px` · `gutter-width 21px`. 🔵 2026-10-29 (Ice): từ 16 · 12 · 36 · 40 · 34 · 22 |
 | **Thước đọc** | `read-measure-lg 62ch` · `read-measure-md 68ch` · `read-measure-sm 76ch` |
 | **Bo góc** | `none 0` · `sm 2px` · **mặc định `3px`** · `md 4px` · `window 9px` · `full 9999px` |
 
@@ -414,6 +415,7 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 | Thanh panel | 36 | **35** |
 | Thanh trạng thái | 34 | **35** |
 | Đệm panel ngang · dọc | 16 · 12 | **14 · 14** |
+| Lề mép cửa sổ (`screen-inline`): thanh tiêu đề, thanh trạng thái, Library, Chế độ đọc, dải chân | 14 | **21**. 🔵 2026-10-30 (Ice): lớp phủ và cạnh panel giáp panel khác giữ `panel-inline`; panel Workspace chạm mép cửa sổ vẫn tràn sát mép, chỉ đệm phía mép đó là `screen-inline` |
 | Điều khiển | 24 / 28 / 32 | **28 / 28 / 35** (§Điều khiển) |
 | Biểu tượng · vùng bấm | 16 · 26 | **14 · 28** |
 | Vùng bấm checkbox · công tắc | 24 · 28×16 | **28 · 28×14** |
@@ -439,7 +441,7 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 - Phần tử không mang chữ và không phải biểu tượng (nét ngăn ở thanh trạng thái, thanh tiến độ) canh giữa hàng.
 - ⚠️ Cách flexbox tự sinh baseline cho phần tử không có chữ khác nhau giữa WebKit và WebView2. Phần Windows chỉ kiểm được ở `B7`.
 
-**Không theo lưới.** Bề dày viền và vạch (1 · 2 · 3px), bo góc, cỡ chữ, hình học của ba nút cửa sổ do hệ điều hành vẽ, và thanh cuộn 10px. Thanh cuộn nằm ở mép panel, ngoài mọi đệm, nên nó không đẩy mép trái của nội dung nào; thu xuống 7px thì khó bắt chuột hơn.
+**Không theo lưới.** Bề dày viền và vạch (1 · 2 · 3px), bo góc, cỡ chữ, hình học của ba nút cửa sổ do hệ điều hành vẽ, và thanh cuộn 10px. Thanh cuộn nằm ở mép panel, ngoài mọi đệm, nên nó không đẩy mép trái của nội dung nào; thu xuống 7px thì khó bắt chuột hơn. 🔵 2026-10-30 (Ice): vùng cuộn chạm mép cửa sổ giữ sẵn chỗ thanh cuộn (`scrollbar-gutter: stable`) và trừ 10px khỏi đệm phải, để lề trái và lề phải bằng nhau.
 
 ## Elevation & Depth
 

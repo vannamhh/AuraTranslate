@@ -169,7 +169,7 @@ const reviewNoticeOffersImport = computed(
 .narrow-notice {
   flex: none;
   margin: 0;
-  padding: 14px 14px 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
+  padding: 14px var(--space-screen-inline) 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
   background: var(--color-surface-accent);
   font-family: var(--face-ui-sm);

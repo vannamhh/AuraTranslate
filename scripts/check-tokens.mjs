@@ -271,6 +271,7 @@ const EXPECTED_SPACING = {
   unit: '7px',
   'panel-inline': '14px',
   'panel-block': '14px',
+  'screen-inline': '21px',
   'head-height': '35px',
   'titlebar-height': '42px',
   'status-height': '35px',

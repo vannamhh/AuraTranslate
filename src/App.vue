@@ -422,7 +422,7 @@ onMounted(async () => {
 .config-error {
   flex: none;
   margin: 0;
-  padding: var(--space-panel-inline);
+  padding: var(--space-panel-block) var(--space-screen-inline);
   border-bottom: 1px solid var(--color-outline);
   color: var(--color-error);
   background: var(--color-surface);
@@ -436,7 +436,7 @@ onMounted(async () => {
   align-items: center;
   flex: none;
   height: var(--space-titlebar-height);
-  padding: 0 var(--space-panel-inline);
+  padding: 0 var(--space-screen-inline);
   border-bottom: 1px solid var(--color-outline);
   user-select: none;
 }

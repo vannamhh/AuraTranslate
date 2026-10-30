@@ -1036,8 +1036,10 @@ function paragraphRuns(
 .mode {
   position: relative;
   height: 100%;
-  padding: var(--space-panel-block) var(--space-panel-inline);
+  padding: var(--space-panel-block) var(--space-screen-inline);
+  padding-right: 11px; /* aura-allow-spacing: the reserved 10px scrollbar gutter completes the 21px inset */
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 /* Xem lý do đầy đủ ở `LibraryMode.vue` — `outline: none` chỉ áp cho gốc `tabindex="-1"`,

@@ -940,8 +940,10 @@ const importScreenIsOpen = computed<boolean>(
 <style scoped>
 .mode {
   height: 100%;
-  padding: var(--space-panel-block) 21px;
+  padding: var(--space-panel-block) var(--space-screen-inline);
+  padding-right: 11px; /* aura-allow-spacing: the reserved 10px scrollbar gutter completes the 21px inset */
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 /*

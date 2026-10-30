@@ -738,7 +738,7 @@ const libraryErrorText = computed<string | null>(() => {
   flex: none;
   height: var(--space-status-height);
   gap: var(--space-panel-inline);
-  padding: 0 var(--space-panel-inline);
+  padding: 0 var(--space-screen-inline);
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface);
 }

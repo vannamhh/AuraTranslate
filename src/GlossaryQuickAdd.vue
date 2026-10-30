@@ -260,7 +260,7 @@ watch(quickAddIsOpen, (open) => {
   flex-direction: column;
   flex: none;
   gap: calc(var(--space-unit) * 1);
-  padding: var(--space-panel-inline);
+  padding: var(--space-panel-block) var(--space-screen-inline);
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface);
   font-family: var(--face-ui-md);

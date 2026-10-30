@@ -185,6 +185,7 @@ const usageText = computed<string | null>(() => {
   <section
     v-if="isVisible"
     class="proofreader-strip"
+    :class="{ 'proofreader-strip--foot': place === 'foot' }"
     :aria-label="titleText"
     @keydown.esc.prevent="dispatch('ai.proofread.hide')"
   >
@@ -344,6 +345,11 @@ const usageText = computed<string | null>(() => {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
+}
+
+.proofreader-strip--foot {
+  padding-right: var(--space-screen-inline);
+  padding-left: 18px; /* aura-allow-spacing: the 3px rule sits inside the 21px inset */
 }
 
 .pfs-head {
