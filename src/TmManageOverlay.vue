@@ -1002,7 +1002,7 @@ function onKeydown(event: KeyboardEvent): void {
   max-width: 882px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -1048,8 +1048,8 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-mix {
   flex: 1;
-  min-width: 16rem;
-  max-width: 26rem;
+  min-width: 259px;
+  max-width: 420px;
 }
 
 .tm-track {
@@ -1104,7 +1104,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-hnote {
   flex: 1;
-  min-width: 14rem;
+  min-width: 224px;
   margin: 0;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1114,7 +1114,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-box {
   margin: 0 0 var(--space-panel-block) 0;
-  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline) calc(var(--space-unit) * 1) 12px; /* aura-allow-spacing: left border sits inside the 14px inset */
   border-left: 2px solid var(--color-primary);
   background: var(--color-surface-accent);
   font-family: var(--face-ui-sm);
@@ -1174,7 +1174,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-field-search {
   flex: 2;
-  min-width: 12rem;
+  min-width: 196px;
 }
 
 .tm-field {
@@ -1182,7 +1182,7 @@ function onKeydown(event: KeyboardEvent): void {
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
   flex: 1;
-  min-width: 8rem;
+  min-width: 133px;
 }
 
 .tm-field-label {
@@ -1221,15 +1221,15 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-list-head,
 .tm-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 9rem 6rem;
+  grid-template-columns: 1fr 1fr 147px 98px;
   gap: var(--space-panel-inline);
-  padding: calc(var(--space-unit) * 1) var(--space-panel-inline) calc(var(--space-unit) * 1) calc(var(--space-unit) * 4);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline) 6px calc(var(--space-unit) * 4); /* aura-allow-spacing: bottom border sits inside the 7px inset */
   align-items: start;
 }
 
 .tm-list-head {
   padding-top: calc(var(--space-unit) * 1);
-  padding-bottom: calc(var(--space-unit) * 1);
+  padding-bottom: 6px; /* aura-allow-spacing: 1px bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1351,7 +1351,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-target {
   flex: 1;
-  min-width: 8rem;
+  min-width: 133px;
   color: var(--color-on-surface);
 }
 
@@ -1361,7 +1361,7 @@ function onKeydown(event: KeyboardEvent): void {
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
   border: 1px solid var(--color-outline);
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
 }
 
 .tm-date {
@@ -1377,7 +1377,7 @@ function onKeydown(event: KeyboardEvent): void {
   gap: calc(var(--space-unit) * 2);
   align-items: flex-end;
   margin-bottom: var(--space-panel-block);
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-background);
 }
@@ -1390,7 +1390,7 @@ function onKeydown(event: KeyboardEvent): void {
 .tm-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
 }
 
 .tm-exchange {
@@ -1398,7 +1398,7 @@ function onKeydown(event: KeyboardEvent): void {
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);
-  padding-top: var(--space-panel-block);
+  padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
 }
 
@@ -1440,7 +1440,7 @@ function onKeydown(event: KeyboardEvent): void {
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);
-  padding-top: var(--space-panel-block);
+  padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
 }
 
@@ -1455,7 +1455,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .tm-mono {
   margin: 0;
-  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
+  padding: 6px 13px; /* aura-allow-spacing: 1px border sits inside the inset */
   overflow-x: auto;
   border: 1px solid var(--color-outline);
   background: var(--color-background);

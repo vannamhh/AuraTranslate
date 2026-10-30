@@ -67,7 +67,7 @@ onMounted(() => {
 }
 
 .sd-label {
-  min-width: 10em;
+  min-width: 133px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   font-weight: var(--weight-ui-label);
@@ -86,7 +86,7 @@ onMounted(() => {
 .sd-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
   margin-bottom: calc(var(--space-unit) * 1);
 }
 

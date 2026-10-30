@@ -956,7 +956,7 @@ function onDeleteAiConfigKey(): void {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: calc(var(--space-unit) * 2) calc(var(--space-unit) * 2);
+  padding: 13px; /* aura-allow-spacing: the panel's 1px border and the bottom border sit inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -986,7 +986,7 @@ function onDeleteAiConfigKey(): void {
   display: block;
   width: 100%;
   text-align: left;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2) calc(var(--space-unit) * 1) 11px; /* aura-allow-spacing: the panel's 1px border and the 2px rule sit inside the 14px inset */
   background: none;
   border: none;
   border-left: 2px solid transparent;
@@ -1002,7 +1002,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .set-main {
-  padding: calc(var(--space-unit) * 2);
+  padding: var(--space-panel-block) 13px 13px; /* aura-allow-spacing: the panel's 1px border sits inside the 14px inset */
   min-width: 0;
 }
 
@@ -1036,7 +1036,7 @@ function onDeleteAiConfigKey(): void {
 
 .set-table th {
   text-align: left;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 6px 0; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline);
   color: var(--color-on-surface-variant);
   font-family: var(--face-ui-label);
@@ -1046,7 +1046,7 @@ function onDeleteAiConfigKey(): void {
 }
 
 .set-table td {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 0;
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 6px 0; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline);
   color: var(--color-on-surface);
 }
@@ -1064,7 +1064,7 @@ function onDeleteAiConfigKey(): void {
   letter-spacing: var(--tracking-ui-label);
   color: var(--color-on-surface-variant);
   border: 1px solid var(--color-outline);
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
 }
 
 .set-note {
@@ -1079,7 +1079,7 @@ function onDeleteAiConfigKey(): void {
   flex-wrap: wrap;
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2) 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1150,7 +1150,7 @@ function onDeleteAiConfigKey(): void {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 2);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1181,7 +1181,7 @@ function onDeleteAiConfigKey(): void {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: calc(var(--space-unit) * 2);
+  gap: var(--space-unit);
   margin-top: calc(var(--space-unit) * 2);
 }
 
@@ -1189,7 +1189,7 @@ function onDeleteAiConfigKey(): void {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) 0;
+  padding: calc(var(--space-unit) * 1) 0 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1228,7 +1228,7 @@ function onDeleteAiConfigKey(): void {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
 }
 
 .ai-key-outcome {

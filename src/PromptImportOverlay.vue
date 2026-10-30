@@ -276,7 +276,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   max-width: 721px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -338,7 +338,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 
 .pi-summary-row dt {
   color: var(--color-on-surface-variant);
-  min-width: 8rem;
+  min-width: 133px;
 }
 
 .pi-summary-row dd {
@@ -364,7 +364,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
 
 .pi-body {
   margin: 0 0 var(--space-panel-block) 0;
-  padding: calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   font-family: var(--face-ui-mono);
@@ -372,7 +372,7 @@ function onDecisionChange(decision: PromptSetConflictDecision, event: Event): vo
   line-height: var(--leading-ui-mono);
   color: var(--color-on-surface);
   white-space: pre-wrap;
-  max-height: 12rem;
+  max-height: 196px;
   overflow: auto;
 }
 

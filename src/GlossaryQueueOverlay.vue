@@ -479,7 +479,7 @@ function onKeydown(event: KeyboardEvent): void {
   max-width: 721px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -530,7 +530,7 @@ function onKeydown(event: KeyboardEvent): void {
   align-items: baseline;
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline) 6px 12px; /* aura-allow-spacing: bottom/left border sits inside the inset */
   border-bottom: 1px solid var(--color-outline);
   border-left: 2px solid transparent;
   font-family: var(--face-ui-md);
@@ -550,6 +550,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-row-current {
+  padding-left: 11px; /* aura-allow-spacing: 3px left border sits inside the 14px inset */
   background: var(--color-surface-accent);
   border-left: 3px solid var(--color-primary);
 }
@@ -568,7 +569,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-card {
   display: block;
-  padding-block: calc(var(--space-unit) * 2);
+  padding-block: var(--space-panel-block) 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
 }
 
 .gq-card .gq-row-label {
@@ -614,7 +615,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-ctx {
   margin-bottom: calc(var(--space-unit) * 2);
-  padding-left: calc(var(--space-unit) * 2);
+  padding-left: 12px; /* aura-allow-spacing: 2px left border sits inside the 14px inset */
   border-left: 2px solid var(--color-outline-faint);
 }
 
@@ -627,7 +628,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-notrans {
   margin-bottom: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2) calc(var(--space-unit) * 1) 12px; /* aura-allow-spacing: left border sits inside the 14px inset */
   border-left: 2px solid var(--color-tm-rule);
   background: var(--color-surface-tm);
   font-family: var(--face-ui-md-wrap);
@@ -698,7 +699,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gq-cat {
-  min-width: 6rem;
+  min-width: 98px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -761,7 +762,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gq-context {
   flex: 1;
-  min-width: 8rem;
+  min-width: 133px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -841,7 +842,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gq-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
 }
 
 </style>

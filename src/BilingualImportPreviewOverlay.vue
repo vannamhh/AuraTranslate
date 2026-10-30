@@ -834,7 +834,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   display: flex;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  padding: calc(var(--space-unit) * 1) 0;
+  padding: 6px 0 calc(var(--space-unit) * 1); /* aura-allow-spacing: top border sits inside the 7px inset */
   border-top: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -890,7 +890,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
 .bip-tier {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-bottom: var(--space-panel-block);
+  padding-bottom: 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -913,7 +913,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   display: flex;
   align-items: baseline;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1010,7 +1010,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 
 .bip-chapter-filter-low-confidence {
   margin: 0 0 calc(var(--space-unit) * 1) 0;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-error);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1033,7 +1033,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   display: flex;
   align-items: baseline;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: 6px 6px 6px 5px; /* aura-allow-spacing: top/right/bottom/left border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
   border-left: 2px solid transparent;
 }
@@ -1081,7 +1081,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
   align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   flex: none;
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
   border: 1px solid var(--color-error);
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -1093,7 +1093,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 }
 
 .bip-mismatch-focus {
-  padding: calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-error);
 }
 

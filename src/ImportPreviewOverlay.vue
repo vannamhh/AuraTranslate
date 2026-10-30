@@ -1758,7 +1758,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: flex;
   justify-content: space-between;
   gap: var(--space-panel-inline);
-  padding: calc(var(--space-unit) * 1) 0;
+  padding: 6px 0 calc(var(--space-unit) * 1); /* aura-allow-spacing: top border sits inside the 7px inset */
   border-top: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1830,7 +1830,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-tier {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-bottom: var(--space-panel-block);
+  padding-bottom: 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1852,7 +1852,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: inline-flex;
   gap: calc(var(--space-unit) * 1);
   margin: 0 0 calc(var(--space-unit) * 1) 0;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1882,7 +1882,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
   cursor: pointer;
 }
@@ -1991,7 +1991,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
    (một cảnh báo/hướng dẫn tầng 2), khác MÀU — đây KHÔNG phải lỗi, dùng `primary` (cùng tông
    tiêu điểm bàn phím `.ip-block-focused`) thay `error`. */
 .ip-block-range-marker {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -2121,7 +2121,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: flex;
   align-items: flex-start;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
 }
 
@@ -2175,7 +2175,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   letter-spacing: var(--tracking-ui-label);
   color: var(--color-on-surface-variant);
   border: 1px solid var(--color-outline);
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
 }
 
 .ip-cleanup-edit,
@@ -2292,7 +2292,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   display: flex;
   align-items: baseline;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: 6px 6px 6px 5px; /* aura-allow-spacing: top/right/bottom/left border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
   border-left: 2px solid transparent;
 }
@@ -2343,7 +2343,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 12rem;
+  max-width: 196px;
 }
 
 .ip-chapters-ellipsis {
@@ -2374,7 +2374,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   align-items: baseline;
   gap: calc(var(--space-unit) * 1);
   flex: none;
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
   border: 1px solid var(--color-error);
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -2412,7 +2412,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-chapter-filter-low-confidence {
   margin: 0;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-error);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -2442,7 +2442,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   align-items: baseline;
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
 }
 

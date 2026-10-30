@@ -796,7 +796,7 @@ const resultUsage = computed(() => {
   display: flex;
   align-items: baseline;
   gap: calc(var(--space-unit) * 3);
-  padding-bottom: calc(var(--space-unit) * 1);
+  padding-bottom: 6px; /* aura-allow-spacing: 1px bottom border sits inside the 7px inset */
   margin-bottom: calc(var(--space-unit) * 2);
   border-bottom: 1px solid var(--color-outline);
 }
@@ -821,7 +821,7 @@ const resultUsage = computed(() => {
 .aip-other-set,
 .aip-read-error {
   margin: 0 0 calc(var(--space-unit) * 2) 0;
-  padding: calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-error);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -840,7 +840,7 @@ const resultUsage = computed(() => {
 }
 
 .aip-side {
-  padding-left: calc(var(--space-unit) * 2);
+  padding-left: 13px; /* aura-allow-spacing: 1px left border sits inside the 14px inset */
   border-left: 1px solid var(--color-outline);
 }
 
@@ -889,7 +889,7 @@ const resultUsage = computed(() => {
 }
 
 .aip-blk {
-  padding-left: calc(var(--space-unit) * 2);
+  padding-left: 12px; /* aura-allow-spacing: 2px left border sits inside the 14px inset */
   border-left: 2px solid var(--color-outline-faint);
   margin-bottom: calc(var(--space-unit) * 2);
 }
@@ -943,7 +943,7 @@ const resultUsage = computed(() => {
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
   border: 1px solid var(--color-outline);
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
 }
 
 .aip-bchars {
@@ -1001,7 +1001,7 @@ const resultUsage = computed(() => {
 
 .aip-excl {
   margin-top: calc(var(--space-unit) * 3);
-  padding-top: calc(var(--space-unit) * 2);
+  padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
 }
 
@@ -1025,7 +1025,7 @@ const resultUsage = computed(() => {
   align-items: baseline;
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) 0;
+  padding: calc(var(--space-unit) * 1) 0 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline-faint);
   font-family: var(--family-read);
   font-size: var(--font-ui-md);
@@ -1051,7 +1051,7 @@ const resultUsage = computed(() => {
   line-height: var(--leading-ui-sm);
   color: var(--color-primary);
   border: 1px solid var(--color-outline);
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
 }
 
 .aip-ewhy {
@@ -1117,7 +1117,7 @@ const resultUsage = computed(() => {
 
 .aip-total {
   margin-top: calc(var(--space-unit) * 1);
-  padding-top: calc(var(--space-unit) * 1);
+  padding-top: 6px; /* aura-allow-spacing: 1px top border sits inside the 7px inset */
   border-top: 1px solid var(--color-outline);
 }
 
@@ -1138,7 +1138,7 @@ const resultUsage = computed(() => {
 
 .aip-exact {
   margin-top: calc(var(--space-unit) * 2);
-  padding-top: calc(var(--space-unit) * 1);
+  padding-top: 6px; /* aura-allow-spacing: 1px top border sits inside the 7px inset */
   border-top: 1px solid var(--color-outline);
 }
 </style>

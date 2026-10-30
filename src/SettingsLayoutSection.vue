@@ -144,12 +144,12 @@ function onRenameInput(name: string, event: Event): void {
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-panel-inline);
-  padding: var(--space-panel-block) 0;
+  padding: var(--space-panel-block) 0 13px; /* aura-allow-spacing: bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
 .sl-name {
-  min-width: 12em;
+  min-width: 161px;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   color: var(--color-on-surface);
@@ -194,7 +194,7 @@ function onRenameInput(name: string, event: Event): void {
 
 .sl-note {
   margin: var(--space-panel-block) 0 0 0;
-  padding-left: 14px;
+  padding-left: 12px; /* aura-allow-spacing: 2px left border sits inside the 14px inset */
   border-left: 2px solid var(--color-tm-rule);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);

@@ -247,7 +247,7 @@ function trapTab(event: KeyboardEvent): void {
   max-width: 721px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -308,7 +308,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ri-summary-row dt {
   color: var(--color-on-surface-variant);
-  min-width: 8rem;
+  min-width: 133px;
 }
 
 .ri-summary-row dd {

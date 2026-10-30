@@ -959,7 +959,7 @@ async function onEscape(): Promise<void> {
   border: 1px solid var(--color-outline);
   display: flex;
   flex-direction: column;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
 }
 
 .pl-panel:focus-visible {
@@ -1009,7 +1009,7 @@ async function onEscape(): Promise<void> {
 
 .pl-list {
   border-right: 1px solid var(--color-outline);
-  padding-right: var(--space-panel-inline);
+  padding-right: 13px; /* aura-allow-spacing: 1px right border sits inside the 14px inset */
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
@@ -1047,7 +1047,7 @@ async function onEscape(): Promise<void> {
   gap: calc(var(--space-unit) * 1);
   width: 100%;
   text-align: left;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 5px; /* aura-allow-spacing: left border sits inside the 7px inset */
   background: none;
   border: none;
   border-left: 2px solid transparent;
@@ -1074,7 +1074,7 @@ async function onEscape(): Promise<void> {
   line-height: var(--leading-ui-sm);
   color: var(--color-primary);
   border: 1px solid var(--color-outline);
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
 }
 
 .pl-badge-info {
@@ -1113,7 +1113,7 @@ async function onEscape(): Promise<void> {
   letter-spacing: var(--tracking-ui-label);
   color: var(--color-on-surface-variant);
   margin: calc(var(--space-unit) * 2) 0 calc(var(--space-unit) * 1) 0;
-  padding-bottom: calc(var(--space-unit) * 1);
+  padding-bottom: 6px; /* aura-allow-spacing: 1px bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1125,7 +1125,7 @@ async function onEscape(): Promise<void> {
   display: flex;
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1) 0;
+  padding: calc(var(--space-unit) * 1) 0 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1242,7 +1242,7 @@ async function onEscape(): Promise<void> {
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   margin-bottom: var(--space-panel-block);
-  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline) 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   background: var(--color-surface-sunken);
   border-bottom: 1px solid var(--color-outline);
 }

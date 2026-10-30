@@ -128,7 +128,7 @@ function trapTab(event: KeyboardEvent): void {
   flex-direction: column;
   gap: var(--space-panel-block);
   min-width: 322px;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
   color: var(--color-on-surface);
@@ -165,7 +165,7 @@ function trapTab(event: KeyboardEvent): void {
   flex-direction: column;
   align-items: flex-start;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 2);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   color: var(--color-on-surface);

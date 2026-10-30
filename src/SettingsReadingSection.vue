@@ -119,13 +119,13 @@ function onLineHeightInput(event: Event): void {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-panel-inline);
-  padding: var(--space-panel-block) 0;
+  gap: var(--space-unit);
+  padding: var(--space-panel-block) 0 13px; /* aura-allow-spacing: bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
 .sr-label {
-  min-width: 10em;
+  min-width: 133px;
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
   font-weight: var(--weight-ui-label);
@@ -136,9 +136,14 @@ function onLineHeightInput(event: Event): void {
 
 .sr-range {
   flex: 0 1 280px;
+  align-self: center;
+  height: 21px;
+  margin: 0;
 }
 
 .sr-value {
+  align-self: center;
+  line-height: var(--leading-ui-md);
   font-family: var(--face-ui-mono);
   font-size: var(--font-ui-mono);
   color: var(--color-on-surface-variant);
@@ -146,7 +151,7 @@ function onLineHeightInput(event: Event): void {
 
 .sr-note {
   margin: var(--space-panel-block) 0 0 0;
-  padding-left: 14px;
+  padding-left: 12px; /* aura-allow-spacing: 2px left border sits inside the 14px inset */
   border-left: 2px solid var(--color-tm-rule);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);

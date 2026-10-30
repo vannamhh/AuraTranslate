@@ -633,7 +633,7 @@ function trapTab(event: KeyboardEvent): void {
   max-width: 721px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -686,7 +686,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-badge {
   margin-left: calc(var(--space-unit) * 1);
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -729,7 +729,7 @@ function trapTab(event: KeyboardEvent): void {
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
   border-left: 2px solid var(--color-tm-rule);
-  padding-left: calc(var(--space-unit) * 1);
+  padding-left: 5px; /* aura-allow-spacing: 2px left border sits inside the 7px inset */
 }
 
 .ex-folder {
@@ -784,7 +784,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-mono {
   margin: 0;
-  padding: calc(var(--space-unit) * 2);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: var(--face-ui-md);
@@ -798,7 +798,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .ex-word {
-  padding: calc(var(--space-unit) * 2);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   background-color: var(--color-word-page);
   border: 1px solid var(--color-word-rule);
 }
@@ -813,7 +813,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .ex-word-table td {
   border: 1px solid var(--color-word-rule);
-  padding: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 6px; /* aura-allow-spacing: collapsed 1px row border sits inside the 7px inset */
   text-align: left;
   vertical-align: top;
 }

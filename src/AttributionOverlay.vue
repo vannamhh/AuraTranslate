@@ -423,7 +423,7 @@ function trapTab(event: KeyboardEvent): void {
 
 /* Câu "tắt ≠ gỡ" là một mệnh đề pháp lý, không một chú thích — nó mang một nét dẫn. */
 .attr-note {
-  padding-left: 14px;
+  padding-left: 12px; /* aura-allow-spacing: 2px left border sits inside the 14px inset */
   border-left: 2px solid var(--color-tm-rule);
   color: var(--color-tm-text);
 }
@@ -436,7 +436,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .attr-table th {
-  padding: 0 7px var(--space-panel-block) 0;
+  padding: 0 7px 13px 0; /* aura-allow-spacing: bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -454,7 +454,7 @@ function trapTab(event: KeyboardEvent): void {
  * dòng ở ít nhất một nguồn thật, và một ô cắt bằng `ellipsis` giấu đúng nửa quan trọng.
  */
 .attr-table td {
-  padding: var(--space-panel-block) 7px var(--space-panel-block) 0;
+  padding: var(--space-panel-block) 7px 13px 0; /* aura-allow-spacing: bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
   vertical-align: top;
   font-family: var(--face-ui-md-wrap);
@@ -557,7 +557,7 @@ function trapTab(event: KeyboardEvent): void {
   max-height: 50vh;
   margin: 0 0 var(--space-panel-block) 0;
   overflow: auto;
-  padding: var(--space-panel-block);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   white-space: pre-wrap;
   font-family: var(--face-ui-md-wrap);
@@ -579,7 +579,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .attr-card {
-  padding: var(--space-panel-block) var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);

@@ -259,7 +259,7 @@ function onKeydown(event: KeyboardEvent): void {
   max-width: 721px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -316,7 +316,7 @@ function onKeydown(event: KeyboardEvent): void {
   align-items: baseline;
   flex-wrap: wrap;
   gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1) var(--space-panel-inline);
+  padding: calc(var(--space-unit) * 1) var(--space-panel-inline) 6px 12px; /* aura-allow-spacing: bottom/left border sits inside the inset */
   border-bottom: 1px solid var(--color-outline);
   border-left: 2px solid transparent;
   font-family: var(--face-ui-md);
@@ -330,6 +330,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gh-row-current {
+  padding-left: 11px; /* aura-allow-spacing: 3px left border sits inside the 14px inset */
   background: var(--color-surface-accent);
   border-left: 3px solid var(--color-primary);
 }
@@ -393,7 +394,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gh-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
   margin-bottom: var(--space-panel-block);
 }
 

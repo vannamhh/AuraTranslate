@@ -168,7 +168,7 @@ function trapTab(event: KeyboardEvent): void {
   max-width: 721px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -224,7 +224,7 @@ function trapTab(event: KeyboardEvent): void {
   display: flex;
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1) 6px; /* aura-allow-spacing: the row's 1px bottom border sits inside the 7px inset */
 }
 
 .cs-ord {
@@ -241,7 +241,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .cs-error {
-  min-height: 1em;
+  min-height: 21px;
   margin: 0 0 var(--space-panel-block) 0;
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);

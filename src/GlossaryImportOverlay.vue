@@ -274,7 +274,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   max-width: 721px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -335,7 +335,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
 
 .gi-summary-row dt {
   color: var(--color-on-surface-variant);
-  min-width: 8rem;
+  min-width: 133px;
 }
 
 .gi-summary-row dd {
@@ -383,7 +383,7 @@ function onDecisionChange(sourceTerm: string, decision: GlossaryConflictDecision
   flex-wrap: wrap;
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
-  padding: calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
 }
 

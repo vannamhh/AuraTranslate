@@ -897,7 +897,7 @@ function onKeydown(event: KeyboardEvent): void {
   max-width: 1099px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -945,7 +945,7 @@ function onKeydown(event: KeyboardEvent): void {
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
   flex: 1;
-  min-width: 8rem;
+  min-width: 133px;
 }
 
 /* Checkbox and label on one row, unlike `.gm-field`'s column layout. */
@@ -999,7 +999,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gm-list th {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2) 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   text-align: left;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1010,7 +1010,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gm-row > td {
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2) 6px; /* aura-allow-spacing: bottom border sits inside the 7px inset */
   vertical-align: top;
   border-bottom: 1px solid var(--color-outline);
 }
@@ -1087,7 +1087,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-field-search {
   flex: 1;
-  max-width: 18rem;
+  max-width: 294px;
 }
 
 .gm-field-origin {
@@ -1185,7 +1185,7 @@ function onKeydown(event: KeyboardEvent): void {
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
   border: 1px solid var(--color-outline);
-  padding: 0 calc(var(--space-unit) * 1);
+  padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
 }
 
 .gm-badge-shadowed {
@@ -1208,7 +1208,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .gm-cell-note {
-  max-width: 14rem;
+  max-width: 224px;
 }
 
 .gm-note-cell {
@@ -1235,7 +1235,7 @@ function onKeydown(event: KeyboardEvent): void {
   gap: calc(var(--space-unit) * 2);
   align-items: flex-end;
   margin-bottom: var(--space-panel-block);
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-background);
 }
@@ -1248,7 +1248,7 @@ function onKeydown(event: KeyboardEvent): void {
 .gm-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
 }
 
 /* Story 3.10b (AD-48) — hộp thoại chọn tệp. */
@@ -1257,7 +1257,7 @@ function onKeydown(event: KeyboardEvent): void {
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
   margin-top: var(--space-panel-block);
-  padding-top: var(--space-panel-block);
+  padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
 }
 

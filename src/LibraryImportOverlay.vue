@@ -341,7 +341,7 @@ function trapTab(event: KeyboardEvent): void {
   max-width: 721px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -440,7 +440,7 @@ function trapTab(event: KeyboardEvent): void {
 .dropzone {
   border: 1px dashed var(--color-outline);
   border-radius: 4px;
-  padding: 14px;
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   text-align: center;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -456,7 +456,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .notice {
   margin: 7px 0 0;
-  min-height: 1em;
+  min-height: 21px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -465,7 +465,7 @@ function trapTab(event: KeyboardEvent): void {
 
 .error {
   margin: 14px 0 0;
-  min-height: 1em;
+  min-height: 21px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

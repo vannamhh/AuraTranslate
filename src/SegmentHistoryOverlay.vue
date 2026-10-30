@@ -380,7 +380,7 @@ function aimRow(id: number): void {
   max-width: 1099px;
   max-height: 100%;
   overflow: auto;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
 }
@@ -418,7 +418,7 @@ function aimRow(id: number): void {
 
 .hist-confirm {
   margin-bottom: var(--space-panel-block);
-  padding: var(--space-panel-block);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
 }
 
@@ -440,7 +440,7 @@ function aimRow(id: number): void {
 
 .hist-draft {
   margin: 0 0 var(--space-panel-block) 0;
-  padding: var(--space-panel-block);
+  padding: var(--space-panel-block) var(--space-panel-block) var(--space-panel-block) 12px; /* aura-allow-spacing: left border sits inside the 14px inset */
   border-left: 2px solid var(--color-draft);
   font-family: var(--face-read-sm);
   font-size: var(--font-read-sm);
@@ -450,7 +450,7 @@ function aimRow(id: number): void {
 
 .hist-confirm-acts {
   display: flex;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
 }
 
 .hist-two {
@@ -461,7 +461,7 @@ function aimRow(id: number): void {
 
 .hist-vlist {
   border-right: 1px solid var(--color-outline);
-  padding-right: var(--space-panel-inline);
+  padding-right: 13px; /* aura-allow-spacing: 1px right border sits inside the 14px inset */
 }
 
 .hist-vh,
@@ -495,7 +495,7 @@ function aimRow(id: number): void {
 }
 
 .hist-item {
-  padding: var(--space-panel-block) 0;
+  padding: 13px 0 var(--space-panel-block); /* aura-allow-spacing: top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
 }
 

@@ -347,7 +347,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 /* Câu "một tầng" là một mệnh đề kiến trúc, không một chú thích — nó mang một nét dẫn. */
 .sc-note {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-left: 14px;
+  padding-left: 12px; /* aura-allow-spacing: 2px left border sits inside the 14px inset */
   border-left: 2px solid var(--color-tm-rule);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
@@ -361,7 +361,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
  */
 .sc-alert {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-left: 14px;
+  padding-left: 12px; /* aura-allow-spacing: 2px left border sits inside the 14px inset */
   border-left: 2px solid var(--color-error);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);
@@ -377,7 +377,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 }
 
 .sc-table th {
-  padding: 0 7px var(--space-panel-block) 0;
+  padding: 0 7px 13px 0; /* aura-allow-spacing: bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
   font-family: var(--face-ui-label);
   font-size: var(--font-ui-label);
@@ -389,7 +389,7 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 }
 
 .sc-table td {
-  padding: var(--space-panel-block) 7px var(--space-panel-block) 0;
+  padding: var(--space-panel-block) 7px 13px 0; /* aura-allow-spacing: bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
   vertical-align: top;
   font-family: var(--face-ui-md-wrap);

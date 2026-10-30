@@ -107,7 +107,7 @@ function onToggle(): void {
 
 .su-alert {
   margin: 0 0 var(--space-panel-block) 0;
-  padding-left: calc(var(--space-unit) * 2);
+  padding-left: 12px; /* aura-allow-spacing: 2px left border sits inside the 14px inset */
   border-left: 2px solid var(--color-error);
   font-family: var(--face-ui-md-wrap);
   font-size: var(--font-ui-md-wrap);

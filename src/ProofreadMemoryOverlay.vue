@@ -228,7 +228,7 @@ function trapTab(event: KeyboardEvent): void {
   min-width: 357px;
   max-width: 560px;
   max-height: 80vh;
-  padding: var(--space-panel-inline);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   background: var(--color-surface);
   color: var(--color-on-surface);
@@ -281,7 +281,7 @@ function trapTab(event: KeyboardEvent): void {
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
   width: 100%;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  padding: 6px 13px; /* aura-allow-spacing: 1px border sits inside the inset */
   border: 1px solid var(--color-outline);
   background: var(--color-background);
   color: var(--color-on-surface);
@@ -298,6 +298,7 @@ function trapTab(event: KeyboardEvent): void {
 }
 
 .pfmem-row[aria-pressed='true'] {
+  padding-left: 11px; /* aura-allow-spacing: 3px left border sits inside the 14px inset */
   border-left: 3px solid var(--color-error);
 }
 
