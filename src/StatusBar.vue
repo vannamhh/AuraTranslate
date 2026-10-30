@@ -39,7 +39,7 @@ import { detectIsMac, dispatch, formatChord } from './commands'
 import { lookupHasRetreated } from './layout/lookupDrawerState'
 import { isSegmentConfirmed } from './config/segment'
 import { isMeaningKind } from './config/proofread'
-import { shortcutRows } from './config/shortcutsState'
+import { commandTitle, shortcutRows } from './config/shortcutsState'
 import { libraryChapters, libraryOpenChapterIsDone, libraryOpenWorkError, libraryOpenWorkNotice } from './modes/libraryChapters'
 import { libraryRescanBusy, libraryRescanError } from './modes/libraryRescan'
 import {
@@ -243,11 +243,6 @@ function holdFocus(event: MouseEvent): void {
 const chapterNavVisible = computed<boolean>(
   () => currentMode.value === 'workspace' && editorHasLoaded() && !reviewModeIsOpen.value,
 )
-
-function chapterNavTitle(id: 'editor.next_chapter' | 'editor.prev_chapter'): string {
-  const chord = shortcutRows.value.find((row) => row.id === id)?.display.join(' / ') ?? ''
-  return chord === '' ? t(`command.${id}`) : `${t(`command.${id}`)} (${chord})`
-}
 
 // WKWebView does not focus a <button> on mouse click; the overlay would then save the wrong
 // opener and UX-DR17 would return focus elsewhere.
@@ -585,7 +580,7 @@ const libraryErrorText = computed<string | null>(() => {
             class="ui-icon-btn"
             data-chapter-prev
             :aria-label="t('command.editor.prev_chapter')"
-            :title="chapterNavTitle('editor.prev_chapter')"
+            :title="commandTitle('editor.prev_chapter')"
             @mousedown="holdFocus"
             @click="dispatch('editor.prev_chapter')"
           >
@@ -596,7 +591,7 @@ const libraryErrorText = computed<string | null>(() => {
             class="ui-icon-btn"
             data-chapter-next
             :aria-label="t('command.editor.next_chapter')"
-            :title="chapterNavTitle('editor.next_chapter')"
+            :title="commandTitle('editor.next_chapter')"
             @mousedown="holdFocus"
             @click="dispatch('editor.next_chapter')"
           >

@@ -4,6 +4,8 @@ import { DockviewVue } from 'dockview-vue'
 import type { DockviewReadyEvent, VueComponent } from 'dockview-vue'
 import { syncDockEdgeClasses } from './dockEdges'
 import { dispatch, enterFocus, focusRegistry } from '../commands'
+import AppIcon from '../AppIcon.vue'
+import { commandTitle } from '../config/shortcutsState'
 import { t } from '../i18n'
 import { reviewModeChangeStats, reviewModeDiffMessage, reviewModeUnresolvedCount } from '../reviewModeState'
 import PanelTab from '../panels/PanelTab.vue'
@@ -41,6 +43,10 @@ function focusMineWhenMounted(framesLeft: number): void {
     if (framesLeft > 0) focusMineWhenMounted(framesLeft - 1)
     else console.error('[review] panel.review_mine chua khai diem vao focus -- focus khong doi duoc.')
   })
+}
+
+function holdFocus(event: MouseEvent): void {
+  event.preventDefault()
 }
 
 function onReady(event: DockviewReadyEvent): void {
@@ -83,6 +89,28 @@ onBeforeUnmount(() => {
       <p class="diff-stats" data-review-stats>
         {{ t('review.stats', { count: String(reviewModeChangeStats.count), handled: String(reviewModeChangeStats.handled) }) }}
       </p>
+      <button
+        type="button"
+        class="ui-icon-btn"
+        data-review-diff-prev
+        :aria-label="t('command.review.diff_prev')"
+        :title="commandTitle('review.diff_prev')"
+        @mousedown="holdFocus"
+        @click="dispatch('review.diff_prev')"
+      >
+        <AppIcon name="chevron-up" />
+      </button>
+      <button
+        type="button"
+        class="ui-icon-btn"
+        data-review-diff-next
+        :aria-label="t('command.review.diff_next')"
+        :title="commandTitle('review.diff_next')"
+        @mousedown="holdFocus"
+        @click="dispatch('review.diff_next')"
+      >
+        <AppIcon name="chevron" />
+      </button>
       <p class="diff-status" role="status" data-review-diff-status>
         <template v-if="reviewModeDiffMessage !== null">{{ t(reviewModeDiffMessage.key, reviewModeDiffMessage.params) }}</template>
       </p>

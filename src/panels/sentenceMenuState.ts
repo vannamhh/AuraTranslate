@@ -109,7 +109,7 @@ function restoreBeforeOpen(before: Restore): void {
   if (editorCaretSegmentId.value !== before.caret) setEditorCaret(before.caret)
 }
 
-export function closeSentenceMenu(reason: 'chosen' | 'dismissed'): void {
+export function closeSentenceMenu(reason: 'chosen' | 'dismissed' | 'overlay'): void {
   const open = menu.value
   const before = restore
   menu.value = null
@@ -117,6 +117,11 @@ export function closeSentenceMenu(reason: 'chosen' | 'dismissed'): void {
   if (open === null) return
   if (reason === 'dismissed') {
     if (before !== null) restoreBeforeOpen(before)
+    return
+  }
+  if (reason === 'overlay') {
+    // WebKit keeps the selection when a mouse click moves focus, so a key pressed in the overlay would land in the cell behind it.
+    window.getSelection()?.removeAllRanges()
     return
   }
   if (editorCaretSegmentId.value !== open.segmentId) return

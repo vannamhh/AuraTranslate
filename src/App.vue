@@ -28,7 +28,7 @@ import { detectIsMac, dispatch } from './commands'
 import AppIcon from './AppIcon.vue'
 import { currentMode } from './modes/modeState'
 import { t, tError } from './i18n'
-import { shortcutRows } from './config/shortcutsState'
+import { commandTitle, shortcutRows } from './config/shortcutsState'
 // ── Story 1.8 — bề mặt hiển thị lỗi kho, đóng `deferred-work.md §*Deferred from: 1-6-commandregistry-ba-che-do-va-tieu-diem-ban-phim (2026-08-04)*` ────────────────
 //
 // 🔴 `configError` chỉ khác `null` khi **Rust đã trả lời** bằng một lỗi thật. Một phiên
@@ -254,7 +254,7 @@ onMounted(async () => {
             <button
               type="button"
               class="layout-switch-btn ui-seg__item"
-              :aria-pressed="activeLayoutPreset === 'layout.preset_grid'"
+              :aria-pressed="!reviewModeIsOpen && activeLayoutPreset === 'layout.preset_grid'"
               :disabled="reviewModeIsOpen || attributionIsOpen"
               :title="t('command.layout.preset_grid')"
               :aria-label="t('command.layout.preset_grid')"
@@ -265,13 +265,37 @@ onMounted(async () => {
             <button
               type="button"
               class="layout-switch-btn ui-seg__item"
-              :aria-pressed="activeLayoutPreset === 'layout.preset_columns'"
+              :aria-pressed="!reviewModeIsOpen && activeLayoutPreset === 'layout.preset_columns'"
               :disabled="reviewModeIsOpen || attributionIsOpen"
               :title="t('command.layout.preset_columns')"
               :aria-label="t('command.layout.preset_columns')"
               @click="dispatch('layout.preset_columns')"
             >
               <AppIcon name="layout-top" />
+            </button>
+            <button
+              v-if="!reviewModeIsOpen"
+              type="button"
+              class="layout-switch-btn ui-seg__item"
+              :aria-pressed="false"
+              :disabled="attributionIsOpen"
+              :title="commandTitle('review.open')"
+              :aria-label="t('command.review.open')"
+              @click="dispatch('review.open')"
+            >
+              <AppIcon name="review" />
+            </button>
+            <button
+              v-else
+              type="button"
+              class="layout-switch-btn ui-seg__item"
+              :aria-pressed="true"
+              :disabled="attributionIsOpen"
+              :title="commandTitle('review.close')"
+              :aria-label="t('command.review.close')"
+              @click="dispatch('review.close')"
+            >
+              <AppIcon name="review" />
             </button>
           </div>
 

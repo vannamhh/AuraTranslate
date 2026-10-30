@@ -55,6 +55,7 @@ async function mountGrid() {
     setSegmentOmitted: spy<[boolean], void>('setSegmentOmitted', undefined),
     setSegmentParagraphEnd: spy<[boolean], void>('setSegmentParagraphEnd', undefined),
     splitChapter: spy('splitChapter', undefined),
+    openSegmentHistory: spy('openSegmentHistory', undefined),
   }
   commands.installCommands({
     isMac: true,
@@ -121,6 +122,7 @@ describe('menu câu của Lưới — mỗi id một mục chạy trên câu đ�
     ['editor.end_target_paragraph', 'Kết thúc đoạn', 'setSegmentParagraphEnd', null],
     ['editor.join_target_paragraph', 'Nối với đoạn tiếp theo', 'setSegmentParagraphEnd', null],
     ['editor.split_chapter', 'Tách Chương tại đây', 'splitChapter', null],
+    ['history.open', 'Lịch sử phiên bản', 'openSegmentHistory', null],
   ]
 
   const FLAG_ARG: Readonly<Record<string, boolean>> = {
@@ -488,6 +490,54 @@ describe('sau khi chọn — vùng chọn', () => {
     await flushPromises()
 
     expect(focused).toContain(own)
+  })
+})
+
+describe('mục Lịch sử phiên bản', () => {
+  it('nguyên văn câu đang có tiêu điểm bị bôi đen: vùng chọn bị xoá và ô bản dịch không bị ép lấy tiêu điểm', async () => {
+    const { state } = await mountGrid()
+    const own = cell('tgt', 12)
+    state.setEditorCaret(12)
+    own.focus()
+    press(cell('src', 12))
+    await flushPromises()
+    const src = cell('src', 12)
+    window.getSelection()?.setBaseAndExtent(src, 0, src, 1)
+    expect(window.getSelection()?.isCollapsed).toBe(false)
+    const focused: Element[] = []
+    vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (this: HTMLElement) {
+      focused.push(this)
+    })
+
+    itemByText('Lịch sử phiên bản').click()
+    expect(window.getSelection()?.rangeCount).toBe(0)
+    await flushPromises()
+
+    expect(focused).not.toContain(own)
+    expect(menuEl()).toBeNull()
+  })
+
+  it('vùng chọn trong ô bản dịch bị xoá để phím gõ khi lớp phủ mở không rơi xuống ô bên dưới', async () => {
+    const { state } = await mountGrid()
+    const own = cell('tgt', 12)
+    own.textContent = 'bản dịch'
+    state.setEditorCaret(12)
+    own.focus()
+    press(own)
+    await flushPromises()
+    window.getSelection()?.collapse(own.firstChild as Node, 3)
+
+    itemByText('Lịch sử phiên bản').click()
+
+    expect(window.getSelection()?.rangeCount).toBe(0)
+  })
+
+  it('mục mang dấu mở lớp phủ, mục thường thì không', async () => {
+    await mountGrid()
+    press(cell('src', 13))
+    await flushPromises()
+    expect(itemByText('Lịch sử phiên bản').hasAttribute('data-opens-overlay')).toBe(true)
+    expect(itemByText('Cắt bỏ câu').hasAttribute('data-opens-overlay')).toBe(false)
   })
 })
 

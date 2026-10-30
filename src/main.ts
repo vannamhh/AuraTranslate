@@ -39,10 +39,8 @@ import {
   editorActiveSegmentId,
   editorChapterId,
   editorSegments,
-  goToNextChapter,
   goToNextSegmentCoBao,
   goToNextUntranslatedCoBao,
-  goToPrevChapter,
   goToPrevSegmentCoBao,
   mergeCurrentSegment,
   setCurrentSegmentOmitted,
@@ -825,11 +823,6 @@ async function boot(): Promise<void> {
       goToNextUntranslated: goToNextUntranslatedCoBao,
       goToNextSegment: goToNextSegmentCoBao,
       goToPrevSegment: goToPrevSegmentCoBao,
-      // Story 2.11 (FR26) — hai lenh chuyen Chuong. Hop dong `void`, khong `boolean`: ket
-      // qua chua ton tai luc `run()` tra ve (hai luot IPC noi tiep), nen no di ra bang thanh
-      // trang thai. Xem `CommandDeps.goToNextChapter`.
-      goToNextChapter,
-      goToPrevChapter,
       confirmSegment: () => {
         void confirmCurrentSegment().then((result) => {
           if (result === 'confirmed' || result === 'refused') return

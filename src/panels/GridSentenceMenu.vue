@@ -76,7 +76,8 @@ function onDocumentKeydown(event: KeyboardEvent): void {
 function onDocumentClick(event: MouseEvent): void {
   if (sentenceMenu.value === null || !inside(event)) return
   const button = event.target instanceof Element ? event.target.closest('button') : null
-  if (button !== null && !button.disabled) closeSentenceMenu('chosen')
+  if (button === null || button.disabled) return
+  closeSentenceMenu(button.hasAttribute('data-opens-overlay') ? 'overlay' : 'chosen')
 }
 
 function onDocumentContextMenu(event: MouseEvent): void {
@@ -188,6 +189,14 @@ onBeforeUnmount(() => {
           <span>{{ t('panel.grid.menu.split_chapter') }}</span>
           <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
           <span class="sentence-menu-chord">{{ chordOf('editor.split_chapter') }}</span>
+        </button>
+      </li>
+      <li class="ui-menu-sep" role="separator"></li>
+      <li role="none">
+        <button type="button" role="menuitem" tabindex="-1" class="ui-menu-item" data-opens-overlay :title="t('command.history.open')" @click="dispatch('history.open')">
+          <span>{{ t('panel.grid.menu.history') }}</span>
+          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+          <span class="sentence-menu-chord">{{ chordOf('history.open') }}</span>
         </button>
       </li>
     </ul>

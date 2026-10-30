@@ -635,3 +635,9 @@ export async function confirmResetAllShortcuts(): Promise<void> {
 export function shortcutDisplayFor(id: CommandId): string {
   return shortcutRows.value.find((row) => row.id === id)?.display.join(' · ') ?? ''
 }
+
+export function commandTitle(id: CommandId): string {
+  const label = t(`command.${id}`)
+  const chord = shortcutRows.value.find((row) => row.id === id)?.display.join(' / ') ?? ''
+  return chord === '' ? label : `${label} (${chord})`
+}

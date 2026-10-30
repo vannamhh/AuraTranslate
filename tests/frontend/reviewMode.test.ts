@@ -25,6 +25,7 @@ const acceptMock = vi.fn()
 const skipMock = vi.fn()
 const flushMock = vi.fn()
 const replaceMock = vi.fn()
+const chapterMoveMock = vi.fn()
 
 vi.mock('../../src/config/alignment', () => ({
   alignmentOpen: (...args: unknown[]) => openMock(...args),
@@ -40,6 +41,8 @@ vi.mock('../../src/panels/editorPanelState', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/panels/editorPanelState')>()),
   flushEditorBeforeDiscreteWrite: (...args: unknown[]) => flushMock(...args),
   replaceEditorSegment: (...args: unknown[]) => replaceMock(...args),
+  goToNextChapter: () => chapterMoveMock('next'),
+  goToPrevChapter: () => chapterMoveMock('prev'),
 }))
 
 vi.mock('../../src/config/bootstrap', async (importOriginal) => ({
@@ -120,6 +123,7 @@ beforeEach(() => {
   flushMock.mockReset()
   flushMock.mockResolvedValue('clean')
   replaceMock.mockReset()
+  chapterMoveMock.mockReset()
   putMock.mockClear()
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 })
   Object.defineProperty(window, 'innerHeight', { configurable: true, value: 1000 })
@@ -802,6 +806,171 @@ describe('diff jumps and paired scrolling', () => {
     right.dispatchEvent(new Event('scroll'))
     expect(left.scrollTop).toBe(150)
     expect(writes).toEqual(['left:150', 'right:90'])
+  })
+})
+
+describe('review bar buttons', () => {
+  let wrapper: VueWrapper | null = null
+
+  function threeChanges() {
+    return diffOf(
+      pair(1, [10], [100], [eq('a '), del('x'), ins('y')]),
+      pair(2, [11], [101], [del('m'), ins('n')]),
+      pair(3, [12], [102], [del('p'), ins('q')]),
+    )
+  }
+
+  let live: typeof import('../../src/reviewModeState') | null = null
+  let run: typeof import('../../src/commands').dispatch | null = null
+
+  async function open(diff = threeChanges()): Promise<VueWrapper> {
+    vi.resetModules()
+    const modes = await import('../../src/modes/modeState')
+    const commands = await import('../../src/commands')
+    const reviewState = await import('../../src/reviewModeState')
+    const { reviewModeCommandDeps: deps } = await import('../../src/reviewModeCommandDeps')
+    const Workspace = (await import('../../src/modes/WorkspaceMode.vue')).default
+    live = reviewState
+    run = commands.dispatch
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    modes.setMode('workspace')
+    commands.installCommands({ ...deps() } as never)
+    wrapper = mount(Workspace, { attachTo: host })
+    await settle()
+    openMock.mockResolvedValue(ok(alignment()))
+    diffMock.mockResolvedValue(diff)
+    await reviewState.openReviewMode(7)
+    await settle()
+    return wrapper
+  }
+
+  afterEach(() => {
+    live?.resetReviewMode()
+    wrapper?.unmount()
+    wrapper = null
+    document.body.innerHTML = ''
+  })
+
+  it('review.diff_next button: down twice then up walks 2/3 then 1/3 and keeps focus', async () => {
+    const w = await open()
+    const next = w.get('[data-review-diff-next]')
+    const prev = w.get('[data-review-diff-prev]')
+    const status = () => w.get('[data-review-diff-status]').text()
+    await next.trigger('click')
+    await next.trigger('click')
+    await settle()
+    expect(status()).toBe(t('review.diff_position', { index: '2', count: '3' }))
+    const focused = document.activeElement
+    await prev.trigger('click')
+    await settle()
+    expect(status()).toBe(t('review.diff_position', { index: '1', count: '3' }))
+    expect(w.findAll('[data-review-current]').map((e) => e.attributes('data-review-pair'))).toEqual(['g1', 'g1'])
+    expect(document.activeElement).toBe(focused)
+  })
+
+  it('review.diff_prev button: says the first and last boundary sentences, none when nothing differs', async () => {
+    const w = await open()
+    await w.get('[data-review-diff-next]').trigger('click')
+    await w.get('[data-review-diff-prev]').trigger('click')
+    await settle()
+    expect(w.get('[data-review-diff-status]').text()).toBe(t('review.diff_first', { count: '3' }))
+    for (let i = 0; i < 3; i += 1) await w.get('[data-review-diff-next]').trigger('click')
+    await settle()
+    expect(w.get('[data-review-diff-status]').text()).toBe(t('review.diff_last', { count: '3' }))
+  })
+
+  it('a button with no change says so', async () => {
+    const w = await open(diffOf(pair(1, [10], [100], [eq('a')])))
+    await w.get('[data-review-diff-next]').trigger('click')
+    await settle()
+    expect(w.get('[data-review-diff-status]').text()).toBe(t('review.diff_none'))
+  })
+
+  it('both diff buttons hold the mousedown so the button never takes focus', async () => {
+    const w = await open()
+    for (const sel of ['[data-review-diff-next]', '[data-review-diff-prev]']) {
+      const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+      w.get(sel).element.dispatchEvent(down)
+      expect(down.defaultPrevented).toBe(true)
+    }
+  })
+
+  it('the diff buttons carry the command label with its chord in the title', async () => {
+    const w = await open()
+    expect(w.get('[data-review-diff-next]').attributes('title')).toContain(t('command.review.diff_next'))
+    expect(w.get('[data-review-diff-prev]').attributes('aria-label')).toBe(t('command.review.diff_prev'))
+  })
+
+  it('chapter chords are refused while Review Mode is open and say why; closed they reach the Editor', async () => {
+    const w = await open()
+    run?.('editor.next_chapter')
+    run?.('editor.prev_chapter')
+    await settle()
+    expect(chapterMoveMock).not.toHaveBeenCalled()
+    expect(w.get('[data-review-diff-status]').text()).toBe(t('review.chapter_move_blocked'))
+
+    await live?.closeReviewMode()
+    await settle()
+    run?.('editor.next_chapter')
+    run?.('editor.prev_chapter')
+    expect(chapterMoveMock.mock.calls).toEqual([['next'], ['prev']])
+  })
+})
+
+describe('returnToLastCaret', () => {
+  function panelWithCell(id: number): { panel: HTMLElement; cell: HTMLElement } {
+    const panel = document.createElement('section')
+    panel.tabIndex = -1
+    const cell = document.createElement('div')
+    cell.tabIndex = 0
+    cell.setAttribute('data-col', 'tgt')
+    cell.setAttribute('data-segment-id', String(id))
+    panel.appendChild(cell)
+    document.body.appendChild(panel)
+    return { panel, cell }
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('focus on the panel holding the last caret moves into that cell', async () => {
+    const { returnToLastCaret } = await import('../../src/reviewModeCommandDeps')
+    const { editorCaretSegmentId, setEditorCaret } = await import('../../src/panels/editorPanelState')
+    const { panel, cell } = panelWithCell(41)
+    setEditorCaret(41)
+    setEditorCaret(null)
+    panel.focus()
+    returnToLastCaret()
+    expect(document.activeElement).toBe(cell)
+    expect(editorCaretSegmentId.value).toBe(41)
+  })
+
+  it('focus on the body stays there: Review Mode closed outside Workspace', async () => {
+    const { returnToLastCaret } = await import('../../src/reviewModeCommandDeps')
+    const { editorCaretSegmentId, setEditorCaret } = await import('../../src/panels/editorPanelState')
+    panelWithCell(43)
+    setEditorCaret(43)
+    setEditorCaret(null)
+    returnToLastCaret()
+    expect(document.activeElement).toBe(document.body)
+    expect(editorCaretSegmentId.value).toBeNull()
+  })
+
+  it('focus on another panel stays there', async () => {
+    const { returnToLastCaret } = await import('../../src/reviewModeCommandDeps')
+    const { editorCaretSegmentId, setEditorCaret } = await import('../../src/panels/editorPanelState')
+    panelWithCell(42)
+    const other = document.createElement('section')
+    other.tabIndex = -1
+    document.body.appendChild(other)
+    setEditorCaret(42)
+    setEditorCaret(null)
+    other.focus()
+    returnToLastCaret()
+    expect(document.activeElement).toBe(other)
+    expect(editorCaretSegmentId.value).toBeNull()
   })
 })
 

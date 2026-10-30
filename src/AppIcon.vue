@@ -1,12 +1,12 @@
 <script setup lang="ts">
-export type AppIconName = 'pin' | 'pin-on' | 'chevron' | 'info' | 'layout-left' | 'layout-top'
+export type AppIconName = 'pin' | 'pin-on' | 'chevron' | 'info' | 'layout-left' | 'layout-top' | 'review' | 'chevron-up'
 
 defineProps<{ name: AppIconName }>()
 </script>
 
 <template>
   <svg
-    v-if="name === 'layout-left' || name === 'layout-top'"
+    v-if="name === 'layout-left' || name === 'layout-top' || name === 'review'"
     class="app-icon app-icon--wide"
     viewBox="0 0 18 14"
     aria-hidden="true"
@@ -14,6 +14,7 @@ defineProps<{ name: AppIconName }>()
   >
     <rect x=".75" y=".75" width="16.5" height="12.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3" />
     <path v-if="name === 'layout-left'" d="M10.5 1v12M10.5 7h6.5" fill="none" stroke="currentColor" stroke-width="1.3" />
+    <path v-else-if="name === 'review'" d="M9 1v12M3.5 4.5h2.5M3.5 7h2.5M3.5 9.5h2.5M12 4.5h2.5M12 7h2.5M12 9.5h2.5" fill="none" stroke="currentColor" stroke-width="1.3" />
     <path v-else d="M1 8h16M9 8v5" fill="none" stroke="currentColor" stroke-width="1.3" />
   </svg>
   <svg v-else class="app-icon" :class="{ 'app-icon--chevron': name === 'chevron' }" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -33,6 +34,15 @@ defineProps<{ name: AppIconName }>()
     <path
       v-else-if="name === 'chevron'"
       d="M4 6l4 4 4-4"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      v-else-if="name === 'chevron-up'"
+      d="M4 10l4-4 4 4"
       fill="none"
       stroke="currentColor"
       stroke-width="1.5"

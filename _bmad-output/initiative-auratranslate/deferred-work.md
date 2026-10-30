@@ -13659,6 +13659,7 @@ chính nó.
 - 4 id Rà soát và Lịch sử: `review.open`, `review.diff_next`, `review.diff_prev`, `history.open`.
   Cần: ô thứ ba của công tắc bố cục cùng `review.close`, nút diff trên `.review-bar`, mục menu câu.
   Chủ: Story 14.4. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 4.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.4): ô Review Mode cùng `review.close` ở ô thứ ba của công tắc bố cục (`App.vue`), hai nút diff ở `ReviewDock.vue`, mục Lịch sử phiên bản ở nhóm 2 của menu câu; ca Vitest ở `reviewMode.test.ts`, `attributionOverlayActions.test.ts`, `gridSentenceMenu.test.ts`; Kiểm M đọc 275 điểm chuột, 29 khai `pointer`, 26 nợ.
 - 2 id Glossary: `glossary.add_term`, `glossary.settings.open` (không đạt `via` qua `settings.open` vì `openSettings()` mở mục chọn gần nhất).
   Cần: mục menu câu giữ vùng bôi đen; mục trong `Công cụ ▾`.
   Chủ: Story 14.5. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 5.
@@ -13719,3 +13720,22 @@ chính nó.
 - Hợp âm `Mod+Alt+]` và `Mod+Alt+[` vẫn chạy trong Review Mode (`isBlocked` ở `src/main.ts` không chặn) và đổi Chương của Editor trong khi màn Review giữ `openChapterId` cũ; hai nút ‹ › đã ẩn khi Review Mode mở nhưng hợp âm thì không.
   Cần: chặn hoặc đồng bộ hợp âm chuyển Chương khi Review Mode mở.
   Chủ: Story 14.4. Trỏ: `tickets/epic-san-chuot/tickets/story-chon-nhieu-oan-va-chuyen-chuong-bang-chuot-plan.md` §Boundaries & Constraints.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.4): `editor.next_chapter` và `editor.prev_chapter` đi qua `reviewModeCommandDeps`, từ chối khi Review Mode mở và `.diff-status` nói phải đóng trước (Ice chọn).
+
+## Deferred from: Story 14.4, mở Rà soát và Lịch sử bằng chuột (2026-10-31)
+
+- Lượt dùng thật chuột: ô Review Mode (mở, hai nút diff, đóng bằng cùng ô, caret về câu cũ) và Lịch sử phiên bản từ menu câu rồi `Esc`, gõ tiếp không đè chữ.
+  Cần: Ice chạy một lượt trên app thật.
+  Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-mo-ra-soat-va-lich-su-bang-chuot-plan.md` §Verification.
+- Bấm lặp đúng một điểm không rê chuột mất `click` (3/8 lần có `click` trên ô preset có sẵn, 7/8 khi chuột dời): `mousedown` tới, `mouseup` không tới. Hành vi có trước story; "bấm lại chính ô đó" của KF-8 đúng là mẫu này. Đo bằng `cliclick`, chưa đo chuột người.
+  Cần: Ice bấm ô Review Mode hai lần không rê chuột trên app thật; mất `click` thì tìm nguyên nhân.
+  Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-4-ban-do/ket-qua.md`.
+- Lớp phủ khác mở bằng chuột khi caret đang trong ô bản dịch có thể để lọt phím xuống ô: WebKit giữ vùng chọn khi cú bấm chuột đổi tiêu điểm, đo được ở mục Lịch sử trước khi sửa. Các nút thanh tiêu đề, thanh trạng thái, `Công cụ ▾` chưa đo.
+  Cần: đo từng đường; lọt thì xoá vùng chọn ở một chỗ chung thay vì từng nút. Mất chữ im lặng nên ưu tiên trước khi Epic 14 đóng.
+  Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-4-ban-do/ket-qua.md`.
+- `Esc` đóng lớp phủ Lịch sử đưa caret về đầu ô (`abc` gõ tiếp thành `zzabc`), cả đường `Mod+H` lẫn mục menu: `focus()` không còn vùng chọn nào để giữ offset. Không đè chữ, nhưng người dùng gõ tiếp sai chỗ.
+  Cần: lưu `Range` lúc mở lớp phủ và trả lại lúc đóng, cùng khuôn `restoreBeforeOpen` của menu câu.
+  Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-4-ban-do/ket-qua.md`.
+- Mở Chương khác cùng Tác phẩm từ Thư viện khi Review Mode mở có cùng lệch Chương: `openChapterById` đổi Chương của Editor trong khi màn Review giữ Chương cũ.
+  Cần: quyết định chặn hay đồng bộ, cùng khuôn với hợp âm chuyển Chương.
+  Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-mo-ra-soat-va-lich-su-bang-chuot-plan.md` §Boundaries & Constraints.

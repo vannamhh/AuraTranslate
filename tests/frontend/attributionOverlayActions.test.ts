@@ -28,6 +28,17 @@ const OTHER: SourceAttribution = {
   is_base: false,
 }
 
+const reviewOpen = vi.hoisted(() => ({ value: false as boolean }))
+const reviewCalls: string[] = []
+
+vi.mock('../../src/reviewModeState', async (importOriginal) => {
+  const { ref } = await import('vue')
+  const actual = await importOriginal<typeof import('../../src/reviewModeState')>()
+  const flag = ref(false)
+  Object.defineProperty(reviewOpen, 'value', { configurable: true, get: () => flag.value, set: (v: boolean) => (flag.value = v) })
+  return { ...actual, reviewModeIsOpen: flag }
+})
+
 let sourcesResult: SourceAttribution[] = [BASE, OTHER]
 let licenseResult: { ok: string } | { err: object } = { ok: 'LICENSE BODY' }
 
@@ -52,6 +63,8 @@ async function setup() {
     openLicenseText: () => void state.openAimedLicenseText(),
     copyCredit: () => void state.copyAimedCredit(),
     closeLicenseText: state.closeLicenseText,
+    openReviewMode: () => void reviewCalls.push('review.open'),
+    closeReviewMode: () => void reviewCalls.push('review.close'),
   } as unknown as Parameters<typeof commands.installCommands>[0])
   await state.loadDictSources('')
   state.openAttribution()
@@ -487,6 +500,8 @@ async function mountApp(opts: { open: boolean }) {
     openLicenseText: () => void state.openAimedLicenseText(),
     copyCredit: () => void state.copyAimedCredit(),
     closeLicenseText: state.closeLicenseText,
+    openReviewMode: () => void reviewCalls.push('review.open'),
+    closeReviewMode: () => void reviewCalls.push('review.close'),
   } as unknown as Parameters<typeof commands.installCommands>[0])
   const { default: App } = await import('../../src/App.vue')
   await state.loadDictSources('')
@@ -575,14 +590,47 @@ describe('AttributionOverlay with the title bar (App.vue)', { timeout: 60_000 },
   it('the layout switch buttons are disabled while open and enabled after', async () => {
     const { state, w } = await mountApp({ open: false })
     const switchDisabled = () => w.findAll('.layout-switch-btn').map((b) => b.attributes('disabled') !== undefined)
-    expect(w.findAll('.layout-switch-btn')).toHaveLength(2)
-    expect(switchDisabled()).toEqual([false, false])
+    expect(w.findAll('.layout-switch-btn')).toHaveLength(3)
+    expect(switchDisabled()).toEqual([false, false, false])
     state.openAttribution()
     await w.vm.$nextTick()
-    expect(switchDisabled()).toEqual([true, true])
+    expect(switchDisabled()).toEqual([true, true, true])
     state.closeAttribution()
     await w.vm.$nextTick()
-    expect(switchDisabled()).toEqual([false, false])
+    expect(switchDisabled()).toEqual([false, false, false])
+    w.unmount()
+  })
+
+  it('review.open: the third cell dispatches it and is not pressed while Review Mode is closed', async () => {
+    reviewCalls.length = 0
+    reviewOpen.value = false
+    const { w } = await mountApp({ open: false })
+    const cell = w.findAll('.layout-switch-btn')[2]
+    expect(cell.attributes('aria-pressed')).toBe('false')
+    await cell.trigger('click')
+    expect(reviewCalls).toEqual(['review.open'])
+    w.unmount()
+  })
+
+  it('review.close: with Review Mode open the same place holds the pressed cell, dispatches it, and neither preset is pressed', async () => {
+    reviewCalls.length = 0
+    reviewOpen.value = true
+    const { w } = await mountApp({ open: false })
+    const cells = w.findAll('.layout-switch-btn')
+    expect(cells).toHaveLength(3)
+    expect(cells.map((c) => c.attributes('aria-pressed'))).toEqual(['false', 'false', 'true'])
+    await cells[2].trigger('click')
+    expect(reviewCalls).toEqual(['review.close'])
+    reviewOpen.value = false
+    w.unmount()
+  })
+
+  it('the cell carries the command label and chord in its title and aria-label', async () => {
+    reviewOpen.value = false
+    const { w } = await mountApp({ open: false })
+    const cell = w.findAll('.layout-switch-btn')[2]
+    expect(cell.attributes('aria-label')).toBe('Mở Review Mode')
+    expect(cell.attributes('title')).toContain('Mở Review Mode')
     w.unmount()
   })
 

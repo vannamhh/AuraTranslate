@@ -175,6 +175,8 @@ Một mục đọc caret hoặc vùng chọn phải có đích hoặc nói lý d
 
 🔵 2026-10-30 (Story 14.3): ‹ › Chương ẩn khi Review Mode mở, thay cho "Không bao giờ" ở bảng trên. Hợp âm chuyển Chương vẫn chạy trong Review Mode; việc đó thuộc Story 14.4.
 
+🔵 2026-10-31 (Story 14.4): câu trên không còn đúng: hợp âm chuyển Chương không đổi Chương khi Review Mode mở, `.diff-status` nói phải đóng Review Mode trước, vì một phiên Rà soát gắn với một Chương.
+
 Dòng vị trí ở thanh trạng thái biến mất khi caret `null`, nên hai nút ‹ › neo theo `editorHasLoaded()` và đứng trước dòng đó để không xê dịch.
 
 ## Interaction Primitives

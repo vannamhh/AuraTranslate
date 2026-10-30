@@ -201,7 +201,11 @@ describe('title bar in App.vue', () => {
     expect(header).not.toContain('titlebar-act')
     expect((header.match(/class="mode-tab"/g) ?? []).length).toBe(3)
     expect(header).toContain('<TitlebarToolsMenu />')
-    expect(header).not.toMatch(/glossary\.queue\.open|review\.open/)
+    expect(header).not.toMatch(/glossary\.queue\.open/)
+    const layoutSwitch = /<div[^>]*class="layout-switch[^"]*"[\s\S]*?<\/div>/.exec(header)?.[0] ?? ''
+    expect(layoutSwitch).toContain("dispatch('review.open')")
+    expect(layoutSwitch).toContain("dispatch('review.close')")
+    expect(header.match(/dispatch\('review\.(open|close)'\)/g) ?? []).toHaveLength(2)
   })
 
   it('shows the layout switch only in Workspace, marks the active preset and disables it in Review Mode', () => {

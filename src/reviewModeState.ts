@@ -303,6 +303,12 @@ function jumpDiff(step: 1 | -1): void {
   void showCursor()
 }
 
+export function refuseChapterMoveInReview(): boolean {
+  if (status.value !== 'open') return false
+  say('review.chapter_move_blocked')
+  return true
+}
+
 export function reviewDiffNext(): void {
   jumpDiff(1)
 }
