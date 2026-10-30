@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Sàn chuột — nơi đặt thao tác câu trong Lưới</title>
+<style>
+@font-face{font-family:"Source Serif 4";src:url("../../../../../../src-tauri/resources/fonts/SourceSerif4[opsz,wght].ttf");font-weight:200 900}
+@font-face{font-family:"Source Sans 3";src:url("../../../../../../src-tauri/resources/fonts/SourceSans3[wght].ttf");font-weight:200 900}
+@font-face{font-family:"Noto Serif CJK TC";src:url("../../../../../../src-tauri/resources/fonts/NotoSerifCJKtc-Regular.otf")}
+:root{
+  --background:#f4f1ea;--surface:#fbfaf6;--sunken:#f0ece1;--ink:#2b2723;--ink-2:#6b6459;--outline:#e2dccf;
+  --primary:#2f5d63;--confirmed:#5a6b3f;--caret:#25484d;--control-rule:#8a8276;
+  --ui:"Source Sans 3",-apple-system,system-ui,sans-serif;
+  --read:"Source Serif 4","Noto Serif CJK TC",Georgia,serif;
+  --cjk:"Noto Serif CJK TC","Source Serif 4",serif;
+}
+:root[data-theme="dark"]{
+  --background:#201e1b;--surface:#26241f;--sunken:#1b1a17;--ink:#e8e3d8;--ink-2:#a29a8c;--outline:#3b382f;
+  --primary:#7fb3ba;--confirmed:#9cb37a;--caret:#c7dee1;--control-rule:#807868;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:28px;background:var(--background);color:var(--ink);font:13px/1.5 var(--ui)}
+h1{font-size:18px;margin:0 0 4px}
+h2{font-size:14px;margin:0 0 3px}
+.lead{margin:0 0 21px;color:var(--ink-2);max-width:70ch}
+.opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.opt{width:640px;max-width:100%}
+.opt p{margin:0 0 10px;color:var(--ink-2)}
+.panel{position:relative;background:var(--surface);border:1px solid var(--outline);border-radius:3px;overflow:visible}
+.tab{height:35px;display:flex;align-items:center;padding:0 14px;background:var(--sunken);border-bottom:1px solid var(--outline);font-weight:600}
+.body{padding:7px 14px 14px}
+.bar{display:flex;align-items:center;gap:7px;min-height:28px;margin-bottom:7px}
+.bar.wrap{flex-wrap:wrap}
+.bar.own{padding:7px 0 6px;margin:0 0 7px;border-bottom:1px solid var(--outline)}
+.spacer{flex:1}
+.seg{display:inline-flex;border:1px solid var(--control-rule);border-radius:3px;overflow:hidden}
+.seg b,.seg span{height:26px;display:flex;align-items:center;padding:0 10px;font-weight:400}
+.seg b{background:var(--ink);color:var(--surface)}
+.btn{height:28px;display:inline-flex;align-items:center;gap:5px;padding:0 10px;border:1px solid var(--control-rule);border-radius:3px;background:transparent;color:var(--ink);font:13px var(--ui);white-space:nowrap}
+.btn.quiet{border-color:transparent}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.btn[disabled]{border-style:dashed;border-color:var(--outline);color:var(--ink-2)}
+.grid{display:grid;grid-template-columns:3px 24px 1fr 1fr;gap:0 7px}
+.grid>*{padding:5px 0;border-bottom:1px solid var(--outline)}
+.rule{background:transparent;padding:0}
+.rule.on{background:var(--caret)}
+.rule.ok{background:var(--confirmed)}
+.num{color:var(--ink-2);text-align:right}
+.src{font:15px/1.66 var(--cjk)}
+.tgt{font:15px/1.66 var(--read)}
+.tgt.cur{outline:1px solid var(--outline);padding-left:4px}
+.float{position:absolute;right:21px;top:181px;display:flex;gap:2px;padding:3px;background:var(--surface);border:1px solid var(--outline);border-radius:3px;box-shadow:0 2px 8px rgb(0 0 0 / .14)}
+.menu{position:absolute;right:14px;top:80px;z-index:2;width:290px;background:var(--surface);border:1px solid var(--outline);border-radius:3px;box-shadow:0 2px 8px rgb(0 0 0 / .14);padding:3px}
+.menu div{display:flex;justify-content:space-between;padding:4px 10px}
+.menu div span{color:var(--ink-2)}
+.menu hr{border:0;border-top:1px solid var(--outline);margin:3px 0}
+.foot{margin-top:7px;font-size:13px}
+.foot b{font-weight:600}
+</style>
+</head>
+<body>
+<h1>Nơi đặt thao tác câu trong Lưới</h1>
+<p class="lead">Bốn cách đặt thao tác đọc caret của Story 14.2, 14.4, 14.5. Ice chọn D, 2026-10-30. Rộng 640 px là nửa cửa sổ 1280. Bản dựng bằng font thật của app; số đo nằm ở <code>EXPERIENCE.md</code> §Component Patterns.</p>
+<div class="opts">
+
+<section class="opt" id="opt-a">
+  <h2>A — Hàng đầy đủ</h2>
+  <p>Một hàng riêng, mọi nút có chữ. Thấy hết, không phải nhớ gì.</p>
+  <div class="panel">
+    <div class="tab">Đối chiếu</div>
+    <div class="body">
+      <div class="bar"><span class="seg"><b>Trung</b><span>Hán Việt</span></span></div>
+      <div class="bar wrap own" data-measure="a">
+        <button class="btn primary">Xác nhận</button>
+        <button class="btn">Gộp lên</button>
+        <button class="btn">Tách câu</button>
+        <button class="btn">Cắt bỏ</button>
+        <button class="btn">Kết đoạn</button>
+        <button class="btn">Câu chưa dịch</button>
+        <button class="btn">Thuật ngữ</button>
+        <button class="btn">Lịch sử</button>
+        <button class="btn">Tách Chương</button>
+      </div>
+      <div class="grid">
+        <div class="rule ok"></div><div class="num">11</div><div class="src">他抬起头，看向远方。</div><div class="tgt">Hắn ngẩng đầu, nhìn về phía xa.</div>
+        <div class="rule on"></div><div class="num">12</div><div class="src">山风吹过，带来一丝凉意。</div><div class="tgt cur">Gió núi thổi qua, mang theo chút hơi lạnh.</div>
+        <div class="rule"></div><div class="num">13</div><div class="src">他沉默了很久。</div><div class="tgt"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="opt" id="opt-b">
+  <h2>B — Hàng gọn cộng menu Câu</h2>
+  <p>Thao tác hay dùng nằm chung hàng Trung · Hán Việt, phần còn lại trong <code>Câu ▾</code>, mỗi mục ghi kèm phím.</p>
+  <div class="panel">
+    <div class="tab">Đối chiếu</div>
+    <div class="body">
+      <div class="bar" data-measure="b">
+        <span class="seg"><b>Trung</b><span>Hán Việt</span></span>
+        <span class="spacer"></span>
+        <button class="btn primary">Xác nhận</button>
+        <button class="btn">Gộp lên</button>
+        <button class="btn">Tách câu</button>
+        <button class="btn">Câu chưa dịch</button>
+        <button class="btn">Câu ▾</button>
+      </div>
+      <div class="menu">
+        <div>Thêm thuật ngữ <span>⌘⌥G</span></div>
+        <div>Lịch sử phiên bản <span>⌘H</span></div>
+        <hr>
+        <div>Cắt bỏ câu <span>⌘⌥X</span></div>
+        <div>Kết thúc đoạn sau câu này <span>⌘⌥P</span></div>
+        <hr>
+        <div>Tách Chương tại câu này <span>⌘⇧/</span></div>
+      </div>
+      <div class="grid">
+        <div class="rule ok"></div><div class="num">11</div><div class="src">他抬起头，看向远方。</div><div class="tgt">Hắn ngẩng đầu, nhìn về phía xa.</div>
+        <div class="rule on"></div><div class="num">12</div><div class="src">山风吹过，带来一丝凉意。</div><div class="tgt cur">Gió núi thổi qua, mang theo chút hơi lạnh.</div>
+        <div class="rule"></div><div class="num">13</div><div class="src">他沉默了很久。</div><div class="tgt"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="opt" id="opt-c">
+  <h2>C — Thanh bám hàng</h2>
+  <p>Một thanh nổi ngay dưới câu đang sửa. Không chiếm chỗ cố định, nhưng đi theo con trỏ và che hàng kế.</p>
+  <div class="panel">
+    <div class="tab">Đối chiếu</div>
+    <div class="body">
+      <div class="bar"><span class="seg"><b>Trung</b><span>Hán Việt</span></span></div>
+      <div class="grid">
+        <div class="rule ok"></div><div class="num">11</div><div class="src">他抬起头，看向远方。</div><div class="tgt">Hắn ngẩng đầu, nhìn về phía xa.</div>
+        <div class="rule on"></div><div class="num">12</div><div class="src">山风吹过，带来一丝凉意。</div><div class="tgt cur">Gió núi thổi qua, mang theo chút hơi lạnh.</div>
+        <div class="rule"></div><div class="num">13</div><div class="src">他沉默了很久。</div><div class="tgt"></div>
+      </div>
+      <div class="float" data-measure="c">
+        <button class="btn quiet">Xác nhận</button>
+        <button class="btn quiet">Gộp</button>
+        <button class="btn quiet">Tách</button>
+        <button class="btn quiet">Câu ▾</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="opt" id="opt-d">
+  <h2>D — Menu chuột phải (Ice chọn)</h2>
+  <p>Chuột phải vào câu nào thì lệnh chạy trên câu đó. Lưới không thêm nút; thanh trạng thái có một dòng gợi ý.</p>
+  <div class="panel">
+    <div class="tab">Đối chiếu</div>
+    <div class="body">
+      <div class="bar"><span class="seg"><b>Trung</b><span>Hán Việt</span></span></div>
+      <div class="grid">
+        <div class="rule ok"></div><div class="num">11</div><div class="src">他抬起头，看向远方。</div><div class="tgt">Hắn ngẩng đầu, nhìn về phía xa.</div>
+        <div class="rule on"></div><div class="num">12</div><div class="src">山风吹过，带来一丝凉意。</div><div class="tgt cur">Gió núi thổi qua, mang theo chút hơi lạnh.</div>
+        <div class="rule"></div><div class="num">13</div><div class="src">他沉默了很久。</div><div class="tgt"></div>
+      </div>
+      <div class="menu" style="top:128px;right:40px;width:294px">
+        <div style="font-size:13px"><span>Câu 12</span></div>
+        <div>Xác nhận <span>⌘↵</span></div>
+        <div>Gộp lên <span>⌘M</span></div>
+        <div>Tách câu <span>⌘/</span></div>
+        <div>Câu chưa dịch kế <span>⌘⌥↓</span></div>
+        <hr>
+        <div>Thêm thuật ngữ <span>⌘⌥G</span></div>
+        <div>Lịch sử phiên bản <span>⌘H</span></div>
+        <hr>
+        <div>Cắt bỏ câu <span>⌘⌥X</span></div>
+        <div>Kết thúc đoạn <span>⌘⌥P</span></div>
+        <div>Tách Chương tại đây <span>⌘⇧/</span></div>
+      </div>
+      <div style="height:230px"></div>
+      <p class="foot" style="margin:0;color:var(--ink-2)">Thanh trạng thái: Chuột phải vào câu để xem thao tác</p>
+    </div>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

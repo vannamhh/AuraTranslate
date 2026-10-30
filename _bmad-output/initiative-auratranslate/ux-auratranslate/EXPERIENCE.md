@@ -60,6 +60,8 @@ Thanh tiêu đề
 └── phải   [Proofreader: "Chương 47 · đã quét N câu"] · công tắc Ⓑ-2/Ⓑ-1 · Công cụ ▾
 ```
 
+🔵 2026-10-30 (AD-62, Ice chọn): chỗ đặt nút cho các lệnh chưa có đường chuột nằm ở `tickets/epic-san-chuot/ux-san-chuot/EXPERIENCE.md`; công tắc bố cục thêm ô Review Mode, `Công cụ ▾` thêm Ngưỡng quét Glossary và ba công tắc panel.
+
 `Công cụ ▾` là mục duy nhất trên thanh tiêu đề mà mockup không vẽ. Nó là danh sách thả xuống trong webview, giống nhau trên macOS và Windows, không dùng menu gốc của hệ điều hành; mỗi mục ghi kèm phím.
 
 | Lối vào | Chỗ theo ngữ cảnh | `Công cụ ▾` | Phím |
