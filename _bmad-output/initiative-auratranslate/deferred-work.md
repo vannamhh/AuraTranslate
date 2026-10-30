@@ -13683,6 +13683,8 @@ chính nó.
 - `check:gates` Kiểm G đỏ từ `9d7f9a0d`: `LINE_HEIGHT_FLOOR_EXEMPT` ở `scripts/check-tokens.mjs` là một `Map` miễn trừ nhưng tên khớp luật mọi hằng `*_FLOOR` phải qua `judgeFloor`, nên `pre-push` sẽ chặn lượt đẩy kế tiếp.
   Cần: đổi tên hằng cho khỏi khớp luật, hoặc sửa luật Kiểm G cho đúng phạm vi; không thêm lời gọi `judgeFloor` giả.
   Chủ: Ice. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Implementation Notes.
+  → ✅ ĐÃ ĐÓNG 2026-10-30 (Story 14.1): hằng đổi tên thành `LINE_HEIGHT_WRAP_EXEMPT`, vì nó là danh sách miễn trừ chứ không phải sàn; không thêm vào `FLOOR_EXEMPT`.
 - `check:doc-refs` dừng ở lỗi hạ tầng trên cây trước Story 14.1: `FILE_FLOOR` = 660 đã trôi dưới 80% của 828 tệp, nên `pre-push` sẽ chặn lượt đẩy kế tiếp.
   Cần: nâng `FILE_FLOOR` lên 704 ở `scripts/check-doc-refs.mjs`, đúng công thức cổng in ra.
   Chủ: Ice. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Implementation Notes.
+  → ✅ ĐÃ ĐÓNG 2026-10-30 (Story 14.1): `FILE_FLOOR` nâng lên 704.

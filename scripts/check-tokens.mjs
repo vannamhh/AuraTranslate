@@ -1412,7 +1412,7 @@ console.log('\nKiểm E — giãn dòng: bội 7px và sàn 1.6 cho chữ có xu
 
 const LINE_HEIGHT_FLOOR = 1.6
 /** Chữ xuống dòng được phép dưới sàn (DESIGN.md §Giãn dòng — Ngoại lệ). */
-const LINE_HEIGHT_FLOOR_EXEMPT = new Map([
+const LINE_HEIGHT_WRAP_EXEMPT = new Map([
   ['lookup-gloss', 'nghĩa từ điển 21px ở 14,5px (≈ 1.45): Ice chọn bội 7 gần 1.5 nhất thay vì 28px (1.93)'],
 ])
 const LEADING_GRID_PX = 7
@@ -1444,7 +1444,7 @@ function leadingProblems(name, t) {
   /** @type {string[]} */
   const out = []
   const lh = parseFloat(lhRaw)
-  if (t.wraps && !(lh >= LINE_HEIGHT_FLOOR) && !LINE_HEIGHT_FLOOR_EXEMPT.has(name)) {
+  if (t.wraps && !(lh >= LINE_HEIGHT_FLOOR) && !LINE_HEIGHT_WRAP_EXEMPT.has(name)) {
     out.push(`typography.${name} — \`wraps: true\` nhưng lineHeight ${lhRaw} < ${LINE_HEIGHT_FLOOR}`)
   }
   const fs = parseFloat(String(t.fontSize))
@@ -1467,7 +1467,7 @@ for (const [name, t] of entriesOf(tokens.typography)) {
 if (eBad === 0) {
   const wrapping = entriesOf(tokens.typography).filter(([, t]) => t.wraps)
   const single = entriesOf(tokens.typography).filter(([, t]) => !t.wraps)
-  pass(`${wrapping.length} token \`wraps: true\` đều ≥ ${LINE_HEIGHT_FLOOR} trừ ${LINE_HEIGHT_FLOOR_EXEMPT.size} token có tên (${[...LINE_HEIGHT_FLOOR_EXEMPT.keys()].join(', ')}), và đều không đơn vị`)
+  pass(`${wrapping.length} token \`wraps: true\` đều ≥ ${LINE_HEIGHT_FLOOR} trừ ${LINE_HEIGHT_WRAP_EXEMPT.size} token có tên (${[...LINE_HEIGHT_WRAP_EXEMPT.keys()].join(', ')}), và đều không đơn vị`)
   pass(`${single.length} token nhãn một dòng được ghìm dưới sàn hợp lệ: ${single.map(([n]) => n).join(', ')}`)
   pass(`mọi giãn dòng là bội ${LEADING_GRID_PX}px, trừ ${LEADING_GRID_BODY_EXEMPT.size} token thân lưới có tên: ${[...LEADING_GRID_BODY_EXEMPT.keys()].join(', ')}`)
 }
