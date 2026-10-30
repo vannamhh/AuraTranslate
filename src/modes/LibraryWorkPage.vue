@@ -65,8 +65,8 @@ const renameInput = useTemplateRef<HTMLInputElement>('renameInput')
 
 // One fixed height for every flat item (group header, Chapter row, "more" note), so the pure
 // `chapterWindow` can virtualise the list. Must match `.wp-item` in <style>.
-const ITEM_HEIGHT_PX = 44
-const VIEWPORT_HEIGHT_PX = 440
+const ITEM_HEIGHT_PX = 42
+const VIEWPORT_HEIGHT_PX = 420
 const OVERSCAN = 4
 
 const scrollTop = ref(0)
@@ -1062,7 +1062,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 70px minmax(0, 1fr) 301px;
   gap: calc(var(--space-unit) * 3);
   align-items: start;
-  padding-bottom: var(--space-panel-block);
+  padding-bottom: 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1140,7 +1140,7 @@ onBeforeUnmount(() => {
 }
 
 .wp-status {
-  padding-left: calc(var(--space-unit) * 2);
+  padding-left: 13px; /* aura-allow-spacing: 1px left border sits inside the 14px inset */
   border-left: 1px solid var(--color-outline);
 }
 
@@ -1193,7 +1193,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  margin-top: calc(var(--space-unit) * 1);
+  margin-top: var(--space-panel-block);
 }
 
 .wp-bar {
@@ -1201,7 +1201,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: baseline;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) 0;
+  padding: var(--space-unit) 0 6px; /* aura-allow-spacing: 1px bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1303,7 +1303,7 @@ onBeforeUnmount(() => {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 441px;
+  max-height: 420px;
   overflow-y: auto;
   background: var(--color-surface);
   border-top: 1px solid var(--color-outline-faint);
@@ -1378,7 +1378,7 @@ onBeforeUnmount(() => {
   cursor: default;
   user-select: none;
   border-left: 3px solid transparent;
-  padding-left: calc(var(--space-unit) * 2);
+  padding-left: 11px; /* aura-allow-spacing: 3px status rule sits inside the 14px inset */
 }
 
 .chapter-row--in_progress {
@@ -1550,7 +1550,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  padding-top: calc(var(--space-unit) * 2);
+  padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
 }
 

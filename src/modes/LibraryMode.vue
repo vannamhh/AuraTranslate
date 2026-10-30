@@ -1026,7 +1026,7 @@ const importScreenIsOpen = computed<boolean>(
 /* Story 5.3 — "Quét lại thư mục". Cùng khuôn token/cỡ chữ với `.empty`/`.field` ở trên. */
 .root-block {
   margin-bottom: var(--space-panel-block);
-  padding-bottom: var(--space-panel-block);
+  padding-bottom: 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1079,7 +1079,7 @@ const importScreenIsOpen = computed<boolean>(
 
 .orphan-row {
   margin-top: 14px;
-  padding: 14px;
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
   border-radius: 4px;
   background: var(--color-surface-sunken);
@@ -1123,7 +1123,7 @@ const importScreenIsOpen = computed<boolean>(
 
 .works-block {
   margin-bottom: var(--space-panel-block);
-  padding-bottom: var(--space-panel-block);
+  padding-bottom: 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
@@ -1168,7 +1168,7 @@ const importScreenIsOpen = computed<boolean>(
   align-items: flex-end;
   justify-content: space-between;
   height: 133px;
-  padding: 14px;
+  padding: 13px 13px 14px; /* aura-allow-spacing: 1px card border sits inside the 14px inset */
   border-radius: 3px 3px 0 0;
   background: var(--color-cover-1-from);
 }
@@ -1214,7 +1214,7 @@ const importScreenIsOpen = computed<boolean>(
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding: 14px;
+  padding: 13px; /* aura-allow-spacing: 1px card border sits inside the 14px inset */
 }
 
 .work-name {
@@ -1231,13 +1231,15 @@ const importScreenIsOpen = computed<boolean>(
 }
 
 .work-meta {
-  min-height: 1.4em;
+  margin-bottom: 7px;
+  min-height: 21px;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
 }
 
 .work-progress-track {
+  margin-bottom: -3px; /* aura-allow-spacing: the 3px bar fills a 7px band, so the row below stays on the grid */
   height: 3px;
   border-radius: 2px;
   background: var(--color-surface-sunken);

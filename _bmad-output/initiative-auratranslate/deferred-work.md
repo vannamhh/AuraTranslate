@@ -13621,6 +13621,7 @@ chính nó.
 - e2e `story-12-34-work-page-read-chapter` đỏ cả 3 ca, kể cả chạy riêng: bước gieo IPC nhận `segment_count` `[1,1,1,1,1]` thay vì `[1,1,1,1,4]`, trước mọi bước DOM. Diff 13.4 chỉ đổi CSS/template, `src-tauri` không đổi từ `5af8d0e4`; mục Epic 12 ở trên ghi spec này chưa từng chạy (cổng 1420 bận), nên rất có thể chưa bao giờ xanh. Chưa chạy trên cây sạch.
   Cần: chạy spec trên cây không có diff 13.4, tìm vì sao `create_work_from_text` + bốn lần `split_chapter_at_segment` ra năm Chương một câu.
   Chủ: Epic 12. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-canh-baseline-cho-moi-hang-ngang-plan.md` §Review Triage Log.
+  → 2026-10-30 (Story 13.7): vẫn đỏ ở cùng bước gieo (Chương cuối 1 câu thay vì 4) trên cây có diff 13.7, diff chỉ đổi CSS, hai hằng ảo hoá và spec mới; chưa chạy trên cây gốc `5c776887`. Chủ: Epic 12.
 
 ## Deferred from: Story 13.3, thanh tiêu đề 42px (2026-10-30)
 
@@ -13634,6 +13635,7 @@ chính nó.
 - Giãn dòng Chế độ đọc phát tỉ số `px / cỡ` dạng double (vd. 56/21 = 2.6666666666666665), có thể thấp hơn bội 7 một phần nhỏ nếu WebKit làm tròn xuống; vitest chỉ chứng phép tính, không chứng hộp dòng vẽ ra.
   Cần: đo chiều cao dòng của `.column` trên WKWebView ở vài tổ hợp cỡ × tỉ số của thanh trượt (21px × 2.34…2.4 là chỗ nghi), ra đúng bội 7.
   Chủ: Story 13.7. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-che-o-oc-gian-dong-nhay-bac-7px-plan.md` §Review Triage Log.
+  → ✅ ĐÃ ĐÓNG 2026-10-30 (Story 13.7) — `story-13-7-ra-be-mat-library-doc.e2e.mjs` đo hộp dòng của `.column` vẽ ra: 42 · 35 · 28 ở ba mức và 56 ở 21px với tỉ số 2.34 · 2.37 · 2.4, đều bội 7; ca này xanh cả trước khi sửa CSS.
 
 ## Deferred from: Story 13.6, rà bề mặt Workspace, Tra cứu và thanh trạng thái theo lưới 7px (2026-10-30)
 

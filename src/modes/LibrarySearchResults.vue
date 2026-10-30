@@ -466,7 +466,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
 }
 
 .search-chip {
-  padding: 7px 14px;
+  padding: 6px 13px; /* aura-allow-spacing: 1px border sits inside the 7px and 14px insets */
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   color: var(--color-on-surface-variant);
@@ -544,7 +544,7 @@ function seeAllText(count: number, lowerBound: boolean): string {
   display: grid;
   grid-template-columns: 161px 1fr;
   gap: 7px 14px;
-  padding: 7px 0 7px 14px;
+  padding: 7px 0 6px 14px; /* aura-allow-spacing: 1px bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline-faint);
 }
 

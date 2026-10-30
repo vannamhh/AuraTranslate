@@ -1048,7 +1048,7 @@ function paragraphRuns(
 
 .toolbar {
   display: flex;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
   flex-wrap: wrap;
   margin-bottom: var(--space-panel-block);
 }
@@ -1063,7 +1063,7 @@ function paragraphRuns(
 .tuner-row {
   display: flex;
   align-items: baseline;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   font-family: var(--face-ui-sm);
@@ -1101,7 +1101,7 @@ function paragraphRuns(
 .source-note {
   float: inline-start;
   inline-size: var(--source-note-inline);
-  margin: 0 0 1em calc(-1 * (var(--source-note-inline) + var(--space-panel-inline))); /* aura-allow-spacing: nhịp đoạn theo em; lề trái âm bằng đúng bề rộng ghi chú (ch) cộng khe, không phải khoảng cách lưới */
+  margin: 0 0 calc(var(--reading-line-height) * var(--reading-font-size)) calc(-1 * (var(--source-note-inline) + var(--space-panel-inline))); /* aura-allow-spacing: one reading line box below; the negative inline margin is the note width (ch) plus the gap, not a grid step */
   text-align: end;
   font-size: var(--font-read-lg);
   line-height: var(--leading-read-lg);
@@ -1124,7 +1124,7 @@ function paragraphRuns(
 }
 
 .chapter-title {
-  margin: 0 0 var(--space-panel-block) 0;
+  margin: 0 0 var(--space-unit) 0;
   font-size: var(--font-read-title);
   line-height: var(--leading-read-title);
   font-weight: var(--weight-read-title);
@@ -1132,7 +1132,7 @@ function paragraphRuns(
 }
 
 .paragraph {
-  margin: 0 0 1em 0; /* aura-allow-spacing: khoảng cách đoạn văn theo em, tỉ lệ cỡ chữ đang áp — không phải khoảng cách lưới cố định */
+  margin: 0 0 1lh 0; /* aura-allow-spacing: one reading line box, a multiple of 7 by readingStyle */
 }
 
 /*
@@ -1141,7 +1141,7 @@ function paragraphRuns(
  * khi một ảnh chen vào giữa hai đoạn/hai câu.
  */
 .reading-figure {
-  margin: 0 0 1em 0; /* aura-allow-spacing: khoảng cách đoạn văn theo em, tỉ lệ cỡ chữ đang áp — không phải khoảng cách lưới cố định */
+  margin: 0 0 1lh 0; /* aura-allow-spacing: one reading line box, a multiple of 7 by readingStyle */
 }
 
 /*
@@ -1186,7 +1186,7 @@ function paragraphRuns(
   /* aura-allow-z-index: thứ tự sơn trong cùng dòng để nút tuyệt đối không nằm dưới chữ câu kế, không elevation */
   z-index: 1;
   white-space: nowrap;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
   margin-inline-start: var(--space-panel-inline);
   background: var(--color-surface);
   border-radius: var(--radius-md);
@@ -1230,7 +1230,7 @@ function paragraphRuns(
 .frontier {
   text-align: center;
   margin-top: var(--space-panel-block);
-  padding-top: var(--space-panel-block);
+  padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
 }
 
@@ -1340,8 +1340,8 @@ function paragraphRuns(
 .marks-row {
   display: flex;
   align-items: baseline;
-  gap: var(--space-panel-inline);
-  padding: var(--space-panel-inline);
+  gap: var(--space-unit);
+  padding: var(--space-panel-inline) var(--space-panel-inline) 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
@@ -1369,7 +1369,7 @@ function paragraphRuns(
 }
 
 .level-label {
-  margin-inline-end: var(--space-panel-inline);
+  margin-inline-end: var(--space-unit);
   color: var(--color-on-surface-variant);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1377,7 +1377,7 @@ function paragraphRuns(
 }
 
 .level-group .kbd {
-  margin-inline-start: var(--space-panel-inline);
+  margin-inline-start: var(--space-unit);
 }
 
 .ui-row > .kbd {
@@ -1385,7 +1385,7 @@ function paragraphRuns(
 }
 
 .kbd {
-  margin-inline-start: var(--space-panel-inline);
+  margin-inline-start: var(--space-unit);
 }
 
 .progress-line {
@@ -1393,17 +1393,17 @@ function paragraphRuns(
   justify-content: space-between;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
-  padding-bottom: var(--space-panel-inline);
+  padding-bottom: 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
   border-bottom: 1px solid var(--color-outline);
 }
 
 .chapter-origin {
-  margin: 0 0 var(--space-panel-block) 0;
+  margin: 0 0 calc(var(--reading-line-height) * var(--reading-font-size)) 0; /* aura-allow-spacing: one reading line box; 1lh here is the ui-sm line */
 }
 
 .toc-actions {
   display: flex;
-  gap: var(--space-panel-inline);
+  gap: var(--space-unit);
   flex-wrap: wrap;
 }
 </style>
