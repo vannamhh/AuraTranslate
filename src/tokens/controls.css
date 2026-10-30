@@ -660,6 +660,15 @@ summary.ui-field {
   padding: 0 calc(var(--space-unit) * 1);
 }
 
+.ui-seg--bare {
+  border-width: 0;
+}
+
+.ui-seg--bare .ui-seg__item {
+  border-left-width: 0;
+  border-radius: var(--radius-default);
+}
+
 .ui-tab {
   appearance: none;
   padding: 0;

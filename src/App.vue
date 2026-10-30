@@ -247,7 +247,7 @@ onMounted(async () => {
 
           <div
             v-if="currentMode === 'workspace'"
-            class="layout-switch ui-seg ui-seg--icons"
+            class="layout-switch ui-seg ui-seg--icons ui-seg--bare"
             role="group"
             :aria-label="t('titlebar.layout.group')"
           >
@@ -470,15 +470,6 @@ onMounted(async () => {
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   color: var(--color-on-surface);
-}
-
-.layout-switch {
-  border-width: 0;
-}
-
-.layout-switch-btn.ui-seg__item {
-  border-left-width: 0;
-  border-radius: var(--radius-default);
 }
 
 .titlebar-right {

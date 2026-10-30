@@ -205,7 +205,7 @@ describe('title bar in App.vue', () => {
   })
 
   it('shows the layout switch only in Workspace, marks the active preset and disables it in Review Mode', () => {
-    expect(header).toMatch(/v-if="currentMode === 'workspace'"\s+class="layout-switch ui-seg ui-seg--icons"/)
+    expect(header).toMatch(/v-if="currentMode === 'workspace'"\s+class="layout-switch ui-seg ui-seg--icons ui-seg--bare"/)
     expect(header.match(/:disabled="reviewModeIsOpen \|\| attributionIsOpen"/g) ?? []).toHaveLength(2)
     expect(header).toContain("dispatch('layout.preset_grid')")
     expect(header).toContain("dispatch('layout.preset_columns')")

@@ -24,7 +24,6 @@ const SHAPE_EXCEPTIONS: Record<string, string> = {
   'src/PromptLibraryOverlay.vue .pl-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
   'src/AlignmentOverlay.vue .al-sr-only': 'visually hidden native radio; its wrapping label carries the row hit area',
   'src/modes/LibraryMode.vue .lib-sr-only': 'visually hidden native radio; its wrapping label carries the ui-* shape',
-  'src/App.vue .layout-switch': 'layout switch on the title bar is borderless',
 }
 
 const NOT_A_CONTROL: Record<string, string> = {
