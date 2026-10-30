@@ -68,6 +68,8 @@ registry.register({
 
 `@click="doSomething()"` · `@click="mode = 'library'"` · `@click="$emit('x')"` đều là **FAIL** ở Kiểm A. Handler chuột chỉ được `dispatch` một command đã đăng ký — đó là mệnh đề trung tâm của AD-34 §1, và nó là thứ khiến câu hỏi *"thao tác nào chưa gán được phím"* trả lời được bằng máy (`unbound()`).
 
+4. Mọi command phải có một điểm chuột (`@click`/`@dblclick`/`@submit`/`@contextmenu` = `dispatch('<id>')` literal) hoặc khai `pointer: { kind, reason, at?, via? }` ngay ở `register()` (AD-62; `focus` · `aim` · `gesture` · `auto` · `via`). Command mới không bao giờ vào `POINTER_DEBT` của `scripts/check-commands.mjs` — Kiểm M.
+
 ### Hợp âm
 
 Viết ở dạng trung lập: `Mod+1` · `Mod+Shift+Enter` · `B`. 🔴 **Đừng viết `event.metaKey`.** `⌘` là ký hiệu macOS của một phím **trừu tượng**; trên Windows nó là `Ctrl`. Một cài đặt chỉ đọc `metaKey` đi qua **cả hai nền tảng của CI** rồi hỏng ở tay người dùng Windows — vi phạm NFR14 nặng nhất còn lọt được. Kiểm D của cổng lái cả hai ca `isMac` và là lưới duy nhất chặn nó.
@@ -101,9 +103,11 @@ Cổng đối chiếu `FOCUS_OWNERS` với mã nguồn **hai chiều**: mọi ow
 ## Chạy cổng
 
 ```bash
-npm run check:commands     # 5 phép kiểm — A cú pháp `@click` · B văn phạm+tồn tại id
+npm run check:commands     # phép kiểm A cú pháp `@click` · B văn phạm+tồn tại id
                            #             · C hành vi registry+focus · D hai nền tảng
                            #             · E nhãn trong vi.json + sổ focus hai chiều
+                           #             · F vùng chọn · I vạch lề segment · K sổ handler phím/chuột
+                           #             · L `unbound()` ngoài `.vue` · M sàn chuột (AD-62)
 ```
 
 Nó chạy trong CI ở job `check`, kề `check:i18n` và **trước** `npm run build`.

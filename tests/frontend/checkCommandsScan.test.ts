@@ -10,6 +10,7 @@ import {
   attributesIn,
   scanVueAttrs,
   functionBodyRange,
+  mousePointIds,
 } from '../../scripts/lib/commands-scan.mjs'
 
 function maskedScript(text: string, blankLiterals = false): string {
@@ -220,6 +221,55 @@ describe('scanVueAttrs — gộp hai vòng lặp (tệp × vùng) mà mỗi Ki�
       scanVueAttrs([
         { file: 'src/demo.ts', text: '', masked: '', templates: [], isVue: false },
       ]),
+    ).toEqual([])
+  })
+})
+
+describe('mousePointIds — điểm chuột của AD-62 mục 1', () => {
+  function pointsOf(template: string): string[] {
+    const text = `<template>${template}</template>`
+    const chars = text.split('')
+    maskTemplate(text, 0, text.length, chars)
+    const masked = chars.join('')
+    const p = {
+      file: 'src/Demo.vue',
+      text,
+      masked,
+      templates: [{ start: 0, end: text.length }],
+      isVue: true,
+    }
+    return [...mousePointIds(scanVueAttrs([p]))].sort()
+  }
+
+  it('tính @click, @dblclick, @submit, @contextmenu có dispatch literal', () => {
+    expect(
+      pointsOf(
+        `<a @click="dispatch('a.b')"/><a @dblclick="dispatch('a.c')"/>` +
+          `<form @submit="dispatch('a.d')"/><a @contextmenu="dispatch('a.e')"/>`,
+      ),
+    ).toEqual(['a.b', 'a.c', 'a.d', 'a.e'])
+  })
+
+  it('tính modifier và dạng `v-on:`', () => {
+    expect(
+      pointsOf(
+        `<a @contextmenu.prevent="dispatch('a.b')"/><form v-on:submit.prevent="dispatch('a.c')"/>` +
+          `<a v-on:click.stop="dispatch('a.d')"/>`,
+      ),
+    ).toEqual(['a.b', 'a.c', 'a.d'])
+  })
+
+  it('không tính @mousedown, @pointerdown, @keydown dù giá trị là dispatch literal', () => {
+    expect(
+      pointsOf(
+        `<a @mousedown="dispatch('a.b')"/><a @pointerdown="dispatch('a.c')"/><a @keydown="dispatch('a.d')"/>`,
+      ),
+    ).toEqual([])
+  })
+
+  it('không tính lời gọi qua hàm hay giá trị có thêm lệnh', () => {
+    expect(
+      pointsOf(`<form @submit="fn()"/><a @click="onGo"/><a @click="dispatch('a.b'); other()"/>`),
     ).toEqual([])
   })
 })

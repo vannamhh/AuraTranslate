@@ -419,3 +419,144 @@ export function splitTopLevel(body) {
   parts.push(body.slice(start))
   return parts
 }
+
+// Anchored at both ends: "contains a dispatch call" differs from "is a dispatch call".
+export const DISPATCH_ONLY_RE = /^\s*dispatch\(\s*(['"])([^'"]*)\1\s*\)\s*$/
+
+const MOUSE_POINT_ATTR_RE = /^(@|v-on:)(click|dblclick|submit|contextmenu)(\.[A-Za-z0-9.\-]+)?$/
+const AIM_ATTR_RE = /^(@|v-on:)(mousedown|pointerdown)(\.[A-Za-z0-9.\-]+)?$/
+
+export const POINTER_KINDS = ['focus', 'aim', 'gesture', 'auto', 'via']
+
+/**
+ * Ids that have a mouse point (AD-62 rule 1): a click/dblclick/submit/contextmenu attribute
+ * whose whole value is a literal `dispatch('<id>')`.
+ * @param {ScannedAttr[]} scanned
+ * @returns {Set<string>}
+ */
+export function mousePointIds(scanned) {
+  /** @type {Set<string>} */
+  const ids = new Set()
+  for (const { a } of scanned) {
+    if (!MOUSE_POINT_ATTR_RE.test(a.name)) continue
+    const m = DISPATCH_ONLY_RE.exec(a.value)
+    if (m) ids.add(m[2])
+  }
+  return ids
+}
+
+/**
+ * @param {ParsedFile} p
+ * @param {string} id
+ * @returns {boolean} a literal `dispatch('<id>')` in script code, outside templates and comments
+ */
+function dispatchesInCode(p, id) {
+  const chars = p.masked.split('')
+  for (const t of p.templates) blank(chars, t.start, t.end)
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`\\bdispatch\\(\\s*(['"])${escaped}\\1\\s*\\)`).test(chars.join(''))
+}
+
+/**
+ * @param {ParsedFile} p
+ * @returns {boolean}
+ */
+const hasAimAttr = (p) => scanVueAttrs([p]).some(({ a }) => AIM_ATTR_RE.test(a.name))
+
+/**
+ * Pure verdict of AD-62 rules 2, 3 and 5: every registered command belongs to exactly one of
+ * mouse point / `pointer` declaration / debt, declarations are well formed, debt only shrinks.
+ * @param {object} input
+ * @param {readonly { id: string, pointer?: any }[]} input.registered
+ * @param {Set<string>} input.pointIds
+ * @param {readonly string[]} input.debt
+ * @param {readonly string[]} input.baseline
+ * @param {(path: string) => ParsedFile | null} input.fileAt - parsed file by repo-relative posix path
+ * @returns {{ id: string, message: string }[]}
+ */
+export function judgePointerFloor({ registered, pointIds, debt, baseline, fileAt }) {
+  /** @type {{ id: string, message: string }[]} */
+  const problems = []
+  const bad = (/** @type {string} */ id, /** @type {string} */ message) => problems.push({ id, message })
+  const registeredIds = new Set(registered.map((s) => s.id))
+  const byId = new Map(registered.map((s) => [s.id, s]))
+  const debtSet = new Set(debt)
+  const baselineSet = new Set(baseline)
+
+  const seen = new Set()
+  for (const id of debt) {
+    if (seen.has(id)) bad(id, '`POINTER_DEBT` có id trùng')
+    seen.add(id)
+    if (!baselineSet.has(id)) bad(id, '`POINTER_DEBT` có id ngoài `POINTER_DEBT_BASELINE` — sổ nợ chỉ co lại')
+    if (!registeredIds.has(id)) bad(id, '`POINTER_DEBT` có id không còn được đăng ký')
+  }
+
+  for (const spec of registered) {
+    const id = spec.id
+    const hasPoint = pointIds.has(id)
+    const declared = spec.pointer !== undefined
+    const inDebt = debtSet.has(id)
+    const groups = Number(hasPoint) + Number(declared) + Number(inDebt)
+    if (groups === 0) {
+      bad(id, 'không có điểm chuột, không khai `pointer`, không ở sổ nợ — thêm nút `dispatch` literal hoặc khai `pointer`')
+    } else if (groups > 1) {
+      const which = [hasPoint && 'có điểm chuột', declared && 'khai `pointer`', inDebt && 'ở `POINTER_DEBT`']
+        .filter(Boolean)
+        .join(' + ')
+      bad(id, `thuộc nhiều hơn một nhóm (${which}) — miễn trừ đã chết, gỡ phần thừa`)
+    }
+    if (declared) judgeDeclaration(spec, { pointIds, byId, fileAt, bad })
+  }
+  return problems
+}
+
+/**
+ * @param {{ id: string, pointer?: any }} spec
+ * @param {{ pointIds: Set<string>, byId: Map<string, { id: string, pointer?: any }>, fileAt: (path: string) => ParsedFile | null, bad: (id: string, message: string) => unknown }} ctx
+ */
+function judgeDeclaration(spec, { pointIds, byId, fileAt, bad }) {
+  const id = spec.id
+  const ptr = spec.pointer
+  if (ptr === null || typeof ptr !== 'object') {
+    bad(id, '`pointer` không phải một đối tượng')
+    return
+  }
+  const kind = ptr.kind
+  if (typeof kind !== 'string' || !POINTER_KINDS.includes(kind)) {
+    bad(id, `\`pointer.kind\` = \`${String(kind)}\` ngoài tập ${POINTER_KINDS.join(' · ')}`)
+    return
+  }
+  if (typeof ptr.reason !== 'string' || ptr.reason.trim() === '') bad(id, '`pointer.reason` rỗng')
+  const needsAt = kind === 'aim' || kind === 'auto'
+  const hasAt = ptr.at !== undefined
+  const hasVia = ptr.via !== undefined
+  if (needsAt && !hasAt) bad(id, `\`pointer.at\` bắt buộc với \`${kind}\``)
+  if (!needsAt && hasAt) bad(id, `\`pointer.at\` bị cấm với \`${kind}\``)
+  if (kind === 'via' && !hasVia) bad(id, '`pointer.via` bắt buộc với `via`')
+  if (kind !== 'via' && hasVia) bad(id, `\`pointer.via\` bị cấm với \`${kind}\``)
+
+  if (needsAt && hasAt) {
+    const at = ptr.at
+    if (typeof at !== 'string' || !/^src\/.+\.(vue|ts)$/.test(at)) {
+      bad(id, `\`pointer.at\` = \`${String(at)}\` phải là đường dẫn \`.vue\`/\`.ts\` dưới \`src/\``)
+    } else if (kind === 'auto' && at.startsWith('src/commands/')) {
+      bad(id, '`pointer.at` của `auto` không được nằm trong `src/commands/**`')
+    } else {
+      const file = fileAt(at)
+      if (file === null) bad(id, `\`pointer.at\` = \`${at}\` không phải tệp đã quét`)
+      else if (kind === 'aim' && !hasAimAttr(file)) {
+        bad(id, `\`${at}\` không có thuộc tính \`@mousedown\`/\`@pointerdown\` nào — \`aim\` không có đích nhắm`)
+      } else if (kind === 'auto' && !dispatchesInCode(file, id)) {
+        bad(id, `\`${at}\` không có \`dispatch('${id}')\` literal trong mã (ngoài template và comment)`)
+      }
+    }
+  }
+
+  if (kind === 'via' && hasVia) {
+    const via = ptr.via
+    const target = typeof via === 'string' ? byId.get(via) : undefined
+    if (target === undefined) bad(id, `\`pointer.via\` = \`${String(via)}\` chưa đăng ký`)
+    else if (!pointIds.has(target.id)) bad(id, `\`via\` \`${target.id}\` không có điểm chuột`)
+    else if (target.pointer !== undefined) bad(id, `\`via\` \`${target.id}\` tự khai \`pointer\` — không có chuỗi \`via\``)
+  }
+}

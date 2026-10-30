@@ -1512,6 +1512,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     target.register({
       id,
       labelKey: `command.${id}`,
+      pointer: { kind: 'focus', reason: 'Chỉ dời tiêu điểm sang panel kế, panel tự bấm được.' },
       keys: [`Mod+Alt+Arrow${step > 0 ? 'Right' : 'Left'}`],
       run: () => {
         if (deps.panelRing === undefined) {
@@ -2102,6 +2103,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'library.list_works',
     labelKey: 'command.library.list_works',
+    pointer: { kind: 'via', reason: 'Tab Thư viện nạp lại danh sách Tác phẩm.', via: 'mode.library' },
     keys: ['Mod+Alt+W'],
     run: () => {
       if (deps.loadLibraryWorks === undefined) return portMissing('library.list_works', 'loadLibraryWorks')
@@ -2167,6 +2169,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'library.work_next',
     labelKey: 'command.library.work_next',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.', at: 'src/modes/LibraryMode.vue' },
     keys: undefined,
     run: () => {
       if (deps.nextLibraryWork === undefined) return portMissing('library.work_next', 'nextLibraryWork')
@@ -2176,6 +2179,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'library.work_prev',
     labelKey: 'command.library.work_prev',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.', at: 'src/modes/LibraryMode.vue' },
     keys: undefined,
     run: () => {
       if (deps.prevLibraryWork === undefined) return portMissing('library.work_prev', 'prevLibraryWork')
@@ -2220,17 +2224,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'library.list_chapters',
     labelKey: 'command.library.list_chapters',
+    pointer: { kind: 'via', reason: 'Mở Tác phẩm nạp danh sách Chương.', via: 'library.open_work' },
     keys: undefined,
     run: () => {
       if (deps.loadLibraryChapters === undefined) return portMissing('library.list_chapters', 'loadLibraryChapters')
       deps.loadLibraryChapters()
     },
   })
-  // Con trỏ danh sách Chương — chép ĐÚNG khuôn `library.work_next`/`work_prev` ở trên: 0
-  // hợp âm mặc định, bấm/gõ qua `dispatch('<id>')` từ hai nút thật (`‹`/`›`).
   target.register({
     id: 'library.chapter_next',
     labelKey: 'command.library.chapter_next',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.', at: 'src/modes/LibraryWorkPage.vue' },
     keys: undefined,
     run: () => {
       if (deps.nextLibraryChapter === undefined) return portMissing('library.chapter_next', 'nextLibraryChapter')
@@ -2240,6 +2244,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'library.chapter_prev',
     labelKey: 'command.library.chapter_prev',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.', at: 'src/modes/LibraryWorkPage.vue' },
     keys: undefined,
     run: () => {
       if (deps.prevLibraryChapter === undefined) return portMissing('library.chapter_prev', 'prevLibraryChapter')
@@ -2524,6 +2529,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'library.focus_search',
     labelKey: 'command.library.focus_search',
+    pointer: { kind: 'focus', reason: 'Chỉ dời caret tới ô tìm kiếm, ô này tự bấm được.' },
     keys: ['Mod+Alt+F'],
     run: () => {
       if (deps.focusLibrarySearch === undefined) return portMissing('library.focus_search', 'focusLibrarySearch')
@@ -2770,10 +2776,36 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       deps.openReadingMarks()
     },
   })
+  target.register({
+    id: 'reading.marks_close',
+    labelKey: 'command.reading.marks_close',
+    keys: undefined,
+    run: () => {
+      if (deps.closeReadingMarks === undefined) return portMissing('reading.marks_close', 'closeReadingMarks')
+      deps.closeReadingMarks()
+    },
+  })
   for (const [id, labelKey, port] of [
-    ['reading.marks_close', 'command.reading.marks_close', 'closeReadingMarks'],
     ['reading.marks_next', 'command.reading.marks_next', 'nextReadingMark'],
     ['reading.marks_prev', 'command.reading.marks_prev', 'prevReadingMark'],
+  ] as const) {
+    target.register({
+      id,
+      labelKey,
+      pointer: {
+        kind: 'aim',
+        reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.',
+        at: 'src/modes/ReadingMode.vue',
+      },
+      keys: undefined,
+      run: () => {
+        const handler = deps[port]
+        if (handler === undefined) return portMissing(id, port)
+        handler()
+      },
+    })
+  }
+  for (const [id, labelKey, port] of [
     ['reading.marks_open', 'command.reading.marks_open', 'openCurrentReadingMark'],
     ['reading.marks_unmark', 'command.reading.marks_unmark', 'unmarkCurrentReadingMark'],
     ['reading.marks_clear', 'command.reading.marks_clear', 'clearAllReadingMarks'],
@@ -2806,8 +2838,21 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       target.dispatch('lookup.lookup_selection')
     },
   })
+  target.register({
+    id: 'reading.lookup_close',
+    labelKey: 'command.reading.lookup_close',
+    pointer: {
+      kind: 'auto',
+      reason: 'App tự đóng khi bấm chuột (mousedown) ra ngoài popup.',
+      at: 'src/modes/ReadingLookupPopup.vue',
+    },
+    keys: undefined,
+    run: () => {
+      if (deps.closeReadingLookup === undefined) return portMissing('reading.lookup_close', 'closeReadingLookup')
+      deps.closeReadingLookup()
+    },
+  })
   for (const [id, labelKey, port] of [
-    ['reading.lookup_close', 'command.reading.lookup_close', 'closeReadingLookup'],
     ['reading.lookup_concordance', 'command.reading.lookup_concordance', 'openReadingLookupConcordance'],
   ] as const) {
     target.register({
@@ -2924,6 +2969,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'lookup.lookup_selection',
     labelKey: 'command.lookup.lookup_selection',
+    pointer: { kind: 'auto', reason: 'App tự tra khi thả chuột (mouseup) kết thúc vùng chọn.', at: 'src/main.ts' },
     keys: ['Mod+Alt+L'],
     run: () => {
       if (deps.runLookup === undefined) return portMissing('lookup.lookup_selection', 'runLookup')
@@ -2973,6 +3019,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'selection.focus_source',
     labelKey: 'command.selection.focus_source',
+    pointer: { kind: 'focus', reason: 'Chỉ dời caret tới bề mặt chữ nguồn, bề mặt này tự bấm được.' },
     // `Mod+Alt+S` — họ phím `Mod+Alt+…` của Story 1.14. `S` còn trống (`O`/`J`/`V`/`L`
     // đã dùng), và `⌘⌥S` không mang nghĩa hệ điều hành trên cả hai nền tảng.
     keys: ['Mod+Alt+S'],
@@ -3227,6 +3274,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     target.register({
       id,
       labelKey: `command.${id}`,
+      pointer: { kind: 'gesture', reason: 'Thay cho kéo chuột bôi đen vùng chọn.' },
       keys: [chord],
       // 🔴 BỐN CHỖ DUY NHẤT khai `repeatable` — Story 1.21, đóng `deferred-work.md §*Deferred from: 1-14-khung-bon-panel (2026-08-06)*`.
       //
@@ -3456,6 +3504,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'editor.next_segment',
     labelKey: 'command.editor.next_segment',
+    pointer: { kind: 'focus', reason: 'Chỉ dời caret sang segment kế, segment tự bấm được.' },
     run: () => {
       if (deps.goToNextSegment === undefined) {
         return portMissing('editor.next_segment', 'goToNextSegment')
@@ -3468,6 +3517,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'editor.prev_segment',
     labelKey: 'command.editor.prev_segment',
+    pointer: { kind: 'focus', reason: 'Chỉ dời caret sang segment trước, segment tự bấm được.' },
     run: () => {
       if (deps.goToPrevSegment === undefined) {
         return portMissing('editor.prev_segment', 'goToPrevSegment')
@@ -3814,6 +3864,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'glossary.confirm.focus',
     labelKey: 'command.glossary.confirm.focus',
+    pointer: { kind: 'focus', reason: 'Chỉ dời tiêu điểm vào dải xác nhận Glossary, dải này tự bấm được.' },
     keys: ['Mod+Alt+C'],
     run: () => {
       if (deps.focusGlossaryConfirmStrip === undefined) {
@@ -3872,6 +3923,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'tm.fuzzy.focus',
     labelKey: 'command.tm.fuzzy.focus',
+    pointer: { kind: 'focus', reason: 'Chỉ dời tiêu điểm vào dải TM gần đúng, dải này tự bấm được.' },
     keys: ['Mod+Alt+E'],
     run: () => {
       if (deps.focusTmFuzzyStrip === undefined) {
@@ -3883,6 +3935,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'tm.fuzzy.next',
     labelKey: 'command.tm.fuzzy.next',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.', at: 'src/TmFuzzyStrip.vue' },
     keys: undefined,
     run: () => {
       if (deps.nextTmFuzzyRow === undefined) {
@@ -3894,6 +3947,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'tm.fuzzy.prev',
     labelKey: 'command.tm.fuzzy.prev',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.', at: 'src/TmFuzzyStrip.vue' },
     keys: undefined,
     run: () => {
       if (deps.prevTmFuzzyRow === undefined) {
@@ -4447,6 +4501,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'glossary.harvest.next',
     labelKey: 'command.glossary.harvest.next',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.', at: 'src/GlossaryHarvestOverlay.vue' },
     keys: undefined,
     run: () => {
       if (deps.nextGlossaryHarvestRow === undefined) return portMissing('glossary.harvest.next', 'nextGlossaryHarvestRow')
@@ -4456,6 +4511,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'glossary.harvest.prev',
     labelKey: 'command.glossary.harvest.prev',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng mục.', at: 'src/GlossaryHarvestOverlay.vue' },
     keys: undefined,
     run: () => {
       if (deps.prevGlossaryHarvestRow === undefined) return portMissing('glossary.harvest.prev', 'prevGlossaryHarvestRow')
@@ -5344,8 +5400,17 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   // chỗ có nghĩa, `shortcuts.open` tới được qua Cài đặt (`Mod+Comma`), ba còn lại bằng Tab +
   // Enter/Space trong mục Phím tắt, VÀ chúng là nhiên liệu cho `unbound()` — xem đoạn
   // `check-commands.mjs` bắt đầu "AC6 — `unbound()` phải có phần tử THẬT".
+  target.register({
+    id: 'shortcuts.open',
+    labelKey: 'command.shortcuts.open',
+    pointer: { kind: 'via', reason: 'Cài đặt mở ra có mục Phím tắt.', via: 'settings.open' },
+    keys: undefined,
+    run: () => {
+      if (deps.openShortcuts === undefined) return portMissing('shortcuts.open', 'openShortcuts')
+      deps.openShortcuts()
+    },
+  })
   for (const [id, port] of [
-    ['shortcuts.open', 'openShortcuts'],
     ['shortcuts.capture', 'captureShortcut'],
     ['shortcuts.unassign', 'unassignShortcut'],
     ['shortcuts.reset', 'resetShortcut'],

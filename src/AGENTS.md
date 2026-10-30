@@ -12,6 +12,7 @@ The frontend only renders and holds UI state. No business rule in TypeScript (AD
 - Type-check data crossing the wire at runtime.
 - `verbatimModuleSyntax` ⇒ explicit `import type`. vitest `globals: false` ⇒ every test imports `{ describe, it, expect } from 'vitest'`.
 - `@click` in a `.vue` is exactly one `dispatch('<id>')` call (`check:commands` Check A). Shortcuts and Auto-Lookup dispatch the same way.
+- Every command has a mouse point (`@click`/`@dblclick`/`@submit`/`@contextmenu` = literal `dispatch('<id>')`) or declares `pointer` on its `register()` call (AD-62, `check:commands` Check M); a new command never joins `POINTER_DEBT`.
 - Command ids use the dotted i18n-key grammar (`review.accept_change`).
 - A function run from a keyboard chord never throws: it logs the cause and returns `false`.
 - An `⌥` chord compares `event.code`, never `event.key`.

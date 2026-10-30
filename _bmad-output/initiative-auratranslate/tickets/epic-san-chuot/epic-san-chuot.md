@@ -14,7 +14,7 @@ risk: high
 
 ## Description
 
-Ice chốt 2026-10-30: ngoài phím tắt, mọi chức năng phải có đường bấm chuột. AD-62 biến câu đó thành bất biến có cổng. Epic hạ cổng Kiểm M trước, kèm sổ nợ chỉ được co lại, rồi các story vá theo bề mặt rút dần sổ nợ cho tới khi rỗng. Đo trên cây hiện tại: 329 command, 259 có điểm chuột, 70 không.
+Ice chốt 2026-10-30: ngoài phím tắt, mọi chức năng phải có đường bấm chuột. AD-62 biến câu đó thành bất biến có cổng. Epic hạ cổng Kiểm M trước, kèm sổ nợ chỉ được co lại, rồi các story vá theo bề mặt rút dần sổ nợ cho tới khi rỗng. Đo trên cây hiện tại: 329 command, 259 có điểm chuột, 70 không. 🔵 2026-10-30 (Story 14.1): cổng thật đọc 258 và 71, vì số 259 đếm nhầm một comment ở `src/PromptLibraryOverlay.vue:18`.
 
 ## Outcome
 
@@ -48,7 +48,7 @@ Người dùng không nhớ phím vẫn tìm thấy và bấm được mọi ch�
 
 ## Boundaries
 
-- Ngoài epic: rà lại 259 điểm chuột đã có (AD-62 mục 9); kiểm tầm với của một nút; loại miễn trừ thứ sáu, thứ chỉ có thể là một lần sửa AD-62.
+- Ngoài epic: rà lại 258 điểm chuột đã có (AD-62 mục 9); kiểm tầm với của một nút; loại miễn trừ thứ sáu, thứ chỉ có thể là một lần sửa AD-62.
 - Ngoài epic: hỗ trợ trình đọc màn hình và mọi việc của NFR17 phía bàn phím.
 - Must not change: mọi đường bàn phím đang có; hiệu năng gõ trong lưới; luật kéo cửa sổ của AD-58.
 - Touch point: `src/TitlebarToolsMenu.vue` — chỗ đặt nút mở lệnh; owner: epic-san-chuot.

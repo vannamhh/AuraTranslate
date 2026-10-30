@@ -42,6 +42,12 @@
 /** Id của một thao tác. Văn phạm ở `COMMAND_ID_RE`. */
 export type CommandId = string
 
+/** Why a command needs no mouse point of its own (AD-62). */
+export type CommandPointer =
+  | { kind: 'focus' | 'gesture'; reason: string }
+  | { kind: 'aim' | 'auto'; reason: string; at: string }
+  | { kind: 'via'; reason: string; via: CommandId }
+
 export type CommandSpec = {
   /** Khoá chấm có tiền tố miền: `mode.library`, `focus.next_panel`. */
   id: CommandId
@@ -86,6 +92,7 @@ export type CommandSpec = {
    * lượt ghi.
    */
   repeatable?: boolean
+  pointer?: CommandPointer
 }
 
 export type Registry = {
@@ -142,6 +149,7 @@ const frozen = (spec: CommandSpec): CommandSpec =>
     // đọc trường này ở mỗi keydown lặp, và một phép so ba trạng thái ở đường nóng là chỗ
     // một bản sau sẽ viết `!spec.repeatable` rồi tự hỏi `undefined` nghĩa là gì.
     repeatable: spec.repeatable === true,
+    ...(spec.pointer === undefined ? {} : { pointer: Object.freeze({ ...spec.pointer }) as CommandPointer }),
   })
 
 export function createRegistry(): Registry {

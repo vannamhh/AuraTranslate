@@ -13644,3 +13644,45 @@ chính nó.
   Chủ: Epic 13. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-ra-be-mat-workspace-tra-cuu-va-thanh-trang-thai-theo-luoi-7p-plan.md` §Review Triage Log.
   → 🟡 2026-10-30: khoanh trên Vite mới, thay `src/` theo commit. Ca đầu mục tràn của 12-8 xanh ở `29837138`, đỏ từ `dd428222` (13.1: nội dung 42 > khung 41) và lên 44 từ `968606df` (13.4). Ca nhãn Nguồn N/M của 12-8 và ca 12-9 (137px) đã đỏ ở `29837138`, trước Epic 13; nightly xanh vì `origin/master` vẫn ở `97bcb587`. Còn phải bisect `97bcb587..29837138` (147 commit, có đổi Rust).
   → 🟡 2026-10-30: ca đầu mục tràn của 12-8 đã xanh — `.lookup-head` bỏ đệm dưới 7px, canh hàng giữa khung 42px như mockup `luoi-7px.html` mục 3. Còn hở: ca nhãn Nguồn N/M của 12-8 và ca 12-9, đỏ từ trước Epic 13.
+
+## Deferred from: Story 14.1, hạ cổng Kiểm M cùng sổ nợ chỉ co lại (2026-10-30)
+
+- 10 id của lưới Editor không có điểm chuột, đang ở `POINTER_DEBT`: `editor.confirm_segment`, `merge_segments`, `split_segment`, `omit_segment`, `restore_segment`, `end_target_paragraph`, `join_target_paragraph`, `next_untranslated`, `clear_source_cuts`, `split_chapter`. Chỉ dùng được bằng phím.
+  Cần: menu chuột phải cho thao tác câu, mỗi id một mục kèm ca Vitest bấm thật (AD-62 mục 6 (i)); gỡ id khỏi `POINTER_DEBT`.
+  Chủ: Story 14.2. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 2.
+- 4 id chọn nhiều đoạn và chuyển Chương: `segment.selection.extend_down`, `segment.selection.extend_up` (đích cuối `pointer: aim`, `at: src/panels/GridPanel.vue`, khai khi đường kéo có), `editor.next_chapter`, `editor.prev_chapter`.
+  Cần: kéo và `Shift`+bấm trên cột số câu; hai nút chuyển Chương ở thanh trạng thái.
+  Chủ: Story 14.3. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 3.
+- 4 id Rà soát và Lịch sử: `review.open`, `review.diff_next`, `review.diff_prev`, `history.open`.
+  Cần: ô thứ ba của công tắc bố cục cùng `review.close`, nút diff trên `.review-bar`, mục menu câu.
+  Chủ: Story 14.4. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 4.
+- 2 id Glossary: `glossary.add_term`, `glossary.settings.open` (không đạt `via` qua `settings.open` vì `openSettings()` mở mục chọn gần nhất).
+  Cần: mục menu câu giữ vùng bôi đen; mục trong `Công cụ ▾`.
+  Chủ: Story 14.5. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 5.
+- 8 id tầng khối nhập URL: `import.preview.block_next`, `block_prev` (đích cuối `pointer: aim`), `block_toggle_kept`, `block_mark_range_start`, `block_confirm_range`, `jump_to_cleanup_rules`, `chapter_next`, `chapter_prev`.
+  Cần: `@mousedown` nhắm khối ở `ImportPreviewOverlay.vue`, cụm nút trên khối đang nhắm.
+  Chủ: Story 14.6. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 6.
+- 5 id cắt cặp nhập song ngữ: `import.preview.bilingual_caret_left`, `bilingual_caret_right` (đích cuối `pointer: aim`), `bilingual_toggle_cut`, `bilingual_next_mismatch`, `bilingual_previous_mismatch`.
+  Cần: mỗi `candidate_positions` thành một đích bấm.
+  Chủ: Story 14.7. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 7.
+- 3 id bật tắt panel: `layout.toggle_ai_translation`, `layout.toggle_grid`, `layout.toggle_lookup`.
+  Cần: đường chuột ẩn/hiện panel; sửa comment sai ở `src/commands/index.ts` quanh `focus.next_panel`.
+  Chủ: Story 14.8. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 8.
+- 8 id lẻ: `ai.proofread.hide`, `library.chapters.clear_selection`, `reading.marks_clear_cancel`, `export.alignment.prev`, `prompt.import.open`, `prompt.library.close`, `tm.manage.edit`, `tm.manage.delete`. `prompt.library.close` không có trong mô tả vé 14.9 (7 id) nhưng đỏ thật: nút đóng là `@submit.prevent="onClose"` ở `PromptLibraryOverlay.vue`, nên sổ nợ đo 44 chứ không 43 và điểm chuột 258 chứ không 259.
+  Cần: viết lại các `@submit`/nút thành `dispatch` literal; riêng `prompt.library.close` phải giữ lượt ghi nội dung prompt và lượt từ chối đóng khi ghi lỗi của `onClose`, không chỉ đổi thuộc tính.
+  Chủ: Story 14.9. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 9.
+- Kiểm M chỉ chứng minh văn bản `dispatch` tồn tại, không chứng minh nút bấm được trong app thật; 27 id khai `pointer` (đặc biệt `aim`, `auto`, `via`) chưa có lượt dùng thật.
+  Cần: Ice chạy một lượt dùng thật chuột trên các bề mặt Epic 14 trước khi epic `done`.
+  Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml`.
+- Hành vi focus của nút mới trên WebView2 (Windows) chưa đo; Epic 14 thêm nút và menu chuột phải chỉ đo trên WebKit và Chromium.
+  Cần: kiểm trên WebView2 nút không cướp caret của ô Editor.
+  Chủ: B7. Trỏ: `tickets/epic-san-chuot/epic-san-chuot.md`.
+- `shortcuts.open` khai `via: settings.open` theo AD-62 mục 3, nhưng cùng hình dạng với `glossary.settings.open` mà Story 14.5 đã bác: `openShortcuts` mở đúng mục Phím tắt, còn `settings.open` gọi `openSettings()`, không mở thẳng mục đó.
+  Cần: xét cho `shortcuts.open` một mục trong `Công cụ ▾` cạnh mục Glossary; nếu thêm thì gỡ `pointer` của nó, vì có điểm chuột mà vẫn khai là đỏ.
+  Chủ: Story 14.5. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Review Triage Log.
+- `check:gates` Kiểm G đỏ từ `9d7f9a0d`: `LINE_HEIGHT_FLOOR_EXEMPT` ở `scripts/check-tokens.mjs` là một `Map` miễn trừ nhưng tên khớp luật mọi hằng `*_FLOOR` phải qua `judgeFloor`, nên `pre-push` sẽ chặn lượt đẩy kế tiếp.
+  Cần: đổi tên hằng cho khỏi khớp luật, hoặc sửa luật Kiểm G cho đúng phạm vi; không thêm lời gọi `judgeFloor` giả.
+  Chủ: Ice. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Implementation Notes.
+- `check:doc-refs` dừng ở lỗi hạ tầng trên cây trước Story 14.1: `FILE_FLOOR` = 660 đã trôi dưới 80% của 828 tệp, nên `pre-push` sẽ chặn lượt đẩy kế tiếp.
+  Cần: nâng `FILE_FLOOR` lên 704 ở `scripts/check-doc-refs.mjs`, đúng công thức cổng in ra.
+  Chủ: Ice. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Implementation Notes.

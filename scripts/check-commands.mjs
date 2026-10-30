@@ -70,6 +70,10 @@ import {
   functionBodyRange,
   balancedBraceBody,
   splitTopLevel,
+  DISPATCH_ONLY_RE,
+  mousePointIds,
+  judgePointerFloor,
+  POINTER_KINDS,
 } from './lib/commands-scan.mjs'
 import { judgeFloor } from './lib/floor-judge.mjs'
 import { contrast } from './lib/contrast.mjs'
@@ -449,8 +453,6 @@ const excerpt = (text, index) =>
 console.log('\nKiểm A — `@click` chỉ được là `dispatch(\'<id>\')` (AC1)')
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/** ⚠️ Neo hai đầu (`^…$`): "chứa một lời gọi dispatch" KHÁC "là một lời gọi dispatch". */
-const DISPATCH_ONLY_RE = /^\s*dispatch\(\s*(['"])([^'"]*)\1\s*\)\s*$/
 const CLICK_ATTR_RE = /^(@|v-on:)click(\.[A-Za-z0-9.\-]+)?$/
 
 /**
@@ -772,6 +774,16 @@ const expectEq = (what, got, want) => {
     /* strict mode ném khi ghi vào object đã đóng băng — đúng ý đồ */
   }
   expectEq('spec đã đăng ký là BẤT BIẾN', r.list()[0].id, 'mode.library')
+
+  const rp = createRegistry()
+  rp.register(spec('demo.pointer', { pointer: { kind: 'aim', reason: 'ca tự kiểm', at: 'src/demo.vue' } }))
+  rp.register(spec('demo.no_pointer'))
+  const kept = rp.list()[0].pointer
+  expectEq('`pointer` còn nguyên sau `register()` (kind)', kept?.kind, 'aim')
+  expectEq('`pointer` còn nguyên sau `register()` (at)', kept?.at, 'src/demo.vue')
+  expectEq('`pointer` còn nguyên sau `register()` (reason)', kept?.reason, 'ca tự kiểm')
+  expectEq('`pointer` bị đóng băng', Object.isFrozen(kept), true)
+  expectEq('command không khai `pointer` thì không có trường đó', rp.list()[1].pointer, undefined)
 }
 // ── C phần hai: `src/commands/focus.ts` — nửa KHAI BÁO của AC4 ───────────────────
 //
@@ -2873,6 +2885,249 @@ if (kBad === 0) {
     `${handlerAttrCount} thuộc tính @keydown/@keyup/@mouseup/@mousedown/@submit trên ` +
       `${Object.keys(HANDLER_TABLE).length} handler đã khai — đúng bảng, không mục treo`,
   )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+console.log('\nKiểm M — mọi command có điểm chuột, khai `pointer`, hoặc nằm trong sổ nợ chỉ co lại (AD-62)')
+// ═════════════════════════════════════════════════════════════════════════════════
+
+/** Open debt: ids may only be removed, never added. Keep this and the baseline as two separate literals. */
+const POINTER_DEBT = /** @type {string[]} */ ([
+  'editor.confirm_segment',
+  'editor.merge_segments',
+  'editor.split_segment',
+  'editor.omit_segment',
+  'editor.restore_segment',
+  'editor.end_target_paragraph',
+  'editor.join_target_paragraph',
+  'editor.next_untranslated',
+  'editor.clear_source_cuts',
+  'editor.split_chapter',
+  'segment.selection.extend_down',
+  'segment.selection.extend_up',
+  'editor.next_chapter',
+  'editor.prev_chapter',
+  'review.open',
+  'review.diff_next',
+  'review.diff_prev',
+  'history.open',
+  'glossary.add_term',
+  'glossary.settings.open',
+  'import.preview.block_next',
+  'import.preview.block_prev',
+  'import.preview.block_toggle_kept',
+  'import.preview.block_mark_range_start',
+  'import.preview.block_confirm_range',
+  'import.preview.jump_to_cleanup_rules',
+  'import.preview.chapter_next',
+  'import.preview.chapter_prev',
+  'import.preview.bilingual_caret_left',
+  'import.preview.bilingual_caret_right',
+  'import.preview.bilingual_toggle_cut',
+  'import.preview.bilingual_next_mismatch',
+  'import.preview.bilingual_previous_mismatch',
+  'layout.toggle_ai_translation',
+  'layout.toggle_grid',
+  'layout.toggle_lookup',
+  'ai.proofread.hide',
+  'library.chapters.clear_selection',
+  'reading.marks_clear_cancel',
+  'export.alignment.prev',
+  'prompt.import.open',
+  'prompt.library.close',
+  'tm.manage.edit',
+  'tm.manage.delete',
+])
+
+/** The ids red when the gate landed; an id leaves it only when its command is deleted. */
+const POINTER_DEBT_BASELINE = /** @type {string[]} */ ([
+  'editor.confirm_segment',
+  'editor.merge_segments',
+  'editor.split_segment',
+  'editor.omit_segment',
+  'editor.restore_segment',
+  'editor.end_target_paragraph',
+  'editor.join_target_paragraph',
+  'editor.next_untranslated',
+  'editor.clear_source_cuts',
+  'editor.split_chapter',
+  'segment.selection.extend_down',
+  'segment.selection.extend_up',
+  'editor.next_chapter',
+  'editor.prev_chapter',
+  'review.open',
+  'review.diff_next',
+  'review.diff_prev',
+  'history.open',
+  'glossary.add_term',
+  'glossary.settings.open',
+  'import.preview.block_next',
+  'import.preview.block_prev',
+  'import.preview.block_toggle_kept',
+  'import.preview.block_mark_range_start',
+  'import.preview.block_confirm_range',
+  'import.preview.jump_to_cleanup_rules',
+  'import.preview.chapter_next',
+  'import.preview.chapter_prev',
+  'import.preview.bilingual_caret_left',
+  'import.preview.bilingual_caret_right',
+  'import.preview.bilingual_toggle_cut',
+  'import.preview.bilingual_next_mismatch',
+  'import.preview.bilingual_previous_mismatch',
+  'layout.toggle_ai_translation',
+  'layout.toggle_grid',
+  'layout.toggle_lookup',
+  'ai.proofread.hide',
+  'library.chapters.clear_selection',
+  'reading.marks_clear_cancel',
+  'export.alignment.prev',
+  'prompt.import.open',
+  'prompt.library.close',
+  'tm.manage.edit',
+  'tm.manage.delete',
+])
+
+/** `ceil(0.85 × live)` over commands with a mouse point, via `judgeFloor`. */
+const POINTER_FLOOR = 220
+
+/**
+ * Self-check: the verdict must go red on each bad case and stay green on the good ones.
+ * Calls the real buildParsedEntry/mousePointIds/judgePointerFloor on a fake fixture.
+ * @returns {string[]}
+ */
+function selfCheckPointerFloor() {
+  /** @type {string[]} */
+  const problems = []
+  const vue = buildParsedEntry(
+    join(REPO_ROOT, 'src', '__selfcheck__', 'Fixture.vue'),
+    [
+      '<template>',
+      "  <button @click=\"dispatch('fake.click')\" />",
+      "  <button @dblclick.stop=\"dispatch('fake.dbl')\" />",
+      "  <form v-on:submit.prevent=\"dispatch('fake.submit')\" />",
+      "  <form @submit=\"fn('fake.sub')\" />",
+      "  <a @click=\"dispatch('fake.more'); other()\" />",
+      "  <div @contextmenu.prevent=\"dispatch('fake.ctx')\" />",
+      "  <button @mousedown=\"dispatch('fake.down')\" />",
+      '  <li @mousedown="aimRow" />',
+      '</template>',
+      '<script setup lang="ts">',
+      "dispatch('fake.auto')",
+      "// dispatch('fake.cmt')",
+      '</script>',
+    ].join('\n'),
+  )
+  const bare = buildParsedEntry(
+    join(REPO_ROOT, 'src', '__selfcheck__', 'Bare.vue'),
+    ['<template>', '  <button @click="fn()" />', '</template>', '<script setup lang="ts">', '</script>'].join('\n'),
+  )
+  const tsFixture = (/** @type {string} */ name) =>
+    buildParsedEntry(join(REPO_ROOT, name), "dispatch('fake.auto')")
+  const files = new Map([
+    ['src/commands/Fixture.ts', tsFixture('src/commands/Fixture.ts')],
+    ['scripts/x.ts', tsFixture('scripts/x.ts')],
+    ['src/__selfcheck__/Fixture.vue', vue],
+    ['src/__selfcheck__/Bare.vue', bare],
+  ])
+  const fileAt = (/** @type {string} */ path) => files.get(path) ?? null
+  const pointIds = mousePointIds(scanVueAttrs([vue, bare]))
+  for (const id of ['fake.click', 'fake.dbl', 'fake.submit', 'fake.ctx']) {
+    if (!pointIds.has(id)) problems.push(`\`${id}\` phải được tính là điểm chuột (modifier / \`v-on:\` / dblclick / submit / contextmenu)`)
+  }
+  for (const id of ['fake.down', 'fake.sub', 'fake.more']) {
+    if (pointIds.has(id)) problems.push(`\`${id}\` KHÔNG được tính là điểm chuột (\`@mousedown\`, a call taking the id, \`dispatch\` plus other code)`)
+  }
+
+  const fixtureAt = 'src/__selfcheck__/Fixture.vue'
+  const bareAt = 'src/__selfcheck__/Bare.vue'
+  /**
+   * @param {{ id: string, pointer?: unknown }[]} registered
+   * @param {{ debt?: string[], baseline?: string[] }} [lists]
+   */
+  const run = (registered, { debt = [], baseline = debt } = {}) =>
+    judgePointerFloor({ registered, pointIds, debt, baseline, fileAt })
+  /**
+   * @param {string} name
+   * @param {{ id: string, message: string }[]} got
+   * @param {string} id
+   */
+  const expectRed = (name, got, id) => {
+    if (!got.some((x) => x.id === id)) problems.push(`${name}: PHẢI đỏ đúng id \`${id}\` — cổng không đỏ`)
+  }
+  /**
+   * @param {string} name
+   * @param {{ id: string, message: string }[]} got
+   */
+  const expectGreen = (name, got) => {
+    if (got.length > 0) problems.push(`${name}: đỏ oan — ${got.map((x) => `${x.id}: ${x.message}`).join('; ')}`)
+  }
+  const P = (/** @type {string} */ id, /** @type {unknown} */ pointer = undefined) => ({ id, pointer })
+  const focus = { kind: 'focus', reason: 'ca tự kiểm' }
+
+  expectGreen('ca ① điểm chuột đơn', run([P('fake.click')]))
+  expectGreen('ca ① `pointer` đúng cho mọi loại', run([
+    P('fake.a', focus),
+    P('fake.b', { kind: 'gesture', reason: 'r' }),
+    P('fake.c', { kind: 'aim', reason: 'r', at: fixtureAt }),
+    P('fake.auto', { kind: 'auto', reason: 'r', at: fixtureAt }),
+    P('fake.v', { kind: 'via', reason: 'r', via: 'fake.click' }),
+    P('fake.click'),
+  ]))
+  expectGreen('ca ① nợ hợp lệ', run([P('fake.debt')], { debt: ['fake.debt'], baseline: ['fake.debt', 'fake.other'] }))
+  expectRed('ca ② khai `pointer` mà đã có điểm chuột (miễn trừ chết)', run([P('fake.click', focus)]), 'fake.click')
+  expectRed('ca ③ id nợ mà có điểm chuột', run([P('fake.click')], { debt: ['fake.click'] }), 'fake.click')
+  expectRed('ca ③ vừa khai vừa ở sổ nợ', run([P('fake.a', focus)], { debt: ['fake.a'] }), 'fake.a')
+  expectRed('ca ④ không nhóm nào', run([P('fake.none')]), 'fake.none')
+  expectRed('ca ④ `@mousedown` không tính', run([P('fake.down')]), 'fake.down')
+  expectRed('ca ⑤ `kind` ngoài tập', run([P('fake.a', { kind: 'other', reason: 'r' })]), 'fake.a')
+  expectRed('ca ⑤ `reason` rỗng', run([P('fake.a', { kind: 'focus', reason: '  ' })]), 'fake.a')
+  expectRed('ca ⑥ `at` thiếu ở `aim`', run([P('fake.a', { kind: 'aim', reason: 'r' })]), 'fake.a')
+  expectRed('ca ⑥ `at` thiếu ở `auto`', run([P('fake.auto', { kind: 'auto', reason: 'r' })]), 'fake.auto')
+  expectRed('ca ⑥ `at` thừa ở `focus`', run([P('fake.a', { kind: 'focus', reason: 'r', at: fixtureAt })]), 'fake.a')
+  expectRed('ca ⑥ `via` thiếu', run([P('fake.a', { kind: 'via', reason: 'r' })]), 'fake.a')
+  expectRed('ca ⑥ `via` thừa', run([P('fake.a', { kind: 'gesture', reason: 'r', via: 'fake.click' })]), 'fake.a')
+  expectRed('ca ⑥ `at` ngoài `src/`', run([P('fake.auto', { kind: 'auto', reason: 'r', at: 'scripts/x.ts' })]), 'fake.auto')
+  expectRed('ca ⑦ `aim` ở tệp không có `@mousedown`', run([P('fake.a', { kind: 'aim', reason: 'r', at: bareAt })]), 'fake.a')
+  expectRed('ca ⑧ `auto` ở tệp không có `dispatch` trong mã', run([P('fake.a', { kind: 'auto', reason: 'r', at: bareAt })]), 'fake.a')
+  expectRed('ca ⑧ `auto` mà `dispatch` chỉ ở template', run([P('fake.down', { kind: 'auto', reason: 'r', at: fixtureAt })]), 'fake.down')
+  expectRed('ca ⑧ `auto` mà `dispatch` chỉ ở comment', run([P('fake.cmt', { kind: 'auto', reason: 'r', at: fixtureAt })]), 'fake.cmt')
+  expectRed('ca ⑧ `auto` ở `src/commands/**`', run([P('fake.auto', { kind: 'auto', reason: 'r', at: 'src/commands/Fixture.ts' })]), 'fake.auto')
+  expectRed('ca ⑨ `via` chưa đăng ký', run([P('fake.a', { kind: 'via', reason: 'r', via: 'khong.co' })]), 'fake.a')
+  expectRed('ca ⑨ `via` không có điểm chuột', run([P('fake.a', { kind: 'via', reason: 'r', via: 'fake.b' }), P('fake.b', focus)]), 'fake.a')
+  expectRed('ca ⑨ `via` tự khai `pointer`', run([P('fake.a', { kind: 'via', reason: 'r', via: 'fake.click' }), P('fake.click', focus)]), 'fake.a')
+  expectRed('ca ⑩ nợ trùng id', run([P('fake.debt')], { debt: ['fake.debt', 'fake.debt'], baseline: ['fake.debt'] }), 'fake.debt')
+  expectRed('ca ⑩ nợ ngoài baseline', run([P('fake.debt')], { debt: ['fake.debt'], baseline: [] }), 'fake.debt')
+  expectRed('ca ⑩ nợ không còn đăng ký', run([P('fake.click')], { debt: ['fake.gone'], baseline: ['fake.gone'] }), 'fake.gone')
+  return problems
+}
+
+for (const problem of selfCheckPointerFloor()) fail(`TỰ KIỂM Kiểm M: ${problem}`)
+
+{
+  const pointIds = mousePointIds(scanVueAttrs(parsed))
+  const withPoint = registered.filter((/** @type {any} */ s) => pointIds.has(s.id)).length
+  const declared = registered.filter((/** @type {any} */ s) => s.pointer !== undefined).length
+  {
+    const v = judgeFloor(POINTER_FLOOR, withPoint, 'POINTER_FLOOR', 'command có điểm chuột')
+    if (!v.ok) abort('command có điểm chuột', new Error(v.message))
+  }
+  const problems = judgePointerFloor({
+    registered,
+    pointIds,
+    debt: POINTER_DEBT,
+    baseline: POINTER_DEBT_BASELINE,
+    fileAt: (path) => parsed.find((q) => posix(q.file) === path) ?? null,
+  })
+  for (const { id, message } of problems) {
+    fail(`Kiểm M — \`${id}\`: ${message}`)
+  }
+  if (problems.length > 0) {
+    detail('AD-62: mỗi command thuộc ĐÚNG MỘT nhóm — điểm chuột (`@click`/`@dblclick`/`@submit`/`@contextmenu`')
+    detail('= `dispatch(\'<id>\')` literal), khai `pointer` (' + POINTER_KINDS.join(' · ') + '), hoặc sổ nợ `POINTER_DEBT`.')
+    detail('Command mới không bao giờ vào sổ nợ.')
+  } else {
+    pass(`${withPoint} điểm chuột · ${declared} khai \`pointer\` · ${POINTER_DEBT.length} nợ — mỗi command đúng một nhóm`)
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
