@@ -707,6 +707,13 @@ export const effectiveLineHeight: ComputedRef<number> = computed(
     Number.parseFloat(String(tokens.typography[TYPOGRAPHY_KEYS[readingLevel.value]].lineHeight)),
 )
 
+const LINE_GRID_PX = 7
+
+function gridLineHeightPx(fontSizePx: number, ratio: number): number {
+  // A token ratio is px / size, so size × ratio can land a hair above its own multiple of 7.
+  return LINE_GRID_PX * Math.ceil((fontSizePx * ratio) / LINE_GRID_PX - 1e-9)
+}
+
 /**
  * Ba biến CSS mà trang đọc áp — Task 12 của story. `measure` LUÔN LÀ token `ch` của
  * `readingLevel`, không đổi theo `fontSizeOverride`: `1ch` tính theo cỡ chữ của CHÍNH phần
@@ -732,7 +739,7 @@ export const effectiveLineHeight: ComputedRef<number> = computed(
  */
 export const readingStyle: ComputedRef<{ fontSize: string; lineHeight: string; measure: string }> = computed(() => ({
   fontSize: `${effectiveFontSize.value}px`,
-  lineHeight: String(effectiveLineHeight.value),
+  lineHeight: String(gridLineHeightPx(effectiveFontSize.value, effectiveLineHeight.value) / effectiveFontSize.value),
   measure: String(tokens.spacing[MEASURE_KEYS[readingLevel.value]]),
 }))
 

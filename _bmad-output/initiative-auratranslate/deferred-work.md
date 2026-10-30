@@ -13628,3 +13628,9 @@ chính nó.
   Cần: đổi tên theo chủ thể (vd. `columnBox`), chạy lại `naming_boundary`. Không phải lỗi của diff 13.3; chạy đủ bộ `--no-fail-fast` chỉ đỏ ca này.
   Chủ: Ice. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-thanh-tieu-e-42px-va-ba-nut-cua-so-macos-plan.md` §Implementation Notes.
   → ✅ ĐÃ ĐÓNG 2026-10-30 (Story 13.3): biến đổi tên thành `columnBox`, `naming_boundary` xanh.
+
+## Deferred from: Story 13.5, Chế độ đọc giãn dòng nhảy bậc 7px (2026-10-30)
+
+- Giãn dòng Chế độ đọc phát tỉ số `px / cỡ` dạng double (vd. 56/21 = 2.6666666666666665), có thể thấp hơn bội 7 một phần nhỏ nếu WebKit làm tròn xuống; vitest chỉ chứng phép tính, không chứng hộp dòng vẽ ra.
+  Cần: đo chiều cao dòng của `.column` trên WKWebView ở vài tổ hợp cỡ × tỉ số của thanh trượt (21px × 2.34…2.4 là chỗ nghi), ra đúng bội 7.
+  Chủ: Story 13.7. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-che-o-oc-gian-dong-nhay-bac-7px-plan.md` §Review Triage Log.

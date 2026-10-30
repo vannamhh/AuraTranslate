@@ -42,17 +42,38 @@ describe('modes/readingState.ts — ba mức đọc từ tokens.json', () => {
 })
 
 describe('modes/readingState.ts::setLineHeight — sàn 1.66 lúc chạy', () => {
-  it('🔴 `setLineHeight(1.2)` ⇒ giá trị áp lên trang bị ghìm ở 1.66, không phải 1.2', async () => {
+  it('🔴 `setLineHeight(1.2)` ⇒ tỉ số lưu bị ghìm ở 1.66, trang áp bội 7 của nó (35px ở 17,5px)', async () => {
     const state = await import('../../src/modes/readingState')
     state.setLineHeight(1.2)
     expect(state.effectiveLineHeight.value).toBe(1.66)
-    expect(state.readingStyle.value.lineHeight).toBe('1.66')
+    expect(state.readingStyle.value.lineHeight).toBe('2')
   })
 
   it('giá trị TRÊN sàn đi qua nguyên vẹn, không bị chạm', async () => {
     const state = await import('../../src/modes/readingState')
     state.setLineHeight(2.1)
     expect(state.effectiveLineHeight.value).toBe(2.1)
+  })
+
+  it('mọi cỡ × mọi tỉ số của hai thanh trượt: giãn dòng hiển thị là bội 7 nhỏ nhất ≥ cỡ × tỉ số, tỉ số lưu không đổi', async () => {
+    const state = await import('../../src/modes/readingState')
+    let combos = 0
+    for (let size = state.READING_FONT_SIZE_MIN; size <= state.READING_FONT_SIZE_MAX; size += 0.5) {
+      for (let step = 0; step <= 74; step += 1) {
+        const ratio = Number((state.READING_LINE_HEIGHT_FLOOR + step * 0.01).toFixed(2))
+        state.setFontSize(size)
+        state.setLineHeight(ratio)
+
+        const shownPx = size * Number(state.readingStyle.value.lineHeight)
+        const multiple = Math.round(shownPx / 7) * 7
+        expect(Math.abs(shownPx - multiple)).toBeLessThanOrEqual(0.01)
+        expect(multiple).toBeGreaterThanOrEqual(size * ratio - 1e-9)
+        expect(multiple - 7).toBeLessThan(size * ratio)
+        expect(state.effectiveLineHeight.value).toBe(ratio)
+        combos += 1
+      }
+    }
+    expect(combos).toBe(29 * 75)
   })
 
   it('gọi hàm TRỰC TIẾP cũng bị ghìm — sàn không phải một ràng buộc riêng của thanh trượt', async () => {

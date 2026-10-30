@@ -106,7 +106,7 @@ function onLineHeightInput(event: Event): void {
         :value="effectiveLineHeight"
         @input="onLineHeightInput($event)"
       />
-      <!-- aura-allow-text: giá trị số đang áp — DỮ LIỆU. -->
+      <!-- aura-allow-text: tỉ số giãn dòng đã lưu — DỮ LIỆU. -->
       <span class="sr-value">{{ effectiveLineHeight }}</span>
     </label>
 
