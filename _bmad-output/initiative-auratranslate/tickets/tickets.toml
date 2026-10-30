@@ -79,3 +79,10 @@ id = 13
 slug = "epic-luoi-7px-va-canh-baseline"
 title = "Lưới 7px và canh baseline cho toàn app"
 covers = []
+
+[[epic]]
+id = 14
+slug = "epic-san-chuot"
+title = "Sàn chuột — mọi chức năng độc lập bấm được bằng chuột"
+description = "Mọi command là chức năng độc lập có đường bấm chuột, `check:commands` giữ điều đó với `POINTER_DEBT` rỗng."
+covers = []

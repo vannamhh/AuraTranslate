@@ -1,0 +1,120 @@
+# tickets.toml — epic-san-chuot. One [[entry]] per story; table order is the build order.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Hạ cổng Kiểm M cùng sổ nợ chỉ co lại"
+description = "Thêm trường `pointer` vào `CommandSpec` và sửa `frozen()` chép nó; viết khai báo `pointer` ở `src/commands/index.ts`, chốt lại từng id (đo 2026-10-30: 27 id đạt điều kiện máy đọc so với 29 đề xuất ở AD-62 mục 7; `glossary.settings.open` và `export.alignment.prev` nằm trong nợ của Story 14.5 và 14.9 vì không đạt `via`/`aim`, id nào chốt thành `pointer` thì rút khỏi story đó); dựng Kiểm M, sàn quần thể, `POINTER_DEBT` và `POINTER_DEBT_BASELINE`; trình Ice hai cách `via` và `dispatch` + `auto` cho `library.list_works` và `library.list_chapters` kèm số đo; ghi vào `deferred-work.md` mỗi bề mặt một mục với `Chủ: Story 14.N`, một mục `Chủ: Epic 14` cho lượt dùng thật của Ice và một mục `B7` cho hành vi focus của nút trên WebView2; thêm dòng luật ở `src/commands/README.md` và `src/AGENTS.md`."
+verify = "`npm run check:commands` xanh với Kiểm M chạy thật; đối chứng (a)–(g) mỗi phép gỡ đỏ đúng id, (h) qua self-check; `npm run check:debt-owner` xanh với các mục nợ mới."
+covers = ["R1", "R2", "R3", "R4", "R5", "R6", "R10"]
+after = []
+hitl = false
+risk = "high"
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-62 mục 3–7"]
+
+[[entry]]
+id = 2
+type = "story"
+title = "Thao tác trên đoạn đang sửa bấm được mà không mất caret"
+description = "10 id: `editor.confirm_segment`, `merge_segments`, `split_segment`, `omit_segment`, `restore_segment`, `end_target_paragraph`, `join_target_paragraph`, `next_untranslated`, `clear_source_cuts`, `split_chapter`. Bấm một nút làm cột bản dịch mất focus và `onColumnFocusOut` xoá caret (`src/panels/GridPanel.vue:1166`), nên story này đo đường đó trên WKWebView và dựng cách giữ đích; các story sau dùng lại cách này."
+verify = "Trên app thật: đặt caret ở một đoạn, bấm nút Xác nhận, đúng đoạn đó được xác nhận; một spec e2e trên WKWebView khoá đường này; không có caret thì nút tắt; ca (i) cho từng id và `POINTER_DEBT` mất đủ 10 id."
+covers = ["R7", "R8", "R9"]
+after = [1]
+hitl = false
+risk = "high"
+unknown = "Sally chốt chỗ đặt nút cho các id của story này."
+
+[[entry]]
+id = 3
+type = "story"
+title = "Chọn nhiều đoạn và chuyển Chương bằng chuột"
+description = "4 id: `segment.selection.extend_down`, `segment.selection.extend_up`, `editor.next_chapter`, `editor.prev_chapter`. Vùng chọn nhiều đoạn hiện chỉ đổi qua hai command bàn phím, gieo từ caret (`src/panels/segmentSelectionState.ts:148`), nên story này dựng đường chuột đầu tiên cho nó trên cách giữ đích của Story 14.2; hai lệnh Chương không đọc caret."
+verify = "Trên app thật: đặt caret, dùng chuột mở rộng vùng chọn thêm hai đoạn và thấy đúng các đoạn được tô; bấm chuyển sang Chương sau và Chương trước; ca (i) cho từng id và `POINTER_DEBT` mất đủ 4 id."
+covers = ["R7", "R8", "R9"]
+after = [1, 2]
+hitl = false
+risk = "high"
+unknown = "Sally chốt đường chuột cho vùng chọn nhiều đoạn và chỗ đặt nút chuyển Chương."
+
+[[entry]]
+id = 4
+type = "story"
+title = "Mở Rà soát và Lịch sử bằng chuột"
+description = "4 id: `review.open`, `review.diff_next`, `review.diff_prev`, `history.open`. `history.open` đọc `editorCaretSegmentId` lúc chạy (`src/panels/segmentHistoryState.ts:124`), nên dùng cách giữ đích của Story 14.2; nút diff nằm trên `.review-bar` (`src/ReviewDock.vue:82`)."
+verify = "Trên app thật: bấm mở Rà soát thấy dải Rà soát, bấm next/prev dời diff; đặt caret rồi bấm Lịch sử thấy lịch sử đúng đoạn đó; ca (i) cho từng id."
+covers = ["R7", "R8", "R9"]
+after = [1, 2]
+hitl = false
+risk = "medium"
+unknown = "Sally chốt chỗ đặt nút cho các id của story này."
+
+[[entry]]
+id = 5
+type = "story"
+title = "Thêm thuật ngữ và mở cài đặt Glossary bằng chuột"
+description = "2 id: `glossary.add_term`, `glossary.settings.open`. `add_term` đọc `getSelection()` lúc chạy nên nút phải giữ được vùng bôi đen, theo cách của Story 14.2; `glossary.settings.open` không đạt `via` qua `settings.open` vì `openSettings()` mở mục chọn gần nhất, không phải mục Glossary."
+verify = "Trên app thật: bôi đen một từ, bấm nút Thêm thuật ngữ, ô thuật ngữ điền sẵn từ đó; không bôi đen thì mở ô trống; bấm mở cài đặt Glossary tới đúng mục Glossary; ca (i) cho từng id."
+covers = ["R7", "R8", "R9"]
+after = [1, 2]
+hitl = false
+risk = "medium"
+unknown = "Sally chốt chỗ đặt nút cho các id của story này."
+
+[[entry]]
+id = 6
+type = "story"
+title = "Tầng khối của nhập URL dùng được bằng chuột"
+description = "8 id: `import.preview.block_next`, `block_prev`, `block_toggle_kept`, `block_mark_range_start`, `block_confirm_range`, `jump_to_cleanup_rules`, `chapter_next`, `chapter_prev`. `<li class=\"ip-block\">` có trạng thái nhắm nhưng chưa có đường nhắm bằng chuột (`src/ImportPreviewOverlay.vue`); lệnh không tham số nên hàng phải nhắm trước rồi nút đọc con trỏ."
+verify = "Trên app thật: trong xem trước nhập URL, bấm một khối để nhắm, bấm giữ/bỏ khối và đánh dấu một khoảng, kết quả nhập đúng theo lựa chọn; ca (i) cho từng id."
+covers = ["R7", "R8"]
+after = [1]
+hitl = false
+risk = "medium"
+unknown = "Sally chốt chỗ đặt nút cho các id của story này."
+
+[[entry]]
+id = 7
+type = "story"
+title = "Cắt cặp ở nhập song ngữ bằng chuột"
+description = "5 id: `import.preview.bilingual_caret_left`, `bilingual_caret_right`, `bilingual_toggle_cut`, `bilingual_next_mismatch`, `bilingual_previous_mismatch`. Điểm cắt hiện là một chuỗi có chú thích (`src/BilingualImportPreviewOverlay.vue`), không có phần tử nào cho chuột trỏ tới từng vị trí."
+verify = "Trên app thật: trong xem trước nhập song ngữ, tới một cặp lệch, đặt điểm cắt rồi bấm cắt bằng chuột, cặp được tách đúng chỗ; ca (i) cho từng id."
+covers = ["R7", "R8"]
+after = [1]
+hitl = false
+risk = "medium"
+unknown = "Sally chốt chỗ đặt nút cho các id của story này."
+
+[[entry]]
+id = 8
+type = "story"
+title = "Bật tắt panel bằng chuột"
+description = "3 id: `layout.toggle_ai_translation`, `layout.toggle_grid`, `layout.toggle_lookup`. Chưa đường chuột nào ẩn được một panel và `layout.preset_*` không cùng kết quả nên `via` không đạt; sửa luôn comment sai ở `src/commands/index.ts:1440`."
+verify = "Trên app thật: bấm tắt rồi bật lại từng panel, panel ẩn và hiện đúng chỗ cũ; ca (i) cho từng id."
+covers = ["R7", "R8"]
+after = [1]
+hitl = false
+risk = "low"
+unknown = "Sally chốt chỗ đặt nút cho các id của story này."
+
+[[entry]]
+id = 9
+type = "story"
+title = "Các lệnh lẻ có đường chuột"
+description = "7 id: `ai.proofread.hide`, `library.chapters.clear_selection`, `reading.marks_clear_cancel`, `export.alignment.prev`, `prompt.import.open`, `tm.manage.edit`, `tm.manage.delete`. `export.alignment.prev` không đạt `aim` vì `src/AlignmentOverlay.vue` không có `@mousedown`; ba `@submit`/nút của Prompt và TM viết lại thành `dispatch` literal, hàng TM nhắm trước bằng `@mousedown` theo AD-62 mục 1, gỡ hàng hàm cũ khỏi bảng Kiểm K trong cùng commit."
+verify = "Trên app thật: bấm được từng lệnh ở bề mặt của nó; sửa và xoá đúng hàng TM vừa bấm; ca (i) cho từng id và `POINTER_DEBT` mất đủ 7 id."
+covers = ["R7", "R8"]
+after = [1]
+hitl = false
+risk = "medium"
+unknown = "Sally chốt chỗ đặt nút cho các id của story này."
+
+[[entry]]
+id = 10
+type = "story"
+title = "Refactor sweep"
+description = "Dọn các phát hiện review mà plan của Story 14.1–14.9 đã hoãn; chỉ dọn, phạm vi bị đẩy ra từ story khác là một story mới. Bước kiểm `POINTER_DEBT` rỗng trên cây thật nằm ở đây."
+verify = "`npm run check:commands` xanh với `POINTER_DEBT` rỗng và test của các story vá vẫn xanh."
+covers = []
+after = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+hitl = false
+risk = "low"
