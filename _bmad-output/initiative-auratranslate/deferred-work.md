@@ -13627,3 +13627,4 @@ chính nó.
 - `cargo test --test naming_boundary` (`the_real_source_tree_has_no_bare_origin_identifier`) đỏ trên master từ `02305186`: `src/modes/ReadingMode.vue:251–257` đặt tên biến `origin` trần (`const origin = column.getBoundingClientRect()`), nên `pre-push` sẽ chặn mọi lần push.
   Cần: đổi tên theo chủ thể (vd. `columnBox`), chạy lại `naming_boundary`. Không phải lỗi của diff 13.3; chạy đủ bộ `--no-fail-fast` chỉ đỏ ca này.
   Chủ: Ice. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-thanh-tieu-e-42px-va-ba-nut-cua-so-macos-plan.md` §Implementation Notes.
+  → ✅ ĐÃ ĐÓNG 2026-10-30 (Story 13.3): biến đổi tên thành `columnBox`, `naming_boundary` xanh.

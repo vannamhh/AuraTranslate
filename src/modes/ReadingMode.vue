@@ -248,13 +248,13 @@ function onSegmentTextMouseDown(event: MouseEvent, segmentId: number): void {
   const text = event.currentTarget as HTMLElement
   const column = text.closest<HTMLElement>('.column')
   if (column === null) return
-  const origin = column.getBoundingClientRect()
+  const columnBox = column.getBoundingClientRect()
   const line = [...text.getClientRects()].find((rect) => event.clientY >= rect.top && event.clientY <= rect.bottom)
   markChipPress.value = {
     segmentId,
-    x: event.clientX - origin.left,
-    lineTop: (line?.top ?? event.clientY) - origin.top,
-    lineBottom: (line?.bottom ?? event.clientY) - origin.top,
+    x: event.clientX - columnBox.left,
+    lineTop: (line?.top ?? event.clientY) - columnBox.top,
+    lineBottom: (line?.bottom ?? event.clientY) - columnBox.top,
   }
 }
 
