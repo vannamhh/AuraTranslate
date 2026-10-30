@@ -476,6 +476,11 @@ onMounted(async () => {
   border-width: 0;
 }
 
+.layout-switch-btn.ui-seg__item {
+  border-left-width: 0;
+  border-radius: var(--radius-default);
+}
+
 .titlebar-right {
   display: flex;
   align-items: baseline;
