@@ -7,6 +7,8 @@ skill: bmad-architecture
 ---
 # Hồ sơ bàn giao cho Winston — sàn chuột cho `CommandRegistry`
 
+🔵 2026-10-30: AD-62 đã viết vào spine (§AD-62) và qua Reviewer Gate (`architecture-auratranslate/reviews/review-ad-62-*-2026-10-30.md`), chờ Ice ký. Ice chọn Q3 = trường `pointer` trên `CommandSpec`, Q4 = Kiểm M trong `check:commands`.
+
 **Ngày:** 2026-10-30 · **Người bàn giao:** Amelia · **Người nhận:** Winston (architect)
 **Quyết định của Ice (2026-10-30):** yêu cầu *"ngoài dùng phím tắt thì phải có thể sử dụng với chuột, nghĩa là phải có đường click"*. Ice chọn **hướng 2 trước**: viết AD và dựng cổng, rồi các story vá giao diện đi theo cổng đỏ. Phương án bị hoãn: vá giao diện từng bề mặt mà không có cổng (lệnh thêm sau lại có thể thiếu nút mà không ai biết).
 **Baseline:** `44573b6e` · spine dừng ở AD-61, mọi `ad-brief-*` khác đã `done` ⇒ số kế tiếp **AD-62**.

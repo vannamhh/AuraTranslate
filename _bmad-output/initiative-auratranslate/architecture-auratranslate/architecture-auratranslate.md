@@ -419,6 +419,7 @@ graph TD
 - **Prevents:** NFR17 thoái hoá thành kỷ luật cá nhân qua bảy giai đoạn xây dựng — đúng cách AD-13 phải cưỡng chế FR77 và AD-21 phải cưỡng chế NFR16. Lỗi loại này chỉ lộ ra khi có người thử dùng bằng bàn phím, và tới lúc đó đã quá muộn để sửa rẻ.
 - **Rule:**
   1. **Mọi thao tác đi qua một `CommandRegistry` duy nhất.** Handler chuột chỉ được `dispatch` một command đã đăng ký, không được tự cài đặt thao tác tại chỗ. Nhờ vậy "thao tác nào chưa gán được phím" trở thành câu hỏi **liệt kê được tự động**, và FR22 (phím tắt cấu hình lại được) là hệ quả của cấu trúc thay vì một danh sách phải bảo trì tay.
+     🔵 2026-10-30: chiều ngược lại, mọi command là chức năng độc lập phải có một điểm chuột, do AD-62 giữ.
   2. **Mỗi chế độ và mỗi panel khai báo điểm vào focus.** Chuyển panel trong dockview phải **dời focus DOM tường minh**; không chế độ nào được để focus rơi về `body`.
   3. **Màu chỉ đến từ bộ token đã kiểm tương phản** ở cả hai theme. Cấm giá trị màu viết thẳng trong component — cùng hình dạng với AD-21: thứ cần kiểm tra tập trung thì không được rải rác.
 
@@ -1383,6 +1384,70 @@ graph TD
   - Bộ đo NFR3 của Story 10.9 (`_bmad-output/implementation-artifacts/6-18-ban-do/nfr3-raw.tsv`, bản release, macOS, 5.000 Chương / 50.000 segment, 3 phiên × 200 mẫu), p95 theo phiên: chính xác `má của tôi` 102,0–103,3 ms; tự nới `ma cua toi` 100,6–103,6 ms; khoan dung chọn tay `ma cua toi` 102,5–103,6 ms; chữ Hán chính xác `分久必合` 180,4–183,9 ms.
   - Thư viện thật của Ice ngày 2026-10-28 (`library-index.db`, 103 segment, 14 Tác phẩm, 306 từ trong chỉ mục bản dịch, đọc qua `fts5vocab`, chỉ đọc): 59 từ ASCII có hit đúng chữ; 9 từ có thêm hit ở `_nd` (`hoan` 1→5, `chi` 1→4, `cung` 2→5, `bang` 1→3, `phong` 3→5, `ba` 2→3, `du` 2→3, `dung` 1→2, `quan` 2→3). Bảy truy vấn có dấu (`là`, `có`, `của`, `một`, `người`, `mà`, `đã`) cho số hit chính xác bằng số hit khoan dung.
   - Mã đọc: `src-tauri/src/core/library/indexer.rs:1084` (tự nới), `:1111-1145` (lượt khoan dung thay danh sách), `:1251` (`fold_diacritics_case_preserving`), `:1402` (`SearchMode`), `src-tauri/src/commands/library.rs:828`, `:848`, `src/modes/LibraryMode.vue:405-422`, `src/commands/index.ts:2579-2595`.
+
+### AD-62 — Mọi command là chức năng độc lập phải có một điểm chuột; ngoại lệ là một trong năm loại khai trên chính command; cổng là Kiểm M của `check:commands`, hạ kèm một sổ nợ chỉ được co lại
+
+- **Binds:** C1, C2, C8, toàn bộ frontend. Các chỗ trong mã: `src/commands/registry.ts` (`CommandSpec`), mọi lượt `register()` trong `src/commands/index.ts`, mọi `.vue` dưới `src/`, `scripts/check-commands.mjs`, `scripts/lib/commands-scan.mjs`, `src/commands/README.md`, `src/AGENTS.md`.
+- **Prevents:**
+  1. Một chức năng chỉ dùng được bằng phím. Ở baseline, 15 command có hợp âm mặc định mà không có đường chuột nào (`editor.confirm_segment`, `review.open`, `history.open`, `glossary.add_term`…); người không nhớ phím không biết chức năng có tồn tại.
+  2. Command không có hợp âm mặc định và không chỗ nào gọi (9 ở baseline): chỉ tới được khi người dùng tự gán phím.
+  3. Mỗi story tự quyết "lệnh này không cần nút" theo một tiêu chí riêng.
+  4. Miễn trừ sống lâu hơn lý do của nó: command đã bị xoá hoặc đã có nút mà dòng miễn trừ vẫn còn.
+  5. Sổ nợ thành chỗ đẩy command mới vào để gỡ đỏ.
+  6. Cổng xanh trên một cây đọc ra 0 thuộc tính hoặc 0 command.
+- **Rule:**
+
+  1. **Điểm chuột.** Điểm chuột của `<id>` là một thuộc tính `@click`, `@dblclick`, `@submit` hoặc `@contextmenu` (có thể kèm modifier; `v-on:` tương đương) trong template của một `.vue` dưới `src/`, có giá trị đúng là `dispatch('<id>')` literal, cùng hình dạng Kiểm A cưỡng chế cho `@click`. Không tính: `@mousedown`/`@pointerdown`, listener trên `document`, lời gọi qua một hàm. Ở kho này `@mousedown` là cửa nhắm mục và đặt caret, không phải cửa thao tác (`onCellMouseDown`, `src/panels/GridPanel.vue:962`). Một `@submit` đang gọi hàm viết lại thành `dispatch` literal. Nếu hàm đó truyền chỉ số hàng (`src/TmManageOverlay.vue:723`, `src/PromptLibraryOverlay.vue:691,707`), hàng phải được nhắm trước bằng `@mousedown`, rồi command đọc con trỏ đã nhắm, theo khuôn `src/GlossaryHarvestOverlay.vue:163`. `src/PromptLibraryOverlay.vue:763` viết lại thẳng được.
+  2. **Sàn.** Mỗi command đã đăng ký thuộc **đúng một** trong ba nhóm: có ít nhất một điểm chuột; khai `pointer` (mục 3); nằm trong sổ nợ (mục 5). Có điểm chuột mà vẫn khai `pointer` hoặc vẫn ở sổ nợ là đỏ; vừa khai vừa ở sổ nợ cũng đỏ.
+  3. **Năm loại không phải chức năng độc lập: tập đóng, khai trên `CommandSpec`.**
+     - Trường tuỳ chọn `pointer?: { kind, reason, at?, via? }` trên `CommandSpec`, khai ngay ở lượt `register()`, kể cả trong các vòng tuple. `kind` là union chuỗi, không `enum` (`registry.ts` phải nạp được bằng Node thuần). `reason` là một câu không rỗng. `at` (một đường dẫn `.vue`/`.ts` dưới `src/`) bắt buộc với `aim` và `auto`, cấm với loại khác. `via` (một id) bắt buộc khi và chỉ khi `kind` là `via`. `frozen()` ở `registry.ts` hôm nay chép từng trường một, nên nó phải chép cả `pointer` (đóng băng sâu); một ca hành vi của Kiểm C khẳng định `pointer` còn nguyên sau `register()`.
+     - `focus`: chỉ dời focus hoặc caret tới một đích tự bấm được (`focus.next_panel`, `tm.fuzzy.focus`, `editor.next_segment`).
+     - `aim`: bước con trỏ trên một danh sách mà chuột nhắm thẳng được từng mục (`glossary.harvest.next`, `library.work_next`). Cổng đòi tệp `at` có ít nhất một thuộc tính `@mousedown` hoặc `@pointerdown`.
+     - `gesture`: thay cho một cử chỉ chuột gốc của nền tảng (`selection.extend_*` thay kéo bôi đen).
+     - `auto`: app tự dispatch khi có một sự kiện chuột (`lookup.lookup_selection` khi thả chuột, `at: src/main.ts`, dòng 1302; `reading.lookup_close` khi bấm ra ngoài popup, `at: src/modes/ReadingLookupPopup.vue`). Cổng đòi một `dispatch('<id>')` literal trong mã của tệp `at`, ngoài template và ngoài comment. `at` không được là `src/commands/**`. `reason` nêu tên sự kiện chuột.
+     - `via`: cùng kết quả là điểm chuột của command khác (`shortcuts.open` qua `settings.open`). Cổng đòi `via` là một command đã đăng ký, có điểm chuột, và không tự khai `pointer`, nên không có chuỗi `via`.
+     - Mọi command ngoài năm loại là một chức năng độc lập cần dùng, kể cả 9 command không chỗ nào gọi: mỗi cái có điểm chuột, khai một loại, vào sổ nợ, hoặc bị xoá. Command không ai cần thì xoá, không khai. Thêm loại thứ sáu là sửa AD này.
+     - ⚠️ Cổng không kiểm được ngữ nghĩa: đích của `focus` có bấm được không; danh sách ở tệp `at` của `aim` có đúng là danh sách command đó bước không; `via` có thật cùng kết quả không; `dispatch` trong tệp `at` của `auto` có nằm trong handler chuột không. Đó là việc của review.
+  4. **Kiểm M trong `check:commands`.**
+     - Đọc bộ command thật mà Kiểm E đã nạp (`commandRegistry.list()`, trường `pointer` đọc lúc chạy) và thuộc tính từ `scanVueAttrs` trên tập `parsed` sẵn có. Không parse cây lần hai, không cổng thứ mười lăm; ba danh sách cổng và `check:gates` không đổi.
+     - Đỏ khi: một command không thuộc nhóm nào ở mục 2, hoặc thuộc hai nhóm; `kind` ngoài tập; `reason` rỗng; `at`/`via` thiếu, thừa, hoặc không đạt điều kiện ở mục 3; sổ nợ vi phạm mục 5.
+     - Thuộc tính `@submit` và `@dblclick` hôm nay nằm dưới bảng handler của Kiểm K (`HANDLER_ATTR_RE`, `scripts/check-commands.mjs:2355`). Story nào viết một `@submit` thành `dispatch` literal thì gỡ hàng của hàm cũ khỏi bảng đó trong cùng commit.
+     - Một sàn quần thể qua `judgeFloor`, cùng khuôn `COMMAND_FLOOR`, trên số command có điểm chuột (259 ở baseline).
+  5. **Sổ nợ chỉ co lại.**
+     - Hai mảng id hằng trong `scripts/check-commands.mjs`, cạnh Kiểm M. `POINTER_DEBT_BASELINE` là đúng tập id đỏ lúc hạ cổng, viết một lần trong commit hạ cổng và sau đó chỉ được gỡ id. `POINTER_DEBT` là nợ còn mở. Đỏ khi: `POINTER_DEBT` có id trùng, có id ngoài `POINTER_DEBT_BASELINE`, hoặc có id không còn được đăng ký.
+     - Command mới không bao giờ vào sổ: nó có điểm chuột hoặc khai `pointer`. Story vá gỡ id khỏi `POINTER_DEBT`, và khỏi `POINTER_DEBT_BASELINE` khi id đó bị xoá hẳn.
+     - ⚠️ Cả hai mảng ở cùng một tệp, nên một commit vẫn có thể thêm id vào cả hai. Cổng chặn lượt thêm lẳng lặng vào `POINTER_DEBT`; lượt thêm vào baseline chỉ hiện ra trong diff để review bắt.
+     - Chủ của nợ nằm ở `deferred-work.md`, mỗi bề mặt một mục, `Chủ:` là story vá có trong cây vé, nên `check:debt-owner` canh được. Cổng không đọc `_bmad-output`.
+  6. **Test canh.** Mỗi đối chứng đỏ là một phép gỡ thật.
+     - (a) Xoá thuộc tính `@click="dispatch('mode.reading')"` ở `src/App.vue`, giữ nút: Kiểm M đỏ với đúng id `mode.reading`.
+     - (b) Khai `pointer` cho một command đã có điểm chuột: đỏ vì miễn trừ chết.
+     - (c) Gỡ một id khỏi `POINTER_DEBT` mà không thêm nút: đỏ với đúng id đó.
+     - (d) Gỡ điểm chuột của command mà một `via` đang trỏ tới (hôm nay `settings.open` ở `src/TitlebarToolsMenu.vue`): đỏ ở `via`, không chỉ ở chính command đó.
+     - (e) Gỡ lượt `dispatch` trong tệp `at` của một `auto` (hôm nay `src/main.ts:1302`, chuyển sang tệp khác): đỏ ở `auto`.
+     - (f) Gỡ thuộc tính `@mousedown` trong tệp `at` của một `aim`: đỏ ở `aim`.
+     - (g) Gỡ lượt `register()` của một id còn trong `POINTER_DEBT`: đỏ vì id nợ không còn được đăng ký.
+     - (h) Self-check trên fixture giả, cùng khuôn Kiểm C/D, cho các nhánh không thể là phép gỡ trên cây thật: miễn trừ chết (khai `pointer` mà có điểm chuột); id nợ mà có điểm chuột; `kind` ngoài tập; `reason` rỗng; `at`/`via` thừa hoặc thiếu; `POINTER_DEBT` có id trùng hoặc ngoài baseline; `@dblclick`/`@submit`/`@contextmenu` có modifier được tính; `@mousedown` và `@submit="fn()"` không được tính. Các ca này canh bộ phân loại, không canh dây nối; dây nối do (a)–(g) canh.
+     - (i) Mỗi id rời `POINTER_DEBT` kèm một ca Vitest mount bề mặt chứa nút mới, bấm nút, và khẳng định `dispatch('<id>')` đã chạy. Đối chứng đỏ: gỡ thuộc tính khỏi nút. Kiểm M chỉ chứng minh văn bản tồn tại, ca này chứng minh nút bấm được.
+  7. **Số lúc hạ cổng.** Baseline `44573b6e`, phân loại đề xuất, story thi hành xếp lại từng id: 329 command; 259 có điểm chuột; 70 không. Trong 70 đó, đề xuất 29 khai `pointer` (`focus` 9 · `aim` 10 · `gesture` 4 · `auto` 2 · `via` 4) và 41 vào sổ nợ. `library.list_works` và `library.list_chapters` không đạt `auto`: Thư viện gọi thẳng `loadWorks()` (`src/modes/LibraryMode.vue:154,169,189`), không `dispatch`. Hai id này được đề xuất là `via` (`mode.library`, `library.open_work`); story thi hành chọn giữa `via` và đổi lời gọi thẳng thành `dispatch` + `auto`. Hai nhóm nợ lớn nhất: lưới Editor (xác nhận, gộp/tách, bỏ/khôi phục, đoạn đích, chọn nhiều đoạn) và tầng khối của nhập URL. Chỗ đặt nút cho từng nợ là việc của Sally.
+  8. **Đổi gì / không đổi gì.**
+     - Đổi: AD-34 nhận một dòng 🔵 trỏ về đây. `src/commands/README.md` §*Thêm một command* và `src/AGENTS.md` §Conventions mỗi chỗ thêm một dòng luật. PRD chưa có yêu cầu sàn chuột (NFR17 chỉ nói bàn phím); sau khi Ice ký, John thêm một NFR qua correct-course.
+     - Không đổi: Kiểm A, AD-34 §1 (mọi thao tác đi qua một registry), `unbound()`, màn hình phím tắt.
+  9. **Giới hạn chấp nhận.**
+     - Kiểm M không kiểm tầm với. Một điểm chuột nằm trong lớp phủ mà chỉ một id nợ mở được (lớp phủ lịch sử, mở bằng `history.open`), trong một `v-if` không bao giờ đúng, hoặc trên nút `:disabled` mãi mãi vẫn được tính. Ca (i) ở mục 6 bù cho từng nút mới; nút cũ không được rà lại.
+     - Theo lựa chọn của Ice ở Q2, `@dblclick` và `@contextmenu` là điểm chuột dù người dùng khó tự tìm ra. Ở baseline, 2 command chỉ có điểm `@dblclick` và 5 command chỉ có điểm `@submit`.
+     - Cổng chỉ thấy các command mà `installCommands({ setMode, isMac: true })` đăng ký dưới Node. Một lượt đăng ký có điều kiện theo nền tảng hoặc theo dữ liệu thì cổng không thấy.
+
+- **Phương án bị loại:**
+  - **Chỉ command có hợp âm mặc định (32 đỏ):** bỏ lọt tầng khối nhập URL, cắt cặp ở nhập song ngữ và 9 command không ai gọi. Ice chọn mọi command, 2026-10-30.
+  - **Tính cả `@mousedown` và lời gọi qua hàm:** làm mờ ranh giới thao tác/nhắm mục mà Kiểm A dựng.
+  - **Miễn trừ trong một danh sách ở `scripts/`:** người thêm command không thấy câu hỏi ngay chỗ đăng ký; đổi tên id chỉ bị bắt qua phép kiểm miễn trừ chết. Ice chọn trường trên `CommandSpec`, 2026-10-30.
+  - **Cổng riêng `check:pointer`:** sửa ba danh sách cổng và `check:gates`, phải tách `maskFile` (chưa export) ra `scripts/lib/`, parse lại toàn cây thêm một lần. Ice chọn Kiểm M, 2026-10-30.
+  - **Chỉ hạ cổng khi các story vá đã xong:** trong lúc chờ, không gì chặn một command mới thiếu nút.
+  - **Một trần số (`POINTER_DEBT_CEILING`):** gỡ một id để lại một chỗ trống, và một commit có thể nâng trần cùng lúc thêm id. Tập con của baseline chặn cả hai.
+  - **Trần số lượng cho từng loại miễn trừ:** trần nằm cùng tệp với khai báo nên nâng được trong cùng commit; nó không mạnh hơn chính dòng `pointer` hiện trong diff.
+  - **Mount và bấm thử cho cả 259 điểm chuột:** rà lại mọi nút cũ, giá quá lớn so với lỗi nó bắt. Chỉ nút mới phải có ca (mục 6 (i)).
+
+  → bằng chứng: `.memlog.md` 2026-10-30 · `ad-brief-san-chuot/` · `reviews/review-ad-62-{rubric,reality,adversary}-2026-10-30.md` · đo trên máy Ice, một lượt, cache ấm: `node scripts/check-commands.mjs` 1,00 s, `node -e 0` 0,08 s; người rà thực tế đo lại độc lập ra 329 / 259 / 70 / 32 · mã đọc: `src/commands/registry.ts:45`, `:135` (`frozen`), `src/commands/index.ts:5391` (`installCommands`), `scripts/check-commands.mjs:238` (`COMMAND_FLOOR`), `:449-533` (Kiểm A), `:1371` (Kiểm E nạp bộ command), `:2355` (`HANDLER_ATTR_RE`), `scripts/lib/commands-scan.mjs:362` (`scanVueAttrs`).
 
 ## Consistency Conventions
 
