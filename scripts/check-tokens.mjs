@@ -235,7 +235,8 @@ const EXPECTED_TYPOGRAPHY = {
     lineHeight: '1.95',
     fontStyle: 'italic',
   },
-  editor: { family: 'read', fontSize: '15px', lineHeight: '1.95' },
+  editor: { family: 'read', fontSize: '16px', lineHeight: '1.95' },
+  'translation-ref': { family: 'read', fontSize: '15px', lineHeight: '1.8666666666666667' },
   'lookup-headword': { family: 'read', fontSize: '24px', lineHeight: '1.4583333333333333' },
   'lookup-gloss': { family: 'read', fontSize: '14.5px', lineHeight: '1.9310344827586208' },
   'lookup-example': { family: 'read', fontSize: '13px', lineHeight: '1.6153846153846154', fontStyle: 'italic' },
@@ -244,7 +245,7 @@ const EXPECTED_TYPOGRAPHY = {
    * ⚠️ `ui-md-strong` (Story 1.14 · AC10) CỐ Ý VẮNG MẶT ở đây.
    *
    * Nó tồn tại trong `tokens.json` nhưng KHÔNG có trong §Bảng token typography của
-   * `DESIGN.md`, và bảng dưới đây là bản chép ĐỘC LẬP của bảng đó — 14 hàng, đúng 14.
+   * `DESIGN.md`, và bảng dưới đây là bản chép ĐỘC LẬP của bảng đó — 15 hàng, đúng 15.
    * Chữ ký cho hàng thứ 15 sống ở `tokens.deviations`, và `compare()` cưỡng chế rằng nó
    * phải có `question` + `reason` không rỗng. Xem lý lẽ đầy đủ ở phần `extra` của
    * `compare()`. Đừng "sửa" bằng cách thêm một hàng vào đây.
@@ -317,8 +318,11 @@ const EXPECTED_ROUNDED = {
  *
  * `typography` lên lại 18 với `ui-sm-italic` — token nghiêng thật của ô xuất xứ Chương
  * rỗng, thay cho việc mượn `lookup-example`. Xem `tokens.deviations` trong `tokens.json`.
+ *
+ * 🔵 2026-10-30 (Ice): `typography` lên 19 với `translation-ref` — bản dịch tham khảo 15px,
+ * một bậc dưới `editor` 16px; hàng 15 của bảng `DESIGN.md`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 18, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 19, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -681,7 +685,7 @@ function compare(group, expected, actual, pick = (v) => v) {
    * lệch mà không có gì nói vì sao. Hai bản chép chỉ bắt được lỗi khi cả hai còn chép
    * cùng một thứ.
    *
-   * ⇒ Bảng đóng băng ở lại đúng 14 hàng của `DESIGN.md`. Hàng thứ 15 sống trong
+   * ⇒ Bảng đóng băng ở lại đúng 15 hàng của `DESIGN.md`. Hàng thứ 16 sống trong
    * `tokens.json` và **được cấp phép bằng một mục `deviations` có `question` và `reason`
    * không rỗng** — tức một chữ ký, đúng như khối chú thích đầu bảng đòi.
    *
@@ -1913,7 +1917,7 @@ function emittedVarNames(tok) {
 const emittedVars = emittedVarNames(tokens)
 
 /** `ceil(0.85 × live)`, qua `judgeFloor` — bắt một lượt tính RỖNG hoặc gãy nửa chừng. */
-const EMITTED_VAR_FLOOR = 159
+const EMITTED_VAR_FLOOR = 174
 {
   const v = judgeFloor(EMITTED_VAR_FLOOR, emittedVars.size, 'EMITTED_VAR_FLOOR', 'biến do `tokens/index.ts` phát')
   if (!v.ok) {

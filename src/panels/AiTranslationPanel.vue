@@ -960,9 +960,9 @@ const openSettingsLabel = computed(() =>
 
 .ai-translate-text {
   margin: 0;
-  font-family: var(--face-editor);
-  font-size: var(--font-editor);
-  line-height: var(--leading-editor);
+  font-family: var(--face-translation-ref);
+  font-size: var(--font-translation-ref);
+  line-height: var(--leading-translation-ref);
   color: var(--color-on-surface);
   white-space: pre-wrap;
 }

@@ -696,7 +696,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
  * — caret không có hộp nào để lấy chiều cao, và `Backspace` ở offset 0 của editing host duy
  * nhất không có chỗ nào để xoá lui vào.
  *
- * ⚠️ `1.95em` nhân với `font-size` của **chính ô** (token `editor`, 15px) ⇒ đúng **một dòng**.
+ * ⚠️ `1.95em` nhân với `font-size` của **chính ô** (token `editor`, 16px) ⇒ đúng **một dòng**.
  * Đừng đổi sang `rem`: gốc tài liệu là `ui`, không phải `editor`.
  * ⚠️ **Đo 2026-08-14, WKWebView 605.1.15:** ô rỗng **38,00 px** = ô có chữ **38,00 px**; bấm
  * chuột thật vào nó cho `type = "Caret"`, gõ một ký tự cho `beforeinput insertText` huỷ được

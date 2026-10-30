@@ -76,8 +76,12 @@ typography:
     lineHeight: '1.95'
   editor:
     fontFamily: read
-    fontSize: 15px
+    fontSize: 16px
     lineHeight: '1.95'
+  translation-ref:
+    fontFamily: read
+    fontSize: 15px
+    lineHeight: '28px'
   lookup-headword:
     fontFamily: read
     fontSize: 24px
@@ -307,7 +311,7 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 | 4 | `read-title` | 23px / 600 / 35px | `read` | Tiêu đề Chương. 🔵 2026-10-29 (Ice): giãn 35px, từ 1.3 |
 | 5 | `source-cjk` | 16.5px / 2.05 | `read-cjk` | Nguyên văn tiếng Trung ở Panel Source. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace) |
 | 6 | `source-hanviet` | 12.5px / italic / 1.95 | `read` | Âm Hán Việt. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace) |
-| 7 | `editor` | 15px / 1.95 | `read` | Bản dịch trong Editor. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace) |
+| 7 | `editor` | 16px / 1.95 | `read` | Bản dịch trong Editor. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace). 🔵 2026-10-30 (Ice): từ 15px |
 | 8 | `lookup-headword` | 24px / 35px | `read` | Đầu mục Panel Lookup. 🔵 2026-10-29 (Ice): giãn 35px, từ 1.3 |
 | 9 | `lookup-gloss` | 14.5px / 28px | `read` | Nghĩa. 🔵 2026-10-29 (Ice): giãn 28px, từ 1.6 (mã chạy 1.66, sổ deviation của `tokens.json`) |
 | 10 | `lookup-example` | 13px / italic / 21px | `read` | Ví dụ và trích dẫn. 🔵 2026-10-28 (Ice): từ 12.5px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.6 (mã chạy 1.66, sổ deviation của `tokens.json`) |
@@ -315,6 +319,7 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 | 12 | `ui-sm` | 13px / 21px | `ui` | Nhãn phụ. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.5 |
 | 13 | `ui-label` | 13px / 700 / 21px / `0.08em` | `ui` | Nhãn nguồn từ điển, số thứ tự câu. 🔵 2026-10-26 (Ice): từ 11px / `0.1em`. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.4 |
 | 14 | `ui-mono` | 13px / 21px | `mono` | Phím tắt, số liệu. 🔵 2026-10-26 (Ice): từ 11.5px. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.4 |
+| 15 | `translation-ref` | 15px / 28px | `read` | Bản dịch tham khảo: popup bộ nhớ dịch, gợi ý AI. 🔵 2026-10-30 (Ice): token mới, một bậc dưới `editor` |
 
 🔵 2026-10-26 (Ice): **mọi chữ bấm được** — nút, tab con, nút phân đoạn — dùng `ui-md` 13px, bằng cỡ giao diện hệ thống macOS. `ui-sm` 12px chỉ còn cho số đếm và dòng phụ không bấm được. Không chữ giao diện nào dưới 12px. 🔵 2026-10-28 (Ice): chữ nhỏ nhất toàn app là 13px; `ui-sm`, `ui-sm-italic`, `ui-label`, `ui-mono` và `lookup-example` cùng 13px, nên chữ phụ bằng cỡ `ui-md` và tách khỏi chữ thường bằng màu, độ đậm, chữ hoa.
 

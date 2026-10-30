@@ -267,11 +267,11 @@ const acceptErrorText = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-panel-block);
-  padding: 13px 13px 13px 11px; /* aura-allow-spacing: 1px border and 3px TM rule sit inside the 14px inset */
-  border: 1px solid var(--color-control-rule);
+  padding: 14px 14px 14px 11px; /* aura-allow-spacing: the 3px TM rule sits inside the 14px inset */
   border-left: 3px solid var(--color-tm-rule);
   border-radius: var(--radius-default);
   background: var(--color-surface-tm);
+  box-shadow: var(--shadow-popover);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
@@ -279,8 +279,7 @@ const acceptErrorText = computed(() => {
 }
 
 .tm-fuzzy-strip:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
+  outline: 1px solid var(--color-primary);
 }
 
 .tmf-head {
@@ -362,6 +361,9 @@ const acceptErrorText = computed(() => {
 }
 
 .tmf-target {
+  font-family: var(--face-translation-ref);
+  font-size: var(--font-translation-ref);
+  line-height: var(--leading-translation-ref);
   color: var(--color-on-surface-variant);
 }
 
