@@ -337,4 +337,36 @@ describe('modes/ReadingMode.vue — wrapper focus và affordance', () => {
     expect(document.activeElement).toBe(first!.element)
     wrapper.unmount()
   })
+
+  it('the TOC and marks drawers close on a click outside the panel, not on a click inside it', async () => {
+    mockInvoke.mockResolvedValueOnce(RUN)
+    const commands = await import('../../src/commands')
+    const state = await import('../../src/modes/readingState')
+    commands.installCommands({
+      isMac: true,
+      setMode: () => {},
+      closeReadingToc: state.closeTableOfContents,
+      closeReadingMarks: state.closeReadingMarks,
+    })
+    const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
+    const wrapper = mount(ReadingMode, { attachTo: document.body })
+    await state.ensureReadingLoaded()
+
+    mockInvoke.mockResolvedValueOnce([MARK])
+    await state.openReadingMarks()
+    await wrapper.vm.$nextTick()
+    await wrapper.get('.marks-panel').trigger('click')
+    expect(state.readingMarksOpen.value).toBe(true)
+    await wrapper.get('.marks-overlay').trigger('click')
+    expect(state.readingMarksOpen.value).toBe(false)
+
+    mockInvoke.mockResolvedValueOnce([])
+    await state.openTableOfContents()
+    await wrapper.vm.$nextTick()
+    await wrapper.get('.toc-panel').trigger('click')
+    expect(state.readingTocOpen.value).toBe(true)
+    await wrapper.get('.toc-overlay').trigger('click')
+    expect(state.readingTocOpen.value).toBe(false)
+    wrapper.unmount()
+  })
 })

@@ -906,6 +906,7 @@ function paragraphRuns(
       role="dialog"
       aria-modal="true"
       aria-labelledby="reading-marks-heading"
+      @click.self="dispatch('reading.marks_close')"
       @keydown.esc="onMarksEscape()"
       @keydown.tab="trapOverlayTab($event, marksPanel)"
     >
@@ -985,6 +986,7 @@ function paragraphRuns(
       class="toc-overlay"
       role="dialog"
       aria-modal="true"
+      @click.self="dispatch('reading.toc_close')"
       @keydown.esc="dispatch('reading.toc_close')"
       @keydown.tab="trapOverlayTab($event, tocPanel)"
     >
@@ -1256,23 +1258,22 @@ function paragraphRuns(
   font-family: var(--face-ui-md);
 }
 
-.toc-overlay {
+.toc-overlay,
+.marks-overlay {
   position: fixed;
-  inset: 0;
+  inset: var(--space-titlebar-height) 0 var(--space-status-height);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Chỉ token có sẵn — không `--color-scrim` (không tồn tại) và không `opacity`/`rgba`. */
-  background: var(--color-background);
+  justify-content: flex-end;
+  align-items: stretch;
 }
 
-.toc-panel {
-  background: var(--color-surface);
-  padding: var(--space-panel-block) var(--space-panel-inline);
-  max-width: round(up, 60ch, 7px);
-  max-height: 80vh;
+.toc-panel,
+.marks-panel {
+  width: min(420px, 100%);
   overflow: auto;
-  border-radius: var(--radius-default);
+  padding: var(--space-panel-block) var(--space-screen-inline) var(--space-panel-block) var(--space-panel-inline);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-popover);
 }
 
 .toc-heading {
@@ -1298,24 +1299,6 @@ function paragraphRuns(
 
 .toc-list li.current {
   background: var(--color-surface-accent);
-}
-
-.marks-overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-background);
-}
-
-.marks-panel {
-  background: var(--color-surface);
-  padding: var(--space-panel-block) var(--space-panel-inline);
-  max-width: round(up, 72ch, 7px);
-  max-height: 80vh;
-  overflow: auto;
-  border-radius: var(--radius-default);
 }
 
 .marks-panel:focus {
