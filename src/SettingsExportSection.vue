@@ -67,14 +67,14 @@ function onInput(event: Event): void {
 .ts-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-panel-inline);
   margin-bottom: var(--space-panel-block);
 }
 
 .ts-field {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-unit);
 }
 

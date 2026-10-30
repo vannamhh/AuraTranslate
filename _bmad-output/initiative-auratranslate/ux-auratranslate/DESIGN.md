@@ -435,7 +435,7 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 **Canh baseline.**
 
 - Hàng ngang có chữ, số, biểu tượng hoặc điều khiển canh theo **baseline**. Hàng trong thanh cao cố định canh baseline giữa các mục, rồi cả nhóm nằm giữa thanh. Biểu tượng và chữ bên trong một nút cũng canh baseline, nhóm nằm giữa nút.
-- Biểu tượng 14px: **đáy biểu tượng đặt trên baseline** của chữ cạnh nó, như một chữ hoa.
+- Biểu tượng 14px: **đáy biểu tượng đặt trên baseline** của chữ cạnh nó, như một chữ hoa. 🔵 2026-10-30 (Ice): mũi tên xổ xuống (`chevron`) đứng cạnh chữ thì hạ 3px để tâm nét vẽ trùng giữa chiều cao chữ hoa, vì nét vẽ của nó nằm giữa ô chứ không lấp đầy ô.
 - ⚠️ Nút chỉ có biểu tượng không có baseline, nên đáy cả nút rơi xuống baseline của hàng và nút nhô lên 7px so với nút chữ cùng cao. Nó phải mang một hộp dòng rỗng để có baseline đúng chỗ của nút chữ cùng bậc.
 - Hàng baseline đứng tự do khai chiều cao bằng bội 7: 21 cho hàng chữ, 28 cho hàng điều khiển. Chữ `ui`, số `mono` và chip phím canh baseline thành hàng 21,5px, vì mỗi font nhô trên baseline một khác.
 - Phần tử không mang chữ và không phải biểu tượng (nét ngăn ở thanh trạng thái, thanh tiến độ) canh giữa hàng.

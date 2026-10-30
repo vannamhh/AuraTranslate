@@ -182,7 +182,7 @@ function onRenameInput(name: string, event: Event): void {
 .sl-form,
 .sl-save {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   height: 35px;
   gap: calc(var(--space-unit) * 1);
   margin: 0;

@@ -16,7 +16,7 @@ defineProps<{ name: AppIconName }>()
     <path v-if="name === 'layout-left'" d="M10.5 1v12M10.5 7h6.5" fill="none" stroke="currentColor" stroke-width="1.3" />
     <path v-else d="M1 8h16M9 8v5" fill="none" stroke="currentColor" stroke-width="1.3" />
   </svg>
-  <svg v-else class="app-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+  <svg v-else class="app-icon" :class="{ 'app-icon--chevron': name === 'chevron' }" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
     <path
       v-if="name === 'pin'"
       d="M6 1.75h4M6.6 1.75l-.5 4.1-2.35 2.4v1.15h8.5V8.25L9.9 5.85l-.5-4.1M8 9.4v4.85"
@@ -51,6 +51,12 @@ defineProps<{ name: AppIconName }>()
   width: 14px;
   height: 14px;
   flex: none;
+}
+
+/* The chevron's ink sits mid-box, so on a text baseline it reads high; this drops it to the cap-height middle. */
+.ui-row > .app-icon--chevron {
+  position: relative;
+  top: 3px;
 }
 
 .app-icon--wide {

@@ -451,9 +451,11 @@ function onKeydown(event: KeyboardEvent): void {
               :disabled="manageEditing || (opt.value === 'work' && !manageWorkTierAvailable)"
               @change="onTierChange(opt.value)"
             />
-            {{ t(opt.labelKey) }}
-            <!-- aura-allow-text: DỮ LIỆU (số hàng đếm được ở nấc này). -->
-            <b v-if="tierCountVisible(opt.value)" class="gm-seg-count">{{ manageTierCounts[opt.value] }}</b>
+            <span class="ui-row">
+              {{ t(opt.labelKey) }}
+              <!-- aura-allow-text: DỮ LIỆU (số hàng đếm được ở nấc này). -->
+              <b v-if="tierCountVisible(opt.value)" class="gm-seg-count">{{ manageTierCounts[opt.value] }}</b>
+            </span>
           </label>
         </fieldset>
 
@@ -951,7 +953,6 @@ function onKeydown(event: KeyboardEvent): void {
 /* Checkbox and label on one row, unlike `.gm-field`'s column layout. */
 .gm-field-checkbox {
   flex-direction: row;
-  align-items: baseline;
   flex: 0 0 auto;
 }
 
@@ -1067,9 +1068,6 @@ function onKeydown(event: KeyboardEvent): void {
 
 .gm-seg-opt {
   position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  gap: calc(var(--space-unit) * 1);
 }
 
 .gm-pill {
