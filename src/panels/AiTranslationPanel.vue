@@ -881,6 +881,16 @@ const openSettingsLabel = computed(() =>
   padding: 0 var(--space-panel-inline) var(--space-panel-block);
 }
 
+.aura-dock-edge-left .ai-surface {
+  margin-left: calc(-1 * var(--space-screen-inline));
+  padding-left: var(--space-screen-inline);
+}
+
+.aura-dock-edge-right .ai-surface {
+  margin-right: calc(-1 * var(--space-screen-inline));
+  padding-right: var(--space-screen-inline);
+}
+
 /* Story 4.8 — nút Dịch/Huỷ/Đưa sang bản dịch. */
 .ai-translate-actions {
   flex: none;

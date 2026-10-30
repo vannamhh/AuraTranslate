@@ -199,6 +199,28 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
   // sang tắt cờ qua `queueMicrotask` (FIFO, chạy sau microtask của `onDidLayoutChange`) — cờ
   // giờ còn `true` đúng lúc lượt "active view" trễ đó bắn, nên nó bị chặn. Case này giờ
   // khẳng định KHÔNG rò, không còn là một FINDING đang chờ sửa.
+  it('marks the groups touching each window edge, and re-marks them after a panel is hidden', async () => {
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' } })
+    try {
+      await settle()
+      const edge = (side: 'left' | 'right'): Element[] => [...wrapper.element.querySelectorAll(`.aura-dock-edge-${side}`)]
+      expect(edge('left')).toHaveLength(1)
+      expect(edge('right')).toHaveLength(2)
+      expect(edge('right')).not.toContain(edge('left')[0])
+
+      expect(togglePanel('panel.lookup')).toBe(true)
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(panelRing()).toEqual(['panel.grid'])
+      expect(edge('left')).toHaveLength(1)
+      expect(edge('right')).toEqual(edge('left'))
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it('a layout restored from a saved JSON marks no preset; applyPreset marks one again', async () => {
     setChromeTokens()
     setWindowSize(SIZE_FULL.width, SIZE_FULL.height)

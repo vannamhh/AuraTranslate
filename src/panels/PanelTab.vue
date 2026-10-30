@@ -114,6 +114,10 @@ onBeforeUnmount(() => {
   font-weight: var(--weight-ui-md);
 }
 
+.aura-dock-edge-left .dv-tab:first-child .tab {
+  padding-left: var(--space-screen-inline);
+}
+
 .tab-chord {
   font-weight: var(--weight-ui-md);
 }

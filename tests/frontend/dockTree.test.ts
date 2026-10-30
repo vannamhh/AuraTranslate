@@ -14,7 +14,7 @@
  * `WorkspaceDock.vue::rememberSpot` cũ luôn trả `'right'`).
  */
 import { describe, expect, it } from 'vitest'
-import { findTreeSpot, unmergeForPersist, viewsIn } from '../../src/layout/dockTree'
+import { edgeGroupIds, findTreeSpot, unmergeForPersist, viewsIn } from '../../src/layout/dockTree'
 import type { GridNode, SerializedDockJSON, SerializedGrid } from '../../src/layout/dockTree'
 
 function leaf(id: string): GridNode {
@@ -329,5 +329,33 @@ describe('unmergeForPersist — id lá mới không trùng id lá đang có', ()
     const branchNode = (root.data as GridNode[])[1] as GridNode
     const newLeaf = (branchNode.data as GridNode[])[1] as GridNode
     expect((newLeaf.data as { id: string }).id).toBe('3')
+  })
+})
+
+describe('edgeGroupIds — groups touching the left and right window edges', () => {
+  const sorted = (ids: Set<string>): string[] => [...ids].sort()
+
+  it('Ⓑ-2: grid on the left edge, the stacked right column on the right edge', () => {
+    const edges = edgeGroupIds(TREE_B2)
+    expect(sorted(edges.left)).toEqual(['g-panel.grid'])
+    expect(sorted(edges.right)).toEqual(['g-panel.ai_translation', 'g-panel.lookup'])
+  })
+
+  it('Ⓑ-1: every group of a vertical root spans both edges until a horizontal branch splits them', () => {
+    const edges = edgeGroupIds(TREE_B1)
+    expect(sorted(edges.left)).toEqual(['g-panel.grid', 'g-panel.lookup'])
+    expect(sorted(edges.right)).toEqual(['g-panel.ai_translation', 'g-panel.grid'])
+  })
+
+  it('three levels deep: only the first and last child of each horizontal branch reach an edge', () => {
+    const edges = edgeGroupIds(TREE_DEEP)
+    expect(sorted(edges.left)).toEqual(['g-A'])
+    expect(sorted(edges.right)).toEqual(['g-B', 'g-D'])
+  })
+
+  it('a lone group touches both edges', () => {
+    const edges = edgeGroupIds(TREE_SOLO)
+    expect(sorted(edges.left)).toEqual(['g-panel.grid'])
+    expect(sorted(edges.right)).toEqual(['g-panel.grid'])
   })
 })

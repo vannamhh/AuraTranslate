@@ -2,6 +2,7 @@
 import { onBeforeUnmount } from 'vue'
 import { DockviewVue } from 'dockview-vue'
 import type { DockviewReadyEvent, VueComponent } from 'dockview-vue'
+import { syncDockEdgeClasses } from './dockEdges'
 import { dispatch, enterFocus, focusRegistry } from '../commands'
 import { t } from '../i18n'
 import { reviewModeChangeStats, reviewModeDiffMessage, reviewModeUnresolvedCount } from '../reviewModeState'
@@ -64,6 +65,8 @@ function onReady(event: DockviewReadyEvent): void {
       if (id !== undefined) void enterFocus(id)
     }),
   )
+  disposables.push(api.onDidLayoutChange(() => syncDockEdgeClasses(api)))
+  syncDockEdgeClasses(api)
   focusMineWhenMounted(FOCUS_RETRY_FRAMES)
 }
 

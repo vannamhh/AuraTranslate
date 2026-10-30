@@ -142,6 +142,14 @@ onBeforeUnmount(() => {
    */
 }
 
+.aura-dock-edge-left .panel {
+  padding-left: var(--space-screen-inline);
+}
+
+.aura-dock-edge-right .panel {
+  padding-right: var(--space-screen-inline);
+}
+
 /*
  * ⚠️ `outline: none` CHỈ ở gốc `tabindex="-1"` — xem lý do đầy đủ ở `LibraryMode.vue`.
  * KHÔNG phải `*:focus { outline: none }` (§Trap 4). Nút, ô nhập và tab của các story

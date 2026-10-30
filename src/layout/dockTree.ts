@@ -47,6 +47,29 @@ export function viewsIn(node: GridNode): string[] {
   return (node.data as GridNode[]).flatMap(viewsIn)
 }
 
+export type DockEdges = { left: Set<string>; right: Set<string> }
+
+/** Group ids whose box touches the left or right edge of the dock. */
+export function edgeGroupIds(grid: SerializedGrid): DockEdges {
+  const edges: DockEdges = { left: new Set(), right: new Set() }
+  const walk = (node: GridNode, orientation: GridOrientation, left: boolean, right: boolean): void => {
+    if (node.type === 'leaf') {
+      const id = (node.data as { id?: string }).id
+      if (id === undefined) return
+      if (left) edges.left.add(id)
+      if (right) edges.right.add(id)
+      return
+    }
+    const children = node.data as GridNode[]
+    const horizontal = orientation === 'HORIZONTAL'
+    children.forEach((child, i) => {
+      walk(child, flip(orientation), left && (!horizontal || i === 0), right && (!horizontal || i === children.length - 1))
+    })
+  }
+  walk(grid.root, grid.orientation, true, true)
+  return edges
+}
+
 type PathStep = { branch: GridNode; index: number; orientation: GridOrientation }
 
 /**

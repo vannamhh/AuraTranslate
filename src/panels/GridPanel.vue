@@ -2070,6 +2070,16 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
   padding: 0 var(--space-panel-inline) var(--space-panel-block);
 }
 
+.aura-dock-edge-left .grid-scroll {
+  margin-left: calc(-1 * var(--space-screen-inline));
+  padding-left: var(--space-screen-inline);
+}
+
+.aura-dock-edge-right .grid-scroll {
+  margin-right: calc(-1 * var(--space-screen-inline));
+  padding-right: var(--space-screen-inline);
+}
+
 /*
  * AC2 — BỐN CỘT. Bề rộng hai cột chữ chia đều; hai cột phụ lấy đúng chỗ chúng cần.
  *

@@ -54,6 +54,7 @@ import {
   SACRIFICE_ORDER,
 } from './workspaceLayout'
 import type { LayoutTier, PanelId, PlacementDirection, PresetId, WorkArea } from './workspaceLayout'
+import { syncDockEdgeClasses } from './dockEdges'
 import { findTreeSpot, unmergeForPersist, withoutHideHeader } from './dockTree'
 import { panelHeadersShown } from './panelHeadersState'
 import type { SerializedDockJSON, SerializedGrid } from './dockTree'
@@ -1045,6 +1046,7 @@ function onReady(event: DockviewReadyEvent): void {
   )
   disposables.push(api.onDidLayoutChange(onLayoutChange))
   disposables.push(api.onDidLayoutChange(syncPanelHeaders))
+  disposables.push(api.onDidLayoutChange(() => syncDockEdgeClasses(api)))
 
   setDockController({
     applyPreset,
@@ -1061,6 +1063,7 @@ function onReady(event: DockviewReadyEvent): void {
   // rồi) là một no-op rẻ, vì `measureAndApplyTier` tự so `tier === currentTier.value`.
   measureAndApplyTier()
   syncPanelHeaders()
+  syncDockEdgeClasses(api)
 }
 
 /**

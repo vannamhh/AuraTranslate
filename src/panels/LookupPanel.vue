@@ -800,6 +800,16 @@ onBeforeUnmount(() => {
   padding: 0 var(--space-panel-inline) var(--space-panel-block);
 }
 
+.aura-dock-edge-left .lookup-scroll {
+  margin-left: calc(-1 * var(--space-screen-inline));
+  padding-left: var(--space-screen-inline);
+}
+
+.aura-dock-edge-right .lookup-scroll {
+  margin-right: calc(-1 * var(--space-screen-inline));
+  padding-right: var(--space-screen-inline);
+}
+
 /*
  * 🔴 AC5 — HIỆU ỨNG NỘI DUNG MỚI VÀO: 90 ms · `opacity` 0.4 → 1 · `ease-out`.
  *
