@@ -291,6 +291,35 @@ describe('vượt biên CHƯƠNG (cùng Tác phẩm) — TỰ LÀNH, không cầ
 
     expect(selectionState.segmentSelectionIds.value).toEqual([21, 22])
   })
+
+  it('Shift+bấm sau khi vượt biên: `anchor` đã chết, caret `null` ⇒ vùng chọn còn đúng câu bấm', async () => {
+    const { editorState, selectionState } = await tuoi()
+    editorState.setEditorCaret(11)
+    selectionState.extendSegmentSelectionDown()
+
+    activeFixture.value = { chapterId: CHAPTER_B_ID, segments: CHAPTER_B_SEGMENTS }
+    editorState.resetEditorPanel()
+    await editorState.ensureSegmentsLoaded()
+    expect(editorState.editorCaretSegmentId.value).toBeNull()
+
+    selectionState.pressSegmentSelection(22, true)
+
+    expect(selectionState.segmentSelectionIds.value).toEqual([22])
+  })
+
+  it('kéo sau khi vượt biên: `anchor` đã chết ⇒ không dời `focus`, vùng chọn vẫn rỗng', async () => {
+    const { editorState, selectionState } = await tuoi()
+    editorState.setEditorCaret(11)
+    selectionState.extendSegmentSelectionDown()
+
+    activeFixture.value = { chapterId: CHAPTER_B_ID, segments: CHAPTER_B_SEGMENTS }
+    editorState.resetEditorPanel()
+    await editorState.ensureSegmentsLoaded()
+
+    selectionState.dragSegmentSelectionFocus(22)
+
+    expect(selectionState.segmentSelectionIds.value).toEqual([])
+  })
 })
 
 describe('`anchor` biến mất mà `focus` còn sống (gộp/tách segment, Story 2.8/2.9) — vẫn phải gieo lại được', () => {

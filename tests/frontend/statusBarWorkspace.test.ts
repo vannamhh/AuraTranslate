@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { readFixture, recordSave, resetRecorder } from './support/segmentFixture'
 
+const reviewOpen = vi.hoisted(() => ({ value: false }))
 const tmCount = vi.fn<() => Promise<{ total: number; mine: number; others: number } | null>>()
 const glossaryCount = vi.fn<() => Promise<number | null>>()
 
@@ -39,6 +40,13 @@ vi.mock('../../src/config/chapter', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/chapter')>()),
   listChapters: async () => ({ chapters: chaptersOnDisk, error: null }),
 }))
+vi.mock('../../src/reviewModeState', async (importOriginal) => {
+  const { computed, ref } = await import('vue')
+  const actual = await importOriginal<typeof import('../../src/reviewModeState')>()
+  const open = ref(reviewOpen.value)
+  Object.defineProperty(reviewOpen, 'value', { get: () => open.value, set: (v: boolean) => (open.value = v), configurable: true })
+  return { ...actual, reviewModeIsOpen: computed(() => open.value) }
+})
 vi.mock('../../src/config/tm', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/tm')>()),
   tmCountPairs: () => tmCount(),
@@ -81,7 +89,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   }),
 }))
 
-async function freshBar() {
+async function freshBar(extraDeps: Record<string, unknown> = {}) {
   vi.resetModules()
   const state = await import('../../src/panels/editorPanelState')
   const chapters = await import('../../src/modes/libraryChapters')
@@ -93,6 +101,7 @@ async function freshBar() {
       setMode: () => {},
       setOpenChapterDone: () => void works.setOpenChapterStatus(),
       dismissChapterDoneSuggestion: state.dismissChapterDoneSuggestion,
+      ...extraDeps,
     })
   }
   ;(await import('../../src/modes/modeState')).setMode('workspace')
@@ -129,6 +138,7 @@ beforeEach(() => {
   glossaryCount.mockReset().mockResolvedValue(7)
   chaptersOnDisk = CHAPTERS
   omittedSegmentId = null
+  reviewOpen.value = false
   setChapterStatusWire.mockReset().mockResolvedValue({ status: null, status_is_override: false, derived_status: 'in_progress' })
 })
 
@@ -449,5 +459,82 @@ describe('thanh trạng thái — nút đặt Chương Đã xong', () => {
     expect(mode.find('[data-chapter-done-suggestion]').exists()).toBe(false)
     mode.unmount()
     bar.unmount()
+  })
+})
+
+describe('thanh trạng thái — nút ‹ › sang Chương kề', () => {
+  const nav = (w: Awaited<ReturnType<typeof freshBar>>['wrapper']) => ({
+    prev: w.find('[data-chapter-prev]'),
+    next: w.find('[data-chapter-next]'),
+  })
+
+  it.each([
+    ['data-chapter-next', 'goToNextChapter'],
+    ['data-chapter-prev', 'goToPrevChapter'],
+  ] as const)('bấm %s chạy đúng dep %s', async (attr, dep) => {
+    const goToNextChapter = vi.fn()
+    const goToPrevChapter = vi.fn()
+    const { wrapper } = await freshBar({ goToNextChapter, goToPrevChapter })
+    await wrapper.get(`[${attr}]`).trigger('click')
+    const called = dep === 'goToNextChapter' ? goToNextChapter : goToPrevChapter
+    const other = dep === 'goToNextChapter' ? goToPrevChapter : goToNextChapter
+    expect(called).toHaveBeenCalledTimes(1)
+    expect(other).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('mousedown trên nút bị chặn mặc định để tiêu điểm và caret ở nguyên chỗ', async () => {
+    const { wrapper } = await freshBar()
+    const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    wrapper.get('[data-chapter-next]').element.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('có aria-label và title kèm tên lệnh', async () => {
+    const { wrapper } = await freshBar()
+    const { next, prev } = nav(wrapper)
+    expect(next.attributes('aria-label')).toBe('Chương sau')
+    expect(prev.attributes('aria-label')).toBe('Chương trước')
+    expect(next.attributes('title')).toContain('Chương sau')
+    wrapper.unmount()
+  })
+
+  it('Chương đã nạp, Workspace, Review Mode đóng ⇒ hiện cả khi chưa có caret', async () => {
+    const { wrapper } = await freshBar()
+    expect(info(wrapper, 'data-status-position')).toBeNull()
+    expect(nav(wrapper).next.exists()).toBe(true)
+    expect(nav(wrapper).prev.exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('Review Mode mở ⇒ ẩn cả hai nút', async () => {
+    const { wrapper } = await freshBar()
+    reviewOpen.value = true
+    await flushPromises()
+    expect(nav(wrapper).next.exists()).toBe(false)
+    expect(nav(wrapper).prev.exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('Chương đang nạp ⇒ ẩn cùng lúc với dòng vị trí', async () => {
+    const { state, wrapper } = await freshBar()
+    state.resetEditorPanel()
+    await flushPromises()
+    expect(state.editorHasLoaded()).toBe(false)
+    expect(nav(wrapper).next.exists()).toBe(false)
+    expect(info(wrapper, 'data-status-position')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('Thư viện hoặc Chế độ đọc ⇒ không có nút', async () => {
+    const { wrapper } = await freshBar()
+    const modes = await import('../../src/modes/modeState')
+    for (const mode of ['library', 'reading'] as const) {
+      modes.setMode(mode)
+      await flushPromises()
+      expect(nav(wrapper).next.exists(), mode).toBe(false)
+    }
+    wrapper.unmount()
   })
 })

@@ -1464,7 +1464,7 @@
   "panel.ai_translation.head_set_after_provider": "· {name}",
   "panel.ai_translation.batch_run_count": "Dịch {count} câu đã chọn",
   "panel.ai_translation.chapter_run_count": "Dịch cả Chương ({count} chưa dịch)",
-  "panel.ai_translation.batch_select_hint": "{chord} chọn câu",
+  "panel.ai_translation.batch_select_hint": "{chord} hoặc kéo trên số câu để chọn",
   "panel.ai_translation.translate_no_segment_hint": "Đặt con trỏ vào ô dịch của một câu để dịch câu đó.",
   "panel.ai_translation.state_generating": "Đang sinh…",
   "panel.ai_translation.state_generating_other": "Đang dịch câu số {segment_id}…",

@@ -15,8 +15,8 @@
  * TÀI LIỆU"). Bấm hợp âm ngược hướng THU HẸP vùng chọn thay vì mở một vùng thứ hai — đúng
  * hành vi `Shift+↓`/`Shift+↑` của mọi trình soạn thảo văn bản.
  *
- * ⚠️ **CARET KHÔNG BỊ ĐỤNG.** `editorCaretSegmentId` chỉ được ĐỌC ở đây, đúng một lần, để
- * gieo `anchor` khi vùng chọn CHƯA tồn tại — không một lượt gán ngược. Quyết định #3 của
+ * ⚠️ **CARET KHÔNG BỊ ĐỤNG.** `editorCaretSegmentId` chỉ được ĐỌC ở đây, để gieo `anchor`
+ * khi vùng chọn CHƯA tồn tại — không một lượt gán ngược. Quyết định #3 của
  * spec (Ice ký 2026-09-21) đã chốt: FR20 (hai panel cùng một câu) đã đóng nhờ CARET, không
  * nhờ kích thước vùng chọn — đụng caret ở đây sẽ phá đúng bất biến đó, và không nằm trong
  * phạm vi Phase 1 (§Tasks & Acceptance chỉ liệt tệp này, `editorSegments.ts`,
@@ -142,6 +142,32 @@ function moveSegmentSelectionFocus(direction: 1 | -1): void {
   const nextIndex = focusIndex + direction
   if (nextIndex < 0 || nextIndex >= ids.length) return
   focusSegmentId.value = ids[nextIndex]
+}
+
+/** With `extend`, keeps a live `anchor`, else seeds it from the caret, else from `id`. */
+export function pressSegmentSelection(id: number, extend: boolean): void {
+  const ids = editorSegments.value.map((s) => s.id)
+  if (!ids.includes(id)) return
+  if (!extend) {
+    anchorSegmentId.value = id
+    focusSegmentId.value = id
+    return
+  }
+  const anchorAlive = anchorSegmentId.value !== null && ids.includes(anchorSegmentId.value)
+  const focusAlive = focusSegmentId.value !== null && ids.includes(focusSegmentId.value)
+  if (!anchorAlive || !focusAlive) {
+    const caret = editorCaretSegmentId.value
+    anchorSegmentId.value = caret !== null && ids.includes(caret) ? caret : id
+  }
+  focusSegmentId.value = id
+}
+
+export function dragSegmentSelectionFocus(id: number): void {
+  const ids = editorSegments.value.map((s) => s.id)
+  if (!ids.includes(id)) return
+  if (anchorSegmentId.value === null || !ids.includes(anchorSegmentId.value)) return
+  if (focusSegmentId.value === id) return
+  focusSegmentId.value = id
 }
 
 /** Mở rộng vùng chọn XUỐNG một hàng. Handler của `segment.selection.extend_down`. */

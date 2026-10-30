@@ -2426,6 +2426,8 @@ const R_MENU_CLOSE = 'closes a native `<details>` menu in place from Escape or E
 const R_SELECT_IN_PLACE = 'selects Chapter rows in place from a pointer press — selection is view state, no dispatch'
 const R_AIM_CHAPTER = 'moves the Chapter list cursor from a press on a row button, selection untouched — view state, no dispatch'
 const R_MENU_HOLD_FOCUS = 'keeps focus and selection where they are on a press inside a floating menu — no dispatch'
+const R_SELECT_ROWS_IN_PLACE = 'selects sentence rows in place from a press or drag on the number column — selection is view state, no dispatch'
+const R_BUTTON_HOLD_FOCUS = 'keeps focus and the caret where they are on a press of a status bar button that opens no overlay — no dispatch'
 const R_SOURCE_CUT_EXEMPT = 'calls `setEditorSourceCut(...)` directly — a named exemption, not a command'
 
 /**
@@ -2611,6 +2613,8 @@ const HANDLER_TABLE = {
   'src/panels/GridBlock.vue::onSourceCellMouseUp': { nonCommand: R_SOURCE_CUT_EXEMPT },
   'src/panels/GridBlock.vue::onSentencePress': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridSentenceMenu.vue::holdFocus': { nonCommand: R_MENU_HOLD_FOCUS },
+  'src/panels/GridPanel.vue::onGridMouseDown': { nonCommand: R_SELECT_ROWS_IN_PLACE },
+  'src/StatusBar.vue::holdFocus': { nonCommand: R_BUTTON_HOLD_FOCUS },
   'src/panels/GridBlock.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridBlock.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridBlock.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'segment.selection.clear', 'editor.merge_segments'] },
@@ -2896,10 +2900,6 @@ console.log('\nKiểm M — mọi command có điểm chuột, khai `pointer`, h
 
 /** Open debt: ids may only be removed, never added. Keep this and the baseline as two separate literals. */
 const POINTER_DEBT = /** @type {string[]} */ ([
-  'segment.selection.extend_down',
-  'segment.selection.extend_up',
-  'editor.next_chapter',
-  'editor.prev_chapter',
   'review.open',
   'review.diff_next',
   'review.diff_prev',

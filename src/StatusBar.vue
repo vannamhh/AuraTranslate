@@ -51,6 +51,7 @@ import {
 } from './modes/libraryWorks'
 import { createdWork } from './modes/libraryImport'
 import { currentMode } from './modes/modeState'
+import { reviewModeIsOpen } from './reviewModeState'
 import { readingMarksWalkProgress } from './modes/readingState'
 import { groupedLookup, sensesByLayer } from './panels/lookupPanelState'
 import { proofreadResults, proofreadStateValue } from './proofreadState'
@@ -234,6 +235,19 @@ const tmTitleText = computed<string | null>(() => {
     threshold: String(tmFuzzyThresholdInUse.value),
   })
 })
+
+function holdFocus(event: MouseEvent): void {
+  event.preventDefault()
+}
+
+const chapterNavVisible = computed<boolean>(
+  () => currentMode.value === 'workspace' && editorHasLoaded() && !reviewModeIsOpen.value,
+)
+
+function chapterNavTitle(id: 'editor.next_chapter' | 'editor.prev_chapter'): string {
+  const chord = shortcutRows.value.find((row) => row.id === id)?.display.join(' / ') ?? ''
+  return chord === '' ? t(`command.${id}`) : `${t(`command.${id}`)} (${chord})`
+}
 
 // WKWebView does not focus a <button> on mouse click; the overlay would then save the wrong
 // opener and UX-DR17 would return focus elsewhere.
@@ -565,6 +579,30 @@ const libraryErrorText = computed<string | null>(() => {
       </template>
       <template v-else>
       <div class="status-info" data-status-info>
+        <span v-if="chapterNavVisible" class="chapter-nav" data-chapter-nav>
+          <button
+            type="button"
+            class="ui-icon-btn"
+            data-chapter-prev
+            :aria-label="t('command.editor.prev_chapter')"
+            :title="chapterNavTitle('editor.prev_chapter')"
+            @mousedown="holdFocus"
+            @click="dispatch('editor.prev_chapter')"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            class="ui-icon-btn"
+            data-chapter-next
+            :aria-label="t('command.editor.next_chapter')"
+            :title="chapterNavTitle('editor.next_chapter')"
+            @mousedown="holdFocus"
+            @click="dispatch('editor.next_chapter')"
+          >
+            ›
+          </button>
+        </span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
         <span v-if="positionText !== null" class="info-item" data-status-position>{{ positionText }}</span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
@@ -769,6 +807,13 @@ const libraryErrorText = computed<string | null>(() => {
 .status-info {
   flex: 0 1 auto;
   overflow: hidden;
+}
+
+.chapter-nav {
+  display: flex;
+  align-items: center;
+  flex: none;
+  margin-right: calc(var(--space-unit) * -1);
 }
 
 .status-live {

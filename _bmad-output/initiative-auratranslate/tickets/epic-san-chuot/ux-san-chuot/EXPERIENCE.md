@@ -173,6 +173,8 @@ Một mục đọc caret hoặc vùng chọn phải có đích hoặc nói lý d
 
 🔵 2026-10-30 (Story 14.2): cặp Kết đoạn · Nối đoạn quyết định theo `is_target_paragraph_end`, không theo `is_paragraph_end` như dòng trên ghi. Hai lệnh đổi cờ của bản dịch (AD-46), và đọc cờ nguồn sẽ hiện sai mục.
 
+🔵 2026-10-30 (Story 14.3): ‹ › Chương ẩn khi Review Mode mở, thay cho "Không bao giờ" ở bảng trên. Hợp âm chuyển Chương vẫn chạy trong Review Mode; việc đó thuộc Story 14.4.
+
 Dòng vị trí ở thanh trạng thái biến mất khi caret `null`, nên hai nút ‹ › neo theo `editorHasLoaded()` và đứng trước dòng đó để không xê dịch.
 
 ## Interaction Primitives

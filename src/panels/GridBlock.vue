@@ -669,6 +669,11 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
   line-height: var(--leading-ui-label);
   color: var(--color-on-surface-variant);
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cell-num:hover {
+  background-color: var(--color-surface-sunken);
 }
 
 .tok-source-cjk {

@@ -13655,6 +13655,7 @@ chính nó.
 - 4 id chọn nhiều đoạn và chuyển Chương: `segment.selection.extend_down`, `segment.selection.extend_up` (đích cuối `pointer: aim`, `at: src/panels/GridPanel.vue`, khai khi đường kéo có), `editor.next_chapter`, `editor.prev_chapter`.
   Cần: kéo và `Shift`+bấm trên cột số câu; hai nút chuyển Chương ở thanh trạng thái.
   Chủ: Story 14.3. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 3.
+  → ✅ ĐÃ ĐÓNG 2026-10-30 (Story 14.3): kéo và `Shift`+bấm ở `onGridMouseDown` của `GridPanel.vue` (hai id `extend` khai `pointer: aim`), hai nút ‹ › ở `StatusBar.vue`; ca Vitest ở `tests/frontend/gridSegmentSelectionDrag.test.ts` và `statusBarWorkspace.test.ts`; Kiểm M đọc 271 điểm chuột, 29 khai `pointer`, 30 nợ.
 - 4 id Rà soát và Lịch sử: `review.open`, `review.diff_next`, `review.diff_prev`, `history.open`.
   Cần: ô thứ ba của công tắc bố cục cùng `review.close`, nút diff trên `.review-bar`, mục menu câu.
   Chủ: Story 14.4. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 4.
@@ -13679,6 +13680,7 @@ chính nó.
 - Hành vi focus của nút mới trên WebView2 (Windows) chưa đo; Epic 14 thêm nút và menu chuột phải chỉ đo trên WebKit và Chromium.
   Cần: kiểm trên WebView2 nút không cướp caret của ô Editor.
   Chủ: B7. Trỏ: `tickets/epic-san-chuot/epic-san-chuot.md`.
+  → 🔵 2026-10-30 (Story 14.3): thêm vào phạm vi kiểm hai nút ‹ › của thanh trạng thái, dựa vào `mousedown` bị chặn mặc định để giữ caret; cần xác nhận trên WebView2 `click` vẫn bắn và caret không về `null`. **Chủ: B7.**
 - `shortcuts.open` khai `via: settings.open` theo AD-62 mục 3, nhưng cùng hình dạng với `glossary.settings.open` mà Story 14.5 đã bác: `openShortcuts` mở đúng mục Phím tắt, còn `settings.open` gọi `openSettings()`, không mở thẳng mục đó.
   Cần: xét cho `shortcuts.open` một mục trong `Công cụ ▾` cạnh mục Glossary; nếu thêm thì gỡ `pointer` của nó, vì có điểm chuột mà vẫn khai là đỏ.
   Chủ: Story 14.5. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Review Triage Log.
@@ -13705,3 +13707,15 @@ chính nó.
 - Chưa đo: rời cửa sổ khi menu câu đang mở. Nếu WebKit bắn `focusout` thì `onColumnFocusOut` đặt caret `null`, menu vẫn mở và bấm mục không làm gì ngoài `console.warn`.
   Cần: Cmd-Tab khi menu mở trên app thật; nếu tái hiện thì đóng menu ở `blur` của cửa sổ.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-menu-chuot-phai-cho-thao-tac-cau-cua-luoi-plan.md` §Review Triage Log.
+
+## Deferred from: Story 14.3, chọn nhiều đoạn và chuyển Chương bằng chuột (2026-10-30)
+
+- Kéo trên cột số câu tốn trung vị 116 ms mỗi hàng đi qua trên Chương 9.850 câu (tối đa 145 ms, 60/60 lượt trên 50 ms; binary debug, Vite dev, tải 6–7), khoảng 8 khung hình mỗi giây. Chi phí theo cỡ Chương, không theo số hàng đổi; nghi `selectedRowClassById` là phụ thuộc chung của mọi `GridBlock`, chưa xác nhận.
+  Cần: đo trên bản phát hành; còn trên 50 ms thì chỉ render lại khối có hàng đổi, cùng khuôn `caretId`.
+  Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-3-ban-do/ket-qua.md`.
+- Lượt dùng thật chuột trên cột số câu: kéo, `Shift`+bấm, ‹ › từ ô đang gõ.
+  Cần: Ice chạy một lượt trên app thật.
+  Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-chon-nhieu-oan-va-chuyen-chuong-bang-chuot-plan.md` §Verification.
+- Hợp âm `Mod+Alt+]` và `Mod+Alt+[` vẫn chạy trong Review Mode (`isBlocked` ở `src/main.ts` không chặn) và đổi Chương của Editor trong khi màn Review giữ `openChapterId` cũ; hai nút ‹ › đã ẩn khi Review Mode mở nhưng hợp âm thì không.
+  Cần: chặn hoặc đồng bộ hợp âm chuyển Chương khi Review Mode mở.
+  Chủ: Story 14.4. Trỏ: `tickets/epic-san-chuot/tickets/story-chon-nhieu-oan-va-chuyen-chuong-bang-chuot-plan.md` §Boundaries & Constraints.

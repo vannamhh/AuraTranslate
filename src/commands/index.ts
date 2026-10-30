@@ -3331,6 +3331,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       id,
       labelKey: `command.${id}`,
       keys: [chord],
+      pointer: { kind: 'aim', reason: 'Mở rộng vùng chọn câu mà chuột kéo hoặc Shift+bấm thẳng trên số câu.', at: 'src/panels/GridPanel.vue' },
       run: () => {
         const handler = deps[port]
         if (handler === undefined) return portMissing(id, port)

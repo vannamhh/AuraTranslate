@@ -137,7 +137,7 @@ import { clearHoveredGlossaryTerm, setHoveredGlossaryTerm } from './glossaryTerm
 // 🔵 Story 4.9 — vùng chọn nhiều-segment (Decision 1, batch input). `segmentSelectionIds`
 // là DANH SÁCH id theo thứ tự tài liệu; lưới chỉ cần biết hàng nào TRONG danh sách đó, xem
 // [`selectedSegmentIds`] ngay dưới.
-import { segmentSelectionIds } from './segmentSelectionState'
+import { dragSegmentSelectionFocus, pressSegmentSelection, segmentSelectionIds } from './segmentSelectionState'
 import {
   closeSentenceMenu,
   currentSelectionRange,
@@ -973,12 +973,52 @@ function onCellMouseDown(event: MouseEvent): void {
   if (id !== null) setEditorCaret(id)
 }
 
+function sentenceIdOf(el: Element | null, selector: string): number | null {
+  const hit = el?.closest<HTMLElement>(selector) ?? null
+  const raw = hit?.getAttribute('data-segment-id') ?? hit?.getAttribute('data-num-segment-id') ?? null
+  return raw === null || !Number.isFinite(Number(raw)) ? null : Number(raw)
+}
+
+let stopSelectionDrag: (() => void) | null = null
+
+function endSelectionDrag(): void {
+  stopSelectionDrag?.()
+  stopSelectionDrag = null
+}
+
+function onGridMouseDown(event: MouseEvent): void {
+  if (event.button !== 0 || isSecondaryPress(event, PLATFORM)) return
+  const from = event.target instanceof Element ? event.target : null
+  const id = sentenceIdOf(from, '[data-num-segment-id]')
+  if (id === null) return
+  event.preventDefault()
+  pressSegmentSelection(id, event.shiftKey)
+  endSelectionDrag()
+  const onOver = (over: MouseEvent): void => {
+    if (over.buttons === 0) return endSelectionDrag()
+    const target = over.target instanceof Element ? over.target : null
+    const overId = sentenceIdOf(target, '[data-segment-id], [data-num-segment-id]')
+    if (overId !== null) dragSegmentSelectionFocus(overId)
+  }
+  const onUp = (up: MouseEvent): void => {
+    up.stopPropagation()
+    endSelectionDrag()
+  }
+  document.addEventListener('mouseover', onOver)
+  document.addEventListener('mouseup', onUp, true)
+  stopSelectionDrag = () => {
+    document.removeEventListener('mouseover', onOver)
+    document.removeEventListener('mouseup', onUp, true)
+  }
+}
+
+onBeforeUnmount(endSelectionDrag)
+
 function onSentencePress(event: MouseEvent): void {
   if (!isSecondaryPress(event, PLATFORM)) return
   const from = event.target instanceof Element ? event.target : null
   const hit = from?.closest<HTMLElement>('[data-segment-id], [data-num-segment-id]') ?? null
-  const raw = hit?.getAttribute('data-segment-id') ?? hit?.getAttribute('data-num-segment-id') ?? null
-  const id = raw === null || !Number.isFinite(Number(raw)) ? null : Number(raw)
+  const id = sentenceIdOf(hit, '[data-segment-id], [data-num-segment-id]')
   recordSentencePress({
     segmentId: id,
     x: event.clientX,
@@ -1996,6 +2036,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
         class="grid"
         :data-sel-src="sourceSelecting ? '' : null"
         @copy="onGridCopy"
+        @mousedown="onGridMouseDown"
         @contextmenu.prevent="dispatch('editor.sentence_menu.open')"
       >
         <GridBlock
