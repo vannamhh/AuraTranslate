@@ -2020,6 +2020,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
    * là ca DUY NHẤT của toàn cây. Bốn khoá khai mà không dùng: `gutter-width` · ba `read-measure-*`.)*
    */
   gap: var(--space-panel-inline);
+  height: 28px;
   align-items: baseline;
   flex: none;
   margin-bottom: var(--space-panel-block);

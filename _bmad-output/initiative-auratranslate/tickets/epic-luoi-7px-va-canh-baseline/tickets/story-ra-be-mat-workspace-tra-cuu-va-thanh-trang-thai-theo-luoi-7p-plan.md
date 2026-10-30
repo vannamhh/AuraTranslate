@@ -77,6 +77,7 @@ context:
 - Spec `story-13-6` on the unchanged tree: red only on the TM strip and the multi-entry `.lookup-source` block; toolbar rows (28, top 14), `.lookup-head` 42, `.lookup-source-head` 35 and `.status` 35 were already green, so no `height: 28px` was added (task 4 conditional not met).
 - 18 new `aura-allow-spacing` exemptions, each on a declaration that subtracts a 1px border or 2px/3px rule from the 14px/7px inset; 8px/4px group gaps in TM strip, glossary strip and AI result card moved to 14.
 - `story-12-9` (gapBelowCell 151 vs <= 2) and `story-12-8` (source label never reaches count; header 44 > 41) are red on the unchanged tree with the same values; not caused by this story.
+- 🔵 2026-10-30: the `story-12-8` head-overflow case was caused by 13.1/13.4 and is fixed here (`645426cb`: `.lookup-head` drops its 7px bottom padding and centres the row in the 42px box). The 12-8 source-label case and 12-9 stay red from before Epic 13 (`deferred-work.md` §Story 13.6). Review round 2 added `height: 28px` to the grid `.tabs` (Always rule) and left the two wrapping toolbar rows undeclared.
 
 ## Plan Change Log
 
@@ -84,7 +85,20 @@ context:
 
 Lượt 1 (quick): 7 phát hiện — medium 1 · false 6 · defer 1.
 
-- medium · defer — AC chạy lại `story-12-9` và `story-12-8` không đạt: 12-9 `gapBelowCell` 151 (154 sau diff) > 2, 12-8 `.lookup-head` `scrollHeight` 44 > `clientHeight` 41 ở bề rộng 120px. Cả hai xanh ở nightly `97bcb587` (trước Epic 13) và đỏ trên cây gốc `0183a30f` theo lượt đo của agent triển khai; diff không chạm `.lookup-head` hay track hàng lưới. Ghi `deferred-work.md`, Chủ: Epic 13.
+- medium · defer — AC chạy lại `story-12-9` và `story-12-8` không đạt: 12-9 `gapBelowCell` 151 (154 sau diff) > 2, 12-8 `.lookup-head` `scrollHeight` 44 > `clientHeight` 41 ở bề rộng 120px. Cả hai xanh ở nightly `97bcb587` (trước Epic 13) và đỏ trên cây gốc `0183a30f` theo lượt đo của agent triển khai; diff không chạm `.lookup-head` hay track hàng lưới. Ghi `deferred-work.md`, Chủ: Epic 13. 🔵 2026-10-30: `645426cb` có chạm `.lookup-head` và sửa ca đầu mục tràn của 12-8 (do 13.1/13.4). Ca nhãn Nguồn N/M và 12-9 vẫn đỏ từ trước Epic 13.
+
+Lượt 2 (quick, sau `645426cb`): 9 phát hiện — low 2 (patch) · medium 1 (defer, đã có trong sổ nợ) · false 6.
+
+- medium · defer — AC chạy lại 12-9/12-8 vẫn chưa đạt ở ca nhãn Nguồn N/M và ca `gapBelowCell`. Khoanh lỗi trong `deferred-work.md` §Story 13.6 cho thấy cả hai đỏ từ `29837138`, trước Epic 13. Mục nợ đã có, kèm dòng 🟡, Chủ: Epic 13; không thêm mục trùng.
+- false — gói "`.lookup-head` đổi mà kế hoạch không ghi": phần của kế hoạch bị bác vì cách sửa là sửa kế hoạch. Hai câu đã sai được sửa tại chỗ bằng 🔵 theo AGENTS.md.
+- low · patch — chú thích "thay đổi DUY NHẤT … Story 1.18" trên `.lookup-head` nằm ngay trên `display: flex` mới thêm, nên giờ nói sai. Thay bằng một dòng nêu bất biến neo `.lookup-progress`.
+- false — "`align-items: center` có thể giấu phần tràn": tràn khi canh giữa chia đều hai phía, nên nửa dưới vẫn làm `scrollHeight` > `clientHeight`. Ca 12-8 không thể xanh khi hàng bị cắt.
+- false — Implementation Notes mâu thuẫn sổ nợ: cách sửa là sửa kế hoạch. Đã sửa bằng 🔵 như dòng trên.
+- low · reject — 18 miễn trừ chỉ được đo ở dải TM và khối bản ghi. Mỗi giá trị khớp phép trừ bề dày nét cùng phía khi đối chiếu bằng số học. Thêm ca e2e cho từng khối là việc mới, không phải một chỗ sửa trực tiếp.
+- false — mép chữ `.tmf-row` chưa đo: carried, như dòng "`.tmf-title` là đầu dò yếu" của lượt 1.
+- false — `.closest('.panel')` null, hoặc `.tabs` khớp nhầm phần tử khác: carried, `PanelFrame.vue:106`. `src/` chỉ có một phần tử `class="tabs"` (`GridPanel.vue:1904`).
+- low · patch — `.tabs` là hàng điều khiển một dòng (không `flex-wrap`) nhưng chưa khai `height: 28px`, trái luật Always của Intent. Đã thêm. `.ai-panel-head` và `.lookup-tabrow` có `flex-wrap: wrap`, xuống dòng ở bề rộng hẹp (12-8 đo ở 120px), nên không phải hàng một dòng; khai cao cố định sẽ cắt hàng thứ hai.
+- false — các ô Tasks còn `[ ]`: cách sửa là sửa kế hoạch; trạng thái nằm ở frontmatter.
 - false — các gap con `.tmf-list`, `.gcs-field`, `.gcs-options` "chưa đổi": Code Map ghi chúng là khoảng cũ 4 trong nhóm, nên giữ 7; chỉ cột cũ 8 tách nhóm lên 14, đúng như diff.
 - false — Bẫy chưa đo: agent triển khai đã trả `.tm-fuzzy-strip` về `padding: 14px` và chỉ ca dải TM đỏ, rồi hoàn lại tệp.
 - false — `.tmf-title` là đầu dò yếu: hàng Matrix đòi mép chữ của dải cách mép ngoài 14, và tiêu đề là chữ đầu tiên ở mép đó; chiều cao bội 7 của cả dải phủ phần `.tmf-row`.

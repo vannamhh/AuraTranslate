@@ -915,13 +915,7 @@ onBeforeUnmount(() => {
   flex: none;
   height: var(--lookup-head-height);
   overflow: hidden;
-  /*
-   * 🔴 STORY 1.18 · AC8 — điều kiện để `.lookup-progress` neo TUYỆT ĐỐI vào đáy khối này.
-   *
-   * ⚠️ Đây là **thay đổi DUY NHẤT** của story này lên `.lookup-head`, và nó không chạm một
-   * pixel nào: `position: relative` không đổi bố cục của một khối đã có `height` cố định.
-   * `--lookup-head-height` giữ NGUYÊN giá trị **và** vai trò; `overflow: hidden` ở lại.
-   */
+  /* Containing block for the absolutely positioned `.lookup-progress` bar at this block's bottom. */
   position: relative;
   display: flex;
   align-items: center;
