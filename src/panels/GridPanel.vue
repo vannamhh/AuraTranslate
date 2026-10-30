@@ -72,6 +72,7 @@ import { repaintProofreadHost, unwrapAllProofread, unwrapProofread } from './pro
 import { clearProofreadFor, proofreadResults } from '../proofreadState'
 import PanelFrame from './PanelFrame.vue'
 import GridBlock from './GridBlock.vue'
+import GridSentenceMenu from './GridSentenceMenu.vue'
 import { GRID_BLOCK_CONTEXT } from './gridBlockContext'
 import type { GridBlockContext, GridBlockView, SourcePieceInfo } from './gridBlockContext'
 import { useSelectionSurface } from './selectionContract'
@@ -137,6 +138,13 @@ import { clearHoveredGlossaryTerm, setHoveredGlossaryTerm } from './glossaryTerm
 // là DANH SÁCH id theo thứ tự tài liệu; lưới chỉ cần biết hàng nào TRONG danh sách đó, xem
 // [`selectedSegmentIds`] ngay dưới.
 import { segmentSelectionIds } from './segmentSelectionState'
+import {
+  closeSentenceMenu,
+  currentSelectionRange,
+  resetSentenceMenu,
+  isSecondaryPress,
+  recordSentencePress,
+} from './sentenceMenuState'
 
 defineProps<DockviewPanelProps>()
 
@@ -963,6 +971,24 @@ function onCellMouseDown(event: MouseEvent): void {
   const cell = targetCellOf(event.target instanceof Node ? event.target : null)
   const id = segmentIdOf(cell)
   if (id !== null) setEditorCaret(id)
+}
+
+function onSentencePress(event: MouseEvent): void {
+  if (!isSecondaryPress(event, PLATFORM)) return
+  const from = event.target instanceof Element ? event.target : null
+  const hit = from?.closest<HTMLElement>('[data-segment-id], [data-num-segment-id]') ?? null
+  const raw = hit?.getAttribute('data-segment-id') ?? hit?.getAttribute('data-num-segment-id') ?? null
+  const id = raw === null || !Number.isFinite(Number(raw)) ? null : Number(raw)
+  recordSentencePress({
+    segmentId: id,
+    x: event.clientX,
+    y: event.clientY,
+    previousCaret: editorCaretSegmentId.value,
+    previousRange: currentSelectionRange(),
+  })
+  if (id === null || hit?.getAttribute('data-col') === 'tgt') return
+  event.preventDefault()
+  setEditorCaret(id)
 }
 
 /**
@@ -1829,6 +1855,13 @@ const unlinkedIds = computed<ReadonlySet<number>>((previous) => {
 
 const chapterId = computed(() => editorChapterId.value)
 
+watch(chapterId, resetSentenceMenu)
+onBeforeUnmount(resetSentenceMenu)
+
+function onGridScroll(): void {
+  closeSentenceMenu('dismissed')
+}
+
 // `@keydown` arrow handlers must also `.focus()` the newly active tab button: dispatch alone
 // flips `tabindex`, not DOM focus, so a second arrow press would otherwise be a no-op.
 const tabOriginalBtnRef = useTemplateRef<HTMLButtonElement>('tabOriginalBtn')
@@ -1868,6 +1901,7 @@ const gridBlockContext: GridBlockContext = {
   onGlossaryPieceEnter,
   onGlossaryPieceLeave,
   onColumnFocusOut,
+  onSentencePress,
   onCellMouseDown,
   onCellMouseUp,
   onBeforeInput,
@@ -1942,7 +1976,13 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
       >{{ viewMode === 'switch' ? t('panel.source.view_mode_parallel') : t('panel.source.view_mode_switch') }}</button>
     </div>
 
-    <div v-if="hasSegments" id="grid-tabpanel" class="grid-scroll" :data-chapter-id="chapterId">
+    <div
+      v-if="hasSegments"
+      id="grid-tabpanel"
+      class="grid-scroll"
+      :data-chapter-id="chapterId"
+      @scroll.passive="onGridScroll"
+    >
       <!--
         🔴 LƯỚI CHỦ-CỘT — Quyết định #1(b). Cha khai **tập track hàng**; năm con là năm CỘT.
         `grid-template-rows` đặt qua `:style` vì số hàng là dữ liệu, không phải hằng CSS.
@@ -1951,7 +1991,13 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
         **không bao giờ** — Kiểm B của `check-tokens.mjs` đọc CSS, không đọc TypeScript, nên
         một màu bind qua `:style` đi qua cổng mà không một dòng nào được soi.
       -->
-      <div ref="gridRoot" class="grid" :data-sel-src="sourceSelecting ? '' : null" @copy="onGridCopy">
+      <div
+        ref="gridRoot"
+        class="grid"
+        :data-sel-src="sourceSelecting ? '' : null"
+        @copy="onGridCopy"
+        @contextmenu.prevent="dispatch('editor.sentence_menu.open')"
+      >
         <GridBlock
           v-for="block in gridBlockViews"
           :key="block.index"
@@ -1964,6 +2010,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
         />
       </div>
     </div>
+    <GridSentenceMenu />
   </PanelFrame>
 </template>
 

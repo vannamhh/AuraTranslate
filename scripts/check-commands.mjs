@@ -2425,6 +2425,7 @@ const R_DISPATCH_VIA_PARAM =
 const R_MENU_CLOSE = 'closes a native `<details>` menu in place from Escape or Enter on an option — view state, no dispatch'
 const R_SELECT_IN_PLACE = 'selects Chapter rows in place from a pointer press — selection is view state, no dispatch'
 const R_AIM_CHAPTER = 'moves the Chapter list cursor from a press on a row button, selection untouched — view state, no dispatch'
+const R_MENU_HOLD_FOCUS = 'keeps focus and selection where they are on a press inside a floating menu — no dispatch'
 const R_SOURCE_CUT_EXEMPT = 'calls `setEditorSourceCut(...)` directly — a named exemption, not a command'
 
 /**
@@ -2608,6 +2609,8 @@ const HANDLER_TABLE = {
     ids: ['reading.marks_next', 'reading.marks_prev', 'reading.marks_open', 'reading.marks_unmark'],
   },
   'src/panels/GridBlock.vue::onSourceCellMouseUp': { nonCommand: R_SOURCE_CUT_EXEMPT },
+  'src/panels/GridBlock.vue::onSentencePress': { nonCommand: R_CURSOR_LOCAL },
+  'src/panels/GridSentenceMenu.vue::holdFocus': { nonCommand: R_MENU_HOLD_FOCUS },
   'src/panels/GridBlock.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridBlock.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridBlock.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'segment.selection.clear', 'editor.merge_segments'] },
@@ -2865,7 +2868,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 157
+const HANDLER_ATTR_FLOOR = 168
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,
@@ -2893,16 +2896,6 @@ console.log('\nKiểm M — mọi command có điểm chuột, khai `pointer`, h
 
 /** Open debt: ids may only be removed, never added. Keep this and the baseline as two separate literals. */
 const POINTER_DEBT = /** @type {string[]} */ ([
-  'editor.confirm_segment',
-  'editor.merge_segments',
-  'editor.split_segment',
-  'editor.omit_segment',
-  'editor.restore_segment',
-  'editor.end_target_paragraph',
-  'editor.join_target_paragraph',
-  'editor.next_untranslated',
-  'editor.clear_source_cuts',
-  'editor.split_chapter',
   'segment.selection.extend_down',
   'segment.selection.extend_up',
   'editor.next_chapter',

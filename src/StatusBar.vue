@@ -30,7 +30,7 @@
 // là đúng thứ bắt họ bận tâm.
 import { computed, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
 import { t, tError } from './i18n'
-import { dispatch } from './commands'
+import { detectIsMac, dispatch, formatChord } from './commands'
 // 🔵 Story 4.12, Phase 3a (Decision 2) — điểm vào ngăn kéo Tra cứu. `lookupHasRetreated` là
 // một `ref` module-level ở `layout/lookupDrawerState.ts`, đẩy bởi `WorkspaceDock.vue::
 // applyTier` ĐỒNG BỘ qua `syncLayoutTier` (sửa 2026-09-23 — bản đầu thăm dò DOM mỗi 200ms;
@@ -60,6 +60,7 @@ import {
   editorCaretSegmentId,
   editorChapterId,
   editorConfirmNotice,
+  editorFlagRefusal,
   editorHasLoaded,
   editorLastCaretSegmentId,
   editorNavNotice,
@@ -197,14 +198,7 @@ const confirmedCounterText = computed<string | null>(() => {
   return t('status.confirmed_counter', { confirmed: String(confirmed), total: String(counted) })
 })
 
-const shortcutHintText = computed<string | null>(() => {
-  const chordOf = (id: string): string =>
-    shortcutRows.value.find((row) => row.id === id)?.display.join(' / ') ?? ''
-  const merge = chordOf('editor.merge_segments')
-  const split = chordOf('editor.split_segment')
-  if (merge === '' || split === '') return null
-  return t('status.regroup_hint', { merge_chord: merge, split_chord: split })
-})
+const shortcutHintText = computed<string>(() => t('status.regroup_hint'))
 
 const proofreadCountsText = computed<string | null>(() => {
   if (proofreadStateValue.value !== 'done' || !editorHasLoaded()) return null
@@ -351,6 +345,8 @@ const REGROUP_NOTICE_KEYS: Record<
   busy: 'panel.grid.regroup_busy',
 }
 
+const modKeyLabel = formatChord('Mod+X', { isMac: detectIsMac() }).replace(/\+?X$/, '')
+
 /**
  * Câu của lượt gộp/tách gần nhất, hoặc `null`.
  *
@@ -366,7 +362,7 @@ const REGROUP_NOTICE_KEYS: Record<
 const regroupNoticeText = computed<string | null>(() => {
   const notice = editorRegroupNotice.value
   if (notice === null) return null
-  if (notice !== 'refused') return t(REGROUP_NOTICE_KEYS[notice])
+  if (notice !== 'refused') return t(REGROUP_NOTICE_KEYS[notice], { mod_key: modKeyLabel })
   const err = editorRegroupError.value
   if (err === null) return t(REGROUP_NOTICE_KEYS['flush-failed'])
   // ⚠️ **MỘT tham số, không hai.** `tError(err, err.params)` là thừa và `check:lint` đỏ đúng
@@ -414,6 +410,12 @@ const splitChapterNoticeText = computed<string | null>(() => {
   const err = editorSplitChapterError.value
   if (err === null) return t(SPLIT_CHAPTER_NOTICE_KEYS['flush-failed'])
   return tError(err)
+})
+
+const flagRefusalText = computed<string | null>(() => {
+  const refusal = editorFlagRefusal.value
+  if (refusal === null) return null
+  return refusal.error === null ? t('panel.grid.flag_refused') : tError(refusal.error)
 })
 
 /**
@@ -568,7 +570,7 @@ const libraryErrorText = computed<string | null>(() => {
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
         <span v-if="confirmedCounterText !== null" class="info-item" data-status-confirmed>{{ confirmedCounterText }}</span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-        <span v-if="shortcutHintText !== null" class="info-item" data-status-hint>{{ shortcutHintText }}</span>
+        <span class="info-item" data-status-hint>{{ shortcutHintText }}</span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
         <span v-if="proofreadCountsText !== null" class="info-item" data-status-proofread>{{ proofreadCountsText }}</span>
       </div>
@@ -617,6 +619,8 @@ const libraryErrorText = computed<string | null>(() => {
         đừng sửa thứ tự.
       -->
       <span v-else-if="splitChapterNoticeText !== null" class="notice">{{ splitChapterNoticeText }}</span>
+      <!-- aura-allow-text: KẾT QUẢ của `t()`/`tError()`. Lượt đổi cờ câu (cắt bỏ, kết đoạn) bị từ chối. -->
+      <span v-else-if="flagRefusalText !== null" class="notice">{{ flagRefusalText }}</span>
       <!--
         aura-allow-text: KẾT QUẢ của `t()`. 🔵 Story 2.10, AC6 · AC7 — câu của lượt điều hướng.
 

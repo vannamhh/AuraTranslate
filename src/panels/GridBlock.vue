@@ -45,6 +45,7 @@ const {
   onGlossaryPieceEnter,
   onGlossaryPieceLeave,
   onColumnFocusOut,
+  onSentencePress,
   onCellMouseDown,
   onCellMouseUp,
   onBeforeInput,
@@ -100,6 +101,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
         <div
           class="grid-block"
           :style="{ gridTemplateRows: `repeat(${block.segments.length + (stripRow < 0 ? 0 : 1)}, auto)` }"
+          @mousedown.capture="onSentencePress"
         >
         <!--
           Cột ① — VẠCH TRẠNG THÁI (UX-DR19, sáu giá trị).
@@ -138,6 +140,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
           <div
             class="cell cell-num"
             :class="[{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }, selectedRowClassById.get(s.id)]"
+            :data-num-segment-id="s.id"
           ><!-- aura-allow-text: số thứ tự hàng — một con số dựng tại chỗ hiển thị, đúng luật "định dạng số và ngày giờ CHỈ ở frontend" (§Consistency Conventions), không một chuỗi giao diện dịch được. -->{{ block.start + j + 1 }}</div>
           <div v-if="s.id === anchorId" class="strip-pad" aria-hidden="true"></div>
           </template>

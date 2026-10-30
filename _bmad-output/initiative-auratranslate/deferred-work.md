@@ -3487,6 +3487,7 @@ lỗi riêng, **có chủ ý**: kho hôm nay đã có hai ô lỗi Editor và **
 (`editorOmitError`) được export mà **không component nào đọc** — thêm ô thứ ba là nhân một bề
 mặt chết. ⇒ Người dùng bấm `Mod+Alt+P` trên một segment đã về hưu thì **không thấy gì**.
 **Chủ: một story dựng đường báo lỗi dùng chung cho lệnh Editor** *(gộp luôn `editorOmitError`)*.
+→ ✅ ĐÃ ĐÓNG 2026-10-30 (Story 14.2): lượt từ chối của lệnh cắt bỏ và cờ đoạn nay ra thanh trạng thái qua `editorFlagRefusal`, ghi bởi `datThongBao`; `editorOmitError` vẫn được ghi nhưng không còn là đường duy nhất.
 
 ### 🔴 `check-i18n.mjs` Kiểm A: một tên thẻ nhắc trong COMMENT của template làm hỏng bộ quét
 
@@ -13650,6 +13651,7 @@ chính nó.
 - 10 id của lưới Editor không có điểm chuột, đang ở `POINTER_DEBT`: `editor.confirm_segment`, `merge_segments`, `split_segment`, `omit_segment`, `restore_segment`, `end_target_paragraph`, `join_target_paragraph`, `next_untranslated`, `clear_source_cuts`, `split_chapter`. Chỉ dùng được bằng phím.
   Cần: menu chuột phải cho thao tác câu, mỗi id một mục kèm ca Vitest bấm thật (AD-62 mục 6 (i)); gỡ id khỏi `POINTER_DEBT`.
   Chủ: Story 14.2. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 2.
+  → ✅ ĐÃ ĐÓNG 2026-10-30 (Story 14.2): menu chuột phải mở bằng `editor.sentence_menu.open`, 10 id rời `POINTER_DEBT` kèm ca Vitest bấm thật ở `tests/frontend/gridSentenceMenu.test.ts`; Kiểm M đọc 269 điểm chuột, 27 khai `pointer`, 34 nợ.
 - 4 id chọn nhiều đoạn và chuyển Chương: `segment.selection.extend_down`, `segment.selection.extend_up` (đích cuối `pointer: aim`, `at: src/panels/GridPanel.vue`, khai khi đường kéo có), `editor.next_chapter`, `editor.prev_chapter`.
   Cần: kéo và `Shift`+bấm trên cột số câu; hai nút chuyển Chương ở thanh trạng thái.
   Chủ: Story 14.3. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 3.
@@ -13688,3 +13690,18 @@ chính nó.
   Cần: nâng `FILE_FLOOR` lên 704 ở `scripts/check-doc-refs.mjs`, đúng công thức cổng in ra.
   Chủ: Ice. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Implementation Notes.
   → ✅ ĐÃ ĐÓNG 2026-10-30 (Story 14.1): `FILE_FLOOR` nâng lên 704.
+
+## Deferred from: Story 14.2, menu chuột phải cho thao tác câu của Lưới (2026-10-30)
+
+- Phím `Menu` mở menu câu tại ô có caret, và chuột phải trên Windows đi `mousedown → mouseup → contextmenu` thay vì thứ tự macOS; cả hai chưa chạy trên Windows, và việc WebView2 có tự bôi đen từ khi chuột phải hay không chưa biết.
+  Cần: chạy tay trên Windows: chuột phải ở ba cột, phím `Menu`, đóng rồi gõ tiếp.
+  Chủ: B7. Trỏ: `tickets/epic-san-chuot/tickets/story-menu-chuot-phai-cho-thao-tac-cau-cua-luoi-plan.md` §Design Notes.
+- Đo chuột thật ở `_bmad-output/implementation-artifacts/14-2-ban-do/ket-qua.md` đã phủ ba cột, đóng rồi gõ tiếp và Tách câu tắt; còn thiếu ba ca chỉ có sự kiện tổng hợp: Xác nhận trên câu chưa cắt bỏ, `Esc` giữ điểm cắt, bấm ra ngoài.
+  Cần: Ice chạy ba ca đó trên app thật.
+  Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-2-ban-do/ket-qua.md`.
+- Ba ca thêm sau review trong `e2e/specs/grid-sentence-menu.e2e.mjs` chưa chạy: Xác nhận ký trên đĩa, chặn hợp âm khi menu mở, menu sát mép. Năm ca đầu xanh trước lượt vá; `browser.keys(['Meta', 'm'])` có thể không mang `metaKey`, khi đó ca chặn hợp âm xanh mà không chạm cổng thật.
+  Cần: đọc nightly e2e sau lần push, hoặc tắt `tauri dev`, `cargo build --locked --features wdio`, rồi chạy riêng spec này.
+  Chủ: Epic 14. Trỏ: `e2e/specs/grid-sentence-menu.e2e.mjs`.
+- Chưa đo: rời cửa sổ khi menu câu đang mở. Nếu WebKit bắn `focusout` thì `onColumnFocusOut` đặt caret `null`, menu vẫn mở và bấm mục không làm gì ngoài `console.warn`.
+  Cần: Cmd-Tab khi menu mở trên app thật; nếu tái hiện thì đóng menu ở `blur` của cửa sổ.
+  Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-menu-chuot-phai-cho-thao-tac-cau-cua-luoi-plan.md` §Review Triage Log.

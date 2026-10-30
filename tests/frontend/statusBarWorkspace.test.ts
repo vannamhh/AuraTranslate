@@ -19,6 +19,8 @@ const CHAPTERS = [
 let chaptersOnDisk: unknown[] = CHAPTERS
 let omittedSegmentId: number | null = null
 const setChapterStatusWire = vi.fn<(args: unknown) => Promise<unknown>>()
+const omitWire = vi.fn<(...args: unknown[]) => Promise<unknown>>()
+const paragraphEndWire = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 
 vi.mock('../../src/config/segment', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/segment')>()),
@@ -30,6 +32,8 @@ vi.mock('../../src/config/segment', async (importOriginal) => ({
   },
   saveSegmentTargets: recordSave,
   confirmSegment: confirmOk,
+  setSegmentOmitted: (...args: unknown[]) => omitWire(...args),
+  setSegmentParagraphEnd: (...args: unknown[]) => paragraphEndWire(...args),
 }))
 vi.mock('../../src/config/chapter', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/chapter')>()),
@@ -194,39 +198,42 @@ describe('thanh trạng thái — thông tin thường trực', () => {
     wrapper.unmount()
   })
 
-  it('gợi ý phím gộp/tách theo phím ĐANG GÁN: gán lại phím gộp thì gợi ý đổi theo', async () => {
+  it('gợi ý nói chuột phải vào câu, không còn in phím gộp/tách', async () => {
     const { wrapper } = await freshBar()
-    const shortcuts = await import('../../src/config/shortcutsState')
-    const rowOf = (id: string) => shortcuts.shortcutRows.value.find((r) => r.id === id)
-    const hintFor = (): string =>
-      `${rowOf('editor.merge_segments')?.display.join(' / ')} gộp · ${rowOf('editor.split_segment')?.display.join(' / ')} tách`
 
-    const before = info(wrapper, 'data-status-hint')
-    expect(before).toBe(hintFor())
-
-    assignChord(shortcuts, 'editor.merge_segments', 'KeyY')
-    await flushPromises()
-
-    const after = info(wrapper, 'data-status-hint')
-    expect(rowOf('editor.merge_segments')?.chords).toHaveLength(1)
-    expect(rowOf('editor.merge_segments')?.chords).not.toEqual(['Mod+M'])
-    expect(after).toBe(hintFor())
-    expect(after).not.toBe(before)
+    expect(info(wrapper, 'data-status-hint')).toBe('Chuột phải vào câu để xem thao tác')
     wrapper.unmount()
   })
 
-  it('gỡ phím gộp ⇒ ẩn cả gợi ý, không in nửa câu', async () => {
+  it('lượt đổi cờ câu bị từ chối hiện lý do ở thanh trạng thái; không có cầu IPC thì hiện câu chung', async () => {
     const { wrapper } = await freshBar()
-    const shortcuts = await import('../../src/config/shortcutsState')
-    const row = document.createElement('div')
-    row.setAttribute('data-command-id', 'editor.merge_segments')
-    document.body.appendChild(row)
-    row.addEventListener('click', shortcuts.aimRowFrom)
-    row.click()
-    shortcuts.unassignShortcut()
+    const state = await import('../../src/panels/editorPanelState')
+    const live = (): string => wrapper.find('[data-status-live]').text()
+
+    state.setEditorCaret(11)
+    omitWire.mockResolvedValueOnce({ outcome: null, error: null })
+    expect(await state.setCurrentSegmentOmitted(true)).toBe('refused')
+    await flushPromises()
+    expect(live()).toContain('Chưa đổi được cờ của câu này')
+
+    paragraphEndWire.mockResolvedValueOnce({
+      outcome: null,
+      error: { code: 'segment.not_found', message_key: 'err.segment.not_found', params: { segment_id: '11' } },
+    })
+    expect(await state.setCurrentSegmentParagraphEnd(true)).toBe('refused')
+    await flushPromises()
+    expect(live()).toContain('Không tìm thấy câu số 11')
+    wrapper.unmount()
+  })
+
+  it('Tách câu khi chưa có điểm cắt nói phải giữ phím nào, theo nền tảng', async () => {
+    const { wrapper } = await freshBar()
+    const state = await import('../../src/panels/editorPanelState')
+
+    expect(await state.splitCurrentSegment()).toBe('no-cut')
     await flushPromises()
 
-    expect(info(wrapper, 'data-status-hint')).toBeNull()
+    expect(wrapper.find('[data-status-live]').text()).toMatch(/giữ (⌘|Ctrl) và bấm vào cột nguyên văn/)
     wrapper.unmount()
   })
 })

@@ -171,6 +171,8 @@ Một mục đọc caret hoặc vùng chọn phải có đích hoặc nói lý d
 
 `omit`/`restore` và `end`/`join` mỗi cặp chiếm một dòng, hai `<button v-if>` mỗi nút một `dispatch` literal, quyết định theo `is_omitted` và `is_paragraph_end` của câu có caret. Đây là khuôn "một chỗ, đổi theo trạng thái" ở `ux-auratranslate/DESIGN.md` §Nút.
 
+🔵 2026-10-30 (Story 14.2): cặp Kết đoạn · Nối đoạn quyết định theo `is_target_paragraph_end`, không theo `is_paragraph_end` như dòng trên ghi. Hai lệnh đổi cờ của bản dịch (AD-46), và đọc cờ nguồn sẽ hiện sai mục.
+
 Dòng vị trí ở thanh trạng thái biến mất khi caret `null`, nên hai nút ‹ › neo theo `editorHasLoaded()` và đứng trước dòng đó để không xê dịch.
 
 ## Interaction Primitives
@@ -188,6 +190,8 @@ Từ bảng đo rút ra các luật:
 - `mousedown` nút phải trên ô nguyên văn và ô số câu gọi `preventDefault`, rồi nhắm chính câu đó bằng `setEditorCaret`. Chỉ chặn mà không nhắm là đường nhầm câu ở dòng thứ ba.
 - Không gọi `focus()` lên ô bản dịch khi đang có vùng bôi đen ở nguyên văn, vì nó sẽ cướp vùng bôi đen của Thêm thuật ngữ.
 - Đóng menu mà không chọn gì thì caret trở về giá trị trước lúc mở, và từ bị bôi đen trong ô bản dịch thu về caret, nếu không phím gõ tiếp theo sẽ đè lên từ đó. Hai vế này và việc phối hợp `preventDefault` với `setEditorCaret` chưa được đo; Story 14.2 đo trong app.
+
+🔵 2026-10-30: cả hai vế "chưa đo" ở mục này đã được đo trên WKWebView thật trong app, xem `_bmad-output/implementation-artifacts/14-2-ban-do/ket-qua.md`.
 - Mục menu chặn mặc định của `mousedown` (`@mousedown.prevent`, không giá trị, ở phần tử bọc). Đo trên cả hai engine: có chặn thì caret, tiêu điểm và vùng bôi đen còn nguyên và `click` bắn; không chặn thì `focusout` đặt caret `null` và `click` có thể không bắn.
 - Không chép `focusOnPointerDown` của `TitlebarToolsMenu.vue`, vì nó cố ý lấy tiêu điểm. `Công cụ ▾` cũng không chứa được lệnh đọc caret vì lý do đó.
 

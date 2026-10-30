@@ -39,6 +39,7 @@ export type GridBlockContext = {
   onGlossaryPieceEnter(span: SegmentTermSpan | null): void
   onGlossaryPieceLeave(): void
   onColumnFocusOut(event: FocusEvent): void
+  onSentencePress(event: MouseEvent): void
   onCellMouseDown(event: MouseEvent): void
   onCellMouseUp(event: MouseEvent): void
   onBeforeInput(event: InputEvent): void

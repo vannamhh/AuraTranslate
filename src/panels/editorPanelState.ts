@@ -1593,14 +1593,7 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
 }
 
 const omitError = shallowRef<IpcError | null>(null)
-/**
- * Lỗi gần nhất Rust trả lời cho một lượt cắt bỏ / bỏ cờ. `null` ⇒ chưa lượt nào bị từ chối.
- *
- * ⚠️ **GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện** — cùng hình dạng và cùng
- * món nợ với [`editorConfirmError`]: giá trị này được export mà **chưa component nào đọc**,
- * nên hai khoá `err.segment.*` mà đường cắt bỏ dùng lại đều dừng ở biên giới TypeScript,
- * không tới màn hình. Đừng đọc dòng này thành *"đã có đường ra màn hình"*.
- */
+/** Last error Rust returned for an omit / restore request; `null` when none was refused. */
 export const editorOmitError: DeepReadonly<Ref<IpcError | null>> = readonly(omitError)
 
 /**
@@ -1653,9 +1646,8 @@ export async function setCurrentSegmentOmitted(omitted: boolean): Promise<OmitRe
 
   const { outcome, error } = await setSegmentOmitted(id, omitted)
   if (outcome === null) {
-    // ⚠️ `error === null` cũng vào đây: đó là ca *"không có cầu IPC"* (`npm run dev` trong một
-    //    trình duyệt thường). Không ca nào được coi là đã đặt cờ.
     omitError.value = error
+    datThongBao({ flag: { error } })
     return 'refused'
   }
   omitError.value = null
@@ -1698,16 +1690,6 @@ export type ParagraphEndResult = 'no-caret' | 'refused' | 'ended' | 'joined'
  *
  * ⚠️ **Không** dời con trỏ, cùng lý do [`setCurrentSegmentOmitted`]: thao tác này đảo ngược
  * được, và người dùng có thể muốn bỏ ngay nếu vừa bấm nhầm.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * ⚠️ KHÔNG CÓ Ô LỖI RIÊNG CHO LỆNH NÀY, VÀ ĐÓ LÀ MỘT LỰA CHỌN CÓ GHI NỢ
- * ─────────────────────────────────────────────────────────────────────────────
- * Kho hôm nay có **hai** ô lỗi cho hai lệnh Editor, và **một** trong hai chưa ai đọc:
- * [`editorConfirmError`] được `GridPanel.vue` hiện ở cột trạng thái; [`editorOmitError`] thì
- * được export mà **không component nào đọc**. Thêm một ô thứ **ba** ở đây là nhân một bề mặt
- * chết — nên lượt từ chối đi ra bằng **giá trị trả về**, và `main.ts` ghi chẩn đoán.
- * 🔴 Vế *"người dùng thấy được vì sao lượt đổi cờ trượt"* vì thế **còn hở**, ghi nợ có chủ ở
- * `deferred-work.md`. Đừng đọc dòng này thành *"đã có đường ra màn hình"*.
  */
 export async function setCurrentSegmentParagraphEnd(
   endsParagraph: boolean,
@@ -1715,10 +1697,9 @@ export async function setCurrentSegmentParagraphEnd(
   const id = caretSegmentId.value
   if (id === null) return 'no-caret'
 
-  const { outcome } = await setSegmentParagraphEnd(id, endsParagraph)
+  const { outcome, error } = await setSegmentParagraphEnd(id, endsParagraph)
   if (outcome === null) {
-    // ⚠️ Ca *"không có cầu IPC"* (`npm run dev` trong một trình duyệt thường) cũng vào đây.
-    //    Không ca nào được coi là đã đặt cờ.
+    datThongBao({ flag: { error } })
     return 'refused'
   }
 
@@ -2686,6 +2667,11 @@ const splitChapterError = shallowRef<IpcError | null>(null)
 /** `IpcError` của nhánh `'refused'` — `StatusBar.vue` đọc nó qua `tError()`. */
 export const editorSplitChapterError: DeepReadonly<Ref<IpcError | null>> = readonly(splitChapterError)
 
+/** A refused omit / restore / paragraph-end request; `error` is `null` when there was no IPC bridge. */
+export type FlagRefusal = { readonly error: IpcError | null }
+const flagRefusal = shallowRef<FlagRefusal | null>(null)
+export const editorFlagRefusal: DeepReadonly<Ref<FlagRefusal | null>> = readonly(flagRefusal)
+
 /**
  * 🔴 **CỬA GHI DUY NHẤT CHO CẢ BA Ô NHỚ CỦA THANH TRẠNG THÁI.** Story 2.10, Quyết định #4(b).
  *
@@ -2718,11 +2704,13 @@ function datThongBao(o: {
   // 🔵 Ô thứ TƯ (Story 5.8) — thêm ĐÚNG như doc-comment trên đã hẹn: một trường ở đây, một
   // dòng gán bên dưới, và mọi chỗ gọi cũ dọn nó mà không phải sửa một dòng nào.
   splitChapter?: SplitChapterNotice | null
+  flag?: FlagRefusal | null
 }): void {
   confirmNotice.value = o.confirm ?? null
   regroupNotice.value = o.regroup ?? null
   navNotice.value = o.nav ?? null
   splitChapterNotice.value = o.splitChapter ?? null
+  flagRefusal.value = o.flag ?? null
 }
 
 /**

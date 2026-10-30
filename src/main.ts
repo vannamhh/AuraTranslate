@@ -51,6 +51,7 @@ import {
   splitCurrentSegment,
   wireExitFlush,
 } from './panels/editorPanelState'
+import { openSentenceMenu, sentenceMenuIsOpen } from './panels/sentenceMenuState'
 import { clearSourceCuts } from './editorClearSourceCuts'
 // ── Story 4.9 — vùng chọn NHIỀU segment trong lưới (Decision 1, batch input) ─────────
 //
@@ -853,10 +854,6 @@ async function boot(): Promise<void> {
       setSegmentOmitted: (omitted: boolean) => {
         void setCurrentSegmentOmitted(omitted).then((result) => {
           if (result === 'omitted' || result === 'restored' || result === 'refused') return
-          // `'refused'` KHÔNG vào đây: nó có đường ra qua `editorOmitError` — ⚠️ và đường
-          // đó **chưa có component nào đọc**, đúng món nợ mà `editorPanelState.ts` ghi tại
-          // chỗ khai nó. Đừng đọc dòng này thành "đã có đường ra màn hình".
-          //
           // ⚠️ Chẩn đoán viết KHÔNG DẤU — quy ước TAY: `main.ts` là `.ts`, ngoài phạm vi Kiểm A
           // của `check:i18n` (chỉ quét `.rs`/`.vue`).
           console.warn(`[grid] khong dat duoc co cat bo: ${result}`)
@@ -869,8 +866,6 @@ async function boot(): Promise<void> {
       setSegmentParagraphEnd: (endsParagraph: boolean) => {
         void setCurrentSegmentParagraphEnd(endsParagraph).then((result) => {
           if (result === 'ended' || result === 'joined') return
-          // ⚠️ `'refused'` VÀO đây, khác hai dep trên: lệnh này KHÔNG có ô lỗi riêng —
-          // xem doc-comment của `setCurrentSegmentParagraphEnd` và món nợ ghi ở đó.
           // ⚠️ Chẩn đoán viết KHÔNG DẤU — **quy ước TAY, không một cổng**. Kiểm A của
           //    `check:i18n` quét đúng hai quần thể: `.rs` và `.vue` (`check-i18n.mjs:860-861`);
           //    `main.ts` là `.ts` nên nằm NGOÀI phạm vi và dòng này có dấu cũng không ai đỏ.
@@ -914,6 +909,9 @@ async function boot(): Promise<void> {
           // đúng cấp độ cảnh báo mà hai dep segment ở trên đã dùng.
           console.warn('[grid] khong tach duoc Chuong tai cau dang co tieu diem')
         })
+      },
+      openSentenceMenu: () => {
+        openSentenceMenu()
       },
       // 🔴 STORY 1.18 — LƯỢT GỠ DEP TỐI THIỂU MÀ STORY 1.17 ĐÃ HẸN.
       //
@@ -1142,6 +1140,7 @@ async function boot(): Promise<void> {
     // and orphan `returnFocusTo`.
     void attachKeyboard(window, {
       isBlocked: (event) =>
+        sentenceMenuIsOpen() ||
         attributionIsOpen.value ||
         captureIsArmed.value ||
         queueOverlayIsOpen.value ||

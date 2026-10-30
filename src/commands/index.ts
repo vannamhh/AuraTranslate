@@ -673,6 +673,8 @@ export type CommandDeps = {
    * `splitChapterAtSegment` của `config/chapter.ts` vào đây.
    */
   splitChapter?: () => void
+  /** Opens the sentence menu on the Grid sentence under the pointer, or at the caret sentence when there was no press. */
+  openSentenceMenu?: () => void
 
   /**
    * **Vùng chọn NHIỀU segment trong lưới** — Story 4.9, Decision 1 (Ice ký 2026-09-21): batch
@@ -3754,6 +3756,16 @@ function registerAll(target: Registry, deps: CommandDeps): void {
       },
     })
   }
+
+  target.register({
+    id: 'editor.sentence_menu.open',
+    labelKey: 'command.editor.sentence_menu.open',
+    keys: [],
+    run: () => {
+      if (deps.openSentenceMenu === undefined) return portMissing('editor.sentence_menu.open', 'openSentenceMenu')
+      deps.openSentenceMenu()
+    },
+  })
 
   /**
    * ═══════════════════════════════════════════════════════════════════════════════

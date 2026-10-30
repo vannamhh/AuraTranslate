@@ -106,7 +106,7 @@ describe('12.7 — lưới hai cột và thanh trạng thái', () => {
     const before = await read()
     expect(before.position).toMatch(/[Cc]âu 3\/4$/)
     expect(before.confirmed).toBe('1/4 đã xác nhận')
-    expect(before.hint).toMatch(/gộp · .+ tách$/)
+    expect(before.hint).toBe('Chuột phải vào câu để xem thao tác')
     expect(before.roleHolders).toBe(1)
     expect(before.insideLive).toBe(false)
 
