@@ -13634,3 +13634,9 @@ chính nó.
 - Giãn dòng Chế độ đọc phát tỉ số `px / cỡ` dạng double (vd. 56/21 = 2.6666666666666665), có thể thấp hơn bội 7 một phần nhỏ nếu WebKit làm tròn xuống; vitest chỉ chứng phép tính, không chứng hộp dòng vẽ ra.
   Cần: đo chiều cao dòng của `.column` trên WKWebView ở vài tổ hợp cỡ × tỉ số của thanh trượt (21px × 2.34…2.4 là chỗ nghi), ra đúng bội 7.
   Chủ: Story 13.7. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-che-o-oc-gian-dong-nhay-bac-7px-plan.md` §Review Triage Log.
+
+## Deferred from: Story 13.6, rà bề mặt Workspace, Tra cứu và thanh trạng thái theo lưới 7px (2026-10-30)
+
+- `story-12-9-strip-row-track` (`gapBelowCell` 151 > 2) và `story-12-8-lookup-sources-popup` (`.lookup-head` cao nội dung 44 > 41 ở bề rộng 120px; nhãn Nguồn N/M không tới số nguồn) đỏ trên master `0183a30f`, xanh ở nightly `97bcb587` trước Epic 13. Chưa gán commit nào của 13.1–13.5; lượt đo cây gốc là của agent triển khai 13.6, chưa chạy lại độc lập.
+  Cần: chạy hai spec trên `dd428222^`, `dd428222`, `968606df` để khoanh commit, sửa mã hoặc chuyển ca e2e theo số mới.
+  Chủ: Epic 13. Trỏ: `tickets/epic-luoi-7px-va-canh-baseline/tickets/story-ra-be-mat-workspace-tra-cuu-va-thanh-trang-thai-theo-luoi-7p-plan.md` §Review Triage Log.

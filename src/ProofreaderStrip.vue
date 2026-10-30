@@ -336,7 +336,7 @@ const usageText = computed<string | null>(() => {
   flex-direction: column;
   flex: none;
   gap: calc(var(--space-unit) * 1);
-  padding: var(--space-panel-inline);
+  padding: 13px 14px 14px 11px; /* aura-allow-spacing: 1px top border and 3px rule sit inside the 14px inset */
   border-top: 1px solid var(--color-outline);
   border-left: 3px solid var(--color-error);
   background: var(--color-surface);

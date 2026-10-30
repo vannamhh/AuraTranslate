@@ -1062,7 +1062,7 @@ onBeforeUnmount(() => {
   align-items: baseline;
   gap: var(--space-panel-inline);
   margin: var(--space-panel-block) 0 var(--space-panel-block) 0;
-  padding-bottom: 7px;
+  padding-bottom: 6px; /* aura-allow-spacing: 1px bottom border sits inside the 7px inset */
   border-bottom: 1px solid var(--color-outline-faint);
 }
 
@@ -1103,7 +1103,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: baseline;
   gap: var(--space-panel-inline);
-  padding: 7px 0 7px 14px;
+  padding: 7px 0 7px 12px; /* aura-allow-spacing: 2px rule sits inside the 14px inset */
   border-left: 2px solid transparent;
 }
 
@@ -1200,7 +1200,7 @@ onBeforeUnmount(() => {
 /* Dòng gợi ý cuối tab — một quy tắc hành vi, nên nó có nét ngăn của riêng nó. */
 .lookup-hint {
   margin-top: var(--space-panel-block);
-  padding-top: var(--space-panel-block);
+  padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline-faint);
 }
 
@@ -1208,7 +1208,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding: 7px 0 7px 14px;
+  padding: 7px 0 7px 12px; /* aura-allow-spacing: 2px rule sits inside the 14px inset */
   border-left: 2px solid transparent;
 }
 

@@ -338,7 +338,7 @@ const senseTotalKey = computed(() =>
  */
 .lookup-entry + .lookup-entry .lookup-entry-head {
   margin-top: var(--space-panel-block);
-  padding-top: var(--space-panel-block);
+  padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline-faint);
 }
 
@@ -406,7 +406,7 @@ const senseTotalKey = computed(() =>
 /* AC3 — vạch trái `primary`, PHÂN BIỆT với vạch `--color-outline-faint` của khối nghĩa. */
 .lookup-citation {
   margin: 7px 0 0 14px;
-  padding-left: 14px;
+  padding-left: 12px; /* aura-allow-spacing: 2px rule sits inside the 14px inset */
   border-left: 2px solid var(--color-primary);
   font-family: var(--face-lookup-example);
   font-size: var(--font-lookup-example);

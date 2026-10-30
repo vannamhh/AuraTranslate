@@ -302,7 +302,7 @@ watch(confirmStripFocusRequest, () => {
   flex-wrap: wrap;
   align-items: baseline;
   gap: calc(var(--space-unit) * 2);
-  padding: var(--space-panel-inline);
+  padding: 13px 14px 14px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface);
   font-family: var(--face-ui-md);
@@ -323,8 +323,8 @@ watch(confirmStripFocusRequest, () => {
 .glossary-confirm-strip {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
-  padding: var(--space-panel-inline);
+  gap: var(--space-panel-block);
+  padding: 13px 14px 14px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
   background: var(--color-surface);
   font-family: var(--face-ui-md);
@@ -341,7 +341,7 @@ watch(confirmStripFocusRequest, () => {
 .gcs-fieldset {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
+  gap: var(--space-panel-block);
   border: none;
   margin: 0;
   padding: 0;
@@ -415,7 +415,7 @@ watch(confirmStripFocusRequest, () => {
   color: var(--color-on-surface);
   background: var(--color-background);
   border: 1px solid transparent;
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   text-align: left;
   cursor: pointer;
 }

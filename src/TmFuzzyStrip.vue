@@ -266,8 +266,8 @@ const acceptErrorText = computed(() => {
 .tm-fuzzy-strip {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
-  padding: var(--space-panel-inline);
+  gap: var(--space-panel-block);
+  padding: 13px 13px 13px 11px; /* aura-allow-spacing: 1px border and 3px TM rule sit inside the 14px inset */
   border: 1px solid var(--color-control-rule);
   border-left: 3px solid var(--color-tm-rule);
   border-radius: var(--radius-default);
@@ -326,7 +326,7 @@ const acceptErrorText = computed(() => {
   display: flex;
   flex-direction: column;
   gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 1) calc(var(--space-unit) * 1);
+  padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid transparent;
 }
 

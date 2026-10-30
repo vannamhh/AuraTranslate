@@ -925,22 +925,22 @@ const openSettingsLabel = computed(() =>
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--space-unit) * 1);
-  padding: calc(var(--space-unit) * 2);
+  gap: var(--space-panel-block);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-outline);
   border-radius: var(--radius-default);
 }
 
 .ai-result-card .ai-translate-usage {
-  padding-top: calc(var(--space-unit) * 1);
+  padding-top: 6px; /* aura-allow-spacing: 1px top border sits inside the 7px inset */
   border-top: 1px solid var(--color-outline);
 }
 
 .ai-group-label {
   flex: none;
   margin: calc(var(--space-unit) * 1) 0 0;
-  padding-top: calc(var(--space-unit) * 2);
+  padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline-faint);
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
@@ -1035,7 +1035,7 @@ const openSettingsLabel = computed(() =>
  */
 .ai-promote-confirm {
   margin-bottom: var(--space-panel-block);
-  padding: var(--space-panel-block);
+  padding: 13px; /* aura-allow-spacing: 1px border sits inside the 14px inset */
   border: 1px solid var(--color-outline);
 }
 
@@ -1057,7 +1057,7 @@ const openSettingsLabel = computed(() =>
 
 .ai-promote-draft {
   margin: 0 0 var(--space-panel-block) 0;
-  padding: var(--space-panel-block);
+  padding: 14px 14px 14px 12px; /* aura-allow-spacing: 2px rule sits inside the 14px inset */
   border-left: 2px solid var(--color-draft);
   font-family: var(--face-read-sm);
   font-size: var(--font-read-sm);
