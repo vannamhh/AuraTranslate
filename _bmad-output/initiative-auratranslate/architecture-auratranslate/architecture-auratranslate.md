@@ -1526,7 +1526,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `@vue/test-utils` | 2.4.11 | MIT ✓ |
 | `happy-dom` | 20.11.2 | MIT ✓ |
 | `displayplacer` *(công cụ dòng lệnh macOS, chỉ cài trong job `e2e` của `ci.yml` để đặt độ phân giải màn hình runner; không liên kết vào mã, không vào sản phẩm; rà NFR15 2026-10-01 trên nguồn đã tải `v1.4.0.tar.gz`, sha256 `54b239359dbf9dc9b3a25e41a372eafb1de6c3131fe7fed37da53da77189b600`, đọc tệp `LICENSE` ở gốc: văn bản MIT khớp nhãn)* | 1.4.0 | MIT ✓ |
-| `Noto Serif CJK TC` *(chỉ Regular; = Source Han Serif 2.003R đổi nhãn)* | 2.003 | SIL OFL 1.1 |
+| `Noto Serif CJK TC` *(Regular + Bold; = Source Han Serif 2.003R đổi nhãn. 🔵 2026-10-30 (Ice): thêm `NotoSerifCJKtc-Bold.otf` 25.520.284 byte, sha256 `a4441a76dbf56719600c5dcbd5b5e5a068a20944cc41c959487a657133576ee6`, cho chữ Hán đậm ở kiểu Song song; lấy từ cùng asset `10_NotoSerifCJKtc.zip` thẻ `Serif2.003` (sha256 khớp phép đo font spike), `LICENSE` trong zip trùng từng byte `LICENSE-notoserifcjk.txt`, bảng `name` không khai Reserved Font Name)* | 2.003 | SIL OFL 1.1 |
 | `Source Serif 4` *(kênh Google, font biến thiên)* | 4.004 | SIL OFL 1.1 |
 | `Source Sans 3` *(kênh Google, font biến thiên)* | 3.052 | SIL OFL 1.1 |
 | `tauri-plugin-opener` *(Library `Mở thư mục` — gọi từ Rust qua `workId`; đăng ký `Builder::new().open_js_links_on_click(false)`, không quyền `opener:*` trong `capabilities/main.json`; giấy phép đọc trong nguồn đã tải: `LICENSE_MIT` · `LICENSE_APACHE-2.0` · `LICENSE.spdx`, không Exhibit B)* | 2.5.4 | Apache-2.0 OR MIT ✓ |

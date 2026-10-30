@@ -137,7 +137,7 @@ const senseTotalKey = computed(() =>
       class="lookup-entry"
       :data-entry-key="cluster.key"
     >
-      <div class="lookup-entry-head">
+      <div class="lookup-entry-head" :class="{ 'lookup-entry-head--bare': !showEntryHeadwords && cluster.reading === null }">
         <!-- Quyết định #5(a) — ranh giới đầu mục hiện ra, không đánh số, không gộp. -->
         <!-- aura-allow-text: đầu mục THẬT trong từ điển — DỮ LIỆU (`EntryHit.headword`). -->
         <p v-if="showEntryHeadwords" class="lookup-entry-headword">{{ cluster.headword }}</p>
@@ -321,11 +321,21 @@ const senseTotalKey = computed(() =>
  * ghim là **đường chuột duy nhất** vào AC2. Ẩn nó theo cùng điều kiện là để một nguồn
  * một-đầu-mục không ghim được bằng chuột.
  */
+.lookup-entry {
+  display: flow-root;
+}
+
 .lookup-entry-head {
   display: flex;
   align-items: baseline;
   gap: var(--space-panel-inline);
   margin-bottom: 7px;
+}
+
+/* Only the pin is left in the head: float it so the first gloss line rises beside it. */
+.lookup-entry-head--bare {
+  float: right;
+  margin: 0 0 0 var(--space-unit);
 }
 
 /*
@@ -336,7 +346,7 @@ const senseTotalKey = computed(() =>
  * của hộp của chính nó) và nét ngăn biến mất khỏi tất cả. Cặp anh em kề nói đúng mệnh đề
  * cần nói: *"mọi cụm TRỪ cụm đầu"*.
  */
-.lookup-entry + .lookup-entry .lookup-entry-head {
+.lookup-entry + .lookup-entry {
   margin-top: var(--space-panel-block);
   padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline-faint);
@@ -361,7 +371,7 @@ const senseTotalKey = computed(() =>
 }
 
 .lookup-sense {
-  margin-bottom: var(--space-panel-block);
+  margin-bottom: var(--space-unit);
 }
 
 .lookup-sense::marker {

@@ -76,12 +76,18 @@ const FONTS: readonly FontSpec[] = [
   {
     family: 'Noto Serif CJK TC',
     file: 'fonts/NotoSerifCJKtc-Regular.otf',
-    // ⚠️ CHỈ Regular, có chủ ý: bản nghiêng CJK là ~23 MiB — một phần ba ngân sách font,
+    // ⚠️ Không có bản nghiêng, có chủ ý: bản nghiêng CJK là ~23 MiB — một phần ba ngân sách font,
     // và dư địa NFR6 chỉ còn ~47 MB. Hệ quả là chữ Hán dưới một token nghiêng sẽ bị
     // trình duyệt nghiêng giả; lời giải KHÔNG phải thêm tệp, mà là
     // `font-synthesis: none` khai ở chính hai token đó. Xem `src/tokens/README.md`.
     descriptors: { weight: '400', style: 'normal', display: 'swap' },
     why: 'Họ `read-cjk`, và là chặng dự phòng CJK của họ `read`.',
+  },
+  {
+    family: 'Noto Serif CJK TC',
+    file: 'fonts/NotoSerifCJKtc-Bold.otf',
+    descriptors: { weight: '700', style: 'normal', display: 'swap' },
+    why: 'Nét 700 thật của `read-cjk` cho token `source-cjk-strong`; thiếu tệp này trình duyệt vẽ đậm giả.',
   },
 ]
 

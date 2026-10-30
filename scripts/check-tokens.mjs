@@ -228,24 +228,25 @@ const EXPECTED_TYPOGRAPHY = {
   'read-md': { family: 'read', fontSize: '17.5px', lineHeight: '2' },
   'read-sm': { family: 'read', fontSize: '16px', lineHeight: '1.75' },
   'read-title': { family: 'read', fontSize: '23px', lineHeight: '1.5217391304347827', fontWeight: '600' },
-  'source-cjk': { family: 'read-cjk', fontSize: '16.5px', lineHeight: '2.05' },
+  'source-cjk': { family: 'read-cjk', fontSize: '18px', lineHeight: '2.05' },
+  'source-cjk-strong': { family: 'read-cjk', fontSize: '18px', lineHeight: '2.05', fontWeight: '700' },
   'source-hanviet': {
     family: 'read',
-    fontSize: '12.5px',
+    fontSize: '16px',
     lineHeight: '1.95',
     fontStyle: 'italic',
   },
   editor: { family: 'read', fontSize: '16px', lineHeight: '1.95' },
   'translation-ref': { family: 'read', fontSize: '15px', lineHeight: '1.8666666666666667' },
   'lookup-headword': { family: 'read', fontSize: '24px', lineHeight: '1.4583333333333333' },
-  'lookup-gloss': { family: 'read', fontSize: '14.5px', lineHeight: '1.9310344827586208' },
+  'lookup-gloss': { family: 'read', fontSize: '14.5px', lineHeight: '1.4482758620689655' },
   'lookup-example': { family: 'read', fontSize: '13px', lineHeight: '1.6153846153846154', fontStyle: 'italic' },
   'ui-md': { family: 'ui', fontSize: '13px', lineHeight: '1.6153846153846154' },
   /*
    * ⚠️ `ui-md-strong` (Story 1.14 · AC10) CỐ Ý VẮNG MẶT ở đây.
    *
    * Nó tồn tại trong `tokens.json` nhưng KHÔNG có trong §Bảng token typography của
-   * `DESIGN.md`, và bảng dưới đây là bản chép ĐỘC LẬP của bảng đó — 15 hàng, đúng 15.
+   * `DESIGN.md`, và bảng dưới đây là bản chép ĐỘC LẬP của bảng đó — 16 hàng, đúng 16.
    * Chữ ký cho hàng thứ 15 sống ở `tokens.deviations`, và `compare()` cưỡng chế rằng nó
    * phải có `question` + `reason` không rỗng. Xem lý lẽ đầy đủ ở phần `extra` của
    * `compare()`. Đừng "sửa" bằng cách thêm một hàng vào đây.
@@ -321,8 +322,11 @@ const EXPECTED_ROUNDED = {
  *
  * 🔵 2026-10-30 (Ice): `typography` lên 19 với `translation-ref` — bản dịch tham khảo 15px,
  * một bậc dưới `editor` 16px; hàng 15 của bảng `DESIGN.md`.
+ *
+ * 🔵 2026-10-30 (Ice): `typography` lên 20 với `source-cjk-strong` — chữ Hán đậm 700 ở kiểu
+ * Song song, nét thật từ `NotoSerifCJKtc-Bold.otf`; hàng 16 của bảng `DESIGN.md`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 19, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 20, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -685,7 +689,7 @@ function compare(group, expected, actual, pick = (v) => v) {
    * lệch mà không có gì nói vì sao. Hai bản chép chỉ bắt được lỗi khi cả hai còn chép
    * cùng một thứ.
    *
-   * ⇒ Bảng đóng băng ở lại đúng 15 hàng của `DESIGN.md`. Hàng thứ 16 sống trong
+   * ⇒ Bảng đóng băng ở lại đúng 16 hàng của `DESIGN.md`. Hàng thứ 17 sống trong
    * `tokens.json` và **được cấp phép bằng một mục `deviations` có `question` và `reason`
    * không rỗng** — tức một chữ ký, đúng như khối chú thích đầu bảng đòi.
    *
@@ -1407,11 +1411,16 @@ console.log('\nKiểm E — giãn dòng: bội 7px và sàn 1.6 cho chữ có xu
 // Bốn token thân lưới được miễn có tên và có lý do — không có danh sách tệp loại trừ.
 
 const LINE_HEIGHT_FLOOR = 1.6
+/** Chữ xuống dòng được phép dưới sàn (DESIGN.md §Giãn dòng — Ngoại lệ). */
+const LINE_HEIGHT_FLOOR_EXEMPT = new Map([
+  ['lookup-gloss', 'nghĩa từ điển 21px ở 14,5px (≈ 1.45): Ice chọn bội 7 gần 1.5 nhất thay vì 28px (1.93)'],
+])
 const LEADING_GRID_PX = 7
 const LEADING_TOLERANCE_PX = 0.01
 /** Thân lưới Workspace giữ giãn dòng cũ (DESIGN.md §Lưới 7px — Ngoại lệ). */
 const LEADING_GRID_BODY_EXEMPT = new Map([
   ['source-cjk', 'nguyên văn tiếng Trung ở thân lưới Workspace'],
+  ['source-cjk-strong', 'chữ Hán đậm ở kiểu Song song của thân lưới Workspace'],
   ['source-latin', 'nguyên văn tiếng Anh ở thân lưới Workspace'],
   ['source-hanviet', 'dòng Hán Việt ở thân lưới Workspace'],
   ['editor', 'bản dịch trong ô đang sửa ở thân lưới Workspace'],
@@ -1435,7 +1444,7 @@ function leadingProblems(name, t) {
   /** @type {string[]} */
   const out = []
   const lh = parseFloat(lhRaw)
-  if (t.wraps && !(lh >= LINE_HEIGHT_FLOOR)) {
+  if (t.wraps && !(lh >= LINE_HEIGHT_FLOOR) && !LINE_HEIGHT_FLOOR_EXEMPT.has(name)) {
     out.push(`typography.${name} — \`wraps: true\` nhưng lineHeight ${lhRaw} < ${LINE_HEIGHT_FLOOR}`)
   }
   const fs = parseFloat(String(t.fontSize))
@@ -1458,7 +1467,7 @@ for (const [name, t] of entriesOf(tokens.typography)) {
 if (eBad === 0) {
   const wrapping = entriesOf(tokens.typography).filter(([, t]) => t.wraps)
   const single = entriesOf(tokens.typography).filter(([, t]) => !t.wraps)
-  pass(`${wrapping.length} token \`wraps: true\` đều ≥ ${LINE_HEIGHT_FLOOR}, và đều không đơn vị`)
+  pass(`${wrapping.length} token \`wraps: true\` đều ≥ ${LINE_HEIGHT_FLOOR} trừ ${LINE_HEIGHT_FLOOR_EXEMPT.size} token có tên (${[...LINE_HEIGHT_FLOOR_EXEMPT.keys()].join(', ')}), và đều không đơn vị`)
   pass(`${single.length} token nhãn một dòng được ghìm dưới sàn hợp lệ: ${single.map(([n]) => n).join(', ')}`)
   pass(`mọi giãn dòng là bội ${LEADING_GRID_PX}px, trừ ${LEADING_GRID_BODY_EXEMPT.size} token thân lưới có tên: ${[...LEADING_GRID_BODY_EXEMPT.keys()].join(', ')}`)
 }

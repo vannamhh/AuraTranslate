@@ -1044,9 +1044,10 @@ onBeforeUnmount(() => {
 .hv-parallel {
   margin: 0;
   white-space: pre-wrap;
-  font-family: var(--face-source-cjk);
-  font-size: var(--font-source-cjk);
-  line-height: var(--leading-source-cjk);
+  font-family: var(--face-source-cjk-strong);
+  font-size: var(--font-source-cjk-strong);
+  font-weight: var(--weight-source-cjk-strong);
+  line-height: var(--leading-source-cjk-strong);
   color: var(--color-on-surface);
 }
 
@@ -1154,6 +1155,7 @@ rt {
   /* 🔴 AC7 — người tiêu thụ ĐẦU TIÊN của `source-hanviet`. Năm biến, không chỉ synthesis. */
   font-family: var(--face-source-hanviet);
   font-size: var(--font-source-hanviet);
+  font-weight: var(--weight-source-hanviet);
   font-style: var(--style-source-hanviet);
   font-synthesis: var(--synthesis-source-hanviet);
   line-height: var(--leading-source-hanviet);

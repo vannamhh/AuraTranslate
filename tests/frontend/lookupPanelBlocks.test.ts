@@ -166,6 +166,13 @@ describe('source blocks (Tra 打)', () => {
     expect(vp.findAll('.lookup-gloss').map((g) => g.text())).toEqual(['đánh (vp)', 'làm (vp)'])
   })
 
+  it('the pin-only head floats beside the first gloss when a group has no reading; a reading keeps its own row', async () => {
+    const w = await lookedUp('打', DA)
+    const [withReadings, withoutReadings] = blocks(w)
+    expect(withoutReadings!.get('.lookup-entry-head').classes()).toContain('lookup-entry-head--bare')
+    expect(withReadings!.findAll('.lookup-entry-head').map((h) => h.classes().includes('lookup-entry-head--bare'))).toEqual([false, false])
+  })
+
   it('the spine is only "N nguồn · M nghĩa"', async () => {
     const w = await lookedUp('打', DA)
     expect(w.get('.lookup-spine-count').text().replace(/\s+/g, ' ')).toBe('2 nguồn · 5 nghĩa')

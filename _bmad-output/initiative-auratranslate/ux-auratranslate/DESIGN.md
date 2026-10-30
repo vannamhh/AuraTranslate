@@ -67,11 +67,16 @@ typography:
     lineHeight: '35px'
   source-cjk:
     fontFamily: read
-    fontSize: 16.5px
+    fontSize: 18px
+    lineHeight: '2.05'
+  source-cjk-strong:
+    fontFamily: read-cjk
+    fontSize: 18px
+    fontWeight: '700'
     lineHeight: '2.05'
   source-hanviet:
     fontFamily: read
-    fontSize: 12.5px
+    fontSize: 16px
     fontStyle: italic
     lineHeight: '1.95'
   editor:
@@ -89,7 +94,7 @@ typography:
   lookup-gloss:
     fontFamily: read
     fontSize: 14.5px
-    lineHeight: '28px'
+    lineHeight: '21px'
   lookup-example:
     fontFamily: read
     fontSize: 13px
@@ -309,17 +314,18 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 | 2 | `read-md` | 17.5px / 35px | `read` | Chế độ đọc — mức **Cân** (68ch, mặc định). 🔵 2026-10-29 (Ice): giãn 35px, từ 1.8 |
 | 3 | `read-sm` | 16px / 28px | `read` | Chế độ đọc — mức **Đặc** (76ch). 🔵 2026-10-29 (Ice): giãn 28px, từ 1.66 |
 | 4 | `read-title` | 23px / 600 / 35px | `read` | Tiêu đề Chương. 🔵 2026-10-29 (Ice): giãn 35px, từ 1.3 |
-| 5 | `source-cjk` | 16.5px / 2.05 | `read-cjk` | Nguyên văn tiếng Trung ở Panel Source. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace) |
-| 6 | `source-hanviet` | 12.5px / italic / 1.95 | `read` | Âm Hán Việt. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace) |
+| 5 | `source-cjk` | 18px / 2.05 | `read-cjk` | Nguyên văn tiếng Trung ở Panel Source. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace). 🔵 2026-10-30 (Ice): từ 16.5px, cả nguyên văn tab Trung lẫn chữ Hán ở kiểu Song song |
+| 6 | `source-hanviet` | 16px / italic / 1.95 | `read` | Âm Hán Việt. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace). 🔵 2026-10-30 (Ice): từ 12.5px (mã đã chạy 14.5px qua sổ deviation từ 2026-08-07), cả kiểu Chuyển đổi lẫn chú âm Song song |
 | 7 | `editor` | 16px / 1.95 | `read` | Bản dịch trong Editor. 🔵 2026-10-29 (Ice): ngoài lưới 7px (thân lưới Workspace). 🔵 2026-10-30 (Ice): từ 15px |
 | 8 | `lookup-headword` | 24px / 35px | `read` | Đầu mục Panel Lookup. 🔵 2026-10-29 (Ice): giãn 35px, từ 1.3 |
-| 9 | `lookup-gloss` | 14.5px / 28px | `read` | Nghĩa. 🔵 2026-10-29 (Ice): giãn 28px, từ 1.6 (mã chạy 1.66, sổ deviation của `tokens.json`) |
+| 9 | `lookup-gloss` | 14.5px / 21px | `read` | Nghĩa. 🔵 2026-10-29 (Ice): giãn 28px, từ 1.6 (mã chạy 1.66, sổ deviation của `tokens.json`). 🔵 2026-10-30 (Ice): giãn 21px (≈ 1.45), ngoại lệ có tên của sàn 1.6 |
 | 10 | `lookup-example` | 13px / italic / 21px | `read` | Ví dụ và trích dẫn. 🔵 2026-10-28 (Ice): từ 12.5px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.6 (mã chạy 1.66, sổ deviation của `tokens.json`) |
 | 11 | `ui-md` | 13px / 21px | `ui` | Tiêu đề panel. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.5 |
 | 12 | `ui-sm` | 13px / 21px | `ui` | Nhãn phụ. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.5 |
 | 13 | `ui-label` | 13px / 700 / 21px / `0.08em` | `ui` | Nhãn nguồn từ điển, số thứ tự câu. 🔵 2026-10-26 (Ice): từ 11px / `0.1em`. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.4 |
 | 14 | `ui-mono` | 13px / 21px | `mono` | Phím tắt, số liệu. 🔵 2026-10-26 (Ice): từ 11.5px. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.4 |
 | 15 | `translation-ref` | 15px / 28px | `read` | Bản dịch tham khảo: popup bộ nhớ dịch, gợi ý AI. 🔵 2026-10-30 (Ice): token mới, một bậc dưới `editor` |
+| 16 | `source-cjk-strong` | 18px / 700 / 2.05 | `read-cjk` | Chữ Hán ở kiểu Song song của tab Hán Việt. 🔵 2026-10-30 (Ice): token mới, nét 700 thật từ `NotoSerifCJKtc-Bold.otf`; ngoài lưới 7px (thân lưới Workspace) |
 
 🔵 2026-10-26 (Ice): **mọi chữ bấm được** — nút, tab con, nút phân đoạn — dùng `ui-md` 13px, bằng cỡ giao diện hệ thống macOS. `ui-sm` 12px chỉ còn cho số đếm và dòng phụ không bấm được. Không chữ giao diện nào dưới 12px. 🔵 2026-10-28 (Ice): chữ nhỏ nhất toàn app là 13px; `ui-sm`, `ui-sm-italic`, `ui-label`, `ui-mono` và `lookup-example` cùng 13px, nên chữ phụ bằng cỡ `ui-md` và tách khỏi chữ thường bằng màu, độ đậm, chữ hoa.
 
@@ -353,7 +359,7 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 
 ### Giãn dòng 1.66 là sàn cứng — của chữ nội dung
 
-> 🔵 2026-10-29 (Ice): giãn dòng nay là một bội 7px, không còn là tỉ số (§Lưới 7px). Chữ nội dung ngoài thân lưới Workspace lấy bội 7 nhỏ nhất không chật hơn giãn dòng cũ của nó, trừ `lookup-example` (21px, xem dưới). Chữ giao diện, một dòng lẫn xuống dòng, giãn 21px: ở 13px là 1.615. 🔵 2026-10-29 (Ice): **sàn của chữ xuống dòng hạ từ 1.66 xuống 1.6**, một sàn chung cho cả họ `read` lẫn `ui`; Ice chọn có biết con số, để `ui-md-wrap` và `lookup-example` cùng 21px ở 13px (chật hơn trước 0,58px mỗi dòng). Bốn token thân lưới (`source-cjk`, `source-latin`, `source-hanviet`, `editor`) giữ tỉ số cũ. Phần dưới đây là lý lẽ của các sàn, vẫn dùng khi kiểm bằng mắt.
+> 🔵 2026-10-29 (Ice): giãn dòng nay là một bội 7px, không còn là tỉ số (§Lưới 7px). Chữ nội dung ngoài thân lưới Workspace lấy bội 7 nhỏ nhất không chật hơn giãn dòng cũ của nó, trừ `lookup-example` (21px, xem dưới). Chữ giao diện, một dòng lẫn xuống dòng, giãn 21px: ở 13px là 1.615. 🔵 2026-10-29 (Ice): **sàn của chữ xuống dòng hạ từ 1.66 xuống 1.6**, một sàn chung cho cả họ `read` lẫn `ui`; Ice chọn có biết con số, để `ui-md-wrap` và `lookup-example` cùng 21px ở 13px (chật hơn trước 0,58px mỗi dòng). Bốn token thân lưới (`source-cjk`, `source-latin`, `source-hanviet`, `editor`) giữ tỉ số cũ. 🔵 2026-10-30 (Ice): `source-cjk-strong` (chữ Hán đậm ở kiểu Song song) là token thân lưới thứ năm, giữ tỉ số của `source-cjk`. Phần dưới đây là lý lẽ của các sàn, vẫn dùng khi kiểm bằng mắt.
 
 **Dấu tiếng Việt chồng cả trên lẫn dưới** (`ế` `ộ` `ữ` `ẳ` `ườ`). Giãn dòng 1.5 — mức mặc định quen thuộc và ổn thoả với chữ Latin — làm dấu `ườ` ở dòng trên chạm dấu `ộ` ở dòng dưới.
 
@@ -430,12 +436,12 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 **Giãn dòng.**
 
 - Chữ giao diện (`ui-*`), một dòng lẫn xuống dòng: **21px**.
-- Chữ nội dung ngoài thân lưới Workspace: bội 7 nhỏ nhất không chật hơn giãn dòng cũ — `read-lg` 42 · `read-md` 35 · `read-sm` 28 · `read-title` 35 · `lookup-headword` 35 · `lookup-gloss` 28. Ice chọn luật này thay cho luật "tỉ số ≥ 1.6", vốn làm mức Cân mặc định chật hơn hôm nay 11%.
+- Chữ nội dung ngoài thân lưới Workspace: bội 7 nhỏ nhất không chật hơn giãn dòng cũ — `read-lg` 42 · `read-md` 35 · `read-sm` 28 · `read-title` 35 · `lookup-headword` 35 · `lookup-gloss` 28 (🔵 2026-10-30 (Ice): nay 21, dưới sàn 1.6, ngoại lệ có tên). Ice chọn luật này thay cho luật "tỉ số ≥ 1.6", vốn làm mức Cân mặc định chật hơn hôm nay 11%.
 - Ngoại lệ có tên của luật trên: `lookup-example` 21px (1.615), chật hơn giãn dòng cũ 21,58px; Ice chọn để ví dụ cùng nhịp với chữ giao diện 13px thay vì 28px (2.15).
 - Sàn của mọi chữ xuống dòng là **1.6** (trước là 1.66), chung cho họ `read` và `ui`.
 - Token lưu giãn dòng là **tỉ số không đơn vị** bằng bội 7 chia cỡ chữ (21/13 = 1.6153846…), không lưu `px`: tỉ số giữ nguyên khi phần tử con đổi cỡ chữ, còn `px` thừa hưởng nguyên giá trị. Đo trên Chrome: tỉ số đầy đủ cho đúng 21,000px mỗi dòng ở bảy cỡ chữ; WKWebView chưa đo.
 - Thanh trượt giãn dòng của Chế độ đọc: giá trị lưu vẫn là tỉ số như trước, không đổi dữ liệu đã lưu; giãn dòng hiển thị là bội 7 nhỏ nhất ≥ cỡ chữ × tỉ số, nên thanh trượt nhảy theo bậc 7px và không bao giờ xuống dưới sàn của nó.
-- Thân lưới Workspace giữ `source-cjk` · `source-latin` · `source-hanviet` · `editor` như cũ.
+- Thân lưới Workspace giữ `source-cjk` · `source-latin` · `source-hanviet` · `editor` như cũ. 🔵 2026-10-30 (Ice): thêm `source-cjk-strong`, cùng tỉ số của `source-cjk`.
 
 **Canh baseline.**
 
