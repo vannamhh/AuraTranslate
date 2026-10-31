@@ -13681,6 +13681,7 @@ chính nó.
   Cần: Ice chạy một lượt dùng thật chuột trên các bề mặt Epic 14 trước khi epic `done`.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml`.
   → 🔵 2026-10-31 (Story 14.6): thêm lượt dùng thật tầng khối nhập URL: nhắm khối, loại, đặt vùng, đổi Chương, kết quả nhập khớp; bấm bằng tap-to-click trên trackpad, vì bàn đo chỉ đo giữ 90 ms và `cliclick c:` nhả ngay mất `mouseup` cả trên điều khiển có sẵn. **Chủ: Epic 14.**
+  → 🔵 2026-10-31 (Story 14.6): Ice đã dùng thật tầng khối nhập URL trên app thật, phần này và phần tap-to-click của dòng trên rời phạm vi mục, các bề mặt còn lại của Epic 14 vẫn mở. **Chủ: Epic 14.**
 - Hành vi focus của nút mới trên WebView2 (Windows) chưa đo; Epic 14 thêm nút và menu chuột phải chỉ đo trên WebKit và Chromium.
   Cần: kiểm trên WebView2 nút không cướp caret của ô Editor.
   Chủ: B7. Trỏ: `tickets/epic-san-chuot/epic-san-chuot.md`.

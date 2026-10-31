@@ -98,7 +98,7 @@ context:
 - `start_url_import` treo trên bản debug vì `reqwest::blocking` dựng rồi huỷ shell runtime dưới `debug_assertions`, panic ở tokio worker, promise không trả về; phép đo 2026-09-06 ở `core::webimport` chỉ đo `spawn_blocking`. `fetch` nay chạy trên luồng riêng; gỡ phép vá thì ca Rust đỏ đúng panic đó. Bản release chưa đo.
 - Bàn đo chuột thật bắt hai lỗi Vitest và e2e không thấy: › kéo tiêu điểm và cuộn xuống danh sách Chương; `<ol>` bị huỷ lúc Chương nạp làm tiêu điểm về `body` và `J`/`K` chết. Đường chuột nay giữ tầm nhìn và đặt tiêu điểm ở `panel`; đường `⌥→` không đổi.
 - `min-height` hàng nhãn từng là `* 7` thành 49px vì `--space-unit` là 7px, không phải 4px; nay `* 4` là 28px. Cụm nút từng dùng dáng Chìm, nay về Nút Phụ theo `DESIGN.md`.
-- `cliclick c:` nhả ngay nên `mouseup` không tới trang: 0/12 `click`, giữ 90 ms thì 12/12, xen kẽ trong một lượt, gồm cả checkbox có sẵn. Tap-to-click trên trackpad chưa đo, đã giao lượt dùng thật của Epic 14.
+- `cliclick c:` nhả ngay nên `mouseup` không tới trang: 0/12 `click`, giữ 90 ms thì 12/12, xen kẽ trong một lượt, gồm cả checkbox có sẵn. Tap-to-click trên trackpad bàn đo chưa đo; 🔵 2026-10-31: Ice đã dùng thật và bỏ mục nợ.
 - Hai lượt đo mất cú bấm đầu bị nhiễu (checkbox lấy tiêu điểm nên `J` không dời khối), số đã bỏ.
 - Kiểm M `aim` chỉ đòi tệp có `@mousedown`, nên ca Vitest là chốt thật của đường nhắm: gỡ handler thì 7 ca đỏ. Mười hai phép gỡ (sáu `@click`, handler nhắm, hai `.prevent`, `preventScroll`, giữ tầm nhìn, tiêu điểm `panel`) đều làm đúng ca đỏ.
 - Chương k > 0 của HTML một dòng dài hơn 4 KiB báo lỗi là nợ có sẵn của Rust, `Chủ: Ice`; ngoài ngoại lệ Rust của story nên không sửa.
@@ -130,4 +130,4 @@ KF-7 cần `Cuối vùng giữ` ở khối thứ hai, nên người dùng bấm 
 - Chạy đủ bộ một lần: story chạm `scripts/check-*` (AGENTS.md §Tests).
 
 **Manual checks (if no CLI):**
-- Lượt dùng thật của Ice trước khi Epic 14 `done`: nhắm, loại, đặt vùng, đổi Chương, kết quả nhập khớp.
+- 🔵 2026-10-31: Ice đã dùng thật trên app thật: nhắm, loại, đặt vùng, đổi Chương, kết quả nhập khớp.
