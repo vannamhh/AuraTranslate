@@ -4,7 +4,7 @@ skill: bmad-prd
 title: "PRD: AuraTranslate"
 status: final
 created: 2026-08-02
-updated: 2026-08-05
+updated: 2026-11-01
 ---
 
 # PRD: AuraTranslate
@@ -1006,10 +1006,13 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 |---|---|---|
 | **NFR17** | **Sàn khả năng tiếp cận** | Mọi thao tác của ứng dụng làm được **hoàn toàn bằng bàn phím** — nghiệm thu bằng một vòng dịch trọn một Chương không chạm chuột. Trạng thái focus luôn nhìn thấy rõ ở mọi panel và mọi chế độ. Tương phản văn bản đạt **WCAG AA** ở **cả hai** chế độ sáng và tối, kể cả Chế độ đọc (FR11) và phần bôi màu diff của Review Mode (FR93) |
 | **NFR18** | **Cửa sổ mất dữ liệu tối đa khi ứng dụng sập** | **≤ 10 giây** công việc. 🔵 2026-10-25 Ice nới ngưỡng từ 5 lên 10 giây: trần buộc ghi 5 giây trùng đúng ngưỡng cũ nên không chừa dư, đo thật trên release `2357baf` (122 câu, 10 phím/giây, n=40) mất tối đa 5,49 s. Auto-save (FR100) kích hoạt khi người dùng ngừng gõ khoảng 2 giây, kèm **trần thời gian 5 giây buộc ghi** dù đang gõ liên tục. Phải đạt được **đồng thời** với NFR2 — không frame nào vượt 50 ms |
+| **NFR20** | **Sàn chuột** | Mọi chức năng độc lập của ứng dụng làm được **bằng chuột**, người không nhớ phím tắt vẫn tìm thấy và bấm được. Nghiệm thu: **0** lệnh đã đăng ký thiếu đường chuột, trừ năm loại không phải chức năng độc lập của AD-62; lệnh mới thiếu đường chuột không vào được kho; và một lượt dùng thật bấm các đường đó trên app thật |
 
 > **NFR17 giải thích:** áp từ **Giai đoạn 1**, cùng lý do với NFR16. FR22 đã bắt mọi thao tác lặp lại phải có phím tắt cấu hình lại được, nên keyboard-first gần như miễn phí nếu làm từ đầu và rất đắt nếu vá sau. **Hỗ trợ trình đọc màn hình không nằm trong v1** (§3.2) — editor theo segment trong webview là ca khó nhất của khả năng tiếp cận, và chưa có nhu cầu người dùng nào xác nhận. Đây là ranh giới có chủ ý.
 
 > **NFR18 giải thích:** NFR2 nói auto-save không được gây gai trễ, nhưng không nói **mất bao nhiêu là chấp nhận được** — mà đó mới là thứ người dùng cảm nhận. Ngưỡng 5 giây nghĩa là mất nhiều nhất **một câu đang dở**. 🔵 2026-10-25: ngưỡng nay là 10 giây; trần buộc ghi 5 giây giữ nguyên nên mức mất thường gặp không đổi, 10 giây là khoảng dư cho lần ghi trễ. Với người dịch dành nửa buổi cho một Chương, 30 giây gõ đã là mất mát thật; còn ghi liên tục mỗi thay đổi thì đẩy thẳng vào R9 và xung đột với NFR2.
+
+> **NFR20 giải thích:** thêm 2026-11-01, mang số cuối dãy, để ghi vào PRD quyết định Ice đã chốt 2026-10-30 (AD-62, Epic 14). NFR17 bảo đảm không cần chuột, NFR20 là chiều ngược lại: một chức năng chỉ có phím thì người không nhớ phím không biết nó tồn tại. "Chức năng độc lập" do AD-62 mục 3 định nghĩa, nên việc dời tiêu điểm, bước trong danh sách đã nhắm được bằng chuột và các lệnh tương tự không cần nút riêng. **Ngoài ngưỡng:** tầm với của từng nút và trình đọc màn hình (§3.2). Windows đo riêng ở `B7`. Đo trên `5a871dda`, `check:commands`: 297 lệnh có điểm chuột, 33 khai loại, 0 nợ.
 
 ---
 
