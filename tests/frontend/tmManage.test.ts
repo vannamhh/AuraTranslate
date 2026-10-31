@@ -1631,3 +1631,107 @@ describe('tier counts, origin pills, sort and the TM-only-mine policy', () => {
     wrapper.unmount()
   })
 })
+
+describe('row buttons act on the row they sit on', () => {
+  const scroll = vi.fn()
+  const scrollHost = Element.prototype as { scrollIntoView?: unknown }
+  const originalScroll = scrollHost.scrollIntoView
+
+  beforeEach(() => {
+    scroll.mockReset()
+    scrollHost.scrollIntoView = scroll
+  })
+
+  afterEach(() => {
+    scrollHost.scrollIntoView = originalScroll
+  })
+
+  async function mountRows() {
+    const ctx = await freshOverlay()
+    listMock.mockResolvedValue(loaded(THREE_ROWS))
+    await ctx.state.openTmManage()
+    const wrapper = mount(ctx.Overlay, { attachTo: document.body })
+    await settle(wrapper)
+    const rows = () => wrapper.findAll('[role="row"].tm-row')
+    const actForm = (index: number, which: 0 | 1) => rows()[index]!.findAll('.tm-row-acts form')[which]!
+    return { ...ctx, wrapper, rows, actForm }
+  }
+
+  it('Sửa on another row edits that row, not the row under the cursor', async () => {
+    const { state, wrapper, rows, actForm } = await mountRows()
+    expect(state.tmManageCursor.value).toBe(0)
+    await rows()[1]!.trigger('mousedown')
+    await actForm(1, 0).trigger('submit')
+    expect(state.tmManageCursor.value).toBe(1)
+    expect(state.tmManageEditing.value).toBe(true)
+    expect(state.tmManageEditTarget.value).toBe('Chào')
+    wrapper.unmount()
+  })
+
+  it('Xoá needs two presses on the same row and a press on another row drops the pending one', async () => {
+    const { state, wrapper, rows, actForm } = await mountRows()
+    await rows()[1]!.trigger('mousedown')
+    await actForm(1, 1).trigger('submit')
+    expect(deleteMock).not.toHaveBeenCalled()
+    expect(state.tmManageDeletePending.value).toBe(true)
+
+    await rows()[2]!.trigger('mousedown')
+    expect(state.tmManageDeletePending.value).toBe(false)
+    expect(state.tmManageCursor.value).toBe(2)
+
+    await rows()[1]!.trigger('mousedown')
+    await actForm(1, 1).trigger('submit')
+    deleteMock.mockResolvedValue({ ok: true, error: null })
+    await actForm(1, 1).trigger('submit')
+    expect(deleteMock).toHaveBeenCalledExactlyOnceWith([{ tier: 'work', unit_id: 2 }], '你好', 'Chào')
+    wrapper.unmount()
+  })
+
+  it('focusing the Xoá button of a row aims that row, so Enter deletes the right pair', async () => {
+    const { state, wrapper, rows, actForm } = await mountRows()
+    await rows()[1]!.findAll('.tm-row-acts button')[1]!.trigger('focusin')
+    expect(state.tmManageCursor.value).toBe(1)
+    await actForm(1, 1).trigger('submit')
+    deleteMock.mockResolvedValue({ ok: true, error: null })
+    await actForm(1, 1).trigger('submit')
+    expect(deleteMock).toHaveBeenCalledExactlyOnceWith([{ tier: 'work', unit_id: 2 }], '你好', 'Chào')
+    wrapper.unmount()
+  })
+
+  it('after a delete removes the focused row, focus lands on the list', async () => {
+    const { wrapper, rows, actForm } = await mountRows()
+    const button = rows()[1]!.findAll('.tm-row-acts button')[1]!.element as HTMLElement
+    button.focus()
+    await actForm(1, 1).trigger('submit')
+    listMock.mockResolvedValue(loaded(listing()))
+    deleteMock.mockResolvedValue({ ok: true, error: null })
+    await actForm(1, 1).trigger('submit')
+    await vi.waitFor(() => expect(wrapper.findAll('[role="row"].tm-row')).toHaveLength(1))
+    await settle(wrapper)
+    expect(document.activeElement).toBe(wrapper.get('.tm-list').element)
+    wrapper.unmount()
+  })
+
+  it('while editing, a press on another row leaves the cursor where it is', async () => {
+    const { state, wrapper, rows } = await mountRows()
+    state.beginTmManageEdit()
+    await settle(wrapper)
+    await rows()[2]!.trigger('mousedown')
+    expect(state.tmManageCursor.value).toBe(0)
+    expect(state.tmManageEditing.value).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('a mouse press does not scroll the row into view, a keyboard move does', async () => {
+    const { state, wrapper, rows } = await mountRows()
+    scroll.mockClear()
+    await rows()[1]!.trigger('mousedown')
+    await settle(wrapper)
+    expect(state.tmManageCursor.value).toBe(1)
+    expect(scroll).not.toHaveBeenCalled()
+    state.nextTmManageRow()
+    await settle(wrapper)
+    expect(scroll).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+})

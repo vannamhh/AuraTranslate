@@ -2,6 +2,7 @@
 import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
+import { commandTitle } from './config/shortcutsState'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
 import type { AlignmentRow, AlignmentSegment } from './config/alignment'
@@ -63,6 +64,14 @@ function groupLabelKey(groupId: number): string {
   if (g.segment_ids.length === 0) return 'alignment.group_row_only'
   return g.decided_by === 'user' ? 'alignment.group_user' : 'alignment.group_machine'
 }
+
+watch(
+  alignmentCursor,
+  (cursor) => {
+    if (cursor === 0 && alignmentOverlayIsOpen.value && document.activeElement === document.body) panel.value?.focus()
+  },
+  { flush: 'post' },
+)
 
 watch(alignmentOverlayIsOpen, (open) => {
   if (open) {
@@ -271,6 +280,15 @@ function onKeydown(event: KeyboardEvent): void {
           </button>
           <button type="button" class="al-act ui-btn" @click="dispatch('export.alignment.skip')">
             {{ t('alignment.skip_this') }}
+          </button>
+          <button
+            v-if="alignmentCursor > 0"
+            type="button"
+            class="al-act ui-btn"
+            :title="commandTitle('export.alignment.prev')"
+            @click="dispatch('export.alignment.prev')"
+          >
+            {{ t('command.export.alignment.prev') }}
           </button>
           <button v-if="remainingAfterCursor > 0" type="button" class="al-act ui-btn" @click="dispatch('export.alignment.next')">
             <!-- aura-allow-text: result of t() with the count interpolated. -->

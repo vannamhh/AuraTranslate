@@ -38,7 +38,7 @@ vi.mock('../../src/panels/editorPanelState', async () => {
   }
 })
 vi.mock('../../src/commands', () => ({ dispatch: (...args: unknown[]) => dispatchMock(...args) }))
-vi.mock('../../src/config/shortcutsState', () => ({ shortcutRows: ref([]) }))
+vi.mock('../../src/config/shortcutsState', () => ({ shortcutRows: ref([]), commandTitle: (id: string) => id }))
 vi.mock('../../src/tmFuzzyStripState', () => ({ tmFuzzyIsEligible: tmEligible }))
 vi.mock('../../src/glossaryConfirmStripState', () => ({ confirmStripIsOpen: confirmOpen, confirmStripNoticeShown: confirmNotice, confirmStripNoticeSegmentId: { value: null } }))
 vi.mock('../../src/glossaryQuickAddState', () => ({ quickAddIsOpen: quickAddOpen }))

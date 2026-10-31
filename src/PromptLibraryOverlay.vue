@@ -14,8 +14,7 @@
 // `check:commands` Kiểm A đòi MỌI `@click` là ĐÚNG MỘT `dispatch('<id>')` — chọn một hàng,
 // tạo/đổi tên/sửa/xoá một bộ đều cần THAM SỐ (hàng nào, tầng nào), nên mỗi thao tác đó là một
 // `<form>` một nút `type="submit"` + `@submit.prevent`, khuôn NGUYÊN VĂN `SettingsOverlay.vue`
-// (nav 11 mục) và `ImportPreviewOverlay.vue::onStartEditCleanupRule`. Chỉ Đóng lớp phủ là
-// `@click="dispatch('prompt.library.close')"` — parameterless, đúng luật Kiểm A.
+// (nav 11 mục) và `ImportPreviewOverlay.vue::onStartEditCleanupRule`.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // 🔵 DỮ LIỆU SỐNG Ở `promptSetState.ts` (Phase 4a) — TỆP NÀY CHỈ TIÊU THỤ
@@ -27,12 +26,12 @@
 // liệu — ở đây tập bộ dài tuỳ ý, không có một tập khoá cố định).
 //
 // Không chuỗi tiếng Việt nào trong `.vue` (NFR16, AD-21) — mọi văn bản qua `t()`/`tError()`.
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { useSelectionSurface } from './panels/selectionContract'
-import { promptLibraryOverInspector, promptLibraryOverlayIsOpen } from './promptLibraryState'
+import { promptLibraryOverInspector, promptLibraryOverlayIsOpen, setPromptLibraryLeaveCheck } from './promptLibraryState'
 import { splitPromptBody } from './promptMarkers'
 import PromptTemplatePicker from './PromptTemplatePicker.vue'
 // Story 4.5 review fix — kết quả lượt Nhập gần nhất (`prompt.import.confirm`) không được hiện
@@ -385,12 +384,6 @@ function onCancelCreate(): void {
   createOpen.value = false
 }
 
-/** "Nhập từ file" — parameterless, đi qua `dispatch` cùng khuôn nút Đóng lớp phủ: handler
- * tiêm (`main.ts`) mở hộp thoại CHỌN trong Rust, không cần một tham số nào từ đây. */
-function onOpenImport(): void {
-  dispatch('prompt.import.open')
-}
-
 /** Khoá `vi.json` cho kết quả lượt Nhập GẦN NHẤT — `null` khi chưa nhập lần nào trong phiên
  * này, hoặc lượt gần nhất bị huỷ (Story 4.5 review fix: trước bản vá này ba khoá
  * `prompt.import.outcome_*` tồn tại trong `vi.json` nhưng không nơi nào đọc chúng). */
@@ -481,9 +474,8 @@ function onBodyBlur(): void {
   void flushBody()
 }
 
-async function onClose(): Promise<void> {
-  if (await flushBody()) dispatch('prompt.library.close')
-}
+onMounted(() => setPromptLibraryLeaveCheck(flushBody))
+onUnmounted(() => setPromptLibraryLeaveCheck(null))
 
 const inspectorButton = useTemplateRef<HTMLButtonElement>('inspectorButton')
 
@@ -599,7 +591,7 @@ function onUseSelected(): void {
  * ngoài hai ca đó mới đóng cả lớp phủ — cùng luật "Escape huỷ nhịp một trước" của
  * `GlossaryManageOverlay.vue::onEscape`.
  */
-async function onEscape(): Promise<void> {
+function onEscape(): void {
   if (deletePending.value) {
     deletePending.value = false
     return
@@ -609,7 +601,7 @@ async function onEscape(): Promise<void> {
     templateOpen.value = false
     return
   }
-  if (await flushBody()) dispatch('prompt.library.close')
+  dispatch('prompt.library.close')
 }
 </script>
 
@@ -631,7 +623,7 @@ async function onEscape(): Promise<void> {
     >
       <header class="pl-head">
         <h2 id="pl-title" class="pl-title">{{ t('prompt.library.title') }}</h2>
-        <form @submit.prevent="onClose">
+        <form @submit.prevent="dispatch('prompt.library.close')">
           <button type="submit" class="pl-close ui-btn ui-btn--quiet">
             {{ t('command.prompt.library.close') }}
           </button>
@@ -760,7 +752,7 @@ async function onEscape(): Promise<void> {
               {{ t('prompt.library.template_open') }}
             </button>
           </form>
-          <form class="pl-row-form" @submit.prevent="onOpenImport">
+          <form class="pl-row-form" @submit.prevent="dispatch('prompt.import.open')">
             <button type="submit" class="pl-row-import ui-btn ui-btn--quiet" data-prompt-import-open>
               {{ t('prompt.library.import_button') }}
             </button>

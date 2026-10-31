@@ -16,6 +16,12 @@ import { aiPromptInspectorIsOpen } from './aiPromptInspectorState'
 
 const overlayOpen = ref(false)
 const overInspector = ref(false)
+let leaveCheck: (() => Promise<boolean>) | null = null
+
+/** The overlay registers the check that saves a pending edit; it answers `false` to veto closing. */
+export function setPromptLibraryLeaveCheck(check: (() => Promise<boolean>) | null): void {
+  leaveCheck = check
+}
 
 /** `true` while the library was opened on top of the Prompt screen, so it must stack above it. */
 export const promptLibraryOverInspector: DeepReadonly<Ref<boolean>> = readonly(overInspector)
@@ -35,13 +41,15 @@ export function openPromptLibrary(): void {
 
 /** Handler thật của `prompt.library.close`. KHÔNG dọn danh sách đã nạp — mở lại không cần nạp
  * lại NGAY, cùng khuôn `closeGlossaryManage`/`closeSettings`. */
-export function closePromptLibrary(): void {
+export async function closePromptLibrary(): Promise<void> {
+  if (leaveCheck !== null && !(await leaveCheck())) return
   overlayOpen.value = false
   overInspector.value = false
 }
 
 /** `check:panel-refs` đòi mọi ô nhớ cấp module có một đường `reset*()` của CHÍNH tệp này. */
 export function resetPromptLibrary(): void {
+  leaveCheck = null
   overlayOpen.value = false
   overInspector.value = false
 }

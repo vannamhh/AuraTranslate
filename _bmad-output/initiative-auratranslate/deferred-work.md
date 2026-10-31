@@ -13679,6 +13679,7 @@ chính nó.
 - 8 id lẻ: `ai.proofread.hide`, `library.chapters.clear_selection`, `reading.marks_clear_cancel`, `export.alignment.prev`, `prompt.import.open`, `prompt.library.close`, `tm.manage.edit`, `tm.manage.delete`. `prompt.library.close` không có trong mô tả vé 14.9 (7 id) nhưng đỏ thật: nút đóng là `@submit.prevent="onClose"` ở `PromptLibraryOverlay.vue`, nên sổ nợ đo 44 chứ không 43 và điểm chuột 258 chứ không 259.
   Cần: viết lại các `@submit`/nút thành `dispatch` literal; riêng `prompt.library.close` phải giữ lượt ghi nội dung prompt và lượt từ chối đóng khi ghi lỗi của `onClose`, không chỉ đổi thuộc tính.
   Chủ: Story 14.9. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 9.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.9): bốn nút mới (Ẩn ở `.pfs-head`, Bỏ chọn ở `.wp-foot`, Huỷ ở `.toc-actions`, Mục trước ở `.al-actions`), bốn `@submit` thành `dispatch` literal, hàng TM nhắm bằng `@mousedown` và `@focusin`, lượt ghi prompt chuyển vào `closePromptLibrary()` qua `setPromptLibraryLeaveCheck`; Kiểm M đọc 297 điểm chuột, 33 khai `pointer`, 0 nợ; bàn đo ở `14-9-ban-do/`.
 - Kiểm M chỉ chứng minh văn bản `dispatch` tồn tại, không chứng minh nút bấm được trong app thật; 27 id khai `pointer` (đặc biệt `aim`, `auto`, `via`) chưa có lượt dùng thật.
   Cần: Ice chạy một lượt dùng thật chuột trên các bề mặt Epic 14 trước khi epic `done`.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml`.
@@ -13686,12 +13687,14 @@ chính nó.
   → 🔵 2026-10-31 (Story 14.6): Ice đã dùng thật tầng khối nhập URL trên app thật, phần này và phần tap-to-click của dòng trên rời phạm vi mục, các bề mặt còn lại của Epic 14 vẫn mở. **Chủ: Epic 14.**
   → 🔵 2026-10-31 (Story 14.7): thêm lượt dùng thật cắt cặp ở nhập song ngữ: tới cặp lệch, cắt, bỏ cắt, nhập, đọc kết quả; bàn đo chỉ đo giữ 90 ms, tap-to-click chưa đo. **Chủ: Epic 14.**
   → 🔵 2026-10-31 (Story 14.7): bàn đo mất 1 cú (`mousedown` tới, `mouseup` và `click` không) sau khi con trỏ đã rê và đứng 200 ms, khác mục bấm lặp một điểm; hai lượt sau 0 mất trên 30 cú, nguyên nhân chưa xác định; lượt dùng thật để ý cú bấm điểm cắt không ăn. Trỏ: `14-7-ban-do/ket-qua.md`. **Chủ: Epic 14.**
+  → 🔵 2026-10-31 (Story 14.9): thêm lượt dùng thật tám nút lẻ. Bàn đo mất cú ở tải 2–5: 1 trên 23 (`Ẩn`) và 3 trên 25 (ô soạn prompt, Đóng), đều có `mousedown` mà không có `mouseup`, `click`, nguyên nhân chưa xác định. Chưa đo trên app thật: Enter và Space trên nút, nút Ẩn tắt lúc quét. Trỏ: `14-9-ban-do/ket-qua.md`. **Chủ: Epic 14.**
 - Hành vi focus của nút mới trên WebView2 (Windows) chưa đo; Epic 14 thêm nút và menu chuột phải chỉ đo trên WebKit và Chromium.
   Cần: kiểm trên WebView2 nút không cướp caret của ô Editor.
   Chủ: B7. Trỏ: `tickets/epic-san-chuot/epic-san-chuot.md`.
   → 🔵 2026-10-30 (Story 14.3): thêm vào phạm vi kiểm hai nút ‹ › của thanh trạng thái, dựa vào `mousedown` bị chặn mặc định để giữ caret; cần xác nhận trên WebView2 `click` vẫn bắn và caret không về `null`. **Chủ: B7.**
   → 🔵 2026-10-31 (Story 14.6): thêm cụm nút trên khối và ‹ › của tầng 2, mang `@mousedown.prevent`; cần xác nhận `click` vẫn bắn và phím `J` chạy tiếp sau khi nút biến mất. **Chủ: B7.**
   → 🔵 2026-10-31 (Story 14.7): thêm đích điểm cắt và hai nút Cặp lệch của màn song ngữ, mang `@mousedown.left.prevent` rồi đưa tiêu điểm về `panel`; cần xác nhận `click` vẫn bắn và `← →` chạy tiếp. **Chủ: B7.**
+  → 🔵 2026-10-31 (Story 14.9): thêm nút Ẩn mang `@mousedown.prevent` và lượt trả tiêu điểm của Huỷ, Mục trước, Bỏ chọn; ca Vitest "như WebView2" chỉ chạy trên happy-dom. Cần xác nhận `click` vẫn bắn, gõ tiếp đúng chỗ caret, và phím chạy tiếp sau khi nút biến mất. **Chủ: B7.**
 - Hàng chọn cột ở xem trước song ngữ tràn sang cột bảng mã khi ô mẫu dài: `.bip-columns` là flex không `flex-wrap`, nhãn và ô `Cột đích` đè lên danh sách bảng mã.
   Thấy trên ảnh bàn đo 14-7, cửa sổ rộng 1280, dòng đích 48 từ; CSS này story không đổi. Chưa quyết sửa.
   Chủ: Ice. Trỏ: `src/BilingualImportPreviewOverlay.vue` `.bip-columns`.
@@ -13785,3 +13788,6 @@ chính nó.
   Cần: Ice thấy hành vi này khi dùng thật và quyết có giữ vị trí cuộn không.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-8-ban-do/ket-qua.md`.
   → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.8): `gridScrollMemory.ts` nhớ `scrollTop` theo Chương, `GridPanel` trả lại khi `.grid-scroll` gắn lại; e2e wdio tắt rồi bật Đối chiếu ở 600 về 600 trong 2 px, bàn đo chuột thật `14-8-ban-do/ket-qua.md` đọc 600 → 600 ở cả ba panel.
+- Lượt đêm `41134334441` (2026-10-30, `5e488139`) đỏ: Vitest qua hết 242 tệp nhưng thoát 1 vì `EnvironmentTeardownError`, e2e đỏ 10/59 spec, gồm đo line box, thanh tiêu đề, `Đọc` trên hàng Chương. Lượt `push` cùng commit xanh; 14 commit sau chưa đẩy nên chưa có lượt đêm nào đọc được chúng.
+  Cần: đẩy `master`, đọc lượt đêm kế tiếp, spec nào còn đỏ thì tìm nguyên nhân trước khi Epic 14 `done`.
+  Chủ: Epic 14. Trỏ: `gh run view 41134334441`.

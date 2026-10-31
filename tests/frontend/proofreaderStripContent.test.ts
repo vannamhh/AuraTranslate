@@ -19,7 +19,7 @@ vi.mock('../../src/config/proofread', () => ({
   recordProofreadScan: (...args: unknown[]) => recordMock(...args),
   getProofreadDecisionCounts: () => Promise.resolve({ counts: { accepted: 0, not_error: 0, skipped: 0, by_kind: [] }, error: null }),
 }))
-vi.mock('../../src/config/shortcutsState', () => ({ shortcutRows: chordRows }))
+vi.mock('../../src/config/shortcutsState', () => ({ shortcutRows: chordRows, commandTitle: (id: string) => id }))
 vi.mock('../../src/openWorkIdentity', () => ({ openWorkId: ref('work-1') }))
 vi.mock('../../src/panels/editorPanelState', async () => {
   const { ref: vueRef } = await import('vue')
@@ -216,6 +216,43 @@ describe('scope buttons and the ignored-spots link', () => {
     expect(document.activeElement).toBe(link.element)
     await link.trigger('click')
     expect(dispatchMock).toHaveBeenCalledWith('ai.proofread.memory.open')
+    wrapper.unmount()
+  })
+
+  it('the hide button dispatches ai.proofread.hide without taking focus from the cell', async () => {
+    const cell = document.createElement('div')
+    cell.tabIndex = 0
+    document.body.append(cell)
+    cell.focus()
+    const wrapper = await mountWithScan()
+    const hide = wrapper.get('[data-proofread-strip-hide]')
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    hide.element.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(cell)
+    await hide.trigger('click')
+    expect(dispatchMock).toHaveBeenCalledWith('ai.proofread.hide')
+    wrapper.unmount()
+    cell.remove()
+  })
+
+  it.each([
+    ['scanning', () => runMock.mockImplementation(() => new Promise(() => {}))],
+    ['error', () => runMock.mockResolvedValue({ value: null, error: { code: 'x', message_key: 'err.unknown', params: {}, retryable: false } })],
+    ['not_configured', () => runMock.mockResolvedValue({ value: { state: 'not_configured' }, error: null })],
+    ['done with no findings', () => runMock.mockResolvedValue({ value: { state: 'done', not_scanned: 0, filtered: 0, blocked: [] }, error: null })],
+  ])('the hide button is disabled while %s', async (_name, arrange) => {
+    arrange()
+    const wrapper = mount(ProofreaderStrip, { attachTo: document.body })
+    void state.runProofread([1])
+    await flushPromises()
+    expect(wrapper.get('[data-proofread-strip-hide]').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('the hide button is enabled once findings sit on the caret sentence', async () => {
+    const wrapper = await mountWithScan()
+    expect(wrapper.get('[data-proofread-strip-hide]').attributes('disabled')).toBeUndefined()
     wrapper.unmount()
   })
 })

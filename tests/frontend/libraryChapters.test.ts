@@ -1212,12 +1212,12 @@ describe('modes/LibraryWorkPage.vue — nút Nhập bản reviewer của khung p
 describe('modes/LibraryWorkPage.vue — khung phải chỉ mở bằng nút ⋯', () => {
   const CHAPTER_ROW_C = { ...CHAPTER_ROW_A, chapter_id: 3, ord: 3, title: 'Chuong Ba' }
 
-  async function mountPage() {
+  async function mountPage(attachTo?: HTMLElement) {
     mockInvokeForChaptersMount([CHAPTER_ROW_A, CHAPTER_ROW_UNTITLED, CHAPTER_ROW_C])
     await installChapterCommandsOnce()
     const state = await import('../../src/modes/libraryChapters')
     const { default: Page } = await import('../../src/modes/LibraryWorkPage.vue')
-    const wrapper = mount(Page)
+    const wrapper = mount(Page, { attachTo })
     await state.loadChapters()
     await wrapper.vm.$nextTick()
     return { wrapper, state }
@@ -1274,6 +1274,33 @@ describe('modes/LibraryWorkPage.vue — khung phải chỉ mở bằng nút ⋯'
     await list.trigger('keydown', { key: 'Escape' })
     await wrapper.vm.$nextTick()
     expect(selection.libraryChapterSelectedIds.value.size).toBe(0)
+    wrapper.unmount()
+  })
+
+  it('nút Bỏ chọn chỉ hiện khi có chọn và dispatch library.chapters.clear_selection', async () => {
+    const { wrapper } = await mountPage()
+    const selection = await import('../../src/modes/libraryChapterSelection')
+    expect(wrapper.find('[data-library-chapter-clear-selection]').exists()).toBe(false)
+    await wrapper.findAll('[data-library-chapter-row]')[0].trigger('mousedown', { button: 0 })
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-library-chapter-clear-selection]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(selection.libraryChapterSelectedIds.value.size).toBe(0)
+    expect(wrapper.find('[data-library-chapter-clear-selection]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['gốc trang, như WKWebView khi bấm chuột', '.wp'],
+    ['chính nút đang biến mất, như WebView2', '[data-library-chapter-clear-selection]'],
+  ])('sau Bỏ chọn phím của danh sách còn chạy khi tiêu điểm ở %s', async (_name, focused) => {
+    const { wrapper } = await mountPage(document.body)
+    await wrapper.findAll('[data-library-chapter-row]')[0].trigger('mousedown', { button: 0 })
+    await wrapper.vm.$nextTick()
+    wrapper.get<HTMLElement>(focused).element.focus()
+    await wrapper.get('[data-library-chapter-clear-selection]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(document.activeElement).toBe(wrapper.get('[data-library-chapters-list]').element)
     wrapper.unmount()
   })
 })

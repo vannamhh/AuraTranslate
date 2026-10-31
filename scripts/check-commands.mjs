@@ -2513,11 +2513,9 @@ const HANDLER_TABLE = {
   'src/PromptTemplatePicker.vue::onPickAllMissing': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptTemplatePicker.vue::onSubmitAdd': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptTemplatePicker.vue::onCloseTemplates': { nonCommand: R_SUBMIT_DIRECT },
-  'src/PromptLibraryOverlay.vue::onOpenImport': { ids: ['prompt.import.open'] },
   'src/PromptLibraryOverlay.vue::onSubmitCreate': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onCancelCreate': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onSubmitRename': { nonCommand: R_SUBMIT_DIRECT },
-  'src/PromptLibraryOverlay.vue::onClose': { ids: ['prompt.library.close'] },
   'src/PromptLibraryOverlay.vue::onOpenInspector': { ids: ['ai.prompt_inspector.open'] },
   'src/PromptLibraryOverlay.vue::onDuplicate': { nonCommand: R_SUBMIT_DIRECT },
   'src/PromptLibraryOverlay.vue::onUseSelected': { nonCommand: R_SUBMIT_DIRECT },
@@ -2595,10 +2593,9 @@ const HANDLER_TABLE = {
   'src/modes/LibraryUrlImportScreen.vue::onEscape': { ids: ['library.import_urls_close'] },
   'src/TmImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/ReviewerImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
+  'src/TmManageOverlay.vue::onRowMouseDown': { nonCommand: R_CURSOR_LOCAL },
   'src/TmManageOverlay.vue::onEscape': { ids: ['tm.manage.cancel', 'tm.manage.close'] },
   'src/TmManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
-  'src/TmManageOverlay.vue::onRowEdit': { ids: ['tm.manage.edit'] },
-  'src/TmManageOverlay.vue::onRowDelete': { ids: ['tm.manage.delete'] },
   'src/TmManageOverlay.vue::onKeydown': {
     ids: ['tm.manage.next', 'tm.manage.prev', 'tm.manage.edit', 'tm.manage.delete'],
   },
@@ -2905,16 +2902,7 @@ console.log('\nKiểm M — mọi command có điểm chuột, khai `pointer`, h
 // ═════════════════════════════════════════════════════════════════════════════════
 
 /** Open debt: ids may only be removed, never added. Keep this and the baseline as two separate literals. */
-const POINTER_DEBT = /** @type {string[]} */ ([
-  'ai.proofread.hide',
-  'library.chapters.clear_selection',
-  'reading.marks_clear_cancel',
-  'export.alignment.prev',
-  'prompt.import.open',
-  'prompt.library.close',
-  'tm.manage.edit',
-  'tm.manage.delete',
-])
+const POINTER_DEBT = /** @type {string[]} */ ([])
 
 /** The ids red when the gate landed; an id leaves it only when its command is deleted. */
 const POINTER_DEBT_BASELINE = /** @type {string[]} */ ([
@@ -2965,7 +2953,7 @@ const POINTER_DEBT_BASELINE = /** @type {string[]} */ ([
 ])
 
 /** `ceil(0.85 × live)` over commands with a mouse point, via `judgeFloor`. */
-const POINTER_FLOOR = 246
+const POINTER_FLOOR = 253
 
 /**
  * Self-check: the verdict must go red on each bad case and stay green on the good ones.

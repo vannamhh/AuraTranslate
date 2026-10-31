@@ -63,7 +63,7 @@ import {
   setReadingMarksCursor,
 } from './readingState'
 import { readingOriginLabel } from './readingOrigin'
-import { shortcutRows } from '../config/shortcutsState'
+import { commandTitle, shortcutRows } from '../config/shortcutsState'
 import type { ReadingChapter, ReadingFrontierChapter, ReadingImage, ReadingParagraph, ReadingSegment } from '../config/reading'
 import ChapterImage from '../ChapterImage.vue'
 import ReadingLookupPopup from './ReadingLookupPopup.vue'
@@ -108,6 +108,14 @@ watch(readingTocOpen, async (open) => {
   }
   if (readingModeActive) void enterFocus('mode.reading')
 })
+
+watch(
+  readingMarksClearPending,
+  (pending) => {
+    if (!pending && readingMarksOpen.value && document.activeElement === document.body) marksPanel.value?.focus()
+  },
+  { flush: 'post' },
+)
 
 watch(readingMarksOpen, async (open) => {
   await nextTick()
@@ -964,6 +972,14 @@ function paragraphRuns(
             <!-- aura-allow-text: marksClearText goes through t(). -->
             {{ marksClearText }}
           </button>
+          <button
+            v-if="readingMarksClearPending"
+            type="button"
+            class="btn ui-btn"
+            data-reading-marks-clear-cancel
+            :title="commandTitle('reading.marks_clear_cancel')"
+            @click="dispatch('reading.marks_clear_cancel')"
+          >{{ t('mode.reading.marks_clear_cancel') }}</button>
           <button type="button" class="btn ui-btn" @click="dispatch('reading.marks_close')">{{ t('mode.reading.marks_close') }}</button>
         </div>
         <p class="marks-hint">{{ t('mode.reading.marks_keys') }}</p>

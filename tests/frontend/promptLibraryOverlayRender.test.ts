@@ -570,14 +570,23 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     promptSetListMock.mockResolvedValue({ sets, workTierAvailable: true, variables: ['glossary_terms', 'source_segment', 'tm_similar_segments'], error: null, ...extra })
     const commands = await import('../../src/commands')
     const openInspector = vi.fn()
-    const closeLibrary = vi.fn()
-    commands.installCommands({ isMac: true, setMode: () => {}, openAiPromptInspector: openInspector, closePromptLibrary: closeLibrary } as never)
+    const openImport = vi.fn()
+    const closeLibrary = vi.fn(() => {
+      void ctx.promptLibraryState.closePromptLibrary()
+    })
+    commands.installCommands({
+      isMac: true,
+      setMode: () => {},
+      openAiPromptInspector: openInspector,
+      closePromptLibrary: closeLibrary,
+      openPromptImportPreview: openImport,
+    } as never)
     const i18n = await import('../../src/i18n')
     ctx.promptLibraryState.openPromptLibrary()
     await flushPromises()
     const wrapper = mount(ctx.PromptLibraryOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
-    return { ...ctx, wrapper, i18n, openInspector, closeLibrary }
+    return { ...ctx, wrapper, i18n, openInspector, closeLibrary, openImport }
   }
 
   async function pick(wrapper: Awaited<ReturnType<typeof openLibrary>>['wrapper'], index = 0) {
@@ -712,21 +721,57 @@ describe('PromptLibraryOverlay.vue — phạm vi, Đang dùng, nhãn biến, tô
     wrapper.unmount()
   })
 
-  it.each([
-    ['Esc', async (w: Awaited<ReturnType<typeof openLibrary>>['wrapper']) => w.get('.pl-scrim').trigger('keydown', { key: 'Escape' })],
-    ['nút Đóng', async (w: Awaited<ReturnType<typeof openLibrary>>['wrapper']) => w.get('.pl-head form').trigger('submit')],
-  ])('đóng lớp phủ bằng %s lưu thân đang sửa trước rồi mới đóng', async (_name, closeBy) => {
-    const { wrapper, closeLibrary } = await openLibrary([row({ id: 3, name: 'Cu', body: 'than cu' })])
+  const closeVia: [string, (w: Awaited<ReturnType<typeof openLibrary>>['wrapper']) => Promise<void>][] = [
+    ['Esc', async (w) => w.get('.pl-scrim').trigger('keydown', { key: 'Escape' })],
+    ['nút Đóng', async (w) => w.get('.pl-head form').trigger('submit')],
+  ]
+
+  it.each(closeVia)('đóng lớp phủ bằng %s lưu thân đang sửa trước rồi mới đóng', async (_name, closeBy) => {
+    const { wrapper, promptLibraryState } = await openLibrary([row({ id: 3, name: 'Cu', body: 'than cu' })])
     await pick(wrapper)
     await wrapper.get('.pl-body-form textarea').setValue('sua do')
     promptSetUpdateBodyMock.mockImplementation(async () => {
-      expect(closeLibrary).not.toHaveBeenCalled()
+      expect(promptLibraryState.promptLibraryOverlayIsOpen.value).toBe(true)
+      promptSetListMock.mockResolvedValue({ sets: [row({ id: 3, name: 'Cu', body: 'sua do' })], workTierAvailable: true, variables: [], error: null })
       return { warnings: { unknown_markers: [], glossary_terms_missing: false }, error: null }
     })
     await closeBy(wrapper)
     await flushPromises()
     expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 3, 'sua do')
-    expect(closeLibrary).toHaveBeenCalledTimes(1)
+    expect(promptLibraryState.promptLibraryOverlayIsOpen.value).toBe(false)
+    wrapper.unmount()
+  })
+
+  it.each(closeVia)('lượt ghi lỗi qua %s: lớp phủ còn mở, nháp còn, lỗi hiện', async (_name, closeBy) => {
+    const { wrapper, promptLibraryState } = await openLibrary([row({ id: 3, name: 'Cu', body: 'than cu' })])
+    await pick(wrapper)
+    await wrapper.get('.pl-body-form textarea').setValue('sua do')
+    promptSetUpdateBodyMock.mockResolvedValue({ warnings: null, error: { code: 'x.fail', message_key: 'err.unknown', params: {}, retryable: false } })
+    await closeBy(wrapper)
+    await flushPromises()
+    expect(promptLibraryState.promptLibraryOverlayIsOpen.value).toBe(true)
+    expect((wrapper.get('.pl-body-form textarea').element as HTMLTextAreaElement).value).toBe('sua do')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('phím tự gán: dispatch("prompt.library.close") đi cùng đường ghi như nút', async () => {
+    const { wrapper, promptLibraryState } = await openLibrary([row({ id: 3, name: 'Cu', body: 'than cu' })])
+    const { dispatch } = await import('../../src/commands')
+    await pick(wrapper)
+    await wrapper.get('.pl-body-form textarea').setValue('sua do')
+    promptSetUpdateBodyMock.mockResolvedValue({ warnings: null, error: { code: 'x.fail', message_key: 'err.unknown', params: {}, retryable: false } })
+    dispatch('prompt.library.close')
+    await flushPromises()
+    expect(promptSetUpdateBodyMock).toHaveBeenCalledExactlyOnceWith('global', 3, 'sua do')
+    expect(promptLibraryState.promptLibraryOverlayIsOpen.value).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('nút Nhập từ file dispatch prompt.import.open', async () => {
+    const { wrapper, openImport } = await openLibrary([row()])
+    await wrapper.get('[data-prompt-import-open]').trigger('submit')
+    expect(openImport).toHaveBeenCalledTimes(1)
     wrapper.unmount()
   })
 

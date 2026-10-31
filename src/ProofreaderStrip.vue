@@ -8,7 +8,7 @@ import type { ProofreaderStripPlace } from './inlineStripEligibility'
 import { topmostStrip } from './panels/inlineStripPriority'
 import { editorCaretSegmentId } from './panels/editorPanelState'
 import ProofreadDecisionRatio from './ProofreadDecisionRatio.vue'
-import { shortcutRows } from './config/shortcutsState'
+import { commandTitle, shortcutRows } from './config/shortcutsState'
 import { proofreadScopeCounts } from './proofreadScope'
 import type { ProofreadFindingKind } from './config/proofread'
 import {
@@ -194,23 +194,36 @@ const usageText = computed<string | null>(() => {
       <span class="pfs-title">{{ titleText }}</span>
       <!-- aura-allow-text: result of t() computed in the script. -->
       <span v-if="isJob && card !== null" class="pfs-hint">{{ hintText }}</span>
-      <button
-        v-if="proofreadStateValue === 'scanning'"
-        type="button"
-        class="pfs-btn ui-btn"
-        @click="dispatch('ai.proofread.cancel')"
-      >
-        {{ t('proofread.strip.cancel') }}
-      </button>
-      <button
-        type="button"
-        class="pfs-link ui-btn ui-btn--quiet"
-        data-proofread-strip-memory
-        @mousedown="focusOnPointerDown($event)"
-        @click="dispatch('ai.proofread.memory.open')"
-      >
-        {{ t('command.ai.proofread.memory.open') }}
-      </button>
+      <div class="pfs-acts">
+        <button
+          v-if="proofreadStateValue === 'scanning'"
+          type="button"
+          class="pfs-btn ui-btn"
+          @click="dispatch('ai.proofread.cancel')"
+        >
+          {{ t('proofread.strip.cancel') }}
+        </button>
+        <button
+          type="button"
+          class="pfs-link ui-btn ui-btn--quiet"
+          data-proofread-strip-memory
+          @mousedown="focusOnPointerDown($event)"
+          @click="dispatch('ai.proofread.memory.open')"
+        >
+          {{ t('command.ai.proofread.memory.open') }}
+        </button>
+        <button
+          type="button"
+          class="pfs-link ui-btn ui-btn--quiet"
+          data-proofread-strip-hide
+          :title="commandTitle('ai.proofread.hide')"
+          :disabled="proofreaderStripPlace !== 'track'"
+          @mousedown.prevent
+          @click="dispatch('ai.proofread.hide')"
+        >
+          {{ t('proofread.strip.hide') }}
+        </button>
+      </div>
     </header>
 
     <div class="pfs-scopes" role="group" :aria-label="t('proofread.scope.title')">
@@ -363,14 +376,16 @@ const usageText = computed<string | null>(() => {
 }
 
 .pfs-hint {
-  margin-right: auto;
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
   color: var(--color-on-surface-variant);
 }
 
-.pfs-link {
+.pfs-acts {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 2);
   margin-left: auto;
 }
 

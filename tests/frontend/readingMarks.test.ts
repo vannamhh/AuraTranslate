@@ -211,6 +211,21 @@ describe('modes/readingState — aim, mark và điều hướng exact segment', 
   })
 })
 
+let readingCommandsInstalled = false
+async function installReadingCommandsOnce(): Promise<void> {
+  if (readingCommandsInstalled) return
+  const commands = await import('../../src/commands')
+  const state = await import('../../src/modes/readingState')
+  commands.installCommands({
+    isMac: true,
+    setMode: () => {},
+    closeReadingToc: state.closeTableOfContents,
+    closeReadingMarks: state.closeReadingMarks,
+    cancelReadingMarksClear: state.cancelReadingMarksClear,
+  } as never)
+  readingCommandsInstalled = true
+}
+
 describe('modes/ReadingMode.vue — wrapper focus và affordance', () => {
   it('mỗi câu là một tab stop; nút marker không chen thêm một tab stop', async () => {
     mockInvoke.mockResolvedValueOnce(RUN)
@@ -340,14 +355,8 @@ describe('modes/ReadingMode.vue — wrapper focus và affordance', () => {
 
   it('the TOC and marks drawers close on a click outside the panel, not on a click inside it', async () => {
     mockInvoke.mockResolvedValueOnce(RUN)
-    const commands = await import('../../src/commands')
     const state = await import('../../src/modes/readingState')
-    commands.installCommands({
-      isMac: true,
-      setMode: () => {},
-      closeReadingToc: state.closeTableOfContents,
-      closeReadingMarks: state.closeReadingMarks,
-    })
+    await installReadingCommandsOnce()
     const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
     const wrapper = mount(ReadingMode, { attachTo: document.body })
     await state.ensureReadingLoaded()
@@ -367,6 +376,45 @@ describe('modes/ReadingMode.vue — wrapper focus và affordance', () => {
     expect(state.readingTocOpen.value).toBe(true)
     await wrapper.get('.toc-overlay').trigger('click')
     expect(state.readingTocOpen.value).toBe(false)
+    wrapper.unmount()
+  })
+
+  async function mountWithMarks() {
+    mockInvoke.mockResolvedValueOnce(RUN)
+    const state = await import('../../src/modes/readingState')
+    await installReadingCommandsOnce()
+    const { default: ReadingMode } = await import('../../src/modes/ReadingMode.vue')
+    const wrapper = mount(ReadingMode, { attachTo: document.body })
+    await state.ensureReadingLoaded()
+    mockInvoke.mockResolvedValueOnce([MARK])
+    await state.openReadingMarks()
+    await wrapper.vm.$nextTick()
+    return { wrapper, state }
+  }
+
+  it('the Huỷ button shows only while clearing is armed and dispatches reading.marks_clear_cancel', async () => {
+    const { wrapper, state } = await mountWithMarks()
+    expect(wrapper.find('[data-reading-marks-clear-cancel]').exists()).toBe(false)
+    await state.clearAllReadingMarks()
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-reading-marks-clear-cancel]').trigger('click')
+    expect(state.readingMarksClearPending.value).toBe(false)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-reading-marks-clear-cancel]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('focus returns to the marks panel when the focused Huỷ button disappears', async () => {
+    const { wrapper, state } = await mountWithMarks()
+    await state.clearAllReadingMarks()
+    await wrapper.vm.$nextTick()
+    const cancel = wrapper.get('[data-reading-marks-clear-cancel]').element as HTMLElement
+    cancel.focus()
+    expect(document.activeElement).toBe(cancel)
+    await wrapper.get('[data-reading-marks-clear-cancel]').trigger('click')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(document.activeElement).toBe(wrapper.get('.marks-panel').element)
     wrapper.unmount()
   })
 })

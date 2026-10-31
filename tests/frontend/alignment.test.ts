@@ -327,6 +327,33 @@ describe('AlignmentOverlay.vue two-column layout and import flow', () => {
     wrapper.unmount()
   })
 
+  it('the Mục trước button hides at the first item and dispatches export.alignment.prev from the second', async () => {
+    const prev = vi.fn()
+    const { state, wrapper, t } = await mountOpen(null, () => ({ prevAlignmentEntry: prev }))
+    const label = t('command.export.alignment.prev')
+    const find = () => wrapper.findAll('.al-act').find((b) => b.text() === label)
+    expect(find()).toBeUndefined()
+    state.nextAlignmentEntry()
+    await wrapper.vm.$nextTick()
+    await find()!.trigger('click')
+    expect(prev).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('focus falls back to the panel when Mục trước vanishes at the first item', async () => {
+    const { state, wrapper, t } = await mountOpen()
+    state.nextAlignmentEntry()
+    await wrapper.vm.$nextTick()
+    const button = wrapper.findAll('.al-act').find((b) => b.text() === t('command.export.alignment.prev'))!
+    ;(button.element as HTMLElement).focus()
+    expect(document.activeElement).toBe(button.element)
+    state.prevAlignmentEntry()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+    expect(document.activeElement).toBe(wrapper.get('.al-panel').element)
+    wrapper.unmount()
+  })
+
   it('opened by hand it carries no import header; opened by the import flow it names the numbers and the Chapter', async () => {
     const plain = await mountOpen()
     expect(plain.wrapper.text()).not.toContain(plain.t('alignment.flow_matched', { matched: '5', total: '7', unresolved: '2' }))

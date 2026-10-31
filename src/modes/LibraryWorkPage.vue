@@ -2,6 +2,7 @@
 // Every @click is one dispatch('<id>'); row selection uses @mousedown, which Kiểm A does not read.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { dispatch } from '../commands'
+import { commandTitle } from '../config/shortcutsState'
 import ChapterOrigin from '../ChapterOrigin.vue'
 import { t, tError } from '../i18n'
 import type { ChapterRow } from '../config/chapter'
@@ -104,6 +105,16 @@ const work = computed(() => libraryWorkPageWork.value)
 const total = computed(() => libraryChapters.value.length)
 const counts = computed(() => libraryChapterGroupCounts.value)
 const selectedCount = computed(() => libraryChapterSelectedIds.value.size)
+// WKWebView gives a pressed button's focus to the nearest focusable ancestor, the page root here,
+// and the list keys only listen on the list.
+watch(
+  selectedCount,
+  (count) => {
+    const active = document.activeElement
+    if (count === 0 && (active === document.body || active === root.value)) listRef.value?.focus()
+  },
+  { flush: 'post' },
+)
 const panelVisible = computed(() => {
   if (selectedCount.value >= 2) return !(narrow.value && panelDismissed.value)
   return selectedCount.value === 1 && libraryChapterPanelOpen.value
@@ -719,6 +730,16 @@ onBeforeUnmount(() => {
               ? t('library.work_page.selection_none')
               : t('library.work_page.selection_count', { count: String(selectedCount) })
           }}</span>
+          <button
+            v-if="selectedCount > 0"
+            type="button"
+            class="ui-btn ui-btn--quiet"
+            data-library-chapter-clear-selection
+            :title="commandTitle('library.chapters.clear_selection')"
+            @click="dispatch('library.chapters.clear_selection')"
+          >
+            {{ t('library.work_page.clear_selection') }}
+          </button>
           <span class="wp-sel-hint">{{ t('library.work_page.selection_hint') }}</span>
         </div>
       </div>

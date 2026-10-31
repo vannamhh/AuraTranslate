@@ -118,6 +118,11 @@ watch(tmManageFlatRows, () => {
     void nextTick(() => list.value?.focus())
     return
   }
+  if (rows.length > 0) {
+    void nextTick(() => {
+      if (tmManageOverlayIsOpen.value && focusIsStray()) list.value?.focus()
+    })
+  }
   if (rows.length === 0) {
     void nextTick(() => {
       if (tmManageOverlayIsOpen.value && tmManageFlatRows.value.length === 0 && focusIsStray()) panel.value?.focus()
@@ -129,8 +134,10 @@ watch([tmManageCursor, tmManageFlatRows], () => {
   if (!tmManageOverlayIsOpen.value) return
   const current = tmManageCurrentRow.value
   if (current === null) return
+  const id = optionId(current.tier, current.unit_id)
+  if (mouseAimedRowId === id) return
   void nextTick(() => {
-    document.getElementById(optionId(current.tier, current.unit_id))?.scrollIntoView({ block: 'nearest' })
+    document.getElementById(id)?.scrollIntoView({ block: 'nearest' })
   })
 })
 
@@ -296,14 +303,17 @@ function sideTone(pairOrigin: TmPairOrigin): string {
   return HEALTH_TONE[pairOrigin]
 }
 
-function onRowEdit(index: number): void {
-  aimTmManageRow(index)
-  dispatch('tm.manage.edit')
-}
+let mouseAimedRowId: string | null = null
 
-function onRowDelete(index: number): void {
+function onRowMouseDown(index: number): void {
+  const before = tmManageCursor.value
   aimTmManageRow(index)
-  dispatch('tm.manage.delete')
+  if (before === index || tmManageCursor.value !== index) return
+  const flat = tmManageFlatRows.value[index]
+  mouseAimedRowId = optionId(flat.row.tier, flat.row.unit_id)
+  void nextTick(() => {
+    mouseAimedRowId = null
+  })
 }
 
 const sortOptions = computed(() => SORT_OPTIONS.map((opt) => ({ value: opt.value, label: t(opt.labelKey) })))
@@ -691,6 +701,8 @@ function onKeydown(event: KeyboardEvent): void {
                     'tm-row-delete-pending': i === tmManageCursor && tmManageDeletePending,
                   },
                 ]"
+                @mousedown="onRowMouseDown(i)"
+                @focusin="aimTmManageRow(i)"
               >
                 <!-- aura-allow-text: stored source text of the pair, user content. -->
                 <span v-if="flat.showSource" role="gridcell" class="tm-source tm-cell">{{ flat.source_text }}</span>
@@ -720,12 +732,12 @@ function onKeydown(event: KeyboardEvent): void {
                   </span>
                 </span>
                 <span role="gridcell" class="tm-row-acts tm-cell">
-                  <form @submit.prevent="onRowEdit(i)">
+                  <form @submit.prevent="dispatch('tm.manage.edit')">
                     <button type="submit" class="tm-act ui-btn" :disabled="tmManageSaving || tmManageEditing">
                       {{ t('tm.manage.edit') }}
                     </button>
                   </form>
-                  <form @submit.prevent="onRowDelete(i)">
+                  <form @submit.prevent="dispatch('tm.manage.delete')">
                     <button
                       type="submit"
                       class="tm-act ui-btn"

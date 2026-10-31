@@ -1085,7 +1085,9 @@ async function boot(): Promise<void> {
       closeSettings,
       // Story 4.4 · FR69 — lớp phủ "Thư viện prompt".
       openPromptLibrary,
-      closePromptLibrary,
+      closePromptLibrary: () => {
+        void closePromptLibrary()
+      },
       // Story 4.5 · FR79/NFR9 — hộp thoại chọn tệp nối vào xuất/nhập bộ prompt (AD-48).
       openPromptImportPreview: () => {
         void openPromptImportPreviewOverlay()
