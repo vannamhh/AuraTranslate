@@ -60,6 +60,7 @@ async function setup() {
 
 afterEach(() => {
   document.body.innerHTML = ''
+  Reflect.deleteProperty(document, 'activeElement')
   vi.resetModules()
 })
 
@@ -167,5 +168,119 @@ describe('SegmentHistoryOverlay hai ngăn', () => {
     for (const file of ['src/SegmentHistoryOverlay.vue', 'src/panels/ReviewSpans.vue']) {
       expect(readFileSync(file, 'utf8')).not.toMatch(/v-html/)
     }
+  })
+})
+
+describe('SegmentHistoryOverlay trả caret về chỗ cũ khi đóng', () => {
+  async function mountThenOpen(setSelection: (cell: HTMLElement, text: Text) => void) {
+    resetRecorder()
+    served.current = null
+    served.versions = []
+    const editor = await import('../../src/panels/editorPanelState')
+    await editor.ensureSegmentsLoaded()
+    const history = await import('../../src/panels/segmentHistoryState')
+    const { default: Overlay } = await import('../../src/SegmentHistoryOverlay.vue')
+
+    const cell = document.createElement('div')
+    cell.setAttribute('contenteditable', 'true')
+    cell.setAttribute('tabindex', '0')
+    cell.dataset.col = 'tgt'
+    cell.dataset.segmentId = '11'
+    const text = document.createTextNode('abcdef')
+    cell.append(text)
+    document.body.append(cell)
+    const focusAtStart = vi.spyOn(cell, 'focus').mockImplementation(() => {
+      const range = document.createRange()
+      range.setStart(cell, 0)
+      range.collapse(true)
+      window.getSelection()?.removeAllRanges()
+      window.getSelection()?.addRange(range)
+      Object.defineProperty(document, 'activeElement', { value: cell, configurable: true })
+    })
+    Object.defineProperty(document, 'activeElement', { value: cell, configurable: true })
+    editor.setEditorCaret(11)
+    setSelection(cell, text)
+
+    const w = mount(Overlay, { attachTo: document.body })
+    history.openSegmentHistory()
+    await w.vm.$nextTick()
+    return { w, history, cell, text, focusAtStart }
+  }
+
+  const caretAt = (offset: number) => (_cell: HTMLElement, text: Text) => {
+    const range = document.createRange()
+    range.setStart(text, offset)
+    range.collapse(true)
+    window.getSelection()?.removeAllRanges()
+    window.getSelection()?.addRange(range)
+  }
+
+  async function closeByEsc(w: Awaited<ReturnType<typeof mountThenOpen>>['w']) {
+    await w.find('.hist-scrim').trigger('keydown', { key: 'Escape' })
+    await w.vm.$nextTick()
+    await w.vm.$nextTick()
+  }
+
+  it('Mod+H rồi Esc: caret về giữa chữ, không về đầu ô', async () => {
+    const { w, text, focusAtStart } = await mountThenOpen(caretAt(1))
+    await closeByEsc(w)
+    expect(focusAtStart).toHaveBeenCalled()
+    const selection = window.getSelection()
+    expect(selection?.isCollapsed).toBe(true)
+    expect(selection?.anchorNode).toBe(text)
+    expect(selection?.anchorOffset).toBe(1)
+  })
+
+  it('mục menu Lịch sử: WebKit bôi một từ, xoá vùng chọn lúc đóng menu, Esc trả về một điểm sau từ đó', async () => {
+    const { w, text } = await mountThenOpen((_cell, node) => {
+      const range = document.createRange()
+      range.setStart(node, 1)
+      range.setEnd(node, 4)
+      window.getSelection()?.removeAllRanges()
+      window.getSelection()?.addRange(range)
+    })
+    window.getSelection()?.removeAllRanges()
+    await closeByEsc(w)
+    const selection = window.getSelection()
+    expect(selection?.isCollapsed).toBe(true)
+    expect(selection?.anchorNode).toBe(text)
+    expect(selection?.anchorOffset).toBe(4)
+  })
+
+  it('khôi phục phiên bản làm nút văn bản cũ rời DOM: không ném, tiêu điểm vẫn về ô, caret ở đường hiện có', async () => {
+    const { w, cell, focusAtStart } = await mountThenOpen(caretAt(2))
+    cell.textContent = 'xyz'
+    await closeByEsc(w)
+    expect(focusAtStart).toHaveBeenCalled()
+    const selection = window.getSelection()
+    expect(selection?.anchorNode).toBe(cell)
+    expect(selection?.anchorOffset).toBe(0)
+  })
+
+  it('không có Range trong ô lúc mở: đường đặt caret hiện có, không đụng vùng chọn', async () => {
+    const { w, cell } = await mountThenOpen(() => {
+      const other = document.createElement('p')
+      other.textContent = 'ngoài ô'
+      document.body.append(other)
+      const range = document.createRange()
+      range.setStart(other.firstChild as Text, 2)
+      range.collapse(true)
+      window.getSelection()?.removeAllRanges()
+      window.getSelection()?.addRange(range)
+    })
+    await closeByEsc(w)
+    const selection = window.getSelection()
+    expect(selection?.anchorNode).toBe(cell)
+    expect(selection?.anchorOffset).toBe(0)
+  })
+
+  it('Chương đổi trong lúc mở: Range đã lưu bị bỏ', async () => {
+    const { w, history, cell } = await mountThenOpen(caretAt(3))
+    history.resetSegmentHistory()
+    await w.vm.$nextTick()
+    await w.vm.$nextTick()
+    expect(history.takeHistoryCaretRange()).toBeNull()
+    expect(window.getSelection()?.anchorNode).toBe(cell)
+    expect(window.getSelection()?.anchorOffset).toBe(0)
   })
 })

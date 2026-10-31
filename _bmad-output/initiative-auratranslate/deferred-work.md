@@ -13719,15 +13719,18 @@ chính nó.
 - Phím `Menu` mở menu câu tại ô có caret, và chuột phải trên Windows đi `mousedown → mouseup → contextmenu` thay vì thứ tự macOS; cả hai chưa chạy trên Windows, và việc WebView2 có tự bôi đen từ khi chuột phải hay không chưa biết.
   Cần: chạy tay trên Windows: chuột phải ở ba cột, phím `Menu`, đóng rồi gõ tiếp.
   Chủ: B7. Trỏ: `tickets/epic-san-chuot/tickets/story-menu-chuot-phai-cho-thao-tac-cau-cua-luoi-plan.md` §Design Notes.
+  → 🔵 2026-10-31 (Story 14.10): thêm hai phép kiểm WebView2: rời cửa sổ khi menu câu mở rồi bấm mục (WebKit không bắn `focusout`, WebView2 chưa đo), và caret sau `Esc` ở Lịch sử, cả `Mod+H` lẫn mục menu. **Chủ: B7.**
 - Đo chuột thật ở `_bmad-output/implementation-artifacts/14-2-ban-do/ket-qua.md` đã phủ ba cột, đóng rồi gõ tiếp và Tách câu tắt; còn thiếu ba ca chỉ có sự kiện tổng hợp: Xác nhận trên câu chưa cắt bỏ, `Esc` giữ điểm cắt, bấm ra ngoài.
   Cần: Ice chạy ba ca đó trên app thật.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-2-ban-do/ket-qua.md`.
 - Ba ca thêm sau review trong `e2e/specs/grid-sentence-menu.e2e.mjs` chưa chạy: Xác nhận ký trên đĩa, chặn hợp âm khi menu mở, menu sát mép. Năm ca đầu xanh trước lượt vá; `browser.keys(['Meta', 'm'])` có thể không mang `metaKey`, khi đó ca chặn hợp âm xanh mà không chạm cổng thật.
   Cần: đọc nightly e2e sau lần push, hoặc tắt `tauri dev`, `cargo build --locked --features wdio`, rồi chạy riêng spec này.
   Chủ: Epic 14. Trỏ: `e2e/specs/grid-sentence-menu.e2e.mjs`.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.10): cả tám ca cũ xanh, gồm ba ca nợ (Xác nhận ký trên đĩa, `⌘M` chặn hợp âm, menu sát mép); `Meta`+`m` mang đủ `metaKey` vì ca `⌘M` đóng menu mà không gộp câu. Binary debug `--features wdio`, Vite dựng mới ở 1421, macOS 15, tải 3 đến 10, một lượt; Vite 1420 của `tauri dev` giữ tem `?t=` làm cầu reset đỏ ở Tác phẩm thứ hai (xem mục dưới).
 - Chưa đo: rời cửa sổ khi menu câu đang mở. Nếu WebKit bắn `focusout` thì `onColumnFocusOut` đặt caret `null`, menu vẫn mở và bấm mục không làm gì ngoài `console.warn`.
   Cần: Cmd-Tab khi menu mở trên app thật; nếu tái hiện thì đóng menu ở `blur` của cửa sổ.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-menu-chuot-phai-cho-thao-tac-cau-cua-luoi-plan.md` §Review Triage Log.
+  → KHÔNG LÀM 2026-10-31 (Story 14.10) — không tái hiện: ba lượt Cmd-Tab thật khi menu mở trên WKWebView macOS 15, mỗi lượt menu còn mở, caret ở đúng câu nhắm, bấm `Cắt bỏ câu` cắt đúng câu; lúc Cmd-Tab chỉ có `blur` của ô và cửa sổ, không `focusout`. Trỏ: `_bmad-output/implementation-artifacts/14-10-ban-do/ket-qua.md`. Phạm vi: `osascript` Cmd-Tab, quay về từ Finder; Cmd-Tab của người qua một ứng dụng thứ ba chưa đo. WebView2 gộp vào mục `B7` `Phím \`Menu\`` của phần này.
 
 ## Deferred from: Story 14.3, chọn nhiều đoạn và chuyển Chương bằng chuột (2026-10-30)
 
@@ -13756,6 +13759,7 @@ chính nó.
 - `Esc` đóng lớp phủ Lịch sử đưa caret về đầu ô (`abc` gõ tiếp thành `zzabc`), cả đường `Mod+H` lẫn mục menu: `focus()` không còn vùng chọn nào để giữ offset. Không đè chữ, nhưng người dùng gõ tiếp sai chỗ.
   Cần: lưu `Range` lúc mở lớp phủ và trả lại lúc đóng, cùng khuôn `restoreBeforeOpen` của menu câu.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-4-ban-do/ket-qua.md`.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.10): `openSegmentHistory` lưu điểm caret trong đúng ô bản dịch, `SegmentHistoryOverlay.vue` trả lại sau `back.focus()`. Bàn đo chuột thật: `⌘H` rồi `Esc`, caret 4 → 4, gõ `zz` ra `Ban zzdich 4.`; chuột phải để WebKit bôi `dich`, mục Lịch sử, `Esc`, caret thu về 8, gõ `zz` ra `Ban dichzz 5.`, không chữ nào bị đè. e2e `grid-sentence-menu.e2e.mjs` đọc `zzabc` khi gỡ lượt trả, `azzbc` khi có. Trỏ: `14-10-ban-do/ket-qua.md`.
 - Mở Chương khác cùng Tác phẩm từ Thư viện khi Review Mode mở có cùng lệch Chương: `openChapterById` đổi Chương của Editor trong khi màn Review giữ Chương cũ.
   Cần: quyết định chặn hay đồng bộ, cùng khuôn với hợp âm chuyển Chương.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-mo-ra-soat-va-lich-su-bang-chuot-plan.md` §Boundaries & Constraints.
@@ -13791,3 +13795,9 @@ chính nó.
 - Lượt đêm `41134334441` (2026-10-30, `5e488139`) đỏ: Vitest qua hết 242 tệp nhưng thoát 1 vì `EnvironmentTeardownError`, e2e đỏ 10/59 spec, gồm đo line box, thanh tiêu đề, `Đọc` trên hàng Chương. Lượt `push` cùng commit xanh; 14 commit sau chưa đẩy nên chưa có lượt đêm nào đọc được chúng.
   Cần: đẩy `master`, đọc lượt đêm kế tiếp, spec nào còn đỏ thì tìm nguyên nhân trước khi Epic 14 `done`.
   Chủ: Epic 14. Trỏ: `gh run view 41134334441`.
+
+## Deferred from: Story 14.10, quét dọn Epic 14 (2026-10-31)
+
+- Vite của `tauri dev` chạy lâu giữ tem `?t=` cho module đã sửa (`editorPanelState.ts?t=…`), nên e2e dùng lại nó đỏ ở Tác phẩm thứ hai với `Đã gọi 5 hàm reset mà lưới còn 3 hàng nguyên văn`; `assertModuleGraphHealthy` vẫn báo lành. Chạy được khi dùng Vite dựng mới (`--port 1421` cộng `TAURI_CONFIG` đặt `devUrl`).
+  Cần: quyết `wdio.conf.mjs` có từ chối Vite có tem `?t=` ở các module của `PANEL_MODULES` không; trước mắt tắt `tauri dev` trước khi chạy e2e.
+  Chủ: Ice. Trỏ: `e2e/wdio.conf.mjs` `onPrepare`, `e2e/support/panelReset.mjs`.

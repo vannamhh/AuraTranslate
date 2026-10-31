@@ -1,0 +1,508 @@
+{
+  "presses": [
+    {
+      "label": "A1 cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 1. @394,118 btn=0",
+        "mousedown DIV.cell:Ban dich 1. @394,118 btn=0",
+        "blur SECTION.panel:TrungHán Việt1 @undefined,undefined btn=undefined",
+        "focusout SECTION.panel:TrungHán Việt1 @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 1. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 1. @394,118 btn=0",
+        "mouseup DIV.cell:Ban dich 1. @394,118 btn=0",
+        "click DIV.cell:Ban dich 1. @394,118 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "A1 Cắt bỏ câu",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,701 btn=0",
+        "mousedown BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,701 btn=0",
+        "pointerup BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,701 btn=0",
+        "mouseup BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,701 btn=0",
+        "click BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,701 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "A2 cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 1. @394,118 btn=0",
+        "mousedown DIV.cell:Ban dich 1. @394,118 btn=0",
+        "blur DIV.cell:Ban dich 7. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 7. @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 1. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 1. @394,118 btn=0",
+        "mouseup DIV.cell:Ban dich 1. @394,118 btn=0",
+        "click DIV.cell:Ban dich 1. @394,118 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "A2 Cắt bỏ câu",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,758 btn=0",
+        "mousedown BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,758 btn=0",
+        "pointerup BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,758 btn=0",
+        "mouseup BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,758 btn=0",
+        "click BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,758 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "A3 cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 1. @394,118 btn=0",
+        "mousedown DIV.cell:Ban dich 1. @394,118 btn=0",
+        "blur DIV.cell:Ban dich 8. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 8. @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 1. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 1. @394,118 btn=0",
+        "mouseup DIV.cell:Ban dich 1. @394,118 btn=0",
+        "click DIV.cell:Ban dich 1. @394,118 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "A3 Cắt bỏ câu",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,815 btn=0",
+        "mousedown BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,815 btn=0",
+        "pointerup BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,815 btn=0",
+        "mouseup BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,815 btn=0",
+        "click BUTTON.ui-menu-item:Cắt bỏ câu⌥⌘X @541,815 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "B cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 2. @394,175 btn=0",
+        "mousedown DIV.cell:Ban dich 2. @394,175 btn=0",
+        "blur DIV.cell:Ban dich 9. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 9. @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 2. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 2. @394,175 btn=0",
+        "mouseup DIV.cell:Ban dich 2. @394,175 btn=0",
+        "click DIV.cell:Ban dich 2. @394,175 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "C cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 4. @394,289 btn=0",
+        "mousedown DIV.cell:Ban dich 4. @394,289 btn=0",
+        "blur DIV.cell:Ban qdich 2. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban qdich 2. @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 4. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 4. @394,289 btn=0",
+        "mouseup DIV.cell:Ban dich 4. @394,289 btn=0",
+        "click DIV.cell:Ban dich 4. @394,289 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "D cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "blur DIV.cell:Ban zzdich 4. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban zzdich 4. @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "D Lịch sử",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown BUTTON.ui-menu-item:Lịch sử phiên  @546,544 btn=0",
+        "mousedown BUTTON.ui-menu-item:Lịch sử phiên  @546,544 btn=0",
+        "pointerup BUTTON.ui-menu-item:Lịch sử phiên  @546,544 btn=0",
+        "mouseup BUTTON.ui-menu-item:Lịch sử phiên  @546,544 btn=0",
+        "click BUTTON.ui-menu-item:Lịch sử phiên  @546,544 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusin SECTION.hist-panel:Lịch sử phiên  @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    }
+  ],
+  "calibration_attempts": 1,
+  "calibration": {
+    "win": {
+      "ih": 900,
+      "oh": 0,
+      "x": 0,
+      "y": 960
+    },
+    "guess": {
+      "x": 300,
+      "y": 260
+    },
+    "pt": [
+      149,
+      216
+    ]
+  },
+  "activation_ms": 961,
+  "segments": 9,
+  "menuCmdTab1": {
+    "target": 6,
+    "opened": true,
+    "away": {
+      "front": false,
+      "hasFocus": false
+    },
+    "backMs": 358,
+    "afterBack": {
+      "menu": true,
+      "caret": "7",
+      "active": "DIV.cell.cell-tgt[data-v-69630012,data-segment-id,data-col]"
+    },
+    "events": [
+      "blur DIV.cell:Ban dich 1. @undefined,undefined btn=undefined",
+      "focusout DIV.cell:Ban dich 1. @undefined,undefined btn=undefined",
+      "focusin DIV.cell:Ban dich 7. @undefined,undefined btn=undefined",
+      "blur DIV.cell:Ban dich 7. @undefined,undefined btn=undefined",
+      "blur undefined.undefined: @undefined,undefined btn=undefined"
+    ],
+    "item": true,
+    "pressed": {
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    "before": {
+      "omitted": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "caret": {
+        "at": 4,
+        "collapsed": true,
+        "selected": ""
+      }
+    },
+    "final": {
+      "menu": false,
+      "omitted": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false
+      ]
+    }
+  },
+  "menuCmdTab2": {
+    "target": 7,
+    "opened": true,
+    "away": {
+      "front": false,
+      "hasFocus": false
+    },
+    "backMs": 340,
+    "afterBack": {
+      "menu": true,
+      "caret": "8",
+      "active": "DIV.cell.cell-tgt[data-v-69630012,data-segment-id,data-col]"
+    },
+    "events": [
+      "blur DIV.cell:Ban dich 1. @undefined,undefined btn=undefined",
+      "focusout DIV.cell:Ban dich 1. @undefined,undefined btn=undefined",
+      "focusin DIV.cell:Ban dich 8. @undefined,undefined btn=undefined",
+      "blur DIV.cell:Ban dich 8. @undefined,undefined btn=undefined",
+      "blur undefined.undefined: @undefined,undefined btn=undefined"
+    ],
+    "item": true,
+    "pressed": {
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    "before": {
+      "omitted": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false
+      ],
+      "caret": {
+        "at": 4,
+        "collapsed": true,
+        "selected": ""
+      }
+    },
+    "final": {
+      "menu": false,
+      "omitted": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false
+      ]
+    }
+  },
+  "menuCmdTab3": {
+    "target": 8,
+    "opened": true,
+    "away": {
+      "front": false,
+      "hasFocus": false
+    },
+    "backMs": 363,
+    "afterBack": {
+      "menu": true,
+      "caret": "9",
+      "active": "DIV.cell.cell-tgt[data-v-69630012,data-segment-id,data-col]"
+    },
+    "events": [
+      "blur DIV.cell:Ban dich 1. @undefined,undefined btn=undefined",
+      "focusout DIV.cell:Ban dich 1. @undefined,undefined btn=undefined",
+      "focusin DIV.cell:Ban dich 9. @undefined,undefined btn=undefined",
+      "blur DIV.cell:Ban dich 9. @undefined,undefined btn=undefined",
+      "blur undefined.undefined: @undefined,undefined btn=undefined"
+    ],
+    "item": true,
+    "pressed": {
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    "before": {
+      "omitted": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        false
+      ],
+      "caret": {
+        "at": 4,
+        "collapsed": true,
+        "selected": ""
+      }
+    },
+    "final": {
+      "menu": false,
+      "omitted": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true
+      ]
+    }
+  },
+  "plainCmdTab": {
+    "pre": {
+      "text": "Ban dich 2.",
+      "caret": {
+        "at": 4,
+        "collapsed": true,
+        "selected": ""
+      }
+    },
+    "backMs": 352,
+    "mid": {
+      "caret": {
+        "at": 4,
+        "collapsed": true,
+        "selected": ""
+      },
+      "active": "DIV.cell.cell-tgt[data-v-69630012,data-segment-id,data-col]"
+    },
+    "text": "Ban qdich 2.",
+    "ok": true
+  },
+  "modH": {
+    "pre": {
+      "text": "Ban dich 4.",
+      "caret": {
+        "at": 4,
+        "collapsed": true,
+        "selected": ""
+      }
+    },
+    "opened": true,
+    "afterEsc": {
+      "overlay": false,
+      "caret": {
+        "at": 4,
+        "collapsed": true,
+        "selected": ""
+      },
+      "active": "DIV.cell.cell-tgt[data-v-69630012,data-segment-id,data-col]"
+    },
+    "text": "Ban zzdich 4.",
+    "ok": true
+  },
+  "menuHistory": {
+    "pre": {
+      "text": "Ban dich 5.",
+      "caret": {
+        "at": 4,
+        "collapsed": true,
+        "selected": ""
+      }
+    },
+    "opened": true,
+    "atOpen": {
+      "at": 4,
+      "collapsed": false,
+      "selected": "dich"
+    },
+    "rec": {
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    "overlay": true,
+    "afterEsc": {
+      "overlay": false,
+      "caret": {
+        "at": 8,
+        "collapsed": true,
+        "selected": ""
+      },
+      "active": "DIV.cell.cell-tgt[data-v-69630012,data-segment-id,data-col]"
+    },
+    "text": "Ban dichzz 5.",
+    "noCharLost": true,
+    "zzPresent": true
+  }
+}

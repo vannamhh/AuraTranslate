@@ -694,6 +694,8 @@ describe('mục Thêm thuật ngữ', () => {
 
       press(pick(12))
       await flushPromises()
+      // A press re-asserts focus one frame later; a late frame would pull the caret back to B after the strip closes.
+      await new Promise((done) => requestAnimationFrame(() => setTimeout(done, 0)))
       itemByText('Thêm thuật ngữ').click()
       await flushPromises()
       expect(strip.quickAddIsOpen.value).toBe(true)

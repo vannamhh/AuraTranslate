@@ -80,6 +80,36 @@ async function menuItem(label) {
   throw new Error(`menu item "${label}" missing`)
 }
 
+async function targetText(id) {
+  return await browser.execute((sel) => document.querySelector(sel).textContent, COLUMN_SELECTOR.tgt(id))
+}
+
+async function typeAbcCaretAfterA(id) {
+  await realClick(await $(COLUMN_SELECTOR.tgt(id)))
+  await browser.pause(250)
+  await browser.execute((sel) => {
+    document.execCommand('insertText', false, 'abc')
+    const walker = document.createTreeWalker(document.querySelector(sel), NodeFilter.SHOW_TEXT)
+    const range = document.createRange()
+    range.setStart(walker.nextNode(), 1)
+    range.collapse(true)
+    window.getSelection().removeAllRanges()
+    window.getSelection().addRange(range)
+  }, COLUMN_SELECTOR.tgt(id))
+  await browser.pause(250)
+  await expect(await targetText(id)).toBe('abc')
+}
+
+async function closeHistoryByEscAndType(id) {
+  await $('.hist-panel').waitForExist({ timeout: 5_000 })
+  await browser.keys(['Escape'])
+  await $('.hist-panel').waitForExist({ timeout: 5_000, reverse: true })
+  await browser.pause(250)
+  await browser.execute(() => document.execCommand('insertText', false, 'zz'))
+  await browser.pause(250)
+  return await targetText(id)
+}
+
 describe('menu chuột phải của Lưới trong WKWebView thật', () => {
   for (const column of ['tgt', 'src', 'num']) {
     it(`nhấn phụ ở cột ${column} của câu 3 rồi Cắt bỏ câu: đúng câu 3 bị cắt bỏ, caret không phải câu 3 lúc bắt đầu`, async () => {
@@ -206,5 +236,30 @@ describe('menu chuột phải của Lưới trong WKWebView thật', () => {
     await expect(rect.top).toBeGreaterThanOrEqual(0)
     await expect(rect.right).toBeLessThanOrEqual(rect.w)
     await expect(rect.bottom).toBeLessThanOrEqual(rect.h)
+  })
+  it('Lịch sử mở bằng ⌘H rồi Esc: tiêu điểm về ô, gõ `zz` ra `azzbc`', async () => {
+    await openWorkspaceWithWork('Story 14.10 — ⌘H', '一。二。三。')
+    await waitForGridRows(3, { what: 'Tác phẩm menu câu' })
+    const ids = await rowIds()
+    await typeAbcCaretAfterA(ids[0])
+
+    await browser.keys(['Meta', 'h'])
+
+    await expect(await closeHistoryByEscAndType(ids[0])).toBe('azzbc')
+  })
+
+  it('Lịch sử mở từ mục menu chuột phải rồi Esc: tiêu điểm về ô, `zz` chèn vào mà không chữ nào bị đè', async () => {
+    await openWorkspaceWithWork('Story 14.10 — menu Lịch sử', '一。二。三。')
+    await waitForGridRows(3, { what: 'Tác phẩm menu câu' })
+    const ids = await rowIds()
+    await typeAbcCaretAfterA(ids[0])
+
+    await secondaryPress(COLUMN_SELECTOR.tgt(ids[0]))
+    await realClick(await menuItem('Lịch sử phiên bản'))
+
+    const typed = await closeHistoryByEscAndType(ids[0])
+    await expect(typed).toHaveLength(5)
+    await expect(typed.replace('zz', '')).toBe('abc')
+    await expect(typed.startsWith('zz')).toBe(false)
   })
 })
