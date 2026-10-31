@@ -13737,6 +13737,7 @@ chính nó.
 - Kéo trên cột số câu tốn trung vị 116 ms mỗi hàng đi qua trên Chương 9.850 câu (tối đa 145 ms, 60/60 lượt trên 50 ms; binary debug, Vite dev, tải 6–7), khoảng 8 khung hình mỗi giây. Chi phí theo cỡ Chương, không theo số hàng đổi; nghi `selectedRowClassById` là phụ thuộc chung của mọi `GridBlock`, chưa xác nhận.
   Cần: đo trên bản phát hành; còn trên 50 ms thì chỉ render lại khối có hàng đổi, cùng khuôn `caretId`.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-3-ban-do/ket-qua.md`.
+  → 🔵 2026-11-01: Ice cho lập story riêng vì mục này giữ Epic 14 chưa đóng được. **Chủ: Story 14.13.**
 - Lượt dùng thật chuột trên cột số câu: kéo, `Shift`+bấm, ‹ › từ ô đang gõ.
   Cần: Ice chạy một lượt trên app thật.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-chon-nhieu-oan-va-chuyen-chuong-bang-chuot-plan.md` §Verification.
@@ -13756,6 +13757,7 @@ chính nó.
 - Lớp phủ khác mở bằng chuột khi caret đang trong ô bản dịch có thể để lọt phím xuống ô: WebKit giữ vùng chọn khi cú bấm chuột đổi tiêu điểm, đo được ở mục Lịch sử trước khi sửa. Các nút thanh tiêu đề, thanh trạng thái, `Công cụ ▾` chưa đo.
   Cần: đo từng đường; lọt thì xoá vùng chọn ở một chỗ chung thay vì từng nút. Mất chữ im lặng nên ưu tiên trước khi Epic 14 đóng.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-4-ban-do/ket-qua.md`.
+  → 🔵 2026-11-01: Ice cho lập story riêng vì mục này giữ Epic 14 chưa đóng được. **Chủ: Story 14.11.**
 - `Esc` đóng lớp phủ Lịch sử đưa caret về đầu ô (`abc` gõ tiếp thành `zzabc`), cả đường `Mod+H` lẫn mục menu: `focus()` không còn vùng chọn nào để giữ offset. Không đè chữ, nhưng người dùng gõ tiếp sai chỗ.
   Cần: lưu `Range` lúc mở lớp phủ và trả lại lúc đóng, cùng khuôn `restoreBeforeOpen` của menu câu.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-4-ban-do/ket-qua.md`.
@@ -13763,6 +13765,7 @@ chính nó.
 - Mở Chương khác cùng Tác phẩm từ Thư viện khi Review Mode mở có cùng lệch Chương: `openChapterById` đổi Chương của Editor trong khi màn Review giữ Chương cũ.
   Cần: quyết định chặn hay đồng bộ, cùng khuôn với hợp âm chuyển Chương.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-mo-ra-soat-va-lich-su-bang-chuot-plan.md` §Boundaries & Constraints.
+  → 🔵 2026-11-01: Ice cho lập story riêng vì mục này giữ Epic 14 chưa đóng được. **Chủ: Story 14.12.**
 
 ## Deferred from: Story 14.5, thêm thuật ngữ và mở cài đặt Glossary bằng chuột (2026-10-31)
 

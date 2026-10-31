@@ -2,7 +2,7 @@
 type: epic
 title: "Sàn chuột — mọi chức năng độc lập bấm được bằng chuột"
 parent: initiative-auratranslate
-covers: []
+covers: [NFR20]
 sources: [_bmad-output/initiative-auratranslate/ad-brief-san-chuot/ad-brief-san-chuot.md]
 companions: [_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, _bmad-output/initiative-auratranslate/tickets/epic-san-chuot/ux-san-chuot/EXPERIENCE.md, _bmad-output/initiative-auratranslate/tickets/epic-san-chuot/ux-san-chuot/DESIGN.md]
 after: []
@@ -75,4 +75,7 @@ Người dùng không nhớ phím vẫn tìm thấy và bấm được mọi ch�
 - Decision: 2026-10-30 CI nửa Windows đọc ở từng story theo AGENTS.md, không có entry riêng.
 - Decision: 2026-10-30 Ice chọn `pointer: aim` cho hai id `extend`, `at: src/panels/GridPanel.vue`, không nới `gesture`: AD-62 mục 3 không đổi và cổng còn canh được đường kéo.
 - Decision: 2026-10-30 Ice ký dòng 🔵 ở AD-62 mục 6 (i), khớp hai đường của R7.
-- Open question: NFR sàn chuột chưa có số; John thêm qua correct-course ngoài cây story, rồi `covers` của epic mới trỏ được vào nó.
+- Decision: 2026-11-01 ba nợ mã Ice đưa ra khỏi Story 14.10 thành entry 11, 12, 13, đứng sau Refactor sweep như một đợt nối tiếp; sweep không dời xuống cuối, không thêm sweep thứ hai; `covers` trống vì ba entry bám Done when 3; build lần lượt trên `master` như entry 2–9, nên `GridPanel.vue` và `editorPanelState.ts` dùng chung không cần thêm `after`.
+- Decision: 2026-11-01 Ice nới "mọi đường bàn phím đang có không đổi" cho đúng một hành vi: đóng lớp phủ trả caret về chỗ cũ, cả khi mở bằng phím (entry 11).
+- Decision: 2026-11-01 Ice chọn đóng phiên Rà soát khi Chương khác đã mở xong, không chặn, không chuyển phiên theo Chương (entry 12).
+- Open question: NFR sàn chuột chưa có số; John thêm qua correct-course ngoài cây story, rồi `covers` của epic mới trỏ được vào nó. 🔵 2026-11-01: đã thêm NFR20 (commit `37641584`), `covers` trỏ vào đó, Done when 5 đạt.

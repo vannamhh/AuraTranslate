@@ -118,3 +118,39 @@ covers = []
 after = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 hitl = false
 risk = "low"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Phím không lọt xuống ô bản dịch sau lớp phủ mở bằng chuột"
+description = "Đo ở Story 14.4: mở Lịch sử từ menu câu rồi gõ, `abc` thành `abcQ`, vì WebKit giữ vùng chọn khi cú bấm chuột đổi tiêu điểm; đường phím thì WebKit tự xoá. Mới chặn cho menu câu, chưa đo nút thanh tiêu đề, thanh trạng thái, `Công cụ ▾`, tab chế độ. Story đo từng đường rồi chặn ở một chỗ chung: 22 lớp phủ cùng khuôn mở nhưng mỗi tệp tự viết, và bản riêng ở `src/panels/sentenceMenuState.ts`, `src/panels/segmentHistoryState.ts` gộp về chỗ đó. Chỉ xoá vùng chọn thì tạo lỗi khác: `focus()` lúc đóng đưa caret về đầu ô (`zzabc`), nên lưu điểm caret lúc mở và trả lúc đóng, theo khuôn Story 14.10 đã dựng cho Lịch sử. Lớp phủ có ô nhập vẫn nhận phím ở ô đó. Đóng lớp phủ trả caret về chỗ cũ ở cả đường chuột lẫn đường phím, theo lựa chọn của Ice."
+verify = "Bàn đo chuột thật trên WKWebView, caret giữa một ô, một ca cho mỗi đường mở bằng chuột ở thanh tiêu đề, thanh trạng thái, `Công cụ ▾`, tab chế độ và menu câu: phím gõ khi lớp phủ mở không đổi chữ của ô, đọc cả `target_text` trên đĩa; `Esc` rồi gõ tiếp chèn đúng chỗ cũ, cả khi mở bằng phím; bảng đường đo ở `14-11-ban-do/ket-qua.md`; một spec e2e khoá chỗ chung, gỡ chỗ chung thì spec đỏ."
+covers = []
+after = [10]
+hitl = false
+risk = "high"
+references = ["deferred-work.md §Deferred from: Story 14.4", "_bmad-output/implementation-artifacts/14-4-ban-do/ket-qua.md"]
+
+[[entry]]
+id = 12
+type = "story"
+title = "Mở Chương khác khi Review Mode đang mở"
+description = "Từ Thư viện hoặc Chế độ đọc, `openChapterById` đổi Chương của Editor trong khi Review Mode vẫn giữ Chương cũ: tab chế độ không khoá khi Review Mode mở, và 11 chỗ gọi hàm này không chỗ nào hỏi Review Mode; Story 14.4 chỉ chặn hai lệnh chuyển Chương kề. Lượt chấp nhận vẫn ghi vào Chương cũ, và đóng Review Mode thì người dùng đứng ở Chương khác với lúc vào. Theo lựa chọn của Ice, Chương mới mở xong thì phiên Rà soát đóng, ở chỗ chung để cả 11 đường cùng một kết quả; lượt mở bị chặn thì phiên còn nguyên. Mở đúng Chương đang rà soát thì Review Mode giữ nguyên. Đổi Tác phẩm không thuộc story này, `resetReviewMode` đã đóng phiên ở đường đó."
+verify = "Trên app thật: mở Review Mode ở Chương A, sang Thư viện, mở Chương B, Workspace hiện B, dải Rà soát đã đóng, không còn trạng thái Editor ở B mà dải Rà soát ở A; mở lại đúng Chương A thì dải Rà soát còn nguyên; flush trượt thì Review Mode còn nguyên và lý do hiện trên màn người dùng đang đứng; một ca Vitest đi qua lời gọi thật, gỡ chỗ xử lý thì ca đỏ."
+covers = []
+after = [4]
+hitl = false
+risk = "medium"
+references = ["deferred-work.md §Deferred from: Story 14.4", "tickets/epic-san-chuot/tickets/story-mo-ra-soat-va-lich-su-bang-chuot-plan.md"]
+
+[[entry]]
+id = 13
+type = "story"
+title = "Kéo cột số câu mượt trên Chương lớn"
+description = "Đo ở Story 14.3 trên binary debug, Vite dev, tải 6–7: trung vị 116 ms mỗi hàng kéo qua trên Chương 9.850 câu, 29 ms trên 2.000 câu; chi phí theo cỡ Chương, không theo số hàng đổi. Story đo lại trên bản phát hành trước. Còn trên 50 ms thì chỉ render lại khối có hàng đổi, cùng khuôn prop `caretId` theo khối; `selectedRowClassById` là nghi phạm chưa xác nhận, vì mọi `GridBlock` đọc chung một Map. Dưới 50 ms thì đóng mục nợ bằng số đo, không sửa mã."
+verify = "Cùng bàn đo Story 14.3, Chương 9.850 câu, bản phát hành: trung vị mỗi hàng kéo dưới 50 ms, ghi bản dựng, quần thể, tải máy ở `14-13-ban-do/ket-qua.md`; nếu có sửa mã thì số trước và sau cùng điều kiện, gõ trong lưới không chậm đi, kéo và `Shift`+bấm tô đúng các câu như trước."
+covers = []
+after = [3]
+hitl = false
+risk = "medium"
+references = ["deferred-work.md §Deferred from: Story 14.3", "_bmad-output/implementation-artifacts/14-3-ban-do/ket-qua.md"]
