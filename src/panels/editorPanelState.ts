@@ -19,6 +19,7 @@
  */
 import { computed, nextTick, readonly, ref, shallowRef, triggerRef, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
+import { resetGridScrollMemory } from './gridScrollMemory'
 import { textShapeOf } from './editorSegments'
 import type { TextShape } from './editorSegments'
 import { enterFocus } from '../commands'
@@ -1019,6 +1020,7 @@ export function resetEditorPanel(): void {
   caretSegmentId.value = null
   lastCaretSegmentId.value = null
   requested = false
+  resetGridScrollMemory()
   // 🔵 THÊM Story 6.14 — ảnh/thư mục thuộc Tác phẩm VỪA BỊ THAY, cùng lý lẽ `segments` ngay trên.
   chapterAssets.value = []
   assetsDir.value = ''

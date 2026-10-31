@@ -33,11 +33,13 @@ import { defineComponent, nextTick } from 'vue'
 import { createDockview } from 'dockview-core'
 import WorkspaceDock from '../../src/layout/WorkspaceDock.vue'
 import WorkspaceMode from '../../src/modes/WorkspaceMode.vue'
-import { applyPreset, currentLayoutJson, panelRing, togglePanel } from '../../src/layout/dockController'
+import { applyLayoutJson, applyPreset, currentLayoutJson, panelRing, togglePanel } from '../../src/layout/dockController'
 import { activeLayoutPreset } from '../../src/layout/layoutPresetState'
 import { visibleDockPanels } from '../../src/layout/panelVisibilityState'
 import { t } from '../../src/i18n'
+import { sizeFromTree } from '../../src/layout/dockTree'
 import type { GridNode, SerializedGrid } from '../../src/layout/dockTree'
+import GridPanel from '../../src/panels/GridPanel.vue'
 
 function setWindowSize(width: number, height: number): void {
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
@@ -1080,7 +1082,7 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
   // D2 — bookkeeping only: happy-dom cannot measure geometry, so the group size is faked on
   // the dockview prototype. The sash check on a real build is a separate hand check.
   // ───────────────────────────────────────────────────────────────────────────
-  it('D2 — full → narrow → full re-applies each re-added group\'s remembered size, and persists nothing', async () => {
+  it('D2 — full → narrow → full re-applies each re-added group\'s size read from the remembered tree, and persists nothing', async () => {
     const setSize = fakeGroupSize()
 
     setChromeTokens()
@@ -1096,6 +1098,9 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
       await settle()
       const baseline = wrapper.emitted('persist')?.length ?? 0
       expect(baseline).toBeGreaterThan(0)
+      const before = (JSON.parse(currentLayoutJson() as string) as { grid: SerializedGrid }).grid
+      const expectedSizes = ['panel.lookup', 'panel.ai_translation'].map((id) => sizeFromTree(before, id))
+      expect(expectedSizes.every((size) => size !== undefined)).toBe(true)
       setSize.mockClear()
 
       await resize(SIZE_NARROW.width, SIZE_NARROW.height)
@@ -1105,7 +1110,9 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
       await resize(SIZE_FULL.width, SIZE_FULL.height)
       expect(new Set(panelRing())).toEqual(new Set(['panel.grid', 'panel.lookup', 'panel.ai_translation']))
 
-      const reapplied = setSize.mock.calls.filter(([event]) => event.width === 321 && event.height === 213)
+      const reapplied = setSize.mock.calls.filter(([event]) =>
+        expectedSizes.some((size) => size?.width === event.width && size?.height === event.height),
+      )
       expect(reapplied.length).toBe(2)
       expect(wrapper.emitted('persist')?.length ?? 0).toBe(baseline)
       window.dispatchEvent(new Event('beforeunload'))
@@ -1163,33 +1170,124 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
     }
   })
 
-  it('off A, off B, on A takes the fallback spot, stays visible, and a preset restores the full layout', async () => {
+  const SHAPE_TRIM = (json: string): string => shapeOf(json).replace(/^\((\(.*\))\)$/, '$1')
+  const hiddenLayoutOf = (json: string): unknown => (JSON.parse(json) as { hiddenLayout?: unknown }).hiddenLayout
+
+  async function mountDefaultFull() {
     setChromeTokens()
     setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
     const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' } })
+    await settle()
+    return wrapper
+  }
+
+  it.each([
+    ['not reversed', ['lookup', 'ai_translation'], ['lookup', 'ai_translation']],
+    ['reversed', ['lookup', 'ai_translation'], ['ai_translation', 'lookup']],
+    ['grid in the chain', ['grid', 'lookup'], ['grid', 'lookup']],
+    ['grid in the chain, reversed', ['grid', 'lookup'], ['lookup', 'grid']],
+  ])('two hidden panels, %s: showing both returns the original tree', async (_name, off, on) => {
+    const wrapper = await mountDefaultFull()
     try {
-      await settle()
-      const full = shapeOf(currentLayoutJson() as string).replace(/^\((\(.*\))\)$/, '$1')
-      expect(togglePanel('panel.lookup')).toBe(true)
-      await settle()
-      expect(togglePanel('panel.ai_translation')).toBe(true)
-      await settle()
-      expect(togglePanel('panel.lookup')).toBe(true)
-      await settle()
-      expect([...visibleDockPanels.value].sort()).toEqual(['panel.grid', 'panel.lookup'])
-      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|lookup)')
-      expect(togglePanel('panel.ai_translation')).toBe(true)
-      await settle()
-      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|ai_translation|lookup)')
-      expect(applyPreset('layout.preset_grid')).toBe(true)
-      await settle()
-      expect(shapeOf(currentLayoutJson() as string).replace(/^\((\(.*\))\)$/, '$1')).toBe(full)
+      const full = SHAPE_TRIM(currentLayoutJson() as string)
+      for (const id of off) {
+        expect(togglePanel(`panel.${id}`)).toBe(true)
+        await settle()
+      }
+      for (const id of on) {
+        expect(togglePanel(`panel.${id}`)).toBe(true)
+        await settle()
+      }
+      expect(SHAPE_TRIM(currentLayoutJson() as string)).toBe(full)
+      expect(hiddenLayoutOf(currentLayoutJson() as string)).toBeUndefined()
     } finally {
       wrapper.unmount()
     }
   })
 
-  it('a panel hidden in the saved layout returns right of the first visible panel', async () => {
+  it('panels tabbed together: hiding then showing one returns it to the same tab group', async () => {
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: USER_TABBED_LAYOUT } })
+    try {
+      await settle()
+      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|lookup,ai_translation)')
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|lookup,ai_translation)')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('a hidden panel survives close and reopen: the saved JSON carries hiddenLayout and showing returns it to its place and size', async () => {
+    const setSize = fakeGroupSize()
+    const first = await mountDefaultFull()
+    let saved = ''
+    try {
+      for (let i = 0; i < 2; i += 1) {
+        expect(togglePanel('panel.ai_translation')).toBe(true)
+        await settle()
+      }
+      const full = SHAPE_TRIM(currentLayoutJson() as string)
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      saved = currentLayoutJson() as string
+      expect(hiddenLayoutOf(saved)).toBeDefined()
+      expect(shapeOf(saved)).toBe('(grid|ai_translation)')
+      const savedGrid = (hiddenLayoutOf(saved) as { grid: SerializedGrid }).grid
+      const size = sizeFromTree(savedGrid, 'panel.lookup')
+      expect(size).toBeDefined()
+      first.unmount()
+      const second = mount(WorkspaceDock, { props: { savedLayout: saved } })
+      try {
+        await settle()
+        setSize.mockClear()
+        expect(togglePanel('panel.lookup')).toBe(true)
+        await settle()
+        expect(SHAPE_TRIM(currentLayoutJson() as string)).toBe(full)
+        expect(setSize.mock.calls.some(([event]) => event.width === size?.width && event.height === size?.height)).toBe(true)
+      } finally {
+        second.unmount()
+      }
+    } finally {
+      first.unmount()
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('two panels hidden across close and reopen return to the original tree in either order', async () => {
+    for (const order of [['lookup', 'ai_translation'], ['ai_translation', 'lookup']]) {
+      const first = await mountDefaultFull()
+      let saved = ''
+      let full = ''
+      try {
+        full = SHAPE_TRIM(currentLayoutJson() as string)
+        expect(togglePanel('panel.lookup')).toBe(true)
+        await settle()
+        expect(togglePanel('panel.ai_translation')).toBe(true)
+        await settle()
+        saved = currentLayoutJson() as string
+      } finally {
+        first.unmount()
+      }
+      const second = mount(WorkspaceDock, { props: { savedLayout: saved } })
+      try {
+        await settle()
+        for (const id of order) {
+          expect(togglePanel(`panel.${id}`)).toBe(true)
+          await settle()
+        }
+        expect(SHAPE_TRIM(currentLayoutJson() as string)).toBe(full)
+      } finally {
+        second.unmount()
+      }
+    }
+  })
+
+  it('a saved layout without hiddenLayout puts the panel right of the first visible panel', async () => {
     setChromeTokens()
     setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
     const twoPanels = ICE_DISK_LAYOUT_2026_09_23.replace(
@@ -1200,11 +1298,154 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
     try {
       await settle()
       expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|lookup)')
+      expect(hiddenLayoutOf(currentLayoutJson() as string)).toBeUndefined()
       expect(togglePanel('panel.ai_translation')).toBe(true)
       await settle()
       expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|ai_translation|lookup)')
     } finally {
       wrapper.unmount()
+    }
+  })
+
+  it.each([
+    ['not an object', '"x"'],
+    ['no grid', '{}'],
+    ['bad orientation', '{"grid":{"root":{"type":"leaf","data":{"views":["panel.lookup"],"activeView":"panel.lookup","id":"2"}},"orientation":"DIAGONAL"}}'],
+    ['bad node', '{"grid":{"root":{"type":"leaf","data":{"views":[1]}},"orientation":"HORIZONTAL"}}'],
+  ])('a corrupt hiddenLayout (%s) is ignored with a console.error and the rest of the layout still builds', async (_name, hiddenLayout) => {
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    const twoPanels = USER_TABBED_LAYOUT.replace(',"panel.ai_translation"', '')
+    const withBad = twoPanels.replace(/\}$/, `,"hiddenLayout":${hiddenLayout}}`)
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: withBad } })
+    try {
+      await settle()
+      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|lookup)')
+      expect(errors.mock.calls.some(([m]) => String(m).includes('hiddenLayout'))).toBe(true)
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|ai_translation|lookup)')
+    } finally {
+      wrapper.unmount()
+      errors.mockRestore()
+    }
+  })
+
+  it('a preset applied while a panel is hidden drops the remembered tree', async () => {
+    const wrapper = await mountDefaultFull()
+    try {
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      expect(applyPreset('layout.preset_columns')).toBe(true)
+      await settle()
+      const columns = SHAPE_TRIM(currentLayoutJson() as string)
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(SHAPE_TRIM(currentLayoutJson() as string)).toBe(columns)
+      expect(hiddenLayoutOf(currentLayoutJson() as string)).toBeUndefined()
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('a drag while a panel is hidden drops the remembered tree: the panel returns visible and a moved panel returns to its fresh spot', async () => {
+    const wrapper = await mountDefaultFull()
+    try {
+      const params = wrapper.findComponent(GridPanel).props('params') as unknown as {
+        containerApi: { getPanel: (id: string) => { api: { moveTo: (o: object) => void; group: unknown } } | undefined }
+      }
+      const api = params.containerApi
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      expect(hiddenLayoutOf(currentLayoutJson() as string)).toBeDefined()
+      const ai = api.getPanel('panel.ai_translation')
+      const grid = api.getPanel('panel.grid')
+      ai?.api.moveTo({ group: grid?.api.group, position: 'bottom' })
+      await settle()
+      expect(hiddenLayoutOf(currentLayoutJson() as string)).toBeUndefined()
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      expect([...visibleDockPanels.value].sort()).toEqual(['panel.ai_translation', 'panel.grid', 'panel.lookup'])
+      const moved = SHAPE_TRIM(currentLayoutJson() as string)
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(SHAPE_TRIM(currentLayoutJson() as string)).toBe(moved)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('short tier: hiding then showing the merged panel keeps it in the tab group', async () => {
+    setChromeTokens()
+    setWindowSize(SIZE_SHORT.width, SIZE_SHORT.height)
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' } })
+    try {
+      await settle()
+      const merged = wrapper.find('.dock-host')
+      expect(merged.attributes('data-layout-merged')).toBe('true')
+      const groups = () => wrapper.element.querySelectorAll('.dv-groupview').length
+      expect(groups()).toBe(2)
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(merged.attributes('data-layout-merged')).toBe('true')
+      expect(groups()).toBe(2)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('a user preset saved while a panel is hidden brings the panel back to its saved place', async () => {
+    const wrapper = await mountDefaultFull()
+    try {
+      const full = SHAPE_TRIM(currentLayoutJson() as string)
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      const saved = currentLayoutJson() as string
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(applyPreset('layout.preset_grid')).toBe(true)
+      await settle()
+      expect(applyLayoutJson(saved)).toBe(true)
+      await settle()
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(SHAPE_TRIM(currentLayoutJson() as string)).toBe(full)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('full → narrow → full returns the original tree and size', async () => {
+    const setSize = fakeGroupSize()
+    const wrapper = await mountDefaultFull()
+    try {
+      for (let i = 0; i < 2; i += 1) {
+        expect(togglePanel('panel.ai_translation')).toBe(true)
+        await settle()
+      }
+      const json = currentLayoutJson() as string
+      const full = SHAPE_TRIM(json)
+      const grid = (JSON.parse(json) as { grid: SerializedGrid }).grid
+      const sizes = ['panel.lookup', 'panel.ai_translation'].map((id) => sizeFromTree(grid, id))
+      expect(sizes.every((size) => size !== undefined)).toBe(true)
+      await resize(SIZE_NARROW.width, SIZE_NARROW.height)
+      expect(panelRing()).toEqual(['panel.grid'])
+      setSize.mockClear()
+      await resize(SIZE_FULL.width, SIZE_FULL.height)
+      expect(SHAPE_TRIM(currentLayoutJson() as string)).toBe(full)
+      for (const size of sizes) {
+        expect(setSize.mock.calls.some(([event]) => event.width === size?.width && event.height === size?.height)).toBe(true)
+      }
+    } finally {
+      wrapper.unmount()
+      vi.restoreAllMocks()
     }
   })
 

@@ -14,7 +14,16 @@
  * `WorkspaceDock.vue::rememberSpot` cũ luôn trả `'right'`).
  */
 import { describe, expect, it } from 'vitest'
-import { edgeGroupIds, findTreeSpot, unmergeForPersist, viewsIn } from '../../src/layout/dockTree'
+import {
+  edgeGroupIds,
+  findTreeSpot,
+  parseHiddenLayout,
+  removeViews,
+  sizeFromTree,
+  spotInTree,
+  unmergeForPersist,
+  viewsIn,
+} from '../../src/layout/dockTree'
 import type { GridNode, SerializedDockJSON, SerializedGrid } from '../../src/layout/dockTree'
 
 function leaf(id: string): GridNode {
@@ -423,5 +432,110 @@ describe('unmergeForPersist — beside a whole branch goes to the root edge', ()
     })
     expect(result.grid.orientation).toBe('VERTICAL')
     expect(shape(result.grid.root, result.grid.orientation)).toBe('(panel.grid/panel.lookup/panel.ai_translation)')
+  })
+})
+
+function sized(node: GridNode, size: number): GridNode {
+  return { ...(node as object), size } as unknown as GridNode
+}
+
+// grid (w 600) | [lookup (h 300) / ai (h 500)] in a column of w 400, dock 1000 x 800
+const SIZED_B2 = (): SerializedGrid & { width: number; height: number } => ({
+  orientation: 'HORIZONTAL',
+  width: 1000,
+  height: 800,
+  root: sized(
+    {
+      type: 'branch',
+      data: [
+        sized(leaf('panel.grid'), 600),
+        sized({ type: 'branch', data: [sized(leaf('panel.lookup'), 300), sized(leaf('panel.ai_translation'), 500)] }, 400),
+      ],
+    },
+    800,
+  ),
+})
+
+describe('removeViews', () => {
+  it('drops emptied leaves and branches but keeps single-child branches', () => {
+    const out = removeViews(SIZED_B2(), new Set(['panel.lookup']))
+    expect(viewsIn(out.root)).toEqual(['panel.grid', 'panel.ai_translation'])
+    const column = (out.root.data as GridNode[])[1] as GridNode
+    expect(column.type).toBe('branch')
+    expect((column.data as GridNode[]).length).toBe(1)
+  })
+
+  it('does not mutate its input', () => {
+    const tree = SIZED_B2()
+    removeViews(tree, new Set(['panel.lookup', 'panel.ai_translation']))
+    expect(viewsIn(tree.root)).toHaveLength(3)
+  })
+
+  it('a leaf losing only some views stays and gets a live activeView', () => {
+    const tree = SIZED_B2()
+    ;((tree.root.data as GridNode[])[0] as { data: { views: string[] } }).data.views.push('panel.extra')
+    const out = removeViews(tree, new Set(['panel.grid']))
+    const first = (out.root.data as GridNode[])[0] as { data: { views: string[]; activeView: string } }
+    expect(first.data.views).toEqual(['panel.extra'])
+    expect(first.data.activeView).toBe('panel.extra')
+  })
+})
+
+describe('spotInTree', () => {
+  it('reads the tree sibling of a lone panel, through single-child branches', () => {
+    const reduced = removeViews(SIZED_B2(), new Set(['panel.lookup']))
+    expect(spotInTree(reduced, 'panel.ai_translation')).toEqual({ reference: 'panel.grid', direction: 'right', beside: 'leaf' })
+  })
+
+  it('reads a tab mate as within', () => {
+    const tree = SIZED_B2()
+    ;((tree.root.data as GridNode[])[0] as { data: { views: string[] } }).data.views.push('panel.lookup')
+    expect(spotInTree(removeViews(tree, new Set()), 'panel.lookup')).toEqual({ reference: 'panel.grid', direction: 'within' })
+  })
+
+  it('returns null for a panel not in the tree', () => {
+    expect(spotInTree(SIZED_B2(), 'panel.nope')).toBeNull()
+  })
+})
+
+describe('sizeFromTree', () => {
+  it('reads width from the column branch and height from the leaf', () => {
+    expect(sizeFromTree(SIZED_B2(), 'panel.ai_translation')).toEqual({ width: 400, height: 500 })
+  })
+
+  it('reads a top-level leaf: width from the leaf, height from the dock', () => {
+    expect(sizeFromTree(SIZED_B2(), 'panel.grid')).toEqual({ width: 600, height: 800 })
+  })
+
+  it('a 0 size on the way is "no size", not a fall through to the dock', () => {
+    const tree = SIZED_B2()
+    ;((tree.root.data as GridNode[])[1] as unknown as { size: number }).size = 0
+    expect(sizeFromTree(tree, 'panel.ai_translation')).toBeUndefined()
+  })
+
+  it('is undefined when the panel is absent', () => {
+    expect(sizeFromTree(SIZED_B2(), 'panel.nope')).toBeUndefined()
+  })
+})
+
+describe('parseHiddenLayout', () => {
+  it('accepts a real grid and copies it', () => {
+    const tree = SIZED_B2()
+    const parsed = parseHiddenLayout({ grid: tree })
+    expect(parsed).toEqual(tree)
+    expect(parsed).not.toBe(tree)
+  })
+
+  it.each([
+    ['null', null],
+    ['string', 'x'],
+    ['no grid', {}],
+    ['bad orientation', { grid: { orientation: 'X', root: leaf('a') } }],
+    ['leaf without views', { grid: { orientation: 'HORIZONTAL', root: { type: 'leaf', data: {} } } }],
+    ['empty branch', { grid: { orientation: 'HORIZONTAL', root: { type: 'branch', data: [] } } }],
+    ['NaN size', { grid: { orientation: 'HORIZONTAL', root: sized(leaf('a'), Number.NaN) } }],
+    ['unknown node type', { grid: { orientation: 'HORIZONTAL', root: { type: 'x', data: [] } } }],
+  ])('rejects %s', (_name, value) => {
+    expect(parseHiddenLayout(value)).toBeNull()
   })
 })

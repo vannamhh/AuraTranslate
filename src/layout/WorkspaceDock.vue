@@ -55,10 +55,18 @@ import {
 } from './workspaceLayout'
 import type { LayoutTier, PanelId, PlacementDirection, PresetId, WorkArea } from './workspaceLayout'
 import { syncDockEdgeClasses } from './dockEdges'
-import { findTreeSpot, unmergeForPersist, withoutHideHeader } from './dockTree'
+import {
+  findTreeSpot,
+  parseHiddenLayout,
+  removeViews,
+  sizeFromTree,
+  spotInTree,
+  unmergeForPersist,
+  withoutHideHeader,
+} from './dockTree'
 import { panelHeadersShown } from './panelHeadersState'
 import { resetVisibleDockPanels, setVisibleDockPanels } from './panelVisibilityState'
-import type { GridNode, RememberedTreeSpot, SerializedDockJSON, SerializedGrid } from './dockTree'
+import type { GridNode, HiddenLayoutGrid, RememberedTreeSpot, SerializedDockJSON, SerializedGrid } from './dockTree'
 
 const props = defineProps<{
   /**
@@ -173,6 +181,16 @@ type RememberedSpot = {
 }
 const hidden = new Map<PanelId, RememberedSpot>()
 
+// The full tree as it stood when the first panel was hidden (`null` once nothing is hidden), in the
+// live shape for placing and in the shape written to disk (unmerged when the tier had merged).
+let hiddenTree: HiddenLayoutGrid | null = null
+let hiddenTreeSaved: HiddenLayoutGrid | null = null
+
+function setHiddenTree(live: HiddenLayoutGrid | null, saved: HiddenLayoutGrid | null = live): void {
+  hiddenTree = live
+  hiddenTreeSaved = saved
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════
 // Đọc lưới
 // ═══════════════════════════════════════════════════════════════════════════════════
@@ -244,6 +262,7 @@ function applyPreset(presetId: string): boolean {
   }
   api.clear()
   hidden.clear()
+  setHiddenTree(null)
   // 🔵 Story 4.12, Task 3 — một preset MỚI là một bố cục lại từ đầu, nên sổ tầng cũ (panel
   // nào tầng đang ẩn, có đang gộp tab không) không còn nói đúng sự thật nữa. Dọn ba biến này
   // CÙNG LÚC với `hidden.clear()` ở trên — cùng một lý do, cùng một lượt.
@@ -270,6 +289,7 @@ function applyPreset(presetId: string): boolean {
     )
     api.clear()
     hidden.clear()
+    setHiddenTree(null)
     autoHiddenIds.clear()
     tierMerged.value = false
     mergedSpot = null
@@ -375,6 +395,12 @@ function rememberSpot(api: DockviewApi, panel: IDockviewPanel): RememberedSpot |
   return { reference: spot.reference, direction: spot.direction, beside: spot.beside, size: groupSizeOf(panel) }
 }
 
+function captureHiddenTree(api: DockviewApi): void {
+  const json = withoutHideHeader(api.toJSON() as unknown as SerializedDockJSON)
+  const saved = tierMerged.value && mergedSpot !== null ? unmergeForPersist(json, 'panel.ai_translation', mergedSpot) : json
+  setHiddenTree(json.grid, saved.grid)
+}
+
 function hidePanel(id: PanelId): boolean {
   const api = dock.value
   if (api === null) return false
@@ -388,6 +414,7 @@ function hidePanel(id: PanelId): boolean {
     )
     return false
   }
+  if (hiddenTree === null) captureHiddenTree(api)
   hidden.set(id, spot)
   // 🔴 `removePanel` gỡ panel khỏi DOM HOÀN TOÀN, và dockview tự cho các panel còn lại lấp
   // đầy chỗ trống — đúng chữ của FR17. Không phải tự tính lại kích thước.
@@ -395,11 +422,27 @@ function hidePanel(id: PanelId): boolean {
   return true
 }
 
+function placeFromTree(api: DockviewApi, id: PanelId): { spot: RememberedSpot; size: RememberedSize | undefined } | null {
+  if (hiddenTree === null) return null
+  const reduced = removeViews(hiddenTree, new Set<string>(hidden.keys()))
+  const found = spotInTree(reduced, id)
+  if (found === null || !isPanelId(found.reference) || api.getPanel(found.reference) === undefined) return null
+  const size = found.direction === 'within' ? undefined : sizeFromTree(hiddenTree, id)
+  return { spot: { reference: found.reference, direction: found.direction, beside: found.beside }, size }
+}
+
 function showPanel(id: PanelId): boolean {
   const api = dock.value
   if (api === null) return false
   const spot = hidden.get(id)
   hidden.delete(id)
+  const fromTree = placeFromTree(api, id)
+  if (fromTree !== null) {
+    const shown = addPanel(api, id, spotPosition(fromTree.spot))
+    if (fromTree.spot.direction !== 'within') reapplySize(shown, fromTree.size ?? spot?.size)
+    if (hidden.size === 0) setHiddenTree(null)
+    return true
+  }
   /**
    * ⚠️ Neo đã nhớ có thể không còn: người dùng ẩn `panel.lookup` (neo vào
    * `panel.ai_translation`) rồi ẩn nốt `panel.ai_translation`. Rơi về preset mặc định là
@@ -412,6 +455,7 @@ function showPanel(id: PanelId): boolean {
   if (anchorId === undefined) {
     // Không neo nào ⇒ lưới rỗng ⇒ panel này chiếm cả lưới. Hợp lệ, không phải lỗi.
     addPanel(api, id)
+    if (hidden.size === 0) setHiddenTree(null)
     return true
   }
   const direction = spot !== undefined && api.getPanel(spot.reference) !== undefined
@@ -420,6 +464,7 @@ function showPanel(id: PanelId): boolean {
   const atSpot = spot !== undefined && anchorId === spot.reference
   const shown = addPanel(api, id, atSpot ? spotPosition(spot) : { referencePanel: anchorId, direction })
   if (atSpot) reapplySize(shown, spot.size)
+  if (hidden.size === 0) setHiddenTree(null)
   return true
 }
 
@@ -797,10 +842,17 @@ let timer: ReturnType<typeof setTimeout> | null = null
  */
 function jsonForPersist(api: DockviewApi): unknown {
   const json = withoutHideHeader(api.toJSON() as unknown as SerializedDockJSON)
-  if (tierMerged.value && mergedSpot !== null) {
-    return unmergeForPersist(json, 'panel.ai_translation', mergedSpot)
-  }
-  return json
+  const live = tierMerged.value && mergedSpot !== null ? unmergeForPersist(json, 'panel.ai_translation', mergedSpot) : json
+  if (hiddenTreeSaved === null || hidden.size === 0) return live
+  return { ...live, hiddenLayout: { grid: hiddenTreeSaved } }
+}
+
+function readHiddenLayout(parsed: unknown): HiddenLayoutGrid | null {
+  const raw = (parsed as { hiddenLayout?: unknown } | null)?.hiddenLayout
+  if (raw === undefined) return null
+  const tree = parseHiddenLayout(raw)
+  if (tree === null) console.error('[layout] `hiddenLayout` trong bố cục đã lưu sai hình dạng — bỏ qua trường này.')
+  return tree
 }
 
 function syncPanelHeaders(): void {
@@ -836,8 +888,10 @@ function applyLayoutJson(json: string): boolean {
   const before = jsonForPersist(api)
   api.clear()
   let restored = false
+  let parsed: unknown = null
   try {
-    api.fromJSON(JSON.parse(json))
+    parsed = JSON.parse(json)
+    api.fromJSON(parsed as Parameters<DockviewApi['fromJSON']>[0])
     restored = api.panels.length > 0
   } catch {
     restored = false
@@ -853,6 +907,7 @@ function applyLayoutJson(json: string): boolean {
     return false
   }
   hidden.clear()
+  setHiddenTree(null)
   autoHiddenIds.clear()
   tierMerged.value = false
   mergedSpot = null
@@ -860,6 +915,7 @@ function applyLayoutJson(json: string): boolean {
   for (const id of PANEL_IDS) {
     if (api.getPanel(id) === undefined) hidden.set(id, { reference: id, direction: 'right' })
   }
+  if (hidden.size > 0) setHiddenTree(readHiddenLayout(parsed))
   onLayoutChange()
   measureAndApplyTier()
   syncPanelHeaders()
@@ -962,8 +1018,10 @@ function restore(api: DockviewApi, saved: string): void {
     applyPreset(DEFAULT_PRESET_ID)
     return
   }
+  let parsed: unknown = null
   try {
-    api.fromJSON(JSON.parse(saved))
+    parsed = JSON.parse(saved)
+    api.fromJSON(parsed as Parameters<DockviewApi['fromJSON']>[0])
     setActiveLayoutPreset(null)
   } catch (err) {
     console.error(
@@ -990,16 +1048,12 @@ function restore(api: DockviewApi, saved: string): void {
   // Panel vắng mặt trong bố cục đã lưu ⇒ nó đang ẩn. Đừng dựng lại nó: người dùng đã
   // chọn ẩn, và AC4 nói bố cục khôi phục **nguyên trạng**.
   //
-  // ⚠️ `{ reference: id, direction: 'right' }` là một sổ vị trí TỰ THAM CHIẾU, có chủ ý —
-  // bắt được ở lượt code review. Ta đã mất chỗ thật của panel này (nó không nằm trong JSON
-  // đã lưu), nên không có neo nào để nhớ. Đặt `reference` bằng chính `id` của nó bảo đảm
-  // `api.getPanel(spot.reference)` ở `showPanel()` LUÔN trả `undefined` (một panel ẩn thì
-  // không có mặt trong dock) — tức cưỡng ép `showPanel()` rơi đúng vào nhánh dự phòng
-  // "neo đã nhớ không còn": đặt bên phải panel đầu tiên đang hiện. Đừng "dọn" sentinel
-  // này bằng một `reference` khác — nó phải trỏ vào chính nó để nhánh dự phòng đó chạy.
+  // The self-referencing `reference` is a sentinel: its anchor never resolves, so `showPanel()` falls back
+  // to the right of the first visible panel unless `hiddenLayout` places it. Do not change it.
   for (const id of PANEL_IDS) {
     if (api.getPanel(id) === undefined) hidden.set(id, { reference: id, direction: 'right' })
   }
+  if (hidden.size > 0) setHiddenTree(readHiddenLayout(parsed))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════
@@ -1056,6 +1110,7 @@ function onReady(event: DockviewReadyEvent): void {
   syncVisiblePanels()
   disposables.push(api.onDidAddPanel(syncVisiblePanels))
   disposables.push(api.onDidRemovePanel(syncVisiblePanels))
+  disposables.push(api.onDidMovePanel(() => setHiddenTree(null)))
   disposables.push(api.onDidLayoutChange(onLayoutChange))
   disposables.push(api.onDidLayoutChange(syncPanelHeaders))
   disposables.push(api.onDidLayoutChange(() => syncDockEdgeClasses(api)))

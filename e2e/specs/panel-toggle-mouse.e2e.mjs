@@ -82,8 +82,8 @@ function near(a, b, tolerance) {
 
 describe('Công tắc panel bằng chuột trong WKWebView thật', () => {
   it('ba mục hiện ở Workspace, đều bật và chưa mục nào tắt', async () => {
-    await openWorkspaceWithWork('Panel toggle — bật tắt', '一。二。')
-    await waitForGridRows(2, { what: 'Tác phẩm công tắc panel' })
+    await openWorkspaceWithWork('Panel toggle — bật tắt', '一。'.repeat(80))
+    await waitForGridRows(80, { what: 'Tác phẩm công tắc panel' })
     await ensureFullLayoutTier()
     await waitForGroups(3)
 
@@ -143,6 +143,53 @@ describe('Công tắc panel bằng chuột trong WKWebView thật', () => {
     await waitForGroups(3)
   })
 
+  for (const [name, off, on] of [
+    ['không theo thứ tự ngược', ['layout.toggle_lookup', 'layout.toggle_ai_translation'], ['layout.toggle_lookup', 'layout.toggle_ai_translation']],
+    ['theo thứ tự ngược', ['layout.toggle_lookup', 'layout.toggle_ai_translation'], ['layout.toggle_ai_translation', 'layout.toggle_lookup']],
+    ['có Đối chiếu trong chuỗi', ['layout.toggle_grid', 'layout.toggle_lookup'], ['layout.toggle_grid', 'layout.toggle_lookup']],
+  ]) {
+    it(`tắt hai panel rồi bật ${name}: định danh, vị trí và cỡ của cả ba nhóm về như cũ`, async () => {
+      const before = await groupBoxes()
+      expect(before).toHaveLength(3)
+      await flipSwitch(off[0])
+      await waitForGroups(2)
+      await flipSwitch(off[1])
+      await waitForGroups(1)
+      await flipSwitch(on[0])
+      await waitForGroups(2)
+      await flipSwitch(on[1])
+      await waitForGroups(3)
+      const after = await groupBoxes()
+      const drift = []
+      for (let i = 0; i < before.length; i += 1) {
+        if (after[i].panel !== before[i].panel) drift.push(`panel[${String(i)}] ${before[i].panel} -> ${after[i].panel}`)
+        for (const key of ['x', 'y', 'w', 'h']) {
+          if (!near(after[i][key], before[i][key], 2)) drift.push(`${key}[${String(i)}] ${String(before[i][key])} -> ${String(after[i][key])}`)
+        }
+      }
+      expect(drift).toEqual([])
+    })
+  }
+
+  it('lưới cuộn 600 rồi tắt, bật Đối chiếu: scrollTop về 600', async () => {
+    const set = await browser.execute(() => {
+      const el = document.querySelector('.grid-scroll')
+      if (el === null) return null
+      el.scrollTop = 600
+      return el.scrollTop
+    })
+    expect(set).toBeGreaterThan(598)
+    await browser.pause(200)
+    await flipSwitch('layout.toggle_grid')
+    await waitForGroups(2)
+    await flipSwitch('layout.toggle_grid')
+    await waitForGroups(3)
+    await browser.waitUntil(
+      async () => near(await browser.execute(() => document.querySelector('.grid-scroll')?.scrollTop ?? -1), 600, 2),
+      { timeout: 5_000, timeoutMsg: 'grid scrollTop did not return to 600' },
+    )
+  })
+
   it('chữ chưa flush trong Đối chiếu còn nguyên sau khi tắt rồi bật trong 2 giây', async () => {
     const cell = await $('[data-col="tgt"]')
     const segmentId = await cell.getAttribute('data-segment-id')
@@ -166,5 +213,52 @@ describe('Công tắc panel bằng chuột trong WKWebView thật', () => {
         )) === typed,
       { timeout: 5_000, timeoutMsg: 'unflushed text was lost across the switch' },
     )
+  })
+
+  it('tắt hai panel, tải lại trang, bật theo thứ tự không ngược: ba nhóm về như lúc đầu', async () => {
+    await waitForGroups(3)
+    const before = await groupBoxes()
+    await flipSwitch('layout.toggle_lookup')
+    await waitForGroups(2)
+    await flipSwitch('layout.toggle_ai_translation')
+    await waitForGroups(1)
+
+    await browser.waitUntil(
+      async () =>
+        browser.execute(async () => {
+          const config = await window.__TAURI_INTERNALS__.invoke('bootstrap_config', {})
+          if (typeof config?.workspace_layout !== 'string') return false
+          const saved = JSON.parse(config.workspace_layout)
+          const views = (node) => (node.type === 'leaf' ? node.data.views : node.data.flatMap(views))
+          return saved.hiddenLayout !== undefined && views(saved.grid.root).join() === 'panel.grid'
+        }),
+      { timeout: 15_000, interval: 250, timeoutMsg: 'the layout with two hidden panels and hiddenLayout was never persisted' },
+    )
+
+    await browser.execute(() => {
+      window.__beforeReload = true
+      window.location.reload()
+    })
+    await browser.waitUntil(async () => browser.execute(() => window.__beforeReload !== true), {
+      timeout: 60_000,
+      timeoutMsg: 'the page never reloaded',
+    })
+    await waitForGridRows(80, { what: 'Tác phẩm sau khi tải lại' })
+    await ensureFullLayoutTier()
+    await waitForGroups(1)
+
+    await flipSwitch('layout.toggle_lookup')
+    await waitForGroups(2)
+    await flipSwitch('layout.toggle_ai_translation')
+    await waitForGroups(3)
+    const after = await groupBoxes()
+    const drift = []
+    for (let i = 0; i < before.length; i += 1) {
+      if (after[i].panel !== before[i].panel) drift.push(`panel[${String(i)}] ${before[i].panel} -> ${after[i].panel}`)
+      for (const key of ['x', 'y', 'w', 'h']) {
+        if (!near(after[i][key], before[i][key], 2)) drift.push(`${key}[${String(i)}] ${String(before[i][key])} -> ${String(after[i][key])}`)
+      }
+    }
+    expect(drift).toEqual([])
   })
 })

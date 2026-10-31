@@ -134,6 +134,7 @@ import { EMPTY_SEGMENT_GLOSSARY_MARKS, glossaryMarksBySegment } from './glossary
 import { concordanceSourceHighlight } from './concordanceState'
 import type { SegmentGlossaryMarks, SegmentTermSpan } from './glossaryMarksMap'
 import { clearHoveredGlossaryTerm, setHoveredGlossaryTerm } from './glossaryTermHoverState'
+import { recalledGridScroll, rememberGridScroll } from './gridScrollMemory'
 // 🔵 Story 4.9 — vùng chọn nhiều-segment (Decision 1, batch input). `segmentSelectionIds`
 // là DANH SÁCH id theo thứ tự tài liệu; lưới chỉ cần biết hàng nào TRONG danh sách đó, xem
 // [`selectedSegmentIds`] ngay dưới.
@@ -1899,9 +1900,52 @@ const chapterId = computed(() => editorChapterId.value)
 watch(chapterId, resetSentenceMenu)
 onBeforeUnmount(resetSentenceMenu)
 
+const gridScrollRef = useTemplateRef<HTMLElement>('gridScroll')
+let restoringScroll = false
+let scrollRestoreFrame: number | null = null
+
 function onGridScroll(): void {
   closeSentenceMenu('dismissed')
+  if (restoringScroll) return
+  const el = gridScrollRef.value
+  if (el !== null) rememberGridScroll(chapterId.value, el.scrollTop)
 }
+
+const SCROLL_RESTORE_FRAMES = 10
+
+function restoreGridScroll(el: HTMLElement, target: number, framesLeft: number): void {
+  scrollRestoreFrame = requestAnimationFrame(() => {
+    scrollRestoreFrame = null
+    if (gridScrollRef.value !== el) {
+      restoringScroll = false
+      return
+    }
+    el.scrollTop = target
+    if (Math.abs(el.scrollTop - target) <= 1 || framesLeft <= 1) {
+      restoringScroll = false
+      return
+    }
+    restoreGridScroll(el, target, framesLeft - 1)
+  })
+}
+
+watch(
+  gridScrollRef,
+  (el) => {
+    if (scrollRestoreFrame !== null) cancelAnimationFrame(scrollRestoreFrame)
+    scrollRestoreFrame = null
+    restoringScroll = false
+    if (el === null) return
+    const target = recalledGridScroll(chapterId.value)
+    if (target === null) return
+    restoringScroll = true
+    restoreGridScroll(el, target, SCROLL_RESTORE_FRAMES)
+  },
+  { flush: 'post' },
+)
+onBeforeUnmount(() => {
+  if (scrollRestoreFrame !== null) cancelAnimationFrame(scrollRestoreFrame)
+})
 
 // `@keydown` arrow handlers must also `.focus()` the newly active tab button: dispatch alone
 // flips `tabindex`, not DOM focus, so a second arrow press would otherwise be a no-op.
@@ -2020,6 +2064,7 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
     <div
       v-if="hasSegments"
       id="grid-tabpanel"
+      ref="gridScroll"
       class="grid-scroll"
       :data-chapter-id="chapterId"
       @scroll.passive="onGridScroll"

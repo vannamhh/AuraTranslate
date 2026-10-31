@@ -15,7 +15,7 @@
       216
     ]
   },
-  "activation_ms": 1042,
+  "activation_ms": 972,
   "presses": [
     {
       "label": "read: open for start",
@@ -207,7 +207,7 @@
   },
   "layout.toggle_grid.scrollAfter": {
     "height": 5414,
-    "top": 0
+    "top": 600
   },
   "layout.toggle_lookup.scrollBefore": {
     "height": 5414,

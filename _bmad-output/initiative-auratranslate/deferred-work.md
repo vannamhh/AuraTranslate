@@ -13776,9 +13776,12 @@ chính nó.
 - Tắt hai panel rồi bật không theo thứ tự ngược (tắt A, tắt B, bật A) đi nhánh dự phòng của `showPanel`: panel hiện bên phải panel đầu tiên chứ không về chỗ cũ. Đo trên cây dock ở bố cục mặc định: tắt Tra cứu, tắt Đề xuất AI, bật Tra cứu, bật Đề xuất AI cho ba cột `Đối chiếu | Đề xuất AI | Tra cứu`, thay vì `Đối chiếu | (Tra cứu / Đề xuất AI)`; nút preset đưa về bố cục đủ.
   Cần: Ice thấy hành vi này khi dùng thật và quyết có sửa không.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-bat-tat-panel-bang-chuot-plan.md` §I/O & Edge-Case Matrix.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.8): `hidePanel` ghi cây đủ panel, `showPanel` tính chỗ từ cây sau khi bỏ panel còn ẩn (`dockTree.ts`); e2e wdio ba chuỗi (không ngược, ngược, có Đối chiếu) về đúng định danh, vị trí, cỡ trong 2 px.
 - Chỗ của panel đang ẩn không sống qua lần mở lại app (sentinel `{ reference: id }` ở `restore()`): khởi động lại rồi bật thì panel về bên phải panel đầu tiên.
   Cần: Ice thấy hành vi này khi dùng thật và quyết có lưu chỗ panel ẩn hay không.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-bat-tat-panel-bang-chuot-plan.md` §I/O & Edge-Case Matrix.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.8): `hiddenLayout` ghi vào JSON bố cục, `restore`/`applyLayoutJson` đọc lại; e2e wdio tắt hai panel, đọc `hiddenLayout` từ `bootstrap_config`, `window.location.reload()`, bật theo thứ tự không ngược, ba nhóm về trong 2 px. Khởi động lại cả tiến trình app vẫn thuộc lượt dùng thật của Ice.
 - Tắt rồi bật Đối chiếu đưa lưới về đầu Chương: `removePanel` tháo `GridPanel`, đo `scrollTop` 600 → 0; Tra cứu và Đề xuất AI giữ 600.
   Cần: Ice thấy hành vi này khi dùng thật và quyết có giữ vị trí cuộn không.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-8-ban-do/ket-qua.md`.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.8): `gridScrollMemory.ts` nhớ `scrollTop` theo Chương, `GridPanel` trả lại khi `.grid-scroll` gắn lại; e2e wdio tắt rồi bật Đối chiếu ở 600 về 600 trong 2 px, bàn đo chuột thật `14-8-ban-do/ket-qua.md` đọc 600 → 600 ở cả ba panel.

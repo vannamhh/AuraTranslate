@@ -312,6 +312,115 @@ export function unmergeForPersist(dock: SerializedDockJSON, panelId: string, spo
   return cloned
 }
 
+export type HiddenLayoutGrid = SerializedGrid & { width?: number; height?: number }
+export type TreeSpot = { reference: string; direction: PlacementDirection | 'within'; beside?: GridNode['type'] }
+export type TreeSize = { width: number; height: number }
+
+/** A copy of the grid without the given panels: emptied leaves and branches go, single-child branches stay so orientation parity holds. */
+export function removeViews(grid: HiddenLayoutGrid, ids: ReadonlySet<string>): HiddenLayoutGrid {
+  const cloned = JSON.parse(JSON.stringify(grid)) as HiddenLayoutGrid
+  const prune = (node: SizedGridNode): SizedGridNode | null => {
+    if (node.type === 'leaf') {
+      const data = node.data as LeafData
+      data.views = data.views.filter((v) => !ids.has(v))
+      if (data.views.length === 0) return null
+      if (!data.views.includes(data.activeView)) data.activeView = data.views[0] as string
+      return node
+    }
+    const kids = (node.data as SizedGridNode[]).map(prune).filter((k): k is SizedGridNode => k !== null)
+    if (kids.length === 0) return null
+    node.data = kids
+    return node
+  }
+  const root = prune(cloned.root as SizedGridNode)
+  cloned.root = root ?? { type: 'branch', data: [] }
+  return cloned
+}
+
+/** Where `id` sits in `grid`: tabbed with another panel (`within`) or beside a tree sibling. */
+export function spotInTree(grid: HiddenLayoutGrid, id: string): TreeSpot | null {
+  const located = locateLeaf(grid.root, grid.orientation, id)
+  if (located === null) return null
+  const mate = viewsIn(located.leaf).find((v) => v !== id)
+  if (mate !== undefined) return { reference: mate, direction: 'within' }
+  return findTreeSpot(grid, id)
+}
+
+/** Width and height of the group holding `id`, read from the tree; `undefined` when any needed size is missing or 0. */
+export function sizeFromTree(grid: HiddenLayoutGrid, id: string): TreeSize | undefined {
+  const chain: { node: SizedGridNode; axis: GridOrientation | null }[] = []
+  const find = (node: SizedGridNode, childAxis: GridOrientation, parentAxis: GridOrientation | null): boolean => {
+    chain.push({ node, axis: parentAxis })
+    if (node.type === 'leaf') {
+      if (viewsIn(node).includes(id)) return true
+    } else {
+      for (const kid of node.data as SizedGridNode[]) {
+        if (find(kid, flip(childAxis), childAxis)) return true
+      }
+    }
+    chain.pop()
+    return false
+  }
+  if (!find(grid.root as SizedGridNode, grid.orientation, null)) return undefined
+  const positive = (n: unknown): number | undefined => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : undefined)
+  let width: number | undefined
+  let height: number | undefined
+  let widthKnown = false
+  let heightKnown = false
+  for (let i = chain.length - 1; i >= 0 && !(widthKnown && heightKnown); i -= 1) {
+    const { node, axis } = chain[i] as (typeof chain)[number]
+    if (axis === 'VERTICAL' || axis === null) {
+      if (!heightKnown) {
+        heightKnown = true
+        height = positive(axis === null ? grid.height : node.size)
+      }
+    }
+    if (axis === 'HORIZONTAL' || axis === null) {
+      if (!widthKnown) {
+        widthKnown = true
+        width = positive(axis === null ? grid.width : node.size)
+      }
+    }
+  }
+  return width === undefined || height === undefined ? undefined : { width, height }
+}
+
+function isFiniteNumber(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n)
+}
+
+function isTreeNode(node: unknown, depth: number): boolean {
+  if (typeof node !== 'object' || node === null || depth > 32) return false
+  const { type, data, size } = node as { type?: unknown; data?: unknown; size?: unknown }
+  if (size !== undefined && !isFiniteNumber(size)) return false
+  if (type === 'leaf') {
+    if (typeof data !== 'object' || data === null) return false
+    const { views, activeView, id } = data as { views?: unknown; activeView?: unknown; id?: unknown }
+    return (
+      Array.isArray(views) &&
+      views.length > 0 &&
+      views.every((v) => typeof v === 'string') &&
+      typeof activeView === 'string' &&
+      typeof id === 'string'
+    )
+  }
+  if (type === 'branch') return Array.isArray(data) && data.length > 0 && data.every((k) => isTreeNode(k, depth + 1))
+  return false
+}
+
+/** The `hiddenLayout` field of a saved layout, type-checked; `null` when absent or not the right shape. */
+export function parseHiddenLayout(value: unknown): HiddenLayoutGrid | null {
+  if (typeof value !== 'object' || value === null) return null
+  const grid = (value as { grid?: unknown }).grid
+  if (typeof grid !== 'object' || grid === null) return null
+  const { root, orientation, width, height } = grid as Record<string, unknown>
+  if (orientation !== 'HORIZONTAL' && orientation !== 'VERTICAL') return null
+  if (!isTreeNode(root, 0)) return null
+  if (width !== undefined && !isFiniteNumber(width)) return null
+  if (height !== undefined && !isFiniteNumber(height)) return null
+  return JSON.parse(JSON.stringify(grid)) as HiddenLayoutGrid
+}
+
 /** A copy of the serialized dock without any `hideHeader` flag: tab-bar visibility is derived, never persisted. */
 export function withoutHideHeader(dock: SerializedDockJSON): SerializedDockJSON {
   const cloned = JSON.parse(JSON.stringify(dock)) as SerializedDockJSON
