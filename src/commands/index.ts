@@ -1428,29 +1428,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     })
   }
 
-  /**
-   * ═══════════════════════════════════════════════════════════════════════════════
-   * 🔴 BỐN COMMAND ẨN/HIỆN PANEL — HANDLER THẬT, CỐ Ý KHÔNG GÁN PHÍM (AC3, §QĐ #3)
-   * ═══════════════════════════════════════════════════════════════════════════════
-   *
-   * AC6 của Story 1.6 nghiệm thu bằng việc `unbound()` trả về **ít nhất một phần tử
-   * thật**. Trước story này phần tử duy nhất đó là `focus.next_panel` — mà story này vừa
-   * gán phím cho nó (§QĐ #2). Nếu bốn command dưới đây cũng có phím thì `unbound()` trả
-   * mảng rỗng, **AC6 của Story 1.6 mất bằng chứng**, và không cổng nào đỏ. Đó là §Bẫy 5
-   * của story, ghi ra bằng chữ.
-   *
-   * ⚠️ Nên đây là một **lỗ NFR17 mở ra CÓ Ý THỨC**: hôm nay ẩn/hiện panel chỉ tới được
-   * bằng chuột. Lỗ này **có tên và có chủ** — màn hình gán phím là **Story 1.21**, và
-   * `deferred-work.md` mang một mục cho nó. Một lỗ có tên tốt hơn một bằng chứng bị xoá.
-   *
-   * Và handler thì CHẠY THẬT. Một command rỗng đăng ký cho đủ số là đúng thứ
-   * `CommandRegistry` tồn tại để chặn (`registry.ts` ném khi thiếu `run`).
-   *
-   * ⚠️ `keys: undefined` là **mặc định của sản phẩm**, không một cái khoá: nếu `global.db`
-   * có một hợp âm cho id này thì nó ĐƯỢC dùng, qua lớp `overrides` mà Story 1.21 dựng
-   * (xem [`applyBindings`]). Gán phím là quyền của người dùng, và màn hình phím tắt là chỗ
-   * để làm việc đó.
-   */
+  // `keys: undefined` is the product default: a chord in `global.db` still binds through `overrides`.
   for (const suffix of PANEL_SUFFIXES) {
     const id = `layout.toggle_${suffix}`
     target.register({
@@ -1534,7 +1512,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    *
    * ⚠️ Cố ý KHÔNG gán phím: nộp một form là một thao tác cần đọc lại giá trị đã gõ
    * trước khi kích hoạt, không phải một lối tắt đáng nhớ — cùng lý lẽ mà các
-   * `layout.toggle_*` cố ý không gán phím ở Story 1.6 (§QĐ #3 phía trên). Hai nút bấm
+   * `layout.toggle_*` cố ý không gán phím ở Story 1.6 (§QĐ #3). Hai nút bấm
    * tương ứng vẫn tới được bằng bàn phím qua Tab + Enter/Space, chuẩn HTML gốc.
    */
   target.register({

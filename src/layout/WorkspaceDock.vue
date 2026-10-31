@@ -57,7 +57,8 @@ import type { LayoutTier, PanelId, PlacementDirection, PresetId, WorkArea } from
 import { syncDockEdgeClasses } from './dockEdges'
 import { findTreeSpot, unmergeForPersist, withoutHideHeader } from './dockTree'
 import { panelHeadersShown } from './panelHeadersState'
-import type { SerializedDockJSON, SerializedGrid } from './dockTree'
+import { resetVisibleDockPanels, setVisibleDockPanels } from './panelVisibilityState'
+import type { GridNode, RememberedTreeSpot, SerializedDockJSON, SerializedGrid } from './dockTree'
 
 const props = defineProps<{
   /**
@@ -167,6 +168,7 @@ type RememberedSize = { width: number; height: number }
 type RememberedSpot = {
   reference: PanelId
   direction: PlacementDirection | 'within'
+  beside?: GridNode['type']
   size?: RememberedSize
 }
 const hidden = new Map<PanelId, RememberedSpot>()
@@ -315,9 +317,16 @@ function applyPreset(presetId: string): boolean {
  * ⇒ Đọc cây từ `api.toJSON()`. Đó là dữ liệu công khai, ổn định, và là **chính** thứ
  * `fromJSON` đọc lại — nên nó không phải một bản chép của trạng thái nội bộ dockview.
  */
-function siblingSpotInTree(api: DockviewApi, id: PanelId): { reference: string; direction: PlacementDirection } | null {
+function siblingSpotInTree(api: DockviewApi, id: PanelId): RememberedTreeSpot | null {
   const grid = (api.toJSON() as unknown as { grid: SerializedGrid }).grid
   return findTreeSpot(grid, id)
+}
+
+// `referencePanel` splits that one leaf, so a panel beside a whole branch only returns by the dock-edge form.
+function spotPosition(spot: RememberedSpot): object {
+  return spot.beside === 'branch'
+    ? { direction: spot.direction }
+    : { referencePanel: spot.reference, direction: spot.direction }
 }
 
 function groupSizeOf(panel: IDockviewPanel): RememberedSize | undefined {
@@ -363,7 +372,7 @@ function rememberSpot(api: DockviewApi, panel: IDockviewPanel): RememberedSpot |
   }
   const spot = siblingSpotInTree(api, panel.id as PanelId)
   if (spot === null || !isPanelId(spot.reference)) return null
-  return { reference: spot.reference, direction: spot.direction, size: groupSizeOf(panel) }
+  return { reference: spot.reference, direction: spot.direction, beside: spot.beside, size: groupSizeOf(panel) }
 }
 
 function hidePanel(id: PanelId): boolean {
@@ -408,8 +417,9 @@ function showPanel(id: PanelId): boolean {
   const direction = spot !== undefined && api.getPanel(spot.reference) !== undefined
     ? spot.direction
     : 'right'
-  const shown = addPanel(api, id, { referencePanel: anchorId, direction })
-  if (spot !== undefined && anchorId === spot.reference) reapplySize(shown, spot.size)
+  const atSpot = spot !== undefined && anchorId === spot.reference
+  const shown = addPanel(api, id, atSpot ? spotPosition(spot) : { referencePanel: anchorId, direction })
+  if (atSpot) reapplySize(shown, spot.size)
   return true
 }
 
@@ -461,6 +471,7 @@ function togglePanel(panelId: string): boolean {
     console.error(`[layout] \`${panelId}\` không phải một panel của Workspace — bỏ qua.`)
     return false
   }
+  autoHiddenIds.delete(panelId)
   const api = dock.value
   if (api === null) return false
   const showing = api.getPanel(panelId) === undefined
@@ -680,10 +691,7 @@ function undoMerge(): void {
   suppressPersist = true
   api.removePanel(aiPanel)
   if (spot !== null && anchorStillThere) {
-    const restored = addPanel(api, 'panel.ai_translation', {
-      referencePanel: spot.reference,
-      direction: spot.direction,
-    })
+    const restored = addPanel(api, 'panel.ai_translation', spotPosition(spot))
     reapplySize(restored, spot.size)
   } else {
     // Neo cũ không còn (đã bị ẩn/xoá trong lúc gộp) — cùng đường dự phòng của `showPanel`:
@@ -1044,6 +1052,10 @@ function onReady(event: DockviewReadyEvent): void {
       if (id !== undefined && isPanelId(id)) void enterFocus(id)
     }),
   )
+  const syncVisiblePanels = () => setVisibleDockPanels(api.panels.map((p) => p.id).filter(isPanelId))
+  syncVisiblePanels()
+  disposables.push(api.onDidAddPanel(syncVisiblePanels))
+  disposables.push(api.onDidRemovePanel(syncVisiblePanels))
   disposables.push(api.onDidLayoutChange(onLayoutChange))
   disposables.push(api.onDidLayoutChange(syncPanelHeaders))
   disposables.push(api.onDidLayoutChange(() => syncDockEdgeClasses(api)))
@@ -1135,6 +1147,7 @@ onBeforeUnmount(() => {
   // BẮT BUỘC gỡ con trỏ: để nó trỏ vào một `DockviewApi` đã tháo thì mọi lời gọi sau đó
   // trượt ở một chỗ sâu trong thư viện thay vì ở dòng `if (live === null)`.
   setDockController(null)
+  resetVisibleDockPanels()
   dock.value = null
   // Một lượt hẹn `restoreFocusIfLost` đang chờ ⇒ huỷ, không để nó chạy sau khi tháo.
   if (pendingFocusRaf !== null) {

@@ -3,10 +3,14 @@ import { computed, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
 import { dispatch } from './commands'
 import { t, tError } from './i18n'
 import AppIcon from './AppIcon.vue'
-import { shortcutRows } from './config/shortcutsState'
+import { commandTitle, shortcutRows } from './config/shortcutsState'
 import { closeToolsMenu, toolsMenuIsOpen } from './titlebarToolsState'
 import { panelHeadersSaveError, panelHeadersShown } from './layout/panelHeadersState'
 import { attributionIsOpen } from './panels/dictSourcesState'
+import { visibleDockPanels } from './layout/panelVisibilityState'
+import { currentMode } from './modes/modeState'
+import { reviewModeIsOpen } from './reviewModeState'
+import type { PanelId } from './layout/workspaceLayout'
 
 const root = useTemplateRef<HTMLElement>('root')
 const trigger = useTemplateRef<HTMLButtonElement>('trigger')
@@ -21,8 +25,14 @@ function chordOf(id: string): string {
   return chordById.value.get(id) ?? ''
 }
 
+function panelSwitchDisabled(id: PanelId): boolean {
+  return reviewModeIsOpen.value || (visibleDockPanels.value.has(id) && visibleDockPanels.value.size <= 1)
+}
+
 function menuItems(): HTMLElement[] {
-  return Array.from(root.value?.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemcheckbox"]') ?? [])
+  return Array.from(
+    root.value?.querySelectorAll<HTMLButtonElement>('[role="menuitem"], [role="menuitemcheckbox"]') ?? [],
+  ).filter((item) => !item.disabled)
 }
 
 // WKWebView does not focus a <button> on mouse click; without this the overlay saves the previously
@@ -59,7 +69,7 @@ function onDocumentMouseDown(event: MouseEvent) {
 
 function onRootClick(event: MouseEvent) {
   const target = event.target
-  if (target instanceof Element && target.closest('[role="menuitem"], [role="menuitemcheckbox"]') !== null) closeToolsMenu()
+  if (target instanceof Element && target.closest('[role="menuitem"]:not(:disabled), [role="menuitemcheckbox"]:not(:disabled)') !== null) closeToolsMenu()
 }
 
 function onFocusOut(event: FocusEvent) {
@@ -237,6 +247,60 @@ onBeforeUnmount(() => {
       </li>
       <li v-if="panelHeadersSaveError !== null" role="none">
         <p class="tools-alert" role="alert">{{ tError(panelHeadersSaveError) }}</p>
+      </li>
+      <li v-if="currentMode === 'workspace'" role="none">
+        <button
+          type="button"
+          role="menuitemcheckbox"
+          tabindex="-1"
+          class="tools-item ui-menu-item"
+          :aria-checked="visibleDockPanels.has('panel.grid')"
+          :disabled="panelSwitchDisabled('panel.grid')"
+          :title="commandTitle('layout.toggle_grid')"
+          data-tools-item="layout.toggle_grid"
+          @click="dispatch('layout.toggle_grid')"
+        >
+          <span class="ui-row">
+            <span>{{ t('panel.grid.title') }}</span>
+            <span class="ui-switch__track" aria-hidden="true"></span>
+          </span>
+        </button>
+      </li>
+      <li v-if="currentMode === 'workspace'" role="none">
+        <button
+          type="button"
+          role="menuitemcheckbox"
+          tabindex="-1"
+          class="tools-item ui-menu-item"
+          :aria-checked="visibleDockPanels.has('panel.lookup')"
+          :disabled="panelSwitchDisabled('panel.lookup')"
+          :title="commandTitle('layout.toggle_lookup')"
+          data-tools-item="layout.toggle_lookup"
+          @click="dispatch('layout.toggle_lookup')"
+        >
+          <span class="ui-row">
+            <span>{{ t('panel.lookup.title') }}</span>
+            <span class="ui-switch__track" aria-hidden="true"></span>
+          </span>
+        </button>
+      </li>
+      <li v-if="currentMode === 'workspace'" role="none">
+        <button
+          type="button"
+          role="menuitemcheckbox"
+          tabindex="-1"
+          class="tools-item ui-menu-item"
+          :aria-checked="visibleDockPanels.has('panel.ai_translation')"
+          :disabled="panelSwitchDisabled('panel.ai_translation')"
+          :title="commandTitle('layout.toggle_ai_translation')"
+          data-tools-item="layout.toggle_ai_translation"
+          @click="dispatch('layout.toggle_ai_translation')"
+        >
+          <span class="ui-row">
+            <span>{{ t('panel.ai_translation.title') }}</span>
+            <span class="ui-switch__track" aria-hidden="true"></span>
+          </span>
+        </button>
       </li>
     </ul>
   </div>

@@ -81,6 +81,7 @@ describe('findTreeSpot — Ⓑ-2 (gốc NGANG, nhánh lồng DỌC)', () => {
     expect(findTreeSpot(TREE_B2, 'panel.ai_translation')).toEqual({
       reference: 'panel.lookup',
       direction: 'below',
+      beside: 'leaf',
     })
   })
 
@@ -88,6 +89,7 @@ describe('findTreeSpot — Ⓑ-2 (gốc NGANG, nhánh lồng DỌC)', () => {
     expect(findTreeSpot(TREE_B2_AI_HIDDEN, 'panel.lookup')).toEqual({
       reference: 'panel.grid',
       direction: 'right',
+      beside: 'leaf',
     })
   })
 
@@ -97,6 +99,7 @@ describe('findTreeSpot — Ⓑ-2 (gốc NGANG, nhánh lồng DỌC)', () => {
     expect(findTreeSpot(TREE_B2, 'panel.lookup')).toEqual({
       reference: 'panel.ai_translation',
       direction: 'above',
+      beside: 'leaf',
     })
   })
 })
@@ -106,6 +109,7 @@ describe('findTreeSpot — Ⓑ-1 (gốc DỌC, nhánh lồng NGANG)', () => {
     expect(findTreeSpot(TREE_B1, 'panel.ai_translation')).toEqual({
       reference: 'panel.lookup',
       direction: 'right',
+      beside: 'leaf',
     })
   })
 
@@ -113,19 +117,21 @@ describe('findTreeSpot — Ⓑ-1 (gốc DỌC, nhánh lồng NGANG)', () => {
     expect(findTreeSpot(TREE_B1_AI_HIDDEN, 'panel.lookup')).toEqual({
       reference: 'panel.grid',
       direction: 'below',
+      beside: 'leaf',
     })
   })
 })
 
 describe('findTreeSpot — lồng sâu ≥ 3 tầng', () => {
   it('D so với C ở tầng 2 (đảo hai lần từ gốc NGANG ⇒ NGANG): đứng SAU ⇒ right', () => {
-    expect(findTreeSpot(TREE_DEEP, 'D')).toEqual({ reference: 'C', direction: 'right' })
+    expect(findTreeSpot(TREE_DEEP, 'D')).toEqual({ reference: 'C', direction: 'right', beside: 'leaf' })
   })
 
   it('nhánh một-con: leo QUA nhánh không anh em, dừng ở gốc', () => {
     expect(findTreeSpot(TREE_SINGLE_CHILD_BRANCH, 'panel.x')).toEqual({
       reference: 'panel.a',
       direction: 'right',
+      beside: 'leaf',
     })
   })
 })
@@ -133,6 +139,24 @@ describe('findTreeSpot — lồng sâu ≥ 3 tầng', () => {
 describe('findTreeSpot — panel duy nhất trong lưới', () => {
   it('gốc là một LÁ ⇒ null (không anh em nào để neo vào)', () => {
     expect(findTreeSpot(TREE_SOLO, 'panel.grid')).toBeNull()
+  })
+})
+
+describe('findTreeSpot — anh em là một nhánh', () => {
+  it('Ⓑ-2: grid đứng trước nhánh lookup/ai ⇒ neo là lá đầu của nhánh, beside branch', () => {
+    expect(findTreeSpot(TREE_B2, 'panel.grid')).toEqual({
+      reference: 'panel.lookup',
+      direction: 'left',
+      beside: 'branch',
+    })
+  })
+
+  it('Ⓑ-1: grid đứng trên nhánh lookup|ai ⇒ above, beside branch', () => {
+    expect(findTreeSpot(TREE_B1, 'panel.grid')).toEqual({
+      reference: 'panel.lookup',
+      direction: 'above',
+      beside: 'branch',
+    })
   })
 })
 
@@ -357,5 +381,47 @@ describe('edgeGroupIds — groups touching the left and right window edges', () 
     const edges = edgeGroupIds(TREE_SOLO)
     expect(sorted(edges.left)).toEqual(['g-panel.grid'])
     expect(sorted(edges.right)).toEqual(['g-panel.grid'])
+  })
+})
+
+describe('findTreeSpot — a one-child branch beside the panel is not a whole branch', () => {
+  it('root H[branch[a], b, c] hiding b reports a leaf neighbour', () => {
+    const grid: SerializedGrid = {
+      orientation: 'HORIZONTAL',
+      root: branch([branch([leaf('a')]), leaf('b'), leaf('c')]),
+    }
+    expect(findTreeSpot(grid, 'b')).toEqual({ reference: 'a', direction: 'right', beside: 'leaf' })
+  })
+})
+
+describe('unmergeForPersist — beside a whole branch goes to the root edge', () => {
+  const MERGED_UNDER_BRANCH = (): SerializedDockJSON =>
+    dockJSON(
+      branchG([
+        leafG(['panel.grid', 'panel.ai_translation'], { id: '1', activeView: 'panel.ai_translation' }),
+        leafG(['panel.lookup'], { id: '2' }),
+      ]),
+      'VERTICAL',
+      '1',
+    )
+
+  it('wraps the root when its axis differs: (ai | (grid / lookup))', () => {
+    const result = unmergeForPersist(MERGED_UNDER_BRANCH(), 'panel.ai_translation', {
+      reference: 'panel.grid',
+      direction: 'left',
+      beside: 'branch',
+    })
+    expect(result.grid.orientation).toBe('HORIZONTAL')
+    expect(shape(result.grid.root, result.grid.orientation)).toBe('(panel.ai_translation|(panel.grid/panel.lookup))')
+  })
+
+  it('splices into the root when its axis matches: (grid / lookup / ai)', () => {
+    const result = unmergeForPersist(MERGED_UNDER_BRANCH(), 'panel.ai_translation', {
+      reference: 'panel.grid',
+      direction: 'below',
+      beside: 'branch',
+    })
+    expect(result.grid.orientation).toBe('VERTICAL')
+    expect(shape(result.grid.root, result.grid.orientation)).toBe('(panel.grid/panel.lookup/panel.ai_translation)')
   })
 })

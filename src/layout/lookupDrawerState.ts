@@ -63,6 +63,7 @@ import { readonly, ref } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import type { LayoutTier } from './workspaceLayout'
 import { releaseFocus } from '../commands'
+import { visibleDockPanels } from './panelVisibilityState'
 
 /** Hai tầng mà Tra cứu đã rút khỏi lưới — spec I/O Matrix hàng "Narrow or very short". */
 function requiresRetreat(tier: LayoutTier): boolean {
@@ -111,6 +112,7 @@ export function syncLayoutTier(tier: LayoutTier): void {
 
 /** Handler thật của `layout.lookup_drawer_open`. */
 export function openLookupDrawer(): void {
+  if (visibleDockPanels.value.has('panel.lookup')) return
   drawerOpen.value = true
 }
 

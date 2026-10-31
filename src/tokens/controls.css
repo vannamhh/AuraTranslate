@@ -448,12 +448,14 @@ summary.ui-field {
   background: var(--color-on-surface-variant);
 }
 
-[aria-checked='true'] > .ui-switch__track {
+[aria-checked='true'] > .ui-switch__track,
+[aria-checked='true'] > .ui-row > .ui-switch__track {
   background: var(--color-on-surface);
   border-color: var(--color-on-surface);
 }
 
-[aria-checked='true'] > .ui-switch__track::after {
+[aria-checked='true'] > .ui-switch__track::after,
+[aria-checked='true'] > .ui-row > .ui-switch__track::after {
   left: 14px;
   background: var(--color-surface);
 }

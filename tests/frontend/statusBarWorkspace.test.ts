@@ -537,4 +537,19 @@ describe('thanh trạng thái — nút ‹ › sang Chương kề', () => {
     }
     wrapper.unmount()
   })
+
+  it('nút ngăn kéo ẩn khi panel.lookup đang ở dock và hiện lại khi nó rời dock', async () => {
+    const { wrapper } = await freshBar()
+    const layout = await import('../../src/layout/lookupDrawerState')
+    const visibility = await import('../../src/layout/panelVisibilityState')
+    layout.syncLayoutTier('narrow')
+    visibility.setVisibleDockPanels(['panel.grid', 'panel.lookup'])
+    await flushPromises()
+    expect(wrapper.find('[data-lookup-drawer-open]').exists()).toBe(false)
+
+    visibility.setVisibleDockPanels(['panel.grid'])
+    await flushPromises()
+    expect(wrapper.find('[data-lookup-drawer-open]').exists()).toBe(true)
+    wrapper.unmount()
+  })
 })

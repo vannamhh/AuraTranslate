@@ -13675,6 +13675,7 @@ chính nó.
 - 3 id bật tắt panel: `layout.toggle_ai_translation`, `layout.toggle_grid`, `layout.toggle_lookup`.
   Cần: đường chuột ẩn/hiện panel; sửa comment sai ở `src/commands/index.ts` quanh `focus.next_panel`.
   Chủ: Story 14.8. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 8.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.8): ba `menuitemcheckbox` ở cuối `Công cụ ▾` (`TitlebarToolsMenu.vue`), tập panel đang hiện ở `layout/panelVisibilityState.ts`, nút ngăn kéo ẩn khi `panel.lookup` ở dock, khối comment sai ở `commands/index.ts` đã thay; ca Vitest ở `titlebarToolsMenu.test.ts`, `workspaceDockTier.test.ts`, `statusBarWorkspace.test.ts`, e2e ở `panel-toggle-mouse.e2e.mjs`, bàn đo ở `14-8-ban-do/`; Kiểm M đọc 289 điểm chuột, 33 khai `pointer`, 8 nợ.
 - 8 id lẻ: `ai.proofread.hide`, `library.chapters.clear_selection`, `reading.marks_clear_cancel`, `export.alignment.prev`, `prompt.import.open`, `prompt.library.close`, `tm.manage.edit`, `tm.manage.delete`. `prompt.library.close` không có trong mô tả vé 14.9 (7 id) nhưng đỏ thật: nút đóng là `@submit.prevent="onClose"` ở `PromptLibraryOverlay.vue`, nên sổ nợ đo 44 chứ không 43 và điểm chuột 258 chứ không 259.
   Cần: viết lại các `@submit`/nút thành `dispatch` literal; riêng `prompt.library.close` phải giữ lượt ghi nội dung prompt và lượt từ chối đóng khi ghi lỗi của `onClose`, không chỉ đổi thuộc tính.
   Chủ: Story 14.9. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 9.
@@ -13769,3 +13770,15 @@ chính nó.
 - `preview_chapter_detail` trả `import.web_internal_error` cho Chương k > 0 khi HTML một dòng dài hơn 4 KiB: `window_safe_prefix` cắt cửa sổ theo dòng nên ra `None`, người dùng đọc "lỗi chưa được phân loại" và tầng khối của Chương đó rỗng; đo ở `14-6-ban-do/`, có từ trước Story 14.6, cả đường `⌥→`.
   Cần: quyết cửa sổ cho trang không xuống dòng, và cho lỗi một thông báo nói đúng nguyên nhân.
   Chủ: Ice. Trỏ: `src-tauri/src/core/segment/encoding.rs` `pipeline_window_for`.
+
+## Deferred from: Story 14.8, bật tắt panel bằng chuột (2026-10-31)
+
+- Tắt hai panel rồi bật không theo thứ tự ngược (tắt A, tắt B, bật A) đi nhánh dự phòng của `showPanel`: panel hiện bên phải panel đầu tiên chứ không về chỗ cũ. Đo trên cây dock ở bố cục mặc định: tắt Tra cứu, tắt Đề xuất AI, bật Tra cứu, bật Đề xuất AI cho ba cột `Đối chiếu | Đề xuất AI | Tra cứu`, thay vì `Đối chiếu | (Tra cứu / Đề xuất AI)`; nút preset đưa về bố cục đủ.
+  Cần: Ice thấy hành vi này khi dùng thật và quyết có sửa không.
+  Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-bat-tat-panel-bang-chuot-plan.md` §I/O & Edge-Case Matrix.
+- Chỗ của panel đang ẩn không sống qua lần mở lại app (sentinel `{ reference: id }` ở `restore()`): khởi động lại rồi bật thì panel về bên phải panel đầu tiên.
+  Cần: Ice thấy hành vi này khi dùng thật và quyết có lưu chỗ panel ẩn hay không.
+  Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-bat-tat-panel-bang-chuot-plan.md` §I/O & Edge-Case Matrix.
+- Tắt rồi bật Đối chiếu đưa lưới về đầu Chương: `removePanel` tháo `GridPanel`, đo `scrollTop` 600 → 0; Tra cứu và Đề xuất AI giữ 600.
+  Cần: Ice thấy hành vi này khi dùng thật và quyết có giữ vị trí cuộn không.
+  Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-8-ban-do/ket-qua.md`.

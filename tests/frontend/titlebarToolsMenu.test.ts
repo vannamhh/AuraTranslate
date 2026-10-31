@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { CommandDeps } from '../../src/commands'
+import type { PanelId } from '../../src/layout/workspaceLayout'
 import { installFakeDragJs, pressDragHeader } from './support/dragRegionPress'
 
 async function setup(extra: Partial<CommandDeps> = {}) {
@@ -256,6 +257,110 @@ describe('title bar in App.vue', () => {
     await flush()
     expect(wrapper.get('[role="menuitemcheckbox"]').attributes('aria-checked')).toBe('true')
     expect(wrapper.get('[role="menuitemcheckbox"] .tools-switch').classes()).toContain('on')
+    wrapper.unmount()
+  })
+
+  const PANEL_SWITCHES = [
+    ['layout.toggle_grid', 'panel.grid'],
+    ['layout.toggle_lookup', 'panel.lookup'],
+    ['layout.toggle_ai_translation', 'panel.ai_translation'],
+  ] as const
+
+  async function workspaceMenu(visible: readonly PanelId[]) {
+    const togglePanel = vi.fn()
+    const made = await setup({ togglePanel })
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
+    const visibility = await import('../../src/layout/panelVisibilityState')
+    visibility.setVisibleDockPanels(visible)
+    const wrapper = mount(made.Menu, { attachTo: document.body })
+    made.state.toggleToolsMenu()
+    await flush()
+    return { ...made, togglePanel, wrapper }
+  }
+
+  for (const [commandId, panelId] of PANEL_SWITCHES) {
+    it(`the ${commandId} switch reports the dock and toggles ${panelId}`, async () => {
+      const { togglePanel, wrapper, state } = await workspaceMenu(['panel.grid', 'panel.ai_translation'])
+      const item = wrapper.get(`[data-tools-item="${commandId}"]`)
+      expect(item.attributes('role')).toBe('menuitemcheckbox')
+      expect(item.attributes('aria-checked')).toBe(String(panelId !== 'panel.lookup'))
+      await item.trigger('click')
+      expect(togglePanel).toHaveBeenCalledWith(panelId)
+      expect(state.toolsMenuIsOpen.value).toBe(false)
+      wrapper.unmount()
+    })
+  }
+
+  it('lists the panel switches after Sắp xếp panel in the order Đối chiếu, Tra cứu, Đề xuất AI', async () => {
+    const { wrapper } = await workspaceMenu(['panel.grid', 'panel.lookup', 'panel.ai_translation'])
+    const ids = wrapper.findAll('[role="menuitemcheckbox"]').map((el) => el.attributes('data-tools-item'))
+    expect(ids).toEqual([
+      'layout.toggle_panel_headers',
+      'layout.toggle_grid',
+      'layout.toggle_lookup',
+      'layout.toggle_ai_translation',
+    ])
+    wrapper.unmount()
+  })
+
+  it('disables the switch of the only visible panel', async () => {
+    const { wrapper, state } = await workspaceMenu(['panel.lookup'])
+    const only = wrapper.get('[data-tools-item="layout.toggle_lookup"]')
+    expect(only.attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-tools-item="layout.toggle_grid"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-tools-item="layout.toggle_ai_translation"]').attributes('disabled')).toBeUndefined()
+    await only.get('.ui-row > span').element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flush()
+    expect(state.toolsMenuIsOpen.value).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows the switches disabled in Review Mode while aria-checked keeps the Workspace state', async () => {
+    const { computed } = await import('vue')
+    vi.doMock('../../src/reviewModeState', async (original) => ({
+      ...(await original<Record<string, unknown>>()),
+      reviewModeIsOpen: computed(() => true),
+    }))
+    try {
+      const { wrapper } = await workspaceMenu(['panel.grid', 'panel.lookup'])
+      for (const [commandId, panelId] of PANEL_SWITCHES) {
+        const item = wrapper.get(`[data-tools-item="${commandId}"]`)
+        expect(item.attributes('disabled'), commandId).toBeDefined()
+        expect(item.attributes('aria-checked'), commandId).toBe(String(panelId !== 'panel.ai_translation'))
+      }
+      wrapper.unmount()
+    } finally {
+      vi.doUnmock('../../src/reviewModeState')
+    }
+  })
+
+  it('hides the switches outside Workspace', async () => {
+    const { wrapper } = await workspaceMenu(['panel.grid', 'panel.lookup'])
+    ;(await import('../../src/modes/modeState')).setMode('library')
+    await flush()
+    expect(wrapper.find('[data-tools-item="layout.toggle_grid"]').exists()).toBe(false)
+    expect(wrapper.findAll('[role="menuitemcheckbox"]')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('ArrowDown and ArrowUp skip a disabled switch', async () => {
+    const { wrapper } = await workspaceMenu(['panel.lookup'])
+    const lookup = wrapper.get('[data-tools-item="layout.toggle_lookup"]').element as HTMLElement
+    const grid = wrapper.get('[data-tools-item="layout.toggle_grid"]').element as HTMLElement
+    grid.focus()
+    await wrapper.get('.tools').trigger('keydown', { key: 'ArrowDown' })
+    expect(document.activeElement).not.toBe(lookup)
+    expect(document.activeElement).toBe(wrapper.get('[data-tools-item="layout.toggle_ai_translation"]').element)
+    await wrapper.get('.tools').trigger('keydown', { key: 'ArrowUp' })
+    expect(document.activeElement).toBe(grid)
+    wrapper.unmount()
+  })
+
+  it('each panel switch carries the full command name in its title', async () => {
+    const { wrapper, i18n } = await workspaceMenu(['panel.grid', 'panel.lookup', 'panel.ai_translation'])
+    for (const [commandId] of PANEL_SWITCHES) {
+      expect(wrapper.get(`[data-tools-item="${commandId}"]`).attributes('title')).toContain(i18n.t(`command.${commandId}`))
+    }
     wrapper.unmount()
   })
 })

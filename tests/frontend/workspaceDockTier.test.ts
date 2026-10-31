@@ -33,8 +33,9 @@ import { defineComponent, nextTick } from 'vue'
 import { createDockview } from 'dockview-core'
 import WorkspaceDock from '../../src/layout/WorkspaceDock.vue'
 import WorkspaceMode from '../../src/modes/WorkspaceMode.vue'
-import { applyPreset, panelRing, togglePanel } from '../../src/layout/dockController'
+import { applyPreset, currentLayoutJson, panelRing, togglePanel } from '../../src/layout/dockController'
 import { activeLayoutPreset } from '../../src/layout/layoutPresetState'
+import { visibleDockPanels } from '../../src/layout/panelVisibilityState'
 import { t } from '../../src/i18n'
 import type { GridNode, SerializedGrid } from '../../src/layout/dockTree'
 
@@ -668,6 +669,76 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
     }
   })
 
+  it('narrow: Lookup toggled into the dock hides the drawer button, and the drawer cannot open over it', async () => {
+    vi.resetModules()
+    const commandsMod = await import('../../src/commands')
+    const dockControllerMod = await import('../../src/layout/dockController')
+    const lookupDrawerStateMod = await import('../../src/layout/lookupDrawerState')
+    const { default: FreshWorkspaceDock } = await import('../../src/layout/WorkspaceDock.vue')
+    const { default: FreshStatusBar } = await import('../../src/StatusBar.vue')
+    ;(await import('../../src/modes/modeState')).setMode('workspace')
+    const { default: FreshLookupDrawer } = await import('../../src/layout/LookupDrawer.vue')
+    const Host = defineComponent({
+      components: { FreshWorkspaceDock, FreshStatusBar, FreshLookupDrawer },
+      template: '<div><FreshWorkspaceDock saved-layout="" /><FreshStatusBar /><FreshLookupDrawer /></div>',
+    })
+    commandsMod.installCommands({
+      setMode: () => {},
+      applyPreset: dockControllerMod.applyPreset,
+      togglePanel: dockControllerMod.togglePanel,
+      panelRing: dockControllerMod.panelRing,
+      openLookupDrawer: lookupDrawerStateMod.openLookupDrawer,
+      closeLookupDrawer: lookupDrawerStateMod.closeLookupDrawer,
+    })
+    const errors: string[] = []
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      errors.push(args.map(String).join(' '))
+    })
+    setChromeTokens()
+    setWindowSize(SIZE_NARROW.width, SIZE_NARROW.height)
+    const wrapper = mount(Host, { attachTo: document.body })
+    try {
+      await settle()
+      expect(document.querySelector('[data-lookup-drawer-open]')).not.toBeNull()
+
+      expect(commandsMod.dispatch('layout.toggle_lookup')).not.toBe(false)
+      await settle()
+      expect(document.querySelector('[data-lookup-drawer-open]')).toBeNull()
+
+      commandsMod.dispatch('layout.lookup_drawer_open')
+      await settle()
+      expect(lookupDrawerStateMod.lookupDrawerIsOpen.value).toBe(false)
+      expect(document.querySelector('[role="dialog"]')).toBeNull()
+      expect(errors.filter((e) => e.includes('đã khai rồi'))).toEqual([])
+
+      commandsMod.dispatch('layout.toggle_lookup')
+      await settle()
+      expect(document.querySelector('[data-lookup-drawer-open]')).not.toBeNull()
+    } finally {
+      wrapper.unmount()
+      spy.mockRestore()
+    }
+  })
+
+  it('narrow: Lookup toggled on then off by hand stays hidden after widening to full', async () => {
+    setChromeTokens()
+    setWindowSize(SIZE_NARROW.width, SIZE_NARROW.height)
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' } })
+    try {
+      await settle()
+      expect(panelRing()).not.toContain('panel.lookup')
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      expect(panelRing()).toContain('panel.lookup')
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      await resize(SIZE_FULL.width, SIZE_FULL.height)
+      expect(panelRing()).not.toContain('panel.lookup')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   // A panel the tier hid and the user re-showed by hand must leave `autoHiddenIds`
   // (`reconcileAutoHidden`), or the next grow re-adds it and dockview throws
   // "panel with id … already exists".
@@ -1069,5 +1140,101 @@ describe('WorkspaceDock — mounted thật (Story 4.12, Phase 4b)', () => {
       wrapper.unmount()
       vi.restoreAllMocks()
     }
+  })
+
+  it.each(['layout.preset_grid', 'layout.preset_columns'])('%s: off then on returns each panel to its tree spot', async (preset) => {
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    for (const id of ['panel.grid', 'panel.lookup', 'panel.ai_translation']) {
+      const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' } })
+      try {
+        await settle()
+        expect(applyPreset(preset)).toBe(true)
+        await settle()
+        const before = shapeOf(currentLayoutJson() as string).replace(/^\((\(.*\))\)$/, '$1')
+        expect(togglePanel(id)).toBe(true)
+        await settle()
+        expect(togglePanel(id)).toBe(true)
+        await settle()
+        expect(shapeOf(currentLayoutJson() as string).replace(/^\((\(.*\))\)$/, '$1')).toBe(before)
+      } finally {
+        wrapper.unmount()
+      }
+    }
+  })
+
+  it('off A, off B, on A takes the fallback spot, stays visible, and a preset restores the full layout', async () => {
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: '' } })
+    try {
+      await settle()
+      const full = shapeOf(currentLayoutJson() as string).replace(/^\((\(.*\))\)$/, '$1')
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      expect([...visibleDockPanels.value].sort()).toEqual(['panel.grid', 'panel.lookup'])
+      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|lookup)')
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|ai_translation|lookup)')
+      expect(applyPreset('layout.preset_grid')).toBe(true)
+      await settle()
+      expect(shapeOf(currentLayoutJson() as string).replace(/^\((\(.*\))\)$/, '$1')).toBe(full)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('a panel hidden in the saved layout returns right of the first visible panel', async () => {
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    const twoPanels = ICE_DISK_LAYOUT_2026_09_23.replace(
+      '{"type":"leaf","data":{"views":["panel.ai_translation"],"activeView":"panel.ai_translation","id":"3"},"size":488},',
+      '',
+    ).replace(/"panel\.ai_translation":\{.*?"title":"panel\.ai_translation"\},?/, '').replace(',}', '}')
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: twoPanels } })
+    try {
+      await settle()
+      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|lookup)')
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(shapeOf(currentLayoutJson() as string)).toBe('(grid|ai_translation|lookup)')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('visibleDockPanels follows restore with a hidden panel, toggles, presets and tier hides', async () => {
+    const names = () => [...visibleDockPanels.value].sort()
+    setChromeTokens()
+    setWindowSize(SIZE_FULL.width, SIZE_FULL.height)
+    const twoPanels = USER_TABBED_LAYOUT.replace(',"panel.ai_translation"', '')
+    const wrapper = mount(WorkspaceDock, { props: { savedLayout: twoPanels } })
+    try {
+      await settle()
+      expect(names()).toEqual(['panel.grid', 'panel.lookup'])
+
+      expect(togglePanel('panel.ai_translation')).toBe(true)
+      await settle()
+      expect(names()).toEqual(['panel.ai_translation', 'panel.grid', 'panel.lookup'])
+
+      expect(togglePanel('panel.lookup')).toBe(true)
+      await settle()
+      expect(names()).toEqual(['panel.ai_translation', 'panel.grid'])
+
+      expect(applyPreset('layout.preset_columns')).toBe(true)
+      await settle()
+      expect(names()).toEqual(['panel.ai_translation', 'panel.grid', 'panel.lookup'])
+
+      await resize(SIZE_NARROW.width, SIZE_NARROW.height)
+      expect(names()).toEqual(['panel.grid'])
+    } finally {
+      wrapper.unmount()
+    }
+    expect(names()).toEqual([])
   })
 })

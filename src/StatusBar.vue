@@ -37,6 +37,7 @@ import { detectIsMac, dispatch, formatChord } from './commands'
 // xem doc-comment đầu tệp đó). `StatusBar` chỉ ĐỌC nó qua `v-if`, không còn vòng đời nào để
 // bắt đầu/dừng ở đây.
 import { lookupHasRetreated } from './layout/lookupDrawerState'
+import { visibleDockPanels } from './layout/panelVisibilityState'
 import { isSegmentConfirmed } from './config/segment'
 import { isMeaningKind } from './config/proofread'
 import { commandTitle, shortcutRows } from './config/shortcutsState'
@@ -259,6 +260,7 @@ const lookupLineText = computed<string | null>(() => {
   return sense === undefined ? null : sense.gloss
 })
 
+const lookupDrawerOffered = computed(() => lookupHasRetreated.value && !visibleDockPanels.value.has('panel.lookup'))
 const lookupChordText = computed<string>(
   () => shortcutRows.value.find((row) => row.id === 'layout.lookup_drawer_open')?.display.join(' / ') ?? '',
 )
@@ -692,7 +694,7 @@ const libraryErrorText = computed<string | null>(() => {
         <!-- aura-allow-text: nghĩa đầu của nguồn đầu — DỮ LIỆU từ điển, không chuỗi giao diện. -->
         <span v-else-if="lookupLineText !== null" class="info-item lookup-line" data-status-lookup-line>{{ lookupLineText }}</span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-        <span v-if="lookupHasRetreated && lookupChordText !== ''" class="info-item" data-status-lookup-chord>{{ lookupChordText }}</span>
+        <span v-if="lookupDrawerOffered && lookupChordText !== ''" class="info-item" data-status-lookup-chord>{{ lookupChordText }}</span>
       <!--
         🔵 Story 4.12, Phase 3a (Decision 2) — điểm vào ngăn kéo Tra cứu.
 
@@ -740,7 +742,7 @@ const libraryErrorText = computed<string | null>(() => {
         {{ t('command.glossary.queue.open') }}
       </button>
       <button
-        v-if="lookupHasRetreated"
+        v-if="lookupDrawerOffered"
         type="button"
         class="ui-btn"
         data-lookup-drawer-open

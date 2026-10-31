@@ -1,0 +1,264 @@
+{
+  "calibration": {
+    "win": {
+      "ih": 900,
+      "oh": 0,
+      "x": 0,
+      "y": 960
+    },
+    "guess": {
+      "x": 300,
+      "y": 260
+    },
+    "pt": [
+      149,
+      216
+    ]
+  },
+  "activation_ms": 1042,
+  "presses": [
+    {
+      "label": "read: open for start",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: close for start",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "open menu for layout.toggle_grid",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "layout.toggle_grid off",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: open for layout.toggle_grid off",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: close for layout.toggle_grid off",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "open menu for layout.toggle_grid",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "layout.toggle_grid on",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: open for layout.toggle_grid on",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: close for layout.toggle_grid on",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "open menu for layout.toggle_lookup",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "layout.toggle_lookup off",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: open for layout.toggle_lookup off",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: close for layout.toggle_lookup off",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "open menu for layout.toggle_lookup",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "layout.toggle_lookup on",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: open for layout.toggle_lookup on",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: close for layout.toggle_lookup on",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "open menu for layout.toggle_ai_translation",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "layout.toggle_ai_translation off",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: open for layout.toggle_ai_translation off",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: close for layout.toggle_ai_translation off",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "open menu for layout.toggle_ai_translation",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "layout.toggle_ai_translation on",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: open for layout.toggle_ai_translation on",
+      "down": true,
+      "up": true,
+      "click": true
+    },
+    {
+      "label": "read: close for layout.toggle_ai_translation on",
+      "down": true,
+      "up": true,
+      "click": true
+    }
+  ],
+  "start": {
+    "checked": [
+      "true",
+      "true",
+      "true"
+    ],
+    "drawerOpener": false,
+    "groups": 3
+  },
+  "layout.toggle_grid.scrollBefore": {
+    "height": 5414,
+    "top": 600
+  },
+  "layout.toggle_grid.off": {
+    "checked": [
+      "false",
+      "true",
+      "true"
+    ],
+    "drawerOpener": false,
+    "groups": 2
+  },
+  "layout.toggle_grid.on": {
+    "checked": [
+      "true",
+      "true",
+      "true"
+    ],
+    "drawerOpener": false,
+    "groups": 3
+  },
+  "layout.toggle_grid.scrollAfter": {
+    "height": 5414,
+    "top": 0
+  },
+  "layout.toggle_lookup.scrollBefore": {
+    "height": 5414,
+    "top": 600
+  },
+  "layout.toggle_lookup.off": {
+    "checked": [
+      "true",
+      "false",
+      "true"
+    ],
+    "drawerOpener": false,
+    "groups": 2
+  },
+  "layout.toggle_lookup.on": {
+    "checked": [
+      "true",
+      "true",
+      "true"
+    ],
+    "drawerOpener": false,
+    "groups": 3
+  },
+  "layout.toggle_lookup.scrollAfter": {
+    "height": 5414,
+    "top": 600
+  },
+  "layout.toggle_ai_translation.scrollBefore": {
+    "height": 5414,
+    "top": 600
+  },
+  "layout.toggle_ai_translation.off": {
+    "checked": [
+      "true",
+      "true",
+      "false"
+    ],
+    "drawerOpener": false,
+    "groups": 2
+  },
+  "layout.toggle_ai_translation.on": {
+    "checked": [
+      "true",
+      "true",
+      "true"
+    ],
+    "drawerOpener": false,
+    "groups": 3
+  },
+  "layout.toggle_ai_translation.scrollAfter": {
+    "height": 5414,
+    "top": 600
+  }
+}

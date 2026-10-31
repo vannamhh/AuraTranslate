@@ -25,7 +25,7 @@ export type SerializedGrid = { root: GridNode; orientation: GridOrientation }
 
 export type PlacementDirection = 'right' | 'below' | 'left' | 'above'
 
-export type RememberedTreeSpot = { reference: string; direction: PlacementDirection }
+export type RememberedTreeSpot = { reference: string; direction: PlacementDirection; beside: GridNode['type'] }
 
 function flip(orientation: GridOrientation): GridOrientation {
   return orientation === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL'
@@ -72,6 +72,16 @@ export function edgeGroupIds(grid: SerializedGrid): DockEdges {
 
 type PathStep = { branch: GridNode; index: number; orientation: GridOrientation }
 
+function besideKind(node: GridNode): GridNode['type'] {
+  let current = node
+  while (current.type === 'branch') {
+    const kids = current.data as GridNode[]
+    if (kids.length !== 1) return 'branch'
+    current = kids[0] as GridNode
+  }
+  return 'leaf'
+}
+
 /**
  * Anh em THẬT của `id` trong cây lưới — nút cạnh nó trong CÙNG một nhánh — cộng hướng của
  * `id` so với anh em đó.
@@ -104,12 +114,12 @@ export function findTreeSpot(grid: SerializedGrid, id: string): RememberedTreeSp
     const before = kids[step.index - 1]
     if (before !== undefined) {
       const reference = viewsIn(before).find((v) => v !== id)
-      if (reference !== undefined) return { reference, direction: directionFor(step.orientation, true) }
+      if (reference !== undefined) return { reference, direction: directionFor(step.orientation, true), beside: besideKind(before) }
     }
     const after = kids[step.index + 1]
     if (after !== undefined) {
       const reference = viewsIn(after).find((v) => v !== id)
-      if (reference !== undefined) return { reference, direction: directionFor(step.orientation, false) }
+      if (reference !== undefined) return { reference, direction: directionFor(step.orientation, false), beside: besideKind(after) }
     }
   }
   return null
@@ -210,7 +220,7 @@ function locateLeaf(root: GridNode, rootOrientation: GridOrientation, id: string
 }
 
 /** Chỗ đã nhớ trước lượt gộp — như [`RememberedTreeSpot`], cộng `within` (đã tab cùng một panel). */
-export type UnmergeSpot = { reference: string; direction: PlacementDirection | 'within' }
+export type UnmergeSpot = { reference: string; direction: PlacementDirection | 'within'; beside?: GridNode['type'] }
 
 /**
  * Tách `panelId` khỏi nhóm nó đang GỘP TAB, rồi đặt nó về chỗ đã nhớ quanh LÁ CHỨA
@@ -253,6 +263,24 @@ export function unmergeForPersist(dock: SerializedDockJSON, panelId: string, spo
   const loc = locateLeaf(cloned.grid.root, cloned.grid.orientation, spot.reference) as LeafLocation
   if (spot.direction === 'within') {
     ;(loc.leaf.data as LeafData).views.push(panelId)
+    return cloned
+  }
+
+  if (spot.beside === 'branch') {
+    const axis = axisForDirection(spot.direction)
+    const after = isAfterDirection(spot.direction)
+    const root = cloned.grid.root as SizedGridNode
+    const newId = uniqueLeafId(collectLeafIds(cloned.grid.root))
+    const edgeLeaf: SizedGridNode = { type: 'leaf', data: { views: [panelId], activeView: panelId, id: newId }, size: 0 }
+    if (root.type === 'branch' && cloned.grid.orientation === axis) {
+      const kids = root.data as GridNode[]
+      if (after) kids.push(edgeLeaf)
+      else kids.unshift(edgeLeaf)
+    } else {
+      const wrapper: SizedGridNode = { type: 'branch', data: after ? [root, edgeLeaf] : [edgeLeaf, root], size: root.size ?? 0 }
+      cloned.grid.root = wrapper
+      cloned.grid.orientation = axis
+    }
     return cloned
   }
 

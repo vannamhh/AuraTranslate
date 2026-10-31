@@ -2906,9 +2906,6 @@ console.log('\nKiểm M — mọi command có điểm chuột, khai `pointer`, h
 
 /** Open debt: ids may only be removed, never added. Keep this and the baseline as two separate literals. */
 const POINTER_DEBT = /** @type {string[]} */ ([
-  'layout.toggle_ai_translation',
-  'layout.toggle_grid',
-  'layout.toggle_lookup',
   'ai.proofread.hide',
   'library.chapters.clear_selection',
   'reading.marks_clear_cancel',
@@ -2968,7 +2965,7 @@ const POINTER_DEBT_BASELINE = /** @type {string[]} */ ([
 ])
 
 /** `ceil(0.85 × live)` over commands with a mouse point, via `judgeFloor`. */
-const POINTER_FLOOR = 244
+const POINTER_FLOOR = 246
 
 /**
  * Self-check: the verdict must go red on each bad case and stay green on the good ones.
