@@ -232,6 +232,24 @@ pub fn fetch(
     allowlist: &Allowlist,
     kind: ResourceKind,
 ) -> (Result<FetchedPage, FetchError>, Vec<DomainLogEntry>) {
+    // Under `debug_assertions` `reqwest::blocking` builds and drops a runtime, which panics on the
+    // tokio worker running a `#[tauri::command(async)]` body and leaves the invoke unanswered.
+    std::thread::scope(|scope| {
+        match scope
+            .spawn(|| fetch_off_the_async_runtime(url, allowlist, kind))
+            .join()
+        {
+            Ok(outcome) => outcome,
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    })
+}
+
+fn fetch_off_the_async_runtime(
+    url: &str,
+    allowlist: &Allowlist,
+    kind: ResourceKind,
+) -> (Result<FetchedPage, FetchError>, Vec<DomainLogEntry>) {
     let mut log: Vec<DomainLogEntry> = Vec::new();
 
     // 🔵 THÊM (vòng rà đối kháng 3, mục R1) — `url` không phân giải được thành một

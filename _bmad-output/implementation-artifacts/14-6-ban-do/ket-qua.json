@@ -1,0 +1,776 @@
+{
+  "calibration": {
+    "win": {
+      "ih": 860,
+      "oh": 0,
+      "x": 0,
+      "y": 960
+    },
+    "guess": {
+      "x": 300,
+      "y": 300
+    },
+    "pt": [
+      149,
+      256
+    ]
+  },
+  "activation_ms": 1272,
+  "blocks": 31,
+  "same_block": {
+    "before": {
+      "active": "SECTION.ip-panel",
+      "aimed": 0,
+      "clusters": 1,
+      "dropped": [
+        0
+      ],
+      "labels": [
+        "Giữ khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 440,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "after": {
+      "active": "OL.ip-blocks",
+      "aimed": 0,
+      "clusters": 1,
+      "dropped": [
+        0
+      ],
+      "labels": [
+        "Giữ khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 440,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "afterJ": {
+      "active": "OL.ip-blocks",
+      "aimed": 1,
+      "clusters": 1,
+      "dropped": [
+        0
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 440,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    }
+  },
+  "aim_attempts": [
+    {
+      "index": 14,
+      "attempt": 1
+    },
+    {
+      "index": 14,
+      "attempt": 1
+    },
+    {
+      "index": 2,
+      "attempt": 1
+    },
+    {
+      "index": 3,
+      "attempt": 1
+    },
+    {
+      "index": 4,
+      "attempt": 1
+    },
+    {
+      "index": 5,
+      "attempt": 1
+    },
+    {
+      "index": 6,
+      "attempt": 1
+    },
+    {
+      "index": 7,
+      "attempt": 1
+    },
+    {
+      "index": 8,
+      "attempt": 1
+    },
+    {
+      "index": 9,
+      "attempt": 1
+    },
+    {
+      "index": 2,
+      "attempt": 1
+    },
+    {
+      "index": 3,
+      "attempt": 1
+    },
+    {
+      "index": 4,
+      "attempt": 1
+    },
+    {
+      "index": 5,
+      "attempt": 1
+    }
+  ],
+  "far_block": {
+    "before": {
+      "active": "OL.ip-blocks",
+      "aimed": 1,
+      "clusters": 1,
+      "dropped": [
+        0
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 1997,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "after": {
+      "active": "OL.ip-blocks",
+      "aimed": 14,
+      "clusters": 1,
+      "dropped": [
+        0
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 1997,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "movedBy": 0,
+    "afterJ": {
+      "active": "OL.ip-blocks",
+      "aimed": 15,
+      "clusters": 1,
+      "dropped": [
+        0
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 1997,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    }
+  },
+  "button_events": [
+    {
+      "label": "Loại khối này",
+      "attempt": 1,
+      "log": [
+        "mousedown BUTTON.ui-btn:Loại khối này @1086,511 btn=0",
+        "mouseup BUTTON.ui-btn:Loại khối này @1086,511 btn=0",
+        "click BUTTON.ui-btn:Loại khối này @1086,511 btn=0"
+      ]
+    },
+    {
+      "label": "Đầu vùng giữ",
+      "attempt": 1,
+      "log": [
+        "mousedown BUTTON.ui-btn:Đầu vùng giữ @1194,575 btn=0",
+        "mouseup BUTTON.ui-btn:Đầu vùng giữ @1194,575 btn=0",
+        "click BUTTON.ui-btn:Đầu vùng giữ @1194,575 btn=0"
+      ]
+    },
+    {
+      "label": "Cuối vùng giữ",
+      "attempt": 1,
+      "log": [
+        "mousedown BUTTON.ui-btn:Cuối vùng giữ @1192,398 btn=0",
+        "mouseup BUTTON.ui-btn:Cuối vùng giữ @1192,398 btn=0",
+        "click BUTTON.ui-btn:Cuối vùng giữ @1192,398 btn=0"
+      ]
+    },
+    {
+      "label": "›",
+      "attempt": 1,
+      "log": [
+        "mousedown BUTTON.ui-icon-btn:› @70,433 btn=0",
+        "mouseup BUTTON.ui-icon-btn:› @70,433 btn=0",
+        "click BUTTON.ui-icon-btn:› @70,433 btn=0",
+        "focusout OL.ip-blocks:Đã loại Bai da @undefined,undefined btn=undefined",
+        "focusin SECTION.ip-panel:Xem trước lượt @undefined,undefined btn=undefined"
+      ]
+    },
+    {
+      "label": "‹",
+      "attempt": 1,
+      "log": [
+        "mousedown BUTTON.ui-icon-btn:‹ @35,433 btn=0",
+        "mouseup BUTTON.ui-icon-btn:‹ @35,433 btn=0",
+        "click BUTTON.ui-icon-btn:‹ @35,433 btn=0",
+        "focusout OL.ip-blocks:Đã loại Bai da @undefined,undefined btn=undefined",
+        "focusin SECTION.ip-panel:Xem trước lượt @undefined,undefined btn=undefined"
+      ]
+    }
+  ],
+  "drop": {
+    "dropped": {
+      "active": "OL.ip-blocks",
+      "aimed": 15,
+      "clusters": 1,
+      "dropped": [
+        0,
+        15
+      ],
+      "labels": [
+        "Giữ khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 1997,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "afterJ": {
+      "active": "OL.ip-blocks",
+      "aimed": 16,
+      "clusters": 1,
+      "dropped": [
+        0,
+        15
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 1997,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    }
+  },
+  "range": {
+    "marked": {
+      "active": "OL.ip-blocks",
+      "aimed": 16,
+      "clusters": 1,
+      "dropped": [
+        0,
+        15
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": true,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 1997,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "aimedEnd": {
+      "active": "OL.ip-blocks",
+      "aimed": 14,
+      "clusters": 1,
+      "dropped": [
+        0,
+        15
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ",
+        "Cuối vùng giữ"
+      ],
+      "marker": true,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 1997,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "confirmed": {
+      "active": "OL.ip-blocks",
+      "aimed": 14,
+      "clusters": 1,
+      "dropped": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 1997,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "afterJ": {
+      "active": "OL.ip-blocks",
+      "aimed": 15,
+      "clusters": 1,
+      "dropped": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 1808,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    }
+  },
+  "select": {
+    "active": "OL.ip-blocks",
+    "aimed": 5,
+    "clusters": 1,
+    "dropped": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30
+    ],
+    "labels": [
+      "Giữ khối này",
+      "Đầu vùng giữ"
+    ],
+    "marker": false,
+    "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+    "scrollTop": 760,
+    "scroller": "SECTION.mode",
+    "selection": " bai viet co du chu de Readab"
+  },
+  "chapter": {
+    "beforeNext": {
+      "active": "OL.ip-blocks",
+      "aimed": 5,
+      "clusters": 1,
+      "dropped": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "labels": [
+        "Giữ khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 358,
+      "scroller": "SECTION.mode",
+      "selection": " bai viet co du chu de Readab"
+    },
+    "chapter2": {
+      "active": "SECTION.ip-panel",
+      "aimed": 0,
+      "clusters": 1,
+      "dropped": [
+        0
+      ],
+      "labels": [
+        "Giữ khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 2/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 358,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "afterK": {
+      "active": "OL.ip-blocks",
+      "aimed": 1,
+      "clusters": 1,
+      "dropped": [
+        0
+      ],
+      "labels": [
+        "Loại khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 2/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 358,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    },
+    "back": {
+      "active": "SECTION.ip-panel",
+      "aimed": 1,
+      "clusters": 1,
+      "dropped": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ],
+      "labels": [
+        "Giữ khối này",
+        "Đầu vùng giữ"
+      ],
+      "marker": false,
+      "note": "Chương 1/2 — dùng ⌥← / ⌥→ để đổi Chương",
+      "scrollTop": 358,
+      "scroller": "SECTION.mode",
+      "selection": ""
+    }
+  },
+  "layout": {
+    "actions": {
+      "bottom": 582,
+      "height": 28,
+      "left": 1039.28125,
+      "right": 1244,
+      "top": 554,
+      "width": 204.71875,
+      "x": 1039.28125,
+      "y": 554
+    },
+    "head": {
+      "bottom": 582,
+      "height": 28,
+      "left": 45,
+      "right": 1244,
+      "top": 554,
+      "width": 1199,
+      "x": 45,
+      "y": 554
+    },
+    "innerWidth": 1280
+  },
+  "lost_after_key": [
+    {
+      "holdMs": 90,
+      "y": 422,
+      "visible": true,
+      "cluster": [
+        "mousedown",
+        "mouseup",
+        "click"
+      ],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin",
+        "mouseup",
+        "click",
+        "click",
+        "focusout",
+        "focusin"
+      ]
+    },
+    {
+      "holdMs": 0,
+      "y": 422,
+      "visible": true,
+      "cluster": [],
+      "control": []
+    },
+    {
+      "holdMs": 90,
+      "y": 422,
+      "visible": true,
+      "cluster": [
+        "mousedown",
+        "mouseup",
+        "click"
+      ],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin",
+        "mouseup",
+        "click",
+        "click",
+        "focusout",
+        "focusin"
+      ]
+    },
+    {
+      "holdMs": 0,
+      "y": 422,
+      "visible": true,
+      "cluster": [],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin"
+      ]
+    },
+    {
+      "holdMs": 90,
+      "y": 422,
+      "visible": true,
+      "cluster": [
+        "mousedown",
+        "mouseup",
+        "click"
+      ],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin",
+        "mouseup",
+        "click",
+        "click",
+        "focusout",
+        "focusin"
+      ]
+    },
+    {
+      "holdMs": 0,
+      "y": 422,
+      "visible": true,
+      "cluster": [],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin"
+      ]
+    },
+    {
+      "holdMs": 90,
+      "y": 422,
+      "visible": true,
+      "cluster": [
+        "mousedown",
+        "mouseup",
+        "click"
+      ],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin",
+        "mouseup",
+        "click",
+        "click",
+        "focusout",
+        "focusin"
+      ]
+    },
+    {
+      "holdMs": 0,
+      "y": 422,
+      "visible": true,
+      "cluster": [
+        "mousedown"
+      ],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin"
+      ]
+    },
+    {
+      "holdMs": 90,
+      "y": 422,
+      "visible": true,
+      "cluster": [
+        "mousedown",
+        "mouseup",
+        "click"
+      ],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin",
+        "mouseup",
+        "click",
+        "click",
+        "focusout",
+        "focusin"
+      ]
+    },
+    {
+      "holdMs": 0,
+      "y": 422,
+      "visible": true,
+      "cluster": [],
+      "control": []
+    },
+    {
+      "holdMs": 90,
+      "y": 422,
+      "visible": true,
+      "cluster": [
+        "mousedown",
+        "mouseup",
+        "click"
+      ],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin",
+        "mouseup",
+        "click",
+        "click",
+        "focusout",
+        "focusin"
+      ]
+    },
+    {
+      "holdMs": 0,
+      "y": 422,
+      "visible": true,
+      "cluster": [
+        "mousedown"
+      ],
+      "control": [
+        "mousedown",
+        "focusout",
+        "focusin"
+      ]
+    }
+  ]
+}

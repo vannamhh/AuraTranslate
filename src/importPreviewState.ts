@@ -1306,6 +1306,13 @@ export function nextImportPreviewBlock(): void {
   blockActionError.value = null
 }
 
+export function setImportPreviewBlockFocus(index: number): void {
+  const length = importPreviewSelectedBlocks.value?.blocks.length ?? 0
+  if (index < 0 || index >= length) return
+  blockFocusedIndex.value = index
+  blockActionError.value = null
+}
+
 /** `K`/lên — cùng khuôn [`nextImportPreviewBlock`], dừng ở 0. */
 export function prevImportPreviewBlock(): void {
   const length = importPreviewSelectedBlocks.value?.blocks.length ?? 0

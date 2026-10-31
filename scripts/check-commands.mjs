@@ -249,7 +249,7 @@ const COMMAND_FLOOR = 269
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
 const CLICK_FLOOR = 271
-const DISPATCH_FLOOR = 360
+const DISPATCH_FLOOR = 385
 
 {
   const v1 = judgeFloor(VUE_FLOOR, vueFiles.length, 'VUE_FLOOR', 'tệp `.vue` dưới `src/**`')
@@ -2491,6 +2491,8 @@ const HANDLER_TABLE = {
   'src/GlossaryQuickAdd.vue::onCategoryKeydown': { nonCommand: R_CATEGORY_NAV },
   'src/ImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.cancel'] },
   'src/ImportPreviewOverlay.vue::onScrimKeydown': { nonCommand: R_SCRIM_CLOSE },
+  'src/ImportPreviewOverlay.vue::setImportPreviewBlockFocus': { nonCommand: R_CURSOR_LOCAL },
+  'src/ImportPreviewOverlay.vue::holdViewForChapterMove': { nonCommand: R_CURSOR_LOCAL },
   'src/ImportPreviewOverlay.vue::onReloadUrlItem': { nonCommand: R_SUBMIT_DIRECT },
   'src/ImportPreviewOverlay.vue::onRemoveUrlItem': { nonCommand: R_SUBMIT_DIRECT },
   'src/ImportPreviewOverlay.vue::onRemoveFileItem': { nonCommand: R_SUBMIT_DIRECT },
@@ -2901,14 +2903,6 @@ console.log('\nKiểm M — mọi command có điểm chuột, khai `pointer`, h
 
 /** Open debt: ids may only be removed, never added. Keep this and the baseline as two separate literals. */
 const POINTER_DEBT = /** @type {string[]} */ ([
-  'import.preview.block_next',
-  'import.preview.block_prev',
-  'import.preview.block_toggle_kept',
-  'import.preview.block_mark_range_start',
-  'import.preview.block_confirm_range',
-  'import.preview.jump_to_cleanup_rules',
-  'import.preview.chapter_next',
-  'import.preview.chapter_prev',
   'import.preview.bilingual_caret_left',
   'import.preview.bilingual_caret_right',
   'import.preview.bilingual_toggle_cut',

@@ -1882,6 +1882,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'import.preview.block_next',
     labelKey: 'command.import.preview.block_next',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng khối.', at: 'src/ImportPreviewOverlay.vue' },
     keys: undefined,
     run: () => {
       if (deps.nextImportPreviewBlock === undefined) {
@@ -1893,6 +1894,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'import.preview.block_prev',
     labelKey: 'command.import.preview.block_prev',
+    pointer: { kind: 'aim', reason: 'Bước con trỏ trên danh sách mà chuột nhắm thẳng được từng khối.', at: 'src/ImportPreviewOverlay.vue' },
     keys: undefined,
     run: () => {
       if (deps.prevImportPreviewBlock === undefined) {

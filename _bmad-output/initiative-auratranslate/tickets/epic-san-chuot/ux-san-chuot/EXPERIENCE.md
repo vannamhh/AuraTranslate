@@ -173,6 +173,8 @@ Một mục đọc caret hoặc vùng chọn phải có đích hoặc nói lý d
 
 🔵 2026-10-30 (Story 14.2): cặp Kết đoạn · Nối đoạn quyết định theo `is_target_paragraph_end`, không theo `is_paragraph_end` như dòng trên ghi. Hai lệnh đổi cờ của bản dịch (AD-46), và đọc cờ nguồn sẽ hiện sai mục.
 
+🔵 2026-10-31 (Story 14.6): ở tầng khối nhập URL, ba nút của cụm (Loại/Giữ khối này, Đầu vùng giữ, Cuối vùng giữ) tắt khi con trỏ Chương k > 0 (`title` nói chỉ sửa được ở Chương đầu), khi một lượt ghi đang bay hoặc đang xác nhận nhập; ‹ › tắt ở hai đầu và khi Chương đang dựng lại. Bấm ‹ › giữ nguyên tầm nhìn và không kéo tiêu điểm sang danh sách Chương như `⌥←` `⌥→`, vì danh sách nằm dưới tầng khối và nút sẽ rời khỏi con trỏ.
+
 🔵 2026-10-30 (Story 14.3): ‹ › Chương ẩn khi Review Mode mở, thay cho "Không bao giờ" ở bảng trên. Hợp âm chuyển Chương vẫn chạy trong Review Mode; việc đó thuộc Story 14.4.
 
 🔵 2026-10-31 (Story 14.4): câu trên không còn đúng: hợp âm chuyển Chương không đổi Chương khi Review Mode mở, `.diff-status` nói phải đóng Review Mode trước, vì một phiên Rà soát gắn với một Chương.
@@ -239,6 +241,8 @@ Ice vừa đổi máy, chưa gõ quen các phím, và đang sửa Chương 12.
 2. Ice bấm vào khối quảng cáo. Khối được nhắm và hiện cụm nút ở mép phải.
 3. Ice bấm `Loại khối này`. Khối chìm xuống và bộ đếm giữ/loại đổi.
 4. Nội dung thật bắt đầu muộn hơn. Ice bấm khối đầu rồi `Đầu vùng giữ`, bấm khối cuối rồi `Cuối vùng giữ`. Đỉnh điểm: vùng giữ đổi một lượt mà tay không rời chuột.
+
+🔵 2026-10-31 (Story 14.6): sửa khối diễn ra ở Chương đầu; ở Chương k > 0 ba nút hiện nhưng tắt (phiếu quyết #16).
 
 ### KF-8 · Ice vào và ra Review Mode bằng chuột
 

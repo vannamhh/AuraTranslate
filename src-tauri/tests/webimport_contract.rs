@@ -230,6 +230,26 @@ fn a_response_advertising_far_more_than_the_cap_is_cut_off_mid_stream() {
 // ═════════════════════════════════════════════════════════════════════════════════
 
 #[test]
+fn a_fetch_on_the_async_runtime_worker_answers_instead_of_panicking() {
+    let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let body = html_page_with_paragraphs();
+    let (port, server) = spawn_once(move |mut stream| {
+        let _ = stream.write_all(ok_html_response(&body).as_bytes());
+    });
+    let url = format!("http://127.0.0.1:{port}/worker");
+    let allowlist = Allowlist::from_urls([url.as_str()]);
+
+    let worker = tauri::async_runtime::spawn(async move {
+        let (result, _log) = fetch(&url, &allowlist, ResourceKind::Page);
+        result.is_ok()
+    });
+    let fetched = tauri::async_runtime::block_on(worker).expect("fetch panicked on the worker");
+
+    assert!(fetched, "the page must load through the shared client");
+    server.join().expect("server thread");
+}
+
+#[test]
 fn a_dead_connection_is_classified_as_connect_failed_not_some_other_error() {
     let _serial_guard = SERIAL_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     const MAX_ATTEMPTS: usize = 5;

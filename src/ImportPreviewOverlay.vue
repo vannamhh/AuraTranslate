@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
+import { commandTitle } from './config/shortcutsState'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { takeRecordedImportOpener } from './importOpener'
 import { groupThousands } from './importFormat'
@@ -19,7 +20,10 @@ import {
   importPreviewBlockActionError,
   importPreviewBlockFocusedIndex,
   importPreviewBlockRangeMissingStartNotice,
+  importPreviewBlockRangeConfirming,
   importPreviewBlockRangeStart,
+  importPreviewBlockToggling,
+  setImportPreviewBlockFocus,
   importPreviewCanConfirm,
   importPreviewChapterCursor,
   importPreviewChapterDetailError,
@@ -438,10 +442,27 @@ const currentChapterDomId = computed<string | null>(() => {
  * DOM thật). */
 const chaptersList = useTemplateRef<HTMLElement>('chaptersList')
 
+let keepViewOnChapterMove = false
+
+// The chapter list sits below the block tier: following it would pull ‹ › from under the pointer.
+function holdViewForChapterMove(): void {
+  keepViewOnChapterMove = true
+}
+
+function releaseViewForChapterMove(): void {
+  keepViewOnChapterMove = false
+}
+
 /** `⌥←`/`⌥→` — cuộn Chương mới vào tầm nhìn VÀ chuyển tiêu điểm DOM sang `<ul>`, cùng khuôn
  * `watch(importPreviewBlockFocusedIndex, ...)` ngay dưới. No-op khi Chương hiện tại bị khung
  * nhìn mặc định elide (`currentChapterDomId === null`) — không có gì trên DOM để mà cuộn tới. */
 watch(importPreviewChapterCursor, () => {
+  if (keepViewOnChapterMove) {
+    keepViewOnChapterMove = false
+    // The block list unmounts while the Chapter loads; focus on body would kill the scrim's keys.
+    panel.value?.focus({ preventScroll: true })
+    return
+  }
   void nextTick(() => {
     const id = currentChapterDomId.value
     if (id === null) return
@@ -593,6 +614,20 @@ function blockStateClass(block: BlockWire, index: number): Record<string, boolea
     'ip-block-kept-confirmed': block.kept && block.confirmed,
     'ip-block-focused': index === importPreviewBlockFocusedIndex.value,
   }
+}
+
+const blockActionsDisabled = computed<boolean>(
+  () =>
+    importPreviewChapterCursor.value > 0 ||
+    importPreviewBlockToggling.value ||
+    importPreviewBlockRangeConfirming.value ||
+    importPreviewConfirming.value,
+)
+
+function blockActionTitle(id: 'import.preview.block_toggle_kept' | 'import.preview.block_mark_range_start' | 'import.preview.block_confirm_range'): string {
+  return importPreviewChapterCursor.value > 0
+    ? t('mode.library.preview.tier2_action_first_chapter_only')
+    : commandTitle(id)
 }
 
 /** `id` DOM ổn định của một khối — dùng cho `aria-activedescendant`, cùng khuôn
@@ -773,7 +808,7 @@ const blocksList = useTemplateRef<HTMLElement>('blocksList')
 watch(importPreviewBlockFocusedIndex, (index) => {
   void nextTick(() => {
     document.getElementById(blockDomId(index))?.scrollIntoView({ block: 'nearest' })
-    blocksList.value?.focus()
+    blocksList.value?.focus({ preventScroll: true })
   })
 })
 
@@ -1177,7 +1212,18 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
           :class="{ 'ip-tier-empty': importPreviewLastSubmittedFrom !== 'urls' }"
           aria-labelledby="ip-tier-2-title"
         >
-          <h3 id="ip-tier-2-title" class="ip-tier-title">{{ t('mode.library.preview.tier2_title') }}</h3>
+          <div class="ip-tier2-head">
+            <h3 id="ip-tier-2-title" class="ip-tier-title">{{ t('mode.library.preview.tier2_title') }}</h3>
+            <button
+              v-if="importPreviewLastSubmittedFrom === 'urls' && importPreviewSelectedBlocks !== null"
+              type="button"
+              class="ip-tier2-jump ui-btn ui-btn--quiet"
+              :title="commandTitle('import.preview.jump_to_cleanup_rules')"
+              @click="dispatch('import.preview.jump_to_cleanup_rules')"
+            >
+              {{ t('mode.library.preview.tier2_jump_to_cleanup') }}
+            </button>
+          </div>
           <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (số đếm từ Rust). -->
           <p v-if="tier2Counts !== null" class="ip-tier2-counts">
             {{ t('mode.library.preview.tier2_counts', { kept: String(tier2Counts.kept), excluded: String(tier2Counts.excluded) }) }}
@@ -1187,20 +1233,48 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             hơn một Chương (`chapterCursorTotal > 1` — N = 1 thì "con trỏ tồn tại nhưng không
             đi đâu được", I/O Matrix spec 6.10a, không cần hiện một dòng vô nghĩa "Chương 1/1").
           -->
-          <p
+          <div
             v-if="importPreviewLastSubmittedFrom === 'urls' && chapterCursorTotal > 1"
-            class="ip-chapter-cursor-note"
-            role="status"
+            class="ip-chapter-cursor-row"
           >
-            <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (con trỏ + tổng số Chương). -->
-            {{
-              t('mode.library.preview.chapter_cursor_note', {
-                current: String(importPreviewChapterCursor + 1),
-                total: String(chapterCursorTotal),
-              })
-            }}
-            <span v-if="importPreviewChapterDetailLoading">{{ t('mode.library.preview.chapter_cursor_loading') }}</span>
-          </p>
+            <button
+              type="button"
+              class="ui-icon-btn"
+              :aria-label="t('command.import.preview.chapter_prev')"
+              :title="commandTitle('import.preview.chapter_prev')"
+              :disabled="importPreviewChapterCursor <= 0 || importPreviewChapterDetailLoading"
+              @mousedown.prevent="holdViewForChapterMove"
+              @mouseleave="releaseViewForChapterMove"
+              @click="dispatch('import.preview.chapter_prev')"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              class="ui-icon-btn"
+              :aria-label="t('command.import.preview.chapter_next')"
+              :title="commandTitle('import.preview.chapter_next')"
+              :disabled="importPreviewChapterCursor >= chapterCursorTotal - 1 || importPreviewChapterDetailLoading"
+              @mousedown.prevent="holdViewForChapterMove"
+              @mouseleave="releaseViewForChapterMove"
+              @click="dispatch('import.preview.chapter_next')"
+            >
+              ›
+            </button>
+            <p
+              class="ip-chapter-cursor-note"
+              role="status"
+            >
+              <!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (con trỏ + tổng số Chương). -->
+              {{
+                t('mode.library.preview.chapter_cursor_note', {
+                  current: String(importPreviewChapterCursor + 1),
+                  total: String(chapterCursorTotal),
+                })
+              }}
+              <span v-if="importPreviewChapterDetailLoading">{{ t('mode.library.preview.chapter_cursor_loading') }}</span>
+            </p>
+          </div>
           <p v-if="importPreviewChapterDetailError !== null" class="ip-tier2-range-notice" role="alert">
             <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
             {{ tError(importPreviewChapterDetailError) }}
@@ -1243,10 +1317,46 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                   :class="blockStateClass(block, index)"
                   role="option"
                   :aria-selected="index === importPreviewBlockFocusedIndex"
+                  @mousedown="setImportPreviewBlockFocus(index)"
                 >
                   <div class="ip-block-gutter" aria-hidden="true"></div>
                   <div class="ip-block-body">
-                    <p class="ip-block-tag">{{ t(blockStateMessageKey(block)) }}</p>
+                    <div class="ip-block-head">
+                      <p class="ip-block-tag">{{ t(blockStateMessageKey(block)) }}</p>
+                      <div v-if="index === importPreviewBlockFocusedIndex" class="ip-block-actions">
+                        <button
+                          type="button"
+                          class="ui-btn"
+                          :title="blockActionTitle('import.preview.block_toggle_kept')"
+                          :disabled="blockActionsDisabled"
+                          @mousedown.prevent
+                          @click="dispatch('import.preview.block_toggle_kept')"
+                        >
+                          {{ t(block.kept ? 'mode.library.preview.tier2_action_drop' : 'mode.library.preview.tier2_action_keep') }}
+                        </button>
+                        <button
+                          type="button"
+                          class="ui-btn"
+                          :title="blockActionTitle('import.preview.block_mark_range_start')"
+                          :disabled="blockActionsDisabled"
+                          @mousedown.prevent
+                          @click="dispatch('import.preview.block_mark_range_start')"
+                        >
+                          {{ t('mode.library.preview.tier2_action_range_start') }}
+                        </button>
+                        <button
+                          v-if="importPreviewBlockRangeStart !== null && importPreviewBlockRangeStart !== index"
+                          type="button"
+                          class="ui-btn"
+                          :title="blockActionTitle('import.preview.block_confirm_range')"
+                          :disabled="blockActionsDisabled"
+                          @mousedown.prevent
+                          @click="dispatch('import.preview.block_confirm_range')"
+                        >
+                          {{ t('mode.library.preview.tier2_action_range_end') }}
+                        </button>
+                      </div>
+                    </div>
                     <p v-if="block.body.kind === 'paragraph' || block.body.kind === 'caption'" class="ip-block-text">
                       <!-- aura-allow-text: DỮ LIỆU (thân khối đã bóc thật từ Rust, KHÔNG markup — AD-16). -->
                       {{ block.body.text }}
@@ -1970,6 +2080,48 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   color: var(--color-on-surface-variant);
 }
 
+.ip-tier2-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--space-unit) * 2);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
+}
+
+.ip-tier2-head .ip-tier-title {
+  margin: 0;
+}
+
+.ip-chapter-cursor-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  margin: 0 0 calc(var(--space-unit) * 1) 0;
+}
+
+.ip-chapter-cursor-row .ip-chapter-cursor-note {
+  margin: 0;
+}
+
+.ip-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--space-unit) * 2);
+  min-height: calc(var(--space-unit) * 4);
+}
+
+.ip-block-head .ip-block-tag {
+  margin: 0;
+}
+
+.ip-block-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: calc(var(--space-unit) * 1);
+}
+
 .ip-blocks {
   margin: 0;
   padding: 0;
@@ -2015,6 +2167,10 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 
 .ip-block-focused {
   border-left-color: var(--color-primary);
+}
+
+.ip-block:not(.ip-block-focused) {
+  cursor: pointer;
 }
 
 /* Vạch TRẠNG THÁI — cùng ngữ pháp vạch lề segment của `GridPanel.vue`

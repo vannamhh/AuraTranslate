@@ -50,6 +50,7 @@ const reloadUrlImportItemMock = vi.fn()
 const removeUrlImportItemMock = vi.fn()
 const tier2BlockSetKeptMock = vi.fn()
 const tier2BlockConfirmRangeMock = vi.fn()
+const previewChapterDetailMock = vi.fn()
 
 vi.mock('../../src/config/project', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/project')>()
@@ -62,6 +63,7 @@ vi.mock('../../src/config/project', async (importOriginal) => {
     startUrlImport: (urls: string[], sourceLang: string) => startUrlImportMock(urls, sourceLang),
     reloadUrlImportItem: (index: number, sourceLang: string) => reloadUrlImportItemMock(index, sourceLang),
     removeUrlImportItem: (index: number, sourceLang: string) => removeUrlImportItemMock(index, sourceLang),
+    previewChapterDetail: (...args: unknown[]) => previewChapterDetailMock(...args),
     tier2BlockSetKept: (index: number, kept: boolean, sourceLang: string, detailChapterIndex: number) =>
       tier2BlockSetKeptMock(index, kept, sourceLang, detailChapterIndex),
     tier2BlockConfirmRange: (start: number, end: number, total: number, sourceLang: string, detailChapterIndex: number) =>
@@ -78,6 +80,7 @@ function resetAllMocks(): void {
   removeUrlImportItemMock.mockReset()
   tier2BlockSetKeptMock.mockReset()
   tier2BlockConfirmRangeMock.mockReset()
+  previewChapterDetailMock.mockReset()
 }
 
 async function freshState() {
@@ -550,6 +553,348 @@ describe('ImportPreviewOverlay.vue — dãy khối render đúng ba vạch lề 
     expect(counts).toContain('2 khối giữ') // block 1 + block 2 kept
     expect(counts).toContain('1 khối loại') // block 0 excluded
 
+    wrapper.unmount()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// Lớp CHUỘT — nhắm khối, cụm nút, ‹ ›, Tới luật làm sạch
+// ═════════════════════════════════════════════════════════════════════════════════
+
+const FIVE_BLOCKS: BlockWire[] = [...THREE_BLOCKS, block(), block()]
+
+async function mountUrlOverlay(blocks: BlockWire[], chapterCount = 1) {
+  vi.resetModules()
+  resetAllMocks()
+  const commands = await import('../../src/commands')
+  const state = await import('../../src/importPreviewState')
+  const calls = {
+    toggle: vi.fn(),
+    mark: vi.fn(),
+    confirmRange: vi.fn(),
+    jump: vi.fn(),
+    chapterNext: vi.fn(),
+    chapterPrev: vi.fn(),
+  }
+  commands.installCommands({
+    nextImportPreviewBlock: state.nextImportPreviewBlock,
+    prevImportPreviewBlock: state.prevImportPreviewBlock,
+    toggleImportPreviewBlockKept: calls.toggle,
+    markImportPreviewBlockRangeStart: calls.mark,
+    confirmImportPreviewBlockRange: calls.confirmRange,
+    jumpImportPreviewToCleanupRules: calls.jump,
+    nextImportPreviewChapter: calls.chapterNext,
+    prevImportPreviewChapter: calls.chapterPrev,
+  } as unknown as CommandDeps)
+  const ImportPreviewOverlay = (await import('../../src/ImportPreviewOverlay.vue')).default
+  const urls = ['https://a.example/1']
+  const batch = batchWithBlocks(urls, blocks)
+  const candidate = batch.encoding_preview?.candidates[0]
+  const template = candidate?.chapters?.chapters[0]
+  if (candidate?.chapters != null && template !== undefined) {
+    candidate.chapters = {
+      ...candidate.chapters,
+      chapter_count: chapterCount,
+      chapters: Array.from({ length: chapterCount }, (_, i) => ({ ...template, ord: i + 1 })),
+    }
+  }
+  startUrlImportMock.mockResolvedValue({ batch, error: null })
+  await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
+  const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+  await wrapper.vm.$nextTick()
+  return { state, wrapper, calls }
+}
+
+describe('ImportPreviewOverlay.vue — chuột nhắm khối và cụm nút', () => {
+  it('mousedown thật trên khối 3 nhắm khối 3, đúng một cụm nút, J tới khối 4 và K về khối 2', async () => {
+    const { state, wrapper } = await mountUrlOverlay(FIVE_BLOCKS)
+    expect(wrapper.findAll('.ip-block-actions')).toHaveLength(1)
+    await wrapper.findAll('.ip-block')[3]?.trigger('mousedown')
+    expect(state.importPreviewBlockFocusedIndex.value).toBe(3)
+    expect(wrapper.findAll('.ip-block-actions')).toHaveLength(1)
+    expect(wrapper.findAll('.ip-block')[3]?.find('.ip-block-actions').exists()).toBe(true)
+    await wrapper.get('.ip-screen').trigger('keydown', { key: 'j' })
+    expect(state.importPreviewBlockFocusedIndex.value).toBe(4)
+    await wrapper.get('.ip-screen').trigger('keydown', { key: 'k' })
+    await wrapper.get('.ip-screen').trigger('keydown', { key: 'k' })
+    expect(state.importPreviewBlockFocusedIndex.value).toBe(2)
+    wrapper.unmount()
+  })
+
+  it('bấm lại khối đang nhắm giữ nguyên chỉ số và J chạy tiếp từ đó', async () => {
+    const { state, wrapper } = await mountUrlOverlay(FIVE_BLOCKS)
+    await wrapper.findAll('.ip-block')[2]?.trigger('mousedown')
+    await wrapper.findAll('.ip-block')[2]?.trigger('mousedown')
+    expect(state.importPreviewBlockFocusedIndex.value).toBe(2)
+    await wrapper.get('.ip-screen').trigger('keydown', { key: 'j' })
+    expect(state.importPreviewBlockFocusedIndex.value).toBe(3)
+    wrapper.unmount()
+  })
+
+  it('nhãn nút đổi theo block.kept, một nút duy nhất', async () => {
+    const { wrapper } = await mountUrlOverlay(FIVE_BLOCKS)
+    const first = wrapper.findAll('.ip-block')[0]!
+    expect(first.findAll('.ip-block-actions button')[0]?.text()).toBe('Giữ khối này')
+    await wrapper.findAll('.ip-block')[1]?.trigger('mousedown')
+    expect(wrapper.findAll('.ip-block')[1]?.findAll('.ip-block-actions button')[0]?.text()).toBe('Loại khối này')
+    wrapper.unmount()
+  })
+
+  it('(i) Loại/Giữ khối này bắn block_toggle_kept', async () => {
+    const { wrapper, calls } = await mountUrlOverlay(FIVE_BLOCKS)
+    await wrapper.findAll('.ip-block-actions button')[0]?.trigger('click')
+    expect(calls.toggle).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('(i) Đầu vùng giữ bắn block_mark_range_start', async () => {
+    const { wrapper, calls } = await mountUrlOverlay(FIVE_BLOCKS)
+    await wrapper.findAll('.ip-block-actions button')[1]?.trigger('click')
+    expect(calls.mark).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('(i) Cuối vùng giữ chỉ hiện khi đầu vùng ở khối khác, và bắn block_confirm_range', async () => {
+    const { state, wrapper, calls } = await mountUrlOverlay(FIVE_BLOCKS)
+    await wrapper.findAll('.ip-block')[4]?.trigger('mousedown')
+    state.markImportPreviewBlockRangeStart()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findAll('.ip-block-actions button')).toHaveLength(2)
+    await wrapper.findAll('.ip-block')[1]?.trigger('mousedown')
+    const buttons = wrapper.findAll('.ip-block-actions button')
+    expect(buttons).toHaveLength(3)
+    expect(buttons[2]?.text()).toBe('Cuối vùng giữ')
+    await buttons[2]?.trigger('click')
+    expect(calls.confirmRange).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('(i) Tới luật làm sạch bắn jump_to_cleanup_rules', async () => {
+    const { wrapper, calls } = await mountUrlOverlay(FIVE_BLOCKS)
+    await wrapper.get('.ip-tier2-jump').trigger('click')
+    expect(calls.jump).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('(i) ‹ › bắn chapter_prev / chapter_next, tắt ở hai đầu', async () => {
+    const { state, wrapper, calls } = await mountUrlOverlay(FIVE_BLOCKS, 3)
+    const [prev, next] = wrapper.findAll('.ip-chapter-cursor-row button')
+    expect(prev.attributes('disabled')).toBeDefined()
+    expect(next.attributes('disabled')).toBeUndefined()
+    await next.trigger('click')
+    expect(calls.chapterNext).toHaveBeenCalledTimes(1)
+    previewChapterDetailMock.mockResolvedValue({ detail: { cleanup: { text: 'x', spans: [], rules: [], window_truncated: false, final_text: 'x' }, blocks: blocksWire(FIVE_BLOCKS) }, error: null })
+    state.nextImportPreviewChapter()
+    await new Promise((r) => setTimeout(r))
+    state.nextImportPreviewChapter()
+    await new Promise((r) => setTimeout(r))
+    await wrapper.vm.$nextTick()
+    expect(state.importPreviewChapterCursor.value).toBe(2)
+    const [prev2, next2] = wrapper.findAll('.ip-chapter-cursor-row button')
+    expect(next2.attributes('disabled')).toBeDefined()
+    expect(prev2.attributes('disabled')).toBeUndefined()
+    await prev2.trigger('click')
+    expect(calls.chapterPrev).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('một Chương: không có ‹ ›', async () => {
+    const { wrapper } = await mountUrlOverlay(FIVE_BLOCKS, 1)
+    expect(wrapper.find('.ip-chapter-cursor-row').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('Chương k > 0: cụm nút hiện, cả ba tắt, title nói lý do', async () => {
+    const { state, wrapper } = await mountUrlOverlay(FIVE_BLOCKS, 3)
+    previewChapterDetailMock.mockResolvedValue({ detail: { cleanup: { text: 'x', spans: [], rules: [], window_truncated: false, final_text: 'x' }, blocks: blocksWire(FIVE_BLOCKS) }, error: null })
+    state.nextImportPreviewChapter()
+    await new Promise((r) => setTimeout(r))
+    await wrapper.vm.$nextTick()
+    await wrapper.findAll('.ip-block')[0]?.trigger('mousedown')
+    const buttons = wrapper.findAll('.ip-block-actions button')
+    expect(buttons.length).toBeGreaterThanOrEqual(2)
+    for (const b of buttons) {
+      expect(b.attributes('disabled')).toBeDefined()
+      expect(b.attributes('title')).toContain('Chương đầu tiên')
+    }
+    wrapper.unmount()
+  })
+
+  it('đường dán: không cụm nút, không ‹ ›, không nút tới luật', async () => {
+    const { state, ImportPreviewOverlay } = await (async () => {
+      const f = await freshOverlay()
+      return { state: f.state, ImportPreviewOverlay: f.ImportPreviewOverlay }
+    })()
+    previewTextMock.mockResolvedValue({ preview: previewWithBlocks(THREE_BLOCKS), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'noi dung', null)
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.ip-block-actions').exists()).toBe(false)
+    expect(wrapper.find('.ip-chapter-cursor-row').exists()).toBe(false)
+    expect(wrapper.find('.ip-tier2-jump').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('ImportPreviewOverlay.vue — nút chạy qua hàm ghi thật', () => {
+  const URLS = ['https://a.example/1']
+
+  async function mountWithRealWrites() {
+    vi.resetModules()
+    resetAllMocks()
+    const commands = await import('../../src/commands')
+    const state = await import('../../src/importPreviewState')
+    const ImportPreviewOverlay = (await import('../../src/ImportPreviewOverlay.vue')).default
+    commands.installCommands({
+      nextImportPreviewBlock: state.nextImportPreviewBlock,
+      prevImportPreviewBlock: state.prevImportPreviewBlock,
+      toggleImportPreviewBlockKept: state.toggleImportPreviewBlockKept,
+      markImportPreviewBlockRangeStart: state.markImportPreviewBlockRangeStart,
+      confirmImportPreviewBlockRange: state.confirmImportPreviewBlockRange,
+    } as unknown as CommandDeps)
+    startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(URLS, FIVE_BLOCKS), error: null })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', URLS, null)
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await nextTick()
+    return { state, wrapper }
+  }
+
+  async function settle(wrapper: { vm: { $nextTick: () => Promise<void> } }): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve))
+    await wrapper.vm.$nextTick()
+  }
+
+  it('Loại khối này gửi đúng khối, nhãn và bộ đếm đổi, J chạy tiếp', async () => {
+    const { state, wrapper } = await mountWithRealWrites()
+    await wrapper.findAll('.ip-block')[1]?.trigger('mousedown')
+    const dropped = [...FIVE_BLOCKS]
+    dropped[1] = block({ kept: false, confirmed: true })
+    tier2BlockSetKeptMock.mockResolvedValue({ batch: batchWithBlocks(URLS, dropped), error: null })
+    expect(wrapper.get('.ip-tier2-counts').text()).toContain('4 khối giữ · 1 khối loại')
+
+    await wrapper.findAll('.ip-block-actions button')[0]?.trigger('click')
+    await settle(wrapper)
+
+    expect(tier2BlockSetKeptMock).toHaveBeenCalledWith(1, false, 'en', 0)
+    expect(wrapper.findAll('.ip-block-actions button')[0]?.text()).toBe('Giữ khối này')
+    expect(wrapper.get('.ip-tier2-counts').text()).toContain('3 khối giữ · 2 khối loại')
+    await wrapper.get('.ip-screen').trigger('keydown', { key: 'j' })
+    expect(state.importPreviewBlockFocusedIndex.value).toBe(2)
+    wrapper.unmount()
+  })
+
+  it('dải đảo chiều gửi (4, 1, 5), Cuối vùng giữ biến mất, J chạy tiếp từ khối cuối', async () => {
+    const { state, wrapper } = await mountWithRealWrites()
+    await wrapper.findAll('.ip-block')[4]?.trigger('mousedown')
+    await wrapper.findAll('.ip-block-actions button')[1]?.trigger('click')
+    expect(state.importPreviewBlockRangeStart.value).toBe(4)
+    await wrapper.findAll('.ip-block')[1]?.trigger('mousedown')
+    tier2BlockConfirmRangeMock.mockResolvedValue({ batch: batchWithBlocks(URLS, FIVE_BLOCKS), error: null })
+
+    await wrapper.findAll('.ip-block-actions button')[2]?.trigger('click')
+    await settle(wrapper)
+
+    expect(tier2BlockConfirmRangeMock).toHaveBeenCalledWith(4, 1, 5, 'en', 0)
+    expect(wrapper.findAll('.ip-block-actions button')).toHaveLength(2)
+    await wrapper.get('.ip-screen').trigger('keydown', { key: 'j' })
+    expect(state.importPreviewBlockFocusedIndex.value).toBe(2)
+    wrapper.unmount()
+  })
+
+  it('lỗi ghi hiện ở dòng role=alert, nút mở lại để thử lại', async () => {
+    const { wrapper } = await mountWithRealWrites()
+    tier2BlockSetKeptMock.mockResolvedValue({
+      batch: null,
+      error: { code: 'import.tier2_edit_locked_to_first_chapter', message_key: 'err.import.tier2_edit_locked_to_first_chapter', params: {} },
+    })
+    await wrapper.findAll('.ip-block-actions button')[0]?.trigger('click')
+    await settle(wrapper)
+    expect(wrapper.findAll('.ip-tier2-range-notice').some((el) => el.attributes('role') === 'alert')).toBe(true)
+    expect(wrapper.findAll('.ip-block-actions button')[0]?.attributes('disabled')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('đang ghi: cả cụm nút tắt, không gửi lần thứ hai', async () => {
+    const { wrapper } = await mountWithRealWrites()
+    let release: (value: unknown) => void = () => undefined
+    tier2BlockSetKeptMock.mockReturnValue(new Promise((resolve) => (release = resolve)))
+    await wrapper.findAll('.ip-block-actions button')[0]?.trigger('click')
+    await wrapper.vm.$nextTick()
+    for (const button of wrapper.findAll('.ip-block-actions button')) {
+      expect(button.attributes('disabled')).toBeDefined()
+    }
+    await wrapper.findAll('.ip-block-actions button')[0]?.trigger('click')
+    expect(tier2BlockSetKeptMock).toHaveBeenCalledTimes(1)
+    release({ batch: batchWithBlocks(URLS, FIVE_BLOCKS), error: null })
+    await settle(wrapper)
+    wrapper.unmount()
+  })
+
+  it('cụm nút và ‹ › chặn mặc định mousedown, khối thì không để còn bôi được chữ', async () => {
+    const { wrapper } = await mountUrlOverlay(FIVE_BLOCKS, 3)
+    const press = (el: Element): boolean => {
+      const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+      el.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    for (const button of wrapper.findAll('.ip-block-actions button')) expect(press(button.element)).toBe(true)
+    for (const button of wrapper.findAll('.ip-chapter-cursor-row button')) expect(press(button.element)).toBe(true)
+    expect(press(wrapper.findAll('.ip-block-text')[3]!.element)).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('nhắm khối chuyển tiêu điểm sang danh sách mà không để focus() tự cuộn', async () => {
+    const { wrapper } = await mountUrlOverlay(FIVE_BLOCKS)
+    const list = wrapper.get('.ip-blocks').element as HTMLElement
+    const focus = vi.spyOn(list, 'focus')
+    await wrapper.findAll('.ip-block')[3]?.trigger('mousedown')
+    await nextTick()
+    await nextTick()
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+    wrapper.unmount()
+  })
+
+  it('› bằng chuột giữ nguyên tầm nhìn, ⌥→ vẫn chuyển tiêu điểm sang danh sách Chương', async () => {
+    vi.resetModules()
+    resetAllMocks()
+    const commands = await import('../../src/commands')
+    const state = await import('../../src/importPreviewState')
+    const ImportPreviewOverlay = (await import('../../src/ImportPreviewOverlay.vue')).default
+    commands.installCommands({
+      nextImportPreviewChapter: state.nextImportPreviewChapter,
+      prevImportPreviewChapter: state.prevImportPreviewChapter,
+    } as CommandDeps)
+    const batch = batchWithBlocks(URLS, FIVE_BLOCKS)
+    const candidate = batch.encoding_preview?.candidates[0]
+    const template = candidate?.chapters?.chapters[0]
+    if (candidate?.chapters == null || template === undefined) throw new Error('fixture has no chapters')
+    candidate.chapters = {
+      ...candidate.chapters,
+      chapter_count: 3,
+      chapters: [1, 2, 3].map((ord) => ({ ...template, ord })),
+    }
+    startUrlImportMock.mockResolvedValue({ batch, error: null })
+    previewChapterDetailMock.mockResolvedValue({
+      detail: { cleanup: { text: 'x', spans: [], rules: [], window_truncated: false, final_text: 'x' }, blocks: blocksWire(FIVE_BLOCKS) },
+      error: null,
+    })
+    await state.openImportPreviewFromUrls('Ten', 'en', '', URLS, null)
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await nextTick()
+    const focus = vi.spyOn(wrapper.get('.ip-chapters-list').element as HTMLElement, 'focus')
+
+    const next = wrapper.findAll('.ip-chapter-cursor-row button')[1]!
+    await next.trigger('mousedown')
+    await next.trigger('click')
+    await settle(wrapper)
+    expect(state.importPreviewChapterCursor.value).toBe(1)
+    expect(focus).not.toHaveBeenCalled()
+    expect(wrapper.get('.ip-screen').element.contains(document.activeElement)).toBe(true)
+
+    await wrapper.get('.ip-screen').trigger('keydown', { key: 'ArrowLeft', altKey: true })
+    await settle(wrapper)
+    expect(state.importPreviewChapterCursor.value).toBe(0)
+    expect(focus).toHaveBeenCalled()
     wrapper.unmount()
   })
 })

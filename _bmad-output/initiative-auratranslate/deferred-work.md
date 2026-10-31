@@ -13667,6 +13667,7 @@ chính nó.
 - 8 id tầng khối nhập URL: `import.preview.block_next`, `block_prev` (đích cuối `pointer: aim`), `block_toggle_kept`, `block_mark_range_start`, `block_confirm_range`, `jump_to_cleanup_rules`, `chapter_next`, `chapter_prev`.
   Cần: `@mousedown` nhắm khối ở `ImportPreviewOverlay.vue`, cụm nút trên khối đang nhắm.
   Chủ: Story 14.6. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 6.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.6): `@mousedown` nhắm khối ở `<li class="ip-block">`, cụm nút trên khối đang nhắm, ‹ › và Tới luật làm sạch ở `ImportPreviewOverlay.vue`; ca Vitest ở `importPreviewBlocks.test.ts`, e2e đường URL thật ở `import-preview-mouse.e2e.mjs`, bàn đo ở `14-6-ban-do/`; Kiểm M đọc 283 điểm chuột, 31 khai `pointer`, 16 nợ.
 - 5 id cắt cặp nhập song ngữ: `import.preview.bilingual_caret_left`, `bilingual_caret_right` (đích cuối `pointer: aim`), `bilingual_toggle_cut`, `bilingual_next_mismatch`, `bilingual_previous_mismatch`.
   Cần: mỗi `candidate_positions` thành một đích bấm.
   Chủ: Story 14.7. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 7.
@@ -13679,10 +13680,12 @@ chính nó.
 - Kiểm M chỉ chứng minh văn bản `dispatch` tồn tại, không chứng minh nút bấm được trong app thật; 27 id khai `pointer` (đặc biệt `aim`, `auto`, `via`) chưa có lượt dùng thật.
   Cần: Ice chạy một lượt dùng thật chuột trên các bề mặt Epic 14 trước khi epic `done`.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml`.
+  → 🔵 2026-10-31 (Story 14.6): thêm lượt dùng thật tầng khối nhập URL: nhắm khối, loại, đặt vùng, đổi Chương, kết quả nhập khớp; bấm bằng tap-to-click trên trackpad, vì bàn đo chỉ đo giữ 90 ms và `cliclick c:` nhả ngay mất `mouseup` cả trên điều khiển có sẵn. **Chủ: Epic 14.**
 - Hành vi focus của nút mới trên WebView2 (Windows) chưa đo; Epic 14 thêm nút và menu chuột phải chỉ đo trên WebKit và Chromium.
   Cần: kiểm trên WebView2 nút không cướp caret của ô Editor.
   Chủ: B7. Trỏ: `tickets/epic-san-chuot/epic-san-chuot.md`.
   → 🔵 2026-10-30 (Story 14.3): thêm vào phạm vi kiểm hai nút ‹ › của thanh trạng thái, dựa vào `mousedown` bị chặn mặc định để giữ caret; cần xác nhận trên WebView2 `click` vẫn bắn và caret không về `null`. **Chủ: B7.**
+  → 🔵 2026-10-31 (Story 14.6): thêm cụm nút trên khối và ‹ › của tầng 2, mang `@mousedown.prevent`; cần xác nhận `click` vẫn bắn và phím `J` chạy tiếp sau khi nút biến mất. **Chủ: B7.**
 - `shortcuts.open` khai `via: settings.open` theo AD-62 mục 3, nhưng cùng hình dạng với `glossary.settings.open` mà Story 14.5 đã bác: `openShortcuts` mở đúng mục Phím tắt, còn `settings.open` gọi `openSettings()`, không mở thẳng mục đó.
   Cần: xét cho `shortcuts.open` một mục trong `Công cụ ▾` cạnh mục Glossary; nếu thêm thì gỡ `pointer` của nó, vì có điểm chuột mà vẫn khai là đỏ.
   Chủ: Story 14.5. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Review Triage Log.
@@ -13750,3 +13753,8 @@ chính nó.
 - Chromium giữ từ bôi ở câu khác khi chuột phải ô số câu, WebKit thì thay vùng chọn; `onSentencePress` xoá vùng chọn nên ô thuật ngữ phải trống, và đóng dải phải trả caret đúng chỗ. Đo trên Playwright Chromium, chưa trên WebView2.
   Cần: kiểm trên Windows: ô số có từ bôi ở câu khác thì ô thuật ngữ trống; `Esc` trả caret về câu cũ.
   Chủ: B7. Trỏ: `tickets/epic-san-chuot/tickets/story-them-thuat-ngu-va-mo-cai-at-glossary-bang-chuot-plan.md` §Design Notes.
+## Deferred from: Story 14.6, tầng khối của nhập URL dùng được bằng chuột (2026-10-31)
+
+- `preview_chapter_detail` trả `import.web_internal_error` cho Chương k > 0 khi HTML một dòng dài hơn 4 KiB: `window_safe_prefix` cắt cửa sổ theo dòng nên ra `None`, người dùng đọc "lỗi chưa được phân loại" và tầng khối của Chương đó rỗng; đo ở `14-6-ban-do/`, có từ trước Story 14.6, cả đường `⌥→`.
+  Cần: quyết cửa sổ cho trang không xuống dòng, và cho lỗi một thông báo nói đúng nguyên nhân.
+  Chủ: Ice. Trỏ: `src-tauri/src/core/segment/encoding.rs` `pipeline_window_for`.
