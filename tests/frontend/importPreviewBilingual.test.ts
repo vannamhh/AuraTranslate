@@ -1384,3 +1384,419 @@ describe('BilingualImportPreviewOverlay.vue — "Nhập luôn, nối sau" và "X
     state.resetBilingualImportPreview()
   })
 })
+
+function spaced(over: Partial<BilingualMismatchWire> = {}): BilingualMismatchWire {
+  return mismatch({
+    row_number: 5,
+    source_sentences: ['One.', 'Two.'],
+    target_line: 'Mot hai',
+    candidate_positions: [3, 4],
+    proposed_cuts: [3],
+    ...over,
+  })
+}
+
+function rebuildReturns(rows: BilingualMismatchWire[]): void {
+  rebuildMock.mockResolvedValue({
+    preview: preview({ candidates: [candidate({ mismatches: rows })] }),
+    error: null,
+  })
+}
+
+async function mountCutOverlay(rows: BilingualMismatchWire[], deps: Partial<CommandDeps> = {}, real = false) {
+  const { commands, state, BilingualImportPreviewOverlay } = await freshOverlay(deps)
+  if (real) {
+    deps.toggleBilingualCutAtCaret = state.toggleBilingualCutAtCaret
+    deps.moveToNextBilingualMismatch = state.moveToNextBilingualMismatch
+    deps.moveToPreviousBilingualMismatch = state.moveToPreviousBilingualMismatch
+    deps.moveBilingualCaretLeft = state.moveBilingualCaretLeft
+    deps.moveBilingualCaretRight = state.moveBilingualCaretRight
+  }
+  previewMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ mismatches: rows })] }), error: null })
+  await state.openBilingualImportPreview('Ten', 'en', '', '/tmp/lech.csv')
+  const wrapper = mount(BilingualImportPreviewOverlay, { attachTo: document.body })
+  return { commands, state, wrapper }
+}
+
+async function settle(wrapper: { vm: { $nextTick: () => Promise<void> } }): Promise<void> {
+  await new Promise((r) => setTimeout(r))
+  await wrapper.vm.$nextTick()
+}
+
+describe('BilingualImportPreviewOverlay.vue — đích bấm trên dòng đích (14-7)', () => {
+  it('mỗi candidate_positions một đích, hai đầu dòng không có đích, và chỗ dừng không đổi khi caret đổi', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()])
+    const stopCountBefore = wrapper.findAll('.bip-cut-stop').length
+    expect(wrapper.findAll('.bip-cut-target')).toHaveLength(2)
+    expect(wrapper.findAll('.bip-cut-end')).toHaveLength(2)
+    state.moveBilingualCaretRight()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findAll('.bip-cut-stop')).toHaveLength(stopCountBefore)
+    expect(wrapper.findAll('.bip-cut-aimed')).toHaveLength(1)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('mousedown trái trên đích nhắm caret, ← → đi tiếp từ đó, 0 IPC', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()])
+    await wrapper.findAll('.bip-cut-target')[1]!.trigger('mousedown', { button: 0 })
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(4)
+    state.moveBilingualCaretLeft()
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(3)
+    expect(rebuildMock).not.toHaveBeenCalled()
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('nút khác nút trái không đổi caret', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()])
+    await wrapper.findAll('.bip-cut-target')[1]!.trigger('mousedown', { button: 2 })
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(0)
+    expect(rebuildMock).not.toHaveBeenCalled()
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('tiêu điểm đang ở ô nhập mẫu Chương thì cú nhấn trên đích đưa nó về panel', async () => {
+    const { wrapper } = await mountCutOverlay([spaced()])
+    const input = wrapper.get<HTMLInputElement>('#bip-chapter-pattern-text')
+    input.element.focus()
+    expect(document.activeElement).toBe(input.element)
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('mousedown', { button: 0 })
+    expect(document.activeElement).toBe(wrapper.get('.bip-panel').element)
+    wrapper.unmount()
+  })
+
+  it('(i) bấm đích bắn bilingual_toggle_cut', async () => {
+    const toggle = vi.fn()
+    const { state, wrapper } = await mountCutOverlay([spaced()], { toggleBilingualCutAtCaret: toggle })
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('click')
+    expect(toggle).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('(i) Cặp lệch trước/sau bắn hai lệnh và chỉ hiện khi có hàng khác để tới', async () => {
+    const prev = vi.fn()
+    const next = vi.fn()
+    const { state, wrapper } = await mountCutOverlay([spaced({ row_number: 5 }), spaced({ row_number: 8 })], {
+      moveToPreviousBilingualMismatch: prev,
+      moveToNextBilingualMismatch: next,
+    })
+    const buttons = wrapper.findAll('.bip-mismatch-heading-row button')
+    expect(buttons.map((b) => b.text())).toEqual(['Cặp lệch trước', 'Cặp lệch sau'])
+    await buttons[0]!.trigger('click')
+    await buttons[1]!.trigger('click')
+    expect(prev).toHaveBeenCalledTimes(1)
+    expect(next).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('một cặp lệch duy nhất không có hai nút', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()])
+    expect(wrapper.findAll('.bip-mismatch-heading-row button')).toHaveLength(0)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('hàng không cắt được (một phía trống) không có dòng đích, không có đích', async () => {
+    const { state, wrapper } = await mountCutOverlay([
+      spaced({ source_sentences: [], target_line: 'Mot hai', candidate_positions: [3, 4] }),
+    ])
+    expect(wrapper.find('.bip-mismatch-caret-line').exists()).toBe(false)
+    expect(wrapper.findAll('.bip-cut-target')).toHaveLength(0)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+})
+
+describe('bilingualImportPreviewState — hàng vừa khớp bằng chuột ở lại (14-7)', () => {
+  it('cắt làm hàng vừa khớp: hàng ở lại, đã khớp, nhập được; bấm lại đưa hàng về lệch với caret giữ nguyên', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()], {}, true)
+    rebuildReturns([])
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('mousedown', { button: 0 })
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('click')
+    await settle(wrapper)
+
+    expect(state.bilingualImportPreviewMismatches.value).toHaveLength(0)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(true)
+    expect(wrapper.find('.bip-mismatch-focus').exists()).toBe(true)
+    expect(wrapper.get('.bip-mismatch-heading').text()).toContain('Đã khớp')
+    const target = wrapper.findAll('.bip-cut-target')[0]!
+    expect(target.text()).toBe('‖')
+    expect(target.attributes('aria-pressed')).toBe('true')
+    expect(wrapper.findAll('.bip-sentence-list')[1]!.findAll('li').map((li) => li.text())).toEqual(['Mot', 'hai'])
+    expect(state.bilingualImportPreviewCanConfirm.value).toBe(true)
+    expect(wrapper.findAll('.bip-mismatch-heading-row button')).toHaveLength(0)
+
+    rebuildReturns([spaced()])
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('mousedown', { button: 0 })
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('click')
+    await settle(wrapper)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(false)
+    expect(state.bilingualImportPreviewMismatches.value).toHaveLength(1)
+    expect(state.bilingualImportPreviewActiveMismatch.value?.row_number).toBe(5)
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(3)
+    expect(wrapper.get('.bip-mismatch-heading').text()).toContain('Chỗ lệch 1 / 1')
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('cắt vẫn còn lệch thì không giữ, và hàng đổi mảnh ngay', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced({ source_sentences: ['A.', 'B.', 'C.'] })], {}, true)
+    rebuildReturns([spaced({ source_sentences: ['A.', 'B.', 'C.'], initial_cuts: [3] })])
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('mousedown', { button: 0 })
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('click')
+    await settle(wrapper)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(false)
+    expect(state.bilingualImportPreviewActiveCuts.value).toEqual([3])
+    expect(wrapper.findAll('.bip-cut-target')[0]!.text()).toBe('‖')
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('cắt còn lệch rồi bấm lại: cột mảnh đổi theo và chỗ cắt mất', async () => {
+    const row = spaced({ source_sentences: ['A.', 'B.', 'C.'] })
+    const { state, wrapper } = await mountCutOverlay([row], {}, true)
+    const pieces = () => wrapper.findAll('.bip-sentence-list')[1]!.findAll('li').map((li) => li.text())
+    expect(pieces()).toEqual(['Mot hai'])
+    rebuildReturns([row])
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('mousedown', { button: 0 })
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('click')
+    await settle(wrapper)
+    expect(pieces()).toEqual(['Mot', 'hai'])
+
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('mousedown', { button: 0 })
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('click')
+    await settle(wrapper)
+    expect(pieces()).toEqual(['Mot hai'])
+    expect(wrapper.findAll('.bip-cut-target')[0]!.text()).toBe('¦')
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('hàng giữ khi hết lệch: ← → đi trên hàng đó, Esc huỷ, Áp mọi đề xuất tắt', async () => {
+    const cancel = vi.fn()
+    const { state, wrapper } = await mountCutOverlay([spaced()], { cancelBilingualImportPreview: cancel }, true)
+    rebuildReturns([])
+    await wrapper.findAll('.bip-cut-target')[1]!.trigger('mousedown', { button: 0 })
+    await state.toggleBilingualCutAtCaret()
+    await wrapper.vm.$nextTick()
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(true)
+
+    const panel = wrapper.get('.bip-panel')
+    expect(document.activeElement).toBe(panel.element)
+    await panel.trigger('keydown', { key: 'ArrowLeft' })
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(3)
+    await panel.trigger('keydown', { key: 'ArrowRight' })
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(4)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(true)
+    expect(wrapper.get('.bip-mismatch-action').attributes('disabled')).toBeDefined()
+
+    await panel.trigger('keydown', { key: 'Escape' })
+    expect(cancel).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('bấm đích thứ hai khi lượt rebuild đầu chưa về: lượt mới thắng, hàng còn đó', async () => {
+    const row = spaced()
+    const { state, wrapper } = await mountCutOverlay([row])
+    let releaseFirst: (v: unknown) => void = () => {}
+    rebuildMock.mockReturnValueOnce(new Promise((r) => (releaseFirst = r)))
+    state.aimBilingualCaret(3)
+    const first = state.toggleBilingualCutAtCaret()
+
+    rebuildReturns([row])
+    state.aimBilingualCaret(4)
+    await state.toggleBilingualCutAtCaret()
+    releaseFirst({ preview: preview({ candidates: [candidate({ mismatches: [] })] }), error: null })
+    await first
+
+    expect(state.bilingualImportPreviewMismatches.value).toHaveLength(1)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(false)
+    expect(state.bilingualImportPreviewActiveCuts.value).toEqual([3, 4])
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('rời sang hàng khác khi rebuild đang chạy: hàng vừa khớp không kéo người dùng quay lại', async () => {
+    const rows = [spaced({ row_number: 5 }), spaced({ row_number: 8 })]
+    const { state, wrapper } = await mountCutOverlay(rows)
+    let release: (v: unknown) => void = () => {}
+    rebuildMock.mockReturnValueOnce(new Promise((r) => (release = r)))
+    state.aimBilingualCaret(3)
+    const pending = state.toggleBilingualCutAtCaret()
+    state.moveToNextBilingualMismatch()
+    release({ preview: preview({ candidates: [candidate({ mismatches: [rows[1]!] })] }), error: null })
+    await pending
+
+    expect(state.bilingualImportPreviewActiveMismatch.value?.row_number).toBe(8)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(false)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('đường phím (Enter) làm hàng khớp thì hàng biến mất, không giữ', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced({ row_number: 5 }), spaced({ row_number: 8 })])
+    rebuildReturns([spaced({ row_number: 8 })])
+    state.moveBilingualCaretRight()
+    await state.toggleBilingualCutAtCaret()
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(false)
+    expect(state.bilingualImportPreviewActiveMismatch.value?.row_number).toBe(8)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('rời hàng giữ bằng Cặp lệch sau/trước đi theo row_number và hàng giữ không quay lại', async () => {
+    const rows = [spaced({ row_number: 2 }), spaced({ row_number: 5 }), spaced({ row_number: 8 })]
+    const { state, wrapper } = await mountCutOverlay(rows)
+    state.moveToNextBilingualMismatch()
+    rebuildReturns([rows[0], rows[2]])
+    state.aimBilingualCaret(3)
+    await state.toggleBilingualCutAtCaret()
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(true)
+    expect(wrapper.findAll('.bip-mismatch-heading-row button')).toHaveLength(2)
+
+    state.moveToNextBilingualMismatch()
+    expect(state.bilingualImportPreviewActiveMismatch.value?.row_number).toBe(8)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(false)
+
+    state.moveToPreviousBilingualMismatch()
+    expect(state.bilingualImportPreviewActiveMismatch.value?.row_number).toBe(2)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('rời hàng giữ về phía trước bắt đầu từ hàng đầu, không bỏ sót nó', async () => {
+    const rows = [spaced({ row_number: 2 }), spaced({ row_number: 5 })]
+    const { state, wrapper } = await mountCutOverlay(rows)
+    state.moveToNextBilingualMismatch()
+    rebuildReturns([rows[0]])
+    state.aimBilingualCaret(3)
+    await state.toggleBilingualCutAtCaret()
+    state.moveToPreviousBilingualMismatch()
+    expect(state.bilingualImportPreviewActiveMismatch.value?.row_number).toBe(2)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('đổi cột nguồn khi đang giữ thì hết giữ', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()])
+    rebuildReturns([])
+    state.aimBilingualCaret(3)
+    await state.toggleBilingualCutAtCaret()
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(true)
+    await state.setBilingualSourceColumn(1)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(false)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.bip-mismatch-focus').exists()).toBe(false)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('xác nhận khi đang giữ gửi đúng quy nhóm đã cắt', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()])
+    rebuildReturns([])
+    state.aimBilingualCaret(3)
+    await state.toggleBilingualCutAtCaret()
+    confirmMock.mockResolvedValue({ created: { meta: { work_id: 'w1' } }, error: null })
+    await state.confirmBilingualImportPreview()
+    const regroupings = confirmMock.mock.calls[0]![8] as BilingualRegroupingInput[]
+    expect(regroupings).toHaveLength(1)
+    expect(regroupings[0]).toMatchObject({ row_number: 5, kind: 'cuts', cuts: [3] })
+    wrapper.unmount()
+  })
+
+  it('đang xác nhận: đích và hai nút tắt, mousedown không nhắm', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced({ row_number: 5 }), spaced({ row_number: 8 })])
+    let release: (v: unknown) => void = () => {}
+    confirmMock.mockReturnValue(new Promise((r) => (release = r)))
+    rebuildReturns([])
+    const pending = state.confirmBilingualImportPreview(true)
+    await wrapper.vm.$nextTick()
+    expect(state.bilingualImportPreviewConfirming.value).toBe(true)
+    expect(wrapper.findAll('.bip-cut-target').every((b) => b.attributes('disabled') !== undefined)).toBe(true)
+    expect(wrapper.findAll('.bip-mismatch-heading-row button').every((b) => b.attributes('disabled') !== undefined)).toBe(true)
+    state.aimBilingualCaret(4)
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(0)
+    const target = wrapper.findAll('.bip-cut-target')[0]!
+    await target.trigger('mousedown', { button: 0 })
+    await target.trigger('click')
+    expect(rebuildMock).not.toHaveBeenCalled()
+    release({ created: null, error: null })
+    await pending
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('nhấn không thành cú bấm rồi Enter thật không giữ hàng', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()], {}, true)
+    rebuildReturns([])
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('mousedown', { button: 0 })
+    await wrapper.get('.bip-screen').trigger('keydown', { key: 'Enter' })
+    await settle(wrapper)
+    expect(rebuildMock).toHaveBeenCalledTimes(1)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(false)
+    expect(wrapper.find('.bip-mismatch-focus').exists()).toBe(false)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('mousedown, mouseleave rồi click vẫn giữ hàng', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()], {}, true)
+    rebuildReturns([])
+    const target = wrapper.findAll('.bip-cut-target')[0]!
+    await target.trigger('mousedown', { button: 0 })
+    await target.trigger('mouseleave')
+    await target.trigger('click')
+    await settle(wrapper)
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(true)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('rời hàng giữ bằng đổi bảng mã đưa caret về 0', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()], {}, true)
+    const two = preview({
+      candidates: [candidate({ mismatches: [] }), candidate({ label: 'GBK', encoding: 'GBK', mismatches: [spaced()] })],
+    })
+    rebuildMock.mockResolvedValue({ preview: two, error: null })
+    state.aimBilingualCaret(3)
+    await state.toggleBilingualCutAtCaret()
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(true)
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(3)
+    state.selectBilingualEncoding('GBK')
+    expect(state.bilingualImportPreviewActiveMismatchHeld.value).toBe(false)
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(0)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('Cặp lệch sau ở hàng cuối vòng về hàng đầu, caret 0, → chạy tiếp', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced({ row_number: 5 }), spaced({ row_number: 8 })], {}, true)
+    state.moveToNextBilingualMismatch()
+    state.aimBilingualCaret(4)
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(4)
+    const next = wrapper.findAll('.bip-mismatch-heading-row button')[1]!
+    await next.trigger('click')
+    expect(state.bilingualImportPreviewActiveMismatch.value?.row_number).toBe(5)
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(0)
+    await wrapper.get('.bip-screen').trigger('keydown', { key: 'ArrowRight' })
+    expect(state.bilingualImportPreviewCaretPosition.value).toBe(3)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+
+  it('đích giữ nguyên phần tử DOM qua lần vẽ lại khi nhắm', async () => {
+    const { state, wrapper } = await mountCutOverlay([spaced()])
+    const before = wrapper.findAll('.bip-cut-target')[1]!.element
+    await wrapper.findAll('.bip-cut-target')[0]!.trigger('mousedown', { button: 0 })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.findAll('.bip-cut-target')[1]!.element).toBe(before)
+    expect(wrapper.findAll('.bip-cut-aimed')).toHaveLength(1)
+    wrapper.unmount()
+    state.resetBilingualImportPreview()
+  })
+})

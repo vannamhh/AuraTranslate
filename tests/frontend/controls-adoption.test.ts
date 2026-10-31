@@ -40,6 +40,7 @@ const NOT_A_CONTROL: Record<string, string> = {
   'src/panels/LookupPanel.vue .lookup-concordance-pointer': 'inline link inside a sentence; DESIGN §Điều khiển has no link control',
   'src/modes/ReadingLookupPopup.vue .rl-char': 'inline link inside a sentence; DESIGN §Điều khiển has no link control',
   'src/modes/ReadingLookupPopup.vue .rl-concordance': 'inline link inside a sentence; DESIGN §Điều khiển has no link control',
+  'src/BilingualImportPreviewOverlay.vue .bip-cut-target': 'cut mark inside the target sentence, sized by Sàn chuột DESIGN §Layout & Spacing; DESIGN §Điều khiển has no inline control',
   'src/App.vue .mode-tab': 'mode tab on the title bar; DESIGN §Điều khiển has no mode-tab control and mockup workspace-tinh-chinh.html draws it unlike ui-tab',
 }
 

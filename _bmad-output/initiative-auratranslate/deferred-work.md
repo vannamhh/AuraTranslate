@@ -13671,6 +13671,7 @@ chính nó.
 - 5 id cắt cặp nhập song ngữ: `import.preview.bilingual_caret_left`, `bilingual_caret_right` (đích cuối `pointer: aim`), `bilingual_toggle_cut`, `bilingual_next_mismatch`, `bilingual_previous_mismatch`.
   Cần: mỗi `candidate_positions` thành một đích bấm.
   Chủ: Story 14.7. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 7.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.7): dòng đích thành mảnh chữ xen đích bấm ở `BilingualImportPreviewOverlay.vue`, hai nút Cặp lệch trước/sau ở dòng tiêu đề, hàng vừa khớp bằng chuột ở lại trên màn; ca Vitest ở `importPreviewBilingual.test.ts`, e2e ở `bilingual-cut-mouse.e2e.mjs`, bàn đo ở `14-7-ban-do/`; Kiểm M đọc 286 điểm chuột, 33 khai `pointer`, 11 nợ.
 - 3 id bật tắt panel: `layout.toggle_ai_translation`, `layout.toggle_grid`, `layout.toggle_lookup`.
   Cần: đường chuột ẩn/hiện panel; sửa comment sai ở `src/commands/index.ts` quanh `focus.next_panel`.
   Chủ: Story 14.8. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 8.
@@ -13682,11 +13683,20 @@ chính nó.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml`.
   → 🔵 2026-10-31 (Story 14.6): thêm lượt dùng thật tầng khối nhập URL: nhắm khối, loại, đặt vùng, đổi Chương, kết quả nhập khớp; bấm bằng tap-to-click trên trackpad, vì bàn đo chỉ đo giữ 90 ms và `cliclick c:` nhả ngay mất `mouseup` cả trên điều khiển có sẵn. **Chủ: Epic 14.**
   → 🔵 2026-10-31 (Story 14.6): Ice đã dùng thật tầng khối nhập URL trên app thật, phần này và phần tap-to-click của dòng trên rời phạm vi mục, các bề mặt còn lại của Epic 14 vẫn mở. **Chủ: Epic 14.**
+  → 🔵 2026-10-31 (Story 14.7): thêm lượt dùng thật cắt cặp ở nhập song ngữ: tới cặp lệch, cắt, bỏ cắt, nhập, đọc kết quả; bàn đo chỉ đo giữ 90 ms, tap-to-click chưa đo. **Chủ: Epic 14.**
+  → 🔵 2026-10-31 (Story 14.7): bàn đo mất 1 cú (`mousedown` tới, `mouseup` và `click` không) sau khi con trỏ đã rê và đứng 200 ms, khác mục bấm lặp một điểm; hai lượt sau 0 mất trên 30 cú, nguyên nhân chưa xác định; lượt dùng thật để ý cú bấm điểm cắt không ăn. Trỏ: `14-7-ban-do/ket-qua.md`. **Chủ: Epic 14.**
 - Hành vi focus của nút mới trên WebView2 (Windows) chưa đo; Epic 14 thêm nút và menu chuột phải chỉ đo trên WebKit và Chromium.
   Cần: kiểm trên WebView2 nút không cướp caret của ô Editor.
   Chủ: B7. Trỏ: `tickets/epic-san-chuot/epic-san-chuot.md`.
   → 🔵 2026-10-30 (Story 14.3): thêm vào phạm vi kiểm hai nút ‹ › của thanh trạng thái, dựa vào `mousedown` bị chặn mặc định để giữ caret; cần xác nhận trên WebView2 `click` vẫn bắn và caret không về `null`. **Chủ: B7.**
   → 🔵 2026-10-31 (Story 14.6): thêm cụm nút trên khối và ‹ › của tầng 2, mang `@mousedown.prevent`; cần xác nhận `click` vẫn bắn và phím `J` chạy tiếp sau khi nút biến mất. **Chủ: B7.**
+  → 🔵 2026-10-31 (Story 14.7): thêm đích điểm cắt và hai nút Cặp lệch của màn song ngữ, mang `@mousedown.left.prevent` rồi đưa tiêu điểm về `panel`; cần xác nhận `click` vẫn bắn và `← →` chạy tiếp. **Chủ: B7.**
+- Hàng chọn cột ở xem trước song ngữ tràn sang cột bảng mã khi ô mẫu dài: `.bip-columns` là flex không `flex-wrap`, nhãn và ô `Cột đích` đè lên danh sách bảng mã.
+  Thấy trên ảnh bàn đo 14-7, cửa sổ rộng 1280, dòng đích 48 từ; CSS này story không đổi. Chưa quyết sửa.
+  Chủ: Ice. Trỏ: `src/BilingualImportPreviewOverlay.vue` `.bip-columns`.
+- Đường phím có thể làm rơi tiêu điểm về `body` ở màn song ngữ: `Enter` làm hàng cuối hết lệch thì `v-if` huỷ `.bip-mismatch-focus`, keydown không còn tới `.bip-screen`, kể cả `Esc`. Suy từ mã, chưa đo; đường chuột không bị vì tiêu điểm ở `panel`.
+  Epic 14 cấm đổi đường phím nên story 14.7 không sửa.
+  Chủ: Ice. Trỏ: `src/BilingualImportPreviewOverlay.vue` `.bip-mismatch-focus`.
 - `shortcuts.open` khai `via: settings.open` theo AD-62 mục 3, nhưng cùng hình dạng với `glossary.settings.open` mà Story 14.5 đã bác: `openShortcuts` mở đúng mục Phím tắt, còn `settings.open` gọi `openSettings()`, không mở thẳng mục đó.
   Cần: xét cho `shortcuts.open` một mục trong `Công cụ ▾` cạnh mục Glossary; nếu thêm thì gỡ `pointer` của nó, vì có điểm chuột mà vẫn khai là đỏ.
   Chủ: Story 14.5. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Review Triage Log.

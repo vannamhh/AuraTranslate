@@ -211,6 +211,8 @@ Chuột phải lên một từ ở nguyên văn trên macOS chạy luôn Auto-Lo
 
 **Bấm điểm cắt song ngữ.** `annotatedTargetLine()` thành chuỗi mảnh chữ xen đích bấm tại mỗi `candidate_positions`; không vẽ hai đầu dòng vì `toggleBilingualCutAtCaret` từ chối chúng. Mỗi đích có `@mousedown.prevent` nhắm caret và `@click="dispatch('import.preview.bilingual_toggle_cut')"`, nên một cú bấm là cắt hoặc bỏ cắt. `.prevent` giữ tiêu điểm trên `.bip-mismatch-focus`, vì `onScrimKeydown` bỏ qua phím khi tiêu điểm ở `<button>`, và `←` `→` phải chạy tiếp.
 
+🔵 2026-10-31 (Story 14.7): `.bip-mismatch-focus` không giữ được tiêu điểm vì `v-if` huỷ nó khi hàng cuối hết lệch; đích và hai nút Cặp lệch trước/sau mang `@mousedown.left.prevent` rồi đặt tiêu điểm vào `panel`. Hàng vừa khớp bằng cú bấm chuột ở lại trên màn (`‖`, tiêu đề "Đã khớp") tới khi người dùng rời đi, nên bấm lại là bỏ cắt; `Enter` vẫn tự sang hàng kế. Đích rộng 21px: tâm cách tâm đo 23,6px.
+
 ## Accessibility Floor
 
 Mọi phím giữ nguyên (Epic 14 §Constraints). Nút chỉ có biểu tượng mang `aria-label` và `title`. Trạng thái công tắc và ô Review Mode đọc qua `aria-checked`, `aria-pressed`, không chỉ qua màu. Trình đọc màn hình nằm ngoài epic.
@@ -234,6 +236,8 @@ Ice vừa đổi máy, chưa gõ quen các phím, và đang sửa Chương 12.
 2. Ice bấm `Cặp lệch sau` tới cặp cần sửa.
 3. Trên dòng bản dịch, Ice bấm dấu `¦` giữa hai câu. Đỉnh điểm: dấu thành `‖` và hai mảnh tách ngay ở cột trên.
 4. Bấm nhầm, Ice bấm lại dấu đó để bỏ cắt.
+
+🔵 2026-10-31 (Story 14.7): ở bước 3, nếu cú bấm làm cặp vừa khớp thì cặp ở lại trên màn với tiêu đề "Đã khớp" để bước 4 còn bấm lại được; `Cặp lệch sau` rời cặp đó.
 
 ### KF-7 · Ice sửa ranh giới bóc của một Chương nhập từ URL
 

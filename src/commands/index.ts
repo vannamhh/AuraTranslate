@@ -1813,6 +1813,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'import.preview.bilingual_caret_left',
     labelKey: 'command.import.preview.bilingual_caret_left',
+    pointer: { kind: 'aim', reason: 'Bước caret trên dòng đích mà chuột nhắm thẳng được từng điểm cắt.', at: 'src/BilingualImportPreviewOverlay.vue' },
     keys: undefined,
     run: () => {
       if (deps.moveBilingualCaretLeft === undefined) {
@@ -1824,6 +1825,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   target.register({
     id: 'import.preview.bilingual_caret_right',
     labelKey: 'command.import.preview.bilingual_caret_right',
+    pointer: { kind: 'aim', reason: 'Bước caret trên dòng đích mà chuột nhắm thẳng được từng điểm cắt.', at: 'src/BilingualImportPreviewOverlay.vue' },
     keys: undefined,
     run: () => {
       if (deps.moveBilingualCaretRight === undefined) {

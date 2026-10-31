@@ -2464,6 +2464,9 @@ const HANDLER_TABLE = {
   'src/AttributionOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/BilingualImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.bilingual_cancel'] },
   'src/BilingualImportPreviewOverlay.vue::onScrimKeydown': { nonCommand: R_SCRIM_CLOSE },
+  'src/BilingualImportPreviewOverlay.vue::disarmBilingualCutHold': { nonCommand: R_CURSOR_IMPORTED },
+  'src/BilingualImportPreviewOverlay.vue::onAimCutTarget': { nonCommand: R_CURSOR_LOCAL },
+  'src/BilingualImportPreviewOverlay.vue::keepPanelFocus': { nonCommand: R_POINTER_FOCUS },
   'src/GlossaryImportOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
   'src/GlossaryManageOverlay.vue::onEscape': { ids: ['glossary.manage.close'] },
   'src/GlossaryManageOverlay.vue::trapTab': { nonCommand: R_FOCUS_TRAP },
@@ -2903,11 +2906,6 @@ console.log('\nKiểm M — mọi command có điểm chuột, khai `pointer`, h
 
 /** Open debt: ids may only be removed, never added. Keep this and the baseline as two separate literals. */
 const POINTER_DEBT = /** @type {string[]} */ ([
-  'import.preview.bilingual_caret_left',
-  'import.preview.bilingual_caret_right',
-  'import.preview.bilingual_toggle_cut',
-  'import.preview.bilingual_next_mismatch',
-  'import.preview.bilingual_previous_mismatch',
   'layout.toggle_ai_translation',
   'layout.toggle_grid',
   'layout.toggle_lookup',
@@ -2970,7 +2968,7 @@ const POINTER_DEBT_BASELINE = /** @type {string[]} */ ([
 ])
 
 /** `ceil(0.85 × live)` over commands with a mouse point, via `judgeFloor`. */
-const POINTER_FLOOR = 236
+const POINTER_FLOOR = 244
 
 /**
  * Self-check: the verdict must go red on each bad case and stay green on the good ones.

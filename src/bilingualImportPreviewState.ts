@@ -84,6 +84,9 @@ const regroupings = ref<Map<number, BilingualRegroupingInput>>(new Map())
 const activeMismatchRow = ref<number | null>(null)
 /** Vị trí caret (chỉ số KÝ TỰ UNICODE vào `target_line` của hàng đang lấy tiêu điểm). */
 const caretPosition = ref(0)
+/** Snapshot of the row a pointer cut just matched: Rust dropped it from `mismatches`, so uncutting needs it kept here. */
+const heldRow = ref<BilingualMismatchWire | null>(null)
+const holdArmed = ref(false)
 
 /**
  * **THÊM Story 6.16b (FR132)** — bộ lọc "cần xem" của tầng tách Chương, TÁI DÙNG con số Rust
@@ -179,6 +182,7 @@ export function focusFirstBilingualMismatch(): void {
   if (list.length === 0) return
   activeMismatchRow.value = list[0].row_number
   caretPosition.value = 0
+  heldRow.value = null
   mismatchFocusSignal.value += 1
 }
 
@@ -191,15 +195,30 @@ export const bilingualImportPreviewMismatches = computed<readonly BilingualMisma
   return bilingualImportPreviewSelectedCandidate.value?.mismatches ?? []
 })
 
-/** Hàng ĐANG lấy tiêu điểm — hàng ĐẦU của danh sách khi `activeMismatchRow` không còn khớp
- * hàng nào (đã cặp được ở lượt trước, hoặc chưa từng chọn). `null` khi danh sách rỗng. */
+/** The focused row: the listed row matching `activeMismatchRow`, else the held row when it is the
+ * target (returned even when `mismatches` is empty), else the first listed row. `null` only when
+ * nothing is listed and no row is held. */
 export const bilingualImportPreviewActiveMismatch = computed<BilingualMismatchWire | null>(() => {
   const list = bilingualImportPreviewMismatches.value
-  if (list.length === 0) return null
-  return list.find((m) => m.row_number === activeMismatchRow.value) ?? list[0]
+  const chosen = list.find((m) => m.row_number === activeMismatchRow.value)
+  if (chosen !== undefined) return chosen
+  const held = heldRow.value
+  if (held !== null && held.row_number === activeMismatchRow.value) return held
+  return list[0] ?? null
 })
 
-/** Vị trí 0-based của hàng đang lấy tiêu điểm trong danh sách — `-1` khi danh sách rỗng. */
+export const bilingualImportPreviewActiveMismatchHeld = computed<boolean>(() => {
+  const held = heldRow.value
+  return held !== null && bilingualImportPreviewActiveMismatch.value === held
+})
+
+/** A held row is outside `mismatches`, so one listed row is already somewhere else to go. */
+export const bilingualImportPreviewCanMoveBetweenMismatches = computed<boolean>(() => {
+  const count = bilingualImportPreviewMismatches.value.length
+  return bilingualImportPreviewActiveMismatchHeld.value ? count >= 1 : count > 1
+})
+
+/** Index of the focused row within `mismatches`; `-1` when nothing is listed or the focused row is held. */
 export const bilingualImportPreviewActiveMismatchIndex = computed<number>(() => {
   const active = bilingualImportPreviewActiveMismatch.value
   if (active === null) return -1
@@ -276,7 +295,7 @@ function chapterPatternWire(): ChapterPatternInput | null {
   return { pattern, kind: chapterPatternKind.value }
 }
 
-async function refresh(): Promise<void> {
+async function refresh(holdRow: BilingualMismatchWire | null = null): Promise<void> {
   sequence += 1
   const mySequence = sequence
   // 🔴 SỬA (vòng rà đối kháng) — giữ ứng viên NGƯỜI DÙNG đang chọn qua một lượt dựng lại
@@ -300,6 +319,7 @@ async function refresh(): Promise<void> {
   )
   if (mySequence !== sequence) return // một lượt mở/huỷ/sửa MỚI đã vượt mặt lượt này
 
+  heldRow.value = null
   if (result.error !== null) {
     status.value = 'error'
     loadError.value = result.error
@@ -323,7 +343,13 @@ async function refresh(): Promise<void> {
 
   // Hàng đang lấy tiêu điểm vừa cặp được (biến mất khỏi danh sách) ⇒ caret của nó không còn
   // nghĩa cho hàng KẾ mà `bilingualImportPreviewActiveMismatch` tự rơi về — đặt lại 0.
-  const stillFocused = bilingualImportPreviewMismatches.value.find((m) => m.row_number === focusedRowNumber)
+  const listed = bilingualImportPreviewMismatches.value
+  if (holdRow !== null && activeMismatchRow.value === holdRow.row_number && !listed.some((m) => m.row_number === holdRow.row_number)) {
+    heldRow.value = holdRow
+  }
+  const stillFocused =
+    listed.find((m) => m.row_number === focusedRowNumber) ??
+    (heldRow.value?.row_number === focusedRowNumber ? heldRow.value : undefined)
   if (stillFocused === undefined) {
     caretPosition.value = 0
     return
@@ -365,6 +391,8 @@ export async function openBilingualImportPreview(
   regroupings.value = new Map()
   activeMismatchRow.value = null
   caretPosition.value = 0
+  heldRow.value = null
+  holdArmed.value = false
   chapterFilterActive.value = false
   chapterCursor.value = 0
 
@@ -403,6 +431,7 @@ export async function setBilingualTableIndex(index: number): Promise<void> {
   regroupings.value = new Map()
   activeMismatchRow.value = null
   caretPosition.value = 0
+  heldRow.value = null
   await refresh()
 }
 
@@ -454,6 +483,11 @@ export function selectBilingualEncoding(wireId: string): void {
   if (preview.value === null) return
   if (!preview.value.candidates.some((c) => c.encoding === wireId)) return
   selectedEncoding.value = wireId
+  if (heldRow.value !== null) {
+    heldRow.value = null
+    caretPosition.value = 0
+    holdArmed.value = false
+  }
   // Ứng viên MỚI có thể không đủ Chương để so (`any_signal_participated === false`) — bộ lọc
   // "cần xem" đang bật không còn gì đúng đắn để lọc theo, tắt nó thay vì để trang trơ ra.
   if (chapterFilterActive.value && bilingualImportPreviewSelectedCandidate.value?.chapters?.any_signal_participated !== true) {
@@ -500,30 +534,43 @@ export async function setBilingualChapterPattern(pattern: string, kind: ChapterP
   await refresh()
 }
 
+function moveToMismatch(step: 1 | -1): void {
+  const list = bilingualImportPreviewMismatches.value
+  if (list.length === 0) return
+  const active = bilingualImportPreviewActiveMismatch.value
+  let target: BilingualMismatchWire
+  if (bilingualImportPreviewActiveMismatchHeld.value && active !== null) {
+    const row = active.row_number
+    target =
+      step === 1
+        ? (list.find((m) => m.row_number > row) ?? list[0])
+        : ([...list].reverse().find((m) => m.row_number < row) ?? list[list.length - 1])
+  } else {
+    const idx = bilingualImportPreviewActiveMismatchIndex.value
+    const from = idx === -1 ? 0 : idx
+    target = list[(from + step + list.length) % list.length]
+  }
+  activeMismatchRow.value = target.row_number
+  caretPosition.value = 0
+  heldRow.value = null
+  holdArmed.value = false
+}
+
 /** Chuyển tiêu điểm sang hàng lệch cặp KẾ TIẾP — Handler của
  * `import.preview.bilingual_next_mismatch` (`↓`). Vòng tròn: hàng cuối → hàng đầu. */
 export function moveToNextBilingualMismatch(): void {
-  const list = bilingualImportPreviewMismatches.value
-  if (list.length === 0) return
-  const idx = bilingualImportPreviewActiveMismatchIndex.value
-  const from = idx === -1 ? 0 : idx
-  activeMismatchRow.value = list[(from + 1) % list.length].row_number
-  caretPosition.value = 0
+  moveToMismatch(1)
 }
 
 /** Xem [`moveToNextBilingualMismatch`] — Handler của `import.preview.bilingual_previous_mismatch`
  * (`↑`). */
 export function moveToPreviousBilingualMismatch(): void {
-  const list = bilingualImportPreviewMismatches.value
-  if (list.length === 0) return
-  const idx = bilingualImportPreviewActiveMismatchIndex.value
-  const from = idx === -1 ? 0 : idx
-  activeMismatchRow.value = list[(from - 1 + list.length) % list.length].row_number
-  caretPosition.value = 0
+  moveToMismatch(-1)
 }
 
 /** Di caret một điểm ứng viên — Handler của `import.preview.bilingual_caret_left` (`←`). */
 export function moveBilingualCaretLeft(): void {
+  holdArmed.value = false
   const active = bilingualImportPreviewActiveMismatch.value
   if (active === null) return
   const stops = caretStops(active)
@@ -534,6 +581,7 @@ export function moveBilingualCaretLeft(): void {
 
 /** Xem [`moveBilingualCaretLeft`] — Handler của `import.preview.bilingual_caret_right` (`→`). */
 export function moveBilingualCaretRight(): void {
+  holdArmed.value = false
   const active = bilingualImportPreviewActiveMismatch.value
   if (active === null) return
   const stops = caretStops(active)
@@ -542,9 +590,24 @@ export function moveBilingualCaretRight(): void {
   caretPosition.value = stops[Math.min(stops.length - 1, from + 1)]
 }
 
+export function aimBilingualCaret(position: number): void {
+  if (confirming.value) return
+  const active = bilingualImportPreviewActiveMismatch.value
+  if (active === null || !active.candidate_positions.includes(position)) return
+  activeMismatchRow.value = active.row_number
+  caretPosition.value = position
+  holdArmed.value = true
+}
+
+export function disarmBilingualCutHold(): void {
+  holdArmed.value = false
+}
+
 /** Bật/tắt chỗ cắt tại caret — Handler của `import.preview.bilingual_toggle_cut`. 0 lượt gọi
  * Rust nếu caret không đứng trên một điểm ứng viên hợp lệ. */
 export async function toggleBilingualCutAtCaret(): Promise<void> {
+  const hold = holdArmed.value
+  holdArmed.value = false
   const active = bilingualImportPreviewActiveMismatch.value
   if (active === null) return
   const pos = caretPosition.value
@@ -552,7 +615,7 @@ export async function toggleBilingualCutAtCaret(): Promise<void> {
   const current = cutsForRow(active)
   const next = current.includes(pos) ? current.filter((c) => c !== pos) : [...current, pos].sort((a, b) => a - b)
   setRegroupingCuts(active, next)
-  await refresh()
+  await refresh(hold ? active : null)
 }
 
 /** Áp đề xuất máy cho MỌI hàng lệch cặp hiện đang liệt kê, một lượt duy nhất — Handler của
@@ -655,6 +718,8 @@ export function resetBilingualImportPreview(): void {
   regroupings.value = new Map()
   activeMismatchRow.value = null
   caretPosition.value = 0
+  heldRow.value = null
+  holdArmed.value = false
   chapterFilterActive.value = false
   chapterCursor.value = 0
   mismatchFocusSignal.value = 0

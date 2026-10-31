@@ -2,6 +2,7 @@
 import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { t, tError } from './i18n'
 import { dispatch } from './commands'
+import { commandTitle } from './config/shortcutsState'
 import { focusReturnTargetOnOpen } from './commands/focus'
 import { takeRecordedImportOpener } from './importOpener'
 import SelectMenu from './SelectMenu.vue'
@@ -9,7 +10,9 @@ import {
   bilingualImportPreview,
   bilingualImportPreviewActiveCuts,
   bilingualImportPreviewActiveMismatch,
+  bilingualImportPreviewActiveMismatchHeld,
   bilingualImportPreviewActiveMismatchIndex,
+  bilingualImportPreviewCanMoveBetweenMismatches,
   bilingualImportPreviewCanConfirm,
   bilingualImportPreviewCanImportUnlinked,
   bilingualImportPreviewEmptySourceMismatchCount,
@@ -33,6 +36,8 @@ import {
   bilingualImportPreviewStatus,
   bilingualImportPreviewTableIndex,
   bilingualImportPreviewTargetColumn,
+  aimBilingualCaret,
+  disarmBilingualCutHold,
   selectBilingualEncoding,
   setBilingualTableIndex,
   setBilingualChapterPattern,
@@ -77,23 +82,38 @@ function proposedTargetPieces(mismatch: BilingualMismatchWire): string[] {
   return piecesFor(mismatch.target_line, mismatch.proposed_cuts)
 }
 
-/** `target_line` của hàng đang lấy tiêu điểm, chèn `▏` tại caret và `‖` tại mỗi chỗ cắt hiện
- * hành — dòng THÔ cho người dùng thấy đúng caret/cuts đang di, cùng đơn vị Rust dùng (chỉ số
- * KÝ TỰ UNICODE, `Array.from` để tách theo CODE POINT). Bổ sung cho hai cột mảnh ở trên, không
- * thay thế: cột mảnh cho biết KẾT QUẢ, dòng này cho biết ĐANG SỬA Ở ĐÂU. */
-function annotatedTargetLine(): string {
+type TargetLinePart =
+  | { kind: 'text'; key: string; text: string }
+  | { kind: 'stop'; key: string; position: number; cut: boolean; aimed: boolean; clickable: boolean; glyph: string }
+
+/** Positions are Unicode scalar indices, the unit Rust uses. Every stop keeps its slot wherever the
+ * caret is, so a press never shifts the target under the pointer. */
+function targetLineParts(): TargetLinePart[] {
   const active = bilingualImportPreviewActiveMismatch.value
-  if (active === null) return ''
+  if (active === null) return []
   const chars = Array.from(active.target_line)
   const cuts = new Set(bilingualImportPreviewActiveCuts.value)
+  const candidates = new Set(active.candidate_positions)
   const caret = bilingualImportPreviewCaretPosition.value
-  let out = ''
+  const parts: TargetLinePart[] = []
+  let text = ''
+  let textFrom = 0
   for (let i = 0; i <= chars.length; i += 1) {
-    if (i === caret) out += '▏'
-    if (cuts.has(i)) out += '‖'
-    if (i < chars.length) out += chars[i]
+    const isEnd = i === 0 || i === chars.length
+    const cut = cuts.has(i)
+    const clickable = !isEnd && candidates.has(i)
+    if (isEnd || cut || clickable) {
+      if (text !== '') parts.push({ kind: 'text', key: `text-${textFrom}`, text })
+      text = ''
+      const aimed = i === caret
+      const glyph = cut ? '‖' : clickable ? '¦' : aimed ? '▏' : ''
+      parts.push({ kind: 'stop', key: `stop-${i}`, position: i, cut, aimed, clickable, glyph })
+      textFrom = i
+    }
+    if (i < chars.length) text += chars[i]
   }
-  return out
+  if (text !== '') parts.push({ kind: 'text', key: `text-${textFrom}`, text })
+  return parts
 }
 
 /** Cột nào của hàng mẫu đầu tiên đứng làm nhãn cho ô `<select>` thứ `index` — chuỗi rỗng khi
@@ -313,6 +333,15 @@ let returnFocusTo: HTMLElement | null = null
 
 const panel = useTemplateRef<HTMLElement>('panel')
 
+function keepPanelFocus(): void {
+  panel.value?.focus({ preventScroll: true })
+}
+
+function onAimCutTarget(position: number): void {
+  aimBilingualCaret(position)
+  keepPanelFocus()
+}
+
 watch(bilingualImportPreviewIsOpen, (open) => {
   if (open) {
     returnFocusTo = takeRecordedImportOpener() ?? focusReturnTargetOnOpen('[data-bilingual-import-preview-open]')
@@ -357,7 +386,10 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 </script>
 
 <template>
-  <div v-if="bilingualImportPreviewIsOpen" class="bip-screen" @keydown.esc="onEscapeCancel" @keydown="onScrimKeydown">
+  <div v-if="bilingualImportPreviewIsOpen" class="bip-screen"
+    @keydown.capture="disarmBilingualCutHold"
+    @keydown.esc="onEscapeCancel"
+    @keydown="onScrimKeydown">
     <section ref="panel" class="bip-panel" tabindex="-1" aria-labelledby="bip-title">
       <header class="bip-head">
         <h2 id="bip-title" class="bip-title">{{ t('mode.library.preview.bilingual_title') }}</h2>
@@ -632,22 +664,51 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
             </p>
 
             <div
-              v-if="bilingualImportPreviewMismatches.length > 0 && bilingualImportPreviewActiveMismatch !== null"
+              v-if="bilingualImportPreviewActiveMismatch !== null"
               ref="mismatchFocus"
               class="bip-mismatch-focus"
               tabindex="-1"
             >
-              <p class="bip-mismatch-heading" role="status">
-                <!-- aura-allow-text: KẾT QUẢ của `t()`, mọi tham số là DỮ LIỆU (chỉ số/số đếm). -->
-                {{
-                  t('mode.library.preview.bilingual_mismatch_heading', {
-                    index: String(bilingualImportPreviewActiveMismatchIndex + 1),
-                    total: String(bilingualImportPreviewMismatches.length),
-                    row: String(bilingualImportPreviewActiveMismatch.row_number),
-                    chapter: String(bilingualImportPreviewActiveMismatch.chapter_index + 1),
-                  })
-                }}
-              </p>
+              <div class="bip-mismatch-heading-row">
+                <p class="bip-mismatch-heading" role="status">
+                  <!-- aura-allow-text: KẾT QUẢ của `t()`, mọi tham số là DỮ LIỆU (chỉ số/số đếm). -->
+                  {{
+                    bilingualImportPreviewActiveMismatchHeld
+                      ? t('mode.library.preview.bilingual_matched_heading', {
+                          row: String(bilingualImportPreviewActiveMismatch.row_number),
+                          chapter: String(bilingualImportPreviewActiveMismatch.chapter_index + 1),
+                        })
+                      : t('mode.library.preview.bilingual_mismatch_heading', {
+                          index: String(bilingualImportPreviewActiveMismatchIndex + 1),
+                          total: String(bilingualImportPreviewMismatches.length),
+                          row: String(bilingualImportPreviewActiveMismatch.row_number),
+                          chapter: String(bilingualImportPreviewActiveMismatch.chapter_index + 1),
+                        })
+                  }}
+                </p>
+                <template v-if="bilingualImportPreviewCanMoveBetweenMismatches">
+                  <button
+                    type="button"
+                    class="ui-btn"
+                    :title="commandTitle('import.preview.bilingual_previous_mismatch')"
+                    :disabled="bilingualImportPreviewConfirming"
+                    @mousedown.left.prevent="keepPanelFocus"
+                    @click="dispatch('import.preview.bilingual_previous_mismatch')"
+                  >
+                    {{ t('command.import.preview.bilingual_previous_mismatch') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="ui-btn"
+                    :title="commandTitle('import.preview.bilingual_next_mismatch')"
+                    :disabled="bilingualImportPreviewConfirming"
+                    @mousedown.left.prevent="keepPanelFocus"
+                    @click="dispatch('import.preview.bilingual_next_mismatch')"
+                  >
+                    {{ t('command.import.preview.bilingual_next_mismatch') }}
+                  </button>
+                </template>
+              </div>
 
               <div class="bip-mismatch-columns">
                 <div class="bip-mismatch-column">
@@ -675,8 +736,26 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
                 class="bip-mismatch-caret-line"
               >
                 {{ t('mode.library.preview.bilingual_caret_line_label') }}
-                <!-- aura-allow-text: DỮ LIỆU (dòng đích thô, chèn ký hiệu caret/cắt). -->
-                <span class="bip-caret-line">{{ annotatedTargetLine() }}</span>
+                <span class="bip-caret-line">
+                  <template v-for="part in targetLineParts()" :key="part.key">
+                    <span v-if="part.kind === 'text'" v-text="part.text" />
+                    <button
+                      v-else-if="part.clickable"
+                      type="button"
+                      tabindex="-1"
+                      class="bip-cut-stop bip-cut-target"
+                      :class="{ 'bip-cut-aimed': part.aimed }"
+                      :aria-label="t(part.cut ? 'mode.library.preview.bilingual_cut_target_remove' : 'mode.library.preview.bilingual_cut_target_add', { position: String(part.position) })"
+                      :title="t(part.cut ? 'mode.library.preview.bilingual_cut_target_remove' : 'mode.library.preview.bilingual_cut_target_add', { position: String(part.position) })"
+                      :aria-pressed="part.cut"
+                      :disabled="bilingualImportPreviewConfirming"
+                      @mousedown.left.prevent="onAimCutTarget(part.position)"
+                      @click="dispatch('import.preview.bilingual_toggle_cut')"
+                      v-text="part.glyph"
+                    />
+                    <span v-else class="bip-cut-stop bip-cut-end" :class="{ 'bip-cut-aimed': part.aimed }" v-text="part.glyph" />
+                  </template>
+                </span>
               </p>
 
               <p
@@ -692,7 +771,7 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
                 <button
                   type="button"
                   class="bip-mismatch-action ui-btn"
-                  :disabled="bilingualImportPreviewConfirming"
+                  :disabled="bilingualImportPreviewConfirming || bilingualImportPreviewMismatches.length === 0"
                   @click="dispatch('import.preview.bilingual_accept_all_proposals')"
                 >
                   {{ t('command.import.preview.bilingual_accept_all_proposals') }}
@@ -1149,6 +1228,63 @@ watch(bilingualImportPreviewMismatchFocusSignal, () => {
 .bip-caret-line {
   font-family: var(--face-ui-sm);
   color: var(--color-on-surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bip-mismatch-heading-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  margin-bottom: calc(var(--space-unit) * 1);
+}
+
+.bip-mismatch-heading-row .bip-mismatch-heading {
+  flex: 1;
+  margin: 0;
+}
+
+.bip-cut-stop {
+  display: inline-flex;
+  box-sizing: border-box;
+  height: calc(var(--space-unit) * 4);
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  border-bottom: 2px solid transparent;
+}
+
+.bip-cut-target {
+  width: calc(var(--space-unit) * 3);
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  background: none;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  color: var(--color-on-surface-variant);
+  cursor: pointer;
+}
+
+.bip-cut-target:hover,
+.bip-cut-target[aria-pressed='true'] {
+  color: var(--color-on-surface);
+}
+
+.bip-cut-target:disabled {
+  cursor: default;
+}
+
+.bip-cut-end {
+  width: var(--space-unit);
+  color: var(--color-on-surface);
+}
+
+.bip-cut-aimed {
+  color: var(--color-on-surface);
+  border-bottom-color: var(--color-on-surface);
 }
 
 .bip-mismatch-proposal {
