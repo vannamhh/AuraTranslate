@@ -1029,6 +1029,7 @@ function onSentencePress(event: MouseEvent): void {
   if (id === null || hit?.getAttribute('data-col') === 'tgt') return
   event.preventDefault()
   setEditorCaret(id)
+  if (hit?.hasAttribute('data-num-segment-id') === true) window.getSelection()?.removeAllRanges()
 }
 
 /**

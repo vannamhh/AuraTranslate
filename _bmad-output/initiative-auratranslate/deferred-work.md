@@ -13663,6 +13663,7 @@ chính nó.
 - 2 id Glossary: `glossary.add_term`, `glossary.settings.open` (không đạt `via` qua `settings.open` vì `openSettings()` mở mục chọn gần nhất).
   Cần: mục menu câu giữ vùng bôi đen; mục trong `Công cụ ▾`.
   Chủ: Story 14.5. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 5.
+  → ✅ ĐÃ ĐÓNG 2026-10-31 (Story 14.5): mục Thêm thuật ngữ ở nhóm 2 của menu câu (`GridSentenceMenu.vue`), mục Ngưỡng quét Glossary dưới Quản lý Glossary ở `TitlebarToolsMenu.vue`; ca Vitest ở `gridSentenceMenu.test.ts` và `titlebarToolsMenu.test.ts`; Kiểm M đọc 277 điểm chuột, 29 khai `pointer`, 24 nợ.
 - 8 id tầng khối nhập URL: `import.preview.block_next`, `block_prev` (đích cuối `pointer: aim`), `block_toggle_kept`, `block_mark_range_start`, `block_confirm_range`, `jump_to_cleanup_rules`, `chapter_next`, `chapter_prev`.
   Cần: `@mousedown` nhắm khối ở `ImportPreviewOverlay.vue`, cụm nút trên khối đang nhắm.
   Chủ: Story 14.6. Trỏ: `tickets/epic-san-chuot/tickets/tickets.toml` ticket 6.
@@ -13685,6 +13686,7 @@ chính nó.
 - `shortcuts.open` khai `via: settings.open` theo AD-62 mục 3, nhưng cùng hình dạng với `glossary.settings.open` mà Story 14.5 đã bác: `openShortcuts` mở đúng mục Phím tắt, còn `settings.open` gọi `openSettings()`, không mở thẳng mục đó.
   Cần: xét cho `shortcuts.open` một mục trong `Công cụ ▾` cạnh mục Glossary; nếu thêm thì gỡ `pointer` của nó, vì có điểm chuột mà vẫn khai là đỏ.
   Chủ: Story 14.5. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Review Triage Log.
+  → KHÔNG LÀM 2026-10-31 (Story 14.5) — `shortcuts.open` giữ `via: settings.open`: tới mục Phím tắt mất 3 cú bấm và AD-62 mục 3 nêu đích danh id này; spine không đổi, `Công cụ ▾` giữ 9 mục (Ice chọn).
 - `check:gates` Kiểm G đỏ từ `9d7f9a0d`: `LINE_HEIGHT_FLOOR_EXEMPT` ở `scripts/check-tokens.mjs` là một `Map` miễn trừ nhưng tên khớp luật mọi hằng `*_FLOOR` phải qua `judgeFloor`, nên `pre-push` sẽ chặn lượt đẩy kế tiếp.
   Cần: đổi tên hằng cho khỏi khớp luật, hoặc sửa luật Kiểm G cho đúng phạm vi; không thêm lời gọi `judgeFloor` giả.
   Chủ: Ice. Trỏ: `tickets/epic-san-chuot/tickets/story-ha-cong-kiem-m-cung-so-no-chi-co-lai-plan.md` §Implementation Notes.
@@ -13739,3 +13741,12 @@ chính nó.
 - Mở Chương khác cùng Tác phẩm từ Thư viện khi Review Mode mở có cùng lệch Chương: `openChapterById` đổi Chương của Editor trong khi màn Review giữ Chương cũ.
   Cần: quyết định chặn hay đồng bộ, cùng khuôn với hợp âm chuyển Chương.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-mo-ra-soat-va-lich-su-bang-chuot-plan.md` §Boundaries & Constraints.
+
+## Deferred from: Story 14.5, thêm thuật ngữ và mở cài đặt Glossary bằng chuột (2026-10-31)
+
+- Lượt dùng thật chuột: chuột phải trong vùng bôi và ở ô số rồi Thêm thuật ngữ, đóng dải bằng `Esc` hay Lưu rồi gõ tiếp vào đúng chỗ caret cũ, `Công cụ ▾` tới mục Ngưỡng quét Glossary từ mục Cài đặt khác. Bàn đo `cliclick` đã chạy ở `_bmad-output/implementation-artifacts/14-5-ban-do/ket-qua.md`, trừ đường Lưu; còn thiếu chuột người.
+  Cần: Ice chạy một lượt trên app thật.
+  Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-them-thuat-ngu-va-mo-cai-at-glossary-bang-chuot-plan.md` §Verification.
+- Chromium giữ từ bôi ở câu khác khi chuột phải ô số câu, WebKit thì thay vùng chọn; `onSentencePress` xoá vùng chọn nên ô thuật ngữ phải trống, và đóng dải phải trả caret đúng chỗ. Đo trên Playwright Chromium, chưa trên WebView2.
+  Cần: kiểm trên Windows: ô số có từ bôi ở câu khác thì ô thuật ngữ trống; `Esc` trả caret về câu cũ.
+  Chủ: B7. Trỏ: `tickets/epic-san-chuot/tickets/story-them-thuat-ngu-va-mo-cai-at-glossary-bang-chuot-plan.md` §Design Notes.

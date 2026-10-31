@@ -1,6 +1,7 @@
 import { readonly, shallowRef } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
-import { editorCaretSegmentId, requestCurrentEditorCaretPlacement, setEditorCaret } from './editorPanelState'
+import { adoptQuickAddRestore } from '../glossaryQuickAddState'
+import { editorCaretSegmentId, editorSegments, requestCurrentEditorCaretPlacement, setEditorCaret } from './editorPanelState'
 
 const PRESS_FRESH_MS = 1000
 
@@ -106,10 +107,11 @@ function restoreBeforeOpen(before: Restore): void {
   } else if (selection !== null && selection.rangeCount > 0 && !selection.isCollapsed) {
     selection.collapseToStart()
   }
-  if (editorCaretSegmentId.value !== before.caret) setEditorCaret(before.caret)
+  const caret = before.caret !== null && editorSegments.value.some((s) => s.id === before.caret) ? before.caret : null
+  if (editorCaretSegmentId.value !== caret) setEditorCaret(caret)
 }
 
-export function closeSentenceMenu(reason: 'chosen' | 'dismissed' | 'overlay'): void {
+export function closeSentenceMenu(reason: 'chosen' | 'dismissed' | 'overlay' | 'glossary'): void {
   const open = menu.value
   const before = restore
   menu.value = null
@@ -117,6 +119,10 @@ export function closeSentenceMenu(reason: 'chosen' | 'dismissed' | 'overlay'): v
   if (open === null) return
   if (reason === 'dismissed') {
     if (before !== null) restoreBeforeOpen(before)
+    return
+  }
+  if (reason === 'glossary') {
+    if (before !== null && !adoptQuickAddRestore(() => restoreBeforeOpen(before))) restoreBeforeOpen(before)
     return
   }
   if (reason === 'overlay') {

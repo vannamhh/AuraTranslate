@@ -103,6 +103,8 @@ let workTierDefaultApplied = false
 let savedFocusEl: HTMLElement | null = null
 /** Vùng chọn NGAY TRƯỚC khi dải mở — trả lại khi đóng, cùng lúc với tiêu điểm. */
 let savedRange: Range | null = null
+/** Set by the sentence menu when it opened the strip: it replaces `savedRange` on close. */
+let restoreOnClose: (() => void) | null = null
 
 export const quickAddIsOpen: DeepReadonly<Ref<boolean>> = readonly(isOpen)
 /** ⚠️ CHỈ ĐỌC — mọi lượt ghi phải qua [`setQuickAddSourceTerm`], không gán thẳng `.value`:
@@ -265,6 +267,7 @@ export function openGlossaryQuickAdd(initialSourceTerm: string): void {
   const selection = window.getSelection()
   savedRange =
     selection !== null && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
+  restoreOnClose = null
 
   isOpen.value = true
   translation.value = ''
@@ -287,7 +290,15 @@ function restoreFocusAndSelection(): void {
   if (savedFocusEl !== null && savedFocusEl.isConnected) {
     savedFocusEl.focus()
   }
-  if (savedRange !== null) {
+  const handedOver = restoreOnClose
+  restoreOnClose = null
+  if (handedOver !== null) {
+    try {
+      handedOver()
+    } catch (err) {
+      console.warn(`[glossary] khong khoi phuc duoc trang thai truoc menu cau: ${String(err)}`)
+    }
+  } else if (savedRange !== null) {
     const selection = window.getSelection()
     if (selection !== null) {
       try {
@@ -303,6 +314,12 @@ function restoreFocusAndSelection(): void {
   }
   savedFocusEl = null
   savedRange = null
+}
+
+export function adoptQuickAddRestore(restore: () => void): boolean {
+  if (!isOpen.value) return false
+  restoreOnClose = restore
+  return true
 }
 
 /**
@@ -411,4 +428,5 @@ export function resetGlossaryQuickAdd(): void {
   saveError.value = null
   savedFocusEl = null
   savedRange = null
+  restoreOnClose = null
 }

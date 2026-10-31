@@ -5,6 +5,7 @@ const ITEM = (id) => `[data-tools-item="${id}"]`
 
 const ITEM_IDS = [
   'glossary.manage.open',
+  'glossary.settings.open',
   'tm.manage.open',
   'settings.open',
   'ai.proofread.scope.open',
@@ -33,7 +34,7 @@ async function openList() {
 }
 
 describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
-  it('thanh tiêu đề chỉ có ba tab và Công cụ ▾ ở Library; danh sách có tám mục theo thứ tự IA, không còn Xuất', async () => {
+  it('thanh tiêu đề chỉ có ba tab và Công cụ ▾ ở Library; danh sách có chín mục theo thứ tự IA, không còn Xuất', async () => {
     await browser.keys(['Meta', '1'])
     const trigger = await $(TRIGGER)
     await trigger.waitForDisplayed({ timeout: 30_000 })
@@ -64,6 +65,25 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
       expect(await activeIsTrigger()).toBe(true)
     })
   }
+
+  it('mục Ngưỡng quét Glossary mở Cài đặt ở mục Glossary dù lần trước ở mục khác, và Escape về Công cụ ▾', async () => {
+    await openList()
+    await realClick(await $(ITEM('settings.open')))
+    await $('.set-panel').waitForDisplayed({ timeout: 10_000 })
+    await browser.keys(['Escape'])
+    await $('.set-panel').waitForExist({ reverse: true, timeout: 10_000 })
+
+    await openList()
+    await realClick(await $(ITEM('glossary.settings.open')))
+    await $('.set-panel').waitForDisplayed({ timeout: 10_000 })
+    const section = await browser.execute(
+      () => document.querySelector('.set-panel [data-settings-section][aria-current="true"]')?.getAttribute('data-settings-section') ?? '',
+    )
+    await expect(section).toBe('glossary')
+    await browser.keys(['Escape'])
+    await $('.set-panel').waitForExist({ reverse: true, timeout: 10_000 })
+    expect(await activeIsTrigger()).toBe(true)
+  })
 
   it('trên macOS, thanh tiêu đề là vùng kéo có lề cho ba nút, và lớp phủ chừa dải thanh tiêu đề', async () => {
     await openList()
@@ -97,10 +117,10 @@ describe('Khung app · thanh tiêu đề ba tab và Công cụ ▾', () => {
   // keyboard case covers only what the driver can send: arrows and Escape.
   it('mũi tên đi giữa các mục; Escape đóng danh sách và đưa tiêu điểm về Công cụ ▾', async () => {
     await openList()
-    await browser.keys(['ArrowDown', 'ArrowDown'])
+    await browser.keys(['ArrowDown', 'ArrowDown', 'ArrowDown'])
     const at = await browser.execute(() => document.activeElement?.getAttribute('data-tools-item') ?? '')
     expect(at).toBe('tm.manage.open')
-    await browser.keys(['ArrowUp', 'ArrowUp'])
+    await browser.keys(['ArrowUp', 'ArrowUp', 'ArrowUp'])
     const wrapped = await browser.execute(() => document.activeElement?.getAttribute('data-tools-item') ?? '')
     expect(wrapped).toBe('layout.toggle_panel_headers')
     await browser.keys(['Escape'])

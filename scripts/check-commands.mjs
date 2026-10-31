@@ -248,7 +248,7 @@ const COMMAND_FLOOR = 269
  * (lỗ `vueRegions`: vùng `<style>` giả nuốt mọi `@click` phía sau, cổng vẫn in `OK`).
  * `ceil(0.85 × live)`, qua `judgeFloor`.
  */
-const CLICK_FLOOR = 253
+const CLICK_FLOOR = 271
 const DISPATCH_FLOOR = 360
 
 {
@@ -2901,8 +2901,6 @@ console.log('\nKiểm M — mọi command có điểm chuột, khai `pointer`, h
 
 /** Open debt: ids may only be removed, never added. Keep this and the baseline as two separate literals. */
 const POINTER_DEBT = /** @type {string[]} */ ([
-  'glossary.add_term',
-  'glossary.settings.open',
   'import.preview.block_next',
   'import.preview.block_prev',
   'import.preview.block_toggle_kept',
@@ -2978,7 +2976,7 @@ const POINTER_DEBT_BASELINE = /** @type {string[]} */ ([
 ])
 
 /** `ceil(0.85 × live)` over commands with a mouse point, via `judgeFloor`. */
-const POINTER_FLOOR = 220
+const POINTER_FLOOR = 236
 
 /**
  * Self-check: the verdict must go red on each bad case and stay green on the good ones.

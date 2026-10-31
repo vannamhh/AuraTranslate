@@ -2,12 +2,16 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { dispatch } from '../commands'
 import { shortcutRows } from '../config/shortcutsState'
+import { quickAddIsOpen } from '../glossaryQuickAddState'
 import { t } from '../i18n'
 import { editorSegments, editorSourceCut } from './editorPanelState'
 import { closeSentenceMenu, placeMenu, sentenceMenu } from './sentenceMenuState'
 
 const root = useTemplateRef<HTMLElement>('root')
 const position = ref({ x: 0, y: 0 })
+// Read once at open: a real click flushes Vue between the item's listener and the document's, so a
+// live binding would disable the item before `onDocumentClick` reads it and the menu would stay open.
+const stripWasOpen = ref(false)
 
 const index = computed(() => {
   const open = sentenceMenu.value
@@ -39,6 +43,7 @@ function holdFocus(event: MouseEvent): void {
 
 watch(sentenceMenu, async (open) => {
   if (open === null) return
+  stripWasOpen.value = quickAddIsOpen.value
   position.value = { x: open.x, y: open.y }
   await nextTick()
   const rect = root.value?.getBoundingClientRect()
@@ -77,7 +82,8 @@ function onDocumentClick(event: MouseEvent): void {
   if (sentenceMenu.value === null || !inside(event)) return
   const button = event.target instanceof Element ? event.target.closest('button') : null
   if (button === null || button.disabled) return
-  closeSentenceMenu(button.hasAttribute('data-opens-overlay') ? 'overlay' : 'chosen')
+  if (button.hasAttribute('data-opens-glossary-strip')) closeSentenceMenu('glossary')
+  else closeSentenceMenu(button.hasAttribute('data-opens-overlay') ? 'overlay' : 'chosen')
 }
 
 function onDocumentContextMenu(event: MouseEvent): void {
@@ -156,6 +162,30 @@ onBeforeUnmount(() => {
         </button>
       </li>
       <li class="ui-menu-sep" role="separator"></li>
+      <li role="none">
+        <button
+          type="button"
+          role="menuitem"
+          tabindex="-1"
+          class="ui-menu-item"
+          data-opens-glossary-strip
+          :disabled="stripWasOpen"
+          :title="stripWasOpen ? t('panel.grid.menu.add_term_open') : t('command.glossary.add_term')"
+          @click="dispatch('glossary.add_term')"
+        >
+          <span>{{ t('panel.grid.menu.add_term') }}</span>
+          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+          <span class="sentence-menu-chord">{{ chordOf('glossary.add_term') }}</span>
+        </button>
+      </li>
+      <li role="none">
+        <button type="button" role="menuitem" tabindex="-1" class="ui-menu-item" data-opens-overlay :title="t('command.history.open')" @click="dispatch('history.open')">
+          <span>{{ t('panel.grid.menu.history') }}</span>
+          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+          <span class="sentence-menu-chord">{{ chordOf('history.open') }}</span>
+        </button>
+      </li>
+      <li class="ui-menu-sep" role="separator"></li>
       <li v-if="!segment.is_omitted" role="none">
         <button type="button" role="menuitem" tabindex="-1" class="ui-menu-item" :title="t('command.editor.omit_segment')" @click="dispatch('editor.omit_segment')">
           <span>{{ t('panel.grid.menu.omit') }}</span>
@@ -189,14 +219,6 @@ onBeforeUnmount(() => {
           <span>{{ t('panel.grid.menu.split_chapter') }}</span>
           <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
           <span class="sentence-menu-chord">{{ chordOf('editor.split_chapter') }}</span>
-        </button>
-      </li>
-      <li class="ui-menu-sep" role="separator"></li>
-      <li role="none">
-        <button type="button" role="menuitem" tabindex="-1" class="ui-menu-item" data-opens-overlay :title="t('command.history.open')" @click="dispatch('history.open')">
-          <span>{{ t('panel.grid.menu.history') }}</span>
-          <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
-          <span class="sentence-menu-chord">{{ chordOf('history.open') }}</span>
         </button>
       </li>
     </ul>

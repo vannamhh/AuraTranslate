@@ -33,7 +33,7 @@ afterEach(() => {
 })
 
 describe('Công cụ ▾ list', () => {
-  it('lists exactly eight items in IA order, showing a chord only where the command has one', async () => {
+  it('lists exactly nine items in IA order, showing a chord only where the command has one', async () => {
     const { state, Menu, i18n } = await setup()
     const wrapper = mount(Menu, { attachTo: document.body })
     expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(0)
@@ -44,6 +44,7 @@ describe('Công cụ ▾ list', () => {
     expect(rows.map((r) => r[0])).toEqual(
       [
         'command.glossary.manage.open',
+        'command.glossary.settings.open',
         'command.tm.manage.open',
         'command.settings.open',
         'command.ai.proofread.scope.open',
@@ -53,7 +54,7 @@ describe('Công cụ ▾ list', () => {
         'command.glossary.harvest.open',
       ].map((key) => i18n.t(key)),
     )
-    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', 'Ctrl+Alt+B', 'Ctrl+,', '', '', '', '', ''])
+    expect(rows.map((r) => r[1])).toEqual(['Ctrl+Alt+M', 'Ctrl+Alt+T', 'Ctrl+Alt+B', 'Ctrl+,', '', '', '', '', ''])
     wrapper.unmount()
   })
 
@@ -94,9 +95,9 @@ describe('Công cụ ▾ list', () => {
     expect(document.activeElement).toBe(items[1]?.element)
     await items[1]?.trigger('keydown', { key: 'ArrowUp' })
     await items[0]?.trigger('keydown', { key: 'ArrowUp' })
-    expect(document.activeElement).toBe(items[8]?.element)
+    expect(document.activeElement).toBe(items[9]?.element)
 
-    await items[8]?.trigger('keydown', { key: 'Escape' })
+    await items[9]?.trigger('keydown', { key: 'Escape' })
     expect(state.toolsMenuIsOpen.value).toBe(false)
     expect(document.activeElement).toBe(trigger.element)
     wrapper.unmount()
@@ -109,7 +110,7 @@ describe('Công cụ ▾ list', () => {
     state.toggleToolsMenu()
     await flush()
 
-    await wrapper.findAll('[role="menuitem"]')[1]?.trigger('click')
+    await wrapper.findAll('[role="menuitem"]')[2]?.trigger('click')
     expect(openTmManage).toHaveBeenCalledTimes(1)
     expect(state.toolsMenuIsOpen.value).toBe(false)
 
@@ -136,8 +137,26 @@ describe('Công cụ ▾ list', () => {
     const wrapper = mount(Menu, { attachTo: document.body })
     await wrapper.get('.tools-trigger').trigger('click')
     expect(state.toolsMenuIsOpen.value).toBe(true)
-    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(8)
+    expect(wrapper.findAll('[role="menuitem"]')).toHaveLength(9)
     await wrapper.get('.tools-trigger').trigger('click')
+    expect(state.toolsMenuIsOpen.value).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('Công cụ ▾ — Ngưỡng quét Glossary', () => {
+  it('the item sits under Quản lý Glossary and dispatches glossary.settings.open, then closes the list', async () => {
+    const openGlossarySettings = vi.fn()
+    const { state, Menu } = await setup({ openGlossarySettings })
+    const wrapper = mount(Menu, { attachTo: document.body })
+    state.toggleToolsMenu()
+    await flush()
+
+    const ids = wrapper.findAll('[role="menuitem"]').map((item) => item.attributes('data-tools-item'))
+    expect(ids.slice(0, 2)).toEqual(['glossary.manage.open', 'glossary.settings.open'])
+
+    await wrapper.get('[data-tools-item="glossary.settings.open"]').trigger('click')
+    expect(openGlossarySettings).toHaveBeenCalledTimes(1)
     expect(state.toolsMenuIsOpen.value).toBe(false)
     wrapper.unmount()
   })

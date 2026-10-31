@@ -1072,6 +1072,7 @@ describe('focus and the edit form', () => {
     await settle(menu)
     await trigger.trigger('keydown', { key: 'ArrowDown' })
     await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
     const item = document.activeElement as HTMLElement
     expect(item.getAttribute('data-tools-item')).toBe('tm.manage.open')
 

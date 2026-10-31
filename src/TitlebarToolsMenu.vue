@@ -118,6 +118,15 @@ onBeforeUnmount(() => {
         </button>
       </li>
       <li role="none">
+        <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="glossary.settings.open" @click="dispatch('glossary.settings.open')">
+          <span class="ui-row">
+            <span>{{ t('command.glossary.settings.open') }}</span>
+            <!-- aura-allow-text: chord already formatted for the platform by formatChord. -->
+            <span class="tools-chord">{{ chordOf('glossary.settings.open') }}</span>
+          </span>
+        </button>
+      </li>
+      <li role="none">
         <button type="button" role="menuitem" tabindex="-1" class="tools-item ui-menu-item" data-tools-item="tm.manage.open" @click="dispatch('tm.manage.open')">
           <span class="ui-row">
             <span>{{ t('command.tm.manage.open') }}</span>

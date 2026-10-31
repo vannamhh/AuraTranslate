@@ -511,3 +511,82 @@ describe('dải "Thêm thuật ngữ" — hợp âm Mod+số KHÔNG được l�
     wrapper.unmount()
   })
 })
+
+describe('dải "Thêm thuật ngữ" — trả trạng thái lúc đóng', () => {
+  function cellWithText(text: string): HTMLElement {
+    const el = document.createElement('div')
+    el.tabIndex = 0
+    el.textContent = text
+    document.body.appendChild(el)
+    return el
+  }
+
+  it('mở bằng phím: đóng trả đúng vùng chọn đã lưu lúc mở', async () => {
+    const { state } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    const cell = cellWithText('abcdefgh')
+    cell.focus()
+    window.getSelection()?.setBaseAndExtent(cell.firstChild as Node, 2, cell.firstChild as Node, 4)
+
+    state.openGlossaryQuickAdd('cd')
+    window.getSelection()?.collapse(document.body, 0)
+    state.closeGlossaryQuickAdd()
+
+    expect(document.activeElement).toBe(cell)
+    expect(window.getSelection()?.anchorOffset).toBe(2)
+    expect(window.getSelection()?.focusOffset).toBe(4)
+  })
+
+  it('được giao việc trả trạng thái: tiêu điểm trả trước, việc đó chạy đúng một lần thay vùng chọn đã lưu', async () => {
+    const { state } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    const cell = cellWithText('abcdefgh')
+    cell.focus()
+    window.getSelection()?.setBaseAndExtent(cell.firstChild as Node, 2, cell.firstChild as Node, 4)
+    state.openGlossaryQuickAdd('cd')
+    const seenFocus: unknown[] = []
+    const restore = vi.fn(() => seenFocus.push(document.activeElement))
+    expect(state.adoptQuickAddRestore(restore)).toBe(true)
+    window.getSelection()?.collapse(document.body, 0)
+    document.body.focus()
+
+    state.closeGlossaryQuickAdd()
+
+    expect(restore).toHaveBeenCalledTimes(1)
+    expect(seenFocus).toEqual([cell])
+    expect(window.getSelection()?.anchorNode).toBe(document.body)
+  })
+
+  it('dải chưa mở thì không nhận việc, và việc không sống sang lượt mở bằng phím sau đó', async () => {
+    const { state } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    const restore = vi.fn()
+    expect(state.adoptQuickAddRestore(restore)).toBe(false)
+
+    state.openGlossaryQuickAdd('x')
+    state.closeGlossaryQuickAdd()
+    state.openGlossaryQuickAdd('y')
+    state.closeGlossaryQuickAdd()
+
+    expect(restore).not.toHaveBeenCalled()
+  })
+
+  it('việc được giao bị bỏ khi mở lại bằng phím: lượt mở sau dùng lại vùng chọn đã lưu', async () => {
+    const { state } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    const cell = cellWithText('abcdefgh')
+    cell.focus()
+    state.openGlossaryQuickAdd('x')
+    const restore = vi.fn()
+    state.adoptQuickAddRestore(restore)
+    state.resetGlossaryQuickAdd()
+
+    window.getSelection()?.setBaseAndExtent(cell.firstChild as Node, 1, cell.firstChild as Node, 3)
+    state.openGlossaryQuickAdd('bc')
+    window.getSelection()?.collapse(document.body, 0)
+    state.closeGlossaryQuickAdd()
+
+    expect(restore).not.toHaveBeenCalled()
+    expect(window.getSelection()?.anchorOffset).toBe(1)
+  })
+})

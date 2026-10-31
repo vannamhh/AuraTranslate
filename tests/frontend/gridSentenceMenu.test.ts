@@ -18,6 +18,14 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
   }
 })
 
+const addTermMock = vi.fn()
+
+vi.mock('../../src/config/glossary', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/config/glossary')>()),
+  lookupGlossaryTerm: async () => ({ found: 'none', workTierAvailable: false }),
+  addGlossaryTerm: (...args: unknown[]) => addTermMock(...args),
+}))
+
 const STUBS = { PanelFrame: { template: '<div class="panel-frame"><slot /></div>' } }
 
 const mounted: { unmount: () => void }[] = []
@@ -35,11 +43,13 @@ beforeEach(() => {
   resetRecorder()
 })
 
-async function mountGrid() {
+async function mountGrid(options: { realStrip?: boolean } = {}) {
   vi.resetModules()
   const state = await import('../../src/panels/editorPanelState')
   const commands = await import('../../src/commands')
   const menuState = await import('../../src/panels/sentenceMenuState')
+  const strip = await import('../../src/glossaryQuickAddState')
+  const selection = await import('../../src/panels/selectionContract')
   const calledOn: Record<string, (number | null)[]> = {}
   const spy = <A extends unknown[], R>(name: string, result: R) =>
     vi.fn((..._args: A): R => {
@@ -56,11 +66,18 @@ async function mountGrid() {
     setSegmentParagraphEnd: spy<[boolean], void>('setSegmentParagraphEnd', undefined),
     splitChapter: spy('splitChapter', undefined),
     openSegmentHistory: spy('openSegmentHistory', undefined),
+    openGlossaryQuickAdd: spy<[string], void>('openGlossaryQuickAdd', undefined),
+    currentSelectionForGlossary: spy('currentSelectionForGlossary', ''),
   }
+  const realStrip =
+    options.realStrip === true
+      ? { openGlossaryQuickAdd: strip.openGlossaryQuickAdd, currentSelectionForGlossary: selection.currentSelectionTextForGlossaryQuickAdd }
+      : {}
   commands.installCommands({
     isMac: true,
     setMode: () => {},
     ...deps,
+    ...realStrip,
     openSentenceMenu: () => {
       menuState.openSentenceMenu()
     },
@@ -74,7 +91,7 @@ async function mountGrid() {
   mounted.push(wrapper)
   await state.ensureSegmentsLoaded()
   await wrapper.vm.$nextTick()
-  return { state, commands, menuState, deps, calledOn, wrapper }
+  return { state, commands, menuState, strip, deps, calledOn, wrapper }
 }
 
 const cell = (col: 'src' | 'tgt', id: number): HTMLElement => {
@@ -123,6 +140,7 @@ describe('menu câu của Lưới — mỗi id một mục chạy trên câu đ�
     ['editor.join_target_paragraph', 'Nối với đoạn tiếp theo', 'setSegmentParagraphEnd', null],
     ['editor.split_chapter', 'Tách Chương tại đây', 'splitChapter', null],
     ['history.open', 'Lịch sử phiên bản', 'openSegmentHistory', null],
+    ['glossary.add_term', 'Thêm thuật ngữ', 'openGlossaryQuickAdd', null],
   ]
 
   const FLAG_ARG: Readonly<Record<string, boolean>> = {
@@ -559,5 +577,165 @@ describe('vị trí', () => {
     expect(menuState.placeMenu({ x: 100, y: 100 }, size, viewport)).toEqual({ x: 100, y: 100 })
     expect(menuState.placeMenu({ x: 900, y: 100 }, size, viewport)).toEqual({ x: 606, y: 100 })
     expect(menuState.placeMenu({ x: 100, y: 700 }, size, viewport)).toEqual({ x: 100, y: 400 })
+  })
+})
+
+function selectWord(el: Element): string {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    const data = node.textContent ?? ''
+    const start = data.search(/\S/)
+    if (start < 0) continue
+    window.getSelection()?.setBaseAndExtent(node, start, node, start + 1)
+    return window.getSelection()?.toString() ?? ''
+  }
+  throw new Error('cell has no text')
+}
+
+describe('mục Thêm thuật ngữ', () => {
+  it('nằm giữa nhóm 1 và nhóm 3, ngay trước Lịch sử phiên bản', async () => {
+    await mountGrid()
+    press(cell('src', 12))
+    await flushPromises()
+    const rows = Array.from(document.querySelectorAll('[data-sentence-menu] > li')).map((li) =>
+      li.getAttribute('role') === 'separator' ? '|' : (li.querySelector('button span')?.textContent ?? ''),
+    )
+    const at = rows.indexOf('Thêm thuật ngữ')
+    expect(rows[at - 1]).toBe('|')
+    expect(rows[at + 1]).toBe('Lịch sử phiên bản')
+    expect(rows[at + 2]).toBe('|')
+    expect(rows[at + 3]).toBe('Cắt bỏ câu')
+  })
+
+  it.each(['src', 'tgt'] as const)('trong vùng bôi ở cột %s: ô thuật ngữ điền đúng từ bôi', async (col) => {
+    const { strip } = await mountGrid({ realStrip: true })
+    if (col === 'tgt') cell('tgt', 12).textContent = 'bản dịch'
+    const picked = selectWord(cell(col, 12))
+    expect(picked).not.toBe('')
+
+    press(cell(col, 12))
+    await flushPromises()
+    itemByText('Thêm thuật ngữ').click()
+    await flushPromises()
+
+    expect(strip.quickAddIsOpen.value).toBe(true)
+    expect(strip.quickAddSourceTerm.value).toBe(picked)
+  })
+
+  it('ô số câu khi có từ bôi ở câu khác: vùng chọn bị xoá và ô thuật ngữ trống', async () => {
+    const { strip } = await mountGrid({ realStrip: true })
+    selectWord(cell('src', 11))
+
+    press(numCell(13))
+    await flushPromises()
+    expect(window.getSelection()?.rangeCount).toBe(0)
+    itemByText('Thêm thuật ngữ').click()
+    await flushPromises()
+
+    expect(strip.quickAddIsOpen.value).toBe(true)
+    expect(strip.quickAddSourceTerm.value).toBe('')
+  })
+
+  it('dải đang mở: mục tắt và title nói lý do', async () => {
+    const { strip } = await mountGrid({ realStrip: true })
+    strip.openGlossaryQuickAdd('từ')
+    press(cell('src', 12))
+    await flushPromises()
+
+    const item = itemByText('Thêm thuật ngữ')
+    expect(item.disabled).toBe(true)
+    expect(item.title).toContain('đang mở')
+  })
+
+  it('dải mở ra trong lúc menu đang mở: mục vẫn bật nên cú bấm thật đóng được menu', async () => {
+    const { strip } = await mountGrid({ realStrip: true })
+    press(cell('src', 12))
+    await flushPromises()
+    const item = itemByText('Thêm thuật ngữ')
+
+    strip.openGlossaryQuickAdd('từ')
+    await flushPromises()
+    expect(item.disabled).toBe(false)
+
+    item.click()
+    await flushPromises()
+    expect(menuEl()).toBeNull()
+  })
+
+  it('mục mang dấu riêng của dải, không mang dấu mở lớp phủ', async () => {
+    await mountGrid()
+    press(cell('src', 13))
+    await flushPromises()
+    const item = itemByText('Thêm thuật ngữ')
+    expect(item.hasAttribute('data-opens-glossary-strip')).toBe(true)
+    expect(item.hasAttribute('data-opens-overlay')).toBe(false)
+  })
+
+  describe.each([
+    ['nguyên văn', (id: number) => cell('src', id)],
+    ['số câu', (id: number) => numCell(id)],
+    ['bản dịch', (id: number) => cell('tgt', id)],
+  ] as const)('đóng dải sau khi nhắm câu B ở cột %s', (_name, pick) => {
+    const CLOSERS = [
+      ['Esc', (strip: { closeGlossaryQuickAdd: () => void }) => strip.closeGlossaryQuickAdd()],
+      ['Lưu', async (strip: { saveGlossaryQuickAdd: () => Promise<boolean> }) => void (await strip.saveGlossaryQuickAdd())],
+    ] as const
+
+    it.each(CLOSERS)('%s: caret về câu A đúng vị trí, tiêu điểm ở ô A, chữ của B nguyên vẹn', async (_closer, close) => {
+      addTermMock.mockResolvedValue({ error: null })
+      const { state, strip } = await mountGrid({ realStrip: true })
+      const own = cell('tgt', 11)
+      own.textContent = 'bản dịch của A'
+      const other = cell('tgt', 12)
+      const otherText = other.textContent
+      state.setEditorCaret(11)
+      own.focus()
+      window.getSelection()?.collapse(own.firstChild as Node, 5)
+
+      press(pick(12))
+      await flushPromises()
+      itemByText('Thêm thuật ngữ').click()
+      await flushPromises()
+      expect(strip.quickAddIsOpen.value).toBe(true)
+      strip.setQuickAddSourceTerm('từ')
+      await flushPromises()
+
+      await (close as (s: typeof strip) => unknown)(strip)
+      await flushPromises()
+
+      expect(strip.quickAddIsOpen.value).toBe(false)
+      expect(state.editorCaretSegmentId.value).toBe(11)
+      expect(document.activeElement).toBe(own)
+      expect(own.contains(window.getSelection()?.anchorNode ?? null)).toBe(true)
+      expect(window.getSelection()?.anchorOffset).toBe(5)
+      expect(other.textContent).toBe(otherText)
+    })
+  })
+
+  it('Chương đổi khi dải mở: đóng dải không ném và caret không trỏ câu của Chương cũ', async () => {
+    const { state, strip } = await mountGrid({ realStrip: true })
+    state.setEditorCaret(11)
+    press(cell('src', 12))
+    await flushPromises()
+    itemByText('Thêm thuật ngữ').click()
+    await flushPromises()
+
+    state.resetEditorPanel()
+    expect(() => strip.closeGlossaryQuickAdd()).not.toThrow()
+
+    expect(state.editorCaretSegmentId.value).toBeNull()
+  })
+
+  it('dải không mở được (lệnh không chạy): menu vẫn trả trạng thái như đóng không chọn', async () => {
+    const { state } = await mountGrid()
+    state.setEditorCaret(11)
+    press(cell('src', 12))
+    await flushPromises()
+    expect(state.editorCaretSegmentId.value).toBe(12)
+
+    itemByText('Thêm thuật ngữ').click()
+    await flushPromises()
+
+    expect(state.editorCaretSegmentId.value).toBe(11)
   })
 })
