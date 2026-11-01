@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-08-14
+updated: 2026-11-01
 design: DESIGN.md
 sources:
   - _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
@@ -377,6 +377,79 @@ Với Tác phẩm nhập từ file hay dán tay, cùng khối đó mở được
 Hai chỗ: một dòng tóm tắt ở chân màn xem trước — *"Đã gọi `N` domain · xem"* — và bảng đầy đủ trong **Cài đặt › Quyền riêng tư**.
 
 Hai tầng allowlist của AD-41 phân biệt bằng **nhãn chữ**, không bằng màu: `Tài liệu` cho host người dùng dán link, `Ảnh` cho host mà những trang đó tham chiếu tới. Mỗi hàng ghi **vì sao được phép** — đó là thứ biến lời hứa *"không telemetry"* thành thứ người dùng kiểm được.
+
+## Dịch nhanh
+
+*(Mục bổ sung 2026-11-01 cho FR153–FR158, AD-64. Ice chọn: câu dịch nằm dưới chữ gốc, công tắc tự dịch chỉ ở Cài đặt, cấu hình nằm trong `AI và mô hình`.)*
+
+Dịch nhanh giúp đọc để quyết định, không tạo ra bản dịch. Mọi bề mặt phải nói rõ điều đó, và chữ gốc luôn còn trên màn hình.
+
+Hình mẫu: [`mockups/dich-nhanh.html`](mockups/dich-nhanh.html). Khi lệch nhau, mục này thắng mockup.
+
+### Một khuôn cho mọi câu dịch
+
+Câu dịch đứng ngay dưới chữ gốc, không mở lớp phủ, không cần di chuột. Dưới câu dịch là một dòng nguồn. Bề mặt không hiện chỗ trống khi chưa có câu dịch.
+
+| Trạng thái | Hiện gì |
+|---|---|
+| Đang tra Tác phẩm và bộ đệm, hoặc tự dịch đang chờ con trỏ dừng | Không hiện gì, để hàng không nhảy |
+| Có bản dịch trong Tác phẩm (chỉ Bảng chờ Glossary) | Bản dịch · `Bản dịch trong Chương` |
+| Có trong bộ đệm | Câu dịch · `AI dịch để tham khảo, chưa vào văn bản` · `<mô hình> · Dịch lại`. Tầng khối bỏ câu đầu vì đầu tầng đã nói |
+| Chưa có, tự dịch tắt | Nút `Dịch thử` |
+| Đang dịch | Chữ chảy dần · `Đang dịch…` · nút `Huỷ` |
+| Xong lượt vừa chạy | Thêm số token và chi phí ước tính (FR76) cạnh dòng nguồn |
+| Lỗi hoặc thiếu kết quả | Câu lỗi · nút `Dịch thử`. Tự dịch bỏ qua chỗ này trong phiên (FR75) |
+| Chưa cấu hình | `Chưa cấu hình AI nên chưa dịch thử được.` · nút tắt · `Mở Cài đặt AI` |
+| Câu có thể bị cắt | Phần đã nhận · `Câu dịch có thể bị cắt, chưa lưu.` · `Dịch lại` |
+| Lô chỉ xong một phần | Khối đã đóng hiện bình thường; khối thiếu ghi `Thiếu kết quả ở khối này.` kèm `Dịch thử` |
+| Đang bận | `Đang dịch ở màn khác.` · nút tắt, tự bật lại khi lượt kia xong |
+| Lô dịch thật đang chạy, tự dịch bật | `Lô dịch đang chạy nên tự dịch tạm dừng.` · nút `Dịch thử` vẫn bấm được |
+| Kho dịch nhanh không mở được | `Không mở được kho dịch nhanh.` · nút tắt |
+
+`Dịch lại` thay bản cũ và tốn một lượt gọi, nên nó là nút chìm ở dòng nguồn, không phải nút chính. Dịch nhanh không có nút đưa sang Editor.
+
+Trạng thái `auto_off` từ Rust về hàng `Chưa có`. Dọn huỷ lượt đang chạy thì bề mặt cũng về hàng đó. Dấu "đã lỗi, tự dịch bỏ qua" sống tới khi đóng màn. Chữ chảy dần không có vùng đọc tự động; dòng nguồn mang `role="status"`.
+
+**Phím.** Nút `Huỷ` nhận tiêu điểm khi `Dịch thử` đổi thành nó, và trả tiêu điểm về nút mới khi xong, không rơi xuống `body`. Đang có lượt chạy thì `Esc` đầu tiên huỷ lượt, `Esc` sau mới đóng lớp phủ.
+
+### Bảng chờ Glossary
+
+Câu dịch nằm trong khối `Ngữ cảnh` của hàng đang mở, như bản đã có. Tự dịch bật thì `Dịch thử` không xuất hiện: dừng ở hàng là câu dịch tới, lướt qua nhanh thì không tốn lượt nào.
+
+### Tầng khối ở màn xem trước nhập URL
+
+- Mỗi khối đoạn văn hoặc chú thích ảnh mang câu dịch dưới chữ gốc. Khối ảnh không dịch.
+- Khối đã loại vẫn dịch khi đang thấy, vì người dùng có thể đổi ý. Độ lùi của khối giữ nguyên.
+- Đầu tầng có một dòng: `Câu dịch chỉ để tham khảo, không vào văn bản.` Tự dịch tắt thì cạnh đó có nút `Dịch các khối đang thấy`. Đang chạy thì là `Đang dịch N khối` và `Huỷ`.
+- Khối đang có con trỏ đứng yên trên màn hình: chiều cao mọc ở bất kỳ khối nào phía trên nó được bù bằng vị trí cuộn, nên nút `Giữ`, `Loại` dưới chuột không bị dời.
+- `J` `K` và `Space` giữ nguyên hành vi. Mọi nút dịch ở tầng này không giữ tiêu điểm khi bấm chuột, như các nút của khối, để `Space` không bấm lại một lượt tốn tiền. Câu dịch không nhận tiêu điểm riêng.
+
+### Cài đặt › AI và mô hình
+
+Khối `Dịch nhanh` nằm dưới cấu hình chính, ngăn bằng một nét, có dòng phụ `Dùng chung mọi Tác phẩm`. Khối này chỉ ở tầng Toàn cục: đang xem tầng Tác phẩm thì nó hiện giá trị toàn cục ở dạng khoá, kèm `Sửa ở tầng Toàn cục.`, vì thanh tầng của mục đang hứa thay đổi không chạm tới Tác phẩm khác. `Thử kết nối` của khối này có trạng thái riêng.
+
+Các ô giống cấu hình chính: nhà cung cấp, endpoint, mô hình, khoá API, `Thử kết nối`. Dưới cùng là công tắc `Tự dịch`, mặc định tắt.
+
+| Tình huống | Dòng dưới cùng |
+|---|---|
+| Để trống endpoint và mô hình | `Để trống thì bấm tay dùng cấu hình chính ở tầng Toàn cục. Tự dịch cần cấu hình riêng.` Công tắc tắt |
+| Khai một trong hai | `Cần cả endpoint và mô hình.` Công tắc tắt |
+| Đủ | `Tự dịch chữ đang hiện ở Bảng chờ Glossary và màn xem trước nhập URL.` |
+
+Đang bật mà xoá cấu hình thì công tắc tự về tắt, không giữ một trạng thái bật không chạy được.
+
+### Cài đặt › Dữ liệu
+
+Hàng `Dịch nhanh` mang một dòng số liệu: `12.480 câu · 8,4 MB`, và dưới đó mỗi mô hình một dòng số câu. Kho rỗng thì `Chưa có câu nào.` và hai nút tắt. Kho lỗi thì hiện `tError` và hai nút tắt.
+
+- `Dọn câu đã dịch hơn [30] ngày`: ô số `ui-field--short`, số nguyên từ 1, mặc định 30, nhớ giá trị đã nhập. Bên cạnh là `Sẽ xoá 1.204 câu.`, đếm lại khi đổi số. Số không hợp lệ thì ô báo lỗi và nút `Dọn` tắt.
+- `Dọn tất cả`: nút Nguy hiểm. Bấm lần đầu thì nút đổi thành `Xoá 12.480 câu?` cạnh `Thôi`, không mở hộp thoại, vì đây là thao tác không hoàn tác được.
+- Dọn xong, dòng số liệu cập nhật ngay. Câu trạng thái nêu hệ quả: `Đã xoá 1.204 câu, lấy lại 2,1 MB. Lần sau dịch lại sẽ gọi AI.` Xoá được hàng mà không thu nhỏ được tệp thì: `Đã xoá 1.204 câu nhưng chưa thu nhỏ được tệp.` kèm `tError`.
+- Đang dọn thì hai nút tắt, kèm `Đang dọn…`. Dọn huỷ lượt đang chạy ở mọi bề mặt.
+
+### Ngoài giao diện này
+
+Không có phím tắt cho `Dịch thử` và `Tự dịch`. Ai muốn thì tự gán, vì lệnh đã đăng ký (AD-34). Hai nút dịch và huỷ vào bằng chuột theo NFR20, và bằng `Tab` theo NFR17.
 
 ## Chế độ đọc — đặc tả typography
 

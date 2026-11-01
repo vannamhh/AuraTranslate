@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<title>Dịch nhanh — FR153–FR158 · AD-64</title>
+<style>
+@font-face{font-family:"Source Sans 3";src:url("../../../../src-tauri/resources/fonts/SourceSans3[wght].ttf");font-weight:200 900}
+@font-face{font-family:"Source Serif 4";src:url("../../../../src-tauri/resources/fonts/SourceSerif4[opsz,wght].ttf");font-weight:200 900}
+:root{
+  --bg:#f4f1ea;--surface:#fbfaf6;--sunken:#f0ece1;--accent:#e6eeee;--ink:#2b2723;--ink-2:#6b6459;--orn:#a9a196;
+  --line:#e2dccf;--line-2:#efeade;--rule:#8a8276;--primary:#2f5d63;--confirmed:#5a6b3f;--tm:#a38347;--error:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Noto Serif CJK TC","Songti SC",Georgia,serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font:13px/21px var(--ui);color:var(--ink);padding:28px}
+.hd{max-width:1036px;margin:0 auto 14px;color:#f4f1ea}
+.hd b{font-size:16px}
+.hd p{margin:0;font-size:13px;color:#e2ddd2}
+.lab{max-width:1036px;margin:0 auto 7px;color:#f4f1ea;font-weight:600}
+.lab span{font-weight:400;margin-left:10px;color:#d8d3c8}
+.win{max-width:1036px;margin:0 auto 35px;background:var(--bg);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.ttl{height:42px;display:flex;align-items:center;gap:14px;padding:0 21px;border-bottom:1px solid var(--line);background:var(--surface);font-weight:600}
+.ttl small{font-weight:400;color:var(--ink-2);font-size:13px}
+.btn{display:inline-flex;align-items:center;height:28px;padding:0 14px;border:1px solid var(--rule);border-radius:3px;background:var(--surface);color:var(--ink);font:13px/21px var(--ui);cursor:pointer;white-space:nowrap}
+.btn.quiet{border-color:transparent;background:none;color:var(--ink-2);padding:0 7px}
+.btn.quiet:hover{border-color:var(--rule)}
+.btn.danger{border-color:var(--error);color:var(--error)}
+.btn[disabled]{border:1px dashed var(--line);background:none;color:var(--ink-2);cursor:default}
+.field{display:inline-flex;align-items:center;height:28px;padding:0 7px;border:1px solid var(--rule);border-radius:3px;background:var(--sunken);min-width:0}
+.field.short{width:56px;justify-content:center}
+.tier{padding:14px 21px 21px;background:var(--surface)}
+.tier h3{margin:0;font-size:13px;font-weight:600}
+.bar{display:flex;align-items:center;gap:14px;margin:7px 0 14px;color:var(--ink-2)}
+.bar .sp{flex:1}
+.list{list-style:none;margin:0;padding:0;border:1px solid var(--line)}
+.b{display:flex;border-bottom:1px solid var(--line);border-left:2px solid transparent}
+.b:last-child{border-bottom:0}
+.b.focus{border-left-color:var(--primary);background:var(--accent)}
+.b.drop{background:var(--sunken)}
+.g{flex:none;width:4px}
+.kept .g{background:var(--confirmed)}
+.guess .g{background:var(--tm)}
+.drop .g{background:var(--orn)}
+.body{flex:1;min-width:0;padding:7px 14px}
+.head{display:flex;align-items:center;gap:7px;min-height:28px}
+.tag{margin:0;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.head .sp{flex:1}
+.src{margin:0;font:17.5px/35px var(--read)}
+.drop .src{color:var(--ink-2)}
+.tr{margin:0;font:16px/28px var(--read)}
+.drop .tr{color:var(--ink-2)}
+.meta{display:flex;align-items:center;gap:7px;min-height:28px;color:var(--ink-2)}
+.meta .use{margin-left:7px}
+.running{color:var(--ink-2)}
+.caret{display:inline-block;width:1px;height:15px;background:var(--ink);vertical-align:-2px;margin-left:1px}
+.set{display:grid;grid-template-columns:189px 1fr;background:var(--surface)}
+.nav{border-right:1px solid var(--line);padding:14px 0;background:var(--bg)}
+.nav a{display:block;padding:3.5px 21px;color:var(--ink-2);border-left:2px solid transparent}
+.nav a.on{color:var(--ink);font-weight:600;border-left-color:var(--primary);background:var(--surface)}
+.main{padding:21px 28px 28px}
+.main h3{margin:0 0 14px;font-size:13px;font-weight:600}
+.main h4{margin:0;font-size:13px;font-weight:600}
+.note{margin:0 0 14px;color:var(--ink-2)}
+.hr{height:1px;background:var(--line);margin:21px 0}
+.grid{display:grid;grid-template-columns:119px minmax(0,1fr);gap:7px 14px;align-items:center;margin-bottom:14px}
+.grid label{color:var(--ink-2)}
+.grid .field{width:100%}
+.rowb{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:7px}
+.sw{display:inline-flex;align-items:center;gap:7px}
+.track{position:relative;width:28px;height:14px;border:1px solid var(--rule);border-radius:99px;background:var(--surface)}
+.track::after{content:"";position:absolute;top:1px;left:2px;width:10px;height:10px;border-radius:99px;background:var(--ink-2)}
+.on .track{background:var(--ink);border-color:var(--ink)}
+.on .track::after{left:14px;background:var(--surface)}
+.off{color:var(--ink-2)}
+.off .track{border:1px dashed var(--line);background:none}
+.stat{font-variant-numeric:tabular-nums}
+.model{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.ok{margin:7px 0 0;color:var(--ink-2)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:21px}
+</style>
+
+<div class="hd">
+  <b>Dịch nhanh</b>
+  <p>FR153–FR158 · AD-64. Khi lệch nhau, EXPERIENCE.md và DESIGN.md thắng mockup này. Số liệu là dữ liệu mẫu.</p>
+</div>
+
+<div class="lab">1. Tầng khối ở màn xem trước nhập URL<span>Tự dịch tắt, một lượt đang chạy: câu dịch nằm dưới chữ gốc</span></div>
+<div class="win">
+  <div class="ttl">Xem trước nhập <small>Ranh giới nội dung · 214 khối</small></div>
+  <div class="tier">
+    <h3>Ranh giới nội dung</h3>
+    <div class="bar">
+      <span>Câu dịch chỉ để tham khảo, không vào văn bản.</span>
+      <span class="sp"></span>
+      <span>Đang dịch 8 khối</span>
+      <button class="btn">Huỷ</button>
+    </div>
+    <ul class="list">
+      <li class="b kept">
+        <div class="g"></div>
+        <div class="body">
+          <div class="head"><p class="tag">Nội dung</p></div>
+          <p class="src">美國司法部尋求剝奪一名幫助中共國安部在美國監視法輪功學員的男子的公民身分。</p>
+          <p class="tr">Bộ Tư pháp Mỹ tìm cách tước quốc tịch của một người đàn ông đã giúp Bộ An ninh Quốc gia Trung Quốc giám sát học viên Pháp Luân Công tại Mỹ.</p>
+          <div class="meta">gemini-flash-lite <button class="btn quiet">Dịch lại</button><span class="use">412 token · ước tính ~0,0004 USD</span></div>
+        </div>
+      </li>
+      <li class="b guess focus">
+        <div class="g"></div>
+        <div class="body">
+          <div class="head"><p class="tag">Nội dung · máy đoán</p><span class="sp"></span><button class="btn">Loại</button><button class="btn">Đầu vùng giữ</button></div>
+          <p class="src">中共代理人、美國華裔陳軍和林峰一案，是中共跨國鎮壓和法律戰的典型案件。</p>
+          <p class="tr running">Vụ án của Trần Quân và Lâm Phong, hai người Mỹ gốc Hoa làm tay sai<span class="caret"></span></p>
+          <div class="meta">Đang dịch…</div>
+        </div>
+      </li>
+      <li class="b drop">
+        <div class="g"></div>
+        <div class="body">
+          <div class="head"><p class="tag">Đã loại</p></div>
+          <p class="src">立即訂閱本報電子報，獲取每日最新消息。</p>
+          <p class="tr">Đăng ký nhận báo điện tử ngay để có tin mới mỗi ngày.</p>
+          <div class="meta">gemini-flash-lite <button class="btn quiet">Dịch lại</button></div>
+        </div>
+      </li>
+      <li class="b kept">
+        <div class="g"></div>
+        <div class="body">
+          <div class="head"><p class="tag">Nội dung</p></div>
+          <p class="src">此前在2024年11月，李已經以「共謀充當中華人民共和國的未註冊代理人」認罪。</p>
+          <p class="ok" style="color:var(--error);margin:0">Thiếu kết quả ở khối này.</p>
+          <div class="meta"><button class="btn">Dịch thử</button></div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="lab">2. Cài đặt › AI và mô hình<span>Khối Dịch nhanh dưới cấu hình chính, ba trạng thái của công tắc</span></div>
+<div class="win">
+  <div class="set">
+    <nav class="nav"><a class="on">AI và mô hình</a><a>Prompt</a><a>Glossary</a><a>Bộ nhớ dịch (TM)</a><a>Xuất</a><a>Phím tắt</a><a>Bố cục</a><a>Chế độ đọc</a><a>Dữ liệu</a><a>Cập nhật</a><a>Quyền riêng tư</a></nav>
+    <div class="main">
+      <h3>AI và mô hình</h3>
+      <div class="grid">
+        <label>Nhà cung cấp</label><span class="field">OpenAI tương thích ▾</span>
+        <label>Mô hình</label><span class="field">gpt-5.1</span>
+      </div>
+      <div class="hr"></div>
+      <h4>Dịch nhanh</h4>
+      <p class="note">Dùng chung mọi Tác phẩm. Câu dịch chỉ để tham khảo khi duyệt.</p>
+      <div class="grid">
+        <label>Nhà cung cấp</label><span class="field">Google AI Studio ▾</span>
+        <label>Endpoint</label><span class="field">https://generativelanguage.googleapis.com/v1beta/openai</span>
+        <label>Mô hình</label><span class="field">gemini-flash-lite</span>
+        <label>Khoá API</label><span class="field">••••••••••••3f9a</span>
+      </div>
+      <div class="rowb"><button class="btn">Thử kết nối</button></div>
+      <div class="rowb"><span class="sw on"><span class="track"></span>Tự dịch</span></div>
+      <p class="note" style="margin:0">Tự dịch chữ đang hiện ở Bảng chờ Glossary và màn xem trước nhập URL.</p>
+      <div class="hr"></div>
+      <div class="two">
+        <div>
+          <div class="sw off"><span class="track"></span>Tự dịch</div>
+          <p class="ok">Để trống thì bấm tay dùng cấu hình chính ở tầng Toàn cục. Tự dịch cần cấu hình riêng.</p>
+        </div>
+        <div>
+          <div class="sw off"><span class="track"></span>Tự dịch</div>
+          <p class="ok">Cần cả endpoint và mô hình.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lab">3. Cài đặt › Dữ liệu<span>Dọn câu cũ và xác nhận Dọn tất cả ngay tại chỗ</span></div>
+<div class="win">
+  <div class="set">
+    <nav class="nav"><a>AI và mô hình</a><a>Prompt</a><a>Glossary</a><a>Bộ nhớ dịch (TM)</a><a>Xuất</a><a>Phím tắt</a><a>Bố cục</a><a>Chế độ đọc</a><a class="on">Dữ liệu</a><a>Cập nhật</a><a>Quyền riêng tư</a></nav>
+    <div class="main">
+      <h3>Dữ liệu</h3>
+      <h4>Dịch nhanh</h4>
+      <p class="stat" style="margin:0">12.480 câu · 8,4 MB</p>
+      <p class="model" style="margin:0">gemini-flash-lite · 11.902 câu</p>
+      <p class="model" style="margin:0 0 14px">gpt-5.1 · 578 câu</p>
+      <div class="rowb"><span>Dọn câu đã dịch hơn</span><span class="field short">30</span><span>ngày</span><button class="btn">Dọn</button><span class="off">Sẽ xoá 1.204 câu.</span></div>
+      <div class="rowb"><button class="btn danger">Xoá 12.480 câu?</button><button class="btn quiet">Thôi</button></div>
+      <p class="ok">Đã xoá 1.204 câu, lấy lại 2,1 MB. Lần sau dịch lại sẽ gọi AI.</p>
+    </div>
+  </div>
+</div>
+</html>

@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-08-14
+updated: 2026-11-01
 sources:
   - _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
   - _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md
@@ -529,6 +529,8 @@ Bo góc gần như không có: `3px` mặc định, `2px` cho vạch và chip. C
 | Khoá | Không nền, viền **đứt** 1px `outline`, chữ `on-surface-variant` | Mọi bậc khi `disabled` — khác dáng, không chỉ khác màu |
 
 Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng thái), bo `3px`, chữ `ui-md`. 🔵 2026-10-29 (Ice): dạng nhỏ bỏ, mọi nút trong hàng điều khiển và thanh trạng thái cao 28px; form 35px. 🔵 2026-10-28: chiều cao theo thang ba bậc ở §Điều khiển (thêm 32px cho form). Nút chính **không** dùng `primary`: màu nhấn giữ đúng ba việc ở §Colors. 🔵 2026-10-28, Ice chọn giữ dáng mockup `library-luoi-rong.html` cho nút trên bìa thẻ Library: "Tiếp tục dịch" nền `primary` ở thẻ đang chọn (`ui-btn--cover-on`), nền `surface` chữ `primary` ở thẻ rê chuột (`ui-btn--cover`), `⋯` nền `surface` chữ `on-surface-variant` (`ui-btn--cover-plain`). Một hành động có cặp huỷ ("Dịch câu này" / "Huỷ dịch") hiện **một** nút ở **cùng một chỗ**, đổi theo trạng thái, để hàng nút không nhảy bố cục.
+
+**Câu dịch tham khảo** *(🔵 2026-11-01, FR154–FR155)*. Nằm dưới chữ gốc, cùng cột với chữ gốc, không viền và không nền riêng. Chữ `read-sm`, màu `on-surface`, riêng khối đã loại và câu đang chảy dùng `on-surface-variant` để không nổi hơn chữ gốc. Dòng nguồn `ui-sm`, màu `on-surface-variant`. Không dùng `primary`, `tm-rule` hay `confirmed`, vì câu này không phải bản dịch đã qua ai. Khối dịch ở tầng khối giữ nguyên vạch lề và độ lùi của khối.
 
 ### Điều khiển — một hệ cho mọi nút, ô nhập, ô chọn
 

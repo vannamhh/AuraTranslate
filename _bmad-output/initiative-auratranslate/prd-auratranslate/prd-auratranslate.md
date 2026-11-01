@@ -134,7 +134,7 @@ Ba điểm này sinh ra FR128, FR129, FR130 và FR131. **Mô hình dữ liệu k
 | Nền tảng | Desktop native, **macOS và Windows** |
 | Kiến trúc dữ liệu | Local-first, 100% trên máy người dùng |
 | Ngôn ngữ nguồn | Cố định cho từng Tác phẩm, đặt lúc tạo |
-| Kết nối mạng | Bắt buộc ở **đúng ba chỗ (AD-15), cả ba đều do người dùng chủ động kích hoạt**: gọi AI qua BYOK, kiểm tra phiên bản mới ở Cài đặt → Cập nhật (FR111), và tải nội dung ở đường nhập từ URL (FR122). **Tra cứu và mọi thao tác dịch phải chạy được offline** — một Tác phẩm đã nhập xong dịch được trọn vẹn khi mất mạng. Ràng buộc thực thi ở NFR19 *(dòng này sửa 2026-08-03; trước đó chỉ nêu BYOK)* 🔵 2026-10-21: "hai chỗ" thành ba theo AD-15, thêm vế kiểm tra phiên bản (Story 10-7). |
+| Kết nối mạng | Bắt buộc ở **đúng ba chỗ (AD-15)**: gọi AI qua BYOK, kiểm tra phiên bản mới ở Cài đặt → Cập nhật (FR111), và tải nội dung ở đường nhập từ URL (FR122). **Cả ba chạy theo cú bấm của người dùng, trừ một ngoại lệ:** tự dịch nhanh khi người dùng đã bật tuỳ chọn (FR156). **Tra cứu và mọi thao tác dịch phải chạy được offline** — một Tác phẩm đã nhập xong dịch được trọn vẹn khi mất mạng. Ràng buộc thực thi ở NFR19 *(dòng này sửa 2026-08-03; trước đó chỉ nêu BYOK)* 🔵 2026-10-21: "hai chỗ" thành ba theo AD-15, thêm vế kiểm tra phiên bản (Story 10-7). 🔵 2026-11-01: thêm ngoại lệ tự dịch nhanh theo AD-64. |
 | Giấy phép dự án | GPL v3 |
 
 ---
@@ -183,12 +183,12 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 
 | # | Nhóm năng lực | Vai trò | Dải FR |
 |---|---|---|---|
-| **C1** | Library — kho tài liệu & trải nghiệm đọc | Điểm vào ứng dụng | FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128, FR132 |
+| **C1** | Library — kho tài liệu & trải nghiệm đọc | Điểm vào ứng dụng | FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128, FR132, FR155 |
 | **C2** | Workspace — môi trường dịch **ba panel** *(🔵 2026-08-14: bốn → ba, lưới gộp Source + Editor)* | Trung tâm thao tác | FR16–FR26, FR42, FR44, FR78, FR117, FR129, **FR133, FR134** |
 | **C3** | Embedded Dictionary & Lookup | Điều kiện tồn tại | FR27–FR41 |
-| **C4** | Glossary & thuật ngữ | Nơi quyết định biên tập được ghi lại | FR46–FR55, FR79, FR113, FR114 |
+| **C4** | Glossary & thuật ngữ | Nơi quyết định biên tập được ghi lại | FR46–FR55, FR79, FR113, FR114, FR154 |
 | **C5** | Translation Memory & tái sử dụng | Không tra lại thứ đã tra | FR56–FR64, FR118 |
-| **C6** | AI mở & Smart RAG Injector | AI đề xuất dưới quyền người biên tập | FR65–FR77 |
+| **C6** | AI mở & Smart RAG Injector | AI đề xuất dưới quyền người biên tập | FR65–FR77, FR153–FR158 |
 | **C7** | AI Proofreader | Bắt lỗi trước khi bàn giao | FR80–FR86 |
 | **C8** | Cầu nối Reviewer — Export / Import / Diff | Cầu nối duy nhất tới nhóm review | FR87–FR95, FR121, FR130, FR131 |
 | **C9** | Dự án & dữ liệu — `.atproj`, chỉ mục, scope | Nền của C1–C8 | FR96–FR104 |
@@ -223,6 +223,7 @@ Mọi tài liệu downstream (`bmad-ux`, `bmad-architecture`, `bmad-create-epics
 | **Hán Việt** | Âm đọc Việt của ký tự Hán. Nội dung của tab Hán Việt trong Panel Source | — |
 | **Segment alignment** | Bài toán khớp cấu trúc đoạn giữa file nhập từ Reviewer và dữ liệu sẵn có | ~~Structural Index Mapping~~ *(tên trong PRD v8.0)* |
 | **BYOK** | *Bring Your Own Key* — người dùng dùng API key của chính mình | — |
+| **Dịch nhanh** | Dịch một chuỗi để người dùng hiểu nghĩa khi đang duyệt, bằng cấu hình AI riêng. Kết quả chỉ để tham khảo, không phải bản dịch của Tác phẩm (FR153–FR158). `Dịch thử` là nhãn nút của thao tác này | ~~bản dịch AI~~, ~~đề xuất AI~~ *(hai từ này chỉ kết quả ở panel AI Translation, FR72)* |
 
 ---
 
@@ -716,9 +717,13 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 > Yêu cầu này phục vụ trụ #1: nếu người dùng không nhìn được vào hộp đen thì họ không thể là người quyết định. Nó cũng là công cụ chẩn đoán duy nhất khi AI không tuân thủ Glossary.
 
+> 🔵 2026-11-01: dịch nhanh (FR153–FR158) nằm ngoài FR71. Prompt của nó cố định, không có phần chèn động, và phần thay đổi duy nhất là chữ đang hiện trên màn hình (AD-64 mục 11). FR76 vẫn áp dụng.
+
 #### Luồng dịch
 
 **FR72.** Kết quả AI hiện ở **panel AI Translation** và **không tự động ghi vào Editor**. Người dùng chủ động đưa sang.
+
+> 🔵 2026-11-01: kết quả dịch nhanh hiện ngay tại chỗ đang duyệt (FR154, FR155), không qua panel này, và không đưa sang Editor được.
 
 **FR73.** Dịch theo **từng segment** và theo **lô nhiều segment liên tiếp**, **huỷ được giữa chừng**.
 
@@ -731,6 +736,24 @@ Glossary là nơi các quyết định biên tập của người dùng được
 **FR145.** Từ màn Xem prompt, người dùng **gửi lại đúng prompt đã lắp**. Kết quả chỉ về panel Đề xuất AI (FR72).
 
 > Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
+#### Dịch nhanh
+
+> Thêm 2026-11-01 qua `correct-course` cho AD-64, Ice ký cùng ngày. Bảng chờ Glossary và màn xem trước nhập URL đầy câu tiếng Trung, tiếng Anh mà người dùng phải hiểu để quyết nhận hay bỏ; dịch những câu đó bằng mô hình chính thì đắt và kết quả không dùng lại được. Phần bấm tay ở FR154 đã có ở `abfd6026` với cấu hình chính và kết quả trong bộ nhớ; phần còn lại chưa dựng.
+
+**FR153.** **Cấu hình dịch nhanh riêng:** người dùng khai nhà cung cấp, endpoint, mô hình và API key riêng cho dịch nhanh, thường là một mô hình giá rẻ. Cấu hình này dùng chung cho mọi Tác phẩm và không ghi đè theo Tác phẩm, khác FR68. Để trống cả endpoint lẫn mô hình thì cú bấm dịch nhanh dùng trọn cấu hình AI ở tầng toàn cục, không theo ghi đè của Tác phẩm. Khai một trong hai thì báo chưa cấu hình, không mượn phần còn lại của cấu hình chính.
+
+**FR154.** **Câu dịch tham khảo ở bảng chờ Glossary:** dưới ví dụ ngữ cảnh của hàng đang mở (FR53), câu đã có bản dịch trong Tác phẩm thì hiện bản dịch đó kèm nhãn nguồn. Chưa có thì người dùng bấm để dịch nhanh câu đó. Nút mang nhãn `Dịch thử`. Kết quả hiện dần (FR74), huỷ được, ghi rõ là tham khảo, và mỗi lượt hiện số token cùng chi phí ước tính (FR76).
+
+**FR155.** **Dịch khối ở màn xem trước nhập URL:** màn xem trước bắt buộc của đường nhập URL (FR123) chia nội dung bóc được thành các khối để người dùng giữ hoặc loại từng khối. Ở đó người dùng bấm để dịch nhanh các khối đang thấy, phân biệt nội dung với rác, kể cả khi chưa có Tác phẩm nào được tạo. Câu dịch chỉ giúp đọc; quyết định giữ hay loại vẫn do người dùng. Mỗi lượt hiện số token cùng chi phí ước tính (FR76).
+
+**FR156.** **Tuỳ chọn tự dịch nhanh, mặc định tắt:** khi bật, hệ thống tự dịch nhanh chữ đang hiện: hàng đang mở ở FR154 và các khối đang thấy ở FR155. Tuỳ chọn chỉ có tác dụng khi cấu hình dịch nhanh đã khai riêng, nên mô hình chính không bao giờ tự chạy. Không dịch trước, không chạy nền, không chạy khi màn đã đóng, và không bắt đầu khi một lô dịch thật đang chạy. Tắt tuỳ chọn thì dừng ngay. Chỗ đã lỗi không tự thử lại; người dùng bấm mới thử lại (FR75). Cả ứng dụng chỉ có một lượt dịch nhanh tại một thời điểm: màn khác thấy trạng thái đang bận, và cuộn tiếp không huỷ lượt đang chạy.
+
+**FR157.** **Kết quả dịch nhanh giữ đến khi người dùng dọn:** mỗi chuỗi nguồn lưu một bản và dùng lại được ở mọi Tác phẩm mà không gọi AI lần nữa, kể cả sau khi đổi mô hình. Hai chuỗi chỉ khác dạng chuẩn Unicode hoặc khoảng trắng hai đầu tính là một; ví dụ ngữ cảnh đã bị cắt (FR53) là một chuỗi riêng. Chỉ kết quả trọn vẹn được lưu, và các khối đã nhận đủ vẫn được giữ khi lượt bị huỷ giữa chừng. Kết quả ghi rõ mô hình đã dịch, và người dùng bấm `Dịch lại` để thay bản cũ.
+
+> **Đây không phải bản dịch của Tác phẩm.** Dịch nhanh không ghi vào Editor (FR72), TM hay Glossary, và không nằm trong `.atproj`. Mất dữ liệu này chỉ tốn tiền dịch lại, không mất công việc nào: kho lưu hỏng thì ứng dụng vẫn chạy, dịch nhanh báo lỗi.
+
+**FR158.** **Chế độ dọn dữ liệu dịch nhanh:** Cài đặt → Dữ liệu hiện số câu đã lưu, dung lượng và số câu theo từng mô hình. Người dùng dọn tất cả, hoặc dọn các câu đã dịch quá một số ngày tự chọn; tuổi tính từ lúc dịch, không phải lần dùng gần nhất. Dọn huỷ lượt đang chạy, và dọn xong dung lượng trên đĩa giảm thật. Ứng dụng không tự dọn và không đặt trần dung lượng.
 
 #### Ranh giới
 
@@ -872,7 +895,7 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 
 #### Phân cấp cấu hình
 
-**FR103.** Mọi cấu hình tồn tại ở **hai tầng**, tầng dự án ghi đè tầng toàn cục:
+**FR103.** Mọi cấu hình tồn tại ở **hai tầng**, tầng dự án ghi đè tầng toàn cục (🔵 2026-11-01: trừ cấu hình dịch nhanh, chỉ ở tầng toàn cục, FR153):
 
 | Tầng | Chứa gì |
 |---|---|
@@ -883,7 +906,7 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 
 #### Quyền riêng tư
 
-**FR104.** **Không telemetry.** Ứng dụng không gửi bất kỳ dữ liệu nào ra ngoài, trừ nội dung mà người dùng **chủ động** gửi cho nhà cung cấp AI đã cấu hình.
+**FR104.** **Không telemetry.** Ứng dụng không gửi bất kỳ dữ liệu nào ra ngoài, trừ nội dung mà người dùng **chủ động** gửi cho nhà cung cấp AI đã cấu hình. 🔵 2026-11-01: ngoại lệ duy nhất không cần cú bấm là tự dịch nhanh (FR156), chỉ gửi chữ đang hiện tới cấu hình dịch nhanh người dùng đã khai.
 
 ---
 
@@ -982,7 +1005,7 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 | ID | Yêu cầu |
 |---|---|
 | **NFR11** | API key lưu trong **keychain / credential manager của hệ điều hành**. Không bao giờ ghi vào file cấu hình, file dự án hay log |
-| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài **ba** luồng do người dùng chủ động kích hoạt: lời gọi AI, kiểm tra phiên bản mới (FR111), và tải nội dung ở đường nhập từ URL *(mở rộng 2026-08-03 cùng FR122; trước đó chỉ có lời gọi AI)* 🔵 2026-10-21: "hai" thành ba theo AD-15 (Story 10-7) |
+| **NFR12** | **Không telemetry.** Không có luồng dữ liệu ra ngoài nào ngoài **ba** luồng do người dùng chủ động kích hoạt: lời gọi AI, kiểm tra phiên bản mới (FR111), và tải nội dung ở đường nhập từ URL *(mở rộng 2026-08-03 cùng FR122; trước đó chỉ có lời gọi AI)* 🔵 2026-10-21: "hai" thành ba theo AD-15 (Story 10-7) 🔵 2026-11-01: tự dịch nhanh (FR156) là ngoại lệ trong luồng lời gọi AI, không thêm luồng thứ tư. Nghiệm thu: tuỳ chọn tắt hoặc cấu hình dịch nhanh trống thì **0** lời gọi AI không kèm cú bấm. |
 | **NFR13** | Không tài khoản, không đăng nhập, không đồng bộ đám mây |
 | **NFR19** | **Đường nhập từ URL chỉ ra mạng khi người dùng chủ động bấm.** Không tải nền, không prefetch, không kiểm tra ngầm, không tải lại ảnh đã có. Danh sách domain ứng dụng đã gọi phải **xem được trong ứng dụng** *(số cuối dãy, bổ sung 2026-08-03)* |
 
