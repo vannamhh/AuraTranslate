@@ -13832,11 +13832,13 @@ chính nó.
 - Chưa dùng thật: mở Tác phẩm phồn thể trong app, dịch một câu có `大紀元` với mục `大纪元` ở Glossary.
   Cần: dòng tóm tắt đọc `Đã chèn 1 thuật ngữ Glossary` và lưới tô đúng chữ phồn.
   Chủ: Ice. Trỏ: `plan-gap-phon-gian-matcher.md` §Verification.
+  → ✅ ĐÃ ĐÓNG 2026-11-01 (Ice): Ice dùng thử trong app thật, báo đạt.
 
 ## Deferred from: `plan-gap-phon-gian-tm-va-quick-add.md` (2026-11-01)
 
 - Chưa dùng thật trong app: bôi `大紀元` khi Glossary có `大纪元` thì dải hiện dòng dạng chữ khác và Lưu được; một cặp TM dạng chữ kia hiện ở 99% và trong dải chốt.
   Chủ: Ice. Trỏ: `plan-gap-phon-gian-tm-va-quick-add.md` §Verification.
+  → ✅ ĐÃ ĐÓNG 2026-11-01 (Ice): Ice dùng thử trong app thật, báo đạt.
 
 ## Deferred from: canh ô radio/checkbox lên dòng chữ đầu (2026-11-01)
 

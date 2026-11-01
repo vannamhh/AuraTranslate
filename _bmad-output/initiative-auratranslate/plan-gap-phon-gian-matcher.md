@@ -3,7 +3,7 @@ title: 'Gấp phồn/giản trong Matcher để thuật ngữ khác dạng chữ
 type: 'bugfix'
 ticket: ''
 created: '2026-11-01'
-status: 'built'
+status: 'done'
 baseline_revision: 'b1f3b49bb52b2c9d6813a9e6f54ec846373882a0'
 route: 'full'
 route_source: 'auto'
