@@ -599,7 +599,7 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 **FR50.** Mọi thuật ngữ có trong Glossary được **đánh dấu trực quan ở cột nguyên văn của lưới**, để người dịch thấy ngay câu đang dịch chứa thuật ngữ nào. 🔵 *(Sửa 2026-08-18 — xem ghi chú ở FR42.)* Mục **chờ chốt bản dịch** (FR114) cũng được đánh dấu, nhưng **phân biệt được** với mục đã chốt — đó chính là cơ hội để người dịch chốt nó.
 
-**FR51.** Khớp thuật ngữ **phân theo ngôn ngữ**: tiếng Trung dùng khớp chính xác sau khi gấp phồn/giản (AD-63), nên thuật ngữ giản thể khớp văn bản phồn thể và ngược lại; tiếng Anh dùng khớp mờ ở cấp hình thái từ (stemming) để bắt được các biến thể.
+**FR51.** Khớp thuật ngữ **phân theo ngôn ngữ**: tiếng Trung dùng khớp chính xác sau khi gấp phồn/giản (AD-63), nên thuật ngữ giản thể khớp văn bản phồn thể và ngược lại; tiếng Anh dùng khớp mờ ở cấp hình thái từ (stemming) để bắt được các biến thể. 🔵 2026-11-01: thêm phép gấp phồn/giản theo AD-63.
 
 #### Tự động đề xuất — ba cơ chế
 
@@ -663,7 +663,7 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 **FR60.** **Concordance:** tra ngược *"cụm từ này trước đây tôi dịch thế nào?"* trên toàn bộ TM. Kết quả đưa vào **panel Lookup**, cùng chỗ với kết quả từ điển.
 
-**FR61.** Thuật toán khớp **phân theo ngôn ngữ**: tiếng Trung dùng n-gram ký tự (không có ranh giới từ); tiếng Anh dùng token n-gram sau stemming.
+**FR61.** Thuật toán khớp **phân theo ngôn ngữ**: tiếng Trung dùng n-gram ký tự (không có ranh giới từ) sau khi gấp phồn/giản (AD-63), nên hai câu chỉ khác dạng chữ là khớp mờ tối đa 99%, không phải khớp tuyệt đối FR58; tiếng Anh dùng token n-gram sau stemming. 🔵 2026-11-01: thêm phép gấp theo AD-63.
 
 #### Quản lý & mang đi
 

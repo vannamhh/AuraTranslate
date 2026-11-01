@@ -831,6 +831,12 @@ fn a_folded_term_cutting_a_jieba_token_is_still_rejected() {
 }
 
 #[test]
+fn jieba_splits_traditional_text_by_character_so_a_short_term_matches_inside_a_word() {
+    assert_eq!(zh_hits("國家", &["国"]).len(), 1);
+    assert!(zh_hits("国家", &["国"]).is_empty());
+}
+
+#[test]
 fn a_separator_only_term_still_matches_nothing_after_folding() {
     assert!(zh_hits("大紀元，訊", &["，"]).is_empty());
 }

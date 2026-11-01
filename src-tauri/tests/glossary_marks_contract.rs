@@ -1207,3 +1207,53 @@ fn english_terms_on_one_span_keep_term_order_without_a_verbatim_preference() {
     drop(global);
     cleanup(&global_dir);
 }
+
+#[test]
+fn a_verbatim_global_entry_beats_a_fold_only_work_entry() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("zh-fold-verbatim-tier");
+    let global_dir = temp_dir("zh-fold-verbatim-tier-global");
+    let global = open_global(&global_dir);
+    let opened = open_work(&root, "Fold Verbatim");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "发",
+        Some("Phat"),
+        "",
+        Category::Other,
+    )
+    .expect("them muc Global");
+    add_manual_term(
+        &global,
+        Some(&opened.store),
+        GlossaryTier::Work,
+        "髮",
+        Some("Toc"),
+        "",
+        Category::Other,
+    )
+    .expect("them muc Work");
+
+    let marks = marks_for_source_text(
+        &opened.scope,
+        &global,
+        Some(&opened.store),
+        "发",
+        MatchLang::Zh,
+        &layers,
+        &disabled,
+    )
+    .expect("khop khong duoc loi");
+
+    assert_eq!(marks.len(), 1, "{marks:?}");
+    assert_eq!(marks[0].source_term, "发");
+    assert_eq!(marks[0].tier, GlossaryTier::Global);
+
+    drop(global);
+    drop(opened);
+    cleanup(&root);
+    cleanup(&global_dir);
+}

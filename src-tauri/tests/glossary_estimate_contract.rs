@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use auratranslate_lib::core::glossary::scan::{ScanOutcome, scan_candidates_controlled};
 use auratranslate_lib::core::glossary::surnames::COMMON_SURNAMES;
 use auratranslate_lib::core::glossary::{
-    DictionaryProbe, EstimateOutcome, estimate_import_candidates,
+    DictionaryProbe, EstimateExclusions, EstimateOutcome, estimate_import_candidates,
 };
 use auratranslate_lib::core::matching::MatchLang;
 
@@ -78,7 +78,10 @@ fn the_exact_estimate_equals_the_union_of_the_real_per_chapter_scans_minus_the_g
         MatchLang::Zh,
         5,
         COMMON_SURNAMES,
-        &excluded,
+        &EstimateExclusions {
+            glossary_terms: excluded.clone(),
+            pending_terms: HashSet::new(),
+        },
         &mut probe,
         &mut never,
     );
@@ -101,7 +104,7 @@ fn the_threshold_applies_per_chapter_not_to_the_total() {
         MatchLang::Zh,
         5,
         COMMON_SURNAMES,
-        &HashSet::new(),
+        &EstimateExclusions::default(),
         &mut missing,
         &mut never,
     );
@@ -122,7 +125,7 @@ fn an_inconclusive_probe_makes_the_estimate_inconclusive_not_zero() {
         MatchLang::Zh,
         5,
         COMMON_SURNAMES,
-        &HashSet::new(),
+        &EstimateExclusions::default(),
         &mut inconclusive,
         &mut never,
     );
@@ -139,9 +142,50 @@ fn a_cancelled_estimate_reports_cancelled() {
         MatchLang::Zh,
         5,
         COMMON_SURNAMES,
-        &HashSet::new(),
+        &EstimateExclusions::default(),
         &mut missing,
         &mut cancelled,
     );
     assert_eq!(estimate, EstimateOutcome::Cancelled);
+}
+
+#[test]
+fn a_glossary_term_in_the_other_han_form_is_excluded_but_a_verbatim_pending_one_is_too() {
+    let chapters = vec![chapter(|i| format!("林動在第{i}城相見。"), 8)];
+    let estimate_with = |excluded: EstimateExclusions| {
+        let mut probe = |_: &str| DictionaryProbe::Missing;
+        let mut never = || false;
+        let EstimateOutcome::Estimated(count) = estimate_import_candidates(
+            &chapters,
+            MatchLang::Zh,
+            5,
+            COMMON_SURNAMES,
+            &excluded,
+            &mut probe,
+            &mut never,
+        ) else {
+            panic!("the estimate must complete");
+        };
+        count
+    };
+    let simplified: HashSet<String> = ["林动".to_owned()].into_iter().collect();
+
+    let nothing = estimate_with(EstimateExclusions::default());
+    let glossary = estimate_with(EstimateExclusions {
+        glossary_terms: simplified.clone(),
+        pending_terms: HashSet::new(),
+    });
+    let pending_other_form = estimate_with(EstimateExclusions {
+        glossary_terms: HashSet::new(),
+        pending_terms: simplified,
+    });
+    let pending_verbatim = estimate_with(EstimateExclusions {
+        glossary_terms: HashSet::new(),
+        pending_terms: ["林動".to_owned()].into_iter().collect(),
+    });
+
+    assert!(nothing > 0, "the fixture must queue something");
+    assert_eq!(glossary, nothing - 1);
+    assert_eq!(pending_other_form, nothing);
+    assert_eq!(pending_verbatim, nothing - 1);
 }

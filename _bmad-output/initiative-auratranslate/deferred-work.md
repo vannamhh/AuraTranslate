@@ -13846,3 +13846,6 @@ chính nó.
 - Thẻ bảng mã nhập tệp, đích nhập Library, nhập URL, tách Chương và Prompt mới đo bằng Playwright WebKit, chưa đo trong WKWebView vì cần tệp nguồn qua hộp thoại gốc.
   Cần: mở từng lớp phủ trong app, ô nằm giữa dòng chữ đầu.
   Chủ: Ice. Trỏ: `e2e/specs/check-box-on-text-line.e2e.mjs`.
+- Lượt ráp `EstimateExclusions` nằm trong thân `#[tauri::command]` `estimate_import_glossary`, nên không test nào chạm tới; làm mất dòng gán `pending_terms` thì ước lượng FR137 khi nối thêm đếm thừa mà vẫn xanh. Khoảng hở có từ trước AD-63.
+  Cần: tách lượt ráp sang hàm thuần có ca canh, hoặc ghi nhận giữ nguyên.
+  Chủ: Ice. Trỏ: `src-tauri/src/commands/project/wire.rs`, `reviews/review-ad-63-winston-2026-11-01.md`.

@@ -28,7 +28,7 @@ pub struct GlossaryEstimateSource {
 /// append).
 pub fn estimate_import_glossary(
     source: GlossaryEstimateSource,
-    excluded: &std::collections::HashSet<String>,
+    excluded: &crate::core::glossary::EstimateExclusions,
     config: &crate::core::scope::GlobalConfig,
     layers: Option<&crate::core::dict::DictLayers>,
     is_cancelled: &mut dyn FnMut() -> bool,

@@ -196,10 +196,48 @@ fn only_the_matching_module_ever_names_the_two_language_crates() {
          mà TM không bắt được, và không ai hiểu vì sao\"*.\n\n\
          Đường đúng: gọi `auratranslate_lib::core::matching::{{tokenize, normalize, \
          ngrams, find_terms, gap_crosses_sentence_boundary, SimilarityScorer, \
-         diff_spans, warm}}`.",
+         diff_spans, warm, fold_zh, fold_char}}`.",
         violations.len(),
         violations.join("\n")
     );
+}
+
+const FOLD_CALLERS: [&str; 3] = [
+    "core/glossary/estimate.rs",
+    "core/glossary/store.rs",
+    "core/tm/mod.rs",
+];
+
+/// Fold output is for in-memory comparison only; a new caller is where it could reach a store or
+/// the wire, which would still compile and pass.
+#[test]
+fn only_the_listed_comparison_paths_call_the_fold_functions() {
+    let files = src_sources();
+    let mut violations: Vec<String> = Vec::new();
+    let mut callers: Vec<&str> = Vec::new();
+    for (rel, text) in &files {
+        if is_inside(rel, MATCHING_DIR) {
+            continue;
+        }
+        for (line_no, code) in code_lines(text) {
+            if code.contains("fold_zh") || code.contains("fold_char") {
+                if FOLD_CALLERS.contains(&rel.as_str()) {
+                    callers.push(rel);
+                } else {
+                    violations.push(format!("{rel}:{line_no}  |  {code}"));
+                }
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "fold functions called outside the listed paths:\n{}",
+        violations.join("\n")
+    );
+    for caller in FOLD_CALLERS {
+        assert!(callers.contains(&caller), "{caller} no longer folds");
+    }
 }
 
 /// 🔴 **AC1 — đối chứng dương.** `core/matching/**` **có thật sự** gõ **cả hai** crate.

@@ -298,7 +298,8 @@ pub use candidate_store::{
 };
 pub use entry::{Category, GlossaryEntry, GlossaryMark, GlossaryTier, TermOrigin};
 pub use estimate::{
-    EstimateOutcome, entry_source_terms, estimate_import_candidates, import_scan_source_terms,
+    EstimateExclusions, EstimateOutcome, entry_source_terms, estimate_import_candidates,
+    import_scan_source_terms,
 };
 pub use exchange::{
     ConflictDecision, Delimiter, ImportRow, ImportSummary, ParseIssue, ParsedImport, RowPlan,

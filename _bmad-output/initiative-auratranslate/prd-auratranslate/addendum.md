@@ -111,7 +111,7 @@ Ba FR ở ba nhóm năng lực khác nhau dựa trên **cùng một cơ chế**.
 
 | Ngôn ngữ | Cơ chế | Dùng ở |
 |---|---|---|
-| **Tiếng Trung** | Khớp chính xác sau khi gấp phồn/giản (AD-63); n-gram ký tự cho fuzzy (không có ranh giới từ). Tách từ qua `jieba-rs` khi cần | FR51 Glossary, FR61 TM |
+| **Tiếng Trung** | Khớp chính xác sau khi gấp phồn/giản (AD-63); n-gram ký tự cho fuzzy, cũng sau gấp (không có ranh giới từ); điền sẵn FR58 vẫn so nguyên văn. Tách từ qua `jieba-rs` khi cần. 🔵 2026-11-01: thêm phép gấp theo AD-63 | FR51 Glossary, FR61 TM |
 | **Tiếng Anh** | Stemming rồi token n-gram | FR40 từ điển, FR51 Glossary, FR61 TM |
 
 **Giới hạn đã tuyên bố:** hệ sinh thái Rust **không có lemmatizer trưởng thành**. Stemming đủ cho khớp Glossary nhưng không xử lý được biến thể bất quy tắc. FR40 ghi rõ giới hạn này thay vì giấu đi.

@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use crate::core::store::{ReadHandle, SqlResult};
 
 use super::scan::{DictionaryProbe, terms_passing_threshold};
-use crate::core::matching::MatchLang;
+use crate::core::matching::{MatchLang, fold_zh};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EstimateOutcome {
@@ -17,17 +17,29 @@ pub enum EstimateOutcome {
     Cancelled,
 }
 
-/// `chapters` holds each Chapter's segment texts. `excluded` is the Glossary scope (plus the
-/// pending import-scan terms on an append).
+/// What the real scan keeps out of the pending table. Its Glossary filter compares after folding
+/// Traditional/Simplified forms; its `ON CONFLICT` on pending rows compares verbatim.
+#[derive(Debug, Clone, Default)]
+pub struct EstimateExclusions {
+    pub glossary_terms: HashSet<String>,
+    pub pending_terms: HashSet<String>,
+}
+
+/// `chapters` holds each Chapter's segment texts.
 pub fn estimate_import_candidates(
     chapters: &[Vec<String>],
     lang: MatchLang,
     threshold: u32,
     surnames: &[char],
-    excluded: &HashSet<String>,
+    excluded: &EstimateExclusions,
     probe: &mut dyn FnMut(&str) -> DictionaryProbe,
     is_cancelled: &mut dyn FnMut() -> bool,
 ) -> EstimateOutcome {
+    let folded_glossary: HashSet<String> = excluded
+        .glossary_terms
+        .iter()
+        .map(|term| fold_zh(term))
+        .collect();
     let mut queued: HashSet<String> = HashSet::new();
     let mut probed: HashMap<String, DictionaryProbe> = HashMap::new();
 
@@ -50,7 +62,8 @@ pub fn estimate_import_candidates(
                 DictionaryProbe::Missing => {}
                 DictionaryProbe::Inconclusive => return EstimateOutcome::Inconclusive,
             }
-            if !excluded.contains(&term) {
+            if !excluded.pending_terms.contains(&term) && !folded_glossary.contains(&fold_zh(&term))
+            {
                 queued.insert(term);
             }
         }

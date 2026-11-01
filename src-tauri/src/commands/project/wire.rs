@@ -1778,7 +1778,10 @@ pub fn estimate_import_glossary(
         return Err(crate::commands::segment::global_store_missing());
     };
     let config = crate::core::scope::load_global_config(&global).map_err(IpcError::from)?;
-    let mut excluded = global.read(crate::core::glossary::entry_source_terms)?;
+    let mut excluded = crate::core::glossary::EstimateExclusions {
+        glossary_terms: global.read(crate::core::glossary::entry_source_terms)?,
+        pending_terms: std::collections::HashSet::new(),
+    };
     if let Some(work_id) = destination.as_deref() {
         let in_open_work = app.try_state::<OpenWorkState>().and_then(|state| {
             let guard = state
@@ -1786,12 +1789,13 @@ pub fn estimate_import_glossary(
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let open = guard.as_ref().filter(|open| open.meta.work_id == work_id)?;
             Some(open.store.read(|conn| {
-                let mut terms = crate::core::glossary::entry_source_terms(conn)?;
-                terms.extend(crate::core::glossary::import_scan_source_terms(conn)?);
-                Ok(terms)
+                Ok((
+                    crate::core::glossary::entry_source_terms(conn)?,
+                    crate::core::glossary::import_scan_source_terms(conn)?,
+                ))
             }))
         });
-        let work_terms = match in_open_work {
+        let (work_terms, pending_terms) = match in_open_work {
             Some(terms) => terms?,
             None => {
                 let Some(indexer) = app.try_state::<Indexer>() else {
@@ -1806,15 +1810,17 @@ pub fn estimate_import_glossary(
                     crate::core::store::StoreKind::Project,
                 )?;
                 let terms = db.read(|conn| {
-                    let mut terms = crate::core::glossary::entry_source_terms(conn)?;
-                    terms.extend(crate::core::glossary::import_scan_source_terms(conn)?);
-                    Ok(terms)
+                    Ok((
+                        crate::core::glossary::entry_source_terms(conn)?,
+                        crate::core::glossary::import_scan_source_terms(conn)?,
+                    ))
                 });
                 db.close();
                 terms?
             }
         };
-        excluded.extend(work_terms);
+        excluded.glossary_terms.extend(work_terms);
+        excluded.pending_terms = pending_terms;
     }
 
     let generation_owned: super::ImportEstimateGeneration = app
