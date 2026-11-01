@@ -91,6 +91,10 @@ typography:
     fontFamily: read
     fontSize: 24px
     lineHeight: '35px'
+  cover-name:
+    fontFamily: read
+    fontSize: 16px
+    lineHeight: '23px'
   lookup-gloss:
     fontFamily: read
     fontSize: 14.5px
@@ -225,7 +229,7 @@ Sống ở `src/tokens/`. **Cấm giá trị màu viết thẳng trong component
 
 Bìa thẻ Tác phẩm ở Library là một màu đặc `cover-N-from` (Ice, 2026-10-25: không dải chuyển, giữ luật không gradient của Kiểm F); `cover-N-to` có sẵn nhưng chưa có chỗ dùng. Mỗi Tác phẩm một tông cố định, chọn theo `work_id`, nên đổi tên không đổi màu. Tông 1–3 lấy từ `mockups/library-and-import.html`; 4–6 thêm cho màn có nhiều Tác phẩm. Hình mẫu: `mockups/library-luoi-rong.html`.
 
-🔵 2026-10-25, lượt hai (Ice duyệt): **tên Tác phẩm in trên bìa**, vì app chưa có đường đặt ảnh bìa (FR3) và một khối màu trống không cho biết gì. Chữ nội dung (serif) 16 px, giãn dòng 1,35, cắt ở 3 dòng, góc trên trái; tên đầy đủ ở `aria-label`. Phần dưới thẻ không lặp lại tên. Bìa cao 136 px. 🔵 2026-10-25, lúc dựng (Ice chọn): giãn dòng 1,66 bằng token `read-sm` — tên xuống tới 3 dòng nên chịu §Giãn dòng 1.66 là sàn cứng, mà 1,35 nằm dưới sàn; 3 dòng cao 79,7 px, cộng nút đáy vẫn vừa lòng bìa 112 px. Tên đầy đủ nằm nguyên trong DOM (chỉ CSS cắt) và ở `title`.
+🔵 2026-10-25, lượt hai (Ice duyệt): **tên Tác phẩm in trên bìa**, vì app chưa có đường đặt ảnh bìa (FR3) và một khối màu trống không cho biết gì. Chữ nội dung (serif) 16 px, giãn dòng 1,35, cắt ở 3 dòng, góc trên trái; tên đầy đủ ở `aria-label`. Phần dưới thẻ không lặp lại tên. Bìa cao 136 px. 🔵 2026-10-25, lúc dựng (Ice chọn): giãn dòng 1,66 bằng token `read-sm` — tên xuống tới 3 dòng nên chịu §Giãn dòng 1.66 là sàn cứng, mà 1,35 nằm dưới sàn; 3 dòng cao 79,7 px, cộng nút đáy vẫn vừa lòng bìa 112 px. Tên đầy đủ nằm nguyên trong DOM (chỉ CSS cắt) và ở `title`. 🔵 2026-11-01 (Ice): giãn dòng 23px (≈ 1.45) bằng token `cover-name`, ngoại lệ có tên của sàn 1.6 và của bội 7.
 
 Chữ trên bìa dùng token `on-cover` = `#fbfaf6` ở **cả hai theme**. Đây là **6 cặp mới** cho `contrast.pairs` mỗi theme (`on-cover` trên mỗi `cover-N-from`), thấp nhất 7,05:1 ở nền sáng và 6,09:1 ở nền tối, cả hai là tông 4 rêu. Nút `Tiếp tục dịch` và nút `⋯` trên bìa vẫn có nền đặc riêng (`primary` hoặc `surface`), không thêm cặp. Nếu sau này có ảnh bìa thì bìa in tên là biểu diễn thay thế cho Tác phẩm không có ảnh.
 
@@ -326,6 +330,7 @@ Bốn họ chữ: **`read`** (`Source Serif 4`, biến thiên) · **`read-cjk`**
 | 14 | `ui-mono` | 13px / 21px | `mono` | Phím tắt, số liệu. 🔵 2026-10-26 (Ice): từ 11.5px. 🔵 2026-10-28 (Ice): từ 12px. 🔵 2026-10-29 (Ice): giãn 21px, từ 1.4 |
 | 15 | `translation-ref` | 15px / 28px | `read` | Bản dịch tham khảo: popup bộ nhớ dịch, gợi ý AI. 🔵 2026-10-30 (Ice): token mới, một bậc dưới `editor` |
 | 16 | `source-cjk-strong` | 18px / 700 / 2.05 | `read-cjk` | Chữ Hán ở kiểu Song song của tab Hán Việt. 🔵 2026-10-30 (Ice): token mới, nét 700 thật từ `NotoSerifCJKtc-Bold.otf`; ngoài lưới 7px (thân lưới Workspace) |
+| 17 | `cover-name` | 16px / 23px | `read` | Tên Tác phẩm trên bìa thẻ Library. 🔵 2026-11-01 (Ice): tách khỏi `read-sm`, giãn 23px (≈ 1.45), ngoại lệ có tên của sàn 1.6 và của bội 7 |
 
 🔵 2026-10-26 (Ice): **mọi chữ bấm được** — nút, tab con, nút phân đoạn — dùng `ui-md` 13px, bằng cỡ giao diện hệ thống macOS. `ui-sm` 12px chỉ còn cho số đếm và dòng phụ không bấm được. Không chữ giao diện nào dưới 12px. 🔵 2026-10-28 (Ice): chữ nhỏ nhất toàn app là 13px; `ui-sm`, `ui-sm-italic`, `ui-label`, `ui-mono` và `lookup-example` cùng 13px, nên chữ phụ bằng cỡ `ui-md` và tách khỏi chữ thường bằng màu, độ đậm, chữ hoa.
 
@@ -438,6 +443,7 @@ Chế độ đọc giới hạn chiều rộng bằng `ch` chứ không bằng `
 - Chữ giao diện (`ui-*`), một dòng lẫn xuống dòng: **21px**.
 - Chữ nội dung ngoài thân lưới Workspace: bội 7 nhỏ nhất không chật hơn giãn dòng cũ — `read-lg` 42 · `read-md` 35 · `read-sm` 28 · `read-title` 35 · `lookup-headword` 35 · `lookup-gloss` 28 (🔵 2026-10-30 (Ice): nay 21, dưới sàn 1.6, ngoại lệ có tên). Ice chọn luật này thay cho luật "tỉ số ≥ 1.6", vốn làm mức Cân mặc định chật hơn hôm nay 11%.
 - Ngoại lệ có tên của luật trên: `lookup-example` 21px (1.615), chật hơn giãn dòng cũ 21,58px; Ice chọn để ví dụ cùng nhịp với chữ giao diện 13px thay vì 28px (2.15).
+- Ngoại lệ có tên của luật trên: `cover-name` 23px (≈ 1.45), không phải bội 7 và dưới sàn 1.6. 🔵 2026-11-01 (Ice): tên Tác phẩm trên bìa cắt ở ba dòng, bội 7 gần nhất là 21px (1.31) hoặc 28px (1.75).
 - Sàn của mọi chữ xuống dòng là **1.6** (trước là 1.66), chung cho họ `read` và `ui`.
 - Token lưu giãn dòng là **tỉ số không đơn vị** bằng bội 7 chia cỡ chữ (21/13 = 1.6153846…), không lưu `px`: tỉ số giữ nguyên khi phần tử con đổi cỡ chữ, còn `px` thừa hưởng nguyên giá trị. Đo trên Chrome: tỉ số đầy đủ cho đúng 21,000px mỗi dòng ở bảy cỡ chữ; WKWebView chưa đo.
 - Thanh trượt giãn dòng của Chế độ đọc: giá trị lưu vẫn là tỉ số như trước, không đổi dữ liệu đã lưu; giãn dòng hiển thị là bội 7 nhỏ nhất ≥ cỡ chữ × tỉ số, nên thanh trượt nhảy theo bậc 7px và không bao giờ xuống dưới sàn của nó.

@@ -280,7 +280,7 @@ describe('Story 12-24: Library theo mockup lưới rộng', () => {
     }
   })
 
-  it('a three-line name on the cover uses on-cover at 1.66 leading, clamps at three lines and clears the bottom buttons', async () => {
+  it('a three-line name on the cover uses on-cover at 23px leading, clamps at three lines and clears the bottom buttons', async () => {
     await resizeLogical(1150, 935)
     await aimWork(names[1])
     const LONG = 'Thượng Thiên Tục Ngã Đáo Thương Khung Chi Hậu Người Đọc Muốn Biết Đường Về Của Kiếm Khách Lãng Tử'
@@ -316,7 +316,7 @@ describe('Story 12-24: Library theo mockup lưới rộng', () => {
     expect(m).not.toBeNull()
     expect(m.color).toBe('rgb(251, 250, 246)')
     expect(m.fontSize).toBe(16)
-    expect(m.ratio).toBeGreaterThanOrEqual(1.66 - 0.01)
+    expect(m.ratio).toBe(23 / 16)
     expect(m.lines).toBe(3)
     expect(m.clipped).toBe(true)
     expect(m.coverHeight).toBe(133)

@@ -238,6 +238,7 @@ const EXPECTED_TYPOGRAPHY = {
   },
   editor: { family: 'read', fontSize: '16px', lineHeight: '1.95' },
   'translation-ref': { family: 'read', fontSize: '15px', lineHeight: '1.8666666666666667' },
+  'cover-name': { family: 'read', fontSize: '16px', lineHeight: '1.4375' },
   'lookup-headword': { family: 'read', fontSize: '24px', lineHeight: '1.4583333333333333' },
   'lookup-gloss': { family: 'read', fontSize: '14.5px', lineHeight: '1.4482758620689655' },
   'lookup-example': { family: 'read', fontSize: '13px', lineHeight: '1.6153846153846154', fontStyle: 'italic' },
@@ -325,8 +326,11 @@ const EXPECTED_ROUNDED = {
  *
  * 🔵 2026-10-30 (Ice): `typography` lên 20 với `source-cjk-strong` — chữ Hán đậm 700 ở kiểu
  * Song song, nét thật từ `NotoSerifCJKtc-Bold.otf`; hàng 16 của bảng `DESIGN.md`.
+ *
+ * 🔵 2026-11-01 (Ice): `typography` lên 21 với `cover-name` — tên Tác phẩm trên bìa 16px / 23px;
+ * hàng 17 của bảng `DESIGN.md`.
  */
-const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 20, families: 4 }
+const EXPECTED_COUNTS = { colorsPerTheme: 39, typography: 21, families: 4 }
 
 // ─────────────────────────────────────────────────────────────────────────────────
 // Hằng số của phép kiểm tương phản — ĐÓNG BĂNG, không đọc từ `tokens.json`
@@ -1414,9 +1418,14 @@ const LINE_HEIGHT_FLOOR = 1.6
 /** Chữ xuống dòng được phép dưới sàn (DESIGN.md §Giãn dòng — Ngoại lệ). */
 const LINE_HEIGHT_WRAP_EXEMPT = new Map([
   ['lookup-gloss', 'nghĩa từ điển 21px ở 14,5px (≈ 1.45): Ice chọn bội 7 gần 1.5 nhất thay vì 28px (1.93)'],
+  ['cover-name', 'tên Tác phẩm trên bìa 23px ở 16px (≈ 1.45): Ice chọn giữ cỡ 16px và thu hẹp ba dòng trên bìa'],
 ])
 const LEADING_GRID_PX = 7
 const LEADING_TOLERANCE_PX = 0.01
+/** Giãn dòng ngoài lưới 7px ngoài thân lưới Workspace (DESIGN.md §Lưới 7px — Ngoại lệ). */
+const LEADING_OFF_GRID_EXEMPT = new Map([
+  ['cover-name', 'tên Tác phẩm trên bìa: 23px gần 1.45 Ice yêu cầu, bội 7 gần nhất là 21px (1.31) hoặc 28px (1.75)'],
+])
 /** Thân lưới Workspace giữ giãn dòng cũ (DESIGN.md §Lưới 7px — Ngoại lệ). */
 const LEADING_GRID_BODY_EXEMPT = new Map([
   ['source-cjk', 'nguyên văn tiếng Trung ở thân lưới Workspace'],
@@ -1448,7 +1457,7 @@ function leadingProblems(name, t) {
     out.push(`typography.${name} — \`wraps: true\` nhưng lineHeight ${lhRaw} < ${LINE_HEIGHT_FLOOR}`)
   }
   const fs = parseFloat(String(t.fontSize))
-  if (!LEADING_GRID_BODY_EXEMPT.has(name) && Number.isFinite(fs)) {
+  if (!LEADING_GRID_BODY_EXEMPT.has(name) && !LEADING_OFF_GRID_EXEMPT.has(name) && Number.isFinite(fs)) {
     const px = fs * lh
     const nearest = LEADING_GRID_PX * Math.round(px / LEADING_GRID_PX)
     if (Math.abs(px - nearest) > LEADING_TOLERANCE_PX) {
@@ -1469,7 +1478,7 @@ if (eBad === 0) {
   const single = entriesOf(tokens.typography).filter(([, t]) => !t.wraps)
   pass(`${wrapping.length} token \`wraps: true\` đều ≥ ${LINE_HEIGHT_FLOOR} trừ ${LINE_HEIGHT_WRAP_EXEMPT.size} token có tên (${[...LINE_HEIGHT_WRAP_EXEMPT.keys()].join(', ')}), và đều không đơn vị`)
   pass(`${single.length} token nhãn một dòng được ghìm dưới sàn hợp lệ: ${single.map(([n]) => n).join(', ')}`)
-  pass(`mọi giãn dòng là bội ${LEADING_GRID_PX}px, trừ ${LEADING_GRID_BODY_EXEMPT.size} token thân lưới có tên: ${[...LEADING_GRID_BODY_EXEMPT.keys()].join(', ')}`)
+  pass(`mọi giãn dòng là bội ${LEADING_GRID_PX}px, trừ ${LEADING_GRID_BODY_EXEMPT.size} token thân lưới có tên: ${[...LEADING_GRID_BODY_EXEMPT.keys()].join(', ')} và ${LEADING_OFF_GRID_EXEMPT.size} ngoại lệ có tên: ${[...LEADING_OFF_GRID_EXEMPT.keys()].join(', ')}`)
 }
 
 /** @type {[string, string, { fontSize: string, lineHeight: string, wraps: boolean }, boolean][]} */
@@ -1926,7 +1935,7 @@ function emittedVarNames(tok) {
 const emittedVars = emittedVarNames(tokens)
 
 /** `ceil(0.85 × live)`, qua `judgeFloor` — bắt một lượt tính RỖNG hoặc gãy nửa chừng. */
-const EMITTED_VAR_FLOOR = 174
+const EMITTED_VAR_FLOOR = 186
 {
   const v = judgeFloor(EMITTED_VAR_FLOOR, emittedVars.size, 'EMITTED_VAR_FLOOR', 'biến do `tokens/index.ts` phát')
   if (!v.ok) {

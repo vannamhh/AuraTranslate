@@ -1225,9 +1225,9 @@ const importScreenIsOpen = computed<boolean>(
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
-  font-family: var(--face-read-sm);
-  font-size: var(--font-read-sm);
-  line-height: var(--leading-read-sm);
+  font-family: var(--face-cover-name);
+  font-size: var(--font-cover-name);
+  line-height: var(--leading-cover-name);
   color: var(--color-on-cover);
   overflow-wrap: anywhere;
 }
