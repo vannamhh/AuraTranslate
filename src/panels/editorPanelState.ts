@@ -1075,7 +1075,7 @@ export function resetEditorPanel(): void {
   //
   // `regroupError` chở một `IpcError` có `params.segment_id`; `regroupNotice` chở câu chữ của
   // lượt gộp/tách vừa rồi. Cả hai thuộc **Tác phẩm đang mở lúc gộp**.
-  //   ① Ở Tác phẩm A, `Backspace` ở câu đầu Chương bị Rust từ chối ⇒ `regroupNotice = 'refused'`
+  //   ① Ở Tác phẩm A, `⌘M` ở câu đầu Chương bị Rust từ chối ⇒ `regroupNotice = 'refused'`
   //      và `regroupError` mang *"Câu số N là câu đầu Chương…"*.
   //   ② Người dùng mở/tạo Tác phẩm B ⇒ `finishSubmit` gọi hàm này rồi nạp lại.
   //   ③ Ở Tác phẩm B, `confirmNotice` là `null` nên nhánh `v-else-if` của `StatusBar.vue` hiện
@@ -2739,8 +2739,8 @@ function ghiNavNotice(notice: NavNotice): void {
  * Đường hỏng, từng bước:
  *   ① `⌘Enter` lúc chưa có caret ⇒ `confirmNotice = 'no-caret'`, thanh hiện *"chưa chọn câu nào"*.
  *   ② Người dùng **không gõ chữ nào** *(nên `noteEditorEdit` không chạy)*, click vào đầu ô một câu
- *      khác rồi bấm `Backspace`.
- *   ③ Cử chỉ `Backspace` **không** đi qua `noteEditorEdit`: `preventDefault()` cắt hẳn chuỗi
+ *      khác rồi bấm `⌘M`.
+ *   ③ `⌘M` **không** đi qua `noteEditorEdit`: một hợp âm không phát
  *      `beforeinput`→`input`→`reportEdit`.
  *   ④ Gộp **THÀNH CÔNG THẬT** ⇒ `regroupNotice = 'merged'`, nhưng `v-if` phía trên thắng vô điều
  *      kiện ⇒ thanh **vẫn hiện câu ở bước ①**.
@@ -2900,15 +2900,7 @@ async function regroup(
   // ─────────────────────────────────────────────────────────────────────────────
   // 🔴 ⓿ KHOÁ CHỐNG-GỌI-LẠI — code review 2026-08-17
   // ─────────────────────────────────────────────────────────────────────────────
-  // Cùng lớp đường hỏng mà [`confirmCurrentSegment`] đã phải khoá ở code review 2026-08-14, và
-  // Story 2.9 làm nó **dễ chạm hơn hẳn**: `⌘M` đòi một hợp âm hai phím, còn `Backspace` là phím
-  // người dùng bấm hàng trăm lần mỗi Chương.
-  //
-  // `event.repeat` ở `GridPanel.vue` chặn auto-repeat của **hệ điều hành** (giữ phím) — nó
-  // **không** chặn hai cú bấm **RỜI RẠC** nhanh, tức đúng thói quen *"bấm lại cho chắc"* khi
-  // không có chỉ báo đang xử lý. Và vì nhánh đó gọi `preventDefault()`, DOM cùng caret của ô
-  // **y nguyên ở offset 0** sau cú bấm đầu, nên cú thứ hai vẫn qua trọn `caretAtCellStart` và
-  // dispatch lại cho **cùng** một `id`.
+  // Hai cú `⌘M` rời rạc bấm nhanh dispatch lại cho **cùng** một `id`.
   //
   // Hậu quả đo được ở lớp thông điệp: lượt IPC thứ hai trả `'refused'` *(segment đã về hưu bởi
   // lượt đầu)* và **ghi đè** `regroupNotice` từ `'merged'` thành `'refused'` ⇒ thanh trạng thái

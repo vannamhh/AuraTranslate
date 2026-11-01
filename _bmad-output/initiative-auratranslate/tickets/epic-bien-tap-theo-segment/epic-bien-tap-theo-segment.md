@@ -41,7 +41,7 @@ Nguồn: PRD (prd-auratranslate/prd-auratranslate.md); epics.md §Epic 2 (`FRs c
 
 1. Dịch trọn một Chương bằng tay trong lưới đối chiếu mà không cần AI hay Glossary: văn bản tách segment cấp câu, xác nhận từng câu, điều hướng tới câu chưa dịch kế tiếp, chuyển Chương trong Workspace (FR23–FR26).
 2. Sập ứng dụng giữa lúc gõ mất tối đa 10 giây công việc và không frame nào vượt 50 ms khi auto-save chạy (FR100, NFR18, NFR2), có số đo từ mũi thăm dò Story 2.4.
-3. Gộp và tách segment tường minh, gồm gộp bằng `Backspace`, cắt bỏ câu và ngắt đoạn của bản dịch (FR78, FR133, FR134).
+3. Gộp và tách segment tường minh, cắt bỏ câu và ngắt đoạn của bản dịch (FR78, FR133, FR134). 🔵 2026-11-01: vế "gồm gộp bằng `Backspace`" đã rút (Ice chọn, `plan-bo-cu-chi-backspace-gop-cau.md`); gộp còn `⌘M` và menu câu.
 4. Mọi phiên bản cũ của một segment xem lại và khôi phục được; xuất xứ bản dịch cấp segment được ghi (FR101, FR117).
 5. Lưới hai cột đối chiếu nghiệm thu lại FR16, FR19, FR21 trên cùng một hàng nguồn và bản dịch.
 6. Story 2.3 và 2.4 còn `in-progress` đã đóng, và đợt kiểm tay của Ice trên ứng dụng thật đã chạy xong.

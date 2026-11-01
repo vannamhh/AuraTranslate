@@ -3418,8 +3418,8 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * `Alt+ArrowDown` cho `false` *(bị nuốt)*, và `F9` chưa đăng ký cho `false` *(đối chứng ÂM —
    * nó chứng minh `true` ở hàng đầu là tín hiệu thật, không phải giá trị mặc định)*.
    *
-   * ⚠️ **Vì sao KHÔNG đi đường "cửa thứ hai ở `onEditKeydown`"** *(khuôn `Backspace`/`Escape`
-   * của 2.9, và nó rẻ hơn)*: đường ấy **giữ** `⌥↓` nên nó **cướp** *"xuống cuối đoạn"* của
+   * ⚠️ **Vì sao KHÔNG đi đường "cửa thứ hai ở `onEditKeydown`"** *(khuôn `Escape`,
+   * và nó rẻ hơn)*: đường ấy **giữ** `⌥↓` nên nó **cướp** *"xuống cuối đoạn"* của
    * macOS, và vế *"`preventDefault()` có chặn nổi một phím THẬT không"* là mệnh đề **không
    * đường nghiệm thu nào của dự án đóng được** — mọi sự kiện driver mang `isTrusted: false`, và
    * một sự kiện không tin cậy **không có default action**, nên phép kiểm sẽ trả *"chặn được"*
@@ -3712,7 +3712,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
   // 🔴 **Hệ quả phải ghi ra:** vì thiếu `Mod`, `keys.ts:510` **chặn** hợp âm này khi tiêu điểm
   // nằm trong vùng gõ — tức ở đúng chỗ người dùng đang đứng sau khi vừa gõ. Command này vì thế
   // **một mình không đủ**, và `GridPanel.vue::onEditKeydown` bắt `Escape` trực tiếp rồi
-  // `dispatch` **chính id này**. Hai cửa, MỘT command — cùng khuôn cử chỉ `Backspace` của AC1.
+  // `dispatch` **chính id này**. Hai cửa, MỘT command.
   // ⇒ Đăng ký ở đây **không thừa**: nó là thứ làm phím gán lại được (FR22) và hiện trong bảng
   //   phím của Story 1.21. Gỡ nó đi là rút một tính năng, không dọn một dòng.
   //

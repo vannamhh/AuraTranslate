@@ -2620,7 +2620,7 @@ const HANDLER_TABLE = {
   'src/layout/ReviewDock.vue::holdFocus': { nonCommand: R_BUTTON_HOLD_FOCUS },
   'src/panels/GridBlock.vue::onCellMouseDown': { nonCommand: R_CURSOR_LOCAL },
   'src/panels/GridBlock.vue::onCellMouseUp': { nonCommand: R_CURSOR_LOCAL },
-  'src/panels/GridBlock.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'segment.selection.clear', 'editor.merge_segments'] },
+  'src/panels/GridBlock.vue::onEditKeydown': { ids: ['editor.clear_source_cuts', 'segment.selection.clear'] },
   // 🔴 Mũi tên trên dải tab Hán Việt gọi hàm này TRỰC TIẾP (không `dispatch('<id>')` trần),
   // vì nó phải dời tiêu điểm DOM NGAY SAU lượt dispatch — xem doc-comment tại chỗ định nghĩa.
   'src/panels/GridPanel.vue::selectTabViaArrow': {

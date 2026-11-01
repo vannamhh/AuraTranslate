@@ -363,8 +363,7 @@ const modKeyLabel = formatChord('Mod+X', { isMac: detectIsMac() }).replace(/\+?X
  *
  * 🔴 Nhánh `'refused'` đọc `editorRegroupError` — **người đọc đầu tiên** của ô nhớ đó. Trước
  * story này nó được export mà không component nào đọc, nên một lượt từ chối *(ví dụ
- * `segment.no_previous` ở câu đầu Chương — ca **thường nhất** của cử chỉ `Backspace`)* **không
- * đổi một pixel nào**. Đúng lớp *"rỗng IM LẶNG"* mà `project-context.md` cấm.
+ * `segment.no_previous` ở câu đầu Chương)* **không đổi một pixel nào**. Đúng lớp *"rỗng IM LẶNG"* mà `project-context.md` cấm.
  *
  * ⚠️ `error === null` cùng lúc với `notice === 'refused'` là ca *"không có cầu IPC"*
  * (`regroup()` ghi cả hai). Nó vẫn phải **nói ra** — im lặng ở đây là đúng thứ vừa vá xong,
@@ -630,8 +629,7 @@ const libraryErrorText = computed<string | null>(() => {
         khẳng định *"hai ô nhớ không bao giờ cùng mang giá trị trong một lượt dùng thật: cả hai được
         dọn ở `noteEditorEdit`"*. Code review ba tầng bác nó bằng số đo, và **hai tầng độc lập tái
         hiện bằng vitest**: `confirmNotice` chỉ bị dọn ở **ba** cửa, `regroup()` không là một trong
-        ba, và cử chỉ `Backspace` **không** đi qua `noteEditorEdit` *(`preventDefault()` cắt hẳn
-        chuỗi `beforeinput`→`input`→`reportEdit`)*. ⇒ Một `⌘Enter` hụt rồi một lượt gộp **thành
+        ba, và `⌘M` **không** đi qua `noteEditorEdit`. ⇒ Một `⌘Enter` hụt rồi một lượt gộp **thành
         công** để thanh này hiện câu của lượt hụt, tức AC4 không đạt.
 
         ✅ **Nay mệnh đề ấy đúng theo CẤU TẠO, không theo một lời hứa.** Bất biến sống ở

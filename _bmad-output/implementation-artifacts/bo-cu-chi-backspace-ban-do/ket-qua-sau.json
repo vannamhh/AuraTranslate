@@ -1,0 +1,347 @@
+{
+  "presses": [
+    {
+      "label": "cell 5",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 5. @490,356 btn=0",
+        "mousedown DIV.cell:Ban dich 5. @490,356 btn=0",
+        "blur SECTION.panel:TrungHán Việt1 @undefined,undefined btn=undefined",
+        "focusout SECTION.panel:TrungHán Việt1 @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 5. @490,356 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @490,356 btn=0",
+        "click DIV.cell:Ban dich 5. @490,356 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell 8",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 8. @490,527 btn=0",
+        "mousedown DIV.cell:Ban dich 8. @490,527 btn=0",
+        "blur DIV.cell:dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:dich 5. @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 8. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 8. @490,527 btn=0",
+        "mouseup DIV.cell:Ban dich 8. @490,527 btn=0",
+        "click DIV.cell:Ban dich 8. @490,527 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell 9",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 9. @490,578 btn=0",
+        "mousedown DIV.cell:Ban dich 9. @490,578 btn=0",
+        "blur DIV.cell: @undefined,undefined btn=undefined",
+        "focusout DIV.cell: @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 9. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 9. @490,578 btn=0",
+        "mouseup DIV.cell:Ban dich 9. @490,578 btn=0",
+        "click DIV.cell:Ban dich 9. @490,578 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell 3",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown DIV.cell:Ban dich 3. @490,242 btn=0",
+        "mousedown DIV.cell:Ban dich 3. @490,242 btn=0",
+        "blur DIV.cell:Ban dich 9. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 9. @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 3. @undefined,undefined btn=undefined",
+        "pointerup DIV.cell:Ban dich 3. @490,242 btn=0",
+        "mouseup DIV.cell:Ban dich 3. @490,242 btn=0",
+        "click DIV.cell:Ban dich 3. @490,242 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "menu merge",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "pointerdown BUTTON.ui-menu-item:Gộp lên⌘M @637,313 btn=0",
+        "mousedown BUTTON.ui-menu-item:Gộp lên⌘M @637,313 btn=0",
+        "pointerup BUTTON.ui-menu-item:Gộp lên⌘M @637,313 btn=0",
+        "mouseup BUTTON.ui-menu-item:Gộp lên⌘M @637,313 btn=0",
+        "click BUTTON.ui-menu-item:Gộp lên⌘M @637,313 btn=0",
+        "focusin DIV.cell:Ban dich 2. Ba @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    }
+  ],
+  "chapterId": 1,
+  "calibration_attempts": 1,
+  "calibration": {
+    "win": {
+      "ih": 900,
+      "oh": 0,
+      "x": 0,
+      "y": 960
+    },
+    "guess": {
+      "x": 300,
+      "y": 260
+    },
+    "pt": [
+      149,
+      216
+    ]
+  },
+  "activation_ms": 1021,
+  "load": "10:03  up 12 days, 23 mins, 15 users, load averages: 4.09 3.80 3.33",
+  "text_focus": true,
+  "text_after": {
+    "keydowns": 6,
+    "grid": {
+      "active": "5",
+      "ids": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "notice": null,
+      "texts": [
+        "Ban dich 1.",
+        "Ban dich 2.",
+        "Ban dich 3.",
+        "Ban dich 4.",
+        " dich 5.",
+        "Ban dich 6.",
+        "Ban dich 7.",
+        "Ban dich 8.",
+        "Ban dich 9."
+      ]
+    },
+    "disk": [
+      {
+        "id": 1,
+        "target": "Ban dich 1.",
+        "status": "draft"
+      },
+      {
+        "id": 2,
+        "target": "Ban dich 2.",
+        "status": "draft"
+      },
+      {
+        "id": 3,
+        "target": "Ban dich 3.",
+        "status": "draft"
+      },
+      {
+        "id": 4,
+        "target": "Ban dich 4.",
+        "status": "draft"
+      },
+      {
+        "id": 5,
+        "target": " dich 5.",
+        "status": "draft"
+      },
+      {
+        "id": 6,
+        "target": "Ban dich 6.",
+        "status": "draft"
+      },
+      {
+        "id": 7,
+        "target": "Ban dich 7.",
+        "status": "draft"
+      },
+      {
+        "id": 8,
+        "target": "Ban dich 8.",
+        "status": "draft"
+      },
+      {
+        "id": 9,
+        "target": "Ban dich 9.",
+        "status": "draft"
+      }
+    ]
+  },
+  "empty_after": {
+    "keydowns": 6,
+    "grid": {
+      "active": "8",
+      "ids": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "notice": null,
+      "texts": [
+        "Ban dich 1.",
+        "Ban dich 2.",
+        "Ban dich 3.",
+        "Ban dich 4.",
+        " dich 5.",
+        "Ban dich 6.",
+        "Ban dich 7.",
+        "",
+        "Ban dich 9."
+      ]
+    },
+    "disk": [
+      {
+        "id": 1,
+        "target": "Ban dich 1.",
+        "status": "draft"
+      },
+      {
+        "id": 2,
+        "target": "Ban dich 2.",
+        "status": "draft"
+      },
+      {
+        "id": 3,
+        "target": "Ban dich 3.",
+        "status": "draft"
+      },
+      {
+        "id": 4,
+        "target": "Ban dich 4.",
+        "status": "draft"
+      },
+      {
+        "id": 5,
+        "target": " dich 5.",
+        "status": "draft"
+      },
+      {
+        "id": 6,
+        "target": "Ban dich 6.",
+        "status": "draft"
+      },
+      {
+        "id": 7,
+        "target": "Ban dich 7.",
+        "status": "draft"
+      },
+      {
+        "id": 8,
+        "target": "",
+        "status": "draft"
+      },
+      {
+        "id": 9,
+        "target": "Ban dich 9.",
+        "status": "draft"
+      }
+    ]
+  },
+  "chord_after": {
+    "rowsBefore": 9,
+    "grid": {
+      "active": "10",
+      "ids": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "10"
+      ],
+      "notice": "Đã gộp hai câu. Câu mới chưa xác nhận — lịch sử của hai câu cũ vẫn tra lại được.",
+      "texts": [
+        "Ban dich 1.",
+        "Ban dich 2.",
+        "Ban dich 3.",
+        "Ban dich 4.",
+        " dich 5.",
+        "Ban dich 6.",
+        "Ban dich 7.",
+        "Ban dich 9."
+      ]
+    }
+  },
+  "menu_after": {
+    "rowsBefore": 8,
+    "grid": {
+      "active": "11",
+      "ids": [
+        "1",
+        "11",
+        "4",
+        "5",
+        "6",
+        "7",
+        "10"
+      ],
+      "notice": "Đã gộp hai câu. Câu mới chưa xác nhận — lịch sử của hai câu cũ vẫn tra lại được.",
+      "texts": [
+        "Ban dich 1.",
+        "Ban dich 2. Ban dich 3.",
+        "Ban dich 4.",
+        " dich 5.",
+        "Ban dich 6.",
+        "Ban dich 7.",
+        "Ban dich 9."
+      ]
+    }
+  }
+}

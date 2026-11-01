@@ -68,7 +68,7 @@ import { WORD_JOINER, wordStartOffsets } from './wordBoundary'
 // 🔵 2026-08-17 (code review) — `originalOffsets` sống ở `editorSegments.ts`, không ở đây. Nó là
 // một mệnh đề **thuần** về phép ánh xạ chỉ số, và trong một `<script setup>` nó không có đường
 // nào để vitest gọi tới: không export, không mount được mà không dựng fixture từ điển. Cùng lý do
-// `caretAtCellStart` và `sourceCutOffsetOf` đã ở đó.
+// `sourceCutOffsetOf` đã ở đó.
 import { originalOffsets } from './editorSegments'
 // 🔵 Story 3.4b — biên thuật ngữ Glossary CẮT ở buildSegments (xem doc-comment prop
 // `glossaryTerms` dưới đây); hover/tiêu điểm nối StatusBar qua module riêng, cùng khuôn

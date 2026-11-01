@@ -1,45 +1,7 @@
 /**
- * Story 2.9 · AC1 · AC4 · AC6 — **cử chỉ `Backspace` ở đầu ô đi trọn đường dây, trong
- * WKWebView THẬT**.
- *
- * ═════════════════════════════════════════════════════════════════════════════════
- * 🔴 VÌ SAO CA NÀY PHẢI TỒN TẠI, TRONG KHI 2.8 ĐÃ CÓ MỘT CA GỘP
- * ═════════════════════════════════════════════════════════════════════════════════
- * Nghiệp vụ gộp dùng chung với `⌘M` và **đã có chủ** ở `segment_contract.rs` cộng
- * `segment-merge-split.e2e.mjs`. Thứ story này thêm là **cử chỉ**, và cử chỉ đi một đường
- * khác hẳn hợp âm:
- *
- * | | `⌘M` (Story 2.8) | `Backspace` (story này) |
- * |---|---|---|
- * | Vào đâu | `keys.ts` → bảng hợp âm → `CommandRegistry` | `GridPanel.vue::onEditKeydown` **trực tiếp** |
- * | Phép kiểm quyết định | hợp âm khớp | `caretAtCellStart(cell, selection)` |
- * | Cổng nào canh | `check:commands` Kiểm A/B | Kiểm K (bảng đông cứng) — vế TĨNH |
- *
- * ⇒ Hàng thứ ba là lý do tệp này vẫn còn cần tồn tại: Kiểm K của `check-commands.mjs` (ghi
- * chú *"Kiểm A chỉ canh `@click`"* ở đầu tệp đó — không trích theo số dòng, số đó trôi mỗi
- * lượt sửa tệp) nay đối chiếu `onEditKeydown` hai chiều với bộ id literal nó dispatch, nên vế
- * **TĨNH** đã có chủ. Vế tệp này còn giữ là hành vi **LÚC CHẠY** không cổng tĩnh nào giả lập
- * được: `isComposing`, auto-repeat hệ điều hành, và `preventDefault()` trên một sự kiện
- * KHÔNG `isTrusted` (driver) — ba mệnh đề đúng ở §GIỚI HẠN THẬT ngay dưới.
- *
- * ═════════════════════════════════════════════════════════════════════════════════
- * ⚠️ GIỚI HẠN THẬT CỦA BỘ ĐO — ghi ra thay vì để người sau tưởng đã phủ
- * ═════════════════════════════════════════════════════════════════════════════════
- * Mọi sự kiện driver giao đều mang **`isTrusted: false`** *(đo 2026-08-17,
- * `2-9-ban-do/README.md` §Vòng 1)*, và một sự kiện không tin cậy **không có default action**.
- * ⇒ Ba mệnh đề **KHÔNG** nghiệm thu được ở đây, và cả ba là món cho Ice:
- *   ① `preventDefault()` có chặn nổi lượt xoá của một phím **thật** không;
- *   ② auto-repeat của hệ điều hành *(chữ ký ③ — "gộp một lần rồi dừng")*;
- *   ③ một lượt chốt của **bộ gõ tiếng Việt** không bị ăn mất *(chốt `isComposing`)*.
- *
- * Thứ tệp này **CÓ** nghiệm thu được, và nó là phần quyết định: một `keydown` mang
- * `key: 'Backspace'` tới đúng ô, `caretAtCellStart` phân xử đúng trên `Selection` **do chính
- * engine dựng**, và cả chuỗi gộp chạy tới lưới.
- *
- * 🔴 **SỰ KIỆN TỔNG HỢP, KHÔNG `browser.keys()`** — cùng khuôn và cùng lý do với ca `⌘/` của
- * 2.8: driver giao sai `code` *(đo 2026-08-17: `browser.keys(['Meta','/'])` giao `code: "/"`
- * thay vì `"Slash"`, làm `⌘/` câm một lượt)*. Ở đây nhánh sản phẩm đọc `event.key`, và một sự
- * kiện tổng hợp mang đúng trường đó.
+ * Backspace at the start of a target cell does not merge; merging goes through `⌘M` and the sentence menu.
+ * Driver events are `isTrusted: false`, so the native no-op of a real key is measured in
+ * `_bmad-output/implementation-artifacts/bo-cu-chi-backspace-ban-do/`.
  */
 import { waitForGridRows } from '../support/gridWait.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
@@ -63,25 +25,25 @@ async function chupLuoi() {
   })
 }
 
-/**
- * Bắn một `keydown` **tổng hợp** mang `key: 'Backspace'` vào ô đang có caret.
- *
- * ⚠️ Bắn vào **chính ô**, không vào `document`: ba handler của lưới sống ở **cột**
- * (`.col-tgt`), và chúng dựa vào `event.target` để biết ô nào — một sự kiện bắn ở `document`
- * cho `targetCellOf` trả `null` và nhánh thoát im lặng.
- */
-async function backspaceVao(idSegment) {
-  await browser.execute((id) => {
-    const cell = document.querySelector(`[data-col="tgt"][data-segment-id="${id}"]`)
-    cell.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: 'Backspace',
-        code: 'Backspace',
-        bubbles: true,
-        cancelable: true,
-      }),
-    )
-  }, idSegment)
+/** Dispatches on the cell: the grid handlers live on the column and read `event.target`. */
+async function backspaceVao(idSegment, soLan) {
+  await browser.execute(
+    (id, lan) => {
+      const cell = document.querySelector(`[data-col="tgt"][data-segment-id="${id}"]`)
+      for (let i = 0; i < lan; i += 1) {
+        cell.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Backspace',
+            code: 'Backspace',
+            bubbles: true,
+            cancelable: true,
+          }),
+        )
+      }
+    },
+    idSegment,
+    soLan,
+  )
 }
 
 /** Đặt caret ở **đầu** ô bản dịch của một segment, đi qua đường chuột sản phẩm trước. */
@@ -121,12 +83,9 @@ async function doiLuoiCo(soHang) {
   await waitForGridRows(soHang)
 }
 
-describe('Story 2.9 — gộp bằng Backspace ở đầu ô, trong WKWebView thật', () => {
-  it('🔴 AC1+AC4 — Backspace ở đầu ô gộp với câu trên, và thanh trạng thái NÓI RA hệ quả', async () => {
-    await openWorkspaceWithWork('Story 2.9 — Backspace gộp', '一。二。三。')
-    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
-    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
-    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
+describe('Backspace ở đầu ô không gộp câu, trong WKWebView thật', () => {
+  it('🔴 ô rỗng, caret đầu ô, bấm năm cú: lưới và thanh trạng thái không đổi', async () => {
+    await openWorkspaceWithWork('Backspace không gộp', '一。二。三。')
     await doiLuoiCo(3)
 
     const truoc = await chupLuoi()
@@ -136,129 +95,43 @@ describe('Story 2.9 — gộp bằng Backspace ở đầu ô, trong WKWebView th
     const caret = await caretDauO(idHai)
     await expect(caret.rangeCount).toBe(1)
 
-    await backspaceVao(idHai)
-
-    await browser.waitUntil(async () => (await chupLuoi()).soHang === 2, {
-      timeout: 15_000,
-      timeoutMsg:
-        'Sau `Backspace` ở đầu ô, lưới không rút xuống HAI hàng sau 15 giây.\n' +
-        'Bốn ứng viên, theo thứ tự rẻ dần: ① nhánh trong `onEditKeydown` không nhận việc —\n' +
-        'thường là `caretAtCellStart` trả `false`; ② `dispatch` không tới `mergeCurrentSegment`;\n' +
-        '③ lệnh Rust từ chối — đọc dòng báo ở thanh trạng thái; ④ `applyRegroup` không vá\n' +
-        'ảnh chụp.',
-    })
+    await backspaceVao(idHai, 5)
+    await browser.pause(1500)
 
     const sau = await chupLuoi()
-    await expect(sau.soHang).toBe(2)
-    await expect(sau.soThuTu).toEqual(['1', '2'])
-
-    // Hàng mới mang trọn hình dạng dây, và nối KHÔNG khoảng trắng (nguồn `zh`).
-    const idCu = new Set(truoc.hang.map((h) => h.id))
-    const moi = sau.hang.filter((h) => !idCu.has(h.id))
-    await expect(moi.length).toBe(1)
-    await expect(moi[0].nguyenVan).toBe('一。二。')
-
-    // 🔴 **AC4** — và đây là mệnh đề mà `⌘M` của Story 2.8 **không** có: một dòng báo nêu
-    // HỆ QUẢ, không chỉ *"đã xong"*. Cả hai vế của AD-5 phải có mặt.
-    await expect(sau.dongBao).toBe(
-      'Đã gộp hai câu. Câu mới chưa xác nhận — lịch sử của hai câu cũ vẫn tra lại được.',
-    )
+    await expect(sau.hang).toEqual(truoc.hang)
+    await expect(sau.dongBao).toBe(null)
   })
 
-  /**
-   * 🔴 **HAI ĐỐI CHỨNG ÂM TRONG MỘT `it()`, và lượt gộp đó là một PHÉP ĐO chứ không một lượt
-   * gom cho gọn.**
-   *
-   * Đo 2026-08-17: mỗi lệnh WebDriver của bộ đo này trả giá **~5 giây** — service in ra
-   * `Tauri core.invoke not available after 5s timeout` ở **mỗi** lệnh, nên chi phí một ca tỉ
-   * lệ **số lệnh**, không tỉ lệ việc nó làm. Ba ca rời chạy 1m40 · 1m48 · 1m40 trên trần
-   * `mochaOpts.timeout = 120_000`, và ca thứ ba **trượt bằng timeout** khi đứng cuối chuỗi —
-   * một lượt đỏ **không nói gì về sản phẩm** *(chạy riêng: 1/1 xanh, 1m40)*.
-   *
-   * ⚠️ **KHÔNG nới trần** — đó là vá triệu chứng, và `project-context.md` cấm bằng chữ. Đường
-   * đúng là **giảm số lệnh**: hai đối chứng dưới đây đều **không phá lưới** *(một cái bị Rust
-   * từ chối, một cái thoát trước `dispatch`)*, nên chúng dùng chung **một** lượt dựng Tác phẩm
-   * — tiết kiệm trọn một `openWorkspaceWithWork` + `reload` + `waitForExist`.
-   *
-   * 🔵 Và chúng là **một** mệnh đề chứ không hai gộp lại: *"cử chỉ này KHÔNG được gộp khi
-   * điều kiện chưa đủ"*, đo ở hai điều kiện khác nhau. Một ca đỏ vẫn chỉ đúng chỗ, vì hai
-   * khối `expect` nêu đích danh điều kiện của mình.
-   */
-  it('🔴 AC4+AC6 — hai đối chứng ÂM: câu đầu Chương bị từ chối CÓ BÁO, và caret giữa ô KHÔNG gộp', async () => {
-    // 🔴 Ca **thường nhất** của cử chỉ này — câu số 1 của mọi Chương — và ca **im lặng nhất**
-    // trước story này: `editorRegroupError` được export mà không component nào đọc, nên người
-    // dùng bấm `Backspace` và **không có gì xảy ra**.
-    await openWorkspaceWithWork('Story 2.9 — đối chứng âm', '一。二。三。')
-    // 🔵 **STORY 2.12 · AC2 — lượt `reload()` ở đây ĐÃ GỠ 2026-08-18.**
-    // Fixture `openWorkspaceWithWork` nay tự dọn state panel bằng `resetPanelState()` (cầu
-    // `import()` gọi thẳng năm hàm `reset*`, quyết định #5(b) Ice ký). Vá tại chỗ hết việc.
+  it('🔴 `⌘M` ở câu đầu Chương bị từ chối có báo, ở câu sau thì gộp và nói ra hệ quả', async () => {
+    await openWorkspaceWithWork('Gộp bằng hợp âm', '一。二。三。')
     await doiLuoiCo(3)
 
     const truoc = await chupLuoi()
-    const idMot = truoc.hang[0].id
-    await caretDauO(idMot)
-    await backspaceVao(idMot)
+    await caretDauO(truoc.hang[0].id)
+    await browser.keys(['Meta', 'm'])
 
     await browser.waitUntil(async () => (await chupLuoi()).dongBao !== null, {
       timeout: 15_000,
-      timeoutMsg:
-        'Sau `Backspace` ở câu ĐẦU Chương, thanh trạng thái vẫn im sau 15 giây.\n' +
-        'Đây là ca "rỗng IM LẶNG" mà story này tồn tại để đóng — nếu nó tái hiện thì\n' +
-        'hoặc nhánh không nhận việc, hoặc `regroupNotice` không được đặt ở đường từ chối.',
+      timeoutMsg: 'Sau `⌘M` ở câu ĐẦU Chương, thanh trạng thái vẫn im sau 15 giây.',
+    })
+    const tuChoi = await chupLuoi()
+    await expect(tuChoi.dongBao).toContain('là câu đầu Chương')
+    await expect(tuChoi.hang.map((h) => h.id)).toEqual(truoc.hang.map((h) => h.id))
+
+    await caretDauO(truoc.hang[1].id)
+    await browser.keys(['Meta', 'm'])
+    await browser.waitUntil(async () => (await chupLuoi()).soHang === 2, {
+      timeout: 15_000,
+      timeoutMsg: 'Sau `⌘M`, lưới không rút xuống HAI hàng sau 15 giây.',
     })
 
-    const sauMot = await chupLuoi()
-    // Câu của **Rust**, qua `tError()` — không một câu thứ hai viết lại ở frontend.
-    await expect(sauMot.dongBao).toContain('là câu đầu Chương')
-    // 🔴 AC6 — *"không chặn và không hỏi lại"*: không hộp thoại nào, và **lưới không đổi**.
-    await expect(sauMot.soHang).toBe(3)
-    await expect(sauMot.hang.map((h) => h.id)).toEqual(truoc.hang.map((h) => h.id))
-
-    // ── ② Caret ở GIỮA ô — nhánh phải thoát TRƯỚC khi chạm `dispatch` ─────────────
-    //
-    // Đối chứng này canh đúng chỗ `caretAtCellStart` có thể trả sai: một phép kiểm rộng tay
-    // gộp mất một câu mà **AD-5 không cho hoàn tác**. Đây là ca mà phép kiểm
-    // `startOffset === 0` *(đã bị bác bằng số đo)* vẫn đi qua được.
-    const idHai = truoc.hang[1].id
-    // ⚠️ Gõ chữ bằng `execCommand('insertText')` — `browser.keys()` không đi vào đường nhập
-    // văn bản gốc của WKWebView (giới hạn đã ghi từ 2026-08-12).
-    // 🔵 Một `execute` DUY NHẤT cho cả gõ lẫn đặt caret: mỗi lệnh WebDriver là ~5 giây, và
-    // tách đôi ở đây không thêm một mệnh đề nào.
-    await realClick(await $(`[data-col="tgt"][data-segment-id="${idHai}"]`))
-    await browser.execute((id) => {
-      const cell = document.querySelector(`[data-col="tgt"][data-segment-id="${id}"]`)
-      cell.focus()
-      const sel = window.getSelection()
-      sel.removeAllRanges()
-      const r = document.createRange()
-      r.selectNodeContents(cell)
-      sel.addRange(r)
-      document.execCommand('insertText', false, 'bốn năm sáu')
-      // Caret ở GIỮA — offset 3 của text node đầu.
-      const sel2 = window.getSelection()
-      sel2.removeAllRanges()
-      const r2 = document.createRange()
-      r2.setStart(cell.firstChild, 3)
-      r2.collapse(true)
-      sel2.addRange(r2)
-    }, idHai)
-
-    await backspaceVao(idHai)
-    await browser.pause(1500)
-
-    const sauHai = await chupLuoi()
-    // 🔴 Lưới **không đổi** — nhánh phải thoát trước khi chạm `dispatch`.
-    await expect(sauHai.soHang).toBe(3)
-    // 🔵 **Và thanh trạng thái RỖNG, không mang câu từ chối của bước ①.** Bản đầu của ca này
-    // khẳng định `.not.toContain('Đã gộp')` và **đỏ** với `Received has value: null` — một
-    // lượt đỏ **đúng**, vì nó bắt chính chỗ tôi đọc sai sản phẩm.
-    // Lý do thật: lượt `execCommand('insertText')` ở trên phát `input` → `onEditInput` →
-    // `reportEdit` → `noteEditorEdit`, và hàm đó **dọn** `regroupNotice` (Task 3.6, dọn bằng
-    // SỰ KIỆN). Tức hai tính năng của story này giao nhau, và ca dưới đây là chỗ duy nhất ghi
-    // lại giao điểm đó: **người dùng gõ tiếp thì câu báo tắt, kể cả câu từ chối**.
-    // ⇒ `toBe(null)` là mệnh đề MẠNH HƠN `.not.toContain`: nó khẳng định cả *"không câu gộp
-    // nào"* lẫn *"câu cũ đã được dọn"*, trong một phép so.
-    await expect(sauHai.dongBao).toBe(null)
+    const sau = await chupLuoi()
+    await expect(sau.soThuTu).toEqual(['1', '2'])
+    await expect(sau.hang[0].nguyenVan).toBe('一。二。')
+    await expect(sau.dongBao).toBe(
+      'Đã gộp hai câu. Câu mới chưa xác nhận — lịch sử của hai câu cũ vẫn tra lại được.',
+    )
   })
 
   /**

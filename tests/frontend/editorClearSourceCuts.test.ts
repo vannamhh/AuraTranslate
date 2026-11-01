@@ -9,8 +9,7 @@
  * điểm, bấm trùng **từng cái** là một đường lui trên giấy: người dùng phải nhớ mình đã bấm ở
  * đâu, và bấm trượt thì **thêm** một điểm nữa.
  *
- * ⚠️ **Và `Esc` một mình KHÔNG tới nơi** — đây là cạm bẫy ② của cử chỉ `Backspace`, lặp lại ở
- * một phím khác. `keys.ts:510`:
+ * ⚠️ **Và `Esc` một mình KHÔNG tới nơi**. `keys.ts:510`:
  *
  * ```ts
  * if (lacksPrimaryMod(entry.mods) && isTypingZone(event.target)) return false
@@ -22,8 +21,7 @@
  *
  * ⇒ **Hai cửa, MỘT command** *(không hai đường xoá)*: ① registry cho ca tiêu điểm ngoài vùng
  * gõ, và nó là thứ làm phím này **gán lại được** (FR22) và **hiện trong bảng phím**;
- * ② `onEditKeydown` bắt trực tiếp rồi `dispatch` **chính** id đó. Cùng khuôn `Backspace` của
- * AC1, và cùng lý do: một cử chỉ trong vùng gõ **là** hệ quả của việc gõ.
+ * ② `onEditKeydown` bắt trực tiếp rồi `dispatch` **chính** id đó.
  */
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'

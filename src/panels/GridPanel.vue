@@ -39,12 +39,6 @@
 //      trong một editing host **riêng**, nên không có ranh giới nào để gộp qua. Đây là **cùng
 //      một bảo đảm** mà đường (c) của Story 2.3 mua bằng cách chỉ cho một span gõ được.
 //
-// ⚠️ Cái nó **KHÔNG** mua được, ghi ra thay vì để Story 2.9 vấp:
-//      `Backspace` ở offset 0 **KHÔNG phát `beforeinput`** trên WebKit *(đo 2026-08-14, cả
-//      WKWebView lẫn Playwright-WebKit, cả phím vật lý lẫn `execCommand`; Blink thì **có**)*.
-//      Cử chỉ gộp của UX-DR32 phải đi `keydown` **kèm chốt `isComposing`**. Nợ có chủ:
-//      Story 2.9, `deferred-work.md`.
-//
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔴 `contenteditable` TRẦN **KHÔNG ĐỦ** TRÊN WKWebView — đường chuột phải đi cùng
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -84,7 +78,6 @@ import { t, tError } from '../i18n'
 import type { IpcError } from '../i18n'
 import { detectIsMac, dispatch } from '../commands'
 import {
-  caretAtCellStart,
   hasPrimaryModifier,
   resolveSegmentRule,
   segmentRuleInputOf,
@@ -1734,8 +1727,7 @@ function onEditKeydown(event: KeyboardEvent): void {
   // phím của Story 1.21.
   // 🔴 Nhưng nó **một mình không tới nơi**: `Escape` không mang phím bổ trợ chính, nên
   // `keys.ts:510` (`lacksPrimaryMod && isTypingZone`) **chặn** nó khi tiêu điểm nằm trong một
-  // ô bản dịch — tức ở đúng chỗ người dùng đang đứng sau khi vừa gõ. Cùng cạm bẫy mà nhánh
-  // `Backspace` ngay dưới đã phải đi vòng, ở một phím khác.
+  // ô bản dịch — tức ở đúng chỗ người dùng đang đứng sau khi vừa gõ.
   // ⇒ Bắt trực tiếp rồi `dispatch` **CHÍNH** id đã đăng ký. Hai cửa, **một** command xoá điểm cắt (Esc còn dispatch thêm `segment.selection.clear`) — không
   //   một đường xoá thứ hai.
   //
@@ -1746,56 +1738,7 @@ function onEditKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     dispatch('editor.clear_source_cuts')
     dispatch('segment.selection.clear')
-    return
   }
-
-  // ═══════════════════════════════════════════════════════════════════════════════
-  // 🔴 STORY 2.9 · AC1 · AC6 — CỬ CHỈ `Backspace` Ở ĐẦU Ô LÀ LỆNH GỘP (FR78 · UX-DR32)
-  // ═══════════════════════════════════════════════════════════════════════════════
-  if (event.key !== 'Backspace') return
-  // ⓐ Auto-repeat KHÔNG gộp — Ice ký ③ ngày 2026-08-17, và nó đi **ngược** bản năng của một
-  //    trình soạn thảo có chủ ý. Ở một trình soạn thảo thường, giữ `Backspace` xoá liên tục
-  //    là đúng. Ở đây mỗi lượt là một lượt **ghi xuống WAL** mà **AD-5 không cho hoàn tác**,
-  //    và `⌘Z` (AC5) đang là món nợ chờ `AD-48`. ~30 `keydown`/giây trên một thao tác không
-  //    lui được là mất ranh giới câu **hàng loạt**, bằng một phím bấm hàng trăm lần mỗi
-  //    Chương. Muốn gộp tiếp: nhả phím, bấm lại.
-  //    ⚠️ **GIỚI HẠN THẬT:** `event.repeat === false` ở một lượt bấm rời rạc đã đo được
-  //    (`2-9-ban-do/`), nhưng vế `true` thì **KHÔNG** — WebDriver `keyDown` giữ 600 ms cho
-  //    đúng một `keydown`, vì auto-repeat là hành vi tầng OS. Món cho Ice, cùng lớp với
-  //    *"gõ tiếng Việt bằng bộ gõ"*.
-  if (event.repeat) return
-  const cell = targetCellOf(event.target instanceof Node ? event.target : null)
-  if (cell === null) return
-  // ⓑ Phép kiểm *"đầu ô"* sống ở `editorSegments.ts` — một mệnh đề về cây DOM, kiểm được bằng
-  //    vitest. Nó **không** hỏi `startOffset === 0`: phép đó sai 2/7 hình dạng đã đo. Lý lẽ
-  //    đầy đủ kèm bảng số ở doc-comment của [`caretAtCellStart`].
-  if (!caretAtCellStart(cell, cell.ownerDocument.defaultView?.getSelection() ?? null)) return
-
-  // ⓒ `preventDefault()` **khi và chỉ khi** nhánh nhận việc — nếu không, engine xoá thêm một
-  //    ký tự sau lượt gộp.
-  //    ⚠️ Ở đúng offset 0 của một editing host, WebKit **không có gì để xoá lui** — đo được
-  //    (`2-9-ban-do/` §Ⓓ: `execCommand('delete')` trả `true` mà `textContent` không đổi một
-  //    byte, trong khi đối chứng ở offset 3 xoá đúng một ký tự). Nên dòng này là **lớp phòng
-  //    thứ hai**, cho ca `caretAtCellStart` trả sai chứ không cho ca thường.
-  //    🔴 Và nó **không nghiệm thu được qua driver**: mọi sự kiện driver giao đều mang
-  //    `isTrusted: false`, và một sự kiện không tin cậy **không có default action** — nên một
-  //    phép kiểm ở đó sẽ trả *"chặn được"* trên mọi engine, kể cả engine không cho chặn.
-  event.preventDefault()
-
-  // ⓓ 🔴 **ĐI QUA `dispatch`, KHÔNG gọi thẳng `mergeCurrentSegment()`.**
-  //    Story viết *"gọi chính `mergeCurrentSegment()` mà `⌘M` gọi"*, và ý đồ của câu đó là
-  //    *"đừng viết một đường gộp thứ hai"*. `dispatch` thi hành ý đồ ấy **mạnh hơn** một lời
-  //    gọi thẳng: nó dùng chung đường **cao hơn một bậc**, tức cả lượt xử lý kết quả và dòng
-  //    chẩn đoán ở `main.ts:320-328`. Một lời gọi thẳng phải chép lại khúc đó — và
-  //    `project-context.md` đã ghi bằng chữ rằng *"một lời gọi thẳng dựng một đường thứ hai
-  //    mà `check:commands` KHÔNG nhìn thấy"*, cộng AD-34 §1 (*mọi thao tác đi qua một
-  //    `CommandRegistry` duy nhất*).
-  //    ⚠️ Đây **không** phải một command mới, và `COMMAND_FLOOR` không đổi. Cạm bẫy ② của
-  //    story cấm **đăng ký một hợp âm `Backspace`** — `keys.ts:510` chặn mọi hợp âm không-mod
-  //    trong vùng gõ nên nó sẽ không bao giờ bắn. Bắt trực tiếp ở đây rồi `dispatch` một id
-  //    **đã đăng ký** đi vòng qua bảng hợp âm mà vẫn giữ một đường thao tác duy nhất.
-  //    ⇒ Nếu `COMMAND_FLOOR` đổi vì story này, đó là dấu hiệu đã đi sai đường.
-  dispatch('editor.merge_segments')
 }
 
 /** Đọc văn bản **từ chính DOM** rồi đưa vào tập chờ. Chỗ duy nhất làm việc đó. */

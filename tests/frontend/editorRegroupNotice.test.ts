@@ -11,9 +11,8 @@
  * ② **Lượt gộp BỊ TỪ CHỐI không đổi một pixel nào.** `editorRegroupError`
  *    (`editorPanelState.ts`) tồn tại từ Story 2.8 mà **chưa component nào đọc** — doc-comment
  *    ở `main.ts` đã ghi thẳng: *"đừng đọc dòng này thành 'đã có đường ra màn hình'"*.
- *    ⇒ Người dùng bấm `Backspace` ở câu **đầu Chương** và **không có gì xảy ra**. Đúng lớp
- *    *"rỗng IM LẶNG"* mà `project-context.md` cấm, và nó là ca **thường nhất** của cử chỉ này:
- *    câu số 1 của mọi Chương.
+ *    ⇒ Người dùng bấm `⌘M` ở câu **đầu Chương** và **không có gì xảy ra**. Đúng lớp
+ *    *"rỗng IM LẶNG"* mà `project-context.md` cấm.
  *
  * 🔴 **Bảng tra phải ĐÓNG.** `CONFIRM_NOTICE_KEYS` đã lập tiền lệ và doc-comment của nó cấm
  * bằng chữ một nhánh mặc định: *"một `?? 'khoá nào đó'` sẽ nuốt im lặng một giá trị thứ tư"*.
@@ -21,12 +20,7 @@
  * `string`.
  *
  * 🔴 **Vì sao vitest chứ không e2e:** ô nhớ + người đọc nó là module thuần cộng một component
- * vỏ — không hình học, không engine. Mệnh đề *"`Backspace` thật trong WKWebView có gộp
- * không"* thì thuộc e2e, và nó có nhà riêng ở `e2e/specs/segment-merge-split.e2e.mjs`.
- *
- * ⚠️ **GIỚI HẠN THẬT:** nhóm này canh **ô nhớ và người đọc nó**. Nó **không** canh việc cử chỉ
- * `Backspace` tới được `mergeCurrentSegment` — đường đó đi qua `onEditKeydown` của
- * `GridPanel.vue` và chỉ e2e đo được.
+ * vỏ — không hình học, không engine.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
@@ -253,8 +247,8 @@ describe('Story 2.9 · AC4 — dòng báo hệ quả của lượt gộp', () =>
 describe('🔵 Code review 2026-08-17 — ba cửa mà hai ô nhớ mới của Story 2.9 còn thiếu', () => {
   it('🔴 ① câu của lượt XÁC NHẬN không được che câu của lượt gộp THÀNH CÔNG', async () => {
     // Đường hỏng nguyên bản: `StatusBar.vue` khai `v-if` của `confirmNotice` **trước**
-    // `v-else-if` của câu gộp, và `regroup()` không dọn `confirmNotice`. Cử chỉ `Backspace`
-    // cũng không đi qua `noteEditorEdit` *(`preventDefault()` cắt chuỗi `input`)*.
+    // `v-else-if` của câu gộp, và `regroup()` không dọn `confirmNotice`. `⌘M`
+    // cũng không đi qua `noteEditorEdit`.
     // ⇒ AC4 không đạt: gộp xong mà thanh vẫn nói câu của một thao tác đã trôi qua.
     const { state, StatusBar } = await tuoi()
     const wrapper = mount(StatusBar)
@@ -268,7 +262,7 @@ describe('🔵 Code review 2026-08-17 — ba cửa mà hai ô nhớ mới của 
     )
 
     // ② Người dùng **không gõ chữ nào** *(nên `noteEditorEdit` không chạy)*, chỉ đặt caret rồi
-    //    bấm `Backspace`.
+    //    bấm `⌘M`.
     state.setEditorCaret(12)
     ketQuaGop.value = {
       outcome: { retired: FIXTURE_SEGMENTS.slice(0, 2).map((s) => ({ ...s })), new_segments: [HANG_GOP] },
@@ -343,9 +337,7 @@ describe('🔵 Code review 2026-08-17 — ba cửa mà hai ô nhớ mới của 
   })
 
   it('🔴 ③ hai lượt gộp CHỒNG NHAU ⇒ lượt sau trả `busy` và NÓI RA, không ghi đè câu của lượt đầu', async () => {
-    // `event.repeat` chỉ chặn auto-repeat của **hệ điều hành**; hai cú `Backspace` **rời rạc** bấm
-    // nhanh thì không. Và vì nhánh đó `preventDefault()`, DOM cùng caret y nguyên ở offset 0 nên
-    // cú thứ hai qua trọn `caretAtCellStart` và dispatch lại cho **cùng** một `id`.
+    // Hai cú `⌘M` **rời rạc** bấm nhanh dispatch lại cho **cùng** một `id`.
     //
     // 🔴 Không có khoá, lượt IPC thứ hai trả `refused` *(segment đã về hưu)* và ghi đè câu
     // `'merged'` ⇒ thanh báo *"chưa gộp được"* cho một thao tác **đã gộp xong**. Nói dối đúng

@@ -4110,7 +4110,7 @@ mục nào mồ côi.
   `editorRegroupError` nay **có người đọc** — nhánh `'refused'` đi qua `tError()`, nên câu từ
   chối là câu của **Rust**, không một bản chép ở frontend. Ca **thường nhất** của cử chỉ mới
   *(`Backspace` ở câu đầu Chương)* vì thế thôi im lặng; e2e khoá cả hai chiều
-  (`segment-backspace-merge.e2e.mjs`).
+  (`segment-backspace-merge.e2e.mjs`). 🔵 2026-11-01: cử chỉ đã rút; lượt từ chối ở câu đầu Chương nay đi qua `⌘M`, e2e cùng tệp khoá đường đó.
   🔴 **Vế `⌘Z` giữ nguyên chủ là Ice**, và Story 2.9 đã soạn hồ sơ bàn giao cho nó:
   `planning-artifacts/ad-brief-2026-08-17-mo-hinh-hoan-tac.md` — hai đường (A)/(B) kèm hệ quả
   trên đĩa, ba mức phạm vi, tám ràng buộc cứng, sáu điều kiện nghiệm thu.
@@ -4284,6 +4284,7 @@ vá sinh ra hoặc không đóng được**, mỗi món một chủ.)*
   ③ một lượt chốt của **bộ gõ tiếng Việt** không bị nhánh mới ăn mất.
   **Chủ: Ice** *(một lượt kiểm tay trên máy thật, cùng lớp với Task 1.4/1.5 của các story trước)*.
   → 2026-09-24 (xếp nợ đứng tên Ice) — giao theo `sprint-change-proposal-2026-09-24b-no-dung-ten-ice.md`: lượt dùng thật cuối Epic 4 (AI-7, Ice chọn). **Chủ: Epic 4.**
+  → KHÔNG LÀM 2026-11-01 (`plan-bo-cu-chi-backspace-gop-cau.md`) — cử chỉ `Backspace` đã rút, cả ba mệnh đề hết đối tượng.
 
 - 🔵 **Món `restore_segment_version` khi văn bản RỖNG (`:3821-3829`) rà lại 2026-08-17 —
   KHÔNG chạm, và lý do đáng ghi.** Story 2.9 **không** sinh thêm một đường tạo segment rỗng:
@@ -13807,3 +13808,12 @@ chính nó.
 - Vite của `tauri dev` chạy lâu giữ tem `?t=` cho module đã sửa (`editorPanelState.ts?t=…`), nên e2e dùng lại nó đỏ ở Tác phẩm thứ hai với `Đã gọi 5 hàm reset mà lưới còn 3 hàng nguyên văn`; `assertModuleGraphHealthy` vẫn báo lành. Chạy được khi dùng Vite dựng mới (`--port 1421` cộng `TAURI_CONFIG` đặt `devUrl`).
   Cần: quyết `wdio.conf.mjs` có từ chối Vite có tem `?t=` ở các module của `PANEL_MODULES` không; trước mắt tắt `tauri dev` trước khi chạy e2e.
   Chủ: Ice. Trỏ: `e2e/wdio.conf.mjs` `onPrepare`, `e2e/support/panelReset.mjs`.
+
+## Deferred from: `plan-bo-cu-chi-backspace-gop-cau.md` (2026-11-01)
+
+- `check:panel-refs` đỏ từ `48ea2d4b`: `heldCaret` ở `src/commands/focus.ts:434` là ô nhớ cấp module trong tệp không có hàm `reset*`, nên `pre-push` chặn ở cổng thứ sáu dù cả ba commit chưa đẩy lên `origin`.
+  Cần: đổi `dropHeldCaret` thành `resetHeldCaret` tự gán `heldCaret = null`, hoặc thêm miễn trừ có lý do; quyết cùng lúc nó có phải dọn khi đổi Tác phẩm không.
+  Chủ: Story 14.11. Trỏ: `scripts/check-panel-refs.mjs`.
+- Bỏ cử chỉ `Backspace` cũng bỏ `preventDefault()` ở đầu ô, và lượt đo no-op bằng phím thật chỉ phủ WKWebView; Blink phát `beforeinput` ở offset 0 nên WebView2 chưa có số đo.
+  Cần: trên Windows, `delete` nhiều cú ở đầu ô có chữ và ô rỗng, đọc lưới và đĩa không đổi.
+  Chủ: B7. Trỏ: `_bmad-output/implementation-artifacts/bo-cu-chi-backspace-ban-do/ket-qua.md`.

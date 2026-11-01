@@ -27,7 +27,7 @@
  * KHÔNG CHẠM DOM
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔴 **Điều kiện thật, câu trên nói rộng hơn cổng thật sự cưỡng chế.**
- * `createTreeWalker`/`caretAtCellStart`/`hasPrimaryModifier` đã chạm DOM/`Selection`
+ * `createTreeWalker`/`hasPrimaryModifier` đã chạm DOM/`Selection`
  * trong THÂN hàm từ Story 2.8/2.9 — điều đó không giết được cổng nào, vì `check-commands.mjs`
  * chỉ `import()` tệp này rồi **gọi hàm thuần** như `resolveSegmentRule` bằng Node thuần; nó
  * không bao giờ thật sự chạy nhánh chạm DOM. Điều kiện thật, và là điều kiện DUY NHẤT cổng
@@ -383,74 +383,6 @@ function neoNguonCua(cell: Element, node: Node): Element | null {
     p = p.parentElement
   }
   return null
-}
-
-/**
- * 🔴 **Caret có đang ở ĐẦU ô bản dịch không** — Story 2.9, AC1. Cử chỉ `Backspace` gộp câu
- * đứng hay đổ ở đúng hàm này.
- *
- * Trả `false` khi: không có `Selection`, vùng chọn **không collapsed**, caret neo **ngoài**
- * `cell`, hoặc còn ký tự phía trước caret trong ô.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * 🔴 VÌ SAO KHÔNG HỎI `startOffset === 0` — nó SAI HAI TRONG BẢY HÌNH DẠNG
- * ─────────────────────────────────────────────────────────────────────────────
- * Đo trên WKWebView 605.1.15 thật ngày **2026-08-17** *(bàn đo `2-9-ban-do/`, caret đặt bằng
- * `document.caretRangeFromPoint` — tức đúng thứ một cú bấm của người dùng cho)*:
- *
- * | Ca | `startContainer` | `startOffset` | `=== 0`? | đúng |
- * |---|---|---|---|---|
- * | ô RỖNG | `DIV` *(chính ô)* | 0 | true | đầu ô |
- * | một dòng, mép trái | `#text`(11) | 0 | true | đầu ô |
- * | một dòng, giữa chữ | `#text`(11) | 2 | false | không |
- * | hai dòng, mép trái dòng 1 | `#text`(3) | 0 | true | đầu ô |
- * | **hai dòng, mép trái DÒNG 2** | **`#text`(3)** | **0** | 🔴 **true** | **không** |
- * | hai dòng, giữa chữ dòng 2 | `#text`(3) | 1 | false | không |
- * | **vùng chọn TỪ đầu ô, không collapsed** | `#text` | 0 | 🔴 **true** | **không** |
- *
- * Cơ chế của ca sai thứ nhất: dưới `white-space: pre-line` *(Story 2.5d/AD-46 — và
- * `pre-line` là **tiền đề vận hành**, không một dòng CSS trang trí)*, `insertLineBreak` của
- * WebKit để lại **ba text node** — `"AAA"` · `"\n"` · `"BBB"`, **không** một `<br>`. Engine
- * đặt caret ở đầu dòng 2 vào **offset 0 của node THỨ BA**.
- * ⇒ Một phép kiểm hỏi offset **gộp câu khi người dùng chỉ muốn xoá một lần xuống dòng** —
- * mất một segment vì đọc thiếu một node, trên một thao tác **AD-5 không cho hoàn tác**
- * *(và `⌘Z`/AC5 đang là món nợ chờ `AD-48`)*, **không cổng nào đỏ**.
- *
- * ⚠️ **Phép kiểm ngược lại cũng sai.** *"`startContainer` là con ĐẦU của ô"* hỏng ở ca ô
- * rỗng: `startContainer` là **chính ô**, 0 con. Không phép kiểm nào **theo hình dạng** đúng
- * cả bốn — phải hỏi đúng câu định nghĩa, và câu đó là *"không còn ký tự nào phía trước
- * caret trong cả ô"*.
- *
- * ⇒ Cài bằng một `Range` từ `(cell, 0)` tới caret rồi đo `toString().length`. Nó không hỏi
- * node nào, không đếm `childNodes`, không giả định `pre-line` để lại text node hay `<br>` —
- * nên nó **không cần sửa lại** ngày một trong ba thứ đó đổi.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * ⚠️ GIỚI HẠN THẬT, ghi ra thay vì để người sau tự phát hiện
- * ─────────────────────────────────────────────────────────────────────────────
- * `Range.toString()` trả **văn bản đã render**, nên nó **bỏ qua** phần tử không sinh văn bản.
- * Ô bản dịch hôm nay render **một mustache duy nhất** (`{{ s.target_text }}`) và người dùng
- * chỉ gõ chữ + `\n` vào đó ⇒ không có phần tử nào để bỏ qua. Ngày ô bản dịch mang một cấu
- * trúc *(một `<img>` neo vị trí của FR127, một `<ruby>`)*, mệnh đề này phải **đo lại** —
- * không suy.
- *
- * ⚠️ Hàm sống ở đây, **không** trong `GridPanel.vue`: một mệnh đề về **phép kiểm** kiểm được
- * bằng `vitest` + `happy-dom`, còn một mệnh đề nằm trong thân một handler bàn phím thì chỉ
- * kiểm được bằng e2e. Cùng lý do `sourceCutOffsetOf` và `segmentNavigation.ts` tồn tại.
- */
-export function caretAtCellStart(cell: Element, sel: Selection | null): boolean {
-  if (sel === null || sel.rangeCount === 0) return false
-  const r = sel.getRangeAt(0)
-  // 🔴 Vùng chọn không collapsed ⇒ `Backspace` là "xoá vùng chọn", không "xoá lui". AC6 nói
-  // *không chặn*, không nói *cướp phím*: cướp nó làm người dùng mất cả đoạn vừa bôi đen VÀ
-  // một ranh giới câu, cùng lúc, bằng một phím họ bấm hàng trăm lần mỗi Chương.
-  if (!r.collapsed) return false
-  if (!cell.contains(r.startContainer)) return false
-
-  const truoc = cell.ownerDocument.createRange()
-  truoc.setStart(cell, 0)
-  truoc.setEnd(r.startContainer, r.startOffset)
-  return truoc.toString().length === 0
 }
 
 /**

@@ -49,6 +49,8 @@ AD-35 — tức mất chữ người dùng vừa gõ, im lặng.
 
 Sáu AC, nguyên văn ngữ nghĩa từ `epics.md:2543-2568`.
 
+🔵 2026-11-01: AC1 và AC6 đã rút; Ice dùng thật thấy xoá chữ rồi bấm thừa là gộp nhầm câu, không lui được, nên chọn bỏ cử chỉ (`plan-bo-cu-chi-backspace-gop-cau.md`). Hai AC dưới giữ nguyên chữ làm hồ sơ.
+
 **AC1 — Cử chỉ**
 **Given** con trỏ ở **đầu ô bản dịch** của một câu
 **When** người dùng bấm `Backspace`
