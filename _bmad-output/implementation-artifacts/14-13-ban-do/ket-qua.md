@@ -26,6 +26,7 @@ Chi phí nằm đâu (bản phát hành, 9.850 hàng):
 
 ## Ghi chú cho người sau
 
+- 🔵 2026-11-01: lỗi dưới đây đã sửa, `npm run build` xanh; hai `build-1413*.sh` giữ `npx vite build` để bản dựng đo được giống bản đã đo.
 - ⚠️ `npm run build` đỏ ở `baseline_revision`: `vue-tsc -p tsconfig.node.json` báo lỗi kiểu trong `scripts/gen-zh-fold.mjs` (commit afdc4205). `build-1413.sh` vì vậy gọi `npx vite build` (cùng bundle, bỏ bước kiểm kiểu). Plan nhắc `npm run build` lại sau bản dựng để `cargo test` không nhúng bench; dùng `npx vite build` cho tới khi lỗi kiểu được sửa (không thuộc story này; mục nợ `Chủ: Ice` đã có ở `deferred-work.md`).
 - `app-before/` (67 MB) giữ để Pha 3 xen kẽ trước/sau, không có trong `.gitignore`: đừng commit. `dist/` đã dựng lại sạch (0 dấu bench).
 

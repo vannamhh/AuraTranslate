@@ -37,7 +37,7 @@ context: []
 | Bản phát hành trượt | Trung vị ≥ 50 ms | Sửa theo chỗ tốn đo được, đo lại xen kẽ | Không |
 | Sửa rồi vẫn trượt | Sau sửa ≥ 50 ms, phần còn lại ở sau JS | Không hạ ngưỡng; plan `blocked`, trình Ice số JS và sau JS kèm các phương án | Giữ mã đã giúp hay trả lại là việc Ice chọn |
 | Kéo trong một khối | `focus` 10 → 11, cùng khối | Đúng một khối render | Không |
-| Kéo qua ranh khối | `focus` 199 → 200 | Hai khối render, tô liền | Không |
+| Kéo qua ranh khối | `focus` 199 → 200 | Một khối render, tô liền. 🔵 2026-11-01 Ice duyệt sửa từ "Hai khối": một bước chỉ đổi một hàng | Không |
 | Vùng trải nhiều khối | `anchor` 10, `focus` 450 → 451 | Chỉ khối chứa 451 render | Không |
 | Kéo ngược | `focus` lùi về trước `anchor` | Tô đúng, khối ra khỏi vùng mất tô | Không |
 | Chọn trọn Chương | 9.850 hàng | Mọi hàng tô, panel AI đếm 9.850 | Không |
@@ -82,11 +82,11 @@ context: []
 
 ## Implementation Notes
 
-- Hàng "Kéo qua ranh khối" của Matrix ghi hai khối, nhưng một bước qua ranh chỉ đổi một hàng nên đúng một khối render, khớp §Always. Test khẳng định `[1]`; chờ Ice sửa câu trong khối frozen.
+- Một bước qua ranh khối chỉ đổi một hàng nên đúng một khối render, khớp §Always; test khẳng định `[1]`, Ice đã duyệt sửa hàng Matrix.
 - `dragSegmentSelectionFocus` vẫn `.map` qua proxy và `includes` ở mỗi `mouseover`: §Never giữ nguyên hàm này, đây có thể là vế `js` 4–5 ms còn lại.
 - AC gõ và AC chuột thật chưa đo: tiến trình agent lúc đó bị `-1743` (Automation), mục nợ `Chủ: Ice` giữ hai vế này; `app215-*`, `app-mouse` đã dựng sẵn, `run-mouse.sh` chưa chạy lần nào.
 - Đối chứng gỡ thật: bỏ phép cắt theo khối ở `selectedFromIn`, `selectedToIn`, 5/7 ca vùng chọn đỏ vì cả 6 khối render; trả về byte y nguyên.
-- `npm run build` đỏ từ `afdc4205` (đã ở sổ nợ, `Chủ: Ice`), nên bàn đo dùng `npx vite build`.
+- `npm run build` đỏ từ `afdc4205` nên bàn đo dùng `npx vite build`. 🔵 2026-11-01: đã sửa kiểu `scripts/gen-zh-fold.mjs`, build xanh.
 
 ## Plan Change Log
 
@@ -100,7 +100,7 @@ Lượt 1 (lens Quick): high 0 · medium 1 · low 5 · false 4 · maybe-false 0.
 - low, patch: `2-15-ban-do/build-215.sh` bị sửa tại chỗ; trả về, `app215-*` đã dựng nên không cần nó.
 - low, patch: `eslint-disable` không lý do ở hai bench; thêm lý do. Comment usage sai ở `build-1413m.sh`; sửa.
 - low, patch: bản dựng lớn chỉ được canh bằng lời nhắc; thêm `.gitignore` của thư mục.
-- reject (sửa khối frozen): hàng "Kéo qua ranh khối" ghi hai khối; một bước chỉ đổi một hàng, §Always đòi một khối, chờ Ice sửa câu.
+- reject (sửa khối frozen): hàng "Kéo qua ranh khối" ghi hai khối; một bước chỉ đổi một hàng, §Always đòi một khối. 🔵 2026-11-01: Ice đã duyệt sửa.
 - false: "trung vị mỗi lượt" khác AC 1; mỗi lượt là trung vị theo hàng, cùng thống kê.
 - false: xoá comment token ở `GridPanel.vue` làm mất bất biến; `GridBlock.vue`:808 vẫn ghi.
 - false: `segmentSelectionRange` thiếu doc comment; AGENTS.md mặc định không comment, tên và kiểu đã đủ.
