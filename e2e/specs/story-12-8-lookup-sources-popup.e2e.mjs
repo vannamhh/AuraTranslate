@@ -1,5 +1,5 @@
 /**
- * Lookup panel header: the `Nguồn N/M ▾` popup opens over the panel without being clipped,
+ * Lookup panel header: the `Nguồn N/M` popup opens over the panel without being clipped,
  * `Esc` returns focus to its button, a row click toggles the source and updates N/M, and the
  * tab title carries the real chord of `lookup.lookup_selection`.
  *
@@ -21,7 +21,7 @@ async function label() {
 }
 
 function parseLabel(text) {
-  const m = /^Nguồn (\d+)\/(\d+) ▾$/.exec(text.trim())
+  const m = /^Nguồn (\d+)\/(\d+)$/.exec(text.trim())
   return m === null ? null : { enabled: Number(m[1]), total: Number(m[2]) }
 }
 

@@ -739,7 +739,7 @@ function gridLineHeightPx(fontSizePx: number, ratio: number): number {
  */
 export const readingStyle: ComputedRef<{ fontSize: string; lineHeight: string; measure: string }> = computed(() => ({
   fontSize: `${effectiveFontSize.value}px`,
-  lineHeight: String(gridLineHeightPx(effectiveFontSize.value, effectiveLineHeight.value) / effectiveFontSize.value),
+  lineHeight: `${gridLineHeightPx(effectiveFontSize.value, effectiveLineHeight.value)}px`,
   measure: String(tokens.spacing[MEASURE_KEYS[readingLevel.value]]),
 }))
 

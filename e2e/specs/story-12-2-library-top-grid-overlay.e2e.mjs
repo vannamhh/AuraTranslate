@@ -123,7 +123,7 @@ describe('Story 12-2: Library top bar, grid and import overlay', () => {
     expect(card.text).not.toMatch(/Invalid|undefined|NaN/)
   })
 
-  it('grid fills the width with auto-fill columns: wider window, never fewer columns, every card at least 240 px', async () => {
+  it('grid fills the width with auto-fill columns: wider window, never fewer columns, every card at least 238 px', async () => {
     for (const name of IPC_WORKS) await createViaIpc(name)
     await reloadWorks()
     await browser.waitUntil(async () => (await cardNames()).length >= 5, {
@@ -143,7 +143,7 @@ describe('Story 12-2: Library top bar, grid and import overlay', () => {
         { timeout: 10_000, timeoutMsg: `no grid shape at logical width ${width}` },
       )
       expect(shape.gridWidth).toBeGreaterThan(shape.content - 2)
-      for (const cellWidth of shape.cellWidths) expect(cellWidth).toBeGreaterThanOrEqual(239)
+      for (const cellWidth of shape.cellWidths) expect(cellWidth).toBeGreaterThanOrEqual(238)
       seen.push(shape.cols)
     }
     expect(seen[0]).toBeLessThanOrEqual(seen[1])

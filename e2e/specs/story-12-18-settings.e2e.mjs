@@ -108,7 +108,7 @@ describe('Story 12-18 · Settings frame', () => {
     await $(PANEL).waitForDisplayed({ timeout: 10_000 })
     await $('[data-ai-test-connection]').waitForExist({ timeout: 10_000 })
     expect(await activeSection()).toBe('ai_and_model')
-    expect(await counts('[data-ai-provider]')).toBe(5)
+    expect(await counts('[data-ai-provider]')).toBe(9)
     await closeSettings()
   })
 })

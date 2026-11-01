@@ -1191,7 +1191,7 @@ function onEscape(): void {
   margin: 0;
   padding: 6px calc(var(--space-unit) * 1); /* aura-allow-spacing: matches textarea.ui-field so mirror and textarea text coincide */
   border: 1px solid transparent;
-  overflow: hidden;
+  overflow: auto;
   scrollbar-gutter: stable;
   pointer-events: none;
   white-space: pre-wrap;
@@ -1200,6 +1200,10 @@ function onEscape(): void {
   font-size: var(--font-ui-md-wrap);
   line-height: var(--leading-ui-md-wrap);
   color: var(--color-on-surface);
+}
+
+.pl-ta-mirror::-webkit-scrollbar-thumb {
+  background-color: transparent;
 }
 
 .pl-ta-input {

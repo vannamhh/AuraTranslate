@@ -71,6 +71,27 @@ describe('Story 12-14 -- Prompt library', () => {
     await expect(offsets.hasVar).toBe(true)
     await expect(offsets.unknownCount).toBeGreaterThan(0)
 
+    const wrap = await browser.execute(async () => {
+      const area = document.querySelector('.pl-ta-input')
+      const mirror = document.querySelector('.pl-ta-mirror')
+      const show = async (text) => {
+        area.value = text
+        area.dispatchEvent(new Event('input', { bubbles: true }))
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      }
+      await show('ngan')
+      const unscrolled = { areaWidth: area.clientWidth, mirrorWidth: mirror.clientWidth }
+      const heightGaps = []
+      for (let narrow = 100; narrow < 260; narrow += 1) {
+        await show(`${'dong\n'.repeat(20)}${'i'.repeat(narrow)} chu`)
+        heightGaps.push(Math.abs(area.scrollHeight - mirror.scrollHeight))
+      }
+      return { unscrolled, worstHeightGap: Math.max(...heightGaps), overflows: area.scrollHeight > area.clientHeight }
+    })
+    await expect(wrap.overflows).toBe(true)
+    await expect(Math.abs(wrap.unscrolled.areaWidth - wrap.unscrolled.mirrorWidth)).toBeLessThanOrEqual(TOLERANCE_PX)
+    await expect(wrap.worstHeightGap).toBeLessThanOrEqual(TOLERANCE_PX)
+
     await textarea.setValue(`${longBody()}\nDong cuoi them tay.`)
     const duplicate = await $('.pl-dup-form button')
     await realClick(duplicate)

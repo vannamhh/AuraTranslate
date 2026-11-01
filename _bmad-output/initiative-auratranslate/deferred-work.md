@@ -13876,3 +13876,15 @@ chính nó.
   Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/epic-dich-nhanh.md` §Done when.
 - Windows chưa đo: ô khoá thứ hai trong Credential Manager và `VACUUM` khi kho đang có kết nối ghi.
   Chủ: B7. Trỏ: `tickets/epic-dich-nhanh/epic-dich-nhanh.md` §Done when.
+
+## Deferred from: `plan-nightly-e2e-xanh` (2026-11-02)
+
+- `13-7` đỏ chỉ trên macos-26 của runner; `readingStyle.lineHeight` nay phát px thay vì tỉ số (Ice chọn), chưa tái hiện được ở máy này nên chưa chứng minh bản sửa trên runner. `5-11` cũng chỉ chứng minh được ở đó.
+  Cần: nightly hoặc `workflow_dispatch` sau khi push cho `13-7` và `5-11` xanh.
+  Chủ: Ice. Trỏ: `plan-nightly-e2e-xanh.md` §Boundaries & Constraints.
+- `panel-toggle-mouse` đỏ khi không chạy đầu tiên trên máy Ice: `ensureFullLayoutTier` không lặp lại được cùng cỡ, cửa sổ 5000 px lúc chụp `before` rồi 10000 px sau tải lại, hai lần đo khác cỡ. Tỉ lệ panel đúng, CI xanh vì cửa sổ kẹp theo màn hình.
+  Cần: spec chụp `before` và `after` ở cùng cỡ cửa sổ.
+  Chủ: Ice. Trỏ: `e2e/support/layoutTier.mjs`, `plan-nightly-e2e-xanh.md` §Implementation Notes.
+- Khối nguồn ở Tra cứu không là bội 7 với từ điển thật: 664, 879, 1394 px ở panel 2453 px, `story-13-6-ra-be-mat-workspace` đỏ khi không chạy đầu tiên, xanh khi chạy riêng. CI `skip` ca này vì fixture không có khối từ 2 mục, nên lỗi không lộ ở nightly.
+  Cần: truy vì sao chiều cao lệch, rồi cho fixture một khối 2 mục để ca không còn `skip`.
+  Chủ: Ice. Trỏ: `e2e/specs/story-13-6-ra-be-mat-workspace.e2e.mjs`:138.

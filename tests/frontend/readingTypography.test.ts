@@ -31,7 +31,8 @@ describe('modes/readingState.ts — ba mức đọc từ tokens.json', () => {
     const expectedMeasure = tokens.spacing[measureKey]
 
     expect(state.readingStyle.value.fontSize).toBe(`${Number.parseFloat(expectedFontSize)}px`)
-    expect(state.readingStyle.value.lineHeight).toBe(String(Number.parseFloat(expectedLineHeight)))
+    const expectedPx = 7 * Math.ceil((Number.parseFloat(expectedFontSize) * Number.parseFloat(expectedLineHeight)) / 7 - 1e-9)
+    expect(state.readingStyle.value.lineHeight).toBe(`${expectedPx}px`)
     expect(state.readingStyle.value.measure).toBe(expectedMeasure)
   })
 
@@ -46,7 +47,7 @@ describe('modes/readingState.ts::setLineHeight — sàn 1.66 lúc chạy', () =>
     const state = await import('../../src/modes/readingState')
     state.setLineHeight(1.2)
     expect(state.effectiveLineHeight.value).toBe(1.66)
-    expect(state.readingStyle.value.lineHeight).toBe('2')
+    expect(state.readingStyle.value.lineHeight).toBe('35px')
   })
 
   it('giá trị TRÊN sàn đi qua nguyên vẹn, không bị chạm', async () => {
@@ -64,7 +65,7 @@ describe('modes/readingState.ts::setLineHeight — sàn 1.66 lúc chạy', () =>
         state.setFontSize(size)
         state.setLineHeight(ratio)
 
-        const shownPx = size * Number(state.readingStyle.value.lineHeight)
+        const shownPx = Number.parseFloat(state.readingStyle.value.lineHeight)
         const multiple = Math.round(shownPx / 7) * 7
         expect(Math.abs(shownPx - multiple)).toBeLessThanOrEqual(0.01)
         expect(multiple).toBeGreaterThanOrEqual(size * ratio - 1e-9)
@@ -117,7 +118,9 @@ describe('modes/readingState.ts::setReadingLevel — xoá tinh chỉnh đang có
     state.setReadingLevel('lg')
 
     expect(state.readingStyle.value.fontSize).toBe(`${Number.parseFloat(tokens.typography['read-lg'].fontSize)}px`)
-    expect(state.readingStyle.value.lineHeight).toBe(String(Number.parseFloat(tokens.typography['read-lg'].lineHeight)))
+    expect(state.readingStyle.value.lineHeight).toBe(
+      `${7 * Math.ceil((Number.parseFloat(tokens.typography['read-lg'].fontSize) * Number.parseFloat(tokens.typography['read-lg'].lineHeight)) / 7 - 1e-9)}px`,
+    )
   })
 })
 

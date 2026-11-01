@@ -31,8 +31,8 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
 const TYPED_ONE = 'Ban dich cau mot cho Story 5.11.'
 const TYPED_TWO = 'Ban dich cau hai cho Story 5.11.'
-const SOURCE_TEXT = '他控制了局面。我们走吧。'
-const LOOKUP_WORD = '控制'
+const SOURCE_TEXT = '他是皇子。我们走吧。'
+const LOOKUP_WORD = '皇子'
 
 async function typeInto(cell, text) {
   await realClick(cell)

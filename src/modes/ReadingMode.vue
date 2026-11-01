@@ -1121,7 +1121,7 @@ function paragraphRuns(
 .source-note {
   float: inline-start;
   inline-size: var(--source-note-inline);
-  margin: 0 0 calc(var(--reading-line-height) * var(--reading-font-size)) calc(-1 * (var(--source-note-inline) + var(--space-panel-inline))); /* aura-allow-spacing: one reading line box below; the negative inline margin is the note width (ch) plus the gap, not a grid step */
+  margin: 0 0 var(--reading-line-height) calc(-1 * (var(--source-note-inline) + var(--space-panel-inline))); /* aura-allow-spacing: one reading line box below; the negative inline margin is the note width (ch) plus the gap, not a grid step */
   text-align: end;
   font-size: var(--font-read-lg);
   line-height: var(--leading-read-lg);
@@ -1399,7 +1399,7 @@ function paragraphRuns(
 }
 
 .chapter-origin {
-  margin: 0 0 calc(var(--reading-line-height) * var(--reading-font-size)) 0; /* aura-allow-spacing: one reading line box; 1lh here is the ui-sm line */
+  margin: 0 0 var(--reading-line-height) 0; /* aura-allow-spacing: one reading line box; 1lh here is the ui-sm line */
 }
 
 .toc-actions {

@@ -1,5 +1,5 @@
 /**
- * The TM strip grows as a grid track right under the anchor row, and the
+ * The TM strip opens as an overlay popup right under the anchor row, covering the next row, and the
  * frame cost of growing and shrinking it on a 2,000-sentence Chapter is measured (no pass
  * threshold; the numbers go to the plan).
  *
@@ -82,8 +82,8 @@ async function focusAndSample(segmentId, expectStrip) {
   )
 }
 
-describe('Story 12-9 -- strip as a row track', () => {
-  it('sits right under the anchor row, and growing/shrinking it is measured', async () => {
+describe('Story 12-9 -- strip as an overlay popup', () => {
+  it('sits right under the anchor row, covers the next row without pushing it, and growing/shrinking it is measured', async () => {
     await openWorkspaceWithWork('Story 12-9 -- strip track', TEXT)
     await waitForGridRows(SENTENCE_COUNT)
 
@@ -108,6 +108,13 @@ describe('Story 12-9 -- strip as a row track', () => {
         .scrollIntoView({ block: 'center' })
     }, matchId)
 
+    const nextOffset = (id, followingId) => {
+      const c = document.querySelector(`[data-col="tgt"][data-segment-id="${id}"]`).getBoundingClientRect()
+      const n = document.querySelector(`[data-col="tgt"][data-segment-id="${followingId}"]`).getBoundingClientRect()
+      return n.top - c.top
+    }
+    const offsetBefore = await browser.execute(nextOffset, matchId, nextId)
+
     const grow = await focusAndSample(matchId, true)
     await expect(grow.firstExpected).toBeGreaterThanOrEqual(0)
 
@@ -120,13 +127,17 @@ describe('Story 12-9 -- strip as a row track', () => {
       const n = next.getBoundingClientRect()
       return {
         gapBelowCell: s.top - c.bottom,
-        gapAboveNext: n.top - s.bottom,
-        left: s.left - c.left,
+        stripBottomPastNextTop: s.bottom - n.top,
+        coversCellLeft: c.left - s.left,
+        coversCellRight: s.right - c.right,
       }
     }, matchId, nextId)
     await expect(Math.abs(geometry.gapBelowCell)).toBeLessThanOrEqual(2)
-    await expect(Math.abs(geometry.gapAboveNext)).toBeLessThanOrEqual(2)
-    await expect(Math.abs(geometry.left)).toBeLessThanOrEqual(2)
+    await expect(geometry.stripBottomPastNextTop).toBeGreaterThan(0)
+    const offsetAfter = await browser.execute(nextOffset, matchId, nextId)
+    await expect(Math.abs(offsetAfter - offsetBefore)).toBeLessThanOrEqual(1)
+    await expect(geometry.coversCellLeft).toBeGreaterThanOrEqual(-2)
+    await expect(geometry.coversCellRight).toBeGreaterThanOrEqual(-2)
 
     const scrollBeforeAfter = await browser.execute(async (id, otherCellId) => {
       document.querySelector(`[data-col="tgt"][data-segment-id="${otherCellId}"]`).focus()

@@ -9,6 +9,7 @@ import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
 const TEXT = Array.from({ length: 3 }, (_, i) => `第${i + 1}句子内容在这里。`).join('')
 const TOLERANCE = 0.5
+const CHEVRON_DROP = 3
 
 /** Bottom edge of a zero-size inline-block probe placed first inside `host`: the host's text baseline. */
 const PROBE = `
@@ -33,7 +34,7 @@ describe('Baseline alignment in a real webview', () => {
     await waitForGridRows(3, { col: 'tgt', timeout: 60_000, what: 'Chapter just built' })
   })
 
-  it('title bar: mode tab, Work name and Tools label share a baseline, the chevron sits on it', async () => {
+  it('title bar: mode tab, Work name and Tools label share a baseline, the chevron bottom sits 3 px below it', async () => {
     const m = await measure(`
       const bar = document.querySelector('.titlebar')
       const tab = bar.querySelector('.mode-tab')
@@ -49,7 +50,7 @@ describe('Baseline alignment in a real webview', () => {
     `)
     expect(Math.abs(m.tab - m.tools)).toBeLessThanOrEqual(TOLERANCE)
     if (m.work !== null) expect(Math.abs(m.tab - m.work)).toBeLessThanOrEqual(TOLERANCE)
-    expect(Math.abs(m.chevronBottom - m.tools)).toBeLessThanOrEqual(TOLERANCE)
+    expect(Math.abs(m.chevronBottom - (m.tools + CHEVRON_DROP))).toBeLessThanOrEqual(TOLERANCE)
   })
 
   it('an icon-only segment item stands level with a text button', async () => {

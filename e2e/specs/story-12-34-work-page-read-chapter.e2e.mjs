@@ -9,7 +9,7 @@ import { aimWork, openAimedWork, reloadWorks } from '../support/libraryGrid.mjs'
 
 const RUN_TAG = `${Date.now() % 1_000_000}`
 const WORK_NAME = `e2e-read-chapter-${RUN_TAG}`
-const SOURCE_TEXT = 'Cau mot。Cau hai。Cau ba。Cau bon。Cau nam。'
+const SOURCE_TEXT = 'Cau mot。Cau hai。Cau ba。Cau bon。Cau nam。Cau sau。Cau bay。Cau tam。'
 
 const WORK_PAGE = '[data-library-work-page]'
 const ROW = (id) => `[data-library-chapter-row][data-chapter-id="${id}"]`

@@ -122,13 +122,15 @@ describe('12.7 — lưới hai cột và thanh trạng thái', () => {
     const counts = await browser.execute(() => ({
       glossary: document.querySelector('[data-status-glossary]')?.textContent?.trim() ?? null,
       tm: document.querySelector('[data-status-tm]')?.textContent?.trim() ?? null,
+      tmTitle: document.querySelector('[data-status-tm]')?.getAttribute('title') ?? null,
     }))
 
     if (retreated) {
-      expect(counts).toEqual({ glossary: null, tm: null })
+      expect(counts).toEqual({ glossary: null, tm: null, tmTitle: null })
     } else {
       expect(counts.glossary).toMatch(/^Glossary \d+ mục$/)
-      expect(counts.tm).toMatch(/^TM: \d+ cặp · \d+ của tôi · \d+ của người khác · ngưỡng gợi ý \d+%$/)
+      expect(counts.tm).toMatch(/^TM \d+ · \d+%$/)
+      expect(counts.tmTitle).toMatch(/^TM: \d+ cặp · \d+ của tôi · \d+ của người khác · ngưỡng gợi ý \d+%$/)
     }
   })
 })
