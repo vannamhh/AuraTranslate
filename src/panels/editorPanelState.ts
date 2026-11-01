@@ -2139,6 +2139,7 @@ async function switchChapter(direction: ChapterDirection): Promise<boolean> {
     // 🔴 **VẾ NÀY CHƯA CÓ ĐƯỜNG NGHIỆM THU, và tôi KHÔNG chấm nó đạt.** `happy-dom` không
     // phải WebKit, còn e2e thì **không tới được** một lượt chuyển thành công *(không đường
     // sản phẩm nào sinh Chương thứ hai — cùng món nợ với AC1/AC2)*. Ghi nợ có chủ.
+    if (switched.chapter !== null) notifyChapterOpened(switched.chapter.chapter_id)
     await nextTick()
     enterFocus('panel.grid')
     return true
@@ -2162,6 +2163,20 @@ export function goToNextChapter(): void {
 /** **Chương trước** — AC2. Xem [`goToNextChapter`]. */
 export function goToPrevChapter(): void {
   void switchChapter('prev')
+}
+
+const chapterOpenedListeners = new Set<(chapterId: number) => void>()
+
+// Before `nextTick`: Review Mode keeps the grid `inert`, so it must close before focus lands.
+function notifyChapterOpened(openedChapterId: number): void {
+  for (const listener of [...chapterOpenedListeners]) listener(openedChapterId)
+}
+
+export function onChapterOpened(listener: (chapterId: number) => void): () => void {
+  chapterOpenedListeners.add(listener)
+  return () => {
+    chapterOpenedListeners.delete(listener)
+  }
 }
 
 /**
@@ -2279,6 +2294,8 @@ export async function openChapterById(
     ) {
       void ensureGlossaryMarksLoaded(chapterId.value, segments.value, sourceChapter.value.source_lang)
     }
+
+    notifyChapterOpened(targetChapterId)
 
     // ── ⑤ TIÊU ĐIỂM phải Ở LẠI trong lưới — cùng khuôn `switchChapter` ─────────────
     await nextTick()

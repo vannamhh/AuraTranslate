@@ -13769,6 +13769,10 @@ chính nó.
   Cần: quyết định chặn hay đồng bộ, cùng khuôn với hợp âm chuyển Chương.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-mo-ra-soat-va-lich-su-bang-chuot-plan.md` §Boundaries & Constraints.
   → 🔵 2026-11-01: Ice cho lập story riêng vì mục này giữ Epic 14 chưa đóng được. **Chủ: Story 14.12.**
+  → ✅ ĐÃ ĐÓNG 2026-11-01 (Story 14.12): `openChapterById` phát `onChapterOpened`, `reviewModeState.ts` đóng phiên khi Chương khác mở xong, cả `loading` và lời báo của Chương cũ; Library hiện ba câu chặn mở Chương. `review-mouse.e2e.mjs` xanh từng ca trên WKWebView.
+- Lượt dùng thật: Review ở A, sang Thư viện, mở B thấy dải đóng; mở lại A khi Review ở A thấy dải còn; flush trượt thì lý do hiện ở Thư viện.
+  Cần: Ice chạy một lượt trên app thật.
+  Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-mo-chuong-khac-khi-review-mode-ang-mo-plan.md` §Verification.
 
 ## Deferred from: Story 14.5, thêm thuật ngữ và mở cài đặt Glossary bằng chuột (2026-10-31)
 

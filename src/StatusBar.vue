@@ -529,6 +529,14 @@ const libraryCreatedText = computed<string | null>(() => {
   const created = createdWork.value
   return created === null ? null : t('mode.library.created', { name: created.meta.name, folder: created.folder })
 })
+const LIBRARY_NAV_NOTICES = ['chapter-flush-failed', 'chapter-still-dirty', 'chapter-switch-failed'] as const
+
+const libraryNavNoticeText = computed<string | null>(() => {
+  const notice = editorNavNotice.value
+  if (notice === null || !(LIBRARY_NAV_NOTICES as readonly string[]).includes(notice)) return null
+  return t(NAV_NOTICE_KEYS[notice])
+})
+
 const libraryErrorText = computed<string | null>(() => {
   const error = libraryOpenWorkError.value ?? libraryWorksError.value ?? libraryRescanError.value
   if (error !== null) return tError(error)
@@ -555,6 +563,8 @@ const libraryErrorText = computed<string | null>(() => {
         <div class="status-live" role="status" data-status-live>
           <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
           <span v-if="libraryErrorText !== null" class="notice" data-status-library-error>{{ libraryErrorText }}</span>
+          <!-- aura-allow-text: KẾT QUẢ của `t()`. -->
+          <span v-else-if="libraryNavNoticeText !== null" class="notice" data-status-library-nav-notice>{{ libraryNavNoticeText }}</span>
           <template v-else-if="createdWork !== null">
             <span v-if="createdWork.source_lang_mismatch" class="notice live-part" data-status-library-mismatch>{{
               t('mode.library.source_lang_mismatch_warning')

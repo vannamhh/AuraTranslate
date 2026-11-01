@@ -6,6 +6,7 @@
  * reply is the real UI.
  */
 import { waitForGridRows } from '../support/gridWait.mjs'
+import { aimWork, openAimedWork } from '../support/libraryGrid.mjs'
 import { realClick } from '../support/pointer.mjs'
 import { openWorkspaceWithWork } from '../support/workspace.mjs'
 
@@ -156,6 +157,88 @@ describe('Rà soát và Lịch sử bằng chuột trong WKWebView thật', () =
       timeout: 5_000,
       timeoutMsg: 'caret không về câu trước khi mở Review Mode',
     })
+  })
+
+  it('Review Mode ở Chương A: mở lại A từ Thư viện giữ dải, mở B thì dải đóng', async () => {
+    const workName = 'Story 14.12 — mở Chương khác'
+    await openWorkspaceWithWork(workName, '一。二。三。')
+    await waitForGridRows(3, { what: 'Tác phẩm trước khi tách Chương' })
+    const ids = await rowIds()
+    const first = await readSegmentsFromDisk()
+    await browser.execute(
+      async (segmentId) => window.__TAURI_INTERNALS__.invoke('split_chapter_at_segment', { segmentId }),
+      Number(ids[1]),
+    )
+    const chapters = await browser.execute(async () => window.__TAURI_INTERNALS__.invoke('list_chapters', {}))
+    const other = chapters.find((row) => row.chapter_id !== first.chapter_id).chapter_id
+
+    const toLibrary = async () => realClick((await $$('.mode-tab'))[0])
+    const openFromWorkPage = async (chapterId) => {
+      const row = await $(`[data-library-chapter-row][data-chapter-id="${chapterId}"]`)
+      await row.waitForExist({ timeout: 10_000 })
+      await realClick(row)
+      await realClick(await row.$('[data-library-open-chapter]'))
+    }
+
+    await toLibrary()
+    await aimWork(workName)
+    await openAimedWork()
+    await openFromWorkPage(first.chapter_id)
+    await waitForGridRows(1, { what: 'Chương A sau khi tách' })
+
+    await answerReviewReads(first.chapter_id, ids.slice(0, 1))
+    await realClick((await switchCells())[2])
+    await $('[data-review-dock]').waitForExist({ timeout: 10_000 })
+
+    await toLibrary()
+    await openFromWorkPage(first.chapter_id)
+    await $('[data-review-dock]').waitForDisplayed({ timeout: 10_000 })
+
+    await toLibrary()
+    await openFromWorkPage(other)
+    await $('[data-review-dock]').waitForExist({ timeout: 10_000, reverse: true })
+    await waitForGridRows(2, { what: 'Chương B sau khi đóng Review Mode' })
+    await expect((await readSegmentsFromDisk()).chapter_id).toBe(other)
+    await browser.waitUntil(
+      async () => browser.execute(() => document.activeElement?.matches('.mode') ?? false),
+      { timeout: 5_000, timeoutMsg: 'tiêu điểm không về gốc Workspace sau khi mở Chương từ Thư viện' },
+    )
+    await expect(await $('[data-review-dock]').isExisting()).toBe(false)
+  })
+
+  it('Review Mode ở Chương A: mở B khi đang ở Workspace đóng dải, tiêu điểm về lưới', async () => {
+    await openWorkspaceWithWork('Story 14.12 — trong Workspace', '一。二。三。')
+    await waitForGridRows(3, { what: 'Tác phẩm trước khi tách Chương' })
+    const ids = await rowIds()
+    const first = await readSegmentsFromDisk()
+    await browser.execute(
+      async (segmentId) => window.__TAURI_INTERNALS__.invoke('split_chapter_at_segment', { segmentId }),
+      Number(ids[1]),
+    )
+    const chapters = await browser.execute(async () => window.__TAURI_INTERNALS__.invoke('list_chapters', {}))
+    const other = chapters.find((row) => row.chapter_id !== first.chapter_id).chapter_id
+
+    await answerReviewReads(first.chapter_id, ids.slice(0, 1))
+    await realClick((await switchCells())[2])
+    await $('[data-review-dock]').waitForExist({ timeout: 10_000 })
+
+    // Read the module URL from `main.ts`: Vite may serve it with an HMR stamp, a separate instance.
+    await browser.execute(async (chapterId) => {
+      const main = await (await fetch('/src/main.ts')).text()
+      const url = main.match(/"(\/src\/panels\/editorPanelState\.ts[^"]*)"/)[1]
+      await (await import(url)).openChapterById(chapterId)
+    }, other)
+
+    await $('[data-review-dock]').waitForExist({ timeout: 10_000, reverse: true })
+    await waitForGridRows(2, { what: 'Chương B sau khi đóng Review Mode' })
+    await browser.waitUntil(
+      async () =>
+        browser.execute(() => {
+          const active = document.activeElement
+          return active !== null && (active.matches('[data-col]') || active.querySelector('[data-col="src"]') !== null)
+        }),
+      { timeout: 5_000, timeoutMsg: 'tiêu điểm không về lưới sau khi Review Mode đóng' },
+    )
   })
 
   it('chuột phải câu B rồi Lịch sử phiên bản: lớp phủ hiện lịch sử đúng câu B', async () => {

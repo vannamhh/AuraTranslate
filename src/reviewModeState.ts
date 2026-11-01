@@ -25,7 +25,11 @@ import type {
 import type { IpcError } from './i18n'
 import { activeDockPanelId, resetDockSuspended, setDockSuspended } from './layout/dockController'
 import { currentMode } from './modes/modeState'
-import { flushEditorBeforeDiscreteWrite, replaceEditorSegment } from './panels/editorPanelState'
+import {
+  flushEditorBeforeDiscreteWrite,
+  onChapterOpened,
+  replaceEditorSegment,
+} from './panels/editorPanelState'
 import { resetReviewScrollers, scrollReviewPairIntoView } from './reviewScrollSync'
 
 export type ReviewModeStatus = 'idle' | 'loading' | 'open' | 'not_imported' | 'stale' | 'no_chapter' | 'error' | 'diff_failed'
@@ -210,6 +214,7 @@ export async function openReviewMode(chapterId: number | null): Promise<void> {
   }
 
   status.value = 'loading'
+  openChapterId = chapterId
 
   const result = await alignmentOpen(chapterId)
   if (mySequence !== sequence) return
@@ -227,7 +232,6 @@ export async function openReviewMode(chapterId: number | null): Promise<void> {
     unmatchedSegmentIds.value = result.alignment.unmatched_segment_ids
     unmatchedRowIds.value = result.alignment.unmatched_row_ids
     pairs.value = diff.diff.pairs
-    openChapterId = chapterId
     previousOwner = activeDockPanelId()
     status.value = 'open'
     setDockSuspended(true)
@@ -456,4 +460,9 @@ export async function reviewSkipChange(): Promise<void> {
 onAlignmentClosed((event) => {
   if (status.value !== 'open' || openChapterId === null || event.chapterId !== openChapterId) return
   void reload(openChapterId, sequence)
+})
+
+onChapterOpened((chapterId) => {
+  if (status.value === 'idle' || chapterId === openChapterId) return
+  void closeReviewMode()
 })

@@ -15,6 +15,7 @@ vi.mock('../../src/panels/editorPanelState', () => ({
   editorSegments: ref([]),
   editorChapterId: chapterId,
   flushEditorBeforeDiscreteWrite: () => Promise.resolve('clean'),
+  onChapterOpened: () => () => {},
 }))
 vi.mock('../../src/modes/libraryChapters', () => ({ libraryChapters: chapters }))
 
