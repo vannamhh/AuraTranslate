@@ -400,8 +400,6 @@ function onKeydown(event: KeyboardEvent): void {
                 >
                   <input v-model="currentCategoryModel" type="radio" name="gq-category" class="gq-sr-only" :value="opt.value" />
                   {{ t(opt.labelKey) }}
-                  <!-- aura-allow-text: chữ số phím tắt. -->
-                  <sup class="gq-chip-digit">{{ opt.digit }}</sup>
                 </label>
               </div>
               <p class="gq-hint">{{ t('glossary.queue.category_not_persisted_hint') }}</p>
@@ -710,10 +708,6 @@ function onKeydown(event: KeyboardEvent): void {
   position: relative;
 }
 
-.gq-chip-digit {
-  font-family: var(--face-ui-mono);
-  font-size: var(--font-ui-mono);
-}
 
 .gq-stop,
 .gq-footer {

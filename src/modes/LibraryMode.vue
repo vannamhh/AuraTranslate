@@ -1147,19 +1147,17 @@ const importScreenIsOpen = computed<boolean>(
   background: var(--color-surface);
 }
 
-.work-cell:not(.work-cell--current):focus-visible {
+.work-cell:focus-visible {
   outline: none;
   border-color: var(--color-primary);
 }
 
 .work-cell:hover {
-  border-color: var(--color-outline);
+  border-color: var(--color-primary);
 }
 
-/* The selected card is told apart by a 2px primary ring, not by colour alone. */
 .work-cell--current {
   border-color: var(--color-primary);
-  outline: 1px solid var(--color-primary);
 }
 
 .work-cover {
