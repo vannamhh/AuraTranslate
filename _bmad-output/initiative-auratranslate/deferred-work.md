@@ -13864,6 +13864,7 @@ chính nó.
 - `npm run build` đỏ từ `afdc4205` vì `scripts/gen-zh-fold.mjs` có lỗi kiểu ở `tsconfig.node.json`; `pre-push` sẽ chặn, `cargo test` chạy trên `dist/` cũ.
   Cần: sửa kiểu trong tệp đó, không nới `tsconfig`.
   Chủ: Ice. Trỏ: `scripts/gen-zh-fold.mjs`.
+  → ✅ ĐÃ ĐÓNG 2026-11-01 (Story 14.13): sửa kiểu trong tệp, `tsconfig` giữ nguyên, `npm run build` thoát 0, bảng sinh lại giống hệt `zh_fold.txt` đã commit.
 
 ## Deferred from: `epic-dich-nhanh` (2026-11-01)
 

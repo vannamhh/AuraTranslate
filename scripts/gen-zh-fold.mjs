@@ -19,12 +19,17 @@ const options = {
 }
 const args = process.argv.slice(2)
 for (let i = 0; i < args.length; i += 2) {
-  if ((args[i] !== '--db' && args[i] !== '--out') || args[i + 1] === undefined) {
-    console.error(`unknown or incomplete argument '${args[i]}'. Usage: gen-zh-fold.mjs [--db <path>] [--out <path>]`)
+  const flag = args[i]
+  const value = args[i + 1]
+  if ((flag !== '--db' && flag !== '--out') || value === undefined) {
+    console.error(`unknown or incomplete argument '${flag}'. Usage: gen-zh-fold.mjs [--db <path>] [--out <path>]`)
     process.exit(1)
   }
-  options[args[i].slice(2)] = resolve(args[i + 1])
+  options[flag === '--db' ? 'db' : 'out'] = resolve(value)
 }
+
+/** @param {unknown} error */
+const messageOf = (error) => (error instanceof Error ? error.message : String(error))
 
 const inList = SOURCES.map((s) => `'${s}'`).join(',')
 const sql =
@@ -35,7 +40,7 @@ let raw
 try {
   raw = execFileSync('sqlite3', ['-readonly', options.db, sql], { encoding: 'utf8', maxBuffer: 1 << 28 })
 } catch (error) {
-  console.error(`gen-zh-fold: cannot read ${options.db}: ${error.message}\nThis is an infrastructure failure, not a pass.`)
+  console.error(`gen-zh-fold: cannot read ${options.db}: ${messageOf(error)}\nThis is an infrastructure failure, not a pass.`)
   process.exit(1)
 }
 
@@ -49,7 +54,7 @@ try {
     .split('\n')
     .filter((line) => line !== '')
 } catch (error) {
-  console.error(`gen-zh-fold: cannot read source versions: ${error.message}\nThis is an infrastructure failure, not a pass.`)
+  console.error(`gen-zh-fold: cannot read source versions: ${messageOf(error)}\nThis is an infrastructure failure, not a pass.`)
   process.exit(1)
 }
 if (versions.length !== SOURCES.length) {
@@ -57,12 +62,21 @@ if (versions.length !== SOURCES.length) {
   process.exit(1)
 }
 
-const inRange = (ch) => {
+/** @param {string} ch */
+const codePointOf = (ch) => {
   const cp = ch.codePointAt(0)
+  if (cp === undefined) throw new Error('gen-zh-fold: empty character; this is an infrastructure failure, not a pass.')
+  return cp
+}
+
+/** @param {string} ch */
+const inRange = (ch) => {
+  const cp = codePointOf(ch)
   return cp >= 0x3400 && cp <= 0xffff
 }
 
 const parent = new Map()
+/** @param {string} x */
 const find = (x) => {
   let root = x
   while (parent.get(root) !== root) root = parent.get(root)
@@ -73,6 +87,7 @@ const find = (x) => {
   }
   return root
 }
+/** @param {string} x */
 const add = (x) => {
   if (!parent.has(x)) parent.set(x, x)
 }
@@ -89,7 +104,7 @@ for (const line of raw.split('\n')) {
   const ra = find(a[0])
   const rb = find(b[0])
   if (ra !== rb) {
-    if (ra.codePointAt(0) < rb.codePointAt(0)) parent.set(rb, ra)
+    if (codePointOf(ra) < codePointOf(rb)) parent.set(rb, ra)
     else parent.set(ra, rb)
   }
   pairs += 1
