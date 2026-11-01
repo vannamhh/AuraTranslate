@@ -9,7 +9,7 @@ paradigm: 'Hexagonal liều thấp (ports & adapters) trong Rust core, webview m
 scope: 'Toàn bộ AuraTranslate v1 — mười nhóm năng lực C1–C10, 131 FR, 19 NFR'
 status: final
 created: '2026-08-02'
-updated: '2026-10-27'
+updated: '2026-11-01'
 binds: [C1, C2, C3, C4, C5, C6, C7, C8, C9, C10]
 sources:
   - '_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md'
@@ -130,13 +130,16 @@ graph LR
   | `<Tên>.atproj/` | **nguồn sự thật** của một Tác phẩm | đọc + ghi |
   | `global.db` | nguồn sự thật của tầng Global | đọc + ghi |
   | `library-index.db` | **dẫn xuất** | đọc + ghi, chỉ bởi Indexer |
+  | `quick-translation.db` *(🔵 2026-11-01, AD-64)* | **bộ đệm, xoá được** | đọc + ghi, chỉ bởi `core/quick_translation` |
   | OS keychain | chỉ API key | đọc + ghi, chỉ bởi Rust |
 
 ### AD-8 — Chỉ mục Library là dẫn xuất, một đường ghi duy nhất
 
 - **Binds:** C1, C9
 - **Prevents:** có chỗ ghi thẳng vào chỉ mục cho nhanh → FR98 và NFR10 mất hiệu lực; hoặc thao tác sửa chữa hiển nhiên nhất (xoá chỉ mục hỏng rồi dựng lại) xoá luôn Glossary/TM toàn cục người dùng tích luỹ hàng năm.
-- **Rule:** `library-index.db` là **file riêng**, không nằm chung `global.db`. Chỉ component `Indexer` được ghi vào nó, và chỉ ghi **sau khi** `.atproj` đã ghi xong. Xoá `library-index.db` phải luôn là thao tác an toàn. Danh sách, lọc, sắp xếp và tìm kiếm của Library **đọc từ `library-index.db`**; `meta.json` là thứ `Indexer` đọc khi quét (FR99) và là đường dựng lại khi chỉ mục vắng mặt — không phải nguồn Library đọc trực tiếp lúc chạy.
+- **Rule:** 🔵 2026-11-01: `quick-translation.db` của AD-64 dùng cùng khuôn file riêng, xoá luôn an toàn.
+
+  `library-index.db` là **file riêng**, không nằm chung `global.db`. Chỉ component `Indexer` được ghi vào nó, và chỉ ghi **sau khi** `.atproj` đã ghi xong. Xoá `library-index.db` phải luôn là thao tác an toàn. Danh sách, lọc, sắp xếp và tìm kiếm của Library **đọc từ `library-index.db`**; `meta.json` là thứ `Indexer` đọc khi quét (FR99) và là đường dựng lại khi chỉ mục vắng mặt — không phải nguồn Library đọc trực tiếp lúc chạy.
 
 ### AD-9 — `.atproj` là một thư mục
 
@@ -158,7 +161,7 @@ graph LR
 
 - **Binds:** mọi module ghi dữ liệu
 - **Prevents:** writer starvation và gai trễ không dự đoán được → NFR2 mất hiệu lực mà không lần ra được nguyên nhân.
-- **Rule:** mỗi kho ghi được (`project.db`, `global.db`, `library-index.db`) có **đúng một** kết nối ghi, đặt sau một hàng đợi nối tiếp. Đọc dùng pool nhiều kết nối song song (WAL). **Không module nào được tự mở kết nối ghi.**
+- **Rule:** mỗi kho ghi được (`project.db`, `global.db`, `library-index.db`, 🔵 2026-11-01 `quick-translation.db` của AD-64) có **đúng một** kết nối ghi, đặt sau một hàng đợi nối tiếp. Đọc dùng pool nhiều kết nối song song (WAL). **Không module nào được tự mở kết nối ghi.**
 
 ### AD-12 — Thời điểm checkpoint là quyết định của ứng dụng
 
@@ -216,6 +219,8 @@ graph TD
 - **Binds:** tất cả
 - **Prevents:** NFR12 (không telemetry) bị vi phạm vô tình qua crash reporter, thư viện analytics, hoặc một font CDN trong frontend.
 - **Rule:** (1) adapter `TranslationProvider`; (2) kiểm tra phiên bản mới (FR111, chỉ kiểm tra và thông báo); (3) `Fetcher` của đường nhập từ URL (FR122, AD-40). **Không có điểm thứ tư.**
+
+  🔵 2026-11-01: dịch nhanh ở điểm (1) được tự chạy cho chữ đang hiện khi người dùng đã bật tuỳ chọn; phạm vi ở AD-64 mục 1.
 
   **Cả ba chỉ chạy theo một thao tác người dùng.** Điểm thứ ba mang thêm ràng buộc của NFR19: **không tải nền, không prefetch, không kiểm tra ngầm, không tải lại ảnh đã có** *(khoá so sánh khai ở AD-41)*, và danh sách domain đã gọi phải **xem được trong ứng dụng**. Cưỡng chế ở AD-41.
 
@@ -375,7 +380,9 @@ graph TD
 
 - **Binds:** C9, C1, tất cả
 - **Prevents:** trụ định vị #3 (*dữ liệu phải sống lâu hơn phần mềm*) chết ở đúng chỗ nó được kiểm chứng. Một `.atproj` sống qua bảy giai đoạn xây dựng và hai đến ba năm; FR97 hứa copy sang máy khác mở được — nhưng máy đó chạy bản khác. Không có quy tắc, mỗi giai đoạn sẽ đổi lược đồ theo cách riêng và làm hỏng dữ liệu cũ **im lặng**.
-- **Rule:** `meta.json`, `project.db` và `global.db` mỗi cái mang một số **phiên bản lược đồ**. Khi mở, ứng dụng chạy các bước di trú **chỉ tiến** cho tới phiên bản hiện tại, trong một giao dịch, sau khi đã sao lưu. Gặp phiên bản **mới hơn** ứng dụng thì **từ chối mở** và báo rõ, không bao giờ ghi vào. `library-index.db` không di trú — xoá và dựng lại (AD-8).
+- **Rule:** 🔵 2026-11-01: `quick-translation.db` (AD-64) ngoài luật này, lệch phiên bản thì xoá rồi dựng lại như `library-index.db`.
+
+  `meta.json`, `project.db` và `global.db` mỗi cái mang một số **phiên bản lược đồ**. Khi mở, ứng dụng chạy các bước di trú **chỉ tiến** cho tới phiên bản hiện tại, trong một giao dịch, sau khi đã sao lưu. Gặp phiên bản **mới hơn** ứng dụng thì **từ chối mở** và báo rõ, không bao giờ ghi vào. `library-index.db` không di trú — xoá và dựng lại (AD-8).
 
 ### AD-31 — Vòng đời trạng thái segment là một máy trạng thái tường minh
 
@@ -1488,6 +1495,48 @@ graph TD
 
   → bằng chứng: `plan-gap-phon-gian-matcher.md` · đo A/B bản `test` chưa tối ưu trên máy Ice, tải 15–19, Tác phẩm thật 9.031 ký tự, 200 câu, 500 thuật ngữ, hai lượt mỗi bản: cả Chương 79,6/99,4 ms trước và 91,9/91,6 ms sau; từng câu một trọn 200 câu 137/252 ms trước và 550/411 ms sau, tức ~2–2,8 ms mỗi câu (trước ~0,7–1,3 ms), dưới trần 50 ms của NFR2 ở bản chưa tối ưu; đo trên `ZH_FOLD` bản băm, chưa đo lại sau khi đổi sang bảng chỉ số · `plan-gap-phon-gian-tm-va-quick-add.md`: bản `test`, 20.000 hàng tổng hợp, `fuzzy_pairs_in_candidates` ~368–404 ms mỗi truy vấn khi tắt gấp, ~395–400 ms khi bật, khoảng +6%; `target_suggestions_for_term` 2,2–7,1 ms ở tầng Global, không có lượt trúng · `reviews/review-ad-63-winston-2026-11-01.md`.
 
+### AD-64 — Dịch nhanh chạy bằng cấu hình riêng, được tự chạy cho chữ đang hiện, kết quả giữ trong `quick-translation.db` tới khi dọn
+
+- **Binds:** C1, C4, C6, C9. Các chỗ trong mã:
+  - `core/aiconfig/keychain.rs` (`entry`, `read`, `set`, `delete`, `configured` nhận ô khoá), `core/aiconfig/mod.rs` (trường cấu hình nhanh).
+  - `core/quick_translation/` (mới): `quick_key`, đọc, ghi, đếm, dọn. Không phụ thuộc `core::ai` (AD-13).
+  - `core/store/` (`StoreKind::QuickTranslation`, đường `VACUUM` của `Writer`).
+  - `core/ai/rag.rs` (`assemble_context_reference_prompt`, hàm lắp prompt của lô khối), `core/ai/batch.rs` (`guard_text`, `BlockStream`, `reconcile`).
+  - `commands/aitranslate.rs` (`resolve_quick_call_config`, `prepare_context_reference_call`, `QuickTranslateGeneration` thay `ContextReferenceGeneration`), `commands/glossary.rs` (`glossary_context_translation`), `lib.rs`.
+  - Frontend: `src/glossaryQueueState.ts`, `src/GlossaryQueueOverlay.vue`, `src/ImportPreviewOverlay.vue`, `src/importPreviewState.ts`, `src/SettingsDataSection.vue`, mục cấu hình AI ở Cài đặt.
+- **Prevents:**
+  1. Duyệt 91 ứng viên hoặc một trang web nhiều khối bằng model dịch chính: tiền của người dùng chảy theo từng cú chuyển hàng mà không có một cú bấm nào (AD-22, FR75).
+  2. Hai bề mặt tự chạy với hai điều kiện khác nhau, hoặc cổng chỉ nằm ở webview, nên tắt tuỳ chọn rồi mà lời gọi vẫn đi.
+  3. Bộ đệm nằm trong `project.db` thì tầng khối nhập URL không có chỗ lưu, vì lúc đó chưa có Tác phẩm. Nằm trong `global.db` thì dữ liệu bỏ được đi chung cấu hình và Glossary (AD-8, AD-30).
+  4. Câu dịch tham khảo lọt vào văn bản, TM hoặc Glossary mà không qua xác nhận (AD-47).
+  5. Hai bề mặt băm cùng một câu theo hai cách, nên một câu thành hai hàng và trả tiền hai lần.
+  6. Khoá API chính bị gửi tới endpoint của cấu hình nhanh khai dở.
+  7. Bản dịch cắt ngang được lưu thành bản dịch của câu đó, hoặc lượt đã trả tiền bị bỏ trắng khi người dùng cuộn tiếp.
+  8. Người dùng bấm Dọn mà ổ đĩa không lấy lại được chỗ, hoặc lượt muộn ghi lại hàng ngay sau khi dọn.
+- **Rule:**
+  1. **Phạm vi nới AD-15.** Điểm ra mạng vẫn là adapter `TranslationProvider`, không có điểm thứ tư. Dịch nhanh là đường duy nhất được gọi mạng mà không cần một cú bấm riêng, khi đủ hai điều kiện: `app_config` `quick_translate_auto` bật (mặc định tắt) và cấu hình nhanh đã khai endpoint cùng model của chính nó. Tự chạy chỉ dịch chữ đang hiện: hàng đang mở ở Bảng chờ Glossary và các khối đang thấy ở tầng Giữ/Loại khối. Không chạy nền, không dịch trước, không chạy khi lớp phủ đã đóng, không bắt đầu khi lô dịch thật đang chạy. Lệnh nhận `trigger` là `auto` hoặc `manual`; với `auto`, Rust tự đọc lại hai điều kiện ngay lúc gọi và trả `auto_off`, không gọi mạng. Cổng ở webview chỉ để đỡ một lượt IPC.
+  2. **Cấu hình.** Cấu hình nhanh gồm `provider`, `endpoint`, `model`, chỉ ở tầng Global và do `resolve_quick_call_config` đọc qua `ScopeResolver::global_only()`, không cần `OpenWork`. Khoá ở account keychain `ai_quick_provider_api_key`. Thiếu cả endpoint lẫn model thì cú bấm tay dùng trọn cấu hình chính ở tầng Global: nhà cung cấp, endpoint, model và khoá đi cùng nhau, không theo tầng Work. Khai một nửa là `not_configured`, không mượn phần còn lại. Tự chạy không bao giờ dùng cấu hình chính.
+  3. **Kho.** `quick-translation.db` ở `$APPDATA` là file riêng theo tiền lệ AD-8, xoá luôn an toàn, mất nó chỉ tốn tiền dịch lại. Có đúng một hàm mở kho, dùng lại `delete_if_schema_version_differs`, và thêm nhánh xoá rồi dựng lại khi tệp hỏng. Mở thất bại thì ghi log, app chạy tiếp và dịch nhanh báo lỗi. Một kết nối ghi (AD-11).
+  4. **Khoá và bảng.** `quick_key(text)` chuẩn hoá NFC rồi cắt khoảng trắng hai đầu, là nơi duy nhất sinh khoá. Bảng `quick_translation`: `id` (rowid), `source_hash` BLOB `UNIQUE` là sha256 của `quick_key`, `source_text`, `translated_text`, `model`, `created_at`. Một chuỗi nguồn một hàng, chung mọi Tác phẩm. `model` và phiên bản prompt không nằm trong khoá, nên đổi model không dịch lại. `context_example` đã cắt ở 200 ký tự là một chuỗi nguồn như mọi chuỗi khác: bản dịch của nó đúng cho chính chuỗi cắt đó và không được dùng cho câu đầy đủ.
+  5. **Chỉ lưu kết quả trọn vẹn.** Một lượt một câu chỉ lưu khi `state` là `done` và `maybe_truncated` là `false`. Lô khối lưu từng khối đóng đúng ngay khi đọc được, kể cả khi lượt sau đó bị huỷ, vì tiền đã trả. Ghi thường là `INSERT OR IGNORE`, chỉ `Dịch lại` mới `REPLACE`. Câu ghi nằm trong job của `Writer` và kiểm lại `generation` ở đó, nên lượt đã bị huỷ hoặc đã bị Dọn không ghi được. Không đường nào của dịch nhanh ghi `target_text`, TM hay Glossary.
+  6. **Thứ tự đọc.** Bảng chờ Glossary: bản dịch có sẵn trong Tác phẩm, rồi bộ đệm, rồi mới gọi mạng. Tầng khối: bộ đệm, rồi gọi mạng. Trúng bộ đệm thì không có lời gọi mạng nào. Câu dịch hiển thị như chữ thuần (AD-16), kèm nhãn nguồn và model thật đã dịch.
+  7. **Lô khối.** Tuỳ chọn tắt thì tầng khối có nút dịch các khối đang thấy. Một lượt gom các khối đang thấy mà bộ đệm chưa có, tối đa `QUICK_BATCH_MAX_BLOCKS` khối và `QUICK_BATCH_MAX_CHARS` ký tự. Dùng lại `guard_text`, `BlockStream`, `reconcile` và dấu khối của AD-60, không dùng `run_translate_operation` hay `plan_calls` vì chúng gắn `segment_id`. Chữ trang web luôn qua `guard_text`. Prompt cố định do hàm thuần lắp (AD-14). Khối đang nằm trong một lượt chạy không được gửi lại.
+  8. **Một lượt chạy.** Cả app có một lượt dịch nhanh tại một thời điểm, không đụng `AiTranslateGeneration`. Webview cấp `run_id`, và lệnh huỷ phải đúng `run_id` mới có tác dụng, nên đóng một bề mặt không huỷ lượt của bề mặt kia và lệnh huỷ muộn không giết lượt mới. Lượt mới cùng bề mặt thay lượt cũ; khác bề mặt thì trả `busy`, không gọi mạng. Rời hàng, rời màn, đóng lớp phủ hoặc tắt tuỳ chọn thì huỷ. Cuộn không huỷ lô đang chạy; khối mới chờ lô đó xong. Tự chạy chờ con trỏ hoặc cuộn dừng rồi mới gọi; đổi tuỳ chọn thì xoá bộ đếm giờ đang chờ.
+  9. **Lỗi không tự gửi lại.** Hàng hoặc khối vừa lỗi hay thiếu kết quả được đánh dấu trong phiên; tự chạy bỏ qua nó, chỉ cú bấm mới thử lại (AD-22, FR75).
+  10. **Dọn.** Cài đặt → Dữ liệu hiện số câu, dung lượng và số câu theo model. `Dọn tất cả` và `Dọn câu đã dịch hơn N ngày` (tính theo `created_at`) đều huỷ lượt đang chạy, xoá hàng, rồi `VACUUM` và `wal_checkpoint(TRUNCATE)`. Không xoá tệp vì Windows không xoá được tệp đang có kết nối ghi. `Writer` bọc mọi job trong transaction nên cần thêm một đường không transaction; `VACUUM` lỗi thì báo lỗi, hàng đã xoá vẫn xoá. Không tự dọn, không trần dung lượng.
+  11. **FR71 và FR76.** Prompt cố định, phần thay đổi duy nhất là chữ đang hiện trên màn hình, nên FR71 không áp dụng: dịch nhanh không ghi `AiCallRecords`, không đổi `LastAssembledPromptState`. FR76 vẫn áp dụng: mỗi bề mặt hiện số token và chi phí ước tính của lượt vừa chạy bằng `aiUsageLine`, không lưu xuống đĩa.
+  12. **Test canh.** Mỗi đối chứng đỏ là một phép gỡ thật.
+     (a) Mục 1: gọi lệnh thật với `trigger: auto` khi tuỳ chọn tắt và khi cấu hình nhanh trống đều trả `auto_off`, 0 lời gọi mạng, ở cả hai bề mặt; tắt tuỳ chọn trong lúc chờ không có lời gọi nào.
+     (b) Mục 2: cấu hình khai một nửa không đọc khoá chính; bấm tay khi đang mở Tác phẩm có tầng Work vẫn đọc tầng Global.
+     (c) Mục 4: một câu đi qua hai bề mặt ra đúng một hàng.
+     (d) Mục 5: huỷ, lỗi, `maybe_truncated` không để lại hàng; lô huỷ giữa chừng giữ các khối đã đóng; ảnh chụp `segment`, `tm_unit`, `glossary_entry` không đổi qua lệnh thật.
+     (e) Mục 6: trúng bộ đệm thì 0 lời gọi tới `TranslationProvider`.
+     (f) Mục 8: huỷ sai `run_id` không dừng lượt đang chạy; huỷ dịch nhanh không đổi `AiTranslateGeneration`; bề mặt thứ hai nhận `busy`.
+     (g) Mục 10: dung lượng tệp giảm sau khi dọn; lượt đang chạy không ghi hàng sau khi dọn.
+     (h) Mục 3 và AD-13: một ca ranh giới kiểu `tests/library_index_boundary.rs` đòi đúng một chỗ mở kho, `ai_boundary` đòi `core/quick_translation` không phụ thuộc `core::ai`.
+  13. **Đổi gì, không đổi gì.** AD-8, AD-11, AD-15, AD-30 và dòng `Ra mạng` của bảng Consistency nhận dòng 🔵 trỏ về đây. `prepare_context_reference_call` chuyển sang `resolve_quick_call_config`, nên `Dịch thử` không còn đọc tầng Work và không còn cần `OpenWork`. Hai lời hứa của `plan-cau-dich-tham-khao-bang-cho-glossary.md` về giữ trong bộ nhớ và không tự gọi khi chuyển hàng hết hiệu lực khi AD này được thi hành. Thêm một phụ thuộc trực tiếp `sha2`, đã có sẵn trong `Cargo.lock`. Rust mở tệp trực tiếp nên không đổi capability. PRD §Kết nối mạng và FR mới thuộc lượt correct-course của John.
+- **Chưa chốt:** `QUICK_BATCH_MAX_BLOCKS`, `QUICK_BATCH_MAX_CHARS`, thời gian chờ của tự chạy và giá trị N chưa có số đo; story đo trước khi chốt. Không có trần số lượt mỗi phiên, vì tự chạy chỉ theo chữ người dùng đang xem.
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -1501,7 +1550,7 @@ graph TD
 | **Chữ "xuất xứ" chỉ BỐN thực thể rời nhau** | Bản dịch (FR117, AD-47) · mục Glossary (FR47, AD-36) · tài liệu nguồn (FR128/FR131, AD-43) · trích dẫn từ điển (FR30). Định danh trong mã phải **tự phân biệt được**; `origin` trần thì không — chữ đó đã đông nghĩa ở frontend (`WorkspaceDock.vue:416` dùng `origin === 'user'` cho lượt kích hoạt panel) |
 | **Segment của ảnh** | Alt-text và caption đều là `Segment` bình thường mang trường **vai**, không phải danh sách rời và không phải cột trên `ASSET` (AD-42). `alt` mang `ord` **đúng vị trí ảnh**; `caption` mang `ord` **ngay sau ảnh** (FR42–FR44, FR129) |
 | **Đường nhập** | Mọi nguồn đi qua **cùng một pipeline, cùng thứ tự** (AD-39). Xem trước luôn hiện kết quả **sau toàn bộ chuỗi** |
-| **Ra mạng** | Đúng ba điểm, cả ba theo thao tác người dùng (AD-15). Điểm nhập từ URL đi qua `Fetcher` và chỉ `Fetcher` (AD-40), canh bởi allowlist một-lần-nhập (AD-41) |
+| **Ra mạng** | Đúng ba điểm, cả ba theo thao tác người dùng (AD-15). 🔵 2026-11-01: dịch nhanh được tự chạy trong phạm vi AD-64 mục 1. Điểm nhập từ URL đi qua `Fetcher` và chỉ `Fetcher` (AD-40), canh bởi allowlist một-lần-nhập (AD-41) |
 | **Cổng lắng nghe** | Bản phát hành mở **0** cổng nghe. Công cụ cần máy chủ đi qua hai lớp chặn của AD-45 — `optional` + feature ngoài `default`, **và** `debug_assertions`; `check-deps.mjs` Kiểm 1b canh vế đó |
 | **Ngày giờ** | Lưu ISO-8601 UTC trong database; định dạng hiển thị chỉ ở frontend |
 | **Thao tác giao diện** | Luôn đăng ký trong `CommandRegistry` rồi mới bind vào chuột/phím (AD-34). Không thao tác nào chỉ tồn tại trong một handler chuột |
@@ -1541,6 +1590,7 @@ Kiểm chứng trên crates.io và tài liệu chính thức ngày 2026-08-02.
 | `zh_fold.txt` *(dữ liệu sinh ra, không phải crate; AD-63)* | — | CC-BY-SA-4.0 (cc-cedict, cvdict) · Unicode-3.0 (unihan) ✓ |
 | `tantivy-stemmers` | 0.4.0 | BSD-3-Clause ✓ |
 | `docx-rs` | 0.4.22 | MIT ⚠️ |
+| `sha2` *(🔵 2026-11-01, AD-64; `Cargo.toml` phụ thuộc trực tiếp, đã có sẵn trong `Cargo.lock`; đọc `LICENSE-MIT`, `LICENSE-APACHE` trong nguồn đã tải)* | 0.10.9 | MIT OR Apache-2.0 ✓ |
 | `keyring` *(provenance sửa lại — xem ngay dưới)* | 4.1.6 | MIT OR Apache-2.0 ✓ |
 | `keyring-core` *(`[dev-dependencies]` — cài `keyring_core::mock::Store` cho test; production không khai tên nó, xem `Cargo.toml`)* | 1.0.0 | MIT OR Apache-2.0 ✓ |
 | `reqwest` *(feature `blocking` bật — 0 crate mới)* | **0.13.4** | MIT OR Apache-2.0 ✓ |
@@ -1703,7 +1753,7 @@ graph TB
   subgraph user["Máy người dùng"]
     APP["AuraTranslate — một cửa sổ, ba chế độ"]
     RES[("$RESOURCE/dict/*.db — chỉ đọc")]
-    APPD[("$APPDATA — global.db · library-index.db")]
+    APPD[("$APPDATA — global.db · library-index.db · quick-translation.db")]
     LIB[("thư mục gốc Library — *.atproj/")]
     KC[("OS keychain — API key")]
     APP --> RES
@@ -1802,7 +1852,7 @@ AuraTranslate/
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
 | **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57, AD-63 |
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51, AD-57, AD-63 |
-| **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57, AD-63 |
+| **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57, AD-63, AD-64 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22, AD-47, AD-49, AD-50, AD-53, AD-56 |
 | **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48, AD-51, AD-52, AD-63 |
 | **C9** Dự án & dữ liệu | `core/store/`, `ports/ProjectStore`, `core/scope/` | AD-7, AD-8, AD-9, AD-11, AD-12, AD-23, AD-28, AD-30, AD-31, AD-32, AD-33, AD-35, AD-37, AD-39, AD-41, AD-43, AD-54, AD-55, AD-56, AD-57 |
