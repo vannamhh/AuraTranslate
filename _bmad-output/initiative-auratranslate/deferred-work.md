@@ -13857,3 +13857,10 @@ chính nó.
 - `npm run build` đỏ từ `afdc4205` vì `scripts/gen-zh-fold.mjs` có lỗi kiểu ở `tsconfig.node.json`; `pre-push` sẽ chặn, `cargo test` chạy trên `dist/` cũ.
   Cần: sửa kiểu trong tệp đó, không nới `tsconfig`.
   Chủ: Ice. Trỏ: `scripts/gen-zh-fold.mjs`.
+
+## Deferred from: `epic-dich-nhanh` (2026-11-01)
+
+- Lượt dùng thật của Epic 15: khoá thật trên một Tác phẩm `zh`, một Tác phẩm `en` và một lần nhập URL, kể cả `Dọn` thu nhỏ tệp; test chỉ đo bằng nhà cung cấp giả.
+  Chủ: Epic 15. Trỏ: `tickets/epic-dich-nhanh/epic-dich-nhanh.md` §Done when.
+- Windows chưa đo: ô khoá thứ hai trong Credential Manager và `VACUUM` khi kho đang có kết nối ghi.
+  Chủ: B7. Trỏ: `tickets/epic-dich-nhanh/epic-dich-nhanh.md` §Done when.

@@ -86,3 +86,10 @@ slug = "epic-san-chuot"
 title = "Sàn chuột — mọi chức năng độc lập bấm được bằng chuột"
 description = "Mọi command là chức năng độc lập có đường bấm chuột, `check:commands` giữ điều đó với `POINTER_DEBT` rỗng."
 covers = []
+
+[[epic]]
+id = 15
+slug = "epic-dich-nhanh"
+title = "Dịch nhanh — hiểu câu nguồn bằng mô hình rẻ, không chạm văn bản"
+description = "Người dịch đọc hiểu câu nguồn ở Bảng chờ Glossary và màn xem trước nhập URL bằng cấu hình giá rẻ riêng, kết quả giữ tới khi dọn, không chạm văn bản."
+covers = ["FR153", "FR154", "FR155", "FR156", "FR157", "FR158"]

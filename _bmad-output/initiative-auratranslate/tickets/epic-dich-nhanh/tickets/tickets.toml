@@ -1,0 +1,84 @@
+# tickets.toml — epic-dich-nhanh. One [[entry]] per story; table order is the build order.
+
+[[entry]]
+id = 1
+type = "story"
+title = "`Dịch thử` ở Bảng chờ Glossary nhớ kết quả qua kho riêng"
+description = "Tracer bullet. Dựng `quick-translation.db` (`StoreKind::QuickTranslation`, đúng một hàm mở, xoá rồi dựng lại khi lệch schema hoặc hỏng, thêm phụ thuộc `sha2`), `core/quick_translation` (`quick_key`, đọc, ghi), `QuickTranslateGeneration` và `run_id` thay `ContextReferenceGeneration`. `Dịch thử` đọc bản dịch trong Tác phẩm, rồi kho, rồi mới gọi mạng; chỉ lưu khi `state` là `done` và `maybe_truncated` là `false`; câu ghi kiểm lại `generation` trong job của `Writer`. Webview hiện nhãn nguồn, mô hình thật, `Dịch lại`, token và chi phí, câu có thể bị cắt, kho không mở được; nút `Huỷ` nhận tiêu điểm và `Esc` đầu huỷ lượt. Thay lời hứa giữ trong bộ nhớ của `plan-cau-dich-tham-khao-bang-cho-glossary.md`. Story 15.3 và 15.4 dùng lại sổ `run_id` này."
+verify = "Spec e2e trên WKWebView: bấm `Dịch thử`, đóng lớp phủ, mở lại ở Tác phẩm khác có cùng câu thì câu dịch hiện với 0 lời gọi tới provider giả."
+covers = ["R2", "R5", "R6", "R7", "R8", "R10", "R12", "R13"]
+after = []
+hitl = false
+risk = "high"
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-64 mục 3–6, 8; đối chứng (d) phần một câu, (e), (f) phần `run_id`, (h)", "ux-auratranslate/EXPERIENCE.md §Một khuôn cho mọi câu dịch"]
+
+[[entry]]
+id = 2
+type = "story"
+title = "Khai cấu hình dịch nhanh riêng ở Cài đặt, `Dịch thử` chạy trên đó"
+description = "Keychain nhận ô khoá với account `ai_quick_provider_api_key`, `resolve_quick_call_config` đọc qua `ScopeResolver::global_only()` nên `Dịch thử` không còn đọc tầng Work và không cần `OpenWork`. Khối `Dịch nhanh` trong `AI và mô hình` ở `src/SettingsOverlay.vue`, có `Thử kết nối` riêng, dạng khoá ở tầng Tác phẩm kèm `Sửa ở tầng Toàn cục.`, ba dòng trạng thái theo độ đầy của cấu hình. Công tắc `Tự dịch` thuộc Story 15.5. `aiconfig_keychain_boundary.rs` và hai test đang chép cứng tên account giữ nguyên ý nghĩa cho ô chính."
+verify = "`cargo test --test aiconfig_contract` xanh với ca: đang mở Tác phẩm có ghi đè tầng Work, `Dịch thử` đi bằng cấu hình nhanh; khai một nửa thì `not_configured` và khoá chính không được đọc."
+covers = ["R1", "R12", "R13"]
+after = [1]
+hitl = false
+risk = "high"
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-64 mục 2, 13; đối chứng (b)", "ux-auratranslate/EXPERIENCE.md §Cài đặt › AI và mô hình"]
+
+[[entry]]
+id = 3
+type = "story"
+title = "Dịch các khối đang thấy ở màn xem trước nhập URL"
+description = "Pha đầu đo số khối và cỡ khối trên trang thật để chốt `QUICK_BATCH_MAX_BLOCKS`, `QUICK_BATCH_MAX_CHARS`. Lệnh lô mới gom các khối đang thấy mà kho chưa có, dùng `guard_text`, `BlockStream`, `reconcile`, không dùng `run_translate_operation` hay `plan_calls`; khoá lấy từ chữ gốc của khối, trước `guard_text`, nên một câu qua hai bề mặt ra một hàng; prompt lô do hàm thuần ở `rag.rs` lắp; lưu từng khối đóng đúng, kể cả khi lượt bị huỷ. Webview: câu dịch dưới chữ gốc với dòng `<mô hình> · Dịch lại`, khối ảnh không dịch, dòng đầu tầng, nút `Dịch các khối đang thấy`, `Đang dịch N khối` với `Huỷ`, khối thiếu kết quả, bù cuộn cho khối có con trỏ, nút không giữ tiêu điểm, `Esc` đầu huỷ lượt. Trạng thái `Đang dịch ở màn khác` làm ở cả hai bề mặt vì Bảng chờ Glossary mở được màn xem trước. Plan chia pha Rust và Webview theo AGENTS.md."
+verify = "Spec e2e trên WKWebView với provider giả: bấm dịch một trang nhiều khối, huỷ giữa chừng, mở lại thì khối đã đóng hiện với 0 lời gọi và chưa có Tác phẩm nào được tạo."
+covers = ["R3", "R5", "R7", "R8", "R10", "R12", "R13"]
+after = [1, 2]
+hitl = false
+risk = "high"
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-64 mục 7, 8; đối chứng (c), (d) phần lô, (f) phần `busy`", "ux-auratranslate/EXPERIENCE.md §Tầng khối ở màn xem trước nhập URL", "ux-auratranslate/mockups/dich-nhanh.html"]
+
+[[entry]]
+id = 4
+type = "story"
+title = "Dọn dữ liệu dịch nhanh ở Cài đặt → Dữ liệu"
+description = "`Writer` có thêm một đường không transaction cho `VACUUM` và `wal_checkpoint(TRUNCATE)`. Lệnh đếm số câu, dung lượng, số câu theo mô hình, đếm trước theo N; hai lệnh dọn huỷ lượt đang chạy ở mọi bề mặt qua sổ `run_id` của Story 15.1 rồi xoá hàng, bề mặt đang mở về trạng thái `Chưa có`. Hàng `Dịch nhanh` trong `src/SettingsDataSection.vue`: ô số mặc định 30 nhớ giá trị đã nhập, `Sẽ xoá N câu.`, `Dọn tất cả` xác nhận tại chỗ, câu kết quả, ca không thu nhỏ được tệp. Đứng trước tự dịch để dữ liệu tự sinh luôn có đường dọn."
+verify = "`cargo test --test quick_translation_contract` xanh với ca: dọn tất cả làm dung lượng tệp giảm, và lượt đang chạy không ghi được hàng sau khi dọn."
+covers = ["R7", "R9", "R12", "R13"]
+after = [1]
+hitl = false
+risk = "medium"
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-64 mục 10; đối chứng (g)", "ux-auratranslate/EXPERIENCE.md §Cài đặt › Dữ liệu"]
+
+[[entry]]
+id = 5
+type = "story"
+title = "Tự dịch hàng đang mở ở Bảng chờ Glossary"
+description = "`app_config` `quick_translate_auto`, công tắc `Tự dịch` trong khối `Dịch nhanh`, tự tắt khi cấu hình bị xoá. Dựng hàm cổng dùng chung ở Rust và thêm `trigger` vào `ai_context_reference_translate`; với `auto`, Rust đọc lại hai điều kiện và trả `auto_off`. Rust phải tự biết lô dịch thật đang chạy: `AiTranslateGeneration` hiện chỉ có `next` và `is_current`, không có cờ đang chạy, nên story thêm cờ đó, không tin webview. Chờ con trỏ dừng rồi mới gọi, đo để chốt thời gian chờ; đổi tuỳ chọn thì xoá bộ đếm giờ. Dấu đã lỗi trong phiên, huỷ khi rời hàng hoặc đóng lớp phủ, trạng thái `Lô dịch đang chạy nên tự dịch tạm dừng.`. Story 15.6 dùng lại hàm cổng này."
+verify = "Spec e2e trên WKWebView với provider giả: bật tuỳ chọn, lướt nhanh qua mười hàng thì chỉ hàng dừng lại có lời gọi; tắt tuỳ chọn thì 0 lời gọi."
+covers = ["R4", "R5", "R11", "R13"]
+after = [2]
+hitl = false
+risk = "high"
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-64 mục 1, 8, 9; đối chứng (a) phần Bảng chờ"]
+
+[[entry]]
+id = 6
+type = "story"
+title = "Tự dịch các khối đang thấy ở màn xem trước nhập URL"
+description = "Thêm `trigger` vào lệnh lô của Story 15.3, đi qua hàm cổng của Story 15.5. Cuộn không huỷ lô đang chạy, khối mới chờ lô đó xong; khối đang nằm trong một lượt không được gửi lại; khối đã lỗi bỏ qua tới khi đóng màn; tự dịch bật thì không có nút `Dịch các khối đang thấy`; hiện `Lô dịch đang chạy nên tự dịch tạm dừng.` khi lô dịch thật chạy."
+verify = "Spec e2e trên WKWebView với provider giả: bật tuỳ chọn, cuộn hết trang thì mỗi khối được gửi đúng một lần và các lô chạy nối tiếp."
+covers = ["R4", "R5", "R11", "R13"]
+after = [3, 5]
+hitl = false
+risk = "medium"
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-64 mục 1, 7, 8; đối chứng (a) phần tầng khối"]
+
+[[entry]]
+id = 7
+type = "story"
+title = "Refactor sweep"
+description = "Dọn các phát hiện review mà plan của Story 15.1–15.6 đã hoãn; chỉ dọn, phạm vi bị đẩy ra từ story khác là một story mới."
+verify = "Test canh của cả epic vẫn xanh và không còn mục hoãn nào của epic thiếu chủ."
+covers = []
+after = [1, 2, 3, 4, 5, 6]
+hitl = false
+risk = "low"
