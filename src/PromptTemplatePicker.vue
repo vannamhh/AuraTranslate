@@ -206,6 +206,7 @@ function onCloseTemplates(): void {
 }
 
 .pt-badge {
+  margin-block: -1px; /* aura-allow-spacing: the borders overhang the 21px line so the badge text stays on the label baseline */
   font-family: var(--face-ui-sm);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);

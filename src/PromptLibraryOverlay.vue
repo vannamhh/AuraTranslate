@@ -1069,6 +1069,10 @@ function onEscape(): void {
   padding: 0 6px; /* aura-allow-spacing: right/left border sits inside the 7px inset */
 }
 
+.pl-radio-label .pl-badge {
+  margin-block: -1px; /* aura-allow-spacing: the borders overhang the 21px line so the badge text stays on the label baseline */
+}
+
 .pl-badge-info {
   color: var(--color-on-surface-variant);
 }

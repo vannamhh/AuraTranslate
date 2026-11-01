@@ -69,6 +69,25 @@ describe('controls.css follows DESIGN.md §Điều khiển', () => {
     expect(box).toMatch(/height:\s*14px/)
   })
 
+  it('a one-line label fills the 28px row and its 14px box sits on the centre of the first 21px line', () => {
+    const LINE = 21
+    const label = declarations('.ui-check')
+    expect(label).toMatch(/align-items:\s*flex-start/)
+    expect(label).toMatch(/min-height:\s*28px/)
+    expect(label).toContain(`padding-block: ${(28 - LINE) / 2}px`)
+    const box = declarations('.ui-check input')
+    expect(box).toMatch(/align-self:\s*flex-start/)
+    expect(box).toContain(`margin: ${(LINE - 14) / 2}px 0 0`)
+  })
+
+  it('a fixed-height check centres its box and drops the first-line offset', () => {
+    for (const selector of ['.ui-check--bare input', '.ui-menu-item.ui-check input']) {
+      const box = declarations(selector)
+      expect(box).toMatch(/align-self:\s*center/)
+      expect(box).toMatch(/margin:\s*0/)
+    }
+  })
+
   it('a segmented control is 28px tall including its border, so it lines up with md buttons and fields', () => {
     expect(declarations('.ui-seg')).toMatch(/(^|;)\s*height:\s*28px/)
     expect(declarations('.ui-seg__item')).not.toMatch(/(^|;)\s*height:/)

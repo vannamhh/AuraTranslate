@@ -1991,6 +1991,7 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
 .ip-candidate {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: calc(var(--space-unit) * 1);
   padding: 6px; /* aura-allow-spacing: 1px border sits inside the 7px inset */
   border: 1px solid var(--color-outline);
@@ -2005,8 +2006,13 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   border-color: var(--color-primary);
 }
 
+.ip-candidate::before {
+  display: none;
+}
+
 .ip-candidate-radio {
-  align-self: flex-start;
+  align-self: center;
+  margin-top: 0;
 }
 
 .ip-candidate-label {

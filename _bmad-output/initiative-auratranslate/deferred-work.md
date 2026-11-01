@@ -13837,3 +13837,12 @@ chính nó.
 
 - Chưa dùng thật trong app: bôi `大紀元` khi Glossary có `大纪元` thì dải hiện dòng dạng chữ khác và Lưu được; một cặp TM dạng chữ kia hiện ở 99% và trong dải chốt.
   Chủ: Ice. Trỏ: `plan-gap-phon-gian-tm-va-quick-add.md` §Verification.
+
+## Deferred from: canh ô radio/checkbox lên dòng chữ đầu (2026-11-01)
+
+- WebView2 chưa đo: `.ui-check` nay canh ô bằng `padding-block` và `margin` 3,5px, số lẻ nửa điểm ảnh có thể làm tròn khác WKWebView.
+  Cần: `e2e/specs/check-box-on-text-line.e2e.mjs` xanh trên Windows, lệch không quá 0,5px.
+  Chủ: B7. Trỏ: `src/tokens/controls.css` `.ui-check`.
+- Thẻ bảng mã nhập tệp, đích nhập Library, nhập URL, tách Chương và Prompt mới đo bằng Playwright WebKit, chưa đo trong WKWebView vì cần tệp nguồn qua hộp thoại gốc.
+  Cần: mở từng lớp phủ trong app, ô nằm giữa dòng chữ đầu.
+  Chủ: Ice. Trỏ: `e2e/specs/check-box-on-text-line.e2e.mjs`.

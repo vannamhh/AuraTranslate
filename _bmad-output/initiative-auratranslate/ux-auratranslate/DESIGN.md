@@ -554,7 +554,7 @@ Chữ luôn `ui-md`, bo `3px`, viền 1px. Nút chỉ có biểu tượng là ô
 | Ô chọn (`SelectMenu`, `DropdownMenu` dạng field) | Dáng y như ô nhập, nhãn trái, dấu `▾` phải màu `on-surface-variant` |
 | Nút mở menu (Công cụ ▾, Nguồn 8/10 ▾) | Một nút Phụ hoặc Chìm có dấu `▾` — không phải một dáng thứ ba |
 | Mục trong menu | Cao bằng bậc `md`, đệm ngang 14px (🔵 2026-10-29 (Ice): từ 12px), không viền |
-| Checkbox · radio | Vẽ bằng token, ô 14px trong vùng bấm 28×28px (🔵 2026-10-29 (Ice): từ 24×24px) (WCAG 2.5.8; đệm trong suốt khi ô đứng riêng không có nhãn bọc, như `gh-check`, `ip-cleanup-tick`): viền `control-rule`, checkbox bo `2px`, radio tròn. Đang chọn: nền `on-surface`, dấu tick/chấm `surface`, như nút Chính và ô phân đoạn đang chọn. Không dùng `primary`, không để màu nhấn của hệ điều hành |
+| Checkbox · radio | Vẽ bằng token, ô 14px trong vùng bấm 28×28px (🔵 2026-10-29 (Ice): từ 24×24px) (WCAG 2.5.8; đệm trong suốt khi ô đứng riêng không có nhãn bọc, như `gh-check`, `ip-cleanup-tick`): viền `control-rule`, checkbox bo `2px`, radio tròn. Đang chọn: nền `on-surface`, dấu tick/chấm `surface`, như nút Chính và ô phân đoạn đang chọn. Không dùng `primary`, không để màu nhấn của hệ điều hành. 🔵 2026-11-01 (Ice): ô 14px nằm giữa dòng chữ đầu của nhãn, nhãn nhiều dòng thì ô theo dòng đầu; hàng một dòng vẫn cao 28px |
 | Công tắc (`role="switch"`) | Rãnh 28×14px (🔵 2026-10-29 (Ice): từ 28×16px) viền `control-rule`, núm `on-surface-variant`; bật: rãnh nền `on-surface`, núm `surface`. Chữ trạng thái vẫn đứng cạnh |
 | Nút phân đoạn · tab con · chip phím | Như §Ba cấp điều khiển |
 

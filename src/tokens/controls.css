@@ -318,9 +318,10 @@ summary.ui-field {
 
 .ui-check {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: calc(var(--space-unit) * 1);
   min-height: 28px;
+  padding-block: 3.5px; /* aura-allow-spacing: centres a 21px text line in the 28px row */
   color: var(--color-on-surface);
   font-family: var(--face-ui-md);
   font-size: var(--font-ui-md);
@@ -339,13 +340,13 @@ summary.ui-field {
 .ui-check input {
   display: grid;
   place-items: center;
-  align-self: center;
+  align-self: flex-start;
   flex: none;
   appearance: none;
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
-  margin: 0;
+  margin: 3.5px 0 0; /* aura-allow-spacing: centres the 14px box on the first 21px text line, however the label wraps */
   border: 1px solid var(--color-control-rule);
   border-radius: var(--radius-sm);
   background: var(--color-surface);
@@ -384,10 +385,18 @@ summary.ui-field {
 }
 
 .ui-check--bare {
+  align-items: center;
   justify-content: center;
   gap: 0;
   width: 28px;
   height: 28px;
+  padding-block: 0;
+}
+
+.ui-check--bare input,
+.ui-menu-item.ui-check input {
+  align-self: center;
+  margin: 0;
 }
 
 .ui-check input:focus-visible {
