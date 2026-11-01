@@ -71,7 +71,7 @@ context: []
 - [x] `src/panels/GridPanel.vue`, `src/panels/gridBlockContext.ts` -- bỏ Map, thêm `selectedFromIn(block)` và `selectedToIn(block)` trả số nguyên thuỷ -- khối ngoài vùng hoặc nằm trọn trong vùng giữ prop y nguyên.
 - [x] `src/panels/GridBlock.vue` -- hai prop mới; tám chỗ đọc đổi sang chỉ số `j`; `v-memo` theo boolean đã chọn.
 - [x] `tests/frontend/gridBlockRenderCost.test.ts` -- các hàng khối của I/O Matrix; đối chứng: cho khối đọc thẳng khoảng toàn cục, ca đỏ vì mọi khối render.
-- [ ] `_bmad-output/implementation-artifacts/14-13-ban-do/ket-qua.md` -- số sau xen kẽ với số trước; thêm bàn gõ `2-15-ban-do` trước và sau, 3 phiên mỗi bên ở 9.850 câu.
+- [x] `_bmad-output/implementation-artifacts/14-13-ban-do/ket-qua.md` -- số sau xen kẽ với số trước; thêm bàn gõ `2-15-ban-do` trước và sau, 3 phiên mỗi bên ở 9.850 câu.
 - [x] `_bmad-output/initiative-auratranslate/deferred-work.md` -- đóng mục `Chủ: Story 14.13` bằng số đo, hoặc giữ mở nếu rơi vào hàng "Sửa rồi vẫn trượt".
 
 **Acceptance Criteria:**
@@ -84,7 +84,8 @@ context: []
 
 - Một bước qua ranh khối chỉ đổi một hàng nên đúng một khối render, khớp §Always; test khẳng định `[1]`, Ice đã duyệt sửa hàng Matrix.
 - `dragSegmentSelectionFocus` vẫn `.map` qua proxy và `includes` ở mỗi `mouseover`: §Never giữ nguyên hàm này, đây có thể là vế `js` 4–5 ms còn lại.
-- AC gõ và AC chuột thật chưa đo: tiến trình agent lúc đó bị `-1743` (Automation), mục nợ `Chủ: Ice` giữ hai vế này; `app215-*`, `app-mouse` đã dựng sẵn, `run-mouse.sh` chưa chạy lần nào.
+- Bàn gõ và chuột thật chạy trong cửa sổ Ghostty theo yêu cầu của Ice, vì tiến trình Claude Code dưới `launchd` bị `-1743`; cả hai đạt, số ở `ket-qua.md`.
+- `Mod+Enter` 109–119 ms ở cả bản trước, vượt trần 100 ms và chậm hơn `8260a92`; không do story này, mục nợ `Chủ: Ice`.
 - Đối chứng gỡ thật: bỏ phép cắt theo khối ở `selectedFromIn`, `selectedToIn`, 5/7 ca vùng chọn đỏ vì cả 6 khối render; trả về byte y nguyên.
 - `npm run build` đỏ từ `afdc4205` nên bàn đo dùng `npx vite build`. 🔵 2026-11-01: đã sửa kiểu `scripts/gen-zh-fold.mjs`, build xanh.
 
@@ -94,7 +95,7 @@ context: []
 
 Lượt 1 (lens Quick): high 0 · medium 1 · low 5 · false 4 · maybe-false 0.
 
-- medium, chờ Ice: AC gõ và AC chuột thật chưa đo; do quyền `-1743` của host, không vá được từ đây, plan giữ `in-review`.
+- medium, chờ Ice: AC gõ và AC chuột thật chưa đo; do quyền `-1743` của host. 🔵 2026-11-01: đã đo, cả hai đạt.
 - low, patch: ✅ ở mục nợ quá sớm khi hai AC còn mở; đổi thành 🟡 `Chủ: Ice`, gộp mục tách riêng vào đó.
 - low, patch: đối chứng chưa ghi; chạy lại bằng phép gỡ thật, 5 ca đỏ, ghi ở Implementation Notes.
 - low, patch: `2-15-ban-do/build-215.sh` bị sửa tại chỗ; trả về, `app215-*` đã dựng nên không cần nó.

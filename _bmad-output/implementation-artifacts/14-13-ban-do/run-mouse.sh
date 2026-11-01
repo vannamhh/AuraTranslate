@@ -52,9 +52,9 @@ echo "warmup downs=$D"; [ "$D" -gt 0 ] || { echo "clicks swallowed"; exit 8; }
 J0=$J
 P2=$(pt 2); P3=$(pt 3); P4=$(pt 4); PF=$(pt 12)
 echo "points $P2 $P3 $P4 far=$PF"
-cc m:$P2; sleep 0.25; cc dd:$P2; sleep 0.15; cc dm:$P3; cc dm:$P4; sleep 0.2; cc du:$P4; sleep 0.5
+cc m:$P2; sleep 0.25; cc dd:$P2 m:$P3 m:$P4 du:$P4; sleep 0.5
 JD=$(snap)
-cc m:$PF; sleep 0.25; cc kd:shift; cc c:$PF; cc ku:shift; sleep 0.5
+cc m:$PF; sleep 0.25; cc kd:shift c:$PF ku:shift; sleep 0.5
 JS=$(snap)
 python3 - "$HERE/ket-qua-mouse-$LABEL.json" "$JD" "$JS" <<'PY'
 import json,sys

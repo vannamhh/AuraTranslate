@@ -13740,7 +13740,11 @@ chính nó.
   Cần: đo trên bản phát hành; còn trên 50 ms thì chỉ render lại khối có hàng đổi, cùng khuôn `caretId`.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-3-ban-do/ket-qua.md`.
   → 🔵 2026-11-01: Ice cho lập story riêng vì mục này giữ Epic 14 chưa đóng được. **Chủ: Story 14.13.**
-  → 🟡 2026-11-01 (Story 14.13): bản phát hành ký ad-hoc, 9.850 hàng, trước sửa 66–79 ms mỗi hàng, sau sửa khối chỉ render khi hàng đổi, trung vị 40–41 ms (liền nhau) và 45–48 ms (bước 167), 3 phiên xen kẽ, tải 5–9. Phần sau JS ~35 ms không đổi, gần nửa số bước 167 còn trên 50 ms. Còn thiếu bàn gõ `2-15` trước và sau, và lượt chuột thật: host agent bị `-1743`. Cần: Ice chạy `run-typing.sh` và `run-mouse.sh <nhãn> app-mouse` trong `14-13-ban-do/` ở terminal có quyền Automation và Accessibility, màn hình mở khoá. **Chủ: Ice.** Trỏ: `_bmad-output/implementation-artifacts/14-13-ban-do/ket-qua.md` §Chưa đo ở Pha 3.
+  → 🟡 2026-11-01 (Story 14.13): bản phát hành ký ad-hoc, 9.850 hàng, trước sửa 66–79 ms mỗi hàng, sau sửa khối chỉ render khi hàng đổi, trung vị 40–41 ms (liền nhau) và 45–48 ms (bước 167), 3 phiên xen kẽ, tải 5–9. Phần sau JS ~35 ms không đổi, gần nửa số bước 167 còn trên 50 ms. Còn thiếu bàn gõ `2-15` trước và sau, và lượt chuột thật: host agent bị `-1743`. Cần: Ice chạy `run-typing.sh` và `run-mouse.sh <nhãn> app-mouse` trong `14-13-ban-do/` ở terminal có quyền Automation và Accessibility, màn hình mở khoá. **Chủ: Ice.** Trỏ: `_bmad-output/implementation-artifacts/14-13-ban-do/ket-qua.md`.
+  → ✅ ĐÃ ĐÓNG 2026-11-01 (Story 14.13): bàn gõ 3 phiên mỗi bên, phím cuối 77–87 ms sau và 80–92 ms trước, `Mod+Enter` 111–119 ms sau và 109–119 ms trước; chuột thật tô đúng sau kéo và `Shift`+bấm.
+- `Mod+Enter` trên 9.850 câu đo 109–119 ms ở cả bản `baseline_revision` của 14.13, vượt trần 100 ms; nghiệm thu `8260a92` ngày 2026-10-24 đo 68–97 ms, phím cuối 56–77 ms nay 80–92 ms. Tải máy tương đương, nguyên nhân chưa quy được.
+  Cần: chặn đôi bằng bàn `2-15-ban-do` giữa `8260a92` và `27574847`.
+  Chủ: Ice. Trỏ: `_bmad-output/implementation-artifacts/14-13-ban-do/ket-qua.md` §Bàn gõ trước và sau.
 - Lượt dùng thật chuột trên cột số câu: kéo, `Shift`+bấm, ‹ › từ ô đang gõ.
   Cần: Ice chạy một lượt trên app thật.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-chon-nhieu-oan-va-chuyen-chuong-bang-chuot-plan.md` §Verification.

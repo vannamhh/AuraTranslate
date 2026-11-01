@@ -47,10 +47,25 @@ Số lượt trên 50 ms: trước 60/60 và 59/59 ở mọi lượt; sau 1–10
 
 ⇒ Trung vị 60 hàng kề đạt dưới 50 ms ở cả 3 phiên. Hình dạng 167 hàng cũng dưới 50 ms nhưng gần ngưỡng, gần nửa số bước vẫn vượt.
 
-Chưa đo: bàn gõ trước và sau (`../2-15-ban-do/`), chuột thật trên `app-after`. Lượt Pha 3 bị dừng khi bản trước của bàn gõ đang dịch.
 
-## Chưa đo ở Pha 3 (bị chặn bởi môi trường, không phải bởi mã)
+## Bàn gõ trước và sau
 
-- Bàn gõ `2-15-ban-do` trước và sau: hai bản `app215-before` (worktree `baseline_revision`) và `app215-after` (cây làm việc) đã dựng xong, ký ad-hoc, nhưng không chạy được phiên nào. Host agent lúc này báo `Not authorised to send Apple events to System Events (-1743)` và cliclick báo thiếu Accessibility, nên `require_front` đỏ (rc=5) ở 4 phiên thử, trước phím đầu tiên; không có số nào được ghi. Chạy lại: `./run-typing.sh` ở thư mục này, từ terminal có quyền Automation/Accessibility, màn hình mở khoá.
-- Chuột thật (AC cuối): `app-mouse` (cây làm việc, `bench-1413m.js` đọc `.row-selected` qua phím nóng Ctrl+Alt+Shift+M) đã dựng, `run-mouse.sh <nhãn> app-mouse` viết xong, chưa chạy lần nào, cùng lý do. Bàn chưa được kiểm chứng; không có đối chứng bản trước.
-- `.gitignore` của thư mục này giữ các bản dựng, HOME nháp và log ngoài git. `dist/` đã dựng lại sạch.
+Bàn `../2-15-ban-do/`: 300 phím ở 10 phím/giây rồi `Mod+Enter`, release ký ad-hoc, 9.850 câu, xen kẽ after và before, 3 phiên mỗi bên. `app215-before` dựng từ `baseline_revision`, `app215-after` từ cây làm việc. Tải máy: after 2,63 · 5,44 · 3,04; before 2,76 · 4,37 · 2,96. Số thô: `../2-15-ban-do/ket-qua-t14-<after|before>-<1..3>.json`.
+
+| Phiên | Phím cuối sau | Phím cuối trước | `Mod+Enter` sau | `Mod+Enter` trước |
+|---|---|---|---|---|
+| 1 | 87 | 92 | 111 | 116 |
+| 2 | 77 | 80 | 115 | 119 |
+| 3 | 80 | 88 | 119 | 109 |
+
+Mọi phiên đủ 300 phím, một phím chờ lúc phím cuối được gửi, ở cả hai bên. ⇒ Gõ không chậm đi: phím cuối sau thấp hơn trước ở cả 3 cặp, `Mod+Enter` nằm trong dao động của bản trước.
+
+⚠️ Cả hai bản đều chậm hơn nghiệm thu `8260a92` ngày 2026-10-24 (phím cuối 56–77, `Mod+Enter` 68–97), và `Mod+Enter` vượt trần 100 ms. Bản trước cũng vậy nên không do story này; nguyên nhân chưa quy được, ghi ở sổ nợ.
+
+## Chuột thật
+
+`app-mouse` (cây làm việc, `bench-1413m.js`), `run-mouse.sh`, `cliclick` sự kiện tin cậy, 9.850 câu. Kéo từ số câu 3 qua 4 tới 5: tô đúng chỉ số 2, 3, 4, 12 ô. `Shift`+bấm số câu 13: tô chỉ số 2–12, 44 ô, sự kiện mang `shiftKey`. Số thô: `ket-qua-mouse-m1.json`. Không có bản trước để đối chiếu; khớp luật Story 14.3.
+
+Lượt đầu tách cử chỉ thành nhiều tiến trình `cliclick` nên kéo không tới app và `Shift` không bám vào cú bấm; một cử chỉ phải nằm trong một lần gọi `cliclick`.
+
+Hai bàn này chạy trong cửa sổ Ghostty theo yêu cầu của Ice: tiến trình Claude Code treo dưới `launchd` nên macOS không xác định được app chịu trách nhiệm và trả `-1743`.
