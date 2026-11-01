@@ -51,7 +51,8 @@ use crate::core::glossary::{
     import_into_tier, list_all_entries, marks_for_source_text, match_lang_for_source_lang,
     parse as parse_glossary_import, pending_candidates, promote_to_global, read_import_file,
     reject_candidate, resolve_term_for_quick_add, suggest_han_viet_batch,
-    unconfirm_pending_translation, update_manual_term, write_export_file,
+    unconfirm_pending_translation, update_manual_term, variant_term_for_quick_add,
+    write_export_file,
 };
 use crate::core::i18n::{IpcError, MessageKey};
 use crate::core::matching::MatchLang;
@@ -129,6 +130,8 @@ pub struct QuickAddLookup {
     /// Mục tìm thấy qua hai tầng, hoặc `None` — chế độ THÊM/SỬA của dải suy từ trường này
     /// (§Design Notes: `mode(source_term, lookup)`).
     pub entry: Option<QuickAddTerm>,
+    /// Stored term of another script form that folds onto the looked-up one; only when `entry` is `None`.
+    pub variant_term: Option<String>,
 }
 
 /// Tra `source_term` qua hai tầng — **hàm thuần, đây là thứ test gọi**. Quyết định chế độ
@@ -148,9 +151,15 @@ pub fn glossary_lookup_term(
     let scope = work_context(open)?;
 
     let found = resolve_term_for_quick_add(&scope, global, source_term)?;
+    let variant_term = if found.is_none() {
+        variant_term_for_quick_add(&scope, global, source_term)?
+    } else {
+        None
+    };
     Ok(QuickAddLookup {
         work_tier_available: scope.work().is_some(),
         entry: found.map(|(tier, entry)| QuickAddTerm::from_resolved(tier, entry)),
+        variant_term,
     })
 }
 
@@ -579,7 +588,7 @@ pub struct GlossaryTmSuggestions {
     pub hidden_count: usize,
 }
 
-/// TM targets whose pair source equals `source_term` exactly, both tiers (FR146); most pairs first.
+/// TM targets whose pair source equals `source_term` up to Traditional/Simplified form, both tiers (FR146); most pairs first.
 pub fn glossary_tm_suggestions(
     global: Option<&Store>,
     open: Option<&OpenWork>,
@@ -1422,7 +1431,7 @@ pub mod wire {
     }
 
     /// Wire shell of [`super::glossary_tm_suggestions`]; `sourceTerm` on the wire.
-    #[tauri::command]
+    #[tauri::command(async)]
     pub fn glossary_tm_suggestions(
         app: tauri::AppHandle,
         source_term: String,

@@ -189,7 +189,7 @@ describe('aria-labelledby names the surface with its visible title', () => {
     const Form = (await import('../../src/GlossaryQuickAdd.vue')).default
     const wrapper = mount(Form, { attachTo: document.body })
 
-    lookupGlossaryTermMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupGlossaryTermMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
     state.openGlossaryQuickAdd('慕容')
     await flushPromises()
     expectNamedBy(wrapper, 'form.glossary-quick-add', '.gqa-title')

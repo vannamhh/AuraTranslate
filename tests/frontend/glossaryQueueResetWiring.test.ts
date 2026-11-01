@@ -5,7 +5,7 @@ const pendingMock = vi.fn()
 vi.mock('../../src/config/glossary', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/glossary')>()),
   pendingGlossaryCandidates: () => pendingMock(),
-  lookupGlossaryTerm: async () => ({ found: 'none', workTierAvailable: true }),
+  lookupGlossaryTerm: async () => ({ found: 'none', workTierAvailable: true, variantTerm: null }),
 }))
 
 const NEW_WORK = { meta: { work_id: 'w-moi-nhap', genre: '', name: 'Tac pham nhap moi', chapter_count: 1 } }

@@ -13823,9 +13823,17 @@ chính nó.
 - TM chưa gấp phồn/giản: `ngrams`, `similarity_percent`, `PreparedQuery` và `target_suggestions_for_term` (`core/tm/mod.rs:513`, khớp `source_term` nguyên văn) nên dấu chỉ khớp sau gấp mở dải chốt mà không có gợi ý TM và không báo lỗi. Trái `Prevents` của AD-17 cho tới khi quyết.
   Cần: quyết gấp ở TM hay ghi giới hạn vào AD-17; đo trên TM thật trước khi chọn.
   Chủ: Ice. Trỏ: `src-tauri/src/core/matching/mod.rs`, AD-63.
+  → ✅ ĐÃ ĐÓNG 2026-11-01 (`plan-gap-phon-gian-tm-va-quick-add.md`): TM gấp qua `SimilarityScorer`, `concordance_key`, `target_suggestions_for_term`.
+  → 🔵 2026-11-01: câu nêu `ngrams`, `similarity_percent` và `PreparedQuery` ghi sai đường TM; `PreparedQuery` không tồn tại, `ngrams` Zh chỉ phục vụ quét ứng viên, `similarity_percent` chỉ gọi với `En` trên văn bản đích. Cố ý không gấp ba hàm đó.
 - Quick-add và lọc ứng viên (`glossary/store.rs:456`) vẫn khoá `source_term` nguyên văn, nên `大纪元` và `大紀元` là hai khoá riêng ở đó dù `find_terms` đã gấp.
   Cần: quyết khoá gấp hay giữ nguyên văn.
   Chủ: Ice. Trỏ: `src-tauri/src/core/glossary/store.rs`, AD-63.
+  → ✅ ĐÃ ĐÓNG 2026-11-01 (`plan-gap-phon-gian-tm-va-quick-add.md`): giữ khoá `source_term` nguyên văn, quick-add chỉ báo mục khác dạng chữ, lọc ứng viên so sau gấp.
 - Chưa dùng thật: mở Tác phẩm phồn thể trong app, dịch một câu có `大紀元` với mục `大纪元` ở Glossary.
   Cần: dòng tóm tắt đọc `Đã chèn 1 thuật ngữ Glossary` và lưới tô đúng chữ phồn.
   Chủ: Ice. Trỏ: `plan-gap-phon-gian-matcher.md` §Verification.
+
+## Deferred from: `plan-gap-phon-gian-tm-va-quick-add.md` (2026-11-01)
+
+- Chưa dùng thật trong app: bôi `大紀元` khi Glossary có `大纪元` thì dải hiện dòng dạng chữ khác và Lưu được; một cặp TM dạng chữ kia hiện ở 99% và trong dải chốt.
+  Chủ: Ice. Trỏ: `plan-gap-phon-gian-tm-va-quick-add.md` §Verification.

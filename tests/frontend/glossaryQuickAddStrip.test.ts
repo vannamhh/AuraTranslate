@@ -32,6 +32,7 @@ vi.mock('../../src/config/glossary', () => ({
   lookupGlossaryTerm: (term: string) => lookupMock(term),
   addGlossaryTerm: (...args: unknown[]) => addMock(...args),
   updateGlossaryTerm: (...args: unknown[]) => updateMock(...args),
+  countGlossaryEntries: async () => ({ value: 0, error: null }),
 }))
 
 /**
@@ -144,7 +145,7 @@ describe('dải "Thêm thuật ngữ" — lượt tra TRƯỢT phải nói LÝ D
 
   it('lỗi lượt GHI đứng TRÊN lỗi lượt TRA — tin mới hơn thắng', async () => {
     const { state, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null })
     addMock.mockResolvedValue({ value: null, error: WORK_TIER_ERROR })
 
     const wrapper = mount(GlossaryQuickAdd)
@@ -185,7 +186,7 @@ describe('dải "Thêm thuật ngữ" — nút Lưu chỉ bật khi ĐÃ biết 
 
   it('lượt tra về "none" với ô nguồn có chữ ⇒ nút Lưu BẬT, không còn dòng trạng thái nào', async () => {
     const { state, i18n, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     const wrapper = mount(GlossaryQuickAdd)
     state.openGlossaryQuickAdd('慕容')
@@ -200,13 +201,63 @@ describe('dải "Thêm thuật ngữ" — nút Lưu chỉ bật khi ĐÃ biết 
 
   it('ô nguồn RỖNG (không có vùng chọn) ⇒ nút Lưu TẮT dù lượt tra đã về', async () => {
     const { state, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     const wrapper = mount(GlossaryQuickAdd)
     state.openGlossaryQuickAdd('')
     await settle(wrapper)
 
     expect(wrapper.find('.gqa-act-primary').attributes('disabled')).toBeDefined()
+
+    wrapper.unmount()
+  })
+})
+
+describe('dải "Thêm thuật ngữ" — dòng báo mục khác dạng chữ', () => {
+  it('lượt tra "none" mang variantTerm ⇒ chế độ THÊM, một dòng báo, nút Lưu BẬT', async () => {
+    const { state, i18n, GlossaryQuickAdd } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: '大纪元' })
+
+    const wrapper = mount(GlossaryQuickAdd)
+    state.openGlossaryQuickAdd('大紀元')
+    await settle(wrapper)
+
+    expect(wrapper.text()).toContain(i18n.t('glossary.quick_add.title_add'))
+    const lines = wrapper.findAll('.gqa-status')
+    expect(lines).toHaveLength(1)
+    expect(lines[0]?.text()).toBe(i18n.t('glossary.quick_add.variant_exists', { term: '大纪元' }))
+    expect(wrapper.find('.gqa-act-primary').attributes('disabled')).toBeUndefined()
+
+    wrapper.unmount()
+  })
+
+  it('Lưu từ trạng thái có dòng báo ⇒ gọi THÊM, không gọi SỬA', async () => {
+    const { state, GlossaryQuickAdd } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: '大纪元' })
+    addMock.mockResolvedValue({ value: 9, error: null })
+
+    const wrapper = mount(GlossaryQuickAdd)
+    state.openGlossaryQuickAdd('大紀元')
+    await settle(wrapper)
+    await state.saveGlossaryQuickAdd()
+
+    expect(addMock).toHaveBeenCalledTimes(1)
+    expect(addMock.mock.calls[0]).toContain('大紀元')
+    expect(updateMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('trùng nguyên văn ⇒ chế độ SỬA như cũ, không dòng báo', async () => {
+    const { state, i18n, GlossaryQuickAdd } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'entry', workTierAvailable: true, entry: entryWire({ tier: 'global' }) })
+
+    const wrapper = mount(GlossaryQuickAdd)
+    state.openGlossaryQuickAdd('慕容')
+    await settle(wrapper)
+
+    expect(wrapper.text()).toContain(i18n.t('glossary.quick_add.title_edit'))
+    expect(wrapper.find('.gqa-status').exists()).toBe(false)
 
     wrapper.unmount()
   })
@@ -244,7 +295,7 @@ describe('dải "Thêm thuật ngữ" — tầng GHIM ở chế độ SỬA, t�
 
   it('chế độ THÊM ⇒ hai nút tầng KHÔNG bị tắt (người dùng tự chọn)', async () => {
     const { state, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     const wrapper = mount(GlossaryQuickAdd)
     state.openGlossaryQuickAdd('慕容')
@@ -261,7 +312,7 @@ describe('dải "Thêm thuật ngữ" — tầng GHIM ở chế độ SỬA, t�
 describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng được thì hiện KÈM LÝ DO', () => {
   it('work_tier_available === false ⇒ lý do hiện ra, và lựa chọn KHÔNG biến mất', async () => {
     const { state, i18n, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null })
 
     const wrapper = mount(GlossaryQuickAdd)
     state.openGlossaryQuickAdd('慕容')
@@ -280,7 +331,7 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
     // Đối chứng gỡ-chỗ-nối: gỡ vế `|| quickAddWorkTierAvailable === false` khỏi `:disabled`
     // của radio "work" trong `GlossaryQuickAdd.vue` ⇒ ca này ĐỎ (radio vẫn bấm được).
     const { state, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null })
 
     const wrapper = mount(GlossaryQuickAdd)
     state.openGlossaryQuickAdd('慕容')
@@ -298,7 +349,7 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
     // Đối chứng gỡ-chỗ-nối: gỡ `|| quickAddWorkTierBlocked` khỏi `:disabled` của nút Lưu
     // trong `GlossaryQuickAdd.vue` ⇒ ca này ĐỎ (nút Lưu vẫn bật).
     const { state, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     const wrapper = mount(GlossaryQuickAdd)
     state.openGlossaryQuickAdd('慕容')
@@ -313,7 +364,7 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
 
     // Sửa ô nguồn — phát một lượt tra MỚI, lượt này trả về `workTierAvailable: false` (Tác
     // phẩm vừa đóng, hay chuyển sang một mục không có Tác phẩm nào mở).
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null })
     const sourceInput = wrapper.find<HTMLInputElement>('input.gqa-input')
     await sourceInput.setValue('新')
     await settle(wrapper)
@@ -336,7 +387,7 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
     // Counter-check: removing the `workTierDefaultApplied` latch (so every `workTierAvailable:
     // true` result re-sets `tierChoice.value = 'work'`) turns this red on the `tierChoice` value.
     const { state, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     const wrapper = mount(GlossaryQuickAdd)
     state.openGlossaryQuickAdd('慕容')
@@ -369,7 +420,7 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
     // write (drop the call through `setQuickAddTierChoice`, so `workTierDefaultApplied` never
     // latches) and this goes red -- the resolved lookup below stomps 'global' back to 'work'.
     const { state, GlossaryQuickAdd } = await freshStrip()
-    let resolveLookup: (value: { found: 'none'; workTierAvailable: boolean }) => void = () => {}
+    let resolveLookup: (value: { found: 'none'; workTierAvailable: boolean; variantTerm: null }) => void = () => {}
     lookupMock.mockReturnValue(
       new Promise((resolve) => {
         resolveLookup = resolve
@@ -393,7 +444,7 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
     expect(state.quickAddTierChoice.value).toBe('global')
 
     // Lượt tra về BÁO CÓ tầng Tác phẩm -- chốt tự chuyển (nếu còn mở) sẽ đổi sang 'work'.
-    resolveLookup({ found: 'none', workTierAvailable: true })
+    resolveLookup({ found: 'none', workTierAvailable: true, variantTerm: null })
     await settle(wrapper)
 
     // Mệnh đề trung tâm: lựa chọn tay đứng TRƯỚC lượt tra vẫn phải thắng -- chốt tự chuyển chỉ
@@ -422,7 +473,7 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
 
   it('work_tier_available === true ⇒ KHÔNG hiện lý do', async () => {
     const { state, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     const wrapper = mount(GlossaryQuickAdd)
     state.openGlossaryQuickAdd('慕容')
@@ -455,7 +506,7 @@ describe('dải "Thêm thuật ngữ" — tầng Tác phẩm chưa dùng đượ
 describe('dải "Thêm thuật ngữ" — hợp âm Mod+số KHÔNG được lặng lẽ đổi phân loại', () => {
   async function stripDaMo() {
     const { state, GlossaryQuickAdd } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
     const wrapper = mount(GlossaryQuickAdd)
     state.openGlossaryQuickAdd('慕容')
     await settle(wrapper)
@@ -523,7 +574,7 @@ describe('dải "Thêm thuật ngữ" — trả trạng thái lúc đóng', () =
 
   it('mở bằng phím: đóng trả đúng vùng chọn đã lưu lúc mở', async () => {
     const { state } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null })
     const cell = cellWithText('abcdefgh')
     cell.focus()
     window.getSelection()?.setBaseAndExtent(cell.firstChild as Node, 2, cell.firstChild as Node, 4)
@@ -539,7 +590,7 @@ describe('dải "Thêm thuật ngữ" — trả trạng thái lúc đóng', () =
 
   it('được giao việc trả trạng thái: tiêu điểm trả trước, việc đó chạy đúng một lần thay vùng chọn đã lưu', async () => {
     const { state } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null })
     const cell = cellWithText('abcdefgh')
     cell.focus()
     window.getSelection()?.setBaseAndExtent(cell.firstChild as Node, 2, cell.firstChild as Node, 4)
@@ -559,7 +610,7 @@ describe('dải "Thêm thuật ngữ" — trả trạng thái lúc đóng', () =
 
   it('dải chưa mở thì không nhận việc, và việc không sống sang lượt mở bằng phím sau đó', async () => {
     const { state } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null })
     const restore = vi.fn()
     expect(state.adoptQuickAddRestore(restore)).toBe(false)
 
@@ -573,7 +624,7 @@ describe('dải "Thêm thuật ngữ" — trả trạng thái lúc đóng', () =
 
   it('việc được giao bị bỏ khi mở lại bằng phím: lượt mở sau dùng lại vùng chọn đã lưu', async () => {
     const { state } = await freshStrip()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null })
     const cell = cellWithText('abcdefgh')
     cell.focus()
     state.openGlossaryQuickAdd('x')

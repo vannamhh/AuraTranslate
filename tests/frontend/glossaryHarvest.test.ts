@@ -42,7 +42,7 @@ async function fresh(deps: Partial<CommandDeps> = {}) {
   approveMock.mockReset()
   rejectMock.mockReset()
   lookupMock.mockReset()
-  lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+  lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
   const commands = await import('../../src/commands')
   commands.installCommands(deps as CommandDeps)
   const state = await import('../../src/glossaryHarvestState')
@@ -136,7 +136,7 @@ describe('glossaryHarvestState', () => {
   it('an empty list with no Work open is no_work, not an empty list', async () => {
     const { state } = await fresh()
     pendingMock.mockResolvedValue({ candidates: [], error: null })
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null })
     await state.openGlossaryHarvest()
     expect(state.harvestStatus.value).toBe('no_work')
   })

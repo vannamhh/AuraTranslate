@@ -56,8 +56,8 @@ function candidate(over: Partial<GlossaryCandidate> = {}): GlossaryCandidate {
   }
 }
 
-const workOpenLookup: GlossaryLookupResult = { found: 'none', workTierAvailable: true }
-const workClosedLookup: GlossaryLookupResult = { found: 'none', workTierAvailable: false }
+const workOpenLookup: GlossaryLookupResult = { found: 'none', workTierAvailable: true, variantTerm: null }
+const workClosedLookup: GlossaryLookupResult = { found: 'none', workTierAvailable: false, variantTerm: null }
 
 beforeEach(() => {
   document.body.innerHTML = ''
@@ -421,7 +421,7 @@ describe('GlossaryQueueOverlay.vue — bề mặt selection thật của modal',
   it('vùng chọn chữ thật trong modal vai display không trở thành nguồn Auto-Lookup', async () => {
     const { state, selectionContract, GlossaryQueueOverlay } = await freshOverlay()
     pendingMock.mockResolvedValue({ candidates: [], error: null })
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false }) // ⇒ status 'no_work'.
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null }) // ⇒ status 'no_work'.
     await state.openGlossaryQueue()
 
     const wrapper = mount(GlossaryQueueOverlay, { attachTo: document.body })
@@ -703,7 +703,7 @@ describe('queueEmptyReasonFor — cụm D vá: "loading" có tên riêng, "all_r
     // `queueEmptyReason`) ⇒ ca này ĐỎ (spy đếm được 4 lượt gọi thay vì 1).
     const { state, GlossaryQueueOverlay } = await freshOverlay()
     pendingMock.mockResolvedValue({ candidates: [], error: null })
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false }) // ⇒ status 'no_work'.
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: false, variantTerm: null }) // ⇒ status 'no_work'.
     await state.openGlossaryQueue()
 
     const spy = vi.spyOn(state, 'queueEmptyReasonFor')

@@ -7,7 +7,7 @@ const pendingMock = vi.fn()
 vi.mock('../../src/config/glossary', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/glossary')>()),
   pendingGlossaryCandidates: () => pendingMock(),
-  lookupGlossaryTerm: async () => ({ found: 'none', workTierAvailable: true }),
+  lookupGlossaryTerm: async () => ({ found: 'none', workTierAvailable: true, variantTerm: null }),
   countGlossaryEntries: async () => null,
 }))
 

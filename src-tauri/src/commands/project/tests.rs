@@ -386,6 +386,52 @@ fn guarded_open_store_returns_the_store_and_a_normal_scan_runs_to_completion_and
     guard_test_cleanup(&dir);
 }
 
+#[test]
+fn a_candidate_in_another_han_form_of_a_global_term_is_counted_as_skipped() {
+    let dir = guard_test_dir("global-filter-han-form");
+    let global = crate::core::store::Store::open(crate::core::store::StoreSpec::global(
+        dir.join("global.db"),
+    ))
+    .expect("mo global.db");
+    crate::commands::glossary::glossary_add_term(
+        Some(&global),
+        None,
+        crate::core::glossary::GlossaryTier::Global,
+        "大纪元",
+        Some("Dai Ky Nguyen"),
+        "",
+        crate::core::glossary::Category::Other,
+    )
+    .expect("chen term global");
+    let opened = create_work_from_text(&dir, "Loc Dang Chu", "zh", "", "source".to_owned())
+        .unwrap_or_else(|e| panic!("tao Tac pham that bai: {e:?}"));
+    let work_id = opened.meta.work_id.clone();
+    let state = Mutex::new(Some(opened));
+    let candidate = |term: &str| crate::core::glossary::ScanCandidate {
+        source_term: term.to_owned(),
+        occurrence_count: 5,
+        context_example: String::new(),
+    };
+    let mut candidates = vec![candidate("大紀元"), candidate("慕容")];
+
+    let ticket =
+        filter_and_enqueue_current_import_scan(&state, &work_id, &global, &mut candidates, &|| {
+            true
+        })
+        .expect("loc va enqueue")
+        .expect("work_id dang mo phai cho phep enqueue");
+
+    assert_eq!(ticket.wait().expect("writer tra loi"), (1, 1));
+    drop(
+        state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take(),
+    );
+    drop(global);
+    guard_test_cleanup(&dir);
+}
+
 /// Một term ở Global phải biến mất TRƯỚC câu `INSERT` Work, nhưng vẫn cộng vào
 /// `skipped`. Đối chứng giữ một term khác để chứng minh lô không bị xoá trắng.
 #[test]

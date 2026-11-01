@@ -241,7 +241,7 @@ graph TD
 - **Prevents:** ba lần cài đặt riêng ở ba giai đoạn khác nhau → Glossary bắt được biến thể mà TM không bắt được, không ai biết vì sao.
 - **Rule:** FR40 (từ điển), FR51 (Glossary), FR61 (TM) dùng **chung một** component. Tiếng Trung: khớp chính xác + n-gram ký tự, tách từ qua `jieba-rs` khi cần. Tiếng Anh: stemming rồi token n-gram. Giới hạn đã tuyên bố: là stemming, không phải lemmatization (FR40).
 
-  🔵 **Sửa 2026-11-01 (AD-63):** Glossary tiếng Trung nay khớp chính xác sau khi gấp phồn/giản; TM chưa gấp, nên riêng biến thể phồn/giản Glossary bắt được mà TM không bắt được cho tới khi Ice quyết.
+  🔵 **Sửa 2026-11-01 (AD-63):** tiếng Trung nay khớp chính xác sau khi gấp phồn/giản ở cả Glossary lẫn TM qua cùng một hàm gấp; không còn ngoại lệ.
 
   ⚠️ **AD này nói *mọi nơi cần khớp ngôn ngữ dùng chung MỘT cài đặt* — nó KHÔNG nói mọi đường đều phải gọi Matcher.** Đường tra cứu **từ điển** tiếng Anh không gọi, và AD-44 ③ ghi số đo làm lý do: đầu ra stemmer không phải một từ nên nó khớp vào hư không, trong khi corpus từ điển đã có sẵn mọi dạng biến thể làm đầu mục riêng. Glossary (FR51) và TM (FR61) thì **có** — ở đó thuật ngữ do **người dùng tự viết**, corpus không mang tính chất đó, và stemming thật sự đáng tiền. Phân biệt này không nới lỏng AD-17: vẫn **đúng một** cài đặt, chỉ là không phải đường nào cũng là người tiêu thụ nó.
 
@@ -1453,14 +1453,14 @@ graph TD
 
 ### AD-63 — Khớp thuật ngữ tiếng Trung gấp phồn/giản bằng một bảng biên dịch vào binary
 
-- **Binds:** C4, C6, C8 · `core/matching` (`find_terms`, nhánh `Zh`), `core/matching/zh_fold.txt`, `scripts/gen-zh-fold.mjs`.
+- **Binds:** C4, C5, C6, C8 · `core/matching` (`find_terms`, nhánh `Zh`, `SimilarityScorer`), `core/matching/zh_fold.txt`, `scripts/gen-zh-fold.mjs`.
 - **Prevents:** Glossary giữ `大纪元` (giản thể), Tác phẩm viết `大紀元` (phồn thể): nhánh `Zh` tìm chuỗi nguyên văn nên 0 lượt khớp, prompt không nhận thuật ngữ và không báo lỗi. Đo trên 10 câu thật: dạng giản 0 lượt, dạng phồn 13 lượt.
 - **Rule:**
   1. `find_terms` nhánh `Zh` gấp cả văn bản lẫn thuật ngữ qua một hàm gấp theo lớp tương đương: mỗi ký tự về điểm mã nhỏ nhất của lớp, nên hàm tự lũy đẳng. Ranh giới token của jieba tính trên văn bản GỐC; span trả về là byte vào chuỗi gốc.
   2. Mọi cặp trong bảng cùng dài 3 byte UTF-8 (U+3400..U+FFFF), nên văn bản đã gấp giữ nguyên offset byte.
   3. `find_terms` trả mọi lượt khớp và không phân xử. Cùng một span, `resolve_overlaps` (`core/glossary/store.rs`) chọn: mục khớp nguyên văn trước, rồi tầng Work trước Global, rồi `term_index`; mục đã chốt thua mục chờ chốt vẫn vào `suppressed_by_pending_overlap`. `source_term` của mục Glossary vẫn đi vào prompt và ledger.
   4. Bảng là dữ liệu sinh ra (`node scripts/gen-zh-fold.mjs`) từ cặp một ký tự `headword`/`headword_simp` của `unihan`, `cc-cedict`, `cvdict` trong `dict-core.db`: 6.835 ký tự, 3.179 lớp, lớn nhất 8 chữ. Không đọc từ điển lúc chạy, không thêm crate, không đổi `MatchLang::En`.
-  5. Ngoài phạm vi, ghi nợ ở `deferred-work.md`: TM (`ngrams`, `similarity_percent`, `PreparedQuery`), quick-add và lọc ứng viên `store.rs`. TM chưa gấp là trái `Prevents` của AD-17 cho tới khi Ice quyết.
+  5. Mọi đường dưới đây gọi hàm gấp của `core::matching` (`fold_zh` cho chuỗi, `fold_char` cho từng ký tự, cùng một bảng), giữ nguyên chữ lưu trên đĩa: khớp mờ TM (`SimilarityScorer::units` qua `fold_char`, câu chỉ khác dạng chữ tối đa 99%), Concordance và tìm trong màn quản lý TM (`concordance_key`), gợi ý bản dịch cho thuật ngữ (`target_suggestions_for_term`), lọc ứng viên quét import (`filter_import_scan_candidates_by_scope`), và dòng báo mục khác dạng chữ của quick-add (`variant_term_for_quick_add`, không chặn lưu). Cố ý nguyên văn: `ngrams` (đầu ra thành `source_term` ứng viên), `pairs_for_source` (điền sẵn FR58 chỉ cho câu y hệt), `similarity_percent`, `diff_spans`, khoá ghi `live_copies`/`update_copies_target`, và khoá `source_term` của Glossary (`发` và `髮` vẫn là hai mục). Ice chốt 2026-11-01.
 - **Giới hạn chấp nhận:** khớp thừa theo lớp (mục một chữ `后` khớp `後`). Thấy được trên lưới, khác thiếu thuật ngữ không ai biết.
   `apply_override` vẫn khoá theo `source_term` nguyên văn, nên mục Global nguyên văn thắng mục Work ở dạng chữ kia; giữa hai mục chỉ khớp sau gấp thì tầng Work thắng.
 - **Phương án bị loại:** gấp một chiều phồn sang giản (23 khoá phồn có nhiều dạng giản, `託` về `讬` và không gặp `托`); chỉ dùng Unihan (thiếu `週 祕 佈 遊 臥 託 佔 僱 兇`). Ice chốt gấp ngay trong `find_terms`, 2026-11-01.
@@ -1780,7 +1780,7 @@ AuraTranslate/
 | **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42, AD-55, AD-58 |
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
 | **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57, AD-63 |
-| **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51, AD-57 |
+| **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51, AD-57, AD-63 |
 | **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57, AD-63 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22, AD-47, AD-49, AD-50, AD-53, AD-56 |
 | **C8** Cầu nối Reviewer | `core/export/`, `src/modes/ReviewMode` | AD-6, AD-16, AD-20, AD-24, AD-31, AD-34, AD-37, AD-38, AD-42, AD-43, AD-48, AD-51, AD-52, AD-63 |

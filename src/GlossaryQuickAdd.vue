@@ -29,6 +29,7 @@ import {
   quickAddSaving,
   quickAddSourceTerm,
   quickAddTranslation,
+  quickAddVariantTerm,
   quickAddWorkTierAvailable,
   quickAddWorkTierBlocked,
   setQuickAddSourceTerm,
@@ -229,6 +230,9 @@ watch(quickAddIsOpen, (open) => {
     </p>
     <p v-else-if="!quickAddHasLoaded" class="gqa-status" role="status">
       {{ t('glossary.quick_add.checking') }}
+    </p>
+    <p v-if="quickAddVariantTerm" class="gqa-status" role="status">
+      {{ t('glossary.quick_add.variant_exists', { term: quickAddVariantTerm }) }}
     </p>
 
     <div class="gqa-row gqa-actions">

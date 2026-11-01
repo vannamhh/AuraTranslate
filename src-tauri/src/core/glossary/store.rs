@@ -453,7 +453,13 @@ pub(crate) fn filter_import_scan_candidates_by_scope(
 ) -> Result<i64, GlossaryError> {
     let resolved_terms = resolved_source_terms(resolver, global, work)?;
     let before = candidates.len();
-    candidates.retain(|candidate| !resolved_terms.contains(&candidate.source_term));
+    let folded_terms: BTreeSet<String> = resolved_terms
+        .iter()
+        .map(|term| crate::core::matching::fold_zh(term))
+        .collect();
+    candidates.retain(|candidate| {
+        !folded_terms.contains(&crate::core::matching::fold_zh(&candidate.source_term))
+    });
     Ok(i64::try_from(before.saturating_sub(candidates.len())).unwrap_or(i64::MAX))
 }
 
@@ -1003,6 +1009,32 @@ pub fn resolve_term_for_quick_add(
         };
         (tier, resolved_entry.value().clone())
     }))
+}
+
+/// First resolved `source_term` that equals `source_term` once Traditional/Simplified forms are
+/// folded but not verbatim; `None` when the verbatim term exists or no variant does.
+///
+/// # Errors
+/// Same families as [`resolve_term_for_quick_add`].
+pub fn variant_term_for_quick_add(
+    scope: &WorkContext<'_>,
+    global: &Store,
+    source_term: &str,
+) -> Result<Option<String>, GlossaryError> {
+    let resolver = scope.resolver();
+    let source_term = source_term.trim();
+    let global_tier = load_tier(global)?;
+    let work_tier = scope.work().map(load_tier).transpose()?;
+    let resolved =
+        resolver.apply_override(GLOSSARY_SCOPE_KIND, &global_tier, work_tier.as_ref())?;
+    if resolved.contains_key(source_term) {
+        return Ok(None);
+    }
+    let folded = crate::core::matching::fold_zh(source_term);
+    Ok(resolved
+        .keys()
+        .find(|key| crate::core::matching::fold_zh(key) == folded)
+        .cloned())
 }
 
 /// Every confirmed `(source_term, translation)` of the two tiers after `ScopeResolver` (a Work
@@ -2344,5 +2376,58 @@ pub fn import_into_tier(
             }
             Err(GlossaryError::from(e))
         }
+    }
+}
+
+#[cfg(test)]
+mod import_scan_filter_tests {
+    use super::*;
+    use crate::core::glossary::scan::ScanCandidate;
+    use crate::core::scope::WorkScope;
+    use crate::core::store::StoreSpec;
+
+    fn candidate(term: &str) -> ScanCandidate {
+        ScanCandidate {
+            source_term: term.to_owned(),
+            occurrence_count: 5,
+            context_example: String::new(),
+        }
+    }
+
+    #[test]
+    fn a_candidate_in_another_han_form_of_a_stored_term_is_skipped_and_counted() {
+        let dir =
+            std::env::temp_dir().join(format!("auratranslate-scan-filter-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("tao thu muc");
+        let global = Store::open(StoreSpec::global(dir.join("global.db"))).expect("mo global");
+        let work = Store::open(StoreSpec::project(dir.join("project.db"))).expect("mo project");
+        insert_manual_entry(
+            &global,
+            "大纪元",
+            Some("Dai Ky Nguyen"),
+            "",
+            Category::Other,
+        )
+        .expect("chen muc");
+        let resolver = ScopeResolver::with_work(WorkScope {
+            work_id: "wk-1".to_owned(),
+        });
+        let mut candidates = vec![candidate("大紀元"), candidate("慕容")];
+
+        let skipped =
+            filter_import_scan_candidates_by_scope(&resolver, &global, &work, &mut candidates)
+                .expect("loc");
+
+        assert_eq!(skipped, 1);
+        assert_eq!(
+            candidates
+                .iter()
+                .map(|c| c.source_term.as_str())
+                .collect::<Vec<_>>(),
+            ["慕容"]
+        );
+        drop((global, work));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

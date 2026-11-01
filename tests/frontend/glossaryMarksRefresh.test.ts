@@ -133,7 +133,7 @@ async function addTermGia() {
  * ngoài Tauri thật). Đây LÀ điều kiện để `quickAddMode` thoát khỏi `'unknown'` và cho phép
  * `saveGlossaryQuickAdd()` chạy tới nhánh 'add' — không phải mệnh đề đang kiểm ở tệp này. */
 async function lookupGia() {
-  return { found: 'none' as const, workTierAvailable: false }
+  return { found: 'none' as const, workTierAvailable: false, variantTerm: null }
 }
 
 vi.mock('../../src/config/segment', async (importOriginal) => {

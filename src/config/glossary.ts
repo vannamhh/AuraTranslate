@@ -51,6 +51,7 @@ export type GlossaryQuickAddEntry = {
 type QuickAddLookupWire = {
   work_tier_available: boolean
   entry: GlossaryQuickAddEntry | null
+  variant_term: string | null
 }
 
 /**
@@ -69,7 +70,7 @@ type QuickAddLookupWire = {
  */
 export type GlossaryLookupResult =
   | { found: 'unknown'; error: IpcError | null }
-  | { found: 'none'; workTierAvailable: boolean }
+  | { found: 'none'; workTierAvailable: boolean; variantTerm: string | null }
   | { found: 'entry'; entry: GlossaryQuickAddEntry; workTierAvailable: boolean }
 
 /**
@@ -103,7 +104,11 @@ function isGlossaryQuickAddEntry(value: unknown): value is GlossaryQuickAddEntry
 function isQuickAddLookupWire(value: unknown): value is QuickAddLookupWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<QuickAddLookupWire>
-  return typeof v.work_tier_available === 'boolean' && (v.entry === null || isGlossaryQuickAddEntry(v.entry))
+  return (
+    typeof v.work_tier_available === 'boolean' &&
+    (v.entry === null || isGlossaryQuickAddEntry(v.entry)) &&
+    (v.variant_term === null || typeof v.variant_term === 'string')
+  )
 }
 
 function isIpcError(value: unknown): value is IpcError {
@@ -153,7 +158,7 @@ export async function lookupGlossaryTerm(sourceTerm: string): Promise<GlossaryLo
       return { found: 'unknown', error: UNKNOWN_IPC_ERROR }
     }
     return wire.entry === null
-      ? { found: 'none', workTierAvailable: wire.work_tier_available }
+      ? { found: 'none', workTierAvailable: wire.work_tier_available, variantTerm: wire.variant_term }
       : { found: 'entry', entry: wire.entry, workTierAvailable: wire.work_tier_available }
   } catch (err) {
     if (isIpcError(err)) return { found: 'unknown', error: err }

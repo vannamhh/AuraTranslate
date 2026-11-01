@@ -31,7 +31,7 @@ use auratranslate_lib::core::glossary::{
     confirmed_terms_for_injection, delete_manual_term, enqueue_review_harvest, insert_candidate,
     insert_import_scan_candidates, insert_manual_entry, list_all_entries, load_tier,
     pending_candidates, promote_to_global, reject_candidate, resolve_term_for_quick_add,
-    update_manual_term,
+    update_manual_term, variant_term_for_quick_add,
 };
 use auratranslate_lib::core::matching::MatchLang;
 use auratranslate_lib::core::scope::{ScopeError, ScopeResolver, WorkScope};
@@ -3542,6 +3542,73 @@ fn work_context_new_rejects_a_resolver_reporting_no_work_tier_paired_with_a_stor
         err,
         Some(GlossaryError::WorkContextMismatch),
         "mot resolver global_only() ghep voi Some(&store) phai bi tu choi"
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+#[test]
+fn variant_term_for_quick_add_reports_a_stored_term_of_another_han_form() {
+    let dir = temp_dir("quick-add-variant");
+    let store = open_global(&dir);
+    insert_manual_entry(&store, "大纪元", Some("Đại Kỷ Nguyên"), "", Category::Other)
+        .expect("chen muc");
+    let scope = WorkContext::new(None).unwrap();
+
+    assert_eq!(
+        variant_term_for_quick_add(&scope, &store, "大紀元").expect("tra"),
+        Some("大纪元".to_owned())
+    );
+    assert_eq!(
+        variant_term_for_quick_add(&scope, &store, "大纪元").expect("tra"),
+        None,
+        "verbatim term is edit mode, no variant"
+    );
+    assert_eq!(
+        variant_term_for_quick_add(&scope, &store, "慕容").expect("tra"),
+        None
+    );
+
+    drop(store);
+    cleanup(&dir);
+}
+
+#[test]
+fn two_different_words_sharing_a_fold_class_can_both_be_added() {
+    use auratranslate_lib::commands::glossary::glossary_add_term;
+    let dir = temp_dir("quick-add-two-words");
+    let store = open_global(&dir);
+    insert_manual_entry(&store, "发", Some("phát"), "", Category::Other).expect("chen 发");
+    let scope = WorkContext::new(None).unwrap();
+
+    assert_eq!(
+        variant_term_for_quick_add(&scope, &store, "髮").expect("tra"),
+        Some("发".to_owned())
+    );
+    glossary_add_term(
+        Some(&store),
+        None,
+        GlossaryTier::Global,
+        "髮",
+        Some("tóc"),
+        "",
+        Category::Other,
+    )
+    .expect("them 髮");
+
+    let mut got: Vec<(String, Option<String>)> = list_all_entries(&scope, &store)
+        .expect("liet ke")
+        .into_iter()
+        .map(|(_, e, _)| (e.source_term, e.translation))
+        .collect();
+    got.sort();
+    assert_eq!(
+        got,
+        [
+            ("发".to_owned(), Some("phát".to_owned())),
+            ("髮".to_owned(), Some("tóc".to_owned()))
+        ]
     );
 
     drop(store);

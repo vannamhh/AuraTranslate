@@ -22,7 +22,7 @@ const addTermMock = vi.fn()
 
 vi.mock('../../src/config/glossary', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../src/config/glossary')>()),
-  lookupGlossaryTerm: async () => ({ found: 'none', workTierAvailable: false }),
+  lookupGlossaryTerm: async () => ({ found: 'none', workTierAvailable: false, variantTerm: null }),
   addGlossaryTerm: (...args: unknown[]) => addTermMock(...args),
 }))
 

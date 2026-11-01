@@ -1687,6 +1687,7 @@
   "glossary.quick_add.cancel": "Huỷ",
   "glossary.quick_add.saving": "Đang lưu…",
   "glossary.quick_add.checking": "Đang kiểm tra Glossary…",
+  "glossary.quick_add.variant_exists": "Đã có dạng chữ khác: {term}. Lưu sẽ tạo thêm một mục riêng.",
   "glossary.mark.pending_translation": "Thuật ngữ này chưa chốt bản dịch.",
   "glossary.settings.title": "Ngưỡng quét ứng viên",
   "glossary.settings.intro": "Một chuỗi lặp từ đủ số lần này trở lên, và không có trong từ điển nhúng, sẽ vào bảng chờ ứng viên khi nhập một Chương mới. Áp dụng cho toàn ứng dụng, không riêng Tác phẩm này.",

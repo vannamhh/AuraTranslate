@@ -321,6 +321,6 @@ pub use store::{
     delete_manual_term, export_tier, import_into_tier, insert_manual_entry, list_all_entries,
     load_tier, marks_for_source_text, match_lang_for_source_lang, promote_to_global,
     resolve_term_for_quick_add, unconfirm_pending_translation, unconfirm_translation,
-    update_manual_term, warm_jieba_for_source_lang,
+    update_manual_term, variant_term_for_quick_add, warm_jieba_for_source_lang,
 };
 pub use surnames::COMMON_SURNAMES;

@@ -2979,6 +2979,24 @@ fn the_glossary_tm_suggestions_wire_is_registered_and_keeps_its_parameter_names(
 }
 
 #[test]
+fn the_quick_add_lookup_wire_carries_variant_term_as_null_or_string() {
+    use auratranslate_lib::commands::glossary::QuickAddLookup;
+    let json = |variant_term: Option<&str>| {
+        serde_json::to_value(QuickAddLookup {
+            work_tier_available: true,
+            entry: None,
+            variant_term: variant_term.map(str::to_owned),
+        })
+        .expect("json")
+    };
+    assert_eq!(
+        json(None),
+        serde_json::json!({"work_tier_available": true, "entry": null, "variant_term": null})
+    );
+    assert_eq!(json(Some("大纪元"))["variant_term"], "大纪元");
+}
+
+#[test]
 fn the_tm_only_mine_wires_are_registered_keep_their_parameter_names_and_json_keys() {
     use auratranslate_lib::commands::glossary::{GlossaryTmSuggestion, GlossaryTmSuggestions};
     use auratranslate_lib::commands::tm::{TmExportCounts, TmOnlyMineState};

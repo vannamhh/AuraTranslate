@@ -146,6 +146,11 @@ export const quickAddEffectiveTier = computed<GlossaryTierWire>(() => {
   return tierChoice.value
 })
 
+export const quickAddVariantTerm = computed<string | null>(() => {
+  const l = lookup.value
+  return l !== null && l.found === 'none' ? l.variantTerm : null
+})
+
 /** Tầng Tác phẩm dùng được cho lượt tra HIỆN TẠI, hay `null` nếu chưa biết (chưa tra xong). */
 export const quickAddWorkTierAvailable = computed<boolean | null>(() => {
   const l = lookup.value

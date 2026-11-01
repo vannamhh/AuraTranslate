@@ -2223,36 +2223,35 @@ fn a_source_differing_only_by_surrounding_whitespace_scores_99_and_no_other_pair
 }
 
 #[test]
-fn glossary_and_tm_catch_the_same_variants_except_that_only_glossary_folds_han_forms() {
+fn glossary_and_tm_catch_exactly_the_same_variants_in_both_directions() {
     let nfc = "caf\u{e9}";
     let nfd = "cafe\u{301}";
-    let rows: [(&str, &str, &str, bool, bool); 12] = [
-        ("en", "translation", "translations", true, true),
-        ("en", "translation", "TRANSLATION", true, true),
-        ("en", "translation", "Translations", true, true),
-        ("en", "went", "go", false, false),
-        ("en", nfc, "cafe", false, false),
-        ("en", nfd, nfc, false, false),
-        ("en", nfd, "cafe", true, true),
-        ("en", "translation", "translation", true, true),
-        ("zh", "翻译", "翻译", true, true),
-        ("en", "\u{ff21}\u{ff22}\u{ff23}", "ABC", false, false),
-        // Glossary folds Traditional/Simplified; TM does not.
-        ("zh", "翻译", "翻譯", true, false),
-        ("zh", "\u{ff21}\u{ff22}", "AB", false, false),
+    let rows: [(&str, &str, &str, bool); 12] = [
+        ("en", "translation", "translations", true),
+        ("en", "translation", "TRANSLATION", true),
+        ("en", "translation", "Translations", true),
+        ("en", "went", "go", false),
+        ("en", nfc, "cafe", false),
+        ("en", nfd, nfc, false),
+        ("en", nfd, "cafe", true),
+        ("en", "translation", "translation", true),
+        ("zh", "翻译", "翻译", true),
+        ("en", "\u{ff21}\u{ff22}\u{ff23}", "ABC", false),
+        ("zh", "翻译", "翻譯", true),
+        ("zh", "\u{ff21}\u{ff22}", "AB", false),
     ];
     let sentence = |lang: &str, form: &str| match lang {
         "zh" => format!("他昨天在{form}里等了很久。"),
         _ => format!("We waited for the {form} all day."),
     };
     let mut mismatches = Vec::new();
-    for (lang, a, b, glossary_caught, tm_caught) in rows {
+    for (lang, a, b, caught) in rows {
         for (term, other) in [(a, b), (b, a)] {
             let glossary = glossary_marks_term_in(term, &sentence(lang, other), other, lang);
             let tm = tm_ranks_sentence_top(&sentence(lang, term), &sentence(lang, other), lang);
-            if glossary != glossary_caught || tm != tm_caught {
+            if glossary != caught || tm != caught {
                 mismatches.push(format!(
-                    "{lang} {term:?} -> {other:?}: expected glossary {glossary_caught} tm {tm_caught}, got glossary {glossary}, tm {tm}"
+                    "{lang} {term:?} -> {other:?}: expected {caught}, glossary {glossary}, tm {tm}"
                 ));
             }
         }
@@ -2318,7 +2317,7 @@ fn rows_without_the_phrase_report_no_hit_not_tm_empty() {
 }
 
 #[test]
-fn english_matches_case_insensitively_inside_words_and_chinese_matches_raw() {
+fn english_matches_case_insensitively_inside_words_and_chinese_matches_across_han_forms() {
     let w = wired("cc-lang", "一。", true);
     w.seed_work("The Dragon roared.", "en", "self");
     w.seed_work("龙吼了。", "zh", "self");
@@ -2326,7 +2325,7 @@ fn english_matches_case_insensitively_inside_words_and_chinese_matches_raw() {
     assert_eq!(concordance(&w, "ragon ro").total, 1);
     assert_eq!(concordance(&w, "dragons").total, 0);
     assert_eq!(concordance(&w, "龙").total, 1);
-    assert_eq!(concordance(&w, "龍").total, 0);
+    assert_eq!(concordance(&w, "龍").total, 1);
 }
 
 #[test]
@@ -3120,6 +3119,7 @@ mod manage {
         assert_eq!(rows_of(&list(&w, "all", "both", "master li")).len(), 1);
         assert_eq!(rows_of(&list(&w, "all", "both", "sư phụ")).len(), 1);
         assert_eq!(rows_of(&list(&w, "all", "both", "师父")).len(), 1);
+        assert_eq!(rows_of(&list(&w, "all", "both", "師父")).len(), 1);
         let none = list(&w, "all", "both", "absent");
         assert_eq!((none.total_pairs, none.tm_empty), (0, false));
     }
@@ -4097,4 +4097,72 @@ fn the_exact_tm_prefill_on_load_leaves_the_chapter_not_started() {
 
     assert_eq!(w.with_open(|o| w_target(o, id)), "A");
     assert_eq!(chapter_status_of(&w), "not_started");
+}
+
+#[test]
+fn a_sentence_differing_only_by_han_form_is_a_99_percent_fuzzy_match_and_not_a_prefill() {
+    use auratranslate_lib::core::tm::{rank_fuzzy_candidates, read_tier_rows};
+    let dir = temp_dir("fold-fuzzy");
+    let _guard = DirGuard(dir.clone());
+    let global = open_global_db(&dir);
+    seed(&global, &[("大纪元报道了这件事。", "t", "self")]);
+    let query = "大紀元報道了這件事。";
+
+    let candidates = read_tier_rows(&global, None, TmSidePolicy::browse()).expect("nap ung vien");
+    let ranked = rank_fuzzy_candidates(
+        &ScopeResolver::global_only(),
+        candidates,
+        query,
+        auratranslate_lib::core::matching::MatchLang::Zh,
+        65,
+    )
+    .expect("xep hang")
+    .into_parts()
+    .0;
+    assert_eq!(
+        ranked.iter().map(|f| f.percent).collect::<Vec<_>>(),
+        vec![99]
+    );
+
+    let exact = pairs_for_source(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+        query,
+        TmSidePolicy::browse(),
+    )
+    .expect("tra chinh xac");
+    assert!(exact.kept().is_empty());
+}
+
+#[test]
+fn term_suggestions_count_pairs_whose_source_differs_only_by_han_form() {
+    let (root, open) = work("sug-fold", "一。");
+    let global = open_global_db(&root);
+    seed(&open.store, &[("大紀元", "x", "self")]);
+    seed(
+        &global,
+        &[("大纪元", "x", "other"), ("大纪元报", "z", "self")],
+    );
+
+    assert_eq!(
+        suggestions(&global, Some(&open), "大纪元"),
+        [("x".to_owned(), 2)]
+    );
+    assert_eq!(
+        suggestions(&global, Some(&open), "大紀元"),
+        [("x".to_owned(), 2)]
+    );
+    drop((open, global));
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn concordance_finds_a_source_written_in_the_other_han_form() {
+    let w = wired("cc-fold", "一。", true);
+    w.seed_global("大纪元报道。", "simplified-row", "self");
+    let got = concordance(&w, "大紀元");
+    assert_eq!(got.total, 1);
+    assert_eq!(got.hits[0].target_text, "simplified-row");
+    assert_eq!(got.hits[0].source_text, "大纪元报道。");
 }

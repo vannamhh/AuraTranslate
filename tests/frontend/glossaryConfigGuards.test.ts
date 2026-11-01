@@ -64,7 +64,7 @@ describe('① lookupGlossaryTerm — QuickAddLookupWire, mục lồng phải qua
 
   it('đối chứng chiều ngược — dữ liệu ĐÚNG hình dạng ⇒ error === null, hành vi đường thường không đổi', async () => {
     const state = await freshAdapter()
-    mockInvoke.mockResolvedValue({ entry: validEntryWire(), work_tier_available: true })
+    mockInvoke.mockResolvedValue({ entry: validEntryWire(), work_tier_available: true, variant_term: null })
 
     const result = await state.lookupGlossaryTerm('慕容')
 
@@ -74,11 +74,24 @@ describe('① lookupGlossaryTerm — QuickAddLookupWire, mục lồng phải qua
 
   it('entry: null (chế độ THÊM, không tìm thấy) ⇒ found "none", vẫn hợp lệ', async () => {
     const state = await freshAdapter()
-    mockInvoke.mockResolvedValue({ entry: null, work_tier_available: true })
+    mockInvoke.mockResolvedValue({ entry: null, work_tier_available: true, variant_term: null })
 
     const result = await state.lookupGlossaryTerm('新')
 
-    expect(result).toEqual({ found: 'none', workTierAvailable: true })
+    expect(result).toEqual({ found: 'none', workTierAvailable: true, variantTerm: null })
+  })
+
+  it('variant_term mang chuoi ⇒ found "none" kem variantTerm; kieu la ⇒ error', async () => {
+    const state = await freshAdapter()
+    mockInvoke.mockResolvedValue({ entry: null, work_tier_available: true, variant_term: '大纪元' })
+    expect(await state.lookupGlossaryTerm('大紀元')).toEqual({
+      found: 'none',
+      workTierAvailable: true,
+      variantTerm: '大纪元',
+    })
+
+    mockInvoke.mockResolvedValue({ entry: null, work_tier_available: true, variant_term: 7 })
+    expect((await state.lookupGlossaryTerm('大紀元')).found).toBe('unknown')
   })
 })
 

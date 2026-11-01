@@ -61,7 +61,7 @@ describe('focus after a reviewer import with harvested candidates', () => {
     pendingMock.mockReset()
     lookupMock.mockReset()
     pendingMock.mockResolvedValue({ candidates: [harvestCandidate(1), harvestCandidate(2)], error: null })
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     const commands = await import('../../src/commands')
     commands.installCommands({} as never)

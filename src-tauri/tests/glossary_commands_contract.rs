@@ -1376,3 +1376,35 @@ fn glossary_promote_term_to_global_rejects_when_the_destination_already_has_the_
     cleanup(&root);
     cleanup(&global_dir);
 }
+
+#[test]
+fn glossary_lookup_term_reports_the_variant_term_only_when_no_entry_matches_verbatim() {
+    let global_dir = temp_dir("lookup-variant-global");
+    let global = open_global(&global_dir);
+    insert_manual_entry_for_test(&global, "大纪元");
+
+    let variant = glossary_lookup_term(Some(&global), None, "大紀元").expect("tra dang khac");
+    assert!(variant.entry.is_none());
+    assert_eq!(variant.variant_term.as_deref(), Some("大纪元"));
+
+    let verbatim = glossary_lookup_term(Some(&global), None, "大纪元").expect("tra nguyen van");
+    assert!(verbatim.entry.is_some());
+    assert_eq!(verbatim.variant_term, None);
+
+    let none = glossary_lookup_term(Some(&global), None, "慕容").expect("tra khong co");
+    assert_eq!((none.entry.is_none(), none.variant_term), (true, None));
+
+    drop(global);
+    cleanup(&global_dir);
+}
+
+fn insert_manual_entry_for_test(store: &Store, term: &str) {
+    auratranslate_lib::core::glossary::insert_manual_entry(
+        store,
+        term,
+        Some("Đại Kỷ Nguyên"),
+        "",
+        Category::Other,
+    )
+    .expect("chen muc");
+}

@@ -177,8 +177,9 @@ fn names_identifier(code: &str, name: &str) -> bool {
 /// `confirmed_terms_for_injection` (không lọc `is_confirmed`, phát cả `shadowed()`);
 /// `delete_manual_term` là khuôn chép `add_manual_term`/`update_manual_term`; `promote_to_
 /// global` là hàm DUY NHẤT của module ghi vào HAI `Store` khác nhau trong cùng một lượt gọi.
-const QUICK_ADD_SURFACE: [&str; 12] = [
+const QUICK_ADD_SURFACE: [&str; 13] = [
     "resolve_term_for_quick_add",
+    "variant_term_for_quick_add",
     "add_manual_term",
     "update_manual_term",
     "marks_for_source_text",

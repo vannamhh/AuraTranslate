@@ -87,8 +87,8 @@ function entry(over: Partial<GlossaryEntry> = {}): GlossaryEntry {
   }
 }
 
-const workOpenProbe = { found: 'none' as const, workTierAvailable: true }
-const workClosedProbe = { found: 'none' as const, workTierAvailable: false }
+const workOpenProbe = { found: 'none' as const, workTierAvailable: true, variantTerm: null }
+const workClosedProbe = { found: 'none' as const, workTierAvailable: false, variantTerm: null }
 
 beforeEach(() => {
   document.body.innerHTML = ''

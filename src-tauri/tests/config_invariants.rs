@@ -1482,6 +1482,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/glossary.rs",
+            "pub fn glossary_tm_suggestions(\n        app: tauri::AppHandle,",
+            "doc cac hang TM ca hai tang roi gap phon/gian, chi phi scale theo kich thuoc TM",
+        ),
+        (
+            "src/commands/glossary.rs",
             "pub fn glossary_list_entries(\n        app: tauri::AppHandle",
             "nap TRON bang glossary_entry ca hai tang (`load_tier`) roi dung mot Vec co toan bo Glossary",
         ),
@@ -2239,7 +2244,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
          ai do no o TANG VO.",
     ),
     ("src/commands/export.rs", 8, 8, 8, ""),
-    ("src/commands/glossary.rs", 10, 8, 8, ""),
+    ("src/commands/glossary.rs", 9, 9, 9, ""),
     ("src/commands/library.rs", 3, 7, 7, ""),
     ("src/commands/lifecycle.rs", 1, 4, 4, ""),
     (
@@ -2440,9 +2445,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (110, 67),
+        (109, 68),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         110/67.\n\n\
+         109/68.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

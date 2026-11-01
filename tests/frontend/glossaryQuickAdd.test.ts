@@ -55,7 +55,7 @@ describe('quickAddModeFor — chế độ là hàm THUẦN của kết quả tra
 
   it("found === 'none' ⇒ add", async () => {
     const { quickAddModeFor } = await freshState()
-    expect(quickAddModeFor({ found: 'none', workTierAvailable: true })).toBe('add')
+    expect(quickAddModeFor({ found: 'none', workTierAvailable: true, variantTerm: null })).toBe('add')
   })
 
   it("found === 'entry' ⇒ edit, BẤT KỂ translation là null (chờ chốt vẫn mở SỬA)", async () => {
@@ -92,14 +92,14 @@ describe('quickAddLookupHasLoaded — vị từ "…HasLoaded", BA trạng thái
 
   it("found === 'none' HOẶC 'entry' (đã tra xong) ⇒ true", async () => {
     const { quickAddLookupHasLoaded } = await freshState()
-    expect(quickAddLookupHasLoaded({ found: 'none', workTierAvailable: false })).toBe(true)
+    expect(quickAddLookupHasLoaded({ found: 'none', workTierAvailable: false, variantTerm: null })).toBe(true)
   })
 })
 
 describe('openGlossaryQuickAdd — ô nguồn RỖNG khi không có vùng chọn, và vẫn phát một lượt tra', () => {
   it('mở với chuỗi rỗng ⇒ ô nguồn rỗng, và lượt tra vẫn chạy (để biết work_tier_available)', async () => {
     const { openGlossaryQuickAdd, quickAddSourceTerm, quickAddIsOpen } = await freshState()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     openGlossaryQuickAdd('')
 
@@ -110,7 +110,7 @@ describe('openGlossaryQuickAdd — ô nguồn RỖNG khi không có vùng chọn
 
   it('mở với một cụm chưa có trong Glossary ⇒ chế độ THÊM sau khi lượt tra về', async () => {
     const { openGlossaryQuickAdd, quickAddMode } = await freshState()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     openGlossaryQuickAdd('慕容')
     // Ngay sau khi mở, lượt tra CHƯA về — mode phải là 'unknown', không "add" đoán trước.
@@ -161,7 +161,7 @@ describe('setQuickAddSourceTerm — đổi ô nguồn sau khi dải đã mở ph
     const { openGlossaryQuickAdd, setQuickAddSourceTerm, quickAddMode } = await freshState()
 
     lookupMock.mockImplementationOnce(() => slow) // lượt 1 — 'A', CHẬM.
-    lookupMock.mockResolvedValueOnce({ found: 'none', workTierAvailable: true }) // lượt 2 — 'B', NHANH.
+    lookupMock.mockResolvedValueOnce({ found: 'none', workTierAvailable: true, variantTerm: null }) // lượt 2 — 'B', NHANH.
 
     openGlossaryQuickAdd('A')
     setQuickAddSourceTerm('B')
@@ -200,7 +200,7 @@ describe('đóng dải (Esc hoặc sau khi Lưu) trả lại focus đã lưu lú
     expect(document.activeElement).toBe(anchor)
 
     const { openGlossaryQuickAdd, closeGlossaryQuickAdd, quickAddIsOpen } = await freshState()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     openGlossaryQuickAdd('') // lưu `anchor` làm phần tử focus TRƯỚC khi mở.
     closeGlossaryQuickAdd()
@@ -215,7 +215,7 @@ describe('đóng dải (Esc hoặc sau khi Lưu) trả lại focus đã lưu lú
     anchor.focus()
 
     const { openGlossaryQuickAdd, saveGlossaryQuickAdd, quickAddIsOpen } = await freshState()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
     addMock.mockResolvedValue({ value: 1, error: null })
 
     openGlossaryQuickAdd('慕容')
@@ -232,7 +232,7 @@ describe('đóng dải (Esc hoặc sau khi Lưu) trả lại focus đã lưu lú
   it('Lưu TRƯỢT giữ dải MỞ và hiện lỗi — không rỗng im lặng', async () => {
     const { openGlossaryQuickAdd, saveGlossaryQuickAdd, quickAddIsOpen, quickAddSaveError } = await freshState()
     const err = { code: 'store.write_failed', message_key: 'err.store.write_failed', params: {}, retryable: false }
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
     addMock.mockResolvedValue({ value: null, error: err })
 
     openGlossaryQuickAdd('慕容')
@@ -251,7 +251,7 @@ describe('resetGlossaryQuickAdd — check:panel-refs đòi một đường reset
   it('vứt toàn bộ state về giá trị khởi tạo', async () => {
     const { openGlossaryQuickAdd, resetGlossaryQuickAdd, quickAddIsOpen, quickAddSourceTerm, quickAddLookup } =
       await freshState()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     openGlossaryQuickAdd('慕容')
     resetGlossaryQuickAdd()
@@ -286,7 +286,7 @@ describe('đóng dải trả lại VÙNG CHỌN đã lưu lúc mở, không ch�
     selection?.addRange(range)
 
     const { openGlossaryQuickAdd, closeGlossaryQuickAdd } = await freshState()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     openGlossaryQuickAdd('Mộ Dung P') // chụp Range HIỆN TẠI lúc mở.
 
@@ -317,7 +317,7 @@ describe('đóng dải trả lại VÙNG CHỌN đã lưu lúc mở, không ch�
     selection?.addRange(range)
 
     const { openGlossaryQuickAdd, closeGlossaryQuickAdd, quickAddIsOpen } = await freshState()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     openGlossaryQuickAdd('Thanh Khâu')
 
@@ -337,7 +337,7 @@ describe('chốt tái nhập — Ice bắt 2026-08-20, ba lỗ cùng một gốc
     original.focus()
 
     const { openGlossaryQuickAdd, closeGlossaryQuickAdd, quickAddIsOpen } = await freshState()
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     openGlossaryQuickAdd('慕容') // lưu `original` làm focus TRƯỚC.
     expect(quickAddIsOpen.value).toBe(true)
@@ -364,7 +364,7 @@ describe('chốt tái nhập — Ice bắt 2026-08-20, ba lỗ cùng một gốc
       resolveAdd = resolve
     })
     addMock.mockReturnValue(pending)
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     openGlossaryQuickAdd('慕容')
     await Promise.resolve()
@@ -392,7 +392,7 @@ describe('chốt tái nhập — Ice bắt 2026-08-20, ba lỗ cùng một gốc
       resolveAdd = resolve
     })
     addMock.mockReturnValue(pending)
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
 
     openGlossaryQuickAdd('慕容')
     await Promise.resolve()

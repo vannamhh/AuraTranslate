@@ -662,7 +662,6 @@ fn the_scorer_equals_dice_over_ngrams_one_and_two_on_a_chinese_and_english_corpu
         ),
         ("山水", "火木"),
         ("啊啊啊", "啊啊"),
-        ("翻译", "翻譯"),
         ("他用iPhone打电话。", "他用iPhone打电话。"),
         ("他用iPhone打电话。", "他用手机打电话。"),
         ("   ", "他去了远方。"),
@@ -676,6 +675,7 @@ fn the_scorer_equals_dice_over_ngrams_one_and_two_on_a_chinese_and_english_corpu
         let want = reference_percent(a, b, MatchLang::Zh);
         assert_eq!(score(a, b, MatchLang::Zh), want, "zh {a:?} / {b:?}");
     }
+    assert_eq!(score("翻译", "翻譯", MatchLang::Zh), 100);
 }
 
 fn rebuilt(spans: &[DiffSpan], drop_kind: DiffKind) -> String {

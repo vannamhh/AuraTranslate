@@ -169,6 +169,19 @@ fn load_all_pair_rows(store: &crate::core::store::Store) -> Result<Vec<RawPair>,
     )
 }
 
+/// Rows whose source has the byte length of `source_term`; folding keeps byte length.
+fn load_same_length_pair_rows(
+    store: &crate::core::store::Store,
+    source_term: &str,
+) -> Result<Vec<RawPair>, TmStoreError> {
+    query_pair_rows(
+        store,
+        "SELECT id, source_text, target_text, translation_origin, created_at FROM tm_unit \
+         WHERE length(CAST(source_text AS BLOB)) = length(CAST(?1 AS BLOB)) ORDER BY id",
+        Some(source_term.to_owned()),
+    )
+}
+
 fn query_pair_rows(
     store: &crate::core::store::Store,
     sql: &'static str,
@@ -510,7 +523,7 @@ pub struct TermSuggestions {
     pub hidden_count: usize,
 }
 
-/// Distinct targets of pairs whose source equals `source_term`, both tiers, with how many pairs
+/// Distinct targets of pairs whose source equals `source_term` up to Traditional/Simplified form, both tiers, with how many pairs
 /// carry each. Most pairs first, ties in `pairs_for_source` order (AD-18).
 pub fn target_suggestions_for_term(
     resolver: &crate::core::scope::ScopeResolver,
@@ -519,8 +532,26 @@ pub fn target_suggestions_for_term(
     source_term: &str,
     policy: TmSidePolicy,
 ) -> Result<TermSuggestions, TmStoreError> {
-    let (pairs, hidden_count) =
-        pairs_for_source(resolver, global, work, source_term, policy)?.into_parts();
+    let folded_term = crate::core::matching::fold_zh(source_term);
+    let global_rows = load_same_length_pair_rows(global, source_term)?
+        .into_iter()
+        .filter(|row| crate::core::matching::fold_zh(&row.source_text) == folded_term)
+        .collect();
+    let work_rows = work
+        .map(|w| {
+            load_same_length_pair_rows(w, source_term).map(|rows| {
+                rows.into_iter()
+                    .filter(|row| crate::core::matching::fold_zh(&row.source_text) == folded_term)
+                    .collect::<Vec<_>>()
+            })
+        })
+        .transpose()?;
+    let (pairs, hidden_count) = police(
+        policy,
+        merge_tiers(resolver, global_rows, work_rows)?,
+        |p| p,
+    )
+    .into_parts();
     let mut grouped: Vec<(String, u32)> = Vec::new();
     for pair in pairs {
         match grouped.iter_mut().find(|(t, _)| *t == pair.target_text) {
@@ -603,11 +634,11 @@ pub struct ConcordanceHits {
 
 fn concordance_key(text: &str) -> String {
     use unicode_normalization::UnicodeNormalization;
-    text.trim().nfc().collect::<String>().to_lowercase()
+    crate::core::matching::fold_zh(&text.trim().nfc().collect::<String>().to_lowercase())
 }
 
-/// Pairs of both tiers whose source contains `query` as a raw substring: NFC and lower-cased on
-/// both sides, no stemming, matches inside words; one hit per distinct (source, target), the
+/// Pairs of both tiers whose source contains `query` as a substring: NFC, lower-cased and
+/// Traditional/Simplified-folded on both sides, no stemming, matches inside words; one hit per distinct (source, target), the
 /// first in AD-18 order. A blank query hits nothing.
 pub fn rank_concordance(
     resolver: &crate::core::scope::ScopeResolver,

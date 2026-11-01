@@ -93,7 +93,7 @@ describe('glossaryExchangeBusy — Xuất và Nhập loại trừ lẫn nhau (c�
   it('một lượt Xuất đang bay ⇒ cờ dùng chung lên `true`, và `openGlossaryImportPreviewOverlay` KHÔNG khởi được lượt thứ hai', async () => {
     const { manage, importState, gate } = await freshGate()
     listMock.mockResolvedValue({ entries: [entry()], error: null })
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
     await manage.openGlossaryManage()
 
     let resolveExport: (() => void) | undefined
@@ -119,7 +119,7 @@ describe('glossaryExchangeBusy — Xuất và Nhập loại trừ lẫn nhau (c�
   it('một lượt Nhập đang mở hộp thoại ⇒ cờ dùng chung lên `true`, và `exportGlossaryManageTier` KHÔNG khởi được lượt Xuất', async () => {
     const { manage, importState, gate } = await freshGate()
     listMock.mockResolvedValue({ entries: [entry()], error: null })
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
     await manage.openGlossaryManage()
 
     let resolveOpen: (() => void) | undefined
@@ -145,7 +145,7 @@ describe('glossaryExchangeBusy — Xuất và Nhập loại trừ lẫn nhau (c�
   it('mở lại lớp phủ Quản lý giữa chừng ⇒ cờ dùng chung hạ theo, không kẹt `true` mãi mãi', async () => {
     const { manage, gate } = await freshGate()
     listMock.mockResolvedValue({ entries: [entry()], error: null })
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
     await manage.openGlossaryManage()
 
     exportMock.mockReturnValue(new Promise(() => {})) // KHÔNG BAO GIỜ về.
@@ -162,7 +162,7 @@ describe('glossaryExchangeBusy — Xuất và Nhập loại trừ lẫn nhau (c�
   it('🔴 #3 (vòng rà thứ hai) — CẢ HAI nút "Xuất CSV"/"Nhập CSV" mang `disabled` khi glossaryExchangeBusy đúng, và nhả ra sau khi xong', async () => {
     const { manage, gate, GlossaryManageOverlay } = await freshGateOverlay()
     listMock.mockResolvedValue({ entries: [entry()], error: null })
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
     await manage.openGlossaryManage()
 
     const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })
@@ -210,7 +210,7 @@ describe('glossaryExchangeBusy — Xuất và Nhập loại trừ lẫn nhau (c�
   it('🔴 #10 (vòng rà thứ hai) — Nhập đang mở hộp thoại ⇒ vùng Xuất hiện câu NÓI RÕ vì sao nút của nó xám (không chỉ khoá câm)', async () => {
     const { manage, importState, i18n, GlossaryManageOverlay } = await freshGateOverlay()
     listMock.mockResolvedValue({ entries: [entry()], error: null })
-    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true })
+    lookupMock.mockResolvedValue({ found: 'none', workTierAvailable: true, variantTerm: null })
     await manage.openGlossaryManage()
 
     const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })

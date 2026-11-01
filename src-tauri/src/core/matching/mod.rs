@@ -66,7 +66,7 @@
 //! mạng (AD-15), cưỡng chế bằng `tests/matching_boundary.rs`.
 
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::ops::Range;
 use std::sync::LazyLock;
 
@@ -150,23 +150,38 @@ pub fn warm() {
     LazyLock::force(&ZH_FOLD);
 }
 
-static ZH_FOLD: LazyLock<HashMap<char, char>> = LazyLock::new(|| {
-    include_str!("zh_fold.txt")
+static ZH_FOLD: LazyLock<Vec<u16>> = LazyLock::new(|| {
+    let mut table: Vec<u16> = (0..=u16::MAX).collect();
+    for line in include_str!("zh_fold.txt")
         .lines()
         .filter(|line| !line.starts_with('#') && !line.is_empty())
-        .filter_map(|line| {
-            let (from, to) = line.split_once('\t')?;
-            Some((from.chars().next()?, to.chars().next()?))
-        })
-        .collect()
+    {
+        let Some((from, to)) = line.split_once('\t') else {
+            continue;
+        };
+        if let (Some(from), Some(to)) = (from.chars().next(), to.chars().next())
+            && let (Ok(from), Ok(to)) =
+                (u16::try_from(u32::from(from)), u16::try_from(u32::from(to)))
+        {
+            table[usize::from(from)] = to;
+        }
+    }
+    table
 });
+
+/// Folds one character onto the representative of its Traditional/Simplified class.
+/// A direct index by BMP code point: the fuzzy scan folds every character of every TM row.
+pub fn fold_char(c: char) -> char {
+    match u16::try_from(u32::from(c)) {
+        Ok(unit) => char::from_u32(u32::from(ZH_FOLD[usize::from(unit)])).unwrap_or(c),
+        Err(_) => c,
+    }
+}
 
 /// Folds Traditional and Simplified forms onto one representative per class.
 /// Every table pair is 3 bytes in UTF-8, so byte offsets of the input stay valid on the output.
-fn fold_zh(text: &str) -> String {
-    text.chars()
-        .map(|c| ZH_FOLD.get(&c).copied().unwrap_or(c))
-        .collect()
+pub fn fold_zh(text: &str) -> String {
+    text.chars().map(fold_char).collect()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -408,8 +423,8 @@ pub fn ngrams(text: &str, lang: MatchLang, n: usize) -> Vec<String> {
 }
 
 /// Fuzzy scorer of one query text against many candidates (AD-17). A text's profile is the
-/// sorted multiset of its 1-grams and 2-grams over the same units [`ngrams`] uses (characters
-/// for `Zh`, stemmed tokens for `En`), interned to integers so a candidate costs no string
+/// sorted multiset of its 1-grams and 2-grams over characters folded by [`fold_char`] for `Zh`
+/// (so script variants score alike; [`ngrams`] does not fold) and stemmed tokens for `En`, interned to integers so a candidate costs no string
 /// allocation per gram; stems are cached across candidates.
 pub struct SimilarityScorer {
     lang: MatchLang,
@@ -437,7 +452,7 @@ impl SimilarityScorer {
 
     fn units(&mut self, text: &str) -> Vec<u32> {
         match self.lang {
-            MatchLang::Zh => text.chars().map(u32::from).collect(),
+            MatchLang::Zh => text.chars().map(|c| u32::from(fold_char(c))).collect(),
             MatchLang::En => tokenize(text, self.lang)
                 .into_iter()
                 .map(|token| {

@@ -558,7 +558,7 @@ describe('sổ ưu tiên — dải "Thêm thuật ngữ" đang mở thắng dả
     expect(state.confirmStripIsOpen.value).toBe(true)
 
     mockInvoke.mockImplementation((cmd: string) => {
-      if (cmd === 'glossary_lookup_term') return Promise.resolve({ work_tier_available: false, entry: null })
+      if (cmd === 'glossary_lookup_term') return Promise.resolve({ work_tier_available: false, entry: null, variant_term: null })
       return Promise.reject(new Error(`lenh khong mong doi: ${cmd}`))
     })
     quickAdd.openGlossaryQuickAdd('')
