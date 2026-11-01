@@ -33,8 +33,9 @@ use crate::commands::promptset::PromptSetTierWire;
 use crate::core::ai::rag::{
     CallPromptEntry, GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair,
     InjectionLedger, PendingGlossaryTerm, PromptPiece, PromptPieceKind, SuppressedGlossaryTerm,
-    TmInjectionStatus, TmRows, assemble_call_prompt, assemble_prompt, gather_glossary_context,
-    gather_glossary_context_from_snapshot, gather_tm_context, load_glossary_snapshot, load_tm_rows,
+    TmInjectionStatus, TmRows, assemble_call_prompt, assemble_context_reference_prompt,
+    assemble_prompt, gather_glossary_context, gather_glossary_context_from_snapshot,
+    gather_tm_context, load_glossary_snapshot, load_tm_rows,
 };
 use crate::core::glossary::{GlossarySnapshot, GlossaryTier};
 use crate::core::i18n::{IpcError, MessageKey};
@@ -42,6 +43,11 @@ use crate::core::promptset::{PromptSetTier, resolve_two_tiers};
 use crate::core::scope::ScopeResolver;
 use crate::core::store::{Store, StoreError, StoreKind};
 use crate::core::tm::{PairSide, TmTier};
+
+/// The fixed prompt for the Glossary context reference call; records nothing.
+pub fn context_reference_prompt(sentence: &str) -> String {
+    assemble_context_reference_prompt(sentence)
+}
 
 /// Kho `global.db` vắng mặt ⇒ lỗi *mở kho* — cùng khuôn `commands::promptset::store_is_missing`.
 fn store_is_missing() -> IpcError {

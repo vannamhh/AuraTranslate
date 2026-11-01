@@ -323,6 +323,7 @@ import { tmManageOverlayIsOpen } from './tmManageState'
 // `ref`/`computed` của Vue và gọi `@tauri-apps/api` xuyên qua `config/glossary.ts`.
 import {
   acceptGlossaryQueueCandidate,
+  cancelGlossaryContextReference,
   closeGlossaryQueue,
   leaveGlossaryQueueCandidate,
   nextGlossaryQueueCandidate,
@@ -330,6 +331,7 @@ import {
   prevGlossaryQueueCandidate,
   queueOverlayIsOpen,
   rejectGlossaryQueueCandidate,
+  translateGlossaryContextReference,
 } from './glossaryQueueState'
 import {
   acceptGlossaryHarvestRow,
@@ -1019,6 +1021,10 @@ async function boot(): Promise<void> {
       nextGlossaryQueueCandidate,
       prevGlossaryQueueCandidate,
       leaveGlossaryQueueCandidate,
+      translateGlossaryContextReference: () => {
+        void translateGlossaryContextReference()
+      },
+      cancelGlossaryContextReference,
       openGlossaryHarvest: () => {
         void openGlossaryHarvest()
       },

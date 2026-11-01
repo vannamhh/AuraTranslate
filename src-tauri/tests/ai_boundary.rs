@@ -226,7 +226,8 @@ fn line_with_marker_occurrences_removed(code: &str, marker: &str) -> String {
 /// khác của `core::ai::rag` (không `expand_prompt_body`, không `render_glossary_pairs`, không
 /// bất kỳ hàm/hằng nội bộ nào khác). Bất kỳ tên nào khác lọt qua là một lối vào `core::ai` THỨ
 /// HAI mà Decision 1 không hề mở.
-const ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM: [&str; 18] = [
+const ALLOWED_AI_RAG_NAMES_IN_COMMAND_SEAM: [&str; 19] = [
+    "assemble_context_reference_prompt",
     "assemble_prompt",
     "assemble_call_prompt",
     "CallPromptEntry",

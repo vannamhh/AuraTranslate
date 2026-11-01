@@ -89,7 +89,7 @@ export const UNKNOWN_IPC_ERROR: IpcError = {
   retryable: false,
 }
 
-function isAiTranslateOutcomeWire(value: unknown): value is AiTranslateOutcomeWire {
+export function isAiTranslateOutcomeWire(value: unknown): value is AiTranslateOutcomeWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as { state?: unknown; usage?: unknown; maybe_truncated?: unknown }
   if (v.state === 'not_configured' || v.state === 'cancelled') return true

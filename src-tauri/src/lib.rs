@@ -1415,6 +1415,9 @@ pub fn run() {
             // mot luot don dang chay va nguoc lai.
             crate::commands::aitranslate::wire::ai_translate_batch,
             crate::commands::aitranslate::wire::ai_translate_resend_call,
+            crate::commands::aitranslate::wire::ai_context_reference_translate,
+            crate::commands::aitranslate::wire::ai_context_reference_cancel,
+            crate::commands::glossary::wire::glossary_context_translation,
             crate::commands::proofread::wire::ai_proofread_segments,
             crate::commands::proofread::wire::ai_proofread_cancel,
             crate::commands::proofread::wire::ai_proofread_ignore_add,
@@ -1722,6 +1725,7 @@ fn open_work_slot(app: &tauri::App) {
     app.manage(crate::commands::aiprompt::AiCallRecordsState::default());
     app.manage(crate::commands::aitranslate::AiTranslateGeneration::default());
     app.manage(crate::commands::aitranslate::ConnectionCheckGeneration::default());
+    app.manage(crate::commands::aitranslate::ContextReferenceGeneration::default());
     app.manage(crate::commands::proofread::ProofreadGeneration::default());
     // Story 6.3 (FR126) -- nguon dang cho cua man xem truoc bang ma (Task list spec 6.3:
     // "byte cua nguon doc DUNG MOT LAN"). Cung khuon PendingImportState ngay tren; khong

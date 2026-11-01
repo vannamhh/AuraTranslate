@@ -13849,3 +13849,11 @@ chính nó.
 - Lượt ráp `EstimateExclusions` nằm trong thân `#[tauri::command]` `estimate_import_glossary`, nên không test nào chạm tới; làm mất dòng gán `pending_terms` thì ước lượng FR137 khi nối thêm đếm thừa mà vẫn xanh. Khoảng hở có từ trước AD-63.
   Cần: tách lượt ráp sang hàm thuần có ca canh, hoặc ghi nhận giữ nguyên.
   Chủ: Ice. Trỏ: `src-tauri/src/commands/project/wire.rs`, `reviews/review-ad-63-winston-2026-11-01.md`.
+
+## Deferred from: `plan-cau-dich-tham-khao-bang-cho-glossary.md` (2026-11-01)
+
+- Chưa dùng thật: bấm `Dịch thử` với khoá thật trên một Tác phẩm tiếng Trung và một Tác phẩm tiếng Anh; test chỉ đo tới bước gửi bằng nhà cung cấp giả và cổng đóng.
+  Chủ: Ice. Trỏ: `plan-cau-dich-tham-khao-bang-cho-glossary.md` §Verification.
+- `npm run build` đỏ từ `afdc4205` vì `scripts/gen-zh-fold.mjs` có lỗi kiểu ở `tsconfig.node.json`; `pre-push` sẽ chặn, `cargo test` chạy trên `dist/` cũ.
+  Cần: sửa kiểu trong tệp đó, không nới `tsconfig`.
+  Chủ: Ice. Trỏ: `scripts/gen-zh-fold.mjs`.

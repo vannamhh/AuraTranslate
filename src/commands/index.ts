@@ -1060,6 +1060,10 @@ export type CommandDeps = {
   prevGlossaryQueueCandidate?: () => void
   /** Đánh dấu hàng đang chọn "để lại" trong phiên, không ghi gì. Handler của `glossary.queue.leave`. */
   leaveGlossaryQueueCandidate?: () => void
+  /** Translates the current row's Context sentence once, on a click. Handler of `glossary.context.translate`. */
+  translateGlossaryContextReference?: () => void
+  /** Cancels that translation only. Handler of `glossary.context.cancel`. */
+  cancelGlossaryContextReference?: () => void
 
   /** Opens the harvest review overlay. Handler of `glossary.harvest.open`. */
   openGlossaryHarvest?: () => void
@@ -4453,6 +4457,29 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     run: () => {
       if (deps.leaveGlossaryQueueCandidate === undefined) return portMissing('glossary.queue.leave', 'leaveGlossaryQueueCandidate')
       deps.leaveGlossaryQueueCandidate()
+    },
+  })
+
+  target.register({
+    id: 'glossary.context.translate',
+    labelKey: 'command.glossary.context.translate',
+    keys: undefined,
+    run: () => {
+      if (deps.translateGlossaryContextReference === undefined) {
+        return portMissing('glossary.context.translate', 'translateGlossaryContextReference')
+      }
+      deps.translateGlossaryContextReference()
+    },
+  })
+  target.register({
+    id: 'glossary.context.cancel',
+    labelKey: 'command.glossary.context.cancel',
+    keys: undefined,
+    run: () => {
+      if (deps.cancelGlossaryContextReference === undefined) {
+        return portMissing('glossary.context.cancel', 'cancelGlossaryContextReference')
+      }
+      deps.cancelGlossaryContextReference()
     },
   })
 

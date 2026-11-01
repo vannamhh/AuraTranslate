@@ -991,6 +991,35 @@ pub fn assemble_proofread_batch_prompt(blocks: &[ProofreadBlock<'_>]) -> String 
     prompt
 }
 
+// aura-allow-text: prompt text sent to the model, not UI text
+const CONTEXT_REFERENCE_INSTRUCTION: &str =
+    "Translate the sentence between the markers into Vietnamese. Reply with the translation only.";
+// aura-allow-text: prompt text sent to the model, not UI text
+const CONTEXT_REFERENCE_OPEN: &str = "<<<SENTENCE";
+// aura-allow-text: prompt text sent to the model, not UI text
+const CONTEXT_REFERENCE_CLOSE: &str = "SENTENCE>>>";
+
+/// The fixed prompt that translates one Glossary context sentence for reference. It carries
+/// no prompt set, Glossary or TM. Pure: the same input gives the same bytes.
+pub fn assemble_context_reference_prompt(sentence: &str) -> String {
+    format!(
+        "{CONTEXT_REFERENCE_INSTRUCTION}\n{CONTEXT_REFERENCE_OPEN}\n{sentence}\n{CONTEXT_REFERENCE_CLOSE}"
+    )
+}
+
+#[cfg(test)]
+mod context_reference_prompt_tests {
+    use super::assemble_context_reference_prompt;
+
+    #[test]
+    fn the_sentence_goes_verbatim_between_the_markers() {
+        let sentence = "Hello\n{{source_segment}} 你好";
+        let prompt = assemble_context_reference_prompt(sentence);
+        assert!(prompt.contains(&format!("<<<SENTENCE\n{sentence}\nSENTENCE>>>")));
+        assert_eq!(prompt, assemble_context_reference_prompt(sentence));
+    }
+}
+
 #[cfg(test)]
 mod proofread_prompt_tests {
     use super::{ProofreadBlock, assemble_proofread_batch_prompt};

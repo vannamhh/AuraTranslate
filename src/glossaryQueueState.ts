@@ -26,7 +26,7 @@
  * không". Khi danh sách CÓ hàng, câu hỏi tự trả lời (bảng chờ chỉ tồn tại ở `project.db`,
  * có hàng ⇒ chắc chắn có Tác phẩm đang mở) — lượt hỏi thêm chỉ chạy đúng khi cần.
  */
-import { computed, readonly, ref } from 'vue'
+import { computed, readonly, ref, watch } from 'vue'
 import type { DeepReadonly, Ref } from 'vue'
 import {
   approveGlossaryCandidate,
@@ -35,6 +35,12 @@ import {
   rejectGlossaryCandidate,
 } from './config/glossary'
 import type { GlossaryCandidate, GlossaryCategory } from './config/glossary'
+import {
+  cancelContextReference,
+  lookupContextTranslation,
+  translateContextReference,
+} from './config/glossaryContextReference'
+import { UNKNOWN_IPC_ERROR } from './config/aitranslate'
 import { refreshWorkspaceCounts } from './workspaceCountsState'
 import type { IpcError } from './i18n'
 
@@ -90,6 +96,123 @@ const ALREADY_DECIDED_ERROR: IpcError = {
   message_key: 'err.glossary.queue_already_decided',
   params: {},
   retryable: false,
+}
+
+/**
+ * Translation shown under the Context sentence of the current row. `chapter` is the Work's own
+ * translation; `ai` was produced on a click and is a reference only. `none` and `failed` offer
+ * the button; `not_configured` offers the way to Settings.
+ */
+export type ContextReference =
+  | { kind: 'looking' }
+  | { kind: 'chapter'; text: string }
+  | { kind: 'none' }
+  | { kind: 'failed'; error: IpcError | null }
+  | { kind: 'running'; text: string }
+  | { kind: 'ai'; text: string }
+  | { kind: 'not_configured' }
+
+/** Per candidate id, so a late result can only land on the row it was asked for. */
+const references = ref<Partial<Record<number, ContextReference>>>({})
+const aiReplies = new Map<number, string>()
+/** Bumped to drop every pending token and result of an AI call that was aborted. */
+let referenceCall = 0
+let runningCandidateId: number | null = null
+
+function contextOf(row: GlossaryQueueRow | undefined): string | null {
+  const context = row?.candidate.context_example
+  return context === undefined || context === null || context === '' ? null : context
+}
+
+function referenceOf(id: number): ContextReference | undefined {
+  return references.value[id]
+}
+
+function settled(id: number): ContextReference {
+  const reply = aiReplies.get(id)
+  return reply === undefined ? { kind: 'none' } : { kind: 'ai', text: reply }
+}
+
+function abortContextReference(): void {
+  if (runningCandidateId === null) return
+  const id = runningCandidateId
+  runningCandidateId = null
+  referenceCall += 1
+  references.value[id] = settled(id)
+  void cancelContextReference()
+}
+
+export const queueContextReference = computed<ContextReference | null>(() => {
+  const row = rows.value.at(cursor.value)
+  return row === undefined ? null : (references.value[row.candidate.id] ?? null)
+})
+
+async function loadContextReference(): Promise<void> {
+  const row = rows.value.at(cursor.value)
+  const context = contextOf(row)
+  if (!overlayOpen.value || row === undefined || row.outcome !== null || context === null) return
+  const id = row.candidate.id
+  if (references.value[id] !== undefined) return
+
+  const mySequence = sequence
+  references.value[id] = { kind: 'looking' }
+  const found = await lookupContextTranslation(context)
+  if (mySequence !== sequence) return
+  if (found.value !== null) references.value[id] = { kind: 'chapter', text: found.value }
+  else if (found.failed && found.error !== null) references.value[id] = { kind: 'failed', error: found.error }
+  else references.value[id] = settled(id)
+}
+
+watch(
+  [overlayOpen, () => rows.value.at(cursor.value)?.candidate.id, () => rows.value.at(cursor.value)?.outcome],
+  () => {
+    abortContextReference()
+    void loadContextReference()
+  },
+)
+
+/**
+ * Translates the Context sentence of the current row once, on a click. Streams into the
+ * row's own entry; a result that arrives after the row changed is dropped.
+ */
+export async function translateGlossaryContextReference(): Promise<void> {
+  const row = rows.value.at(cursor.value)
+  const context = contextOf(row)
+  if (row === undefined || row.outcome !== null || context === null) return
+  const id = row.candidate.id
+  if (runningCandidateId !== null) return
+  const current = references.value[id]
+  if (!overlayOpen.value) return
+  if (current === undefined || current.kind === 'looking' || current.kind === 'chapter' || current.kind === 'ai') return
+
+  referenceCall += 1
+  const mine = referenceCall
+  runningCandidateId = id
+  references.value[id] = { kind: 'running', text: '' }
+
+  const result = await translateContextReference(context, (token) => {
+    if (mine !== referenceCall) return
+    const entry = referenceOf(id)
+    if (entry?.kind === 'running') references.value[id] = { kind: 'running', text: entry.text + token }
+  })
+  if (mine !== referenceCall) return
+
+  runningCandidateId = null
+  const entry = referenceOf(id)
+  const text = entry?.kind === 'running' ? entry.text : ''
+  if (result.error !== null) references.value[id] = { kind: 'failed', error: result.error }
+  else if (result.value === null) references.value[id] = settled(id)
+  else if (result.value.state === 'not_configured') references.value[id] = { kind: 'not_configured' }
+  else if (result.value.state === 'cancelled') references.value[id] = settled(id)
+  else if (text.trim() === '') references.value[id] = { kind: 'failed', error: UNKNOWN_IPC_ERROR }
+  else {
+    aiReplies.set(id, text)
+    references.value[id] = { kind: 'ai', text }
+  }
+}
+
+export function cancelGlossaryContextReference(): void {
+  abortContextReference()
 }
 
 export const queueOverlayIsOpen: DeepReadonly<Ref<boolean>> = readonly(overlayOpen)
@@ -205,6 +328,8 @@ export async function openGlossaryQueue(): Promise<void> {
   sequence += 1
   const mySequence = sequence
 
+  abortContextReference()
+  references.value = {}
   overlayOpen.value = true
   status.value = 'unknown'
   loadError.value = null
@@ -263,6 +388,7 @@ export async function openGlossaryQueue(): Promise<void> {
  */
 export function closeGlossaryQueue(): void {
   if (saving.value) return
+  abortContextReference()
   const row = rows.value.at(cursor.value)
   rememberedCandidateId = row !== undefined && row.outcome === null ? row.candidate.id : null
   overlayOpen.value = false
@@ -405,6 +531,9 @@ export async function rejectGlossaryQueueCandidate(): Promise<void> {
  * store). Called wherever the open Work changes: `modes/libraryImport.ts` and `modes/libraryChapters.ts`.
  */
 export function resetGlossaryQueue(): void {
+  abortContextReference()
+  references.value = {}
+  aiReplies.clear()
   sequence += 1
   overlayOpen.value = false
   status.value = 'unknown'

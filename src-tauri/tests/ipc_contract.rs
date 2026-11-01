@@ -2979,6 +2979,46 @@ fn the_glossary_tm_suggestions_wire_is_registered_and_keeps_its_parameter_names(
 }
 
 #[test]
+fn the_context_reference_wires_are_registered_and_keep_their_parameter_names() {
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let lib_src = fs::read_to_string(manifest.join("lib.rs")).expect("doc lib.rs");
+    let glossary_src =
+        fs::read_to_string(manifest.join("commands").join("glossary.rs")).expect("doc glossary.rs");
+    let ai_src = fs::read_to_string(manifest.join("commands").join("aitranslate.rs"))
+        .expect("doc aitranslate.rs");
+
+    for wire in [
+        "crate::commands::glossary::wire::glossary_context_translation,",
+        "crate::commands::aitranslate::wire::ai_context_reference_translate,",
+        "crate::commands::aitranslate::wire::ai_context_reference_cancel,",
+        "app.manage(crate::commands::aitranslate::ContextReferenceGeneration::default());",
+    ] {
+        assert!(lib_src.contains(wire), "`{wire}` phai co mat trong lib.rs");
+    }
+    assert_eq!(
+        normalize_param_list(&fn_param_list(
+            &glossary_src[glossary_src.find("pub mod wire {").expect("wire module")..],
+            "glossary_context_translation"
+        )),
+        normalize_param_list("app: tauri::AppHandle, context_example: String,"),
+        "`src/config/glossaryContextReference.ts` la cho duy nhat go lai theo dung ten/thu tu do."
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list_async(
+            &ai_src,
+            "ai_context_reference_translate"
+        )),
+        normalize_param_list(
+            "app: tauri::AppHandle<R>, context_example: String, channel: tauri::ipc::Channel<String>,"
+        ),
+    );
+    assert_eq!(
+        normalize_param_list(&fn_param_list(&ai_src, "ai_context_reference_cancel")),
+        normalize_param_list("app: tauri::AppHandle<R>")
+    );
+}
+
+#[test]
 fn the_quick_add_lookup_wire_carries_variant_term_as_null_or_string() {
     use auratranslate_lib::commands::glossary::QuickAddLookup;
     let json = |variant_term: Option<&str>| {

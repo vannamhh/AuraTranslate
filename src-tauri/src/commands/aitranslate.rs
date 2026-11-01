@@ -706,6 +706,56 @@ impl ConnectionCheckGeneration {
     }
 }
 
+/// Generation counter of the Glossary context reference call, separate from
+/// [`AiTranslateGeneration`] so its cancel never stops a translate run or batch.
+#[derive(Debug, Clone, Default)]
+pub struct ContextReferenceGeneration(std::sync::Arc<std::sync::atomic::AtomicU64>);
+
+impl ContextReferenceGeneration {
+    pub fn next(&self) -> u64 {
+        self.0
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel)
+            .wrapping_add(1)
+    }
+
+    pub fn is_current(&self, generation: u64) -> bool {
+        self.0.load(std::sync::atomic::Ordering::Acquire) == generation
+    }
+}
+
+/// Builds the call that translates one Glossary context sentence for reference. Not configured
+/// (empty endpoint/model, or no stored key) is reached before any network call. Reads and
+/// writes no Work data and records nothing.
+pub fn prepare_context_reference_call(
+    global: Option<&Store>,
+    open: Option<&OpenWork>,
+    context_example: &str,
+) -> Result<PrepareOutcome, IpcError> {
+    let Some(ResolvedCallConfig {
+        provider,
+        endpoint,
+        model,
+        temperature,
+        max_tokens,
+        ..
+    }) = resolve_call_config(global, open)?
+    else {
+        return Ok(PrepareOutcome::NotConfigured);
+    };
+    let Some(api_key) = read_api_key(&provider)? else {
+        return Ok(PrepareOutcome::NotConfigured);
+    };
+    Ok(PrepareOutcome::Ready(PreparedTranslateCall {
+        endpoint,
+        model,
+        temperature,
+        max_tokens,
+        api_key,
+        prompt: crate::commands::aiprompt::context_reference_prompt(context_example),
+        system: None,
+    }))
+}
+
 /// Keychain từ chối trả lời lúc dịch — tái dùng ĐÚNG khoá của Story 4.3 (§Code Map spec 4.8:
 /// "reuses ... `AiConfigKeychainUnavailable` where the fact already has a key"), không một khoá
 /// thứ hai cho cùng sự thật.
@@ -1213,9 +1263,19 @@ async fn send_prepared_translate_call(
     generation_state: AiTranslateGeneration,
     generation: u64,
 ) -> Result<TranslateOutcome, IpcError> {
+    send_with_cancel(prepared, channel, move || {
+        !generation_state.is_current(generation)
+    })
+    .await
+}
+
+async fn send_with_cancel(
+    prepared: PreparedTranslateCall,
+    channel: tauri::ipc::Channel<String>,
+    should_cancel: impl Fn() -> bool + Send + 'static,
+) -> Result<TranslateOutcome, IpcError> {
     let join = tauri::async_runtime::spawn_blocking(move || {
         let provider = OpenAiChatClient::new();
-        let should_cancel = || !generation_state.is_current(generation);
         if should_cancel() {
             return Ok(TranslateOutcome::Cancelled);
         }
@@ -1599,7 +1659,8 @@ pub mod wire {
     };
     use super::{
         ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire,
-        prepare_connection_check, send_prepared_connection_check,
+        ContextReferenceGeneration, prepare_connection_check, prepare_context_reference_call,
+        send_prepared_connection_check, send_with_cancel,
     };
     use crate::commands::aiprompt::{
         AiCallRecordsState, LastAssembledPromptState, mark_prompt_as_sent,
@@ -1921,6 +1982,56 @@ pub mod wire {
             return;
         };
         generation_state.next();
+    }
+
+    /// Translates one Glossary context sentence for reference, streamed through `channel`.
+    /// Own `ContextReferenceGeneration`; records nothing and writes no store. The Work lock is
+    /// released before any `.await`.
+    #[tauri::command]
+    pub async fn ai_context_reference_translate<R: tauri::Runtime>(
+        app: tauri::AppHandle<R>,
+        context_example: String,
+        channel: tauri::ipc::Channel<String>,
+    ) -> Result<AiTranslateOutcomeWire, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(generation_state) = app.try_state::<ContextReferenceGeneration>() else {
+            return Err(state_missing(
+                "context_reference",
+                "ContextReferenceGeneration",
+                "ai_translate.generation_state_missing",
+            ));
+        };
+        let generation_state = generation_state.inner().clone();
+        let generation = generation_state.next();
+
+        let prep = {
+            let global = app.try_state::<Store>();
+            let work_state = app.try_state::<OpenWorkState>();
+            let guard = work_state
+                .as_ref()
+                .map(|s| s.lock().unwrap_or_else(std::sync::PoisonError::into_inner));
+            let open = guard.as_ref().and_then(|g| g.as_ref());
+            prepare_context_reference_call(global.as_deref(), open, &context_example)?
+        };
+        let prepared = match prep {
+            PrepareOutcome::NotConfigured => return Ok(AiTranslateOutcomeWire::NotConfigured),
+            PrepareOutcome::Ready(p) => p,
+        };
+        let outcome = send_with_cancel(prepared, channel, move || {
+            !generation_state.is_current(generation)
+        })
+        .await?;
+        Ok(single_run_outcome_wire(outcome))
+    }
+
+    #[tauri::command]
+    pub fn ai_context_reference_cancel<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+        use tauri::Manager as _;
+
+        if let Some(generation_state) = app.try_state::<ContextReferenceGeneration>() {
+            generation_state.next();
+        }
     }
 
     /// Checks the SAVED configuration of `tier` against the provider: `GET {endpoint}/models`

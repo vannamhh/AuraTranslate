@@ -20,6 +20,7 @@ import type { GlossaryCategory } from './config/glossary'
 import {
   isInconsistentHarvest,
   queueActionError,
+  queueContextReference,
   queueCurrentRow,
   queueCursor,
   queueEmptyReasonFor,
@@ -35,6 +36,7 @@ import {
   setGlossaryQueueCursor,
 } from './glossaryQueueState'
 import { glossaryScanThresholdInUse } from './glossarySettingsState'
+import { aiConfigReadiness, refreshAiConfigReadiness } from './aiConfigState'
 
 /** Row selection is data (AD-34 §1): keyboard and the hidden per-row radio share this one
  *  get/set instead of two parallel selection mechanisms. */
@@ -101,8 +103,27 @@ watch(queueCursor, () => {
   })
 })
 
+const contextReferenceText = computed<string>(() => {
+  const reference = queueContextReference.value
+  return reference !== null && (reference.kind === 'chapter' || reference.kind === 'ai' || reference.kind === 'running')
+    ? reference.text
+    : ''
+})
+
+const contextReferenceSource = computed<string>(() => {
+  const kind = queueContextReference.value?.kind
+  if (kind === 'chapter') return t('glossary.queue.context_source_chapter')
+  if (kind === 'running') return t('glossary.queue.context_translating')
+  return t('glossary.queue.context_source_ai')
+})
+
+const contextReferenceUnconfigured = computed<boolean>(
+  () => aiConfigReadiness.value === 'unconfigured' || queueContextReference.value?.kind === 'not_configured',
+)
+
 watch(queueOverlayIsOpen, (open) => {
   if (open) {
+    void refreshAiConfigReadiness()
     // 🔴 KHÔNG lưu `document.activeElement` trần — xem `focusReturnTargetOnOpen`.
     returnFocusTo = focusReturnTargetOnOpen('[data-glossary-queue-open]')
     void nextTick(() => panel.value?.focus())
@@ -408,6 +429,60 @@ function onKeydown(event: KeyboardEvent): void {
                 <div class="gq-ctx-label">{{ t('glossary.queue.context_label') }}</div>
                 <!-- aura-allow-text: DỮ LIỆU (`context_example` của chính hàng). -->
                 <div class="gq-ctx-quote">{{ row.candidate.context_example }}</div>
+                <div
+                  v-if="queueContextReference !== null && queueContextReference.kind !== 'looking'"
+                  class="gq-ref"
+                  data-gq-context-ref
+                  :data-kind="queueContextReference.kind"
+                >
+                  <template
+                    v-if="
+                      queueContextReference.kind === 'chapter' ||
+                      queueContextReference.kind === 'ai' ||
+                      queueContextReference.kind === 'running'
+                    "
+                  >
+                    <!-- aura-allow-text: DỮ LIỆU (bản dịch của chính câu Ngữ cảnh). -->
+                    <div class="gq-ref-text" data-gq-context-ref-text>{{ contextReferenceText }}</div>
+                    <!-- aura-allow-text: KẾT QUẢ của `t()` (nhãn nguồn dựng trong contextReferenceSource). -->
+                    <div class="gq-ref-source" data-gq-context-ref-source>{{ contextReferenceSource }}</div>
+                    <button
+                      v-if="queueContextReference.kind === 'running'"
+                      type="button"
+                      class="ui-btn"
+                      data-gq-context-cancel
+                      @click="dispatch('glossary.context.cancel')"
+                    >
+                      {{ t('glossary.queue.context_cancel') }}
+                    </button>
+                  </template>
+                  <template v-else>
+                    <p v-if="queueContextReference.kind === 'failed' && queueContextReference.error !== null" class="gq-ref-source gq-error" role="alert">
+                      <!-- aura-allow-text: KẾT QUẢ của `tError()`. -->
+                      {{ tError(queueContextReference.error) }}
+                    </p>
+                    <button
+                      type="button"
+                      class="ui-btn"
+                      data-gq-context-translate
+                      :disabled="contextReferenceUnconfigured"
+                      @click="dispatch('glossary.context.translate')"
+                    >
+                      {{ t('glossary.queue.context_translate') }}
+                    </button>
+                    <template v-if="contextReferenceUnconfigured">
+                      <span class="gq-ref-source" data-gq-context-unconfigured>{{ t('glossary.queue.context_unconfigured') }}</span>
+                      <button
+                        type="button"
+                        class="ui-btn ui-btn--quiet"
+                        data-gq-context-open-settings
+                        @click="dispatch('settings.ai_config.open')"
+                      >
+                        {{ t('glossary.queue.context_open_settings') }}
+                      </button>
+                    </template>
+                  </template>
+                </div>
               </div>
 
               <div
@@ -622,6 +697,29 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--font-read-sm);
   line-height: var(--leading-read-sm);
   color: var(--color-on-surface);
+}
+
+.gq-ref {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: calc(var(--space-unit) * 1) calc(var(--space-unit) * 2);
+  margin-top: calc(var(--space-unit) * 1);
+}
+
+.gq-ref-text {
+  flex: 1 1 100%;
+  font-family: var(--family-read);
+  font-size: var(--font-read-sm);
+  line-height: var(--leading-read-sm);
+  color: var(--color-on-surface);
+}
+
+.gq-ref-source {
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .gq-notrans {

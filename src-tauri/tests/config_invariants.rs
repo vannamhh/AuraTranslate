@@ -1487,6 +1487,11 @@ fn blocking_wire_cases() -> &'static [BlockingWireCase] {
         ),
         (
             "src/commands/glossary.rs",
+            "pub fn glossary_context_translation(\n        app: tauri::AppHandle,",
+            "quet moi segment cua Tac pham (`source_text` khong co chi muc) khi mo mot hang bang cho",
+        ),
+        (
+            "src/commands/glossary.rs",
             "pub fn glossary_list_entries(\n        app: tauri::AppHandle",
             "nap TRON bang glossary_entry ca hai tang (`load_tier`) roi dung mot Vec co toan bo Glossary",
         ),
@@ -2187,7 +2192,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
     ),
     (
         "src/commands/aitranslate.rs",
-        7,
+        9,
         0,
         0,
         "CHUA DO -- chu: Dev. Nam vo dich (hai o Story 4.8 Phase 2, mot o Story 4.9 Phase 2, mot gui lai prompt da lap o Story 12-12, mot gui lai mot luot da ghi o Story 4-15): \
@@ -2202,7 +2207,8 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
          bo; chua ai do chi phi cua chung tren mot lan sinh dai hoac mot lo nhieu cau. \
          `ai_config_test_connection` cung la `async fn` literal (than tu spawn luong blocking, \
          khong giu `OpenWorkState` xuyen luot goi mang), nen roi vao cot `plain`; \
-         `ai_config_test_connection_cancel` chi bom mot `AtomicU64` rieng cua lan kiem tra ket noi.",
+         `ai_config_test_connection_cancel` chi bom mot `AtomicU64` rieng cua lan kiem tra ket noi; \
+         `ai_context_reference_translate` la `async fn` literal cung co che, `ai_context_reference_cancel` chi bom mot `AtomicU64` rieng.",
     ),
     (
         "src/commands/proofread.rs",
@@ -2244,7 +2250,7 @@ const COMMAND_FILE_CENSUS: [CommandFileCensusRow; 21] = [
          ai do no o TANG VO.",
     ),
     ("src/commands/export.rs", 8, 8, 8, ""),
-    ("src/commands/glossary.rs", 9, 9, 9, ""),
+    ("src/commands/glossary.rs", 9, 10, 10, ""),
     ("src/commands/library.rs", 3, 7, 7, ""),
     ("src/commands/lifecycle.rs", 1, 4, 4, ""),
     (
@@ -2445,9 +2451,9 @@ fn every_command_bearing_file_is_classified_with_measured_attribute_counts() {
     );
     assert_eq!(
         (tree_plain, tree_async),
-        (109, 68),
+        (111, 69),
         "dem tren TOAN `src-tauri/src/**` duoc {tree_plain} plain / {tree_async} (async), khai \
-         109/68.\n\n\
+         111/69.\n\n\
          Con so nay dem doc lap voi bang tren. Lech o day trong khi tung hang o tren van khop \
          nghia la co lenh nam ngoai mui khai -- nhung mot tep MOI thi assert `unclassified` \
          ngay tren da bat roi, nen truong hop con lai la mot tep DA khai bi doi ten hoac doi \

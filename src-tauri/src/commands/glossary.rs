@@ -616,6 +616,38 @@ pub fn glossary_tm_suggestions(
     })
 }
 
+/// The Work's own translation of the sentence a pending candidate was found in: a live,
+/// non-omitted segment with a non-blank `target_text` whose first `CONTEXT_EXAMPLE_CHAR_LIMIT`
+/// characters equal `context_example`. `None` when no Work is open or nothing matches.
+/// Scans every segment (`source_text` has no index).
+pub fn glossary_context_translation(
+    open: Option<&OpenWork>,
+    context_example: &str,
+) -> Result<Option<String>, IpcError> {
+    let Some(open) = open else {
+        return Ok(None);
+    };
+    if context_example.is_empty() {
+        return Ok(None);
+    }
+    let limit =
+        i64::try_from(crate::core::glossary::scan::CONTEXT_EXAMPLE_CHAR_LIMIT).unwrap_or(i64::MAX);
+    let found = open.store.read(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT target_text FROM segment \
+             WHERE retired_at IS NULL AND is_omitted = 0 AND trim(target_text) <> '' \
+               AND substr(source_text, 1, ?1) = ?2 \
+             ORDER BY id LIMIT 1",
+        )?;
+        let mut rows = stmt.query((limit, context_example))?;
+        match rows.next()? {
+            Some(row) => Ok(Some(row.get::<_, String>(0)?)),
+            None => Ok(None),
+        }
+    })?;
+    Ok(found)
+}
+
 /// Nhận một ứng viên (id) thành một mục Glossary — **hàm thuần, đây là thứ test gọi**. Vỏ
 /// IPC GHI đầu tiên của [`approve_candidate`] (Story 3.2 dựng, 0 chỗ gọi sản phẩm cho tới
 /// lượt này).
@@ -1446,6 +1478,22 @@ pub mod wire {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         super::glossary_tm_suggestions(global.as_deref(), guard.as_ref(), &source_term)
+    }
+
+    #[tauri::command(async)]
+    pub fn glossary_context_translation(
+        app: tauri::AppHandle,
+        context_example: String,
+    ) -> Result<Option<String>, IpcError> {
+        use tauri::Manager as _;
+
+        let Some(work_state) = app.try_state::<OpenWorkState>() else {
+            return super::glossary_context_translation(None, &context_example);
+        };
+        let guard = work_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        super::glossary_context_translation(guard.as_ref(), &context_example)
     }
 
     /// Vỏ IPC của [`super::glossary_approve_candidate`]. Story 3.6.
