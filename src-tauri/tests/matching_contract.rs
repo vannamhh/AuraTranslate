@@ -779,3 +779,86 @@ fn an_english_equal_run_of_one_space_between_two_changed_words_is_absorbed() {
         ]
     );
 }
+
+fn zh_hits(text: &str, terms: &[&str]) -> Vec<(usize, std::ops::Range<usize>)> {
+    find_terms(text, terms, MatchLang::Zh)
+        .into_iter()
+        .map(|m| (m.term_index, m.span))
+        .collect()
+}
+
+#[test]
+fn a_simplified_term_matches_traditional_text() {
+    let text = "大紀元訊";
+    let hits = zh_hits(text, &["大纪元"]);
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    assert_eq!(&text[hits[0].1.clone()], "大紀元");
+}
+
+#[test]
+fn a_traditional_term_matches_simplified_text() {
+    let hits = zh_hits("大纪元", &["大紀元"]);
+    assert_eq!(hits, vec![(0, 0..9)]);
+}
+
+#[test]
+fn find_terms_returns_both_a_verbatim_and_a_fold_only_term_on_the_same_span() {
+    let hits = zh_hits("大紀元", &["大纪元", "大紀元"]);
+    assert_eq!(hits, vec![(0, 0..9), (1, 0..9)]);
+}
+
+#[test]
+fn multi_member_fold_classes_match_in_both_directions() {
+    for (a, b) in [("委託", "委托"), ("裡", "里"), ("週", "周")] {
+        assert_eq!(zh_hits(a, &[b]).len(), 1, "{a} vs {b}");
+        assert_eq!(zh_hits(b, &[a]).len(), 1, "{b} vs {a}");
+    }
+}
+
+#[test]
+fn folding_keeps_byte_spans_on_the_original_text() {
+    let text = "𠧜abc大紀元def";
+    let hits = zh_hits(text, &["大纪元"]);
+    assert_eq!(hits.len(), 1, "{hits:?}");
+    assert_eq!(&text[hits[0].1.clone()], "大紀元");
+}
+
+#[test]
+fn a_folded_term_cutting_a_jieba_token_is_still_rejected() {
+    assert!(zh_hits("发现", &["發"]).is_empty());
+    assert!(zh_hits("国家", &["国"]).is_empty());
+    assert!(zh_hits("国家", &["國"]).is_empty());
+}
+
+#[test]
+fn a_separator_only_term_still_matches_nothing_after_folding() {
+    assert!(zh_hits("大紀元，訊", &["，"]).is_empty());
+}
+
+#[test]
+fn english_matching_does_not_fold_han_forms() {
+    let a = find_terms("大紀元", &["大纪元"], MatchLang::En);
+    assert!(a.is_empty(), "{a:?}");
+}
+
+#[test]
+fn the_fold_table_is_three_byte_idempotent_and_large_enough() {
+    let table = include_str!("../src/core/matching/zh_fold.txt");
+    let mut pairs = std::collections::HashMap::new();
+    for line in table
+        .lines()
+        .filter(|l| !l.starts_with('#') && !l.is_empty())
+    {
+        let (from, to) = line.split_once('\t').expect("tab-separated line");
+        assert_eq!(from.chars().count(), 1, "{line}");
+        assert_eq!(to.chars().count(), 1, "{line}");
+        assert_eq!(from.len(), 3, "{line}");
+        assert_eq!(to.len(), 3, "{line}");
+        pairs.insert(from.to_string(), to.to_string());
+    }
+    assert!(pairs.len() >= 3000, "only {} entries", pairs.len());
+    for (from, to) in &pairs {
+        assert_ne!(from, to);
+        assert!(!pairs.contains_key(to), "{from} -> {to} is not idempotent");
+    }
+}

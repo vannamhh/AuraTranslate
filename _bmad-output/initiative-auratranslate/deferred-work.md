@@ -13817,3 +13817,15 @@ chính nó.
 - Bỏ cử chỉ `Backspace` cũng bỏ `preventDefault()` ở đầu ô, và lượt đo no-op bằng phím thật chỉ phủ WKWebView; Blink phát `beforeinput` ở offset 0 nên WebView2 chưa có số đo.
   Cần: trên Windows, `delete` nhiều cú ở đầu ô có chữ và ô rỗng, đọc lưới và đĩa không đổi.
   Chủ: B7. Trỏ: `_bmad-output/implementation-artifacts/bo-cu-chi-backspace-ban-do/ket-qua.md`.
+
+## Deferred from: `plan-gap-phon-gian-matcher.md` (2026-11-01)
+
+- TM chưa gấp phồn/giản: `ngrams`, `similarity_percent`, `PreparedQuery` và `target_suggestions_for_term` (`core/tm/mod.rs:513`, khớp `source_term` nguyên văn) nên dấu chỉ khớp sau gấp mở dải chốt mà không có gợi ý TM và không báo lỗi. Trái `Prevents` của AD-17 cho tới khi quyết.
+  Cần: quyết gấp ở TM hay ghi giới hạn vào AD-17; đo trên TM thật trước khi chọn.
+  Chủ: Ice. Trỏ: `src-tauri/src/core/matching/mod.rs`, AD-63.
+- Quick-add và lọc ứng viên (`glossary/store.rs:456`) vẫn khoá `source_term` nguyên văn, nên `大纪元` và `大紀元` là hai khoá riêng ở đó dù `find_terms` đã gấp.
+  Cần: quyết khoá gấp hay giữ nguyên văn.
+  Chủ: Ice. Trỏ: `src-tauri/src/core/glossary/store.rs`, AD-63.
+- Chưa dùng thật: mở Tác phẩm phồn thể trong app, dịch một câu có `大紀元` với mục `大纪元` ở Glossary.
+  Cần: dòng tóm tắt đọc `Đã chèn 1 thuật ngữ Glossary` và lưới tô đúng chữ phồn.
+  Chủ: Ice. Trỏ: `plan-gap-phon-gian-matcher.md` §Verification.

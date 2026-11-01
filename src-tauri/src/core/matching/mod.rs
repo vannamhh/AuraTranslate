@@ -38,7 +38,7 @@
 //! | Tách token | `jieba-rs` ([`tokenize`]) | run ký tự `char::is_ascii_alphanumeric` của `std` |
 //! | Chuẩn hoá | **đồng nhất** (chữ Hán không có hình thái từ) | hạ chữ thường **rồi** Porter2 |
 //! | n-gram | **ký tự** — không ranh giới từ (`epics.md` §Story 7.6) | **token** n-gram **sau** stemming (`epics.md` §Story 7.6) |
-//! | Khớp thuật ngữ | **khớp chính xác**, chặn theo ranh giới token (FR51) | so khớp trên **dạng đã chuẩn hoá của cả hai vế** |
+//! | Khớp thuật ngữ | **khớp chính xác sau khi gấp phồn/giản**, chặn theo ranh giới token (FR51) | so khớp trên **dạng đã chuẩn hoá của cả hai vế** |
 //!
 //! 🔴 **Phép đếm độ dài n-gram là [`str::chars`]`().count()`, KHÔNG BAO GIỜ
 //! [`str::len`].** `"山".len()` là **3** và `"中國".len()` là **6**. Một n-gram ký tự
@@ -66,7 +66,7 @@
 //! mạng (AD-15), cưỡng chế bằng `tests/matching_boundary.rs`.
 
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::sync::LazyLock;
 
@@ -135,7 +135,7 @@ const HMM: bool = false;
 /// `rust-version = "1.85"`), nên **không** cần `once_cell`.
 static JIEBA: LazyLock<Jieba> = LazyLock::new(Jieba::new);
 
-/// Ép [`JIEBA`] khởi tạo **ngay bây giờ**, thay vì đợi lượt gọi đầu tiên của [`tokenize`]/
+/// Ép [`JIEBA`] và bảng gấp phồn/giản `ZH_FOLD` khởi tạo **ngay bây giờ**, thay vì đợi lượt gọi đầu tiên của [`tokenize`]/
 /// [`find_terms`].
 ///
 /// 🔴 **Gọi TỪ đường mở Chương (`commands::chapter`), KHÔNG từ thân một hàm khớp.** Khởi
@@ -147,6 +147,26 @@ static JIEBA: LazyLock<Jieba> = LazyLock::new(Jieba::new);
 /// [`warm`] thứ hai trở đi chỉ đọc một cờ đã set (~1 µs, dưới ngưỡng đo).
 pub fn warm() {
     LazyLock::force(&JIEBA);
+    LazyLock::force(&ZH_FOLD);
+}
+
+static ZH_FOLD: LazyLock<HashMap<char, char>> = LazyLock::new(|| {
+    include_str!("zh_fold.txt")
+        .lines()
+        .filter(|line| !line.starts_with('#') && !line.is_empty())
+        .filter_map(|line| {
+            let (from, to) = line.split_once('\t')?;
+            Some((from.chars().next()?, to.chars().next()?))
+        })
+        .collect()
+});
+
+/// Folds Traditional and Simplified forms onto one representative per class.
+/// Every table pair is 3 bytes in UTF-8, so byte offsets of the input stay valid on the output.
+fn fold_zh(text: &str) -> String {
+    text.chars()
+        .map(|c| ZH_FOLD.get(&c).copied().unwrap_or(c))
+        .collect()
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -624,8 +644,8 @@ pub fn gap_crosses_sentence_boundary(text: &str, a: &MatchToken<'_>, b: &MatchTo
 /// ─────────────────────────────────────────────────────────────────────────────
 /// `Zh` — KHỚP CHÍNH XÁC, CHẶN THEO RANH GIỚI TOKEN
 /// ─────────────────────────────────────────────────────────────────────────────
-/// FR51: *"văn bản tiếng Trung → dùng khớp chính xác"*. Cài đặt
-/// là phép tìm chuỗi con **thô** trên chuỗi gốc, **lọc** bằng ranh giới token của jieba:
+/// FR51: *"văn bản tiếng Trung → dùng khớp chính xác, sau khi gấp phồn/giản"*. Cài đặt
+/// là phép tìm chuỗi con **thô** trên chuỗi đã gấp phồn/giản (cùng độ dài byte với chuỗi gốc), **lọc** bằng ranh giới token của jieba:
 /// một lượt khớp chỉ được nhận khi **cả hai đầu** của nó rơi đúng một ranh giới token.
 ///
 /// 🔴 **Luật thật, phát biểu cho đúng thứ mã làm:** module này **không** tự phân xử
@@ -677,18 +697,21 @@ pub fn find_terms(text: &str, terms: &[&str], lang: MatchLang) -> Vec<TermMatch>
                 .flat_map(|token| [token.span.start, token.span.end])
                 .collect();
 
+            let folded_text = fold_zh(text);
+
             for (term_index, term) in terms.iter().enumerate() {
                 // Jieba can emit a whitespace-only token, so a separator-only term must be skipped.
                 if term.chars().all(|c| !c.is_alphanumeric()) {
                     continue;
                 }
+                let folded_term = fold_zh(term);
                 let mut from = 0;
-                while from <= text.len() {
-                    let Some(rel) = text[from..].find(term) else {
+                while from <= folded_text.len() {
+                    let Some(rel) = folded_text[from..].find(folded_term.as_str()) else {
                         break;
                     };
                     let start = from + rel;
-                    let end = start + term.len();
+                    let end = start + folded_term.len();
                     if boundaries.contains(&start) && boundaries.contains(&end) {
                         out.push(TermMatch {
                             term_index,
@@ -698,7 +721,11 @@ pub fn find_terms(text: &str, terms: &[&str], lang: MatchLang) -> Vec<TermMatch>
                     // ⚠️ Nhích tới ranh giới UTF-8 kế tiếp chứ không nhảy qua cả lượt
                     // khớp: hai lượt xuất hiện chồng nhau của cùng một thuật ngữ (`AA`
                     // trong `AAA`) đều là lượt xuất hiện thật.
-                    from = start + text[start..].chars().next().map_or(1, char::len_utf8);
+                    from = start
+                        + folded_text[start..]
+                            .chars()
+                            .next()
+                            .map_or(1, char::len_utf8);
                 }
             }
         }

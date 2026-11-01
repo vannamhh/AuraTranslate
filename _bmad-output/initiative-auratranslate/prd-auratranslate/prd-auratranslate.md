@@ -599,7 +599,7 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 **FR50.** Mọi thuật ngữ có trong Glossary được **đánh dấu trực quan ở cột nguyên văn của lưới**, để người dịch thấy ngay câu đang dịch chứa thuật ngữ nào. 🔵 *(Sửa 2026-08-18 — xem ghi chú ở FR42.)* Mục **chờ chốt bản dịch** (FR114) cũng được đánh dấu, nhưng **phân biệt được** với mục đã chốt — đó chính là cơ hội để người dịch chốt nó.
 
-**FR51.** Khớp thuật ngữ **phân theo ngôn ngữ**: tiếng Trung dùng khớp chính xác; tiếng Anh dùng khớp mờ ở cấp hình thái từ (stemming) để bắt được các biến thể.
+**FR51.** Khớp thuật ngữ **phân theo ngôn ngữ**: tiếng Trung dùng khớp chính xác sau khi gấp phồn/giản (AD-63), nên thuật ngữ giản thể khớp văn bản phồn thể và ngược lại; tiếng Anh dùng khớp mờ ở cấp hình thái từ (stemming) để bắt được các biến thể.
 
 #### Tự động đề xuất — ba cơ chế
 

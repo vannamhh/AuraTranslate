@@ -1532,13 +1532,28 @@ fn byte_to_codepoint(boundaries: &[usize], byte_offset: usize) -> usize {
 /// đúng thứ tự đó, bỏ qua mọi lượt khớp chồng lấn với một lượt đã chọn. Đó chính là
 /// "dài nhất thắng" (độ dài đứng trước trong khoá sắp) và "hoà thì trái nhất" (vị trí đứng
 /// sau, chỉ so khi độ dài bằng nhau).
-fn resolve_overlaps(mut matches: Vec<TermMatch>) -> Vec<TermMatch> {
+///
+/// Cùng một span (sau gấp phồn/giản, AD-63): mục khớp nguyên văn (`text[span] == source_term`)
+/// thắng, rồi tầng Work trước Global, rồi `term_index`; `En` chỉ theo `term_index`.
+/// `payload[term_index]` là mục tương ứng.
+fn resolve_overlaps(
+    mut matches: Vec<TermMatch>,
+    text: &str,
+    lang: MatchLang,
+    payload: &[(GlossaryTier, GlossaryEntry)],
+) -> Vec<TermMatch> {
+    let folds = lang == MatchLang::Zh;
+    let verbatim =
+        |m: &TermMatch| folds && text[m.span.clone()] == payload[m.term_index].1.source_term;
+    let work_first = |m: &TermMatch| folds && payload[m.term_index].0 != GlossaryTier::Work;
     matches.sort_by(|a, b| {
         let len_a = a.span.end - a.span.start;
         let len_b = b.span.end - b.span.start;
         len_b
             .cmp(&len_a)
             .then_with(|| a.span.start.cmp(&b.span.start))
+            .then_with(|| verbatim(b).cmp(&verbatim(a)))
+            .then_with(|| work_first(a).cmp(&work_first(b)))
             .then_with(|| a.term_index.cmp(&b.term_index))
     });
 
@@ -1702,7 +1717,7 @@ pub fn marks_for_source_text(
     }
     let scope = WorkContext::new(work.map(|w| (resolver, w)))?;
     let (payload, raw_matches) = resolve_and_match(&scope, global, text, lang)?;
-    let selected = resolve_overlaps(raw_matches);
+    let selected = resolve_overlaps(raw_matches, text, lang, &payload);
 
     // 🔵 THÊM 2026-08-24 (Story 3.7) — gom `source_term` của các mục CHỜ CHỐT trong tập ĐÃ
     // CHỌN (sau `resolve_overlaps`, không phải toàn bộ `payload`): tra Hán Việt cho một mục
@@ -1881,7 +1896,7 @@ fn confirmed_terms_in_snapshot(
 ) -> GlossaryInjectionOutcome {
     let payload = &snapshot.payload;
     let raw_matches = find_terms(text, &snapshot.term_keys(), lang);
-    let selected = resolve_overlaps(raw_matches.clone());
+    let selected = resolve_overlaps(raw_matches.clone(), text, lang, payload);
     let boundaries = codepoint_boundaries(text);
 
     let injected: Vec<GlossaryInjectionTerm> = selected

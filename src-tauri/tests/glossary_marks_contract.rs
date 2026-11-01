@@ -1044,3 +1044,166 @@ fn a_mark_carries_the_term_origin_and_category_of_the_entry_on_the_wire() {
     drop(global);
     cleanup(&global_dir);
 }
+
+#[test]
+fn a_simplified_term_marks_a_traditional_sentence_once() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let global_dir = temp_dir("zh-fold-global");
+    let global = open_global(&global_dir);
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "大纪元",
+        Some("Dai Ky Nguyen"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu vao tang Global");
+
+    let resolver = ScopeResolver::global_only();
+    let text = "訊大紀元報";
+    let marks = marks_for_source_text(
+        &resolver,
+        &global,
+        None,
+        text,
+        MatchLang::Zh,
+        &layers,
+        &disabled,
+    )
+    .expect("khop khong duoc loi");
+
+    assert_eq!(marks.len(), 1, "{marks:?}");
+    assert_eq!((marks[0].start, marks[0].end), (1, 4));
+    assert_eq!(marks[0].source_term, "大纪元");
+
+    drop(global);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn the_verbatim_entry_gets_the_one_mark_when_a_simplified_and_a_traditional_entry_coexist() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let global_dir = temp_dir("zh-fold-verbatim");
+    let global = open_global(&global_dir);
+    for (term, translation) in [("大纪元", "Gian"), ("大紀元", "Phon")] {
+        add_manual_term(
+            &global,
+            None,
+            GlossaryTier::Global,
+            term,
+            Some(translation),
+            "",
+            Category::Other,
+        )
+        .expect("them thuat ngu");
+    }
+
+    let marks = marks_for_source_text(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+        "訊大纪元报",
+        MatchLang::Zh,
+        &layers,
+        &disabled,
+    )
+    .expect("khop khong duoc loi");
+
+    assert_eq!(marks.len(), 1, "{marks:?}");
+    assert_eq!(marks[0].source_term, "大纪元");
+
+    drop(global);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn the_work_tier_wins_between_two_fold_only_entries_of_different_tiers() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let root = temp_dir("zh-fold-tier");
+    let global_dir = temp_dir("zh-fold-tier-global");
+    let global = open_global(&global_dir);
+    let opened = open_work(&root, "Fold Tier");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "裡",
+        Some("Toan Cuc"),
+        "",
+        Category::Other,
+    )
+    .expect("them muc Global");
+    add_manual_term(
+        &global,
+        Some(&opened.store),
+        GlossaryTier::Work,
+        "里",
+        Some("Tac Pham"),
+        "",
+        Category::Other,
+    )
+    .expect("them muc Work");
+
+    let marks = marks_for_source_text(
+        &opened.scope,
+        &global,
+        Some(&opened.store),
+        "裏",
+        MatchLang::Zh,
+        &layers,
+        &disabled,
+    )
+    .expect("khong loi");
+
+    assert_eq!(marks.len(), 1, "{marks:?}");
+    assert_eq!(marks[0].tier, GlossaryTier::Work);
+    assert_eq!(marks[0].source_term, "里");
+
+    drop(global);
+    drop(opened);
+    cleanup(&root);
+    cleanup(&global_dir);
+}
+
+#[test]
+fn english_terms_on_one_span_keep_term_order_without_a_verbatim_preference() {
+    let layers = auratranslate_lib::core::dict::DictLayers::empty();
+    let disabled = std::collections::BTreeSet::new();
+    let global_dir = temp_dir("en-tie-global");
+    let global = open_global(&global_dir);
+    for term in ["run", "running"] {
+        add_manual_term(
+            &global,
+            None,
+            GlossaryTier::Global,
+            term,
+            Some("chay"),
+            "",
+            Category::Other,
+        )
+        .expect("them thuat ngu vao tang Global");
+    }
+
+    let resolver = ScopeResolver::global_only();
+    let marks = marks_for_source_text(
+        &resolver,
+        &global,
+        None,
+        "running",
+        MatchLang::En,
+        &layers,
+        &disabled,
+    )
+    .expect("khop khong duoc loi");
+
+    assert_eq!(marks.len(), 1, "{marks:?}");
+    assert_eq!(marks[0].source_term, "run");
+
+    drop(global);
+    cleanup(&global_dir);
+}

@@ -40,6 +40,15 @@ Notes on the entries whose status is not an open license:
   rights (attribution to Thieu Chuu, Nguyen Huu Kha, 1902-1954) remain. See
   license/thieu-chuu.txt.
 
+Data inside the application binary
+----------------------------------
+The file src-tauri/src/core/matching/zh_fold.txt is compiled into the
+application binary, not shipped in dict/. It is a Traditional/Simplified
+character fold table derived from the single-character headword pairs of
+CC-CEDICT and CVDICT (CC BY-SA 4.0, license/CC-BY-SA-4.0.txt) and Unihan
+(Unicode-3.0, license/Unicode-License-v3.txt). Changes: pairs merged into
+equivalence classes. The share-alike terms below apply to this table.
+
 Share-alike
 -----------
 The data from CVDICT, CC-CEDICT and the Wiktionary extracts is licensed under

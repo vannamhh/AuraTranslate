@@ -1862,3 +1862,83 @@ fn omitted_count_ignores_duplicates_and_a_pair_equal_to_the_sentence() {
         "ban sao va cap trung cau khong phai cap bi trần cat"
     );
 }
+
+#[test]
+fn a_simplified_term_is_injected_for_a_traditional_sentence() {
+    let dir = temp_dir("fold-injected");
+    let global = open_global(&dir);
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "大纪元",
+        Some("Dai Ky Nguyen"),
+        "",
+        Category::Other,
+    )
+    .expect("them thuat ngu");
+
+    let resolver = ScopeResolver::global_only();
+    let sentence = "訊 大紀元 報";
+    let status = gather_glossary_context(GLOSSARY_BODY, &resolver, &global, None, "zh", sentence)
+        .expect("gather khong loi");
+    let (_, ledger) = assemble_prompt(GLOSSARY_BODY, sentence, status, None);
+
+    match &ledger.glossary {
+        GlossaryInjectionStatus::Asked { injected, .. } => {
+            assert_eq!(injected.len(), 1, "{injected:?}");
+            assert_eq!(injected[0].source_term, "大纪元");
+            assert_eq!((injected[0].start, injected[0].end), (2, 5));
+        }
+        other => panic!("mong Asked, nhan {other:?}"),
+    }
+
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_confirmed_fold_only_term_losing_to_a_pending_verbatim_term_is_listed_as_suppressed() {
+    let dir = temp_dir("fold-suppressed");
+    let global = open_global(&dir);
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "大紀元",
+        Some("Dai Ky Nguyen"),
+        "",
+        Category::Other,
+    )
+    .expect("them muc da chot");
+    add_manual_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "大纪元",
+        None,
+        "",
+        Category::Other,
+    )
+    .expect("them muc cho chot");
+
+    let outcome = confirmed_terms_for_injection(
+        &ScopeResolver::global_only(),
+        &global,
+        None,
+        "訊 大纪元 报",
+        MatchLang::Zh,
+    )
+    .expect("cua khong loi");
+
+    assert!(outcome.injected.is_empty(), "{:?}", outcome.injected);
+    assert_eq!(
+        outcome.suppressed_by_pending_overlap.len(),
+        1,
+        "{:?}",
+        outcome.suppressed_by_pending_overlap
+    );
+
+    drop(global);
+    cleanup(&dir);
+}

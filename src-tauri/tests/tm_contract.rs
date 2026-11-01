@@ -2223,35 +2223,36 @@ fn a_source_differing_only_by_surrounding_whitespace_scores_99_and_no_other_pair
 }
 
 #[test]
-fn glossary_and_tm_catch_exactly_the_same_variants_in_both_directions() {
+fn glossary_and_tm_catch_the_same_variants_except_that_only_glossary_folds_han_forms() {
     let nfc = "caf\u{e9}";
     let nfd = "cafe\u{301}";
-    let rows: [(&str, &str, &str, bool); 12] = [
-        ("en", "translation", "translations", true),
-        ("en", "translation", "TRANSLATION", true),
-        ("en", "translation", "Translations", true),
-        ("en", "went", "go", false),
-        ("en", nfc, "cafe", false),
-        ("en", nfd, nfc, false),
-        ("en", nfd, "cafe", true),
-        ("en", "translation", "translation", true),
-        ("zh", "翻译", "翻译", true),
-        ("en", "\u{ff21}\u{ff22}\u{ff23}", "ABC", false),
-        ("zh", "翻译", "翻譯", false),
-        ("zh", "\u{ff21}\u{ff22}", "AB", false),
+    let rows: [(&str, &str, &str, bool, bool); 12] = [
+        ("en", "translation", "translations", true, true),
+        ("en", "translation", "TRANSLATION", true, true),
+        ("en", "translation", "Translations", true, true),
+        ("en", "went", "go", false, false),
+        ("en", nfc, "cafe", false, false),
+        ("en", nfd, nfc, false, false),
+        ("en", nfd, "cafe", true, true),
+        ("en", "translation", "translation", true, true),
+        ("zh", "翻译", "翻译", true, true),
+        ("en", "\u{ff21}\u{ff22}\u{ff23}", "ABC", false, false),
+        // Glossary folds Traditional/Simplified; TM does not.
+        ("zh", "翻译", "翻譯", true, false),
+        ("zh", "\u{ff21}\u{ff22}", "AB", false, false),
     ];
     let sentence = |lang: &str, form: &str| match lang {
         "zh" => format!("他昨天在{form}里等了很久。"),
         _ => format!("We waited for the {form} all day."),
     };
     let mut mismatches = Vec::new();
-    for (lang, a, b, caught) in rows {
+    for (lang, a, b, glossary_caught, tm_caught) in rows {
         for (term, other) in [(a, b), (b, a)] {
             let glossary = glossary_marks_term_in(term, &sentence(lang, other), other, lang);
             let tm = tm_ranks_sentence_top(&sentence(lang, term), &sentence(lang, other), lang);
-            if glossary != caught || tm != caught {
+            if glossary != glossary_caught || tm != tm_caught {
                 mismatches.push(format!(
-                    "{lang} {term:?} -> {other:?}: expected {caught}, glossary {glossary}, tm {tm}"
+                    "{lang} {term:?} -> {other:?}: expected glossary {glossary_caught} tm {tm_caught}, got glossary {glossary}, tm {tm}"
                 ));
             }
         }
