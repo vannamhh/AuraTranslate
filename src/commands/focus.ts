@@ -407,18 +407,102 @@ export function createFocusRegistry(): FocusRegistry {
  * điểm về nút khi đó là ném họ ra khỏi chỗ họ đang làm việc. Một luật vô điều kiện sẽ đổi
  * đúng lời hứa của UX-DR17 thành một lời hứa khác.
  *
+ * Exception: with a caret held in a target cell and no dialog open yet, returns that cell instead of
+ * the opener.
+ *
  * @param openerSelector mối nối `data-` của nút mở, ví dụ `'[data-shortcuts-open]'`
  * @returns node để `focus()` lúc đóng, hoặc `null` khi không có ứng viên nào
  */
 export function focusReturnTargetOnOpen(openerSelector: string): HTMLElement | null {
   if (typeof document === 'undefined') return null
+  holdTargetCaret()
+  const held = heldCell()
+  if (held === null) releaseHeldCaret()
 
   const active = document.activeElement
   const activeEl = active instanceof HTMLElement ? active : null
+  if (held !== null && document.querySelector('[role="dialog"]') === null) return held
   const opener = document.querySelector<HTMLElement>(openerSelector)
 
   if (opener !== null && activeEl !== null && (activeEl === opener || activeEl.contains(opener))) {
     return opener
   }
   return activeEl
+}
+
+const TARGET_CELL = '[data-col="tgt"]'
+let heldCaret: Range | null = null
+
+export function dropHeldCaret(): void {
+  releaseHeldCaret()
+}
+
+function releaseHeldCaret(): void {
+  heldCaret = null
+  document.removeEventListener('focusin', onHeldFocusIn, true)
+}
+
+function heldCell(): HTMLElement | null {
+  if (heldCaret === null) return null
+  const node = heldCaret.startContainer
+  const from = node instanceof Element ? node : node.parentElement
+  const cell = from?.closest<HTMLElement>(TARGET_CELL) ?? null
+  return cell
+}
+
+// focus() puts the caret at the start of a contenteditable and fires focusin synchronously, so the held point goes back right after it.
+function onHeldFocusIn(event: FocusEvent): void {
+  const held = heldCaret
+  if (held === null) return
+  const target = event.target instanceof Element ? event.target : null
+  const cell = target?.closest(TARGET_CELL) ?? null
+  if (cell === null) return
+  const own = heldCell() === cell
+  releaseHeldCaret()
+  if (!own) return
+  const selection = window.getSelection()
+  if (selection === null) return
+  selection.removeAllRanges()
+  selection.addRange(held)
+}
+
+/**
+ * Puts the held point back as the selection once the closing click or key settled;
+ * skipped if a dialog opened or the user selected anew.
+ */
+export function restoreHeldSelection(): void {
+  if (typeof document === 'undefined' || heldCaret === null) return
+  const mine = heldCaret
+  setTimeout(() => {
+    if (heldCaret !== mine) return
+    if (document.querySelector('[role="dialog"]') !== null) return
+    const selection = window.getSelection()
+    const cell = heldCell()
+    if (selection === null || cell === null || selection.rangeCount > 0) {
+      releaseHeldCaret()
+      return
+    }
+    selection.addRange(mine)
+    releaseHeldCaret()
+  }, 0)
+}
+
+/**
+ * Saves a collapsed caret point from a target cell and clears the selection so keys cannot reach it;
+ * no selection in a cell keeps the earlier hold.
+ */
+export function holdTargetCaret(): void {
+  if (typeof document === 'undefined') return
+  const selection = window.getSelection()
+  if (selection === null || selection.rangeCount === 0) return
+  const range = selection.getRangeAt(0)
+  const start = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement
+  const cell = start?.closest(TARGET_CELL) ?? null
+  if (cell === null || !cell.contains(range.endContainer)) return
+  const point = range.cloneRange()
+  point.collapse(false)
+  releaseHeldCaret()
+  heldCaret = point
+  document.addEventListener('focusin', onHeldFocusIn, true)
+  selection.removeAllRanges()
 }

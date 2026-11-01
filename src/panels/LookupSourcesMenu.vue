@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { dispatch } from '../commands'
+import { holdTargetCaret } from '../commands/focus'
 import AppIcon from '../AppIcon.vue'
 import { t } from '../i18n'
 import {
@@ -18,6 +19,14 @@ const trigger = useTemplateRef<HTMLButtonElement>('trigger')
 
 // A long source list must not outgrow the panel: past its bottom edge it sits under the next dock group.
 const listMaxHeight = ref<string | undefined>(undefined)
+
+watch(
+  sourcesMenuIsOpen,
+  (open) => {
+    if (open) holdTargetCaret()
+  },
+  { flush: 'sync' },
+)
 
 watch(sourcesMenuIsOpen, async (open) => {
   if (!open) return

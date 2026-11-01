@@ -13720,6 +13720,7 @@ chính nó.
   Cần: chạy tay trên Windows: chuột phải ở ba cột, phím `Menu`, đóng rồi gõ tiếp.
   Chủ: B7. Trỏ: `tickets/epic-san-chuot/tickets/story-menu-chuot-phai-cho-thao-tac-cau-cua-luoi-plan.md` §Design Notes.
   → 🔵 2026-10-31 (Story 14.10): thêm hai phép kiểm WebView2: rời cửa sổ khi menu câu mở rồi bấm mục (WebKit không bắn `focusout`, WebView2 chưa đo), và caret sau `Esc` ở Lịch sử, cả `Mod+H` lẫn mục menu. **Chủ: B7.**
+  → 🔵 2026-11-01 (Story 14.11): trên WebView2, lớp phủ mở bằng chuột không để `Q` lọt vào ô bản dịch, và `Esc` rồi gõ chèn đúng điểm cũ (menu `Công cụ ▾`, nguồn Tra cứu, nút thanh trạng thái). **Chủ: B7.**
 - Đo chuột thật ở `_bmad-output/implementation-artifacts/14-2-ban-do/ket-qua.md` đã phủ ba cột, đóng rồi gõ tiếp và Tách câu tắt; còn thiếu ba ca chỉ có sự kiện tổng hợp: Xác nhận trên câu chưa cắt bỏ, `Esc` giữ điểm cắt, bấm ra ngoài.
   Cần: Ice chạy ba ca đó trên app thật.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-2-ban-do/ket-qua.md`.
@@ -13758,6 +13759,7 @@ chính nó.
   Cần: đo từng đường; lọt thì xoá vùng chọn ở một chỗ chung thay vì từng nút. Mất chữ im lặng nên ưu tiên trước khi Epic 14 đóng.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-4-ban-do/ket-qua.md`.
   → 🔵 2026-11-01: Ice cho lập story riêng vì mục này giữ Epic 14 chưa đóng được. **Chủ: Story 14.11.**
+  → 🟡 2026-11-01 (Story 14.11): `holdTargetCaret` ở `focus.ts` trong `focusReturnTargetOnOpen` (22/22 lớp phủ) và hai menu (đóng thì `restoreHeldSelection()`). Bàn đo chuột thật vòng 2: mọi đường đo được không lọt `Q`, gỡ `removeAllRanges` cho lọt 17/24. Chưa đo: liên kết bộ nhớ ở dải soát, hai nút Review Mode (quần thể bàn đo chưa có dải soát và Review Mode), chữ vào ô nhập của lớp phủ Glossary và Cài đặt, hai lớp phủ nhập (cần hộp thoại tệp). Chủ: Epic 14. Trỏ: `14-11-ban-do/ket-qua.md`.
 - `Esc` đóng lớp phủ Lịch sử đưa caret về đầu ô (`abc` gõ tiếp thành `zzabc`), cả đường `Mod+H` lẫn mục menu: `focus()` không còn vùng chọn nào để giữ offset. Không đè chữ, nhưng người dùng gõ tiếp sai chỗ.
   Cần: lưu `Range` lúc mở lớp phủ và trả lại lúc đóng, cùng khuôn `restoreBeforeOpen` của menu câu.
   Chủ: Epic 14. Trỏ: `_bmad-output/implementation-artifacts/14-4-ban-do/ket-qua.md`.
@@ -13798,6 +13800,7 @@ chính nó.
 - Lượt đêm `41134334441` (2026-10-30, `5e488139`) đỏ: Vitest qua hết 242 tệp nhưng thoát 1 vì `EnvironmentTeardownError`, e2e đỏ 10/59 spec, gồm đo line box, thanh tiêu đề, `Đọc` trên hàng Chương. Lượt `push` cùng commit xanh; 14 commit sau chưa đẩy nên chưa có lượt đêm nào đọc được chúng.
   Cần: đẩy `master`, đọc lượt đêm kế tiếp, spec nào còn đỏ thì tìm nguyên nhân trước khi Epic 14 `done`.
   Chủ: Epic 14. Trỏ: `gh run view 41134334441`.
+  → 🔵 2026-11-01: lượt đêm `41241138850` trên `5a871dda` đỏ đúng 10 spec như lượt trước, cùng số ca, nên lỗi lặp đều và không do 14 commit giữa hai lượt; lượt đêm xanh cuối `97bcb587` cách lượt đỏ đầu 171 commit. Chạy 67 spec trên máy (macOS 15, dpr 2, Vite 1421, cây có bản nháp 14.11) đỏ 9: tám spec trùng CI cùng số đọc (`12-2`, `12-7`, `12-8`, `12-9`, `12-14`, `12-18`, `12-34`, `13-4`), nên không do runner dpr 1; `13-7`, `5-11` chỉ đỏ ở CI; `13-6` chỉ đỏ trên máy. Cần: phân từng spec là sản phẩm hỏng hay spec cũ rồi sửa. **Chủ: Epic 14.**
 
 ## Deferred from: Story 14.10, quét dọn Epic 14 (2026-10-31)
 

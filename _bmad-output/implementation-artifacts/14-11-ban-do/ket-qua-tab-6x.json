@@ -1,0 +1,860 @@
+{
+  "presses": [
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "blur SECTION.panel:TrungHán Việt1 @undefined,undefined btn=undefined",
+        "focusout SECTION.panel:TrungHán Việt1 @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Library @110,21 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Library @110,21 btn=0",
+        "click BUTTON.mode-tab:Library @110,21 btn=0",
+        "focusin SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "blur SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusin LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "blur LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "focusout LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "click BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library",
+      "attempts": [
+        {
+          "down": true,
+          "up": false,
+          "click": false
+        },
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Library @110,21 btn=0",
+        "mouseup BUTTON.mode-tab:Library @110,21 btn=0",
+        "click BUTTON.mode-tab:Library @110,21 btn=0",
+        "focusin SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "blur SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusin LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "blur LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "focusout LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "click BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": false,
+          "click": false
+        },
+        {
+          "down": true,
+          "up": false,
+          "click": false
+        },
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Library @110,21 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Library @110,21 btn=0",
+        "click BUTTON.mode-tab:Library @110,21 btn=0",
+        "focusin SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "blur SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusin LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "blur LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "focusout LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "click BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Library @110,21 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Library @110,21 btn=0",
+        "click BUTTON.mode-tab:Library @110,21 btn=0",
+        "focusin SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "blur SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusin LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "blur LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "focusout LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "click BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Library @110,21 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Library @110,21 btn=0",
+        "click BUTTON.mode-tab:Library @110,21 btn=0",
+        "focusin SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "blur SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusin LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "blur LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "focusout LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "click BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Library @110,21 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Library @110,21 btn=0",
+        "click BUTTON.mode-tab:Library @110,21 btn=0",
+        "focusin SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "blur SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:⌕Trạng thái▾Ch @undefined,undefined btn=undefined",
+        "focusin LI.work-cell:bench-1411-954 @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.library back",
+      "attempts": [
+        {
+          "down": true,
+          "up": false,
+          "click": false
+        },
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "mouseup BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "click BUTTON.mode-tab:Workspace @175,22 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "click BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "focusin SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "blur SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "click BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading",
+      "attempts": [
+        {
+          "down": true,
+          "up": false,
+          "click": false
+        },
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "mouseup BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "click BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "focusin SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "blur SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "click BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "click BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "focusin SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "blur SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "click BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading",
+      "attempts": [
+        {
+          "down": true,
+          "up": false,
+          "click": false
+        },
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "mouseup BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "click BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "focusin SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "blur SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "click BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "click BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "focusin SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "blur SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "click BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "blur DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "focusout DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "click BUTTON.mode-tab:Chế độ đọc @249,21 btn=0",
+        "focusin SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tab.reading back",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "blur SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "focusout SECTION.mode:Song ngữ BCỡ c @undefined,undefined btn=undefined",
+        "mouseup BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "click BUTTON.mode-tab:Workspace @173,21 btn=0",
+        "focusin SECTION.mode:Đối chiếu Trun @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    }
+  ],
+  "chapterId": 1,
+  "calibration_attempts": 1,
+  "calibration": {
+    "win": {
+      "ih": 900,
+      "oh": 0,
+      "x": 0,
+      "y": 960
+    },
+    "guess": {
+      "x": 300,
+      "y": 260
+    },
+    "pt": [
+      149,
+      216
+    ]
+  },
+  "activation_ms": 986,
+  "segments": 9,
+  "load": "7:29  up 11 days, 21:49, 14 users, load averages: 5.19 4.71 4.14",
+  "tab.library": {
+    "pre": {
+      "text": "Ban dich 5.",
+      "caret": {
+        "at": 4,
+        "collapsed": true
+      }
+    },
+    "clicked": true,
+    "afterQ": "Ban dich 5.",
+    "leakedQ": false,
+    "caretAfterReturn": null,
+    "afterZz": "Ban dich 5.",
+    "disk": "Ban dich 5.",
+    "qOnDisk": false,
+    "runs": 6,
+    "leaks": 0
+  },
+  "tab.reading": {
+    "pre": {
+      "text": "Ban dich 5.",
+      "caret": {
+        "at": 4,
+        "collapsed": true
+      }
+    },
+    "clicked": true,
+    "afterQ": "Ban dich 5.",
+    "leakedQ": false,
+    "caretAfterReturn": null,
+    "afterZz": "Ban dich 5.",
+    "disk": "Ban dich 5.",
+    "qOnDisk": false,
+    "runs": 6,
+    "leaks": 0
+  }
+}

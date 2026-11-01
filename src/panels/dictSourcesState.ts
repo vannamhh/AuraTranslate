@@ -29,6 +29,7 @@ import { listDictSources, readDictLicenseText } from '../config/dict'
 import type { QueryRoute, SourceAttribution } from '../config/dict'
 import { KEY_DICT_DISABLED, KEY_DICT_ORDER, SCOPE_APP_CONFIG, putConfig } from '../config/bootstrap'
 import type { IpcError } from '../i18n'
+import { restoreHeldSelection } from '../commands/focus'
 import { currentQuery, runLookup } from './lookupPanelState'
 import { refreshHanViet } from './sourcePanelState'
 
@@ -43,10 +44,12 @@ export const sourcesMenuIsOpen: DeepReadonly<Ref<boolean>> = readonly(sourcesMen
 
 /** Handler of `lookup.toggle_sources_menu`. */
 export function toggleSourcesMenu(): void {
+  if (sourcesMenuOpen.value) restoreHeldSelection()
   sourcesMenuOpen.value = !sourcesMenuOpen.value
 }
 
 export function closeSourcesMenu(): void {
+  if (sourcesMenuOpen.value) restoreHeldSelection()
   sourcesMenuOpen.value = false
 }
 

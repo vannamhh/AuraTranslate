@@ -1,0 +1,132 @@
+{
+  "presses": [
+    {
+      "label": "cell",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown DIV.cell:Ban dich 5. @394,346 btn=0",
+        "blur SECTION.panel:TrungHán Việt1 @undefined,undefined btn=undefined",
+        "focusout SECTION.panel:TrungHán Việt1 @undefined,undefined btn=undefined",
+        "focusin DIV.cell:Ban dich 5. @undefined,undefined btn=undefined",
+        "mouseup DIV.cell:Ban dich 5. @394,346 btn=0",
+        "click DIV.cell:Ban dich 5. @394,346 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "trigger",
+      "attempts": [
+        {
+          "down": true,
+          "up": false,
+          "click": false
+        },
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown SPAN.ui-row:Công cụ @1232,21 btn=0",
+        "focusin BUTTON.tools-trigger:Công cụ @undefined,undefined btn=undefined",
+        "blur BUTTON.tools-trigger:Công cụ @undefined,undefined btn=undefined",
+        "focusout BUTTON.tools-trigger:Công cụ @undefined,undefined btn=undefined",
+        "mouseup SPAN.ui-row:Công cụ @1232,21 btn=0",
+        "click SPAN.ui-row:Công cụ @1232,21 btn=0"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tm.manage.open",
+      "attempts": [
+        {
+          "down": true,
+          "up": false,
+          "click": false
+        },
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown SPAN.:Quản lý bộ nhớ @1167,113 btn=0",
+        "mouseup SPAN.:Quản lý bộ nhớ @1167,113 btn=0",
+        "click SPAN.:Quản lý bộ nhớ @1167,113 btn=0",
+        "blur BUTTON.tools-item:Quản lý bộ nhớ @undefined,undefined btn=undefined",
+        "focusout BUTTON.tools-item:Quản lý bộ nhớ @undefined,undefined btn=undefined",
+        "focusin SECTION.tm-panel:Quản lý bộ nhớ @undefined,undefined btn=undefined"
+      ],
+      "scrollAt": {}
+    },
+    {
+      "label": "tm search input",
+      "attempts": [
+        {
+          "down": true,
+          "up": true,
+          "click": true
+        }
+      ],
+      "down": true,
+      "up": true,
+      "click": true,
+      "log": [
+        "mousedown INPUT.tm-input: @493,148 btn=0",
+        "blur SECTION.tm-panel:Quản lý bộ nhớ @undefined,undefined btn=undefined",
+        "focusout SECTION.tm-panel:Quản lý bộ nhớ @undefined,undefined btn=undefined",
+        "focusin INPUT.tm-input: @undefined,undefined btn=undefined",
+        "mouseup INPUT.tm-input: @493,148 btn=0",
+        "click INPUT.tm-input: @493,148 btn=0"
+      ],
+      "scrollAt": {}
+    }
+  ],
+  "chapterId": 1,
+  "calibration_attempts": 1,
+  "calibration": {
+    "win": {
+      "ih": 900,
+      "oh": 0,
+      "x": 0,
+      "y": 960
+    },
+    "guess": {
+      "x": 300,
+      "y": 260
+    },
+    "pt": [
+      149,
+      216
+    ]
+  },
+  "activation_ms": 982,
+  "segments": 9,
+  "load": "8:32  up 11 days, 22:52, 14 users, load averages: 3.89 3.54 3.60",
+  "input.click.tm.manage.open": {
+    "clicked": true,
+    "activeAfterClick": "INPUT.tm-input.ui-field[data-v-6f2cddd3]",
+    "inputValue": "Qa",
+    "afterQ": "Ban dich 5.",
+    "inputHoldsText": true,
+    "cellUnchanged": true,
+    "cellBefore": "Ban dich 5."
+  }
+}

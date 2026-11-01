@@ -25,6 +25,7 @@
 import type { Ref } from 'vue'
 import { readonly, shallowRef, type DeepReadonly } from 'vue'
 
+import { dropHeldCaret, holdTargetCaret } from '../commands/focus'
 import type { IpcError } from '../i18n'
 import type { SegmentVersion } from '../config/segment'
 import { readSegmentHistory, restoreSegmentVersion } from '../config/segment'
@@ -33,27 +34,6 @@ import {
   flushEditorBeforeDiscreteWrite,
   replaceEditorSegment,
 } from './editorPanelState'
-
-let caretRange: Range | null = null
-
-// Collapsed on purpose: when opened from the context menu, WebKit may have auto-selected a word.
-function caretPointInTargetCell(id: number): Range | null {
-  const selection = window.getSelection()
-  if (selection === null || selection.rangeCount === 0) return null
-  const cell = document.querySelector<HTMLElement>(`[data-col="tgt"][data-segment-id="${String(id)}"]`)
-  const range = selection.getRangeAt(0)
-  if (cell === null || !cell.contains(range.startContainer) || !cell.contains(range.endContainer)) return null
-  const point = range.cloneRange()
-  point.collapse(false)
-  return point
-}
-
-/** The caret point saved when the overlay opened; hands it over once. */
-export function takeHistoryCaretRange(): Range | null {
-  const held = caretRange
-  caretRange = null
-  return held
-}
 
 const isOpen = shallowRef(false)
 /** Lớp phủ lịch sử có đang mở không. */
@@ -143,7 +123,7 @@ export const historyPendingRestore: DeepReadonly<Ref<PendingRestore | null>> =
  */
 export function openSegmentHistory(): void {
   const id = editorCaretSegmentId.value
-  caretRange = id === null ? null : caretPointInTargetCell(id)
+  holdTargetCaret()
   segmentId.value = id
   versions.value = []
   currentVersionId.value = null
@@ -438,7 +418,7 @@ export async function restoreVersion(versionId: number, force: boolean): Promise
  * đó ghi bản dịch của câu này đè lên câu kia, và *"chỗ hỏng là VĨNH VIỄN"*.
  */
 export function resetSegmentHistory(): void {
-  caretRange = null
+  dropHeldCaret()
   isOpen.value = false
   segmentId.value = null
   versions.value = []

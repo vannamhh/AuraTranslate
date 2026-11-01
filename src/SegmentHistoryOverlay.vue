@@ -44,7 +44,6 @@ import {
   historySourceText,
   historyVersions,
   moveHistoryAim,
-  takeHistoryCaretRange,
 } from './panels/segmentHistoryState'
 
 const panel = useTemplateRef<HTMLElement>('panel')
@@ -62,15 +61,6 @@ useSelectionSurface(panel, 'display')
  */
 let returnFocusTo: HTMLElement | null = null
 
-// WebKit puts the caret at the start of a contenteditable on focus().
-function placeCaret(host: HTMLElement, caret: Range | null): void {
-  if (caret === null || !host.contains(caret.startContainer)) return
-  const selection = window.getSelection()
-  if (selection === null) return
-  selection.removeAllRanges()
-  selection.addRange(caret)
-}
-
 watch(historyIsOpen, (open) => {
   if (open) {
     returnFocusTo = focusReturnTargetOnOpen('[data-history-open]')
@@ -81,14 +71,12 @@ watch(historyIsOpen, (open) => {
 
   const back = returnFocusTo
   returnFocusTo = null
-  const caret = takeHistoryCaretRange()
 
   // 🔴 `isConnected` chứ không `back?.focus()` trần: một node đã rời DOM vẫn nhận được lời
   // gọi `focus()` mà **không** ném và **không** có tác dụng — tiêu điểm rơi về `body`, đúng
   // thứ UX-DR17 cấm, và không một dấu hiệu nào báo.
   if (back !== null && back.isConnected) {
     back.focus()
-    placeCaret(back, caret)
     return
   }
 
