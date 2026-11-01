@@ -26,12 +26,12 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * 🔴 VÌ SAO KHÔNG CẦN NỐI VÀO `resetEditorPanel()`/lượt đổi CHƯƠNG — TỰ LÀNH, ĐO ĐƯỢC
  * ─────────────────────────────────────────────────────────────────────────────
- * [`segmentSelectionIds`] tra `anchor`/`focus` bằng `indexOf` trên **`editorSegments` HIỆN
+ * [`segmentSelectionRange`] tra `anchor`/`focus` bằng `findIndex` trên **`editorSegments` HIỆN
  * TẠI** ở mỗi lượt tính lại — không một bản chép cache. `segment.id` là
  * `INTEGER PRIMARY KEY AUTOINCREMENT` trong CHÍNH `project.db` của Tác phẩm đang mở
  * (`schema.rs:337`) và đếm chung cho MỌI Chương của Tác phẩm đó — nên khi người dùng đổi
  * Chương trong CÙNG một Tác phẩm, hai id cũ hầu như chắc chắn KHÔNG tồn tại trong danh sách
- * segment của Chương mới ⇒ `indexOf` trả `-1` ⇒ vùng chọn tự rỗng, KHÔNG cần một lượt reset
+ * segment của Chương mới ⇒ `findIndex` trả `-1` ⇒ vùng chọn tự rỗng, KHÔNG cần một lượt reset
  * tường minh nào ở đường Chương-đổi-trong-cùng-Tác-phẩm.
  *
  * 🔴 **Điều đó KHÔNG đúng qua một lượt đổi TÁC PHẨM** — và đây là lý do hai cụm reset dưới
@@ -57,7 +57,7 @@
  * đời sau này, mệnh đề *"`editorSegments` không chở segment về hưu"* đi theo NGUỒN đó — không
  * phải một điều kiện cần vá thêm ở tệp này.
  */
-import { computed, readonly, ref } from 'vue'
+import { computed, readonly, ref, toRaw } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { editorCaretSegmentId, editorSegments } from './editorPanelState'
 
@@ -69,32 +69,36 @@ export const segmentSelectionAnchorId: DeepReadonly<Ref<number | null>> = readon
 /** Đầu TIÊU ĐIỂM — đầu di động mà hai lệnh mở rộng dời tới. `null` == chưa có vùng chọn. */
 export const segmentSelectionFocusId: DeepReadonly<Ref<number | null>> = readonly(focusSegmentId)
 
-/**
- * `segment.id` đang được chọn, theo THỨ TỰ TÀI LIỆU (`ord`) — §Always spec 4.9. Rỗng khi
- * chưa có vùng chọn, khi Chương vừa đổi dưới một vùng chọn cũ (§tự lành ở đầu tệp), hoặc khi
- * Chương đang mở không còn segment nào.
- *
- * 🔴 Tính từ `editorSegments.value.map(...)` **mỗi lượt gọi**, không cache riêng — mảng đó
- * đã là nguồn sự thật duy nhất cho thứ tự, và một bản chép ở đây là một cơ hội thứ hai để
- * trôi khỏi nó.
- */
-export const segmentSelectionIds: ComputedRef<readonly number[]> = computed(() => {
+export const segmentSelectionRange: ComputedRef<{ readonly lo: number; readonly hi: number } | null> = computed(() => {
   const anchor = anchorSegmentId.value
   const focus = focusSegmentId.value
-  if (anchor === null || focus === null) return []
+  if (anchor === null || focus === null) return null
 
-  const ids = editorSegments.value.map((s) => s.id)
-  const anchorIndex = ids.indexOf(anchor)
-  const focusIndex = ids.indexOf(focus)
-  if (anchorIndex === -1 || focusIndex === -1) return []
+  const segments = toRaw(editorSegments.value)
+  const anchorIndex = segments.findIndex((s) => s.id === anchor)
+  const focusIndex = segments.findIndex((s) => s.id === focus)
+  if (anchorIndex === -1 || focusIndex === -1) return null
 
-  const lo = Math.min(anchorIndex, focusIndex)
-  const hi = Math.max(anchorIndex, focusIndex)
-  return ids.slice(lo, hi + 1)
+  return { lo: Math.min(anchorIndex, focusIndex), hi: Math.max(anchorIndex, focusIndex) }
+})
+
+/**
+ * `segment.id` đang được chọn, theo THỨ TỰ TÀI LIỆU (`ord`). Rỗng khi chưa có vùng chọn, khi
+ * Chương vừa đổi dưới một vùng chọn cũ (§tự lành ở đầu tệp), hoặc khi Chương không còn segment.
+ */
+export const segmentSelectionIds: ComputedRef<readonly number[]> = computed(() => {
+  const range = segmentSelectionRange.value
+  if (range === null) return []
+  return toRaw(editorSegments.value)
+    .slice(range.lo, range.hi + 1)
+    .map((s) => s.id)
 })
 
 /** Số segment đang được chọn — thứ Panel AI Translation sẽ đọc để báo đếm (AC2, Phase 3). */
-export const segmentSelectionCount: ComputedRef<number> = computed(() => segmentSelectionIds.value.length)
+export const segmentSelectionCount: ComputedRef<number> = computed(() => {
+  const range = segmentSelectionRange.value
+  return range === null ? 0 : range.hi - range.lo + 1
+})
 
 /**
  * Dời đầu TIÊU ĐIỂM một hàng theo `direction` (`1` == xuống, `-1` == lên), gieo `anchor` tại

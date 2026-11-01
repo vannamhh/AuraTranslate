@@ -14,7 +14,7 @@
  * 🔵 **THÊM Story 4.9, Phase 4b — mệnh đề THỨ SÁU.** Phạm vi "năm mệnh đề, và chỉ năm" ở trên
  * là của Phase 1; nó KHÔNG bao gồm dây nối `isSelected` (Phase 1 Task 2: "a selection the user
  * cannot see is not a selection" — `editorSegments.ts::selectedRowClassOf` +
- * `GridPanel.vue::selectedRowClassById`). Đo được trước bản thêm này: `grep -rn
+ * `GridBlock.vue::isSelectedRow`). Đo được trước bản thêm này: `grep -rn
  * "selectedRowClassOf" tests/frontend/*.ts` cho 0 kết quả — dây nối đó không một ca nào canh.
  * `describe` cuối tệp này đóng khoảng trống đó và là mục tiêu của counter-check by removal
  * Phase 4 đòi cho dây nối `isSelected`.

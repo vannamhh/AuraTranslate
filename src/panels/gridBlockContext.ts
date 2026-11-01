@@ -20,7 +20,6 @@ export type GridBlockView = {
 }
 
 export type GridBlockContext = {
-  readonly selectedRowClassById: Readonly<Ref<ReadonlyMap<number, string>>>
   readonly unlinkedIds: Readonly<Ref<ReadonlySet<number>>>
   readonly rowErrorLabelById: Readonly<Ref<ReadonlyMap<number, IpcError>>>
   readonly rowErrorTextById: Readonly<Ref<ReadonlyMap<number, string>>>

@@ -1,0 +1,7 @@
+app-before/
+app-after/
+app215-*/
+app-mouse/
+.home-*/
+.app-*.log
+*.log

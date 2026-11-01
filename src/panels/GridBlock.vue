@@ -7,7 +7,7 @@ import TmFuzzyStrip from '../TmFuzzyStrip.vue'
 import { t } from '../i18n'
 import { concordanceSourceHighlight } from './concordanceState'
 import { editorAssetsDir, editorChapterAssets, editorEditedShape } from './editorPanelState'
-import { ruleClassOf, textShapeOf } from './editorSegments'
+import { ruleClassOf, selectedRowClassOf, textShapeOf } from './editorSegments'
 import type { SegmentRuleValue } from './editorSegments'
 import { GRID_BLOCK_CONTEXT } from './gridBlockContext'
 import type { GridBlockView } from './gridBlockContext'
@@ -18,6 +18,8 @@ const props = defineProps<{
   block: GridBlockView
   caretId: number | null
   anchorId: number | null
+  selectedFrom: number
+  selectedTo: number
   stripRow: number
   hasStripTrack: boolean
   stripFloats: boolean
@@ -26,7 +28,6 @@ const props = defineProps<{
 const ctx = inject(GRID_BLOCK_CONTEXT)
 if (ctx === undefined) throw new Error('GridBlock needs the grid block context')
 const {
-  selectedRowClassById,
   unlinkedIds,
   rowErrorLabelById,
   rowErrorTextById,
@@ -62,6 +63,10 @@ const STATE_LABEL_KEYS: Readonly<Record<SegmentRuleValue, string>> = {
   draft: 'panel.grid.state_draft',
   'tm-rule': 'panel.grid.state_tm',
   none: 'panel.grid.state_untranslated',
+}
+
+function isSelectedRow(j: number): boolean {
+  return j >= props.selectedFrom && j <= props.selectedTo
 }
 
 function concordanceHighlightOf(id: number) {
@@ -111,13 +116,13 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
         -->
         <div class="col col-rule" aria-hidden="true">
           <template
-            v-for="s in block.segments"
+            v-for="(s, j) in block.segments"
             :key="s.id"
-            v-memo="[s, ruleClassForRow(s.id), selectedRowClassById.get(s.id), s.id === anchorId]"
+            v-memo="[s, ruleClassForRow(s.id), isSelectedRow(j), s.id === anchorId]"
           >
             <div
               class="cell cell-rule"
-              :class="[{ 'para-end': s.is_paragraph_end, 'cell-unlinked': unlinkedIds.has(s.id) }, selectedRowClassById.get(s.id)]"
+              :class="[{ 'para-end': s.is_paragraph_end, 'cell-unlinked': unlinkedIds.has(s.id) }, selectedRowClassOf(isSelectedRow(j))]"
             >
               <div class="margin-slot" :class="ruleSlotClass(ruleClassForRow(s.id))"></div>
             </div>
@@ -135,11 +140,11 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
           <template
             v-for="(s, j) in block.segments"
             :key="s.id"
-            v-memo="[s, block.start + j, selectedRowClassById.get(s.id), s.id === anchorId]"
+            v-memo="[s, block.start + j, isSelectedRow(j), s.id === anchorId]"
           >
           <div
             class="cell cell-num"
-            :class="[{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }, selectedRowClassById.get(s.id)]"
+            :class="[{ 'para-end': s.is_paragraph_end, omitted: s.is_omitted }, selectedRowClassOf(isSelectedRow(j))]"
             :data-num-segment-id="s.id"
           ><!-- aura-allow-text: số thứ tự hàng — một con số dựng tại chỗ hiển thị, đúng luật "định dạng số và ngày giờ CHỈ ở frontend" (§Consistency Conventions), không một chuỗi giao diện dịch được. -->{{ block.start + j + 1 }}</div>
           <div v-if="s.id === anchorId" class="strip-pad" aria-hidden="true"></div>
@@ -149,11 +154,11 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
         <!-- Cột ③ — NGUYÊN VĂN. Vùng chọn do gốc lưới sở hữu (vai `'source'`, bộ chọn cột, AC7). -->
         <div class="col col-src" :class="sourceTokenClass">
           <template
-            v-for="s in block.segments"
+            v-for="(s, j) in block.segments"
             :key="s.id"
             v-memo="[
               s,
-              selectedRowClassById.get(s.id),
+              isSelectedRow(j),
               s.id === anchorId,
               cutOffsetsOf(s.id),
               glossaryTermsOf(s.id),
@@ -172,7 +177,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
                 'para-end': s.is_paragraph_end,
                 omitted: s.is_omitted,
               },
-              selectedRowClassById.get(s.id),
+              selectedRowClassOf(isSelectedRow(j)),
             ]"
             :data-segment-id="s.id"
             :data-cut-count="cutCountOf(s.id)"
@@ -315,7 +320,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
             v-memo="[
               s,
               block.start + j,
-              selectedRowClassById.get(s.id),
+              isSelectedRow(j),
               s.id === anchorId,
               rowErrorTextById.get(s.id),
               editorEditedShape.get(s.id),
@@ -334,7 +339,7 @@ defineExpose({ concordanceHighlightOf, chapterAssetsOf })
                 omitted: s.is_omitted,
                 'tgt-para-end': s.is_target_paragraph_end,
               },
-              selectedRowClassById.get(s.id),
+              selectedRowClassOf(isSelectedRow(j)),
             ]"
             :data-segment-id="s.id"
             data-col="tgt"

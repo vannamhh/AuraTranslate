@@ -21,6 +21,7 @@ const SEGMENTS: ChapterSegment[] = Array.from({ length: SEGMENT_COUNT }, (_, i) 
   role: null,
   translation_origin: '',
 }))
+let openSegments: readonly ChapterSegment[] = SEGMENTS
 
 vi.mock('@tauri-apps/api/core', () => ({
   convertFileSrc: (path: string) => `mock-asset://${path}`,
@@ -39,7 +40,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
       Promise.resolve({
         loaded: {
           chapter_id: 7,
-          segments: SEGMENTS.map((s) => ({ ...s })),
+          segments: openSegments.map((s) => ({ ...s })),
           caret_segment_id: null,
           assets: [],
           assets_dir: '',
@@ -64,6 +65,7 @@ beforeEach(() => {
   document.body.innerHTML = ''
   anchor.value = null
   updatedBlocks.length = 0
+  openSegments = SEGMENTS
 })
 
 async function mountGrid() {
@@ -162,5 +164,77 @@ describe('GridPanel block render cost', { timeout: 30_000 }, () => {
     expect(await state.confirmCurrentSegment()).toBe('confirmed')
     expect(await settle(wrapper)).toEqual([1])
     wrapper.unmount()
+  })
+
+  describe('segment selection', () => {
+    async function select(anchorIndex: number, focusIndex: number) {
+      const grid = await mountGrid()
+      const selection = await import('../../src/panels/segmentSelectionState')
+      selection.pressSegmentSelection(idAt(anchorIndex), false)
+      selection.dragSegmentSelectionFocus(idAt(focusIndex))
+      await settle(grid.wrapper)
+      return { ...grid, selection }
+    }
+    const selectedIds = (root: Element) =>
+      [...root.querySelectorAll('.cell-num.row-selected')].map((e) => Number(e.getAttribute('data-num-segment-id')))
+
+    it('dragging inside one block renders that block only', async () => {
+      const { wrapper, selection } = await select(10, 10)
+      selection.dragSegmentSelectionFocus(idAt(11))
+      expect(await settle(wrapper)).toEqual([0])
+      wrapper.unmount()
+    })
+
+    it('dragging across a block boundary renders the block it enters and paints contiguously', async () => {
+      const { wrapper, selection, root } = await select(10, 199)
+      selection.dragSegmentSelectionFocus(idAt(200))
+      expect(await settle(wrapper)).toEqual([1])
+      expect(selectedIds(root)).toHaveLength(191)
+      wrapper.unmount()
+    })
+
+    it('dragging the focus of a multi-block selection renders the block holding the focus only', async () => {
+      const { wrapper, selection } = await select(10, 450)
+      selection.dragSegmentSelectionFocus(idAt(451))
+      expect(await settle(wrapper)).toEqual([2])
+      wrapper.unmount()
+    })
+
+    it('dragging backwards past the anchor repaints the blocks the range grows into', async () => {
+      const { wrapper, selection, root } = await select(450, 250)
+      selection.dragSegmentSelectionFocus(idAt(150))
+      expect(await settle(wrapper)).toEqual([0, 1])
+      expect(selectedIds(root)).toEqual(Array.from({ length: 301 }, (_, i) => idAt(150 + i)))
+      wrapper.unmount()
+    })
+
+    it('dragging back into an earlier block drops the paint of the block that leaves the range', async () => {
+      const { wrapper, selection, root } = await select(10, 450)
+      selection.dragSegmentSelectionFocus(idAt(250))
+      expect(await settle(wrapper)).toEqual([1, 2])
+      expect(selectedIds(root)).toHaveLength(241)
+      wrapper.unmount()
+    })
+
+    it('selecting the whole chapter paints every row and counts them all', async () => {
+      const { wrapper, selection, root } = await select(0, SEGMENT_COUNT - 1)
+      expect(selectedIds(root)).toHaveLength(SEGMENT_COUNT)
+      expect(selection.segmentSelectionCount.value).toBe(SEGMENT_COUNT)
+      wrapper.unmount()
+    })
+
+    it('paints nothing when a Chapter change leaves the anchor dead', async () => {
+      const { wrapper, state, selection, root } = await select(10, 20)
+      expect(selectedIds(root)).toHaveLength(11)
+      openSegments = SEGMENTS.map((s) => ({ ...s, id: s.id + SEGMENT_COUNT }))
+      state.resetEditorPanel()
+      await state.ensureSegmentsLoaded()
+      await settle(wrapper)
+      expect(selection.segmentSelectionAnchorId.value).toBe(idAt(10))
+      expect(selection.segmentSelectionRange.value).toBeNull()
+      expect(selectedIds(root)).toEqual([])
+      expect(root.querySelectorAll('.cell-num')).toHaveLength(SEGMENT_COUNT)
+      wrapper.unmount()
+    })
   })
 })

@@ -81,7 +81,6 @@ import {
   hasPrimaryModifier,
   resolveSegmentRule,
   segmentRuleInputOf,
-  selectedRowClassOf,
   sourceCutOffsetOf,
 } from './editorSegments'
 import type { SegmentRuleValue, TextShape } from './editorSegments'
@@ -128,10 +127,7 @@ import { concordanceSourceHighlight } from './concordanceState'
 import type { SegmentGlossaryMarks, SegmentTermSpan } from './glossaryMarksMap'
 import { clearHoveredGlossaryTerm, setHoveredGlossaryTerm } from './glossaryTermHoverState'
 import { recalledGridScroll, rememberGridScroll } from './gridScrollMemory'
-// 🔵 Story 4.9 — vùng chọn nhiều-segment (Decision 1, batch input). `segmentSelectionIds`
-// là DANH SÁCH id theo thứ tự tài liệu; lưới chỉ cần biết hàng nào TRONG danh sách đó, xem
-// [`selectedSegmentIds`] ngay dưới.
-import { dragSegmentSelectionFocus, pressSegmentSelection, segmentSelectionIds } from './segmentSelectionState'
+import { dragSegmentSelectionFocus, pressSegmentSelection, segmentSelectionRange } from './segmentSelectionState'
 import {
   closeSentenceMenu,
   currentSelectionRange,
@@ -298,34 +294,19 @@ function sameRules(a: ReadonlyMap<number, SegmentRuleValue>, b: ReadonlyMap<numb
   return true
 }
 
-// ═════════════════════════════════════════════════════════════════════════════════
-// 🔵 THÊM Story 4.9 — VÙNG CHỌN NHIỀU-SEGMENT (Decision 1). §Phase 1 Task 2: "a selection
-// the user cannot see is not a selection; no new colour, no shadow, no floating layer."
-// ═════════════════════════════════════════════════════════════════════════════════
-/**
- * `Set`, không một `Array.includes` trong `v-for` — cùng lý do [`ruleById`] đã ghi: một phép
- * tìm tuyến tính ở đó cho O(n²) trên **9.850** hàng, và Decision 1 chấp nhận CHÍNH XÁC một
- * Chương trọn vẹn bị chọn ("không trần cho N").
- */
-const selectedSegmentIds = computed(() => new Set(segmentSelectionIds.value))
+function selectedFromIn(block: GridBlockView): number {
+  const range = segmentSelectionRange.value
+  const end = block.start + block.segments.length - 1
+  if (range === null || range.hi < block.start || range.lo > end) return -1
+  return Math.max(range.lo, block.start) - block.start
+}
 
-/**
- * `null` ⇒ *không tô*, tức **không lớp `:class` nào** được thêm — cùng khuôn `ruleClassById`.
- *
- * ⚠️ **CÙNG TOKEN `--color-surface-accent` với `.cell-tgt.editing`, có chủ ý.** Bảng màu chỉ
- * có 17 token mỗi theme (`tokens.json`) và spec cấm thêm màu mới. Một hàng vừa là caret vừa
- * nằm trong vùng chọn tô cùng một sắc ở cả hai lớp — không một xung đột thị giác, vì cả hai
- * lớp cùng nói "đang bật", cùng tiền lệ tái dùng `--color-primary` đã ghi ở
- * `.cell-tgt.tgt-para-end`.
- */
-const selectedRowClassById = computed(() => {
-  const map = new Map<number, string>()
-  for (const id of selectedSegmentIds.value) {
-    const cls = selectedRowClassOf(true)
-    if (cls !== null) map.set(id, cls)
-  }
-  return map
-})
+function selectedToIn(block: GridBlockView): number {
+  const range = segmentSelectionRange.value
+  const end = block.start + block.segments.length - 1
+  if (range === null || range.hi < block.start || range.lo > end) return -1
+  return Math.min(range.hi, end) - block.start
+}
 
 // ═════════════════════════════════════════════════════════════════════════════════
 // 🔵 THÊM Story 6.14 (FR42 · FR43) — ẢNH ĐÚNG VỊ TRÍ + NHÃN VAI (nợ ③, deferred-work.md)
@@ -1910,7 +1891,6 @@ function selectTabViaArrow(target: 'original' | 'han_viet'): void {
   tabHanVietBtnRef.value?.focus()
 }
 const gridBlockContext: GridBlockContext = {
-  selectedRowClassById,
   unlinkedIds,
   rowErrorLabelById,
   rowErrorTextById,
@@ -2034,6 +2014,8 @@ provide(GRID_BLOCK_CONTEXT, gridBlockContext)
           :block="block"
           :caret-id="caretIdIn(block)"
           :anchor-id="anchorIdIn(block)"
+          :selected-from="selectedFromIn(block)"
+          :selected-to="selectedToIn(block)"
           :strip-row="stripRowIn(block)"
           :has-strip-track="block.index === stripBlockIndex"
           :strip-floats="block.index === stripBlockIndex && stripTrackFloats"
