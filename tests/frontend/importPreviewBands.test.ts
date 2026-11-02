@@ -39,7 +39,7 @@ describe('groupImportPreviewBlockRows', () => {
       { kind: 'block', index: 39 },
       { kind: 'band', start: 40, end: 97, open: false },
     ])
-    expect(rows.filter((r) => r.kind === 'band').map((r) => (r.kind === 'band' ? r.end - r.start + 1 : 0))).toEqual([39, 58])
+    expect(rows.filter((r) => r.kind === 'band').map((r) => r.end - r.start + 1)).toEqual([39, 58])
   })
 
   it('has no band when nothing is dropped', () => {
