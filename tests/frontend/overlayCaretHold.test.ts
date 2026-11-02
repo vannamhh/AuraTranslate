@@ -4,7 +4,7 @@ import { nextTick } from 'vue'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { dropHeldCaret, focusReturnTargetOnOpen, holdTargetCaret } from '../../src/commands/focus'
+import { resetHeldCaret, focusReturnTargetOnOpen, holdTargetCaret } from '../../src/commands/focus'
 import { readFixture, recordSave, resetRecorder } from './support/segmentFixture'
 
 vi.mock('../../src/config/segment', async (importOriginal) => {
@@ -76,7 +76,7 @@ function overlayDialog() {
 }
 
 afterEach(() => {
-  dropHeldCaret()
+  resetHeldCaret()
   document.body.innerHTML = ''
   Reflect.deleteProperty(document, 'activeElement')
   vi.restoreAllMocks()

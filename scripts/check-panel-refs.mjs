@@ -168,6 +168,11 @@ const EXEMPT = new Map([
       'Mode đọc lại diff sau Nối tay.',
   ],
   [
+    'src/panels/editorPanelState.ts::chapterOpenedListeners',
+    'Người nghe `onChapterOpened`, không phải dữ liệu Tác phẩm: Review Mode đăng ký một lần lúc ' +
+      'nạp module. Dọn nó cắt im lặng việc đóng phiên Rà soát khi Chương khác đã mở.',
+  ],
+  [
     'src/tokens/fonts.ts::inflight',
     'Chống nạp font hai lần trong MỘT phiên. Font là tài nguyên cấp ứng dụng, không theo Tác ' +
       'phẩm — CSP ghim `$RESOURCE/fonts/**`, không có đường nào tải font theo Tác phẩm.',

@@ -25,7 +25,7 @@
 import type { Ref } from 'vue'
 import { readonly, shallowRef, type DeepReadonly } from 'vue'
 
-import { dropHeldCaret, holdTargetCaret } from '../commands/focus'
+import { resetHeldCaret, holdTargetCaret } from '../commands/focus'
 import type { IpcError } from '../i18n'
 import type { SegmentVersion } from '../config/segment'
 import { readSegmentHistory, restoreSegmentVersion } from '../config/segment'
@@ -418,7 +418,7 @@ export async function restoreVersion(versionId: number, force: boolean): Promise
  * đó ghi bản dịch của câu này đè lên câu kia, và *"chỗ hỏng là VĨNH VIỄN"*.
  */
 export function resetSegmentHistory(): void {
-  dropHeldCaret()
+  resetHeldCaret()
   isOpen.value = false
   segmentId.value = null
   versions.value = []

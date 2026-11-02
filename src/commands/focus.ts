@@ -433,7 +433,7 @@ export function focusReturnTargetOnOpen(openerSelector: string): HTMLElement | n
 const TARGET_CELL = '[data-col="tgt"]'
 let heldCaret: Range | null = null
 
-export function dropHeldCaret(): void {
+export function resetHeldCaret(): void {
   releaseHeldCaret()
 }
 
