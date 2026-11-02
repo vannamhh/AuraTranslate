@@ -143,13 +143,13 @@ describe('Library, Work page and Reading mode on the 7px grid', () => {
         const lineBox = probe.getBoundingClientRect().height
         probe.remove()
         const title = col.querySelector('.chapter-title').getBoundingClientRect()
-        const origin = col.querySelector('.chapter-origin').getBoundingClientRect()
+        const head = col.querySelector('.chapter-head').getBoundingClientRect()
         const paragraphs = [...col.querySelectorAll('.paragraph')].map((p) => p.getBoundingClientRect())
         return {
           lineBox,
           supportsLh: CSS.supports('margin-bottom', '1lh'),
-          titleToOrigin: origin.top - title.bottom,
-          originToFirst: paragraphs[0].top - origin.bottom,
+          headToTitle: title.top - head.bottom,
+          titleToFirst: paragraphs[0].top - title.bottom,
           paragraphGap: paragraphs.length > 1 ? paragraphs[1].top - paragraphs[0].bottom : null,
         }
       })
@@ -162,8 +162,8 @@ describe('Library, Work page and Reading mode on the 7px grid', () => {
         expect(onSeven(m.lineBox)).toBe(true)
         expect(m.paragraphGap).not.toBeNull()
         expect(Math.abs(m.paragraphGap - m.lineBox)).toBeLessThanOrEqual(0.5)
-        expect(Math.abs(m.titleToOrigin - 7)).toBeLessThanOrEqual(0.5)
-        expect(Math.abs(m.originToFirst - m.lineBox)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(m.headToTitle - 7)).toBeLessThanOrEqual(0.5)
+        expect(Math.abs(m.titleToFirst - m.lineBox)).toBeLessThanOrEqual(0.5)
       })
     }
 

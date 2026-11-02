@@ -600,6 +600,8 @@ Focus thắng rê chuột: rule `:focus-visible` đứng sau `:hover` trong cùn
 
 **Câu đang sửa** *(🔵 2026-10-26)*. Ngoài vạch `caret-rule`, **ô bản dịch** của câu đang sửa có nền `surface-accent`, như mã đã làm từ trước. Mockup tô cả hàng, nhưng Ice giữ phạm vi ô (plan 12.26): lưới không có phần tử "cả hàng", tô đủ các cột phải thêm điều kiện con trỏ vào từng cột.
 
+**Chế độ đọc theo mockup** *(🔵 2026-11-02, Ice)*. Thanh công cụ 42px và dải vị trí 28px nằm trong `section.mode`, trôi cùng nội dung, không ghim. Lệch có chủ ý so với `reading-mode.html`: `⌘,` thuộc Cài đặt nên Tinh chỉnh không vẽ phím; nguyên văn ở lề giữ cỡ và thẳng hàng hiện tại; chip Đánh dấu/Sửa giữ nguyên; mục chọn của nhóm Cỡ chữ dùng nền `surface-accent` chữ `primary` thay cho nền `on-surface` đặc của `ui-seg`; công tắc Song ngữ bật bằng `on-surface` (mockup dùng `primary`); nút đầu mốc biên dùng `ui-btn--primary` (nền `on-surface`) thay cho nền `primary`; cỡ chữ UI 13px, không 10.5px–12.5px; không dựng lại lớp phủ Mục lục và Danh sách đánh dấu.
+
 **Ranh giới câu** — ký tự `⏐` màu `ornament`, `opacity: 0` mặc định, hiện ở `0.55` khi rê chuột hoặc khi con trỏ chạm.
 
 **Công tắc và điều khiển đọc** — ba preset Thoáng/Cân/Đặc trên thanh công cụ; thanh trượt cỡ chữ và giãn dòng chi tiết nằm sau một lần bấm.

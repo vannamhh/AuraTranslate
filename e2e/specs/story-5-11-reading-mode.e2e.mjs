@@ -359,4 +359,64 @@ describe('Story 5.11 — Chế độ đọc: typography và bố cục đọc d�
 
     await browser.keys(['b'])
   })
+  it('the toolbar is 42 px, the strip 28 px, and the progress bar fills min(order, done) over done', async () => {
+    const m = await browser.execute(() => {
+      const box = (selector) => document.querySelector(selector)?.getBoundingClientRect() ?? null
+      const mode = document.querySelector('section.mode')
+      const strip = document.querySelector('.progress-line')
+      const bold = strip ? [...strip.querySelectorAll('b')].map((b) => b.textContent ?? '') : []
+      const doneText = strip?.querySelector('.progress-count')?.textContent ?? ''
+      return {
+        bar: box('.toolbar')?.height ?? null,
+        strip: strip ? strip.getBoundingClientRect().height : null,
+        track: box('[data-reading-progress-bar]')?.width ?? null,
+        fill: box('[data-reading-progress-fill]')?.width ?? null,
+        fillHeight: box('[data-reading-progress-fill]')?.height ?? null,
+        order: Number.parseInt(bold.at(-1) ?? '', 10),
+        done: Number.parseInt(doneText.trim(), 10),
+        overflow: mode.scrollWidth - mode.clientWidth,
+      }
+    })
+    await expect(m.overflow).toBeLessThanOrEqual(0)
+    await expect(m.bar).toBe(42)
+    await expect(m.strip).toBe(28)
+    await expect(m.fillHeight).toBe(2)
+    await expect(Number.isFinite(m.order)).toBe(true)
+    await expect(Number.isFinite(m.done)).toBe(true)
+    const expected = m.done === 0 ? 0 : Math.min(m.order, m.done) / m.done
+    await expect(Math.abs(m.fill - expected * m.track)).toBeLessThanOrEqual(m.track * 0.005 + 1)
+  })
+
+  it('at the 800 px minimum the toolbar wraps and nothing overflows sideways', async () => {
+    const before = await browser.execute(() => ({ w: window.innerWidth, h: window.innerHeight }))
+    const dpr = await browser.execute(() => window.devicePixelRatio)
+    try {
+      let inner = null
+      for (const factor of [dpr, 1]) {
+        await browser.setWindowSize(Math.round(800 * factor), Math.round(before.h * factor))
+        await browser.pause(400)
+        inner = await browser.execute(() => window.innerWidth)
+        if (Math.abs(inner - 800) <= 12) break
+      }
+      await expect(Math.abs(inner - 800)).toBeLessThanOrEqual(12)
+      const m = await browser.execute(() => {
+        const mode = document.querySelector('section.mode')
+        return {
+          overflow: mode.scrollWidth - mode.clientWidth,
+          bar: document.querySelector('.toolbar').getBoundingClientRect().height,
+          strip: document.querySelector('.progress-line').getBoundingClientRect().height,
+        }
+      })
+      await expect(m.overflow).toBeLessThanOrEqual(0)
+      await expect(m.strip).toBe(28)
+      await expect(m.bar).toBeGreaterThanOrEqual(42)
+    } finally {
+      for (const factor of [dpr, 1]) {
+        await browser.setWindowSize(Math.round(before.w * factor), Math.round(before.h * factor))
+        await browser.pause(400)
+        const w = await browser.execute(() => window.innerWidth)
+        if (Math.abs(w - before.w) <= 12) break
+      }
+    }
+  })
 })

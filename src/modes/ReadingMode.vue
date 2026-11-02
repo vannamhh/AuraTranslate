@@ -486,24 +486,19 @@ function chordOf(id: string): string {
   return chordById.value.get(id) ?? ''
 }
 
-const marksButtonText = computed(() =>
-  readingMarksTotal.value === null
-    ? t('mode.reading.marks_button')
-    : t('mode.reading.marks_button_count', { mark_count: String(readingMarksTotal.value) }),
-)
-
 const themeText = computed(() => (currentTheme.value === 'dark' ? t('mode.reading.theme_dark') : t('mode.reading.theme_light')))
 
-const progressText = computed(() => {
+const levelChords = computed(() =>
+  [chordOf('reading.level_airy'), chordOf('reading.level_balanced'), chordOf('reading.level_dense')].filter((c) => c !== '').join(' '),
+)
+
+/** Null while the done count or the current Chapter is unknown, so the strip is not drawn. */
+const progress = computed(() => {
   const done = readingChaptersDone.value
   const current = readingCurrentChapter.value
-  if (done === null || current === null) return ''
-  return t('mode.reading.progress', { done_count: String(done), chapter_ord: String(current.chapter_ord) })
-})
-
-const currentChapterText = computed(() => {
-  const current = readingCurrentChapter.value
-  return current === null ? '' : chapterLabel(current)
+  if (done === null || current === null) return null
+  const percent = done === 0 ? 0 : Math.round((Math.min(current.chapter_ord, done) / done) * 100)
+  return { done, ord: current.chapter_ord, title: current.chapter_title, percent }
 })
 
 function originText(chapter: DeepReadonly<ReadingChapter>): string {
@@ -598,23 +593,23 @@ function paragraphRuns(
     <div class="toolbar">
       <button
         type="button"
-        class="btn ui-btn"
+        class="ui-switch"
+        role="switch"
         data-reading-toggle-bilingual
-        :aria-pressed="readingBilingual"
+        :aria-checked="readingBilingual"
         @click="dispatch('reading.toggle_bilingual')"
       >
-        <span class="ui-row">
-          {{ t('mode.reading.bilingual') }}
-          <!-- aura-allow-text: chord display from the shortcut registry. -->
-          <span v-if="chordOf('reading.toggle_bilingual') !== ''" class="kbd">{{ chordOf('reading.toggle_bilingual') }}</span>
-        </span>
+        {{ t('mode.reading.bilingual') }}
+        <span class="ui-switch__track" aria-hidden="true"></span>
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.toggle_bilingual') !== ''" class="ui-kbd">{{ chordOf('reading.toggle_bilingual') }}</span>
       </button>
       <span class="level-group" role="group" :aria-label="t('mode.reading.level_group')">
         <span class="level-label">{{ t('mode.reading.level_group') }}</span>
-        <span class="ui-seg">
+        <span class="ui-seg level-seg">
           <button
             type="button"
-            class="btn ui-seg__item"
+            class="ui-seg__item"
             data-reading-level="lg"
             :aria-pressed="currentReadingLevel === 'lg'"
             @click="dispatch('reading.level_airy')"
@@ -623,7 +618,7 @@ function paragraphRuns(
           </button>
           <button
             type="button"
-            class="btn ui-seg__item"
+            class="ui-seg__item"
             data-reading-level="md"
             :aria-pressed="currentReadingLevel === 'md'"
             @click="dispatch('reading.level_balanced')"
@@ -632,7 +627,7 @@ function paragraphRuns(
           </button>
           <button
             type="button"
-            class="btn ui-seg__item"
+            class="ui-seg__item"
             data-reading-level="sm"
             :aria-pressed="currentReadingLevel === 'sm'"
             @click="dispatch('reading.level_dense')"
@@ -641,53 +636,70 @@ function paragraphRuns(
           </button>
         </span>
         <!-- aura-allow-text: chord displays from the shortcut registry. -->
-        <span class="kbd">{{ [chordOf('reading.level_airy'), chordOf('reading.level_balanced'), chordOf('reading.level_dense')].join(' ') }}</span>
+        <span v-if="levelChords !== ''" class="ui-kbd">{{ levelChords }}</span>
       </span>
       <button
         type="button"
-        class="btn ui-btn"
+        class="ui-btn ui-btn--quiet"
         data-reading-toggle-tuner
         :aria-pressed="readingTunerOpen"
         @click="dispatch('reading.toggle_tuner')"
       >
         {{ t('mode.reading.tuner') }}
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.toggle_tuner') !== ''" class="ui-kbd">{{ chordOf('reading.toggle_tuner') }}</span>
       </button>
       <button
         type="button"
-        class="btn ui-btn"
+        class="ui-btn ui-btn--quiet"
         data-reading-toggle-theme
-        :aria-pressed="currentTheme === 'dark'"
         @click="dispatch('reading.toggle_theme')"
       >
-        <span class="ui-row">
-          <!-- aura-allow-text: themeText is a computed that goes through t(). -->
-          {{ themeText }}
-          <!-- aura-allow-text: chord display from the shortcut registry. -->
-          <span v-if="chordOf('reading.toggle_theme') !== ''" class="kbd">{{ chordOf('reading.toggle_theme') }}</span>
-        </span>
+        <!-- aura-allow-text: themeText is a computed that goes through t(). -->
+        {{ themeText }}
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.toggle_theme') !== ''" class="ui-kbd">{{ chordOf('reading.toggle_theme') }}</span>
       </button>
-      <button type="button" class="btn ui-btn" data-reading-toc :aria-expanded="readingTocOpen" @click="dispatch('reading.toc')">
-        <span class="ui-row">
-          {{ t('mode.reading.toc') }}
-          <!-- aura-allow-text: chord display from the shortcut registry. -->
-          <span v-if="chordOf('reading.toc') !== ''" class="kbd">{{ chordOf('reading.toc') }}</span>
-        </span>
+      <button type="button" class="ui-btn ui-btn--quiet" data-reading-toc :aria-expanded="readingTocOpen" @click="dispatch('reading.toc')">
+        {{ t('mode.reading.toc') }}
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.toc') !== ''" class="ui-kbd">{{ chordOf('reading.toc') }}</span>
       </button>
-      <button type="button" class="btn ui-btn" data-reading-marks :aria-expanded="readingMarksOpen" @click="dispatch('reading.marks')">
-        <span class="ui-row">
-          <!-- aura-allow-text: marksButtonText is a computed that goes through t(). -->
-          {{ marksButtonText }}
-          <!-- aura-allow-text: chord display from the shortcut registry. -->
-          <span v-if="chordOf('reading.mark_aimed') !== ''" class="kbd">{{ chordOf('reading.mark_aimed') }}</span>
-        </span>
+      <button
+        type="button"
+        class="ui-btn ui-btn--quiet marks-button"
+        data-reading-marks
+        :aria-expanded="readingMarksOpen"
+        @click="dispatch('reading.marks')"
+      >
+        <template v-if="readingMarksTotal === null">{{ t('mode.reading.marks_button') }}</template>
+        <template v-else>
+          {{ t('mode.reading.marks_button_glyph') }}
+          <!-- aura-allow-text: the total is a number. -->
+          <b>{{ readingMarksTotal }}</b>
+          {{ t('mode.reading.marks_button_unit') }}
+        </template>
+        <!-- aura-allow-text: chord display from the shortcut registry. -->
+        <span v-if="chordOf('reading.mark_aimed') !== ''" class="ui-kbd">{{ chordOf('reading.mark_aimed') }}</span>
       </button>
     </div>
 
-    <div v-if="progressText !== ''" class="progress-line" data-reading-progress>
-      <!-- aura-allow-text: chapter label is Work data or goes through t(). -->
-      <span>{{ currentChapterText }}</span>
-      <!-- aura-allow-text: progressText is a computed that goes through t(). -->
-      <span>{{ progressText }}</span>
+    <div v-if="progress !== null" class="progress-line" data-reading-progress>
+      <span v-if="progress.title !== null" class="progress-chapter">
+        {{ t('mode.reading.position_prefix', { ord: String(progress.ord) }) }}
+        <!-- aura-allow-text: the Chapter title is Work data. -->
+        <b>{{ progress.title }}</b>
+      </span>
+      <!-- aura-allow-text: untitled() goes through t(). -->
+      <b v-else class="progress-chapter">{{ untitled(progress.ord) }}</b>
+      <span class="progress-track" data-reading-progress-bar aria-hidden="true">
+        <span class="progress-fill" data-reading-progress-fill :style="{ width: `${String(progress.percent)}%` }"></span>
+      </span>
+      <span class="progress-count">
+        {{ t('mode.reading.progress', { done_count: String(progress.done) }) }}
+        <!-- aura-allow-text: the order is a number. -->
+        <b>{{ progress.ord }}</b>
+      </span>
     </div>
 
     <!-- aura-allow-text: lỗi marker đi qua tError; đặt cạnh toolbar để một lỗi ghi ở đầu
@@ -763,11 +775,15 @@ function paragraphRuns(
             '--reading-measure': readingStyle.measure,
           }"
         >
+          <div class="chapter-head">
+            <!-- aura-allow-text: untitled() goes through t(). -->
+            <span v-if="chapter.chapter_title !== null" class="chapter-label">{{ untitled(chapter.chapter_ord) }}</span>
+            <!-- aura-allow-text: originText() goes through t(). -->
+            <span class="chapter-origin" data-reading-chapter-origin>{{ originText(chapter) }}</span>
+          </div>
           <!-- aura-allow-text: `chapterLabel()` trả tên Chương (dữ liệu) hoặc gọi `untitled()`
                (qua t()) cho hàng chưa đặt tên -- không một biểu thức trộn nào lộ ra template. -->
           <h2 class="chapter-title">{{ chapterLabel(chapter) }}</h2>
-          <!-- aura-allow-text: originText() goes through t(). -->
-          <p class="chapter-origin" data-reading-chapter-origin>{{ originText(chapter) }}</p>
           <!--
             🔵 Story 6.14 (FR42) — ảnh neo `0` (hoặc dời hẳn về đầu Chương), TRƯỚC đoạn ĐẦU
             TIÊN. `<figcaption>` chỉ dựng khi `caption_text` có nội dung THẬT (§Always: "ảnh
@@ -874,7 +890,7 @@ function paragraphRuns(
       🔴 THÊM (Story 5.12) — MỐC BIÊN, luôn có mặt khi một lượt đọc đã nạp (kể cả dãy rỗng):
       nó là lý do trang dừng ở đó, không phải một phần thưởng chỉ hiện khi có nội dung.
     -->
-    <div v-if="readingRun !== null" class="frontier">
+    <div v-if="readingRun !== null" class="frontier" :style="{ '--reading-font-size': readingStyle.fontSize, '--reading-measure': readingStyle.measure }">
       <h2 class="frontier-heading">{{ t('mode.reading.frontier_heading') }}</h2>
       <!-- aura-allow-text: `frontierRangeText` là một computed đã tự đi qua t() bên trong
            phần kịch bản phía trên -- xem doc-comment của nó ngay trên. -->
@@ -883,29 +899,38 @@ function paragraphRuns(
       <p v-if="readingRun.frontier.kind === 'next-not-done'" class="frontier-note" data-reading-frontier-kind="next-not-done">{{ frontierBlockedText }}</p>
       <!-- aura-allow-text: `frontierEndOfWorkText` tự đi qua t() bên trong. -->
       <p v-else class="frontier-note" data-reading-frontier-kind="end-of-work">{{ frontierEndOfWorkText }}</p>
-      <button
-        v-if="readingRun.frontier.kind === 'next-not-done'"
-        type="button"
-        class="btn ui-btn"
-        data-reading-frontier-continue
-        @click="dispatch('reading.continue_in_workspace')"
-      >
-        <!-- aura-allow-text: `frontierButtonText` tự đi qua t() bên trong. -->
-        {{ frontierButtonText }}
-      </button>
-      <button
-        v-if="readingMarksTotal !== null && readingMarksTotal > 0"
-        type="button"
-        class="btn ui-btn"
-        data-reading-frontier-marks
-        @click="dispatch('reading.marks')"
-      >
-        <!-- aura-allow-text: frontierMarksText goes through t(). -->
-        {{ frontierMarksText }}
-      </button>
-      <button type="button" class="btn ui-btn" data-reading-frontier-work-start @click="dispatch('reading.work_start')">
-        {{ t('mode.reading.frontier_work_start') }}
-      </button>
+      <div class="frontier-actions">
+        <button
+          v-if="readingRun.frontier.kind === 'next-not-done'"
+          type="button"
+          class="ui-btn ui-btn--primary"
+          data-reading-frontier-continue
+          @click="dispatch('reading.continue_in_workspace')"
+        >
+          <!-- aura-allow-text: `frontierButtonText` tự đi qua t() bên trong. -->
+          {{ frontierButtonText }}
+        </button>
+        <button
+          v-if="readingMarksTotal !== null && readingMarksTotal > 0"
+          type="button"
+          class="ui-btn"
+          :class="{ 'ui-btn--primary': readingRun.frontier.kind !== 'next-not-done' }"
+          data-reading-frontier-marks
+          @click="dispatch('reading.marks')"
+        >
+          <!-- aura-allow-text: frontierMarksText goes through t(). -->
+          {{ frontierMarksText }}
+        </button>
+        <button
+          type="button"
+          class="ui-btn"
+          :class="{ 'ui-btn--primary': readingRun.frontier.kind !== 'next-not-done' && !(readingMarksTotal !== null && readingMarksTotal > 0) }"
+          data-reading-frontier-work-start
+          @click="dispatch('reading.work_start')"
+        >
+          {{ t('mode.reading.frontier_work_start') }}
+        </button>
+      </div>
     </div>
 
     <div
@@ -1066,11 +1091,45 @@ function paragraphRuns(
   outline: none;
 }
 
+.toolbar,
+.progress-line {
+  margin-left: calc(-1 * var(--space-screen-inline));
+  margin-right: -11px; /* aura-allow-spacing: cancels the 11px right inset of .mode */
+  padding-left: var(--space-screen-inline);
+  padding-right: 11px; /* aura-allow-spacing: with the 10px scrollbar gutter the right edge is 21px from the window */
+  border-bottom: 1px solid var(--color-outline);
+  background: var(--color-surface);
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
+}
+
 .toolbar {
   display: flex;
-  gap: var(--space-unit);
   flex-wrap: wrap;
-  margin-bottom: var(--space-panel-block);
+  align-items: center;
+  gap: var(--space-unit) calc(var(--space-unit) * 3);
+  min-height: 42px;
+  margin-top: calc(-1 * var(--space-panel-block));
+  padding-top: 6px; /* aura-allow-spacing: with the 7px below and the 1px border a single row is exactly 42px */
+  padding-bottom: 7px;
+}
+
+.toolbar b {
+  color: inherit;
+  font-weight: var(--weight-ui-md-strong);
+}
+
+/* The hover box reaches 7px past the text, so buttons and plain items keep one 21px text-to-text rhythm. */
+.toolbar .ui-btn {
+  margin: 0 calc(var(--space-unit) * -1);
+  padding: 0 var(--space-unit);
+}
+
+.toolbar .marks-button {
+  margin-left: auto;
+  color: var(--color-tm-text);
 }
 
 .tuner {
@@ -1144,7 +1203,7 @@ function paragraphRuns(
 }
 
 .chapter-title {
-  margin: 0 0 var(--space-unit) 0;
+  margin: 0 0 var(--reading-line-height) 0; /* aura-allow-spacing: one reading line box, a multiple of 7 by readingStyle */
   font-size: var(--font-read-title);
   line-height: var(--leading-read-title);
   font-weight: var(--weight-read-title);
@@ -1198,6 +1257,16 @@ function paragraphRuns(
   background: var(--color-surface-tm);
 }
 
+.reading-segment.marked::after {
+  content: '⚑';
+  position: relative;
+  top: -0.4em;
+  color: var(--color-tm-text);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
+}
+
 /* Without a press anchor the block inset stays auto so the chip sits on the sentence's last line;
    a percentage block inset resolves against the first line and lands over the sentence's own text. */
 .mark-actions {
@@ -1248,18 +1317,29 @@ function paragraphRuns(
 /* Mốc biên (Story 5.12) — chỉ token đã có: vạch ngăn dùng `--color-outline`, chữ phụ dùng
    `--color-on-surface-variant`. Không `box-shadow`, không gradient, không `opacity` lùi chữ. */
 .frontier {
+  width: round(up, var(--reading-measure), 7px);
+  max-width: 100%;
+  margin: calc(var(--space-unit) * 4) auto 0;
+  font-size: var(--reading-font-size);
+  font-family: var(--family-read);
   text-align: center;
-  margin-top: var(--space-panel-block);
   padding-top: 13px; /* aura-allow-spacing: 1px top border sits inside the 14px inset */
   border-top: 1px solid var(--color-outline);
 }
 
 .frontier-heading {
-  margin: 0 0 var(--space-panel-block) 0;
-  font-size: var(--font-ui-md-strong);
-  line-height: var(--leading-ui-md-strong);
-  font-weight: var(--weight-ui-md-strong);
-  font-family: var(--face-ui-md-strong);
+  margin: 0 0 var(--space-unit) 0;
+  font-size: var(--font-read-sm);
+  line-height: var(--leading-read-sm);
+  font-weight: normal;
+  font-family: var(--face-read-sm);
+}
+
+.frontier-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-unit);
 }
 
 /* 🔵 SỬA (rà 2026-08-30, Bản vá 9) — `.frontier-blocked` đổi tên `.frontier-note`: lớp đó
@@ -1322,10 +1402,7 @@ function paragraphRuns(
   outline: none;
 }
 
-.marks-hint,
-.chapter-origin,
-.progress-line,
-.kbd {
+.marks-hint {
   color: var(--color-on-surface-variant);
   font-size: var(--font-ui-sm);
   line-height: var(--leading-ui-sm);
@@ -1365,41 +1442,85 @@ function paragraphRuns(
 
 .level-group {
   display: inline-flex;
-  align-items: baseline;
-  gap: 0;
+  align-items: center;
+  gap: var(--space-unit);
 }
 
-.level-label {
-  margin-inline-end: var(--space-unit);
-  color: var(--color-on-surface-variant);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  font-family: var(--face-ui-sm);
-}
-
-.level-group .kbd {
-  margin-inline-start: var(--space-unit);
-}
-
-.ui-row > .kbd {
-  margin-inline-start: 0;
-}
-
-.kbd {
-  margin-inline-start: var(--space-unit);
+.level-seg .ui-seg__item[aria-pressed='true'] {
+  background: var(--color-surface-accent);
+  color: var(--color-primary);
 }
 
 .progress-line {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
-  padding-bottom: 13px; /* aura-allow-spacing: 1px bottom border sits inside the 14px inset */
-  border-bottom: 1px solid var(--color-outline);
+  height: 28px;
+  margin-bottom: 28px;
+  background: var(--color-background);
+  border-bottom-color: var(--color-outline-faint);
+}
+
+.progress-chapter {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-count {
+  flex: none;
+  white-space: nowrap;
+}
+
+.progress-line b {
+  color: var(--color-on-surface);
+  font-weight: var(--weight-ui-md-strong);
+}
+
+.progress-track {
+  flex: 1 1 auto;
+  height: 2px; /* aura-allow-spacing: a drawn 2px rule */
+  min-width: 70px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+}
+
+.chapter-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-panel-inline);
+  height: calc(var(--space-unit) * 3); /* the pill border overhangs by 1px instead of growing the row off the 7px grid */
+  margin: 0 0 var(--space-unit) 0;
+}
+
+.chapter-label {
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
+  text-transform: uppercase;
 }
 
 .chapter-origin {
-  margin: 0 0 var(--reading-line-height) 0; /* aura-allow-spacing: one reading line box; 1lh here is the ui-sm line */
+  display: inline-flex;
+  align-items: center;
+  padding-left: var(--space-unit);
+  padding-right: var(--space-unit);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--radius-full);
+  color: var(--color-tm-text);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  font-family: var(--face-ui-sm);
 }
 
 .toc-actions {
