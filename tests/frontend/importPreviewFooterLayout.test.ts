@@ -85,7 +85,7 @@ function chaptersWire(count: number, over: Partial<ChapterSplitPreviewWire> = {}
 }
 
 function blockOf(kept: boolean, text = 'noi dung'): BlockWire {
-  return { body: { kind: 'paragraph', text }, kept, confirmed: false }
+  return { body: { kind: 'paragraph', text }, kept, confirmed: false, cleanup_spans: [] }
 }
 
 function previewOf(

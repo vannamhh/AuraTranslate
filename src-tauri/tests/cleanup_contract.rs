@@ -2363,3 +2363,225 @@ fn perf_probe_chapter_detail_for_index_repeated_across_seven_cursor_moves_on_two
     drop(global);
     cleanup_dir(&root);
 }
+
+fn strike_rule(id: i64, pattern: &str, kind: CleanupRuleKind, enabled: bool) -> CleanupRule {
+    CleanupRule {
+        tier: CleanupRuleTier::Global,
+        id,
+        pattern: pattern.to_owned(),
+        kind,
+        enabled,
+    }
+}
+
+fn single_page_shape(paragraphs: &[String]) -> PipelineShape {
+    let body: String = paragraphs
+        .iter()
+        .map(|p| format!("<p>{p}</p>"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+        bytes: format!("<html><body><article><h1>Tieu de</h1>\n{body}</article></body></html>")
+            .into_bytes(),
+        label: "https://example.com/strike".to_owned(),
+    }])
+}
+
+fn blocks_with_rules(
+    shape: &PipelineShape,
+    rules: &[CleanupRule],
+    overrides: &[Option<bool>],
+) -> Vec<auratranslate_lib::commands::project::BlockWire> {
+    let (_, blocks) = chapter_detail_for_index(
+        shape,
+        0,
+        encoding_rs::UTF_8,
+        None,
+        "en",
+        rules,
+        true,
+        overrides,
+    )
+    .expect("Chuong 0 ton tai");
+    blocks
+        .expect("extract_main_content == true phai cho Some(blocks)")
+        .blocks
+}
+
+fn paragraph_text(b: &auratranslate_lib::commands::project::BlockWire) -> Option<&str> {
+    match &b.body {
+        BlockBodyWire::Paragraph { text } | BlockBodyWire::Caption { text } => Some(text.as_str()),
+        BlockBodyWire::Image { .. } => None,
+    }
+}
+
+fn spans_text(b: &auratranslate_lib::commands::project::BlockWire) -> Vec<(i64, String)> {
+    let text: Vec<char> = paragraph_text(b).unwrap_or("").chars().collect();
+    b.cleanup_spans
+        .iter()
+        .map(|s| (s.id, text[s.start..s.end].iter().collect()))
+        .collect()
+}
+
+fn long_paragraphs() -> Vec<String> {
+    let filler = "Mot doan van dai de day cua so bon nghin byte ra xa ".repeat(6);
+    let mut v: Vec<String> = (0..20).map(|i| format!("Doan {i} {filler}")).collect();
+    v[2].push_str(" QQQ trong doan hai");
+    v[3].push_str(" QQQ va nua QQQ");
+    v[18] = format!("{} QQQ sau cua so", v[18]);
+    v
+}
+
+#[test]
+fn cleanup_spans_land_inside_the_block_that_holds_them_including_blocks_past_the_display_window() {
+    let shape = single_page_shape(&long_paragraphs());
+    let rules = [strike_rule(1, "QQQ", CleanupRuleKind::Literal, true)];
+    let blocks = blocks_with_rules(&shape, &rules, &[]);
+    let struck: Vec<usize> = blocks
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| !b.cleanup_spans.is_empty())
+        .map(|(i, _)| i)
+        .collect();
+    let total: usize = blocks.iter().map(|b| b.cleanup_spans.len()).sum();
+    assert_eq!(total, 4, "bon cho khop QQQ tren ba khoi");
+    assert!(struck.len() >= 3, "ba khoi mang manh: {struck:?}");
+    for b in &blocks {
+        for (_, t) in spans_text(b) {
+            assert_eq!(t, "QQQ");
+        }
+    }
+    let last_block_with_span = *struck.last().unwrap();
+    let bytes_before: usize = blocks[..last_block_with_span]
+        .iter()
+        .filter_map(paragraph_text)
+        .map(str::len)
+        .sum();
+    assert!(bytes_before > 4096, "khoi cuoi nam sau 4096 byte dau");
+}
+
+#[test]
+fn a_cleanup_match_crossing_two_blocks_is_cut_into_one_piece_per_block() {
+    let paras = vec![
+        "Doan mot ket thuc bang DUOI".to_owned(),
+        "DAU doan hai tiep tuc ra".to_owned(),
+        "Doan ba khong lien quan".to_owned(),
+    ];
+    let shape = single_page_shape(&paras);
+    let rules = [strike_rule(7, r"DUOI\s+DAU", CleanupRuleKind::Regex, true)];
+    let (cleanup, blocks) =
+        chapter_detail_for_index(&shape, 0, encoding_rs::UTF_8, None, "en", &rules, true, &[])
+            .expect("Chuong 0 ton tai");
+    let blocks = blocks.expect("co khoi").blocks;
+    let pieces: Vec<(usize, Vec<(i64, String)>)> = blocks
+        .iter()
+        .enumerate()
+        .map(|(i, b)| (i, spans_text(b)))
+        .filter(|(_, s)| !s.is_empty())
+        .collect();
+    assert_eq!(pieces.len(), 2, "hai manh, moi khoi mot: {pieces:?}");
+    assert_eq!(pieces[0].1, vec![(7, "DUOI".to_owned())]);
+    assert_eq!(pieces[1].1, vec![(7, "DAU".to_owned())]);
+    assert_eq!(pieces[1].0, pieces[0].0 + 1);
+    let rule = cleanup.rules.iter().find(|r| r.id == 7).expect("luat 7");
+    assert_eq!(rule.count_in_chapter, 1, "mot cho khop, khong phai hai");
+}
+
+#[test]
+fn dropped_blocks_and_image_alt_text_carry_no_cleanup_spans_and_keeping_a_dropped_block_makes_them_appear()
+ {
+    let paras = vec![
+        "Doan giu mot co QQQ trong do".to_owned(),
+        "Doan hai binh thuong".to_owned(),
+    ];
+    let shape = single_page_shape(&paras);
+    let rules = [strike_rule(1, "QQQ", CleanupRuleKind::Literal, true)];
+    let base = blocks_with_rules(&shape, &rules, &[]);
+    let idx = base
+        .iter()
+        .position(|b| paragraph_text(b).is_some_and(|t| t.contains("QQQ")))
+        .expect("khoi chua QQQ");
+    assert!(base[idx].kept);
+    assert_eq!(base[idx].cleanup_spans.len(), 1);
+
+    let mut ov = vec![None; base.len()];
+    ov[idx] = Some(false);
+    let dropped = blocks_with_rules(&shape, &rules, &ov);
+    assert!(!dropped[idx].kept);
+    assert!(
+        dropped[idx].cleanup_spans.is_empty(),
+        "khoi bi loai khong dong gop vao van ban ghep nen khong co manh"
+    );
+
+    let img_shape = PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+        bytes: b"<html><body><article><h1>T</h1><p>Doan mot du dai de duoc giu lai</p><img src=\"https://example.com/a.jpg\" alt=\"QQQ\"></article></body></html>".to_vec(),
+        label: "https://example.com/img".to_owned(),
+    }]);
+    for b in blocks_with_rules(&img_shape, &rules, &[]) {
+        if matches!(b.body, BlockBodyWire::Image { .. }) {
+            assert!(
+                b.cleanup_spans.is_empty(),
+                "alt-text cua anh khong duoc gach"
+            );
+        }
+    }
+}
+
+#[test]
+fn disabled_rules_yield_no_cleanup_spans_and_enabling_them_brings_the_pieces_back() {
+    let shape = single_page_shape(&long_paragraphs());
+    let off = [strike_rule(1, "QQQ", CleanupRuleKind::Literal, false)];
+    let on = [strike_rule(1, "QQQ", CleanupRuleKind::Literal, true)];
+    let count = |rules: &[CleanupRule]| -> usize {
+        blocks_with_rules(&shape, rules, &[])
+            .iter()
+            .map(|b| b.cleanup_spans.len())
+            .sum()
+    };
+    assert_eq!(count(&off), 0);
+    assert_eq!(count(&on), 4);
+}
+
+#[test]
+fn two_overlapping_rules_both_appear_on_the_block_that_holds_the_overlap() {
+    let shape = single_page_shape(&["Doan co AAABBB o giua cau".to_owned()]);
+    let rules = [
+        strike_rule(1, "AAABBB", CleanupRuleKind::Literal, true),
+        strike_rule(2, "ABB", CleanupRuleKind::Literal, true),
+    ];
+    let blocks = blocks_with_rules(&shape, &rules, &[]);
+    let b = blocks
+        .iter()
+        .find(|b| !b.cleanup_spans.is_empty())
+        .expect("khoi co manh");
+    let ids: Vec<i64> = b.cleanup_spans.iter().map(|s| s.id).collect();
+    assert!(ids.contains(&1) && ids.contains(&2), "{ids:?}");
+}
+
+#[test]
+fn the_joined_range_of_every_block_slices_the_joined_text_back_to_the_block_text() {
+    use auratranslate_lib::core::segment::pipeline::{
+        effective_kept_for_blocks, join_kept_blocks, join_kept_blocks_with_ranges,
+    };
+    let html = "<html><body><article><h1>T</h1><p>Mot đoạn có dấu</p><ul><li>mục một</li><li>mục hai</li></ul><p>Cuối 漢字 đoạn</p></article></body></html>".to_string();
+    let blocks = auratranslate_lib::core::webimport::extract(&html, "https://example.com/r")
+        .expect("extract");
+    let kept = effective_kept_for_blocks(&blocks, &[]);
+    let (joined, ranges) = join_kept_blocks_with_ranges(&blocks, &kept);
+    assert_eq!(joined, join_kept_blocks(&blocks, &kept));
+    assert_eq!(ranges.len(), blocks.len());
+    let chars: Vec<char> = joined.chars().collect();
+    let mut seen = 0;
+    for (b, r) in blocks.iter().zip(&ranges) {
+        if let Some((s, e)) = r {
+            let text = match &b.body {
+                auratranslate_lib::core::webimport::BlockBody::Paragraph(t)
+                | auratranslate_lib::core::webimport::BlockBody::Caption(t) => t.as_str(),
+                _ => panic!("khoi co range phai la van ban"),
+            };
+            assert_eq!(chars[*s..*e].iter().collect::<String>(), text);
+            seen += 1;
+        }
+    }
+    assert!(seen >= 3);
+}

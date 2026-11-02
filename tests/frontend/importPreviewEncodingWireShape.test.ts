@@ -72,7 +72,7 @@ function chaptersFor(title: string): Record<string, unknown> {
  * dạng THẬT của `commands::project::ChapterBlocksPreviewWire` (`BlockWire`/`BlockBodyWire`
  * đúng khuôn `#[serde(tag = "kind", rename_all = "snake_case")]`). */
 function blocksFor(text: string): Record<string, unknown> {
-  return { blocks: [{ body: { kind: 'paragraph', text }, kept: true, confirmed: false }] }
+  return { blocks: [{ body: { kind: 'paragraph', text }, kept: true, confirmed: false, cleanup_spans: [] }] }
 }
 
 /** Payload dây HỢP LỆ — hình dạng THẬT mà `commands::project::ImportEncodingPreview` (Rust,
@@ -699,10 +699,10 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
           chapters: chaptersFor('Khung dieu huong. Doan than bai.'),
           blocks: {
             blocks: [
-              { body: { kind: 'paragraph', text: 'Khung dieu huong' }, kept: false, confirmed: false },
-              { body: { kind: 'paragraph', text: 'Doan than bai' }, kept: true, confirmed: false },
-              { body: { kind: 'caption', text: 'Chu thich anh' }, kept: true, confirmed: true },
-              { body: { kind: 'image', src: 'https://example.com/a.jpg', alt: null }, kept: true, confirmed: false },
+              { body: { kind: 'paragraph', text: 'Khung dieu huong' }, kept: false, confirmed: false, cleanup_spans: [] },
+              { body: { kind: 'paragraph', text: 'Doan than bai' }, kept: true, confirmed: false, cleanup_spans: [] },
+              { body: { kind: 'caption', text: 'Chu thich anh' }, kept: true, confirmed: true, cleanup_spans: [] },
+              { body: { kind: 'image', src: 'https://example.com/a.jpg', alt: null }, kept: true, confirmed: false, cleanup_spans: [] },
             ],
           },
         },
@@ -722,12 +722,14 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
       body: { kind: 'paragraph', text: 'Khung dieu huong' },
       kept: false,
       confirmed: false,
+      cleanup_spans: [],
     })
-    expect(blocks?.[2]).toEqual({ body: { kind: 'caption', text: 'Chu thich anh' }, kept: true, confirmed: true })
+    expect(blocks?.[2]).toEqual({ body: { kind: 'caption', text: 'Chu thich anh' }, kept: true, confirmed: true, cleanup_spans: [] })
     expect(blocks?.[3]).toEqual({
       body: { kind: 'image', src: 'https://example.com/a.jpg', alt: null },
       kept: true,
       confirmed: false,
+      cleanup_spans: [],
     })
   })
 

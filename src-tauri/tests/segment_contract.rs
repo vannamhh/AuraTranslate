@@ -10847,6 +10847,7 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
                 },
                 kept: false,
                 confirmed: false,
+                cleanup_spans: Vec::new(),
             },
             // Vạch "Giữ · máy đoán" — máy giữ, người dùng chưa chạm.
             BlockWire {
@@ -10855,6 +10856,7 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
                 },
                 kept: true,
                 confirmed: false,
+                cleanup_spans: Vec::new(),
             },
             // Vạch "Giữ" (đã xác nhận) — người dùng vừa bấm `Space` trên một khối máy loại.
             BlockWire {
@@ -10863,6 +10865,7 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
                 },
                 kept: true,
                 confirmed: true,
+                cleanup_spans: Vec::new(),
             },
             BlockWire {
                 body: BlockBodyWire::Image {
@@ -10871,6 +10874,7 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
                 },
                 kept: true,
                 confirmed: false,
+                cleanup_spans: Vec::new(),
             },
             BlockWire {
                 body: BlockBodyWire::Image {
@@ -10879,6 +10883,7 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
                 },
                 kept: false,
                 confirmed: false,
+                cleanup_spans: Vec::new(),
             },
         ],
     };
@@ -10906,9 +10911,10 @@ fn the_chapter_blocks_preview_wire_shape_carries_all_three_body_kinds_and_all_th
             std::collections::BTreeSet::from([
                 &"body".to_owned(),
                 &"kept".to_owned(),
-                &"confirmed".to_owned()
+                &"confirmed".to_owned(),
+                &"cleanup_spans".to_owned()
             ]),
-            "BlockWire phai serialize DUNG BA ten truong nay: body/kept/confirmed"
+            "BlockWire phai serialize DUNG BON ten truong nay: body/kept/confirmed/cleanup_spans"
         );
     }
 

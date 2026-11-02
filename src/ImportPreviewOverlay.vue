@@ -154,7 +154,7 @@ function cleanupTierEmptyMessageKey(reason: 'no_candidate' | 'undecodable'): str
 
 /** Một mảnh của văn bản tầng 3, cộng việc mảnh đó có bị MỘT (hoặc nhiều) luật ĐANG BẬT phủ
  * hay không — Story 6.5. Điểm mã, cùng quy ước `SegmentTermSpan`/`GridPanel.vue`. */
-type CleanupTextPiece = { text: string; struck: boolean }
+type CleanupTextPiece = { text: string; struck: boolean; rules: { tier: CleanupRuleTierWire; id: number }[] }
 
 /**
  * Cắt `text` thành các mảnh LIỀN NHAU theo biên của `spans` (điểm mã, nửa-mở `[start,
@@ -166,8 +166,9 @@ type CleanupTextPiece = { text: string; struck: boolean }
  * ĐÚNG một dải "bị phủ" ở đây — `some()` không đếm số luật, chỉ hỏi CÓ hay KHÔNG.
  */
 function cleanupPiecesOf(text: string, spans: readonly CleanupSpanWire[]): CleanupTextPiece[] {
+  if (spans.length === 0) return [{ text, struck: false, rules: [] }]
   const codepoints = [...text]
-  if (spans.length === 0 || codepoints.length === 0) return [{ text, struck: false }]
+  if (codepoints.length === 0) return [{ text, struck: false, rules: [] }]
 
   const boundarySet = new Set<number>([0, codepoints.length])
   for (const span of spans) {
@@ -181,8 +182,14 @@ function cleanupPiecesOf(text: string, spans: readonly CleanupSpanWire[]): Clean
     const start = boundaries[i]
     const end = boundaries[i + 1]
     if (start === end) continue
-    const struck = spans.some((span) => span.start <= start && end <= span.end)
-    pieces.push({ text: codepoints.slice(start, end).join(''), struck })
+    const covering = spans.filter((span) => span.start <= start && end <= span.end)
+    const rules: CleanupTextPiece['rules'] = []
+    for (const span of covering) {
+      if (!rules.some((rule) => rule.tier === span.tier && rule.id === span.id)) {
+        rules.push({ tier: span.tier, id: span.id })
+      }
+    }
+    pieces.push({ text: codepoints.slice(start, end).join(''), struck: covering.length > 0, rules })
   }
   return pieces
 }
@@ -202,6 +209,26 @@ const cleanupPieces = computed<CleanupTextPiece[]>(() => {
   if (cleanup === null || cleanup.text === '') return []
   return cleanupPiecesOf(cleanup.text, cleanup.spans)
 })
+
+function strikeLabelOf(piece: CleanupTextPiece): string {
+  const rules = importPreviewSelectedCleanup.value?.rules ?? []
+  return piece.rules
+    .map((key) => {
+      const rule = rules.find((r) => r.tier === key.tier && r.id === key.id)
+      if (rule === undefined) return ''
+      return t('mode.library.preview.cleanup_strike_label', {
+        pattern: rule.pattern,
+        kind: t(rule.kind === 'regex' ? 'mode.library.preview.cleanup_kind_regex' : 'mode.library.preview.cleanup_kind_literal'),
+        tier: t(cleanupTierLabelKey(rule.tier)),
+      })
+    })
+    .filter((label) => label !== '')
+    .join('; ')
+}
+
+function blockPiecesOf(block: BlockWire): CleanupTextPiece[] {
+  return cleanupPiecesOf(blockPlainText(block), block.cleanup_spans)
+}
 
 function cleanupTierLabelKey(tier: CleanupRuleTierWire): string {
   return tier === 'global' ? 'mode.library.preview.cleanup_tier_global' : 'mode.library.preview.cleanup_tier_work'
@@ -1330,23 +1357,6 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
             <h3 id="ip-tier-3-title" class="ip-tier-title">{{ t('mode.library.preview.tier3_title') }}</h3>
 
             <template v-if="importPreviewSelectedCleanup !== null">
-              <p v-if="importPreviewSelectedCleanup.window_truncated" class="ip-cleanup-window-note">
-                {{ t('mode.library.preview.tier_cleanup_window_truncated') }}
-              </p>
-              <!-- AD-16: mảnh văn bản là DỮ LIỆU (điểm mã cắt từ Rust), không markup — viết
-                   LIỀN, không khoảng trắng giữa các <span>, cùng khuôn `GridPanel.vue`. -->
-              <p v-if="cleanupPieces.length > 0" class="ip-cleanup-text"
-                ><!-- aura-allow-text: DỮ LIỆU (văn bản Chương thật, không phải chuỗi giao diện). --><span
-                  v-for="(piece, i) in cleanupPieces"
-                  :key="i"
-                  :class="{ 'ip-cleanup-struck': piece.struck }"
-                  >{{ piece.text }}</span
-                ></p
-              >
-              <p v-else class="ip-cleanup-window-note">
-                {{ t('mode.library.preview.tier_cleanup_text_empty') }}
-              </p>
-
               <div v-if="importPreviewSelectedCleanup.rules.length > 0" class="ip-cleanup-rules">
                 <div
                   v-for="rule in importPreviewSelectedCleanup.rules"
@@ -1770,10 +1780,18 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
                           </button>
                         </div>
                       </div>
-                      <p class="ip-block-text">
-                        <!-- aura-allow-text: DỮ LIỆU (thân khối đã bóc thật từ Rust, hoặc alt/src ảnh; KHÔNG markup — AD-16). -->
-                        {{ blockPlainText(blockAt(row.index)) }}
-                      </p>
+                      <p class="ip-block-text"
+                        ><!-- aura-allow-text: DỮ LIỆU (thân khối đã bóc thật từ Rust, hoặc alt/src ảnh; KHÔNG markup — AD-16). --><span
+                          v-for="(piece, i) in blockPiecesOf(blockAt(row.index))"
+                          :key="i"
+                          :class="{ 'ip-cleanup-struck': piece.struck }"
+                          >{{ piece.text }}<!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (mẫu luật). --><span
+                            v-if="piece.struck"
+                            class="ip-cleanup-hint"
+                            >{{ strikeLabelOf(piece) }}</span
+                          ></span
+                        ></p
+                      >
                     </div>
                   </li>
                 </template>
@@ -1784,6 +1802,30 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
               </p>
               <p v-else class="ip-tier-empty-reason">
                 {{ t(cleanupTierEmptyMessageKey(normalizedTierEmptyReason())) }}
+              </p>
+            </template>
+            <template v-else-if="importPreviewSelectedCleanup !== null">
+              <h4 class="ip-tier-title">{{ t('mode.library.preview.tier2_text_title') }}</h4>
+              <p v-if="importPreviewSelectedCleanup.window_truncated" class="ip-cleanup-window-note">
+                {{ t('mode.library.preview.tier_cleanup_window_truncated') }}
+              </p>
+              <!-- AD-16: mảnh văn bản là DỮ LIỆU (điểm mã cắt từ Rust), không markup — viết
+                   LIỀN, không khoảng trắng giữa các <span>, cùng khuôn `GridPanel.vue`. -->
+              <p v-if="cleanupPieces.length > 0" class="ip-cleanup-text"
+                ><!-- aura-allow-text: DỮ LIỆU (văn bản Chương thật, không phải chuỗi giao diện). --><span
+                  v-for="(piece, i) in cleanupPieces"
+                  :key="i"
+                  :class="{ 'ip-cleanup-struck': piece.struck }"
+                  :tabindex="piece.struck ? 0 : undefined"
+                  >{{ piece.text }}<!-- aura-allow-text: KẾT QUẢ của `t()`, tham số là DỮ LIỆU (mẫu luật). --><span
+                    v-if="piece.struck"
+                    class="ip-cleanup-hint"
+                    >{{ strikeLabelOf(piece) }}</span
+                  ></span
+                ></p
+              >
+              <p v-else class="ip-tier-empty-reason">
+                {{ t('mode.library.preview.tier_cleanup_text_empty') }}
               </p>
             </template>
             <p v-else class="ip-tier-empty-reason">
@@ -2539,6 +2581,36 @@ watch(importPreviewJumpToCleanupRulesSignal, () => {
   text-decoration-line: line-through;
   text-decoration-color: var(--color-ornament);
   text-decoration-thickness: 1px;
+  position: relative;
+}
+
+.ip-cleanup-hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ip-cleanup-struck:hover > .ip-cleanup-hint,
+.ip-cleanup-struck:focus-visible > .ip-cleanup-hint,
+.ip-block-focused .ip-cleanup-hint {
+  top: 100%;
+  left: 0;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  padding: 0 calc(var(--space-unit) * 1);
+  border: 1px solid var(--color-outline);
+  background: var(--color-surface-sunken);
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface);
+  text-decoration-line: none;
+  box-shadow: var(--shadow-popover);
 }
 
 .ip-cleanup-rules {

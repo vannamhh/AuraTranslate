@@ -104,7 +104,7 @@ function item(url: string): UrlImportItemWire {
 }
 
 function block(over: Partial<BlockWire> = {}): BlockWire {
-  return { body: { kind: 'paragraph', text: 'noi dung khoi' }, kept: true, confirmed: false, ...over }
+  return { body: { kind: 'paragraph', text: 'noi dung khoi' }, kept: true, confirmed: false, cleanup_spans: [], ...over }
 }
 
 function blocksWire(blocks: BlockWire[]): ChapterBlocksPreviewWire {

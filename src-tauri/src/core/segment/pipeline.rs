@@ -1536,7 +1536,18 @@ pub fn effective_kept_for_blocks(blocks: &[Block], overrides: &[Option<bool>]) -
 /// qua đúng CA KHÔNG OVERRIDE; ca CÓ OVERRIDE chỉ cần Rust là nơi DUY NHẤT ghép (AD-1) và tự
 /// nhất quán giữa xem trước và đĩa (AC "trùng từng byte" — cả hai gọi ĐÚNG hàm này).
 pub fn join_kept_blocks(blocks: &[Block], effective_kept: &[bool]) -> String {
+    join_kept_blocks_with_ranges(blocks, effective_kept).0
+}
+
+/// Also returns each block's half-open code-point range in the joined text; `None` for a block
+/// that contributes no text. Separators belong to no block.
+pub fn join_kept_blocks_with_ranges(
+    blocks: &[Block],
+    effective_kept: &[bool],
+) -> (String, Vec<Option<(usize, usize)>>) {
     let mut out = String::new();
+    let mut out_chars = 0usize;
+    let mut ranges: Vec<Option<(usize, usize)>> = vec![None; blocks.len()];
     let mut last_machine_kept_idx: Option<usize> = None;
     let mut last_emitted_idx: Option<usize> = None;
 
@@ -1554,15 +1565,20 @@ pub fn join_kept_blocks(blocks: &[Block], effective_kept: &[bool]) -> String {
             if let Some(prev) = last_emitted_idx {
                 let exact_pair_is_original_neighbors =
                     b.machine_kept && last_machine_kept_idx == Some(prev);
-                if exact_pair_is_original_neighbors {
-                    out.push_str(&b.exact_gap_before);
+                let gap: &str = if exact_pair_is_original_neighbors {
+                    &b.exact_gap_before
                 } else if blocks[prev].is_list_item {
-                    out.push('\n');
+                    "\n"
                 } else {
-                    out.push_str("\n\n");
-                }
+                    "\n\n"
+                };
+                out.push_str(gap);
+                out_chars += gap.chars().count();
             }
+            let start = out_chars;
             out.push_str(t);
+            out_chars += t.chars().count();
+            ranges[i] = Some((start, out_chars));
             last_emitted_idx = Some(i);
         }
 
@@ -1571,7 +1587,7 @@ pub fn join_kept_blocks(blocks: &[Block], effective_kept: &[bool]) -> String {
         }
     }
 
-    out
+    (out, ranges)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════

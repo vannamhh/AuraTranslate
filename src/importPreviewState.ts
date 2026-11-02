@@ -1679,6 +1679,10 @@ async function loadImportPreviewChapterDetail(index: number): Promise<void> {
  * gọi mà không cần phân biệt.
  */
 async function reloadUrlImportChapterOnScreen(): Promise<void> {
+  if (!urlChapterDetailEagerStale.value) {
+    chapterDetailBlocks.value = importPreviewSelectedBlocks.value
+    chapterDetailCleanup.value = importPreviewSelectedCleanup.value
+  }
   urlChapterDetailEagerStale.value = true
   await loadImportPreviewChapterDetail(chapterCursor.value)
 }

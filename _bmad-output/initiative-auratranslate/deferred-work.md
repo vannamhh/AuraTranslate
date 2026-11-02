@@ -13892,3 +13892,6 @@ chính nó.
   Cần: truy vì sao chiều cao lệch, rồi cho fixture một khối 2 mục để ca không còn `skip`.
   Chủ: Ice. Trỏ: `e2e/specs/story-13-6-ra-be-mat-workspace.e2e.mjs`:138.
   → ✅ ĐÃ ĐÓNG 2026-11-02 (`plan-nightly-e2e-xanh`): `.lookup-entry-headword` có lề dưới 7px trong hàng flex căn baseline làm hàng đầu mục cao 30 thay vì 28; bỏ lề thì khối thành bội 7, đối chứng đỏ khi trả lề về. Spec tra `山丹` và `山`, cả hai có trong fixture nên CI hết `skip`.
+- Đường URL: lệnh lazy `preview_chapter_detail` trả `None` khi 4 096 byte HTML thô đầu tiên không có dấu xuống dòng nào. Lỗi có từ Story 6.10a. Khi đó webview xoá cả danh sách khối lẫn tầng luật, im lặng. Đường này chạy mỗi lần đổi luật và mỗi lần dời con trỏ sang Chương k > 0, nên trên trang HTML nén một dòng, tiêu chí 7 của 6.24 (đổi luật thì chỗ gạch đổi ngay) mất khối thay vì đổi gạch.
+  Cần: chi tiết lazy không phụ thuộc cửa sổ hiển thị của HTML thô; ca e2e với HTML một dòng dài hơn 4 096 byte.
+  Chủ: Ice. Trỏ: `commands/project/mod.rs` `chapter_detail_for_index` → `display_window_for_chapter`; `story-man-xem-truoc-nhap-van-ban-hien-mot-lan-cho-luat-xoa-gach-ng-plan.md` §Review Triage Log.

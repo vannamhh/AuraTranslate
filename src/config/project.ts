@@ -269,6 +269,7 @@ export type BlockWire = {
   body: BlockBodyWire
   kept: boolean
   confirmed: boolean
+  cleanup_spans: CleanupSpanWire[]
 }
 
 /** Khối tầng 2 (ranh giới bóc) của MỘT ứng viên — Story 6.9, FR123. Khớp
@@ -498,7 +499,13 @@ function isBlockBodyWire(value: unknown): value is BlockBodyWire {
 function isBlockWire(value: unknown): value is BlockWire {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Partial<BlockWire>
-  return isBlockBodyWire(v.body) && typeof v.kept === 'boolean' && typeof v.confirmed === 'boolean'
+  return (
+    isBlockBodyWire(v.body) &&
+    typeof v.kept === 'boolean' &&
+    typeof v.confirmed === 'boolean' &&
+    Array.isArray(v.cleanup_spans) &&
+    v.cleanup_spans.every(isCleanupSpanWire)
+  )
 }
 
 function isChapterBlocksPreviewWire(value: unknown): value is ChapterBlocksPreviewWire {

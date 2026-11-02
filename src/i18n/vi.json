@@ -995,6 +995,8 @@
   "mode.library.preview.tier3_title": "Luật làm sạch",
   "mode.library.preview.tier_empty_story_6_9": "Nguồn này không bóc nội dung chính — ranh giới bóc chỉ áp dụng cho lượt nhập từ URL.",
   "mode.library.preview.tier_cleanup_window_truncated": "Chỉ xem trước phần đầu Chương — hai số đếm dưới đây vẫn tính trên toàn Chương, không riêng phần hiện ở đây.",
+  "mode.library.preview.tier2_text_title": "Văn bản Chương",
+  "mode.library.preview.cleanup_strike_label": "{pattern} · {kind} · {tier}",
   "mode.library.preview.tier_cleanup_text_empty": "Không có gì để hiện — cửa sổ xem trước không đủ một dòng trọn vẹn, hoặc văn bản chỉ toàn khoảng trắng.",
   "mode.library.preview.tier_cleanup_empty_no_candidate": "Chưa chọn được ứng viên bảng mã nào để xem trước luật làm sạch.",
   "mode.library.preview.tier_cleanup_empty_undecodable": "Bảng mã đang chọn không ra chữ — không có gì để áp luật làm sạch.",

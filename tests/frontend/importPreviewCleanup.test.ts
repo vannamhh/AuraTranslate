@@ -412,8 +412,10 @@ describe('ImportPreviewOverlay.vue — tầng 3 dựng đúng span/luật, và b
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     const struck = wrapper.findAll('.ip-cleanup-struck')
     expect(struck).toHaveLength(1)
-    expect(struck[0]?.text()).toBe('quang cao')
-    expect(wrapper.find('.ip-cleanup-text').text()).toBe('dau quang cao cuoi')
+    expect(struck[0]?.element.firstChild?.textContent?.trim()).toBe('quang cao')
+    const textEl = wrapper.find('.ip-cleanup-text').element.cloneNode(true) as HTMLElement
+    textEl.querySelectorAll('.ip-cleanup-hint').forEach((hint) => hint.remove())
+    expect(textEl.textContent).toBe('dau quang cao cuoi')
 
     wrapper.unmount()
     state.resetImportPreview()

@@ -1347,6 +1347,9 @@ pub struct BlockWire {
     /// `true` ⇔ người dùng đã ĐẶT TAY trạng thái này (`Tier2BlockOverridesState` mang
     /// `Some(_)` ở đúng chỉ số này) — phân biệt "Giữ · máy đoán" khỏi "Giữ" đã xác nhận.
     pub confirmed: bool,
+    /// Matches of enabled rules, half-open code points into this block's own text; empty for
+    /// blocks outside the joined text (dropped, image).
+    pub cleanup_spans: Vec<CleanupSpanWire>,
 }
 
 /// Khối tầng 2 của MỘT ứng viên — Story 6.9, FR123. `None` (ở [`EncodingCandidateWire::blocks`])
@@ -1375,10 +1378,20 @@ pub struct ChapterBlocksPreviewWire {
 fn build_chapter_blocks_preview_wire(
     chapter: Option<&crate::core::segment::import::ImportedChapter>,
     block_overrides: &[Option<bool>],
+    cleanup_rules: &[CleanupRule],
 ) -> Option<ChapterBlocksPreviewWire> {
-    let blocks = chapter?.blocks.as_ref()?;
+    let chapter = chapter?;
+    let blocks = chapter.blocks.as_ref()?;
     let effective_kept =
         crate::core::segment::pipeline::effective_kept_for_blocks(blocks, block_overrides);
+    let (_, ranges) =
+        crate::core::segment::pipeline::join_kept_blocks_with_ranges(blocks, &effective_kept);
+    let matches: &[crate::core::cleanup::CleanupMatch] = chapter
+        .cleanup_report
+        .as_ref()
+        .map_or(&[], |r| r.matches.as_slice());
+    let mut spans_by_block =
+        cleanup_spans_by_block(matches, &ranges, &enabled_cleanup_keys(cleanup_rules));
     let wire_blocks = blocks
         .iter()
         .enumerate()
@@ -1386,11 +1399,61 @@ fn build_chapter_blocks_preview_wire(
             body: BlockBodyWire::from(&b.body),
             kept: effective_kept.get(i).copied().unwrap_or(b.machine_kept),
             confirmed: block_overrides.get(i).is_some_and(|o| o.is_some()),
+            cleanup_spans: std::mem::take(&mut spans_by_block[i]),
         })
         .collect();
     Some(ChapterBlocksPreviewWire {
         blocks: wire_blocks,
     })
+}
+
+fn enabled_cleanup_keys(
+    cleanup_rules: &[CleanupRule],
+) -> std::collections::BTreeSet<(CleanupRuleTier, i64)> {
+    cleanup_rules
+        .iter()
+        .filter(|r| r.enabled)
+        .map(|r| (r.tier, r.id))
+        .collect()
+}
+
+/// A match crossing several blocks yields one span per block; the part over a separator is dropped.
+fn cleanup_spans_by_block(
+    matches: &[crate::core::cleanup::CleanupMatch],
+    ranges: &[Option<(usize, usize)>],
+    enabled: &std::collections::BTreeSet<(CleanupRuleTier, i64)>,
+) -> Vec<Vec<CleanupSpanWire>> {
+    let mut out: Vec<Vec<CleanupSpanWire>> = vec![Vec::new(); ranges.len()];
+    let placed: Vec<(usize, usize, usize)> = ranges
+        .iter()
+        .enumerate()
+        .filter_map(|(i, r)| r.map(|(s, e)| (i, s, e)))
+        .collect();
+    for m in matches {
+        if m.start >= m.end || !enabled.contains(&(m.rule_tier, m.rule_id)) {
+            continue;
+        }
+        let first = placed.partition_point(|&(_, _, e)| e <= m.start);
+        for &(i, s, e) in &placed[first..] {
+            if s >= m.end {
+                break;
+            }
+            let lo = m.start.max(s);
+            let hi = m.end.min(e);
+            if lo < hi {
+                out[i].push(CleanupSpanWire {
+                    tier: m.rule_tier.into(),
+                    id: m.rule_id,
+                    start: lo - s,
+                    end: hi - s,
+                });
+            }
+        }
+    }
+    for spans in &mut out {
+        spans.sort_by_key(|sp| (sp.start, sp.end, sp.id));
+    }
+    out
 }
 
 /// Khuôn `(start, end, machine_kept) -> Vec<Option<bool>>` — hàm THUẦN cạnh
@@ -1851,7 +1914,8 @@ pub fn cleanup_and_chapters_preview_for(
     } else {
         &[]
     };
-    let blocks_wire = build_chapter_blocks_preview_wire(detail_chapter, effective_block_overrides);
+    let blocks_wire =
+        build_chapter_blocks_preview_wire(detail_chapter, effective_block_overrides, cleanup_rules);
 
     // 🔵 SỬA (vòng rà đối kháng bước 4, P8) — đổi tên từ `chapter0_report`: biến này nay giữ
     // báo cáo làm sạch của Chương BẤT KỲ mà `detail_chapter_index` (con trỏ) trỏ tới, không
@@ -1910,11 +1974,7 @@ fn build_cleanup_preview_wire(
     // Chỉ luật ĐANG BẬT được phép xuất hiện trong `spans` — luật tắt vẫn đếm (§Always spec
     // 6.5), nhưng KHÔNG được đánh dấu gạch ngang trong văn bản (I/O Matrix: "Tắt một luật ⇒
     // chỗ vừa gạch ngang trở về nguyên trạng NGAY").
-    let enabled_keys: std::collections::BTreeSet<(CleanupRuleTier, i64)> = cleanup_rules
-        .iter()
-        .filter(|r| r.enabled)
-        .map(|r| (r.tier, r.id))
-        .collect();
+    let enabled_keys = enabled_cleanup_keys(cleanup_rules);
 
     let (matches, counts) = match report {
         Some(r) => (r.matches, r.per_rule_counts),
