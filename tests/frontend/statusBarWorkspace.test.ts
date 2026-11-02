@@ -1,5 +1,5 @@
 /**
- * Status bar, 12.7: permanent info (position, confirmed counter, key hint, Glossary/TM counts,
+ * Status bar, 12.7: permanent info (position, confirmed counter, Glossary/TM counts,
  * narrow lookup line) sits OUTSIDE the `role="status"` live region, which carries only the notice chain.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -202,16 +202,19 @@ describe('thanh trạng thái — thông tin thường trực', () => {
     expect(roles).toHaveLength(1)
     expect(roles[0].hasAttribute('data-status-live')).toBe(true)
     expect(root.getAttribute('role')).toBeNull()
-    for (const attr of ['data-status-position', 'data-status-confirmed', 'data-status-hint', 'data-status-glossary', 'data-status-tm']) {
+    for (const attr of ['data-status-position', 'data-status-confirmed', 'data-status-glossary', 'data-status-tm']) {
       expect(roles[0].querySelector(`[${attr}]`), `${attr} nằm trong vùng sống`).toBeNull()
     }
     wrapper.unmount()
   })
 
-  it('gợi ý nói chuột phải vào câu, không còn in phím gộp/tách', async () => {
+  it('thanh không còn câu gợi ý chuột phải và dòng tra cứu ngoại tuyến', async () => {
     const { wrapper } = await freshBar()
 
-    expect(info(wrapper, 'data-status-hint')).toBe('Chuột phải vào câu để xem thao tác')
+    const text = wrapper.text()
+    expect(text).toContain('Glossary')
+    expect(text).not.toContain('Chuột phải')
+    expect(text).not.toContain('Tra cứu ngoại tuyến')
     wrapper.unmount()
   })
 
@@ -330,7 +333,7 @@ describe('thanh trạng thái — tầng bố cục', () => {
       shortcuts.shortcutRows.value.find((r) => r.id === 'layout.lookup_drawer_open')?.display.join(' / '),
     )
     expect(wrapper.find('[data-lookup-drawer-open]').exists()).toBe(true)
-    for (const attr of ['data-status-glossary', 'data-status-tm', 'data-status-lookup-offline']) {
+    for (const attr of ['data-status-glossary', 'data-status-tm']) {
       expect(wrapper.find(`[${attr}]`).exists(), attr).toBe(false)
     }
     wrapper.unmount()
@@ -480,6 +483,15 @@ describe('thanh trạng thái — nút ‹ › sang Chương kề', () => {
     const other = dep === 'goToNextChapter' ? goToPrevChapter : goToNextChapter
     expect(called).toHaveBeenCalledTimes(1)
     expect(other).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('mũi tên là icon svg dùng chung, không còn ký tự chữ cỡ theo phông', async () => {
+    const { wrapper } = await freshBar()
+    for (const button of Object.values(nav(wrapper))) {
+      expect(button.find('svg.app-icon').exists()).toBe(true)
+      expect(button.text()).toBe('')
+    }
     wrapper.unmount()
   })
 

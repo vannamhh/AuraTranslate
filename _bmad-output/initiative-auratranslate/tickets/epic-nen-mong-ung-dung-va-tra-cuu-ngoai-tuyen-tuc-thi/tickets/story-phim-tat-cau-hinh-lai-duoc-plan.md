@@ -754,6 +754,8 @@ Nạp chính `src/commands/index.ts` của sản phẩm bằng **Node thuần** 
 
 **Một lượt vá tự bắt ở cổng:** bản đầu đánh dấu hàng đang nhắm bằng `box-shadow` — Kiểm F của `check:tokens` **đỏ** *(không bóng đổ, không lớp nổi)*. Vá bằng `border-left` trong suốt khai ở **mọi** hàng *(nếu chỉ khai ở hàng được chọn thì cả bảng nhảy 2px mỗi lần đổi hàng)*, **cộng** một nhãn chữ `shortcuts.state_aimed` — UX-DR27 đòi trạng thái nói ra bằng **chữ**, không bằng màu một mình, và ba nút thao tác đều áp vào hàng này nên nó là một trạng thái người dùng **phải** biết.
 
+🔵 2026-11-02 Ice bỏ nhãn chữ `shortcuts.state_aimed`; hàng đang nhắm còn nét dẫn trái và `aria-current`.
+
 **Nợ đóng ở story này:** `deferred-work.md:241` *(mã hoá hợp âm — đóng bằng một phép đo rồi một cơ chế ở Kiểm D, không bằng một mô hình mới)* · `:243` *(xung đột từ đĩa nay NÓI RA, AC13)* · `:656` *(cờ `repeatable`)*. **Đóng một nửa:** `:485` — người dùng nay **gán được** phím cho bốn `layout.toggle_*`, nhưng bộ **mặc định** không đổi và không được đổi (AC7). **Đổi chủ:** `:491` · `:1135`.
 
 ### File List

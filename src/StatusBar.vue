@@ -29,6 +29,7 @@
 // hợp đồng với người dùng là *"bạn không phải bận tâm về việc lưu"*, và một chỉ báo nhấp nháy
 // là đúng thứ bắt họ bận tâm.
 import { computed, onBeforeUnmount, onMounted, ref, toRaw, watch } from 'vue'
+import AppIcon from './AppIcon.vue'
 import { t, tError } from './i18n'
 import { detectIsMac, dispatch, formatChord } from './commands'
 // 🔵 Story 4.12, Phase 3a (Decision 2) — điểm vào ngăn kéo Tra cứu. `lookupHasRetreated` là
@@ -199,8 +200,6 @@ const confirmedCounterText = computed<string | null>(() => {
   if (counted === 0) return null
   return t('status.confirmed_counter', { confirmed: String(confirmed), total: String(counted) })
 })
-
-const shortcutHintText = computed<string>(() => t('status.regroup_hint'))
 
 const proofreadCountsText = computed<string | null>(() => {
   if (proofreadStateValue.value !== 'done' || !editorHasLoaded()) return null
@@ -595,7 +594,7 @@ const libraryErrorText = computed<string | null>(() => {
             @mousedown="holdFocus"
             @click="dispatch('editor.prev_chapter')"
           >
-            ‹
+            <AppIcon name="chevron-left" />
           </button>
           <button
             type="button"
@@ -606,15 +605,13 @@ const libraryErrorText = computed<string | null>(() => {
             @mousedown="holdFocus"
             @click="dispatch('editor.next_chapter')"
           >
-            ›
+            <AppIcon name="chevron-right" />
           </button>
         </span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
         <span v-if="positionText !== null" class="info-item" data-status-position>{{ positionText }}</span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
         <span v-if="confirmedCounterText !== null" class="info-item" data-status-confirmed>{{ confirmedCounterText }}</span>
-        <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
-        <span class="info-item" data-status-hint>{{ shortcutHintText }}</span>
         <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
         <span v-if="proofreadCountsText !== null" class="info-item" data-status-proofread>{{ proofreadCountsText }}</span>
       </div>
@@ -693,7 +690,6 @@ const libraryErrorText = computed<string | null>(() => {
       </div>
       <div class="status-end" data-status-end>
         <template v-if="!lookupHasRetreated">
-          <span class="info-item" data-status-lookup-offline>{{ t('status.lookup_offline') }}</span>
           <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->
           <span v-if="glossaryCountText !== null" class="info-item" data-status-glossary>{{ glossaryCountText }}</span>
           <!-- aura-allow-text: KẾT QUẢ của `t()` (chuỗi đã qua `vi.json`). -->

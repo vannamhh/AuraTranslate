@@ -81,6 +81,7 @@ context:
 - [ ] `src/panels/GridPanel.vue` -- bỏ cột ⑤ khỏi lưới (bốn cột); chữ trạng thái ẩn khỏi mắt trong hàng; ô bản dịch có `role="textbox"`, `aria-multiline`, tên truy cập gồm số câu, trạng thái, lỗi; nhãn lỗi dưới chữ trong ô; khối `.rule-*` theo Quyết định 2 -- D3, Quyết định 2–3.
 - [ ] `src/panels/SourceHanViet.vue`, `src/i18n/vi.json`, `src/StatusBar.vue:337` -- bỏ dòng nguồn, `sourcesLine`, CSS, khoá -- D4.
 - [ ] `src/StatusBar.vue` -- `role="status"` chỉ bọc câu báo; trái: vị trí câu, bộ đếm xác nhận, gợi ý phím gộp/tách, "N chính tả · M nghi nghĩa" khi Chương có lượt quét; phải: "Tra cứu ngoại tuyến · Glossary N mục · TM N cặp" và câu auto-save ở tầng rộng, dòng tra cứu khi `lookupHasRetreated` -- B1, B2, B29, B30, A20, a:157, c:113.
+  🔵 2026-11-02 Ice bỏ khỏi thanh gợi ý `status.regroup_hint` và dòng `status.lookup_offline`; `‹ ›` sang `AppIcon`.
 - [ ] `DESIGN.md` §Vạch lề segment -- một dòng 🔵 ghi hình đã chọn (12.13 dùng lại).
 - [ ] Tests -- sửa các tệp ở Code Map; thêm test theo Verify của 12.7 và theo bảng I/O; đối chứng đỏ: gỡ thật `border-style` khỏi một khối `.rule-*`, và gỡ lời gọi làm tươi sau xác nhận.
 

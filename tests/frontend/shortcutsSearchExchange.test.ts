@@ -321,6 +321,19 @@ describe('SettingsShortcutsSection — ô tìm', () => {
     wrapper.unmount()
   })
 
+  it('hàng đang nhắm mang `aria-current` và nét dẫn, ô thao tác chỉ còn tên lệnh', async () => {
+    const { wrapper } = await mountSection()
+    const row = wrapper.find('[data-command-id="mode.workspace"]')
+    const label = row.find('.sc-label').text()
+
+    await row.find('.sc-label').trigger('mousedown')
+
+    expect(row.attributes('aria-current')).toBe('true')
+    expect(row.classes()).toContain('sc-aimed')
+    expect(row.find('.sc-label').text()).toBe(label)
+    wrapper.unmount()
+  })
+
   it('Trả về mặc định hỏi một bước trên màn hình trước khi xoá', async () => {
     const { wrapper } = await mountSection()
     expect(wrapper.find('[data-shortcut-reset-all-confirm]').exists()).toBe(false)

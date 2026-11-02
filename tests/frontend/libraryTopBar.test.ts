@@ -66,6 +66,14 @@ describe('Library top bar and cards', { timeout: 30_000 }, () => {
     expect(runLibrarySearch).toHaveBeenCalledTimes(1)
   })
 
+  it('the search field carries the shared svg icon, not a text glyph sitting on the baseline', async () => {
+    const p = await mountLibrary([row({})])
+    const icon = p.find('.search-field svg.search-icon')
+    expect(icon.exists()).toBe(true)
+    expect(icon.attributes('aria-hidden')).toBe('true')
+    expect(p.find('.search-field').text()).toBe('')
+  })
+
   it('Mod+Alt+F belongs to library.focus_search, which dispatches its port; library.search has no default chord', async () => {
     const focusLibrarySearch = vi.fn()
     await mountLibrary([row({})], { focusLibrarySearch })

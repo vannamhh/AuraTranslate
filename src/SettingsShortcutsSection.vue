@@ -226,14 +226,6 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
           >
             <td class="sc-label">
               {{ t(row.labelKey) }}
-              <!--
-                🔴 UX-DR27 — hàng đang nhắm nói ra bằng **CHỮ**, không bằng màu một mình. Ba
-                nút thao tác đều áp vào hàng này, nên "hàng nào đang nhắm" là một trạng thái
-                người dùng **phải** biết. Cùng khuôn `attribution.state_off` của Story 1.19.
-              -->
-              <span v-if="aimedShortcutRow === row.id" class="sc-aimed-tag">{{
-                t('shortcuts.state_aimed')
-              }}</span>
             </td>
             <!--
               aura-allow-text: mã lệnh (`lookup.toggle_pin`) — DỮ LIỆU, một định danh máy chứ
@@ -404,7 +396,6 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
  * ⚠️ Nét trong suốt khai ở **mọi** hàng, không chỉ hàng đang nhắm: thêm một đường viền vào
  * đúng lúc chọn sẽ đẩy cả bảng sang phải 2px mỗi lần người dùng đổi hàng.
  * ⚠️ `border`, KHÔNG `box-shadow` — Kiểm F của `check:tokens` cấm bóng đổ và lớp nổi (AC7).
- * Trạng thái này còn nói bằng CHỮ ở `.sc-aimed-tag`; màu chỉ là lớp thứ hai (UX-DR27).
  */
 .sc-table td:first-child {
   border-left: 2px solid transparent;
@@ -438,18 +429,6 @@ function onKeyCellKeydown(event: KeyboardEvent): void {
 
 .sc-unassigned {
   color: var(--color-on-surface-variant);
-}
-
-.sc-aimed-tag {
-  display: inline-block;
-  margin-left: 7px;
-  font-family: var(--face-ui-label);
-  font-size: var(--font-ui-label);
-  font-weight: var(--weight-ui-label);
-  line-height: var(--leading-ui-label);
-  letter-spacing: var(--tracking-ui-label);
-  text-transform: uppercase;
-  color: var(--color-primary);
 }
 
 .sc-actions {

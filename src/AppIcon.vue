@@ -1,5 +1,16 @@
 <script setup lang="ts">
-export type AppIconName = 'pin' | 'pin-on' | 'chevron' | 'info' | 'layout-left' | 'layout-top' | 'review' | 'chevron-up'
+export type AppIconName =
+  | 'pin'
+  | 'pin-on'
+  | 'chevron'
+  | 'chevron-up'
+  | 'chevron-left'
+  | 'chevron-right'
+  | 'info'
+  | 'layout-left'
+  | 'layout-top'
+  | 'review'
+  | 'search'
 
 defineProps<{ name: AppIconName }>()
 </script>
@@ -49,6 +60,28 @@ defineProps<{ name: AppIconName }>()
       stroke-linecap="round"
       stroke-linejoin="round"
     />
+    <path
+      v-else-if="name === 'chevron-left'"
+      d="M10.25 2L4.75 8l5.5 6"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      v-else-if="name === 'chevron-right'"
+      d="M5.75 2l5.5 6-5.5 6"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <template v-else-if="name === 'search'">
+      <circle cx="6.75" cy="6.75" r="4.75" fill="none" stroke="currentColor" stroke-width="1.4" />
+      <path d="M10.25 10.25L14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+    </template>
     <template v-else>
       <circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.3" />
       <path d="M8 7.2v4M8 4.9v.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />

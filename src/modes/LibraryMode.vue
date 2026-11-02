@@ -98,6 +98,7 @@ import type { SearchScope } from '../config/library'
 import { t, tError } from '../i18n'
 import { shortcutRows } from '../config/shortcutsState'
 import { genreLabel, sourceLangLabel, workCardMeta, workCoverTone } from './libraryWorkCard'
+import AppIcon from '../AppIcon.vue'
 import DropdownMenu from '../DropdownMenu.vue'
 import SelectMenu from '../SelectMenu.vue'
 
@@ -384,8 +385,7 @@ const importScreenIsOpen = computed<boolean>(
     <template v-else-if="!importScreenIsOpen">
     <div class="top-bar">
       <div class="search-field">
-        <!-- aura-allow-text: decorative glyph, hidden from assistive tech. -->
-        <span class="search-icon" aria-hidden="true">⌕</span>
+        <AppIcon name="search" class="search-icon" />
         <input
           ref="searchInput"
           v-model="librarySearchQuery"
@@ -1338,10 +1338,11 @@ const importScreenIsOpen = computed<boolean>(
 
 .search-icon {
   position: absolute;
+  top: 0;
+  bottom: 0;
   left: 7px;
+  margin-block: auto;
   pointer-events: none;
-  font-family: var(--face-ui-md);
-  font-size: var(--font-ui-md);
   color: var(--color-on-surface-variant);
 }
 
