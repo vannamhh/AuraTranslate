@@ -13745,6 +13745,7 @@ chính nó.
 - `Mod+Enter` trên 9.850 câu đo 109–119 ms ở cả bản `baseline_revision` của 14.13, vượt trần 100 ms; nghiệm thu `8260a92` ngày 2026-10-24 đo 68–97 ms, phím cuối 56–77 ms nay 80–92 ms. Tải máy tương đương, nguyên nhân chưa quy được.
   Cần: chặn đôi bằng bàn `2-15-ban-do` giữa `8260a92` và `27574847`.
   Chủ: Ice. Trỏ: `_bmad-output/implementation-artifacts/14-13-ban-do/ket-qua.md` §Bàn gõ trước và sau.
+  → 🔵 2026-11-02: đo xen kẽ cùng bàn, 9.850 câu, dừng theo yêu cầu của Ice sau 3 phiên: HEAD `d8c6304e` `Mod+Enter` 139 · 113 ms, phím cuối 77 · 97 ms; `8260a92` 78 ms, phím cuối 59 ms. Nghiêng về hồi quy thật nhưng mốc cũ chỉ một phiên, chưa kết luận. Số thô: `2-15-ban-do/ket-qua-t15-*.json`.
 - Lượt dùng thật chuột trên cột số câu: kéo, `Shift`+bấm, ‹ › từ ô đang gõ.
   Cần: Ice chạy một lượt trên app thật.
   Chủ: Epic 14. Trỏ: `tickets/epic-san-chuot/tickets/story-chon-nhieu-oan-va-chuyen-chuong-bang-chuot-plan.md` §Verification.
