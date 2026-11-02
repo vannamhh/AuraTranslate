@@ -541,7 +541,8 @@ export async function openTableOfContents(): Promise<void> {
   tocChapters.value = chapters ?? []
   tocError.value = error
   tocHaveLoaded.value = true
-  tocCursor.value = 0
+  const currentId = readingCurrentChapter.value?.chapter_id
+  tocCursor.value = Math.max(0, tocChapters.value.findIndex((row) => row.chapter_id === currentId))
 }
 
 export function closeTableOfContents(): void {
@@ -551,6 +552,10 @@ export function closeTableOfContents(): void {
 export function nextTocChapter(): void {
   if (tocChapters.value.length === 0) return
   tocCursor.value = Math.min(tocCursor.value + 1, tocChapters.value.length - 1)
+}
+
+export function setReadingTocCursor(index: number): void {
+  if (index >= 0 && index < tocChapters.value.length) tocCursor.value = index
 }
 
 export function prevTocChapter(): void {
@@ -571,14 +576,20 @@ export async function openCurrentTocChapter(): Promise<void> {
   // (không `noUncheckedIndexedAccess`), nên phép kiểm `undefined` dưới đây bị ESLint chấm
   // là "không thể xảy ra" nếu viết bằng `[]`. `.at()` khai đúng `T | undefined`.
   const row = tocChapters.value.at(tocCursor.value)
-  if (row === undefined) return
+  if (row === undefined || tocBusy.value) return
 
-  const moved = await openChapterById(row.chapter_id)
-  if (!moved) return
+  tocBusy.value = true
+  try {
+    const moved = await openChapterById(row.chapter_id)
+    if (!moved) return
 
-  await reloadReading()
-  tocOpen.value = false
-  enterFocus('mode.reading')
+    resetReading()
+    await reloadReading()
+    tocOpen.value = false
+    enterFocus('mode.reading')
+  } finally {
+    tocBusy.value = false
+  }
 }
 
 /**

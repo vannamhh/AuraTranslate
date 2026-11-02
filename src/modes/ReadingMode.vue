@@ -36,6 +36,7 @@ import {
   readingLineCanLoosen,
   readingLineCanTighten,
   readingAnchorSegmentId,
+  readingAimedSegmentId,
   readingRun,
   readingLoadError,
   readingMarkerError,
@@ -59,6 +60,7 @@ import {
   setReadingAnchor,
   setReadingAim,
   setReadingMarksCursor,
+  setReadingTocCursor,
 } from './readingState'
 import { readingOriginLabel } from './readingOrigin'
 import { commandTitle, shortcutRows } from '../config/shortcutsState'
@@ -83,6 +85,14 @@ watch([readingStyle, readingRun], () => {
   resetReadingLookup()
 })
 let readingModeActive = false
+
+// Sync: the anchor must be captured before `openTableOfContents` reads the current Chapter.
+// An aimed sentence scrolled off screen would otherwise outrank it.
+watch(readingTocOpen, (open) => {
+  if (!open || !readingModeActive) return
+  dropOffscreenReadingAim()
+  rememberReadingViewportAnchor()
+}, { flush: 'sync' })
 
 /**
  * Tiêu điểm đi theo lớp phủ mục lục — 🔵 THÊM ở lượt rà 2026-08-30 (NFR17).
@@ -183,6 +193,16 @@ watch(readingBilingual, () => {
  * Đây là phép đo hình học nhất thời để chọn một ID; `DOMRect.top` không đi vào state hay
  * xuống đĩa. Không dùng `aimedSegmentId`: cuộn trackpad không trao quyền cho `M` đánh dấu.
  */
+function dropOffscreenReadingAim(): void {
+  const host = root.value
+  const aimed = readingAimedSegmentId.value
+  if (host === null || aimed === null) return
+  const node = host.querySelector<HTMLElement>(`[data-reading-segment="${String(aimed)}"]`)
+  const view = host.getBoundingClientRect()
+  const rect = node?.getBoundingClientRect()
+  if (rect === undefined || rect.bottom <= view.top || rect.top >= view.bottom) clearReadingAim()
+}
+
 function rememberReadingViewportAnchor(): void {
   const host = root.value
   if (host === null) return
@@ -1071,8 +1091,17 @@ function paragraphRuns(
             :class="{ current: index === readingTocCursor }"
             :aria-current="index === readingTocCursor ? 'true' : undefined"
           >
-            <!-- aura-allow-text: nhánh trái là tên Chương (dữ liệu); nhánh phải qua t(). -->
-            {{ row.title ?? untitled(row.ord) }}
+            <button
+              type="button"
+              class="toc-row"
+              :disabled="readingTocBusy"
+              @pointerdown="setReadingTocCursor(index)"
+              @focus="setReadingTocCursor(index)"
+              @click="dispatch('reading.toc_open')"
+            >
+              <!-- aura-allow-text: nhánh trái là tên Chương (dữ liệu); nhánh phải qua t(). -->
+              {{ row.title ?? untitled(row.ord) }}
+            </button>
           </li>
         </ul>
         <div class="toc-actions">
@@ -1394,8 +1423,15 @@ function paragraphRuns(
   padding: 0;
 }
 
-.toc-list li {
+.toc-row {
+  display: block;
+  width: 100%;
   padding: var(--space-panel-inline);
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
   font-size: var(--font-ui-md);
   line-height: var(--leading-ui-md);
   font-family: var(--face-ui-md);
