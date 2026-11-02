@@ -85,7 +85,8 @@ context: []
 - Gương `12-14`: `overflow: hidden` + `scrollbar-gutter: stable` giữ gutter gốc 15px, textarea dùng thanh cuộn 10px, lệch 5 px; `overflow: auto` với thumb trong suốt cho hai hộp 646. Spec thêm phép quét ký tự hẹp quanh điểm ngắt dòng; gỡ bản sửa thì lệch 21 px, tức đúng một dòng. Phép quét đầu bằng từ rộng 28 px không đỏ được, đã đổi.
 - `12-9`: mép trái dải lệch ô 280 px đúng thiết kế popup rộng từ cột nguồn (7189c704), nên assert đổi thành dải phủ trọn ô.
 - `--reading-line-height` có hai chỗ nhân tỉ số, `:1124` và `:1402`; plan chỉ nêu một, spec đỏ lộ chỗ thứ hai.
-- Giả thuyết `13-7` do dpr bị bác: probe đọc dpr 1 trên chính máy này và `13-7` vẫn xanh, nên nghi WebKit của macOS 26. Bản sửa px chưa chứng minh được trên runner.
+- Giả thuyết `13-7` do dpr bị bác: probe đọc dpr 1 trên chính máy này và `13-7` vẫn xanh, nên nghi WebKit của macOS 26. 🔵 2026-11-02: run 41367310199 trên `341a97c9` xanh 69/69 spec trên macos-26, gồm `13-7` và `5-11`; check Windows xanh.
+- Push lần đầu bị `check:panel-refs` chặn vì hai ô của 14-11 và 14-12 chưa từng qua `pre-push`; sửa ở `341a97c9`.
 
 ## Plan Change Log
 

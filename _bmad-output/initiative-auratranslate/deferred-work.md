@@ -13882,6 +13882,7 @@ chính nó.
 - `13-7` đỏ chỉ trên macos-26 của runner; `readingStyle.lineHeight` nay phát px thay vì tỉ số (Ice chọn), chưa tái hiện được ở máy này nên chưa chứng minh bản sửa trên runner. `5-11` cũng chỉ chứng minh được ở đó.
   Cần: nightly hoặc `workflow_dispatch` sau khi push cho `13-7` và `5-11` xanh.
   Chủ: Ice. Trỏ: `plan-nightly-e2e-xanh.md` §Boundaries & Constraints.
+  → ✅ ĐÃ ĐÓNG 2026-11-02 (`plan-nightly-e2e-xanh`): run 41367310199 trên `341a97c9`, macos-26, 69/69 spec, `13-7` 4 ca và `5-11` đều chạy thật và xanh; cùng runner trước đó đỏ, nên phát px là bản sửa đúng.
 - `panel-toggle-mouse` đỏ khi không chạy đầu tiên trên máy Ice: `ensureFullLayoutTier` không lặp lại được cùng cỡ, cửa sổ 5000 px lúc chụp `before` rồi 10000 px sau tải lại, hai lần đo khác cỡ. Tỉ lệ panel đúng, CI xanh vì cửa sổ kẹp theo màn hình.
   Cần: spec chụp `before` và `after` ở cùng cỡ cửa sổ.
   Chủ: Ice. Trỏ: `e2e/support/layoutTier.mjs`, `plan-nightly-e2e-xanh.md` §Implementation Notes.
