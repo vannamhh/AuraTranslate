@@ -339,3 +339,26 @@ after = []
 hitl = false
 risk = "low"
 v6_key = "spec-ai-7-mot-ham-cat-khop-trim-cua-javascript"
+
+[[entry]]
+id = 23
+type = "story"
+title = "Màn xem trước nhập: nút Nhập luôn trong tầm tay, cột cấu hình dính, khối loại gộp thành dải"
+description = "Nút Nhập ở chân dính, cột cấu hình dính bên trái cho mọi đường nhập, khối loại liền nhau gộp thành dải, bảng mã tin cậy cao một dòng, lượt một Chương ẩn Tách Chương; ô mẫu phân tách theo cờ hình dạng Rust gửi (AD-39)."
+verify = "spec e2e: lượt nhập URL ≥ 200 khối loại thấy nút Nhập không cần cuộn, dải mở được và J/K/Space/[ ] đúng; đường URL không có ô mẫu phân tách, gỡ cờ ở Rust thì ca đó đỏ."
+covers = ["FR14", "FR122", "FR123", "FR126", "FR128", "FR132"]
+after = []
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 24
+type = "story"
+title = "Màn xem trước nhập: văn bản hiện một lần, chỗ luật xoá gạch ngang tại chỗ"
+description = "Tầng luật làm sạch thôi in lại ~4 KiB văn bản; chỗ luật xoá gạch ngang ngay trong khối của cột văn bản (URL) hoặc trong văn bản của Chương (tệp, dán tay), kèm nhãn luật."
+verify = "spec e2e: một luật khớp 3 chỗ thì 3 chỗ gạch ngang trong cột văn bản và văn bản của Chương chỉ hiện một lần trên màn."
+covers = ["FR124"]
+after = [23]
+hitl = false
+risk = "medium"
+refine = true
