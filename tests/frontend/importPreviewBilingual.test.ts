@@ -172,6 +172,7 @@ function chaptersWire(over: Partial<ChapterSplitPreviewWire> = {}): ChapterSplit
     needs_review_count: 0,
     clean_count: 1,
     any_signal_participated: true,
+    already_chaptered: false,
     ...over,
   }
 }
@@ -876,6 +877,7 @@ describe('BilingualImportPreviewOverlay.vue — chip "cần xem"/"sạch" + danh
       needs_review_count: 1,
       clean_count: 1,
       any_signal_participated: true,
+      already_chaptered: false,
       chapters: [
         chapterEntry({ ord: 1, title: 'CHUONG MOT', needs_review: false }),
         chapterEntry({ ord: 2, title: 'CHUONG HAI', needs_review: true, review_causes: ['short_length'] }),
@@ -911,6 +913,7 @@ describe('BilingualImportPreviewOverlay.vue — chip "cần xem"/"sạch" + danh
       needs_review_count: 4,
       clean_count: 0,
       any_signal_participated: true,
+      already_chaptered: false,
       chapters: [
         chapterEntry({ ord: 1, title: 'C1', needs_review: true, review_causes: ['short_length'] }),
         chapterEntry({ ord: 2, title: 'C2', needs_review: true, review_causes: ['high_cleanup_matches'] }),
@@ -940,6 +943,7 @@ describe('BilingualImportPreviewOverlay.vue — chip "cần xem"/"sạch" + danh
       needs_review_count: 0,
       clean_count: 0,
       any_signal_participated: false,
+      already_chaptered: false,
       chapters: [chapterEntry({ ord: 1 }), chapterEntry({ ord: 2 }), chapterEntry({ ord: 3 })],
     })
     previewMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: wire })] }), error: null })
@@ -982,6 +986,7 @@ describe('BilingualImportPreviewOverlay.vue — chip "cần xem"/"sạch" + danh
       needs_review_count: 1,
       clean_count: 1,
       any_signal_participated: true,
+      already_chaptered: false,
       chapters: [
         chapterEntry({ ord: 1, title: 'UTF8 MOT', needs_review: false }),
         chapterEntry({ ord: 2, title: 'UTF8 HAI', needs_review: true, review_causes: ['short_length'] }),
@@ -992,6 +997,7 @@ describe('BilingualImportPreviewOverlay.vue — chip "cần xem"/"sạch" + danh
       needs_review_count: 2,
       clean_count: 1,
       any_signal_participated: true,
+      already_chaptered: false,
       chapters: [
         chapterEntry({ ord: 1, title: 'GBK MOT', needs_review: true, review_causes: ['high_joined_lines'] }),
         chapterEntry({ ord: 2, title: 'GBK HAI', needs_review: true, review_causes: ['not_measured'] }),
@@ -1046,6 +1052,7 @@ describe('bilingualImportPreviewState — toggleBilingualImportPreviewChapterFil
       needs_review_count: 1,
       clean_count: 1,
       any_signal_participated: true,
+      already_chaptered: false,
       chapters: [
         chapterEntry({ ord: 1, needs_review: false }),
         chapterEntry({ ord: 2, needs_review: true, review_causes: ['short_length'] }),
@@ -1089,6 +1096,7 @@ describe('bilingualImportPreviewState — toggleBilingualImportPreviewChapterFil
       needs_review_count: 1,
       clean_count: 2,
       any_signal_participated: false,
+      already_chaptered: false,
       chapters: [chapterEntry({ ord: 1 }), chapterEntry({ ord: 2 }), chapterEntry({ ord: 3, needs_review: true })],
     })
     previewMock.mockResolvedValue({ preview: preview({ candidates: [candidate({ chapters: wire })] }), error: null })
@@ -1113,6 +1121,7 @@ describe('bilingualImportPreviewState — toggleBilingualImportPreviewChapterFil
         needs_review_count: 1,
         clean_count: 1,
         any_signal_participated: true,
+        already_chaptered: false,
         chapters: [chapterEntry({ ord: 1, needs_review: false }), chapterEntry({ ord: 2, needs_review: true })],
       }),
     })
@@ -1141,6 +1150,7 @@ describe('bilingualImportPreviewState — toggleBilingualImportPreviewChapterFil
       needs_review_count: 2,
       clean_count: 2,
       any_signal_participated: true,
+      already_chaptered: false,
       chapters: [
         chapterEntry({ ord: 1, needs_review: false }),
         chapterEntry({ ord: 2, needs_review: true, review_causes: ['short_length'] }),

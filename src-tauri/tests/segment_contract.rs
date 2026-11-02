@@ -29,8 +29,8 @@ use auratranslate_lib::commands::project::{
     BlockBodyWire, BlockWire, ChapterBlocksPreviewWire, ChapterSplitPreviewEntryWire,
     ChapterSplitPreviewWire, ConfidenceWire, EncodingCandidateWire, ImportEncodingPreview,
     NormalizedPreviewWire, PendingImportSourceState, ReviewCauseWire, cancel_import_preview,
-    confirm_import_with_encoding, create_work, create_work_from_text, preview_import_encoding,
-    stash_pending_import_source,
+    cleanup_and_chapters_preview_for, confirm_import_with_encoding, create_work,
+    create_work_from_text, preview_import_encoding, stash_pending_import_source,
 };
 use auratranslate_lib::commands::segment::TRANSLATION_ORIGIN_OTHER;
 use auratranslate_lib::commands::segment::{
@@ -10535,6 +10535,83 @@ fn preview_of_an_already_chaptered_shape_with_no_units_is_self_declared_not_a_pa
     assert_eq!(normalized.text, "");
 }
 
+fn already_chaptered_flag_for(shape: PipelineShape) -> bool {
+    let (_, chapters, _) = cleanup_and_chapters_preview_for(
+        shape,
+        encoding_rs::UTF_8,
+        None,
+        "",
+        "en",
+        &[],
+        false,
+        false,
+        &[],
+        0,
+        0,
+        &[],
+    );
+    chapters.already_chaptered
+}
+
+#[test]
+fn the_chapter_split_preview_flags_a_url_shape_as_already_chaptered_even_when_the_pipeline_fails() {
+    let ok_shape =
+        PipelineShape::Chapters(vec![ChapterInput::AlreadyText("mot Chuong.".to_owned())]);
+    assert!(already_chaptered_flag_for(ok_shape));
+
+    let failing_shape = || {
+        PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+            bytes: vec![0xFF, 0xFE, 0xFA, 0x80, 0x81],
+            label: "https://example.com/hong".to_owned(),
+        }])
+    };
+    assert!(
+        run_import(PipelineInput::default_shaped(failing_shape(), "en")).is_err(),
+        "tien de: hinh dang nay phai lam chuoi that bai"
+    );
+    assert!(already_chaptered_flag_for(failing_shape()));
+}
+
+#[test]
+fn the_chapter_split_preview_does_not_flag_file_paste_multi_file_or_empty_shapes_as_already_chaptered()
+ {
+    let blob = || {
+        PipelineShape::Blob(ChapterInput::AlreadyText(
+            "Chuong 1\n\nnoi dung.".to_owned(),
+        ))
+    };
+    assert!(!already_chaptered_flag_for(blob()));
+    assert!(!already_chaptered_flag_for(PipelineShape::Files(vec![
+        ChapterInput::AlreadyText("tep mot.".to_owned()),
+        ChapterInput::AlreadyText("tep hai.".to_owned()),
+    ])));
+    assert!(!already_chaptered_flag_for(PipelineShape::Blob(
+        ChapterInput::RawBytes {
+            bytes: vec![0xFF, 0xFE, 0xFA, 0x80, 0x81],
+            label: "a.txt".to_owned(),
+        }
+    )));
+
+    let preview = preview_import_encoding(&blob(), "en", &[], None, &[], 0, &[]);
+    assert!(
+        preview
+            .self_declared_chapters
+            .as_ref()
+            .is_some_and(|c| !c.already_chaptered)
+    );
+    let url_shape = PipelineShape::Chapters(vec![ChapterInput::RawBytes {
+        bytes: "noi dung mot Chuong.".as_bytes().to_vec(),
+        label: "https://example.com/a".to_owned(),
+    }]);
+    let url_preview = preview_import_encoding(&url_shape, "en", &[], None, &[], 0, &[]);
+    assert!(!url_preview.candidates.is_empty());
+    assert!(url_preview.candidates.iter().all(|c| {
+        c.chapters
+            .as_ref()
+            .is_some_and(|chapters| chapters.already_chaptered)
+    }));
+}
+
 // ── §Verification: `cargo tree` không đổi qua story này là bằng chứng thủ công, không
 // một test Rust nào canh được số dòng `cargo tree` — bỏ qua ở đây có chủ ý.
 
@@ -10919,6 +10996,7 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
         needs_review_count: 2,
         broken_item_count: 0,
         any_signal_participated: true,
+        already_chaptered: true,
         chapters: vec![
             ChapterSplitPreviewEntryWire {
                 ord: 1,
@@ -10969,6 +11047,7 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
             &"needs_review_count".to_owned(),
             &"broken_item_count".to_owned(),
             &"any_signal_participated".to_owned(),
+            &"already_chaptered".to_owned(),
         ]),
         "ChapterSplitPreviewWire phai serialize DUNG sau ten truong snake_case nay (Story 6.10 \
          them bon truong tom tat cap lot nhap)"
@@ -10991,6 +11070,10 @@ fn the_chapter_split_preview_wire_shape_carries_real_per_chapter_summary_numbers
     );
     assert_eq!(
         object.get("any_signal_participated"),
+        Some(&serde_json::Value::Bool(true))
+    );
+    assert_eq!(
+        object.get("already_chaptered"),
         Some(&serde_json::Value::Bool(true))
     );
 

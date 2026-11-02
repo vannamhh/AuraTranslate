@@ -2335,6 +2335,10 @@ fn ten_bilingual_chapters_show_chip_counts_and_flag_the_short_one() {
 
     assert_eq!(chapters_wire.chapter_count, 10);
     assert!(
+        !chapters_wire.already_chaptered,
+        "duong song ngu khong bao gio la hinh dang da chia Chuong"
+    );
+    assert!(
         chapters_wire.any_signal_participated,
         "10 Chuong voi length tan rong phai co hang rao"
     );

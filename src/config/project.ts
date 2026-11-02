@@ -297,6 +297,8 @@ export type ChapterSplitPreviewWire = {
    * mọi hàng rào đều suy biến) — tầng hiển thị PHẢI nói *"chưa đủ Chương để so"* thay vì khai
    * `0 cần xem`. */
   any_signal_participated: boolean
+  /** `true` khi hình dạng đầu vào đã là N Chương (đường URL): mẫu phân tách không áp. */
+  already_chaptered: boolean
 }
 
 /** Khối làm sạch của MỘT ứng viên/đường tự khai — tầng 3 (Story 6.5). Khớp
@@ -515,7 +517,8 @@ function isChapterSplitPreviewWire(value: unknown): value is ChapterSplitPreview
     typeof v.broken_item_count === 'number' &&
     typeof v.needs_review_count === 'number' &&
     typeof v.clean_count === 'number' &&
-    typeof v.any_signal_participated === 'boolean'
+    typeof v.any_signal_participated === 'boolean' &&
+    typeof v.already_chaptered === 'boolean'
   )
 }
 

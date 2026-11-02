@@ -52,6 +52,7 @@ function chaptersBlock(count: number) {
     needs_review_count: 0,
     clean_count: count,
     any_signal_participated: false,
+    already_chaptered: false,
   }
 }
 
@@ -130,7 +131,7 @@ async function settle(ms = 400) {
 }
 
 describe('màn tách Chương hai cột (tệp txt 2.000 Chương)', () => {
-  it('cột trái ghi tên Tác phẩm, ngôn ngữ cố định, Chương nhận ra, trạng thái ban đầu, ứng viên Glossary; nút ghi "Xác nhận và nhập 2 000 Chương"', async () => {
+  it('cột cấu hình có tên Tác phẩm và ngôn ngữ cố định; chân dính có Chương nhận ra, ký tự, trạng thái ban đầu, ứng viên Glossary và nút "Nhập 2 000 Chương"', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     previewFileMock.mockResolvedValue({
       batch: { items: [{ path: '/tmp/truyen.txt', byte_len: 43_200_000, ok: true, error: null }], encoding_preview: proseFixture(2000) },
@@ -142,13 +143,16 @@ describe('màn tách Chương hai cột (tệp txt 2.000 Chương)', () => {
     await settle()
 
     expect(wrapper.find('.ip-two').exists()).toBe(true)
-    const config = wrapper.get('aside.ip-config').text()
-    expect(config).toContain('Tuyet Trung')
-    expect(config).toContain('cố định sau khi tạo')
-    expect(config).toContain('Chưa bắt đầu')
-    expect(config).toMatch(/Chương nhận ra\s*2 000/)
-    expect(wrapper.get('[data-ip-glossary-estimate]').text()).toContain('~12 345')
-    expect(wrapper.get('.ip-act-primary').text()).toBe('Xác nhận và nhập 2 000 Chương')
+    const config = wrapper.get('aside.ip-config')
+    expect((config.get('[data-ip-work-name]').element as HTMLTextAreaElement).value).toBe('Tuyet Trung')
+    expect(config.text()).toContain('cố định sau khi tạo')
+    const footer = wrapper.get('footer.ip-footer')
+    expect(footer.text()).toContain('Chưa bắt đầu')
+    expect(footer.get('[data-ip-footer-chapters]').text()).toMatch(/Chương nhận ra\s*2\s000/)
+    expect(footer.get('[data-ip-footer-chars]').text()).toContain('30')
+    expect(footer.get('[data-ip-glossary-estimate]').text()).toMatch(/~12\s345/)
+    expect(footer.get('.ip-act-primary').text()).toMatch(/Nhập 2\s000 Chương/)
+    expect(config.find('.ip-act-primary').exists()).toBe(false)
     expect(wrapper.find('.ip-scrim').exists()).toBe(false)
 
     wrapper.unmount()
@@ -275,7 +279,7 @@ describe('ước lượng ứng viên Glossary (FR137)', () => {
 })
 
 describe('màn xem trước URL hợp nhất', () => {
-  it('50 Chương đã tải: một màn, thứ tự tầng 1-3 rồi tầng 4 Tách Chương rồi tầng "Xuất xứ tài liệu" cuối, không tầng chuẩn hoá', async () => {
+  it('50 Chương đã tải: một màn hai cột, cột cấu hình giữ bảng mã · luật làm sạch · xuất xứ, cột văn bản giữ ranh giới rồi Tách Chương, không tầng chuẩn hoá', async () => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
     const { urls, batch } = urlFixture(50)
     startUrlMock.mockResolvedValue({ batch, error: null })
@@ -284,20 +288,18 @@ describe('màn xem trước URL hợp nhất', () => {
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await settle()
 
-    const titles = wrapper.findAll('.ip-tier-title').map((h) => h.text())
-    const iTier1 = titles.findIndex((x) => x === 'Bảng mã')
-    const iTier2 = titles.findIndex((x) => x === 'Ranh giới nội dung')
-    const iTier3 = titles.findIndex((x) => x === 'Luật làm sạch')
-    const iTier4 = titles.findIndex((x) => x === 'Tách Chương')
-    const iOrigin = titles.findIndex((x) => x === 'Xuất xứ tài liệu')
-    expect(iTier1).toBeGreaterThanOrEqual(0)
-    expect(iTier1).toBeLessThan(iTier2)
-    expect(iTier2).toBeLessThan(iTier3)
-    expect(iTier3).toBeLessThan(iTier4)
-    expect(iOrigin).toBe(titles.length - 1)
-    expect(titles.some((x) => /chuẩn hoá/i.test(x))).toBe(false)
-    expect(wrapper.get('.ip-act-primary').text()).toBe('Xác nhận và nhập 50 Chương')
-    expect(wrapper.find('.ip-two-stacked').exists()).toBe(true)
+    const configTitles = wrapper.findAll('aside.ip-config .ip-tier-title').map((h) => h.text())
+    const mainTitles = wrapper.findAll('.ip-main .ip-tier-title').map((h) => h.text())
+    expect(configTitles.indexOf('Bảng mã')).toBeGreaterThanOrEqual(0)
+    expect(configTitles.indexOf('Bảng mã')).toBeLessThan(configTitles.indexOf('Luật làm sạch'))
+    expect(mainTitles.indexOf('Ranh giới nội dung')).toBeGreaterThanOrEqual(0)
+    expect(mainTitles.indexOf('Ranh giới nội dung')).toBeLessThan(mainTitles.indexOf('Tách Chương'))
+    expect(wrapper.findAll('.ip-tier-title').filter((h) => h.text() === 'Xuất xứ tài liệu')).toHaveLength(0)
+    expect(wrapper.findAll('aside.ip-config h4').filter((h) => h.text() === 'Xuất xứ tài liệu')).toHaveLength(1)
+    expect([...configTitles, ...mainTitles].some((x) => /chuẩn hoá/i.test(x))).toBe(false)
+    expect(wrapper.get('footer.ip-footer .ip-act-primary').text()).toContain('Nhập 50 Chương')
+    expect(wrapper.find('.ip-two-stacked').exists()).toBe(false)
+    expect(wrapper.find('.ip-two').exists()).toBe(true)
 
     wrapper.unmount()
     state.resetImportPreview()

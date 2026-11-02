@@ -293,6 +293,9 @@ const cleanupDeletePendingKey = ref<string | null>(null)
  */
 const blockFocusedIndex = ref(0)
 const blockRangeStart = ref<number | null>(null)
+const bandHeaderFocused = ref(false)
+const bandOpenIndices = ref<ReadonlySet<number>>(new Set())
+const lingeringDroppedIndex = ref<number | null>(null)
 const blockRangeMissingStartNotice = ref(false)
 /** Cờ "đang gửi" của `Space` — TÁCH khỏi `blockRangeConfirming` (thao tác khác hẳn, cùng lý
  * do bốn cờ CRUD luật làm sạch tách nhau). */
@@ -455,6 +458,7 @@ export const importPreviewCleanupDeletePendingKey: DeepReadonly<Ref<string | nul
   readonly(cleanupDeletePendingKey)
 export const importPreviewBlockFocusedIndex: DeepReadonly<Ref<number>> = readonly(blockFocusedIndex)
 export const importPreviewBlockRangeStart: DeepReadonly<Ref<number | null>> = readonly(blockRangeStart)
+export const importPreviewBandHeaderFocused: DeepReadonly<Ref<boolean>> = readonly(bandHeaderFocused)
 export const importPreviewBlockRangeMissingStartNotice: DeepReadonly<Ref<boolean>> =
   readonly(blockRangeMissingStartNotice)
 export const importPreviewBlockToggling: DeepReadonly<Ref<boolean>> = readonly(blockToggling)
@@ -529,9 +533,26 @@ export const importPreviewUrlListHasBrokenItem = computed<boolean>(() => {
  * cho `'file'` mà không cần đọc `fileImportItems` riêng, khác hẳn `'urls'`.
  */
 export const importPreviewCanConfirm = computed<boolean>(() => {
+  if (pendingDestinationWorkId.value === null && pendingName.value.trim() === '') return false
   if (lastSubmittedFrom.value === 'urls') return !importPreviewUrlListHasBrokenItem.value
   return preview.value !== null
 })
+
+export const importPreviewSplitPatternApplies = computed<boolean>(() => {
+  const chapters = importPreviewSelectedChapters.value
+  return chapters !== null && !chapters.already_chaptered
+})
+
+export const importPreviewTotalChars = computed<number | null>(() => {
+  const chapters = importPreviewSelectedChapters.value
+  if (chapters === null) return null
+  return chapters.chapters.reduce((sum, entry) => sum + entry.length, 0)
+})
+
+export function setImportPreviewPendingName(name: string): void {
+  if (pendingDestinationWorkId.value !== null) return
+  pendingName.value = name
+}
 
 export type GlossaryEstimateState =
   | { kind: 'idle' }
@@ -795,6 +816,12 @@ export const importPreviewSelectedBlocks = computed<ChapterBlocksPreviewWire | n
   return candidate !== null ? candidate.blocks : null
 })
 
+// Band indices are per-Chapter block indices, so an open band must not carry to another Chapter.
+watch(chapterCursor, () => {
+  bandOpenIndices.value = new Set()
+  lingeringDroppedIndex.value = null
+})
+
 // 🔴 Giữ `blockFocusedIndex` LUÔN trong phạm vi hợp lệ — dải khối có thể đổi ĐỘ DÀI dưới
 // chân nó (đổi ứng viên bảng mã, hoặc một lượt `Space`/`]` dựng lại xem trước với cấu trúc
 // khối có thể khác — Quyết định #2 §Spec Change Log spec 6.9 chấp nhận rủi ro hẹp này). Một
@@ -815,6 +842,100 @@ watch(importPreviewSelectedBlocks, (blocks) => {
     blockRangeStart.value = null
   }
 })
+
+export type ImportPreviewBlockRow =
+  | { kind: 'block'; index: number }
+  | { kind: 'band'; start: number; end: number; open: boolean }
+
+/** Every run of consecutive dropped blocks (even a single block) becomes one band row; an
+ * open band is followed by its block rows. `end` is inclusive. */
+export function groupImportPreviewBlockRows(
+  blocks: ReadonlyArray<{ readonly kept: boolean }>,
+  openIndices: ReadonlySet<number>,
+  lingeringIndex: number | null = null,
+): ImportPreviewBlockRow[] {
+  const rows: ImportPreviewBlockRow[] = []
+  let i = 0
+  while (i < blocks.length) {
+    if (blocks[i].kept || i === lingeringIndex) {
+      rows.push({ kind: 'block', index: i })
+      i += 1
+      continue
+    }
+    let end = i
+    while (end + 1 < blocks.length && !blocks[end + 1].kept && end + 1 !== lingeringIndex) end += 1
+    const open = openIndices.has(i)
+    rows.push({ kind: 'band', start: i, end, open })
+    if (open) {
+      for (let k = i; k <= end; k += 1) rows.push({ kind: 'block', index: k })
+    }
+    i = end + 1
+  }
+  return rows
+}
+
+/** Position of the focused row. A collapsed band owns every index inside it; an open band's
+ * header is focused only when `headerFocused`. -1 when nothing matches. */
+export function focusedImportPreviewBlockRowPosition(
+  rows: readonly ImportPreviewBlockRow[],
+  focusedIndex: number,
+  headerFocused: boolean,
+): number {
+  const band = rows.findIndex(
+    (row) =>
+      row.kind === 'band' &&
+      (row.open ? headerFocused && focusedIndex === row.start : focusedIndex >= row.start && focusedIndex <= row.end),
+  )
+  if (band >= 0) return band
+  return rows.findIndex((row) => row.kind === 'block' && row.index === focusedIndex)
+}
+
+export const importPreviewBlockRows = computed<ImportPreviewBlockRow[]>(() => {
+  const blocks = importPreviewSelectedBlocks.value?.blocks
+  if (blocks === undefined) return []
+  const lingering =
+    lingeringDroppedIndex.value === blockFocusedIndex.value && !bandHeaderFocused.value
+      ? lingeringDroppedIndex.value
+      : null
+  return groupImportPreviewBlockRows(blocks, bandOpenIndices.value, lingering)
+})
+
+/** The band row holding the cursor, or `null` when the cursor is on a block. */
+export const importPreviewFocusedBand = computed<{ start: number; end: number; open: boolean } | null>(() => {
+  const rows = importPreviewBlockRows.value
+  const pos = focusedImportPreviewBlockRowPosition(rows, blockFocusedIndex.value, bandHeaderFocused.value)
+  const row = pos >= 0 ? rows[pos] : undefined
+  return row !== undefined && row.kind === 'band' ? row : null
+})
+
+function stepImportPreviewBlockRow(delta: 1 | -1): void {
+  const rows = importPreviewBlockRows.value
+  if (rows.length === 0) return
+  const pos = focusedImportPreviewBlockRowPosition(rows, blockFocusedIndex.value, bandHeaderFocused.value)
+  const target = rows[Math.min(Math.max(pos + delta, 0), rows.length - 1)]
+  lingeringDroppedIndex.value = null
+  if (target.kind === 'band') {
+    blockFocusedIndex.value = target.start
+    bandHeaderFocused.value = true
+  } else {
+    blockFocusedIndex.value = target.index
+    bandHeaderFocused.value = false
+  }
+  blockActionError.value = null
+}
+
+function toggleImportPreviewBand(band: { start: number; end: number; open: boolean }): void {
+  const next = new Set(bandOpenIndices.value)
+  for (let k = band.start; k <= band.end; k += 1) {
+    if (band.open) next.delete(k)
+    else next.add(k)
+  }
+  bandOpenIndices.value = next
+  lingeringDroppedIndex.value = null
+  blockFocusedIndex.value = band.start
+  bandHeaderFocused.value = true
+  blockActionError.value = null
+}
 
 /**
  * Tầng 2 CHƯA có thân (§Always spec 6.3) — lý do RỖNG kèm tên story chủ, không phải một
@@ -879,6 +1000,9 @@ async function openWith(
   pendingChapterPatternEdit = null
   blockFocusedIndex.value = 0
   blockRangeStart.value = null
+  bandHeaderFocused.value = false
+  bandOpenIndices.value = new Set()
+  lingeringDroppedIndex.value = null
   blockRangeMissingStartNotice.value = false
   blockToggling.value = false
   blockRangeConfirming.value = false
@@ -1011,6 +1135,9 @@ export async function openImportPreviewFromFile(
   urlImportError.value = null
   blockFocusedIndex.value = 0
   blockRangeStart.value = null
+  bandHeaderFocused.value = false
+  bandOpenIndices.value = new Set()
+  lingeringDroppedIndex.value = null
   blockRangeMissingStartNotice.value = false
   blockToggling.value = false
   blockRangeConfirming.value = false
@@ -1131,6 +1258,9 @@ export async function openImportPreviewFromUrls(
   urlImportError.value = null
   blockFocusedIndex.value = 0
   blockRangeStart.value = null
+  bandHeaderFocused.value = false
+  bandOpenIndices.value = new Set()
+  lingeringDroppedIndex.value = null
   blockRangeMissingStartNotice.value = false
   blockToggling.value = false
   blockRangeConfirming.value = false
@@ -1300,25 +1430,31 @@ export async function removeImportPreviewUrlItem(index: number): Promise<void> {
  * "đã thấy lỗi, đang xem khối khác", cùng tinh thần dọn `blockActionError` trên MỌI đường
  * thành công khác trong tệp này. */
 export function nextImportPreviewBlock(): void {
-  const length = importPreviewSelectedBlocks.value?.blocks.length ?? 0
-  if (length === 0) return
-  blockFocusedIndex.value = Math.min(blockFocusedIndex.value + 1, length - 1)
-  blockActionError.value = null
+  stepImportPreviewBlockRow(1)
 }
 
 export function setImportPreviewBlockFocus(index: number): void {
   const length = importPreviewSelectedBlocks.value?.blocks.length ?? 0
   if (index < 0 || index >= length) return
+  if (index !== blockFocusedIndex.value) lingeringDroppedIndex.value = null
   blockFocusedIndex.value = index
+  bandHeaderFocused.value = false
   blockActionError.value = null
 }
 
-/** `K`/lên — cùng khuôn [`nextImportPreviewBlock`], dừng ở 0. */
-export function prevImportPreviewBlock(): void {
+/** Mouse press on a band header: focus it without changing the open state. */
+export function setImportPreviewBandFocus(start: number): void {
   const length = importPreviewSelectedBlocks.value?.blocks.length ?? 0
-  if (length === 0) return
-  blockFocusedIndex.value = Math.max(blockFocusedIndex.value - 1, 0)
+  if (start < 0 || start >= length) return
+  lingeringDroppedIndex.value = null
+  blockFocusedIndex.value = start
+  bandHeaderFocused.value = true
   blockActionError.value = null
+}
+
+/** `K`/lên — cùng khuôn [`nextImportPreviewBlock`], dừng ở hàng đầu. */
+export function prevImportPreviewBlock(): void {
+  stepImportPreviewBlockRow(-1)
 }
 
 /**
@@ -1328,6 +1464,11 @@ export function prevImportPreviewBlock(): void {
  */
 export async function toggleImportPreviewBlockKept(): Promise<void> {
   if (confirming.value || blockToggling.value) return
+  const band = importPreviewFocusedBand.value
+  if (band !== null) {
+    toggleImportPreviewBand(band)
+    return
+  }
   const blocks = importPreviewSelectedBlocks.value?.blocks
   // 🔵 SỬA (dọn nợ lint phát hiện khi làm Story 6.10a, KHÔNG liên quan tới con trỏ Chương) —
   // `tsconfig.json` không bật `noUncheckedIndexedAccess`, nên `blocks[i]` được TypeScript
@@ -1338,7 +1479,8 @@ export async function toggleImportPreviewBlockKept(): Promise<void> {
   if (blocks === undefined || blockFocusedIndex.value < 0 || blockFocusedIndex.value >= blocks.length) {
     return
   }
-  const current = blocks[blockFocusedIndex.value]
+  const toggledIndex = blockFocusedIndex.value
+  const current = blocks[toggledIndex]
 
   blockToggling.value = true
   try {
@@ -1354,6 +1496,7 @@ export async function toggleImportPreviewBlockKept(): Promise<void> {
     }
     if (result.batch === null) return
     blockActionError.value = null
+    lingeringDroppedIndex.value = current.kept ? toggledIndex : null
     applyUrlImportBatch(result.batch)
   } finally {
     blockToggling.value = false
@@ -2373,6 +2516,9 @@ export function resetImportPreview(): void {
   urlImportError.value = null
   blockFocusedIndex.value = 0
   blockRangeStart.value = null
+  bandHeaderFocused.value = false
+  bandOpenIndices.value = new Set()
+  lingeringDroppedIndex.value = null
   blockRangeMissingStartNotice.value = false
   blockToggling.value = false
   blockRangeConfirming.value = false

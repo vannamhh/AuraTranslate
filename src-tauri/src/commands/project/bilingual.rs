@@ -399,7 +399,7 @@ fn bilingual_candidate_wire(
                     .iter()
                     .map(BilingualMismatchWire::from)
                     .collect(),
-                chapters: Some(build_chapter_split_preview_wire(&o.chapters, 0, &[])),
+                chapters: Some(build_chapter_split_preview_wire(&o.chapters, 0, &[], false)),
             }
         }
         None => BilingualEncodingCandidateWire {

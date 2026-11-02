@@ -88,6 +88,7 @@ function candidateChapters(chapterCount: number, needsReviewCount: number) {
     needs_review_count: needsReviewCount,
     clean_count: chapterCount - needsReviewCount,
     any_signal_participated: needsReviewCount > 0,
+    already_chaptered: false,
   }
 }
 

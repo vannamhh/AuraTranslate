@@ -75,6 +75,7 @@ function candidate(over: Partial<EncodingCandidateWire> = {}): EncodingCandidate
       needs_review_count: 0,
       clean_count: 1,
       any_signal_participated: false,
+      already_chaptered: false,
     },
     // Story 6.9 — khối tầng 2 (ranh giới bóc) đi kèm sẵn trên MỖI ô, cùng lý do `chapters`.
     // `null` đồng bộ với ba trường trên (bảng mã "không ra chữ") — xem ca dành riêng cho
@@ -129,7 +130,6 @@ beforeEach(() => {
 describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng ĐÚNG chữ (mục 22)', () => {
   it.each([
     ['self_declared', 'Nguồn tự khai bảng mã'],
-    ['high', 'Tự đoán từ 4 KiB đầu tệp · độ tin cậy cao'],
     ['low', 'Tự đoán từ 4 KiB đầu tệp · độ tin cậy thấp'],
   ] as const)('confidence=%s dựng đúng chip "%s"', async (confidence, expectedText) => {
     const { state, ImportPreviewOverlay } = await freshOverlay()
@@ -138,6 +138,23 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     expect(wrapper.find('.ip-confidence-chip').text()).toContain(expectedText)
+
+    wrapper.unmount()
+    state.resetImportPreview()
+  })
+
+  it('confidence=high thu bảng mã còn một dòng "tên · tin cậy cao · Đổi E", không chip', async () => {
+    const { state, ImportPreviewOverlay } = await freshOverlay()
+    previewTextMock.mockResolvedValue({ preview: preview({ confidence: 'high' }), error: null })
+    await state.openImportPreviewFromText('Ten', 'en', '', 'text', null)
+
+    const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    const line = wrapper.get('[data-ip-encoding-line]')
+    expect(line.get('.ip-encoding-name').text()).toBe('UTF-8')
+    expect(line.get('.ip-encoding-confidence').text()).toBe('· tin cậy cao')
+    expect(line.get('button').text()).toContain('Đổi')
+    expect(wrapper.find('.ip-confidence-chip').exists()).toBe(false)
+    expect(wrapper.find('.ip-strip').exists()).toBe(false)
 
     wrapper.unmount()
     state.resetImportPreview()
@@ -254,6 +271,7 @@ describe('ImportPreviewOverlay.vue — chip tin cậy + hai tầng rỗng dựng
           needs_review_count: 0,
           clean_count: 1,
           any_signal_participated: false,
+          already_chaptered: false,
         },
       }),
       error: null,
@@ -496,6 +514,7 @@ function chaptersWithFlags(flags: boolean[]) {
     needs_review_count: needs,
     clean_count: flags.length - needs,
     any_signal_participated: true,
+    already_chaptered: false,
   }
 }
 

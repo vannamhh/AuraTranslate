@@ -61,6 +61,7 @@ function chaptersFor(title: string): Record<string, unknown> {
     needs_review_count: 0,
     clean_count: 1,
     any_signal_participated: false,
+    already_chaptered: false,
   }
 }
 
@@ -199,6 +200,37 @@ describe('previewBilingualImportFromFile — hình dạng dây THẬT (không mo
   it('candidates[].chapters THIẾU trường con (`any_signal_participated` vắng mặt) làm CẢ payload bị bác', async () => {
     const badChapters = chaptersFor('a,b')
     delete badChapters.any_signal_participated
+    mockInvoke.mockResolvedValue({
+      confidence: 'high',
+      selected_encoding: 'UTF-8',
+      candidates: [
+        {
+          label: 'UTF-8',
+          encoding: 'UTF-8',
+          preview: 'a,b',
+          row_count: 1,
+          chapter_count: 1,
+          pair_count: 0,
+          skipped_target_sentence_count: 0,
+          mismatches: [],
+          chapters: badChapters,
+        },
+      ],
+      sample_rows: [['a', 'b']],
+      row_count: 1,
+      column_count: 2,
+    })
+    const { previewBilingualImportFromFile } = await import('../../src/config/project')
+
+    const result = await previewBilingualImportFromFile('/tmp/a.csv', 'en', null, 0, 1, false, null)
+
+    expect(result.preview).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
+
+  it('candidates[].chapters THIẾU trường con (`already_chaptered` vắng mặt) làm CẢ payload bị bác', async () => {
+    const badChapters = chaptersFor('a,b')
+    delete badChapters.already_chaptered
     mockInvoke.mockResolvedValue({
       confidence: 'high',
       selected_encoding: 'UTF-8',

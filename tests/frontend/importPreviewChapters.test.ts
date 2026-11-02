@@ -86,6 +86,7 @@ function chapters(over: Partial<ChapterSplitPreviewWire> = {}): ChapterSplitPrev
     needs_review_count: 0,
     clean_count: 2,
     any_signal_participated: false,
+    already_chaptered: false,
     ...over,
   }
 }
@@ -140,6 +141,7 @@ function candidateWithChapters(encoding: string, flags: boolean[]): EncodingCand
       needs_review_count: needs,
       clean_count: flags.length - needs,
       any_signal_participated: true,
+      already_chaptered: false,
     },
   })
 }
@@ -397,7 +399,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
     await state.openImportPreviewFromText('Ten', 'en', '', 'x', null)
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.get('.ip-summary').text()).toMatch(/Chương nhận ra\s*2(\D|$)/)
+    expect(wrapper.get('[data-ip-footer-chapters]').text()).toMatch(/Chương nhận ra\s*2(\D|$)/)
     const rows = wrapper.findAll('.ip-chapters-entry')
     expect(rows).toHaveLength(2)
     expect(rows[0]?.find('.ip-chapters-title').text()).toBe('Chuong 1: Mo Dau')
@@ -413,7 +415,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       preview: preview({
         candidates: [
           candidate({
-            chapters: chapters({ chapter_count: 1, chapters: [{ ord: 1, title: null, length: 800, cleanup_match_count: 0, joined_line_count_in_chapter: null, needs_review: false, review_causes: [], chapter_origin: ORIGIN_STUB, source_file: null }] }),
+            chapters: chapters({ chapters: [{ ...chapters().chapters[0]!, title: null, length: 800 }, chapters().chapters[1]!] }),
           }),
         ],
       }),
@@ -672,6 +674,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
               needs_review_count: 0,
               clean_count: 3,
               any_signal_participated: false,
+              already_chaptered: false,
             }),
           }),
         ],
@@ -715,6 +718,7 @@ describe('ImportPreviewOverlay.vue — tầng 4 dựng đúng danh sách, sắp 
       needs_review_count: 0,
       clean_count: 9,
       any_signal_participated: false,
+      already_chaptered: false,
     }
     const state = await freshState()
     startUrlImportMock.mockResolvedValue({
@@ -782,6 +786,7 @@ function threeChapters(): ChapterSplitPreviewWire {
     needs_review_count: 0,
     clean_count: 3,
     any_signal_participated: false,
+    already_chaptered: false,
   }
 }
 
@@ -1151,6 +1156,7 @@ function mixedChapters(): ChapterSplitPreviewWire {
     needs_review_count: 1,
     clean_count: 2,
     any_signal_participated: true,
+    already_chaptered: false,
   }
 }
 
@@ -1214,6 +1220,7 @@ describe('importPreviewState — bộ lọc "cần xem" (Story 6.10)', () => {
       needs_review_count: 1, // TU link hong -- KHONG Chuong nao needs_review that.
       clean_count: 3,
       any_signal_participated: false, // duoi bon gia tri do duoc.
+      already_chaptered: false,
     }
     startUrlImportMock.mockResolvedValue({
       batch: {
@@ -1365,6 +1372,7 @@ describe('importPreviewState — đổi ứng viên bảng mã KHÔNG tắt bộ
         needs_review_count: 0,
         clean_count: 2,
         any_signal_participated: false,
+        already_chaptered: false,
       },
     }
     previewTextMock.mockResolvedValue({
@@ -1456,7 +1464,7 @@ describe('ImportPreviewOverlay.vue — dòng giải thích khi mẫu regex neo `
     await state.setImportPreviewChapterPattern('^Chuong', 'regex')
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.get('.ip-summary').text()).toMatch(/Chương nhận ra\s*1(\D|$)/)
+    expect(wrapper.get('[data-ip-footer-chapters]').text()).toMatch(/Chương nhận ra\s*1(\D|$)/)
     expect(wrapper.find('.ip-chapters-anchor-hint').exists()).toBe(true)
     expect(wrapper.find('.ip-chapters-anchor-hint').text().length).toBeGreaterThan(0)
 
@@ -1472,7 +1480,7 @@ describe('ImportPreviewOverlay.vue — dòng giải thích khi mẫu regex neo `
     await state.setImportPreviewChapterPattern('^Chuong', 'regex')
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.get('.ip-summary').text()).toMatch(/Chương nhận ra\s*2(\D|$)/)
+    expect(wrapper.get('[data-ip-footer-chapters]').text()).toMatch(/Chương nhận ra\s*2(\D|$)/)
     expect(wrapper.find('.ip-chapters-anchor-hint').exists()).toBe(false)
 
     wrapper.unmount()
@@ -1490,7 +1498,7 @@ describe('ImportPreviewOverlay.vue — dòng giải thích khi mẫu regex neo `
     await state.setImportPreviewChapterPattern('^Chuong', 'literal')
 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
-    expect(wrapper.get('.ip-summary').text()).toMatch(/Chương nhận ra\s*1(\D|$)/)
+    expect(wrapper.get('[data-ip-footer-chapters]').text()).toMatch(/Chương nhận ra\s*1(\D|$)/)
     expect(wrapper.find('.ip-chapters-anchor-hint').exists()).toBe(false)
 
     wrapper.unmount()

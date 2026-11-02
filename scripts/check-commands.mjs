@@ -2495,6 +2495,7 @@ const HANDLER_TABLE = {
   'src/ImportPreviewOverlay.vue::onEscapeCancel': { ids: ['import.preview.cancel'] },
   'src/ImportPreviewOverlay.vue::onScrimKeydown': { nonCommand: R_SCRIM_CLOSE },
   'src/ImportPreviewOverlay.vue::setImportPreviewBlockFocus': { nonCommand: R_CURSOR_LOCAL },
+  'src/ImportPreviewOverlay.vue::setImportPreviewBandFocus': { nonCommand: R_CURSOR_LOCAL },
   'src/ImportPreviewOverlay.vue::holdViewForChapterMove': { nonCommand: R_CURSOR_LOCAL },
   'src/ImportPreviewOverlay.vue::onReloadUrlItem': { nonCommand: R_SUBMIT_DIRECT },
   'src/ImportPreviewOverlay.vue::onRemoveUrlItem': { nonCommand: R_SUBMIT_DIRECT },
@@ -2875,7 +2876,7 @@ for (const tableKey of danglingHandlerKeys(HANDLER_TABLE, seenHandlerKeys)) {
 }
 
 // Population floor, same reasoning as CLICK_FLOOR: an empty scan must not read as a pass.
-const HANDLER_ATTR_FLOOR = 168
+const HANDLER_ATTR_FLOOR = 180
 {
   const v = judgeFloor(
     HANDLER_ATTR_FLOOR,

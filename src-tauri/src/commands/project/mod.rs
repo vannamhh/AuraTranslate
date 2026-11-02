@@ -1223,6 +1223,10 @@ pub struct ChapterSplitPreviewWire {
     /// say "not enough Chapters to compare" instead of claiming `M clean`). `needs_review_count`
     /// is unaffected — see its own doc comment.
     pub any_signal_participated: bool,
+    /// `true` when the input shape is already N Chapters (`PipelineShape::Chapters`), so the
+    /// split pattern is not applied. Derived from the shape, so it stays correct when
+    /// `run_pipeline` fails.
+    pub already_chaptered: bool,
 }
 
 /// Dựng khối tách Chương (tầng 4) — TÍNH LUÔN phán quyết *cần xem*/*sạch* bằng hàng rào Tukey
@@ -1234,6 +1238,7 @@ fn build_chapter_split_preview_wire(
     chapters: &[crate::core::segment::import::ImportedChapter],
     broken_item_count: usize,
     origin_overrides: &[Option<ChapterOriginOverride>],
+    already_chaptered: bool,
 ) -> ChapterSplitPreviewWire {
     let metrics: Vec<crate::core::segment::review::ChapterMetrics> = chapters
         .iter()
@@ -1286,6 +1291,7 @@ fn build_chapter_split_preview_wire(
         needs_review_count: needs_review_chapters + broken_item_count,
         broken_item_count,
         any_signal_participated: outcome.participation.any(),
+        already_chaptered,
         chapters: entries,
     }
 }
@@ -1808,6 +1814,7 @@ pub fn cleanup_and_chapters_preview_for(
     ChapterSplitPreviewWire,
     Option<ChapterBlocksPreviewWire>,
 ) {
+    let already_chaptered = shape.is_already_chaptered();
     let input = PipelineInput::with_encoding(shape, encoding, source_lang)
         .with_cleanup_rules(cleanup_rules.to_vec())
         .with_chapter_pattern(chapter_pattern.cloned())
@@ -1822,8 +1829,12 @@ pub fn cleanup_and_chapters_preview_for(
         }
     };
 
-    let chapters_wire =
-        build_chapter_split_preview_wire(&chapters, broken_item_count, origin_overrides);
+    let chapters_wire = build_chapter_split_preview_wire(
+        &chapters,
+        broken_item_count,
+        origin_overrides,
+        already_chaptered,
+    );
     let detail_chapter = chapters.get(detail_chapter_index);
     // 🔴 SỬA (vòng rà đối kháng bước 4, P1) — `block_overrides` CHỈ có nghĩa cho đơn vị 0 của
     // `shape` GỐC (`PipelineInput::block_overrides` doc-comment: "Chỉ `units[0]` đọc trường
@@ -2048,6 +2059,7 @@ fn encoding_candidate_wire(
                     &[],
                     broken_item_count,
                     &[],
+                    shape.is_already_chaptered(),
                 )),
                 None,
             ),
@@ -2357,7 +2369,7 @@ fn build_import_encoding_preview(
                     std::collections::BTreeMap::new(),
                     normalized.window_truncated,
                 ),
-                build_chapter_split_preview_wire(&[], 0, &[]),
+                build_chapter_split_preview_wire(&[], 0, &[], false),
             ),
         }
     });

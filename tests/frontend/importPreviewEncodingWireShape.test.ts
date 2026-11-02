@@ -64,6 +64,7 @@ function chaptersFor(title: string): Record<string, unknown> {
     needs_review_count: 0,
     clean_count: 1,
     any_signal_participated: false,
+    already_chaptered: false,
   }
 }
 
@@ -592,6 +593,7 @@ describe('previewImportEncodingFromText/_FromFile — hình dạng dây THẬT (
             needs_review_count: 0,
             clean_count: 2,
             any_signal_participated: false,
+            already_chaptered: false,
           },
           blocks: blocksFor('Chuong 1 Chuong 2'),
         },

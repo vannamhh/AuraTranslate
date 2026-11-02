@@ -242,6 +242,13 @@ pub enum PipelineShape {
     Files(Vec<ChapterInput>),
 }
 
+impl PipelineShape {
+    /// Whether step 5 (Chapter splitting) is skipped because the input already is N Chapters.
+    pub fn is_already_chaptered(&self) -> bool {
+        matches!(self, PipelineShape::Chapters(_))
+    }
+}
+
 /// Đầu vào ĐẦY ĐỦ của [`run_import`]/[`run_import_with_order`] — hình dạng cộng những gì
 /// bước 1 và bước 5 cần biết để chạy.
 pub struct PipelineInput {
@@ -752,23 +759,22 @@ pub fn run_import_with_order(
     // `bilingual_delimiter` — biến cục bộ, KHÔNG một trường `Flow` (cùng khuôn `source_lang`/
     // `cleanup_rules`/`chapter_pattern`: không đổi qua các bước, nên bắt trong closure của
     // vòng lặp là đủ, không cần thêm một chỗ để mà destructure/tái dựng mỗi nhánh `match`).
-    let (initial_units, initial_labels, already_chaptered, is_files, bilingual_source): (
+    let already_chaptered = shape.is_already_chaptered();
+    let (initial_units, initial_labels, is_files, bilingual_source): (
         Vec<Unit>,
         Vec<String>,
-        bool,
         bool,
         Option<BilingualSource>,
     ) = match shape {
         PipelineShape::Blob(c) => {
             let label = label_of(&c);
-            (vec![Unit::from(c)], vec![label], false, false, None)
+            (vec![Unit::from(c)], vec![label], false, None)
         }
         PipelineShape::Chapters(cs) => {
             let labels: Vec<String> = cs.iter().map(label_of).collect();
             (
                 cs.into_iter().map(Unit::from).collect(),
                 labels,
-                true,
                 false,
                 None,
             )
@@ -779,14 +785,12 @@ pub fn run_import_with_order(
                 vec![Unit::from(input)],
                 vec![label],
                 false,
-                false,
                 Some(BilingualSource::Delimited(delimiter)),
             )
         }
         PipelineShape::BilingualRows { label, rows } => (
             vec![Unit::Decoded(String::new())],
             vec![label],
-            false,
             false,
             Some(BilingualSource::Rows(rows)),
         ),
@@ -800,13 +804,7 @@ pub fn run_import_with_order(
         // ĐÚNG đơn vị đã sinh ra chúng (§Always spec 6.6b).
         PipelineShape::Files(cs) => {
             let labels: Vec<String> = cs.iter().map(label_of).collect();
-            (
-                cs.into_iter().map(Unit::from).collect(),
-                labels,
-                false,
-                true,
-                None,
-            )
+            (cs.into_iter().map(Unit::from).collect(), labels, true, None)
         }
     };
     let n = initial_units.len();

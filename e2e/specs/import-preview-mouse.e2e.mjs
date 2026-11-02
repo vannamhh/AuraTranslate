@@ -50,16 +50,33 @@ async function ipc(command, args = {}) {
 
 async function blockStates() {
   return browser.execute(() =>
-    [...document.querySelectorAll('.ip-block')].map((el) => ({
-      dropped: el.classList.contains('ip-block-dropped'),
-      focused: el.classList.contains('ip-block-focused'),
-      text: el.querySelector('.ip-block-text')?.textContent?.trim() ?? '',
-    })),
+    [...document.querySelectorAll('.ip-block')]
+      .map((el) => ({
+        index: Number(el.id.replace('ip-block-', '')),
+        dropped: el.classList.contains('ip-block-dropped'),
+        focused: el.classList.contains('ip-block-focused'),
+        text: el.querySelector('.ip-block-text')?.textContent?.trim() ?? '',
+      }))
+      .sort((a, b) => a.index - b.index),
   )
 }
 
+async function openAllBands() {
+  for (;;) {
+    const closed = await $$(`${SCREEN} .ip-band:not(.ip-band-open)`)
+    if (closed.length === 0) return
+    await realClick(closed[0])
+    await browser.pause(50)
+  }
+}
+
+async function settledBlockStates() {
+  await openAllBands()
+  return blockStates()
+}
+
 async function clickBlock(index) {
-  await realClick((await $$(`${SCREEN} ${BLOCK} .ip-block-text`))[index])
+  await realClick(await $(`${SCREEN} #ip-block-${index} .ip-block-text`))
 }
 
 async function clickAction(label) {
@@ -103,7 +120,11 @@ describe('Story 14-6: URL import preview block tier by pointer', () => {
     await realClick(await screen.$('[data-import-preview-open]'))
 
     await $(SCREEN).waitForDisplayed({ timeout: 60_000 })
-    await browser.waitUntil(async () => (await $$(`${SCREEN} ${BLOCK}`)).length >= 5, {
+    await browser.waitUntil(async () => (await $$(`${SCREEN} ${BLOCK}, ${SCREEN} .ip-band`)).length >= 1, {
+      timeout: 30_000,
+      timeoutMsg: 'tier 2 never listed any block',
+    })
+    await browser.waitUntil(async () => (await settledBlockStates()).length >= 5, {
       timeout: 30_000,
       timeoutMsg: 'tier 2 never listed the five blocks',
     })
@@ -117,15 +138,15 @@ describe('Story 14-6: URL import preview block tier by pointer', () => {
     expect(aimed.filter((b) => b.focused)).toHaveLength(1)
     expect(aimed[adIndex].focused).toBe(true)
     await clickAction('Loại khối này')
-    await browser.waitUntil(async () => (await blockStates())[adIndex].dropped, { timeout: 15_000 })
+    await browser.waitUntil(async () => (await settledBlockStates())[adIndex].dropped, { timeout: 15_000 })
 
     const footerIndex = startList.findIndex((b) => b.text.includes('CHANTRANG'))
     await clickBlock(adIndex + 1)
     await clickAction('Đầu vùng giữ')
     await clickBlock(footerIndex - 1)
     await clickAction('Cuối vùng giữ')
-    await browser.waitUntil(async () => (await blockStates())[footerIndex].dropped, { timeout: 15_000 })
-    const after = await blockStates()
+    await browser.waitUntil(async () => (await settledBlockStates())[footerIndex].dropped, { timeout: 15_000 })
+    const after = await settledBlockStates()
     expect(after[adIndex].dropped).toBe(true)
     expect(after.slice(adIndex + 1, footerIndex).every((b) => !b.dropped)).toBe(true)
 
@@ -134,7 +155,7 @@ describe('Story 14-6: URL import preview block tier by pointer', () => {
     await browser.waitUntil(async () => (await $(`${SCREEN} .ip-chapter-cursor-note`).getText()).includes('2/2'), {
       timeout: 15_000,
     })
-    await browser.waitUntil(async () => (await $$(`${SCREEN} ${BLOCK}`)).length >= 5, { timeout: 15_000 })
+    await browser.waitUntil(async () => (await settledBlockStates()).length >= 5, { timeout: 15_000 })
     for (const button of await $$(`${SCREEN} ${BLOCK}.ip-block-focused .ip-block-actions button`)) {
       expect(await button.isEnabled()).toBe(false)
     }
@@ -143,7 +164,7 @@ describe('Story 14-6: URL import preview block tier by pointer', () => {
       timeout: 15_000,
     })
 
-    await realClick(await $(`${SCREEN} .ip-actions .ip-act-primary`))
+    await realClick(await $(`${SCREEN} .ip-footer .ip-act-primary`))
     await $(SCREEN).waitForExist({ reverse: true, timeout: 60_000 })
 
     const chapters = await ipc('list_chapters')

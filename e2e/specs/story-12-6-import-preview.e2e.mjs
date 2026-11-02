@@ -96,6 +96,24 @@ describe('Story 12-6: import preview screens', () => {
     expect(shape.tabs).toBe(3)
     expect(shape.source).toContain('Văn bản đã dán')
 
+    const frame = await browser.execute((screenSel) => {
+      const screen = document.querySelector(screenSel)
+      const footer = screen.querySelector('footer.ip-footer')
+      const rect = footer.getBoundingClientRect()
+      return {
+        confirm: (footer.querySelector('.ip-act-primary')?.textContent || '').trim(),
+        confirmInConfig: screen.querySelector('aside.ip-config .ip-act-primary') !== null,
+        nameBox: screen.querySelector('aside.ip-config textarea[data-ip-work-name]') !== null,
+        patternBox: screen.querySelector('.ip-chapters-pattern-input') !== null,
+        footerInView: rect.top >= 0 && rect.bottom <= window.innerHeight + 1,
+      }
+    }, SCREEN)
+    expect(frame.confirm).toMatch(/^Nhập \d+ Chương/)
+    expect(frame.confirmInConfig).toBe(false)
+    expect(frame.nameBox).toBe(true)
+    expect(frame.patternBox).toBe(true)
+    expect(frame.footerInView).toBe(true)
+
     await browser.waitUntil(
       async () =>
         browser.execute(() => {

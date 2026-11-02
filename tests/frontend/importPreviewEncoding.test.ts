@@ -72,6 +72,7 @@ function chaptersFor(title: string): ImportEncodingPreview['candidates'][number]
     needs_review_count: 0,
     clean_count: 1,
     any_signal_participated: false,
+    already_chaptered: false,
   }
 }
 

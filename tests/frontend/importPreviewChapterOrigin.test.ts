@@ -88,6 +88,7 @@ function chaptersWithOrigin(chapterOrigins: ChapterOriginWire[]): ChapterSplitPr
     needs_review_count: 0,
     clean_count: chapterOrigins.length,
     any_signal_participated: false,
+    already_chaptered: false,
   }
 }
 

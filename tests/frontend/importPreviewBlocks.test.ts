@@ -132,6 +132,7 @@ function previewWithBlocks(blocks: BlockWire[]): ImportEncodingPreview {
           needs_review_count: 0,
           clean_count: 1,
           any_signal_participated: false,
+          already_chaptered: false,
         },
         blocks: blocksWire(blocks),
       },
@@ -156,6 +157,16 @@ const THREE_BLOCKS: BlockWire[] = [
   block({ body: { kind: 'paragraph', text: 'than bai may doan' }, kept: true, confirmed: false }),
   block({ body: { kind: 'caption', text: 'chu thich da xac nhan' }, kept: true, confirmed: true }),
 ]
+
+/** Fixtures start with a dropped block 0, which the overlay shows as a collapsed band:
+ * open it, then step the cursor onto block 0 so `.ip-block` indices equal wire indices. */
+async function openLeadingBand(state: {
+  toggleImportPreviewBlockKept: () => Promise<void>
+  nextImportPreviewBlock: () => void
+}): Promise<void> {
+  await state.toggleImportPreviewBlockKept()
+  state.nextImportPreviewBlock()
+}
 
 beforeAll(async () => {
   await freshOverlay()
@@ -204,6 +215,7 @@ describe('importPreviewState — Space gọi tier2BlockSetKept với ĐÚNG tham
     const urls = ['https://a.example/1']
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
     await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
+    await openLeadingBand(state)
 
     const flippedBlocks = [
       block({ body: { kind: 'paragraph', text: 'khung dieu huong' }, kept: true, confirmed: true }),
@@ -226,6 +238,7 @@ describe('importPreviewState — Space gọi tier2BlockSetKept với ĐÚNG tham
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(urls, THREE_BLOCKS), error: null })
     await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
 
+    await openLeadingBand(state)
     const err = { code: 'ipc.unknown', message_key: 'err.unknown', params: {}, retryable: false }
     tier2BlockSetKeptMock.mockResolvedValue({ batch: null, error: err })
 
@@ -534,6 +547,10 @@ describe('ImportPreviewOverlay.vue — dãy khối render đúng ba vạch lề 
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
     await wrapper.vm.$nextTick()
 
+    expect(wrapper.findAll('.ip-band')).toHaveLength(1)
+    expect(wrapper.findAll('.ip-block')).toHaveLength(2)
+    await state.toggleImportPreviewBlockKept()
+    await wrapper.vm.$nextTick()
     const rows = wrapper.findAll('.ip-block')
     expect(rows).toHaveLength(3)
     expect(rows[0]?.classes()).toContain('ip-block-dropped')
@@ -601,6 +618,8 @@ async function mountUrlOverlay(blocks: BlockWire[], chapterCount = 1) {
   startUrlImportMock.mockResolvedValue({ batch, error: null })
   await state.openImportPreviewFromUrls('Ten', 'en', '', urls, null)
   const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+  await wrapper.vm.$nextTick()
+  await openLeadingBand(state)
   await wrapper.vm.$nextTick()
   return { state, wrapper, calls }
 }
@@ -755,6 +774,8 @@ describe('ImportPreviewOverlay.vue — nút chạy qua hàm ghi thật', () => {
     startUrlImportMock.mockResolvedValue({ batch: batchWithBlocks(URLS, FIVE_BLOCKS), error: null })
     await state.openImportPreviewFromUrls('Ten', 'en', '', URLS, null)
     const wrapper = mount(ImportPreviewOverlay, { attachTo: document.body })
+    await nextTick()
+    await openLeadingBand(state)
     await nextTick()
     return { state, wrapper }
   }

@@ -147,6 +147,7 @@ function minimalPreview(chapterCount: number): ImportEncodingPreview {
       needs_review_count: 0,
       clean_count: chapterCount,
       any_signal_participated: false,
+      already_chaptered: true,
     },
   }
 }
@@ -659,6 +660,7 @@ describe('ImportPreviewOverlay.vue — bộ lọc "cần xem" co danh sách mụ
       needs_review_count: 1,
       clean_count: 4,
       any_signal_participated: true,
+      already_chaptered: true,
     }
     startUrlImportMock.mockResolvedValue({ batch, error: null })
 
