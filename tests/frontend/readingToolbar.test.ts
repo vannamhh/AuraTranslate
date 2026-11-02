@@ -162,10 +162,6 @@ describe('the toolbar chords', () => {
     expect(display('reading.toggle_bilingual')).toBeTruthy()
     expect(bilingual.text()).toBe(display('reading.toggle_bilingual'))
     expect(wrapper.find('[data-reading-toc] .ui-kbd').text()).toBe(display('reading.toc'))
-    const tuner = wrapper.find('[data-reading-toggle-tuner]')
-    expect(display('reading.toggle_tuner') ?? '').toBe('')
-    expect(tuner.find('.ui-kbd').exists()).toBe(false)
-    expect(tuner.text()).not.toContain('⌘,')
   })
 })
 
@@ -190,7 +186,8 @@ describe('the toolbar', () => {
       'data-reading-level="lg"',
       'data-reading-level="md"',
       'data-reading-level="sm"',
-      'data-reading-toggle-tuner',
+      'data-reading-font-larger',
+      'data-reading-line-looser',
       'data-reading-toggle-theme',
       'data-reading-toc',
       'data-reading-marks',
@@ -228,5 +225,94 @@ describe('the toolbar', () => {
     const button = wrapper.find('[data-reading-marks]')
     expect(button.find('b').text()).toBe('3')
     expect(button.text()).toContain(t('mode.reading.marks_button_unit'))
+  })
+})
+
+describe('the type adjusters', () => {
+  async function openTuner() {
+    wrapper = await mountReading({ ord: 1, title: null, done: 1 })
+    const state = await import('../../src/modes/readingState')
+    state.setReadingLevel('md')
+    await wrapper.vm.$nextTick()
+    return { mounted: wrapper, state }
+  }
+
+  it('sit in the toolbar with no tuner button and no panel below it', async () => {
+    wrapper = await mountReading({ ord: 1, title: null, done: 1 })
+    expect(wrapper.find('[data-reading-toggle-tuner]').exists()).toBe(false)
+    expect(wrapper.find('.tuner').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Tinh chỉnh')
+    const hooks = wrapper.findAll('.toolbar button').map((b) => Object.keys(b.attributes()).find((k) => k.startsWith('data-reading-')))
+    const level = hooks.lastIndexOf('data-reading-level')
+    expect(hooks.indexOf('data-reading-font-smaller')).toBe(level + 1)
+    expect(hooks.indexOf('data-reading-line-looser')).toBe(hooks.indexOf('data-reading-toggle-theme') - 1)
+  })
+
+  it('offers icon buttons with names instead of range sliders', async () => {
+    const { mounted } = await openTuner()
+    expect(mounted.find('input[type="range"]').exists()).toBe(false)
+    for (const hook of [
+      'data-reading-font-smaller',
+      'data-reading-font-default',
+      'data-reading-font-larger',
+      'data-reading-line-tighter',
+      'data-reading-line-default',
+      'data-reading-line-looser',
+    ]) {
+      const button = mounted.find(`.toolbar button[${hook}]`)
+      expect(button.exists(), hook).toBe(true)
+      expect(button.find('svg').exists(), hook).toBe(true)
+      expect(button.attributes('aria-label'), hook).toBeTruthy()
+    }
+  })
+
+  it('moves the font size one pixel at a time and resets to the level value', async () => {
+    const { state } = await openTuner()
+    state.stepFontSize(1)
+    expect(state.effectiveFontSize.value).toBe(18.5)
+    state.stepFontSize(-1)
+    state.stepFontSize(-1)
+    expect(state.effectiveFontSize.value).toBe(16.5)
+    state.resetFontSize()
+    expect(state.effectiveFontSize.value).toBe(17.5)
+  })
+
+  it('disables the font buttons at both ends of the range', async () => {
+    const { mounted, state } = await openTuner()
+    state.setFontSize(state.READING_FONT_SIZE_MAX)
+    await mounted.vm.$nextTick()
+    expect(mounted.find('[data-reading-font-larger]').attributes('disabled')).toBeDefined()
+    expect(mounted.find('[data-reading-font-smaller]').attributes('disabled')).toBeUndefined()
+    state.setFontSize(state.READING_FONT_SIZE_MIN)
+    await mounted.vm.$nextTick()
+    expect(mounted.find('[data-reading-font-smaller]').attributes('disabled')).toBeDefined()
+    expect(mounted.find('[data-reading-font-larger]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('steps the line box by one 7px unit between the floor and the ceiling', async () => {
+    const { mounted, state } = await openTuner()
+    expect(state.readingStyle.value.lineHeight).toBe('35px')
+    expect(mounted.find('[data-reading-line-tighter]').attributes('disabled')).toBeDefined()
+
+    state.stepLineHeight(1)
+    await mounted.vm.$nextTick()
+    expect(state.readingStyle.value.lineHeight).toBe('42px')
+    expect(mounted.find('[data-reading-line-looser]').attributes('disabled')).toBeDefined()
+    expect(mounted.find('[data-reading-line-tighter]').attributes('disabled')).toBeUndefined()
+
+    state.stepLineHeight(-1)
+    expect(state.readingStyle.value.lineHeight).toBe('35px')
+    state.stepLineHeight(1)
+    state.resetLineHeight()
+    expect(state.readingStyle.value.lineHeight).toBe('35px')
+  })
+
+  it('never takes the ratio below the floor when stepping down at a large size', async () => {
+    const { state } = await openTuner()
+    state.setFontSize(24)
+    state.setLineHeight(state.READING_LINE_HEIGHT_MAX)
+    while (state.readingLineCanTighten.value) state.stepLineHeight(-1)
+    expect(state.effectiveLineHeight.value).toBeGreaterThanOrEqual(state.READING_LINE_HEIGHT_FLOOR)
+    expect(state.readingStyle.value.lineHeight).toBe('42px')
   })
 })

@@ -463,7 +463,7 @@ PRD bàn giao mục này có chủ ý. Bound đã chốt:
 
 **Giãn dòng 1.66 là sàn cứng** — dấu tiếng Việt chồng cả trên lẫn dưới, dưới mức đó `ườ` chạm `ộ`. Lý do đầy đủ ở `DESIGN.md`.
 
-Điều khiển hai tầng: **ba preset trên thanh công cụ**, thanh trượt cỡ chữ và giãn dòng chi tiết **sau một lần bấm**. Người dịch chỉnh một lần rồi dùng mãi — nhưng FR11 bắt buộc chỉnh được nên không được giấu hẳn. 🔵 2026-10-29 (Ice): giãn dòng hiển thị nhảy theo bậc 7px (bội 7 nhỏ nhất ≥ cỡ chữ × tỉ số đã lưu, `DESIGN.md` §Lưới 7px); giá trị lưu không đổi.
+Điều khiển hai tầng: **ba preset trên thanh công cụ**, thanh trượt cỡ chữ và giãn dòng chi tiết **sau một lần bấm**. Người dịch chỉnh một lần rồi dùng mãi — nhưng FR11 bắt buộc chỉnh được nên không được giấu hẳn. 🔵 2026-10-29 (Ice): giãn dòng hiển thị nhảy theo bậc 7px (bội 7 nhỏ nhất ≥ cỡ chữ × tỉ số đã lưu, `DESIGN.md` §Lưới 7px); giá trị lưu không đổi. 🔵 2026-11-02 (Ice): bỏ nút Tinh chỉnh và khối thanh trượt; thanh công cụ có sáu nút icon, cỡ chữ `A⁻ A A⁺` mỗi bước 1px, giãn dòng mỗi bước 7px, nút giữa về mặc định; thanh trượt chi tiết còn ở Cài đặt.
 
 Mặc định **chỉ hiển thị bản dịch tiếng Việt**; công tắc song ngữ đặt nguyên văn **ở lề trái**, cỡ nhỏ, màu `on-surface-variant` — **không chen giữa dòng đọc**, vì một khối chữ Hán trên mỗi đoạn làm gãy nhịp đọc tiếng Việt. Hình nhúng hiển thị **đúng vị trí trong văn bản** (FR43). **Chú thích hiện dưới ảnh là `caption` đã dịch (FR129) — không phải alt-text.** Alt-text (FR44) cũng được dịch nhưng **không hiện trên trang**: nó là thứ trình đọc màn hình đọc lên, không phải thứ mắt nhìn. Ảnh không có caption thì **không chừa chỗ trống** dưới ảnh. Cuối trang là chuyển Chương liền mạch — đọc nhiều Chương không phải quay về Library.
 

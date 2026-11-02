@@ -125,28 +125,16 @@ describe('modes/readingState.ts::setReadingLevel — xoá tinh chỉnh đang có
 })
 
 describe('modes/readingState.ts::toggleBilingual — đổi đúng MỘT ô', () => {
-  it('đảo `readingBilingual`, không chạm `readingLevel`/`tunerOpen`', async () => {
+  it('đảo `readingBilingual`, không chạm `readingLevel`', async () => {
     const state = await import('../../src/modes/readingState')
     expect(state.readingBilingual.value).toBe(false)
 
     state.toggleBilingual()
     expect(state.readingBilingual.value).toBe(true)
     expect(state.currentReadingLevel.value).toBe('md')
-    expect(state.readingTunerOpen.value).toBe(false)
 
     state.toggleBilingual()
     expect(state.readingBilingual.value).toBe(false)
-  })
-})
-
-describe('modes/readingState.ts::toggleTuner', () => {
-  it('đảo `readingTunerOpen`', async () => {
-    const state = await import('../../src/modes/readingState')
-    expect(state.readingTunerOpen.value).toBe(false)
-    state.toggleTuner()
-    expect(state.readingTunerOpen.value).toBe(true)
-    state.toggleTuner()
-    expect(state.readingTunerOpen.value).toBe(false)
   })
 })
 
@@ -155,7 +143,6 @@ describe('modes/readingState.ts::resetReading — KHÔNG dọn ba ô tuỳ chọ
     const state = await import('../../src/modes/readingState')
     state.setReadingLevel('sm')
     state.toggleBilingual()
-    state.toggleTuner()
     state.setFontSize(20)
     state.setLineHeight(1.9)
 
@@ -164,7 +151,6 @@ describe('modes/readingState.ts::resetReading — KHÔNG dọn ba ô tuỳ chọ
     // Ba ô tuỳ chọn ứng dụng KHÔNG bị chạm — đây là tuỳ chọn ứng dụng, không theo Tác phẩm.
     expect(state.currentReadingLevel.value).toBe('sm')
     expect(state.readingBilingual.value).toBe(true)
-    expect(state.readingTunerOpen.value).toBe(true)
     expect(state.effectiveFontSize.value).toBe(20)
     expect(state.effectiveLineHeight.value).toBe(1.9)
 

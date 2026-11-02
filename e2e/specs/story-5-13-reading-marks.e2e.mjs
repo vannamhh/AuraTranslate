@@ -263,20 +263,7 @@ describe('Story 5.13 — đánh dấu chỗ cần sửa khi đang đọc', () =>
 
     await browser.keys(['Meta', '3'])
     await waitForReading()
-    const tunerButton = await $('[data-reading-toggle-tuner]')
-    await realClick(tunerButton)
-    await browser.waitUntil(
-      async () => browser.execute(() => document.querySelector('[data-reading-tuner-font-size]') !== null),
-      { timeout: 5_000, timeoutMsg: 'thanh tinh chỉnh không dựng sau khi bấm nút' },
-    )
-    const changedTypography = await browser.execute(() => {
-      const input = document.querySelector('[data-reading-tuner-font-size]')
-      if (!(input instanceof HTMLInputElement)) return false
-      input.value = '28'
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-      return true
-    })
-    await expect(changedTypography).toBe(true)
+    for (let step = 0; step < 10; step += 1) await realClick(await $('[data-reading-font-larger]'))
     const listButton = await $('[data-reading-marks]')
     await realClick(listButton)
     await browser.waitUntil(

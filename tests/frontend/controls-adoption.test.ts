@@ -34,7 +34,6 @@ const NOT_A_CONTROL: Record<string, string> = {
   'src/BilingualImportPreviewOverlay.vue .bip-candidate': 'encoding candidate card keeping the mockup web-import.html .candrow shape; DESIGN §Điều khiển has no card control, the label only adds ui-check so the radio is token-drawn',
   'src/SettingsOverlay.vue .set-nav-item': 'section navigation row with a left-edge mark (mockup settings.html .nav a); DESIGN §Điều khiển has no navigation row control',
   'src/SettingsReadingSection.vue .sr-range': 'native range slider; DESIGN §Điều khiển has no slider control',
-  'src/modes/ReadingMode.vue .tuner-range': 'native range slider; DESIGN §Điều khiển has no slider control',
   'src/GlossaryConfirmStrip.vue .gcs-option': 'multi-part suggestion row with key hint, source label and a left-edge mark; precedent pfmem-row and pl-row, ui-btn is nowrap and would clip the text',
   'src/panels/LookupPanel.vue .lookup-char': 'inline link inside a sentence; DESIGN §Điều khiển has no link control',
   'src/panels/LookupPanel.vue .lookup-concordance-pointer': 'inline link inside a sentence; DESIGN §Điều khiển has no link control',

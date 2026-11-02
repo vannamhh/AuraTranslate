@@ -7,6 +7,7 @@ import {
   READING_FONT_SIZE_MAX,
   READING_FONT_SIZE_MIN,
   READING_LINE_HEIGHT_FLOOR,
+  READING_LINE_HEIGHT_MAX,
   currentReadingLevel,
   effectiveFontSize,
   effectiveLineHeight,
@@ -101,7 +102,7 @@ function onLineHeightInput(event: Event): void {
         class="sr-range"
         data-settings-reading-line-height
         :min="READING_LINE_HEIGHT_FLOOR"
-        max="2.4"
+        :max="READING_LINE_HEIGHT_MAX"
         step="0.01"
         :value="effectiveLineHeight"
         @input="onLineHeightInput($event)"

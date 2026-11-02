@@ -27,13 +27,14 @@ import { currentTheme } from '../tokens/themeState'
 import {
   currentReadingLevel,
   clearReadingAim,
-  effectiveFontSize,
-  effectiveLineHeight,
   ensureReadingLoaded,
-  READING_LINE_HEIGHT_FLOOR,
   readingBilingual,
   readingChaptersDone,
   readingCurrentChapter,
+  readingFontCanGrow,
+  readingFontCanShrink,
+  readingLineCanLoosen,
+  readingLineCanTighten,
   readingAnchorSegmentId,
   readingRun,
   readingLoadError,
@@ -54,17 +55,15 @@ import {
   readingTocError,
   readingTocHaveLoaded,
   readingTocOpen,
-  readingTunerOpen,
   resetReading,
   setReadingAnchor,
-  setFontSize,
-  setLineHeight,
   setReadingAim,
   setReadingMarksCursor,
 } from './readingState'
 import { readingOriginLabel } from './readingOrigin'
 import { commandTitle, shortcutRows } from '../config/shortcutsState'
 import type { ReadingChapter, ReadingFrontierChapter, ReadingImage, ReadingParagraph, ReadingSegment } from '../config/reading'
+import AppIcon from '../AppIcon.vue'
 import ChapterImage from '../ChapterImage.vue'
 import ReadingLookupPopup from './ReadingLookupPopup.vue'
 import { readingLookupAnchor, resetReadingLookup } from './readingLookupState'
@@ -377,13 +376,6 @@ const statusMessage = computed(() => {
   }
 })
 
-function onFontSizeInput(event: Event): void {
-  setFontSize(Number((event.target as HTMLInputElement).value))
-}
-function onLineHeightInput(event: Event): void {
-  setLineHeight(Number((event.target as HTMLInputElement).value))
-}
-
 /**
  * Nhãn "Chương {ord}" cho một hàng chưa đặt tên.
  *
@@ -638,17 +630,74 @@ function paragraphRuns(
         <!-- aura-allow-text: chord displays from the shortcut registry. -->
         <span v-if="levelChords !== ''" class="ui-kbd">{{ levelChords }}</span>
       </span>
-      <button
-        type="button"
-        class="ui-btn ui-btn--quiet"
-        data-reading-toggle-tuner
-        :aria-pressed="readingTunerOpen"
-        @click="dispatch('reading.toggle_tuner')"
-      >
-        {{ t('mode.reading.tuner') }}
-        <!-- aura-allow-text: chord display from the shortcut registry. -->
-        <span v-if="chordOf('reading.toggle_tuner') !== ''" class="ui-kbd">{{ chordOf('reading.toggle_tuner') }}</span>
-      </button>
+      <span class="type-group" role="group" :aria-label="t('mode.reading.tuner_font_size')">
+        <button
+          type="button"
+          class="ui-icon-btn"
+          data-reading-font-smaller
+          :disabled="!readingFontCanShrink"
+          :aria-label="t('command.reading.font_smaller')"
+          :title="commandTitle('reading.font_smaller')"
+          @click="dispatch('reading.font_smaller')"
+        >
+          <AppIcon name="font-smaller" />
+        </button>
+        <button
+          type="button"
+          class="ui-icon-btn"
+          data-reading-font-default
+          :aria-label="t('command.reading.font_default')"
+          :title="commandTitle('reading.font_default')"
+          @click="dispatch('reading.font_default')"
+        >
+          <AppIcon name="font-default" />
+        </button>
+        <button
+          type="button"
+          class="ui-icon-btn"
+          data-reading-font-larger
+          :disabled="!readingFontCanGrow"
+          :aria-label="t('command.reading.font_larger')"
+          :title="commandTitle('reading.font_larger')"
+          @click="dispatch('reading.font_larger')"
+        >
+          <AppIcon name="font-larger" />
+        </button>
+      </span>
+      <span class="type-group" role="group" :aria-label="t('mode.reading.tuner_line_height')">
+        <button
+          type="button"
+          class="ui-icon-btn"
+          data-reading-line-tighter
+          :disabled="!readingLineCanTighten"
+          :aria-label="t('command.reading.line_tighter')"
+          :title="commandTitle('reading.line_tighter')"
+          @click="dispatch('reading.line_tighter')"
+        >
+          <AppIcon name="line-tighter" />
+        </button>
+        <button
+          type="button"
+          class="ui-icon-btn"
+          data-reading-line-default
+          :aria-label="t('command.reading.line_default')"
+          :title="commandTitle('reading.line_default')"
+          @click="dispatch('reading.line_default')"
+        >
+          <AppIcon name="line-default" />
+        </button>
+        <button
+          type="button"
+          class="ui-icon-btn"
+          data-reading-line-looser
+          :disabled="!readingLineCanLoosen"
+          :aria-label="t('command.reading.line_looser')"
+          :title="commandTitle('reading.line_looser')"
+          @click="dispatch('reading.line_looser')"
+        >
+          <AppIcon name="line-looser" />
+        </button>
+      </span>
       <button
         type="button"
         class="ui-btn ui-btn--quiet"
@@ -705,35 +754,6 @@ function paragraphRuns(
     <!-- aura-allow-text: lỗi marker đi qua tError; đặt cạnh toolbar để một lỗi ghi ở đầu
          Tác phẩm dài không nằm im ngoài viewport tận sau mốc biên. -->
     <p class="marker-error" role="status">{{ readingMarkerError === null ? '' : tError(readingMarkerError) }}</p>
-
-    <div v-if="readingTunerOpen" class="tuner">
-      <label class="tuner-row">
-        <span>{{ t('mode.reading.tuner_font_size') }}</span>
-        <input
-          type="range"
-          class="tuner-range"
-          data-reading-tuner-font-size
-          min="14"
-          max="28"
-          step="0.5"
-          :value="effectiveFontSize"
-          @input="onFontSizeInput"
-        />
-      </label>
-      <label class="tuner-row">
-        <span>{{ t('mode.reading.tuner_line_height') }}</span>
-        <input
-          type="range"
-          class="tuner-range"
-          data-reading-tuner-line-height
-          :min="READING_LINE_HEIGHT_FLOOR"
-          max="2.4"
-          step="0.01"
-          :value="effectiveLineHeight"
-          @input="onLineHeightInput"
-        />
-      </label>
-    </div>
 
     <!-- role="status" LUÔN có mặt, không v-if trên chính node -- TÁM nhánh phân biệt
          được qua `data-reading-status`, không chỉ qua chữ hiển thị.
@@ -1132,21 +1152,9 @@ function paragraphRuns(
   color: var(--color-tm-text);
 }
 
-.tuner {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-panel-inline);
-  margin-bottom: var(--space-panel-block);
-}
-
-.tuner-row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-unit);
-  font-size: var(--font-ui-sm);
-  line-height: var(--leading-ui-sm);
-  font-family: var(--face-ui-sm);
-  color: var(--color-on-surface-variant);
+.type-group {
+  display: inline-flex;
+  margin: 0 calc(var(--space-unit) * -1);
 }
 
 .status {

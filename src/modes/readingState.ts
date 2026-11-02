@@ -614,6 +614,7 @@ export type ReadingLevel = 'lg' | 'md' | 'sm'
 /** Sàn cứng của giãn dòng — DESIGN.md §Giãn dòng 1.66 là sàn cứng, và `check:tokens` Kiểm
  * E KHÔNG canh được giá trị lúc chạy (chỉ đọc `tokens.json`) — đây là lưới DUY NHẤT. */
 export const READING_LINE_HEIGHT_FLOOR = 1.66
+export const READING_LINE_HEIGHT_MAX = 2.4
 
 /**
  * Dải cỡ chữ của thanh trượt tinh chỉnh. ⚠️ **Hai hằng, không hai chuỗi viết thẳng trong
@@ -623,6 +624,7 @@ export const READING_LINE_HEIGHT_FLOOR = 1.66
  */
 export const READING_FONT_SIZE_MIN = 14
 export const READING_FONT_SIZE_MAX = 28
+const READING_FONT_SIZE_STEP = 1
 
 const TYPOGRAPHY_KEYS: Record<ReadingLevel, TypographyToken> = {
   lg: 'read-lg',
@@ -637,7 +639,6 @@ const MEASURE_KEYS: Record<ReadingLevel, keyof typeof tokens.spacing> = {
 
 const readingLevel = ref<ReadingLevel>('md')
 const bilingual = ref(false)
-const tunerOpen = ref(false)
 /** `null` ⇒ dùng nguyên giá trị của `readingLevel`, chưa ai tinh chỉnh. */
 const fontSizeOverride = ref<number | null>(null)
 /** `null` ⇒ dùng nguyên giá trị của `readingLevel`. Luôn ≥ [`READING_LINE_HEIGHT_FLOOR`]
@@ -646,7 +647,6 @@ const lineHeightOverride = ref<number | null>(null)
 
 export const currentReadingLevel: DeepReadonly<Ref<ReadingLevel>> = readonly(readingLevel)
 export const readingBilingual: DeepReadonly<Ref<boolean>> = readonly(bilingual)
-export const readingTunerOpen: DeepReadonly<Ref<boolean>> = readonly(tunerOpen)
 
 /**
  * Đặt mức chữ — bấm một trong ba preset. Xoá MỌI tinh chỉnh đang có: một preset phải mang
@@ -662,10 +662,6 @@ export function setReadingLevel(level: ReadingLevel): void {
 export function toggleBilingual(): void {
   bilingual.value = !bilingual.value
   persistReadingPreferences()
-}
-
-export function toggleTuner(): void {
-  tunerOpen.value = !tunerOpen.value
 }
 
 /**
@@ -712,6 +708,38 @@ const LINE_GRID_PX = 7
 function gridLineHeightPx(fontSizePx: number, ratio: number): number {
   // A token ratio is px / size, so size × ratio can land a hair above its own multiple of 7.
   return LINE_GRID_PX * Math.ceil((fontSizePx * ratio) / LINE_GRID_PX - 1e-9)
+}
+
+export const readingFontCanShrink: ComputedRef<boolean> = computed(() => effectiveFontSize.value > READING_FONT_SIZE_MIN)
+export const readingFontCanGrow: ComputedRef<boolean> = computed(() => effectiveFontSize.value < READING_FONT_SIZE_MAX)
+
+const currentLineBoxPx = computed(() => gridLineHeightPx(effectiveFontSize.value, effectiveLineHeight.value))
+
+export const readingLineCanTighten: ComputedRef<boolean> = computed(
+  () => gridLineHeightPx(effectiveFontSize.value, READING_LINE_HEIGHT_FLOOR) < currentLineBoxPx.value,
+)
+export const readingLineCanLoosen: ComputedRef<boolean> = computed(
+  () => gridLineHeightPx(effectiveFontSize.value, READING_LINE_HEIGHT_MAX) > currentLineBoxPx.value,
+)
+
+export function stepFontSize(direction: 1 | -1): void {
+  setFontSize(effectiveFontSize.value + direction * READING_FONT_SIZE_STEP)
+}
+
+export function resetFontSize(): void {
+  fontSizeOverride.value = null
+  persistReadingPreferences()
+}
+
+/** One step is one 7px line box, because a smaller change of the ratio draws nothing. */
+export function stepLineHeight(direction: 1 | -1): void {
+  const target = currentLineBoxPx.value + direction * LINE_GRID_PX
+  setLineHeight(Math.min(READING_LINE_HEIGHT_MAX, target / effectiveFontSize.value))
+}
+
+export function resetLineHeight(): void {
+  lineHeightOverride.value = null
+  persistReadingPreferences()
 }
 
 /**
@@ -862,7 +890,6 @@ export function initReadingPreferencesFromBootstrap(raw: string): void {
 export function resetReadingPreferences(): void {
   readingLevel.value = 'md'
   bilingual.value = false
-  tunerOpen.value = false
   fontSizeOverride.value = null
   lineHeightOverride.value = null
   clearReadingPreferencesTimer()

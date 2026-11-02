@@ -1271,9 +1271,12 @@ export type CommandDeps = {
   setReadingLevelBalanced?: () => void
   /** Mức Đặc (76ch/16px/1.66). Handler của `reading.level_dense` (`3`). */
   setReadingLevelDense?: () => void
-  /** Mở/đóng khối tinh chỉnh cỡ chữ · giãn dòng. Handler của `reading.toggle_tuner` —
-   * **không hợp âm mặc định** (§Design Notes: `⌘,` thuộc `settings.open`). */
-  toggleReadingTuner?: () => void
+  readingFontSmaller?: () => void
+  readingFontDefault?: () => void
+  readingFontLarger?: () => void
+  readingLineTighter?: () => void
+  readingLineDefault?: () => void
+  readingLineLooser?: () => void
   /** Đảo sáng ↔ tối. Handler của `reading.toggle_theme` (`D`) — TOÀN ứng dụng, không chỉ
    * Chế độ đọc (`src/tokens/themeState.ts::toggleTheme`). */
   toggleReadingTheme?: () => void
@@ -2603,9 +2606,7 @@ function registerAll(target: Registry, deps: CommandDeps): void {
    * Sáu phím TRẦN (`B` · `1` · `2` · `3` · `D` cộng hợp âm `Mod+L`) — UX-DR46. `keys.ts`
    * đã có luật vùng gõ (`isTypingZone`) chặn chúng trong mọi `INPUT`/`TEXTAREA`/`SELECT`/
    * `contenteditable`, và phím TRẦN là TOÀN ỨNG DỤNG (không phạm vi theo chế độ — xem
-   * §Design Notes "Phím trần là TOÀN ỨNG DỤNG" của story). `reading.toggle_tuner` **không**
-   * hợp âm mặc định: `⌘,` thuộc `settings.open`, và đó là một quyết định của Ice —
-   * xem §Design Notes.
+   * §Design Notes "Phím trần là TOÀN ỨNG DỤNG" của story).
    */
   target.register({
     id: 'reading.toggle_bilingual',
@@ -2646,14 +2647,57 @@ function registerAll(target: Registry, deps: CommandDeps): void {
     },
   })
   target.register({
-    id: 'reading.toggle_tuner',
-    labelKey: 'command.reading.toggle_tuner',
-    // 🔴 KHÔNG hợp âm mặc định — §Design Notes "⌘, thuộc settings.open". Nút trên thanh công cụ là
-    // đường vào chính; Tab + Enter/Space phủ NFR17.
+    id: 'reading.font_smaller',
+    labelKey: 'command.reading.font_smaller',
     keys: undefined,
     run: () => {
-      if (deps.toggleReadingTuner === undefined) return portMissing('reading.toggle_tuner', 'toggleReadingTuner')
-      deps.toggleReadingTuner()
+      if (deps.readingFontSmaller === undefined) return portMissing('reading.font_smaller', 'readingFontSmaller')
+      deps.readingFontSmaller()
+    },
+  })
+  target.register({
+    id: 'reading.font_default',
+    labelKey: 'command.reading.font_default',
+    keys: undefined,
+    run: () => {
+      if (deps.readingFontDefault === undefined) return portMissing('reading.font_default', 'readingFontDefault')
+      deps.readingFontDefault()
+    },
+  })
+  target.register({
+    id: 'reading.font_larger',
+    labelKey: 'command.reading.font_larger',
+    keys: undefined,
+    run: () => {
+      if (deps.readingFontLarger === undefined) return portMissing('reading.font_larger', 'readingFontLarger')
+      deps.readingFontLarger()
+    },
+  })
+  target.register({
+    id: 'reading.line_tighter',
+    labelKey: 'command.reading.line_tighter',
+    keys: undefined,
+    run: () => {
+      if (deps.readingLineTighter === undefined) return portMissing('reading.line_tighter', 'readingLineTighter')
+      deps.readingLineTighter()
+    },
+  })
+  target.register({
+    id: 'reading.line_default',
+    labelKey: 'command.reading.line_default',
+    keys: undefined,
+    run: () => {
+      if (deps.readingLineDefault === undefined) return portMissing('reading.line_default', 'readingLineDefault')
+      deps.readingLineDefault()
+    },
+  })
+  target.register({
+    id: 'reading.line_looser',
+    labelKey: 'command.reading.line_looser',
+    keys: undefined,
+    run: () => {
+      if (deps.readingLineLooser === undefined) return portMissing('reading.line_looser', 'readingLineLooser')
+      deps.readingLineLooser()
     },
   })
   target.register({

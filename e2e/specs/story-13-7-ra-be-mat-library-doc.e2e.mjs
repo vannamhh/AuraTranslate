@@ -169,11 +169,10 @@ describe('Library, Work page and Reading mode on the 7px grid', () => {
 
     it('at 21px the slider ratios 2.34, 2.37 and 2.4 draw a 56px line box', async () => {
       await browser.keys(['2'])
-      await realClick(await $('[data-reading-toggle-tuner]'))
-      await browser.waitUntil(async () => browser.execute(() => document.querySelector('[data-reading-tuner-font-size]') !== null), {
-        timeout: 5_000,
-        timeoutMsg: 'the tuner never opened',
-      })
+      await realClick(await $('[data-settings-open]'))
+      await realClick(await $('[data-tools-item="settings.open"]'))
+      await realClick(await $('[data-settings-section="reading"]'))
+      await $('[data-settings-reading-font-size]').waitForExist({ timeout: 10_000 })
       const set = (selector, value) =>
         browser.execute(
           (sel, v) => {
@@ -184,15 +183,15 @@ describe('Library, Work page and Reading mode on the 7px grid', () => {
           selector,
           value,
         )
-      await set('[data-reading-tuner-font-size]', 21)
+      await set('[data-settings-reading-font-size]', 21)
       for (const ratio of [2.34, 2.37, 2.4]) {
-        await set('[data-reading-tuner-line-height]', ratio)
+        await set('[data-settings-reading-line-height]', ratio)
         await browser.waitUntil(
           async () =>
             browser.execute(
               (r) =>
                 getComputedStyle(document.querySelector('.column')).fontSize === '21px' &&
-                Math.abs(Number(document.querySelector('[data-reading-tuner-line-height]').value) - r) <= 0.005,
+                Math.abs(Number(document.querySelector('[data-settings-reading-line-height]').value) - r) <= 0.005,
               ratio,
             ),
           { timeout: 5_000, timeoutMsg: `the tuner did not apply 21px and ratio ${ratio}` },
@@ -200,6 +199,7 @@ describe('Library, Work page and Reading mode on the 7px grid', () => {
         const m = await measure()
         expect(Math.abs(m.lineBox - 56)).toBeLessThanOrEqual(0.01)
       }
+      await browser.keys(['Escape'])
     })
   })
 })

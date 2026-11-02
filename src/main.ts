@@ -447,8 +447,11 @@ import {
   prevReadingMark,
   prevTocChapter,
   toggleBilingual,
+  resetFontSize,
+  resetLineHeight,
   setReadingLevel,
-  toggleTuner,
+  stepFontSize,
+  stepLineHeight,
 } from './modes/readingState'
 import { toggleTheme } from './tokens/themeState'
 
@@ -738,7 +741,12 @@ async function boot(): Promise<void> {
       setReadingLevelAiry: () => setReadingLevel('lg'),
       setReadingLevelBalanced: () => setReadingLevel('md'),
       setReadingLevelDense: () => setReadingLevel('sm'),
-      toggleReadingTuner: toggleTuner,
+      readingFontSmaller: () => stepFontSize(-1),
+      readingFontDefault: resetFontSize,
+      readingFontLarger: () => stepFontSize(1),
+      readingLineTighter: () => stepLineHeight(-1),
+      readingLineDefault: resetLineHeight,
+      readingLineLooser: () => stepLineHeight(1),
       toggleReadingTheme: toggleTheme,
       openReadingToc: () => {
         void openTableOfContents()

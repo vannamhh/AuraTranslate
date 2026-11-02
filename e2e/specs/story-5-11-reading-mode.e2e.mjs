@@ -116,11 +116,6 @@ describe('Story 5.11 — Chế độ đọc: typography và bố cục đọc d�
     // `2` trần trước để tường minh đang ở mức Cân (mặc định lúc mở, nhưng nêu rõ chứ không
     // ngầm định) — xem §Design Notes ngay đầu tệp cho lý do KHÔNG so hai preset khác nhau.
     await browser.keys(['2'])
-    await realClick(await $('[data-reading-toggle-tuner]'))
-    await browser.waitUntil(async () => browser.execute(() => document.querySelector('[data-reading-tuner-font-size]') !== null), {
-      timeout: 5_000,
-      timeoutMsg: 'khoi tinh chinh khong mo sau khi bam nut',
-    })
 
     const probe = () =>
       browser.execute(() => {
@@ -147,12 +142,7 @@ describe('Story 5.11 — Chế độ đọc: typography và bố cục đọc d�
 
     const beforeTune = await probe()
 
-    // Kéo thanh trượt cỡ chữ lên 22px (khuôn ví dụ của Design Notes: "17,5px → 22px").
-    await browser.execute(() => {
-      const input = document.querySelector('[data-reading-tuner-font-size]')
-      input.value = '22'
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-    })
+    for (let step = 0; step < 5; step += 1) await realClick(await $('[data-reading-font-larger]'))
 
     const afterTune = await probe()
     console.log('[5.11 DIAG] before =', JSON.stringify(beforeTune))
@@ -169,9 +159,6 @@ describe('Story 5.11 — Chế độ đọc: typography và bố cục đọc d�
     await expect(charsPerLineBefore).toBeLessThan(68 + 7 / beforeTune.chPx)
     await expect(charsPerLineAfter).toBeGreaterThanOrEqual(68 - 0.01)
     await expect(charsPerLineAfter).toBeLessThan(68 + 7 / afterTune.chPx)
-
-    // Đóng khối tinh chỉnh lại — không để nó che phần còn lại của trang cho các mệnh đề sau.
-    await realClick(await $('[data-reading-toggle-tuner]'))
 
     // ── ④ Song ngữ: nguyên văn ở lề TRÁI, cột đọc GIỮ NGUYÊN bề rộng khi đủ chỗ ─────────────────
     const widthBeforeBilingual = await browser.execute(() => document.querySelector('.column').getBoundingClientRect().width)

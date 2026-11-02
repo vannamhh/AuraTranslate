@@ -11,6 +11,12 @@ export type AppIconName =
   | 'layout-top'
   | 'review'
   | 'search'
+  | 'font-smaller'
+  | 'font-default'
+  | 'font-larger'
+  | 'line-tighter'
+  | 'line-default'
+  | 'line-looser'
 
 defineProps<{ name: AppIconName }>()
 </script>
@@ -77,6 +83,47 @@ defineProps<{ name: AppIconName }>()
       stroke-width="1.5"
       stroke-linecap="round"
       stroke-linejoin="round"
+    />
+    <g
+      v-else-if="name === 'font-smaller' || name === 'font-larger'"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M1.5 14L6 4.5l4.5 9.5M3.2 10.75h5.6" />
+      <path d="M11 3.5h4" />
+      <path v-if="name === 'font-larger'" d="M13 1.5v4" />
+    </g>
+    <path
+      v-else-if="name === 'font-default'"
+      d="M2.5 14.5L8 2l5.5 12.5M4.5 10.25h7"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.6"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <g
+      v-else-if="name === 'line-tighter' || name === 'line-looser'"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.4"
+      stroke-linecap="round"
+    >
+      <path v-if="name === 'line-tighter'" d="M1.5 6.5h8M1.5 9.5h8M1.5 12.5h8" />
+      <path v-else d="M1.5 3.5h8M1.5 8h8M1.5 12.5h8" />
+      <path d="M11 3.5h4" />
+      <path v-if="name === 'line-looser'" d="M13 1.5v4" />
+    </g>
+    <path
+      v-else-if="name === 'line-default'"
+      d="M2 3.5h12M2 8h12M2 12.5h12"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.6"
+      stroke-linecap="round"
     />
     <template v-else-if="name === 'search'">
       <circle cx="6.75" cy="6.75" r="4.75" fill="none" stroke="currentColor" stroke-width="1.4" />
