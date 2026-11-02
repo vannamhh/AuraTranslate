@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -46,7 +46,8 @@ describe('releaseVersionProblems', () => {
     const bad = spawnSync(process.execPath, ['scripts/check-release-version.mjs', 'v0.1.0', '--root', root], { encoding: 'utf8' })
     expect(bad.status).toBe(1)
     expect(bad.stderr).toContain('src-tauri/tauri.conf.json')
-    const good = spawnSync(process.execPath, ['scripts/check-release-version.mjs', 'v0.1.0'], { encoding: 'utf8' })
+    const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }
+    const good = spawnSync(process.execPath, ['scripts/check-release-version.mjs', `v${version}`], { encoding: 'utf8' })
     expect(good.status).toBe(0)
   })
 })
