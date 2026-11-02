@@ -306,7 +306,7 @@ const senseTotalKey = computed(() =>
  * ĐỎ, đúng thứ AD-34 tồn tại để chặn. `ornament` là màu của nét (UX-DR5), không của chữ.
  */
 .lookup-entry-headword {
-  margin: 0 0 7px 0;
+  margin: 0;
   font-family: var(--face-lookup-gloss);
   font-size: var(--font-lookup-gloss);
   line-height: var(--leading-lookup-gloss);

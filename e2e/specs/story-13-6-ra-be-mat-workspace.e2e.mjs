@@ -90,7 +90,7 @@ describe('Workspace surfaces on the 7px grid', () => {
       const ran = await browser.execute(async () => {
         try {
           const mod = await import('/src/panels/lookupPanelState.ts')
-          await mod.runLookup('学习')
+          await mod.runLookup('山丹')
           return true
         } catch {
           return false
@@ -122,7 +122,7 @@ describe('Workspace surfaces on the 7px grid', () => {
             .map((el) => el.getBoundingClientRect().height),
         )
       let heights = await measure()
-      for (const query of ['行', '长', '了', '为', '得', '重']) {
+      for (const query of ['山', '行', '长', '了', '为', '得', '重']) {
         if (heights.length > 0) break
         await browser.execute(async (q) => {
           const mod = await import('/src/panels/lookupPanelState.ts')

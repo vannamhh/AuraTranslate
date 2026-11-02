@@ -13886,6 +13886,8 @@ chính nó.
 - `panel-toggle-mouse` đỏ khi không chạy đầu tiên trên máy Ice: `ensureFullLayoutTier` không lặp lại được cùng cỡ, cửa sổ 5000 px lúc chụp `before` rồi 10000 px sau tải lại, hai lần đo khác cỡ. Tỉ lệ panel đúng, CI xanh vì cửa sổ kẹp theo màn hình.
   Cần: spec chụp `before` và `after` ở cùng cỡ cửa sổ.
   Chủ: Ice. Trỏ: `e2e/support/layoutTier.mjs`, `plan-nightly-e2e-xanh.md` §Implementation Notes.
+  → 🟡 2026-11-02: giữ nguyên cỡ cửa sổ không đủ; từ vị trí 21 của trọn bộ, sau `location.reload()` lớp `tauri-service` báo `core.invoke not available after 5s timeout` ở mỗi lệnh nên menu không mở kịp, tức lỗi bộ chạy test. Chờ thêm 500 ms không đỡ. Tái hiện bằng 21 spec đầu, 4 phút; 2 spec thì xanh. CI vẫn xanh. **Chủ: Ice.**
 - Khối nguồn ở Tra cứu không là bội 7 với từ điển thật: 664, 879, 1394 px ở panel 2453 px, `story-13-6-ra-be-mat-workspace` đỏ khi không chạy đầu tiên, xanh khi chạy riêng. CI `skip` ca này vì fixture không có khối từ 2 mục, nên lỗi không lộ ở nightly.
   Cần: truy vì sao chiều cao lệch, rồi cho fixture một khối 2 mục để ca không còn `skip`.
   Chủ: Ice. Trỏ: `e2e/specs/story-13-6-ra-be-mat-workspace.e2e.mjs`:138.
+  → ✅ ĐÃ ĐÓNG 2026-11-02 (`plan-nightly-e2e-xanh`): `.lookup-entry-headword` có lề dưới 7px trong hàng flex căn baseline làm hàng đầu mục cao 30 thay vì 28; bỏ lề thì khối thành bội 7, đối chứng đỏ khi trả lề về. Spec tra `山丹` và `山`, cả hai có trong fixture nên CI hết `skip`.
