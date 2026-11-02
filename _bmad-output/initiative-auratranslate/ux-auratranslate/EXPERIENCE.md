@@ -179,6 +179,8 @@ Hệ thống **không bao giờ tự coi một câu là xong**. Khớp TM 100% v
 
 > 🔵 *(Sửa 2026-09-15 qua `correct-course` — "lần nhập nhiều link" đã hẹp hơn AC Story 6.10, vốn áp cho **mọi** lần nhập nhiều Chương: tệp, dán tay, URL. Story 6.16b mở sang đường song ngữ. Nguyên nhân *link hỏng* chỉ có nghĩa trên đường URL, và *bóc ra ngắn bất thường* chỉ trên đường có bước bóc nội dung.)*
 
+> 🔵 **2026-11-02:** *"luôn hiện cả hai con số"* chỉ áp khi lượt nhập có từ hai Chương; lượt một Chương ẩn bộ đếm. Xem *§Bố cục: cột cấu hình, cột văn bản, chân dính*.
+
 > 🔵 *(Nới 2026-09-08 qua `correct-course` — thêm nguyên nhân thứ năm, khớp UX-DR29 trong `epics.md` và FR132 trong `prd.md`. Một Chương **không đo được** một dấu hiệu thì không được đếm là *sạch* dựa trên dấu hiệu ấy: AD-39 đặt bước chuẩn hoá và bước làm sạch TRƯỚC bước tách Chương, nên trên đường tệp/dán tay chỉ Chương đầu có số đếm thật. Màn hình phải phân biệt được **chưa đo** với **đã đo và sạch**.)*
 
 **Đã lưu** — thanh trạng thái ghi "Đã lưu N giây trước". Không hộp thoại, không dấu chấm "chưa lưu" gây lo lắng: NFR18 bảo đảm mất tối đa 5 giây.
@@ -334,6 +336,34 @@ Ba tầng nằm trên **một** màn hình, xếp dọc theo đúng thứ tự c
 **Bảng mã đứng trên cùng vì bảng mã sai thì mọi thứ dưới nó vô nghĩa** — bóc nội dung trên chữ rác, luật khớp vào chữ rác. Đặt nó xuống dưới hay giấu vào Cài đặt sẽ khiến người dùng ngồi sửa ranh giới trên một văn bản đã hỏng. Chuẩn hoá xuống dòng và khoảng trắng (FR125) không có tầng riêng: nó chạy ngầm và kết quả là thứ ba tầng trên đang hiển thị.
 
 Không có nút *"Tiếp theo"* giữa các tầng. Đổi bảng mã ở tầng 1 thì tầng 2 và 3 dựng lại **ngay, trong bộ nhớ** — chưa segment nào tồn tại nên không có gì phải cho về hưu (AD-39). Đây chính là cách thoả điều kiện nghiệm thu *"sửa được mà không phải nhập lại từ đầu"* của FR126.
+
+> 🔵 **2026-11-02 (Ice chọn Phương án 1):** ba tầng không còn xếp dọc trên một dòng chảy. Thứ tự nhân quả giữ nguyên **trong cột cấu hình** (bảng mã trên luật làm sạch), còn tầng 2 thành cột văn bản. Lý do và bố cục ở mục *Bố cục: cột cấu hình, cột văn bản, chân dính* ngay dưới.
+
+### Bố cục: cột cấu hình, cột văn bản, chân dính
+
+*(Mục bổ sung 2026-11-02. Ice: "phải kéo mãi mới tới cuối trang để nhập 1 chương". Mockup [`mockups/import-preview-gon.html`](mockups/import-preview-gon.html) đặt hiện trạng dựng lại và hai phương án cạnh nhau.)*
+
+Một bài epochtimes.com bóc ra 301 khối (67 giữ · 234 loại). Bố cục dọc vẽ đủ 301 khối, in lại ~4 KiB văn bản ở tầng luật, rồi mới tới nút xác nhận. Trên mockup ở khung 1280×860 (WebKit Playwright, chưa đo app thật): phải cuộn **18 955 px** mới thấy nút; bố cục dưới đây **0 px**, 67 khối hiện ra thay vì 301. Phương án 2 (một cột thu gọn, giữ thứ tự dọc, thanh nhảy tầng) cũng ra 0 px; Ice chọn Phương án 1 vì sửa luật, xuất xứ hay bảng mã mà mắt vẫn ở trên văn bản.
+
+Áp cho mọi đường nhập (URL, tệp, dán tay) — đường URL thôi bị ép một cột.
+
+| Vùng | Chứa | Hành vi |
+|---|---|---|
+| **Cột cấu hình** (trái, ~344 px) | Nguồn (link/tệp, Bỏ) · Đưa vào (Tác phẩm mới/đã có) · tên Tác phẩm · ngôn ngữ nguồn · Bảng mã · Luật làm sạch · Xuất xứ (bốn trường xếp dọc) | Dính đầu khi cột văn bản cuộn; dài hơn khung thì tự cuộn riêng |
+| **Cột văn bản** (phải) | Tầng 2: dãy khối của Chương đang chọn, có biên `[` `]` | Cuộn theo trang |
+| **Chân dính** | *Sẽ tạo N Chương · số ký tự · ~ứng viên Glossary · trạng thái ban đầu* · *Chưa ghi gì xuống đĩa · Đã gọi N domain · xem* · `Huỷ` · `Nhập N Chương ⌥⌘↵` | Luôn hiện, ở mọi vị trí cuộn |
+
+**Tên Tác phẩm cao theo nội dung, không cuộn trong ô** (Ice 2026-11-02). Tiêu đề bài báo thường dài hai đến bốn dòng; một ô cuộn giấu đúng phần người dùng cần đọc lại trước khi tạo Tác phẩm.
+
+**Khối loại liền nhau gộp thành một dải:** *`▸ 98 khối đã loại` · loại nội dung · vài chữ đầu · Mở*. Mở dải thì từng khối hiện với `Giữ khối này`. J/K đi qua dải như một khối, dải đang nhắm mở bằng `Space`. Khối giữ luôn hiện đủ. Đây là thứ đưa số khối vẽ ra từ 301 về 67.
+
+**Tầng sạch thu thành một dòng.** Bảng mã tin cậy cao: *`UTF-8 · tin cậy cao · Đổi E`*; dải năm ứng viên chỉ tự mở khi tin cậy thấp (giữ nguyên *Lỗi bảng mã tự lộ ra bằng mắt*). Luật làm sạch **không in lại văn bản**: chỗ bị xoá gạch ngang ngay trong khối ở cột văn bản, đúng câu đã viết ở *Luật làm sạch hiện thứ sắp bị xoá*.
+
+**Nhiều Chương:** con trỏ Chương (`⌥←` `⌥→`), bộ đếm *cần xem / sạch* và `⌥W` đứng ở đầu cột văn bản như [`mockups/web-import.html`](mockups/web-import.html); danh sách Chương mở được từ đó. **Một Chương:** cả khối Tách Chương ẩn, chân dính đã nói *Sẽ tạo 1 Chương*. 🔵 2026-11-02: câu *"bộ đếm luôn hiện cả hai con số"* ở mục *Trạng thái một Chương* nay chỉ áp khi lượt nhập có từ hai Chương.
+
+**Một tiêu đề, một câu.** *Xuất xứ tài liệu* in một lần; *chưa ghi gì xuống đĩa* chỉ ở chân dính.
+
+Còn mở, chưa quyết ở tầng thiết kế: ô *Mẫu phân tách Chương* đang hiện ở đường URL, trong khi tiêu chí hình dạng của AD-39 nói đầu vào đã một-link-một-Chương thì không tách. Winston xác nhận trước khi story chạm vào ô này.
 
 ### Lỗi bảng mã tự lộ ra bằng mắt, không bằng cảnh báo
 
@@ -553,6 +583,7 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 | **Chế độ đọc trọn vẹn** — đánh dấu, biên giới, mục lục, song ngữ ở lề | [`mockups/reading-mode.html`](mockups/reading-mode.html) | FR119 · FR120 · FR11 |
 | Ba mức typography Chế độ đọc, sáng và tối | [`mockups/reading-mode-typography.html`](mockups/reading-mode-typography.html) | Chế độ đọc — tham chiếu chữ nghĩa |
 | **Nhập từ URL + màn xem trước hợp nhất** — dán link, đối chiếu bảng mã, sửa ranh giới bóc, luật làm sạch, nhật ký domain; sáng và tối | [`mockups/web-import.html`](mockups/web-import.html) | KF-4 · FR122–FR128 · NFR19 |
+| **Màn xem trước nhập ở quy mô thật** — hiện trạng dựng lại, Phương án 1 (đã chọn) và 2, đo khoảng cuộn tới nút Nhập | [`mockups/import-preview-gon.html`](mockups/import-preview-gon.html) | FR122–FR128 · §Bố cục: cột cấu hình, cột văn bản, chân dính |
 | **Xuất — cách xuất ảnh và khối ghi nguồn**, kèm danh sách ảnh không có link gốc | [`mockups/export-images-attribution.html`](mockups/export-images-attribution.html) | FR130 · FR131 · FR128 |
 
 ### Bổ sung 2026-08-03 — bề mặt của Giai đoạn 1 và 2
