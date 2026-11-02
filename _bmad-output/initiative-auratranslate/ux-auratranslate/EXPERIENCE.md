@@ -363,7 +363,8 @@ Một bài epochtimes.com bóc ra 301 khối (67 giữ · 234 loại). Bố cụ
 
 **Một tiêu đề, một câu.** *Xuất xứ tài liệu* in một lần; *chưa ghi gì xuống đĩa* chỉ ở chân dính.
 
-Còn mở, chưa quyết ở tầng thiết kế: ô *Mẫu phân tách Chương* đang hiện ở đường URL, trong khi tiêu chí hình dạng của AD-39 nói đầu vào đã một-link-một-Chương thì không tách. Winston xác nhận trước khi story chạm vào ô này.
+~~Còn mở, chưa quyết ở tầng thiết kế: ô *Mẫu phân tách Chương* đang hiện ở đường URL, trong khi tiêu chí hình dạng của AD-39 nói đầu vào đã một-link-một-Chương thì không tách. Winston xác nhận trước khi story chạm vào ô này.~~
+🔵 **2026-11-02 (Winston):** AD-39 đã quyết, không cần AD mới. Đầu vào đã một-đơn-vị-một-Chương **không có ô mẫu phân tách**. Phía Rust đã đúng: `already_chaptered` làm `split_chapters_step` bỏ qua mẫu vô điều kiện, nên ô đang hiện ở đường URL là điều khiển chết — gõ mẫu vào, không gì đổi, không gì báo. Ô ẩn theo **hình dạng** đầu vào, không theo tên đường nhập: Ice chọn để Rust gửi một cờ bool trong `ChapterSplitPreviewWire` (nguồn sự thật là `already_chaptered`), thay vì webview so `lastSubmittedFrom === 'urls'`, vì danh sách đường nhập sẽ sai ở đường thứ tư.
 
 ### Lỗi bảng mã tự lộ ra bằng mắt, không bằng cảnh báo
 
