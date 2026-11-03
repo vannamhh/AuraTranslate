@@ -1671,7 +1671,13 @@ fn confirming_one_of_three_same_source_empty_segments_fills_the_other_two_as_dra
     let got: Vec<(i64, String, String)> = outcome
         .tm_filled
         .iter()
-        .map(|f| (f.segment_id, f.target_text.clone(), f.translation_origin.clone()))
+        .map(|f| {
+            (
+                f.segment_id,
+                f.target_text.clone(),
+                f.translation_origin.clone(),
+            )
+        })
         .collect();
     assert_eq!(
         got,
@@ -1687,7 +1693,11 @@ fn confirming_one_of_three_same_source_empty_segments_fills_the_other_two_as_dra
         );
         assert_eq!(
             w.target_and_baseline(*id),
-            ("Dich chung.".to_owned(), "Dich chung.".to_owned(), "self".to_owned())
+            (
+                "Dich chung.".to_owned(),
+                "Dich chung.".to_owned(),
+                "self".to_owned()
+            )
         );
     }
     assert_eq!(w.with_open(|o| pairs(o).len()), 1);
@@ -1705,7 +1715,11 @@ fn a_same_source_segment_that_already_has_text_is_not_touched_by_the_fill_after_
     let outcome = w.type_and_wire_confirm(ids[0], "Dich chung.");
 
     assert_eq!(
-        outcome.tm_filled.iter().map(|f| f.segment_id).collect::<Vec<_>>(),
+        outcome
+            .tm_filled
+            .iter()
+            .map(|f| f.segment_id)
+            .collect::<Vec<_>>(),
         [ids[2]]
     );
     assert_eq!(w.with_open(|o| w_target(o, ids[1])), "Ban nhap.");
