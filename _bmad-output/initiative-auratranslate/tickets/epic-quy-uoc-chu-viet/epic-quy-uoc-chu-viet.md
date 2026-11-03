@@ -4,7 +4,7 @@ title: "Quy ước chữ Việt — bắt và thay cụm cần tránh trong bả
 parent: initiative-auratranslate
 covers: [FR159]
 sources: [_bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md]
-companions: [_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md]
+companions: [_bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, _bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md, _bmad-output/initiative-auratranslate/ux-auratranslate/DESIGN.md, _bmad-output/initiative-auratranslate/ux-auratranslate/mockups/quy-uoc-chu-viet.html]
 after: []
 refined: true
 risk: high
@@ -66,6 +66,9 @@ Người dịch thấy mọi chỗ vi phạm quy ước của mình ngay trong E
 - prd — _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md, §6.4 Quy ước chữ Việt, §13 Q10 và Q11
 - architecture — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, §AD-47, §AD-53, §AD-67
 - review — _bmad-output/initiative-auratranslate/prd-auratranslate/review-rubric-fr159.md
+- ux — _bmad-output/initiative-auratranslate/ux-auratranslate/EXPERIENCE.md, §Quy ước chữ Việt — FR159
+- design — _bmad-output/initiative-auratranslate/ux-auratranslate/DESIGN.md, các mục Dấu quy ước, Dải quy ước, Quản lý quy ước, Thay cả Chương
+- design — _bmad-output/initiative-auratranslate/ux-auratranslate/mockups/quy-uoc-chu-viet.html
 
 ## Notes
 
@@ -74,5 +77,5 @@ Người dịch thấy mọi chỗ vi phạm quy ước của mình ngay trong E
 - Decision: 2026-11-03, Ice — ghi epic và entry ngay, entry bị chặn mang `unknown`, thay vì chờ AD và UX như Epic 15; cắt lại nếu AD đổi hình.
 - Decision: 2026-11-03, Sofia đề xuất, Ice duyệt — Story 16.1 là tracer bullet; 16.2 thay cả Chương đi ngay sau vì là phần ghi hàng loạt và rủi ro ghi hỏng chữ.
 - Decision: 2026-11-03, Ice duyệt AD-67 (`5f893cde`): thực thể riêng `core/convention/` ngoài `core::ai`, chỉ quét văn bản đã lưu (mở Chương ngoài main thread, sau mỗi flush, gợi ý AI đã trọn), lượt ghi `write_convention_target` giữ chữ ký kèm phiên bản và cặp TM, thay cả Chương là một giao dịch, ngân sách ở AD-67 mục 11. Dấu của câu đang gõ hiện lại sau lượt flush kế tiếp, không trong lúc gõ.
-- Unknown: UX của Sally — dấu quy ước phân biệt với dấu Proofreader, màn xác nhận thay cả Chương; chặn 16.1, 16.2.
+- Decision: 2026-11-03, Ice duyệt UX (`7b643e44`) và AD-67 mục 12b: dấu gạch chấm `on-surface-variant`, dải `convention` chỉ mở khi bấm dấu hoặc F8, F8 đi qua dấu của cả hai họ, lớp phủ Quản lý quy ước riêng (`Mod+Alt+A`), thay cả Chương gom mọi luật và lọc được theo luật.
 - Decision: 2026-11-03, Ice — Q10 PRD: Glossary thắng (R12). Q11 PRD: CSV/TSV hai cột như Glossary (R9).

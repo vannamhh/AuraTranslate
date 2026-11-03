@@ -4,27 +4,25 @@
 id = 1
 type = "story"
 title = "Một luật Global đánh dấu và thay một chỗ trong Chương đang mở"
-description = "Tracer bullet. Kho luật tầng Global, bộ khớp ở Rust (NFC chỉ để so, không phân biệt hoa thường, không gộp i/y, ranh giới âm tiết), lệnh quét bản dịch của Chương đang mở trả các khoảng khớp, dấu tại chỗ trong ô bản dịch theo khuôn vẽ của Proofreader, nhận thay một chỗ với kiểu hoa theo chỗ bị thay, đi đúng lượt ghi mà AD mới quy định. Luật không có cụm thay thế chỉ có dấu. Chỗ khớp nằm trọn trong bản dịch của mục Glossary đã chốt mà câu nguồn chứa thuật ngữ thì không có dấu."
+description = "Tracer bullet. Kho luật tầng Global, bộ khớp ở Rust (NFC chỉ để so, không phân biệt hoa thường, không gộp i/y, ranh giới âm tiết), lệnh quét bản dịch của Chương đang mở trả các khoảng khớp, dấu tại chỗ trong ô bản dịch theo khuôn vẽ của Proofreader, nhận thay một chỗ với kiểu hoa theo chỗ bị thay, đi đúng lượt ghi mà AD mới quy định. Dải `convention` chỉ mở khi bấm dấu hoặc F8; cặp lệnh `marks.next/prev` nhận F8/Shift+F8 cho cả dấu Proofreader lẫn dấu quy ước. Luật không có cụm thay thế chỉ có dấu. Chỗ khớp nằm trọn trong bản dịch của mục Glossary đã chốt mà câu nguồn chứa thuật ngữ thì không có dấu."
 verify = "Spec e2e trên WKWebView: thêm luật `đảm bảo → bảo đảm`, mở một Chương có câu `Đảm bảo an toàn.` thì dấu hiện, nhận thay thì ô thành `Bảo đảm an toàn.` và xuất xứ câu không đổi."
 covers = ["R1", "R3", "R4", "R5", "R7", "R10", "R12"]
 after = []
 hitl = false
 risk = "high"
-unknown = "Chờ UX của Sally: dấu quy ước phân biệt với dấu Proofreader."
-references = ["architecture-auratranslate/architecture-auratranslate.md §AD-67 mục 1–8, 11, 12 (a)(b)(h)", "architecture-auratranslate/architecture-auratranslate.md §AD-47, §AD-53"]
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-67 mục 1–8, 11, 12 (a)(b)(h), 12b phần dải và `marks.next/prev`", "ux-auratranslate/EXPERIENCE.md §Quy ước chữ Việt — FR159", "ux-auratranslate/mockups/quy-uoc-chu-viet.html", "architecture-auratranslate/architecture-auratranslate.md §AD-47, §AD-53"]
 
 [[entry]]
 id = 2
 type = "story"
 title = "Thay cả Chương qua danh sách từng chỗ"
-description = "Màn xác nhận liệt kê mọi chỗ khớp trong Chương kèm câu chứa nó, chọn sẵn, bỏ chọn được; một lượt thay chạy trên văn bản trước khi thay, chữ vừa thay không bị khớp lại. Câu đã xác nhận giữ xác nhận, cặp TM mang chữ mới, lịch sử phiên bản ghi lại, xuất xứ không đổi; câu đã cắt không có trong danh sách. Đường lui theo AD-49."
+description = "Màn xác nhận liệt kê mọi chỗ khớp của mọi luật đang hiệu lực trong Chương kèm câu chứa nó, lọc được theo luật (mở từ dải thì lọc sẵn theo luật đang xem), chọn sẵn, bỏ chọn được; một lượt thay chạy trên văn bản trước khi thay, chữ vừa thay không bị khớp lại. Câu đã xác nhận giữ xác nhận, cặp TM mang chữ mới, lịch sử phiên bản ghi lại, xuất xứ không đổi; câu đã cắt không có trong danh sách. Đường lui theo AD-49."
 verify = "`cargo test` của bộ quét xanh với ca: câu `nhằm bảo đảm bảo vệ` có một chỗ khớp, bỏ chọn chỗ đó thì câu giữ nguyên từng ký tự; câu đã xác nhận sau khi thay vẫn đã xác nhận và cặp TM mang chữ mới."
 covers = ["R6", "R7", "R10", "R11"]
 after = [1]
 hitl = false
 risk = "high"
-unknown = "Chờ UX của Sally: màn xác nhận thay cả Chương."
-references = ["architecture-auratranslate/architecture-auratranslate.md §AD-67 mục 7, 8, 12 (c)(d)(e)"]
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-67 mục 7, 8, 12 (c)(d)(e), 12b", "ux-auratranslate/EXPERIENCE.md §Quy ước chữ Việt — FR159, KF-5", "ux-auratranslate/mockups/quy-uoc-chu-viet.html"]
 
 [[entry]]
 id = 3
