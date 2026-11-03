@@ -1981,6 +1981,7 @@
   "glossary.manage.pending_badge": "chờ chốt bản dịch",
   "glossary.manage.translation_label": "Bản dịch",
   "glossary.manage.note_label": "Ghi chú",
+  "glossary.note.sent_to_ai": "Ghi chú của mục đã chốt được gửi cho AI cùng thuật ngữ mỗi lần dịch.",
   "glossary.manage.edit": "Sửa",
   "glossary.manage.save": "Lưu",
   "glossary.manage.cancel": "Huỷ",

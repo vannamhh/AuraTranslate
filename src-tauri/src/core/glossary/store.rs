@@ -1845,6 +1845,8 @@ pub struct GlossaryInjectionTerm {
     /// xảy ra" và "rỗng thật" (khác pha review Pass 1 #11 bắt được ở
     /// `confirmed_terms_for_injection`).
     pub translation: String,
+    /// The winning entry's note; empty when it has none.
+    pub note: String,
 }
 
 /// Một mục ĐÃ CHỐT thua phân xử chồng nhau TRƯỚC MỘT MỤC CHỜ CHỐT — Decision 4 của spec
@@ -1949,6 +1951,7 @@ fn confirmed_terms_in_snapshot(
                 tier: *tier,
                 source_term: entry.source_term.clone(),
                 translation,
+                note: entry.note.clone(),
             })
         })
         .collect();

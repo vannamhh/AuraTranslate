@@ -13916,3 +13916,8 @@ chính nó.
   summary: lượt dịch một câu ra *thiếu kết quả AI* đã gửi đi và đã tốn token, nhưng màn Xem prompt vẫn ghi "chưa gửi" và không có usage; mọi `Err` sau khi gửi (`reply_empty`, đứt luồng) cũng vậy từ trước.
   evidence: `wire::ai_translate_segment`/`ai_translate_resend` chỉ gọi `mark_prompt_as_sent` ở nhánh `Ok(Done)`; cần Ice quyết lượt lỗi đã tốn tiền có hiện là "đã gửi" kèm usage hay không (FR71, FR76).
   Chủ: Epic 4
+
+- source_plan: `story-muc-glossary-uoc-chen-mang-theo-ghi-chu-o-ghi-chu-noi-ro-uoc-plan.md`
+  summary: dòng nhắc "Ghi chú của mục đã chốt được gửi cho AI…" cạnh ô ghi chú (thêm nhanh, sửa trong quản lý Glossary) chưa được nhìn trong app thật.
+  evidence: test vitest chỉ canh `aria-describedby` và chữ; bố cục thật chỉ người mở app thấy.
+  Chủ: Epic 4

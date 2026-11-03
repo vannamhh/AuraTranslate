@@ -641,3 +641,22 @@ describe('dải "Thêm thuật ngữ" — trả trạng thái lúc đóng', () =
     expect(window.getSelection()?.anchorOffset).toBe(1)
   })
 })
+
+describe('ô ghi chú của dải "Thêm thuật ngữ" nói rõ ghi chú được gửi cho AI', () => {
+  it('aria-describedby của ô ghi chú trỏ tới phần tử chứa đúng câu nhắc', async () => {
+    const { state, GlossaryQuickAdd } = await freshStrip()
+    lookupMock.mockResolvedValue({ found: 'unknown', error: null })
+    const wrapper = mount(GlossaryQuickAdd, { attachTo: document.body })
+    state.openGlossaryQuickAdd('慕容')
+    await settle(wrapper)
+
+    const noteInput = wrapper.get('.gqa-field:nth-of-type(3) input')
+    expect(noteInput.attributes('aria-label')).toBe('Ghi chú')
+    const describedBy = noteInput.attributes('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(document.getElementById(describedBy as string)?.textContent?.trim()).toBe(
+      'Ghi chú của mục đã chốt được gửi cho AI cùng thuật ngữ mỗi lần dịch.',
+    )
+    wrapper.unmount()
+  })
+})

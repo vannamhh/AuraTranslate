@@ -71,6 +71,8 @@ pub struct InjectedGlossaryTerm {
     pub source_term: String,
     /// Bản dịch đã chốt được tiêm.
     pub translation: String,
+    /// The winning entry's note; empty when it has none.
+    pub note: String,
     /// Vị trí ĐIỂM MÃ bắt đầu (bao gồm) trong câu nguồn — cùng đơn vị `GlossaryMark::start`.
     pub start: usize,
     /// Vị trí ĐIỂM MÃ kết thúc (không bao gồm).
@@ -287,6 +289,7 @@ fn asked_status(outcome: GlossaryInjectionOutcome) -> GlossaryInjectionStatus {
             .map(|t| InjectedGlossaryTerm {
                 source_term: t.source_term,
                 translation: t.translation,
+                note: t.note,
                 start: t.start,
                 end: t.end,
                 tier: t.tier,
@@ -397,29 +400,21 @@ pub fn gather_tm_context(
 // Lớp THUẦN — Story 4.6's assembler
 // ═════════════════════════════════════════════════════════════════════════════════
 
-/// Dựng khối văn bản mà `{{glossary_terms}}` mở rộng thành — Decision 2: bare
-/// `"source term → confirmed translation"`, một cặp một dòng, theo đúng thứ tự ledger báo cáo
-/// (thứ tự [`InjectedGlossaryTerm`] đã mang sẵn — không sắp lại).
-///
-/// 🔴 `.iter()` trên TOÀN BỘ `injected`, không `.take(1)` — Pass 1 (2026-09-17) đo được một
-/// lượt `.take(1)` ở đúng vị trí này để lọt `ai_rag_contract` (19 passed, 0 failed) vì mọi ca
-/// đọc pair qua `.contains` một cặp, không so KHỚP TOÀN VĂN với hai cặp trở lên. Ca đối chứng
-/// mới (`ai_rag_contract.rs`) so `result.prompt` khớp CHÍNH XÁC với hai cặp.
-///
-/// 🔵 **THÊM 2026-09-18 (rà soát) — GOM theo `source_term`, chỉ ở ĐÂY.** Một thuật ngữ khớp
-/// HAI lần trong cùng một câu (hai span khác nhau) cho HAI phần tử `InjectedGlossaryTerm`
-/// khác nhau trong `injected` — đúng, ledger phải giữ nguyên (mỗi lần khớp là một dấu thật
-/// trên lưới, AC 2 cần cả hai). Nhưng khối văn bản gửi cho nhà cung cấp không cần lặp lại
-/// CÙNG một cặp `"X → Y"` hai lần — dòng thứ hai không mang thêm thông tin nào cho mô hình,
-/// chỉ tốn token BYOK. Gom ở ĐÂY, không gom ở `injected` của ledger: hai mối quan tâm khác
-/// nhau (Story 4.7 vẽ *"đã tiêm ở đâu"*, dùng TỪNG dấu; nhà cung cấp chỉ cần biết TỪ này dịch
-/// là gì, một lần).
+/// Block `{{glossary_terms}}` expands to: one `source → translation[ — note]` line per distinct
+/// `source_term`, in ledger order. The only place the pair line is printed (single and batch).
 fn render_glossary_pairs(injected: &[InjectedGlossaryTerm]) -> String {
     let mut seen_source_terms: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
     injected
         .iter()
         .filter(|t| seen_source_terms.insert(t.source_term.as_str()))
-        .map(|t| format!("{} → {}", t.source_term, t.translation))
+        .map(|t| {
+            let note = t.note.split_whitespace().collect::<Vec<_>>().join(" ");
+            if note.is_empty() {
+                format!("{} → {}", t.source_term, t.translation)
+            } else {
+                format!("{} → {} — {}", t.source_term, t.translation, note)
+            }
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }

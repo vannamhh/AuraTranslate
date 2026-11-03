@@ -156,8 +156,11 @@ watch(quickAddIsOpen, (open) => {
           type="text"
           class="gqa-input ui-field"
           autocomplete="off"
+          :aria-label="t('glossary.quick_add.note_label')"
+          aria-describedby="gqa-note-hint"
           :disabled="quickAddSaving"
         />
+        <span id="gqa-note-hint" class="gqa-note-hint">{{ t('glossary.note.sent_to_ai') }}</span>
       </label>
     </div>
 
@@ -318,6 +321,7 @@ watch(quickAddIsOpen, (open) => {
   color: var(--color-on-surface);
 }
 
+.gqa-note-hint,
 .gqa-tier-reason {
   margin: 0;
   font-family: var(--face-ui-sm);

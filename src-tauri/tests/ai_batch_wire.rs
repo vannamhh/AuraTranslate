@@ -1705,3 +1705,75 @@ fn a_context_block_copied_inside_a_segment_never_reaches_the_shown_text_or_the_r
     assert_eq!(blocks.len(), 1);
     assert_eq!(blocks[0].text, "Hello\nworld");
 }
+
+// ── AD-66: the entry note travels with the pair ─────────────────────────────────────
+
+const NOTE_LINE: &str = "dragon → Rong A — Lão long, xưng ta";
+
+fn note_harness(tag: &str, text: &str, term_translation: Option<&str>) -> Harness {
+    let h = Harness::with_set(
+        tag,
+        text,
+        2,
+        echo_responder(),
+        "{{glossary_terms}}\n{{source_segment}}",
+    );
+    h.with_open(|open, _| {
+        insert_manual_entry(
+            &open.store,
+            "dragon",
+            term_translation,
+            "Lão long, xưng ta",
+            Category::Other,
+        )
+        .expect("seed term");
+    });
+    h
+}
+
+#[test]
+fn a_confirmed_note_reaches_the_prompt_on_the_single_and_the_batch_path() {
+    let _k = lock_keychain("sk-batch-66a");
+    let h = note_harness("66a", "The old dragon slept.", Some("Rong A"));
+    assert!(run_single(&h, h.ids[0]).result.is_ok());
+    let (_, _) = h.run(h.selection(&h.ids));
+    let prompts = h.prompts();
+    assert_eq!(prompts.len(), 2, "one single call and one batch call");
+    let carries_note: Vec<bool> = prompts
+        .iter()
+        .map(|p| p.lines().any(|l| l == NOTE_LINE))
+        .collect();
+    assert_eq!(carries_note, [true, true], "[single, batch]: {prompts:?}");
+}
+
+#[test]
+fn a_pending_entry_note_never_reaches_the_prompt_on_either_path() {
+    let _k = lock_keychain("sk-batch-66b");
+    let h = note_harness("66b", "The old dragon slept.", None);
+    assert!(run_single(&h, h.ids[0]).result.is_ok());
+    let (_, _) = h.run(h.selection(&h.ids));
+    let prompts = h.prompts();
+    assert_eq!(prompts.len(), 2);
+    for prompt in &prompts {
+        assert!(!prompt.contains("Lão long"), "{prompt}");
+    }
+}
+
+#[test]
+fn a_note_appears_once_when_two_sentences_of_one_batch_call_share_the_term() {
+    let _k = lock_keychain("sk-batch-66e");
+    let h = note_harness(
+        "66e",
+        "The old dragon slept. The young dragon woke.",
+        Some("Rong A"),
+    );
+    let (_, _) = h.run(h.selection(&h.ids));
+    let prompts = h.prompts();
+    assert_eq!(prompts.len(), 1, "both sentences travel in one call");
+    assert_eq!(
+        prompts[0].matches("Lão long, xưng ta").count(),
+        1,
+        "{}",
+        prompts[0]
+    );
+}

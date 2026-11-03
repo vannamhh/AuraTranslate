@@ -101,6 +101,7 @@ fn a_confirmed_global_term_is_injected_and_listed_in_the_ledger() {
                 &vec![InjectedGlossaryTerm {
                     source_term: "dragon".to_owned(),
                     translation: "rong".to_owned(),
+                    note: String::new(),
                     start: 2,
                     end: 8,
                     tier: GlossaryTier::Global,
@@ -444,6 +445,7 @@ fn confirmed_terms_for_injection_returns_two_pairs_in_sentence_order() {
                 tier: GlossaryTier::Global,
                 source_term: "dragon".to_owned(),
                 translation: "rong".to_owned(),
+                note: String::new(),
             },
             GlossaryInjectionTerm {
                 start: 20,
@@ -451,6 +453,7 @@ fn confirmed_terms_for_injection_returns_two_pairs_in_sentence_order() {
                 tier: GlossaryTier::Global,
                 source_term: "castle".to_owned(),
                 translation: "lau dai".to_owned(),
+                note: String::new(),
             },
         ],
         "hai cap phai ra DUNG theo thu tu xuat hien trong cau"
@@ -864,6 +867,7 @@ fn a_marker_sharing_its_line_with_two_or_more_pairs_never_splices_mid_line() {
             InjectedGlossaryTerm {
                 source_term: "a".to_owned(),
                 translation: "b".to_owned(),
+                note: String::new(),
                 start: 0,
                 end: 1,
                 tier: GlossaryTier::Global,
@@ -871,6 +875,7 @@ fn a_marker_sharing_its_line_with_two_or_more_pairs_never_splices_mid_line() {
             InjectedGlossaryTerm {
                 source_term: "c".to_owned(),
                 translation: "d".to_owned(),
+                note: String::new(),
                 start: 2,
                 end: 3,
                 tier: GlossaryTier::Global,
@@ -954,6 +959,7 @@ fn injected_text_containing_a_literal_marker_is_never_rescanned() {
         injected: vec![InjectedGlossaryTerm {
             source_term: "widget".to_owned(),
             translation: "{{source_segment}}".to_owned(),
+            note: String::new(),
             start: 0,
             end: 6,
             tier: GlossaryTier::Global,
@@ -1002,6 +1008,7 @@ fn render_glossary_pairs_dedupes_by_source_term_but_the_ledger_keeps_every_occur
             InjectedGlossaryTerm {
                 source_term: "dog".to_owned(),
                 translation: "cho".to_owned(),
+                note: String::new(),
                 start: 4,
                 end: 7,
                 tier: GlossaryTier::Global,
@@ -1009,6 +1016,7 @@ fn render_glossary_pairs_dedupes_by_source_term_but_the_ledger_keeps_every_occur
             InjectedGlossaryTerm {
                 source_term: "dog".to_owned(),
                 translation: "cho".to_owned(),
+                note: String::new(),
                 start: 16,
                 end: 19,
                 tier: GlossaryTier::Global,
@@ -1239,6 +1247,7 @@ fn calling_assemble_prompt_twice_on_the_same_inputs_is_byte_identical() {
             InjectedGlossaryTerm {
                 source_term: "a".to_owned(),
                 translation: "b".to_owned(),
+                note: String::new(),
                 start: 0,
                 end: 1,
                 tier: GlossaryTier::Global,
@@ -1246,6 +1255,7 @@ fn calling_assemble_prompt_twice_on_the_same_inputs_is_byte_identical() {
             InjectedGlossaryTerm {
                 source_term: "c".to_owned(),
                 translation: "d".to_owned(),
+                note: String::new(),
                 start: 2,
                 end: 3,
                 tier: GlossaryTier::Global,
@@ -1939,6 +1949,138 @@ fn a_confirmed_fold_only_term_losing_to_a_pending_verbatim_term_is_listed_as_sup
         outcome.suppressed_by_pending_overlap
     );
 
+    drop(global);
+    cleanup(&dir);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════
+// AD-66 — ghi chú đi cùng mục thắng
+// ═════════════════════════════════════════════════════════════════════════════════
+
+fn add_term(
+    store: &Store,
+    work: Option<&Store>,
+    tier: GlossaryTier,
+    term: &str,
+    tr: &str,
+    note: &str,
+) {
+    add_manual_term(store, work, tier, term, Some(tr), note, Category::Other)
+        .expect("them thuat ngu");
+}
+
+fn prompt_for(
+    resolver: &ScopeResolver,
+    global: &Store,
+    work: Option<&Store>,
+    body: &str,
+    sentence: &str,
+) -> (String, GlossaryInjectionStatus) {
+    let status = gather_glossary_context(body, resolver, global, work, "en", sentence)
+        .expect("gather khong loi");
+    let (prompt, ledger) = assemble_prompt(body, sentence, status, None);
+    (prompt, ledger.glossary)
+}
+
+#[test]
+fn a_work_tier_entry_with_an_empty_note_hides_the_global_note() {
+    let global_dir = temp_dir("note-tier-global");
+    let work_dir = temp_dir("note-tier-work");
+    let global = open_global(&global_dir);
+    let work = open_project(&work_dir);
+    add_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        "rong toan cuc",
+        "Lão long, xưng ta",
+    );
+    add_term(
+        &global,
+        Some(&work),
+        GlossaryTier::Work,
+        "dragon",
+        "rong tac pham",
+        "",
+    );
+    let resolver = ScopeResolver::with_work(WorkScope {
+        work_id: "w1".to_owned(),
+    });
+
+    let (prompt, _) = prompt_for(
+        &resolver,
+        &global,
+        Some(&work),
+        GLOSSARY_BODY,
+        "A dragon roared.",
+    );
+
+    assert_eq!(
+        prompt,
+        "Terms: dragon → rong tac pham\nSentence: A dragon roared."
+    );
+    drop(global);
+    drop(work);
+    cleanup(&global_dir);
+    cleanup(&work_dir);
+}
+
+#[test]
+fn a_note_is_collapsed_onto_one_line_and_mixed_entries_keep_sentence_order() {
+    let dir = temp_dir("note-collapse");
+    let global = open_global(&dir);
+    add_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        "rong",
+        "a\n  b\r\nc",
+    );
+    add_term(&global, None, GlossaryTier::Global, "castle", "lau dai", "");
+    let resolver = ScopeResolver::global_only();
+
+    let (prompt, _) = prompt_for(
+        &resolver,
+        &global,
+        None,
+        GLOSSARY_BODY,
+        "A dragon in a castle.",
+    );
+
+    assert_eq!(
+        prompt,
+        "Terms: \ndragon → rong — a b c\ncastle → lau dai\nSentence: A dragon in a castle."
+    );
+    drop(global);
+    cleanup(&dir);
+}
+
+#[test]
+fn a_body_without_the_glossary_marker_carries_no_note_and_is_not_asked() {
+    let dir = temp_dir("note-not-asked");
+    let global = open_global(&dir);
+    add_term(
+        &global,
+        None,
+        GlossaryTier::Global,
+        "dragon",
+        "rong",
+        "Lão long, xưng ta",
+    );
+    let resolver = ScopeResolver::global_only();
+
+    let (prompt, status) = prompt_for(
+        &resolver,
+        &global,
+        None,
+        "Sentence: {{source_segment}}",
+        "A dragon roared.",
+    );
+
+    assert!(!prompt.contains("Lão long"));
+    assert!(matches!(status, GlossaryInjectionStatus::NotAsked));
     drop(global);
     cleanup(&dir);
 }

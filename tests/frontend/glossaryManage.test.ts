@@ -624,6 +624,23 @@ describe('Nhịp xác nhận xoá — hai nhịp trong CÙNG lớp phủ (cụm 
     wrapper.unmount()
   })
 
+  it('ô ghi chú đang sửa có aria-describedby trỏ tới câu nhắc ghi chú được gửi cho AI', async () => {
+    const { state, GlossaryManageOverlay } = await freshOverlay()
+    listMock.mockResolvedValue({ entries: [entry({ id: 1 })], error: null })
+    lookupMock.mockResolvedValue(workOpenProbe)
+    await state.openGlossaryManage()
+    state.beginGlossaryManageEdit()
+    const wrapper = mount(GlossaryManageOverlay, { attachTo: document.body })
+    await wrapper.vm.$nextTick()
+
+    const describedBy = wrapper.get('.gm-cell-note input').attributes('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(wrapper.get(`#${describedBy as string}`).text()).toBe(
+      'Ghi chú của mục đã chốt được gửi cho AI cùng thuật ngữ mỗi lần dịch.',
+    )
+    wrapper.unmount()
+  })
+
   it('🔴 #4 (vòng rà thứ hai) — câu hint của nhịp chờ TRỎ ĐÚNG nhãn nút đang hiện thật (nhãn đã đổi thành "Xác nhận xoá vĩnh viễn")', async () => {
     // Đối chứng gỡ-chỗ-nối: đổi `glossary.manage.delete_confirm_hint` trong `vi.json` về lại
     // câu cũ ("Bấm Xoá (hoặc Backspace)…" — trỏ vào nhãn nút CŨ, thứ không còn hiện trên màn

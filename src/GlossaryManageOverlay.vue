@@ -692,10 +692,14 @@ function onKeydown(event: KeyboardEvent): void {
                   class="gm-input gm-cell-input ui-field"
                   autocomplete="off"
                   :aria-label="t('glossary.manage.note_label')"
+                  aria-describedby="gm-note-hint"
                   :disabled="manageSaving"
                 />
                 <!-- aura-allow-text: DỮ LIỆU (`note` của chính hàng). -->
                 <span v-else class="gm-note-cell" :title="row.note">{{ row.note }}</span>
+                <span v-if="i === manageCursor && manageEditing" id="gm-note-hint" class="gm-note-hint">{{
+                  t('glossary.note.sent_to_ai')
+                }}</span>
               </td>
               <!-- aura-allow-text: KẾT QUẢ của `addedDate()` (ngày cắt từ `created_at`, hoặc dấu "—"). -->
               <td class="gm-added">{{ addedDate(row.created_at) }}</td>
@@ -924,6 +928,14 @@ function onKeydown(event: KeyboardEvent): void {
   font-weight: var(--weight-read-title);
   line-height: var(--leading-read-title);
   color: var(--color-on-surface);
+}
+
+.gm-note-hint {
+  display: block;
+  font-family: var(--face-ui-sm);
+  font-size: var(--font-ui-sm);
+  line-height: var(--leading-ui-sm);
+  color: var(--color-on-surface-variant);
 }
 
 .gm-note {
