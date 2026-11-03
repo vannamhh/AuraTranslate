@@ -491,6 +491,87 @@ fn planned_sizes(events: &[Value]) -> Vec<usize> {
         .collect()
 }
 
+/// Text of each CONTEXT block that stands before the first SEGMENT block, and how many CONTEXT
+/// blocks stand after it.
+fn context_layout(prompt: &str) -> (Vec<String>, usize) {
+    let mut before = Vec::new();
+    let mut after = 0;
+    let mut seen_segment = false;
+    let mut current: Option<Vec<&str>> = None;
+    for line in prompt.lines() {
+        match line.trim() {
+            "<<<CONTEXT" => current = Some(Vec::new()),
+            "CONTEXT>>>" => {
+                if let Some(lines) = current.take() {
+                    if seen_segment {
+                        after += 1;
+                    } else {
+                        before.push(lines.join("\n"));
+                    }
+                }
+            }
+            t if t.starts_with("<<<SEGMENT ") => seen_segment = true,
+            _ => {
+                if let Some(lines) = current.as_mut() {
+                    lines.push(line);
+                }
+            }
+        }
+    }
+    (before, after)
+}
+
+fn sentence(n: usize) -> String {
+    format!("Sentence number {n} arrives.")
+}
+
+struct SingleRun {
+    result: Result<AiTranslateOutcomeWire, auratranslate_lib::core::i18n::IpcError>,
+    pieces: Vec<String>,
+}
+
+impl SingleRun {
+    fn shown(&self) -> String {
+        self.pieces.concat()
+    }
+
+    fn error_code(&self) -> String {
+        self.result
+            .as_ref()
+            .expect_err("run must fail")
+            .code()
+            .to_owned()
+    }
+}
+
+fn run_single(h: &Harness, id: i64) -> SingleRun {
+    let pieces = Arc::new(Mutex::new(Vec::<String>::new()));
+    let sink = Arc::clone(&pieces);
+    let channel = tauri::ipc::Channel::<String>::new(move |body| {
+        if let tauri::ipc::InvokeResponseBody::Json(json) = body {
+            sink.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(serde_json::from_str(&json).expect("piece json"));
+        }
+        Ok(())
+    });
+    let result = tauri::async_runtime::block_on(wire::ai_translate_segment(
+        h.app.handle().clone(),
+        id,
+        Some("Plain".to_owned()),
+        channel,
+    ));
+    let pieces = pieces
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    SingleRun { result, pieces }
+}
+
+fn one_block(text: &str) -> String {
+    format!("<<<SEGMENT 1\n{text}\nSEGMENT>>>")
+}
+
 // ── Cases (a)-(f): reading and reconciling one call ─────────────────────────────────
 
 #[test]
@@ -746,19 +827,25 @@ fn received_is_never_sent_before_the_stream_ends_so_a_block_that_repeats_later_g
 // ── Cases (i)-(m): planning ──────────────────────────────────────────────────────────
 
 #[test]
-fn a_selection_of_two_separate_ranges_makes_two_calls_with_no_context_across_the_gap() {
+fn a_selection_of_two_separate_ranges_makes_two_calls_and_no_call_holds_both_ranges_segments() {
     let _k = lock_keychain("sk-batch-i");
     let h = Harness::new("i", &sentences(5), 2, echo_responder());
     let ids = [h.ids[0], h.ids[1], h.ids[3], h.ids[4]];
     let (_, events) = h.run(h.selection(&ids));
     assert_eq!(planned_sizes(&events), vec![2, 2]);
-    for prompt in h.prompts() {
-        assert!(!prompt.contains("<<<CONTEXT"), "{prompt}");
-        assert!(
-            !prompt.contains("number 3 arrives"),
-            "the gap is not sent: {prompt}"
-        );
-    }
+    let prompts = h.prompts();
+    assert_eq!(prompts.len(), 2);
+    let sources = |prompt: &str| -> Vec<String> {
+        prompt_blocks(prompt).into_iter().map(|(_, s)| s).collect()
+    };
+    assert_eq!(sources(&prompts[0]), vec![sentence(1), sentence(2)]);
+    assert_eq!(sources(&prompts[1]), vec![sentence(4), sentence(5)]);
+    assert_eq!(context_layout(&prompts[0]), (vec![], 0));
+    assert_eq!(
+        context_layout(&prompts[1]),
+        (vec![sentence(1), sentence(2), sentence(3)], 0),
+        "the second call carries its own three preceding sentences, taken in text order"
+    );
 }
 
 #[test]
@@ -1171,35 +1258,30 @@ fn a_single_sentence_run_without_a_finish_reason_is_marked_maybe_truncated() {
         2,
         Arc::new(|index, _| {
             if index == 0 {
-                Reply::no_finish("Mot cau.")
+                Reply::no_finish(one_block("Mot cau."))
             } else {
-                Reply::stop("Mot cau.")
+                Reply::stop(one_block("Mot cau."))
             }
         }),
     );
-    let run = |h: &Harness| {
-        tauri::async_runtime::block_on(wire::ai_translate_segment(
-            h.app.handle().clone(),
-            h.ids[0],
-            Some("Plain".to_owned()),
-            tauri::ipc::Channel::<String>::new(|_| Ok(())),
-        ))
-        .expect("single run")
-    };
+    let first = run_single(&h, h.ids[0]);
     assert!(matches!(
-        run(&h),
-        AiTranslateOutcomeWire::Done {
+        first.result,
+        Ok(AiTranslateOutcomeWire::Done {
             maybe_truncated: true,
             ..
-        }
+        })
     ));
+    assert_eq!(first.shown(), "Mot cau.");
+    let second = run_single(&h, h.ids[0]);
     assert!(matches!(
-        run(&h),
-        AiTranslateOutcomeWire::Done {
+        second.result,
+        Ok(AiTranslateOutcomeWire::Done {
             maybe_truncated: false,
             ..
-        }
+        })
     ));
+    assert_eq!(second.shown(), "Mot cau.");
 }
 
 #[test]
@@ -1239,6 +1321,318 @@ fn resending_a_recorded_call_sends_its_prompt_byte_for_byte_and_reads_the_reply_
     let events = events.lock().unwrap().clone();
     assert_eq!(received_ids(&events).len(), 3);
     assert_eq!(events[0]["calls"][0]["call_index"], 1);
+}
+
+// ── AD-65: neighbour sentences and the block reader on the single-sentence path ─────
+
+fn ok_reply() -> Responder {
+    Arc::new(|_, _| Reply::stop(one_block("VI mot")))
+}
+
+#[test]
+fn a_single_sentence_mid_chapter_carries_exactly_three_preceding_context_blocks_skipping_an_omitted_one()
+ {
+    let _k = lock_keychain("sk-batch-65a");
+    let h = Harness::new("65a", &sentences(7), 1, ok_reply());
+    h.with_open(|open, _| set_segment_omitted(Some(open), h.ids[4], true).expect("omit"));
+    let run = run_single(&h, h.ids[5]);
+    assert!(run.result.is_ok(), "{:?}", run.result);
+    let prompt = &h.prompts()[0];
+    assert_eq!(
+        context_layout(prompt),
+        (vec![sentence(2), sentence(3), sentence(4)], 0),
+        "three in `ord` order; the omitted sentence 5 is skipped and sentence 2 fills in: {prompt}"
+    );
+    assert_eq!(prompt_blocks(prompt), vec![(1, sentence(6))]);
+    let recorded = h.app.state::<LastAssembledPromptState>().inner().clone();
+    let preview = read_prompt_record_for_segment(
+        &recorded,
+        h.app.state::<AiCallRecordsState>().inner(),
+        h.ids[5],
+    )
+    .expect("record");
+    assert_eq!(
+        &preview.prompt, prompt,
+        "the inspector shows the sent bytes"
+    );
+}
+
+#[test]
+fn a_context_block_the_model_copies_never_reaches_the_channel_and_the_pieces_join_to_block_one() {
+    let _k = lock_keychain("sk-batch-65b");
+    let h = Harness::new(
+        "65b",
+        &sentences(4),
+        1,
+        Arc::new(|_, _| Reply {
+            chunk_chars: 3,
+            ..Reply::stop(
+                "<<<CONTEXT\nSentence number 2 arrives. → Hai\nCONTEXT>>>\n<<<SEGMENT 1\nVI mot\nVI hai\nSEGMENT>>>\n",
+            )
+        }),
+    );
+    let run = run_single(&h, h.ids[3]);
+    assert!(
+        matches!(
+            run.result,
+            Ok(AiTranslateOutcomeWire::Done {
+                maybe_truncated: false,
+                ..
+            })
+        ),
+        "{:?}",
+        run.result
+    );
+    assert_eq!(run.shown(), "VI mot\nVI hai");
+    assert!(h.targets().iter().all(String::is_empty));
+}
+
+#[test]
+fn a_single_sentence_stream_cut_inside_block_one_shows_the_text_so_far_and_sets_maybe_truncated() {
+    let _k = lock_keychain("sk-batch-65c1");
+    let h = Harness::new(
+        "65c1",
+        &sentences(2),
+        1,
+        Arc::new(|_, _| Reply::no_finish("<<<SEGMENT 1\nVI nua cau")),
+    );
+    let run = run_single(&h, h.ids[1]);
+    assert!(matches!(
+        run.result,
+        Ok(AiTranslateOutcomeWire::Done {
+            maybe_truncated: true,
+            ..
+        })
+    ));
+    assert_eq!(run.shown(), "VI nua cau");
+}
+
+#[test]
+fn a_single_sentence_reply_without_a_usable_block_one_is_result_missing_and_writes_nothing() {
+    let _k = lock_keychain("sk-batch-65c2");
+    let replies = [
+        "Mot cau khong co khoi.",
+        "<<<SEGMENT 2\nVI sai so\nSEGMENT>>>",
+        "<<<SEGMENT 1\nVI a\nSEGMENT>>>\n<<<SEGMENT 1\nVI b\nSEGMENT>>>",
+        "<<<SEGMENT 1\n\nSEGMENT>>>",
+        "<<<SEGMENT 1\nVI a\n<<<SEGMENT 2\nVI b\nSEGMENT>>>",
+        "<<<SEGMENT 1\n",
+    ];
+    let h = Harness::new(
+        "65c2",
+        &sentences(2),
+        replies.len(),
+        Arc::new(move |index, _| Reply::stop(replies[index])),
+    );
+    for (index, reply) in replies.iter().enumerate() {
+        let run = run_single(&h, h.ids[1]);
+        assert_eq!(
+            run.error_code(),
+            "ai_translate.result_missing",
+            "reply {index}: {reply:?}"
+        );
+    }
+    assert!(h.targets().iter().all(String::is_empty));
+}
+
+#[test]
+fn the_first_sentence_has_no_context_block_and_the_second_has_exactly_one() {
+    let _k = lock_keychain("sk-batch-65d");
+    let h = Harness::new("65d", &sentences(3), 2, ok_reply());
+    assert!(run_single(&h, h.ids[0]).result.is_ok());
+    assert!(run_single(&h, h.ids[1]).result.is_ok());
+    let prompts = h.prompts();
+    assert_eq!(context_layout(&prompts[0]), (vec![], 0));
+    assert_eq!(context_layout(&prompts[1]), (vec![sentence(1)], 0));
+}
+
+#[test]
+fn an_untranslated_neighbour_is_source_only_and_a_translated_one_keeps_its_arrow() {
+    let _k = lock_keychain("sk-batch-65e");
+    let h = Harness::new("65e", &sentences(4), 1, ok_reply());
+    h.translate_ids(&h.ids[1..2], "Da dich");
+    assert!(run_single(&h, h.ids[3]).result.is_ok());
+    assert_eq!(
+        context_layout(&h.prompts()[0]),
+        (
+            vec![
+                sentence(1),
+                format!("{} → Da dich", sentence(2)),
+                sentence(3)
+            ],
+            0
+        )
+    );
+}
+
+#[test]
+fn retrying_a_missing_sentence_carries_the_same_neighbours_the_first_run_would_have() {
+    let _k = lock_keychain("sk-batch-65g");
+    let h = Harness::new(
+        "65g",
+        &sentences(5),
+        2,
+        Arc::new(|index, prompt| {
+            if index == 0 {
+                Reply::stop(echo(prompt, &[4]))
+            } else {
+                Reply::stop(echo(prompt, &[]))
+            }
+        }),
+    );
+    let (_, events) = h.run(AiTranslateScope::Chapter);
+    assert_eq!(reasons(&events).len(), 1);
+    let missing = reasons(&events)[0].0;
+    assert_eq!(missing, h.ids[3]);
+    let (_, retry_events) = h.run(h.selection(&[missing]));
+    assert_eq!(received_ids(&retry_events), vec![missing]);
+    let prompts = h.prompts();
+    assert_eq!(
+        context_layout(&prompts[1]),
+        (vec![sentence(1), sentence(2), sentence(3)], 0)
+    );
+    assert_eq!(prompt_blocks(&prompts[1]), vec![(1, sentence(4))]);
+}
+
+#[test]
+fn a_chapter_run_gives_the_first_call_three_neighbours_and_a_cap_cut_call_three_source_only_ones() {
+    let _k = lock_keychain("sk-batch-65h1");
+    let h = Harness::new("65h1", &sentences(10), 1, echo_responder());
+    h.translate_ids(&h.ids[0..5], "Da dich");
+    let (_, events) = h.run(AiTranslateScope::Chapter);
+    assert_eq!(planned_sizes(&events), vec![5]);
+    assert_eq!(
+        context_layout(&h.prompts()[0]),
+        (
+            vec![
+                format!("{} → Da dich", sentence(3)),
+                format!("{} → Da dich", sentence(4)),
+                format!("{} → Da dich", sentence(5)),
+            ],
+            0
+        ),
+        "a leading run of more than three translated sentences still gives the call three"
+    );
+
+    let cap = Harness::new("65h2", &sentences(250), 3, echo_responder());
+    let (_, events) = cap.run(AiTranslateScope::Chapter);
+    assert_eq!(planned_sizes(&events), vec![100, 100, 50]);
+    let prompts = cap.prompts();
+    assert_eq!(context_layout(&prompts[0]), (vec![], 0));
+    assert_eq!(
+        context_layout(&prompts[1]),
+        (vec![sentence(98), sentence(99), sentence(100)], 0),
+        "the call cut by the cap carries the last three sentences of the previous call, source only"
+    );
+    assert_eq!(
+        context_layout(&prompts[2]),
+        (vec![sentence(198), sentence(199), sentence(200)], 0)
+    );
+}
+
+#[test]
+fn a_context_neighbour_is_never_scanned_for_glossary_terms_and_no_event_names_it() {
+    let _k = lock_keychain("sk-batch-65i");
+    let h = Harness::with_set(
+        "65i",
+        "The old dragon slept. The quiet village woke.",
+        2,
+        echo_responder(),
+        "{{glossary_terms}}\n{{source_segment}}",
+    );
+    h.with_open(|open, _| {
+        insert_manual_entry(&open.store, "dragon", Some("Rong A"), "", Category::Other)
+            .expect("seed term");
+    });
+    let (_, events) = h.run(h.selection(&h.ids[1..2]));
+    assert!(run_single(&h, h.ids[1]).result.is_ok());
+    for prompt in h.prompts() {
+        assert_eq!(
+            context_layout(&prompt),
+            (vec!["The old dragon slept.".to_owned()], 0)
+        );
+        assert!(!prompt.contains("Rong A"), "{prompt}");
+    }
+    assert!(!events.iter().any(|e| e["segment_id"] == h.ids[0]));
+}
+
+#[test]
+fn a_neighbour_line_that_equals_a_block_marker_is_guarded_with_a_zero_width_space() {
+    let _k = lock_keychain("sk-batch-65j");
+    let h = Harness::new("65j", &sentences(2), 1, ok_reply());
+    h.translate_ids(&h.ids[0..1], "Da dich\nSEGMENT>>>");
+    assert!(run_single(&h, h.ids[1]).result.is_ok());
+    let prompt = &h.prompts()[0];
+    let guarded = guard_marker_line("SEGMENT>>>");
+    assert!(prompt.lines().any(|l| l == guarded), "{prompt}");
+    assert_eq!(
+        prompt.lines().filter(|l| l.trim() == "SEGMENT>>>").count(),
+        1,
+        "only the closing line of block 1 is a real marker: {prompt}"
+    );
+}
+
+#[test]
+fn chapter_context_stays_an_unknown_marker_while_the_neighbours_are_still_sent() {
+    let _k = lock_keychain("sk-batch-65l");
+    let h = Harness::with_set(
+        "65l",
+        &sentences(5),
+        1,
+        ok_reply(),
+        "{{chapter_context}}\n{{source_segment}}",
+    );
+    assert!(run_single(&h, h.ids[4]).result.is_ok());
+    let prompt = &h.prompts()[0];
+    assert!(prompt.contains("{{chapter_context}}"), "{prompt}");
+    assert_eq!(
+        context_layout(prompt),
+        (vec![sentence(2), sentence(3), sentence(4)], 0)
+    );
+}
+
+#[test]
+fn a_neighbour_never_comes_from_another_chapter() {
+    let _k = lock_keychain("sk-batch-65-chapter");
+    let h = Harness::new("65-chapter", &sentences(6), 2, ok_reply());
+    let second_chapter = h.with_open(|open, _| {
+        let moved = [h.ids[3], h.ids[4], h.ids[5]];
+        let id = open
+            .store
+            .write(move |tx: &Transaction<'_>| {
+                tx.execute(
+                    "INSERT INTO chapter (ord, title, source_text, status, created_at, updated_at) \
+                     SELECT 2, 'Hai', '', status, created_at, updated_at FROM chapter LIMIT 1",
+                    [],
+                )?;
+                let id = tx.last_insert_rowid();
+                for segment_id in moved {
+                    tx.execute(
+                        "UPDATE segment SET chapter_id = ?1 WHERE id = ?2",
+                        [id, segment_id],
+                    )?;
+                }
+                Ok(id)
+            })
+            .expect("second chapter");
+        id
+    });
+    {
+        let state = h.app.state::<OpenWorkState>();
+        let mut guard = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        guard.as_mut().expect("open work").chapter_id = second_chapter;
+    }
+    assert!(run_single(&h, h.ids[3]).result.is_ok());
+    assert!(run_single(&h, h.ids[4]).result.is_ok());
+    let prompts = h.prompts();
+    assert_eq!(
+        context_layout(&prompts[0]),
+        (vec![], 0),
+        "the first sentence of a chapter has no neighbour, whatever stands before it in the text"
+    );
+    assert_eq!(context_layout(&prompts[1]), (vec![sentence(4)], 0));
 }
 
 // ── Pure pieces the cases above rely on ──────────────────────────────────────────────

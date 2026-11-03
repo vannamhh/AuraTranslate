@@ -14,6 +14,7 @@ import { confirmStripEntryId, confirmStripTier } from './glossaryConfirmStripSta
 import {
   aiPromptCallNote,
   aiPromptCharsByKind,
+  aiPromptHighlightBlockNumber,
   aiPromptHighlightParts,
   aiPromptAssembleBusy,
   aiPromptAssembleError,
@@ -192,9 +193,7 @@ const tmSearched = computed(() => {
 
 const blocks = computed(() => aiPromptTierBlocks(aiPromptRecord.value))
 const callNote = computed(() => aiPromptCallNote(aiPromptRecord.value))
-const highlightBlockNumber = computed<number | null>(() =>
-  callNote.value.kind === 'block' ? callNote.value.blockNumber : null,
-)
+const highlightBlockNumber = computed<number | null>(() => aiPromptHighlightBlockNumber(aiPromptRecord.value))
 const systemText = computed(() => aiPromptSystemText(aiPromptRecord.value))
 const systemChars = computed(() => Array.from(systemText.value ?? '').length)
 const charsByKind = computed(() => aiPromptCharsByKind(blocks.value))
@@ -492,15 +491,20 @@ const resultUsage = computed(() => {
                   </span>
                 </div>
                 <div class="aip-txt">
-                  <!-- aura-allow-text: DỮ LIỆU (văn bản của khối prompt đã lắp, không phải chữ giao diện). -->
-                  <span
+                  <template
                     v-for="(part, pi) in aiPromptHighlightParts(block.text, block.kind === 'source_segment' ? highlightBlockNumber : null)"
                     :key="`part-${pi}`"
-                    :class="['aip-piece', `aip-piece-${block.kind}`, { 'aip-piece-mine': part.highlighted }]"
-                    :data-aip-piece-kind="block.kind"
-                    :data-aip-piece-mine="part.highlighted ? '' : undefined"
-                    >{{ part.text }}</span
                   >
+                    <span v-if="part.context" class="aip-ctx-label" data-aip-context-label>{{ t('ai.prompt_inspector.context_block_label') }}</span>
+                    <!-- aura-allow-text: DỮ LIỆU (văn bản của khối prompt đã lắp, không phải chữ giao diện). -->
+                    <span
+                      :class="['aip-piece', `aip-piece-${block.kind}`, { 'aip-piece-mine': part.highlighted, 'aip-piece-context': part.context }]"
+                      :data-aip-piece-kind="block.kind"
+                      :data-aip-piece-mine="part.highlighted ? '' : undefined"
+                      :data-aip-piece-context="part.context ? '' : undefined"
+                      >{{ part.text }}</span
+                    >
+                  </template>
                 </div>
               </section>
             </div>
@@ -978,6 +982,16 @@ const resultUsage = computed(() => {
 
 .aip-piece-mine {
   background: var(--color-surface-accent);
+}
+
+.aip-piece-context {
+  color: var(--color-on-surface-variant);
+}
+
+.aip-ctx-label {
+  display: block;
+  color: var(--color-on-surface-variant);
+  font-size: var(--font-ui-mono);
 }
 
 .aip-markers {

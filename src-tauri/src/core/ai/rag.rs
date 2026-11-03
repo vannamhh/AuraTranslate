@@ -803,7 +803,8 @@ pub fn assemble_prompt(
 /// One element of a grouped call, in block order.
 #[derive(Debug, Clone)]
 pub enum CallPromptEntry<'a> {
-    /// A translated neighbour shown for context only; it is not numbered.
+    /// A neighbour shown for context only; it is not numbered. An untranslated one carries its
+    /// source alone.
     Context {
         source_text: &'a str,
         target_text: &'a str,
@@ -839,10 +840,14 @@ pub fn assemble_call_prompt(
             CallPromptEntry::Context {
                 source_text,
                 target_text,
-            } => blocks.push(format!(
-                "{CONTEXT_OPEN}\n{}\n{CONTEXT_CLOSE}",
-                guard_text(&format!("{source_text} → {target_text}"))
-            )),
+            } => {
+                let line = if target_text.trim().is_empty() {
+                    guard_text(source_text)
+                } else {
+                    guard_text(&format!("{source_text} → {target_text}"))
+                };
+                blocks.push(format!("{CONTEXT_OPEN}\n{line}\n{CONTEXT_CLOSE}"));
+            }
             CallPromptEntry::Segment {
                 source_text,
                 glossary,

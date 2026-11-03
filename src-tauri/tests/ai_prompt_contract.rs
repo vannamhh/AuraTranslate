@@ -50,7 +50,8 @@ use auratranslate_lib::commands::aiprompt::{
 use auratranslate_lib::commands::config::put_config;
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::promptset::{PromptSetTierWire, prompt_set_create};
-use auratranslate_lib::commands::segment::read_open_chapter_segments;
+use auratranslate_lib::commands::segment::{read_open_chapter_segments, set_segment_omitted};
+use auratranslate_lib::core::ai::batch::{TM_BLOCK_LEAD, system_with_block_format};
 use auratranslate_lib::core::glossary::{Category, GlossaryTier, add_manual_term};
 use auratranslate_lib::core::i18n::MessageKey;
 use auratranslate_lib::core::promptset::PromptSetTier;
@@ -70,6 +71,10 @@ fn temp_dir(tag: &str) -> PathBuf {
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("tao {}: {e}", dir.display()));
     dir
+}
+
+fn segment_block(source: &str) -> String {
+    format!("<<<SEGMENT 1\n{source}\nSEGMENT>>>")
 }
 
 fn cleanup(dir: &Path) {
@@ -342,7 +347,13 @@ fn a_body_with_the_marker_and_no_similar_pair_is_searched_empty_and_the_line_is_
         wire.ledger.tm.similar_segments.as_ref().map(Vec::len),
         Some(0)
     );
-    assert_eq!(wire.prompt, format!("TM:\nSrc: {TM_SENTENCE}"));
+    assert_eq!(
+        wire.prompt,
+        format!(
+            "TM:\n{TM_BLOCK_LEAD}\nSrc: \n{}",
+            segment_block(TM_SENTENCE)
+        )
+    );
 
     drop(open);
     drop(global);
@@ -488,7 +499,13 @@ fn a_raised_tm_fuzzy_threshold_drops_a_pair_that_the_default_threshold_inserts()
         raised.ledger.tm.similar_segments.as_ref().map(Vec::len),
         Some(0)
     );
-    assert_eq!(raised.prompt, format!("TM:\nSrc: {TM_SENTENCE}"));
+    assert_eq!(
+        raised.prompt,
+        format!(
+            "TM:\n{TM_BLOCK_LEAD}\nSrc: \n{}",
+            segment_block(TM_SENTENCE)
+        )
+    );
 
     drop(open);
     drop(global);
@@ -703,8 +720,9 @@ fn an_empty_prompt_set_body_is_recorded_as_present_not_as_nothing_recorded() {
     .expect("than RONG khong duoc la mot loi -- day la mot TRANG THAI, khong phai mot vi pham");
 
     assert_eq!(
-        wire.prompt, "",
-        "prompt cua ban ghi phai RONG, dung theo than bo prompt"
+        wire.prompt,
+        segment_block("A sentence that is ignored."),
+        "than bo prompt rong thi ban ghi chi con khoi SEGMENT 1"
     );
     // Cac phan khac cua ban ghi (dinh danh, ledger) van hien binh thuong -- khong bi "sup do"
     // theo `prompt` rong.
@@ -722,7 +740,10 @@ fn an_empty_prompt_set_body_is_recorded_as_present_not_as_nothing_recorded() {
     // Đọc lại qua `read_last_assembled_prompt` phải cho đúng CÙNG bản ghi -- `Some`, không
     // `None` -- phân biệt hẳn với ca "Nothing recorded yet" ở trên.
     let read_back = read_last_assembled_prompt(&record).expect("phai la Some -- da lap mot lan");
-    assert_eq!(read_back.prompt, "");
+    assert_eq!(
+        read_back.prompt,
+        segment_block("A sentence that is ignored.")
+    );
 
     drop(open);
     drop(global);
@@ -805,7 +826,10 @@ fn happy_path_records_two_confirmed_terms_with_their_translation_and_tier() {
 
     assert_eq!(
         wire.prompt,
-        format!("Terms: \ndragon → rong\ncastle → lau dai\nSentence: {sentence}"),
+        format!(
+            "Terms: \ndragon → rong\ncastle → lau dai\nSentence: \n{}",
+            segment_block(&sentence)
+        ),
         "chuoi prompt phai lap dung khoi hai cap + cau nguon, khong noi giua dong"
     );
     assert_eq!(wire.segment_id, segment_id);
@@ -866,7 +890,10 @@ fn happy_path_records_two_confirmed_terms_with_their_translation_and_tier() {
         wire.ledger.pieces[3].kind,
         PromptPieceKindWire::SourceSegment
     );
-    assert_eq!(wire.ledger.pieces[3].text, sentence);
+    assert_eq!(
+        wire.ledger.pieces[3].text,
+        format!("\n{}", segment_block(&sentence))
+    );
 
     // Bản ghi đọc lại phải khớp CHÍNH bản ghi vừa ghi -- "screen reads the record", không lắp
     // lại.
@@ -1014,7 +1041,13 @@ fn a_body_missing_the_source_segment_marker_still_assembles_and_the_ledger_flags
     )
     .expect("thieu {{source_segment}} khong duoc la mot loi");
 
-    assert_eq!(wire.prompt, "Static text only.");
+    assert_eq!(
+        wire.prompt,
+        format!(
+            "Static text only.\n{}",
+            segment_block("This sentence is never used.")
+        )
+    );
     assert!(
         wire.ledger.source_segment_missing,
         "than khong mang {{source_segment}} phai duoc gan co"
@@ -1066,7 +1099,7 @@ fn an_unknown_marker_stands_verbatim_and_is_named_in_the_ledger() {
 
     assert_eq!(
         wire.prompt,
-        format!("{} {}", "{{chapter_context}}", sentence)
+        format!("{} \n{}", "{{chapter_context}}", segment_block(&sentence))
     );
     assert_eq!(
         wire.ledger.unknown_markers,
@@ -1520,7 +1553,9 @@ fn the_wire_returned_by_assemble_and_record_prompt_serializes_with_the_exact_tag
     );
     assert_eq!(
         json["system"],
-        serde_json::json!(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT)
+        serde_json::json!(system_with_block_format(Some(
+            auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT
+        )))
     );
     assert_eq!(json["sent_at"], serde_json::json!(null));
     assert_eq!(json["sent_model"], serde_json::json!(null));
@@ -1824,7 +1859,12 @@ fn the_record_carries_the_app_default_system_prompt_when_no_tier_has_a_row() {
     let system = recorded_system_after_assembling("sys-default", |_, _| {});
     assert_eq!(
         system.as_deref(),
-        Some(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT)
+        Some(
+            system_with_block_format(Some(
+                auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT
+            ))
+            .as_str()
+        )
     );
 }
 
@@ -1835,7 +1875,10 @@ fn a_global_system_prompt_is_recorded_verbatim_including_newlines_and_edge_space
     let system = recorded_system_after_assembling("sys-global", |global, _| {
         write_field(global, AiConfigField::SystemPrompt, typed).expect("ghi");
     });
-    assert_eq!(system.as_deref(), Some(typed));
+    assert_eq!(
+        system.as_deref(),
+        Some(system_with_block_format(Some(typed)).as_str())
+    );
 }
 
 #[test]
@@ -1845,14 +1888,20 @@ fn a_work_system_prompt_overrides_global_and_clearing_it_falls_back_to_global() 
         write_field(global, AiConfigField::SystemPrompt, "A").expect("ghi global");
         write_field(&open.store, AiConfigField::SystemPrompt, "B").expect("ghi work");
     });
-    assert_eq!(overridden.as_deref(), Some("B"));
+    assert_eq!(
+        overridden.as_deref(),
+        Some(system_with_block_format(Some("B")).as_str())
+    );
 
     let inherited = recorded_system_after_assembling("sys-work-clear", |global, open| {
         write_field(global, AiConfigField::SystemPrompt, "A").expect("ghi global");
         write_field(&open.store, AiConfigField::SystemPrompt, "B").expect("ghi work");
         clear_field(&open.store, AiConfigField::SystemPrompt).expect("xoa work");
     });
-    assert_eq!(inherited.as_deref(), Some("A"));
+    assert_eq!(
+        inherited.as_deref(),
+        Some(system_with_block_format(Some("A")).as_str())
+    );
 }
 
 #[test]
@@ -1861,21 +1910,77 @@ fn a_blank_system_prompt_row_turns_it_off_only_at_the_tier_that_saved_it() {
     let off_global = recorded_system_after_assembling("sys-off-global", |global, _| {
         write_field(global, AiConfigField::SystemPrompt, "").expect("ghi rong");
     });
-    assert_eq!(off_global, None, "o rong khong sinh message system rong");
+    let only_format = system_with_block_format(None);
+    assert_eq!(
+        off_global.as_deref(),
+        Some(only_format.as_str()),
+        "o rong chi con phan dan dinh dang khoi, khong co message system rong"
+    );
 
     let off_blank = recorded_system_after_assembling("sys-off-blank", |global, _| {
         write_field(global, AiConfigField::SystemPrompt, "  \n ").expect("ghi toan khoang trang");
     });
-    assert_eq!(off_blank, None, "toan khoang trang cung la tat");
+    assert_eq!(
+        off_blank.as_deref(),
+        Some(only_format.as_str()),
+        "toan khoang trang cung la tat"
+    );
 
     let off_in_work = recorded_system_after_assembling("sys-off-work", |global, open| {
         write_field(global, AiConfigField::SystemPrompt, "A").expect("ghi global");
         write_field(&open.store, AiConfigField::SystemPrompt, "").expect("ghi rong work");
     });
-    assert_eq!(off_in_work, None);
+    assert_eq!(off_in_work.as_deref(), Some(only_format.as_str()));
 
     let other_work = recorded_system_after_assembling("sys-off-other", |global, _| {
         write_field(global, AiConfigField::SystemPrompt, "A").expect("ghi global");
     });
-    assert_eq!(other_work.as_deref(), Some("A"));
+    assert_eq!(
+        other_work.as_deref(),
+        Some(system_with_block_format(Some("A")).as_str())
+    );
+}
+
+#[test]
+fn previewing_an_omitted_segment_still_records_its_sentence_alone() {
+    let global_dir = temp_dir("omitted-preview-global");
+    let work_dir = temp_dir("omitted-preview-work");
+    let global = open_global(&global_dir);
+    let open = open_work(
+        &work_dir,
+        "Omitted Preview",
+        "en",
+        "First one.\nOmitted one.\nThird.",
+    );
+    prompt_set_create(
+        Some(&global),
+        Some(&open),
+        PromptSetTier::Global,
+        "Plain",
+        "{{source_segment}}",
+    )
+    .expect("tao bo prompt");
+    let ids: Vec<i64> = read_open_chapter_segments(Some(&open))
+        .expect("nap chuong")
+        .segments
+        .iter()
+        .map(|s| s.id)
+        .collect();
+    set_segment_omitted(Some(&open), ids[1], true).expect("omit");
+
+    let wire = assemble_and_record_prompt(
+        Some(&global),
+        Some(&open),
+        &fresh_record(),
+        Some("Plain"),
+        ids[1],
+    )
+    .expect("lap rap");
+
+    assert_eq!(wire.prompt, segment_block("Omitted one."));
+
+    drop(open);
+    drop(global);
+    cleanup(&work_dir);
+    cleanup(&global_dir);
 }

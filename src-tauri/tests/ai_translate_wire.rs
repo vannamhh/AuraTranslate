@@ -124,7 +124,7 @@ fn spawn_counted_sse_server(
                 continue;
             }
             let body = format!(
-                "data: {{\"choices\":[{{\"delta\":{{\"content\":\"Xin chao\"}}}}]}}\n\n{}data: [DONE]\n\n",
+                "data: {{\"choices\":[{{\"delta\":{{\"content\":\"<<<SEGMENT 1\\nXin chao\\nSEGMENT>>>\"}}}}]}}\n\n{}data: [DONE]\n\n",
                 if with_usage { USAGE_CHUNK } else { "" }
             );
             let response = format!(
@@ -807,9 +807,9 @@ fn sse_body(frames: &[&str]) -> String {
 }
 
 const GEMINI_FRAMES: [&str; 4] = [
-    r#"{"choices":[{"delta":{"content":"Con rong ","role":"assistant"},"index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":2,"prompt_tokens":11,"total_tokens":13}}"#,
+    r#"{"choices":[{"delta":{"content":"<<<SEGMENT 1\nCon rong ","role":"assistant"},"index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":2,"prompt_tokens":11,"total_tokens":13}}"#,
     r#"{"choices":[{"delta":{"content":"gam ","role":"assistant"},"index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":3,"prompt_tokens":11,"total_tokens":14}}"#,
-    r#"{"choices":[{"delta":{"content":"len.","role":"assistant"},"index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":7,"prompt_tokens":11,"total_tokens":18}}"#,
+    r#"{"choices":[{"delta":{"content":"len.\nSEGMENT>>>\n","role":"assistant"},"index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":7,"prompt_tokens":11,"total_tokens":18}}"#,
     r#"{"choices":[{"delta":{"extra_content":{"google":{"thought_signature":"abc"}},"role":"assistant"},"finish_reason":"stop","index":0}],"model":"gemini-3.5-flash-lite","object":"chat.completion.chunk","usage":{"completion_tokens":7,"prompt_tokens":11,"total_tokens":18}}"#,
 ];
 
@@ -987,6 +987,94 @@ fn a_batch_call_whose_stream_has_no_text_discards_every_sentence_and_the_operati
     );
     assert!(seen.iter().all(|e| !e.contains("\"received\"")), "{seen:?}");
     assert_eq!(h.accepted.load(Ordering::SeqCst), 1);
+    assert!(target_texts(&h).iter().all(String::is_empty));
+}
+
+const RESEND_COPIED_CONTEXT_FRAME: &str = r#"{"choices":[{"delta":{"content":"<<<CONTEXT\nA dragon roared.\nCONTEXT>>>\n<<<SEGMENT 1\nCon rong\nSEGMENT>>>"},"finish_reason":"stop"}]}"#;
+
+#[test]
+fn resending_a_single_sentence_sends_the_recorded_neighbours_and_reads_the_reply_by_blocks() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-resend-blocks");
+    let h = Harness::with_error_reply(
+        "resend-blocks",
+        "A dragon roared. The knight fled. The bell rang. The gate fell.",
+        1,
+        "200 OK",
+        &sse_body(&[RESEND_COPIED_CONTEXT_FRAME]),
+    );
+    let segment_id = h.segment_ids()[3];
+    h.assemble(segment_id);
+    let recorded = h.record();
+    assert_eq!(recorded.prompt.matches("<<<CONTEXT").count(), 3);
+
+    let pieces = Arc::new(Mutex::new(Vec::<String>::new()));
+    let sink = Arc::clone(&pieces);
+    let channel = tauri::ipc::Channel::<String>::new(move |body| {
+        if let tauri::ipc::InvokeResponseBody::Json(json) = body {
+            sink.lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(serde_json::from_str(&json).expect("manh chu"));
+        }
+        Ok(())
+    });
+    let outcome =
+        tauri::async_runtime::block_on(wire::ai_translate_resend(h.app.handle().clone(), channel))
+            .expect("ai_translate_resend phai tra Ok");
+    assert!(
+        matches!(
+            outcome,
+            AiTranslateOutcomeWire::Done {
+                maybe_truncated: false,
+                ..
+            }
+        ),
+        "{outcome:?}"
+    );
+    let bodies = h
+        .bodies
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    assert!(
+        bodies[0].contains(&serde_json::to_string(&recorded.prompt).expect("json")),
+        "than gui di phai mang dung prompt co cau ke: {}",
+        bodies[0]
+    );
+    assert_eq!(
+        pieces
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .concat(),
+        "Con rong",
+        "khoi ngu canh mo hinh chep lai khong duoc toi kenh"
+    );
+}
+
+#[test]
+fn resending_a_single_sentence_whose_reply_has_no_block_one_fails_with_result_missing() {
+    let _guard = KEYCHAIN_KEY_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    save_key("sk-wire-resend-missing");
+    let h = Harness::with_error_reply(
+        "resend-missing",
+        "A dragon roared.",
+        1,
+        "200 OK",
+        &sse_body(&[
+            r#"{"choices":[{"delta":{"content":"Con rong gam."},"finish_reason":"stop"}]}"#,
+        ]),
+    );
+    h.assemble(h.segment_ids()[0]);
+    let err = tauri::async_runtime::block_on(wire::ai_translate_resend(
+        h.app.handle().clone(),
+        sink_channel(),
+    ))
+    .expect_err("chu thuong ngoai khoi phai la Err");
+    assert_eq!(err.code(), "ai_translate.result_missing");
     assert!(target_texts(&h).iter().all(String::is_empty));
 }
 

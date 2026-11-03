@@ -13906,3 +13906,13 @@ chính nó.
   summary: chưa kiểm trên app thật rằng ký một câu thì câu cùng nguồn trong Chương hiện ngay bản dịch, có dấu TM, vẫn chưa xác nhận; chưa chạy spec e2e nào sau thay đổi.
   evidence: chỉ vitest với mock và `tm_contract` qua vỏ IPC đã chạy; vitest không bắt lỗi khởi động webview.
   Chủ: Ice
+
+- source_plan: `story-moi-luot-dich-mang-ba-cau-ung-truoc-lam-ngu-canh-uong-dich-m-plan.md`
+  summary: chưa ai dịch một câu thật với mô hình cục bộ và với preset để xem Xem prompt có 3 câu kề (chỉ đọc) và kết quả không còn chữ câu kề; chưa đối chiếu token vào trước/sau (AD-65 ước +64% ở một câu, số mô hình tính).
+  evidence: test chạy máy chủ SSE giả khung viết tay; Ollama/LM Studio thật có thể chép khối ngữ cảnh hoặc không theo định dạng khối, ra *thiếu kết quả AI* ở câu hôm nay vẫn dịch được.
+  Chủ: Epic 4
+
+- source_plan: `story-moi-luot-dich-mang-ba-cau-ung-truoc-lam-ngu-canh-uong-dich-m-plan.md`
+  summary: lượt dịch một câu ra *thiếu kết quả AI* đã gửi đi và đã tốn token, nhưng màn Xem prompt vẫn ghi "chưa gửi" và không có usage; mọi `Err` sau khi gửi (`reply_empty`, đứt luồng) cũng vậy từ trước.
+  evidence: `wire::ai_translate_segment`/`ai_translate_resend` chỉ gọi `mark_prompt_as_sent` ở nhánh `Ok(Done)`; cần Ice quyết lượt lỗi đã tốn tiền có hiện là "đã gửi" kèm usage hay không (FR71, FR76).
+  Chủ: Epic 4

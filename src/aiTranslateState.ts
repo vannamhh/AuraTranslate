@@ -119,6 +119,8 @@ export async function resendAiPrompt(segmentId: number | null): Promise<void> {
   await runTranslateWith(segmentId, runAiTranslateResendCall)
 }
 
+const RESULT_MISSING_CODE = 'ai_translate.result_missing'
+
 type TranslateCall = (
   onToken: (text: string) => void,
 ) => Promise<{ value: AiTranslateOutcomeWire | null; error: IpcError | null }>
@@ -151,6 +153,7 @@ async function runTranslateWith(segmentId: number, call: TranslateCall): Promise
   if (result.error !== null) {
     state.value = 'error'
     error.value = result.error
+    if (result.error.code === RESULT_MISSING_CODE) accumulatedText.value = ''
     return
   }
 

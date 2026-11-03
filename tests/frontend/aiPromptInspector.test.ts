@@ -1909,6 +1909,31 @@ describe('bản ghi theo lượt (AD-60 mục 13)', () => {
     expect(state.aiPromptCallNote(record())).toEqual({ kind: 'none' })
   })
 
+  it('bản ghi một câu (call === null) tô khối 1, bản ghi chỉ-ngữ-cảnh không tô khối nào', async () => {
+    const { state } = await freshOverlay()
+    expect(state.aiPromptHighlightBlockNumber(null)).toBeNull()
+    expect(state.aiPromptHighlightBlockNumber(record())).toBe(1)
+    expect(state.aiPromptHighlightBlockNumber(record({ call: callOf() }))).toBe(2)
+    expect(
+      state.aiPromptHighlightBlockNumber(record({ call: callOf({ requested_role: 'context', block_number: null }) })),
+    ).toBeNull()
+  })
+
+  it('khối CONTEXT được đánh dấu riêng, kể cả khi không có số khối, và chữ ghép lại không đổi', async () => {
+    const { state } = await freshOverlay()
+    const text = '<<<CONTEXT\ncâu kề → dịch kề\nCONTEXT>>>\n<<<SEGMENT 1\ncâu một\nSEGMENT>>>'
+    for (const blockNumber of [1, null]) {
+      const parts = state.aiPromptHighlightParts(text, blockNumber)
+      expect(parts.map((p) => p.text).join('')).toBe(text)
+      expect(parts.filter((p) => p.context === true).map((p) => p.text).join('')).toBe(
+        '<<<CONTEXT\ncâu kề → dịch kề\nCONTEXT>>>\n',
+      )
+      expect(parts.filter((p) => p.context !== true && p.highlighted).map((p) => p.text).join('')).toBe(
+        blockNumber === 1 ? '<<<SEGMENT 1\ncâu một\nSEGMENT>>>' : '',
+      )
+    }
+  })
+
   it('màn hiện ghi chú "chỉ là ngữ cảnh" và đánh dấu khối của câu', async () => {
     const { caretSegmentId } = await freshOverlay()
     caretSegmentId.value = 9

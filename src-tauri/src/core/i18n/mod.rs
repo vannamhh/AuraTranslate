@@ -925,6 +925,9 @@ message_keys! {
     /// (`OpenAiClientError::ApiKeyHeaderInvalid`, tách khỏi `RequestFailed` ở Task 1 spec 4.10)
     /// — câu chỉ vào khoá đã lưu, không đọc được. KHÔNG retryable — thất bại giống hệt mỗi lần.
     AiTranslateApiKeyHeaderInvalid => "err.ai_translate.api_key_header_invalid" [],
+    /// The model answered, but the one-sentence reply held no usable block 1. Not retryable by
+    /// itself; the user retries.
+    AiTranslateResultMissing => "err.ai_translate.result_missing" [],
     AiTranslateInternalFailure => "err.ai_translate.internal_failure" [],
     /// The scan reply was not the JSON array the prompt asked for. Retryable: a second sample
     /// from the same model usually parses.

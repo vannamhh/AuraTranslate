@@ -30,12 +30,15 @@
 use crate::commands::aitranslate::AiTranslateUsageWire;
 use crate::commands::project::OpenWork;
 use crate::commands::promptset::PromptSetTierWire;
+use crate::core::ai::batch::{
+    CallEntry, PlanScope, PlanSegment, plan_calls, system_with_block_format,
+};
 use crate::core::ai::rag::{
     CallPromptEntry, GlossaryInjectionStatus, InjectedGlossaryTerm, InjectedTmPair,
     InjectionLedger, PendingGlossaryTerm, PromptPiece, PromptPieceKind, SuppressedGlossaryTerm,
     TmInjectionStatus, TmRows, assemble_call_prompt, assemble_context_reference_prompt,
-    assemble_prompt, gather_glossary_context, gather_glossary_context_from_snapshot,
-    gather_tm_context, load_glossary_snapshot, load_tm_rows,
+    gather_glossary_context, gather_glossary_context_from_snapshot, gather_tm_context,
+    load_glossary_snapshot, load_tm_rows,
 };
 use crate::core::glossary::{GlossarySnapshot, GlossaryTier};
 use crate::core::i18n::{IpcError, MessageKey};
@@ -544,6 +547,18 @@ pub fn assemble_and_record_prompt_with_tm(
     let sentence = row.source_text.as_str();
     let source_lang = open_work.meta.source_lang.as_str();
 
+    let plan_segments: Vec<PlanSegment> = chapter
+        .segments
+        .iter()
+        .map(|s| PlanSegment {
+            id: s.id,
+            is_omitted: s.is_omitted,
+            translated: !s.target_text.trim().is_empty(),
+        })
+        .collect();
+    let selected = std::collections::BTreeSet::from([segment_id]);
+    let plan = plan_calls(&plan_segments, PlanScope::Selection(&selected));
+
     let glossary = gather_glossary_context(
         &set.body,
         &resolver,
@@ -558,10 +573,43 @@ pub fn assemble_and_record_prompt_with_tm(
     }
     let tm = gather_tm_context(tm_cache.0.as_ref(), &resolver, source_lang, sentence)
         .map_err(|e| crate::commands::segment::tm_lookup_failed(&e))?;
-    let (prompt, ledger) = assemble_prompt(&set.body, sentence, glossary, tm.as_ref());
-    let system = crate::core::aiconfig::resolve_system_prompt(
-        &crate::core::aiconfig::resolve_two_tiers(&resolver, global_store, work_store)?,
-    );
+
+    let mut entries: Vec<CallPromptEntry<'_>> = Vec::new();
+    for call_entry in plan.iter().flat_map(|c| c.entries.iter()) {
+        match *call_entry {
+            CallEntry::Context(id) => {
+                if let Some(neighbour) = chapter.segments.iter().find(|s| s.id == id) {
+                    entries.push(CallPromptEntry::Context {
+                        source_text: &neighbour.source_text,
+                        target_text: &neighbour.target_text,
+                    });
+                }
+            }
+            CallEntry::Translate(_) => entries.push(CallPromptEntry::Segment {
+                source_text: sentence,
+                glossary: glossary.clone(),
+                tm: tm.clone(),
+            }),
+        }
+    }
+    if !entries
+        .iter()
+        .any(|e| matches!(e, CallPromptEntry::Segment { .. }))
+    {
+        entries = vec![CallPromptEntry::Segment {
+            source_text: sentence,
+            glossary: glossary.clone(),
+            tm: tm.clone(),
+        }];
+    }
+    let (prompt, ledger) = assemble_call_prompt(&set.body, &entries);
+    let system =
+        Some(system_with_block_format(
+            crate::core::aiconfig::resolve_system_prompt(
+                &crate::core::aiconfig::resolve_two_tiers(&resolver, global_store, work_store)?,
+            )
+            .as_deref(),
+        ));
 
     let record_value = AssembledPromptRecord {
         prompt,

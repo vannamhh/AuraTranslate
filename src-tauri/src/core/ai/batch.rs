@@ -6,6 +6,7 @@ use std::collections::BTreeSet;
 
 pub const TRANSLATE_CALL_MAX_SEGMENTS: usize = 100;
 pub const CONTEXT_GAP_MAX: usize = 3;
+pub const CONTEXT_BEFORE: usize = 3;
 pub const TM_PAIRS_PER_SEGMENT: usize = super::rag::TM_PAIR_CAP;
 
 // aura-allow-text: prompt text sent to the model, not UI text
@@ -148,7 +149,7 @@ pub struct PlanSegment {
 pub enum PlanScope<'a> {
     /// Every untranslated, non-omitted segment, with already translated neighbours as context.
     Chapter,
-    /// Exactly these ids (omitted ones excepted), translated or not, never with context.
+    /// Exactly these ids (omitted ones excepted), translated or not.
     Selection(&'a BTreeSet<i64>),
 }
 
@@ -188,11 +189,35 @@ pub fn plan_calls(segments: &[PlanSegment], scope: PlanScope<'_>) -> Vec<Planned
     };
     calls
         .into_iter()
+        .map(|entries| with_leading_context(&visible, entries))
         .enumerate()
         .map(|(i, entries)| PlannedCall {
             call_index: u32::try_from(i + 1).unwrap_or(u32::MAX),
             entries,
         })
+        .collect()
+}
+
+/// Replaces the leading context of a call with the up to `CONTEXT_BEFORE` visible segments
+/// immediately before its first translated segment.
+fn with_leading_context(visible: &[&PlanSegment], entries: Vec<CallEntry>) -> Vec<CallEntry> {
+    let Some(first_at) = entries
+        .iter()
+        .position(|e| matches!(e, CallEntry::Translate(_)))
+    else {
+        return entries;
+    };
+    let CallEntry::Translate(first_id) = entries[first_at] else {
+        return entries;
+    };
+    let Some(pos) = visible.iter().position(|s| s.id == first_id) else {
+        return entries;
+    };
+    let from = pos.saturating_sub(CONTEXT_BEFORE);
+    visible[from..pos]
+        .iter()
+        .map(|s| CallEntry::Context(s.id))
+        .chain(entries.into_iter().skip(first_at))
         .collect()
 }
 
@@ -335,6 +360,11 @@ impl BlockStream {
             }
         }
         out
+    }
+
+    /// How many openings of block `index` have ended so far (closed or superseded).
+    pub fn ended_openings(&self, index: u32) -> usize {
+        self.blocks.iter().filter(|b| b.index == index).count()
     }
 
     pub fn finish(mut self) -> Vec<ParsedBlock> {

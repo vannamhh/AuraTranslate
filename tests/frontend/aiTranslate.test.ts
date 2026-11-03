@@ -88,6 +88,13 @@ const STREAM_ENDED_ERROR: IpcError = {
   retryable: true,
 }
 
+const RESULT_MISSING_ERROR: IpcError = {
+  code: 'ai_translate.result_missing',
+  message_key: 'err.ai_translate.result_missing',
+  params: {},
+  retryable: false,
+}
+
 /** Cùng lý do trên: một lỗi KHÔNG retryable thật (Quyết định 2 spec 4.10), dùng cho cụm "nút
  * Thử lại chỉ hiện khi retryable" — không tái dùng `STREAM_ENDED_ERROR` vì hai ca đó phải khác
  * nhau đúng ở CỜ `retryable`, không phải ở bất cứ điều gì khác. */
@@ -579,6 +586,34 @@ describe('AiTranslationPanel.vue — dispatch("ai.translate.run") qua "fake Chan
       'Kết nối tới nhà cung cấp AI đã đóng giữa chừng, trước khi luồng kết thúc. Những đoạn đã nhận trước đó vẫn còn trên màn hình.',
     )
     expect(wrapper.get('[data-ai-translate-text]').text()).toBe('Mot phan ket qua')
+
+    wrapper.unmount()
+  })
+
+  it('error: result_missing ⇒ chữ đã hiện bị xoá hết và thẻ kết quả không còn chữ nào, khác lỗi mạng giữ chữ', async () => {
+    const { state, AiTranslationPanel, caretSegmentId } = await freshPanel()
+    caretSegmentId.value = 3
+    const fake = pendingRun()
+
+    const wrapper = mountPanel(AiTranslationPanel)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-ai-translate-run]').trigger('click')
+    await flushPromises()
+
+    fake.token('Chu cua khoi bi bo')
+    await wrapper.vm.$nextTick()
+    expect(state.aiTranslateAccumulatedText.value).toBe('Chu cua khoi bi bo')
+
+    fake.settle({ value: null, error: RESULT_MISSING_ERROR })
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(state.aiTranslateStateValue.value).toBe('error')
+    expect(state.aiTranslateAccumulatedText.value).toBe('')
+    expect(wrapper.find('[data-ai-translate-text]').exists() ? wrapper.get('[data-ai-translate-text]').text() : '').toBe('')
+    expect(wrapper.get('.ai-translate-alert').text()).toBe(
+      'Thiếu kết quả AI: mô hình có trả lời nhưng không có khối dịch dùng được — chưa có bản dịch.',
+    )
 
     wrapper.unmount()
   })

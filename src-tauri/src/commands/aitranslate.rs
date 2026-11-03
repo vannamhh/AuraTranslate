@@ -62,8 +62,8 @@ use crate::commands::aiprompt::{
 use crate::commands::project::{OpenWork, OpenWorkState};
 use crate::commands::segment::source_text_hash;
 use crate::core::ai::batch::{
-    BlockStream, CallEntry, DiscardReason, PlanScope, PlanSegment, PlannedCall, StreamEnd, Verdict,
-    has_han, plan_calls, reconcile, system_with_block_format,
+    BlockEnd, BlockStream, CallEntry, DiscardReason, PlanScope, PlanSegment, PlannedCall,
+    StreamEnd, Verdict, has_han, plan_calls, reconcile, system_with_block_format,
 };
 use crate::core::ai::client::{OpenAiChatClient, OpenAiClientError};
 use crate::core::aiconfig::{
@@ -669,7 +669,7 @@ pub async fn run_translate_call<P: TranslationProvider>(
     prepared: &PreparedTranslateCall,
     channel: &tauri::ipc::Channel<String>,
     should_cancel: &dyn Fn() -> bool,
-) -> Result<TranslateOutcome, P::Error> {
+) -> Result<SingleRun, SingleRunError<P::Error>> {
     let request = TranslateRequest {
         endpoint: &prepared.endpoint,
         model: &prepared.model,
@@ -679,14 +679,84 @@ pub async fn run_translate_call<P: TranslationProvider>(
         prompt: &prepared.prompt,
         system: prepared.system.as_deref(),
     };
-    let mut on_token = |text: &str| {
-        // Kenh mat nguoi nhan (webview dong)/loi tam thoi -- token da nhan TRUOC do van o lai
-        // tren man hinh (§Always spec 4.8), khong co gi de lam voi mot loi gui THEM.
-        let _ = channel.send(text.to_owned());
-    };
-    provider
-        .translate(request, &mut on_token, should_cancel)
-        .await
+    let mut reader = BlockStream::new();
+    let result = {
+        let mut on_token = |text: &str| {
+            // Pieces are pushed one line at a time so the opening a piece belongs to is known.
+            for part in text.split_inclusive('\n') {
+                let first_opening = reader.ended_openings(1) == 0;
+                for piece in reader.push(part) {
+                    if piece.index == 1 && first_opening {
+                        // A closed channel or transient error leaves earlier text on screen.
+                        let _ = channel.send(piece.text);
+                    }
+                }
+            }
+        };
+        provider
+            .translate(request, &mut on_token, should_cancel)
+            .await
+    }
+    .map_err(SingleRunError::Provider)?;
+    let blocks = reader.finish();
+    match result {
+        TranslateOutcome::Cancelled => Ok(SingleRun::Cancelled),
+        TranslateOutcome::Done {
+            usage,
+            finish_reason,
+        } => {
+            let mut first = blocks.iter().filter(|b| b.index == 1);
+            match (first.next(), first.next()) {
+                (Some(block), None)
+                    if !block.text.is_empty() && block.end != BlockEnd::Superseded =>
+                {
+                    Ok(SingleRun::Done {
+                        usage,
+                        finish_reason,
+                        block_open: block.end == BlockEnd::StreamEnd,
+                    })
+                }
+                _ => Err(SingleRunError::ResultMissing),
+            }
+        }
+    }
+}
+
+/// What the single-sentence reader made of a finished call.
+#[derive(Debug, PartialEq)]
+pub enum SingleRun {
+    Cancelled,
+    Done {
+        usage: Option<TranslateUsage>,
+        finish_reason: Option<String>,
+        /// Block 1 had not closed when the stream ended.
+        block_open: bool,
+    },
+}
+
+#[derive(Debug, PartialEq)]
+pub enum SingleRunError<E> {
+    Provider(E),
+    /// The model answered, but block 1 is absent, repeated or empty.
+    ResultMissing,
+}
+
+impl<E: Into<IpcError>> From<SingleRunError<E>> for IpcError {
+    fn from(err: SingleRunError<E>) -> Self {
+        match err {
+            SingleRunError::Provider(e) => e.into(),
+            SingleRunError::ResultMissing => result_missing_error(),
+        }
+    }
+}
+
+fn result_missing_error() -> IpcError {
+    IpcError::new(
+        "ai_translate.result_missing",
+        MessageKey::AiTranslateResultMissing,
+        std::collections::BTreeMap::new(),
+        false,
+    )
 }
 
 /// Generation counter of the connection check, separate from [`AiTranslateGeneration`] so a check
@@ -1262,7 +1332,7 @@ async fn send_prepared_translate_call(
     channel: tauri::ipc::Channel<String>,
     generation_state: AiTranslateGeneration,
     generation: u64,
-) -> Result<TranslateOutcome, IpcError> {
+) -> Result<SingleRun, IpcError> {
     send_with_cancel(prepared, channel, move || {
         !generation_state.is_current(generation)
     })
@@ -1273,11 +1343,11 @@ async fn send_with_cancel(
     prepared: PreparedTranslateCall,
     channel: tauri::ipc::Channel<String>,
     should_cancel: impl Fn() -> bool + Send + 'static,
-) -> Result<TranslateOutcome, IpcError> {
+) -> Result<SingleRun, IpcError> {
     let join = tauri::async_runtime::spawn_blocking(move || {
         let provider = OpenAiChatClient::new();
         if should_cancel() {
-            return Ok(TranslateOutcome::Cancelled);
+            return Ok(SingleRun::Cancelled);
         }
 
         tauri::async_runtime::handle().block_on(run_translate_call(
@@ -1632,15 +1702,16 @@ pub enum AiTranslateOutcomeWire {
 /// một lỗi copy-paste dễ mắc) vẫn qua sạch `cargo test`/`npx vitest run`/mọi gate. Hàm này là
 /// SEAM để `tests/ai_translate_contract.rs` đối chứng đúng phép ánh xạ đó mà không cần một
 /// `AppHandle`.
-pub fn single_run_outcome_wire(outcome: TranslateOutcome) -> AiTranslateOutcomeWire {
+pub fn single_run_outcome_wire(outcome: SingleRun) -> AiTranslateOutcomeWire {
     match outcome {
-        TranslateOutcome::Cancelled => AiTranslateOutcomeWire::Cancelled,
-        TranslateOutcome::Done {
+        SingleRun::Cancelled => AiTranslateOutcomeWire::Cancelled,
+        SingleRun::Done {
             usage,
             finish_reason,
+            block_open,
         } => AiTranslateOutcomeWire::Done {
             usage: usage.map(AiTranslateUsageWire::from),
-            maybe_truncated: finish_reason.as_deref() != Some("stop"),
+            maybe_truncated: block_open || finish_reason.as_deref() != Some("stop"),
         },
     }
 }
@@ -1653,9 +1724,9 @@ pub mod wire {
     use super::{
         AiTranslateBatchEventWire, AiTranslateGeneration, AiTranslateOutcomeWire, AiTranslateScope,
         AppStores, OperationCallSource, PrepareOperationOutcome, PrepareOutcome, ResendCallSource,
-        StoreAccess, prepare_resend_call, prepare_translate_call, prepare_translate_operation,
-        resend_plan, send_prepared_operation, send_prepared_translate_call,
-        single_run_outcome_wire, state_missing,
+        SingleRun, StoreAccess, prepare_resend_call, prepare_translate_call,
+        prepare_translate_operation, resend_plan, send_prepared_operation,
+        send_prepared_translate_call, single_run_outcome_wire, state_missing,
     };
     use super::{
         ConnectionCheckGeneration, ConnectionCheckPrep, ConnectionCheckWire,
@@ -1669,7 +1740,6 @@ pub mod wire {
     use crate::core::aiconfig::AiConfigTier;
     use crate::core::i18n::IpcError;
     use crate::core::store::Store;
-    use crate::ports::translation_provider::TranslateOutcome;
 
     /// Vỏ IPC của lượt dịch một segment — `async fn` LITERAL (xem doc-comment đầu tệp cho lý
     /// do và cơ chế). `try_state`, không `state()` — cùng lý do mọi vỏ khác của kho.
@@ -1741,12 +1811,11 @@ pub mod wire {
             send_prepared_translate_call(prepared, channel, generation_state, generation).await;
 
         match outcome {
-            Ok(TranslateOutcome::Cancelled) => {
-                Ok(single_run_outcome_wire(TranslateOutcome::Cancelled))
-            }
-            Ok(TranslateOutcome::Done {
+            Ok(SingleRun::Cancelled) => Ok(single_run_outcome_wire(SingleRun::Cancelled)),
+            Ok(SingleRun::Done {
                 usage,
                 finish_reason,
+                block_open,
             }) => {
                 if let Some(global) = app.try_state::<Store>()
                     && let Some(sent_at) = super::now_utc_iso8601(&global)
@@ -1761,9 +1830,10 @@ pub mod wire {
                         usage.map(AiTranslateUsageWire::from),
                     );
                 }
-                Ok(single_run_outcome_wire(TranslateOutcome::Done {
+                Ok(single_run_outcome_wire(SingleRun::Done {
                     usage,
                     finish_reason,
+                    block_open,
                 }))
             }
             Err(err) => Err(err),
@@ -1821,12 +1891,11 @@ pub mod wire {
             send_prepared_translate_call(prepared, channel, generation_state, generation).await;
 
         match outcome {
-            Ok(TranslateOutcome::Cancelled) => {
-                Ok(single_run_outcome_wire(TranslateOutcome::Cancelled))
-            }
-            Ok(TranslateOutcome::Done {
+            Ok(SingleRun::Cancelled) => Ok(single_run_outcome_wire(SingleRun::Cancelled)),
+            Ok(SingleRun::Done {
                 usage,
                 finish_reason,
+                block_open,
             }) => {
                 if let Some(global) = app.try_state::<Store>()
                     && let Some(sent_at) = super::now_utc_iso8601(&global)
@@ -1841,9 +1910,10 @@ pub mod wire {
                         usage.map(AiTranslateUsageWire::from),
                     );
                 }
-                Ok(single_run_outcome_wire(TranslateOutcome::Done {
+                Ok(single_run_outcome_wire(SingleRun::Done {
                     usage,
                     finish_reason,
+                    block_open,
                 }))
             }
             Err(err) => Err(err),

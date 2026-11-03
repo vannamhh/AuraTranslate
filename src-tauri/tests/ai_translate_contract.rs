@@ -54,9 +54,9 @@ use auratranslate_lib::commands::aiprompt::{
     read_last_assembled_prompt,
 };
 use auratranslate_lib::commands::aitranslate::{
-    AiTranslateScope, PrepareOperationOutcome, PrepareOutcome, PreparedTranslateCall,
-    batch_panicked_error, batch_stopped_error, prepare_resend_call, prepare_translate_call,
-    prepare_translate_operation, run_translate_call,
+    AiTranslateScope, PrepareOperationOutcome, PrepareOutcome, PreparedTranslateCall, SingleRun,
+    SingleRunError, batch_panicked_error, batch_stopped_error, prepare_resend_call,
+    prepare_translate_call, prepare_translate_operation, run_translate_call,
 };
 use auratranslate_lib::commands::project::{OpenWork, create_work_from_text};
 use auratranslate_lib::commands::promptset::prompt_set_create;
@@ -64,6 +64,7 @@ use auratranslate_lib::commands::segment::{
     TRANSLATION_ORIGIN_OTHER, confirm_segment, promote_ai_translation, read_open_chapter_segments,
     set_segment_omitted,
 };
+use auratranslate_lib::core::ai::batch::system_with_block_format;
 use auratranslate_lib::core::ai::client::{
     ChunkUsage, OpenAiClientError, SseChunk, SseEventOutcome, build_request_body,
     enforce_sse_buffer_cap, interpret_sse_event, split_sse_frames,
@@ -1481,7 +1482,7 @@ fn collecting_channel() -> (tauri::ipc::Channel<String>, Arc<Mutex<Vec<String>>>
 #[test]
 fn tokens_arrive_on_the_channel_in_order_as_they_land_and_the_call_ends_done() {
     let provider = FakeProvider {
-        tokens: vec!["Xin ", "chào"],
+        tokens: vec!["<<<SEGMENT 1\n", "Xin ", "chào", "\nSEGMENT>>>\n"],
         finish: FakeFinish::Done,
     };
     let prepared = dummy_prepared();
@@ -1498,9 +1499,10 @@ fn tokens_arrive_on_the_channel_in_order_as_they_land_and_the_call_ends_done() {
 
     assert_eq!(
         outcome,
-        TranslateOutcome::Done {
+        SingleRun::Done {
             usage: None,
-            finish_reason: None
+            finish_reason: None,
+            block_open: false
         }
     );
     let got = received
@@ -1520,14 +1522,14 @@ fn tokens_arrive_on_the_channel_in_order_as_they_land_and_the_call_ends_done() {
 #[test]
 fn cancel_mid_stream_sends_no_further_channel_message_and_reports_cancelled() {
     let provider = FakeProvider {
-        tokens: vec!["one", "two", "three"],
+        tokens: vec!["<<<SEGMENT 1\n", "one", "two", "three"],
         finish: FakeFinish::Done,
     };
     let prepared = dummy_prepared();
     let (channel, received) = collecting_channel();
     let calls = AtomicUsize::new(0);
     // Huỷ đúng SAU khi đã nhận một token đầu tiên -- "two"/"three" không được phép tới.
-    let should_cancel = || calls.fetch_add(1, Ordering::SeqCst) >= 1;
+    let should_cancel = || calls.fetch_add(1, Ordering::SeqCst) >= 2;
 
     let outcome = tauri::async_runtime::block_on(run_translate_call(
         &provider,
@@ -1537,7 +1539,7 @@ fn cancel_mid_stream_sends_no_further_channel_message_and_reports_cancelled() {
     ))
     .expect("huy la Ok(Cancelled), khong phai mot Err");
 
-    assert_eq!(outcome, TranslateOutcome::Cancelled);
+    assert_eq!(outcome, SingleRun::Cancelled);
     let got = received
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -1555,7 +1557,7 @@ fn cancel_mid_stream_sends_no_further_channel_message_and_reports_cancelled() {
 #[test]
 fn a_provider_error_after_partial_tokens_leaves_earlier_tokens_visible_and_propagates_the_error() {
     let provider = FakeProvider {
-        tokens: vec!["partial "],
+        tokens: vec!["<<<SEGMENT 1\n", "partial "],
         finish: FakeFinish::Err(FakeProviderError("dropped".to_owned())),
     };
     let prepared = dummy_prepared();
@@ -1570,7 +1572,10 @@ fn a_provider_error_after_partial_tokens_leaves_earlier_tokens_visible_and_propa
     ))
     .expect_err("mot loi provider phai truyen nguyen qua run_translate_call");
 
-    assert_eq!(err, FakeProviderError("dropped".to_owned()));
+    assert_eq!(
+        err,
+        SingleRunError::Provider(FakeProviderError("dropped".to_owned()))
+    );
     let got = received
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -1608,7 +1613,7 @@ fn a_provider_error_with_zero_tokens_received_leaves_the_channel_empty_and_propa
 
     assert_eq!(
         err,
-        FakeProviderError("dropped-before-first-token".to_owned())
+        SingleRunError::Provider(FakeProviderError("dropped-before-first-token".to_owned()))
     );
     let got = received
         .lock()
@@ -1637,7 +1642,7 @@ fn usage_reported_by_the_provider_is_carried_through_run_translate_call_unchange
         cost_usd: Some(0.00412),
     };
     let provider = FakeProvider {
-        tokens: vec!["Xin chào"],
+        tokens: vec!["<<<SEGMENT 1\nXin chào\nSEGMENT>>>\n"],
         finish: FakeFinish::DoneWithUsage(usage),
     };
     let prepared = dummy_prepared();
@@ -1654,9 +1659,10 @@ fn usage_reported_by_the_provider_is_carried_through_run_translate_call_unchange
 
     assert_eq!(
         outcome,
-        TranslateOutcome::Done {
+        SingleRun::Done {
             usage: Some(usage),
-            finish_reason: None
+            finish_reason: None,
+            block_open: false
         },
         "usage phai di qua NGUYEN VEN, khong doi mot truong nao"
     );
@@ -1669,7 +1675,7 @@ fn usage_reported_by_the_provider_is_carried_through_run_translate_call_unchange
 #[test]
 fn a_stream_that_ends_done_without_ever_seeing_a_usage_frame_carries_none() {
     let provider = FakeProvider {
-        tokens: vec!["Xin ", "chào"],
+        tokens: vec!["<<<SEGMENT 1\n", "Xin ", "chào", "\nSEGMENT>>>\n"],
         finish: FakeFinish::Done,
     };
     let prepared = dummy_prepared();
@@ -1686,9 +1692,10 @@ fn a_stream_that_ends_done_without_ever_seeing_a_usage_frame_carries_none() {
 
     assert_eq!(
         outcome,
-        TranslateOutcome::Done {
+        SingleRun::Done {
             usage: None,
-            finish_reason: None
+            finish_reason: None,
+            block_open: false
         }
     );
 }
@@ -1706,14 +1713,14 @@ fn cancelling_before_the_usage_frame_arrives_reports_cancelled_with_no_usage_to_
         cost_usd: None,
     };
     let provider = FakeProvider {
-        tokens: vec!["partial"],
+        tokens: vec!["<<<SEGMENT 1\n", "partial", "more"],
         finish: FakeFinish::DoneWithUsage(usage),
     };
     let prepared = dummy_prepared();
     let (channel, received) = collecting_channel();
     let calls = AtomicUsize::new(0);
     // Huy NGAY sau token dau tien -- provider (gia) khong bao gio toi duoc nhanh tra usage.
-    let should_cancel = || calls.fetch_add(1, Ordering::SeqCst) >= 1;
+    let should_cancel = || calls.fetch_add(1, Ordering::SeqCst) >= 2;
 
     let outcome = tauri::async_runtime::block_on(run_translate_call(
         &provider,
@@ -1723,7 +1730,7 @@ fn cancelling_before_the_usage_frame_arrives_reports_cancelled_with_no_usage_to_
     ))
     .expect("huy la Ok(Cancelled), khong phai mot Err");
 
-    assert_eq!(outcome, TranslateOutcome::Cancelled);
+    assert_eq!(outcome, SingleRun::Cancelled);
     let got = received
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -1777,9 +1784,10 @@ fn single_run_outcome_wire_carries_the_real_usage_through_for_done_and_carries_n
         total_tokens: 412,
         cost_usd: Some(0.00412),
     };
-    match single_run_outcome_wire(TranslateOutcome::Done {
+    match single_run_outcome_wire(SingleRun::Done {
         usage: Some(usage),
         finish_reason: None,
+        block_open: false,
     }) {
         AiTranslateOutcomeWire::Done {
             usage: Some(wire),
@@ -1796,9 +1804,10 @@ fn single_run_outcome_wire_carries_the_real_usage_through_for_done_and_carries_n
         ),
     }
 
-    match single_run_outcome_wire(TranslateOutcome::Done {
+    match single_run_outcome_wire(SingleRun::Done {
         usage: None,
         finish_reason: None,
+        block_open: false,
     }) {
         AiTranslateOutcomeWire::Done {
             usage: None,
@@ -1809,10 +1818,36 @@ fn single_run_outcome_wire_carries_the_real_usage_through_for_done_and_carries_n
         ),
     }
 
-    match single_run_outcome_wire(TranslateOutcome::Cancelled) {
+    match single_run_outcome_wire(SingleRun::Cancelled) {
         AiTranslateOutcomeWire::Cancelled => {}
         other => panic!("Cancelled phai anh xa thanh Cancelled, nhan duoc {other:?}"),
     }
+}
+
+/// `maybe_truncated` bật khi khối 1 chưa đóng hoặc `finish_reason` khác `stop`, và chỉ tắt khi
+/// khối đóng với `stop` (AD-65 mục 5).
+#[test]
+fn single_run_outcome_wire_sets_maybe_truncated_for_an_open_block_or_a_non_stop_finish_reason() {
+    use auratranslate_lib::commands::aitranslate::{
+        AiTranslateOutcomeWire, single_run_outcome_wire,
+    };
+
+    let truncated = |finish_reason: Option<&str>, block_open: bool| match single_run_outcome_wire(
+        SingleRun::Done {
+            usage: None,
+            finish_reason: finish_reason.map(str::to_owned),
+            block_open,
+        },
+    ) {
+        AiTranslateOutcomeWire::Done {
+            maybe_truncated, ..
+        } => maybe_truncated,
+        other => panic!("phai Done, nhan duoc {other:?}"),
+    };
+    assert!(!truncated(Some("stop"), false), "khoi dong + stop");
+    assert!(truncated(Some("stop"), true), "khoi chua dong");
+    assert!(truncated(None, false), "khong co finish_reason");
+    assert!(truncated(Some("length"), false), "finish_reason khac stop");
 }
 
 /// AC2's nửa "grep tìm 0 `emit`/`listen`" — canh bằng chính văn bản nguồn của tầng lệnh, đúng
@@ -2181,8 +2216,9 @@ fn a_translate_call_sends_exactly_the_system_and_prompt_the_inspector_record_hol
         PrepareOutcome::NotConfigured => panic!("phai san sang"),
     };
     let record = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
-    assert_eq!(record.system.as_deref(), Some(typed));
-    assert_eq!(prepared.system.as_deref(), Some(typed));
+    let expected_system = system_with_block_format(Some(typed));
+    assert_eq!(record.system.as_deref(), Some(expected_system.as_str()));
+    assert_eq!(prepared.system.as_deref(), Some(expected_system.as_str()));
     assert_eq!(prepared.prompt, record.prompt);
 
     let request = TranslateRequest {
@@ -2197,7 +2233,7 @@ fn a_translate_call_sends_exactly_the_system_and_prompt_the_inspector_record_hol
     let json = serde_json::to_string(&build_request_body(&request)).expect("serialize");
     let value: serde_json::Value = serde_json::from_str(&json).expect("parse lai");
     assert_eq!(value["messages"][0]["role"], "system");
-    assert_eq!(value["messages"][0]["content"], typed);
+    assert_eq!(value["messages"][0]["content"], expected_system.as_str());
     assert_eq!(value["messages"][1]["role"], "user");
     assert_eq!(value["messages"][1]["content"], record.prompt.as_str());
     fx.teardown();
@@ -2224,7 +2260,8 @@ fn a_resend_uses_the_system_prompt_recorded_with_the_first_send_not_the_current_
         PrepareOutcome::Ready(p) => p,
         PrepareOutcome::NotConfigured => panic!("phai san sang"),
     };
-    assert_eq!(prepared.system.as_deref(), Some("Ban dau"));
+    let expected_system = system_with_block_format(Some("Ban dau"));
+    assert_eq!(prepared.system.as_deref(), Some(expected_system.as_str()));
     let recorded = read_last_assembled_prompt(&fx.record).expect("ban ghi");
     assert_eq!(recorded.system, prepared.system);
     fx.teardown();
@@ -2488,7 +2525,7 @@ impl TranslationProvider for RecordingProvider {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(request.prompt.to_owned());
-        on_token("Xin chào");
+        on_token("<<<SEGMENT 1\nXin chào\nSEGMENT>>>\n");
         Ok(TranslateOutcome::Done {
             usage: self.usage,
             finish_reason: None,
@@ -2624,9 +2661,10 @@ fn resend_sends_the_recorded_prompt_byte_for_byte_writes_no_segment_and_stamps_t
         .expect("khong duoc loi");
     assert_eq!(
         done,
-        TranslateOutcome::Done {
+        SingleRun::Done {
             usage: Some(RESEND_USAGE),
-            finish_reason: None
+            finish_reason: None,
+            block_open: false
         }
     );
     assert_eq!(
@@ -2636,7 +2674,7 @@ fn resend_sends_the_recorded_prompt_byte_for_byte_writes_no_segment_and_stamps_t
     );
     assert_eq!(*received.lock().expect("khoa"), vec!["Xin chào".to_owned()]);
 
-    let TranslateOutcome::Done { usage, .. } = done else {
+    let SingleRun::Done { usage, .. } = done else {
         panic!("phai Done")
     };
     mark_prompt_as_sent(
@@ -2721,14 +2759,13 @@ fn resend_reports_not_configured_without_a_key_or_endpoint_and_leaves_the_record
 #[test]
 fn a_send_whose_provider_returned_no_usage_stamps_sent_at_but_leaves_usage_none_not_zero() {
     let fx = resend_fixture("stamp-no-usage", true);
-    let prompt = read_last_assembled_prompt(&fx.record)
-        .expect("phai co ban ghi")
-        .prompt;
+    let recorded = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
+    let prompt = recorded.prompt;
     mark_prompt_as_sent(
         &fx.record,
         fx.segment_id,
         &prompt,
-        Some(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT),
+        recorded.system.as_deref(),
         "gpt-test",
         "2026-10-15T00:00:00.000Z",
         None,
@@ -2747,14 +2784,13 @@ fn a_send_whose_provider_returned_no_usage_stamps_sent_at_but_leaves_usage_none_
 #[test]
 fn stamped_usage_serializes_with_the_exact_field_names_the_webview_guard_reads() {
     let fx = resend_fixture("stamp-usage-json", true);
-    let prompt = read_last_assembled_prompt(&fx.record)
-        .expect("phai co ban ghi")
-        .prompt;
+    let recorded = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
+    let prompt = recorded.prompt;
     mark_prompt_as_sent(
         &fx.record,
         fx.segment_id,
         &prompt,
-        Some(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT),
+        recorded.system.as_deref(),
         "gpt-test",
         "2026-10-15T00:00:00.000Z",
         Some(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(RESEND_USAGE)),
@@ -2776,14 +2812,13 @@ fn stamped_usage_serializes_with_the_exact_field_names_the_webview_guard_reads()
 #[test]
 fn a_record_reassembled_after_a_send_carries_no_stale_sent_facts_and_a_late_stamp_is_ignored() {
     let fx = resend_fixture("stamp-reassembled", true);
-    let old_prompt = read_last_assembled_prompt(&fx.record)
-        .expect("phai co ban ghi")
-        .prompt;
+    let recorded = read_last_assembled_prompt(&fx.record).expect("phai co ban ghi");
+    let old_prompt = recorded.prompt;
     mark_prompt_as_sent(
         &fx.record,
         fx.segment_id,
         &old_prompt,
-        Some(auratranslate_lib::core::aiconfig::DEFAULT_SYSTEM_PROMPT),
+        recorded.system.as_deref(),
         "gpt-test",
         "2026-10-15T00:00:00.000Z",
         Some(auratranslate_lib::commands::aitranslate::AiTranslateUsageWire::from(RESEND_USAGE)),
