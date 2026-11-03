@@ -190,12 +190,13 @@ covers = ["FR70", "FR71", "FR73", "FR74"]
 after = []
 hitl = false
 risk = "high"
+refine = true
 
 [[entry]]
 id = 17
 type = "story"
 title = "Mục Glossary được chèn mang theo ghi chú, ô ghi chú nói rõ được gửi cho AI"
-description = "Thi hành AD-66: render_glossary_pairs in dòng nguồn → bản dịch — ghi chú cho mục đã chốt có ghi chú, ở cả đường một câu lẫn đường lô, và ô ghi chú của mục Glossary nói rõ ghi chú được gửi cho AI, vì Glossary chỉ gửi tên nên xưng hô và giới tính nhân vật trôi giữa các Chương."
+description = "Thi hành AD-66: render_glossary_pairs in dòng nguồn → bản dịch — ghi chú cho mục đã chốt có ghi chú, ở cả đường một câu lẫn đường lô (truy vấn mục đủ điều kiện chèn của core/glossary trả thêm note, InjectedGlossaryTerm thêm trường note), và ô ghi chú của mục Glossary nói rõ ghi chú được gửi cho AI, vì Glossary chỉ gửi tên nên xưng hô và giới tính nhân vật trôi giữa các Chương."
 verify = "Với một mục đã chốt có ghi chú mà thuật ngữ có trong câu, khi dịch một câu và khi dịch lô thì prompt có dòng nguồn → bản dịch — ghi chú; mục chờ chốt có ghi chú thì không ghi chú nào có trong prompt; gỡ phần in ghi chú thì ca đầu đỏ."
 covers = ["FR70", "FR47"]
 after = []
