@@ -1,0 +1,379 @@
+<meta charset="utf-8">
+<title>Quy ước chữ Việt — dấu chấm, dải nhận, quản lý luật, thay cả Chương — FR159</title>
+<style>
+:root{
+  --bg:#f4f1ea; --surface:#fbfaf6; --sunken:#f0ece1; --accent-bg:#e6eeee; --tm-bg:#faf6ee;
+  --ink:#2b2723; --ink-2:#6b6459; --orn:#a9a196; --ctl:#8a8276;
+  --line:#e2dccf; --line-2:#efeade;
+  --primary:#2f5d63; --confirmed:#5a6b3f; --tm-text:#7a5d25; --error:#8f2f22;
+  --add-bg:#e7f0e4; --add-ink:#3f5b34; --del-bg:#f7e6e3; --del-ink:#8f2f22;
+  --ui:"Source Sans 3",ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;
+  --read:"Source Serif 4","Noto Serif CJK TC","Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+.dark{
+  --bg:#201e1b; --surface:#26241f; --sunken:#1b1a17; --accent-bg:#283637; --tm-bg:#302b21;
+  --ink:#e8e3d8; --ink-2:#a29a8c; --orn:#6a6459; --ctl:#807868;
+  --line:#3b382f; --line-2:#302d26;
+  --primary:#7fb3ba; --confirmed:#9cb37a; --tm-text:#d3b276; --error:#e5867a;
+  --add-bg:#2b3a2a; --add-ink:#a9c99a; --del-bg:#3e2824; --del-ink:#e5867a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#6f6a60;font-family:var(--ui);font-size:13px;color:var(--ink);padding:24px}
+.hd{max-width:1150px;margin:0 auto 12px;color:#f4f1ea;line-height:1.66}
+.hd b{font-size:16px}
+.hd .sub{font-size:12.5px;margin-top:4px;max-width:900px;color:#e2ddd2;line-height:1.75}
+.rowlab{max-width:1150px;margin:0 auto 9px;color:#f4f1ea;font-size:13.5px;font-weight:600;line-height:1.66}
+.rowlab span{font-weight:400;font-size:12px;margin-left:10px;color:#d8d3c8}
+.win{position:relative;max-width:1150px;margin:0 auto 34px;background:var(--bg);color:var(--ink);border-radius:9px;overflow:hidden;box-shadow:0 13px 40px rgba(0,0,0,.3)}
+.tb{height:38px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid var(--line)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--line)}
+.modes{margin-left:18px;display:flex;gap:18px}
+.modes span{font-size:12.5px;color:var(--ink-2);padding-bottom:2px}
+.modes .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--primary)}
+.tbt{margin-left:14px;font-size:12.5px;color:var(--ink-2)}
+.right{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--ink-2)}
+.k{font-family:ui-monospace,monospace;font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--ink-2);background:var(--surface)}
+
+/* lưới hai cột */
+.grid{display:grid;grid-template-columns:3px 1fr 1fr;background:var(--surface)}
+.grid .hdr{height:34px;display:flex;align-items:center;padding:0 15px;border-bottom:1px solid var(--line-2);font-size:12px;color:var(--ink-2)}
+.grid .hdr.f{color:var(--primary);font-weight:600}
+.rl{border-left:3px solid transparent}
+.rl.conf{border-left-color:var(--confirmed)}
+.rl.car{border-left-color:var(--primary)}
+.rl.drf{border-left-color:var(--orn)}
+.cs,.ct{padding:9px 15px;border-bottom:1px solid var(--line-2);min-width:0}
+.cs{font-family:var(--read);font-size:15.5px;line-height:1.95;color:var(--ink-2);border-right:1px solid var(--line)}
+.ct{font-family:var(--read);font-size:15px;line-height:1.95}
+.ct.ed{background:var(--accent-bg)}
+.caret{display:inline-block;width:1.5px;height:1.05em;background:var(--primary);vertical-align:-2px;margin:0 1px}
+.gc{color:var(--primary);font-weight:600}
+.gp{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;text-decoration-color:var(--primary)}
+
+/* ba hình gạch chân, ba nghĩa */
+.pr-err{text-decoration:underline;text-decoration-style:wavy;text-decoration-thickness:1px;text-underline-offset:4px;text-decoration-color:var(--error)}
+.cv{text-decoration:underline;text-decoration-style:dotted;text-decoration-thickness:2px;text-underline-offset:4px;text-decoration-color:var(--ink-2)}
+
+/* dải nhận quy ước — cùng vỏ với dải Proofreader */
+.strip{display:flex;flex-direction:column;gap:9px;background:var(--surface);border-top:1px solid var(--line);border-left:3px solid var(--ink-2);padding:13px 14px 14px 11px}
+.strip .head{display:flex;align-items:baseline;gap:12px}
+.strip .head b{font-size:13px}
+.strip .head .hint{font-size:11.5px;color:var(--ink-2)}
+.strip .head .rt{margin-left:auto;display:flex;gap:14px;font-size:12px;color:var(--ink-2)}
+.strip .head .rt u{text-underline-offset:3px}
+.card1{display:flex;flex-direction:column;gap:5px}
+.card1 .l1{display:flex;align-items:baseline;gap:10px;font-size:13px}
+.card1 .l1 b{color:var(--ink-2)}
+.card1 .l1 .pos{margin-left:auto;font-size:12px;color:var(--ink-2)}
+.card1 .l2{font-size:12.5px;line-height:1.66;color:var(--ink-2)}
+.card1 .l3{font-size:13px;line-height:1.66}
+.card1 .l3 .rd{font-family:var(--read)}
+.tag{display:inline-block;font-size:10.5px;border:1px solid var(--line);border-radius:2px;padding:0 6px;color:var(--ink-2);background:var(--bg)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{height:28px;display:inline-flex;align-items:center;border-radius:3px;padding:0 13px;font-size:12px;border:1px solid var(--ctl);background:var(--surface);color:var(--ink)}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
+.btn.dis{border-style:dashed;border-color:var(--line);color:var(--ink-2)}
+.btn.dng{border-color:var(--error);color:var(--error)}
+.btn.chim{border-color:transparent;background:none;color:var(--ink-2)}
+.btn.foc{outline:2px solid var(--primary);outline-offset:1px}
+.acts .sp{margin-left:auto}
+.status{font-size:12px;color:var(--ink-2);line-height:1.66}
+.tray{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-2)}
+.sbar{height:32px;display:flex;align-items:center;padding:0 18px;gap:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-2);background:var(--bg)}
+.sbar .r{margin-left:auto;display:flex;gap:16px}
+
+.box{padding:12px 15px;font-size:12.5px;line-height:1.8;border-radius:0 3px 3px 0;margin:13px 18px 0;background:var(--accent-bg);border-left:2px solid var(--primary);color:var(--ink-2)}
+.box.warn{background:var(--tm-bg);border-left-color:var(--orn);color:var(--ink-2)}
+.box.err{background:var(--del-bg);border-left-color:var(--error)}
+.box b{color:var(--ink)}
+.cap{padding:12px 18px 16px;font-size:12px;line-height:1.75;color:var(--ink-2)}
+.cap b{color:var(--ink)}
+
+/* panel AI Translation */
+.ai{background:var(--surface);padding:0}
+.ai .ph{height:34px;display:flex;align-items:center;padding:0 15px;gap:9px;border-bottom:1px solid var(--line-2);font-size:12px;color:var(--ink-2)}
+.ai .bd{padding:13px 16px}
+.ai .sg{font-family:var(--read);font-size:15px;line-height:1.95;border:1px solid var(--line);background:var(--sunken);border-radius:3px;padding:11px 14px}
+.ai .row{display:flex;gap:10px;margin-top:11px;align-items:center}
+
+/* lớp phủ */
+.scrim{position:relative;background:rgba(0,0,0,.0);padding:18px}
+.ovl{margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:3px;color:var(--ink)}
+.ovh{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid var(--line)}
+.ovh b{font-family:var(--read);font-size:17px;font-weight:600}
+.ovh .sub{font-size:12px;color:var(--ink-2)}
+.ovh .rt{margin-left:auto;display:flex;gap:10px;align-items:center}
+.bar{display:flex;align-items:center;gap:13px;padding:11px 14px;background:var(--sunken);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--ctl);border-radius:3px;overflow:hidden;background:var(--surface)}
+.seg span{font-size:12px;height:26px;display:flex;align-items:center;padding:0 13px;color:var(--ink);border-right:1px solid var(--line)}
+.seg span:last-child{border-right:0}
+.seg .on{background:var(--ink);color:var(--surface);font-weight:600}
+.fld{height:28px;display:inline-flex;align-items:center;background:var(--sunken);border:1px solid var(--ctl);border-radius:3px;padding:0 11px;font-size:12.5px;color:var(--ink-2)}
+.bar .r{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+.tabs{display:flex;gap:18px;padding:0 14px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
+.tabs span{padding:9px 0 7px}
+.tabs .on{color:var(--ink);font-weight:600;border-bottom:2px solid var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);padding:10px 12px 8px 0;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{padding-left:26px}
+td{padding:8px 12px 8px 0;border-bottom:1px solid var(--line-2);vertical-align:middle;line-height:1.66}
+td:first-child{position:relative}
+tr.w td:first-child::before{content:"";position:absolute;left:14px;top:9px;bottom:9px;width:2px;background:var(--confirmed)}
+tr.sh td{color:var(--ink-2)}
+tr.sh td:first-child{padding-left:44px}
+tr.off td{color:var(--ink-2)}
+.term{font-family:var(--read);font-size:14.5px}
+.none{font-style:italic;color:var(--ink-2)}
+.badge{display:inline-block;font-size:10.5px;border:1px solid var(--line);border-radius:2px;padding:0 7px;color:var(--ink-2);background:var(--bg);white-space:nowrap}
+.badge.dsh{border-style:dashed}
+.add{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--bg);flex-wrap:wrap}
+.ovf{display:flex;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid var(--line);background:var(--bg)}
+.ovf .hint{margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+.expl{padding:11px 14px;font-size:12px;line-height:1.75;color:var(--ink-2);border-top:1px solid var(--line-2)}
+.expl b{color:var(--ink)}
+.ig{display:grid;grid-template-columns:150px 1fr auto;gap:14px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line-2);font-size:12.5px}
+.ig .sel{border-left:3px solid var(--ink-2)}
+
+/* thay cả Chương */
+.ck{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.ck i{width:14px;height:14px;border:1px solid var(--ctl);border-radius:2px;background:var(--surface);display:block;position:relative}
+.ck i.on{background:var(--ink);border-color:var(--ink)}
+.ck i.on::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid var(--surface);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.lst{max-height:60vh;overflow:auto}
+.sgrp{border-bottom:1px solid var(--line-2);padding:9px 14px 8px}
+.sgh{display:flex;align-items:baseline;gap:10px;font-size:12px;color:var(--ink-2)}
+.sgh b{color:var(--ink)}
+.sgh .lab{margin-left:auto}
+.lab.dr{color:var(--error);font-weight:600}
+.lab.cf{color:var(--ink-2)}
+.mrow{display:flex;gap:6px;align-items:flex-start;margin-top:3px}
+.mrow .tx{font-family:var(--read);font-size:14.5px;line-height:1.95;padding-top:0}
+.mrow.off .tx{color:var(--ink-2)}
+ins{background:var(--add-bg);color:var(--add-ink);text-decoration:none;border-radius:2px;padding:0 3px}
+del{background:var(--del-bg);color:var(--del-ink);border-radius:2px;padding:0 3px}
+.ftc{padding:11px 14px;font-size:12px;line-height:1.75;color:var(--ink-2);background:var(--bg);border-top:1px solid var(--line)}
+.ftc b{color:var(--ink)}
+.conf2{padding:0 14px 12px;font-size:12.5px;line-height:1.75;color:var(--ink-2);background:var(--bg)}
+.conf2 b{color:var(--ink)}
+.mini{max-width:917px;margin:14px auto 0}
+.mini .lbl{font-size:11px;color:#d8d3c8;margin-bottom:6px}
+.foot{max-width:1150px;margin:-20px auto 32px;display:flex;gap:9px;flex-wrap:wrap}
+.fc{font-size:11.5px;background:#f4f1ea;color:#2b2723;border-radius:20px;padding:5px 13px;line-height:1.6}
+.fc b{color:#2f5d63}
+</style>
+
+<div class="hd">
+  <b>Quy ước chữ Việt — bắt và thay cụm cần tránh trong bản dịch, không gọi AI</b>
+  <div class="sub">Luật như <i>đảm bảo → bảo đảm</i> không neo vào câu nguồn nên Glossary không bắt được, còn Proofreader tốn token và không tất định.
+  Bốn bề mặt dưới đây: <b>dấu</b> trong ô bản dịch, <b>dải nhận</b> mọc dưới câu, <b>lớp phủ quản lý luật</b>, và <b>màn xác nhận thay cả Chương</b>.
+  Không thêm màu nào vào bảng: dấu quy ước phân biệt với Proofreader bằng <b>hình nét</b>, không bằng màu.</div>
+</div>
+
+<!-- 1 -->
+<div class="rowlab">1 · Ba hình gạch chân trên cùng một câu <span>chấm 2px = quy ước · lượn sóng 1px = Proofreader · màu chữ = Glossary đã chốt</span></div>
+<div class="win">
+  <div class="tb">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="modes"><span>Library</span><span class="on">Workspace</span><span>Chế độ đọc</span></span>
+    <span class="right"><span>Chương 47 · đã quét 184 câu</span><span class="k">⌘P</span></span>
+  </div>
+  <div class="grid">
+    <div class="hdr"></div><div class="hdr">Nguyên văn</div><div class="hdr f">Bản dịch</div>
+
+    <div class="rl conf"></div>
+    <div class="cs"><span class="gc">北涼王</span>下令確保軍糧按時送達。</div>
+    <div class="ct"><b style="font-weight:400">vương Bắc Lương</b> ra lệnh phải <span class="cv">đảm bảo</span> quân lương được <span class="pr-err">chuyễn</span> đến đúng hạn.</div>
+
+    <div class="rl car"></div>
+    <div class="cs">確保軍糧按時送達，是糧官的事。</div>
+    <div class="ct ed"><span class="cv">Đảm bảo</span> quân lương đến đúng hạn là việc của lương quan.<span class="caret"></span></div>
+
+    <div class="rl"></div>
+    <div class="cs" style="border-bottom:0">十年之後，邊關仍然無人問津。</div>
+    <div class="ct" style="border-bottom:0">Mười năm sau, biên ải vẫn chẳng ai ngó tới.</div>
+  </div>
+
+  <div class="strip" style="margin-left:18px">
+    <div class="head"><b>Quy ước chữ Việt — chỗ 2 trên 5</b>
+      <span class="hint"><span class="k">F8</span> kế tiếp · <span class="k">⇧F8</span> trước · <span class="k">Esc</span> ẩn</span>
+      <span class="rt"><u>Quản lý quy ước</u><u>Ẩn</u></span></div>
+    <div class="card1">
+      <div class="l1"><b>Tránh:</b> <span class="term">đảm bảo</span> <span class="tag">Luật Toàn cục</span><span class="pos">2 / 5</span></div>
+      <div class="l3"><b>Đề xuất:</b> <span class="rd">Đảm bảo → Bảo đảm</span></div>
+    </div>
+    <div class="acts">
+      <button class="btn pri foc">Nhận thay</button>
+      <button class="btn">Bỏ qua</button>
+      <button class="btn">Không phải lỗi</button>
+      <button class="btn">Thay cả Chương (5 chỗ)</button>
+      <span class="sp"></span>
+      <button class="btn chim">Chỗ đánh dấu trước</button>
+      <button class="btn chim">Chỗ đánh dấu kế</button>
+    </div>
+  </div>
+  <div class="sbar"><span>Đã lưu 3 giây trước</span><span>Chương 47 · câu 2 / 184</span><span class="r"><span>TM 8.412 · 70%</span></span></div>
+  <div class="cap">Hàng 1 mang đủ ba loại: <b>北涼王</b> là thuật ngữ Glossary đã chốt (chữ màu <code>primary</code>, ở cột nguồn), <b>đảm bảo</b> là dấu quy ước (chấm 2px, <code>on-surface-variant</code>), <b>chuyễn</b> là dấu Proofreader (lượn sóng 1px, <code>error</code>). Hàng 2 là câu đang sửa; dải bên dưới là dải quy ước, <b>cùng vỏ</b> với dải Proofreader (viền trên 1px <code>outline</code>, vạch trái 3px) nhưng vạch trái mang <code>on-surface-variant</code> thay cho <code>error</code>. Dải mở vì người dùng bấm vào dấu hoặc bấm F8, không mở chỉ vì con trỏ đi ngang một câu có dấu. <b>Nhận thay</b> ở trạng thái focus bàn phím (vòng 2px <code>primary</code>).</div>
+</div>
+
+<div class="rowlab">1b · Cùng cảnh ở nền tối <span>không đổi hình, chỉ đổi giá trị token</span></div>
+<div class="win dark">
+  <div class="grid">
+    <div class="hdr"></div><div class="hdr">Nguyên văn</div><div class="hdr f">Bản dịch</div>
+    <div class="rl conf"></div>
+    <div class="cs"><span class="gc">北涼王</span>下令確保軍糧按時送達。</div>
+    <div class="ct">vương Bắc Lương ra lệnh phải <span class="cv">đảm bảo</span> quân lương được <span class="pr-err">chuyễn</span> đến đúng hạn.</div>
+    <div class="rl car"></div>
+    <div class="cs" style="border-bottom:0">確保軍糧按時送達，是糧官的事。</div>
+    <div class="ct ed" style="border-bottom:0"><span class="cv">Đảm bảo</span> quân lương đến đúng hạn là việc của lương quan.<span class="caret"></span></div>
+  </div>
+  <div class="strip">
+    <div class="head"><b>Quy ước chữ Việt — chỗ 2 trên 5</b><span class="hint"><span class="k">F8</span> kế tiếp · <span class="k">⇧F8</span> trước · <span class="k">Esc</span> ẩn</span><span class="rt"><u>Quản lý quy ước</u><u>Ẩn</u></span></div>
+    <div class="card1"><div class="l1"><b>Tránh:</b> <span class="term">đảm bảo</span> <span class="tag">Luật Toàn cục</span><span class="pos">2 / 5</span></div>
+    <div class="l3"><b>Đề xuất:</b> <span class="rd">Đảm bảo → Bảo đảm</span></div></div>
+    <div class="acts"><button class="btn pri">Nhận thay</button><button class="btn">Bỏ qua</button><button class="btn">Không phải lỗi</button><button class="btn">Thay cả Chương (5 chỗ)</button></div>
+  </div>
+</div>
+
+<!-- 2 -->
+<div class="rowlab">2 · Các trạng thái của dải <span>sau khi nhận thay · luật không có cụm thay thế · câu đang gõ</span></div>
+<div class="win">
+  <div class="strip">
+    <div class="head"><b>Quy ước chữ Việt — chỗ 2 trên 4</b><span class="hint"><span class="k">F8</span> kế tiếp · <span class="k">⇧F8</span> trước · <span class="k">Esc</span> ẩn</span><span class="rt"><u>Quản lý quy ước</u><u>Ẩn</u></span></div>
+    <div class="tray">Đã thay một chỗ ở câu này. Có thể hoàn lại. <button class="btn">Hoàn lại chỗ vừa thay</button></div>
+    <div class="status">Câu đã xác nhận vẫn giữ xác nhận. Bản trước tra lại được ở Lịch sử phiên bản.</div>
+  </div>
+  <div class="cap"><b>Sau khi nhận.</b> Khay hoàn lại nằm trong bộ nhớ của cửa sổ: đóng Tác phẩm là mất khay, còn bản trước vẫn ở lịch sử phiên bản nếu câu đã xác nhận. Dòng dưới nêu hệ quả của việc nhận trên câu đã ký.</div>
+
+  <div class="strip">
+    <div class="head"><b>Quy ước chữ Việt — chỗ 3 trên 4</b><span class="hint"><span class="k">F8</span> kế tiếp · <span class="k">⇧F8</span> trước · <span class="k">Esc</span> ẩn</span><span class="rt"><u>Quản lý quy ước</u><u>Ẩn</u></span></div>
+    <div class="card1">
+      <div class="l1"><b>Tránh:</b> <span class="term">một cách</span> <span class="tag">Luật Tác phẩm</span><span class="pos">3 / 4</span></div>
+      <div class="l2">Luật này chưa có cụm thay thế nên không có thao tác thay. Sửa tay trong ô, hoặc thêm cụm thay ở Quản lý quy ước.</div>
+    </div>
+    <div class="acts">
+      <button class="btn dis">Nhận thay</button>
+      <button class="btn">Bỏ qua</button>
+      <button class="btn">Không phải lỗi</button>
+      <button class="btn">Mở luật</button>
+      <span class="sp"></span>
+      <button class="btn chim">Chỗ đánh dấu trước</button>
+      <button class="btn chim">Chỗ đánh dấu kế</button>
+    </div>
+  </div>
+  <div class="cap"><b>Luật không có cụm thay thế.</b> Dấu vẫn hiện; dải không có Nhận thay (nút khoá: viền đứt, không thể bấm) và không có Thay cả Chương. Nút Nhận thay bị khoá thay vì ẩn để vị trí các nút không nhảy giữa hai loại luật.</div>
+
+  <div class="grid">
+    <div class="rl car"></div>
+    <div class="cs" style="border-bottom:0">確保軍糧按時送達，是糧官的事。</div>
+    <div class="ct ed" style="border-bottom:0">Đảm bảo quân lương đến đúng hạn là việc của lương<span class="caret"></span></div>
+  </div>
+  <div class="sbar"><span>Đang gõ…</span><span>Chương 47 · câu 2 / 184</span></div>
+  <div class="cap"><b>Câu đang gõ.</b> Ngay phím đầu tiên trong câu, dấu của câu đó biến mất và dải quy ước của câu đó thu lại; các câu khác giữ dấu. Không có vòng quay, không có chữ “đang quét”. Khoảng 2 giây sau khi ngừng gõ, lượt lưu xong thì dấu hiện lại. Dấu vắng trên câu đang gõ không có nghĩa câu đã đạt quy ước, nên mọi con số (F8, “Thay cả Chương (N chỗ)”) chỉ tính bản đã lưu.</div>
+</div>
+
+<!-- 3 -->
+<div class="rowlab">3 · Gợi ý ở panel AI Translation <span>chỉ đánh dấu, không có Nhận thay</span></div>
+<div class="win">
+  <div class="ai">
+    <div class="ph"><b style="color:var(--primary)">Đề xuất AI</b></div>
+    <div class="bd">
+      <div class="sg">Phải <span class="cv" title="Quy ước: tránh “đảm bảo”, đề xuất “bảo đảm”">đảm bảo</span> quân lương đến đúng hạn, nếu không ba quân sẽ loạn.</div>
+      <div class="row"><button class="btn pri">Đưa sang bản dịch</button><span style="font-size:11.5px;color:var(--ink-2)"><span class="k">⌘⇧↵</span></span></div>
+    </div>
+  </div>
+  <div class="cap">Dấu chấm giống hệt ở ô bản dịch. Rê chuột hiện lời chú “Quy ước: tránh “đảm bảo”, đề xuất “bảo đảm””. Không có dải và không có nút thay ở đây vì gợi ý chưa phải bản dịch: sau khi <b>Đưa sang bản dịch</b>, dấu xuất hiện trong ô và dải làm việc như ở mục 1. Gợi ý đang chảy chưa có dấu; dấu hiện khi gợi ý đã trọn.</div>
+</div>
+
+<!-- 4 -->
+<div class="rowlab">4 · Quản lý quy ước chữ Việt <span>lớp phủ riêng · Công cụ ▾ hoặc ⌘⌥A · hai tầng như Glossary</span></div>
+<div class="win">
+  <div class="tb"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="tbt">Workspace · Tuyết Trung Hãn Đao Hành</span>
+    <span class="right"><span class="k">Công cụ ▾</span></span></div>
+  <div class="scrim"><div class="ovl" style="max-width:1099px">
+    <div class="ovh"><b>Quy ước chữ Việt</b><span class="sub">Tuyết Trung Hãn Đao Hành</span>
+      <span class="rt"><button class="btn">Xuất CSV/TSV</button><button class="btn">Nhập CSV/TSV</button><button class="btn">Đóng</button></span></div>
+    <div class="bar">
+      <span class="seg"><span>Toàn cục <b>38</b></span><span>Tác phẩm <b>12</b></span><span class="on">Cả hai</span></span>
+      <span class="fld" style="min-width:290px">Tìm cụm cần tránh hoặc cụm thay thế…</span>
+      <span class="r">50 luật · 1 đang tắt ở Tác phẩm này · 1 đang bị che</span>
+    </div>
+    <div class="tabs"><span class="on">Luật</span><span>Không phải lỗi <b>3</b></span></div>
+    <div class="add">
+      <span class="fld" style="min-width:200px">Cụm cần tránh</span>
+      <span style="color:var(--ink-2)">→</span>
+      <span class="fld" style="min-width:240px">Cụm thay thế (trống là không dùng)</span>
+      <span class="seg"><span class="on">Tác phẩm</span><span>Toàn cục</span></span>
+      <button class="btn pri">Thêm luật</button>
+    </div>
+    <table>
+      <tr><th style="width:21%">Cụm cần tránh</th><th style="width:21%">Cụm thay thế</th><th style="width:11%">Tầng</th><th style="width:19%">Trạng thái</th><th>Thao tác</th></tr>
+      <tr class="w"><td><span class="term">bằng hữu</span></td><td><span class="term">bạn bè</span></td><td><span class="badge">Tác phẩm</span></td><td>Đang dùng</td><td><button class="btn">Sửa</button> <button class="btn dng">Xoá</button></td></tr>
+      <tr class="sh"><td><span class="term">bằng hữu</span></td><td><span class="term">bạn hữu</span></td><td><span class="badge">Toàn cục</span></td><td><span class="badge dsh">Đang bị che</span></td><td><button class="btn">Sửa</button> <button class="btn dng">Xoá</button></td></tr>
+      <tr><td><span class="term">đảm bảo</span></td><td><span class="term">bảo đảm</span></td><td><span class="badge">Toàn cục</span></td><td>Đang dùng</td><td><button class="btn">Tắt ở Tác phẩm này</button> <button class="btn">Sửa</button> <button class="btn dng">Xoá</button></td></tr>
+      <tr class="off"><td><span class="term">thập kỷ</span></td><td><span class="term">thập niên</span></td><td><span class="badge">Toàn cục</span></td><td><span class="badge dsh">Đã tắt ở Tác phẩm này</span></td><td><button class="btn">Bật lại ở Tác phẩm này</button> <button class="btn">Sửa</button> <button class="btn dng">Xoá</button></td></tr>
+      <tr class="w"><td><span class="term">một cách</span></td><td><span class="term none">không dùng</span></td><td><span class="badge">Tác phẩm</span></td><td>Đang dùng</td><td><button class="btn">Sửa</button> <button class="btn dng">Xoá</button></td></tr>
+    </table>
+    <div class="expl"><b>Hàng thụt vào là luật Toàn cục bị che, không phải luật trùng.</b> Khi một cụm cần tránh có ở cả hai tầng thì luật tầng Tác phẩm thắng; luật Toàn cục vẫn nguyên ở các Tác phẩm khác. <b>Tắt ở Tác phẩm này</b> không xoá luật Toàn cục, chỉ tắt nó trong Tác phẩm đang mở.</div>
+    <div class="ovf"><span class="hint">Tầng xuất/nhập: <b>Tác phẩm</b> · Tab đi qua thanh tầng, ô tìm, ô thêm luật, bảng, rồi chân lớp phủ · Esc đóng và trả tiêu điểm về nút mở</span></div>
+  </div></div>
+</div>
+
+<div class="rowlab">4b · Thẻ “Không phải lỗi” <span>những chỗ đã ghi nhớ của riêng Tác phẩm này</span></div>
+<div class="win">
+  <div class="scrim"><div class="ovl" style="max-width:1099px">
+    <div class="ovh"><b>Quy ước chữ Việt</b><span class="sub">Tuyết Trung Hãn Đao Hành</span><span class="rt"><button class="btn">Đóng</button></span></div>
+    <div class="tabs"><span>Luật</span><span class="on">Không phải lỗi <b>3</b></span></div>
+    <div class="ig"><span class="term">đảm bảo</span><span class="term sel" style="padding-left:10px">…nhằm bảo <b style="border-bottom:2px dotted var(--ink-2)">đảm bảo</b> vệ đoàn xe…</span><button class="btn">Bỏ ghi nhớ</button></div>
+    <div class="ig"><span class="term">thập kỷ</span><span class="term" style="padding-left:13px">…suốt thập kỷ Hãn Đao Hành…</span><button class="btn">Bỏ ghi nhớ</button></div>
+    <div class="ig"><span class="term">một cách</span><span class="term" style="padding-left:13px">…một cách vô tình mà…</span><button class="btn">Bỏ ghi nhớ</button></div>
+    <div class="ovf"><button class="btn dng">Xoá toàn bộ ghi nhớ</button><span class="hint">Bỏ ghi nhớ một chỗ thì lần quét kế đánh dấu lại chỗ đó.</span></div>
+  </div></div>
+</div>
+
+<!-- 5 -->
+<div class="rowlab">5 · Thay cả Chương <span>rộng 917px · mọi luật · lọc theo luật · nhóm theo câu · chọn sẵn · bỏ chọn được</span></div>
+<div class="win">
+  <div class="scrim"><div class="ovl" style="max-width:917px">
+    <div class="ovh"><div><b>Thay theo quy ước trong Chương 47</b><div class="sub">7 chỗ trong 6 câu · đã chọn 6</div></div>
+      <span class="rt"><button class="btn">Chọn tất cả</button><button class="btn">Bỏ chọn tất cả</button></span></div>
+    <div class="bar"><span style="font-size:12px;color:var(--ink-2)">Lọc theo luật</span>
+      <span class="seg"><span class="on">Tất cả luật <b>7</b></span><span>đảm bảo <b>5</b></span><span>thập kỷ <b>2</b></span></span></div>
+    <div class="lst">
+      <div class="sgrp"><div class="sgh"><b>Câu 9</b><span class="lab cf">Đã xác nhận — hoàn lại được ở Lịch sử phiên bản</span></div>
+        <div class="mrow"><span class="ck"><i class="on"></i></span><span class="tx">…Lương quan hứa sẽ <del>đảm bảo</del><ins>bảo đảm</ins> lương thảo cho ba quân trước mùa đông.</span></div></div>
+      <div class="sgrp"><div class="sgh"><b>Câu 14</b><span class="lab dr">Bản nháp — không hoàn tác được</span></div>
+        <div class="mrow"><span class="ck"><i class="on"></i></span><span class="tx"><del>Đảm bảo</del><ins>Bảo đảm</ins> đường vận chuyển thông suốt là việc cấp bách nhất.</span></div></div>
+      <div class="sgrp"><div class="sgh"><b>Câu 22</b><span class="lab cf">Đã xác nhận — hoàn lại được ở Lịch sử phiên bản</span></div>
+        <div class="mrow off"><span class="ck"><i></i></span><span class="tx">Các trạm gác được dựng thêm nhằm bảo <span class="cv">đảm bảo</span> vệ đoàn xe qua đèo.</span></div></div>
+      <div class="sgrp"><div class="sgh"><b>Câu 31</b><span class="lab cf">Đã xác nhận — hoàn lại được ở Lịch sử phiên bản</span></div>
+        <div class="mrow"><span class="ck"><i class="on"></i></span><span class="tx">Triều đình cần <del>đảm bảo</del><ins>bảo đảm</ins> rằng mọi thương nhân đều nộp thuế đúng hạn.</span></div></div>
+      <div class="sgrp"><div class="sgh"><b>Câu 40</b><span class="lab cf">Đã xác nhận — hoàn lại được ở Lịch sử phiên bản</span></div>
+        <div class="mrow"><span class="ck"><i class="on"></i></span><span class="tx">Quân sư dặn phải <del>đảm bảo</del><ins>bảo đảm</ins> tin tức không lọt ra ngoài.</span></div></div>
+      <div class="sgrp"><div class="sgh"><b>Câu 44</b><span class="lab cf">Đã xác nhận — hoàn lại được ở Lịch sử phiên bản</span></div>
+        <div class="mrow"><span class="ck"><i class="on"></i></span><span class="tx">Chiến sự kéo dài hơn một <del>thập kỷ</del><ins>thập niên</ins> mà chưa ngã ngũ.</span></div>
+        <div class="mrow"><span class="ck"><i class="on"></i></span><span class="tx">…suốt <del>thập kỷ</del><ins>thập niên</ins> ấy, biên ải không yên.</span></div></div>
+    </div>
+    <div class="ftc"><b>Không có trong danh sách:</b> 3 chỗ đã đánh dấu không phải lỗi · 1 chỗ nằm trong bản dịch Glossary đã chốt · 2 chỗ bị luật dài hơn che · 4 câu đã cắt hoặc đã về hưu nên không quét.</div>
+    <div class="ovf"><button class="btn pri">Thay 6 chỗ đã chọn</button><button class="btn">Huỷ</button>
+      <span class="hint">↑↓ đi giữa các chỗ · Space chọn hoặc bỏ chọn · Esc đóng, không ghi gì</span></div>
+  </div></div>
+  <div class="cap"><b>Câu 22 bỏ chọn:</b> “bảo <u>đảm bảo</u> vệ” chứa cụm “đảm bảo” ở ranh giới âm tiết; thay vào đây ra “bảo bảo đảm vệ”. Chỗ bỏ chọn giữ nguyên từng ký tự, còn dấu chấm của nó tiếp tục hiện trong ô. Chữ cũ nền đỏ nhạt và chữ mới nền lục nhạt là cách Review Mode đã dùng cho diff. Câu 14 là câu nháp được chọn nên nút chính cần bấm hai lần. Bộ lọc đứng ở <b>Tất cả luật</b> vì màn mở từ Công cụ; mở từ dải thì nó đứng sẵn ở luật đang xem, và các lựa chọn không mất khi đổi mục.</div>
+</div>
+
+<div class="rowlab">5b · Bấm lần hai khi có câu nháp, và khi có câu đã đổi <span>hai trạng thái của chân lớp phủ</span></div>
+<div class="win">
+  <div class="scrim"><div class="ovl" style="max-width:917px">
+    <div class="conf2" style="padding-top:12px;border-bottom:1px solid var(--line)">Bấm lại để thay — thao tác này không hoàn tác được trên <b>1 câu nháp: câu 14</b>. Câu đã xác nhận hoàn lại được ở Lịch sử phiên bản.</div>
+    <div class="ovf"><button class="btn pri foc">Xác nhận thay 6 chỗ</button><button class="btn">Huỷ</button><span class="hint">Đổi lựa chọn thì nút quay về bước một · Esc huỷ bước này</span></div>
+  </div></div>
+  <div class="scrim" style="padding-top:0"><div class="ovl" style="max-width:917px">
+    <div class="box err" style="margin:0;border-radius:0" role="alert"><b>Chưa thay chỗ nào.</b> 2 câu đã đổi từ lúc quét (câu 14, câu 31). Cả lượt được giữ nguyên, 0 câu bị ghi.</div>
+    <div class="ovf"><button class="btn pri">Quét lại</button><button class="btn">Đóng</button><span class="hint">Quét lại giữ các chỗ đã bỏ chọn nếu chỗ đó còn nguyên ngữ cảnh</span></div>
+  </div></div>
+</div>
+
+<div class="foot">
+  <span class="fc"><b>Hình nét là kênh duy nhất</b> phân biệt dấu quy ước với dấu Proofreader</span>
+  <span class="fc"><b>0 lời gọi AI</b> trong cả bốn bề mặt</span>
+  <span class="fc"><b>Không đường nào đổi bản dịch</b> khi người dùng chưa nhận</span>
+</div>

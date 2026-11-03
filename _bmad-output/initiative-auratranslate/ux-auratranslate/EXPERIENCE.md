@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-11-01
+updated: 2026-11-03
 design: DESIGN.md
 sources:
   - _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
@@ -71,6 +71,8 @@ Thanh tiêu đề
 | Cài đặt | — | có | `Mod+,` |
 | Quét chính tả | bộ chọn phạm vi trong dải Proofreader · trạng thái bên phải thanh tiêu đề | có | `⌘P` |
 | Chỗ đã bỏ qua | link trong dải Proofreader | có | — |
+| Thay cả Chương theo quy ước | nút trong dải quy ước (lọc sẵn theo luật đang xem) | có (Tất cả luật) | — |
+| Quản lý quy ước chữ Việt | liên kết trong dải quy ước | có | `Mod+Alt+A` |
 | Nhập bản reviewer | thẻ Tác phẩm · thanh hành động danh sách Chương | có | — |
 | Nối tay | bước liền sau khi nhập · link trong Review Mode khi còn đoạn chưa nối | có | — |
 | Duyệt thu hoạch thuật ngữ | bước sau khi nhập bản reviewer | có | — |
@@ -114,6 +116,8 @@ Mọi chuỗi ở trên là khoá trong `vi.json`. Không chuỗi hiển thị n
 
 Xử lý xong dải trên thì dải dưới mọc ngay tại chỗ vừa thu — không thao tác nào, và vị trí không nhảy vì cả ba cùng chiều cao đầu mục. 🔵 2026-10-28: khi dải dưới là gợi ý TM, dải trên thu lại (văn bản bên dưới dịch lên) và popup TM mở ngay dưới ô bản dịch.
 
+🔵 2026-11-03 (FR159): dải **quy ước** là loại dải thứ tư, xếp ngay sau Proofreader và trước gợi ý TM; đặc tả ở §Quy ước chữ Việt.
+
 > **Va chạm này không có trong PRD.** `FR59`, `FR83` và `FR114` được viết độc lập, không FR nào nhắc tới FR kia; nó chỉ lộ ra khi cả ba dùng chung một mẫu thị giác trên cùng một dòng văn bản. Đây là **quyết định ở tầng thiết kế** — sai thì sửa ở đây, không phải mở lại PRD.
 
 **Màn xem trước hợp nhất — một màn hình, ba tầng, không phải ba hộp thoại** *(quyết định 2026-08-03)*. Bảng mã (FR126), ranh giới bóc (FR123) và luật làm sạch (FR124) mô tả **cùng một văn bản ở cùng một thời điểm**; AD-39 đã chốt chúng là một pipeline thứ tự cố định và *"xem trước hiển thị kết quả sau toàn bộ chuỗi"*. Đặc tả riêng ở mục **Đường nhập** bên dưới.
@@ -132,7 +136,7 @@ Xử lý xong dải trên thì dải dưới mọc ngay tại chỗ vừa thu �
 
 **Phát hiện Proofreader — gạch chân, không phải vạch lề** *(quyết định 2026-08-03)*. `FR86` bắt đánh dấu tại chỗ trên Editor, nhưng vạch lề đã dùng hết **sáu** giá trị cho trạng thái segment *(🔵 2026-08-15, Story 2.5b: năm → sáu — `draft` lấp một **hàng vốn đã thiếu** trong bảng, không xin một kênh thị giác cho một trạng thái mới; **lý do của mệnh đề này KHÔNG đổi một chữ**, chỉ con số đổi)* và cột bản dịch cố tình không chia khối trong một ô. Lời giải: phát hiện là **gạch chân lượn sóng dưới đúng cụm chữ có vấn đề**, ở `text-underline-offset: 4px` để không chạm dấu nằm dưới của `ạ` `ộ` `ợ`. Hai lớp thông tin, hai chỗ đọc — vạch lề nói *trạng thái câu*, gạch chân nói *chỗ nghi ngờ*.
 
-Hai màu, không thêm màu mới nào vào bảng: **`error`** cho chính tả và ngữ pháp (`FR80` — có đáp án đúng), **`tm-rule`** cho nghi về nghĩa (`FR81` — là phán đoán, và màu này trong toàn ứng dụng đã luôn nghĩa là *máy đề xuất, chưa ai xác nhận*).
+Hai màu, không thêm màu mới nào vào bảng: **`error`** cho chính tả và ngữ pháp (`FR80` — có đáp án đúng), **`tm-rule`** cho nghi về nghĩa (`FR81` — là phán đoán, và màu này trong toàn ứng dụng đã luôn nghĩa là *máy đề xuất, chưa ai xác nhận*). 🔵 2026-11-03: bản dựng vẽ gạch chân nghi về nghĩa bằng `tm-text` (`var(--color-tm-text)` trong `GridBlock.vue`), không phải `tm-rule`; `tm-rule` là màu của nét và chưa bao giờ là màu chữ hay màu gạch chân của dấu. Nghĩa "máy đề xuất, chưa ai xác nhận" giữ nguyên.
 
 ## State Patterns
 
@@ -409,6 +413,237 @@ Hai chỗ: một dòng tóm tắt ở chân màn xem trước — *"Đã gọi `
 
 Hai tầng allowlist của AD-41 phân biệt bằng **nhãn chữ**, không bằng màu: `Tài liệu` cho host người dùng dán link, `Ảnh` cho host mà những trang đó tham chiếu tới. Mỗi hàng ghi **vì sao được phép** — đó là thứ biến lời hứa *"không telemetry"* thành thứ người dùng kiểm được.
 
+## Quy ước chữ Việt — FR159
+
+Người dịch có những quy ước về chính chữ Việt (*đảm bảo → bảo đảm*, *thập kỷ → thập niên*) không neo vào câu nguồn, nên Glossary không bắt được; Proofreader bắt được nhưng tốn token và không tất định. Quy ước chạy cục bộ, tất định, 0 lời gọi AI, và không đường nào đổi bản dịch khi người dùng chưa nhận (R10). Mockup: [`mockups/quy-uoc-chu-viet.html`](mockups/quy-uoc-chu-viet.html).
+
+*(Quyết định 2026-11-03, Ice, trừ chỗ ghi Sally đặt mặc định.)*
+
+### Component Patterns
+
+**Dấu quy ước — gạch chân chấm, không thêm màu.** Gạch chân `dotted` 2px màu `on-surface-variant`, `text-underline-offset: 4px` như dấu Proofreader, vẽ dưới đúng cụm cần tránh trong ô bản dịch và trên gợi ý ở panel AI Translation. Không thêm màu nào vào bảng: hai họ dấu trên cùng một câu phân biệt bằng **hình nét** (lượn sóng 1px là Proofreader, chấm 2px là quy ước), và dải bên dưới mang tên họ bằng chữ nên màu không phải kênh duy nhất (WCAG 1.4.1). Trong ô bản dịch, nền tô cụm bị loại như với Proofreader. Hai dấu chồng lên nhau thì dấu Proofreader thắng khi vẽ, dấu quy ước vẽ lại khi dấu Proofreader biến.
+- Trên gợi ý ở panel AI Translation chỉ có dấu và lời chú khi rê chuột; không dải, không nút thay (R4). Gợi ý đang chảy chưa có dấu, dấu hiện khi gợi ý đã trọn.
+- Glossary thắng (R12): chỗ khớp nằm trọn trong bản dịch của một mục Glossary đã chốt thì không có dấu. Thuật ngữ Glossary đã chốt vẫn đọc ở cột nguồn bằng màu chữ `primary`, nên ba họ chưa bao giờ cùng một kênh.
+
+**Dải quy ước — loại dải mới `convention`.** Cùng vỏ với dải Proofreader: dải đẩy văn bản xuống, viền trên 1px `outline`, vạch trái 3px, nền `surface`, đầu mục cùng chiều cao; vạch trái mang `on-surface-variant` thay cho `error`, tên dải là *Quy ước chữ Việt*. Thứ tự trong luật "một dải một lúc": Glossary chốt, Proofreader, **quy ước**, gợi ý TM. Quy ước không chặn hệ thống nhưng đang chờ một quyết định về chính câu này, nên đứng sau Glossary chốt và Proofreader, trước gợi ý TM vốn chỉ gợi ý.
+- Nội dung: dòng *Tránh: {cụm}* kèm nhãn tầng của luật (*Luật Toàn cục* hoặc *Luật Tác phẩm*) và vị trí *i / n*; dòng *Đề xuất: Đảm bảo → Bảo đảm* ghi cụm thay đã theo kiểu hoa của chỗ bị thay (R5).
+- Nút: **Nhận thay** (hành động chính của dải) · **Bỏ qua** (không ghi nhớ; dấu vẫn ở đó, dải sang chỗ kế) · **Không phải lỗi** (ghi nhớ theo Tác phẩm, R8) · **Thay cả Chương (N chỗ)** · **Chỗ đánh dấu trước** / **kế** (đi qua cả dấu Proofreader) · liên kết **Quản lý quy ước** và **Ẩn**.
+- Sau khi nhận: khay hoàn lại trong bộ nhớ cửa sổ, *Đã thay một chỗ ở câu này. Có thể hoàn lại.* với nút **Hoàn lại chỗ vừa thay**; trên câu đã xác nhận có thêm dòng nêu hệ quả: câu giữ xác nhận, bản trước tra lại ở Lịch sử phiên bản. Mất khay (đóng Tác phẩm) là ngoại lệ có tên của AD-67.
+- Luật không có cụm thay thế (R1): dấu vẫn hiện; dải **không có** Nhận thay (nút khoá, viền đứt, để các nút không nhảy chỗ) và không có Thay cả Chương; có thêm **Mở luật** để sang Quản lý quy ước.
+- **Dải không tự mở khi con trỏ đi ngang một câu có dấu.** Dải đẩy văn bản xuống, nên tự mở trên mọi câu có dấu sẽ làm cả cột bản dịch nhảy theo từng phím mũi tên. Dải mở khi người dùng bấm vào dấu, bấm F8 / Shift+F8, hoặc gọi lệnh từ bàn phím. *(Sally đặt mặc định, chờ Ice xem mockup.)*
+
+**Quản lý quy ước — lớp phủ riêng.** Cùng khuôn với Quản lý Glossary: lớp phủ rộng tối đa 1099px, thanh phạm vi đoạn chọn **Toàn cục · Tác phẩm · Cả hai** kèm số luật, ô tìm, hai thẻ **Luật** và **Không phải lỗi**. Mở từ `Công cụ ▾` mục *Quản lý quy ước chữ Việt* (`Mod+Alt+A`) và từ liên kết trong dải. Cài đặt không có mục này.
+- Hàng luật: *Cụm cần tránh → Cụm thay thế · Tầng · Trạng thái · thao tác*. Cụm thay trống ghi chữ nghiêng *không dùng*. Hàng tầng Tác phẩm có vạch trái 2px `confirmed`, như Glossary.
+- **Tắt ở Tác phẩm này** nằm trên hàng Toàn cục; luật không bị xoá, hàng chuyển sang trạng thái chữ *Đã tắt ở Tác phẩm này* kèm nút **Bật lại ở Tác phẩm này**, và các Tác phẩm khác không đổi (R2).
+- Luật Tác phẩm cùng cụm cần tránh che luật Toàn cục: hàng Toàn cục vẫn hiện, thụt vào, nhãn *Đang bị che*, màu `on-surface-variant`, cùng khuôn "Đang bị che" của Glossary.
+- Thêm luật trong một hàng ở đầu bảng (cụm cần tránh, cụm thay thế, tầng lưu; mặc định tầng Tác phẩm khi có Tác phẩm mở). Xoá hai bước theo khuôn *Xác nhận xoá luật*; xoá luật Toàn cục nói rõ các Tác phẩm khác cũng mất luật này.
+- **Xuất CSV/TSV** và **Nhập CSV/TSV** theo khuôn Glossary, hai cột *avoid, replacement*, cột hai trống là *không dùng* (R9). Nhập có bước xem trước với số luật mới, luật giống hệt (bỏ qua) và luật bất đồng; mặc định giữ luật đang có.
+- Thẻ **Không phải lỗi**: các chỗ đã ghi nhớ của riêng Tác phẩm này, mỗi hàng là cụm cần tránh và ngữ cảnh *…trước [cụm] sau…*, nút **Bỏ ghi nhớ** (chỗ đó được đánh dấu lại ở lần quét kế, nên không cần hỏi lại) và **Xoá toàn bộ ghi nhớ** hai bước. Chưa mở Tác phẩm thì thẻ nói rõ cần mở một Tác phẩm.
+
+**Màn xác nhận thay cả Chương.** Lớp phủ rộng 917px (như Cài đặt) phạm vi là **mọi luật đang dùng** trong Chương đang mở. Mở từ nút **Thay cả Chương (N chỗ)** của dải thì bộ lọc luật đứng sẵn ở luật đang xem; mở từ `Công cụ ▾` hoặc lệnh `command.convention.replace_chapter_open` thì đứng ở *Tất cả luật*. Mở màn là ghi bản dịch đang gõ xuống đĩa rồi quét lại bản đã lưu, nên số N trong nút và số trong màn có thể chênh nhau và màn luôn đúng.
+- Đầu màn: tên Chương, *{N} chỗ trong {M} câu · đã chọn {K}* (tính trên mọi luật, không theo bộ lọc), hai nút **Chọn tất cả** và **Bỏ chọn tất cả**.
+- **Bộ lọc luật** là một đoạn chọn dưới đầu màn: *Tất cả luật {n}* và mỗi luật có cụm thay một mục kèm số chỗ của nó. Bộ lọc chỉ đổi cái đang hiện; trạng thái chọn và bỏ chọn của từng chỗ giữ nguyên khi đổi bộ lọc, **Chọn tất cả** / **Bỏ chọn tất cả** chỉ tác động lên các chỗ đang hiện. Luật không có cụm thay thế không có mục (không có gì để thay). Hai luật khớp chồng nhau đã được bộ quét phân xử (luật dài hơn thắng, chỗ thua đếm vào *bị luật dài hơn che*), nên danh sách không bao giờ có hai cụm thay trên cùng một khoảng.
+- Danh sách nhóm theo câu, **mọi chỗ chọn sẵn**. Mỗi nhóm có đầu mục *Câu {số}* và nhãn: câu nháp *Bản nháp — không hoàn tác được* (chữ `error`, đậm), câu đã xác nhận *Đã xác nhận — hoàn lại được ở Lịch sử phiên bản*. Mỗi chỗ là một hàng có ô chọn 14px trong vùng bấm 28×28px, câu đầy đủ với chỗ khớp ở dạng diff (chữ cũ nền `diff-del-bg`, chữ mới nền `diff-add-bg`, như Review Mode). Chỗ bỏ chọn hiện câu nguyên với dấu chấm quy ước, chữ `on-surface-variant`.
+- Nút chính **Thay {K} chỗ đã chọn**, K đếm mọi chỗ đã chọn của mọi luật kể cả chỗ đang bị bộ lọc ẩn. Không có câu nháp trong số đã chọn: một lần bấm là ghi. Có K' câu nháp đã chọn (đếm trên mọi luật, kể cả câu đang bị bộ lọc ẩn): lần bấm đầu đổi nút thành **Xác nhận thay {K} chỗ** và hiện dòng *Bấm lại để thay — thao tác này không hoàn tác được trên K' câu nháp: câu 14.* (khuôn "bấm lại" sẵn có, không hộp thoại thứ hai). Đổi bất kỳ ô chọn nào thì nút về bước một, vì K' có thể đã đổi. K = 0 thì nút khoá.
+- **Chân màn nêu bằng chữ số chỗ không hiện trong danh sách:** *{a} chỗ đã đánh dấu không phải lỗi · {b} chỗ nằm trong bản dịch Glossary đã chốt · {c} chỗ bị luật dài hơn che · {d} câu đã cắt hoặc đã về hưu nên không quét.* Cả bốn số luôn có mặt khi khác 0; cả bốn bằng 0 thì chân ghi *Không có chỗ nào bị lọc.* ("0 chỗ" không bao giờ im lặng che chỗ bị lọc.)
+- Cả lượt, mọi luật cùng nhau, là **một giao dịch**: nếu một câu đã đổi từ lúc quét, không câu nào được ghi. Màn hiện khung `role="alert"` nêu câu nào đã đổi và nói rõ 0 câu bị ghi, cùng nút **Quét lại**; quét lại giữ các chỗ đã bỏ chọn khi chỗ đó còn nguyên ngữ cảnh.
+
+### State Patterns
+
+| Trạng thái | Dấu | Dải | Màn thay cả Chương |
+|---|---|---|---|
+| **Đang quét khi mở Chương** | chưa có dấu; không chữ báo, không vòng quay | chưa mở | thanh mảnh sau 250ms, *Đang quét {done}/{total} câu…* |
+| **Chưa có luật nào** | không dấu | không mở | không mở được; Quản lý quy ước hiện *Chưa có luật nào ở tầng này…* kèm đường thêm và nhập |
+| **0 chỗ khớp** | không dấu | F8 báo ở thanh trạng thái *Chương này không có chỗ nào được đánh dấu.* | *Không còn chỗ nào để thay trong Chương này.* kèm chân số chỗ bị lọc |
+| **Mọi chỗ đã bị ẩn** (ghi nhớ, Glossary, bị che) | không dấu | như 0 chỗ khớp | chân màn nêu từng số; danh sách rỗng không được là câu trả lời duy nhất |
+| **Lỗi quét** | dấu cũ giữ nguyên nếu đã có, không dấu mới | *Chưa quét được quy ước chữ Việt. Bản dịch không bị đổi.* ở thanh trạng thái, thử lại do người dùng bấm | khung lỗi trong màn, nút **Quét lại** |
+| **Câu đang gõ (cũ sau khi gõ)** | dấu của câu đó biến ngay ở phím đầu tiên và hiện lại sau lượt lưu kế tiếp, khoảng 2 giây sau khi ngừng gõ; không dấu cũ, không vòng quay | dải của câu đó thu lại | mở màn thì lưu trước, quét sau |
+| **Câu bị cắt / đã về hưu** | không dấu, không quét | — | đếm vào chân màn |
+| **Gợi ý AI đang chảy** | không dấu | — | — |
+
+Dấu vắng không phải lời khẳng định câu đạt quy ước: mọi con số (N trong nút, *đã quét* ở chân) chỉ tính bản đã lưu, và F8 khi câu đang gõ báo *Câu đang gõ chưa quét lại; dấu hiện sau lượt lưu kế tiếp.* ở thanh trạng thái.
+
+### Interaction Primitives
+
+**F8 / Shift+F8 đi tới chỗ đánh dấu kế / trước của cả hai họ dấu** (Proofreader và quy ước) theo thứ tự văn bản trong Chương. Chỗ đến là dải của họ tương ứng. Hết chỗ thì dừng, báo trên thanh trạng thái, không quay vòng (như chuyển Chương). Cần một cặp lệnh dùng chung cho hai họ; hai lệnh `ai.proofread.next` / `prev` giữ id và phím người dùng đã gán, nhưng F8 / Shift+F8 mặc định chuyển sang cặp mới. *(Winston chốt id.)*
+
+| Việc | Phím | Chuột |
+|---|---|---|
+| Mở Quản lý quy ước | `Mod+Alt+A` | `Công cụ ▾` › *Quản lý quy ước chữ Việt*; liên kết trong dải |
+| Mở dải ở chỗ đánh dấu | `F8` / `Shift+F8` | bấm vào dấu (một cú bấm không có vùng chọn, để không va Auto-Lookup) |
+| Nhận thay · Bỏ qua · Không phải lỗi · Hoàn lại · Ẩn | không phím mặc định (người dùng tự gán); `Esc` ẩn dải | nút trong dải |
+| Thay cả Chương | không phím mặc định | nút trong dải (lọc sẵn theo luật đang xem) · `Công cụ ▾` › *Thay cả Chương theo quy ước* (Tất cả luật) |
+| Chọn tất cả · Bỏ chọn tất cả · Chọn một chỗ | nút / `Space` trên hàng | nút / ô chọn |
+| Thay N chỗ đã chọn | Tab tới nút rồi `Enter` hoặc `Space` | nút |
+
+- **Tab** đi từ ô bản dịch vào nút đầu của dải, theo thứ tự nút trong dải; Shift+Tab về ô. Trong lớp phủ Quản lý: thanh tầng · ô tìm · thẻ · hàng thêm luật · bảng · Xuất / Nhập · Đóng.
+- **Trong màn thay cả Chương** tiêu điểm đầu vào là hàng đầu tiên của danh sách. Thứ tự Tab: bộ lọc luật (một điểm dừng, `←` `→` đổi mục) · **Chọn tất cả** · **Bỏ chọn tất cả** · danh sách (một điểm dừng, `↑` `↓` đi giữa các chỗ, `Space` chọn hoặc bỏ chọn, vì Chương có thể có hàng trăm chỗ) · nút chính · **Huỷ**. Không có `Enter` mặc định toàn lớp phủ.
+- **Esc** trong màn thay cả Chương: lần đầu huỷ bước xác nhận đang chờ (nếu có), lần sau đóng màn mà không ghi gì. Esc trong Quản lý đóng lớp phủ, trừ khi một hàng đang chờ xác nhận xoá thì Esc huỷ bước đó trước.
+- **Trả tiêu điểm** (UX-DR17): đóng Quản lý trả về nút đã mở; đóng màn thay cả Chương trả về nút **Thay cả Chương** nếu dải còn, nếu không thì về ô bản dịch của câu có con trỏ. Sau khi thay xong, thanh trạng thái ghi *Đã thay {N} chỗ trong {M} câu…* nêu cả hệ quả với câu đã xác nhận và câu nháp.
+- Nút trong dải không cướp tiêu điểm khỏi ô khi bấm chuột (`@mousedown.prevent` như nút Ẩn của dải Proofreader), trừ khi mở lớp phủ.
+
+### Accessibility
+
+- Mọi hành động là lệnh đăng ký trong `CommandRegistry` (AD-34), đường chuột chỉ `dispatch` lệnh (NFR20); lệnh chưa có phím mặc định liệt kê được tự động. Phím `Mod+Alt+A` đo trên `src/commands/index.ts`: họ `Mod+Alt+<chữ>` hiện dùng 1 2 3 B C E F G H J K L M N O P Q R S T U V W X và các mũi tên, ngoặc vuông, Enter; **A chưa ai dùng**, nhớ là *Avoid*. `Mod` có mặt nên hợp âm đi qua luật nuốt `Alt` trần trong ô bản dịch (§Phím).
+- Hai họ dấu khác nhau bằng hình nét, không chỉ màu; tên họ nằm bằng chữ trong dải (WCAG 1.4.1). Tương phản của nét chấm đã đo ở DESIGN §Dấu quy ước.
+- Ô chọn 14px trong vùng bấm 28×28px (WCAG 2.5.8); nhãn câu nháp và câu đã xác nhận là **chữ**, không chỉ màu `error`.
+- `role="dialog" aria-modal="true"`, bẫy Tab, `role="status"` cho dòng trạng thái, `role="alert"` cho lỗi và cho "chưa thay chỗ nào". Không hiệu ứng trên đường nóng: dấu hiện lại bằng 90ms mờ dần 0,4→1, `prefers-reduced-motion` tắt hẳn.
+- Trình đọc màn hình đầy đủ vẫn ngoài phạm vi v1 (PRD §3.2); mỗi ô chọn mang `aria-label` nêu cụm cũ, cụm mới và số câu.
+
+### KF-5 · Linh thay “đảm bảo” trong một Chương đã xác nhận
+
+`FR159 → FR117 → FR101`
+
+1. Linh mở Chương 47 đã xác nhận từ tuần trước. Sau chừng một phần giây, năm chỗ “đảm bảo” có dấu chấm trong ô bản dịch; Linh chưa bấm gì.
+2. Linh bấm vào dấu đầu tiên. Dải *Quy ước chữ Việt* mọc dưới câu, ghi *Đảm bảo → Bảo đảm*. Linh bấm **Thay cả Chương (5 chỗ)**.
+3. Màn xác nhận mở với bộ lọc đứng ở luật “đảm bảo”, năm chỗ đều đã chọn. Câu 22 ghi “nhằm bảo đảm bảo vệ”; chỗ khớp là “đảm bảo” giữa hai chữ “bảo”. Linh dùng `↓` tới câu đó, `Space` bỏ chọn. Nút đổi thành **Thay 4 chỗ đã chọn**.
+4. Câu 14 là bản nháp Linh chưa ký. Linh bấm nút chính: nút đổi thành **Xác nhận thay 4 chỗ**, dòng dưới nói thao tác không hoàn tác được trên 1 câu nháp, câu 14. Chân màn nói thêm 3 chỗ đã đánh dấu không phải lỗi và 2 chỗ bị luật dài hơn che; Linh không cần mở thêm gì để tin danh sách đủ.
+5. Linh bấm lại. Thanh trạng thái ghi 4 chỗ trong 4 câu đã thay; 3 câu đã xác nhận giữ xác nhận và bản trước tra lại được ở Lịch sử phiên bản, câu 14 không hoàn tác được. Câu 22 vẫn mang dấu chấm.
+6. Linh bấm **Không phải lỗi** ở câu 22 từ dải. Chỗ đó không bị đánh dấu lại trong Tác phẩm này, kể cả sau khi đóng và mở lại.
+
+**Vì sao bước 4 là nhịp then chốt:** đây là chỗ thao tác hàng loạt chạm vào thứ không lấy lại được. Màn không hỏi hai lần cho mọi thứ; nó chỉ hỏi lại khi có câu nháp đã chọn, và nêu đúng câu nào.
+
+### Khoá i18n mới
+
+Khoá phẳng, chấm, `snake_case`; lệnh dùng `command.convention.*`, lỗi dùng `err.convention.*`, biến thể aria hậu tố `_aria_label`.
+
+| Khoá | Chữ |
+|---|---|
+| `command.convention.manage_open` | Quản lý quy ước chữ Việt |
+| `command.convention.accept` | Nhận thay quy ước |
+| `command.convention.skip` | Bỏ qua chỗ quy ước |
+| `command.convention.ignore` | Đánh dấu không phải lỗi (quy ước) |
+| `command.convention.revert` | Hoàn lại chỗ quy ước vừa thay |
+| `command.convention.hide` | Ẩn dải quy ước |
+| `command.convention.replace_chapter_open` | Thay cả Chương theo quy ước |
+| `command.convention.replace_chapter_select_all` | Chọn mọi chỗ cần thay |
+| `command.convention.replace_chapter_select_none` | Bỏ chọn mọi chỗ cần thay |
+| `command.convention.replace_chapter_confirm` | Thay các chỗ đã chọn |
+| `command.convention.replace_chapter_rescan` | Quét lại để thay cả Chương |
+| `command.marks.next` | Chỗ đánh dấu kế |
+| `command.marks.prev` | Chỗ đánh dấu trước |
+| `convention.mark.title_with_replacement` | Quy ước: tránh “{avoid_phrase}”, đề xuất “{replacement_phrase}” |
+| `convention.mark.title_no_replacement` | Quy ước: tránh “{avoid_phrase}” |
+| `convention.strip.title` | Quy ước chữ Việt |
+| `convention.strip.title_position` | Quy ước chữ Việt — chỗ {spot_index} trên {spot_count} |
+| `convention.strip.hint` | {chord} kế tiếp · {chord} trước · Esc ẩn |
+| `convention.strip.avoid` | Tránh: {avoid_phrase} |
+| `convention.strip.position` | {spot_index} / {spot_count} |
+| `convention.strip.tier_global` | Luật Toàn cục |
+| `convention.strip.tier_work` | Luật Tác phẩm |
+| `convention.strip.suggestion` | Đề xuất: {from_phrase} → {to_phrase} |
+| `convention.strip.no_replacement` | Luật này chưa có cụm thay thế nên không có thao tác thay. Sửa tay trong ô, hoặc thêm cụm thay ở Quản lý quy ước. |
+| `convention.strip.accept` | Nhận thay |
+| `convention.strip.skip` | Bỏ qua |
+| `convention.strip.ignore` | Không phải lỗi |
+| `convention.strip.replace_chapter` | Thay cả Chương ({spot_count} chỗ) |
+| `convention.strip.prev` | Chỗ đánh dấu trước |
+| `convention.strip.next` | Chỗ đánh dấu kế |
+| `convention.strip.hide` | Ẩn |
+| `convention.strip.manage_link` | Quản lý quy ước |
+| `convention.strip.open_rule` | Mở luật |
+| `convention.strip.revert_note` | Đã thay một chỗ ở câu này. Có thể hoàn lại. |
+| `convention.strip.revert` | Hoàn lại chỗ vừa thay |
+| `convention.strip.confirmed_note` | Câu đã xác nhận vẫn giữ xác nhận. Bản trước tra lại được ở Lịch sử phiên bản. |
+| `convention.status.accepted` | Đã thay “{from_phrase}” bằng “{to_phrase}”. |
+| `convention.status.ignored` | Đã ghi nhớ: chỗ này không bị đánh dấu lại trong Tác phẩm này. Bỏ ghi nhớ ở Quản lý quy ước, thẻ Không phải lỗi. |
+| `convention.status.no_marks` | Chương này không có chỗ nào được đánh dấu. |
+| `convention.status.no_next` | Không còn chỗ đánh dấu nào phía sau trong Chương này. |
+| `convention.status.no_prev` | Không còn chỗ đánh dấu nào phía trước trong Chương này. |
+| `convention.status.sentence_pending` | Câu đang gõ chưa quét lại; dấu hiện sau lượt lưu kế tiếp. |
+| `convention.status.replaced` | Đã thay {replaced_count} chỗ trong {sentence_count} câu. {confirmed_count} câu đã xác nhận giữ xác nhận, bản trước tra lại được ở Lịch sử phiên bản; {draft_count} câu nháp không hoàn tác được. |
+| `convention.manage.title` | Quy ước chữ Việt |
+| `convention.manage.title_work` | Quy ước chữ Việt · {work_title} |
+| `convention.manage.close` | Đóng |
+| `convention.manage.tier_label` | Tầng đang xem |
+| `convention.manage.tier_global` | Toàn cục {rule_count} |
+| `convention.manage.tier_work` | Tác phẩm {rule_count} |
+| `convention.manage.tier_both` | Cả hai |
+| `convention.manage.tab_rules` | Luật |
+| `convention.manage.tab_ignored` | Không phải lỗi {ignored_count} |
+| `convention.manage.search_placeholder` | Tìm cụm cần tránh hoặc cụm thay thế… |
+| `convention.manage.counts` | {rule_count} luật · {disabled_count} đang tắt ở Tác phẩm này · {shadowed_count} đang bị che |
+| `convention.manage.col_avoid` | Cụm cần tránh |
+| `convention.manage.col_replacement` | Cụm thay thế |
+| `convention.manage.col_tier` | Tầng |
+| `convention.manage.col_state` | Trạng thái |
+| `convention.manage.col_actions` | Thao tác |
+| `convention.manage.replacement_none` | không dùng |
+| `convention.manage.state_on` | Đang dùng |
+| `convention.manage.state_off_work` | Đã tắt ở Tác phẩm này |
+| `convention.manage.shadowed` | Đang bị che |
+| `convention.manage.shadowed_hint` | Hàng thụt vào là luật Toàn cục bị che, không phải luật trùng. Khi một cụm cần tránh có ở cả hai tầng thì luật tầng Tác phẩm thắng; luật Toàn cục vẫn nguyên ở các Tác phẩm khác. |
+| `convention.manage.disable_in_work` | Tắt ở Tác phẩm này |
+| `convention.manage.enable_in_work` | Bật lại ở Tác phẩm này |
+| `convention.manage.add` | Thêm luật |
+| `convention.manage.add_avoid` | Cụm cần tránh |
+| `convention.manage.add_replacement` | Cụm thay thế (trống là không dùng) |
+| `convention.manage.add_tier` | Lưu vào tầng |
+| `convention.manage.edit` | Sửa |
+| `convention.manage.delete` | Xoá |
+| `convention.manage.delete_confirm` | Xác nhận xoá luật |
+| `convention.manage.delete_hint_work` | Bấm “Xác nhận xoá luật” một lần nữa để xoá — thao tác này không hoàn tác được. |
+| `convention.manage.delete_hint_global` | Bấm “Xác nhận xoá luật” một lần nữa để xoá — thao tác này không hoàn tác được, và các Tác phẩm khác cũng mất luật này. |
+| `convention.manage.export` | Xuất CSV/TSV |
+| `convention.manage.import` | Nhập CSV/TSV |
+| `convention.manage.exchange_tier_label` | Tầng xuất/nhập |
+| `convention.manage.import_summary` | {new_count} luật mới · {same_count} luật giống hệt (bỏ qua) · {conflict_count} luật bất đồng |
+| `convention.manage.import_keep_mine` | Giữ của tôi |
+| `convention.manage.import_take_file` | Lấy của file |
+| `convention.manage.import_apply` | Nhập {new_count} luật mới · giữ {kept_count} luật đang có |
+| `convention.manage.import_cancel` | Huỷ |
+| `convention.manage.loading` | Đang đọc danh sách… |
+| `convention.manage.empty_rules` | Chưa có luật nào ở tầng này. Thêm luật, hoặc nhập từ tệp CSV/TSV hai cột. |
+| `convention.manage.no_match` | Không luật nào khớp “{query}”. |
+| `convention.manage.work_locked` | Chưa mở Tác phẩm nào — chỉ sửa được tầng Toàn cục. |
+| `convention.manage.ignored_empty` | Chưa có chỗ nào được ghi nhớ là không phải lỗi trong Tác phẩm này. |
+| `convention.manage.ignored_needs_work` | Mở một Tác phẩm để xem các chỗ đã ghi nhớ. |
+| `convention.manage.ignored_context` | …{context_before}[{phrase}]{context_after}… |
+| `convention.manage.ignored_forget` | Bỏ ghi nhớ |
+| `convention.manage.ignored_forget_done` | Đã bỏ ghi nhớ {forgotten_count} chỗ. Lần quét kế sẽ đánh dấu lại những chỗ đó. |
+| `convention.manage.ignored_clear` | Xoá toàn bộ ghi nhớ |
+| `convention.manage.ignored_clear_confirm` | Xác nhận xoá {ignored_count} chỗ đã ghi nhớ |
+| `convention.manage.ignored_clear_hint` | Bấm lại để xoá toàn bộ {ignored_count} chỗ đã ghi nhớ của Tác phẩm này — thao tác này không hoàn tác được. |
+| `convention.manage.ignored_clear_done` | Đã xoá {ignored_count} chỗ đã ghi nhớ. Lần quét kế sẽ đánh dấu lại những chỗ đó. |
+| `convention.replace.title` | Thay theo quy ước trong {chapter_title} |
+| `convention.replace.summary` | {match_count} chỗ trong {sentence_count} câu · đã chọn {selected_count} |
+| `convention.replace.select_all` | Chọn tất cả |
+| `convention.replace.select_none` | Bỏ chọn tất cả |
+| `convention.replace.list_aria_label` | Các chỗ cần thay, nhóm theo câu |
+| `convention.replace.sentence` | Câu {segment_number} |
+| `convention.replace.draft_label` | Bản nháp — không hoàn tác được |
+| `convention.replace.confirmed_label` | Đã xác nhận — hoàn lại được ở Lịch sử phiên bản |
+| `convention.replace.match_aria_label` | Thay “{avoid_phrase}” bằng “{replacement_phrase}” trong câu {segment_number} |
+| `convention.replace.apply` | Thay {selected_count} chỗ đã chọn |
+| `convention.replace.apply_none` | Chưa chọn chỗ nào |
+| `convention.replace.apply_again` | Xác nhận thay {selected_count} chỗ |
+| `convention.replace.apply_again_hint` | Bấm lại để thay — thao tác này không hoàn tác được trên {draft_count} câu nháp: {segment_list}. Câu đã xác nhận hoàn lại được ở Lịch sử phiên bản. |
+| `convention.replace.cancel` | Huỷ |
+| `convention.replace.scanning` | Đang quét {done_count}/{total_count} câu… |
+| `convention.replace.empty` | Không còn chỗ nào để thay trong Chương này. |
+| `convention.replace.empty_rule` | Luật “{avoid_phrase}” không còn chỗ nào để thay trong Chương này. |
+| `convention.replace.filter_label` | Lọc theo luật |
+| `convention.replace.filter_all` | Tất cả luật {match_count} |
+| `convention.replace.filter_rule` | {avoid_phrase} {match_count} |
+| `convention.replace.hidden_title` | Không có trong danh sách: |
+| `convention.replace.hidden_ignored` | {ignored_count} chỗ đã đánh dấu không phải lỗi |
+| `convention.replace.hidden_glossary` | {glossary_count} chỗ nằm trong bản dịch Glossary đã chốt |
+| `convention.replace.hidden_overlapped` | {overlapped_count} chỗ bị luật dài hơn che |
+| `convention.replace.hidden_not_scanned` | {not_scanned_count} câu đã cắt hoặc đã về hưu nên không quét |
+| `convention.replace.hidden_none` | Không có chỗ nào bị lọc. |
+| `convention.replace.rescan` | Quét lại |
+| `convention.replace.rescan_kept` | Đã quét lại, giữ {kept_count} chỗ đã bỏ chọn. |
+| `err.convention.scan_failed` | Chưa quét được quy ước chữ Việt. Bản dịch không bị đổi. |
+| `err.convention.flush_failed` | Chưa lưu được bản dịch nên chưa quét hay thay. Bản dịch vẫn còn trên màn hình. |
+| `err.convention.text_changed` | Câu số {segment_number} đã đổi so với lúc quét nên chưa thay chỗ nào. Quét lại để có danh sách theo bản hiện tại. |
+| `err.convention.chapter_changed` | Chưa thay chỗ nào: {changed_count} câu đã đổi từ lúc quét ({segment_list}). Cả lượt được giữ nguyên, 0 câu bị ghi. |
+| `err.convention.rule_changed` | Luật “{avoid_phrase}” đã đổi hoặc đã bị xoá từ lúc quét nên chưa thay chỗ nào. Quét lại để có danh sách theo luật hiện tại. |
+| `err.convention.empty_result` | Câu số {segment_number} sẽ rỗng sau khi thay nên chưa thay chỗ nào. |
+| `err.convention.rule_duplicate` | Đã có luật cho “{avoid_phrase}” ở tầng này. Sửa luật đó thay vì thêm mới. |
+| `err.convention.avoid_empty` | Cụm cần tránh không được để trống. |
+| `err.convention.no_work` | Chưa mở Tác phẩm nào, nên chưa dùng được tầng Tác phẩm. Chọn tầng Toàn cục, hoặc mở một Tác phẩm trước. |
+| `err.convention.import_failed` | Chưa nhập được tệp: {reason}. Danh sách luật không bị đổi. |
+
 ## Dịch nhanh
 
 *(Mục bổ sung 2026-11-01 cho FR153–FR158, AD-64. Ice chọn: câu dịch nằm dưới chữ gốc, công tắc tự dịch chỉ ở Cài đặt, cấu hình nằm trong `AI và mô hình`.)*
@@ -626,6 +861,7 @@ Bản dựng là minh hoạ của spine, không phải nguồn sự thật — *
 | Bề mặt | File | Neo tới |
 |---|---|---|
 | **AI Proofreader** — gạch chân tại chỗ, hai loại phát hiện, bỏ qua có ghi nhớ, tỷ lệ báo động giả | [`mockups/proofreader.html`](mockups/proofreader.html) | FR80–FR86 |
+| **Quy ước chữ Việt** — dấu chấm cạnh dấu Proofreader, dải nhận, quản lý luật hai tầng, thay cả Chương; sáng và tối | [`mockups/quy-uoc-chu-viet.html`](mockups/quy-uoc-chu-viet.html) | FR159 |
 | **Bố cục màn hình hẹp** — ngưỡng và thứ tự hy sinh | [`mockups/narrow-layout.html`](mockups/narrow-layout.html) | FR16 · FR17 · FR18 · FR20 · FR21 |
 
 **Bản đồ năng lực nay đã phủ kín: cả 10 nhóm C1–C10 đều có bề mặt.**

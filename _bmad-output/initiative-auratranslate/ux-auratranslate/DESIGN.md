@@ -2,7 +2,7 @@
 name: AuraTranslate
 status: final
 created: 2026-08-02
-updated: 2026-11-01
+updated: 2026-11-03
 sources:
   - _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
   - _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md
@@ -532,6 +532,23 @@ Cao 28px (24px ở dạng nhỏ trong hàng điều khiển và thanh trạng th
 
 **Câu dịch tham khảo** *(🔵 2026-11-01, FR154–FR155)*. Nằm dưới chữ gốc, cùng cột với chữ gốc, không viền và không nền riêng. Chữ `read-sm`, màu `on-surface`, riêng khối đã loại và câu đang chảy dùng `on-surface-variant` để không nổi hơn chữ gốc. Dòng nguồn `ui-sm`, màu `on-surface-variant`. Không dùng `primary`, `tm-rule` hay `confirmed`, vì câu này không phải bản dịch đã qua ai. Khối dịch ở tầng khối giữ nguyên vạch lề và độ lùi của khối.
 
+**Dấu quy ước** *(🔵 2026-11-03, Ice, FR159)*. Gạch chân `dotted` 2px, màu `on-surface-variant`, `text-underline-offset: 4px`, vẽ dưới đúng cụm cần tránh trong ô bản dịch và trên gợi ý ở panel AI Translation. Không thêm token: dấu quy ước và dấu Proofreader (lượn sóng 1px, `error` hoặc `tm-text`) phân biệt bằng **hình nét**, và Glossary đã chốt ở cột nguồn là màu chữ `primary`. Chấm 2px đã có ở vạch phân tách ô không liên kết (cạnh phải ô) và ở câu chưa xác nhận trong Chế độ đọc (viền đáy 1px `ornament`): khác bề mặt, khác loại vạch, nên không nhầm. Nền tô cụm bị loại, cùng lý do với Proofreader.
+
+Tương phản của nét `on-surface-variant`, tính từ `tokens.json` (công thức WCAG), ngưỡng phi chữ 3:1 (WCAG 1.4.11):
+
+| Nền | Sáng | Tối |
+|---|---|---|
+| `surface` | 5,60:1 | 5,56:1 |
+| `surface-accent` (ô bản dịch đang sửa) | 4,96:1 | 4,51:1 |
+
+Cả bốn cặp đạt 3:1, và đạt cả 4,5:1 của chữ. Hàng `surface-accent` tối dùng `#283637` của `tokens.json`; bảng token màu ở trên ghi `#2c3a3b` cho ô này, với giá trị đó cặp tối là 4,25:1, vẫn đạt 3:1. Hai giá trị lệch nhau cần được sửa ở một trong hai nơi.
+
+**Dải quy ước** *(🔵 2026-11-03, Ice, FR159)* — một biến thể của dải Proofreader, không phải component thứ hai. Cùng vỏ: dải đẩy văn bản xuống, nền `surface`, viền trên 1px `outline`, vạch trái 3px, đệm 13px 14px 14px 11px, đầu mục `ui-md` đậm cùng chiều cao, nút `ui-btn` 28px. Khác ở ba chỗ: vạch trái `on-surface-variant` thay cho `error`; tên dải *Quy ước chữ Việt*; hành động chính **Nhận thay** là nút Chính, các nút còn lại Phụ, hai nút điều hướng và liên kết là Chìm. Luật không có cụm thay thế thì Nhận thay ở bậc Khoá (viền đứt `outline`, chữ `on-surface-variant`). Dòng trạng thái `ui-sm` `on-surface-variant`; lỗi `error`. Dải xếp ngay sau `proofreader` trong thứ tự ưu tiên dải.
+
+**Lớp phủ Quản lý quy ước** *(🔵 2026-11-03, Ice, FR159)* — cùng vỏ lớp phủ với Quản lý Glossary: rộng tối đa 1099px, viền 1px `outline`, nền `surface`, đệm 13px. Thanh tầng là nút phân đoạn (ô đang chọn nền `on-surface`). Hàng tầng Tác phẩm có vạch trái 2px `confirmed`; hàng Toàn cục bị che thụt `calc(var(--space-unit) * 5)`, chữ `on-surface-variant`, nhãn viền đứt 1px *Đang bị che*; trạng thái *Đã tắt ở Tác phẩm này* cũng là nhãn viền đứt, nên trạng thái đọc được bằng chữ lẫn hình. Nút xoá bậc Nguy hiểm, hai bước. Nút điều khiển theo §Điều khiển; không thêm dáng nào.
+
+**Màn xác nhận thay cả Chương** *(🔵 2026-11-03, Sally đặt mặc định, Ice xem qua mockup)* — lớp phủ rộng tối đa 917px như Cài đặt, danh sách cuộn tối đa 60vh. Bộ lọc luật là nút phân đoạn (ô đang chọn nền `on-surface`) đặt dưới đầu màn, mục đầu *Tất cả luật*. Nhóm theo câu, đường kẻ dưới `outline-faint`. Chữ cũ nền `diff-del-bg` chữ `diff-del-ink`, chữ mới nền `diff-add-bg` chữ `diff-add-ink` (cùng cặp với Review Mode). Nhãn câu nháp chữ `error` đậm, nhãn câu đã xác nhận chữ `on-surface-variant`; cả hai là chữ nên màu không là kênh duy nhất. Ô chọn là ô chọn của §Điều khiển (14px trong vùng bấm 28×28px). Chân màn nền `background`, nút chính bậc Chính, **Huỷ** bậc Phụ, chung `min-width: 8.5em`. Khung "chưa thay chỗ nào" viền trái 2px `error`, `role="alert"`.
+
 ### Điều khiển — một hệ cho mọi nút, ô nhập, ô chọn
 
 *(🔵 2026-10-28, Ice duyệt. Ba điểm Ice chọn giữa hai phương án: hover nhẹ, focus đổi màu viền, thang 32/28/24. Phần còn lại Ice duyệt trên mockup `mockups/he-dieu-khien.html`. 🔵 2026-10-28, lượt soi lại: nút Chính rê chuột đổi nền sang `on-surface-variant` (Ice: viền trong 1px quá nhỏ, không thấy); nút Chìm rê chuột hiện viền thay cho nền 1,13:1; mục menu nền `outline`; vùng bấm checkbox 24px; dự phòng `forced-colors`.)*
@@ -613,6 +630,7 @@ Focus thắng rê chuột: rule `:focus-visible` đứng sau `:hover` trong cùn
 - Báo trạng thái bằng vạch lề, giữ văn bản liền mạch.
 - Kiểm mọi thay đổi typography bằng chuỗi dày dấu tiếng Việt.
 - Giữ `read` cho nội dung và `ui` cho bộ máy, không trộn.
+- Giữ ba hình gạch chân đúng nghĩa: lượn sóng 1px là Proofreader, chấm 2px là quy ước chữ Việt, liền 2px là Glossary chờ chốt.
 
 **Không nên**
 - Không viết giá trị màu thẳng trong component — mọi màu đến từ token đã kiểm tương phản (AD-34).
@@ -621,3 +639,4 @@ Focus thắng rê chuột: rule `:focus-visible` đứng sau `:hover` trong cùn
 - Không thêm gradient. 🔵 2026-10-29 (Ice): bóng đổ và lớp nổi không còn bị cấm; bóng chỉ lấy từ token `shadows`, không viết tay.
 - Không dùng trắng tinh làm nền hay đen tuyền làm chữ, ở cả hai theme.
 - Không chia Editor thành ô hay bảng — điều đó phá đúng thứ người dùng đã chọn.
+- Không trộn hình nét giữa các họ dấu và không phân biệt hai họ chỉ bằng màu: dấu quy ước không được vẽ lượn sóng hay đổi sang màu `error` / `tm-text`, dấu Proofreader không được vẽ chấm.
