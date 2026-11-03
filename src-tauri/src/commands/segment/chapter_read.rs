@@ -122,6 +122,14 @@ pub struct ChapterSegments {
     pub tm_prefill: TmPrefillStatus,
 }
 
+/// One Segment filled from an exact TM pair (FR58); `translation_origin` is the pair's.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct TmFilledSegment {
+    pub segment_id: i64,
+    pub target_text: String,
+    pub translation_origin: String,
+}
+
 /// Outcome of the TM pre-fill (FR58) on a Chapter load. `NotAsked` means no fill was attempted;
 /// it never reads as "ran, 0 hits".
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -492,7 +500,7 @@ pub fn load_open_chapter_segments(
     let outcome = if prefill {
         match global
             .ok_or_else(global_store_missing)
-            .and_then(|g| fill_exact_tm_matches(g, open))
+            .and_then(|g| fill_exact_tm_matches(g, open, None))
         {
             Ok(done) => Some(Ok(done)),
             Err(e) => {
@@ -508,6 +516,7 @@ pub fn load_open_chapter_segments(
         Some(Ok((filled, hidden_count))) => {
             chapter.tm_filled_segment_ids = filled
                 .into_iter()
+                .map(|f| f.segment_id)
                 .filter(|id| chapter.segments.iter().any(|s| s.id == *id))
                 .collect();
             chapter.tm_prefill = TmPrefillStatus::Ran { hidden_count };
@@ -518,10 +527,12 @@ pub fn load_open_chapter_segments(
     Ok(chapter)
 }
 
-fn fill_exact_tm_matches(
+/// `only_like`: restrict the fill to Segments sharing `source_text` with that Segment.
+pub(super) fn fill_exact_tm_matches(
     global: &crate::core::store::Store,
     open: &OpenWork,
-) -> Result<(Vec<i64>, usize), IpcError> {
+    only_like: Option<i64>,
+) -> Result<(Vec<TmFilledSegment>, usize), IpcError> {
     let policy = crate::core::tm::TmSidePolicy::from_work(Some(&open.store))
         .map_err(|e| tm_lookup_failed(&e))?;
     let chapter_id = open.chapter_id;
@@ -529,10 +540,11 @@ fn fill_exact_tm_matches(
         let mut stmt = conn.prepare(&format!(
             "SELECT id, source_text FROM segment \
              WHERE chapter_id = ?1 AND retired_at IS NULL AND {IN_TRANSLATION_SQL} AND status = ?2 \
+             AND (?3 IS NULL OR source_text = (SELECT source_text FROM segment WHERE id = ?3)) \
              ORDER BY ord, id"
         ))?;
         let rows = stmt
-            .query_map((chapter_id, SEGMENT_STATUS_DRAFT), |row| {
+            .query_map((chapter_id, SEGMENT_STATUS_DRAFT, only_like), |row| {
                 Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
             })?
             .collect::<SqlResult<Vec<_>>>()?;
@@ -584,7 +596,11 @@ fn fill_exact_tm_matches(
             )?;
             if still_eligible {
                 write_non_user_target(tx, *id, target, pair_origin, Some(pair_origin))?;
-                filled.push(*id);
+                filled.push(TmFilledSegment {
+                    segment_id: *id,
+                    target_text: target.clone(),
+                    translation_origin: (*pair_origin).to_owned(),
+                });
             }
         }
         Ok(filled)

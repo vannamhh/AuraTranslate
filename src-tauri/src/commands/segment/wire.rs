@@ -215,13 +215,14 @@ pub fn confirm_segment<R: tauri::Runtime>(
 ) -> Result<ConfirmOutcome, IpcError> {
     use tauri::Manager as _;
 
+    let global = app.try_state::<crate::core::store::Store>();
     let Some(state) = app.try_state::<OpenWorkState>() else {
-        return super::confirm_segment(None, segment_id);
+        return super::confirm_segment_and_fill(global.as_deref(), None, segment_id);
     };
     let guard = state
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    super::confirm_segment(guard.as_ref(), segment_id)
+    super::confirm_segment_and_fill(global.as_deref(), guard.as_ref(), segment_id)
 }
 
 /// Vỏ IPC của [`super::set_segment_omitted`] — Story 2.5c, FR133.

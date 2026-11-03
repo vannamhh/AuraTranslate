@@ -469,6 +469,7 @@ const NAV_NOTICE_KEYS: Record<NonNullable<typeof editorNavNotice.value>, string>
   'confirm-in-flight': 'panel.grid.nav_confirm_in_flight',
   'chapter-still-dirty': 'panel.grid.nav_chapter_still_dirty',
   'tm-prefill-skipped': 'panel.grid.nav_tm_prefill_skipped',
+  'tm-prefill-skipped-after-confirm': 'panel.grid.nav_tm_prefill_skipped_after_confirm',
   'tm-prefill-hidden': 'panel.grid.nav_tm_prefill_hidden',
 }
 

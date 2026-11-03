@@ -49,7 +49,7 @@ async function recordConfirm(segmentId: number, ...rest: unknown[]) {
     }
   }
   return {
-    outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false },
+    outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false, tm_filled: [], tm_prefill: { kind: 'not_asked' } },
     error: null,
   }
 }

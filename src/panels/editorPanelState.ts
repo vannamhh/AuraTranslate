@@ -58,6 +58,7 @@ import {
 import type {
   ChapterAsset,
   ChapterSegment,
+  ConfirmOutcome,
   RegroupOutcome,
   SegmentTargetEdit,
   TmFuzzyTier,
@@ -160,6 +161,26 @@ function dropTmFilled(segmentId: number): void {
   const next = new Set(tmFilledSegmentIds.value)
   next.delete(segmentId)
   tmFilledSegmentIds.value = next
+}
+
+let kyDienTmTruotSauKy = false
+
+function applyTmFilledAfterConfirm(outcome: ConfirmOutcome): void {
+  if (outcome.tm_prefill.kind === 'skipped') {
+    console.error(`[editor] TM fill after confirm skipped: ${outcome.tm_prefill.code}`)
+    kyDienTmTruotSauKy = true
+  } else if (outcome.tm_prefill.kind === 'ran' && outcome.tm_prefill.hidden_count > 0) {
+    console.error(`[editor] TM fill after confirm hid ${outcome.tm_prefill.hidden_count} pair(s)`)
+  }
+  const filled = outcome.tm_filled.filter((f) => !flush.pending().has(f.segment_id))
+  if (filled.length === 0) return
+  for (const f of filled) {
+    replaceEditorSegment(f.segment_id, {
+      target_text: f.target_text,
+      translation_origin: f.translation_origin,
+    })
+  }
+  tmFilledSegmentIds.value = new Set([...tmFilledSegmentIds.value, ...filled.map((f) => f.segment_id)])
 }
 
 const chapterDoneSuggested = ref(false)
@@ -1155,6 +1176,7 @@ export function resetEditorPanel(): void {
   confirmInFlight = null
   regroupInFlight = null
   kyTrungCauCuoi = false
+  kyDienTmTruotSauKy = false
   dangChuyenChuong = false
 
   // 🔵 Story 3.4b — cùng luật đã rút ra ba lần ở trên: dấu thuật ngữ Glossary thuộc Chương
@@ -1465,7 +1487,9 @@ export async function confirmCurrentSegment(): Promise<ConfirmResult> {
     // không bằng một phép suy ra từ `caretSegmentId`.
     if (result === 'confirmed') {
       void refreshWorkspaceCounts()
-      datThongBao({ nav: kyTrungCauCuoi ? 'confirmed-last' : null })
+      datThongBao({
+        nav: kyDienTmTruotSauKy ? 'tm-prefill-skipped-after-confirm' : kyTrungCauCuoi ? 'confirmed-last' : null,
+      })
       if (everySegmentSigned()) chapterDoneSuggested.value = true
     }
     else datThongBao({ confirm: result === 'refused' ? null : result })
@@ -1500,6 +1524,7 @@ let confirmInFlight: Promise<ConfirmResult> | null = null
 async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
   // 🔵 Story 2.10 — xem khối lý do của [`kyTrungCauCuoi`]. Đặt lại ở ĐÂY, trước mọi `return`.
   kyTrungCauCuoi = false
+  kyDienTmTruotSauKy = false
   const id = caretSegmentId.value
   if (id === null) return 'no-caret'
 
@@ -1552,6 +1577,7 @@ async function confirmCurrentSegmentUnguarded(): Promise<ConfirmResult> {
   }
   confirmError.value = null
   dropTmFilled(id)
+  applyTmFilledAfterConfirm(outcome)
 
   // ③ Ảnh chụp hiển thị.
   const index = segments.value.findIndex((s) => s.id === id)
@@ -2644,6 +2670,7 @@ export type NavNotice =
   | 'confirm-in-flight'
   /** The Chapter loaded but the TM pre-fill was skipped; nothing was written from TM. */
   | 'tm-prefill-skipped'
+  | 'tm-prefill-skipped-after-confirm'
   /** The Chapter loaded with "only my pairs" on and the pre-fill left pairs out; the count is `editorTmPrefillHiddenCount`. */
   | 'tm-prefill-hidden'
 

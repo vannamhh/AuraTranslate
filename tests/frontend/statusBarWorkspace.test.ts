@@ -11,7 +11,7 @@ const tmCount = vi.fn<() => Promise<{ total: number; mine: number; others: numbe
 const glossaryCount = vi.fn<() => Promise<number | null>>()
 
 async function confirmOk(segmentId: number) {
-  return { outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false }, error: null }
+  return { outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false, tm_filled: [], tm_prefill: { kind: 'not_asked' } }, error: null }
 }
 
 const CHAPTERS = [

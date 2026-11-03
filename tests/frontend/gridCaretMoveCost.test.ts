@@ -49,7 +49,7 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
               retryable: false,
             },
           }
-        : { outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false }, error: null },
+        : { outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false, tm_filled: [], tm_prefill: { kind: 'not_asked' } }, error: null },
   }
 })
 

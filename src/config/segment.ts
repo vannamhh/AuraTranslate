@@ -213,6 +213,23 @@ export type ChapterSegments = {
   tm_prefill: TmPrefillStatus
 }
 
+/** A Segment filled from an exact TM pair right after a confirm (FR58). */
+export type TmFilledSegment = {
+  segment_id: number
+  target_text: string
+  translation_origin: string
+}
+
+function isTmFilledSegment(value: unknown): value is TmFilledSegment {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Partial<TmFilledSegment>
+  return (
+    typeof v.segment_id === 'number' &&
+    typeof v.target_text === 'string' &&
+    typeof v.translation_origin === 'string'
+  )
+}
+
 /** `not_asked` ⇒ no fill was attempted; it is never "ran, 0 hits". */
 export type TmPrefillStatus =
   | { kind: 'ran'; hidden_count: number }
@@ -342,6 +359,9 @@ export type ConfirmOutcome = {
   version_created: boolean
   /** `true` khi lượt ghi này chuyển Chương `not_started` -> `in_progress`. */
   chapter_started: boolean
+  /** Same-source empty Segments of the open Chapter filled from the new pair after the commit. */
+  tm_filled: TmFilledSegment[]
+  tm_prefill: TmPrefillStatus
 }
 
 /**
@@ -355,7 +375,10 @@ function isConfirmOutcome(value: unknown): value is ConfirmOutcome {
     typeof v.segment_id === 'number' &&
     typeof v.status === 'string' &&
     typeof v.version_created === 'boolean' &&
-    typeof v.chapter_started === 'boolean'
+    typeof v.chapter_started === 'boolean' &&
+    Array.isArray(v.tm_filled) &&
+    v.tm_filled.every(isTmFilledSegment) &&
+    isTmPrefillStatus(v.tm_prefill)
   )
 }
 

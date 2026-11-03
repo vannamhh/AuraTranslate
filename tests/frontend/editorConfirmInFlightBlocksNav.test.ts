@@ -20,7 +20,7 @@ async function confirmDangBay() {
   await new Promise<void>((resolve) => {
     resolveConfirm = resolve
   })
-  return { outcome: { id: 12, status: 'confirmed' }, error: null }
+  return { outcome: { id: 12, status: 'confirmed', tm_filled: [], tm_prefill: { kind: 'not_asked' } }, error: null }
 }
 
 vi.mock('../../src/config/segment', async (importOriginal) => {

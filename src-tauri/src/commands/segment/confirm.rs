@@ -22,6 +22,9 @@ pub struct ConfirmOutcome {
     pub version_created: bool,
     /// `true` when this write moved the Chapter `not_started` -> `in_progress`; the webview then calls `refresh_after_chapter_started`.
     pub chapter_started: bool,
+    /// Same-source empty Segments of the open Chapter filled from the new pair right after the commit (FR58).
+    pub tm_filled: Vec<TmFilledSegment>,
+    pub tm_prefill: TmPrefillStatus,
 }
 
 /// `segment_id` không có trong `project.db` của Tác phẩm đang mở.
@@ -300,6 +303,8 @@ pub fn confirm_segment(
             status: SEGMENT_STATUS_CONFIRMED.to_owned(),
             version_created,
             chapter_started,
+            tm_filled: Vec::new(),
+            tm_prefill: TmPrefillStatus::NotAsked,
         }),
         Err(err) => {
             let taken = reject
@@ -695,4 +700,34 @@ pub fn unconfirm_edited_segments(
             }
         }
     }
+}
+
+/// [`confirm_segment`], then re-runs the Chapter-load TM fill narrowed to Segments sharing the
+/// confirmed source. The confirmation stays `Ok` whatever the fill does.
+pub fn confirm_segment_and_fill(
+    global: Option<&crate::core::store::Store>,
+    open: Option<&OpenWork>,
+    segment_id: i64,
+) -> Result<ConfirmOutcome, IpcError> {
+    let open = open.ok_or_else(crate::commands::chapter::no_work_open)?;
+    let mut outcome = confirm_segment(Some(open), segment_id)?;
+    if !outcome.version_created {
+        return Ok(outcome);
+    }
+    let filled = global
+        .ok_or_else(global_store_missing)
+        .and_then(|g| fill_exact_tm_matches(g, open, Some(segment_id)));
+    match filled {
+        Ok((filled, hidden_count)) => {
+            outcome.tm_filled = filled;
+            outcome.tm_prefill = TmPrefillStatus::Ran { hidden_count };
+        }
+        Err(e) => {
+            eprintln!("tm prefill sau xac nhan bi bo qua: {}", e.code());
+            outcome.tm_prefill = TmPrefillStatus::Skipped {
+                code: e.code().to_owned(),
+            };
+        }
+    }
+    Ok(outcome)
 }

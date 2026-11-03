@@ -1232,7 +1232,7 @@ describe('config adapters: chapter_started refresh', () => {
     },
     {
       name: 'confirm_segment',
-      wire: { segment_id: 5, status: 'confirmed', version_created: true },
+      wire: { segment_id: 5, status: 'confirmed', version_created: true, tm_filled: [], tm_prefill: { kind: 'not_asked' } },
       run: async () => (await import('../../src/config/segment')).confirmSegment(5),
     },
     {

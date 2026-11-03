@@ -362,7 +362,7 @@ describe('🔴 BẤT BIẾN "một cửa" — ai ghi một ô thì dọn HAI ô 
  */
 describe('Quyết định #6(c) — xác nhận ở câu CUỐI Chương thì nói ra', () => {
   /** Hàng mà Rust trả về cho một lượt ký thành công. */
-  const daKy = (id: number): { id: number; status: string } => ({ id, status: 'confirmed' })
+  const daKy = (id: number) => ({ id, status: 'confirmed', tm_filled: [], tm_prefill: { kind: 'not_asked' } })
 
   it('🔴 ký câu cuối ⇒ thanh nói "đã xác nhận câu cuối Chương"', async () => {
     const { state, StatusBar } = await tuoi()

@@ -37,7 +37,7 @@ async function recordSaveWithHook(
 /** Lượt `confirmSegment` luôn thành công ở tệp này — ca `'refused'` có nhà riêng ở `editorConfirmSegment.test.ts`. */
 async function confirmOk(segmentId: number) {
   return {
-    outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false },
+    outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false, tm_filled: [], tm_prefill: { kind: 'not_asked' } },
     error: null,
   }
 }

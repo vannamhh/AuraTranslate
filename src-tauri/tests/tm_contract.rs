@@ -1638,6 +1638,174 @@ fn two_empty_drafts_with_the_same_source_are_both_filled_from_one_pair() {
     );
 }
 
+const DUP: &str = "Lap lai. Lap lai. Lap lai.";
+
+impl Wired {
+    fn type_and_wire_confirm(
+        &self,
+        id: i64,
+        text: &str,
+    ) -> auratranslate_lib::commands::segment::ConfirmOutcome {
+        self.with_open(|open| {
+            let (chapter_id, _) = segment_ids(open);
+            type_text(open, chapter_id, id, text);
+        });
+        wire::confirm_segment(self.app.handle().clone(), id).expect("xac nhan")
+    }
+
+    fn ids(&self) -> Vec<i64> {
+        self.with_open(|open| segment_ids(open).1)
+    }
+}
+
+#[test]
+fn confirming_one_of_three_same_source_empty_segments_fills_the_other_two_as_drafts() {
+    let w = wired("cf-fill-three", DUP, true);
+    let ids = w.ids();
+    assert_eq!(ids.len(), 3);
+
+    let outcome = w.type_and_wire_confirm(ids[0], "Dich chung.");
+
+    assert!(outcome.version_created);
+    assert_eq!(outcome.tm_prefill, TmPrefillStatus::Ran { hidden_count: 0 });
+    let got: Vec<(i64, String, String)> = outcome
+        .tm_filled
+        .iter()
+        .map(|f| (f.segment_id, f.target_text.clone(), f.translation_origin.clone()))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (ids[1], "Dich chung.".to_owned(), "self".to_owned()),
+            (ids[2], "Dich chung.".to_owned(), "self".to_owned())
+        ]
+    );
+    for id in &ids[1..] {
+        assert_eq!(
+            w.with_open(|o| state_of(o, *id)),
+            ("draft".to_owned(), "self".to_owned(), 0)
+        );
+        assert_eq!(
+            w.target_and_baseline(*id),
+            ("Dich chung.".to_owned(), "Dich chung.".to_owned(), "self".to_owned())
+        );
+    }
+    assert_eq!(w.with_open(|o| pairs(o).len()), 1);
+}
+
+#[test]
+fn a_same_source_segment_that_already_has_text_is_not_touched_by_the_fill_after_confirm() {
+    let w = wired("cf-fill-has-text", DUP, true);
+    let ids = w.ids();
+    w.with_open(|open| {
+        let (chapter_id, _) = segment_ids(open);
+        type_text(open, chapter_id, ids[1], "Ban nhap.");
+    });
+
+    let outcome = w.type_and_wire_confirm(ids[0], "Dich chung.");
+
+    assert_eq!(
+        outcome.tm_filled.iter().map(|f| f.segment_id).collect::<Vec<_>>(),
+        [ids[2]]
+    );
+    assert_eq!(w.with_open(|o| w_target(o, ids[1])), "Ban nhap.");
+}
+
+#[test]
+fn confirming_again_without_a_change_fills_nothing_and_asks_nothing() {
+    let w = wired("cf-fill-reconfirm", DUP, true);
+    let ids = w.ids();
+    w.type_and_wire_confirm(ids[0], "Dich chung.");
+    w.with_open(|open| {
+        let (chapter_id, _) = segment_ids(open);
+        type_text(open, chapter_id, ids[1], "");
+    });
+
+    let again = wire::confirm_segment(w.app.handle().clone(), ids[0]).expect("ky lai");
+
+    assert!(!again.version_created);
+    assert!(again.tm_filled.is_empty());
+    assert_eq!(again.tm_prefill, TmPrefillStatus::NotAsked);
+    assert_eq!(w.with_open(|o| w_target(o, ids[1])), "");
+}
+
+#[test]
+fn a_pair_of_others_hidden_by_only_mine_fills_nothing_and_reports_the_hidden_count() {
+    let w = wired("cf-fill-hidden", DUP, true);
+    let ids = w.ids();
+    w.with_open(|open| {
+        promote_ai_translation(Some(open), ids[0], "B", false).expect("nang");
+        auratranslate_lib::core::tm::write_only_mine(&open.store, true).expect("bat chi cua toi");
+    });
+
+    let outcome = wire::confirm_segment(w.app.handle().clone(), ids[0]).expect("xac nhan");
+
+    assert!(outcome.version_created);
+    assert!(outcome.tm_filled.is_empty());
+    assert_eq!(outcome.tm_prefill, TmPrefillStatus::Ran { hidden_count: 1 });
+    assert_eq!(w.with_open(|o| w_target(o, ids[1])), "");
+}
+
+#[test]
+fn an_unmanaged_global_store_leaves_the_confirm_ok_and_reports_skipped_without_writing() {
+    let w = wired("cf-fill-no-global", DUP, false);
+    let ids = w.ids();
+
+    let outcome = w.type_and_wire_confirm(ids[0], "Dich chung.");
+
+    assert!(outcome.version_created);
+    assert_eq!(
+        outcome.tm_prefill,
+        TmPrefillStatus::Skipped {
+            code: "store.open_failed".to_owned()
+        }
+    );
+    assert!(outcome.tm_filled.is_empty());
+    assert_eq!(w.with_open(|o| w_target(o, ids[1])), "");
+}
+
+#[test]
+fn a_row_with_an_unknown_origin_skips_the_fill_after_confirm_and_writes_nothing() {
+    let w = wired("cf-fill-bad-origin", DUP, true);
+    let ids = w.ids();
+    w.seed_global(&w.source(ids[0]), "Rong gam.", "x");
+
+    let outcome = w.type_and_wire_confirm(ids[0], "Dich chung.");
+
+    assert!(outcome.version_created);
+    assert_eq!(
+        outcome.tm_prefill,
+        TmPrefillStatus::Skipped {
+            code: "tm.lookup_failed".to_owned()
+        }
+    );
+    assert_eq!(w.with_open(|o| w_target(o, ids[1])), "");
+}
+
+#[test]
+fn the_fill_after_confirm_equals_what_a_reload_of_an_identical_work_fills() {
+    let a = wired("cf-fill-same-a", DUP, true);
+    let ids_a = a.ids();
+    let outcome = a.type_and_wire_confirm(ids_a[0], "Dich chung.");
+    assert_eq!(outcome.tm_filled.len(), 2);
+    let reloaded = a.load();
+    assert!(reloaded.tm_filled_segment_ids.is_empty());
+
+    let b = wired("cf-fill-same-b", DUP, true);
+    let ids_b = b.ids();
+    b.seed_work(&b.source(ids_b[0]), "Dich chung.", "self");
+    let loaded = b.load();
+
+    assert_eq!(loaded.tm_filled_segment_ids, ids_b);
+    for (ia, ib) in ids_a[1..].iter().zip(&ids_b[1..]) {
+        assert_eq!(a.target_and_baseline(*ia), b.target_and_baseline(*ib));
+        assert_eq!(
+            a.with_open(|o| state_of(o, *ia)),
+            b.with_open(|o| state_of(o, *ib))
+        );
+    }
+}
+
 #[test]
 fn the_exact_lookup_uses_the_source_index_in_both_stores() {
     let plan = |store: &Store| -> String {

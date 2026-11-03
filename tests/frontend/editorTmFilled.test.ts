@@ -5,6 +5,10 @@ import vi_json from '../../src/i18n/vi.json'
 const filledIds = { value: [12] as number[] }
 const prefill = { value: { kind: 'ran', hidden_count: 0 } as { kind: 'ran'; hidden_count: number } | { kind: 'skipped'; code: string } }
 
+const confirmFilled = { value: [] as { segment_id: number; target_text: string; translation_origin: string }[] }
+const confirmPrefill = { value: { kind: 'not_asked' } as { kind: string; hidden_count?: number; code?: string } }
+const confirmHook = { value: null as (() => void) | null }
+
 vi.mock('../../src/config/segment', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/config/segment')>()
   return {
@@ -22,10 +26,20 @@ vi.mock('../../src/config/segment', async (importOriginal) => {
       error: null,
     }),
     saveSegmentTargets: recordSave,
-    confirmSegment: async (segmentId: number) => ({
-      outcome: { segment_id: segmentId, status: 'confirmed', version_created: true, chapter_started: false },
-      error: null,
-    }),
+    confirmSegment: async (segmentId: number) => {
+      confirmHook.value?.()
+      return {
+        outcome: {
+          segment_id: segmentId,
+          status: 'confirmed',
+          version_created: true,
+          chapter_started: false,
+          tm_filled: confirmFilled.value,
+          tm_prefill: confirmPrefill.value,
+        },
+        error: null,
+      }
+    },
   }
 })
 
@@ -40,6 +54,9 @@ beforeEach(() => {
   resetRecorder()
   filledIds.value = [12]
   prefill.value = { kind: 'ran', hidden_count: 0 }
+  confirmFilled.value = []
+  confirmPrefill.value = { kind: 'not_asked' }
+  confirmHook.value = null
 })
 
 describe('dấu TM điền sẵn sống trong phiên', () => {
@@ -120,5 +137,61 @@ describe('a skipped TM pre-fill is a non-fatal notice', () => {
 
     expect(wrapper.find('.notice').text()).toBe((vi_json as Record<string, string>)['panel.grid.nav_tm_prefill_skipped'])
     wrapper.unmount()
+  })
+})
+
+describe('same-source fill returned by a confirm', () => {
+  const filledRow = { segment_id: 13, target_text: 'Bản vừa ký.', translation_origin: 'self' }
+
+  it('patches the snapshot and marks the Segment as TM-filled, still unconfirmed', async () => {
+    filledIds.value = []
+    const state = await freshState()
+    confirmFilled.value = [filledRow]
+    confirmPrefill.value = { kind: 'ran', hidden_count: 0 }
+    state.setEditorCaret(11)
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+
+    const row = state.editorSegments.value.find((s) => s.id === 13)
+    expect(row?.target_text).toBe('Bản vừa ký.')
+    expect(row?.translation_origin).toBe('self')
+    expect(row?.status).not.toBe('confirmed')
+    expect(state.editorTmFilledSegmentIds.value.has(13)).toBe(true)
+  })
+
+  it('unflushed typing in that Segment wins over the filled text', async () => {
+    filledIds.value = []
+    const state = await freshState()
+    confirmFilled.value = [filledRow]
+    confirmPrefill.value = { kind: 'ran', hidden_count: 0 }
+    confirmHook.value = () => state.noteEditorEdit(13, 'gõ dở')
+    state.setEditorCaret(11)
+    await state.confirmCurrentSegment()
+
+    expect(state.editorSegments.value.find((s) => s.id === 13)?.target_text).toBe('')
+    expect(state.editorTmFilledSegmentIds.value.has(13)).toBe(false)
+  })
+
+  it('a skipped fill sets the new notice and logs, the confirm stays confirmed', async () => {
+    filledIds.value = []
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const state = await freshState()
+    confirmPrefill.value = { kind: 'skipped', code: 'store.open_failed' }
+    state.setEditorCaret(11)
+    expect(await state.confirmCurrentSegment()).toBe('confirmed')
+
+    expect(state.editorNavNotice.value).toBe('tm-prefill-skipped-after-confirm')
+    expect(err).toHaveBeenCalled()
+  })
+
+  it('ran with hidden pairs only logs, no notice', async () => {
+    filledIds.value = []
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const state = await freshState()
+    confirmPrefill.value = { kind: 'ran', hidden_count: 2 }
+    state.setEditorCaret(11)
+    await state.confirmCurrentSegment()
+
+    expect(state.editorNavNotice.value).toBeNull()
+    expect(err).toHaveBeenCalled()
   })
 })
