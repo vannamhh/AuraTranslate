@@ -265,6 +265,7 @@ graph TD
   | Cấu hình AI | **ghi đè** — *theo từng **trường**, không theo cả struct* | FR68 |
   | Translation Memory | **hợp nhất** — trả kết quả cả hai tầng | FR57 |
   | Luật làm sạch khi nhập | **hợp nhất** — luật toàn cục **cộng** luật Tác phẩm cùng áp | FR124 |
+  | Quy ước chữ Việt | **ghi đè** theo khoá luật; hàng tầng Tác phẩm có cờ tắt là cách tắt luật Global — 🔵 2026-11-03, AD-67 mục 2 | FR159 |
   | Tên người dịch | **ghi đè** | FR131 |
   | Phím tắt | **chỉ toàn cục** | FR103 |
   | Preset bố cục | **chỉ toàn cục** | FR103 |
@@ -400,6 +401,7 @@ graph TD
   | Điền sẵn từ TM khớp 100% (FR58) | chưa xác nhận, gắn nhãn *gợi ý* | không tạo |
   | Chấp nhận thay đổi từ Review Mode (FR94) | → chưa xác nhận | không tạo |
   | Về hưu do gộp/tách (AD-5) | về hưu | không tạo |
+  | Nhận thay quy ước chữ Việt trên segment đã xác nhận (FR159) | **giữ** đã xác nhận, ghi thêm một cặp TM | **tạo một** phiên bản — 🔵 2026-11-03: ngoại lệ có tên, AD-67 mục 7 |
 
   **Xuất xứ (FR117) ghi cùng lúc với cặp TM, tại đúng chuyển tiếp sang đã xác nhận:**
 
@@ -740,6 +742,7 @@ graph TD
   | Đưa đề xuất AI sang Editor | **người khác dịch** |
   | Nhận gợi ý TM khớp mờ (FR59) | **người khác dịch** — 🔵 2026-10-02: hàng thêm bởi AD-51 mục 8 |
   | Chấp nhận hoặc hoàn lại đề xuất proofreader (FR83) | theo loại phát hiện: chính tả, ngữ pháp ⇒ xuất xứ phân xử (AD-50 mục 4) của văn bản **trước** lượt ghi; loại đối chiếu của 9.2 ⇒ **người khác dịch** — 🔵 2026-10-10: hàng thêm bởi AD-53 mục 2 |
+  | Nhận thay quy ước chữ Việt, từng chỗ hoặc cả Chương (FR159) | xuất xứ phân xử (AD-50 mục 4) của văn bản **trước** lượt ghi — 🔵 2026-11-03: hàng thêm bởi AD-67 mục 7 |
   | Gộp/tách segment (AD-5) | xem ④ |
   | Khôi phục phiên bản (FR101) | 🔴 **KHÔNG đặt** — ngoại lệ có tên, xem ⑤ |
 
@@ -823,8 +826,8 @@ graph TD
   2. **Mỗi thao tác ghi rời rạc thuộc đúng một lớp**, khai trong spec của story dựng nó:
      **(i) có lệnh nghịch đảo đi cặp** — đường lui là gọi lệnh kia, và lệnh kia trả lại **mọi** nội dung người dùng (mục 3) mà lệnh đi đã đổi; không trả đủ thì thao tác thuộc lớp (iii) (cắt bỏ ↔ khôi phục câu FR133, ngắt ↔ nối đoạn FR134, dời Chương lên ↔ xuống, gộp ↔ tách Chương). 🔵 2026-10-13: thêm cặp chốt ↔ gỡ chốt bản dịch Glossary (AD-54);
      **(ii) không phá byte nội dung người dùng nào** — bản trước vẫn tra lại được (gộp/tách segment theo AD-5, xác nhận theo AD-31); đường lui là người dùng gọi lại lệnh gộp/tách, hoặc sửa văn bản của câu đã xác nhận để đưa nó về chưa xác nhận (AD-31); không có nghịch đảo tự động;
-     **(iii) phá nội dung người dùng không còn bản sao** — hỏi trước khi ghi: bấm hai lần kèm chữ *"không hoàn tác được"*, hoặc khuôn `needs_confirmation`/`force` của FR101. 🔵 2026-10-10: ngoại lệ có tên duy nhất — chấp nhận đề xuất proofreader không hỏi dù cụm gốc mất bản sao khi ngăn hoàn lại mất (AD-53 mục 3). Phép thử là *"cái sắp mất có bản sao ở đâu không"* (hợp đồng phụ của AD-31), không phải một cờ `dirty`.
-  3. **Nội dung người dùng** ở lớp (iii) = `segment.target_text` và các hàng người dùng soạn trọn một thực thể (`glossary_entry`, `prompt_set`, `import_cleanup_rule`). **Không** gồm: siêu dữ liệu Chương (`title`, `origin_*` — AD-43), giá trị ghi đè cấu hình của các tầng AD-18 (`config_value`, `ai_config` — xoá = trả về kế thừa), dữ liệu dẫn xuất (`library_*`). Bảng hoặc cột mới mang văn bản người dùng tự soạn thì vào danh sách này, khai trong spec của story dựng nó.
+     **(iii) phá nội dung người dùng không còn bản sao** — hỏi trước khi ghi: bấm hai lần kèm chữ *"không hoàn tác được"*, hoặc khuôn `needs_confirmation`/`force` của FR101. 🔵 2026-10-10: ngoại lệ có tên duy nhất — chấp nhận đề xuất proofreader không hỏi dù cụm gốc mất bản sao khi ngăn hoàn lại mất (AD-53 mục 3). 🔵 2026-11-03: ngoại lệ thứ hai cùng khuôn — nhận thay một chỗ quy ước chữ Việt (AD-67 mục 8). Phép thử là *"cái sắp mất có bản sao ở đâu không"* (hợp đồng phụ của AD-31), không phải một cờ `dirty`.
+  3. **Nội dung người dùng** ở lớp (iii) = `segment.target_text` và các hàng người dùng soạn trọn một thực thể (`glossary_entry`, `prompt_set`, `import_cleanup_rule`, `convention_rule` — 🔵 2026-11-03, AD-67). **Không** gồm: siêu dữ liệu Chương (`title`, `origin_*` — AD-43), giá trị ghi đè cấu hình của các tầng AD-18 (`config_value`, `ai_config` — xoá = trả về kế thừa), dữ liệu dẫn xuất (`library_*`). Bảng hoặc cột mới mang văn bản người dùng tự soạn thì vào danh sách này, khai trong spec của story dựng nó.
   4. AD-3, AD-5, AD-31 **không đổi một chữ**.
 
   → bằng chứng: `ad-brief-2026-08-17-mo-hinh-hoan-tac.md` §11 · `sprint-change-proposal-2026-08-18b-mo-hinh-hoan-tac.md` · `.memlog.md`.
@@ -1657,6 +1660,79 @@ graph TD
   - Hồ sơ: `research-llm-translation-cost-and-quality/research-llm-translation-cost-and-quality.md` §D1 (DelTA: bảng tên riêng góp +3,95 LTCR-1; chỉ có ngữ cảnh gần thì LTCR-1 giảm từ 80,27 xuống 77,89).
   - Mã đọc ở `d5bd6af4`: `src-tauri/src/core/ai/rag.rs` (`render_glossary_pairs`, `InjectedGlossaryTerm`), `src-tauri/src/core/glossary/entry.rs` (`GlossaryEntry::note`).
 
+### AD-67 — Quy ước chữ Việt là một thực thể riêng ngoài `core::ai`, quét văn bản đã lưu; nhận thay giữ xuất xứ, câu đã ký giữ chữ ký và ghi thêm phiên bản cùng cặp TM
+
+- **Binds:** C4, C2, C5, C9 — Epic 16 (FR159). Các chỗ trong mã:
+  - `core/convention/` (mới): luật, khoá luật, bộ khớp, kiểu hoa, chữ ký ghi nhớ. Hàm thuần, không phụ thuộc `core::ai`.
+  - `commands/convention.rs` (mới): quét, quản lý luật hai tầng, ghi nhớ "không phải lỗi", xuất nhập.
+  - `commands/segment/`: hai lệnh ghi (nhận một chỗ, thay cả Chương) và hàm ghi `write_convention_target`.
+  - Thực thể `CONVENTION_RULE` trong `global.db` và `project.db`, thực thể `CONVENTION_IGNORE` trong `project.db`.
+  - Frontend: lớp dấu riêng trong ô bản dịch và trên gợi ý ở panel AI Translation, dải nhận, màn xác nhận thay cả Chương.
+- **Prevents:**
+  1. **Nhãn xuất xứ bị thổi phồng hàng loạt.** Thay một chữ trong câu AI mà ghi *tôi dịch* thì "thay cả Chương" biến hàng trăm câu AI thành văn phong của người dùng, và FR118 ưu tiên chèn chúng vào prompt.
+  2. **Thay cả Chương làm tụt tiến độ.** Đi qua khuôn AD-53 mục 2 thì mọi câu đã ký về nháp; một Chương đã xong quay lại "đang dịch" vì một quy ước chính tả.
+  3. **Sửa mà vẫn đã ký thì TM không bao giờ có cặp mới** (AD-31 Prevents 2).
+  4. **Quy ước sống nhờ AI.** Đặt bộ khớp hay ghi nhớ trong `core::ai` thì người không cấu hình AI mất tính năng (FR77, AD-13).
+  5. **Lượt quét mới trên đường gõ.** Đường gõ ở Chương 9.850 câu đã tốn 43–75 ms p95 mỗi phím; thêm một vòng IPC mỗi phím là đẩy nó qua trần.
+  6. **"0 chỗ khớp" che chỗ bị lọc.** Một chỗ bị ẩn vì ghi nhớ hay vì Glossary phải được đếm, không biến mất im lặng (bài học AD-53 Prevents 5).
+  7. **Ghi hỏng chữ khi thay hàng loạt.** Ranh giới âm tiết không phải ranh giới từ: luật *đảm bảo* khớp vào *bảo đảm bảo vệ*.
+- **Rule:**
+  1. **Thực thể riêng, không là loại phát hiện của AD-53.** Tập loại của AD-53 mục 1, bảng `proof_ignore`, `proof_decision` và tỉ lệ FR150 không đổi. `core/convention/` không import `core::ai`; `core::ai` không import `core/convention/`. Một test biên mới canh cả hai chiều.
+  2. **Luật và hai tầng.** Một luật = cụm cần tránh + cụm thay thế có thể rỗng + cờ bật. Khoá luật = cụm cần tránh sau NFC và chữ thường Unicode, không gộp *i/y*. Cùng một hằng DDL cho `global.db` và `project.db`, `UNIQUE` trên khoá trong mỗi tầng.
+     - AD-18 thêm loại `convention_rule`, ngữ nghĩa **ghi đè theo khoá**: hàng tầng Tác phẩm cùng khoá thắng; hàng tầng Tác phẩm có cờ tắt là cách tắt một luật Global cho riêng Tác phẩm đó (R2). Không cơ chế thứ hai cho việc tắt.
+     - Luật là nội dung người dùng ở lớp (iii) của AD-49 mục 3.
+  3. **Bộ khớp.** Một hàm thuần trong `core/convention/`, dựng một lần từ danh sách luật đã phân giải hai tầng và giữ theo Tác phẩm đang mở; dựng lại khi danh sách đổi.
+     - So trên NFC và chữ thường của cả văn bản lẫn luật; khoảng trả về là UTF-16 trên đúng `target_text` đã lưu, kể cả khi văn bản không ở dạng NFC.
+     - Chỗ khớp bắt đầu và kết thúc ở đầu, cuối văn bản hoặc cạnh một ký tự không phải chữ cái hay chữ số Unicode.
+     - Hai luật khớp chồng nhau thì luật dài hơn thắng, bằng nhau thì luật đứng trước theo khoá; chỗ thua đếm vào `overlapped`.
+     - Kiểu hoa của cụm thay do Rust tính từ chữ bị thay (R5); webview không gửi cụm thay.
+  4. **Bộ quét chỉ đọc văn bản đã lưu.** Không lệnh quét nào nhận chữ đang gõ từ webview; AD-1 không đổi chữ.
+     - Mở Chương: một lượt quét mọi câu chưa về hưu và chưa bị cắt (FR133), chạy ngoài main thread; đọc văn bản trong một giao dịch đọc rồi nhả khoá `OpenWork` trước khi khớp.
+     - Sau mỗi lượt flush thành công (AD-35), webview xin quét lại đúng các câu vừa flush; Rust đọc từ đĩa. Dấu của một câu chết khi người dùng gõ vào nó (như AD-53 mục 5) và hiện lại sau lượt flush kế tiếp, tối đa khoảng 2 s sau khi ngừng gõ.
+     - Gợi ý ở panel AI Translation: quét chữ của gợi ý khi gợi ý đã trọn; chỉ đánh dấu, không có lệnh ghi nào nhận khoảng của gợi ý.
+     - Mỗi kết quả mang thế hệ quét; kết quả cũ hơn lượt đổi Chương, đổi Tác phẩm hay đổi danh sách luật bị bỏ.
+  5. **Glossary thắng, chỉ kiểm trên câu có chỗ khớp.** Câu không có chỗ khớp nào thì không chạm Glossary. Câu có chỗ khớp: một `GlossarySnapshot` cho cả lượt, `confirmed_terms` trên câu nguồn; chỗ khớp nằm trọn trong một lần xuất hiện của bản dịch đã chốt trong `target_text` (so trên NFC và chữ thường) thì bị bỏ và đếm vào `glossary_suppressed`. Phép kiểm này ở `commands/convention.rs`, không ở `core/convention/`.
+  6. **Kết quả quét không im lặng.** Mỗi lượt trả, ngoài các chỗ khớp: `ignored` (bị ghi nhớ), `glossary_suppressed`, `overlapped`, `not_scanned` (câu bị cắt hay về hưu).
+  7. **Lượt ghi.** Nhận một chỗ và thay cả Chương là lượt ghi không-phải-người-dùng (AD-47 ①). Webview flush câu trước, theo khuôn mọi lượt ghi rời. Trong một giao dịch:
+     - phép kiểm dùng chung với AD-53 mục 4 (câu về hưu, ngoài Chương đang mở, văn bản khác, khoảng sai, cụm khác), cộng phép kiểm khoá luật còn hiệu lực ở cả hai tầng;
+     - văn bản mới = văn bản cũ với từng khoảng thay bằng cụm thay theo kiểu hoa, áp từ phải sang trái trên văn bản **trước** lượt ghi; chữ vừa thay không bị khớp lại;
+     - xuất xứ = phân xử (AD-50 mục 4) trên văn bản **trước** lượt ghi, như nhánh chính tả của AD-53 mục 2, kể cả các lỗi nó trả;
+     - `write_convention_target`: câu đang nháp ⇒ như `write_non_user_target` (mốc, hai cột xuất xứ, nháp). Câu **đã ký** ⇒ ghi mốc và hai cột xuất xứ, **giữ `confirmed`**, chèn một `segment_version` và một cặp TM (`insert_pair`) với văn bản mới và xuất xứ phân xử. Cặp TM cũ giữ nguyên. Không chạy điền sẵn câu trùng nguồn (lượt này không phải cú ký);
+     - văn bản mới rỗng sau `trim` ⇒ từ chối, không ghi gì.
+     Thay cả Chương là **một** giao dịch cho mọi chỗ được chọn: một câu không qua phép kiểm thì cả lượt bị từ chối, trả danh sách câu đã đổi, không ghi gì.
+  8. **Đường lui (AD-49).** Nhận một chỗ: lớp (i), lệnh hoàn lại cùng khuôn AD-53 mục 3, khay hoàn lại trong bộ nhớ webview; mất khay là ngoại lệ có tên thứ hai của lớp (iii), như AD-53. Thay cả Chương: câu đã ký thuộc lớp (ii) vì bản trước nằm trong `segment_version`; câu nháp thuộc lớp (iii), và màn xác nhận liệt kê từng chỗ (R6) là lượt hỏi, ghi rõ *"không hoàn tác được"* trên các câu nháp.
+  9. **Ghi nhớ "không phải lỗi" theo chỗ.** `CONVENTION_IGNORE` trong `project.db`, phạm vi Tác phẩm là cấu trúc. Chữ ký = (khoá luật, ngữ cảnh trước, ngữ cảnh sau), ngữ cảnh lấy tối đa N ký tự NFC mỗi bên, cùng phép so đầu/đuôi của AD-53 mục 7; không `segment.id`, không vị trí. N là hằng trong `core/convention/`, chỉ được tăng. Hàm chữ ký và hàm lọc là một cặp hàm thuần dùng chung cho lệnh ghi nhớ và cho bộ quét.
+  10. **Xuất nhập.** CSV/TSV hai cột `avoid`, `replacement`; cột hai rỗng là "không dùng". Dùng lại bộ tách dòng, tách trường và gỡ BOM của `core/glossary/exchange.rs` qua một hàm `pub(crate)` dời sang chỗ dùng chung; định dạng sáu cột của Glossary không đổi.
+  11. **Ngân sách hiệu năng** (bản release, Tác phẩm thật lớn nhất 9.850 câu, 2.000 luật):
+      - quét một câu ở đường flush ≤ 1 ms p95;
+      - quét cả Chương ≤ 250 ms p95, chạy ngoài main thread, và không frame nào vượt 50 ms trong lúc nó chạy;
+      - dựng bộ khớp ≤ 20 ms;
+      - 0 lời gọi IPC mới trên đường gõ.
+  12. **Test canh.** Mỗi ca có đối chứng bằng phép GỠ thật, ghi trong ngoặc:
+      - (a) *kỷ* không khớp *kỉ*; *an* không khớp trong *toàn*; văn bản NFD trả khoảng UTF-16 đúng trên chuỗi đã lưu. (Gỡ chuẩn hoá NFC.)
+      - (b) Nhận thay trên câu AI ⇒ xuất xứ vẫn *người khác dịch*. (Thay phân xử bằng *tôi dịch*.)
+      - (c) Nhận thay trên câu đã ký ⇒ vẫn `confirmed`, thêm đúng một `segment_version` và một `tm_unit` mang văn bản mới. (Gỡ lượt chèn TM.)
+      - (d) Thay cả Chương với một chỗ bỏ chọn ⇒ chỗ đó giữ nguyên từng byte; `bảo đảm bảo vệ` chỉ đổi khi chỗ đó được chọn.
+      - (e) Một câu trong lượt thay cả Chương đã đổi văn bản ⇒ cả lượt bị từ chối, 0 hàng đổi. (Gỡ phép kiểm ở một câu.)
+      - (f) Chỗ khớp nằm trong bản dịch Glossary đã chốt ⇒ không có dấu, `glossary_suppressed` = 1. (Gỡ phép kiểm Glossary.)
+      - (g) Luật Global tắt ở Tác phẩm A ⇒ 0 chỗ khớp trong A, vẫn khớp ở B.
+      - (h) `core/convention/` không import `core::ai`. (Thêm một import và thấy test biên đỏ.)
+      - (i) Chỗ đã ghi nhớ không hiện lại sau khi đóng mở Tác phẩm, cùng cụm ở câu khác vẫn hiện.
+  13. **Đổi gì / không đổi gì.** AD-47 ③ thêm đúng một hàng; ①②④⑤⑥ không đổi chữ. AD-31 thêm một hàng ngoại lệ có tên. AD-18 thêm loại `convention_rule`. AD-49 mục 3 thêm `convention_rule` vào nội dung người dùng; lớp (iii) nêu ngoại lệ có tên của mục 8. AD-53, AD-35, AD-1, AD-13, AD-50 không đổi chữ. Bản đồ năng lực C4 thêm AD-67.
+- **Phương án bị loại:**
+  - **Loại `convention` trong tập đóng của AD-53, dùng chung `PROOF_IGNORE`:** phải dựng lại bảng `proof_ignore` vì CHECK, dời hàm chữ ký ra khỏi `core::ai`, tách FR150; chữ ký chính tả của AD-53 theo cụm còn FR159 cần theo chỗ. Ice chọn thực thể riêng ngày 2026-11-03. ⚠️ Cái giá: hai danh sách "không phải lỗi", và khoảng 40 dòng chữ ký lặp lại (mới hai chỗ dùng).
+  - **Quét qua IPC sau 150 ms ngừng gõ:** cần ngoại lệ AD-1, vòng IPC thật chưa từng được đo, đường gõ ở 9.850 câu đã 43–75 ms p95 mỗi phím. Ice chọn quét sau flush ngày 2026-11-03. ⚠️ Cái giá: dấu hiện chậm tới khoảng 2 s.
+  - **Bộ khớp viết bằng JS ở webview:** trái AD-1, hai bản luật khớp sẽ lệch nhau.
+  - **Nhận thay là lượt sửa của người dùng (đi qua bộ đệm gõ):** đúng phương án AD-53 đã loại; thổi phồng nhãn *tôi dịch* (Prevents 1).
+  - **Khuôn AD-53 mục 2 nguyên vẹn (về nháp, không phiên bản):** Ice chọn giữ chữ ký ngày 2026-11-03 (Prevents 2).
+  - **Sửa tại chỗ cặp TM cũ:** `tm_unit` không gắn với câu; sửa theo cặp (nguồn, đích) có thể chạm cặp của câu khác.
+  - **Kiểm Glossary cho mọi câu:** `confirmed_terms` tốn 2–2,8 ms mỗi câu (bản `test`), tức 20–28 s cho 9.850 câu.
+  - **Thay cả Chương từng câu một, câu hỏng thì bỏ qua:** để lại một Chương nửa thay nửa không mà màn xác nhận đã hứa khác.
+
+  → bằng chứng:
+  - Đo 2026-11-03, `/tmp/fr159-bench` (release, ký ad hoc, `unicode-normalization 0.1.25`, `aho-corasick 1.1.4`; Intel i9-9980HK; load 1 phút 5,99 → 9,23, máy bận nên p95 nhiễu; 98 câu văn xuôi thật lặp thành Chương; luật rút ngẫu nhiên từ VietPhrase nên rất ít chỗ khớp). Aho-corasick, gồm NFC và chữ thường: một câu 4,5 µs trung vị / 7,0 µs p95 (câu dài nhất 14 / 18 µs) ở 2.000 luật; Chương 9.850 câu 56 / 65 ms ở 200 luật, 71 / 98 ms ở 2.000 luật; dựng bộ khớp 3,1 ms ở 2.000 luật. Chưa đo: chi phí vẽ dấu, vòng IPC thật, Chương có nhiều chỗ khớp.
+  - Dữ kiện mã: `_bmad-output/initiative-auratranslate/ad-brief-quy-uoc-chu-viet/facts.md` (đọc ở `e85f8b13`).
+
 ## Consistency Conventions
 
 | Concern | Convention |
@@ -1970,7 +2046,7 @@ AuraTranslate/
 | **C1** Library | `core/library/`, `core/segment/`, `core/webimport/`, `src/modes/Library`, `ReadingMode` | AD-7, AD-8, AD-9, AD-24, AD-27, AD-28, AD-32, AD-33, AD-34, AD-37, AD-39, AD-40, AD-41, AD-42, AD-43, AD-58, AD-61 |
 | **C2** Workspace | `core/segment/`, `src/panels/`, `src/layout/` | AD-1, AD-3, AD-4, AD-5, AD-24, AD-31, AD-32, AD-34, AD-35, AD-37, AD-39, AD-42, AD-55, AD-58 |
 | **C3** Dictionary & Lookup | `core/dict/`, `ports/DictionarySource`, `resources/dict/` | AD-2, AD-10, AD-19, AD-25, AD-26, AD-27, AD-44 |
-| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57, AD-63, AD-66 |
+| **C4** Glossary | `core/glossary/`, `core/scope/`, `core/matching/`, `core/dict/`, `core/convention/` | AD-17, AD-18, AD-20, AD-36, AD-44, AD-48, AD-49, AD-54, AD-57, AD-63, AD-66, AD-67 |
 | **C5** Translation Memory | `core/tm/`, `core/matching/`, `core/scope/` | AD-6, AD-17, AD-18, AD-31, AD-51, AD-57, AD-63 |
 | **C6** AI & Smart RAG Injector | `core/ai/`, `ports/TranslationProvider` | AD-2, AD-13, AD-14, AD-15, AD-22, AD-29, AD-36, AD-57, AD-63, AD-64, AD-65, AD-66 |
 | **C7** AI Proofreader | `core/ai/`, `core/segment/` | AD-3, AD-13, AD-14, AD-22, AD-47, AD-49, AD-50, AD-53, AD-56 |
