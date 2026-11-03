@@ -1718,7 +1718,12 @@ graph TD
       - (g) Luật Global tắt ở Tác phẩm A ⇒ 0 chỗ khớp trong A, vẫn khớp ở B.
       - (h) `core/convention/` không import `core::ai`. (Thêm một import và thấy test biên đỏ.)
       - (i) Chỗ đã ghi nhớ không hiện lại sau khi đóng mở Tác phẩm, cùng cụm ở câu khác vẫn hiện.
-  13. **Đổi gì / không đổi gì.** AD-47 ③ thêm đúng một hàng; ①②④⑤⑥ không đổi chữ. AD-31 thêm một hàng ngoại lệ có tên. AD-18 thêm loại `convention_rule`. AD-49 mục 3 thêm `convention_rule` vào nội dung người dùng; lớp (iii) nêu ngoại lệ có tên của mục 8. AD-53, AD-35, AD-1, AD-13, AD-50 không đổi chữ. Bản đồ năng lực C4 thêm AD-67.
+  12b. 🔵 2026-11-03 (UX `7b643e44`, EXPERIENCE §Quy ước chữ Việt — FR159):
+      - **Dải.** `InlineStripKind` thêm đúng một loại `convention`, ưu tiên ngay sau `proofreader`, trước `tm_fuzzy`; danh sách vẫn đóng. Dải chỉ mở khi người dùng bấm vào dấu hoặc nhấn F8/Shift+F8, không mở theo vị trí con trỏ.
+      - **Đi giữa các chỗ đánh dấu.** Một cặp lệnh dùng chung `marks.next` / `marks.prev` (AD-34) đi qua dấu của cả Proofreader lẫn quy ước theo thứ tự văn bản trong Chương đang mở; phím mặc định F8/Shift+F8 chuyển sang cặp này. `ai.proofread.next/prev` giữ nguyên id và phím người dùng đã gán, chỉ mất phím mặc định. Hết chỗ thì dừng và báo, không quay vòng.
+      - **Nhập có bước xem trước** theo khuôn Glossary (AD-48, kế hoạch giữ ở Rust): luật mới · giống hệt (bỏ qua) · bất đồng (mặc định giữ luật đang có); ghi trong một giao dịch sau khi người dùng xác nhận.
+      - **Thay cả Chương gom mọi luật đang hiệu lực**, bộ lọc theo luật chỉ là bộ lọc hiển thị; lệnh ghi nhận danh sách chỗ đã chọn của mọi luật, vẫn một giao dịch (mục 7).
+  13. **Đổi gì / không đổi gì.** AD-47 ③ thêm đúng một hàng; ①②④⑤⑥ không đổi chữ. AD-31 thêm một hàng ngoại lệ có tên. AD-18 thêm loại `convention_rule`. AD-34: hai lệnh `marks.next` / `marks.prev` (mục 12b). AD-49 mục 3 thêm `convention_rule` vào nội dung người dùng; lớp (iii) nêu ngoại lệ có tên của mục 8. AD-53, AD-35, AD-1, AD-13, AD-50 không đổi chữ. Bản đồ năng lực C4 thêm AD-67.
 - **Phương án bị loại:**
   - **Loại `convention` trong tập đóng của AD-53, dùng chung `PROOF_IGNORE`:** phải dựng lại bảng `proof_ignore` vì CHECK, dời hàm chữ ký ra khỏi `core::ai`, tách FR150; chữ ký chính tả của AD-53 theo cụm còn FR159 cần theo chỗ. Ice chọn thực thể riêng ngày 2026-11-03. ⚠️ Cái giá: hai danh sách "không phải lỗi", và khoảng 40 dòng chữ ký lặp lại (mới hai chỗ dùng).
   - **Quét qua IPC sau 150 ms ngừng gõ:** cần ngoại lệ AD-1, vòng IPC thật chưa từng được đo, đường gõ ở 9.850 câu đã 43–75 ms p95 mỗi phím. Ice chọn quét sau flush ngày 2026-11-03. ⚠️ Cái giá: dấu hiện chậm tới khoảng 2 s.
