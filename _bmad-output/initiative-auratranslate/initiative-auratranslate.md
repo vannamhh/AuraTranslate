@@ -46,6 +46,7 @@ Yêu cầu nằm ở PRD (FR1–FR158 trừ FR20 đã rút, NFR1–NFR20); mỗi
 
 ## Notes
 
+- Decision: 2026-11-03, Ice — FR70 sửa (PRD `f2db4006`: câu kề và ghi chú Glossary, theo AD-65 và AD-66 ở spine `39f2583e`) thành entry 4.16 và 4.17 ở Epic 4; Epic 4 phủ thêm FR47. FR quy ước chữ Việt làm ở phiên khác.
 - Decision: 2026-11-01, Ice — FR153–FR158 (PRD `c950c6e7`, AD-64) thành Epic 15 `epic-dich-nhanh`, đứng cuối thứ tự xây sau Epic 14.
 - Decision: 2026-11-01, Ice — giữ thứ tự Epic 12 trước Epic 10 dù Epic 12 ghi chờ Epic 10: mọi story của Epic 12 đã xong, kể cả 12.21 là story cần `AttributionOverlay.vue` của 10.4, nên phụ thuộc đó không còn chặn gì.
 - Decision: 2026-10-27, Ice — PRD FR5 và FR120 sửa kèm 🔵: Chương tự chuyển Chưa bắt đầu → Đang dịch ở lần ghi bản dịch đầu tiên do người dùng, Đã xong chỉ do người đặt và đặt được trong Workspace; Chế độ đọc đọc cả Chương Đang dịch và Tạm ngưng, dừng ở Chương Chưa bắt đầu. Lý do: không lượt ghi câu nào đổi trạng thái Chương nên tiến độ FR7 đứng 0 và Chế độ đọc trống. Thành entry 5.18 và 5.19; spine không phải sửa (AD-31 chỉ chi phối trạng thái câu). `ux-auratranslate/EXPERIENCE.md` KF-2 bước 7 còn ghi tự chuyển Đã xong — chờ `bmad-ux`.

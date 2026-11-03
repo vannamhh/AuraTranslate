@@ -2,7 +2,7 @@
 type: epic
 title: "AI mở & Smart RAG Injector"
 parent: initiative-auratranslate
-covers: [FR65, FR66, FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74, FR75, FR76, FR77, FR79]
+covers: [FR47, FR65, FR66, FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74, FR75, FR76, FR77, FR79]
 after: []
 assignee: ""
 status: in-progress
@@ -21,12 +21,13 @@ Người dịch dùng AI của chính mình (API key riêng hoặc Ollama/LM Stu
 
 ## Requirements
 
+- FR47 (phần ghi chú, 🔵 2026-11-03): ghi chú của mục đã chốt được gửi cho AI cùng thuật ngữ; **ô nhập ghi chú phải nói rõ điều đó ngay tại chỗ nhập**.
 - FR65: **BYOK:** người dùng nhập API key của nhà cung cấp mình chọn.
 - FR66: **Local LLM:** kết nối tới endpoint tương thích OpenAI (Ollama, LM Studio) qua **cùng một đường cấu hình** với BYOK.
 - FR67: **API key lưu trong keychain / credential manager của hệ điều hành.** Không lưu văn bản thuần trong file dự án hay file cấu hình, không đồng bộ đi đâu.
 - FR68: Cấu hình AI (nhà cung cấp, mô hình, tham số sinh) đặt ở **tầng toàn cục**, **ghi đè được theo từng Tác phẩm**.
 - FR69: **Custom prompt theo thể loại** và theo quy chuẩn dịch. Tồn tại ở cả hai tầng; **tầng Tác phẩm thắng**.
-- FR70: Trước mỗi lần gọi AI, hệ thống quét câu nguồn và **chèn động vào prompt**: (a) các thuật ngữ Glossary xuất hiện trong câu kèm **bản dịch đã chốt**; (b) các segment tương tự tìm được trong TM. **Chỉ mục đã chốt được chèn** (FR114 không tham gia).
+- FR70: Trước mỗi lần gọi AI, hệ thống quét câu nguồn và **chèn động vào prompt**: (a) các thuật ngữ Glossary xuất hiện trong câu kèm **bản dịch đã chốt và ghi chú của mục**; (b) các segment tương tự tìm được trong TM; (c) khi dịch, **ba câu đứng ngay trước** trong cùng Chương làm ngữ cảnh chỉ đọc, kèm bản dịch đã lưu nếu có. **Chỉ mục đã chốt được chèn** (FR114 không tham gia). Câu kề áp dụng cho dịch một câu, dịch lô và thử lại; câu đã cắt bỏ khỏi bản dịch không bao giờ được gửi; ghi chú gửi trọn, không trần độ dài (🔵 2026-11-03, AD-65, AD-66).
 - FR71: Người dùng **xem được prompt cuối cùng đã gửi đi**, bao gồm toàn bộ phần chèn động.
 - FR72: Kết quả AI hiện ở **panel AI Translation** và **không tự động ghi vào Editor**. Người dùng chủ động đưa sang.
 - FR73: Dịch theo **từng segment** và theo **lô nhiều segment liên tiếp**, **huỷ được giữa chừng**.
@@ -43,6 +44,7 @@ Người dịch dùng AI của chính mình (API key riêng hoặc Ollama/LM Stu
 3. Gỡ sạch cấu hình AI thì Library, Workspace, tra cứu và Glossary vẫn chạy đầy đủ, và test tự động cưỡng chế ranh giới `ai/` đỏ khi một module ngoài `ai/` import nó.
 4. Lỗi mạng và lỗi API hiện ra bằng lý do cụ thể; số token và ước tính chi phí hiện sau mỗi lần gọi.
 5. Xuất và nhập được bộ prompt theo thể loại.
+6. Dịch một câu, dịch lô và thử lại đều mang ba câu đứng trước làm ngữ cảnh; mục Glossary đã chốt mang ghi chú vào prompt, và ô ghi chú nói rõ điều đó.
 
 ## Boundaries
 
@@ -50,7 +52,7 @@ Phần AI chủ động của người dịch (BYOK). Không phải Proofreader 
 
 ## References
 
-- parent — _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md, functional requirements FR65, FR66, FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74, FR75, FR76, FR77, FR79
+- parent — _bmad-output/initiative-auratranslate/prd-auratranslate/prd-auratranslate.md, functional requirements FR47, FR65, FR66, FR67, FR68, FR69, FR70, FR71, FR72, FR73, FR74, FR75, FR76, FR77, FR79
 - spec — _bmad-output/initiative-auratranslate/spec-auratranslate/spec-auratranslate.md
 - constraint — _bmad-output/initiative-auratranslate/architecture-auratranslate/architecture-auratranslate.md, các AD nêu trong tiêu chí của story
 - change — _bmad-output/initiative-auratranslate/change-thu-tu-thuc-thi-epic/change-thu-tu-thuc-thi-epic.md, thứ tự thực thi epic
@@ -61,3 +63,6 @@ Phần AI chủ động của người dịch (BYOK). Không phải Proofreader 
 - Parked: FR70 có nghiệm thu chia đôi; nửa Translation Memory đóng ở epic Translation Memory.
 - Open question: khi Stories 4.2–4.12 tới lượt, AC của Story 4.1 phải chạy lại trên bộ test của các epic Library và Đường nhập (xem ghi chú 🔵 trong tiêu chí Story 4.1).
 - Retrospective: epic-ai-mo-va-smart-rag-injector-retrospective.md
+- Decision: 2026-11-03, Ice — FR70 mới (PRD `f2db4006`, AD-65 và AD-66 ở spine `39f2583e`) thành entry 4.16 rồi 4.17. Tracer bullet là 4.16: nó rủi ro nhất vì đường dịch một câu đổi cách đọc kết quả, và chạy qua mọi tầng việc này chạm. Hai entry cùng sửa `core/ai/rag.rs` nên đi một làn, không `after`.
+- Decision: 2026-11-03, Ice — Epic 4 phủ thêm FR47 vì ô ghi chú chỉ đổi để phục vụ prompt (tiền lệ FR70 chia giữa Epic 4 và Epic 7).
+- Decision: 2026-11-03, Ice — không thêm story Refactor sweep: 15 story trước đã đóng và epic đã có retrospective; dọn dẹp của 4.16 và 4.17 nằm trong review của chính mỗi story.

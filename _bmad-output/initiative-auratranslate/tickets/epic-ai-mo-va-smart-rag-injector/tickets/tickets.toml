@@ -179,3 +179,25 @@ after = []
 hitl = false
 risk = "high"
 refine = true
+
+[[entry]]
+id = 16
+type = "story"
+title = "Mọi lượt dịch mang ba câu đứng trước làm ngữ cảnh, đường dịch một câu đọc theo khối"
+description = "Thi hành AD-65: dịch một câu, vùng chọn, thử lại và đầu mỗi lượt cả Chương mang tối đa 3 câu đứng ngay trước làm khối ngữ cảnh chỉ đọc; đường dịch một câu chuyển sang ngữ pháp khối của AD-60 và giữ maybe_truncated, vì hôm nay câu dịch đơn lẻ và câu thử lại không mang câu kề nào (R2 của báo cáo LLM)."
+verify = "Với cổng nghe cục bộ, khi dịch một câu ở giữa Chương thì prompt có đúng 3 khối CONTEXT trước khối SEGMENT 1; khi mô hình chép lại một khối CONTEXT thì panel AI chỉ hiện chữ của khối 1; gỡ bước thêm câu kề thì ca đầu đỏ."
+covers = ["FR70", "FR71", "FR73", "FR74"]
+after = []
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 17
+type = "story"
+title = "Mục Glossary được chèn mang theo ghi chú, ô ghi chú nói rõ được gửi cho AI"
+description = "Thi hành AD-66: render_glossary_pairs in dòng nguồn → bản dịch — ghi chú cho mục đã chốt có ghi chú, ở cả đường một câu lẫn đường lô, và ô ghi chú của mục Glossary nói rõ ghi chú được gửi cho AI, vì Glossary chỉ gửi tên nên xưng hô và giới tính nhân vật trôi giữa các Chương."
+verify = "Với một mục đã chốt có ghi chú mà thuật ngữ có trong câu, khi dịch một câu và khi dịch lô thì prompt có dòng nguồn → bản dịch — ghi chú; mục chờ chốt có ghi chú thì không ghi chú nào có trong prompt; gỡ phần in ghi chú thì ca đầu đỏ."
+covers = ["FR70", "FR47"]
+after = []
+hitl = false
+risk = "low"
