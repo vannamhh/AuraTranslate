@@ -3,7 +3,7 @@ title: 'Story 6.24 — Màn xem trước nhập: văn bản hiện một lần, 
 type: 'feature'
 ticket: 24
 created: '2026-11-02'
-status: 'built'
+status: 'done'
 baseline_revision: 'd3ccc54bb4e770e108982f748b14fd7562fdeda9'
 route: 'full'
 route_source: 'auto'
