@@ -93,3 +93,10 @@ slug = "epic-dich-nhanh"
 title = "Dịch nhanh — hiểu câu nguồn bằng mô hình rẻ, không chạm văn bản"
 description = "Người dịch đọc hiểu câu nguồn ở Bảng chờ Glossary và màn xem trước nhập URL bằng cấu hình giá rẻ riêng, kết quả giữ tới khi dọn, không chạm văn bản."
 covers = ["FR153", "FR154", "FR155", "FR156", "FR157", "FR158"]
+
+[[epic]]
+id = 16
+slug = "epic-quy-uoc-chu-viet"
+title = "Quy ước chữ Việt — bắt và thay cụm cần tránh trong bản dịch, không gọi AI"
+description = "Người dịch thấy và thay mọi chỗ vi phạm quy ước chữ Việt của mình ngay trong Editor, hai tầng luật, xuất nhập được, 0 lời gọi AI và không chỗ nào bị sửa khi chưa được nhận."
+covers = ["FR159"]

@@ -1,0 +1,83 @@
+# tickets.toml — epic-quy-uoc-chu-viet. One [[entry]] per story; table order is the build order.
+
+[[entry]]
+id = 1
+type = "story"
+title = "Một luật Global đánh dấu và thay một chỗ trong Chương đang mở"
+description = "Tracer bullet. Kho luật tầng Global, bộ khớp ở Rust (NFC chỉ để so, không phân biệt hoa thường, không gộp i/y, ranh giới âm tiết), lệnh quét bản dịch của Chương đang mở trả các khoảng khớp, dấu tại chỗ trong ô bản dịch theo khuôn vẽ của Proofreader, nhận thay một chỗ với kiểu hoa theo chỗ bị thay, đi đúng lượt ghi mà AD mới quy định. Luật không có cụm thay thế chỉ có dấu."
+verify = "Spec e2e trên WKWebView: thêm luật `đảm bảo → bảo đảm`, mở một Chương có câu `Đảm bảo an toàn.` thì dấu hiện, nhận thay thì ô thành `Bảo đảm an toàn.` và xuất xứ câu không đổi."
+covers = ["R1", "R3", "R4", "R5", "R7", "R10"]
+after = []
+hitl = false
+risk = "high"
+unknown = "Chờ AD của Winston (lượt ghi, chỗ quét), UX của Sally (dấu quy ước) và Ice trả lời Q10 PRD (luật đụng bản dịch Glossary đã chốt)."
+references = ["architecture-auratranslate/architecture-auratranslate.md §AD-47, §AD-53"]
+
+[[entry]]
+id = 2
+type = "story"
+title = "Thay cả Chương qua danh sách từng chỗ"
+description = "Màn xác nhận liệt kê mọi chỗ khớp trong Chương kèm câu chứa nó, chọn sẵn, bỏ chọn được; một lượt thay chạy trên văn bản trước khi thay, chữ vừa thay không bị khớp lại. Câu đã xác nhận giữ xác nhận, cặp TM mang chữ mới, lịch sử phiên bản ghi lại, xuất xứ không đổi; câu đã cắt không có trong danh sách. Đường lui theo AD-49."
+verify = "`cargo test` của bộ quét xanh với ca: câu `nhằm bảo đảm bảo vệ` có một chỗ khớp, bỏ chọn chỗ đó thì câu giữ nguyên từng ký tự; câu đã xác nhận sau khi thay vẫn đã xác nhận và cặp TM mang chữ mới."
+covers = ["R6", "R7", "R10", "R11"]
+after = [1]
+hitl = false
+risk = "high"
+unknown = "Chờ AD của Winston (giữ xác nhận và ghi lại TM khác AD-53 ra sao) và UX của Sally (màn xác nhận thay cả Chương)."
+
+[[entry]]
+id = 3
+type = "story"
+title = "Quản lý luật hai tầng Global và Tác phẩm"
+description = "Màn quản lý thêm, sửa, xoá luật ở hai tầng; tầng Tác phẩm tắt được luật Global mà không xoá nó; trùng cụm cần tránh thì luật Tác phẩm thắng. Dấu trong Chương đang mở cập nhật khi danh sách đổi."
+verify = "`cargo test` xanh với ca: luật Global tắt ở Tác phẩm A cho 0 chỗ khớp trong A và vẫn khớp ở Tác phẩm B; luật Tác phẩm cùng cụm thay luật Global."
+covers = ["R1", "R2", "R11"]
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Quét chữ đang gõ và gợi ý ở panel AI Translation"
+description = "Dấu cập nhật khi người dùng gõ trong ô bản dịch, trong ngân sách hiệu năng của AD; gợi ý ở panel AI Translation được đánh dấu nhưng không có thao tác thay, đưa gợi ý sang Editor thì dấu theo sang."
+verify = "Spec e2e trên WKWebView: gõ `đảm bảo` vào ô trống thì dấu hiện trước lượt flush; gợi ý chứa `đảm bảo` ở panel AI Translation có dấu và không có nút thay."
+covers = ["R3", "R4", "R11"]
+after = [1]
+hitl = false
+risk = "high"
+unknown = "Chờ AD của Winston: ngân sách hiệu năng của lượt quét khi gõ và chỗ quét chạy."
+
+[[entry]]
+id = 5
+type = "story"
+title = "\"Không phải lỗi\" nhớ theo Tác phẩm"
+description = "Đánh dấu một chỗ là \"không phải lỗi\" thì chỗ đó không hiện lại trong cùng Tác phẩm qua đóng mở; chữ ký ghi nhớ theo khuôn AD-53, xem và gỡ được như bộ nhớ của Proofreader."
+verify = "`cargo test` xanh với ca: bỏ qua một chỗ, đóng và mở lại Tác phẩm thì lượt quét không trả chỗ đó, cùng cụm ở câu khác vẫn được trả."
+covers = ["R8", "R11"]
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Xuất và nhập danh sách quy ước"
+description = "Xuất danh sách luật của một tầng ra file văn bản mở và nhập lại, theo khuôn xuất nhập của Glossary; định dạng theo câu trả lời Q11."
+verify = "`cargo test` xanh với ca: xuất danh sách rồi nhập vào danh sách trống cho lại đúng các luật, kể cả luật không có cụm thay thế."
+covers = ["R9", "R11"]
+after = [3]
+hitl = false
+risk = "low"
+unknown = "Chờ Ice trả lời Q11 PRD: định dạng file xuất và nhập."
+
+[[entry]]
+id = 7
+type = "story"
+title = "Refactor sweep"
+description = "Dọn các phát hiện review mà plan của Story 16.1–16.6 đã hoãn; chỉ dọn, phạm vi bị đẩy ra từ story khác là một story mới."
+verify = "Test canh của cả epic vẫn xanh và không còn mục hoãn nào của epic thiếu chủ."
+covers = []
+after = [1, 2, 3, 4, 5, 6]
+hitl = false
+risk = "low"

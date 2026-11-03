@@ -186,7 +186,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 | **C1** | Library — kho tài liệu & trải nghiệm đọc | Điểm vào ứng dụng | FR1–FR15, FR43, FR45, FR115, FR116, FR119, FR120, FR122–FR128, FR132, FR155 |
 | **C2** | Workspace — môi trường dịch **ba panel** *(🔵 2026-08-14: bốn → ba, lưới gộp Source + Editor)* | Trung tâm thao tác | FR16–FR26, FR42, FR44, FR78, FR117, FR129, **FR133, FR134** |
 | **C3** | Embedded Dictionary & Lookup | Điều kiện tồn tại | FR27–FR41 |
-| **C4** | Glossary & thuật ngữ | Nơi quyết định biên tập được ghi lại | FR46–FR55, FR79, FR113, FR114, FR154 |
+| **C4** | Glossary & thuật ngữ | Nơi quyết định biên tập được ghi lại | FR46–FR55, FR79, FR113, FR114, FR154, FR159 |
 | **C5** | Translation Memory & tái sử dụng | Không tra lại thứ đã tra | FR56–FR64, FR118 |
 | **C6** | AI mở & Smart RAG Injector | AI đề xuất dưới quyền người biên tập | FR65–FR77, FR153–FR158 |
 | **C7** | AI Proofreader | Bắt lỗi trước khi bàn giao | FR80–FR86 |
@@ -194,7 +194,7 @@ Sản phẩm này **không cạnh tranh ở tốc độ và không đặt mục 
 | **C9** | Dự án & dữ liệu — `.atproj`, chỉ mục, scope | Nền của C1–C8 | FR96–FR104 |
 | **C10** | Phát hành & tin cậy | Vượt rào cản không ký số | FR105–FR112 |
 
-**Tổng: 132 yêu cầu chức năng.**
+**Tổng: 158 yêu cầu chức năng còn hiệu lực** (FR1–FR159, trừ FR20 đã rút). 🔵 2026-11-03: dòng này từng ghi 132, lệch với số định nghĩa có trong tài liệu; số mới đếm các định nghĩa `**FRn.**` sau khi thêm FR159.
 
 ### 5.2 Glossary thuật ngữ
 
@@ -212,6 +212,7 @@ Mọi tài liệu downstream (`bmad-ux`, `bmad-architecture`, `bmad-create-epics
 | **Panel Lookup** | Panel số 2 của Workspace — nơi kết quả tra cứu từ điển và concordance hiện ra | ~~panel tra cứu~~ *(khi cần chính xác)* |
 | **Auto-Lookup** | Cơ chế đưa kết quả tra cứu ra Panel Lookup ngay khi bôi đen, không cần copy/paste | — |
 | **Glossary** | Bộ thuật ngữ do người dùng chốt, hai tầng Global và Tác phẩm. Cung cấp dữ liệu cho Smart RAG Injector | ~~từ điển cá nhân~~, ~~name database~~ |
+| **Quy ước chữ Việt** | Luật về chữ phía bản dịch: một cụm cần tránh, cộng cụm thay thế nếu có; hai tầng Global và Tác phẩm; quét cục bộ, không gọi AI (FR159). Khác Glossary ở chỗ không neo vào câu nguồn | — |
 | **Translation Memory** *(TM)* | Kho cặp *(segment nguồn → segment đích)* tích luỹ tự động khi người dùng xác nhận segment | ~~bộ nhớ dịch~~ |
 | **Concordance** | Tra ngược trong TM: *"cụm từ này trước đây tôi dịch thế nào?"* | — |
 | **Smart RAG Injector** | Cơ chế chèn động Glossary (kèm ghi chú) + segment TM tương tự + ba câu đứng trước vào prompt trước mỗi lần gọi AI (FR70) | — |
@@ -598,7 +599,7 @@ Glossary là nơi các quyết định biên tập của người dùng được
 
 **FR79.** **Xuất và nhập bộ prompt** dưới dạng file văn bản mở, để người dịch chia sẻ prompt theo thể loại cho nhau.
 
-> **Ranh giới đã chốt:** v1 hỗ trợ chia sẻ cộng đồng **chỉ qua trao đổi file** — Glossary (CSV/TSV), prompt (file văn bản), TM (TMX). **Không xây định dạng gói, không xây hạ tầng phân phối, không có server hay tài khoản.** Cộng đồng chia sẻ qua GitHub và diễn đàn, đúng cách QuickTranslator từng lan toả. Nhất quán với trụ định vị #3.
+> **Ranh giới đã chốt:** v1 hỗ trợ chia sẻ cộng đồng **chỉ qua trao đổi file** — Glossary (CSV/TSV), prompt (file văn bản), TM (TMX), quy ước chữ Việt (file văn bản, FR159; 🔵 2026-11-03). **Không xây định dạng gói, không xây hạ tầng phân phối, không có server hay tài khoản.** Cộng đồng chia sẻ qua GitHub và diễn đàn, đúng cách QuickTranslator từng lan toả. Nhất quán với trụ định vị #3.
 
 **FR50.** Mọi thuật ngữ có trong Glossary được **đánh dấu trực quan ở cột nguyên văn của lưới**, để người dịch thấy ngay câu đang dịch chứa thuật ngữ nào. 🔵 *(Sửa 2026-08-18 — xem ghi chú ở FR42.)* Mục **chờ chốt bản dịch** (FR114) cũng được đánh dấu, nhưng **phân biệt được** với mục đã chốt — đó chính là cơ hội để người dịch chốt nó.
 
@@ -641,6 +642,36 @@ Glossary là nơi các quyết định biên tập của người dùng được
 **FR147.** Người dùng **hoàn tác được việc chốt bản dịch** một mục Glossary ngay sau khi chốt.
 
 > Thêm 2026-10-13 qua `correct-course` (`change-hoan-thien-giao-dien-theo-mockup`).
+
+#### Quy ước chữ Việt
+
+> Thêm 2026-11-03 (Ice). Glossary ánh xạ từ nguồn sang đích, nên chỉ bắt được một chữ khi câu nguồn chứa thuật ngữ. Quy ước chữ Việt là luật về chính phía bản dịch, không có điểm neo nào ở câu nguồn.
+
+**FR159.** **Danh sách quy ước chữ Việt.** Mỗi luật gồm **một cụm cần tránh** và **một cụm thay thế nếu có**: *đảm bảo → bảo đảm*, *thập kỷ → thập niên*. Luật không có cụm thay thế nghĩa là *"không dùng"*: hệ thống chỉ đánh dấu, không gợi ý thay.
+
+- **Hai tầng** Global và Tác phẩm (FR103). Tầng Tác phẩm **thêm được luật riêng** và **tắt được một luật Global** cho riêng Tác phẩm đó mà không xoá luật khỏi Global. Một luật Tác phẩm có cùng cụm cần tránh với một luật Global thì **luật Tác phẩm thắng**, như FR46.
+- **Xuất và nhập** dưới dạng file văn bản mở, để người dịch chia sẻ quy ước cho nhau. Định dạng cụ thể: Q11.
+- **Quét cục bộ và tất định, không gọi AI.** Chuẩn hoá Unicode NFC **chỉ dùng để so**; văn bản đã lưu không bị đổi. **Không phân biệt hoa thường.** **Không gộp *i/y***: *kỷ* và *kỉ* là hai chuỗi khác nhau, vì chính cặp đó có thể là một luật.
+- **Ranh giới âm tiết:** một chỗ khớp phải bắt đầu và kết thúc ở đầu hoặc cuối văn bản, hoặc cạnh một ký tự không phải chữ cái hay chữ số (khoảng trắng, dấu câu, gạch nối). Luật *an* không khớp vào giữa *toàn*.
+- **Phạm vi quét:** mọi bản dịch, gồm gợi ý ở panel AI Translation và bản dịch trong Editor, **kể cả chữ người dùng tự gõ**. Chỗ khớp được đánh dấu **ngay tại chỗ**, như phát hiện của Proofreader (FR86). Gợi ý ở panel AI Translation **chỉ được đánh dấu**; mọi thao tác thay chỉ áp lên bản dịch trong Editor. Câu đã cắt khỏi bản dịch (FR133) không bị quét.
+- **Thay:** người dùng nhận **từng chỗ**, hoặc **thay cả Chương** qua một bước xác nhận liệt kê **mọi chỗ khớp kèm câu chứa nó**, tất cả được chọn sẵn; người dùng bỏ chọn chỗ sai rồi mới thay. Thay cả Chương chạy **một lượt trên văn bản trước khi thay**: chữ vừa thay vào không bị luật nào khớp lại trong cùng lượt.
+- **Kiểu hoa:** cụm thay thế **lấy kiểu hoa của chỗ bị thay**. Chữ đầu viết hoa thì chữ đầu cụm thay viết hoa (*Đảm bảo → Bảo đảm*); viết hoa toàn bộ thì cụm thay viết hoa toàn bộ (*ĐẢM BẢO → BẢO ĐẢM*); mọi kiểu khác thì cụm thay giữ đúng cách viết trong luật.
+- **Bỏ qua có ghi nhớ:** người dùng đánh dấu một chỗ là *"không phải lỗi"*, ví dụ lời thoại nhân vật cố ý nói *đảm bảo*; lần quét sau không báo lại chỗ đó trong cùng Tác phẩm, như FR84.
+- **Nhận thay giữ xuất xứ của câu**, như chấp nhận một đề xuất chính tả của Proofreader: câu *người khác dịch* vẫn là *người khác dịch*, câu *tôi dịch* vẫn là *tôi dịch*. Một lần thay quy ước không đổi nhãn FR117, nên câu AI không bị FR118 tính thành văn phong của người dùng. Câu **đã xác nhận** giữ trạng thái đã xác nhận, cặp TM của câu mang chữ mới (FR56), lịch sử phiên bản ghi lại như FR101.
+- **Không bao giờ tự sửa.** Mọi thay đổi chữ do người dùng nhận, như FR85.
+
+> ⚠️ **Ranh giới âm tiết không phải ranh giới từ.** Tiếng Việt viết cách theo âm tiết, nên luật *đảm bảo* khớp vào *"nhằm bảo đảm bảo vệ quyền lợi"*, tức đúng câu đã theo quy ước; thay không nhìn sẽ ra *"bảo bảo đảm vệ"*. Vì vậy bước xác nhận thay cả Chương liệt kê từng chỗ, không phải một hộp *"Thay N chỗ?"*. Ví dụ này là ví dụ dựng, tần suất trong văn xuôi chưa đo: trong `VietPhrase.txt` (679.311 dòng có dấu `=`), 18 dòng phía tiếng Việt chứa *đảm bảo* và 0 dòng chứa *bảo đảm bảo*, nhưng đó là cụm ngắn, không phải văn xuôi.
+
+> **Vì sao không đủ bằng prompt (FR69):** ghi quy ước vào thân bộ prompt dùng được ngay, không cần mã, nhưng chỉ tác động lên bản dịch AI, mô hình không chắc tuân theo, và không bắt được chữ người dùng tự gõ.
+
+> **Tiêu chí nghiệm thu cho FR159:**
+> - Một lượt quét gọi AI **0** lần. Hai lượt quét trên cùng văn bản với cùng danh sách luật cho **cùng một** tập chỗ khớp.
+> - Luật *kỷ* không khớp *kỉ*; luật *an* không khớp trong *toàn*; *Đảm bảo* thay thành *Bảo đảm*, *ĐẢM BẢO* thành *BẢO ĐẢM*.
+> - Luật không có cụm thay thế cho ra dấu đánh dấu và **không có** thao tác thay.
+> - Sau thay cả Chương, mọi chỗ bị bỏ chọn **giữ nguyên từng ký tự**; câu đã xác nhận vẫn đã xác nhận, xuất xứ không đổi, và cặp TM của nó mang chữ mới.
+> - Một luật Global bị tắt ở Tác phẩm A cho **0** chỗ đánh dấu trong A và vẫn đánh dấu ở Tác phẩm B.
+> - Chỗ đã đánh dấu *"không phải lỗi"* không hiện lại sau khi đóng và mở lại Tác phẩm.
+> - Xuất danh sách luật rồi nhập vào một danh sách trống cho lại đúng các luật đó.
 
 ---
 
@@ -907,8 +938,8 @@ Khối này **bật/tắt được** và áp cho **mọi định dạng xuất**
 
 | Tầng | Chứa gì |
 |---|---|
-| **Global** | Cấu hình AI, prompt chung, Glossary toàn cục, TM toàn cục, phím tắt, preset bố cục |
-| **Tác phẩm** | Glossary riêng, prompt riêng, TM riêng, **ngôn ngữ nguồn (cố định, đặt lúc tạo)** |
+| **Global** | Cấu hình AI, prompt chung, Glossary toàn cục, TM toàn cục, quy ước chữ Việt toàn cục (FR159), phím tắt, preset bố cục |
+| **Tác phẩm** | Glossary riêng, prompt riêng, TM riêng, quy ước chữ Việt riêng và các luật Global đã tắt (FR159), **ngôn ngữ nguồn (cố định, đặt lúc tạo)** |
 
 > *Tầng Tác phẩm tương ứng "Project Scope" trong PRD v8.0 — xem Glossary §5.2.*
 
@@ -965,7 +996,7 @@ Phần lớn các ngưỡng dưới đây **không phải phỏng đoán** — c
 | **NFR6** | Kích thước bản cài kèm toàn bộ từ điển | **[A2]** Trần **500.000.000 byte** *(500 MB thập phân)* cho **payload sản phẩm** — mã, font, dữ liệu từ điển — **không có cơ chế tải thêm sau khi cài**. 🔵 *(Nâng từ 400.000.000 ngày 2026-10-21, thay đổi tầng PRD do Ice ký — xem sửa lần ba. Đo trên build release thật cùng ngày: macOS **432.363.050 byte**, Windows **415.937.424 byte** — ĐẠT.)* **Bản WebView2 Runtime nhúng trên Windows nằm NGOÀI trần này**; xem giải thích dưới bảng |
 | **NFR7** | Tra cứu khi ngoại tuyến | **100%** hoạt động không cần mạng |
 | **NFR8** | Độ chính xác dấu tiếng Việt | Chỉ mục tìm kiếm **chính** phải **phân biệt dấu**. Chế độ xoá dấu chỉ được tồn tại như một chỉ mục **phụ**, không bao giờ là mặc định. 🔵 2026-10-28 (AD-61, FR9): "mặc định" nghĩa là chỉ mục chính quyết kết quả cho mọi truy vấn có dấu, và một truy vấn có dấu không bao giờ bị gấp dấu trừ khi tìm chính xác ra 0 kết quả. Chỉ mục phụ chạy ngay từ đầu chỉ khi truy vấn không mang dấu nào, nơi không còn dấu để phân biệt. NFR8 giữ nguyên |
-| **NFR9** | Khả năng mang dữ liệu đi | TM xuất được TMX; Glossary và prompt xuất được định dạng văn bản mở; `.atproj` tự chứa và mở được trên máy khác |
+| **NFR9** | Khả năng mang dữ liệu đi | TM xuất được TMX; Glossary, prompt và quy ước chữ Việt (FR159; 🔵 2026-11-03) xuất được định dạng văn bản mở; `.atproj` tự chứa và mở được trên máy khác |
 | **NFR10** | Toàn vẹn dữ liệu | Mất chỉ mục Library **không được** làm mất dữ liệu — chỉ mục dựng lại được hoàn toàn từ `.atproj` |
 
 > **NFR6 sửa 2026-08-03 — Ice quyết, sau khi Story 1.2 đổi `webviewInstallMode` sang `offlineInstaller`.** Bản `.msi` trên Windows nhúng trọn WebView2 Runtime (**≈ 127 MB** lúc quyết, tải lúc build. 🔵 Đo 2026-10-21 trong `.msi` thật: 214.156.024 byte.) để giữ lời hứa *cài được khi không có mạng* — cùng lời hứa mà NFR7 và NFR12 đang mang. Runtime đó là thành phần của hệ điều hành, không phải payload của sản phẩm, nên **nó không tính vào trần NFR6** *(lúc đó là 150–200 MB. 🔵 Nay là 500.000.000 byte — xem sửa lần hai và lần ba bên dưới. Mệnh đề "WebView2 nằm ngoài trần" không đổi)*. Hệ quả bắt buộc, không được bỏ: **mọi phép đo dung lượng phải tách hai dòng** — *payload sản phẩm* (đối chiếu với trần) và *WebView2 Runtime nhúng* (ghi ra, không đối chiếu). Nhờ cách phát biểu này, trần vẫn là **một** con số chung cho macOS lẫn Windows. Đường quay lui vẫn còn nếu về sau thấy `.msi` quá lớn để người dùng tải: đổi về `downloadBootstrapper` (mất mệnh đề cài offline) hoặc phát hành NSIS thay `.msi` — cả hai là quyết định ở Story 10.2, không phải ở tầng kiến trúc.
@@ -1281,6 +1312,8 @@ Hai yêu cầu dưới đây không thuộc riêng giai đoạn nào và chung m
 | ~~Q7~~ | ~~Mất tối đa bao nhiêu công việc khi app sập là chấp nhận được?~~ | — | ✅ **Đóng 2026-08-02** — thành **NFR18**, ngưỡng ≤ 5 giây |
 | ~~Q8~~ | ~~Phép dùng HVTĐTD có bao gồm phân phối lại không?~~ | — | ✅ **Đóng 2026-08-02** — chủ dự án chọn **mặc định cho phép** đóng gói vào bản phát hành, **gỡ khi tác giả yêu cầu**. Không hỏi lại trước khi đóng gói. Xem §8.3, §8.6 và R12 |
 | **Q9** | **Hiệu chỉnh ngưỡng bố cục màn hình hẹp (A11)** — bốn mốc do thiết kế đặt: **≥ 1100×820** giữ bố cục đã chọn đủ ba panel · **< 820 cao** gộp Tra cứu và Đề xuất AI thành một panel có tab · **< 1100 rộng hoặc < 700 cao** chỉ còn **lưới**, Tra cứu rút về ngăn kéo · **< 860 rộng** báo không hỗ trợ *(🔵 2026-08-14: diễn đạt theo panel thay vì vị trí; **bốn con số không đổi**. Phạm vi rộng ra — nay phải hiệu chỉnh cho **hai** bố cục Ⓑ-1 và Ⓑ-2)* | Chủ dự án | **Đo trên máy thật khi có bản chạy được** (Giai đoạn 2 trở đi, ngay khi Workspace dựng xong). **Không chặn tiến độ** — cùng lý do A6/A7/A8: một ngưỡng tạm vẫn nghiệm thu được và vẫn buộc người dựng phải đo, một tính từ thì không. Chỉ số được hiệu chỉnh; **thứ tự hy sinh panel là quyết định, không hiệu chỉnh**. Ngưỡng gốc ở `bmad-ux` EXPERIENCE.md và `mockups/narrow-layout.html` |
+| **Q10** | **Luật quy ước chữ Việt đụng bản dịch Glossary đã chốt** (FR159): một bản dịch đã chốt, ví dụ tên riêng, có thể chứa đúng cụm một luật cần tránh. Bộ quét có bỏ qua chữ do Glossary quy định không? Hiện người dùng chỉ có *"không phải lỗi"* từng chỗ | Chủ dự án | Chốt trước story đầu tiên của FR159 |
+| **Q11** | **Định dạng file xuất và nhập quy ước chữ Việt** (FR159): FR159 mới nói *"file văn bản mở"* | Chủ dự án | Chốt trước story xuất/nhập của FR159 |
 
 ### Ghi chú bàn giao
 
