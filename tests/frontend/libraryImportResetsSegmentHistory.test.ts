@@ -83,6 +83,7 @@ describe('🔴 đổi Tác phẩm ⇒ state lịch sử phiên bản KHÔNG số
     expect(history.historySegmentId.value).not.toBeNull()
 
     // Đúng đường sản phẩm, BƯỚC MỘT — nộp form chỉ MỞ màn xem trước, không tạo gì cả.
+    nhap.name.value = 'Tac pham moi'
     nhap.pastedText.value = 'Cau nguyen van cua Tac pham moi.'
     await nhap.submitPastedText()
     expect(preview.importPreviewIsOpen.value).toBe(true)

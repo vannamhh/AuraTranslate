@@ -73,6 +73,7 @@ describe('the remembered queue cursor does not outlive the open Work', () => {
     queue.setGlossaryQueueCursor(2)
     queue.closeGlossaryQueue()
 
+    imp.name.value = 'Tac pham moi'
     imp.pastedText.value = 'Cau nguyen van.'
     await imp.submitPastedText()
     const result = await preview.confirmImportPreview()

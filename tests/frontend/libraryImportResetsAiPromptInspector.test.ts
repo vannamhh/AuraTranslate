@@ -102,6 +102,7 @@ describe('🔴 đổi Tác phẩm (nhập mới) ⇒ bản ghi prompt cuối cù
     expect(aiPrompt.aiPromptInspectorIsOpen.value).toBe(true)
 
     // Đúng đường sản phẩm, BƯỚC MỘT — nộp form chỉ MỞ màn xem trước, không tạo gì cả.
+    nhap.name.value = 'Tac pham moi'
     nhap.pastedText.value = 'Cau nguyen van cua Tac pham moi.'
     await nhap.submitPastedText()
     expect(preview.importPreviewIsOpen.value).toBe(true)
@@ -126,6 +127,7 @@ describe('🔴 đổi Tác phẩm (nhập mới) ⇒ bản ghi prompt cuối cù
   it('finishImportSubmission tự chọn bộ prompt theo genre của Tác phẩm vừa tạo', async () => {
     const nhap = await import('../../src/modes/libraryImport')
     const preview = await import('../../src/importPreviewState')
+    nhap.name.value = 'Tac pham moi'
     nhap.pastedText.value = 'Cau nguyen van cua Tac pham moi.'
     await nhap.submitPastedText()
     const result = await preview.confirmImportPreview()

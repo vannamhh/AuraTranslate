@@ -58,6 +58,7 @@ describe('alignment and reviewer-import state do not outlive the open Work', () 
     const imp = await import('../../src/modes/libraryImport')
     const preview = await import('../../src/importPreviewState')
 
+    imp.name.value = 'Tac pham moi'
     imp.pastedText.value = 'Cau nguyen van.'
     await imp.submitPastedText()
     const result = await preview.confirmImportPreview()

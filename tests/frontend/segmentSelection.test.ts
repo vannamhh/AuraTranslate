@@ -384,6 +384,7 @@ describe('cụm reset #2 — `modes/libraryImport.ts::finishImportSubmission` (�
     const nhap = await import('../../src/modes/libraryImport')
     const preview = await import('../../src/importPreviewState')
 
+    nhap.name.value = 'Tac pham moi'
     nhap.pastedText.value = 'Cau nguyen van cua Tac pham moi.'
     await nhap.submitPastedText()
     expect(preview.importPreviewIsOpen.value).toBe(true)

@@ -50,6 +50,7 @@ describe('🔴 lượt xác nhận TRƯỢT rồi THÀNH CÔNG — ô đường 
     const nhap = await import('../../src/modes/libraryImport')
     const preview = await import('../../src/importPreviewState')
 
+    nhap.name.value = 'Tac pham moi'
     nhap.filePath.value = '/tmp/gbk.txt'
     previewFileMock.mockResolvedValue({
       batch: {

@@ -230,6 +230,7 @@ describe('cụm reset #2 — `modes/libraryImport.ts::finishImportSubmission` hu
     expect(batchState.aiTranslateBatchStateValue.value).toBe('generating')
 
     cancelMock.mockClear()
+    nhap.name.value = 'Tac pham moi'
     nhap.pastedText.value = 'Cau nguyen van cua Tac pham moi.'
     await nhap.submitPastedText()
     expect(preview.importPreviewIsOpen.value).toBe(true)

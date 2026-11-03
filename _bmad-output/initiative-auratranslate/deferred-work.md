@@ -13900,6 +13900,7 @@ chính nó.
   summary: 8 ca vitest ở 7 tệp reset-khi-nhập (`glossaryQueueResetWiring`, `libraryImportResets*`, `segmentSelection` …) đỏ từ `d6031830dc8fb73ebfcdbd60459536571fc53003` (6-23): `confirmImportPreview()` trả `created = null`; ở `b3ab13b1461b11c97491874b1c1ced99509f9a18` còn xanh.
   evidence: chạy lại trên worktree ở baseline `33209d4b168dbb1c3787201e352a41454e13fd0e` vẫn đỏ đúng 8 ca, nên không do việc điền câu trùng; `pre-push` sẽ chặn mọi lần push tới khi sửa.
   Chủ: Story 6.23
+  → ✅ ĐÃ ĐÓNG 2026-11-03 (Story 6.23): `importPreviewCanConfirm` của 6-23 chặn tên Tác phẩm rỗng, mà 8 ca nộp không đặt tên; nay đặt `name.value` trước lượt nộp, mã không đổi.
 
 - source_plan: `plan-dien-cau-trung-ngay-sau-khi-xac-nhan.md`
   summary: chưa kiểm trên app thật rằng ký một câu thì câu cùng nguồn trong Chương hiện ngay bản dịch, có dấu TM, vẫn chưa xác nhận; chưa chạy spec e2e nào sau thay đổi.
